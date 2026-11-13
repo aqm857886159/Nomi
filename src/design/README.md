@@ -19,6 +19,7 @@
 - `DesignTextInput` / `DesignTextarea` / `DesignNumberInput` / `DesignCheckbox` / `DesignSwitch` / `DesignSegmentedControl`（`forms.tsx`）—— Mantine-backed。
 - `NomiSelect`（`NomiSelect.tsx`）—— 选择面板主力（27 个文件）。**没有 `DesignSelect`，用这个。**
 - `NomiSegmented`（`NomiSegmented.tsx`）—— 原生分段控件（5 个文件）；与 `DesignSegmentedControl` 是近重复，合并归属 D 档刀 4。
+- `NomiOverflowRow`（`NomiOverflowRow.tsx`）—— 一排按钮放不下时从右往左收进「⋯」（测量用 `@fluentui/priority-overflow`，外观是自己的 + `WorkbenchMenu`）；永不让位的按钮放在这一排外面。
 - `DesignSearchInput`（`searchInput.tsx`）—— 搜索框（7 个文件；另有 3 处更小的内嵌过滤框没收口，理由见该文件注释）。
 
 **状态与空态** `status.tsx` / `emptyState.tsx`

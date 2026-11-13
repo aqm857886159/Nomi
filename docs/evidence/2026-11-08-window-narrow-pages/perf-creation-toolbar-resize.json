@@ -1,0 +1,51 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "f44c6a7e9",
+  "head": "f44c6a7e9b6069f904e611e83ccc0263c5df875a",
+  "dirty": false,
+  "sourceTree": "b8b833e0e62666c5218a926abe6e2b4c94227c54",
+  "date": "2026-11-07",
+  "runs": 5,
+  "results": [
+    {
+      "id": "creation-toolbar-resize",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 10.7,
+          "p95": 10.8
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          10.7,
+          10.7,
+          10.5,
+          10.8,
+          10.8
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 33,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

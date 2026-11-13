@@ -1,0 +1,748 @@
+{
+  "zh-light": {
+    "window": {
+      "width": 1100,
+      "height": 900
+    },
+    "creation1100": {
+      "section": {
+        "left": 60,
+        "right": 744,
+        "top": 40,
+        "bottom": 892,
+        "width": 684
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 340
+      },
+      "content": {
+        "left": 110,
+        "right": 790,
+        "top": 88,
+        "bottom": 892,
+        "width": 680
+      },
+      "scroll": {
+        "scrollWidth": 780,
+        "clientWidth": 780
+      },
+      "toolbar": {
+        "left": 60,
+        "right": 840,
+        "top": 40,
+        "bottom": 88,
+        "width": 780
+      },
+      "undo": {
+        "left": 764,
+        "right": 794,
+        "top": 49,
+        "bottom": 79,
+        "width": 30
+      },
+      "redo": {
+        "left": 798,
+        "right": 828,
+        "top": 49,
+        "bottom": 79,
+        "width": 30
+      },
+      "trigger": null,
+      "visible": [],
+      "hidden": [],
+      "legacyButtons": [
+        "bold@211-241",
+        "italic@245-275",
+        "strike@279-309",
+        "code@313-343",
+        "highlight@347-377",
+        "h1@394-424",
+        "h2@428-458",
+        "h3@462-492",
+        "blockquote@496-526",
+        "horizontal-rule@530-560",
+        "bullet-list@577-607",
+        "ordered-list@611-641",
+        "task-list@645-675",
+        "table@692-722",
+        "link@726-756",
+        "undo@764-794",
+        "redo@798-828"
+      ]
+    },
+    "preview1100x720": {
+      "innerWidth": 1100,
+      "innerHeight": 720,
+      "preview": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "root": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 340,
+        "height": 672
+      },
+      "composer": {
+        "left": 762,
+        "right": 1082,
+        "top": 604,
+        "bottom": 702,
+        "width": 320,
+        "height": 98
+      },
+      "spendCard": {
+        "left": 762,
+        "right": 1082,
+        "top": 403,
+        "bottom": 596,
+        "width": 320,
+        "height": 193
+      },
+      "spendConfirm": {
+        "left": 979,
+        "right": 1071,
+        "top": 559,
+        "bottom": 587,
+        "width": 92,
+        "height": 28
+      },
+      "spendReject": {
+        "left": 923,
+        "right": 973,
+        "top": 559,
+        "bottom": 587,
+        "width": 50,
+        "height": 28
+      },
+      "play": {
+        "left": 309,
+        "right": 337,
+        "top": 418,
+        "bottom": 446,
+        "width": 28,
+        "height": 28
+      },
+      "player": {
+        "left": 301,
+        "right": 711,
+        "top": 40,
+        "bottom": 451,
+        "width": 410,
+        "height": 411
+      },
+      "timeline": {
+        "left": 210,
+        "right": 726,
+        "top": 522,
+        "bottom": 543,
+        "width": 516,
+        "height": 21
+      },
+      "rails": [
+        {
+          "box": {
+            "left": 712,
+            "right": 744,
+            "top": 40,
+            "bottom": 451,
+            "width": 32,
+            "height": 411
+          },
+          "label": "属性",
+          "name": "展开属性"
+        }
+      ],
+      "documentScrollHeight": 720
+    },
+    "preview1100x900": {
+      "innerWidth": 1100,
+      "innerHeight": 900,
+      "preview": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 1032,
+        "height": 852
+      },
+      "root": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 1032,
+        "height": 852
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 340,
+        "height": 852
+      },
+      "composer": {
+        "left": 762,
+        "right": 1082,
+        "top": 784,
+        "bottom": 882,
+        "width": 320,
+        "height": 98
+      },
+      "spendCard": {
+        "left": 762,
+        "right": 1082,
+        "top": 583,
+        "bottom": 776,
+        "width": 320,
+        "height": 193
+      },
+      "spendConfirm": {
+        "left": 979,
+        "right": 1071,
+        "top": 739,
+        "bottom": 767,
+        "width": 92,
+        "height": 28
+      },
+      "spendReject": {
+        "left": 923,
+        "right": 973,
+        "top": 739,
+        "bottom": 767,
+        "width": 50,
+        "height": 28
+      },
+      "play": {
+        "left": 309,
+        "right": 337,
+        "top": 598,
+        "bottom": 626,
+        "width": 28,
+        "height": 28
+      },
+      "player": {
+        "left": 301,
+        "right": 711,
+        "top": 40,
+        "bottom": 631,
+        "width": 410,
+        "height": 591
+      },
+      "timeline": {
+        "left": 210,
+        "right": 726,
+        "top": 702,
+        "bottom": 723,
+        "width": 516,
+        "height": 21
+      },
+      "rails": [
+        {
+          "box": {
+            "left": 712,
+            "right": 744,
+            "top": 40,
+            "bottom": 631,
+            "width": 32,
+            "height": 591
+          },
+          "label": "属性",
+          "name": "展开属性"
+        }
+      ],
+      "documentScrollHeight": 900
+    },
+    "preview900to720": {
+      "innerWidth": 1100,
+      "innerHeight": 720,
+      "preview": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "root": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 340,
+        "height": 852
+      },
+      "composer": {
+        "left": 762,
+        "right": 1082,
+        "top": 784,
+        "bottom": 882,
+        "width": 320,
+        "height": 98
+      },
+      "spendCard": {
+        "left": 762,
+        "right": 1082,
+        "top": 583,
+        "bottom": 776,
+        "width": 320,
+        "height": 193
+      },
+      "spendConfirm": {
+        "left": 979,
+        "right": 1071,
+        "top": 739,
+        "bottom": 767,
+        "width": 92,
+        "height": 28
+      },
+      "spendReject": {
+        "left": 923,
+        "right": 973,
+        "top": 739,
+        "bottom": 767,
+        "width": 50,
+        "height": 28
+      },
+      "play": {
+        "left": 309,
+        "right": 337,
+        "top": 598,
+        "bottom": 626,
+        "width": 28,
+        "height": 28
+      },
+      "player": {
+        "left": 301,
+        "right": 711,
+        "top": 40,
+        "bottom": 631,
+        "width": 410,
+        "height": 591
+      },
+      "timeline": {
+        "left": 210,
+        "right": 726,
+        "top": 702,
+        "bottom": 723,
+        "width": 516,
+        "height": 21
+      },
+      "rails": [
+        {
+          "box": {
+            "left": 712,
+            "right": 744,
+            "top": 40,
+            "bottom": 631,
+            "width": 32,
+            "height": 591
+          },
+          "label": "属性",
+          "name": "展开属性"
+        }
+      ],
+      "documentScrollHeight": 720
+    }
+  },
+  "en-dark": {
+    "window": {
+      "width": 1100,
+      "height": 900
+    },
+    "creation1100": {
+      "section": {
+        "left": 60,
+        "right": 744,
+        "top": 40,
+        "bottom": 892,
+        "width": 684
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 340
+      },
+      "content": {
+        "left": 126,
+        "right": 806,
+        "top": 88,
+        "bottom": 892,
+        "width": 680
+      },
+      "scroll": {
+        "scrollWidth": 812,
+        "clientWidth": 812
+      },
+      "toolbar": {
+        "left": 60,
+        "right": 872,
+        "top": 40,
+        "bottom": 88,
+        "width": 812
+      },
+      "undo": {
+        "left": 796,
+        "right": 826,
+        "top": 49,
+        "bottom": 79,
+        "width": 30
+      },
+      "redo": {
+        "left": 830,
+        "right": 860,
+        "top": 49,
+        "bottom": 79,
+        "width": 30
+      },
+      "trigger": null,
+      "visible": [],
+      "hidden": [],
+      "legacyButtons": [
+        "bold@243-273",
+        "italic@277-307",
+        "strike@311-341",
+        "code@345-375",
+        "highlight@379-409",
+        "h1@426-456",
+        "h2@460-490",
+        "h3@494-524",
+        "blockquote@528-558",
+        "horizontal-rule@562-592",
+        "bullet-list@609-639",
+        "ordered-list@643-673",
+        "task-list@677-707",
+        "table@724-754",
+        "link@758-788",
+        "undo@796-826",
+        "redo@830-860"
+      ]
+    },
+    "preview1100x720": {
+      "innerWidth": 1100,
+      "innerHeight": 720,
+      "preview": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "root": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 340,
+        "height": 672
+      },
+      "composer": {
+        "left": 762,
+        "right": 1082,
+        "top": 604,
+        "bottom": 702,
+        "width": 320,
+        "height": 98
+      },
+      "spendCard": {
+        "left": 762,
+        "right": 1082,
+        "top": 403,
+        "bottom": 596,
+        "width": 320,
+        "height": 193
+      },
+      "spendConfirm": {
+        "left": 921,
+        "right": 1071,
+        "top": 559,
+        "bottom": 587,
+        "width": 150,
+        "height": 28
+      },
+      "spendReject": {
+        "left": 849,
+        "right": 915,
+        "top": 559,
+        "bottom": 587,
+        "width": 66,
+        "height": 28
+      },
+      "play": {
+        "left": 309,
+        "right": 337,
+        "top": 418,
+        "bottom": 446,
+        "width": 28,
+        "height": 28
+      },
+      "player": {
+        "left": 301,
+        "right": 711,
+        "top": 40,
+        "bottom": 451,
+        "width": 410,
+        "height": 411
+      },
+      "timeline": {
+        "left": 210,
+        "right": 726,
+        "top": 522,
+        "bottom": 543,
+        "width": 516,
+        "height": 21
+      },
+      "rails": [
+        {
+          "box": {
+            "left": 712,
+            "right": 744,
+            "top": 40,
+            "bottom": 451,
+            "width": 32,
+            "height": 411
+          },
+          "label": "Inspector",
+          "name": "Expand inspector"
+        }
+      ],
+      "documentScrollHeight": 720
+    },
+    "preview1100x900": {
+      "innerWidth": 1100,
+      "innerHeight": 900,
+      "preview": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 1032,
+        "height": 852
+      },
+      "root": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 1032,
+        "height": 852
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 340,
+        "height": 852
+      },
+      "composer": {
+        "left": 762,
+        "right": 1082,
+        "top": 784,
+        "bottom": 882,
+        "width": 320,
+        "height": 98
+      },
+      "spendCard": {
+        "left": 762,
+        "right": 1082,
+        "top": 583,
+        "bottom": 776,
+        "width": 320,
+        "height": 193
+      },
+      "spendConfirm": {
+        "left": 921,
+        "right": 1071,
+        "top": 739,
+        "bottom": 767,
+        "width": 150,
+        "height": 28
+      },
+      "spendReject": {
+        "left": 849,
+        "right": 915,
+        "top": 739,
+        "bottom": 767,
+        "width": 66,
+        "height": 28
+      },
+      "play": {
+        "left": 309,
+        "right": 337,
+        "top": 598,
+        "bottom": 626,
+        "width": 28,
+        "height": 28
+      },
+      "player": {
+        "left": 301,
+        "right": 711,
+        "top": 40,
+        "bottom": 631,
+        "width": 410,
+        "height": 591
+      },
+      "timeline": {
+        "left": 210,
+        "right": 726,
+        "top": 702,
+        "bottom": 723,
+        "width": 516,
+        "height": 21
+      },
+      "rails": [
+        {
+          "box": {
+            "left": 712,
+            "right": 744,
+            "top": 40,
+            "bottom": 631,
+            "width": 32,
+            "height": 591
+          },
+          "label": "Inspector",
+          "name": "Expand inspector"
+        }
+      ],
+      "documentScrollHeight": 900
+    },
+    "preview900to720": {
+      "innerWidth": 1100,
+      "innerHeight": 720,
+      "preview": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "root": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 340,
+        "height": 852
+      },
+      "composer": {
+        "left": 762,
+        "right": 1082,
+        "top": 784,
+        "bottom": 882,
+        "width": 320,
+        "height": 98
+      },
+      "spendCard": {
+        "left": 762,
+        "right": 1082,
+        "top": 583,
+        "bottom": 776,
+        "width": 320,
+        "height": 193
+      },
+      "spendConfirm": {
+        "left": 921,
+        "right": 1071,
+        "top": 739,
+        "bottom": 767,
+        "width": 150,
+        "height": 28
+      },
+      "spendReject": {
+        "left": 849,
+        "right": 915,
+        "top": 739,
+        "bottom": 767,
+        "width": 66,
+        "height": 28
+      },
+      "play": {
+        "left": 309,
+        "right": 337,
+        "top": 598,
+        "bottom": 626,
+        "width": 28,
+        "height": 28
+      },
+      "player": {
+        "left": 301,
+        "right": 711,
+        "top": 40,
+        "bottom": 631,
+        "width": 410,
+        "height": 591
+      },
+      "timeline": {
+        "left": 210,
+        "right": 726,
+        "top": 702,
+        "bottom": 723,
+        "width": 516,
+        "height": 21
+      },
+      "rails": [
+        {
+          "box": {
+            "left": 712,
+            "right": 744,
+            "top": 40,
+            "bottom": 631,
+            "width": 32,
+            "height": 591
+          },
+          "label": "Inspector",
+          "name": "Expand inspector"
+        }
+      ],
+      "documentScrollHeight": 720
+    }
+  }
+}
