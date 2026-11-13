@@ -14,6 +14,7 @@ import { useGenerationCanvasStore } from '../../../workbench/generationCanvas/st
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
 import { seedModelCatalogForTests } from '../../../config/modelCatalogCache'
 import type { ModelOption } from '../../../config/models'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../../../workbench/generationCanvas/model/generationCanvasTypes'
 
 export const B3_CELL_WIDTH = 900
@@ -31,12 +32,18 @@ const refUrl = (name: string): string => {
   return `${window.location.origin}${REF_DIR}/${encodeURIComponent(base)}.svg${salt ? `?i=${salt}` : ''}`
 }
 
-export type B3Model = 'seedance' | 'seedance25' | 'seedance25Apimart' | 'kling4' | 'wan' | 'gpt-image' | 'imagen' | 'soul'
+export type B3Model = 'seedance' | 'seedance2Apimart' | 'seedance25' | 'seedance25Apimart' | 'kling4' | 'wan' | 'gpt-image' | 'imagen' | 'soul'
 
 const MODELS: Record<B3Model, { option: ModelOption; archetype: string; variantId?: string }> = {
   seedance: {
     option: { value: 'bytedance/seedance-2', modelKey: 'seedance-2', modelAlias: 'bytedance/seedance-2', vendor: 'apimart', vendorName: '渠道 A', label: 'Seedance 2.0', kind: 'video' },
     archetype: 'seedance-2',
+    variantId: 'fast',
+  },
+  // APIMart 的 Seedance 2.0（标准 / Fast / Mini 三个变体）：模型菜单里变体各占一行的样张用它，节点存着 Fast。
+  seedance2Apimart: {
+    option: { value: 'doubao-seedance-2.0', modelKey: 'doubao-seedance-2.0', vendor: 'apimart', vendorName: 'APIMart', label: 'Seedance 2.0', kind: 'video' },
+    archetype: 'seedance-2-apimart',
     variantId: 'fast',
   },
   // 参考上限最大的视频档案（30 图 / 10 视频 / 10 音频）：参考行最坏规模。
@@ -72,6 +79,22 @@ const MODELS: Record<B3Model, { option: ModelOption; archetype: string; variantI
     option: { value: 'imagen-4', modelKey: 'imagen-4', vendor: 'apimart', vendorName: '渠道 A', label: 'Imagen 4', kind: 'image' },
     archetype: 'imagen-4',
   },
+}
+
+/** 生产目录的每一行都带档案 id（模型菜单的品牌图标和能力描述靠它）；实验室的行跟生产同形。 */
+const withArchetype = (model: { option: ModelOption; archetype: string }): ModelOption => ({ ...model.option, meta: { archetypeId: model.archetype } })
+
+/** 取景台目录：每个视频档案一行（51 个，比任何真实用户的目录都满——「最多行 / 最长名 / 最长描述」按档案数据本身来）；two-vendors 再把三个模型挪到另一家。
+ *  不 import `electron/catalog`：它一路拉到 `electron` 本体，浏览器里加载不了。 */
+function realVideoCatalog(mode: 'apimart' | 'two-vendors'): ModelOption[] {
+  const rows = MODEL_ARCHETYPES.filter((archetype) => archetype.kind === 'video').map((archetype): ModelOption => ({
+    value: archetype.id, modelKey: archetype.id, vendor: 'apimart', vendorName: 'APIMart', label: archetype.label, kind: 'video', meta: { archetypeId: archetype.id },
+  }))
+  const current = MODELS.seedance2Apimart.option
+  const seeded = [{ ...current, meta: { archetypeId: MODELS.seedance2Apimart.archetype } }, ...rows.filter((row) => row.label !== current.label)]
+  if (mode === 'apimart') return seeded
+  const moved = new Set(['kling-v4', 'wan-3.0-apimart', 'veo-3.1'])
+  return seeded.map((row) => (moved.has(row.modelKey ?? '') ? { ...row, vendor: 'kie', vendorName: 'Kie' } : row))
 }
 
 /** 目录里另有的行：模型菜单里「只列模型」、同模型多渠道的小签（B3o）。 */
@@ -126,6 +149,8 @@ export type B3Scenario = {
   channelGap?: 'switch' | 'none'
   /** 打开后自动点一下的东西：参数面板 / 模型菜单 / 底栏方式菜单。 */
   open?: 'params' | 'model' | 'mode'
+  /** 模型菜单的目录：apimart = APIMart 目录里的全部视频行（真数据：最多行 / 最长名 / 最长描述）；two-vendors = 再加另一家供应商的几行（供应商名规则）。缺省 = 实验室那几行。 */
+  catalog?: 'apimart' | 'two-vendors'
   /** 参数值覆盖（边界 K4：21:9 · 1080p · 15s 这种最长的一串）。 */
   params?: Record<string, unknown>
   /** 节点上留着的「放了 N 张，已改成 X」（输入变多、手选的方式放不下时 store 写的那条）。 */
@@ -230,8 +255,8 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
   const built = React.useMemo(() => buildNodes(scenario), [scenario])
   const [ready, setReady] = React.useState(false)
   React.useLayoutEffect(() => {
-    const videoOptions = [MODELS.seedance.option, (scenario.model === 'seedance25Apimart' ? MODELS.seedance25Apimart : MODELS.seedance25).option, MODELS.kling4.option, MODELS.wan.option, ...EXTRA_VIDEO_OPTIONS, ...(scenario.secondChannel || scenario.channelGap === 'switch' ? [SECOND_CHANNEL] : [])]
-    const imageOptions = [MODELS.imagen.option, MODELS['gpt-image'].option, MODELS.soul.option]
+    const videoOptions = scenario.catalog ? realVideoCatalog(scenario.catalog) : [withArchetype(MODELS.seedance), withArchetype(scenario.model === 'seedance25Apimart' ? MODELS.seedance25Apimart : MODELS.seedance25), withArchetype(MODELS.kling4), withArchetype(MODELS.wan), ...EXTRA_VIDEO_OPTIONS, ...(scenario.secondChannel || scenario.channelGap === 'switch' ? [SECOND_CHANNEL] : [])]
+    const imageOptions = [withArchetype(MODELS.imagen), withArchetype(MODELS['gpt-image']), withArchetype(MODELS.soul)]
     seedModelCatalogForTests(HEALTH, [
       { kind: 'video', requiredMode: 'text_to_video', options: videoOptions },
       { kind: 'video', requiredMode: 'image_to_video', options: videoOptions },

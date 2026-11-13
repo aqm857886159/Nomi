@@ -19,7 +19,7 @@ import {
 } from './controls/parameterControlModel'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
 import { summaryFitCandidates } from './composerHeadlineSummary'
-import { modelVisibilityFooterAction, useDedupedModelSelect } from '../../common/useDedupedModelSelect'
+import { modelVisibilityFooterAction, useDedupedModelSelect, type ModelVariantMenu } from '../../common/useDedupedModelSelect'
 import {
   localizeAutoOption,
   soloOptionControl,
@@ -46,9 +46,8 @@ type InlineParameterBarProps = {
   onCatalogControlChange: (control: DynamicCatalogControl, value: string) => void
   onParameterControlChange: (control: ModelParameterControl, value: string) => void
   /** 变体（型号）小下拉：和模型芯片并排在底栏（用户拍板）。无变体的模型传空数组 → 不显示。 */
-  variantChoices?: readonly { id: string; label: string }[]
-  activeVariantId?: string
-  onVariantSelect?: (id: string) => void
+  /** 这一处存得了变体就声明它：模型菜单里每个变体是自己的一行（没有单独的「变体」格）。不声明 = 每个模型一行。 */
+  variantMenu?: ModelVariantMenu
   /**
    * 摘要 pill 文案覆盖。
    * 默认 pill 显示各参数**当前值**串接（`16:9 · 2k`）——这对档案模型可读：你一眼认得出比例和清晰度。
@@ -135,9 +134,7 @@ export default function InlineParameterBar({
   onModelChange,
   onCatalogControlChange,
   onParameterControlChange,
-  variantChoices,
-  activeVariantId,
-  onVariantSelect,
+  variantMenu,
   summaryOverride,
   summaryWidth,
   wrap = false,
@@ -159,6 +156,7 @@ export default function InlineParameterBar({
     onModelChange,
     selectedModelOption?.vendor,
     modelGroupLabels,
+    variantMenu,
   )
 
   // 摘要 pill 文本：各参数当前值串接（16:9 · 1080p · 5 · 音频）。面板装**全部**参数（pill 不占走任何一个）。
@@ -359,13 +357,6 @@ export default function InlineParameterBar({
   // 触发器只在**里面真有东西**时出现：参数、供应商、生成方式一件都没有的模型，
   // 留一颗点开是空白的触发器比不留更糟。
   const hasPanel = renderedControls.length > 0 || hasProvider || Boolean(modeChoices?.length && onModeSelect) || Boolean(panelFooter)
-  // Catalog variants keep separate exact IDs; media archetype variants keep their existing parameter contract.
-  // Both use the same approved variant control next to the family/model chip.
-  const catalogVariants = modelSelect.variantOptions.length > 0
-  const visibleVariants = catalogVariants
-    ? modelSelect.variantOptions
-    : (variantChoices || []).map((variant) => ({ value: variant.id, label: variant.label }))
-
   /**
    * **只有一个参数时，pill 点开直接就是那个参数的选项列表**（没有面板壳）——2026-09-11 13:00 用户拍板。
    *
@@ -467,12 +458,9 @@ export default function InlineParameterBar({
   // （2026-10-06 前分镜旧底栏的让位表同一条规则：短枚举从不缩）——2026-09-21 走查：1100×720 英文下它被压到值区只剩
   // 5px，「Variant 5.0」读成「Variant E」，缩它省下的几像素换来的是一颗读不出的芯片。
   const modelChipClass = wrap || (fitCandidates && !fitCramped) ? 'shrink-0' : undefined
-  const variantChipClass = 'shrink-0'
   const identityRow = (
-    // 2026-09-22 总合并裁决：身份两枚谁让宽由 **#834 的规则**说了算（只有模型 chip `shrink-0`，
-    // 变体短枚举从不缩），本分支 `70ebda21e` 给这层包装也加 `shrink-0` 的那一行按裁决撤掉。
-    // 它想修的「EN 下 Kling 3.0 压住 16:9」由 #834 的 `modelChipClass` / `variantChipClass`
-    // 两条一起覆盖；本分支留下的是**判据**——参数条一行里相邻两颗控件不许相压
+    // 2026-09-22 总合并裁决：模型 chip 让宽由 `modelChipClass` 说了算（变体格已并进模型菜单，不再有第二枚）。
+    // 「EN 下 Kling 3.0 压住 16:9」由它覆盖；留下的是**判据**——参数条一行里相邻两颗控件不许相压
     // （`tests/ux/design-lab-ask-card-in-panel.walk.mjs` 的重叠断言，原样保留、照跑）。
     <div ref={identityRef} className={cn('flex items-center gap-1.5', fitCandidates && !fitCramped ? 'shrink-0' : 'min-w-0')}>
       {!hideModel ? (
@@ -485,20 +473,7 @@ export default function InlineParameterBar({
           options={leadingModelOption ? [{ value: '', label: leadingModelOption.label }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
           onChange={(id) => (id || !leadingModelOption ? modelSelect.onModelPick(id) : onModelChange(''))}
           onChipChange={modelSelect.onModelProviderPick}
-          footerAction={modelVisibilityFooterAction()}
-          hiddenNote={modelSelect.hiddenNote}
-        />
-      ) : null}
-      {/* 变体（型号）小下拉：紧跟模型芯片（身份级，恒内联）。有变体的模型才显示。 */}
-      {catalogVariants || visibleVariants.length > 1 ? (
-        <NomiSelect
-          ariaLabel={t('generationCommon.parameters.variant')}
-          leadingLabel={t('generationCommon.parameters.variant')}
-          className={variantChipClass}
-          value={catalogVariants ? modelSelect.variantValue : activeVariantId || ''}
-          options={visibleVariants}
-          disabled={visibleVariants.length < 2}
-          onChange={catalogVariants ? modelSelect.onVariantPick : (v) => onVariantSelect?.(v)}
+          footerAction={modelVisibilityFooterAction(modelSelect.hiddenCount)}
         />
       ) : null}
       {modeMenu ? (

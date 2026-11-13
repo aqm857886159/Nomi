@@ -726,8 +726,7 @@
       "id": "bar.model.brand-icon",
       "label": "G · 底栏模型格里的品牌图标",
       "change": "new",
-      "status": "deferred",
-      "owner": "下一刀：模型菜单与模型图标（协调另派）",
+      "status": "implemented",
       "states": [
         "zh-en",
         "dark"
@@ -764,7 +763,9 @@
       "userDecision": {
         "quote": "下一刀模型菜单做（样张 K6，用户 2026-11-12 已批）",
         "date": "2026-11-12"
-      }
+      },
+      "assertion": "board:ModeBar/bar.model.brand-icon",
+      "implementedBy": "品牌图标 + 能力描述 + 变体并进菜单（tests/ux/model-menu-icons.walk.mjs，zh/en × 明/暗）"
     },
     {
       "id": "bar.mode",
@@ -1477,8 +1478,7 @@
       "id": "model.menu",
       "label": "G · 模型菜单：每行品牌图标 + 名字 + 一句说明，右边走哪家；「变体」并进菜单各占一行",
       "change": "new",
-      "status": "deferred",
-      "owner": "下一刀：模型菜单与模型图标（协调另派）",
+      "status": "implemented",
       "states": [
         "selected",
         "hover",
@@ -1536,7 +1536,9 @@
       "userDecision": {
         "quote": "下一刀模型菜单做（样张 K6，用户 2026-11-12 已批）",
         "date": "2026-11-12"
-      }
+      },
+      "assertion": "board:ModeBar/model.menu",
+      "implementedBy": "品牌图标 + 能力描述 + 变体并进菜单（tests/ux/model-menu-icons.walk.mjs，zh/en × 明/暗）"
     }
   ],
   "boundarySheet": [
@@ -1568,7 +1570,7 @@
       "where": "K4 · 底栏（最窄 560 宽的生成框）（样张 K4-bar-longest）",
       "max": "中文「Seedance 2.0 Fast + 全能参考 + 21:9 · 1080p · 15s」，英文「Seedance 2.0 Fast + First & last frame」",
       "source": "NODE_COMPOSER_WIDTH = 560；最长模型名 / 方式名 / 参数值来自模型目录与 i18n",
-      "layout": "永远一行；让法顺序：① 参数那一格整值地退（比例 → 有声 → 清晰度 → 时长留到最后）→ ② 退到只剩时长还放不下，才让模型名末尾省略（title 写全名）；变体 / 方式 / 右边四颗永远不缩（2026-11-12 协调拍板，依据原则第 4 条「名字和影响花钱的最后让」）",
+      "layout": "永远一行；让法顺序：① 参数那一格整值地退（比例 → 有声 → 清晰度 → 时长留到最后）→ ② 退到只剩时长还放不下，才让模型名末尾省略（title 写全名）；品牌图标 / 方式 / 右边四颗永远不缩；「变体」格已并进模型菜单、底栏不再有它（2026-11-12 协调拍板，依据原则第 4 条「名字和影响花钱的最后让」）",
       "board": "ModeBar",
       "element": "bar.params"
     },
@@ -1579,6 +1581,14 @@
       "layout": "菜单最宽 340；说明最多两行、不截断、折行不留单个字（text-wrap: balance）",
       "board": "ModeBar",
       "element": "mode.menu"
+    },
+    {
+      "where": "K6 · 模型菜单（行数最多 / 名字最长 / 描述最长 / 两家供应商并存）（样张 K6）",
+      "max": "默认显示 18 行视频模型（含变体各占一行）+ 默认收起的「更多」；最长名「Gemini Omni 1.2 Flash Ext」；最长描述三项（中文约 22 字、英文约 48 字母）；菜单里 ≥2 家供应商时非默认供应商的行带供应商名",
+      "source": "src/config/modelBoxDefaults.ts 的默认顺序 / 收起名单 + APIMart 目录行 + modelCapabilityLine 的最多 3 项",
+      "layout": "行高固定、名字与描述各单行省略（title 写全）；描述最多 3 项；超出默认行数的进「更多」；最后一行「隐藏模型 N」去设置页的模型顺序；供应商名只在 ≥2 家且该行不是默认家时出现（一条通用规则，组件里不写供应商名）",
+      "board": "ModeBar",
+      "element": "model.menu"
     }
   ],
   "decor": [

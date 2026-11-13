@@ -90,16 +90,16 @@ export const STRUCTURE_STATES: readonly LabState[] = [
     id: 'ps-15-identity-icon',
     name: 'NomiIdentityIcon · 品牌图层 / 单字母回退 / 无回退（sm=下拉触发、md=下拉行）',
     source: 'src/design/NomiIdentityIcon.tsx · 只用本地标记，永不拉远端 favicon',
-    // 直接调用点为零：它只经 `NomiSelect` 到达生产，图源来自 `modelIdentityIcon`。
+    // 直接调用点为零：它只经 `NomiSelect` 到达生产，图源来自 `modelBrandIcon`。
     mirrors: [
-      'src/config/modelProviderIdentity.ts:36',
-      'src/design/NomiSelect.tsx:192',
-      'src/design/NomiSelect.tsx:233',
+      'src/config/modelFamilyIcons.ts:115',
+      'src/design/NomiSelect.tsx:238',
+      'src/design/NomiSelect.tsx:289',
     ],
     coverage: 'shell',
     // 2026-09-07 修正三处：
     //   · 补 `src` 品牌图层——生产的**主形态**是本地 logo 压在字母回退之上
-    //     （`modelIdentityIcon` 每一条返回值都带 src）；此前 8 个样本一个都没有 src，
+    //     （`modelBrandIcon` 每一条返回值都带 src）；此前 8 个样本一个都没有 src，
     //     陈列出来的全是那个只在图挂掉时才露出来的回退层。
     //   · 回退改成**单字母**：真实 fallback 都是一个字（'D'/'M'/'E'…），
     //     而组件对回退做 `slice(0, 2)`——原来那个三字母的 'KIE' 会被静默截成 'KI'，

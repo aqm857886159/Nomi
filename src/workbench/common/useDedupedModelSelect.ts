@@ -16,7 +16,11 @@ import { useVendorPreferenceOrder } from './useVendorPreference'
 import { rememberVendorForModel, useModelBoxPreference } from './useModelBoxPreference'
 import { isModelRecentlyAiling } from '../generationCanvas/runner/modelHealthMemory'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
-import { modelIdentityIcon, providerIdentityIcon } from '../../config/modelProviderIdentity'
+import { providerIdentityIcon } from '../../config/modelProviderIdentity'
+import { modelArchetypeOf, modelBrandIcon } from '../../config/modelFamilyIcons'
+import { modelCapabilityLine } from '../../config/modelCapabilityLine'
+import { applyModelBoxDefaults } from '../../config/modelBoxDefaults'
+import { specializeArchetypeForVariant } from '../../../electron/shared/modelArchetypes'
 
 import type { ModelProviderRef } from '../../config/modelIdentity'
 
@@ -111,9 +115,11 @@ export const CONNECT_VENDOR_OPTION_VALUE = '\u0000nomi-connect-vendor'
  * 那个家就是设置里的模型列表，图标（眼睛）与措辞（显示 / 隐藏）与这里逐字相同。
  * 这条也是全仓所有模型框共用的同一份实现（节点 / 镜卡 / 批量），不各写一份（B7 的「三处心智不一」）。
  */
-export function modelVisibilityFooterAction(): { label: string; icon: React.ReactNode; onSelect: () => void } {
+export function modelVisibilityFooterAction(hiddenCount = 0): { label: string; icon: React.ReactNode; onSelect: () => void } {
   return {
-    label: i18n.t('onboardingProviders.modelControls.manageVisibility'),
+    // 「隐藏模型 N」：N = 创作者自己藏起来的行数；一个都没藏就只写「隐藏模型」（不无缘无故多一个 0）。
+    // 以前「已隐藏 N 个 · 在设置里找回」是另一行脚注——同一件事两行字，并成这一行。
+    label: hiddenCount > 0 ? i18n.t('generationCommon.parameters.hiddenModels', { count: hiddenCount }) : i18n.t('onboardingProviders.modelControls.manageVisibility'),
     icon: React.createElement(IconEyeOff, { size: 13, stroke: 1.8, 'aria-hidden': true }),
     onSelect: openModelCatalog,
   }
@@ -121,17 +127,6 @@ export function modelVisibilityFooterAction(): { label: string; icon: React.Reac
 
 export function openModelCatalog(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('nomi-open-model-catalog'))
-}
-
-/**
- * 模型框底部那一行「已隐藏 N 个 · 在设置里找回」。
- *
- * 为什么必须有：隐藏是用户自己做的，但**一周后他不记得了**——一个悄悄变短的列表和
- * 「这个模型怎么没了/是不是坏了」在屏幕上长得一模一样（D4 诚实交付：缺口明着标）。
- * 一个都没藏时返回空串，正常人的下拉不该无缘无故多一行脚注。
- */
-export function modelBoxHiddenNote(hiddenCount: number): string {
-  return hiddenCount > 0 ? i18n.t('generationCommon.parameters.hiddenModels', { count: hiddenCount }) : ''
 }
 
 function connectVendorOption(): NomiSelectOption {
@@ -176,32 +171,126 @@ function untriedByModel(model: DedupedModel): boolean {
   })
 }
 
+/**
+ * 变体行的**声明**：调用方（画布节点 / 画布列表）说「我存得了变体」，菜单里这类模型就把每个变体展成自己的一行。
+ * 不声明（分镜行——它没有存变体的字段）→ 菜单里每个模型只一行，请求体与存档一个字节不变。
+ * 判断只此一处（有没有这个参数），组件里不按页面名分支。
+ */
+export type ModelVariantMenu = Readonly<{
+  /** 节点上现在存的变体 id（当前所选模型的）。 */
+  activeVariantId: string
+  /** 当前所选模型的变体轴是不是真的起作用（惰性通道如 Runway 为 false）→ 为 false 时当前这一个不展开。缺省 = 起作用。 */
+  currentAxisLive?: boolean
+  /** 点某个变体行：先落到该行的模型（value / vendor），再写变体。 */
+  onPick: (picked: { value: string; vendor?: string }, variantId: string) => void
+}>
+
+type MenuVariant = Readonly<{
+  id: string
+  /** 变体自己的名字（已按语言翻译）。 */
+  label: string
+  source: 'archetype' | 'catalog'
+  /** 目录变体（Antigravity 文本模型）：这一行对应的精确模型条目。 */
+  provider?: ModelProviderRef
+}>
+
+/** 菜单里的一行 = 一个模型，或一个模型的一个变体。`key` 是行的寻址（= NomiSelect 的 option.value）。 */
+export type ModelMenuRow = Readonly<{ key: string; model: DedupedModel; variant?: MenuVariant }>
+
+export type ModelMenu = Readonly<{
+  options: NomiSelectOption[]
+  rows: ReadonlyMap<string, ModelMenuRow>
+  /** 创作者自己藏起来的行数（底部「隐藏模型 N」的 N）。 */
+  hiddenCount: number
+}>
+
+export function menuRowKey(canonicalId: string, variantId?: string): string {
+  return variantId ? `${canonicalId}#${variantId}` : canonicalId
+}
+
+/** 一个模型在菜单里的行：目录变体 / 档案变体（调用方声明了才展开）/ 单行。 */
+function expandModelRows(model: DedupedModel, variantMenu: ModelVariantMenu | undefined, isSelected: boolean): ModelMenuRow[] {
+  const catalogProviders = sortModelProviders(model.providers.filter((provider) => provider.option.variant), [])
+  const catalogVendor = catalogProviders[0]?.vendor
+  const catalogVariants = catalogProviders.filter((provider) => provider.vendor === catalogVendor)
+  if (catalogVariants.length > 1) {
+    return catalogVariants.map((provider) => {
+      const label = provider.option.variant!.variantLabel
+      return { key: menuRowKey(model.canonicalId, label), model, variant: { id: label, label, source: 'catalog' as const, provider } }
+    })
+  }
+  const archetype = variantMenu ? modelArchetypeOf(model) : null
+  const variants = archetype?.variants
+  if (variantMenu && archetype && variants && variants.length > 1 && !(isSelected && variantMenu.currentAxisLive === false)) {
+    return variants.map((variant) => ({
+      key: menuRowKey(model.canonicalId, variant.id),
+      model,
+      variant: { id: variant.id, label: translateModelDisplayText(variant.label), source: 'archetype' as const },
+    }))
+  }
+  return [{ key: model.canonicalId, model }]
+}
+
+/** 行上写的名字：变体行 = 模型名 + 变体名（变体名已含模型名、或就是「标准」则不重复）。 */
+function menuRowLabel(row: ModelMenuRow): string {
+  const base = modelDisplayLabel(row.model)
+  const variant = row.variant
+  if (!variant) return base
+  const lower = variant.label.trim().toLowerCase()
+  const baseLower = base.trim().toLowerCase()
+  if (variant.id === 'standard' || lower === baseLower) return base
+  if (lower.includes(baseLower)) return variant.label
+  return `${base} ${variant.label}`
+}
+
+/** 行上的一句能力描述：按这一行的档案（变体行按变体收窄后的档案）现算。 */
+function menuRowDescription(row: ModelMenuRow): string {
+  const archetype = modelArchetypeOf(row.model)
+  if (!archetype) return ''
+  return modelCapabilityLine(row.variant?.source === 'archetype' ? specializeArchetypeForVariant(archetype, row.variant.id) : archetype)
+}
+
+/** 菜单上默认走的那家：被最多行选作生效供应商的那家（并列取全局顺序里靠前的）。 */
+function defaultMenuVendor(activeVendors: readonly string[], orderedVendorKeys: readonly string[]): string {
+  const counts = new Map<string, number>()
+  for (const vendor of activeVendors) counts.set(vendor, (counts.get(vendor) ?? 0) + 1)
+  const order = (vendor: string): number => {
+    const index = orderedVendorKeys.findIndex((key) => key.toLowerCase() === vendor.toLowerCase())
+    return index < 0 ? Number.MAX_SAFE_INTEGER : index
+  }
+  return [...counts.entries()].sort((left, right) => right[1] - left[1] || order(left[0]) - order(right[0]))[0]?.[0] ?? ''
+}
+
 /** 病的沉到最后 + 灰化 + 右侧标注换成「最近多次失败」；健康的保持原有顺序不动。 */
-export function buildModelSelectOptions(
+export function buildModelMenu(
   deduped: readonly DedupedModel[],
   isAiling: AilingProbe,
   orderedVendorKeys: readonly string[] = [],
   preference?: ModelBoxPreferenceSettings | null,
-): NomiSelectOption[] {
+  variantMenu?: ModelVariantMenu,
+  selectedCanonicalId = '',
+): ModelMenu {
   // 空 = 一家都没接入（catalog 层的 keepUsableModelRows 只放行现在真能用的行），不是「碰巧没模型」。
-  if (deduped.length === 0) return [connectVendorOption()]
+  if (deduped.length === 0) return { options: [connectVendorOption()], rows: new Map(), hiddenCount: 0 }
   // 「藏起来的不进来、排过的排在前面」只在这一处判（`partitionByModelBoxPreference` 是唯一解析点）。
-  const { visible } = partitionByModelBoxPreference(deduped, preference)
-  const toOption = (m: DedupedModel): NomiSelectOption => {
-    // 「模型来自哪家」的两种表达，**同一行上只用一种**（用户 2026-07-17 要求看得见，
-    // 2026-09-06 要求别把模型名挤没）：
-    //   · 多家 → 行尾一排供应商 chip（第一个 = 当前生效那家，点别的当场换家）；
-    //   · 单家 → 一条厂商短名附注（chip 只有一个的话点它没有任何意义，纯噪音）。
-    // 曾经两种一起上（chip + 「N 家」附注），窄下拉里把模型名压到 0 宽——同一件事说两遍，
-    // 代价却是主语没了。
-    const providers = sortModelProviders(m.providers, orderedVendorKeys)
+  const { visible, hidden } = partitionByModelBoxPreference(deduped, preference)
+  const expanded = visible.flatMap((model) => expandModelRows(model, variantMenu, model.canonicalId === selectedCanonicalId))
+  // 没整理过模型框的创作者：按默认顺序排、默认收起的进「更多」；整理过的原样（见 modelBoxDefaults 文件头）。
+  const withDefaults = applyModelBoxDefaults(expanded, preference)
+  const rows = new Map(withDefaults.map(({ row }) => [row.key, row]))
+  // 每一行的供应商表达：多家 → 行尾 chip；单家 → 只有「菜单里有 ≥2 家供应商、且这行不在默认那家」才写厂商名。
+  const perRow = withDefaults.map(({ row, collapsed }) => {
+    const providers = sortModelProviders(row.model.providers, orderedVendorKeys)
     const uniqueProviders = providers.filter((provider, index, all) => all.findIndex((candidate) => (candidate.vendor || candidate.option.value) === (provider.vendor || provider.option.value)) === index)
+    const rememberedIndex = rememberedProviderIndex(uniqueProviders, rememberedVendorFor(row.model, preference))
+    return { row, collapsed, providers, uniqueProviders, activeIndex: rememberedIndex >= 0 ? rememberedIndex : 0 }
+  })
+  const allVendors = new Set(perRow.flatMap(({ providers }) => providers.map((provider) => (provider.vendor || '').toLowerCase())))
+  const defaultVendor = defaultMenuVendor(perRow.map(({ uniqueProviders, activeIndex }) => uniqueProviders[activeIndex]?.vendor || ''), orderedVendorKeys)
+  const showVendorName = allVendors.size >= 2
+  const toOption = ({ row, collapsed, providers, uniqueProviders, activeIndex }: (typeof perRow)[number]): NomiSelectOption => {
+    const m = row.model
     const multiVendor = uniqueProviders.length > 1
-    // chip 的**顺序**永远是全局供应商顺序（设置里排的那张表）；**高亮**的才是这一行真正会走的那家：
-    // 手点过就是手点的那家，没点过才是顺序里的第一家。两件事分开表达，用户才看得出
-    // 「我改过的是这一行」而不是「全局顺序变了」（2026-09-11 样张：Nano Banana 2 高亮 Kie，其余高亮第一家）。
-    const rememberedIndex = rememberedProviderIndex(uniqueProviders, rememberedVendorFor(m, preference))
-    const activeIndex = rememberedIndex >= 0 ? rememberedIndex : 0
     const connectionSuffixes = providerConnectionSuffixes(uniqueProviders)
     const chips = multiVendor
       ? uniqueProviders.map((provider, index) => ({
@@ -210,39 +299,46 @@ export function buildModelSelectOptions(
           active: index === activeIndex,
         }))
       : undefined
-    if (!isModelAiling(m, isAiling)) return {
-      more: modelCatalogLifecycle(m) === 'legacy',
-      value: m.canonicalId,
-      label: modelDisplayLabel(m),
-      icon: modelIdentityIcon(m),
-      // 「未试跑」附在厂商短名后面，**不另起一个新元素**：2026-09-06 用户拍板过「别把模型名挤没」，
-      // 而这一行要说的只是一句限定语（这家、还没真跑过），不是第二条信息。
-      // 多家那种情况行尾已经是 chip 排（与 trailing 互斥），就不标——多家里总有真跑过的。
-      // 「暂未列出」和「未试跑」同一个槽、同一种写法：都是附在厂商短名后面的一句限定语，
-      // 不是第二条信息、也不拦使用（2026-09-21：清单里查不到不等于用户不要它了）。
-      ...(multiVendor
-        ? { chips }
-        : { trailing: providerTrailing(providers[0], [
-            ...(untriedByModel(m) ? [i18n.t('generationCommon.parameters.untried')] : []),
-            ...(unlistedByModel(m) ? [i18n.t('generationCommon.parameters.unlisted')] : []),
-          ]) }),
+    const description = menuRowDescription(row)
+    const common = {
+      more: collapsed || modelCatalogLifecycle(m) === 'legacy',
+      value: row.key,
+      label: menuRowLabel(row),
+      icon: modelBrandIcon(m),
+      ...(description ? { description } : {}),
     }
-    // 「最近多次失败」是行级判断（每一家都在避让期才成立），压过 chip 的换家提示——
-    // 这一行现在没有一家能走，摆一排可点的 chip 是在骗人。
-    return {
-      more: modelCatalogLifecycle(m) === 'legacy',
-      value: m.canonicalId,
-      label: modelDisplayLabel(m),
-      icon: modelIdentityIcon(m),
-      trailing: i18n.t('generationCommon.parameters.recentlyFailing'),
-      trailingTone: 'danger',
-      dimmed: true,
+    if (isModelAiling(m, isAiling)) {
+      // 「最近多次失败」是行级判断（每一家都在避让期才成立），压过 chip 的换家提示——
+      // 这一行现在没有一家能走，摆一排可点的 chip 是在骗人。
+      return { ...common, trailing: i18n.t('generationCommon.parameters.recentlyFailing'), trailingTone: 'danger', dimmed: true }
     }
+    if (multiVendor) return { ...common, chips }
+    // 单家：厂商名只在「看得出区别」时才出现；「未试跑」「暂未列出」两句实话照旧附在后面，
+    // 不另起新元素（2026-09-06 拍板：别把模型名挤没）。
+    const provider = providers[0]
+    const vendorName = showVendorName && provider && (provider.vendor || '').toLowerCase() !== defaultVendor.toLowerCase() ? [modelProviderLabel(provider)] : []
+    const notes = [
+      ...(untriedByModel(m) ? [i18n.t('generationCommon.parameters.untried')] : []),
+      ...(unlistedByModel(m) ? [i18n.t('generationCommon.parameters.unlisted')] : []),
+    ]
+    const trailing = [...vendorName, ...notes].join(' · ')
+    return { ...common, ...(trailing ? { trailing } : {}) }
   }
   // 用户选**之前**就避开坏的，而不是撞了才知道。仍可点（手动选择永不拦，2026-07-30 拍板）。
-  const healthy = visible.filter((m) => !isModelAiling(m, isAiling))
-  const ailing = visible.filter((m) => isModelAiling(m, isAiling))
-  return [...healthy, ...ailing].map(toOption)
+  const healthy = perRow.filter(({ row }) => !isModelAiling(row.model, isAiling))
+  const ailing = perRow.filter(({ row }) => isModelAiling(row.model, isAiling))
+  return { options: [...healthy, ...ailing].map(toOption), rows, hiddenCount: hidden.length }
+}
+
+export function buildModelSelectOptions(
+  deduped: readonly DedupedModel[],
+  isAiling: AilingProbe,
+  orderedVendorKeys: readonly string[] = [],
+  preference?: ModelBoxPreferenceSettings | null,
+  variantMenu?: ModelVariantMenu,
+  selectedCanonicalId = '',
+): NomiSelectOption[] {
+  return buildModelMenu(deduped, isAiling, orderedVendorKeys, preference, variantMenu, selectedCanonicalId).options
 }
 
 /**
@@ -307,28 +403,24 @@ export function resolveProviderSelectValue(
 }
 
 export interface DedupedModelSelectView {
-  /** 去重后的模型下拉选项（value=canonicalId；多家的行尾带供应商 chip）。 */
+  /** 模型菜单的行（value=行键：整模型 = canonicalId；变体行 = canonicalId#变体；多家的行尾带供应商 chip）。 */
   modelOptions: NomiSelectOption[]
-  /** 当前选中模型的 canonicalId（无则空串）。 */
+  /** 当前选中那一行的行键（无则空串）。 */
   modelValue: string
-  /** 选模型：解析最优供应商后回写其 (option.value, vendor) 给原 onChange。 */
-  onModelPick: (canonicalId: string) => void
+  /** 选一行：解析最优供应商后回写其 (option.value, vendor) 给原 onChange；变体行还要把变体交给调用方声明的 variantMenu。 */
+  onModelPick: (rowKey: string) => void
   /** 点模型行尾供应商 chip：这次直接使用该家，未配置则打开接入页。 */
-  onModelProviderPick: (canonicalId: string, addressValue: string) => void
+  onModelProviderPick: (rowKey: string, addressValue: string) => void
   /** 供应商下拉选项（仅多家时非空）。value=vendor+option.value 复合寻址串（同名 modelKey 跨厂商不撞值）。 */
   providerOptions: NomiSelectOption[]
   /** 当前锁定/生效供应商的复合寻址串。 */
   providerValue: string
   /** 锁定某家供应商：解析寻址串后回写该家 (option.value, vendor)。 */
   onProviderPick: (addressValue: string) => void
-  /** Exact enabled catalog variants for the selected supplier; no synthetic model IDs. */
-  variantOptions: NomiSelectOption[]
-  variantValue: string
-  onVariantPick: (addressValue: string) => void
   /** 当前选中的去重模型（供上层取档案/变体等）。 */
   selectedModel: DedupedModel | null
-  /** 模型框底部脚注：「已隐藏 N 个 · 在设置里找回」；没藏过就是空串（调用方原样传给 NomiSelect）。 */
-  hiddenNote: string
+  /** 创作者自己藏起来的行数（模型框底部「隐藏模型 N」的 N）。 */
+  hiddenCount: number
 }
 
 /**
@@ -336,6 +428,7 @@ export interface DedupedModelSelectView {
  * @param value        当前节点存的 option.value（某具体供应商的 modelKey）
  * @param onChange     原选模型回调（接收 option.value + 该家 vendor，写 node.meta 的 vendor+modelKey）
  * @param vendor       当前节点存的供应商 key（同名 modelKey 跨厂商时区分锁定哪家；缺省=首家）
+ * @param variantMenu  调用方存得了变体就声明它（画布节点 / 列表）；不声明（分镜行）= 每个模型只一行
  */
 export function useDedupedModelSelect(
   modelOptions: readonly ModelOption[],
@@ -343,15 +436,11 @@ export function useDedupedModelSelect(
   onChange: (value: string, vendor?: string) => void,
   vendor?: string | null,
   groupLabels?: Record<'image' | 'video', string>,
+  variantMenu?: ModelVariantMenu,
 ): DedupedModelSelectView {
   const deduped = React.useMemo(() => dedupeModelOptions([...modelOptions]), [modelOptions])
   const orderedVendorKeys = useVendorPreferenceOrder()
   const preference = useModelBoxPreference()
-  const hiddenNote = React.useMemo(
-    () => modelBoxHiddenNote(partitionByModelBoxPreference(deduped, preference).hidden.length),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language：切语言要重算脚注文案
-    [deduped, preference, i18n.language],
-  )
 
   // 「当前存的是哪一家」只有一个判定口：记了 vendor → (value, vendor) 精确命中，那家不在就是没选中
   // （不许悄悄换成同名的别家）；没记 vendor（旧数据）→ pickImplicitVendorMatch，与执行侧落地同一把尺。
@@ -370,47 +459,68 @@ export function useDedupedModelSelect(
     [deduped, value, vendor, effectiveVendor],
   )
 
+  const menu = React.useMemo<ModelMenu>(
+    () => buildModelMenu(deduped, isModelRecentlyAiling, orderedVendorKeys, preference, variantMenu, selectedModel?.canonicalId ?? ''),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language：切语言要重算 trailing / 描述文案
+    [deduped, i18n.language, orderedVendorKeys, preference, variantMenu?.currentAxisLive, variantMenu !== undefined, selectedModel?.canonicalId],
+  )
+
   const modelOptionsView = React.useMemo<NomiSelectOption[]>(
     () => {
-      const options = buildModelSelectOptions(deduped, isModelRecentlyAiling, orderedVendorKeys, preference)
-      if (!groupLabels) return options
-      const kinds = new Map(deduped.map(model => [model.canonicalId, model.providers[0]?.option.kind] as const))
-      const grouped = options.map(option => {
+      if (!groupLabels) return menu.options
+      const kinds = new Map([...menu.rows.values()].map(row => [row.key, row.model.providers[0]?.option.kind] as const))
+      const grouped = menu.options.map(option => {
         const kind = kinds.get(option.value)
         return { ...option, ...(kind === 'image' || kind === 'video' ? { group: groupLabels[kind] } : {}) }
       })
       return [...(['image', 'video'] as const).flatMap(kind => grouped.filter(option => option.group === groupLabels[kind])), ...grouped.filter(option => !option.group)]
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language：切语言要重算 trailing 文案
-    [deduped, i18n.language, orderedVendorKeys, preference, groupLabels],
+    [menu, groupLabels],
   )
 
+  // 当前选中的是哪一行：变体行按「存着的变体」认（目录变体按精确条目认）；没有变体的模型就是它自己的一行。
+  const selectedRowKey = React.useMemo(() => {
+    if (!selectedModel) return ''
+    const own = [...menu.rows.values()].filter((row) => row.model.canonicalId === selectedModel.canonicalId)
+    if (own.length === 0) return ''
+    if (own.length === 1 && !own[0].variant) return own[0].key
+    const catalogHit = own.find((row) => row.variant?.source === 'catalog' && row.variant.provider?.option.value === value && (effectiveVendor === null || row.variant.provider.vendor === effectiveVendor))
+    if (catalogHit) return catalogHit.key
+    const archetypeHit = own.find((row) => row.variant?.source === 'archetype' && row.variant.id === variantMenu?.activeVariantId)
+    return (archetypeHit ?? own.find((row) => row.variant?.source === 'archetype'))?.key ?? own[0].key
+  }, [menu, selectedModel, value, effectiveVendor, variantMenu?.activeVariantId])
+
   const onModelPick = React.useCallback(
-    (canonicalId: string) => {
-      if (canonicalId === CONNECT_VENDOR_OPTION_VALUE) { openModelCatalog(); return }
-      const model = deduped.find((m) => m.canonicalId === canonicalId)
-      if (!model) return
+    (rowKey: string) => {
+      if (rowKey === CONNECT_VENDOR_OPTION_VALUE) { openModelCatalog(); return }
+      const row = menu.rows.get(rowKey)
+      if (!row) return
+      const model = row.model
+      // 目录变体行就是一个精确的模型条目：点它 = 选它，不再解析「最优供应商」。
+      if (row.variant?.source === 'catalog' && row.variant.provider) { onChange(row.variant.provider.option.value, row.variant.provider.vendor); return }
       // Reopening/reselecting the family must not reset a saved reasoning tier.
       const current = model.providers.find((p) => p.option.value === value && (effectiveVendor === null || p.vendor === effectiveVendor))
-      if (current) { onChange(current.option.value, current.vendor); return }
-      const best = pickHealthiestProvider(model, isModelRecentlyAiling, orderedVendorKeys, rememberedVendorFor(model, preference))
-      const preferred = model.providers.find((p) => p.vendor === best?.vendor && p.option.variant?.defaultVariant) || best
-      if (preferred) onChange(preferred.option.value, preferred.vendor)
+      const best = current ?? pickHealthiestProvider(model, isModelRecentlyAiling, orderedVendorKeys, rememberedVendorFor(model, preference))
+      const preferred = current ?? (model.providers.find((p) => p.vendor === best?.vendor && p.option.variant?.defaultVariant) || best)
+      if (!preferred) return
+      if (row.variant?.source === 'archetype' && variantMenu) { variantMenu.onPick({ value: preferred.option.value, vendor: preferred.vendor }, row.variant.id); return }
+      onChange(preferred.option.value, preferred.vendor)
     },
-    [deduped, onChange, value, effectiveVendor, orderedVendorKeys, preference],
+    [menu, onChange, value, effectiveVendor, orderedVendorKeys, preference, variantMenu],
   )
 
   const onModelProviderPick = React.useCallback(
-    (canonicalId: string, addressValue: string) => {
-      const model = deduped.find((candidate) => candidate.canonicalId === canonicalId)
-      const picked = model?.providers.find((provider) => providerAddress(provider) === addressValue)
-      if (!picked) return
-      onChange(picked.option.value, picked.vendor)
+    (rowKey: string, addressValue: string) => {
+      const row = menu.rows.get(rowKey)
+      const picked = row?.model.providers.find((provider) => providerAddress(provider) === addressValue)
+      if (!row || !picked) return
+      if (row.variant?.source === 'archetype' && variantMenu) variantMenu.onPick({ value: picked.option.value, vendor: picked.vendor }, row.variant.id)
+      else onChange(picked.option.value, picked.vendor)
       // 点 chip 本身就是「记住」的触发点——不需要再多一个「记住我的选择」开关（方案 §5 ④：
       // 把用户已经在做的事包一层开关是纯噪音）。写失败只影响下次的默认家，不该打断这次选择。
-      void rememberVendorForModel(canonicalId, picked.vendor)
+      void rememberVendorForModel(row.model.canonicalId, picked.vendor)
     },
-    [deduped, onChange],
+    [menu, onChange, variantMenu],
   )
 
   const providerOptionsView = React.useMemo<NomiSelectOption[]>(
@@ -430,28 +540,16 @@ export function useDedupedModelSelect(
   )
 
   const providerValue = resolveProviderSelectValue(selectedModel, value, effectiveVendor)
-  const selectedProvider = selectedModel?.providers.find((p) => providerAddress(p) === providerValue)
-  const variantOptions = selectedProvider?.option.variant
-    ? (selectedModel?.providers || [])
-        .filter((p) => p.vendor === selectedProvider.vendor && p.option.variant)
-        .map((p) => ({ value: providerAddress(p), label: p.option.variant!.variantLabel }))
-    : []
-  const onVariantPick = (addressValue: string): void => {
-    if (variantOptions.some((option) => option.value === addressValue)) onProviderPick(addressValue)
-  }
 
   return {
     modelOptions: modelOptionsView,
-    modelValue: selectedModel?.canonicalId || '',
+    modelValue: selectedRowKey,
     onModelPick,
     onModelProviderPick,
     providerOptions: providerOptionsView,
     providerValue,
     onProviderPick,
-    variantOptions,
-    variantValue: selectedProvider ? providerAddress(selectedProvider) : '',
-    onVariantPick,
     selectedModel,
-    hiddenNote,
+    hiddenCount: menu.hiddenCount,
   }
 }

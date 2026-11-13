@@ -1,0 +1,226 @@
+[
+  {
+    "surface": "canvas-node",
+    "tag": "zh-light",
+    "visibleRows": 40,
+    "expandedRows": 56,
+    "longestName": "Seedance 2.0 (RunningHub)",
+    "longestDesc": "文生/图生/首尾帧/参考 · 最高 1080p · 最长 30 秒",
+    "menuW": 325,
+    "menuH": 423,
+    "scroll": {
+      "scrollH": 1860,
+      "clientH": 380
+    }
+  },
+  {
+    "surface": "canvas-node-two-vendors",
+    "tag": "zh-light",
+    "rows": 40,
+    "noted": 3
+  },
+  {
+    "surface": "canvas-node",
+    "tag": "zh-light",
+    "rows": 40,
+    "variantRows": 10,
+    "labels": [
+      "Seedance 2.5",
+      "Seedance 2.0",
+      "可灵 4.0",
+      "MiniMax H3",
+      "Seedance 2.0 Fast",
+      "Wan 3.0 Prime"
+    ]
+  },
+  {
+    "surface": "canvas-list",
+    "tag": "zh-light",
+    "rows": 3,
+    "variantRows": 2,
+    "labels": [
+      "Seedance 2",
+      "Seedance 2 快速",
+      "Seedance 2 Mini"
+    ]
+  },
+  {
+    "surface": "storyboard-row",
+    "tag": "zh-light",
+    "rows": 3,
+    "variantRows": 0,
+    "labels": [
+      "默认模型",
+      "Seedance 2.5",
+      "Veo 3.1"
+    ]
+  },
+  {
+    "surface": "canvas-node",
+    "tag": "zh-dark",
+    "visibleRows": 40,
+    "expandedRows": 56,
+    "longestName": "Seedance 2.0 (RunningHub)",
+    "longestDesc": "文生/图生/首尾帧/参考 · 最高 1080p · 最长 30 秒",
+    "menuW": 325,
+    "menuH": 423,
+    "scroll": {
+      "scrollH": 1860,
+      "clientH": 380
+    }
+  },
+  {
+    "surface": "canvas-node-two-vendors",
+    "tag": "zh-dark",
+    "rows": 40,
+    "noted": 3
+  },
+  {
+    "surface": "canvas-node",
+    "tag": "zh-dark",
+    "rows": 40,
+    "variantRows": 10,
+    "labels": [
+      "Seedance 2.5",
+      "Seedance 2.0",
+      "可灵 4.0",
+      "MiniMax H3",
+      "Seedance 2.0 Fast",
+      "Wan 3.0 Prime"
+    ]
+  },
+  {
+    "surface": "canvas-list",
+    "tag": "zh-dark",
+    "rows": 3,
+    "variantRows": 2,
+    "labels": [
+      "Seedance 2",
+      "Seedance 2 快速",
+      "Seedance 2 Mini"
+    ]
+  },
+  {
+    "surface": "storyboard-row",
+    "tag": "zh-dark",
+    "rows": 3,
+    "variantRows": 0,
+    "labels": [
+      "默认模型",
+      "Seedance 2.5",
+      "Veo 3.1"
+    ]
+  },
+  {
+    "surface": "canvas-node",
+    "tag": "en-light",
+    "visibleRows": 40,
+    "expandedRows": 56,
+    "longestName": "Dreamina Seedance VIP Fast · Up to 1080p",
+    "longestDesc": "Text/Image/First/last/Ref · Up to 1080p · Up to 30 s",
+    "menuW": 351,
+    "menuH": 423,
+    "scroll": {
+      "scrollH": 1860,
+      "clientH": 380
+    }
+  },
+  {
+    "surface": "canvas-node-two-vendors",
+    "tag": "en-light",
+    "rows": 40,
+    "noted": 3
+  },
+  {
+    "surface": "canvas-node",
+    "tag": "en-light",
+    "rows": 40,
+    "variantRows": 12,
+    "labels": [
+      "Seedance 2.5",
+      "Seedance 2.0",
+      "Kling 4.0",
+      "MiniMax H3",
+      "Seedance 2.0 Fast",
+      "Wan 3.0 Prime"
+    ]
+  },
+  {
+    "surface": "canvas-list",
+    "tag": "en-light",
+    "rows": 3,
+    "variantRows": 2,
+    "labels": [
+      "Seedance 2",
+      "Seedance 2 Fast",
+      "Seedance 2 Mini"
+    ]
+  },
+  {
+    "surface": "storyboard-row",
+    "tag": "en-light",
+    "rows": 3,
+    "variantRows": 0,
+    "labels": [
+      "Default model",
+      "Seedance 2.5",
+      "Veo 3.1"
+    ]
+  },
+  {
+    "surface": "canvas-node",
+    "tag": "en-dark",
+    "visibleRows": 40,
+    "expandedRows": 56,
+    "longestName": "Dreamina Seedance VIP Fast · Up to 1080p",
+    "longestDesc": "Text/Image/First/last/Ref · Up to 1080p · Up to 30 s",
+    "menuW": 351,
+    "menuH": 423,
+    "scroll": {
+      "scrollH": 1860,
+      "clientH": 380
+    }
+  },
+  {
+    "surface": "canvas-node-two-vendors",
+    "tag": "en-dark",
+    "rows": 40,
+    "noted": 3
+  },
+  {
+    "surface": "canvas-node",
+    "tag": "en-dark",
+    "rows": 40,
+    "variantRows": 12,
+    "labels": [
+      "Seedance 2.5",
+      "Seedance 2.0",
+      "Kling 4.0",
+      "MiniMax H3",
+      "Seedance 2.0 Fast",
+      "Wan 3.0 Prime"
+    ]
+  },
+  {
+    "surface": "canvas-list",
+    "tag": "en-dark",
+    "rows": 3,
+    "variantRows": 2,
+    "labels": [
+      "Seedance 2",
+      "Seedance 2 Fast",
+      "Seedance 2 Mini"
+    ]
+  },
+  {
+    "surface": "storyboard-row",
+    "tag": "en-dark",
+    "rows": 3,
+    "variantRows": 0,
+    "labels": [
+      "Default model",
+      "Seedance 2.5",
+      "Veo 3.1"
+    ]
+  }
+]
