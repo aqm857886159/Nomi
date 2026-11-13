@@ -1,0 +1,20 @@
+{
+  "id": "USER-20261113-main-thread-sync-wait-rest",
+  "since": "2026-11-13",
+  "source": "用户 2026-11-13 的话：「有没有可能把这种问题的根因都找到并且解决 就是原地等待问题 冻住问题什么的」。保存热路径那一半已在 USER-20261113-main-thread-sync-wait 结账；这一条记剩下的。",
+  "category": "performance-coverage",
+  "problem": "保存之外，主进程上仍有会原地等的地方，等的时候所有窗口的请求都没人应：清单锁、保存之外的注册表锁、同步回调里的写入、花钱运行的记账和锁（共 30 处调用、12 个文件）；慢盘上一次保存约 9 次同步落盘会卡约 273ms；渲染层到主进程还有 31 条同步请求。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-13-main-unblock-pr2.md",
+    "docs/engineering/direction-checks/2026-11-13-main-thread-sync-wait.md",
+    "tests/perf/scenarios/save-slow-disk.json",
+    "下一步：存盘搬到独立进程；运行记账和锁跟着搬；同步请求清零。每一步合入时回来更新这一条。"
+  ],
+  "completionCommits": []
+}

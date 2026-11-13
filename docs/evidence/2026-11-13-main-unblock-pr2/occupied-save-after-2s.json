@@ -1,0 +1,23 @@
+{
+  "label": "after",
+  "date": "2026-11-13T00:17:41.224Z",
+  "machine": "darwin arm64 Apple M5",
+  "load": [
+    4.7783203125,
+    6.6474609375,
+    8.55126953125
+  ],
+  "results": [
+    {
+      "occupiedMs": 2000,
+      "savedAfterMs": 3629,
+      "hintAtMs": null,
+      "diskNodesBefore": 48,
+      "diskNodesAfter": 49,
+      "memoryNodes": 49,
+      "stallMaxMs": 75.4,
+      "hits": 12,
+      "sleptMs": 0
+    }
+  ]
+}

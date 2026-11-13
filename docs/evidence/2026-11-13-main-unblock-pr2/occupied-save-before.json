@@ -1,0 +1,51 @@
+{
+  "label": "before",
+  "date": "2026-11-13T00:23:02.569Z",
+  "machine": "darwin arm64 Apple M5",
+  "load": [
+    8.2255859375,
+    9.505859375,
+    9.2763671875
+  ],
+  "results": [
+    {
+      "occupiedMs": 2000,
+      "savedAfterMs": null,
+      "hintAtMs": 1198,
+      "diskNodesBefore": 48,
+      "diskNodesAfter": 48,
+      "memoryNodes": 49,
+      "stallMaxMs": 449.6,
+      "hits": 6,
+      "sleptMs": 410,
+      "retryDiskNodes": 50,
+      "retrySavedBoth": true
+    },
+    {
+      "occupiedMs": 10000,
+      "savedAfterMs": null,
+      "hintAtMs": 1183,
+      "diskNodesBefore": 50,
+      "diskNodesAfter": 50,
+      "memoryNodes": 51,
+      "stallMaxMs": 442.8,
+      "hits": 6,
+      "sleptMs": 409,
+      "retryDiskNodes": 52,
+      "retrySavedBoth": true
+    },
+    {
+      "occupiedMs": 70000,
+      "savedAfterMs": null,
+      "hintAtMs": 1232,
+      "diskNodesBefore": 52,
+      "diskNodesAfter": 52,
+      "memoryNodes": 53,
+      "stallMaxMs": 465.3,
+      "hits": 6,
+      "sleptMs": 407,
+      "retryDiskNodes": 54,
+      "retrySavedBoth": true
+    }
+  ]
+}

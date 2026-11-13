@@ -3,21 +3,33 @@
   "since": "2026-11-13",
   "source": "用户 2026-11-13 的话：「有没有可能把这种问题的根因都找到并且解决 就是原地等待问题 冻住问题什么的」。方向检查 docs/engineering/direction-checks/2026-11-13-main-thread-sync-wait.md。",
   "category": "performance-coverage",
-  "problem": "主进程上的「原地等待」会冻住所有 IPC：保存遇到文件被杀毒 / 同步盘占着时，同步助手用 Atomics.wait 原地睡着退避，注册表锁自旋；每次保存还整读回清单校验、重读算哈希、每次写注册表。第二刀只结保存热路径，其余同步睡眠调用方（清单锁、同步回调、记账类）仍在主进程上，见修复合同的残余风险。",
+  "problem": "保存遇到文件被杀毒 / 同步盘占着时，主进程原地睡着退避、注册表锁自旋，这期间所有窗口的请求都没人应；每次保存还整读回清单校验、重读算哈希、每次写注册表。这一条只管保存这条热路径；保存之外仍在主进程上原地等的调用方另记在 USER-20261113-main-thread-sync-wait-rest。",
   "existingInvariants": [],
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-13-main-thread-sync-wait.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/workspace/saveFaultSweep.test.ts"
+  },
   "evidence": [
     "docs/plan/2026-11-13-main-unblock-pr2.md",
     "docs/fixes/2026-11-13-main-thread-sync-wait.root-cause.json",
     "electron/sharingRetry.test.ts",
     "electron/workspace/saveFaultSweep.test.ts",
     "tests/perf/scenarios/save-under-sharing-violation.json",
-    "tests/perf/scenarios/save-slow-disk.json",
+    "docs/evidence/2026-11-13-main-unblock-pr2/occupied-save-before.json",
+    "docs/evidence/2026-11-13-main-unblock-pr2/occupied-save-after-2s.json",
+    "docs/evidence/2026-11-13-main-unblock-pr2/occupied-save-after-10s-70s.json",
     "Windows 未验证：占用时长分布与 NTFS 上的错误码行为没在 Windows 上跑过。"
   ],
-  "completionCommits": []
+  "completionCommits": [
+    "030534dc0",
+    "2a8d39c86"
+  ],
+  "notes": "只结保存热路径：占用 2 秒 / 10 秒保存从失败变成功，主进程停顿约 450ms 降到 56–75ms，原地睡 0。慢盘（每次落盘慢 30ms）仍约 273ms，没解决，场景 save-slow-disk 留成待测。",
+  "fixedInPr": 1500
 }
