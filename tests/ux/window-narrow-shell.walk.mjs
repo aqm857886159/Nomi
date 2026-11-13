@@ -21,6 +21,7 @@ import {
   AGENT_BALL, AGENT_PANEL, CANVAS_ADD_BAR, CANVAS_ZOOM_BAR, COLLAPSE_BUTTON, closeRailDrawer, closeSettings, ensureAgentPanelOpen, openRailDrawer, openSettings,
   railDrawerPanel, settingsDialog, switchWorkspace,
 } from './_shell.mjs'
+import { COMPOSER, COMPOSER_INPUT } from './agent-runtime-walk-support.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { MIN_WINDOW } from './_minWindow.mjs'
@@ -210,8 +211,9 @@ async function runRound({ locale, scheme, tag, projectName }) {
       const minimum = await browserWindow.evaluate((windowRef) => windowRef.getMinimumSize())
       await browserWindow.evaluate((windowRef) => windowRef.setSize(560, 560))
       const size = await browserWindow.evaluate((windowRef) => windowRef.getSize())
-      check(`${BOARD.minSize} 最小窗 = 700×720`, minimum[0] === NARROW && minimum[1] === MIN_WINDOW.height, `getMinimumSize ${minimum.join('×')}`)
-      check(`${BOARD.minSize} 往 560×560 拖，停在 700×720`, size[0] === NARROW && size[1] === MIN_WINDOW.height, `实际 ${size.join('×')}`)
+      // 对拍板值 700×720，不拿最小窗定义自己比自己（定义被改了这里要红）
+      check(`${BOARD.minSize} 最小窗 = 700×720`, minimum[0] === 700 && minimum[1] === 720, `getMinimumSize ${minimum.join('×')}`)
+      check(`${BOARD.minSize} 往 560×560 拖，停在 700×720`, size[0] === 700 && size[1] === 720, `实际 ${size.join('×')}`)
     }
 
     // ── 项目库与设置在 700 宽（不改，只看） ──
@@ -564,11 +566,12 @@ async function runRound({ locale, scheme, tag, projectName }) {
       await expect(narrowBall.first(), `${width} 预览页应是小球`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
       await win.keyboard.press('Meta+J')
       await expect(win.locator('[data-agent-float]').first(), `${width} ⌘J 应叫出浮窗`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-      const focusedIn = () => win.evaluate((panel) => {
+      // 按 composer 锚点 + 富文本编辑器判焦点（同 expectComposerFocused），不按标签名。
+      const focusedIn = () => win.evaluate(({ panel, input }) => {
         const active = document.activeElement
-        const inPanel = Boolean(active?.closest(panel)) && (active?.tagName === 'TEXTAREA' || active?.getAttribute('contenteditable') === 'true')
+        const inPanel = active instanceof HTMLElement && active.isContentEditable && active.matches(input) && Boolean(active.closest(panel))
         return { inPanel, at: active ? `${active.tagName.toLowerCase()}${active.id ? `#${active.id}` : ''}${active.getAttribute('data-v4-control') ? `[${active.getAttribute('data-v4-control')}]` : ''}` : 'none' }
-      }, AGENT_PANEL)
+      }, { panel: AGENT_PANEL, input: `${COMPOSER} ${COMPOSER_INPUT}` })
       let focus = await focusedIn()
       for (let wait = 0; !focus.inPanel && wait < 8; wait += 1) {
         await win.waitForTimeout(250)
