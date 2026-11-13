@@ -1,0 +1,26 @@
+{
+  "id": "USER-20261112-mode-without-inputs",
+  "since": "2026-11-12",
+  "source": "用户 2026-11-12：视频 / 图片节点「选了图生图却没图」，生成钮灰着；改向：照 LibTV 的思路，把方式放回底栏让创作者确认。设计卡见 docs/plan/2026-11-12-mode-from-inputs.md。",
+  "category": "interaction-semantics",
+  "problem": "节点上写着带图的方式（图生图 / 首尾帧）却一张图也没放，生成钮灰着让人「切回文生」；放了五张参考图节点却还停在首尾帧、只发两张。方式存成字段、由十几处派生各自纠正，漏一个入口（粘贴、模板、撤销、Agent 剔边、旧项目）就和输入对不上，创作者也看不到这次到底按哪种方式发。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "fixedInPr": 1489,
+  "manualReview": "reviewed",
+  "evidence": [
+    "electron/shared/modelArchetypes/modeForInputs.exhaustive.test.ts：全部档案 × 每个存着的方式 + 乱写的方式 × 9 种输入；把现算改回读存着的方式 → 红。",
+    "src/workbench/generationCanvas/store/canvasModeNineStates.test.ts：方式格九种状态各一条，都从 modeForInputs 来。",
+    "tests/ux/mode-bar.walk.mjs：底栏方式格真窗走查（中 / 英 / 暗），边界 K1–K5 先红后绿。",
+    "未验证：真付费闭环（合并前由协调会话跑一次，结果写进 PR 正文）；修前那一幕没在 main 的真窗口里另走。"
+  ],
+  "completionCommits": ["325237525", "bd2f0f11c", "f7ad465b0", "033a106f3"],
+  "rootCauseContract": "docs/fixes/2026-11-12-mode-from-inputs.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/shared/modelArchetypes/modeForInputs.exhaustive.test.ts"
+  }
+}

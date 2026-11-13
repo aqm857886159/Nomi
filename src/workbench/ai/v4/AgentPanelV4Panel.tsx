@@ -15,6 +15,7 @@ import { NomiBrand } from '../../../design/identity'
 // 记住哪个还没接——而「没接」和「接了但没反应」在界面上长得一模一样。一个对象，
 // 缺哪个键就是那件事这里做不了，TypeScript 看得见。
 import React, { type JSX } from 'react'
+import { useStickToBottom } from 'use-stick-to-bottom'
 import { useWorkspacePanelFrame, workspacePanelFrame, workspacePanelHeader } from '../../WorkspacePanelFrame'
 import type { LaneLegacyFacts } from '../../../../electron/shared/agentLane/laneLegacyNote'
 import { useTranslation } from 'react-i18next'
@@ -30,11 +31,10 @@ import { flowItemGenerations } from '../pointer/generationReceiptFacts'
 import { V4EmptyState } from './AgentPanelV4Empty'
 import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
 import { AGENT_HEADER_COMPACT_WIDTH, AgentPanelHeaderSlotContext, type AgentPanelHeaderSlot } from '../../../ui/app-shell/shell/agentPanelHeaderSlot'
-import { WorkbenchMenu, type WorkbenchMenuNode } from '../../../design'
-import { IconDots } from '@tabler/icons-react'
+import { WorkbenchIconButton, WorkbenchMenu, type WorkbenchMenuNode } from '../../../design'
+import { IconArrowDown, IconDots } from '@tabler/icons-react'
 import type { V4QuestionReply } from './agentPanelV4Question'
 import { useV4Labels } from './agentPanelV4Labels'
-import type { V4FlowScrollMemoryBox } from './agentPanelV4ScrollMemory'
 import type { ResidentSurface } from '../resident/residentShellDisplay'
 import type {
   ContextUsage,
@@ -131,12 +131,10 @@ export type AgentPanelV4PanelProps = {
   onLoadOlder?: () => Promise<string | undefined>
   onCollapse?: () => void
   /**
-   * 「用户读到哪儿了」的存放处（09-01 定稿 §11.2：点角标 = 原宽**原状态**还原）。
-   * 收起会把对话流这棵子树整个摘掉，`scrollTop` 跟着 DOM 一起没了；本组件自己存不住，
-   * 所以让宿主给一个活得比它久的盒子（`agentPanelV4ScrollMemory.ts`）。
-   * 不给（设计实验室、单测）就是每次挂载都跟到底，与从前一样。
+   * 现在显示的是哪一条对话（宿主给：项目 + 面 + 线程）。它一变就是「进了另一条对话」：落到那条的最新一条。
+   * 不给（设计实验室、单测）= 只在挂载时落到底。
    */
-  scrollMemory?: V4FlowScrollMemoryBox
+  conversationKey?: string
 }
 
 /** 对话流里的一条 = 一个积木；哪个积木由 kind 决定，壳不认识内容。 */
@@ -240,7 +238,7 @@ export function AgentPanelV4Panel({
   historyIdentity,
   historyCursor,
   onCollapse,
-  scrollMemory,
+  conversationKey,
 }: AgentPanelV4PanelProps): JSX.Element {
   const { t } = useTranslation()
   const workspaceFrame = useWorkspacePanelFrame()
@@ -270,7 +268,14 @@ export function AgentPanelV4Panel({
     ...(legacy.archivedItems ? [t('agentPanelV4.legacyArchived')] : []),
     ...(legacy.missingToolArguments ? [t('agentPanelV4.legacyMissingArguments')] : []),
   ].join(t('agentPanelV4.legacySeparator')) : undefined
-  const scrollRef = React.useRef<HTMLDivElement>(null)
+  // 跟到底交给现成库 use-stick-to-bottom（StackBlitz，MIT）：它看的是**内容高度**——流式长字、卡片展开、
+  // 图片撑高都算，不看条目数；人往上翻（滚轮 / 拖滚动条 / 拖选文字）就松开不拽他，滚回离底 70px 以内自己重新跟上。
+  // 这里只留两件本来就属于我们的事：「加载更早」时钉住他读到的那一行；收起 / 换形态回来时回到原处（定稿 §11.2）。
+  const stick = useStickToBottom({ initial: 'instant', resize: 'instant' })
+  const { scrollRef, contentRef, scrollToBottom, stopScroll, state: stuck } = stick
+  // 上一次渲染时「在不在跟着底」。收起那一刻库自己会因为高度归零重新挂上跟随，所以记的是这里，不是那一刻的库状态。
+  const followingRef = React.useRef(true)
+  followingRef.current = stuck.isAtBottom
   const paging = React.useRef<{ settled: boolean } | null>(null)
   const pageOwner = React.useRef<object>({})
   const pageAnchor = React.useRef<{ owner: object; request: object; height: number; top: number; first?: string; cursor?: string } | null>(null)
@@ -294,55 +299,66 @@ export function AgentPanelV4Panel({
     const node = scrollRef.current
     if (node && pageAnchor.current && (flow[0]?.identity !== pageAnchor.current.first || historyCursor !== pageAnchor.current.cursor)) {
       // A reset/compaction is not a prepend. Only preserve an existing row's position.
-      if (flow[0]?.identity !== pageAnchor.current.first && pageAnchor.current.owner === pageOwner.current && flow.some(item => item.identity === pageAnchor.current?.first)) {
+      // 跟着底的时候不钉：底由跟到底那一路管（一页旧消息插在上面，他看的还是最新一条），这里只钉往上翻着读的人。
+      if (!stuck.isAtBottom && flow[0]?.identity !== pageAnchor.current.first && pageAnchor.current.owner === pageOwner.current && flow.some(item => item.identity === pageAnchor.current?.first)) {
         node.scrollTop = pageAnchor.current.top + node.scrollHeight - pageAnchor.current.height
       }
       pageAnchor.current = null
       if (paging.current?.settled) paging.current = null
     }
-  }, [flow, historyCursor])
-  // 跟到底：只有用户本来就在底部时才跟。他往上翻着看历史的时候把他拽回来，
-  // 比不跟更糟——那是把「我在读」当成「我想看新的」。
-  // 初值取自宿主记下的那次：展开回来时先恢复「他当时在不在底」，再决定跟不跟。
-  const atBottomRef = React.useRef(scrollMemory?.current.atBottom ?? true)
+  }, [flow, historyCursor, scrollRef, stuck])
+  // 进了另一条对话（切线程 / 换面 / 换项目）：落到它的最新一条。这是一个明确的动作，不靠记忆、不看条目数。
+  React.useLayoutEffect(() => {
+    void scrollToBottom('instant')
+  }, [conversationKey, scrollToBottom])
   /**
-   * 展开那一刻把位置还回去，用 layout effect（跟到底那条是普通 effect，跑在它之后，
-   * 而 `atBottomRef` 已经是收起前的值——他当时翻在半路，就不会被新一轮「跟到底」拽走）。
-   * 在 paint 之前还原：放进普通 effect 会先画一帧在顶部，看起来像内容闪了一下。
+   * 收起成小球、换停靠 / 浮窗：同一棵面板的 DOM 被挪进隐藏容器或别的挂点（`ShellAgentHost` 的 reverse portal，
+   * 不卸载），浏览器把滚动位置清零、库也因为高度归零重新挂上跟随。回来时照收起前那一刻还原：
+   * 在跟着底就到**当下**的底（收起期间来的也看得见）；翻在半路就回那个像素，并且不跟（他在读）。
+   * 对话流这块地方变矮（输入框长高、介入槽冒出来）也走这里：跟着底的人照样看得见最后一行。
    */
   React.useLayoutEffect(() => {
     const node = scrollRef.current
     if (!node) return undefined
-    const remembered = scrollMemory?.current
-    // 记的是底就跟到**当下**这个底：收起期间来的那几条也要看得见，回到旧的那个像素反而是错的。
-    if (remembered) node.scrollTop = remembered.atBottom ? node.scrollHeight : remembered.top
-    return () => {
-      // 位置在**这里**记：布局 effect 的清理跑在节点还挂在文档里的那一刻（提交的 mutation 阶段）。
-      //
-      // 另外两种写法都记到假话，而且长得跟真的一样：① 靠 scroll 事件记——一个从没被滚过的位置
-      // （内容长出来把人留在顶上）压根不发事件，记下的是上一次滚到的地方；② 放普通 effect 的清理——
-      // 那时节点已经被摘掉，`scrollTop`/`scrollHeight` 全读成 0，于是「他在顶上」被记成「他在底部」。
-      // 2026-09-06 真机走查两次都是同一个现象：收起前明明停在 0，展开弹回 259.5 的底。
-      if (scrollMemory) {
-        scrollMemory.current = {
-          top: node.scrollTop,
-          atBottom: node.scrollHeight - node.scrollTop - node.clientHeight < 24,
-        }
-      }
+    let lastTop = node.scrollTop
+    let frozen: { top: number; following: boolean } | null = null
+    const remember = (): void => {
+      if (!frozen && node.clientHeight > 0) lastTop = node.scrollTop
     }
-  }, [scrollMemory])
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return
+      if (entry.contentRect.height === 0) {
+        frozen ??= { top: lastTop, following: followingRef.current }
+        return
+      }
+      const back = frozen
+      frozen = null
+      const following = back ? back.following : followingRef.current
+      const top = back ? back.top : lastTop
+      if (following) {
+        void scrollToBottom('instant')
+      } else if (back || Math.abs(node.scrollTop - top) > 1) {
+        stopScroll()
+        node.scrollTop = top
+      }
+    })
+    node.addEventListener('scroll', remember, { passive: true })
+    observer.observe(node)
+    return () => {
+      observer.disconnect()
+      node.removeEventListener('scroll', remember)
+    }
+  }, [scrollRef, scrollToBottom, stopScroll])
   React.useEffect(() => {
     const node = scrollRef.current
     if (!node) return
     const onScroll = (): void => {
-      atBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 24
       if (node.scrollTop <= 24 && historyIdentity && onLoadOlder && !paging.current) {
         const owner = pageOwner.current
         const request = { settled: false }
         paging.current = request
         pageAnchor.current = { owner, request, height: node.scrollHeight, top: node.scrollTop, first: flow[0]?.identity, cursor: historyCursor }
         const current = () => pageOwner.current === owner && paging.current === request
-        atBottomRef.current = false
         setHistoryError(false)
         let advanced = false
         void onLoadOlder().then(cursor => {
@@ -371,11 +387,13 @@ export function AgentPanelV4Panel({
     node.addEventListener('scroll', onScroll, { passive: true })
     if (node.scrollHeight <= node.clientHeight) onScroll()
     return () => node.removeEventListener('scroll', onScroll)
-  }, [onLoadOlder, flow, historyIdentity, historyCursor, pageCompletion])
-  React.useEffect(() => {
-    const node = scrollRef.current
-    if (node && atBottomRef.current) node.scrollTop = node.scrollHeight
-  }, [flow.length, flowTail, slot?.title, queue?.length])
+  }, [onLoadOlder, flow, historyIdentity, historyCursor, pageCompletion, scrollRef])
+  const onComposerSubmit = composer?.onSubmit
+  const submitAndFollow = React.useCallback((choice?: 'primary' | 'secondary') => {
+    // 发出去的那句永远要看得见：他刚才翻在半路也拉回最新一条，接着跟（拍板 2）。
+    void scrollToBottom('instant')
+    onComposerSubmit?.(choice)
+  }, [onComposerSubmit, scrollToBottom])
   return (
     <section
       // `overflow-clip` 而不是 `overflow-hidden`：hidden 仍然是一个**可以被程序滚动**的
@@ -404,26 +422,42 @@ export function AgentPanelV4Panel({
         )}
       </header>
       {legacyNotice ? <p className="shrink-0 truncate px-3 pt-2 text-micro text-nomi-ink-60" title={legacyNotice} data-v4-legacy="true">{legacyNotice}</p> : null}
-      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 py-2.5 [&>*]:shrink-0" data-v4-flow="true">
-        {/* 空态只在**流为空**时占这块地方：来了第一条消息它就永远不再出现，
-            所以它不是常驻件、不参与控件预算（设计系统 §1.5）。 */}
-        {historyError ? <div role="alert">{t('agentPanelV4.historyLoadFailed')}</div> : null}
-        {flow.length === 0 ? <V4EmptyState surface={surface} onStarter={onStarter} /> : null}
-        {flow.map((item, index) => (
-          <React.Fragment key={item.identity ?? `${item.kind}-${index}`}>
-            <V4FlowRow
-              item={item}
-              index={index}
-              darkMode={darkMode}
-              handlers={stableFlowHandlers}
-            />
-            {/* 宿主确定性的提示（例如 3D-BOX 补丁覆盖了手调）画在这一行外面：收起的过程行也照样看得见 */}
-            {flowItemNotices(item).map((notice, position) => <V4ReceiptNotice key={position} text={notice} />)}
-            {/* `generate` 那一行：卡关掉以后挂那几镜的组指向（实时读节点，点了照样定位），同样画在行外面 */}
-            {flowItemGenerations(item).map((operationId) => <GenerationReceiptPointers key={operationId} operationId={operationId} />)}
-          </React.Fragment>
-        ))}
-        {flowTail}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2.5" data-v4-flow="true">
+          {/* 跟到底量的是这一层的高度；`grow` 让空态在内容不满时照样垂直居中。 */}
+          <div ref={contentRef} className="flex shrink-0 grow flex-col gap-2.5 [&>*]:shrink-0" data-v4-flow-rows="true">
+            {/* 空态只在**流为空**时占这块地方：来了第一条消息它就永远不再出现，
+                所以它不是常驻件、不参与控件预算（设计系统 §1.5）。 */}
+            {historyError ? <div role="alert">{t('agentPanelV4.historyLoadFailed')}</div> : null}
+            {flow.length === 0 ? <V4EmptyState surface={surface} onStarter={onStarter} /> : null}
+            {flow.map((item, index) => (
+              <React.Fragment key={item.identity ?? `${item.kind}-${index}`}>
+                <V4FlowRow
+                  item={item}
+                  index={index}
+                  darkMode={darkMode}
+                  handlers={stableFlowHandlers}
+                />
+                {/* 宿主确定性的提示（例如 3D-BOX 补丁覆盖了手调）画在这一行外面：收起的过程行也照样看得见 */}
+                {flowItemNotices(item).map((notice, position) => <V4ReceiptNotice key={position} text={notice} />)}
+                {/* `generate` 那一行：卡关掉以后挂那几镜的组指向（实时读节点，点了照样定位），同样画在行外面 */}
+                {flowItemGenerations(item).map((operationId) => <GenerationReceiptPointers key={operationId} operationId={operationId} />)}
+              </React.Fragment>
+            ))}
+            {flowTail}
+          </div>
+        </div>
+        {/* 往上翻着读时才出现（ConversationJumpToLatest 板）：点一下回到最新一条并接着跟；回到底就消失。 */}
+        {stick.isAtBottom ? null : (
+          <WorkbenchIconButton
+            size="sm"
+            icon={<IconArrowDown />}
+            label={t('agentPanelV4.jumpToLatest')}
+            onClick={() => void scrollToBottom('instant')}
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-nomi-line bg-nomi-paper text-nomi-ink-60 shadow-nomi-sm hover:bg-nomi-paper hover:text-nomi-ink"
+            data-v4-control="jump-latest"
+          />
+        )}
       </div>
       {slot ? (
         <div className="shrink-0 px-2.5 pb-2">
@@ -441,6 +475,7 @@ export function AgentPanelV4Panel({
         <AgentPanelV4Composer
           panelHeight={height}
           {...composer}
+          onSubmit={onComposerSubmit ? submitAndFollow : undefined}
           mode={composer?.mode ?? 'idle'}
           permission={composer?.permission ?? DEFAULT_PERMISSION_TIER}
         />

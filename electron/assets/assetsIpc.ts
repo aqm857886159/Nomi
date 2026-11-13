@@ -7,6 +7,7 @@ import { getAutoSavePrefs, setAutoSavePrefs, type AutoSavePrefs } from "./downlo
 import { CLIPBOARD_FILE_PATH_FORMATS, parseClipboardFilePaths } from "./clipboardFilePaths";
 import { copyProjectAsset, importRemoteAsset, type RemoteAssetImportPayload } from "./projectAssetStore";
 import type { AssetImportResult } from '../shared/contracts/assetImportResult';
+import type { LocalFileImportPayload } from './localFileImport';
 import type { AssetImportFailure } from '../shared/contracts/assetImportResult';
 import type { ProjectInteractionCapture } from './projectInteractionCapture';
 import { surfacePortFailure } from '../shared/surfacePortBinding';
@@ -49,7 +50,8 @@ async function importAssetResult(
   try { assertCurrent = capture(); } catch (error) { return importFailure(error); }
   const { importLocalFile, MediaImportRejectedError, AssetImportCancelledError } = await import('./localFileImport');
   try {
-    const done = await runImport(imports, sender, assertCurrent, (signal) => importLocalFile(payload, {
+    // 渲染层载荷不过类型系统：importLocalFile 入口在运行时拒生成产物（这扇门只收用户文件）。
+    const done = await runImport(imports, sender, assertCurrent, (signal) => importLocalFile(payload as LocalFileImportPayload, {
       allowSourcePath,
       assertCurrent,
       signal,

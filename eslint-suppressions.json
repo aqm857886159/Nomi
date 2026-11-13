@@ -635,11 +635,6 @@
       "count": 1
     }
   },
-  "scripts/model-identity-walkthrough.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "scripts/model-panel-shot.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -1032,11 +1027,6 @@
     }
   },
   "tests/ux/agent-askback-real-model.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/agent-default-model-real.paid.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }

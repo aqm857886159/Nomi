@@ -120,3 +120,37 @@ test('同源 Windows 路径写法（2026-10-10 六道门岗只在 Windows 上红
   // 归档证据不管
   assert.deepEqual(scanSource("await import(path.join(a, 'b.mjs'))", 'docs/evidence/x.mjs').map((hit) => hit.rule), [])
 })
+
+
+test('测试直接起 Electron 必须走共享启动器，包含同步、异步及二进制别名', () => {
+  const bad = [
+    "spawnSync(require('electron'), ['fixture.cjs'])",
+    "spawn(module.require('electron'), ['fixture.cjs'])",
+    "const binary = require('electron'); childProcess.spawn(binary, ['.'])",
+    "import binary from 'electron'; execFile(binary, ['.'])",
+  ]
+  for (const source of bad) assert.deepEqual(rules(source, 'tests/ux/fixture.test.mjs'), ['electron-spawn-bypass'], source)
+  for (const source of [
+    "const spec = quietElectronSpawn(['fixture.cjs']); spawnSync(spec.command, spec.args, spec.options)",
+    "spawnSync(process.execPath, ['fixture.mjs'])",
+    "const { app } = require('electron'); app.quit()",
+    "const example = \"spawnSync(require('electron'), [])\"",
+    "// spawnSync(require('electron'), [])",
+  ]) assert.deepEqual(rules(source, 'tests/ux/fixture.test.mjs'), [], source)
+  assert.deepEqual(rules(bad[0], 'tests/ux/_launchApp.mjs'), [])
+  assert.deepEqual(rules(bad[0], 'scripts/start-electron.mjs'), [])
+})
+
+test('新规则经真实文件扫描生效，不依赖 import.meta.url 预筛选', (t) => {
+  const fixture = makeTempDir('nomi-electron-spawn-guard-')
+  t.after(() => fs.rmSync(fixture, { recursive: true, force: true }))
+  execFileSync('git', ['init', '-q'], { cwd: fixture })
+  fs.mkdirSync(path.join(fixture, 'tests'))
+  const file = path.join(fixture, 'tests', 'fixture.mjs')
+  fs.writeFileSync(file, "spawnSync(require('electron'), ['fixture.cjs'])")
+  const lines = []
+  assert.equal(main({ root: fixture, log: (line) => lines.push(line) }), 1)
+  assert.match(lines.join('\n'), /electron-spawn-bypass/)
+  fs.writeFileSync(file, "const spec = quietElectronSpawn(['fixture.cjs']); spawnSync(spec.command, spec.args, spec.options)")
+  assert.equal(main({ root: fixture, log: () => {} }), 0)
+})

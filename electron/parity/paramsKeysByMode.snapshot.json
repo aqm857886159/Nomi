@@ -1,0 +1,5162 @@
+{
+ "summary": {
+  "samples": 534,
+  "archetypes": 93,
+  "samplesWithLeaks": {
+   "canvas": 6,
+   "run": 0,
+   "either": 6
+  },
+  "archetypesWithLeaks": 1,
+  "topLeakedKeys": [
+   {
+    "key": "duration",
+    "samples": 6
+   },
+   {
+    "key": "aspect_ratio",
+    "samples": 3
+   }
+  ],
+  "archetypesWithDefaultCarried": 1,
+  "emptyDuration": {
+   "canvas": 6,
+   "run": 0,
+   "emptyValue": 0
+  },
+  "pathsDiffer": 144
+ },
+ "pathDifferences": [
+  {
+   "id": "agnes-image-2.1|agnes|agnes-image-2.1-flash|t2i->edit",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-image|agnes|agnes-image-2.0-flash|t2i->edit",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|keyframe->reference",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|reference->keyframe",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|text->keyframe",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|text->reference",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-video-2.5|agnes|agnes-video-2.5|keyframe->reference",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-video-2.5|agnes|agnes-video-2.5|reference->keyframe",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-video-2.5|agnes|agnes-video-2.5|text->keyframe",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-video-2.5|agnes|agnes-video-2.5|text->reference",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-video|agnes|agnes-video-v2.0|i2v->keyframes",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-video|agnes|agnes-video-v2.0|keyframes->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-video|agnes|agnes-video-v2.0|t2v->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "agnes-video|agnes|agnes-video-v2.0|t2v->keyframes",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|firstlast->reference",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|reference->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|t2v->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|t2v->reference",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "gemini-omni-1.1|runway|gemini_omni_flash|reference->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "gemini-omni-1.1|runway|gemini_omni_flash|t2v->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "grok-imagine-1.5-video|runway|grok_imagine_1_5|t2v->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|edit->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|i2v->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|ref->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|ref->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|t2v->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|t2v->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|edit->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|i2v->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|ref->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|ref->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|t2v->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|t2v->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "higgsfield-dop|higgsfield|higgsfield-ai/dop/standard|firstlast->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "higgsfield-dop|higgsfield|higgsfield-ai/dop/standard|i2v->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "higgsfield-dop|higgsfield|higgsfield-ai/dop/turbo|firstlast->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "higgsfield-dop|higgsfield|higgsfield-ai/dop/turbo|i2v->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "hunyuan3d|runninghub|hunyuan3d-v3.1|text->image",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "meshy6|runninghub|meshy6|text->image",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3-max|fal|minimax/h3-max|t2v->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3|kie|minimax-h3|ref->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3|kie|minimax-h3|t2v->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3|minimax|MiniMax-H3|i2v->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3|minimax|MiniMax-H3|ref->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3|minimax|MiniMax-H3|ref->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3|minimax|MiniMax-H3|t2v->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3|runway|hailuo3|i2v->ref",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3|runway|hailuo3|i2v->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3|runway|hailuo3|ref->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3|runway|hailuo3|ref->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3|runway|hailuo3|t2v->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "minimax-h3|runway|hailuo3|t2v->ref",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "rh-hailuo-2.3|runninghub|rh-hailuo-2.3|text->image",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "rh-kling-3.0|runninghub|kling-v3.0-pro|text->image",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "rh-veo-3.1|runninghub|rhart-video-v3.1-pro-official|text->image",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "rh-wan-2.7|runninghub|rh-wan-2.7|text->image",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "runway-gen4.5|runway|gen4.5|t2v->i2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "runway-seed-audio|runway|seed_audio|sfx->speech",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "runway-seed-audio|runway|seed_audio|speech->sfx",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|first->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|first->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|first->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|firstlast->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|firstlast->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|firstlast->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|omni->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|omni->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|omni->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|t2v->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|t2v->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|t2v->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|first->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|first->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|firstlast->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|firstlast->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|omni->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|omni->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|t2v->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|t2v->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|t2v->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|first->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|first->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|firstlast->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|firstlast->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|firstlast->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|omni->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|omni->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|t2v->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|t2v->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|first->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|first->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|firstlast->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|firstlast->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|firstlast->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|omni->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|omni->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|t2v->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|t2v->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2|first->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2|first->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2|firstlast->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2|firstlast->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2|firstlast->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2|omni->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2|omni->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2|t2v->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2|runway|seedance2|t2v->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "suno-v5.5|apimart|suno-v5.5|cover->extend",
+   "kind": "one-refused",
+   "canvasStatus": "refused:Error",
+   "runStatus": "sent"
+  },
+  {
+   "id": "suno-v5.5|apimart|suno-v5.5|cover->music",
+   "kind": "one-refused",
+   "canvasStatus": "refused:Error",
+   "runStatus": "sent"
+  },
+  {
+   "id": "suno-v5.5|apimart|suno-v5.5|extend->cover",
+   "kind": "one-refused",
+   "canvasStatus": "refused:Error",
+   "runStatus": "sent"
+  },
+  {
+   "id": "suno-v5.5|apimart|suno-v5.5|extend->music",
+   "kind": "one-refused",
+   "canvasStatus": "refused:Error",
+   "runStatus": "sent"
+  },
+  {
+   "id": "suno-v5.5|apimart|suno-v5.5|music->cover",
+   "kind": "one-refused",
+   "canvasStatus": "refused:Error",
+   "runStatus": "sent"
+  },
+  {
+   "id": "suno-v5.5|apimart|suno-v5.5|music->extend",
+   "kind": "one-refused",
+   "canvasStatus": "refused:Error",
+   "runStatus": "sent"
+  },
+  {
+   "id": "veo-3.1|runway|veo3.1_fast|reference->frame",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "veo-3.1|runway|veo3.1_fast|t2v->frame",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "veo-3.1|runway|veo3.1|reference->frame",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "veo-3.1|runway|veo3.1|t2v->frame",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|first->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|first->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|firstlast->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|firstlast->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|omni->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|omni->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|t2v->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|t2v->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|t2v->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|first->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|first->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|firstlast->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|firstlast->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|omni->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|omni->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|t2v->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|t2v->firstlast",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|t2v->omni",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "wan-3.0|runway|wan3|first->ref",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "wan-3.0|runway|wan3|first->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "wan-3.0|runway|wan3|firstlast->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "wan-3.0|runway|wan3|firstlast->ref",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "wan-3.0|runway|wan3|firstlast->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "wan-3.0|runway|wan3|ref->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "wan-3.0|runway|wan3|ref->t2v",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "wan-3.0|runway|wan3|t2v->first",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "wan-3.0|runway|wan3|t2v->ref",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  }
+ ],
+ "sampleIds": [
+  "agnes-image-2.1|agnes|agnes-image-2.1-flash|edit->t2i",
+  "agnes-image-2.1|agnes|agnes-image-2.1-flash|t2i->edit",
+  "agnes-image|agnes|agnes-image-2.0-flash|edit->t2i",
+  "agnes-image|agnes|agnes-image-2.0-flash|t2i->edit",
+  "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|keyframe->reference",
+  "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|keyframe->text",
+  "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|reference->keyframe",
+  "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|reference->text",
+  "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|text->keyframe",
+  "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|text->reference",
+  "agnes-video-2.5|agnes|agnes-video-2.5|keyframe->reference",
+  "agnes-video-2.5|agnes|agnes-video-2.5|keyframe->text",
+  "agnes-video-2.5|agnes|agnes-video-2.5|reference->keyframe",
+  "agnes-video-2.5|agnes|agnes-video-2.5|reference->text",
+  "agnes-video-2.5|agnes|agnes-video-2.5|text->keyframe",
+  "agnes-video-2.5|agnes|agnes-video-2.5|text->reference",
+  "agnes-video|agnes|agnes-video-v2.0|i2v->keyframes",
+  "agnes-video|agnes|agnes-video-v2.0|i2v->t2v",
+  "agnes-video|agnes|agnes-video-v2.0|keyframes->i2v",
+  "agnes-video|agnes|agnes-video-v2.0|keyframes->t2v",
+  "agnes-video|agnes|agnes-video-v2.0|t2v->i2v",
+  "agnes-video|agnes|agnes-video-v2.0|t2v->keyframes",
+  "codex-imagegen|codex-local|codex-imagegen|i2i->t2i",
+  "codex-imagegen|codex-local|codex-imagegen|t2i->i2i",
+  "dreamina-image|dreamina|dreamina-image|i2i->t2i",
+  "dreamina-image|dreamina|dreamina-image|t2i->i2i",
+  "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|firstlast->i2v",
+  "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|firstlast->multimodal",
+  "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|firstlast->t2v",
+  "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|i2v->firstlast",
+  "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|i2v->multimodal",
+  "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|i2v->t2v",
+  "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|multimodal->firstlast",
+  "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|multimodal->i2v",
+  "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|multimodal->t2v",
+  "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|t2v->firstlast",
+  "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|t2v->i2v",
+  "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|t2v->multimodal",
+  "flux-2-pro|kie|flux-2/pro-text-to-image|edit->t2i",
+  "flux-2-pro|kie|flux-2/pro-text-to-image|t2i->edit",
+  "flux-3-image-klein|apimart|flux-3-image-klein|i2i->t2i",
+  "flux-3-image-klein|apimart|flux-3-image-klein|t2i->i2i",
+  "flux-3-image|apimart|flux-3-image|i2i->t2i",
+  "flux-3-image|apimart|flux-3-image|t2i->i2i",
+  "flux-3-video|apimart|flux-3-video|i2v->t2v",
+  "flux-3-video|apimart|flux-3-video|t2v->i2v",
+  "gemini-3.1-flash-lite-image-ext|apimart|gemini-3.1-flash-lite-image-ext|i2i->t2i",
+  "gemini-3.1-flash-lite-image-ext|apimart|gemini-3.1-flash-lite-image-ext|t2i->i2i",
+  "gemini-3.1-flash-lite-image|apimart|gemini-3.1-flash-lite-image|i2i->t2i",
+  "gemini-3.1-flash-lite-image|apimart|gemini-3.1-flash-lite-image|t2i->i2i",
+  "gemini-image-3-pro|apimart|gemini-3-pro-image-preview|i2i->t2i",
+  "gemini-image-3-pro|apimart|gemini-3-pro-image-preview|t2i->i2i",
+  "gemini-image-3-pro|runway|gemini_image3_pro|i2i->t2i",
+  "gemini-image-3-pro|runway|gemini_image3_pro|t2i->i2i",
+  "gemini-image-3.1-flash|runway|gemini_image3.1_flash|i2i->t2i",
+  "gemini-image-3.1-flash|runway|gemini_image3.1_flash|t2i->i2i",
+  "gemini-nano-banana-2.1-ext|apimart|gemini-nano-banana-2.1-ext|i2i->t2i",
+  "gemini-nano-banana-2.1-ext|apimart|gemini-nano-banana-2.1-ext|t2i->i2i",
+  "gemini-nano-banana-2.1|apimart|gemini-nano-banana-2.1|i2i->t2i",
+  "gemini-nano-banana-2.1|apimart|gemini-nano-banana-2.1|t2i->i2i",
+  "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|firstlast->reference",
+  "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|firstlast->t2v",
+  "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|reference->firstlast",
+  "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|reference->t2v",
+  "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|t2v->firstlast",
+  "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|t2v->reference",
+  "gemini-omni-1.1|kie|google/gemini-omni-flash-1-1|firstlast->reference",
+  "gemini-omni-1.1|kie|google/gemini-omni-flash-1-1|firstlast->t2v",
+  "gemini-omni-1.1|kie|google/gemini-omni-flash-1-1|reference->firstlast",
+  "gemini-omni-1.1|kie|google/gemini-omni-flash-1-1|reference->t2v",
+  "gemini-omni-1.1|kie|google/gemini-omni-flash-1-1|t2v->firstlast",
+  "gemini-omni-1.1|kie|google/gemini-omni-flash-1-1|t2v->reference",
+  "gemini-omni-1.1|runway|gemini_omni_flash|firstlast->reference",
+  "gemini-omni-1.1|runway|gemini_omni_flash|firstlast->t2v",
+  "gemini-omni-1.1|runway|gemini_omni_flash|reference->firstlast",
+  "gemini-omni-1.1|runway|gemini_omni_flash|reference->t2v",
+  "gemini-omni-1.1|runway|gemini_omni_flash|t2v->firstlast",
+  "gemini-omni-1.1|runway|gemini_omni_flash|t2v->reference",
+  "gemini-omni-1.2-flash-ext|apimart|gemini-omni-1.2-flash-ext|firstlast->i2v",
+  "gemini-omni-1.2-flash-ext|apimart|gemini-omni-1.2-flash-ext|firstlast->reference",
+  "gemini-omni-1.2-flash-ext|apimart|gemini-omni-1.2-flash-ext|firstlast->t2v",
+  "gemini-omni-1.2-flash-ext|apimart|gemini-omni-1.2-flash-ext|i2v->firstlast",
+  "gemini-omni-1.2-flash-ext|apimart|gemini-omni-1.2-flash-ext|i2v->reference",
+  "gemini-omni-1.2-flash-ext|apimart|gemini-omni-1.2-flash-ext|i2v->t2v",
+  "gemini-omni-1.2-flash-ext|apimart|gemini-omni-1.2-flash-ext|reference->firstlast",
+  "gemini-omni-1.2-flash-ext|apimart|gemini-omni-1.2-flash-ext|reference->i2v",
+  "gemini-omni-1.2-flash-ext|apimart|gemini-omni-1.2-flash-ext|reference->t2v",
+  "gemini-omni-1.2-flash-ext|apimart|gemini-omni-1.2-flash-ext|t2v->firstlast",
+  "gemini-omni-1.2-flash-ext|apimart|gemini-omni-1.2-flash-ext|t2v->i2v",
+  "gemini-omni-1.2-flash-ext|apimart|gemini-omni-1.2-flash-ext|t2v->reference",
+  "gemini-omni-1.2-flash|apimart|gemini-omni-1.2-flash|firstlast->i2v",
+  "gemini-omni-1.2-flash|apimart|gemini-omni-1.2-flash|firstlast->reference",
+  "gemini-omni-1.2-flash|apimart|gemini-omni-1.2-flash|firstlast->t2v",
+  "gemini-omni-1.2-flash|apimart|gemini-omni-1.2-flash|i2v->firstlast",
+  "gemini-omni-1.2-flash|apimart|gemini-omni-1.2-flash|i2v->reference",
+  "gemini-omni-1.2-flash|apimart|gemini-omni-1.2-flash|i2v->t2v",
+  "gemini-omni-1.2-flash|apimart|gemini-omni-1.2-flash|reference->firstlast",
+  "gemini-omni-1.2-flash|apimart|gemini-omni-1.2-flash|reference->i2v",
+  "gemini-omni-1.2-flash|apimart|gemini-omni-1.2-flash|reference->t2v",
+  "gemini-omni-1.2-flash|apimart|gemini-omni-1.2-flash|t2v->firstlast",
+  "gemini-omni-1.2-flash|apimart|gemini-omni-1.2-flash|t2v->i2v",
+  "gemini-omni-1.2-flash|apimart|gemini-omni-1.2-flash|t2v->reference",
+  "gpt-image-2.5-flare|apimart|gpt-image-2.5-flare|i2i->t2i",
+  "gpt-image-2.5-flare|apimart|gpt-image-2.5-flare|t2i->i2i",
+  "gpt-image-2.5-flare|kie|gpt-image-2-5-flare-text-to-image|i2i->t2i",
+  "gpt-image-2.5-flare|kie|gpt-image-2-5-flare-text-to-image|t2i->i2i",
+  "gpt-image-2.5-sunburst|apimart|gpt-image-2.5-sunburst|i2i->t2i",
+  "gpt-image-2.5-sunburst|apimart|gpt-image-2.5-sunburst|t2i->i2i",
+  "gpt-image-2.5-sunburst|kie|gpt-image-2-5-sunburst-text-to-image|i2i->t2i",
+  "gpt-image-2.5-sunburst|kie|gpt-image-2-5-sunburst-text-to-image|t2i->i2i",
+  "gpt-image-2.6-flare|apimart|gpt-image-2.6-flare|i2i->t2i",
+  "gpt-image-2.6-flare|apimart|gpt-image-2.6-flare|t2i->i2i",
+  "gpt-image-2.6-sunburst|apimart|gpt-image-2.6-sunburst|i2i->t2i",
+  "gpt-image-2.6-sunburst|apimart|gpt-image-2.6-sunburst|t2i->i2i",
+  "gpt-image-2|apimart|gpt-image-2|i2i->t2i",
+  "gpt-image-2|apimart|gpt-image-2|t2i->i2i",
+  "gpt-image-2|fal|openai/gpt-image-2|i2i->t2i",
+  "gpt-image-2|fal|openai/gpt-image-2|t2i->i2i",
+  "gpt-image-2|kie|gpt-image-2-image-to-image|i2i->t2i",
+  "gpt-image-2|kie|gpt-image-2-image-to-image|t2i->i2i",
+  "gpt-image-2|kie|gpt-image-2-text-to-image|i2i->t2i",
+  "gpt-image-2|kie|gpt-image-2-text-to-image|t2i->i2i",
+  "gpt-image-2|runway|gpt_image_2|i2i->t2i",
+  "gpt-image-2|runway|gpt_image_2|t2i->i2i",
+  "grok-imagine-1.5-video|apimart|grok-imagine-1.5-video-apimart|i2v->t2v",
+  "grok-imagine-1.5-video|apimart|grok-imagine-1.5-video-apimart|t2v->i2v",
+  "grok-imagine-1.5-video|runway|grok_imagine_1_5|i2v->t2v",
+  "grok-imagine-1.5-video|runway|grok_imagine_1_5|t2v->i2v",
+  "grok-imagine-image-2.0-official|apimart|grok-imagine-image-2.0|i2i->t2i",
+  "grok-imagine-image-2.0-official|apimart|grok-imagine-image-2.0|t2i->i2i",
+  "grok-imagine-image-2|apimart|grok-imagine-2.0-ext|i2i->t2i",
+  "grok-imagine-image-2|apimart|grok-imagine-2.0-ext|t2i->i2i",
+  "grok-imagine-image-2|runway|grok_imagine_image_2|i2i->t2i",
+  "grok-imagine-image-2|runway|grok_imagine_image_2|t2i->i2i",
+  "grok-imagine-video-1.5-official|apimart|grok-imagine-video-1.5|i2v->t2v",
+  "grok-imagine-video-1.5-official|apimart|grok-imagine-video-1.5|t2v->i2v",
+  "hailuo-2.3|apimart|MiniMax-Hailuo-2.3|i2v->t2v",
+  "hailuo-2.3|apimart|MiniMax-Hailuo-2.3|t2v->i2v",
+  "happyhorse-1.1|apimart|happyhorse-1.1|i2v->ref",
+  "happyhorse-1.1|apimart|happyhorse-1.1|i2v->t2v",
+  "happyhorse-1.1|apimart|happyhorse-1.1|ref->i2v",
+  "happyhorse-1.1|apimart|happyhorse-1.1|ref->t2v",
+  "happyhorse-1.1|apimart|happyhorse-1.1|t2v->i2v",
+  "happyhorse-1.1|apimart|happyhorse-1.1|t2v->ref",
+  "happyhorse|kie|happyhorse|edit->i2v",
+  "happyhorse|kie|happyhorse|edit->ref",
+  "happyhorse|kie|happyhorse|edit->t2v",
+  "happyhorse|kie|happyhorse|i2v->edit",
+  "happyhorse|kie|happyhorse|i2v->ref",
+  "happyhorse|kie|happyhorse|i2v->t2v",
+  "happyhorse|kie|happyhorse|ref->edit",
+  "happyhorse|kie|happyhorse|ref->i2v",
+  "happyhorse|kie|happyhorse|ref->t2v",
+  "happyhorse|kie|happyhorse|t2v->edit",
+  "happyhorse|kie|happyhorse|t2v->i2v",
+  "happyhorse|kie|happyhorse|t2v->ref",
+  "happyhorse|runway|happyhorse_1_0|edit->i2v",
+  "happyhorse|runway|happyhorse_1_0|edit->ref",
+  "happyhorse|runway|happyhorse_1_0|edit->t2v",
+  "happyhorse|runway|happyhorse_1_0|i2v->edit",
+  "happyhorse|runway|happyhorse_1_0|i2v->ref",
+  "happyhorse|runway|happyhorse_1_0|i2v->t2v",
+  "happyhorse|runway|happyhorse_1_0|ref->edit",
+  "happyhorse|runway|happyhorse_1_0|ref->i2v",
+  "happyhorse|runway|happyhorse_1_0|ref->t2v",
+  "happyhorse|runway|happyhorse_1_0|t2v->edit",
+  "happyhorse|runway|happyhorse_1_0|t2v->i2v",
+  "happyhorse|runway|happyhorse_1_0|t2v->ref",
+  "higgsfield-dop|higgsfield|higgsfield-ai/dop/standard|firstlast->i2v",
+  "higgsfield-dop|higgsfield|higgsfield-ai/dop/standard|i2v->firstlast",
+  "higgsfield-dop|higgsfield|higgsfield-ai/dop/turbo|firstlast->i2v",
+  "higgsfield-dop|higgsfield|higgsfield-ai/dop/turbo|i2v->firstlast",
+  "hunyuan3d|runninghub|hunyuan3d-v3.1|image->text",
+  "hunyuan3d|runninghub|hunyuan3d-v3.1|text->image",
+  "hy-image-v3.5-preview|apimart|hy-image-v3.5-preview|i2i->t2i",
+  "hy-image-v3.5-preview|apimart|hy-image-v3.5-preview|t2i->i2i",
+  "kie-seedream-5-lite|kie|seedream/5-lite-text-to-image|edit->t2i",
+  "kie-seedream-5-lite|kie|seedream/5-lite-text-to-image|t2i->edit",
+  "kie-seedream-5-lite|runway|seedream5_lite|edit->t2i",
+  "kie-seedream-5-lite|runway|seedream5_lite|t2i->edit",
+  "kie-seedream-5-pro|kie|seedream/5-pro-text-to-image|edit->t2i",
+  "kie-seedream-5-pro|kie|seedream/5-pro-text-to-image|t2i->edit",
+  "kling-3.0-turbo|apimart|kling-3.0-turbo|i2v->t2v",
+  "kling-3.0-turbo|apimart|kling-3.0-turbo|t2v->i2v",
+  "kling-3.0|apimart|kling-v3|i2v->t2v",
+  "kling-3.0|apimart|kling-v3|t2v->i2v",
+  "kling-3.0|fal|fal-ai/kling-video/v3/pro|i2v->t2v",
+  "kling-3.0|fal|fal-ai/kling-video/v3/pro|t2v->i2v",
+  "kling-3.0|kie|kling-3.0|i2v->t2v",
+  "kling-3.0|kie|kling-3.0|t2v->i2v",
+  "kling-v4|apimart|kling-v4|i2v->t2v",
+  "kling-v4|apimart|kling-v4|t2v->i2v",
+  "meshy6|runninghub|meshy6|image->text",
+  "meshy6|runninghub|meshy6|text->image",
+  "minimax-h3-apimart|apimart|MiniMax-H3|first->firstlast",
+  "minimax-h3-apimart|apimart|MiniMax-H3|first->ref",
+  "minimax-h3-apimart|apimart|MiniMax-H3|first->t2v",
+  "minimax-h3-apimart|apimart|MiniMax-H3|firstlast->first",
+  "minimax-h3-apimart|apimart|MiniMax-H3|firstlast->ref",
+  "minimax-h3-apimart|apimart|MiniMax-H3|firstlast->t2v",
+  "minimax-h3-apimart|apimart|MiniMax-H3|ref->first",
+  "minimax-h3-apimart|apimart|MiniMax-H3|ref->firstlast",
+  "minimax-h3-apimart|apimart|MiniMax-H3|ref->t2v",
+  "minimax-h3-apimart|apimart|MiniMax-H3|t2v->first",
+  "minimax-h3-apimart|apimart|MiniMax-H3|t2v->firstlast",
+  "minimax-h3-apimart|apimart|MiniMax-H3|t2v->ref",
+  "minimax-h3-max|fal|minimax/h3-max|i2v->t2v",
+  "minimax-h3-max|fal|minimax/h3-max|t2v->i2v",
+  "minimax-h3|kie|minimax-h3|i2v->ref",
+  "minimax-h3|kie|minimax-h3|i2v->t2v",
+  "minimax-h3|kie|minimax-h3|ref->i2v",
+  "minimax-h3|kie|minimax-h3|ref->t2v",
+  "minimax-h3|kie|minimax-h3|t2v->i2v",
+  "minimax-h3|kie|minimax-h3|t2v->ref",
+  "minimax-h3|minimax|MiniMax-H3|i2v->ref",
+  "minimax-h3|minimax|MiniMax-H3|i2v->t2v",
+  "minimax-h3|minimax|MiniMax-H3|ref->i2v",
+  "minimax-h3|minimax|MiniMax-H3|ref->t2v",
+  "minimax-h3|minimax|MiniMax-H3|t2v->i2v",
+  "minimax-h3|minimax|MiniMax-H3|t2v->ref",
+  "minimax-h3|runway|hailuo3|i2v->ref",
+  "minimax-h3|runway|hailuo3|i2v->t2v",
+  "minimax-h3|runway|hailuo3|ref->i2v",
+  "minimax-h3|runway|hailuo3|ref->t2v",
+  "minimax-h3|runway|hailuo3|t2v->i2v",
+  "minimax-h3|runway|hailuo3|t2v->ref",
+  "muse-image-ext|apimart|muse-image-ext|i2i->t2i",
+  "muse-image-ext|apimart|muse-image-ext|t2i->i2i",
+  "muse-video-ext|apimart|muse-video-ext|i2v->t2v",
+  "muse-video-ext|apimart|muse-video-ext|t2v->i2v",
+  "nano-banana-2-lite|kie|nano-banana-2-lite|edit->t2i",
+  "nano-banana-2-lite|kie|nano-banana-2-lite|t2i->edit",
+  "nano-banana-2|apimart|gemini-3.1-flash-image-preview|edit->t2i",
+  "nano-banana-2|apimart|gemini-3.1-flash-image-preview|t2i->edit",
+  "nano-banana-2|fal|fal-ai/nano-banana-2|edit->t2i",
+  "nano-banana-2|fal|fal-ai/nano-banana-2|t2i->edit",
+  "nano-banana-2|kie|nano-banana-2|edit->t2i",
+  "nano-banana-2|kie|nano-banana-2|t2i->edit",
+  "nano-banana|apimart|gemini-2.5-flash-image-preview|edit->t2i",
+  "nano-banana|apimart|gemini-2.5-flash-image-preview|t2i->edit",
+  "nano-banana|kie|nano-banana|edit->t2i",
+  "nano-banana|kie|nano-banana|t2i->edit",
+  "nano-banana|runway|gemini_2.5_flash|edit->t2i",
+  "nano-banana|runway|gemini_2.5_flash|t2i->edit",
+  "nomi-audio|apimart|nomi-audio|speech->transcribe",
+  "nomi-audio|apimart|nomi-audio|transcribe->speech",
+  "omni-flash-ext|apimart|Omni-Flash-Ext|i2v->t2v",
+  "omni-flash-ext|apimart|Omni-Flash-Ext|t2v->i2v",
+  "pixverse-v6-max|apimart|pixverse-v6-max|i2v->t2v",
+  "pixverse-v6-max|apimart|pixverse-v6-max|t2v->i2v",
+  "pixverse-v6|apimart|pixverse-v6|firstlast->i2v",
+  "pixverse-v6|apimart|pixverse-v6|firstlast->t2v",
+  "pixverse-v6|apimart|pixverse-v6|i2v->firstlast",
+  "pixverse-v6|apimart|pixverse-v6|i2v->t2v",
+  "pixverse-v6|apimart|pixverse-v6|t2v->firstlast",
+  "pixverse-v6|apimart|pixverse-v6|t2v->i2v",
+  "qwen-image-3|apimart|qwen-image-3.0|edit->t2i",
+  "qwen-image-3|apimart|qwen-image-3.0|t2i->edit",
+  "qwen-image|apimart|qwen-image-2.0|edit->t2i",
+  "qwen-image|apimart|qwen-image-2.0|t2i->edit",
+  "rh-gpt-image-2|runninghub|rhart-image-g-2-official|edit->text",
+  "rh-gpt-image-2|runninghub|rhart-image-g-2-official|text->edit",
+  "rh-hailuo-2.3|runninghub|rh-hailuo-2.3|image->text",
+  "rh-hailuo-2.3|runninghub|rh-hailuo-2.3|text->image",
+  "rh-kling-3.0|runninghub|kling-v3.0-pro|image->text",
+  "rh-kling-3.0|runninghub|kling-v3.0-pro|text->image",
+  "rh-nano-banana|runninghub|rhart-image-v1|edit->text",
+  "rh-nano-banana|runninghub|rhart-image-v1|text->edit",
+  "rh-qwen-image-2.0|runninghub|rh-qwen-image-2.0|edit->text",
+  "rh-qwen-image-2.0|runninghub|rh-qwen-image-2.0|text->edit",
+  "rh-seedream-4.5|runninghub|seedream-v4.5|edit->text",
+  "rh-seedream-4.5|runninghub|seedream-v4.5|text->edit",
+  "rh-veo-3.1|runninghub|rhart-video-v3.1-pro-official|image->text",
+  "rh-veo-3.1|runninghub|rhart-video-v3.1-pro-official|text->image",
+  "rh-wan-2.7|runninghub|rh-wan-2.7|image->text",
+  "rh-wan-2.7|runninghub|rh-wan-2.7|text->image",
+  "runninghub-seedance|runninghub|bytedance/seedance-2.0-global|image->text",
+  "runninghub-seedance|runninghub|bytedance/seedance-2.0-global|text->image",
+  "runway-gen4-image|runway|gen4_image|i2i->t2i",
+  "runway-gen4-image|runway|gen4_image|t2i->i2i",
+  "runway-gen4.5|runway|gen4.5|i2v->t2v",
+  "runway-gen4.5|runway|gen4.5|t2v->i2v",
+  "runway-muse-image|runway|muse_image|i2i->t2i",
+  "runway-muse-image|runway|muse_image|t2i->i2i",
+  "runway-seed-audio|runway|seed_audio|sfx->speech",
+  "runway-seed-audio|runway|seed_audio|speech->sfx",
+  "seedance-2-apimart|apimart|doubao-seedance-2.0|firstlast->i2v",
+  "seedance-2-apimart|apimart|doubao-seedance-2.0|firstlast->omni",
+  "seedance-2-apimart|apimart|doubao-seedance-2.0|firstlast->t2v",
+  "seedance-2-apimart|apimart|doubao-seedance-2.0|i2v->firstlast",
+  "seedance-2-apimart|apimart|doubao-seedance-2.0|i2v->omni",
+  "seedance-2-apimart|apimart|doubao-seedance-2.0|i2v->t2v",
+  "seedance-2-apimart|apimart|doubao-seedance-2.0|omni->firstlast",
+  "seedance-2-apimart|apimart|doubao-seedance-2.0|omni->i2v",
+  "seedance-2-apimart|apimart|doubao-seedance-2.0|omni->t2v",
+  "seedance-2-apimart|apimart|doubao-seedance-2.0|t2v->firstlast",
+  "seedance-2-apimart|apimart|doubao-seedance-2.0|t2v->i2v",
+  "seedance-2-apimart|apimart|doubao-seedance-2.0|t2v->omni",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->firstlast",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->omni",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->t2v",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->first",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->omni",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->t2v",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->first",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->firstlast",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->t2v",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->first",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->firstlast",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->omni",
+  "seedance-2.5-runway|runway|seedance2_5|first->firstlast",
+  "seedance-2.5-runway|runway|seedance2_5|first->omni",
+  "seedance-2.5-runway|runway|seedance2_5|first->t2v",
+  "seedance-2.5-runway|runway|seedance2_5|firstlast->first",
+  "seedance-2.5-runway|runway|seedance2_5|firstlast->omni",
+  "seedance-2.5-runway|runway|seedance2_5|firstlast->t2v",
+  "seedance-2.5-runway|runway|seedance2_5|omni->first",
+  "seedance-2.5-runway|runway|seedance2_5|omni->firstlast",
+  "seedance-2.5-runway|runway|seedance2_5|omni->t2v",
+  "seedance-2.5-runway|runway|seedance2_5|t2v->first",
+  "seedance-2.5-runway|runway|seedance2_5|t2v->firstlast",
+  "seedance-2.5-runway|runway|seedance2_5|t2v->omni",
+  "seedance-2.5|fal|bytedance/seedance-2.5|first->firstlast",
+  "seedance-2.5|fal|bytedance/seedance-2.5|first->omni",
+  "seedance-2.5|fal|bytedance/seedance-2.5|first->t2v",
+  "seedance-2.5|fal|bytedance/seedance-2.5|firstlast->first",
+  "seedance-2.5|fal|bytedance/seedance-2.5|firstlast->omni",
+  "seedance-2.5|fal|bytedance/seedance-2.5|firstlast->t2v",
+  "seedance-2.5|fal|bytedance/seedance-2.5|omni->first",
+  "seedance-2.5|fal|bytedance/seedance-2.5|omni->firstlast",
+  "seedance-2.5|fal|bytedance/seedance-2.5|omni->t2v",
+  "seedance-2.5|fal|bytedance/seedance-2.5|t2v->first",
+  "seedance-2.5|fal|bytedance/seedance-2.5|t2v->firstlast",
+  "seedance-2.5|fal|bytedance/seedance-2.5|t2v->omni",
+  "seedance-2.5|kie|bytedance/seedance-2-5|first->firstlast",
+  "seedance-2.5|kie|bytedance/seedance-2-5|first->omni",
+  "seedance-2.5|kie|bytedance/seedance-2-5|first->t2v",
+  "seedance-2.5|kie|bytedance/seedance-2-5|firstlast->first",
+  "seedance-2.5|kie|bytedance/seedance-2-5|firstlast->omni",
+  "seedance-2.5|kie|bytedance/seedance-2-5|firstlast->t2v",
+  "seedance-2.5|kie|bytedance/seedance-2-5|omni->first",
+  "seedance-2.5|kie|bytedance/seedance-2-5|omni->firstlast",
+  "seedance-2.5|kie|bytedance/seedance-2-5|omni->t2v",
+  "seedance-2.5|kie|bytedance/seedance-2-5|t2v->first",
+  "seedance-2.5|kie|bytedance/seedance-2-5|t2v->firstlast",
+  "seedance-2.5|kie|bytedance/seedance-2-5|t2v->omni",
+  "seedance-2|kie|bytedance/seedance-2|first->firstlast",
+  "seedance-2|kie|bytedance/seedance-2|first->omni",
+  "seedance-2|kie|bytedance/seedance-2|first->t2v",
+  "seedance-2|kie|bytedance/seedance-2|firstlast->first",
+  "seedance-2|kie|bytedance/seedance-2|firstlast->omni",
+  "seedance-2|kie|bytedance/seedance-2|firstlast->t2v",
+  "seedance-2|kie|bytedance/seedance-2|omni->first",
+  "seedance-2|kie|bytedance/seedance-2|omni->firstlast",
+  "seedance-2|kie|bytedance/seedance-2|omni->t2v",
+  "seedance-2|kie|bytedance/seedance-2|t2v->first",
+  "seedance-2|kie|bytedance/seedance-2|t2v->firstlast",
+  "seedance-2|kie|bytedance/seedance-2|t2v->omni",
+  "seedance-2|runway|seedance2_fast|first->firstlast",
+  "seedance-2|runway|seedance2_fast|first->omni",
+  "seedance-2|runway|seedance2_fast|first->t2v",
+  "seedance-2|runway|seedance2_fast|firstlast->first",
+  "seedance-2|runway|seedance2_fast|firstlast->omni",
+  "seedance-2|runway|seedance2_fast|firstlast->t2v",
+  "seedance-2|runway|seedance2_fast|omni->first",
+  "seedance-2|runway|seedance2_fast|omni->firstlast",
+  "seedance-2|runway|seedance2_fast|omni->t2v",
+  "seedance-2|runway|seedance2_fast|t2v->first",
+  "seedance-2|runway|seedance2_fast|t2v->firstlast",
+  "seedance-2|runway|seedance2_fast|t2v->omni",
+  "seedance-2|runway|seedance2_mini|first->firstlast",
+  "seedance-2|runway|seedance2_mini|first->omni",
+  "seedance-2|runway|seedance2_mini|first->t2v",
+  "seedance-2|runway|seedance2_mini|firstlast->first",
+  "seedance-2|runway|seedance2_mini|firstlast->omni",
+  "seedance-2|runway|seedance2_mini|firstlast->t2v",
+  "seedance-2|runway|seedance2_mini|omni->first",
+  "seedance-2|runway|seedance2_mini|omni->firstlast",
+  "seedance-2|runway|seedance2_mini|omni->t2v",
+  "seedance-2|runway|seedance2_mini|t2v->first",
+  "seedance-2|runway|seedance2_mini|t2v->firstlast",
+  "seedance-2|runway|seedance2_mini|t2v->omni",
+  "seedance-2|runway|seedance2|first->firstlast",
+  "seedance-2|runway|seedance2|first->omni",
+  "seedance-2|runway|seedance2|first->t2v",
+  "seedance-2|runway|seedance2|firstlast->first",
+  "seedance-2|runway|seedance2|firstlast->omni",
+  "seedance-2|runway|seedance2|firstlast->t2v",
+  "seedance-2|runway|seedance2|omni->first",
+  "seedance-2|runway|seedance2|omni->firstlast",
+  "seedance-2|runway|seedance2|omni->t2v",
+  "seedance-2|runway|seedance2|t2v->first",
+  "seedance-2|runway|seedance2|t2v->firstlast",
+  "seedance-2|runway|seedance2|t2v->omni",
+  "seedream-5-pro|apimart|doubao-seedream-5-0-pro|edit->t2i",
+  "seedream-5-pro|apimart|doubao-seedream-5-0-pro|t2i->edit",
+  "seedream-5-pro|fal|bytedance/seedream/v5/pro|edit->t2i",
+  "seedream-5-pro|fal|bytedance/seedream/v5/pro|t2i->edit",
+  "seedream-5-pro|runway|seedream5_pro|edit->t2i",
+  "seedream-5-pro|runway|seedream5_pro|t2i->edit",
+  "seedream|apimart|doubao-seedream-4.5|edit->t2i",
+  "seedream|apimart|doubao-seedream-4.5|t2i->edit",
+  "seedream|kie|seedream|edit->t2i",
+  "seedream|kie|seedream|t2i->edit",
+  "suno-v5.5|apimart|suno-v5.5|cover->extend",
+  "suno-v5.5|apimart|suno-v5.5|cover->music",
+  "suno-v5.5|apimart|suno-v5.5|extend->cover",
+  "suno-v5.5|apimart|suno-v5.5|extend->music",
+  "suno-v5.5|apimart|suno-v5.5|music->cover",
+  "suno-v5.5|apimart|suno-v5.5|music->extend",
+  "suno-v5.5|kie|suno-v5.5|cover->extend",
+  "suno-v5.5|kie|suno-v5.5|cover->music",
+  "suno-v5.5|kie|suno-v5.5|extend->cover",
+  "suno-v5.5|kie|suno-v5.5|extend->music",
+  "suno-v5.5|kie|suno-v5.5|music->cover",
+  "suno-v5.5|kie|suno-v5.5|music->extend",
+  "veo-3.1|apimart|veo3.1-fast|frame->reference",
+  "veo-3.1|apimart|veo3.1-fast|frame->t2v",
+  "veo-3.1|apimart|veo3.1-fast|reference->frame",
+  "veo-3.1|apimart|veo3.1-fast|reference->t2v",
+  "veo-3.1|apimart|veo3.1-fast|t2v->frame",
+  "veo-3.1|apimart|veo3.1-fast|t2v->reference",
+  "veo-3.1|runway|veo3.1_fast|frame->reference",
+  "veo-3.1|runway|veo3.1_fast|frame->t2v",
+  "veo-3.1|runway|veo3.1_fast|reference->frame",
+  "veo-3.1|runway|veo3.1_fast|reference->t2v",
+  "veo-3.1|runway|veo3.1_fast|t2v->frame",
+  "veo-3.1|runway|veo3.1_fast|t2v->reference",
+  "veo-3.1|runway|veo3.1|frame->reference",
+  "veo-3.1|runway|veo3.1|frame->t2v",
+  "veo-3.1|runway|veo3.1|reference->frame",
+  "veo-3.1|runway|veo3.1|reference->t2v",
+  "veo-3.1|runway|veo3.1|t2v->frame",
+  "veo-3.1|runway|veo3.1|t2v->reference",
+  "veo3.1-fast-official|apimart|veo3.1-fast-official|i2v->t2v",
+  "veo3.1-fast-official|apimart|veo3.1-fast-official|t2v->i2v",
+  "veo3.1-quality-official|apimart|veo3.1-quality-official|i2v->t2v",
+  "veo3.1-quality-official|apimart|veo3.1-quality-official|t2v->i2v",
+  "viduq3-pro|apimart|viduq3-pro|i2v->t2v",
+  "viduq3-pro|apimart|viduq3-pro|t2v->i2v",
+  "viduq3-turbo|apimart|viduq3-turbo|i2v->t2v",
+  "viduq3-turbo|apimart|viduq3-turbo|t2v->i2v",
+  "viduq4-preview|apimart|viduq4-preview|i2v->ref",
+  "viduq4-preview|apimart|viduq4-preview|ref->i2v",
+  "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|first->firstlast",
+  "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|first->omni",
+  "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|first->t2v",
+  "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|firstlast->first",
+  "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|firstlast->omni",
+  "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|firstlast->t2v",
+  "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|omni->first",
+  "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|omni->firstlast",
+  "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|omni->t2v",
+  "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|t2v->first",
+  "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|t2v->firstlast",
+  "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|t2v->omni",
+  "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|first->firstlast",
+  "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|first->omni",
+  "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|first->t2v",
+  "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|firstlast->first",
+  "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|firstlast->omni",
+  "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|firstlast->t2v",
+  "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|omni->first",
+  "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|omni->firstlast",
+  "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|omni->t2v",
+  "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|t2v->first",
+  "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|t2v->firstlast",
+  "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|t2v->omni",
+  "volcengine-seedream-5-pro|volcengine|doubao-seedream-5-0-pro-260628|edit->t2i",
+  "volcengine-seedream-5-pro|volcengine|doubao-seedream-5-0-pro-260628|t2i->edit",
+  "volcengine-seedream|volcengine|doubao-seedream-4-0-250828|edit->t2i",
+  "volcengine-seedream|volcengine|doubao-seedream-4-0-250828|t2i->edit",
+  "volcengine-seedream|volcengine|doubao-seedream-4-5-251128|edit->t2i",
+  "volcengine-seedream|volcengine|doubao-seedream-4-5-251128|t2i->edit",
+  "volcengine-seedream|volcengine|doubao-seedream-5-0-260128|edit->t2i",
+  "volcengine-seedream|volcengine|doubao-seedream-5-0-260128|t2i->edit",
+  "wan-2.7|apimart|wan2.7|i2v->ref",
+  "wan-2.7|apimart|wan2.7|i2v->t2v",
+  "wan-2.7|apimart|wan2.7|ref->i2v",
+  "wan-2.7|apimart|wan2.7|ref->t2v",
+  "wan-2.7|apimart|wan2.7|t2v->i2v",
+  "wan-2.7|apimart|wan2.7|t2v->ref",
+  "wan-3.0-apimart|apimart|wan3.0-video|first->firstlast",
+  "wan-3.0-apimart|apimart|wan3.0-video|first->ref",
+  "wan-3.0-apimart|apimart|wan3.0-video|first->t2v",
+  "wan-3.0-apimart|apimart|wan3.0-video|firstlast->first",
+  "wan-3.0-apimart|apimart|wan3.0-video|firstlast->ref",
+  "wan-3.0-apimart|apimart|wan3.0-video|firstlast->t2v",
+  "wan-3.0-apimart|apimart|wan3.0-video|ref->first",
+  "wan-3.0-apimart|apimart|wan3.0-video|ref->firstlast",
+  "wan-3.0-apimart|apimart|wan3.0-video|ref->t2v",
+  "wan-3.0-apimart|apimart|wan3.0-video|t2v->first",
+  "wan-3.0-apimart|apimart|wan3.0-video|t2v->firstlast",
+  "wan-3.0-apimart|apimart|wan3.0-video|t2v->ref",
+  "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|first->firstlast",
+  "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|first->ref",
+  "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|first->t2v",
+  "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|firstlast->first",
+  "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|firstlast->ref",
+  "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|firstlast->t2v",
+  "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|ref->first",
+  "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|ref->firstlast",
+  "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|ref->t2v",
+  "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|t2v->first",
+  "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|t2v->firstlast",
+  "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|t2v->ref",
+  "wan-3.0|kie|wan/3-0-video|first->firstlast",
+  "wan-3.0|kie|wan/3-0-video|first->ref",
+  "wan-3.0|kie|wan/3-0-video|first->t2v",
+  "wan-3.0|kie|wan/3-0-video|firstlast->first",
+  "wan-3.0|kie|wan/3-0-video|firstlast->ref",
+  "wan-3.0|kie|wan/3-0-video|firstlast->t2v",
+  "wan-3.0|kie|wan/3-0-video|ref->first",
+  "wan-3.0|kie|wan/3-0-video|ref->firstlast",
+  "wan-3.0|kie|wan/3-0-video|ref->t2v",
+  "wan-3.0|kie|wan/3-0-video|t2v->first",
+  "wan-3.0|kie|wan/3-0-video|t2v->firstlast",
+  "wan-3.0|kie|wan/3-0-video|t2v->ref",
+  "wan-3.0|runway|wan3|first->firstlast",
+  "wan-3.0|runway|wan3|first->ref",
+  "wan-3.0|runway|wan3|first->t2v",
+  "wan-3.0|runway|wan3|firstlast->first",
+  "wan-3.0|runway|wan3|firstlast->ref",
+  "wan-3.0|runway|wan3|firstlast->t2v",
+  "wan-3.0|runway|wan3|ref->first",
+  "wan-3.0|runway|wan3|ref->firstlast",
+  "wan-3.0|runway|wan3|ref->t2v",
+  "wan-3.0|runway|wan3|t2v->first",
+  "wan-3.0|runway|wan3|t2v->firstlast",
+  "wan-3.0|runway|wan3|t2v->ref",
+  "wan2.7-image-pro|apimart|wan2.7-image-pro|i2i->t2i",
+  "wan2.7-image-pro|apimart|wan2.7-image-pro|t2i->i2i",
+  "wan2.7-image|apimart|wan2.7-image|i2i->t2i",
+  "wan2.7-image|apimart|wan2.7-image|t2i->i2i"
+ ],
+ "samples": [
+  {
+   "id": "agnes-image-2.1|agnes|agnes-image-2.1-flash|t2i->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-image|agnes|agnes-image-2.0-flash|t2i->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|keyframe->reference",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|reference->keyframe",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|text->keyframe",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-video-2.5-flash|agnes|agnes-video-2.5-flash|text->reference",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-video-2.5|agnes|agnes-video-2.5|keyframe->reference",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-video-2.5|agnes|agnes-video-2.5|reference->keyframe",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-video-2.5|agnes|agnes-video-2.5|text->keyframe",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-video-2.5|agnes|agnes-video-2.5|text->reference",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-video|agnes|agnes-video-v2.0|i2v->keyframes",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-video|agnes|agnes-video-v2.0|keyframes->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-video|agnes|agnes-video-v2.0|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "agnes-video|agnes|agnes-video-v2.0|t2v->keyframes",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "codex-imagegen|codex-local|codex-imagegen|i2i->t2i",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:configured_provider",
+    "statusWithParams": "refused:configured_provider",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "codex-imagegen|codex-local|codex-imagegen|t2i->i2i",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:configured_provider",
+    "statusWithParams": "refused:configured_provider",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-image|dreamina|dreamina-image|i2i->t2i",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-image|dreamina|dreamina-image|t2i->i2i",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|firstlast->i2v",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|firstlast->multimodal",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|firstlast->t2v",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|i2v->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|i2v->multimodal",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|i2v->t2v",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|multimodal->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|multimodal->i2v",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|multimodal->t2v",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|t2v->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|t2v->i2v",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "dreamina-seedance-2|dreamina|dreamina-seedance-2.0|t2v->multimodal",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|firstlast->reference",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|reference->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|t2v->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "gemini-omni-1.1|fal|google/gemini-omni-flash/v1.1|t2v->reference",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "gemini-omni-1.1|runway|gemini_omni_flash|firstlast->reference",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "gemini-omni-1.1|runway|gemini_omni_flash|reference->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "gemini-omni-1.1|runway|gemini_omni_flash|t2v->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "gemini-omni-1.1|runway|gemini_omni_flash|t2v->reference",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "grok-imagine-1.5-video|apimart|grok-imagine-1.5-video-apimart|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "grok-imagine-1.5-video|runway|grok_imagine_1_5|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "grok-imagine-image-2.0-official|apimart|grok-imagine-image-2.0|t2i->i2i",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "grok-imagine-image-2|apimart|grok-imagine-2.0-ext|i2i->t2i",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:unknown_parameter",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "grok-imagine-image-2|apimart|grok-imagine-2.0-ext|t2i->i2i",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:unsupported_capability",
+    "statusWithParams": "refused:unsupported_capability",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|edit->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|i2v->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "input.duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "input.aspect_ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "input.duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "input.duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|ref->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "input.aspect_ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "input.duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "input.aspect_ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "input.duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "input.duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|ref->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|t2v->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "input.aspect_ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "input.duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "input.aspect_ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "input.duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "input.duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|edit->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:unknown_parameter",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|edit->ref",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:unknown_parameter",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|edit->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:unknown_parameter",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|i2v->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|i2v->ref",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|ref->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|ref->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:unknown_parameter",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|ref->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:unknown_parameter",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|t2v->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|t2v->ref",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "higgsfield-dop|higgsfield|higgsfield-ai/dop/standard|firstlast->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "higgsfield-dop|higgsfield|higgsfield-ai/dop/standard|i2v->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "higgsfield-dop|higgsfield|higgsfield-ai/dop/turbo|firstlast->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "higgsfield-dop|higgsfield|higgsfield-ai/dop/turbo|i2v->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "hunyuan3d|runninghub|hunyuan3d-v3.1|text->image",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "kling-3.0-turbo|apimart|kling-3.0-turbo|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "kling-v4|apimart|kling-v4|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "meshy6|runninghub|meshy6|image->text",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "meshy6|runninghub|meshy6|text->image",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3-max|fal|minimax/h3-max|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|kie|minimax-h3|ref->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|kie|minimax-h3|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|minimax|MiniMax-H3|i2v->ref",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|minimax|MiniMax-H3|i2v->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|minimax|MiniMax-H3|ref->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|minimax|MiniMax-H3|ref->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|minimax|MiniMax-H3|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|minimax|MiniMax-H3|t2v->ref",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|runway|hailuo3|i2v->ref",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|runway|hailuo3|i2v->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|runway|hailuo3|ref->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|runway|hailuo3|ref->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|runway|hailuo3|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3|runway|hailuo3|t2v->ref",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "nomi-audio|apimart|nomi-audio|speech->transcribe",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "nomi-audio|apimart|nomi-audio|transcribe->speech",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "pixverse-v6-max|apimart|pixverse-v6-max|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "pixverse-v6|apimart|pixverse-v6|t2v->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "pixverse-v6|apimart|pixverse-v6|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "rh-hailuo-2.3|runninghub|rh-hailuo-2.3|text->image",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "rh-kling-3.0|runninghub|kling-v3.0-pro|text->image",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "rh-qwen-image-2.0|runninghub|rh-qwen-image-2.0|text->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "rh-veo-3.1|runninghub|rhart-video-v3.1-pro-official|text->image",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "rh-wan-2.7|runninghub|rh-wan-2.7|text->image",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "runway-gen4.5|runway|gen4.5|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "runway-seed-audio|runway|seed_audio|sfx->speech",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "runway-seed-audio|runway|seed_audio|speech->sfx",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|first->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|first->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|first->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|firstlast->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|firstlast->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|firstlast->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|omni->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|omni->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|omni->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|t2v->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|t2v->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-runway|runway|seedance2_5|t2v->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|first->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|first->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|firstlast->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|firstlast->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|omni->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|omni->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|t2v->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|t2v->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5|fal|bytedance/seedance-2.5|t2v->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|first->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|first->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|first->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|firstlast->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|firstlast->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|firstlast->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|omni->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|omni->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|omni->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|t2v->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|t2v->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_fast|t2v->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|first->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|first->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|first->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|firstlast->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|firstlast->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|firstlast->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|omni->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|omni->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|omni->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|t2v->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|t2v->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2_mini|t2v->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2|first->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2|first->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2|first->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2|firstlast->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2|firstlast->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2|firstlast->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2|omni->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2|omni->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2|omni->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2|t2v->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2|t2v->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2|runway|seedance2|t2v->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "suno-v5.5|apimart|suno-v5.5|cover->extend",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "suno-v5.5|apimart|suno-v5.5|cover->music",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "suno-v5.5|apimart|suno-v5.5|extend->cover",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:unknown_parameter",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "suno-v5.5|apimart|suno-v5.5|extend->music",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:unknown_parameter",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "suno-v5.5|apimart|suno-v5.5|music->cover",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "suno-v5.5|apimart|suno-v5.5|music->extend",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "suno-v5.5|kie|suno-v5.5|cover->extend",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "suno-v5.5|kie|suno-v5.5|cover->music",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "suno-v5.5|kie|suno-v5.5|extend->cover",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "suno-v5.5|kie|suno-v5.5|extend->music",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "suno-v5.5|kie|suno-v5.5|music->cover",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "suno-v5.5|kie|suno-v5.5|music->extend",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "veo-3.1|runway|veo3.1_fast|frame->reference",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "veo-3.1|runway|veo3.1_fast|reference->frame",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "veo-3.1|runway|veo3.1_fast|t2v->frame",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "veo-3.1|runway|veo3.1_fast|t2v->reference",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "veo-3.1|runway|veo3.1|frame->reference",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "veo-3.1|runway|veo3.1|reference->frame",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "veo-3.1|runway|veo3.1|t2v->frame",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "veo-3.1|runway|veo3.1|t2v->reference",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "viduq3-pro|apimart|viduq3-pro|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "viduq3-turbo|apimart|viduq3-turbo|t2v->i2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|first->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|first->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|firstlast->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|firstlast->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|omni->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|omni->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|t2v->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|t2v->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|t2v->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|first->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|first->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|firstlast->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|firstlast->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|omni->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|omni->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|t2v->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|t2v->firstlast",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "volcengine-seedance-2|volcengine|doubao-seedance-2-0-260128|t2v->omni",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-2.7|apimart|wan2.7|ref->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-3.0|runway|wan3|first->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-3.0|runway|wan3|first->ref",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-3.0|runway|wan3|first->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-3.0|runway|wan3|firstlast->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-3.0|runway|wan3|firstlast->ref",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-3.0|runway|wan3|firstlast->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-3.0|runway|wan3|ref->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-3.0|runway|wan3|ref->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-3.0|runway|wan3|ref->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-3.0|runway|wan3|t2v->first",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-3.0|runway|wan3|t2v->firstlast",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan-3.0|runway|wan3|t2v->ref",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan2.7-image-pro|apimart|wan2.7-image-pro|t2i->i2i",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "wan2.7-image|apimart|wan2.7-image|t2i->i2i",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  }
+ ],
+ "noModeRecord": [
+  {
+   "id": "no-mode-record|relay|image",
+   "canvas": {
+    "status": "sent",
+    "probeFields": {
+     "n": 2,
+     "size": "1088x608"
+    },
+    "bodyFieldPaths": [
+     "model",
+     "n",
+     "prompt",
+     "quality",
+     "response_format",
+     "size"
+    ]
+   },
+   "run": {
+    "status": "refused:unknown_parameter",
+    "probeFields": {},
+    "bodyFieldPaths": []
+   }
+  },
+  {
+   "id": "no-mode-record|relay|video",
+   "canvas": {
+    "status": "refused:Error",
+    "probeFields": {},
+    "bodyFieldPaths": []
+   },
+   "run": {
+    "status": "refused:unknown_parameter",
+    "probeFields": {},
+    "bodyFieldPaths": []
+   }
+  }
+ ]
+}

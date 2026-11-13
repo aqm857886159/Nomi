@@ -1,4 +1,5 @@
-// 反馈回路的**唯一**出站口。三种货物（用量事件 / Agent 轨迹 / 一键反馈）都从这里走。
+// 反馈回路的**唯一**出站口。两种货物（用量事件 / 一键反馈）都从这里走。
+// （独立上报的 Agent 轨迹 2026-11-13 删了：从没有发布版本发过；轨迹只作为一键反馈包里的附件出门。）
 //
 // 2026-09-15：这份文件替掉了 `aptabaseAdapter.ts`（P1 加新必删旧）。
 // 为什么不继续用 Aptabase（它的隐私姿态恰恰是同类里最干脆的，理由不是它不好）：
@@ -61,7 +62,7 @@ export function resetIntakeConfigCache(): void {
 }
 
 /** 接收端的三条路由。写成联合类型而不是 string：新增一条货物必须来这里登记一次。 */
-export type IntakeRoute = '/v1/events' | '/v1/trajectories' | '/v1/feedback'
+export type IntakeRoute = '/v1/events' | '/v1/feedback'
 
 export type IntakeResult = {
   /** 只有 /v1/feedback 会给：用户能口述的编号 NF-MMDD-NNNN。 */

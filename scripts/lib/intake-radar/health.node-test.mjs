@@ -79,8 +79,8 @@ test('unknown/missing session IDs never fabricate independent failures', () => {
 })
 test('every secondary metric can stop; low samples and unknown results only disclose coverage', () => {
   for (const capability of ['image-edit','video']) assert.equal(health([...fixture(),...generation(24,10,10,capability),...generation(23,300,0,capability)]).stop,true)
-  for (const name of ['download','install','agent']) {
-    const events = [23,24].flatMap(v => Array.from({length:v === 24 ? 10 : 300},(_,i) => event(v,name === 'agent' ? 'agent.turn.completed' : 'update.action',{action:name,result:v === 24 ? 'failure' : 'success'},'2026-10-29',`s${i%2}`)))
+  for (const name of ['download','install']) {
+    const events = [23,24].flatMap(v => Array.from({length:v === 24 ? 10 : 300},(_,i) => event(v,'update.action',{action:name,result:v === 24 ? 'failure' : 'success'},'2026-10-29',`s${i%2}`)))
     assert.equal(health([...fixture(),...events]).stop,true)
   }
   const h = health([...fixture(),event(24,'generation.completed',{capability:'video',result:'unknown'})])
@@ -137,4 +137,54 @@ test('D3: local-refusal is excluded from generation failure rate and included in
   assert.equal(image(h).newer.failure, 2)
   assert.equal(image(h).newer.n, 22)
   assert.equal(h.rows.find(r => r.key === 'local.image').newer.failure, 2)
+})
+test('local rejection reads upstreamStatus=not-sent exactly when present (no <1s guess)', () => {
+  const events = [...fixture(),...generation(24,20,20),...generation(23,300,300)]
+  for (const e of events.filter(e => e.props.result === 'failure')) Object.assign(e.props,{errorType:'network',durationBucket:'>5s'})
+  for (const e of events.filter(e => e.systemProps.appMinor === 24 && e.props.result === 'failure')) Object.assign(e.props,{upstreamStatus:'not-sent'})
+  const h = health(events); const r = h.rows.find(r => r.key === 'local.image')
+  assert.equal(r.newer.failure,20); assert.equal(r.older.failure,0); assert.equal(r.newer.unknown,0)
+  assert.doesNotMatch(renderVersionHealth(h), /仅major\.minor，不能精确比较补丁版/)
+})
+
+
+// 本机拦下的失败：老事件（没有 upstreamStatus）按 errorType 码认，结论带成分、会话集中度、两个版本号。
+const videoFailure = (errorType, session, durationBucket = '1-5s') => event(24, 'generation.completed', { capability: 'video', result: 'failure', errorType, durationBucket }, '2026-10-29', session)
+const localFixture = () => [...fixture(),
+  ...Array.from({ length: 12 }, (_, i) => videoFailure('outbound-blocked-submit', i < 8 ? 'sA' : `s${i}`)),
+  ...Array.from({ length: 7 }, (_, i) => videoFailure('submission-not-sent', `t${i}`)),
+  videoFailure('network', 'u1'), videoFailure('unknown', 'u2', '<1s'),
+  ...generation(23, 5, 0, 'video')]
+test('old events: errorType codes count as local refusal (definite), network does not, unknown<1s stays suspected', () => {
+  const h = health(localFixture()); const v = h.rows.find(r => r.key === 'generation.video').composition
+  assert.equal(v.failure, 21); assert.equal(v.local, 19); assert.equal(v.suspected, 1)
+  assert.deepEqual(v.byCode, { 'outbound-blocked-submit': 12, 'submission-not-sent': 7 })
+  assert.equal(h.rows.find(r => r.key === 'local.video').newer.failure, 20)
+  assert.match(h.conclusion, /video失败21次：本机拦下19次（outbound-blocked-submit×12、submission-not-sent×7），另疑似1次/)
+})
+test('conclusion names the most concentrated session share without exposing the session id', () => {
+  const h = health(localFixture())
+  assert.equal(h.rows.find(r => r.key === 'generation.video').composition.topSessionFailures, 8)
+  assert.match(h.conclusion, /最集中的一个会话占8次/); assert.doesNotMatch(JSON.stringify(h), /sA/)
+})
+test('conclusion and every row say which two versions are compared, with the major.minor caveat', () => {
+  const h = health(localFixture())
+  assert.match(h.conclusion, /比的是0\.24（新）对0\.23（旧），只到 major\.minor、分不出补丁版/)
+  const lines = renderVersionHealth(h).split('\n').filter(l => /^[a-z-]+(失败率|本机拦下占失败)：/.test(l))
+  assert.ok(lines.length >= 6); for (const l of lines) assert.match(l, /新版0\.24 .*旧版0\.23 /)
+})
+test('stop decision is unchanged by local composition: local refusals still count as failures', () => {
+  assert.equal(health(localFixture()).stop, true)
+})
+test('radar local-refusal table covers every code of the product table (product adds a code, radar must follow)', async () => {
+  const { readFileSync } = await import('node:fs')
+  const policy = JSON.parse(readFileSync(new URL('./health-policy.json', import.meta.url), 'utf8'))
+  const src = readFileSync(new URL('../../../electron/shared/contracts/telemetry.ts', import.meta.url), 'utf8')
+  const body = /GENERATION_LOCAL_REFUSALS = \[([^\]]*)\]/.exec(src)?.[1]
+  assert.ok(body, 'product table not found')
+  const product = [...body.matchAll(/'([a-z-]+)'/g)].map(m => m[1]).filter(c => c !== 'uncoded')
+  assert.ok(product.length >= 7)
+  for (const code of product) assert.ok(policy.localRefusalCodes.includes(code), `radar table misses product code ${code}`)
+  for (const code of ['outbound-blocked', 'outbound-blocked-submit', 'outbound-blocked-credential-origin', 'submission-not-sent']) assert.ok(policy.localRefusalCodes.includes(code), code)
+  assert.ok(!policy.localRefusalCodes.includes('network'))
 })

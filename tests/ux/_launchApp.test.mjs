@@ -16,10 +16,8 @@ import {
   cleanupTempRoot,
   closeElectronWithin,
   descendantPids,
-  configureSyntheticCredentialStorage,
   currentCatalogVersion,
   diagnoseLaunchFailure,
-  isolatedCatalogHasSafeStorageCredentials,
   prepareIsolatedCatalog,
   prepareLocalStorageSeed,
   launchNomiApp,
@@ -37,13 +35,17 @@ import {
   registerTempRoot,
   requireBeforePackagedMain,
   withLinuxNoSandbox,
-  withLinuxSyntheticCredentialStorage,
+  withSyntheticCredentialStorage,
+  syntheticCredentialBackendArgs,
+  decideSyntheticCredentialStorage,
+  encryptFixtureKey,
   withPackagedPlaywrightOrigin,
   seedSavedFixtureCredentials,
   isolatedHostConfigLeaks,
   prepareHostConfigDir,
   withIsolatedHostConfig,
 } from './_launchApp.mjs'
+import { REAL_CREDENTIAL_MARKER } from './_realProfile.mjs'
 import { MCP_CLIENT_HOST_ENV_VARS, mcpClientLocations, mcpClientPlatform, resolveMcpClientPath } from '../../electron/shared/mcpClientRegistry.ts'
 
 /** 会起 App 的源码：tests / scripts / evals 下的 .mjs / .js（单测故意拼不合法的选项来测拒绝路径，不算入口）。按需解析成 AST。 */
@@ -620,98 +622,122 @@ describe('withLinuxNoSandbox', () => {
   })
 })
 
-describe('isolatedCatalogHasSafeStorageCredentials', () => {
-  // 2026-10-08 Linux CI：夹具用合成后端加密了 apimart 占位 key，被测 App 却没开同一个后端 →
-  // 模型在渲染层「当前不可用」、付费卡一颗参数 chip 都没有。起 App 的后端必须从盘上的 catalog 推出来。
-  // 不是凭据：只是 catalog 里那一格的形状（值从不被解密）。
-  const placeholder = 'not-a-secret'
-  const withCatalog = (catalog, run) => {
-    const root = makeTempDir('nomi-synthetic-cred-')
-    try {
-      if (catalog !== undefined) fs.writeFileSync(path.join(root, 'model-catalog.json'), typeof catalog === 'string' ? catalog : JSON.stringify(catalog))
-      return run(root)
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true })
-    }
-  }
-
-  test('a fixture catalog with a safeStorage-encrypted key needs the synthetic backend', () => {
-    withCatalog({ apiKeysByVendor: {
-      'agent-runtime-loopback': { apiKey: placeholder, enc: 'plain' },
-      apimart: { apiKey: placeholder, enc: 'safeStorage' },
-    } }, (root) => expect(isolatedCatalogHasSafeStorageCredentials(root)).toBe(true))
+describe('合成凭据后端：按平台只在一处定', () => {
+  test('每个平台各自的开关', () => {
+    expect(syntheticCredentialBackendArgs('linux')).toEqual(['--password-store=basic'])
+    expect(syntheticCredentialBackendArgs('darwin')).toEqual(['--use-mock-keychain'])
+    expect(syntheticCredentialBackendArgs('win32')).toEqual([])
   })
 
-  test('plain-only, missing or unreadable catalogs do not switch the backend', () => {
-    withCatalog({ apiKeysByVendor: { 'agent-runtime-loopback': { apiKey: placeholder, enc: 'plain' } } },
-      (root) => expect(isolatedCatalogHasSafeStorageCredentials(root)).toBe(false))
-    withCatalog(undefined, (root) => expect(isolatedCatalogHasSafeStorageCredentials(root)).toBe(false))
-    withCatalog('{not json', (root) => expect(isolatedCatalogHasSafeStorageCredentials(root)).toBe(false))
-  })
-})
-
-describe('withLinuxSyntheticCredentialStorage', () => {
-  test('isolated synthetic fixtures get a deterministic Linux backend exactly once', () => {
-    expect(withLinuxSyntheticCredentialStorage(['.'], true, 'linux'))
-      .toEqual(['.', '--password-store=basic'])
-    expect(withLinuxSyntheticCredentialStorage(['.', '--password-store=basic'], true, 'linux'))
-      .toEqual(['.', '--password-store=basic'])
+  test('开着就恰好带一次；关着（真资料 / 真付费）一个都不带', () => {
+    expect(withSyntheticCredentialStorage(['.'], true, 'linux')).toEqual(['.', '--password-store=basic'])
+    expect(withSyntheticCredentialStorage(['.', '--password-store=basic'], true, 'linux')).toEqual(['.', '--password-store=basic'])
+    expect(withSyntheticCredentialStorage(['.'], true, 'darwin')).toEqual(['.', '--use-mock-keychain'])
+    expect(withSyntheticCredentialStorage(['.', '--use-mock-keychain'], true, 'darwin')).toEqual(['.', '--use-mock-keychain'])
+    expect(withSyntheticCredentialStorage(['.'], true, 'win32')).toEqual(['.'])
+    for (const platform of ['linux', 'darwin', 'win32']) expect(withSyntheticCredentialStorage(['.'], false, platform)).toEqual(['.'])
   })
 
-  test('real credential journeys and non-Linux hosts keep their storage backend', () => {
-    expect(withLinuxSyntheticCredentialStorage(['.'], false, 'linux')).toEqual(['.'])
-    expect(withLinuxSyntheticCredentialStorage(['.'], true, 'darwin')).toEqual(['.'])
-    expect(() => withLinuxSyntheticCredentialStorage(['.', '--password-store=gnome-libsecret'], true, 'linux'))
+  test('调用方已经选了别的后端就报错，不静默覆盖', () => {
+    expect(() => withSyntheticCredentialStorage(['.', '--password-store=gnome-libsecret'], true, 'linux'))
+      .toThrow('synthetic credential storage conflicts')
+    expect(() => withSyntheticCredentialStorage(['.', '--password-store=basic'], true, 'darwin'))
       .toThrow('synthetic credential storage conflicts')
   })
 
-  test('activates and verifies Electron safeStorage only for opted-in Linux fixtures', async () => {
-    const calls = []
-    const app = {
-      evaluate: async (callback) => callback({
-        safeStorage: {
-          setUsePlainTextEncryption: (enabled) => calls.push(enabled),
-          isEncryptionAvailable: () => true,
-        },
-      }),
+  test('隔离资料按来源认领；显式值不能覆盖来源；真凭据标记一律真实', () => {
+    const root = makeTempDir('nomi-synthetic-decide-')
+    const userDataDir = path.join(root, 'user-data')
+    const settingsDir = path.join(root, 'settings')
+    fs.mkdirSync(userDataDir, { recursive: true })
+    fs.mkdirSync(settingsDir, { recursive: true })
+    const base = { userDataDir, settingsDir }
+    expect(decideSyntheticCredentialStorage({ ...base, isolate: true, platform: 'darwin' })).toBe(true)
+    expect(decideSyntheticCredentialStorage({ ...base, isolate: false, platform: 'darwin' })).toBe(false)
+    expect(() => decideSyntheticCredentialStorage({ ...base, isolate: true, explicit: false, platform: 'darwin' })).toThrow(/标记/)
+    // 空目录和预种密文是同一来源。
+    expect(decideSyntheticCredentialStorage({ ...base, isolate: true, platform: 'linux' })).toBe(true)
+    fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({ apiKeysByVendor: { apimart: { apiKey: 'x', enc: 'safeStorage' } } }))
+    expect(decideSyntheticCredentialStorage({ ...base, isolate: true, platform: 'linux' })).toBe(true)
+    // 真资料副本（seedReal* 落标记）：任何平台都不带；还硬要带就当场报错。
+    fs.rmSync(path.join(userDataDir, '.nomi-walk-credential-source'))
+    fs.writeFileSync(path.join(userDataDir, REAL_CREDENTIAL_MARKER), '')
+    for (const platform of ['darwin', 'linux']) {
+      expect(decideSyntheticCredentialStorage({ ...base, isolate: true, platform })).toBe(false)
+      expect(() => decideSyntheticCredentialStorage({ ...base, isolate: true, explicit: true, platform })).toThrow('真实凭据副本冲突')
     }
-
-    await expect(configureSyntheticCredentialStorage(app, true, 'linux')).resolves.toBe(true)
-    await expect(configureSyntheticCredentialStorage(app, false, 'linux')).resolves.toBe(false)
-    await expect(configureSyntheticCredentialStorage(app, true, 'darwin')).resolves.toBe(false)
-    expect(calls).toEqual([true])
   })
 
-  test('fails at the launcher boundary when the Linux fallback is still unavailable', async () => {
-    const app = {
-      evaluate: async (callback) => callback({
-        safeStorage: {
-          setUsePlainTextEncryption: () => undefined,
-          isEncryptionAvailable: () => false,
-        },
-      }),
+  test('夹具加密和被测 App 取到的是同一个开关（macOS / Linux / Windows 各一遍）', async () => {
+    const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform')
+    const launches = []
+    const launch = vi.spyOn(playwrightElectron, 'launch').mockImplementation(async (launchOptions) => {
+      launches.push(launchOptions)
+      return { process: () => ({}), close: async () => {}, evaluate: async () => true }
+    })
+    try {
+      for (const platform of ['darwin', 'linux', 'win32']) {
+        Object.defineProperty(process, 'platform', { value: platform })
+        const root = makeTempDir('nomi-synthetic-same-backend-')
+        const handle = await launchNomiApp({
+          tempRoot: root, executablePath: '/fixture/Nomi', waitForWindow: false, allowUntrackedProcessForTest: true, syntheticCredentialStorage: true,
+        })
+        await handle.close()
+        let encryptArgs = null
+        encryptFixtureKey({
+          rootDir: repoRoot, userDataDir: path.join(root, 'user-data'), appName: 'nomi', plaintext: 'placeholder', platform,
+          spawn: (_command, args) => { encryptArgs = args; return { status: 0, stdout: 'Y2lwaGVy\n' } },
+        })
+        const isBackendSwitch = (arg) => /^--(password-store|use-mock-keychain)\b/.test(arg)
+        const appSide = launches.at(-1).args.filter(isBackendSwitch)
+        expect(appSide).toEqual(syntheticCredentialBackendArgs(platform))
+        expect(encryptArgs.filter(isBackendSwitch)).toEqual(appSide)
+      }
+    } finally {
+      Object.defineProperty(process, 'platform', platformDescriptor)
+      launch.mockRestore()
     }
-
-    await expect(configureSyntheticCredentialStorage(app, true, 'linux'))
-      .rejects.toThrow('could not initialize an in-memory safeStorage key')
   })
 
-  test('every literal fixture credential explicitly opts into isolated synthetic storage', () => {
-    const sources = ['tests/ux', 'scripts'].flatMap((directory) =>
-      fs.readdirSync(path.join(repoRoot, directory), { recursive: true, withFileTypes: true })
-        .filter((entry) => entry.isFile() && entry.name.endsWith('.mjs'))
-        .map((entry) => path.join(entry.parentPath, entry.name)),
-    )
-    const offenders = sources
-      .filter((file) => {
-        const source = fs.readFileSync(file, 'utf8')
-        return source.includes('upsertVendorApiKey') && /apiKey:\s*['"]/.test(source) &&
-          !/syntheticCredentialStorage:\s*true/.test(source)
-      })
-      .map((file) => path.relative(repoRoot, file))
-
-    expect(offenders).toEqual([])
+  test('隔离启动在 macOS 上不用声明就带 --use-mock-keychain；真凭据副本不带、未标副本拒绝', async () => {
+    const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform')
+    const launches = []
+    const launch = vi.spyOn(playwrightElectron, 'launch').mockImplementation(async (launchOptions) => {
+      launches.push(launchOptions)
+      return { process: () => ({}), close: async () => {}, evaluate: async () => true }
+    })
+    try {
+      Object.defineProperty(process, 'platform', { value: 'darwin' })
+      const run = async (options, prepare) => {
+        const root = makeTempDir('nomi-synthetic-darwin-')
+        prepare?.(root)
+        const handle = await launchNomiApp({ tempRoot: root, executablePath: '/fixture/Nomi', waitForWindow: false, allowUntrackedProcessForTest: true, ...options })
+        await handle.close()
+        return launches.at(-1).args.includes('--use-mock-keychain')
+      }
+      expect(await run({})).toBe(true)
+      await expect(run({ syntheticCredentialStorage: false })).rejects.toThrow(/标记/)
+      expect(await run({}, (root) => {
+        fs.mkdirSync(path.join(root, 'user-data'), { recursive: true })
+        fs.writeFileSync(path.join(root, 'user-data', REAL_CREDENTIAL_MARKER), '')
+      })).toBe(false)
+    } finally {
+      Object.defineProperty(process, 'platform', platformDescriptor)
+      launch.mockRestore()
+    }
   })
+
+  test('后端开关的字面量和夹具加密只有启动器这一个家（新写的起法绕不开它）', () => {
+    const literal = launchSources()
+      .filter((file) => file.rel !== 'tests/ux/_launchApp.mjs' && !file.rel.endsWith('.node-test.mjs')
+        && /--(password-store|use-mock-keychain)\b/.test(file.text.split('\n').filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line)).join('\n')))
+      .map((file) => file.rel)
+    expect(literal).toEqual([])
+    const encryptors = launchSources().filter((file) => file.rel !== 'tests/ux/_launchApp.mjs' && file.text.includes('_encryptFixtureKey')).map((file) => file.rel)
+    expect(encryptors).toEqual([])
+  })
+
+
 })
 
 describe('withPackagedPlaywrightOrigin', () => {

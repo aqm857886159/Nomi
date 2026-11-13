@@ -16,7 +16,7 @@ import { directorPreviewSpendBlock } from '../model/directorPreviewState'
 import { normalizeDirectorProject } from '../model/directorProject'
 import type { DirectorProject } from '../model/directorTypes'
 import { archetypeForNode } from '../../../agent/referenceEdgeCapability'
-import { applyArchetypeModeSwitch, currentArchetypeMode } from '../../controls/archetypeMeta'
+import { applyHumanModeChoice, effectiveArchetypeMode } from '../../controls/archetypeMeta'
 import { removeFromArray, type ReferenceWriteContext } from '../../controls/referenceWrites'
 import type { DirectorWriteDomainResult } from './applyDirectorWrite'
 import { applyPreviewCaptured, previewCapturePlan, requestDirectorPreviewRender } from './directorPreviewCapture'
@@ -76,8 +76,8 @@ const setShotMeta = (shotId: string, patch: Record<string, unknown>): void => {
 const removePreviewReference = (shotId: string): void => {
   const current = node(shotId)!
   const archetype = archetypeForNode(current)!
-  const archMode = currentArchetypeMode(archetype, current.meta ?? {})
   const canvas = store()
+  const archMode = effectiveArchetypeMode(archetype, current, { nodes: canvas.nodes, edges: canvas.edges }).mode
   const ctx: ReferenceWriteContext = {
     node: current,
     archMode,
@@ -187,7 +187,7 @@ describe('节点上直接点 ↑：挂接始终是当前的', () => {
       const current = node(shotId)!
       const archetype = archetypeForNode(current)!
       const target = archetype.modes.find((mode) => mode.intent === 'text')!
-      store().updateNode(shotId, { meta: applyArchetypeModeSwitch(current.meta ?? {}, archetype, target.id) })
+      store().updateNode(shotId, { meta: applyHumanModeChoice(current.meta ?? {}, archetype, target.id) })
       expect(node(shotId)?.meta?.referenceVideoUrls ?? []).toEqual([])
       expect((node(shotId)?.meta?.archetype as { modeId: string }).modeId).toBe('t2v')
       expect(node(shotId)?.meta?.cameraMoveAttachedUrl).toBe(URL_V1)

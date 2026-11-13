@@ -60,12 +60,12 @@ export type ProjectRecord = {
   missing?: boolean;
 };
 
-/** sanitizeName 的长度上限。落盘文件名按它给「主干 + 扩展名」分预算（projectAssetStore.storedAssetFileParts）。 */
+/** sanitizeName 的长度上限。落盘文件名按它给「主干 + 扩展名」分预算（assets/storedAssetFile 的 storedAssetFileParts）。 */
 export const SANITIZED_NAME_MAX_LENGTH = 90;
 
 /**
  * 名字的非法字符清洗 + 截断。**它不认识扩展名**：一个带扩展名的长文件名整段截到 90 字，扩展名会被截掉。
- * 落盘素材文件名别直接用它，走 projectAssetStore 的 storedAssetFileParts（只截主干）。
+ * 落盘素材文件名别直接用它，走 assets/storedAssetFile 的 storedAssetFileParts（只截主干）。
  */
 export function sanitizeName(value: unknown, fallback = "Untitled"): string {
   const text = String(value || "").trim() || fallback;

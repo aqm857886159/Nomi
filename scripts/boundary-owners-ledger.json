@@ -3,6 +3,16 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-09-15-feedback-loop-intake.root-cause.json",
+      "path": "electron/telemetry/intakeQueue.ts",
+      "symbol": "flushIntakeQueue / clearIntakeQueue",
+      "anchor": {
+        "path": "electron/telemetry/intakeQueue.ts",
+        "symbol": "flushIntakeQueue"
+      },
+      "reason": "2026-11-13 删掉从没有发送方的轨迹上报通道（逐个已发布 tag 查过：轨迹队列只出现在类型声明里，入队 / 发送的唯一调用方一直是反馈）。clearIntakeQueue 只用来「关掉开关时清轨迹队列」，全仓没有调用方，同提交删除；这一半不变量随轨迹队列整体退役。另一半「用户点过发送的反馈别丢：离线缓存、静默重试、不阻塞界面」仍由 flushIntakeQueue 持有，守它的测试：electron/telemetry/intakeQueue.test.ts。"
+    },
+    {
       "contract": "docs/fixes/2026-09-10-c09-readable-focus.root-cause.json",
       "path": "src/workbench/generationCanvas/reactFlow/focusViewportRecovery.ts",
       "symbol": "resolveCanvasFocusZoom",
@@ -550,9 +560,105 @@
         "symbol": "bindWorkspaceLocations"
       },
       "reason": "2026-10-29「项目在哪」收敛单第一刀（docs/fixes/2026-10-29-project-location-owner.root-cause.json，用户 10-29 批准「按推荐方向修」）：批量登记 rememberWorkspaces 换成 bindWorkspaceLocations，入参从项目记录换成 { id, name, rootPath, origin? }（rootPath 必填，不再抄清单里的 lastKnownRootPath），旧名同提交删除；概念登记 docs/engineering/concept-owners/project.location.json 把它列为「项目在哪」的唯一写口之一。09-03 合同的不变量「批量登记一把锁、一次读、一次写，与单条登记共用一个合并函数」不变：bindWorkspaceLocations 与单条 bindWorkspaceLocation 共用 mergeWorkspaceBinding，锁 withRegistryLock 与排序沿用。语义上新增两点：同一 id 还绑在一个装着它的文件夹上，这一条跳过、原登记不动（不变量 ⑤）；位置变了（改名 / 挪走后重开、启动对账接回）时来源跟着新位置，位置没变时已冻结的来源优先。守它的测试：electron/workspace/workspaceRegistry.test.ts、electron/workspace/workspaceRegistry.concurrency.test.ts、electron/projects/projectLocation.matrix.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-26-asset-name-keeps-extension.root-cause.json",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "storedAssetFileParts",
+      "anchor": {
+        "path": "electron/assets/storedAssetFile.ts",
+        "symbol": "storedAssetFileParts"
+      },
+      "reason": "2026-11-07 配音落盘修复那一轮（docs/fixes/2026-11-07-tts-save-expected-kind.root-cause.json）：projectAssetStore.ts 到了文件体积冻结线，按职责把「落盘文件的类型与位置」整块拆到 electron/assets/storedAssetFile.ts（effectiveContentType / contentTypeFromStoredFile / storedAssetFileParts / uniqueAssetPath，函数体逐字不变，只是导出）。09-26 合同的不变量「落盘文件名的唯一裁法：扩展名按字节嗅出的内容类型定、只截主干」不变：writeAsset / copyAssetFile / moveAssetFile / 生成产物发布仍然只经 uniqueAssetPath → storedAssetFileParts 这一处取名。守它的测试：electron/assets/projectAssetStore.test.ts（长供应商名不带扩展名 → .mp4，copyAssetFile 与 moveAssetFile 两个入口）。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-25-headless-reference-key-projection.root-cause.json",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "projectReferencesOntoBodyKeys",
+      "anchor": {
+        "path": "electron/catalog/taskParams.ts",
+        "symbol": "headlessReferenceOverlay"
+      },
+      "reason": "2026-11-08 参考放置收成一个降级函数（docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：headless 投影入口改名 headlessReferenceOverlay，仍住 taskParams.ts、仍由 applyHeadlessParamDefaults 在模板渲染前调用；它只读出携带的参考、帧意图和已占用的键，挑键与写值交给 electron/shared/generationLowering 的 lowerHeadlessReferences → lowerGenerationIntent（按 body 推出的声明放，形状与帧意图只读 referenceKeys.ts 的显式声明表，删掉按键名正则猜族 / 形状）。10-25 合同的不变量「只把同族参考投进声明过、body 读、还空着的键」不变：同族、声明过、body 读、空键四条都在降级函数里，官方字段矩阵改前改后请求体逐字节相同。守它的测试：electron/catalog/referenceKeyProjectionCensus.test.ts、electron/catalog/taskParams.test.ts、electron/shared/generationLowering/lowerGenerationIntent.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-27-first-gate-full-model-identity.root-cause.json",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "projectReferencesOntoBodyKeys",
+      "anchor": {
+        "path": "electron/catalog/taskParams.ts",
+        "symbol": "headlessReferenceOverlay"
+      },
+      "reason": "2026-11-08 参考放置收成一个降级函数（docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：同一个入口改名 headlessReferenceOverlay，留在 taskParams.ts。10-27 合同的不变量「显式值与携带值都按所选模型的声明容量数清、出网前拒」不变：显式 body 值那一圈原样在 headlessReferenceOverlay 里按 referenceKeyCapacityDeclarationFor 数、assertReferenceCapacity 拒；携带的参考由 lowerHeadlessReferences 按同一份声明容量数，超了作为 problems 交回，headlessReferenceOverlay 用同一个 assertReferenceCapacity 在出网前拒，报错原话不变。守它的测试：electron/catalog/taskParams.test.ts、electron/capabilityCore/apimartGenerationProvider.test.ts、electron/runtime.referenceSelection.test.ts、electron/catalog/referenceKeyProjectionCensus.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-11-08-reference-mode-projection.root-cause.json",
+      "path": "electron/shared/videoCapabilities/referenceChannels.ts",
+      "symbol": "lowerCombinedReferences",
+      "anchor": {
+        "path": "electron/shared/generationLowering/lowerGenerationIntent.ts",
+        "symbol": "lowerGenerationIntent"
+      },
+      "reason": "2026-11-08 参考放置收成一个降级函数（docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：合并数组的拼法从 referenceChannels.ts 挪进唯一的降级函数 lowerGenerationIntent（11-09 起进合并的槽编译成 combined 绑定，由同一个解析写入过程按槽声明序拼），画布、headless、ProductionRun 三条路都经它放；合并槽的 role 表 REFERENCE_ROLE_FOR_KIND 仍住 referenceChannels.ts，lowerCombinedReferences 同提交删除。11-08 合同的不变量「按档案槽顺序和角色拼出唯一合并数组」不变：档案槽的声明顺序就是合并顺序，被合并的扁平键不再出现，官方字段矩阵改前改后请求体逐字节相同。守它的测试：electron/shared/generationLowering/lowerGenerationIntent.test.ts（全部内置档案的全部模式「一张图只进一个键」）、electron/parity/apimartDocsAlignRunPath.test.ts、electron/parity/officialWire.matrix.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-31-run-retrieval-recovery.root-cause.json",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "settleWithArtifact",
+      "anchor": {
+        "path": "electron/productionRun/productionGenerationSubmission.ts",
+        "symbol": "settleWithArtifacts"
+      },
+      "reason": "2026-11-09 一次运行给几份就留几份（docs/fixes/2026-11-09-multi-result-landing.root-cause.json，用户 11-09 拍板「按结构」）：一个 job 可以有多份产物，收尾从带一份改成带这个 job 的全部产物，改名 settleWithArtifacts，旧名同提交删除；概念登记 docs/engineering/concept-owners/production.generation-observation-lifecycle.json 的写口跟着改。10-31 合同的不变量「已有产物时收尾只走这一处，先补 job 再收信封」不变；N=1 时行为与编号逐字不变。守它的测试：electron/productionRun/productionGenerationMultiOutput.test.ts、electron/productionRun/productionGenerationLifecycle.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-08-30-generation-executor-lifecycle.root-cause.json",
+      "path": "electron/tasks/assetUrlExtract.ts",
+      "symbol": "extractAssetUrl",
+      "anchor": {
+        "path": "electron/tasks/assetUrlExtract.ts",
+        "symbol": "extractAssetUrls"
+      },
+      "reason": "2026-11-09 读供应商结果读全集（docs/fixes/2026-11-09-multi-result-landing.root-cause.json，用户 11-09 拍板「按结构」）：一次生成可以回几份，没声明映射时的兜底提取从「第一组非空结果里的第一条」改成回那一组的全部地址，改名 extractAssetUrls，旧名同提交删除（聊天回话的 extractChatImageUrl 同样改成 extractChatImageUrls）。08-30 合同的不变量「图 / 视频 / 音频 / 3D 地址都经这一处与供应商无关的提取」不变；只有一条地址时结果逐字不变。守它的测试：electron/tasks/assetUrlExtract.test.ts、electron/catalog/multiOutputMapping.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-02-vendor-honest-axes-followup.root-cause.json",
+      "path": "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+      "symbol": "archetypeModeIsVisible / archetypeVariantAxisIsLive / fallbackVisibleModeId",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+        "symbol": "archetypeModeIsVisible / archetypeVariantAxisIsLive"
+      },
+      "reason": "2026-11-12 方式按输入现算（docs/fixes/2026-11-12-mode-from-inputs.root-cause.json，用户 11-12 改向）：「存着的方式被收窄掉时退到哪一个可见方式」不再是一个要选的状态——这次用哪种方式由 modeForInputs 在可见方式里按输入现算，fallbackVisibleModeId 同提交删除。09-02 合同的不变量「档案能力轴 × 渠道的收窄判据只住这一处」不变，仍由 archetypeModeIsVisible / archetypeVariantAxisIsLive 持有；守它的测试：channelModeReach.test.ts、modeMenuModel.exhaustive.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-25-canvas-mode-follows-inputs.root-cause.json",
+      "path": "src/workbench/generationCanvas/store/canvasConnectDerivations.ts",
+      "symbol": "revertTargetModeForEmptyInputs",
+      "anchor": {
+        "path": "electron/shared/modelArchetypes/modeForInputs.ts",
+        "symbol": "modeForInputs"
+      },
+      "reason": "2026-11-12 方式按输入现算（docs/fixes/2026-11-12-mode-from-inputs.root-cause.json）：方式不再是被写进 meta 的状态，「输入删光 → 回到文生」由 modeForInputs 每次按当前输入现算得出，不再有一个写口在 live→empty 时去改字段；revertTargetModeForEmptyInputs 同提交删除。10-25 合同的不变量「没有输入就不停在带图的方式」由 modeForInputs 持有，守它的测试：modeForInputs.exhaustive.test.ts（全部档案 × 存着的方式 × 9 种输入）。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-25-canvas-mode-follows-inputs.root-cause.json",
+      "path": "src/workbench/generationCanvas/store/canvasConnectDerivations.ts",
+      "symbol": "convergeStuckInputModes",
+      "anchor": {
+        "path": "electron/shared/modelArchetypes/modeForInputs.ts",
+        "symbol": "modeForInputs"
+      },
+      "reason": "2026-11-12 方式按输入现算：打开项目 / 回放事件尾巴后不再需要一次收敛写入——存着的方式只当偏好读，放不下当前输入就按输入现算，旧项目不改盘（真窗回放核过老节点 meta 字节不变）；convergeStuckInputModes 同提交删除。10-25 合同「加载后不停在没输入的带图方式」由 modeForInputs 持有，守它的测试：modeForInputs.exhaustive.test.ts、tests/ux/mode-bar-replay.walk.mjs 第 06 幕。"
     }
   ],
   "retirements": [
+    {
+      "contract": "docs/fixes/2026-10-04-retrieval-trusts-connection-origin.root-cause.json",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "trustedRetrievalOrigin",
+      "reason": "2026-11-13 生成的提交 / 取回 / 下载不再按目的地地址判（docs/engineering/direction-checks/2026-11-13-outbound-address-layer-delete.md）：本机 / 局域网的产物地址本来就照取，「取回信任这条连接自己的 origin」这个私网例外没有东西要放行了，同提交删掉。vendorOutboundGuard.ts 只剩凭据绑定（authorizeSubmitDestination）。"
+    },
     {
       "contract": "docs/fixes/2026-08-31-generation-result-retrieval-boundary.root-cause.json",
       "path": "electron/assets/projectAssetStore.ts",

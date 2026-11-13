@@ -44,6 +44,8 @@ export type ArchetypeReferenceSlot = {
   min: number;
   /** Absent when the provider has not published a reference count limit. */
   max?: number;
+  /** A provider may accept fewer inputs than the model itself. */
+  vendorMax?: Readonly<Record<string, number>>;
   inputKey?: string;
   asArray?: boolean;
   characterIndexed?: boolean;
@@ -99,7 +101,11 @@ export type ArchetypeMode = {
    * second source of truth this field exists to remove.
    */
   vendorTransportTaskKind?: Record<string, ArchetypeTransportTaskKind>;
-  combineSlotsInto?: { key: string; flat?: boolean };
+  /**
+   * 角色数组合并（`referenceChannels.ts` 唯一读点）。`kinds`：只把这几种槽并进去，其余槽留在自己的扁平键上
+   * （Wan 2.7 角色参考：图进 image_with_roles，参考视频官方走 video_urls 裸数组）。缺省 = 有角色词的槽全并。
+   */
+  combineSlotsInto?: { key: string; flat?: boolean; kinds?: ArchetypeReferenceSlotKind[] };
   fixedParams?: Record<string, string>;
 };
 

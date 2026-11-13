@@ -2,6 +2,8 @@
 
 日期：2026-11-07
 
+> 2026-11-13 并 main（L-land-agent-persona）：本页这份修法已被主线的同类修复取代（14cfc80fb，`requestResidentComposerFocus`，只经输入框主人聚焦），本 PR 不再带；`focusAgentComposerSoon`、`AGENT_COMPOSER_INPUT_SELECTOR` 和它们的测试在并 main 的提交里删掉。下文留作记录。
+
 - 本页由实现线 I-agent-persona 写。
 - 协调按 P1 例外代批（2026-11-07）：只因目录口径命中，文件本身未命中，改法是换。
 - 事后已报用户（由协调会话报）。

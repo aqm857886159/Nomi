@@ -185,15 +185,15 @@ describe("applyBuiltinSeeds", () => {
       .toMatchObject({ catalogLifecycle: "flagship" });
     expect((fresh.models.find((model) => model.modelKey === "nano-banana-2-lite")?.meta as Record<string, unknown>))
       .toMatchObject({ catalogLifecycle: "value" });
-    expect((fresh.models.find((model) => model.modelKey === "seedream")?.meta as Record<string, unknown>))
+    expect((fresh.models.find((model) => model.modelKey === "nano-banana")?.meta as Record<string, unknown>))
       .toMatchObject({ catalogLifecycle: "legacy" });
 
-    const staleIndex = fresh.models.findIndex((model) => model.modelKey === "seedream");
-    fresh.models[staleIndex] = { ...fresh.models[staleIndex], meta: { archetypeId: "seedream" } };
+    const staleIndex = fresh.models.findIndex((model) => model.modelKey === "nano-banana");
+    fresh.models[staleIndex] = { ...fresh.models[staleIndex], meta: { archetypeId: "nano-banana" } };
     const reconciled = applyBuiltinSeeds(fresh, "2026-08-30T00:00:00.000Z");
     expect(reconciled.changed).toBe(true);
     expect((reconciled.state.models[staleIndex].meta as Record<string, unknown>))
-      .toMatchObject({ archetypeId: "seedream", catalogLifecycle: "legacy" });
+      .toMatchObject({ archetypeId: "nano-banana", catalogLifecycle: "legacy" });
   });
 
   it("re-sync（model）：meta 里用户自加的其它键不被对账抹掉（只覆盖 archetypeId）", () => {
@@ -325,7 +325,6 @@ describe("applyBuiltinSeeds", () => {
     const brainKeys = [
       "deepseek-v4-pro",
       "deepseek-v4-flash",
-      "deepseek-v3.1-terminus",
     ];
     for (const modelKey of brainKeys) {
       const brain = state.models.find((m) => m.vendorKey === "apimart" && m.modelKey === modelKey);
@@ -341,7 +340,7 @@ describe("applyBuiltinSeeds", () => {
     const { state } = applyBuiltinSeeds(emptyCatalog(), NOW);
     expect(state.models.find((model) => model.vendorKey === "apimart" && model.modelKey === "deepseek-v3.2")).toBeUndefined();
     // 下架只摘这一条：同族在售的与默认大脑原样在。
-    for (const modelKey of ["deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v3.1-terminus", "gemini-3.5-flash"]) {
+    for (const modelKey of ["deepseek-v4-pro", "deepseek-v4-flash", "gemini-3.5-flash"]) {
       expect(state.models.find((model) => model.vendorKey === "apimart" && model.modelKey === modelKey), modelKey)
         .toMatchObject({ kind: "text", enabled: true });
     }

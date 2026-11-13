@@ -16,8 +16,9 @@ function videoNode(modeId: string, meta: Record<string, unknown> = {}): Generati
 }
 
 describe('canRunGenerationNode — 视频节点参考判定', () => {
-  it('omni 无任何参考 → 不可生成', () => {
-    expect(canRunGenerationNode(videoNode('omni'), { nodes: [], edges: [] })).toBe(false)
+  // 2026-11-12 起方式按输入现算：存着 omni 却一张参考都没有 = 这次按文生视频发（Seedance 有文生），不再锁按钮。
+  it('存着 omni、无任何参考 → 按文生视频，可生成', () => {
+    expect(canRunGenerationNode(videoNode('omni'), { nodes: [], edges: [] })).toBe(true)
   })
   it('omni 放了角色图数组 → 可生成（修复点）', () => {
     const node = videoNode('omni', { referenceImageUrls: ['https://cdn/c1.png'] })
@@ -38,9 +39,9 @@ describe('canRunGenerationNode — 视频节点参考判定', () => {
     const edges = [{ id: 'e1', source: 's1', target: 'v1', mode: 'reference' } as never]
     expect(canRunGenerationNode(node, { nodes: [node, source], edges })).toBe(true)
   })
-  it('首帧模式：有 firstFrameUrl → 可生成；空 → 不可', () => {
+  it('首帧模式：有 firstFrameUrl → 可生成；空 → 按文生视频，也可生成', () => {
     expect(canRunGenerationNode(videoNode('first', { firstFrameUrl: 'https://cdn/f.png' }), { nodes: [], edges: [] })).toBe(true)
-    expect(canRunGenerationNode(videoNode('first'), { nodes: [], edges: [] })).toBe(false)
+    expect(canRunGenerationNode(videoNode('first'), { nodes: [], edges: [] })).toBe(true)
   })
   it('image / text 节点（无档案上下文）始终可生成（prompt 缺失由下游兜底）', () => {
     expect(canRunGenerationNode({ kind: 'image' } as GenerationCanvasNode)).toBe(true)
@@ -91,8 +92,8 @@ describe('canRunGenerationNode — 视频节点参考判定', () => {
   })
 })
 
-// L3 护栏（2026-07-06）：图生图模式（image_edit + 有参考槽）零参考 → 不可生成，
-// 对齐视频节点护栏；此前 image 恒 true，空参考的图生图被静默当纯文生发出去。
+// 2026-11-12 起方式按输入现算：图生图偏好、零参考 = 这次就是文生图（显示的 = 发的，不再是「静默当纯文生发」），
+// 有文生图的模型照样可生成；只有档案根本没有文字生成方式时才要先放图（见下面的不变量）。
 describe('canRunGenerationNode — 图像节点图生图参考判定', () => {
   function imageNode(modeId: string, meta: Record<string, unknown> = {}): GenerationCanvasNode {
     return {
@@ -100,8 +101,8 @@ describe('canRunGenerationNode — 图像节点图生图参考判定', () => {
       meta: { modelKey: 'gpt-image-2', archetype: { id: 'gpt-image-2', modeId }, ...meta },
     } as GenerationCanvasNode
   }
-  it('i2i（图生图）无任何参考 → 不可生成', () => {
-    expect(canRunGenerationNode(imageNode('i2i'), { nodes: [], edges: [] })).toBe(false)
+  it('存着 i2i（图生图）、无任何参考 → 按文生图，可生成', () => {
+    expect(canRunGenerationNode(imageNode('i2i'), { nodes: [], edges: [] })).toBe(true)
   })
   it('i2i 有 meta 上传参考（referenceImageUrls）→ 可生成', () => {
     const node = imageNode('i2i', { referenceImageUrls: ['https://cdn/a.png'] })
@@ -121,10 +122,9 @@ describe('canRunGenerationNode — 图像节点图生图参考判定', () => {
 })
 
 // 结构保证（不变量）：把「t2v 按钮被锁死」从「修了这一处」升级成「整类不再复发」。
-// 规则：video / model3d 节点的「可生成（空参考时）」必须 ⟺「当前模式无参考槽（slots:[]）」——
-//   无参考槽 = 纯文生（t2v / 文生3D）= prompt-only 可生成；有参考槽 = 需先放参考。
-// 走遍**所有** video + model3d 档案 × 所有模式，任何新档案/新模式若让 gate 与槽声明不一致（如给 t2v 模式留了
-// 多余槽 → 误锁按钮；或给 i2v 模式漏了槽 → 空跑必失败），这里立刻红，不必等用户撞到灰按钮。
+// 规则（2026-11-12 起方式按输入现算）：video / model3d 节点空参考时「可生成」⟺「档案里有一种无参考槽的方式（文生）」——
+//   不管节点上存着哪种方式：没放输入就按文生发；档案没有文生（只能从图开始）才要先放参考。
+// 走遍**所有** video + model3d 档案 × 所有存着的方式，任何新档案/新模式若让 gate 与槽声明不一致，这里立刻红。
 // 2026-09-02 起纳入 model3d（#320 J11 实证 3D 节点派发恒被挡——kind 边界漏 3D 的第二次同族发作，第一次=#286）。
 // 注：故意按 slots 判定而非 transportTaskKind——HappyHorse 把所有模式都挂 text_to_video 做 kie 分流路由，
 //   transportTaskKind 已被重载、不可信；slots 才是「这个模式吃不吃参考」的单一真相。
@@ -141,11 +141,11 @@ describe('不变量：video / model3d 可生成判定 ⟺ 当前模式无参考�
   for (const archetype of slotDeclaredArchetypes) {
     const nodeKind = archetype.kind
     for (const mode of archetype.modes || []) {
-      const slotless = (mode.slots || []).length === 0
-      it(`${archetype.id}/${mode.id}：空参考时可生成=${slotless}（slots=${(mode.slots || []).length}）`, () => {
+      const slotless = (archetype.modes || []).some((candidate) => (candidate.slots || []).length === 0)
+      it(`${archetype.id}/${mode.id}：空参考时可生成=${slotless}（档案${slotless ? '有' : '没有'}文生）`, () => {
         const node = {
           id: 'inv1', kind: nodeKind, title: 'v', position: { x: 0, y: 0 },
-          prompt: slotless ? '一只猫跳下沙发' : '',
+          prompt: '一只猫跳下沙发',
           meta: { modelKey: archetype.identifierPatterns?.[0] || archetype.id, archetype: { id: archetype.id, modeId: mode.id } },
         } as GenerationCanvasNode
         expect(canRunGenerationNode(node, { nodes: [node], edges: [] })).toBe(slotless)

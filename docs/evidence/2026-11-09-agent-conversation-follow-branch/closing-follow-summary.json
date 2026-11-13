@@ -1,0 +1,23 @@
+{
+  "runHead": "4bf124287",
+  "result": "failed",
+  "checks": 29,
+  "green": 27,
+  "red": [
+    "zh-light/streaming-follows-while-at-bottom",
+    "en-dark/streaming-follows-while-at-bottom"
+  ],
+  "textRequests": 14,
+  "imageRequests": 0,
+  "paidCalls": 0,
+  "unexpected": [],
+  "screenshotCount": 12,
+  "screenshotsInspected": [
+    "closing-zh-after-jump.png",
+    "closing-en-after-jump.png"
+  ],
+  "otherScreenshots": "10 additional run screenshots retained locally, not counted as inspected",
+  "ledgerChanged": false,
+  "ledgerStatus": "candidate",
+  "stopReason": "Coordinator explicitly requires a fully green repaired walkthrough before reviewed; the two original 70px streaming checks remain red."
+}

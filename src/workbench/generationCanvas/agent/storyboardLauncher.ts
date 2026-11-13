@@ -13,6 +13,25 @@ export const STORYBOARD_PLANNER_SKILL = {
 } as const
 
 /**
+ * 用户亲手点「拆分镜 / 拆成镜头」时交给 Agent 的那一条：请求句 + 选中的字，**挂分镜规划技能**、结果方案照常替他打开。
+ * 常驻 Agent 的分镜启动器只经这里拼，挂不挂技能不由各入口自己记得（2026-11-08：选中一句点「拆成镜头」，
+ * 气泡上要见到「分镜规划」这颗技能签，才知道自己触发的是拆镜头而不是随手发了一句话）。
+ */
+export function storyboardLaunchMessage(request: string, displayPrompt?: string): {
+  text: string
+  options: { skillKey: string; openStoryboardResult: true; displayText?: string }
+} {
+  return {
+    text: [request, displayPrompt].filter(Boolean).join('\n\n'),
+    options: {
+      skillKey: STORYBOARD_PLANNER_SKILL.key,
+      openStoryboardResult: true,
+      ...(displayPrompt ? { displayText: displayPrompt } : {}),
+    },
+  }
+}
+
+/**
  * 构造交给分镜规划师的用户消息。技能体（SKILL.md）已含完整方法论，这里只把剧本正文
  * 包好递进去，附一句指令。
  *

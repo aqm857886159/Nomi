@@ -43,6 +43,11 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'library-prompt-search',
   'pointer-hover-focus',
   'spend-card-node-edit-refresh',
+  'chat-send-visible-10',
+  'chat-send-visible',
+  'chat-send-visible-1000',
+  'chat-scroll-500',
+  'chat-scroll-500-cpu4x',
 ])
 
 const sleep = (page, ms) => page.waitForTimeout(ms)
@@ -65,6 +70,18 @@ const STREAM_TEXT = '镜头缓缓推进，雨夜的街道上霓虹倒映在积�
 const SPEND_CARD_SCENARIOS = new Set(['pointer-hover-focus', 'spend-card-node-edit-refresh'])
 const SPEND_CARD_SHOTS = 12
 const SPEND_CARD_CANDIDATE = { providerId: 'apimart', modelId: 'doubao-seedance-2.0' }
+// Agent 对话（设计卡 docs/plan/2026-11-09-agent-conversation-stick-to-bottom.md ★7）：历史条数 = 起 App 前塞进项目的旧版对话条数
+// （用户 / 回答交替；走旧版迁移那条真路径进当前对话，不另造会话格式）。mixed = 回答里混 Markdown 标题、列表、代码块。
+const CHAT_SCENARIOS = Object.freeze({
+  'chat-send-visible-10': { items: 10, mixed: false },
+  'chat-send-visible': { items: 100, mixed: false },
+  'chat-send-visible-1000': { items: 1000, mixed: false },
+  'chat-scroll-500': { items: 500, mixed: true },
+  'chat-scroll-500-cpu4x': { items: 500, mixed: true, cpuThrottle: 4 },
+})
+const CHAT_PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="creation"]'
+const CHAT_REPLY = '收到，下一镜从窗边的红色杯子推到人物的手。'
+const CHAT_SCROLL_MS = 5000
 
 // ——— 起 App 之前：夹具补料 / 假供应商 ————————————————————————————————————————
 
@@ -111,24 +128,57 @@ export async function prepareWorkbenchLaunch(scenario, { fixture, root, repoRoot
       const provider = await createProcessFixture(repoRoot, settingsDir)
       return { launch: { settingsDir, ...guard }, provider, close: () => provider.close() }
     }
-    const { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR } = await import('../../ux/agent-runtime-fixture.mjs')
-    const provider = await createAgentRuntimeFixture({ rootDir: repoRoot, settingsDir })
     // 常驻应答：每一句都回一段慢慢吐的长正文。1240 字，一帧 12 字，平移那条 40ms 一帧，约 4 秒吐完。
     // 眼睛跟随那条要在「在跑」里先量 1.2 秒静止对照、再扫一圈，4 秒不够：扫完时 Agent 已经停了，样本会被跳过（11-07 冒烟两次都跳过）。
     // 所以这条放慢到 120ms 一帧，约 12 秒吐完。
     const intervalMs = scenario === 'agent-ball-eye-follow' ? 120 : 40
-    provider.respond({ label: 'perf stream', match: () => true, reply: { type: 'stream', text: STREAM_TEXT, chunkChars: 12, intervalMs } })
-    return {
-      launch: {
-        settingsDir,
-        ...guard,
-        initialLocalStorage: { 'nomi.assistantModel': JSON.stringify({ vendorKey: FIXTURE_VENDOR, modelKey: FIXTURE_TEXT_MODEL }) },
-      },
-      provider,
-      close: () => provider.close(),
-    }
+    return prepareAgentLaunch({ settingsDir, guard, repoRoot, label: 'perf stream', reply: { type: 'stream', text: STREAM_TEXT, chunkChars: 12, intervalMs } })
+  }
+  if (CHAT_SCENARIOS[scenario]) {
+    seedLegacyConversation(fixture, CHAT_SCENARIOS[scenario])
+    const settingsDir = path.join(root, 'settings')
+    fs.mkdirSync(settingsDir, { recursive: true })
+    const guard = { mainRequire: [path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs')], env: { NOMI_TEST_NETWORK_GUARD: '1' } }
+    return prepareAgentLaunch({ settingsDir, guard, repoRoot, label: 'perf chat', reply: { type: 'text', text: CHAT_REPLY } })
   }
   return { launch: {}, close: async () => {} }
+}
+
+/** 本机假 Agent 模型 + 选好它：每一句都按 reply 回。零花费、零外网。 */
+async function prepareAgentLaunch({ settingsDir, guard, repoRoot, label, reply }) {
+  const { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR } = await import('../../ux/agent-runtime-fixture.mjs')
+  const provider = await createAgentRuntimeFixture({ rootDir: repoRoot, settingsDir })
+  provider.respond({ label, match: () => true, reply })
+  return {
+    launch: {
+      settingsDir,
+      ...guard,
+      initialLocalStorage: { 'nomi.assistantModel': JSON.stringify({ vendorKey: FIXTURE_VENDOR, modelKey: FIXTURE_TEXT_MODEL }) },
+    },
+    provider,
+    close: () => provider.close(),
+  }
+}
+
+/**
+ * 给夹具项目塞一段旧版本留下的长对话（`.nomi/agent-session.json`，旧版真格式，和旧版迁移走查同一种）：
+ * 打开项目时产品自己的迁移把它导进当前对话。条目是用户 / 回答交替；mixed 时回答里轮换标题、列表、代码块。
+ */
+function seedLegacyConversation(fixture, { items, mixed }) {
+  const nomi = path.join(fixture.projectRoot, '.nomi')
+  fs.rmSync(path.join(nomi, 'agent-sessions'), { recursive: true, force: true })
+  fs.rmSync(path.join(nomi, 'agent-workspace.json'), { force: true })
+  const answer = (index) => {
+    const plain = `第 ${index} 镜：雨夜的街道上霓虹倒映在积水里，主角撑伞穿过人群，镜头从背后跟上。`
+    if (!mixed) return plain
+    if (index % 3 === 0) return `### 第 ${index} 镜\n\n- 景别：中景\n- 运镜：缓推\n- **情绪**：克制\n\n${plain}`
+    if (index % 3 === 1) return `${plain}\n\n\`\`\`json\n{ "shot": ${index}, "lens": "35mm", "move": "dolly-in", "seconds": 4 }\n\`\`\``
+    return `${plain}\n\n1. 先拍空镜\n2. 再拍人物入画\n3. 最后给手部特写`
+  }
+  const conversation = Array.from({ length: items }, (_, index) => index % 2 === 0
+    ? { role: 'user', content: `第 ${index / 2 + 1} 个问题：下一镜怎么拍？` }
+    : { role: 'assistant', content: answer((index + 1) / 2) })
+  fs.writeFileSync(path.join(nomi, 'agent-session.json'), JSON.stringify({ sessions: { legacy: conversation } }))
 }
 
 /**
@@ -246,6 +296,8 @@ export async function runWorkbenchScenario(page, scenario, ctx) {
   if (scenario === 'library-prompt-search') return librarySearch(page, ctx)
   if (scenario === 'pointer-hover-focus') return pointerHoverFocus(page, ctx)
   if (scenario === 'spend-card-node-edit-refresh') return spendCardNodeEditRefresh(page, ctx)
+  if (scenario.startsWith('chat-send-visible')) return chatSendVisible(page, ctx)
+  if (scenario.startsWith('chat-scroll-500')) return chatScroll(page, ctx, CHAT_SCENARIOS[scenario])
   throw new Error(`未知工作台场景 ${scenario}`)
 }
 
@@ -817,6 +869,88 @@ async function panWhileAgentStreaming(page, ctx) {
   // 前提：平移的那 2 秒里正文确实在往外吐（字数在涨）；吐完了才平移就不是这个场景。
   if (charsAfter - charsBefore < 100) return { skipped: `平移期间 Agent 正文只多了 ${charsAfter - charsBefore} 个字，不是在流式输出时操作` }
   return { ...result, streamedCharsDuringPan: charsAfter - charsBefore, path: 'pan while agent streaming' }
+}
+
+// ——— Agent 对话：发送到看见、长对话滚动（设计卡 docs/plan/2026-11-09-agent-conversation-stick-to-bottom.md ★7）————————
+
+const CHAT_FLOW = `${CHAT_PANEL} [data-v4-flow="true"]`
+
+/** 每个 App 一次：到创作页、展开面板、等旧版对话迁进来（流里有用户气泡）。 */
+async function ensureChat(page, ctx) {
+  if (ctx.state.chatReady) return
+  await switchTo(page, 'creation')
+  await ensureAgentPanelOpen(page)
+  await page.locator(`${CHAT_FLOW} [data-v4-block="user"]`).first().waitFor({ state: 'attached', timeout: 60_000 })
+  await sleep(page, 800)
+  ctx.state.chatReady = true
+}
+
+/**
+ * 发送到看见：输入框里写好一句，按回车（keydown 起表）→ 自己那句气泡出现在对话流的可见区里，再过两帧停表。
+ * 每次采样等这一轮回答落地再进下一次，起点一样（停在底部、没有在跑的回合）。
+ */
+async function chatSendVisible(page, ctx) {
+  await ensureChat(page, ctx)
+  const marker = `perf-send-${ctx.runIndex}`
+  const input = page.locator(`${CHAT_PANEL} [data-v4-control="input"]`).first()
+  await input.click()
+  await input.fill(`${marker} 下一镜怎么拍`)
+  await sleep(page, 200)
+  await ctx.startWindow(page)
+  await armResponse(page, { trigger: 'keydown', predicate: 'chatBubbleVisible', arg: { flow: CHAT_FLOW, marker } })
+  await input.press('Enter')
+  const response = await takeResponse(page)
+  const raw = await ctx.stopWindow(page)
+  await page.locator(`${CHAT_PANEL} [data-v4-block="composer"][data-mode="running"]`).first().waitFor({ state: 'hidden', timeout: 60_000 })
+  await sleep(page, 400)
+  const mountedCards = await page.locator(`${CHAT_FLOW} [data-v4-block]`).count()
+  return { raw, responseMs: response.ms, mountedCards, path: 'composer Enter → own bubble visible' }
+}
+
+/**
+ * 长对话滚动：先把旧消息一页页全加载出来（翻到顶 = 「加载更早」），再在 5 秒里从顶匀速滚到底（每帧写一次滚动位置），量帧间隔和长任务。
+ * cpuThrottle 时被测窗口里 CPU 降速（CDP Emulation.setCPUThrottlingRate），模拟弱机器。
+ */
+async function chatScroll(page, ctx, { cpuThrottle } = {}) {
+  await ensureChat(page, ctx)
+  const flow = page.locator(CHAT_FLOW).first()
+  if (!ctx.state.chatAllLoaded) {
+    let previous = -1
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const count = await page.locator(`${CHAT_FLOW} [data-v4-block]`).count()
+      if (count === previous) break
+      previous = count
+      await flow.evaluate((node) => { node.scrollTop = 0; node.dispatchEvent(new Event('scroll')) })
+      await sleep(page, 700)
+    }
+    ctx.state.chatAllLoaded = true
+  }
+  const mountedCards = await page.locator(`${CHAT_FLOW} [data-v4-block]`).count()
+  await flow.evaluate((node) => { node.scrollTop = 0 })
+  await sleep(page, 500)
+  const session = cpuThrottle ? await ctx.app.context().newCDPSession(page) : null
+  if (session) await session.send('Emulation.setCPUThrottlingRate', { rate: cpuThrottle })
+  await ctx.startWindow(page)
+  const scrolledPx = await flow.evaluate((node, durationMs) => new Promise((resolve) => {
+    const from = node.scrollTop
+    const to = node.scrollHeight - node.clientHeight
+    const started = performance.now()
+    const step = () => {
+      const progress = Math.min(1, (performance.now() - started) / durationMs)
+      node.scrollTop = from + (to - from) * progress
+      if (progress < 1) requestAnimationFrame(step)
+      else resolve(Math.round(node.scrollTop - from))
+    }
+    requestAnimationFrame(step)
+  }), CHAT_SCROLL_MS)
+  const raw = await ctx.stopWindow(page)
+  if (session) {
+    await session.send('Emulation.setCPUThrottlingRate', { rate: 1 })
+    await session.detach()
+  }
+  // 前提：真的滚过了好几屏（对话没迁进来、只加载了一页，量的就不是长对话）。
+  if (mountedCards < 200) return { skipped: `对话流里只有 ${mountedCards} 块，旧消息没全加载出来` }
+  return { raw, scrolledPx, mountedCards, path: `scroll ${mountedCards} blocks top → bottom in ${CHAT_SCROLL_MS}ms` }
 }
 
 // ——— 技能库 / 提示词库（左栏抽屉；设计卡 ★7）——————————————————————————————————————

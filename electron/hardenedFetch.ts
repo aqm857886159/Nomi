@@ -1,9 +1,8 @@
 /**
- * Hardened fetch for main process — SSRF/DoS 防护。
+ * Hardened fetch for main process — 大小 / 时限 / 类型 / 跳转加固。
  *
- * 桌面端默认能访问用户本机网络（包括 NAS、路由器、私网服务），
- * 直接 fetch 任意用户/Agent 给的 URL 会带来：
- *  - SSRF：探测私网/localhost 服务
+ * 直接 fetch 任意用户 / Agent / 供应商给的 URL 会带来：
+ *  - 带密钥的请求被跳转带去别的网站（带密钥遇跳转即停；跨域跳转剥凭据头）
  *  - DoS：下载超大文件撑爆内存或磁盘
  *  - 阻塞：远端慢/挂导致主进程长时间不响应
  *  - 假内容：服务方返回 HTML/exe 但声称是 image/*
@@ -28,7 +27,6 @@ import { describeOutboundRefusal } from "./networkOutboundMessage";
 import { appFetch } from "./appFetch";
 import { getAppDispatcher, isApplicationProxyActive } from "./systemProxy";
 import { guardTestNetworkUrl } from "./testNetworkGuard";
-export { isPrivateHost } from "./networkHostPolicy";
 
 export type HardenedFetchOptions = {
   /** 总时限（毫秒，从发请求算起）。默认 20 秒。给了 `timeoutForDeclaredSize` 时，它只管到响应头到达为止。 */
@@ -62,11 +60,14 @@ export type HardenedFetchOptions = {
   /** 是否拒抛非 2xx —— 默认 true（保持旧行为）。设为 false 则返回任何 status 不抛错（让调用方读 body 自己判断）。 */
   throwOnNon2xx?: boolean;
   /**
-   * 内部可信本地服务的精确 origin 白名单。只允许完全同源的私网/回环 URL，且启用后强制禁止重定向。
-   * 不得从 renderer/Agent 原样透传；当前只由已配置的本地 ComfyUI 产物回收使用。
+   * 取回的**文字**会被交给模型（Agent 读文档网址、接入向导抓文档）——只有这种入口按目的地地址判：
+   * 本机 / 内网 / 链路本地拒绝，代理合成地址要有探测证据才放（`networkOutboundPolicy.authorizeOutboundDestination`）。
+   * 其余出网（提交、取回成片、下载、探测、媒体转发）都不按地址判（2026-11-13 用户拍板删掉这一层，
+   * 见 docs/engineering/direction-checks/2026-11-13-outbound-address-layer-delete.md）。
+   * **新增调用方先过协调会话**：这是唯一还会因为「目的地在内网」拒绝的开关，别拿它挡媒体或供应商请求。
    */
-  allowedPrivateOrigins?: readonly string[];
-  /** Optional explicit provider route. Destination SSRF checks remain active. */
+  textEntersModelContext?: boolean;
+  /** Optional explicit provider route (a per-connection HTTP/SOCKS proxy). */
   dispatcher?: Dispatcher;
   /**
    * 流式消费每一块响应体。**给了它就不在内存里攒**（返回的 `bytes` 为空 Buffer）。
@@ -97,7 +98,7 @@ export type HardenedFetchDependencies = {
 const DEFAULT_TIMEOUT_MS = 20_000;
 const DEFAULT_MAX_BYTES = 50 * 1024 * 1024;
 
-/** Parse + scheme only. The private/loopback verdict belongs to the policy owner, not here. */
+/** Parse + scheme only. Destinations are not judged by address here (see `textEntersModelContext`). */
 function assertSafeUrl(targetUrl: string): URL {
   let url: URL;
   try {
@@ -111,13 +112,7 @@ function assertSafeUrl(targetUrl: string): URL {
   return url;
 }
 
-/**
- * 取回侧的授权。**提交侧（vendorHttp.requestVendor）调的是同一个 `authorizeOutboundDestination`**，
- * 读同一份进程内环境事实——「愿意为之付钱的目的地」与「愿意读取的目的地」不可能再分家。
- *
- * 拒绝时抛结构化错误而不是裸字符串：渲染层要分得清「我们自己的安全策略拒了」与「供应商挂了」，
- * 只有前者意味着这次的钱还在（取回侧）或根本没花（提交侧）。
- */
+/** 「取回的文字会进模型」那类入口被地址判据拒绝时抛的结构化错误（只有 `textEntersModelContext` 会走到）。 */
 function refuse(authorization: Extract<OutboundAuthorization, { allowed: false }>): never {
   throw new OutboundDestinationRefusedError({
     reason: authorization.reason,
@@ -128,8 +123,6 @@ function refuse(authorization: Extract<OutboundAuthorization, { allowed: false }
       reason: authorization.reason,
       hostname: authorization.hostname,
       observedAddress: authorization.observedAddress,
-      syntheticResolver: authorization.syntheticResolver,
-      stage: "retrieval",
     }),
   });
 }
@@ -288,7 +281,7 @@ async function releaseRequestDispatchers(dispatchers: readonly Dispatcher[], dea
 
 /**
  * 安全 fetch — 主流程：
- *  1. assert URL 合法 + 非私网
+ *  1. assert URL 合法（只认 http/https；按地址判只给 `textEntersModelContext`）
  *  2. 带超时 + redirect 控制发请求
  *  3. 校验 content-type（若指定）
  *  4. 流式累计 bytes，超过 maxBytes 即中断
@@ -298,17 +291,14 @@ export async function hardenedFetch(
   options: HardenedFetchOptions = {},
   dependencies: HardenedFetchDependencies = {},
 ): Promise<HardenedFetchResult> {
-  // Lab fixtures name their exact loopback origin; main.ts only seeds them on an unpackaged
-  // build, so a packaged app merges an always-empty list here.
-  // Lab origins stay merged here so the "any configured private exception disables redirects"
-  // rule below keeps its existing meaning; the policy owner merges them again on its side.
-  const allowedPrivateOrigins = [...(options.allowedPrivateOrigins || []), ...getLabTrustedPrivateOrigins()];
+  // 只有「取回的文字进模型」的入口按地址判；实验室精确 origin（只在未打包构建里有）只对它有意义。
+  const judgesAddress = options.textEntersModelContext === true;
+  const labOrigins = judgesAddress ? getLabTrustedPrivateOrigins() : [];
   const url = assertSafeUrl(guardTestNetworkUrl(rawUrl));
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const idleTimeoutMs = options.idleTimeoutMs;
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   const startedAt = Date.now();
-  // 可信本地服务只允许精确同源的一跳请求。禁止重定向，避免先访问重定向目标、事后才校验。
   const controller = new AbortController();
   const relayAbort = () => controller.abort(options.signal?.reason);
   if (options.signal?.aborted) relayAbort();
@@ -338,17 +328,10 @@ export async function hardenedFetch(
     receivedBytes: 0,
     elapsedMs: 0,
   };
-  // When Nomi has committed an HTTP/SOCKS application proxy, resolving the
-  // provider hostname locally is both unnecessary and actively harmful: fake-IP
-  // proxies commonly answer with RFC 2544 (198.18/15), which must not be treated
-  // as the provider's real destination. The proxy performs the DNS resolution
-  // on its side. Direct routes retain the original DNS pinning/SSRF checks.
   const applicationProxyActive = dependencies.isApplicationProxyActive ?? isApplicationProxyActive;
-  // The route can still be applying during app start. If we classify by resolved
-  // address before that commit, a proxy's synthetic 198.18/15 answer is mistaken
-  // for a private destination and the request is rejected (or a pinned direct
-  // dispatcher bypasses the proxy entirely). Wait for the app-owned route only for
-  // the production fetch path; injected test transports keep their existing seam.
+  // The route can still be applying during app start: wait for the app-owned route so the request
+  // goes out through the proxy the user configured. Only the production fetch path waits; injected
+  // test transports keep their existing seam.
   const usesApplicationFetch = !dependencies.fetch && !dependencies.isApplicationProxyActive;
   const waitForApplicationRoute = dependencies.waitForApplicationRoute
     ?? ((signal: AbortSignal, target: URL) => getAppDispatcher(signal, target).then(() => undefined));
@@ -365,7 +348,8 @@ export async function hardenedFetch(
     ]);
     const carriesSensitiveHeaders = Object.keys(requestHeaders).some((header) => sensitiveHeaders.has(header.toLowerCase()));
     // Credential-bearing calls reject redirects unless the caller opts in explicitly.
-    const allowRedirect = allowedPrivateOrigins.length === 0
+    // （带密钥遇跳转即停：留下的两条之一，不依赖任何地址判断。）
+    const allowRedirect = labOrigins.length === 0
       && options.allowRedirect !== false
       && (!carriesSensitiveHeaders || options.allowRedirect === true);
     let bodyInit: BodyInit | undefined;
@@ -396,34 +380,31 @@ export async function hardenedFetch(
     const readEnvironment = dependencies.readOutboundEnvironment ?? readOutboundEnvironment;
     for (let hop = 0; hop <= 5; hop += 1) {
       currentUrl = assertSafeUrl(guardTestNetworkUrl(currentUrl.toString()));
-      const declaredPrivate = matchesDeclaredOrigin(currentUrl, allowedPrivateOrigins);
+      const declaredLab = matchesDeclaredOrigin(currentUrl, labOrigins);
       let dispatcher: Dispatcher | undefined;
       if (options.dispatcher) {
-        // The caller already picked an explicit provider route (a per-connection
-        // HTTP/SOCKS proxy). Keep the application-route wait and DNS pinning out
-        // of this path - but NOT the policy: the owner is asked below with
-        // route "proxy", which classifies the name instead of a local answer the
-        // proxy is not going to use.
+        // The caller already picked an explicit provider route (a per-connection HTTP/SOCKS proxy).
         dispatcher = options.dispatcher;
-      } else if (!declaredPrivate && (usesApplicationFetch || dependencies.waitForApplicationRoute)) {
+      } else if (!declaredLab && (usesApplicationFetch || dependencies.waitForApplicationRoute)) {
         await waitForApplicationRoute(controller.signal, currentUrl);
       }
-      // 每一跳都问策略 owner——代理生效时也问，只是判据的对象换成名字（见
-      // networkOutboundPolicy.authorizeOutboundDestination 的「为什么代理生效时不能整段跳过分类」）。
       const route: OutboundRouteKind = options.dispatcher || applicationProxyActive() ? "proxy" : "direct";
       diagnostics.host = currentUrl.hostname;
       diagnostics.route = options.dispatcher ? "provider-route" : route === "proxy" ? "system-proxy" : "direct";
-      const authorization = await authorizeOutboundDestination({
-        url: currentUrl,
-        route,
-        readEnvironment,
-        resolve: resolveHost,
-        declaredOrigins: allowedPrivateOrigins,
-      });
-      if (!authorization.allowed) refuse(authorization);
-      if (!dispatcher && authorization.pinnedAddresses) {
-        dispatcher = makeDispatcher(connectionHostname(currentUrl.hostname), [...authorization.pinnedAddresses]);
-        dispatchers.push(dispatcher);
+      if (judgesAddress) {
+        // 每一跳都问（跳转后的目的地同样是「文字进模型」的来源）。
+        const authorization = await authorizeOutboundDestination({
+          url: currentUrl,
+          route,
+          readEnvironment,
+          resolve: resolveHost,
+          declaredOrigins: labOrigins,
+        });
+        if (!authorization.allowed) refuse(authorization);
+        if (!dispatcher && authorization.pinnedAddresses) {
+          dispatcher = makeDispatcher(connectionHostname(currentUrl.hostname), [...authorization.pinnedAddresses]);
+          dispatchers.push(dispatcher);
+        }
       }
       response = await fetchImpl(currentUrl, {
         method,
@@ -539,7 +520,7 @@ export async function hardenedFetch(
   }
 }
 
-/** 仅做 text 解析（小一些的 limit，避免 SSRF 探测）。 */
+/** 仅做 text 解析（小一些的 limit）。取回的文字要进模型时调用方传 `textEntersModelContext`。 */
 export async function hardenedFetchText(
   rawUrl: string,
   options: HardenedFetchOptions = {},

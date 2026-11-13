@@ -45,12 +45,6 @@ import { DEFAULT_PERMISSION_TIER, PERMISSION_TIERS } from './agentPanelV4Types'
 import { SkillMedia } from '../../skillLibrary/SkillMedia'
 
 const COMPOSER_INPUT_ATTRIBUTES = { 'data-v4-control': 'input', role: 'textbox', 'aria-multiline': 'true' }
-/**
- * 外壳找 Agent 输入框的唯一定位口（打开面板后把焦点放进来：ShellAgentHost 的 focusComposerSoon）。
- * 约定归输入框这边持有、从上面那组属性推出来：10-12 输入框从 textarea 换成 TipTap 后，外壳还在找 `textarea`，
- * 点小球 / ⌘J 打开后焦点进不来、悄悄失效近一个月。换输入框实现时，这个口跟着这组属性走。
- */
-export const AGENT_COMPOSER_INPUT_SELECTOR = `[data-v4-control="${COMPOSER_INPUT_ATTRIBUTES['data-v4-control']}"]`
 const MODEL_TRIGGER_WIDTH = 164
 
 function compactModelLabel(label: string): string {
@@ -126,8 +120,7 @@ export type AgentPanelV4ComposerProps = {
    * 「你现在什么都不能说」，而那不是真的。
    */
   awaitingAnswer?: boolean
-  /** 输入框本体。容器要能把光标交给它（空态起手 chip 填完那句话就聚焦）。 */
-  inputRef?: React.Ref<HTMLElement>
+  /** 编辑器就绪。容器拿着它才能把光标交给输入框（residentComposerFocus），不在页面里找输入框。 */
   onEditorReady?: (editor: Editor) => void
   mentionReferences?: PromptEditorProps['mentionReferences']
   mentionSearch?: PromptEditorProps['mentionSearch']
@@ -156,7 +149,7 @@ export function AgentPanelV4Composer({
   skillSelected = false,
   focused = false,
   awaitingAnswer = false,
-  inputRef, onEditorReady, mentionReferences, mentionSearch, onMentionSelect,
+  onEditorReady, mentionReferences, mentionSearch, onMentionSelect,
 }: AgentPanelV4ComposerProps): JSX.Element {
   const { t } = useTranslation()
   const mentionUrls = React.useMemo(() => mentionUrlsInOrder(value), [value])
@@ -168,12 +161,9 @@ export function AgentPanelV4Composer({
   const [measuredRows, setMeasuredRows] = React.useState(hardRows)
   const handleEditorReady = React.useCallback((editor: Editor) => {
     editorRef.current = editor
-    const el = editor.view.dom
-    setEditorElement(el)
-    if (typeof inputRef === 'function') inputRef(el)
-    else if (inputRef) (inputRef as React.MutableRefObject<HTMLElement | null>).current = el
+    setEditorElement(editor.view.dom)
     onEditorReady?.(editor)
-  }, [inputRef, onEditorReady])
+  }, [onEditorReady])
   React.useLayoutEffect(() => {
     if (!editorElement) return
     const measure = (): void => setMeasuredRows(rowsFromContentHeight(editorElement.scrollHeight))

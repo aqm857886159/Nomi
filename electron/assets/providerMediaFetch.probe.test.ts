@@ -3,7 +3,6 @@ import type { AddressInfo } from "node:net";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createPinnedDispatcher, type HardenedFetchDependencies, type ResolvedHostAddress } from "../hardenedFetch";
-import type { OutboundEnvironment } from "../networkOutboundPolicy";
 import {
   REFERENCE_LINK_ALIVE_MEMO_MS,
   REFERENCE_LINK_MEMO_LIMIT,
@@ -19,12 +18,10 @@ vi.mock("../logging/logger", () => ({
 
 import { probeProviderLink, resetProviderLinkProbes, type ProviderLinkVerdict } from "./providerMediaFetch";
 
-// 试探的真函数 + 本机假服务。名字是公网形态，经注入解析成公网地址 → 出站策略放行并按解析结果建「这次请求专用」的连接池，
-// 连接池再被钉到本机夹具上：与生产直连同一段代码，只是 DNS 与落点换成了本机（同 hardenedFetch.test 的存活性矩阵）。
+// 试探的真函数 + 本机假服务。名字是公网形态，连接被钉到本机夹具上：与生产直连同一段代码，只是落点换成了本机。
+// （2026-11-13 起取回 / 试探不再按地址判，也不在本机解析，见 docs/plan/2026-11-13-outbound-address-layer-delete.md。）
 const HOST = "cdn.probe.test";
-const PUBLIC_ADDRESS: ResolvedHostAddress = { address: "93.184.216.34", family: 4 };
 const LOOPBACK: ResolvedHostAddress[] = [{ address: "127.0.0.1", family: 4 }];
-const NO_LOCAL_PROXY: OutboundEnvironment = { syntheticResolver: false, syntheticSample: "" };
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52]);
 const HTML_PAGE = Buffer.from("<!doctype html><html><body>Hotlinking is not allowed</body></html>");
 const JSON_ERROR = Buffer.from('{"code":403,"message":"expired"}');
@@ -120,13 +117,14 @@ afterEach(() => {
   hangingSockets = [];
 });
 
-const deps = (overrides: Partial<HardenedFetchDependencies> = {}): HardenedFetchDependencies => ({
-  resolveHost: async () => [PUBLIC_ADDRESS],
-  createPinnedDispatcher: (hostname) => createPinnedDispatcher(hostname, LOOPBACK),
-  readOutboundEnvironment: async () => NO_LOCAL_PROXY,
-  isApplicationProxyActive: () => false,
-  ...overrides,
-});
+const deps = (overrides: Partial<HardenedFetchDependencies> = {}): HardenedFetchDependencies => {
+  const route = createPinnedDispatcher(HOST, LOOPBACK);
+  return {
+    isApplicationProxyActive: () => false,
+    fetch: (input, init) => globalThis.fetch(input, { ...init, dispatcher: route } as RequestInit),
+    ...overrides,
+  };
+};
 const link = (path: string, query = "") => `http://${HOST}:${port}${path}${query}`;
 const probe = (path: string, dependencies = deps()) => probeProviderLink(link(path), {}, dependencies);
 
@@ -181,12 +179,6 @@ describe("probeProviderLink：链接状态 → alive / dead / unknown", () => {
     expect(await probeProviderLink(`http://${HOST}:${deadPort}/x`, {}, deps())).toBe("unknown");
   });
 
-  it("出站策略拒绝（解析到内网地址）→ unknown，和今天一样照发", async () => {
-    const privateResolver = deps({ resolveHost: async () => [{ address: "10.0.0.7", family: 4 }] });
-    expect(await probe("/range-206", privateResolver)).toBe("unknown");
-    expect(hits.size).toBe(0);
-  });
-
   it("测试网络闸挡住的主机 → unknown，一个请求都没出", async () => {
     expect(await probeProviderLink("https://elsewhere.example.com/a.png", {}, deps())).toBe("unknown");
     expect(hits.size).toBe(0);
@@ -197,9 +189,9 @@ describe("probeProviderLink：链接状态 → alive / dead / unknown", () => {
     expect(await probe("/hang")).toBe("unknown");
   });
 
-  it("DNS 解析挂住也由外层上限收场（hardenedFetch 的计时器停不下 DNS）", async () => {
-    const stuckDns = deps({ resolveHost: () => new Promise<ResolvedHostAddress[]>(() => undefined) });
-    expect(await probe("/range-206", stuckDns)).toBe("unknown");
+  it("底层请求挂住且不理会取消，也由外层上限收场", async () => {
+    const stuck = deps({ fetch: () => new Promise<Response>(() => undefined) });
+    expect(await probe("/range-206", stuck)).toBe("unknown");
   });
 });
 

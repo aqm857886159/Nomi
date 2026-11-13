@@ -1,0 +1,50 @@
+{
+  "runHead": "a30d248b3e1ab54a3688a72f395b503975771c53",
+  "revertCommit": "9be45c36c87b8073d7e6fbe75bf553fca4ad6953",
+  "typecheck": {
+    "exit": 0,
+    "projects": 5,
+    "seconds": 27.9
+  },
+  "quick": {
+    "exit": 1,
+    "seconds": 50.8,
+    "passed": 67,
+    "failed": [
+      "check:filesize"
+    ],
+    "scanGuardFilesPassed": 62,
+    "relatedVitestFiles": 18,
+    "relatedNodeFiles": 5
+  },
+  "filesizeBaseline": {
+    "cause": "origin/main tightened three baseline entries in 69daa390c; these product files and baseline are unchanged on this branch since merged f88b7f042",
+    "branchVsOriginMain": {
+      "electron/runtime.ts": [
+        660,
+        657
+      ],
+      "electron/productionRun/productionRunDriverOps.ts": [
+        1141,
+        1130
+      ],
+      "electron/productionRun/productionGenerationSubmission.ts": [
+        772,
+        755
+      ]
+    },
+    "action": "not changed: product/baseline/gate edits are outside current authorization"
+  },
+  "ledger": "reviewed/manualReview reviewed; no fixedInPr",
+  "walk": "original 70px predicate restored byte-for-byte; no new native walk in this closure",
+  "originMainObservedAfterQuick": "ab5a9d2909b9abd4862eb57d155de4fd75ba75b7",
+  "bodyPrecheck": {
+    "exit": 0,
+    "judgement": 0,
+    "prior-art": 0,
+    "concept-owners": 0,
+    "root-cause": 0,
+    "scan-guards": 0,
+    "self-written": 0
+  }
+}

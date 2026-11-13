@@ -16,7 +16,7 @@ import { VendorRequestError } from "../vendor/vendorHttp";
 import { matchNomiErrorCode, tagNomiError, type NomiErrorCode } from "../shared/nomiErrorCodes";
 import { generatedMediaValidationError } from "../assets/generatedMediaDecode";
 import { handOffToNetwork } from "../outboundDispatchEvidence";
-import { SYNC_RESULT_URL, decodeFailed, download403, kindMismatch, outboundRefused } from "./resultLandingTestUtils";
+import { SYNC_RESULT_URL, decodeFailed, download403, kindMismatch } from "./resultLandingTestUtils";
 
 // 结果落地门（assets/localizeTaskAsset）用真的：同步供应商的结果只在它那里落地，「答过了」的正证据也只有它挂得上。
 // 只把它下面的落盘（projectAssetStore.importRemoteAsset）换成按剧本失败。
@@ -202,17 +202,17 @@ describe("批量卡：一张卡一份授权，盖住卡上列出的镜", () => {
   // 先落节点、再发请求（架构③）之后，画布单节点 Run 以来源节点为落点（origin.nodeId）。升级前那一版建的批量确认草稿没记它：
   // 不发、按「没交」收尾，但不能悄悄没了——画布那一镜如实说「升级后这批没有发出，需要重新确认」（协调会话 10-09）。
   it("升级前留下的批量确认（没记来源节点）：不发、收回出价，并带着「升级后没有发出」的码回给画布", async () => {
-    const { repository, vendor, consent, submit } = setup();
+    const { repository, service, vendor, consent, submit } = setup();
     consent([{ nodeId: "node-a", runRecordId: "run-a" }]);
     const runId = canvasRunIdFor("run-a");
-    // 模拟上一版写下的 Run：origin 里没有 nodeId。
+    // 模拟上一版写下的 Run：origin 里没有 nodeId（提交和生产一样经服务那份带事件旁路的仓库读）。
     const read = repository.read.bind(repository);
-    repository.read = ((projectId: string, id: string) => {
+    service.repository.read = ((projectId: string, id: string) => {
       const run = read(projectId, id);
       if (!run || id !== runId) return run;
       const { nodeId: _dropped, ...origin } = run.origin;
       return { ...run, origin };
-    }) as typeof repository.read;
+    }) as typeof service.repository.read;
 
     await expect(submit("node-a", "run-a")).rejects.toMatchObject({ code: "canvas_consent_predates_upgrade" });
 
@@ -417,12 +417,6 @@ describe("同步供应商答了、本机落地失败：确定结局，不是结�
     const harness = setup();
     harness.vendor.answer = answeredThenLandingFails(kindMismatch());
     expectAnsweredButNotLanded(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")), "retrieval-download");
-  });
-
-  it("A5：取片被出网策略拦（hardenedFetch 的真拒绝）→ outbound-blocked", async () => {
-    const harness = setup();
-    harness.vendor.answer = answeredThenLandingFails(await outboundRefused());
-    expectAnsweredButNotLanded(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")), "outbound-blocked");
   });
 
   it("A8：批量卡轮到的那一镜落地失败 → 同 A1；下一张卡可以再生成它", async () => {

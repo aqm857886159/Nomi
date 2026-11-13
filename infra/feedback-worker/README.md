@@ -1,6 +1,6 @@
 # Nomi 反馈接收端
 
-一个 Cloudflare Worker，三条 POST 路由，把 Nomi 桌面端发来的**已经脱敏过的** JSON 落进 R2，
+一个 Cloudflare Worker，两条 POST 路由，把 Nomi 桌面端发来的**已经脱敏过的** JSON 落进 R2，
 反馈那一条再返回一个用户能引用的编号。
 
 为什么自建而不是接 Sentry / PostHog / Aptabase：见
@@ -76,14 +76,16 @@ node 测试（`test/worker.node-test.mjs`，`node --test` 直接跑）和一个�
 
 ---
 
-## 三条路由
+## 两条路由
 
 | 路由 | 谁发 | 受「帮 Nomi 变好」开关管吗 | 返回 |
 |---|---|---|---|
 | `POST /v1/feedback` | 用户在失败面上点的一键反馈 | **不管**（他自己点的） | `{ok, id: "NF-MMDD-NNNN", ref}` |
 | `POST /v1/events` | 白名单用量事件，攒批发 | 管 | `{ok, ref, accepted}` |
-| `POST /v1/trajectories` | Agent 回合轨迹的字段白名单投影 | 管 | `{ok, ref}` |
 | `GET /` | 存活探针 | — | `nomi-feedback-intake` |
+
+`POST /v1/trajectories`（独立上报的 Agent 轨迹）2026-11-13 删了：从没有发布版本往它发过东西，
+轨迹只作为一键反馈包里的附件到达。桶里 `trajectories/` 前缀一直是空的。
 
 全部要 `Authorization: Bearer <INTAKE_TOKEN>`。body 上限 2 MB。
 
@@ -92,7 +94,6 @@ node 测试（`test/worker.node-test.mjs`，`node --test` 直接跑）和一个�
 ```
 feedback/2026-09-15/<uuid>.json
 events/2026-09-15/<uuid>.json
-trajectories/2026-09-15/<uuid>.json
 ```
 
 每个对象里是 `{schemaVersion, receivedAt, route, receipt, ref, payload}` ——

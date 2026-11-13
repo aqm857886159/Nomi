@@ -1,5 +1,4 @@
 import type { Vendor } from "../catalog/types";
-import { trustedRetrievalOrigin } from "../vendor/vendorOutboundGuard";
 import { scheduleTechnicalReview } from "../review/reviewTrace";
 import { hardenedFetchDiagnostics } from "../hardenedFetch";
 import { logWarn } from "../logging/logger";
@@ -9,6 +8,7 @@ import { importRemoteAsset } from "./projectAssetStore";
 import { broadcastAssetLocalizationStarted } from "./assetEvents";
 import { localizedTaskAssetFileName, probeLocalizedDurationSeconds } from "./localizedAsset";
 import { canvasPreviewFieldsFromReceipt } from "../shared/canvas/canvasMediaPreview";
+import { unlocalizedTaskAsset } from "../tasks/unlocalizedTaskAsset";
 
 type LocalizedTaskAssetType = "image" | "video" | "audio" | "model3d";
 
@@ -57,7 +57,7 @@ export async function localizeTaskAsset(
 ) {
   if (nodeId) await broadcastAssetLocalizationStarted({ projectId, nodeId });
   const startedAt = Date.now();
-  let imported: { id?: string; name?: string; data?: { url?: string; absolutePath?: string; thumbnailUrl?: string; previewState?: string; width?: number; height?: number; durationSeconds?: number } };
+  let imported: { id?: string; name?: string; data?: { url?: string; absolutePath?: string; contentHash?: string; thumbnailUrl?: string; previewState?: string; width?: number; height?: number; durationSeconds?: number } };
   try {
     imported = (await importRemoteAsset({
       projectId,
@@ -68,7 +68,6 @@ export async function localizeTaskAsset(
       ownerNodeId: nodeId || null,
       fileName: localizedTaskAssetFileName(type, assetUrl),
     }, {
-      trustedPrivateOrigin: await trustedRetrievalOrigin(vendor, assetUrl),
       ...(certificationEvidence ? { certificationEvidence } : {}), ...(vendor?.network ? { providerNetwork: vendor.network } : {}),
     })) as typeof imported;
   } catch (error) {
@@ -97,8 +96,22 @@ export async function localizeTaskAsset(
     assetName: imported.name || null,
     ...(durationSeconds !== undefined ? { durationSeconds } : {}),
     ...(imported.data?.width && imported.data?.height ? { width: imported.data.width, height: imported.data.height } : {}),
+    // 写盘时算好的哈希一路带给 Run 回执（canvasLocalArtifactReceipt），回执不再整读文件重算。
+    ...(imported.data?.contentHash ? { contentHash: imported.data.contentHash } : {}),
     // 原始 CDN URL 留存：任何 vendor 都能直接使用，不需要再上传或转 base64。
     providerUrl: /^https?:\/\//i.test(assetUrl) ? assetUrl : null,
   };
 }
 
+
+/** 一笔交回几份就落几份：按上游顺序一份一份过落地门（哪份失败就停在哪份）；没有项目身份时照旧给不落盘的形状。 */
+export async function localizeTaskAssets(
+  projectId: string | null | undefined,
+  assetUrls: readonly string[],
+  type: LocalizedTaskAssetType,
+  nodeId?: string, vendor?: Pick<Vendor, "key" | "baseUrlHint" | "network">,
+) {
+  const assets: Array<Awaited<ReturnType<typeof localizeTaskAsset>> | ReturnType<typeof unlocalizedTaskAsset>> = [];
+  for (const assetUrl of assetUrls) assets.push(projectId ? await localizeTaskAsset(projectId, assetUrl, type, nodeId, vendor) : unlocalizedTaskAsset(type, assetUrl));
+  return assets;
+}

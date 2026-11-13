@@ -133,7 +133,8 @@ const LANDINGS: readonly Landing[] = [
     name: 'generation result',
     land: async (mode, projectId) => {
       await mode.land(projectId, SHOT, { kind: 'run-started', run: { id: 'run-a', status: 'running', startedAt: 10, updatedAt: 10 } })
-      await mode.land(projectId, SHOT, { kind: 'result', result: LANDED })
+      // 结果带交出它的那次运行的号（真实控制器交回的结果都带号；不带号的只结掉在跑的制作记录，docs/plan/2026-11-07-shot-result-ownership.md D6）。
+      await mode.land(projectId, SHOT, { kind: 'result', result: LANDED, runId: 'run-a' })
     },
     assertLanded: (nodes) => {
       expect(find(nodes, SHOT)?.result?.id).toBe('r-landed')

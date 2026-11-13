@@ -6,8 +6,10 @@
 import { builtinVendorKeyOfKey } from '../shared/builtinVendorIdentity'
 import { builtinVendorSeed, isLocalSeed } from '../catalog/builtinVendorSeeds'
 import { TELEMETRY_IDENTIFIER_PATTERN, type AgentToolFailedProps, type ModelClass } from './telemetryEvents'
+import { isGenerationProblemCode } from '../shared/generationProblem'
 
-export type AgentToolFailureFact = Readonly<{ toolName: string; code: string; attempt: number; breakerTripped: boolean }>
+/** `reason` = 起草期被拒的闭合原因码（`generationProblem.ts`），只有 `generation_input_invalid` 那一档才有。 */
+export type AgentToolFailureFact = Readonly<{ toolName: string; code: string; attempt: number; breakerTripped: boolean; reason?: string }>
 
 /**
  * 模型只到「种类」：内置云端家 = builtin，种子在本机的内置家 = local，其余（用户自建 / 中转）= custom。
@@ -20,7 +22,7 @@ export function modelClassOfVendor(vendorKey: string | undefined): ModelClass {
 }
 
 /**
- * 失败事实 → 事件的五格。
+ * 失败事实 → 事件的五格（+ 有闭合原因时的第六格 `reason`）。
  *
  * 工具名的闭合表在构造上：只有这条 lane **注册过**的工具会报失败（入参边界只包注册的工具，pi 也只对
  * 找得到的工具跑 `after_tool`），而注册的全是我们自己的名字（目录里的动词 + 编码工具 + `list_models` 这类原生工具）。
@@ -30,5 +32,9 @@ export function agentToolFailedProps(fact: AgentToolFailureFact, input: Readonly
   const toolName = TELEMETRY_IDENTIFIER_PATTERN.test(fact.toolName) ? fact.toolName : 'other'
   const failureCode = TELEMETRY_IDENTIFIER_PATTERN.test(fact.code) ? fact.code : 'unknown'
   const attempt = Math.min(5, Math.max(1, Math.trunc(Number.isFinite(fact.attempt) ? fact.attempt : 1))) as AgentToolFailedProps['attempt']
-  return { toolName, failureCode, attempt, breakerTripped: fact.breakerTripped, modelClass: modelClassOfVendor(input.vendorKey) }
+  return {
+    toolName, failureCode, attempt, breakerTripped: fact.breakerTripped, modelClass: modelClassOfVendor(input.vendorKey),
+    // 不在码表里的原因不记（宁可少一格，也不让一个表外字符串出门）。
+    ...(isGenerationProblemCode(fact.reason) ? { reason: fact.reason } : {}),
+  }
 }

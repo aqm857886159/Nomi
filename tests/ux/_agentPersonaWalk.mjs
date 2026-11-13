@@ -11,6 +11,7 @@
 // 显示态与 shell-redesign 一样由 E2E 桥写进小球读的角标投影（不跑真 Agent）；真实待确认数据走 agent-form-switch-state。
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { CANVAS_PANEL, expectComposerFocused } from './agent-runtime-walk-support.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 
 const BALL = '[data-agent-ball]'
@@ -225,18 +226,8 @@ export async function walkAgentPersona(win, { locale, zh, scheme, shotPath, setB
   await win.mouse.move(centre.x + 2, centre.y + 1, { steps: 2 })
   await win.mouse.up()
   await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), '点小球（抖 2px）没打开面板 · board:AgentPersona/ball.behaviors').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  // 输入框是 TipTap 可编辑区，不是 textarea：按它的定位口（AGENT_COMPOSER_INPUT_SELECTOR）认；失败时把焦点现场带出来。
-  const focusFacts = () => win.evaluate(() => {
-    const active = document.activeElement
-    return {
-      inComposer: Boolean(active?.closest('#project-agent-resident [data-v4-control="input"]')),
-      active: active ? `${active.tagName}#${active.id}[${active.getAttribute('data-v4-control') ?? ''}]` : null,
-      inputs: document.querySelectorAll('#project-agent-resident [data-v4-control="input"]').length,
-    }
-  })
-  await expect.poll(async () => (await focusFacts()).inComposer, { message: '点开后焦点不在 Agent 输入框 · board:AgentPersona/ball.behaviors', timeout: stationTimeout() })
-    .toBe(true)
-    .catch(async (error) => { throw new Error(`${error.message}\n焦点现场：${JSON.stringify(await focusFacts())}`) })
+  // 焦点判法和外壳走查同一处（按 composer 锚点 + 可编辑区，不按标签名）。
+  await expectComposerFocused(win, CANVAS_PANEL, '点开后焦点不在 Agent 输入框 · board:AgentPersona/ball.behaviors', stationTimeout())
   await clickOrFail(win.locator('[data-agent-form-to="ball"]').first(), '浮窗收回小球')
   await expect(ball, '没收回小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
 

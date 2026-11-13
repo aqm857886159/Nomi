@@ -31,9 +31,9 @@ describe('分镜画面格失败态：说原因、说下一步，不再只写「�
     expect(copy.canRetry).toBe(true)
   })
 
-  it('更具体的本机拒绝（Nomi 自己的出网策略）保留它自己的说法', () => {
-    const message = `Provider request refused by outbound policy at acme POST https://x: ${tagNomiError('outbound-blocked-submit', 'private address')}`
-    expect(classifyGenerationError(ipc('submission_not_sent', 'never_reached_network', message)).kind).toBe('outbound-blocked-submit')
+  it('更具体的本机拒绝（Nomi 自己的凭据绑定）保留它自己的说法', () => {
+    const message = `Provider request refused by outbound policy at acme POST https://x: ${tagNomiError('outbound-blocked-credential-origin', 'changed=origin')}`
+    expect(classifyGenerationError(ipc('submission_not_sent', 'never_reached_network', message)).kind).toBe('outbound-blocked-credential-origin')
   })
 
   it('结果未知 / 被认领拒成 needs_reconcile ⇒ 说「可能已被收下」，画面格不给重试', () => {

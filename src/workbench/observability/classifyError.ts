@@ -571,22 +571,15 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   const upstream = vendorOriginatedText(structured, cleanRaw)
   const missingImageReference = detectMissingImageReference(cleanRaw)
   if (missingImageReference) return reportForMissingImageReference(missingImageReference, cleanRaw)
-  // 我们**自己**的出站策略拒绝：判据是稳定机器码（NOMI_ERR::outbound-blocked::），最先判。
-  // 必须先于一切「猜文案」的检测，也必须先于 structured.category —— 这条错误里根本没有服务商
-  // 参与（请求从未发出），把它归成 network 会配上「稍等重试」，而重试是确定性再撞同一堵墙，
-  // 且在生成语境下重试 = 再付一次钱。upstream 显式给 ''：抑制「服务商说：」框，别栽赃上游。
+  // Nomi **自己**挂的稳定机器码最先判：必须先于一切「猜文案」的检测，也必须先于 structured.category ——
+  // 这些错误里服务商没说过话，upstream 显式给 ''：抑制「服务商说：」框，别栽赃上游。
   const outboundCode = matchNomiErrorCode(cleanRaw)
   if (outboundCode === 'model-config') return reportFor('model-config', cleanRaw, '')
   // 主进程发送前的参考守拒发：请求从未发出，upstream 给 ''（服务商根本没被请求到）。
   if (outboundCode === 'reference-not-in-use') return reportFor('reference-not-in-use', cleanRaw, '')
   // 用户明确选的画幅比例超出连接的尺寸范围：构造请求时就拒了，请求从未发出，upstream 给 ''（别把我们自己那句栽赃成「服务商原话」）。
   if (outboundCode === 'aspect-ratio-unsupported') return reportFor('aspect-ratio-unsupported', cleanRaw, '')
-  if (outboundCode === 'outbound-blocked') return reportFor('outbound-blocked', cleanRaw, '')
-  // 提交侧的同族码：请求从未发出、没有计费。必须与上面一条分开，否则用户读到的是「钱已经付过、
-  // 用重新拉取结果免费取回」——一句完全相反的假话，还会把他推向一颗根本不存在的按钮。
-  if (outboundCode === 'outbound-blocked-submit') return reportFor('outbound-blocked-submit', cleanRaw, '')
-  // 同族第三条（凭据绑定）：也必须单独一支——它的下一步是「回接入页重新保存密钥」，
-  // 归进上面那条会把用户送去查代理，而这台机器的网络一点毛病都没有。
+  // 凭据绑定：下一步是「回接入页重新保存密钥」，这台机器的网络一点毛病都没有。
   if (outboundCode === 'outbound-blocked-credential-origin') return reportFor('outbound-blocked-credential-origin', cleanRaw, '')
   // 服务商地址回了跳转、Nomi 为护住密钥没有跟随：是地址配置的事，不是服务商故障，upstream 显式给 ''。
   if (outboundCode === 'credential-redirect') return reportFor('credential-redirect', cleanRaw, '')
@@ -601,7 +594,7 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   // 已提交、这次没取回（⑬）：任务已经交给服务商，是查 / 读 / 下载 / 等这一次没成——主动作只有「重新取回」，
   // 绝不落进 unknown 被配上「可以重试一次」（= 再生成、再扣一次）。服务商真说过的话（503「无可用渠道」）照旧给；
   // 没有就给 ''，不从正文里抠一句冒充（取回出口写的「Nomi 本机拦下」那句不是服务商说的）。
-  // 按族判，不抄码表：新增的 retrieval-* 自动归这里，不会漏到下面被猜文案判成别的（族里的 outbound-blocked 上面已经先判了）。
+  // 按族判，不抄码表：新增的 retrieval-* 自动归这里，不会漏到下面被猜文案判成别的。
   if (isRetrievalStageCode(outboundCode)) {
     return reportFor('retrieval-incomplete', cleanRaw, upstream || '')
   }

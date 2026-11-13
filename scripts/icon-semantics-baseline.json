@@ -13,7 +13,6 @@
     "src/ui/app-shell/UpdateDialog.tsx": 1,
     "src/workbench/creation/aiRewrite/AiRewriteBar.tsx": 2,
     "src/workbench/creation/DocumentListSidebar.tsx": 3,
-    "src/workbench/creation/SelectionGeneratePopover.tsx": 3,
     "src/workbench/creation/storyboard/StoryboardActionCard.tsx": 1,
     "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx": 2,
     "src/workbench/generation/list/GenerationListCard.tsx": 1,

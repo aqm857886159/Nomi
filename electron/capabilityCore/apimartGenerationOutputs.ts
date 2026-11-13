@@ -5,29 +5,30 @@ import { mediaKindOf, readTaskResponse, type ExpectedMediaKind } from "../tasks/
 
 type JsonRecord = Record<string, unknown>;
 
-/** First non-empty string in a string-or-string-array field. APIMart video
+/** Every non-empty string in a string-or-string-array field. APIMart video
  * responses use both shapes (`videos[].url` can be an array); accepting the
  * documented and observed forms keeps materialization provider-owned. */
-function firstUrlString(value: unknown): string | null {
-  if (typeof value === "string" && value.trim()) return value.trim();
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      if (typeof entry === "string" && entry.trim()) return entry.trim();
-    }
-  }
-  return null;
+function urlStrings(value: unknown): string[] {
+  if (typeof value === "string" && value.trim()) return [value.trim()];
+  if (Array.isArray(value)) return value.filter((entry): entry is string => typeof entry === "string" && Boolean(entry.trim())).map((entry) => entry.trim());
+  return [];
 }
 
-function outputUrl(value: unknown): string | null {
-  const direct = firstUrlString(value);
-  if (direct) return direct;
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+function firstUrlString(value: unknown): string | null {
+  return urlStrings(value)[0] ?? null;
+}
+
+/** 一项产物里的全部地址（`url` 可能是数组）：每个地址都是这一笔的一份产物。 */
+function outputUrls(value: unknown): string[] {
+  const direct = urlStrings(value);
+  if (direct.length) return direct;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
   const item = value as JsonRecord;
   for (const key of ["url", "video_url", "image_url", "audio_url"]) {
-    const nested = firstUrlString(item[key]);
-    if (nested) return nested;
+    const nested = urlStrings(item[key]);
+    if (nested.length) return nested;
   }
-  return null;
+  return [];
 }
 
 /** Keep provider-provided names useful for data: loopback outputs without
@@ -69,13 +70,13 @@ function materializationMetadata(raw: unknown): GenerationProviderOutput[] {
   for (const [key, kind] of [["images", "image"], ["videos", "video"], ["audios", "audio"]] as const) {
     const values = Array.isArray(result[key]) ? result[key] : [];
     for (const [index, value] of values.entries()) {
-      const url = outputUrl(value);
-      if (url) {
-        const providerOutputId = value && typeof value === "object" && !Array.isArray(value) && typeof (value as JsonRecord).id === "string"
-          ? (value as JsonRecord).id as string
-          : `${kind}-${index + 1}`;
-        const fileName = outputFileName(value);
-        const thumbnailUrl = kind === "video" ? outputThumbnailUrl(value) : undefined;
+      const baseId = value && typeof value === "object" && !Array.isArray(value) && typeof (value as JsonRecord).id === "string"
+        ? (value as JsonRecord).id as string
+        : `${kind}-${index + 1}`;
+      const fileName = outputFileName(value);
+      const thumbnailUrl = kind === "video" ? outputThumbnailUrl(value) : undefined;
+      for (const [k, url] of outputUrls(value).entries()) {
+        const providerOutputId = k === 0 ? baseId : `${baseId}-${k + 1}`;
         outputs.push({ kind, url, providerOutputId, ...(fileName ? { fileName } : {}), ...(thumbnailUrl ? { thumbnailUrl } : {}) });
       }
     }
@@ -86,7 +87,7 @@ function materializationMetadata(raw: unknown): GenerationProviderOutput[] {
     { kind: "image" as const, value: result.image_url ?? result.url },
   ];
   for (const candidate of directCandidates) {
-    const directUrl = outputUrl(candidate.value);
+    const directUrl = outputUrls(candidate.value)[0];
     if (!directUrl || outputs.some((output) => output.url === directUrl)) continue;
     const fileName = outputFileName(candidate.value) || outputFileName(result);
     outputs.push({ kind: candidate.kind, url: directUrl, ...(fileName ? { fileName } : {}) });
@@ -101,15 +102,21 @@ function materializationMetadata(raw: unknown): GenerationProviderOutput[] {
  */
 export function materializationOutputs(raw: unknown, assetUrls: readonly string[], wantedKind: ExpectedMediaKind | null): GenerationProviderOutput[] {
   const metadata = materializationMetadata(raw);
+  // 产物号是这一份在本笔里的身份（落盘去重键 = 任务号 + 产物号）：同一笔里两份不能同号，否则第二份会落成第一份的文件。
+  const taken = new Set<string>();
   return assetUrls.map((url, index) => {
     const known = metadata.find((item) => item.url === url);
     // 种类跟着任务走（知道要什么时）：地址扩展名只在不知道期望时作证据（V-1213：扩展名曾把视频任务改判成 image）。
     const kind = wantedKind ?? mediaKindOf(url) ?? known?.kind ?? "image";
+    const preferred = known?.providerOutputId ?? `${kind}-${index + 1}`;
+    let providerOutputId = preferred;
+    for (let suffix = index + 1; taken.has(providerOutputId); suffix += 1) providerOutputId = `${preferred}#${suffix}`;
+    taken.add(providerOutputId);
     return {
       ...(known ?? {}),
       kind,
       url,
-      providerOutputId: known?.providerOutputId ?? `${kind}-${index + 1}`,
+      providerOutputId,
     };
   });
 }

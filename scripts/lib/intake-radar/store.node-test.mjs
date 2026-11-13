@@ -45,7 +45,7 @@ test('listRawRecords 读出全部记录，单个坏文件不拖垮其余的', ()
 
 test('listRawRecords 前缀目录还不存在时返回空数组（不是这一批数据这次一条都没有 ≠ 错误）', () => {
   const cacheDir = tmpDir()
-  const { records, corrupt } = listRawRecords(cacheDir, 'trajectories/')
+  const { records, corrupt } = listRawRecords(cacheDir, 'events/')
   assert.deepEqual(records, [])
   assert.deepEqual(corrupt, [])
 })

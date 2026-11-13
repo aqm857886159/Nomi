@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AGENT_FORM_DEFAULTS, BALL_SIZE, COMPOSER_FOCUS_MAX_FRAMES, EDGE_GAP, FLOAT_MIN, clampBall, clampRect, defaultBallPoint, defaultFloatRect, focusAgentComposerSoon } from './agentFormStore'
+import { AGENT_FORM_DEFAULTS, BALL_SIZE, EDGE_GAP, FLOAT_MIN, clampBall, clampRect, defaultBallPoint, defaultFloatRect } from './agentFormStore'
 
 describe('Agent 三形态的几何（10-08 外壳重设计）', () => {
   it('默认：画布 / 列表是小球，创作、分镜、预览停靠', () => {
@@ -32,42 +32,5 @@ describe('Agent 三形态的几何（10-08 外壳重设计）', () => {
     const area = { width: 1210, height: 760 }
     expect(defaultBallPoint(area)).toEqual({ x: area.width - BALL_SIZE - EDGE_GAP, y: area.height - BALL_SIZE - EDGE_GAP })
     expect(clampBall({ x: -50, y: 2000 }, area)).toEqual({ x: 0, y: area.height - BALL_SIZE })
-  })
-})
-
-describe('打开面板后把焦点放进输入框（focusAgentComposerSoon）', () => {
-  /** 手摇帧：每调一次 step() 跑一帧。 */
-  const frames = () => {
-    const queue: Array<() => void> = []
-    return { nextFrame: (tick: () => void) => { queue.push(tick) }, step: () => queue.shift()?.(), pending: () => queue.length }
-  }
-
-  it('面板晚几帧才挂上：挂上那一帧聚焦，不出声', () => {
-    const clock = frames()
-    const focused: string[] = []
-    const warnings: unknown[] = []
-    let mounted = false
-    focusAgentComposerSoon('#host [data-input]', {
-      find: () => (mounted ? ({ focus: () => focused.push('input') } as unknown as HTMLElement) : null),
-      nextFrame: clock.nextFrame,
-      warn: (fields) => warnings.push(fields),
-    })
-    clock.step()
-    clock.step()
-    mounted = true
-    clock.step()
-    expect(focused).toEqual(['input'])
-    expect(clock.pending()).toBe(0)
-    expect(warnings).toEqual([])
-  })
-
-  it('等满还找不到：出一声，带选择器名，不再请求帧（10-12 换输入框后悄悄失效近一个月的那一类）', () => {
-    const clock = frames()
-    const warnings: Array<{ selector: string; frames: number }> = []
-    focusAgentComposerSoon('#host [data-input]', { find: () => null, nextFrame: clock.nextFrame, warn: (fields) => warnings.push(fields) })
-    let ran = 0
-    while (clock.pending() && ran < 100) { clock.step(); ran += 1 }
-    expect(ran).toBe(COMPOSER_FOCUS_MAX_FRAMES + 1)
-    expect(warnings).toEqual([{ selector: '#host [data-input]', frames: COMPOSER_FOCUS_MAX_FRAMES }])
   })
 })

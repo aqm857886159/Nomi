@@ -30,15 +30,15 @@ describe('NodeRecoverableReport', () => {
     expect(markup).toContain(i18n.t('generationCommon.recoverable.title'))
   })
 
-  // C5（⑬）：查询时被 Nomi 自己的出站守卫拦下。守卫按「提交」挂码，拒绝的话同时进了 structured.upstreamMsg——
+  // C5（⑬）：查询时被 Nomi 自己的出站守卫（凭据绑定）拦下。守卫按「提交」挂码，拒绝的话同时进了 structured.upstreamMsg——
   // 可找回面板绝不能把「这次生成没有发出去……重新生成」当成服务商原话印出来（任务已经提交、钱已经花了）。
   it('a query refused by Nomi itself never shows the pre-submit "was never sent / generate again" claim', () => {
-    const refusal = 'NOMI_ERR::outbound-blocked-submit:: 这次生成**没有发出去**：relay.example 解析到 198.18.0.7，请确认本地代理后重新生成。'
+    const refusal = 'NOMI_ERR::outbound-blocked-credential-origin:: 这次生成**没有发出去**：密钥要去的地址不是保存时确认的那个，请重新保存密钥后重新生成。'
     const passedThrough =
       'NOMI_VENDOR_ERR_B64::' +
       Buffer.from(JSON.stringify({ vendorKey: 'relay', method: 'GET', upstreamMsg: refusal, category: 'network', retryable: false }), 'utf8').toString('base64') +
       `:: Provider request refused by outbound policy at relay GET https://relay.example/v1/tasks/t-1: ${refusal}`
-    const retagged = 'NOMI_ERR::retrieval-query:: 取回卡在「查询任务」这一步：Nomi 在本机拦下了这次请求（原始码 outbound-blocked-submit）'
+    const retagged = 'NOMI_ERR::retrieval-query:: 取回卡在「查询任务」这一步：Nomi 在本机拦下了这次请求（原始码 outbound-blocked-credential-origin）'
     for (const error of [passedThrough, retagged]) {
       const markup = renderToStaticMarkup(<NodeRecoverableReport node={{ runs: [], error }} onRecover={() => {}} onDismiss={() => {}} />)
       expect(markup).not.toMatch(/生成\**没有发出去|was never sent/)

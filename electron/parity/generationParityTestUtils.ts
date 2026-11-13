@@ -60,7 +60,9 @@ export function installFetchCapture(): FetchCapture {
     calls,
     respondWith(factory) { responder = factory; },
     reset() { calls.length = 0; responder = DEFAULT_RESPONSE; },
-    restore() { (globalThis as { fetch: unknown }).fetch = original; },
+    restore() {
+      (globalThis as { fetch: unknown }).fetch = original;
+    },
   };
 }
 

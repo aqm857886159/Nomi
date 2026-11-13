@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { canvasProviderId } from "./canvasTransportProvider";
+import { canvasProviderId, isCanvasProviderId } from "./canvasTransportProvider";
+import type { createGenerationOutputMaterializer } from "./generationOutputMaterializer";
 import type { PlanCandidate } from "./executionContract";
 import type { GenerationProviderOutput } from "./generationRuntimeAdapter";
 import type { AutomationPolicy, ProductionArtifact } from "../productionRun/productionRunTypes";
@@ -45,6 +46,11 @@ export function pollCanvasShot(input: {
   return activeRuns().poll(input);
 }
 
+/** 仓库每一次耐久变化（appIntegration 的事件旁路）：交给观察者的那一笔收尾了就摇渲染层去收。 */
+export function followCanvasShotChange(run: ProductionRun): void {
+  active?.followRunChange(run);
+}
+
 export function releaseCanvasShot(input: { projectId: string; runRecordId: string }): void {
   active?.release(input);
 }
@@ -79,15 +85,29 @@ export function canvasOpenRuns(input: { projectId: string; nodeId?: string }): R
   return activeRuns().canvasOpenRuns(input);
 }
 
+/** 回执现读现算哈希的次数（只有没带哈希的旧调用方会走到；测试看它涨没涨，按 fd 读的 fs spy 会恒空）。 */
+let receiptArtifactRereads = 0;
+export function __canvasReceiptArtifactRereadsForTests(): number {
+  return receiptArtifactRereads;
+}
+function rehashLandedArtifact(absolute: string): string {
+  receiptArtifactRereads += 1;
+  return crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex");
+}
+
 /**
  * 画布那台交回来的产物已经由它自己落进项目（`localizeTaskAsset`，nomi-local://）：这里只把那份文件记进 Run，
  * 不再下载一次。不是本地地址的交给通用物化（与目录执行器同一条）。
+ * 哈希用落地门写盘时算好的那一份（`output.contentHash`，暂存时流式算、原子改名发布，字节同一份）：以前这里再整读一遍
+ * 文件重算，8 张 4K 同时落地时就在主进程上同步读 8 份大文件。只有没带哈希的产物（旧的调用方）才现读现算。
  */
 export function canvasLocalArtifactReceipt(input: {
   projectId: string;
   projectRoot: string;
   providerTaskId: string;
   output: GenerationProviderOutput;
+  /** 这一单的第几份产物（从 0 起）：第一份号不变，第 k 份加 `-k`，同一单的几份各有自己的号。 */
+  outputIndex: number;
 }): Pick<ProductionArtifact, "artifactId" | "kind" | "contentHash" | "projectRelativePath"> | null {
   const prefix = `nomi-local://asset/${encodeURIComponent(input.projectId)}/`;
   if (!input.output.url.startsWith(prefix)) return null;
@@ -107,13 +127,22 @@ export function canvasLocalArtifactReceipt(input: {
   )
     return null;
   relative = path.relative(root, absolute).split(path.sep).join("/");
-  const contentHash = crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex");
+  const contentHash = input.output.contentHash ?? rehashLandedArtifact(absolute);
   return {
-    artifactId: `canvas-artifact-${input.providerTaskId}`.slice(0, 160),
+    artifactId: input.outputIndex > 0
+      ? `${`canvas-artifact-${input.providerTaskId}`.slice(0, 150)}-${input.outputIndex + 1}`
+      : `canvas-artifact-${input.providerTaskId}`.slice(0, 160),
     kind: input.output.kind,
     contentHash,
     projectRelativePath: relative,
   };
+}
+
+/** 提交出口的「交回的产物怎么记进 Run」：画布那台的本地文件只记账（上面这个），别的交给通用物化。 */
+export function canvasAwareOutputMaterializer(projectRoot: string, generic: Pick<ReturnType<typeof createGenerationOutputMaterializer>, "materialize">) {
+  return async (input: { projectId: string; providerTaskId: string; output: GenerationProviderOutput; outputIndex: number; job: { provider: string } }) =>
+    (isCanvasProviderId(input.job.provider) && canvasLocalArtifactReceipt({ projectId: input.projectId, projectRoot, providerTaskId: input.providerTaskId, output: input.output, outputIndex: input.outputIndex }))
+    || generic.materialize({ projectId: input.projectId, providerTaskId: input.providerTaskId, output: input.output, providerId: input.job.provider });
 }
 
 /** 一个画布节点这一次生成的候选：冻进合同的就是渲染层拼好的那一份请求（`parameters = { vendor, request }`）。 */

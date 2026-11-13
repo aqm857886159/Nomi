@@ -1,0 +1,659 @@
+{
+  "modelKey": "MiniMax-H3",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Only prompt and common fields",
+        "evidenceLevel": "mode-definition",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"MiniMax-H3\",\n  \"prompt\": \"A boy playing basketball by the sea at dusk, waves crashing, cinematic camera work\",\n  \"duration\": 6,\n  \"resolution\": \"2K\",\n  \"aspect_ratio\": \"16:9\"\n}"
+          }
+        ]
+      }
+    },
+    "first": {
+      "referenceKeys": {
+        "first_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "When provided, this image is used as the starting frame of the video.",
+          "meaning": {
+            "roles": [
+              "first_frame"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "When provided, this image is used as the starting frame of the video."
+          }
+        },
+        "last_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "When provided, this image is used as the ending frame.",
+          "meaning": {
+            "roles": [
+              "last_frame"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "When provided, this image is used as the ending frame."
+          }
+        },
+        "image_urls": {
+          "shape": "string[]",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Count: ≤ 9",
+          "meaning": {
+            "roles": [
+              "reference_image"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Every image in image_urls is treated as a reference image (reference_image), regardless of count."
+          }
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": null,
+          "roles": [
+            "first_frame",
+            "first",
+            "last_frame",
+            "last",
+            "reference_image",
+            "reference"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Role-tagged image array. Can replace first_frame_image / last_frame_image / image_urls.",
+          "aliases": {
+            "values": {
+              "first": "first_frame",
+              "last": "last_frame",
+              "reference": "reference_image"
+            },
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "first_frame (also accepts first) — first frame (I2V)",
+            "evidence": [
+              {
+                "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "last_frame (also accepts last) — last frame (I2V)"
+              },
+              {
+                "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "reference_image (also accepts reference) — reference image (R2V)"
+              }
+            ]
+          },
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Image role. Allowed values:"
+          },
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "first_frame (also accepts first) — first frame (I2V)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "last_frame (also accepts last) — last frame (I2V)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference_image (also accepts reference) — reference image (R2V)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "First frame ≤ 1, last frame ≤ 1, reference images ≤ 9"
+            }
+          ]
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Count: ≤ 3",
+          "meaning": {
+            "roles": [
+              "reference_video"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Multimodal Reference Fields"
+          }
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Count: ≤ 3",
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Multimodal Reference Fields"
+          }
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "first_frame_image",
+            "last_frame_image",
+            "role:first_frame",
+            "role:last_frame"
+          ],
+          "b": [
+            "image_urls",
+            "video_urls",
+            "audio_urls",
+            "role:reference_image"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Image-to-video fields (first_frame_image / last_frame_image, and first_frame / last_frame in image_with_roles) cannot be combined with multimodal reference fields (image_urls, video_urls, audio_urls, and reference_image in image_with_roles). Mixing them returns 400."
+        }
+      ],
+      "roleCaps": [
+        {
+          "role": "first_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First frame ≤ 1, last frame ≤ 1, reference images ≤ 9"
+        },
+        {
+          "role": "last_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First frame ≤ 1, last frame ≤ 1, reference images ≤ 9"
+        },
+        {
+          "role": "reference_image",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First frame ≤ 1, last frame ≤ 1, reference images ≤ 9"
+        }
+      ],
+      "intent": {
+        "roles": [
+          "first_frame",
+          "last_frame"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "First frame, last frame, first+last frame control"
+      },
+      "requires": [
+        {
+          "when": [
+            "audio_urls"
+          ],
+          "anyOf": [
+            "role:reference_image",
+            "video_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Cannot be used alone; must be paired with a reference image or reference video"
+        }
+      ],
+      "why": "First-frame-driven mode with an optional end frame; both are frame-family inputs."
+    },
+    "firstlast": {
+      "referenceKeys": {
+        "first_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "When provided, this image is used as the starting frame of the video.",
+          "meaning": {
+            "roles": [
+              "first_frame"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "When provided, this image is used as the starting frame of the video."
+          }
+        },
+        "last_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "When provided, this image is used as the ending frame.",
+          "meaning": {
+            "roles": [
+              "last_frame"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "When provided, this image is used as the ending frame."
+          }
+        },
+        "image_urls": {
+          "shape": "string[]",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Count: ≤ 9",
+          "meaning": {
+            "roles": [
+              "reference_image"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Every image in image_urls is treated as a reference image (reference_image), regardless of count."
+          }
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": null,
+          "roles": [
+            "first_frame",
+            "first",
+            "last_frame",
+            "last",
+            "reference_image",
+            "reference"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Role-tagged image array. Can replace first_frame_image / last_frame_image / image_urls.",
+          "aliases": {
+            "values": {
+              "first": "first_frame",
+              "last": "last_frame",
+              "reference": "reference_image"
+            },
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "first_frame (also accepts first) — first frame (I2V)",
+            "evidence": [
+              {
+                "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "last_frame (also accepts last) — last frame (I2V)"
+              },
+              {
+                "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "reference_image (also accepts reference) — reference image (R2V)"
+              }
+            ]
+          },
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Image role. Allowed values:"
+          },
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "first_frame (also accepts first) — first frame (I2V)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "last_frame (also accepts last) — last frame (I2V)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference_image (also accepts reference) — reference image (R2V)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "First frame ≤ 1, last frame ≤ 1, reference images ≤ 9"
+            }
+          ]
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Count: ≤ 3",
+          "meaning": {
+            "roles": [
+              "reference_video"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Multimodal Reference Fields"
+          }
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Count: ≤ 3",
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Multimodal Reference Fields"
+          }
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "first_frame_image",
+            "last_frame_image",
+            "role:first_frame",
+            "role:last_frame"
+          ],
+          "b": [
+            "image_urls",
+            "video_urls",
+            "audio_urls",
+            "role:reference_image"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Image-to-video fields (first_frame_image / last_frame_image, and first_frame / last_frame in image_with_roles) cannot be combined with multimodal reference fields (image_urls, video_urls, audio_urls, and reference_image in image_with_roles). Mixing them returns 400."
+        }
+      ],
+      "roleCaps": [
+        {
+          "role": "first_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First frame ≤ 1, last frame ≤ 1, reference images ≤ 9"
+        },
+        {
+          "role": "last_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First frame ≤ 1, last frame ≤ 1, reference images ≤ 9"
+        },
+        {
+          "role": "reference_image",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First frame ≤ 1, last frame ≤ 1, reference images ≤ 9"
+        }
+      ],
+      "intent": {
+        "roles": [
+          "first_frame",
+          "last_frame"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "First frame, last frame, first+last frame control"
+      },
+      "requires": [
+        {
+          "when": [
+            "audio_urls"
+          ],
+          "anyOf": [
+            "role:reference_image",
+            "video_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Cannot be used alone; must be paired with a reference image or reference video"
+        }
+      ]
+    },
+    "ref": {
+      "referenceKeys": {
+        "first_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "When provided, this image is used as the starting frame of the video.",
+          "meaning": {
+            "roles": [
+              "first_frame"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "When provided, this image is used as the starting frame of the video."
+          }
+        },
+        "last_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "When provided, this image is used as the ending frame.",
+          "meaning": {
+            "roles": [
+              "last_frame"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "When provided, this image is used as the ending frame."
+          }
+        },
+        "image_urls": {
+          "shape": "string[]",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Count: ≤ 9",
+          "meaning": {
+            "roles": [
+              "reference_image"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Every image in image_urls is treated as a reference image (reference_image), regardless of count."
+          }
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": null,
+          "roles": [
+            "first_frame",
+            "first",
+            "last_frame",
+            "last",
+            "reference_image",
+            "reference"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Role-tagged image array. Can replace first_frame_image / last_frame_image / image_urls.",
+          "aliases": {
+            "values": {
+              "first": "first_frame",
+              "last": "last_frame",
+              "reference": "reference_image"
+            },
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "first_frame (also accepts first) — first frame (I2V)",
+            "evidence": [
+              {
+                "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "last_frame (also accepts last) — last frame (I2V)"
+              },
+              {
+                "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "reference_image (also accepts reference) — reference image (R2V)"
+              }
+            ]
+          },
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Image role. Allowed values:"
+          },
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "first_frame (also accepts first) — first frame (I2V)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "last_frame (also accepts last) — last frame (I2V)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference_image (also accepts reference) — reference image (R2V)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "First frame ≤ 1, last frame ≤ 1, reference images ≤ 9"
+            }
+          ]
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Count: ≤ 3",
+          "meaning": {
+            "roles": [
+              "reference_video"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Multimodal Reference Fields"
+          }
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Count: ≤ 3",
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Multimodal Reference Fields"
+          }
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "first_frame_image",
+            "last_frame_image",
+            "role:first_frame",
+            "role:last_frame"
+          ],
+          "b": [
+            "image_urls",
+            "video_urls",
+            "audio_urls",
+            "role:reference_image"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Image-to-video fields (first_frame_image / last_frame_image, and first_frame / last_frame in image_with_roles) cannot be combined with multimodal reference fields (image_urls, video_urls, audio_urls, and reference_image in image_with_roles). Mixing them returns 400."
+        }
+      ],
+      "roleCaps": [
+        {
+          "role": "first_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First frame ≤ 1, last frame ≤ 1, reference images ≤ 9"
+        },
+        {
+          "role": "last_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First frame ≤ 1, last frame ≤ 1, reference images ≤ 9"
+        },
+        {
+          "role": "reference_image",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First frame ≤ 1, last frame ≤ 1, reference images ≤ 9"
+        }
+      ],
+      "intent": {
+        "roles": [
+          "reference_image",
+          "reference_video",
+          "reference_audio"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Every image in image_urls is treated as a reference image (reference_image), regardless of count."
+      },
+      "requires": [
+        {
+          "when": [
+            "audio_urls"
+          ],
+          "anyOf": [
+            "role:reference_image",
+            "video_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Cannot be used alone; must be paired with a reference image or reference video"
+        }
+      ]
+    }
+  }
+}
