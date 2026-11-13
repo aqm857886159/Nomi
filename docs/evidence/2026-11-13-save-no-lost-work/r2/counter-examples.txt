@@ -1,3 +1,6 @@
+# 第 2 轮反例红绿：每条先弄坏、跑对应测试，再还原、重跑。共 16 条，最后一次跑全部「弄坏就红、还原就绿」。
+# 注：08:44 那段 NOT-GREEN 不是反例本身的结果，是跑法出的事故。变异器用 git checkout 还原文件，把当时还没提交的「挪文件」改动一起还原掉了。
+#     改动提交之后，08:46 在 34826c75d 上把受影响的 C3e / C3f / C3i 和 C2 重跑了一遍，全部 OK，以这一次为准。
 
 === 08:30:11 HEAD ba69f4086
 OK C1 改名回到读出→逐项判→整份写回 → src/workbench/project/projectRepository.itemQuarantine.test.ts
@@ -48,3 +51,25 @@ OK C6 门岗认不出简写属性 → scripts/lib/storyboardDesignWrites.test.mj
 OK C6 门岗认不出原地改 → scripts/lib/storyboardDesignWrites.test.mjs
   坏：exit 1 Tests  3 failed | 15 passed (18) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  scripts/lib/storyboardDesignWrites.test.mjs > direct writes to storyboardDesignsByDocumentId > mutation: useStore.getState().storyboardDesignsByDocumentId['doc-1'] = designs | FAIL  scripts/lib/storyboardDesignWrites.test.mjs > direct writes to storyboardDesignsByDocumentId > mutation: useStore.getState().storyboardDesignsByDocumentId[id][0].plan.shots[0].durationSec = Number.NaN
   好：exit 0 Tests  18 passed (18)
+
+=== 08:44:36 HEAD d180cf387
+NOT-GREEN C3e 打开后不提示 → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after a save and after a project opens
+  好：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > is a reminder (role=status, warning tokens), not a red alert, and offers the folder
+NOT-GREEN C3f 保存后不提示（接线） → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  2 failed | 7 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after a save and after a project opens | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > is a reminder (role=status, warning tokens), not a red alert, and offers the folder
+  好：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > is a reminder (role=status, warning tokens), not a red alert, and offers the folder
+
+=== 08:46:22 HEAD 34826c75d
+OK C2 隔离区截到 20 条 → electron/projects/projectQuarantine.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  electron/projects/projectQuarantine.test.ts > quarantine sidecar > does not truncate: 25 items in one call are all written (a 20-item cap would lose 5)
+  好：exit 0 Tests  9 passed (9)
+OK C3e 打开后不提示 → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after a save and after a project opens
+  好：exit 0 Tests  9 passed (9)
+OK C3f 保存后不提示（接线） → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after a save and after a project opens
+  好：exit 0 Tests  9 passed (9)
+OK C3i 提示改成红色告警 → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > is a reminder (role=status, warning tokens), not a red alert, and offers the folder
+  好：exit 0 Tests  9 passed (9)
