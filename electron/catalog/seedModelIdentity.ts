@@ -6,6 +6,9 @@
 // 对账逻辑几乎不动；混在一个文件里，读对账那 60 行要先翻过 200 行模型名。
 // 分档判据本身没变一个字：`curatedCatalogLifecycle` 仍是这三张 Set 的唯一读取者。
 
+// 目录内部（`seedBuiltins.ts` 的对账）照旧从这里拿身份表；表本体只有中立层那一份，这里不许再写第二张。
+export { CANONICAL_MODEL_IDS } from "../shared/modelCanonicalIds";
+
 /** curated 模型的产品分档。明确的产品决定，**不是**从版本号或名字猜出来的。 */
 export type CatalogLifecycle = "flagship" | "value" | "companion" | "legacy";
 

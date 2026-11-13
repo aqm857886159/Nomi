@@ -3,6 +3,16 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-09-28-channel-model-identity-merge.root-cause.json",
+      "path": "electron/catalog/seedModelIdentity.ts",
+      "symbol": "CANONICAL_MODEL_IDS",
+      "anchor": {
+        "path": "electron/shared/modelCanonicalIds.ts",
+        "symbol": "CANONICAL_MODEL_IDS"
+      },
+      "reason": "2026-11-14 跨家身份表整段搬到中立层（内容逐字未改）：界面层的模型默认顺序也要读它，而界面层不许直接引主进程目录（check:boundaries）。旧文件只留一行转出口给目录内部的对账用，表本体只有中立层这一份；「模型身份必须显式写在这张表里」的不变量不变，仍由 src/config/modelIdentity.channelMerge.test.ts 与 electron/catalog/seedBuiltins.test.ts 守。"
+    },
+    {
       "contract": "docs/fixes/2026-09-15-feedback-loop-intake.root-cause.json",
       "path": "electron/telemetry/intakeQueue.ts",
       "symbol": "flushIntakeQueue / clearIntakeQueue",
