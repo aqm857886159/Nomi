@@ -6,6 +6,7 @@
 //
 // 基线只从 CI 的 macOS 机器取回：`pnpm run design-lab:accept -- --run <运行号>`（见 visualMode.mjs）。
 // 任何一趟（含 CI）配置里都写死 updateSnapshots:'none'，谁也不能顺手把红洗绿。
+import fs from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { LAB_SCREEN_IDS, pendingApprovalScreens, readCalibration, readLabStates } from './labStates.mjs'
 
@@ -38,7 +39,7 @@ for (const screen of LAB_SCREEN_IDS) {
     })
 
     for (const state of states) {
-      test(`状态 ${state.id} · ${state.name}`, async ({ page }) => {
+      test(`状态 ${state.id} · ${state.name}`, async ({ page }, testInfo) => {
         if (DIRECTOR_SCREENS.has(screen)) await page.setViewportSize({ width: 1280, height: 933 })
         if (screen === 'storyboard' && state.id === 'sb-row-06-generating') {
           // Fix only Date: real animation/timers still run, while elapsed narration is deterministic.
@@ -81,8 +82,15 @@ for (const screen of LAB_SCREEN_IDS) {
         }
         // 浮层类形态走 BodyPortal + fixed 定位，根本不在舞台的子树里——按元素截会截出
         // 「浮层没打开」的假证据，所以这一族改截整屏（注册项里显式声明 capture: 'viewport'）。
-        if (state.capture === 'viewport') await expect(page).toHaveScreenshot([screen, `${state.id}.png`], tolerance)
-        else await expect(shot).toHaveScreenshot([screen, `${state.id}.png`], tolerance)
+        const target = state.capture === 'viewport' ? page : shot
+        // 新状态的第一张基线（2026-11-13）：配置写死 updateSnapshots:'none'，这时缺基线只会报
+        // 「A snapshot doesn't exist」、不落 -actual.png，CI 产物里没有图可取，新状态就永远拿不到基线
+        //（两个界面 PR 因此挂了 4 天）。这里只在基线文件不存在时把这一格存成 design-lab:accept 认的那个
+        // 路径；下面的比对照旧判红，基线仍然只能经 accept、由人看过后提交。
+        if (!fs.existsSync(testInfo.snapshotPath(screen, `${state.id}.png`))) {
+          await target.screenshot({ path: testInfo.outputPath(screen, `${state.id}-actual.png`), animations: 'disabled', caret: 'hide', scale: 'css' })
+        }
+        await expect(target).toHaveScreenshot([screen, `${state.id}.png`], tolerance)
         expect(errors, `渲染 ${state.id} 时页面抛错`).toEqual([])
       })
     }
