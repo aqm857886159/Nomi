@@ -38,10 +38,11 @@ describe('announceQuarantine', () => {
   it('a warning that stays until the creator closes it or opens the folder (ttl: false), never an error', async () => {
     vi.mocked(takeQuarantineNotice).mockReturnValue([notice(0)])
     const reveal = vi.fn(async () => ({ ok: true }))
-    announceQuarantine('p1', await translator(), reveal)
+    const t = await translator()
+    announceQuarantine('p1', t, reveal)
     expect(push).toHaveBeenCalledTimes(1)
     const toast = push.mock.calls[0]![0]
-    expect(toast).toMatchObject({ type: 'warning', ttl: false, dismissible: true, actionLabel: '打开所在文件夹' })
+    expect(toast).toMatchObject({ type: 'warning', ttl: false, dismissible: true, actionLabel: t('studio.quarantineRevealFolder') })
     expect(toast.message).toContain('分镜《分镜0》第 1 镜')
     toast.onAction()
     expect(reveal).toHaveBeenCalledWith({ projectId: 'p1', relativePath: '.nomi/quarantine/item-0.json' })
