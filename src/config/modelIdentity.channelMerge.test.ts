@@ -2,7 +2,7 @@
 //   applyBuiltinSeeds → toCatalogModelOptions（带供应商显示名，同 modelCatalogCache）→ dedupeModelOptions。
 //
 // 这份测试守四件事，缺一件合并就不算做对：
-//   ① 同一个模型只列一次，旁边的供应商里有 fal / Runway（身份的唯一 owner 是 seedModelIdentity.CANONICAL_MODEL_IDS）；
+//   ① 同一个模型只列一次，旁边的供应商里有 fal / Runway（身份的唯一 owner 是 electron/shared/canonicalModelIds 的 CANONICAL_MODEL_IDS）；
 //   ② 钱走哪家不悄悄变：合并前用户会点的那一条（中转站那条）默认走哪家，合并后仍走哪家；
 //   ③ 选的变体 = 真正发出去的 modelKey：同一组里同一家的多行必须可互换，变体轴只在线缆认它的那家出现；
 //   ④ 合并不让那一条在下拉里换档（分档跟着模型走，不跟着渠道走）。

@@ -12,7 +12,7 @@
 // （`CANONICAL_MODEL_IDS`）认成同一行，没有该表覆盖的别家行不吃默认（和没列出的新模型一样排后面、默认显示）。
 // 名单里写了、目录里没有的标识：测试直接红（`modelBoxDefaults.test.ts`），不再悄悄跳过。
 // 没列进两张表的行（新接入的、别家供应商的）排在列出的后面、默认显示——新东西不会因为没排过就消失。
-import { CANONICAL_MODEL_IDS } from '../../electron/catalog/seedModelIdentity'
+import { CANONICAL_MODEL_IDS } from '../../electron/shared/canonicalModelIds'
 import type { ModelBoxPreferenceSettings } from '../../electron/shared/contracts/modelBoxPreference'
 import type { DedupedModel } from './modelIdentity'
 

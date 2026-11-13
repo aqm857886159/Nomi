@@ -12,7 +12,8 @@
 
 import type { CatalogState, HttpOperation, Mapping, Model, Vendor } from "./types";
 // 身份与分档表住在隔壁（表随模型雷达增删，对账逻辑几乎不动 —— 两者变更理由不同）。
-import { CANONICAL_MODEL_IDS, curatedCatalogLifecycle } from "./seedModelIdentity";
+import { CANONICAL_MODEL_IDS } from "../shared/canonicalModelIds";
+import { curatedCatalogLifecycle } from "./seedModelIdentity";
 import {
   KIE_VENDOR_SEED,
   SEEDANCE_2_CREATE_OP,
