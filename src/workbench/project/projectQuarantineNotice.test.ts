@@ -34,7 +34,7 @@ describe('quarantine notice sentence', () => {
   it('zh: one item, saved — says the project still has the previous version / does not have it yet, the rest is saved, and a copy is kept', async () => {
     const t = await translator('zh-CN')
     const kept = projectQuarantineNoticeText(t, [item('plan.shots[0].durationSec', true)])
-    expect(kept).toBe(`分镜《${TITLE}》第 1 镜的时长格式不对，这次没能存进项目，项目里还是它的上一版；其余改动都已保存。这次的内容另存了一份，可在文件夹里找回。`)
+    expect(kept).toBe(`分镜《${TITLE}》第 1 镜的时长格式不对，这次没能存进项目，项目里还是它的上一版；其余改动都已保存。这次的内容另存了一份，可在文件夹里找到。`)
     const missing = projectQuarantineNoticeText(t, [item('plan.shots[0].durationSec', false)])
     expect(missing).toContain('项目里还没有它')
   })
