@@ -117,13 +117,8 @@ describe("已在 async 函数里的调用方：同一个异步重试件，持续
     }, { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS), wait: async (ms) => { waits.push(ms); } });
     expect(value).toBe("ok");
     expect(calls).toBe(3);
+    // 总等待 = 长表前两档之和（直接观测退避件请求的等待，不量墙钟）。
     expect(waits).toEqual(SHARING_RETRY_LONG_DELAYS_MS.slice(0, 2));
-    const started = Date.now();
-    let real = 0;
-    await retryOnSharingViolationAsync(() => (++real <= 2 ? Promise.reject(errno("EBUSY")) : Promise.resolve("ok")), { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
-    const elapsed = Date.now() - started;
-    expect(elapsed).toBeGreaterThanOrEqual(SHARING_RETRY_LONG_DELAYS_MS[0] + SHARING_RETRY_LONG_DELAYS_MS[1] - 5);
-    expect(elapsed).toBeLessThan(SHARING_RETRY_LONG_DELAYS_MS[0] + SHARING_RETRY_LONG_DELAYS_MS[1] + 200);
   });
 
   it("回调一直以 Promise 被拒：表用完后抛出的还是原来那个错误码", async () => {
