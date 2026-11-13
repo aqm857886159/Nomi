@@ -97,6 +97,7 @@ export function SpendConfirmDialog() {
 
   const width = pending.kind === 'contract' ? 680 : isAnchorCheckpoint ? 560 : 380
   const close = (): void => resolvePending(false)
+  const agentNotice = isAgent ? t(pending.kind === 'plan' ? 'generationCommon.spend.agentNoticePlan' : 'generationCommon.spend.agentNotice') : null
   const header = (
     <span className={cn('flex min-w-0 items-center gap-2.5')}>
       <span
@@ -110,9 +111,11 @@ export function SpendConfirmDialog() {
       <span className={cn('min-w-0 flex-1')}>
         <span className={cn('block text-title font-medium text-nomi-ink truncate')}>{pending.title}</span>
         {isAgent ? (
-          <span className={cn('block text-micro text-nomi-ink-60')}>
+          // 副标留在标题栏里（样子不变），但不进对话框的名字：Mantine 的 aria-labelledby 指向整个标题元素，
+          // 迁移前名字只有标题一句；这里 aria-hidden，副标另在正文最前面给读屏念一遍（sr-only）。
+          <span aria-hidden="true" className={cn('block text-micro text-nomi-ink-60')}>
             {/* 方案门免费 → 副标不提「花费」（否则与「不花额度」正文自相矛盾，2026-08-02 走查抓出）。 */}
-            {t(pending.kind === 'plan' ? 'generationCommon.spend.agentNoticePlan' : 'generationCommon.spend.agentNotice')}
+            {agentNotice}
           </span>
         ) : null}
       </span>
@@ -152,6 +155,7 @@ export function SpendConfirmDialog() {
       }}
       actions={actions}
     >
+      {agentNotice ? <span className={cn('sr-only')}>{agentNotice}</span> : null}
       {content}
     </DesignModal>
   )

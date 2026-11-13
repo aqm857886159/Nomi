@@ -391,6 +391,14 @@ describe('settings dialog structure', () => {
     expect(homeSurface).toContain('data-model-settings-page="home"')
   })
 
+  it('keeps the dialog anchors rendering the same "true" values the walks select on after the shell migration', () => {
+    // 迁到共用外壳后锚点改经 contentAttributes 给；曾误写成 ''，渲染出 data-settings-overlay=""，
+    // 而 mcp-l2-journeys 等 13 份走查按 [data-settings-overlay="true"] 认设置框（CI E2E(4) 因此红）。
+    expect(settingsSource).toContain("'data-settings-overlay': 'true'")
+    expect(settingsSource).toContain("'data-settings-dialog': 'true'")
+    expect(settingsSource).toContain("'data-settings-close': 'true'")
+  })
+
   it('keeps the lazy model workspace mounted after its first visit', () => {
     expect(settingsSource).toContain('modelsMounted')
     expect(settingsSource).toContain("if (nextTab === 'models') setModelsMounted(true)")

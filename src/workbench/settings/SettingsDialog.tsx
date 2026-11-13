@@ -252,8 +252,8 @@ export function SettingsDialog({
       trapFocus={false}
       returnFocus={false}
       zIndex={NOMI_OVERLAY_Z_INDEX.applicationModal}
-      contentAttributes={{ 'data-settings-overlay': '', 'data-settings-dialog': '', 'data-settings-tab': tab, 'data-settings-frame': 'shell' }}
-      closeButtonProps={{ 'aria-label': t('settings.close'), ...{ 'data-settings-close': '' } }}
+      contentAttributes={{ 'data-settings-overlay': 'true', 'data-settings-dialog': 'true', 'data-settings-tab': tab, 'data-settings-frame': 'shell' }}
+      closeButtonProps={{ 'aria-label': t('settings.close'), ...{ 'data-settings-close': 'true' } }}
       classNames={{ content: 'rounded-nomi-lg bg-nomi-paper shadow-nomi-lg', header: 'px-4 py-3', body: 'p-0' }}
     >
         <div
