@@ -13,7 +13,8 @@
     "S2"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1505,
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-11-02-storyboard-only-what-works.md",
@@ -22,7 +23,8 @@
     "docs/evidence/2026-11-09-storyboard-premerge/README.md",
     "docs/evidence/2026-11-09-storyboard-premerge/app-receipt.json",
     "docs/evidence/2026-11-09-storyboard-strips/replay-receipt.json",
-    "Reviewed for first push: approved control removal and exact selected-shot handoff have structural/class evidence. This is not a merged or fully resolved receipt; Agent draft_shots still fails with generation_operation_not_found and is tracked separately."
+    "docs/evidence/2026-11-13-storyboard-land/README.md",
+    "Scope of this entry (design card rows ⑪ ⑫): duplicated film-level and selection-level configuration removed; handing selected shots to Agent now yields three visible results (reference, panel opens, input focused). What the Agent does after receiving the target (draft_shots failing with generation_operation_not_found, already broken on main before this change) is a different problem (a shot request has no single owner once the model or mode changes) and stays open; it is not claimed fixed here."
   ],
   "completionCommits": [
     "f9489e888d399594bd2ca79f344cad51301a87bc",
