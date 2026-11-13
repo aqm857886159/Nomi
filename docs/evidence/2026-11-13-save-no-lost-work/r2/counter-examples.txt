@@ -1,6 +1,10 @@
-# 第 2 轮反例红绿：每条先弄坏、跑对应测试，再还原、重跑。共 16 条，最后一次跑全部「弄坏就红、还原就绿」。
-# 注：08:44 那段 NOT-GREEN 不是反例本身的结果，是跑法出的事故。变异器用 git checkout 还原文件，把当时还没提交的「挪文件」改动一起还原掉了。
-#     改动提交之后，08:46 在 34826c75d 上把受影响的 C3e / C3f / C3i 和 C2 重跑了一遍，全部 OK，以这一次为准。
+# 第 2 轮反例红绿：每条先弄坏、跑对应测试，再还原、重跑。共 21 条，最后一次跑全部「弄坏就红、还原就绿」。
+# 注 1：08:44 那段 NOT-GREEN 不是反例本身的结果，是跑法出的事故。变异器用 git checkout 还原文件，把当时还没提交的「挪文件」改动一起还原掉了。
+#       改动提交之后，08:46 重跑了受影响的那几条，全部 OK。
+# 注 2：提醒按协调裁定改交现有 toast 之后，在 33b784b96 上重跑了 8 条：
+#       C3e / C3f / C3i 是原有的 3 条，弄坏的位置换到了新地方；
+#       C3j–C3n 是新增的 5 条。8 条全部 OK，以这一次为准。
+#       更早的 C3e / C3f / C3i 记录弄坏的是已经删掉的 NomiStudioApp 接线 / ProjectQuarantineNotice.tsx，只当历史看。
 
 === 08:30:11 HEAD ba69f4086
 OK C1 改名回到读出→逐项判→整份写回 → src/workbench/project/projectRepository.itemQuarantine.test.ts
@@ -73,3 +77,29 @@ OK C3f 保存后不提示（接线） → src/workbench/project/projectQuarantin
 OK C3i 提示改成红色告警 → src/workbench/project/projectQuarantineNotice.test.ts
   坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > is a reminder (role=status, warning tokens), not a red alert, and offers the folder
   好：exit 0 Tests  9 passed (9)
+
+=== 08:58:59 HEAD 33b784b96
+OK C3e 打开后不提示 → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 7 passed (8) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after an autosave succeeds and after a project opens
+  好：exit 0 Tests  8 passed (8)
+OK C3f 保存后不提示（接线） → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 7 passed (8) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after an autosave succeeds and after a project opens
+  好：exit 0 Tests  8 passed (8)
+OK C3j toast 会自动消失 → src/workbench/project/projectQuarantineAnnounce.test.ts
+  坏：exit 1 Tests  2 failed | 3 passed (5) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineAnnounce.test.ts > announceQuarantine > a warning that stays until the creator closes it or opens the folder (ttl: false), never an error | FAIL  src/workbench/project/projectQuarantineAnnounce.test.ts > announceQuarantine > no desktop bridge (browser preview) → the sentence only, no folder button
+  好：exit 0 Tests  5 passed (5)
+OK C3k 25 项出 25 条 toast → src/workbench/project/projectQuarantineAnnounce.test.ts
+  坏：exit 1 Tests  1 failed | 4 passed (5) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineAnnounce.test.ts > announceQuarantine > 25 items in one batch → one toast saying 25, not 25 toasts
+  好：exit 0 Tests  5 passed (5)
+OK C3l 没有桌面桥也出按钮 → src/workbench/project/projectQuarantineAnnounce.test.ts
+  坏：exit 1 Tests  1 failed | 4 passed (5) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineAnnounce.test.ts > announceQuarantine > no desktop bridge (browser preview) → the sentence only, no folder button
+  好：exit 0 Tests  5 passed (5)
+OK C3m 退出重开同一项目不再提示 → src/workbench/project/projectRepository.itemQuarantine.test.ts
+  坏：exit 1 Tests  1 failed | 9 passed (10) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectRepository.itemQuarantine.test.ts > opening a project that already holds a bad item > quitting Nomi and reopening the same project (bad item still in project.json) tells the creator again — once per session
+  好：exit 0 Tests  10 passed (10)
+OK C3n 同一会话重开重复提示 → src/workbench/project/projectRepository.itemQuarantine.test.ts
+  坏：exit 1 Tests  2 failed | 8 passed (10) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectRepository.itemQuarantine.test.ts > opening a project that already holds a bad item > opens it, drops only that item, keeps the raw item in quarantine, and announces it once | FAIL  src/workbench/project/projectRepository.itemQuarantine.test.ts > opening a project that already holds a bad item > quitting Nomi and reopening the same project (bad item still in project.json) tells the creator again — once per session
+  好：exit 0 Tests  10 passed (10)
+OK C3i 提示改成红色告警 → src/workbench/project/projectQuarantineAnnounce.test.ts
+  坏：exit 1 Tests  2 failed | 3 passed (5) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineAnnounce.test.ts > announceQuarantine > a warning that stays until the creator closes it or opens the folder (ttl: false), never an error | FAIL  src/workbench/project/projectQuarantineAnnounce.test.ts > announceQuarantine > no desktop bridge (browser preview) → the sentence only, no folder button
+  好：exit 0 Tests  5 passed (5)

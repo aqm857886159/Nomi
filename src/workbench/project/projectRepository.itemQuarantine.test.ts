@@ -138,7 +138,9 @@ describe('opening a project that already holds a bad item', () => {
     // 新会话 = 模块重新载入（「本次会话说过」只在内存里）。隔离区里那份已经在了（fresh=false），打开时照样要说。
     const bridgeObject = vi.mocked(getDesktopBridge)()
     vi.resetModules()
+    // eslint-disable-next-line no-restricted-syntax -- 重启模拟：新会话 = 模块重新载入，只能动态 import
     vi.mocked((await import('../../desktop/bridge')).getDesktopBridge).mockReturnValue(bridgeObject)
+    // eslint-disable-next-line no-restricted-syntax -- 重启模拟：同上
     const next = await import('./projectRepository')
     await next.readLocalProjectAsync(projectId)
     expect(next.takeQuarantineNotice(projectId).map(n => n.origin)).toEqual(['open'])
