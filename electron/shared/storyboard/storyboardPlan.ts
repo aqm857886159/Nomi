@@ -40,7 +40,7 @@ export type PlanAnchor = {
   /**
    * 身份 DNA（脸型/发色/骨相/标志物）——跨镜必须一致、是身份轴对照的基准（W2 圣经 static 层）。
    * 由分镜规划师从全资产大师 V3.0 资产卡的「基础面容锚点」填。落画布写进 node.meta.staticFeatures；
-   * 与 description 并存时 `buildAnchorSheetPrompt` 优先用 static+dynamic 分区（description 保留向后兼容）。
+   * 与 description 并存时提示词正文只用 description（框里的字），static 不追加进提示词；description 为空的旧草稿才退回用它。
    */
   staticFeatures?: string
   /**

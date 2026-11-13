@@ -1,0 +1,17 @@
+{
+  "modelKey": "viduq3",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "ref": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 7,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/vidu-q3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference image URL array, 1-7 images"
+        }
+      }
+    }
+  }
+}

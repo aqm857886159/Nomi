@@ -326,7 +326,7 @@ try {
     reply: {
       type: 'tool', id: CREATE_CALL, name: 'draft_shots',
       // 20 动词：只有 draft_shots 能在画布上造出会生成的镜头（草稿落画布、不出卡、不花钱）。
-      // 点名模型：没设默认图片模型时宿主不替用户挑，回 generation_input_invalid「没有配置可用的图片模型」。
+      // 点名模型：没设默认图片模型时宿主不替用户挑，回 generation_input_invalid（原因 no_default_model）。
       args: {
         candidate: { providerId: FIXTURE_VENDOR, modelId: FIXTURE_IMAGE_MODEL },
         shots: [

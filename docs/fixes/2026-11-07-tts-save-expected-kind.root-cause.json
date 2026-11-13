@@ -1,0 +1,266 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-07-tts-save-expected-kind",
+  "detected_by": "post-release",
+  "problem_type": "生成产物走了用户文件的门、没说要哪一类：请求已付费，落盘才被拒；没项目的同步任务同样先花钱再失败",
+  "symptom": "配音（以及音乐、音效）点生成后供应商已经扣费，结果存不进项目，节点报 generated_output_expected_kind_required；从 v0.23.2 起每个同步回字节的音频模型都这样。协调 2026-11-07 用真付费经 nomi:tasks:run 跑 APIMart nomi-audio（speech / gpt-4o-mini-tts，带 extras.projectId）复现：扣了费，落盘失败。",
+  "direct_cause": "electron/audioTaskRunner.ts 的 runTextToSpeech / runDoubaoUnidirectionalTts 把供应商回来的字节交给 importLocalFile（用户文件的门），meta 写 kind generated，却不传 expectedKind；#1213（42736b307，0.23.x 移植 7171ae332，2026-10-17）给生成产物加了「必须说清要哪一类」的落盘关口，这两处调用当时没跟上，运行时在 generatedExpectation 抛 generated_output_expected_kind_required。",
+  "class_root": "「生成产物必须说清要哪一类」只在运行时、在付费请求之后才检查：主进程里「是不是生成产物」只是 meta 里的一个字符串、期望类型是另一个可空参数，两者成对只在落盘关口运行时查：用户文件的门（importLocalFile）收 unknown，远程取回的门（importRemoteAsset）、拷文件的门（copyAssetFile）和字节的「kind 不定」入口（storeAssetBytes）签名都是 JsonRecord + 可空期望类型，kind generated 不带期望类型照样编得过；同时「结果只能写成项目文件」的任务（同步回字节的音频、文件流视频）没有项目号也照样发请求，钱花在一个注定放不下的结果上。测试没拦住：audioTaskRunner.test.ts 桩掉了整个资产库，升级回放只数 POST 次数、不看结果落没落盘，所以 10-17 之后没有任何一条测试真正走过「同步配音 → 落盘关口」。",
+  "affected_population": [
+    "v0.23.2、v0.24.0、v0.24.1 的全部用户（v0.23.1 及更早不受影响：关口在 7171ae332 才进 0.23.x）",
+    "同步回字节的音频模型：APIMart nomi-audio、豆包 seed-tts-2.0（volcengine-speech）、MiniMax speech-2.8-hd / speech-2.8-turbo、ElevenLabs eleven_v3 / music_v2 / eleven_text_to_sound_v2、中转配音（NEWAPI 音频操作）、向导接的 OpenAI 兼容配音（老用户目录里的 tts-1 / opaque-tts）",
+    "三个入口都受影响：画布节点生成、nomi:tasks:run（Agent / 脚本）、Agent 的 nomi_try_model（没有项目时付费后失败）"
+  ],
+  "scope_paths": [
+    "electron/audioTaskRunner.ts",
+    "electron/runtime.ts",
+    "electron/tasks/projectFileResult.ts",
+    "electron/assets/localFileImport.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/assets/generatedAssetStaging.ts",
+    "electron/assets/assetsIpc.ts",
+    "electron/capabilityCore/modelOnboarding/tryModel.ts",
+    "electron/desktopStrings.ts"
+  ],
+  "entry_points": [
+    "electron/runtime.ts runTask → 同步音频分支 → electron/audioTaskRunner.ts runAudioTask（画布节点、nomi:tasks:run 共用）",
+    "electron/capabilityCore/modelOnboarding/tryModel.ts tryModel → runTask（Agent 的 nomi_try_model，没有项目号）",
+    "electron/assets/assetsIpc.ts nomi:assets:import-file → importLocalFile（渲染层载荷，不过类型系统）",
+    "electron/assets/assetsIpc.ts nomi:assets:import-remote-url → importRemoteAsset（渲染层载荷，不过类型系统）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/reference/resources/audio/subresources/speech/methods/create",
+      "checked_at": "2026-11-07",
+      "purpose": "OpenAI 的 /v1/audio/speech 直接回音频文件内容（application/octet-stream），没有可以先交回的地址：结果只能写成文件，没有项目就无处可放"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://elevenlabs.io/docs/api-reference/text-to-speech/convert",
+      "checked_at": "2026-11-07",
+      "purpose": "ElevenLabs 文本转语音同样直接回音频文件（File download），确认这是同步配音的通用形状，不是某一家的特例"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/",
+      "checked_at": "2026-11-07",
+      "purpose": "把检查放在边界、用类型表达不变量让非法状态写不出来：决定把「生成产物必须带期望类型」做进门的类型，而不是只靠付费之后的运行时检查"
+    }
+  ],
+  "invariants": [
+    "生成产物（meta kind generated，不分大小写）只能经 writeGeneratedAsset / writeGeneratedDeterministicAsset / copyAssetFile / importRemoteAsset 并带上期望类型落盘。主进程里写不出来（类型）的范围：writeGeneratedAsset / writeGeneratedDeterministicAsset 期望类型必填；copyAssetFile 是配对重载——生成产物 kind 写死 \"generated\" 配非空期望类型，用户的东西 kind 必须写明（字面量或 checkedUserAssetKind 核过的值）配 null，「generated + null」「generated + 可能为 null」「JsonRecord 当 meta」「随手一个 string 当 kind」都编不过；storeAssetBytes 收回素材模块、不导出（runtime.ts 也不再转出），模块外的字节只有 writeGeneratedAsset（生成产物）和 writeAsset（用户的东西，本身也拒生成产物）；importLocalFile 的 kind 写字面量 generated 或随手一个 string 编不过。只在运行时查的：素材模块内部 kind 来自数据的两处（跨项目复制读 sidecar、nomi-local 引用）、importLocalFile 收到带索引签名的 JsonRecord 展开载荷、渲染层经 IPC 送来的载荷——都在落盘关口或入口当场拒，不落盘",
+    "importRemoteAsset 在类型上不允许 kind generated（或省略 kind）而不带期望类型；用户的东西 kind 必须是字面量或核过的值",
+    "结果只能写成项目文件的任务（同步回字节的音频、mapping.result.mediaResponse 的视频）没有项目号时，在付费闸之前拒：不发请求、不扣令牌、不弹付费卡；判据只有 resultOnlyLandsAsProjectFile 一处，runTask 与 tryModel 都问它",
+    "每一种同步回字节的音频任务（内置目录里的每一格 × 每种响应形状）带项目号时真的走过落盘关口并落成项目里的音频文件"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/assets/assetsIpc.ts",
+      "symbol": "importLocalFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileCopy.ts",
+      "symbol": "importLocalFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/core.ts",
+      "symbol": "importLocalFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "generatedExpectation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "writeGeneratedAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "resultOnlyLandsAsProjectFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "resultOnlyLandsAsProjectFile"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "NotGeneratedKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "NotGeneratedKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "UserAssetMeta"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "checkedUserAssetKind"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 11,
+    "why_not": "importLocalFile 的三扇门（IPC 导入、本地文件拷贝、MCP 导入）都是用户文件，职责就是收用户的文件，留下；这次把生成产物从这扇门上移走（audioTaskRunner 原来的两处 importLocalFile 改成 writeGeneratedAsset），并让这扇门在类型（NotGeneratedKind，用户文件的门和远程取回的门各读一次）和运行时都不收生成产物。generatedExpectation 只有一处，是落盘关口本身。「没地方放就别花钱」原来只是 runtime.ts 里给文件流视频的一行、tryModel 里没有，现在两扇门（runTask、tryModel）问同一个判据 resultOnlyLandsAsProjectFile——入口本来就是两个，不能合并成一个。门数没减，但「生成产物走用户文件的门」和「没项目也先付费」这两条路被关死了。复盘必改 ① 之后多记两扇读门：copyAssetFile 的配对类型（UserAssetMeta / GeneratedAssetMeta，projectAssetStore 读）和 checkedUserAssetKind（localFileImport 入口把渲染层的 kind 解析一次）——它们是类型面，不是新的写入路径；同时 storeAssetBytes 从模块外的写入口里删掉了（localFileImport 改调 writeAsset，runtime.ts 不再转出），door-map storeAssetBytes 只剩 projectAssetStore 自己。"
+  },
+  "generality_proof": "两层同时收口：①写入层——用户文件的门在类型上不收 kind generated（NotGeneratedKind，也不收随手一个 string），远程取回的门在类型上要求 generated 带期望类型，拷文件的门（copyAssetFile）meta 与期望类型成对重载，字节的「kind 不定」入口（storeAssetBytes）不出素材模块，渲染层经 IPC 来的载荷在运行时同样拒，所以任何新的生成产物调用者要么带期望类型走生成的门、要么编译不过；②花钱层——「结果只能是项目文件」只有 resultOnlyLandsAsProjectFile 一个判据，runTask（画布、tasks:run）和 tryModel 都在发请求之前问它，新加的同步音频模型或文件流视频自动被覆盖。syncBytesResultLandsInProject.test.ts 从真实内置目录枚举每一格同步回字节的音频任务，用真 WAV / MP3 字节走真落盘关口，新加的模型、新的响应形状进来都会被跑到；没项目的那一组对三个入口逐一断言 0 个请求、令牌不扣、不弹卡。",
+  "shared_boundaries": [
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "importLocalFile",
+      "responsibility": "用户文件的门：类型上不收 kind generated，运行时对渲染层载荷同样拒（local_file_import_refuses_generated_output）。"
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "RemoteAssetImportPayload",
+      "responsibility": "远程取回的门：kind generated（或省略）必须带期望类型，编译期就写不出不带的。"
+    },
+    {
+      "path": "electron/tasks/projectFileResult.ts",
+      "symbol": "resultOnlyLandsAsProjectFile",
+      "responsibility": "「这次的结果只能写成项目文件吗」的唯一判据；runTask 与 tryModel 在付费前都问它。"
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "copyAssetFile",
+      "responsibility": "拷文件的门：meta 与期望类型成对重载（生成产物配非空期望类型，用户的东西写明 kind 配 null），生成产物不带期望类型编译不过；storeAssetBytes 只在本模块里用、不导出。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/audioTaskRunner.ts",
+      "entry_point": "runTextToSpeech / runDoubaoUnidirectionalTts",
+      "disposition": "enforced",
+      "evidence": "两处保存改成 writeGeneratedAsset(…, \"audio\")；syncBytesResultLandsInProject.test.ts 对内置目录每一格同步配音走真落盘关口。"
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "runTask",
+      "disposition": "enforced",
+      "evidence": "同步音频分支之前问 resultOnlyLandsAsProjectFile，没项目号就在付费闸前拒；原来只给文件流视频的那句英文拒绝同提交删除，并进同一判据。"
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "entry_point": "tryModel",
+      "disposition": "enforced",
+      "evidence": "在认领试用单、铸令牌 / 弹卡之前问 resultOnlyLandsAsProjectFile，回 needs_input 并告诉宿主到项目画布上试；矩阵断言 0 个请求、不开单、不弹卡。"
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "entry_point": "materializeProfileMediaResult（copyAssetFile）",
+      "disposition": "enforced",
+      "evidence": "文件流视频已传 expectedKind \"video\"，配对重载下 generated 不带期望类型编译不过；没项目号原来就在这里抛，现在更早在 runTask 付费前拒。"
+    },
+    {
+      "path": "electron/assets/localizeTaskAsset.ts",
+      "entry_point": "localizeTaskAsset（importRemoteAsset）",
+      "disposition": "enforced",
+      "evidence": "kind generated 时传 expectedKind: type；新的 RemoteAssetImportPayload 类型下不带就编译不过。"
+    },
+    {
+      "path": "electron/assets/localFileCopy.ts",
+      "entry_point": "importLocalFilePaths（importLocalFile）",
+      "disposition": "not-affected",
+      "evidence": "kind upload，是用户文件。"
+    },
+    {
+      "path": "electron/capabilityCore/core.ts",
+      "entry_point": "importProjectAsset（importLocalFile）",
+      "disposition": "not-affected",
+      "evidence": "kind imported，是用户文件。"
+    },
+    {
+      "path": "electron/connectors/tikhubConnectorService.ts",
+      "entry_point": "TikHub 参考取回（importRemoteAsset）",
+      "disposition": "not-affected",
+      "evidence": "kind reference、expectedKind null，不是生成产物。"
+    },
+    {
+      "path": "electron/catalog/customCallDispatch.ts",
+      "entry_point": "saveFile（同步 writeAsset）",
+      "disposition": "not-affected",
+      "evidence": "同类、受影响、本次延后（disposition 只能填 enforced / not-affected，校验器还没有「延后」这一档，已交协调排；这里的 not-affected 不表示不受影响）。同类：自定义调用脚本的结果也只能写成项目文件，saveFile 用同步 writeAsset 写供应商字节，记 kind 为任务种类、不经落盘关口的字节 / 解码校验（脚本把 PNG 当视频交回会当视频落盘）；没项目号时付费闸先放行，到 uniqueAssetPath 才抛 Project not found，先花钱后失败。延后的理由：要改的是自定义调用这条执行路（saveFile 改走 writeGeneratedAsset、付费前问 resultOnlyLandsAsProjectFile），行为会变（与任务种类不符的字节改为被拒），不在本次配音修复的范围；计划表行由协调登记在 A4d 下，见 residual_risks。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新的生成产物调用者（新的同步音频供应商、新的后处理）都可能再拿用户文件的门或不带期望类型的远程门落盘；任何新的「结果只能是文件」的任务都可能在没项目时先花钱。这一类会从新供应商、新响应形状、新入口回来。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs importLocalFile → 3 扇（assetsIpc、localFileCopy、core.ts），都是用户文件；audioTaskRunner 原来的两处已改走 writeGeneratedAsset",
+      "node scripts/door-map.mjs generatedExpectation → 1 扇（projectAssetStore.ts，落盘关口本身）",
+      "node scripts/door-map.mjs writeGeneratedAsset → 8 扇，全部传了期望类型（截图、深度视频、抽帧、合成、裁剪、配音）",
+      "node scripts/door-map.mjs importRemoteAsset → 3 扇：assetsIpc（渲染层，运行时关口）、localizeTaskAsset（generated + expectedKind）、tikhubConnectorService（reference）",
+      "node scripts/door-map.mjs copyAssetFile → localFileImport（用户文件，kind 经 checkedUserAssetKind、传 null）、projectAssetStore（模块内 kind 来自数据的两处改走私有的 copyAssetFileByMeta）、generationOutputMaterializer（generated + video）；全部过配对重载",
+      "grep usesSynchronousAudioRunner / mediaResponse：runtime.ts 与 tryModel.ts 都改问 resultOnlyLandsAsProjectFile",
+      "node scripts/door-map.mjs storeAssetBytes → 只剩 projectAssetStore.ts 自己（importRemoteAssetToStore 两处）；localFileImport 改调 writeAsset，runtime.ts 不再转出",
+      "grep -n \"projectId\" electron/catalog/customCallDispatch.ts electron/catalog/processOperation.ts → 自定义调用 saveFile、进程类本地下载两处没有付费前的项目号判据：同类，本次延后（residual_risks）"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/assets/localFileImport.ts",
+    "invariant": "生成产物写不进用户文件的门、写不出不带期望类型的远程取回；结果只能是项目文件的任务没项目号不发请求。",
+    "failure_mode": "主进程里把 kind generated（或随手一个 string）交给 importLocalFile、importRemoteAsset 的 generated 不带期望类型、copyAssetFile 写 generated + null / 可空期望类型 / JsonRecord meta、模块外调 storeAssetBytes → tsc 报错（typecheck 含测试里的 @ts-expect-error，check:test-types 钉住）；渲染层送来同样的载荷 → 运行时 local_file_import_refuses_generated_output / generated_output_expected_kind_required，不落盘；没项目号 → tasks.resultNeedsProject，在付费闸之前，0 个请求。",
+    "exception_policy": "none",
+    "strategy": "把「生成产物要说清要哪一类」从付费之后的运行时检查前移到门的类型上，并把「没地方放就别花钱」收成一个判据放在 runTask / tryModel 的付费闸之前；矩阵测试从真实内置目录枚举，新模型自动进矩阵。",
+    "artifacts": [
+      "electron/assets/localFileImport.ts",
+      "electron/assets/projectAssetStore.ts",
+      "electron/assets/generatedAssetStaging.ts",
+      "electron/tasks/projectFileResult.ts",
+      "electron/tasks/syncBytesResultLandsInProject.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/tasks/syncBytesResultLandsInProject.test.ts",
+    "electron/catalog/oldUserDubbingLandsAfterUpgrade.test.ts",
+    "electron/assets/generatedOutputKindGate.test.ts",
+    "electron/audioTaskRunner.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/tasks/syncBytesResultLandsInProject.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/audioTaskRunner.ts",
+      "electron/runtime.ts",
+      "electron/assets/localFileImport.ts"
+    ],
+    "rationale": "audioTaskRunner 经 importLocalFile 落生成产物的两处调用、runtime.ts 里只给文件流视频的那句英文「Video file results require a project…」、localFileImport 里传递 expectedKind 的整条管线，都在同提交删除；没有开关、没有兜底、不按扩展名猜类型。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "落盘关口和任务路由都是 Nomi 自己的代码，没有第三方运行时决定这条不变量。",
+    "exit_criteria": []
+  },
+  "migration": "不用迁数据：落盘失败的配音节点上没有写进项目的东西，升级后在同一个节点上点「重新生成」就会再发一次并落盘（oldUserDubbingLandsAfterUpgrade.test.ts 用 v0.24.0 真实目录回放）。已经付掉的那几次费用找不回来，应用里也没有可补存的字节。",
+  "residual_risks": [
+    "类型只拦得住主进程里写死的形状：素材模块内部 kind 来自数据的两处（copyProjectAsset 读 sidecar、importRemoteAsset 的 nomi-local 引用，走私有的 copyAssetFileByMeta）、importLocalFile 收到带索引签名的 JsonRecord 展开载荷（kind 可选，TS 对索引签名放行可选属性）、渲染层经 IPC 来的载荷，都只在运行时查（入口 checkedUserAssetKind / 落盘关口 generatedExpectation），不落盘但不在编译期",
+    "Agent 的 nomi_try_model 暂时不能当场试听配音 / 音乐 / 音效 / 文件流视频：试用不在任何项目里，现在回 needs_input 让用户到项目画布上试；「有项目就落盘成功」由协调单开（plan），不在本次",
+    "同类、受影响、本次延后：electron/catalog/customCallDispatch.ts 的 saveFile 用同步 writeAsset 写供应商字节，kind 记任务种类、不经落盘关口的字节 / 解码校验；没项目号时付费闸先放行、落盘才抛 Project not found，先花钱后失败。后续：saveFile 改走 writeGeneratedAsset（期望类型 = 任务种类）并在付费前问 resultOnlyLandsAsProjectFile；计划表行由协调登记在 A4d 下",
+    "同类、受影响、本次延后：electron/catalog/processOperation.ts（进程类，如即梦 CLI 下载目录）没项目号时静默不导入本地下载的文件（if (input.projectId) 整段跳过），进程照样跑完、钱照样花；有远端地址时还能取回，只有本地文件时结果就丢了。后续与自定义调用同一条：付费前问 resultOnlyLandsAsProjectFile 或同一判据的进程类版本；计划表行由协调登记在 A4d 下",
+    "真付费回放（APIMart nomi-audio 一次）由协调在合入前跑：tests/ux/tts-save-expected-kind-real.paid.mjs；在那之前「真供应商的字节过真落盘关口」只有本地假服务 + 真 WAV / MP3 字节的证据"
+  ],
+  "recurrence_check_on": "2026-12-07",
+  "invariant_owner_layer": {
+    "layer": "electron/assets/localFileImport.ts",
+    "tests": [
+      "electron/assets/generatedOutputKindGate.test.ts",
+      "electron/tasks/syncBytesResultLandsInProject.test.ts"
+    ]
+  }
+}

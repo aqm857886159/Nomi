@@ -343,6 +343,9 @@ importers:
       swr:
         specifier: ^2.4.1
         version: 2.4.1(react@19.3.0)
+      tabbable:
+        specifier: 6.5.0
+        version: 6.5.0
       tailwind-merge:
         specifier: ^2.6.1
         version: 2.6.1
@@ -361,6 +364,9 @@ importers:
       typescript-eslint:
         specifier: ^8.60.1
         version: 8.60.1(eslint@10.4.1(jiti@1.21.7))(typescript@5.9.3)
+      use-stick-to-bottom:
+        specifier: 1.1.6
+        version: 1.1.6(react@19.3.0)
       use-sync-external-store:
         specifier: 1.6.0
         version: 1.6.0(react@19.3.0)
@@ -6716,6 +6722,11 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  use-stick-to-bottom@1.1.6:
+    resolution: {integrity: sha512-z3Up8jYQGTkUCsGBnwg6/wj70KgXoW5Kz1AAc1j8MtQuYMBo6ZsdhrIXoegxa7gaMMilgQYyTohTrt3p94jHog==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   use-sync-external-store@1.6.0:
     resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
@@ -14272,6 +14283,10 @@ snapshots:
       tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.3.0
+
+  use-stick-to-bottom@1.1.6(react@19.3.0):
+    dependencies:
+      react: 19.3.0
 
   use-sync-external-store@1.6.0(react@19.3.0):
     dependencies:

@@ -21,10 +21,10 @@
 import { formatSize, truncateHead, type AgentHarnessTool, type AgentToolResult } from '@earendil-works/pi-agent-core';
 import { LANE_MODEL_OUTPUT_MAX_BYTES, LANE_MODEL_OUTPUT_MAX_LINES } from '../shared/agentLane/laneContracts.js';
 import {
-  LANE_READ_TOOL_TIMEOUT_MS, laneToolBillable, laneToolModelDescription, laneToolMutates, renderLaneToolFailure,
-  renderLaneToolNextAction, type LaneToolFailureShape,
+  LANE_READ_TOOL_TIMEOUT_MS, laneToolBillable, laneToolModelDescription, laneToolMutates, laneToolPublicFailure, renderLaneToolFailure,
+  renderLaneToolNextAction, toolArgumentsRejected, type LaneToolFailureShape,
 } from '../shared/agentLane/laneToolContract.js';
-import { argumentFailure } from '../shared/agentLane/laneArgumentFailure.js';
+import { issuesFromZod } from '../shared/agentLane/toolInputIssues.js';
 import type { LaneToolPublicFailure } from '../shared/agentLane/laneToolFailureEnvelope.js';
 import { VERB_EFFECTS } from '../shared/agentCapabilities/verbDeclaration.js';
 import type { LaneApprovalDecision } from '../shared/agentLane/laneContracts.js';
@@ -57,12 +57,7 @@ class LaneToolFailure extends Error {}
 const pendingToolFailures = new Map<string, LaneToolPublicFailure>()
 
 function rememberToolFailure(toolCallId: string, failure: LaneToolFailureShape): void {
-  pendingToolFailures.set(toolCallId, {
-    code: failure.code,
-    ...(failure.allowed ? { allowed: failure.allowed } : {}),
-    ...(failure.issues ? { issues: failure.issues } : {}),
-    ...(failure.useInstead ? { useInstead: failure.useInstead } : {}),
-  })
+  pendingToolFailures.set(toolCallId, laneToolPublicFailure(failure))
 }
 
 
@@ -201,13 +196,14 @@ export function createLaneTools(
       );
     }
     names.add(descriptor.name);
+    const parameters = toModelVisibleSchema(descriptor.schema, { toolName: descriptor.name });
     const tool: AgentHarnessTool<undefined> = {
       name: descriptor.name,
       label: descriptor.name,
       // 模型读到的是「说明 + 示例块」。示例的 token 成本远低于一次失败重试——
       // #547 的数据说零示例的工具在复杂参数上就是填不对（35/35 零示例）。
       description: laneToolModelDescription(descriptor),
-      parameters: toModelVisibleSchema(descriptor.schema, { toolName: descriptor.name }),
+      parameters,
       // 并行/串行**从同一个副作用声明派生**，和 `replay` 同一个派生点：写操作必须一个一个来
       // （两次并发写同一张画布必冲突），而读没有理由串行——「读画布 + 读时间轴 + 读文稿」
       // 这类扇出串起来就是白等三倍。上一版对**每一个**工具硬写 `'sequential'`，那是
@@ -232,10 +228,11 @@ export function createLaneTools(
         const outer = context.abortSignal ?? new AbortController().signal;
         outer.throwIfAborted();
         // 契约自己的那一次 parse（文件头部说明了为什么它必须在这里、且只在这里）。
-        // 失败按 §3.3 的形状 throw：字段名 + 类型名 + 合法值 + 下一步，不回传值。
+        // 失败走入参拒收的唯一构造点（`toolArgumentsRejected`）：字段路径 + 合法值 / 近似键 + 一个对的例子。
         const bound = descriptor.schema.safeParse(params);
         if (!bound.success) {
-          const failure = argumentFailure(descriptor.name, params, bound.error);
+          const failure = toolArgumentsRejected(descriptor.name,
+            issuesFromZod(bound.error.issues, params, parameters), descriptor.examples[0]?.arguments);
           rememberToolFailure(toolCallId, failure);
           throw new LaneToolFailure(renderLaneToolFailure(failure));
         }

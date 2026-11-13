@@ -5,7 +5,7 @@ import path from 'node:path'
 import { expect, clickOrFail, proveProbe, expectAbsent, waitForVisualQuiescence } from './_assert.mjs'
 import { canvasAddBar, canvasAddMoreMenu, canvasFitView, canvasZoomPercent, canvasZoomStep, collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
 import { createRuntimeWalk, CREATION_PANEL, CANVAS_PANEL, COMPOSER, COMPOSER_INPUT, openCanvas,
-  recorded, waitForV4TurnIdle, chooseAssistantModel, readProject } from './agent-runtime-walk-support.mjs'
+  recorded, clearComposerText, waitForV4TurnIdle, chooseAssistantModel, readProject } from './agent-runtime-walk-support.mjs'
 import { readLaneTranscripts } from './agent-lane-observer.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 
@@ -59,7 +59,7 @@ try {
   const small=await composer.evaluate(el=>el.getBoundingClientRect().height)
   await input.fill(Array.from({length:35},(_,i)=>`Line ${i}: a real paragraph`).join('\n'))
   await expect.poll(()=>composer.evaluate(el=>el.getBoundingClientRect().height)).toBeGreaterThan(small)
-  await input.fill('')
+  await clearComposerText(input)
   await expect.poll(()=>composer.evaluate(el=>el.getBoundingClientRect().height), {message:'board:ReferenceEntry/agent.height.shrinks'}).toBeLessThanOrEqual(small+2)
   await input.pressSequentially('@frame-current')
   await expect(win.locator('[data-mention-list]'), 'board:ReferenceEntry/agent.at.search').toBeVisible()

@@ -1,0 +1,356 @@
+[
+  {
+    "post_id": "2119151022014894260",
+    "url": "https://x.com/kaolti/status/2119151022014894260",
+    "author_handle": "kaolti",
+    "created_at": "2026-11-08T03:32:30+08:00",
+    "exact_source_text": "Clicking this is almost more fun than building it. https://t.co/zgO7VsLQCs",
+    "verified_excerpt": null,
+    "source_text_completeness": "complete_as_returned",
+    "media_urls": [
+      {
+        "type": "video",
+        "url": "https://video.twimg.com/amplify_video/2119150610591207424/vid/avc1/958x720/3Nqdkkcj_2jBsHO2.mp4",
+        "review_status": "not_independently_watched"
+      },
+      {
+        "type": "video_static_cover",
+        "url": "https://pbs.twimg.com/amplify_video_thumb/2119150610591207424/img/OgjiPFhxWywasuyL.jpg",
+        "review_status": "static_cover_reviewed"
+      }
+    ],
+    "design_category": "click-feedback",
+    "tags": [
+      "click-feedback",
+      "design-case"
+    ],
+    "source_claims": [
+      "Author describes clicking as enjoyable."
+    ],
+    "visual_evidence_scope": "static_cover_reviewed; video_not_independently_watched",
+    "static_visual_observations": "Dark capsule-like control, moon icon, localized blue-purple glow.",
+    "interpretation": "A coherent control object can make state changes legible.",
+    "potential_application_hypothesis": "Test immediate press feedback and continuous state transition on a suitable control.",
+    "production_caveats": [
+      "Provide explicit state, keyboard operation, and interruption during rapid reversal."
+    ],
+    "relevance_rationale": "Direct reference for click feedback."
+  },
+  {
+    "post_id": "2115124301061898265",
+    "url": "https://x.com/kaolti/status/2115124301061898265",
+    "author_handle": "kaolti",
+    "created_at": "2026-10-28T00:51:45+08:00",
+    "exact_source_text": "Hero for an analytics product.\nSwitch the metric and the mountain rebuilds.\nThree.js. https://t.co/XniwvWLzBh",
+    "verified_excerpt": null,
+    "source_text_completeness": "complete_as_returned",
+    "media_urls": [
+      {
+        "type": "video",
+        "url": "https://video.twimg.com/amplify_video/2115123039813730304/vid/avc1/958x720/0l3Re6Cgp_SavrDT.mp4",
+        "review_status": "not_independently_watched"
+      },
+      {
+        "type": "video_static_cover",
+        "url": "https://pbs.twimg.com/amplify_video_thumb/2115123039813730304/img/9GTxQ1ZGcijREGje.jpg",
+        "review_status": "static_cover_reviewed"
+      }
+    ],
+    "design_category": "metric-transition",
+    "tags": [
+      "metric-transition",
+      "design-case"
+    ],
+    "source_claims": [
+      "Author says metric selection rebuilds the mountain and names Three.js."
+    ],
+    "visual_evidence_scope": "static_cover_reviewed; video_not_independently_watched",
+    "static_visual_observations": "Mountain and water scene on a product hero.",
+    "interpretation": "An abstract selection can have a causally related visual response.",
+    "potential_application_hypothesis": "Explore linked selection/result feedback where it improves comprehension.",
+    "production_caveats": [
+      "Do not substitute a metaphor for precise values; retain units and comparison context; newer selections should supersede old transitions."
+    ],
+    "relevance_rationale": "Explicit trigger and response in source text."
+  },
+  {
+    "post_id": "2114297579139633651",
+    "url": "https://x.com/kaolti/status/2114297579139633651",
+    "author_handle": "kaolti",
+    "created_at": "2026-10-25T18:06:39+08:00",
+    "exact_source_text": "Visualizing permanent storage across multiple VPS boxes. https://t.co/MIsLQiHwCd",
+    "verified_excerpt": null,
+    "source_text_completeness": "complete_as_returned",
+    "media_urls": [
+      {
+        "type": "video",
+        "url": "https://video.twimg.com/amplify_video/2114296740476047360/vid/avc1/960x720/H0yXifnVAU-YpDKK.mp4",
+        "review_status": "not_independently_watched"
+      },
+      {
+        "type": "video_static_cover",
+        "url": "https://pbs.twimg.com/amplify_video_thumb/2114296740476047360/img/-v5-K2vclFKJLnBv.jpg",
+        "review_status": "static_cover_reviewed"
+      }
+    ],
+    "design_category": "system-visualization",
+    "tags": [
+      "system-visualization",
+      "design-case"
+    ],
+    "source_claims": [
+      "Author describes permanent storage across multiple VPS boxes."
+    ],
+    "visual_evidence_scope": "static_cover_reviewed; video_not_independently_watched",
+    "static_visual_observations": "Retro terminal-like object and rear cards against a light background.",
+    "interpretation": "Objects and containers can explain otherwise invisible system concepts.",
+    "potential_application_hypothesis": "Evaluate an object-based explanation of real system states.",
+    "production_caveats": [
+      "Only real confirmed state may imply persistence or synchronization; include textual status and failure recovery."
+    ],
+    "relevance_rationale": "Example of translating infrastructure into a visual metaphor."
+  },
+  {
+    "post_id": "2112661822285443539",
+    "url": "https://x.com/kaolti/status/2112661822285443539",
+    "author_handle": "kaolti",
+    "created_at": "2026-10-21T05:46:44+08:00",
+    "exact_source_text": "Hero concept for an AI memory app.\nNot a video, interactive 3d.\n\nTry it here:\nhttps://t.co/gQ3XrMiAes https://t.co/3LeL484pwO",
+    "verified_excerpt": null,
+    "source_text_completeness": "complete_as_returned",
+    "media_urls": [
+      {
+        "type": "video",
+        "url": "https://video.twimg.com/amplify_video/2112660098690510849/vid/avc1/960x720/URD4oIcPwVtfQbwx.mp4",
+        "review_status": "not_independently_watched"
+      },
+      {
+        "type": "video_static_cover",
+        "url": "https://pbs.twimg.com/amplify_video_thumb/2112660098690510849/img/9W3LcEGsv-W5eXno.jpg",
+        "review_status": "static_cover_reviewed"
+      }
+    ],
+    "design_category": "brand-metaphor",
+    "tags": [
+      "brand-metaphor",
+      "design-case"
+    ],
+    "source_claims": [
+      "Author calls this an AI memory app hero with interactive 3D, rather than a prerecorded page element."
+    ],
+    "visual_evidence_scope": "static_cover_reviewed; video_not_independently_watched",
+    "static_visual_observations": "Dissolving-looking human figure and headline: Most of today is already gone.",
+    "interpretation": "Visual metaphor can communicate a value proposition before feature detail.",
+    "potential_application_hypothesis": "First define intended emotional effect, then compare visual metaphors.",
+    "production_caveats": [
+      "A dramatic loss metaphor may not fit the product; supply static fallback and avoid imposing spectacle on frequent tasks."
+    ],
+    "relevance_rationale": "Explicit product concept and visual messaging."
+  },
+  {
+    "post_id": "2111575997359513751",
+    "url": "https://x.com/kaolti/status/2111575997359513751",
+    "author_handle": "kaolti",
+    "created_at": "2026-10-18T05:52:03+08:00",
+    "exact_source_text": "A few of you asked if you could buy the glass recorder, so I polished it, here it is:\n\nhttps://t.co/UHUbRLJ7IU https://t.co/e2EvyaMHsx",
+    "verified_excerpt": null,
+    "source_text_completeness": "complete_as_returned",
+    "media_urls": [
+      {
+        "type": "video",
+        "url": "https://video.twimg.com/amplify_video/2111575634849693697/vid/avc1/960x720/O91kCzS5-XyS-ggU.mp4",
+        "review_status": "not_independently_watched"
+      },
+      {
+        "type": "video_static_cover",
+        "url": "https://pbs.twimg.com/amplify_video_thumb/2111575634849693697/img/iWNnhY1ZShhKF3uS.jpg",
+        "review_status": "static_cover_reviewed"
+      }
+    ],
+    "design_category": "recording-control",
+    "tags": [
+      "recording-control",
+      "design-case"
+    ],
+    "source_claims": [
+      "Author says the glass recorder was polished after purchase interest."
+    ],
+    "visual_evidence_scope": "static_cover_reviewed; video_not_independently_watched",
+    "static_visual_observations": "Glasslike capsule, microphone icon and timer digits.",
+    "interpretation": "A single recognizable object can group task-relevant controls and status.",
+    "potential_application_hypothesis": "Prototype a complete task-state control before refining its surface treatment.",
+    "production_caveats": [
+      "Cover permission, recording, pause, save and failure states; distinguish cancel from stop and save; ensure contrast and non-color status."
+    ],
+    "relevance_rationale": "Compact functional object with status display."
+  },
+  {
+    "post_id": "2110322552841056689",
+    "url": "https://x.com/kaolti/status/2110322552841056689",
+    "author_handle": "kaolti",
+    "created_at": "2026-10-14T18:51:19+08:00",
+    "exact_source_text": "Playing with some elemental cards. https://t.co/dchKiKCMzM",
+    "verified_excerpt": null,
+    "source_text_completeness": "complete_as_returned",
+    "media_urls": [
+      {
+        "type": "video",
+        "url": "https://video.twimg.com/amplify_video/2110322008420503552/vid/avc1/960x720/R04vbccPc09uQRB4.mp4",
+        "review_status": "not_independently_watched"
+      },
+      {
+        "type": "video_static_cover",
+        "url": "https://pbs.twimg.com/amplify_video_thumb/2110322008420503552/img/gbP2uqugvdTNsBHk.jpg",
+        "review_status": "static_cover_reviewed"
+      }
+    ],
+    "design_category": "semantic-options",
+    "tags": [
+      "semantic-options",
+      "design-case"
+    ],
+    "source_claims": [
+      "Author describes elemental cards."
+    ],
+    "visual_evidence_scope": "static_cover_reviewed; video_not_independently_watched",
+    "static_visual_observations": "Three cards labeled Bloom, Ember and Solar; central Ember has flame imagery.",
+    "interpretation": "Names, icons and visual semantics can distinguish choices.",
+    "potential_application_hypothesis": "Compare semantic option treatments without relying on color alone.",
+    "production_caveats": [
+      "Cover does not establish hover or selection triggers; support touch and keyboard equally and use explicit selected state."
+    ],
+    "relevance_rationale": "Useful contrast between semantic differentiation and decorative variation."
+  },
+  {
+    "post_id": "2108870145645134110",
+    "url": "https://x.com/kaolti/status/2108870145645134110",
+    "author_handle": "kaolti",
+    "created_at": "2026-10-10T18:39:58+08:00",
+    "exact_source_text": "Made a stage for picking music visualizers. \n\nEvery visual on that wall is reacting to music live, configured in Transilume, the Mac app I’m building so producers can make visuals for their tracks. https://t.co/RD5hp4piFW",
+    "verified_excerpt": null,
+    "source_text_completeness": "complete_as_returned",
+    "media_urls": [
+      {
+        "type": "video",
+        "url": "https://video.twimg.com/amplify_video/2108869833928364032/vid/avc1/958x720/p8CvKxHDAIZq_QaV.mp4",
+        "review_status": "not_independently_watched"
+      },
+      {
+        "type": "video_static_cover",
+        "url": "https://pbs.twimg.com/amplify_video_thumb/2108869833928364032/img/j1vLBmVTZNl5H_PV.jpg",
+        "review_status": "static_cover_reviewed"
+      }
+    ],
+    "design_category": "live-preview",
+    "tags": [
+      "live-preview",
+      "design-case"
+    ],
+    "source_claims": [
+      "Author says the stage supports selecting music visualizers and the wall visuals react to live music."
+    ],
+    "visual_evidence_scope": "static_cover_reviewed; video_not_independently_watched",
+    "static_visual_observations": "Spatial stage, large display and foreground options.",
+    "interpretation": "When choosing a dynamic output, an actual preview can support the task directly.",
+    "potential_application_hypothesis": "Evaluate reversible previews before applying a choice.",
+    "production_caveats": [
+      "Keep navigation clear; distinguish preview from apply and preserve prior choice on cancellation; evaluate resource use rather than assuming it."
+    ],
+    "relevance_rationale": "Motion here is task content, not just ornament."
+  },
+  {
+    "post_id": "2108667167260500369",
+    "url": "https://x.com/kaolti/status/2108667167260500369",
+    "author_handle": "kaolti",
+    "created_at": "2026-10-10T05:13:24+08:00",
+    "exact_source_text": "Camera zoom and orbit.\nImproved models.\n\nTesla FSD next?\nWill share code if there's interest. https://t.co/AgmG39F6o5 https://t.co/5i4i8cb2m4",
+    "verified_excerpt": null,
+    "source_text_completeness": "complete_as_returned",
+    "media_urls": [
+      {
+        "type": "video",
+        "url": "https://video.twimg.com/amplify_video/2108666552945979392/vid/avc1/958x720/2APatgSeIUUZGK0u.mp4",
+        "review_status": "not_independently_watched"
+      },
+      {
+        "type": "video_static_cover",
+        "url": "https://pbs.twimg.com/amplify_video_thumb/2108666552945979392/img/ILpYQrt1PBnYPYZB.jpg",
+        "review_status": "static_cover_reviewed"
+      }
+    ],
+    "design_category": "spatial-navigation",
+    "tags": [
+      "spatial-navigation",
+      "design-case"
+    ],
+    "source_claims": [
+      "Author explicitly mentions camera zoom, orbit and improved models."
+    ],
+    "visual_evidence_scope": "static_cover_reviewed; video_not_independently_watched",
+    "static_visual_observations": "Road scene, vehicles and a blue spherical grid overlay.",
+    "interpretation": "Changing viewpoint may clarify spatial relationships in a spatial task.",
+    "potential_application_hypothesis": "Use viewpoint changes only where spatial understanding benefits.",
+    "production_caveats": [
+      "Overlay meaning is unverified; provide reset view, non-gesture controls, stable selection and reduced-motion alternatives."
+    ],
+    "relevance_rationale": "Concrete camera-navigation concept; related earlier version is not counted separately."
+  },
+  {
+    "post_id": "2116157482066190678",
+    "url": "https://x.com/kaolti/status/2116157482066190678",
+    "author_handle": "kaolti",
+    "created_at": "2026-10-30T21:17:14+08:00",
+    "exact_source_text": "This is what clients get.\n\nNo static images.\nInteractive, animated, live previews. https://t.co/XQ9h4aDs1o",
+    "verified_excerpt": null,
+    "source_text_completeness": "complete_as_returned",
+    "media_urls": [
+      {
+        "type": "video",
+        "url": "https://video.twimg.com/amplify_video/2116154709127880704/vid/avc1/1278x720/i-OIQ1M8Bub5WtGO.mp4",
+        "review_status": "not_independently_watched"
+      }
+    ],
+    "design_category": "process-live-prototypes",
+    "tags": [
+      "process-live-prototypes",
+      "process-statement"
+    ],
+    "source_claims": [
+      "Author describes delivery as interactive, animated live previews, not static images."
+    ],
+    "visual_evidence_scope": "no_visual_review",
+    "static_visual_observations": null,
+    "interpretation": "Reviewing a working experience can reveal behavior absent from a screenshot.",
+    "potential_application_hypothesis": "Require an operable prototype and edge-case walkthrough in AI design review.",
+    "production_caveats": [
+      "Live previews do not establish production readiness or accessibility."
+    ],
+    "relevance_rationale": "Direct process statement about deliverable format."
+  },
+  {
+    "post_id": "2117611429771571573",
+    "url": "https://x.com/kaolti/status/2117611429771571573",
+    "author_handle": "kaolti",
+    "created_at": "2026-11-03T21:34:42+08:00",
+    "exact_source_text": null,
+    "verified_excerpt": "→ You bring the problems to solve\n→ I explore solutions built around your brand",
+    "source_text_completeness": "truncated_in_source_result",
+    "media_urls": [],
+    "design_category": "process-brand-first",
+    "tags": [
+      "process-brand-first",
+      "process-statement"
+    ],
+    "source_claims": [
+      "Visible text says clients bring problems and the author explores solutions around their brand."
+    ],
+    "visual_evidence_scope": "no_visual_review",
+    "static_visual_observations": null,
+    "interpretation": "Start from problems and brand constraints rather than a list of effects.",
+    "potential_application_hypothesis": "Ask AI to define user task and brand intent before proposing interaction treatments.",
+    "production_caveats": [
+      "Returned source is truncated; do not infer subsequent steps or a complete engagement process."
+    ],
+    "relevance_rationale": "Direct problem-first and brand-first process evidence."
+  }
+]

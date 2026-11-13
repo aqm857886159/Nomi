@@ -8,32 +8,32 @@ export function latestJob(run: ProductionRun): ProductionJob | undefined {
   return [...run.jobs].sort((left, right) => right.attempt - left.attempt)[0];
 }
 
-export function readyArtifact(run: ProductionRun, job: ProductionJob): ProductionArtifact | undefined {
-  return run.artifacts.find(
+/** 这笔作业账上的全部产物（一次出几张就几张，按落账顺序 = 上游交回的顺序）。 */
+export function readyArtifacts(run: ProductionRun, job: ProductionJob): ProductionArtifact[] {
+  return run.artifacts.filter(
     (artifact) => artifact.jobId === job.jobId && ["ready", "adopted"].includes(artifact.status),
   );
 }
 
-/** 从 Run 账本复原「出片了」那一份结果（重开项目、观察者已经收完时用；与画布那台落地的是同一个本地文件）。 */
-export function resultFromArtifact(
+/**
+ * 从 Run 账本复原「出片了」那一份结果（重开项目、观察者已经收完时用；与画布那台落地的是同一批本地文件）。
+ * 这笔作业的每一份产物都在里面——渲染层按同一个口径把它们各落成一个版本。
+ */
+export function resultFromArtifacts(
   run: ProductionRun,
   job: ProductionJob,
-  artifact: ProductionArtifact,
+  artifacts: readonly [ProductionArtifact, ...ProductionArtifact[]],
   kind: string,
 ): CanvasTaskResult {
-  const assetType =
-    artifact.kind === "video" || artifact.kind === "audio" || artifact.kind === "model3d" ? artifact.kind : "image";
   return {
     id: job.providerTaskId ?? job.jobId,
     kind,
     status: "succeeded",
-    assets: [
-      {
-        type: assetType,
-        url: localAssetUrl(run.projectId, artifact.projectRelativePath ?? ""),
-        ...(artifact.width && artifact.height ? { width: artifact.width, height: artifact.height } : {}),
-      },
-    ],
+    assets: artifacts.map((artifact) => ({
+      type: artifact.kind === "video" || artifact.kind === "audio" || artifact.kind === "model3d" ? artifact.kind : "image",
+      url: localAssetUrl(run.projectId, artifact.projectRelativePath ?? ""),
+      ...(artifact.width && artifact.height ? { width: artifact.width, height: artifact.height } : {}),
+    })),
     raw: {},
   };
 }

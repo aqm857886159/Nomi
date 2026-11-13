@@ -1,0 +1,168 @@
+{
+  "version": 3,
+  "operations": [
+    {
+      "version": 3,
+      "revision": 15,
+      "runId": "run-rel-1",
+      "contractDigest": "e406df76f0af39b670310ce80b18fb32cb65dd7b3ec03b707c31d887dc07ddff",
+      "idempotencyHash": "a3a552b40fa45db8909ffe47cddf0e3d34b0f48b20e63d0ced3cdbf21514d26c",
+      "lineageRootVendorKey": "local-39017",
+      "lease": {
+        "ownerId": "run-rel-1",
+        "token": "532560dc-a2f8-4c24-9bf1-bb8504d2e49a"
+      },
+      "attempt": 1,
+      "checkpoint": "finalized",
+      "providerIdempotency": "unknown",
+      "submissionState": "settled",
+      "artifactEvidence": [],
+      "modeOperationKeys": {
+        "a0474a043f707b019bce457f25c7efa44f4dc20c6cad06d894604a420c70d660": {
+          "version": 1,
+          "modelKey": "opaque-image-x",
+          "taskKind": "text_to_image",
+          "latestAttempt": 1,
+          "operationKey": "ce439c0856f00cd2068b0352b077345e4531e6f1431628eab3b491c2f86b4138"
+        },
+        "5f5720b8cc4ff68821c537c95026afeea4230df0341d4a41e84eb6393225dd91": {
+          "version": 1,
+          "modelKey": "opaque-image-x",
+          "taskKind": "image_edit",
+          "latestAttempt": 1,
+          "operationKey": "83c576a2430c6275e7c3573df994a4ea965bb8567248ddc07aac47ac02b82683"
+        },
+        "add6f21720e63efea22701460a1fea4df67e8fedeee95f71bcd61ebf931e388f": {
+          "version": 1,
+          "modelKey": "gpt-image-2",
+          "taskKind": "text_to_image",
+          "latestAttempt": 1,
+          "operationKey": "f34e4d155516421b92d8e4febe8da8d298c8a2d38ff187eb5e1befe880cd9e25"
+        },
+        "15dab6069270239b44af596f4c658e23856f2c0f1ad5188db87fe122845a2a1e": {
+          "version": 1,
+          "modelKey": "gpt-image-2",
+          "taskKind": "image_edit",
+          "latestAttempt": 1,
+          "operationKey": "2ab4c4a88c85e9e6e58147e5ba83ae04dc77586d1e72e64557f372f615455221"
+        }
+      },
+      "modeOperations": {
+        "ce439c0856f00cd2068b0352b077345e4531e6f1431628eab3b491c2f86b4138": {
+          "operationKey": "ce439c0856f00cd2068b0352b077345e4531e6f1431628eab3b491c2f86b4138",
+          "modelKey": "opaque-image-x",
+          "taskKind": "text_to_image",
+          "attempt": 1,
+          "checkpoint": "settled",
+          "providerIdempotency": "unknown",
+          "submissionState": "settled",
+          "artifactEvidence": [],
+          "createdAt": "2026-10-20T00:00:00.000Z",
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "settledResult": {
+            "ok": true,
+            "taskKind": "text_to_image"
+          }
+        },
+        "83c576a2430c6275e7c3573df994a4ea965bb8567248ddc07aac47ac02b82683": {
+          "operationKey": "83c576a2430c6275e7c3573df994a4ea965bb8567248ddc07aac47ac02b82683",
+          "modelKey": "opaque-image-x",
+          "taskKind": "image_edit",
+          "attempt": 1,
+          "checkpoint": "settled",
+          "providerIdempotency": "unknown",
+          "submissionState": "settled",
+          "artifactEvidence": [],
+          "createdAt": "2026-10-20T00:00:00.000Z",
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "settledResult": {
+            "ok": true,
+            "taskKind": "image_edit"
+          }
+        },
+        "f34e4d155516421b92d8e4febe8da8d298c8a2d38ff187eb5e1befe880cd9e25": {
+          "operationKey": "f34e4d155516421b92d8e4febe8da8d298c8a2d38ff187eb5e1befe880cd9e25",
+          "modelKey": "gpt-image-2",
+          "taskKind": "text_to_image",
+          "attempt": 1,
+          "checkpoint": "settled",
+          "providerIdempotency": "unknown",
+          "submissionState": "settled",
+          "artifactEvidence": [],
+          "createdAt": "2026-10-20T00:00:00.000Z",
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "settledResult": {
+            "ok": true,
+            "taskKind": "text_to_image"
+          }
+        },
+        "2ab4c4a88c85e9e6e58147e5ba83ae04dc77586d1e72e64557f372f615455221": {
+          "operationKey": "2ab4c4a88c85e9e6e58147e5ba83ae04dc77586d1e72e64557f372f615455221",
+          "modelKey": "gpt-image-2",
+          "taskKind": "image_edit",
+          "attempt": 1,
+          "checkpoint": "settled",
+          "providerIdempotency": "unknown",
+          "submissionState": "settled",
+          "artifactEvidence": [],
+          "createdAt": "2026-10-20T00:00:00.000Z",
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "settledResult": {
+            "ok": true,
+            "taskKind": "image_edit"
+          }
+        }
+      },
+      "startTransaction": {
+        "state": "committed",
+        "sourceVendorKey": "local-39017",
+        "selectedModels": [
+          {
+            "modelKey": "gpt-image-2",
+            "labelZh": "GPT Image 2",
+            "kind": "image"
+          },
+          {
+            "modelKey": "opaque-image-x",
+            "labelZh": "Opaque Image",
+            "kind": "image"
+          },
+          {
+            "modelKey": "veo3.1-fast",
+            "labelZh": "Veo 3.1 Fast",
+            "kind": "video"
+          },
+          {
+            "modelKey": "seedance-2",
+            "labelZh": "Seedance 2",
+            "kind": "video"
+          },
+          {
+            "modelKey": "opaque-video-x",
+            "labelZh": "Opaque Video",
+            "kind": "video"
+          }
+        ],
+        "createdAt": "2026-10-20T00:00:00.000Z",
+        "updatedAt": "2026-10-20T00:00:00.000Z",
+        "stagedVendorKey": "local-39017"
+      },
+      "childRunRef": {
+        "runId": "run-rel-1",
+        "revisionDigest": "e406df76f0af39b670310ce80b18fb32cb65dd7b3ec03b707c31d887dc07ddff"
+      },
+      "createdAt": "2026-10-20T00:00:00.000Z",
+      "updatedAt": "2026-10-20T00:00:00.000Z",
+      "operationKey": "2ab4c4a88c85e9e6e58147e5ba83ae04dc77586d1e72e64557f372f615455221",
+      "settledResult": {
+        "ok": true,
+        "taskKind": "image_edit"
+      },
+      "credentialFingerprint": "f276fedb69edc97035ef8e5af874d132be6cb9efe3edbceed494c30b46cb2140",
+      "catalogIdentityFingerprint": "f666366300c9f880d463fa02dfe32651fe8ea993a680076fae74a74287d0f8d0",
+      "customHeaderIdentityFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ],
+  "tombstones": [],
+  "archives": []
+}

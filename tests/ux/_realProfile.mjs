@@ -29,6 +29,17 @@ const APP_NAME = require('../../package.json').name
 /** 资料目录不在默认位置时（多用户 / 自定义 userData）的唯一覆盖口。 */
 export const REAL_PROFILE_ENV = 'NOMI_REAL_PROFILE_USER_DATA'
 export const REAL_CATALOG_FILE = 'model-catalog.json'
+/**
+ * 隔离目录里落下的「这里装着用户真凭据的副本」标记（seedReal* 写、removeRealCredentials 删）。
+ * 启动器（_launchApp.mjs）看到它就不给 App 套合成凭据后端：密文是真钥匙串加的，换后端必解不开；
+ * 也因此「真资料那条路不带 mock」不靠每条付费走查记得传 false。
+ */
+export const REAL_CREDENTIAL_MARKER = '.nomi-real-credential-copy'
+
+function markRealCredentialCopy(dir) {
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(path.join(dir, REAL_CREDENTIAL_MARKER), 'real credential copy: do not use the synthetic credential backend\n')
+}
 
 /**
  * 真实资料目录在哪、凭据由哪几份文件组成。纯函数（平台 / env / home 可注入），三平台同一份判据：
@@ -59,7 +70,7 @@ function requireFile(file, why) {
 
 /** 把凭据钥匙（Windows 的 Local State）按字节拷进隔离 userData。必须在被测 App 起来**之前**。 */
 export function seedRealCredentialStore(userDataDir, profile = realNomiProfile()) {
-  fs.mkdirSync(userDataDir, { recursive: true })
+  markRealCredentialCopy(userDataDir)
   for (const name of profile.credentialStoreFiles) {
     const from = path.join(profile.userDataDir, name)
     requireFile(from, '没有它，拷过去的 key 密文在这台机器上解不开')
@@ -71,7 +82,7 @@ export function seedRealCredentialStore(userDataDir, profile = realNomiProfile()
 /** 整份真实目录 + 凭据钥匙进隔离副本（隔离 settings 放目录、隔离 userData 放钥匙）。 */
 export function seedRealCredentials({ settingsDir, userDataDir, profile = realNomiProfile() }) {
   requireFile(profile.catalogPath, '被测 App 需要这台机器上已配好的模型与 key')
-  fs.mkdirSync(settingsDir, { recursive: true })
+  markRealCredentialCopy(settingsDir)
   fs.copyFileSync(profile.catalogPath, path.join(settingsDir, REAL_CATALOG_FILE))
   return { catalog: REAL_CATALOG_FILE, credentialStore: seedRealCredentialStore(userDataDir, profile) }
 }
@@ -88,7 +99,11 @@ export function removeRealCredentials({ settingsDir, userDataDir, profile = real
   const catalogFamily = fs.existsSync(settingsDir)
     ? fs.readdirSync(settingsDir).filter((name) => name.startsWith('model-catalog') && name.endsWith('.json')).map((name) => path.join(settingsDir, name))
     : []
-  const files = [...catalogFamily, ...profile.credentialStoreFiles.map((name) => path.join(userDataDir, name))]
+  const files = [
+    ...catalogFamily,
+    ...profile.credentialStoreFiles.map((name) => path.join(userDataDir, name)),
+    path.join(settingsDir, REAL_CREDENTIAL_MARKER), path.join(userDataDir, REAL_CREDENTIAL_MARKER),
+  ]
   for (const file of files) fs.rmSync(file, { force: true })
   return files.every((file) => !fs.existsSync(file))
 }
@@ -99,7 +114,19 @@ export function readRealCatalog(profile = realNomiProfile()) {
 }
 
 /**
- * 把真实目录里**点名的几行**（连同它们的供应商、凭据密文、任务映射）装进一份已存在的隔离目录，
+ * 真实目录被**这个构建**升级之后的样子，只在内存里算，原库一个字节不动。
+ * App 首启会对目录跑一遍内置种子（electron/catalog/catalogStore.ts 的 ensureBuiltinModelSeeds）：
+ * 新版本新加的内置模型连同任务映射，就是这样到老用户手上的。只读原库的话，这个构建新加的模型
+ * 在用户升级之前永远抽不到（2026-11-07：新加的音频模型付费抽检，一分钱没花就停在「真实目录里没有」）。
+ */
+function upgradedByThisBuild(source) {
+  const { require: tsxRequire } = require('tsx/cjs/api')
+  const { applyBuiltinSeeds } = tsxRequire('../../electron/catalog/seedBuiltins.ts', import.meta.url)
+  return applyBuiltinSeeds(structuredClone(source), new Date().toISOString()).state
+}
+
+/**
+ * 把真实目录（按这个构建升级之后的样子）里**点名的几行**（连同它们的供应商、凭据密文、任务映射）装进一份已存在的隔离目录，
  * 并把凭据钥匙带进隔离 userData。同类的其余生成模型一律收起并停用，「新建卡片默认模型」设成被授权的那个：
  * 模型 / 用户在这一场里点谁，都只能点到被授权的那几个，花销可预期（付费走查在花钱前仍逐项核对落点）。
  *
@@ -108,7 +135,9 @@ export function readRealCatalog(profile = realNomiProfile()) {
  * 返回装进去的每一行 `{ vendorKey, modelKey, kind, labelZh }`（走查按真名去选模型，不手抄标签）。
  */
 export function seedRealModels({ settingsDir, userDataDir, models, profile = realNomiProfile() }) {
+  // 供应商与 key 密文只认原库；模型行与任务映射认「被这个构建升级之后」的目录（用户升级后看到的就是它）。
   const source = readRealCatalog(profile)
+  const upgraded = upgradedByThisBuild(source)
   const file = path.join(settingsDir, REAL_CATALOG_FILE)
   const catalog = JSON.parse(fs.readFileSync(file, 'utf8'))
   const now = new Date().toISOString()
@@ -120,9 +149,9 @@ export function seedRealModels({ settingsDir, userDataDir, models, profile = rea
     const credential = source.apiKeysByVendor?.[want.vendorKey]
     if (!vendor) throw new Error(`真实目录里没有供应商 ${want.vendorKey}（${profile.catalogPath}）`)
     if (credential?.enc !== 'safeStorage') throw new Error(`${want.vendorKey} 的凭据不是 safeStorage 密文——明文 key 本仓 fail-closed`)
-    const row = source.models?.find((entry) => entry.vendorKey === want.vendorKey && entry.modelKey === want.modelKey)
-    if (!row) throw new Error(`真实目录里没有 ${identity}`)
-    const mappings = (source.mappings ?? []).filter((entry) => entry.vendorKey === want.vendorKey && entry.modelKey === want.modelKey)
+    const row = upgraded.models?.find((entry) => entry.vendorKey === want.vendorKey && entry.modelKey === want.modelKey)
+    if (!row) throw new Error(`真实目录里没有 ${identity}，这个构建的内置目录里也没有`)
+    const mappings = (upgraded.mappings ?? []).filter((entry) => entry.vendorKey === want.vendorKey && entry.modelKey === want.modelKey)
     if (row.kind !== 'text' && mappings.length === 0) throw new Error(`真实目录里没有 ${identity} 的任务映射`)
     if (!catalog.vendors.some((entry) => entry.key === vendor.key)) catalog.vendors.push({ ...vendor, enabled: true })
     catalog.apiKeysByVendor = { ...catalog.apiKeysByVendor, [want.vendorKey]: credential }
@@ -140,6 +169,7 @@ export function seedRealModels({ settingsDir, userDataDir, models, profile = rea
     model.published = false
     model.enabled = false
   }
+  markRealCredentialCopy(settingsDir)
   fs.writeFileSync(file, `${JSON.stringify(catalog, null, 2)}\n`)
   // 「新建卡片默认模型」就是被授权的那一个（用户在设置里就是这么设的；electron/settings/generationModelDefaultsContract.ts）。
   // 缺了它，新卡按「池子里第一个健康的」挑——App 首启补进来的内置同类模型也在池子里，挑中谁不由走查说了算。

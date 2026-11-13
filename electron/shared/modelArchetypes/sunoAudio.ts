@@ -120,3 +120,25 @@ export const SUNO_SFX_V55_ARCHETYPE: ModelArchetype = {
     },
   ],
 };
+
+/** Current basic modes only: legacy KIE upload/cover operations are not V6 declarations. */
+export const SUNO_V6_ARCHETYPES: ModelArchetype[] = ["v6", "v6-wild", "v6-mini"].flatMap((version) => [
+  {
+    id: `suno-${version}`, family: "suno", label: `Suno ${version.toUpperCase()}`,
+    kind: "audio" as const, defaultModeId: "music", transportTaskKind: "text_to_audio" as const,
+    identifierPatterns: [`suno-${version}`],
+    sources: [{ url: "https://docs.apimart.ai/en/api-reference/audios/suno/generation.md", checkedAt: "2026-11-07", vendorKey: "apimart", covers: "Basic inspiration mode, explicit V6 version, instrumental; shared async music task result." }],
+    modes: [{
+      id: "music", intent: "text" as const, vendorTerm: "音乐生成", hint: "用描述生成完整音乐",
+      promptRequired: true, slots: [],
+      params: [{ key: "instrumental", label: "纯音乐", type: "boolean" as const, options: [], defaultValue: false }],
+    }],
+  },
+  {
+    id: `suno-sfx-${version}`, family: "suno-sfx", label: `Suno Sounds ${version.toUpperCase()}`,
+    kind: "audio" as const, defaultModeId: "sfx", transportTaskKind: "text_to_audio" as const,
+    identifierPatterns: [`suno-sounds-${version}`],
+    sources: [{ url: "https://docs.apimart.ai/en/api-reference/audios/suno/sounds.md", checkedAt: "2026-11-07", vendorKey: "apimart", covers: "V6 versions; type one-shot/loop, bpm 1-300, sharp key; no Max or duration." }],
+    modes: SUNO_SFX_V55_ARCHETYPE.modes,
+  },
+]);

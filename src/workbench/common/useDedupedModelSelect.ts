@@ -64,6 +64,17 @@ export function modelDisplayLabel(model: Pick<DedupedModel, 'label'>): string {
   return translateModelDisplayText(model.label)
 }
 
+/**
+ * 一个已选模型在底栏模型钮上写的名字（= 模型框里它那一组的显示名）。界面别处要写模型名（参考行行尾
+ * 「X 最多用 N 张」等）都问它，不直接拿 `option.label`——那是身份的输入、不翻译，英文界面会混进「可灵 4.0」（2026-11-12 验收 C1）。
+ */
+export function modelOptionDisplayLabel(modelOptions: readonly ModelOption[], option: ModelOption | null | undefined): string {
+  if (!option) return ''
+  const group = dedupeModelOptions([...modelOptions]).find((model) => model.providers.some((provider) => provider.option === option
+    || (provider.option.value === option.value && provider.vendor === option.vendor)))
+  return modelDisplayLabel(group ?? { label: option.label || option.value || '' })
+}
+
 /** 该模型是否「病」了：**每一家**供应商都在避让期才算。注入判据便于纯函数单测。 */
 type AilingProbe = (identity: { modelKey: unknown; vendor: unknown }) => boolean
 

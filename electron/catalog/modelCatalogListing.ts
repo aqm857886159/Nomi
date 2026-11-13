@@ -115,22 +115,26 @@ export function modelReferenceSelection(
   vendorKey: string,
   model: { modelKey: string; modelAlias?: string | null; meta?: unknown },
   taskKind: string,
+  modeId?: string,
 ): ParameterReferenceSelection & { readonly taskKind: string };
 export function modelReferenceSelection(
   vendorKey: string,
   model: { modelKey: string; modelAlias?: string | null; meta?: unknown },
   taskKind?: string,
+  modeId?: string,
 ): ParameterReferenceSelection;
 export function modelReferenceSelection(
   vendorKey: string,
   model: { modelKey: string; modelAlias?: string | null; meta?: unknown },
   taskKind?: string,
+  modeId?: string,
 ): ParameterReferenceSelection {
   return {
     vendorKey,
     modelKey: model.modelKey,
     modelAlias: model.modelAlias,
     modelMeta: model.meta,
+    ...(modeId ? { modeId } : {}),
     ...(taskKind !== undefined ? { taskKind } : {}),
   };
 }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  humanizeToolFailure,
   proposalForTool,
   readableToolDetailRows,
   isReadOnlyToolName,
@@ -222,79 +221,5 @@ describe('resident tool display projection', () => {
     expect(readableToolSummary(translate, 'nomi_start_generation', args)).toContain('cat avatar')
     expect(readableToolSummary(translate, 'nomi_start_generation', args)).not.toContain('sk-secret-value')
   })
-
-})
-
-describe('失败正文 → 人话：只有这一条门', () => {
-  // 校验失败在这套系统里有两种写法，消费它的地方有三处（收据行内、收据展开体、失败条）。
-  // 两种写法各翻各的，就会像 2026-09-06 那样：同一次失败在一处是「nodes：期望 array」、
-  // 在另一处是一整段英文。
-  const PI_PROSE = [
-    'Validation failed for tool "nomi_canvas_edit":',
-    '  - nodes: Expected array',
-    '',
-    'Received arguments:',
-    '{',
-    '  "nodes": "[{\\"clientId\\":\\"s1\\""',
-    '}',
-  ].join('\n')
-
-  it('zod issue JSON：哪个字段、要什么、给了什么', () => {
-    const issues = JSON.stringify([{ code: 'invalid_type', expected: 'array', received: 'string', path: ['nodes'] }])
-    expect(humanizeToolFailure(translate, issues)).toBe('agentResident.issueType(field=nodes,expected=array,received=string)')
-  })
-
-  /**
-   * 2026-09-21：这一支原来有第三条分支，把 `issue.message` **原样**插进中文模板。
-   * 那个 message 是写给模型看的英文散文（产地 `verbs/writeVerbs.ts` 的 `expectedOf()`），
-   * 于是中文用户在行内读到 `shots.0.role：an anchor is a reference card …`。
-   * 纪律与散文体那一支对齐：翻得出才说，翻不出就说一句通用的，英文全文只留在展开区。
-   */
-  it('zod issue JSON：模型面的英文 message 一个字都不进行内', () => {
-    const issues = JSON.stringify([{
-      code: 'custom', path: ['shots', 0, 'role'],
-      message: 'an anchor is a reference card that other shots point at; use role="shot" for an ordinary shot',
-    }])
-    const humanized = humanizeToolFailure(translate, issues)
-    expect(humanized).toBe('agentResident.issueInvalidArgs')
-    expect(humanized).not.toContain('anchor is a reference card')
-  })
-
-  it('zod issue JSON：翻得动的那几条照常翻，翻不动的那条不拖别人下水', () => {
-    const issues = JSON.stringify([
-      { code: 'invalid_type', expected: 'array', received: 'string', path: ['nodes'] },
-      { code: 'custom', path: ['shots'], message: 'free-form English for the model' },
-    ])
-    const humanized = humanizeToolFailure(translate, issues)
-    expect(humanized).toBe('agentResident.issueType(field=nodes,expected=array,received=string)')
-    expect(humanized).not.toContain('free-form English')
-  })
-
-  it('zod issue JSON：缺必填字段也有自己的说法（expected 在、received 缺）', () => {
-    const issues = JSON.stringify([{ code: 'invalid_type', expected: 'array', path: ['nodes'] }])
-    expect(humanizeToolFailure(translate, issues)).toBe('agentResident.issueRequired(field=nodes)')
-  })
-
-  it('pi 的英文散文体回执：抬头丢掉、入参回显丢掉，只留说得出事的那句', () => {
-    const humanized = humanizeToolFailure(translate, PI_PROSE)
-    expect(humanized).toBe('agentResident.issueExpected(field=nodes,expected=array)')
-    expect(humanized).not.toContain('Received arguments')
-  })
-
-  it('缺必填字段有自己的说法', () => {
-    const text = 'Validation failed for tool "nomi_canvas_edit":\n  - nodes: Expected required property'
-    expect(humanizeToolFailure(translate, text)).toBe('agentResident.issueRequired(field=nodes)')
-  })
-
-  it('认出了这条回执就再也不放英文出去：一句都翻不动时给通用的那句', () => {
-    const text = 'Validation failed for tool "nomi_canvas_edit":\n  - Unknown validation error'
-    expect(humanizeToolFailure(translate, text)).toBe('agentResident.issueInvalidArgs')
-  })
-
-  it('不是校验回执就不硬翻——供应商已经写好的中文原样交回调用方', () => {
-    expect(humanizeToolFailure(translate, '余额不足，请先充值。')).toBeUndefined()
-    expect(humanizeToolFailure(translate, '')).toBeUndefined()
-  })
-
 
 })

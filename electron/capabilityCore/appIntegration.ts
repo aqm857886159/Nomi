@@ -1,4 +1,4 @@
-import { canvasLocalArtifactReceipt } from "./canvasShotRunApi";
+import { canvasAwareOutputMaterializer } from "./canvasShotRunApi";
 import { readAgentApprovalPolicy } from '../settings/agentApprovalPolicySettings'
 import { parseDirectorPreviewBlockReply } from "../shared/director/directorPreviewStatus";
 // 能力核 · app 集成（见 docs/plan/2026-06-20-capability-core-headless-exposure.md §S4）。
@@ -14,7 +14,7 @@ import { parseDirectorPreviewBlockReply } from "../shared/director/directorPrevi
 //
 // 这里只做接线，不碰 main.ts 的其它职责（保持 main.ts 精简、单一关注点）。
 import { app } from 'electron'
-import { getMainWindow } from '../appWindowRegistry'
+import { mainWindowPhase, revealMainWindow } from '../mainWindowPresence'
 import { startRpcServer, type RpcServerHandle } from './rpcServer'
 import { ensureCapabilitySigningKey, ensureToken } from './security'
 import { clearInstanceAdvertisement, writeInstanceAdvertisement } from './lockfile'
@@ -69,9 +69,10 @@ import { createGenerationProviderBootstrap } from './generationProviderBootstrap
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProductionActionHooks } from './appIntegrationProductionActions'
 import { installPendingSpendActions, pendingSpendDependencies, readInstalledPendingSpend } from './appIntegrationSpendConfirm'
-import { createCanvasShotRuns, installCanvasShotRuns, withdrawQueuedHandOvers } from './appIntegrationCanvasShot'
+import { createCanvasShotRuns, followCanvasShotChange, installCanvasShotRuns, withdrawQueuedHandOvers } from './appIntegrationCanvasShot'
+import { CANVAS_SHOT_SETTLED_OP } from '../shared/canvas/canvasShotSettled'
 import { createCanvasHandOver } from './canvasHandOver'
-import { canvasTransportProviders, isCanvasProviderId, lazyCanvasTransport } from './canvasTransportProvider'
+import { canvasTransportProviders, lazyCanvasTransport } from './canvasTransportProvider'
 import { quoteSpendLine } from '../spendQuote'
 import { createGenerationReferenceScopeGuard } from './generationReferenceScope'
 export { canvasOpenRuns, consentCanvasShots, submitCanvasShot, pollCanvasShot, releaseCanvasShot, withdrawCanvasShots, releaseCanvasShotSender } from './appIntegrationCanvasShot'
@@ -209,11 +210,8 @@ export async function startCapabilityCore(
     // 提交出口认得的执行器：目录执行器 + 画布那台的传输（按家各一个 `canvas:<key>`，发动机收敛第一刀）。
     const canvasTransport = lazyCanvasTransport()
     const submissionProviders = () => [...readProviderBootstrap().providers, ...canvasTransportProviders(readCatalog().vendors.map((vendor) => vendor.key), canvasTransport)]
-    // The loopback vendor is a test-only trusted local service. Keep the
-    // private-origin exception at this fixture wiring boundary; ordinary
-    // provider output downloads retain hardenedFetch's SSRF guard. The fetch
-    // policy itself (timeout / size / provider route) is the shared owner's.
-    const outputMaterializer = createGenerationOutputMaterializer(fixtureBaseUrlOverride ? { trustedPrivateOrigin: fixtureBaseUrlOverride } : {})
+    // The fetch policy (timeout / size / provider route) is the shared owner's (fetchProviderMedia).
+    const outputMaterializer = createGenerationOutputMaterializer()
     const generationRegistry = authorities.generationModuleRegistry ?? initialGenerationScope.registry
     // P4 S2: real per-shot pricing from the live catalog (resolve lazily so pricing edits apply).
     const resolveModelPricing = (providerId: string, modelId: string) => createCatalogModelPricingResolver(readCatalog().models)(providerId, modelId)
@@ -236,9 +234,10 @@ export async function startCapabilityCore(
     // 画布节点跟着 Run 走：每一次耐久变化（派发 / 受理 / 出片落盘 / 失败 / 停）都经过仓库 execute 的事件旁路，
     // 跟随者据此把「生成中 / 结果 / 失败」写进节点自己的运行记录——与普通生成同一份状态、同一套画法。
     // 它取代了以前只在「出片」那一下投递结果的专用通道（一件事一个 owner：Run → 画布只有落地这一条路）。
-    // 同一个订阅里收排队的交接：Agent 那一次出价从哪条路关的（取消 / 停 / 打字 / 重启清扫 / 被顶掉），交给画布、还没轮到的那几镜都当场收回同意。
+    // 同一个订阅里收排队的交接：Agent 那一次出价从哪条路关的（取消 / 停 / 打字 / 重启清扫 / 被顶掉），交给画布、还没轮到的那几镜都当场收回同意；
+    // 画布单镜交给观察者的那一笔收尾了，也在这里摇渲染层按号去收（画布单镜 Run 不走上面的落地）。
     unsubscribeRunChanges?.()
-    unsubscribeRunChanges = subscribeProductionRunChanges((run) => { canvasLanding.followRunChange(run); withdrawQueuedHandOvers(run) })
+    unsubscribeRunChanges = subscribeProductionRunChanges((run) => { canvasLanding.followRunChange(run); withdrawQueuedHandOvers(run); followCanvasShotChange(run) })
     // P4 S4/S5：构造一个 Run 的提交门面（submission）。lease 身份（immutableProjectUuid/projectGeneration）
     // 从工作区记录读——**耐久 binding 已冻住这些值**，恢复时无需新 lease。provider 集合按所有镜头合同和已有 job 推导。
     // 返回 null = provider 未配置 / 工程根不可达（调用方跳过，不驱动）。start 与恢复调度共用同一门槛（P1）。
@@ -255,9 +254,7 @@ export async function startCapabilityCore(
       intentMacKey: ensureCapabilitySigningKey('generation-intent'),
       providers: input.providers,
       // 画布那台交回来的产物已经落在项目里：记进 Run，不再下载一次；不是本地地址的走通用物化。
-      materializeOutput: async ({ projectId, providerTaskId, output, job }) => (isCanvasProviderId(job.provider)
-        && canvasLocalArtifactReceipt({ projectId, projectRoot: input.projectRoot, providerTaskId, output }))
-        || outputMaterializer.materialize({ projectId, providerTaskId, output, providerId: job.provider }),
+      materializeOutput: canvasAwareOutputMaterializer(input.projectRoot, outputMaterializer),
     })
     type SubmittableRun = {
       projectId: string
@@ -328,6 +325,7 @@ export async function startCapabilityCore(
       previewBlock: async (projectId, nodeId) => parseDirectorPreviewBlockReply(await requestRenderer('director.preview-blocks', { projectId, nodeIds: [nodeId] }, 10_000)),
       quote: (input) => { const amount = quoteSpendLine(input).amount; return amount === null ? { known: false } : { known: true, amount } },
       observe: observeSingleShotRun,
+      notifySettled: (notice) => requestRenderer(CANVAS_SHOT_SETTLED_OP, notice, 60_000),
     })
     installCanvasShotRuns(canvasShots)
     // 付费卡上点「生成」与「直接生成」档的策略共用这一台：把 Agent 那一次出价里的几镜交给画布（逐镜走上面那条画布单节点提交）。
@@ -650,17 +648,12 @@ export async function startCapabilityCore(
       approvalPolicy: readAgentApprovalPolicy,
       proposalReceiptFor: authorities.proposalReceiptFor,
       openCredentialsInNomi: authorities.openCredentialsInNomi ?? (async ({ sessionId }: { sessionId: string; vendorName: string }) => {
-        const win = getMainWindow()
-        if (!win || win.isDestroyed()) throw new Error('Nomi window unavailable')
-        // macOS 上只 win.focus() 不够：它让某扇窗成为 key window，但不会把 Nomi 变成最前面的
-        // **应用**——用户还是看不见它。app.focus({steal:true}) 管的是后面那件事，两件都要做。
+        if (mainWindowPhase() !== 'open') throw new Error('Nomi window unavailable')
+        // 叫回只发意图：主窗主人在 macOS 上另做 app.focus({steal:true})——只 focus 窗口不会把 Nomi 变成最前面的应用。
         // 2026-09-06 实测这条路径能把窗口叫到前台（tests/ux/mcp-key-window.walk.mjs）；
         // 那条走查在锁屏/无前台登录会话时会用阳性对照判出「窗口服务器不给任何 App 焦点」并明说没跑成，
         // 不会把环境没功率报成 Nomi 的 bug。
-        if (process.platform === 'darwin') app.focus({ steal: true })
-        if (win.isMinimized()) win.restore()
-        win.show()
-        win.focus()
+        revealMainWindow('mcp-credentials')
         await requestRenderer('integration.open-credentials', { sessionId }, 30_000)
         return { opened: true }
       }),

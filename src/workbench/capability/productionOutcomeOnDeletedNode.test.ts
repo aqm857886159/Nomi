@@ -62,7 +62,7 @@ type Arrival = Readonly<{ name: string; arrive: (nodeId: string) => Promise<unkn
 const ARRIVALS: readonly Arrival[] = [
   {
     name: 'result via the Run follow projection',
-    arrive: (nodeId) => follow(nodeId, { result: RESULT }),
+    arrive: (nodeId) => follow(nodeId, { results: [RESULT], runRecordId: RUN_RECORD }),
     assertLanded: (landed) => {
       expect(landed?.result?.id).toBe(RUN_RECORD)
       expect(landed?.status).toBe('success')

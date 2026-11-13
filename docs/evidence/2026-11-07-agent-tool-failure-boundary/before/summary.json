@@ -1,0 +1,15 @@
+{
+  "name": "tool-failure-boundary-before",
+  "mode": "development",
+  "paidCalls": 0,
+  "textRequests": 8,
+  "imageRequests": 0,
+  "unexpected": [],
+  "result": "passed",
+  "electron": "43.4.1",
+  "screenshots": [
+    "01-before-01-zh-failure-row.png",
+    "02-before-02-zh-failure-expanded.png",
+    "03-before-03-en-failure-row.png"
+  ]
+}

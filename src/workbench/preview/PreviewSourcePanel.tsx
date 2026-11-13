@@ -130,14 +130,19 @@ export function ShotGrid(): JSX.Element {
   )
 }
 
-export default function PreviewSourcePanel(): JSX.Element {
+export type PreviewSourcePanelProps = {
+  /** 画收起条还是展开内容——由面板系统按本栏此刻的真实宽度定（PreviewWorkspace），不读存档开关：
+   *  存档说开、窗口却放不下时，这里必须画收起条，不能把展开内容挤进 32px。 */
+  collapsed: boolean
+  onExpand: () => void
+  onCollapse: () => void
+}
+
+export default function PreviewSourcePanel({ collapsed, onExpand, onCollapse }: PreviewSourcePanelProps): JSX.Element {
   const projectId = useOpenProjectId()
   const { t } = useTranslation()
-  // 收起态与宽度都归面板系统（editingPanelLayout.visibility.source）——本栏不再自带第二套
-  // 收起开关与固定宽度（旧 previewSourcePanelCollapsed + --workbench-preview-source-width
-  // 那份在面板系统落地后就是并行版：面板给 300px、aside 却按自己的变量画，于是 tab 被裁成「素」）。
-  const collapsed = useWorkbenchStore((state) => !state.editingPanelLayout.visibility.source)
-  const toggleEditingPanel = useWorkbenchStore((state) => state.toggleEditingPanel)
+  // 收起态与宽度都归面板系统——本栏不自带第二套收起开关与固定宽度
+  // （旧 previewSourcePanelCollapsed + --workbench-preview-source-width 那份是并行版：面板给 300px、aside 却按自己的变量画，于是 tab 被裁成「素」）。
   // tab 归 store（editingPanelLayoutSlice）：时间轴空轨右键的「从素材库添加…」要切它。
   const tab = useWorkbenchStore((state) => state.previewSourceTab)
   const setTab = useWorkbenchStore((state) => state.openPreviewSourceTab)
@@ -150,7 +155,7 @@ export default function PreviewSourcePanel(): JSX.Element {
         icon={<IconPhoto size={16} stroke={1.7} />}
         label={t('previewSource.railLabel')}
         title={t('previewSource.expand')}
-        onClick={() => toggleEditingPanel('source')}
+        onClick={onExpand}
       />
     )
   }
@@ -211,7 +216,7 @@ export default function PreviewSourcePanel(): JSX.Element {
           'bg-transparent px-2.5 py-1.5 text-micro text-[var(--workbench-muted)] hover:text-[var(--workbench-ink)]',
         )}
         aria-label={t('previewSource.collapse')}
-        onClick={() => toggleEditingPanel('source')}
+        onClick={onCollapse}
       >
         <IconChevronLeft size={13} stroke={1.8} aria-hidden="true" />
         {t('previewSource.collapse')}

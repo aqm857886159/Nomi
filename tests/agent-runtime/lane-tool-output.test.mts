@@ -83,7 +83,8 @@ test('the contract parse runs once, after pi\'s ajv, and a cross-field failure r
   assert.equal(stray.isError, true, 'a field from another operation is rejected, as the description promises');
   // 20 动词的 schema 是 strict 的：别的工具的字段在 pi 的 ajv 那一层就被拒（它会回显收到的入参，探针 §4.2 臂 A），
   // 不再等到契约 parse；契约层的「不回显」纪律由上面 `empty` 那条（跨字段约束）继续钉住。
-  assert.match(stray.text, /must not have additional properties|no field named summary/);
+  // 2026-11-07：入参边界点名多出来的那个键（同一个格式器），不再是 pi 的「must not have additional properties」。
+  assert.match(stray.text, /summary: no such field here/);
   // 阳性对照：合法调用照常到达领域端口，且只到达一次——两条被拒的一次都没到。
   assert.equal(valid.isError, false);
   assert.deepEqual(writes, [{ operation: 'tidy_canvas' }]);

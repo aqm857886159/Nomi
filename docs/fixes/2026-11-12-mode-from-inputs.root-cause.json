@@ -1,0 +1,303 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-12-mode-from-inputs",
+  "detected_by": "user",
+  "problem_type": "同一个事实存成字段、再由多处派生去纠正它",
+  "symptom": "视频 / 图片节点上方式写着「图生图」「首尾帧」却一张图也没有，生成钮灰着让人「切回文生」；放了五张参考图节点却还停在首尾帧，只发两张。创作者看不到这次到底按哪种方式发。",
+  "direct_cause": "「这次按哪种方式发」存成 meta.archetype.modeId，连线、断线、打开项目、换模型、Agent、@提及、运镜、交付等 14 扇门各自用 applyArchetypeModeSwitch 改写它；粘贴、模板、撤销、Agent 剔边、旧项目首帧这些没有派生的入口进来，存着的方式就和输入对不上，发送时还照存着的发。",
+  "class_root": "方式是输入的函数，却被当成要维护的状态：每多一个改输入的入口，就要多补一个派生去改方式，漏一个就出现「带图的方式没有图」或「参考图多却停在首尾帧」。",
+  "migration": "不迁移、不改盘：老项目里的 archetype.modeId 读成来历不明的偏好，只有它能收下当前所有输入时才用，否则按输入现算；人手在底栏方式格里选的写 modeChosenBy: human。打开老项目不写回存盘。旧的连线升格、断线收回、加载收敛、发送前纠偏和 applyArchetypeModeSwitch / currentArchetypeMode 同提交删掉。",
+  "affected_population": [
+    "画布视频节点：连线、粘贴、模板、撤销后方式和输入对不上的节点",
+    "画布图片节点：存着改图方式却没放图的节点",
+    "Agent / MCP / 分镜落地写了 modeId 的节点",
+    "打开带旧 modeId 的老项目的用户"
+  ],
+  "scope_paths": [
+    "electron/shared/modelArchetypes/",
+    "src/workbench/generationCanvas/"
+  ],
+  "entry_points": [
+    "electron/shared/modelArchetypes/modeForInputs.ts#modeForInputs",
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts#effectiveArchetypeMode",
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts#sendArchetypeMode",
+    "src/workbench/generationCanvas/store/canvasModeChoiceForget.ts#forgetUnfitModeChoices"
+  ],
+  "invariants": [
+    "这次按哪种方式发只由 modeForInputs 按当前输入和偏好算出；底栏方式格、菜单置灰、请求体读的是同一个结果。",
+    "没有任何输入时一律按文字方式发；有输入时发出去的方式至少收下一件输入。",
+    "节点上存着的 modeId 只是偏好；只有人手在方式格里选才写，机器（连线、Agent、MCP、换模型）不写。",
+    "撤销一笔手势时，这笔手势引起的偏好遗忘一起撤回。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "symbol": "effectiveArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "symbol": "effectiveArchetypeModeWithUpload"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+      "symbol": "effectiveArchetypeModeWithUpload"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/nodeAssetDrop.ts",
+      "symbol": "effectiveArchetypeModeWithUpload"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+      "symbol": "effectiveArchetypeModeWithInputs"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/buildNodeModelChangePatch.ts",
+      "symbol": "effectiveArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "readModePreference"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "modeForInputs"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "effectiveArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "effectiveArchetypeModeWithInputs"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/modeMenuModel.ts",
+      "symbol": "modeForInputs"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/modeTestHelpers.ts",
+      "symbol": "readModePreference"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/attachCameraMoveToTarget.ts",
+      "symbol": "effectiveArchetypeModeWithInputs"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "effectiveArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/nodeModelArchetype.ts",
+      "symbol": "effectiveArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "symbol": "effectiveArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "symbol": "readModePreference"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "sendArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+      "symbol": "sendArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationReferenceResolver.ts",
+      "symbol": "effectiveArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "effectiveArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "sendArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/promptRequirement.ts",
+      "symbol": "sendArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/referenceSlots.ts",
+      "symbol": "effectiveArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "effectiveArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasModeChoiceForget.ts",
+      "symbol": "readModePreference"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasModeChoiceForget.ts",
+      "symbol": "modeForInputs"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/buildNodeModelChangePatch.ts",
+      "symbol": "carryHumanModePreference"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "withHumanModePreference"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "symbol": "applyHumanModeChoice"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "symbol": "carryHumanModePreference"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+      "symbol": "carryHumanModePreference"
+    }
+  ],
+  "door_reduction": {
+    "before": 34,
+    "after": 32
+  },
+  "regression_tests": [
+    "electron/shared/modelArchetypes/modeForInputs.exhaustive.test.ts",
+    "src/workbench/generationCanvas/store/canvasModeNineStates.test.ts",
+    "src/workbench/generationCanvas/nodes/controls/modeMenuModel.exhaustive.test.ts",
+    "src/workbench/generationCanvas/runner/referenceSentWithinInUse.property.test.ts",
+    "src/workbench/generationCanvas/model/canvasReferenceConnection.mention.test.ts",
+    "src/workbench/generationCanvas/nodes/director/agent/attachCameraMoveToTarget.reference.test.ts"
+  ],
+  "residual_risks": [
+    "真实项目里方式和输入对不上的节点占比没有量具（没有按拦截原因上报的遥测）；穷举测试只覆盖档案 × 偏好 × 9 种输入。",
+    "改动发出去的方式：免费回放抓过请求体，真付费只由协调会话跑一次，在那之前记 unverified。"
+  ],
+  "internal_only_reason": "纯内部的状态归属问题；外部参照（OpenAI 图像生成按有没有图选端点、Luma 关键帧可选、LibTV 底栏方式格）已写进设计卡 ★0，不决定本修复的边界。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每新增一个改输入的入口都要记得补派生；10-25 起这一目录已经补过多轮（连线派生里的历次补丁、10-25 canvas-mode-follows-inputs），漏一个就复发。",
+    "same_class_scan": [
+      "main 快照上 node scripts/door-map.mjs applyArchetypeModeSwitch currentArchetypeMode → 写 14 扇、读 20 扇，共 34",
+      "修后 node scripts/door-map.mjs modeForInputs effectiveArchetypeMode* sendArchetypeMode readModePreference applyHumanModeChoice carryHumanModePreference withHumanModePreference → 写 5 扇（全是人手偏好的写和换模型时带过去）、读 27 扇，共 32",
+      "grep applyArchetypeModeSwitch|currentArchetypeMode|promoteTargetMode|revertTargetModeForEmptyInputs|convergeStuckInputModes src electron → 0 处（只剩历史夹具文本）"
+    ]
+  },
+  "generality_proof": "方式不再是要维护的状态：所有读方式的地方都经 modeForInputs 按此刻的输入现算，新入口改了输入不需要补任何派生，结果自动跟着变；机器写方式的函数已删除，新代码要写只能经人手偏好的三个函数，而按存着的偏好取方式的测试辅助被 eslint 挡在生产代码外。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/modelArchetypes/modeForInputs.ts",
+      "symbol": "modeForInputs",
+      "responsibility": "按输入和偏好算出这次按哪种方式发；偏好收不下全部输入或只能把参考视频当接力首帧时不硬套。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "effectiveArchetypeMode / sendArchetypeMode",
+      "responsibility": "渲染层收集一次输入交给 modeForInputs；底栏、菜单、生成钮、请求体只经这里读方式。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasModeChoiceForget.ts",
+      "symbol": "forgetUnfitModeChoices",
+      "responsibility": "输入变了之后，放不下的偏好在 store 边界忘掉，落在手势撤销点之后。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "entry_point": "sendArchetypeMode",
+      "disposition": "enforced",
+      "evidence": "请求按现算方式规整参数；先把旧版参考键转成列表再改写 modeId，老项目不再发出看不见的那张（referenceSentWithinInUse.property 变异红）。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+      "entry_point": "resolveMentionReference",
+      "disposition": "enforced",
+      "evidence": "@提及按现算方式判能不能放；连着首帧边时不把首帧悄悄改成参考（canvasReferenceConnection.mention.test 守）。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/agent/attachCameraMoveToTarget.ts",
+      "entry_point": "attachCameraMoveToTarget",
+      "disposition": "enforced",
+      "evidence": "运镜视频挂上去时把已连的视频一起算进输入（attachCameraMoveToTarget.reference.test 守）。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/buildNodeModelChangePatch.ts",
+      "entry_point": "carryHumanModePreference",
+      "disposition": "enforced",
+      "evidence": "换模型只带人手偏好，方式按新模型现算（buildNodeModelChangePatch.test 守）。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/modelArchetypes/modeForInputs.ts",
+    "invariant": "这次按哪种方式发只有 modeForInputs 一个主人，存着的 modeId 只是偏好。",
+    "failure_mode": "把现算改回读存着的 modeId，modeForInputs.exhaustive / canvasModeNineStates / modeMenuModel.exhaustive 红；生产代码 import 按存着的偏好取方式的测试辅助，eslint mode-owner/no-restricted-imports 红。",
+    "exception_policy": "none",
+    "strategy": "删掉写方式的派生，方式按输入现算；底栏方式格只读同一个结果。",
+    "artifacts": [
+      "electron/shared/modelArchetypes/modeForInputs.ts",
+      "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "src/workbench/generationCanvas/store/canvasModeChoiceForget.ts",
+      "eslint.config.mjs",
+      "electron/shared/modelArchetypes/modeForInputs.exhaustive.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/shared/modelArchetypes/modeForInputs.exhaustive.test.ts",
+    "src/workbench/generationCanvas/store/canvasModeNineStates.test.ts",
+    "src/workbench/generationCanvas/nodes/controls/modeMenuModel.exhaustive.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/controls/generationModePresentation.ts"
+    ],
+    "rationale": "参数面板里的「生成方式」分段（generationModePresentation）同提交删掉；applyArchetypeModeSwitch、currentArchetypeMode、连线升格、断线收回、加载收敛、发送前纠偏这些函数同提交删掉，没有并行版。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只动 Nomi 自己的代码。",
+    "exit_criteria": []
+  },
+  "recurrence_check_on": "2026-12-12",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/modelArchetypes/modeForInputs.ts",
+    "tests": [
+      "electron/shared/modelArchetypes/modeForInputs.exhaustive.test.ts"
+    ]
+  }
+}

@@ -40,6 +40,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: ./.github/actions/cache-external-downloads
       - run: pnpm install --frozen-lockfile
       - name: Validate promotion inputs
         run: node scripts/release-contract.mjs validate-promotion-inputs --root . --tag "$RELEASE_TAG" --run-id "$RC_RUN_ID"

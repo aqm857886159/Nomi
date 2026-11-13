@@ -1,0 +1,4284 @@
+{
+  "version": 13,
+  "vendors": [
+    {
+      "key": "apimart",
+      "name": "APIMart",
+      "enabled": true,
+      "baseUrlHint": "https://api.apimart.ai",
+      "authType": "bearer",
+      "authHeader": "Authorization",
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    }
+  ],
+  "models": [
+    {
+      "modelKey": "deepseek-v4-pro",
+      "vendorKey": "apimart",
+      "labelZh": "DeepSeek V4 Pro",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "catalogLifecycle": "flagship"
+      },
+      "tokenPricing": {
+        "inputPerMTokUsd": 1.32,
+        "outputPerMTokUsd": 3.96,
+        "cacheReadPerMTokUsd": 0.044,
+        "source": {
+          "url": "https://api-docs.deepseek.com/quick_start/pricing/",
+          "checkedAt": "2026-09-07"
+        }
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "deepseek-v4-flash",
+      "vendorKey": "apimart",
+      "labelZh": "DeepSeek V4 Flash",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "catalogLifecycle": "value"
+      },
+      "tokenPricing": {
+        "inputPerMTokUsd": 0.44,
+        "outputPerMTokUsd": 1.32,
+        "cacheReadPerMTokUsd": 0.014,
+        "source": {
+          "url": "https://api-docs.deepseek.com/quick_start/pricing/",
+          "checkedAt": "2026-09-07"
+        }
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "deepseek-v3.1-terminus",
+      "vendorKey": "apimart",
+      "labelZh": "DeepSeek V3.1 Terminus",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "catalogLifecycle": "legacy"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "gemini-3.5-flash",
+      "vendorKey": "apimart",
+      "labelZh": "Gemini 3.5 Flash",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "supportsImageInput": true,
+        "catalogLifecycle": "flagship"
+      },
+      "tokenPricing": {
+        "inputPerMTokUsd": 1.5,
+        "outputPerMTokUsd": 9,
+        "cacheReadPerMTokUsd": 0.15,
+        "source": {
+          "url": "https://ai.google.dev/gemini-api/docs/pricing",
+          "checkedAt": "2026-09-07"
+        }
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "MiniMax-H3-Context-IR",
+      "vendorKey": "apimart",
+      "labelZh": "MiniMax H3 · Context-IR 提示词增强",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "promptRefineOnly": true,
+        "catalogLifecycle": "companion"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "doubao-seedream-5-0-pro",
+      "vendorKey": "apimart",
+      "labelZh": "Seedream 5.0 Pro",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "seedream-5-pro",
+        "canonicalModelId": "seedream 5.0 pro",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "doubao-seedream-4.5",
+      "vendorKey": "apimart",
+      "labelZh": "Seedream 4.5",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "seedream",
+        "canonicalModelId": "seedream 4.5",
+        "catalogLifecycle": "legacy"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "gemini-2.5-flash-image-preview",
+      "vendorKey": "apimart",
+      "labelZh": "Nano Banana",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "nano-banana",
+        "canonicalModelId": "nano banana",
+        "catalogLifecycle": "legacy"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "gemini-3.1-flash-image-preview",
+      "vendorKey": "apimart",
+      "labelZh": "Nano Banana 2",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "nano-banana-2",
+        "canonicalModelId": "nano banana 2",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "gpt-image-2",
+      "vendorKey": "apimart",
+      "labelZh": "GPT Image 2",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "gpt-image-2",
+        "canonicalModelId": "gpt image 2",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "gpt-image-2.5-flare",
+      "vendorKey": "apimart",
+      "labelZh": "GPT Image 2.5 Flare",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "gpt-image-2.5-flare",
+        "canonicalModelId": "gpt image 2.5 flare",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "gpt-image-2.5-sunburst",
+      "vendorKey": "apimart",
+      "labelZh": "GPT Image 2.5 Sunburst",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "gpt-image-2.5-sunburst",
+        "canonicalModelId": "gpt image 2.5 sunburst",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "gemini-3-pro-image-preview",
+      "vendorKey": "apimart",
+      "labelZh": "Gemini 3 Pro 图像",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "gemini-image-3-pro",
+        "canonicalModelId": "gemini image 3 pro",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "grok-imagine-2.0-ext",
+      "vendorKey": "apimart",
+      "labelZh": "Grok Imagine 2.0",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "grok-imagine-image-2",
+        "canonicalModelId": "grok imagine image 2",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "qwen-image-2.0",
+      "vendorKey": "apimart",
+      "labelZh": "Qwen-Image 2.0",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "qwen-image",
+        "canonicalModelId": "qwen-image 2.0",
+        "catalogLifecycle": "legacy"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "qwen-image-3.0",
+      "vendorKey": "apimart",
+      "labelZh": "Qwen-Image 3.0",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "qwen-image-3",
+        "canonicalModelId": "qwen-image 3.0",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "z-image-turbo",
+      "vendorKey": "apimart",
+      "labelZh": "Z-Image Turbo",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "z-image-turbo",
+        "catalogLifecycle": "value"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "viduq3",
+      "vendorKey": "apimart",
+      "labelZh": "Vidu Q3",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "vidu-q3",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "kling-3.0-turbo",
+      "vendorKey": "apimart",
+      "labelZh": "可灵 3.0 Turbo",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "kling-3.0-turbo",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "happyhorse-1.1",
+      "vendorKey": "apimart",
+      "labelZh": "HappyHorse 1.1",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "happyhorse-1.1",
+        "catalogLifecycle": "companion"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "grok-imagine-1.5-video-apimart",
+      "vendorKey": "apimart",
+      "labelZh": "Grok Imagine 1.5",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "grok-imagine-1.5-video",
+        "canonicalModelId": "grok imagine 1.5",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "veo3.1-fast",
+      "vendorKey": "apimart",
+      "labelZh": "Veo 3.1",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "veo-3.1",
+        "canonicalModelId": "veo 3.1",
+        "catalogLifecycle": "companion"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "kling-v3",
+      "vendorKey": "apimart",
+      "labelZh": "可灵 3.0",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "kling-3.0",
+        "canonicalModelId": "可灵 3.0",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "doubao-seedance-2.0",
+      "vendorKey": "apimart",
+      "labelZh": "Seedance 2.0",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "seedance-2-apimart",
+        "canonicalModelId": "seedance 2.0",
+        "catalogLifecycle": "legacy"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "doubao-seedance-2.5",
+      "vendorKey": "apimart",
+      "labelZh": "Seedance 2.5",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "seedance-2.5-apimart",
+        "canonicalModelId": "seedance 2.5",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "MiniMax-H3",
+      "vendorKey": "apimart",
+      "labelZh": "MiniMax H3",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "minimax-h3-apimart",
+        "canonicalModelId": "minimax h3",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "wan2.7",
+      "vendorKey": "apimart",
+      "labelZh": "Wan 2.7",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "wan-2.7",
+        "canonicalModelId": "wan 2.7",
+        "catalogLifecycle": "legacy"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "wan3.0-video",
+      "vendorKey": "apimart",
+      "labelZh": "Wan 3.0",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "wan-3.0-apimart",
+        "canonicalModelId": "wan 3.0",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "MiniMax-Hailuo-2.3",
+      "vendorKey": "apimart",
+      "labelZh": "Hailuo 2.3",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "hailuo-2.3",
+        "canonicalModelId": "hailuo 2.3",
+        "catalogLifecycle": "companion"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "Omni-Flash-Ext",
+      "vendorKey": "apimart",
+      "labelZh": "Omni-Flash-Ext",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "omni-flash-ext",
+        "catalogLifecycle": "legacy"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "MiniMax-H3-Regeneration",
+      "vendorKey": "apimart",
+      "labelZh": "MiniMax H3 再生成",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "minimax-h3-regeneration",
+        "catalogLifecycle": "companion"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "nomi-audio",
+      "vendorKey": "apimart",
+      "labelZh": "声音",
+      "kind": "audio",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "nomi-audio",
+        "catalogLifecycle": "legacy"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "suno-v5.5",
+      "vendorKey": "apimart",
+      "labelZh": "Suno V5.5",
+      "kind": "audio",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "suno-v5.5",
+        "canonicalModelId": "suno v5.5",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "suno-sounds-v5.5",
+      "vendorKey": "apimart",
+      "labelZh": "Suno Sounds V5.5",
+      "kind": "audio",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "suno-sfx-v5.5",
+        "canonicalModelId": "suno sounds v5.5",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "modelKey": "flowmusic-lyria-3.5",
+      "vendorKey": "apimart",
+      "labelZh": "Lyria 3.5",
+      "kind": "audio",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "lyria-3.5",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    }
+  ],
+  "mappings": [
+    {
+      "id": "seed-apimart-minimax-h3-context-ir-prompt_refine",
+      "vendorKey": "apimart",
+      "taskKind": "prompt_refine",
+      "modelKey": "MiniMax-H3-Context-IR",
+      "name": "MiniMax H3 · Context-IR 提示词增强",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "duration": "{{request.params.duration}}",
+          "aspect_ratio": "{{request.params.aspect_ratio}}",
+          "first_frame_image": "{{request.params.first_frame_image}}",
+          "last_frame_image": "{{request.params.last_frame_image}}",
+          "image_urls": "{{request.params.image_urls}}",
+          "video_urls": "{{request.params.video_urls}}",
+          "audio_urls": "{{request.params.audio_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "defaultParams": {
+          "duration": 5,
+          "aspect_ratio": "16:9"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "text": "data.result.prompt",
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-seedream-5-pro-text_to_image",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_image",
+      "modelKey": "doubao-seedream-5-0-pro",
+      "name": "Seedream 5.0 Pro · 文生图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-canonical-model-id"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-seedream-5-pro-image_edit",
+      "vendorKey": "apimart",
+      "taskKind": "image_edit",
+      "modelKey": "doubao-seedream-5-0-pro",
+      "name": "Seedream 5.0 Pro · 改图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "image_urls": "{{request.params.image_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-canonical-model-id"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-seedream-text_to_image",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_image",
+      "modelKey": "doubao-seedream-4.5",
+      "name": "Seedream 4.5 · 文生图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-canonical-model-id"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-seedream-image_edit",
+      "vendorKey": "apimart",
+      "taskKind": "image_edit",
+      "modelKey": "doubao-seedream-4.5",
+      "name": "Seedream 4.5 · 改图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "image_urls": "{{request.params.image_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-canonical-model-id"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-nano-banana-text_to_image",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_image",
+      "modelKey": "gemini-2.5-flash-image-preview",
+      "name": "Nano Banana · 文生图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-nano-banana-image_edit",
+      "vendorKey": "apimart",
+      "taskKind": "image_edit",
+      "modelKey": "gemini-2.5-flash-image-preview",
+      "name": "Nano Banana · 改图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "image_urls": "{{request.params.image_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-nano-banana-2-text_to_image",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_image",
+      "modelKey": "gemini-3.1-flash-image-preview",
+      "name": "Nano Banana 2 · 文生图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-nano-banana-2-image_edit",
+      "vendorKey": "apimart",
+      "taskKind": "image_edit",
+      "modelKey": "gemini-3.1-flash-image-preview",
+      "name": "Nano Banana 2 · 改图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "image_urls": "{{request.params.image_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-gpt-image-2-text_to_image",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_image",
+      "modelKey": "gpt-image-2",
+      "name": "GPT Image 2 · 文生图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "from": "aspect_ratio"
+            },
+            {
+              "wire": "resolution",
+              "fromMany": [
+                "resolution"
+              ],
+              "transform": "toLowerCase"
+            }
+          ]
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-gpt-image-2-image_edit",
+      "vendorKey": "apimart",
+      "taskKind": "image_edit",
+      "modelKey": "gpt-image-2",
+      "name": "GPT Image 2 · 改图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "image_urls": "{{request.params.input_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "from": "aspect_ratio"
+            },
+            {
+              "wire": "resolution",
+              "fromMany": [
+                "resolution"
+              ],
+              "transform": "toLowerCase"
+            }
+          ]
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-gpt-image-2.5-flare-text_to_image",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_image",
+      "modelKey": "gpt-image-2.5-flare",
+      "name": "GPT Image 2.5 Flare · 文生图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "quality": "{{request.params.quality}}",
+          "background": "{{request.params.background}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "resolution",
+              "fromMany": [
+                "resolution"
+              ],
+              "transform": "toLowerCase"
+            }
+          ]
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-gpt-image-2.5-flare-image_edit",
+      "vendorKey": "apimart",
+      "taskKind": "image_edit",
+      "modelKey": "gpt-image-2.5-flare",
+      "name": "GPT Image 2.5 Flare · 改图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "quality": "{{request.params.quality}}",
+          "background": "{{request.params.background}}",
+          "image_urls": "{{request.params.input_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "resolution",
+              "fromMany": [
+                "resolution"
+              ],
+              "transform": "toLowerCase"
+            }
+          ]
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-gpt-image-2.5-sunburst-text_to_image",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_image",
+      "modelKey": "gpt-image-2.5-sunburst",
+      "name": "GPT Image 2.5 Sunburst · 文生图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "quality": "{{request.params.quality}}",
+          "background": "{{request.params.background}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "resolution",
+              "fromMany": [
+                "resolution"
+              ],
+              "transform": "toLowerCase"
+            }
+          ]
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-gpt-image-2.5-sunburst-image_edit",
+      "vendorKey": "apimart",
+      "taskKind": "image_edit",
+      "modelKey": "gpt-image-2.5-sunburst",
+      "name": "GPT Image 2.5 Sunburst · 改图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "quality": "{{request.params.quality}}",
+          "background": "{{request.params.background}}",
+          "image_urls": "{{request.params.input_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "resolution",
+              "fromMany": [
+                "resolution"
+              ],
+              "transform": "toLowerCase"
+            }
+          ]
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-gemini-image-3-pro-text_to_image",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_image",
+      "modelKey": "gemini-3-pro-image-preview",
+      "name": "Gemini 3 Pro 图像 · 文生图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-gemini-image-3-pro-image_edit",
+      "vendorKey": "apimart",
+      "taskKind": "image_edit",
+      "modelKey": "gemini-3-pro-image-preview",
+      "name": "Gemini 3 Pro 图像 · 改图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "image_urls": "{{request.params.reference_image_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-grok-imagine-image-2-text_to_image",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_image",
+      "modelKey": "grok-imagine-2.0-ext",
+      "name": "Grok Imagine 2.0 · 文生图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-qwen-image-text_to_image",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_image",
+      "modelKey": "qwen-image-2.0",
+      "name": "Qwen-Image 2.0 · 文生图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "negative_prompt": "{{request.params.negative_prompt}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-qwen-image-image_edit",
+      "vendorKey": "apimart",
+      "taskKind": "image_edit",
+      "modelKey": "qwen-image-2.0",
+      "name": "Qwen-Image 2.0 · 改图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "image_urls": "{{request.params.image_urls}}",
+          "negative_prompt": "{{request.params.negative_prompt}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-qwen-image-3-text_to_image",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_image",
+      "modelKey": "qwen-image-3.0",
+      "name": "Qwen-Image 3.0 · 文生图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "negative_prompt": "{{request.params.negative_prompt}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-qwen-image-3-image_edit",
+      "vendorKey": "apimart",
+      "taskKind": "image_edit",
+      "modelKey": "qwen-image-3.0",
+      "name": "Qwen-Image 3.0 · 改图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "image_urls": "{{request.params.image_urls}}",
+          "negative_prompt": "{{request.params.negative_prompt}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-z-image-turbo-text_to_image",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_image",
+      "modelKey": "z-image-turbo",
+      "name": "Z-Image Turbo · 文生图",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "image_url": [
+            "data.result.images.0.url.0",
+            "data.result.images.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-vidu-q3-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "viduq3",
+      "name": "Vidu Q3 · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "duration": "{{request.params.duration}}",
+          "resolution": "{{request.params.resolution}}",
+          "aspect_ratio": "{{request.params.aspect_ratio}}",
+          "image_urls": "{{request.params.image_urls}}",
+          "seed": "{{request.params.seed}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-kling-3.0-turbo-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "kling-3.0-turbo",
+      "name": "可灵 3.0 Turbo · 文生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "aspect_ratio": "{{request.params.aspect_ratio}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-kling-3.0-turbo-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "kling-3.0-turbo",
+      "name": "可灵 3.0 Turbo · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}",
+          "first_frame_image": "{{request.params.first_frame_image}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-happyhorse-1.1-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "happyhorse-1.1",
+      "name": "HappyHorse 1.1 · 文生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "resolution": "{{request.params.resolution}}",
+          "size": "{{request.params.size}}",
+          "duration": "{{request.params.duration}}",
+          "seed": "{{request.params.seed}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-happyhorse-1.1-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "happyhorse-1.1",
+      "name": "HappyHorse 1.1 · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "resolution": "{{request.params.resolution}}",
+          "size": "{{request.params.size}}",
+          "duration": "{{request.params.duration}}",
+          "seed": "{{request.params.seed}}",
+          "first_frame_image": "{{request.params.first_frame_image}}",
+          "image_urls": "{{request.params.image_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-grok-imagine-1.5-video-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "grok-imagine-1.5-video-apimart",
+      "name": "Grok Imagine 1.5 · 文生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "quality": "{{request.params.quality}}",
+          "duration": "{{request.params.duration}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-canonical-model-id"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-grok-imagine-1.5-video-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "grok-imagine-1.5-video-apimart",
+      "name": "Grok Imagine 1.5 · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "quality": "{{request.params.quality}}",
+          "duration": "{{request.params.duration}}",
+          "image_urls": "{{request.params.image_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-canonical-model-id"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-veo-3.1-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "veo3.1-fast",
+      "name": "Veo 3.1 · 文生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "aspect_ratio": "{{request.params.aspect_ratio}}",
+          "resolution": "{{request.params.resolution}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-veo-3.1-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "veo3.1-fast",
+      "name": "Veo 3.1 · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "resolution": "{{request.params.resolution}}",
+          "image_urls": "{{request.params.image_urls}}",
+          "generation_type": "{{request.params.generation_type}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "paramMap": {
+          "drops": [
+            "aspect_ratio"
+          ],
+          "rules": []
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-kling-3.0-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "kling-v3",
+      "name": "可灵 3.0 · 文生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "mode": "{{request.params.mode}}",
+          "duration": "{{request.params.duration}}",
+          "aspect_ratio": "{{request.params.aspect_ratio}}",
+          "audio": "{{request.params.audio}}",
+          "negative_prompt": "{{request.params.negative_prompt}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-kling-3.0-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "kling-v3",
+      "name": "可灵 3.0 · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "mode": "{{request.params.mode}}",
+          "duration": "{{request.params.duration}}",
+          "image_urls": "{{request.params.image_urls}}",
+          "audio": "{{request.params.audio}}",
+          "negative_prompt": "{{request.params.negative_prompt}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "paramMap": {
+          "drops": [
+            "aspect_ratio"
+          ],
+          "rules": []
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-seedance-2-apimart-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "doubao-seedance-2.0",
+      "name": "Seedance 2.0 · 文生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}",
+          "seed": "{{request.params.seed}}",
+          "generate_audio": "{{request.params.generate_audio}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-canonical-model-id"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-seedance-2-apimart-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "doubao-seedance-2.0",
+      "name": "Seedance 2.0 · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}",
+          "image_urls": "{{request.params.image_urls}}",
+          "video_urls": "{{request.params.video_urls}}",
+          "audio_urls": "{{request.params.audio_urls}}",
+          "image_with_roles": "{{request.params.image_with_roles}}",
+          "seed": "{{request.params.seed}}",
+          "generate_audio": "{{request.params.generate_audio}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-canonical-model-id"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-seedance-2.5-apimart-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "doubao-seedance-2.5",
+      "name": "Seedance 2.5 · 文生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}",
+          "seed": "{{request.params.seed}}",
+          "generate_audio": "{{request.params.generate_audio}}",
+          "return_last_frame": "{{request.params.return_last_frame}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-canonical-model-id"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-seedance-2.5-apimart-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "doubao-seedance-2.5",
+      "name": "Seedance 2.5 · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}",
+          "image_urls": "{{request.params.image_urls}}",
+          "video_urls": "{{request.params.video_urls}}",
+          "audio_urls": "{{request.params.audio_urls}}",
+          "image_with_roles": "{{request.params.image_with_roles}}",
+          "seed": "{{request.params.seed}}",
+          "generate_audio": "{{request.params.generate_audio}}",
+          "return_last_frame": "{{request.params.return_last_frame}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-canonical-model-id"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-minimax-h3-apimart-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "MiniMax-H3",
+      "name": "MiniMax H3 · 文生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "duration": "{{request.params.duration}}",
+          "resolution": "{{request.params.resolution}}",
+          "aspect_ratio": "{{request.params.aspect_ratio}}",
+          "watermark": "{{request.params.watermark}}",
+          "webhook": "{{request.params.webhook}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-minimax-h3"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-minimax-h3-apimart-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "MiniMax-H3",
+      "name": "MiniMax H3 · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "duration": "{{request.params.duration}}",
+          "resolution": "{{request.params.resolution}}",
+          "aspect_ratio": "{{request.params.aspect_ratio}}",
+          "watermark": "{{request.params.watermark}}",
+          "webhook": "{{request.params.webhook}}",
+          "first_frame_image": "{{request.params.first_frame_image}}",
+          "last_frame_image": "{{request.params.last_frame_image}}",
+          "image_urls": "{{request.params.image_urls}}",
+          "video_urls": "{{request.params.video_urls}}",
+          "audio_urls": "{{request.params.audio_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-minimax-h3"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-wan-2.7-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "wan2.7",
+      "name": "Wan 2.7 · 文生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}",
+          "negative_prompt": "{{request.params.negative_prompt}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-wan-2.7-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "wan2.7",
+      "name": "Wan 2.7 · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}",
+          "image_urls": "{{request.params.image_urls}}",
+          "image_with_roles": "{{request.params.image_with_roles}}",
+          "video_urls": "{{request.params.video_urls}}",
+          "negative_prompt": "{{request.params.negative_prompt}}",
+          "seed": "{{request.params.seed}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-wan-3.0-apimart-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "wan3.0-video",
+      "name": "Wan 3.0 · 文生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}",
+          "audio": "{{request.params.audio}}",
+          "watermark": "{{request.params.watermark}}",
+          "seed": "{{request.params.seed}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-wan-3.0-apimart-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "wan3.0-video",
+      "name": "Wan 3.0 · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}",
+          "audio": "{{request.params.audio}}",
+          "watermark": "{{request.params.watermark}}",
+          "seed": "{{request.params.seed}}",
+          "generation_type": "{{request.params.generation_type}}",
+          "image_urls": "{{request.params.image_urls}}",
+          "image_with_roles": "{{request.params.image_with_roles}}",
+          "video_urls": "{{request.params.video_urls}}",
+          "audio_urls": "{{request.params.audio_urls}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-hailuo-2.3-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "MiniMax-Hailuo-2.3",
+      "name": "Hailuo 2.3 · 文生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-hailuo-23"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-hailuo-2.3-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "MiniMax-Hailuo-2.3",
+      "name": "Hailuo 2.3 · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}",
+          "first_frame_image": "{{request.params.first_frame_image}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-hailuo-23"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-omni-flash-ext-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "Omni-Flash-Ext",
+      "name": "Omni-Flash-Ext · 文生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-omni-flash-ext-contract"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-omni-flash-ext-image_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "image_to_video",
+      "modelKey": "Omni-Flash-Ext",
+      "name": "Omni-Flash-Ext · 图生视频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "resolution": "{{request.params.resolution}}",
+          "duration": "{{request.params.duration}}",
+          "image_urls": "{{request.params.image_urls}}",
+          "generation_type": "{{request.params.generation_type}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "request_transform": "apimart-omni-flash-ext-contract"
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-minimax-h3-regeneration-text_to_video",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_video",
+      "modelKey": "MiniMax-H3-Regeneration",
+      "name": "MiniMax H3 · 再生成（768P → 2K）",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/videos/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.modelKey}}",
+          "source_task_id": "{{request.params.source_task_id}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "video_url": [
+            "data.result.videos.0.url.0",
+            "data.result.videos.0.url"
+          ],
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded",
+          "success"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-nomi-audio-text_to_audio",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_audio",
+      "modelKey": "nomi-audio",
+      "name": "声音 · 配音生成",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/audio/speech",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "input": "{{request.prompt}}",
+          "voice": "{{request.params.voice}}",
+          "response_format": "wav",
+          "speed": "{{request.params.speed}}"
+        },
+        "audioResponse": {
+          "type": "binary",
+          "contentType": "audio/wav",
+          "extension": "wav"
+        }
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-nomi-audio-transcribe",
+      "vendorKey": "apimart",
+      "taskKind": "transcribe",
+      "modelKey": "nomi-audio",
+      "name": "声音 · 转写音频",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "wireModel": "archetype-selection",
+        "path": "/v1/audio/transcriptions",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "multipart": {
+          "fields": {
+            "model": "{{request.params.model}}",
+            "language": "{{request.params.language}}",
+            "response_format": "verbose_json"
+          },
+          "fileField": "file",
+          "fileSource": "{{request.params.file}}",
+          "fileKind": "audio",
+          "filename": "audio"
+        },
+        "response_mapping": {
+          "text": "text"
+        }
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-suno-v5-5-text_to_audio",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_audio",
+      "modelKey": "suno-v5.5",
+      "name": "Suno V5.5 · 音乐生成",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/music/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "suno",
+          "version": "v5.5",
+          "custom": false,
+          "prompt": "{{request.prompt}}",
+          "instrumental": "{{request.params.instrumental}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id",
+          "status": "data.0.status"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/music/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "audio_url": "data.result.music.0.audio_url",
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "canceled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-suno-sounds-v5-5-text_to_audio",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_audio",
+      "modelKey": "suno-sounds-v5.5",
+      "name": "Suno Sounds V5.5 · 音效生成",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/music/generations/sounds",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "suno",
+          "version": "v5.5",
+          "prompt": "{{request.prompt}}",
+          "sound_type": "{{request.params.sound_type}}",
+          "sound_tempo": "{{request.params.sound_tempo}}",
+          "sound_key": "{{request.params.sound_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id",
+          "status": "data.0.status"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/music/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "audio_url": "data.result.music.0.audio_url",
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "canceled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    },
+    {
+      "id": "seed-apimart-lyria-3-5-text_to_audio",
+      "vendorKey": "apimart",
+      "taskKind": "text_to_audio",
+      "modelKey": "flowmusic-lyria-3.5",
+      "name": "Lyria 3.5 · 音乐生成",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/music/generations",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "flowmusic",
+          "version": "lyria-3.5",
+          "sound_prompt": "{{request.prompt}}",
+          "title": "{{request.params.title}}",
+          "bpm": "{{request.params.bpm}}",
+          "length": "{{request.params.length}}"
+        },
+        "response_mapping": {
+          "task_id": "data.0.task_id",
+          "status": "data.0.status"
+        },
+        "provider_meta_mapping": {
+          "task_id": "data.0.task_id"
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/music/tasks/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "data.id",
+          "status": "data.status",
+          "audio_url": "data.result.music.0.audio_url",
+          "error_message": "data.error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "submitted",
+          "pending",
+          "queued"
+        ],
+        "running": [
+          "processing",
+          "running"
+        ],
+        "succeeded": [
+          "completed",
+          "succeeded"
+        ],
+        "failed": [
+          "failed",
+          "cancelled",
+          "canceled",
+          "error"
+        ]
+      },
+      "createdAt": "2026-11-06T19:11:48.035Z",
+      "updatedAt": "2026-11-06T19:11:48.035Z"
+    }
+  ],
+  "apiKeysByVendor": {}
+}

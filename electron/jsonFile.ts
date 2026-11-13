@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { fsyncIfDurable } from "./durability";
+import { isSharingViolation, SHARING_RETRY_DELAYS_MS } from "./sharingRetry";
 
 /**
  * Atomically (over)write a JSON file.
@@ -23,32 +24,21 @@ function sleepSync(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
-/**
- * Windows 文件锁重试（EPERM/EBUSY/EACCES）：rename 覆盖目标时，目标/临时文件可能被杀毒实时
- * 扫描、搜索索引器、云同步或并行实例短暂持有 → rename 立刻 EPERM（POSIX 上不存在此问题）。
- * 锁通常几十毫秒内释放——graceful-fs / write-file-atomic 的标准解法就是短退避重试。
- * 高频写场景（模型启停连点、批量 upsert）撞锁概率高，重试把它从「用户看到操作失败」
- * 变成「几十毫秒内静默成功」；真持锁不放（>~400ms）才把原错误如实抛出。
- */
-const SHARING_VIOLATION_RETRY_DELAYS_MS = [10, 30, 60, 100, 200];
-
-/** 别的进程（杀毒 / 索引器 / 同步盘）短暂开着这个文件或它下面的文件时，Windows 给的三种错误码。 */
-export function isSharingViolation(error: unknown): boolean {
-  const code = (error as NodeJS.ErrnoException | null)?.code;
-  return code === "EPERM" || code === "EBUSY" || code === "EACCES";
-}
+/** 判定和退避表的唯一一份在 sharingRetry.ts；这里转出判定，现有调用方不改。 */
+export { isSharingViolation };
 
 /**
  * 同步文件操作撞上共享冲突时按短退避重试（总预算约 400ms），之后把原错误如实抛出。
- * 文件与目录的 rename / 删除 / 读取都用这一份策略——不各自手写重试。
+ * 文件与目录的 rename / 删除 / 读取都用这一份策略——不各自手写重试。已经在 async 函数里的调用方改用
+ * sharingRetry.retryOnSharingViolationAsync（定时器退避，不睡）。
  */
 export function retryOnSharingViolation<T>(operation: () => T): T {
   for (let attempt = 0; ; attempt++) {
     try {
       return operation();
     } catch (error) {
-      if (!isSharingViolation(error) || attempt >= SHARING_VIOLATION_RETRY_DELAYS_MS.length) throw error;
-      sleepSync(SHARING_VIOLATION_RETRY_DELAYS_MS[attempt]);
+      if (!isSharingViolation(error) || attempt >= SHARING_RETRY_DELAYS_MS.length) throw error;
+      sleepSync(SHARING_RETRY_DELAYS_MS[attempt]);
     }
   }
 }

@@ -17,24 +17,25 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import fs0 from 'node:fs'
-import os from 'node:os'
+import { require as tsxRequire } from 'tsx/cjs/api'
 import { execFileSync } from 'node:child_process'
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { BRAIN } from './_agentVideoPaid.mjs'
-import { openPaidWalk } from './_paidRun.mjs'
+import { assertPaidRunAllowed, openPaidWalk } from './_paidRun.mjs'
+import { readRealCatalog } from './_realProfile.mjs'
+import { paidCredentialSource } from './_paidEnvKey.mjs'
+import { DEFAULT_MODEL_SPEND_CARD, observeDefaultModelTurn, selectDefaultImageModels } from './agent-default-model-real.steps.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import {
-  APPROVAL_CARD, CANVAS_PANEL, COMPOSER, COMPOSER_ADD_FILE, COMPOSER_CHIP, COMPOSER_MODEL, MODEL_POPOVER,
+  CANVAS_PANEL, COMPOSER, COMPOSER_ADD_FILE, COMPOSER_CHIP, COMPOSER_MODEL, MODEL_POPOVER,
   chooseAssistantModel, closeSpendCard, newConversation, openCanvas, readProject, sendCanvas, waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
 
 // 参数走环境变量：createRuntimeWalk 自己独占 argv（只认 --packaged）。
 const ROUNDS = Number(process.env.NOMI_REAL_ROUNDS || 10)
 const LABEL = process.env.NOMI_REAL_LABEL || 'run'
-const IMAGE_DEFAULT = { vendorKey: 'apimart', modelKey: 'gemini-3.1-flash-image-preview' }
-const IMAGE_OTHER = { vendorKey: 'apimart', modelKey: 'gpt-image-2' }
 const ASK = process.env.NOMI_REAL_ASK || '帮我画一张雨后水洼里漂着一只红色纸船的图，1:1，就一张。起草好就直接提交生成，我在确认卡上点头。'
 const ARG_REJECTED = /Validation failed for tool|capability_input_invalid|generation_input_invalid|Unrecognized key\(s\)|must be (array|string|number|object)|Required/i
 
@@ -46,24 +47,38 @@ const twoImagesFor = (round) => [0, 1].map((slot) => {
   execFileSync(ffmpeg.path, ['-y', '-f', 'lavfi', '-i', `color=c=0x${color}${slot ? '40' : 'c0'}${slot ? 'e0' : '30'}:s=256x256`, '-frames:v', '1', file], { stdio: 'pipe' })
   return file
 })
-const paid = await openPaidWalk('agent-default-model-real.paid.mjs', 'agent-default-model-real', [BRAIN, IMAGE_DEFAULT, IMAGE_OTHER])
+// 只为授权名单读取目录元数据；真实默认判定在隔离副本建立后，绝不在脚本里写模型 id。
+assertPaidRunAllowed('agent-default-model-real.paid.mjs')
+const { APIMART_IMAGE_MODELS } = tsxRequire('../../electron/catalog/apimartImages.ts', import.meta.url)
+const sourceCatalog = paidCredentialSource() === 'real-profile' ? readRealCatalog() : {
+  vendors: [{ key: BRAIN.vendorKey, enabled: true }],
+  models: APIMART_IMAGE_MODELS.map(row => ({ ...row, vendorKey: BRAIN.vendorKey, kind: 'image', enabled: true })),
+}
+const authorized = selectDefaultImageModels(sourceCatalog)
+const paid = await openPaidWalk('agent-default-model-real.paid.mjs', 'agent-default-model-real',
+  [BRAIN, authorized.imageDefault, authorized.imageOther].filter(Boolean))
 const { walk } = paid
 let failure
 try {
   const { win } = await walk.start({ first: true })
   const { projectId, projectRoot } = await walk.newProject()
+  const catalog = JSON.parse(fs.readFileSync(path.join(walk.settingsDir, 'model-catalog.json'), 'utf8'))
+  const defaultsFile = path.join(walk.settingsDir, 'generation-model-defaults.json')
+  const defaults = fs.existsSync(defaultsFile) ? JSON.parse(fs.readFileSync(defaultsFile, 'utf8')) : {}
+  const { imageDefault: IMAGE_DEFAULT, imageOther: IMAGE_OTHER } = selectDefaultImageModels(catalog, defaults)
+  const otherLabel = IMAGE_OTHER ? paid.label(IMAGE_OTHER.vendorKey, IMAGE_OTHER.modelKey) ?? IMAGE_OTHER.label : null
   await openCanvas(win)
   await chooseAssistantModel(win, paid.label(BRAIN.vendorKey, BRAIN.modelKey), CANVAS_PANEL)
 
   // 用户的真实操作：在 Agent 面板的模型弹层里把「图片默认」选成 X。
-  const defaultLabel = paid.label(IMAGE_DEFAULT.vendorKey, IMAGE_DEFAULT.modelKey)
+  const defaultLabel = paid.label(IMAGE_DEFAULT.vendorKey, IMAGE_DEFAULT.modelKey) ?? IMAGE_DEFAULT.label
   const popover = win.locator(`${CANVAS_PANEL} ${MODEL_POPOVER}`)
   // 挑完对话模型后弹层可能还开着：开着就直接用，别再点一下把它关了。
   if (!(await popover.isVisible().catch(() => false))) await clickOrFail(win.locator(`${CANVAS_PANEL} ${COMPOSER_MODEL}`), 'Agent 模型选择器')
   await expect(popover).toBeVisible()
-  const line = popover.locator('[data-v4-model-row="图片默认"]')
-  await clickOrFail(line.locator('button').first(), '「图片默认」那一行的下拉')
-  const option = win.locator('[data-nomi-select-dropdown] [data-nomi-select-option-label]').filter({ hasText: defaultLabel }).first()
+  const line = popover.locator('[data-v4-model-row]').filter({ hasText: /图片默认|Image default/i })
+  await clickOrFail(line.getByRole('button', { name: /图片默认|Image default/i }), '「图片默认」那一行的下拉')
+  const option = win.locator('[data-nomi-select-dropdown]:visible').getByRole('option').filter({ hasText: defaultLabel }).first()
   await clickOrFail(option, `下拉里的「${defaultLabel}」`)
   await expect(line, '弹层那一行现在写着默认模型').toContainText(defaultLabel)
   await win.keyboard.press('Escape')
@@ -100,13 +115,16 @@ try {
         await expect.poll(() => fs0.existsSync(path.join(projectRoot, 'assets')) && fs0.readdirSync(path.join(projectRoot, 'assets'), { recursive: true }).filter((name) => String(name).endsWith('.png')).length,
           { message: '两张图落进项目素材', timeout: DEFAULT_TIMEOUT_MS }).toBeGreaterThanOrEqual(2 * round)
       }
+      let sent = false
       await sendCanvas(win, ASK)
-      const card = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
+      sent = true
+      // 卡可挂在节点上：从窗口按现役标记取，不再限定在 Agent 面板 DOM 内。
+      const card = win.locator(DEFAULT_MODEL_SPEND_CARD).first()
       // 等这一轮落地（卡在等人时输入框仍是运行态，所以先等「卡出现」或「回合结束」二者其一）。
-      await expect.poll(async () => (await card.isVisible().catch(() => false)) || (await win.locator(`${CANVAS_PANEL} ${COMPOSER}:not([data-mode="running"])`).count()) > 0, { timeout: stationTimeout({ turns: 2 }), message: '这一轮迟迟没落地' }).toBe(true)
-      record.cardShown = await card.isVisible().catch(() => false)
+      await expect.poll(async () => observeDefaultModelTurn({ sent, cardVisible: await card.isVisible().catch(() => false), turnRunning: (await win.locator(`${CANVAS_PANEL} ${COMPOSER}:not([data-mode="running"])`).count()) === 0 }).settled, { timeout: stationTimeout({ turns: 2 }), message: '这一轮迟迟没落地' }).toBe(true)
+      record.cardShown = observeDefaultModelTurn({ sent, cardVisible: await card.isVisible().catch(() => false), turnRunning: true }).cardShown
       if (!record.cardShown) { record.error = 'no-card' }
-      record.cardModelLabel = !record.cardShown ? null : ((await card.innerText()).replace(/\s+/g, ' ').match(new RegExp(`(${defaultLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|${(paid.label(IMAGE_OTHER.vendorKey, IMAGE_OTHER.modelKey) ?? 'x').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`)) ?? [])[1] ?? null
+      record.cardModelLabel = !record.cardShown ? null : ((await card.innerText()).replace(/\s+/g, ' ').match(new RegExp(`(${defaultLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|${(otherLabel ?? 'x').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`)) ?? [])[1] ?? null
       await walk.snap(`round-${String(round).padStart(2, '0')}-card`)
       if (record.cardShown) await closeSpendCard(card, '这一轮到此为止：不点生成，关掉这张卡').catch(() => undefined)
       await waitForV4TurnIdle(win, { panel: CANVAS_PANEL, doneTimeout: stationTimeout({ turns: 2 }) }).catch(() => undefined)
@@ -156,11 +174,10 @@ try {
       }
     }
     record.followedDefault = record.draftModel === `${IMAGE_DEFAULT.vendorKey}/${IMAGE_DEFAULT.modelKey}`
-    if (record.draftModel && record.error === 'no-card') record.error = null
     // 回复里提到模型时说的是显示名还是 id（宿主给的事实带显示名；模型对用户只许说显示名）。
-    const labels = [defaultLabel, paid.label(IMAGE_OTHER.vendorKey, IMAGE_OTHER.modelKey)].filter(Boolean)
+    const labels = [defaultLabel, otherLabel].filter(Boolean)
     record.displayNameMentions = labels.reduce((sum, label) => sum + (record.said.split(label).length - 1), 0)
-    record.idMentions = (record.said.match(/apimart\/|gpt-image-2|gemini-3\.1-flash-image-preview/g) ?? []).length
+    record.idMentions = [IMAGE_DEFAULT, IMAGE_OTHER].filter(Boolean).reduce((sum, model) => sum + record.said.split(model.modelKey).length - 1, 0)
     rounds.push(record)
     console.log(`[real-default] 第 ${round} 轮：卡=${record.cardShown} 草稿模型=${record.draftModel} 跟默认=${record.followedDefault} 点名=${record.namedModelInCall ?? '-'} 参数被拒=${record.argRejected}${record.error ? ' 错误=' + record.error : ''}`)
   }

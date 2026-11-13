@@ -47,20 +47,23 @@ export function anchorCarriesOwnMaterial(anchor: Pick<PlanAnchor, 'referenceUrl'
  * 视觉锚（character/scene/prop）→ 卡片大图；变体（成年/童年、白天/夜晚…）拼进「变体行」。
  */
 /**
- * 锚的「身份描述段」：W2 圣经优先用 static（身份 DNA）+ dynamic（服装/状态）分区拼——身份 DNA 先锁、
- * 服装状态另起一行，让身份与可变层在卡片 prompt 里就分开（对齐 ViMax：身份只看 static）。二者都空时
- * 退化到旧 description（旧草稿无新字段时向后兼容）。
+ * 锚的「身份描述段」：**就是描述框里的字**（`anchor.description`，创作区参考卡的描述框、Agent 起草时写的那段），
+ * 一个字不丢、不换——风格词（写实 / 动漫…）写在框里就一定发出去。
+ *
+ * 以前有 static / dynamic 结构化特征就只发这两个字段、整段丢掉 description（用户 10-29 的「定妆卡出了没要的画风」：
+ * 风格写在 description 里，被这里丢了，创作区描述框怎么改出站都不变）。static / dynamic 是 description 的结构化细化，
+ * 只留在节点 meta 里给身份轴 / 冻结门用，**不再追加进提示词**——框里看不到的字不许发（同镜头行 `compileShotOutbound` 的规则）。
+ * 只有 description 为空的旧数据（旧草稿只有结构化字段）才退回发 static / dynamic，保持升级前逐字相同。
  */
 function anchorIdentityBody(anchor: PlanAnchor): string {
+  const description = anchor.description.trim()
+  if (description) return description
   const staticFeatures = (anchor.staticFeatures || '').trim()
   const dynamicFeatures = (anchor.dynamicFeatures || '').trim()
-  if (staticFeatures || dynamicFeatures) {
-    return [
-      staticFeatures ? `身份特征（跨镜保持一致）：${staticFeatures}` : '',
-      dynamicFeatures ? `服装与状态：${dynamicFeatures}` : '',
-    ].filter(Boolean).join('\n')
-  }
-  return anchor.description.trim()
+  return [
+    staticFeatures ? `身份特征（跨镜保持一致）：${staticFeatures}` : '',
+    dynamicFeatures ? `服装与状态：${dynamicFeatures}` : '',
+  ].filter(Boolean).join('\n')
 }
 
 export function buildAnchorSheetPrompt(anchor: PlanAnchor): string {

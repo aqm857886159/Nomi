@@ -16,7 +16,9 @@
 import { VERB_DECLARATIONS } from "../agentCapabilities/verbDeclarations";
 import { verbMaySubmitGeneration, type VerbEffect, type VerbNextAction } from "../agentCapabilities/verbDeclaration";
 import type { LaneToolFailureShape } from "./laneToolContract";
+import type { ToolInputIssue } from "./toolInputIssues";
 import { DRAFT_REFUSAL_NEXT_ACTION_EN, GENERATION_INPUT_INVALID_CODE, admissionNextActionEn, isAdmissionRejectionCode } from "../agentCapabilities/admissionRejectionHints";
+import { GENERATION_PROBLEM_NEXT_ACTION_EN, type GenerationProblem } from "../generationProblem";
 
 /**
  * 工具名 → 它自己声明的 `effect / nextAction`。**从动词声明现取**，不在这里复述一份工具名单——
@@ -64,6 +66,10 @@ export function laneFailureFromDecision(input: {
   admission?: string | undefined;
   /** 宿主账本说这份计划有没有一笔可能到过供应商（传输层随失败带来，`RuntimeToolDecision.submissionStarted`）。 */
   submissionStarted?: boolean | undefined;
+  /** 准入层拒绝的字段事实（传输层随失败带来，`RuntimeToolDecision.issues`）：和形状校验同一份清单。 */
+  issues?: readonly ToolInputIssue[] | undefined;
+  /** 起草期被拒的闭合原因（传输层随失败带来，`RuntimeToolDecision.problem`）。 */
+  problem?: GenerationProblem | undefined;
 }): LaneToolFailureShape {
   // 「提交结果可能未知」只有在真的可能有一笔到过供应商时才说（铁律 4）。账本说一笔都没有：兜底码按事实读成「没开始」，
   // 回给模型和面板的都是「没发出去、没花钱」。缺席（读不到账本）照旧按可能到过说。
@@ -80,23 +86,35 @@ export function laneFailureFromDecision(input: {
     generation_execution_failed: verbMaySubmitGeneration(...submissionFacetsOf(input.toolName))
       ? { message: 'The generation action could not be completed; its submission outcome may be unknown.', nextAction: 'Query the same domain-qualified task and reconcile its existing submission. Do not request payment or submit again until its outcome is known.' }
       : { message: `${input.toolName} failed inside Nomi. It cannot submit or spend, so nothing was sent to a provider and nothing was spent.`, nextAction: 'Read the current state with the matching read tool, change what you send, and call this tool again. Do not look for a task to reconcile: this call never created one.' },
-    generation_not_started: { message: 'The generation action stopped before anything was submitted; nothing was spent.', nextAction: 'Read the failure detail, fix what it names, and let the user approve again. Do not query for a task: none exists.' },
+    generation_not_started: { message: 'The generation action stopped before anything was submitted; nothing was spent.', nextAction: 'Fix what this result names, then let the user approve again. Do not query for a task: none exists.' },
     generation_provider_unavailable: { message: 'The configured generation provider cannot perform this action.', nextAction: 'Check provider configuration and query any existing task before requesting a new paid submission.' },
   };
   const safeAdvice = taskAdvice[code];
   if (safeAdvice) return { code, ...safeAdvice };
   // 起草阶段的拒绝（什么都没提交）：按码给下一步，不套「提交状态不明」那句通用话——后者会让 Agent 停在一张报错卡上。
   // 表只有一份（`admissionRejectionHints.ts`），对外 MCP 读的是同一张。
-  const draftNextAction = isAdmissionRejectionCode(input.admission)
+  // 闭合原因说得出下一步（换最近的模型 / 用合法值 / 去掉这一格……）时按它说；`fix_field` 那一档仍按字段码的表说。
+  const problem = code === GENERATION_INPUT_INVALID_CODE ? input.problem : undefined;
+  const problemNextAction = problem?.next && problem.next !== "fix_field"
+    ? `Nothing was submitted and nothing was charged. ${GENERATION_PROBLEM_NEXT_ACTION_EN[problem.next]}`
+    : undefined;
+  const draftNextAction = problemNextAction ?? (isAdmissionRejectionCode(input.admission)
     ? admissionNextActionEn(input.admission)
-    : code === GENERATION_INPUT_INVALID_CODE ? DRAFT_REFUSAL_NEXT_ACTION_EN : undefined;
+    : code === GENERATION_INPUT_INVALID_CODE ? DRAFT_REFUSAL_NEXT_ACTION_EN : undefined);
   const detail = isBareCodeMessage(input.message, input.code) ? "" : ` ${(input.message ?? "").trim()}`;
   const message = input.advice?.message
     ?? `${input.toolName} could not complete the requested action (${code}).${detail}`;
+  // 字段事实进同一份清单：模型在那句话下面读到同一个格式器写的字段行，面板按字段说，熔断按字段认墙。
+  // 第一条「不在表里」的合法值挂到顶层 `allowed`（同一个数组，渲染时不印第二遍），撞满转提问时就是现成的选项。
+  const issues = input.issues && input.issues.length > 0 ? input.issues : undefined;
+  const allowed = issues?.find((issue) => issue.kind === "not_allowed" && issue.allowed && issue.allowed.length > 0)?.allowed;
   return {
     code,
     message,
     nextAction: input.advice?.nextAction ?? draftNextAction ?? input.nextAction,
     ...(input.reason ? { reason: input.reason as LaneToolFailureShape["reason"] } : {}),
+    ...(issues ? { issues } : {}),
+    ...(allowed ? { allowed } : {}),
+    ...(problem ? { problem } : {}),
   };
 }

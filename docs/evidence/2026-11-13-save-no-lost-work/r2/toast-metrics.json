@@ -1,0 +1,406 @@
+{
+  "runs": [
+    {
+      "locale": "zh-CN",
+      "shots": [
+        {
+          "label": "1-open-one-deep-48title",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/zh-CN-1-open-one-deep-48title.png",
+          "text": "分镜《雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市最北端的旧码头去》第 13 镜的参考格式不对，打开时没能放进项目，之后项目里也不会再有它；其余内容都正常打开。原样内容另存了一份，可在文件夹里找回。",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 108,
+            "bodyCh": 108,
+            "left": 924,
+            "top": 52,
+            "right": 1268,
+            "bottom": 216,
+            "w": 344,
+            "ww": 1280,
+            "wh": 933,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        },
+        {
+          "label": "2-save-one-kept",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/zh-CN-2-save-one-kept.png",
+          "text": "分镜《雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市最北端的旧码头去》第 13 镜的参考格式不对，这次没能存进项目，项目里还是它的上一版；其余改动都已保存。这次的内容另存了一份，可在文件夹里找回。",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 108,
+            "bodyCh": 108,
+            "left": 924,
+            "top": 52,
+            "right": 1268,
+            "bottom": 216,
+            "w": 344,
+            "ww": 1280,
+            "wh": 933,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        },
+        {
+          "label": "3-save-one-missing",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/zh-CN-3-save-one-missing.png",
+          "text": "分镜《海边日落》第 1 镜的时长格式不对，这次没能存进项目，项目里还没有它；其余改动都已保存。这次的内容另存了一份，可在文件夹里找回。",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 72,
+            "bodyCh": 72,
+            "left": 924,
+            "top": 52,
+            "right": 1268,
+            "bottom": 180,
+            "w": 344,
+            "ww": 1280,
+            "wh": 933,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        },
+        {
+          "label": "4-save-two",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/zh-CN-4-save-two.png",
+          "text": "有 2 处内容格式不对，这次没能存进项目（第一处：分镜《咖啡店 1》第 1 镜的时长），项目里还没有它们；其余改动都已保存。这次的内容都另存了一份，可在文件夹里找回。",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 90,
+            "bodyCh": 90,
+            "left": 924,
+            "top": 52,
+            "right": 1268,
+            "bottom": 198,
+            "w": 344,
+            "ww": 1280,
+            "wh": 933,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        },
+        {
+          "label": "5-save-25",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/zh-CN-5-save-25.png",
+          "text": "有 25 处内容格式不对，这次没能存进项目（第一处：分镜《雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市最北端的旧码头去》第 1 镜的时长），项目里还没有它们；其余改动都已保存。这次的内容都另存了一份，可在文件夹里找回。",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 126,
+            "bodyCh": 126,
+            "left": 924,
+            "top": 52,
+            "right": 1268,
+            "bottom": 234,
+            "w": 344,
+            "ww": 1280,
+            "wh": 933,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        },
+        {
+          "label": "6-minwidth-25",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/zh-CN-6-minwidth-25.png",
+          "text": "有 25 处内容格式不对，这次没能存进项目（第一处：分镜《雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市最北端的旧码头去》第 1 镜的时长），项目里还没有它们；其余改动都已保存。这次的内容都另存了一份，可在文件夹里找回。",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 126,
+            "bodyCh": 126,
+            "left": 744,
+            "top": 52,
+            "right": 1088,
+            "bottom": 234,
+            "w": 344,
+            "ww": 1100,
+            "wh": 800,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        },
+        {
+          "label": "7-minwidth-one-kept-48title",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/zh-CN-7-minwidth-one-kept-48title.png",
+          "text": "分镜《雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市最北端的旧码头去》第 13 镜的参考格式不对，这次没能存进项目，项目里还是它的上一版；其余改动都已保存。这次的内容另存了一份，可在文件夹里找回。",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 108,
+            "bodyCh": 108,
+            "left": 744,
+            "top": 52,
+            "right": 1088,
+            "bottom": 216,
+            "w": 344,
+            "ww": 1100,
+            "wh": 800,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        }
+      ],
+      "stillVisibleAfter10s": true,
+      "minSize": [
+        1100,
+        720
+      ],
+      "quarantineFiles": [
+        "20261113-010013-storyboardDesign-雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市-281e319b02ae.json",
+        "20261113-010026-storyboardDesign-雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市-f01d5aa5bdb5.json",
+        "20261113-010028-storyboardDesign-海边日落-810d04ceef1e.json",
+        "20261113-010030-storyboardDesign-咖啡店_1-32ce19417344.json",
+        "20261113-010030-storyboardDesign-咖啡店_2-d12913bc9e74.json",
+        "20261113-010032-storyboardDesign-第_10_份-10048f42cb20.json",
+        "20261113-010032-storyboardDesign-第_11_份-1c3ea601131d.json",
+        "20261113-010032-storyboardDesign-第_12_份-8ae9aa55b28b.json",
+        "20261113-010032-storyboardDesign-第_13_份-cef9475b9590.json",
+        "20261113-010032-storyboardDesign-第_14_份-71a09f53df47.json",
+        "20261113-010032-storyboardDesign-第_15_份-5d8092f1150f.json",
+        "20261113-010032-storyboardDesign-第_16_份-b48fea970a90.json",
+        "20261113-010032-storyboardDesign-第_17_份-f008264a539d.json",
+        "20261113-010032-storyboardDesign-第_18_份-c3b115d4af20.json",
+        "20261113-010032-storyboardDesign-第_19_份-6d503ef86664.json",
+        "20261113-010032-storyboardDesign-第_1_份-96c4d731fdac.json",
+        "20261113-010032-storyboardDesign-第_20_份-eebac5c504b9.json",
+        "20261113-010032-storyboardDesign-第_21_份-1e9c062e7ac4.json",
+        "20261113-010032-storyboardDesign-第_22_份-26ba4ed237d6.json",
+        "20261113-010032-storyboardDesign-第_23_份-917f0b17c34b.json",
+        "20261113-010032-storyboardDesign-第_24_份-294d0dad914a.json",
+        "20261113-010032-storyboardDesign-第_2_份-67b5984d58ab.json",
+        "20261113-010032-storyboardDesign-第_3_份-0fdf8e594cb8.json",
+        "20261113-010032-storyboardDesign-第_4_份-ec24e12eddb5.json",
+        "20261113-010032-storyboardDesign-第_5_份-14d2da2596c7.json",
+        "20261113-010032-storyboardDesign-第_6_份-e4e89ec20fb0.json",
+        "20261113-010032-storyboardDesign-第_7_份-34c45b843add.json",
+        "20261113-010032-storyboardDesign-第_8_份-761adeea8bc3.json",
+        "20261113-010032-storyboardDesign-第_9_份-d98d2d53704d.json",
+        "20261113-010032-storyboardDesign-雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市-403da3e5cdee.json",
+        "20261113-010035-storyboardDesign-雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市-5a6836447977.json"
+      ],
+      "diskDesignIds": [
+        "good-design"
+      ],
+      "diskHasBadOnDisk": false
+    },
+    {
+      "locale": "en",
+      "shots": [
+        {
+          "label": "1-open-one-deep-48title",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/en-1-open-one-deep-48title.png",
+          "text": "Nomi couldn't read the references of shot 13 in storyboard “雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市最北端的旧码头去” because its format is invalid, so it was left out when the project opened and won't be in the project from now on. Everything else opened normally. The original is kept as a separate copy in the folder.",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 162,
+            "bodyCh": 162,
+            "left": 924,
+            "top": 52,
+            "right": 1268,
+            "bottom": 270,
+            "w": 344,
+            "ww": 1280,
+            "wh": 933,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        },
+        {
+          "label": "2-save-one-kept",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/en-2-save-one-kept.png",
+          "text": "Nomi couldn't save the references of shot 13 in storyboard “雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市最北端的旧码头去” because its format is invalid, so the project still has the previous version. Everything else is saved. This version is kept as a separate copy in the folder.",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 144,
+            "bodyCh": 144,
+            "left": 924,
+            "top": 52,
+            "right": 1268,
+            "bottom": 252,
+            "w": 344,
+            "ww": 1280,
+            "wh": 933,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        },
+        {
+          "label": "3-save-one-missing",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/en-3-save-one-missing.png",
+          "text": "Nomi couldn't save the duration of shot 1 in storyboard “海边日落” because its format is invalid, so the project doesn't have it yet. Everything else is saved. This version is kept as a separate copy in the folder.",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 108,
+            "bodyCh": 108,
+            "left": 924,
+            "top": 52,
+            "right": 1268,
+            "bottom": 216,
+            "w": 344,
+            "ww": 1280,
+            "wh": 933,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        },
+        {
+          "label": "4-save-two",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/en-4-save-two.png",
+          "text": "2 items are in a format Nomi can't store (first: the duration of shot 1 in storyboard “咖啡店 1”), so they weren't saved; the project doesn't have them yet. Everything else is saved. These versions are kept as separate copies in the folder.",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 108,
+            "bodyCh": 108,
+            "left": 924,
+            "top": 52,
+            "right": 1268,
+            "bottom": 216,
+            "w": 344,
+            "ww": 1280,
+            "wh": 933,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        },
+        {
+          "label": "5-save-25",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/en-5-save-25.png",
+          "text": "25 items are in a format Nomi can't store (first: the duration of shot 1 in storyboard “雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市最北端的旧码头去”), so they weren't saved; the project doesn't have them yet. Everything else is saved. These versions are kept as separate copies in the folder.",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 144,
+            "bodyCh": 144,
+            "left": 924,
+            "top": 52,
+            "right": 1268,
+            "bottom": 252,
+            "w": 344,
+            "ww": 1280,
+            "wh": 933,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        },
+        {
+          "label": "6-minwidth-25",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/en-6-minwidth-25.png",
+          "text": "25 items are in a format Nomi can't store (first: the duration of shot 1 in storyboard “雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市最北端的旧码头去”), so they weren't saved; the project doesn't have them yet. Everything else is saved. These versions are kept as separate copies in the folder.",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 144,
+            "bodyCh": 144,
+            "left": 744,
+            "top": 52,
+            "right": 1088,
+            "bottom": 252,
+            "w": 344,
+            "ww": 1100,
+            "wh": 800,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        },
+        {
+          "label": "7-minwidth-one-kept-48title",
+          "file": "/Users/aoqimin/Nomi-coord/tmp/I-save-no-lost-work-pr1-r2/shots/en-7-minwidth-one-kept-48title.png",
+          "text": "Nomi couldn't save the references of shot 13 in storyboard “雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市最北端的旧码头去” because its format is invalid, so the project still has the previous version. Everything else is saved. This version is kept as a separate copy in the folder.",
+          "metrics": {
+            "bodySw": 260,
+            "bodyCw": 260,
+            "bodySh": 144,
+            "bodyCh": 144,
+            "left": 744,
+            "top": 52,
+            "right": 1088,
+            "bottom": 252,
+            "w": 344,
+            "ww": 1100,
+            "wh": 800,
+            "color": "var(--nomi-warning)"
+          },
+          "hasReveal": 1,
+          "hasClose": 1,
+          "toasts": 1
+        }
+      ],
+      "stillVisibleAfter10s": true,
+      "minSize": [
+        1100,
+        720
+      ],
+      "quarantineFiles": [
+        "20261113-010040-storyboardDesign-雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市-281e319b02ae.json",
+        "20261113-010053-storyboardDesign-雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市-f01d5aa5bdb5.json",
+        "20261113-010055-storyboardDesign-海边日落-810d04ceef1e.json",
+        "20261113-010057-storyboardDesign-咖啡店_1-32ce19417344.json",
+        "20261113-010057-storyboardDesign-咖啡店_2-d12913bc9e74.json",
+        "20261113-010058-storyboardDesign-第_10_份-10048f42cb20.json",
+        "20261113-010058-storyboardDesign-第_11_份-1c3ea601131d.json",
+        "20261113-010058-storyboardDesign-第_12_份-8ae9aa55b28b.json",
+        "20261113-010058-storyboardDesign-第_13_份-cef9475b9590.json",
+        "20261113-010058-storyboardDesign-第_14_份-71a09f53df47.json",
+        "20261113-010058-storyboardDesign-第_15_份-5d8092f1150f.json",
+        "20261113-010058-storyboardDesign-第_16_份-b48fea970a90.json",
+        "20261113-010058-storyboardDesign-第_17_份-f008264a539d.json",
+        "20261113-010058-storyboardDesign-第_18_份-c3b115d4af20.json",
+        "20261113-010058-storyboardDesign-第_19_份-6d503ef86664.json",
+        "20261113-010058-storyboardDesign-第_1_份-96c4d731fdac.json",
+        "20261113-010058-storyboardDesign-第_20_份-eebac5c504b9.json",
+        "20261113-010058-storyboardDesign-第_21_份-1e9c062e7ac4.json",
+        "20261113-010058-storyboardDesign-第_22_份-26ba4ed237d6.json",
+        "20261113-010058-storyboardDesign-第_23_份-917f0b17c34b.json",
+        "20261113-010058-storyboardDesign-第_24_份-294d0dad914a.json",
+        "20261113-010058-storyboardDesign-第_2_份-67b5984d58ab.json",
+        "20261113-010058-storyboardDesign-第_3_份-0fdf8e594cb8.json",
+        "20261113-010058-storyboardDesign-第_4_份-ec24e12eddb5.json",
+        "20261113-010058-storyboardDesign-第_5_份-14d2da2596c7.json",
+        "20261113-010058-storyboardDesign-第_6_份-e4e89ec20fb0.json",
+        "20261113-010058-storyboardDesign-第_7_份-34c45b843add.json",
+        "20261113-010058-storyboardDesign-第_8_份-761adeea8bc3.json",
+        "20261113-010058-storyboardDesign-第_9_份-d98d2d53704d.json",
+        "20261113-010058-storyboardDesign-雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市-403da3e5cdee.json",
+        "20261113-010102-storyboardDesign-雨夜追逐：主角在霓虹街巷里第一次看见那辆没有车牌的黑色轿车之后他决定一路跟到城市-5a6836447977.json"
+      ],
+      "diskDesignIds": [
+        "good-design"
+      ],
+      "diskHasBadOnDisk": false
+    }
+  ]
+}

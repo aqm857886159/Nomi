@@ -1,0 +1,26 @@
+{
+  "name": "Agent 面板工具失败行的文案（按失败码与字段清单查 zh / en 表，不读英文正文）",
+  "subject": "agent-panel.tool-failure-copy",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/lane/laneToolFailureText.ts",
+    "symbol": "laneToolFailureSummary"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/lane/laneToolFailureText.ts",
+      "symbol": "laneToolFailureSummary"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/lane/laneToolFailureText.test.ts",
+  "allowed_consumers": [
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts"
+  ],
+  "since": "2026-11-07",
+  "notes": "合同 docs/fixes/2026-11-07-agent-tool-failure-boundary.root-cause.json。面板的工具失败行说「哪个字段 · 该填什么」：只认信封（laneToolFailureEnvelope 的 LaneToolPublicFailure：码、字段清单、合法值、改用哪个），文案在 src/i18n/locales/agentToolFailure.ts 一码一句、zh / en 同表；没有 zh 条目的码不显示。以前 residentToolDisplay.ts 按英文正文猜失败种类，那条路已删。"
+}

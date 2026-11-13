@@ -213,7 +213,7 @@ function buildAnchorCardNode(anchor: PlanAnchor, options: StoryboardPlanToArgsOp
     // 参考卡永不占镜号（道具锚 kind=image 落 shots 分类，不标记会吃掉「镜头 1/2」，R13 抓出）。
     referenceSheet: true,
     // W2 圣经：static/dynamic 落画布写进 node.meta（passthrough 自动持久化）→ 身份轴基准 + 冻结门可显示。
-    // description 仍拼进 prompt（buildAnchorSheetPrompt），二者并存不矛盾（static/dynamic 是 description 的结构化细化）。
+    // 提示词正文就是 description（buildAnchorSheetPrompt）；static/dynamic 只留在 meta，不追加进提示词（框里看不到的字不发）。
     ...(anchor.staticFeatures && anchor.staticFeatures.trim() ? { staticFeatures: anchor.staticFeatures.trim() } : {}),
     ...(anchor.dynamicFeatures && anchor.dynamicFeatures.trim() ? { dynamicFeatures: anchor.dynamicFeatures.trim() } : {}),
     metadata: {

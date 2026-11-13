@@ -8,6 +8,7 @@ import {
   REAL_PROFILE_ENV, realNomiProcessesAlive, realNomiProfile, realProfileFingerprint, removeRealCredentials, seedRealCredentials, seedRealModels,
 } from './_realProfile.mjs'
 import { paidRunRefusal, spendReceipt } from './_paidRun.mjs'
+import { builtinCatalogModelKeys } from '../../electron/catalog/seedBuiltins'
 
 const roots = []
 afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }) })
@@ -94,6 +95,30 @@ describe('把真实凭据带进隔离副本', () => {
     expect(catalog.mappings).toEqual([{ vendorKey: 'apimart', modelKey: 'img-cheap', taskKind: 'text_to_image', enabled: true }])
     expect(readJson(path.join(settingsDir, 'generation-model-defaults.json')).byTaskKind.text_to_image).toEqual({ vendorKey: 'apimart', modelKey: 'img-cheap' })
     expect(fs.existsSync(path.join(userDataDir, 'Local State'))).toBe(true)
+  })
+
+  test('这个构建新加的内置模型：真实目录里还没有，照 App 首启的升级补出来，key 仍只认原库', () => {
+    const profile = syntheticRealProfile()
+    const before = realProfileFingerprint(profile)
+    const { settingsDir, userDataDir } = isolatedCopy()
+    const modelKey = [...builtinCatalogModelKeys('apimart')].sort()[0]
+    expect(readJson(profile.catalogPath).models.some((model) => model.modelKey === modelKey)).toBe(false)
+    const [seeded] = seedRealModels({ settingsDir, userDataDir, profile, models: [{ vendorKey: 'apimart', modelKey }] })
+    expect(seeded).toMatchObject({ vendorKey: 'apimart', modelKey })
+    const catalog = readJson(path.join(settingsDir, 'model-catalog.json'))
+    expect(catalog.models.find((model) => model.modelKey === modelKey)).toMatchObject({ kind: seeded.kind, published: true, enabled: true })
+    if (seeded.kind !== 'text') expect(catalog.mappings.some((mapping) => mapping.modelKey === modelKey && mapping.enabled)).toBe(true)
+    expect(catalog.apiKeysByVendor).toEqual({ apimart: { apiKey: 'SYNTHETIC_CIPHERTEXT', enc: 'safeStorage' } })
+    expect(realProfileFingerprint(profile)).toEqual(before)
+  })
+
+  test('原库没有、这个构建也没内置的模型照旧拒绝，不往副本里写任何东西', () => {
+    const profile = syntheticRealProfile()
+    const { settingsDir, userDataDir } = isolatedCopy()
+    const before = fs.readFileSync(path.join(settingsDir, 'model-catalog.json'), 'utf8')
+    expect(() => seedRealModels({ settingsDir, userDataDir, profile, models: [{ vendorKey: 'apimart', modelKey: 'no-such-model' }] }))
+      .toThrow(/没有 apimart\/no-such-model/)
+    expect(fs.readFileSync(path.join(settingsDir, 'model-catalog.json'), 'utf8')).toBe(before)
   })
 
   test('明文 key 的供应商 fail-closed，不往副本里写任何东西', () => {

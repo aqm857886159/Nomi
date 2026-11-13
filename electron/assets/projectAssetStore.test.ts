@@ -181,6 +181,22 @@ describe("writeAsset canonical media filename", () => {
       expect(path.posix.basename(stored.data?.relativePath || "").length).toBeLessThanOrEqual(90);
     });
 
+    it("copyAssetFile: 硬链接进桶被占着 → 用默认退避表（5 次等待、共 6 次尝试）再报失败", async () => {
+      const source = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "nomi-held-link-")), "source");
+      fs.writeFileSync(source, mediaFixture("valid.mp4"));
+      let links = 0;
+      const spy = vi.spyOn(fs, "linkSync").mockImplementation(() => {
+        links += 1;
+        throw Object.assign(new Error("injected EBUSY"), { code: "EBUSY" });
+      });
+      try {
+        await expect(copyAssetFile("project-1", source, "held.mp4", "video/mp4", { kind: "reference" }, null)).rejects.toMatchObject({ code: "EBUSY" });
+      } finally {
+        spy.mockRestore();
+      }
+      expect(links).toBe(6);
+    });
+
     it("a name whose only suffix is not a real extension keeps its text and gets .bin", () => {
       const stored = writeAsset("project-1", Buffer.from("opaque bytes"), `${"c".repeat(20)}.not-an-extension`, "application/octet-stream", { kind: "reference" }) as Stored;
       expect(path.posix.basename(stored.data?.relativePath || "")).toBe(`${"c".repeat(20)}.not-an-extension.bin`);
@@ -331,7 +347,7 @@ describe("writeAsset canonical media filename", () => {
 describe('existing project media attachment receipts', () => {
   it('returns the canonical original identity and full receipt for a local reference', async () => {
     const stored = await writeAsset('project-1', Buffer.from('original'), 'portrait.png', 'image/png', { kind: 'upload' }) as { id: string; data: { url: string } }
-    const receipt = await importRemoteAsset({ projectId: 'project-1', url: stored.data.url, expectedKind: null }) as { id: string; data: { size: number; contentHash: string } }
+    const receipt = await importRemoteAsset({ projectId: 'project-1', url: stored.data.url, kind: 'upload', expectedKind: null }) as { id: string; data: { size: number; contentHash: string } }
     expect(receipt.id).toBe(stored.id)
     expect(receipt.data.size).toBe(8)
     expect(receipt.data.contentHash).toMatch(/^[a-f0-9]{64}$/)

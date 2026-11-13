@@ -5,7 +5,9 @@ import type { ModelArchetype } from "./types";
 // 文生视频 / 图生视频（image_urls 1-2，1=首帧 2=首尾帧）/ **角色参考（2026-07-29 加，model=wan2.7-r2v）**。
 // 角色参考照 docs.apimart.ai/en/api-reference/videos/wan2.7-r2v/generation.md 对账：图参考走
 // image_with_roles [{url,role:'reference_image'}]（combineSlotsInto 通用原语，role 由 kind 派生）、
-// 视频参考走 video_urls 裸数组（video_ref 无缺省 role → 不参与合并）；图+视频合计 ≤5（上游校验，
+// 视频参考走 video_urls 裸数组（官方 image_with_roles 的 role 只有 reference_image / first_frame，所以合并只收
+// image_ref：combineSlotsInto.kinds；2026-07-31 角色表补上 reference_video 后画布路曾把参考视频也并进
+// image_with_roles，2026-11-07 改回）；图+视频合计 ≤5（上游校验，
 // 槽系统只能各限 5）；带参考视频时时长上限 10s（上游校验）。reference_voice（按图配音色）本期不接。
 // 三模式经 per-mode modelEnum 发不同 model（wan2.7 / wan2.7-r2v），catalog 单行、body 读 request.params.model。
 // i2v 的 size 由参考帧决定（官方忽略该字段）→ i2v 不声明 size（诚实 UI，替代旧「声明了但 drop」）。
@@ -49,7 +51,7 @@ export const WAN_2_7_ARCHETYPE: ModelArchetype = {
         { kind: "image_ref", label: "参考图", min: 0, max: 5 },
         { kind: "video_ref", label: "参考视频", min: 0, max: 5, inputKey: "video_urls" },
       ],
-      combineSlotsInto: { key: "image_with_roles" },
+      combineSlotsInto: { key: "image_with_roles", kinds: ["image_ref"] },
       params: REF_PARAMS,
     },
   ],

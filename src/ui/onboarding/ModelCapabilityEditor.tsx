@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import { IconChevronRight, IconDeviceFloppy, IconPlus, IconRefresh } from '@tabler/icons-react'
+import { tabbable } from 'tabbable'
 import { useTranslation } from 'react-i18next'
 import {
   parseCustomCapabilityContract,
@@ -84,9 +85,8 @@ export function ModelCapabilityEditor({
       window.requestAnimationFrame(() => {
         const targets = pageRef.current?.querySelectorAll<HTMLElement>('[data-capability-field]') ?? []
         const field = [...targets].find((target) => target.dataset.capabilityField === firstPath)
-        const focusTarget = field?.matches('input, textarea, button')
-          ? field
-          : field?.querySelector<HTMLElement>('input, textarea, button')
+        // 字段本身就是控件时是它，否则是字段里第一个 Tab 得到的控件——不手写标签列表。
+        const focusTarget = field ? tabbable(field, { includeContainer: true })[0] : undefined
         focusTarget?.focus({ preventScroll: false })
         field?.scrollIntoView({ block: 'center', behavior: 'smooth' })
       })

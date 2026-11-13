@@ -243,7 +243,7 @@ try {
     report.quoteText = null
   } else {
     report.spendConfirmation = 'shown'
-    const spend = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成/ }).last()
+    const spend = win.locator('[data-spend-confirm-dialog]').filter({ hasText: /开始生成/ }).last()
     await expect(spend, '提交前先看报价确认').toBeVisible({ timeout: stationTimeout() })
     report.quoteText = await spend.innerText()
     if (expectedRequests > 1) check(new RegExp(`${expectedRequests}\\s*(张|个|项|次|份)`).test(report.quoteText), '确认卡明确覆盖本次全部执行数量', report.quoteText)

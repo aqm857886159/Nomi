@@ -31,6 +31,7 @@ import type {
 import { isCanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
 import { assetUrlForProductionPreview } from '../../../../electron/shared/productionPreviewUrl'
 import { isProductionRunRecord } from '../../../../electron/shared/productionShotPhase'
+import { projectNodeDisplay } from './nodeRunOutcome'
 
 /**
  * 重启收敛：磁盘里 status 仍是 running/queued 的节点 = 上次退出时正在生成（没活着的轮询循环了）。
@@ -53,14 +54,22 @@ export function convergeStuckMidFlightNode<T extends Omit<GenerationCanvasNode, 
     return { ...node, status: 'error', progress: undefined, error: localProcessingError(i18n.t('generationCommon.localProcessing.interrupted')) }
   }
   const runs: GenerationNodeRunRecord[] = Array.isArray(node.runs) ? node.runs : []
-  if (isProductionRunRecord(runs[0])) return node
-  const taskId = (runs[0]?.taskId || (node.progress as GenerationNodeProgress | undefined)?.taskId || '').trim()
-  const nextStatus: GenerationNodeStatus = taskId ? 'recoverable' : 'idle'
+  // 只收在跑的那条记录（D8）：最新那条要是已经结束（成功 / 失败），一个字不改。
+  const liveIndex = runs.findIndex((run) => run.status === 'running' || run.status === 'queued')
+  if (isProductionRunRecord(liveIndex >= 0 ? runs[liveIndex] : runs[0])) return node
+  if (liveIndex < 0 && runs.length) {
+    // 没有在跑的记录 = 这次点下去还没拿到主进程的准入回执就关了：显示按记录重算，记录不动。
+    // （主进程那边要是已经收下，开着的运行清单会让节点显示「可找回 / 结果不明」。）
+    return { ...node, ...projectNodeDisplay({ ...node, progress: undefined }, runs) }
+  }
+  const live = runs[liveIndex]
+  const taskId = (live?.taskId || (node.progress as GenerationNodeProgress | undefined)?.taskId || '').trim()
   const nextRunStatus: GenerationNodeRunStatus = taskId ? 'recoverable' : 'cancelled'
-  const nextRuns = runs.length
-    ? [{ ...runs[0], status: nextRunStatus, progress: undefined }, ...runs.slice(1)]
+  const nextRuns = live
+    ? runs.map((run, index) => index === liveIndex ? { ...run, status: nextRunStatus, progress: undefined, ...(taskId && !run.taskId ? { taskId } : {}) } : run)
     : runs
-  return { ...node, status: nextStatus, progress: undefined, runs: nextRuns }
+  if (!nextRuns.length) return { ...node, status: (taskId ? 'recoverable' : 'idle') as GenerationNodeStatus, progress: undefined, runs: nextRuns }
+  return { ...node, ...projectNodeDisplay({ ...node, progress: undefined }, nextRuns), runs: nextRuns }
 }
 
 /** 一整张画布的收口（载入、事件尾巴重放之后各问一次：重放会把存盘时的 running 原样写回来）。 */

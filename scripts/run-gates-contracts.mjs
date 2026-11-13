@@ -39,6 +39,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { recordBlockEvent } from './lib/blockEvents.mjs'
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 /** 汇总里为每个失败门岗回放的输出行数——够定位，不至于把日志再刷一遍。 */
@@ -214,7 +216,10 @@ async function main() {
   const { gates, advisory } = parseGateArgs(process.argv.slice(2))
   const scripts = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).scripts ?? {}
   assertGatesExist(gates, scripts)
-  const { exitCode } = await runGateSuite({ gates, advisory, runGate: spawnGate })
+  const startedAt = Date.now()
+  const { exitCode, failures } = await runGateSuite({ gates, advisory, runGate: spawnGate })
+  // 本机被拦留一条记录（CI 里不写；写不成只警告，退出码不变）。量具见 scripts/lib/blockEvents.mjs。
+  if (exitCode !== 0) recordBlockEvent({ stage: 'gates', gates: failures.map((failure) => failure.name), durationMs: Date.now() - startedAt, cwd: repoRoot })
   process.exit(exitCode)
 }
 

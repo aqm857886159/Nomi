@@ -162,7 +162,7 @@ async function addReferenceNode({ win, projectId, projectRoot, prompt }) {
 }
 
 /** 点节点上的 ↑，有确认框就点确认；等这一次提交走到结局（成功 / 失败 / 可找回），返回最后一条运行记录。 */
-async function generateOnce({ win, reference }) {
+export async function generateOnce({ win, reference }) {
   const previous = new Set(((await reference.readNode()).runs ?? []).map((run) => run.id))
   await reference.node.locator('[data-bar-segment="generate"]').click()
   const dialog = win.locator('[data-spend-confirm-dialog]')
@@ -179,7 +179,7 @@ async function generateOnce({ win, reference }) {
 }
 
 /** 当前界面语言（走查按 localStorage 里的那一个）。 */
-async function setLocale(win, locale) {
+export async function setLocale(win, locale) {
   await win.evaluate((value) => localStorage.setItem('nomi:locale:v1', value), locale)
   await win.reload({ waitUntil: 'domcontentloaded' })
   // openCanvas 按 document 的语言找导航钮：等 i18n 把这一轮的语言同步到 document 再往下走。

@@ -5,9 +5,12 @@
 //   ② 暂停点②独立验收：四类的 PR 正文 `## 独立验收` 是否带报告链接，且验收线编号不同于实现线；
 //   ③ 本 PR 把逃逸账本条目转成 fixed 时，有没有带 detected_by 的根因合同（判据看账本状态转换，不看正文用词）；
 //   ④ 路径推出「花钱」类的 PR，`## 验收证据` 里有没有 `spend-paid-sample：<运行号 / 报告链接>` 或 `spend-paid-sample：协调豁免：<理由>`（不接受「未验证」）。
+//   ⑤ 「PR Body」检查（.github/workflows/pr-body.yml，合并档正文判据，正文一改自动重判）在 PR 当前 head 上最新一次是绿的（2026-11-07）：
+//      它和上面①–④是同一份判据（evaluatePrBody）在 GitHub 上的结果；这里要求它绿，是让「GitHub 上显示可以合」和合并前扫描说的是一回事，
+//      没跑过（老 PR）、在跑、红、取消都拒合，读法在 scripts/lib/prBodyCheck.mjs。
 // 判四类的字符串规则与设计卡模板末尾那段一致（docs/engineering/design-card.md），宁可多报；误报由协调会话人工划掉。
 //
-// 取数（2026-10-24 起）：远程只剩两次——gh pr view 读正文 / head / 基线分支名 / 创建时间，git fetch 取基线分支末端与 pull/<n>/head。
+// 取数（2026-10-24 起）：远程只剩两次——gh pr view 读正文 / head / 基线分支名 / 创建时间 / head 上的检查列表，git fetch 取基线分支末端与 pull/<n>/head。
 // 改了什么（文件表、新增行、package.json 被删行）、PR 头和基线上的文件内容、merge-base 都在本地对 fetch 到的提交算。
 // 原来这些走 GitHub API，各有上限：PR diff 超过 300 个文件就 406（#1269 改了 321 个，扫描只能打「取不到 PR diff」），
 // 文件表 3000 个、列目录 1000 个、GraphQL 大 Blob 截断——本地 git 没有这些上限。
@@ -21,6 +24,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { ESCAPE_LEDGER_DIR, escapeIdOfPath, loadEscapeLedger } from './escape-ledger-lib.mjs'
 import { localApprovals } from './lib/coordApprovals.mjs'
+import { prBodyCheckVerdict } from './lib/prBodyCheck.mjs'
 import { prChanges } from './lib/prChanges.mjs'
 import { boardsAtHead, checkHeadAncestry, isRepoRelativeRef, suppressionsAt } from './lib/prEvidenceInputs.mjs'
 import { execGhReadSync, retryTransientSync } from './lib/transientRetry.mjs'
@@ -113,8 +117,12 @@ function run(argv, exec, git, root) {
     console.error('用法：node scripts/merge-preflight.mjs <PR 号> [--repo owner/name]')
     return 2
   }
-  const view = must('PR 基本信息', () => JSON.parse(gh(['pr', 'view', prArg, '--json', 'body,headRefOid,baseRefName,createdAt'], { repo })))
+  const view = must('PR 基本信息', () => JSON.parse(gh(['pr', 'view', prArg, '--json', 'body,headRefOid,baseRefName,createdAt,statusCheckRollup'], { repo })))
   const body = view.body ?? ''
+  // 检查列表和正文 / head 同一次取：下面核过 fetch 到的 head 就是 headRefOid，所以这份列表就是这个 head 上的。
+  // 取不到（字段缺失、不是列表）= 取数失败，不当「没有检查」，更不当绿。
+  if (!Array.isArray(view.statusCheckRollup)) throw new PreflightDataError('PR 当前 head 上的检查列表（statusCheckRollup）')
+  const prBodyCheck = prBodyCheckVerdict(view.statusCheckRollup)
 
   // 「这个 PR 改了什么」只来自本地 git：fetch 基线分支末端和 PR head，本地算 merge-base 与 diff。
   // 判据代码与政策表仍取本检出（main），数据取 PR 头 / 本 PR 的 diff（「政策取 main、数据取 PR 头」不变）。
@@ -190,7 +198,7 @@ function run(argv, exec, git, root) {
     removedFiles: scenarioRows.filter((row) => row.status === 'D').map((row) => row.path),
   })
 
-  const report = mergeReport(prArg, evaluatePrBody({
+  const judged = evaluatePrBody({
     body,
     files,
     addedByFile,
@@ -223,7 +231,8 @@ function run(argv, exec, git, root) {
       suppressions: () => must('PR 头上的 eslint-suppressions.json', () => suppressionsAt({ git, sha: headSha })),
       baseSuppressions: () => must('base 上的 eslint-suppressions.json', () => suppressionsAt({ git, sha: forkSha })),
     },
-  }))
+  })
+  const report = mergeReport(prArg, { lines: [...judged.lines, prBodyCheck.line], blocked: judged.blocked || !prBodyCheck.ok })
   console.log(report.text)
   return report.blocked ? 1 : 0
 }

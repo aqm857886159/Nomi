@@ -131,10 +131,38 @@ function controlsReach(controls) {
   return reach
 }
 
+/**
+ * 创作者怎么到这种方式：在底栏方式格里选它，再把这种方式的每个格子各放一件（方式按输入现算，2026-11-12；
+ * 没放输入时一律按文字方式，所以只写 modeId、不放输入的节点到不了带图方式的参数）。
+ */
+const SLOT_INPUT = Object.freeze({
+  image_ref: { edgeMode: 'reference', kind: 'image' },
+  video_ref: { edgeMode: 'reference', kind: 'video' },
+  source_video: { edgeMode: 'reference', kind: 'video' },
+  first_frame: { edgeMode: 'first_frame', kind: 'image' },
+  last_frame: { edgeMode: 'last_frame', kind: 'image' },
+  audio_ref: { edgeMode: 'reference', kind: 'audio' },
+})
+
+function nodeOnCanvasFor(row, mode) {
+  const meta = { ...nodeMetaFor(row, mode), archetype: { id: row.archetype.id, modeId: mode.id, modeChosenBy: 'human' } }
+  const node = { id: 'target', kind: row.kind, meta }
+  const sources = []
+  const edges = []
+  for (const slot of mode.slots ?? []) {
+    const input = SLOT_INPUT[slot.kind]
+    if (!input) continue
+    const id = `in-${sources.length}`
+    sources.push({ id, kind: input.kind, meta: {} })
+    edges.push({ id: `e-${id}`, source: id, target: node.id, mode: input.edgeMode })
+  }
+  return { meta, node, graph: { nodes: [node, ...sources], edges } }
+}
+
 /** 节点底栏：在这个模式下能选到的参数键（及每键的可选值）、能切到的模式、能切到的变体。 */
 function nodeBarReach(row, mode) {
-  const meta = nodeMetaFor(row, mode)
-  const controls = resolveRenderedControls(row.option, meta, row.kind === 'image', row.kind === 'video')
+  const { meta, node, graph } = nodeOnCanvasFor(row, mode)
+  const controls = resolveRenderedControls(row.option, meta, row.kind === 'image', row.kind === 'video', { node, graph })
   return {
     params: controlsReach(controls),
     modes: archetypeModeChoices(row.archetype).map((choice) => choice.id),

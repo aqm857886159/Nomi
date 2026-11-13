@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 门岗（PR 正文判据族，CI 与 push 前都跑）：设计卡 / 独立验收 / 逃逸合同 + 功能分类决定的测试路由 + 规则与门岗的改动范围。
+// 门岗（PR 正文判据族，CI 与 push 前都跑；档位见用法）：设计卡 / 独立验收 / 逃逸合同 + 功能分类决定的测试路由 + 规则与门岗的改动范围。
 // 判据全在 scripts/pr-body-criteria.mjs（与 scripts/pr-judgement-lib.mjs），合并前扫描（scripts/merge-preflight.mjs）调同一份，
 // 所以推送时判什么、合并前就判什么（#1094：两边口径不一，推送放行、合并才红）；这里只负责从本地 git 取数：
 //   · PR 正文：scripts/lib/prBody.mjs 的唯一取法（pull_request 事件里必查、取不到 = 红；本地没有 PR 就跳过）；
@@ -8,8 +8,10 @@
 //   · PR 创建时间（决定路由规则是否已生效）：gh pr view；取不到按已生效处理（fail-closed）。
 //
 // 用法：
-//   node scripts/check-pr-judgement.mjs           CI / push 前（本地无 PR 正文时跳过）
-//   node scripts/check-pr-judgement.mjs --gaps    体检：列出路由表里所有「工具还没建」的缺口
+//   node scripts/check-pr-judgement.mjs --stage=push    Quality Gate 的 Contracts（package.json 的 check:pr-judgement）：推送档
+//   node scripts/check-pr-judgement.mjs --stage=merge   「PR Body」检查（.github/workflows/pr-body.yml）：合并档，正文一改就重判
+//   node scripts/check-pr-judgement.mjs                 没写档位：CI 里按合并档；本机看 NOMI_PR_JUDGEMENT_STAGE（推送前钩子写 push）；本地无 PR 正文时跳过
+//   node scripts/check-pr-judgement.mjs --gaps          体检：列出路由表里所有「工具还没建」的缺口
 //
 // 环境变量（给测试用）：PR_JUDGEMENT_BASE_REF 可信 base；PR_JUDGEMENT_REPO_ROOT 覆盖仓库根；PR_JUDGEMENT_CREATED_AT 覆盖 PR 创建时间；NOMI_PR_BODY 指定正文（见 prBody.mjs）。
 import { execFileSync } from 'node:child_process'
@@ -52,6 +54,8 @@ function main() {
     for (const gap of gaps) console.log(`  · [${gap.category}] ${gap.id}：${gap.label}\n      ${gap.toolRef}`)
     return 0
   }
+  // 档位先定（写错的 --stage 当场报错，不等取到正文才发现）
+  const stage = resolveJudgementStage(process.env, process.argv.slice(2))
   const pr = resolvePullRequestBody({ cwd: repoRoot })
   if (!pr.available) {
     if (pr.required) {
@@ -70,7 +74,6 @@ function main() {
   const { files, addedByFile, packageRemovedLines } = prChanges({ git, base, head: 'HEAD' })
   const show = (ref, file) => { try { return git(['show', `${ref}:${file}`]) } catch { return null } }
   // 逃逸账本一条一个文件：条目被删 = 条目文件在 base 有、HEAD 没有；转 fixed 看两版（同一份 ledgerChanges）。
-  const stage = resolveJudgementStage()
   const ledger = { transitions: [], ids: [], removed: [], settledContracts: [], preparedContracts: [] }
   if (files.some((file) => escapeIdOfPath(file.path))) {
     const changes = ledgerChanges(files, (file, side) => show(side === 'base' ? base : 'HEAD', file))
@@ -108,13 +111,16 @@ function main() {
   }
   const result = evaluatePrBody({ body: pr.body, files, addedByFile, packageRemovedLines, contracts, ledger, createdAt: prCreatedAt(), stage, scenarios, table: policyTable })
   const categories = result.judgement.inferred.categories.map((category) => category.label)
-  console.log(`PR 正文判据（正文取自 ${pr.source}）：路径推出的类别 = ${categories.length ? categories.join('、') : '（无）'}`)
+  console.log(`PR 正文判据（${stage === 'merge' ? '合并档' : '推送档'}，正文取自 ${pr.source}）：路径推出的类别 = ${categories.length ? categories.join('、') : '（无）'}`)
   for (const line of result.lines) console.log(line)
   if (result.blocked) {
-    console.error('✖ PR 正文判据没过：先把 PR 正文改好（十秒），改完重跑这个 job 即可，不必重推。')
+    // 合并档跑在「PR Body」检查里，正文一改（edited）它自动重判；推送档跑在 Contracts 里，Quality Gate 只在推送时触发。
+    console.error(stage === 'merge'
+      ? '✖ PR 正文判据（合并档）没过：在 GitHub 上把 PR 正文改好即可，「PR Body」检查会自动重判，不必重推、不必点重跑。'
+      : '✖ PR 正文判据（推送档）没过：这几项推送时就该写好。改好 PR 正文后重跑这个 job 即可，不必重推。')
     return 1
   }
-  console.log('✅ PR 正文判据通过')
+  console.log(`✅ PR 正文判据通过（${stage === 'merge' ? '合并档' : '推送档：独立验收报告、账本 fixed 这类推送后才有的项只提醒，由「PR Body」检查判合并档'}）`)
   return 0
 }
 

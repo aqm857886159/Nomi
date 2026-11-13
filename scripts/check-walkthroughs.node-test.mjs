@@ -308,6 +308,33 @@ describe('composer-input-read：Agent 输入框是富文本编辑器，不能当
   })
 })
 
+describe('composer-input-read：清空不能 fill(\'\')（#1359 验收红在这：ProseMirror 选区没跟上，删除被吞，时灵时不灵）', () => {
+  it('红例：直接 fill 空串 / 经变量 fill 空串 / 反引号和双引号写法都抓，并指向 clearComposerText', () => {
+    const direct = "await panel.locator(COMPOSER_INPUT).fill('')"
+    assert.equal(findComposerInputReads(direct).length, 1)
+    assert.match(findComposerInputReads(direct)[0].use, /clearComposerText/)
+    assert.equal(findComposerInputReads("const input = win.locator(`${CANVAS_PANEL} ${COMPOSER_INPUT}`)\nawait input.fill('')").length, 1)
+    assert.equal(findComposerInputReads('await win.locator(\'[data-v4-control="input"]\').fill("")').length, 1)
+    assert.equal(findComposerInputReads('await panel.locator(COMPOSER_INPUT).fill(``)').length, 1)
+  })
+  it('绿例：统一出口、往里填字、别的输入框清空都不误伤', () => {
+    assert.deepEqual(findComposerInputReads('await clearComposerText(panel.locator(COMPOSER_INPUT))'), [])
+    assert.deepEqual(findComposerInputReads("await panel.locator(COMPOSER_INPUT).fill('x')"), [])
+    assert.deepEqual(findComposerInputReads("const search = win.locator('#q')\nawait search.fill('')"), [])
+  })
+  it('全仓普查：tests/ux 里不剩对 Agent 输入框 fill 空串的写法', async () => {
+    const { readdirSync, readFileSync, statSync } = await import('node:fs')
+    const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+    const walk = (dir) => readdirSync(dir).flatMap((name) => {
+      const full = path.join(dir, name)
+      if (name === 'node_modules' || name === 'shots') return []
+      return statSync(full).isDirectory() ? walk(full) : /\.m?js$/.test(name) ? [full] : []
+    })
+    const offenders = walk(path.join(repoRoot, 'tests', 'ux')).flatMap((file) => findComposerInputReads(readFileSync(file, 'utf8')).filter((hit) => /clearComposerText/.test(hit.use)).map((hit) => `${file}:${hit.line}`))
+    assert.deepEqual(offenders, [])
+  })
+})
+
 describe('composer-input-read：占位也不能按 placeholder 属性读（短片走查自 10-12 起每晚红在这，只在夜跑里红、没人在 PR 里看见）', () => {
   it('夜跑红的原形：断言 Agent 输入框的 placeholder 属性', () => {
     const original = "await expect(canvas.locator(COMPOSER_INPUT)).toHaveAttribute('placeholder', /排队/)"

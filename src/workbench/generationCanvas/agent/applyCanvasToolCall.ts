@@ -25,6 +25,8 @@ import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { placeBlockInVisibleArea } from '../store/canvasVisibleArea'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlanSchema'
+import type { StoryboardPlan } from './storyboardPlan'
+import { storyboardPlanIssues } from '../../creation/storyboard/storyboardDesignSchema'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/director/agent/stagingBuilder'
 import type { CameraMoveSpec } from '../nodes/director/agent/cameraMoveBuilder'
 import type { LegacySceneTemplate, ScenePropPlacement } from '../nodes/director/migration/legacySceneBuilders'
@@ -32,10 +34,9 @@ import type { CameraSpeed } from '../nodes/director/agent/cameraMoveVocab'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { canvasWriteSemanticInputSchema } from '../../../../electron/shared/agentCapabilities/canvasWrite'
-import { directorWriteSemanticInputSchema, isDirectorWriteOperation } from '../../../../electron/shared/agentCapabilities/directorWrite'
+import { isDirectorWriteOperation, type DirectorWriteInput } from '../../../../electron/shared/agentCapabilities/directorWrite'
 import { registerCanvasToolClientId, resolveCanvasToolNodeId } from './clientIdRegistry'
-import { previewStoryboardPatchShots } from './storyboardPatchShots'
+import { previewStoryboardPatchShots, type StoryboardPatchShotsInput } from './storyboardPatchShots'
 import { deliverAgentArtifactToAsset, isTextDeliverableFileType } from './deliverAgentArtifact'
 import i18n from '../../../i18n'
 export { resetClientIdRegistry, resolveCanvasToolNodeId } from './clientIdRegistry'
@@ -223,6 +224,15 @@ export function parseCameraMoveSpec(record: Record<string, unknown>): {
   }
 }
 
+/**
+ * store 的写入口拒收一份存不下的方案时，Agent 要的是「哪个字段、要什么」（不是「目标已不存在」）。
+ * 判官只有 store 写入口；这里只在它拒收后把同一份校验的字段路径随 `capability_input_invalid` 送给模型。
+ */
+function throwIfPlanNotWritable(plan: StoryboardPlan): void {
+  const issues = storyboardPlanIssues(plan)
+  if (issues.length) throw new SurfacePortWireError('capability_input_invalid', undefined, issues.map((issue) => `${issue.path} ${issue.problem}`).join('; '))
+}
+
 export async function applyCanvasToolCall(
   toolName: string,
   args: unknown,
@@ -255,12 +265,13 @@ export async function applyCanvasToolCall(
   }
 
   // 3D-BOX（director.write）：领域执行体住导演台目录，这里只认路。
+  // 入参在进来之前已经按**同一个 schema** 校验过（`canvasWriteTarget.ts` 交给 `applyProposalBatch` 的就是
+  // `parsed.data`），这里不再校验第二次（2026-11-07）。原来那一道失败只抛一句「参数无效」，把 Zod 说的字段全吞了；
+  // 而它对自己的输出恒等，本来就失败不了。等价证明：`applyCanvasToolCall.singleParse.test.ts`。
   if (isDirectorWriteOperation(operation)) {
-    const parsed = directorWriteSemanticInputSchema.safeParse(record)
-    if (!parsed.success) throw Object.assign(new Error('stage_shot 参数无效。'), { code: 'capability_input_invalid' })
     const { applyDirectorWrite } = await import('../nodes/director/agent/applyDirectorWrite')
     assertWritable()
-    return applyDirectorWrite(parsed.data, { inCtx, resolveNodeId, ...(gesture?.proposalId ? { proposalId: gesture.proposalId } : {}) })
+    return applyDirectorWrite(record as DirectorWriteInput, { inCtx, resolveNodeId, ...(gesture?.proposalId ? { proposalId: gesture.proposalId } : {}) })
   }
 
   if (toolName === 'nomi_canvas_plan' && operation === 'patch_shots') {
@@ -273,11 +284,8 @@ export async function applyCanvasToolCall(
         code: 'capability_target_stale',
       })
     }
-    const parsed = canvasWriteSemanticInputSchema.safeParse(record)
-    if (!parsed.success || parsed.data.operation !== 'patch_shots') {
-      throw Object.assign(new Error('分镜修改参数无效。'), { code: 'capability_input_invalid' })
-    }
-    const preview = previewStoryboardPatchShots(targetDesign.plan, parsed.data)
+    // 同上：已按同一个 schema 校验过，`operation === 'patch_shots'` 由上面的分支条件保证。
+    const preview = previewStoryboardPatchShots(targetDesign.plan, record as StoryboardPatchShotsInput)
     const targetStoryboardId = storyboardId
       ?? store.activeStoryboardId
       ?? store.storyboardDesignsByDocumentId[targetDocumentId]?.[0]?.id
@@ -289,6 +297,7 @@ export async function applyCanvasToolCall(
       false,
     ))
     if (!updatedDesign) {
+      throwIfPlanNotWritable(preview.nextPlan)
       throw Object.assign(new Error('目标分镜方案已不存在，未应用修改。'), { code: 'capability_target_stale' })
     }
     return {
@@ -334,6 +343,7 @@ export async function applyCanvasToolCall(
     }
     const design = inCtx(() => store.setStoryboardPlan(plan, targetDocumentId, storyboardId, true, storyboardId ? false : 'agent'))
     if (!design) {
+      throwIfPlanNotWritable(plan)
       return {
         status: 'obsolete',
         documentId: targetDocumentId,

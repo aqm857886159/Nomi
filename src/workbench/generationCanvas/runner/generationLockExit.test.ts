@@ -61,13 +61,15 @@ import { withdrawCanvasShots } from '../../api/taskApi'
 vi.mock('./nodeModelHealth', () => ({ recordNodeModelFailure: vi.fn(), recordNodeModelSuccess: vi.fn() }))
 
 const imageResult = (id: string): GenerationNodeResult => ({ id: 'result-' + id, type: 'image', url: 'https://fixture.invalid/' + id + '.png', createdAt: 1 })
+/** 执行器一次交回这一镜的全部结果（这里一张）。 */
+const imageRun = (id: string) => [imageResult(id)] as const
 it.each(['quota', 'local-refusal', 'server'])('A1/A2/A3: %s uses the correct brake and model-health policy at the shared runner', async kind => {
   const target = await session.open('project-a')
   const nodes = Array.from({ length: 8 }, (_, i) => useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'fixture ' + i }))
   const message = kind === 'quota' ? '429 concurrency limit exceeded' : kind === 'server' ? '500 Internal Server Error' : encodeStructuredErrorMessage({ code: 'node_generation_in_flight' }, 'node_generation_in_flight')
   calls.execute.mockImplementation(async node => {
     if (nodes.slice(0, 4).some(n => n.id === node.id)) throw new Error(message)
-    return imageResult(node.id)
+    return imageRun(node.id)
   })
   let observedPause = false
   const unsubscribe = useGenerationQueueStore.subscribe(state => {
@@ -88,7 +90,7 @@ it.each([false, true])('B3: a single generation takes the node out of another qu
   const batch = queue.enqueueBatch([[node.id]], target.projectId)
   queue.attachCanvasConsent(batch, new Map([[node.id, 'original-offer']]))
   if (paused) useGenerationQueueStore.setState(state => ({ batches: { ...state.batches, [batch]: { ...state.batches[batch], paused: true } } }))
-  calls.execute.mockImplementation(async node => imageResult(node.id))
+  calls.execute.mockImplementation(async node => imageRun(node.id))
   await runGenerationNode(node.id, { target, assetUploadConsent: 'not-needed', retry: { maxAttempts: 1 } })
   expect(useGenerationQueueStore.getState().entries.find(e => e.batchId === batch)?.state).toBe('cancelled')
   expect(withdrawCanvasShots).toHaveBeenCalledWith({ projectId: target.projectId, runRecordIds: ['original-offer'], by: 'removed' })
@@ -118,7 +120,7 @@ it('C2: a refused second click is withdrawn without hiding the original Run whil
   expect(command.mock.calls[0]).toMatchObject(['project-a', 'canvas-' + original, { payload: { jobId: 'original-job', outcome: 'user_checked_abandon' } }])
   expect(useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!.runs).toEqual(history)
   calls.unknown.mockResolvedValue([])
-  calls.execute.mockImplementation(async n => imageResult(n.id))
+  calls.execute.mockImplementation(async n => imageRun(n.id))
   await confirmAndRunNode(node.id, { initiator: 'user' })
   const done = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!
   expect(done.status).toBe('success')
@@ -140,7 +142,7 @@ it('B2: retrying a failed card while its batch is paused does not resubmit it wh
     { target, concurrency: 1, retry: { maxAttempts: 1 }, assetUploadConsent: 'not-needed' })
   const batchId = await pause
   try {
-    calls.execute.mockImplementation(async node => imageResult(node.id))
+    calls.execute.mockImplementation(async node => imageRun(node.id))
     await confirmAndRunNode(nodes[0].id, { initiator: 'user' })
     expect(useGenerationQueueStore.getState().batches[batchId].paused).toBe(true)
     useGenerationQueueStore.getState().resumeBatch(batchId)
@@ -165,14 +167,16 @@ it.each(['success', 'error', 'unknown'] as const)('in-flight refusal: the origin
     await pending
     if (ending === 'error') throw new Error('429 concurrency limit exceeded')
     if (ending === 'unknown') throw new Error('NOMI_ERR::submission-unknown::The provider did not confirm this submission')
-    return imageResult(node.id)
+    return imageRun(node.id)
   }).mockRejectedValueOnce(new Error(encodeStructuredErrorMessage({ code: 'node_generation_in_flight' }, 'node_generation_in_flight')))
   const original = confirmAndRunNode(node.id, { initiator: 'user' })
   await vi.waitFor(() => expect(calls.execute).toHaveBeenCalledOnce())
   calls.confirm.mockResolvedValueOnce(false)
   await confirmAndRunNode(node.id, { initiator: 'user' })
   let current = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!
-  expect(current.runs).toHaveLength(1)
+  // 花钱的那次在主进程准入回执到之前不进运行记录，被拒的那下从来不是一次运行（docs/plan/2026-11-07-shot-result-ownership.md D1 / D3）：
+  // 此刻记录里一条都没有；以前断言「1 条」是因为点下去就写记录。
+  expect(current.runs ?? []).toHaveLength(0)
   expect(current.error).toBeUndefined()
   settle(); await original
   current = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!

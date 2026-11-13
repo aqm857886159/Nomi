@@ -20,7 +20,14 @@
 // 于是 PR 上绿、合进 main 后同一项检查红（2026-11-04 真事：ubuntu-latest 开始分到 26.04，
 // 项目当时的 Playwright 不支持那上面的 Chromium，main 上 Unit 装浏览器就挂，合并收据红）。
 // 写死版本号（ubuntu-24.04 / macos-26 / windows-2025），换系统就成了一次看得见、在 PR 上验过的改动。
+//
+// 第三条（硬零）：每个机器标签都得有一份**自动跑**的 workflow（push / merge_group / schedule 触发）也在用。
+// 写死版本的代价是 GitHub 会按期下线旧镜像；只在发版或手动时才跑的 workflow 若用了一台日常没人用的机器，
+// 下线前几周的限时停用和正式下线都没人看见，要到发版当天才炸（2026-11-07 真事：desktop-rc / desktop-preview
+// 一直写着 macos-14，GitHub 11-02 下线它，0.24.1 候选包的 Mac 打包一秒被取消；每个 PR 跑的检查早已是 macos-26）。
+// 只认 push / merge_group / schedule：pull_request 不算，因为有的 workflow 只在打了标签时才真跑。
 import fs from 'node:fs'
+import { load } from 'js-yaml'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -81,6 +88,37 @@ export function findFloatingRunners(files, { fsImpl = fs, root = repoRoot } = {}
   return floating
 }
 
+/** 会让机器天天被分到的触发方式；只有这些 workflow 用的标签才算「日常有人在用」。 */
+const AUTOMATIC_TRIGGERS = new Set(['push', 'merge_group', 'schedule'])
+
+/** workflow 的触发方式名单。`on:` 可以是字符串、数组或对象三种写法。 */
+export function workflowTriggers(source) {
+  const on = (load(source) ?? {}).on
+  if (typeof on === 'string') return [on]
+  if (Array.isArray(on)) return on.map(String)
+  if (on && typeof on === 'object') return Object.keys(on)
+  return []
+}
+
+const RUNS_ON = /^\s*runs-on:\s*["']?([A-Za-z0-9._-]+)["']?\s*(?:#.*)?$/
+
+/** 回所有用了「没有任何自动跑的 workflow 在用」的机器标签的位置。表达式和数组写法的 runs-on 不在此列。 */
+export function findUnexercisedRunners(files, { fsImpl = fs, root = repoRoot } = {}) {
+  const exercised = new Set()
+  const uses = []
+  for (const file of files) {
+    const source = fsImpl.readFileSync(file, 'utf8')
+    const automatic = workflowTriggers(source).some((trigger) => AUTOMATIC_TRIGGERS.has(trigger))
+    source.split('\n').forEach((line, index) => {
+      const match = RUNS_ON.exec(line)
+      if (!match) return
+      if (automatic) exercised.add(match[1])
+      uses.push({ file: path.relative(root, file), line: index + 1, label: match[1] })
+    })
+  }
+  return uses.filter((use) => !exercised.has(use.label))
+}
+
 /**
  * 覆盖不变量：至少要扫到一份 workflow、且至少解析出一处引用。
  * 不断言具体条数（派生值写死会在下次增删 workflow 时假红，而假红会诱人直接改数字）；
@@ -104,6 +142,7 @@ export function main({ root = repoRoot, log = console.log } = {}) {
 
   const missing = findMissingRefs(files, scripts, { root })
   const floating = findFloatingRunners(files, { root })
+  const unexercised = findUnexercisedRunners(files, { root })
   if (missing.length > 0) {
     log(`✖ workflow 脚本引用门岗未通过：${missing.length} 处引用了 package.json 里不存在的 script`)
     for (const item of missing) log(`    ${item.file}:${item.line}  pnpm run ${item.script}`)
@@ -116,8 +155,14 @@ export function main({ root = repoRoot, log = console.log } = {}) {
     log('  → 写死版本（ubuntu-24.04 / macos-26 / windows-2025）。-latest 会被 GitHub 分批换成新系统，')
     log('    同一项检查 PR 上分到旧系统是绿的、合进 main 分到新系统就红。')
   }
-  if (missing.length > 0 || floating.length > 0) return 1
-  log(`✅ workflow 脚本引用门岗通过：${files.length} 份 workflow、${refCount} 处 \`pnpm run\` 全部解析得到，机器标签全部写死版本（硬零）`)
+  if (unexercised.length > 0) {
+    log(`✖ workflow 机器标签门岗未通过：${unexercised.length} 处用的机器没有任何自动跑的 workflow 在用`)
+    for (const item of unexercised) log(`    ${item.file}:${item.line}  ${item.label}`)
+    log('  → 换成 push / merge_group / schedule 触发的 workflow 里在用的那台机器。')
+    log('    日常没人用的机器被 GitHub 下线时没人看得见，只在发版 / 手动时才跑的 workflow 要到那天才炸。')
+  }
+  if (missing.length > 0 || floating.length > 0 || unexercised.length > 0) return 1
+  log(`✅ workflow 脚本引用门岗通过：${files.length} 份 workflow、${refCount} 处 \`pnpm run\` 全部解析得到，机器标签全部写死版本且日常有 workflow 在用（硬零）`)
   return 0
 }
 

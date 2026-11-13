@@ -24,6 +24,7 @@ export type ParameterReferenceSelection = {
   modelAlias?: string | null
   modelMeta?: unknown
   taskKind?: string
+  modeId?: string
   operation?: { wireModel?: unknown } | null
 }
 

@@ -296,7 +296,9 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
         '@photo-sphere-viewer/core',
         'tailwind-merge',
         'swr',
+        'tabbable',
         'three',
+        'use-stick-to-bottom',
         // assetLocalization is reachable from the renderer through catalogTaskActions.
         // @xmldom/xmldom is CommonJS, so Vite must prebundle it before the browser
         // requests the module; otherwise the raw CJS file has no DOMParser export.

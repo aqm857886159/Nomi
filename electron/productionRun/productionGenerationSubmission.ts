@@ -1,4 +1,4 @@
-import { catchUpJobToArtifact, GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
+import { artifactFromMaterializationReceipt, type GenerationMaterializationReceipt, catchUpJobToArtifact, GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
 import { readGenerationExecution } from "./productionGenerationHistory";
 import path from "node:path";
 
@@ -111,7 +111,9 @@ export type ProductionGenerationSubmissionDependencies = {
     contract: ExecutionContractV1;
     providerTaskId: string;
     output: GenerationProviderOutput;
-  }) => Promise<Pick<ProductionArtifact, "artifactId" | "kind" | "contentHash" | "projectRelativePath" | "thumbnailRelativePath" | "previewState" | "width" | "height">>;
+    /** 这份产物在这一单全部产物里的序号（从 0 起）：同一单的第几份，产物号按它派生。 */
+    outputIndex: number;
+  }) => Promise<GenerationMaterializationReceipt>;
 };
 
 function requiredRun(repository: ProductionRunRepository, projectId: string, runId: string): ProductionRun {
@@ -526,34 +528,35 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       if (!providerTaskId) throw new GenerationMaterializationError("A provider task id is required before materialization");
       const store = envelope(run.runId, jobId);
       const observed = store.read();
-      const artifactFor = (current: ProductionRun) => current.artifacts.find((artifact) => artifact.jobId === jobId && ["image", "video", "audio"].includes(artifact.kind) && artifact.status === "ready" && artifact.contentHash);
-      const resultFor = (artifact: ProductionArtifact): GenerationSubmissionMaterializeResult => ({ operationId: run.runId, runId: run.runId, jobId, providerTaskId, artifactId: artifact.artifactId, contentHash: artifact.contentHash!, nextAction: "completed" });
+      // 这一单账上已落的产物（按落账顺序）。一次出几张就落几份；第 k 份就是上游交回的第 k 份。
+      const readyArtifacts = (current: ProductionRun) => current.artifacts.filter((artifact) => artifact.jobId === jobId && ["image", "video", "audio"].includes(artifact.kind) && artifact.status === "ready" && artifact.contentHash);
+      const resultFor = (artifacts: readonly ProductionArtifact[]): GenerationSubmissionMaterializeResult => ({ operationId: run.runId, runId: run.runId, jobId, providerTaskId, artifactId: artifacts[0]!.artifactId, contentHash: artifacts[0]!.contentHash!, nextAction: "completed" });
       /**
        * 已有 ready 产物的唯一出口。一次落地要写好几份记录（产物、job、信封），崩在任何两步之间都会留下半状态，
        * 所以产物一旦在账上，来的人就负责把 job 和信封补齐，再回话：不管崩在哪，下一次查都能收尾。
        */
-      const settleWithArtifact = (artifact: ProductionArtifact, complete: () => void): GenerationSubmissionMaterializeResult => {
+      const settleWithArtifacts = (artifacts: readonly ProductionArtifact[], complete: () => void): GenerationSubmissionMaterializeResult => {
         catchUpJobToArtifact(requiredRun(deps.repository, input.projectId, input.operationId), jobId, command);
         complete();
-        return resultFor(artifact);
+        return resultFor(artifacts);
       };
-      const existing = artifactFor(run);
-      if (observed?.state === "materialized" && existing) return settleWithArtifact(existing, () => undefined);
+      const existing = readyArtifacts(run);
+      if (observed?.state === "materialized" && existing.length) return settleWithArtifacts(existing, () => undefined);
       if (!observed?.providerTaskId || observed.state !== "provider_accepted") throw new GenerationMaterializationError("Provider acceptance is required before materialization");
       const polled = observed.lastPoll;
       if (!polled || isPendingProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider task is still processing");
       if (isFailedProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider task did not complete successfully");
       if (!isSuccessfulProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider returned an unknown status; reconcile before materialization");
+      // 账上已有几份也照样读一遍上游交回了几份：崩在两份之间时，按序号补齐没落的那几份（已落的不再取、不再落盘）。
       let extraction: { outputs: readonly GenerationProviderOutput[] } | undefined;
       let extractionError: unknown;
-      if (!existing) {
-        try { extraction = await adapter.materialize({ providerId: job.provider, providerTaskId, raw: polled.raw, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } }); }
-        catch (error) { extractionError = error; }
-      }
+      try { extraction = await adapter.materialize({ providerId: job.provider, providerTaskId, raw: polled.raw, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } }); }
+      catch (error) { extractionError = error; }
       const settled = await store.withMaterialization(observed, async (currentEnvelope, complete, assertOwned) => {
         let current = requiredRun(deps.repository, input.projectId, input.operationId);
-        const ready = artifactFor(current);
-        if (ready) return settleWithArtifact(ready, complete);
+        const ready = readyArtifacts(current);
+        // 账上已有的份数够了（或读不出更多）：收尾。读不出更多时已落的照收，和只有一份时「产物在账上就收尾」同一条。
+        if (ready.length && (currentEnvelope.state === "materialized" || !extraction || ready.length >= extraction.outputs.length)) return settleWithArtifacts(ready, complete);
         if (currentEnvelope.state === "materialized") throw new GenerationMaterializationError("Materialized runtime has no ready artifact receipt");
         const latestJob = current.jobs.find((candidate) => candidate.jobId === jobId)!;
         if (latestJob.status === "needs_attention") throw new GenerationMaterializationError(latestJob.errorMessage ?? "Output retrieval requires attention before continuing");
@@ -568,31 +571,31 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
         const failed = (detail: string): never => park({ errorCode: OUTPUT_RETRIEVAL_FAILED, errorMessage: tagNomiError("output-retrieval-failed", `The provider finished this shot, but Nomi could not retrieve the result: ${detail}`) }, new GenerationOutputRetrievalFailedError(detail));
         if (extractionError instanceof GenerationProviderObservationError) return unsupported();
         if (extractionError !== undefined) throw extractionError;
-        if (!extraction || extraction.outputs.length !== 1) return failed(extraction?.outputs.length === 0 ? "Provider did not expose a materializable output" : "Single-shot generation returned more than one output");
+        if (!extraction || extraction.outputs.length === 0) return failed("Provider did not expose a materializable output");
         if (!deps.materializeOutput) return unsupported();
-        let receipt: Awaited<ReturnType<NonNullable<typeof deps.materializeOutput>>>;
-        try {
+        const outputs = extraction.outputs;
+        for (let outputIndex = ready.length; outputIndex < outputs.length; outputIndex += 1) {
+          let receipt: Awaited<ReturnType<NonNullable<typeof deps.materializeOutput>>>;
+          try {
+            assertOwned();
+            receipt = await deps.materializeOutput({ projectId: input.projectId, operationId: run.runId, run: current, job: current.jobs.find((candidate) => candidate.jobId === jobId)!, contract, providerTaskId, output: outputs[outputIndex]!, outputIndex });
+          } catch (error) {
+            const readyAfterWait = readyArtifacts(requiredRun(deps.repository, input.projectId, input.operationId));
+            if (readyAfterWait.length >= outputs.length) return settleWithArtifacts(readyAfterWait, complete);
+            if (!deterministicRetrievalFailure(error)) throw error;
+            return failed(error.message);
+          }
           assertOwned();
-          receipt = await deps.materializeOutput({ projectId: input.projectId, operationId: run.runId, run: current, job: current.jobs.find((candidate) => candidate.jobId === jobId)!, contract, providerTaskId, output: extraction.outputs[0]! });
-        } catch (error) {
-          const readyAfterWait = artifactFor(requiredRun(deps.repository, input.projectId, input.operationId));
-          if (readyAfterWait) return settleWithArtifact(readyAfterWait, complete);
-          if (!deterministicRetrievalFailure(error)) throw error;
-          return failed(error.message);
+          current = requiredRun(deps.repository, input.projectId, input.operationId);
+          const readyAfterWait = readyArtifacts(current);
+          if (readyAfterWait.length >= outputs.length) return settleWithArtifacts(readyAfterWait, complete);
+          if (readyAfterWait.length > outputIndex) continue;
+          const artifact = artifactFromMaterializationReceipt(receipt, jobId, now());
+          // 同一份文件（上游回了两条同一地址）只落一份账。
+          if (readyAfterWait.some((landed) => landed.artifactId === artifact.artifactId)) continue;
+          current = command(current, "artifact.add", { artifact }, `materialize-artifact:${artifact.artifactId}`);
         }
-        assertOwned();
-        current = requiredRun(deps.repository, input.projectId, input.operationId);
-        const readyAfterWait = artifactFor(current);
-        if (readyAfterWait) return settleWithArtifact(readyAfterWait, complete);
-        const artifactId = typeof receipt.artifactId === "string" ? receipt.artifactId.trim() : "";
-        const contentHash = typeof receipt.contentHash === "string" ? receipt.contentHash.trim() : "";
-        const projectRelativePath = typeof receipt.projectRelativePath === "string" ? receipt.projectRelativePath.trim() : "";
-        if (!artifactId || !contentHash || !projectRelativePath) throw new GenerationMaterializationError("Asset store returned an incomplete materialization receipt");
-        const artifact: ProductionArtifact = { artifactId, stageId: "generate", jobId, kind: receipt.kind, status: "ready", source: "external-mcp", contentHash, projectRelativePath,
-          ...(receipt.thumbnailRelativePath ? { thumbnailRelativePath: receipt.thumbnailRelativePath } : {}), ...(receipt.previewState ? { previewState: receipt.previewState } : {}),
-          ...(receipt.width && receipt.height ? { width: receipt.width, height: receipt.height } : {}), createdAt: now() };
-        command(current, "artifact.add", { artifact }, `materialize-artifact:${artifact.artifactId}`);
-        return settleWithArtifact(artifact, complete);
+        return settleWithArtifacts(readyArtifacts(requiredRun(deps.repository, input.projectId, input.operationId)), complete);
       });
       if (settled.kind === "result") return settled.value;
       // Observation changed while extracting: read the existing task's newest raw, never submit again.

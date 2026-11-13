@@ -1,0 +1,296 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-09-dialog-shell-migration",
+  "problem_type": "Dialog height and decision action ownership",
+  "symptom": "Long settings and detail dialogs can scroll or clip the decision buttons in a minimum-size window.",
+  "direct_cause": "Callers own viewport-height calculations and put footer actions inside the scroll region.",
+  "class_root": "Remaining callers bypass the shared DesignModal height and action boundary.",
+  "affected_population": [
+    "Minimum 1100x720 windows in Chinese and English",
+    "Long skill text and extraction template settings"
+  ],
+  "scope_paths": [
+    "src/workbench/settings/SettingsDialog.tsx",
+    "src/workbench/skillLibrary/SkillDetail.tsx",
+    "src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx",
+    "src/workbench/generationCanvas/spend/MultiShotContractSummary.tsx",
+    "src/design/overlays.tsx",
+    "electron/main.ts",
+    "electron/shared/mainWindowSize.json",
+    "src/workbench/onboarding/HandbookPanel.tsx",
+    "src/workbench/timeline/TimelineShortcutsDialog.tsx",
+    "src/ui/app-shell/UpdateDialog.tsx",
+    "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx"
+  ],
+  "entry_points": [
+    "SettingsDialog tabs",
+    "SkillDetail library entry",
+    "BrowserPromptExtractionSettingsModal",
+    "MultiShotContractSummary inside SpendConfirmDialog",
+    "HandbookPanel",
+    "TimelineShortcutsDialog",
+    "UpdateDialogCard",
+    "SelectionPromptSaveController"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Stage-one design approval already selected installed Mantine Modal and the shared DesignModal layout. This batch changes internal ownership only; no external API contract changes.",
+  "invariants": [
+    "Only DesignModal owns dialog viewport height.",
+    "Decision actions live outside the scrollable body.",
+    "Settings delegated Escape and unsaved-change protection remain."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/design/confirmDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/app-shell/UpdateDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/community/FeedbackShareHost.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/CustomCallEditor.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelSettingsDetailDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/dialogs/ActionSelectModal.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/dialogs/HelpDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/dialogs/MobileConnectDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/dialogs/SettingsDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/library/WorkflowLibraryContent.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/onboarding/HandbookPanel.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/skillLibrary/SkillDetail.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineShortcutsDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "symbol": "MultiShotContractSummary"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "MIN_WINDOW_SIZE"
+    }
+  ],
+  "door_reduction": {
+    "before": 15,
+    "after": 22,
+    "why_not": "The original map had 14 DesignModal readers plus the MultiShot reader (15). Six old manual modal shells are deleted; their callers now share the existing owner. The generated after-map has 20 DesignModal readers plus MultiShotContractSummary and the main-process minimum-size reader (22). Distinct product entry points still need to open their own content; none owns a parallel modal shell."
+  },
+  "generality_proof": "Seven migrated consumers use the existing shared shell; decision footers are structurally outside the scrolling body. The same census measures the main-process minimum window in both languages. Nine full-screen editors/viewers remain their own layout boundary and are measured without converting their workspace into a modal.",
+  "shared_boundaries": [
+    {
+      "path": "src/design/overlays.tsx",
+      "symbol": "DesignModal",
+      "responsibility": "Own available dialog height, fixed title/actions and scrolling content."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "entry_point": "SettingsDialog",
+      "disposition": "enforced",
+      "evidence": "Migrates into DesignModal actions or removes nested viewport scroll."
+    },
+    {
+      "path": "src/workbench/skillLibrary/SkillDetail.tsx",
+      "entry_point": "SkillDetail",
+      "disposition": "enforced",
+      "evidence": "Migrates into DesignModal actions or removes nested viewport scroll."
+    },
+    {
+      "path": "src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx",
+      "entry_point": "BrowserPromptExtractionSettingsModal",
+      "disposition": "enforced",
+      "evidence": "Migrates into DesignModal actions or removes nested viewport scroll."
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/MultiShotContractSummary.tsx",
+      "entry_point": "MultiShotContractSummary",
+      "disposition": "enforced",
+      "evidence": "Migrates into DesignModal actions or removes nested viewport scroll."
+    },
+    {
+      "path": "src/workbench/onboarding/HandbookPanel.tsx",
+      "entry_point": "HandbookPanel",
+      "disposition": "enforced",
+      "evidence": "Coordinated continuation: remove manual dialog shell; use shared title and actions with existing callbacks."
+    },
+    {
+      "path": "src/workbench/timeline/TimelineShortcutsDialog.tsx",
+      "entry_point": "TimelineShortcutsDialog",
+      "disposition": "enforced",
+      "evidence": "Coordinated continuation: remove manual dialog shell; use shared title and actions with existing callbacks."
+    },
+    {
+      "path": "src/ui/app-shell/UpdateDialog.tsx",
+      "entry_point": "UpdateDialogCard",
+      "disposition": "enforced",
+      "evidence": "Coordinated continuation: remove manual dialog shell; use shared title and actions with existing callbacks."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx",
+      "entry_point": "SelectionPromptSaveController",
+      "disposition": "enforced",
+      "evidence": "Coordinated continuation: remove manual dialog shell; use shared title and actions with existing callbacks."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Equivalent dialogs own independent height limits and footer placement. New languages and long content can reach the same mechanism.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs DesignModal",
+      "rg role=dialog, createPortal, fixed inset and viewport max heights across src; complete inventory in handoff report."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/design/overlays.tsx",
+    "invariant": "Migrated dialogs have a single height and action owner.",
+    "failure_mode": "Long body scrolls while actions remain visible; geometry census fails on clipped actions.",
+    "exception_policy": "none",
+    "strategy": "Delete six manual dialog shells; keep all migrated decision footers in the existing actions slot.",
+    "artifacts": [
+      "src/workbench/settings/SettingsDialog.tsx",
+      "src/workbench/skillLibrary/SkillDetail.tsx",
+      "src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx",
+      "src/workbench/generationCanvas/spend/MultiShotContractSummary.tsx",
+      "src/design/overlays.tsx",
+      "electron/main.ts",
+      "electron/shared/mainWindowSize.json",
+      "src/workbench/onboarding/HandbookPanel.tsx",
+      "src/workbench/timeline/TimelineShortcutsDialog.tsx",
+      "src/ui/app-shell/UpdateDialog.tsx",
+      "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/design/dialogMigration.structure.test.ts",
+    "src/workbench/settings/settingsDialogStructure.test.ts",
+    "tests/ux/design-lab/popupGeometry.test.mjs"
+  ],
+  "class_regression_tests": [
+    "src/design/dialogMigration.structure.test.ts",
+    "tests/ux/design-lab/popupGeometry.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/settings/SettingsDialog.tsx",
+      "src/workbench/skillLibrary/SkillDetail.tsx",
+      "src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx",
+      "src/workbench/generationCanvas/spend/MultiShotContractSummary.tsx",
+      "src/workbench/onboarding/HandbookPanel.tsx",
+      "src/workbench/timeline/TimelineShortcutsDialog.tsx",
+      "src/ui/app-shell/UpdateDialog.tsx",
+      "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx"
+    ],
+    "rationale": "Delete manual settings/extraction Portal, scrim and viewport-height ownership; skill detail no longer owns footer/viewport height; multishot no longer owns nested scrolling."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "@mantine/core 8.3.18",
+    "target": "Mantine Modal with a native fixed footer slot if a supported version provides one",
+    "rationale": "Reuse the installed Modal max-height, focus and portal handling; no dependency addition.",
+    "exit_criteria": [
+      "Replace the shell footer wiring only when a supported native footer meets the same geometry and action-ownership tests."
+    ]
+  },
+  "migration": "No stored data changes. Existing settings and skill handlers remain; old shells are deleted in the migration commit.",
+  "residual_risks": [
+    "Nine full-screen viewers/workspaces are explicitly not DesignModal migrations; record their actual minimum-window control measurements separately.",
+    "Linux and Windows runtime screenshots are unverified.",
+    "No paid generation is run; amount, selection and paid callbacks are unchanged.",
+    "The exact original settings Save flow is still unidentified. Seven migration fixtures measured 1 clipped family before and 0 after; the original three Mac cases were 0 before and after. Representative onboarding save states are not a real credential-save or provider validation receipt.",
+    "29 new lab states lack calibrated CI macOS visual baselines until the first CI Design Lab run is accepted. The problem was found by the nightly feedback-delivery walkthrough (#076), not reported by a user, so no escape-ledger entry applies; independent acceptance is assigned by coordination."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-09",
+  "invariant_owner_layer": {
+    "layer": "src/design/overlays.tsx",
+    "tests": [
+      "src/design/overlays.structure.test.tsx",
+      "src/design/dialogMigration.structure.test.ts"
+    ],
+    "why": "The shell owns layout; consumer structural tests prevent moving actions back into the scroll area."
+  }
+}

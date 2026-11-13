@@ -16,12 +16,13 @@ import { directorPreviewSpendBlock } from '../model/directorPreviewState'
 import { normalizeDirectorProject } from '../model/directorProject'
 import type { DirectorProject } from '../model/directorTypes'
 import { archetypeForNode } from '../../../agent/referenceEdgeCapability'
-import { applyArchetypeModeSwitch, currentArchetypeMode } from '../../controls/archetypeMeta'
+import { applyHumanModeChoice, effectiveArchetypeMode } from '../../controls/archetypeMeta'
 import { removeFromArray, type ReferenceWriteContext } from '../../controls/referenceWrites'
 import type { DirectorWriteDomainResult } from './applyDirectorWrite'
 import { applyPreviewCaptured, previewCapturePlan, requestDirectorPreviewRender } from './directorPreviewCapture'
 import { prepareProduceFromPreview } from './directorProduce'
 import { previewAttachReconcileKey, startPreviewAttachReconciler } from './previewAttachReconciler'
+import { directorWriteSemanticInputSchema } from '../../../../../../electron/shared/agentCapabilities/directorWrite'
 
 const PLAN = {
   scene: { environment: 'day', template: 'room', tags: ['书房'] },
@@ -47,7 +48,7 @@ const projectOf = (id: string): DirectorProject => normalizeDirectorProject(node
 
 async function stagedWith(meta: Record<string, unknown>) {
   const shot = generationCanvasTools.create_nodes([{ kind: 'video', title: '镜头 1', prompt: '书房对话', position: { x: 0, y: 0 }, meta }])[0]
-  const outcome = await applyProposalBatch([{ toolCallId: 'c1', toolName: 'create_director_plan', effectiveArgs: { operation: 'create_director_plan', shotNodeId: shot.id, plan: PLAN } as unknown as Record<string, unknown> }])
+  const outcome = await applyProposalBatch([{ toolCallId: 'c1', toolName: 'create_director_plan', effectiveArgs: directorWriteSemanticInputSchema.parse({ operation: 'create_director_plan', shotNodeId: shot.id, plan: PLAN }) as unknown as Record<string, unknown> }])
   if (outcome.status !== 'committed') throw new Error('stage failed')
   const result = outcome.results[0] as Extract<DirectorWriteDomainResult, { applied: true }>
   return { shotId: shot.id, directorNodeId: result.directorNodeId }
@@ -75,8 +76,8 @@ const setShotMeta = (shotId: string, patch: Record<string, unknown>): void => {
 const removePreviewReference = (shotId: string): void => {
   const current = node(shotId)!
   const archetype = archetypeForNode(current)!
-  const archMode = currentArchetypeMode(archetype, current.meta ?? {})
   const canvas = store()
+  const archMode = effectiveArchetypeMode(archetype, current, { nodes: canvas.nodes, edges: canvas.edges }).mode
   const ctx: ReferenceWriteContext = {
     node: current,
     archMode,
@@ -186,7 +187,7 @@ describe('节点上直接点 ↑：挂接始终是当前的', () => {
       const current = node(shotId)!
       const archetype = archetypeForNode(current)!
       const target = archetype.modes.find((mode) => mode.intent === 'text')!
-      store().updateNode(shotId, { meta: applyArchetypeModeSwitch(current.meta ?? {}, archetype, target.id) })
+      store().updateNode(shotId, { meta: applyHumanModeChoice(current.meta ?? {}, archetype, target.id) })
       expect(node(shotId)?.meta?.referenceVideoUrls ?? []).toEqual([])
       expect((node(shotId)?.meta?.archetype as { modeId: string }).modeId).toBe('t2v')
       expect(node(shotId)?.meta?.cameraMoveAttachedUrl).toBe(URL_V1)

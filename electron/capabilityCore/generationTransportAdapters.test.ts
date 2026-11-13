@@ -473,6 +473,8 @@ it('selected stable shot scope refuses a named shot outside the selection in wor
   const signal=new AbortController().signal
   expect(await adapter.tryExecute(call('nomi_generation_plan',{operation:'present',operationId:'run',shotIds:['stable-a']}),signal,context)).toEqual({
     ok:false,code:'generation_input_invalid',message:'stable-a is not one of the shots you can name here. Shots you can name: stable-b.',
+    // 起草被拒带闭合原因（这一类没有专门的码，就是「这个字段不收这个值」）；公开那一份不带收到的值。
+    problem:{code:'parameter_not_allowed',field:'shotIds',next:'fix_field',retryable:true,charged:false},
   })
   expect(await adapter.tryExecute(call('nomi_generation_plan',{operation:'present',operationId:'run',shotIds:['stable-b','stable-b']}),signal,context)).toMatchObject({
     ok:false,code:'generation_input_invalid',message:expect.stringContaining('names stable-b more than once'),

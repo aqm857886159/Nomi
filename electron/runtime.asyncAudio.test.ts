@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { Mapping } from "./catalog/types";
-import { buildProfileTaskResult, usesSynchronousAudioRunner } from "./runtime";
+import { buildProfileTaskResult } from "./runtime";
+import { usesSynchronousAudioRunner } from "./tasks/projectFileResult";
 
 const asyncAudioMapping: Mapping = {
   id: "fixture-async-audio",

@@ -1,0 +1,841 @@
+{
+  "version": 13,
+  "vendors": [
+    {
+      "key": "local-39017",
+      "name": "Relay One",
+      "enabled": true,
+      "hasApiKey": true,
+      "baseUrlHint": "http://127.0.0.1:39017/v1",
+      "authType": "bearer",
+      "authHeader": null,
+      "authQueryParam": null,
+      "providerKind": "openai-compatible",
+      "credentialBinding": {
+        "origin": "http://127.0.0.1:39017",
+        "authType": "bearer",
+        "confirmedAt": "2026-11-06T14:17:25.630Z"
+      },
+      "meta": {
+        "adapterCandidatePromotionPredecessors": {}
+      },
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.664Z"
+    }
+  ],
+  "models": [
+    {
+      "modelKey": "veo3.1-fast",
+      "vendorKey": "local-39017",
+      "modelAlias": "veo3.1-fast",
+      "labelZh": "Veo 3.1 Fast",
+      "kind": "video",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "failed",
+          "runId": "run-rel-1",
+          "modes": [
+            {
+              "taskKind": "text_to_video",
+              "state": "failed",
+              "attempts": 1,
+              "stage": "compile",
+              "error": "No safe generic contract exists for this model kind; configure a manual call script",
+              "compileFailureReason": "no_generic_contract"
+            }
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        }
+      },
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.665Z"
+    },
+    {
+      "modelKey": "seedance-2",
+      "vendorKey": "local-39017",
+      "modelAlias": "seedance-2",
+      "labelZh": "Seedance 2",
+      "kind": "video",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "failed",
+          "runId": "run-rel-1",
+          "modes": [
+            {
+              "taskKind": "text_to_video",
+              "state": "failed",
+              "attempts": 1,
+              "stage": "compile",
+              "error": "No safe generic contract exists for this model kind; configure a manual call script",
+              "compileFailureReason": "no_generic_contract"
+            }
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        }
+      },
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.665Z"
+    },
+    {
+      "modelKey": "opaque-video-x",
+      "vendorKey": "local-39017",
+      "modelAlias": "opaque-video-x",
+      "labelZh": "Opaque Video",
+      "kind": "video",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "failed",
+          "runId": "run-rel-1",
+          "modes": [
+            {
+              "taskKind": "text_to_video",
+              "state": "failed",
+              "attempts": 1,
+              "stage": "compile",
+              "error": "No safe generic contract exists for this model kind; configure a manual call script",
+              "compileFailureReason": "no_generic_contract"
+            }
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        }
+      },
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.665Z"
+    },
+    {
+      "modelKey": "gpt-image-2",
+      "vendorKey": "local-39017",
+      "modelAlias": "gpt-image-2",
+      "labelZh": "GPT Image 2",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-09959cca7239d5739f4b",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "text_to_image",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            },
+            {
+              "taskKind": "image_edit",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "text_to_image",
+            "image_edit"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "customCapabilityContract": {
+          "version": 1,
+          "kind": "image",
+          "defaultModeId": "generate",
+          "transportTaskKind": "text_to_image",
+          "modes": [
+            {
+              "id": "generate",
+              "intent": "text",
+              "vendorTerm": "文生图",
+              "hint": "",
+              "promptRequired": true,
+              "transportTaskKind": "text_to_image",
+              "slots": [],
+              "params": [
+                {
+                  "key": "aspect_ratio",
+                  "label": "比例",
+                  "type": "select",
+                  "options": [
+                    {
+                      "value": "1:1",
+                      "label": "1:1"
+                    },
+                    {
+                      "value": "16:9",
+                      "label": "16:9"
+                    },
+                    {
+                      "value": "9:16",
+                      "label": "9:16"
+                    },
+                    {
+                      "value": "4:3",
+                      "label": "4:3"
+                    },
+                    {
+                      "value": "3:4",
+                      "label": "3:4"
+                    }
+                  ],
+                  "defaultValue": "1:1"
+                },
+                {
+                  "key": "resolution",
+                  "label": "清晰度",
+                  "type": "select",
+                  "options": [
+                    {
+                      "value": "1K",
+                      "label": "1K"
+                    },
+                    {
+                      "value": "2K",
+                      "label": "2K"
+                    },
+                    {
+                      "value": "4K",
+                      "label": "4K"
+                    }
+                  ],
+                  "defaultValue": "1K"
+                },
+                {
+                  "key": "quality",
+                  "label": "质量",
+                  "type": "select",
+                  "options": [
+                    {
+                      "value": "standard",
+                      "label": "standard"
+                    },
+                    {
+                      "value": "hd",
+                      "label": "hd"
+                    }
+                  ],
+                  "defaultValue": "standard"
+                },
+                {
+                  "key": "n",
+                  "label": "张数",
+                  "type": "number",
+                  "options": [],
+                  "defaultValue": 1,
+                  "min": 1,
+                  "max": 4
+                }
+              ]
+            },
+            {
+              "id": "edit",
+              "intent": "single",
+              "vendorTerm": "改图",
+              "hint": "",
+              "promptRequired": true,
+              "transportTaskKind": "image_edit",
+              "slots": [
+                {
+                  "kind": "image_ref",
+                  "label": "参考图",
+                  "min": 1,
+                  "inputKey": "reference_images",
+                  "asArray": true
+                }
+              ],
+              "params": [
+                {
+                  "key": "aspect_ratio",
+                  "label": "比例",
+                  "type": "select",
+                  "options": [
+                    {
+                      "value": "1:1",
+                      "label": "1:1"
+                    },
+                    {
+                      "value": "16:9",
+                      "label": "16:9"
+                    },
+                    {
+                      "value": "9:16",
+                      "label": "9:16"
+                    },
+                    {
+                      "value": "4:3",
+                      "label": "4:3"
+                    },
+                    {
+                      "value": "3:4",
+                      "label": "3:4"
+                    }
+                  ],
+                  "defaultValue": "1:1"
+                },
+                {
+                  "key": "resolution",
+                  "label": "清晰度",
+                  "type": "select",
+                  "options": [
+                    {
+                      "value": "1K",
+                      "label": "1K"
+                    },
+                    {
+                      "value": "2K",
+                      "label": "2K"
+                    },
+                    {
+                      "value": "4K",
+                      "label": "4K"
+                    }
+                  ],
+                  "defaultValue": "1K"
+                },
+                {
+                  "key": "quality",
+                  "label": "质量",
+                  "type": "select",
+                  "options": [
+                    {
+                      "value": "standard",
+                      "label": "standard"
+                    },
+                    {
+                      "value": "hd",
+                      "label": "hd"
+                    }
+                  ],
+                  "defaultValue": "standard"
+                },
+                {
+                  "key": "n",
+                  "label": "张数",
+                  "type": "number",
+                  "options": [],
+                  "defaultValue": 1,
+                  "min": 1,
+                  "max": 4
+                }
+              ]
+            }
+          ]
+        },
+        "parameters": [
+          {
+            "key": "aspect_ratio",
+            "label": "比例",
+            "type": "select",
+            "options": [
+              {
+                "value": "1:1",
+                "label": "1:1"
+              },
+              {
+                "value": "16:9",
+                "label": "16:9"
+              },
+              {
+                "value": "9:16",
+                "label": "9:16"
+              },
+              {
+                "value": "4:3",
+                "label": "4:3"
+              },
+              {
+                "value": "3:4",
+                "label": "3:4"
+              }
+            ],
+            "default": "1:1"
+          },
+          {
+            "key": "resolution",
+            "label": "清晰度",
+            "type": "select",
+            "options": [
+              {
+                "value": "1K",
+                "label": "1K"
+              },
+              {
+                "value": "2K",
+                "label": "2K"
+              },
+              {
+                "value": "4K",
+                "label": "4K"
+              }
+            ],
+            "default": "1K"
+          },
+          {
+            "key": "quality",
+            "label": "质量",
+            "type": "select",
+            "options": [
+              {
+                "value": "standard",
+                "label": "standard"
+              },
+              {
+                "value": "hd",
+                "label": "hd"
+              }
+            ],
+            "default": "standard"
+          },
+          {
+            "key": "n",
+            "label": "张数",
+            "type": "number",
+            "default": 1,
+            "min": 1,
+            "max": 4
+          }
+        ],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": true,
+          "capabilityDigest": "9d5ccc4b6a8f426dea7b2b5668c9ade59a4b4284e8ac2ae6f70c53b15da97021",
+          "wireDigests": {
+            "text_to_image": "ba0f5bcf0333162cface0cc3a445fc3cdadc36b92f3d06ada196de4361a233c6",
+            "image_edit": "115ef55766f5ee9bf3ff7e3ba6e1f7aa445a1ee7e9ce46362355cef26d288de1"
+          }
+        }
+      },
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.665Z"
+    },
+    {
+      "modelKey": "opaque-image-x",
+      "vendorKey": "local-39017",
+      "modelAlias": "opaque-image-x",
+      "labelZh": "Opaque Image",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-09959cca7239d5739f4b",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "text_to_image",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            },
+            {
+              "taskKind": "image_edit",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "text_to_image",
+            "image_edit"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "customCapabilityContract": {
+          "version": 1,
+          "kind": "image",
+          "defaultModeId": "generate",
+          "transportTaskKind": "text_to_image",
+          "modes": [
+            {
+              "id": "generate",
+              "intent": "text",
+              "vendorTerm": "文生图",
+              "hint": "",
+              "promptRequired": true,
+              "transportTaskKind": "text_to_image",
+              "slots": [],
+              "params": [
+                {
+                  "key": "aspect_ratio",
+                  "label": "比例",
+                  "type": "select",
+                  "options": [
+                    {
+                      "value": "1:1",
+                      "label": "1:1"
+                    },
+                    {
+                      "value": "16:9",
+                      "label": "16:9"
+                    },
+                    {
+                      "value": "9:16",
+                      "label": "9:16"
+                    },
+                    {
+                      "value": "4:3",
+                      "label": "4:3"
+                    },
+                    {
+                      "value": "3:4",
+                      "label": "3:4"
+                    }
+                  ],
+                  "defaultValue": "1:1"
+                },
+                {
+                  "key": "resolution",
+                  "label": "清晰度",
+                  "type": "select",
+                  "options": [
+                    {
+                      "value": "1K",
+                      "label": "1K"
+                    },
+                    {
+                      "value": "2K",
+                      "label": "2K"
+                    },
+                    {
+                      "value": "4K",
+                      "label": "4K"
+                    }
+                  ],
+                  "defaultValue": "1K"
+                },
+                {
+                  "key": "quality",
+                  "label": "质量",
+                  "type": "select",
+                  "options": [
+                    {
+                      "value": "standard",
+                      "label": "standard"
+                    },
+                    {
+                      "value": "hd",
+                      "label": "hd"
+                    }
+                  ],
+                  "defaultValue": "standard"
+                },
+                {
+                  "key": "n",
+                  "label": "张数",
+                  "type": "number",
+                  "options": [],
+                  "defaultValue": 1,
+                  "min": 1,
+                  "max": 4
+                }
+              ]
+            },
+            {
+              "id": "edit",
+              "intent": "single",
+              "vendorTerm": "改图",
+              "hint": "",
+              "promptRequired": true,
+              "transportTaskKind": "image_edit",
+              "slots": [
+                {
+                  "kind": "image_ref",
+                  "label": "参考图",
+                  "min": 1,
+                  "inputKey": "reference_images",
+                  "asArray": true
+                }
+              ],
+              "params": []
+            }
+          ]
+        },
+        "parameters": [
+          {
+            "key": "aspect_ratio",
+            "label": "比例",
+            "type": "select",
+            "options": [
+              {
+                "value": "1:1",
+                "label": "1:1"
+              },
+              {
+                "value": "16:9",
+                "label": "16:9"
+              },
+              {
+                "value": "9:16",
+                "label": "9:16"
+              },
+              {
+                "value": "4:3",
+                "label": "4:3"
+              },
+              {
+                "value": "3:4",
+                "label": "3:4"
+              }
+            ],
+            "default": "1:1"
+          },
+          {
+            "key": "resolution",
+            "label": "清晰度",
+            "type": "select",
+            "options": [
+              {
+                "value": "1K",
+                "label": "1K"
+              },
+              {
+                "value": "2K",
+                "label": "2K"
+              },
+              {
+                "value": "4K",
+                "label": "4K"
+              }
+            ],
+            "default": "1K"
+          },
+          {
+            "key": "quality",
+            "label": "质量",
+            "type": "select",
+            "options": [
+              {
+                "value": "standard",
+                "label": "standard"
+              },
+              {
+                "value": "hd",
+                "label": "hd"
+              }
+            ],
+            "default": "standard"
+          },
+          {
+            "key": "n",
+            "label": "张数",
+            "type": "number",
+            "default": 1,
+            "min": 1,
+            "max": 4
+          }
+        ],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": true,
+          "capabilityDigest": "852d66917273c02fb69f44ae5467b24e185e6363e9787f4d0d5bab7d2f61e383",
+          "wireDigests": {
+            "text_to_image": "ba0f5bcf0333162cface0cc3a445fc3cdadc36b92f3d06ada196de4361a233c6",
+            "image_edit": "b1eb96df00755141ce482ebf0dc0fceccf499c579e1cfa88fb82490241d5c308"
+          }
+        }
+      },
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.664Z"
+    }
+  ],
+  "mappings": [
+    {
+      "id": "mapping-18454487-8683-4e54-a4f2-a540e3fa46f7",
+      "vendorKey": "local-39017",
+      "taskKind": "image_edit",
+      "modelKey": "gpt-image-2",
+      "name": "GPT Image 2 · image_edit",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/edits",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "multipart": {
+          "fields": {
+            "model": "{{request.params.model}}",
+            "prompt": "{{request.prompt}}",
+            "size": "{{request.params.size}}",
+            "quality": "{{request.params.quality}}",
+            "n": "{{request.params.n}}",
+            "response_format": "url"
+          },
+          "imageField": "image[]",
+          "imageSource": "{{request.params.reference_images}}",
+          "multiple": true
+        },
+        "response_mapping": {
+          "image_url": "data[*].url"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        },
+        "defaultParams": {
+          "aspect_ratio": "1:1",
+          "resolution": "1K",
+          "quality": "standard",
+          "n": 1
+        }
+      },
+      "delivery": "synchronous",
+      "createdAt": "2026-11-06T14:17:25.665Z",
+      "updatedAt": "2026-11-06T14:17:25.665Z"
+    },
+    {
+      "id": "mapping-d397e34d-4449-40dd-a62d-c12ad005c660",
+      "vendorKey": "local-39017",
+      "taskKind": "text_to_image",
+      "modelKey": "gpt-image-2",
+      "name": "GPT Image 2 · text_to_image",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "quality": "{{request.params.quality}}",
+          "n": "{{request.params.n}}",
+          "response_format": "url"
+        },
+        "response_mapping": {
+          "image_url": "data[*].url"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        },
+        "defaultParams": {
+          "aspect_ratio": "1:1",
+          "resolution": "1K",
+          "quality": "standard",
+          "n": 1
+        }
+      },
+      "delivery": "synchronous",
+      "createdAt": "2026-11-06T14:17:25.665Z",
+      "updatedAt": "2026-11-06T14:17:25.665Z"
+    },
+    {
+      "id": "mapping-94968774-d4de-4698-9a34-92bac24aa511",
+      "vendorKey": "local-39017",
+      "taskKind": "image_edit",
+      "modelKey": "opaque-image-x",
+      "name": "Opaque Image · image_edit",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{{request.prompt}}"
+                },
+                "{{request.params.chat_image_parts}}"
+              ]
+            }
+          ],
+          "stream": false
+        },
+        "response_mapping": {
+          "image_url": "choices.0.message.images.0.url"
+        }
+      },
+      "delivery": "synchronous",
+      "createdAt": "2026-11-06T14:17:25.665Z",
+      "updatedAt": "2026-11-06T14:17:25.665Z"
+    },
+    {
+      "id": "mapping-3cf0da40-8de8-4319-af0f-4aa248ebe3f2",
+      "vendorKey": "local-39017",
+      "taskKind": "text_to_image",
+      "modelKey": "opaque-image-x",
+      "name": "Opaque Image · text_to_image",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "quality": "{{request.params.quality}}",
+          "n": "{{request.params.n}}",
+          "response_format": "url"
+        },
+        "response_mapping": {
+          "image_url": "data[*].url"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        },
+        "defaultParams": {
+          "aspect_ratio": "1:1",
+          "resolution": "1K",
+          "quality": "standard",
+          "n": 1
+        }
+      },
+      "delivery": "synchronous",
+      "createdAt": "2026-11-06T14:17:25.665Z",
+      "updatedAt": "2026-11-06T14:17:25.665Z"
+    }
+  ],
+  "apiKeysByVendor": {
+    "local-39017": {
+      "vendorKey": "local-39017",
+      "apiKey": "c2stdi1yZWxheS1mYWtl",
+      "enc": "safeStorage",
+      "enabled": true,
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.630Z"
+    }
+  }
+}

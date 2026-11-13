@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { checkEscapeContract, englishHeadingHint, evaluatePrBody, isGrandfathered, mergeReport } from './pr-body-criteria.mjs'
+import { checkEscapeContract, checkIndependentAcceptance, englishHeadingHint, evaluatePrBody, isGrandfathered, mergeReport } from './pr-body-criteria.mjs'
 
 const STAR = [
   '## 设计卡',
@@ -15,6 +15,36 @@ const STAR = [
 ].join('\n')
 
 const docsChange = [{ path: 'docs/engineering/x.md', status: 'M' }]
+
+test('独立验收报告路径紧跟中文标点也能读取，仍拒绝无效路径', () => {
+  const check = (reference) => {
+    let read = null
+    const result = checkIndependentAcceptance(`实现线：线 A\n\n## 独立验收\n报告${reference}\n验收线：线 B\n报告首行：通过\n验收 HEAD：aaaaaaaa`, {
+      strict: true,
+      headSha: 'aaaaaaaa',
+      readReport: (path) => { read = path; return undefined },
+    })
+    return { result, read }
+  }
+  for (const reference of [
+    '：/Users/a/b/V-x.md',
+    ':/Users/a/b/V-x.md',
+    '：（/Users/a/b/V-x.md）',
+    '：「/Users/a/b/V-x.md」',
+  ]) {
+    const { result, read } = check(reference)
+    assert.equal(result.ok, true, reference)
+    assert.equal(read, '/Users/a/b/V-x.md', reference)
+  }
+  for (const reference of ['：foo/bar.md', '：/Users/a/b/V-x.txt']) {
+    const { result, read } = check(reference)
+    assert.equal(result.ok, false, reference)
+    assert.equal(read, null, reference)
+  }
+  assert.equal(check('：https://example.com/V-x.md').result.ok, true)
+  assert.equal(check(String.raw`：C:\reports\V-x.md`).read, String.raw`C:\reports\V-x.md`)
+  assert.equal(check('：/Users/a/b/V-x.md，下一项').read, '/Users/a/b/V-x.md')
+})
 
 test('reviewed push admission is exact for every new contract and leaves all settlement/default branches strict', () => {
   const file = 'docs/fixes/2026-10-12-a.root-cause.json'

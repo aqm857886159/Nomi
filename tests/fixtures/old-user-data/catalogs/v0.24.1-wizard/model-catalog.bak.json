@@ -1,0 +1,127 @@
+{
+  "version": 13,
+  "vendors": [
+    {
+      "key": "local-39017",
+      "name": "Relay One",
+      "enabled": false,
+      "hasApiKey": false,
+      "baseUrlHint": "http://127.0.0.1:39017/v1",
+      "authType": "bearer",
+      "authHeader": null,
+      "authQueryParam": null,
+      "providerKind": "openai-compatible",
+      "meta": {},
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.630Z",
+      "credentialBinding": {
+        "origin": "http://127.0.0.1:39017",
+        "authType": "bearer",
+        "confirmedAt": "2026-11-06T14:17:25.630Z"
+      }
+    }
+  ],
+  "models": [
+    {
+      "modelKey": "opaque-video-x",
+      "vendorKey": "local-39017",
+      "modelAlias": "opaque-video-x",
+      "labelZh": "Opaque Video",
+      "kind": "video",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "testing",
+          "runId": "run-rel-1",
+          "modes": [],
+          "updatedAt": "2026-11-06T14:17:25.630Z"
+        }
+      },
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.630Z"
+    },
+    {
+      "modelKey": "seedance-2",
+      "vendorKey": "local-39017",
+      "modelAlias": "seedance-2",
+      "labelZh": "Seedance 2",
+      "kind": "video",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "testing",
+          "runId": "run-rel-1",
+          "modes": [],
+          "updatedAt": "2026-11-06T14:17:25.630Z"
+        }
+      },
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.630Z"
+    },
+    {
+      "modelKey": "veo3.1-fast",
+      "vendorKey": "local-39017",
+      "modelAlias": "veo3.1-fast",
+      "labelZh": "Veo 3.1 Fast",
+      "kind": "video",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "testing",
+          "runId": "run-rel-1",
+          "modes": [],
+          "updatedAt": "2026-11-06T14:17:25.630Z"
+        }
+      },
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.630Z"
+    },
+    {
+      "modelKey": "opaque-image-x",
+      "vendorKey": "local-39017",
+      "modelAlias": "opaque-image-x",
+      "labelZh": "Opaque Image",
+      "kind": "image",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "testing",
+          "runId": "run-rel-1",
+          "modes": [],
+          "updatedAt": "2026-11-06T14:17:25.630Z"
+        }
+      },
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.630Z"
+    },
+    {
+      "modelKey": "gpt-image-2",
+      "vendorKey": "local-39017",
+      "modelAlias": "gpt-image-2",
+      "labelZh": "GPT Image 2",
+      "kind": "image",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "testing",
+          "runId": "run-rel-1",
+          "modes": [],
+          "updatedAt": "2026-11-06T14:17:25.630Z"
+        }
+      },
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.630Z"
+    }
+  ],
+  "mappings": [],
+  "apiKeysByVendor": {
+    "local-39017": {
+      "vendorKey": "local-39017",
+      "apiKey": "c2stdi1yZWxheS1mYWtl",
+      "enc": "safeStorage",
+      "enabled": true,
+      "createdAt": "2026-11-06T14:17:25.630Z",
+      "updatedAt": "2026-11-06T14:17:25.630Z"
+    }
+  }
+}

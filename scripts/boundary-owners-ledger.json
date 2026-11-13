@@ -3,6 +3,16 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-09-15-feedback-loop-intake.root-cause.json",
+      "path": "electron/telemetry/intakeQueue.ts",
+      "symbol": "flushIntakeQueue / clearIntakeQueue",
+      "anchor": {
+        "path": "electron/telemetry/intakeQueue.ts",
+        "symbol": "flushIntakeQueue"
+      },
+      "reason": "2026-11-13 删掉从没有发送方的轨迹上报通道（逐个已发布 tag 查过：轨迹队列只出现在类型声明里，入队 / 发送的唯一调用方一直是反馈）。clearIntakeQueue 只用来「关掉开关时清轨迹队列」，全仓没有调用方，同提交删除；这一半不变量随轨迹队列整体退役。另一半「用户点过发送的反馈别丢：离线缓存、静默重试、不阻塞界面」仍由 flushIntakeQueue 持有，守它的测试：electron/telemetry/intakeQueue.test.ts。"
+    },
+    {
       "contract": "docs/fixes/2026-09-10-c09-readable-focus.root-cause.json",
       "path": "src/workbench/generationCanvas/reactFlow/focusViewportRecovery.ts",
       "symbol": "resolveCanvasFocusZoom",
@@ -472,26 +482,6 @@
       "reason": "2026-10-24 D2 第③步（付费卡 = 指向元素 + 一行只读摘要，点「生成」交给画布那一台发动机）：旧卡 hook 随旧卡删除；新卡 hook 的 act 是卡上会写宿主的动作（生成 / 不生成 × / 恢复）共用的执行口，也是宿主回答的出口：被拒或抛错时用户看到的是 spendActionFailureCopy 按事实挑的那一句 i18n，宿主原话只进 logRendererWarn（useAgentPanelSpendCard.test「没有别的一下在路上时，生成被宿主拒了」钉住）。「取消」故意不进这个队（不排队，同文件 discard），它的拒绝同样只弹 i18n、原话进日志。判据里没有时间这一维。"
     },
     {
-      "contract": "docs/fixes/2026-09-13-spend-surface-capability-guard.root-cause.json",
-      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
-      "symbol": "useAgentPanelSpendConfirm.refresh",
-      "anchor": {
-        "path": "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
-        "symbol": "pendingSpendOfRead"
-      },
-      "reason": "2026-10-24 D2 第③步（付费卡 = 指向元素 + 一行只读摘要，点「生成」交给画布那一台发动机）：卡早已不自己调 productionRuns.pendingSpend（2026-10-05 起读推过来的投影 data.snapshot.spend），旧 hook 随旧卡删除。「能力不在 ≠ 调用失败」现在由新卡 hook 的 pendingSpendOfRead 守：surface off（disabled / starting / stopped）= 没有卡、不留任何 console 痕迹，unreadable 才是带身份的错误卡（useAgentPanelSpendCard.test「pendingSpendOfRead：off 不是失败」逐格钉住）。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-13-spend-surface-unavailable-error-boundary.root-cause.json",
-      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
-      "symbol": "useAgentPanelSpendConfirm.refresh",
-      "anchor": {
-        "path": "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
-        "symbol": "pendingSpendOfRead"
-      },
-      "reason": "2026-10-24 D2 第③步（付费卡 = 指向元素 + 一行只读摘要，点「生成」交给画布那一台发动机）：同上一条——宿主裁剪（能力不在）与真读不到在投影上是两种 surface（off / unreadable），新卡 hook 的 pendingSpendOfRead 分开读：off 不出卡也不报错，unreadable 保留带身份的错误卡；卡不再直接碰可选 bridge，preload 桩那一类拒绝到不了卡。"
-    },
-    {
       "contract": "docs/fixes/2026-09-21-spend-decline-deletes-user-nodes.root-cause.json",
       "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
       "symbol": "discard",
@@ -550,20 +540,110 @@
         "symbol": "bindWorkspaceLocations"
       },
       "reason": "2026-10-29「项目在哪」收敛单第一刀（docs/fixes/2026-10-29-project-location-owner.root-cause.json，用户 10-29 批准「按推荐方向修」）：批量登记 rememberWorkspaces 换成 bindWorkspaceLocations，入参从项目记录换成 { id, name, rootPath, origin? }（rootPath 必填，不再抄清单里的 lastKnownRootPath），旧名同提交删除；概念登记 docs/engineering/concept-owners/project.location.json 把它列为「项目在哪」的唯一写口之一。09-03 合同的不变量「批量登记一把锁、一次读、一次写，与单条登记共用一个合并函数」不变：bindWorkspaceLocations 与单条 bindWorkspaceLocation 共用 mergeWorkspaceBinding，锁 withRegistryLock 与排序沿用。语义上新增两点：同一 id 还绑在一个装着它的文件夹上，这一条跳过、原登记不动（不变量 ⑤）；位置变了（改名 / 挪走后重开、启动对账接回）时来源跟着新位置，位置没变时已冻结的来源优先。守它的测试：electron/workspace/workspaceRegistry.test.ts、electron/workspace/workspaceRegistry.concurrency.test.ts、electron/projects/projectLocation.matrix.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-26-asset-name-keeps-extension.root-cause.json",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "storedAssetFileParts",
+      "anchor": {
+        "path": "electron/assets/storedAssetFile.ts",
+        "symbol": "storedAssetFileParts"
+      },
+      "reason": "2026-11-07 配音落盘修复那一轮（docs/fixes/2026-11-07-tts-save-expected-kind.root-cause.json）：projectAssetStore.ts 到了文件体积冻结线，按职责把「落盘文件的类型与位置」整块拆到 electron/assets/storedAssetFile.ts（effectiveContentType / contentTypeFromStoredFile / storedAssetFileParts / uniqueAssetPath，函数体逐字不变，只是导出）。09-26 合同的不变量「落盘文件名的唯一裁法：扩展名按字节嗅出的内容类型定、只截主干」不变：writeAsset / copyAssetFile / moveAssetFile / 生成产物发布仍然只经 uniqueAssetPath → storedAssetFileParts 这一处取名。守它的测试：electron/assets/projectAssetStore.test.ts（长供应商名不带扩展名 → .mp4，copyAssetFile 与 moveAssetFile 两个入口）。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-25-headless-reference-key-projection.root-cause.json",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "projectReferencesOntoBodyKeys",
+      "anchor": {
+        "path": "electron/catalog/taskParams.ts",
+        "symbol": "headlessReferenceOverlay"
+      },
+      "reason": "2026-11-08 参考放置收成一个降级函数（docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：headless 投影入口改名 headlessReferenceOverlay，仍住 taskParams.ts、仍由 applyHeadlessParamDefaults 在模板渲染前调用；它只读出携带的参考、帧意图和已占用的键，挑键与写值交给 electron/shared/generationLowering 的 lowerHeadlessReferences → lowerGenerationIntent（按 body 推出的声明放，形状与帧意图只读 referenceKeys.ts 的显式声明表，删掉按键名正则猜族 / 形状）。10-25 合同的不变量「只把同族参考投进声明过、body 读、还空着的键」不变：同族、声明过、body 读、空键四条都在降级函数里，官方字段矩阵改前改后请求体逐字节相同。守它的测试：electron/catalog/referenceKeyProjectionCensus.test.ts、electron/catalog/taskParams.test.ts、electron/shared/generationLowering/lowerGenerationIntent.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-27-first-gate-full-model-identity.root-cause.json",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "projectReferencesOntoBodyKeys",
+      "anchor": {
+        "path": "electron/catalog/taskParams.ts",
+        "symbol": "headlessReferenceOverlay"
+      },
+      "reason": "2026-11-08 参考放置收成一个降级函数（docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：同一个入口改名 headlessReferenceOverlay，留在 taskParams.ts。10-27 合同的不变量「显式值与携带值都按所选模型的声明容量数清、出网前拒」不变：显式 body 值那一圈原样在 headlessReferenceOverlay 里按 referenceKeyCapacityDeclarationFor 数、assertReferenceCapacity 拒；携带的参考由 lowerHeadlessReferences 按同一份声明容量数，超了作为 problems 交回，headlessReferenceOverlay 用同一个 assertReferenceCapacity 在出网前拒，报错原话不变。守它的测试：electron/catalog/taskParams.test.ts、electron/capabilityCore/apimartGenerationProvider.test.ts、electron/runtime.referenceSelection.test.ts、electron/catalog/referenceKeyProjectionCensus.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-11-08-reference-mode-projection.root-cause.json",
+      "path": "electron/shared/videoCapabilities/referenceChannels.ts",
+      "symbol": "lowerCombinedReferences",
+      "anchor": {
+        "path": "electron/shared/generationLowering/lowerGenerationIntent.ts",
+        "symbol": "lowerGenerationIntent"
+      },
+      "reason": "2026-11-08 参考放置收成一个降级函数（docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：合并数组的拼法从 referenceChannels.ts 挪进唯一的降级函数 lowerGenerationIntent（11-09 起进合并的槽编译成 combined 绑定，由同一个解析写入过程按槽声明序拼），画布、headless、ProductionRun 三条路都经它放；合并槽的 role 表 REFERENCE_ROLE_FOR_KIND 仍住 referenceChannels.ts，lowerCombinedReferences 同提交删除。11-08 合同的不变量「按档案槽顺序和角色拼出唯一合并数组」不变：档案槽的声明顺序就是合并顺序，被合并的扁平键不再出现，官方字段矩阵改前改后请求体逐字节相同。守它的测试：electron/shared/generationLowering/lowerGenerationIntent.test.ts（全部内置档案的全部模式「一张图只进一个键」）、electron/parity/apimartDocsAlignRunPath.test.ts、electron/parity/officialWire.matrix.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-31-run-retrieval-recovery.root-cause.json",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "settleWithArtifact",
+      "anchor": {
+        "path": "electron/productionRun/productionGenerationSubmission.ts",
+        "symbol": "settleWithArtifacts"
+      },
+      "reason": "2026-11-09 一次运行给几份就留几份（docs/fixes/2026-11-09-multi-result-landing.root-cause.json，用户 11-09 拍板「按结构」）：一个 job 可以有多份产物，收尾从带一份改成带这个 job 的全部产物，改名 settleWithArtifacts，旧名同提交删除；概念登记 docs/engineering/concept-owners/production.generation-observation-lifecycle.json 的写口跟着改。10-31 合同的不变量「已有产物时收尾只走这一处，先补 job 再收信封」不变；N=1 时行为与编号逐字不变。守它的测试：electron/productionRun/productionGenerationMultiOutput.test.ts、electron/productionRun/productionGenerationLifecycle.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-08-30-generation-executor-lifecycle.root-cause.json",
+      "path": "electron/tasks/assetUrlExtract.ts",
+      "symbol": "extractAssetUrl",
+      "anchor": {
+        "path": "electron/tasks/assetUrlExtract.ts",
+        "symbol": "extractAssetUrls"
+      },
+      "reason": "2026-11-09 读供应商结果读全集（docs/fixes/2026-11-09-multi-result-landing.root-cause.json，用户 11-09 拍板「按结构」）：一次生成可以回几份，没声明映射时的兜底提取从「第一组非空结果里的第一条」改成回那一组的全部地址，改名 extractAssetUrls，旧名同提交删除（聊天回话的 extractChatImageUrl 同样改成 extractChatImageUrls）。08-30 合同的不变量「图 / 视频 / 音频 / 3D 地址都经这一处与供应商无关的提取」不变；只有一条地址时结果逐字不变。守它的测试：electron/tasks/assetUrlExtract.test.ts、electron/catalog/multiOutputMapping.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-02-vendor-honest-axes-followup.root-cause.json",
+      "path": "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+      "symbol": "archetypeModeIsVisible / archetypeVariantAxisIsLive / fallbackVisibleModeId",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+        "symbol": "archetypeModeIsVisible / archetypeVariantAxisIsLive"
+      },
+      "reason": "2026-11-12 方式按输入现算（docs/fixes/2026-11-12-mode-from-inputs.root-cause.json，用户 11-12 改向）：「存着的方式被收窄掉时退到哪一个可见方式」不再是一个要选的状态——这次用哪种方式由 modeForInputs 在可见方式里按输入现算，fallbackVisibleModeId 同提交删除。09-02 合同的不变量「档案能力轴 × 渠道的收窄判据只住这一处」不变，仍由 archetypeModeIsVisible / archetypeVariantAxisIsLive 持有；守它的测试：channelModeReach.test.ts、modeMenuModel.exhaustive.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-25-canvas-mode-follows-inputs.root-cause.json",
+      "path": "src/workbench/generationCanvas/store/canvasConnectDerivations.ts",
+      "symbol": "revertTargetModeForEmptyInputs",
+      "anchor": {
+        "path": "electron/shared/modelArchetypes/modeForInputs.ts",
+        "symbol": "modeForInputs"
+      },
+      "reason": "2026-11-12 方式按输入现算（docs/fixes/2026-11-12-mode-from-inputs.root-cause.json）：方式不再是被写进 meta 的状态，「输入删光 → 回到文生」由 modeForInputs 每次按当前输入现算得出，不再有一个写口在 live→empty 时去改字段；revertTargetModeForEmptyInputs 同提交删除。10-25 合同的不变量「没有输入就不停在带图的方式」由 modeForInputs 持有，守它的测试：modeForInputs.exhaustive.test.ts（全部档案 × 存着的方式 × 9 种输入）。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-25-canvas-mode-follows-inputs.root-cause.json",
+      "path": "src/workbench/generationCanvas/store/canvasConnectDerivations.ts",
+      "symbol": "convergeStuckInputModes",
+      "anchor": {
+        "path": "electron/shared/modelArchetypes/modeForInputs.ts",
+        "symbol": "modeForInputs"
+      },
+      "reason": "2026-11-12 方式按输入现算：打开项目 / 回放事件尾巴后不再需要一次收敛写入——存着的方式只当偏好读，放不下当前输入就按输入现算，旧项目不改盘（真窗回放核过老节点 meta 字节不变）；convergeStuckInputModes 同提交删除。10-25 合同「加载后不停在没输入的带图方式」由 modeForInputs 持有，守它的测试：modeForInputs.exhaustive.test.ts、tests/ux/mode-bar-replay.walk.mjs 第 06 幕。"
     }
   ],
   "retirements": [
+    {
+      "contract": "docs/fixes/2026-10-04-retrieval-trusts-connection-origin.root-cause.json",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "trustedRetrievalOrigin",
+      "reason": "2026-11-13 生成的提交 / 取回 / 下载不再按目的地地址判（docs/engineering/direction-checks/2026-11-13-outbound-address-layer-delete.md）：本机 / 局域网的产物地址本来就照取，「取回信任这条连接自己的 origin」这个私网例外没有东西要放行了，同提交删掉。vendorOutboundGuard.ts 只剩凭据绑定（authorizeSubmitDestination）。"
+    },
     {
       "contract": "docs/fixes/2026-08-31-generation-result-retrieval-boundary.root-cause.json",
       "path": "electron/assets/projectAssetStore.ts",
       "symbol": "importGeneratedBytes",
       "reason": "此符号在仓库历史中从未出现过——`git log -S\"importGeneratedBytes\" --all` 只命中合同自身那次提交（17f9de6f2），生产代码里一次都没有。也就是说这份合同**立约当天声明的就是一个不存在的主人**；旧校验器只查 path 存在、不查 symbol，所以整整没人发现。同合同另外 5 条边界均在位。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-01-canvas-snapshot-projection.root-cause.json",
-      "path": "src/workbench/ai/projectAgentProjectionStore.ts",
-      "symbol": "createProjectAgentProjectionStore.applySnapshot",
-      "reason": "旧常驻面板闭包在 3f5ca19e5「删掉旧面板闭包——无并行版、无 fallback、无逃生口（P1）」中整体删除，该组件不复存在。"
     },
     {
       "contract": "docs/fixes/2026-09-01-pi-host-island-boundary.root-cause.json",
@@ -575,18 +655,6 @@
       "contract": "docs/fixes/2026-09-01-rc-01-durable-owner.root-cause.json",
       "path": "electron/projectAgentHost/projectAgentHost.ts",
       "symbol": "ProjectAgentHost",
-      "reason": "这份 owner 在 agent-lane 切换（commit 36f343204 一系「remove retired owners and retain active lane contracts」）中按 P1「加新必删旧」整体删除，旧 projectAgentHost/agentChatV2 运行时已无并行版；该合同针对旧运行时的那条不变量随之不再适用。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-01-rc-02-semantic-tool-surface.root-cause.json",
-      "path": "electron/projectAgentHost/projectAgentHost.ts",
-      "symbol": "ProjectAgentHost",
-      "reason": "这份 owner 在 agent-lane 切换（commit 36f343204 一系「remove retired owners and retain active lane contracts」）中按 P1「加新必删旧」整体删除，旧 projectAgentHost/agentChatV2 运行时已无并行版；该合同针对旧运行时的那条不变量随之不再适用。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-01-rc-05-typed-output-projection.root-cause.json",
-      "path": "electron/projectAgentHost/projectAgentHost.ts",
-      "symbol": "addItem",
       "reason": "这份 owner 在 agent-lane 切换（commit 36f343204 一系「remove retired owners and retain active lane contracts」）中按 P1「加新必删旧」整体删除，旧 projectAgentHost/agentChatV2 运行时已无并行版；该合同针对旧运行时的那条不变量随之不再适用。"
     },
     {
@@ -618,18 +686,6 @@
       "path": "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
       "symbol": "toolItem",
       "reason": "这份 owner 在 agent-lane 切换（commit 36f343204 一系「remove retired owners and retain active lane contracts」）中按 P1「加新必删旧」整体删除，旧 projectAgentHost/agentChatV2 运行时已无并行版；该合同针对旧运行时的那条不变量随之不再适用。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-02-ponytail-review-scope.root-cause.json",
-      "path": "scripts/ponytail-review-hook.mjs",
-      "symbol": "collectAuthoredPatch",
-      "reason": "声明的 owner 已从代码中删除（54ca55d0e refactor(ponytail): 评审搬到交工前，钩子只查收据）；该合同针对它的那条不变量不再适用。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-02-ponytail-review-scope.root-cause.json",
-      "path": "scripts/ponytail-review-hook.mjs",
-      "symbol": "collectReviewDiff",
-      "reason": "声明的 owner 已从代码中删除（54ca55d0e refactor(ponytail): 评审搬到交工前，钩子只查收据）；该合同针对它的那条不变量不再适用。"
     },
     {
       "contract": "docs/fixes/2026-09-02-stale-hand-copied-surface-baseline.root-cause.json",
@@ -800,12 +856,6 @@
       "reason": "声明的 owner 已从代码中删除（3ebde4ac2 refactor(agent): 注册表/派生层从声明派生；契约加 method surface，付费边界从它派生（4/10））；该合同针对它的那条不变量不再适用。"
     },
     {
-      "contract": "docs/fixes/2026-09-08-ponytail-review-units.root-cause.json",
-      "path": "scripts/ponytail-review-hook.mjs",
-      "symbol": "collectAuthoredPatch",
-      "reason": "声明的 owner 已从代码中删除（54ca55d0e refactor(ponytail): 评审搬到交工前，钩子只查收据）；该合同针对它的那条不变量不再适用。"
-    },
-    {
       "contract": "docs/fixes/2026-09-09-agent-lane-c0-instructions.root-cause.json",
       "path": "electron/shared/agentCapabilities/canvasModelTools.ts",
       "symbol": "canvasModelToolSpecs",
@@ -900,12 +950,6 @@
       "path": "scripts/check-door-map.mjs",
       "symbol": "evaluatePullRequest",
       "reason": "check:door-map 已于 2026-10-01 并入 check:root-cause-contracts（用户按门岗账本 docs/audit/2026-10-01-gate-ledger.md 拍板）：被删的只是「recurring 合同的 PR 正文必须引用那份合同」这一半（窗口里 5 次红全是补引用 / 补门表）；门表合法性（必填、path 存在、符号对得上、不许行号、不许重复）一直在 root-cause-contracts.mjs 的 validateDoorMap，不变量仍有主人。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-02-ponytail-staged-diff-enobufs.root-cause.json",
-      "path": "scripts/ponytail-review-hook.mjs",
-      "symbol": "runGit / collectReviewDiff",
-      "reason": "交工前评审整套（适配器、收据、pre-push 收据判据）已于 2026-10-02 删除，用合并前独立验收代替；这条合同守的评审 diff 读取不变量随之不再适用。"
     },
     {
       "contract": "docs/fixes/2026-09-07-absent-number-printed-as-zero.root-cause.json",
@@ -1014,18 +1058,6 @@
       "path": "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts",
       "symbol": "startLoopbackVendor",
       "reason": "2026-10-24 D2 第③步（付费卡 = 指向元素 + 一行只读摘要，点「生成」交给画布那一台发动机）：付费卡 e2e 夹具改写成 spendWorld（真仓库、真画布 store，渲染层替身实现 production.hand-over-shots 合同），卡上「生成」交给画布、不再由宿主直连供应商，夹具里不起 HTTP 服务器（文件里没有 createServer），空闲 socket 与客户端处理关闭的竞态无从发生；对应的 loopback socket idle 用例同步退役。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-20-spend-draft-recovery-validation.root-cause.json",
-      "path": "src/workbench/ai/v4/spendCardDraft.ts",
-      "symbol": "readSpendDraft",
-      "reason": "2026-10-24 D2 第③步（付费卡 = 指向元素 + 一行只读摘要，点「生成」交给画布那一台发动机）：卡上没有可编辑的本地草稿了（卡只读节点），本地草稿账本 spendCardDraft.ts 同提交删除；旧资料里的 nomi:spend-draft:* 一个都不读（useAgentPanelSpendCard.test 钉住），「持久化的可编辑输入先验再用」没有输入可验。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-20-spend-draft-recovery-validation.root-cause.json",
-      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
-      "symbol": "useAgentPanelSpendConfirm",
-      "reason": "2026-10-24 D2 第③步（付费卡 = 指向元素 + 一行只读摘要，点「生成」交给画布那一台发动机）：同上一条——没有草稿要恢复，「请求身份要等草稿恢复成功才发布」随草稿一起退役；新卡的身份就是宿主推来的那一次出价（quoteId / presentationId），动作带此刻卡上那一张的身份（useAgentPanelSpendCard.test 动作清单矩阵）。"
     },
     {
       "contract": "docs/fixes/2026-09-22-spend-draft-owner.root-cause.json",

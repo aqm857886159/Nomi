@@ -15,6 +15,7 @@ import {
   type ReferenceFamily as DeclaredReferenceFamily,
   type ReferenceModelContext,
 } from "../shared/modelArchetypes/referenceKeys";
+import { DEFAULT_LOWERING_INPUT_KEY } from "../shared/generationLowering/slotInputKeys";
 // 渲染层的变体轴收窄也要「这条 create op 引用了哪些参数键」（body ∪ 进程 args）。它的单一实现在
 // paramTranslate；从本模块转出一次，是因为 src→electron 的越界是棘轮门岗，渲染层已放行的入口只有
 // 本文件这一条（archetypeMeta 那条基线）。让渲染层再直连 paramTranslate 会被判成新增违规。
@@ -41,16 +42,8 @@ const AGGREGATE_SINGLE_KEYS = ["image_url", "imageUrl", "image"];
 /** 能挤进单图聚合位的槽 kind，**顺序即 firstReferenceImage 的优先级**（首帧 > 尾帧 > 参考图数组）。 */
 const AGGREGATE_ELIGIBLE_KINDS = ["first_frame", "last_frame", "image_ref"];
 
-/** 缺省 API 输入键（模型契约，供应商无关）。与渲染层 archetypeMeta.DEFAULT_INPUT_KEY 同表——
- *  两处都要改时靠 referenceReachability.test 的一致性用例兜住（那条会对着渲染层的表逐项比）。 */
-export const DEFAULT_SLOT_INPUT_KEY: Record<string, string> = {
-  first_frame: "first_frame_url",
-  last_frame: "last_frame_url",
-  image_ref: "reference_image_urls",
-  video_ref: "reference_video_urls",
-  audio_ref: "reference_audio_urls",
-  source_video: "video_url",
-};
+/** 缺省 API 输入键（模型契约，供应商无关）：唯一一份住在降级函数旁边（shared/generationLowering），这里只转出。 */
+export const DEFAULT_SLOT_INPUT_KEY: Readonly<Record<string, string>> = DEFAULT_LOWERING_INPUT_KEY;
 
 /** 一个槽的最小描述（渲染层的 ArchetypeReferenceSlot 与 electron 侧共用的交集）。 */
 export type ReachSlot = { kind: string; inputKey?: string };

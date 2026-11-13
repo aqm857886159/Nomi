@@ -1,0 +1,33 @@
+{
+  "id": "PAID-20261107-tts-save-expected-kind",
+  "since": "2026-11-07",
+  "source": "协调 2026-11-07 真付费抽检：nomi:tasks:run 跑 APIMart nomi-audio（speech），带 extras.projectId；已发布的 v0.23.2 – v0.24.1 都受影响。",
+  "category": "parameter-contract",
+  "problem": "配音、音乐、音效点生成，供应商已经扣费，结果却存不进项目：节点报 generated_output_expected_kind_required。任务明明知道要的是音频，这个事实没带到落盘那扇门；没开项目的试用（Agent 的 try_model）也照样先付费再失败。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-07-tts-save-expected-kind.md",
+    "docs/fixes/2026-11-07-tts-save-expected-kind.root-cause.json",
+    "docs/engineering/direction-checks/2026-11-07-tts-save-expected-kind.md",
+    "electron/tasks/syncBytesResultLandsInProject.test.ts",
+    "electron/catalog/oldUserDubbingLandsAfterUpgrade.test.ts",
+    "实现线 I-tts-save-expected-kind：修前矩阵 9 格同步配音全部在落盘关口红（generated_output_expected_kind_required），没项目的格子各发出 1 个请求；修后全绿、没项目 0 个请求。协调开 PR #1442 后转 fixed；真付费回放 tests/ux/tts-save-expected-kind-real.paid.mjs 由协调跑一次。"
+  ],
+  "completionCommits": [
+    "da261bfea",
+    "eebdcaa2b"
+  ],
+  "rootCauseContract": "docs/fixes/2026-11-07-tts-save-expected-kind.root-cause.json",
+  "fixedInPr": 1442,
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/tasks/syncBytesResultLandsInProject.test.ts"
+  }
+}

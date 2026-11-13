@@ -7,6 +7,7 @@ import {
   type EditingPanelLayout,
   type EditingPanelPreset,
   type EditingPanelSizeKey,
+  type EditingSidePanel,
 } from './panelLayout'
 
 /**
@@ -43,6 +44,17 @@ export type EditingPanelLayoutSlice = {
   /** 切 tab；顺带保证左栏是展开的——收起状态下切 tab 等于什么都没发生。 */
   openPreviewSourceTab: (tab: PreviewSourceTab) => void
   /**
+   * 两侧栏放不下时留哪一栏（resolveEditingStageFrame 的 keep）。默认左栏：2026-11-04 用户拍板「先收属性」——
+   * 剪辑页的主活是把镜头拖进成片，属性要选中片段才有内容。会话态、不落盘：它只记「用户刚打开的是哪边」。
+   * 改侧栏开合的入口一律经 keepAfterLayoutChange 定它（规则见那里）；另外只有拖宽某一栏（keepEditingPanel）
+   * 和整份换回默认（预设 / 恢复默认 / 打开项目）会改它。
+   */
+  editingPanelKeep: EditingSidePanel
+  /** 放不下时留这一栏（拖宽某一栏时用；开合不变）。 */
+  keepEditingPanel: (panel: EditingSidePanel) => void
+  /** 打开 / 关掉一块面板。打开侧栏 = 它成为放不下时留下的那一栏（点收起条一定看得到它展开，C1）。 */
+  showEditingPanel: (panel: keyof EditingPanelLayout['visibility'], visible: boolean) => void
+  /**
    * 时间轴吸附开关。必须住在 store：预览面（full）与生成画布（compact）两个 TimelinePanel
    * 因 keep-alive **同时挂载**，各注册一个 window keydown。放在组件局部 state 时，按 N 只翻了
    * 「先注册的那个」——很可能是屏幕上看不见的那一个，用户看到的工具条纹丝不动，而拖动时的
@@ -60,10 +72,10 @@ export type EditingPanelLayoutSlice = {
   toggleEditingPanel: (panel: keyof EditingPanelLayout['visibility']) => void
   undoEditingPanelLayout: () => boolean
   /**
-   * 面板拖动的**唯一回写口**：只镜像 react-resizable-panels 量到的真实像素，
-   * 不动 preset、不压撤销栈。用户手拖导致的 preset → 'custom' 由 Group 的
-   * onLayoutChanged(isUserInteraction) 走 markEditingPanelLayoutCustom，
-   * 这样「切预设 → 面板按预设 resize → onResize 回写」不会把刚选的预设洗掉。
+   * 用户**亲手拖完**分隔条后记下的宽 / 高（PreviewWorkspace 只在 onLayoutChanged.isUserInteraction 时调，
+   * 规则见 panelLayout 的 editingPanelDragIntent）。不动 preset、不压撤销栈：⌘Z 先撤布局、再撤时间轴，
+   * 拖一下宽度不该占掉一次 ⌘Z；preset → 'custom' 由 markEditingPanelLayoutCustom 走同一个用户动作口。
+   * 窗口变窄、开关 Nomi、约束重算都不走这里——它们改的是这一刻的实际布局，不是用户的选择。
    */
   syncEditingPanelSize: (patch: Partial<Record<EditingPanelSizeKey, number>>) => void
   markEditingPanelLayoutCustom: () => void
@@ -75,6 +87,31 @@ const UNDO_LIMIT = 20
 
 const pushUndo = (stack: EditingPanelLayout[], entry: EditingPanelLayout): EditingPanelLayout[] =>
   [...stack, entry].slice(-UNDO_LIMIT)
+
+const DEFAULT_KEEP: EditingSidePanel = 'source'
+
+type PanelVisibility = EditingPanelLayout['visibility']
+const SIDE_PANELS = ['source', 'inspector'] as const
+
+/**
+ * 放不下时留哪一栏——**凡是改侧栏开合的入口都经这一条**（点收起条、布局菜单、⌘Z、Agent layout.write、拖开、切左栏 tab），
+ * 不让每个入口各记一遍：2026-11-05 ⌘Z 自己还原开合、漏了这一步，撤销重开的属性栏在 1280 宽仍被让成收起条。
+ *  ①这一下点名要开的侧栏只有一块（asked）→ 留它，哪怕它的开合本来就是开着（只是放不下被让成了条）；
+ *  ②否则看开合前后：从关变开的只有一块 → 留它；两块一起变开 → 回到默认（先收属性）；
+ *  ③都没有 → 不变（关栏、只改 Nomi、只改宽度都不改留哪边）。
+ */
+export function keepAfterLayoutChange(
+  previous: PanelVisibility,
+  next: PanelVisibility,
+  keep: EditingSidePanel,
+  asked?: Partial<PanelVisibility>,
+): EditingSidePanel {
+  const askedOpen = SIDE_PANELS.filter((panel) => asked?.[panel] === true && next[panel])
+  if (askedOpen.length === 1) return askedOpen[0]
+  const opened = SIDE_PANELS.filter((panel) => !previous[panel] && next[panel])
+  if (opened.length === 1) return opened[0]
+  return opened.length === 2 ? DEFAULT_KEEP : keep
+}
 
 /**
  * 布局是 per-project 落盘物（`readCurrentWorkbenchProjectPayload` 把它写进 projectRecord），
@@ -88,11 +125,12 @@ const bumpPersist = (state: LayoutHostState) => ({ persistRevision: state.persis
 const recallIfReopened = (state: LayoutHostState, nowVisible: boolean) =>
   (state.projectAgentDockCollapsed && nowVisible ? { agentRecallNonce: state.agentRecallNonce + 1 } : {})
 
-/** 换上一整份布局：撤销栈、Nomi 栏开关、落盘游标一起对齐，避免几个 action 各写一遍写漏。 */
-const replaceLayout = (state: LayoutHostState, next: EditingPanelLayout) => ({
+/** 换上一整份布局：撤销栈、Nomi 栏开关、留哪边、落盘游标一起对齐，避免几个 action 各写一遍写漏。 */
+const replaceLayout = (state: LayoutHostState, next: EditingPanelLayout, asked?: Partial<PanelVisibility>) => ({
   editingPanelUndoStack: pushUndo(state.editingPanelUndoStack, state.editingPanelLayout),
   editingPanelLayout: next,
   projectAgentDockCollapsed: !next.visibility.assistant,
+  editingPanelKeep: keepAfterLayoutChange(state.editingPanelLayout.visibility, next.visibility, state.editingPanelKeep, asked),
   ...recallIfReopened(state, next.visibility.assistant),
   ...bumpPersist(state),
 })
@@ -120,24 +158,38 @@ export const createEditingPanelLayoutSlice: StateCreator<
   }),
   editingPanelUndoStack: [],
   previewSourceTab: 'shots',
+  editingPanelKeep: DEFAULT_KEEP,
+
+  keepEditingPanel: (panel) => set((state) => (state.editingPanelKeep === panel ? state : { editingPanelKeep: panel })),
+
+  showEditingPanel: (panel, visible) => set((state) => {
+    const asked = { [panel]: visible }
+    if (state.editingPanelLayout.visibility[panel] === visible) {
+      // 开合没变（多半是点被让成收起条的那栏）：只可能换留哪边，不进撤销栈、不存盘。
+      const editingPanelKeep = keepAfterLayoutChange(state.editingPanelLayout.visibility, state.editingPanelLayout.visibility, state.editingPanelKeep, asked)
+      return editingPanelKeep === state.editingPanelKeep ? state : { editingPanelKeep }
+    }
+    const visibility = { ...state.editingPanelLayout.visibility, [panel]: visible }
+    return replaceLayout(state, { ...state.editingPanelLayout, preset: 'custom', visibility }, asked)
+  }),
   timelineSnapEnabled: true,
 
   setTimelineSnapEnabled: (next) => set((state) => ({
     timelineSnapEnabled: typeof next === 'function' ? next(state.timelineSnapEnabled) : next,
   })),
 
-  openPreviewSourceTab: (tab) => set((state) => (
-    state.previewSourceTab === tab && state.editingPanelLayout.visibility.source
-      ? state
-      : {
+  // 左栏可能是因为放不下被让成了收起条（意图仍是开着）：切 tab 同时让它成为留下的那栏，才真的看得到。
+  openPreviewSourceTab: (tab) => set((state) => {
+    const asked = { source: true }
+    if (!state.editingPanelLayout.visibility.source) {
+      return {
         previewSourceTab: tab,
-        ...(state.editingPanelLayout.visibility.source ? {} : replaceLayout(state, {
-          ...state.editingPanelLayout,
-          preset: 'custom' as const,
-          visibility: { ...state.editingPanelLayout.visibility, source: true },
-        })),
+        ...replaceLayout(state, { ...state.editingPanelLayout, preset: 'custom', visibility: { ...state.editingPanelLayout.visibility, source: true } }, asked),
       }
-  )),
+    }
+    const editingPanelKeep = keepAfterLayoutChange(state.editingPanelLayout.visibility, state.editingPanelLayout.visibility, state.editingPanelKeep, asked)
+    return state.previewSourceTab === tab && editingPanelKeep === state.editingPanelKeep ? state : { previewSourceTab: tab, editingPanelKeep }
+  }),
 
   setEditingPanelLayout: (patch, recordUndo = true) => set((state) => {
     const next = clampEditingPanelLayout({
@@ -151,21 +203,24 @@ export const createEditingPanelLayoutSlice: StateCreator<
       editingPanelLayout: next,
       editingPanelUndoStack: recordUndo && changed ? pushUndo(state.editingPanelUndoStack, state.editingPanelLayout) : state.editingPanelUndoStack,
       projectAgentDockCollapsed: !next.visibility.assistant,
-      // recordUndo === false 是「打开项目时还原落盘布局」的口（workbenchProjectSession），不是有人叫回 Nomi。
+      // recordUndo === false 是「打开项目时还原落盘布局」的口（workbenchProjectSession），不是有人叫回 Nomi；
+      // 换了项目，「刚点开的是哪边」也回到默认。
       ...(recordUndo ? recallIfReopened(state, next.visibility.assistant) : {}),
+      editingPanelKeep: recordUndo
+        ? keepAfterLayoutChange(state.editingPanelLayout.visibility, next.visibility, state.editingPanelKeep, patch.visibility)
+        : DEFAULT_KEEP,
       persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
     }
   }),
 
-  setEditingPanelPreset: (preset) => set((state) =>
-    replaceLayout(state, cloneEditingPanelLayout(EDITING_PANEL_PRESETS[preset === 'custom' ? 'default' : preset]))),
+  setEditingPanelPreset: (preset) => set((state) => ({
+    ...replaceLayout(state, cloneEditingPanelLayout(EDITING_PANEL_PRESETS[preset === 'custom' ? 'default' : preset])),
+    editingPanelKeep: DEFAULT_KEEP,
+  })),
 
-  resetEditingPanelLayout: () => set((state) => replaceLayout(state, cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS))),
+  resetEditingPanelLayout: () => set((state) => ({ ...replaceLayout(state, cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS)), editingPanelKeep: DEFAULT_KEEP })),
 
-  toggleEditingPanel: (panel) => set((state) => {
-    const visibility = { ...state.editingPanelLayout.visibility, [panel]: !state.editingPanelLayout.visibility[panel] }
-    return replaceLayout(state, { ...state.editingPanelLayout, preset: 'custom', visibility })
-  }),
+  toggleEditingPanel: (panel) => get().showEditingPanel(panel, !get().editingPanelLayout.visibility[panel]),
 
   undoEditingPanelLayout: () => {
     const stack = get().editingPanelUndoStack
@@ -175,6 +230,8 @@ export const createEditingPanelLayoutSlice: StateCreator<
       editingPanelLayout: next,
       editingPanelUndoStack: stack.slice(0, -1),
       projectAgentDockCollapsed: !next.visibility.assistant,
+      // 撤回一次「收起」就是把那栏打开：照同一条规则让它成为留下的那栏，不然 1280 宽开着 Nomi 时撤销了也还是收起条。
+      editingPanelKeep: keepAfterLayoutChange(state.editingPanelLayout.visibility, next.visibility, state.editingPanelKeep),
       ...recallIfReopened(state, next.visibility.assistant),
       ...bumpPersist(state),
     }))

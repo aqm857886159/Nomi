@@ -1,0 +1,63 @@
+{
+  "modelKey": "gpt-image-2.5-sunburst",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2i": {
+      "why": "文生图不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2.5/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports text-to-image and image editing with up to 16 reference images",
+        "evidenceLevel": "text-only-example",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2.5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"gpt-image-2.5-flare\",\n  \"prompt\": \"a sky garden in a futuristic city, morning mist, architectural photography\",\n  \"size\": \"16:9\",\n  \"resolution\": \"2k\",\n  \"quality\": \"high\",\n  \"n\": 1\n}"
+          }
+        ]
+      }
+    },
+    "i2i": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 16,
+          "source": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2.5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Up to 16 images are accepted"
+        },
+        "mask_url": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2.5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Send one mask per request. With multiple reference images, the mask only applies to the first input image",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2.5/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "Pass a single string in either format:"
+            }
+          ],
+          "countsAsInput": false
+        }
+      },
+      "requires": [
+        {
+          "when": [
+            "mask_url"
+          ],
+          "anyOf": [
+            "image_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2.5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "It only takes effect when image_urls is also provided."
+        }
+      ]
+    }
+  }
+}

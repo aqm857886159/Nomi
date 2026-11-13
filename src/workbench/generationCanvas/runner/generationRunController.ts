@@ -1,4 +1,3 @@
-import { reconcileNodeModeWithConnectedReferences } from '../store/canvasAutoReference'
 import { productionMetaOf } from '../model/productionMeta'
 import { productionRunApi } from '../../production/productionRunApi'
 import { reportCanvasFeedback } from '../components/canvasFeedback'
@@ -16,18 +15,19 @@ import { isNodeGenerationOwnedByProduction } from '../../production/productionSh
 import { directorPreviewSpendBlock, directorPreviewSpendBlockMessageKey } from '../nodes/director/model/directorPreviewState'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
 import { canvasOpenRuns, releaseCanvasShotRun, withdrawCanvasShots } from '../../api/taskApi'
-import { confirmGenerationResend, confirmGenerationSpend, paidNodeLedger, spendCostKind, describeGenerationCost, generationCostContextForNode, type SpendInitiator } from '../spend/spendConfirm'
+import { confirmGenerationResend, confirmGenerationSpend, paidNodeLedger, spendCostKind, describeGenerationCost, generationCostContextForNode, withGenerationEtaStats, type SpendInitiator } from '../spend/spendConfirm'
 import { isRetryableGenerationError, normalizeRetryAttempts, normalizeBaseDelayMs, waitForRetry } from './generationRetryPolicy'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
+import type { GenerationNodeResults } from './catalogTaskResultParse'
 import { classifyGenerationError, isOpenGenerationRefusal } from '../../observability/classifyError'
 import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
 import { useNodeLivePreviewStore } from '../store/nodeLivePreviewStore'
 import { createRunId } from '../store/canvasIds'
-import type { NodeProgressInput } from '../store/runRecordHelpers'
-import { captureApprovedGenerationInputs, deliverRunOutcome, isRunTargetLoaded, readRunGraph, whenRunTargetLoaded, type RunGraph, type RunProjectTarget } from './runProjectDelivery'
+import { createRunOwnOutcomes, nextRunStartedAt } from './runOwnOutcomes'
+import { captureApprovedGenerationInputs, isRunTargetLoaded, readRunGraph, whenRunTargetLoaded, type RunGraph, type RunProjectTarget } from './runProjectDelivery'
 import { isRecoverableTimeoutError } from './recoverableTimeout'
-import { outboundBlockedRecoverableMessage } from './outboundBlockedRecovery'
+import { retrievalRecoverableMessage } from './retrievalRecovery'
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 import { recordNodeModelFailure, recordNodeModelSuccess } from './nodeModelHealth'
 import {
@@ -42,7 +42,8 @@ export { classifyGenerationError, type GenerationErrorReport } from '../../obser
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { stampUpstreamRefSnapshot } from './refSnapshotStamp'
 import {
-  currentArchetypeMode,
+  effectiveArchetypeMode,
+  sendArchetypeMode,
   hasAnyArchetypeReference,
 } from '../nodes/controls/archetypeMeta'
 import {
@@ -101,7 +102,8 @@ export type DeferredNodeMaterialization = {
 
 export type RunGenerationNodeOptions = {
   assertAuthorCurrent?: (graph: RunGraph, executingNodeId: string) => Promise<void>
-  assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void
+  /** runId = 正在跑的这一次（运行自己报号，D9）。 */
+  assertApprovedInputs?: (graph: RunGraph, executingNodeId: string, runId?: string) => void
   executor?: GenerationNodeExecutor
   retry?: {
     maxAttempts?: number
@@ -153,7 +155,6 @@ export async function runGenerationNode(
   if (!id) throw new Error('nodeId is required')
   const { target } = options
 
-  whenRunTargetLoaded(target, () => reconcileNodeModeWithConnectedReferences(id))
   // 读的是运行自己项目的图（在前台读 store，不在前台读盘），绝不读切换后新项目的图。
   const initialState = await readRunGraph(target)
   const initialNode = initialState?.nodes.find((node) => node.id === id)
@@ -204,7 +205,7 @@ export async function runGenerationNode(
   }
   queue.markRunning(batchId, id)
 
-  const now = Date.now()
+  const now = nextRunStartedAt()
   // 运行记录随原项目持久化（含 projectId）：找回/重启都只认它，不认「当时打开的是哪个」。
   // attempt = 这次发给哪家的哪个模型（提交那一刻从被执行的节点读出）：失败提示点名的是它，
   // 健康记账记到的也是它——不是「失败时节点碰巧选着谁」（运行期间用户可以换家）。
@@ -212,27 +213,15 @@ export async function runGenerationNode(
   const attempt = dispatchedAttempt(initialNode)
   const run = { id: options.runRecordId ?? createRunId(id), status: 'queued' as const, startedAt: now, updatedAt: now, projectId: target.projectId, ...(attempt ? { attempt } : {}) }
   let runFailure: unknown
-  let progressDelivery: Promise<void> = Promise.resolve()
-  let progressDeliveryFailure: unknown
-  let persistedTaskId = ''
-  const reportProgress = (progress: NodeProgressInput): void => {
-    // 前台看进度；不在前台只把首次拿到的 taskId 写进原项目（找回靠它），其余瞬态不写盘。
-    if (whenRunTargetLoaded(target, () => useGenerationCanvasStore.getState().setNodeProgress(id, progress))) return
-    if (progress.taskId && progress.taskId !== persistedTaskId) {
-      persistedTaskId = progress.taskId
-      // Existing delivery serializes writes; retain rejection for this run's awaited completion.
-      progressDelivery = deliverRunOutcome(target, id, { kind: 'progress', progress, runId: run.id }).then(
-        () => undefined, error => { progressDeliveryFailure ??= error },
-      )
-    }
-  }
+  // 这次自己的结局（准入前只占显示、准入后按号收账）都经它投：runOwnOutcomes.ts。
+  const own = createRunOwnOutcomes(target, id, run, options.ledger === 'run')
+  const { reportProgress, deliverOwn: deliverOwnOutcome } = own
   try {
-    await deliverRunOutcome(target, id, { kind: 'run-started', run })
-    reportProgress({ runId: run.id, phase: 'queued', message: narrateProgress('queued') })
+    await own.start()
     const executor = options.executor ?? generationNodeExecutor
     const maxAttempts = normalizeRetryAttempts(options.retry?.maxAttempts)
     const baseDelayMs = normalizeBaseDelayMs(options.retry?.baseDelayMs)
-  let result: GenerationNodeResult | null = null
+  let results: GenerationNodeResults | null = null
   let mediaDimensions: MediaDimensions | undefined
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const savedGraph = await readRunGraph(target)
@@ -245,15 +234,15 @@ export async function runGenerationNode(
       }
       const node = state?.nodes.find((candidate) => candidate.id === id)
       if (!state || !node) throw new Error('node not found')
-      options.assertApprovedInputs?.(state, id)
+      options.assertApprovedInputs?.(state, id, run.id)
       const nodeMeta = (node.meta || {}) as Record<string, unknown>
       const dialogueArchetype = resolveTaskArchetype(nodeMeta)
-      const dialogueMode = dialogueArchetype ? currentArchetypeMode(dialogueArchetype, nodeMeta) : null
+      const dialogueMode = dialogueArchetype ? effectiveArchetypeMode(dialogueArchetype, node, state).mode : null
       const dialoguePromptSuffix = buildDialoguePromptSuffix(dialogueMode, nodeMeta, nodeMeta.dialogue)
       // Streaming output is not input to another attempt of the same text run.
       const executionNode = node.kind === 'text' ? { ...node, contentJson: initialNode.contentJson } : node
       try {
-        result = await executor(executionNode, {
+        results = await executor(executionNode, {
           nodes: state.nodes,
           edges: state.edges,
           projectTarget: target,
@@ -290,44 +279,50 @@ export async function runGenerationNode(
         await waitForRetry(attempt, baseDelayMs)
       }
     }
-    await progressDelivery
-    if (progressDeliveryFailure) throw progressDeliveryFailure
-    if (!result) throw new Error(describeOpaqueFailure(null))
-    const landedInOpenProject = await deliverRunOutcome(target, id, { kind: 'result', result, runId: run.id, ...(mediaDimensions ? { mediaDimensions } : {}) })
-    // 自动另存（集中设置页开启时）：新生成的图/视频静默复制一份到用户目录。fire-and-forget——不 await
-    // （不拖慢生成收尾）、失败不冒泡（best-effort 全在主进程侧，关着/没设目录/失败都静默）。只对新生成，
-    // 找回(recoverTaskActions)不触发、避免重复另存。
-    if ((result.type === 'image' || result.type === 'video') && (result.url || '').trim()) {
-      const title = (initialNode.title || '').trim()
-      void getDesktopBridge()
-        ?.assets?.autoSave?.({ url: result.url as string, suggestedName: title || undefined })
-        .catch(() => undefined)
+    const deliveryFailure = await own.drained()
+    if (deliveryFailure) throw deliveryFailure
+    if (!results) throw new Error(describeOpaqueFailure(null))
+    // 一次运行交回几张就落几张：每张都按这次的运行记录号投（同一个合并规则），按上游顺序，最后一张是最新的版本。
+    let landedInOpenProject = false
+    for (const result of results) {
+      landedInOpenProject = await deliverOwnOutcome({ kind: 'result', result, runId: run.id, ...(mediaDimensions ? { mediaDimensions } : {}) })
+    }
+    const title = (initialNode.title || '').trim()
+    for (const result of results) {
+      // 自动另存（集中设置页开启时）：新生成的图/视频静默复制一份到用户目录（每张都存）。fire-and-forget——不 await
+      // （不拖慢生成收尾）、失败不冒泡（best-effort 全在主进程侧，关着/没设目录/失败都静默）。只对新生成，
+      // 找回(recoverTaskActions)不触发、避免重复另存。
+      if ((result.type === 'image' || result.type === 'video') && (result.url || '').trim()) {
+        void getDesktopBridge()
+          ?.assets?.autoSave?.({ url: result.url as string, suggestedName: title || undefined })
+          .catch(() => undefined)
+      }
     }
     if (landedInOpenProject) recordNodeModelSuccess(run.attempt)
     useGenerationQueueStore.getState().markSettled(batchId, id, 'success')
     if (landedInOpenProject) await persistActiveWorkbenchProjectNow().catch(() => {})
-    return result
+    // 返回这次最新的那张（成为当前图的就是它，时间轴据它对账）。
+    return results[results.length - 1]!
   } catch (caughtError: unknown) {
-    await progressDelivery
-    const error = progressDeliveryFailure ?? caughtError
+    const error = (await own.drained()) ?? caughtError
     runFailure = error
     // Both explicit cancellation and its polling race return to idle without penalizing model health.
     if (isLocalTaskCancelledError(error) || isTaskCancelRequested(id)) {
       // 单镜 Run 路：只是渲染层不等了——还在路上的交给主进程观察者收完，钱花了的结果照样进项目。
       if (options.ledger === 'run') void releaseCanvasShotRun({ projectId: target.projectId, runRecordId: run.id }).catch(() => undefined)
-      await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'idle' })
+      await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'idle' })
       // 用户主动停的：不进刹车计数（模型没挂，是人喊停的）。
       useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
       throw isLocalTaskCancelledError(error) ? error : new LocalTaskCancelledError()
     }
     if (error instanceof AssetUploadConsentCancelledError) {
-      await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'idle' })
+      await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'idle' })
       useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
       throw error
     }
     // A polling timeout remains recoverable from its persisted taskId; it is not a model failure.
     if (isRecoverableTimeoutError(error)) {
-      await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'recoverable', error: error.message })
+      await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'recoverable', error: error.message })
       // 上游没有明确判死（可能仍在跑/已出片）→ 健康记账不算失败，刹车也不该算。
       useGenerationQueueStore.getState().markSettled(batchId, id, 'error', {
         error: error.message,
@@ -335,17 +330,18 @@ export async function runGenerationNode(
       })
       throw error
     }
-    // Outbound retrieval refusal stays recoverable using the current original node's taskId;
-    // outboundBlockedRecovery distinguishes this already-paid task from a new paid retry.
-    const blocked = outboundBlockedRecoverableMessage(error, (await readRunGraph(target))?.nodes.find((n) => n.id === id))
+    // A retrieval-stage failure stays recoverable using the current original node's taskId;
+    // retrievalRecovery distinguishes this already-paid task from a new paid retry.
+    const blocked = retrievalRecoverableMessage(error, (await readRunGraph(target))?.nodes.find((n) => n.id === id))
     if (blocked) {
-      // 不记模型失败（挂的是本机网络），但刹车照记：后续每条都会同样失败而提交侧照旧扣费。
-      await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'recoverable', error: blocked })
+      // 不记模型失败（丢的只是取回），但刹车照记：后续每条多半会同样失败而提交侧照旧扣费。
+      await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'recoverable', error: blocked })
       useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: blocked })
       throw error
     }
     if (isOpenGenerationRefusal(describeOpaqueFailure(error))) {
-      await deliverRunOutcome(target, id, { kind: 'run-refused', runId: run.id, previous: { status: initialNode.status, error: initialNode.error, progress: initialNode.progress } })
+      // 主进程拒了 = 这次从来不是一次运行（D3）：不写记录、不回滚（runOwnOutcomes.refused）。
+      await own.refused()
       useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
       if (options.initiator === 'user') {
         const open = await canvasOpenRuns({ projectId: target.projectId, nodeId: id })
@@ -358,7 +354,7 @@ export async function runGenerationNode(
     // Store the RAW message (describeOpaqueFailure only fills in when there is none): NodeErrorReport
     // runs classifyGenerationError over it, and a plain string needs no persisted-shape migration.
     const rawMessage = describeOpaqueFailure(error)
-    await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'error', error: rawMessage })
+    await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'error', error: rawMessage })
     // 真执行失败 → 计入刹车（连续 3 个即暂停队列，防上游整体挂掉时把剩下的额度一路烧完）。
     useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: rawMessage, countsTowardBrake: countsTowardGenerationBrake(kind) })
     throw error
@@ -455,7 +451,10 @@ export async function runGenerationNodesBatch(
         })
         successes.push({ nodeId, result })
         // 批量重生成也要走回填闸（与单发路径同款）：位置不变、clip 换新产物 URL；无引用时 no-op。
-        whenRunTargetLoaded(options.target, () => useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(nodeId, result))
+        // 只有这张图就是当前图才对账（D7）：比它新的运行已经成功时，它只进了版本历史，时间轴不动。
+        whenRunTargetLoaded(options.target, () => {
+          if (useGenerationCanvasStore.getState().nodes.find(node => node.id === nodeId)?.result?.id === result.id) useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(nodeId, result)
+        })
         options.onNodeResult?.({ ok: true, nodeId, result })
       } catch (error: unknown) {
         const normalizedError = error instanceof Error ? error : new Error(String(error))
@@ -531,7 +530,7 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
   const ok = resending || await confirmGenerationSpend([node], {
     initiator: opts.initiator,
     title: opts.rerun ? i18n.t('generationCommon.spend.generateVariant') : opts.title || i18n.t('generationCommon.spend.startGeneration'),
-    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node, projectId)),
+    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', await withGenerationEtaStats(generationCostContextForNode(node, projectId))),
     confirmLabel: opts.rerun ? i18n.t('generationCommon.spend.generateVariant') : opts.confirmLabel || i18n.t('generationCommon.spend.generate'),
     ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
@@ -620,10 +619,12 @@ export function generationNodeInputsReady(
     if (!('id' in node) || !node.id) return true
     const meta = node.meta || {}
     const imageArchetype = resolveTaskArchetype(meta)
-    const imageMode = imageArchetype ? currentArchetypeMode(imageArchetype, meta) : null
-    if (!imageArchetype || !imageMode || imageMode.transportTaskKind !== 'image_edit' || (imageMode.slots || []).length === 0) return true
+    if (!imageArchetype) return true
+    // 方式按这次的输入现算：没放图就是文生图（不再有「方式要图却没图」这一说）；放了图才轮到「参考到没到」。
     const references = resolveGenerationReferences(node, context)
-    return hasAnyArchetypeReference(meta, imageArchetype, references)
+    const imageMode = sendArchetypeMode(imageArchetype, node, references)
+    if (imageMode.transportTaskKind !== 'image_edit' || (imageMode.slots || []).length === 0) return true
+    return hasAnyArchetypeReference(meta, imageMode, references)
   }
   // C5: 文本节点只要选了文本模型就能生成；prompt 缺失由 buildCatalogTaskRequest 兜底报错。
   if (executionKind === 'text') return true
@@ -632,14 +633,14 @@ export function generationNodeInputsReady(
     if (!('meta' in node)) return true
     const meta = node.meta || {}
     const audioArchetype = resolveTaskArchetype(meta)
-    const mode = audioArchetype ? currentArchetypeMode(audioArchetype, meta) : null
+    const audioReferences = 'id' in node && node.id ? resolveGenerationReferences(node, context) : undefined
+    const mode = audioArchetype ? sendArchetypeMode(audioArchetype, node as GenerationCanvasNode, audioReferences) : null
     const needsAudioRef = (mode?.slots || []).some((slot) => slot.kind === 'audio_ref')
     if (!needsAudioRef) return true
     // 连线来源也算（2026-09-11 起「声音」节点/导入的音频素材是一等参考源，SLOT_ACCEPTS.audio_ref=
     // ['audio']——用户报的根因「声音节点连不上视频节点」修在 anchorPolicy.ts + referenceEdgeCapability.ts）
     // ——口径与另两支一致，这里当年就已经按「将来会有音频源」写好，不用再改。
-    const audioReferences = 'id' in node && node.id ? resolveGenerationReferences(node, context) : undefined
-    return Boolean(audioArchetype && hasAnyArchetypeReference(meta, audioArchetype, audioReferences))
+    return Boolean(mode && hasAnyArchetypeReference(meta, mode, audioReferences))
   }
   // 视频与 3D **共用**下面这段「档案模式声明」判定（P1 不复制第二份）：3D 档案与视频同构——
   // text 模式 slots:[]（文生3D，prompt-only）、image 模式带 first_frame 参考槽（图生3D）。
@@ -662,15 +663,16 @@ export function generationNodeInputsReady(
   // 不能因「video 一律要首帧」把 t2v 的生成按钮锁死——栽过：RunningHub Seedance 默认 text 模式（slots:[]）
   // 按钮被置灰、误提示"需要首帧"，用户根本点不了文生视频（2026-06-30 用户反馈）。apimart/kie Seedance 同病，
   // 只是用户多从图片边起步才没暴露。根因 = 此判定原本不分模式，一律要参考。
-  const mode = currentArchetypeMode(archetype, meta)
+  // 方式按这次的输入现算（没放东西且档案有文字生成 = 文生，偏好里是首尾帧 / 参考也一样）。
+  const references = resolveGenerationReferences(node, context)
+  const mode = sendArchetypeMode(archetype, node, references)
   if ((mode.slots || []).length === 0) return true
   // 有参考槽的模式（i2v/首尾帧/全能参考 omni/视频编辑）→ 需至少一个参考。判据统一交给
   // hasAnyArchetypeReference：它遍历**本模式声明的槽**，每个槽同时看「画布边」和「meta 手动上传」，
   // 与显示（resolveReferenceSlots）、发送（buildArchetypeInputParams）同一口径。
   // 此前这里是一串就地展开的 OR，每加一种槽都得记得再补一条 → 漏了连线参考视频、尾帧接力、
   // 源视频三处，用户明明连了线、缩略图也显示着，↑ 按钮却死着（2026-08-20 用户反馈 + 不变量测试）。
-  const references = resolveGenerationReferences(node, context)
-  if (!hasAnyArchetypeReference(meta, archetype, references)) return false
+  if (!hasAnyArchetypeReference(meta, mode, references)) return false
   // 跨槽依赖（档案 slot.requiresAnyOf）：有参考 ≠ 组合合法。Seedance 2.0 的参考音频必须搭配图或视频
   // （方舟「不支持"文本+音频"、"纯音频" 输入」/ APIMart "Must be used together with reference images
   // or reference videos"），只放一段音频此前会被判可生成、发出去才被服务商拒。2.5 已解除，故按档案声明判、
@@ -687,5 +689,7 @@ export function unmetReferenceDependencyForNode(
   context: GenerationRunContext = {},
 ): UnmetReferenceDependency | null {
   const meta = node.meta || {}
-  return nodeUnmetReferenceDependency(meta, resolveTaskArchetype(meta), resolveGenerationReferences(node, context))
+  const archetype = resolveTaskArchetype(meta)
+  const references = resolveGenerationReferences(node, context)
+  return nodeUnmetReferenceDependency(meta, archetype ? sendArchetypeMode(archetype, node, references) : null, references)
 }

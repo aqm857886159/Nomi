@@ -8,10 +8,10 @@
 //
 // 现在比例在模型面有自己的位置（`draft_shots.shots[].aspectRatio`），投影把它放进宿主候选的
 // `parameters.aspectRatio`（语义载体键），这里按**这个候选此刻的参数表**把它翻成真实键：
-//   · 比例控件 = 选项除自动档外全是比例的那个（判据 `electron/shared/aspectRatioValue.ts`，画布参数面板同用）；
+//   · 比例控件 = 选项除自动档外全是比例的那个（几何判据在 `electron/shared/aspectRatioValue.ts`；界面分类另有导出）；
 //   · 翻不了（没有比例控件 / 值不在选项里 / 和 parameters 里真实键写的不一样）→ 当场拒，带合法值。
 // **不回落默认**：回落默认就是用户付钱拿到一张他没要的画幅——这一族缺陷本身。
-import { ASPECT_RATIO_SEMANTIC_KEY, resolveAspectRatioChoice } from "../shared/aspectRatioValue";
+import { ASPECT_RATIO_SEMANTIC_KEY, resolveAspectRatioGeometryChoice } from "../shared/aspectRatioValue";
 import { ContractCompilationError, type PlanCandidate } from "./executionContract";
 import type { ParameterField } from "./moduleManifest";
 
@@ -46,7 +46,7 @@ export function projectSemanticAspectRatio(
     key, options: (field.enum ?? []).map((value) => ({ value })), defaultValue: field.default,
   }));
   // `rest` 里调用方自己写着的真实键是「这一镜当前那一档」：像素档同比例多档时按它挑同档。
-  const choice = resolveAspectRatioChoice(requested, controls, { ...tierReference, ...rest });
+  const choice = resolveAspectRatioGeometryChoice(requested, controls, { ...tierReference, ...rest });
   if (!choice.ok) {
     if (choice.reason === "several_sizes") {
       throw new ContractCompilationError(
@@ -60,6 +60,7 @@ export function projectSemanticAspectRatio(
         `${model} cannot make ${requested.trim()} in this mode. Its ratio choices (parameter ${choice.key}): `
         + `${choice.allowedValues.map(display).join(", ")}. Pick one of them, or ask the user.`,
         { code: "parameter_not_in_enum", path, allowedValues: choice.allowedValues.filter(isPrimitive), allowedKeys },
+        { code: "ratio_not_in_mode", field: path, model, value: requested.trim(), allowed: choice.allowedValues.filter(isPrimitive).map(String) },
       );
     }
     if (choice.reason === "ambiguous") {
@@ -73,6 +74,7 @@ export function projectSemanticAspectRatio(
       `${model} has no frame-ratio choice in this mode (it may follow the input image, or size the frame in pixels). `
       + `Leave aspectRatio out${allowedKeys.length ? `; if one of its parameters (${allowedKeys.join(", ")}) is what you mean, set that one in parameters` : ""}.`,
       { code: "unknown_parameter", path, allowedKeys },
+      { code: "ratio_not_in_mode", field: path, model, value: requested.trim() },
     );
   }
   // 同一件事写了两处、说法不一样：模型面的 aspectRatio 与 parameters 里那个真实键。替它挑一个就是替用户花钱。

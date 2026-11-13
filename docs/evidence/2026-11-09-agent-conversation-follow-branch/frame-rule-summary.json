@@ -1,0 +1,164 @@
+{
+  "runHead": "cbb00c202",
+  "criterion": "70px; only height growth >70 in the same frame with next frame gap <=70; >20 samples; original window",
+  "frameIndex": "zero-based",
+  "cases": [
+    {
+      "case": "slow-spring",
+      "exit": 1,
+      "green": 20,
+      "red": 9,
+      "textRequests": 14,
+      "paidCalls": 0,
+      "imageRequests": 0,
+      "follow": [
+        {
+          "track": "zh-light",
+          "pass": false,
+          "frames": 266,
+          "maxGap": 692,
+          "heightBursts": [
+            {
+              "frame": 16,
+              "growth": 103
+            }
+          ],
+          "exceptions": [],
+          "violationCount": 250,
+          "longestOver70": 250
+        },
+        {
+          "track": "en-dark",
+          "pass": false,
+          "frames": 274,
+          "maxGap": 672,
+          "heightBursts": [
+            {
+              "frame": 27,
+              "growth": 103
+            }
+          ],
+          "exceptions": [],
+          "violationCount": 247,
+          "longestOver70": 247
+        }
+      ]
+    },
+    {
+      "case": "follow-off",
+      "exit": 1,
+      "green": 23,
+      "red": 6,
+      "textRequests": 14,
+      "paidCalls": 0,
+      "imageRequests": 0,
+      "follow": [
+        {
+          "track": "zh-light",
+          "pass": false,
+          "frames": 263,
+          "maxGap": 728,
+          "heightBursts": [
+            {
+              "frame": 16,
+              "growth": 103
+            }
+          ],
+          "exceptions": [],
+          "violationCount": 247,
+          "longestOver70": 247
+        },
+        {
+          "track": "en-dark",
+          "pass": false,
+          "frames": 268,
+          "maxGap": 707,
+          "heightBursts": [
+            {
+              "frame": 24,
+              "growth": 103
+            }
+          ],
+          "exceptions": [],
+          "violationCount": 244,
+          "longestOver70": 244
+        }
+      ]
+    },
+    {
+      "case": "restored",
+      "exit": 1,
+      "green": 27,
+      "red": 2,
+      "textRequests": 14,
+      "paidCalls": 0,
+      "imageRequests": 0,
+      "follow": [
+        {
+          "track": "zh-light",
+          "pass": false,
+          "frames": 264,
+          "maxGap": 104,
+          "heightBursts": [
+            {
+              "frame": 17,
+              "growth": 103
+            }
+          ],
+          "exceptions": [],
+          "violationCount": 2,
+          "longestOver70": 2,
+          "violations": [
+            {
+              "frame": 17,
+              "growth": 103,
+              "gap": 103.5,
+              "nextGap": 103.5
+            },
+            {
+              "frame": 18,
+              "growth": 0,
+              "gap": 103.5,
+              "nextGap": 1
+            }
+          ]
+        },
+        {
+          "track": "en-dark",
+          "pass": false,
+          "frames": 276,
+          "maxGap": 83,
+          "heightBursts": [
+            {
+              "frame": 28,
+              "growth": 103
+            }
+          ],
+          "exceptions": [],
+          "violationCount": 2,
+          "longestOver70": 2,
+          "violations": [
+            {
+              "frame": 28,
+              "growth": 103,
+              "gap": 83,
+              "nextGap": 83
+            },
+            {
+              "frame": 29,
+              "growth": 0,
+              "gap": 83,
+              "nextGap": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "recoveryMutant": {
+    "deletedNextFrameCheck": "red: 3 tests pass, 2 fail, exit 1",
+    "restored": "green: 5 tests pass, exit 0"
+  },
+  "ledger": "candidate; unchanged",
+  "checks": "typecheck/full quick/body precheck not run: restored native walk is red"
+}

@@ -1,0 +1,125 @@
+{
+  "recordedFrom": "45bf882e47ef32edcabe5ee98e1a1740e08aa5c8",
+  "diskVersionAfterRead": 13,
+  "backupFiles": [],
+  "models": {
+    "veo3.1-fast": {
+      "kind": "video",
+      "listed": false,
+      "published": [],
+      "modes": {}
+    },
+    "seedance-2": {
+      "kind": "video",
+      "listed": false,
+      "published": [],
+      "modes": {}
+    },
+    "opaque-video-x": {
+      "kind": "video",
+      "listed": false,
+      "published": [],
+      "modes": {}
+    },
+    "gpt-image-2": {
+      "kind": "image",
+      "listed": true,
+      "published": [
+        "image_edit",
+        "text_to_image"
+      ],
+      "modes": {
+        "text_to_image": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/images/generations",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"gpt-image-2\",\"prompt\":\"a blue marble\",\"size\":\"1024x1024\",\"quality\":\"standard\",\"n\":1,\"response_format\":\"url\"}"
+          }
+        },
+        "image_edit": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/images/edits",
+            "contentType": "multipart/form-data",
+            "authScheme": "Bearer",
+            "multipart": {
+              "fields": [
+                [
+                  "model",
+                  "gpt-image-2"
+                ],
+                [
+                  "prompt",
+                  "a blue marble"
+                ],
+                [
+                  "size",
+                  "1024x1024"
+                ],
+                [
+                  "quality",
+                  "standard"
+                ],
+                [
+                  "n",
+                  "1"
+                ],
+                [
+                  "response_format",
+                  "url"
+                ]
+              ],
+              "files": [
+                {
+                  "name": "image[]",
+                  "fileName": "reference.png",
+                  "type": "image/png",
+                  "bytes": 70,
+                  "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "opaque-image-x": {
+      "kind": "image",
+      "listed": true,
+      "published": [
+        "image_edit",
+        "text_to_image"
+      ],
+      "modes": {
+        "text_to_image": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/images/generations",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"opaque-image-x\",\"prompt\":\"a blue marble\",\"size\":\"1024x1024\",\"quality\":\"standard\",\"n\":1,\"response_format\":\"url\"}"
+          }
+        },
+        "image_edit": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/chat/completions",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"opaque-image-x\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a blue marble\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"{{origin}}/reference.png\"}}]}],\"stream\":false}"
+          }
+        }
+      }
+    }
+  }
+}

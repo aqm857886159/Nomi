@@ -45,6 +45,13 @@ export type NomiSelectOption = {
    * 模型名一个字都不剩。调用方要 chips 就别给 trailing。
    */
   chips?: Array<{ value: string; label: string; active?: boolean }>
+  /**
+   * 行左的 Tabler 图标（ReactNode，调用方给：设计系统组件不该知道「文生视频」该用哪个图标）。选中项的图标也画在触发器上。
+   * 和 `icon`（模型品牌 / 供应商标）是两件事：那个是身份标，这个是动作 / 种类的示意。
+   */
+  glyph?: React.ReactNode
+  /** 名字下面一行小字（如方式菜单「1 张图当开头」「已放 3 张，首尾帧最多 2 张」）。置灰的行名字变淡、小字照常清楚——它在说为什么点不了。 */
+  description?: string
   disabled?: boolean
   /** 整行减淡（仍可点）——「能选但眼下不建议」，如近期连败的模型沉底后。 */
   dimmed?: boolean
@@ -111,6 +118,8 @@ export type NomiSelectProps = {
    * 它与 footerAction 是两件事，不是两份实现：一个可点（做点什么），一个只陈述（这不是全部）。
    */
   hiddenNote?: string
+  /** 下拉最上面的小标题（如「生成方式」）：不是选项，键盘导航不进它。 */
+  heading?: string
 }
 
 const SURFACE_SHADOW = 'var(--workbench-shadow-pop)'
@@ -123,6 +132,8 @@ const MAX_ROW_CHIPS = 3
 /** 有 chip 的行更宽：默认 280 是给「名字 + 一个附注」算的，塞下 3 个 chip 后名字会被挤没。 */
 const DROPDOWN_MAX_WIDTH = 280
 const DROPDOWN_MAX_WIDTH_WITH_CHIPS = 380
+/** 带一句说明的行（方式菜单）：说明最长约 30 个汉字 / 60 个字母，340 宽里最多两行、不截断（边界样张 K5）。 */
+const DROPDOWN_MAX_WIDTH_WITH_DESCRIPTION = 340
 function toneClass(tone: NomiSelectTone | undefined, kind: 'badge' | 'trailing'): string {
   if (tone === 'accent') return 'bg-nomi-accent-soft text-nomi-accent'
   if (tone === 'danger') return 'text-workbench-danger'
@@ -150,6 +161,7 @@ export function NomiSelect({
   dropdownAlign = 'start',
   footerAction,
   hiddenNote,
+  heading,
 }: NomiSelectProps): JSX.Element {
   const { t } = useTranslation()
   const [more, setMore] = React.useState(false)
@@ -198,7 +210,7 @@ export function NomiSelect({
       styles={{
         dropdown: {
           padding: 4,
-          maxWidth: hasChips ? DROPDOWN_MAX_WIDTH_WITH_CHIPS : DROPDOWN_MAX_WIDTH,
+          maxWidth: hasChips ? DROPDOWN_MAX_WIDTH_WITH_CHIPS : options.some((option) => option.description) ? DROPDOWN_MAX_WIDTH_WITH_DESCRIPTION : DROPDOWN_MAX_WIDTH,
           border: '1px solid var(--nomi-line)',
           borderRadius: 'var(--nomi-radius-lg)',
           background: 'var(--nomi-paper)',
@@ -235,6 +247,7 @@ export function NomiSelect({
             <span className="shrink-0 text-micro leading-none text-nomi-ink-40">{leadingLabel}</span>
           ) : null}
           {selected?.icon ? <NomiIdentityIcon icon={selected.icon} /> : null}
+          {selected?.glyph ? <span className="grid shrink-0 place-items-center text-nomi-ink-60" aria-hidden>{selected.glyph}</span> : null}
           <span
             className="min-w-0 truncate text-caption text-nomi-ink-80"
             style={triggerMaxWidth ? { maxWidth: triggerMaxWidth } : undefined}
@@ -251,6 +264,7 @@ export function NomiSelect({
       </Combobox.Target>
 
       <Combobox.Dropdown data-nomi-select-dropdown className="nokey">
+        {heading ? <div data-nomi-select-heading className="px-2 pb-1 pt-1.5 text-micro leading-none text-nomi-ink-40">{heading}</div> : null}
         {searchable ? (
           <Combobox.Search
             // Focus after the visible search input mounts, including nested-portal reparenting.
@@ -275,22 +289,37 @@ export function NomiSelect({
           {visibleOptions.map((option) => {
             const isSel = option.value === value
             return (
-              <Combobox.Option value={option.value} key={option.value} disabled={option.disabled} active={isSel} title={option.label}>
+              <Combobox.Option value={option.value} key={option.value} disabled={option.disabled} active={isSel} title={option.description ? `${option.label} · ${option.description}` : option.label}
+                // 带小字的置灰行自己减淡名字和图标；Mantine 默认整行降透明度会把「为什么点不了」那句也一起抹淡。
+                {...(option.disabled && option.description ? { style: { opacity: 1 } } : {})}>
                 {/* dimmed：整行减淡但仍可点（「能选、眼下不建议」）。不用 disabled——那是"点不了"，
                     两种语义别混（近期连败的模型仍允许手动选，是拍板过的原则）。 */}
-                <span className={cn('flex min-w-0 items-center gap-2 w-full', option.dimmed ? 'opacity-45' : '')}>
+                <span className={cn('flex min-w-0 items-center gap-2 w-full', option.dimmed ? 'opacity-45' : '', option.description ? 'py-1.5' : '')}>
                   {option.icon ? <NomiIdentityIcon icon={option.icon} size="md" /> : null}
+                  {option.glyph ? <span className={cn('grid shrink-0 place-items-center self-start pt-px', option.disabled ? 'text-nomi-ink-30' : 'text-nomi-ink-60')} aria-hidden>{option.glyph}</span> : null}
                   {/* `flex-1` 而不是让附注 `ml-auto` 撑开：名字是这一行的主语，剩余宽度先归它，
                       附注/chip/对勾都是 `shrink-0` 的附属物。没有 flex-1 时名字会被 chip 一路压到 0
                       宽（2026-09-06 真机：三行只剩「3 家 + 三个 chip」，模型名一个字不剩）。 */}
                   {/* data 锚点给走查用：「模型名被行尾 chip 挤到 0 宽」这条断言必须量到**这一个** span，
                       按 class 形状猜会量到图标或对勾（都是十几 px），于是永远红——一条自己骗自己的断言。 */}
-                  <span
-                    data-nomi-select-option-label
-                    className={cn('min-w-0 flex-1 text-caption', searchable ? 'whitespace-normal break-all py-1' : 'truncate', isSel ? 'text-nomi-ink font-semibold' : 'text-nomi-ink-80')}
-                  >
-                    {option.label}
-                  </span>
+                  {option.description ? (
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span
+                        data-nomi-select-option-label
+                        className={cn('min-w-0 truncate text-caption', option.disabled ? 'text-nomi-ink-30' : isSel ? 'text-nomi-ink font-semibold' : 'text-nomi-ink-80')}
+                      >
+                        {option.label}
+                      </span>
+                      <span data-nomi-select-option-description className="min-w-0 whitespace-normal text-balance text-micro leading-tight text-nomi-ink-60">{option.description}</span>
+                    </span>
+                  ) : (
+                    <span
+                      data-nomi-select-option-label
+                      className={cn('min-w-0 flex-1 text-caption', searchable ? 'whitespace-normal break-all py-1' : 'truncate', isSel ? 'text-nomi-ink font-semibold' : 'text-nomi-ink-80')}
+                    >
+                      {option.label}
+                    </span>
+                  )}
                   {option.trailing ? (
                     // max-w + truncate：trailing 是附注（厂商名/价格），不许反客为主挤压 label
                     //（曾被「即梦会员（本地 CLI）」10 字长名挤乱布局）；悬停 title 看全文。

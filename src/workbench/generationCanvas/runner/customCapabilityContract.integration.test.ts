@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ModelOption } from '../../../config/models'
 import { parseCustomCapabilityContract } from '../../../../electron/shared/modelArchetypes'
 import { createGenerationNode } from '../model/graphOps'
-import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
+import { applyHumanModeChoice } from '../nodes/controls/archetypeMeta'
 import { buildNodeModelChangePatch } from '../nodes/buildNodeModelChangePatch'
 import { buildCatalogTaskRequest } from './catalogTaskActions'
 import { resolveExecutableNodeFromCatalog, resolveTaskArchetype } from './catalogTaskResolve'
@@ -88,10 +88,12 @@ describe('custom capability contract catalog -> canvas -> request', () => {
       reference_images: ['asset://one.png', 'asset://two.png'],
     })
 
-    const frameMeta = applyArchetypeModeSwitch(selectedNode.meta, archetype!, 'frames')
+    // 人手选了首尾帧、参考列表里正好两张：按首尾帧发，列表顺序 = 首、尾。方式按输入现算（2026-11-12）后，
+    // 偏好只在放得下全部输入时生效——原先这里在两张参考之上再叠旧的首 / 尾帧键（共 4 张），首尾帧放不下，会按参考发。
+    const frameMeta = applyHumanModeChoice(selectedNode.meta, archetype!, 'frames')
     const frameRequest = buildCatalogTaskRequest({
       ...selectedNode,
-      meta: { ...frameMeta, firstFrameUrl: 'asset://first.png', lastFrameUrl: 'asset://last.png' },
+      meta: { ...frameMeta, referenceImageUrls: ['asset://first.png', 'asset://last.png'] },
     }).request
     expect(frameRequest.kind).toBe('image_to_video')
     expect(frameRequest.extras?.archetypeInput).toMatchObject({

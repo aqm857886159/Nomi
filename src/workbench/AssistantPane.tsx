@@ -34,7 +34,7 @@ export function AssistantPane({ dockRef, collapsed = false, className }: {
       aria-valuemin={ASSISTANT_WIDTH_MIN} aria-valuemax={assistantWidthMaxFor(typeof window === 'undefined' ? 0 : window.innerWidth)} aria-valuenow={width}
       className="group absolute inset-y-0 left-0 z-10 flex cursor-col-resize touch-none items-center justify-center focus-visible:outline-none"
       style={{ width: ASSISTANT_PANE_GUTTER }}
-      onPointerDown={event => { drag.current = { x: event.clientX, width }; setDragging(true); event.currentTarget.setPointerCapture(event.pointerId) }}
+      onPointerDown={event => { event.preventDefault(); drag.current = { x: event.clientX, width }; setDragging(true); event.currentTarget.setPointerCapture(event.pointerId) }}
       onPointerMove={event => { if (drag.current) setWidth(drag.current.width + drag.current.x - event.clientX) }}
       onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={() => { drag.current = null; setDragging(false) }}
       onKeyDown={event => {

@@ -51,6 +51,8 @@ import { presentStoryboard } from './storyboardPresent'
 import { directorPreviewBlocksOp } from './directorPreviewBlocksOp'
 import { handOverShotsOp } from './productionHandOverShotsOp'
 import { HAND_OVER_SHOTS_OP } from '../../../electron/shared/contracts/canvasHandOver'
+import { CANVAS_SHOT_SETTLED_OP, parseCanvasShotSettledNotice } from '../../../electron/shared/canvas/canvasShotSettled'
+import { landObservedCanvasRun } from '../generationCanvas/runner/recoverTaskActions'
 import { extendAgentStoryboardDesign, patchAgentStoryboardDesign, upsertAgentStoryboardDesign } from '../creation/storyboard/agentStoryboardDesign'
 import { spendModelLine } from './credentialProbeSpendCard'
 import { dedicatedSpendCardFor } from './spendCardByIntent'
@@ -307,6 +309,9 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
     }
     return outcomes
   }
+
+  // 交给主进程观察者的那一笔收尾了：按它自己的项目身份收（不在前台写盘上副本），所以排在下面「只认活动项目」的闸之前。
+  if (op === CANVAS_SHOT_SETTLED_OP) return landObservedCanvasRun(parseCanvasShotSettledNotice(payload))
 
   // 画布读写**只能**作用于当前打开的项目（动 store → 必须是活动项目，否则串台）；目标≠活动 → 拒。
   // 确认门（spend.confirm / plan.confirm）不在此限：AI 想在「非当前项目」生成/落方案时也弹全局卡，

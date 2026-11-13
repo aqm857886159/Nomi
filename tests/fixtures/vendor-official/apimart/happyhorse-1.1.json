@@ -1,0 +1,134 @@
+{
+  "modelKey": "happyhorse-1.1",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "prompt only | Text-to-Video (T2V) | Generate video purely from text",
+        "evidenceLevel": "mode-definition",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"happyhorse-1.1\",\n  \"prompt\": \"A little girl walking down the road, cinematic feel\"\n}"
+          }
+        ]
+      }
+    },
+    "i2v": {
+      "referenceKeys": {
+        "first_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First-frame image, triggers I2V (Image-to-Video).",
+          "meaning": {
+            "roles": [
+              "first_frame"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Animate from a first-frame image"
+          }
+        },
+        "image_urls": {
+          "shape": "string[]",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Image array (R2V mode): 1–9 images, used as subject/style references to generate a new scene",
+          "meaning": {
+            "roles": [
+              "reference_image"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Generate a new scene from reference images"
+          }
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "first_frame_image"
+          ],
+          "b": [
+            "image_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Mutual exclusion rules: the two media fields (first_frame_image / image_urls) are mutually exclusive."
+        }
+      ],
+      "intent": {
+        "roles": [
+          "first_frame"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "The backend automatically determines the mode based on incoming parameters."
+      }
+    },
+    "ref": {
+      "referenceKeys": {
+        "first_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First-frame image, triggers I2V (Image-to-Video).",
+          "meaning": {
+            "roles": [
+              "first_frame"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Animate from a first-frame image"
+          }
+        },
+        "image_urls": {
+          "shape": "string[]",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Image array (R2V mode): 1–9 images, used as subject/style references to generate a new scene",
+          "meaning": {
+            "roles": [
+              "reference_image"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Generate a new scene from reference images"
+          }
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "first_frame_image"
+          ],
+          "b": [
+            "image_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Mutual exclusion rules: the two media fields (first_frame_image / image_urls) are mutually exclusive."
+        }
+      ],
+      "intent": {
+        "roles": [
+          "reference_image"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "The backend automatically determines the mode based on incoming parameters."
+      }
+    }
+  }
+}

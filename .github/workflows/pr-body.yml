@@ -1,0 +1,49 @@
+name: PR Body
+
+# PR 正文的合并档判据（独立验收报告链接、逃逸账本转 fixed、真实场景复现……）单独成一个检查，正文一改就自动重判。
+#
+# 为什么从 Quality Gate 的 Contracts 里拆出来（2026-11-07，10-24 → 11-07 的 PR 拦截审计）：
+# Quality Gate 只在推送时触发（pull_request 默认只有 opened / synchronize / reopened），正文改了它不知道；
+# 四类 PR 的流程又是「先开 PR、再派验收」，账本 fixed 要写 PR 号——所以第一次 CI 按构造必红。
+# 窗口内 PR 上 94 次 CI 红，63 次带着这类正文项，46 次除此之外什么毛病都没有；为重判一个几秒的正文检查，
+# 要重跑 22 分钟的 Contracts（窗口内 22 次）。现在 Contracts 只判推送档（package.json 的 check:pr-judgement 写 --stage=push），
+# 合并档在这里判；它不进 Quality Gate 的汇总，合并前扫描（scripts/merge-preflight.mjs）要求它在 PR 当前 head 上是绿的。
+#
+# 正文现取（scripts/lib/prBody.mjs 用 gh pr view），不读事件负载里的那份快照；正文不进命令行（外人可写的文本）。
+# 为什么不装依赖：判据脚本的 import 闭包只有 node 内置模块（scripts/check-quality-gate-workflow.node-test.mjs 钉死），
+# 省掉 pnpm install，改完正文几十秒就出结论。
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+# 连改几次正文只留最新一次；合并前扫描只认最新一次（scripts/lib/prBodyCheck.mjs）。
+concurrency:
+  group: pr-body-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-body:
+    # 检查名 = 合并前扫描认的名字，两边都从 scripts/lib/prBodyCheck.mjs 取，改名先改那里。
+    name: PR Body
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NOMI_PR_NUMBER: ${{ github.event.pull_request.number }}
+      GITHUB_EVENT_NAME: ${{ github.event_name }}
+    steps:
+      # 改动范围按 merge-base(HEAD, origin/main) 算，要完整历史（和 Contracts 同一种检出）。
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: PR body criteria (merge stage)
+        run: node scripts/check-pr-judgement.mjs --stage=merge

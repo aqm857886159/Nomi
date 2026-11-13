@@ -46,7 +46,6 @@ export const workbenchStoreLifetime = declareStoreLifetime({
     canvasFitCategoryId: 'project',
     workbenchDocuments: 'project',
     activeDocumentId: 'project',
-    creationSelectionText: 'project',
     creationAiModeId: 'project',
     creationActiveSkill: 'project',
     selectedLibraryPrompt: 'project',
@@ -75,6 +74,8 @@ export const workbenchStoreLifetime = declareStoreLifetime({
     detachedTimelineClips: 'project',
     editingPanelLayout: 'project',
     editingPanelUndoStack: 'project',
+    // 「两侧栏放不下时留哪边」：上一个项目里点开的是哪边，与新项目无关。
+    editingPanelKeep: 'project',
   },
   releaseProject: () => {
     const emptyDocument = createDefaultWorkbenchDocument()
@@ -87,7 +88,6 @@ export const workbenchStoreLifetime = declareStoreLifetime({
       canvasFitCategoryId: null,
       workbenchDocuments: [emptyDocument],
       activeDocumentId: emptyDocument.id,
-      creationSelectionText: '',
       creationAiModeId: 'general',
       creationActiveSkill: null,
       selectedLibraryPrompt: null,
@@ -114,6 +114,7 @@ export const workbenchStoreLifetime = declareStoreLifetime({
       detachedTimelineClips: {},
       editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
       editingPanelUndoStack: [],
+      editingPanelKeep: 'source',
     })
   },
 })

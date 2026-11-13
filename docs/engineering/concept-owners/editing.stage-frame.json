@@ -1,0 +1,25 @@
+{
+  "name": "预览页舞台行这一刻的布局（左栏 / 预览 / 属性各多宽、哪边画收起条）",
+  "subject": "editing.stage-frame",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/preview/panelLayout.ts",
+    "symbol": "resolveEditingStageFrame"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/preview/panelLayout.ts",
+      "symbol": "resolveEditingStageFrame"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/preview/PreviewWorkspace.tsx"
+  ],
+  "since": "2026-11-04",
+  "notes": "由存下的开合与栏宽（editing.panel-collapse）、会话里「放不下时留哪边」和舞台行真实宽度派生，只派生不存：侧栏要么可读宽度（左 ≥ 240、属性 ≥ 200）要么 32px 收起条，两栏都开时预览 ≥ 480、放不下先收属性。栏里画展开还是收起条按真实像素（editingSidePanelDrawnOpen），不读存档。"
+}

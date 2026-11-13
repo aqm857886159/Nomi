@@ -19,9 +19,8 @@
   "forbidden_derivations": [],
   "allowed_consumers": [
     "src/workbench/preview/PreviewWorkspace.tsx",
-    "src/workbench/preview/PreviewSourcePanel.tsx",
     "src/workbench/preview/panelLayout.ts"
   ],
   "since": "2026-09-25",
-  "notes": "收起只有 editingPanelLayout.visibility 一份真相；面板库拖出来的收起 / 展开经 editingPanelResizeEffect 写回它（此前被丢掉，32px 里仍画整块面板）。"
+  "notes": "用户想要的开合只有 editingPanelLayout.visibility 一份（随项目落盘、Agent layout.read/write 的契约）；这一刻栏宽由 panelLayout.resolveEditingStageFrame 按舞台宽派生、不存，栏里画展开还是收起条按真实宽度（PreviewWorkspace 传给两栏）。只有用户亲手拖分隔条（onLayoutChanged.isUserInteraction）经 editingPanelDragIntent 写回；窗口变窄、开关 Nomi 不写（2026-11-04：此前栏里读存档开关、宽度由面板库按空间算，1280 宽开 Nomi 时左栏 32px 却画展开内容，空态一字一行）。"
 }

@@ -11,6 +11,7 @@ import { LANE_CODING_TOOL_NAMES } from './laneCodingTools.mjs';
 import { LANE_LEGACY_NOTE, LANE_LEGACY_TOOLS_NOTE, laneLegacyFacts } from '../shared/agentLane/laneLegacyNote.js';
 import { findLaneReceiptAuthority } from './laneReceiptAuthority.mjs';
 import { createLaneRepeatedFailureTracker } from './laneRepeatedFailure.mjs';
+import { createLaneToolInputBoundary } from './laneToolInputBoundary.mjs';
 import { ASK_USER_VERB_NAME } from '../shared/agentCapabilities/askUser.js';
 // Agent lane · 主进程宿主（**薄**）
 //
@@ -83,8 +84,10 @@ export const LANE_RETRY_POLICY = Object.freeze({ enabled: true, maxRetries: 3, b
  * 「累计次数不在这里算——『这个工具总在坏』是审计的活，**不是拦截的活**」。而 24 这个数干的正是那件事。
  *
  * 真正的危险各有各的守卫，一个都不靠这个数：
- *   · 模型卡在循环里重发同一个调用 → `laneRepeatedFailure`（同工具同错误连撞 3 次拦、5 次终止，
- *     用户再说一句话即清零）。它 3 次就拦住了，轮不到 24。
+ *   · 模型卡在循环里重发同一个调用 → `laneRepeatedFailure`（同工具同错误连撞 3 次起拦，之后每次都是
+ *     一次不执行的立即结果；用户再说一句话即清零）。它 3 次就拦住了，轮不到 24。
+ *     拦不住的只剩一种：模型无视拦截话术、一直调同一个工具——每次都不执行、不花钱，但回合不会自己结束，
+ *     只有宿主设了这个上限才会被截断（缺省不设；`laneToolInputBoundary.test.ts` 的反例把这条钉住）。
  *   · 上下文撑爆 → `laneContextBudget` 的自动压缩（8 万 token 预算）。
  *   · 花钱失控 → 报价卡，每次提交由用户点头。
  * 所以 24 不保护任何具体的东西，它只在一种情况下生效：**活是真的多**——而那恰恰是不该拦的时候。
@@ -97,7 +100,7 @@ export const LANE_RETRY_POLICY = Object.freeze({ enabled: true, maxRetries: 3, b
 export const LANE_MAX_MODEL_REQUESTS: number | undefined = undefined;
 
 // 「同一个工具连着撞同一堵墙」的规则住 laneRepeatedFailure.mts（含用户新消息即清零）。
-export { LANE_REPEATED_FAILURE_BLOCK, LANE_REPEATED_FAILURE_TERMINATE } from './laneRepeatedFailure.mjs';
+export { LANE_REPEATED_FAILURE_BLOCK } from './laneRepeatedFailure.mjs';
 
 export interface LaneHandleWithObservations extends LaneHandle {
   /**
@@ -200,8 +203,13 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // 推理档在**这一层**问 pi（`getSupportedThinkingLevels`），而不是在投影里问：判据还是 pi 那一把
   // 尺子，但这里是最后一个天然认识 pi 运行时的地方。再往下（`shared/agentLane/laneProjection`）
   // 是浏览器也 import 的中立层，在那里 import 一个 pi 的函数就等于把整个 SDK 拖进渲染 bundle。
+  // 连续撞同一堵墙的计数器，和入参边界共用一个：形状错（pi 的立即结果）、契约 parse 错、执行失败，同一处记数。
+  const failures = createLaneRepeatedFailureTracker();
+  const toolInput = createLaneToolInputBoundary({ failures, specs: options.tools, onFailure: options.onToolFailure });
+  // 立即结果没有 `details`，面板的信封按入参重推（`laneToolInputBoundary.failureOf`，按 toolCallId 记一份）。
   const modelFacts: LaneModelFacts = { pricing: pricingBasis,
     supportedThinkingLevels: getSupportedThinkingLevels(model) as readonly LaneThinkingLevel[],
+    toolInputFailure: toolInput.failureOf,
     isTransientError: isRetryableAssistantError,
     // 「上下文装不下」同样只问 pi 那一张表（各家溢出原话），投影把结论变成 `fault`（NF-0928-0003）。
     isContextOverflow: (message) => isContextOverflow(message, options.model.contextWindow),
@@ -210,9 +218,10 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   models.setProvider(provider);
   // 闸的结论交给工具执行上下文：回执要说「用户此刻看到什么」，就不能查静态表（T-ED-02）。
   // `gate` 在下面才建，这里给的是一个到执行时才求值的读法，不是快照。
-  const tools = [...createLaneTools(options.tools, (toolCallId) => gate?.decisionFor(toolCallId),
+  // 每个工具都过入参边界（包 `prepareArguments`）：pi 的形状校验失败跳过 before/after_tool，只有这里看得见。
+  const tools = toolInput.wrap([...createLaneTools(options.tools, (toolCallId) => gate?.decisionFor(toolCallId),
       (toolCallId) => gate?.answerFor(toolCallId)),
-    ...(native?.tools ?? [])];
+    ...(native?.tools ?? [])]);
   // The native menu is a visibility catalogue, while desktop surface assembly
   // owns the executable descriptors. Keep only names that are actually
   // registered in this process; otherwise pi rejects the whole turn with
@@ -271,14 +280,6 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     session, models, model, systemPrompt, tools,
     compaction: laneCompactionSettings(model.contextWindow, options.limits?.contextTokenBudget),
     toProviderMessages: async (messages) => convertToLlm(await Promise.all(messages.map(async (message, index) => {
-      // pi's AJV preparation failures are immediate results, before after_tool.
-      // Enrich the model projection without revalidating or changing its recorded arguments.
-      if (message.role === 'toolResult' && message.isError
-        && message.content.some(part => part.type === 'text' && /additional properties/.test(part.text))) {
-        const example = options.tools.find(tool => tool.name === message.toolName)?.examples[0];
-        if (example) return { ...message, content: [...message.content,
-          { type: 'text' as const, text: '应长这样：' + JSON.stringify(example.arguments) }] };
-      }
       if (!isLaneInputMessage(message)) return message;
       if (!options.input) throw new Error('This lane cannot resolve its recorded input context.');
       const source = message.context.continueFromEntryId && message.context.retryFromEntryId
@@ -383,7 +384,6 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // 缺省不设上限时这一支整条不参与：不计数、不拦截，逐字节等同于没有这个机制。
   // 计数按 **run** 走，不按 lane 走：上限说的是「这一轮」，一条 lane 活一整天。
   const requests = { runId: '', count: 0 };
-  const failures = createLaneRepeatedFailureTracker();
 
   if (maxModelRequests !== undefined) {
     harness.hooks.on('before_request', (event) => {
@@ -438,7 +438,11 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     }
     const accessDenial = await native?.toolAccessDenial(event.toolName);
     if (accessDenial) return { block: { reason: accessDenial } };
-    await options.toolLifecycle?.prepare(event, hookContext.abortSignal ?? new AbortController().signal);
+    // 契约 parse（Zod）拒收和领域写好的准备失败（`LaneDomainFailure`）走入参边界：和 pi 的形状校验同一个正文、
+    // 同一个计数器——拦截是立即结果、跳过 after_tool，不在这里记就永远数不到 3。别的异常照旧原样抛。
+    const rejected = await toolInput.prepare(event.toolName, event.args,
+      () => options.toolLifecycle?.prepare(event, hookContext.abortSignal ?? new AbortController().signal));
+    if (rejected !== undefined) return { block: { reason: rejected } };
     // ② 闸。上限先判：到了上限就没有「问用户要不要放行」这回事了。
     if (gate) {
       // 撞满 3 次之后模型改去问用户：那张卡上要多一句**我们自己**说的话
@@ -487,9 +491,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         return { block: { reason: outcome.reason ?? '' } };
       }
     }
-    // ③ 连续撞同一堵墙。判在闸之后：被闸拒收不是工具坏了，那条路有自己的文案。
-    const wall = failures.block(event.toolName);
-    if (wall) return { block: { ...(wall.terminate ? { terminate: true } : {}), reason: wall.reason } };
+    // ③ 连续撞同一堵墙：判在入参边界（`laneToolInputBoundary` 包的 `prepareArguments`），比这里早——
+    // 形状错的调用走不到这个钩子，墙判在这里就永远拦不住它们。
     const preflightSignal = hookContext.abortSignal ?? new AbortController().signal;
     await options.toolLifecycle?.approved(event, async (type, data) => {
       await lane.appendCustomEntry(type, data, hookContext);
@@ -516,7 +519,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     // 是在赌它——而它已经连着错了三次的正是这件事。
     const failure = event.isError ? takeLaneToolFailure(event.toolCallId) : undefined;
     // 墙按**语义码 + 出错字段**认，不按正文首行（正文里有 id、镜头数、字段值，同一堵墙每次都不一样）。
-    const consecutive = failures.note(event.toolName, event.isError, body, failure);
+    // 和入参边界同一个熔断：正好撞满的这一次，「停」那句接在正文后面（模型第 3 次就读到「别再发、去问用户」）。
+    const { consecutive, stop } = toolInput.settle(event.toolName, event.isError, body, failure);
     // 工具失败要在**主进程日志**里留一行（2026-09-17）。此前整条失败链只有 lane 自己的会话 JSONL
     // 记得住：真机复现 `surface_port_stale` 那一轮，`read_script` 连挂 3 次、会话里 12 处命中，
     // 而 `logs/nomi-<date>.log` 一共 9 行、**一个字都没提这件事**。排查的人打开日志看到的是「什么都没发生」。
@@ -539,7 +543,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     if (appliedDirectly && !event.isError) {
       return { content: [...event.content, { type: 'text', text: '\nApplied directly (undoable)' }] };
     }
-    return details ? { details: details as never } : undefined;
+    if (!details && !stop) return undefined;
+    return { ...(stop ? { content: [...event.content, { type: 'text', text: `\n${stop}` }] } : {}), ...(details ? { details: details as never } : {}) };
   });
 
   async function inputMessage(text: string): Promise<string | LaneInputMessage> {

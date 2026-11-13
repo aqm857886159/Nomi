@@ -150,7 +150,7 @@
 
 - [探针判不了的不能当失败，同一个决定写在两处时第二处会把第一处撤销](inconclusive-probe-is-not-a-failure-and-a-second-shortcut-undoes-the-decision.md) — 给「发之前先试一下」类的决定加探测、缓存或回退时；一个二选一的判断散在好几个函数里都读同一个标志时；测试里的探针要出网时
 - [附件只用假读取函数测过等于没测，「看过」不等于「有人管」](attachment-proved-with-fake-reader-and-seen-is-not-handled.md) — 给发出机器的包加附件时；清单或同意页写了「带上 X」时；写看一次就清零的「新增 N 条」时；摘要只留最后几行时；用户点过发送的东西要排队时
-- [安全封闭要同时设计人工出口，否则一处坏记录就是永久锁死](fail-closed-needs-a-human-exit.md) — 给花钱或不可逆动作加「读不出来就拒绝」、身份是固定路径、回执里写 `allowedActions` 时
+- [安全封闭要同时设计人工出口，否则一处坏记录就是永久锁死](fail-closed-needs-a-human-exit.md) — 给花钱或不可逆动作加「读不出来就拒绝」、身份是固定路径、回执里写 `allowedActions` 时；设计前答设计卡 ★0 的出口这一问，验收真走出口动作
 - [程序自己的簿记不许冒充「用户留下的事实」](program-bookkeeping-must-not-pose-as-user-facts.md) — 一个判断「有时生效、有时不生效」、换条路径复现结果就变时读；先数它读的每个事实的全部写口，挡掉同步回声 / 挂载 / 默认值兜底
 - [只在 Mac 上测，就是让 82% 的用户替我们测](mac-only-testing-ships-windows-blind.md) — 发版前；Windows 用户报卡死/点了没反应/保存或导入失败而 Mac 复现不了；「只在 Windows 红」的测试想当噪音跳过时。附同日五个 Windows 专属问题的机制对照表与「用 Electron 自带 Node 判红绿」
 - [手拼 `file://` 判断「我是不是入口」，Windows 上门岗静默零输出、退出码 0](main-guard-hand-built-file-url-is-silent-on-windows.md) — ✅ 已由 `check:main-guard` 接管；Windows 上某个门岗/脚本一行不打印就退出 0 时先读；入口判断只写 `pathToFileURL(process.argv[1]).href`
@@ -202,6 +202,7 @@
 - [样张拍板只卡大 UI 改动](mockup-approval-gates-only-big-ui.md) — 小 UI / 非 UI 不等拍板照常推进，等待期并行推别的轨
 - [样张合同必须从真实实验室屏产生](mockup-contracts-must-start-from-real-lab-screen.md) — 新验收样张必须由生产组件与真实宿主数据渲染，HTML 只作 exploration，整张区域对账进门岗
 - [样张交付 = 逐屏逐件走读，不是统计表汇总](mockup-delivery-is-a-per-screen-walkthrough.md) — 每件「这是什么 / 为什么 / 什么时候碰」三段式；走读文档还是验收合同的上游
+- [样张只画到 3 张图，最大数量下的坏排版没人看见](mockups-only-drawn-to-three-items-hide-max-count-breakage.md) — 出会随数据变多 / 变长 / 变窄的界面样张、或核验收证据图时；先数最大值再画，每处画空 / 常见 / 最大 / 最长文字，写进 `boundarySheet`
 - [界面重设计走四步流水线：整件复用优先](ui-redesign-four-step-pipeline.md) — 分类 → 找证据（库解剖 / 竞品还原，禁脑补）→ 还原解剖 → 套 token + 认知负荷审计
 - [本地旧构建的 `-h` ≠ 官方现役能力面](stale-local-build-is-not-the-current-capability.md) — 判「工具支不支持 X」先刷新到现役版本；update log 才是事实源
 - [自造 `skill.json`：标准就摆在那儿，只是没人在动手前去看一眼](self-invented-skill-json-while-the-standard-existed.md) — 碰「外部也读写」的格式前先找规范；扩展只放标准的扩展点、不许另起平行文件；症状修复（加兼容导入）会让根因活得更久

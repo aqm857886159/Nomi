@@ -28,7 +28,8 @@ function fixture(queued = false) {
 describe('progress persistence boundary across every direct door', () => {
   it('binds the matrix to the actual direct call sites', () => {
     for (const door of matrix.doors) expect(readFileSync(door, 'utf8')).toContain('setNodeProgress')
-    expect(matrix.doors).toHaveLength(7)
+    // runProjectDelivery 不再直接调 setNodeProgress：它把每个结局原样交给 applyRunOutcome（归属规则一个口进）。
+    expect(matrix.doors).toHaveLength(6)
     expect(doorsForTargets(['setNodeProgress']).map((door: { path: string }) => door.path).sort()).toEqual([...matrix.doors].sort())
   })
   for (const door of matrix.doors) {

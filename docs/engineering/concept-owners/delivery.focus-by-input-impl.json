@@ -1,0 +1,38 @@
+{
+  "name": "聚焦输入框只经它的主人：「按输入框实现找它再聚焦」与「走查按标签名判焦点」的判据与现存出口名单",
+  "subject": "delivery.focus-by-input-impl",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/focus-by-tag-lookup.mjs",
+    "symbol": "FOCUS_BY_INPUT_IMPL_SELECTORS"
+  },
+  "write_api": [
+    {
+      "path": "scripts/focus-by-tag-lookup.mjs",
+      "symbol": "FOCUS_BY_INPUT_IMPL_SELECTORS"
+    },
+    {
+      "path": "scripts/focus-by-tag-lookup.mjs",
+      "symbol": "FOCUS_BY_INPUT_IMPL_EXITS"
+    },
+    {
+      "path": "scripts/focus-by-tag-lookup.mjs",
+      "symbol": "WALK_FOCUS_BY_TAG_SELECTORS"
+    },
+    {
+      "path": "scripts/focus-by-tag-lookup.mjs",
+      "symbol": "WALK_FOCUS_BY_TAG_EXITS"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/focus-by-tag-lookup.test.mjs",
+  "allowed_consumers": [
+    "eslint.config.mjs"
+  ],
+  "since": "2026-10-27",
+  "notes": "合同 docs/fixes/2026-10-27-agent-composer-focus.root-cause.json。eslint.config.mjs 以独立规则 id focus-owner/no-restricted-syntax 读这一份，两个配置块文件范围不重叠：渲染层源码（src，测试除外）不许按输入框的实现（标签名 input / textarea / select，或 [contenteditable] / .ProseMirror / .tiptap）查 DOM 再 .focus()——别人的输入框经主人给的入口（ref、编辑器实例、agent-panel.composer-focus 那样的请求），区域首控件用 tabbable；tests/ux、evals 不许按标签名判焦点、认输入框（Agent 输入框经 expectComposerFocused()）。渲染层现存的两处（分镜表、分镜行，按 PromptEditor 内部 contenteditable 找提示词框）登记在 FOCUS_BY_INPUT_IMPL_EXITS，只减不增；走查侧现存一处（画布跟手量具的诊断字段）登记在 WALK_FOCUS_BY_TAG_EXITS，同样只减不增；scripts/focus-by-tag-lookup.test.mjs 按同一组选择器普查全 src 与 tests/ux、evals，逐文件核处数。"
+}

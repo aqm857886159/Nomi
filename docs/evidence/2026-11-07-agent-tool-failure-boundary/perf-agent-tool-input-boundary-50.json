@@ -1,0 +1,67 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "abb464c8e",
+  "head": "abb464c8eb71df8c4cc6bf8b2360358087521cec",
+  "dirty": false,
+  "sourceTree": "77d709a14a4b0c4b781d49629b857ff09f761e79",
+  "date": "2026-11-07",
+  "runs": 5,
+  "results": [
+    {
+      "id": "agent-tool-input-boundary-50",
+      "metrics": {
+        "turnBoundaryMs": {
+          "runs": 5,
+          "median": 6.2,
+          "p95": 8
+        },
+        "projectionRecomputeMs": {
+          "runs": 5,
+          "median": 3.6,
+          "p95": 4
+        },
+        "rejectedPerTurn": {
+          "runs": 5,
+          "median": 20,
+          "p95": 20
+        }
+      },
+      "samples": {
+        "turnBoundaryMs": [
+          8.311208000000079,
+          6.755042000000003,
+          5.59699999999998,
+          5.531750000000102,
+          6.237124999999992
+        ],
+        "projectionRecomputeMs": [
+          4.082750000000033,
+          3.600749999999948,
+          3.8239170000000513,
+          3.1841249999999945,
+          3.0185840000000326
+        ],
+        "rejectedPerTurn": [
+          20,
+          20,
+          20,
+          20,
+          20
+        ]
+      },
+      "budget": 20,
+      "baseline": {
+        "median": 6,
+        "p95": 7.4,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "date": "2026-11-07",
+        "commit": "bc93f187f"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

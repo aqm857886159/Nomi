@@ -220,12 +220,13 @@ describe('settings dialog structure', () => {
     expect(aboutSource).not.toContain("window.dispatchEvent(new CustomEvent('nomi-open-feedback-share'))")
   })
 
-  it('keeps the origin/main frame and sidebar for every settings tab', () => {
+  it('keeps the sidebar inside the shared height owner for every settings tab', () => {
     expect(settingsSource).toContain('data-settings-dialog')
-    expect(settingsSource).toContain('data-settings-tab={tab}')
-    expect(settingsSource).toContain('className="fixed inset-0 flex items-center justify-center bg-black/45 p-2 sm:p-6"')
-    expect(settingsSource).toContain('max-w-[760px]')
-    expect(settingsSource).toContain('sm:h-[min(560px,calc(100svh-48px))]')
+    expect(settingsSource).toContain("'data-settings-tab': tab")
+    expect(settingsSource).toContain('<DesignModal')
+    expect(settingsSource).not.toContain('<Portal>')
+    expect(settingsSource).toContain('size={760}')
+    expect(settingsSource).not.toContain('100svh')
     expect(settingsSource).toContain('sm:w-[196px]')
     expect(settingsSource).not.toContain('sm:max-w-[900px]')
     expect(settingsSource).not.toContain('sm:h-[min(540px')
@@ -388,6 +389,14 @@ describe('settings dialog structure', () => {
     expect(guard?.[1]).toContain(':not([data-model-settings-page="home"])')
     const homeSurface = fs.readFileSync(path.join(process.cwd(), 'src/ui/onboarding/ModelSettingsHome.tsx'), 'utf8')
     expect(homeSurface).toContain('data-model-settings-page="home"')
+  })
+
+  it('keeps the dialog anchors rendering the same "true" values the walks select on after the shell migration', () => {
+    // 迁到共用外壳后锚点改经 contentAttributes 给；曾误写成 ''，渲染出 data-settings-overlay=""，
+    // 而 mcp-l2-journeys 等 13 份走查按 [data-settings-overlay="true"] 认设置框（CI E2E(4) 因此红）。
+    expect(settingsSource).toContain("'data-settings-overlay': 'true'")
+    expect(settingsSource).toContain("'data-settings-dialog': 'true'")
+    expect(settingsSource).toContain("'data-settings-close': 'true'")
   })
 
   it('keeps the lazy model workspace mounted after its first visit', () => {

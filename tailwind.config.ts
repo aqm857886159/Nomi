@@ -185,6 +185,9 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       '--nomi-radius-lg': '16px',
       '--nomi-duration-fast': '140ms',
       '--nomi-ease-fast': 'cubic-bezier(.2, .7, .3, 1)',
+      // 形变（设计系统 §2.7）：只给 Agent 形象（NomiAgentFace）在状态之间变形用；其它交互过渡一律 fast。
+      '--nomi-duration-morph': '550ms',
+      '--nomi-ease-morph': 'cubic-bezier(.16, 1, .3, 1)',
       '--nomi-font-sans': 'Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif',
       '--nomi-font-display': '"Fraunces Variable", Fraunces, "Inter Variable", Inter, serif',
       '--nomi-font-mono': 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
@@ -893,19 +896,42 @@ export default {
           '0%, 100%': { opacity: '0.5' },
           '50%': { opacity: '0.8' },
         },
+        // Agent 形象（NomiAgentFace）的动作周期。时长是这个组件的常量，不是全局 token（设计卡
+        // docs/plan/2026-10-27-agent-persona.md「实现时的取舍」第 4 条）；减弱动效时组件一律 motion-reduce:animate-none。
+        // 在跑时眼睛低头左右扫（±0.8 个形象单位）。
+        'nomi-agent-scan': {
+          '0%': { transform: 'translateX(calc(var(--nomi-agent-u) * -0.8))' },
+          '100%': { transform: 'translateX(calc(var(--nomi-agent-u) * 0.8))' },
+        },
+        // 刚做完轻跳一下（只跳一次）。
+        'nomi-agent-hop': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '35%': { transform: 'translateY(calc(var(--nomi-agent-u) * -3))' },
+        },
+        // 眨一下眼（一次性；约 20 秒一次由组件里的定时器触发，不是无限循环）。
+        'nomi-agent-blink': {
+          '0%, 100%': { transform: 'scaleY(1)' },
+          '50%': { transform: 'scaleY(0.1)' },
+        },
       },
       animation: {
         'nomi-badge-settle': 'nomi-badge-settle 420ms ease-out 1',
         'remove-bg-pulse': 'remove-bg-pulse 1.2s ease-in-out infinite',
         'remove-bg-pulse-slow': 'remove-bg-pulse 1.5s ease-in-out infinite',
+        'nomi-agent-scan': 'nomi-agent-scan 1.4s ease-in-out infinite alternate',
+        'nomi-agent-hop': 'nomi-agent-hop 700ms var(--nomi-ease-morph) 1',
+        'nomi-agent-blink': 'nomi-agent-blink 600ms ease-in-out 1',
+        'nomi-agent-spin': 'spin 1.1s linear infinite',
       },
       // 层级刻度由 NOMI_OVERLAY_Z_INDEX 派生（见 src/design/overlayLayers.ts）。
       zIndex: NOMI_OVERLAY_Z_INDEX_TAILWIND_SCALE,
       transitionDuration: {
         'nomi-fast': 'var(--nomi-duration-fast)',
+        'nomi-morph': 'var(--nomi-duration-morph)',
       },
       transitionTimingFunction: {
         'nomi-fast': 'var(--nomi-ease-fast)',
+        'nomi-morph': 'var(--nomi-ease-morph)',
       },
     },
   },

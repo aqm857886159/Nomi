@@ -1,0 +1,23 @@
+{
+  "queries": [
+    "(\"interruptible\" OR \"interrupted\") (animation OR motion) -is:retweet",
+    "(\"view transitions\" OR \"shared element\") (tutorial OR animation OR focus) -is:retweet",
+    "(\"spring\" \"animation\") (\" Emil\" OR \"design\" OR \"velocity\") -is:retweet",
+    "(\"reduced motion\" OR \"motion tokens\") (design OR animation) -is:retweet",
+    "\"transitions.dev\" -is:retweet",
+    "(from:emilkowalski_ OR from:raunofreiberg OR from:bramus) (animation OR transition OR spring) until:2026-01-01 -is:retweet",
+    "(\"AI\" \"design\") (\"prototype\" OR \"workflow\") (from:shadcn OR from:raunofreiberg OR from:joshwcomeau OR from:emilkowalski_) -is:retweet",
+    "(from:emilkowalski_ OR from:raunofreiberg OR from:bramus OR from:joshwcomeau) -is:retweet",
+    "(\"AI\" OR \"agent\") (\"prototype\" OR \"design workflow\") (\"interaction\" OR \"feedback\") -is:retweet -is:reply",
+    "(\"motion tokens\" OR \"spring animations\" OR \"animation interruptions\") -is:retweet -is:reply",
+    "from:emilkowalski (animation OR animations OR spring OR AI) -is:retweet -is:reply",
+    "from:bramus (transition OR transitions OR focus) -is:retweet -is:reply",
+    "(\"microinteractions\" OR \"micro-interactions\") (source OR feedback OR tutorial) -is:retweet -is:reply",
+    "(\"motion tokens\" OR \"easing tokens\" OR \"spring presets\") (UI OR design) -is:retweet",
+    "from:zoltanszogyenyi (TypeUI OR \"micro\" OR \"interaction\") -is:retweet"
+  ],
+  "raw_results": 104,
+  "unique_post_ids": 102,
+  "selected": 12,
+  "selected_kaolti_posts": 0
+}

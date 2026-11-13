@@ -211,7 +211,7 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
     expect(outputs.outputs).toEqual([expect.objectContaining({ kind: "video", url: `${origin}/out.mp4` })]);
   });
 
-  it("产物落盘：这条连接自己的本机 origin 上的产物取得回来；同主机换个端口照旧拒（#975 A）", async () => {
+  it("产物落盘：这条连接自己的本机 origin 上的产物取得回来（#975 A）", async () => {
     const writes: Buffer[] = [];
     const materializer = createGenerationOutputMaterializer({
       writeAsset: ((_projectId: string, bytes: Buffer) => { writes.push(bytes); return { id: "asset-975", data: { relativePath: "assets/generated/out.mp4" } }; }) as never,
@@ -223,13 +223,8 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
     });
     expect(receipt).toMatchObject({ artifactId: "asset-975", kind: "video" });
     expect(writes[0]?.equals(MP4)).toBe(true);
-
-    const otherPort = new URL(origin);
-    otherPort.port = String(Number(otherPort.port) === 65535 ? 65534 : Number(otherPort.port) + 1);
-    await expect(materializer.materialize({
-      projectId: "project-975", providerTaskId: "h3-1", providerId: vendorKey,
-      output: { kind: "video", url: `${otherPort.origin}/out.mp4` },
-    })).rejects.toMatchObject({ code: "output_retrieval_failed", deterministic: true });
+    // 2026-11-13 起取回不再按地址判（同主机别的端口也照取），「换个端口照旧拒」那半条随这一层删掉；
+    // 照取的覆盖见 electron/outboundNoAddressBlock.test.ts。
   });
 
   it("重启后的旧连接：丢掉模块缓存、从盘上重读同一份目录，仍然就绪", async () => {

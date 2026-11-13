@@ -194,6 +194,20 @@ describe("semantic MCP generation tools", () => {
     expect(defaultModelForTaskKind).toHaveBeenCalledWith("text_to_image");
   });
 
+  it("自动选：漏点名仍拒收且不触发生成或授权，点名后只建草稿", async () => {
+    const operations = createInMemoryGenerationOperationStore();
+    const start = vi.fn();
+    const prepareAuthorization = vi.fn();
+    const handler = createGenerationPlanningHandler({ registry, operations, start, prepareAuthorization, defaultModelForTaskKind: () => undefined });
+    await expect(handler({ capability: "create", params: { operationId: "op-auto", prompt: "雪夜木屋", taskKind: "text_to_image" }, lease }))
+      .rejects.toMatchObject({ problem: { code: "no_default_model", charged: false, next: "pick_from_list_models" } });
+    expect(await operations.read(lease.projectId, "op-auto")).toBeNull();
+    const created = await handler({ capability: "create", params: { operationId: "op-auto", prompt: "雪夜木屋", taskKind: "text_to_image", providerId: "fixture-provider", modelId: "fixture-model" }, lease });
+    expect(created).toMatchObject({ operation: { state: "draft", candidate: { providerId: "fixture-provider", modelId: "fixture-model" } } });
+    expect(start).not.toHaveBeenCalled();
+    expect(prepareAuthorization).not.toHaveBeenCalled();
+  });
+
   describe("declared default model deviation is handed back to the Agent as state", () => {
     const twoModels = createModuleRegistry([{
       moduleId: "generation.single-shot", version: "1.0.0", inputKinds: ["text", "image"], outputKinds: ["image"], modes: ["text-to-image"],

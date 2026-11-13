@@ -1,3 +1,5 @@
+import { contentByLocale, shared as siteShared } from './content.mjs'
+
 const localizedImage = {
   'zh-CN': '/assets/social-preview-zh.jpg',
   en: '/assets/social-preview-en.jpg',
@@ -23,6 +25,7 @@ export function buildMetadata(locale, page, shared) {
 
   const websiteId = `${shared.siteUrl}/#website`
   const applicationId = `${shared.siteUrl}/#application`
+  const organizationId = `${shared.siteUrl}/#organization`
   const breadcrumbs = page.breadcrumbs?.length
     ? [{
         '@type': 'BreadcrumbList',
@@ -56,6 +59,17 @@ export function buildMetadata(locale, page, shared) {
           name: 'Nomi',
           url: `${shared.siteUrl}/`,
           inLanguage: ['zh-CN', 'en'],
+          publisher: { '@id': organizationId },
+        },
+        // 谁做的、官方账号在哪：搜索引擎和 AI 靠 sameAs 把 GitHub、X 上的 Nomi 认成同一个东西，
+        // 不和同名的 nomi.ai 混在一起。只列项目自己的官方地址。
+        {
+          '@type': 'Organization',
+          '@id': organizationId,
+          name: 'Nomi',
+          url: `${shared.siteUrl}/`,
+          logo: `${shared.siteUrl}/assets/nomi-logo.svg`,
+          sameAs: [siteShared.repositoryUrl, siteShared.atomgitUrl, siteShared.twitterUrl],
         },
         {
           '@type': page.pageType ?? 'WebPage',
@@ -80,6 +94,13 @@ export function buildMetadata(locale, page, shared) {
           url: `${shared.siteUrl}/`,
           softwareVersion: shared.version,
           downloadUrl: shared.releaseUrl,
+          description: contentByLocale[locale]?.meta.description,
+          screenshot: `${shared.siteUrl}/assets/promo-0.22/still-agent.jpg`,
+          isAccessibleForFree: true,
+          // 软件本身免费；模型费用由用户直接付给供应商，不经过 Nomi。
+          offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+          author: { '@id': organizationId },
+          publisher: { '@id': organizationId },
         },
         ...breadcrumbs,
         ...(page.graph ?? []),

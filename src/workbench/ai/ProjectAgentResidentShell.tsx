@@ -21,17 +21,17 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
 import { DesignModal } from '../../design'
 import { SystemPromptSection } from './systemPrompt/SystemPromptSection'
-import { STORYBOARD_PLANNER_SKILL } from '../generationCanvas/agent/storyboardLauncher'
+import { storyboardLaunchMessage } from '../generationCanvas/agent/storyboardLauncher'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useAgentReferenceMentions } from './resident/useAgentReferenceMentions'
 import { useComposerAttachments, COMPOSER_ATTACHMENT_ACCEPT } from './composer/useComposerAttachments'
 import { useResidentActivityStore } from './residentActivity'
+import { focusEditorAtEnd, requestResidentComposerFocus, useResidentComposerFocusRequest } from './residentComposerFocus'
 import { TimelineAgentReceiptEffect } from './resident/TimelineAgentReceiptEffect'
 import { useTimelinePlanPreview } from './resident/timelineAgentSurface'
 import type { ResidentSurface } from './resident/residentShellDisplay'
 import { AgentPanelV4Panel, type V4InterventionHandlers } from './v4/AgentPanelV4Panel'
 import { planConfirmDecision } from './v4/agentPanelV4Intervention'
-import { flowScrollMemoryFor } from './v4/agentPanelV4ScrollMemory'
 import { laneClient } from './lane/laneClient'
 import { discardRecoveredAgentDraft, takeRecoveredAgentDraft, settleProjectAgentAttachment } from './projectAgentDraftRecovery'
 import { laneConversationOf } from '../../../electron/shared/agentLane/laneConversation'
@@ -230,14 +230,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     </>
   ) : null
   const shotVerifyFeedback = useShotVerifyFeedback(surface, actions.send)
-  /**
-   * 「他读到哪儿了」得活在这棵子树之外（定稿 §11.2：点角标 = 原宽**原状态**还原）。
-   *
-   * 不放 `useRef`：收起时面板换挂点，连这个常驻壳自己都跟着重新挂载，ref 一起归零
-   * （2026-09-06 真机走查实测：ref 版展开后 scrollTop 回到底 259.5，等于没记）。
-   * 按线程记：位置属于那条对话，换项目/换线程各记各的，切回来还在原处。
-   */
-  const flowScroll = flowScrollMemoryFor(surface, data.activeThreadId)
+  // 面板据它判断「进了另一条对话」→ 落到那条的最新一条（换项目 / 换面 / 切线程都算）。
+  const conversationKey = JSON.stringify([data.snapshot.workspaceId ?? null, surface, data.activeThreadId ?? null])
   const historyConversation = laneConversationOf(data.snapshot)
   const historyIdentity = data.snapshot.workspaceId && historyConversation
     ? JSON.stringify([data.snapshot.workspaceId, historyConversation.laneName, historyConversation.sessionId, surface]) : undefined
@@ -315,13 +309,10 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   // 免得一个隐藏的创作坞在之后接到点击。
   React.useEffect(() => {
     if (surface !== 'creation') return
+    // 这是用户亲手点「拆分镜」：挂分镜规划技能，结果方案照常替他打开（Agent 自己决定建的方案才不打开）。
     const launch = (displayPrompt?: string): void => {
-      void actions.send([t('agentResident.storyboardRequest'), displayPrompt].filter(Boolean).join('\n\n'), {
-        skillKey: STORYBOARD_PLANNER_SKILL.key,
-        // 这是用户亲手点「拆分镜」：结果方案照常替他打开（Agent 自己决定建的方案才不打开）。
-        openStoryboardResult: true,
-        ...(displayPrompt ? { displayText: displayPrompt } : {}),
-      })
+      const { text, options } = storyboardLaunchMessage(t('agentResident.storyboardRequest'), displayPrompt)
+      void actions.send(text, options)
     }
     setStoryboardPlannerLauncher(launch)
     return () => setStoryboardPlannerLauncher(null)
@@ -406,25 +397,23 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   }, [actions, draft])
 
   /**
+   * 输入框的焦点只在这里落（residentComposerFocus）：外壳的 Mod+J / 小球 / 形态切换、下面的起手句都只发请求。
+   * 已经在框里就不动光标；否则放到句末。返回的是焦点真的进了编辑器没有——小球形态下面板还在看不见的容器里，
+   * 这一帧落空，请求留到下一帧。
+   */
+  const focusComposer = React.useCallback(() => focusEditorAtEnd(mentions.editorRef.current), [mentions.editorRef])
+  useResidentComposerFocusRequest(focusComposer)
+
+  /**
    * 空态起手 chip：把那句话填进 composer 并把光标交给用户——**不发送**。
    *
    * 发送要花钱、要动项目，第一句话该由他自己按下去；chip 只负责替他省掉「不知道该说什么」。
-   * 聚焦走一个 token + effect，而不是在回调里直接 `focus()`：那一刻 `value` 还是旧的，
-   * 光标会落在字符串开头，用户接着打字就插在句首。effect 跑在同一次提交的 DOM 之后，
-   * 新句子已经在框里，才好把插入点放到末尾。
+   * 聚焦是请求而不是在回调里直接 `focus()`：那一刻 `value` 还是旧的，光标会落在字符串开头，
+   * 用户接着打字就插在句首。请求在这次提交之后才取，新句子已经在框里，插入点放到末尾。
    */
-  const composerInputRef = React.useRef<HTMLElement>(null)
-  const [starterFocusToken, setStarterFocusToken] = React.useState(0)
-  React.useEffect(() => {
-    if (!starterFocusToken) return
-    const node = composerInputRef.current
-    if (!node) return
-    node.focus()
-    mentions.editorRef.current?.commands.focus('end')
-  }, [starterFocusToken, mentions.editorRef])
   const startFromStarter = React.useCallback((prompt: string) => {
     setDraft(prompt)
-    setStarterFocusToken((token) => token + 1)
+    requestResidentComposerFocus()
   }, [setDraft])
 
   /**
@@ -554,7 +543,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         </div>
       ) : null}
       <AgentPanelV4Panel
-        scrollMemory={flowScroll}
+        conversationKey={conversationKey}
         width={size.width}
         height={panelError ? size.height - 20 : size.height}
         legacy={data.snapshot.active.legacy}
@@ -633,7 +622,6 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           onStop: actions.stop,
           onAddFile: () => attachmentApi.inputRef.current?.click(),
           onAddReference: pickReferenceOnCanvas,
-          inputRef: composerInputRef,
           onRemoveChip: removeComposerChip,
           modelLabel: data.modelLabel,
           skillSelected: Boolean(activeSkill || actions.selectedLibraryPrompt),

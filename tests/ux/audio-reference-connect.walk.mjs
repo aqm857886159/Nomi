@@ -27,6 +27,7 @@ import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { newProjectEntry } from './_shell.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = process.cwd()
 const port = 5292
@@ -112,7 +113,7 @@ try {
   // 解析归一，必须点真实 tab 再断言选中，不能信注入值）。「全能参考」是 vendorTerm，多个视频档案
   // （seedance-2 / dreamina-seedance-2 / seedance-2-apimart…）各自独立声明这同一个人话标签，
   // 不是同一个 archetype id——tab 按文字找，不 hardcode 具体是哪个 archetype。
-  const omniTab = win.locator('button[aria-pressed]', { hasText: '全能参考' }).first()
+  const omniTab = win.locator('button[aria-pressed]', { hasText: uiText('zh-CN', 'generationCommon.modeMenu.name.reference') }).first()
   await clickOrFail(omniTab, '全能参考 模式 tab')
   await expect(omniTab, '点了「全能参考」但它没被选中——后面的断言就不是这个模式的现场了')
     .toHaveAttribute('aria-pressed', 'true', { timeout: DEFAULT_TIMEOUT_MS })
@@ -180,14 +181,15 @@ try {
     const node = state.nodes.find((n) => n.id === shot)
     const { resolveGenerationReferences } = await import('/src/workbench/generationCanvas/runner/generationReferenceResolver.ts')
     const { resolveArchetypeForModel } = await import('/electron/shared/modelArchetypes/index.ts')
-    const { buildArchetypeInputParams, currentArchetypeMode } = await import('/src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts')
+    const { buildArchetypeInputParams, sendArchetypeMode } = await import('/src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts')
     const references = resolveGenerationReferences(node, { nodes: state.nodes, edges: state.edges })
     // 不 hardcode 具体是哪个 archetype——真机上新建视频节点默认拿到哪个模型由目录决定（隔离测试
     // profile 下实测是即梦 Seedance，但这条走查不该跟着某个具体默认值绑死），按节点真实 meta 解析。
     const meta = node.meta || {}
     const archetype = resolveArchetypeForModel({ modelKey: meta.modelKey, modelAlias: meta.modelAlias, vendorKey: meta.modelVendor || meta.vendor, meta })
-    const mode = currentArchetypeMode(archetype, meta)
-    const params = buildArchetypeInputParams(meta, archetype, references)
+    // 这次按哪种方式发：和发送路径同一个 owner（画布解析参考时现算过的那份）。
+    const mode = sendArchetypeMode(archetype, node, references)
+    const params = buildArchetypeInputParams(meta, mode, references)
     const audioSlot = mode.slots.find((s) => s.kind === 'audio_ref')
     const audioParamKey = audioSlot?.inputKey || 'reference_audio_urls'
     return { archetypeId: archetype?.id, modeId: mode.id, params, audioParamKey, referenceAudios: references.referenceAudios }

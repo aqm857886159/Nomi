@@ -233,7 +233,7 @@ try {
       clickedAt = Date.now()
       await generateButton.click({ timeout: stationTimeout({ operations: 2 }), noWaitAfter: true }) // 只用真鼠标：点不到就红
     } else await clickOrDom(generateButton)
-    const dialog = win.locator('div.fixed.inset-0').filter({ hasText: lang === 'en' ? /Start generating|Generate/ : /开始生成/ }).last()
+    const dialog = win.locator('[data-spend-confirm-dialog]').filter({ hasText: lang === 'en' ? /Start generating|Generate/ : /开始生成/ }).last()
     await dialog.waitFor({ timeout: PAID_LIKE ? stationTimeout({ turns: 1 }) : stationTimeout({ operations: 1 }) })
     if (PAID_LIKE) { report.latency[label].dialogMs = Date.now() - clickedAt; console.log(`  · ${label}：点击 → 确认框可见 ${report.latency[label].dialogMs} ms`) }
     await shot(`${label}-spend-confirm`)

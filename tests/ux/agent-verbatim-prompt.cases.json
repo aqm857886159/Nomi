@@ -1,0 +1,19 @@
+{
+  "$comment": "「用户给了提示词原文，Agent 逐字落；用户让它写，它才扩写」的 14 句真实说法（设计卡 docs/plan/2026-11-07-agent-verbatim-prompt.md）。V1 的两轮是 2026-11-07 候选包验收里用户的原话，逐字抄；其余按真实用户的口吻写，中英各半、一半给原文、一半让 Agent 写。判据只看机器可判的东西：落进起草 / 改草稿参数里的提示词是不是原文（逐字率），或是不是比用户的想法更长更具体（该扩写时扩写率）。改这张表的句子等于换尺子：改了就要重跑修前基线。",
+  "cases": [
+    { "id": "V1", "lang": "zh", "kind": "verbatim", "turns": ["提示词写：一只橘猫坐在窗台上", "改成：一只黑猫坐在窗台上"], "expected": "一只黑猫坐在窗台上", "origin": "用户 2026-11-07 原话" },
+    { "id": "V2", "lang": "zh", "kind": "verbatim", "turns": ["新建一个镜头，提示词是：雨夜，一个穿红雨衣的小孩在空无一人的街上踩水"], "expected": "雨夜，一个穿红雨衣的小孩在空无一人的街上踩水" },
+    { "id": "V3", "lang": "zh", "kind": "verbatim", "turns": ["建一个图片节点，提示词就用这句：「海边的白色灯塔」"], "expected": "海边的白色灯塔" },
+    { "id": "V4", "lang": "zh", "kind": "verbatim", "turns": ["加一个视频镜头，提示词写：镜头缓缓推近，老人的手放在旧收音机上", "把提示词改成：镜头缓缓拉远，老人的手放在旧收音机上"], "expected": "镜头缓缓拉远，老人的手放在旧收音机上" },
+    { "id": "V5", "lang": "en", "kind": "verbatim", "turns": ["Create an image node and set the prompt to: a black cat on a windowsill"], "expected": "a black cat on a windowsill" },
+    { "id": "V6", "lang": "en", "kind": "verbatim", "turns": ["Add a video shot with this exact prompt: slow dolly in on an old radio, dust in the air"], "expected": "slow dolly in on an old radio, dust in the air" },
+    { "id": "V7", "lang": "en", "kind": "verbatim", "turns": ["Make a shot, prompt: a red kite over a grey harbor", "change the prompt to: a blue kite over a grey harbor"], "expected": "a blue kite over a grey harbor" },
+    { "id": "W1", "lang": "zh", "kind": "expand", "turns": ["帮我写一个提示词：深夜的便利店，用来生成一张图片，建成图片节点"], "seed": "深夜的便利店" },
+    { "id": "W2", "lang": "zh", "kind": "expand", "turns": ["建一个视频镜头，主题是雨天里等公交的女孩，提示词你来写"], "seed": "雨天里等公交的女孩" },
+    { "id": "W3", "lang": "zh", "kind": "expand", "turns": ["建一个图片节点，提示词是「一只猫」，帮我润色成更有画面感的"], "seed": "一只猫" },
+    { "id": "W4", "lang": "en", "kind": "expand", "turns": ["Create an image node, prompt for now is just: forest", "Expand that prompt, make it more specific"], "seed": "forest" },
+    { "id": "W5", "lang": "en", "kind": "expand", "turns": ["Create an image node about a lighthouse at dusk and write the prompt for me"], "seed": "lighthouse at dusk" },
+    { "id": "W6", "lang": "en", "kind": "expand", "turns": ["Add a video shot of a runner on a beach; you write the prompt"], "seed": "runner on a beach" },
+    { "id": "W7", "lang": "en", "kind": "expand", "turns": ["Create an image node with the prompt \"a cat\" and polish it into something more cinematic"], "seed": "a cat" }
+  ]
+}

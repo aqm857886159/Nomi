@@ -1,0 +1,135 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-07-agent-verbatim-prompt",
+  "detected_by": "user",
+  "problem_type": "Agent 把用户逐字给的提示词扩写了：模型可见的起草工具说明无条件要求加风格词，没有区分「用户给了原文」和「由你来写」",
+  "symptom": "用户说「提示词写：一只橘猫坐在窗台上」「改成：一只黑猫坐在窗台上」，落到节点上的是「一只黑猫坐在窗台上，阳光洒落，温暖宁静的氛围，写实摄影风格」。",
+  "direct_cause": "electron/shared/agentCapabilities/canvasWrite.ts 的 CANVAS_NODE_PROMPT_GUIDELINES 无条件写「高质量提示词，按结构化骨架，加风格关键词」，随起草工具进系统提示词；skills/workbench-generation/SKILL.md 第 6 条同样无条件。身份层没有任何一句说「用户给了原文就照写」。",
+  "class_root": "模型可见文字里「怎么写提示词」只有一个无条件的写法，没有适用条件；任何一处再写一句无条件的「加风格 / 氛围」都会把用户的原文改掉，而没有门岗会拦：代码层看不到模型把什么写进了参数，只有读说明的人才看得出。",
+  "migration": "不涉及存量数据：只改模型每回合读到的文字，已落画布的节点不动。",
+  "affected_population": [
+    "在生成画布上对 Agent 说出提示词原文的创作者（内部 Agent）",
+    "通过对外 MCP 调用起草工具的外部客户端（读到同一段工具说明）"
+  ],
+  "scope_paths": [
+    "electron/harness/context/",
+    "electron/shared/agentCapabilities/",
+    "skills/workbench-generation/"
+  ],
+  "entry_points": [
+    "electron/harness/context/agentContext.ts NOMI_AGENT_IDENTITY（所有 Agent 面共用的身份层，规则的家）",
+    "electron/shared/agentCapabilities/canvasWrite.ts CANVAS_NODE_PROMPT_GUIDELINES（起草工具说明，内部面与对外 MCP 面共用）",
+    "skills/workbench-generation/SKILL.md 第 6 条（生成区规划技能）"
+  ],
+  "invariants": [
+    "用户给了提示词原文，Agent 逐字落，不扩写、不润色、不补风格 / 氛围词、不翻译",
+    "模型可见文字里每一处叫它加风格 / 氛围的话，都自带适用条件：只在由 Agent 来写时才做",
+    "这条规则只有身份层一个家，工具说明里只留适用条件，不复述规则正文"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/harness/context/agentContext.ts",
+      "symbol": "NOMI_AGENT_IDENTITY"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/canvasWrite.ts",
+      "symbol": "CANVAS_NODE_PROMPT_GUIDELINES"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "两处职责不同：身份层是所有 Agent 面共用的规则，工具说明随工具走、也发给读不到身份层的外部 MCP 客户端，所以后者必须自带适用条件；合并会让外部客户端读不到条件。"
+  },
+  "regression_tests": [
+    "electron/harness/context/verbatimPromptRule.test.ts",
+    "tests/ux/verbatim-prompt-judges.test.mjs"
+  ],
+  "residual_risks": [
+    "说明只是影响模型，不是强制：模型仍可能扩写，所以配了真模型逐字率走查（协调修前修后各跑一遍），修后数字未验证前不算已解决",
+    "创作区各模式的系统提示词、拆镜头 / 定妆规划技能本来就是「按故事写」，不在这条规则内；用户在这些入口里逐字给原文时靠身份层规则兜，未单独量",
+    "英文界面整轮未跑"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.anthropic.com/engineering/writing-tools-for-agents",
+      "checked_at": "2026-11-07",
+      "purpose": "模型在搜索词里擅自加年份靠改工具说明解决，并主张用评测量说明改动的效果：确认根因在说明、要用真实评测量"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "只要有人在任一模型可见文字里写一句无条件的「加风格 / 氛围 / 质感」要求，用户的原文就会再被改；仓库里这类措辞出现在多份技能和工具说明里。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs CANVAS_NODE_PROMPT_GUIDELINES → 起草工具的说明书（内部面与对外面）",
+      "git grep -e 风格关键词 -e 风格词 -e 氛围 skills electron/shared/agentCapabilities → 生成区规划技能第 6 条；拆镜头 / 定妆规划技能是「按故事写」，不在范围"
+    ]
+  },
+  "generality_proof": "verbatimPromptRule.test.ts 把「模型可见文字里叫它加风格 / 氛围的话」做成全量扫描（内部面与对外 MCP 面的每个工具说明 + 生成区规划技能），没带适用条件的一律红；对修前三个文件做变异，5 条里 5 条变红。",
+  "shared_boundaries": [
+    {
+      "path": "electron/harness/context/agentContext.ts",
+      "symbol": "NOMI_AGENT_IDENTITY",
+      "responsibility": "所有 Agent 面共用的身份与输出铁律，包含「用户给了提示词原文就逐字落」。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/shared/agentCapabilities/canvasWrite.ts",
+      "entry_point": "CANVAS_NODE_PROMPT_GUIDELINES",
+      "disposition": "enforced",
+      "evidence": "说明改成「由你来写时」才适用；verbatimPromptRule.test.ts 逐工具逐面扫描。"
+    },
+    {
+      "path": "skills/workbench-generation/SKILL.md",
+      "entry_point": "第 6 条提示词",
+      "disposition": "enforced",
+      "evidence": "改成「用户给了原文就逐字用它」；测试钉住。"
+    },
+    {
+      "path": "skills/workbench-storyboard-planner/SKILL.md",
+      "entry_point": "镜头 prompt 写法",
+      "disposition": "not-affected",
+      "evidence": "这份技能的任务就是按故事写镜头提示词（用户让它写）；用户逐字给原文时由身份层规则兜住。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "electron/harness/context/agentContext.ts",
+    "invariant": "模型可见文字里每一处叫它加风格 / 氛围的话，都自带「由你来写时」的适用条件；身份层有「用户给了原文就逐字」的规则。",
+    "failure_mode": "有人在工具说明或技能里再写一句无条件的加风格要求，或删掉身份层那条规则，全量扫描当场变红。",
+    "exception_policy": "none",
+    "strategy": "规则放在所有 Agent 面共用的身份层这一个家；工具说明只带适用条件，让读不到身份层的外部客户端也不会被无条件要求带偏；用全量扫描钉住，真模型逐字率走查量实效。",
+    "artifacts": [
+      "electron/harness/context/agentContext.ts",
+      "electron/shared/agentCapabilities/canvasWrite.ts",
+      "electron/harness/context/verbatimPromptRule.test.ts",
+      "tests/ux/agent-verbatim-prompt-real-model.walk.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/harness/context/verbatimPromptRule.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/agentCapabilities/canvasWrite.ts"
+    ],
+    "rationale": "「无条件按骨架写、末尾加风格关键词」的说明在同提交改成有条件，没有开关、没有兜底。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只改 Nomi 自己写的模型可见文字，没有第三方运行时参与。",
+    "exit_criteria": []
+  },
+  "recurrence_check_on": "2026-12-07",
+  "invariant_owner_layer": {
+    "layer": "electron/harness/context/agentContext.ts",
+    "tests": [
+      "electron/harness/context/verbatimPromptRule.test.ts"
+    ]
+  }
+}

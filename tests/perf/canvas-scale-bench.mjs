@@ -40,6 +40,7 @@ import { canvasFitViewButton } from '../ux/_shell.mjs'
 import { WORKBENCH_SCENARIOS, prepareWorkbenchLaunch, runWorkbenchScenario } from './canvas-scale/workbenchScenarios.mjs'
 import { FAR_DENSE_LAUNCH_ARGS, FAR_DENSE_LAUNCH_ENV, FAR_DENSE_SAMPLE_KEYS, FAR_DENSE_SCALES, FAR_DENSE_SCENARIOS, countLayers, createFarDenseFixture, farDenseStructureViolations, runFarDensePan, tileOomCounter } from './canvas-scale/farDense.mjs'
 import { IPC_PROBE_MODULE, startDiagnostics } from './canvas-scale/diagnostics.mjs'
+import { AGENT_BALL_SAMPLE_KEYS, agentBallStructureViolations } from './canvas-scale/agentBallEyeFollowScenario.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outputDir = path.join(repoRoot, 'tests/perf/results')
@@ -330,7 +331,7 @@ async function fitView(page, { expectZoomBelow = 0.9 } = {}) {
 }
 
 /** 不在画布上量的工作台场景：每次采样前不做「适应视图」（那颗钮在创作 / 预览页上不存在）。 */
-const OFF_CANVAS_SCENARIOS = new Set(['document-typing', 'creation-ai-rewrite-result', 'timeline-play', 'timeline-scrub', 'library-skill-open', 'library-prompt-open', 'library-prompt-scroll', 'library-prompt-search'])
+const OFF_CANVAS_SCENARIOS = new Set(['document-typing', 'creation-ai-rewrite-result', 'timeline-play', 'timeline-scrub', 'library-skill-open', 'library-prompt-open', 'library-prompt-scroll', 'library-prompt-search', 'chat-send-visible', 'chat-send-visible-10', 'chat-send-visible-1000', 'chat-scroll-500', 'chat-scroll-500-cpu4x'])
 /**
  * 在「工作缩放」（约 100%）下量的场景：点卡出生成框是在正常干活的缩放下发生的，不是缩到全图。
  * 适应视图之后在舞台中间滚轮放大到 ≥0.95：10 / 100 / 200 三档的视口里都是同样大小的卡，差别只剩画布上一共有多少个节点。
@@ -339,7 +340,7 @@ const WORKING_ZOOM_SCENARIOS = new Set(['select-composer'])
 /** 工作台场景带进样本的数（主数 responseMs / mainRoundTripMaxMs，其余只看）。 */
 const WORKBENCH_SAMPLE_KEYS = ['idleDraws', 'idleSaveIPC30', 'idleSnapshotWrites', 'idleQueries', 'supplierQueries', 'idleSeconds', 'waiting', 'spinners', 'animations', 'responseMs', 'firstFeedbackMs', 'coldResponseMs', 'storeWrites', 'mainRoundTripMaxMs', 'mainRoundTripP95Ms', 'keyMaxMs', 'toCreation', 'toPreview', 'toGeneration', 'toList', 'toCanvas', 'generating', 'streamedCharsDuringPan', 'keys', 'paragraphs', 'created', 'playheadTravelPx', 'panMovedPx', 'openMs', 'drawMs', 'selectedChars', 'mediaRequests', 'remoteMediaRequests', 'mountedMedia', 'mountedCards', 'visibleCards', 'matchedCards', 'queueSettled', 'listCards', 'scrolledPx', 'hoverResponseMs', 'clickResponseMs', 'focusSettledMs']
 /** 场景结果里带进样本的数：工作台场景的 + 远看密集的缺块率（farDense.mjs）。 */
-const SCENARIO_SAMPLE_KEYS = [...WORKBENCH_SAMPLE_KEYS, ...FAR_DENSE_SAMPLE_KEYS]
+const SCENARIO_SAMPLE_KEYS = [...WORKBENCH_SAMPLE_KEYS, ...FAR_DENSE_SAMPLE_KEYS, ...AGENT_BALL_SAMPLE_KEYS]
 
 async function zoomToWorkingScale(page, target = 0.95) {
   const stage = await stageBox(page)
@@ -992,6 +993,16 @@ async function main() {
   if (structureFailures.length) {
     console.error('\n✖ 远看密集结构预算没过（farDense.mjs FAR_DENSE_STRUCTURE_BUDGETS）：')
     for (const { row, index, over } of structureFailures) console.error(`  - ${row.scale} ${row.scenario} 样本 ${index + 1}：${over.join('；')}`)
+    process.exitCode = 1
+  }
+  // Agent 小球眼睛跟随的结构预算（agentBallEyeFollowScenario.mjs）：零重渲染、空闲零帧，同样是硬断言。
+  const ballFailures = results
+    .filter((row) => row.scenario === 'agent-ball-eye-follow' && !row.skipped)
+    .flatMap((row) => row.samples.map((sample, index) => ({ row, index, over: agentBallStructureViolations(sample), callers: sample.idleRafCallers })))
+    .filter((entry) => entry.over.length)
+  if (ballFailures.length) {
+    console.error('\n✖ Agent 小球眼睛跟随结构预算没过（agentBallEyeFollowScenario.mjs）：')
+    for (const { row, index, over, callers } of ballFailures) console.error(`  - ${row.scale} 样本 ${index + 1}：${over.join('；')}${callers?.length ? `（要帧的：${callers.join(' | ')}）` : ''}`)
     process.exitCode = 1
   }
 }

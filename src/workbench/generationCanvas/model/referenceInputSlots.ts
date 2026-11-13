@@ -10,10 +10,10 @@ import type { GenerationReference } from '../../../../electron/shared/agentCapab
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from './generationCanvasTypes'
 import { resolveReferencePlacement, resolveReferenceSlots } from '../runner/referenceSlots'
 import { isImageUploadSlot, withReferenceList } from '../nodes/controls/referenceList'
-import { applyArchetypeModeSwitch, referenceSlotAccept, referenceSlotStorage } from '../nodes/controls/archetypeMeta'
+import { effectiveArchetypeModeWithInputs, referenceSlotAccept, referenceSlotStorage, type ArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { readParameterReferenceSlots, parameterReferenceMetaPatch } from './parameterReferenceSlots'
 import { resultUrl } from '../runner/referenceUrl'
-import { archetypeForNode, edgeModeForReferenceRole, referenceDemandForRole, resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
+import { archetypeForNode, edgeModeForReferenceRole, referenceDemandForRole } from '../agent/referenceEdgeCapability'
 
 export type ReferenceRole = NonNullable<GenerationReference['role']>
 export type ReferenceInputKind = 'image' | 'video' | 'audio'
@@ -31,12 +31,12 @@ export function referenceRoleOfSlot(kind: string, numbered: boolean): ReferenceR
 const PAIRED_ROLES: readonly ReferenceRole[] = ['character', 'reference']
 
 /**
- * 一组参考 → 摆进节点**当前生成方式**的参考槽（先清空这些槽，再按序摆）。摆不下的（这个生成方式没有对口的槽）不摆。
+ * 一组参考 → 摆进节点的参考槽（按 layout 这个摆法；先清空这些槽，再按序摆）。摆不下的（这个摆法没有对口的槽）不摆。
  * 和 `resolveReferenceSlots` 互为逆向：摆完再解析，读回来的就是这一组。
  */
-function placeReferenceInputs(node: GenerationCanvasNode, inputs: readonly CandidateReferenceInput[]): GenerationCanvasNode {
+function placeReferenceInputs(node: GenerationCanvasNode, inputs: readonly CandidateReferenceInput[], layout?: ArchetypeMode): GenerationCanvasNode {
   const meta: Record<string, unknown> = { ...node.meta }
-  const placement = resolveReferencePlacement(node, [], [])
+  const placement = resolveReferencePlacement(node, [], [], layout ? { layout } : {})
   const slots = placement.slots
   const parameters = readParameterReferenceSlots(meta)
   // 图片（首帧 / 尾帧 / 参考图）住节点那一份有序参考列表（referenceList）：按槽的声明顺序排好，
@@ -127,8 +127,8 @@ export type ReferenceProjection = Readonly<{
  *
  * **只补不删**：节点上已经有的（连线或槽里的值，按地址认）原样留着；候选里没有、节点上有的也留着——
  * 卡上拿掉画布上那张只改卡、不动画布（付费卡第 8 行），这里不替用户删画布上的东西。
- * 补进槽里之前按画布那一条规则对齐生成方式（`resolveModeForConnectedReferences`，和连线 / 换模型 / 提交同一个）：
- * 节点停在没有参考槽的模式上（文生图）时，补进去的参考不会因为没有格子被悄悄丢掉。
+ * 补进槽里之前先问「补完之后按什么摆」（`effectiveArchetypeModeWithInputs`，和发送时现算方式同一个 owner），按那个摆法落格：
+ * 节点此刻是文字生成（文生图）时，补进去的参考不会因为没有格子被悄悄丢掉；不往节点里写方式。
  */
 export function planReferenceProjection(
   target: GenerationCanvasNode,
@@ -148,9 +148,11 @@ export function planReferenceProjection(
   }
   if (!uploads.length) return { connect }
   const own = nodeOwnReferenceInputs(target)
-  const modeId = resolveModeForConnectedReferences(target, nodes, edges, [...own, ...uploads].map((input) => referenceDemandForRole(input.role, input.kind)))
-  const archetype = modeId ? archetypeForNode(target) : null
-  const moded = modeId && archetype ? { ...target, meta: applyArchetypeModeSwitch({ ...(target.meta ?? {}) }, archetype, modeId) } : target
-  const placed = placeReferenceInputs(moded, [...own, ...uploads])
+  const archetype = archetypeForNode(target)
+  // 节点自己的上传已在 target 里算过一次，这里只加新补的那几件。
+  const layout = archetype
+    ? effectiveArchetypeModeWithInputs(archetype, target, { nodes, edges }, uploads.map((input) => referenceDemandForRole(input.role, input.kind))).mode
+    : undefined
+  const placed = placeReferenceInputs(target, [...own, ...uploads], layout)
   return { meta: placed.meta ?? {}, connect }
 }

@@ -1,0 +1,123 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-08-agent-model-variant-options",
+  "problem_type": "Model detail loses variant-specific constraints before an Agent drafts.",
+  "symptom": "DeepSeek P06 read 4k from the mode of Seedance 2.0 and proposed it for Fast. Draft admission rejected it and required another model turn.",
+  "direct_cause": "Both constructors project variant IDs and labels only. The selected variant changes the effective parameter list, which admission already specializes.",
+  "class_root": "The catalog entry used by both read faces has no way to carry the selected variant’s constraints.",
+  "affected_population": [
+    "Agent and external MCP reads of model families with variant parameter overrides."
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/modelSpecProjection.ts"
+  ],
+  "entry_points": [
+    "Agent list_models detail",
+    "MCP model detail"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation.md",
+      "checked_at": "2026-11-08",
+      "purpose": "Public resolution table confirms Fast only supports 480p/720p."
+    }
+  ],
+  "invariants": [
+    "A detail reader can recover every variant’s effective parameter list by applying its reported overrides to the mode.",
+    "The default variant matches admission for the catalog model ID.",
+    "Thin list never gains parameter payloads."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelRead.mts",
+      "symbol": "modelSpecDetail"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelSpecRead.ts",
+      "symbol": "modelSpecDetail"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelSpecProjection.ts",
+      "symbol": "variantDetails"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 3,
+    "why_not": "Both tool surfaces call modelSpecDetail; its internal call to variantDetails is now the single gate for variant controls. Since the map counts internal calls too, the new shared call adds one door without duplicating entry surfaces."
+  },
+  "generality_proof": "Both model-facing routes call modelSpecDetail. It derives the selected catalog identity and variant from the shared vendor-specific archetype used by admission. It matches admitted modes and published variants only. Unmodified rows retain their previous shapes.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/modelSpecProjection.ts",
+      "symbol": "modelSpecDetail",
+      "responsibility": "Publish default mode controls and per-variant differences to both read faces."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneModelRead.mts",
+      "entry_point": "createLaneModelRead",
+      "disposition": "enforced",
+      "evidence": "The Agent tool serializes modelSpecDetail."
+    },
+    {
+      "path": "electron/capabilityCore/modelSpecRead.ts",
+      "entry_point": "requireModelSpecDetail",
+      "disposition": "enforced",
+      "evidence": "The external MCP tool serializes modelSpecDetail."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any vendor-mode combination can narrow a variant; other variants add or remove fields.",
+    "same_class_scan": [
+      "rg agentModelEntriesFromCatalog, buildAgentModelEntries, modelSpecDetail through src and electron",
+      "Checked modelAdmissionSchema and specializeArchetypeForVariant: admission already resolves by modelId and variantId."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/agentCapabilities/modelSpecProjection.ts",
+    "invariant": "The default detail and each named variant describe the controls enforced by admission.",
+    "failure_mode": "A removed, leaked or unadvertised variant parameter fails the seeded catalog comparison.",
+    "exception_policy": "none",
+    "strategy": "Replace the raw modes returned by the shared detail projection with default controls and sparse changes for named variants.",
+    "artifacts": [
+      "electron/shared/agentCapabilities/modelSpecProjection.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/modelSpecParity.class.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/modelSpecParity.class.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Two callers retain the same shared detail function; its old unspecialized projection is replaced in place. No duplicate code path is retained."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The error is loss in Nomi’s own projection; existing model archetype and admission logic already specialize parameters.",
+    "exit_criteria": []
+  },
+  "migration": "Existing records, connection identities, wire payloads, variant IDs and models without overrides retain their previous shape. The additional descriptive field is read-only.",
+  "residual_risks": [
+    "A model may ignore correctly returned options. Model test exercises one vendor and one input; baseline outcomes are not proof for all questions."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-08",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/modelSpecProjection.ts",
+    "tests": [
+      "electron/capabilityCore/modelSpecParity.class.test.ts"
+    ],
+    "why": "Both model-facing tools consume the same detail tier which can use the same archetype and variant choice as admission."
+  }
+}

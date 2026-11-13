@@ -71,6 +71,7 @@ async function modelSees(shot: Record<string, unknown>) {
   const failed = decision as Extract<typeof decision, { ok: false }>;
   return laneFailureFromDecision({
     toolName: "draft_shots", code: failed.code, message: failed.message,
+    admission: failed.admission, issues: failed.issues, problem: failed.problem,
     fallbackCode: "tool_execution_failed", nextAction: "Read the canvas again and retry.",
   });
 }
@@ -85,12 +86,16 @@ describe("生成域有意拒绝一次调用时，模型读到的是拒绝的理�
     expect(failure.nextAction).not.toContain("Query the same domain-qualified task");
   });
 
-  it("模式与 taskKind 打架 → 模型读到该把 taskKind 改成哪一个", async () => {
+  it("模式决定种类后继续校验时长 → 模型读到越界字段、合法范围与下一步", async () => {
     const { references: _dropped, ...withoutReferences } = A3_SHOT;
     const failure = await modelSees(withoutReferences);
-    expect(failure.message).toContain("omni");
-    expect(failure.message).toContain("image_to_video");
+    expect(failure.problem).toMatchObject({ code: "duration_not_in_mode", field: "durationSec", min: 4, max: 30, next: "use_allowed_value", charged: false });
+    expect(failure.message).toContain("时长只能在 4～30 秒之间，收到 43.7 秒");
+    expect(failure.message).toContain("请改成这个范围里的秒数，或者先问用户");
+    expect(failure.nextAction).toContain("Nothing was submitted and nothing was charged");
+    expect(failure.nextAction).toContain("Use one of the allowed values listed above and call the same tool again");
     expect(failure.message).not.toContain("submission outcome may be unknown");
+    expect(failure.nextAction).not.toContain("Query the same domain-qualified task");
   });
 
   it("阳性对照：不是我们有意抛的那一档，正文一个字都不许流出去", async () => {

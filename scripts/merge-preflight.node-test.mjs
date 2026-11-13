@@ -346,12 +346,19 @@ function prRepo(t, { base = {}, head = {} } = {}) {
   return { git: (args) => runGit(local, args), root: local, origin, baseSha, headSha }
 }
 
-function fakeGh({ headRefOid, body = '## 设计卡\n', createdAt = '2026-10-10T00:00:00Z' }) {
+/** PR 当前 head 上「PR Body」检查的一次运行（gh pr view --json statusCheckRollup 的形状）。 */
+const prBodyRun = (overrides = {}) => ({
+  __typename: 'CheckRun', name: 'PR Body', workflowName: 'PR Body', status: 'COMPLETED', conclusion: 'SUCCESS',
+  startedAt: '2026-11-07T01:00:00Z', completedAt: '2026-11-07T01:01:00Z', detailsUrl: 'https://github.com/o/r/actions/runs/1/job/2', ...overrides,
+})
+const QUALITY_GATE_RUN = { __typename: 'CheckRun', name: 'Contracts', workflowName: 'Quality Gate', status: 'COMPLETED', conclusion: 'SUCCESS', startedAt: '2026-11-07T01:00:00Z', completedAt: '2026-11-07T01:20:00Z' }
+
+function fakeGh({ headRefOid, body = '## 设计卡\n', createdAt = '2026-10-10T00:00:00Z', checks = [QUALITY_GATE_RUN, prBodyRun()] }) {
   const calls = []
   const exec = (args) => {
     const line = args.join(' ')
     calls.push(line)
-    if (line.startsWith('pr view')) return JSON.stringify({ body, headRefOid, baseRefName: 'main', createdAt })
+    if (line.startsWith('pr view')) return JSON.stringify({ body, headRefOid, baseRefName: 'main', createdAt, ...(checks === null ? {} : { statusCheckRollup: checks }) })
     // 真 GitHub 的原话（#1269）：实现若退回 gh pr diff 取数，大 PR 就拿不到结论
     if (line.startsWith('pr diff')) throw new Error("could not find pull request diff: HTTP 406: Sorry, the diff exceeded the maximum number of files (300). Consider using 'List pull requests files' API or locally cloning the repository instead.")
     throw new Error(`unexpected gh call: ${line}`)
@@ -371,7 +378,7 @@ function runPreflight(repo, { git = repo.git, ...options } = {}) {
   }
 }
 
-const ONLY_PR_VIEW = [`pr view ${PR} --json body,headRefOid,baseRefName,createdAt --repo o/r`]
+const ONLY_PR_VIEW = [`pr view ${PR} --json body,headRefOid,baseRefName,createdAt,statusCheckRollup --repo o/r`]
 const sources = (count, version) => Object.fromEntries(Array.from({ length: count }, (_, i) => [`src/f${String(i).padStart(3, '0')}.ts`, `export const v${i} = ${version}\n`]))
 
 test('大 PR（超过 300 个文件，GitHub 的 PR diff 给不了）：本地 git 取全文件表，排在最后的账本条目也认得出，出真结论', (t) => {
@@ -546,4 +553,48 @@ test('不是花钱类的 PR 不被要求这一行', (t) => {
   const result = runPreflight(repo, { body: '## 设计卡\n' })
   assert.match(result.out, /^合并前扫描 · PR #7$/m)
   assert.doesNotMatch(result.out, /spend-paid-sample/)
+})
+
+// ── 正文合并档单独成「PR Body」检查（2026-11-07，10-24 → 11-07 PR 拦截审计）：Contracts 只判推送档，合并档由 PR Body 判、正文一改自动重判 ──
+test('档位只认调用点写的 --stage：CI 里 Contracts 写 --stage=push 才是推送档；没写参数时继承来的变量照旧不能在 CI 放宽；写错的值报错', () => {
+  assert.equal(resolveJudgementStage({ CI: 'true' }, ['--stage=push']), 'push', 'Contracts 的调用点显式写推送档')
+  assert.equal(resolveJudgementStage({ CI: 'true', NOMI_PR_JUDGEMENT_STAGE: 'push' }, ['--stage=merge']), 'merge', 'PR Body 的调用点显式写合并档，继承来的变量改不了')
+  assert.equal(resolveJudgementStage({ CI: 'true', NOMI_PR_JUDGEMENT_STAGE: 'push' }, []), 'merge', '没写参数：CI 里继承来的变量不能放宽判据（10-09 护栏）')
+  assert.equal(resolveJudgementStage({ NOMI_PR_JUDGEMENT_STAGE: 'push' }, []), 'push', '本机推送前钩子照旧用环境变量')
+  assert.equal(resolveJudgementStage({}, ['--pr']), 'merge')
+  for (const bad of ['--stage=pussh', '--stage=', '--stage=PUSH']) assert.throws(() => resolveJudgementStage({}, [bad]), /--stage/, bad)
+})
+
+test('合并前扫描要求「PR Body」检查在 PR 当前 head 上是绿的：没有 / 在跑 / 红 / 取消都拒合，绿才放行（反例）', (t) => {
+  const repo = prRepo(t, { base: { 'docs/a.md': 'a\n' }, head: { 'docs/a.md': 'b\n' } })
+  const green = runPreflight(repo, { body: FULL_CARD })
+  assert.equal(green.code, 0, green.out)
+  assert.match(green.out, /✅ 「PR Body」检查在 PR 当前 head 上是绿的/)
+  assert.match(green.out, /^结论：✅/m)
+  const cases = [
+    ['一次都没有（老 PR）', [QUALITY_GATE_RUN], /没有「PR Body」检查[^\n]*改一下正文/],
+    ['还在跑', [prBodyRun({ status: 'IN_PROGRESS', conclusion: '' })], /「PR Body」检查还在跑/],
+    ['红', [prBodyRun({ conclusion: 'FAILURE' })], /「PR Body」检查最新一次是 FAILURE/],
+    ['被取消', [prBodyRun({ conclusion: 'CANCELLED' })], /最新一次是 CANCELLED/],
+    ['旧的绿 + 新的红', [prBodyRun(), prBodyRun({ conclusion: 'FAILURE', startedAt: '2026-11-07T02:00:00Z', completedAt: '2026-11-07T02:01:00Z' })], /最新一次是 FAILURE/],
+    ['旧的绿 + 新的一次还在排队（排队的 startedAt 不可靠）', [prBodyRun(), prBodyRun({ status: 'QUEUED', conclusion: '', startedAt: '0001-01-01T00:00:00Z', completedAt: null })], /还在跑/],
+    ['别的工作流里同名的检查不算', [prBodyRun({ workflowName: 'Something Else' })], /没有「PR Body」检查/],
+  ]
+  for (const [label, checks, pattern] of cases) {
+    const result = runPreflight(repo, { body: FULL_CARD, checks })
+    assert.equal(result.code, 1, label)
+    assert.match(result.out, pattern, `${label}：${result.out}`)
+    assert.match(result.out, /^结论：✖ 有项没过/m, label)
+  }
+  // 旧的红 + 新的绿：只认最新一次
+  const fixed = runPreflight(repo, { body: FULL_CARD, checks: [prBodyRun({ conclusion: 'FAILURE' }), prBodyRun({ startedAt: '2026-11-07T02:00:00Z', completedAt: '2026-11-07T02:01:00Z' })] })
+  assert.equal(fixed.code, 0, fixed.out)
+})
+
+test('合并前扫描拿不到 statusCheckRollup = 取数失败（结论：✖ 取不到），不当「没有检查」也不当绿', (t) => {
+  const repo = prRepo(t, { base: { 'docs/a.md': 'a\n' }, head: { 'docs/a.md': 'b\n' } })
+  const result = runPreflight(repo, { body: FULL_CARD, checks: null })
+  assert.equal(result.code, 1)
+  assert.match(result.out, /取不到PR 当前 head 上的检查列表/)
+  assert.match(result.out, /^结论：✖ 有项没过，先别合（取数失败/m)
 })

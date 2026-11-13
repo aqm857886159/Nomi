@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 import type { GenerationFeedback } from '../../observability/generationFeedback'
 import type { ProductionShotState } from '../../../../electron/shared/productionShotPhase'
-import { isPortraitAspect, nodePointerAspect, nodePointerFace, nodePointerGroupVisible, nodePointerLocatable, nodePointerSummary, nodePointerTitleTails, pointerCenterTier, pointerHoverStack, type PointerCenterTier } from './nodePointerFace'
+import { isPortraitAspect, nodePointerAspect, nodePointerFace, nodePointerGroupVisible, nodePointerLocatable, nodePointerSummary, nodePointerSummaryFacts, nodePointerTitleTails, pointerCenterTier, pointerHoverStack, type PointerCenterTier } from './nodePointerFace'
 
 const node = (patch: Partial<GenerationCanvasNode> = {}): GenerationCanvasNode => ({
   id: 'n1', kind: 'video', title: '纸船出发', categoryId: 'shots', position: { x: 0, y: 0 }, status: 'idle', prompt: '', meta: {}, ...patch,
@@ -170,5 +170,25 @@ describe('pointerCenterTier · the middle of a thumbnail holds exactly one thing
       const present = order.filter((_, bit) => mask & (1 << bit))
       expect(pointerCenterTier(has(...present))).toBe(present[0] ?? null)
     }
+  })
+})
+
+
+describe('nodePointerSummaryFacts · shared geometry display', () => {
+  it.each(['2560x1440', '2560×1440', '2560*1440', '2560:1440'])('prints %s like the colon pixel family', (size) => {
+    const facts = nodePointerSummaryFacts(node({ kind: 'image', meta: { size } }), 'Seedream')
+    expect(facts.aspect).toBe('2560:1440')
+    expect(nodePointerSummary(facts, 'card')).toEqual(['Seedream · 2560:1440'])
+  })
+  it('keeps colon pixels, named ratios and key precedence', () => {
+    expect(nodePointerSummaryFacts(node({ meta: { ratio: '1280:720' } }), '').aspect).toBe('1280:720')
+    expect(nodePointerSummaryFacts(node({ meta: { image_size: 'portrait_4_3' } }), '').aspect).toBe('3:4')
+    expect(nodePointerSummaryFacts(node({ meta: { aspect_ratio: '9:16', size: '2560x1440' } }), '').aspect).toBe('9:16')
+  })
+  it('does not invent geometry for invalid, resolution-only or absent values', () => {
+    for (const size of ['2K', 'auto', '0x720', '2560x', 'abcx']) {
+      expect(nodePointerSummaryFacts(node({ meta: { size } }), '').aspect).toBeNull()
+    }
+    expect(nodePointerSummaryFacts(undefined, '').aspect).toBeNull()
   })
 })

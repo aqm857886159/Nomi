@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createLaneRepeatedFailureTracker, LANE_REPEATED_FAILURE_BLOCK, LANE_REPEATED_FAILURE_TERMINATE } from './laneRepeatedFailure.mjs';
+import { createLaneRepeatedFailureTracker, LANE_REPEATED_FAILURE_BLOCK } from './laneRepeatedFailure.mjs';
 
 const WALL = 'The current target could not accept this action (surface_port_stale).\nNext: read again.';
 
 describe('lane repeated-failure tracker', () => {
-  it('blocks after the same tool fails the same way three times and terminates at five', () => {
+  it('blocks after the same tool fails the same way three times', () => {
     const tracker = createLaneRepeatedFailureTracker();
     for (let index = 1; index < LANE_REPEATED_FAILURE_BLOCK; index += 1) {
       tracker.note('read_script', true, WALL);
@@ -12,12 +12,9 @@ describe('lane repeated-failure tracker', () => {
     }
     tracker.note('read_script', true, WALL);
     const blocked = tracker.block('read_script');
-    expect(blocked).toMatchObject({ terminate: false });
     expect(blocked?.reason).toMatch(/failed the same way 3 times in a row/);
     expect(blocked?.reason).toMatch(/after the user's next message/);
     expect(blocked?.reason).not.toMatch(/cannot be done/);
-    for (let index = LANE_REPEATED_FAILURE_BLOCK; index < LANE_REPEATED_FAILURE_TERMINATE; index += 1) tracker.note('read_script', true, WALL);
-    expect(tracker.block('read_script')).toMatchObject({ terminate: true });
     // 别的工具不受牵连。
     expect(tracker.block('write_script')).toBeNull();
   });

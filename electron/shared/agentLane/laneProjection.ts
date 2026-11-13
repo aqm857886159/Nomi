@@ -31,7 +31,7 @@ import {
   type LaneQueueKind, type LaneQueuedMessage, type LaneTaskFacts, type LaneThinking, type LaneThinkingLevel,
 } from './laneContracts.js';
 import { laneToolNextActionOf } from './laneToolNextAction.js';
-import { laneToolFailureOf } from './laneToolFailureEnvelope.js';
+import { laneToolFailureOf, type LaneToolPublicFailure } from './laneToolFailureEnvelope.js';
 import { laneAssistantFaultOf, laneVendorFailureText, type LaneAssistantFault } from './laneAssistantFault.js';
 
 const faultField = (fault: LaneAssistantFault | undefined): { fault?: LaneAssistantFault } => (fault ? { fault } : {});
@@ -117,6 +117,12 @@ export interface LaneModelFacts {
    * pi 有一张表），投影只把结论变成 `fault`。不传 = 只认 pi 自己补的那句（`PI_CONTEXT_OVERFLOW_MESSAGE`）。
    */
   readonly isContextOverflow?: (message: AssistantMessage) => boolean;
+  /**
+   * 一条**没有信封**的失败工具结果，是不是入参边界写下的（形状校验 / 熔断拦下，pi 的「立即结果」不经
+   * `after_tool`，`details` 恒为空）。是就按这次调用的入参重推出信封。**由宿主喂**（`laneToolInputBoundary`）：
+   * 重推要 pi 的校验器和工具 schema，这一层是浏览器也 import 的中立层。不传 = 不重推（冷读历史）。
+   */
+  readonly toolInputFailure?: (input: Readonly<{ toolName: string; toolCallId: string; args: unknown; text: string }>) => LaneToolPublicFailure | undefined;
 }
 
 /**
@@ -234,6 +240,15 @@ function projectThinking(snapshot: LaneSnapshot, supportedLevels: readonly LaneT
   };
 }
 
+/** 同一次调用的入参：从已经投出来的 tool-call 段里倒着找（结果总在调用之后）。 */
+function toolCallArgsOf(parts: readonly LanePart[], toolCallId: string): unknown {
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const part = parts[index]!;
+    if (part.kind === 'tool-call' && part.toolCallId === toolCallId) return part.args;
+  }
+  return undefined;
+}
+
 export function projectLaneSnapshot(
   snapshot: LaneSnapshot,
   facts: LaneModelFacts,
@@ -325,10 +340,14 @@ export function projectLaneSnapshot(
       // 失败的结构化信封同理：这一层只走一遍、不翻译。翻译（按 code 查 i18n 词条）是渲染层的事，
       // 而它必须拿到**结构**才翻得了——否则只能去正则那段英文散文，那条老路只认得出
       // schema 校验一种，其余一律落回英文（C5 / 审计 §5）。
-      const failure = laneToolFailureOf(message.details);
+      const text = textOf(message.content);
+      const failure = laneToolFailureOf(message.details) ?? (message.isError && facts.toolInputFailure
+        ? facts.toolInputFailure({ toolName: message.toolName, toolCallId: message.toolCallId, text,
+          args: toolCallArgsOf(parts, message.toolCallId) })
+        : undefined);
       parts.push({ sequence: parts.length, entryId: entry.id, entrySeq: entry.seq, contentIndex: 0, kind: 'tool-result',
         toolCallId: message.toolCallId, toolName: message.toolName,
-        text: textOf(message.content), isError: message.isError,
+        text, isError: message.isError,
         ...(nextAction ? { nextAction } : {}),
         ...(failure ? { failure } : {}) });
     }

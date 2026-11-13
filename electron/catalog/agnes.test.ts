@@ -10,10 +10,11 @@ import { taskTemplateParams, applyHeadlessParamDefaults } from "./taskParams";
 import { modelReferenceSelection } from "./modelCatalogListing";
 import { applyRequestTransform, validateRequestTransform } from "../tasks/requestTransforms";
 import { getArchetypeById, resolveArchetypeForModel } from "../shared/modelArchetypes";
-import { buildArchetypeInputParams, currentArchetypeMode, ensureArchetypeNodeMeta } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
+import { buildArchetypeInputParams, ensureArchetypeNodeMeta } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
 import { bodyReferenceSupport } from "./referenceReachability";
 import type { HttpOperation } from "./types";
 import { collectAssetUrls, firstMappedString, taskStatusFromResponse } from "../tasks/responseParsing";
+import { modeWrittenInMeta } from "../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers";
 
 // Official Agnes docs checked 2026-08-26; actual response fixtures and rendered wire contracts.
 // 不需真 key——live E2E（需用户 AGNES key）另验数字字段被网关接受 + extra_body 嵌套解析。
@@ -257,7 +258,7 @@ describe("Agnes 2026-08-26 documented wire contracts", () => {
     expect(mode.slots.map((s) => s.kind)).toEqual(modelKey.endsWith("flash") ? ["image_ref", "audio_ref"] : ["image_ref", "audio_ref", "video_ref"]);
     expect(mode.slots[0].max).toBe(modelKey.endsWith("flash") ? 5 : undefined);
     expect(archetype.sources?.[0].checkedAt).toBe("2026-08-26");
-    const input = buildArchetypeInputParams({ archetype: { id: archetype.id, modeId: "reference" }, referenceAudioUrls: ["https://example.com/a.mp3"] }, archetype);
+    const input = buildArchetypeInputParams({ archetype: { id: archetype.id, modeId: "reference" }, referenceAudioUrls: ["https://example.com/a.mp3"] }, modeWrittenInMeta({ archetype: { id: archetype.id, modeId: "reference" } }, archetype));
     const { body } = await renderAgnes(videoOp(modelKey, "image_to_video"), modelKey, { archetypeInput: input });
     expect(body).toMatchObject({ mode: "reference", audios: ["https://example.com/a.mp3"] });
   });
@@ -312,8 +313,8 @@ it("Image 2.1 upgrades a persisted shared archetype without losing edit mode or 
   const meta = { modelKey: "agnes-image-2.1-flash", archetype: { id: "agnes-image", modeId: "edit" }, referenceImageUrls: ["https://example.com/a.png"], size: "1024x768" };
   const archetype = resolveArchetypeForModel({ modelKey: meta.modelKey, vendorKey: "agnes", meta })!;
   expect(archetype.id).toBe("agnes-image-2.1");
-  expect(currentArchetypeMode(archetype, meta).id).toBe("edit");
-  expect(buildArchetypeInputParams(meta, archetype)).toEqual({ image: ["https://example.com/a.png"] });
+  expect(modeWrittenInMeta(meta, archetype).id).toBe("edit");
+  expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, archetype))).toEqual({ image: ["https://example.com/a.png"] });
   expect(ensureArchetypeNodeMeta(meta, archetype)).toMatchObject({ archetype: { id: "agnes-image-2.1", modeId: "edit" }, referenceImageUrls: meta.referenceImageUrls, size: "1K", ratio: "4:3" });
   expect(resolveArchetypeForModel({ modelKey: "agnes-image-2.0-flash", vendorKey: "agnes", meta: { archetype: meta.archetype } })?.id).toBe("agnes-image");
 });

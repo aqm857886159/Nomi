@@ -1,0 +1,761 @@
+{
+  "_note": "APIMart 公开价目接口原始返回（只留算价要用的字段；extras / membership 等去掉）。逐个 GET 下面的 url，不用 Key。契约测试从这里按 APIMART_TEXT_PRICING_RULE 重算，和 apimartTexts.ts 的 tokenPricing 逐项对；这里不手写任何算好的数。",
+  "url": "https://api.apimart.ai/api/pricing/model?model=<id>",
+  "fetchedAt": "2026-11-07",
+  "priced": [
+    "gpt-6-astra",
+    "gpt-6.1-sol",
+    "gpt-6.1-terra",
+    "gpt-6-luna",
+    "claude-opus-5-5",
+    "claude-sonnet-5-5",
+    "claude-haiku-5-5",
+    "claude-fable-5.1",
+    "gemini-4-argon",
+    "gemini-3.8-flash",
+    "deepseek-v4-pro",
+    "deepseek-v4.1-flash",
+    "qwen3.8-max",
+    "qwen3.8-flash",
+    "qwen3.8-27b",
+    "qwen3.8-2.4t-a95b",
+    "glm-5.3",
+    "glm-5.3-flash",
+    "kimi-k3",
+    "grok-4.7",
+    "minimax-m3",
+    "step-3.7-flash",
+    "deepseek-v4-flash",
+    "gemini-3.5-flash"
+  ],
+  "unpricedOnPurpose": {},
+  "models": {
+    "gpt-6-astra": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 10,
+        "cached_input": 1,
+        "cache_write": 12.5,
+        "cache_write_1h": 25,
+        "output": 50
+      },
+      "effective_rates": {
+        "input": 8,
+        "cached_input": 0.8,
+        "cache_write": 10,
+        "cache_write_1h": 20,
+        "output": 40
+      },
+      "tier_count": 2,
+      "tiers": [
+        {
+          "up_to_input_tokens": 272000,
+          "input": 10,
+          "cached_input": 1,
+          "cache_write": 12.5,
+          "cache_write_1h": 25,
+          "output": 50
+        },
+        {
+          "input": 20,
+          "cached_input": 2,
+          "cache_write": 25,
+          "cache_write_1h": 50,
+          "output": 75
+        }
+      ],
+      "limits": {
+        "max_input_tokens": 922000,
+        "max_output_tokens": 12800,
+        "supports_cache_read": true,
+        "supports_cache_write": true
+      }
+    },
+    "gpt-6.1-sol": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 2,
+        "cached_input": 0.1,
+        "cache_write": 2.5,
+        "cache_write_1h": 5,
+        "output": 10
+      },
+      "effective_rates": {
+        "input": 1.6,
+        "cached_input": 0.08,
+        "cache_write": 2,
+        "cache_write_1h": 4,
+        "output": 8
+      },
+      "tier_count": 2,
+      "tiers": [
+        {
+          "up_to_input_tokens": 272000,
+          "input": 2,
+          "cached_input": 0.1,
+          "cache_write": 2.5,
+          "cache_write_1h": 5,
+          "output": 10
+        },
+        {
+          "input": 4,
+          "cached_input": 0.2,
+          "cache_write": 5,
+          "cache_write_1h": 10,
+          "output": 15
+        }
+      ],
+      "limits": {
+        "max_input_tokens": 922000,
+        "max_output_tokens": 12800,
+        "supports_cache_read": true,
+        "supports_cache_write": true
+      }
+    },
+    "gpt-6.1-terra": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 1,
+        "cached_input": 0.05,
+        "cache_write": 1.25,
+        "cache_write_1h": 2.5,
+        "output": 5
+      },
+      "effective_rates": {
+        "input": 0.8,
+        "cached_input": 0.04,
+        "cache_write": 1,
+        "cache_write_1h": 2,
+        "output": 4
+      },
+      "tier_count": 2,
+      "tiers": [
+        {
+          "up_to_input_tokens": 272000,
+          "input": 1,
+          "cached_input": 0.05,
+          "cache_write": 1.25,
+          "cache_write_1h": 2.5,
+          "output": 5
+        },
+        {
+          "input": 2,
+          "cached_input": 0.1,
+          "cache_write": 2.5,
+          "cache_write_1h": 5,
+          "output": 7.5
+        }
+      ],
+      "limits": {
+        "max_input_tokens": 922000,
+        "max_output_tokens": 12800,
+        "supports_cache_read": true,
+        "supports_cache_write": true
+      }
+    },
+    "gpt-6-luna": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 0.1,
+        "cached_input": 0.01,
+        "cache_write": 0.125,
+        "cache_write_1h": 0.25,
+        "output": 0.5
+      },
+      "effective_rates": {
+        "input": 0.08,
+        "cached_input": 0.008,
+        "cache_write": 0.1,
+        "cache_write_1h": 0.2,
+        "output": 0.4
+      },
+      "tier_count": 2,
+      "tiers": [
+        {
+          "up_to_input_tokens": 272000,
+          "input": 0.1,
+          "cached_input": 0.01,
+          "cache_write": 0.125,
+          "cache_write_1h": 0.25,
+          "output": 0.5
+        },
+        {
+          "input": 0.2,
+          "cached_input": 0.02,
+          "cache_write": 0.25,
+          "cache_write_1h": 0.5,
+          "output": 0.75
+        }
+      ],
+      "limits": {
+        "max_input_tokens": 922000,
+        "max_output_tokens": 12800,
+        "supports_cache_read": true,
+        "supports_cache_write": true
+      }
+    },
+    "claude-opus-5-5": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 4,
+        "cached_input": 0.2,
+        "cache_write": 0,
+        "cache_write_5m": 5,
+        "cache_write_1h": 8,
+        "output": 20
+      },
+      "effective_rates": {
+        "input": 3.2,
+        "cached_input": 0.16,
+        "cache_write": 0,
+        "cache_write_5m": 4,
+        "cache_write_1h": 6.4,
+        "output": 16
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 128000,
+        "max_output_tokens": 16000,
+        "supports_cache_read": true,
+        "supports_cache_write": true
+      }
+    },
+    "claude-sonnet-5-5": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 2,
+        "cached_input": 0.2,
+        "cache_write_5m": 2.5,
+        "cache_write_1h": 4,
+        "output": 10
+      },
+      "effective_rates": {
+        "input": 1.6,
+        "cached_input": 0.16,
+        "cache_write_5m": 2,
+        "cache_write_1h": 3.2,
+        "output": 8
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 1000000,
+        "max_output_tokens": 128000,
+        "supports_cache_read": true,
+        "supports_cache_write": true
+      }
+    },
+    "claude-haiku-5-5": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 0.1,
+        "cached_input": 0.01,
+        "cache_write_5m": 0.125,
+        "cache_write_1h": 0.2,
+        "output": 0.5
+      },
+      "effective_rates": {
+        "input": 0.08,
+        "cached_input": 0.008,
+        "cache_write_5m": 0.1,
+        "cache_write_1h": 0.16,
+        "output": 0.4
+      },
+      "tier_count": 2,
+      "tiers": [
+        {
+          "up_to_input_tokens": 100000,
+          "input": 0.1,
+          "cached_input": 0.01,
+          "cache_write_5m": 0.125,
+          "cache_write_1h": 0.2,
+          "output": 0.5
+        },
+        {
+          "input": 0.5,
+          "cached_input": 0.05,
+          "cache_write_5m": 0.625,
+          "cache_write_1h": 1,
+          "output": 2.5
+        }
+      ],
+      "limits": {
+        "max_input_tokens": 1000000,
+        "max_output_tokens": 128000,
+        "supports_cache_read": true,
+        "supports_cache_write": true
+      }
+    },
+    "claude-fable-5.1": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 10,
+        "cached_input": 0.25,
+        "cache_write_5m": 12.5,
+        "cache_write_1h": 20,
+        "output": 50
+      },
+      "effective_rates": {
+        "input": 8,
+        "cached_input": 0.2,
+        "cache_write_5m": 10,
+        "cache_write_1h": 16,
+        "output": 40
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 1000000,
+        "max_output_tokens": 1000000,
+        "supports_cache_read": true,
+        "supports_cache_write": true
+      }
+    },
+    "gemini-4-argon": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 2,
+        "cached_input": 0.1,
+        "output": 10
+      },
+      "effective_rates": {
+        "input": 1.6,
+        "cached_input": 0.08,
+        "output": 8
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 128000,
+        "max_output_tokens": 16000,
+        "supports_cache_read": true,
+        "supports_cache_write": false
+      }
+    },
+    "gemini-3.8-flash": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 0.75,
+        "cached_input": 0.075,
+        "output": 3.75
+      },
+      "effective_rates": {
+        "input": 0.6,
+        "cached_input": 0.06,
+        "output": 3
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 1048576,
+        "max_output_tokens": 65536,
+        "supports_cache_read": true,
+        "supports_cache_write": false
+      }
+    },
+    "deepseek-v4-pro": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "time_pricing": {
+        "base_window": "peak",
+        "windows": [
+          {
+            "name": "peak",
+            "rate": 1
+          },
+          {
+            "name": "off_peak",
+            "rate": 0.5
+          }
+        ]
+      },
+      "rates": {
+        "input": 1.285714,
+        "cached_input": 0.128571,
+        "output": 3.857143
+      },
+      "effective_rates": {
+        "input": 1.0285712,
+        "cached_input": 0.1028568,
+        "output": 3.0857144
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 1000000,
+        "max_output_tokens": 393216,
+        "supports_cache_read": true,
+        "supports_cache_write": false
+      }
+    },
+    "deepseek-v4.1-flash": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "time_pricing": {
+        "base_window": "peak",
+        "windows": [
+          {
+            "name": "peak",
+            "rate": 1
+          },
+          {
+            "name": "off_peak",
+            "rate": 0.5
+          }
+        ]
+      },
+      "rates": {
+        "input": 0.285714,
+        "cached_input": 0.028571,
+        "output": 1.142857
+      },
+      "effective_rates": {
+        "input": 0.2285712,
+        "cached_input": 0.0228568,
+        "output": 0.9142856
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 1000000,
+        "max_output_tokens": 393216,
+        "supports_cache_read": true,
+        "supports_cache_write": false
+      }
+    },
+    "qwen3.8-max": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 1.714286,
+        "cached_input": 0.214286,
+        "explicit_cached_input": 0.142857,
+        "cache_write": 2.142857,
+        "output": 5.142857
+      },
+      "effective_rates": {
+        "input": 1.3714288,
+        "cached_input": 0.1714288,
+        "explicit_cached_input": 0.1142856,
+        "cache_write": 1.7142856,
+        "output": 4.1142856
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 983616,
+        "max_output_tokens": 131072,
+        "supports_cache_read": true,
+        "supports_cache_write": true
+      }
+    },
+    "qwen3.8-flash": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 0.114286,
+        "cached_input": 0.014286,
+        "explicit_cached_input": 0.014286,
+        "cache_write": 0.178571,
+        "output": 0.385714
+      },
+      "effective_rates": {
+        "input": 0.0914288,
+        "cached_input": 0.0114288,
+        "explicit_cached_input": 0.0114288,
+        "cache_write": 0.1428568,
+        "output": 0.3085712
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 983616,
+        "max_output_tokens": 131072,
+        "supports_cache_read": true,
+        "supports_cache_write": true
+      }
+    },
+    "qwen3.8-27b": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 0.428571,
+        "cached_input": 0.085714,
+        "explicit_cached_input": 0.042857,
+        "cache_write": 0.535714,
+        "output": 1.714286
+      },
+      "effective_rates": {
+        "input": 0.3428568,
+        "cached_input": 0.0685712,
+        "explicit_cached_input": 0.0342856,
+        "cache_write": 0.4285712,
+        "output": 1.3714288
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 983616,
+        "max_output_tokens": 131072,
+        "supports_cache_read": true,
+        "supports_cache_write": true
+      }
+    },
+    "qwen3.8-2.4t-a95b": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 1.714286,
+        "cached_input": 0.214286,
+        "explicit_cached_input": 0.142857,
+        "cache_write": 2.142857,
+        "output": 5.142857
+      },
+      "effective_rates": {
+        "input": 1.3714288,
+        "cached_input": 0.1714288,
+        "explicit_cached_input": 0.1142856,
+        "cache_write": 1.7142856,
+        "output": 4.1142856
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 983616,
+        "max_output_tokens": 131072,
+        "supports_cache_read": true,
+        "supports_cache_write": true
+      }
+    },
+    "glm-5.3": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 1.4,
+        "cached_input": 0.26,
+        "output": 4.4
+      },
+      "effective_rates": {
+        "input": 1.12,
+        "cached_input": 0.208,
+        "output": 3.52
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 128000,
+        "max_output_tokens": 16000,
+        "supports_cache_read": true,
+        "supports_cache_write": false
+      }
+    },
+    "glm-5.3-flash": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 0.075,
+        "cached_input": 0.015,
+        "output": 0.25
+      },
+      "effective_rates": {
+        "input": 0.06,
+        "cached_input": 0.012,
+        "output": 0.2
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 128000,
+        "max_output_tokens": 16000,
+        "supports_cache_read": true,
+        "supports_cache_write": false
+      }
+    },
+    "kimi-k3": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 3,
+        "cached_input": 0.3,
+        "output": 15
+      },
+      "effective_rates": {
+        "input": 2.4,
+        "cached_input": 0.24,
+        "output": 12
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 1000000,
+        "max_output_tokens": 104857,
+        "supports_cache_read": true,
+        "supports_cache_write": false
+      }
+    },
+    "grok-4.7": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 2,
+        "cached_input": 0.5,
+        "output": 6
+      },
+      "effective_rates": {
+        "input": 1.6,
+        "cached_input": 0.4,
+        "output": 4.8
+      },
+      "tier_count": 2,
+      "tiers": [
+        {
+          "up_to_input_tokens": 199999,
+          "input": 2,
+          "cached_input": 0.5,
+          "output": 6
+        },
+        {
+          "input": 4,
+          "cached_input": 1,
+          "output": 12
+        }
+      ],
+      "limits": {
+        "max_input_tokens": 500000,
+        "max_output_tokens": 12800,
+        "supports_cache_read": true,
+        "supports_cache_write": false
+      }
+    },
+    "minimax-m3": {
+      "billing_type": "model_ratio",
+      "source": "v1",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 0.3,
+        "output": 1.2
+      },
+      "effective_rates": {
+        "input": 0.24,
+        "output": 0.96
+      },
+      "tier_count": 1,
+      "legacy_ratio": {
+        "model_ratio": 0.15,
+        "completion_ratio": 4
+      }
+    },
+    "step-3.7-flash": {
+      "billing_type": "model_ratio",
+      "source": "v1",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 0.1928,
+        "output": 1.1568
+      },
+      "effective_rates": {
+        "input": 0.15424,
+        "output": 0.92544
+      },
+      "tier_count": 1,
+      "legacy_ratio": {
+        "model_ratio": 0.0964,
+        "completion_ratio": 6
+      }
+    },
+    "deepseek-v4-flash": {
+      "billing_type": "tiered_token",
+      "source": "v2",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "time_pricing": {
+        "base_window": "peak",
+        "windows": [
+          {
+            "name": "peak",
+            "rate": 1
+          },
+          {
+            "name": "off_peak",
+            "rate": 0.5
+          }
+        ]
+      },
+      "rates": {
+        "input": 0.428571,
+        "cached_input": 0.042857,
+        "output": 1.285714
+      },
+      "effective_rates": {
+        "input": 0.3428568,
+        "cached_input": 0.0342856,
+        "output": 1.0285712
+      },
+      "tier_count": 1,
+      "limits": {
+        "max_input_tokens": 1000000,
+        "max_output_tokens": 393216,
+        "supports_cache_read": true,
+        "supports_cache_write": false
+      }
+    },
+    "gemini-3.5-flash": {
+      "billing_type": "model_ratio",
+      "source": "v1",
+      "price_factor": 0.8,
+      "time_rate": 1,
+      "rates": {
+        "input": 1.5,
+        "output": 9
+      },
+      "effective_rates": {
+        "input": 1.2,
+        "output": 7.2
+      },
+      "tier_count": 1,
+      "legacy_ratio": {
+        "model_ratio": 0.75,
+        "completion_ratio": 6
+      }
+    }
+  }
+}

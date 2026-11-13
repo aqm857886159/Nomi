@@ -1,0 +1,26 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-04T15:04:04Z"
+  },
+  "title": "预览页窄窗：左栏不再压成一条缝（已拍板：先收属性）",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "PreviewNarrowPanels.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1400,
+      "h": 1720,
+      "title": "规则与拍板（先看这张）"
+    }
+  },
+  "order": [
+    "PreviewNarrowPanels.dc.html"
+  ],
+  "notes": {},
+  "designSystems": []
+}

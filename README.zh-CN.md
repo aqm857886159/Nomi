@@ -7,8 +7,9 @@
   </a>
 </p>
 
+<h1 align="center">Nomi — 开源、本地优先的 AI 视频工作台</h1>
+
 <p align="center">
-  <strong>Nomi 是一个开源、本地优先的 AI 视频工作台。</strong><br />
   跟它的 Agent 说你想拍什么，它自己拆镜头、出关键帧、做视频、排进时间轴——<br />
   用的是<em>你自己接</em>的模型，按<em>供应商的原价</em>付钱。
 </p>
@@ -23,7 +24,8 @@
   <a href="docs/integrate-with-your-agent.md">让你的 AI 帮你接入</a> ·
   <a href="#社区">加入用户群</a> ·
   <a href="#团队合作">团队合作</a> ·
-  <a href="README.md">English</a>
+  <a href="README.md">English</a> ·
+  <a href="README.ja.md">日本語</a>
 </p>
 
 <p align="center">
@@ -31,6 +33,18 @@
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-1a1816" alt="平台" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-1a1816" alt="许可证" /></a>
 </p>
+
+## 一览
+
+- **是什么：** 一个桌面端 AI 视频工作台。Agent 把你的故事拆成镜头，生成关键帧和视频，排进可以继续剪的时间轴，最后导出 MP4。
+- **平台：** macOS（Apple 芯片和 Intel）和 Windows。
+- **费用：** Nomi 本身免费。模型由你自己接，按供应商原价直接付给供应商；不用注册 Nomi 账号，不订阅，不加价。
+- **模型：** Seedance、可灵、Wan、海螺、Nano Banana、GPT Image 等，可以通过 APIMart、Kie.ai、火山方舟、魔搭社区、即梦会员、任意 OpenAI 兼容接口或本地 ComfyUI 接入。
+- **Agent：** 自带 MCP 服务，Claude Code、Codex、Cursor 可以直接操作 Nomi。
+- **本地优先：** 项目、提示词和 Key 都留在你自己的电脑上。
+- **许可证：** 自 2026-08-01 起为 AGPL-3.0-only。v0.18.1 及以前的版本按 Apache-2.0 发布，继续适用 Apache-2.0。
+- **最新版本：** 见 [Releases](https://github.com/aqm857886159/Nomi/releases/latest)。
+- **重名说明：** 这里的 Nomi 是 AI 视频软件，和 nomi.ai 的 AI 陪伴聊天产品没有关系。
 
 ## 赞助商
 

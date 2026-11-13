@@ -1,0 +1,428 @@
+{
+  "modelKey": "doubao-seedance-2.5",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Text-to-video | Text only | None",
+        "evidenceLevel": "mode-definition",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"seedance-2.5\",\n  \"prompt\": \"A cinematic 30-second steampunk miniature landscape sequence\",\n  \"size\": \"16:9\",\n  \"resolution\": \"720p\",\n  \"duration\": 30\n}"
+          }
+        ]
+      }
+    },
+    "first": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 30,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 30 images",
+          "meaning": {
+            "roles": [
+              "reference_image"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference image URLs, all treated as reference_image."
+          }
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": 30,
+          "roles": [
+            "first_frame",
+            "last_frame",
+            "reference_image"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Images with explicit roles.",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "first_frame: first frame (1 image)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "last_frame: last frame (1 image, usually with first frame)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference_image: reference image (up to 30 total)"
+            }
+          ],
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "cases": [
+              {
+                "when": {
+                  "anyPresent": [
+                    "video_urls",
+                    "audio_urls"
+                  ]
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "If video_urls / audio_urls are present, first_frame / last_frame are auto-converted to reference_image (multimodal reference job)."
+              }
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Images with explicit roles."
+          }
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 10; total duration ≤ 30s (each clip 2~30s).",
+          "meaning": {
+            "roles": [
+              "reference_video"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "multimodal reference job"
+          }
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 10; total duration ≤ 30s",
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "multimodal reference job"
+          }
+        }
+      },
+      "roleCaps": [
+        {
+          "role": "first_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "first_frame: first frame (1 image)"
+        },
+        {
+          "role": "last_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "last_frame: last frame (1 image, usually with first frame)"
+        },
+        {
+          "role": "reference_image",
+          "max": 30,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "reference_image: reference image (up to 30 total)"
+        }
+      ],
+      "intent": {
+        "roles": [
+          "first_frame"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "For first/last frames use image_with_roles."
+      }
+    },
+    "firstlast": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 30,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 30 images",
+          "meaning": {
+            "roles": [
+              "reference_image"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference image URLs, all treated as reference_image."
+          }
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": 30,
+          "roles": [
+            "first_frame",
+            "last_frame",
+            "reference_image"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Images with explicit roles.",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "first_frame: first frame (1 image)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "last_frame: last frame (1 image, usually with first frame)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference_image: reference image (up to 30 total)"
+            }
+          ],
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "cases": [
+              {
+                "when": {
+                  "anyPresent": [
+                    "video_urls",
+                    "audio_urls"
+                  ]
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "If video_urls / audio_urls are present, first_frame / last_frame are auto-converted to reference_image (multimodal reference job)."
+              }
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Images with explicit roles."
+          }
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 10; total duration ≤ 30s (each clip 2~30s).",
+          "meaning": {
+            "roles": [
+              "reference_video"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "multimodal reference job"
+          }
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 10; total duration ≤ 30s",
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "multimodal reference job"
+          }
+        }
+      },
+      "roleCaps": [
+        {
+          "role": "first_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "first_frame: first frame (1 image)"
+        },
+        {
+          "role": "last_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "last_frame: last frame (1 image, usually with first frame)"
+        },
+        {
+          "role": "reference_image",
+          "max": 30,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "reference_image: reference image (up to 30 total)"
+        }
+      ],
+      "intent": {
+        "roles": [
+          "first_frame",
+          "last_frame"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "For first/last frames use image_with_roles."
+      }
+    },
+    "omni": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 30,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 30 images",
+          "meaning": {
+            "roles": [
+              "reference_image"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference image URLs, all treated as reference_image."
+          }
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": 30,
+          "roles": [
+            "first_frame",
+            "last_frame",
+            "reference_image"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Images with explicit roles.",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "first_frame: first frame (1 image)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "last_frame: last frame (1 image, usually with first frame)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference_image: reference image (up to 30 total)"
+            }
+          ],
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "cases": [
+              {
+                "when": {
+                  "anyPresent": [
+                    "video_urls",
+                    "audio_urls"
+                  ]
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "If video_urls / audio_urls are present, first_frame / last_frame are auto-converted to reference_image (multimodal reference job)."
+              }
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Images with explicit roles."
+          }
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 10; total duration ≤ 30s (each clip 2~30s).",
+          "meaning": {
+            "roles": [
+              "reference_video"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "multimodal reference job"
+          }
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 10; total duration ≤ 30s",
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "multimodal reference job"
+          }
+        }
+      },
+      "roleCaps": [
+        {
+          "role": "first_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "first_frame: first frame (1 image)"
+        },
+        {
+          "role": "last_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "last_frame: last frame (1 image, usually with first frame)"
+        },
+        {
+          "role": "reference_image",
+          "max": 30,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "reference_image: reference image (up to 30 total)"
+        }
+      ],
+      "intent": {
+        "roles": [
+          "reference_image",
+          "reference_video",
+          "reference_audio",
+          "first_frame",
+          "last_frame"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "For first/last frames use image_with_roles."
+      }
+    }
+  }
+}

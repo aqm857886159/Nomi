@@ -1,7 +1,7 @@
 {
-  "src/ui/app-shell/shell/AgentBallFace.tsx": {
-    "count": 2,
-    "reason": "保留：Agent 球的运行环与转圈是「正在发生」的进度反馈（用户拍板：蓝色只留进度）"
+  "src/design/identity.tsx": {
+    "count": 1,
+    "reason": "保留：Agent 形象（NomiAgentFace）在跑时那段 accent 弧是「正在发生」的进度反馈（用户拍板：蓝色只留进度；2026-10-27 形象拍板 state.running，原在 AgentBallFace.tsx 的两处随旧脸删掉、合成这一处）"
   },
   "src/ui/browser/popover/BrowserAssetPopoverParts.tsx": {
     "count": 2,

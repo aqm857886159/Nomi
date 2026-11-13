@@ -36,8 +36,8 @@ export { WAN_3_0_ARCHETYPE } from "./wan30";
 export { WAN_3_0_APIMART_ARCHETYPE } from "./wan30Apimart";
 
 export { modeTransportFor } from "./modeTransport";
-export { archetypeModeForModel, combineChannelForMode, referenceCombineChannelFor } from "./referenceChannels";
-export type { ReferenceCombineChannel } from "./referenceChannels";
+export { archetypeModeForModel, combineChannelForMode, combineRoleForSlot, REFERENCE_ROLE_FOR_KIND, referenceCombineChannelFor, slotJoinsCombine } from "./referenceChannels";
+export type { CombineRoleSlot, ReferenceCombineChannel } from "./referenceChannels";
 export { applyMergeProposal, applySplitProposal, resolveGenerationPlan } from "./planResolver";
 export { GenerationResolveErrorCode } from "./planResolutionContracts";
 export { effectiveVideoModes, recommendVideoGeneration } from "./recommendation";

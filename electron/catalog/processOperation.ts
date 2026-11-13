@@ -20,6 +20,7 @@ import { queryCodexImageOperation, startCodexImageOperation } from "./codexCli";
 import { executeAntigravityImageOperation } from "./antigravityImageOperation";
 import type { PreparedAntigravityTask } from "../ai/antigravityTask";
 import { assertCanonicalAntigravityOperation, assertCanonicalAntigravityProcessIdentity, type AntigravityProcessStage } from "./antigravityCatalog";
+import { desktopT } from "../i18n";
 export { assertCanonicalAntigravityOperation };
 export { prepareAntigravityCreateOperation } from "./antigravityCreatePreflight";
 
@@ -31,7 +32,7 @@ export type ProcessOperationInput = {
   process: NonNullable<HttpOperation["process"]>;
   /** 与 HTTP body 同源的模板 context（{{request.prompt}}/{{request.params.X}}/{{providerMeta.task_id}}）。 */
   context: JsonRecord;
-  /** 项目 id：用于把 `--download_dir` 下载到的本地结果导入素材；空则仅取远端 URL。 */
+  /** 项目 id：本机进程的结果写进这个项目的素材。必填——空的话执行器不起进程、直接拒。 */
   projectId: string;
   writeAsset: WriteAsset;
   writeDeterministicAsset?: WriteDeterministicAsset;
@@ -57,6 +58,9 @@ export type ProcessResponse = {
 };
 
 export async function executeProcessOperation(input: ProcessOperationInput): Promise<{ response: unknown; request: unknown }> {
+  // 本机进程的结果只能写进项目（即梦下到本机目录、Codex 留在本机目录、Antigravity 回字节）：没项目号就不起进程，
+  // 不再「跑完再静默丢本地文件」。runTask 在付费闸之前已按同一判据拒（tasks/projectFileResult）；这里兜住续查等其余调用者。
+  if (!input.projectId.trim()) throw new Error(desktopT("tasks.resultNeedsProject"));
   if (input.process.parser === "antigravity-cli-image") {
     if (!input.identity || !input.stage) throw new Error("ANTIGRAVITY_INVALID_CONFIG");
     assertCanonicalAntigravityProcessIdentity({ ...input.identity, stage: input.stage, process: input.process });
@@ -150,19 +154,17 @@ export async function executeProcessOperation(input: ProcessOperationInput): Pro
 
     // 本地下载文件导入项目素材 → nomi-local://；远端 URL 直接交给现有 buildProfileTaskResult 下载。
     const localUrls: string[] = [];
-    if (input.projectId) {
-      // 下载目录里的文件该是哪一类，只信这条任务的种类（不看文件扩展名）；说不清就不导入，远端 URL 照旧交给取回。
-      const expectedKind = input.identity ? localizedAssetTypeOf(billingKindForTaskKind(input.identity.taskKind as ProfileKind)) : null;
-      if (!expectedKind) throw new Error("PROCESS_OUTPUT_KIND_UNKNOWN");
-      for (const p of normalized.localPaths) {
-        if (!existsSync(p)) continue;
-        try {
-          const written = await input.writeAsset(input.projectId, readFileSync(p), path.basename(p), contentTypeFromPath(p), { kind: "generated" }, expectedKind) as { data?: { url?: string } };
-          const url = String(written.data?.url || "");
-          if (url && !localUrls.includes(url)) localUrls.push(url);
-        } catch {
-          /* 单个文件导入失败不阻断其余结果 */
-        }
+    // 下载目录里的文件该是哪一类，只信这条任务的种类（不看文件扩展名）；说不清就不导入，远端 URL 照旧交给取回。
+    const expectedKind = input.identity ? localizedAssetTypeOf(billingKindForTaskKind(input.identity.taskKind as ProfileKind)) : null;
+    if (!expectedKind) throw new Error("PROCESS_OUTPUT_KIND_UNKNOWN");
+    for (const p of normalized.localPaths) {
+      if (!existsSync(p)) continue;
+      try {
+        const written = await input.writeAsset(input.projectId, readFileSync(p), path.basename(p), contentTypeFromPath(p), { kind: "generated" }, expectedKind) as { data?: { url?: string } };
+        const url = String(written.data?.url || "");
+        if (url && !localUrls.includes(url)) localUrls.push(url);
+      } catch {
+        /* 单个文件导入失败不阻断其余结果（下载目录里可能同时有不是该种类的封面图） */
       }
     }
 

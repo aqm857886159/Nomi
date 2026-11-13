@@ -9,13 +9,13 @@ import { laneClient } from '../lane/laneClient'
 import { providerFailureText } from '../lane/laneCommandFailure'
 import { useLogUnclassifiedProviderFailures } from './useLogUnclassifiedProviderFailures'
 import { laneInterventionSource, laneViewModel } from '../lane/laneViewModel'
-import { humanizeToolFailure, readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
+import { readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
 import { laneToolFailureDetail, laneToolFailureSummary } from '../lane/laneToolFailureText'
 import { projectV4Intervention } from './agentPanelV4Intervention'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { listWorkbenchModelCatalogModels, listWorkbenchModelCatalogVendors, type ModelCatalogModelDto, type ModelCatalogVendorDto } from '../../api/modelCatalogApi'
 import { listWorkbenchSkills, type SkillListItemDto } from '../../api/skillApi'
-import { skillLabelForKey } from '../../skillLibrary/skillDisplay'
+import { skillForKey, skillLabelForKey } from '../../skillLibrary/skillDisplay'
 import { onSkillLibraryChanged } from '../../skillLibrary/skillLibraryChanged'
 import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from '../assistantModelIdentity'
 import { getAssistantModelPref, setAssistantModelPref } from '../assistantModelPref'
@@ -234,9 +234,9 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
   const view = React.useMemo(() => laneViewModel(snapshot.active, {
     toolLabel: toolDisplayCache.label,
     toolSummary: toolDisplayCache.summary,
-    // C5：有结构化信封就按 `code` 查本地词条；没有（旧转录）才退回按正文猜。
-    // **两条路都不再 `?? text`**——那个兜底正是把模型收到的英文散文印给用户的那一行。
-    toolFailure: (text, failure) => (failure ? laneToolFailureSummary(t, failure) : humanizeToolFailure(t, text)),
+    // C5：有结构化信封就按 `code` 查本地词条；没有就不说——**不按正文猜**（2026-11-07 删掉了那条正则老路：
+    // 入参失败的信封现在由宿主按入参重推，正文猜法只剩认错的份）。也不 `?? text`：那是模型读的英文散文。
+    toolFailure: (_text, failure) => (failure ? laneToolFailureSummary(t, failure) : undefined),
     toolFailureDetail: (failure) => laneToolFailureDetail(t, failure),
     assistantFailure: (text, facts) => providerFailureText(text, t, facts),
     assistantRecovered: t('agentPanelV4.errorRecovered'),
@@ -255,7 +255,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     // 封面与名字同一份目录、同一次查：气泡里那颗 chip 和 composer 上那颗（`liveChips`）
     // 因此长得一样，用户挂上去看见什么、发出去还是什么。
     skillMedia: (key) => {
-      const found = skills.find((skill) => skill.name === key)
+      const found = skillForKey(skills, key)
       return found ? { cover: found.cover, preview: found.preview } : undefined
     },
   }, undoableToolCallId), [snapshot.active, skills, skillLabel, t, toolDisplayCache, undoableToolCallId])
@@ -312,7 +312,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     const chips: V4Chip[] = []
     for (const attachment of attachments) chips.push({ id: attachment.id, kind: 'file', label: attachment.fileName, description: attachment.error })
     if (activeSkill) {
-      const skill = skills.find(s => s.name === activeSkill.key)
+      const skill = skillForKey(skills, activeSkill.key)
       chips.push({ kind: 'skill', label: skillLabel(activeSkill.key), cover: skill?.cover, preview: skill?.preview, description: skill?.description ?? undefined })
     } else if (selectedLibraryPrompt) chips.push({ kind: 'skill', label: selectedLibraryPrompt.title, cover: selectedLibraryPrompt.mediaType === 'image' ? selectedLibraryPrompt.mediaUrl : undefined, preview: selectedLibraryPrompt.mediaUrl ? { url: selectedLibraryPrompt.mediaUrl, type: selectedLibraryPrompt.mediaType } : undefined, description: selectedLibraryPrompt.prompt })
     for (const selection of timelineSelection.selections) {

@@ -27,8 +27,9 @@ test('C0 operation: active schema and skill agree; native rejection heals before
   const { shots: _omitted, ...missing } = plan;
   const result = await run(t, [{ ...missing, summary: '八镜分镜' }, plan], await skill());
   assert.equal(result.writes.length, 1);
-  assert.match(JSON.stringify(result.bodies[1]), /required properties shots/);
-  assert.match(JSON.stringify(result.bodies[1]), /must not have additional properties/);
+  // 2026-11-07：同一个格式器——缺的字段说缺、多的字段点名（不再是 pi 的「must not have additional properties」）。
+  assert.match(JSON.stringify(result.bodies[1]), /shots: required, but missing/);
+  assert.match(JSON.stringify(result.bodies[1]), /summary: no such field here/);
   const first = JSON.stringify(result.bodies[0]);
   const wire = result.bodies[0] as { tools: Array<{ function: { name: string; parameters: { required: string[] } } }> };
   const tool = wire.tools.find((entry) => entry.function.name === 'draft_shots');

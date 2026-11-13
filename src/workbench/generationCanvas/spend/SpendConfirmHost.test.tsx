@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import React from 'react'
+import { MantineProvider } from '@mantine/core'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -33,7 +34,8 @@ function productionSources(dir: string, out: string[] = []): string[] {
 
 describe('付费确认卡：点下去的同一帧就出来', () => {
   it('有待确认时，挂载点同一次渲染就交出真的卡', () => {
-    const markup = renderToStaticMarkup(<SpendConfirmHost />)
+    // 外壳是 DesignModal（Mantine）：env="test" 让它不经 portal、直接在这次渲染里交出卡。
+    const markup = renderToStaticMarkup(<MantineProvider env="test"><SpendConfirmHost /></MantineProvider>)
     expect(markup).toContain('data-spend-confirm-dialog')
     expect(markup).toContain('Generate this shot?')
   })

@@ -1,0 +1,14 @@
+Original SHA256: a34fea91eece29e877dd2809db53bc26a9db1cc74918555c76152922e7ca6294
+
+> nomi@0.24.1 typecheck <worktree>
+> node ./scripts/typecheck.mjs
+
+✅ tsc app（17.5s）
+✅ tsc electron（9.8s）
+✅ tsc electron-pi（5.1s）
+✅ tsc fixtures（12.7s）
+✅ check:test-types（27.9s）
+    ✅ agent-runtime 测试类型通过：0 个错误
+    ✅ 测试类型门岗通过：src/ 0 错；存量 10 个（electron/ + evals/ + scripts/，棘轮只减不增）
+
+typecheck：5 份并发，墙钟 27.9s（串行相加 73.1s）

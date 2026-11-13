@@ -18,7 +18,7 @@ function InspectorCell({ clipId, textClipId, height }: { clipId?: string; textCl
   const timeline = useLabTimeline(clipId ?? '', textClipId ?? '')
   return (
     <InspectorStage height={height}>
-      <PreviewInspector timeline={timeline} collapsed={false} onToggleCollapsed={NOOP} />
+      <PreviewInspector timeline={timeline} collapsed={false} onExpand={NOOP} onCollapse={NOOP} />
     </InspectorStage>
   )
 }

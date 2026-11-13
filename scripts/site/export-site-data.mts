@@ -17,6 +17,7 @@ import { discoverSkillRecords } from "../../electron/agentLane/laneSkillCatalog.
 import { applyBuiltinSeeds } from "../../electron/catalog/seedBuiltins.ts";
 import type { CatalogState } from "../../electron/catalog/types.ts";
 import { PROMPT_SOURCES } from "../../electron/promptLibrary/promptSources.ts";
+import { aspectRatioControlKey, aspectRatioControlsOf } from "../../electron/shared/aspectRatioValue.ts";
 import { MODEL_ARCHETYPES } from "../../electron/shared/modelArchetypes/index.ts";
 import { dedupeModelOptions, modelCatalogLifecycle } from "../../src/config/modelIdentity.ts";
 import { toCatalogModelOptions } from "../../src/config/modelOptionMappers.ts";
@@ -89,10 +90,13 @@ function factsFor(archetypeIds: readonly string[]): ModelFacts {
         const max = typeof slot.max === "number" ? slot.max : null;
         facts.references[slot.kind] = previous === undefined ? max : previous === null || max === null ? (previous ?? max) : Math.max(previous, max);
       }
+      const ratioKey = aspectRatioControlKey(aspectRatioControlsOf(mode.params ?? []));
       for (const param of mode.params ?? []) {
         const options = (param.options ?? []).map((option) => String(option.value));
         if (param.key === "resolution") options.forEach((value) => pushUnique(facts.resolutions, value));
-        if (param.key === "aspect_ratio") options.forEach((value) => pushUnique(facts.aspectRatios, value));
+        // 「这是比例控件」只认 App 自己的判据（aspectRatioControlKey：这个模式里唯一一个选项全是比例的控件，
+        // Agent 落比例、参数面板认比例控件都走它），不按 key 名：GPT Image 2.6 的比例控件叫 size。
+        if (param.key === ratioKey) options.forEach((value) => pushUnique(facts.aspectRatios, value));
         if (param.key === "generate_audio") facts.audio = true;
         if (param.key === "duration") {
           const current = facts.durationSeconds ?? {};

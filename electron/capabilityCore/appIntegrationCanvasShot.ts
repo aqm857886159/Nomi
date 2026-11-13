@@ -14,7 +14,7 @@
  *
  * 交出去之后：提交出口（意向日志 → 交 → 受理 / 结果未知 / 明确拒绝）→ 画布那台的传输（`canvasTransportProvider`）。
  * 等结果仍由渲染层驱动，但每一次「查」都经 Run 的 poll / materialize（F2）；渲染层不在了（关窗、崩溃、重启、点了停）
- * 由主进程观察者接手。
+ * 由主进程观察者接手；它收尾了摇渲染层按这一次的运行记录号去收（`canvasShotSettledBell`）。
  *
  * 准入（批之前，什么都没写）：同节点在途（进程内 + 盘上的「没收尾」标记）、3D-BOX 预演闸、绑定了制作镜头的节点先经唯一判定口
  * 认领那一镜（`decideShotClaim` → reducer `shot.claim`，两个 Run 争同一镜只剩这一处写）。
@@ -32,7 +32,9 @@ import {
   canvasLastResult,
   type CanvasTaskResult,
 } from "./canvasTransportProvider";
-import { blockingReason, failedResult, latestJob, readyArtifact, resultFromArtifact } from "./canvasShotResult";
+import { blockingReason, failedResult, latestJob, readyArtifacts, resultFromArtifacts } from "./canvasShotResult";
+import { createCanvasShotSettledBell } from "./canvasShotSettledBell";
+import type { CanvasShotSettledNotice } from "../shared/canvas/canvasShotSettled";
 import { freezeCanvasExecutionContract, type PlanCandidate } from "./executionContract";
 import type { GenerationProvider } from "./generationRuntimeAdapter";
 import { mainProcessGateApproval } from "./runOwnedGenerationGateAuthority";
@@ -131,6 +133,8 @@ export type CanvasShotDeps = {
   quote: (input: { vendorKey: string; modelKey: string; parameters: Record<string, unknown> }) => ShotPrice;
   /** 交给主进程观察者（渲染层不在时）。 */
   observe: (submission: ProductionGenerationSubmission, projectId: string, runId: string) => void;
+  /** 交给观察者的那一笔收尾了：摇渲染层按这一次的运行记录号去收（canvasShotSettledBell）。 */
+  notifySettled: (notice: CanvasShotSettledNotice) => Promise<unknown>;
   now?: () => string;
 };
 
@@ -205,6 +209,13 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     };
   }
 
+  const bell = createCanvasShotSettledBell({ identity, notify: deps.notifySettled });
+  /** 交给观察者的每一笔都记下，它一收尾就摇渲染层（渲染层拿回去查了就不记）。 */
+  function observe(submission: ProductionGenerationSubmission, projectId: string, runId: string): void {
+    bell.handedOff(projectId, runId);
+    deps.observe(submission, projectId, runId);
+  }
+
   function submissionFor(projectId: string): ProductionGenerationSubmission {
     const { lease, projectRoot } = identity(projectId);
     return deps.buildSubmission({
@@ -225,7 +236,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     for (const open of openCanvasRuns(projectRoot, input.nodeId)) {
       const run = repository().read(input.projectId, open.runId);
       const reason = consentedDraft(run) ? null : blockingReason(run);
-      if (!reason) { if (!consentedDraft(run)) markCanvasRunSettled(projectRoot, open.runId); continue; }
+      if (!reason) { if (!consentedDraft(run)) bell.settledOutside(projectRoot, open.runId, run); continue; }
       const job = latestJob(run!);
       entries.set(open.runId, { runId: open.runId, ...(job ? { jobId: job.jobId } : {}), reason, hasTaskId: Boolean(job?.providerTaskId), nodeId: run?.origin.nodeId ?? input.nodeId ?? '' });
     }
@@ -254,7 +265,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       markCanvasRunSettled(projectRoot, entry.runId);
       leases.delete(entry.runId);
       nodesInFlight.get(`${input.projectId}\u0000${input.nodeId}`)?.delete(entry.runId);
-      if (entry.hasTaskId) deps.observe(submissionFor(input.projectId), input.projectId, entry.runId);
+      if (entry.hasTaskId) observe(submissionFor(input.projectId), input.projectId, entry.runId);
     }
   }
 
@@ -525,8 +536,8 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     if (!job) throw coded(`node_generation_in_flight: ${run.runId}`, "node_generation_in_flight", "in_flight");
     if (job.status === "submission_unknown" || job.status === "reconciling")
       throw new Error(tagNomiError("submission-unknown", job.errorMessage || "The previous request got no result"));
-    const artifact = readyArtifact(run, job);
-    if (artifact) return resultFromArtifact(run, job, artifact, kind);
+    const [artifact, ...more] = readyArtifacts(run, job);
+    if (artifact) return resultFromArtifacts(run, job, [artifact, ...more], kind);
     if (job.status === "needs_attention") return failedResult(job, kind);
     if (job.providerTaskId) return { id: job.providerTaskId, kind, status: "queued", assets: [], raw: {} };
     throw coded(`node_generation_in_flight: ${run.runId}`, "node_generation_in_flight", "in_flight");
@@ -548,7 +559,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       job = latestJob(run) ?? job;
       if (run.origin.nodeId) markCanvasRunOpen(projectRoot, runId, run.origin.nodeId);
     }
-    const existing = readyArtifact(run, job);
+    const [existing] = readyArtifacts(run, job);
     if (existing) {
       // 产物已在账上，job 没跟上（崩在落地中途）：交给提交出口补齐，下面才收得了尾。
       if (!["ready", "adopted"].includes(job.status)) {
@@ -560,8 +571,10 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
           logWarn("production-run", "canvas-shot-finish-landing-failed", { runId }, error);
         }
       }
-      settle(projectId, projectRoot, runId, job, existing.artifactId);
-      return resultFromArtifact(run, job, existing, kind);
+      // 补齐之后再读一遍：一次出几张，回话里就是这笔作业落进账的那几张。
+      const [first, ...more] = readyArtifacts(run, job);
+      settle(projectId, projectRoot, runId, job, (first ?? existing).artifactId);
+      return resultFromArtifacts(run, job, first ? [first, ...more] : [existing], kind);
     }
     if (job.status === "needs_attention") {
       settle(projectId, projectRoot, runId, job);
@@ -599,13 +612,13 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       // 这一笔还没收尾（崩在落地中途）：渲染层拿到结果就不会再来，交给观察者下一次查时补齐，节点才不会一直被锁着。
       else {
         leases.delete(runId);
-        deps.observe(submission, projectId, runId);
+        observe(submission, projectId, runId);
       }
     }
     run = repository().read(projectId, runId) ?? run;
     job = latestJob(run) ?? job;
-    const artifact = readyArtifact(run, job);
-    return last ?? (artifact ? resultFromArtifact(run, job, artifact, kind) : failedResult(job, kind));
+    const [artifact, ...more] = readyArtifacts(run, job);
+    return last ?? (artifact ? resultFromArtifacts(run, job, [artifact, ...more], kind) : failedResult(job, kind));
   }
 
   /**
@@ -667,7 +680,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
         return;
       }
       if (!run || !blockingReason(run)) {
-        if (!consentedDraft(run)) markCanvasRunSettled(projectRoot, runId);
+        if (!consentedDraft(run)) bell.settledOutside(projectRoot, runId, run);
         return;
       }
       const job = latestJob(run);
@@ -676,7 +689,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
         return;
       }
       if (productionJobPhase(job.status) !== "generating") return;
-      deps.observe(submissionFor(projectId), projectId, runId);
+      observe(submissionFor(projectId), projectId, runId);
     } catch (error) {
       logWarn("production-run", "canvas-shot-handoff-failed", { runId }, error);
     }
@@ -767,6 +780,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       const runId = canvasRunIdFor(input.runRecordId);
       if (!repository().read(input.projectId, runId)) return null;
       leases.set(runId, { projectId: input.projectId, senderId: input.senderId, touchedAt: Date.now() });
+      bell.reclaimed(input.projectId, runId);
       return pollRun(input.projectId, runId);
     },
     /** 渲染层不再等这一笔（点了停）：还在路上的交给观察者收完，钱花了的结果照样进项目；还没交的同意收回。 */
@@ -790,6 +804,8 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     /** 打开项目：只看还挂着「没收尾」标记的画布 Run；没人在等的交给观察者，没人会再交的同意收回，收尾了的删标记。 */
     /** Read the same occupancy as admission; rejected renderer records are not Run identities. */
     canvasOpenRuns: readCanvasOpenRuns,
+    /** 仓库每一次耐久变化（appIntegration 的事件旁路）：交给观察者的那一笔收尾了就摇渲染层。 */
+    followRunChange: bell.followRunChange,
     recoverOrphans(projectId: string): void {
       const projectRoot = deps.resolveProjectRoot(projectId);
       if (!projectRoot) return;
@@ -807,6 +823,7 @@ export type CanvasShotRuns = ReturnType<typeof createCanvasShotRuns>;
 export {
   consentCanvasShots,
   canvasOpenRuns,
+  followCanvasShotChange,
   installCanvasShotRuns,
   pollCanvasShot,
   releaseCanvasShot,

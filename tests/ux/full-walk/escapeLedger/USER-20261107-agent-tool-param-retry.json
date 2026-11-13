@@ -1,0 +1,36 @@
+{
+  "id": "USER-20261107-agent-tool-param-retry",
+  "since": "2026-11-07",
+  "source": "用户反馈 Agent「经常出现什么参数不对 重试等问题」；公开条目仅记录现象。",
+  "category": "agent-convergence",
+  "problem": "Agent 调工具时同一个参数一错再错、反复重试：模型读到的拒收正文不说哪个字段、该填什么（或是一整段 issue JSON），形状错连发多少次熔断都数不到；面板只显示「参数不合法」。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "fixedInPr": 1435,
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-07-agent-tool-failure-boundary.md",
+    "docs/plan/2026-11-07-agent-tool-failure-boundary.direction-check.md",
+    "electron/agentLane/laneToolInputBoundary.test.ts",
+    "src/workbench/ai/lane/laneToolFailureText.test.ts",
+    "tests/perf/scenarios/agent-tool-input-boundary-50.json",
+    "实现线：工具失败走一个边界（一份清单、一个正文、一个熔断、一个遥测），25 条起草错写过真 lane 逐条钉住；协调开 PR 后转 fixed（#1435），独立验收在这之后。"
+  ],
+  "completionCommits": [
+    "f40fb22ce",
+    "cdb2d35e1",
+    "e9093aa79",
+    "7bc8d14f2",
+    "dd48d2298",
+    "02fba146c",
+    "4d6a093cb"
+  ],
+  "rootCauseContract": "docs/fixes/2026-11-07-agent-tool-failure-boundary.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/agentLane/laneToolInputBoundary.test.ts"
+  }
+}

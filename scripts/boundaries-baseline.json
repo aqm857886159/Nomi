@@ -76,7 +76,6 @@
     "src/workbench/workspace/useWorkspaceFiles.ts -> electron/workspace/workspaceFileIndex.ts"
   ],
   "no-new-static-circular": {
-    "electron/assets/localFileImport.ts | electron/audioTaskRunner.ts | electron/runtime.ts": "electron/assets/localFileImport.ts -> electron/runtime.ts -> electron/audioTaskRunner.ts -> electron/assets/localFileImport.ts",
     "electron/runtime.ts | electron/tasks/taskResultQuery.ts": "electron/runtime.ts -> electron/tasks/taskResultQuery.ts -> electron/runtime.ts",
     "electron/runtime.ts | electron/textTaskRunner.ts": "electron/runtime.ts -> electron/textTaskRunner.ts -> electron/runtime.ts",
     "src/ui/onboarding/AddComfyuiInstanceButton.tsx | src/ui/onboarding/ComfyuiLocalCard.tsx | src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx | src/ui/onboarding/workflowPage/WorkflowSidebar.tsx": "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx -> src/ui/onboarding/workflowPage/WorkflowSidebar.tsx -> src/ui/onboarding/AddComfyuiInstanceButton.tsx -> src/ui/onboarding/ComfyuiLocalCard.tsx -> src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx",

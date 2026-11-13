@@ -1,0 +1,139 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-07-prompt-outbound-description",
+  "detected_by": "user",
+  "problem_type": "参考卡出站提示词不是描述框里的字：有结构化特征就整段丢掉描述",
+  "symptom": "用户在创作区一路生成的定妆卡出了没要的插画风，提示词里看不到风格词；在创作区把描述框改成别的风格，出站提示词纹丝不动。",
+  "direct_cause": "electron/shared/storyboard/storyboardPromptCompiler.ts 的 anchorIdentityBody：staticFeatures 或 dynamicFeatures 任一非空时只拼这两个字段，完全跳过 description；Agent 起草时风格词写在 description 里，被丢掉。",
+  "class_root": "「发出去的 = 框里的字 + 可见引用」这条原则 2026-09-30 只收成了镜头行的唯一出口 compileShotOutbound 并配了对等测试，参考卡出站（buildAnchorSheetPrompt）和画布节点出站（buildCatalogTaskRequest）没有被纳入同一类检查，于是任一处加一步「顺手带上 / 顺手丢掉」都没有门岗拦。",
+  "migration": "已落画布的参考卡 node.prompt 不动；只在创作区改描述或点重生成时按新规则重编。description 为空的旧草稿退回旧写法，与升级前逐字相同。旧的「有结构化特征就丢 description」分支同提交删除，没有开关。",
+  "affected_population": [
+    "所有带 staticFeatures / dynamicFeatures 的角色、场景、道具参考卡（Agent 起草的参考卡几乎都带）",
+    "从生成、放到画布、整方案落画布、批量、重生成任一入口发出的参考卡"
+  ],
+  "scope_paths": [
+    "electron/shared/storyboard/",
+    "src/workbench/generationCanvas/agent/",
+    "src/workbench/creation/storyboard/exec/"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/agent/storyboardPlan.ts:212 buildAnchorSheetPrompt（整方案落画布 / 放到画布 / 生成建卡）",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts:398 buildAnchorSheetPrompt（生成已有卡 / 重生成的写回）"
+  ],
+  "invariants": [
+    "参考卡出站提示词的正文就是 anchor.description 的原文（trim 后），风格词写在框里就一定发出去",
+    "staticFeatures / dynamicFeatures 不追加进提示词；仅 description 为空的旧草稿退回它们",
+    "所有已登记入口的出站与编译层出口逐字相同；还没守住的地方登记成带账本序号、且被测试钉住的例外"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/shared/storyboard/storyboardPromptCompiler.ts",
+      "symbol": "buildAnchorSheetPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "buildAnchorSheetPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+      "symbol": "buildAnchorSheetPrompt"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "两扇门本来就都调同一个编译函数 buildAnchorSheetPrompt：一扇是落画布建卡，一扇是已有卡的写回，职责不同、都只做消费者；本次把「描述被丢」改在函数内部（最早的共享边界），两扇门因此同时被修好，不需要合并。"
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/exec/outboundContract.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlan.test.ts"
+  ],
+  "residual_risks": [
+    "账本序号 2–9 的已知例外（批量沿用旧卡提示词、构图参考后缀、空白整理、首帧借用视频框、孤儿 @ 删除、适配器 trim、版面外壳、质检重试后缀）本次不修，各自被测试钉住，修好会逼着删表项",
+    "创作区的描述框不显示 staticFeatures / dynamicFeatures，它们现在不进提示词，只留在节点 meta；是否需要在界面露出另行决定",
+    "生图画风因果（描述丢失是否就是用户那次插画风的原因）没有对照生图证明，由协调的一次付费对照补"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://learn.microsoft.com/en-au/Azure/foundry/openai/concepts/prompt-transformation",
+      "checked_at": "2026-11-07",
+      "purpose": "图像模型自身会改写提示词且不可关，只在 revised_prompt 里事后告知，所以我们这层不能再加看不见的改写"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "只要有人在任一入口编请求时「顺手带上」或「顺手丢掉」一段字，框里与发出去的就会再分叉；已有的七处同类（账本序号 2–8）和质检后缀都是这种形状。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs buildAnchorSheetPrompt → 2 扇写入口（storyboardPlan.ts:212、storyboardRowActions.ts:398）",
+      "node scripts/door-map.mjs buildCatalogTaskRequest → 读入口 imageActions.ts:11、videoActions.ts:11，写入口 catalogTaskActions.ts:577",
+      "node scripts/door-map.mjs compileShotOutbound → 镜头行入口，已由 shotOutbound.parity.test.ts 守",
+      "node scripts/door-map.mjs projectPromptForSend → 5 扇（agentUserContent.ts、executionContract.ts、taskParams.ts、parityDrive.ts、catalogTaskActions.ts），空白整理与孤儿 @ 删除登记为例外"
+    ]
+  },
+  "generality_proof": "描述丢失改在编译层唯一出口 buildAnchorSheetPrompt，两扇消费者同时修好；outboundContract.test.ts 把 入口 × 卡种 × 字段形状 遍历成矩阵，新入口、新卡种、旧数据形状进来都会红；在编译函数里恢复旧分支会让 60 条变红。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/storyboard/storyboardPromptCompiler.ts",
+      "symbol": "buildAnchorSheetPrompt",
+      "responsibility": "参考卡出站提示词的唯一出口：正文就是 description，不追加看不见的字。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "entry_point": "generateAnchorCard / regenerateAnchorCard",
+      "disposition": "enforced",
+      "evidence": "两者经 syncAnchorNodeWithCard 或 storyboardAnchorToCreateNodesArgs 取 buildAnchorSheetPrompt；outboundContract.test.ts 逐入口、逐卡种、逐字段形状断言。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+      "entry_point": "storyboardPlanToCreateNodesArgs",
+      "disposition": "enforced",
+      "evidence": "整方案落画布与放到画布都经 buildAnchorCardNode 取同一个出口，矩阵里有这两个入口。"
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardPromptCompiler.ts",
+      "entry_point": "compileShotOutbound",
+      "disposition": "not-affected",
+      "evidence": "镜头行已是 2026-09-30 的唯一出口，shotOutbound.parity.test.ts 守；本次没有改它。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/storyboard/storyboardPromptCompiler.ts",
+    "invariant": "参考卡出站提示词只由 buildAnchorSheetPrompt 算出，正文就是 description。",
+    "failure_mode": "有人恢复「有结构化特征就丢 description」或往正文追加看不见的字，outboundContract.test.ts 的矩阵当场变红。",
+    "exception_policy": "none",
+    "strategy": "把描述丢失修在唯一出口，并把「发出去 = 框里的字」做成 入口 × 卡种 × 字段形状 的契约矩阵，未守住的例外登记在表里并被钉住、只减不增。",
+    "artifacts": [
+      "electron/shared/storyboard/storyboardPromptCompiler.ts",
+      "src/workbench/creation/storyboard/exec/outboundContract.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/creation/storyboard/exec/outboundContract.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/storyboard/storyboardPromptCompiler.ts"
+    ],
+    "rationale": "「有 static / dynamic 就丢 description、把结构化特征拼进正文」的分支在同提交删除，没有开关、没有兜底；只保留 description 为空的旧草稿退回旧写法。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "编译层是 Nomi 自己的纯函数，没有第三方运行时参与。",
+    "exit_criteria": []
+  },
+  "recurrence_check_on": "2026-12-07",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/storyboard/storyboardPromptCompiler.ts",
+    "tests": [
+      "src/workbench/creation/storyboard/exec/outboundContract.test.ts"
+    ]
+  }
+}
