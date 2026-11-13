@@ -23,6 +23,12 @@ export const LAB_ORIGIN = labOriginFor('visual')
 // 门岗要靠它去数 -diff.png，两边对不上就会数出「零张差异图」这种致命的假证据。
 export const LAB_RESULTS_DIR = path.join(REPO_ROOT, 'test-results')
 
+// 并发数：默认 1（本机与历史行为不变）；CI 的 macOS 作业用 NOMI_DESIGN_LAB_WORKERS 打开同机并发。
+// 180 条用例全在一个 spec 文件里、串行跑要 16.9 分钟（实测 2026-11-13），是 PR 等检查的关键路径之一。
+// 只改并发、不改任何比对参数 / 容差 / 基线；每条用例各开一个 page，互不共享状态。多于 1 个 worker 才允许文件内并行。
+const workers = Number(process.env.NOMI_DESIGN_LAB_WORKERS ?? 1)
+if (!Number.isInteger(workers) || workers < 1 || workers > 4) throw new Error(`NOMI_DESIGN_LAB_WORKERS 要是 1–4 的整数，收到 ${process.env.NOMI_DESIGN_LAB_WORKERS}`)
+
 export default defineConfig({
   testDir: '.',
   // 冷启动的 vite 会在头几条用例中间做完预打包并整页 reload，撞上去要么等不到就绪旗、
@@ -38,8 +44,8 @@ export default defineConfig({
   // 去找一份根本不存在的 linux 基线然后报「snapshot missing」（那是假红，看不出真因）。
   snapshotPathTemplate: '{testDir}/__baselines__/{arg}{ext}',
   outputDir: LAB_RESULTS_DIR,
-  fullyParallel: false,
-  workers: 1,
+  fullyParallel: workers > 1,
+  workers,
   reporter: [['list']],
   // 任何一趟都不写基线：基线只从 CI 那次运行的 -actual.png 取回（pnpm run design-lab:accept）。
   updateSnapshots: 'none',

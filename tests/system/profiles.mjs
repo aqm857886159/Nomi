@@ -8,7 +8,11 @@ const stage = (id, command, args = [], options = {}) => ({
 
 export const STAGES = {
   matrix: stage("matrix", "node", ["scripts/test-capability-matrix.mjs"]),
-  contracts: stage("contracts", "pnpm", ["run", "gates:contracts"]),
+  // CI 把 Contracts 的同一份门岗清单切成两半并行跑：最慢的真入口测试（check:claude-hooks-real-entry，约 8 分钟）
+  // 单独一个作业（contracts-hooks），其余在 contracts。切法由 run-gates-contracts 的 --except / --only 实现，
+  // check:gates-chain 核对「每个 --except 的门都有 --only 作业接手」。本机 gates / gates:contracts 不传参，仍是全量。
+  contracts: stage("contracts", "pnpm", ["run", "gates:contracts", "--except=check:claude-hooks-real-entry"]),
+  "contracts-hooks": stage("contracts-hooks", "pnpm", ["run", "gates:contracts", "--only=check:claude-hooks-real-entry"]),
   unit: stage("unit", "pnpm", ["run", "test"]),
   // 显式全量档（full-local / release）永远跑 gates:full：默认 gates 自 2026-09-12 起按风险分档，
   // 若这里跟着默认走，「显式全量本地验证」就会被悄悄降级成 focused（R22）。
@@ -39,6 +43,7 @@ export const PROFILES = {
   quick: ["matrix", "unit"],
   ci: ["matrix", "unit", "build", "e2e", "journeys-ci", "real-user-journeys"],
   "ci-contracts": ["contracts"],
+  "ci-contracts-hooks": ["contracts-hooks"],
   "ci-unit": ["unit"],
   "ci-desktop": ["build", "e2e"],
   "ci-journeys": ["journeys-ci", "real-user-journeys"],
