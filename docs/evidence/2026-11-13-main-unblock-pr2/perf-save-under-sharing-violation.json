@@ -1,0 +1,59 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "2a8d39c86",
+  "head": "2a8d39c86929d5b6cc8b74d7039c8154a605dc92",
+  "dirty": false,
+  "sourceTree": "8a3550c66066d003ab6cfaf4ffe2055ae9da8cc1",
+  "date": "2026-11-13",
+  "runs": 5,
+  "results": [
+    {
+      "id": "save-under-sharing-violation",
+      "metrics": {
+        "saveMainStallMaxMs": {
+          "runs": 5,
+          "median": 35.6,
+          "p95": 49.5
+        },
+        "saveSyncSleepMs": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        },
+        "saveWallMs": {
+          "runs": 5,
+          "median": 2617.3,
+          "p95": 2650.6
+        }
+      },
+      "samples": {
+        "saveMainStallMaxMs": [
+          50.22416699999985,
+          46.66508299999987,
+          35.619958000001134,
+          31.389625000001615,
+          34.204750000000786
+        ],
+        "saveSyncSleepMs": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "saveWallMs": [
+          2650.933041,
+          2649.0459170000004,
+          2615.0288340000006,
+          2617.272167000001,
+          2614.0059170000004
+        ]
+      },
+      "budget": 100,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

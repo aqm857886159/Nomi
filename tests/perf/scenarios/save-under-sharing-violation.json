@@ -16,10 +16,14 @@
     "saveWallMs"
   ],
   "budget": 100,
-  "budgetStatus": "proposed",
+  "budgetStatus": "approved",
   "budgetBasis": "主指标 saveMainStallMaxMs = 保存期间事件循环最大延迟（主进程上别的请求被挡多久），预算取默认 ≤100ms；saveSyncSleepMs（原地睡的毫秒数）应为 0，saveWallMs 只打印（占用 2 秒则保存约 2 秒后完成）。修前同样占用下主进程会原地睡约 400ms 并多次重试。",
-  "measurement": {
-    "state": "pending",
-    "reason": "基线要在安静窗口（负载低于 10）由协调会话量完批准后写入；实现线只交数字，不写基线"
+  "baseline": {
+    "median": 35.6,
+    "p95": 49.5,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-13",
+    "commit": "2a8d39c86"
   }
 }
