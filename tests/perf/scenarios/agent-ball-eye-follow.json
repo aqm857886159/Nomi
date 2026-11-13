@@ -17,10 +17,14 @@
   ],
   "budget": 33,
   "group": "⑨ Agent 流式输出时操作画布",
-  "budgetStatus": "proposed",
+  "budgetStatus": "approved",
   "budgetBasis": "鼠标移动是连续手势、眼睛要跟手：60Hz 下 p95 帧间隔不超过 2 帧（33ms），仓库默认预算同此；同组的 canvas-pan-while-agent-streaming 基线中位 7.9ms（10-16，Windows i9）；跟随只写两个 CSS 变量、一帧最多算一次，不该比平移更重。零重渲染 / 空闲零帧是结构断言（agentBallEyeFollowScenario.mjs），不靠机器快慢",
-  "measurement": {
-    "state": "pending",
-    "reason": "量具已写好，实现线在 Mac 上跑的冒烟和 5 次只量不写的数字贴在 PR；基线由验收线或协调在安静窗口写"
+  "baseline": {
+    "median": 11.4,
+    "p95": 11.5,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-13",
+    "commit": "17a1ae0c4"
   }
 }
