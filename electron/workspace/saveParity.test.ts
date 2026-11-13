@@ -20,6 +20,8 @@ type Fault = Readonly<{
   file?: string;
   /** 只在这个文件名第一次被改名「之后」才注入（「刚写下的文件被杀毒开着」）。 */
   afterRenameOf?: string;
+  /** 前几次符合条件的调用放过（「读回比对那一次读到了，求指纹那一次被占」）。 */
+  skipFirst?: number;
   code: string;
   /** 持续多久（假时钟毫秒，从第一次注入起）；Infinity = 一直占着。 */
   holdMs: number;
@@ -81,6 +83,7 @@ async function runSave(fault?: Fault) {
   const injectedAt: string[] = [];
   const renamed = new Set<string>();
   let firstInjectAt: number | null = null;
+  let skipped = 0;
   let active = true;
   const inProject = (file: unknown): boolean => String(file).startsWith(projectRoot + path.sep);
   const maybeFail = (operation: Operation, file: unknown): void => {
@@ -88,6 +91,10 @@ async function runSave(fault?: Fault) {
     const name = path.basename(String(file));
     if (fault.file && name !== fault.file) return;
     if (fault.afterRenameOf && !renamed.has(fault.afterRenameOf)) return;
+    if (skipped < (fault.skipFirst ?? 0)) {
+      skipped += 1;
+      return;
+    }
     firstInjectAt ??= Date.now();
     if (Date.now() - firstInjectAt >= fault.holdMs) return;
     injectedAt.push(`${operation} ${name}`);
@@ -508,6 +515,96 @@ describe("保存对外行为对照（和 origin/main 录下的指纹逐字相同
 
   it("刚写下的清单被杀毒开着读不了（读回 / 求指纹那一次）", async () => {
     expect(await runSave({ operation: "read", file: "project.json", afterRenameOf: "project.json", code: "EBUSY", holdMs: Infinity })).toMatchInlineSnapshot(`
+      {
+        "baseline": {
+          "hashMatchesManifest": false,
+          "revision": 0,
+        },
+        "error": {
+          "code": "EBUSY",
+          "ipc": {
+            "code": "EBUSY",
+            "errno": null,
+            "kind": "in-use",
+            "stage": "save-project",
+            "syscall": "open",
+          },
+          "message": "injected EBUSY read",
+          "name": "Error",
+        },
+        "files": {
+          "projects/project/.nomi/project.backup.json": "{
+        "id": "<id>",
+        "name": "Parity",
+        "version": 2,
+        "createdAt": 1794528000000,
+        "updatedAt": 1794528000000,
+        "savedAt": 1794528000000,
+        "revision": 0,
+        "immutableProjectUuid": "<uuid>",
+        "projectGeneration": 1,
+        "lastKnownRootPath": "<root>/projects/project",
+        "payload": {
+          "text": "before"
+        }
+      }
+      ",
+          "projects/project/.nomi/project.json": "{
+        "id": "<id>",
+        "name": "Parity",
+        "version": 2,
+        "createdAt": 1794528000000,
+        "updatedAt": 1794528000000,
+        "savedAt": 1794528000000,
+        "revision": 1,
+        "immutableProjectUuid": "<uuid>",
+        "projectGeneration": 1,
+        "lastKnownRootPath": "<root>/projects/project",
+        "payload": {
+          "text": "after"
+        }
+      }
+      ",
+          "settings/recent-workspaces.json": "[
+        {
+          "id": "<id>",
+          "name": "Parity",
+          "rootPath": "<root>/projects/project",
+          "lastOpenedAt": 1794528000000,
+          "missing": false,
+          "source": "native",
+          "nativeRootPath": "<root>/projects"
+        }
+      ]
+      ",
+          "settings/workspace-sync-baseline.json": "{
+        "schemaVersion": 1,
+        "projects": {
+          "<id>": {
+            "rootPath": "<root>/projects/project",
+            "revision": 0,
+            "contentHash": "<sha256>"
+          }
+        }
+      }
+      ",
+        },
+        "injectedAt": [
+          "read project.json",
+        ],
+        "receipt": null,
+        "revision": 1,
+        "syncWait": {
+          "elapsedMs": 0,
+          "sleeps": [],
+          "totalMs": 0,
+        },
+      }
+    `);
+  });
+
+  it("刚写下的清单读回比对读到了，提交后求指纹那一次被占", async () => {
+    expect(await runSave({ operation: "read", file: "project.json", afterRenameOf: "project.json", skipFirst: 1, code: "EBUSY", holdMs: Infinity })).toMatchInlineSnapshot(`
       {
         "baseline": {
           "hashMatchesManifest": false,
