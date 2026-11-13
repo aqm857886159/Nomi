@@ -830,6 +830,11 @@ className="transition-[background,color] duration-nomi-fast ease-nomi-fast"
 `DesignModal`（8 个文件）。2026-09-07 删除 `DesignDrawer`：生产 0 调用，且全仓没有抽屉形态
 （`OnboardingDrawer` 名字里带 Drawer，实际是设置对话框里的一页，不走 Mantine `Drawer`）。
 
+**弹窗的高度与滚动（强制 · 2026-11-09 用户拍板）**：弹窗最高 = 窗口内容区减上下留白；标题栏和决定栏不滚，中间内容区自己滚；决定栏在任何窗口尺寸、任何语言下都完整可见。
+- 外壳 `DesignModal` 管这一条：决定栏放进 `actions` 插槽，内容放 children。弹窗自己不写高度上限（`max-h-[calc(100vh-…)]` 之类）、不在外层再套滚动。
+- 中间区超高时默认整块滚。中间区里有一段长清单、清单下面还有要一直看得见的东西（留言框、发送后的说明）时，弹窗传 `innerScroll`（中间区成一列），内容根 `flex min-h-0 flex-col`、清单 `min-h-0 overflow-y-auto`——清单先缩、单独滚，窗口多高给多高，不写高度数字（反馈卡就是这样）。不要默认成列：成列后内容里自带滚动的段落会被压扁（花钱确认的勾选清单试过）。
+- 起因：反馈卡在 App 最小窗口（1100×720）+ 英文下「发送」被滚动区裁掉（夜跑 #076）；当时 5 个弹窗各写一份高度魔数。设计卡 `docs/plan/2026-11-09-min-window-dialog-clip.md`。
+
 **锚点浮层**：`AnchoredPopover`（2 个文件）。⚠️ 它**不是**「全站唯一的浮层定位机制」——
 全仓实有四套（本组件 / Radix tooltip / Mantine Modal / **8 处手写 `getBoundingClientRect()+createPortal`**），
 详见 `src/design/AnchoredPopover.tsx` 顶部注释里的逐处清单与收口方向。

@@ -113,7 +113,7 @@ export async function generateOnce(win, t, { model = /GPT Image 2(?!\.)/, prompt
   await win.locator(`[aria-label="${t.model}"]`).first().click()
   await win.getByRole('option', { name: model }).first().click()
   await win.locator(`[aria-label="${t.generateAsset}"]`).first().click()
-  const confirm = win.locator('.fixed.inset-0').last().getByRole('button', { name: t.confirm, exact: true })
+  const confirm = win.locator('[data-spend-confirm-dialog]').last().getByRole('button', { name: t.confirm, exact: true })
   if (await confirm.count()) await confirm.first().click()
   await win.waitForFunction(() => [...document.querySelectorAll('[data-node-id] img')]
     .some((img) => img.complete && img.naturalWidth > 200), undefined, { timeout })

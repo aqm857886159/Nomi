@@ -144,7 +144,7 @@ try {
   // first project-open write.
   await window.waitForTimeout(1_000)
   const gatePromise = mcp.callTool('nomi_operation_gate', { phase: 'request', leaseHandle, projectId, operationId }, { timeoutMs: 90_000 })
-  const gateCard = window.locator('.fixed.inset-0').filter({ hasText: '允许 Nomi 生成这一镜？' })
+  const gateCard = window.locator('[data-spend-confirm-dialog]').filter({ hasText: '允许 Nomi 生成这一镜？' })
   await gateCard.waitFor({ timeout: 20_000 })
   check(await gateCard.count() === 1, '不支持 elicitation 的客户端只看到一张 Nomi 语义确认卡')
   const cardText = await gateCard.innerText()

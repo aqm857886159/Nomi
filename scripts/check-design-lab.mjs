@@ -185,7 +185,9 @@ const runnerIdentity = currentRunnerIdentity()
 const visualMode = decideVisualMode({ identity: runnerIdentity, calibrated: calibration.calibratedRunner, ci: isCiEnvironment() })
 // CI 的 macOS 机器上，新状态缺基线不在结构这一关拦：视觉那一关会把它判成「快照缺失」照样红，
 // 同时产出这一格的新图供 design-lab:accept 取回——在这里先拦，新状态就永远拿不到第一张基线。
-const missingBaselineIsVisualStage = visualMode === 'strict' || visualMode === 'runner-drift'
+// 本机（advisory）也一样：推送前钩子在这里拦，PR 推不上去，CI 就永远产不出第一张图（11-09 弹窗迁移撞上，
+// 10-18 起没有新状态进来过）。合并照样被拦：CI macOS 视觉关判「快照缺失」红，Linux 上这一关（skip-platform）仍判缺基线红。
+const missingBaselineIsVisualStage = visualMode === 'strict' || visualMode === 'runner-drift' || visualMode === 'advisory'
 // 「基线待用户拍板」的屏：见 calibration.json 的 why.pendingApprovalScreens。
 // 没被人看过的屏没有可回归的对象，现在录基线只会把「今天碰巧长这样」钉成「应该长这样」。
 const pending = pendingApprovalScreens()

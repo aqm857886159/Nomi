@@ -168,7 +168,7 @@ try {
   await expect(generateAll, '框头有「生成全部」').toBeVisible()
   await generateAll.click()
   await waitForVisualQuiescence(win)
-  const spend = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成|Start generating|Generate/ }).last()
+  const spend = win.locator('[data-spend-confirm-dialog]').filter({ hasText: /开始生成|Start generating|Generate/ }).last()
   const confirmShown = await spend.waitFor({ state: 'visible', timeout: stationTimeout() }).then(() => true).catch(() => false)
   if (confirmShown) {
     await win.screenshot({ path: path.join(outDir, '04-generate-all-confirm-cancelled.png') })

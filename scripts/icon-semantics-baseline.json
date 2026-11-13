@@ -40,7 +40,6 @@
     "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx": 2,
     "src/workbench/generationCanvas/nodes/render/AudioStripNode.tsx": 2,
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx": 1,
-    "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx": 1,
     "src/workbench/preview/inspector/ClipTransitionFields.tsx": 2,
     "src/workbench/preview/inspector/PreviewInspector.tsx": 1,
     "src/workbench/preview/inspector/TextClipFields.tsx": 2,

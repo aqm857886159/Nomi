@@ -17,6 +17,9 @@
 //
 // 用法：node tests/ux/design-lab-primitives-surfaces.walk.mjs （ONLY=ps-07-modal 只跑一个）
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
+import { uiText } from './full-walk/invariants.mjs'
+
+const dialogLocale = process.env.VITE_DIALOG_CENSUS_LOCALE === 'en' ? 'en' : 'zh-CN'
 
 /**
  * 每一格许诺自己开着哪个浮层。`null` = 这一格不该有任何浮层。
@@ -44,6 +47,35 @@ const EXPECTED = {
   'ps-10-tooltip': { selector: '[data-radix-popper-content-wrapper]', text: '正在导出', min: { w: 120, h: 16 } },
   // 标题走的是 Mantine Modal 的 header（在 surface 之外），所以这里认的是正文那句话。
   'ps-11-confirm-dialog': { selector: '[data-confirm-dialog-surface]', text: '删除后画布上的连线', min: { w: 260, h: 40 } },
+  'ps-20-settings-dialog': { assertion: 'board:DialogDecisionBar/settings.shell', selector: '[data-settings-dialog]', text: uiText(dialogLocale, 'settings.title'), min: { w: 600, h: 300 } },
+  'ps-21-skill-dialog': { assertion: 'board:DialogDecisionBar/skill.actions', selector: '[data-skill-detail]', text: uiText(dialogLocale, 'libraries.skill.addToChat'), min: { w: 600, h: 300 } },
+  'ps-22-extraction-dialog': { assertion: 'board:DialogDecisionBar/extraction.actions', selector: '[data-nomi-prompt-extraction-settings-dialog]', text: uiText(dialogLocale, 'browserAssets.extraction.save'), min: { w: 600, h: 300 } },
+  'ps-23-handbook-dialog': { assertion: 'board:DialogDecisionBar/handbook.shell', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-24-shortcuts-dialog': { assertion: 'board:DialogDecisionBar/shortcuts.shell', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-25-update-dialog': { assertion: 'board:DialogDecisionBar/update.actions', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-26-selection-dialog': { assertion: 'board:DialogDecisionBar/selection.actions', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-27-confirm-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-28-feedback-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-29-custom-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-30-model-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-31-onboarding-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-32-agent-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-33-action-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-34-help-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-35-mobile-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-36-director-settings-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-37-spend-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-38-workflow-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-39-prompt-dialog': { selector: '[data-prompt-preview]', min: { w: 200, h: 100 } },
+  'ps-40-media-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-41-asset-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-42-comfy-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-43-crop-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-44-shotcut-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-45-splash-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-46-journey-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-47-browser-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-48-onboarding-expanded-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
   'ps-12-table': null,
   'ps-13-pagination': null,
   'ps-14-identity': null,
@@ -80,10 +112,11 @@ await walkDesignLabScreen({
       return
     }
 
-    const layer = page.locator(expected.selector).filter({ hasText: expected.text, visible: true })
+    const marker = expected.assertion || state.id
+    const layer = page.locator(expected.selector).filter({ ...(expected.text ? { hasText: expected.text } : {}), visible: true })
     const count = await layer.count()
     if (count !== 1) {
-      record(`${state.id} 应当有 1 个可见的浮层（${expected.selector} 含「${expected.text}」），实际 ${count} 个`
+      record(`${marker} 应当有 1 个可见的浮层（${expected.selector} 含「${expected.text}」），实际 ${count} 个`
         + '——浮层没打开的话，capture=viewport 截回来是一张空舞台，看起来和正常图一样')
       return
     }
@@ -98,11 +131,11 @@ await walkDesignLabScreen({
       }
     })
     if (geometry.w < expected.min.w || geometry.h < expected.min.h) {
-      record(`${state.id} 的浮层只有 ${geometry.w}×${geometry.h}（许诺 ≥ ${expected.min.w}×${expected.min.h}）`
+      record(`${marker} 的浮层只有 ${geometry.w}×${geometry.h}（许诺 ≥ ${expected.min.w}×${expected.min.h}）`
         + '——有壳没内容，拍板时看不出它长什么样')
     }
     if (geometry.outside) {
-      record(`${state.id} 的浮层整个落在视口外——整屏截图里一片空白，和「没打开」在图上分不出来`)
+      record(`${marker} 的浮层整个落在视口外——整屏截图里一片空白，和「没打开」在图上分不出来`)
     }
   },
 })

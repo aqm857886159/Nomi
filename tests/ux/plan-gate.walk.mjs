@@ -109,7 +109,7 @@ try {
   }, 60000)
 
   // GUI 应弹方案卡（kind=plan：分镜图标 + 「AI 助手想在画布落一套方案」+「落到画布」）。
-  const planCard = win.locator('div.fixed.inset-0').filter({ hasText: /在画布落一套方案|落到画布/ }).first()
+  const planCard = win.locator('[data-spend-confirm-dialog]').filter({ hasText: /在画布落一套方案|落到画布/ }).first()
   let cardShown = false
   for (let i = 0; i < 30; i++) { if (await planCard.count()) { cardShown = true; break } await sleep(1000) }
   await screenshotSettled(win, { path: path.join(shotsDir, '02-plan-gate-card.png') })

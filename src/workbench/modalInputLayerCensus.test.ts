@@ -91,22 +91,16 @@ function modalShapedFiles(sources: readonly SourceEntry[]): string[] {
 
 /** 登记了输入层的手写宿主。covers：window = 铺满整窗；canvas-cell = 只盖画布那一格（portal 进 .workbench-generation__canvas）。 */
 const LAYER_HOSTS: Readonly<Record<string, 'window' | 'canvas-cell'>> = {
-  'src/ui/app-shell/UpdateDialog.tsx': 'window',
   'src/ui/browser/dialog/NomiBrowserDialogView.tsx': 'window',
-  'src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx': 'window',
   'src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx': 'window',
   'src/workbench/assets/AssetPreviewDialog.tsx': 'window',
   'src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx': 'canvas-cell',
-  'src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx': 'window',
   'src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx': 'canvas-cell',
   'src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx': 'canvas-cell',
   'src/workbench/generationCanvas/nodes/ProvenancePanel.tsx': 'window',
-  'src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx': 'window',
-  'src/workbench/onboarding/HandbookPanel.tsx': 'window',
   'src/workbench/onboarding/JourneyTourController.tsx': 'window',
   'src/workbench/onboarding/SplashIntro.tsx': 'window',
   'src/workbench/promptLibrary/PromptPreviewOverlay.tsx': 'window',
-  'src/workbench/settings/SettingsDialog.tsx': 'window',
   'src/workbench/timeline/TimelineShortcutsDialog.tsx': 'window',
 }
 
@@ -124,7 +118,7 @@ const NOT_A_LAYER: Readonly<Record<string, string>> = {
   'src/workbench/generationCanvas/nodes/NodeVideoClipPanel.tsx': '挂在节点下面的裁剪条，画布其余部分还露着，非模态',
   'src/workbench/generationCanvas/nodes/PanoramaViewer.tsx': '页格内的层，页层合同写明「不是盖住整窗的模态」（generation/pageLayer.tsx）；键盘经宿主边界',
   'src/workbench/generationCanvas/nodes/director/panels/Popover.tsx': '导演台浮层原语，非模态；导演台自己的 Esc 归属链管它',
-  'src/workbench/generationCanvas/spend/AnchorCheckpointCard.tsx': '形象确认卡的放大看图，只活在 SpendConfirmDialog 里面，外层付费确认卡已登记',
+  'src/workbench/generationCanvas/spend/AnchorCheckpointCard.tsx': '形象确认卡的放大看图，只活在 SpendConfirmDialog 里面；外层付费确认卡走 DesignModal，外壳已登记输入层',
   'src/workbench/library/ProjectSyncBadge.tsx': '项目卡上的同步状态小卡，非模态；项目库没有工作区面',
   'src/workbench/onboarding/OnboardingSpotlight.tsx': '教学聚光灯：高亮区要让用户真的操作工作区，不是模态',
   'src/workbench/taskCenter/TaskCenterPanel.tsx': '任务中心右侧面板，画布还露着还能操作，非模态',
@@ -135,7 +129,7 @@ describe('模态输入层普查：模态的宿主', () => {
   const shaped = modalShapedFiles(SOURCES)
 
   it('普查对象非空：扫得到已知的模态写法（判据不能在空集合上恒真）', () => {
-    expect(shaped).toEqual(expect.arrayContaining(['src/workbench/settings/SettingsDialog.tsx', 'src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx', 'src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx']))
+    expect(shaped).toEqual(expect.arrayContaining(['src/ui/browser/dialog/NomiBrowserDialogView.tsx', 'src/workbench/assets/AssetPreviewDialog.tsx', 'src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx']))
   })
 
   it('每个长得像模态的文件都已分类：要么登记了输入层，要么写清了为什么不算', () => {

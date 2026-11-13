@@ -1,12 +1,10 @@
 /**
  * 新手上手手册面板（App 内出口）。读唯一内容源 handbookContent，原生离线、跟随明暗 token。
- * 外壳对齐 SkillLibraryPanel：mantine Portal 居中模态 + 背板点击/ESC 关闭 + token-only，不另造弹层（P1）。
+ * 外壳使用 DesignModal；保留背板点击 / ESC 关闭与 token-only 内容。
  * iconKey → 已登记 vendor 组件经 HANDBOOK_ICON 映射；marketing/handbook.html 共用同一份数据（另一出口）。
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Portal } from '@mantine/core'
-import { useModalInputLayer } from '../../design/modalInputLayer'
 import {
   IconAlertCircle,
   IconAlertTriangle,
@@ -26,11 +24,10 @@ import {
   IconUserCheck,
   IconVolumeOff,
   IconWand,
-  IconX,
 } from '@tabler/icons-react'
 import type { Icon } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { NomiWordmark } from '../../design'
+import { DesignModal, NomiWordmark } from '../../design'
 import { handbookContentForLocale } from './handbookContent'
 
 type Props = {
@@ -77,7 +74,6 @@ function SectionTitle({ children }: { children: React.ReactNode }): JSX.Element 
 }
 
 export function HandbookPanel({ opened, onClose }: Props): JSX.Element | null {
-  useModalInputLayer(opened)
   const { t, i18n } = useTranslation()
   const content = handbookContentForLocale(i18n.resolvedLanguage || i18n.language)
   React.useEffect(() => {
@@ -92,44 +88,18 @@ export function HandbookPanel({ opened, onClose }: Props): JSX.Element | null {
   if (!opened) return null
 
   return (
-    <Portal>
-      <div
-        className={cn('fixed inset-0 grid place-items-center p-6')}
-        style={{ zIndex: 4000, background: 'var(--nomi-scrim)', animation: 'nomi-fade 140ms cubic-bezier(.2,.7,.3,1)' }}
-        onMouseDown={(e) => {
-          if (e.target === e.currentTarget) onClose()
-        }}
-      >
-        <div
-          role="dialog"
-          aria-label={t('onboardingProviders.handbook.aria')}
-          className={cn(
-            'w-[680px] max-w-full max-h-[86vh] flex flex-col overflow-hidden',
-            'bg-nomi-paper border border-nomi-line rounded-nomi-lg shadow-nomi-lg',
-          )}
-          style={{ animation: 'nomi-panel-pop 160ms cubic-bezier(.2,.7,.3,1)' }}
-        >
-          {/* 头部 */}
-          <div className={cn('flex items-center gap-2 px-5 pt-4 pb-3 border-b border-nomi-line')}>
-            <IconMap size={18} stroke={1.6} className={cn('text-nomi-accent')} />
-            <b className={cn('text-title font-bold text-nomi-ink')}>{content.title}</b>
-            <NomiWordmark fontSize={13} className={cn('text-nomi-ink-40')} />
-            <span className={cn('flex-1')} />
-            <button
-              type="button"
-              className={cn(
-                'w-7 h-7 grid place-items-center rounded-nomi-sm cursor-pointer border-0 bg-transparent',
-                'text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-ink-05',
-              )}
-              aria-label={t('onboardingProviders.handbook.closeAria')}
-              onClick={onClose}
-            >
-              <IconX size={16} stroke={2} />
-            </button>
-          </div>
-
+    <DesignModal opened={opened} onClose={onClose} centered size={680} zIndex={4000}
+      closeOnEscape={false} trapFocus={false} returnFocus={false}
+      closeButtonProps={{ 'aria-label': t('onboardingProviders.handbook.closeAria') }}
+      accessibleName={t('onboardingProviders.handbook.aria')}
+      title={<span className="flex items-center gap-2">
+        <IconMap size={18} stroke={1.6} className="text-nomi-accent" />
+        <b className="text-title font-bold text-nomi-ink">{content.title}</b>
+        <NomiWordmark fontSize={13} className="text-nomi-ink-40" />
+      </span>}
+    >
           {/* 正文（滚动区） */}
-          <div className={cn('flex-1 overflow-auto px-5 py-4 flex flex-col gap-5')}>
+          <div className={cn('flex flex-col gap-5')}>
             <p className={cn('text-caption text-nomi-ink-40 m-0')}>{content.subtitle}</p>
 
             {/* 流水线一行图 */}
@@ -245,8 +215,6 @@ export function HandbookPanel({ opened, onClose }: Props): JSX.Element | null {
               </div>
             </section>
           </div>
-        </div>
-      </div>
-    </Portal>
+    </DesignModal>
   )
 }

@@ -8,8 +8,8 @@ import type { AnchorCheckpointCardModel } from './anchorCheckpointView'
 
 // P4 §3.2 形象确认卡 body + 固定 footer（anchor_checkpoint 门·免费质量门）——与花钱确认卡同一条对话框轨道
 // （SpendConfirmDialog 家族，P1 一功能一个家）。视觉语言 + 「内容区滚动、footer 恒在」布局沿用 MultiShotCardBody：
-// 返回 fragment（flex-1 滚动内容区 = 定妆照 2 列网格 + 两句承诺；shrink-0 固定 footer = 脚注/先不拍/开拍或重拍），
-// 由 SpendConfirmDialog 的 flex 列直接摊开。术语零内部词（「锚/检查点/冻结/封存/物化/合同」不上卡，措辞全走 i18n）。
+// 交出两块（内容 = 定妆照 2 列网格 + 两句承诺；决定栏 = 先不拍 / 开拍或重拍），由 SpendConfirmDialog 放进弹窗外壳：
+// 内容在中间那块滚，决定栏在外壳的决定栏插槽里不滚（设计系统 §3.5）。术语零内部词（「锚/检查点/冻结/封存/物化/合同」不上卡，措辞全走 i18n）。
 //
 // 语义映射到 #156 真实 API（在 useProductionStatus 接线）：
 //   开拍 = decide approved → service 钩子自动续踢镜批；先不拍 = 不 decide、门保持 waiting、可从任务中心重开；
@@ -23,9 +23,11 @@ type Props = {
   onDefer: () => void
   /** 「重拍选中的」= 回传选中 shotId（view 层 decide rejected + reworkShot）。不确认。 */
   onRework: (shotIds: string[]) => void
+  /** 宿主怎么摆这两块：内容进弹窗中间那块，决定栏进弹窗的决定栏插槽。两块共用卡里的选中状态，所以由卡交出、宿主摆。 */
+  layout: (parts: { content: JSX.Element; footer: JSX.Element }) => JSX.Element
 }
 
-export function AnchorCheckpointCard({ model, onApprove, onDefer, onRework }: Props): JSX.Element {
+export function AnchorCheckpointCard({ model, onApprove, onDefer, onRework, layout }: Props): JSX.Element {
   const { t } = useTranslation()
   const [selected, setSelected] = React.useState<Set<string>>(() => new Set())
   const [zoomUrl, setZoomUrl] = React.useState<string | null>(null)
@@ -43,11 +45,11 @@ export function AnchorCheckpointCard({ model, onApprove, onDefer, onRework }: Pr
   // 说明行只在真有已知金额时才提金额；价格未知（今天的常态）就只说「都是你已经确认过的」，不出现预算两个字。
   const note = t('generationCommon.production.checkpoint.note', { count: model.shotCount })
 
-  return (
+  const content = (
     <>
-      {/* 内容区：副标题 + 定妆照 2 列网格 + 两句承诺。flex-1 可滚。
-          data-anchor-checkpoint-card 标在这里（fragment 挂不了属性）——它涵盖卡的可见主体，供走查/消费方定位。 */}
-      <div className={cn('flex-1 min-h-0 overflow-y-auto')} data-anchor-checkpoint-card>
+      {/* 内容区：副标题 + 定妆照 2 列网格 + 两句承诺。滚动归弹窗外壳中间那块。
+          data-anchor-checkpoint-card 标在这里——它涵盖卡的可见主体，供走查/消费方定位。 */}
+      <div data-anchor-checkpoint-card>
         <p className={cn('m-0 mb-3 text-body-sm leading-relaxed text-nomi-ink-80')} data-anchor-checkpoint-subtitle>
           {/* 复用形象不进门、不花钱；有复用时副标题把它们单列，避免和本批新拍混淆。 */}
           {t(
@@ -149,23 +151,6 @@ export function AnchorCheckpointCard({ model, onApprove, onDefer, onRework }: Pr
         </p>
       </div>
 
-      {/* 固定 footer（不随网格滚）：右=先不拍 + 开拍/重拍。检查点永不自动放行，所以左边没有脚注要摆。 */}
-      <div className={cn('shrink-0 mt-3 flex items-center justify-end gap-2.5 border-t border-nomi-line pt-3')} data-anchor-checkpoint-footer>
-        <WorkbenchButton className={cn('h-8 px-4 cursor-pointer')} onClick={onDefer} data-anchor-checkpoint-defer>
-          {t('generationCommon.production.checkpoint.defer')}
-        </WorkbenchButton>
-        <WorkbenchButton
-          data-anchor-checkpoint-primary
-          data-anchor-checkpoint-mode={reworkMode ? 'rework' : 'approve'}
-          className={cn('h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper')}
-          onClick={() => (reworkMode ? onRework([...selected]) : onApprove())}
-        >
-          {reworkMode
-            ? t('generationCommon.production.checkpoint.reworkSelected')
-            : t('generationCommon.production.checkpoint.approve', { count: model.shotCount })}
-        </WorkbenchButton>
-      </div>
-
       {/* 看大图浮层（点缩略图放大；点任意处收起）。复用 scrim token。 */}
       {zoomUrl ? (
         <div
@@ -183,4 +168,25 @@ export function AnchorCheckpointCard({ model, onApprove, onDefer, onRework }: Pr
       ) : null}
     </>
   )
+
+  // 决定栏（不随网格滚）：右=先不拍 + 开拍/重拍。检查点永不自动放行，所以左边没有脚注要摆。
+  const footer = (
+    <div className={cn('flex items-center justify-end gap-2.5 border-t border-nomi-line pt-3')} data-anchor-checkpoint-footer>
+      <WorkbenchButton className={cn('h-8 px-4 cursor-pointer')} onClick={onDefer} data-anchor-checkpoint-defer>
+        {t('generationCommon.production.checkpoint.defer')}
+      </WorkbenchButton>
+      <WorkbenchButton
+        data-anchor-checkpoint-primary
+        data-anchor-checkpoint-mode={reworkMode ? 'rework' : 'approve'}
+        className={cn('h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper')}
+        onClick={() => (reworkMode ? onRework([...selected]) : onApprove())}
+      >
+        {reworkMode
+          ? t('generationCommon.production.checkpoint.reworkSelected')
+          : t('generationCommon.production.checkpoint.approve', { count: model.shotCount })}
+      </WorkbenchButton>
+    </div>
+  )
+
+  return layout({ content, footer })
 }

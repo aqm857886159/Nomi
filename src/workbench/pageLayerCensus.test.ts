@@ -61,10 +61,6 @@ const BODY_PORTALS: Readonly<Record<string, BodyPortalEntry>> = {
     owner: 'anchored', count: 1,
     lifecycle: '导演台时间轴右键菜单（BodyPortal + fixed，popover 档）：外点 / Esc 关闭，同上。',
   },
-  'src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx': {
-    owner: 'shell-modal', count: 1,
-    lifecycle: '全局花钱确认卡（BodyPortal，dialog 档）：由任务 / 门岗的请求驱动、挂在公共根，不属于任何一页；用户点确认 / 取消才收。',
-  },
 }
 
 type PageCellEntry = {
@@ -193,7 +189,7 @@ function keyboardListenerFiles(sources: readonly SourceFileEntry[]): string[] {
 describe('页内全屏层普查：body portal 必须登记归属与生命周期', () => {
   it('普查对象非空：扫得到已登记的那些 body portal（判据不能在空集合上恒真）', () => {
     const counts = bodyPortalCounts(SOURCES)
-    expect(Object.keys(counts)).toEqual(expect.arrayContaining(['src/workbench/assets/AssetPreviewDialog.tsx', 'src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx']))
+    expect(Object.keys(counts)).toEqual(expect.arrayContaining(['src/workbench/assets/AssetPreviewDialog.tsx', 'src/workbench/generationCanvas/nodes/ClipNode.tsx']))
   })
 
   it('src/workbench 里每个挂到 document.body 的 portal 都已登记，处数对得上，没有多登记的', () => {
