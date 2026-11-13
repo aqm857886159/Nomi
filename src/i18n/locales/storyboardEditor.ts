@@ -177,7 +177,6 @@ export const zhStoryboardEditor = {
     moreAria: '还有 {{count}} 个参考槽，点开看全部',
   },
   rowMenu: {
-    insertAbove: '上方插入',
     insertBelow: '下方插入',
     moveToScene: '移到另一场…',
     locateInCanvas: '定位',
@@ -491,7 +490,6 @@ export const enStoryboardEditor = {
     moreAria: '{{count}} more reference slots — open to see them all',
   },
   rowMenu: {
-    insertAbove: 'Insert Above',
     insertBelow: 'Insert Below',
     moveToScene: 'Move to another scene…',
     locateInCanvas: 'Locate',
