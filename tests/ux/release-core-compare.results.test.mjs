@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { compareResults } from './release-core-compare.results.mjs'
 import { finalizeReleaseCoreReceipt } from './_releaseCoreCompare.mjs'
 
@@ -74,4 +76,10 @@ test('only the observed foreground guard may turn a complete clean task into an 
   assert.throws(() => compareResults(receipt(), { ...foregroundOnly, foregroundGuard: null }), /exit/)
   assert.throws(() => compareResults(receipt(), finish({}, { ...guard, exitCodeBeforeGuard: 1 })))
   assert.throws(() => compareResults(receipt(), finish({}, guard, 2)))
+})
+
+test('rehearsal walk without comparison arguments is skipped (125), so the nightly walk list never turns it red', () => {
+  const run = spawnSync(process.execPath, [fileURLToPath(new URL('./release-core-compare.rehearsal.walk.mjs', import.meta.url))], { encoding: 'utf8' })
+  assert.equal(run.status, 125)
+  assert.match(run.stdout, /跳过/)
 })
