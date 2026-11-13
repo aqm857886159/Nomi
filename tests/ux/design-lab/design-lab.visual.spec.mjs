@@ -45,6 +45,10 @@ for (const screen of LAB_SCREEN_IDS) {
           // Fix only Date: real animation/timers still run, while elapsed narration is deterministic.
           await page.clock.setFixedTime(new Date('2026-09-10T00:00:00Z'))
         }
+        if (screen === 'primitives-surfaces' && state.id === 'ps-28-feedback-dialog') {
+          // 反馈卡第一行印「这次对话停下了 · 时:分」，取的是当前时间——不固定时钟，这一格每趟都差几十个像素。
+          await page.clock.setFixedTime(new Date('2026-09-10T00:00:00Z'))
+        }
         const errors = []
         page.on('pageerror', (error) => errors.push(String(error)))
         if (screen === 'process-feedback') {
