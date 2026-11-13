@@ -586,9 +586,7 @@ jobs:
       - name: Install Chromium
         run: bash scripts/ci-install-chromium.sh
       - name: Design lab visual baselines
-        # 同机并发：180 条用例原本 1 个 worker 串行 16.9 分钟；2 个 worker 同机并发（不加机器）。只改并发数，比对参数 / 容差 / 基线不动。
-        env:
-          NOMI_DESIGN_LAB_WORKERS: '2'
+        # 保持 1 个 worker 串行。2026-11-14 在这台 3 核机器上试过 2 个 worker：180 条从 16.9 分变成 19.8 分，另有 3 条截图等待超时假红。要更快得分到两台机器或换平台，不是同机并发。
         run: pnpm run check:design-lab
       - name: Upload design lab evidence
         if: failure()

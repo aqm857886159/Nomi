@@ -399,9 +399,9 @@ test('design lab visual baselines run only on the pinned macOS runner and hand e
     'bash scripts/ci-install-chromium.sh',
     'pnpm run check:design-lab',
   ])
-  // 同机并发（不加 macOS 机器）：只许改并发数这一个环境变量，比对参数 / 容差 / 基线不在这里动。
+  // 截图比对那一步保持串行、不带任何环境变量：同机 2 个 worker 实测更慢且假红（2026-11-14，见工作流里的注释）。
   const visualStep = lab.steps.find((step) => step.run === 'pnpm run check:design-lab')
-  assert.deepEqual(visualStep.env, { NOMI_DESIGN_LAB_WORKERS: '2' })
+  assert.equal(visualStep.env, undefined)
   const evidence = lab.steps.find((step) => step.uses === 'actions/upload-artifact@v7')
   assert.equal(evidence.if, 'failure()')
   assert.equal(evidence.with.name, 'design-lab-evidence')
