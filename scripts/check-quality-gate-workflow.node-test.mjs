@@ -93,14 +93,29 @@ test('quality gate uses Node 24-native actions without a forced runtime shim', (
     (job) => job.steps?.flatMap((step) => (typeof step.uses === 'string' ? [step.uses] : [])) ?? [],
   )
 
-  assert.equal(actionUses.filter((uses) => uses === 'actions/checkout@v7').length, 10)
-  assert.equal(actionUses.filter((uses) => uses === 'pnpm/action-setup@v6').length, 8)
-  assert.equal(actionUses.filter((uses) => uses === 'actions/setup-node@v7').length, 9)
+  assert.equal(actionUses.filter((uses) => uses === 'actions/checkout@v7').length, 11)
+  assert.equal(actionUses.filter((uses) => uses === 'pnpm/action-setup@v6').length, 9)
+  assert.equal(actionUses.filter((uses) => uses === 'actions/setup-node@v7').length, 10)
   assert.ok(actionUses.includes('actions/upload-artifact@v7'))
   assert.ok(actionUses.every((uses) => !/@v4$/.test(uses)))
   for (const job of Object.values(workflow.jobs)) {
     assert.equal(job.env?.FORCE_JAVASCRIPT_ACTIONS_TO_NODE24, undefined)
   }
+})
+
+test('contracts-hooks 是 Contracts 拆出的并行作业：每次必跑、不依赖别的作业、跑同一份清单里被 --except 的那道门', () => {
+  const hooks = workflow.jobs['contracts-hooks']
+  assert.equal(hooks.needs, undefined)
+  assert.equal(hooks.if, undefined, '必跑：不能有 if，否则风险档一变这道门就没人跑')
+  assert.ok(runCommands(hooks).includes('pnpm run test:system:contracts-hooks'))
+  assert.equal(workflow.jobs.contracts.if, hooks.if, '各风险档里开关和 Contracts 一致')
+  assert.equal(packageJson.scripts['test:system:contracts-hooks'], 'python3 scripts/with-gates-lock.py -- node scripts/test-system.mjs ci-contracts-hooks')
+  assert.deepEqual(PROFILES['ci-contracts-hooks'], ['contracts-hooks'])
+  // 切开的两半：一边 --except、一边 --only，点名同一道门；两边都走 gates:contracts（同一份清单）
+  assert.deepEqual(STAGES.contracts.args, ['run', 'gates:contracts', '--except=check:claude-hooks-real-entry'])
+  assert.deepEqual(STAGES['contracts-hooks'].args, ['run', 'gates:contracts', '--only=check:claude-hooks-real-entry'])
+  // 两个作业的环境一致（同一批 *_BASE_REF / GH_*），否则「挪位置」会变成「换条件」
+  assert.deepEqual(hooks.env, workflow.jobs.contracts.env)
 })
 
 test('contracts always run and unit alone chooses focused or full coverage', () => {
@@ -141,9 +156,10 @@ test('contracts always run and unit alone chooses focused or full coverage', () 
   assert.equal(focused.run, 'pnpm run test:system:focused')
   assert.equal(unit.strategy['fail-fast'], false)
   assert.match(unit.strategy.matrix.shard, /unit == 'full' && '\[1,2,3\]' \|\| '\[1\]'/)
-  // vitest 之外的 node:test 套件不归 vitest 分片管，必须恰好跑一次：固定第 1 片，且 `test` 脚本本身仍含它们（本地全量不丢）。
+  // vitest 之外的 node:test 套件不归 vitest 分片管，必须恰好跑一次：固定在一片上（2026-11-14 从最慢的第 1 片挪到最短的第 3 片），且 `test` 脚本本身仍含它们（本地全量不丢）。
   const nodeSuites = unit.steps.find((step) => step.run === 'pnpm run test:node-suites')
-  assert.equal(nodeSuites.if, "needs.scope.outputs.unit == 'full' && matrix.shard == 1")
+  assert.equal(nodeSuites.if, "needs.scope.outputs.unit == 'full' && matrix.shard == 3")
+  assert.match(unit.strategy.matrix.shard, /'\[1,2,3\]'/, '第 3 片必须存在，否则这套测试一次都不跑')
   assert.match(packageJson.scripts.test, /vitest-fair-share\.mjs && pnpm run test:node-suites/)
   assert.match(packageJson.scripts['test:node-suites'], /test:agent-runtime/)
   assert.match(packageJson.scripts['test:unit:shard'], /vitest-fair-share\.mjs$/)
@@ -235,7 +251,8 @@ test('Linux walkthrough job builds once and keeps only smoke, journey, and criti
 
 test('E2E walkthrough job is a shard matrix whose plan covers every walkthrough exactly once', () => {
   const desktop = workflow.jobs['desktop-linux']
-  assert.deepEqual(desktop.strategy, { 'fail-fast': false, matrix: { shard: [1, 2, 3, 4] } })
+  assert.deepEqual(desktop.strategy, { 'fail-fast': false, matrix: { shard: [1, 2, 3, 4, 5] } })
+  const shardTotal = desktop.strategy.matrix.shard.length
   const plan = desktop.steps.find((step) => step.id === 'plan')
   assert.equal(plan.run, 'node scripts/e2e-shards.mjs --shard ${{ matrix.shard }}/${{ strategy.job-total }} --github-output')
   // 计划步必须排在所有走查步之前。
@@ -268,8 +285,9 @@ test('E2E walkthrough job is a shard matrix whose plan covers every walkthrough 
   assert.throws(() => assertPartition(4, [{ kind: 'unit', id: 'x', seconds: 1 }, { kind: 'unit', id: 'x', seconds: 1 }]), /不是一个划分/)
 
   // 均衡：最重一片不超过平均的 1.15 倍（按历史耗时装箱，不是按名字平分）。
-  const heaviest = Math.max(...planShards(4, items).map((bin) => bin.seconds))
-  const average = items.reduce((sum, item) => sum + item.seconds, 0) / 4
+  // 片数取 yml 矩阵的真实片数（2026-11-14 起 5 片）：计划只在真要跑的那个片数下被要求均衡。
+  const heaviest = Math.max(...planShards(shardTotal, items).map((bin) => bin.seconds))
+  const average = items.reduce((sum, item) => sum + item.seconds, 0) / shardTotal
   assert.ok(heaviest <= average * 1.15, `最重一片 ${heaviest}s，平均 ${average}s`)
 
   // 汇总判定不变：Quality Gate 仍只看 needs['desktop-linux'].result，矩阵里任何一片红整个 job 就红。
@@ -381,6 +399,9 @@ test('design lab visual baselines run only on the pinned macOS runner and hand e
     'bash scripts/ci-install-chromium.sh',
     'pnpm run check:design-lab',
   ])
+  // 截图比对那一步保持串行、不带任何环境变量：同机 2 个 worker 实测更慢且假红（2026-11-14，见工作流里的注释）。
+  const visualStep = lab.steps.find((step) => step.run === 'pnpm run check:design-lab')
+  assert.equal(visualStep.env, undefined)
   const evidence = lab.steps.find((step) => step.uses === 'actions/upload-artifact@v7')
   assert.equal(evidence.if, 'failure()')
   assert.equal(evidence.with.name, 'design-lab-evidence')
@@ -391,6 +412,7 @@ test('design lab visual baselines run only on the pinned macOS runner and hand e
 
 test('system profiles expose separated surfaces and explicit full/release still include performance', () => {
   assert.deepEqual(PROFILES['ci-contracts'], ['contracts'])
+  assert.deepEqual(PROFILES['ci-contracts-hooks'], ['contracts-hooks'])
   assert.deepEqual(PROFILES['ci-unit'], ['unit'])
   assert.deepEqual(PROFILES['ci-desktop'], ['build', 'e2e'])
   assert.deepEqual(PROFILES['ci-journeys'], ['journeys-ci', 'real-user-journeys'])
@@ -439,6 +461,7 @@ test('Quality Gate requires mandatory jobs and every risk-selected optional surf
   assert.deepEqual(quality.needs, [
     'scope',
     'contracts',
+    'contracts-hooks',
     'unit',
     'core-smoke',
     'desktop-linux',
@@ -476,6 +499,8 @@ test('Quality Gate requires mandatory jobs and every risk-selected optional surf
   assert.match(command, /needs\['canvas-performance'\]\.result/)
   assert.match(command, /needs\['mac-package'\]\.result/)
   assert.match(command, /needs\['design-lab-macos'\]\.result/)
+  // 从 Contracts 拆出的并行作业：和 Contracts 一样每次必跑、必须 success（没有 if，不允许 skipped 放行）。
+  assert.match(command, /test "\$\{\{ needs\['contracts-hooks'\]\.result \}\}" = "success"/)
   // 核心冒烟 fail-closed：skipped 只在 core_smoke=false 且 reason=docs_only 时放行，其余一律要 success。
   const coreSmokeBlock = /if \[ "\$\{\{ needs\.scope\.outputs\.core_smoke \}\}" = "false" \]; then\n\s*test "\$\{\{ needs\.scope\.outputs\.reason \}\}" = "docs_only"\n\s*test "\$\{\{ needs\['core-smoke'\]\.result \}\}" = "skipped"\n\s*else\n\s*test "\$\{\{ needs\['core-smoke'\]\.result \}\}" = "success"\n\s*fi/
   assert.match(command, coreSmokeBlock)

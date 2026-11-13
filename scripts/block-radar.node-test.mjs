@@ -102,6 +102,22 @@ test('red rounds include the failures hidden behind a rerun; push and cancelled 
   assert.deepEqual(summary.byGate[0], [BODY_GATE, 2])
 })
 
+test('contract gates split across parallel jobs: each red "Contracts (…)" job contributes its own summary', async () => {
+  const hooks = asActionsLog(await realSummary({ 'check:claude-hooks-real-entry': { code: 1, output: 'x\n' } }))
+  const main = asActionsLog(await realSummary({ 'lint:ci': { code: 1, output: 'x\n' } }))
+  const collect = (jobList) => collectRedRounds({
+    runs: [{ databaseId: 9, event: 'pull_request', conclusion: 'failure', attempt: 1 }],
+    attemptConclusion: () => 'failure',
+    jobs: () => jobList,
+    log: (jobId) => ({ 1: main, 2: hooks })[jobId],
+  })[0]
+  const onlyHooks = collect([{ id: 1, name: 'Contracts', conclusion: 'success' }, { id: 2, name: 'Contracts (hook entrypoints)', conclusion: 'failure' }])
+  assert.deepEqual(onlyHooks.gates, ['check:claude-hooks-real-entry'])
+  assert.equal(onlyHooks.bodyOnly, false)
+  const both = collect([{ id: 1, name: 'Contracts', conclusion: 'failure' }, { id: 2, name: 'Contracts (hook entrypoints)', conclusion: 'failure' }])
+  assert.deepEqual(both.gates, ['lint:ci', 'check:claude-hooks-real-entry'])
+})
+
 test('codeChanged: commits between the red head and the next green head on the branch, by path bucket', (t) => {
   const dir = makeTempDir('block-radar-')
   t.after(() => cleanupTestTemp(dir))
