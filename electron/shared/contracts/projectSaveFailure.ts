@@ -17,6 +17,11 @@ export type ProjectSaveFailure = Readonly<{
   stage: 'authorize' | 'save-project'
 }>
 
+/** 隔离区写入（`nomi:projects:quarantine-write`）的结果：每项落在哪个文件、是不是这次新写的（同一份内容已存在 = false）。 */
+export type QuarantineWriteOutcome = Readonly<{ files: readonly Readonly<{ relativePath: string; fresh: boolean }>[] }>
+/** 隔离区写不成：系统错误码 + 「第几项 / 哪类 / 字段路径」。不带内容（不带标题、不带原样值）。 */
+export type QuarantineWriteFailure = ProjectSaveFailure & Readonly<{ item: Readonly<{ index: number; container: string; field: string }> | null }>
+
 /** Called where the original main-process error still exists, before Electron loses its fields. */
 export function projectSaveFailure(error: unknown, stage: ProjectSaveFailure['stage']): ProjectSaveFailure {
   const e = error && typeof error === 'object' ? error as Record<string, unknown> : {}

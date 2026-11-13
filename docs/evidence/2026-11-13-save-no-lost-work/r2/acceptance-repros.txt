@@ -1,0 +1,19 @@
+=== AFTER ba69f4086
+      Tests  3 passed (3)
+=== BEFORE 68439f767 (restored: electron/projects/projectQuarantine.ts
+electron/projects/projectsIpc.ts
+electron/shared/contracts/projectSaveFailure.ts
+src/desktop/bridge.ts
+src/i18n/resources.ts
+src/workbench/NomiStudioApp.tsx
+src/workbench/project/projectOperationFailureText.ts
+src/workbench/project/projectQuarantineSidecar.ts
+src/workbench/project/projectRepository.ts)
+C1 {"name":"新名字","diskHasOldBad":false,"quarantineHasOldBad":false}
+C2 {"missing":[20,21,22,23,24]}
+C3 {"order":["project.json","quarantine"],"complete":false}
+     × C1 rename keeps the bad storyboard somewhere (disk or quarantine) 5ms
+     × C2 25 bad items: open then save → all 25 recoverable 4ms
+     × C3 half file left by a kill is replaced; quarantine lands before project.json 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  3 failed (3)

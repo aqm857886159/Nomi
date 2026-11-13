@@ -1,0 +1,245 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-13-save-item-quarantine",
+  "problem_type": "Whole-payload all-or-nothing validation at the only save door",
+  "symptom": "Windows 0.24.0 creator saw 'project save failed' 40+ times in 15 minutes; every change after one bad item stayed unsaved.",
+  "direct_cause": "normalizePayload ran one strict whole-payload safeParse before save; one item that failed made it throw corruptPayload and nothing was written. Store write doors did not validate, so an unsavable storyboard design could enter the store from any door.",
+  "class_root": "The save door was the only validation point and it was all-or-nothing, so any bad state written by any door (editor, Agent patch, tour, old data) could only be answered by refusing the entire save.",
+  "affected_population": [
+    "Every creator with a storyboard design in a project",
+    "Agent-driven storyboard edits",
+    "Projects saved by older versions opened by this version"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/storyboard/storyboardDesignSchema.ts",
+    "src/workbench/workbenchDocumentSlice.ts",
+    "src/workbench/project/projectNormalize.ts",
+    "src/workbench/project/projectRepository.ts",
+    "src/workbench/project/projectRecordSchema.ts",
+    "src/workbench/project/projectQuarantineSidecar.ts",
+    "electron/projects/projectQuarantine.ts",
+    "electron/projects/projectsIpc.ts",
+    "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "electron/capabilityCore/mcpGenerationMultiShot.ts",
+    "scripts/check-storyboard-owner.mjs"
+  ],
+  "entry_points": [
+    "Storyboard setter (setStoryboardPlan / addStoryboardDesign / restoreStoryboardDesign)",
+    "Agent storyboard upsert / patch / extend and canvas patch_shots / propose_storyboard_plan",
+    "Project save (saveProjectRecord)",
+    "Project open (readLocalProjectAsync)"
+  ],
+  "invariants": [
+    "A storyboard design that the strict schema rejects can never be written into the store; the setter refuses and leaves state unchanged.",
+    "One bad item never stops the rest of a project from saving or opening; only a broken skeleton rejects the whole payload.",
+    "Disk holds the previous complete version or the new complete version (unchanged atomic file write).",
+    "Logs carry field paths only, never the creator's content."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "setStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "symbol": "setStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+      "symbol": "setStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "setStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardOverrideActions.ts",
+      "symbol": "setStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "setStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "symbol": "setStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/journeyTourStore.ts",
+      "symbol": "setStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "normalizePayloadWithQuarantine"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectRepository.ts",
+      "symbol": "normalizePayloadWithQuarantine"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/workbenchDocumentSlice.ts",
+      "symbol": "setStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/storyboardDesignSchema.ts",
+      "symbol": "storyboardDesignSchema"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectRecordSchema.ts",
+      "symbol": "workbenchProjectPayloadSkeletonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectQuarantineSidecar.ts",
+      "symbol": "writeQuarantineSidecar"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/projectQuarantine.ts",
+      "symbol": "writeQuarantineItems"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/projectsIpc.ts",
+      "symbol": "nomi:projects:quarantine-write"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "symbol": "refuseIfStoryboardRejected"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 17,
+    "why_not": "The seven write-door files stay because each is a different creator or Agent entry with its own UI or tool contract; all of them now go through the one setter (setStoryboardPlan), which is the single judge using storyboardDesignSchema. The save side keeps two callers of normalizePayloadWithQuarantine (normalizePayload wrapper and saveProjectRecord) because the repository needs the quarantine list that the wrapper drops. The doors list also names the new shared files (schema, sidecar, quarantine writer) so the count is honest: no door was merged away, the judge was added behind all of them."
+  },
+  "generality_proof": "The setter validates the whole design with one schema, so any field, any door and any value shape is covered, not one field. Save and open use the same per-item schema, so a shape from an older version or a program bug is quarantined the same way. scripts/check-storyboard-owner.mjs forbids writing storyboardDesignsByDocumentId outside the store files.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/creation/storyboard/storyboardDesignSchema.ts",
+      "symbol": "storyboardDesignSchema",
+      "responsibility": "The one schema that setter, Agent doors, save and open all judge by; also the field-path explanation."
+    },
+    {
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "normalizePayloadWithQuarantine",
+      "responsibility": "Item-wise save and open; skeleton-only whole rejection."
+    },
+    {
+      "path": "src/workbench/workbenchDocumentSlice.ts",
+      "symbol": "designWritable",
+      "responsibility": "The one check every store setter runs: refuse an unsavable design and leave state unchanged."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "entry_point": "setStoryboardPlan",
+      "disposition": "enforced",
+      "evidence": "Goes through the guarded setter; refusal leaves state unchanged and logs the field path."
+    },
+    {
+      "path": "src/workbench/onboarding/journeyTourStore.ts",
+      "entry_point": "setStoryboardPlan",
+      "disposition": "enforced",
+      "evidence": "Same setter."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "entry_point": "patch_shots",
+      "disposition": "enforced",
+      "evidence": "throwIfPlanNotWritable returns capability_input_invalid with field paths; test in applyCanvasToolCall.test.ts."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new write door or older-version data can bring an unsavable item back; the second and third rounds of this class (10-30 #1390, then this) showed relaxing one field does not hold.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs setStoryboardPlan: 7 write-door files, all through one setter",
+      "rg storyboardDesignsByDocumentId outside store files: guarded by check-storyboard-owner"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/workbenchDocumentSlice.ts",
+    "invariant": "The setter is the only judge; an unsavable design cannot enter the store; save and open isolate per item.",
+    "failure_mode": "Setter refuses and logs the field path; Agent gets a tool error naming the field; save keeps the rest and writes the raw item to .nomi/quarantine.",
+    "exception_policy": "none",
+    "strategy": "One schema, one setter, a structural guard against direct map writes, and per-item save/open as the fallback.",
+    "artifacts": [
+      "src/workbench/creation/storyboard/storyboardDesignSchema.ts",
+      "src/workbench/workbenchDocumentSlice.ts",
+      "scripts/check-storyboard-owner.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/workbenchDocumentSlice.storyboardGuard.test.ts",
+    "src/workbench/project/projectItemQuarantine.test.ts",
+    "src/workbench/project/projectRepository.itemQuarantine.test.ts",
+    "src/workbench/creation/storyboard/agentStoryboardDesign.test.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.test.ts",
+    "electron/capabilityCore/mcpGenerationMultiShotSemantic.test.ts",
+    "electron/projects/projectQuarantine.test.ts",
+    "tests/system/saveKillInFlight.test.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/workbenchDocumentSlice.storyboardGuard.test.ts",
+    "src/workbench/project/projectItemQuarantine.test.ts",
+    "src/workbench/project/projectRepository.itemQuarantine.test.ts",
+    "src/workbench/creation/storyboard/agentStoryboardDesign.test.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.test.ts",
+    "electron/capabilityCore/mcpGenerationMultiShotSemantic.test.ts",
+    "electron/projects/projectQuarantine.test.ts",
+    "tests/system/saveKillInFlight.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/project/projectRecordSchema.ts"
+    ],
+    "rationale": "The strict whole-payload schema parse at save was replaced by the skeleton schema plus per-item validation in the same commit; no parallel version."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency added or changed; zod already in use.",
+    "exit_criteria": []
+  },
+  "migration": "Old projects open as before; an item that fails the schema is isolated on open and its raw content copied to .nomi/quarantine. No data is rewritten on disk beyond the normal save.",
+  "residual_risks": [
+    "Items quarantined at open time have no on-screen text (only one sentence may change).",
+    "The quarantine folder has no viewer; discovery is by log and the one status sentence at save."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-27",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/workbenchDocumentSlice.ts",
+    "tests": [
+      "src/workbench/workbenchDocumentSlice.storyboardGuard.test.ts",
+      "src/workbench/project/projectItemQuarantine.test.ts",
+      "src/workbench/project/projectRepository.itemQuarantine.test.ts"
+    ]
+  },
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://zod.dev/api",
+      "checked_at": "2026-11-13",
+      "purpose": "safeParse issue paths; one schema judges every door"
+    }
+  ]
+}
