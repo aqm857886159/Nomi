@@ -127,7 +127,6 @@ export const CURRENT_PROJECT_READER_ALLOWLIST: Record<string, { reads: number; r
   'src/media/useFilmstrip.ts': { reads: 1, reason: 'display: filmstrip cache key when the URL carries no project' },
   'src/workbench/ai/ProjectAgentResidentShell.tsx': { reads: 1, reason: 'display: project-scoped inline reference pool and cancellation lifetime; canonical admission still issues its own context' },
   'src/workbench/ai/resident/useShotVerifyFeedback.tsx': { reads: 1, reason: 'display: show only the open project\'s verify card (fix issues its own context)' },
-  'src/workbench/generationCanvas/components/MemoryFold.tsx': { reads: 1, reason: 'display: list the open project\'s memory facts (edits issue their own context)' },
   'src/ui/browser/dialog/NomiBrowserDialogView.tsx': { reads: 1, reason: 'display: main-window asset box labels its project (writes are issued by main from the window session)' },
 }
 
