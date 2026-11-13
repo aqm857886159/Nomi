@@ -224,7 +224,7 @@ try {
   await win.screenshot({ path: path.join(shotsDir, '00-gate-pending-state.png') })
   // 诊断探针只数**具体锚点**（不读整页文本——那会被走查门当 whole-page-text 拦，且断言恒真）。
   const domProbe = await win.evaluate(() => ({
-    fixedModals: document.querySelectorAll('div.fixed.inset-0').length,
+    dialogs: document.querySelectorAll('[role="dialog"]').length,
     confirmBtns: document.querySelectorAll('[data-production-action="confirm"]').length,
     spendAny: document.querySelectorAll('[data-production-footer],[data-spend],[role="dialog"]').length,
     onboarding: document.querySelectorAll('[data-onboarding],[class*="onboarding"]').length,
