@@ -53,7 +53,7 @@ const cacheKey = (p: ExtractVideoFramePayload) => `${p.projectId}::${p.videoUrl}
 
 /**
  * 把源视频 URL 解析成磁盘可读的绝对路径；https 下载到 temp（返回 cleanup 删临时文件）。
- * 导出给 detectShotCuts 共用——同一套 nomi-local 反解 / SSRF 加固下载 / 绝对路径判定只此一份（P1）。
+ * 导出给 detectShotCuts 共用——同一套 nomi-local 反解 / 有上限的下载 / 绝对路径判定只此一份（P1）。
  */
 export async function resolveVideoLocalPath(
   videoUrl: string,
@@ -67,7 +67,7 @@ export async function resolveVideoLocalPath(
     return { filePath: abs, cleanup: noop };
   }
   if (/^https?:\/\//i.test(videoUrl)) {
-    // SSRF/DoS 加固：走 hardenedFetch（私网/回环拦截 + 重定向终点复检 + 大小/超时上限），
+    // DoS 加固：走 hardenedFetch（跨域跳转剥凭据头 + 大小/超时上限；不按地址拦），
     // 与 importRemoteAsset / readAudioBytes 同源。不限 content-type——relay 常以
     // application/octet-stream 发视频，真伪交给随后的 ffmpeg 解码兜底。
     let result;

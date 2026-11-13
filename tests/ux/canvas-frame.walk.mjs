@@ -592,7 +592,7 @@ try {
 
   await win.locator(GROUP_TOOLBAR).getByRole('button', { name: uiText('zh-CN', 'generationCommon.canvas.group.toolbarGenerate') }).first().click()
   await win.waitForTimeout(900)
-  const spendDialog = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成/ }).last()
+  const spendDialog = win.locator('[data-spend-confirm-dialog]').filter({ hasText: /开始生成/ }).last()
   await spendDialog.waitFor({ timeout: 10_000 })
   check(true, '整框生成走的是浮条那一条批量确认卡（一份实现两个入口）')
   await snap(win, 'frame-generate-confirm')

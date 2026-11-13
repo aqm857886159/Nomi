@@ -158,6 +158,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     create: (record: unknown) => invokeSync("nomi:projects:create", record),
     read: (projectId: string) => invokeSync("nomi:projects:read", projectId),
     readAsync: (projectId: string) => ipcRenderer.invoke("nomi:projects:read-async", projectId),
+    quarantineWrite: (projectId: string, items: unknown) => ipcRenderer.invoke("nomi:projects:quarantine-write", projectId, items),
     diagnose: (projectId: string) => ipcRenderer.invoke("nomi:projects:diagnose", projectId),
     recover: (projectId: string) => ipcRenderer.invoke("nomi:projects:recover", projectId),
     // Keep the envelope as ordinary data across contextBridge; renderer unwraps it once.

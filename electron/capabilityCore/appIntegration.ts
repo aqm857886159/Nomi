@@ -210,11 +210,8 @@ export async function startCapabilityCore(
     // 提交出口认得的执行器：目录执行器 + 画布那台的传输（按家各一个 `canvas:<key>`，发动机收敛第一刀）。
     const canvasTransport = lazyCanvasTransport()
     const submissionProviders = () => [...readProviderBootstrap().providers, ...canvasTransportProviders(readCatalog().vendors.map((vendor) => vendor.key), canvasTransport)]
-    // The loopback vendor is a test-only trusted local service. Keep the
-    // private-origin exception at this fixture wiring boundary; ordinary
-    // provider output downloads retain hardenedFetch's SSRF guard. The fetch
-    // policy itself (timeout / size / provider route) is the shared owner's.
-    const outputMaterializer = createGenerationOutputMaterializer(fixtureBaseUrlOverride ? { trustedPrivateOrigin: fixtureBaseUrlOverride } : {})
+    // The fetch policy (timeout / size / provider route) is the shared owner's (fetchProviderMedia).
+    const outputMaterializer = createGenerationOutputMaterializer()
     const generationRegistry = authorities.generationModuleRegistry ?? initialGenerationScope.registry
     // P4 S2: real per-shot pricing from the live catalog (resolve lazily so pricing edits apply).
     const resolveModelPricing = (providerId: string, modelId: string) => createCatalogModelPricingResolver(readCatalog().models)(providerId, modelId)

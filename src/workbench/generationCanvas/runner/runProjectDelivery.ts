@@ -2,8 +2,8 @@ import { stableProjectAgentJson } from '../../../../electron/shared/legacyAgentJ
 import { getGenerationNodeCatalogKind } from '../model/generationNodeKinds'
 import { selectedVendor, selectedModelKey } from './catalogTaskResolve'
 import { resolveRenderedControls } from '../nodes/nodeModelArchetype'
-import { archetypeForNode, resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
-import { applyArchetypeModeSwitch, currentArchetypeMode, currentArchetypeVariant } from '../nodes/controls/archetypeMeta'
+import { archetypeForNode } from '../agent/referenceEdgeCapability'
+import { currentArchetypeVariant, effectiveArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { projectConnectedTextInputs } from './connectedTextPrompt'
 import { getTextGenMode, textDocumentDigest } from './textGenerationDocument'
@@ -160,18 +160,18 @@ export function captureApprovedGenerationInputs(nodeIds: readonly string[]): (gr
       const found = nodes.find(node => node.id === id)
       if (!found) throw new Error('node not found')
       const archetype = archetypeForNode(found)
-      const nextMode = resolveModeForConnectedReferences(found, nodes, edges)
-      const meta = nextMode && archetype ? applyArchetypeModeSwitch(found.meta || {}, archetype, nextMode) : found.meta || {}
+      const meta = found.meta || {}
       const node = { ...found, meta }
       const modelKey = selectedModelKey(node)
       const vendor = selectedVendor(node)
-      const controls = resolveRenderedControls({ modelKey, vendor, value: modelKey, label: modelKey, kind: getGenerationNodeCatalogKind(node.kind), meta }, meta, node.kind === 'image', node.kind === 'video')
+      const controls = resolveRenderedControls({ modelKey, vendor, value: modelKey, label: modelKey, kind: getGenerationNodeCatalogKind(node.kind), meta }, meta, node.kind === 'image', node.kind === 'video', { node, graph: { nodes, edges } })
       const parameters = Object.fromEntries(controls.map(control => {
         const key = control.binding === 'parameter' ? control.key : control.binding
         return [key, meta[key]]
       }))
       return { id, kind: node.kind, prompt: node.prompt, references: node.references, modelKey, vendor, parameters,
-        mode: archetype ? currentArchetypeMode(archetype, meta)?.id : undefined,
+        // 方式按输入现算（批准时与执行时同一个算法）：输入变了，方式跟着变，令牌也就不同。
+        mode: archetype ? effectiveArchetypeMode(archetype, node, { nodes, edges }).mode.id : undefined,
         variant: archetype ? currentArchetypeVariant(archetype, meta)?.id : undefined,
         dialogue: meta.dialogue,
         edges: edges.filter(edge => edge.target === id),

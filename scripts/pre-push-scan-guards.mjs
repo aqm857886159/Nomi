@@ -102,6 +102,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/customEventWiring.test.ts', roots: SRC },
   { file: 'src/design/mediaOverlayInk.test.ts', roots: SRC },
   { file: 'src/design/menu.structure.test.ts', roots: SRC },
+  { file: 'src/design/loadingMark.structure.test.ts', roots: SRC }, // 加载标不换形象脸：遍历 src 找画 <NomiAgentFace 的文件，只许右下小球与聊天身份行（<1 秒）
   { file: 'src/design/outsidePress.structure.test.ts', roots: SRC }, // 「点外面」只有一种听法：遍历 src 找 mousedown / touchstart / 冒泡 pointerdown 监听与 useClickOutside（<1 秒）
   { file: 'src/design/popoverTracking.structure.test.ts', roots: SRC }, // 浮层跟踪不许逐帧轮询：遍历 src 找 autoUpdate 与 animationFrame（<2 秒）
   { file: 'src/ui/browser/assetSurfaceInvariants.test.ts', roots: SRC }, // 7 秒

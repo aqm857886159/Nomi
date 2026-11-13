@@ -118,6 +118,11 @@ export const WINDOW_PRESENCE_EXEMPT_FILES = [
   'electron/browser/overlay/browserViewOverlay.ts',
 ]
 
+const hotPathSyncFsPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const hotPathSyncFsSelectors = [{
+  selector: 'CallExpression[callee.property.name=/Sync$/][callee.object.name=/^(fs|fsp)$/]',
+  message: '保存 / 项目 / 目录这些热路径上不再新增同步文件读写（主进程上一次慢盘 / 杀毒占用就冻住所有 IPC）：改 fs/promises（await），或登记进 eslint-suppressions.json 并写清为什么只能同步。方向检查 2026-11-13-main-thread-sync-wait。',
+}]
 const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const mainSyncWaitSelectors = [{
   selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
@@ -533,6 +538,13 @@ export default tseslint.config(
     rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
   },
   {
+    // 保存热路径不新增同步文件操作（存量批量压制，只减不增）。
+    files: ['electron/workspace/**/*.ts', 'electron/projects/**/*.ts', 'electron/productionRun/**/*.ts', 'electron/jsonFile.ts', 'electron/catalog/**/*.ts', 'electron/events/**/*.ts', 'electron/assets/**/*.ts', 'electron/export/**/*.ts', 'electron/capabilityCore/documentSurface.ts', 'electron/capabilityCore/gateway.ts', 'electron/configFileStore.ts', 'electron/durability.ts'],
+    ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**'],
+    plugins: { 'hot-path-sync-fs': hotPathSyncFsPlugin },
+    rules: { 'hot-path-sync-fs/no-restricted-syntax': ['error', ...hotPathSyncFsSelectors] },
+  },
+  {
     files: ['electron/**/*.{ts,tsx}'],
     ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', ...WINDOW_PRESENCE_EXEMPT_FILES],
     plugins: { 'main-window-presence': windowPresencePlugin },
@@ -603,6 +615,14 @@ export default tseslint.config(
     ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', 'src/workbench/assets/assetFileDeletion.ts', 'src/workbench/assets/deleteAssetResult.ts', 'src/workbench/assets/pendingAssetDeletions.ts'],
     plugins: { 'asset-command-owner': { rules: { 'no-restricted-imports': builtinRules.get('no-restricted-imports') } } },
     rules: { 'asset-command-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/assetFileDeletion'], importNames: ['trashProjectFiles'], message: 'UI must request the asset deletion command; physical trash is private to the deletion domain.' }] }] },
+  },
+  {
+    // 「这次按哪种方式发」只有一个主人：archetypeMeta.effectiveArchetypeMode（按输入现算）。modeTestHelpers 按存着的偏好取方式，
+    // 只给「给定方式、请求体长什么样」的测试用；生产代码拿它会退回「存着什么就发什么」（2026-11-12 方式按输入现算）。
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.ts'],
+    ignores: ['**/*.test.{ts,tsx}', '**/__tests__/**', 'src/workbench/generationCanvas/nodes/controls/modeTestHelpers.ts'],
+    plugins: { 'mode-owner': { rules: { 'no-restricted-imports': builtinRules.get('no-restricted-imports') } } },
+    rules: { 'mode-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/modeTestHelpers'], message: '这次按哪种方式发走 effectiveArchetypeMode（按输入现算）；modeTestHelpers 只给测试用。' }] }] },
   },
   {
     // TipTap 编辑器只有一扇门：useNomiTiptapEditor（固定 React 19 下的生命周期选项）。

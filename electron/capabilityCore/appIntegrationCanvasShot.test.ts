@@ -16,7 +16,7 @@ import { VendorRequestError } from "../vendor/vendorHttp";
 import { matchNomiErrorCode, tagNomiError, type NomiErrorCode } from "../shared/nomiErrorCodes";
 import { generatedMediaValidationError } from "../assets/generatedMediaDecode";
 import { handOffToNetwork } from "../outboundDispatchEvidence";
-import { SYNC_RESULT_URL, decodeFailed, download403, kindMismatch, outboundRefused } from "./resultLandingTestUtils";
+import { SYNC_RESULT_URL, decodeFailed, download403, kindMismatch } from "./resultLandingTestUtils";
 
 // 结果落地门（assets/localizeTaskAsset）用真的：同步供应商的结果只在它那里落地，「答过了」的正证据也只有它挂得上。
 // 只把它下面的落盘（projectAssetStore.importRemoteAsset）换成按剧本失败。
@@ -417,12 +417,6 @@ describe("同步供应商答了、本机落地失败：确定结局，不是结�
     const harness = setup();
     harness.vendor.answer = answeredThenLandingFails(kindMismatch());
     expectAnsweredButNotLanded(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")), "retrieval-download");
-  });
-
-  it("A5：取片被出网策略拦（hardenedFetch 的真拒绝）→ outbound-blocked", async () => {
-    const harness = setup();
-    harness.vendor.answer = answeredThenLandingFails(await outboundRefused());
-    expectAnsweredButNotLanded(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")), "outbound-blocked");
   });
 
   it("A8：批量卡轮到的那一镜落地失败 → 同 A1；下一张卡可以再生成它", async () => {

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { filledReferenceKinds, nodeUnmetReferenceDependency, unmetReferenceDependency } from './referenceDependency'
 import { SEEDANCE_2_APIMART_ARCHETYPE, SEEDANCE_2_5_ARCHETYPE } from '../../../../../electron/shared/videoCapabilities'
 import type { ArchetypeMode, ArchetypeReferenceSlotKind } from '../../../../../electron/shared/modelArchetypes'
+import { modeWrittenInMeta } from './modeTestHelpers'
 
 const omniOf = (archetype: { modes: ArchetypeMode[] }, id: string) =>
   archetype.modes.find((mode) => mode.id === id) as ArchetypeMode
@@ -74,9 +75,9 @@ describe('filledReferenceKinds', () => {
 describe('nodeUnmetReferenceDependency', () => {
   it('blocks audio-only on 2.0 and clears once an edge-borne image arrives', () => {
     const meta = metaFor('omni', { referenceAudioUrls: ['nomi-local://vo.mp3'] })
-    expect(nodeUnmetReferenceDependency(meta, SEEDANCE_2_APIMART_ARCHETYPE)?.slotLabel).toBe('参考音频')
+    expect(nodeUnmetReferenceDependency(meta, modeWrittenInMeta(meta, SEEDANCE_2_APIMART_ARCHETYPE))?.slotLabel).toBe('参考音频')
     expect(
-      nodeUnmetReferenceDependency(meta, SEEDANCE_2_APIMART_ARCHETYPE, { referenceImages: ['https://x/1.png'] }),
+      nodeUnmetReferenceDependency(meta, modeWrittenInMeta(meta, SEEDANCE_2_APIMART_ARCHETYPE), { referenceImages: ['https://x/1.png'] }),
     ).toBeNull()
   })
 
@@ -87,6 +88,6 @@ describe('nodeUnmetReferenceDependency', () => {
   it('does not leak the dependency across modes — t2v has no slots at all', () => {
     // 参考值全局持久（切模式不清空），所以残留的 referenceAudioUrls 不能让 t2v 被误判成"缺伴随"。
     const meta = metaFor('t2v', { referenceAudioUrls: ['nomi-local://vo.mp3'] })
-    expect(nodeUnmetReferenceDependency(meta, SEEDANCE_2_APIMART_ARCHETYPE)).toBeNull()
+    expect(nodeUnmetReferenceDependency(meta, modeWrittenInMeta(meta, SEEDANCE_2_APIMART_ARCHETYPE))).toBeNull()
   })
 })

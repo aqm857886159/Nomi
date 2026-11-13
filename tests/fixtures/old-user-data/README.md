@@ -96,3 +96,7 @@ pnpm exec vitest run electron/projects/projectLocation.oldUser.test.ts
 ## 内置目录声明快照（`curated/`）
 
 `curated/v0.24.1-apimart` 由 `fb169414c1778e88bca35beacc0da9c54cb313d4` 的 `ensureBuiltinModelSeeds` 经真实目录写入函数落盘，再仅投影 APIMart 行，行内容未手写。没有凭据。生成器 `generators/zzCatalogSnapshot.ts.txt` 需要显式临时设置目录；`provenance.json` 记录来源。`apimartLatestContracts.test.ts` 对账每个旧身份、用户设置和旧音频映射。它证明目录兼容，不能替代真实旧作品的供应商执行验证。
+
+## 匿名统计的同意与待发队列（`telemetry/`）
+
+`telemetry/v0.24.1-outbox` 由 0.24.1（`21beebc789803925e2540d1eb4bd3e6255790673`）自己的 `writeTelemetrySettings` 与 `recordTelemetryEvent` 落盘：在 0.24.1 的 `electron/` 导出里用 tsx 跑 `generators/zzTelemetryOutboxGen.ts.txt`（显式临时设置目录、不配接收地址，什么都不发出去）。里面是开着统计、同意过告知范围 2 的设置文件，和 6 条当时各发送口形状的待发事件（生成完成带写死的 `attemptCountBucket`、没有补丁位）；`manifest.json` 记来源。没有内容、没有凭据，会话 id 是生成时随机的。回放在 `electron/telemetry/telemetryOutbox.test.ts` 的「0.24.1 开着统计」一条：升级后不重新确认、旧形状待发读出即丢不抛、新事件照常入队。

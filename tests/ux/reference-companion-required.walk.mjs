@@ -21,8 +21,9 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, expectVisible, expectAbsent, proveProbe, clickOrFail, screenshotSettled } from './_assert.mjs'
+import { DEFAULT_TIMEOUT_MS, expect, expectVisible, proveProbe, clickOrFail, screenshotSettled } from './_assert.mjs'
 import { canvasAddBar, newProjectEntry } from './_shell.mjs'
+import { modeName, openModeMenu, closeModeMenu, readModeCell } from './_modeMenu.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/reference-companion-required')
@@ -79,14 +80,8 @@ async function shot(tag) {
 }
 
 const composer = win.locator('.generation-canvas-v2-node__composer')
-const modeGroup = composer.locator('[role="group"][aria-label="生成方式"]')
-const activeMode = modeGroup.locator('button[aria-pressed="true"]')
-/**
- * 参考 tile 的存在性锚点 = 它的「移除」按钮（`移除参考音频1` / `移除角色参考1`）。
- * **不用 tile 自身的 aria-label**：只有 characterIndexed 的角色图 tile 才带（要支持拖拽重排），
- * 音频 tile 根本没有那个属性 —— 探真实 DOM 才发现的，照角色图的写法猜必然找不到（本轮已栽过一次）。
- */
-const tile = (label) => composer.locator(`button[aria-label="移除${label}"]`)
+// 方式在底栏方式格（2026-11-12 起按输入现算，面板里不再有「生成方式」）；名字按词典键取。
+const REFERENCE = modeName('zh', 'reference')
 /** 生成钮本体（原生 button），以及包着它、承载悬停原因的那层 span[title]。 */
 const generateButton = composer.locator('button[aria-label="生成素材"]')
 // 原因挂在**包着**生成钮的那层 span 的 title 上（悬停时用户看到的就是它），不在按钮自己身上。
@@ -105,7 +100,8 @@ async function pickFromSelect(triggerLabel, match, humanLabel) {
 
 /** 经素材选择器上传一个本地文件到当前节点的参考槽（与 archetype-modebar 同一条真实路径）。 */
 async function addReferenceFile(filePath, humanLabel) {
-  await clickOrFail(composer.locator('button[aria-label="加参考"]'), `omni 的「加参考」（${humanLabel}）`)
+  // 「+」：空节点上是参考入口的 AssetAddTile，已有参考时是参考行的加号（同名的另一颗是「在画布上点选」，别点它）。
+  await clickOrFail(composer.locator('button[data-reference-add-entry], button[data-asset-add-tile]').first(), `参考的「+」（${humanLabel}）`)
   // 素材选择器里有两个 file input，只有带 aria-label 的那个是「上传本地文件」入口；挑错了会静默什么都不发生。
   await win.locator('input[type="file"][aria-label="上传本地文件"]').first().setInputFiles(filePath)
 }
@@ -128,7 +124,7 @@ try {
     target.center()
   })
 
-  // ── 进场：新建空白项目 → 生成画布 → 视频节点 → Seedance 2.0 → 全能参考 ──────
+  // ── 进场：新建空白项目 → 生成画布 → 视频节点 → Seedance 2.0 ──────────────
   await clickOrFail(newProjectEntry(win), '新建空白项目')
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '顶栏「生成」')
   await expectVisible(canvasAddBar(win), '生成画布工具栏出现')
@@ -137,49 +133,43 @@ try {
 
   const pickedModel = await pickFromSelect('模型', (t) => t.startsWith('Seedance 2.0'), '模型')
   await expect(composer.locator('[aria-label="模型"]'), '模型芯片没变成 Seedance 2.0').toHaveText(/Seedance 2\.0/)
-  await clickOrFail(modeGroup.locator('button', { hasText: '全能参考' }), '模式「全能参考」')
-  await expect(activeMode, '点了「全能参考」但分段条的选中项没换过去').toHaveText('全能参考')
-  record('进场：新建项目 → 视频节点 → Seedance 2.0 → 全能参考', pickedModel)
-  await shot('omni-empty')
+  record('进场：新建项目 → 视频节点 → Seedance 2.0', pickedModel)
 
   // 先证探针活着：生成钮在这一屏确实找得到。
   // 否则后面「它是 disabled」的断言可能只是因为压根没找到这个元素（恒真的空话）。
-  const buttonProof = await proveProbe(generateButton, '全能参考模式下生成钮确实存在')
+  const buttonProof = await proveProbe(generateButton, '生成钮确实存在')
   record('探针基线：生成钮在这一屏找得到', buttonProof.label)
 
-  // 基线：**一个参考都没有**的 omni 走的仍是原来那句泛化文案。
-  // 这条钉的是「新约束没有把老路径吃掉」——具体原因只该在它真的适用时替换掉泛化原因。
-  // （顺带：这也是本轮唯一靠肉眼看截图分辨不出来的一处——置灰与否在缩略图上几乎同色，
-  //   所以改成机器断言，别用"我看着像"结账。）
-  await expect(generateButton, '空 omni 本就该置灰（一个参考都没有）').toBeDisabled()
-  await expect(generateTitle, '空 omni 的原因应当是原来那句泛化文案，不该被新约束顶掉')
-    .toHaveAttribute('title', '需要先添加参考素材（拖入 / 连线 / 点 +）')
-  record('基线：空 omni → 置灰 + 泛化文案「需要先添加参考素材」')
+  // 基线（2026-11-12 起方式按输入现算）：一个参考都没有时方式是文生视频，全能参考在菜单里置灰——
+  // 「空的全能参考」这个现场已经走不到了，所以不再验它那句泛化文案。
+  const emptyMode = await readModeCell(composer, 'zh')
+  if (emptyMode !== modeName('zh', 'text')) throw new Error(`WALK FAIL: 空节点的方式应是文生视频，实际「${emptyMode}」`)
+  const emptyRows = await openModeMenu(win, composer, 'zh')
+  await closeModeMenu(win)
+  if (!emptyRows.find((row) => row.name === REFERENCE)?.disabled) throw new Error(`WALK FAIL: 一个参考都没有时「${REFERENCE}」应置灰：${JSON.stringify(emptyRows)}`)
+  record('基线：空节点 → 方式格「文生视频」，全能参考置灰')
+  await shot('empty-text-mode')
 
   // ── ① 只放一段参考音频 ────────────────────────────────────────────────
   const tmpWav = path.join(tempRoot, 'voice.wav')
   writeTinyWav(tmpWav)
+  // 文生视频的空节点也有参考行：「+」给哪几类按「放进去之后收得下」现算（和拖进来同一个入口 addAssetUrlToNode），
+  // 音频直接落进节点自己的参考音频格。2026-11-12 以前这里走建画布卡的旧入口，音频被拒「这个位置只收图片、视频」。
   await addReferenceFile(tmpWav, '音频')
-  await expectVisible(tile('参考音频1'), '上传后参考音频 tile 出现（音频真的进了 audio_ref 槽）')
-  await win.keyboard.press('Escape') // 关掉素材选择器，别盖住 composer
-  record('往 omni 放入一段参考音频（且只有音频）')
+  // 只有全能参考收音频：放进来后方式格自己换成它（不用人去点）。
+  await expect.poll(() => readModeCell(composer, 'zh'), { message: `放了音频后方式格应自己换成「${REFERENCE}」`, timeout: DEFAULT_TIMEOUT_MS }).toBe(REFERENCE)
+  await win.keyboard.press('Escape') // 接线已落地，关掉素材选择器，别盖住 composer
+  record('往节点放入一段参考音频（且只有音频）→ 方式格自己换成全能参考')
   await shot('audio-only')
 
   // 断言前先证明「我确实在我以为的现场」：音频进去了、图和视频都还是空的。
   // 少了这一步，下面的置灰可能是别的原因（比如根本没上传成功 = 一个参考都没有）造成的。
   //
-  // 用同屏对照物证探针（_assert 的用法②）：`移除X` 这套定位器**在这一屏确实找得到东西**
-  // ——音频 tile 的移除钮就在那。证过之后，「找不到角色参考/参考视频」才是真的没有，
-  // 而不是"这套选择器在本屏根本不生效"。
-  const removeProbeAlive = await proveProbe(tile('参考音频1'), '同屏对照：`移除…` 这套探针在本屏是活的')
-  await expectAbsent(tile('角色参考1'), {
-    provenBy: removeProbeAlive,
-    message: '这一刻不该有任何角色参考图——否则验的就不是"纯音频"了',
-  })
-  await expectAbsent(tile('参考视频1'), {
-    provenBy: removeProbeAlive,
-    message: '这一刻不该有任何参考视频——否则验的就不是"纯音频"了',
-  })
+  // 参考行里每一格都带一颗移除钮（data-asset-tile-remove，悬停才露）：此刻正好一颗 = 只有音频那一格。
+  // 先证这套定位器在这一屏找得到东西（_assert 的用法②），再数它——数出 1 才说明图 / 视频两槽是空的。
+  const tileRemovers = composer.locator('[data-reference-block] [data-asset-tile-remove]')
+  await proveProbe(tileRemovers, '同屏对照：参考行里至少有音频那一格')
+  await expect(tileRemovers, '这一刻参考行里应只有音频那一格——否则验的就不是"纯音频"了').toHaveCount(1)
   record('现场确认：音频已入槽，图/视频两槽都是空的（验的确实是"纯音频"）')
 
   // ② 生成钮必须置灰
@@ -200,7 +190,7 @@ try {
     Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'),
   )
   await addReferenceFile(tmpPng, '图片')
-  await expectVisible(tile('角色参考1'), '上传后角色图 tile 出现')
+  await expect(tileRemovers, '上传后参考行应多出图那一格（音频 + 图 = 两格）').toHaveCount(2)
   await win.keyboard.press('Escape')
   await expect(generateButton, '音频 + 图片已凑齐，生成钮却还灰着 → 约束修过头了').toBeEnabled()
   record('补一张角色参考图 → 依赖满足，生成钮立刻恢复可点')

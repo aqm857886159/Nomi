@@ -4,12 +4,11 @@
 // modelCallFailure（文本任务；Agent 车道的 HTTP 失败也经它铸载荷，原先给 pi 运行时的 describeRuntimeError 没有生产调用者，已删）——
 // 在服务商没回话时（连不上 / 超时 / 流中途断了）也把本机的话写进 structured.upstreamMsg，字段名不是证据；载荷里的 httpStatus / logicalCode（服务商回了话才有）才是。
 // 所以这里一律用**真生产者**造错误、不手拼载荷：哪天新长出一个不带回话证据的生产者分支，这张表照样接住它。
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../i18n'
 import { classifyGenerationError } from './classifyError'
 import { formatTaskFailureMessage } from '../generationCanvas/runner/taskFailureMessage'
 import { encodeVendorErrorMessage, requestJson, VendorRequestError } from '../../../electron/vendor/vendorHttp'
-import { setSubmitOutboundDepsForTests } from '../../../electron/vendor/vendorOutboundGuard'
 import { describeAgentError } from '../../../electron/ai/agentError'
 import { modelCallFailure } from '../../../electron/ai/runtimeVendorError'
 import { tagNomiError } from '../../../electron/shared/nomiErrorCodes'
@@ -20,16 +19,7 @@ const vendor = { key: 'relay', authType: 'bearer', baseUrlHint: 'https://fixture
 const SUBMIT_URL = 'https://fixture.invalid/v1/images/generations'
 const QUERY_URL = 'https://fixture.invalid/v1/tasks/task-1'
 
-beforeEach(() => {
-  // 提交侧出站授权要做 DNS：钉成「公网、无代理」，本文件只测错误怎么带过去（同 vendorHttp.test.ts）。
-  setSubmitOutboundDepsForTests({
-    resolve: async () => [{ address: '93.184.216.34', family: 4 as const }],
-    readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: '' }),
-    isApplicationProxyActive: () => false,
-  })
-})
 afterEach(async () => {
-  setSubmitOutboundDepsForTests(null)
   vi.stubEnv('NOMI_VENDOR_HTTP_TIMEOUT_MS', undefined)
   vi.useRealTimers()
   vi.unstubAllGlobals()

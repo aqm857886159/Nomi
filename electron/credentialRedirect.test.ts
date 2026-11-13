@@ -25,7 +25,6 @@ import { appFetch } from "./appFetch";
 import { requestCarriesCredentials } from "./credentialRedirectPolicy";
 import { fetchVendorWithBaseFallback } from "./vendor/vendorBaseFallback";
 import { requestJson, VendorRequestError } from "./vendor/vendorHttp";
-import { setSubmitOutboundDepsForTests } from "./vendor/vendorOutboundGuard";
 import { registerOnboardingIpc } from "./ai/onboarding/onboardingIpc";
 import { fetchModelList } from "./ai/onboarding/modelListProbe";
 import { applySystemProxy } from "./systemProxy";
@@ -81,15 +80,8 @@ beforeAll(async () => {
 beforeEach(() => {
   handlers.clear();
   registerOnboardingIpc();
-  // 本机回环是用户显式配置的接入地址（声明式例外）；公网 / 无代理这一格钉死，不碰真 DNS。
-  setSubmitOutboundDepsForTests({
-    resolve: async () => [{ address: "93.184.216.34", family: 4 as const }],
-    readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
-    isApplicationProxyActive: () => false,
-  });
 });
 afterEach(async () => {
-  setSubmitOutboundDepsForTests(null);
   for (const server of servers.splice(0)) {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));

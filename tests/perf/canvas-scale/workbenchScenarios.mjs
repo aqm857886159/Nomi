@@ -10,6 +10,7 @@
 // 零花费、零外网（主进程网络闸 walkthrough-network-guard 只放行本机）。
 // D2 付费卡的两条（卡上指向元素 ↔ 画布节点）用同一台本机假 Agent：起草器和走查是同一个（_spendCardWalk.createPresenter），
 // 卡摆出来就一直开着——没人按「生成」，零花费。
+import { agentBallEyeFollow } from './agentBallEyeFollowScenario.mjs'
 import { generationIdle, prepareGenerationIdle } from './generationIdleScenario.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -35,6 +36,7 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'pan-while-generating',
   'generation-idle',
   'pan-while-agent-streaming',
+  'agent-ball-eye-follow',
   'library-skill-open',
   'library-prompt-open',
   'library-prompt-scroll',
@@ -114,7 +116,7 @@ export async function prepareWorkbenchLaunch(scenario, { fixture, root, repoRoot
     }
   }
   if (SPEND_CARD_SCENARIOS.has(scenario)) return prepareSpendCardLaunch({ root, repoRoot })
-  if (scenario === 'pan-while-generating' || scenario === 'pan-while-agent-streaming') {
+  if (scenario === 'pan-while-generating' || scenario === 'pan-while-agent-streaming' || scenario === 'agent-ball-eye-follow') {
     const settingsDir = path.join(root, 'settings')
     fs.mkdirSync(settingsDir, { recursive: true })
     const guard = {
@@ -126,8 +128,11 @@ export async function prepareWorkbenchLaunch(scenario, { fixture, root, repoRoot
       const provider = await createProcessFixture(repoRoot, settingsDir)
       return { launch: { settingsDir, ...guard }, provider, close: () => provider.close() }
     }
-    // 常驻应答：每一句都回一段慢慢吐的长正文（约 2400 字，12 字一帧、40ms 一帧 ≈ 8 秒）。
-    return prepareAgentLaunch({ settingsDir, guard, repoRoot, label: 'perf stream', reply: { type: 'stream', text: STREAM_TEXT, chunkChars: 12, intervalMs: 40 } })
+    // 常驻应答：每一句都回一段慢慢吐的长正文。1240 字，一帧 12 字，平移那条 40ms 一帧，约 4 秒吐完。
+    // 眼睛跟随那条要在「在跑」里先量 1.2 秒静止对照、再扫一圈，4 秒不够：扫完时 Agent 已经停了，样本会被跳过（11-07 冒烟两次都跳过）。
+    // 所以这条放慢到 120ms 一帧，约 12 秒吐完。
+    const intervalMs = scenario === 'agent-ball-eye-follow' ? 120 : 40
+    return prepareAgentLaunch({ settingsDir, guard, repoRoot, label: 'perf stream', reply: { type: 'stream', text: STREAM_TEXT, chunkChars: 12, intervalMs } })
   }
   if (CHAT_SCENARIOS[scenario]) {
     seedLegacyConversation(fixture, CHAT_SCENARIOS[scenario])
@@ -284,6 +289,7 @@ export async function runWorkbenchScenario(page, scenario, ctx) {
   if (scenario === 'generation-idle') return generationIdle(page, ctx)
   if (scenario === 'pan-while-generating') return panWhileGenerating(page, ctx)
   if (scenario === 'pan-while-agent-streaming') return panWhileAgentStreaming(page, ctx)
+  if (scenario === 'agent-ball-eye-follow') return agentBallEyeFollow(page, ctx)
   if (scenario === 'library-skill-open') return libraryOpen(page, ctx, 'skills')
   if (scenario === 'library-prompt-open') return libraryOpen(page, ctx, 'prompts')
   if (scenario === 'library-prompt-scroll') return libraryScroll(page, ctx)
@@ -839,7 +845,7 @@ async function panWhileGenerating(page, ctx) {
 }
 
 /**
- * ⑨ Agent 流式输出时平移画布。每次采样：在生成页的 Agent 面板发一句话，本机假模型约 8 秒慢慢吐一段长正文；
+ * ⑨ Agent 流式输出时平移画布。每次采样：在生成页的 Agent 面板发一句话，本机假模型约 4 秒慢慢吐一段长正文；
  * 第一段字出现在面板里之后开始平移。
  */
 async function panWhileAgentStreaming(page, ctx) {

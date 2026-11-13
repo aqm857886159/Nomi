@@ -43,7 +43,7 @@ const ARCHETYPE = {
 const ROLES = [{ url: F, role: "first_frame" }, { url: A, role: "reference_image" }, { url: B, role: "reference_image" }];
 
 function canvas(modeId: string): Record<string, unknown> {
-  return buildArchetypeInputParams({ archetype: { id: ARCHETYPE.id, modeId } }, ARCHETYPE, { firstFrameUrl: F, referenceImages: [A, B] });
+  return buildArchetypeInputParams({ archetype: { id: ARCHETYPE.id, modeId } }, ARCHETYPE.modes.find((mode) => mode.id === modeId)!, { firstFrameUrl: F, referenceImages: [A, B] });
 }
 
 function headless(): Record<string, unknown> {

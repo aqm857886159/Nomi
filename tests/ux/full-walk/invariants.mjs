@@ -204,11 +204,12 @@ export function loadLimits() {
       source: 'electron/productionRun/multiShotBatchScheduler.ts POLL_DELAY_CAP_MS（调度器两轮之间最长的等待）',
     }),
     minWindow: Object.freeze((() => {
-      const source = fs.readFileSync(path.join(repoRoot, 'electron/main.ts'), 'utf8')
-      const width = Number(/minWidth:\s*(\d+)/.exec(source)?.[1])
-      const height = Number(/minHeight:\s*(\d+)/.exec(source)?.[1])
-      if (!width || !height) throw new Error('full-walk 读不到 electron/main.ts 的 minWidth / minHeight——写法变了，监视器要跟着改')
-      return { value: { width, height }, source: 'electron/main.ts BrowserWindow minWidth / minHeight（铁律 7「窗口缩到最小也要测」）' }
+      // 2026-11-09 起最小窗口只有一份：electron/shared/mainWindowSize.json（main.ts 展开它、弹窗几何普查也读它）。
+      const size = JSON.parse(fs.readFileSync(path.join(repoRoot, 'electron/shared/mainWindowSize.json'), 'utf8'))
+      const width = Number(size.minWidth)
+      const height = Number(size.minHeight)
+      if (!width || !height) throw new Error('full-walk 读不到 electron/shared/mainWindowSize.json 的 minWidth / minHeight——写法变了，监视器要跟着改')
+      return { value: { width, height }, source: 'electron/shared/mainWindowSize.json minWidth / minHeight（BrowserWindow 的最小窗口；铁律 7「窗口缩到最小也要测」）' }
     })()),
     // 付费卡 2026-10-05 起随对话投影推送（38db4a3d9 删了它的 1.5 秒轮询，原来读的 POLL_INTERVAL_MS 跟着没了，
     // 整个走查一起动就抛）。界面上还在按节拍追 Run 状态的是制作 Run 视图那一拍，收场检查点等的是它。

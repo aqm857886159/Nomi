@@ -6,9 +6,11 @@
 // params 的坑，都只在"真实参数构建"里暴露，埋在 2500 行 runtime 里既测不到也容易回归。
 import { assertDeclaredCapabilityForTask } from "../shared/modelAvailability";
 import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
-import { getArchetypeById, resolveArchetypeForModel, specializeArchetypeForVendor, type ModelArchetype } from "../shared/modelArchetypes";
+import { resolveArchetypeForModel } from "../shared/modelArchetypes";
 import { referenceInputParams } from "./archetypeInput";
-import { ARCHETYPE_WIRE_DEFAULTS, ARCHETYPE_SIZE_RATIO_SEMANTIC } from "./archetypeWireDefaults.generated";
+import { ARCHETYPE_SIZE_RATIO_SEMANTIC } from "./archetypeWireDefaults.generated";
+import { declaredModeParams, effectiveModeParams, modeWhenUnrecorded } from "../shared/modelArchetypes/modeParams";
+import { resolveArchetypeVariant } from "../shared/modelArchetypes/variantResolution";
 import { bodyReferencedParamKeys } from "./paramTranslate";
 import { hasMentions, numberPromptReferences, projectPromptForSend } from "../shared/storyboard/promptMentions";
 import { assertReferenceCapacity, bodyReferenceSupport, classifyReferenceKey, referenceUrlCount, type ModelModeBody, type ReferenceFamily } from "./referenceReachability";
@@ -123,12 +125,33 @@ function sizeDefaultIsRatioSemantic(
   return typeof effective === "string" && RATIO_VALUE_RE.test(effective.trim());
 }
 
+/** 请求里记着的变体（只认属于这个档案的记录；没写 id 的宿主合同也算），连同模型名交给变体的唯一 owner。 */
+function recordedVariantId(archetype: NonNullable<ReturnType<typeof resolveArchetypeForModel>>, extras: Record<string, unknown> | undefined, modelKey: string | undefined): string | undefined {
+  const selection = isJsonRecord(extras?.archetype) ? extras.archetype : {};
+  const id = firstString(selection.id);
+  const belongs = !id || id === archetype.id || (archetype.legacyIds ?? []).includes(id);
+  return resolveArchetypeVariant(archetype, {
+    ...(belongs ? { variantId: selection.variantId } : {}),
+    modelId: firstString(extras?.modelKey, modelKey),
+  })?.id;
+}
+
+/** 这个方式自己的默认值（固定参数 + 控件默认值），只给 size 别名闸的回退判据读。 */
+function modeDefaultsOf(selection: Parameters<typeof declaredModeParams>[0]): Record<string, unknown> | undefined {
+  const declared = declaredModeParams(selection);
+  if (!declared) return undefined;
+  const out: Record<string, unknown> = { ...declared.fixedParams };
+  for (const control of declared.controls) if (control.defaultValue !== undefined) out[control.key] = control.defaultValue;
+  return out;
+}
+
 /**
- * headless/MCP 三道缺参兜底（均「既有值优先」，UI 路已填故零影响）：① 档案参数默认值（单一真相源，按
- * archetypeId+taskKind 桥接自 src/config，vendorParams 覆盖优先、回退通用 "*"；补 duration(int)/
- * 比例/清晰度/voice/size）；② mapping 级 defaultParams（仅非档案派生的兜底）；③ **参考键形态投影**
- * （createBody 给了才做，W1d）——把携带的参考投影到 body 真读的键（image_urls/first_frame_image…），
- * 见 headlessReferenceOverlay（放置交给 shared/generationLowering 的唯一降级函数）。逻辑收口在此 → runtime 一行调用，不喂巨壳。
+ * 发送前的三步（runtime 引擎 A 与 Run provider 同一个函数）：① **这个方式这次发哪些参数**只问方式参数 owner
+ * （shared/modelArchetypes/modeParams.effectiveModeParams）：方式与变体读请求里带的（extras.archetype.modeId / variantId，
+ * 渲染层已按输入现算过），这里不重算；没有方式记录、且目录行声明了档案的（Agent / MCP 无界面发送）按
+ * modeWhenUnrecorded 取主方式。渲染层已过过一遍的请求再过一遍结果不变（幂等）。② mapping 级 defaultParams
+ * （既有值优先，仅非档案派生的兜底）；③ **参考键形态投影**（createBody 给了才做，W1d）——把携带的参考投影到
+ * body 真读的键（image_urls/first_frame_image…），见 headlessReferenceOverlay（放置交给 shared/generationLowering 的唯一降级函数）。
  *
  * 附一道 `size` 别名闸（见 sizeDefaultIsRatioSemantic）：调用方比例铺进的 `size` 仅当该模式 size 默认是比例形时
  * 才保留，否则剥掉，免得把只说像素的目标（火山 seedream 等）的 size 覆写成 "16:9" 发出废请求。
@@ -137,23 +160,6 @@ function sizeDefaultIsRatioSemantic(
  * 产出（2026-10-27）。以前这里只收散参数、往投影边界递一个只剩 `{ archetypeId }` 的缩减 meta：自写能力合同
  * （customCapabilityContract）声明的参考上限因此在第一闸读不到，headless 超量参考一路走到发送前才被别处拦或干脆发出去。
  */
-function pruneParamsOfOtherModes(
-  extras: Record<string, unknown> | undefined,
-  archetype: ModelArchetype,
-  mode: ModelArchetype["modes"][number],
-  vendorKey: string,
-): Record<string, unknown> | undefined {
-  if (!extras) return extras;
-  const specialized = specializeArchetypeForVendor(archetype, vendorKey);
-  const declaredHere = new Set(mode.params.map((control) => control.key));
-  const knownElsewhere = new Set(specialized.modes.flatMap((candidate) => candidate.params.map((control) => control.key)));
-  const stale = Object.keys(extras).filter((key) => knownElsewhere.has(key) && !declaredHere.has(key) && !(mode.fixedParams && key in mode.fixedParams));
-  if (!stale.length) return extras;
-  const rest = { ...extras };
-  for (const key of stale) delete rest[key];
-  return rest;
-}
-
 export function applyHeadlessParamDefaults(
   extras: Record<string, unknown> | undefined,
   selected: ParameterReferenceSelection & { readonly taskKind: string },
@@ -165,62 +171,29 @@ export function applyHeadlessParamDefaults(
   const { taskKind, vendorKey } = selected;
   const declaredArchetype = isJsonRecord(selected.modelMeta) ? selected.modelMeta.archetypeId : undefined;
   const archetypeId = typeof declaredArchetype === "string" && declaredArchetype ? declaredArchetype : undefined;
-  const perKind = archetypeId ? ARCHETYPE_WIRE_DEFAULTS[archetypeId]?.[taskKind] : undefined;
-  const primaryDefaults = perKind?.[vendorKey] ?? perKind?.["*"];
-  const archetype = selected.modeId ? resolveArchetypeForModel({
+  const archetype = selected.modeId || archetypeId ? resolveArchetypeForModel({
     modelKey: selected.modelKey, modelAlias: selected.modelAlias, vendorKey, meta: selected.modelMeta,
   }) : null;
-  const mode = archetype ? specializeArchetypeForVendor(archetype, vendorKey).modes.find((candidate) => candidate.id === selected.modeId) : undefined;
-  // A task kind shares tunable defaults. Its primary mode's fixed fields cannot select a different mode.
-  const archetypeDefaults = mode && primaryDefaults ? { ...primaryDefaults } : primaryDefaults;
-  if (archetype && mode && archetypeDefaults) {
-    // 默认值按任务类型（文生 / 图生…）整组桥接，同一任务类型下的几个方式共用；这一次选中的方式没声明的参数
-    // （如可灵 4.0 Flash 图生不收比例、Seedance 编辑不收时长），默认值不许替它补进请求（上游会 400）。
-    for (const key of Object.keys(archetypeDefaults)) {
-      const control = mode.params.find((candidate) => candidate.key === key);
-      // 这个方式没声明、或声明了但自己没有默认值（如编辑跟随源视频时长）：别的方式的默认值不能顶上来。
-      if (!control || control.defaultValue === undefined) delete archetypeDefaults[key];
-    }
-    for (const candidate of archetype.modes) {
-      for (const key of Object.keys(candidate.fixedParams ?? {})) {
-        if (!mode.params.some((control) => control.key === key)) delete archetypeDefaults[key];
-      }
-    }
-  }
+  // 方式：请求里记着的为准；没有记录的只在目录行自己声明了档案时按主方式补（自建中转按模型名认出的档案不在这里补，老报文被升级测试钉住）。
+  const mode = archetype
+    ? (selected.modeId ? archetype.modes.find((candidate) => candidate.id === selected.modeId) : undefined)
+      ?? (archetypeId ? modeWhenUnrecorded(archetype, taskKind, vendorKey) : undefined)
+    : undefined;
+  const modeSelection = archetype && mode
+    ? { archetype, modeId: mode.id, variantId: recordedVariantId(archetype, extras, selected.modelKey) }
+    : null;
   // extras.size 是比例形（调用方 aspect_ratio 铺来的）、但本模式的 size 是像素语义 → 剥掉，让档案像素默认接管。
   // 只针对「比例形的 caller size」，UI 路自己填的真实像素 size 不受影响（它不匹配 RATIO_VALUE_RE）。
   const guarded = extras && typeof extras.size === "string" && RATIO_VALUE_RE.test(extras.size.trim())
-    && !sizeDefaultIsRatioSemantic(archetypeId, taskKind, archetypeDefaults, mappingDefaults)
+    && !sizeDefaultIsRatioSemantic(archetypeId, taskKind, archetypeId && modeSelection ? modeDefaultsOf(modeSelection) : undefined, mappingDefaults)
     ? (() => { const { size: _dropped, ...rest } = extras; return rest; })()
     : extras;
-  // 同一档案别的方式声明过、这一次选中的方式没声明的参数（用户在文生里选的比例，切到图生后还躺在节点上）：
-  // 不许发给上游（可灵 4.0 Flash 图生带比例直接 400，Seedance 编辑只认时长 -1）。只剔「档案里某个方式认得」的键，
-  // 档案之外的键（model、archetype、参考通道……）不动。两条出站路（画布 / Run）都经过这里，是同一道闸。
-  const pruned = archetype && mode ? pruneParamsOfOtherModes(guarded, archetype, mode, vendorKey) : guarded;
-  const defaulted = applyWireDefaults(applyWireDefaults(pruned, archetypeDefaults), mappingDefaults);
-  // Saved nodes can still carry the previous mode's transport discriminator in either parameter bag.
-  const withDefaults = mode && mode.fixedParams ? {
-    ...defaulted, ...mode.fixedParams,
-    ...(isJsonRecord(defaulted?.archetypeInput) ? { archetypeInput: { ...defaulted.archetypeInput, ...mode.fixedParams } } : {}),
-  } : defaulted;
+  const owned = modeSelection ? effectiveModeParams({ ...modeSelection, stored: guarded ?? {} }).params : guarded;
+  const withDefaults = applyWireDefaults(owned, mappingDefaults);
   // ③ 参考键形态投影（既有值优先 → 渲染层已填 archetypeInput 时 no-op）。在缺参兜底之后做，看到的是合并后的 extras。
   if (typeof createBody === "undefined") return withDefaults;
   const projected = headlessReferenceLowering(withDefaults, createBody, selected);
   return projected.placedKeys.length ? withLoweredReferences(withDefaults || {}, projected) : withDefaults;
-}
-
-/** 选中的方式要么没有时长控件，要么有但明写「没有默认值」（跟随源视频）；这时没填的时长不该变成 duration:""。 */
-function modeLeavesDurationUnset(extras: Record<string, unknown>, vendorKey: string | undefined): boolean {
-  const identity = extras.archetype;
-  if (!isJsonRecord(identity) || typeof identity.id !== "string" || typeof identity.modeId !== "string") return false;
-  const base = getArchetypeById(identity.id);
-  if (!base) return false;
-  const archetype = specializeArchetypeForVendor(base, vendorKey);
-  const durationOf = (mode: ModelArchetype["modes"][number]) => mode.params.find((control) => control.key === "duration");
-  const mode = archetype.modes.find((candidate) => candidate.id === identity.modeId);
-  if (!mode || !archetype.modes.some(durationOf)) return false;
-  const control = durationOf(mode);
-  return !control || control.defaultValue === undefined;
 }
 
 export function taskTemplateParams(request: TaskParamsInput, selected?: ParameterReferenceSelection): JsonRecord {
@@ -229,9 +202,12 @@ export function taskTemplateParams(request: TaskParamsInput, selected?: Paramete
   const extras = serializeReferenceParams(request.extras || {});
   const size = request.width && request.height ? `${request.width}x${request.height}` : firstString(extras.size, extras.aspectRatio);
   // duration 可能是数字（节点「5s」标量参数存的就是 number 5）——firstString 只认字符串会把它吞成 ""，
-  // 导致 body 的 duration 为空（实测）。数字原样保留，字符串走 trim，缺省 ""。
+  // 导致 body 的 duration 为空（实测）。数字原样保留，字符串走 trim。
+  // 缺省：请求已过方式参数 owner（带 archetype.modeId）时，时长在不在由那个方式决定——缺就整键不发；
+  // 不归档案管的请求（自建中转、ComfyUI…）照旧缺省 ""（老中转的报文被升级测试逐字钉住）。
   const durationRaw = extras.duration ?? extras.durationSeconds ?? extras.videoDuration;
-  const duration = typeof durationRaw === "number" ? durationRaw : firstString(durationRaw);
+  const durationText = typeof durationRaw === "number" ? durationRaw : firstString(durationRaw);
+  const duration = durationText === "" && passedModeParamsOwner(extras) ? undefined : durationText;
   // Numeric controls can arrive from persisted node params as strings. Keep the
   // wire type stable for strict providers (APIMart TTS rejects speed="1.5").
   // Invalid non-empty values remain visible to the provider instead of being
@@ -272,9 +248,7 @@ export function taskTemplateParams(request: TaskParamsInput, selected?: Paramete
     cfgScale: request.cfgScale,
     cfg_scale: request.cfgScale,
     negative_prompt: request.negativePrompt ?? extras.negative_prompt,
-    // 选中的方式没有时长控件、或明写没有默认值（Seedance 编辑只认 -1 由平台补、可灵编辑跟随源视频）：时长不进模板，整键丢弃，不发 duration:""。
-    // 其他方式 / 没认出档案的老请求维持原样（缺省 ""，旧版本存下来的模型报文逐字不变）。
-    duration: duration === "" && modeLeavesDurationUnset(extras, selected?.vendorKey) ? undefined : duration,
+    duration,
     ...(speed !== undefined ? { speed } : {}),
     // 空→undefined（不是 ""）：body 的 `image: "{{request.params.image_url}}"` 整 token 渲染时，
     // undefined 会被丢弃、"" 却会当空字段发出去（纯文生图/文生视频误带 image:"" 会被部分中转拒）。
@@ -302,6 +276,11 @@ export function taskTemplateParams(request: TaskParamsInput, selected?: Paramete
   if (wireModel) params[WIRE_MODEL_PARAM] = wireModel;
   else delete params[WIRE_MODEL_PARAM];
   return params;
+}
+
+/** 这份 extras 过没过方式参数 owner：带着这次的方式记录（archetype.modeId）就算。 */
+function passedModeParamsOwner(extras: JsonRecord): boolean {
+  return isJsonRecord(extras.archetype) && firstString(extras.archetype.modeId) !== "";
 }
 
 /**

@@ -4,7 +4,7 @@
 // 三份测试（现状 / 目标 / 退回旧版本）共用这里，读方式的口只有一处：改造后换了函数名，只改这一个文件。
 import fs from 'node:fs'
 import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
-import { currentArchetypeMode, orderedSentMediaReferenceUrls } from '../../../../src/workbench/generationCanvas/nodes/controls/archetypeMeta'
+import { orderedSentMediaReferenceUrls, sendArchetypeMode } from '../../../../src/workbench/generationCanvas/nodes/controls/archetypeMeta'
 import { canRunGenerationNode } from '../../../../src/workbench/generationCanvas/runner/generationRunController'
 import { resolveTaskKind } from '../../../../src/workbench/generationCanvas/runner/catalogTaskResolve'
 import { resolveGenerationReferences } from '../../../../src/workbench/generationCanvas/runner/generationReferenceResolver'
@@ -57,12 +57,13 @@ export function readNode(nodes: GenerationCanvasNode[], edges: GenerationCanvasE
   const meta = (node.meta || {}) as Record<string, unknown>
   const archetype = archetypeOfNode(node)
   const references = resolveGenerationReferences(node, { nodes, edges })
-  const sent = archetype
-    ? orderedSentMediaReferenceUrls(meta, archetype, { image: references.referenceImages, video: references.referenceVideos, audio: references.referenceAudios })
+  const mode = archetype ? sendArchetypeMode(archetype, node, references) : null
+  const sent = mode
+    ? orderedSentMediaReferenceUrls(meta, mode, { image: references.referenceImages, video: references.referenceVideos, audio: references.referenceAudios })
     : []
   return {
     storedModeId: (meta.archetype as { modeId?: string } | undefined)?.modeId ?? null,
-    effectiveModeId: archetype ? currentArchetypeMode(archetype, meta).id : null,
+    effectiveModeId: mode ? mode.id : null,
     taskKind: resolveTaskKind(node, references),
     canRun: canRunGenerationNode(node, { nodes, edges }),
     sentArrayReferences: sent.length,

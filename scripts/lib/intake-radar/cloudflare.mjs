@@ -11,7 +11,7 @@ import { fetchWithRetry } from '../transientRetry.mjs'
  *  （`/v1/feedback` → `feedback/`，以此类推）——那份文件是唯一真相源，这里只是抄它已经
  *  公开在 infra/feedback-worker/wrangler.jsonc 里的桶名，不是新引入的敏感信息。 */
 export const INTAKE_BUCKET = 'nomi-feedback-intake'
-export const INTAKE_PREFIXES = ['feedback/', 'events/', 'trajectories/']
+export const INTAKE_PREFIXES = ['feedback/', 'events/']
 
 /** 从官方 `wrangler auth token --json` 输出取 bearer token；不接受 API key/email。 */
 export function parseWranglerAuthToken(text) {

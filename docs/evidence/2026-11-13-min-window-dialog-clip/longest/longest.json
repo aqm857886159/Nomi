@@ -1,0 +1,39 @@
+{
+  "scroll": {
+    "scrollHeight": 852,
+    "clientHeight": 509,
+    "scrolledTo": 342.5
+  },
+  "buttons": [
+    {
+      "text": "Ignore",
+      "left": 496,
+      "right": 559,
+      "top": 639,
+      "bottom": 667,
+      "height": 28,
+      "lineHeight": 18,
+      "insideViewport": true,
+      "notCovered": true,
+      "insideBar": true,
+      "scrollWidthOverflow": false
+    },
+    {
+      "text": "Generate 14 items now",
+      "left": 567,
+      "right": 723,
+      "top": 639,
+      "bottom": 667,
+      "height": 28,
+      "lineHeight": 18,
+      "insideViewport": true,
+      "notCovered": true,
+      "insideBar": false,
+      "scrollWidthOverflow": false
+    }
+  ],
+  "viewport": {
+    "width": 1100,
+    "height": 720
+  }
+}

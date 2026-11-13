@@ -7,7 +7,6 @@ import { describeAgentError } from '../../../../electron/ai/agentError'
 import { modelCallFailure } from '../../../../electron/ai/runtimeVendorError'
 import { laneModelTimeoutMessage } from '../../../../electron/shared/agentLane/laneAssistantFault'
 import { tagNomiError, stripNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
-import { describeOutboundRefusal } from '../../../../electron/networkOutboundMessage'
 import { encodeStructuredErrorMessage } from '../../../../electron/vendor/vendorHttp'
 import i18n from '../../../i18n'
 import { narrateGenerationErrorActions, type GenerationErrorKind } from '../../observability/narrate'
@@ -616,8 +615,8 @@ describe('动作表：每类主 / 次动作都写在表里，改一类不许带�
     'local-refusal': true, auth: true, balance: true, quota: true, 'poll-timeout': true, network: true, 'model-config': true,
     'model-kind-mismatch': true, 'model-not-open': true, 'model-unavailable-upstream': true, 'model-retired': true,
     'image-route-disabled': true, 'account-gate': true, 'content-policy': true, 'input-image-blocked': true,
-    'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-unfetchable': true, 'reference-not-in-use': true, 'aspect-ratio-unsupported': true, 'outbound-blocked': true,
-    'outbound-blocked-submit': true, 'outbound-blocked-credential-origin': true, 'credential-redirect': true, server: true, input: true,
+    'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-unfetchable': true, 'reference-not-in-use': true, 'aspect-ratio-unsupported': true,
+    'outbound-blocked-credential-origin': true, 'credential-redirect': true, server: true, input: true,
     'output-truncated': true, 'output-unreadable': true, 'submission-unknown': true, 'submission-not-sent': true, 'output-retrieval-failed': true, 'retrieval-incomplete': true, 'local-processing': true, unknown: true,
   }
 
@@ -861,45 +860,22 @@ describe('文本侧错误：走 structured 分支，不靠关键词猜', () => {
   })
 })
 
-describe('出站被我们自己的安全策略拦下（2026-09-06 真实验收：钱扣了、成片取不回、界面只说「生成失败」）', () => {
-  const refusal = () =>
-    describeOutboundRefusal({
-      reason: 'private-address',
-      hostname: 'api.apimart.ai',
-      observedAddress: '198.18.0.140',
-      syntheticResolver: false,
-      stage: 'retrieval',
-    })
-
-  it('归成 outbound-blocked，不再掉进 unknown 的「稍等重试」', () => {
-    const report = classifyGenerationError(refusal())
-    expect(report.kind).toBe('outbound-blocked')
-    expect(report.reason).not.toBe(i18n.t('generationCommon.observability.error.unknown.reason'))
-  })
-
-  it('主动作不是 retry —— 重试 = 再生成 = 再扣一次钱，而这次的钱根本没丢', () => {
-    const report = classifyGenerationError(refusal())
-    expect(report.primary).toBe('open-model-access')
+// 2026-11-13：生成链路上「按目的地地址拒绝」那一层删了，它的两个码不再产生。老项目里还存着带这两个码的失败，
+// 读到时按已删码表（nomiErrorCodes.ts RETIRED_CODES）改读：取回被拦 = 任务已付费、结果还在 → 取回没完成；
+// 提交前被拦 = 没花钱 → 普通失败，不冒充任何现有类。
+describe('老数据：已删掉的按地址拒绝的两个码', () => {
+  it('老的取回被拦 → retrieval-incomplete（钱已付，主动作不是再生成）', () => {
+    const report = classifyGenerationError('NOMI_ERR::outbound-blocked:: 取片被安全策略拦下：api.apimart.ai 解析到 198.18.0.140')
+    expect(report.kind).toBe('retrieval-incomplete')
     expect(report.primary).not.toBe('retry')
-    // 文案必须明说别重新生成，否则用户仍会去点那颗要花钱的按钮。
-    expect(report.hint).toContain('不要重新生成')
-  })
-
-  it('给用户看的文案里没有机器码标记，但说得出 fake-ip 与「免费重新拉取」', () => {
-    const report = classifyGenerationError(refusal())
     expect(report.reason).not.toContain('NOMI_ERR::')
-    expect(report.raw).not.toContain('NOMI_ERR::')
-    // 人话里必须同时出现「已付费没丢」与「重新拉取」，否则用户仍会去点那颗要花钱的重试。
-    expect(`${report.reason}${report.hint}`).toContain('重新取回')
   })
 
-  it('不把这条栽赃给服务商：它根本没被请求到，「服务商说：」框必须是空的', () => {
-    expect(classifyGenerationError(refusal()).providerMessage).toBeFalsy()
-  })
-
-  it('按稳定码分类，不按那句中文 —— 人话换成英文也照样归对', () => {
-    const englishShaped = tagNomiError('outbound-blocked', 'Download blocked by network policy.')
-    expect(classifyGenerationError(englishShaped).kind).toBe('outbound-blocked')
+  it('老的提交前被拦 → 不当成任何现有码（尤其不当成凭据绑定）', () => {
+    const report = classifyGenerationError('NOMI_ERR::outbound-blocked-submit:: 这次生成**没有发出去**：api.apimart.ai 解析到 198.18.0.7')
+    expect(report.kind).not.toBe('outbound-blocked-credential-origin')
+    expect(report.kind).not.toBe('retrieval-incomplete')
+    expect(report.reason).not.toContain('NOMI_ERR::')
   })
 })
 
@@ -1139,8 +1115,7 @@ describe('vendorSide —— 失败是不是服务商那一侧的事', () => {
     ['结果已送达、本机读不出来', tagNomiError('output-unreadable', 'Generated media validation failed (decode_failed)')],
     ['参考素材本身不行（请求没发出）', tagNomiError('asset-invalid', '参考素材读取失败')],
     ['选的画幅比例超出连接范围（构造请求时就拒了）', tagNomiError('aspect-ratio-unsupported', 'Request stopped before sending: aspect ratio 4:1 is outside the image sizes this connection supports')],
-    ['我们自己的出站策略拦了提交（走的是 VendorRequestError 的壳）', structuredMessage({ vendorKey: 'x', category: 'network', upstreamMsg: 'refused' }, `Provider request refused by outbound policy: ${tagNomiError('outbound-blocked-submit', 'blocked')}`)],
-    ['取片被出站策略拦了', tagNomiError('outbound-blocked', 'blocked')],
+    ['我们自己的凭据绑定拦了提交（走的是 VendorRequestError 的壳）', structuredMessage({ vendorKey: 'x', category: 'network', upstreamMsg: 'refused' }, `Provider request refused by outbound policy: ${tagNomiError('outbound-blocked-credential-origin', 'blocked')}`)],
     ['模型已被我们下线', 'Model is retired: sora-2'],
     ['图生图缺参考图的本机护栏（归 input 类，但请求没出门）', '图生图缺少参考图：这次请求里没有任何图片可以发给模型。'],
     ['我们自己中文的本机护栏（没有供应商说的话）', '请先写点提示词再生成。'],

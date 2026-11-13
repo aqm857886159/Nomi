@@ -4,15 +4,13 @@ import { createDefaultTimeline } from '../timeline/timelineMath'
 import type { TimelineState } from '../timeline/timelineTypes'
 import {
   createDefaultWorkbenchDocument,
-  STORYBOARD_DESIGN_STATUSES,
   type WorkbenchDocument,
 } from '../workbenchTypes'
 import type { StoryboardDesign } from '../workbenchTypes'
 import { createDefaultGenerationCanvasSnapshot } from '../generationCanvas/store/generationCanvasDefaults'
 import type { GenerationCanvasSnapshot } from '../generationCanvas/model/generationCanvasTypes'
-import { editingPanelLayoutSchema, type EditingPanelLayout } from '../preview/panelLayout'
-import { storyboardDraftPlanSchema } from '../generationCanvas/agent/storyboardPlanSchema'
-import { cloneBuiltinCategories, projectCategorySchema, type ProjectCategory } from './projectCategories'
+import type { EditingPanelLayout } from '../preview/panelLayout'
+import { cloneBuiltinCategories, type ProjectCategory } from './projectCategories'
 
 // Persisted records come in two shapes that carry an identical `payload`:
 //   v1 = legacy single-file project.json
@@ -44,7 +42,16 @@ export const workbenchProjectSummarySchema = z.object({
   draft: z.boolean().optional(),
 })
 
-export const workbenchProjectPayloadSchema = z.object({
+/** 项目内容里「一项一项独立存」的那几类：某一项不合格只隔离那一项，不连累整份（`projectNormalize.normalizePayloadWithQuarantine`）。 */
+export const pendingAssetDeletionSchema = z.object({ relativePath: z.string().min(1), failedAttempts: z.number().int().positive().optional() })
+
+/**
+ * 项目内容的**骨架**：结构不对（payload 不是对象、画布 nodes 不是数组、文档集合不是数组…）才整份拒。
+ * 「一项一项」的字段在这里只认容器形状（对象 / 数组），每一项合不合格由 `projectNormalize` 逐项判：
+ * 分镜设计（`storyboardDesignSchema`）、分类、版式、待删素材。2026-11-13：原来这里把每一项都写成严格形状，
+ * 一处不合格就让整份项目存不下，那 15 分钟的改动都没存下（设计卡 D-main-thread-unblock ★9 A3）。
+ */
+export const workbenchProjectPayloadSkeletonSchema = z.object({
   // 健壮性根因（2026-06-22，真机 elicit走查 打不开）：workbenchDocument / timeline 的校验+默认
   // 本就由下游容错 normalizer（normalizeWorkbenchDocument / normalizeTimeline，吃 undefined/非法
   // 一律回工厂默认）全权负责。此处再用严格 z.object 当硬必填门是冗余且有害的——payload 只缺这两个
@@ -60,33 +67,21 @@ export const workbenchProjectPayloadSchema = z.object({
   // Keep project loading tolerant of legacy v0.5 category ids so the
   // v5→v6 migration can run before the stricter canvas schema is enforced.
   generationCanvas: workbenchProjectGenerationCanvasPayloadSchema,
-  categories: z.array(projectCategorySchema).optional(),
+  categories: z.array(z.unknown()).optional(),
   /** S5-b-1:快照覆盖到事件日志的哪个 seq——hydrate 时重放其后的尾巴(崩溃恢复)。可选,老项目无。 */
   generationCanvasLastSeq: z.number().optional(),
-  /** 每篇原稿的分镜设计（唯一持久化 owner）。 */
-  storyboardDesignsByDocumentId: z.record(
-    z.array(z.object({
-      id: z.string().min(1),
-      documentId: z.string().min(1),
-      title: z.string(),
-      plan: storyboardDraftPlanSchema,
-      committed: z.boolean(),
-      status: z.enum(STORYBOARD_DESIGN_STATUSES),
-      sourceDocumentUpdatedAt: z.number().finite(),
-      createdAt: z.number().finite(),
-      updatedAt: z.number().finite(),
-    })),
-  ).optional(),
-  editingPanelLayout: editingPanelLayoutSchema.optional(),
+  /** 每篇原稿的分镜设计（唯一持久化 owner）。每一项按 `storyboardDesignSchema` 逐项判。 */
+  storyboardDesignsByDocumentId: z.record(z.unknown()).optional(),
+  editingPanelLayout: z.unknown().optional(),
   /** 删掉的版本还没真删的文件（撤销窗口内 / App 直接退出时来不及删的）；打开项目时清扫。 */
-  pendingAssetDeletions: z.array(z.object({ relativePath: z.string().min(1), failedAttempts: z.number().int().positive().optional() })).optional(),
+  pendingAssetDeletions: z.array(z.unknown()).optional(),
 })
 
 export const workbenchProjectRecordSchema = workbenchProjectSummarySchema.extend({
   version: workbenchProjectRecordVersionSchema,
   immutableProjectUuid: z.string().uuid().optional(),
   projectGeneration: z.number().int().positive().optional(),
-  payload: workbenchProjectPayloadSchema,
+  payload: workbenchProjectPayloadSkeletonSchema,
 })
 
 /** 项目来源：原生（默认根新建）/ 外部文件夹（「打开文件夹」绑定）。桌面端由后端按目录位置派生。 */

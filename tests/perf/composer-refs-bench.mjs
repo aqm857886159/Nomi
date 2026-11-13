@@ -1,11 +1,13 @@
-// 生成框 B3 的性能量具：参考行最坏规模（Seedance 2.5 参考上限 30 图）下的三个用户操作，每次采样一个全新页面。
+// 生成框 B3 的性能量具：参考行最坏规模（Seedance 2.5 参考上限 30 图）下的几个用户操作，每次采样一个全新页面。
 //
 // 量的是**真组件**（实验室里现役 BaseGenerationNode + NodeGenerationComposer，30 张参考灌进真 store，见
 // src/devlab/designLab/nodeComposerBar/nodeComposerB3LabKit.tsx 的 b3r-video-30-refs），在无头 Chromium 里用真鼠标操作；
 // 计时器是仓库唯一的 responseTimer（输入事件起表 → 判据到位再过两帧），长任务来自它自带的 PerformanceObserver。
 // 不是打包后的 Electron：Electron 夹具项目没有可用的模型目录，生成框里根本没有参考数组，量不到参考行（2026-10-19 试过，见 PR）。
 //
-// 用法：node tests/perf/composer-refs-bench.mjs --op open-params|hover-ref|switch-mode [--runs 5] [--label x]
+// 用法：node tests/perf/composer-refs-bench.mjs --op open-params|hover-ref|open-mode-menu|remove-ref [--runs 5] [--label x]
+// 2026-11-12：生成方式从参数面板挪到底栏自己一格、按输入现算；面板里切方式的旧操作（switch-mode）随面板那一段一起删了，
+// 换成「点开方式菜单」和「移走一张参考 → 方式与行尾重算」。
 import { chromium } from 'playwright'
 import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -18,7 +20,7 @@ const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i
 const OP = arg('--op', 'open-params')
 const RUNS = Number(arg('--runs', '5'))
 const LABEL = arg('--label', OP)
-if (!['open-params', 'hover-ref', 'switch-mode'].includes(OP)) throw new Error(`未知操作 ${OP}`)
+if (!['open-params', 'hover-ref', 'open-mode-menu', 'remove-ref'].includes(OP)) throw new Error(`未知操作 ${OP}`)
 
 const ROLE = 'perf-composer-refs'
 const HOST = '127.0.0.1'
@@ -64,11 +66,19 @@ try {
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
       const response = await takeResponse(page)
       sample = { responseMs: response.ms, longTasks: response.longTasks }
+    } else if (OP === 'open-mode-menu') {
+      // 方式格的 aria-label 是菜单小标题「生成方式」（实验室默认中文）。Seedance 2.5 有 4 种方式，每行都带一句说明。
+      await armResponse(page, { predicate: 'modeMenuOpen', arg: 4 })
+      await page.locator('[data-node-composer-footer] button[aria-label="生成方式"]').click()
+      const response = await takeResponse(page)
+      sample = { responseMs: response.ms, longTasks: response.longTasks }
     } else {
-      await page.locator('[data-parameter-summary]').click()
-      await page.waitForSelector('[data-agent-generation-mode]')
-      await armResponse(page, { predicate: 'modeSwitched', arg: '首尾帧' })
-      await page.locator('[data-agent-generation-mode] [role="radio"]', { hasText: '首尾帧' }).click()
+      const tile = page.locator('[data-composer-host] [data-reference-row] [data-asset-tile]').nth(14 + (run % 5))
+      await tile.hover()
+      const remove = tile.locator('[data-asset-tile-remove]')
+      await remove.waitFor({ state: 'visible' })
+      await armResponse(page, { predicate: 'refRemoved', arg: REF_COUNT - 1 })
+      await remove.click()
       const response = await takeResponse(page)
       sample = { responseMs: response.ms, longTasks: response.longTasks }
     }

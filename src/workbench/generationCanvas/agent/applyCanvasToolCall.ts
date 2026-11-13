@@ -25,6 +25,8 @@ import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { placeBlockInVisibleArea } from '../store/canvasVisibleArea'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlanSchema'
+import type { StoryboardPlan } from './storyboardPlan'
+import { storyboardPlanIssues } from '../../creation/storyboard/storyboardDesignSchema'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/director/agent/stagingBuilder'
 import type { CameraMoveSpec } from '../nodes/director/agent/cameraMoveBuilder'
 import type { LegacySceneTemplate, ScenePropPlacement } from '../nodes/director/migration/legacySceneBuilders'
@@ -222,6 +224,15 @@ export function parseCameraMoveSpec(record: Record<string, unknown>): {
   }
 }
 
+/**
+ * store 的写入口拒收一份存不下的方案时，Agent 要的是「哪个字段、要什么」（不是「目标已不存在」）。
+ * 判官只有 store 写入口；这里只在它拒收后把同一份校验的字段路径随 `capability_input_invalid` 送给模型。
+ */
+function throwIfPlanNotWritable(plan: StoryboardPlan): void {
+  const issues = storyboardPlanIssues(plan)
+  if (issues.length) throw new SurfacePortWireError('capability_input_invalid', undefined, issues.map((issue) => `${issue.path} ${issue.problem}`).join('; '))
+}
+
 export async function applyCanvasToolCall(
   toolName: string,
   args: unknown,
@@ -286,6 +297,7 @@ export async function applyCanvasToolCall(
       false,
     ))
     if (!updatedDesign) {
+      throwIfPlanNotWritable(preview.nextPlan)
       throw Object.assign(new Error('目标分镜方案已不存在，未应用修改。'), { code: 'capability_target_stale' })
     }
     return {
@@ -331,6 +343,7 @@ export async function applyCanvasToolCall(
     }
     const design = inCtx(() => store.setStoryboardPlan(plan, targetDocumentId, storyboardId, true, storyboardId ? false : 'agent'))
     if (!design) {
+      throwIfPlanNotWritable(plan)
       return {
         status: 'obsolete',
         documentId: targetDocumentId,

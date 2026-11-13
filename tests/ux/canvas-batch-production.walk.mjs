@@ -195,7 +195,7 @@ async function clearSelection(win) {
 }
 
 async function spendDialog(win) {
-  const dialog = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成/ }).last()
+  const dialog = win.locator('[data-spend-confirm-dialog]').filter({ hasText: /开始生成/ }).last()
   await dialog.waitFor({ timeout: 8000 })
   return dialog
 }

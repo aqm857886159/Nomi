@@ -1,0 +1,51 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "17a1ae0c4",
+  "head": "17a1ae0c48d74ae05f8d15509e2cf8200032e7f8",
+  "dirty": false,
+  "sourceTree": "cc32c260a018addf776192c92690a2275f655ece",
+  "date": "2026-11-13",
+  "runs": 5,
+  "results": [
+    {
+      "id": "agent-ball-eye-follow",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 11.4,
+          "p95": 11.5
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          11.4,
+          11.5,
+          11.4,
+          11.3,
+          11.1
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 33,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

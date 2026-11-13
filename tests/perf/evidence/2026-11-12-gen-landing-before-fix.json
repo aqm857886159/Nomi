@@ -1,0 +1,115 @@
+{
+  "scope": "I60 canvas, 8 image cards generated one by one then released together; 35408110 byte 4096x4096 PNG from a loopback upstream; real Electron main process",
+  "date": "2026-11-12T15:33:44.666Z",
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "node": "v24.13.1",
+  "noisy": true,
+  "loads": [
+    19.2,
+    14.3,
+    15.5,
+    12.8
+  ],
+  "runs": 3,
+  "metrics": {
+    "landingSyncWork": [
+      365,
+      367,
+      362
+    ],
+    "landingDirManifestReads": [
+      356,
+      358,
+      353
+    ],
+    "landingSyncIpcCalls": [
+      1,
+      1,
+      1
+    ],
+    "landingReceiptRereads": [
+      8,
+      8,
+      8
+    ],
+    "landingMainStallMaxMs": [
+      675.8,
+      458,
+      450.1
+    ]
+  },
+  "samples": [
+    {
+      "run": 0,
+      "load1": 14.3,
+      "cards": 8,
+      "landedMs": 3961,
+      "submit": {
+        "phase": "submit",
+        "dirManifestReads": 357,
+        "manifestReads": 507,
+        "receiptRereads": 0,
+        "syncIpc": {
+          "nomi:events:generation-eta-stats": 1
+        },
+        "mainStallMaxMs": 246.9
+      },
+      "landing": {
+        "phase": "landing",
+        "dirManifestReads": 356,
+        "manifestReads": 420,
+        "receiptRereads": 8,
+        "syncIpc": {},
+        "mainStallMaxMs": 675.8
+      }
+    },
+    {
+      "run": 1,
+      "load1": 15.5,
+      "cards": 8,
+      "landedMs": 4427,
+      "submit": {
+        "phase": "submit",
+        "dirManifestReads": 347,
+        "manifestReads": 495,
+        "receiptRereads": 0,
+        "syncIpc": {
+          "nomi:events:generation-eta-stats": 1
+        },
+        "mainStallMaxMs": 204.3
+      },
+      "landing": {
+        "phase": "landing",
+        "dirManifestReads": 358,
+        "manifestReads": 450,
+        "receiptRereads": 8,
+        "syncIpc": {},
+        "mainStallMaxMs": 458
+      }
+    },
+    {
+      "run": 2,
+      "load1": 12.8,
+      "cards": 8,
+      "landedMs": 3726,
+      "submit": {
+        "phase": "submit",
+        "dirManifestReads": 354,
+        "manifestReads": 508,
+        "receiptRereads": 0,
+        "syncIpc": {
+          "nomi:events:generation-eta-stats": 1
+        },
+        "mainStallMaxMs": 208
+      },
+      "landing": {
+        "phase": "landing",
+        "dirManifestReads": 353,
+        "manifestReads": 433,
+        "receiptRereads": 8,
+        "syncIpc": {},
+        "mainStallMaxMs": 450.1
+      }
+    }
+  ]
+}

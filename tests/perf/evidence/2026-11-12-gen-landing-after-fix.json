@@ -1,0 +1,112 @@
+{
+  "scope": "I60 canvas, 8 image cards generated one by one then released together; 35408110 byte 4096x4096 PNG from a loopback upstream; real Electron main process",
+  "date": "2026-11-12T16:10:19.338Z",
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "node": "v24.13.1",
+  "noisy": true,
+  "loads": [
+    15.4,
+    11.8,
+    10.6,
+    9.1
+  ],
+  "runs": 3,
+  "metrics": {
+    "landingSyncWork": [
+      0,
+      0,
+      0
+    ],
+    "landingDirManifestReads": [
+      0,
+      0,
+      0
+    ],
+    "landingSyncIpcCalls": [
+      0,
+      0,
+      0
+    ],
+    "landingReceiptRereads": [
+      0,
+      0,
+      0
+    ],
+    "landingMainStallMaxMs": [
+      155.3,
+      155.1,
+      216
+    ]
+  },
+  "samples": [
+    {
+      "run": 0,
+      "load1": 11.8,
+      "cards": 8,
+      "landedMs": 3395,
+      "projectFileBytes": 239692,
+      "submit": {
+        "phase": "submit",
+        "dirManifestReads": 0,
+        "manifestReads": 162,
+        "receiptRereads": 0,
+        "syncIpc": {},
+        "mainStallMaxMs": 194.8
+      },
+      "landing": {
+        "phase": "landing",
+        "dirManifestReads": 0,
+        "manifestReads": 98,
+        "receiptRereads": 0,
+        "syncIpc": {},
+        "mainStallMaxMs": 155.3
+      }
+    },
+    {
+      "run": 1,
+      "load1": 10.6,
+      "cards": 8,
+      "landedMs": 3279,
+      "projectFileBytes": 294141,
+      "submit": {
+        "phase": "submit",
+        "dirManifestReads": 0,
+        "manifestReads": 170,
+        "receiptRereads": 0,
+        "syncIpc": {},
+        "mainStallMaxMs": 179
+      },
+      "landing": {
+        "phase": "landing",
+        "dirManifestReads": 0,
+        "manifestReads": 88,
+        "receiptRereads": 0,
+        "syncIpc": {},
+        "mainStallMaxMs": 155.1
+      }
+    },
+    {
+      "run": 2,
+      "load1": 9.1,
+      "cards": 8,
+      "landedMs": 3300,
+      "projectFileBytes": 348619,
+      "submit": {
+        "phase": "submit",
+        "dirManifestReads": 0,
+        "manifestReads": 162,
+        "receiptRereads": 0,
+        "syncIpc": {},
+        "mainStallMaxMs": 141.8
+      },
+      "landing": {
+        "phase": "landing",
+        "dirManifestReads": 0,
+        "manifestReads": 87,
+        "receiptRereads": 0,
+        "syncIpc": {},
+        "mainStallMaxMs": 216
+      }
+    }
+  ]
+}

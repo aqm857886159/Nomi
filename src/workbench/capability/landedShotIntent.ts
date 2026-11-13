@@ -109,7 +109,7 @@ type InTxn = <T>(fn: () => T) => T
 
 /**
  * 把一组参考摆到节点上（首次落地与改稿共用）：画布上已经有的那张图连真边，其余进节点那一份参考列表，
- * 生成方式按画布同一条规则对齐（`planReferenceProjection` 里的 `resolveModeForConnectedReferences`）。只补不删。
+ * 方式不写：发送时由唯一 owner `modeForInputs` 按放进来的输入现算（画布同一条规则）。只补不删。
  */
 export function placeLandedReferences(nodeId: string, references: readonly CandidateReferenceInput[], inTxn: InTxn): void {
   if (references.length === 0) return

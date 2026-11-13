@@ -5,27 +5,17 @@
 // （漏掉的那条通道根本没有那条用例）。2026-09-29 加 upstreamCode 时，第三条通道（pi 运行时）就是数门才找出来的。
 // 这里把三条通道放在同一张表上：新增字段而某条通道没带，这一条红。
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseVendorErrorFromMessage } from "../../src/workbench/generationCanvas/runner/vendorErrorIpc";
 import { modelCallFailure } from "../ai/runtimeVendorError";
 import { callModelOnce } from "../agentLane/laneModelCall.mjs";
 import { laneVendorFailureText } from "../shared/agentLane/laneAssistantFault";
 import type { Vendor } from "../catalog/types";
 import { VendorRequestError, requestJson } from "./vendorHttp";
-import { setSubmitOutboundDepsForTests } from "./vendorOutboundGuard";
 
 const vendor = { key: "kie", authType: "bearer", baseUrlHint: "https://api.kie.ai" } as unknown as Vendor;
 
-beforeEach(() => {
-  // 同 vendorHttp.test.ts：把提交侧出站授权的网络事实钉成「公网、无代理」，本文件只测证据怎么带过去。
-  setSubmitOutboundDepsForTests({
-    resolve: async () => [{ address: "93.184.216.34", family: 4 as const }],
-    readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
-    isApplicationProxyActive: () => false,
-  });
-});
 afterEach(() => {
-  setSubmitOutboundDepsForTests(null);
   vi.unstubAllGlobals();
 });
 

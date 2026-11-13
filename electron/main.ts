@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, powerMonitor, protocol, session, shell } from "electron";
+import MIN_WINDOW_SIZE from "./shared/mainWindowSize.json";
 import { mainWindowWebPreferences } from "./mainWindowWebPreferences";
 import { mainWindowChromeOptions, registerMainWindowChromeIpc } from "./mainWindowChrome";
 import { startCatalogReconciliation } from "./ai/onboarding/vendorHealth";
@@ -281,8 +282,7 @@ async function buildMainWindow(
     width: options.bounds?.width ?? 1440,
     height: options.bounds?.height ?? 960,
     ...(options.bounds ? { x: options.bounds.x, y: options.bounds.y } : {}),
-    minWidth: 1100,
-    minHeight: 720,
+    ...MIN_WINDOW_SIZE,
     backgroundColor: "#f6f3ee",
     title: "Nomi",
     // 40px 合一顶栏：Windows 原生窗口按钮浮在顶栏右端、macOS 红绿灯落在顶栏左端（见 mainWindowChrome.ts）。

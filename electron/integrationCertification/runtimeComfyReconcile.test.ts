@@ -48,7 +48,6 @@ vi.mock("../catalog/catalogStore", () => ({
 }));
 
 vi.mock("../hardenedFetch", () => ({
-  isPrivateHost: vi.fn(() => true),
   hardenedFetch: vi.fn(async (url: string) => {
     mocks.urls.push(url);
     if (url.includes("/history/")) {
