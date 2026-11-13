@@ -1,0 +1,479 @@
+Original SHA256: bf6f2e99134f5be235a490df13134fafcdb73d2228f465432e926e0fc5442684
+[walkthrough] content viewport {"width":1280,"height":933}
+PASS [zh-light] switch-B-to-A-lands-at-bottom {"at0":1,"at250":1,"at1000":1,"height":3093,"client":508}
+feel record: pi-agent-conversation-follow/waitForFunction.png; findings=26; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+feel record: pi-agent-conversation-follow/01-zh-light-switch-to-A.png; findings=26; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+PASS [zh-light] switch-A-to-B-lands-at-bottom {"at0":1,"at250":1,"at1000":1,"height":3093,"client":508}
+feel record: pi-agent-conversation-follow/waitForFunction.png; findings=26; new-surfaces=0; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+feel record: pi-agent-conversation-follow/02-zh-light-switch-to-B.png; findings=26; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+PASS [zh-light] switch-back-to-A-after-reading-B-midway-lands-at-bottom {"leftBGap":1201,"at0":1,"at250":1,"at1000":1,"height":3093,"client":508}
+feel record: pi-agent-conversation-follow/waitForFunction.png; findings=26; new-surfaces=0; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+feel record: pi-agent-conversation-follow/03-zh-light-switch-back-to-A.png; findings=26; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+PASS [zh-light] collapse-expand-restores-midway-position {"before":1291,"after":1291}
+PASS [zh-light] collapse-expand-at-bottom-stays-at-bottom {"top":2584,"height":3093,"client":508,"gap":1}
+PASS [zh-light] jump-latest-hidden-at-bottom {}
+FAIL [zh-light] streaming-follows-while-at-bottom {"frames":259,"maxGap":104}
+PASS [zh-light] scrolled-up-reader-is-not-dragged {"before":2711,"after":2711,"gapAfterScroll":690,"streamedChars":228}
+PASS [zh-light] jump-latest-appears-when-scrolled-up {"visible":true,"labelOk":true}
+feel record: pi-agent-conversation-follow/waitForFunction.png; findings=20; new-surfaces=0; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+feel record: pi-agent-conversation-follow/04-zh-light-scrolled-up-jump-latest.png; findings=20; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+PASS [zh-light] jump-latest-returns-to-bottom-and-keeps-following {"afterJump":1,"after600ms":1}
+PASS [zh-light] jump-latest-hides-after-click {}
+feel record: pi-agent-conversation-follow/waitForFunction.png; findings=25; new-surfaces=0; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+feel record: pi-agent-conversation-follow/05-zh-light-after-jump-to-latest.png; findings=23; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+PASS [zh-light] streaming-ends-at-bottom {"top":6049,"height":6558,"client":508,"gap":1}
+PASS [zh-light] send-while-scrolled-up-returns-to-bottom {"gapBeforeSend":1501,"afterBubble":1,"afterReply":1}
+PASS [en-dark] reload-lands-at-bottom {"at0":1,"at250":1,"at1000":1,"height":7175,"client":488}
+PASS [en-dark] switch-B-to-A-lands-at-bottom {"at0":1,"at250":1,"at1000":1,"height":7175,"client":488}
+feel record: pi-agent-conversation-follow/waitForFunction.png; findings=28; new-surfaces=0; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+feel record: pi-agent-conversation-follow/06-en-dark-switch-to-A.png; findings=28; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+PASS [en-dark] switch-A-to-B-lands-at-bottom {"at0":1,"at250":1,"at1000":1,"height":3093,"client":488}
+feel record: pi-agent-conversation-follow/waitForFunction.png; findings=27; new-surfaces=0; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+feel record: pi-agent-conversation-follow/07-en-dark-switch-to-B.png; findings=27; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+PASS [en-dark] switch-back-to-A-after-reading-B-midway-lands-at-bottom {"leftBGap":1201,"at0":1,"at250":1,"at1000":1,"height":7175,"client":488}
+feel record: pi-agent-conversation-follow/waitForFunction.png; findings=28; new-surfaces=0; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+feel record: pi-agent-conversation-follow/08-en-dark-switch-back-to-A.png; findings=28; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+PASS [en-dark] collapse-expand-restores-midway-position {"before":3342,"after":3342}
+PASS [en-dark] collapse-expand-at-bottom-stays-at-bottom {"top":6686,"height":7175,"client":488,"gap":1}
+PASS [en-dark] jump-latest-hidden-at-bottom {}
+FAIL [en-dark] streaming-follows-while-at-bottom {"frames":274,"maxGap":83}
+PASS [en-dark] scrolled-up-reader-is-not-dragged {"before":6793,"after":6793,"gapAfterScroll":669,"streamedChars":216}
+PASS [en-dark] jump-latest-appears-when-scrolled-up {"visible":true,"labelOk":true}
+feel record: pi-agent-conversation-follow/waitForFunction.png; findings=20; new-surfaces=0; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+feel record: pi-agent-conversation-follow/09-en-dark-scrolled-up-jump-latest.png; findings=20; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+PASS [en-dark] jump-latest-returns-to-bottom-and-keeps-following {"afterJump":1,"after600ms":22}
+PASS [en-dark] jump-latest-hides-after-click {}
+feel record: pi-agent-conversation-follow/waitForFunction.png; findings=24; new-surfaces=0; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+feel record: pi-agent-conversation-follow/10-en-dark-after-jump-to-latest.png; findings=23; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+PASS [en-dark] streaming-ends-at-bottom {"top":10152,"height":10641,"client":488,"gap":1}
+PASS [en-dark] send-while-scrolled-up-returns-to-bottom {"gapBeforeSend":1501,"afterBubble":1,"afterReply":1}
+PASS [zh-dark] jump-latest-appears-when-scrolled-up {}
+feel record: pi-agent-conversation-follow/waitForFunction.png; findings=20; new-surfaces=0; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+feel record: pi-agent-conversation-follow/11-zh-dark-scrolled-up-jump-latest.png; findings=20; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+PASS [en-light] jump-latest-appears-when-scrolled-up {}
+feel record: pi-agent-conversation-follow/waitForFunction.png; findings=19; new-surfaces=0; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+feel record: pi-agent-conversation-follow/12-en-light-scrolled-up-jump-latest.png; findings=19; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+checks: 27 green / 2 red
+feel record: pi-agent-conversation-follow/FAIL.png; findings=19; new-surfaces=4; evidence: <worktree>/artifacts/feel/pi-agent-conversation-follow-08ef9c04-2a2a-4ba6-a6a1-e8cd8709a271
+{
+  "name": "agent-conversation-follow",
+  "mode": "development",
+  "tempRoot": "<isolated-user-data>",
+  "outputDir": "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187",
+  "launches": [
+    {
+      "packaged": false,
+      "appPath": "<worktree>",
+      "userData": "<isolated-user-data>/user-data",
+      "node": "24.18.1",
+      "electron": "43.4.1",
+      "pid": 70289
+    }
+  ],
+  "screenshots": [
+    "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187/01-zh-light-switch-to-A.png",
+    "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187/02-zh-light-switch-to-B.png",
+    "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187/03-zh-light-switch-back-to-A.png",
+    "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187/04-zh-light-scrolled-up-jump-latest.png",
+    "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187/05-zh-light-after-jump-to-latest.png",
+    "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187/06-en-dark-switch-to-A.png",
+    "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187/07-en-dark-switch-to-B.png",
+    "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187/08-en-dark-switch-back-to-A.png",
+    "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187/09-en-dark-scrolled-up-jump-latest.png",
+    "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187/10-en-dark-after-jump-to-latest.png",
+    "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187/11-zh-dark-scrolled-up-jump-latest.png",
+    "<worktree>/.tmp/pi-agent-conversation-follow-development-1794200875187/12-en-light-scrolled-up-jump-latest.png"
+  ],
+  "paidCalls": 0,
+  "projectId": "project-1794200878265-h2oebr",
+  "projectRoot": "<isolated-user-data>/projects/未命名项目 11_09 13_07-mw8svlx9-e6c61f4a",
+  "window": {
+    "width": 1100,
+    "height": 720
+  },
+  "fixtureTurns": [
+    {
+      "marker": "CF-A-1",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-A-2",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-A-3",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-A-4",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-A-5",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-B-1",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-B-2",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-B-3",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-B-4",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-B-5",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-A-zh-light-stream",
+      "mode": "stream"
+    },
+    {
+      "marker": "CF-A-zh-light-send",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-A-en-dark-stream",
+      "mode": "stream"
+    },
+    {
+      "marker": "CF-A-en-dark-send",
+      "mode": "text"
+    }
+  ],
+  "leftThreadA": {
+    "top": 1684,
+    "height": 3093,
+    "client": 508,
+    "gap": 901
+  },
+  "flowOverflowPx": 2585,
+  "checks": [
+    {
+      "round": "zh-light",
+      "check": "switch-B-to-A-lands-at-bottom",
+      "pass": true,
+      "detail": {
+        "at0": 1,
+        "at250": 1,
+        "at1000": 1,
+        "height": 3093,
+        "client": 508
+      }
+    },
+    {
+      "round": "zh-light",
+      "check": "switch-A-to-B-lands-at-bottom",
+      "pass": true,
+      "detail": {
+        "at0": 1,
+        "at250": 1,
+        "at1000": 1,
+        "height": 3093,
+        "client": 508
+      }
+    },
+    {
+      "round": "zh-light",
+      "check": "switch-back-to-A-after-reading-B-midway-lands-at-bottom",
+      "pass": true,
+      "detail": {
+        "leftBGap": 1201,
+        "at0": 1,
+        "at250": 1,
+        "at1000": 1,
+        "height": 3093,
+        "client": 508
+      }
+    },
+    {
+      "round": "zh-light",
+      "check": "collapse-expand-restores-midway-position",
+      "pass": true,
+      "detail": {
+        "before": 1291,
+        "after": 1291
+      }
+    },
+    {
+      "round": "zh-light",
+      "check": "collapse-expand-at-bottom-stays-at-bottom",
+      "pass": true,
+      "detail": {
+        "top": 2584,
+        "height": 3093,
+        "client": 508,
+        "gap": 1
+      }
+    },
+    {
+      "round": "zh-light",
+      "check": "jump-latest-hidden-at-bottom",
+      "pass": true,
+      "detail": {}
+    },
+    {
+      "round": "zh-light",
+      "check": "streaming-follows-while-at-bottom",
+      "pass": false,
+      "detail": {
+        "frames": 259,
+        "maxGap": 104
+      }
+    },
+    {
+      "round": "zh-light",
+      "check": "scrolled-up-reader-is-not-dragged",
+      "pass": true,
+      "detail": {
+        "before": 2711,
+        "after": 2711,
+        "gapAfterScroll": 690,
+        "streamedChars": 228
+      }
+    },
+    {
+      "round": "zh-light",
+      "check": "jump-latest-appears-when-scrolled-up",
+      "pass": true,
+      "detail": {
+        "visible": true,
+        "labelOk": true
+      }
+    },
+    {
+      "round": "zh-light",
+      "check": "jump-latest-returns-to-bottom-and-keeps-following",
+      "pass": true,
+      "detail": {
+        "afterJump": 1,
+        "after600ms": 1
+      }
+    },
+    {
+      "round": "zh-light",
+      "check": "jump-latest-hides-after-click",
+      "pass": true,
+      "detail": {}
+    },
+    {
+      "round": "zh-light",
+      "check": "streaming-ends-at-bottom",
+      "pass": true,
+      "detail": {
+        "top": 6049,
+        "height": 6558,
+        "client": 508,
+        "gap": 1
+      }
+    },
+    {
+      "round": "zh-light",
+      "check": "send-while-scrolled-up-returns-to-bottom",
+      "pass": true,
+      "detail": {
+        "gapBeforeSend": 1501,
+        "afterBubble": 1,
+        "afterReply": 1
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "reload-lands-at-bottom",
+      "pass": true,
+      "detail": {
+        "at0": 1,
+        "at250": 1,
+        "at1000": 1,
+        "height": 7175,
+        "client": 488
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "switch-B-to-A-lands-at-bottom",
+      "pass": true,
+      "detail": {
+        "at0": 1,
+        "at250": 1,
+        "at1000": 1,
+        "height": 7175,
+        "client": 488
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "switch-A-to-B-lands-at-bottom",
+      "pass": true,
+      "detail": {
+        "at0": 1,
+        "at250": 1,
+        "at1000": 1,
+        "height": 3093,
+        "client": 488
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "switch-back-to-A-after-reading-B-midway-lands-at-bottom",
+      "pass": true,
+      "detail": {
+        "leftBGap": 1201,
+        "at0": 1,
+        "at250": 1,
+        "at1000": 1,
+        "height": 7175,
+        "client": 488
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "collapse-expand-restores-midway-position",
+      "pass": true,
+      "detail": {
+        "before": 3342,
+        "after": 3342
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "collapse-expand-at-bottom-stays-at-bottom",
+      "pass": true,
+      "detail": {
+        "top": 6686,
+        "height": 7175,
+        "client": 488,
+        "gap": 1
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "jump-latest-hidden-at-bottom",
+      "pass": true,
+      "detail": {}
+    },
+    {
+      "round": "en-dark",
+      "check": "streaming-follows-while-at-bottom",
+      "pass": false,
+      "detail": {
+        "frames": 274,
+        "maxGap": 83
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "scrolled-up-reader-is-not-dragged",
+      "pass": true,
+      "detail": {
+        "before": 6793,
+        "after": 6793,
+        "gapAfterScroll": 669,
+        "streamedChars": 216
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "jump-latest-appears-when-scrolled-up",
+      "pass": true,
+      "detail": {
+        "visible": true,
+        "labelOk": true
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "jump-latest-returns-to-bottom-and-keeps-following",
+      "pass": true,
+      "detail": {
+        "afterJump": 1,
+        "after600ms": 22
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "jump-latest-hides-after-click",
+      "pass": true,
+      "detail": {}
+    },
+    {
+      "round": "en-dark",
+      "check": "streaming-ends-at-bottom",
+      "pass": true,
+      "detail": {
+        "top": 10152,
+        "height": 10641,
+        "client": 488,
+        "gap": 1
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "send-while-scrolled-up-returns-to-bottom",
+      "pass": true,
+      "detail": {
+        "gapBeforeSend": 1501,
+        "afterBubble": 1,
+        "afterReply": 1
+      }
+    },
+    {
+      "round": "zh-dark",
+      "check": "jump-latest-appears-when-scrolled-up",
+      "pass": true,
+      "detail": {}
+    },
+    {
+      "round": "en-light",
+      "check": "jump-latest-appears-when-scrolled-up",
+      "pass": true,
+      "detail": {}
+    }
+  ],
+  "red": [
+    "zh-light/streaming-follows-while-at-bottom",
+    "en-dark/streaming-follows-while-at-bottom"
+  ],
+  "verified": [
+    "zh-light/switch-B-to-A-lands-at-bottom",
+    "zh-light/switch-A-to-B-lands-at-bottom",
+    "zh-light/switch-back-to-A-after-reading-B-midway-lands-at-bottom",
+    "zh-light/collapse-expand-restores-midway-position",
+    "zh-light/collapse-expand-at-bottom-stays-at-bottom",
+    "zh-light/jump-latest-hidden-at-bottom",
+    "zh-light/scrolled-up-reader-is-not-dragged",
+    "zh-light/jump-latest-appears-when-scrolled-up",
+    "zh-light/jump-latest-returns-to-bottom-and-keeps-following",
+    "zh-light/jump-latest-hides-after-click",
+    "zh-light/streaming-ends-at-bottom",
+    "zh-light/send-while-scrolled-up-returns-to-bottom",
+    "en-dark/reload-lands-at-bottom",
+    "en-dark/switch-B-to-A-lands-at-bottom",
+    "en-dark/switch-A-to-B-lands-at-bottom",
+    "en-dark/switch-back-to-A-after-reading-B-midway-lands-at-bottom",
+    "en-dark/collapse-expand-restores-midway-position",
+    "en-dark/collapse-expand-at-bottom-stays-at-bottom",
+    "en-dark/jump-latest-hidden-at-bottom",
+    "en-dark/scrolled-up-reader-is-not-dragged",
+    "en-dark/jump-latest-appears-when-scrolled-up",
+    "en-dark/jump-latest-returns-to-bottom-and-keeps-following",
+    "en-dark/jump-latest-hides-after-click",
+    "en-dark/streaming-ends-at-bottom",
+    "en-dark/send-while-scrolled-up-returns-to-bottom",
+    "zh-dark/jump-latest-appears-when-scrolled-up",
+    "en-light/jump-latest-appears-when-scrolled-up"
+  ],
+  "textRequests": 14,
+  "imageRequests": 0,
+  "unexpected": [],
+  "result": "failed",
+  "error": "Error: 跟到底走查有 2 条红：zh-light/streaming-follows-while-at-bottom、en-dark/streaming-follows-while-at-bottom\n    at file://<worktree>/tests/ux/agent-conversation-follow.walk.mjs:307:25"
+}

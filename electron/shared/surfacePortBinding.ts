@@ -449,7 +449,18 @@ export const CAPABILITY_TRANSPORT_PUBLIC_ERROR_CODES: ReadonlySet<string> = new 
   ...CAPABILITY_TRANSPORT_VERIFICATION_ERROR_CODE_LIST,
 ]);
 
-export type SurfacePortFailure = Readonly<{ code: SurfacePortWireErrorCode; reason?: MediaImportRejection["reason"] }>;
+/**
+ * `fields`：只随 `capability_input_invalid` 走——渲染层的 store 写入口拒收（存不下的方案）时，说清「哪个字段、要什么」。
+ * 它是**我们自己写的字段路径和一句要求**，不是收到的内容值；限长、剔除控制字符。
+ */
+export type SurfacePortFailure = Readonly<{ code: SurfacePortWireErrorCode; reason?: MediaImportRejection["reason"]; fields?: string }>;
+const SURFACE_PORT_FIELDS_MAX_CHARS = 600;
+function safeFields(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  // eslint-disable-next-line no-control-regex -- 剔除控制字符，不让它进模型面。
+  const text = value.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, SURFACE_PORT_FIELDS_MAX_CHARS);
+  return text || undefined;
+}
 export type SurfacePortHandlerResult<T = unknown> =
   | Readonly<{ ok: true; value: T }>
   | Readonly<{ ok: false; error: SurfacePortFailure }>;
@@ -485,9 +496,11 @@ export function parseSurfacePortFailure(value: unknown): SurfacePortFailure | nu
   const code = (value as { code?: unknown }).code;
   if (typeof code !== "string" || !SURFACE_PORT_WIRE_ERROR_CODES.has(code as SurfacePortWireErrorCode)) return null;
   const reason = (value as { reason?: unknown }).reason;
+  const fields = code === "capability_input_invalid" ? safeFields((value as { fields?: unknown }).fields) : undefined;
   return { code: code as SurfacePortWireErrorCode,
     ...(code === "capability_execution_failed" && (reason === "unsupported-kind" || reason === "no-disk-space" || reason === "over-hard-cap")
       ? { reason } : {}),
+    ...(fields ? { fields } : {}),
   };
 }
 
@@ -516,6 +529,10 @@ export function surfacePortFailureAdvice(failure: SurfacePortFailure): { message
     case "over-hard-cap": return { message: "The artifact exceeds the destination's supported size limit.",
       nextAction: "Reduce the artifact size to the destination's limit before trying again." };
   }
+  if (failure.code === "capability_input_invalid" && failure.fields) return {
+    message: `The storyboard plan was not saved and nothing changed. Rejected fields: ${failure.fields}.`,
+    nextAction: "Fix exactly those fields and send the plan again. Do not repeat the same values.",
+  };
   // 「去核对回执」对模型是一句做不到的话（它没有读回执的工具）——NF-1001-0002 那一轮它就停在这里。
   // 给它一个做得到的核对：用对应的读工具看改动在不在。
   if (failure.code === "capability_receipt_unresolved") return {
@@ -542,7 +559,7 @@ export function surfacePortFailureAdvice(failure: SurfacePortFailure): { message
 }
 
 export class SurfacePortWireError extends Error {
-  constructor(readonly code: SurfacePortWireErrorCode, readonly reason?: SurfacePortFailure["reason"]) {
+  constructor(readonly code: SurfacePortWireErrorCode, readonly reason?: SurfacePortFailure["reason"], readonly fields?: string) {
     super(code);
     this.name = "SurfacePortWireError";
   }
@@ -550,6 +567,6 @@ export class SurfacePortWireError extends Error {
 
 export function unwrapSurfacePortIpcResponse<T>(response: unknown): T {
   const reply = surfacePortReplyPayload(response);
-  if ("error" in reply) throw new SurfacePortWireError(reply.error.code, reply.error.reason);
+  if ("error" in reply) throw new SurfacePortWireError(reply.error.code, reply.error.reason, reply.error.fields);
   return reply.result as T;
 }

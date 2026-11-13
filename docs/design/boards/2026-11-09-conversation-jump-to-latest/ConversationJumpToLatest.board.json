@@ -1,0 +1,50 @@
+{
+  "board": "ConversationJumpToLatest",
+  "approvedOn": "2026-11-09",
+  "stage": "built",
+  "visualReview": "单元素档：协调 2026-11-09 定「加回到最新按钮，生产组件搭、清单、zh/en × 亮暗截图交协调，用户看过才合」。没有 Claude Design 画布；截图交协调后由用户过目，用户没看过之前不合。",
+  "sourceBoundary": "没有独立画布可抽；候选按 Agent 面板对话流里真实的 WorkbenchIconButton 人工普查。只有这一颗按钮，对话流里的卡、消息、输入框都不归这张板。",
+  "designIntent": "往上翻着读时，对话流底部正中出现一颗向下箭头圆钮「回到最新」；点一下回到最新一条并接着跟，回到底就消失。名字放悬停提示和读屏，不占一行字。",
+  "priorArt": [
+    {
+      "url": "https://github.com/vercel/ai-elements/blob/main/packages/elements/src/conversation.tsx",
+      "takeaway": "AI SDK Elements 的 ConversationScrollButton：只在不贴底时渲染；绝对定位在对话流底部正中，圆形，向下箭头；点了调 scrollToBottom()。",
+      "decisionImpact": "确认了位置（底部正中、浮在内容上）、形状（圆）、图标（向下箭头）和出现条件（不贴底才有）；没有学它的 shadcn 按钮皮，用我们的 WorkbenchIconButton + token。"
+    },
+    {
+      "url": "https://github.com/samdenty/use-stick-to-bottom#readme",
+      "takeaway": "库自己的示例：ScrollToBottom 按钮只在 !isAtBottom 时出现，onClick 调 scrollToBottom()；人往上滚随时能取消跟随。",
+      "decisionImpact": "确认了按钮读库的 isAtBottom、点了调库的 scrollToBottom()，不另记一份「在不在底」。"
+    },
+    {
+      "url": "https://www.w3.org/WAI/ARIA/apg/patterns/button/",
+      "takeaway": "按钮必须有可访问名；没有可见文字时用 aria-label 或 aria-labelledby 给名字。",
+      "decisionImpact": "确认了纯图标钮要带名字：WorkbenchIconButton 的 label 同时给 aria-label 和悬停提示，取词典里同一句「回到最新」/「Jump to latest」。"
+    }
+  ],
+  "elements": [
+    {
+      "id": "button",
+      "label": "「回到最新」圆钮：28px 向下箭头，纸底细边框小阴影，对话流底部正中、输入框上方；往上翻着时才出现，点了回到最新一条并接着跟，回到底就消失；悬停加深字色；中英同一个图标，名字放悬停提示和读屏；暗色跟 token 翻转。",
+      "candidates": [
+        "001-jump-button",
+        "002-jump-button-hover"
+      ],
+      "status": "implemented",
+      "states": [
+        "hover",
+        "zh-en",
+        "dark"
+      ],
+      "assertion": "board:ConversationJumpToLatest/button"
+    }
+  ],
+  "functionCensus": [
+    {
+      "function": "往上翻着读时回到最新一条并接着跟",
+      "before": "没有入口：只能自己拖右边的滚动条到底（2026-11-08 用户反馈）",
+      "after": "button"
+    }
+  ],
+  "decor": []
+}

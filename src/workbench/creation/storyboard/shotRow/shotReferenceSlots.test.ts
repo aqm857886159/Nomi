@@ -18,6 +18,7 @@ import {
   shotReferenceMetaPatch,
   storyboardAssetSlots,
 } from './shotReferenceSlots'
+import { modeWrittenInMeta } from '../../../generationCanvas/nodes/controls/modeTestHelpers'
 
 /**
  * 分镜行参考槽的**契约测试**：六种真实模式（Seedance t2v/first/firstlast/omni、Veo frame、Nano edit）
@@ -246,7 +247,7 @@ describe('请求体构造 —— 走档案的 inputKey / asArray，分镜侧零�
   const bodyFor = (archetype: ModelArchetype, modeId: string, shot: PlanShot): Record<string, unknown> => {
     const mode = modeOf(archetype, modeId)
     const meta = { archetype: { id: archetype.id, modeId, variantId: '' }, ...shotReferenceMetaPatch(mode, shot.referenceBindings) }
-    return buildArchetypeInputParams(meta, archetype)
+    return buildArchetypeInputParams(meta, modeWrittenInMeta(meta, archetype))
   }
 
   it('Seedance 首尾帧：两个单槽各发单值（asArray=false）', () => {

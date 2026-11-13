@@ -1,0 +1,273 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-13-outbound-address-layer-delete",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-13",
+  "problem_type": "一个对单机创作者不挣命的拦截层，用在代理环境下不可信的输入（本机 DNS 答案）判目的地",
+  "symptom": "开着代理（TUN / fake-ip）的创作者点生成，镜头卡在「这次生成没有发出去……发送前被本机拦下」；取片时「取片被 Nomi 自己的安全策略拦下了」，钱扣了、成片要去「重新拉取」。接本机 / 局域网生成后端（ComfyUI、自建中转、NAS）的人也会被同一层拦。每换一种代理默认值（v4 198.18、v6 合成段、探测缓存过期、局域网名字）就再坏一次。",
+  "direct_cause": "生成的提交（vendorOutboundGuard.authorizeSubmitDestination → authorizeOutboundDestination）与取回 / 下载（hardenedFetch 默认路径）都在本机解析目的地名字，答案落进 198.18/15、私网、回环、链路本地就拒；只有探测「证明」本机在走合成解析器时才放行 198.18，探测不到或代理换了段就拦。",
+  "class_root": "这一层用本机解析出的地址判断目的地安不安全，而代理环境下本机解析出的地址不是连接真正要去的地址，所以判据的输入本身不可信；每个修法都只能靠「证明代理在」的探测加例外，例外再打出新洞。对一个创作者自己电脑上、供应商由创作者自己选的软件，这一层挡的事（恶意供应商借 Nomi 往局域网发一次不带密钥的请求）几乎不发生，却让每个开代理的人隔三差五被拦。",
+  "affected_population": [
+    "开 Clash / mihomo / sing-box / Surge 一类 TUN / fake-ip 代理的创作者（v4 或 v6 合成段）",
+    "先开 Nomi 后开代理、或第一次探测超时的创作者",
+    "接入地址是本机 / 局域网（ComfyUI、自建中转、NAS、局域网名字）的创作者",
+    "供应商把结果放在局域网地址上的接入"
+  ],
+  "scope_paths": [
+    "electron/hardenedFetch.ts",
+    "electron/vendor/vendorOutboundGuard.ts",
+    "electron/networkOutboundPolicy.ts",
+    "electron/networkOutboundMessage.ts",
+    "electron/shared/nomiErrorCodes.ts",
+    "src/workbench/observability/",
+    "src/workbench/generationCanvas/runner/"
+  ],
+  "entry_points": [
+    "提交 / 轮询 / 上传：vendorHttp → authorizeSubmitDestination（现只判凭据绑定）",
+    "取回成片 / 下载 / 探测 / 本机服务：hardenedFetch 默认路径（不判地址）",
+    "抓来的文字进模型：catalogCommit.fetchModelCatalogDocs、providedDocs、docsDiscovery（hardenedFetch textEntersModelContext，照旧判地址）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+      "checked_at": "2026-11-13",
+      "purpose": "SSRF 防护针对的是服务端替不可信用户去取任意 URL（多租户、云元数据）；单用户本地软件、目的地由用户自己保存，不是这个威胁模型。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://gitlab.com/gitlab-org/gitlab/-/work_items/378267",
+      "checked_at": "2026-11-13",
+      "purpose": "GitLab 配了代理时直接整段关掉 DNS 重绑定防护：代理环境下本机解析结果不可用作判据。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://curl.se/docs/manpage.html#--socks5-hostname",
+      "checked_at": "2026-11-13",
+      "purpose": "走代理时由代理侧解析名字，本机 DNS 答案不参与连接——判据的输入在这种环境下不是真目的地。"
+    }
+  ],
+  "internal_only_reason": "删除 Nomi 自己写的拦截层；外部参照只用来确认这一层的判据输入在代理环境下不可信、这类防护属于服务端威胁模型。",
+  "invariants": [
+    "生成的提交 / 轮询 / 上传 / 取回 / 下载不按目的地地址拒绝：hardenedFetch 默认路径不在本机解析、不问代理探测。",
+    "密钥只发往保存时确认的 origin（凭据绑定，authorizeSubmitDestination）。",
+    "带密钥的请求遇任何跳转即停（credentialRedirectPolicy + hardenedFetch 带敏感头禁跳转）。",
+    "按地址判只在调用方显式传 textEntersModelContext 时发生（Agent 读文档、接入向导抓文档）；新增调用方先过协调会话。"
+  ],
+  "generality_proof": "地址判据不再是默认：hardenedFetch 只有在 textEntersModelContext 为 true 时才解析与判地址，提交侧守卫只剩凭据绑定，所以任何新代理默认段、新的局域网名字、新供应商、新平台都碰不到它——不存在会被拦的那个状态。删掉的错误码（outbound-blocked / outbound-blocked-submit）再也不会被产生，老数据按已删码表读成取回族或普通失败。",
+  "shared_boundaries": [
+    {
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "hardenedFetch",
+      "responsibility": "主进程取远程字节的唯一出口；默认不判地址，只有 textEntersModelContext 的入口才走地址判据。带敏感头时禁跳转。"
+    },
+    {
+      "path": "electron/shared/nomiErrorCodes.ts",
+      "symbol": "matchNomiErrorCode",
+      "responsibility": "只认现役码；已删的两个码按 RETIRED_CODES 改读，老项目里的失败不冒充凭据绑定。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "entry_point": "requestJson / fetchVendorWithBaseFallback 提交与轮询",
+      "disposition": "enforced",
+      "evidence": "electron/outboundNoAddressBlock.test.ts：198.18 / 127.0.0.1 / nas.lan / 192.168 接入地址都发得出去；密钥绑别的 origin 时本机拦下、零字节发出。"
+    },
+    {
+      "path": "electron/assets/providerMediaFetch.ts",
+      "entry_point": "fetchProviderMedia 取回成片",
+      "disposition": "enforced",
+      "evidence": "providerMediaFetch.test.ts 断言不传 textEntersModelContext；outboundNoAddressBlock.test.ts 取回 198.18 / nas.lan / 192.168 不解析、照取。"
+    },
+    {
+      "path": "electron/catalog/catalogCommit.ts",
+      "entry_point": "fetchModelCatalogDocs（丙 4）",
+      "disposition": "enforced",
+      "evidence": "显式传 textEntersModelContext；outboundNoAddressBlock.test.ts 断言 127.0.0.1 文档仍被拒、夹具零请求。"
+    },
+    {
+      "path": "electron/providerAdapter/providedDocs.ts",
+      "entry_point": "resolveProviderDocs（丙 5）",
+      "disposition": "enforced",
+      "evidence": "outboundNoAddressBlock.test.ts 断言链接与自动发现两条路的每次抓取都带 textEntersModelContext。"
+    },
+    {
+      "path": "electron/ai/modelImageInput.ts",
+      "entry_point": "远程图 → 模型（丙 1）",
+      "disposition": "not-affected",
+      "evidence": "随默认路径不判地址；只收 image/png、jpeg、webp、gif 响应头，无文件头校验（残余风险已记）。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "2026-09-06 起按格修过多轮（198.18 豁免、探测 TLD、探测缓存、v6 合成段、#975 本机中转、#1492 两轮），每次新代理默认值或启动顺序就重开。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs hardenedFetch hardenedFetchText authorizeSubmitDestination authorizeOutboundDestination：20 扇门；authorizeOutboundDestination 只剩 hardenedFetch 一扇（原 2 扇），trustedRetrievalOrigin 删除（原 2 扇）。",
+      "git grep textEntersModelContext -- electron ':!*.test.ts'：只有 catalogCommit.ts、providedDocs.ts、docsDiscovery.ts 三处。",
+      "git grep readOutboundEnvironment / seedLabTrustedPrivateOrigins / lastOutboundEnvironment：只剩 hardenedFetch（判地址那条路）、proxyIpc、systemProxy（设置里「检测到本地代理」那一行）。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/hardenedFetch.ts",
+    "invariant": "这一层已删，状态做不出来：生成链路没有任何一扇门会按目的地地址拒绝，被拦的错误码也不再存在；按地址判只能由调用方显式传 textEntersModelContext 打开。",
+    "failure_mode": "默认路径连解析都不做，所以没有「判错」这一说；显式打开的入口照旧 fail-closed（本机 / 内网 / 链路本地拒，198.18 要探测证据）。",
+    "exception_policy": "none",
+    "strategy": "删掉整层而不是再开例外：提交侧守卫只留凭据绑定，hardenedFetch 默认不判地址，删两个错误码及其文案、恢复分支与测试，门岗 check:outbound-policy 删掉已无对象的 appFetch 棘轮。",
+    "artifacts": [
+      "electron/hardenedFetch.ts",
+      "electron/vendor/vendorOutboundGuard.ts",
+      "electron/shared/nomiErrorCodes.ts",
+      "electron/outboundNoAddressBlock.test.ts",
+      "scripts/check-outbound-policy.mjs"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/hardenedFetch.ts",
+    "tests": [
+      "electron/outboundNoAddressBlock.test.ts",
+      "electron/hardenedFetch.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/outboundNoAddressBlock.test.ts",
+    "electron/hardenedFetch.test.ts",
+    "electron/vendor/credentialOriginBinding.test.ts",
+    "electron/credentialRedirect.test.ts",
+    "src/workbench/generationCanvas/runner/retrievalRecoverable.test.ts",
+    "electron/productionRun/unsentAttemptClaim.matrix.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/outboundNoAddressBlock.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/vendor/vendorOutboundGuard.test.ts",
+      "electron/vendor/retrievalTrustedOrigin.test.ts",
+      "src/workbench/generationCanvas/runner/outboundBlockedRecovery.ts",
+      "src/workbench/generationCanvas/runner/outboundBlockedRecoverable.test.ts"
+    ],
+    "rationale": "同提交删除：提交侧的地址判断与 setSubmitOutboundDepsForTests、trustedRetrievalOrigin 与各处 allowedPrivateOrigins / trustedPrivateOrigin 管线、outbound-blocked / outbound-blocked-submit 两个码及其分类、动作、文案（中英）、OutboundStage。outboundBlockedRecovery.ts 改名为 retrievalRecovery.ts，只服务取回族。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只删 Nomi 自己的代码；Node DNS 与 undici 照旧用，不新增依赖。",
+    "exit_criteria": []
+  },
+  "migration": "不改盘。老项目里存着的 NOMI_ERR::outbound-blocked（取回被拦，已付费）读成 retrieval-download，仍是可找回、「重新取回」这次取得回来；NOMI_ERR::outbound-blocked-submit（发送前被拦，没花钱）读成无码的普通失败，点重试就发出去。retrievalRecoverable.test.ts 用旧版原文锁住这两种形状。",
+  "residual_risks": [
+    "恶意中转站 / 供应商可以返回指向局域网的结果链接，借 Nomi 往局域网发一次不带密钥的 GET；取回的内容只落在创作者自己的项目里。",
+    "丙 1-3（远程图 → 模型、参考音频 → 转写、输入文件 → 即梦）同样不判地址，只有响应头类型白名单（音频 / 即梦收 application/octet-stream），没有文件头校验。",
+    "丙 4 / 丙 5 照旧判地址：开着代理但探测没确认时，公网文档页可能被误拒；打包版里 localhost 中转的文档读不了。去留待协调定。",
+    "Windows 真机未验证（缺机器）。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/certificationMedia.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/docsDiscovery.ts",
+      "symbol": "hardenedFetchText"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/providedDocs.ts",
+      "symbol": "hardenedFetchText"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/modelImageInput.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/providerMediaFetch.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/resultLandingTestUtils.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "hardenedFetchText"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/dreaminaInputFiles.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/connectors/tikhubConnector.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/connectors/tikhubRoute.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/downloads/verifiedAssetCache.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "authorizeOutboundDestination"
+    },
+    {
+      "kind": "write",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localRuntime/localAiExternalProbe.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/promptLibrary/promptLibraryStore.ts",
+      "symbol": "hardenedFetchText"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "authorizeSubmitDestination"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/extractVideoFrame.ts",
+      "symbol": "hardenedFetch"
+    }
+  ],
+  "door_reduction": {
+    "before": 23,
+    "after": 20,
+    "why_not": "剩下的 20 扇都是 hardenedFetch / hardenedFetchText 的调用方与 vendorHttp 的凭据闸，各管各的下载路径；地址判据本身已收成一扇（hardenedFetch 内、只对 textEntersModelContext 开）。合并这些调用方要改无关的下载路径，不在本次。"
+  }
+}

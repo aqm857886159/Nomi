@@ -1,7 +1,10 @@
 {
-  "machine": "win32 x64 13th Gen Intel(R) Core(TM) i9-13900H x20 / 64GB",
-  "commit": "a50b7d70b",
-  "date": "2026-10-22",
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "ce4eb5a9e",
+  "head": "ce4eb5a9e70eee4982450b1d23653005bb4c89d6",
+  "dirty": true,
+  "sourceTree": "52ed64779d5035105b0e3bed8ad213040af08f3c",
+  "date": "2026-11-12",
   "runs": 5,
   "results": [
     {
@@ -9,8 +12,8 @@
       "metrics": {
         "response": {
           "runs": 5,
-          "median": 45.6,
-          "p95": 46.8
+          "median": 39.8,
+          "p95": 39.9
         },
         "longTasks": {
           "runs": 5,
@@ -18,10 +21,26 @@
           "p95": 0
         }
       },
+      "samples": {
+        "response": [
+          39.9,
+          39.6,
+          39.8,
+          39.3,
+          39.8
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
       "budget": 100,
       "baseline": {
-        "median": 62.9,
-        "p95": 77.2,
+        "median": 45.6,
+        "p95": 46.8,
         "runs": 5,
         "machine": "win32 x64 13th Gen Intel(R) Core(TM) i9-13900H x20 / 64GB",
         "date": "2026-10-22",

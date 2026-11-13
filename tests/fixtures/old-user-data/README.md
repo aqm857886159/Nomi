@@ -42,9 +42,35 @@
 
 用法：`electron/projects/projectLocation.oldUser.test.ts` 把每份都拷出来，跑五件事（两份各 7 条）：①什么都不做，三个项目（含应用数据目录里的）照常列出、读、存；②文件夹找不到了，卡片留着、登记不减、默认位置不被建回，改名后重开接回同一个项目；③默认位置在应用目录里，新建被拒、设置值原样，换成正常文件夹后新建成功；④挪出应用目录再打开接回，复制一份打开被拒、两边字节不变；⑤退回上一版，登记里每条的键集合和那个版本自己落的一致。任何一条不成立都是锁死老用户，停下上报。
 
+## 画布生成节点（`canvas/`）
+
+老项目**画布存盘片段**里生成节点的「方式」字段（`meta.archetype.modeId`）长什么样，用 0.24.1 自己的真实 store 写口造出来，不是手写的形状。
+
+| 目录 | 谁落的 | 怎么落的 | 里面有什么 |
+|---|---|---|---|
+| `canvas/v0.24.1-mode-nodes` | 0.24.1 | 在 0.24.1 的导出里跑 `generators/zzCanvasModeGen.ts.txt`：真实的 `addNode` / `connectNodes` / `updateNode` + `applyArchetypeModeSwitch`（参数面板点分段）/ `copySelectedNodes` + `pasteNodes` / `disconnectEdge`，Agent 计划写入用 0.24.1 的 `buildPlannedNodeMeta`，最后 `readDocumentSnapshot()` 取存盘片段 | `canvas.json`（= 项目文件 `payload.generationCanvas`，原样）、`manifest.json`（每个节点在 0.24.1 里创作者怎么操作得到的 + 0.24.1 自己读它读出的方式 / 任务种类 / 钮状态） |
+
+13 个生成节点：设计卡「生成方式按输入现算」★1c 的 8 种（`dc1`…`dc8`，其中 ⑥ 拆成 Agent 写改图 `dc6` 和 Agent 写首尾帧 `dc6b`）+ 4 个对照（`ctrl-*`：文生图无图、改图有图、文生视频、首帧有首帧），外加它们连着的来源图节点。节点 id 里的时间 / 随机数在生成时固定住了，重生成输出逐字节一致。分镜落地（`electron/` 里的 `multiShotCanvasLanding`）没有单独跑：它和 Agent 计划写的是同一份 meta 形状（`buildPlannedNodeMeta`），这里用后者。
+
+重生成：
+
+```
+D=$(mktemp -d)                                  # 空目录
+git archive v0.24.1 | tar -x -C "$D"
+ln -s "$PWD/node_modules" "$D/node_modules"      # 或在导出里装依赖
+cp tests/fixtures/old-user-data/generators/zzCanvasModeGen.ts.txt "$D/src/workbench/generationCanvas/store/zzCanvasModeGen.test.ts"
+(cd "$D" && V_OUT="$PWD/../out" pnpm exec vitest run src/workbench/generationCanvas/store/zzCanvasModeGen.test.ts -t "lands generation")
+# 把 out/canvas.json、out/manifest.json 放进 tests/fixtures/old-user-data/canvas/v0.24.1-mode-nodes/；先跑 pnpm run check:secrets
+```
+
+用法：`src/workbench/generationCanvas/store/canvasModeOldUser.{characterization,target,rollback}.test.ts`（读方式的口在 `tests/fixtures/old-user-data/canvas/canvasModeOldUser.testkit.ts`）——「今天的行为」特征测试（全绿）、「目标行为」测试（今天红的用 `it.fails` 登记并写明第几刀转绿）、「退回旧版本读得开」。
+
+退回旧版本的手工一半（每次改造那一刀跑一次）：把主线读写后存回的画布片段写成文件，在 0.24.1 导出里用同一个生成器文件的第二段读回——`V_IN=<片段.json> V_MANIFEST=<夹具 manifest.json> V_REPORT=<输出> pnpm exec vitest run <生成器文件> -t "reads what"`，逐节点对 manifest 里录下的 0.24.1 读法；节点一个不少、方式读得出，除主线有意改了方式的格子外读法一致。
+
 ## 怎么跑
 
 ```
+pnpm exec vitest run src/workbench/generationCanvas/store/canvasModeOldUser
 pnpm exec vitest run electron/catalog/upgradeKeepsWorkingModels.test.ts
 pnpm exec vitest run electron/projects/projectLocation.oldUser.test.ts
 ```
@@ -70,3 +96,7 @@ pnpm exec vitest run electron/projects/projectLocation.oldUser.test.ts
 ## 内置目录声明快照（`curated/`）
 
 `curated/v0.24.1-apimart` 由 `fb169414c1778e88bca35beacc0da9c54cb313d4` 的 `ensureBuiltinModelSeeds` 经真实目录写入函数落盘，再仅投影 APIMart 行，行内容未手写。没有凭据。生成器 `generators/zzCatalogSnapshot.ts.txt` 需要显式临时设置目录；`provenance.json` 记录来源。`apimartLatestContracts.test.ts` 对账每个旧身份、用户设置和旧音频映射。它证明目录兼容，不能替代真实旧作品的供应商执行验证。
+
+## 匿名统计的同意与待发队列（`telemetry/`）
+
+`telemetry/v0.24.1-outbox` 由 0.24.1（`21beebc789803925e2540d1eb4bd3e6255790673`）自己的 `writeTelemetrySettings` 与 `recordTelemetryEvent` 落盘：在 0.24.1 的 `electron/` 导出里用 tsx 跑 `generators/zzTelemetryOutboxGen.ts.txt`（显式临时设置目录、不配接收地址，什么都不发出去）。里面是开着统计、同意过告知范围 2 的设置文件，和 6 条当时各发送口形状的待发事件（生成完成带写死的 `attemptCountBucket`、没有补丁位）；`manifest.json` 记来源。没有内容、没有凭据，会话 id 是生成时随机的。回放在 `electron/telemetry/telemetryOutbox.test.ts` 的「0.24.1 开着统计」一条：升级后不重新确认、旧形状待发读出即丢不抛、新事件照常入队。

@@ -1,0 +1,1638 @@
+[
+  {
+    "state": "mb-k1-omni-max",
+    "lang": "zh",
+    "scheme": "light",
+    "tail": {
+      "text": "图 30 · 视频 10 · 音频 10，都放满了",
+      "left": 54,
+      "right": 588,
+      "top": 411,
+      "bottom": 429,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 600,
+      "top": 247,
+      "bottom": 407,
+      "w": 558,
+      "h": 160,
+      "scrollHeight": 244,
+      "clientHeight": 160
+    },
+    "summary": {
+      "text": "自动 · 720p · 5s",
+      "title": "自动 · 720p · 5s",
+      "cramped": false,
+      "slotW": 153,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "模型",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "生成方式",
+        "text": "全能参考",
+        "w": 102
+      },
+      {
+        "label": "生成参数",
+        "text": "自动 · 720p · 5s",
+        "w": 124
+      },
+      {
+        "label": "提示词预设",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "生成素材",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k2-switched-four",
+    "lang": "zh",
+    "scheme": "light",
+    "tail": {
+      "text": "放了 4 张，已改成全能参考",
+      "left": 342,
+      "right": 588,
+      "top": 270,
+      "bottom": 288,
+      "w": 246,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 346,
+      "top": 247,
+      "bottom": 299,
+      "w": 304,
+      "h": 52,
+      "scrollHeight": 52,
+      "clientHeight": 52
+    },
+    "summary": {
+      "text": "自动 · 720p · 5s",
+      "title": "自动 · 720p · 5s",
+      "cramped": false,
+      "slotW": 153,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "模型",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "生成方式",
+        "text": "全能参考",
+        "w": 102
+      },
+      {
+        "label": "生成参数",
+        "text": "自动 · 720p · 5s",
+        "w": 124
+      },
+      {
+        "label": "提示词预设",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "生成素材",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k2-switched-five",
+    "lang": "zh",
+    "scheme": "light",
+    "tail": {
+      "text": "放了 5 张，已改成全能参考",
+      "left": 390,
+      "right": 588,
+      "top": 270,
+      "bottom": 288,
+      "w": 198,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 394,
+      "top": 247,
+      "bottom": 299,
+      "w": 352,
+      "h": 52,
+      "scrollHeight": 52,
+      "clientHeight": 52
+    },
+    "summary": {
+      "text": "自动 · 720p · 5s",
+      "title": "自动 · 720p · 5s",
+      "cramped": false,
+      "slotW": 153,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "模型",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "生成方式",
+        "text": "全能参考",
+        "w": 102
+      },
+      {
+        "label": "生成参数",
+        "text": "自动 · 720p · 5s",
+        "w": 124
+      },
+      {
+        "label": "提示词预设",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "生成素材",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k2-twelve",
+    "lang": "zh",
+    "scheme": "light",
+    "tail": {
+      "text": "参考图 12 张",
+      "left": 54,
+      "right": 588,
+      "top": 351,
+      "bottom": 369,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 600,
+      "top": 247,
+      "bottom": 347,
+      "w": 558,
+      "h": 100,
+      "scrollHeight": 100,
+      "clientHeight": 100
+    },
+    "summary": {
+      "text": "自动 · 720p · 5s",
+      "title": "自动 · 720p · 5s",
+      "cramped": false,
+      "slotW": 153,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "模型",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "生成方式",
+        "text": "全能参考",
+        "w": 102
+      },
+      {
+        "label": "生成参数",
+        "text": "自动 · 720p · 5s",
+        "w": 124
+      },
+      {
+        "label": "提示词预设",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "生成素材",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k2-switched-max",
+    "lang": "zh",
+    "scheme": "light",
+    "tail": {
+      "text": "放了 50 件，已改成全能参考",
+      "left": 54,
+      "right": 588,
+      "top": 411,
+      "bottom": 429,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 600,
+      "top": 247,
+      "bottom": 407,
+      "w": 558,
+      "h": 160,
+      "scrollHeight": 244,
+      "clientHeight": 160
+    },
+    "summary": {
+      "text": "自动 · 720p · 5s",
+      "title": "自动 · 720p · 5s",
+      "cramped": false,
+      "slotW": 153,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "模型",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "生成方式",
+        "text": "全能参考",
+        "w": 102
+      },
+      {
+        "label": "生成参数",
+        "text": "自动 · 720p · 5s",
+        "w": 124
+      },
+      {
+        "label": "提示词预设",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "生成素材",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k3-model-limit-max",
+    "lang": "zh",
+    "scheme": "light",
+    "tail": {
+      "text": "可灵 4.0 最多用 2 张，其余 28 张不会发",
+      "left": 54,
+      "right": 588,
+      "top": 411,
+      "bottom": 429,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 600,
+      "top": 247,
+      "bottom": 407,
+      "w": 558,
+      "h": 160,
+      "scrollHeight": 216,
+      "clientHeight": 160
+    },
+    "summary": {
+      "text": "720p · 5s",
+      "title": "720p · 5s",
+      "cramped": false,
+      "slotW": 185,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "模型",
+        "text": "可灵 4.0",
+        "w": 101
+      },
+      {
+        "label": "生成方式",
+        "text": "图生视频",
+        "w": 102
+      },
+      {
+        "label": "生成参数",
+        "text": "720p · 5s",
+        "w": 90
+      },
+      {
+        "label": "提示词预设",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "生成素材",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k4-bar-common",
+    "lang": "zh",
+    "scheme": "light",
+    "tail": {
+      "text": "参考图 2 张",
+      "left": 246,
+      "right": 588,
+      "top": 270,
+      "bottom": 288,
+      "w": 342,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 250,
+      "top": 247,
+      "bottom": 299,
+      "w": 208,
+      "h": 52,
+      "scrollHeight": 52,
+      "clientHeight": 52
+    },
+    "summary": {
+      "text": "5s",
+      "title": "16:9 · 720p · 5s",
+      "cramped": false,
+      "slotW": 61,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "模型",
+        "text": "Seedance 2.0",
+        "w": 133
+      },
+      {
+        "label": "变体",
+        "text": "变体快速",
+        "w": 86
+      },
+      {
+        "label": "生成方式",
+        "text": "全能参考",
+        "w": 102
+      },
+      {
+        "label": "生成参数",
+        "text": "5s",
+        "w": 51
+      },
+      {
+        "label": "提示词预设",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "生成素材",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k4-bar-longest",
+    "lang": "zh",
+    "scheme": "light",
+    "tail": {
+      "text": "参考图 2 张",
+      "left": 246,
+      "right": 588,
+      "top": 225,
+      "bottom": 243,
+      "w": 342,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 250,
+      "top": 202,
+      "bottom": 254,
+      "w": 208,
+      "h": 52,
+      "scrollHeight": 52,
+      "clientHeight": 52
+    },
+    "summary": {
+      "text": "15s",
+      "title": "21:9 · 1080p · 15s",
+      "cramped": false,
+      "slotW": 61,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "模型",
+        "text": "Seedance 2.0",
+        "w": 133
+      },
+      {
+        "label": "变体",
+        "text": "变体快速",
+        "w": 86
+      },
+      {
+        "label": "生成方式",
+        "text": "全能参考",
+        "w": 102
+      },
+      {
+        "label": "生成参数",
+        "text": "15s",
+        "w": 56
+      },
+      {
+        "label": "提示词预设",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "生成素材",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k4-bar-longest-firstlast",
+    "lang": "zh",
+    "scheme": "light",
+    "tail": null,
+    "scroll": {
+      "left": 42,
+      "right": 298,
+      "top": 202,
+      "bottom": 274,
+      "w": 256,
+      "h": 72,
+      "scrollHeight": 72,
+      "clientHeight": 72
+    },
+    "summary": {
+      "text": "15s",
+      "title": "21:9 · 1080p · 15s",
+      "cramped": false,
+      "slotW": 73,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "模型",
+        "text": "Seedance 2.0",
+        "w": 133
+      },
+      {
+        "label": "变体",
+        "text": "变体快速",
+        "w": 86
+      },
+      {
+        "label": "生成方式",
+        "text": "首尾帧",
+        "w": 90
+      },
+      {
+        "label": "生成参数",
+        "text": "15s",
+        "w": 56
+      },
+      {
+        "label": "提示词预设",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "生成素材",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k5-menu-longest",
+    "lang": "zh",
+    "scheme": "light",
+    "tail": {
+      "text": "图 30 · 视频 10 · 音频 10，都放满了",
+      "left": 54,
+      "right": 588,
+      "top": 411,
+      "bottom": 429,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 600,
+      "top": 247,
+      "bottom": 407,
+      "w": 558,
+      "h": 160,
+      "scrollHeight": 244,
+      "clientHeight": 160
+    },
+    "summary": {
+      "text": "自动 · 720p · 5s",
+      "title": "自动 · 720p · 5s",
+      "cramped": false,
+      "slotW": 153,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "模型",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "生成方式",
+        "text": "全能参考",
+        "w": 102
+      },
+      {
+        "label": "生成参数",
+        "text": "自动 · 720p · 5s",
+        "w": 124
+      },
+      {
+        "label": "提示词预设",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "生成素材",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": {
+      "w": 267,
+      "descriptions": [
+        {
+          "text": "已放 50 件素材，文生视频不带素材",
+          "lines": 1,
+          "truncated": false,
+          "lastLineW": 174,
+          "fontSize": 11
+        },
+        {
+          "text": "已放 50 件素材，这种方式一件也用不上",
+          "lines": 1,
+          "truncated": false,
+          "lastLineW": 196,
+          "fontSize": 11
+        },
+        {
+          "text": "已放 50 件，首尾帧只用 1 件",
+          "lines": 1,
+          "truncated": false,
+          "lastLineW": 142,
+          "fontSize": 11
+        },
+        {
+          "text": "最多 30 张图、10 段视频、10 段音频",
+          "lines": 1,
+          "truncated": false,
+          "lastLineW": 183,
+          "fontSize": 11
+        }
+      ]
+    }
+  },
+  {
+    "state": "mb-k1-omni-max",
+    "lang": "en",
+    "scheme": "light",
+    "tail": {
+      "text": "30 images · 10 videos · 10 audio, all full",
+      "left": 54,
+      "right": 588,
+      "top": 411,
+      "bottom": 429,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 600,
+      "top": 247,
+      "bottom": 407,
+      "w": 558,
+      "h": 160,
+      "scrollHeight": 244,
+      "clientHeight": 160
+    },
+    "summary": {
+      "text": "Auto · 720p · 5s",
+      "title": "Auto · 720p · 5s",
+      "cramped": false,
+      "slotW": 144,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "Model",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "Mode",
+        "text": "Reference",
+        "w": 111
+      },
+      {
+        "label": "Generation parameters",
+        "text": "Auto · 720p · 5s",
+        "w": 126
+      },
+      {
+        "label": "Prompt presets",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Translate prompt (Chinese ↔ English; select text to translate only that part)",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Optimize prompt with Nomi",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Generate asset",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k2-switched-four",
+    "lang": "en",
+    "scheme": "light",
+    "tail": {
+      "text": "4 images added, switched to Reference",
+      "left": 342,
+      "right": 588,
+      "top": 270,
+      "bottom": 288,
+      "w": 246,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 346,
+      "top": 247,
+      "bottom": 299,
+      "w": 304,
+      "h": 52,
+      "scrollHeight": 52,
+      "clientHeight": 52
+    },
+    "summary": {
+      "text": "Auto · 720p · 5s",
+      "title": "Auto · 720p · 5s",
+      "cramped": false,
+      "slotW": 144,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "Model",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "Mode",
+        "text": "Reference",
+        "w": 111
+      },
+      {
+        "label": "Generation parameters",
+        "text": "Auto · 720p · 5s",
+        "w": 126
+      },
+      {
+        "label": "Prompt presets",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Translate prompt (Chinese ↔ English; select text to translate only that part)",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Optimize prompt with Nomi",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Generate asset",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k2-switched-five",
+    "lang": "en",
+    "scheme": "light",
+    "tail": {
+      "text": "5 images added, switched to Reference",
+      "left": 54,
+      "right": 588,
+      "top": 303,
+      "bottom": 321,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 394,
+      "top": 247,
+      "bottom": 299,
+      "w": 352,
+      "h": 52,
+      "scrollHeight": 52,
+      "clientHeight": 52
+    },
+    "summary": {
+      "text": "Auto · 720p · 5s",
+      "title": "Auto · 720p · 5s",
+      "cramped": false,
+      "slotW": 144,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "Model",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "Mode",
+        "text": "Reference",
+        "w": 111
+      },
+      {
+        "label": "Generation parameters",
+        "text": "Auto · 720p · 5s",
+        "w": 126
+      },
+      {
+        "label": "Prompt presets",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Translate prompt (Chinese ↔ English; select text to translate only that part)",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Optimize prompt with Nomi",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Generate asset",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k2-twelve",
+    "lang": "en",
+    "scheme": "light",
+    "tail": {
+      "text": "12 references",
+      "left": 54,
+      "right": 588,
+      "top": 351,
+      "bottom": 369,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 600,
+      "top": 247,
+      "bottom": 347,
+      "w": 558,
+      "h": 100,
+      "scrollHeight": 100,
+      "clientHeight": 100
+    },
+    "summary": {
+      "text": "Auto · 720p · 5s",
+      "title": "Auto · 720p · 5s",
+      "cramped": false,
+      "slotW": 144,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "Model",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "Mode",
+        "text": "Reference",
+        "w": 111
+      },
+      {
+        "label": "Generation parameters",
+        "text": "Auto · 720p · 5s",
+        "w": 126
+      },
+      {
+        "label": "Prompt presets",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Translate prompt (Chinese ↔ English; select text to translate only that part)",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Optimize prompt with Nomi",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Generate asset",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k2-switched-max",
+    "lang": "en",
+    "scheme": "light",
+    "tail": {
+      "text": "50 inputs added, switched to Reference",
+      "left": 54,
+      "right": 588,
+      "top": 411,
+      "bottom": 429,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 600,
+      "top": 247,
+      "bottom": 407,
+      "w": 558,
+      "h": 160,
+      "scrollHeight": 244,
+      "clientHeight": 160
+    },
+    "summary": {
+      "text": "Auto · 720p · 5s",
+      "title": "Auto · 720p · 5s",
+      "cramped": false,
+      "slotW": 144,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "Model",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "Mode",
+        "text": "Reference",
+        "w": 111
+      },
+      {
+        "label": "Generation parameters",
+        "text": "Auto · 720p · 5s",
+        "w": 126
+      },
+      {
+        "label": "Prompt presets",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Translate prompt (Chinese ↔ English; select text to translate only that part)",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Optimize prompt with Nomi",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Generate asset",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k3-model-limit-max",
+    "lang": "en",
+    "scheme": "light",
+    "tail": {
+      "text": "Kling 4.0 takes up to 2; the other 28 won't be sent",
+      "left": 54,
+      "right": 588,
+      "top": 411,
+      "bottom": 429,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 600,
+      "top": 247,
+      "bottom": 407,
+      "w": 558,
+      "h": 160,
+      "scrollHeight": 216,
+      "clientHeight": 160
+    },
+    "summary": {
+      "text": "720p · 5s",
+      "title": "720p · 5s",
+      "cramped": false,
+      "slotW": 145,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "Model",
+        "text": "Kling 4.0",
+        "w": 106
+      },
+      {
+        "label": "Mode",
+        "text": "Image to video",
+        "w": 137
+      },
+      {
+        "label": "Generation parameters",
+        "text": "720p · 5s",
+        "w": 90
+      },
+      {
+        "label": "Prompt presets",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Translate prompt (Chinese ↔ English; select text to translate only that part)",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Optimize prompt with Nomi",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Generate asset",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k4-bar-common",
+    "lang": "en",
+    "scheme": "light",
+    "tail": {
+      "text": "2 references",
+      "left": 246,
+      "right": 588,
+      "top": 270,
+      "bottom": 288,
+      "w": 342,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 250,
+      "top": 247,
+      "bottom": 299,
+      "w": 208,
+      "h": 52,
+      "scrollHeight": 52,
+      "clientHeight": 52
+    },
+    "summary": {
+      "text": "5s",
+      "title": "16:9 · 720p · 5s",
+      "cramped": true,
+      "slotW": 51,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "Model",
+        "text": "Seedance 2.0",
+        "w": 120
+      },
+      {
+        "label": "Variant",
+        "text": "VariantFast",
+        "w": 100
+      },
+      {
+        "label": "Mode",
+        "text": "Reference",
+        "w": 111
+      },
+      {
+        "label": "Generation parameters",
+        "text": "5s",
+        "w": 51
+      },
+      {
+        "label": "Prompt presets",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Translate prompt (Chinese ↔ English; select text to translate only that part)",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Optimize prompt with Nomi",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Generate asset",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k4-bar-longest",
+    "lang": "en",
+    "scheme": "light",
+    "tail": {
+      "text": "2 references",
+      "left": 246,
+      "right": 588,
+      "top": 225,
+      "bottom": 243,
+      "w": 342,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 250,
+      "top": 202,
+      "bottom": 254,
+      "w": 208,
+      "h": 52,
+      "scrollHeight": 52,
+      "clientHeight": 52
+    },
+    "summary": {
+      "text": "15s",
+      "title": "21:9 · 1080p · 15s",
+      "cramped": true,
+      "slotW": 56,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "Model",
+        "text": "Seedance 2.0",
+        "w": 114
+      },
+      {
+        "label": "Variant",
+        "text": "VariantFast",
+        "w": 100
+      },
+      {
+        "label": "Mode",
+        "text": "Reference",
+        "w": 111
+      },
+      {
+        "label": "Generation parameters",
+        "text": "15s",
+        "w": 56
+      },
+      {
+        "label": "Prompt presets",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Translate prompt (Chinese ↔ English; select text to translate only that part)",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Optimize prompt with Nomi",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Generate asset",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k4-bar-longest-firstlast",
+    "lang": "en",
+    "scheme": "light",
+    "tail": null,
+    "scroll": {
+      "left": 42,
+      "right": 339.3125,
+      "top": 202,
+      "bottom": 274,
+      "w": 297,
+      "h": 72,
+      "scrollHeight": 72,
+      "clientHeight": 72
+    },
+    "summary": {
+      "text": "15s",
+      "title": "21:9 · 1080p · 15s",
+      "cramped": true,
+      "slotW": 56,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "Model",
+        "text": "Seedance 2.0",
+        "w": 75
+      },
+      {
+        "label": "Variant",
+        "text": "VariantFast",
+        "w": 100
+      },
+      {
+        "label": "Mode",
+        "text": "First & last frame",
+        "w": 151
+      },
+      {
+        "label": "Generation parameters",
+        "text": "15s",
+        "w": 56
+      },
+      {
+        "label": "Prompt presets",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Translate prompt (Chinese ↔ English; select text to translate only that part)",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Optimize prompt with Nomi",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Generate asset",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k5-menu-longest",
+    "lang": "en",
+    "scheme": "light",
+    "tail": {
+      "text": "30 images · 10 videos · 10 audio, all full",
+      "left": 54,
+      "right": 588,
+      "top": 411,
+      "bottom": 429,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 600,
+      "top": 247,
+      "bottom": 407,
+      "w": 558,
+      "h": 160,
+      "scrollHeight": 244,
+      "clientHeight": 160
+    },
+    "summary": {
+      "text": "Auto · 720p · 5s",
+      "title": "Auto · 720p · 5s",
+      "cramped": false,
+      "slotW": 144,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "Model",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "Mode",
+        "text": "Reference",
+        "w": 111
+      },
+      {
+        "label": "Generation parameters",
+        "text": "Auto · 720p · 5s",
+        "w": 126
+      },
+      {
+        "label": "Prompt presets",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Translate prompt (Chinese ↔ English; select text to translate only that part)",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Optimize prompt with Nomi",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Generate asset",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": {
+      "w": 292,
+      "descriptions": [
+        {
+          "text": "50 inputs added, takes none",
+          "lines": 1,
+          "truncated": false,
+          "lastLineW": 149,
+          "fontSize": 11
+        },
+        {
+          "text": "50 inputs added, takes none",
+          "lines": 1,
+          "truncated": false,
+          "lastLineW": 149,
+          "fontSize": 11
+        },
+        {
+          "text": "50 inputs added, takes 1",
+          "lines": 1,
+          "truncated": false,
+          "lastLineW": 128,
+          "fontSize": 11
+        },
+        {
+          "text": "Up to 30 images, 10 videos, 10 audio clips",
+          "lines": 1,
+          "truncated": false,
+          "lastLineW": 221,
+          "fontSize": 11
+        }
+      ]
+    }
+  },
+  {
+    "state": "mb-k1-omni-max",
+    "lang": "zh",
+    "scheme": "dark",
+    "tail": {
+      "text": "图 30 · 视频 10 · 音频 10，都放满了",
+      "left": 54,
+      "right": 588,
+      "top": 411,
+      "bottom": 429,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 600,
+      "top": 247,
+      "bottom": 407,
+      "w": 558,
+      "h": 160,
+      "scrollHeight": 244,
+      "clientHeight": 160
+    },
+    "summary": {
+      "text": "自动 · 720p · 5s",
+      "title": "自动 · 720p · 5s",
+      "cramped": false,
+      "slotW": 153,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "模型",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "生成方式",
+        "text": "全能参考",
+        "w": 102
+      },
+      {
+        "label": "生成参数",
+        "text": "自动 · 720p · 5s",
+        "w": 124
+      },
+      {
+        "label": "提示词预设",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "生成素材",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  },
+  {
+    "state": "mb-k1-omni-max",
+    "lang": "en",
+    "scheme": "dark",
+    "tail": {
+      "text": "30 images · 10 videos · 10 audio, all full",
+      "left": 54,
+      "right": 588,
+      "top": 411,
+      "bottom": 429,
+      "w": 534,
+      "h": 18,
+      "lines": 1,
+      "inScroll": false
+    },
+    "scroll": {
+      "left": 42,
+      "right": 600,
+      "top": 247,
+      "bottom": 407,
+      "w": 558,
+      "h": 160,
+      "scrollHeight": 244,
+      "clientHeight": 160
+    },
+    "summary": {
+      "text": "Auto · 720p · 5s",
+      "title": "Auto · 720p · 5s",
+      "cramped": false,
+      "slotW": 144,
+      "shortPx": 0
+    },
+    "cells": [
+      {
+        "label": "Model",
+        "text": "Seedance 2.5",
+        "w": 133
+      },
+      {
+        "label": "Mode",
+        "text": "Reference",
+        "w": 111
+      },
+      {
+        "label": "Generation parameters",
+        "text": "Auto · 720p · 5s",
+        "w": 126
+      },
+      {
+        "label": "Prompt presets",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Translate prompt (Chinese ↔ English; select text to translate only that part)",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Optimize prompt with Nomi",
+        "text": "",
+        "w": 28
+      },
+      {
+        "label": "Generate asset",
+        "text": "",
+        "w": 30
+      }
+    ],
+    "menu": null
+  }
+]

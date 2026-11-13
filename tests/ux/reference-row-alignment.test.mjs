@@ -48,11 +48,11 @@ afterAll(async () => {
 
 /** 在页面里量：这一排每个虚线框 / 已填缩略图的顶边与高度。 */
 function measureRow() {
-  return [...document.querySelectorAll('[data-reference-row-stage] [data-reference-entry], [data-reference-row-stage] [data-asset-add-tile], [data-reference-row-stage] [data-asset-tile]')]
+  return [...document.querySelectorAll('[data-reference-row-stage] [data-reference-entry], [data-reference-row-stage] [data-asset-add-tile], [data-reference-row-stage] [data-reference-add-entry], [data-reference-row-stage] [data-asset-tile]')]
     .map((element) => {
       const rect = element.getBoundingClientRect()
       return {
-        what: element.hasAttribute('data-reference-entry') ? 'pointer' : element.hasAttribute('data-asset-add-tile') ? 'add' : 'tile',
+        what: element.hasAttribute('data-reference-entry') ? 'pointer' : (element.hasAttribute('data-asset-add-tile') || element.hasAttribute('data-reference-add-entry')) ? 'add' : 'tile',
         top: rect.top, height: rect.height, left: rect.left,
       }
     })

@@ -45,7 +45,6 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { upsertModelCatalogMapping, upsertModelCatalogModel, upsertModelCatalogVendor, upsertModelCatalogVendorApiKey } from "./catalog/catalogStore";
 import { applyHeadlessParamDefaults, imageEditGuardError } from "./catalog/taskParams";
-import { setSubmitOutboundDepsForTests } from "./vendor/vendorOutboundGuard";
 import { desktopT } from "./desktopStrings";
 import { mintSpendGrant } from "./spendGrant";
 import { runTask } from "./runtime";
@@ -125,11 +124,6 @@ describe("runTask × 第一闸（applyHeadlessParamDefaults）：自写能力合
     sent.length = 0;
     vi.mocked(imageEditGuardError).mockClear();
     vi.mocked(applyHeadlessParamDefaults).mockClear();
-    setSubmitOutboundDepsForTests({
-      resolve: async () => [{ address: "93.184.216.34", family: 4 as const }],
-      readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
-      isApplicationProxyActive: () => false,
-    });
     // 上游回 400：只为数清「发没发、发了几张」，任务不进入轮询。
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       sent.push({ url: String(input instanceof Request ? input.url : input), body: JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown> });
@@ -144,7 +138,6 @@ describe("runTask × 第一闸（applyHeadlessParamDefaults）：自写能力合
     });
   });
   afterEach(() => {
-    setSubmitOutboundDepsForTests(null);
     vi.unstubAllGlobals();
     for (const dir of tempRoots.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
   });

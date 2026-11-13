@@ -44,7 +44,11 @@ export const THREAD_MENU = '[data-agent-thread-menu="true"]'
  */
 export const THREAD_ROW = `${THREAD_MENU} > div:has(> button[aria-label="删除对话"])`
 
-export const DOCUMENT = '[aria-label="创作文档编辑区"] .tiptap[contenteditable="true"]'
+/**
+ * 创作文档的正文。认的是编辑器自带的 `data-creation-editor` 锚，不是无障碍名：无障碍名跟着界面语言变
+ * （「创作文档编辑区」/「Creation document editor」），按中文写死时英文那一遍等 30 秒落空（2026-11-12）。
+ */
+export const DOCUMENT = '[data-creation-editor="true"] .tiptap[contenteditable="true"]'
 
 /** v4 面板本体与对话流。 */
 export const V4_PANEL = '[data-v4-panel="true"]'

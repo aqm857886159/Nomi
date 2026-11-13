@@ -1,0 +1,51 @@
+{
+  "name": "这次按哪种方式发（方式按当前输入现算）",
+  "subject": "canvas.send-mode",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/modelArchetypes/modeForInputs.ts",
+    "symbol": "modeForInputs"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/modelArchetypes/modeForInputs.ts",
+      "symbol": "modeForInputs"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "effectiveArchetypeMode"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "sendArchetypeMode"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasModeChoiceForget.ts",
+      "symbol": "forgetUnfitModeChoices"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "useGenerationCanvasStore.subscribe"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "applyArchetypeModeSwitch",
+      "kind": "definition",
+      "why": "机器改写存着的方式就是旧病根：每个改输入的入口都得补一个派生，漏一个就「带图的方式没图」。方式只由 modeForInputs 现算，存着的 modeId 只是人手选的偏好。"
+    },
+    {
+      "symbol": "currentArchetypeMode",
+      "kind": "definition",
+      "why": "按存着的 modeId 直接取方式会绕过现算；读方式一律经 effectiveArchetypeMode / sendArchetypeMode。"
+    }
+  ],
+  "allowed_consumers": [],
+  "parity_test": "electron/shared/modelArchetypes/modeForInputs.exhaustive.test.ts",
+  "since": "2026-11-12",
+  "notes": "根因合同 docs/fixes/2026-11-12-mode-from-inputs.root-cause.json。取代两条旧概念（同提交删登记）：①「画布生成方式在输入全空时回到文生，连线手势单独负责升格」（2026-10-25，主人 canvasConnectDerivations.revertTargetModeForEmptyInputs / convergeStuckInputModes）——输入全空回文生现在是 modeForInputs 的一条不变量（没有输入一律按文字方式发），不再靠订阅和装载收敛去改写存盘；②「连参考图之后切到哪个模式」（2026-09-28，主人 referenceEdgeCapability.resolveModeForReferenceDemand / preferredImageWorkflow）——连了图按哪种方式发同样由 modeForInputs 按档案方式的槽声明现算，不按模型名写死。effectiveArchetypeMode（界面与 Agent 读）、sendArchetypeMode（发送读）是它的两个读取包装；forgetUnfitModeChoices 是唯一会写 modeId 的机器路径——只在一笔手势让人手选的偏好收不下输入时把偏好清掉（随该手势一起撤销），不写新方式。"
+}

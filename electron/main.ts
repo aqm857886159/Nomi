@@ -45,7 +45,7 @@ import { catalogSecretsProvider } from "./events/secretsProvider";
 import { registerOnboardingIpc } from "./ai/onboarding/onboardingIpc";
 import { registerProviderAdapterIpc } from "./providerAdapter/ipc";
 import { registerExistingConnectionIpc } from "./providerAdapter/existingConnectionIpc";
-import { registerUpdaterIpc, startAutoUpdateCheck } from "./update/autoUpdater";
+import { isProductionWorkBusy, registerUpdaterIpc, startAutoUpdateCheck } from "./update/autoUpdater";
 import { setRendererTarget } from "./capabilityCore/rendererBridge";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
 import { registerNomiProtocolClient } from "./protocolRegistration";
@@ -54,8 +54,8 @@ import { startDesktopMcpHttp, stopDesktopMcpHttp } from "./capabilityCore/mcpHtt
 import { registerCustomMcpProfileIpc, watchMcpProfiles } from "./capabilityCore/mcpProfiles";
 import { registerLocalProtocol } from "./protocol/localProtocol";
 import { installMainWindowInteractions } from "./mainWindowInteractions";
-import { getMainWindow, setMainWindow } from "./appWindowRegistry";
-import { createMainWindowGuard } from "./mainWindowPresence";
+import { getMainWindow } from "./appWindowRegistry";
+import { adoptMainWindow, installMainWindowOwner, mainWindowPhase, openMainWindow, rebuildMainWindow, revealMainWindow } from "./mainWindowPresence";
 import { assertTrustedFireAndForget, assertTrustedSender, assertTrustedSync, assertTrustedUiSender } from "./ipcSenderGuard";
 import { registerDirectorMobileIpc } from "./director/mobileBridgeIpc";
 import { registerScreenshotIpc } from "./screenshot/screenshotIpc";
@@ -86,7 +86,7 @@ import { issueChildWindowProject } from "./assets/windowProjectCapture";
 import { installWindowNavigation } from "./windowNavigation";
 import { registerQuitDrain, requestQuit } from "./quitTeardown";
 import { installMainQuitOwner } from "./quitOwnerMain";
-import { backgroundWindowOptions, disposeBackgroundLifecycle, hasInFlightProductionWork, installBackgroundLifecycle, installBackgroundWindowBehavior, isBackgroundLaunch, touchBackgroundActivity } from "./backgroundLaunch";
+import { backgroundWindowOptions, disposeBackgroundLifecycle, installBackgroundLifecycle, installBackgroundWindowBehavior, isBackgroundLaunch, touchBackgroundActivity } from "./backgroundLaunch";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
 // 晚一步重定向，这次会话的头几行（含会话表头）会落在被隔离掉的那个目录里。
 const configuredUserDataDir = String(process.env.NOMI_ELECTRON_USER_DATA_DIR || "").trim();
@@ -119,7 +119,6 @@ const { ensureArtifactPreviewSecret, flushPendingProductionDeepLink } = installP
   isMcpStdio,
   allowE2eMultiInstance,
   hasSingleInstanceLock,
-  ensureMainWindow: () => ensureMainWindow(),
 });
 if (isMcpStdio) {
   void app
@@ -150,7 +149,6 @@ const isDev = Boolean(process.env.VITE_DEV_SERVER_URL || process.env.NOMI_DESKTO
 const devRemoteDebuggingPort = process.env.NOMI_DESKTOP_REMOTE_DEBUGGING_PORT;
 const DEV_RENDERER_LOAD_ATTEMPTS = 20;
 const DEV_RENDERER_LOAD_RETRY_MS = 500;
-let isRecreatingMainWindow = false;
 const lowMemoryMode = process.env.NOMI_LOW_MEMORY_MODE === "1";
 // 「本会话起不起能力核」的判断与记录是同一件事（residentSurfaceLifecycle 是唯一 owner）：
 // 不起 = 常驻生成面按配置 disabled，lane 与付费卡读到的是这个相，而不是一个说不出原因的 undefined。
@@ -277,7 +275,7 @@ async function loadRendererWithRetry(mainWindow: BrowserWindow, rendererUrl: str
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
-async function createWindow(
+async function buildMainWindow(
   options: { bounds?: Rectangle; maximize?: boolean; rendererUrl?: string } = {},
 ): Promise<BrowserWindow> {
   const mainWindow = new BrowserWindow({
@@ -294,11 +292,8 @@ async function createWindow(
     ...backgroundWindowOptions(),
   });
   installBackgroundWindowBehavior(mainWindow);
-  setMainWindow(mainWindow); // 主窗口单一真相（registry）；closed 条件清理防窗口重建竞态误清新窗
+  adoptMainWindow(mainWindow); // 主窗口唯一主人（mainWindowPresence）：登记、关窗、叫回都归它
   installMainWindowInteractions(mainWindow);
-  mainWindow.on("closed", () => {
-    if (getMainWindow() === mainWindow) setMainWindow(null);
-  });
 
   const rendererUrl = options.rendererUrl || getRendererUrl();
   installWindowNavigation(mainWindow, rendererUrl);
@@ -331,36 +326,31 @@ async function createWindow(
   }
   return mainWindow;
 }
-// 零窗口自愈的唯一入口（issue #62）；activate / second-instance / 窗口重建失败都走它。
-const ensureMainWindow = createMainWindowGuard({ createWindow, onWindowReady: () => flushPendingProductionDeepLink() });
+// 主窗口唯一主人：建窗、叫回、关窗决策、维护重建都在 mainWindowPresence；「有活在跑」只认 busyGate 那一份。
+installMainWindowOwner({
+  build: () => buildMainWindow(),
+  onWindowReady: () => flushPendingProductionDeepLink(),
+  isBusy: isProductionWorkBusy,
+  isBackgroundLaunch,
+  allowRelaunch: process.env.NOMI_E2E !== "1",
+  platform: process.platform,
+});
 
 function recreateMainWindowFromSender(sender: WebContents, options: { preserveRoute: boolean; reason: string }): void {
-  if (isRecreatingMainWindow) return;
   const oldWindow = BrowserWindow.fromWebContents(sender);
   const bounds = oldWindow && !oldWindow.isDestroyed() ? oldWindow.getBounds() : undefined;
   const maximize = oldWindow && !oldWindow.isDestroyed() ? oldWindow.isMaximized() : false;
   const rendererUrl = options.preserveRoute
     ? getRendererUrlWithRoute(oldWindow && !oldWindow.isDestroyed() ? oldWindow.webContents.getURL() : undefined)
     : getRendererUrl();
-  isRecreatingMainWindow = true;
-  if (oldWindow && !oldWindow.isDestroyed()) oldWindow.destroy();
-  void Promise.all([
-    session.defaultSession.clearCache().catch(() => undefined),
-    session.defaultSession.clearCodeCaches({}).catch(() => undefined),
-  ])
-    .then(() => createWindow({ bounds, maximize, rendererUrl }))
-    .then((nextWindow) => {
-      // A renderer reload can also happen in the hidden MCP-launched process;
-      // never let that maintenance path surface the background window.
-      if (!isBackgroundLaunch) nextWindow.focus();
-    })
-    .catch((error) => {
-      logError("window", "recreate-window-failed", error, { reason: options.reason });
-    })
-    .finally(() => {
-      isRecreatingMainWindow = false;
-      void ensureMainWindow(); // 重建失败会永久停在零窗口（window-all-closed 已被重建标记跳过）→ 补建兜底
-    });
+  rebuildMainWindow(oldWindow, {
+    reason: options.reason,
+    prepare: () => Promise.all([
+      session.defaultSession.clearCache().catch(() => undefined),
+      session.defaultSession.clearCodeCaches({}).catch(() => undefined),
+    ]),
+    build: () => buildMainWindow({ bounds, maximize, rendererUrl }),
+  });
 }
 
 function registerSyncIpc<TArgs extends unknown[], TResult>(
@@ -620,8 +610,8 @@ if (hasSingleInstanceLock)
         logError("catalog", "builtin-model-seeds-failed", error);
       }
       registerIpc(); void import('./telemetry/telemetryLifecycle').then(({ recordAppStarted }) => recordAppStarted());
-      await createWindow();
-      installBackgroundLifecycle({ hasInFlightWork: hasInFlightProductionWork, quit: () => app.quit() });
+      await openMainWindow();
+      installBackgroundLifecycle({ hasInFlightWork: isProductionWorkBusy, quit: () => app.quit() });
       // 外部 capability RPC 不是首窗依赖，且它一旦 listen 就可能收到会解析凭据的 models/generation 请求。
       // 必须在窗口完成后才暴露；失败显式消化，不能反向拖垮已经可用的首窗。低内存模式仍默认跳过。
       if (!capabilityCoreDisabled) {
@@ -645,14 +635,14 @@ if (hasSingleInstanceLock)
         lowMemoryMode ? 15000 : 3000,
       );
       registerQuitDrain("catalog-reconciliation", startCatalogReconciliation(), { required: false, timeoutMs: 100 });
-      app.on("activate", () => void ensureMainWindow()); // macOS 关窗后进程不退，点 Dock 靠这条把窗口建回来
+      app.on("activate", () => revealMainWindow("activate")); // 点 Dock / Finder 再打开：藏着、最小化、没有窗口都叫回
     })
     .catch((error) => {
       logError("main", "start-failed", error);
       app.quit();
     });
 app.on("window-all-closed", () => {
-  if (isRecreatingMainWindow) return;
+  if (mainWindowPhase() === "creating") return; // 维护重建：旧窗刚销毁、新窗还在建
   if (process.platform !== "darwin") app.quit();
 });
 // 退出唯一 owner：导出 abort → ffmpegRunner kill 子进程（否则变孤儿）；Agent lane 关闭时落盘会话。

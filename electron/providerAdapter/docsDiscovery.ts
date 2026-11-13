@@ -183,6 +183,8 @@ export async function discoverProviderDocs(options: {
         timeoutMs: 8_000,
         signal: options.signal,
         allowContentTypes: ["text/", "application/json", "application/xml", "application/yaml"],
+        // 抓到的正文交给接入编译器（模型）：按地址判，本机 / 内网文档页拒（hardenedFetch 选项注释）。
+        textEntersModelContext: true,
         ...(dispatcher ? { dispatcher } : {}),
       });
       const finalUrl = normalizedUrl(result.finalUrl || current);

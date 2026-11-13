@@ -1,0 +1,129 @@
+{
+  "name": "agent-conversation-follow",
+  "mode": "development",
+  "window": {
+    "width": 1100,
+    "height": 720
+  },
+  "fixtureTurns": [
+    {
+      "marker": "CF-A-1",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-A-2",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-A-3",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-A-4",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-A-5",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-B-1",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-B-2",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-B-3",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-B-4",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-B-5",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-A-zh-light-stream",
+      "mode": "stream"
+    },
+    {
+      "marker": "CF-A-zh-light-send",
+      "mode": "text"
+    },
+    {
+      "marker": "CF-A-en-dark-stream",
+      "mode": "stream"
+    },
+    {
+      "marker": "CF-A-en-dark-send",
+      "mode": "text"
+    }
+  ],
+  "leftThreadA": {
+    "top": 1684,
+    "height": 3093,
+    "client": 508,
+    "gap": 901
+  },
+  "flowOverflowPx": 2585,
+  "red": [
+    "zh-light/streaming-follows-while-at-bottom",
+    "en-dark/streaming-follows-while-at-bottom"
+  ],
+  "verified": [
+    "zh-light/switch-B-to-A-lands-at-bottom",
+    "zh-light/switch-A-to-B-lands-at-bottom",
+    "zh-light/switch-back-to-A-after-reading-B-midway-lands-at-bottom",
+    "zh-light/collapse-expand-restores-midway-position",
+    "zh-light/collapse-expand-at-bottom-stays-at-bottom",
+    "zh-light/jump-latest-hidden-at-bottom",
+    "zh-light/scrolled-up-reader-is-not-dragged",
+    "zh-light/jump-latest-appears-when-scrolled-up",
+    "zh-light/jump-latest-returns-to-bottom-and-keeps-following",
+    "zh-light/jump-latest-hides-after-click",
+    "zh-light/streaming-ends-at-bottom",
+    "zh-light/send-while-scrolled-up-returns-to-bottom",
+    "en-dark/reload-lands-at-bottom",
+    "en-dark/switch-B-to-A-lands-at-bottom",
+    "en-dark/switch-A-to-B-lands-at-bottom",
+    "en-dark/switch-back-to-A-after-reading-B-midway-lands-at-bottom",
+    "en-dark/collapse-expand-restores-midway-position",
+    "en-dark/collapse-expand-at-bottom-stays-at-bottom",
+    "en-dark/jump-latest-hidden-at-bottom",
+    "en-dark/scrolled-up-reader-is-not-dragged",
+    "en-dark/jump-latest-appears-when-scrolled-up",
+    "en-dark/jump-latest-returns-to-bottom-and-keeps-following",
+    "en-dark/jump-latest-hides-after-click",
+    "en-dark/streaming-ends-at-bottom",
+    "en-dark/send-while-scrolled-up-returns-to-bottom",
+    "zh-dark/jump-latest-appears-when-scrolled-up",
+    "en-light/jump-latest-appears-when-scrolled-up"
+  ],
+  "textRequests": 14,
+  "imageRequests": 0,
+  "paidCalls": 0,
+  "unexpected": [],
+  "result": "failed",
+  "greenCount": 27,
+  "redCount": 2,
+  "screenshots": [
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-01-zh-light-switch-to-A.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-02-zh-light-switch-to-B.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-03-zh-light-switch-back-to-A.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-04-zh-light-scrolled-up-jump-latest.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-05-zh-light-after-jump-to-latest.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-06-en-dark-switch-to-A.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-07-en-dark-switch-to-B.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-08-en-dark-switch-back-to-A.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-09-en-dark-scrolled-up-jump-latest.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-10-en-dark-after-jump-to-latest.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-11-zh-dark-scrolled-up-jump-latest.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-12-en-light-scrolled-up-jump-latest.png"
+  ],
+  "error": "Error: 跟到底走查有 2 条红：zh-light/streaming-follows-while-at-bottom、en-dark/streaming-follows-while-at-bottom",
+  "status": "partial; two original 70px stream-follow checks failed"
+}

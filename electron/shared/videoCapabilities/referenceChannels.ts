@@ -7,14 +7,14 @@
  * 收素材，取决于用户选的是「首帧」还是「全能参考」——**body 本身答不出这个问题**。
  * 档案模式的 `combineSlotsInto` 就是这个答案的声明处（`seedance25Apimart.ts:66/82`）。
  *
- * 渲染层一直是这么做的（`archetypeMeta.ts buildArchetypeInputParams` 的合并槽那一段读
- * `mode.combineSlotsInto`）；Run 路径此前只看「body 里有没有 image_with_roles」
+ * 合并数组本身只在降级函数里编码（`shared/generationLowering/lowerGenerationIntent.ts`，画布 / headless / Run 三个入口共用）；
+ * Run 路径更早时只看「body 里有没有 image_with_roles」
  * （`apimartGenerationProjection.ts` 旧的 `channels.has("image_with_roles")`），于是
  * 同一张参考图、同一个模型、同一次提交，两条路把它放进了**不同的 wire 键**
  * （对等矩阵 NEW-1 ×10）。这里把那句判断收成一个纯函数，两路同吃。
  *
  * ── 没有 modeId 时为什么答「不合并」而不是猜一个 ──────────────────────────────
- * headless 路（`catalog/taskParams.ts` 的 `projectReferencesOntoBodyKeys`）明确**跳过
+ * 没有模式时，降级函数用按 body 推出来的声明（`shared/generationLowering/headlessReferences.ts`），它明确**跳过
  * 对象形态键**：`image_with_roles` 这种 `[{url, role}]` 只有拿得到模式的那一层才构造得对。
  * 所以「没有模式」的正确答案就是扁平族键（`image_urls` / `video_urls` / `audio_urls`），
  * 与手动路逐字节相同；猜一个模式正是 NEW-1 那条 bug 的形状。
@@ -26,7 +26,7 @@ import { sourceBackedVideoProfiles } from "./registry";
 
 /**
  * 参考槽种 → 供应商角色词的**唯一表**。画布路（`archetypeMeta.ts buildArchetypeInputParams`）和
- * Run 路（`apimartGenerationProjection.ts projectReferenceUrls`）都从这里取。
+ * Run 路（`shared/generationLowering/runReferences.ts`）都从这里取。
  * 五个值来自方舟 content[].role 官方字段表（first_frame / last_frame / reference_image / reference_video / reference_audio）。
  * 2026-11-07 从渲染层搬来：以前这张表只在渲染层有，Run 路把合同角色词（reference / character）直接
  * 当线上角色发，Wan 2.7 角色参考经 MCP / ProductionRun 发出 role "reference"，官方要 "reference_image"。
@@ -81,35 +81,6 @@ export function combineChannelForMode(
   return { key, flat, roleSlots };
 }
 
-/** Encode one channel in declared slot order, preserving the order of references within each slot. */
-export function lowerCombinedReferences(
-  channel: NonNullable<ReferenceCombineChannel>,
-  entries: ReadonlyArray<{ order: number; url: string }>,
-): string[] | Array<{ url: string; role: string }> {
-  const ordered = [...entries].sort((a, b) => a.order - b.order);
-  return channel.flat ? ordered.map(({ url }) => url)
-    : ordered.map(({ order, url }) => ({ url, role: channel.roleSlots[order]!.role }));
-}
-
-/**
- * Run 路：合同里的一条参考（素材种类 + 合同角色词）该落进哪个参与合并的槽、带哪个线上 role。
- * 合同角色词不是线上角色词：reference / character 都是图片参考槽，线上要发 reference_image。
- * 返回 null = 这一档模式的合并里没有收这种参考的槽（调用方决定走扁平键还是拒发）。
- */
-export function combineRoleForContractReference(
-  channel: ReferenceCombineChannel,
-  reference: { kind?: string; role?: string },
-): { role: string; order: number } | null {
-  if (!channel) return null;
-  const kind: ArchetypeReferenceSlotKind = reference.kind === "video" ? "video_ref"
-    : reference.kind === "audio" ? "audio_ref"
-      : reference.role === "first_frame" ? "first_frame"
-        : reference.role === "last_frame" ? "last_frame"
-          : "image_ref";
-  const order = channel.roleSlots.findIndex((slot) => slot.kind === kind);
-  return order < 0 ? null : { role: channel.roleSlots[order]!.role, order };
-}
-
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
@@ -148,6 +119,16 @@ export function archetypeModeForModel(input: {
 }
 
 /**
+ * 这一档模式在这条 body 上的合并槽：模式声明了、且 body 真引用那个键才算（引用不到 → 合并发不出去 → 退回扁平族键）。
+ * 降级函数的声明（`shared/generationLowering/declarationForMode.ts`）与下面的 Run 路入口都用这一个判据。
+ */
+export function combineChannelForBody(mode: CombineModeShape | null | undefined, createBody: unknown): ReferenceCombineChannel {
+  const channel = combineChannelForMode(mode);
+  if (!channel) return null;
+  return bodyReferencedParamKeys(createBody).includes(channel.key) ? channel : null;
+}
+
+/**
  * 这次提交的参考素材走哪条通道。`createBody` 是这条 mapping 真正会渲染的 body：
  * 模式声明了合并槽、但这条渠道的 body 根本不引用那个键时，合并槽发不出去 → 退回扁平族键。
  */
@@ -157,7 +138,5 @@ export function referenceCombineChannelFor(input: {
   modeId?: string;
   createBody: unknown;
 }): ReferenceCombineChannel {
-  const channel = combineChannelForMode(archetypeModeForModel(input));
-  if (!channel) return null;
-  return bodyReferencedParamKeys(input.createBody).includes(channel.key) ? channel : null;
+  return combineChannelForBody(archetypeModeForModel(input), input.createBody);
 }

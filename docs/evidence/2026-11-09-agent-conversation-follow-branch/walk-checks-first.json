@@ -1,0 +1,282 @@
+[
+ {
+  "round": "zh-light",
+  "check": "switch-B-to-A-lands-at-bottom",
+  "pass": true,
+  "detail": {
+   "at0": 1,
+   "at250": 1,
+   "at1000": 1,
+   "height": 3093,
+   "client": 508
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "switch-A-to-B-lands-at-bottom",
+  "pass": true,
+  "detail": {
+   "at0": 1,
+   "at250": 1,
+   "at1000": 1,
+   "height": 3093,
+   "client": 508
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "switch-back-to-A-after-reading-B-midway-lands-at-bottom",
+  "pass": true,
+  "detail": {
+   "leftBGap": 1201,
+   "at0": 1,
+   "at250": 1,
+   "at1000": 1,
+   "height": 3093,
+   "client": 508
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "collapse-expand-restores-midway-position",
+  "pass": true,
+  "detail": {
+   "before": 1291,
+   "after": 1291
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "collapse-expand-at-bottom-stays-at-bottom",
+  "pass": true,
+  "detail": {
+   "top": 2584,
+   "height": 3093,
+   "client": 508,
+   "gap": 1
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "jump-latest-hidden-at-bottom",
+  "pass": true,
+  "detail": {}
+ },
+ {
+  "round": "zh-light",
+  "check": "streaming-follows-while-at-bottom",
+  "pass": false,
+  "detail": {
+   "frames": 263,
+   "maxGap": 104
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "scrolled-up-reader-is-not-dragged",
+  "pass": true,
+  "detail": {
+   "before": 2711,
+   "after": 2711,
+   "gapAfterScroll": 690,
+   "streamedChars": 216
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "jump-latest-appears-when-scrolled-up",
+  "pass": true,
+  "detail": {
+   "visible": true,
+   "labelOk": true
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "jump-latest-returns-to-bottom-and-keeps-following",
+  "pass": true,
+  "detail": {
+   "afterJump": 1,
+   "after600ms": 1
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "jump-latest-hides-after-click",
+  "pass": true,
+  "detail": {}
+ },
+ {
+  "round": "zh-light",
+  "check": "streaming-ends-at-bottom",
+  "pass": true,
+  "detail": {
+   "top": 6049,
+   "height": 6558,
+   "client": 508,
+   "gap": 1
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "send-while-scrolled-up-returns-to-bottom",
+  "pass": true,
+  "detail": {
+   "gapBeforeSend": 1501,
+   "afterBubble": 1,
+   "afterReply": 1
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "reload-lands-at-bottom",
+  "pass": true,
+  "detail": {
+   "at0": 1,
+   "at250": 1,
+   "at1000": 1,
+   "height": 7175,
+   "client": 488
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "switch-B-to-A-lands-at-bottom",
+  "pass": true,
+  "detail": {
+   "at0": 1,
+   "at250": 1,
+   "at1000": 1,
+   "height": 7175,
+   "client": 488
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "switch-A-to-B-lands-at-bottom",
+  "pass": true,
+  "detail": {
+   "at0": 1,
+   "at250": 1,
+   "at1000": 1,
+   "height": 3093,
+   "client": 488
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "switch-back-to-A-after-reading-B-midway-lands-at-bottom",
+  "pass": true,
+  "detail": {
+   "leftBGap": 1201,
+   "at0": 1,
+   "at250": 1,
+   "at1000": 1,
+   "height": 7175,
+   "client": 488
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "collapse-expand-restores-midway-position",
+  "pass": true,
+  "detail": {
+   "before": 3342,
+   "after": 3342
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "collapse-expand-at-bottom-stays-at-bottom",
+  "pass": true,
+  "detail": {
+   "top": 6686,
+   "height": 7175,
+   "client": 488,
+   "gap": 1
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "jump-latest-hidden-at-bottom",
+  "pass": true,
+  "detail": {}
+ },
+ {
+  "round": "en-dark",
+  "check": "streaming-follows-while-at-bottom",
+  "pass": false,
+  "detail": {
+   "frames": 277,
+   "maxGap": 83
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "scrolled-up-reader-is-not-dragged",
+  "pass": true,
+  "detail": {
+   "before": 6793,
+   "after": 6793,
+   "gapAfterScroll": 711,
+   "streamedChars": 216
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "jump-latest-appears-when-scrolled-up",
+  "pass": true,
+  "detail": {
+   "visible": true,
+   "labelOk": true
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "jump-latest-returns-to-bottom-and-keeps-following",
+  "pass": true,
+  "detail": {
+   "afterJump": 1,
+   "after600ms": 1
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "jump-latest-hides-after-click",
+  "pass": true,
+  "detail": {}
+ },
+ {
+  "round": "en-dark",
+  "check": "streaming-ends-at-bottom",
+  "pass": true,
+  "detail": {
+   "top": 10152,
+   "height": 10641,
+   "client": 488,
+   "gap": 1
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "send-while-scrolled-up-returns-to-bottom",
+  "pass": true,
+  "detail": {
+   "gapBeforeSend": 1501,
+   "afterBubble": 1,
+   "afterReply": 1
+  }
+ },
+ {
+  "round": "zh-dark",
+  "check": "jump-latest-appears-when-scrolled-up",
+  "pass": true,
+  "detail": {}
+ },
+ {
+  "round": "en-light",
+  "check": "jump-latest-appears-when-scrolled-up",
+  "pass": true,
+  "detail": {}
+ }
+]
