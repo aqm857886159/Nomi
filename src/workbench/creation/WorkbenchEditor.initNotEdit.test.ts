@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { normalizeWorkbenchContentJson } from '../workbenchTypes'
-import { sameDocumentContent } from './WorkbenchEditor'
+import { sameDocumentContent } from './sameDocumentContent'
 
 // 编辑器挂载时的初始化不算编辑（复盘 docs/engineering/direction-checks/2026-11-13-open-writes-project.md）：
 // 存的是 `content: []`，TipTap 挂上后发来「一段空段落」——两者是同一份空文稿，不能改文稿、改 updatedAt、让项目落盘。
