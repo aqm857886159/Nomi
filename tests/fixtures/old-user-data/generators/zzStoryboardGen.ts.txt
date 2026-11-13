@@ -1,0 +1,53 @@
+// Copy to electron/projects/zzStoryboardGen.test.ts in a v0.24.1 export; run with V_OUT.
+// Only Electron directories are mocked. The release's editor store, serializer and repository write the project.
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { expect, it, vi } from 'vitest'
+const dirs = vi.hoisted(() => ({ root: '' }))
+vi.mock('electron', () => ({ app: { isPackaged: false, getPath: (name: string) => path.join(dirs.root, name), getAppPath: () => process.cwd(), getName: () => 'Nomi', getVersion: () => '0.24.1', on: () => undefined } }))
+import { createProject, saveProject } from './repository'
+import { useWorkbenchStore } from '../../src/workbench/workbenchStore'
+import { createEmptyStoryboardPlan } from '../../src/workbench/generationCanvas/agent/storyboardPlan'
+import { addAnchor, addScene, updateAnchor, updateShotAt, updateTitle } from '../../src/workbench/generationCanvas/agent/storyboardPlanEdits'
+import { setPlanDefaultAspect } from '../../src/workbench/generationCanvas/agent/storyboardShotScope'
+import { readCurrentWorkbenchProjectPayload } from '../../src/workbench/project/workbenchProjectSession'
+import { normalizePayload } from '../../src/workbench/project/projectNormalize'
+it('saves the release editor state with its real repository', async () => {
+  const out = process.env.V_OUT
+  expect(out, 'V_OUT is required').toBeTruthy()
+  dirs.root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-old-storyboard-')))
+  vi.stubEnv('NOMI_SETTINGS_DIR', path.join(dirs.root, 'settings'))
+  vi.stubEnv('NOMI_PROJECTS_DIR', path.join(dirs.root, 'projects'))
+  try {
+    const store = useWorkbenchStore.getState()
+    const document = store.addWorkbenchDocument()
+    store.renameWorkbenchDocument(document.id, 'Old bookshop script')
+    let plan = setPlanDefaultAspect(updateTitle(createEmptyStoryboardPlan(), 'Old bookshop storyboard'), '9:16')
+    plan = addScene(addAnchor(plan, 'character'), 'Bookshop')
+    plan = updateAnchor(plan, plan.anchors[0].id, { name: 'Reader', description: 'Reader in a blue coat', referenceUrl: 'https://example.invalid/old-reader.png', referenceKind: 'image' })
+    for (let index = 0; index < 2; index++) plan = updateShotAt(plan, index, {
+      prompt: `Old shot ${index + 1}`, durationSec: index === 0 ? 5 : 8,
+      modelKey: 'doubao-seedance-2.0', modelVendor: 'apimart',
+      sceneId: plan.scenes![0].id, anchorIds: [plan.anchors[0].id],
+      params: { aspect_ratio: index === 0 ? '16:9' : '9:16' },
+      keyframe: { enabled: index === 0, prompt: 'Keep this authored first frame' },
+      referenceBindings: { image_ref: [{ url: 'https://example.invalid/old-reader.png', name: 'Old reader', anchorId: plan.anchors[0].id }] },
+    })
+    const design = store.addStoryboardDesign({ initiator: 'user', documentId: document.id, source: plan })
+    expect(design).toBeTruthy()
+    const payload = normalizePayload(readCurrentWorkbenchProjectPayload())
+    const project = createProject({ name: 'v0.24.1 storyboard', payload })
+    await saveProject(project.id, { ...project, payload })
+    const registry = JSON.parse(fs.readFileSync(path.join(dirs.root, 'settings/recent-workspaces.json'), 'utf8'))
+    const folder = registry.find((entry: { id: string }) => entry.id === project.id).rootPath
+    fs.mkdirSync(path.join(out!, 'project'), { recursive: true })
+    fs.cpSync(path.join(folder, '.nomi'), path.join(out!, 'project/.nomi'), { recursive: true, filter: file => !file.endsWith('.lock') && !file.endsWith('workspace-sync-baseline.json') })
+    for (const name of fs.readdirSync(path.join(out!, 'project/.nomi'))) {
+      const file = path.join(out!, 'project/.nomi', name)
+      if (fs.statSync(file).isFile()) fs.writeFileSync(file, fs.readFileSync(file, 'utf8').split(dirs.root).join('__OLD_USER_ROOT__'))
+    }
+    fs.writeFileSync(path.join(out!, 'manifest.json'), JSON.stringify({ release: 'v0.24.1', sourceCommit: execFileSync('git', ['rev-parse', 'v0.24.1^{commit}'], { cwd: process.env.V_SOURCE_REPO, encoding: 'utf8' }).trim(), generator: 'generators/zzStoryboardGen.ts.txt', projectId: project.id, documentId: document.id, designId: design!.id, folder: 'project', expectedPlan: plan }, null, 2) + '\n')
+  } finally { fs.rmSync(dirs.root, { recursive: true, force: true }) }
+})

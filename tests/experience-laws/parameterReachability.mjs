@@ -64,8 +64,7 @@ export const REACHABILITY_ENTRIES = Object.freeze([
  */
 export const NOT_PARAMETER_ENTRIES = Object.freeze([
   Object.freeze({ owner: 'src/workbench/ai/v4/AgentPanelV4SpendCardBody.tsx', why: 'Agent 付费卡（2026-10-24 D2 起）：卡上只有指向元素和一行只读摘要，不配参数——点指向元素到节点底栏去改（node-bar 已覆盖）；聊天卡不许引节点编辑器由 depcruise chat-card-no-import-node-editor 守' }),
-  Object.freeze({ owner: 'src/workbench/creation/storyboard/StoryboardBulkBar.tsx', why: '分镜批量条：一次给多镜统一换模型 / 种类 / 整片画幅；各镜模型不同、参数表不同，逐参数批量设没有共同的一张表——单镜参数在行底栏配' }),
-  Object.freeze({ owner: 'src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx', why: '分镜选中工具条：选中几镜后统一换模型（按镜种分档），同上' }),
+  Object.freeze({ owner: 'src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx', why: '分镜选中工具条：选中几镜后交给 Agent 或删除，不配参数' }),
   Object.freeze({ owner: 'src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx', why: '图片快捷动作（改图 / 扩图 / 抠图 / 多机位）只派生一个新节点、不扣费；新节点的参数在它自己的底栏配（node-bar 已覆盖）' }),
   Object.freeze({ owner: 'src/workbench/settings/ModelBoxOrderSection.tsx', why: '设置里排模型框顺序 / 隐藏模型，不生成、不配参数' }),
   Object.freeze({ owner: 'src/workbench/generationCanvas/runner/runProjectDelivery.ts', why: '运行时读控件解析参数，不是用户可点的界面' }),

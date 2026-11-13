@@ -12,9 +12,8 @@ import { NomiIdentityIcon, type NomiIdentityIconSource } from './NomiIdentityIco
  * ⚠️ **不是「全仓统一」**（这句话在 2026-09-07 之前写在这里，而全仓仍有 6 处原生 `<select>`）：
  *   · `generationCanvas/nodes/scene3d/scene3dMoveHub.tsx:166`、
  *     `generationCanvas/components/SelectionPromptSaveController.tsx:215`、
- *     `creation/storyboard/StoryboardSelectionToolbar.tsx:76`、
  *     `creation/storyboard/shotRow/StoryboardFrameActions.tsx:126` —— 这 4 处是真该迁的
- *     （原本是 5 处：分镜多选条的「统一模型」2026-09-12 已并进 `BulkModelPicker`）；
+ *     ；
  *   · `generationCanvas/components/CanvasToolbar.tsx:392` 是**有意的例外**：一个 `opacity-0`
  *     的原生 select 铺在图标上当菜单触发器，形态是「图标钮弹菜单」不是「选择面板」。
  *     它真正该等的是菜单原语（D 档刀 1），不是本组件。
@@ -32,6 +31,7 @@ export type NomiSelectTone = 'accent' | 'muted' | 'danger'
 export type NomiSelectOption = {
   value: string
   label: string
+  group?: string
   /** Local model-brand or provider-route mark. Never fetches a remote favicon. */
   icon?: NomiIdentityIconSource
   /** 选项右侧附加文字（如价格、模板/通用），在对勾左边。 */
@@ -286,10 +286,12 @@ export function NomiSelect({
             当缩放吃掉；没挂进画布时这两个 class 谁也不认，纯粹无操作。 */}
         <Combobox.Options className="nowheel nodrag max-h-[240px] overflow-auto">
           {visibleOptions.length === 0 ? <Combobox.Empty>{t('common.noMatchingOptions')}</Combobox.Empty> : null}
-          {visibleOptions.map((option) => {
+          {visibleOptions.map((option, index) => {
             const isSel = option.value === value
             return (
-              <Combobox.Option value={option.value} key={option.value} disabled={option.disabled} active={isSel} title={option.description ? `${option.label} · ${option.description}` : option.label}
+              <React.Fragment key={option.value}>
+              {option.group && option.group !== visibleOptions[index - 1]?.group ? <Combobox.Header>{option.group}</Combobox.Header> : null}
+              <Combobox.Option value={option.value} disabled={option.disabled} active={isSel} title={option.description ? `${option.label} · ${option.description}` : option.label}
                 // 带小字的置灰行自己减淡名字和图标；Mantine 默认整行降透明度会把「为什么点不了」那句也一起抹淡。
                 {...(option.disabled && option.description ? { style: { opacity: 1 } } : {})}>
                 {/* dimmed：整行减淡但仍可点（「能选、眼下不建议」）。不用 disabled——那是"点不了"，
@@ -366,6 +368,7 @@ export function NomiSelect({
                   </span>
                 </span>
               </Combobox.Option>
+              </React.Fragment>
             )
           })}
           {!more && !query && options.some((option) => option.more && option.value !== value) ? (

@@ -90,16 +90,6 @@
     },
     {
       "members": [
-        "done",
-        "plain",
-        "selected",
-        "skipped"
-      ],
-      "reason": "Storyboard batch row flags are design-lab fixture states for the approved row-selection screenshots; they describe the row presentation contract and are not a second production execution status vocabulary.",
-      "site": "src/devlab/designLab/storyboardBatch/storyboardBatchLabKit.tsx::type:RowFlag/type-union"
-    },
-    {
-      "members": [
         "completed",
         "prepared",
         "verified"

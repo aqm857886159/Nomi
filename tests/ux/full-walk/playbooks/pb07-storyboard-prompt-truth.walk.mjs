@@ -20,7 +20,8 @@ import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from '../../agent-runtime-fixture
 import { findCanvasBlankPoint, findNodeHitPoint } from '../../_canvasHit.mjs'
 import { clickNodeGenerate, SPEND_DIALOG } from '../actions.mjs'
 import { startPlaybook } from '../launch.mjs'
-import { openStoryboardEditor } from '../../_creationResourceTree.mjs'
+import { uiTextWith } from '../invariants.mjs'
+import { ensureCreationResourceTree, openStoryboardEditor } from '../../_creationResourceTree.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 
@@ -79,7 +80,7 @@ const pb = await startPlaybook({
     },
   }),
 })
-const { smoke, fixture, monitor } = pb
+const { smoke, fixture, monitor, locale } = pb
 const win = () => smoke.win
 const editor = () => win().locator('[data-storyboard-editor="true"]:visible')
 const rowPrompt = (index) => editor().locator(`[data-storyboard-row="${index}"] [data-storyboard-prompt-block] [contenteditable="true"]`).first()
@@ -91,7 +92,7 @@ async function rewritePrompt(index, text) {
   const box = rowPrompt(index)
   await box.scrollIntoViewIfNeeded()
   await clickOrFail(box, `第 ${index} 镜的提示词框`)
-  await win().keyboard.press('Control+A')
+  await win().keyboard.press('ControlOrMeta+A')
   await win().keyboard.type(text, { delay: 15 })
   await expect(box, `第 ${index} 镜的提示词框里就是刚打的那句`).toHaveText(text)
   await win().waitForTimeout(400)
@@ -99,14 +100,39 @@ async function rewritePrompt(index, text) {
 
 let harnessError = null
 try {
+  // 夹具作者内容沿用监视器已有标记；固定界面文案里仍有中文时不标整棵子树。
+  await smoke.win.evaluate((values) => {
+    const residue = (value) => values.reduce((rest, text) => rest.split(text).join(''), value)
+    const mark = () => {
+      const targets = new Set()
+      for (const element of document.querySelectorAll('span, p, button[title], [aria-label]')) {
+        const own = [...element.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join('')
+          + ['title', 'aria-label'].map(attr => element.getAttribute(attr) || '').join(' ')
+        if (!/[㐀-鿿]/.test(own) || /[㐀-鿿]/.test(residue(own))) continue
+        const target = element.closest('[contenteditable="true"]') ?? element
+        const subtree = target.textContent + [target, ...target.querySelectorAll('[title], [aria-label]')]
+          .map(child => `${child.getAttribute('title') || ''} ${child.getAttribute('aria-label') || ''}`).join(' ')
+        if (!/[㐀-鿿]/.test(residue(subtree))) targets.add(target)
+      }
+      document.querySelectorAll('[data-user-content="pb07-fixture"]').forEach(element => { if (!targets.has(element)) element.removeAttribute('data-user-content') })
+      targets.forEach(element => { if (!element.hasAttribute('data-user-content')) element.setAttribute('data-user-content', 'pb07-fixture') })
+    }
+    new MutationObserver(mark).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['title', 'aria-label'] })
+    mark()
+  }, [...new Set([
+    ...makePlan('').shots.map(entry => entry.prompt),
+    ...anchors.flatMap(anchor => [anchor.name, anchor.description]),
+    DRAGON, HERO_STATIC, '远景', '，清晨的海边，一只白鸟掠过水面', '巨龙走查', '巨龙', '定妆', '一场关于龙与人的故事。',
+  ])].sort((a, b) => b.length - a.length))
   await monitor.step('打开项目（从项目库）', () => smoke.openProject(), { surfaces: ['*'], critical: true })
   await monitor.step('切到创作页，从侧栏点开这份分镜方案', async () => {
     await clickOrFail(win().locator('.nomi-stepper__step[data-mode="creation"]').first(), '顶栏「创作」')
+    await ensureCreationResourceTree(win(), 'PB07打开分镜方案')
     const item = win().locator(`[data-storyboard-id="${DESIGN}"]`).first()
     await expect(item, '侧栏里有这份分镜方案').toBeVisible({ timeout: stationTimeout() })
-    await clickOrFail(item, '侧栏选中分镜方案')
+    await openStoryboardEditor(win(), DESIGN, '侧栏选中分镜方案')
     await expect(editor(), '分镜编辑器出现').toBeVisible({ timeout: stationTimeout() })
-    await expect(editor().locator('[data-storyboard-row]'), '六镜').toHaveCount(6, { timeout: stationTimeout() })
+    await expect(editor().locator('[data-storyboard-rows]'), '六镜').toHaveAttribute('data-storyboard-row-count', '6', { timeout: stationTimeout() })
   }, { surfaces: ['*'], critical: true })
   await monitor.screenshot('01-storyboard-initial')
 
@@ -122,6 +148,7 @@ try {
   // ── 行上摆着参考图、当前模式用不上：点名是哪一张（其余行不说这句）──
   await monitor.step('看第 6 镜行上的提示：文生图模式、摆着一张参考图', async () => {
     const hint = editor().locator('[data-storyboard-anchor-ignored="6"]')
+    await editor().locator('[data-storyboard-scroll]').evaluate(element => { element.scrollTop = element.scrollHeight })
     await rowPrompt(6).scrollIntoViewIfNeeded()
     await expect(hint, '第 6 镜行上点名那张不会发出去的参考图').toBeVisible({ timeout: stationTimeout() })
     await expect(hint).toContainText('林薇')
@@ -162,16 +189,16 @@ try {
     if (!(await editor().isVisible().catch(() => false))) await openStoryboardEditor(win(), DESIGN, '侧栏选中分镜方案')
     await expect(editor(), '分镜编辑器回来').toBeVisible({ timeout: stationTimeout() })
   }, { surfaces: ['*'] })
-  await monitor.step('E4 · 用户把第 5 镜的提示词改写成「巨龙」，并勾上「本次跳过」把它留给 Agent', async () => {
+  await monitor.step('E4 · 用户把第 5 镜的提示词改写成「巨龙」，并选中把它留给 Agent', async () => {
     await rewritePrompt(5, DRAGON)
   }, { surfaces: [] })
-  await monitor.step('E2 · 跳过第 5 镜，按「生成剩余」', async () => {
-    await clickOrFail(editor().locator('[data-storyboard-row="5"] input[type="checkbox"]').first(), '第 5 镜的「本次跳过」')
+  await monitor.step('E2 · 按「生成剩余」，在确认卡去掉第 5 镜', async () => {
     await monitor.screenshot('e2-batch-shown')
     await monitor.consentStoryboardRows([1, 3, 6], { kind: 'storyboard-batch', label: '「生成剩余」（镜 1、镜 3、镜 6）' })
     await clickOrFail(editor().locator('[data-storyboard-batch="true"]').first(), '「生成剩余」', { noWaitAfter: true })
     const dialog = win().locator(SPEND_DIALOG).first()
     await expect(dialog, '批量生成弹花钱确认框').toBeVisible({ timeout: stationTimeout() })
+    await dialog.getByRole('checkbox', { name: uiTextWith(locale, 'storyboardEditor.batch.shotLabel', { index: 5, text: DRAGON }), exact: true }).uncheck()
     await monitor.screenshot('e2-batch-dialog')
     await clickOrFail(dialog.locator('[data-spend-confirm-action="confirm"]'), '花钱确认框「确认」', { noWaitAfter: true })
     await waitImages(5, '供应商收到镜 1、镜 3、镜 6 的请求')

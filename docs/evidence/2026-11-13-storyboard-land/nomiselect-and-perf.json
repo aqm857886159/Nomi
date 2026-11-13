@@ -1,0 +1,106 @@
+{
+ "main_head": "81ba541d9",
+ "branch_head": "f2c0da8ed",
+ "selects": [
+  {
+   "name": "canvas-image-model",
+   "absent": false,
+   "sameOptions": true,
+   "sameWidth": true,
+   "sameHeading": true,
+   "sameHeaders": true,
+   "sameHtmlHash": false,
+   "width": 280,
+   "heading": null,
+   "optionCount": 25
+  },
+  {
+   "name": "canvas-image-quantity",
+   "absent": true,
+   "sameOptions": true,
+   "sameWidth": true,
+   "sameHeading": true,
+   "sameHeaders": true,
+   "sameHtmlHash": true,
+   "width": null,
+   "heading": null,
+   "optionCount": 0
+  },
+  {
+   "name": "canvas-video-model",
+   "absent": false,
+   "sameOptions": true,
+   "sameWidth": true,
+   "sameHeading": true,
+   "sameHeaders": true,
+   "sameHtmlHash": false,
+   "width": 280,
+   "heading": null,
+   "optionCount": 27
+  },
+  {
+   "name": "canvas-video-mode",
+   "absent": false,
+   "sameOptions": true,
+   "sameWidth": true,
+   "sameHeading": true,
+   "sameHeaders": true,
+   "sameHtmlHash": false,
+   "width": 126,
+   "heading": "生成方式",
+   "optionCount": 2
+  },
+  {
+   "name": "settings-default-model-0",
+   "absent": false,
+   "sameOptions": true,
+   "sameWidth": true,
+   "sameHeading": true,
+   "sameHeaders": true,
+   "sameHtmlHash": true,
+   "width": 280,
+   "heading": null,
+   "optionCount": 29
+  },
+  {
+   "name": "settings-default-model-1",
+   "absent": false,
+   "sameOptions": true,
+   "sameWidth": true,
+   "sameHeading": true,
+   "sameHeaders": true,
+   "sameHtmlHash": true,
+   "width": 280,
+   "heading": null,
+   "optionCount": 31
+  }
+ ],
+ "perf": [
+  {
+   "run": "1",
+   "median": 392,
+   "p95": 394.4,
+   "budget": 1000,
+   "samples": [
+    387.6,
+    390.6,
+    392.5,
+    392,
+    394.9
+   ]
+  },
+  {
+   "run": "2",
+   "median": 393.8,
+   "p95": 398.7,
+   "budget": 1000,
+   "samples": [
+    395.3,
+    399.5,
+    393.8,
+    387.5,
+    384.8
+   ]
+  }
+ ]
+}
