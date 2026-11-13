@@ -29,6 +29,16 @@
       "count": 4
     }
   },
+  "electron/assets/autoSaveAsset.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/assets/downloadAsset.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 2
+    }
+  },
   "electron/assets/localAssetFile.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 9
@@ -77,6 +87,26 @@
   "electron/catalog/catalogFileAccess.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 1
+    }
+  },
+  "electron/catalog/codexCli.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 7
+    }
+  },
+  "electron/catalog/dreaminaCli.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/catalog/dreaminaInputFiles.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/catalog/processOperation.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 4
     }
   },
   "electron/configFileStore.ts": {

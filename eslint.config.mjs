@@ -119,10 +119,29 @@ export const WINDOW_PRESENCE_EXEMPT_FILES = [
 ]
 
 const hotPathSyncFsPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
-const hotPathSyncFsSelectors = [{
-  selector: 'CallExpression[callee.property.name=/Sync$/][callee.object.name=/^(fs|fsp)$/]',
-  message: '保存 / 项目 / 目录这些热路径上不再新增同步文件读写（主进程上一次慢盘 / 杀毒占用就冻住所有 IPC）：改 fs/promises（await），或登记进 eslint-suppressions.json 并写清为什么只能同步。方向检查 2026-11-13-main-thread-sync-wait。',
-}]
+const HOT_PATH_SYNC_FS_MESSAGE = '保存 / 项目 / 目录这些热路径上不再新增同步文件读写（主进程上一次慢盘 / 杀毒占用就冻住所有 IPC）：改 fs/promises（await），或登记进 eslint-suppressions.json 并写清为什么只能同步。方向检查 2026-11-13-main-thread-sync-wait。'
+// 认 6 种写法：fs.xxxSync()（原有）、具名导入、整体导入 / 默认导入换名、解构、方括号取属性、require 直接链式或换名。
+// 换名一律红（只许叫 fs / fsp）——这样「谁拿到了 fs」在名字上就看得出，后面的 fs.xxxSync 才拦得住。
+const FS_MODULE_SOURCE = '/^(node:)?fs(\\/promises)?$/'
+const hotPathSyncFsSelectors = [
+  { selector: 'CallExpression[callee.property.name=/Sync$/][callee.object.name=/^(fs|fsp)$/]', message: HOT_PATH_SYNC_FS_MESSAGE },
+  { selector: `ImportDeclaration[source.value=${FS_MODULE_SOURCE}] > ImportSpecifier[imported.name=/Sync$/]`, message: HOT_PATH_SYNC_FS_MESSAGE },
+  { selector: `ImportDeclaration[source.value=${FS_MODULE_SOURCE}] > :matches(ImportNamespaceSpecifier, ImportDefaultSpecifier)[local.name!=/^(fs|fsp)$/]`, message: `${HOT_PATH_SYNC_FS_MESSAGE} 整体导入 fs 只许叫 fs 或 fsp（换名会让上面的检查认不出）。` },
+  { selector: 'VariableDeclarator[init.name=/^(fs|fsp)$/] > ObjectPattern > Property[key.name=/Sync$/]', message: HOT_PATH_SYNC_FS_MESSAGE },
+  { selector: 'VariableDeclarator[init.callee.name="require"] > ObjectPattern > Property[key.name=/Sync$/]', message: HOT_PATH_SYNC_FS_MESSAGE },
+  { selector: 'MemberExpression[computed=true][object.name=/^(fs|fsp)$/][property.value=/Sync$/]', message: HOT_PATH_SYNC_FS_MESSAGE },
+  { selector: 'MemberExpression[computed=false][property.name=/Sync$/] > CallExpression.object[callee.name="require"]', message: HOT_PATH_SYNC_FS_MESSAGE },
+  { selector: 'MemberExpression[computed=true][property.value=/Sync$/] > CallExpression.object[callee.name="require"]', message: HOT_PATH_SYNC_FS_MESSAGE },
+  { selector: `VariableDeclarator[init.callee.name="require"][init.arguments.0.value=${FS_MODULE_SOURCE}][id.type="Identifier"][id.name!=/^(fs|fsp)$/]`, message: `${HOT_PATH_SYNC_FS_MESSAGE} require 进来的 fs 只许叫 fs 或 fsp。` },
+]
+// 走查 / 脚本里找弹窗不许按版面类名（弹窗迁到共用外壳后 div.fixed.inset-0 悄悄找不到东西、走查假绿过一段时间）。
+// 对字符串字面量和模板片段匹配；注释不算。
+const walkDialogLocatorPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const WALK_DIALOG_LOCATOR_MESSAGE = '找弹窗用 [role=dialog] 或它自己的 data-* 锚点，不要按 fixed.inset-0 这类版面类名（弹窗迁到共用外壳后会悄悄找不到、走查假绿）。'
+const walkDialogLocatorSelectors = [
+  { selector: 'Literal[value=/fixed[.]inset-0/]', message: WALK_DIALOG_LOCATOR_MESSAGE },
+  { selector: 'TemplateElement[value.raw=/fixed[.]inset-0/]', message: WALK_DIALOG_LOCATOR_MESSAGE },
+]
 const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const mainSyncWaitSelectors = [{
   selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
@@ -536,6 +555,12 @@ export default tseslint.config(
     ignores: ['electron/**/*.{test,spec}.{ts,tsx,mts,cts,js,mjs,cjs,jsx}', 'electron/**/__tests__/**'],
     plugins: { 'main-sync-wait': mainSyncWaitPlugin },
     rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
+  },
+  {
+    // 走查 / 脚本 / 测试里不按版面类名找弹窗。
+    files: ['tests/**/*.{mjs,cjs,js,ts,tsx}', 'scripts/**/*.{mjs,cjs,js}'],
+    plugins: { 'walk-dialog-locator': walkDialogLocatorPlugin },
+    rules: { 'walk-dialog-locator/no-restricted-syntax': ['error', ...walkDialogLocatorSelectors] },
   },
   {
     // 保存热路径不新增同步文件操作（存量批量压制，只减不增）。
