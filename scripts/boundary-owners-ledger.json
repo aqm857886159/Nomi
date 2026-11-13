@@ -482,26 +482,6 @@
       "reason": "2026-10-24 D2 第③步（付费卡 = 指向元素 + 一行只读摘要，点「生成」交给画布那一台发动机）：旧卡 hook 随旧卡删除；新卡 hook 的 act 是卡上会写宿主的动作（生成 / 不生成 × / 恢复）共用的执行口，也是宿主回答的出口：被拒或抛错时用户看到的是 spendActionFailureCopy 按事实挑的那一句 i18n，宿主原话只进 logRendererWarn（useAgentPanelSpendCard.test「没有别的一下在路上时，生成被宿主拒了」钉住）。「取消」故意不进这个队（不排队，同文件 discard），它的拒绝同样只弹 i18n、原话进日志。判据里没有时间这一维。"
     },
     {
-      "contract": "docs/fixes/2026-09-13-spend-surface-capability-guard.root-cause.json",
-      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
-      "symbol": "useAgentPanelSpendConfirm.refresh",
-      "anchor": {
-        "path": "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
-        "symbol": "pendingSpendOfRead"
-      },
-      "reason": "2026-10-24 D2 第③步（付费卡 = 指向元素 + 一行只读摘要，点「生成」交给画布那一台发动机）：卡早已不自己调 productionRuns.pendingSpend（2026-10-05 起读推过来的投影 data.snapshot.spend），旧 hook 随旧卡删除。「能力不在 ≠ 调用失败」现在由新卡 hook 的 pendingSpendOfRead 守：surface off（disabled / starting / stopped）= 没有卡、不留任何 console 痕迹，unreadable 才是带身份的错误卡（useAgentPanelSpendCard.test「pendingSpendOfRead：off 不是失败」逐格钉住）。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-13-spend-surface-unavailable-error-boundary.root-cause.json",
-      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
-      "symbol": "useAgentPanelSpendConfirm.refresh",
-      "anchor": {
-        "path": "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
-        "symbol": "pendingSpendOfRead"
-      },
-      "reason": "2026-10-24 D2 第③步（付费卡 = 指向元素 + 一行只读摘要，点「生成」交给画布那一台发动机）：同上一条——宿主裁剪（能力不在）与真读不到在投影上是两种 surface（off / unreadable），新卡 hook 的 pendingSpendOfRead 分开读：off 不出卡也不报错，unreadable 保留带身份的错误卡；卡不再直接碰可选 bridge，preload 桩那一类拒绝到不了卡。"
-    },
-    {
       "contract": "docs/fixes/2026-09-21-spend-decline-deletes-user-nodes.root-cause.json",
       "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
       "symbol": "discard",
@@ -666,12 +646,6 @@
       "reason": "此符号在仓库历史中从未出现过——`git log -S\"importGeneratedBytes\" --all` 只命中合同自身那次提交（17f9de6f2），生产代码里一次都没有。也就是说这份合同**立约当天声明的就是一个不存在的主人**；旧校验器只查 path 存在、不查 symbol，所以整整没人发现。同合同另外 5 条边界均在位。"
     },
     {
-      "contract": "docs/fixes/2026-09-01-canvas-snapshot-projection.root-cause.json",
-      "path": "src/workbench/ai/projectAgentProjectionStore.ts",
-      "symbol": "createProjectAgentProjectionStore.applySnapshot",
-      "reason": "旧常驻面板闭包在 3f5ca19e5「删掉旧面板闭包——无并行版、无 fallback、无逃生口（P1）」中整体删除，该组件不复存在。"
-    },
-    {
       "contract": "docs/fixes/2026-09-01-pi-host-island-boundary.root-cause.json",
       "path": "electron/ai/agentChatV2.ts",
       "symbol": "runAgentChatV2",
@@ -681,18 +655,6 @@
       "contract": "docs/fixes/2026-09-01-rc-01-durable-owner.root-cause.json",
       "path": "electron/projectAgentHost/projectAgentHost.ts",
       "symbol": "ProjectAgentHost",
-      "reason": "这份 owner 在 agent-lane 切换（commit 36f343204 一系「remove retired owners and retain active lane contracts」）中按 P1「加新必删旧」整体删除，旧 projectAgentHost/agentChatV2 运行时已无并行版；该合同针对旧运行时的那条不变量随之不再适用。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-01-rc-02-semantic-tool-surface.root-cause.json",
-      "path": "electron/projectAgentHost/projectAgentHost.ts",
-      "symbol": "ProjectAgentHost",
-      "reason": "这份 owner 在 agent-lane 切换（commit 36f343204 一系「remove retired owners and retain active lane contracts」）中按 P1「加新必删旧」整体删除，旧 projectAgentHost/agentChatV2 运行时已无并行版；该合同针对旧运行时的那条不变量随之不再适用。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-01-rc-05-typed-output-projection.root-cause.json",
-      "path": "electron/projectAgentHost/projectAgentHost.ts",
-      "symbol": "addItem",
       "reason": "这份 owner 在 agent-lane 切换（commit 36f343204 一系「remove retired owners and retain active lane contracts」）中按 P1「加新必删旧」整体删除，旧 projectAgentHost/agentChatV2 运行时已无并行版；该合同针对旧运行时的那条不变量随之不再适用。"
     },
     {
@@ -724,18 +686,6 @@
       "path": "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
       "symbol": "toolItem",
       "reason": "这份 owner 在 agent-lane 切换（commit 36f343204 一系「remove retired owners and retain active lane contracts」）中按 P1「加新必删旧」整体删除，旧 projectAgentHost/agentChatV2 运行时已无并行版；该合同针对旧运行时的那条不变量随之不再适用。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-02-ponytail-review-scope.root-cause.json",
-      "path": "scripts/ponytail-review-hook.mjs",
-      "symbol": "collectAuthoredPatch",
-      "reason": "声明的 owner 已从代码中删除（54ca55d0e refactor(ponytail): 评审搬到交工前，钩子只查收据）；该合同针对它的那条不变量不再适用。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-02-ponytail-review-scope.root-cause.json",
-      "path": "scripts/ponytail-review-hook.mjs",
-      "symbol": "collectReviewDiff",
-      "reason": "声明的 owner 已从代码中删除（54ca55d0e refactor(ponytail): 评审搬到交工前，钩子只查收据）；该合同针对它的那条不变量不再适用。"
     },
     {
       "contract": "docs/fixes/2026-09-02-stale-hand-copied-surface-baseline.root-cause.json",
@@ -906,12 +856,6 @@
       "reason": "声明的 owner 已从代码中删除（3ebde4ac2 refactor(agent): 注册表/派生层从声明派生；契约加 method surface，付费边界从它派生（4/10））；该合同针对它的那条不变量不再适用。"
     },
     {
-      "contract": "docs/fixes/2026-09-08-ponytail-review-units.root-cause.json",
-      "path": "scripts/ponytail-review-hook.mjs",
-      "symbol": "collectAuthoredPatch",
-      "reason": "声明的 owner 已从代码中删除（54ca55d0e refactor(ponytail): 评审搬到交工前，钩子只查收据）；该合同针对它的那条不变量不再适用。"
-    },
-    {
       "contract": "docs/fixes/2026-09-09-agent-lane-c0-instructions.root-cause.json",
       "path": "electron/shared/agentCapabilities/canvasModelTools.ts",
       "symbol": "canvasModelToolSpecs",
@@ -1006,12 +950,6 @@
       "path": "scripts/check-door-map.mjs",
       "symbol": "evaluatePullRequest",
       "reason": "check:door-map 已于 2026-10-01 并入 check:root-cause-contracts（用户按门岗账本 docs/audit/2026-10-01-gate-ledger.md 拍板）：被删的只是「recurring 合同的 PR 正文必须引用那份合同」这一半（窗口里 5 次红全是补引用 / 补门表）；门表合法性（必填、path 存在、符号对得上、不许行号、不许重复）一直在 root-cause-contracts.mjs 的 validateDoorMap，不变量仍有主人。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-02-ponytail-staged-diff-enobufs.root-cause.json",
-      "path": "scripts/ponytail-review-hook.mjs",
-      "symbol": "runGit / collectReviewDiff",
-      "reason": "交工前评审整套（适配器、收据、pre-push 收据判据）已于 2026-10-02 删除，用合并前独立验收代替；这条合同守的评审 diff 读取不变量随之不再适用。"
     },
     {
       "contract": "docs/fixes/2026-09-07-absent-number-printed-as-zero.root-cause.json",
@@ -1120,18 +1058,6 @@
       "path": "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts",
       "symbol": "startLoopbackVendor",
       "reason": "2026-10-24 D2 第③步（付费卡 = 指向元素 + 一行只读摘要，点「生成」交给画布那一台发动机）：付费卡 e2e 夹具改写成 spendWorld（真仓库、真画布 store，渲染层替身实现 production.hand-over-shots 合同），卡上「生成」交给画布、不再由宿主直连供应商，夹具里不起 HTTP 服务器（文件里没有 createServer），空闲 socket 与客户端处理关闭的竞态无从发生；对应的 loopback socket idle 用例同步退役。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-20-spend-draft-recovery-validation.root-cause.json",
-      "path": "src/workbench/ai/v4/spendCardDraft.ts",
-      "symbol": "readSpendDraft",
-      "reason": "2026-10-24 D2 第③步（付费卡 = 指向元素 + 一行只读摘要，点「生成」交给画布那一台发动机）：卡上没有可编辑的本地草稿了（卡只读节点），本地草稿账本 spendCardDraft.ts 同提交删除；旧资料里的 nomi:spend-draft:* 一个都不读（useAgentPanelSpendCard.test 钉住），「持久化的可编辑输入先验再用」没有输入可验。"
-    },
-    {
-      "contract": "docs/fixes/2026-09-20-spend-draft-recovery-validation.root-cause.json",
-      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
-      "symbol": "useAgentPanelSpendConfirm",
-      "reason": "2026-10-24 D2 第③步（付费卡 = 指向元素 + 一行只读摘要，点「生成」交给画布那一台发动机）：同上一条——没有草稿要恢复，「请求身份要等草稿恢复成功才发布」随草稿一起退役；新卡的身份就是宿主推来的那一次出价（quoteId / presentationId），动作带此刻卡上那一张的身份（useAgentPanelSpendCard.test 动作清单矩阵）。"
     },
     {
       "contract": "docs/fixes/2026-09-22-spend-draft-owner.root-cause.json",
