@@ -1,8 +1,0 @@
-
- RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-stage4-switch
-
-
- Test Files  3 passed (3)
-      Tests  35 passed (35)
-   Start at  08:50:48
-   Duration  545ms (transform 1.02s, setup 73ms, import 1.22s, tests 24ms, environment 0ms)
