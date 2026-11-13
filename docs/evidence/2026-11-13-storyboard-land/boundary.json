@@ -1,0 +1,152 @@
+{
+ "branch_f2c0da8ed": {
+  "label": "after",
+  "cases": [
+   {
+    "id": "long-prompt-longest-model-en-1100",
+    "overlappingButtons": [],
+    "outside": [],
+    "clippedNoEllipsis": [],
+    "buttons": [
+     "Model",
+     "Generation parameters",
+     "Generate shot 1"
+    ]
+   },
+   {
+    "id": "320-shots-bottom-en-1100",
+    "rowCount": "320",
+    "lastSummaryClearsToolbar": true,
+    "toolbarHitsFooter": false,
+    "toolbarHitsLastSummary": false,
+    "ballHitsFooter": true,
+    "ballHitsToolbar": false,
+    "geo": {
+     "lastSummary": {
+      "x": 405.9375,
+      "y": 354,
+      "width": 179.359375,
+      "height": 28
+     },
+     "lastRow": {
+      "x": 77,
+      "y": 239,
+      "width": 998,
+      "height": 265
+     },
+     "toolbar": {
+      "x": 386.3203125,
+      "y": 505,
+      "width": 379.3515625,
+      "height": 42
+     },
+     "footer": {
+      "x": 60,
+      "y": 659,
+      "width": 1032,
+      "height": 53
+     },
+     "ball": {
+      "x": 1032,
+      "y": 652,
+      "width": 44,
+      "height": 44
+     },
+     "rowCount": "320"
+    }
+   },
+   {
+    "id": "empty-en-1100",
+    "rows": 0,
+    "text": "0 shots\nPlace on canvas\nKeep consistent across shots\nExpand all\nNo reference cards yet. Add one or write the shots directly.\nStoryboard · 0 shots\nPlay sequence\nAdd shot\nTo Draft\n1 issues: There are no shots yet\nGenerate Remaining",
+    "toolbar": false,
+    "aspect": false
+   }
+  ],
+  "upsertBig": {
+   "status": "saved",
+   "designId": "b-big"
+  },
+  "upsertEmpty": {
+   "status": "saved",
+   "designId": "b-empty"
+  },
+  "longPromptChars": 2006,
+  "longestModel": "Dreamina Multi-frame Video (membership)"
+ },
+ "main_81ba541d9": {
+  "label": "main",
+  "cases": [
+   {
+    "id": "long-prompt-longest-model-en-1100",
+    "overlappingButtons": [],
+    "outside": [],
+    "clippedNoEllipsis": [],
+    "buttons": [
+     "Model",
+     "Generation parameters",
+     "Generate shot 1"
+    ]
+   },
+   {
+    "id": "320-shots-bottom-en-1100",
+    "rowCount": "320",
+    "lastSummaryClearsToolbar": true,
+    "toolbarHitsFooter": false,
+    "toolbarHitsLastSummary": false,
+    "ballHitsFooter": true,
+    "ballHitsToolbar": false,
+    "geo": {
+     "lastSummary": {
+      "x": 405.9375,
+      "y": 418,
+      "width": 179.359375,
+      "height": 28
+     },
+     "lastRow": {
+      "x": 77,
+      "y": 303,
+      "width": 998,
+      "height": 265
+     },
+     "toolbar": {
+      "x": 76,
+      "y": 569,
+      "width": 983.4921875,
+      "height": 42
+     },
+     "footer": {
+      "x": 60,
+      "y": 659,
+      "width": 1032,
+      "height": 53
+     },
+     "ball": {
+      "x": 1032,
+      "y": 652,
+      "width": 44,
+      "height": 44
+     },
+     "rowCount": "320"
+    }
+   },
+   {
+    "id": "empty-en-1100",
+    "rows": 0,
+    "text": "0 shots\nPlace on canvas\nAI draft · Edit freely · Generate reference cards to lock looks first, then shots\nKeep consistent across shots\nExpand all\nNo reference cards yet. Add one or write the shots directly.\nStoryboard · 0 shots\nPlay sequence\nAdd shot\nTo Draft\n0 · Ask Agent\n1 issues: There are no shots yet\nGenerate Remaining",
+    "toolbar": false,
+    "aspect": false
+   }
+  ],
+  "upsertBig": {
+   "status": "saved",
+   "designId": "b-big"
+  },
+  "upsertEmpty": {
+   "status": "saved",
+   "designId": "b-empty"
+  },
+  "longPromptChars": 2006,
+  "longestModel": "Dreamina Image Upscale (membership)"
+ }
+}

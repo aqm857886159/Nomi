@@ -232,8 +232,9 @@ export function ShellAgentHost({
   const layer = layerTarget ?? ownLayer
   const area = useAreaSize(layer)
 
-  // 「面板占不占位」在 Agent 的 layout.read/write 契约里叫 visibility.assistant（projectAgentDockCollapsed）。
-  // 形态是它唯一的写入者：小球 ⇔ 收起。单向驱动，不让两份「占不占位」各说各的。
+  // 「面板占不占位」是显示态 projectAgentDockCollapsed（Agent layout.read 的 visibility.assistant 读它）。
+  // 形态是它的写入者：小球 ⇔ 收起。单向驱动；这是挂载 / 切页 / 窗口变化时的显示同步，**不让项目落盘**——
+  // setProjectAgentDockCollapsed 在布局登记表里是 display 层，结构上碰不到落盘那份（跟机器走，2026-11-13）。
   React.useEffect(() => {
     const store = useWorkbenchStore.getState()
     const collapsed = form === 'ball'

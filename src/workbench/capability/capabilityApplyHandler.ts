@@ -56,6 +56,7 @@ import { landObservedCanvasRun } from '../generationCanvas/runner/recoverTaskAct
 import { extendAgentStoryboardDesign, patchAgentStoryboardDesign, upsertAgentStoryboardDesign } from '../creation/storyboard/agentStoryboardDesign'
 import { spendModelLine } from './credentialProbeSpendCard'
 import { dedicatedSpendCardFor } from './spendCardByIntent'
+import { displayEditingPanelLayout, type EditingPanelLayoutPatch } from '../preview/editingPanelLayoutSlice'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。单一真相源：画布读写复用 store 现成动作（readDocumentSnapshot / applyExternalGraph），
@@ -448,19 +449,21 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
         assertCurrent: () => { if (!loaded || !isProjectExecutionContextCurrent(loaded)) throw new SurfacePortWireError('surface_port_stale') },
       })
     }
+    // 返回的是此刻的整份布局：Nomi 栏开合读这台机器此刻有效的显示态（跟机器走，2026-11-13），不是项目里存的原值。
     case 'layout.read': {
-      const layout = useWorkbenchStore.getState().editingPanelLayout
+      const layout = displayEditingPanelLayout(useWorkbenchStore.getState())
       return { operation: 'read_layout', ok: true, layout }
     }
+    // Agent 动作（布局登记表里的 agent 层）：开合进显示态（展开照旧经「叫回」写本机形态），其余随项目落盘。
     case 'layout.write': {
       const next = data.layout && typeof data.layout === 'object' && !Array.isArray(data.layout)
-        ? data.layout as Parameters<ReturnType<typeof useWorkbenchStore.getState>['setEditingPanelLayout']>[0]
+        ? data.layout as EditingPanelLayoutPatch
         : null
       if (!next) throw new SurfacePortWireError('capability_input_invalid')
       const store = useWorkbenchStore.getState()
       const previous = store.editingPanelLayout
-      store.setEditingPanelLayout(next)
-      return { operation: 'write_layout', ok: true, layout: useWorkbenchStore.getState().editingPanelLayout, receipt: `布局已更新 · ⌘Z 可撤销`, undoToken: `layout:${Date.now()}:${previous.preset}` }
+      store.writeEditingPanelLayoutFromAgent(next)
+      return { operation: 'write_layout', ok: true, layout: displayEditingPanelLayout(useWorkbenchStore.getState()), receipt: `布局已更新 · ⌘Z 可撤销`, undoToken: `layout:${Date.now()}:${previous.preset}` }
     }
     case 'asset.read': {
       // 载荷是**传输形状**（leaseHandle / projectId / operation:'list'…），语义 schema 是 strict 的：

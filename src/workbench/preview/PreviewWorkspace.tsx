@@ -140,7 +140,9 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
   const initialLayout = React.useRef(layout).current
   const durationFrame = React.useMemo(() => computeTimelineDuration(timeline), [timeline])
   const activeClips = React.useMemo(() => resolveActiveClipsAtFrame(timeline, playheadFrame), [timeline, playheadFrame])
-  const assistantVisible = layout.visibility.assistant && !aiCollapsed
+  // Nomi 栏开合读显示态（跟机器走）；layout.visibility.assistant 是项目里存的原值，不拿来画。
+  const assistantShown = useWorkbenchStore((state) => !state.projectAgentDockCollapsed)
+  const assistantVisible = assistantShown && !aiCollapsed
 
   useTimelinePlaybackClock({ playing, playheadFrame, durationFrame, fps: timeline.fps, onPlayheadChange: setTimelinePlayhead, onPlayingChange: setTimelinePlaying })
 
@@ -207,8 +209,11 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
       className="workbench-preview relative h-full w-full min-w-0 min-h-0 overflow-hidden bg-nomi-chrome"
       aria-label={t('workspace.preview')}
     >
+      {/* 行模板必须写：不写就是隐式 auto 行，行高按内容定。预览页开着时窗口从 900 缩到 720，内容还按上一次的高摆着，
+          这一行就留在原来的 852 高，Nomi 栏里付费卡的「生成」和时间轴掉出窗外、又没有滚动（实测）
+          （2026-11-07 窄窗拍板 F2 / preview.grid-rows；四个工作区根网格同一条，见 workspaceRootGrid.structure.test.ts）。 */}
       <div className="grid h-full w-full min-w-0" id="editing-surface-root"
-        style={{ gridTemplateColumns: assistantVisible ? `minmax(0,1fr) ${assistantPaneWidth(layout.assistantWidth)}px` : 'minmax(0,1fr)' }}>
+        style={{ gridTemplateColumns: assistantVisible ? `minmax(0,1fr) ${assistantPaneWidth(layout.assistantWidth)}px` : 'minmax(0,1fr)', gridTemplateRows: 'minmax(0,1fr)' }}>
         <div className="min-h-0 min-w-0 overflow-hidden rounded-panel bg-[var(--workbench-bg)] ring-1 ring-nomi-line-soft" id="editing-surface-main">
           <Group orientation="vertical" className="h-full" id="editing-surface-left" groupRef={columnGroupRef} elementRef={columnElementRef} onLayoutChanged={onColumnLayoutChanged}>
             <Panel id={COLUMN_PANEL.stage} minSize={EDITING_PANEL_BOUNDS.stage.min}>

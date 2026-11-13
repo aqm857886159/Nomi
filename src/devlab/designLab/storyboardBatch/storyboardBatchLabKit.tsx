@@ -5,8 +5,7 @@ import { useV4Labels } from '../../../workbench/ai/v4/agentPanelV4Labels'
 import type { InterventionData, PlanRow } from '../../../workbench/ai/v4/agentPanelV4Types'
 import { StoryboardPlanEditorFooter } from '../../../workbench/creation/storyboard/StoryboardPlanEditor'
 import StoryboardSelectionToolbar from '../../../workbench/creation/storyboard/StoryboardSelectionToolbar'
-import StoryboardBulkBar from '../../../workbench/creation/storyboard/StoryboardBulkBar'
-import { storyboardBulkParamGroups } from '../../../workbench/creation/storyboard/storyboardBulkParamScope'
+import StoryboardFilmAspect from '../../../workbench/creation/storyboard/StoryboardFilmAspect'
 import type { PlanShot, StoryboardPlan } from '../../../workbench/generationCanvas/agent/storyboardPlan'
 import { labExec, NOOP, STILL_NEON } from '../storyboard/storyboardFixtures'
 import { ReuseStage, ShotRow } from '../storyboardReuse/storyboardReuseLabKit'
@@ -24,11 +23,10 @@ export const BATCH_WIDE = 900
 export const BATCH_NARROW = 664
 export const BATCH_MODELS = { image: BATCH_IMAGE_MODELS, video: BATCH_VIDEO_MODELS }
 
-const aspectOf = (): string => '16:9'
 
 // ───────────────────────── B5b：行 ─────────────────────────
 
-type RowFlag = 'plain' | 'selected' | 'skipped' | 'done'
+type RowFlag = 'plain' | 'selected' | 'done'
 
 const VARIANTS = [
   { id: 'v2', url: STILL_NEON, tag: '镜01-v2', modelLabel: 'Seedance 2.5', modeLabel: '', prompt: '', createdAt: 2 },
@@ -36,7 +34,7 @@ const VARIANTS = [
 ]
 
 function rowExtra(flag: RowFlag): NonNullable<Parameters<typeof ShotRow>[0]['extra']> {
-  const base = { onToggleSelect: NOOP, onToggleSkip: NOOP, selected: flag === 'selected', skipped: flag === 'skipped' }
+  const base = { onToggleSelect: NOOP, selected: flag === 'selected' }
   const menu = { onLocateInCanvas: NOOP, onToggleLock: NOOP, scenes: [{ id: 'scene-a', title: 'Scene A' }], onMoveToScene: NOOP }
   if (flag === 'done') return { ...base, ...menu, exec: labExec({ status: 'done', resultUrl: STILL_NEON }), variants: VARIANTS, outputTag: '镜01' }
   return { ...base, ...menu }
@@ -60,17 +58,10 @@ export function BatchRows({ flags, width }: { flags: readonly RowFlag[]; width: 
 // ───────────────────────── B7：浮条 / 批量条 ─────────────────────────
 
 /** 多选浮条（真组件）：`pick` = 选中的镜号。上面摆两行选中的镜，让「勾选 → 浮条」在同一个取景里读得到。 */
-export function SelectionStage({ pick, width, skippedAll = false, withRows = true }: { pick: readonly number[]; width: number; skippedAll?: boolean; withRows?: boolean }): JSX.Element {
+export function SelectionStage({ pick, width, withRows = true }: { pick: readonly number[]; width: number; withRows?: boolean }): JSX.Element {
   const all = batchShots()
   const shots = all.filter((shot) => pick.includes(shot.index))
   const plan = batchPlan(all)
-  const groups = storyboardBulkParamGroups({
-    plan,
-    shots,
-    imageModelOptions: BATCH_IMAGE_MODELS,
-    videoModelOptions: BATCH_VIDEO_MODELS,
-    aspectOf,
-  })
   return (
     <ReuseStage width={width}>
       {withRows ? (
@@ -83,12 +74,6 @@ export function SelectionStage({ pick, width, skippedAll = false, withRows = tru
       <div className="flex justify-center p-3">
         <StoryboardSelectionToolbar
           selectedCount={shots.length}
-          modelGroups={groups}
-          onGenerate={NOOP}
-          onApplyModel={NOOP}
-          onApplyParam={NOOP}
-          allSkipped={skippedAll}
-          onSkip={NOOP}
           onDelete={NOOP}
           onClear={NOOP}
           onAgentHandoff={NOOP}
@@ -98,11 +83,11 @@ export function SelectionStage({ pick, width, skippedAll = false, withRows = tru
   )
 }
 
-/** 「全部镜头」批量条（真组件）。 */
-export function BulkBarStage({ plan, width }: { plan: StoryboardPlan; width: number }): JSX.Element {
+/** 整片画幅（真组件）。 */
+export function FilmAspectStage({ plan, width }: { plan: StoryboardPlan; width: number }): JSX.Element {
   return (
     <ReuseStage width={width}>
-      <StoryboardBulkBar plan={plan} imageModelOptions={BATCH_IMAGE_MODELS} videoModelOptions={BATCH_VIDEO_MODELS} onChange={NOOP} />
+      <StoryboardFilmAspect plan={plan} imageModelOptions={BATCH_IMAGE_MODELS} videoModelOptions={BATCH_VIDEO_MODELS} onChange={NOOP} />
     </ReuseStage>
   )
 }
@@ -206,7 +191,6 @@ export function BatchFooter({ phase, width }: { phase: FooterPhase; width: numbe
         issueLabel={phase === 'stopped' ? progress : undefined}
         onBack={NOOP}
         onGenerate={NOOP}
-        onAgentHandoff={NOOP}
         busy={phase === 'anchors' || phase === 'shots' || phase === 'done'}
         runnableCount={phase === 'done' ? 0 : phase === 'stopped' ? 4 : 6}
         generateLabel={phase === 'done' ? t('storyboardEditor.batch.allDone') : undefined}

@@ -110,10 +110,12 @@ const OPENERS: Opener[] = [
   { name: 'toggleEditingPanel', sides: SIDES, open: (store, target) => store().toggleEditingPanel(target) },
   // ⌘Z（PreviewWorkspace keydown）：撤回刚才那次收起
   { name: 'undoEditingPanelLayout', sides: SIDES, open: (store, target) => { store().showEditingPanel(target, false); store().undoEditingPanelLayout() } },
-  // Agent layout.write（capabilityApplyHandler）与拖开收起条（PreviewWorkspace 的 editingPanelDragIntent）：只写这一栏
+  // 拖开收起条（PreviewWorkspace 的 editingPanelDragIntent）：只写这一栏
   { name: 'setEditingPanelLayout', sides: SIDES, open: (store, target) => store().setEditingPanelLayout({ visibility: { [target]: true } }) },
+  // Agent layout.write（capabilityApplyHandler）：只写这一栏
+  { name: 'writeEditingPanelLayoutFromAgent', sides: SIDES, open: (store, target) => store().writeEditingPanelLayoutFromAgent({ visibility: { [target]: true } }) },
   // Agent layout.write 整份写入：两栏都写 true，真正从关变开的只有 target
-  { name: 'setEditingPanelLayout（整份）', sides: SIDES, open: (store) => store().setEditingPanelLayout({ ...store().editingPanelLayout, visibility: { source: true, inspector: true, assistant: true } }) },
+  { name: 'writeEditingPanelLayoutFromAgent（整份）', sides: SIDES, open: (store) => store().writeEditingPanelLayoutFromAgent({ ...store().editingPanelLayout, visibility: { source: true, inspector: true, assistant: true } }) },
   // 左栏切 tab、时间轴右键「从素材库添加…」（PreviewSourcePanel / TimelineContextMenu）
   { name: 'openPreviewSourceTab', sides: ['source'], open: (store) => store().openPreviewSourceTab('assets') },
 ]

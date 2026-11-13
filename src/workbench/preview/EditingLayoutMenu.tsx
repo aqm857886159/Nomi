@@ -5,6 +5,7 @@ import { WorkbenchButton, listenOutsidePress } from '../../design'
 import { cn } from '../../utils/cn'
 import type { EditingPanelPreset, EditingPanelVisibility } from './panelLayout'
 import { useWorkbenchStore } from '../workbenchStore'
+import { displayEditingPanelLayout } from './editingPanelLayoutSlice'
 
 // 顶栏「布局」菜单（合同 §2.1）：五块面板开关 + 四个预设 + 恢复默认。
 // 住在应用顶栏而不是 Nomi 面板头——Nomi 面板头按合同只留徽标 / 额度 / 历史 / 收起。
@@ -24,7 +25,10 @@ const PANEL_KEYS = {
 
 export default function EditingLayoutMenu(): JSX.Element {
   const { t } = useTranslation()
-  const layout = useWorkbenchStore((state) => state.editingPanelLayout)
+  // 勾选态读此刻的整份布局：Nomi 那一项是显示态（跟机器走），不是项目里存的原值。
+  const stored = useWorkbenchStore((state) => state.editingPanelLayout)
+  const assistantCollapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed)
+  const layout = displayEditingPanelLayout({ editingPanelLayout: stored, projectAgentDockCollapsed: assistantCollapsed })
   const toggle = useWorkbenchStore((state) => state.toggleEditingPanel)
   const setPreset = useWorkbenchStore((state) => state.setEditingPanelPreset)
   const reset = useWorkbenchStore((state) => state.resetEditingPanelLayout)

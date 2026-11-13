@@ -24,8 +24,6 @@ export type StoryboardShotTableProps = {
   onChange: (plan: StoryboardPlan) => void
   /** The resident Agent receives the same stable storyboard reference as the row selection UI. */
   onStoryboardShotSelect?: (shot: StoryboardPlan['shots'][number]) => void
-  /** 选中集变化时上报（编辑器与浮条读同一份选择，不各存一份）。 */
-  onSelectionChange?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
   /** 行内「生成」（画面格常驻按钮 / 失败重试）。 */
   onGenerateRow: (runtime: StoryboardRowRuntime) => void
   /** 浮条 ↻ 原地重生成。 */
@@ -42,15 +40,8 @@ export type StoryboardShotTableProps = {
   onLocateInCanvasRow?: ((runtime: StoryboardRowRuntime) => void) | undefined
   /** 参考已变「用新图重跑」。 */
   onRerunFreshRefsRow: (runtime: StoryboardRowRuntime) => void
-  onGenerateSelected: (runtimes: StoryboardRowRuntime[]) => void
   onDeleteSelected: (runtimes: StoryboardRowRuntime[]) => void
   filterAnchorId?: string | null
-  /**
-   * 「本次跳过」的行（`stableShotId` 键，v6 §2.10）。**受控**：owner 是编辑器，因为 footer 的
-   * 「将跑 N 镜」必须与它同一份 derive（合同 §9.3：不许 footer 自己再减一次）。
-   */
-  skippedShotIds?: ReadonlySet<string>
-  onToggleSkip?: ((shotId: string) => void) | undefined
   /** 每镜的历史变体（§2.9）；键 = `stableShotId`。本轮由调用方喂，落盘是下一刀。 */
   variantsByShotId?: Readonly<Record<string, readonly ShotVariant[]>>
   adoptedVariantByShotId?: Readonly<Record<string, string>>
@@ -58,7 +49,7 @@ export type StoryboardShotTableProps = {
   onDeleteVariant?: ((runtime: StoryboardRowRuntime, variant: ShotVariant) => void) | undefined
   /** 每镜产出的 `@tag`（§2.10）；键 = `stableShotId`。 */
   outputTagByShotId?: Readonly<Record<string, string>>
-  /** Agent 入口——多选浮条与每行 ⋯ 菜单两处。 */
+  /** Agent 入口——选中浮条。 */
   onAgentHandoff?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
   /** 播放本场；整片播放复用同一 playback queue owner。 */
   onPlayGroup?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
