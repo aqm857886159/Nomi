@@ -37,6 +37,25 @@ describe('project persistence disposal', () => {
     await disposed
   })
 
+  it('while the main process is still retrying an occupied file, nothing reports saved; only the final rejection reports an error', async () => {
+    let reject!: (error: Error) => void
+    const save = vi.fn(() => new Promise<WorkbenchProjectRecordV1>((_resolve, no) => { reject = no }))
+    const onSaved = vi.fn(), onSaveError = vi.fn()
+    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'p', isHydrating: () => false, canPersist: () => true, saveProject: save, onSaved, onSaveError })
+    deps.version = 1; deps.changed?.(); await vi.advanceTimersByTimeAsync(700)
+    expect(save).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(59_000)
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(onSaveError).not.toHaveBeenCalled()
+    const inUse = Object.assign(new Error('still occupied after 60s'), { name: 'ProjectSaveInUseError' })
+    reject(inUse)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(onSaveError).toHaveBeenCalledWith(inUse)
+    expect(onSaved).not.toHaveBeenCalled()
+    save.mockResolvedValue({ id: 'p' } as WorkbenchProjectRecordV1)
+    await dispose().catch(() => undefined)
+  })
+
   it('coalesces a newer explicit save into the same queue before acknowledging it', async () => {
     const versions: number[] = [], finish: Array<() => void> = []
     const save = vi.fn((_id: string, payload: unknown) => {

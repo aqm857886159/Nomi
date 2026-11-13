@@ -6,6 +6,7 @@ import path from "node:path";
 import { fsyncDirectoryIfDurable } from "../durability";
 import { WORKSPACE_MANIFEST_BUSY_ERROR_NAME } from "../shared/contracts/workspaceBusy";
 import { isSharingViolation, readJsonFile, renameSyncWithRetry, retryOnSharingViolation, writeJsonFileAtomic } from "../jsonFile";
+import type { SyncSharingRetryOptions } from "../sharingRetry";
 import { workspaceNomiDir } from "./workspacePaths";
 
 export const WORKSPACE_MANIFEST_LOCK_SCHEMA_VERSION = 1;
@@ -35,6 +36,8 @@ export type WorkspaceManifestLockLease = {
   canonicalRootPath: string;
   lockDir: string;
   owner: WorkspaceManifestLockOwner;
+  /** 取锁时调用方显式要求了「不原地睡」（保存路径）：这把锁之后的读写 owner.json 也都不睡，见 {@link WorkspaceManifestLockOptions.noBlockingWait}。 */
+  noBlockingWait?: boolean;
 };
 
 export type WorkspaceManifestLockOptions = {
@@ -48,6 +51,11 @@ export type WorkspaceManifestLockOptions = {
   initializationGraceMs?: number;
   retryDelayMs?: number;
   waitTimeoutMs?: number;
+  /**
+   * 保存路径显式传 true：读写 owner.json 撞上占用不原地睡，立即再试一次就抛；锁还在手里时读不到 owner.json
+   * 报 {@link WorkspaceManifestLockOccupiedError}（可重排的被占用），不判成锁丢了。不传的调用方行为逐字不变。
+   */
+  noBlockingWait?: boolean;
 };
 
 export class WorkspaceManifestLockBusyError extends Error {
@@ -98,10 +106,33 @@ export class WorkspaceManifestLockLostError extends Error {
 }
 
 /**
+ * 锁还是我的，但 owner.json 此刻被别的程序（杀毒扫新写的文件 / 同步盘）开着读不到：这是「被占用」，不是「锁丢了」。
+ * 只在取锁时显式要求了 `noBlockingWait` 的调用方（保存路径）身上出现；错误码照抄原错误（EBUSY / EPERM / EACCES），
+ * `path` 指向 owner.json——上层按共享冲突用定时器重排，并据此目录是否可写分辨「真没权限」。
+ */
+export class WorkspaceManifestLockOccupiedError extends Error {
+  readonly code: string | undefined;
+  readonly errno: number | undefined;
+  readonly syscall: string | undefined;
+  readonly path: string;
+
+  constructor(ownerPath: string, cause: unknown) {
+    super("Workspace manifest owner record is held open by another program");
+    this.name = "WorkspaceManifestLockOccupiedError";
+    const c = (cause ?? {}) as { code?: string; errno?: number; syscall?: string };
+    this.code = c.code;
+    this.errno = c.errno;
+    this.syscall = c.syscall;
+    this.path = ownerPath;
+    Object.defineProperty(this, "cause", { configurable: true, value: cause });
+  }
+}
+
+/**
  * `unreadable`：owner.json 此刻被别的程序（同步盘 / 杀毒 / 索引器）开着读不到。
  * 这只说明「现在不知道」，不说明记录坏了——调用方一律按忙处理，绝不据此强拆别人的锁。
  */
-type ParsedOwner = { valid: true; owner: WorkspaceManifestLockOwner } | { valid: false; unreadable?: true };
+type ParsedOwner = { valid: true; owner: WorkspaceManifestLockOwner } | { valid: false; unreadable?: true; error?: unknown };
 
 /**
  * 本进程此刻真正持有的锁（按 nonce）。取锁成功时登记，释放（无论成败）时注销。
@@ -121,9 +152,9 @@ function isOwnAbandonedRecord(owner: WorkspaceManifestLockOwner, self: { host: s
 }
 
 /** 删一个已经不代表任何持有者的目录（隔离区 / 旧锁）。删不掉只是「清理还没完」，按忙处理、下次再来。 */
-function removeRecoveryDirectory(nomiDir: string, directoryPath: string): void {
+function removeRecoveryDirectory(nomiDir: string, directoryPath: string, wait: SyncSharingRetryOptions): void {
   try {
-    retryOnSharingViolation(() => fs.rmSync(directoryPath, { recursive: true, force: true }));
+    retryOnSharingViolation(() => fs.rmSync(directoryPath, { recursive: true, force: true }), wait);
   } catch (error) {
     throw new WorkspaceManifestLockBusyError("Workspace manifest recovery cleanup is still in progress", { cause: error });
   }
@@ -155,12 +186,12 @@ function pathToken(value: string): string {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
-function parseOwner(directoryPath: string): ParsedOwner {
+function parseOwner(directoryPath: string, wait: SyncSharingRetryOptions): ParsedOwner {
   let value: Partial<WorkspaceManifestLockOwner>;
   try {
-    value = retryOnSharingViolation(() => readJsonFile(ownerFile(directoryPath))) as Partial<WorkspaceManifestLockOwner>;
+    value = retryOnSharingViolation(() => readJsonFile(ownerFile(directoryPath)), wait) as Partial<WorkspaceManifestLockOwner>;
   } catch (error) {
-    return isSharingViolation(error) ? { valid: false, unreadable: true } : { valid: false };
+    return isSharingViolation(error) ? { valid: false, unreadable: true, error } : { valid: false };
   }
   if (
     !value ||
@@ -266,10 +297,11 @@ function removeRecoverableQuarantines(input: {
   nowMs: number;
   initializationGraceMs: number;
   processLiveness: (pid: number) => ProcessLiveness;
+  wait: SyncSharingRetryOptions;
 }): void {
   for (const name of quarantineNames(input.nomiDir)) {
     const quarantinePath = path.join(input.nomiDir, name);
-    const parsed = parseOwner(quarantinePath);
+    const parsed = parseOwner(quarantinePath, input.wait);
     if (parsed.valid) {
       if (parsed.owner.host !== input.host) {
         throw new WorkspaceManifestLockBusyError("Workspace manifest recovery belongs to another host");
@@ -279,7 +311,7 @@ function removeRecoverableQuarantines(input: {
           "Workspace manifest recovery owner is still alive or cannot be verified",
         );
       }
-      removeRecoveryDirectory(input.nomiDir, quarantinePath);
+      removeRecoveryDirectory(input.nomiDir, quarantinePath, input.wait);
       continue;
     }
     if (parsed.unreadable) {
@@ -288,7 +320,7 @@ function removeRecoverableQuarantines(input: {
     if (directoryAgeMs(quarantinePath, input.nowMs) < input.initializationGraceMs) {
       throw new WorkspaceManifestLockBusyError("Workspace manifest recovery owner is still initializing");
     }
-    removeRecoveryDirectory(input.nomiDir, quarantinePath);
+    removeRecoveryDirectory(input.nomiDir, quarantinePath, input.wait);
   }
 }
 
@@ -299,6 +331,7 @@ function quarantineExistingOwner(input: {
   randomId: () => string;
   initializationGraceMs: number;
   nowMs: number;
+  wait: SyncSharingRetryOptions;
 }): void {
   const quarantinePath = path.join(input.nomiDir, `${QUARANTINE_PREFIX}${pathToken(input.randomId())}`);
   try {
@@ -309,7 +342,7 @@ function quarantineExistingOwner(input: {
   }
   fsyncDirectoryIfDurable(input.nomiDir);
 
-  const moved = parseOwner(quarantinePath);
+  const moved = parseOwner(quarantinePath, input.wait);
   if (input.expected) {
     if (!moved.valid || !sameOwner(moved.owner, input.expected)) {
       throw new WorkspaceManifestLockBusyError("Workspace manifest owner changed during recovery");
@@ -318,7 +351,7 @@ function quarantineExistingOwner(input: {
     throw new WorkspaceManifestLockBusyError("Workspace manifest owner completed during recovery");
   }
 
-  removeRecoveryDirectory(input.nomiDir, quarantinePath);
+  removeRecoveryDirectory(input.nomiDir, quarantinePath, input.wait);
 }
 
 function recoverExistingLock(input: {
@@ -330,8 +363,9 @@ function recoverExistingLock(input: {
   initializationGraceMs: number;
   processLiveness: (pid: number) => ProcessLiveness;
   randomId: () => string;
+  wait: SyncSharingRetryOptions;
 }): void {
-  const parsed = parseOwner(input.lockDir);
+  const parsed = parseOwner(input.lockDir, input.wait);
   if (!parsed.valid) {
     if (parsed.unreadable) {
       throw new WorkspaceManifestLockBusyError("Workspace manifest owner record is held open by another program");
@@ -368,6 +402,7 @@ function tryAcquireCanonicalWorkspaceManifestLock(
     options.processStartedAtMs ?? Math.max(0, Math.floor(Date.now() - process.uptime() * 1_000));
   const processLiveness = options.processLiveness ?? defaultProcessLiveness;
   const initializationGraceMs = options.initializationGraceMs ?? DEFAULT_INITIALIZATION_GRACE_MS;
+  const wait: SyncSharingRetryOptions = { noWait: options.noBlockingWait === true };
   const nomiDir = workspaceNomiDir(canonicalRootPath);
   // 只建 .nomi、不递归：根没了就是没了（ENOENT），绝不在这里把项目根重新建出来。
   try {
@@ -388,6 +423,7 @@ function tryAcquireCanonicalWorkspaceManifestLock(
     nowMs: nowMs(),
     initializationGraceMs,
     processLiveness,
+    wait,
   });
   if (fs.existsSync(lockDir)) {
     recoverExistingLock({
@@ -399,6 +435,7 @@ function tryAcquireCanonicalWorkspaceManifestLock(
       initializationGraceMs,
       processLiveness,
       randomId,
+      wait,
     });
   }
   removeRecoverableQuarantines({
@@ -408,6 +445,7 @@ function tryAcquireCanonicalWorkspaceManifestLock(
     nowMs: nowMs(),
     initializationGraceMs,
     processLiveness,
+    wait,
   });
 
   const owner: WorkspaceManifestLockOwner = {
@@ -422,8 +460,8 @@ function tryAcquireCanonicalWorkspaceManifestLock(
   const candidateDir = path.join(nomiDir, `${CANDIDATE_PREFIX}${pathToken(`${owner.ownerId}:${owner.nonce}`)}`);
   fs.mkdirSync(candidateDir);
   try {
-    writeJsonFileAtomic(ownerFile(candidateDir), owner);
-    const candidateOwner = parseOwner(candidateDir);
+    writeJsonFileAtomic(ownerFile(candidateDir), owner, wait);
+    const candidateOwner = parseOwner(candidateDir, wait);
     if (!candidateOwner.valid && candidateOwner.unreadable) {
       // 刚写出的 owner.json 被别的程序开着读不回来：还没发布，重试即可。
       throw new WorkspaceManifestLockPublishError(new Error("Workspace manifest owner record is held open by another program"));
@@ -454,8 +492,15 @@ function tryAcquireCanonicalWorkspaceManifestLock(
     }
   }
 
-  const lease = { canonicalRootPath, lockDir, owner };
-  assertWorkspaceManifestLockOwned(lease);
+  const lease: WorkspaceManifestLockLease = { canonicalRootPath, lockDir, owner, ...(wait.noWait ? { noBlockingWait: true } : {}) };
+  try {
+    assertWorkspaceManifestLockOwned(lease);
+  } catch (error) {
+    // 保存路径：刚发布的锁目录是自己建的，核验失败就自己收掉，不留孤儿锁目录（别的进程会把它当成「本机有人在用」）。
+    // 收不掉（owner.json 还被占着）交给后台补收。不传 noBlockingWait 的调用方行为逐字不变。
+    if (lease.noBlockingWait && error instanceof WorkspaceManifestLockOccupiedError) relinquishPublishedLock(lease);
+    throw error;
+  }
   liveLeaseNonces.add(owner.nonce);
   return lease;
 }
@@ -491,7 +536,10 @@ export function assertWorkspaceManifestLockOwned(lease: WorkspaceManifestLockLea
   if (quarantineNames(path.dirname(lease.lockDir)).length > 0) {
     throw new WorkspaceManifestLockLostError("Workspace manifest lock is under recovery");
   }
-  const current = parseOwner(lease.lockDir);
+  const current = parseOwner(lease.lockDir, { noWait: lease.noBlockingWait === true });
+  if (!current.valid && current.unreadable && lease.noBlockingWait) {
+    throw new WorkspaceManifestLockOccupiedError(ownerFile(lease.lockDir), current.error);
+  }
   if (!current.valid || !sameOwner(current.owner, lease.owner)) {
     throw new WorkspaceManifestLockLostError();
   }
@@ -515,11 +563,21 @@ function releaseDirFor(lease: WorkspaceManifestLockLease): string {
  */
 export function releaseWorkspaceManifestLock(lease: WorkspaceManifestLockLease): void {
   try {
-    assertWorkspaceManifestLockOwned(lease);
+    try {
+      assertWorkspaceManifestLockOwned(lease);
+    } catch (error) {
+      // 保存路径：owner.json 被占着读不到 ≠ 锁丢了。在这里交出所有权，盘上的目录交给后台补收；不抛——
+      // 事务自己的结果（成功或原来的错）照常交给调用方，不能因为放锁时读不到 owner.json 把它盖掉。
+      if (error instanceof WorkspaceManifestLockOccupiedError) {
+        scheduleOrphanedLockReap(lease);
+        return;
+      }
+      throw error;
+    }
     const nomiDir = path.dirname(lease.lockDir);
     const releaseDir = releaseDirFor(lease);
     try {
-      renameSyncWithRetry(lease.lockDir, releaseDir);
+      renameSyncWithRetry(lease.lockDir, releaseDir, { noWait: lease.noBlockingWait === true });
     } catch (error) {
       if (isSharingViolation(error)) {
         scheduleOrphanedLockReap(lease);
@@ -545,7 +603,7 @@ const ORPHANED_LOCK_REAP_DELAYS_MS = [250, 1_000, 4_000, 15_000, 60_000];
 /** 收一个已交出所有权、但目录还留在盘上的锁。返回 true = 不必再试（已收走，或它已经不是这把锁）。 */
 function reapOrphanedLock(lease: WorkspaceManifestLockLease): boolean {
   if (!fs.existsSync(lease.lockDir)) return true;
-  const current = parseOwner(lease.lockDir);
+  const current = parseOwner(lease.lockDir, { noWait: lease.noBlockingWait === true });
   if (!current.valid) return !current.unreadable;
   if (!sameOwner(current.owner, lease.owner) || liveLeaseNonces.has(current.owner.nonce)) return true;
   const releaseDir = releaseDirFor(lease);
@@ -560,6 +618,14 @@ function reapOrphanedLock(lease: WorkspaceManifestLockLease): boolean {
     // 已改名交出；旧目录留给下一次取锁收。
   }
   return true;
+}
+
+/**
+ * 保存路径取锁时，发布之后的核验因为 owner.json 被占着没过：自己建的锁目录现在就收（先核 owner 还是自己才挪），
+ * 收不掉交给后台补收（本进程从没登记持有它）。
+ */
+function relinquishPublishedLock(lease: WorkspaceManifestLockLease): void {
+  if (!reapOrphanedLock(lease)) scheduleOrphanedLockReap(lease);
 }
 
 function scheduleOrphanedLockReap(lease: WorkspaceManifestLockLease, attempt = 0): void {

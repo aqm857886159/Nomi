@@ -2,7 +2,6 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { retryOnSharingViolation, writeJsonFileAtomic } from "../jsonFile";
-import { blockingWaitAllowed } from "../sharingRetry";
 import { workspaceFolderCopyError } from "../shared/contracts/projectLocation";
 import { workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
 import {
@@ -23,9 +22,15 @@ function readRecentWorkspaceEntries(settingsRoot: string): RecentWorkspaceEntry[
   return raw.map((entry) => normalizeRecentWorkspaceEntry(entry));
 }
 
-function writeRecentWorkspaces(settingsRoot: string, entries: RecentWorkspaceEntry[]): void {
-  writeJsonFileAtomic(recentWorkspacesPath(settingsRoot), entries);
+function writeRecentWorkspaces(settingsRoot: string, entries: RecentWorkspaceEntry[], noWait?: RegistryNoWait): void {
+  writeJsonFileAtomic(recentWorkspacesPath(settingsRoot), entries, { noWait: noWait !== undefined });
 }
+
+/**
+ * 调用方显式要求「不原地睡」（保存提交之后的后台补写）：锁被别人占着就抛 EBUSY 型错误，由调用方用定时器再来；
+ * `waitedMs` 是调用方已经为这次登记等了多久——等满 3 秒照旧夺锁（和同步自旋 3 秒后夺锁是同一条规矩）。
+ */
+export type RegistryNoWait = Readonly<{ waitedMs: number }>;
 
 /**
  * 跨进程锁：把注册表的「读→改→写」串行化。根因（2026-06-30 钉死，确定性复现：两进程各写 60 条→丢 60 条）——
@@ -33,15 +38,14 @@ function writeRecentWorkspaces(settingsRoot: string, entries: RecentWorkspaceEnt
  * 后写覆盖先写 → 条目丢 → readProject 找不到 →「项目不存在」。多 agent 并发驱动 + app 同时跑必中。
  * 用原子 mkdir 做锁（跨进程有效），自旋退避；3s 上限 + 陈旧锁兜底，绝不死等（最坏退化回原无锁行为）。
  *
- * 保存热路径（runWithoutBlockingWait 里）不自旋：锁被别人占着且不陈旧 → 抛 EBUSY 型错误，由保存的上层
- * 用定时器重排整次保存；陈旧（锁目录超过 3s 没动）照旧夺锁。其余同步调用方（建项目 / 启动对账）行为逐字不变。
+ * 显式传 `noWait` 的调用方（保存提交后的后台补写）不自旋：锁被别人占着、调用方还没等满 3 秒 → 抛 EBUSY 型错误，
+ * 由调用方用定时器再来；等满了照旧夺锁。不传的调用方（建项目 / 启动对账）行为逐字不变。
  */
 const REGISTRY_LOCK_STALE_MS = 3000;
-function withRegistryLock<T>(settingsRoot: string, fn: () => T): T {
+function withRegistryLock<T>(settingsRoot: string, fn: () => T, noWait?: RegistryNoWait): T {
   const lockDir = `${recentWorkspacesPath(settingsRoot)}.lock`;
-  const mayBlock = blockingWaitAllowed();
-  const spin = mayBlock ? new Int32Array(new SharedArrayBuffer(4)) : null;
-  const deadline = Date.now() + REGISTRY_LOCK_STALE_MS;
+  const spin = new Int32Array(new SharedArrayBuffer(4));
+  const deadline = Date.now() + REGISTRY_LOCK_STALE_MS - (noWait?.waitedMs ?? 0);
   let locked = false;
   for (;;) {
     try {
@@ -50,15 +54,8 @@ function withRegistryLock<T>(settingsRoot: string, fn: () => T): T {
       break;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") break; // 锁机制异常→不阻塞，退化回无锁
-      let stale = Date.now() > deadline;
-      if (!mayBlock) {
-        try {
-          stale = Date.now() - fs.statSync(lockDir).mtimeMs > REGISTRY_LOCK_STALE_MS;
-        } catch {
-          stale = false; // 刚被放掉：下一轮重试交给上层
-        }
-        if (!stale) throw Object.assign(new Error("Workspace registry is locked by another process"), { code: "EBUSY" });
-      }
+      const stale = Date.now() > deadline;
+      if (noWait && !stale) throw Object.assign(new Error("Workspace registry is locked by another process"), { code: "EBUSY" });
       if (stale) {
         // 陈旧锁兜底：持锁进程崩溃残留 → 超时夺锁，绝不永久死等。
         try {
@@ -70,7 +67,7 @@ function withRegistryLock<T>(settingsRoot: string, fn: () => T): T {
         }
         break;
       }
-      Atomics.wait(spin!, 0, 0, 10); // 同步退避 10ms 再抢
+      Atomics.wait(spin, 0, 0, 10); // 同步退避 10ms 再抢
     }
   }
   try {
@@ -80,7 +77,7 @@ function withRegistryLock<T>(settingsRoot: string, fn: () => T): T {
       try {
         // 杀毒 / 同步盘短暂开着这个目录时 Windows 删不掉（EPERM/EBUSY）：先短退避重试，
         // 否则留下的 .lock 会让下一次注册表读写在主线程上干等 3 秒才夺锁。
-        retryOnSharingViolation(() => fs.rmdirSync(lockDir));
+        retryOnSharingViolation(() => fs.rmdirSync(lockDir), { noWait: noWait !== undefined });
       } catch {
         /* 已释放 */
       }
@@ -287,6 +284,8 @@ export type BindWorkspaceLocationOptions = Readonly<{
    * （连锁都不取）。每次保存都重写一遍注册表只为刷新最近打开时间，是纯重复写。其余调用方（新建 / 打开 / 恢复）不传，照旧每次写。
    */
   touchIntervalMs?: number;
+  /** 保存提交后的后台补写显式传：不原地睡（见 {@link RegistryNoWait}）。其余调用方不传，行为逐字不变。 */
+  noWait?: RegistryNoWait;
 }>;
 
 /** 保存时「最近打开时间」最多每 60 秒刷新一次。 */
@@ -321,9 +320,9 @@ export function bindWorkspaceLocation(
     const conflict = liveBindingConflict(entries, binding);
     if (conflict) throw workspaceFolderCopyError({ projectName: conflict.boundName, originalRootPath: conflict.boundRootPath });
     const next = sortRecentWorkspaces(mergeWorkspaceBinding(entries, binding));
-    writeRecentWorkspaces(settingsRoot, next);
+    writeRecentWorkspaces(settingsRoot, next, options.noWait);
     return next;
-  });
+  }, options.noWait);
 }
 
 /**

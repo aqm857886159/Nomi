@@ -10,7 +10,7 @@
 // `confirmSpend`（问人 + 铸令牌），唯一调用方 core.generateOnProject 没有生产调用者，2026-10-05 一起删掉。
 //
 // 这样外部 agent 读写画布无论 app 开没开都走同一套 core 逻辑，只换网关——不存在并行版。
-import { readProject, saveProject } from '../projects/repository'
+import { readProject, updateProject } from '../projects/repository'
 import { normalizeSnapshot, type CanvasSnapshot } from './canvasGraph'
 import { mergeExternalCanvasWrite } from '../shared/canvas/externalCanvasWrite'
 import { requestRenderer, requestRendererDecision } from './rendererBridge'
@@ -68,13 +68,15 @@ function readDiskSnapshot(projectId: string): CanvasSnapshot {
 
 async function writeDiskSnapshot(projectId: string, snapshot: CanvasSnapshot, base: CanvasSnapshot, restoredEdgeIds?: readonly string[]): Promise<void> {
   await serializeProjectCanvasWrite(projectId, async () => {
-  const record = readProject(projectId)
-  if (!record) throw new Error(`项目不存在: ${projectId}`)
-  const payload = record.payload && typeof record.payload === 'object' ? { ...(record.payload as Record<string, unknown>) } : {}
-  // 盘上此刻的画布可能已经被别的写者改过（后台项目的生成结局投递写的就是这一份）：合并，不整张覆盖。
-  const raw = payload.generationCanvas && typeof payload.generationCanvas === 'object' ? payload.generationCanvas as Record<string, unknown> : {}
-  payload.generationCanvas = { ...raw, ...mergeExternalCanvasWrite({ base, next: snapshot, current: normalizeSnapshot(raw), ...(restoredEdgeIds ? { restoredEdgeIds } : {}) }) }
-  await saveProject(projectId, { ...record, payload })
+    // 读 → 合并 → 写整段交给 updateProject：占用重排或被别人抢先时，每次都拿盘上最新的画布重新合并（回调是纯的）。
+    await updateProject(projectId, (record) => {
+      if (!record) throw new Error(`项目不存在: ${projectId}`)
+      const payload = record.payload && typeof record.payload === 'object' ? { ...(record.payload as Record<string, unknown>) } : {}
+      // 盘上此刻的画布可能已经被别的写者改过（后台项目的生成结局投递写的就是这一份）：合并，不整张覆盖。
+      const raw = payload.generationCanvas && typeof payload.generationCanvas === 'object' ? payload.generationCanvas as Record<string, unknown> : {}
+      payload.generationCanvas = { ...raw, ...mergeExternalCanvasWrite({ base, next: snapshot, current: normalizeSnapshot(raw), ...(restoredEdgeIds ? { restoredEdgeIds } : {}) }) }
+      return { next: { ...record, payload }, result: undefined }
+    })
   })
 }
 

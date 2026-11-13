@@ -25,35 +25,40 @@
   ],
   "entry_points": [
     "electron/projects/repository.ts saveProject（IPC 保存、MCP / Agent 画布写、文档写共用的最早共享边界）",
-    "electron/jsonFile.ts retryOnSharingViolation（同步助手：保存范围内不睡，范围外逐字不变）"
+    "electron/jsonFile.ts retryOnSharingViolation（同步助手：保存调用方显式传 noWait 不睡，没传的逐字不变）",
+    "electron/projects/repository.ts updateProject（主进程读改写的唯一写口：每次重排重读最新、核修订号）"
   ],
   "invariants": [
-    "保存范围内同步文件助手不原地睡；占用由定时器重排整次保存，总上限 60 秒",
+    "保存路径上的同步文件助手不原地睡（调用方显式传 noWait）；占用由定时器重排还没提交的那段，总上限 60 秒",
+    "清单一旦写上就算这次保存成功：提交后的步骤（同步基线、注册表）撞占用只在后台补写，不回头重新提交，不把成功报成失败",
+    "每次重排前核盘上修订号：变了就停、不写盘、报被抢先，不拿旧快照盖掉别人已回执的写入",
     "盘上永远是旧的完整版或新的完整版",
     "显式等保存回执的人（关窗 / 刷新 / 切项目）最多等 5 秒",
     "结构上只能同步的调用方容忍度不降低"
   ],
   "doors": [
-    { "kind": "write", "path": "electron/capabilityCore/documentSurface.ts", "symbol": "saveProject" },
-    { "kind": "write", "path": "electron/capabilityCore/gateway.ts", "symbol": "saveProject" },
-    { "kind": "write", "path": "electron/projects/projectCanvasWrite.ts", "symbol": "saveProject" },
+    { "kind": "write", "path": "electron/capabilityCore/documentSurface.ts", "symbol": "updateProject" },
+    { "kind": "write", "path": "electron/capabilityCore/gateway.ts", "symbol": "updateProject" },
+    { "kind": "write", "path": "electron/projects/projectCanvasWrite.ts", "symbol": "updateProject" },
     { "kind": "write", "path": "electron/projects/projectsIpc.ts", "symbol": "saveProject" },
     { "kind": "write", "path": "src/workbench/project/workbenchProjectSession.ts", "symbol": "saveProject" }
   ],
   "door_reduction": {
     "before": 5,
     "after": 5,
-    "why_not": "保存的 5 扇写门都经过同一个共享边界 repository.saveProject（IPC 保存、MCP / Agent 画布写、文档写）；修在边界内，调用方不改。结构上只能同步的重试调用方（清单锁、同步回调、记账类，共 6 扇写门）保持原行为，不在这一刀里合并。"
+    "why_not": "保存的 5 扇写门都经过同一个共享边界 repository（渲染层整份快照走 saveProject；主进程三个「读 → 改 → 写」写入方走 updateProject，重排单位包含读）；两者共用同一个修订号核对和占用重排。结构上只能同步的重试调用方（清单锁、同步回调、记账类，共 6 扇写门）保持原行为，不在这一刀里合并。"
   },
   "regression_tests": [
     "electron/sharingRetry.test.ts",
     "electron/workspace/saveFaultSweep.test.ts",
+    "electron/projects/saveUnderOccupancy.test.ts",
     "src/workbench/project/workbenchProjectSession.saveReceipt.test.ts"
   ],
   "residual_risks": [
     "仍有结构上只能同步的调用方在主进程上睡（清单锁、上传发布回调、素材改名、配置文件写、记账类），第三刀按调用方逐个评估",
     "Windows 未验证：占用时长分布与错误码行为没在 Windows 上跑过",
-    "更长重试窗口增大渲染层旧快照覆盖同期 MCP / Agent 写入的窗口（今天同样存在）",
+    "渲染层下一次保存仍会用它手里的整份快照盖掉外部写入（和 main 一样，没解决）；重排期间的旧快照覆盖已由修订号核对堵住",
+    "被占用重试最长 60 秒期间界面没有「正在保存」显示（项目页本来就没有保存状态）",
     "保存不再整读回校验：写不全由 fsync + 原子改名保证，磁盘静默损坏不在检测范围内"
   ],
   "external_sources": [
@@ -72,7 +77,7 @@
     "classification": "recurring",
     "reason": "任何新的热路径同步文件操作都会把同样的冻结带回来。",
     "same_class_scan": [
-      "node scripts/door-map.mjs saveProject → 5 扇写门，全部经过 repository.saveProject",
+      "node scripts/door-map.mjs saveProject → 渲染层整份快照 1 扇；主进程读改写 3 扇改走 updateProject，同一边界",
       "node scripts/door-map.mjs retryOnSharingViolation → 6 扇写门，保存范围外的保持原行为",
       "eslint.config.mjs hot-path-sync-fs：热路径目录新增同步文件操作就红"
     ]
@@ -96,7 +101,7 @@
       "path": "electron/jsonFile.ts",
       "entry_point": "retryOnSharingViolation",
       "disposition": "enforced",
-      "evidence": "sharingRetry.test.ts：保存范围内不睡；saveFaultSweep 实测睡眠为空。"
+      "evidence": "sharingRetry.test.ts：显式 noWait 不睡、没传的照旧退避；saveFaultSweep 实测睡眠为空。"
     },
     {
       "path": "electron/capabilityCore/hostConfigWrite.ts",
@@ -108,8 +113,8 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "electron/projects/saveRetry.ts",
-    "invariant": "保存热路径目录里不新增同步文件读写；保存范围内不原地睡。",
-    "failure_mode": "在 workspaceRepository.ts 新增 fs.statSync → lint 红；把保存范围内改回睡 → saveFaultSweep 红。",
+    "invariant": "保存热路径目录里不新增同步文件读写；保存路径不原地睡；提交只做一次；重排前核修订号。",
+    "failure_mode": "在 workspaceRepository.ts 新增 fs.statSync → lint 红；把保存路径改回睡 → saveFaultSweep 红；提交后失败改回重排整次、去掉修订号核对、读改写只包写 → saveUnderOccupancy 红。",
     "exception_policy": "none",
     "strategy": "lint 规则 + 存量批量压制只减不增；睡眠由测试量；占用重试只有 saveWithSharingRetry 一处。",
     "artifacts": [
@@ -121,6 +126,7 @@
   },
   "class_regression_tests": [
     "electron/sharingRetry.test.ts",
+    "electron/projects/saveUnderOccupancy.test.ts",
     "electron/workspace/saveFaultSweep.test.ts"
   ],
   "legacy_paths": {
@@ -129,7 +135,7 @@
       "electron/workspace/workspaceManifestTransaction.ts",
       "electron/workspace/workspaceRepository.ts"
     ],
-    "rationale": "保存后整读回校验、重读算同步基线哈希同提交删掉；保存范围内的原地睡同提交删掉（范围外为结构上只能同步的调用方保留）。"
+    "rationale": "保存后整读回校验、重读算同步基线哈希同提交删掉；保存路径上的原地睡同提交删掉（没传 noWait 的结构上只能同步的调用方保留）；AsyncLocalStorage 隐式范围层（runWithoutBlockingWait / blockingWaitAllowed）删掉，改调用方显式传参；三个主进程读改写写入方的「readProject + 改 + saveProject」同提交换成 updateProject。"
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",

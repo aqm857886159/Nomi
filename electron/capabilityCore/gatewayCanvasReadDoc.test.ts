@@ -5,13 +5,13 @@ import { createDiskGateway, createRendererGateway } from './gateway'
 
 const io = vi.hoisted(() => ({
   readProject: vi.fn(),
-  saveProject: vi.fn(),
+  updateProject: vi.fn(),
   requestRenderer: vi.fn(),
 }))
 
 vi.mock('../projects/repository', () => ({
   readProject: io.readProject,
-  saveProject: io.saveProject,
+  updateProject: io.updateProject,
 }))
 
 vi.mock('./rendererBridge', () => ({

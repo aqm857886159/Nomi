@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { fsyncIfDurable } from "./durability";
-import { blockingWaitAllowed, isSharingViolation, retryOnSharingViolationAsync, SHARING_RETRY_DELAYS_MS } from "./sharingRetry";
+import { isSharingViolation, retryOnSharingViolationAsync, SHARING_RETRY_DELAYS_MS, type SyncSharingRetryOptions } from "./sharingRetry";
 
 /**
  * Atomically (over)write a JSON file.
@@ -21,7 +21,7 @@ import { blockingWaitAllowed, isSharingViolation, retryOnSharingViolationAsync, 
  */
 /**
  * 同步睡眠：只服务「结构上无法 await」的同步调用方（清单锁、同步 IPC、同步建项目等），它们随后面的存盘主人搬走。
- * 保存热路径在 {@link runWithoutBlockingWait} 里，不会走到这里（见 sharingRetry.ts）。
+ * 保存路径显式传 `{ noWait: true }`，不会走到这里（见 sharingRetry.ts）。
  */
 function sleepSync(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -32,10 +32,10 @@ export { isSharingViolation, retryOnSharingViolationAsync };
 /**
  * 同步文件操作撞上共享冲突时按短退避重试（总预算约 400ms），之后把原错误如实抛出。
  * 文件与目录的 rename / 删除 / 读取都用这一份策略——不各自手写重试。
- * 在 {@link runWithoutBlockingWait} 里（保存热路径）不睡：立即再试一次就抛，由上层定时器重排整次保存。
+ * 调用方显式传 `{ noWait: true }`（保存路径）时不睡：立即再试一次就抛，由上层定时器重排。
  */
-export function retryOnSharingViolation<T>(operation: () => T): T {
-  const delays = blockingWaitAllowed() ? SHARING_RETRY_DELAYS_MS : [0];
+export function retryOnSharingViolation<T>(operation: () => T, options: SyncSharingRetryOptions = {}): T {
+  const delays = options.noWait ? [0] : SHARING_RETRY_DELAYS_MS;
   for (let attempt = 0; ; attempt++) {
     try {
       return operation();
@@ -46,13 +46,13 @@ export function retryOnSharingViolation<T>(operation: () => T): T {
   }
 }
 
-export function renameSyncWithRetry(from: string, to: string): void {
-  retryOnSharingViolation(() => fs.renameSync(from, to));
+export function renameSyncWithRetry(from: string, to: string, options: SyncSharingRetryOptions = {}): void {
+  retryOnSharingViolation(() => fs.renameSync(from, to), options);
 }
 
 export type WriteJsonFileAtomicOptions = Readonly<{
   mode?: number;
-}>;
+}> & SyncSharingRetryOptions;
 
 /** 返回刚写下的那份字节的 sha256（十六进制）：调用方要内容指纹时用它，不必再把文件整读回来。 */
 export function writeJsonFileAtomic(filePath: string, value: unknown, options: WriteJsonFileAtomicOptions = {}): string {
@@ -92,7 +92,7 @@ export function writeJsonFileAtomic(filePath: string, value: unknown, options: W
     throw fileError;
   }
   try {
-    renameSyncWithRetry(tempPath, filePath);
+    renameSyncWithRetry(tempPath, filePath, { noWait: options.noWait });
   } catch (error) {
     removeTemp();
     throw error;

@@ -266,11 +266,11 @@ describe('MCP semantic operation production-path matrix', () => {
       leaseHandle, documentId: 'doc-1', where: 'cursor', content: '插入到开头',
     })
     expect(inserted.result?.isError).not.toBe(true)
-    const originalSaveProject = projectRepository.saveProject
-    const noRevisionSave = vi.spyOn(projectRepository, 'saveProject').mockImplementation((projectId: string, input: unknown) => ({
-      ...originalSaveProject(projectId, input),
-      revision: undefined,
-    }))
+    const originalUpdateProject = projectRepository.updateProject
+    const noRevisionSave = vi.spyOn(projectRepository, 'updateProject').mockImplementation(async (projectId, mutate) => {
+      const updated = await originalUpdateProject(projectId, mutate)
+      return { ...updated, saved: updated.saved ? { ...updated.saved, revision: undefined as never } : null }
+    })
     const noRevision = await client.call(32, 'nomi_document_edit', {
       leaseHandle, documentId: 'doc-1', where: 'selection', content: 'revision fallback',
     })

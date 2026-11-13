@@ -35,7 +35,8 @@ import {
 } from "./workspaceTypes";
 import { workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
 import { writeWorkspaceSyncBaseline } from "./workspaceSyncBaseline";
-import { runWithoutBlockingWait } from "../sharingRetry";
+import { isSharingViolation, retryOnSharingViolationAsync, SAVE_RETRY_BUDGET_MS, saveRetryDelayMs } from "../sharingRetry";
+import { WORKSPACE_MANIFEST_BUSY_ERROR_NAME } from "../shared/contracts/workspaceBusy";
 import { WorkspaceManifestLockBusyError, releaseWorkspaceManifestLock, tryAcquireWorkspaceManifestLock } from "./workspaceManifestLock";
 import { logWarn } from "../logging/logger";
 
@@ -362,74 +363,178 @@ export function readWorkspaceProject(
 }
 
 /**
- * 保存一份项目。整个保存在「不原地睡」的范围里跑（runWithoutBlockingWait）：文件被别的程序占着时同步助手立即再试一次就抛，
- * 由调用方（`projects/saveRetry`）用定时器重排整次保存——后台主线在等待期间照常响应别的请求。
- * 整次重排对崩溃是安全的：每个文件都是「临时文件 + fsync + rename」，盘上永远是旧的完整版或新的完整版。
+ * 重排之前核到盘上的修订号已经不是这次保存第一次看到的那个：别人（Agent / MCP / 生成落盘 / 另一个窗口）在占用期间写上了。
+ * 这次保存不写盘、整体收尾，调用方据此分得清「被抢先」——不能拿发起时的旧快照把别人已经回执过的写入盖掉。
+ * 名字沿用「项目正被别处占用」那一类（渲染层只认名字，走现有的保存失败路径和现有文案）；主进程调用方认 `instanceof` / `code`。
  */
-export function saveWorkspaceProject(
-  projectId: string,
-  record: unknown,
-  deps: WorkspaceRepositoryDeps,
-): Promise<WorkspaceProjectRecordV2> {
-  return runWithoutBlockingWait(() => saveWorkspaceProjectUnbounded(projectId, record, deps));
+export class ProjectSaveSupersededError extends Error {
+  readonly code = "project_save_superseded";
+  readonly expectedRevision: number;
+  readonly currentRevision: number;
+
+  constructor(expectedRevision: number, currentRevision: number) {
+    super(`Project was saved by another writer while this save was waiting (revision ${expectedRevision} -> ${currentRevision})`);
+    this.name = WORKSPACE_MANIFEST_BUSY_ERROR_NAME;
+    this.expectedRevision = expectedRevision;
+    this.currentRevision = currentRevision;
+  }
 }
 
-async function saveWorkspaceProjectUnbounded(
+export type WorkspaceSaveOptions = Readonly<{
+  /** 给了就在锁里核：盘上修订号不等于它 → {@link ProjectSaveSupersededError}，不写盘。 */
+  expectedRevision?: number;
+  /** 锁里读到盘上修订号时回报一次（第一次重排前记下「发起时看到的」用）。 */
+  onRevisionSeen?: (revision: number) => void;
+}>;
+
+/**
+ * 保存一份项目，分三段：
+ * - **提交前**（取锁、读、核修订号、算下一份）和**提交**（备份 → 清单，各自「临时文件 + fsync + rename」）：撞上占用就抛共享冲突，
+ *   由调用方（`projects/saveRetry`）用定时器重排；这两段对重排是安全的——提交之前盘上什么都没变（备份写的还是同一份旧内容）。
+ * - **提交后**（注册表、同步基线、目录凭据）：清单一旦写上，这次保存就算成功。这几步各自先试一次，撞上占用就交给后台按同一张表
+ *   退避补写（最长 60 秒），**绝不回头重新提交**，也不把已经成功的保存报成失败；最后还是写不上就记日志，下一次保存会补上。
+ * 所有文件助手都**显式**传「不原地睡」：后台主线在等待期间照常响应别的请求。
+ */
+export async function saveWorkspaceProject(
   projectId: string,
   record: unknown,
   deps: WorkspaceRepositoryDeps,
+  options: WorkspaceSaveOptions = {},
 ): Promise<WorkspaceProjectRecordV2> {
   const entry = findRecentEntry(projectId, deps);
   if (!entry || entry.missing) {
     throw new Error(`Workspace project not found: ${projectId}`);
   }
   let manifestSha256: string | undefined;
-  const written = await withWorkspaceManifestStagedMutation(entry.rootPath, (context) => {
-    // 同步基线要的内容指纹：用刚写下的那份字节在内存里算（提交后回调），不再把清单整读回来。
-    context.onCommitted((sha256Of) => { manifestSha256 = sha256Of(workspaceProjectFile(context.canonicalRootPath)); });
-    const existing = context.current;
-    if (!existing || existing.id !== projectId) {
-      throw new Error(`Workspace project not found: ${projectId}`);
-    }
-    const expectedBinding = record && typeof record === "object" ? (record as { expectedBinding?: ProjectBinding }).expectedBinding : undefined;
-    if (expectedBinding !== undefined) {
-      assertProjectAgentBinding(expectedBinding);
-      if (!sameProjectAgentBinding(expectedBinding, { projectId: existing.id,
-        immutableProjectUuid: existing.immutableProjectUuid ?? "", projectGeneration: existing.projectGeneration ?? 0 })) throw new Error("project_binding_stale");
-    }
-    const now = Date.now();
-    const next = normalizeWorkspaceProjectRecord({
-      ...existing,
-      // 首次真实保存 = 从草稿态 promote 为持久态：清掉 draft 标记，此后它永远显示在项目库里。
-      draft: undefined,
-      name: inputName(record, existing.name),
-      updatedAt: now,
-      savedAt: now,
-      revision: existing.revision + 1,
-      payload: inputPayload(record),
-      lastKnownRootPath: entry.rootPath,
-    });
-    const backupCandidate =
-      !existing.immutableProjectUuid &&
-      context.currentBackup?.immutableProjectUuid &&
-      context.currentBackup.projectGeneration
-        ? {
-            ...(context.currentRaw ?? existing),
-            immutableProjectUuid: context.currentBackup.immutableProjectUuid,
-            projectGeneration: context.currentBackup.projectGeneration,
-          }
-        : (context.currentRaw ?? existing);
-    context.replaceBackup(backupCandidate);
-    return context.replace(next);
-  });
-  // 名字 / 位置 / 来源没变时不重写注册表；最近打开时间保存时最多每 60 秒刷新一次。
-  bindWorkspaceLocation(deps.settingsRoot, { id: written.id, name: written.name, rootPath: entry.rootPath }, { touchIntervalMs: REGISTRY_TOUCH_INTERVAL_MS });
-  // 刚在锁里核过编号写下的这一份：就地换目录解析的凭据，保存不让下一次「找目录」重读整份项目文件。
-  const savedStamp = manifestStamp(entry.rootPath);
-  if (!manifestSha256) throw new Error("Workspace manifest commit did not report a content hash");
-  rememberResolvedProjectDir(resolvedProjectDirKey(projectId, deps), entry.rootPath, savedStamp);
-  writeWorkspaceSyncBaseline(deps.settingsRoot, written.id, { rootPath: entry.rootPath, revision: written.revision, contentHash: manifestSha256 });
+  let committed: WorkspaceProjectRecordV2 | undefined;
+  let written: WorkspaceProjectRecordV2;
+  try {
+    written = await withWorkspaceManifestStagedMutation(entry.rootPath, (context) => {
+      const existing = context.current;
+      if (!existing || existing.id !== projectId) {
+        throw new Error(`Workspace project not found: ${projectId}`);
+      }
+      options.onRevisionSeen?.(existing.revision);
+      if (options.expectedRevision !== undefined && existing.revision !== options.expectedRevision) {
+        throw new ProjectSaveSupersededError(options.expectedRevision, existing.revision);
+      }
+      const expectedBinding = record && typeof record === "object" ? (record as { expectedBinding?: ProjectBinding }).expectedBinding : undefined;
+      if (expectedBinding !== undefined) {
+        assertProjectAgentBinding(expectedBinding);
+        if (!sameProjectAgentBinding(expectedBinding, { projectId: existing.id,
+          immutableProjectUuid: existing.immutableProjectUuid ?? "", projectGeneration: existing.projectGeneration ?? 0 })) throw new Error("project_binding_stale");
+      }
+      const now = Date.now();
+      const next = normalizeWorkspaceProjectRecord({
+        ...existing,
+        // 首次真实保存 = 从草稿态 promote 为持久态：清掉 draft 标记，此后它永远显示在项目库里。
+        draft: undefined,
+        name: inputName(record, existing.name),
+        updatedAt: now,
+        savedAt: now,
+        revision: existing.revision + 1,
+        payload: inputPayload(record),
+        lastKnownRootPath: entry.rootPath,
+      });
+      const backupCandidate =
+        !existing.immutableProjectUuid &&
+        context.currentBackup?.immutableProjectUuid &&
+        context.currentBackup.projectGeneration
+          ? {
+              ...(context.currentRaw ?? existing),
+              immutableProjectUuid: context.currentBackup.immutableProjectUuid,
+              projectGeneration: context.currentBackup.projectGeneration,
+            }
+          : (context.currentRaw ?? existing);
+      context.replaceBackup(backupCandidate);
+      const replaced = context.replace(next);
+      // 提交后回调：清单已经原子写完。同步基线要的内容指纹用刚写下的那份字节在内存里算，不再把清单整读回来。
+      context.onCommitted((sha256Of) => {
+        manifestSha256 = sha256Of(workspaceProjectFile(context.canonicalRootPath));
+        committed = replaced;
+      });
+      return replaced;
+    }, { noBlockingWait: true });
+  } catch (error) {
+    // 清单已经提交，之后（放锁）才撞上占用：保存已经成功，不能让上层把它当成「没存上」再提交一遍。
+    if (!committed || !isSharingViolation(error)) throw error;
+    logWarn("workspace", "save-committed-release-occupied", { revision: committed.revision }, error);
+    written = committed;
+  }
+  finishCommittedSave(deps, entry.rootPath, written, manifestSha256);
   return written;
+}
+
+/** 提交后各步：先各试一次（不原地睡），撞上占用交给后台补写。新的一次保存会让同一步旧的补写作废（它写的是更新的一份）。 */
+function finishCommittedSave(
+  deps: WorkspaceRepositoryDeps,
+  rootPath: string,
+  written: WorkspaceProjectRecordV2,
+  manifestSha256: string | undefined,
+): void {
+  const key = resolvedProjectDirKey(written.id, deps);
+  // 刚在锁里核过编号写下的这一份：就地换目录解析的凭据，保存不让下一次「找目录」重读整份项目文件。
+  rememberResolvedProjectDir(key, rootPath, manifestStamp(rootPath));
+  // 名字 / 位置 / 来源没变时不重写注册表；最近打开时间保存时最多每 60 秒刷新一次。
+  runPostCommitStep(`${key}\u0000registry`, "registry", (waitedMs) => {
+    bindWorkspaceLocation(deps.settingsRoot, { id: written.id, name: written.name, rootPath }, { touchIntervalMs: REGISTRY_TOUCH_INTERVAL_MS, noWait: { waitedMs } });
+  });
+  if (!manifestSha256) {
+    // 只有事务实现坏了才会走到：基线这一次不写，下一次保存补上（同步面会把它当成「没见过的版本」再认一次）。
+    logWarn("workspace", "save-committed-no-content-hash", { revision: written.revision });
+    return;
+  }
+  const contentHash = manifestSha256;
+  runPostCommitStep(`${key}\u0000sync-baseline`, "sync-baseline", () => {
+    writeWorkspaceSyncBaseline(deps.settingsRoot, written.id, { rootPath, revision: written.revision, contentHash }, { noWait: true });
+  });
+}
+
+const postCommitGenerations = new Map<string, number>();
+const postCommitInFlight = new Set<Promise<void>>();
+
+/**
+ * 跑一步提交后的派生写入。撞上占用：后台按保存的退避表补写，总上限 60 秒；期间同一步又有更新的一次保存 → 这次补写作废。
+ * 别的错和最终失败只记日志——清单已经存上了，这一步下一次保存会补上（注册表：最近打开时间 / 名字；基线：修订号 + 内容指纹）。
+ */
+function runPostCommitStep(key: string, step: string, write: (waitedMs: number) => void): void {
+  const generation = (postCommitGenerations.get(key) ?? 0) + 1;
+  postCommitGenerations.set(key, generation);
+  const current = (): boolean => postCommitGenerations.get(key) === generation;
+  const done = (): void => {
+    if (current()) postCommitGenerations.delete(key);
+  };
+  try {
+    write(0);
+    done();
+    return;
+  } catch (error) {
+    if (!isSharingViolation(error)) {
+      logWarn("workspace", "save-post-commit-failed", { step, willRetryOnNextSave: true }, error);
+      done();
+      return;
+    }
+  }
+  const startedAt = Date.now();
+  const job = retryOnSharingViolationAsync(
+    () => {
+      if (current()) write(Date.now() - startedAt);
+    },
+    { delayMs: saveRetryDelayMs, budgetMs: SAVE_RETRY_BUDGET_MS },
+  ).then(
+    () => undefined,
+    (error: unknown) => logWarn("workspace", "save-post-commit-failed", { step, willRetryOnNextSave: true }, error),
+  );
+  const tracked = job.finally(() => {
+    done();
+    postCommitInFlight.delete(tracked);
+  });
+  postCommitInFlight.add(tracked);
+}
+
+/** 测试缝：等所有提交后的后台补写结束（成功、作废或放弃）。 */
+export async function settleWorkspacePostCommitWrites(): Promise<void> {
+  while (postCommitInFlight.size) await Promise.all([...postCommitInFlight]);
 }
 
 export function removeWorkspaceProjectReference(

@@ -6,7 +6,6 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { saveWithSharingRetry } from "./saveRetry";
-import { runWithoutBlockingWait } from "../sharingRetry";
 import { ensureExportDirs } from "../export/exportPaths";
 import { writeJsonFileAtomic } from "../jsonFile";
 import type { JsonRecord } from "../jsonUtils";
@@ -38,8 +37,10 @@ import {
   listWorkspaceProjects,
   readWorkspaceProject,
   recoverWorkspaceProject,
+  ProjectSaveSupersededError,
   resolveWorkspaceProjectDir,
   saveWorkspaceProject,
+  type WorkspaceSaveOptions,
 } from "../workspace/workspaceRepository";
 
 export type ProjectRecord = {
@@ -230,15 +231,57 @@ export function recoverProject(projectId: string): ProjectRecord {
   return recoverWorkspaceProject(String(projectId || "").trim(), getWorkspaceRepositoryDeps());
 }
 
+/**
+ * 整份快照保存（渲染层 IPC）：占用时用定时器重排（上限 60 秒，见 saveRetry）。每次重排前在锁里核盘上的修订号：
+ * 和这次保存第一次读到的不一样（占用期间别人写上了）→ 不写盘，抛 {@link ProjectSaveSupersededError}，调用方照保存失败处理，
+ * 改动还在它自己手里。主进程里「读 → 改 → 写」的写入方不要用它，用 {@link updateProject}。
+ */
 export function saveProject(projectId: string, input: unknown): Promise<ProjectRecord> {
-  // 所有保存调用方（渲染层 IPC、MCP / Agent 写画布、文档写口）共用这一处：占用时用定时器重排整次保存（上限 60 秒）。
-  return saveWithSharingRetry(() => saveProjectOnce(projectId, input));
+  const id = String(projectId || "").trim();
+  let firstSeenRevision: number | undefined;
+  const onRevisionSeen = (revision: number): void => {
+    firstSeenRevision ??= revision;
+  };
+  return saveWithSharingRetry(() => saveProjectOnce(id, input, { expectedRevision: firstSeenRevision, onRevisionSeen }));
 }
 
-async function saveProjectOnce(projectId: string, input: unknown): Promise<ProjectRecord> {
+/** 回调的结果：`next` 是要写的下一份记录（不给 = 不写，比如要改的东西已经不在了）；`result` 原样交还调用方。 */
+export type ProjectUpdate<R> = Readonly<{ next?: unknown; result: R }>;
+
+/** 被别人抢先之后重读重改的次数上限（每次都拿到更新的一份；超过说明有人在连续写，如实失败）。 */
+const UPDATE_PROJECT_MAX_REBASES = 5;
+
+/**
+ * 主进程「读 → 改 → 写」的唯一写口（生成结果落盘、Agent / MCP 写画布、MCP 写文稿）。重排的单位包含「读」：
+ * 每一次重试（占用重排、或核到修订号变了）都重新读盘上最新的一份、再调一次 `mutate`，绝不拿第一次读到的旧内容写回去。
+ * 写的时候在锁里核修订号 = 刚读到的那个，所以读和写之间别人写上的内容不会被盖掉。
+ *
+ * `mutate` 必须是纯的、可重复调用：只根据传进来的最新记录算下一份，不发事件、不写别的文件、不记账——它可能被调好几次。
+ */
+export function updateProject<R>(
+  projectId: string,
+  mutate: (latest: ProjectRecord | null) => ProjectUpdate<R>,
+): Promise<{ result: R; saved: ProjectRecord | null }> {
   const id = String(projectId || "").trim();
+  return saveWithSharingRetry(async () => {
+    for (let rebase = 0; ; rebase++) {
+      const latest = readProject(id);
+      const { next, result } = mutate(latest);
+      if (next === undefined) return { result, saved: null };
+      try {
+        const saved = await saveProjectOnce(id, next, typeof latest?.revision === "number" ? { expectedRevision: latest.revision } : {});
+        return { result, saved };
+      } catch (error) {
+        if (error instanceof ProjectSaveSupersededError && rebase < UPDATE_PROJECT_MAX_REBASES) continue;
+        throw error;
+      }
+    }
+  });
+}
+
+async function saveProjectOnce(id: string, input: unknown, options: WorkspaceSaveOptions): Promise<ProjectRecord> {
   if (findRecentWorkspace(getWorkspaceRepositoryDeps().settingsRoot, id)) {
-    return saveWorkspaceProject(id, input, getWorkspaceRepositoryDeps());
+    return saveWorkspaceProject(id, input, getWorkspaceRepositoryDeps(), options);
   }
 
   if (input && typeof input === "object" && "expectedBinding" in input) throw new Error("project_binding_stale");
@@ -246,7 +289,8 @@ async function saveProjectOnce(projectId: string, input: unknown): Promise<Proje
   if (!projectDir) throw new Error("Cannot save unknown workspace project");
   const record = normalizeProjectRecord({ ...(input as JsonRecord), id });
   ensureProjectFolders(projectDir);
-  runWithoutBlockingWait(() => writeJsonFileAtomic(path.join(projectDir, PROJECT_FILE), record));
+  // 旧格式只有这一个文件：写上就是提交，没有提交后的步骤；占用时不原地睡，交给上层重排。
+  writeJsonFileAtomic(path.join(projectDir, PROJECT_FILE), record, { noWait: true });
   return record;
 }
 

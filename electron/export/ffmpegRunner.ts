@@ -308,7 +308,7 @@ export async function transcodeWebmFileToMp4(options: TranscodeWebmFileToMp4Opti
     const stat = fs.statSync(partialOutputPath);
     if (stat.size <= 0) throw new Error(desktopT("export.mp4Empty"));
     // Windows：旧导出 MP4 被播放器/资源管理器预览持有会 EPERM，共享重试收口（P2）。
-    await retryOnSharingViolationAsync(() => fs.renameSync(partialOutputPath, outputPath), { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
+    await retryOnSharingViolationAsync(() => fs.promises.rename(partialOutputPath, outputPath), { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
     const finalStat = fs.statSync(outputPath);
     return {
       absolutePath: outputPath,
@@ -395,7 +395,7 @@ export async function renderFiltergraphToMp4(options: RenderFiltergraphToMp4Opti
     const stat = fs.statSync(partialOutputPath);
     if (stat.size <= 0) throw new Error(desktopT("export.mp4Empty"));
     // Windows：旧导出 MP4 被播放器/资源管理器预览持有会 EPERM，共享重试收口（P2）。
-    await retryOnSharingViolationAsync(() => fs.renameSync(partialOutputPath, outputPath), { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
+    await retryOnSharingViolationAsync(() => fs.promises.rename(partialOutputPath, outputPath), { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
     const finalStat = fs.statSync(outputPath);
     return {
       absolutePath: outputPath,

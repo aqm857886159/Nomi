@@ -1,6 +1,6 @@
 import crypto from 'node:crypto'
 
-import { readProject, saveProject } from '../projects/repository'
+import { readProject, updateProject, type ProjectRecord } from '../projects/repository'
 
 type DocumentRecord = { id: string; contentJson?: unknown; updatedAt?: number }
 
@@ -25,7 +25,10 @@ function contentFor(text: string): unknown {
 }
 
 function projectDocument(projectId: string, documentId?: string): { project: Record<string, unknown>; document: DocumentRecord; text: string } {
-  const project = readProject(projectId)
+  return documentIn(readProject(projectId), projectId, documentId)
+}
+
+function documentIn(project: ProjectRecord | null, projectId: string, documentId?: string): { project: Record<string, unknown>; document: DocumentRecord; text: string } {
   if (!project) throw Object.assign(new Error(`Project not found: ${projectId}`), { code: 'project_not_found' })
   const payload = record(project.payload)
   const documents = Array.isArray(payload.workbenchDocuments) ? payload.workbenchDocuments as DocumentRecord[] : []
@@ -50,20 +53,23 @@ export async function writeProjectDocument(
   operation: 'insert' | 'replace' | 'append',
   content: string,
 ) {
-  const { project, document, text } = projectDocument(projectId, documentId)
-  const nextText = operation === 'replace' ? content : operation === 'append' ? `${text}${text ? '\n' : ''}${content}` : `${content}${text ? '\n' : ''}${text}`
-  const payload = record(project.payload)
-  // projectDocument already rejected a missing/non-array document collection;
-  // keep the write path on that same validated collection instead of carrying
-  // an unreachable fallback that can never preserve the selected document.
-  const documents = (payload.workbenchDocuments as DocumentRecord[]).map((candidate) => {
-    const item = record(candidate)
-    return item.id === document.id ? { ...item, contentJson: contentFor(nextText), updatedAt: Date.now() } : candidate
+  // 读 → 改 → 写整段交给 updateProject：占用重排或被别人抢先时，每次都拿盘上最新的文稿重新插入 / 追加（回调是纯的）。
+  const { result: nextText, saved } = await updateProject(projectId, (latest) => {
+    const { project, document, text } = documentIn(latest, projectId, documentId)
+    const nextText = operation === 'replace' ? content : operation === 'append' ? `${text}${text ? '\n' : ''}${content}` : `${content}${text ? '\n' : ''}${text}`
+    const payload = record(project.payload)
+    // projectDocument already rejected a missing/non-array document collection;
+    // keep the write path on that same validated collection instead of carrying
+    // an unreachable fallback that can never preserve the selected document.
+    const documents = (payload.workbenchDocuments as DocumentRecord[]).map((candidate) => {
+      const item = record(candidate)
+      return item.id === document.id ? { ...item, contentJson: contentFor(nextText), updatedAt: Date.now() } : candidate
+    })
+    return { next: { ...project, payload: { ...payload, workbenchDocuments: documents, activeDocumentId: document.id } }, result: nextText }
   })
-  const saved = await saveProject(projectId, { ...project, payload: { ...payload, workbenchDocuments: documents, activeDocumentId: document.id } })
   return {
     applied: true as const,
-    revision: Number(saved.revision ?? 0),
+    revision: Number(saved?.revision ?? 0),
     contentHash: crypto.createHash('sha256').update(nextText, 'utf8').digest('hex'),
   }
 }

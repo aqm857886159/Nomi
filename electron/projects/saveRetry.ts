@@ -3,16 +3,14 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 
 import { PROJECT_SAVE_IN_USE_ERROR_NAME } from "../shared/contracts/projectSaveFailure";
-import { isSharingViolation, retryOnSharingViolationAsync } from "../sharingRetry";
+import { isSharingViolation, retryOnSharingViolationAsync, SAVE_RETRY_BUDGET_MS, saveRetryDelayMs } from "../sharingRetry";
 
 /**
  * 保存撞上「文件被别的程序占着」（Windows 杀毒 / 同步盘，EPERM / EBUSY / EACCES）：用定时器按 50 / 100 / 200 / 400 / 800 / 1000…
- * 毫秒重排**整次保存**（不是只重试改名那一步），总上限 60 秒。等待期间不占后台主线——别的请求照常响应；
- * 每次重试都是完整的「临时文件 + fsync + rename」，盘上永远是旧的完整版或新的完整版。
+ * 毫秒重排（节奏表在 sharingRetry.ts），总上限 60 秒。等待期间不占后台主线——别的请求照常响应。
+ * 重排的只是「还没提交」的那一段：清单一旦写上，提交后的各步由 workspaceRepository 自己在后台补写，不回到这里。
  */
-export const SAVE_RETRY_BUDGET_MS = 60_000;
-const SAVE_RETRY_STEPS_MS = [50, 100, 200, 400, 800] as const;
-export const saveRetryDelayMs = (attempt: number): number => SAVE_RETRY_STEPS_MS[attempt] ?? 1000;
+export { SAVE_RETRY_BUDGET_MS };
 
 /** 重试满 60 秒仍是共享冲突：说清「被占用」，不是「没权限」（原错误留在 cause 上，错误码照实带着）。 */
 export class ProjectSaveInUseError extends Error {

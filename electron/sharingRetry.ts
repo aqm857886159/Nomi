@@ -6,11 +6,11 @@
  *
  * 1. 同步调用方（`jsonFile.retryOnSharingViolation`，结构上无法 await 的清单锁、同步 IPC 等）：原地睡着退避。
  *    这是主进程上的原地睡，所以只给「结构上只能同步」的调用方留着，随后面的存盘主人搬走。
- * 2. 保存热路径：在 {@link runWithoutBlockingWait} 里，同步助手不睡——立即再试一次、还不行就抛，
- *    由上层 {@link retryOnSharingViolationAsync} 用定时器重排整次保存（后台主线在等待期间照常响应别的请求）。
+ * 2. 保存路径：调用方**显式**传 `{ noWait: true }`（见 {@link SyncSharingRetryOptions}），同步助手不睡——立即再试一次、
+ *    还不行就抛，由上层 {@link retryOnSharingViolationAsync} 用定时器重排（后台主线在等待期间照常响应别的请求）。
+ *    没传的调用方行为逐字不变；不靠任何隐式上下文切换行为。
  * 3. 已经在 async 函数里的调用方：直接用 {@link retryOnSharingViolationAsync}，不睡。
  */
-import { AsyncLocalStorage } from "node:async_hooks";
 
 /** 别的进程（杀毒 / 索引器 / 同步盘）短暂开着这个文件或它下面的文件时，Windows 给的三种错误码。 */
 export function isSharingViolation(error: unknown): boolean {
@@ -23,19 +23,16 @@ export const SHARING_RETRY_DELAYS_MS: readonly number[] = [10, 30, 60, 100, 200]
 /** 导出改名这类「值得多等一会」的异步调用方：总预算约 2.6 秒。 */
 export const SHARING_RETRY_LONG_DELAYS_MS: readonly number[] = [10, 30, 60, 100, 200, 400, 800, 1000];
 
-const noBlockingWait = new AsyncLocalStorage<true>();
+/** 同步助手的选项。`noWait`：不原地睡，立即再试一次就抛——只给「上层会用定时器重排」的保存路径显式传。 */
+export type SyncSharingRetryOptions = Readonly<{ noWait?: boolean }>;
 
 /**
- * 在这段（含其中所有 await 之后的续体）里，同步文件助手遇到占用不睡：立即再试一次就抛。
- * 只给「上层会按定时器整体重排」的调用方用（保存路径）；其余同步调用方在这段之外，行为逐字不变。
+ * 保存撞上占用时的重排节奏：50 / 100 / 200 / 400 / 800 / 1000… 毫秒，总上限 60 秒。
+ * 提交前的整段（取锁 → 读 → 写清单）和提交后各步（注册表、同步基线）的后台补写共用这一张表。
  */
-export function runWithoutBlockingWait<T>(fn: () => T): T {
-  return noBlockingWait.run(true, fn);
-}
-
-export function blockingWaitAllowed(): boolean {
-  return noBlockingWait.getStore() !== true;
-}
+export const SAVE_RETRY_BUDGET_MS = 60_000;
+const SAVE_RETRY_STEPS_MS = [50, 100, 200, 400, 800] as const;
+export const saveRetryDelayMs = (attempt: number): number => SAVE_RETRY_STEPS_MS[attempt] ?? 1000;
 
 export type AsyncSharingRetryOptions = Readonly<{
   /** 第 attempt 次失败后等多久再试（attempt 从 0 起）；返回 null = 不再试。默认用 {@link SHARING_RETRY_DELAYS_MS}。 */

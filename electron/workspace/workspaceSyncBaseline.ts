@@ -1,5 +1,6 @@
 import path from "node:path";
 import { readJsonFile, writeJsonFileAtomic } from "../jsonFile";
+import type { SyncSharingRetryOptions } from "../sharingRetry";
 
 const SCHEMA_VERSION = 1;
 const BASELINE_FILE = "workspace-sync-baseline.json";
@@ -53,10 +54,16 @@ export function readWorkspaceSyncBaseline(settingsRoot: string, projectId: strin
   return baseline;
 }
 
-export function writeWorkspaceSyncBaseline(settingsRoot: string, projectId: string, baseline: WorkspaceSyncBaseline): void {
+/** `noWait`：保存提交之后的后台补写显式传，撞上占用不原地睡、立即抛，由调用方用定时器再来。其余调用方不传，行为逐字不变。 */
+export function writeWorkspaceSyncBaseline(
+  settingsRoot: string,
+  projectId: string,
+  baseline: WorkspaceSyncBaseline,
+  options: SyncSharingRetryOptions = {},
+): void {
   const id = String(projectId || "").trim();
   if (!id) throw new Error("projectId is required");
   const store = readStore(settingsRoot);
   store.projects[id] = { rootPath: path.resolve(baseline.rootPath), revision: baseline.revision, contentHash: baseline.contentHash };
-  writeJsonFileAtomic(baselinePath(settingsRoot), store);
+  writeJsonFileAtomic(baselinePath(settingsRoot), store, options);
 }

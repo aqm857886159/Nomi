@@ -38,9 +38,10 @@ vi.mock('../../library/localProjectStore', () => ({
 // 主进程这一侧（真实网关代码，只把仓库接到同一份内存盘上）。
 vi.mock('../../../../electron/projects/repository', () => ({
   readProject: () => structuredClone(disk.record),
-  saveProject: async (_projectId: string, record: { id: string; payload: Record<string, unknown> }) => {
-    disk.record = structuredClone(record)
-    return disk.record
+  updateProject: async (_projectId: string, mutate: (latest: unknown) => { next?: unknown; result: unknown }) => {
+    const { next, result } = mutate(structuredClone(disk.record))
+    if (next !== undefined) disk.record = structuredClone(next) as typeof disk.record
+    return { result, saved: disk.record }
   },
 }))
 vi.mock('../../../../electron/capabilityCore/rendererBridge', () => ({ requestRenderer: vi.fn(), requestRendererDecision: vi.fn() }))

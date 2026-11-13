@@ -7,6 +7,7 @@ import {
   assertWorkspaceManifestLockOwned,
   releaseWorkspaceManifestLock,
   tryAcquireWorkspaceManifestLock,
+  WorkspaceManifestLockOccupiedError,
   type WorkspaceManifestLockOptions,
   type WorkspaceManifestLockLease,
 } from "./workspaceManifestLock";
@@ -52,11 +53,24 @@ function serializableValue(value: unknown): unknown {
   return JSON.parse(serialized);
 }
 
+/**
+ * 写完之后再核一次锁。保存路径（取锁时显式要了 noBlockingWait）里，这一刻 owner.json 恰好被杀毒 / 同步盘开着读不到，
+ * 不能把一份已经在锁里原子写完的文件报成失败——那会让上层把整次保存重来、把已提交的清单再提交一遍。
+ * 锁真的换了主人（读得到、但不是我）照旧抛；下一步写之前的核验和放锁会再看一次。
+ */
+function assertStillOwnedAfterWrite(lease: WorkspaceManifestLockLease): void {
+  try {
+    assertWorkspaceManifestLockOwned(lease);
+  } catch (error) {
+    if (!(error instanceof WorkspaceManifestLockOccupiedError)) throw error;
+  }
+}
+
 function persistJson(lease: WorkspaceManifestLockLease, target: string, expected: unknown, hashes: Map<string, string>): unknown {
   assertWorkspaceManifestLockOwned(lease);
   // 写入是「临时文件 + fsync + rename」，写不全会抛；指纹用写下的那份字节算（不再整读回来解析比对）。
-  hashes.set(target, writeJsonFileAtomic(target, expected));
-  assertWorkspaceManifestLockOwned(lease);
+  hashes.set(target, writeJsonFileAtomic(target, expected, { noWait: lease.noBlockingWait === true }));
+  assertStillOwnedAfterWrite(lease);
   return expected;
 }
 

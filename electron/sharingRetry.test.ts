@@ -10,7 +10,7 @@ import { projectSaveFailure } from "./shared/contracts/projectSaveFailure";
 import {
   delaysFromTable,
   retryOnSharingViolationAsync,
-  runWithoutBlockingWait,
+  saveRetryDelayMs,
   SHARING_RETRY_LONG_DELAYS_MS,
 } from "./sharingRetry";
 import { bindWorkspaceLocation, REGISTRY_TOUCH_INTERVAL_MS } from "./workspace/workspaceRegistry";
@@ -64,25 +64,22 @@ describe("同步调用方（结构上只能同步的那几类）：持续 300ms 
   });
 });
 
-describe("保存热路径（runWithoutBlockingWait 里）：不原地睡", () => {
+describe("保存热路径（调用方显式传 noWait）：不原地睡", () => {
   it("同步助手立即再试一次就抛，不睡", () => {
     let calls = 0;
     const waitSpy = vi.spyOn(Atomics, "wait");
-    expect(() => runWithoutBlockingWait(() => retryOnSharingViolation(() => { calls += 1; throw errno("EBUSY"); }))).toThrow(/EBUSY/);
+    expect(() => retryOnSharingViolation(() => { calls += 1; throw errno("EBUSY"); }, { noWait: true })).toThrow(/EBUSY/);
     expect(calls).toBe(2);
     expect(waitSpy).not.toHaveBeenCalled();
   });
 
-  it("范围跟着 await 之后的续体走", async () => {
+  it("没传 noWait 的调用方照旧按表退避（保存之外的行为不变）", () => {
     let calls = 0;
-    await runWithoutBlockingWait(async () => {
-      await Promise.resolve();
-      expect(() => retryOnSharingViolation(() => { calls += 1; throw errno("EPERM"); })).toThrow(/EPERM/);
-    });
-    expect(calls).toBe(2);
+    expect(() => retryOnSharingViolation(() => { calls += 1; throw errno("EBUSY"); })).toThrow(/EBUSY/);
+    expect(calls).toBe(6);
   });
 
-  it("注册表锁被别的进程占着且不陈旧：抛 EBUSY，不自旋；陈旧才夺", () => {
+  it("注册表锁被别的进程占着且不陈旧：抛 EBUSY，不自旋；保存已累计等够陈旧期才夺", () => {
     const settings = tmp();
     const root = path.join(tmp(), "p");
     const binding = { id: "p1", name: "P", rootPath: root };
@@ -90,12 +87,15 @@ describe("保存热路径（runWithoutBlockingWait 里）：不原地睡", () =>
     const lockDir = path.join(settings, "recent-workspaces.json.lock");
     fs.mkdirSync(lockDir);
     const waitSpy = vi.spyOn(Atomics, "wait");
-    expect(() => runWithoutBlockingWait(() => bindWorkspaceLocation(settings, binding))).toThrow(expect.objectContaining({ code: "EBUSY" }));
+    expect(() => bindWorkspaceLocation(settings, binding, { noWait: { waitedMs: 0 } })).toThrow(expect.objectContaining({ code: "EBUSY" }));
     expect(waitSpy).not.toHaveBeenCalled();
     waitSpy.mockRestore();
-    const old = new Date(Date.now() - 10_000);
-    fs.utimesSync(lockDir, old, old);
-    expect(runWithoutBlockingWait(() => bindWorkspaceLocation(settings, binding))).toHaveLength(1);
+    expect(bindWorkspaceLocation(settings, binding, { noWait: { waitedMs: 3_001 } })).toHaveLength(1);
+    expect(fs.existsSync(lockDir)).toBe(false);
+  });
+
+  it("保存的退避表：50 → 100 → 200 → 400 → 800，之后每秒一次", () => {
+    expect([0, 1, 2, 3, 4, 5, 30].map(saveRetryDelayMs)).toEqual([50, 100, 200, 400, 800, 1000, 1000]);
   });
 });
 
@@ -107,6 +107,33 @@ describe("已在 async 函数里的调用方：同一个异步重试件，持续
     expect(maxMs).toBeLessThan(50);
   });
 
+  it("回调返回的 Promise 被拒（异步改名）也接得住：前 2 次 EBUSY、第 3 次成功 → 成功，等的是表里前两档", async () => {
+    const waits: number[] = [];
+    let calls = 0;
+    const value = await retryOnSharingViolationAsync(async () => {
+      calls += 1;
+      if (calls <= 2) throw errno("EBUSY");
+      return "ok";
+    }, { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS), wait: async (ms) => { waits.push(ms); } });
+    expect(value).toBe("ok");
+    expect(calls).toBe(3);
+    expect(waits).toEqual(SHARING_RETRY_LONG_DELAYS_MS.slice(0, 2));
+    const started = Date.now();
+    let real = 0;
+    await retryOnSharingViolationAsync(() => (++real <= 2 ? Promise.reject(errno("EBUSY")) : Promise.resolve("ok")), { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
+    const elapsed = Date.now() - started;
+    expect(elapsed).toBeGreaterThanOrEqual(SHARING_RETRY_LONG_DELAYS_MS[0] + SHARING_RETRY_LONG_DELAYS_MS[1] - 5);
+    expect(elapsed).toBeLessThan(SHARING_RETRY_LONG_DELAYS_MS[0] + SHARING_RETRY_LONG_DELAYS_MS[1] + 200);
+  });
+
+  it("回调一直以 Promise 被拒：表用完后抛出的还是原来那个错误码", async () => {
+    let calls = 0;
+    await expect(retryOnSharingViolationAsync(() => { calls += 1; return Promise.reject(errno("EPERM", { syscall: "rename" })); }, {
+      delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS), wait: async () => undefined,
+    })).rejects.toMatchObject({ code: "EPERM", syscall: "rename" });
+    expect(calls).toBe(SHARING_RETRY_LONG_DELAYS_MS.length + 1);
+  });
+
   it("不是共享冲突的错立刻抛，预算用完如实抛最后一次的错", async () => {
     await expect(retryOnSharingViolationAsync(() => { throw errno("ENOENT"); })).rejects.toMatchObject({ code: "ENOENT" });
     let calls = 0;
@@ -115,7 +142,7 @@ describe("已在 async 函数里的调用方：同一个异步重试件，持续
   });
 });
 
-describe("保存：占用时用定时器重排整次保存", () => {
+describe("保存：提交前的占用用定时器重排", () => {
   it("整次保存：项目文件持续 2 秒被占用 → 之后保存成功，盘上是完整的新版，期间事件循环延迟 < 50ms", async () => {
     const root = tmp();
     const deps = { settingsRoot: path.join(root, "settings"), defaultProjectsRoot: path.join(root, "projects") };
@@ -156,8 +183,13 @@ describe("保存：占用时用定时器重排整次保存", () => {
     const file = path.join(dir, "project.json");
     fs.chmodSync(dir, 0o555);
     try {
+      // 假时钟：去掉「真没权限」判断时这里按断言红（等满预算后报 in-use），不靠真时间、也不会空转到内存耗尽。
+      let clock = 0;
       const waits: number[] = [];
-      const failure = saveWithSharingRetry(async () => { throw errno("EACCES", { path: file, syscall: "rename" }); }, { wait: async (ms) => { waits.push(ms); } });
+      const failure = saveWithSharingRetry(async () => { throw errno("EACCES", { path: file, syscall: "rename" }); }, {
+        now: () => clock,
+        wait: async (ms) => { waits.push(ms); clock += ms; },
+      });
       const error = await failure.catch((e: unknown) => e);
       if (process.getuid?.() === 0) return; // root 不受目录权限限制
       expect(waits).toEqual([]);

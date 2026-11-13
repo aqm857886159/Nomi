@@ -539,7 +539,7 @@ export default tseslint.config(
   },
   {
     // 保存热路径不新增同步文件操作（存量批量压制，只减不增）。
-    files: ['electron/workspace/**/*.ts', 'electron/projects/**/*.ts', 'electron/productionRun/**/*.ts', 'electron/jsonFile.ts', 'electron/catalog/**/*.ts'],
+    files: ['electron/workspace/**/*.ts', 'electron/projects/**/*.ts', 'electron/productionRun/**/*.ts', 'electron/jsonFile.ts', 'electron/catalog/**/*.ts', 'electron/events/**/*.ts', 'electron/assets/**/*.ts', 'electron/export/**/*.ts', 'electron/capabilityCore/documentSurface.ts', 'electron/capabilityCore/gateway.ts', 'electron/configFileStore.ts', 'electron/durability.ts'],
     ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**'],
     plugins: { 'hot-path-sync-fs': hotPathSyncFsPlugin },
     rules: { 'hot-path-sync-fs/no-restricted-syntax': ['error', ...hotPathSyncFsSelectors] },
