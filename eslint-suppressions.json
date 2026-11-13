@@ -1,7 +1,137 @@
 {
+  "electron/assets/assetBytes.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "electron/assets/assetFolders.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "electron/assets/assetPreview.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 15
+    }
+  },
+  "electron/assets/assetReferenceIdentity.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "electron/assets/assetSidecar.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "electron/assets/assetWriteContext.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "electron/assets/localAssetFile.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 9
+    }
+  },
+  "electron/assets/localFileImport.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 9
+    }
+  },
+  "electron/assets/projectAssetStore.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 13
+    }
+  },
+  "electron/assets/projectCacheFile.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/assets/scratchCleanup.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "electron/assets/storedAssetFile.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "electron/assets/uploadContentStore.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 12
+    }
+  },
+  "electron/assets/videoImportNormalize.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 3
+    }
+  },
   "electron/capabilityCore/hostConfigWrite.ts": {
     "main-sync-wait/no-restricted-syntax": {
       "count": 1
+    }
+  },
+  "electron/catalog/catalogFileAccess.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/configFileStore.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 8
+    }
+  },
+  "electron/durability.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "electron/events/eventLogRepository.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 20
+    }
+  },
+  "electron/export/ensureExecutable.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "electron/export/exportJobManager.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/export/exportJobStore.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 14
+    }
+  },
+  "electron/export/exportJobs.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "electron/export/exportPaths.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "electron/export/exportTempInput.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 11
+    }
+  },
+  "electron/export/ffmpegRunner.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 16
+    }
+  },
+  "electron/export/mediaProbe.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 6
     }
   },
   "electron/integrationCertification/operationLedger.ts": {
@@ -15,8 +145,86 @@
     }
   },
   "electron/jsonFile.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 8
+    },
     "main-sync-wait/no-restricted-syntax": {
       "count": 1
+    }
+  },
+  "electron/productionRun/artifactPreviewHttpServer.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/productionRun/artifactProjection.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 11
+    }
+  },
+  "electron/productionRun/canvasShotRunIndex.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 7
+    }
+  },
+  "electron/productionRun/productionRunArtifactOperations.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "electron/productionRun/productionRunE2eFixture.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 10
+    }
+  },
+  "electron/productionRun/productionRunIntentLog.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "electron/productionRun/productionRunLock.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 15
+    }
+  },
+  "electron/productionRun/productionRunRepository.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 13
+    }
+  },
+  "electron/productionRun/productionRunRuntimeEnvelope.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "electron/productionRun/productionRunService.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "electron/productionRun/productionRunStoryboardHashRecovery.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/productionRun/submissionIntent.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 11
+    }
+  },
+  "electron/projects/projectQuarantine.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "electron/projects/projectTrash.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/projects/repository.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 5
     }
   },
   "electron/providerAdapter/store.ts": {
@@ -24,9 +232,72 @@
       "count": 1
     }
   },
+  "electron/workspace/legacyProjectMigration.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 9
+    }
+  },
+  "electron/workspace/workspaceFileDelete.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "electron/workspace/workspaceFileIndex.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 9
+    }
+  },
+  "electron/workspace/workspaceIpc.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/workspace/workspaceLocationPolicy.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "electron/workspace/workspaceManifest.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 11
+    }
+  },
+  "electron/workspace/workspaceManifestLock.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 21
+    }
+  },
+  "electron/workspace/workspaceManifestTransaction.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 11
+    }
+  },
+  "electron/workspace/workspacePaths.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 8
+    }
+  },
+  "electron/workspace/workspaceProjectIdentity.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 3
+    }
+  },
   "electron/workspace/workspaceRegistry.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 12
+    },
     "main-sync-wait/no-restricted-syntax": {
       "count": 1
+    }
+  },
+  "electron/workspace/workspaceRepository.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 9
+    }
+  },
+  "electron/workspace/workspaceSync.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 2
     }
   },
   "evals/director/judge/preregister.ts": {
