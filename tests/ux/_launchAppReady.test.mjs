@@ -236,7 +236,11 @@ describe('credential first-save initialization', () => {
 })
 
 
-test('credential cross-process identity decrypts in both directions on the actual host', () => {
+// 这条要起真 Electron：Linux 没有显示器（无 DISPLAY / WAYLAND_DISPLAY）时 Electron 直接报 Missing X server，不是断言失败。
+// 仓库里 Unit 车道不套 xvfb（xvfb-run 只在 desktop-linux 车道包 e2e 脚本），所以这里按环境跳过并明说；macOS / Windows / 有显示的 Linux 照常跑。
+const NO_DISPLAY_FOR_ELECTRON = process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY
+if (NO_DISPLAY_FOR_ELECTRON) console.warn('[_launchAppReady] 跳过 credential cross-process 用例：Linux 无 DISPLAY，起不了真 Electron；它只在有显示的机器（本机 macOS / Windows）上跑')
+test.skipIf(NO_DISPLAY_FOR_ELECTRON)('credential cross-process identity decrypts in both directions on the actual host', () => {
   const dirs = sourceDirs()
   const marker = 'non-secret-cross-process-fixture'
   const encrypted = encryptFixtureKey({ userDataDir: dirs.userDataDir, appName: 'nomi', plaintext: marker })
