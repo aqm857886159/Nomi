@@ -74,11 +74,19 @@ const fail = (message) => errors.push(message)
 // （那正是它进不了安装包的原因）。副作用是：实验室代码此前一行都没被类型检查覆盖——
 // 一处少了一层 `../` 的相对路径能一路静默到 Playwright 跑十几分钟后整屏白屏。
 // 防线建在最早能拦住的那层（R28）：先跑一遍 tsconfig.devlab.json，再谈截图。
+//
+// 内存上限写明（MiB），不吃机器默认值：不写时，同一条命令在 CI 的 Mac 机器上实测到约 2G 就被杀
+// （JavaScript heap out of memory，崩溃时堆 2042M），在开发机上却能过。实验室会顺着 import 把几乎整个应用
+// 带进来（主线 5875 个文件），2026-11-14 量到主线已经贴着 2G：主线在 2048 上限下刚好能过，一个只多 114 个
+// 文件的 PR 在同样的上限下被杀。那不是类型错，是同一道检查在两种机器上不是同一个条件。
+// 方向复盘：docs/engineering/direction-checks/2026-11-14-design-lab-tsc-heap.md。
+const LAB_TSC_HEAP_MB = 4096
 if (!MIRRORS_ONLY) {
-  const typecheck = spawnSync(process.execPath, [path.join(repoRoot, 'node_modules/typescript/bin/tsc'), '--noEmit', '-p', 'tsconfig.devlab.json'], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  })
+  const typecheck = spawnSync(
+    process.execPath,
+    [`--max-old-space-size=${LAB_TSC_HEAP_MB}`, path.join(repoRoot, 'node_modules/typescript/bin/tsc'), '--noEmit', '-p', 'tsconfig.devlab.json'],
+    { cwd: repoRoot, encoding: 'utf8' },
+  )
   if (typecheck.status !== 0) {
     fail(`实验室代码类型检查未通过（tsconfig.devlab.json）：\n${(typecheck.stdout || typecheck.stderr || '').trim()}`)
   }
