@@ -17,7 +17,10 @@
 
 - 依赖里已有？项目没有装 atomically / graceful-fs；`node_modules/write-file-atomic`（经传递依赖）只做临时文件 + 改名，改名失败不重试（node_modules/write-file-atomic/lib/index.js）。
 - 仓库里已有？`electron/jsonFile.ts:27`（同步睡眠）与 `electron/jsonFile.ts:50`（`retryOnSharingViolation`）就是现状；`electron/workspace/workspaceRegistry.ts:73` 是锁自旋。本刀收敛成 `electron/sharingRetry.ts` 一处策略。
-- 生态里已有？atomically https://www.npmjs.com/package/atomically（同步版占用时忙等）；graceful-fs https://github.com/isaacs/node-graceful-fs（改名重试只在目标不存在时）；write-file-atomic https://www.npmjs.com/package/write-file-atomic（不重试）；Electron 性能文档 https://www.electronjs.org/docs/latest/tutorial/performance（主进程别做阻塞 I/O）。
+- 生态里已有？atomically：https://www.npmjs.com/package/atomically（同步版占用时忙等；异步版放不进持锁同步事务）。
+- 生态里已有？graceful-fs：https://github.com/isaacs/node-graceful-fs（改名重试只在目标不存在时，覆盖写不适用）。
+- 生态里已有？write-file-atomic：https://www.npmjs.com/package/write-file-atomic（临时文件 + 改名，不重试）。
+- 生态里已有？Electron 性能文档：https://www.electronjs.org/docs/latest/tutorial/performance（主进程别做阻塞 I/O，方向依据）。
 - TikHub 自媒体里怎么说？本题是主进程内部文件占用重试，不是创作者面向的功能，没有可查的自媒体做法：未查，原因如此。
 - 结论：自研一件很小的重试策略（登记在 `docs/engineering/self-written.json` 的 `durable-json` 条目下），理由只认领域约束：保存写在持清单锁的同步暂存事务里，必须覆盖写。
 
