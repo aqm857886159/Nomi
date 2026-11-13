@@ -498,6 +498,20 @@ describe('变体行由调用方的一处声明决定', () => {
     expect(buildModelSelectOptions(dedupeModelOptions(mixed), healthy, [], null, menu()).length).toBeGreaterThan(labels.length)
   })
 
+  // 自己接的中转：目录行没写档案 id，只靠型号名被认出档案。底栏的方式 / 参数各格按型号名认它，菜单必须说同一件事——
+  // 以前菜单只认显式写的档案 id，这类模型在菜单里既没有变体行也没有描述，创作者丢了「选 Fast / Mini」。
+  it('只靠型号名认出档案的模型（自己接的中转、没写档案 id）：变体行、描述、图标一样不少', () => {
+    const relayed = [{ ...option('doubao-seedance-2.0', 'my-custom-relay', 'Seedance 2.0'), kind: 'video' as const }]
+    const declared = menu()
+    const rows = buildModelSelectOptions(dedupeModelOptions(relayed), healthy, [], null, declared)
+    expect(rows.map(o => o.label)).toEqual(['Seedance 2.0', 'Seedance 2.0 Fast', 'Seedance 2.0 Mini'])
+    for (const row of rows) expect(row.description).toMatch(/文生/)
+    const explicit = buildModelSelectOptions(dedupeModelOptions(seedance), healthy, [], null, declared)
+    expect(rows.map(o => o.description)).toEqual(explicit.map(o => o.description))
+    expect(rows.map(o => o.icon)).toEqual(explicit.map(o => o.icon))
+    expect(rows[0].icon).toBeTruthy()
+  })
+
   it('每行带一句由档案算出的能力描述；没档案的模型不编', () => {
     const custom = [option('my-model', 'apimart', 'My Model')]
     expect(buildModelSelectOptions(dedupeModelOptions(custom), healthy)[0].description).toBeUndefined()

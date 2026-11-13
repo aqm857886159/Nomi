@@ -32,9 +32,9 @@ import qwen from '@lobehub/icons-static-svg/icons/qwen.svg'
 import runway from '@lobehub/icons-static-svg/icons/runway.svg'
 import suno from '@lobehub/icons-static-svg/icons/suno.svg'
 import vidu from '@lobehub/icons-static-svg/icons/vidu.svg'
-import { getArchetypeById, resolveArchetypeForModel } from '../../electron/shared/modelArchetypes'
+import { resolveArchetypeForModel } from '../../electron/shared/modelArchetypes'
 import type { ModelArchetype } from '../../electron/shared/modelArchetypes/types'
-import type { DedupedModel, ModelProviderRef } from './modelIdentity'
+import type { DedupedModel } from './modelIdentity'
 import type { NomiIdentityIconSource } from '../design'
 
 /** 档案 `family` → 品牌图。一处登记，别处不许再写「哪个模型画哪张图」。 */
@@ -89,29 +89,12 @@ export function modelNameInitial(name: string): string {
   return /[a-z]/i.test(first) ? first.toUpperCase() : first
 }
 
-function explicitArchetypeId(provider: ModelProviderRef): string {
-  const meta = provider.option.meta
-  if (!meta || typeof meta !== 'object') return ''
-  const id = (meta as { archetypeId?: unknown }).archetypeId
-  return typeof id === 'string' ? id.trim() : ''
-}
-
-/** 一组模型的档案：取各家供应商里第一个**显式声明**档案的那个（同一模型各家挂的是同一份）。自定义模型不按名字猜。 */
-export function modelArchetypeOf(model: Pick<DedupedModel, 'providers'>): ModelArchetype | null {
-  for (const provider of model.providers) {
-    const id = explicitArchetypeId(provider)
-    const archetype = id ? getArchetypeById(id) : null
-    if (archetype) return archetype
-  }
-  return null
-}
-
 /**
- * 一组模型的家族：用仓库里「这一行是哪个档案」的那一个解析函数（显式 archetypeId 优先，没写就按型号名认），
- * 不在这里再写一份匹配——别的通道上的同一个模型（只靠型号名认出档案）也拿到同一枚图。自定义模型不借牌子的保证
- * 来自解析函数本身：认不出档案的行没有家族。
+ * 一组模型的档案：用仓库里「这一行是哪个档案」的那一个解析函数（显式 archetypeId 优先，没写就按型号名认），
+ * 不在这里再写一份匹配。菜单行的图标、能力描述、变体行都读这一个——底栏其余各格（方式、参数）认档案用的也是它，
+ * 所以自己接的中转上只靠型号名认出的模型，菜单和底栏说的是同一件事。认不出档案的行：没有家族、没有描述、没有变体行。
  */
-export function modelFamilyOf(model: Pick<DedupedModel, 'providers'>): string {
+export function modelArchetypeOf(model: Pick<DedupedModel, 'providers'>): ModelArchetype | null {
   for (const provider of model.providers) {
     const option = provider.option
     const archetype = resolveArchetypeForModel({
@@ -121,9 +104,14 @@ export function modelFamilyOf(model: Pick<DedupedModel, 'providers'>): string {
       meta: option.meta,
       ...(option.modelNameSource ? { modelNameSource: option.modelNameSource } : {}),
     })
-    if (archetype) return archetype.family
+    if (archetype) return archetype
   }
-  return ''
+  return null
+}
+
+/** 一组模型的家族（品牌图标按它取）。 */
+export function modelFamilyOf(model: Pick<DedupedModel, 'providers'>): string {
+  return modelArchetypeOf(model)?.family ?? ''
 }
 
 /** 模型的身份图：认得家族 → 品牌图（单色）；认不得 → 名字首字母字块。永远有东西可画。 */
