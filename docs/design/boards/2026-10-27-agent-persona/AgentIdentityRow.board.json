@@ -66,9 +66,10 @@
         "028-div-眼睛宽为边长的15高30",
         "029-div-底色走logo底色tok"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "新品牌组件 NomiAgentFace 的静态用法（src/design/identity.tsx，与右下小球同一个组件、同一套几何，不另画）；NomiIdentityRow（src/workbench/ai/NomiIdentityRow.tsx）把 NomiLogoMark size=16 换成它"
+      "status": "in-progress",
+      "owner": "D2-1",
+      "component": "新品牌组件 NomiAgentFace 的静态用法（src/design/identity.tsx，与右下小球同一个组件、同一套几何，不另画）；NomiIdentityRow（src/workbench/ai/NomiIdentityRow.tsx）把 NomiLogoMark size=16 换成它",
+      "note": "组件已换（NomiIdentityRow → NomiAgentFace variant=\"mark\" 16px + NomiWordmark 12px，单测钉几何与静止）；但 NomiIdentityRow 现在没有任何挂载点，用户看不到这一行，没法走查。挂在哪随 D2-1 接入引导定（协调 2026-11-07 取舍第 6 条「挂载位置不动」）。"
     },
     {
       "id": "identity.wordmark",
@@ -88,9 +89,10 @@
         "021-span-Noi",
         "022-span-m"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "NomiWordmark（src/design/identity.tsx），不改"
+      "status": "in-progress",
+      "owner": "D2-1",
+      "component": "NomiWordmark（src/design/identity.tsx），不改",
+      "note": "组件已换（NomiIdentityRow → NomiAgentFace variant=\"mark\" 16px + NomiWordmark 12px，单测钉几何与静止）；但 NomiIdentityRow 现在没有任何挂载点，用户看不到这一行，没法走查。挂在哪随 D2-1 接入引导定（协调 2026-11-07 取舍第 6 条「挂载位置不动」）。"
     },
     {
       "id": "identity.old-mark",

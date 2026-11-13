@@ -42,7 +42,8 @@ export type {
   WorkbenchMenuRadioGroup,
   WorkbenchMenuSeparator,
 } from './menu'
-export { NomiBrand, NomiWordmark, NomiAILabel, NomiLoadingMark, NomiLogoMark, NomiStepper } from './identity'
+export { NomiBrand, NomiWordmark, NomiAILabel, NomiAgentFace, NomiLoadingMark, NomiLogoMark, NomiStepper } from './identity'
+export type { NomiAgentPose } from './identity'
 export { NomiSelect } from './NomiSelect'
 export type { NomiSelectProps, NomiSelectOption, NomiSelectTone } from './NomiSelect'
 export { NomiIdentityIcon } from './NomiIdentityIcon'

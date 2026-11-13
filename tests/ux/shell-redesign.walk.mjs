@@ -6,7 +6,8 @@
 // 用法：pnpm run build && node tests/ux/shell-redesign.walk.mjs <输出目录>
 //   环境：WALK_LOCALE=zh-CN|en  WALK_SCHEME=light|dark  WALK_SIZE=1280x800|1000x700|1440x900
 //         WALK_SHOTS=逗号分隔的屏名（缺省全拍）：library-empty,library,main,canvas-agent,creation-doc,
-//         chrome-assets,chrome-rail-collapsed,chrome-ball-running,chrome-ball-failed,chrome-ball-pending,preview-catalog
+//         chrome-assets,chrome-rail-collapsed,chrome-ball-running,chrome-ball-failed,chrome-ball-pending,preview-catalog,
+//         persona（Agent 形象：五副长相 + 未读 + 跟随 / 悬停 / 焦点 / 减弱动效裁图，及行为与动效断言）
 import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
@@ -14,6 +15,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { walkAgentPersona } from './_agentPersonaWalk.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -368,6 +370,12 @@ try {
     await expectAbsent(win.locator('[data-agent-ball] [data-dot-mark]'), { provenBy: dotProof, message: '胶囊时还叠了未读点' })
   }
   await setBadge('idle', 0)
+
+  // AgentPersona 板（2026-10-27 形象拍板）：五副长相 + 未读点逐格量、裁图对样张；只换脸不换行为；空闲不动、减弱动效（_agentPersonaWalk.mjs）。
+  if (want('persona')) {
+    measures.persona = await walkAgentPersona(win, { locale, zh, scheme, shotPath, setBadge, onShot: (file) => shotsTaken.push(path.basename(file)) })
+    await setBadge('idle', 0)
+  }
 
   // 事实测量（协调 10-08 问）：靠底节点的生成框和底边时间轴窄条重叠多少像素。
   // 新外壳里窄条是画布下面独立的一格，画布元素到窄条顶边为止；生成框伸出画布下沿的部分被画布裁掉，不会画到窄条上。

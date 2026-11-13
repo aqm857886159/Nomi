@@ -1,0 +1,574 @@
+{
+ "en-1100": {
+  "viewport": {
+   "width": 1100,
+   "height": 720
+  },
+  "unreadMaxDot": {
+   "w": 8,
+   "h": 8,
+   "text": ""
+  },
+  "panelOpenedAfterDrag": false,
+  "topbar": {
+   "x": 0,
+   "y": 0,
+   "w": 1100,
+   "h": 40
+  },
+  "edges": [
+   {
+    "name": "top-left",
+    "after": {
+     "x": 60,
+     "y": 40,
+     "right": 104,
+     "bottom": 84
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "top",
+    "after": {
+     "x": 528,
+     "y": 40,
+     "right": 572,
+     "bottom": 84
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "top-right",
+    "after": {
+     "x": 1048,
+     "y": 40,
+     "right": 1092,
+     "bottom": 84
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "right",
+    "after": {
+     "x": 1048,
+     "y": 338,
+     "right": 1092,
+     "bottom": 382
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "bottom-right",
+    "after": {
+     "x": 1048,
+     "y": 632,
+     "right": 1092,
+     "bottom": 676
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "bottom",
+    "after": {
+     "x": 528,
+     "y": 632,
+     "right": 572,
+     "bottom": 676
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "bottom-left",
+    "after": {
+     "x": 60,
+     "y": 632,
+     "right": 104,
+     "bottom": 676
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "left",
+    "after": {
+     "x": 60,
+     "y": 338,
+     "right": 104,
+     "bottom": 382
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   }
+  ],
+  "panelOpen": {
+   "ball": null,
+   "input": {
+    "x": 715,
+    "y": 543,
+    "right": 1053,
+    "bottom": 609,
+    "visible": true
+   },
+   "send": {
+    "x": 1031,
+    "y": 612,
+    "right": 1061,
+    "bottom": 642,
+    "visible": true
+   },
+   "float": {
+    "x": 692,
+    "y": 160,
+    "right": 1076,
+    "bottom": 660,
+    "visible": true
+   },
+   "inputOnTop": true,
+   "sendOnTop": true,
+   "focusIn": true
+  }
+ },
+ "en-1280x800": {
+  "viewport": {
+   "width": 1280,
+   "height": 800
+  },
+  "unreadMaxDot": {
+   "w": 8,
+   "h": 8,
+   "text": ""
+  },
+  "panelOpenedAfterDrag": false,
+  "topbar": {
+   "x": 0,
+   "y": 0,
+   "w": 1280,
+   "h": 40
+  },
+  "edges": [
+   {
+    "name": "top-left",
+    "after": {
+     "x": 60,
+     "y": 40,
+     "right": 104,
+     "bottom": 84
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "top",
+    "after": {
+     "x": 618,
+     "y": 40,
+     "right": 662,
+     "bottom": 84
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "top-right",
+    "after": {
+     "x": 1228,
+     "y": 40,
+     "right": 1272,
+     "bottom": 84
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "right",
+    "after": {
+     "x": 1228,
+     "y": 378,
+     "right": 1272,
+     "bottom": 422
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "bottom-right",
+    "after": {
+     "x": 1228,
+     "y": 712,
+     "right": 1272,
+     "bottom": 756
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "bottom",
+    "after": {
+     "x": 618,
+     "y": 712,
+     "right": 662,
+     "bottom": 756
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "bottom-left",
+    "after": {
+     "x": 60,
+     "y": 712,
+     "right": 104,
+     "bottom": 756
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "left",
+    "after": {
+     "x": 60,
+     "y": 378,
+     "right": 104,
+     "bottom": 422
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   }
+  ],
+  "panelOpen": {
+   "ball": null,
+   "input": {
+    "x": 895,
+    "y": 623,
+    "right": 1233,
+    "bottom": 689,
+    "visible": true
+   },
+   "send": {
+    "x": 1211,
+    "y": 692,
+    "right": 1241,
+    "bottom": 722,
+    "visible": true
+   },
+   "float": {
+    "x": 872,
+    "y": 240,
+    "right": 1256,
+    "bottom": 740,
+    "visible": true
+   },
+   "inputOnTop": true,
+   "sendOnTop": true,
+   "focusIn": true
+  }
+ },
+ "zh-CN-1100x720": {
+  "viewport": {
+   "width": 1100,
+   "height": 720
+  },
+  "unreadMaxDot": {
+   "w": 8,
+   "h": 8,
+   "text": ""
+  },
+  "panelOpenedAfterDrag": false,
+  "topbar": {
+   "x": 0,
+   "y": 0,
+   "w": 1100,
+   "h": 40
+  },
+  "edges": [
+   {
+    "name": "top-left",
+    "after": {
+     "x": 60,
+     "y": 40,
+     "right": 104,
+     "bottom": 84
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "top",
+    "after": {
+     "x": 528,
+     "y": 40,
+     "right": 572,
+     "bottom": 84
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "top-right",
+    "after": {
+     "x": 1048,
+     "y": 40,
+     "right": 1092,
+     "bottom": 84
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "right",
+    "after": {
+     "x": 1048,
+     "y": 338,
+     "right": 1092,
+     "bottom": 382
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "bottom-right",
+    "after": {
+     "x": 1048,
+     "y": 632,
+     "right": 1092,
+     "bottom": 676
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "bottom",
+    "after": {
+     "x": 528,
+     "y": 632,
+     "right": 572,
+     "bottom": 676
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "bottom-left",
+    "after": {
+     "x": 60,
+     "y": 632,
+     "right": 104,
+     "bottom": 676
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "left",
+    "after": {
+     "x": 60,
+     "y": 338,
+     "right": 104,
+     "bottom": 382
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   }
+  ],
+  "panelOpen": {
+   "ball": null,
+   "input": {
+    "x": 715,
+    "y": 563,
+    "right": 1053,
+    "bottom": 607,
+    "visible": true
+   },
+   "send": {
+    "x": 1031,
+    "y": 612,
+    "right": 1061,
+    "bottom": 642,
+    "visible": true
+   },
+   "float": {
+    "x": 692,
+    "y": 160,
+    "right": 1076,
+    "bottom": 660,
+    "visible": true
+   },
+   "inputOnTop": true,
+   "sendOnTop": true,
+   "focusIn": true
+  }
+ },
+ "zh-CN-1280x800": {
+  "viewport": {
+   "width": 1280,
+   "height": 800
+  },
+  "unreadMaxDot": {
+   "w": 8,
+   "h": 8,
+   "text": ""
+  },
+  "panelOpenedAfterDrag": false,
+  "topbar": {
+   "x": 0,
+   "y": 0,
+   "w": 1280,
+   "h": 40
+  },
+  "edges": [
+   {
+    "name": "top-left",
+    "after": {
+     "x": 60,
+     "y": 40,
+     "right": 104,
+     "bottom": 84
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "top",
+    "after": {
+     "x": 618,
+     "y": 40,
+     "right": 662,
+     "bottom": 84
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "top-right",
+    "after": {
+     "x": 1228,
+     "y": 40,
+     "right": 1272,
+     "bottom": 84
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "right",
+    "after": {
+     "x": 1228,
+     "y": 378,
+     "right": 1272,
+     "bottom": 422
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "bottom-right",
+    "after": {
+     "x": 1228,
+     "y": 712,
+     "right": 1272,
+     "bottom": 756
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "bottom",
+    "after": {
+     "x": 618,
+     "y": 712,
+     "right": 662,
+     "bottom": 756
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "bottom-left",
+    "after": {
+     "x": 60,
+     "y": 712,
+     "right": 104,
+     "bottom": 756
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   },
+   {
+    "name": "left",
+    "after": {
+     "x": 60,
+     "y": 378,
+     "right": 104,
+     "bottom": 422
+    },
+    "inside": true,
+    "overTopbar": false,
+    "panelOpened": false
+   }
+  ],
+  "panelOpen": {
+   "ball": null,
+   "input": {
+    "x": 895,
+    "y": 643,
+    "right": 1233,
+    "bottom": 687,
+    "visible": true
+   },
+   "send": {
+    "x": 1211,
+    "y": 692,
+    "right": 1241,
+    "bottom": 722,
+    "visible": true
+   },
+   "float": {
+    "x": 872,
+    "y": 240,
+    "right": 1256,
+    "bottom": 740,
+    "visible": true
+   },
+   "inputOnTop": true,
+   "sendOnTop": true,
+   "focusIn": true
+  }
+ }
+}

@@ -233,6 +233,7 @@ const GLOBAL_LISTENERS: Readonly<Record<string, { role: ListenerRole; why: strin
   'src/design/useOverlayEscape.ts': { role: 'own-layer', why: '手写弹层的 Esc 原语，有 hasOpenDialogAbove 仲裁' },
   'src/ui/app-shell/shell/ShellAgentHost.tsx': { role: 'boundary', why: 'Mod+J / Mod+\\ 是整窗命令，整窗模态开着时不响应' },
   'src/ui/app-shell/shell/ShellRail.tsx': { role: 'own-layer', why: '抽屉自己的 Esc；抽屉是非模态，上面有弹层时按 DOM 让路（含菜单和非模态对话框，比输入层宽）' },
+  'src/ui/app-shell/shell/useAgentBallEyeFollow.ts': { role: 'state', why: 'Agent 小球的眼睛跟着指针看：只在小球按钮上写两个 CSS 变量，不执行命令、不拦事件（passive）' },
   'src/ui/browser/dialog/NomiBrowserDialog.tsx': { role: 'browser', why: '浏览器对话框自己的键；对话框本身已登记输入层' },
   'src/ui/browser/overlay/BrowserAssetOverlayApp.tsx': { role: 'browser', why: '素材盒独立窗口' },
   'src/ui/browser/popover/NomiBrowserAssetPopover.tsx': { role: 'browser', why: '素材盒自己的 Esc' },

@@ -249,12 +249,13 @@ function NeighborGhostButton({ icon }: { icon: React.ReactNode }): JSX.Element {
 }
 
 /**
- * ⑦ 收起态 · **Agent 小球**（10-08 外壳拍板稿 Chrome 板「Agent 小球 · 四种状态，都不会自己弹开」）。
+ * ⑦ 收起态 · **Agent 小球**（10-08 外壳拍板稿 Chrome 板「Agent 小球 · 四种状态，都不会自己弹开」；
+ * 长相 2026-10-27 形象拍板 docs/design/boards/2026-10-27-agent-persona/AgentPersona.board.json）。
  * 顶栏不再放 Agent 角标；收起 = 内容区右下一颗小球。取景框垫一块外壳底色，看它在工作面上读不读得出来。
- * 五档注意力状态的长相：空闲 / 处理中（accent 环）/ 出错（danger 点）/ 等你确认 N（warning 胶囊）；
- * 「刚做完」与空闲同一张脸，区别只在 tooltip 那句人话。
+ * 五档注意力状态各一副长相：空闲（logo 形 + 两只眼）/ 在跑（变圆、accent 弧、眼睛扫）/ 等你确认 N（warning 胶囊）/
+ * 刚做完（轻跳、眯眼笑）/ 出错（歪倒 + danger 点）；未读是右上那颗小点，叠在在跑、刚做完上照样挂。
  */
-function DockCell({ status, pendingCount = 0 }: {
+function DockCell({ status, pendingCount = 0, unreadCount = 0 }: {
   status: V4DockStatus
   pendingCount?: number
   unreadCount?: number
@@ -265,7 +266,7 @@ function DockCell({ status, pendingCount = 0 }: {
   return (
     <Piece>
       <div className="flex items-center justify-end rounded-nomi-sm bg-nomi-chrome p-4">
-        <AgentBallFace status={status} pendingCount={pendingCount} label={pill ? labels.dock.needsConfirm(pendingCount) : labels.dock.open} title={tooltip} />
+        <AgentBallFace status={status} pendingCount={pendingCount} unreadCount={unreadCount} label={pill ? labels.dock.needsConfirm(pendingCount) : labels.dock.open} title={tooltip} />
       </div>
     </Piece>
   )
@@ -623,47 +624,47 @@ export const V4_VOCABULARY_STATES: readonly LabState[] = [
   },
   {
     id: 'v4-dock-logo',
-    name: '⑦ 收起角标 · 顶栏那一格（空闲：什么都不叠）',
+    name: '⑦ 收起小球 · 空闲（logo 形 + 两只眼，什么都不叠）',
     source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
     coverage: 'component-only',
     render: () => <DockCell status="idle" />,
   },
   {
     id: 'v4-collapsed-running',
-    name: '⑦ 收起角标 · 运行中来了一条新动静（蓝点 8px）',
+    name: '⑦ 收起小球 · 在跑（变圆、accent 弧、眼睛扫）+ 来了一条新动静（右上小点 8px）',
     source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
     coverage: 'component-only',
     render: () => <DockCell status="running" unreadCount={1} />,
   },
   {
     id: 'v4-collapsed-needs-confirm',
-    name: '⑦ 收起角标 · 待你确认（数字徽标 = 未读条数，含那条待决）',
+    name: '⑦ 收起小球 · 等你确认 1（warning 胶囊；同时有未读也只出胶囊）',
     source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
     coverage: 'component-only',
     render: () => <DockCell status="needs-confirm" pendingCount={1} unreadCount={1} />,
   },
   {
     id: 'v4-collapsed-done',
-    name: '⑦ 收起角标 · 刚做完，攒了 3 条未读（数字徽标）',
+    name: '⑦ 收起小球 · 刚做完（轻跳、眯眼笑）+ 攒了 3 条未读（右上小点）',
     source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
     coverage: 'component-only',
     render: () => <DockCell status="done" unreadCount={3} />,
   },
   {
     id: 'v4-collapsed-failed',
-    name: '⑦ 收起角标 · 有一步没成（没有新消息也保底冒一颗点，坏消息在 tooltip 里说清）',
+    name: '⑦ 收起小球 · 有一步没成（歪倒 + danger 点；坏消息在 tooltip 里说清）',
     source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
     coverage: 'component-only',
     render: () => <DockCell status="failed" />,
   },
   {
     id: 'v4-collapsed-dark',
-    name: '⑦ 收起角标 · 暗色（token 翻转后，蓝点与数字仍要从纸面上跳出来）',
+    name: '⑦ 收起小球 · 暗色（token 翻转后，胶囊与形象的描边仍要从暗底上读出来）',
     source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
     coverage: 'component-only',
     // 暗色只能由这里钉（`LabState.scheme`）：暗色 token 挂在 `:root[data-mantine-color-scheme="dark"]`
-    // 上，组件自己套个 class 翻不动它。这一格要看的正是**对比度**：accent 蓝点 8px 与
-    // 纸色数字落在暗色顶栏上还认不认得出来——浅色那五格证明不了这件事。
+    // 上，组件自己套个 class 翻不动它。这一格要看的正是**对比度**：warning 胶囊与它的深色字、
+    // 形象的描边落在暗色底上还认不认得出来——浅色那五格证明不了这件事。
     scheme: 'dark',
     render: () => <DockCell status="needs-confirm" pendingCount={2} unreadCount={2} />,
   },

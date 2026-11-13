@@ -11,8 +11,10 @@ import React from 'react'
 
 /**
  * 五档**注意力状态**。注意它们各自的注释说的是「宿主那边发生了什么」，**不是「角标长什么样」**：
- * 定稿 §11.2 只给了两种长相（蓝点 / 数字），10-08 外壳重设计后由小球（AgentBallFace）画：等你确认 N = 胶囊、处理中 = 环、出错 = 点，
- * 跟这五个词没有一一对应关系。这五个词只进 tooltip 那句人话与 `data-agent-dock-status`。
+ * 长相由小球（AgentBallFace → 品牌组件 NomiAgentFace）画，2026-10-27 形象拍板后五个词和五副长相一一对应
+ * （agentFormStore 的 `agentBallLook` 是唯一映射，和胶囊判定 agentBallIsPill 放在一起）：idle = 空闲脸、running = 变圆转弧、needs-confirm（且有条数）= 胶囊、
+ * done = 轻跳眯眼笑、failed = 歪倒加 danger 点；未读是叠在上面的那颗点，不是第六个词。这五个词另进 tooltip 那句人话与
+ * `data-agent-dock-status`。
  *
  * （这条注释本身是 2026-09-07 修的：它原来写着「done = 短暂一个勾」「failed = 警示角标」，
  * 而那两种图形从来没被实现过——一份描述不存在长相的注释，就是下一个人照着画出第三、第四种
