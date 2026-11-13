@@ -2401,6 +2401,26 @@
       ],
       "whyNotIntegrated": "领域约束：这是 Nomi 的 Agent 形象（品牌组件）的一部分，规则全来自 10-27 拍板——160px 半径、胶囊往左长时按右缘那颗球的中心算、停在身上抬眼、减弱动效下不挂监听，而且 ★7 预算要求跟随零重渲染、空闲不请求帧。通用部分只有三行 addEventListener 和浏览器标准的 requestAnimationFrame，没有现成库能在不进 React state 的前提下把指针换成这两个 CSS 变量、比这 ~50 行的 effect 更短。",
       "revisitWhen": "Nomi 里出现第二处要跟随指针的元素（那时抽成共用的指针跟随，或整体换到 framer-motion 的 MotionValue）；或 Agent 形象改用 Rive / Lottie 之类的动画运行时时"
+    },
+    {
+      "id": "variant-axis-live-of-row-hook",
+      "capability": "模型菜单每一行（不是选中那一行）的「变体轴起不起作用」：逐家供应商、逐个模式按那条渠道自己的线缆问同一把判据，写死型号的渠道那几行不长出变体行",
+      "status": "justified",
+      "paths": [
+        "src/workbench/generationCanvas/nodes/controls/useVariantAxisLiveOf.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "沿用 useChannelCreateBody 里「只看当前选中节点」的 currentAxisLive：别的行漏判，Runway 这类型号写死的渠道会误长出变体行（本 PR 修的就是这个）",
+          "source": "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts"
+        },
+        {
+          "name": "React 的 useCallback / useMemo：只负责让函数身份随映射表变而不随每次渲染变，判据本身没有通用库可接",
+          "source": "https://react.dev/reference/react/useCallback"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：「变体轴是否起作用」取决于我们自己的模型档案和各供应商渠道的线缆（modeTransportFor / readModeChannelBody），这套判据只有 Nomi 有；hook 只是把同一把判据 archetypeVariantAxisIsLive 按菜单行逐个问，没有现成库懂这些线缆。",
+      "revisitWhen": "菜单变体行的判断并进档案本身（档案直接声明每家渠道的变体轴）时，删掉这个 hook"
     }
   ]
 }
