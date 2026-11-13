@@ -1,0 +1,15 @@
+摘要：16:9 · 5s
+方式格：Omni reference
+输入：1张图
+---
+Aspect ratio
+Auto
+16:9
+9:16
+1:1
+21:9
+Duration (seconds)
+5
+Audio
+Auto
+Keep original audio
