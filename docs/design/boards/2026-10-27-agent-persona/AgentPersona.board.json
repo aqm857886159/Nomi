@@ -381,7 +381,7 @@
         "081-p-只换脸不换行为点一下打开"
       ],
       "status": "implemented",
-      "component": "ShellAgentHost（Rnd 拖动、onContextMenu → WorkbenchMenu、open → setForm + focusComposerSoon）与 AgentBallFace 的 data 属性，原样保留",
+      "component": "ShellAgentHost（Rnd 拖动、onContextMenu → WorkbenchMenu、open → setForm + requestResidentComposerFocus，2026-11-13 并 main 后换成主线的聚焦入口）与 AgentBallFace 的 data 属性，原样保留",
       "assertion": "board:AgentPersona/ball.behaviors"
     }
   ],
