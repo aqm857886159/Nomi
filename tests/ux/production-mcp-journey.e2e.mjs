@@ -130,9 +130,9 @@ async function openProjectFromLibrary(window, wantedProjectId) {
 async function approveCurrentProductionGate(window) {
   await openRunFromTaskCenter(window)
   await window.locator('[data-production-primary-action]').first().click()
-  const confirm = window.locator('[data-spend-confirm-dialog] [data-production-action="confirm"]').last()
-  await confirm.waitFor({ timeout: 5_000 })
-  await confirm.click()
+  const overlay = window.locator('[data-spend-confirm-dialog]').last()
+  await overlay.waitFor({ timeout: 5_000 })
+  await overlay.locator('[data-production-action="confirm"]').click()
 }
 
 let gui = null
