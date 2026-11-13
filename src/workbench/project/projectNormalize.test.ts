@@ -1,7 +1,7 @@
 import { generationNodeRunRecordSchema } from '../generationCanvas/model/generationCanvasSchema'
 import { textDocumentDigest } from '../generationCanvas/runner/textGenerationDocument'
 import { describe, expect, it, vi } from 'vitest'
-import { normalizePayload, normalizeRecord } from './projectNormalize'
+import { normalizePayload, normalizePayloadWithQuarantine, normalizeRecord } from './projectNormalize'
 import { createDefaultWorkbenchProjectPayload } from './projectRecordSchema'
 import type { StoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
 import type { GenerationCanvasNode, TiptapDocJson } from '../generationCanvas/model/generationCanvasTypes'
@@ -213,10 +213,12 @@ it('retains the shared assistant width and collapsed preference through project 
   expect(normalizePayload(saved).editingPanelLayout).toEqual(layout)
 })
 
-it('rejects malformed persisted layouts before they reach workspace sizing', async () => {
+it('a malformed persisted layout is quarantined as one item and never reaches workspace sizing; the rest of the project still saves', async () => {
   const { EDITING_PANEL_DEFAULTS } = await import('../preview/panelLayout')
   for (const assistantWidth of [NaN, Infinity, '310']) {
-    expect(() => normalizePayload({ ...createDefaultWorkbenchProjectPayload(), editingPanelLayout: { ...EDITING_PANEL_DEFAULTS, assistantWidth } })).toThrow()
+    const out = normalizePayloadWithQuarantine({ ...createDefaultWorkbenchProjectPayload(), editingPanelLayout: { ...EDITING_PANEL_DEFAULTS, assistantWidth } })
+    expect(out.payload.editingPanelLayout).toBeUndefined()
+    expect(out.quarantined.map(item => item.container)).toEqual(['editingPanelLayout'])
   }
 })
 

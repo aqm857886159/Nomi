@@ -18,6 +18,7 @@ import { invalidateAgentTurnStates } from '../ai/agentTurnLifecycle'
 import { measureProjectOpenStage, measureProjectOpenStageSync } from './projectOpenTimeline'
 import { sweepPersistedAssetDeletions } from '../assets/pendingAssetDeletions'
 import { logRendererError } from '../../desktop/rendererLog'
+import { announceQuarantine } from './projectQuarantineAnnounce'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 
 function isGuardCurrent(guard: ProjectHydrationGuard): boolean {
@@ -170,7 +171,10 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
         if (input.canPersist()) writeLastActiveProjectId(localSaved.id)
         return localSaved
       },
-      onSaved: input.onSaved,
+      onSaved: (record) => {
+        input.onSaved(record)
+        announceQuarantine(record.id) // 这次保存另存了被隔离的项 → 提醒一次
+      },
       onSaveError: input.onSaveError,
     })
   }
@@ -245,6 +249,7 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
       })
         .catch((error: unknown) => logRendererError('pending-asset-deletion-sweep-failed', error))
     }
+    announceQuarantine(upgraded.id) // 打开时有项被隔离（读盘逐项判出来的）→ 提醒一次
     return upgraded
   }
 
