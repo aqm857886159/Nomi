@@ -438,6 +438,21 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
     expect(real.vendorUpstream().target).toBe(real.walk.report.networkAllowlist[0])
   })
 
+  it('r2 · 创建请求被替身记下后：缺省（含只开 recordAllowedBodies 的）立刻关 App；声明自己判请求体的（judgesBodyInRehearsal）留给脚本判', async () => {
+    const createRow = (at) => `${JSON.stringify({ kind: 'blocked', via: 'rehearsal-vendor', role: 'vendor', method: 'POST', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/videos/generations', at })}\n`
+    for (const [options, stops] of [[{ recordAllowedBodies: true }, true], [{ recordAllowedBodies: true, judgesBodyInRehearsal: true }, false]]) {
+      const { seen, deps, root } = fakeWalk()
+      const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: noKeyEnv(root), ...options })
+      await paid.walk.start({ first: true })
+      await paid.lockToAuthorizedModels({ id: 'win' })
+      fs.appendFileSync(seen.options.env.NOMI_WALK_NET_LOG, createRow(new Date().toISOString()))
+      await new Promise((resolve) => setTimeout(resolve, 700))
+      expect(seen.stopped > 0).toBe(stops)
+      await paid.finish(undefined)
+    }
+    process.exitCode = 0
+  })
+
   it('替身只在不要 Key 那档起；不演练、real-key 档都不起', async () => {
     const { deps, root } = fakeWalk()
     await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: { NOMI_SPEND_OK: '1', CI: '', APIMART_API_KEY: 'sk-real-looking-key-0123456789', NOMI_REAL_PROFILE_USER_DATA: path.join(root, 'none') }, assertRehearsed: () => {} })

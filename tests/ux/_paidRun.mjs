@@ -315,11 +315,14 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     // true = 闸把放行名单上公网请求的请求体（先脱敏：不记请求头、签名查询串与 key 形状的串打码）记进账本，`readAllowedRequests()` 读回。
     // 给要核「App 真正发给供应商的是什么」的付费走查用（参考图错发热修的真付费样本）；缺省关，别的付费走查不变。
     recordAllowedBodies = false,
+    // true = 演练时这份脚本自己读账本判请求体、判完就收（archetype 那两行）：替身记下会花钱的那条请求后不立刻关 App，等脚本判完（兜底 rehearsalGraceMs）。
+    // 要和 recordAllowedBodies 一起开。缺省关：没写那两行的脚本在创建请求那一刻就由闸停下（它们会一直等一个替身永远不给的结果，等完就报错）。
+    judgesBodyInRehearsal = false,
     // 演练收据：入口文件（算脚本指纹）、真付费前的收据核对、演练收尾写收据。单测换掉；脚本里不传。
     entry = process.argv[1], assertRehearsed = assertRehearsalReceipt, writeReceipt = writeRehearsalReceipt, packagedBuild = packagedBuildIdentity,
     // 不要 Key 那档的本机替身（供应商 + 托管上传中转，_paidNetwork.mjs#startRehearsalStandIn）。单测换掉。
     startStandIn = startRehearsalStandIn,
-    // 演练时替身记下会花钱的那条请求后，要判请求体的脚本（recordAllowedBodies）多久没收尾就兜底关 App。
+    // 演练时替身记下会花钱的那条请求后，自己判请求体的脚本（judgesBodyInRehearsal）多久没收尾就兜底关 App。
     rehearsalGraceMs = 20_000,
   } = deps
   // 真实资料目录的位置跟着传进来的 env 走（缺省就是 process.env，和以前一样）；env-key 路根本不会用到它。
@@ -381,7 +384,7 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     stoppedByGuard = true
     console.error(`[${rehearsal ? 'rehearsal' : 'paid'}] ${redact(blocked.message, secrets)}`)
     walk.stopApp().catch(() => {})
-  }, rehearsal ? { shouldFire: (entries) => rehearsalShouldStop(entries, { lockedAtEntry, judgedAllow, relayAllow, holdForScript: recordAllowedBodies, graceMs: rehearsalGraceMs }) } : {})
+  }, rehearsal ? { shouldFire: (entries) => rehearsalShouldStop(entries, { lockedAtEntry, judgedAllow, relayAllow, holdForScript: recordAllowedBodies && judgesBodyInRehearsal, graceMs: rehearsalGraceMs }) } : {})
   const removeCredentialCopy = () => removeRealCredentials({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, profile })
   let seeded = []
   if (!envKey) {

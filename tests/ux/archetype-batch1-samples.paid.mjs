@@ -88,7 +88,7 @@ const chosen = SAMPLES.filter((sample) => !only.length || only.includes(sample.i
 const models = [...new Map(chosen.map((sample) => [sample.model.modelKey, sample.model])).values()]
 
 // 主进程产物（dist-electron）不压缩：本修复的拒收机读码原样进产物，修前的构建里没有。
-const paid = await openPaidWalk(SCRIPT, 'archetype-batch1-samples', models, { hostedUploads: true, recordAllowedBodies: true, buildMarkers: ['mode_input_missing'] })
+const paid = await openPaidWalk(SCRIPT, 'archetype-batch1-samples', models, { hostedUploads: true, recordAllowedBodies: true, judgesBodyInRehearsal: true, buildMarkers: ['mode_input_missing'] })
 const { walk } = paid
 const evidence = { script: SCRIPT, startedAt: new Date().toISOString(), samples: [] }
 let failure
