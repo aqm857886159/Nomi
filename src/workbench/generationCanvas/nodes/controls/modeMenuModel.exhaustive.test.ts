@@ -195,4 +195,25 @@ describe('「还要再放」说的是真缺的那种素材', () => {
     expect(seen).toBeGreaterThan(0)
     expect(wrong).toEqual([])
   })
+
+  // 同一类的另一处：还没放东西时那句「先放…」。Seedance 2.5「视频编辑」必须有源视频，以前写成「先放图、视频或音频」。
+  it('还没放东西时「先放…」：有必填素材就只列必填的那几种', () => {
+    const wrong: string[] = []
+    let seen = 0
+    for (const { archetype, inputName, menu } of cases) {
+      if (!menu || inputName !== 'none') continue
+      for (const row of menu.rows) {
+        if (row.description.key !== `${M}.needKinds`) continue
+        seen += 1
+        const mode = archetype.modes.find((candidate) => candidate.id === row.id)!
+        const required = (['image', 'video', 'audio'] as const).filter((asset) => mode.slots.some((slot) => slot.min > 0 && primary(slot.kind) === asset))
+        if (required.length === 0) continue
+        const listed = (row.description.list?.items ?? []).map((item) => item.key.replace(`${M}.kind`, ''))
+        const expected = required.map((asset) => NOUN[asset])
+        if (JSON.stringify(listed) !== JSON.stringify(expected)) wrong.push(`${archetype.id}/${row.id}: ${listed.join('+')} ≠ ${expected.join('+')}`)
+      }
+    }
+    expect(seen).toBeGreaterThan(0)
+    expect(wrong).toEqual([])
+  })
 })

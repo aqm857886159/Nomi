@@ -119,8 +119,10 @@ function emptyDescription(kind: ModeDisplayKind, mode: ArchetypeMode): ModeMenuT
     const most = caps.get('image') ?? need
     return need === most || !Number.isFinite(most) ? { key: `${KEY}.needImages`, values: { count: need } } : { key: `${KEY}.needImagesRange`, values: { min: need, max: most } }
   }
-  const nouns = ASSET_ORDER.filter((asset) => caps.has(asset)).map((asset): ModeMenuText => ({ key: `${KEY}.kind${asset === 'image' ? 'Images' : asset === 'video' ? 'Videos' : 'Audios'}` }))
-  return { key: `${KEY}.needKinds`, list: { items: nouns, joiner: 'or' } }
+  // 有必填的素材就只说必填的那几种（「视频编辑」必须先放视频，不是「图、视频或音频」随便哪样）；都选填才列它收的全部。
+  const required = ASSET_ORDER.filter((asset) => mode.slots.some((slot) => slot.min > 0 && slotAsset(slot) === asset))
+  const nouns = (required.length > 0 ? required : ASSET_ORDER.filter((asset) => caps.has(asset))).map((asset): ModeMenuText => ({ key: `${KEY}.kind${ASSET_NOUN[asset]}` }))
+  return { key: `${KEY}.needKinds`, list: { items: nouns, joiner: required.length > 0 ? 'and' : 'or' } }
 }
 
 /** 放了东西却点不了的那行：写原因、报数。 */
