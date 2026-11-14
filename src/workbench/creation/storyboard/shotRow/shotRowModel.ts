@@ -1,7 +1,7 @@
 import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
 import { nodeShotField, overriddenShotFields } from '../../../generationCanvas/model/storyboardOverrides'
 import type { ModelOption } from '../../../../config/models'
-import { resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import type { ArchetypeMode, ArchetypeReferenceSlot, ModelArchetype } from '../../../../../electron/shared/modelArchetypes/types'
 import type { PlanAnchor, PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { defaultCarrierForKind } from '../../../generationCanvas/agent/storyboardPlanEdits'
@@ -21,12 +21,12 @@ export function resolveShotArchetypeMode(
   modeId: string | undefined,
 ): { archetype: ModelArchetype; mode: ArchetypeMode } | null {
   if (!modelOption) return null
-  const archetype = resolveArchetypeForModel({
+  const archetype = resolveModelArchetype({
     modelKey: modelOption.modelKey || modelOption.value,
     modelAlias: modelOption.modelAlias,
     vendorKey: modelOption.vendor,
     meta: modelOption.meta,
-  })
+  }, { variant: EVERY_VARIANT })
   if (!archetype) return null
   const modes = archetype.modes
   const mode = modes.find((m) => m.id === modeId) ?? modes.find((m) => m.id === archetype.defaultModeId) ?? modes[0]

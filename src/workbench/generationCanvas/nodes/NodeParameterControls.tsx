@@ -77,7 +77,7 @@ import NarrowedModeGuidanceNote from './controls/NarrowedModeGuidanceNote'
 import { resolveReferencePlacement, firstFrameTaggedSlot } from '../runner/referenceSlots'
 import { useChannelCreateBodies, type VendorMappingsReader } from './controls/useChannelCreateBody'
 import { useVariantAxisLiveOf } from './controls/useVariantAxisLiveOf'
-import { modeTransportFor, specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
+import { modeTransportFor, variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
 import ModeBar from './controls/ModeBar'
 import { buildModeMenu, modeRowName } from './controls/modeMenuModel'
 import { modeMenuOptions } from './controls/modeMenuOptions'
@@ -147,9 +147,10 @@ export default function NodeParameterControls({
 
   const { modelKey: selectedModelValue, vendorKey: selectedModelVendor } = nodeSelectedModelAddress(meta)
   const selectedModelOption = findModelOptionByIdentifier(modelOptions, selectedModelValue, selectedModelVendor) || null
-  const archetype = resolveArchetypeForOption(selectedModelOption)
+  // 按节点记着的那一档收窄好的档案（方式、参考槽各档相同；参数按档）。
+  const archetype = resolveArchetypeForOption(selectedModelOption, variantRecordedInMeta(meta, meta.modelKey))
   const activeVariantId = archetype ? currentArchetypeVariant(archetype, meta)?.id || '' : ''
-  const effectiveArchetype = archetype ? specializeArchetypeForVariant(archetype, activeVariantId) : null
+  const effectiveArchetype = archetype
   // 方式按这次的输入现算（modeForInputs，唯一 owner）：方式格显示它、参考格子按它摆、参数按它收窄——显示的 = 这次真发的。
   const modeResolution = effectiveArchetype ? effectiveArchetypeMode(effectiveArchetype, node, graph) : null
   const archMode = modeResolution?.mode ?? null
@@ -301,7 +302,7 @@ export default function NodeParameterControls({
     onPick: ({ value, vendor }, variantId) => {
       const sameModel = value === selectedModelValue && (!vendor || vendor === selectedModelVendor)
       if (!sameModel) handleModelChange(value, vendor)
-      const nextArchetype = resolveArchetypeForOption(findModelOptionByIdentifier(modelOptions, value, vendor) || null)
+      const nextArchetype = resolveArchetypeForOption(findModelOptionByIdentifier(modelOptions, value, vendor) || null, { variantId, modelId: undefined })
       if (!nextArchetype) return
       updateNode(node.id, { meta: applyArchetypeVariantSwitch(getLatestMeta(), nextArchetype, variantId) })
       setOpenSlotKey('')

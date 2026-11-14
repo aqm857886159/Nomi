@@ -17,7 +17,7 @@
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
 import { getGenerationNodeDefinition, getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from '../../../../electron/shared/modelArchetypes'
-import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
+import { everyBuiltInArchetype } from '../../../../electron/shared/modelArchetypes'
 import { effectiveArchetypeMode, effectiveArchetypeModeWithUpload } from '../nodes/controls/archetypeMeta'
 import { SLOT_ACCEPTS, type ReferenceAssetKind } from '../../../../electron/shared/modelArchetypes/anchorPolicy'
 // 「这条边合不合法」的规则只有 electron/shared/canvas/edgeAdmission 一份（主进程 headless 写图也要过它）；这里只 re-export 给渲染层调用方。
@@ -88,7 +88,7 @@ export function connectionCreateVerdictsForSource<K extends GenerationNodeKind>(
     const targetInput = getGenerationNodeDefinition(kind).connects.input
     const accepted = Array.isArray(targetInput)
       ? targetInput.includes(asset)
-      : MODEL_ARCHETYPES.some((archetype) =>
+      : everyBuiltInArchetype().some((archetype) =>
         archetype.kind === kind && archetype.modes.some((mode) => mode.slots.some((slot) => SLOT_ACCEPTS[slot.kind].includes(asset))),
       )
     return accepted ? { kind, ok: true } : { kind, ok: false, reason: 'no_model_accepts', asset }
@@ -102,7 +102,7 @@ function emptyNodeOfKind(kind: GenerationNodeKind, like: GenerationCanvasNode): 
 
 /** 这一类节点有没有任一模型档案在任一模式里收这种素材（新建节点还没选模型时的判据，与右侧同一口径）。 */
 function anyArchetypeOfKindAccepts(kind: string | undefined, asset: ReferenceAssetKind): boolean {
-  return MODEL_ARCHETYPES.some((archetype) =>
+  return everyBuiltInArchetype().some((archetype) =>
     archetype.kind === kind && archetype.modes.some((mode) => mode.slots.some((slot) => SLOT_ACCEPTS[slot.kind].includes(asset))),
   )
 }

@@ -1,6 +1,7 @@
 import {
   modeTransportFor,
-  resolveArchetypeForModel,
+  EVERY_VARIANT,
+  resolveModelArchetype,
   type ArchetypeReferenceSlot,
   type ArchetypeTransportTaskKind,
 } from '../../../electron/shared/modelArchetypes'
@@ -52,7 +53,7 @@ export function resolveCustomCallScriptModes(
   allowModes: boolean,
 ): CustomCallScriptMode[] {
   if (!model || !allowModes) return []
-  const archetype = resolveArchetypeForModel(model)
+  const archetype = resolveModelArchetype(model, { variant: EVERY_VARIANT })
   if (!archetype) return []
   return archetype.modes.map((mode) => ({
     id: mode.id,

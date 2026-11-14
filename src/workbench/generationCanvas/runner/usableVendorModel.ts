@@ -24,7 +24,7 @@ export type UsableModelQuery = {
   modelAlias?: string
   /** 节点当前钉的供应商（用于解析源 archetype；可空）。 */
   vendor?: string
-  /** 节点 meta（resolveArchetypeForModel 会读 meta.archetypeId，并据此特化）。 */
+  /** 节点 meta（resolveModelArchetype 会读 meta.archetypeId，并据此特化）。 */
   meta?: unknown
   /** 当前 kind 下、enabled 的全部 catalog 模型。 */
   models: ModelCatalogModelDto[]

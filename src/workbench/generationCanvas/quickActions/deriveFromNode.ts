@@ -123,7 +123,7 @@ export type DeriveOutcome =
 
 /** 放大要的是目录里「放大」档的模型（按能力说，不按供应商说）。 */
 export function findUpscaleModelOption(options: readonly ModelOption[]): ModelOption | null {
-  return options.find((option) => resolveArchetypeForOption(option)?.modes.some((mode) => mode.id === 'upscale')) ?? null
+  return options.find((option) => resolveArchetypeForOption(option, { variantId: undefined, modelId: option.modelKey })?.modes.some((mode) => mode.id === 'upscale')) ?? null
 }
 
 /** 点这一项时派生用哪个模型：源图自己的（可改图的话）→ 用户的改图默认 → 目录第一个可改图的。 */

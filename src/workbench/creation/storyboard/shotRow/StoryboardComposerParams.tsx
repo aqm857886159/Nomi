@@ -61,7 +61,7 @@ export default function StoryboardComposerParams({
   )
   const extraKeys = React.useMemo(() => new Set(extraControls.map((control) => control.key)), [extraControls])
 
-  const archetype = resolveArchetypeForOption(option)
+  const archetype = resolveArchetypeForOption(option, { variantId: undefined, modelId: option?.modelKey })
   const modeChoices = archetype && archetype.modes.length > 1
     ? archetype.modes.map((mode) => ({ id: mode.id, label: translateModelDisplayText(mode.vendorTerm) }))
     : []

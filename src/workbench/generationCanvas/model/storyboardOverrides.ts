@@ -1,5 +1,5 @@
 import type { GenerationCanvasNode } from './generationCanvasTypes'
-import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../../electron/shared/modelArchetypes'
 
 /** Variants are independent branches; only original shot nodes own plan overrides. */
 export function isStoryboardOriginal(node: GenerationCanvasNode): boolean {
@@ -31,7 +31,7 @@ export function markStoryboardOverrides(node: GenerationCanvasNode, patch: Parti
     for (const field of ['modelKey', 'modelVendor', 'modeId']) {
       if (nodeShotField(next, field) !== nodeShotField(node, field)) fields.add(field)
     }
-    const archetype = resolveArchetypeForModel({ modelKey: String(next.meta?.modelKey ?? ''), vendorKey: String(next.meta?.modelVendor ?? ''), meta: next.meta })
+    const archetype = resolveModelArchetype({ modelKey: String(next.meta?.modelKey ?? ''), vendorKey: String(next.meta?.modelVendor ?? ''), meta: next.meta }, { variant: EVERY_VARIANT })
     const paramKeys = new Set(archetype?.modes.flatMap(mode => mode.params.map(param => param.key)) ?? [])
     for (const key of paramKeys) {
       if (key !== 'duration' && key !== 'durationSec' && key in patch.meta && patch.meta[key] !== node.meta?.[key]) fields.add(`params.${key}`)

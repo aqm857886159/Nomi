@@ -226,7 +226,7 @@ it('没有候选戳（用户自己建的卡）→ 自动挑默认的老行为不
 
 // 方式按输入现算（2026-11-12）：初始化只落档案 + 默认偏好，不替卡挑方式；带着参考出生的卡，参考本身就是输入。
 it('a card born with reference images sends in the mode that takes them; a card without references sends as text', () => {
-  const archetype = resolveArchetypeForOption(current)
+  const archetype = resolveArchetypeForOption(current, { variantId: undefined, modelId: current.modelKey })
   const sendMode = (meta: Record<string, unknown>) => {
     const node = { id: 'card', kind: 'image', title: 'Image', position: { x: 0, y: 0 }, meta } as GenerationCanvasNode
     mocks.nodes = [node]

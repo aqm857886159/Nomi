@@ -3,7 +3,7 @@ import type { useGenerationCanvasStore } from '../../../generationCanvas/store/g
 import { findShotNode, findShotKeyframeNode } from './storyboardNodeBinding'
 import { buildAgentModelEntries } from '../../../generationCanvas/agent/availableModels'
 import { buildModelEntryIndex } from '../../../generationCanvas/agent/plannedNodeMeta'
-import { resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
+import { resolveModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
 import { overriddenShotFields, nodeShotField } from '../../../generationCanvas/model/storyboardOverrides'
 import { effectiveShotValue } from '../shotRow/shotRowModel'
@@ -92,7 +92,7 @@ export function projectShotNode(
  */
 export function projectShotOntoNodeByPlanMode(plan: StoryboardPlan, shot: PlanShot, node: GenerationCanvasNode): Partial<GenerationCanvasNode> {
   const entries = buildModelEntryIndex(buildAgentModelEntries(shot.modelKey ? [{ value: shot.modelKey, label: shot.modelKey, vendor: shot.modelVendor, kind: shot.shotKind ?? 'video' }] : []))
-  const profile = resolveArchetypeForModel({ modelKey: shot.modelKey ?? '', vendorKey: shot.modelVendor })
+  const profile = resolveModelArchetype({ modelKey: shot.modelKey ?? '', vendorKey: shot.modelVendor }, { variant: { variantId: undefined, modelId: shot.modelKey } })
   const mode = profile?.modes.find(candidate => candidate.id === (shot.modeId ?? profile.defaultModeId)) ?? null
   return projectShotNode(plan, shot, node, 'shot', entries, mode)
 }
