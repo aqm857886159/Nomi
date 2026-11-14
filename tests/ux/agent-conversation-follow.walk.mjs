@@ -79,7 +79,11 @@ try {
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL)
   // 最矮的窗（高取最小窗 MIN_WINDOW.height）：面板只剩四百多像素高，几轮长回答才真的溢出（大窗里装得下，滚动位置恒 0，检查都是恒真式）。
   // 宽取 1100 = 最窄的仍停靠窗：最小窗 700 宽低于窄窗阈值 1060，停靠的面板会临时收成小球，这里要量的是停靠栏。
-  await walk.resizeWindow(1100, MIN_WINDOW.height)
+  // NOMI_FOLLOW_WIDTH=700（= 最小窗宽）再跑一遍：此时 Agent 是浮在画布上的浮窗，面板默认是小球，先点开再量；
+  // 对话流是同一个组件，跟到底的数应与 1100 停靠时一样（2026-11 实测两个宽度的流式跟随都是 zh-light 104 / en-dark 83 px，同一处红）。
+  const followWidth = Number(process.env.NOMI_FOLLOW_WIDTH) || 1100
+  await walk.resizeWindow(followWidth, MIN_WINDOW.height)
+  if (followWidth < 1060) await expandResidentPanel(win)
   walk.report.window = await win.evaluate(() => ({ width: innerWidth, height: innerHeight }))
   const panel = win.locator(CREATION_PANEL)
   const flow = win.locator(FLOW)
