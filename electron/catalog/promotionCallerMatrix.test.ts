@@ -21,7 +21,7 @@ import { referenceKeyDeclarationFor } from '../shared/modelArchetypes/referenceK
 import { resolveArchetypeForModel } from '../shared/modelArchetypes';
 import { NEWAPI_VIDEO_CREATE_OP } from './newapiTransport';
 import { deriveModelNameSource } from './modelNameSource';
-import { imageEditGuardError, reachableModeSuggestion } from './taskParams';
+import { imageEditGuardError, reachableModeSuggestion } from './taskParamsGuard';
 import type { Model, Vendor } from './types';
 
 let dir = '';

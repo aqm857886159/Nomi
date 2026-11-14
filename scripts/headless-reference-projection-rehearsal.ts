@@ -8,7 +8,8 @@ import { buildTemplateContext, renderTemplateValue } from "../electron/ai/reques
 import { bodyReferencedParamKeys } from "../electron/catalog/paramTranslate";
 import { bodyReferenceSupport } from "../electron/catalog/referenceReachability";
 import { applyBuiltinSeeds } from "../electron/catalog/seedBuiltins";
-import { imageEditGuardError, applyHeadlessParamDefaults, taskTemplateParams } from "../electron/catalog/taskParams";
+import { applyHeadlessParamDefaults, taskTemplateParams } from "../electron/catalog/taskParams";
+import { imageEditGuardError } from "../electron/catalog/taskParamsGuard";
 import { referenceKeyDeclarationFor } from "../electron/shared/modelArchetypes/referenceKeys";
 import type { CatalogState, Mapping } from "../electron/catalog/types";
 

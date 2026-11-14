@@ -1,7 +1,7 @@
 import http from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getTikhubTestOrigin, resolveShareVideo, TikhubConnectorError } from "./tikhubConnector";
-import { imageEditGuardError } from "../catalog/taskParams";
+import { imageEditGuardError } from "../catalog/taskParamsGuard";
 
 const servers: http.Server[] = [];
 const previousEnv = {
