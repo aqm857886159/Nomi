@@ -27,7 +27,7 @@ vi.mock('../../../design', async () => ({
   DesignSearchInput: () => null,
 }))
 
-describe('InlineParameterBar catalog variant control', () => {
+describe('InlineParameterBar 模型格（变体是菜单里的行）', () => {
   beforeEach(() => { captured.selects = []; captured.iconButtons = [] })
 
   function render(tiers: string[], selected: string) {
@@ -44,33 +44,29 @@ describe('InlineParameterBar catalog variant control', () => {
     return { html, onModelChange }
   }
 
-  it('uses the existing model + variant controls and writes the exact selected ID', () => {
+  // 2026-11-14：底栏没有单独的「变体」格了——变体是模型菜单里的行（用户拍板）。
+  it('底栏只有一个模型格；变体档位是它菜单里的行，点哪行就写哪个精确模型', () => {
     const { html, onModelChange } = render(['low', 'medium', 'high'], 'high')
-    expect(captured.selects).toHaveLength(2)
-    expect(html).toContain('Gemini 3.7 Flash')
-    expect(html).toContain('High')
-    const variant = captured.selects[1]
-    variant.onChange(variant.options.find(option => option.label === 'Low')!.value)
+    expect(captured.selects).toHaveLength(1)
+    expect(captured.selects[0].ariaLabel).toBe('模型')
+    expect(html).toContain('Gemini 3.7 Flash High')
+    expect(captured.selects[0].options.map(option => option.label)).toEqual(['Gemini 3.7 Flash Low', 'Gemini 3.7 Flash Medium', 'Gemini 3.7 Flash High'])
+    captured.selects[0].onChange(captured.selects[0].options.find(option => option.label.endsWith('Low'))!.value)
     expect(onModelChange).toHaveBeenCalledWith('gemini-3.7-flash-low', 'antigravity-cli')
   })
 
-  // 2026-09-21 走查：1100×720 英文下画布节点（summary 摆法）的变体芯片被压到值区只剩 5px，
-  // 「Variant 5.0」读成「Variant E」。行窄时让位的只许是模型那枚（有意省略号 + title 全名）；
-  // 变体是短枚举，从不缩——与分镜旧底栏让位表的「短枚举不缩」同一条规则（分镜 2026-10-06 起直接用本组件）。
-  it('summary: only the model chip yields width; the short variant enum never shrinks', () => {
+  // 2026-09-21 走查：1100×720 英文下参数条里相邻控件互相压；让位的只许是模型名那一枚（省略号 + title 全名），图标从不让。
+  it('summary: 模型格是唯一会让位的那枚，旁边不再有「变体」格', () => {
     render(['low', 'medium', 'high'], 'high')
-    const [model, variant] = captured.selects
-    expect(variant.leadingLabel).toBeTruthy()
-    expect(variant.className ?? '').toContain('shrink-0')
-    expect(model.className ?? '').not.toContain('shrink-0')
+    expect(captured.selects.map(select => select.leadingLabel)).toEqual([undefined])
+    expect(captured.selects[0].className ?? '').not.toContain('shrink-0')
   })
 
-  it('shows a single enabled tier as a fixed value without offering disabled tiers', () => {
+  it('只剩一档时就是一行，菜单里不编造没开的档', () => {
     const { html } = render(['high'], 'high')
-    expect(captured.selects).toHaveLength(2)
-    expect(captured.selects[1].disabled).toBe(true)
-    expect(captured.selects[1].options.map(option => option.label)).toEqual(['High'])
-    expect(html).toContain('High')
+    expect(captured.selects).toHaveLength(1)
+    expect(captured.selects[0].options.map(option => option.label)).toEqual(['Gemini 3.7 Flash'])
+    expect(html).toContain('Gemini 3.7 Flash')
   })
 })
 

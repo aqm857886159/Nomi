@@ -9,11 +9,12 @@ import {
   CONNECT_VENDOR_OPTION_VALUE,
   buildModelSelectOptions,
   buildProviderSelectOptions,
-  modelBoxHiddenNote,
+  modelVisibilityFooterAction,
   pickHealthiestProvider,
   resolveProviderSelectValue,
   useDedupedModelSelect,
   type DedupedModelSelectView,
+  type ModelVariantMenu,
 } from './useDedupedModelSelect'
 import { dedupeModelOptions } from '../../config/modelIdentity'
 import type { ModelOption } from '../../config/models'
@@ -44,38 +45,28 @@ function renderSelect(options: ModelOption[], value: string, vendor = 'antigravi
   return { view, onChange }
 }
 
-describe('exact catalog variants in the generic model selector', () => {
-  it('shows one family and one supplier while retaining all enabled exact tiers', () => {
+describe('目录里的精确变体（Antigravity 档位）在模型菜单里是各自的一行', () => {
+  it('一个模型 = 三行（Low / Medium / High），选中的是存着的那一档；点哪一行就写哪一个精确模型', () => {
     const { view, onChange } = renderSelect(variantOptions(), 'gemini-3.7-flash-high')
-    expect(view.modelOptions).toHaveLength(1)
-    expect(view.modelOptions[0]).toMatchObject({ label: 'Gemini 3.7 Flash', trailing: 'Antigravity CLI' })
-    expect(view.providerOptions).toEqual([])
-    expect(view.variantOptions.map(option => option.label)).toEqual(['Low', 'Medium', 'High'])
-    expect(view.variantOptions.find(option => option.value === view.variantValue)?.label).toBe('High')
-    view.onVariantPick(view.variantOptions[0].value)
+    expect(view.modelOptions.map(option => option.label)).toEqual(['Gemini 3.7 Flash Low', 'Gemini 3.7 Flash Medium', 'Gemini 3.7 Flash High'])
+    expect(view.modelOptions.find(option => option.value === view.modelValue)?.label).toBe('Gemini 3.7 Flash High')
+    view.onModelPick(view.modelOptions[0].value)
     expect(onChange).toHaveBeenCalledWith('gemini-3.7-flash-low', 'antigravity-cli')
   })
 
-  it('preserves the selected tier when reselecting its family and chooses the documented default only for a new selection', () => {
-    const existing = renderSelect(variantOptions(), 'gemini-3.7-flash-low')
-    existing.view.onModelPick(existing.view.modelOptions[0].value)
-    expect(existing.onChange).toHaveBeenCalledWith('gemini-3.7-flash-low', 'antigravity-cli')
-    const fresh = renderSelect(variantOptions(), '')
-    fresh.view.onModelPick(fresh.view.modelOptions[0].value)
-    expect(fresh.onChange).toHaveBeenCalledWith('gemini-3.7-flash-medium', 'antigravity-cli')
-  })
-
-  it('never invents an unavailable default or accepts disabled and unknown tier addresses', () => {
-    const { view, onChange } = renderSelect(variantOptions(['low', 'high']), 'gemini-3.7-flash-low')
-    expect(view.variantOptions.map(option => option.label)).toEqual(['Low', 'High'])
-    for (const unavailable of ['gemini-3.7-flash-medium', 'gemini-3.7-flash-future']) {
-      view.onVariantPick(`antigravity-cli\u0000${unavailable}`)
-      view.onProviderPick(`antigravity-cli\u0000${unavailable}`)
-    }
-    expect(onChange).not.toHaveBeenCalled()
+  it('只有一档时不展开：仍是一行，点它写那唯一的一档（不编造没有的档）', () => {
     const fresh = renderSelect(variantOptions(['low']), '')
+    expect(fresh.view.modelOptions).toHaveLength(1)
     fresh.view.onModelPick(fresh.view.modelOptions[0].value)
     expect(fresh.onChange).toHaveBeenCalledWith('gemini-3.7-flash-low', 'antigravity-cli')
+  })
+
+  it('没开的档不出现，也点不到：未知的行键什么都不写', () => {
+    const { view, onChange } = renderSelect(variantOptions(['low', 'high']), 'gemini-3.7-flash-low')
+    expect(view.modelOptions.map(option => option.label)).toEqual(['Gemini 3.7 Flash Low', 'Gemini 3.7 Flash High'])
+    for (const unavailable of ['gemini 3.7 flash#Medium', 'gemini 3.7 flash#future']) view.onModelPick(unavailable)
+    view.onProviderPick('antigravity-cli\u0000gemini-3.7-flash-future')
+    expect(onChange).not.toHaveBeenCalled()
   })
 })
 
@@ -95,8 +86,9 @@ describe('模型名跟着界面语言走，身份不动', () => {
     const zh = buildModelSelectOptions(dedupeModelOptions([...gemini, ...kling]), healthy)
     await i18n.changeLanguage('en')
     const en = buildModelSelectOptions(dedupeModelOptions([...gemini, ...kling]), healthy)
-    expect(zh.map((row) => row.label)).toEqual(['Gemini 3 Pro 图像', '可灵 3.0'])
-    expect(en.map((row) => row.label)).toEqual(['Gemini 3 Pro Image', 'Kling 3.0'])
+    // 可灵 3.0 在默认顺序表里、Gemini 不在 → 默认顺序下可灵靠前（这条测的是名字跟语言走，不是顺序）。
+    expect(zh.map((row) => row.label)).toEqual(['可灵 3.0', 'Gemini 3 Pro 图像'])
+    expect(en.map((row) => row.label)).toEqual(['Kling 3.0', 'Gemini 3 Pro Image'])
     expect(en.map((row) => row.value)).toEqual(zh.map((row) => row.value))
   })
 
@@ -122,10 +114,10 @@ describe('buildModelSelectOptions — 病模型沉底 + 灰化', () => {
     expect(last.dimmed).toBe(true)
     expect(last.trailing).toBe('最近多次失败')
     expect(last.trailingTone).toBe('danger')
-    // 健康的保持原序、不被打标、仍显示厂商名。
+    // 健康的保持原序、不被打标；菜单里只有一家供应商，不写厂商名（写了也没有区别）。
     expect(view[0].label).toBe('Z-Image Turbo')
     expect(view[0].dimmed).toBeUndefined()
-    expect(view[0].trailing).toBe('APIMart')
+    expect(view[0].trailing).toBeUndefined()
   })
 
   it('多家里只病一家 → 整条**不算病**（否则多家里一家挂就误伤整个模型）', () => {
@@ -223,7 +215,8 @@ describe('健康记忆按 (vendor, modelKey) 判定 —— 「换家优先于换
     const deduped = dedupeModelOptions([option('solo', 'apimart', 'Solo')])
     const [entry] = buildModelSelectOptions(deduped, healthy)
     expect(entry.chips).toBeUndefined()
-    expect(entry.trailing).toBe('APIMart')
+    // 菜单里只有这一家：厂商名不写（见下面「厂商名只在看得出区别时才出现」）。
+    expect(entry.trailing).toBeUndefined()
   })
 
   it('两家都病了才回退全集（绝不空选）', () => {
@@ -318,9 +311,9 @@ describe('模型框偏好', () => {
     expect(pickHealthiestProvider(nanoBanana, healthy, ['apimart', 'kie'], 'runninghub')?.vendor).toBe('apimart')
   })
 
-  it('脚注只有真藏过东西才出现', () => {
-    expect(modelBoxHiddenNote(0)).toBe('')
-    expect(modelBoxHiddenNote(2)).toContain('2')
+  it('底部「隐藏模型 N」：藏过才带数，没藏过就只是「隐藏模型」', () => {
+    expect(modelVisibilityFooterAction(0).label).toBe('隐藏模型')
+    expect(modelVisibilityFooterAction(2).label).toBe('隐藏模型 2')
   })
 })
 
@@ -423,5 +416,106 @@ describe('同名 modelKey 跨供应商：选中的是哪家，回显与回写就
     expect(onChange).toHaveBeenLastCalledWith('gpt-image-2', 'apimart')
     view.onProviderPick(apimartAddress)
     expect(onChange).toHaveBeenLastCalledWith('gpt-image-2', 'apimart')
+  })
+})
+
+// 厂商名规则（用户 2026-11-14）：不是每行都写——菜单里有 ≥2 家供应商、且这一行不在默认那家，才写。
+// 规则是通用的：测里用的是任意名字的供应商，组件里没有任何一家的名字。
+describe('厂商名只在看得出区别时才出现', () => {
+  const rows = (...pairs: Array<[string, string, string]>) => dedupeModelOptions(pairs.map(([key, vendor, label]) => option(key, vendor, label)))
+  const trailingOf = (options: ReturnType<typeof buildModelSelectOptions>, label: string) => options.find(o => o.label === label)?.trailing
+
+  it('菜单里只有一家供应商 → 一行都不写厂商名', () => {
+    const options = buildModelSelectOptions(rows(['a-1', 'alpha', 'Model A'], ['b-1', 'alpha', 'Model B']), healthy)
+    expect(options.map(o => o.trailing)).toEqual([undefined, undefined])
+  })
+
+  it('有两家供应商 → 只给不在默认那家（行数最多的那家）的行写厂商名', () => {
+    const options = buildModelSelectOptions(rows(['a-1', 'alpha', 'Model A'], ['b-1', 'alpha', 'Model B'], ['c-1', 'beta', 'Model C']), healthy, [])
+    expect(trailingOf(options, 'Model A')).toBeUndefined()
+    expect(trailingOf(options, 'Model B')).toBeUndefined()
+    expect(trailingOf(options, 'Model C')).toBe('beta')
+  })
+
+  it('两家行数并列 → 全局供应商顺序里靠前的当默认家', () => {
+    const options = buildModelSelectOptions(rows(['a-1', 'alpha', 'Model A'], ['c-1', 'beta', 'Model C']), healthy, ['beta', 'alpha'])
+    expect(trailingOf(options, 'Model C')).toBeUndefined()
+    expect(trailingOf(options, 'Model A')).toBe('alpha')
+  })
+
+  it('多家的行仍是 chip，不重复写厂商名；「暂未列出」这类实话不受影响', () => {
+    const multi = dedupeModelOptions([option('m-1', 'alpha', 'Model M'), option('m-2', 'beta', 'Model M'), { ...option('c-1', 'beta', 'Model C'), unlisted: true }])
+    const options = buildModelSelectOptions(multi, healthy, [])
+    expect(options.find(o => o.label === 'Model M')?.trailing).toBeUndefined()
+    expect(options.find(o => o.label === 'Model M')?.chips).toHaveLength(2)
+    expect(trailingOf(options, 'Model C')).toContain('暂未列出')
+  })
+
+  it('同一份输入、不管调用方是哪一页：规则只看菜单里的行（参数里没有页面名）', () => {
+    const input = rows(['a-1', 'alpha', 'Model A'], ['c-1', 'beta', 'Model C'])
+    expect(buildModelSelectOptions(input, healthy, [])).toEqual(buildModelSelectOptions(input, healthy, [], null, undefined))
+  })
+})
+
+// 变体行只在调用方声明「我存得了变体」时出现（画布节点 / 画布列表声明；分镜行没有存变体的字段，不声明）。
+describe('变体行由调用方的一处声明决定', () => {
+  const seedance = [{ ...option('doubao-seedance-2.0', 'apimart', 'Seedance 2.0'), kind: 'video' as const, meta: { archetypeId: 'seedance-2-apimart' } }]
+  const menu = (overrides: Partial<ModelVariantMenu> = {}): ModelVariantMenu => ({ activeVariantId: 'fast', onPick: vi.fn(), ...overrides })
+
+  it('声明了 → 每个变体一行（标准 / Fast / Mini），选中的是存着的那一个', () => {
+    const declared = menu()
+    let view!: DedupedModelSelectView
+    renderToStaticMarkup(createElement(function Probe() { view = useDedupedModelSelect(seedance, 'apimart:doubao-seedance-2.0', vi.fn(), 'apimart', undefined, declared); return null }))
+    expect(view.modelOptions.map(o => o.label)).toEqual(['Seedance 2.0', 'Seedance 2.0 Fast', 'Seedance 2.0 Mini'])
+    expect(view.modelValue).toBe('seedance 2.0#fast')
+    view.onModelPick('seedance 2.0#mini')
+    expect(declared.onPick).toHaveBeenCalledWith({ value: 'apimart:doubao-seedance-2.0', vendor: 'apimart' }, 'mini')
+  })
+
+  it('没声明（分镜行）→ 每个模型只一行，点它走原来的 onChange，变体一个字都不碰', () => {
+    const onChange = vi.fn()
+    let view!: DedupedModelSelectView
+    renderToStaticMarkup(createElement(function Probe() { view = useDedupedModelSelect(seedance, '', onChange, 'apimart'); return null }))
+    expect(view.modelOptions.map(o => o.value)).toEqual(['seedance 2.0'])
+    view.onModelPick('seedance 2.0')
+    expect(onChange).toHaveBeenCalledWith('apimart:doubao-seedance-2.0', 'apimart')
+  })
+
+  it('变体轴不起作用（惰性通道）的行不展开，免得骗人——选中的那一行也一样', () => {
+    let view!: DedupedModelSelectView
+    renderToStaticMarkup(createElement(function Probe() { view = useDedupedModelSelect(seedance, 'apimart:doubao-seedance-2.0', vi.fn(), 'apimart', undefined, menu({ axisLiveOf: () => false })); return null }))
+    expect(view.modelOptions).toHaveLength(1)
+  })
+
+  it('只有那一行（渠道把型号名写死，如 Runway）不展开；起作用的行照常展开', () => {
+    const mixed = [
+      ...seedance,
+      { ...option('veo3.1', 'runway', 'Runway Veo 3.1'), kind: 'video' as const, meta: { archetypeId: 'veo-3.1' } },
+    ]
+    const deadVendor = menu({ axisLiveOf: (model) => !model.providers.every((provider) => provider.vendor === 'runway') })
+    const labels = buildModelSelectOptions(dedupeModelOptions(mixed), healthy, [], null, deadVendor).map(o => o.label)
+    expect(labels).toEqual(['Seedance 2.0', 'Seedance 2.0 Fast', 'Seedance 2.0 Mini', 'Runway Veo 3.1'])
+    expect(buildModelSelectOptions(dedupeModelOptions(mixed), healthy, [], null, menu()).length).toBeGreaterThan(labels.length)
+  })
+
+  // 自己接的中转：目录行没写档案 id，只靠型号名被认出档案。底栏的方式 / 参数各格按型号名认它，菜单必须说同一件事——
+  // 以前菜单只认显式写的档案 id，这类模型在菜单里既没有变体行也没有描述，创作者丢了「选 Fast / Mini」。
+  it('只靠型号名认出档案的模型（自己接的中转、没写档案 id）：变体行、描述、图标一样不少', () => {
+    const relayed = [{ ...option('doubao-seedance-2.0', 'my-custom-relay', 'Seedance 2.0'), kind: 'video' as const }]
+    const declared = menu()
+    const rows = buildModelSelectOptions(dedupeModelOptions(relayed), healthy, [], null, declared)
+    expect(rows.map(o => o.label)).toEqual(['Seedance 2.0', 'Seedance 2.0 Fast', 'Seedance 2.0 Mini'])
+    for (const row of rows) expect(row.description).toMatch(/文生/)
+    const explicit = buildModelSelectOptions(dedupeModelOptions(seedance), healthy, [], null, declared)
+    expect(rows.map(o => o.description)).toEqual(explicit.map(o => o.description))
+    expect(rows.map(o => o.icon)).toEqual(explicit.map(o => o.icon))
+    expect(rows[0].icon).toBeTruthy()
+  })
+
+  it('每行带一句由档案算出的能力描述；没档案的模型不编', () => {
+    const custom = [option('my-model', 'apimart', 'My Model')]
+    expect(buildModelSelectOptions(dedupeModelOptions(custom), healthy)[0].description).toBeUndefined()
+    const described = buildModelSelectOptions(dedupeModelOptions(seedance), healthy)[0]
+    expect(described.description).toMatch(/文生/)
   })
 })

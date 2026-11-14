@@ -3,6 +3,16 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-09-28-channel-model-identity-merge.root-cause.json",
+      "path": "electron/catalog/seedModelIdentity.ts",
+      "symbol": "CANONICAL_MODEL_IDS",
+      "anchor": {
+        "path": "electron/shared/modelCanonicalIds.ts",
+        "symbol": "CANONICAL_MODEL_IDS"
+      },
+      "reason": "2026-11-14 跨家身份表整段搬到中立层（内容逐字未改）：界面层的模型默认顺序也要读它，而界面层不许直接引主进程目录（check:boundaries）。旧文件只留一行转出口给目录内部的对账用，表本体只有中立层这一份；「模型身份必须显式写在这张表里」的不变量不变，仍由 src/config/modelIdentity.channelMerge.test.ts 与 electron/catalog/seedBuiltins.test.ts 守。"
+    },
+    {
       "contract": "docs/fixes/2026-09-15-feedback-loop-intake.root-cause.json",
       "path": "electron/telemetry/intakeQueue.ts",
       "symbol": "flushIntakeQueue / clearIntakeQueue",
@@ -1112,6 +1122,12 @@
       "path": "electron/catalog/relayNativeWireUpgrade.ts",
       "symbol": "noteRelayQueryOutcome",
       "reason": "获批方向已反转旧不变量：连续查询失败不得自动换通道，也不得修改已受理任务的查询合同。旧noteRelayQueryOutcome与调用方重查分支同提交删除；现役executeTaskQuery只沿原mapping查询，阶段错误保留收据。旧“连续三次失败单向退回”不再适用，故退役而非改锚；新不变量由协议根因合同及relayQueryFallback回归持有。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-21-composer-footer-chip-clipping.root-cause.json",
+      "path": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "symbol": "variantChipClass",
+      "reason": "2026-11-14 底栏的「变体」格整个删除，变体并进模型菜单里的行（样张 ModeBar model.menu）：底栏只剩模型这一枚身份 chip，「短枚举 chip 不收缩、只有模型 chip 让宽」这条不变量里「变体 chip」那半条不再有对象，同提交删掉 variantChipClass；模型 chip 让宽仍由 modelChipClass 一处说了算。"
     }
   ],
   "unverified": [

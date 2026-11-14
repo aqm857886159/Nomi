@@ -142,7 +142,9 @@ function useLabLocale(locale: Locale): boolean {
 }
 
 /** 一格 = 生成页画布区那一块：左上「画布 | 列表」+ 现役列表视图。 */
-export function GenerationListStage({ fixture, locale = 'zh-CN', inspectorKey, width = GENERATION_LIST_CELL_WIDTH, height = GENERATION_LIST_CELL_HEIGHT }: GenerationListStageProps): JSX.Element {
+export function GenerationListStage({ fixture, locale: stateLocale = 'zh-CN', inspectorKey, width = GENERATION_LIST_CELL_WIDTH, height = GENERATION_LIST_CELL_HEIGHT }: GenerationListStageProps): JSX.Element {
+  // 证据脚本用 ?lang=en 把同一格再截一遍英文（格子本身只登记中文一份）。
+  const locale = new URL(window.location.href).searchParams.get('lang') === 'en' ? 'en' : stateLocale
   React.useMemo(() => installCatalogBridge(), [])
   const languageReady = useLabLocale(locale)
   const [chunkReady, setChunkReady] = React.useState(false)

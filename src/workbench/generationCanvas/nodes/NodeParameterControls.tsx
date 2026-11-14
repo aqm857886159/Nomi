@@ -57,7 +57,6 @@ import {
   archetypeModeArraySlots,
   archetypeModeSlots,
   archetypeModeSourceVideoSlot,
-  archetypeVariantChoices,
   currentArchetypeVariant,
   collectModeInputs,
   effectiveArchetypeMode,
@@ -67,7 +66,6 @@ import {
 import {
   archetypeModeChoices,
   archetypeModeSlotReachByKey,
-  archetypeVariantAxisIsLive,
 } from './controls/channelModeReach'
 import {
   NARROWED_MODE_GUIDANCE_DISMISSED_META_KEY,
@@ -78,6 +76,7 @@ import {
 import NarrowedModeGuidanceNote from './controls/NarrowedModeGuidanceNote'
 import { resolveReferencePlacement, firstFrameTaggedSlot } from '../runner/referenceSlots'
 import { useChannelCreateBodies, type VendorMappingsReader } from './controls/useChannelCreateBody'
+import { useVariantAxisLiveOf } from './controls/useVariantAxisLiveOf'
 import { modeTransportFor, specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
 import ModeBar from './controls/ModeBar'
 import { buildModeMenu, modeRowName } from './controls/modeMenuModel'
@@ -100,6 +99,7 @@ import { buildAspectRatioNodePatch } from './nodeSizing'
 import { ASPECT_EXPLICIT_META_KEY } from './aspectExplicit'
 import { parseAspectRatioValue } from '../../../../electron/shared/aspectRatioValue'
 import { buildNodeModelChangePatch } from './buildNodeModelChangePatch'
+import type { ModelVariantMenu } from '../../common/useDedupedModelSelect'
 import { isAspectRatioControl, parameterControlChangePatch } from './controls/parameterControlModel'
 
 type NodeParameterControlsProps = {
@@ -148,7 +148,6 @@ export default function NodeParameterControls({
   const { modelKey: selectedModelValue, vendorKey: selectedModelVendor } = nodeSelectedModelAddress(meta)
   const selectedModelOption = findModelOptionByIdentifier(modelOptions, selectedModelValue, selectedModelVendor) || null
   const archetype = resolveArchetypeForOption(selectedModelOption)
-  const declaredVariantChoices = archetype ? archetypeVariantChoices(archetype) : []
   const activeVariantId = archetype ? currentArchetypeVariant(archetype, meta)?.id || '' : ''
   const effectiveArchetype = archetype ? specializeArchetypeForVariant(archetype, activeVariantId) : null
   // 方式按这次的输入现算（modeForInputs，唯一 owner）：方式格显示它、参考格子按它摆、参数按它收窄——显示的 = 这次真发的。
@@ -174,8 +173,7 @@ export default function NodeParameterControls({
     selectedModelOption?.value ?? '',
     modeBodySpecs, readMappings,
   )
-  // （Runway 把 model 写死、且 veo3.1 / veo3.1_fast 本就是两个目录行）。惰性时整条不显示，别骗用户。
-  const variantChoices = sendMode && !archetypeVariantAxisIsLive(modeBodies[sendMode.id]) ? [] : declaredVariantChoices
+  const axisLiveOf = useVariantAxisLiveOf(readMappings)
   // 槽级收窄仍只看**当前**模式的 body（口径不变）。三态里的 undefined/null 都落到「拿不到 body」→ 不收窄。
   const channelCreateBody = archMode ? (modeBodies[archMode.id]?.body ?? null) : null
   const slotReachByKey = React.useMemo(
@@ -292,11 +290,19 @@ export default function NodeParameterControls({
     setOpenSlotKey('')
   }
 
-  // 切型号变体：只改 variantId（正交轴，不动模式/参考值）。决定实际发请求的 model + 参数收窄。
-  const handleVariantSwitch = (variantId: string) => {
-    if (!archetype) return
-    updateNode(node.id, { meta: applyArchetypeVariantSwitch(getLatestMeta(), archetype, variantId) })
-    setOpenSlotKey('')
+  // 变体是模型菜单里的一行；这里是**唯一**声明「我存得了变体」的地方：点变体行 = 先落到该模型
+  // （同一条 handleModelChange），再只改 variantId（正交轴，不动模式 / 参考值）。
+  const variantMenu: ModelVariantMenu = {
+    activeVariantId,
+    axisLiveOf,
+    onPick: ({ value, vendor }, variantId) => {
+      const sameModel = value === selectedModelValue && (!vendor || vendor === selectedModelVendor)
+      if (!sameModel) handleModelChange(value, vendor)
+      const nextArchetype = resolveArchetypeForOption(findModelOptionByIdentifier(modelOptions, value, vendor) || null)
+      if (!nextArchetype) return
+      updateNode(node.id, { meta: applyArchetypeVariantSwitch(getLatestMeta(), nextArchetype, variantId) })
+      setOpenSlotKey('')
+    },
   }
 
   // ── C3 数组参考槽（全能参考，meta-only）：append / remove / 上传，写 node.meta[metaKey] 数组 ──
@@ -361,7 +367,6 @@ export default function NodeParameterControls({
     ? buildModeMenu({ nodeKind: isVideoLike ? 'video' : 'other', archetype: effectiveArchetype, visible: modeChoices, inputs: modeInputs.inputs, firstFrameEmpty: modeInputs.firstFrameEmpty, resolvedModeId: archMode.id })
     : null
   const showModeBar = !isVideoLike && !isImageLike && modeChoices.length > 1
-  const showVariantBar = variantChoices.length > 1
   // 当前模式的数组参考槽（全能参考，meta-only）+ 源视频单槽（HappyHorse 视频编辑）。
   const arraySlots: ArchetypeArraySlot[] = archMode ? archetypeModeArraySlots(archMode) : []
   const sourceVideoSlot = archMode ? archetypeModeSourceVideoSlot(archMode) : null
@@ -528,9 +533,7 @@ export default function NodeParameterControls({
         onModelChange={handleModelChange}
         onCatalogControlChange={handleCatalogControlChange}
         onParameterControlChange={handleParameterControlChange}
-        variantChoices={showVariantBar ? variantChoices : []}
-        activeVariantId={activeVariantId}
-        onVariantSelect={handleVariantSwitch}
+        variantMenu={variantMenu}
         summaryOverride={summaryOverride}
         {...(headlineParts.length ? { summaryParts: headlineParts } : {})}
         // 视频节点的方式在底栏自己一格（参数面板里不再有「生成方式」）；图片没有，声音 / 3D 仍在参考区上方的模式栏。

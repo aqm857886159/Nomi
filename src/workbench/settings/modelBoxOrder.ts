@@ -4,6 +4,7 @@
 // `src/config/modelBoxPreference.ts` + `sortModelProviders`，设置区和模型框读的是**同一份**结果。
 // 设置里看到的顺序和真机下拉里的顺序因此不可能漂：它们是同一次计算的两个渲染。
 import { sortModelProviders, type DedupedModel, type ModelProviderRef } from '../../config/modelIdentity'
+import { applyModelBoxDefaults } from '../../config/modelBoxDefaults'
 import { partitionByModelBoxPreference, rememberedProviderIndex, rememberedVendorFor } from '../../config/modelBoxPreference'
 import type { ModelBoxPreferenceSettings } from '../../../electron/shared/contracts/modelBoxPreference'
 
@@ -40,7 +41,9 @@ export function buildModelBoxRows(
     }
   }
   const { visible, hidden } = partitionByModelBoxPreference(deduped, preference)
-  return { visible: visible.map(toRow), hidden: hidden.map(toRow) }
+  // 没整理过的创作者：和菜单同一个默认顺序（`applyModelBoxDefaults` 是唯一一份；整理过的它原样返回）。
+  const ordered = applyModelBoxDefaults(visible.map((model) => ({ model })), preference).map(({ row }) => row.model)
+  return { visible: ordered.map(toRow), hidden: hidden.map(toRow) }
 }
 
 /**

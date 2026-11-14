@@ -27,11 +27,12 @@ describe('vendor logo registry', () => {
   })
 
   it('即梦与豆包是两个产品，不许再共用一块牌子', () => {
-    const identity = read('src/config/modelProviderIdentity.ts')
-    // 旧 bug 的确切形状：一条正则同时匹配 doubao 和 dreamina。
-    expect(identity).not.toMatch(/doubao[^\n]*dreamina|dreamina[^\n]*doubao/)
-    expect(identity).toContain('VENDOR_LOGOS.dreamina')
-    expect(identity).toContain('VENDOR_LOGOS.doubao')
+    // 模型的品牌图住 modelFamilyIcons.ts 一张家族表（供应商的小标在 modelProviderIdentity.ts，不再管模型）。
+    const identity = read('src/config/modelFamilyIcons.ts')
+    // 旧 bug 的确切形状：一条规则同时把 doubao 和 jimeng 当成同一块牌子。
+    expect(identity).not.toMatch(/\bdoubao\b[^\n]*\bjimeng\b|\bjimeng\b[^\n]*\bdoubao\b/)
+    expect(identity).toMatch(/'dreamina-image':\s*jimeng/)
+    expect(identity).toMatch(/seedance:\s*doubao/)
   })
 
   it('品牌图只有 VendorLogoImage 一个渲染口（否则 dark:invert 这类规矩必然漏抄）', () => {
@@ -55,6 +56,6 @@ describe('vendor logo registry', () => {
   it('单色标（透明底深色笔画）必须登记进反相名单，否则暗色模式看不见', () => {
     const source = read('src/assets/vendor-logos/index.ts')
     expect(source).toMatch(/MONOCHROME_LOGO_NAMES[^\n]*=\s*\[[^\]]*'apimart'[^\]]*'elevenlabs'[^\]]*'runway'/)
-    expect(read('src/design/vendorLogoImage.tsx')).toContain("isMonochromeVendorLogo(src) && 'dark:invert'")
+    expect(read('src/design/vendorLogoImage.tsx')).toContain("(monochrome || isMonochromeVendorLogo(src)) && 'dark:invert'")
   })
 })
