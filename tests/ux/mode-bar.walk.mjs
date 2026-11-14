@@ -2,7 +2,7 @@
 //
 // 一格 = 实验室里现役 `BaseGenerationNode` + `NodeGenerationComposer`（states/03-mode-bar.tsx）。方式格、方式菜单、
 // 行尾那句话都是生产组件按唯一 owner modeForInputs 现算的；这里对每个拍板元素量一条用户看得见的事实，
-// 断言名 `board:ModeBar/<元素 id>` 与清单一一对应。每格中 / 英 × 明 / 暗各截一张，证据进 docs/evidence/2026-11-12-mode-bar/。
+// 断言名 `board:ModeBar/<元素 id>` 与清单一一对应。每格中 / 英 × 明 / 暗各截一张，证据默认进 .tmp/walk-mode-bar/（NOMI_MODE_BAR_OUT 可指定；留档在 docs/evidence/2026-11-12-mode-bar/）。
 //
 // 后半段是边界走查（mb-k*，边界样张 K1–K5，用户 2026-11-12「按推荐做」），放到最多的数据上判四条（每格中 / 英各一遍）：
 //   ① 底栏相邻两颗不互相盖；② 没有东西出生成框；③ 行尾那句话、底栏每一格都只一行（不折、不截半个值）；
@@ -18,13 +18,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { REPO_ROOT } from './design-lab/labStates.mjs'
 import { assertLabPortOwnership, labPortFor } from './design-lab/labServer.mjs'
+import { require as tsxRequire } from 'tsx/cjs/api'
 
 const ROLE = 'walk-mode-bar'
 const HOST = '127.0.0.1'
 const PORT = labPortFor(ROLE)
 const BASE = `http://${HOST}:${PORT}`
 const SCREEN = 'node-composer-bar'
-const EVIDENCE_DIR = path.join(REPO_ROOT, 'docs/evidence/2026-11-12-mode-bar')
+// 默认写到仓库里被忽略的 .tmp/ 草稿区，不改已跟踪的 docs/evidence/2026-11-12-mode-bar/（那是拍板时的留档）；要更新留档时显式传 NOMI_MODE_BAR_OUT。
+const EVIDENCE_DIR = process.env.NOMI_MODE_BAR_OUT || path.join(REPO_ROOT, '.tmp', 'walk-mode-bar')
 const WITH_EVIDENCE = process.env.EVIDENCE !== '0'
 const LOCALES = [['zh', 'zh-CN'], ['en', 'en']]
 const SCHEMES = ['light', 'dark']
@@ -69,6 +71,15 @@ const count = (page, selector) => page.evaluate((sel) => document.querySelectorA
 const modeTrigger = (locale) => `${FOOTER} button[aria-label="${uiText(locale, 'generationCommon.modeMenu.heading')}"]`
 const CJK = /[\u3400-\u9fff]/
 const name = (locale, kind) => uiText(locale, `generationCommon.modeMenu.name.${kind}`)
+// 跟随现状（2026-11-14 清红走查）：Seedance 2.5（APIMart）自 0ffb7b6c6（11-12 文档对齐）起有六个方式，全能参考 / 视频编辑 /
+// 视频续写按形状都归「全能参考」类、撞名，菜单退回档案真名，英文走 modelDisplayText（「Omni reference」），不走统一叫法字典的
+// 「Reference」。清单 ModeBar 写的是 Reference——两个来源并存是产品待统一的事（报协调会话），走查只取菜单真显示的那个名字。
+const { enModelDisplayText } = tsxRequire('../../src/i18n/locales/modelDisplayText.ts', import.meta.url)
+// 档案真名就是中文统一叫法那个词，所以按词典键取它当查表的键，不在测试里抄字面量。
+const shownReference = (locale) => (locale === 'en' ? enModelDisplayText[name('zh-CN', 'reference')] : name(locale, 'reference'))
+// 「只列这个模型真有的方式」（清单 mode.menu）：行数按档案里 Seedance 2.5（APIMart）真有的方式数算，不写死。
+const { ARCHETYPE_MODE_MANIFEST_VIDEO } = tsxRequire('../../electron/catalog/archetypeModes.video.generated.ts', import.meta.url)
+const SEEDANCE25_MODE_COUNT = Object.keys(ARCHETYPE_MODE_MANIFEST_VIDEO['seedance-2.5-apimart'].modes).length
 
 /** 打开着的方式菜单：小标题、每行（名字 / 说明 / 置灰 / 打勾）。 */
 const readMenu = (page) => page.evaluate(() => {
@@ -127,16 +138,16 @@ try {
           const model = await text(page, `${FOOTER} [data-bar-segment="model-params"] button`)
           check(`board:ModeBar/bar.model · ${tag}`, /Seedance 2\.5/.test(model ?? ''), String(model))
           check(`board:ModeBar/bar.mode · 没放输入写文生视频 · ${tag}`, modeText === name(locale, 'text'), String(modeText))
-          // 菜单：小标题、四行、每行图标 + 说明；当前行（文生视频）打勾；带图的三种置灰、说明说要放什么
-          const ok = menu && menu.heading === t('generationCommon.modeMenu.heading') && menu.rows.length === 4 && menu.rows.every((r) => r.icon && r.description) &&
-            menu.rows.filter((r) => r.checked).map((r) => r.label).join() === name(locale, 'text') && menu.rows.filter((r) => r.disabled).length === 3
+          // 菜单：小标题、档案里有几个方式就几行、每行图标 + 说明；当前行（文生视频）打勾；其余要带输入的全部置灰、说明说要放什么
+          const ok = menu && menu.heading === t('generationCommon.modeMenu.heading') && menu.rows.length === SEEDANCE25_MODE_COUNT && menu.rows.every((r) => r.icon && r.description) &&
+            menu.rows.filter((r) => r.checked).map((r) => r.label).join() === name(locale, 'text') && menu.rows.filter((r) => r.disabled).length === SEEDANCE25_MODE_COUNT - 1
           check(`board:ModeBar/mode.menu · 没放输入：带图的三种置灰 · ${tag}`, Boolean(ok), JSON.stringify(menu))
           const tools = await count(page, `${FOOTER} [data-bar-segment="prompt-tools"] button`)
           check(`board:ModeBar/bar.tools · ${tag}`, tools >= 3, String(tools))
         }
         if (state === 'mb-b-one-image-menu') {
           check(`board:ModeBar/ref.tail.count · ${tag}`, tail === t('assetLibrary.refRow.count', { count: 1 }), tail)
-          check(`board:ModeBar/bar.mode · 放了 1 张按全能参考 · ${tag}`, modeText === name(locale, 'reference'), String(modeText))
+          check(`board:ModeBar/bar.mode · 放了 1 张按全能参考 · ${tag}`, modeText === shownReference(locale), String(modeText))
           const enabled = menu?.rows.filter((r) => !r.disabled).map((r) => r.label) ?? []
           check(`board:ModeBar/mode.menu · 放了 1 张：文生视频置灰，其余三种能点 · ${tag}`, enabled.length === 3 && !enabled.includes(name(locale, 'text')), JSON.stringify(menu))
         }
@@ -154,8 +165,8 @@ try {
           check(`board:ModeBar/bar.params · ${tag}`, /5\s?s/.test(params ?? '') || (await count(page, '[data-agent-parameter-panel]')) === 1, String(params))
         }
         if (state === 'mb-d-third-image') {
-          check(`board:ModeBar/ref.tail.switched · ${tag}`, tail.replace(/\s+/g, ' ') === `${t('assetLibrary.refRow.switchedTo', { count: 3 })} ${name(locale, 'reference')}`.replace(/\s+/g, ' ').trim() || (tail.startsWith(t('assetLibrary.refRow.switchedTo', { count: 3 }).trim()) && tail.endsWith(name(locale, 'reference'))), tail)
-          check(`board:ModeBar/bar.mode · 放到第 3 张自动改成全能参考 · ${tag}`, modeText === name(locale, 'reference'), String(modeText))
+          check(`board:ModeBar/ref.tail.switched · ${tag}`, tail.replace(/\s+/g, ' ') === `${t('assetLibrary.refRow.switchedTo', { count: 3 })} ${shownReference(locale)}`.replace(/\s+/g, ' ').trim() || (tail.startsWith(t('assetLibrary.refRow.switchedTo', { count: 3 }).trim()) && tail.endsWith(shownReference(locale))), tail)
+          check(`board:ModeBar/bar.mode · 放到第 3 张自动改成全能参考 · ${tag}`, modeText === shownReference(locale), String(modeText))
         }
         if (state === 'mb-d-third-image-menu') {
           const firstLast = menu?.rows.find((r) => r.label === name(locale, 'firstLast'))
@@ -173,7 +184,7 @@ try {
         }
         if (state === 'mb-i-remove-menu') {
           const firstLast = menu?.rows.find((r) => r.label === name(locale, 'firstLast'))
-          check(`board:ModeBar/mode.menu · 删回 2 张不跳回、首尾帧又能点 · ${tag}`, modeText === name(locale, 'reference') && firstLast && !firstLast.disabled, JSON.stringify({ modeText, firstLast }))
+          check(`board:ModeBar/mode.menu · 删回 2 张不跳回、首尾帧又能点 · ${tag}`, modeText === shownReference(locale) && firstLast && !firstLast.disabled, JSON.stringify({ modeText, firstLast }))
         }
         if (state === 'mb-j-model-limit') {
           const notSent = await page.evaluate(() => [...document.querySelectorAll('[data-reference-unused]')].map((el) => ({ text: el.textContent?.trim() ?? '', dimmed: Boolean(el.querySelector('[data-asset-tile]')) && getComputedStyle(el.querySelector('[data-asset-tile]')).opacity !== '1' })))

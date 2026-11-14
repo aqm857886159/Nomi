@@ -3,7 +3,7 @@
 //   node tests/ux/archetype-docs-batch1-screens.walk.mjs
 // 零花费：隔离资料 + 夹具凭据（createRuntimeWalk 的 apimart 夹具档），APIMart 地址被重定向到本机夹具，不出网、不读真实 Key、不点生成。
 // 不改任何界面代码，只读界面：参数面板里写了什么、有没有被挤出框，按真实 DOM 量，交给报告对着能力表逐行勾。
-// 环境变量：NOMI_SHOTS_OUT 截图落地目录（必填，仓库外临时目录）；NOMI_SHOTS_ONLY 只跑某个型号（逗号分隔，调试用）；
+// 环境变量：NOMI_SHOTS_OUT 截图落地目录（绝对路径；不给就落仓库里被忽略的 .tmp/walk-archetype-docs-batch1/）；NOMI_SHOTS_ONLY 只跑某个型号（逗号分隔，调试用）；
 // NOMI_SHOTS_LOCALES 只跑某轨（zh-CN / en，逗号分隔）。
 //
 // 方式按输入现算（2026-11-12 起方式住在底栏方式格，放不下当前输入的方式置灰），所以按真人的顺序摆几种输入，每种输入下把方式格里
@@ -11,6 +11,7 @@
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
 import { clickOrFail, expect, expectHidden, expectVisible, screenshotSettled } from './_assert.mjs'
 import { closeModeMenu, modeName, openModeMenu, pickModeByName, readModeCell } from './_modeMenu.mjs'
@@ -20,10 +21,12 @@ import { backToLibrary, setAppLanguage } from './_shell.mjs'
 import { writeSampleReferenceFiles } from './_catalogMediaRestSamples.mjs'
 import { createRuntimeWalk, readProject } from './agent-runtime-walk-support.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { require as tsxRequire } from 'tsx/cjs/api'
 
 const PICKER = '[data-testid="asset-picker"]'
-const OUT = process.env.NOMI_SHOTS_OUT
-if (!OUT || !path.isAbsolute(OUT)) throw new Error('NOMI_SHOTS_OUT 必须是绝对路径（截图落地目录）')
+// 没给 NOMI_SHOTS_OUT 时落到仓库里被忽略的 .tmp/ 草稿区：这条在夜跑清单里，夜跑不设这个变量，以前一启动就红（2026-11-14 清红走查）。
+const OUT = process.env.NOMI_SHOTS_OUT || fileURLToPath(new URL('../../.tmp/walk-archetype-docs-batch1/', import.meta.url))
+if (!path.isAbsolute(OUT)) throw new Error('NOMI_SHOTS_OUT 必须是绝对路径（截图落地目录）')
 fs.mkdirSync(OUT, { recursive: true })
 
 /** 要找的模型名放进环境变量里就能被「改成不存在的」打红（自验用）。 */
@@ -39,16 +42,21 @@ const IMAGE_STATES = ['无参考', '1张图', '2张图']
  * 方式菜单的行 → 档案方式号（截图文件名用）：菜单按档案方式的顺序列全部方式（放不下当前输入的置灰），所以按行号认；
  * 归进四类的行再按词典名对一遍（顺序变了当场红）。存下来的方式号只是偏好（还有存盘节流），不能拿来认「这次按哪种方式」。
  */
+// 第三项 'vendorTerm'＝跟随现状（2026-11-14 清红走查）：这一行和编辑 / 续写按形状同归「全能参考」类、撞名，菜单退回档案真名，
+// 英文走 modelDisplayText（「Omni reference」）而不是统一叫法字典（「Reference」）——MiniMax H3-Max 不撞名，英文仍是「Reference」。
+// 同一个方式英文两种叫法是产品待收成一个家的事；收好后去掉第三项、按词典名再对一次。
 const MODE_ORDER = {
-  'seedance-2.5': [['t2v', 'text'], ['first', 'image'], ['firstlast', 'firstLast'], ['omni', 'reference'], ['edit'], ['extend']],
-  'kling-4.0-flash': [['t2v', 'text'], ['i2v', 'image'], ['ref', 'reference'], ['edit'], ['extend']],
+  'seedance-2.5': [['t2v', 'text'], ['first', 'image'], ['firstlast', 'firstLast'], ['omni', 'reference', 'vendorTerm'], ['edit'], ['extend']],
+  'kling-4.0-flash': [['t2v', 'text'], ['i2v', 'image'], ['ref', 'reference', 'vendorTerm'], ['edit'], ['extend']],
   'minimax-h3-max': [['t2v', 'text'], ['i2v'], ['ref', 'reference']],
 }
+const { enModelDisplayText } = tsxRequire('../../src/i18n/locales/modelDisplayText.ts', import.meta.url)
+const shownName = (lang, kind, source) => (source === 'vendorTerm' && lang === 'en' ? enModelDisplayText[modeName('zh', kind)] : modeName(lang, kind))
 const modeIdOfRow = (file, rows, index, lang) => {
   const order = MODE_ORDER[file]
   if (!order || rows.length !== order.length) throw new Error(`${file}：方式菜单 ${rows.length} 行，档案登记 ${order?.length ?? 0} 种方式：${JSON.stringify(rows.map((row) => row.name))}`)
-  const [modeId, kind] = order[index]
-  if (kind && rows[index].name !== modeName(lang, kind)) throw new Error(`${file}：方式菜单第 ${index + 1} 行是「${rows[index].name}」，按顺序应是四类里的 ${kind}（${modeName(lang, kind)}）`)
+  const [modeId, kind, source] = order[index]
+  if (kind && rows[index].name !== shownName(lang, kind, source)) throw new Error(`${file}：方式菜单第 ${index + 1} 行是「${rows[index].name}」，按顺序应是四类里的 ${kind}（${shownName(lang, kind, source)}）`)
   return modeId
 }
 const only = (process.env.NOMI_SHOTS_ONLY ?? '').split(',').filter(Boolean)

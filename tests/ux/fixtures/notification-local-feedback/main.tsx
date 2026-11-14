@@ -19,7 +19,9 @@ import { createDefaultTimeline } from '../../../../src/workbench/timeline/timeli
 import { NomiBrowserDialog } from '../../../../src/ui/browser/dialog/NomiBrowserDialog'
 import { writeBookmarks } from '../../../../src/ui/browser/dialog/NomiBrowserDialogModel'
 import { useToastStore } from '../../../../src/ui/toast'
+import { createProjectCanvasReadSurfaceCoordinator, registerProjectCanvasReadSurfaceCoordinator } from '../../../../src/workbench/project/projectCanvasReadSurface'
 import type { ProductionRun } from '../../../../electron/productionRun/productionRunTypes'
+import type { CanvasReadSurfaceBridge } from '../../../../electron/shared/surfacePortBinding'
 
 const controls = { failCodex: true, failProduction: true, enabled: false, commandCalls: 0 }
 let run: ProductionRun = {
@@ -68,10 +70,9 @@ function Stage() {
   const [enabled, setEnabled] = React.useState(false)
   const [action, setAction] = React.useState(0)
   const scenario = new URLSearchParams(location.search).get('scenario') || 'codex'
-  const before = new URLSearchParams(location.search).get('phase') === 'before'
   const repeat = () => {
     for (let index = 1; index <= 5; index++) useToastStore.getState().push({
-      ...(!before ? { id: 'fixture-background-task' } : {}), reason: 'storage-unavailable',
+      id: 'fixture-background-task', reason: 'storage-unavailable',
       message: `后台任务失败 ${index}：请检查文件夹权限`, type: 'error', ttl: false,
       actionLabel: '重试', onAction: () => setAction(index),
     })
@@ -86,4 +87,17 @@ function Stage() {
     </div><ConfirmDialogHost />
   </main>
 }
+// 打开一个项目（真签发点）：制作状态只认当前打开的项目（useOpenProjectId），没有打开的项目任务卡不渲染。
+const coordinator = createProjectCanvasReadSurfaceCoordinator({
+  createSurfaceInstanceId: () => 'window',
+  getSurfaceBridge: () => ({
+    suspend: async () => ({ suspension: {} }),
+    release: async () => ({ released: true }),
+    commitCanvasRead: async ({ projectId }: { projectId: string }) => ({ binding: { binding: {
+      projectId, immutableProjectUuid: '11111111-1111-4111-8111-111111111111', projectGeneration: 1,
+    } } }),
+  } as unknown as CanvasReadSurfaceBridge),
+})
+registerProjectCanvasReadSurfaceCoordinator(coordinator)
+await coordinator.beginHydration().commitCanvasRead(run.projectId)
 createRoot(document.getElementById('root')!).render(<NomiColorSchemeProvider><NomiAppProviders><Stage /></NomiAppProviders></NomiColorSchemeProvider>)

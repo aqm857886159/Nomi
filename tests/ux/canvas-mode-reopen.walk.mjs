@@ -1,5 +1,8 @@
 // I-canvas-revert-h：落盘的旧视频单图方式在冷重开后回到文生视频。
 // 用法：NOMI_WALK_LANG=zh|en node tests/ux/canvas-mode-reopen.walk.mjs
+//
+// 2026-11-14 清红走查改写：11-12 起方式按输入现算（325237525）——没放输入就是文生，老项目存着的 modeId 只当偏好、不再在
+// hydrate 时被改写。守的事不变：老项目里落盘的单图方式，冷重开后生成框按文生视频发、不残留首帧格；改读底栏方式格写的字。
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -8,11 +11,13 @@ import { stationTimeout } from './_station-budget.mjs'
 import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasFitViewButton, canvasZoomPercent, canvasZoomStep, newProjectEntry, switchWorkspace } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { modeCell, modeName } from './_modeMenu.mjs'
 
 const repoRoot = process.cwd()
 const locale = process.env.NOMI_WALK_LANG === 'en' ? 'en' : 'zh-CN'
 const languageTag = locale === 'en' ? 'en' : 'zh'
 const generateLabel = uiText(locale, 'generationCommon.composer.generate')
+const textModeName = modeName(locale, 'text')
 const tempRoot = path.join(repoRoot, '.tmp', 'nomi-canvas-mode-reopen-' + languageTag)
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
@@ -152,12 +157,15 @@ try {
   const target = win.locator('[data-node-id="legacy-video-target"]').first()
   const composer = target.locator('.generation-canvas-v2-node__composer').first()
   await expectVisible(composer, '重开后选中视频节点，生成框出现')
+  const modeButton = modeCell(composer, locale)
+  await expect(modeButton, `冷重开后底栏方式格写「${textModeName}」`).toHaveText(textModeName, { timeout: stationTimeout() })
   const reopenedState = await win.evaluate(() => {
     const state = window.__nomiCanvasStore.getState()
     const targetNode = state.nodes.find((node) => node.id === 'legacy-video-target')
-    return { modeId: targetNode?.meta?.archetype?.modeId, edgeCount: state.edges.filter((edge) => edge.target === 'legacy-video-target').length }
+    return { storedPreference: targetNode?.meta?.archetype?.modeId, edgeCount: state.edges.filter((edge) => edge.target === 'legacy-video-target').length }
   })
-  check('冷重开 hydrate 后清掉旧单图方式，回到文生视频', reopenedState.modeId === 't2v' && reopenedState.edgeCount === 0, JSON.stringify(reopenedState))
+  const reopenedMode = (await modeButton.textContent())?.trim()
+  check('冷重开 hydrate 后清掉旧单图方式，回到文生视频', reopenedMode === textModeName && reopenedState.edgeCount === 0, JSON.stringify({ mode: reopenedMode, ...reopenedState }))
   const summary = composer.locator('[data-parameter-summary]').first()
   await expect(summary, '重开后的生成框缺少参数摘要入口').toBeVisible()
   await summary.click()

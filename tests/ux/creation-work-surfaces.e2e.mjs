@@ -1,6 +1,17 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Unified creation workspace walkthrough: drafts and multiple storyboard designs
 // share one resource tree, remain isolated, and survive a project reload.
+//
+// 2026-11-14 清红走查按现在的版面重写（守的事不变）：
+//   · 文稿树 10-08 起住在左栏「文稿」抽屉里，选中文稿 / 方案会把抽屉收起——每次碰树之前经 ensureCreationResourceTree 点一下左栏「文稿」；
+//   · 删方案 09-21 起不弹确认框、直接删 + 撤销条（creation-plan-delete-undo 守撤销），这里只断「删掉的那份不再出现、重载后也不回来」；
+//   · 中列「分镜摘要卡」（data-creation-surface="storyboard"）已删，打开方案就进分镜页——那几步退役；
+//   · 分镜行的提示词框已换成富文本（PromptSkeletonSegments）——「镜 1 提示词」从 toHaveValue 改成 toHaveText（整串比对，不是包含）；
+//   · 仍红（2026-11-14 停在这里，待整条重写）：复制方案 A1 后数树里的分镜行只剩 1（期望 5）——第四处过期点，不在这一刀追。
+//   · 最小窗老版面的几何（树一列 + 助手压在主编辑区下面）已不是现在的版面；改量和版面无关的那几条：没有横 / 竖溢出、树在窗口里、树里标题不被裁。
+//   · 别处已守、这里不重复的：新建 / 改名 / 删文稿与方案的入口（shell-redesign）、删除撤销（creation-plan-delete-undo）、
+//     多文稿可达（creation-sidebar-multi-doc）、多方案隔离的数据层（storyboardPlanLifecycle.test.ts）。
+//     只有这条在守：改原稿后同稿方案变「需同步」、别的稿不受影响，以及这些改动落盘、重载后都还在。
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -113,13 +124,10 @@ async function dismissOnboarding() {
 async function openFixtureCreationSurface() {
   await dismissOnboarding()
   const tree = win.locator('[data-creation-resource-tree="true"]')
-  await tree.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {})
-  if (await tree.isVisible().catch(() => false)) return
-
   const creationButton = win.getByRole('button', { name: '创作', exact: true })
   if (await creationButton.isVisible().catch(() => false)) {
     await creationButton.click()
-    await tree.waitFor({ state: 'visible', timeout: 4000 }).catch(() => {})
+    await ensureCreationResourceTree(win, '已在项目里，进创作').catch(() => false)
     if (await tree.isVisible().catch(() => false)) return
   }
 
@@ -131,7 +139,7 @@ async function openFixtureCreationSurface() {
   else await projectCard.dblclick()
   await creationButton.waitFor({ state: 'visible', timeout: 7000 })
   await creationButton.click()
-  await tree.waitFor({ state: 'visible', timeout: 7000 })
+  await ensureCreationResourceTree(win, '打开项目进创作')
 }
 
 function readSavedPayload() {
@@ -151,9 +159,11 @@ try {
   const initialStoryboardIds = await win.locator('[data-storyboard-row]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-storyboard-row')))
   const topModes = win.locator('nav.nomi-stepper [data-mode]')
   assert(JSON.stringify(await topModes.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-mode')))) === JSON.stringify(['creation', 'generation', 'preview']), '顶栏没有收敛为创作、生成、预览')
-  assert(await win.getByText('ORIGINAL_A_SENTINEL', { exact: false }).isVisible(), '默认没有打开原稿 A')
+  // 文稿树比编辑面先出来（编辑面还在加载时树已可见），等原稿正文出现再断，不在加载中途瞬时取值。
+  await expectVisible(win.getByText('ORIGINAL_A_SENTINEL', { exact: false }), '默认没有打开原稿 A')
 
   const thirdDocumentRow = win.locator('[data-document-row="doc-c"]')
+  await ensureCreationResourceTree(win, '改名第三篇原稿')
   await thirdDocumentRow.hover()
   await thirdDocumentRow.locator('[data-resource-action="rename"]').click()
   const documentRenameInput = thirdDocumentRow.locator('input')
@@ -165,20 +175,22 @@ try {
   // 分镜页默认收起「创作内容」列（A-1 刀 1）：这里像真人一样点一次展开钮把它要回来，
   // 之后这条走查后半程都在树上操作，偏好记住即可，不必每步再点。
   await ensureCreationResourceTree(win, '打开原稿 A 的第一份分镜后')
-  await expect(win.getByLabel('镜 1 提示词'), '没有打开原稿 A 的第一份分镜').toHaveValue('PLAN_A1_SENTINEL：手持追拍。')
+  await expect(win.getByLabel('镜 1 提示词'), '没有打开原稿 A 的第一份分镜').toHaveText('PLAN_A1_SENTINEL：手持追拍。')
   assert(!(await win.getByText('ORIGINAL_A_SENTINEL', { exact: false }).isVisible().catch(() => false)), '分镜编辑器与原稿编辑器发生重叠')
 
   await openStoryboardEditor(win, 'sb-a2')
-  await expect(win.getByLabel('镜 1 提示词'), '同一原稿的第二份分镜无法独立切换').toHaveValue('PLAN_A2_SENTINEL：慢推悬疑。')
+  await expect(win.getByLabel('镜 1 提示词'), '同一原稿的第二份分镜无法独立切换').toHaveText('PLAN_A2_SENTINEL：慢推悬疑。')
   const secondRow = win.locator('[data-storyboard-row="sb-a2"]')
+  await ensureCreationResourceTree(win, '改名方案 A2')
   await secondRow.hover()
   await secondRow.locator('[data-resource-action="rename"]').click()
   const renameInput = secondRow.locator('input')
   await renameInput.fill('雨夜追凶 · 悬疑修订版')
   await renameInput.press('Enter')
-  assert(await secondRow.getByText('雨夜追凶 · 悬疑修订版', { exact: true }).isVisible(), '分镜重命名没有生效')
+  await expectVisible(secondRow.getByText('雨夜追凶 · 悬疑修订版', { exact: true }), '分镜重命名没有生效')
 
   const firstRow = win.locator('[data-storyboard-row="sb-a1"]')
+  await ensureCreationResourceTree(win, '复制方案 A1')
   await firstRow.hover()
   await firstRow.locator('[data-resource-action="duplicate"]').click()
   await expect(win.locator('[data-storyboard-row]'), '复制分镜后资源树数量没有增加').toHaveCount(5)
@@ -189,31 +201,32 @@ try {
   await expect(duplicatedRow.locator('[data-storyboard-id]'), '副本没有归属原稿 A').toHaveAttribute('data-document-id', 'doc-a')
   await expect(duplicatedRow.locator('[data-storyboard-title="true"]'), '副本标题没有按同稿版本递增').toHaveText('雨夜追凶 · 动作版 4')
   await openStoryboardEditor(win, duplicatedStoryboardId)
-  await expect(win.getByLabel('镜 1 提示词'), '分镜副本没有保留原方案内容').toHaveValue('PLAN_A1_SENTINEL：手持追拍。')
+  await expect(win.getByLabel('镜 1 提示词'), '分镜副本没有保留原方案内容').toHaveText('PLAN_A1_SENTINEL：手持追拍。')
 
   const obsoleteRow = win.locator('[data-storyboard-row="sb-a3"]')
+  await ensureCreationResourceTree(win, '删除方案 A3')
   const obsoleteProof = await proveProbe(obsoleteRow, '删除前竖屏版分镜确实存在')
   await obsoleteRow.hover()
   await obsoleteRow.locator('[data-resource-action="delete"]').click()
-  const deleteDialog = win.getByRole('dialog')
-  await expectVisible(deleteDialog, '删除分镜确认框没有出现')
-  await deleteDialog.getByRole('button', { name: '删除', exact: true }).click()
   await expectAbsent(obsoleteRow, { provenBy: obsoleteProof, message: '删除后竖屏版分镜不应重新出现' })
 
   const documentBStoryboardRow = win.locator('[data-storyboard-row="sb-b1"]')
   await expect(documentBStoryboardRow, '未编辑的原稿 B 分镜初始状态错误').toHaveAttribute('data-storyboard-status', 'draft')
   await win.locator('[data-document-id="doc-b"]:not([data-storyboard-id])').click()
-  assert(await win.getByText('ORIGINAL_B_SENTINEL', { exact: false }).isVisible(), '跨原稿切换没有回到原稿 B')
+  await expectVisible(win.getByText('ORIGINAL_B_SENTINEL', { exact: false }), '跨原稿切换没有回到原稿 B')
+  await ensureCreationResourceTree(win, '打开原稿 B 后看方案状态')
   await expect(documentBStoryboardRow, '仅打开原稿 B 不应把分镜标为需同步').toHaveAttribute('data-storyboard-status', 'draft')
   await openStoryboardEditor(win, 'sb-b1')
-  await expect(win.getByLabel('镜 1 提示词'), '原稿 B 的分镜被原稿 A 的选择污染').toHaveValue('PLAN_B1_SENTINEL：黄昏环绕。')
+  await expect(win.getByLabel('镜 1 提示词'), '原稿 B 的分镜被原稿 A 的选择污染').toHaveText('PLAN_B1_SENTINEL：黄昏环绕。')
+  await ensureCreationResourceTree(win, '回原稿 A')
   await win.locator('[data-document-id="doc-a"]:not([data-storyboard-id])').click()
-  assert(await win.getByText('ORIGINAL_A_SENTINEL', { exact: false }).isVisible(), '返回原稿 A 后正文丢失')
+  await expectVisible(win.getByText('ORIGINAL_A_SENTINEL', { exact: false }), '返回原稿 A 后正文丢失')
   const sourceEditor = win.locator('[data-creation-editor="true"] .ProseMirror')
   await expectVisible(sourceEditor, '返回原稿后编辑器没有恢复')
   await sourceEditor.click()
   await sourceEditor.press('End')
   await sourceEditor.type(' 新增修订。')
+  await ensureCreationResourceTree(win, '改完原稿 A 看方案状态')
   await expect(win.locator('[data-storyboard-row="sb-a1"]')).toHaveAttribute('data-storyboard-status', 'stale')
   await expect(win.locator('[data-storyboard-row="sb-a2"]')).toHaveAttribute('data-storyboard-status', 'stale')
   await expect(duplicatedRow, '同稿副本没有跟随原稿更新进入需同步状态').toHaveAttribute('data-storyboard-status', 'stale')
@@ -223,24 +236,13 @@ try {
   await win.setViewportSize({ width: 1440, height: 900 })
   await screenshotSettled(win, { path: path.join(outDir, '01-unified-creation-desktop.png') })
 
-  await openStoryboardEditor(win, 'sb-a2')
-  await expect(win.locator('[data-creation-surface]'), '分镜选择没有切换主编辑面').toHaveAttribute('data-creation-surface', 'storyboard')
-  // v5：中列是方案摘要卡（完整编辑器住分镜页）——卡上的镜头预览须恢复对应方案的内容。
-  await expect(win.locator('[data-creation-surface="storyboard"]'), '分镜摘要卡没有恢复对应方案').toContainText('PLAN_A2_SENTINEL：慢推悬疑。')
-  await screenshotSettled(win, { path: path.join(outDir, '02-unified-storyboard-desktop.png') })
-  await win.locator('[data-document-id="doc-a"]:not([data-storyboard-id])').click()
-  await expect(win.locator('[data-creation-surface]'), '返回原稿后没有切回原稿编辑面').toHaveAttribute('data-creation-surface', 'source')
-
+  // 最小窗：和版面无关的那几条——不出横 / 竖滚动条、树整块在窗口里、树里标题不被裁。
   await win.setViewportSize({ width: MIN_WINDOW.width, height: MIN_WINDOW.height })
+  await ensureCreationResourceTree(win, '最小窗口')
   const geometry = await win.evaluate(() => {
-    const rect = (selector) => {
-      const value = document.querySelector(selector)?.getBoundingClientRect()
-      return value ? { x: value.x, y: value.y, right: value.right, bottom: value.bottom, width: value.width, height: value.height } : null
-    }
+    const value = document.querySelector('[data-creation-resource-tree="true"]')?.getBoundingClientRect()
     return {
-      tree: rect('[data-creation-resource-tree="true"]'),
-      surface: rect('[data-creation-surface]'),
-      assistant: rect('[aria-label="AI 创作区"]'),
+      tree: value ? { x: value.x, y: value.y, right: value.right, bottom: value.bottom } : null,
       viewport: {
         width: document.documentElement.clientWidth,
         height: document.documentElement.clientHeight,
@@ -249,41 +251,18 @@ try {
       },
     }
   })
-  assert(geometry.tree && geometry.surface && geometry.assistant, '最小窗口下有工作区区域没有渲染')
-  assert(geometry.tree.right <= geometry.surface.x + 1, '最小窗口下资源树压住主编辑区')
-  assert(geometry.assistant.x >= geometry.surface.x - 1, '最小窗口下 AI 助手掉到资源树列')
-  assert(geometry.assistant.y >= geometry.surface.bottom - 1, '最小窗口下 AI 助手与主编辑区重叠')
-  assert(geometry.tree.bottom >= geometry.assistant.bottom - 1, '资源树没有覆盖统一工作区的两行高度')
+  assert(geometry.tree, '最小窗口下文稿树没有渲染')
   assert(geometry.viewport.scrollWidth <= geometry.viewport.width + 1, '最小窗口出现水平溢出')
   assert(geometry.viewport.scrollHeight <= geometry.viewport.height + 1, '最小窗口出现垂直溢出')
+  assert(geometry.tree.x >= -1 && geometry.tree.right <= geometry.viewport.width + 1, '最小窗口文稿树左右被裁切')
   assert(geometry.tree.bottom <= geometry.viewport.height + 1, '最小窗口资源树被底部裁切')
-  assert(geometry.assistant.bottom <= geometry.viewport.height + 1, '最小窗口创作助手被底部裁切')
   const clippedResourceTitles = await win.locator('[data-document-title="true"], [data-storyboard-title="true"]').evaluateAll((titles) => titles
     .filter((title) => title.scrollHeight > title.clientHeight + 1 || title.scrollWidth > title.clientWidth + 1)
     .map((title) => title.textContent))
   assert(clippedResourceTitles.length === 0, `最小窗口下资源标题被裁切：${clippedResourceTitles.join('、')}`)
   await screenshotSettled(win, { path: path.join(outDir, '02-unified-creation-min-window.png') })
-
-  await openStoryboardEditor(win, 'sb-a2')
-  await expect(win.locator('[data-creation-surface="storyboard"]'), '最小窗口无法打开分镜摘要').toBeVisible()
-  await expect(win.locator('[data-creation-surface="storyboard"]'), '最小窗口打开了错误的分镜设计').toContainText('PLAN_A2_SENTINEL：慢推悬疑。')
-  await expect(win.getByRole('button', { name: '打开分镜', exact: true }), '最小窗口分镜主操作不可见').toBeVisible()
-  const narrowStoryboardGeometry = await win.evaluate(() => {
-    const surface = document.querySelector('[data-creation-surface="storyboard"]')?.getBoundingClientRect()
-    const assistant = document.querySelector('[aria-label="AI 创作区"]')?.getBoundingClientRect()
-    return surface && assistant ? {
-      surface: { right: surface.right, bottom: surface.bottom },
-      assistant: { x: assistant.x, y: assistant.y, right: assistant.right, bottom: assistant.bottom },
-      viewport: { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight },
-    } : null
-  })
-  assert(narrowStoryboardGeometry, '最小窗口分镜区域没有渲染')
-  assert(narrowStoryboardGeometry.surface.right <= narrowStoryboardGeometry.viewport.width + 1, '最小窗口分镜编辑器右侧被裁切')
-  assert(narrowStoryboardGeometry.assistant.right <= narrowStoryboardGeometry.viewport.width + 1, '最小窗口分镜态助手右侧被裁切')
-  assert(narrowStoryboardGeometry.assistant.y >= narrowStoryboardGeometry.surface.bottom - 1, '最小窗口分镜编辑器与助手重叠')
-  assert(narrowStoryboardGeometry.assistant.bottom <= narrowStoryboardGeometry.viewport.height + 1, '最小窗口分镜态助手底部被裁切')
-  await screenshotSettled(win, { path: path.join(outDir, '02-unified-storyboard-min-window.png') })
   await win.locator('[data-document-id="doc-a"]:not([data-storyboard-id])').click()
+  await expect(win.locator('[data-creation-surface]'), '回到原稿后没有切回原稿编辑面').toHaveAttribute('data-creation-surface', 'source')
 
   await expect.poll(() => {
     try {
@@ -305,6 +284,7 @@ try {
   }, { message: '统一资源树修改没有持久化到项目 manifest', timeout: 12_000 }).toBe(true)
   await win.reload()
   await openFixtureCreationSurface()
+  await ensureCreationResourceTree(win, '重载后')
   await expect(win.locator('[data-document-row]'), '重载后原稿数量丢失').toHaveCount(3)
   await expect(win.locator('[data-storyboard-row]'), '重载后复制或删除分镜的结果不正确').toHaveCount(4)
   await expect(win.getByText('原稿 C · 产品短片修订', { exact: true }), '重载后第三篇原稿重命名丢失').toBeVisible()
@@ -312,9 +292,10 @@ try {
   await expect(win.locator(`[data-storyboard-row="${duplicatedStoryboardId}"]`), '重载后分镜副本丢失').toBeVisible()
   await expect(win.locator('[data-storyboard-row="sb-a3"]'), '重载后被删除的分镜重新出现').toHaveCount(0)
   await openStoryboardEditor(win, duplicatedStoryboardId)
-  await expect(win.getByLabel('镜 1 提示词'), '重载后分镜副本内容丢失').toHaveValue('PLAN_A1_SENTINEL：手持追拍。')
+  await expect(win.getByLabel('镜 1 提示词'), '重载后分镜副本内容丢失').toHaveText('PLAN_A1_SENTINEL：手持追拍。')
   await openStoryboardEditor(win, 'sb-a2')
-  await expect(win.getByLabel('镜 1 提示词'), '重载后分镜 A2 内容丢失').toHaveValue('PLAN_A2_SENTINEL：慢推悬疑。')
+  await expect(win.getByLabel('镜 1 提示词'), '重载后分镜 A2 内容丢失').toHaveText('PLAN_A2_SENTINEL：慢推悬疑。')
+  await ensureCreationResourceTree(win, '重载后看方案状态')
   await expect(win.locator('[data-storyboard-row="sb-a2"]'), '重载后需同步状态丢失').toHaveAttribute('data-storyboard-status', 'stale')
   await expect(win.locator('[data-storyboard-row="sb-b1"]'), '重载后原稿 B 分镜状态被污染').toHaveAttribute('data-storyboard-status', 'draft')
   await win.locator('[data-document-id="doc-a"]:not([data-storyboard-id])').click()

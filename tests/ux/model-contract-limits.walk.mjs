@@ -37,8 +37,15 @@ try {
   const readMeta = () => win.evaluate(async () => (await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')).useGenerationCanvasStore.getState().nodes[0].meta)
   await expect.poll(async () => (await readMeta()).duration).toBe(6)
   await win.keyboard.press('Escape')
-  await expect(win.getByRole('button', { name: '生成参数', exact: true })).toHaveText('1080p · 6')
-  await win.getByRole('button', { name: '生成参数', exact: true }).click()
+  // Esc 关面板，摘要报的是刚定下的值。2026-11-12 bd2f0f11c 起摘要 pill 按宽度整值让位（窄了只露时长），
+  // 完整摘要在 title 上，所以断「面板关了 + 完整摘要 = 1080p · 6s + 露出来的那几段都出自完整摘要」（2026-11-14 清红走查）。
+  const summaryPill = win.getByRole('button', { name: '生成参数', exact: true })
+  await expect(panel).toBeHidden()
+  await expect(summaryPill).toHaveAttribute('aria-expanded', 'false')
+  await expect(summaryPill).toHaveAttribute('title', '1080p · 6s')
+  const shownParts = (await summaryPill.getAttribute('data-parameter-summary')).split(' · ')
+  if (!shownParts[0] || shownParts.some((part) => !['1080p', '6s'].includes(part))) throw new Error(`摘要 pill 露出来的值不是刚定下的：${shownParts.join(' · ')}`)
+  await summaryPill.click()
   await win.screenshot({ path: path.join(out, 'hailuo-1080p-6s.png'), clip: { x: 16, y: 16, width: 600, height: 340 } })
   console.log('PASS: 1080p narrows the real panel to 6s and commits duration=6')
   await panel.getByRole('radio', { name: '768p', exact: true }).click()
@@ -51,14 +58,17 @@ try {
     const image = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="gray"/></svg>')
     store.updateNode('contract-video', { meta: { modelKey: 'MiniMax-H3', vendor: 'apimart', archetype: { id: 'minimax-h3-apimart', modeId: 'ref' }, referenceImageUrls: Array.from({ length: 9 }, (_, i) => image + '#' + i), referenceAudioUrls: ['https://example.com/1.mp3', 'https://example.com/2.mp3'] } })
   })
-  const addProof = await proveProbe(win.getByRole('button', { name: '加参考', exact: true }), 'eleven references leave one slot')
+  // 「加参考」这个名字 10-22 起归画布点选钮（AssetReferenceButton），参考行的「+」是 [data-reference-add-entry]；
+  // 满额时「+」灰显、title 说明（c0243f22e「首尾帧满额「+」灰显」），不再整颗拿掉（2026-11-14 清红走查）。
+  const addPlus = win.locator('[data-reference-add-entry]')
+  await expect(addPlus, 'eleven references leave one slot').toBeEnabled()
   await win.evaluate(async () => {
     const store = (await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')).useGenerationCanvasStore.getState()
     const node = store.nodes[0]
     store.updateNode(node.id, { meta: { ...node.meta, referenceAudioUrls: ['https://example.com/1.mp3', 'https://example.com/2.mp3', 'https://example.com/3.mp3'] } })
   })
   await expect(win.getByText('参考总数最多 12 个（图片、视频和音频合计）', { exact: true })).toBeVisible()
-  await expectAbsent(win.getByRole('button', { name: '加参考', exact: true }), { provenBy: addProof, message: 'twelve references remove the add affordance' })
+  await expect(addPlus, 'twelve references disable the add affordance').toBeDisabled()
   await win.screenshot({ path: path.join(out, 'h3-total-12.png'), clip: { x: 16, y: 16, width: 950, height: 300 } })
   console.log('PASS: twelve references disable adding other media and explain the shared limit')
   await win.evaluate(async () => {
@@ -66,7 +76,7 @@ try {
     const node = store.nodes[0]
     store.updateNode(node.id, { meta: { ...node.meta, referenceAudioUrls: ['https://example.com/1.mp3', 'https://example.com/2.mp3'] } })
   })
-  await expect(win.getByRole('button', { name: '加参考', exact: true })).toBeVisible()
+  await expect(addPlus, 'removing one reference re-enables adding').toBeEnabled()
   console.log('PASS: removing one reference restores the picker; no media silently discarded')
 } finally {
   if (app) await app.close()
