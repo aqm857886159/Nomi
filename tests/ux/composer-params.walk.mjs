@@ -186,7 +186,7 @@ try {
   }
 
   // ── ② 最小窗口 700×720 ──
-  for (const { lang, locale, scheme } of RUNS) {
+  for (const { lang, scheme } of RUNS) {
     const tag = `700x720 ${lang}-${scheme}`
     const { page, context } = await open('mb-a-no-input-menu', { lang, scheme, viewport: { width: 700, height: 720 } })
     const menu = await page.evaluate(() => {
