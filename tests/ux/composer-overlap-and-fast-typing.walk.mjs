@@ -131,7 +131,10 @@ async function pickModelInComposer(win, nodeId, locale, label) {
   const row = menu.getByRole('option').filter({ has: win.locator('[data-nomi-select-option-label]', { hasText: new RegExp(`^${escapeForRegExp(PICKED_MODEL)}$`) }) })
   await clickOrFail(chip, `${label}：点模型芯片`)
   await expectVisible(menu, `${label}：模型菜单开了`)
-  await expect(row, `${label}：模型菜单里列着 ${PICKED_MODEL}（菜单只列此刻能用的模型）`).toHaveCount(1)
+  // 跟随现状（2026-11-14 a42bf46f1）：没整理过模型框的创作者，GPT Image 2 默认收在菜单底下「更多」里——真人路径是先点「更多」再找它。
+  const moreButton = menu.getByRole('button', { name: uiText(locale, 'onboardingProviders.modelControls.more'), exact: true })
+  if (await row.count() === 0 && await moreButton.isVisible().catch(() => false)) await clickOrFail(moreButton, `${label}：点菜单底下「更多」展开默认收起的模型`)
+  await expect(row,`${label}：模型菜单里列着 ${PICKED_MODEL}（菜单只列此刻能用的模型）`).toHaveCount(1)
   await clickOrFail(row, `${label}：在菜单里点 ${PICKED_MODEL}`)
   await expect(chip, `${label}：芯片显示选中的模型`).toHaveText(PICKED_MODEL)
   await clickOrFail(chip, `${label}：再开模型菜单核对勾选`)
