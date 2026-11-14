@@ -287,7 +287,7 @@ try {
     }
   }
 
-  // ── ③b 边界：最窄不换行的分镜行（行内宽 520）× 名字最长的视频模型 × 最长方式名 ──
+  // ── ③b 边界：真实最窄的分镜行（窗口 700，行宽 598）× 名字最长的视频模型 × 最长方式名 ──
   // 谁让、让到哪：生成钮 → 摘要整值地减 → 方式图标 → 模型名最后省略；底栏不溢出、不折行，摘要不截半个值。
   for (const { lang, scheme } of RUNS) {
     const state = `sbl-yield-narrowest-longest-${lang}`
@@ -311,6 +311,62 @@ try {
     check(`边界 · ${state}：底栏在让（生成钮先收成 ↑）、不溢出、不折行、摘要不截半个值`, Boolean(facts) && facts.level !== null && facts.sendIconOnly && !facts.overflow && !facts.tall && !facts.midCut, JSON.stringify(facts))
     await shot(page, `${state}-${scheme}`)
     await context.close()
+  }
+
+  // ── ③c 分镜行 / 参考卡全目录：真实最窄的行宽下（窗口 700：行宽 598 → 取景框 600；窗口 1060–1100 停靠 Agent：行宽 650 → 652）──
+  // 每个档案一行的目录 × 每种方式；判：底栏不溢出、不折行，摘要格不缩（不出「Param…」、不截半个值），
+  // 常见模型的名字完整；方式格和画布同一条规则（视频有、图片和参考卡没有）。
+  if (WITH_MATRIX) {
+    const COMMON = /^(seedance-2\.5-apimart|seedance-2-apimart|kling-v4|kling-v4-flash|veo-3\.1|veo3\.1-fast-official|veo3\.1-quality-official|gpt-image-2|gpt-image-2\.5-flare|gpt-image-2\.6-flare|nano-banana|nano-banana-2|gemini-nano-banana-2\.1)\//
+    for (const { lang, scheme, locale } of RUNS) {
+      const modeLabel = uiTextWith(locale, 'generationCommon.modeMenu.heading')
+      const { page, context } = await open('sbl-yield-matrix', { lang, scheme, screen: 'storyboard-reuse' })
+      await page.waitForFunction(() => Boolean(window.__sblYield), null, { timeout: stationTimeout({ operations: 2 }) })
+      const tally = { cells: 0, overflow: [], tall: [], summarySqueezed: [], commonClipped: [], modeRule: [], modelClipped: 0 }
+      for (const width of [600, 652]) {
+        const combos = await page.evaluate((w) => window.__sblYield.combos(w), width)
+        for (const combo of combos) {
+          const id = `${combo.host}:${combo.archetypeId}/${combo.modeId}@${combo.width}`
+          await page.evaluate((c) => window.__sblYield.set(c), combo)
+          const ready = await page.waitForFunction((want) => { const h = document.querySelector('[data-sbl-yield]'); return h?.getAttribute('data-sbl-yield') === want && Boolean(h.querySelector('[data-node-composer-footer]')) }, id, { timeout: stationTimeout({ operations: 1 }) }).then(() => true).catch(() => false)
+          if (!ready) { tally.overflow.push(`${id}（没画出底栏）`); continue }
+          await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+          const f = await page.evaluate((label) => {
+            const footer = document.querySelector('[data-sbl-yield] [data-node-composer-footer]')
+            const summary = footer.querySelector('[data-parameter-summary]')
+            const squeezed = (el) => Boolean(el) && [el, ...el.querySelectorAll('span')].some((node) => node.scrollWidth > node.clientWidth + 1)
+            const model = footer.querySelector('[data-bar-segment="model-params"] button, button[title]')
+            const shown = (summary?.getAttribute('data-parameter-summary') ?? '').split(' · ').filter(Boolean)
+            const full = (summary?.getAttribute('title') ?? '').split(' · ').filter(Boolean)
+            return {
+              overflow: footer.scrollWidth > footer.clientWidth + 1,
+              tall: Math.round(footer.getBoundingClientRect().height) > 32,
+              summarySqueezed: squeezed(summary) || shown.some((value) => !full.includes(value)),
+              modelClipped: [...footer.querySelectorAll('*')].some((el) => getComputedStyle(el).textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth && !summary?.contains(el)),
+              hasMode: footer.querySelectorAll(`button[aria-label="${label}"]`).length > 0,
+              model: model?.textContent?.trim() ?? '',
+            }
+          }, modeLabel)
+          tally.cells += 1
+          const key = id.split(':')[1]
+          if (f.overflow) tally.overflow.push(id)
+          if (f.tall) tally.tall.push(id)
+          if (f.summarySqueezed) tally.summarySqueezed.push(id)
+          if (f.modelClipped) { tally.modelClipped += 1; if (COMMON.test(key)) tally.commonClipped.push(id) }
+          // 方式格：图片镜和参考卡没有；视频有两种以上方式才有（buildModeMenu 同一条规则）。
+          const archetypeModes = await page.evaluate((c) => window.__sblYield.modeCount(c.archetypeId), combo)
+          const wantMode = combo.host === 'shot' && combo.kind === 'video' && archetypeModes >= 2
+          if (f.hasMode !== wantMode) tally.modeRule.push(`${id}（有方式格=${f.hasMode}）`)
+        }
+      }
+      report.storyboard.push({ what: 'sbl-yield-matrix', lang, ...tally, overflow: tally.overflow.length, tall: tally.tall.length })
+      console.log(`  分镜全目录 ${lang}：${JSON.stringify({ cells: tally.cells, modelClipped: tally.modelClipped, overflow: tally.overflow.length, tall: tally.tall.length, summarySqueezed: tally.summarySqueezed.length, commonClipped: tally.commonClipped.length, modeRule: tally.modeRule.length })}`)
+      check(`边界 · 分镜行 / 参考卡全目录 ${lang}：最窄真实行宽下底栏不溢出、不折行 · ${tally.cells} 格`, tally.cells > 0 && !tally.overflow.length && !tally.tall.length, JSON.stringify([...tally.overflow, ...tally.tall].slice(0, 5)))
+      check(`边界 · 分镜行 / 参考卡全目录 ${lang}：摘要格不缩、不截半个值`, tally.cells > 0 && !tally.summarySqueezed.length, JSON.stringify(tally.summarySqueezed.slice(0, 5)))
+      check(`board:ComposerParams/bar.model · 分镜行 / 参考卡全目录 ${lang}：常见模型（Seedance / 可灵 / Veo / GPT Image / Nano Banana）名字完整`, tally.cells > 0 && !tally.commonClipped.length, JSON.stringify(tally.commonClipped.slice(0, 5)))
+      check(`board:ComposerParams/storyboard.row · 分镜行 / 参考卡全目录 ${lang}：方式格和画布同一条规则（视频有、图片和参考卡没有）`, tally.cells > 0 && !tally.modeRule.length, JSON.stringify(tally.modeRule.slice(0, 5)))
+      await context.close()
+    }
   }
 
   // ── ④ 全目录矩阵 ──

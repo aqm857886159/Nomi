@@ -573,14 +573,15 @@ export default function InlineParameterBar({
       onClick={() => (panelOpen ? closePanel() : openPanel())}
       className={cn(
         'inline-flex items-center gap-1 h-7 pl-2.5 pr-2 rounded-pill border border-nomi-line bg-nomi-ink-05',
-        // 整值地退的摘要不缩（放不下就少一个值）；没有底栏的照旧最宽 240、可收。
-        fitCandidates || wrap ? 'shrink-0' : 'shrink',
+        // 在让的底栏里摘要不缩（有值的放不下就少一个值；一个值都没有、只写「参数」的也不缩——缩了就是「Param…」，
+        // 放不下交给让法往下一级让）；没有底栏的照旧最宽 240、可收。
+        fitCandidates || wrap || yielding ? 'shrink-0' : 'shrink',
         'justify-between text-caption text-nomi-ink-80 cursor-pointer min-w-0',
         'hover:border-nomi-ink-20 focus:outline-none focus-visible:border-nomi-ink-40',
       )}
-      style={fitCandidates || wrap ? undefined : { maxWidth: 240 }}
+      style={fitCandidates || wrap || yielding ? undefined : { maxWidth: 240 }}
     >
-      <span className="min-w-0 truncate" style={{ maxWidth: wrap || fitCandidates ? 'none' : 240 }}>
+      <span className="min-w-0 truncate" style={{ maxWidth: wrap || fitCandidates || yielding ? 'none' : 240 }}>
         {pillText || t('generationCommon.parameters.parameters')}
       </span>
       <IconChevronDown

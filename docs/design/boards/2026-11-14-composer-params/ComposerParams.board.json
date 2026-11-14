@@ -1181,9 +1181,41 @@
       "where": "T · 底栏参数格最长的值（样张 T-panel-flat）",
       "max": "「21:9 · 1080p · 30s」",
       "source": "视频档案比例 × 清晰度 × 时长的最长组合",
-      "layout": "600 宽下放得下；更挤时整值地退：比例 → 有声 → 清晰度，时长留到最后，再不够模型名末尾省略",
+      "layout": "600 宽下放得下；更挤时四处同一条让法（composerBarYield.ts）：① 生成钮只剩 ↑ → ② 摘要从后往前整值地减（比例 → 有声 → 清晰度，时长留到最后），一个值不截半截 → ③ 方式格只剩图标（没有图标就保留文字）→ ④ 模型名末尾省略。②在③前：方式决定这一镜要放什么输入，比比例要紧，比例点开面板就看全；画布 600 宽是看过真截图拍过板的样子（2026-11-14 协调裁决）",
       "board": "ComposerParams",
       "element": "bar.params"
+    },
+    {
+      "where": "最窄容器 × 最长名字 · 分镜行（实验室 sbl-yield-narrowest-longest-zh / -en、sbl-yield-matrix）",
+      "max": "真实最窄：窗口 700 时分镜行宽 598、底栏 342（16:9 整片；9:16 整片底栏 419）；窗口 1060–1100 停靠 Agent 时行宽 650、底栏 394。名字最长的视频模型 × 它最长的方式名",
+      "source": "真窗 700 / 760 / 840 / 920 / 1000 / 1059 / 1060 / 1100 实测 + 实验室每个档案一行的目录（200 镜 × 中英）",
+      "layout": "生成钮先让成 ↑，再摘要整值地减，再方式只剩图标，最后模型名末尾省略（title 全名）。常见模型（Seedance / 可灵 / Veo / GPT Image / Nano Banana）在真实最窄下名字完整；行内宽 < 520 整颗换行，不走让法",
+      "board": "ComposerParams",
+      "element": "storyboard.row"
+    },
+    {
+      "where": "摘要超宽 · 分镜行 / 参考卡 / 画布底栏",
+      "max": "「21:9 · 1080p · 30s」这一档三个值；一个值都没有时的占位「参数 / Parameters」",
+      "source": "全目录 274 种方式 × 中英（画布 600 宽 + 分镜真实最窄）",
+      "layout": "摘要格在让的底栏里从不缩：放不下就少一个整值（第②步），占位字也不缩成「Param…」，放不下交给下一步",
+      "board": "ComposerParams",
+      "element": "bar.params"
+    },
+    {
+      "where": "面板超高 · 最小窗 700×720（样张 U2-max-main）",
+      "max": "7 项（ElevenLabs v3 语音）",
+      "source": "同 U2；真窗走查 700×720 中英各一次",
+      "layout": "参数面板开向放得下的一侧，限在工作区（不盖顶栏、不出窗口），装不下在面板里滚",
+      "board": "ComposerParams",
+      "element": "params.panel"
+    },
+    {
+      "where": "高级设置展开在视口外 · 最小窗列表详情 / 分镜行 1280×800",
+      "max": "5 项（Seedance 2.5）展开段；图标停在可视区下沿时点开",
+      "source": "composer-params 走查 ②b",
+      "layout": "展开后滚进可视区，最近对齐（已经看得见就不动），减弱动效时不带动画",
+      "board": "ComposerParams",
+      "element": "advanced.section"
     },
     {
       "where": "最窄 · 生成框宽（样张 T 系列）",
