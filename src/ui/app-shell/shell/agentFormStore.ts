@@ -8,7 +8,8 @@
 //   · 算出来的：`shownForm(页)` / `useShownForm(页)`，全仓唯一一处算「此刻显示的形态」。
 // 人的动作只有三个：`openAgent` / `collapseAgent` / `chooseAgentPlacement`——宽窗写人选的那份；窄窗档里点开 / 收起只写此刻那份
 // （WindowNarrow 板 D2，用户 2026-11-07：存下的形态一个字节不改），选摆法照写人选的那份。
-// 机器的让位（指向节点时让开、去画布挑参考图时摆出来）只写此刻那份：`machineHold` / `machineRelease`，不改人存的（协调 2026-11-14）。
+// 机器的让位（指向节点时让开、去画布挑参考图时摆出来）只写此刻那份：`machineHold`，不改人存的（协调 2026-11-14）。
+// 让位没有「机器自己撤」：结束只靠人的动作（三个动作都先清它）、跨窗宽、离开项目、关掉重开。「回到对话」也是人的打开动作。
 //
 // 位置 / 大小的**拖动与改大小**交给 react-rnd，这里只存结果；只有一件事是自己算的：窗口缩小 / 浮窗被拖出可见区时把它夹回来
 // （`clampRect`），因为 react-rnd 的 `bounds` 只在拖动中生效、容器变小时不会重新夹（见设计卡格 ★3）。
@@ -80,24 +81,51 @@ function initialSurfaces(): Record<AgentFormSurface, SurfacePrefs> {
   return Object.fromEntries(SURFACES.map((surface) => [surface, { ...AGENT_FORM_DEFAULTS[surface], float: null, ball: null }])) as Record<AgentFormSurface, SurfacePrefs>
 }
 
-/** 改存法之前（0.24.x 起，persist version 1）每页存一个三值 form。 */
-type StoredV1 = { bySurface?: Partial<Record<AgentFormSurface, { form?: unknown; float?: FloatRect | null; ball?: BallPoint | null }>> }
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+
+function readFloatRect(value: unknown): FloatRect | null {
+  if (!isRecord(value)) return null
+  const { x, y, width, height } = value
+  return isNumber(x) && isNumber(y) && isNumber(width) && isNumber(height) ? { x, y, width, height } : null
+}
+
+function readBallPoint(value: unknown): BallPoint | null {
+  if (!isRecord(value)) return null
+  const { x, y } = value
+  return isNumber(x) && isNumber(y) ? { x, y } : null
+}
+
+/** 一页的摆法 + 收没收起。v1（0.24.x）存一个三值 `form`；v2 起存 `placement` + `collapsed`。认不出的按这一页的默认。 */
+function readPrefs(entry: Record<string, unknown>, surface: AgentFormSurface, version: number): Prefs {
+  const fallback = AGENT_FORM_DEFAULTS[surface]
+  if (version < 2) {
+    // 老用户升级（★1c）：ball → 收起 + 这一页的默认摆法（生成页浮窗、其余停靠：旧版从小球点开就是去那里）；float / dock → 打开 + 对应摆法。
+    if (entry.form === 'float' || entry.form === 'dock') return { placement: entry.form, collapsed: false }
+    return entry.form === 'ball' ? { placement: fallback.placement, collapsed: true } : fallback
+  }
+  // 摆法只认浮窗 / 停靠、收没收起只认布尔；两样有一样认不出，这一页的摆法回到默认（不拼半个）。
+  if ((entry.placement === 'float' || entry.placement === 'dock') && typeof entry.collapsed === 'boolean') {
+    return { placement: entry.placement, collapsed: entry.collapsed }
+  }
+  return fallback
+}
 
 /**
- * 老用户升级（★1c）：旧 `form` 三值 → 摆法 + 收没收起；位置和大小原样保留。
- *   ball → 收起 + 这一页的默认摆法（生成页浮窗、其余停靠：旧版从小球点开就是去那里）；float / dock → 打开 + 对应摆法。
- * 缺页、认不出的值按这一页的默认。
+ * 读存档的**唯一**规整：迁移（旧格式）和日常读取（persist 的 merge）都走它，读出来每页都是合法形状。
+ *   · 缺页 / 这一页不是对象 → 这一页的默认；
+ *   · 摆法只认浮窗 / 停靠、收没收起只认布尔，认不出 → 这一页的默认摆法；
+ *   · 浮窗位置大小、小球位置不是有限数字 → 丢掉，用默认（null）；
+ *   · 整段读不出来（不是对象）→ 各页默认。
+ * 只读不写：规整的结果只进内存，不回写存档（打开不点就关仍然零写入；人下一次动它时才按规整后的样子写）。
  */
-export function migrateAgentFormV1(persisted: unknown): { bySurface: Record<AgentFormSurface, SurfacePrefs> } {
-  const old = (persisted && typeof persisted === 'object' ? persisted : {}) as StoredV1
+export function normalizeStoredAgentForm(persisted: unknown, version: number): { bySurface: Record<AgentFormSurface, SurfacePrefs> } {
   const bySurface = initialSurfaces()
+  const stored = isRecord(persisted) && isRecord(persisted.bySurface) ? persisted.bySurface : {}
   for (const surface of SURFACES) {
-    const entry = old.bySurface?.[surface]
-    if (!entry || typeof entry !== 'object') continue
-    const prefs: Prefs = entry.form === 'float' || entry.form === 'dock'
-      ? { placement: entry.form, collapsed: false }
-      : entry.form === 'ball' ? { placement: AGENT_FORM_DEFAULTS[surface].placement, collapsed: true } : AGENT_FORM_DEFAULTS[surface]
-    bySurface[surface] = { ...prefs, float: entry.float ?? null, ball: entry.ball ?? null }
+    const entry = stored[surface]
+    if (!isRecord(entry)) continue
+    bySurface[surface] = { ...readPrefs(entry, surface, version), float: readFloatRect(entry.float), ball: readBallPoint(entry.ball) }
   }
   return { bySurface }
 }
@@ -113,7 +141,10 @@ export const useAgentFormStore = create<AgentFormState>()(persist((set) => ({
   name: AGENT_FORM_STORAGE_KEY,
   version: AGENT_FORM_STORAGE_VERSION,
   partialize: (state) => ({ bySurface: state.bySurface }),
-  migrate: (persisted, version) => (version < 2 ? migrateAgentFormV1(persisted) : persisted) as AgentFormState,
+  // 版本不同（旧格式升级）走 migrate、版本相同直接进 merge——两条都过同一个规整。
+  // migrate 之后 persist 自己会写一次新版本（升级落盘，同改存法前）；merge 之后不写，规整不回写。
+  migrate: (persisted, version) => normalizeStoredAgentForm(persisted, version) as AgentFormState,
+  merge: (persisted, current) => ({ ...current, ...normalizeStoredAgentForm(persisted, AGENT_FORM_STORAGE_VERSION) }),
 }))
 
 function writePrefs(surface: AgentFormSurface, patch: Partial<Prefs>): void {
@@ -217,7 +248,7 @@ export function chooseAgentPlacement(surface: AgentFormSurface, placement: Agent
   writeNarrowShown(surface, narrowNatural(useAgentFormStore.getState().bySurface[surface]) === 'float' ? null : 'float')
 }
 
-// ── 机器的让位（成对：machineHold ↔ machineRelease）。只写此刻那份，人存的一个字节不动 ─────────────────
+// ── 机器的让位。只写此刻那份，人存的一个字节不动 ─────────────────────────────────────────────
 
 /**
  * 机器临时改这一页此刻怎么显示：'ball' = 让开（指向节点时对话挡住画布）；'open' = 摆出来（去画布挑参考图）。
@@ -229,9 +260,13 @@ export function machineHold(surface: AgentFormSurface, hold: 'ball' | 'open'): v
   writeMachineHold(surface, hold)
 }
 
-/** 机器的让位结束：回到人存的（或窄窗档里人点出来的）那个样子。 */
-export function machineRelease(surface: AgentFormSurface): void {
-  writeMachineHold(surface, null)
+
+/**
+ * 这一页此刻是不是「机器让开」成的小球。给的是是 / 否，不是形态。
+ * 「回到对话」那一枚只从它算出来：让位因为任何一条路结束（拉宽 / 拉窄、人点小球、⌘J、⌘\、人选摆法、离开项目、关掉重开），它就跟着没了。
+ */
+export function useMachineGaveWay(surface: AgentFormSurface): boolean {
+  return useAgentFormViewStore((state) => state.machineBySurface[surface] === 'ball')
 }
 
 /** 默认浮窗：贴右下、约半屏高（LibTV「点开是一半」）。 */

@@ -4,8 +4,9 @@ import type { AgentFormSurface } from '../../../ui/app-shell/shell/agentFormStor
 
 // 指向元素在聊天这一侧要记住的两件事（2026-10-23 D2 P1）。节点的数据一样都不存：那些只住在画布节点上。
 //   · locatedNodeId：点过、画布定位过去的那一项。回到对话后它仍标着「已定位」（A3 / A4 ③）。
-//   · returnTo：窄窗口里点了指向、对话临时让开之后，「回到对话」要回哪一页、落回哪一项（A4 ②）。
-//     不记形态：让开是机器的临时覆盖，回来 = 撤掉覆盖，人存的和窄窗档里人点出来的样子本来就都还在。
+//   · returnTo：窄窗口里点了指向、对话临时让开之后，「回到对话」要回哪一页、落回哪一项、带哪个标签（A4 ②）。
+//     它只是「回到哪」的内容，不管「那一枚在不在」：在不在只从机器让位算（useMachineGaveWay），让位一结束那一枚就没了，
+//     这里剩下的旧内容画不出来；下一次让开会先改写它（yieldChatToCanvas）。不记形态：回来 = 人的打开动作。
 
 export type NodePointerReturn = Readonly<{
   surface: AgentFormSurface

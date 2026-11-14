@@ -462,7 +462,7 @@ try {
     await win.waitForTimeout(300)
   }
 
-  // 协调裁决第 37 项：Mod+J 打开 Agent 并聚焦输入框；Mod+\ 停靠 ↔ 小球。
+  // 协调裁决第 37 项：Mod+J 打开 Agent 并聚焦输入框；Mod+\ 收起 / 展开 Nomi（收着时打开到上次选的摆法，和点小球同一个动作；2026-11-15 改，不再是选停靠）。
   if (want('check-shortcuts')) {
     await expect(win.locator('[data-agent-ball]'), '快捷键前应是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     await win.locator('.workbench-generation__canvas').click({ position: { x: 500, y: 60 } })
@@ -482,11 +482,12 @@ try {
     await clearComposerText(input)
     await win.keyboard.press('Control+\\')
     await expect(win.locator('[data-agent-ball]'), 'Ctrl+\\ 没把浮窗收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    const ballProof = await proveProbe(win.locator('[data-agent-ball]'), '切停靠前小球确实在')
+    const ballProof = await proveProbe(win.locator('[data-agent-ball]'), '再展开前小球确实在')
     await win.keyboard.press('Control+\\')
-    await expect(win.locator('[data-shell-agent-layer][data-agent-form="dock"]'), 'Ctrl+\\ 没把小球切到停靠').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
-    await expectAbsent(win.locator('[data-agent-ball]'), { provenBy: ballProof, message: '停靠后小球还在' })
-    await shoot(win, 'check-mod-backslash-dock')
+    // 上次选的是浮窗（Mod+J 打开的生成页浮窗）：展开回到浮窗，不被改成停靠。
+    await expect(win.locator('[data-shell-agent-layer][data-agent-form="float"]'), 'Ctrl+\\ 没把小球展开回上次选的浮窗').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
+    await expectAbsent(win.locator('[data-agent-ball]'), { provenBy: ballProof, message: '展开后小球还在' })
+    await shoot(win, 'check-mod-backslash-reopen')
     await win.keyboard.press('Control+\\')
     await expect(win.locator('[data-agent-ball]'), '再按 Ctrl+\\ 没回到小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   }

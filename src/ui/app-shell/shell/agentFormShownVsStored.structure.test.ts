@@ -56,15 +56,26 @@ describe('Nomi 形态：人选的 / 此刻显示的 / 算出来的分开放', ()
     expect(hits, '此刻显示什么只问 shownForm / useShownForm；要改就调动作').toEqual([])
   })
 
-  it('人的动作只在外壳里调；机器让位只在挑参考图、指向节点这两处机器流程里调', () => {
+  it('人的动作只在外壳和「回到对话」里调；机器让位只在挑参考图、指向节点这两处机器流程里调', () => {
     const callers = (pattern: RegExp): string[] => production.filter(({ file, text }) => !owners.has(file) && pattern.test(text)).map(({ file }) => file).sort()
-    expect(callers(/\b(openAgent|collapseAgent|chooseAgentPlacement)\s*\(/)).toEqual(['src/ui/app-shell/shell/ShellAgentHost.tsx'])
-    expect(callers(/\b(machineHold|machineRelease)\s*\(/)).toEqual(['src/workbench/ai/ProjectAgentResidentShell.tsx', 'src/workbench/ai/pointer/revealNodeFromChat.ts'])
+    expect(callers(/\b(collapseAgent|chooseAgentPlacement)\s*\(/)).toEqual(['src/ui/app-shell/shell/ShellAgentHost.tsx'])
+    // 「回到对话」是人点的 = 打开这一页的 Nomi（协调 2026-11-15），不是撤掉机器让位。
+    expect(callers(/\bopenAgent\s*\(/)).toEqual(['src/ui/app-shell/shell/ShellAgentHost.tsx', 'src/workbench/ai/pointer/revealNodeFromChat.ts'])
+    expect(callers(/\bmachineHold\s*\(/)).toEqual(['src/workbench/ai/ProjectAgentResidentShell.tsx', 'src/workbench/ai/pointer/revealNodeFromChat.ts'])
     // 挑参考图是机器把对话摆出来（只写此刻那份），不是替人点开。
     expect(textOf('src/workbench/ai/ProjectAgentResidentShell.tsx')).toMatch(/machineHold\(\s*'generation',\s*'open'\s*\)/)
     const reveal = textOf('src/workbench/ai/pointer/revealNodeFromChat.ts')
-    expect(reveal).toMatch(/machineHold\(\s*surface,\s*'ball'\s*\)/)
-    expect(reveal).toMatch(/machineRelease\(/)
+    // 让成小球的机器让位全仓只此一处，紧跟在记下回到哪之后：「让开成小球」和「回到哪」总是一起出现。
+    expect(reveal.match(/machineHold\(/g)).toHaveLength(1)
+    expect(reveal).toMatch(/setReturnTo\(target\)\s*\n\s*machineHold\(target\.surface,\s*'ball'\)/)
+    const returnToChat = reveal.slice(reveal.indexOf('export function returnToChat'))
+    expect(returnToChat).toMatch(/openAgent\(target\.surface\)/)
+  })
+
+  it('「回到对话」那一枚在不在只从机器让位算：dock 读 useMachineGaveWay，不自己清 returnTo、不看形态', () => {
+    const dock = textOf('src/workbench/ai/pointer/NodePointerReturnDock.tsx')
+    expect(dock).toMatch(/useMachineGaveWay\(surface\)/)
+    expect(dock).not.toMatch(/setReturnTo|useShownForm|shownForm/)
   })
 
   it('改存法前的公开写入口和三种读法，整个 src 里 0 处（连注释也算，和 git grep 同口径）', () => {

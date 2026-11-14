@@ -65,6 +65,8 @@ Object.assign(globalThis, {
   document: fakeDocument,
   localStorage: storage,
   ResizeObserver: ProbeResizeObserver,
+  // 「回到对话」把焦点落回那一项时拼选择器要用。
+  CSS: { escape: (value: string) => value },
   IS_REACT_ACT_ENVIRONMENT: false,
 })
 Object.defineProperty(globalThis, 'navigator', { value: { platform: 'MacIntel', userAgent: 'node' }, configurable: true })

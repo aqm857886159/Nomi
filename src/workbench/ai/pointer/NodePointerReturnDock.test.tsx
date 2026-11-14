@@ -1,7 +1,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createReactTestRenderer, type TestHostNode } from '../v4/testReactRenderer'
-import { chooseAgentPlacement, machineHold, openAgent, useAgentFormStore } from '../../../ui/app-shell/shell/agentFormStore'
+import { chooseAgentPlacement, collapseAgent, machineHold, openAgent, setAgentWindowNarrow, useAgentFormStore } from '../../../ui/app-shell/shell/agentFormStore'
 import { useAgentFormViewStore } from '../../../ui/app-shell/shell/agentFormViewStore'
 import { BOTTOM_DOCK_SCOPE_SELECTOR, BOTTOM_DOCK_SELECTOR, type BottomDockRect } from '../../generation/workspaceBottomDocks'
 import { useNodePointerStore, type NodePointerReturn } from './nodePointerStore'
@@ -154,17 +154,28 @@ describe('NodePointerReturnDock · on the real canvas only while a pointer click
     expect(useNodePointerStore.getState().returnTo).not.toBeNull()
   })
 
-  it('the user brought the chat back some other way (the ball): the stale return is cleared and the button goes', () => {
+  it('the user brought the chat back some other way (the ball): the hold ends, so the button goes — no second record to clear', () => {
     useNodePointerStore.getState().setReturnTo(target())
     yieldToBall()
     mount()
     expect(buttonShown()).toBe(true)
     created = []
     showChat('float')
-    expect(useNodePointerStore.getState().returnTo).toBeNull()
     expect(dockHost()).toBeUndefined()
-    // 之后又因为别的原因收成小球：不会再冒出一颗指着旧镜头的「回到对话」。
-    showChat('ball')
+    // 人自己收成小球（不是机器让位）：那一枚不回来。
+    collapseAgent('generation')
+    renderer?.flushPassiveEffects()
+    expect(dockHost()).toBeUndefined()
+  })
+
+  it('the window crosses the narrow threshold while the chat has given way: the hold ends, the button goes with it', () => {
+    useNodePointerStore.getState().setReturnTo(target())
+    yieldToBall()
+    mount()
+    expect(buttonShown()).toBe(true)
+    created = []
+    setAgentWindowNarrow(!useAgentFormViewStore.getState().windowNarrow)
+    renderer?.flushPassiveEffects()
     expect(dockHost()).toBeUndefined()
   })
 

@@ -303,8 +303,8 @@ export function ShellAgentHost({
     const timer = window.setTimeout(clearAgentNarrowMotion, NARROW_MOTION_CLEAR_MS)
     return () => window.clearTimeout(timer)
   }, [narrowMotion])
-  // Mod+J：打开并聚焦输入框（代替被删掉的那条常驻输入条）。Mod+\：停靠 ↔ 小球（concept-owners/shell.recall-entry，
-  // 是人明确选「停靠」那一下）；窄窗档里停靠放不下（形态切换里「停靠」也是灰的），这一下就只是点开，不写存档。
+  // Mod+J：打开并聚焦输入框（代替被删掉的那条常驻输入条）。Mod+\：收起 / 展开 Nomi（快捷键表原话）——开着收成小球，
+  // 收着就打开到上次选的摆法，和点小球同一个动作（用户 2026-11-14「收起再打开回到上次选的」）；选停靠 / 浮窗只在形态切换和菜单里。
   // 聚焦只发请求，由输入框的主人自己落焦点（residentComposerFocus）——外壳不在页面里找输入框。
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -318,14 +318,13 @@ export function ShellAgentHost({
         requestResidentComposerFocus()
       } else if (event.key === '\\') {
         event.preventDefault()
-        if (shown !== 'ball') collapseAgent(surface)
-        else if (narrow) openAgent(surface)
-        else chooseAgentPlacement(surface, 'dock')
+        if (shown === 'ball') openAgent(surface)
+        else collapseAgent(surface)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [narrow, surface])
+  }, [surface])
 
   // E2E 专用桥（同 TaskCenterButton / ProductionCanvasLandingHost 的既有写法）：仅当 localStorage['__nomiE2E']==='1'
   // 时把小球读的角标投影与形态 store 挂到 window，供零额度走查摆出小球四态截图（不跑真 Agent、不花钱）。生产从不置该标志。

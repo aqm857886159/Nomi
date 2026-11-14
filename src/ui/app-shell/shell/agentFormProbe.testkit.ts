@@ -17,7 +17,18 @@ export type OldForm = 'ball' | 'float' | 'dock'
 export type Shown = 'ball' | 'float' | 'dock'
 export const PROBE_SURFACES: AgentFormSurface[] = ['creation', 'storyboard', 'generation', 'preview']
 
-type ProbeNode = TestHostNode & { type: string; props: Record<string, unknown>; nodeType: 1; clientWidth: number; clientHeight: number }
+type ProbeNode = TestHostNode & {
+  type: string
+  props: Record<string, unknown>
+  nodeType: 1
+  clientWidth: number
+  clientHeight: number
+  /** 量自己（画布那一格里的东西读它；探针里没有排版，量出来是 0，那些 hook 自己就跳过摆放）。 */
+  getBoundingClientRect: () => { left: number; top: number; right: number; bottom: number; width: number; height: number }
+  closest: () => null
+  querySelector: () => null
+  querySelectorAll: () => []
+}
 
 /** 面板替身：只把外壳插进头部的东西摆出来（形态切换 + 「⋯」菜单项），面板别的部分和这张表无关。 */
 function AgentProbePanel(): React.JSX.Element | null {
@@ -57,7 +68,14 @@ export type Probe = Awaited<ReturnType<typeof bootProbe>>
  * 起一个外壳：磁盘上是 `forms` 那份旧存档，窗口 `narrow`，停在 `page`。
  * 返回的每个动作都走真实入口：小球的 onClick、形态切换的按钮、「⋯」菜单项、小球右键菜单、window 上的 keydown、matchMedia 的 change。
  */
-export async function bootProbe(input: { forms?: Partial<Record<AgentFormSurface, OldForm>>; narrow: boolean; page: AgentFormSurface; blob?: string }) {
+export async function bootProbe(input: {
+  forms?: Partial<Record<AgentFormSurface, OldForm>>
+  narrow: boolean
+  page: AgentFormSurface
+  blob?: string
+  /** 和外壳一起挂在这一页上的真组件（比如生成页画布那一格的「回到对话」）。 */
+  alongside?: (page: AgentFormSurface) => React.ReactElement | null
+}) {
   probeStorage.clear()
   probeStorage.set(AGENT_FORM_STORAGE_KEY, input.blob ?? oldBlob(input.forms ?? {}))
   setProbeNarrow(input.narrow, { silent: true })
@@ -68,13 +86,21 @@ export async function bootProbe(input: { forms?: Partial<Record<AgentFormSurface
   let page = input.page
   const renderer = createReactTestRenderer<ProbeNode>({
     createInstance: (type, props) => {
-      const node: ProbeNode = { type, props, nodeType: 1, clientWidth: 1200, clientHeight: 800 }
+      const node: ProbeNode = {
+        type, props, nodeType: 1, clientWidth: 1200, clientHeight: 800,
+        getBoundingClientRect: () => ({ left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 }),
+        closest: () => null,
+        querySelector: () => null,
+        querySelectorAll: () => [],
+      }
       created.push(node)
       return node
     },
   })
   const render = () => {
-    renderer.render(React.createElement(ShellAgentHost, { surface: page, dockTarget: null, agent: React.createElement(AgentProbePanel) }))
+    renderer.render(React.createElement(React.Fragment, null,
+      React.createElement(ShellAgentHost, { surface: page, dockTarget: null, agent: React.createElement(AgentProbePanel) }),
+      input.alongside?.(page) ?? null))
     renderer.flushPassiveEffects()
   }
   render()
@@ -160,6 +186,10 @@ export async function bootProbe(input: { forms?: Partial<Record<AgentFormSurface
     },
     /** 磁盘上那一份（原样字符串）。 */
     disk: (): string | null => probeStorage.get(AGENT_FORM_STORAGE_KEY) ?? null,
+    /** 点最近画出来的、满足条件的那个元素（`alongside` 挂上来的真组件里的按钮）。 */
+    clickWhere(match: (props: Record<string, unknown>) => boolean, what: string) {
+      click(latest(match), what)
+    },
     /** 某个非 React 处要同步一拍（store 被直接改过之后）。 */
     settle() {
       renderer.flushPassiveEffects()

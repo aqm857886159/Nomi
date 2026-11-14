@@ -30,11 +30,42 @@ vi.mock('../../../design', async (importOriginal) => {
   }
 })
 
+// 生成页画布那一格的「回到对话」（NodePointerReturnDock，真组件）里那颗按钮：换成一颗点了走真 returnToChat 的按钮，
+// 挂上 / 摘下记数——「那一枚在不在」量的是真 dock 此刻画没画它。
+const returnButton = vi.hoisted(() => ({ live: 0 }))
+vi.mock('../../../workbench/ai/pointer/NodePointerGroup', async () => {
+  const ReactModule = await import('react')
+  const { returnToChat } = await import('../../../workbench/ai/pointer/revealNodeFromChat')
+  const { useNodePointerStore } = await import('../../../workbench/ai/pointer/nodePointerStore')
+  function NodePointerReturnToChat(): React.ReactElement | null {
+    const target = useNodePointerStore((state) => state.returnTo)
+    ReactModule.useEffect(() => {
+      if (!target) return undefined
+      returnButton.live += 1
+      return () => { returnButton.live -= 1 }
+    }, [target])
+    return target ? ReactModule.createElement('button', { 'data-node-pointer-return': 'true', onClick: returnToChat }) : null
+  }
+  return { NodePointerReturnToChat }
+})
+
 import { PROBE_SURFACES, bootProbe, type OldForm, type Probe, type Shown } from './agentFormProbe.testkit'
-import { machineHold, machineRelease, type AgentFormSurface } from './agentFormStore'
+import { machineHold, type AgentFormSurface } from './agentFormStore'
+import { NodePointerReturnDock } from '../../../workbench/ai/pointer/NodePointerReturnDock'
+import { useNodePointerStore } from '../../../workbench/ai/pointer/nodePointerStore'
+import { yieldChatToCanvas } from '../../../workbench/ai/pointer/revealNodeFromChat'
 
 let probe: Probe | null = null
-afterEach(() => { probe?.close(); probe = null })
+afterEach(() => {
+  probe?.close()
+  probe = null
+  useNodePointerStore.setState({ locatedNodeId: null, returnTo: null })
+})
+
+/** 生成页画布那一格里和外壳一起挂着的真「回到对话」。 */
+const withReturnDock = (page: AgentFormSurface): React.ReactElement | null => (page === 'generation' ? React.createElement(NodePointerReturnDock, { surface: 'generation' }) : null)
+const returnDockShown = (): boolean => returnButton.live > 0
+const clickReturn = (p: Probe): void => p.clickWhere((props) => props['data-node-pointer-return'] === 'true', '回到对话')
 
 /** 从创作页面板里点「参考」去画布挑图时，外壳这一侧做的事：ProjectAgentResidentShell 的 pickReferenceOnCanvas 只调这一个动作（结构测试钉住）。 */
 function pickReferenceOnCanvas(p: Probe): void {
@@ -84,9 +115,71 @@ describe('没钉住的三条（方向检查第 3 节）：写成期望行为', (
   })
 })
 
+describe('独立验收查出的三条（先钉现状）', () => {
+  it('① 窄窗点开 → 指向让开 → 拉宽：那一枚跟着消失、显示存的样子（存收着 = 小球），点小球打开到上次选的摆法', async () => {
+    probe = await bootProbe({ forms: { generation: 'ball' }, narrow: true, page: 'generation', alongside: withReturnDock })
+    expect(probe.clickBall()).toBe(true)
+    expect(probe.shown()).toBe('float')
+    yieldChatToCanvas({ surface: 'generation', nodeId: 'n1', label: '镜 01' })
+    probe.settle()
+    expect(probe.shown()).toBe('ball')
+    expect(returnDockShown()).toBe(true)
+    probe.resize(false)
+    expect(probe.shown(), '拉宽：显示存的样子').toBe('ball')
+    expect(returnDockShown(), '拉宽：让位结束，那一枚跟着消失').toBe(false)
+    expect(probe.clickBall()).toBe(true)
+    expect(probe.shown()).toBe('float')
+  })
+
+  it('① 补格 · 让位还在时（没跨窗宽）点「回到对话」：对话回来、那一枚消失', async () => {
+    probe = await bootProbe({ forms: { generation: 'ball' }, narrow: true, page: 'generation', alongside: withReturnDock })
+    probe.clickBall()
+    yieldChatToCanvas({ surface: 'generation', nodeId: 'n1', label: '镜 01' })
+    probe.settle()
+    clickReturn(probe)
+    expect(probe.shown()).toBe('float')
+    expect(returnDockShown()).toBe(false)
+  })
+
+  for (const surface of PROBE_SURFACES) {
+    it(`② 宽窗 · ${surface} 选浮窗 → 收起 → ⌘\\：是浮窗，存的摆法没变`, async () => {
+      probe = await bootProbe({ forms: { [surface]: 'dock' }, narrow: false, page: surface })
+      probe.choose('float')
+      probe.choose('ball')
+      expect(probe.shown()).toBe('ball')
+      const disk = probe.disk()
+      probe.key('\\')
+      expect(probe.shown()).toBe('float')
+      expect(JSON.parse(probe.disk()!).state.bySurface[surface].placement).toBe('float')
+      expect(JSON.parse(disk!).state.bySurface[surface].placement).toBe('float')
+    })
+  }
+})
+
+describe('③ 新格式存档坏了：外壳照样画得出来（四种坏法 × 坏在哪一页 × 停在哪一页）', () => {
+  const good = { placement: 'float', collapsed: false, float: null, ball: null }
+  const blobs: Record<string, (bad: AgentFormSurface) => string> = {
+    'missing-page': (bad) => JSON.stringify({ state: { bySurface: Object.fromEntries(PROBE_SURFACES.filter((s) => s !== bad).map((s) => [s, good])) }, version: 2 }),
+    'unknown-values': (bad) => JSON.stringify({ state: { bySurface: Object.fromEntries(PROBE_SURFACES.map((s) => [s, s === bad ? { ...good, placement: 'sidebar', collapsed: 'yes' } : good])) }, version: 2 }),
+    'non-number-geometry': (bad) => JSON.stringify({ state: { bySurface: Object.fromEntries(PROBE_SURFACES.map((s) => [s, s === bad ? { ...good, float: { x: 'a', y: 1, width: 300, height: null }, ball: { x: '3', y: 4 } } : good])) }, version: 2 }),
+    'not-an-object': () => JSON.stringify({ state: { bySurface: 'broken' }, version: 2 }),
+  }
+  for (const [kind, make] of Object.entries(blobs)) {
+    for (const bad of PROBE_SURFACES) {
+      it(`${kind} · 坏在 ${bad}`, async () => {
+        probe = await bootProbe({ blob: make(bad), narrow: false, page: bad })
+        for (const page of PROBE_SURFACES) {
+          probe.goto(page)
+          expect(['ball', 'float', 'dock'], page).toContain(probe.shown())
+        }
+      })
+    }
+  }
+})
+
 // ── 探针表：窗宽 × 页 × 旧存档三值 × 人的手势，之后切页 / 跨阈值 / 重开 ────────────────────────────────
 // 期望逐格写死（不在测试里再算一遍）。'D' = 这一页的默认摆法：生成页浮窗、其余停靠（旧存档存小球的页迁成「收着 + 默认摆法」）。
-// ⌘\ 是「停靠 ↔ 小球」（concept-owners/shell.recall-entry）：宽窗从小球按它是人选停靠；窄窗档停靠放不下，只是点开。
+// ⌘\ 是「收起 / 展开 Nomi」（concept-owners/shell.recall-entry）：开着收成小球，收着打开到上次选的摆法（和点小球同一个动作）。
 
 type Gesture = 'clickBall' | 'ballMenuFloat' | 'modJ' | 'modBackslash' | 'openCollapse' | 'openChooseFloat' | 'openMoreBall' | 'openMoreFloat' | 'recall'
 type Cell = Shown | 'D'
@@ -113,7 +206,7 @@ function play(p: Probe, gesture: Gesture): void {
 const AFTER: Record<'wide' | 'narrow', Record<OldForm, Record<Gesture, Cell>>> = {
   wide: {
     dock: { clickBall: 'dock', ballMenuFloat: 'dock', modJ: 'dock', modBackslash: 'ball', openCollapse: 'ball', openChooseFloat: 'float', openMoreBall: 'ball', openMoreFloat: 'float', recall: 'dock' },
-    ball: { clickBall: 'D', ballMenuFloat: 'float', modJ: 'D', modBackslash: 'dock', openCollapse: 'ball', openChooseFloat: 'float', openMoreBall: 'ball', openMoreFloat: 'float', recall: 'D' },
+    ball: { clickBall: 'D', ballMenuFloat: 'float', modJ: 'D', modBackslash: 'D', openCollapse: 'ball', openChooseFloat: 'float', openMoreBall: 'ball', openMoreFloat: 'float', recall: 'D' },
     float: { clickBall: 'float', ballMenuFloat: 'float', modJ: 'float', modBackslash: 'ball', openCollapse: 'ball', openChooseFloat: 'float', openMoreBall: 'ball', openMoreFloat: 'float', recall: 'float' },
   },
   narrow: {
@@ -194,7 +287,7 @@ describe('常驻探针表（窗宽 × 页 × 旧存档 × 手势）', () => {
     }
   }
 
-  it('宽窗收起再点开回到上次选的摆法：每页 × 两种摆法 × 三种收法（形态切换、「⋯」、⌘\\）× 两种开法（点小球、⌘J）；⌘\\ 从小球是选停靠', async () => {
+  it('宽窗收起再点开回到上次选的摆法：每页 × 两种摆法 × 三种收法（形态切换、「⋯」、⌘\\）× 三种开法（点小球、⌘J、⌘\\）', async () => {
     for (const surface of PROBE_SURFACES) {
       for (const placement of ['float', 'dock'] as const) {
         for (const collapse of ['switch', 'more', 'key'] as const) {
@@ -209,7 +302,7 @@ describe('常驻探针表（窗宽 × 页 × 旧存档 × 手势）', () => {
             if (open === 'ball') probe.clickBall()
             if (open === 'j') probe.key('j')
             if (open === 'key') probe.key('\\')
-            expect(probe.shown(), `${surface} ${placement} ${collapse} ${open}`).toBe(open === 'key' ? 'dock' : placement)
+            expect(probe.shown(), `${surface} ${placement} ${collapse} ${open}`).toBe(placement)
           }
         }
       }
@@ -237,45 +330,117 @@ describe('机器的让位（挑参考图摆出来、指向节点让开 / 回来�
     }
   }
 
-  it('宽窗：生成页开着浮窗，指向节点让开 → 小球；回到对话 → 浮窗；存档一个字节不改', async () => {
-    probe = await bootProbe({ forms: { generation: 'float' }, narrow: false, page: 'generation' })
-    const disk = probe.disk()
-    machineHold('generation', 'ball')
-    probe.settle()
-    expect(probe.shown()).toBe('ball')
-    machineRelease('generation')
-    probe.settle()
-    expect(probe.shown()).toBe('float')
-    expect(probe.disk()).toBe(disk)
-  })
+})
 
-  it('窄窗：存停靠的页人点开（此刻浮窗）→ 让开 → 回到对话：回到人点出来的浮窗，不是存下的小球', async () => {
-    probe = await bootProbe({ forms: { generation: 'dock' }, narrow: true, page: 'generation' })
-    probe.clickBall()
-    expect(probe.shown()).toBe('float')
-    machineHold('generation', 'ball')
-    probe.settle()
-    expect(probe.shown()).toBe('ball')
-    machineRelease('generation')
-    probe.settle()
-    expect(probe.shown()).toBe('float')
-  })
+// ── 让位期间环境变了（独立验收真问题 1：上一次这张表没有「让位期间跨窗宽」这一列）───────────────────────────
+// 两种机器让位（指向让开、挑参考图摆出来）× 让位期间发生的事 × 之后（点「回到对话」/ 不点），生成页，每格断言：
+// 此刻显示什么、存档变没变、「回到对话」那一枚在不在。期望逐格写死。
+// 让位期间发生的事：none 什么都没发生 · cross 跨窗宽（宽 → 窄 / 窄 → 宽）· page 切到分镜页再切回 · ball 人点小球 ·
+// close 人点关闭钮（面板头部收成小球）· relaunch 关掉重开。指向让开时对话是小球、没有关闭钮（close 不适用）；
+// 挑参考图时对话开着、没有小球（ball 不适用），所以两种让位各 5 件事。
 
-  it('让开之后人自己点小球：人的动作赢；宽窗里存的本来就是开着，一个字节不写', async () => {
-    probe = await bootProbe({ forms: { generation: 'float' }, narrow: false, page: 'generation' })
-    const disk = probe.disk()
-    machineHold('generation', 'ball')
-    probe.settle()
-    probe.clickBall()
-    expect(probe.shown()).toBe('float')
-    expect(probe.disk()).toBe(disk)
-  })
+type Hold = 'pointer' | 'pickRef'
+type During = 'none' | 'cross' | 'page' | 'ball' | 'close' | 'relaunch'
+const DURING: Record<Hold, During[]> = { pointer: ['none', 'cross', 'page', 'ball', 'relaunch'], pickRef: ['none', 'cross', 'page', 'close', 'relaunch'] }
+type HoldCell = { shown: Shown; dock: boolean; diskChanged: boolean }
+const cell = (shown: Shown, dock = false, diskChanged = false): HoldCell => ({ shown, dock, diskChanged })
 
-  it('让开期间跨阈值：让位作废，回到自己存的样子', async () => {
-    probe = await bootProbe({ forms: { generation: 'float' }, narrow: false, page: 'generation' })
-    machineHold('generation', 'ball')
-    probe.settle()
-    probe.resize(true)
-    expect(probe.shown()).toBe('float')
-  })
+/** 让位期间那件事之后。键：让位 · 窗宽 · 生成页旧存档 · 那件事。 */
+const HOLD_AFTER: Record<Hold, Record<'wide' | 'narrow', Record<OldForm, Partial<Record<During, HoldCell>>>>> = {
+  pointer: {
+    // 宽窗：存小球的先点开（人的动作，记下「开着」，之后才量存档）。
+    wide: {
+      dock: { none: cell('ball', true), cross: cell('ball'), page: cell('ball', true), ball: cell('dock'), relaunch: cell('dock') },
+      ball: { none: cell('ball', true), cross: cell('float'), page: cell('ball', true), ball: cell('float'), relaunch: cell('float') },
+      float: { none: cell('ball', true), cross: cell('float'), page: cell('ball', true), ball: cell('float'), relaunch: cell('float') },
+    },
+    // 窄窗：存停靠 / 小球的先点开（窄窗里点开只改此刻）。拉宽 = 回到存的样子（存小球的就是小球）。
+    narrow: {
+      dock: { none: cell('ball', true), cross: cell('dock'), page: cell('ball', true), ball: cell('float'), relaunch: cell('ball') },
+      ball: { none: cell('ball', true), cross: cell('ball'), page: cell('ball', true), ball: cell('float'), relaunch: cell('ball') },
+      float: { none: cell('ball', true), cross: cell('float'), page: cell('ball', true), ball: cell('float'), relaunch: cell('float') },
+    },
+  },
+  pickRef: {
+    // 宽窗存停靠 / 浮窗：本来就开着，机器不留覆盖；人点关闭钮就是平常的收起（宽窗记下「收着」）。
+    wide: {
+      dock: { none: cell('dock'), cross: cell('ball'), page: cell('dock'), close: cell('ball', false, true), relaunch: cell('dock') },
+      ball: { none: cell('float'), cross: cell('ball'), page: cell('float'), close: cell('ball'), relaunch: cell('ball') },
+      float: { none: cell('float'), cross: cell('float'), page: cell('float'), close: cell('ball', false, true), relaunch: cell('float') },
+    },
+    narrow: {
+      dock: { none: cell('float'), cross: cell('dock'), page: cell('float'), close: cell('ball'), relaunch: cell('ball') },
+      ball: { none: cell('float'), cross: cell('ball'), page: cell('float'), close: cell('ball'), relaunch: cell('ball') },
+      float: { none: cell('float'), cross: cell('float'), page: cell('float'), close: cell('ball'), relaunch: cell('float') },
+    },
+  },
+}
+
+/** 让位还在、点「回到对话」之后（= 人点开）：此刻显示、那一枚没了、存档不变。 */
+const POINTER_RETURN: Record<'wide' | 'narrow', Record<OldForm, Shown>> = {
+  wide: { dock: 'dock', ball: 'float', float: 'float' },
+  narrow: { dock: 'float', ball: 'float', float: 'float' },
+}
+
+async function bootHold(hold: Hold, width: 'wide' | 'narrow', stored: OldForm): Promise<{ p: Probe; disk: string | null }> {
+  const p = await bootProbe({ forms: { creation: 'dock', storyboard: 'dock', generation: stored }, narrow: width === 'narrow', page: hold === 'pointer' ? 'generation' : 'creation', alongside: withReturnDock })
+  if (hold === 'pointer') {
+    p.clickBall()
+    expect(p.shown(), '指向之前对话开着').not.toBe('ball')
+    const disk = p.disk()
+    yieldChatToCanvas({ surface: 'generation', nodeId: 'n1', label: '镜 01' })
+    p.settle()
+    expect(p.shown(), '指向让开').toBe('ball')
+    expect(returnDockShown(), '让开时「回到对话」在').toBe(true)
+    return { p, disk }
+  }
+  const disk = p.disk()
+  pickReferenceOnCanvas(p)
+  expect(p.shown(), '挑参考图：生成页的 Nomi 开着').not.toBe('ball')
+  return { p, disk }
+}
+
+async function playDuring(p: Probe, during: During, width: 'wide' | 'narrow'): Promise<void> {
+  if (during === 'cross') p.resize(width === 'wide')
+  if (during === 'page') { p.goto('storyboard'); p.goto('generation') }
+  if (during === 'ball') expect(p.clickBall()).toBe(true)
+  if (during === 'close') expect(p.choose('ball')).toBe(true)
+  if (during === 'relaunch') await p.relaunch()
+}
+
+describe('机器让位 × 让位期间发生的事 × 之后（点「回到对话」/ 不点）', () => {
+  for (const hold of ['pointer', 'pickRef'] as const) {
+    for (const width of ['wide', 'narrow'] as const) {
+      for (const stored of STORED_CYCLE) {
+        for (const during of DURING[hold]) {
+          const expected = HOLD_AFTER[hold][width][stored][during]!
+          const label = `${hold} · ${width} · 生成页存 ${stored} · 期间 ${during}`
+          it(`${label} → 不点`, async () => {
+            const { p, disk } = await bootHold(hold, width, stored)
+            probe = p
+            await playDuring(p, during, width)
+            expect(p.shown(), '此刻显示').toBe(expected.shown)
+            expect(returnDockShown(), '「回到对话」在不在').toBe(expected.dock)
+            expect(p.disk() !== disk, '存档变没变').toBe(expected.diskChanged)
+          })
+          if (hold === 'pointer') {
+            it(`${label} → 点「回到对话」`, async () => {
+              const { p, disk } = await bootHold(hold, width, stored)
+              probe = p
+              await playDuring(p, during, width)
+              if (!expected.dock) {
+                // 让位已经结束：那一枚不在，没有可点的（点小球照常打开，在「ball」那一列）。
+                expect(returnDockShown()).toBe(false)
+                return
+              }
+              clickReturn(p)
+              expect(p.shown(), '回到对话 = 人点开').toBe(POINTER_RETURN[width][stored])
+              expect(returnDockShown(), '那一枚消失').toBe(false)
+              expect(p.disk(), '宽窗本来就记着「开着」、窄窗只改此刻：存档不变').toBe(disk)
+            })
+          }
+        }
+      }
+    }
+  }
 })
