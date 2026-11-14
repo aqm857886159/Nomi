@@ -86,8 +86,10 @@ export const COMPOSER_MIN_USABLE_HEIGHT = 150;
  * 2026-09-25 用户拍板「宽度固定、钉在节点正下方、被挡就挡」：宽度以前是 `w-max` 跟内容撑（360–880），
  * 换模型 / 换语言 / 参数摘要变长都会变——那就是「长度老是变来变去」。560 = 最宽的视频节点底栏
  * （模型 · 参数摘要 · 写提示词三颗 · ×N · 点数 · ↑）在英文下一行放得下的宽度；放不下时参数摘要自己截断。
+ * 2026-11-14 用户定 560 → 600：底栏右边多了一颗「高级设置」，560 时中文差 6 像素放不下「比例 · 清晰度 · 时长」三个值；
+ * 窗口最窄 700 时画布区 640，600 放得下（左右各剩 20）。
  */
-export const NODE_COMPOSER_WIDTH = 560;
+export const NODE_COMPOSER_WIDTH = 600;
 export const NODE_COMPOSER_GAP = 14;
 // 文本节点的加工框（Claude Design「文本节点：会加工、看得见」）：和节点同宽、紧贴在下面；五个预设排得下的最小宽度兜底。
 export const TEXT_COMPOSER_GAP = 8;

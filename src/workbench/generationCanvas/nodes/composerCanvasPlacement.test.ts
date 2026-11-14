@@ -30,7 +30,7 @@ function stripComments(source: string): string {
 }
 
 describe('composerCanvasPlacement', () => {
-  it('reported case: a 16:9 image node at 100% gets a 560px card centred right below it', () => {
+  it('reported case: a 16:9 image node at 100% gets a NODE_COMPOSER_WIDTH card centred right below it', () => {
     const rect = screenRect({ width: 320, height: 180 }, 1)
     expect(rect.right - rect.left).toBe(NODE_COMPOSER_WIDTH)
     expect((rect.left + rect.right) / 2).toBe(rect.nodeCenterX)
@@ -61,7 +61,7 @@ describe('composerCanvasPlacement', () => {
     expect(wide.width).toBe(404)
     expect(wide.top).toBe(120 + TEXT_COMPOSER_GAP)
     expect(wide.left).toBe(202)
-    // 缩小到看不清时不跟着缩成一条缝；放大到比标准浮框还宽时不撑出 560。
+    // 缩小到看不清时不跟着缩成一条缝；放大到比标准浮框还宽时不撑出 NODE_COMPOSER_WIDTH。
     expect(composerCanvasPlacement({ width: 404, height: 120 }, 0.4, 'match-node').width).toBe(TEXT_COMPOSER_MIN_WIDTH)
     expect(composerCanvasPlacement({ width: 404, height: 120 }, 3, 'match-node').width).toBe(TEXT_COMPOSER_MAX_WIDTH)
     // 标准（图片 / 视频）浮框一个字不变。

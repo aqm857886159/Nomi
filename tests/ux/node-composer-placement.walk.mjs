@@ -158,9 +158,6 @@ async function measure() {
       // 摊开的可点项数（分段 chip 与列表项都是 role=radio）。它是上面那句「没有下拉」的基线：
       // 面板整个空着时「没有下拉」也成立，而那种绿和真绿在观测上一模一样。
       panelOptionCount: document.querySelectorAll('[data-agent-parameter-panel="true"] [role="radio"]').length,
-      // 单参数直出：点 pill 出来的就是那一个参数的选项列表，没有面板壳。null = 走的是面板。
-      panelSolo: document.querySelector('[data-agent-parameter-panel="true"] [data-parameter-solo]')
-        ?.getAttribute('data-parameter-solo') ?? null,
       panelOpen: document.querySelectorAll('[data-agent-parameter-panel="true"]').length,
     }
   })
@@ -347,9 +344,9 @@ try {
     withPanel.panelSelects === 0 && withPanel.panelOptionCount > 0,
     `下拉 ${withPanel.panelSelects} 个 / 摊开的可点项 ${withPanel.panelOptionCount} 个`,
   )
-  check('视频节点是多参数，走的是面板不是单参数直出（两条路各守各的）',
-    withPanel.panelControlKeys.length > 1 && withPanel.panelSolo === null,
-    `参数 ${withPanel.panelControlKeys.length} 组 / solo=${withPanel.panelSolo}`)
+  check('视频节点是多参数，面板里摊开不止一组',
+    withPanel.panelControlKeys.length > 1,
+    `参数 ${withPanel.panelControlKeys.length} 组`)
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '06-video-param-panel.png') })
   // 挑一个**没被选中**的分段档。定位先在页面里算好「哪一组的第几项」再用稳定选择器点：
   // 直接写 `[aria-checked="false"]` 会在点完之后指向另一项（选择器自己失效了），
@@ -479,13 +476,12 @@ try {
   // 「单参数直出 / 多参数走面板」是同一条规则的两面。这台机器上**没有**单参数的图片模型
   // （内置可用的那个档案声明了比例 + 清晰度，pill 只是按 v1.1 的口径挑两个值报），
   // 所以真机这一侧只量得到「多参数 → 面板、不走直出」这半边；
-  // 直出那半边由设计实验室 `composer-bar-panel-solo-direct` 那一格守（Agnes Image 是**真实档案**，
-  // 只声明一个「尺寸」参数，正是用户 09-11 13:00 截图里那种模型），那一格会真的点一项、
-  // 断言列表随即关闭。两边合起来才覆盖整条规则——这里不假装真机上走到了一个不存在的模型。
+  // 只有一项的面板（Agnes Image 只声明一个「尺寸」）由设计实验室 `composer-bar-panel-solo-direct` 那一格守：
+  // 2026-11-14 起它也是同一只 320 面板，选完不关。
   check(
-    `图片节点是多参数（${imageOpen.panelControlKeys.join(' / ')}），走的是面板不是单参数直出`,
-    imageOpen.panelControlKeys.length > 1 && imageOpen.panelSolo === null,
-    `参数 ${imageOpen.panelControlKeys.length} 组 / solo=${imageOpen.panelSolo}`,
+    `图片节点是多参数（${imageOpen.panelControlKeys.join(' / ')}），面板里摊开不止一组`,
+    imageOpen.panelControlKeys.length > 1,
+    `参数 ${imageOpen.panelControlKeys.length} 组`,
   )
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '07-image-param-panel.png') })
   await dismiss()

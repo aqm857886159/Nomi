@@ -25,6 +25,11 @@ vi.mock('../../../design', async () => ({
   NomiSegmented: () => null,
   DesignSwitch: () => null,
   DesignSearchInput: () => null,
+  // 底栏图标排（提示词工具 + 高级设置）用到的气泡：静态渲染里只要把孩子画出来。
+  Tooltip: ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+  TooltipProvider: ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+  TooltipTrigger: ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+  TooltipContent: () => null,
 }))
 
 describe('InlineParameterBar 模型格（变体是菜单里的行）', () => {
@@ -190,24 +195,22 @@ describe('InlineParameterBar semantic option presentation wiring', () => {
     expect(body).toContain("optionLayout === 'chips-column' ? 'column' : 'fill'")
   })
 
-  // 2026-09-14 用户两次拍板之后的最终形态：**一列、每项一行的摆法不动**（横排换行被退回：
-  // 「两个一行、三个一行反而更难受」），只把浮层右边那截空白收掉——宽度 = 最宽项文字宽 + 内边距。
-  it('单参数直出：摆法仍是一列，浮层宽度由最宽项的文字派生而不是固定 320', () => {
-    expect(source).toContain('hugsContent')
-    expect(source).toContain('hugWidth')
-    // 量的是文字（Range 量内容盒），不是被 1fr 拉伸的按钮框——量错对象就会量回容器自己。
-    expect(source).toContain('range.selectNodeContents(item)')
-    // 左缘与触发它的 chip 对齐，不按那个不存在的 320 槽居中。
-    expect(source).toContain('hugsContent ? panelInit?.anchorLeft : panelInit?.left')
-    // 横排换行那一版已整段撤掉：一种摆法、一份控件体（P1）。
-    expect(source).not.toContain("'chips-wrap'")
+  // 2026-11-14 用户定稿（画板 T / U）：参数面板全摊开——不再有 420 封顶，只受窗口高度限制，
+  // 窗口放不下才在面板里滚；只有一项的面板也是同一只 320 面板（旧「单参数直出」那条 68 宽细条整段删了）。
+  it('面板全摊开：高度只由窗口剩余空间决定，没有固定封顶；单参数也走同一只面板', () => {
+    expect(source).not.toMatch(/Math\.min\(\s*420/)
+    expect(source).not.toMatch(/\b420\b/)
+    expect(source).toContain("const maxHeight = side === 'above' ? spaceAbove : Math.max(160, vh - rect.bottom - 18)")
+    for (const removed of ['soloControl', 'soloOptionControl', 'hugsContent', 'hugWidth', 'data-parameter-solo']) {
+      expect(source, removed).not.toContain(removed)
+    }
+    expect(body.match(/export function ParameterControlBody\(/g) ?? []).toHaveLength(1)
   })
 
-  // 单参数直出与面板走的是**同一个** ParameterControlBody：给单参数另写一套渲染就是并行版。
-  it('单参数直出与面板共用同一处控件渲染（ParameterControlBody 只有一个定义）', () => {
-    expect(body.match(/export function ParameterControlBody\(/g) ?? []).toHaveLength(1)
-    expect(source).toContain('<ParameterControlBody control={soloControl} {...controlWiring} onPicked={closePanel} />')
-    expect(body).toContain('<ParameterControlBody')
+  // 便签：56 个选项那一格最多显示三排，多的在这一格里自己滚，不把整块面板撑高。
+  it('一格选项最多三排，多出来的在格里自己滚', () => {
+    expect(body).toContain('OPTION_GROUP_VISIBLE_ROWS = 3')
+    expect(body).toContain('data-option-group-capped')
   })
 })
 
@@ -248,5 +251,62 @@ describe('summaryFitCandidates', () => {
     expect(summaryFitCandidates([part('16:9', 0), part('720p', 2), part('5s', 3)])).toEqual(['16:9 · 720p · 5s', '720p · 5s', '5s'])
     expect(summaryFitCandidates([part('5s', 3)])).toEqual(['5s'])
     expect(summaryFitCandidates([])).toEqual([])
+  })
+})
+
+// 2026-11-14 用户定稿（画板 T / T2 / T4）：高级设置是底栏右边那排图标里的一颗；
+// 去处只由 parameterPlacement 一处决定，这里只验「宿主给了底栏 → 拆开；有改过的值 → 小点；没有高级项 → 不出图标」。
+describe('InlineParameterBar 底栏的高级设置', () => {
+  const ratio: DynamicModelControl = {
+    key: 'aspect_ratio', label: '比例', type: 'select', binding: 'parameter',
+    options: [{ value: '1:1', label: '1:1' }, { value: '16:9', label: '16:9' }], defaultValue: '16:9',
+  }
+  const seed: DynamicModelControl = { key: 'seed', label: '种子', type: 'number', binding: 'parameter', options: [] }
+  const watermark: DynamicModelControl = { key: 'watermark', label: '添加水印', type: 'boolean', binding: 'parameter', options: [], defaultValue: false }
+  const modelOptions = toCatalogModelOptions([{
+    modelKey: 'seedance-2', vendorKey: 'apimart', labelZh: 'Seedance 2',
+    kind: 'video', enabled: true, published: true, availability: { usable: true } as const, publishedModes: ['text_to_video' as const], createdAt: '', updatedAt: '',
+  }])
+  function render(renderedControls: DynamicModelControl[], meta: Record<string, unknown>, withFooter = true) {
+    return renderToStaticMarkup(React.createElement(InlineParameterBar, {
+      modelOptions, selectedModelOption: modelOptions[0], modelCatalogStatus: { message: '' },
+      renderedControls, archetype: null, meta,
+      onModelChange: vi.fn(), onCatalogControlChange: vi.fn(), onParameterControlChange: vi.fn(),
+      ...(withFooter ? { footer: { action: React.createElement('button', { 'data-test-send': 'true' }) } } : {}),
+    }))
+  }
+  beforeEach(() => { captured.selects = []; captured.iconButtons = [] })
+  // 图标按钮被替身接走了，属性从替身收到的 props 里读。
+  const advancedToggles = () => captured.iconButtons.filter((props) => (props as Record<string, unknown>)['data-advanced-settings-toggle'] === 'true')
+
+  it('有高级项：底栏出图标，摘要里只剩面板那几项', () => {
+    const html = render([ratio, seed, watermark], { aspect_ratio: '1:1' })
+    expect(advancedToggles()).toHaveLength(1)
+    expect(html).toContain('data-parameter-summary="1:1"')
+    expect(html).toContain('data-test-send="true"')
+    // 收着：开合不记，挂载时一律收起。
+    expect(html).not.toContain('data-advanced-settings="true"')
+  })
+
+  it('高级里有值不是默认 → 图标带小点；全是默认 → 不带', () => {
+    const dot = (meta: Record<string, unknown>) => {
+      captured.iconButtons = []
+      const html = render([ratio, seed, watermark], meta)
+      const [toggle] = advancedToggles()
+      return { attr: toggle?.['data-advanced-settings-changed' as keyof WorkbenchIconButtonProps], drawn: html.includes('data-prompt-tool-active="true"') }
+    }
+    expect(dot({ watermark: false })).toEqual({ attr: undefined, drawn: false })
+    expect(dot({ seed: 20261114 })).toEqual({ attr: 'true', drawn: true })
+    expect(dot({ watermark: true })).toEqual({ attr: 'true', drawn: true })
+  })
+
+  it('这种方式没有高级项 → 图标整颗不出', () => {
+    render([ratio], {})
+    expect(advancedToggles()).toHaveLength(0)
+  })
+
+  it('宿主不给底栏（批量弹窗、实验室小样）→ 不拆，图标不出', () => {
+    render([ratio, seed], { aspect_ratio: '1:1' }, false)
+    expect(advancedToggles()).toHaveLength(0)
   })
 })

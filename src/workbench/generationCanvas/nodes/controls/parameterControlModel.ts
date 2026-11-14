@@ -351,17 +351,6 @@ export function isParameterControl(control: DynamicModelControl): control is Dyn
   return control.binding === 'parameter'
 }
 
-/**
- * 这个控件在参数面板里是不是渲成「一组摊开的候选项」。
- *
- * 判据就是**它有没有候选项**：有 → 面板里画的是可点的项（chip 一排/一列，或带搜索的列表）；
- * 没有 → 滑杆 / 数字框 / 开关。单参数直出那条路（底栏 pill 只管一个参数时，点开直接给这组项、
- * 不套面板壳）只对前者成立——把一根没有标题的滑杆直接弹在半空中，谁也不知道它在调什么。
- */
-export function hasFlatOptions(control: DynamicModelControl): boolean {
-  return control.options.length > 0
-}
-
 function controlEquivalentKeys(key: string): string[] {
   return [key, ...(PARAMETER_CONTROL_BINDING_KEYS[key] || [])]
 }
