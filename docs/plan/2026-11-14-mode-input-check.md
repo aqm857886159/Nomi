@@ -188,6 +188,19 @@ PR1 量估：一条线 2 轮（Claude Opus，碰花钱路 + 新约束形状要�
 - R9 核对放在主人定方式之前（用请求里的 taskKind 猜方式）→ 第 4 条 + 变体快照。
 回滚：revert PR1 合并提交；不写存储，无数据影响。PR2、PR3 各自 revert。
 
+## 9b. 计数口径（线上检查查出后补，2026-11-14）
+
+起因：自己接的中转、用自定义脚本接管的图片模型，选「图片编辑」连了参考图——判定拿目录里留着的旧 mapping body（不读图）去数，数成 0，拒发。同一类错 9 月在旧的参考图护栏上出过一次（`runtime.customCall.test.ts` 守的就是它）。
+
+定法：**看得清才判，看不清不拒**，写在类型里（`crossFieldConstraints.ModeInputEvidence`），不靠每条路径记得兜底。
+- 真实派发走哪条路只在发送口定一次（`taskParams.sendRouteFor`）：自定义脚本接管 → `script`；否则按 mapping body 发。发送前核输入和老护栏 `imageEditGuardError` 读同一个结果（`dispatchedCreateBody`）。
+- 件数 = 调用方交进来的素材本身（标准输入键，在被各家键名改写之前）+ 方式 / body 绑定的键 + body 直接读的参考键，取大。
+- `script`（看不清）：只带下限，判定只判参数组合；缺输入 / 依赖的槽 / 选项要的槽 / 参考合计都不判。
+- `mapping-body`（看得清）：素材给了、但 body 根本没有这一族素材的位置 → 记进 `unrouted`，拒收说「当前这家上没有这个方式」（`mode_route_missing`，确定拒收）；素材真没给 → 照旧「请求里没有」（`mode_input_missing`）。两种都零请求。
+- 没有档案 / 没有方式记录的模型（ComfyUI、自定义工作流）、没有 mapping body 的路（process / multipart / 无 mapping）：判定不跑，等于看不清。
+
+量具：`electron/catalog/taskParams.modeInputRoutes.test.ts`——全目录 373 格（内置渠道 × 方式）给足下限：缺输入 0 格，「这家没有这个方式」只在 APIMart Suno V5.5 续写 / 翻唱 2 格；同一批格子换成脚本接管：确定拒收 0 格；逐类（声明式中转非标准字段名、脚本接管、ComfyUI / 自定义工作流、kie / fal / RunningHub / Runway、本机文件参考）各有「给全 → 发」「没给 → 拒或放行」断言。
+
 ## 10. 拿不准的
 
 | 事 | 谁答 |
