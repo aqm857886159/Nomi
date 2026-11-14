@@ -135,6 +135,16 @@ async function clickNode(id, { shift = false } = {}) {
   await expect(win.locator(sel(id)), `${id} 点了没选中`).toHaveClass(/selected/)
   await waitForVisualQuiescence(win)
 }
+/**
+ * 选一张点得到的卡：窗宽 < 1060 时 Agent 面板是浮在画布上的浮窗（不让出一列），「适应画面」后 img-c 可能整张压在浮窗底下；
+ * 这里只要「选中一张图片卡 → 底部出选择浮条 + composer」这个前提，所以按顺序挑第一张点得到的。1280 下 img-c 照旧点得到、行为不变。
+ */
+async function clickFirstHittableImage(ids) {
+  for (const id of ids) {
+    if (await findNodeHitPoint(win, { nodeSelector: sel(id) }) !== null) return clickNode(id)
+  }
+  return clickNode(ids[0]) // 一张都点不到：照原样报「找不到一处点得到的地方」
+}
 async function undoOnce() {
   await win.keyboard.press(`${MOD}+z`)
   await waitForVisualQuiescence(win)
@@ -316,7 +326,7 @@ try {
     await resize(layout.width, layout.height)
     await setAgentPanel(layout.agent)
     await fitAll()
-    if (layout.selection === 'one') await clickNode('img-c')
+    if (layout.selection === 'one') await clickFirstHittableImage(['img-c', 'img-a'])
     else await clickBlank()
     layout.name = `${layout.name}-${layout.selection}`
     const row = { layout: layout.name }
