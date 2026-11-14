@@ -1,14 +1,15 @@
 // Agent 三种形态的宿主（10-08 外壳拍板稿 Main / CanvasAgent / CreationDoc / Chrome）：小球 / 浮窗 / 停靠右侧。
 // 设计卡 docs/plan/2026-10-08-shell-redesign.md「Agent 三形态状态表」。
 //
-// 形态归 agentFormStore（唯一 owner，每页一份）。这里只做四件事：
+// 形态归 agentFormStore（唯一 owner，每页一份；人选的、此刻显示的、算出来的分开放）。这里只做四件事：
 //   1. 把同一个常驻面板（ProjectAgentResidentShell）摆到对的地方：停靠 → 工作区给的右栏；浮窗 → react-rnd 窗；
 //      小球 → 面板收起（回执效果、计划预览、角标投影照跑），只留小球；
 //   2. 面板头部右端换成「小球 · 浮窗 · 停靠」三选一（AgentPanelHeaderSlotContext），浮窗窄时收进「⋯」；
-//   3. 快捷键：Mod+J 打开并聚焦输入框；Mod+\ 当前页在「停靠 ↔ 小球」之间切（浮窗时收成小球）；
+//   3. 快捷键：Mod+J 打开并聚焦输入框；Mod+\ 当前页在「打开 ↔ 小球」之间切（打开 = 回到上次选的摆法）；
 //   4. 小球 / 浮窗的坐标系：工作区给的「浮层位」（生成页 = 画布那一格，让开底边时间轴），没给就是整块内容区。
 // 窄窗档（窗口宽 < NARROW_TIER_WIDTH，WindowNarrow 板）：这里挂唯一的 matchMedia，写 agentFormStore.windowNarrow；
-// 停靠的页此刻显示成小球、点开是浮窗，形态切换里「停靠」变灰；点开 / 收起走 requestForm（窄窗不写存档），形态切换里明确选的走 chooseForm。
+// 停靠的页此刻显示成小球、点开是浮窗，形态切换里「停靠」变灰。这里只调动作（openAgent / collapseAgent / chooseAgentPlacement），
+// 只读 useShownForm / shownForm——手里没有形态可以传，「窄窗写不写存档」归 store 管。
 // 拖动、改大小、出界约束全交给 react-rnd；窗口缩小后的「夹回可见区」在渲染时算（不回写），见 agentFormStore.clampRect。
 import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
@@ -33,14 +34,22 @@ import {
   NARROW_TIER_QUERY,
   NARROW_TIER_WIDTH,
   agentBallIsPill,
-  createBallDragClickGuard,
-  effectiveAgentForm,
-  useEffectiveAgentForm,
+  chooseAgentPlacement,
   clampBall,
   clampRect,
+  clearAgentNarrowMotion,
+  collapseAgent,
+  createBallDragClickGuard,
   defaultBallPoint,
   defaultFloatRect,
+  openAgent,
+  setAgentWindowNarrow,
+  shownForm,
   useAgentFormStore,
+  useAgentNarrowMotion,
+  useAgentWindowNarrow,
+  useNarrowHeldBall,
+  useShownForm,
   type AgentForm,
   type AgentFormSurface,
 } from './agentFormStore'
@@ -49,20 +58,6 @@ const DRAG_HANDLE = 'shell-agent-drag-handle'
 const PILL_WIDTH = 132
 const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
 const MOD = isMac ? '⌘' : 'Ctrl+'
-
-/** 从小球「打开」去哪：生成页（画布 / 列表）是浮窗，其余三页是停靠（拍板稿各页默认）。 */
-function openFormFor(surface: AgentFormSurface): AgentForm {
-  return surface === 'generation' ? 'float' : 'dock'
-}
-
-/**
- * 「点开」该不该把面板摆出来：看此刻显示的是不是小球。dockSuppressed（生成页大详情占着右边）不算——
- * 那时停靠的页本来就显示小球、按快捷键也不弹（沿用改前的行为）；窄窗档的小球算。
- */
-function shownIgnoringSuppression(surface: AgentFormSurface): AgentForm {
-  const state = useAgentFormStore.getState()
-  return effectiveAgentForm(state.bySurface[surface].form, { windowNarrow: state.windowNarrow, narrowShown: state.narrowShown, dockSuppressed: false })
-}
 
 function useAreaSize(node: HTMLElement | null): { width: number; height: number } {
   const [size, setSize] = React.useState({ width: 0, height: 0 })
@@ -84,8 +79,7 @@ function BallIcon(): JSX.Element {
 /** 面板头部右端：小球 · 浮窗 · 停靠 三选一，当前形态高亮（CanvasAgent 板 .form）。 */
 function FormSwitch({ surface, form }: { surface: AgentFormSurface; form: AgentForm }): JSX.Element {
   const { t } = useTranslation()
-  const chooseForm = useAgentFormStore((state) => state.chooseForm)
-  const narrow = useAgentFormStore((state) => state.windowNarrow)
+  const narrow = useAgentWindowNarrow()
   const options: { id: AgentForm; label: string; icon: JSX.Element }[] = [
     { id: 'ball', label: t('appShell.agent.toBall'), icon: <BallIcon /> },
     { id: 'float', label: t('appShell.agent.toFloat'), icon: <IconPictureInPicture size={15} stroke={1.5} aria-hidden="true" /> },
@@ -112,8 +106,11 @@ function FormSwitch({ surface, form }: { surface: AgentFormSurface; form: AgentF
               data-agent-form-blocked={blocked ? 'narrow' : undefined}
               onClick={() => {
                 if (blocked) return
-                chooseForm(surface, option.id)
-                if (option.id !== 'ball') requestResidentComposerFocus()
+                if (option.id === 'ball') collapseAgent(surface)
+                else {
+                  chooseAgentPlacement(surface, option.id)
+                  requestResidentComposerFocus()
+                }
               }}
               className={cn(
                 'grid h-6 w-7 place-items-center rounded-pill border-0 p-0 transition-[background,color,box-shadow] duration-nomi-fast',
@@ -147,11 +144,10 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
   const unread = useResidentActivityStore((state) => state.dockUnreadCount)
   const stored = useAgentFormStore((state) => state.bySurface[surface].ball)
   const setBallPoint = useAgentFormStore((state) => state.setBallPoint)
-  const requestForm = useAgentFormStore((state) => state.requestForm)
-  const narrow = useAgentFormStore((state) => state.windowNarrow)
-  // 这颗小球是不是「窄窗把停靠临时收起来」的那颗：是就换悬停提示，并在跨阈值那一下播收拢。
-  const narrowHeld = useAgentFormStore((state) => state.windowNarrow && state.bySurface[surface].form === 'dock')
-  const gathering = useAgentFormStore((state) => state.narrowMotion === 'collapse' && state.bySurface[surface].form === 'dock')
+  const narrow = useAgentWindowNarrow()
+  // 这颗小球是不是「窄窗把开着的停靠临时收起来」的那颗：是就换悬停提示，并在跨阈值那一下播收拢。
+  const narrowHeld = useNarrowHeldBall(surface)
+  const gathering = useAgentNarrowMotion() === 'collapse' && narrowHeld
   const [menu, setMenu] = React.useState<{ x: number; y: number } | null>(null)
   const [dragGuard] = React.useState(createBallDragClickGuard)
   const pill = agentBallIsPill(status, pending)
@@ -161,7 +157,7 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
   // 胶囊比球宽：以右缘为准往左长，「同一位置」= 右下角不动。
   const point = clampBall({ x: base.x + BALL_SIZE - width, y: base.y }, area, { width, height: BALL_SIZE })
   const open = () => {
-    requestForm(surface, openFormFor(surface))
+    openAgent(surface)
     requestResidentComposerFocus()
   }
   const statusText = status ? dockStatusLabel(status, pending, labels.dock) : labels.dock.idle
@@ -172,10 +168,10 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
   const unreadOnly = pill ? 0 : Math.max(0, unread - pending)
   const title = [label, statusText, unreadOnly > 0 ? t('appShell.agent.ballUnread', { count: unreadOnly }) : null].filter(Boolean).join(' · ')
   const items: WorkbenchMenuNode[] = [
-    { id: 'float', label: t('appShell.agent.toFloat'), icon: IconPictureInPicture, onSelect: () => { requestForm(surface, 'float'); requestResidentComposerFocus() } },
+    { id: 'float', label: t('appShell.agent.toFloat'), icon: IconPictureInPicture, onSelect: () => { chooseAgentPlacement(surface, 'float'); requestResidentComposerFocus() } },
     narrow
       ? { id: 'dock', label: t('appShell.agent.toDock'), icon: IconLayoutSidebarRight, disabled: true, disabledReason: t('appShell.agent.dockNarrow', { width: NARROW_TIER_WIDTH }), onSelect: () => undefined }
-      : { id: 'dock', label: t('appShell.agent.toDock'), icon: IconLayoutSidebarRight, onSelect: () => { requestForm(surface, 'dock'); requestResidentComposerFocus() } },
+      : { id: 'dock', label: t('appShell.agent.toDock'), icon: IconLayoutSidebarRight, onSelect: () => { chooseAgentPlacement(surface, 'dock'); requestResidentComposerFocus() } },
   ]
   return (
     <>
@@ -267,11 +263,9 @@ export function ShellAgentHost({
   agent: React.ReactNode
 }): JSX.Element {
   const { t } = useTranslation()
-  const form = useEffectiveAgentForm(surface)
-  const requestForm = useAgentFormStore((state) => state.requestForm)
-  const chooseForm = useAgentFormStore((state) => state.chooseForm)
-  const narrow = useAgentFormStore((state) => state.windowNarrow)
-  const narrowMotion = useAgentFormStore((state) => state.narrowMotion)
+  const form = useShownForm(surface)
+  const narrow = useAgentWindowNarrow()
+  const narrowMotion = useAgentNarrowMotion()
   const restoring = narrowMotion === 'restore'
   const [ownLayer, setOwnLayer] = React.useState<HTMLDivElement | null>(null)
   const [hidden, setHidden] = React.useState<HTMLDivElement | null>(null)
@@ -286,19 +280,19 @@ export function ShellAgentHost({
     const collapsed = form === 'ball'
     if (store.projectAgentDockCollapsed !== collapsed) store.setProjectAgentDockCollapsed(collapsed)
   }, [form])
-  // 别处叫回面板（任务中心「定位到制作」、Agent 自己的 layout.write）：小球 → 这一页的默认展开形态。
+  // 别处叫回面板（任务中心「定位到制作」、Agent 自己的 layout.write）：人要 Nomi 出来 = 打开（回到这一页上次选的摆法）。
   // 看的是「叫回」计数（agentRecallNonce），不是 projectAgentDockCollapsed 的翻转：重开项目时那个投影会被还原 / 重置翻一下，
   // 按翻转去猜，小球就会在用户什么也没点时自己弹成浮窗（评测 j5 重开项目后浮窗盖住生成钮）。
   React.useEffect(() => useWorkbenchStore.subscribe((state) => state.agentRecallNonce, () => {
-    if (shownIgnoringSuppression(surface) === 'ball') requestForm(surface, openFormFor(surface))
-  }), [requestForm, surface])
+    if (shownForm(surface) === 'ball') openAgent(surface)
+  }), [surface])
   // 外壳唯一的窄窗判断（narrow.one-threshold）：一条 matchMedia，跨阈值才回调（拖窗过程中不逐帧算）。
   // 挂载时那次对齐不算「跨过」，不播收拢。
   React.useEffect(() => {
     if (typeof window.matchMedia !== 'function') return undefined
     const query = window.matchMedia(NARROW_TIER_QUERY)
-    useAgentFormStore.getState().setWindowNarrow(query.matches, { animate: false })
-    const onChange = (event: MediaQueryListEvent) => useAgentFormStore.getState().setWindowNarrow(event.matches)
+    setAgentWindowNarrow(query.matches, { animate: false })
+    const onChange = (event: MediaQueryListEvent) => setAgentWindowNarrow(event.matches)
     query.addEventListener('change', onChange)
     return () => query.removeEventListener('change', onChange)
   }, [])
@@ -306,38 +300,43 @@ export function ShellAgentHost({
   // 留着的标记会让之后某次手动停靠凭空再播一遍。
   React.useEffect(() => {
     if (!narrowMotion) return undefined
-    const timer = window.setTimeout(() => useAgentFormStore.getState().clearNarrowMotion(), NARROW_MOTION_CLEAR_MS)
+    const timer = window.setTimeout(clearAgentNarrowMotion, NARROW_MOTION_CLEAR_MS)
     return () => window.clearTimeout(timer)
   }, [narrowMotion])
-  // Mod+J：打开并聚焦输入框（代替被删掉的那条常驻输入条）。Mod+\：停靠 ↔ 小球（浮窗时收成小球）。
+  // Mod+J：打开并聚焦输入框（代替被删掉的那条常驻输入条）。Mod+\：停靠 ↔ 小球（concept-owners/shell.recall-entry，
+  // 是人明确选「停靠」那一下）；窄窗档里停靠放不下（形态切换里「停靠」也是灰的），这一下就只是点开，不写存档。
   // 聚焦只发请求，由输入框的主人自己落焦点（residentComposerFocus）——外壳不在页面里找输入框。
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
       // 整窗模态开着时不叫面板，也不把焦点抢出模态；灯箱只盖画布那一格，不算。
       if (modalInputLayerCovers(document.body)) return
-      const shown = shownIgnoringSuppression(surface)
+      const shown = shownForm(surface)
       if (event.key.toLowerCase() === 'j') {
         event.preventDefault()
-        if (shown === 'ball') requestForm(surface, openFormFor(surface))
+        if (shown === 'ball') openAgent(surface)
         requestResidentComposerFocus()
       } else if (event.key === '\\') {
         event.preventDefault()
-        requestForm(surface, shown === 'ball' ? 'dock' : 'ball')
+        if (shown !== 'ball') collapseAgent(surface)
+        else if (narrow) openAgent(surface)
+        else chooseAgentPlacement(surface, 'dock')
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [requestForm, surface])
+  }, [narrow, surface])
 
   // E2E 专用桥（同 TaskCenterButton / ProductionCanvasLandingHost 的既有写法）：仅当 localStorage['__nomiE2E']==='1'
   // 时把小球读的角标投影与形态 store 挂到 window，供零额度走查摆出小球四态截图（不跑真 Agent、不花钱）。生产从不置该标志。
   React.useEffect(() => {
     try {
       if (window.localStorage?.getItem('__nomiE2E') === '1') {
-        const w = window as unknown as { __nomiResidentActivityStore?: unknown; __nomiAgentFormStore?: unknown }
+        const w = window as unknown as { __nomiResidentActivityStore?: unknown; __nomiAgentFormStore?: unknown; __nomiAgentForm?: unknown }
         w.__nomiResidentActivityStore = useResidentActivityStore
+        // 走查读位置 / 摆小球用 store 本身；读「此刻显示的形态」只经唯一读函数，种存档走真动作。
         w.__nomiAgentFormStore = useAgentFormStore
+        w.__nomiAgentForm = { shownForm, openAgent, collapseAgent, chooseAgentPlacement }
       }
     } catch {
       // localStorage 不可用 → 跳过
@@ -347,14 +346,14 @@ export function ShellAgentHost({
   const slot = React.useMemo<AgentPanelHeaderSlot>(() => ({
     actions: <FormSwitch surface={surface} form={form} />,
     menuItems: [
-      { id: 'form-ball', label: t('appShell.agent.toBall'), onSelect: () => chooseForm(surface, 'ball') },
-      { id: 'form-float', label: t('appShell.agent.toFloat'), onSelect: () => chooseForm(surface, 'float') },
+      { id: 'form-ball', label: t('appShell.agent.toBall'), onSelect: () => collapseAgent(surface) },
+      { id: 'form-float', label: t('appShell.agent.toFloat'), onSelect: () => chooseAgentPlacement(surface, 'float') },
       narrow
         ? { id: 'form-dock', label: t('appShell.agent.toDock'), disabled: true, disabledReason: t('appShell.agent.dockNarrow', { width: NARROW_TIER_WIDTH }), onSelect: () => undefined }
-        : { id: 'form-dock', label: t('appShell.agent.toDock'), onSelect: () => chooseForm(surface, 'dock') },
+        : { id: 'form-dock', label: t('appShell.agent.toDock'), onSelect: () => chooseAgentPlacement(surface, 'dock') },
     ],
     ...(form === 'float' ? { dragHandleClassName: cn(DRAG_HANDLE, 'cursor-move') } : {}),
-  }), [chooseForm, form, narrow, surface, t])
+  }), [form, narrow, surface, t])
   // 面板只挂**一棵**稳定的 React 树（react-reverse-portal：InPortal 渲染一次，OutPortal 决定它的 DOM 落在哪）。
   // 三形态切换只是把同一个 DOM 节点挪到停靠栏 / 浮窗 / 隐藏容器，不卸载重挂——待确认卡的勾选与折叠、滚动、
   // 历史分页、线程菜单、草稿都留在原地（#1136 评审阻断 1：此前每种形态 portal 到不同容器，切一次就整棵重挂）。

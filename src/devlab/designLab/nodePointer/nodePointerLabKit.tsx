@@ -145,7 +145,7 @@ export function NodePointerStage({ locale = 'zh-CN', scene = {}, children }: { l
     useNodeExternalHighlightStore.setState({ hoverNodeId: null, claims: [] })
     useNodePointerStore.setState({
       locatedNodeId: scene.located ?? null,
-      returnTo: scene.returnTo ? { surface: 'generation', form: 'float', nodeId: scene.returnTo.nodeId, label: scene.returnTo.label } : null,
+      returnTo: scene.returnTo ? { surface: 'generation', nodeId: scene.returnTo.nodeId, label: scene.returnTo.label } : null,
     })
     setSeeded(true)
   }, [locale, scene.located, scene.returnTo?.nodeId, scene.returnTo?.label])

@@ -1,7 +1,8 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createReactTestRenderer, type TestHostNode } from '../v4/testReactRenderer'
-import { useAgentFormStore } from '../../../ui/app-shell/shell/agentFormStore'
+import { chooseAgentPlacement, machineHold, openAgent, useAgentFormStore } from '../../../ui/app-shell/shell/agentFormStore'
+import { useAgentFormViewStore } from '../../../ui/app-shell/shell/agentFormViewStore'
 import { BOTTOM_DOCK_SCOPE_SELECTOR, BOTTOM_DOCK_SELECTOR, type BottomDockRect } from '../../generation/workspaceBottomDocks'
 import { useNodePointerStore, type NodePointerReturn } from './nodePointerStore'
 import { NodePointerReturnDock } from './NodePointerReturnDock'
@@ -96,29 +97,38 @@ const placedBottom = (): unknown => {
   return (placed?.props as { style?: { bottom?: unknown } } | undefined)?.style?.bottom
 }
 
-const target = (overrides: Partial<NodePointerReturn> = {}): NodePointerReturn => ({ surface: 'generation', form: 'float', nodeId: 'n2', label: '镜 02', ...overrides })
+const target = (overrides: Partial<NodePointerReturn> = {}): NodePointerReturn => ({ surface: 'generation', nodeId: 'n2', label: '镜 02', ...overrides })
 
-const setForm = (form: 'ball' | 'float' | 'dock'): void => {
-  useAgentFormStore.getState().setForm('generation', form)
+/** 'ball' = 指向节点时机器让开（对话收成小球）；'float' = 人点开（回到人选的浮窗）。 */
+const yieldToBall = (): void => machineHold('generation', 'ball')
+const showChat = (form: 'ball' | 'float'): void => {
+  if (form === 'ball') yieldToBall()
+  else openAgent('generation')
   renderer?.flushPassiveEffects()
+}
+
+const resetForms = (): void => {
+  useAgentFormViewStore.setState(useAgentFormViewStore.getInitialState(), true)
+  useAgentFormStore.setState(useAgentFormStore.getInitialState(), true)
 }
 
 beforeEach(() => {
   dockRects = []
   useNodePointerStore.setState({ locatedNodeId: null, returnTo: null })
-  useAgentFormStore.getState().setForm('generation', 'float')
+  resetForms()
+  chooseAgentPlacement('generation', 'float')
 })
 
 afterEach(() => {
   renderer?.close()
   renderer = null
   useNodePointerStore.setState({ locatedNodeId: null, returnTo: null })
-  useAgentFormStore.getState().setForm('generation', 'ball')
+  resetForms()
 })
 
 describe('NodePointerReturnDock · on the real canvas only while a pointer click collapsed the chat (NodePointer pointer.narrow.back)', () => {
   it('nothing to go back to: draws nothing, even when the chat is the ball', () => {
-    useAgentFormStore.getState().setForm('generation', 'ball')
+    yieldToBall()
     mount()
     expect(dockHost()).toBeUndefined()
     expect(buttonShown()).toBe(false)
@@ -126,7 +136,7 @@ describe('NodePointerReturnDock · on the real canvas only while a pointer click
 
   it('a pointer click collapsed the chat to the ball: the button is there, bottom centre', () => {
     useNodePointerStore.getState().setReturnTo(target())
-    useAgentFormStore.getState().setForm('generation', 'ball')
+    yieldToBall()
     mount()
     expect(dockHost()).toBeDefined()
     expect(buttonShown()).toBe(true)
@@ -139,38 +149,38 @@ describe('NodePointerReturnDock · on the real canvas only while a pointer click
     renderer?.flushPassiveEffects()
     expect(dockHost()).toBeUndefined()
     expect(useNodePointerStore.getState().returnTo).not.toBeNull()
-    setForm('ball')
+    showChat('ball')
     expect(buttonShown()).toBe(true)
     expect(useNodePointerStore.getState().returnTo).not.toBeNull()
   })
 
   it('the user brought the chat back some other way (the ball): the stale return is cleared and the button goes', () => {
     useNodePointerStore.getState().setReturnTo(target())
-    useAgentFormStore.getState().setForm('generation', 'ball')
+    yieldToBall()
     mount()
     expect(buttonShown()).toBe(true)
     created = []
-    setForm('float')
+    showChat('float')
     expect(useNodePointerStore.getState().returnTo).toBeNull()
     expect(dockHost()).toBeUndefined()
     // 之后又因为别的原因收成小球：不会再冒出一颗指着旧镜头的「回到对话」。
-    setForm('ball')
+    showChat('ball')
     expect(dockHost()).toBeUndefined()
   })
 
   it('a return remembered for another page is not this canvas’s business', () => {
     useNodePointerStore.getState().setReturnTo(target({ surface: 'storyboard' }))
-    useAgentFormStore.getState().setForm('generation', 'ball')
+    yieldToBall()
     mount()
     expect(dockHost()).toBeUndefined()
-    setForm('float')
+    showChat('float')
     expect(useNodePointerStore.getState().returnTo?.surface).toBe('storyboard')
   })
 
   it('measures the live bottom docks: with the add-node bar under it, it sits above the bar', () => {
     dockRects = [TOOLBAR, ZOOM]
     useNodePointerStore.getState().setReturnTo(target())
-    useAgentFormStore.getState().setForm('generation', 'ball')
+    yieldToBall()
     mount()
     expect(placedBottom()).toBe(HOST.height - (TOOLBAR.top - RETURN_DOCK_CLEARANCE))
   })
