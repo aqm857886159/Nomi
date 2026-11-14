@@ -8,7 +8,8 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1520,
   "manualReview": "reviewed",
   "rootCauseContract": "docs/fixes/2026-11-08-assistant-width-writeback.root-cause.json",
   "classCheck": {
@@ -22,7 +23,7 @@
     "src/ui/app-shell/shell/agentFormNarrowTier.test.ts",
     "src/ui/app-shell/shell/narrowOneThreshold.structure.test.ts",
     "tests/ux/window-narrow-shell.walk.mjs",
-    "结构性预防：①最小窗只有一份定义（electron/shared/mainWindowSize.json，主进程和走查同读，走查不许各写 1100 / 700）；②窄窗只有一个判断（narrowOneThreshold 结构测试拦第二处阈值）；③存档只认人：窗口宽不再进任何写入口，显示让步交给 CSS Grid（assistantDockColumns），写口普查测试逐个入口钉住；④真 App 走查拖 1100 ↔ 700 三次，四份存档的意图（形态、各栏宽、Agent 宽、抽屉宽）逐字节比；停靠投影 visibility.assistant 会停在 false，走查打 ⚠ 汇总，移交 A4g 后续「显示投影与落盘意图拆开」。"
+    "结构性预防：①最小窗只有一份定义（electron/shared/mainWindowSize.json，主进程和走查同读，走查不许各写 1100 / 700）；②窄窗只有一个判断（narrowOneThreshold 结构测试拦第二处阈值）；③存档只认人：窗口宽不再进任何写入口，显示让步交给 CSS Grid（assistantDockColumns），写口普查测试逐个入口钉住；④真 App 走查在 1100 ↔ 700 之间来回拖，存档里人定的意图（形态、各栏宽、Agent 宽、抽屉宽，含 Nomi 栏开合）和项目文件逐字节比，窄着停住时也比。"
   ],
   "completionCommits": [
     "e61311a64",
@@ -32,5 +33,5 @@
     "0ca660d5f",
     "08b22ca8e"
   ],
-  "notes": "实现线 I-window-narrow-shell 本地提交、未推送；协调开 PR 后改 status 为 fixed 并挂 fixedInPr（独立验收之前）。页面那一半（创作正文 / 工具条、预览时间轴）由 I-window-narrow-pages 修，合流后走查里的 PAGES_LINE_MERGED 开关整个删掉。"
+  "notes": "这一条结的是外壳这一半：窗口能缩到 700×720、窄了 Nomi 栏变小球、窗口宽度不再改存档。页面那一半（创作正文 / 工具条、预览时间轴）在另一个已合入的改动里修。还留着的已知限制：窗口 700–740 时预览页两侧栏的宽度规则另行核对；页面藏着时改窗口宽再回预览、两侧栏会摆错，根在面板库的旧版本，另一个改动升级修。"
 }
