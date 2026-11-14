@@ -207,7 +207,7 @@ try {
     // Row model parameters sync to nodes after generation approval.
     const p = await payload()
     expect(p.storyboardDesignsByDocumentId[p.activeDocumentId][0].plan.shots.every((s) => s.modelKey === MODEL)).toBe(true)
-    spendDialog = win.locator('div.fixed.inset-0').filter({ hasText: '开始生成' }).last()
+    spendDialog = win.locator('[data-spend-confirm-dialog]').filter({ hasText: '开始生成' }).last()
     spendProof = await proveProbe(spendDialog, '生成确认出现')
     await scheduler.assertNoGeneration(expect)
   })

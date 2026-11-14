@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import i18n from '../../../i18n'
 import type { TaskKind, TaskResultDto } from '../../api/taskApi'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { normalizeCatalogTaskResult } from './catalogTaskResultParse'
+import { normalizeCatalogTaskResults } from './catalogTaskResultParse'
 
 /**
  * 任务报成功但产物是空的（没文本 / 没视频地址 / 没音频 / 没图片地址）——这四条 message
@@ -27,7 +27,7 @@ const CASES: Array<{ label: string; kind: TaskKind; zh: string; en: string }> = 
   { label: '图片', kind: 'text_to_image', zh: '模型任务完成但没有返回图片地址', en: 'The model task finished but returned no image URL' },
 ]
 
-describe('normalizeCatalogTaskResult 空产物报错', () => {
+describe('normalizeCatalogTaskResults 空产物报错', () => {
   beforeAll(async () => {
     await i18n.changeLanguage('zh-CN')
   })
@@ -35,10 +35,10 @@ describe('normalizeCatalogTaskResult 空产物报错', () => {
   for (const { label, kind, zh, en } of CASES) {
     it(`${label}：zh-CN / en 都给人话而不是键路径`, async () => {
       await i18n.changeLanguage('zh-CN')
-      expect(() => normalizeCatalogTaskResult(succeeded(kind), node)).toThrow(zh)
+      expect(() => normalizeCatalogTaskResults(succeeded(kind), node)).toThrow(zh)
 
       await i18n.changeLanguage('en')
-      expect(() => normalizeCatalogTaskResult(succeeded(kind), node)).toThrow(en)
+      expect(() => normalizeCatalogTaskResults(succeeded(kind), node)).toThrow(en)
 
       await i18n.changeLanguage('zh-CN')
     })
@@ -49,7 +49,7 @@ describe('normalizeCatalogTaskResult 空产物报错', () => {
   })
 
   it('APIMart MiniMax-H3 Context-IR：从异步 data.result.prompt 归一成文本结果', () => {
-    const result = normalizeCatalogTaskResult(
+    const [result] = normalizeCatalogTaskResults(
       succeeded('prompt_refine', {
         code: 200,
         data: { status: 'completed', result: { prompt: 'integrated_multimodal_description: [Shot 1]...' } },
@@ -61,10 +61,10 @@ describe('normalizeCatalogTaskResult 空产物报错', () => {
   })
 })
 
-describe('normalizeCatalogTaskResult intrinsic dimensions', () => {
+describe('normalizeCatalogTaskResults intrinsic dimensions', () => {
   it('forwards source width/height without copying them onto the result', () => {
     const dimensions: Array<{ width: number; height: number }> = []
-    const normalized = normalizeCatalogTaskResult({
+    const [normalized] = normalizeCatalogTaskResults({
       ...succeeded('text_to_image'),
       assets: [{ type: 'image', url: 'https://cdn.test/image.png', thumbnailUrl: 'https://cdn.test/image.preview.jpg', width: 1600, height: 900 }],
     }, node, (value) => dimensions.push(value))
@@ -76,19 +76,19 @@ describe('normalizeCatalogTaskResult intrinsic dimensions', () => {
 })
 
 // 画布预览不变式 · 普通生成落画布这一跳：预览两栏只走落盘回执的投影。
-describe('normalizeCatalogTaskResult canvas preview fields', () => {
+describe('normalizeCatalogTaskResults canvas preview fields', () => {
   it('reported case：旧主进程 / 旧缓存把源地址填进 thumbnailUrl（图片 fallback）→ 画布结果不带它，不冒充预览', () => {
     const url = 'nomi-local://asset/p1/assets/generated/image.png'
-    const normalized = normalizeCatalogTaskResult({ ...succeeded('text_to_image'), assets: [{ type: 'image', url, thumbnailUrl: url }] }, node)
+    const [normalized] = normalizeCatalogTaskResults({ ...succeeded('text_to_image'), assets: [{ type: 'image', url, thumbnailUrl: url }] }, node)
     expect(normalized).not.toHaveProperty('thumbnailUrl')
     expect(normalized).not.toHaveProperty('previewState')
   })
 
   it('回执带小图 + 事实 → 原样带上；回执说缺失 → 明确 missing', () => {
     const url = 'nomi-local://asset/p1/assets/generated/image.png'
-    const ready = normalizeCatalogTaskResult({ ...succeeded('text_to_image'), assets: [{ type: 'image', url, thumbnailUrl: 'nomi-local://asset/p1/assets/generated/image.preview.jpg', previewState: 'ready' }] }, node)
+    const [ready] = normalizeCatalogTaskResults({ ...succeeded('text_to_image'), assets: [{ type: 'image', url, thumbnailUrl: 'nomi-local://asset/p1/assets/generated/image.preview.jpg', previewState: 'ready' }] }, node)
     expect(ready).toMatchObject({ thumbnailUrl: 'nomi-local://asset/p1/assets/generated/image.preview.jpg', previewState: 'ready' })
-    const missing = normalizeCatalogTaskResult({ ...succeeded('text_to_image'), assets: [{ type: 'image', url, thumbnailUrl: null, previewState: 'missing' }] }, node)
+    const [missing] = normalizeCatalogTaskResults({ ...succeeded('text_to_image'), assets: [{ type: 'image', url, thumbnailUrl: null, previewState: 'missing' }] }, node)
     expect(missing).toMatchObject({ previewState: 'missing' })
     expect(missing).not.toHaveProperty('thumbnailUrl')
   })

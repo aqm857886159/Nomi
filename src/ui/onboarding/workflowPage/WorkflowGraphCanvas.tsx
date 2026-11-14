@@ -1,5 +1,5 @@
 /**
- * 只读节点图画布：SVG 连线层 + 绝对定位的节点卡 + 缩放/适应 + 拖动平移。
+ * 只读节点图画布：SVG 连线层 + 绝对定位的节点卡 + 缩放/适应 + 拖动平移；有效按下先认领默认动作。
  * plan: docs/plan/2026-08-12-model-settings-home-and-comfyui-workflow-page.md
  *
  * 这是 onboarding 独立的只读工作流图，不复用生成画布的交互状态或渲染器；它使用 CSS
@@ -136,6 +136,7 @@ export function WorkflowGraphCanvas({
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
     if (event.button !== 0) return
     if ((event.target as HTMLElement | null)?.closest('button, a, input, textarea, select, [role="menu"]')) return
+    event.preventDefault()
     setSelectedNodeId(null)
     drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
     event.currentTarget.setPointerCapture(event.pointerId)

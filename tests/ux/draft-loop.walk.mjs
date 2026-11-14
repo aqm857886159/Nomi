@@ -151,7 +151,7 @@ try {
   await sleep(1500)
   await snap(win, 'spend-confirm')
   // 付费确认对话框（z-[3500] 全屏模态，标题「开始生成」）→ 点确认（primary，最后一个按钮）。
-  const spendDlg = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成|会消耗模型额度|将生成/ }).first()
+  const spendDlg = win.locator('[data-spend-confirm-dialog]').filter({ hasText: /开始生成|会消耗模型额度|将生成/ }).first()
   if (await spendDlg.count()) {
     const confirmBtn = spendDlg.locator('button').last()
     console.log('  · 付费确认卡出现 → 点确认生成')
@@ -187,7 +187,7 @@ try {
         retries += 1; stable = 0
         await sleep(1200)
         // 重试可能再弹付费确认（若上次没勾「本会话不再提示」）→ 点确认。
-        const dlg = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成|会消耗模型额度|将生成/ }).first()
+        const dlg = win.locator('[data-spend-confirm-dialog]').filter({ hasText: /开始生成|会消耗模型额度|将生成/ }).first()
         if (await dlg.count()) await dlg.locator('button').last().click({ timeout: 2000 }).catch(() => {})
         continue
       }

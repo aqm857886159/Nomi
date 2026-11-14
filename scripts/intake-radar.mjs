@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Intake Radar —— 用户反馈雷达（确定性抓取 + 汇总层）。
 //
-// 它做什么：从 Cloudflare R2（`infra/feedback-worker` 落的那个桶）增量拉反馈 / 用量事件 /
-//          Agent 轨迹，写本地缓存，算出成功率、错误码排行、突增、启动与更新次数，
+// 它做什么：从 Cloudflare R2（`infra/feedback-worker` 落的那个桶）增量拉反馈 / 用量事件，
+//          写本地缓存，算出成功率、错误码排行、突增、启动与更新次数、定位读数，
 //          打一段终端摘要，报告写进仓库外的缓存目录。**不判断「是不是 bug」、不碰私有待办**。
 // 它不做什么：分诊、归类、对私有待办去重、写用户汇报——那是
 //          `agent-skills/nomi-intake-radar/SKILL.md` 里 agent 的活（读这份报告接着干）。
@@ -84,7 +84,6 @@ export async function run({
 
   const feedback = listRawRecords(cacheDir, 'feedback/')
   const events = listRawRecords(cacheDir, 'events/')
-  const trajectories = listRawRecords(cacheDir, 'trajectories/')
 
   // 先记账再写 state、再写报告：哪一步之后被杀掉，下一轮都还能从缓存把账补齐，新反馈漏不掉。
   const inbox = reconcileInbox(readInbox(cacheDir), {
@@ -99,10 +98,9 @@ export async function run({
   const report = buildIntakeReport({
     feedbackRecords: feedback.records,
     eventRecords: events.records,
-    trajectoriesCount: trajectories.records.length,
     newFeedbackKeys: newKeysByPrefix['feedback/'],
     newEventKeys: newKeysByPrefix['events/'],
-    corruptFiles: [...feedback.corrupt, ...events.corrupt, ...trajectories.corrupt],
+    corruptFiles: [...feedback.corrupt, ...events.corrupt],
     generatedAt: nowIso,
     inbox,
     healthOptions: {

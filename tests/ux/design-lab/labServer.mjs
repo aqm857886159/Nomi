@@ -28,7 +28,7 @@ import { REPO_ROOT } from './labStates.mjs'
  * 实验室要占端口的角色。**加角色就在这里加**——端口段的宽度随它走，
  * 不许在别处再写一个裸端口号（那就又造出一个全局单例）。
  */
-export const LAB_ROLES = ['visual', 'walk-agent-panel-v4', 'walk-editing', 'walk-storyboard', 'walk-host-config', 'walk-vendor-order', 'walk-canvas-add-menu', 'walk-settings', 'walk-canvas-frame', 'walk-canvas-group-header', 'walk-depth-action', 'walk-catalog-liveness', 'walk-primitives-actions', 'walk-primitives-forms', 'walk-primitives-menu', 'walk-primitives-surfaces', 'walk-settings-sound', 'walk-shot-table', 'walk-node-composer-bar', 'walk-ask-card-in-panel', 'walk-question-card', 'walk-node-quick-actions', 'walk-director-3dbox', 'popup-geometry', 'walk-version-cards', 'walk-update-reminder', 'walk-video-node-next', 'walk-generation-list', 'walk-composer-b3', 'perf-composer-refs', 'walk-creation-ai-rewrite', 'walk-node-pointer', 'walk-spend-card']
+export const LAB_ROLES = ['visual', 'walk-agent-panel-v4', 'walk-editing', 'walk-storyboard', 'walk-host-config', 'walk-vendor-order', 'walk-canvas-add-menu', 'walk-settings', 'walk-canvas-frame', 'walk-canvas-group-header', 'walk-depth-action', 'walk-catalog-liveness', 'walk-primitives-actions', 'walk-primitives-forms', 'walk-primitives-menu', 'walk-primitives-surfaces', 'walk-settings-sound', 'walk-shot-table', 'walk-node-composer-bar', 'walk-ask-card-in-panel', 'walk-question-card', 'walk-node-quick-actions', 'walk-director-3dbox', 'popup-geometry', 'walk-version-cards', 'walk-update-reminder', 'walk-video-node-next', 'walk-generation-list', 'walk-composer-b3', 'perf-composer-refs', 'walk-creation-ai-rewrite', 'walk-node-pointer', 'walk-spend-card', 'walk-mode-bar', 'walk-model-menu-icons']
 
 // 每棵 worktree 分到一段连续端口，段内按角色的下标取一口。
 // 起点 5300：避开 vite 默认的 5173、以及本仓历史上写死过的 5197/5198/5200。
@@ -144,4 +144,23 @@ export function assertLabPortOwnership(role, repoRoot = REPO_ROOT) {
     throw error
   }
   return verdict
+}
+
+/**
+ * 门岗起的子进程（Playwright 和它拉起的打包 / 托管）该用的环境变量：在原样继承的基础上，
+ * 把本机地址并进 NO_PROXY / no_proxy（和已有值合并，不覆盖、不重复）。
+ *
+ * 为什么（2026-11-14）：本机 shell 带 HTTP_PROXY 而 NO_PROXY 为空时，Playwright 探「本机服务起来没有」
+ * 的那个请求按环境变量走代理，被代理截走、永远探不到，门岗于是报「基础设施失败」——服务其实好好的。
+ * 只动给子进程的这一份环境变量，不读、不改、不关任何代理设置；不带代理的机器上多这两项也无害。
+ */
+export const LAB_LOCAL_HOSTS = Object.freeze(['127.0.0.1', 'localhost'])
+
+export function labChildEnv(env = process.env) {
+  const merged = (value) => {
+    const entries = String(value ?? '').split(',').map((item) => item.trim()).filter(Boolean)
+    for (const host of LAB_LOCAL_HOSTS) if (!entries.includes(host)) entries.push(host)
+    return entries.join(',')
+  }
+  return { ...env, NO_PROXY: merged(env.NO_PROXY ?? env.no_proxy), no_proxy: merged(env.no_proxy ?? env.NO_PROXY) }
 }

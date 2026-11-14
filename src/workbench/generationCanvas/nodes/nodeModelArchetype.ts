@@ -1,4 +1,5 @@
-import { constrainParameterControls } from '../../../../electron/shared/videoCapabilities/crossFieldConstraints'
+import { constrainParameterControls, type ReferenceCounts } from '../../../../electron/shared/videoCapabilities/crossFieldConstraints'
+import { nodeReferenceCounts } from './controls/nodeCrossFieldConstraints'
 // NodeParameterControls 的模型/档案派生纯函数。
 // 从 NodeParameterControls.tsx 抽出，供组件、InlineParameterBar、useNodeModelAutoSelect 共用（单一来源）。
 import type { ModelOption } from '../../../config/models'
@@ -11,11 +12,14 @@ import {
 } from './controls/parameterControlModel'
 import { specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
 import {
+  archetypeModeById,
   archetypeModeParams,
-  currentArchetypeMode,
   currentArchetypeVariant,
+  effectiveArchetypeMode,
   resolveArchetypeForModel,
+  type ModeGraph,
 } from './controls/archetypeMeta'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { isModelRecentlyAiling } from '../runner/modelHealthMemory'
 import { usesExplicitParameterReferenceDeclarations } from '../model/parameterReferenceSlots'
@@ -61,7 +65,22 @@ export function resolveArchetypeForOption(option: ModelOption | null) {
 }
 
 /**
- * 底部参数行要渲染的控件 —— 认得档案的模型用**当前模式**的标量参数（随模式变，如 HappyHorse
+ * 算参数要按哪种方式：节点在画布上（连线也是输入）就给出节点和画布；不给只按 meta 里节点自己的上传算。
+ * 分镜行 / 参考卡还没落到画布、没有输入可算，参数按方案里写明的方式（`plannedModeId`）；落地后由画布按输入现算。
+ */
+export type RenderedControlsContext =
+  | { node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>; graph: ModeGraph }
+  | { plannedModeId: string | undefined }
+
+/** 卡在画布上（能看到连线）才数参考；看不到输入时不给计数 → 不按槽收窄（交给发送前判定）。 */
+function renderedReferenceCounts(context: RenderedControlsContext | undefined): ReferenceCounts | undefined {
+  if (!context || !('graph' in context)) return undefined
+  const node = context.graph.nodes.find((candidate) => candidate.id === context.node.id)
+  return node ? nodeReferenceCounts(node, [...context.graph.nodes], [...context.graph.edges]) : undefined
+}
+
+/**
+ * 底部参数行要渲染的控件 —— 认得档案的模型用**这次按输入现算出的方式**的标量参数（随模式变，如 HappyHorse
  * i2v 无比例）；认不出的走现有 flat catalog 解析。hook 与组件共用此函数，保证「算宽度」与「实际渲染」
  * 一致（单一来源）。
  */
@@ -70,15 +89,19 @@ export function resolveRenderedControls(
   meta: Record<string, unknown>,
   isImageLike: boolean,
   isVideoLike: boolean,
+  context?: RenderedControlsContext,
 ): DynamicModelControl[] {
   const archetype = resolveArchetypeForOption(option)
   if (archetype) {
     // 变体特化：选中变体可能收窄某 mode 的参数（如 Seedance fast 的 resolution 仅 480/720）。
     // 收窄发生在 params 这层，故先按 variantId 特化档案再取当前模式的 params。
     const specialized = specializeArchetypeForVariant(archetype, currentArchetypeVariant(archetype, meta)?.id)
+    const mode = context && 'plannedModeId' in context
+      ? archetypeModeById(specialized, context.plannedModeId)
+      : effectiveArchetypeMode(specialized, context?.node ?? { id: '', meta, kind: isVideoLike ? 'video' : 'image' }, context?.graph ?? { nodes: [], edges: [] }).mode
     return localizeDynamicControls(
       buildDynamicControls({
-        parameterControls: constrainParameterControls(archetypeModeParams(currentArchetypeMode(specialized, meta)), meta),
+        parameterControls: constrainParameterControls(archetypeModeParams(mode), meta, renderedReferenceCounts(context)),
         imageCatalogConfig: null,
         videoCatalogConfig: null,
         isImageLike,

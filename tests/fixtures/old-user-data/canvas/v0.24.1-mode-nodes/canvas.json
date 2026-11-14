@@ -1,0 +1,865 @@
+{
+  "nodes": [
+    {
+      "id": "gen-v2-image-loyw3v29-01xz",
+      "kind": "image",
+      "title": "ctrl-image-t2i-no-image",
+      "position": {
+        "x": 120,
+        "y": 360
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "一只橘猫",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "nano-banana",
+        "modelVendor": "kie",
+        "archetype": {
+          "id": "nano-banana",
+          "modeId": "t2i"
+        }
+      },
+      "categoryId": "shots",
+      "shotIndex": 1
+    },
+    {
+      "id": "gen-v2-image-loyw3v2b-038n",
+      "kind": "image",
+      "title": "src-cat",
+      "position": {
+        "x": 572,
+        "y": 360
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "",
+      "references": [],
+      "history": [
+        {
+          "id": "fixture-result-1",
+          "type": "image",
+          "url": "nomi-local://fixture/src-cat.png",
+          "createdAt": 1700000000001,
+          "versionNo": 1
+        }
+      ],
+      "status": "success",
+      "meta": {},
+      "categoryId": "shots",
+      "shotIndex": 2,
+      "result": {
+        "id": "fixture-result-1",
+        "type": "image",
+        "url": "nomi-local://fixture/src-cat.png",
+        "createdAt": 1700000000001,
+        "versionNo": 1
+      },
+      "resultVersionMax": 1
+    },
+    {
+      "id": "gen-v2-image-loyw3v2c-04ja",
+      "kind": "image",
+      "title": "ctrl-image-edit-with-image",
+      "position": {
+        "x": 120,
+        "y": 752
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "把猫改成黑色",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "nano-banana",
+        "modelVendor": "kie",
+        "archetype": {
+          "id": "nano-banana",
+          "modeId": "edit"
+        }
+      },
+      "categoryId": "shots",
+      "shotIndex": 3
+    },
+    {
+      "id": "gen-v2-video-loyw3v2e-05ty",
+      "kind": "video",
+      "title": "ctrl-video-t2v",
+      "position": {
+        "x": 652,
+        "y": 812
+      },
+      "size": {
+        "width": 420,
+        "height": 340
+      },
+      "prompt": "日出时的海边",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "seedance-2",
+        "modelVendor": "kie",
+        "archetype": {
+          "id": "seedance-2",
+          "modeId": "t2v",
+          "variantId": "standard"
+        }
+      },
+      "categoryId": "shots",
+      "shotIndex": 4
+    },
+    {
+      "id": "gen-v2-image-loyw3v2g-074l",
+      "kind": "image",
+      "title": "src-first-frame",
+      "position": {
+        "x": -332,
+        "y": 752
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "",
+      "references": [],
+      "history": [
+        {
+          "id": "fixture-result-2",
+          "type": "image",
+          "url": "nomi-local://fixture/src-first-frame.png",
+          "createdAt": 1700000000002,
+          "versionNo": 1
+        }
+      ],
+      "status": "success",
+      "meta": {},
+      "categoryId": "shots",
+      "shotIndex": 5,
+      "result": {
+        "id": "fixture-result-2",
+        "type": "image",
+        "url": "nomi-local://fixture/src-first-frame.png",
+        "createdAt": 1700000000002,
+        "versionNo": 1
+      },
+      "resultVersionMax": 1
+    },
+    {
+      "id": "gen-v2-video-loyw3v2h-08f9",
+      "kind": "video",
+      "title": "ctrl-video-first-with-first-frame",
+      "position": {
+        "x": 652,
+        "y": -92
+      },
+      "size": {
+        "width": 420,
+        "height": 340
+      },
+      "prompt": "镜头缓缓推进",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "seedance-2",
+        "modelVendor": "kie",
+        "archetype": {
+          "id": "seedance-2",
+          "modeId": "first",
+          "variantId": "standard"
+        }
+      },
+      "categoryId": "shots",
+      "shotIndex": 6
+    },
+    {
+      "id": "gen-v2-video-loyw3v2k-09px",
+      "kind": "video",
+      "title": "dc1-video-empty-reference-clicked",
+      "position": {
+        "x": 120,
+        "y": -92
+      },
+      "size": {
+        "width": 420,
+        "height": 340
+      },
+      "prompt": "雨夜街头的追逐",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "seedance-2",
+        "modelVendor": "kie",
+        "archetype": {
+          "id": "seedance-2",
+          "modeId": "omni",
+          "variantId": "standard"
+        }
+      },
+      "categoryId": "shots",
+      "shotIndex": 7
+    },
+    {
+      "id": "gen-v2-image-loyw3v2n-0b0k",
+      "kind": "image",
+      "title": "src-paste",
+      "position": {
+        "x": -332,
+        "y": 360
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "",
+      "references": [],
+      "history": [
+        {
+          "id": "fixture-result-3",
+          "type": "image",
+          "url": "nomi-local://fixture/src-paste.png",
+          "createdAt": 1700000000003,
+          "versionNo": 1
+        }
+      ],
+      "status": "success",
+      "meta": {},
+      "categoryId": "shots",
+      "shotIndex": 8,
+      "result": {
+        "id": "fixture-result-3",
+        "type": "image",
+        "url": "nomi-local://fixture/src-paste.png",
+        "createdAt": 1700000000003,
+        "versionNo": 1
+      },
+      "resultVersionMax": 1
+    },
+    {
+      "id": "gen-v2-image-loyw3v2o-0cb8",
+      "kind": "image",
+      "title": "dc2-paste-original",
+      "position": {
+        "x": -332,
+        "y": -32
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "把天空改成黄昏",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "nano-banana",
+        "modelVendor": "kie",
+        "archetype": {
+          "id": "nano-banana",
+          "modeId": "edit"
+        }
+      },
+      "categoryId": "shots",
+      "shotIndex": 9
+    },
+    {
+      "id": "gen-v2-image-loyw3v2o-0cb8-copy-1700000000018-0dlvy",
+      "kind": "image",
+      "title": "dc2-paste-original 副本",
+      "position": {
+        "x": 600,
+        "y": 600
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "把天空改成黄昏",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "nano-banana",
+        "modelVendor": "kie",
+        "archetype": {
+          "id": "nano-banana",
+          "modeId": "edit"
+        }
+      },
+      "categoryId": "shots",
+      "shotIndex": 10
+    },
+    {
+      "id": "gen-v2-image-loyw3v2r-0ewj",
+      "kind": "image",
+      "title": "src-cleared-first-frame",
+      "position": {
+        "x": 1024,
+        "y": 360
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "",
+      "references": [],
+      "history": [
+        {
+          "id": "fixture-result-4",
+          "type": "image",
+          "url": "nomi-local://fixture/src-cleared-first-frame.png",
+          "createdAt": 1700000000004,
+          "versionNo": 1
+        }
+      ],
+      "status": "success",
+      "meta": {},
+      "categoryId": "shots",
+      "shotIndex": 11,
+      "result": {
+        "id": "fixture-result-4",
+        "type": "image",
+        "url": "nomi-local://fixture/src-cleared-first-frame.png",
+        "createdAt": 1700000000004,
+        "versionNo": 1
+      },
+      "resultVersionMax": 1
+    },
+    {
+      "id": "gen-v2-video-loyw3v2s-0g77",
+      "kind": "video",
+      "title": "dc3-video-firstlast-first-frame-cleared",
+      "position": {
+        "x": 120,
+        "y": 1264
+      },
+      "size": {
+        "width": 420,
+        "height": 340
+      },
+      "prompt": "人物转身",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "seedance-2",
+        "modelVendor": "kie",
+        "archetype": {
+          "id": "seedance-2",
+          "modeId": "firstlast",
+          "variantId": "standard"
+        }
+      },
+      "categoryId": "shots",
+      "shotIndex": 12
+    },
+    {
+      "id": "gen-v2-image-loyw3v2v-0hhu",
+      "kind": "image",
+      "title": "src-five-1",
+      "position": {
+        "x": -784,
+        "y": 1144
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "",
+      "references": [],
+      "history": [
+        {
+          "id": "fixture-result-5",
+          "type": "image",
+          "url": "nomi-local://fixture/src-five-1.png",
+          "createdAt": 1700000000005,
+          "versionNo": 1
+        }
+      ],
+      "status": "success",
+      "meta": {},
+      "categoryId": "shots",
+      "shotIndex": 13,
+      "result": {
+        "id": "fixture-result-5",
+        "type": "image",
+        "url": "nomi-local://fixture/src-five-1.png",
+        "createdAt": 1700000000005,
+        "versionNo": 1
+      },
+      "resultVersionMax": 1
+    },
+    {
+      "id": "gen-v2-image-loyw3v2w-0isi",
+      "kind": "image",
+      "title": "src-five-2",
+      "position": {
+        "x": -784,
+        "y": 360
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "",
+      "references": [],
+      "history": [
+        {
+          "id": "fixture-result-6",
+          "type": "image",
+          "url": "nomi-local://fixture/src-five-2.png",
+          "createdAt": 1700000000006,
+          "versionNo": 1
+        }
+      ],
+      "status": "success",
+      "meta": {},
+      "categoryId": "shots",
+      "shotIndex": 14,
+      "result": {
+        "id": "fixture-result-6",
+        "type": "image",
+        "url": "nomi-local://fixture/src-five-2.png",
+        "createdAt": 1700000000006,
+        "versionNo": 1
+      },
+      "resultVersionMax": 1
+    },
+    {
+      "id": "gen-v2-image-loyw3v2x-0k36",
+      "kind": "image",
+      "title": "src-five-3",
+      "position": {
+        "x": -784,
+        "y": -424
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "",
+      "references": [],
+      "history": [
+        {
+          "id": "fixture-result-7",
+          "type": "image",
+          "url": "nomi-local://fixture/src-five-3.png",
+          "createdAt": 1700000000007,
+          "versionNo": 1
+        }
+      ],
+      "status": "success",
+      "meta": {},
+      "categoryId": "shots",
+      "shotIndex": 15,
+      "result": {
+        "id": "fixture-result-7",
+        "type": "image",
+        "url": "nomi-local://fixture/src-five-3.png",
+        "createdAt": 1700000000007,
+        "versionNo": 1
+      },
+      "resultVersionMax": 1
+    },
+    {
+      "id": "gen-v2-image-loyw3v2y-0ldt",
+      "kind": "image",
+      "title": "src-five-4",
+      "position": {
+        "x": 1476,
+        "y": 360
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "",
+      "references": [],
+      "history": [
+        {
+          "id": "fixture-result-8",
+          "type": "image",
+          "url": "nomi-local://fixture/src-five-4.png",
+          "createdAt": 1700000000008,
+          "versionNo": 1
+        }
+      ],
+      "status": "success",
+      "meta": {},
+      "categoryId": "shots",
+      "shotIndex": 16,
+      "result": {
+        "id": "fixture-result-8",
+        "type": "image",
+        "url": "nomi-local://fixture/src-five-4.png",
+        "createdAt": 1700000000008,
+        "versionNo": 1
+      },
+      "resultVersionMax": 1
+    },
+    {
+      "id": "gen-v2-image-loyw3v2z-0moh",
+      "kind": "image",
+      "title": "src-five-5",
+      "position": {
+        "x": 1476,
+        "y": 1536
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "",
+      "references": [],
+      "history": [
+        {
+          "id": "fixture-result-9",
+          "type": "image",
+          "url": "nomi-local://fixture/src-five-5.png",
+          "createdAt": 1700000000009,
+          "versionNo": 1
+        }
+      ],
+      "status": "success",
+      "meta": {},
+      "categoryId": "shots",
+      "shotIndex": 17,
+      "result": {
+        "id": "fixture-result-9",
+        "type": "image",
+        "url": "nomi-local://fixture/src-five-5.png",
+        "createdAt": 1700000000009,
+        "versionNo": 1
+      },
+      "resultVersionMax": 1
+    },
+    {
+      "id": "gen-v2-video-loyw3v30-0nz4",
+      "kind": "video",
+      "title": "dc4-video-firstlast-five-refs",
+      "position": {
+        "x": 1184,
+        "y": -544
+      },
+      "size": {
+        "width": 420,
+        "height": 340
+      },
+      "prompt": "五张角色图一起出场",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "seedance-2",
+        "modelVendor": "kie",
+        "archetype": {
+          "id": "seedance-2",
+          "modeId": "firstlast",
+          "variantId": "standard"
+        }
+      },
+      "categoryId": "shots",
+      "shotIndex": 18
+    },
+    {
+      "id": "gen-v2-image-loyw3v33-0p9s",
+      "kind": "image",
+      "title": "src-character",
+      "position": {
+        "x": -1236,
+        "y": 1536
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "",
+      "references": [],
+      "history": [
+        {
+          "id": "fixture-result-10",
+          "type": "image",
+          "url": "nomi-local://fixture/src-character.png",
+          "createdAt": 1700000000010,
+          "versionNo": 1
+        }
+      ],
+      "status": "success",
+      "meta": {},
+      "categoryId": "shots",
+      "shotIndex": 19,
+      "result": {
+        "id": "fixture-result-10",
+        "type": "image",
+        "url": "nomi-local://fixture/src-character.png",
+        "createdAt": 1700000000010,
+        "versionNo": 1
+      },
+      "resultVersionMax": 1
+    },
+    {
+      "id": "gen-v2-image-loyw3v34-0qkg",
+      "kind": "image",
+      "title": "dc5-image-t2i-with-image",
+      "position": {
+        "x": -1236,
+        "y": 360
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "男角色站在窗前",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "nano-banana",
+        "modelVendor": "kie",
+        "archetype": {
+          "id": "nano-banana",
+          "modeId": "t2i"
+        }
+      },
+      "categoryId": "shots",
+      "shotIndex": 20
+    },
+    {
+      "id": "gen-v2-image-loyw3v37-0rv3",
+      "kind": "image",
+      "title": "dc6-agent-plan-image-edit-no-refs",
+      "position": {
+        "x": 1024,
+        "y": 1264
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "第 3 镜：同一个人物换到雨里",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "nano-banana",
+        "modelLabel": "Nano Banana",
+        "archetype": {
+          "id": "nano-banana",
+          "modeId": "edit"
+        },
+        "modelVendor": "kie",
+        "vendor": "kie",
+        "aspect_ratio": "1:1",
+        "output_format": "png"
+      },
+      "categoryId": "shots",
+      "shotIndex": 21
+    },
+    {
+      "id": "gen-v2-video-loyw3v38-0t5r",
+      "kind": "video",
+      "title": "dc6b-agent-plan-video-firstlast",
+      "position": {
+        "x": 120,
+        "y": -544
+      },
+      "size": {
+        "width": 420,
+        "height": 340
+      },
+      "prompt": "第 4 镜：门开",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "seedance-2",
+        "modelLabel": "即梦 Seedance",
+        "archetype": {
+          "id": "seedance-2",
+          "modeId": "firstlast"
+        },
+        "modelVendor": "kie",
+        "vendor": "kie",
+        "resolution": "720p",
+        "aspect_ratio": "16:9",
+        "duration": 5,
+        "generate_audio": true
+      },
+      "categoryId": "shots",
+      "shotIndex": 22
+    },
+    {
+      "id": "gen-v2-image-loyw3v39-0uge",
+      "kind": "image",
+      "title": "src-plan-firstlast",
+      "position": {
+        "x": -1236,
+        "y": -816
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      },
+      "prompt": "",
+      "references": [],
+      "history": [
+        {
+          "id": "fixture-result-11",
+          "type": "image",
+          "url": "nomi-local://fixture/src-plan-firstlast.png",
+          "createdAt": 1700000000011,
+          "versionNo": 1
+        }
+      ],
+      "status": "success",
+      "meta": {},
+      "categoryId": "shots",
+      "shotIndex": 23,
+      "result": {
+        "id": "fixture-result-11",
+        "type": "image",
+        "url": "nomi-local://fixture/src-plan-firstlast.png",
+        "createdAt": 1700000000011,
+        "versionNo": 1
+      },
+      "resultVersionMax": 1
+    },
+    {
+      "id": "gen-v2-audio-loyw3v3a-0vr2",
+      "kind": "audio",
+      "title": "dc7-audio-transcribe-no-audio",
+      "position": {
+        "x": 1184,
+        "y": 744
+      },
+      "size": {
+        "width": 420,
+        "height": 80
+      },
+      "prompt": "",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "eleven-scribe-v2",
+        "modelVendor": "kie",
+        "archetype": {
+          "id": "eleven-scribe-v2",
+          "modeId": "transcribe"
+        }
+      },
+      "categoryId": "shots"
+    },
+    {
+      "id": "gen-v2-model3d-loyw3v3c-0x1q",
+      "kind": "model3d",
+      "title": "dc8-model3d-image-no-image",
+      "position": {
+        "x": 120,
+        "y": 2008
+      },
+      "size": {
+        "width": 320,
+        "height": 300
+      },
+      "prompt": "一只陶瓷茶壶",
+      "references": [],
+      "history": [],
+      "status": "idle",
+      "meta": {
+        "modelKey": "hunyuan3d",
+        "modelVendor": "kie",
+        "archetype": {
+          "id": "hunyuan3d",
+          "modeId": "image"
+        }
+      },
+      "categoryId": "shots"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-gen-v2-image-loyw3v2b-038n::gen-v2-image-loyw3v2c-04ja::0",
+      "source": "gen-v2-image-loyw3v2b-038n",
+      "target": "gen-v2-image-loyw3v2c-04ja",
+      "mode": "reference",
+      "order": 0
+    },
+    {
+      "id": "edge-gen-v2-image-loyw3v2g-074l::gen-v2-video-loyw3v2h-08f9::0",
+      "source": "gen-v2-image-loyw3v2g-074l",
+      "target": "gen-v2-video-loyw3v2h-08f9",
+      "mode": "first_frame",
+      "order": 0
+    },
+    {
+      "id": "edge-gen-v2-image-loyw3v2n-0b0k::gen-v2-image-loyw3v2o-0cb8::0",
+      "source": "gen-v2-image-loyw3v2n-0b0k",
+      "target": "gen-v2-image-loyw3v2o-0cb8",
+      "mode": "reference",
+      "order": 0
+    },
+    {
+      "id": "edge-gen-v2-image-loyw3v2v-0hhu::gen-v2-video-loyw3v30-0nz4::0",
+      "source": "gen-v2-image-loyw3v2v-0hhu",
+      "target": "gen-v2-video-loyw3v30-0nz4",
+      "mode": "reference",
+      "order": 0
+    },
+    {
+      "id": "edge-gen-v2-image-loyw3v2w-0isi::gen-v2-video-loyw3v30-0nz4::1",
+      "source": "gen-v2-image-loyw3v2w-0isi",
+      "target": "gen-v2-video-loyw3v30-0nz4",
+      "mode": "reference",
+      "order": 1
+    },
+    {
+      "id": "edge-gen-v2-image-loyw3v2x-0k36::gen-v2-video-loyw3v30-0nz4::2",
+      "source": "gen-v2-image-loyw3v2x-0k36",
+      "target": "gen-v2-video-loyw3v30-0nz4",
+      "mode": "reference",
+      "order": 2
+    },
+    {
+      "id": "edge-gen-v2-image-loyw3v2y-0ldt::gen-v2-video-loyw3v30-0nz4::3",
+      "source": "gen-v2-image-loyw3v2y-0ldt",
+      "target": "gen-v2-video-loyw3v30-0nz4",
+      "mode": "reference",
+      "order": 3
+    },
+    {
+      "id": "edge-gen-v2-image-loyw3v2z-0moh::gen-v2-video-loyw3v30-0nz4::4",
+      "source": "gen-v2-image-loyw3v2z-0moh",
+      "target": "gen-v2-video-loyw3v30-0nz4",
+      "mode": "reference",
+      "order": 4
+    },
+    {
+      "id": "edge-gen-v2-image-loyw3v33-0p9s::gen-v2-image-loyw3v34-0qkg::0",
+      "source": "gen-v2-image-loyw3v33-0p9s",
+      "target": "gen-v2-image-loyw3v34-0qkg",
+      "mode": "reference",
+      "order": 0
+    },
+    {
+      "id": "edge-gen-v2-image-loyw3v39-0uge::gen-v2-video-loyw3v38-0t5r::0",
+      "source": "gen-v2-image-loyw3v39-0uge",
+      "target": "gen-v2-video-loyw3v38-0t5r",
+      "mode": "reference",
+      "order": 0
+    }
+  ],
+  "groups": [],
+  "workflowTemplates": []
+}

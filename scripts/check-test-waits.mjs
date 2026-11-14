@@ -163,7 +163,77 @@ export function builtArtifactImportLines(source, file) {
   return lines
 }
 
+// Poll/query budget injection in unit tests must use a controlled clock, regardless of the test's filename.
+export function injectedDeadlineWaitLines(source, file) {
+  const lines = new Set()
+  if (!/\.(?:test|spec|node-test)\.[cm]?[jt]sx?$/.test(file)) return lines
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
+  let fake = false
+  let restored = false
+  const positiveLiteral = node => ts.isNumericLiteral(node) && Number(node.text.replaceAll('_', '')) > 0
+  const visit = node => {
+    if (ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.name.text)
+      && positiveLiteral(node.initializer)) {
+      lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
+    }
+    if (ts.isParameter(node) && ts.isIdentifier(node.name) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.name.text)
+      && node.initializer && positiveLiteral(node.initializer)) {
+      lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
+    }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      && ts.isPropertyAccessExpression(node.left) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.left.name.text)
+      && positiveLiteral(node.right)) {
+      lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
+    }
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+      && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === 'vi') {
+      if (node.expression.name.text === 'useFakeTimers') fake = true
+      if (node.expression.name.text === 'useRealTimers') restored = true
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(parsed)
+  return fake && restored ? new Set() : lines
+}
+
+// Unit perf files own deterministic work/results; real timing belongs to tests/perf.
+export function unitPerformanceProbeLines(source, file) {
+  const lines = new Set()
+  if (!/^(?:src|electron)\/.*\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file)) return lines
+  const perfTest = /\.perf(?:ormance)?\.(?:test|spec)\./.test(file)
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
+  const member = node => ts.isIdentifier(node) ? node.text
+    : ts.isPropertyAccessExpression(node) ? node.name.text
+    : ts.isElementAccessExpression(node) && ts.isStringLiteral(node.argumentExpression) ? node.argumentExpression.text : ''
+  const visit = node => {
+    let specifier
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) specifier = node.moduleSpecifier
+    if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) && node.expression.text === 'require'))) specifier = node.arguments[0]
+    const moduleName = specifier && ts.isStringLiteralLike(specifier) ? specifier.text.replace(/^node:/, '') : ''
+    const forbiddenImport = /^inspector(?:\/promises)?$/.test(moduleName) || (perfTest && moduleName === 'perf_hooks')
+    const access = ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)
+    const clock = perfTest && access && (
+      (member(node) === 'now' && ['performance', 'Date'].includes(member(node.expression))) ||
+      (['hrtime', 'cpuUsage'].includes(member(node)) && member(node.expression) === 'process'))
+    if (forbiddenImport || clock) lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
+    ts.forEachChild(node, visit)
+  }
+  visit(parsed)
+  return lines
+}
+
 const RULES = [
+  {
+    id: 'injected-deadline-real-wait',
+    label: '单元测试注入非零试跑/查询预算时须启用并还原假时钟，不能拿 CI 负载判假接口结果',
+    test: (_line, context) => context.injectedDeadlineWaitLines.has(context.lineIndex),
+  },
+  {
+    id: 'unit-performance-probe',
+    label: '单元测试禁止 inspector，perf/performance 单测只判结果/工作量；计时归 tests/perf',
+    test: (_line, context) => context.unitPerformanceLines.has(context.lineIndex),
+  },
   {
     id: 'built-artifact-test-import',
     label: '测试模块必须从源码加载，禁止 import dist/ 或 dist-electron/',
@@ -360,14 +430,15 @@ export function main() {
     const stationFile = path.relative(repoRoot, file).replaceAll(path.sep, '/')
     stationHits.push(...stationWaitHits(raw, stationFile).map(hit => ({ ...hit, file: stationFile })))
     const source = stripComments(raw)
-    const context = { clockDeltaNames: collectClockDeltaNames(source), spiesOnFsRead: FS_READ_SPY.test(source), asyncWaitLines: asyncWaitForFunctionLines(raw, file),
+    const context = { unitPerformanceLines: unitPerformanceProbeLines(raw, stationFile), clockDeltaNames: collectClockDeltaNames(source), spiesOnFsRead: FS_READ_SPY.test(source), asyncWaitLines: asyncWaitForFunctionLines(raw, file),
+      injectedDeadlineWaitLines: injectedDeadlineWaitLines(raw, stationFile),
       builtArtifactImportLines: builtArtifactImportLines(raw, path.relative(repoRoot, file).replaceAll(path.sep, '/')),
       unownedLaneCleanupLines: unownedLaneCleanupLines(raw, path.relative(repoRoot, file).replaceAll(path.sep, '/')) }
     const unitTest = /\.test\.(tsx?|mts|cts|mjs)$/.test(file)
     source.split('\n').forEach((line, i) => {
       context.lineIndex = i
       for (const rule of RULES) {
-        if (!unitTest && !['async-waitforfunction-predicate', 'unowned-lane-directory-cleanup', 'built-artifact-test-import'].includes(rule.id)) continue
+        if (!unitTest && !['async-waitforfunction-predicate', 'unowned-lane-directory-cleanup', 'built-artifact-test-import', 'unit-performance-probe', 'injected-deadline-real-wait'].includes(rule.id)) continue
         if (rule.test(line, context)) hits.push({ rule, file, line: i + 1, text: line.trim().slice(0, 120) })
       }
     })
@@ -448,7 +519,7 @@ export function main() {
       console.log(`    ${relative}  [wallclock-budget-assertion]  基线陈旧：登记 ${allowed} 处、实际 ${actual} 处`)
       console.log('        → 好事，把 WALLCLOCK_BUDGET_BASELINE 里的数字降到实际值（棘轮只减不增）')
     }
-    if (hardHits.some((hit) => !['fs-read-spy-path-filter', 'async-waitforfunction-predicate', 'unowned-lane-directory-cleanup', 'built-artifact-test-import'].includes(hit.rule.id))) {
+    if (hardHits.some((hit) => !['fs-read-spy-path-filter', 'async-waitforfunction-predicate', 'unowned-lane-directory-cleanup', 'built-artifact-test-import', 'unit-performance-probe'].includes(hit.rule.id))) {
       console.log('  → 等后台编排链请 import electron/productionRun/productionRunTestHelpers 的 waitForProduction')
       console.log('    （60s 安全网只拦真死锁/真回归，不给磁盘排队计时；来龙去脉见 docs/plan/2026-08-25-fix-flaky-production-run-tests.md）')
     }
@@ -462,6 +533,9 @@ export function main() {
     }
     if (hardHits.some((hit) => hit.rule.id === 'unowned-lane-directory-cleanup')) {
       console.log('  → lane 目录交给 createLaneFixture；用 fixture.openLane / fixture.after 注册资源，等待全部 close 完成后再统一删除。')
+    }
+    if (hardHits.some((hit) => hit.rule.id === 'unit-performance-probe')) {
+      console.log('  → 删除诊断；单元测试断言结果/工作量，性能量数归 tests/perf/scenarios 的排锁量具。')
     }
     if (budgetViolations.length > 0) {
       console.log('  → 新增的耗时断言：若它量的是「这段计算够不够快」，删掉换与机器速度无关的判据')

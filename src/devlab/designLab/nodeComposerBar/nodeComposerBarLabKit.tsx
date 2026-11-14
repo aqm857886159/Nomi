@@ -72,6 +72,8 @@ const CATALOG_MODELS = [
     vendorKey: 'apimart',
     labelZh: 'Seedance 2',
     kind: 'video',
+    // 生产的内置目录行都带档案 id（模型菜单的品牌图标和能力描述靠它）。
+    meta: { archetypeId: 'seedance-2' },
     enabled: true,
     published: true,
     publishedModes: ['text_to_video', 'image_to_video'],
@@ -83,6 +85,7 @@ const CATALOG_MODELS = [
     vendorKey: 'apimart',
     labelZh: 'GPT Image 2',
     kind: 'image',
+    meta: { archetypeId: 'gpt-image-2' },
     enabled: true,
     published: true,
     publishedModes: ['text_to_image', 'image_edit'],

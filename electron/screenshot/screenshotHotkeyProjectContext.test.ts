@@ -23,7 +23,20 @@ vi.mock('electron', () => ({
   shell: { openExternal: vi.fn() },
   systemPreferences: { getMediaAccessStatus: () => 'granted' },
 }))
-vi.mock('../appWindowRegistry', () => ({ getMainWindow: () => mock.win }))
+// 主窗只经主人拿：开着就能借用、发消息；显示只发意图。
+vi.mock('../mainWindowPresence', () => {
+  type Win = { webContents: { send: (channel: string, payload: unknown) => void } }
+  return {
+    mainWindowPhase: () => (mock.win ? 'open' : 'absent'),
+    borrowMainWindow: <T>(lend: (win: Win) => T) => (mock.win ? lend(mock.win as Win) : null),
+    sendToMainWindow: (channel: string, payload: unknown) => {
+      if (!mock.win) return false
+      ;(mock.win as Win).webContents.send(channel, payload)
+      return true
+    },
+    revealMainWindow: vi.fn(),
+  }
+})
 vi.mock('../assets/assetEvents', () => ({ broadcastAssetsUpdated: vi.fn(), broadcastAssetLocalizationStarted: vi.fn() }))
 
 const roots: string[] = []

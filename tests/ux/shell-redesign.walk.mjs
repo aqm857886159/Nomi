@@ -6,7 +6,8 @@
 // 用法：pnpm run build && node tests/ux/shell-redesign.walk.mjs <输出目录>
 //   环境：WALK_LOCALE=zh-CN|en  WALK_SCHEME=light|dark  WALK_SIZE=1280x800|1000x700|1440x900
 //         WALK_SHOTS=逗号分隔的屏名（缺省全拍）：library-empty,library,main,canvas-agent,creation-doc,
-//         chrome-assets,chrome-rail-collapsed,chrome-ball-running,chrome-ball-failed,chrome-ball-pending,preview-catalog
+//         chrome-assets,chrome-rail-collapsed,chrome-ball-running,chrome-ball-failed,chrome-ball-pending,preview-catalog,
+//         persona（Agent 形象：五副长相 + 未读 + 跟随 / 悬停 / 焦点 / 减弱动效裁图，及行为与动效断言）
 import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
@@ -14,6 +15,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { walkAgentPersona } from './_agentPersonaWalk.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,6 +24,7 @@ import {
   AGENT_PANEL, backToLibrary, canvasAddBar, canvasFitViewButton, canvasToggleFrameTool, canvasViewOption, canvasZoomPercent, canvasZoomStep,
   closeCanvasViewOptions, openCanvasViewOptions, canvasResetView, canvasSetZoomPercent,
 } from './_shell.mjs'
+import { CANVAS_PANEL, COMPOSER_INPUT, clearComposerText, expectComposerFocused, expectComposerText } from './agent-runtime-walk-support.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const outDir = process.argv[2] ? path.resolve(process.argv[2]) : path.join(here, 'shots/shell-redesign')
@@ -368,6 +371,12 @@ try {
   }
   await setBadge('idle', 0)
 
+  // AgentPersona 板（2026-10-27 形象拍板）：五副长相 + 未读点逐格量、裁图对样张；只换脸不换行为；空闲不动、减弱动效（_agentPersonaWalk.mjs）。
+  if (want('persona')) {
+    measures.persona = await walkAgentPersona(win, { locale, zh, scheme, shotPath, setBadge, onShot: (file) => shotsTaken.push(path.basename(file)) })
+    await setBadge('idle', 0)
+  }
+
   // 事实测量（协调 10-08 问）：靠底节点的生成框和底边时间轴窄条重叠多少像素。
   // 新外壳里窄条是画布下面独立的一格，画布元素到窄条顶边为止；生成框伸出画布下沿的部分被画布裁掉，不会画到窄条上。
   if (want('check-bottom-composer')) {
@@ -409,6 +418,7 @@ try {
   if (want('canvas-agent') || want('chrome-assets') || want('chrome-rail-collapsed')) {
     await clickOrFail(win.locator('[data-agent-ball]'), '点小球打开浮窗')
     await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), '浮窗没有打开').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expectComposerFocused(win, CANVAS_PANEL, '点小球打开浮窗后焦点不在 Agent 输入框', stationTimeout())
     await win.waitForTimeout(700)
     measures.float = await box(win, '[data-agent-float="generation"]')
     await shoot(win, 'canvas-agent')
@@ -452,22 +462,32 @@ try {
     await win.waitForTimeout(300)
   }
 
-  // 协调裁决第 37 项：Mod+J 打开 Agent 并聚焦输入框；Mod+\ 停靠 ↔ 小球。
+  // 协调裁决第 37 项：Mod+J 打开 Agent 并聚焦输入框；Mod+\ 收起 / 展开 Nomi（收着时打开到上次选的摆法，和点小球同一个动作；2026-11-15 改，不再是选停靠）。
   if (want('check-shortcuts')) {
     await expect(win.locator('[data-agent-ball]'), '快捷键前应是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     await win.locator('.workbench-generation__canvas').click({ position: { x: 500, y: 60 } })
-    await win.keyboard.press('Control+J')
-    await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), 'Ctrl+J 没有打开 Agent').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    await expect.poll(() => win.evaluate(() => Boolean(document.activeElement?.closest('#project-agent-resident') && document.activeElement?.tagName === 'TEXTAREA')),
-      { message: 'Ctrl+J 打开后焦点不在 Agent 输入框', timeout: stationTimeout() }).toBe(true)
+    await win.keyboard.press('ControlOrMeta+J')
+    await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), 'Mod+J 没有打开 Agent').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expectComposerFocused(win, CANVAS_PANEL, 'Mod+J 打开后焦点不在 Agent 输入框', stationTimeout())
+    // 用户按完 Mod+J 直接打字：字得落进输入框（键盘打，不经输入框的 locator——那会先替它点一下）。
+    const input = win.locator(`${CANVAS_PANEL} ${COMPOSER_INPUT}`)
+    const typed = T('把第三镜的光调暗一点', 'Dim the light on shot three')
+    await win.keyboard.type(typed)
+    await expectComposerText(input, typed, 'Mod+J 后直接打字，字没进 Agent 输入框')
     await shoot(win, 'check-mod-j')
+    // 已经开着再按一次：不重开、不丢字，焦点还在输入框里。
+    await win.keyboard.press('ControlOrMeta+J')
+    await expectComposerFocused(win, CANVAS_PANEL, '开着时再按 Mod+J，焦点离开了 Agent 输入框', stationTimeout())
+    await expectComposerText(input, typed, '开着时再按 Mod+J，输入框里的字变了')
+    await clearComposerText(input)
     await win.keyboard.press('Control+\\')
     await expect(win.locator('[data-agent-ball]'), 'Ctrl+\\ 没把浮窗收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    const ballProof = await proveProbe(win.locator('[data-agent-ball]'), '切停靠前小球确实在')
+    const ballProof = await proveProbe(win.locator('[data-agent-ball]'), '再展开前小球确实在')
     await win.keyboard.press('Control+\\')
-    await expect(win.locator('[data-shell-agent-layer][data-agent-form="dock"]'), 'Ctrl+\\ 没把小球切到停靠').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
-    await expectAbsent(win.locator('[data-agent-ball]'), { provenBy: ballProof, message: '停靠后小球还在' })
-    await shoot(win, 'check-mod-backslash-dock')
+    // 上次选的是浮窗（Mod+J 打开的生成页浮窗）：展开回到浮窗，不被改成停靠。
+    await expect(win.locator('[data-shell-agent-layer][data-agent-form="float"]'), 'Ctrl+\\ 没把小球展开回上次选的浮窗').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
+    await expectAbsent(win.locator('[data-agent-ball]'), { provenBy: ballProof, message: '展开后小球还在' })
+    await shoot(win, 'check-mod-backslash-reopen')
     await win.keyboard.press('Control+\\')
     await expect(win.locator('[data-agent-ball]'), '再按 Ctrl+\\ 没回到小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   }
@@ -475,9 +495,8 @@ try {
   // 协调裁决第 57 项：浮窗窄时头部按钮收进「⋯」（线程 / 历史与形态三选一都在里面）。
   if (want('check-float-compact')) {
     await win.evaluate(() => {
-      const store = window.__nomiAgentFormStore?.getState()
-      store?.setFloatRect('generation', { x: 600, y: 200, width: 320, height: 460 })
-      store?.setForm('generation', 'float')
+      window.__nomiAgentFormStore?.getState().setFloatRect('generation', { x: 600, y: 200, width: 320, height: 460 })
+      window.__nomiAgentForm?.chooseAgentPlacement('generation', 'float')
     })
     await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), '窄浮窗没有打开').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     const more = win.locator('[data-agent-float="generation"] [data-v4-control="more"]')
@@ -487,8 +506,7 @@ try {
     await shoot(win, 'check-float-compact')
     await win.keyboard.press('Escape')
     await win.evaluate(() => {
-      const store = window.__nomiAgentFormStore?.getState()
-      store?.setForm('generation', 'ball')
+      window.__nomiAgentForm?.collapseAgent('generation')
     })
   }
 

@@ -5,6 +5,9 @@
 set +e
 ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}"
 [ -z "$ROOT" ] && exit 0
+if command -v node >/dev/null 2>&1; then
+  node "$ROOT/scripts/main-checkout-follow.mjs"
+fi
 CARD="$ROOT/.claude/handoff/latest.md"
 [ -f "$CARD" ] || exit 0
 

@@ -333,7 +333,6 @@
   "tests/ux/creation-work-surfaces.e2e.mjs": {
     "b1d896482b4dd51a8b0a9a70cf102f22e446cf398d716e0cc232cda0d44ac968": 1,
     "016305ded10ea7d6fc0e00704186f3bdd7a4659413a26ac85e8112567f52dd58": 1,
-    "1bbce7217efbe8374b992963e4e06d0dd5ceeeb7987e3ad1742fe1c65da46649": 1,
     "e7590250ac71670203f9e58bacecacb5dbbf67f8d71323ced24571068380c891": 1
   },
   "tests/ux/cross-device-continuation.e2e.mjs": {
@@ -366,9 +365,6 @@
   "tests/ux/design-fidelity.e2e.mjs": {
     "1db25a17b544bdd771286494390bd5f5d3e2619b2fa970ee304407f228bf0136": 1,
     "5b8b5cb3aaa8c75a8ebbecc109cd3bd5c0fb513c413e85a4773d99f2368908a6": 1
-  },
-  "tests/ux/design-lab/warmUp.mjs": {
-    "d0cc15b2cd46f319c4daa58d51ebbf8cf09c172a17a3d972c40c45027b24227d": 1
   },
   "tests/ux/editing-real-user-pass.walk.mjs": {
     "2607405759684432c0366cdf297d3b0956d569545a83830569088741e12bb5c2": 2
@@ -554,7 +550,6 @@
     "9538fc61a4e3ed98d33d7cb43e76deaad36b53de2992e8b1f74462495cc70eb1": 1,
     "82b5e23da5a39824448309c5653551033c8ecd78fae50713d37ba463d4e70828": 1,
     "09e9fcfa4e0ba603c71cd5a0394e12cb6a94c0ff5058a01f21ebaa2f5a0151a9": 1,
-    "9ac9096ce8fbc987004269b5fe841f646692c8340f0aec86a6edad6a769d7c5d": 1,
     "2bdbb53c81043f5161c885b31ecb38e37eac2058291d598c79c9d7ca038a7e7e": 1
   },
   "tests/ux/overlay-z-order.walk.mjs": {

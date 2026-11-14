@@ -1,0 +1,24 @@
+{
+  "name": "弹窗的可用高度、滚动归属与固定决定栏",
+  "subject": "ui.dialog-layout",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/design/overlays.tsx",
+    "symbol": "DesignModal"
+  },
+  "write_api": [
+    {
+      "path": "src/design/overlays.tsx",
+      "symbol": "DesignModal"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "parity_test": "src/design/dialogMigration.structure.test.ts",
+  "since": "2026-11-09",
+  "notes": "用户规则 A 指定唯一外壳。此处 converged 表示 owner 已唯一确定，并不表示所有手写宿主已迁；阶段②按 25 文件上限只迁三处，其余债务逐项列在交接报告。决定栏使用 actions，body 高度沿用 Mantine。"
+}

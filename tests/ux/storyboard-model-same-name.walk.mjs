@@ -3,10 +3,10 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // docs/fixes/2026-09-21-storyboard-model-vendor.root-cause.json）。
 //
 // 用户报的是：自定义了一个与 APIMart 同名的模型（gpt-image-2）之后，分镜里选 APIMart 那条「选不上」，
-// 生成却走了自定义那家。三个入口各自复现过：镜头卡底栏、批量条「统一模型」、锚行模型框。
+// 生成却走了自定义那家。三个入口各自复现过：镜头卡底栏、批量条「统一模型」、锚行模型框；批量条已随分镜页瘦身（#1505）删掉，现役入口剩镜头卡底栏和锚行模型框。
 //
 // 这条走查的验收点是**一条链两端对上**，不是截图好不好看：
-//   ① 真人手势在三个模型框里各选一次「APIMart 那家」（不是灌 store、不是调桥）
+//   ① 真人手势在两个模型框里各选一次「APIMart 那家」（不是灌 store、不是调桥）
 //   ② 模型框回显的是那一家（触发器上的模型名 = APIMart 那一组）
 //   ③ 真人点「生成」→（单份不弹确认卡）真执行通路 → loopback 收到的**出站请求**是那一家的 mapping 发出的
 // 阳性对照：第 3 镜保持在自定义那家先跑一次，请求必须来自自定义那家——证明这条仪器
@@ -30,23 +30,27 @@ import {
 } from './agent-runtime-fixture.mjs'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const LOCALE = process.env.WALK_LOCALE === 'en' ? 'en' : 'zh-CN'
 const T = {
   'zh-CN': {
     projectName: '同名模型走查', creationTab: '创作', continueCreating: '继续创作',
-    imageModel: '图片模型', bulkModel: '全部镜头的模型', anchorModel: '参考卡生成模型', expandAll: '全部展开',
+    expandAll: '全部展开',
     generateShot: (index) => `生成镜 ${index}`, generateAnchor: (name) => `生成参考卡「${name}」`,
     anchorName: '主角',
   },
   en: {
     projectName: 'Same-name model walk', creationTab: 'Create', continueCreating: 'Continue creating',
-    imageModel: 'Image model', bulkModel: 'Model for all shots', anchorModel: 'Model for reference card', expandAll: 'Expand all',
+    expandAll: 'Expand all',
     generateShot: (index) => `Generate shot ${index}`, generateAnchor: (name) => `Generate reference card "${name}"`,
     anchorName: 'Hero',
   },
 }[LOCALE]
+
+// 行内和参考卡里的模型框共用参数条的同一枚下拉，无障碍名取词条（不再是旧的「图片模型」「参考卡生成模型」）。
+const MODEL_ARIA = uiText(LOCALE, 'generationCommon.parameters.model')
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = makeTempDir('nomi-same-name-model-')
@@ -183,7 +187,7 @@ try {
   await openStoryboardEditor(win, DESIGN, '侧栏选中分镜设计')
   await expectVisible(win.locator('[data-storyboard-editor="true"]'), '分镜编辑器没有渲染')
 
-  const rowModel = (index) => win.locator(`[data-storyboard-row="${index}"] [aria-label="${T.imageModel}"]`).first()
+  const rowModel = (index) => win.locator(`[data-storyboard-row="${index}"] [aria-label="${MODEL_ARIA}"]`).first()
   // 起点回显：镜 1 停在自定义那家（模型框显示自定义那一组的名字）。
   await expect(rowModel(1), '起点：镜 1 应回显自定义那家（image2）').toContainText(CUSTOM_LABEL, { timeout: DEFAULT_TIMEOUT_MS })
   await snap('01-start-on-custom.png')
@@ -203,25 +207,18 @@ try {
   const shotCard = await captureRequest(2, '镜头卡底栏（镜 1）')
   if (shotCard.vendor !== STANDIN_VENDOR) failures.push(`镜头卡底栏：界面选的是 APIMart，请求却发给了 ${shotCard.vendor}`)
 
-  // ── ② 批量条「统一模型」：选 APIMart 那一行 → 每一镜回显 → 生成镜 2 → 请求去 APIMart ──
-  await pickFromSelect(win.locator(`[aria-label="${T.bulkModel}"]`).first(), '批量条模型框', { want: APIMART_LABEL, vendorHint: STANDIN_NAME })
-  await expect(rowModel(2), '批量统一成 APIMart 后镜 2 回显没换过去').toContainText(APIMART_LABEL, { timeout: DEFAULT_TIMEOUT_MS })
-  evidence.echoes.bulk = (await rowModel(2).textContent())?.trim()
-  await snap('03-bulk-picked-apimart.png')
-  await clickOrFail(win.locator('[data-storyboard-row="2"]').getByRole('button', { name: T.generateShot(2) }), '点镜 2 生成')
-  const bulk = await captureRequest(3, '批量条（镜 2）')
-  if (bulk.vendor !== STANDIN_VENDOR) failures.push(`批量条：界面选的是 APIMart，请求却发给了 ${bulk.vendor}`)
+  // （原 ② 批量条「统一模型」一段已删：批量条随分镜页瘦身（#1505）不存在了，没有现役对应入口。）
 
-  // ── ③ 锚行：展开参考卡区 → 锚的模型框选 APIMart 那一组 → 回显 → 生成 → 请求去 APIMart ──
+  // ── ② 锚行：展开参考卡区 → 锚的模型框选 APIMart 那一组 → 回显 → 生成 → 请求去 APIMart ──
   await clickOrFail(win.getByRole('button', { name: T.expandAll, exact: true }), '展开参考卡区')
-  const anchorModel = win.locator(`[data-anchor-card="hero"] [aria-label="${T.anchorModel}"]`).first()
+  const anchorModel = win.locator(`[data-anchor-card="hero"] [aria-label="${MODEL_ARIA}"]`).first()
   await expect(anchorModel, '起点：锚行应回显自定义那家').toContainText(CUSTOM_LABEL, { timeout: DEFAULT_TIMEOUT_MS })
   await pickFromSelect(anchorModel, '锚行模型框', { want: APIMART_LABEL })
   await expect(anchorModel, '锚行选完 APIMart 后回显没换过去').toContainText(APIMART_LABEL, { timeout: DEFAULT_TIMEOUT_MS })
   evidence.echoes.anchor = (await anchorModel.textContent())?.trim()
   await snap('04-anchor-picked-apimart.png')
   await clickOrFail(win.locator('[data-anchor-card="hero"]').getByRole('button', { name: T.generateAnchor(T.anchorName) }), '点锚「主角」生成')
-  const anchor = await captureRequest(4, '锚行（主角）')
+  const anchor = await captureRequest(3, '锚行（主角）')
   if (anchor.vendor !== STANDIN_VENDOR) failures.push(`锚行：界面选的是 APIMart，请求却发给了 ${anchor.vendor}`)
   await snap('05-all-generated.png')
 
@@ -242,5 +239,5 @@ if (failures.length) {
   for (const failure of failures) console.error(`  - ${failure}`)
   process.exit(1)
 }
-console.log(`✅ 同名模型走查通过（${LOCALE}）：对照请求去自定义那家；镜头卡 / 批量条 / 锚行选 APIMart → 回显 APIMart → 请求由 APIMart 那家发出`)
+console.log(`✅ 同名模型走查通过（${LOCALE}）：对照请求去自定义那家；镜头卡 / 锚行选 APIMart → 回显 APIMart → 请求由 APIMart 那家发出`)
 console.log(`   截图与证据：${outDir}`)

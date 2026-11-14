@@ -55,7 +55,7 @@
     "electron/capabilityCore/generationRuntimeAdapter.ts",
     "electron/productionRun/productionGenerationSubmission.ts",
     "electron/catalog/nativeWireProfiles.ts",
-    "src/workbench/generationCanvas/runner/outboundBlockedRecovery.ts",
+    "src/workbench/generationCanvas/runner/retrievalRecovery.ts",
     "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
     "src/workbench/generationCanvas/runner/recoverableTimeout.ts",
     "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts",

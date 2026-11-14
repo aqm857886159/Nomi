@@ -19,6 +19,7 @@ import type { GenerationCanvasEdge, GenerationCanvasNode } from '../generationCa
 import { selectedModelKey, selectedVendor } from '../generationCanvas/runner/catalogTaskResolve'
 import { generationNodeInputsReady, unmetReferenceDependencyForNode } from '../generationCanvas/runner/generationRunController'
 import { promptRequiredForNode } from '../generationCanvas/runner/promptRequirement'
+import { resolveGenerationReferences } from '../generationCanvas/runner/generationReferenceResolver'
 import { buildDependencyWaves, type DependencyWavePlan } from '../generationCanvas/runner/dependencyWaves'
 import { directorPreviewSpendBlock } from '../generationCanvas/nodes/director/model/directorPreviewState'
 
@@ -54,7 +55,7 @@ function nodeHandOverFailure(node: GenerationCanvasNode | undefined, graph: Hand
   if (!waveDecidesReferences && !generationNodeInputsReady(node, context)) {
     return rejected(unmetReferenceDependencyForNode(node, context) ? 'reference_combination_invalid' : 'reference_required')
   }
-  if (!String(node.prompt ?? '').trim() && promptRequiredForNode(node, vendor)) return rejected('prompt_required')
+  if (!String(node.prompt ?? '').trim() && promptRequiredForNode(node, vendor, resolveGenerationReferences(node, context))) return rejected('prompt_required')
   return null
 }
 

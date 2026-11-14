@@ -81,6 +81,31 @@ function perfMarkdown(perf) {
   return `共 ${perf.total} 份会话汇总，偏慢 ${perf.slow}（${pct(perf.slowShare)}）。偏慢 = ${perf.slowDefinition}。\n${fb}\n\n各档分布：\n${dist}\n\n${dims}`
 }
 
+const share = (value) => (value === null ? '—' : pct(value))
+const tallyText = (rows) => rows.map((row) => `${row.value}×${row.count}`).join(' · ') || '（无）'
+
+/** 定位读数四节（aggregate.summarizeDiagnosis）。 */
+function diagnosisMarkdown(d) {
+  const patchRows = d.failureByPatch
+    .map((row) => `| ${row.version}${row.lowSample ? '（样本少）' : ''} | ${row.capability} | ${row.total} | ${row.failure} | ${share(row.failureRate)} |`)
+    .join('\n')
+  const patch = d.failureByPatch.length
+    ? `| 补丁版 | 能力 | 成功+失败 | 失败 | 失败率 |\n|---|---|---|---|---|\n${patchRows}\n\n\`x.y.?\` = 不带补丁号的老版本事件，不能和补丁版混比。`
+    : '（本轮缓存里没有成功或失败的生成事件）'
+  const u = d.unknown
+  const unknown = `失败 ${u.failures} 次，其中带细节 ${u.withDetail} 次（老版本不带 ${u.withoutDetail} 次）。上游怎么答的说不清（unknown）${u.unknownStatus} 次，占带细节失败 ${share(u.unknownShare)}；没发出去 ${u.notSent} 次，其中本机规则没编码（uncoded）${u.uncoded} 次，占 ${share(u.uncodedShare)}。这两个占比高 = 码还没覆盖到，回头补码。\n\n- 上游：${tallyText(u.byStatus)}\n- 阶段：${tallyText(u.byStage)}\n- 本机规则：${tallyText(u.byLocalRefusal)}`
+  const e = d.lastExit
+  const exitRows = e.byVersion.map((row) => `| ${row.version} | ${row.starts} | ${row.known} | ${row.abnormal} | ${share(row.abnormalRate)} |`).join('\n')
+  const lastExit = e.starts
+    ? `带「上次怎么结束」的启动 ${e.starts} 次，知道结局的 ${e.known} 次，其中没正常结束 ${e.abnormal} 次（${share(e.abnormalRate)}；unknown = 首启 / 遥测刚开，不进分母）。\n\n- 分布：${tallyText(e.byValue)}\n\n| 补丁版 | 启动 | 知道结局 | 没正常结束 | 占比 |\n|---|---|---|---|---|\n${exitRows}`
+    : '（本轮缓存里没有带 lastExit 的启动事件）'
+  const m = d.mainStall
+  const stall = m.sessions
+    ? `带主进程停顿的会话汇总 ${m.sessions} 份；最长一次 ≥1 秒的 ${m.overOneSecond} 份（${share(m.overOneSecondShare)}，unknown = 监视器没在跑，不进分母）。\n\n- 最长一次：${tallyText(m.max)}\n- 次数（≥100ms）：${tallyText(m.count)}`
+    : '（本轮缓存里没有带主进程停顿的会话汇总）'
+  return `### 按补丁版的生成失败率\n\n${patch}\n\n### 说不清的占比\n\n${unknown}\n\n### 上一次异常退出\n\n${lastExit}\n\n### 主进程停顿\n\n${stall}`
+}
+
 function dataQualityMarkdown(dq) {
   if (dq.corruptFileCount === 0) return '本地缓存文件全部可解析。'
   const lines = dq.corruptFiles.map((f) => `- ${f.key}：${f.error}`).join('\n')
@@ -118,7 +143,7 @@ export function renderMarkdown(report) {
     : '（本轮没有新反馈）'
   return `# Nomi 用户反馈雷达 · ${report.generatedAt.slice(0, 10)}
 
-生成于 ${report.generatedAt}。累计缓存：反馈 ${report.totals.feedbackCount} 条 / 事件 ${report.totals.eventsCount} 条 / 轨迹 ${report.totals.trajectoriesCount} 条。
+生成于 ${report.generatedAt}。累计缓存：反馈 ${report.totals.feedbackCount} 条 / 事件 ${report.totals.eventsCount} 条。
 
 ## 待分诊（${report.triage.count} 条）
 
@@ -164,6 +189,10 @@ ${updateActionsMarkdown(report.updateActions)}
 
 ${perfMarkdown(report.perf)}
 
+## 定位读数
+
+${diagnosisMarkdown(report.diagnosis)}
+
 ## 数据质量
 
 ${dataQualityMarkdown(report.dataQuality)}
@@ -202,11 +231,15 @@ export function renderTerminalSummary(report, { mdPath, jsonPath } = {}) {
     lines.push('  无明显突增')
   }
   if (report.perf.total) lines.push(`  卡不卡：${report.perf.total} 份会话汇总，偏慢 ${report.perf.slow}（${pct(report.perf.slowShare)}）`)
+  const d = report.diagnosis
+  if (d.unknown.withDetail) lines.push(`  失败说不清：上游 unknown ${d.unknown.unknownStatus}/${d.unknown.withDetail}（${share(d.unknown.unknownShare)}）· 本机规则 uncoded ${d.unknown.uncoded}/${d.unknown.notSent}（${share(d.unknown.uncodedShare)}）`)
+  if (d.lastExit.known) lines.push(`  上次没正常结束：${d.lastExit.abnormal}/${d.lastExit.known}（${share(d.lastExit.abnormalRate)}）`)
+  if (d.mainStall.sessions) lines.push(`  主进程停顿 ≥1 秒：${d.mainStall.overOneSecond}/${d.mainStall.sessions} 份会话`)
   if (report.dataQuality.corruptFileCount) lines.push(`  ⚠️ ${report.dataQuality.corruptFileCount} 个本地缓存文件解析失败`)
   const healthLines = renderVersionHealth(report.versionHealth).split('\n')
   const decision = healthLines.pop()
   lines.push(...healthLines)
-  lines.push(`  新增反馈 ${report.totals.newFeedbackCount} 条 · 累计反馈 ${report.totals.feedbackCount} / 事件 ${report.totals.eventsCount} / 轨迹 ${report.totals.trajectoriesCount}`)
+  lines.push(`  新增反馈 ${report.totals.newFeedbackCount} 条 · 累计反馈 ${report.totals.feedbackCount} / 事件 ${report.totals.eventsCount}`)
   const shownIds = report.triage.items.slice(0, TERMINAL_TRIAGE_IDS).map((item) => item.id)
   lines.push(report.triage.count
     ? `  待分诊 ${report.triage.count} 条：${shownIds.join(' ')}${report.triage.count > shownIds.length ? ' …' : ''}`

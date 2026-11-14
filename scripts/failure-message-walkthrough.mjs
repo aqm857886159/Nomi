@@ -77,7 +77,7 @@ try {
   await win.locator('[aria-label="生成素材"]').first().click()
   await win.waitForTimeout(1200)
   await win.getByText('开始生成', { exact: true }).first().waitFor({ timeout: 8000 })
-  await win.locator('.fixed.inset-0').last().getByRole('button', { name: '生成', exact: true }).first().click()
+  await win.locator('[data-spend-confirm-dialog]').last().getByRole('button', { name: '生成', exact: true }).first().click()
   console.log('  已提交，等终态失败…')
 
   const started = Date.now()

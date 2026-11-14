@@ -1,6 +1,7 @@
 /**
  * 参考行的写入动作（从 NodeParameterControls 原样搬出，保持单一写路径）：
- * 数组槽追加 / 删除、首尾帧等单槽的指派 / 换图、两帧对调。宿主壳只负责把它们接到界面上。
+ * 数组槽删除、首尾帧等单槽的指派 / 换图、两帧对调。宿主壳只负责把它们接到界面上。
+ * 加参考不在这里：生成框里所有「加一件」都走 addAssetUrlToNode（和拖入同一个入口，落格与方式按放进去之后现算）。
  */
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../../model/generationCanvasTypes'
@@ -9,14 +10,15 @@ import {
   resolveParameterReferenceAssignments, type ImageUrlSlot,
 } from '../../model/parameterReferenceSlots'
 import {
-  appendArchetypeArrayValue, archetypeArrayWrite, readArchetypeArrayForWrite, referenceSlotStorage, type ArchetypeArraySlot,
+  archetypeArrayWrite, readArchetypeArrayForWrite,
 } from './archetypeMeta'
-import { decideArrayReferenceRemoval, resolveReferencePlacement, resolveReferenceSlots } from '../../runner/referenceSlots'
-import { firstFrameLeftEmpty, putInReferenceSlot, readParkedReferences, readReferenceList, removeFromReferenceList, swapInReferenceList, withReferenceList } from './referenceList'
+import { decideArrayReferenceRemoval, resolveReferencePlacement } from '../../runner/referenceSlots'
+import { firstFrameLeftEmpty, putInReferenceSlot, readReferenceList, removeFromReferenceList, swapInReferenceList, withReferenceList } from './referenceList'
 import { removeMention } from '../../../assets/promptMentions'
 import { moveArrayItem } from '../../../assets/assetTypes'
 import { resultPreviewUrl as resultPreviewUrlOf } from './parameterControlModel'
 import { nodeReferenceCapacity } from './nodeCrossFieldConstraints'
+import { frameSwapKeepsSendable } from '../../../../../electron/shared/modelArchetypes/modeForInputs'
 import type { useNodeWriteAccess } from '../nodeWriteAccess'
 import { directorPreviewReferenceRemoval, markDirectorPreviewDismissed } from '../director/agent/directorPreviewReferenceLifecycle'
 import { lastAttachedCameraMoveUrl, withoutPreviewLines, withoutVideoDirective } from '../director/agent/attachCameraMoveToTarget'
@@ -46,41 +48,6 @@ export type ReferenceWriteContext = {
   storeDisconnectEdge: (edgeId: string, options?: { scope: 'parameter' }) => void
   closeSlot: () => void
   feedback: (key: string, values: Record<string, unknown>) => void
-}
-
-export function addToArraySlot(ctx: ReferenceWriteContext, slot: ArchetypeArraySlot, url: string): void {
-  const { node, archMode } = ctx
-  const state = useGenerationCanvasStore.getState()
-  const currentNode = ctx.latestNode(node.id) ?? node
-  if (archMode && nodeReferenceCapacity(archMode, currentNode, state.nodes, state.edges) === 0) {
-    ctx.feedback('generationCommon.parameters.referenceTotal', { max: archMode.maxTotalReferences })
-    return
-  }
-  // 容量先按**已占用位置**判（含连线 + pending 边，单源 resolveReferenceSlots），不能只看 meta 数组长度——
-  // 否则被边占满的槽仍允许写入 meta、却落不进槽（显示/发送都没它）=「参考图上不去」。
-  const occupied = resolveReferenceSlots(currentNode, state.nodes, state.edges).find(
-    (rs) => referenceSlotStorage({ kind: rs.slotKind })?.metaKey === slot.metaKey,
-  )?.fills.length
-  if (occupied != null && slot.max !== undefined && occupied >= slot.max) {
-    ctx.feedback('generationCommon.parameters.referenceFull', { max: slot.max })
-    return
-  }
-  // 单源去重/上限：与拖入/连线共用 appendArchetypeArrayValue（规则 1：不另开写路径）。
-  // 读最新 meta 计算追加（避免基于渲染快照算出过期数组 → 覆盖刚连边写入的项）。
-  const result = appendArchetypeArrayValue(ctx.getLatestMeta(), slot, url)
-  if (result.status === 'full') {
-    ctx.feedback('generationCommon.parameters.maximum', { max: slot.max, label: slot.label })
-    return
-  } // 到上限:明确告知(对抗评审:别静默丢)
-  // 已在列表里、但先放一边的那张：用户又选了它 = 要用它，放回在用（和点那张淡显的小图同一个写法）。
-  if (result.status === 'duplicate' && readParkedReferences(ctx.getLatestMeta(), archMode).includes(url.trim())) {
-    restoreParkedReference(ctx, url.trim())
-    ctx.closeSlot()
-    return
-  }
-  if (result.status !== 'added') return // empty / duplicate：静默
-  ctx.updateNode(node.id, { meta: archetypeArrayWrite(ctx.getLatestMeta(), slot.metaKey, result.next) })
-  ctx.closeSlot()
 }
 
 /**
@@ -312,6 +279,22 @@ export function swapFrameSlots(ctx: ReferenceWriteContext, first: ImageUrlSlot, 
   }
   put(first, b)
   put(last, a)
+}
+
+/**
+ * 首尾帧对调钮：对调后这个方式还发得出去才可点（判据只看档案的槽必填声明，见 frameSwapKeepsSendable）。
+ * 没有首尾两格时 null（不出钮）。
+ */
+export function frameSwapControl(ctx: ReferenceWriteContext, slots: readonly ImageUrlSlot[], assetValuesByKey: Record<string, unknown>, edgeSourceOf: (slot: ImageUrlSlot) => string | undefined): { blocked: boolean; swap: () => void } | null {
+  const first = slots.find((slot) => slot.group === 'first_frame')
+  const last = slots.find((slot) => slot.group === 'last_frame')
+  if (!first || !last) return null
+  const filled = (slot: ImageUrlSlot) => {
+    const value = assetValuesByKey[slot.key]
+    return (typeof value === 'string' && value.length > 0) || Boolean(edgeSourceOf(slot))
+  }
+  const blocked = ctx.archMode ? !frameSwapKeepsSendable(ctx.archMode, { first: filled(first), last: filled(last) }) : false
+  return { blocked, swap: () => { if (!blocked) swapFrameSlots(ctx, first, last, assetValuesByKey, edgeSourceOf) } }
 }
 
 /** 同槽内拖拽重排：移动数组项（图片走那一份有序列表）。character{N} 编号由 projectPromptForSend 按新位置重算。 */

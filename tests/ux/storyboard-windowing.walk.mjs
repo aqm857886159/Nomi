@@ -9,7 +9,7 @@
 //   ⑥ 拖拽排序仍然换得动位置；
 //   ⑦ 加一镜后总数 +1、滚到底够得着它；删掉它再 Ctrl+Z 回来；
 //   ⑧ 滚到中间、滚到底，末镜挂得上；
-//   ⑨ 英文 + 暗色 + 最小窗口（1100×690）：行走窄档、同样只挂首屏；
+//   ⑨ 英文 + 暗色 + 最小窗口宽（electron/shared/mainWindowSize.json）× 690：行走窄档、同样只挂首屏；
 //   ⑪ 快速滚动：滚过的行先挂轻量占位、滚动中不建编辑器，停下后换成完整行（记长任务数）；
 //   ⑫ 快速滚动后点占位行马上打字，字不丢；⑬ 重挂后接着改再撤销，新编辑另起一组；
 //   ⑩ 生成中的状态刷新：画布节点状态一变，挂着的行立刻跟、视口外的行挂上时就是最新态（只改 store，不发请求）。
@@ -19,6 +19,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 
@@ -174,7 +175,7 @@ async function passZhLight() {
     check(typedLayout.ok, '② 打字后各行首尾相接（不重叠、不留缝）', typedLayout.detail)
     // 窗口变窄 → 行走窄档、整行变矮：每一项按实测高度重新排
     const before = await win.evaluate((sel) => document.querySelector(sel).getBoundingClientRect().height, rowSel(2))
-    await resize(smoke, win, { width: 1100, height: 690 })
+    await resize(smoke, win, { width: MIN_WINDOW.width, height: 690 })
     const after = await win.evaluate((sel) => document.querySelector(sel).getBoundingClientRect().height, rowSel(2))
     const resizedLayout = await itemsContiguous(win)
     check(after !== before && resizedLayout.ok, '② 行高变了（窄档），各行按实测高度重排、首尾相接', `第 2 镜 ${Math.round(before)} → ${Math.round(after)}；${resizedLayout.detail}`)
@@ -188,7 +189,7 @@ async function passZhLight() {
     await scrollTo(win, 'top')
     const typed = await win.locator(promptBox(1)).innerText()
     await win.locator(promptBox(1)).click()
-    for (let i = 0; i < 12; i += 1) await win.keyboard.press('Control+z')
+    for (let i = 0; i < 12; i += 1) await win.keyboard.press('ControlOrMeta+z')
     for (let i = 0; i < 3; i += 1) await frames(win)
     const undone = await win.locator(promptBox(1)).innerText()
     check(typed.includes('追加第 4 行') && !undone.includes('追加第'), '③ 滚走再回来，编辑器 Ctrl+Z 撤销仍可用', `撤销后：${undone.slice(0, 30)}`)
@@ -196,7 +197,7 @@ async function passZhLight() {
     // ③b 焦点换走 → 这一行卸载 → 回来撤销（V-1210 首轮的阻断项）：撤销历史不许跟着编辑器实例一起没了
     const original3 = await win.locator(promptBox(3)).innerText()
     await win.locator(promptBox(3)).click()
-    await win.keyboard.press('Control+a')
+    await win.keyboard.press('ControlOrMeta+a')
     await win.keyboard.type('V1210 undo boundary')
     for (let i = 0; i < 3; i += 1) await frames(win)
     await win.locator(promptBox(4)).click()
@@ -208,7 +209,7 @@ async function passZhLight() {
     await win.locator(promptBox(3)).waitFor({ timeout: stationTimeout() })
     const remounted3 = await win.locator(promptBox(3)).innerText()
     await win.locator(promptBox(3)).click()
-    await win.keyboard.press('Control+z')
+    await win.keyboard.press('ControlOrMeta+z')
     for (let i = 0; i < 3; i += 1) await frames(win)
     const undone3 = await win.locator(promptBox(3)).innerText()
     check(remounted3.includes('V1210 undo boundary') && undone3.trim() === original3.trim(), '③b 卸载再挂上后 Ctrl+Z：恢复原文', `回来时：${remounted3.slice(0, 24)}；撤销后：${undone3.slice(0, 24)}`)
@@ -248,8 +249,9 @@ async function passZhLight() {
     await win.locator(rowSel(40)).scrollIntoViewIfNeeded()
     await win.locator(`${rowSel(40)} [data-storyboard-visual-column]`).click({ position: { x: 4, y: 4 }, modifiers: ['Shift'] })
     await frames(win)
-    const footerText = await win.locator('[data-storyboard-agent-handoff="footer"]').innerText().catch(() => '')
-    check(/40/.test(footerText), '⑤ 跨屏 Shift 多选：选中 40 镜（页脚计数）', footerText.trim())
+    // 页脚的「选中 N 镜」已随分镜页瘦身（#1505）删掉；多选后的计数现在只在选中浮条上。
+    const toolbarText = await win.locator('[data-storyboard-selection-toolbar]').innerText().catch(() => '')
+    check(/40/.test(toolbarText), '⑤ 跨屏 Shift 多选：选中 40 镜（选中浮条计数）', toolbarText.trim())
     await win.keyboard.press('Escape')
 
     // ⑥ 拖拽排序：第 3 镜拖到第 5 镜
@@ -276,7 +278,7 @@ async function passZhLight() {
     for (let i = 0; i < 4; i += 1) await frames(win)
     const deleted = await mounted(win)
     check(deleted.total === SHOTS, '⑦ 删掉末镜：总数回到 320', `${deleted.total}`)
-    await win.keyboard.press('Control+z')
+    await win.keyboard.press('ControlOrMeta+z')
     for (let i = 0; i < 4; i += 1) await frames(win)
     const restored = await mounted(win)
     check(restored.total === SHOTS + 1, '⑦ Ctrl+Z 撤销删除：末镜回来', `${restored.total}`)
@@ -377,7 +379,7 @@ async function passZhLight() {
     const editRow = 4
     const originalEdit = await win.locator(promptBox(editRow)).innerText()
     await win.locator(promptBox(editRow)).click()
-    await win.keyboard.press('Control+a')
+    await win.keyboard.press('ControlOrMeta+a')
     await win.keyboard.type('V1210 first completed edit')
     await win.locator(promptBox(5)).click()
     await scrollTo(win, 'bottom')
@@ -387,10 +389,10 @@ async function passZhLight() {
     await win.locator(promptBox(editRow)).click()
     await win.keyboard.press('End')
     await win.keyboard.type(' SECOND')
-    await win.keyboard.press('Control+z')
+    await win.keyboard.press('ControlOrMeta+z')
     for (let i = 0; i < 3; i += 1) await frames(win)
     const firstUndo = await win.locator(promptBox(editRow)).innerText()
-    await win.keyboard.press('Control+z')
+    await win.keyboard.press('ControlOrMeta+z')
     for (let i = 0; i < 3; i += 1) await frames(win)
     const secondUndo = await win.locator(promptBox(editRow)).innerText()
     check(firstUndo.trim() === 'V1210 first completed edit' && secondUndo.trim() === originalEdit.trim(), '⑬ 重挂后接着改：第一次 Ctrl+Z 只撤新编辑，第二次回到原文', `第 ${editRow} 镜：一次后「${firstUndo.slice(0, 30)}」，两次后「${secondUndo.slice(0, 20)}」`)
@@ -407,8 +409,8 @@ async function passZhLight() {
 }
 
 async function passEnDarkNarrow() {
-  console.log('[windowing] en · 暗 · 1100×690')
-  const smoke = await launchCoreSmoke({ name: 'storyboard-windowing-en', seed, needs: [], locale: 'en', emptyViewport: { width: 1100, height: 690 }, preferences: { 'nomi-color-scheme': 'dark' }, extras: { mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')], env: { ELECTRON_EXTRA_LAUNCH_ARGS: '--disable-features=CalculateNativeWinOcclusion' } } })
+  console.log(`[windowing] en · 暗 · ${MIN_WINDOW.width}×690`)
+  const smoke = await launchCoreSmoke({ name: 'storyboard-windowing-en', seed, needs: [], locale: 'en', emptyViewport: { width: MIN_WINDOW.width, height: 690 }, preferences: { 'nomi-color-scheme': 'dark' }, extras: { mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')], env: { ELECTRON_EXTRA_LAUNCH_ARGS: '--disable-features=CalculateNativeWinOcclusion' } } })
   try {
     await smoke.openProject()
     const win = smoke.win

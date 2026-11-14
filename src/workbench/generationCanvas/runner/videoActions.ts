@@ -1,26 +1,18 @@
-import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import {
   buildCatalogTaskRequest,
-  normalizeCatalogTaskResult,
   runCatalogGenerationTask,
   type CatalogTaskRunOptions,
+  type GenerationNodeResults,
 } from './catalogTaskActions'
 
 export type GenerateVideoOptions = CatalogTaskRunOptions
 
 export const buildVideoGenerationRequest = buildCatalogTaskRequest
 
-export function normalizeVideoGenerationResult(
-  response: unknown,
-  node: GenerationCanvasNode,
-  _durationSeconds?: number,
-): GenerationNodeResult {
-  return normalizeCatalogTaskResult(response as Parameters<typeof normalizeCatalogTaskResult>[0], node)
-}
-
 export async function generateVideo(
   node: GenerationCanvasNode,
   options: GenerateVideoOptions,
-): Promise<GenerationNodeResult> {
+): Promise<GenerationNodeResults> {
   return runCatalogGenerationTask(node, options)
 }

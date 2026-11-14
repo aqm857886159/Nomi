@@ -1,0 +1,105 @@
+# 第 2 轮反例红绿：每条先弄坏、跑对应测试，再还原、重跑。共 21 条，最后一次跑全部「弄坏就红、还原就绿」。
+# 注 1：08:44 那段 NOT-GREEN 不是反例本身的结果，是跑法出的事故。变异器用 git checkout 还原文件，把当时还没提交的「挪文件」改动一起还原掉了。
+#       改动提交之后，08:46 重跑了受影响的那几条，全部 OK。
+# 注 2：提醒按协调裁定改交现有 toast 之后，在 33b784b96 上重跑了 8 条：
+#       C3e / C3f / C3i 是原有的 3 条，弄坏的位置换到了新地方；
+#       C3j–C3n 是新增的 5 条。8 条全部 OK，以这一次为准。
+#       更早的 C3e / C3f / C3i 记录弄坏的是已经删掉的 NomiStudioApp 接线 / ProjectQuarantineNotice.tsx，只当历史看。
+
+=== 08:30:11 HEAD ba69f4086
+OK C1 改名回到读出→逐项判→整份写回 → src/workbench/project/projectRepository.itemQuarantine.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectRepository.itemQuarantine.test.ts > renaming from the project library > a bad storyboard on disk survives a rename byte for byte (rename does not rewrite content)
+  好：exit 0 Tests  9 passed (9)
+OK C2 隔离区截到 20 条 → electron/projects/projectQuarantine.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  electron/projects/projectQuarantine.test.ts > quarantine sidecar > does not truncate: 25 items in one call are all written (a 20-item cap would lose 5)
+  好：exit 0 Tests  9 passed (9)
+OK C3a 隔离区改回直接写（kill -9） → tests/system/quarantineKillInFlight.test.mjs
+  坏：exit 1 Tests  1 failed (1) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  tests/system/quarantineKillInFlight.test.mjs > a process killed with SIGKILL while writing a quarantine file > leaves no half file, and the same content written again lands complete
+  好：exit 0 Tests  1 passed (1)
+OK C3b 先写 project.json 后写隔离区 → src/workbench/project/projectRepository.itemQuarantine.test.ts
+  坏：exit 1 Tests  4 failed | 5 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectRepository.itemQuarantine.test.ts > saving with one unsavable item > saves the canvas change, revision+1, and keeps the raw item in quarantine — quarantine is written BEFORE project.json | FAIL  src/workbench/project/projectRepository.itemQuarantine.test.ts > saving with one unsavable item > quarantine cannot be written (EPERM) → this save does not overwrite project.json, and says why
+  好：exit 0 Tests  9 passed (9)
+OK C3c 隔离区写失败也照样覆盖 project.json → src/workbench/project/projectRepository.itemQuarantine.test.ts
+  坏：exit 1 Tests  2 failed | 7 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectRepository.itemQuarantine.test.ts > saving with one unsavable item > quarantine cannot be written (EPERM) → this save does not overwrite project.json, and says why | FAIL  src/workbench/project/projectRepository.itemQuarantine.test.ts > opening a project that already holds a bad item > quarantine fails on open (EPERM) → the next save does not overwrite; close → reopen still finds the item on disk
+  好：exit 0 Tests  9 passed (9)
+OK C3d 打开时不另存隔离项 → src/workbench/project/projectRepository.itemQuarantine.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectRepository.itemQuarantine.test.ts > opening a project that already holds a bad item > opens it, drops only that item, keeps the raw item in quarantine, and announces it once
+  好：exit 0 Tests  9 passed (9)
+OK C3e 打开后不提示 → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after a save and after a project opens
+  好：exit 0 Tests  9 passed (9)
+OK C3f 保存后不提示（接线） → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after a save and after a project opens
+  好：exit 0 Tests  9 passed (9)
+OK C3g 镜号从 0 数 → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  4 failed | 5 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > quarantine notice sentence > zh-CN: names the storyboard, counts shots from 1, maps the field, never shows a code path | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > quarantine notice sentence > en: names the storyboard, counts shots from 1, maps the field, never shows a code path
+  好：exit 0 Tests  9 passed (9)
+OK C3h 句子露出字段路径 → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  5 failed | 4 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > quarantine notice sentence > zh-CN: names the storyboard, counts shots from 1, maps the field, never shows a code path | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > quarantine notice sentence > en: names the storyboard, counts shots from 1, maps the field, never shows a code path
+  好：exit 0 Tests  9 passed (9)
+OK C3i 提示改成红色告警 → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > is a reminder (role=status, warning tokens), not a red alert, and offers the folder
+  好：exit 0 Tests  9 passed (9)
+OK C4a restore 守卫删掉 → src/workbench/workbenchDocumentSlice.storyboardGuard.test.ts
+  坏：exit 1 Tests  1 failed | 10 passed (11) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/workbenchDocumentSlice.storyboardGuard.test.ts > storyboard write doors refuse what cannot be saved > undoing a delete cannot bring back a design that cannot be saved (restoreStoryboardDesign is a write door too)
+  好：exit 0 Tests  11 passed (11)
+OK C4b propose 拒收映射删掉 → src/workbench/generationCanvas/agent/applyCanvasToolCall.proposeRefusal.test.ts
+  坏：exit 1 Tests  1 failed (1) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/generationCanvas/agent/applyCanvasToolCall.proposeRefusal.test.ts > propose_storyboard_plan when the write door refuses what the boundary let through > returns capability_input_invalid naming the field, and the store does not change
+  好：exit 0 Tests  1 passed (1)
+OK C4c upsert 回 zod 原文 → src/workbench/creation/storyboard/agentStoryboardDesign.test.ts
+  坏：exit 1 Tests  2 failed | 18 passed (20) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/creation/storyboard/agentStoryboardDesign.test.ts > a plan that cannot be saved is refused with field paths, and nothing changes > upsert returns the rejected reply naming the field instead of a raw zod error | FAIL  src/workbench/creation/storyboard/agentStoryboardDesign.test.ts > a refused plan is explained in the shared field words, never as raw zod text > upsert with a wrong-typed field returns the field path and what it needs — no zod issue dump, no received value
+  好：exit 0 Tests  20 passed (20)
+OK C6 门岗认不出简写属性 → scripts/lib/storyboardDesignWrites.test.mjs
+  坏：exit 1 Tests  1 failed | 17 passed (18) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  scripts/lib/storyboardDesignWrites.test.mjs > direct writes to storyboardDesignsByDocumentId > shorthand: const storyboardDesignsByDocumentId = {}; useStore.setState({ storyboardDesignsByDocumentId })
+  好：exit 0 Tests  18 passed (18)
+OK C6 门岗认不出原地改 → scripts/lib/storyboardDesignWrites.test.mjs
+  坏：exit 1 Tests  3 failed | 15 passed (18) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  scripts/lib/storyboardDesignWrites.test.mjs > direct writes to storyboardDesignsByDocumentId > mutation: useStore.getState().storyboardDesignsByDocumentId['doc-1'] = designs | FAIL  scripts/lib/storyboardDesignWrites.test.mjs > direct writes to storyboardDesignsByDocumentId > mutation: useStore.getState().storyboardDesignsByDocumentId[id][0].plan.shots[0].durationSec = Number.NaN
+  好：exit 0 Tests  18 passed (18)
+
+=== 08:44:36 HEAD d180cf387
+NOT-GREEN C3e 打开后不提示 → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after a save and after a project opens
+  好：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > is a reminder (role=status, warning tokens), not a red alert, and offers the folder
+NOT-GREEN C3f 保存后不提示（接线） → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  2 failed | 7 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after a save and after a project opens | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > is a reminder (role=status, warning tokens), not a red alert, and offers the folder
+  好：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > is a reminder (role=status, warning tokens), not a red alert, and offers the folder
+
+=== 08:46:22 HEAD 34826c75d
+OK C2 隔离区截到 20 条 → electron/projects/projectQuarantine.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  electron/projects/projectQuarantine.test.ts > quarantine sidecar > does not truncate: 25 items in one call are all written (a 20-item cap would lose 5)
+  好：exit 0 Tests  9 passed (9)
+OK C3e 打开后不提示 → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after a save and after a project opens
+  好：exit 0 Tests  9 passed (9)
+OK C3f 保存后不提示（接线） → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after a save and after a project opens
+  好：exit 0 Tests  9 passed (9)
+OK C3i 提示改成红色告警 → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 8 passed (9) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > is a reminder (role=status, warning tokens), not a red alert, and offers the folder
+  好：exit 0 Tests  9 passed (9)
+
+=== 08:58:59 HEAD 33b784b96
+OK C3e 打开后不提示 → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 7 passed (8) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after an autosave succeeds and after a project opens
+  好：exit 0 Tests  8 passed (8)
+OK C3f 保存后不提示（接线） → src/workbench/project/projectQuarantineNotice.test.ts
+  坏：exit 1 Tests  1 failed | 7 passed (8) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineNotice.test.ts > the notice is wired where the creator will see it > announced after an autosave succeeds and after a project opens
+  好：exit 0 Tests  8 passed (8)
+OK C3j toast 会自动消失 → src/workbench/project/projectQuarantineAnnounce.test.ts
+  坏：exit 1 Tests  2 failed | 3 passed (5) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineAnnounce.test.ts > announceQuarantine > a warning that stays until the creator closes it or opens the folder (ttl: false), never an error | FAIL  src/workbench/project/projectQuarantineAnnounce.test.ts > announceQuarantine > no desktop bridge (browser preview) → the sentence only, no folder button
+  好：exit 0 Tests  5 passed (5)
+OK C3k 25 项出 25 条 toast → src/workbench/project/projectQuarantineAnnounce.test.ts
+  坏：exit 1 Tests  1 failed | 4 passed (5) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineAnnounce.test.ts > announceQuarantine > 25 items in one batch → one toast saying 25, not 25 toasts
+  好：exit 0 Tests  5 passed (5)
+OK C3l 没有桌面桥也出按钮 → src/workbench/project/projectQuarantineAnnounce.test.ts
+  坏：exit 1 Tests  1 failed | 4 passed (5) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineAnnounce.test.ts > announceQuarantine > no desktop bridge (browser preview) → the sentence only, no folder button
+  好：exit 0 Tests  5 passed (5)
+OK C3m 退出重开同一项目不再提示 → src/workbench/project/projectRepository.itemQuarantine.test.ts
+  坏：exit 1 Tests  1 failed | 9 passed (10) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectRepository.itemQuarantine.test.ts > opening a project that already holds a bad item > quitting Nomi and reopening the same project (bad item still in project.json) tells the creator again — once per session
+  好：exit 0 Tests  10 passed (10)
+OK C3n 同一会话重开重复提示 → src/workbench/project/projectRepository.itemQuarantine.test.ts
+  坏：exit 1 Tests  2 failed | 8 passed (10) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectRepository.itemQuarantine.test.ts > opening a project that already holds a bad item > opens it, drops only that item, keeps the raw item in quarantine, and announces it once | FAIL  src/workbench/project/projectRepository.itemQuarantine.test.ts > opening a project that already holds a bad item > quitting Nomi and reopening the same project (bad item still in project.json) tells the creator again — once per session
+  好：exit 0 Tests  10 passed (10)
+OK C3i 提示改成红色告警 → src/workbench/project/projectQuarantineAnnounce.test.ts
+  坏：exit 1 Tests  2 failed | 3 passed (5) | ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ | FAIL  src/workbench/project/projectQuarantineAnnounce.test.ts > announceQuarantine > a warning that stays until the creator closes it or opens the folder (ttl: false), never an error | FAIL  src/workbench/project/projectQuarantineAnnounce.test.ts > announceQuarantine > no desktop bridge (browser preview) → the sentence only, no folder button
+  好：exit 0 Tests  5 passed (5)

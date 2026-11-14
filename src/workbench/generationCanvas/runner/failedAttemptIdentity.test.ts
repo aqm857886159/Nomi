@@ -105,7 +105,7 @@ describe('model health is accounted to the dispatched pair, not to whoever the n
     const running = runWith(node.id, async () => {
       started.resolve()
       await gate.promise
-      return { id: 'r1', type: 'image', url: 'nomi-local://asset/project-a/a.png', createdAt: 1 } as never
+      return [{ id: 'r1', type: 'image', url: 'nomi-local://asset/project-a/a.png', createdAt: 1 }] as never
     })
     await started.promise
     useGenerationCanvasStore.getState().updateNode(node.id, { meta: { ...nodeById(node.id)?.meta, ...metaFor(B) } })

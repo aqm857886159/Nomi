@@ -1,0 +1,30 @@
+{
+  "name": "Nomi 停靠栏这一刻显示多宽（网格轨道 minmax：放得下就是存的宽，放不下就让）",
+  "subject": "shell.assistant-dock-columns",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/assistantWidthBounds.ts",
+    "symbol": "assistantDockColumns"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/assistantWidthBounds.ts",
+      "symbol": "assistantDockColumns"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/AssistantPane.tsx",
+    "src/workbench/preview/panelLayout.ts",
+    "src/workbench/creation/CreationWorkspace.tsx",
+    "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+    "src/workbench/generation/GenerationWorkspace.tsx",
+    "src/workbench/preview/PreviewWorkspace.tsx"
+  ],
+  "since": "2026-11-08",
+  "notes": "由存下的宽（shell.assistant-width-saved）派生成 CSS 网格列，只派生不存：内容区底线和 Nomi 最小宽都写在轨道 minmax 里，窗口变窄由浏览器让宽，不装 resize 监听、不写回存档（2026-11-08-assistant-width-writeback）。"
+}

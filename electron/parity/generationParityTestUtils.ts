@@ -12,6 +12,7 @@
  */
 import type { CatalogState } from "../catalog/types";
 import { redactAuthorization, type OutboundRecord } from "./outboundRecord";
+import { definiteSendRefusalOf } from "../shared/generationDefiniteSendRefusal";
 
 export type CapturedCall = {
   url: string;
@@ -62,24 +63,12 @@ export function installFetchCapture(): FetchCapture {
     reset() { calls.length = 0; responder = DEFAULT_RESPONSE; },
     restore() {
       (globalThis as { fetch: unknown }).fetch = original;
-      restoreCatalogNetwork?.();
-      restoreCatalogNetwork = undefined;
     },
   };
 }
 
-let restoreCatalogNetwork: (() => void) | undefined;
-
 /** 真实内置目录 + 给点名的几家填上密钥（safeStorage 必须在测试里可用）。 */
 export async function seedParityCatalog(vendorKeys: readonly string[] = ["apimart", "higgsfield"]): Promise<CatalogState> {
-  const { setSubmitOutboundDepsForTests } = await import("../vendor/vendorOutboundGuard");
-  // The transport is captured locally; a workstation proxy must not decide whether it is reached.
-  setSubmitOutboundDepsForTests({
-    resolve: async () => [{ address: "93.184.216.34", family: 4 }],
-    readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
-    isApplicationProxyActive: () => false,
-  });
-  restoreCatalogNetwork = () => setSubmitOutboundDepsForTests(null);
   const store = await import("../catalog/catalogStore");
   store.ensureBuiltinModelSeeds();
   for (const key of vendorKeys) store.upsertModelCatalogVendorApiKey(key, { apiKey: `sk-parity-${key}` });
@@ -147,7 +136,11 @@ function recordFromCall(call: CapturedCall | undefined, notes?: Record<string, u
 }
 
 function failureCode(error: unknown): string {
-  const candidate = error as { code?: unknown; name?: unknown; message?: unknown };
+  const candidate = error as { code?: unknown; name?: unknown; message?: unknown; cause?: { code?: unknown } };
+  // 发送前确定拒收（modeInputRefusal 的 mode_input_missing / mode_route_missing）经 Run 路的供应商包装后机读码只在 cause 上：
+  // 认确定拒收这一个接口（和 Run 提交门同一个读法），别的样本口径不变。
+  const definite = definiteSendRefusalOf(error);
+  if (definite) return definite.code;
   if (typeof candidate?.code === "string" && candidate.code.trim()) return candidate.code;
   const message = String(candidate?.message ?? error);
   // 供应商就绪那一步的机读身份（`mcpGenerationTools.ts:638` 的 `configured_provider`）。

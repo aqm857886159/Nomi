@@ -12,6 +12,9 @@
  * 要用同一份判据决定「把哪篇写进索引」，两处各写一份链接解析必然漂成两套语义。
  * 本文件只负责棘轮基线与红绿——判断逻辑没变。
  *
+ * 同一道门里还有一条不走基线的判据（2026-11-14）：全仓 markdown 里 `![](相对路径)` 指向的文件必须存在，基线 0——
+ * 证据目录要整体搬出仓库，嵌图指向搬走的文件就是死图。判据实现在 docs-index-lib 的 findDeadImageEmbeds。
+ *
  * 在 `gates:contracts` 里本门岗是 **advisory**（失败只出 warning 注解，不阻断）：
  * 补齐由 `.github/workflows/docs-autosync.yml` 在 main 上自动做掉。直接运行本脚本
  * 仍然 fail-closed（退出码 1），autosync 用的就是这个语义来验证补齐成功。
@@ -19,7 +22,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { scanDocumentIndex, toRepoRelative } from './docs-index-lib.mjs'
+import { findDeadImageEmbeds, listTrackedMarkdown, scanDocumentIndex, toRepoRelative } from './docs-index-lib.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const baselinePath = path.join(repoRoot, 'scripts', 'docs-index-baseline.json')
@@ -54,6 +57,14 @@ function writeBaseline(paths) {
     unindexedDocuments: paths,
   }
   fs.writeFileSync(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`)
+}
+
+const deadImages = findDeadImageEmbeds(repoRoot, listTrackedMarkdown(repoRoot))
+if (deadImages.length > 0) {
+  console.error(`✖ ${deadImages.length} 处文档嵌图指向不存在的文件（基线 0）`)
+  for (const { doc, target } of deadImages) console.error(`  ${doc} → ${target}`)
+  console.error('  → 改成图片真实所在的相对路径；图确实没了就删掉这行嵌图')
+  process.exit(1)
 }
 
 const { documents, indexed, unindexed } = scanDocumentIndex(repoRoot)

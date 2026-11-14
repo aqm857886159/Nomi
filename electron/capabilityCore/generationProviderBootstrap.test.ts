@@ -1,4 +1,4 @@
-import { projectReferenceUrls } from "./apimartGenerationProjection";
+import { placeRunReferences } from "./apimartGenerationProjection";
 import { prepareProductionGenerationAuthorizationWithReferences } from "../productionRun/prepareProductionGenerationAuthorization";
 import { createGenerationRuntimeAdapter } from "./generationRuntimeAdapter";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -219,11 +219,10 @@ describe("generation provider bootstrap", () => {
       { assetId: "audio", kind: "audio" as const },
     ].map(reference => ({ ...reference, contentHash: CONTRACT_HASH, version: 1 }));
     const referenceUrls = Object.fromEntries(references.map(reference => [spendReferenceKey(reference), `https://cdn.example/${reference.assetId}`]));
-    const mapping = state().mappings[0]!;
-    const projected = projectReferenceUrls({ ...generationInput({ references }), referenceUrls }, {
-      ...mapping, create: { ...mapping.create, body: { first_frame_image: "{{request.params.first_frame_image}}", last_frame_image: "{{request.params.last_frame_image}}", video_urls: "{{request.params.video_urls}}", audio_urls: "{{request.params.audio_urls}}" } },
-    });
-    expect(projected.parameters).toEqual({ first_frame_image: "https://cdn.example/first", last_frame_image: "https://cdn.example/last", video_urls: ["https://cdn.example/video"], audio_urls: ["https://cdn.example/audio"] });
+    const body = { first_frame_image: "{{request.params.first_frame_image}}", last_frame_image: "{{request.params.last_frame_image}}", video_urls: "{{request.params.video_urls}}", audio_urls: "{{request.params.audio_urls}}" };
+    const projected = placeRunReferences({ ...generationInput({ references }), referenceUrls }, body, null, null);
+    // 参考视频 / 参考音频按数组落进 body 读的那种写法；首帧 / 尾帧说成标准输入，放进 body 哪个帧位交给唯一降级函数（applyHeadlessParamDefaults）。
+    expect(projected.parameters).toEqual({ first_frame_url: "https://cdn.example/first", last_frame_url: "https://cdn.example/last", video_urls: ["https://cdn.example/video"], audio_urls: ["https://cdn.example/audio"] });
   });
 
   it("registers an enabled encrypted credential without resolving it until the first network request", async () => {
@@ -509,8 +508,8 @@ it.each(['first_frame', 'last_frame'] as const)('rejects unsupported %s rather t
   const reference = { assetId: 'frame', contentHash: CONTRACT_HASH, version: 1, kind: 'image' as const, role: 'first_frame' as const };
   {
     const ref = { ...reference, role };
-    expect(() => projectReferenceUrls({ ...generationInput({ references: [ref] }), referenceUrls: { [spendReferenceKey(ref)]: 'https://cdn.example/frame.png' } },
-      { ...state().mappings[0]!, create: { ...state().mappings[0]!.create, body: { image_urls: '{{request.params.image_urls}}' } } })).toThrow(/unsupported.*role/);
+    expect(() => placeRunReferences({ ...generationInput({ references: [ref] }), referenceUrls: { [spendReferenceKey(ref)]: 'https://cdn.example/frame.png' } },
+      { image_urls: '{{request.params.image_urls}}' }, null, null)).toThrow(/unsupported.*role/);
   }
 });
 

@@ -9,7 +9,7 @@ import { localizeRemoteResultUrl } from './resultAssetLocalization'
 import { narrateProgress } from '../../observability/narrate'
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { asTrimmedString, resolveTaskKind, selectedModelKey, selectedVendor } from './catalogTaskResolve'
-import { normalizeCatalogTaskResult } from './catalogTaskResultParse'
+import { normalizeCatalogTaskResults } from './catalogTaskResultParse'
 import i18n from '../../../i18n'
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 import { isRetrievalStageCode, matchNomiErrorCode, tagNomiError } from '../../../../electron/shared/nomiErrorCodes'
@@ -167,13 +167,17 @@ async function landRetrievedResult(target: RunProjectTarget, node: GenerationCan
   try {
     let mediaDimensions: MediaDimensions | undefined
     const onMediaDimensions = (dimensions: MediaDimensions) => { mediaDimensions = dimensions }
-    const normalized = normalizeCatalogTaskResult(current, node, onMediaDimensions)
-    // 结构闸（找回路径）：找回本身就发生在 CDN 快过期的时刻，此处尤其要把临时 URL 落地——落进任务所属项目。
-    const localized = await localizeRemoteResultUrl(normalized, target.projectId, id, onMediaDimensions)
-    const landedInOpenProject = await deliverRunOutcome(target, id, { kind: 'result', runId, result: localized, ...(mediaDimensions ? { mediaDimensions } : {}) })
+    const normalized = normalizeCatalogTaskResults(current, node, onMediaDimensions)
+    // 结构闸（找回路径）：找回本身就发生在 CDN 快过期的时刻，此处尤其要把临时 URL 落地——落进任务所属项目（每张都落）。
+    const localized = await Promise.all(normalized.map((result) => localizeRemoteResultUrl(result, target.projectId, id, onMediaDimensions)))
+    // 一次运行取回几张就落几张，每张都按这次的运行记录号投（与生成那条路同一个合并规则）。
+    let landedInOpenProject = false
+    for (const result of localized) {
+      landedInOpenProject = await deliverRunOutcome(target, id, { kind: 'result', runId, result, ...(mediaDimensions ? { mediaDimensions } : {}) })
+    }
     if (landedInOpenProject) await persistActiveWorkbenchProjectNow().catch(() => {})
   } catch (error) {
-    // 终态是 failed（normalizeCatalogTaskResult 对 failed 抛错）→ 这才是真失败，落 error 桶。
+    // 终态是 failed（normalizeCatalogTaskResults 对 failed 抛错）→ 这才是真失败，落 error 桶。
     // 「结果取回」族（上游说成了却没地址等，带 retrieval-* 码）不是失败：留在可找回（#1213 原则 1）。
     const message = describeOpaqueFailure(error)
     const status = isRetrievalStageCode(matchNomiErrorCode(message)) ? 'recoverable' : 'error'

@@ -30,7 +30,7 @@ export const COMPOSER_B3_STATES: readonly LabState[] = [
   },
   {
     id: 'b3b-video-params',
-    name: 'B3b · 视频 · 参数面板（生成方式在顶部，现有组件原样）',
+    name: 'B3b · 视频 · 参数面板（生成方式已挪到底栏方式格，面板里不再有这一段）',
     source: SOURCE, mirrors: MIRRORS, coverage: 'shell', scheme: 'light', capture: 'viewport',
     render: stage({ kind: 'video', model: 'seedance', open: 'params' }),
   },
@@ -42,21 +42,24 @@ export const COMPOSER_B3_STATES: readonly LabState[] = [
   },
   {
     id: 'b3d-video-first-last',
-    name: 'B3d · 视频 · 首尾帧',
+    // 用尾帧可以不放的档案（Seedance 2.5 走 APIMart）：只放首帧时首尾帧放得下，按首尾帧发。
+    // 2026-11-12 前这一格用 Seedance 2.0（尾帧必填），只放 1 张却停在首尾帧、生成钮灰着——正是用户报的那个错，现在会按全能参考发。
+    name: 'B3d · 视频 · 首尾帧（只放首帧，尾帧可不放）',
     source: SOURCE, mirrors: MIRRORS, coverage: 'shell', scheme: 'light',
-    render: stage({ kind: 'video', model: 'seedance', modeId: 'firstlast', frames: { first: '海边小镇' }, prompt: '镜头缓慢推近，薄雾散开，海面泛起金光。' }),
+    render: stage({ kind: 'video', model: 'seedance25Apimart', modeId: 'firstlast', frames: { first: '海边小镇' }, prompt: '镜头缓慢推近，薄雾散开，海面泛起金光。' }),
   },
   {
     id: 'b3e-video-ambiguous',
-    name: 'B3e · 视频 · 参考 2 张，有歧义提示',
+    name: 'B3e · 视频 · 参考 2 张（「要当首尾帧用？」提示已删：方式格就是这次发的，想换就点方式格）',
     source: SOURCE, mirrors: MIRRORS, coverage: 'shell', scheme: 'light',
     render: stage({ kind: 'video', model: 'seedance', modeId: 'omni', arrayRefs: ['海边清晨', '海边傍晚'], prompt: `${mention('海边清晨')} 慢慢过渡到 ${mention('海边傍晚')} 的暖光，镜头缓慢推近。` }),
   },
   {
     id: 'b3f-video-switch-first-last',
-    name: 'B3f · 视频 · 3 张参考切到首尾帧（第 3 张未用到）',
+    name: 'B3f · 视频 · 存着首尾帧、放了 3 张：首尾帧放不下，按全能参考发，3 张都在用（不再有「未用到」）',
     source: SOURCE, mirrors: MIRRORS, coverage: 'shell', scheme: 'light',
-    render: stage({ kind: 'video', model: 'seedance', modeId: 'firstlast', frames: { first: '海边清晨', last: '海边傍晚' }, arrayRefs: ['树林'], prompt: '镜头缓慢推近，海面从清晨的薄雾过渡到傍晚的暖光。' }),
+    // 现行存法：一份有序列表（不带旧的按槽键）。带旧键的是旧工程，那一类在 b3u（先放一边）。
+    render: stage({ kind: 'video', model: 'seedance', modeId: 'firstlast', arrayRefs: ['海边清晨', '海边傍晚', '树林'], prompt: '镜头缓慢推近，海面从清晨的薄雾过渡到傍晚的暖光。' }),
   },
   {
     id: 'b3g-image-empty',
@@ -114,7 +117,7 @@ export const COMPOSER_B3_STATES: readonly LabState[] = [
   },
   {
     id: 'b3u-video-legacy-parked',
-    name: 'B3 · 旧工程：参考方式里以前藏着的首帧先放一边（淡显「未用到」，悬停「点一下用上」，点一下放回在用；#1269 条件 4）',
+    name: 'B3 · 旧工程：参考方式里以前藏着的首帧先放一边（淡显「不会发」，悬停「点一下用上」，点一下放回在用；#1269 条件 4）',
     source: SOURCE, mirrors: MIRRORS, coverage: 'shell', scheme: 'light',
     render: stage({ kind: 'video', model: 'seedance', modeId: 'omni', arrayRefs: ['海边清晨', '海边傍晚'], frames: { first: '纸船' }, prompt: `${mention('海边清晨')} 慢慢过渡到 ${mention('海边傍晚')}，镜头缓慢推近。` }),
   },

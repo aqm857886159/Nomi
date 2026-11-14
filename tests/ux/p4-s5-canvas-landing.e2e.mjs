@@ -277,7 +277,7 @@ try {
     return window.__nomiCapabilityApply('production.materialize-shots', {
       ...payload, existingOnly: true,
       shots: payload.shots.filter((shot) => shot.shotId === 'shot-1').map((shot) => ({
-        ...shot, result: { id: 'production-job-shot-1', type: 'video', url: 'nomi-local://asset/p/shot-1.mp4', createdAt: Date.now() },
+        ...shot, runRecordId: 'production-job-shot-1', results: [{ id: 'production-job-shot-1', type: 'video', url: 'nomi-local://asset/p/shot-1.mp4', createdAt: Date.now() }],
       })),
     })
   }, MATERIALIZE_PAYLOAD)
@@ -290,7 +290,7 @@ try {
     try {
       await window.__nomiCapabilityApply('production.materialize-shots', {
         ...payload, projectId: new URLSearchParams(window.location.hash.split('?')[1]).get('projectId'), existingOnly: true,
-        shots: payload.shots.filter((shot) => shot.shotId === 'shot-1').map((shot) => ({ ...shot, result: { id: 'x', type: 'video', url: 'https://cdn.example.com/x.mp4', createdAt: Date.now() } })),
+        shots: payload.shots.filter((shot) => shot.shotId === 'shot-1').map((shot) => ({ ...shot, results: [{ id: 'x', type: 'video', url: 'https://cdn.example.com/x.mp4', createdAt: Date.now() }] })),
       })
       return 'no-throw'
     } catch (e) { return String(e?.message || e) }

@@ -6,7 +6,7 @@ import { cn } from '../../../utils/cn'
 import type { ShotDegradation, ShotPrice } from '../../../../electron/productionRun/shotPricing'
 import type { MultiShotContractProjection, ProductionContractView } from './productionContractView'
 
-// P4 S3a — 多镜确认卡的「可滚动内容区」：规格条 4 格 + 主角形象 chips + 汇总行 + 逐镜清单（内部有界滚动 ~40vh）。
+// P4 S3a — 多镜确认卡的「可滚动内容区」：规格条 4 格 + 主角形象 chips + 汇总行 + 逐镜清单（随弹窗中间区滚动）。
 // 固定 footer（费用块 / 冻结项 / 按钮）不在这里——由 SpendConfirmDialog 的 contract 分支渲染，
 // 好让它不随清单滚动（NodeErrorReport 2026-07-31 同款「动作固定、内容滚动」教训）。
 // 逐镜行**只读**：改内容走「返回修改」（一功能一个家，卡内不加编辑控件）。
@@ -126,10 +126,10 @@ export function MultiShotContractSummary({ view }: { view: ProductionContractVie
           : t('generationCommon.production.batch.shotsSummary', { total: list.shots.length })}
       </span>
 
-      {/* 逐镜清单：内部有界滚动 ~40vh。只读行（镜号/画面一句/模型·模式/时长/单价）。 */}
+      {/* 逐镜清单：随弹窗中间区滚动。只读行（镜号/画面一句/模型·模式/时长/单价）。 */}
       <div
         data-production-shot-list
-        className={cn('max-h-[40vh] overflow-y-auto rounded-nomi-sm border border-nomi-line-soft divide-y divide-nomi-line-soft')}
+        className={cn('rounded-nomi-sm border border-nomi-line-soft divide-y divide-nomi-line-soft')}
       >
         {list.shots.map((shot) => {
           const degraded = shot.degradations.length > 0

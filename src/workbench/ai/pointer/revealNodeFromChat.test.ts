@@ -5,7 +5,8 @@ import { FOCUS_GENERATION_NODE_EVENT } from '../../generationCanvas/nodes/nodeSi
 import { useGenerationViewStore } from '../../generation/list/generationViewStore'
 import { AGENT_FLOAT_SELECTOR } from '../../generation/workspaceBottomDocks'
 import { useWorkbenchStore } from '../../workbenchStore'
-import { useAgentFormStore } from '../../../ui/app-shell/shell/agentFormStore'
+import { chooseAgentPlacement, collapseAgent, shownForm, useAgentFormStore } from '../../../ui/app-shell/shell/agentFormStore'
+import { useAgentFormViewStore } from '../../../ui/app-shell/shell/agentFormViewStore'
 import { useNodePointerStore } from './nodePointerStore'
 import { agentCoversCanvas, returnToChat, revealNodeFromChat } from './revealNodeFromChat'
 
@@ -69,17 +70,29 @@ function stubHost(rects: { stage?: Rect; float?: Rect } = {}): { steps: Step[]; 
 
 let stopWatchingForm: () => void = () => undefined
 
+/** 记下此刻显示的形态每一次变化（人存的、此刻的覆盖，哪一份变了都会改到它）。 */
 function watchChat(steps: Step[]): void {
-  stopWatchingForm = useAgentFormStore.subscribe((state, previous) => {
-    if (state.bySurface.generation.form !== previous.bySurface.generation.form) steps.push(`chat:${state.bySurface.generation.form}`)
-  })
+  let last = shownForm('generation')
+  const check = (): void => {
+    const now = shownForm('generation')
+    if (now !== last) steps.push(`chat:${now}`)
+    last = now
+  }
+  const stops = [useAgentFormStore.subscribe(check), useAgentFormViewStore.subscribe(check)]
+  stopWatchingForm = () => stops.forEach((stop) => stop())
+}
+
+function resetForms(): void {
+  useAgentFormViewStore.setState(useAgentFormViewStore.getInitialState(), true)
+  useAgentFormStore.setState(useAgentFormStore.getInitialState(), true)
 }
 
 beforeEach(() => {
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node('n1'), node('n2')], edges: [], groups: [] }, 'project-reveal')
   useWorkbenchStore.setState({ workspaceMode: 'generation' })
   useGenerationViewStore.setState({ view: 'canvas' })
-  useAgentFormStore.getState().setForm('generation', 'float')
+  resetForms()
+  chooseAgentPlacement('generation', 'float')
   useNodePointerStore.setState({ locatedNodeId: null, returnTo: null })
 })
 
@@ -87,7 +100,7 @@ afterEach(() => {
   stopWatchingForm()
   stopWatchingForm = () => undefined
   vi.unstubAllGlobals()
-  useAgentFormStore.getState().setForm('generation', 'ball')
+  resetForms()
   useNodePointerStore.setState({ locatedNodeId: null, returnTo: null })
 })
 
@@ -115,16 +128,19 @@ describe('revealNodeFromChat · narrow window: show the target first, then go (S
     watchChat(host.steps)
     await revealNodeFromChat({ nodeId: 'n1', label: '镜 01' })
     expect(host.steps).toEqual(['chat:ball', 'focus:n1@generation/canvas'])
-    expect(useNodePointerStore.getState().returnTo).toEqual({ surface: 'generation', form: 'float', nodeId: 'n1', label: '镜 01' })
+    expect(useNodePointerStore.getState().returnTo).toEqual({ surface: 'generation', nodeId: 'n1', label: '镜 01' })
+    // 让开是机器的临时动作：人存的摆法和开没开一个字也不动。
+    expect(useAgentFormStore.getState().bySurface.generation).toMatchObject({ placement: 'float', collapsed: false })
   })
 
   it('a docked chat in a window too narrow for the canvas collapses first too', async () => {
     const host = stubHost({ stage: { left: 0, top: 0, width: 240, height: 700 } })
-    useAgentFormStore.getState().setForm('generation', 'dock')
+    chooseAgentPlacement('generation', 'dock')
     watchChat(host.steps)
     await revealNodeFromChat({ nodeId: 'n1', label: '镜 01' })
     expect(host.steps).toEqual(['chat:ball', 'focus:n1@generation/canvas'])
-    expect(useNodePointerStore.getState().returnTo?.form).toBe('dock')
+    expect(useNodePointerStore.getState().returnTo).toEqual({ surface: 'generation', nodeId: 'n1', label: '镜 01' })
+    expect(useAgentFormStore.getState().bySurface.generation).toMatchObject({ placement: 'dock', collapsed: false })
   })
 
   it('a wide window where the float only takes a corner: the chat stays open, the focus still goes', async () => {
@@ -137,7 +153,7 @@ describe('revealNodeFromChat · narrow window: show the target first, then go (S
 
   it('a chat that is already the ball is left alone', async () => {
     const host = stubHost({ stage, float: { left: 8, top: 280, width: 384, height: 412 } })
-    useAgentFormStore.getState().setForm('generation', 'ball')
+    collapseAgent('generation')
     watchChat(host.steps)
     await revealNodeFromChat({ nodeId: 'n1', label: '镜 01' })
     expect(host.steps).toEqual(['focus:n1@generation/canvas'])
@@ -148,7 +164,7 @@ describe('revealNodeFromChat · narrow window: show the target first, then go (S
     const host = stubHost({ stage, float: { left: 8, top: 280, width: 384, height: 412 } })
     await revealNodeFromChat({ nodeId: 'n1', label: '镜 01' })
     returnToChat()
-    expect(useAgentFormStore.getState().bySurface.generation.form).toBe('float')
+    expect(shownForm('generation')).toBe('float')
     expect(useNodePointerStore.getState().returnTo).toBeNull()
     await new Promise<void>((resolve) => setTimeout(resolve, 0))
     expect(host.focused).toEqual(['[data-node-pointer-id="n1"]'])

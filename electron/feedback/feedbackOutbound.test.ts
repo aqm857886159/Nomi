@@ -373,14 +373,6 @@ describe('旧包补发：真实旧 builder 产物与新包共用发送前口', (
     expect(smaller.context.note).toBe(old.context.note)
   })
 
-  it('新处理只注册反馈，轨迹货物不变', async () => {
-    const old = legacyReport(legacyCatalogs[0])
-    const post = vi.spyOn(client, 'postIntake').mockResolvedValue({ id: 'fake-receipt' })
-    queue.enqueueIntake('trajectories', old)
-    await queue.flushIntakeQueue('trajectories')
-    expect(post.mock.calls[0]).toEqual(['/v1/trajectories', old])
-  })
-
   it('目录需要剥离但清单坏了时不发送，也不丢原件', async () => {
     const malformed = { ...legacyReport(legacyCatalogs[0]), manifest: null }
     const post = vi.spyOn(client, 'postIntake').mockResolvedValue({ id: 'fake-receipt' })

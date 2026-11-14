@@ -219,6 +219,7 @@ export function createExtendedLaneTools(port: LaneExtendedPort): LaneToolDescrip
         admission: decision.admission,
         submissionStarted: decision.submissionStarted,
         issues: decision.issues,
+        problem: decision.problem,
         fallbackCode: 'capability_execution_failed',
         nextAction: 'Read the current project state and review the current identifiers, revision and approval before requesting a new action. Do not repeat an unknown paid submission.',
       }))

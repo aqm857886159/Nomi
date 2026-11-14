@@ -12,17 +12,14 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { projectParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { buildModelControls, defaultPatchForControls, readMeta } from './controls/parameterControlModel'
 import {
-  applyArchetypeModeSwitch,
+  carryHumanModePreference,
   ensureArchetypeNodeMeta,
   normalizeArchetypeVariantMeta,
-  referenceDemandsBeforeFirstMode,
   resolveArchetypeForModel,
 } from './controls/archetypeMeta'
-import { resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { CanvasMutationOptions } from '../store/canvasGuards'
 import { whenCanvasWriteBoundarySettled } from '../events/canvasWriteBoundary'
-import { remapArchetypeMode } from '../runner/usableVendorModel'
 import { selectedModelKey } from '../runner/catalogTaskResolve'
 import { useToastStore } from '../../../ui/toast'
 import { classifyGenerationError } from '../../observability/classifyError'
@@ -53,22 +50,16 @@ import {
 } from './nodeRecoveryNotice'
 
 /**
- * 档案命名空间 meta 的初始化（落到默认模式；已连着参考就顺手促到收得下的模式）。幂等：已是该档案 → null。
+ * 档案命名空间 meta 的初始化（记下档案和默认摆法，来历不明；这次按什么发由 modeForInputs 按输入现算）。幂等：已是该档案 → null。
  * 「选默认模型」和「选到一个有档案的模型」两处共用：默认模型那一笔写里就把档案一起初始化好，
  * 不再先写模型、重渲、再写档案（2026-10-16 可疑点 i：新卡第一次挂载的级联写）。
- * 出生就带着参考的卡（提示词库「放上画布」带参考图）第一次定模式时，那些参考和活边一起算——
- * 否则新卡落在文生图，参考图摆在 meta 里谁也看不见（2026-10-24 库排版走查）。
+ * 出生就带着参考的卡（提示词库「放上画布」带参考图）不用再促模式：那些参考本身就是输入，现算时按它们摆。
  */
 function initializedArchetypeMeta(
-  node: GenerationCanvasNode,
   meta: Record<string, unknown>,
   archetype: NonNullable<ReturnType<typeof resolveArchetypeForOption>>,
 ): Record<string, unknown> | null {
-  const patch = ensureArchetypeNodeMeta(meta, archetype)
-  if (!patch) return null
-  const state = useGenerationCanvasStore.getState()
-  const promotedModeId = resolveModeForConnectedReferences({ ...node, meta: patch }, state.nodes, state.edges, referenceDemandsBeforeFirstMode(meta))
-  return promotedModeId ? applyArchetypeModeSwitch(patch, archetype, promotedModeId) : patch
+  return ensureArchetypeNodeMeta(meta, archetype)
 }
 
 type UseNodeModelAutoSelectArgs = {
@@ -206,7 +197,7 @@ export function useNodeModelAutoSelect({
     }, firstOption.meta)
     const firstArchetype = resolveArchetypeForOption(firstOption)
     writeDerivedMeta(node.id, {
-      meta: (firstArchetype && initializedArchetypeMeta(latestNode, defaultMeta, firstArchetype)) || defaultMeta,
+      meta: (firstArchetype && initializedArchetypeMeta(defaultMeta, firstArchetype)) || defaultMeta,
     })
   }, [defaultsReady, getLatestNode, isGenerationNode, isImageLike, isVideoLike, modelOptions, node.id, selectedModelValue, t, writeDerivedMeta])
 
@@ -306,15 +297,6 @@ export function useNodeModelAutoSelect({
     const optionVendor = typeof target?.vendor === 'string' ? target.vendor.trim() : ''
     if (!target?.value || !optionVendor) return
     const targetArchetype = resolveArchetypeForOption(target)
-    const remapped = targetArchetype
-      ? remapArchetypeMode(
-          sourceArchetype,
-          (latestMeta.archetype as { modeId?: string } | undefined)?.modeId,
-          targetArchetype,
-          sourceVendor,
-          optionVendor,
-        )
-      : null
     const sourceModel = readMeta(latestMeta, 'modelAlias') || readMeta(latestMeta, 'modelKey') || selectedModelValue
     const pinned = { vendorKey: currentVendor, modelKey: selectedModelKey(latestNode) }
     useToastStore.getState().push({
@@ -338,15 +320,16 @@ export function useNodeModelAutoSelect({
         const current = getLatestMeta()
         if (readMeta(current, 'modelVendor') !== readMeta(latestMeta, 'modelVendor')
           || readMeta(current, 'modelKey') !== readMeta(latestMeta, 'modelKey')) return
+        // 换到别家：人手选过的摆法按同一种意图带过去，其余不替节点挑方式（发送时按输入现算）。
+        const carried = targetArchetype ? carryHumanModePreference(current, sourceArchetype, targetArchetype) : current
         updateNode(node.id, {
           meta: {
-            ...replaceCustomCapabilityContractMeta(current, target.meta),
+            ...replaceCustomCapabilityContractMeta(carried, target.meta),
             modelKey: target.modelKey || target.value,
             modelAlias: target.modelAlias || target.value,
             modelVendor: optionVendor,
             vendor: optionVendor,
             modelLabel: target.label,
-            ...(remapped ? { archetype: remapped } : {}),
             ...(isVideoLike
               ? { videoModel: target.value, videoModelVendor: optionVendor }
               : { imageModel: target.value, imageModelVendor: optionVendor }),
@@ -386,7 +369,7 @@ export function useNodeModelAutoSelect({
     const latestModelKey = typeof latestNode.meta?.modelKey === 'string' ? latestNode.meta.modelKey : ''
     if (selectedModelOption && latestModelKey
       && ![selectedModelOption.modelKey, selectedModelOption.value, selectedModelOption.modelAlias].includes(latestModelKey)) return
-    const initialized = initializedArchetypeMeta(latestNode, latestNode.meta || {}, archetype)
+    const initialized = initializedArchetypeMeta(latestNode.meta || {}, archetype)
     if (initialized) writeDerivedMeta(node.id, { meta: initialized })
   }, [archetype, getLatestNode, isGenerationNode, node.id, selectedModelOption, writeDerivedMeta])
 }

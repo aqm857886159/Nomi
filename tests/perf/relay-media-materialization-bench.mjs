@@ -57,7 +57,7 @@ if (process.argv.includes('--server')) {
     const baseUrl = `http://127.0.0.1:${port}`
     const smallFetch = async () => {
       if (implementation === 'main-url-buffer') {
-        const response = await fetchProviderMedia(`${baseUrl}/?bytes=1024`, { trustedPrivateOrigin: baseUrl, allowContentTypes: ['video/mp4'] })
+        const response = await fetchProviderMedia(`${baseUrl}/?bytes=1024`, { allowContentTypes: ['video/mp4'] })
         if (response.bytes.length !== 1024) throw new Error('Warmup has wrong size')
       } else {
         const response = await fetch(`${baseUrl}/?bytes=1024`)
@@ -78,7 +78,7 @@ if (process.argv.includes('--server')) {
       if (phase === 'cold-init') { await smallFetch(); outcome = 'initialized' }
       else if (implementation === 'main-url-buffer') {
         try {
-          const response = await fetchProviderMedia(`${baseUrl}/?bytes=${bytes}`, { trustedPrivateOrigin: baseUrl, allowContentTypes: ['video/mp4'] })
+          const response = await fetchProviderMedia(`${baseUrl}/?bytes=${bytes}`, { allowContentTypes: ['video/mp4'] })
           tick() // Includes the returned whole-file Buffer before writing.
           await fs.promises.writeFile(file, response.bytes, { flag: 'wx', mode: 0o600 })
         } catch (error) {

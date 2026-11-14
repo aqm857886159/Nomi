@@ -18,6 +18,7 @@ import { HAPPYHORSE_1_1_ARCHETYPE } from "./happyhorse11";
 import { KLING_3_ARCHETYPE } from "./kling";
 import { KLING_3_TURBO_ARCHETYPE } from "./kling30Turbo";
 import { KLING_4_ARCHETYPE } from "./kling4";
+import { KLING_4_FLASH_ARCHETYPE } from "./kling4Flash";
 import { GROK_IMAGINE_VIDEO_15_OFFICIAL_ARCHETYPE } from "./grokImagineVideoOfficial";
 import { PIXVERSE_V6_ARCHETYPE, PIXVERSE_V6_MAX_ARCHETYPE } from "./pixverse6";
 import { FLUX_3_VIDEO_ARCHETYPE, MUSE_VIDEO_EXT_ARCHETYPE } from "./museFluxVideo";
@@ -105,6 +106,7 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   AGNES_VIDEO_25_ARCHETYPE,
   AGNES_VIDEO_25_FLASH_ARCHETYPE,
   KLING_4_ARCHETYPE,
+  KLING_4_FLASH_ARCHETYPE,
   GROK_IMAGINE_VIDEO_15_OFFICIAL_ARCHETYPE,
   PIXVERSE_V6_ARCHETYPE,
   PIXVERSE_V6_MAX_ARCHETYPE,

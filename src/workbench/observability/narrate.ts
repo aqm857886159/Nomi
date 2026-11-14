@@ -122,17 +122,9 @@ export type GenerationErrorKind =
   // 机器码 NOMI_ERR::aspect-ratio-unsupported::）。以前这种比例会被悄悄省略 size、让服务商按默认尺寸出图——选的画幅被换成别的。
   // 请求没离开本机；下一步是在生成框里换一个比例再生成（或换一个支持该比例的模型）。不是服务商的事，也不是模型没配好。
   | 'aspect-ratio-unsupported'
-  // Nomi 自己的出站安全策略把取片拦下了（私网/回环/fake-ip 未确证）。与 network 分开，因为
-  // 它的**真相和下一步都不同**：network = 上游或线路偶发，等一等重试可能就好；这条是**确定性**
-  // 的自我拒绝（同一个 URL 重试一万次都是同一堵墙），而且任务**已经付过钱**——正确的动作是去
-  // 网络设置确认代理，然后**免费重新拉取**，不是再生成一次再付一次钱。
-  | 'outbound-blocked'
-  // 同族的**提交侧**：策略在付费请求发出**之前**拒了它。与上面一条分家的理由是「钱怎么样了」相反：
-  // 请求从未离开本机 → 没有计费、也没有可找回的 taskId，所以下一步是「修网络后重新生成」（免费），
-  // 而不是「免费重新拉取」（那需要一个已经存在的任务）。
-  | 'outbound-blocked-submit'
-  // 同族第三条：请求带着密钥，但目的地不是用户保存这把 key 时确认过的 origin。没有计费，
+  // 请求带着密钥，但目的地不是用户保存这把 key 时确认过的 origin。没有计费，
   // 也没有网络要修——下一步是回接入页重新保存一次密钥（那一页是这条连接地址的唯一家）。
+  // （按目的地地址拒绝的 outbound-blocked / outbound-blocked-submit 两类已于 2026-11-13 删掉。）
   | 'outbound-blocked-credential-origin'
   // 带密钥的请求被服务商地址跳转了，Nomi 不跟随（防止自定义鉴权头 / POST 正文被带去另一个网站）。
   // 请求已经到过用户配置的地址，所以不在 NEVER_SENT_KINDS——花没花钱 Nomi 不替它说。
@@ -153,7 +145,7 @@ export type GenerationErrorKind =
   // 连不上服务商，这一条是在本机就停下了（出网策略、本机检查、密钥、网络设置……具体原因在技术详情里）。
   | 'submission-not-sent'
   // 已生成、取回失败（#975 A2，机器码 NOMI_ERR::output-retrieval-failed::）：结果在服务商那边，丢的只是下载。
-  // 与 outbound-blocked 分开：那条的下一步是去看网络；这条覆盖整个确定性取回失败族，下一步只有「重新取回」。
+  // 这条覆盖整个确定性取回失败族，下一步只有「重新取回」。
   | 'output-retrieval-failed'
   // 已提交、这次没取回（机器码 NOMI_ERR::retrieval-query / -parse / -download / -timeout::，⑬ 用户 10-22 拍板）：任务已经交给服务商、
   // 钱已经花了，是查结果 / 读结果 / 下载结果这一次没成，**不知道**服务商那边做完没有（所以不能说成 output-retrieval-failed 的「已经生成」）。
@@ -186,8 +178,6 @@ export const ERROR_KEY_BY_KIND: Record<GenerationErrorKind, string> = {
   'reference-unfetchable': 'referenceUnfetchable',
   'reference-not-in-use': 'referenceNotInUse',
   'aspect-ratio-unsupported': 'aspectRatioUnsupported',
-  'outbound-blocked': 'outboundBlocked',
-  'outbound-blocked-submit': 'outboundBlockedSubmit',
   'outbound-blocked-credential-origin': 'outboundBlockedCredentialOrigin',
   'credential-redirect': 'credentialRedirect',
   server: 'server',
@@ -296,13 +286,7 @@ const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
   'reference-not-in-use': RETRY_FIRST,
   // 比例超界：换比例的地方就在下方生成框（按钮只给 retry，改的动作在 composer）；该比例确实要用，就换一个支持它的模型。
   'aspect-ratio-unsupported': RETRY_FIRST,
-  // 「去模型接入」正是网络那一行的家（NetworkSection 就住在模型设置抽屉里）。绝不给 retry：
-  // 重试 = 再生成 = 再扣一次钱，而这次的钱根本没丢，只是产物还没取回来。
-  'outbound-blocked': ACCESS_FIRST,
-  // 同样把用户送去网络那一行（NetworkSection 就住在模型接入抽屉里）。这一条的次动作是 retry，
-  // 而且这次的 retry 是**诚实的**：请求从未发出、没有计费，修好网络后重来一次不多花一分钱。
-  'outbound-blocked-submit': ACCESS_FIRST,
-  // 同样送去模型接入——但要做的是**重新保存密钥**，不是看代理（hint 里写清）。绝不给 retry 当主动作：
+  // 送去模型接入重新保存密钥（hint 里写清）。绝不给 retry 当主动作：
   // 地址没改回来之前，重试一万次都是同一堵墙。
   'outbound-blocked-credential-origin': ACCESS_FIRST,
   // 地址得改（去模型接入改成跳转后的地址）；不改，重试一万次都是同一个跳转。
@@ -360,8 +344,6 @@ const VENDOR_SIDE_BY_KIND: Record<GenerationErrorKind, boolean> = {
   'reference-unfetchable': false,
   'reference-not-in-use': false,
   'aspect-ratio-unsupported': false,
-  'outbound-blocked': false,
-  'outbound-blocked-submit': false,
   'outbound-blocked-credential-origin': false,
   'credential-redirect': false,
   server: true,
@@ -401,14 +383,13 @@ export function narrateGenerationErrorActions(kind: GenerationErrorKind): {
 /**
  * 没有可以再查的任务时（2026-10-28）：同步供应商把结果放在创建请求的那一次回答里，Nomi 本机没能把它落进项目——
  * 节点上没有任务号，结果地址也只在那一次回答里，再取一次无从谈起。默认动作 / 说明会把人领去「重新取回」的那几类，
- * 这里给不暗示能取回的那一版：动作按「有没有任务号」选（主动作重试 = 重新生成；取片被拦照旧先去网络那一行），
+ * 这里给不暗示能取回的那一版：动作按「有没有任务号」选（主动作重试 = 重新生成），
  * 说明换成 `hintWithoutTask`（只说事实和下一步，不谈钱；两类取回失败说的是同一件事，共用一条）。
  * 不在表里的类照默认：它们的动作和说明本来就不暗示能取回。守门：`narrateWithoutTask.test.ts` 遍历全部类别。
  */
 const WITHOUT_TASK_BY_KIND: Readonly<Partial<Record<GenerationErrorKind, GenerationErrorActions & { hintKey: TranslationKey }>>> = {
   'retrieval-incomplete': { primary: 'retry', secondary: null, hintKey: 'generationCommon.observability.error.retrievalIncomplete.hintWithoutTask' },
   'output-retrieval-failed': { primary: 'retry', secondary: null, hintKey: 'generationCommon.observability.error.retrievalIncomplete.hintWithoutTask' },
-  'outbound-blocked': { ...ACCESS_FIRST, hintKey: 'generationCommon.observability.error.outboundBlocked.hintWithoutTask' },
 }
 
 /** 这一类失败在「没有可以再查的任务」时的说明与动作；`null` = 照默认（默认本来就不暗示能取回）。 */

@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 import { loadEscapeLedger } from '../../scripts/escape-ledger-lib.mjs'
 import { INTENT_FIELDS, observeIntent, seededWorld, violationsOf } from './intentShownEqualsDrafted.mjs'
+import { readAspectRatioGeometry } from '../../electron/shared/aspectRatioValue'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const escapeLedger = loadEscapeLedger(path.resolve(here, '../..'))
@@ -36,7 +37,8 @@ const CASES = [
   { id: 'ratio-via-aspect_ratio', family: '比例：真实键是 aspect_ratio', intent: { providerId: 'apimart', modelId: 'kling-3.0-turbo', count: 1, aspectRatio: '1:1' }, expect: 'land' },
   { id: 'ratio-next-to-size-tier', family: '比例：清晰度也叫 size（Agnes 视频 2.5，LAW11-ALIAS-DEDUPE 修过）', intent: { providerId: 'agnes', modelId: 'agnes-video-2.5', count: 1, aspectRatio: '16:9' }, expect: 'land' },
   { id: 'ratio-pixel-colon', family: '比例：选项是冒号像素串（Runway 1280:720 一类）', intent: { providerId: 'runway', modelId: 'gpt_image_2', count: 1, aspectRatio: '16:9' }, expect: 'land' },
-  { id: 'ratio-pixel-x', family: '比例：只有像素档 size（2048x2048 一类，没有比例控件）', intent: { providerId: 'volcengine', modelId: 'doubao-seedream-4-5-251128', count: 1, aspectRatio: '16:9' }, expect: 'refuse', refusal: /no frame-ratio choice/ },
+  { id: 'ratio-pixel-x', family: '比例：像素尺寸档精确承载16:9', intent: { providerId: 'volcengine', modelId: 'doubao-seedream-4-5-251128', count: 1, aspectRatio: '16:9' }, expect: 'land', pixelSize: '2560x1440' },
+  { id: 'ratio-pixel-x-not-offered', family: '比例：像素档没有21:9，拒收并列合法值', intent: { providerId: 'volcengine', modelId: 'doubao-seedream-4-5-251128', count: 1, aspectRatio: '21:9' }, expect: 'refuse', refusal: /2048x2048.*2560x1440.*2688x3584/ },
   { id: 'ratio-not-offered', family: '比例：模型不出这一档', intent: { providerId: 'apimart', modelId: 'veo3.1-fast', count: 1, aspectRatio: '1:1' }, expect: 'refuse', refusal: /16:9, 9:16/ },
   { id: 'reference-unknown', family: '参考给了素材库里没有的 id', intent: { providerId: 'apimart', modelId: 'gpt-image-2', count: 1, references: ['shot-2'] }, expect: 'refuse' },
   { id: 'model-not-in-catalog', family: '点名一个目录里没有的模型', intent: { providerId: 'apimart', modelId: 'no-such-model-9', count: 1 }, expect: 'refuse' },
@@ -76,6 +78,11 @@ describe('铁律 ⑩ 说的 = 摆的（宿主矩阵）', () => {
         return
       }
       expect(observation.refused, `宿主不该拒绝：${observation.refusal ?? ''}`).toBe(false)
+      if (testCase.pixelSize) {
+        expect(observation.raw.draft.parameters.size).toBe(testCase.pixelSize)
+        const geometry = readAspectRatioGeometry(observation.raw.draft.parameters.size)
+        expect(geometry.width / geometry.height).toBe(observation.said.aspectRatio)
+      }
       const known = testCase.knownViolations ?? {}
       expect(violationsOf(observation), `说的 ≠ 摆的。逐站：${JSON.stringify(observation)}`).toEqual(Object.keys(known).sort())
       for (const ledgerId of Object.values(known)) {

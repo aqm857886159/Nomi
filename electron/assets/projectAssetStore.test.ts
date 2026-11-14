@@ -181,6 +181,22 @@ describe("writeAsset canonical media filename", () => {
       expect(path.posix.basename(stored.data?.relativePath || "").length).toBeLessThanOrEqual(90);
     });
 
+    it("copyAssetFile: 硬链接进桶被占着 → 用默认退避表（5 次等待、共 6 次尝试）再报失败", async () => {
+      const source = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "nomi-held-link-")), "source");
+      fs.writeFileSync(source, mediaFixture("valid.mp4"));
+      let links = 0;
+      const spy = vi.spyOn(fs, "linkSync").mockImplementation(() => {
+        links += 1;
+        throw Object.assign(new Error("injected EBUSY"), { code: "EBUSY" });
+      });
+      try {
+        await expect(copyAssetFile("project-1", source, "held.mp4", "video/mp4", { kind: "reference" }, null)).rejects.toMatchObject({ code: "EBUSY" });
+      } finally {
+        spy.mockRestore();
+      }
+      expect(links).toBe(6);
+    });
+
     it("a name whose only suffix is not a real extension keeps its text and gets .bin", () => {
       const stored = writeAsset("project-1", Buffer.from("opaque bytes"), `${"c".repeat(20)}.not-an-extension`, "application/octet-stream", { kind: "reference" }) as Stored;
       expect(path.posix.basename(stored.data?.relativePath || "")).toBe(`${"c".repeat(20)}.not-an-extension.bin`);

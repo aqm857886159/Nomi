@@ -36,13 +36,14 @@ export const STILL_WIDE = still('#4a3a2a', '#1a1410', 'wide')
  * 模型清单：`modelKey` 是真实档案的 identifierPattern，所以 `resolveArchetypeForModel` 真的解析得出档案。
  * 六种真实档案（合同 §4.3 的矩阵）全在这里能被寻址到。
  */
+// 目录行带档案 id（生产的目录行就带；模型菜单的品牌图标和能力描述靠它）。
 export const LAB_VIDEO_MODELS: ModelOption[] = [
-  { value: 'seedance-2-5', label: 'Seedance 2.5', vendor: 'kie', vendorName: 'kie', modelKey: 'bytedance/seedance-2-5' },
-  { value: 'veo-3-1', label: 'Veo 3.1', vendor: 'kie', vendorName: 'kie', modelKey: 'veo-3.1' },
+  { value: 'seedance-2-5', label: 'Seedance 2.5', vendor: 'kie', vendorName: 'kie', modelKey: 'bytedance/seedance-2-5', meta: { archetypeId: 'seedance-2.5' } },
+  { value: 'veo-3-1', label: 'Veo 3.1', vendor: 'kie', vendorName: 'kie', modelKey: 'veo-3.1', meta: { archetypeId: 'veo-3.1' } },
 ]
 
 export const LAB_IMAGE_MODELS: ModelOption[] = [
-  { value: 'nano-banana-2', label: 'Nano Banana 2', vendor: 'kie', vendorName: 'kie', modelKey: 'nano-banana-2' },
+  { value: 'nano-banana-2', label: 'Nano Banana 2', vendor: 'kie', vendorName: 'kie', modelKey: 'nano-banana-2', meta: { archetypeId: 'nano-banana-2' } },
 ]
 
 export const LAB_ANCHORS: PlanAnchor[] = [

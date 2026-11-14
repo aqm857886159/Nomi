@@ -21,6 +21,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, readComputedColorChannels, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { backToLibrary, canvasFitView, closeSettings, newProjectEntry, openSettings, switchWorkspace } from './_shell.mjs'
 import { uiText, uiTextPattern, uiTextWith } from './full-walk/invariants.mjs'
@@ -300,7 +301,7 @@ try {
   await snap(win, '05-copy-rejected')
   // 窄窗（应用最小宽度）：最长的一句（带完整原路径）照样折行读完，不横向溢出
   const fullSize = await win.evaluate(() => ({ width: innerWidth, height: innerHeight }))
-  const narrow = await resizeContent(app, win, { width: 1100, height: 760 })
+  const narrow = await resizeContent(app, win, { width: MIN_WINDOW.width, height: 760 })
   await expectVisible(copyAlert, '窄窗：副本被拒的提示还在')
   check('窄窗：提示折行读完，不横向溢出', await copyAlert.evaluate((element) => element.scrollWidth <= element.clientWidth), JSON.stringify(narrow))
   await snap(win, '05b-copy-rejected-narrow')

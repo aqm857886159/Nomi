@@ -265,6 +265,8 @@ export type LaneToolFailureEvent = Readonly<{
   attempt: number
   /** 这一次之后，这个工具本轮是否已被熔断拦下。 */
   breakerTripped: boolean
+  /** 起草期被拒的闭合原因码（`generationProblem.ts`）；只有带原因的失败才有。 */
+  reason?: string
 }>
 
 /** `productionRunId` → 领域投影出的那一份事实。解不出来返回 `undefined`，**不返回空对象**。 */

@@ -59,12 +59,9 @@ test('comparison preserves run order and includes tools missing from a run', () 
   assert.match(renderMarkdown(report), /\| first calls \| first arg_rejected \| first domain_failed \| first retries \| second calls \|/)
 })
 
-test('real run1 reproduces the headline totals when evidence is present', (t) => {
-  const run1 = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'docs/evidence/2026-09-21-askback-real-model')
-  if (!fs.existsSync(path.join(run1, 'trajectories'))) {
-    t.skip('real run1 evidence directory is missing')
-    return
-  }
+test('real run1 reproduces the headline totals from the checked-in fixture', () => {
+  // 夹具在 tests/fixtures 下，缺了就红，不许跳过（跳过等于这条回归锁永远不跑）。
+  const run1 = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'tests/fixtures/agent-trajectories/askback-real-run1')
   const report = buildReportData([run1]).runs[0]
   assert.equal(report.summary.totalCalls, 121)
   assert.equal(report.summary.arg_rejected, 14)

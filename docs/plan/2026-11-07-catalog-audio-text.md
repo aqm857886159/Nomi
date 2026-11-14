@@ -151,7 +151,7 @@ Mac 开发构建用隔离夹具验证合同与回环；Windows、安装包和中
 - 调通的 20 条新加的：`evidence.liveCall` 从「未」改成这次（`ASKED_20261108`）。
 - 读图通过的 6 条新加的：加回 `meta.supportsImageInput: true`，带 `evidence.imageInput`（`SAW_IMAGE_20261108`）。
 - claude-fable-5.1：照旧「未」、不写读图；等「总发输出上限」那一片合入后再问（预扣会降到按上限算）。
-- deepseek-v3.1-terminus：本 PR 不动；它有老用户，退役要迁移，走 `seedBuiltins.ts` 的退役清单另开 PR（计划表登记）。
+- deepseek-v3.1-terminus：11-08 用户拍板直接删，见删除 PR（待创建）。
 - 自动读图不跟着变：多了 6 个读图声明后，没指定模型时「挑第一个能读图的」会按目录序从 gemini-3.5-flash 换成 claude-opus-5-5（价贵两倍多，视频拆解读帧也没比过）。给 gemini-3.5-flash 声明 `meta.autoImageReader: true`，`selectTextModelCandidates` 在同为「能读图」时把它排前；`apimartLatestContracts.test.ts` 断言新装和 v0.24.1 升级两种目录自动读图都还是它（去掉排序规则这条红：`expected 'claude-opus-5-5' to be 'gemini-3.5-flash'`）。换不换成更新、更便宜的读图模型，等读帧质量和花费比过再定（计划表登记）。
 
 未验证：claude-fable-5.1 请求收到 HTTP 402，未取得成功回复；6 个新读图模型只验了「读得出图上的字」，没验视频拆解读帧的质量；列表对账没对真列表跑过（只有演练）；gemini-3.5-flash 无缓存价是接口现状，APIMart 实际怎么计缓存命中不知道。

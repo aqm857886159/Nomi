@@ -198,7 +198,7 @@ function createHost({ project, projectRoot, row }, crash, { forgetSubmitResult =
   const providers = [createCanvasTransportProvider(row.vendorKey, transport)]
   const buildSubmission = (input) => createProductionGenerationSubmission({
     repository, projectRoot: input.projectRoot, immutableProjectUuid: input.immutableProjectUuid, projectGeneration: input.projectGeneration, intentMacKey: 'intent-key', providers: input.providers,
-    materializeOutput: async ({ projectId, providerTaskId, output }) => canvasLocalArtifactReceipt({ projectId, projectRoot: input.projectRoot, providerTaskId, output }),
+    materializeOutput: async ({ projectId, providerTaskId, output, outputIndex }) => canvasLocalArtifactReceipt({ projectId, projectRoot: input.projectRoot, providerTaskId, output, outputIndex }),
   })
   const identity = { immutableProjectUuid: 'uuid-1', projectGeneration: 1 }
   const drivers = createRunObservationDrivers({

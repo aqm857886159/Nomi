@@ -15,7 +15,7 @@ import { flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   APPROVAL_CARD, CANVAS_PANEL, DOCUMENT, INTERVENTION_CONFIRM, INTERVENTION_CONFIRM_REJECT,
   INTERVENTION_ESCALATE, INTERVENTION_REJECT, INTERVENTION_REJECT_REASON,
-  createRuntimeWalk, hasToolResult, openCanvas, readProject, recorded, sendCanvas, toolNames,
+  clearComposerText, createRuntimeWalk, hasToolResult, openCanvas, readProject, recorded, sendCanvas, toolNames,
 } from './agent-runtime-walk-support.mjs'
 import { backToLibrary } from './_shell.mjs'
 
@@ -127,7 +127,7 @@ try {
   // B: the real Composer rejects empty input and preserves Unicode through the same UI path.
   const composerInput = win.getByRole('textbox', { name: '给 Nomi 的消息', exact: true })
   const composerSend = win.getByRole('button', { name: '发送', exact: true })
-  await composerInput.fill('')
+  await clearComposerText(composerInput)
   await expect(composerSend, 'Empty Resident Composer intent must not be submitted').toBeDisabled()
   walk.report.matrix.B = {
     status: 'passed', evidence: ['real Composer empty input remains disabled', 'Unicode content persisted through H'],

@@ -24,6 +24,7 @@ export function projectShotNode(
   plan: StoryboardPlan, shot: PlanShot, node: GenerationCanvasNode,
   part: 'shot' | 'keyframe', entryByKey: ReadonlyMap<string, AgentModelEntry>, mode?: ArchetypeMode | null,
 ): Partial<GenerationCanvasNode> {
+  if (part === 'keyframe' && (shot.shotKind === 'image' || shot.keyframe?.enabled !== true)) return {}
   const isImageShot = shot.shotKind === 'image'
   const fields = part === 'shot' ? overriddenShotFields(node) : []
   const prompt = fields.includes('prompt') ? String(effectiveShotValue(shot, node, 'prompt') ?? '')
@@ -110,7 +111,7 @@ export function projectStoryboardDesign(design: Pick<StoryboardDesign, 'id' | 'p
     const entries = buildModelEntryIndex(buildAgentModelEntries(shot.modelKey ? [{ value: shot.modelKey, label: shot.modelKey, vendor: shot.modelVendor, kind: shot.shotKind ?? 'video' }] : []))
     const node = findShotNode(canvas.nodes, design.id, shot)
     if (node && !node.regeneratedFrom && !node.derivedFrom) canvas.updateNode(node.id, projectShotOntoNodeByPlanMode(design.plan, shot, node), { origin: 'storyboard-projection', history: false })
-    const keyframe = findShotKeyframeNode(canvas.nodes, design.id, shot)
+    const keyframe = shot.shotKind !== 'image' && shot.keyframe?.enabled === true ? findShotKeyframeNode(canvas.nodes, design.id, shot) : null
     if (keyframe) canvas.updateNode(keyframe.id, projectShotNode(design.plan, shot, keyframe, 'keyframe', entries), { origin: 'storyboard-projection', history: false })
   }
 }

@@ -45,7 +45,7 @@ export const RELATED_BUDGET_MS = 75_000
 export const MAX_RELATED_FILES = 40
 
 /**
- * 整份跑不进 60–90 秒、所以不进「相关单测」的测试文件：文件 → 原因。它们仍在 CI（check:claude-hooks）里跑；
+ * 整份跑不进 60–90 秒、所以不进「相关单测」的测试文件：文件 → 原因。它们仍在 CI 里跑（pre-push-contracts.node-test.mjs 由 check:claude-hooks-real-entry 跑）；
  * 它们里的快用例已拆到别的文件（见原因），在推送前由自己的门岗跑。
  */
 export const SLOW_TEST_FILES = Object.freeze({

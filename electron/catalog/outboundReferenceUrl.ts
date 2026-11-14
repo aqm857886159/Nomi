@@ -80,7 +80,7 @@ function referenceUrlsIn(value: unknown, underReferenceKey: boolean, into: Set<s
 /**
  * 参数层收口：挂在参考键下的值（在哪一层都认，含 archetypeInput 这种嵌套参数袋），字符串 / 数组 / 对象形
  * （[{url, role}]、火山 content 项）里的外部地址一律换成序列化后的写法。同一条参考被上游推导抄到了表外的键
- * （参考键形态投影 projectReferencesOntoBodyKeys 按请求体读的键落位，键名不一定在表里），按值认出来、同样换写法。
+ * （参考放置的唯一降级函数按请求体读的键落位，键名不一定在表里），按值认出来、同样换写法。
  * 别的值原样。返回新对象，不改入参。
  */
 export function serializeReferenceParams<T>(value: T): T {

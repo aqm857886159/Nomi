@@ -1,0 +1,98 @@
+{
+  "comparisons": [
+    {
+      "id": "chat-send-visible-10",
+      "main": {
+        "runs": 5,
+        "median": 113,
+        "p95": 117.6
+      },
+      "branch": {
+        "runs": 5,
+        "median": 122,
+        "p95": 129.3
+      },
+      "medianChangePercent": 7.96,
+      "order": [
+        {
+          "tree": "main",
+          "start": "2026-11-09T10:35:41.897537+08:00",
+          "end": "2026-11-09T10:36:01.073805+08:00",
+          "exit": 1,
+          "raw": "../2026-11-09-agent-conversation-follow-main/main-perf-paired-chat-send-visible-10.json"
+        },
+        {
+          "tree": "branch",
+          "start": "2026-11-09T10:36:01.074239+08:00",
+          "end": "2026-11-09T10:36:18.853479+08:00",
+          "exit": 1,
+          "raw": "branch-perf-chat-send-visible-10.json"
+        }
+      ]
+    },
+    {
+      "id": "chat-send-visible",
+      "main": {
+        "runs": 5,
+        "median": 120.1,
+        "p95": 120.9
+      },
+      "branch": {
+        "runs": 5,
+        "median": 133.3,
+        "p95": 135.8
+      },
+      "medianChangePercent": 10.99,
+      "order": [
+        {
+          "tree": "main",
+          "start": "2026-11-09T10:37:19.063988+08:00",
+          "end": "2026-11-09T10:37:35.669610+08:00",
+          "exit": 1,
+          "raw": "../2026-11-09-agent-conversation-follow-main/main-perf-paired-chat-send-visible.json"
+        },
+        {
+          "tree": "branch",
+          "start": "2026-11-09T10:37:35.670048+08:00",
+          "end": "2026-11-09T10:37:52.415868+08:00",
+          "exit": 1,
+          "raw": "branch-perf-chat-send-visible.json"
+        }
+      ]
+    },
+    {
+      "id": "chat-send-visible-1000",
+      "main": {
+        "runs": 5,
+        "median": 113.5,
+        "p95": 119.7
+      },
+      "branch": {
+        "runs": 5,
+        "median": 130.8,
+        "p95": 138
+      },
+      "medianChangePercent": 15.24,
+      "order": [
+        {
+          "tree": "main",
+          "start": "2026-11-09T10:38:52.604182+08:00",
+          "end": "2026-11-09T10:39:10.909725+08:00",
+          "exit": 1,
+          "raw": "../2026-11-09-agent-conversation-follow-main/main-perf-paired-chat-send-visible-1000.json"
+        },
+        {
+          "tree": "branch",
+          "start": "2026-11-09T10:39:10.910251+08:00",
+          "end": "2026-11-09T10:39:28.007218+08:00",
+          "exit": 1,
+          "raw": "branch-perf-chat-send-visible-1000.json"
+        }
+      ]
+    }
+  ],
+  "order": "main then branch for each id in one held gate lock",
+  "branchProductUnchanged": true,
+  "scrollEvidence": "coordinator five-run samples on identical product source tree",
+  "canvasBaselineChanged": false
+}

@@ -1,0 +1,42 @@
+{
+  "runHead": "1a6957d41e7ffb80a9519cefbc89bda4730d93da",
+  "configChanged": false,
+  "config": {
+    "initial": "instant",
+    "resize": "instant"
+  },
+  "walkResult": "failed",
+  "total": 29,
+  "green": 27,
+  "red": [
+    {
+      "round": "zh-light",
+      "check": "streaming-follows-while-at-bottom",
+      "pass": false,
+      "detail": {
+        "frames": 259,
+        "maxGap": 104
+      }
+    },
+    {
+      "round": "en-dark",
+      "check": "streaming-follows-while-at-bottom",
+      "pass": false,
+      "detail": {
+        "frames": 274,
+        "maxGap": 83
+      }
+    }
+  ],
+  "textRequests": 14,
+  "imageRequests": 0,
+  "paidCalls": 0,
+  "unexpected": [],
+  "criterion": "frames > 20 and maxGap <= 70; unchanged",
+  "ledger": "candidate; untouched",
+  "stop": "Still red: no typecheck/full pre-push/body precheck; no retry",
+  "screenshotsRead": [
+    "instant-config-zh-after-jump.png",
+    "instant-config-en-after-jump.png"
+  ]
+}

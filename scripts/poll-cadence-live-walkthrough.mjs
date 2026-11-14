@@ -105,7 +105,7 @@ try {
   await win.locator('[aria-label="生成素材"]').first().click()
   await win.waitForTimeout(1200)
   await win.getByText('开始生成', { exact: false }).first().waitFor({ timeout: 10000 })
-  await win.locator('.fixed.inset-0').last().getByRole('button', { name: '生成', exact: true }).first().click()
+  await win.locator('[data-spend-confirm-dialog]').last().getByRole('button', { name: '生成', exact: true }).first().click()
   const submittedAt = Date.now()
   console.log('  已提交真实任务，等终态（慢道轮询间隔 3s + 抖动）…')
 

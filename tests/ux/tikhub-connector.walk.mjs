@@ -4,11 +4,11 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //   ② 假成功已修：保存一个**乱填的 key** → 得到**诚实错误态**（不再显示「已连接」、不出现「线路」行）。
 //      真实校验（打 TikHub 鉴权账户端点验 key）在无真 key/无网的沙箱里必然失败——
 //      失败可能是 auth（网通、被 TikHub 拒）或 no-route（网不通），两者都是诚实错误、都不是假的「已连接」。
-//   ③ 素材库工具行「贴链接导入」入口 + 无 key 时引导去设置。
+//   ③ 素材库「找参考」框贴分享链接（09-10 起贴链接导入住这里）+ 无 key 时引导去设置，深链落地后光标在那一节的 Key 输入框里。
 // 截图给人眼看（P3/R13）。**不调任何付费接口**：校验端点是免费账户端点；乱 key 只会被拒，不计费。
 // ⚠️ 正确 key 的「已连接 + 线路行」正路需要真 key + 真网，沙箱里给不了——本走查只验错误路径（任务允许），
 //    真 key 路径见文件末尾说明与 tikhub-connector.e2e（TIKHUB_E2E=1）。
-import { expectVisible, expectAbsent, proveProbe, clickOrFail, scopedText } from './_assert.mjs'
+import { expect, expectVisible, expectAbsent, proveProbe, clickOrFail, scopedText } from './_assert.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
@@ -18,6 +18,7 @@ import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
 import { openRailDrawer } from './_shell.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/tikhub-connector')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -164,14 +165,28 @@ try {
   await assetSection.waitFor({ state: 'visible', timeout: 8000 })
   await win.waitForTimeout(500)
 
-  const pasteBtn = win.locator('button[aria-label="贴链接导入"]').first()
-  await expectVisible(pasteBtn, '素材库工具行没有「贴链接导入」入口')
+  // 贴链接导入的家是工具行 🔗「找参考」（09-10 起，原「贴链接导入」按钮并进来）：框里贴分享链接回车，走的还是那条导入路径。
+  const findEntry = win.locator('button[aria-label="找参考"]').first()
+  await expectVisible(findEntry, '素材库工具行没有「找参考」入口')
+  await clickOrFail(findEntry, '素材库工具行「找参考」')
+  const findInput = win.locator('[data-find-reference-panel]').getByRole('searchbox', { name: '找参考' })
+  await expectVisible(findInput, '「找参考」展开后没有贴链接的输入框')
   await assetSection.screenshot({ path: path.join(shotsDir, '03-asset-library-paste-entry.png') })
-  check('贴链接入口就位', await pasteBtn.count() === 1)
+  check('贴链接入口就位', await findInput.count() === 1)
 
-  // 点开：无 key 时走「引导去设置」分支（现在深链跳到「模型」tab 的数据源区）。截当前态给人眼看。
-  await pasteBtn.click()
+  // 无 key 时贴链接回车：走「引导去设置」分支（深链跳到「模型」tab 的数据源区）。截当前态给人眼看。
+  await findInput.fill('https://v.douyin.com/nomi-walk/')
+  await findInput.press('Enter')
+  // 深链落地：设置开在 TikHub 那一节，光标在这一节声明的首要控件——Key 输入框里（没配 key 的人来这一节就是为了填它）。
+  // 那一节是懒加载出来的，对话框每帧试到焦点真的落进去为止（src/workbench/settings/settingsSectionFocus.ts）；以前只试一次，
+  // 那一刻这一节还没挂出来，焦点一直留在对话框后面的「找参考」框里。
+  const linkedSection = win.locator('[role="dialog"][aria-modal="true"] [data-settings-section="tikhub-connector"]').first()
+  await expectVisible(linkedSection, '无 key 贴链接回车没把设置开到 TikHub 那一节')
+  const keyField = linkedSection.getByLabel(uiText('zh-CN', 'settings.ai.tikhub.keyAria'), { exact: true })
+  await expect(keyField, '深链到 TikHub 那一节后光标不在 Key 输入框里').toBeFocused({ timeout: stationTimeout() })
+  console.log('  ✅ 深链后光标在 TikHub 那一节的 Key 输入框里')
   await win.waitForTimeout(700)
+  check('深链落下的焦点没被抢走（700ms 后仍在 Key 输入框里）', await keyField.evaluate((node) => node === document.activeElement))
   await getWin().screenshot({ path: path.join(shotsDir, '04-paste-no-key-guides-to-settings.png') })
 
   console.log(`\n📸 截图已存到 ${path.relative(repoRoot, shotsDir)}/`)

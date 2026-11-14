@@ -4,6 +4,8 @@ import { cn } from '../utils/cn'
 
 type VendorLogoImageProps = {
   src: string
+  /** 调用方明确知道这是单色标（`currentColor` 笔画）→ 暗色反相；不必再进 `vendor-logos` 的单色名单。 */
+  monochrome?: boolean | undefined
   /** 由宿主决定尺寸/定位（`size-full`、`absolute inset-0` 等）；本组件只管品牌图本身怎么画。 */
   className?: string
   /** 打包资产 404 时的回调；宿主据此换成字形兜底。 */
@@ -21,13 +23,13 @@ type VendorLogoImageProps = {
  * 注意：本组件**不画底**。要遮住身后的东西请让宿主自己处理——不透明底和 `dark:invert`
  * 放在同一个元素上会被一起反相，把「暗底白标」翻成「亮底白标」。
  */
-export function VendorLogoImage({ src, className, onError }: VendorLogoImageProps): JSX.Element {
+export function VendorLogoImage({ src, monochrome, className, onError }: VendorLogoImageProps): JSX.Element {
   return (
     <img
       src={src}
       alt=""
       aria-hidden
-      className={cn('object-contain', isMonochromeVendorLogo(src) && 'dark:invert', className)}
+      className={cn('object-contain', (monochrome || isMonochromeVendorLogo(src)) && 'dark:invert', className)}
       onError={onError}
     />
   )

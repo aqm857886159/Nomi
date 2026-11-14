@@ -1,0 +1,33 @@
+{
+  "id": "FB-20261108-agent-conversation-follow",
+  "since": "2026-11-09",
+  "source": "用户 2026-11-08：切换 Agent 对话后要手动滚到最下面；发送时最新内容不可见，回答增长时没有自动跟随。",
+  "category": "interaction-semantics",
+  "problem": "长对话切换、上翻后发送和流式增长没有共享的跟随意图与几何 owner，用户需要反复手动滚动才能看到最新消息。",
+  "existingInvariants": [
+    6
+  ],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "fixedInPr": 1467,
+  "evidence": [
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/instant-config-follow.txt：原70px合同的修后原生日志，29格27绿2红；两红仅发送首挂，协调复核按已知限制交付。",
+    "docs/evidence/2026-11-09-agent-conversation-follow-main/main-b-before-zh-light.png：修前切B距底534px的已阅截图。",
+    "docs/evidence/2026-11-09-agent-conversation-follow-main/main-b-before-capture.json：修前0/250/1000ms均距底534px的几何凭据。",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/frame-rule-restored.txt：最近一次完整修后原生日志，产品已还原，29格27绿2红。",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/frame-rule-summary.json：最近一次29格结果，中文264帧、英文276帧；两轨首挂连续2帧104/83px，例外0/0；该临时量法已git revert撤销，历史证据保留。",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/follow-diagnostic-summary.json：main输出中625px→本分支输出中≤49px；发送首挂2帧83/104px源于库rAF调度，协调已复核，发送首挂的调度限制另行跟进（先查上游同步选项、再量人眼可见性）；PR #1467 转 fixed，独立验收在这之后。"
+  ],
+  "completionCommits": [
+    "08f7803930f787c977451dca4c0a3fda58c118f0",
+    "c6f87434ce7568b93578fa6dc3a575ec140a9c0e"
+  ],
+  "rootCauseContract": "docs/fixes/2026-11-09-agent-conversation-stick-to-bottom.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/ux/agent-conversation-follow.walk.mjs"
+  },
+  "manualReview": "reviewed"
+}

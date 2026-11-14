@@ -1,0 +1,85 @@
+import assert from 'node:assert/strict'
+import { test } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import { compareResults } from './release-core-compare.results.mjs'
+import { finalizeReleaseCoreReceipt } from './_releaseCoreCompare.mjs'
+
+const receipt = () => ({ schema: 1, complete: true, exitCode: 0, mode: 'rehearsal', commit: 'a'.repeat(40),
+  contract: { inputHash: 'b'.repeat(64), brain: { vendorKey: 'test', modelKey: 'brain' }, image: { vendorKey: 'test', modelKey: 'image' }, parameters: {}, language: 'zh', locale: 'zh-CN', draftTurns: 1, maxImages: 5 },
+  draft: { success: true, shotCount: 4, toolCalls: 1, failures: 0, retries: 0, manualSteps: 0, placeholders: 0, elapsedMs: 10000 },
+  batch: { shots: Array.from({ length: 5 }, (_, i) => ({ shotId: `shot-${i + 1}`, outcome: 'success' })), elapsedMs: 10000,
+    longestUnresponsiveMs: 100, heartbeat: { samples: 5 }, rtts: [10], busyReleased: true, rejectedRetries: 0 } })
+
+test('equal observations tie; one missing successful image cannot be offset by faster completion', () => {
+  const before = receipt(), after = receipt()
+  assert.equal(compareResults(before, after).verdict, '持平')
+  after.batch.shots[4].outcome = 'failed'
+  after.batch.elapsedMs = 5000
+  assert.equal(compareResults(before, after).verdict, '变差')
+  assert.equal(compareResults(after, before).verdict, '变差', 'Slowdown still blocks an image improvement')
+  after.batch.elapsedMs = before.batch.elapsedMs
+  assert.equal(compareResults(after, before).verdict, '变好')
+})
+
+test('duration and responsiveness thresholds include their exact boundary', () => {
+  const before = receipt(), after = receipt()
+  after.batch.elapsedMs = 12000
+  after.batch.longestUnresponsiveMs = 300
+  assert.equal(compareResults(before, after).verdict, '持平')
+  after.batch.elapsedMs++
+  assert.equal(compareResults(before, after).verdict, '变差')
+  after.batch.elapsedMs = 10000
+  before.batch.longestUnresponsiveMs = 999
+  after.batch.longestUnresponsiveMs = 1001
+  assert.equal(compareResults(before, after).verdict, '变差')
+})
+
+test('missing, nonfinite, duplicated, incomplete and mismatched evidence blocks comparison', () => {
+  const mutations = [
+    r => { delete r.draft.toolCalls }, r => { r.batch.longestUnresponsiveMs = NaN },
+    r => { r.batch.shots[4].shotId = 'shot-1' }, r => { r.complete = false },
+    r => { r.mode = 'paid' }, r => { r.contract.inputHash = 'c'.repeat(64) },
+    r => { r.contract.locale = 'en' }, r => { r.contract.parameters.size = 'other' },
+    r => { r.batch.heartbeat.samples = 0 }, r => { r.batch.busyReleased = null },
+    r => { r.exitCode = 1 }, r => { delete r.exitCode },
+  ]
+  for (const mutate of mutations) {
+    const after = receipt(); mutate(after)
+    assert.throws(() => compareResults(receipt(), after))
+  }
+})
+
+test('each adverse metric and stuck/failed ordering blocks the release', () => {
+  for (const key of ['toolCalls', 'failures', 'retries', 'manualSteps', 'placeholders']) {
+    const after = receipt(); after.draft[key]++
+    assert.equal(compareResults(receipt(), after).verdict, '变差', key)
+  }
+  const after = receipt(); after.batch.busyReleased = false
+  assert.equal(compareResults(receipt(), after).verdict, '变差')
+  const before = receipt(); before.batch.shots[0].outcome = 'failed'
+  after.batch.busyReleased = true; after.batch.shots[0].outcome = 'stuck'
+  assert.equal(compareResults(before, after).verdict, '变差')
+})
+
+test('only the observed foreground guard may turn a complete clean task into an accepted exit 1', () => {
+  const guard = { violated: true, firstViolation: { pid: 42, phase: 'started', ok: false }, exitCodeBeforeGuard: 0 }
+  const finish = (overrides = {}, state = guard, code = 1) => finalizeReleaseCoreReceipt({ ...receipt(), observationsPassed: true, exitCodeBeforeExit: 0, ...overrides }, state, code)
+  const foregroundOnly = finish()
+  assert.equal(foregroundOnly.complete, true)
+  assert.equal(foregroundOnly.exitCode, 1)
+  assert.equal(foregroundOnly.exitCause, 'foreground-guard')
+  assert.equal(compareResults(receipt(), foregroundOnly).verdict, '持平')
+  assert.ok(compareResults(receipt(), foregroundOnly).rows.some(row => String(row.candidate).includes('foreground-guard')))
+  assert.throws(() => compareResults(receipt(), finish({ complete: false, observationsPassed: false, error: 'assertion failed', exitCodeBeforeExit: 1 })), /Incomplete/)
+  assert.throws(() => compareResults(receipt(), finish({}, { violated: false, firstViolation: null, exitCodeBeforeGuard: null })))
+  assert.throws(() => compareResults(receipt(), { ...foregroundOnly, foregroundGuard: null }), /exit/)
+  assert.throws(() => compareResults(receipt(), finish({}, { ...guard, exitCodeBeforeGuard: 1 })))
+  assert.throws(() => compareResults(receipt(), finish({}, guard, 2)))
+})
+
+test('rehearsal walk without comparison arguments is skipped (125), so the nightly walk list never turns it red', () => {
+  const run = spawnSync(process.execPath, [fileURLToPath(new URL('./release-core-compare.rehearsal.walk.mjs', import.meta.url))], { encoding: 'utf8' })
+  assert.equal(run.status, 125)
+  assert.match(run.stdout, /跳过/)
+})

@@ -147,6 +147,49 @@ test('配置面 fail-closed：空链 / 重名 / 过期 advisory / 不存在的�
   assert.deepEqual([...parsed.advisory], ['check:a', 'check:b'])
 })
 
+test('--only / --except 把同一份清单切成两半：两半合起来不多不少，错用（同时给、点名不存在、切空）都报错', () => {
+  const list = ['check:a', 'check:b', 'check:c']
+  const rest = parseGateArgs(['--except=check:b', ...list])
+  const slow = parseGateArgs(['--only=check:b', ...list])
+  assert.deepEqual(rest.gates, ['check:a', 'check:c'])
+  assert.deepEqual(slow.gates, ['check:b'])
+  assert.deepEqual([...rest.gates, ...slow.gates].sort(), list)
+  assert.deepEqual(rest.deferred, ['check:b'])
+  assert.deepEqual(parseGateArgs(list).deferred, [])
+  assert.throws(() => parseGateArgs(['--only=check:a', '--except=check:b', ...list]), /不能同时给/)
+  assert.throws(() => parseGateArgs(['--only=check:gone', ...list]), /不在链里/)
+  assert.throws(() => parseGateArgs(['--except=check:a,check:b,check:c', ...list]), /没有任何门岗可跑/)
+})
+
+test('分作业核对：--except 的门没有 --only 作业接手 → 红；接上 → 绿；真仓库的 profiles 是绿的', async () => {
+  const { splitCoverageProblems } = await import('./check-gates-chain.mjs')
+  const stage = (id, args) => ({ id, command: 'pnpm', args })
+  const profiles = { 'ci-contracts': ['contracts'], 'ci-contracts-hooks': ['contracts-hooks'] }
+  const good = { contracts: stage('contracts', ['run', 'gates:contracts', '--except=check:slow']), 'contracts-hooks': stage('contracts-hooks', ['run', 'gates:contracts', '--only=check:slow']) }
+  assert.deepEqual(splitCoverageProblems(good, profiles), [])
+  // 反例 1：接手的 profile 没在 CI 里
+  assert.match(splitCoverageProblems(good, { 'ci-contracts': ['contracts'] }).join('\n'), /check:slow：stage「contracts」.*没有任何 CI stage/)
+  // 反例 2：接手的 stage 点名了别的门
+  const wrong = { ...good, 'contracts-hooks': stage('contracts-hooks', ['run', 'gates:contracts', '--only=check:other']) }
+  assert.match(splitCoverageProblems(wrong, profiles).join('\n'), /check:slow/)
+  const { PROFILES, STAGES } = await import('../tests/system/profiles.mjs')
+  assert.deepEqual(splitCoverageProblems(STAGES, PROFILES), [])
+})
+
+test('慢测试名单：文件被挪出命令又没接到别处 → 红；真仓库绿', async () => {
+  const { slowTestFileProblems, resolveReachable } = await import('./check-gates-chain.mjs')
+  const { default: fs } = await import('node:fs')
+  const { default: path } = await import('node:path')
+  const { fileURLToPath } = await import('node:url')
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+  const scripts = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).scripts
+  const reachable = resolveReachable(scripts, 'gates')
+  assert.deepEqual(slowTestFileProblems(scripts, reachable), [])
+  // 反例：把那份重测试从拆出的脚本里拿掉，它就既不在 check:claude-hooks 也不在任何别处
+  const broken = { ...scripts, 'check:claude-hooks-real-entry': 'node --test ./scripts/other.node-test.mjs' }
+  assert.match(slowTestFileProblems(broken, resolveReachable(broken, 'gates')).join('\n'), /pre-push-contracts\.node-test\.mjs.*没人跑/)
+})
+
 test('package.json 的 gates:contracts 就是这个 runner，且 advisory 只限两类、逐条点名', async () => {
   const { default: fs } = await import('node:fs')
   const { default: path } = await import('node:path')

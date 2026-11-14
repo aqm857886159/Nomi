@@ -1,4 +1,4 @@
-import { canvasLocalArtifactReceipt } from "./canvasShotRunApi";
+import { canvasAwareOutputMaterializer } from "./canvasShotRunApi";
 import { readAgentApprovalPolicy } from '../settings/agentApprovalPolicySettings'
 import { parseDirectorPreviewBlockReply } from "../shared/director/directorPreviewStatus";
 // 能力核 · app 集成（见 docs/plan/2026-06-20-capability-core-headless-exposure.md §S4）。
@@ -14,7 +14,7 @@ import { parseDirectorPreviewBlockReply } from "../shared/director/directorPrevi
 //
 // 这里只做接线，不碰 main.ts 的其它职责（保持 main.ts 精简、单一关注点）。
 import { app } from 'electron'
-import { getMainWindow } from '../appWindowRegistry'
+import { mainWindowPhase, revealMainWindow } from '../mainWindowPresence'
 import { startRpcServer, type RpcServerHandle } from './rpcServer'
 import { ensureCapabilitySigningKey, ensureToken } from './security'
 import { clearInstanceAdvertisement, writeInstanceAdvertisement } from './lockfile'
@@ -72,7 +72,7 @@ import { installPendingSpendActions, pendingSpendDependencies, readInstalledPend
 import { createCanvasShotRuns, followCanvasShotChange, installCanvasShotRuns, withdrawQueuedHandOvers } from './appIntegrationCanvasShot'
 import { CANVAS_SHOT_SETTLED_OP } from '../shared/canvas/canvasShotSettled'
 import { createCanvasHandOver } from './canvasHandOver'
-import { canvasTransportProviders, isCanvasProviderId, lazyCanvasTransport } from './canvasTransportProvider'
+import { canvasTransportProviders, lazyCanvasTransport } from './canvasTransportProvider'
 import { quoteSpendLine } from '../spendQuote'
 import { createGenerationReferenceScopeGuard } from './generationReferenceScope'
 export { canvasOpenRuns, consentCanvasShots, submitCanvasShot, pollCanvasShot, releaseCanvasShot, withdrawCanvasShots, releaseCanvasShotSender } from './appIntegrationCanvasShot'
@@ -210,11 +210,8 @@ export async function startCapabilityCore(
     // 提交出口认得的执行器：目录执行器 + 画布那台的传输（按家各一个 `canvas:<key>`，发动机收敛第一刀）。
     const canvasTransport = lazyCanvasTransport()
     const submissionProviders = () => [...readProviderBootstrap().providers, ...canvasTransportProviders(readCatalog().vendors.map((vendor) => vendor.key), canvasTransport)]
-    // The loopback vendor is a test-only trusted local service. Keep the
-    // private-origin exception at this fixture wiring boundary; ordinary
-    // provider output downloads retain hardenedFetch's SSRF guard. The fetch
-    // policy itself (timeout / size / provider route) is the shared owner's.
-    const outputMaterializer = createGenerationOutputMaterializer(fixtureBaseUrlOverride ? { trustedPrivateOrigin: fixtureBaseUrlOverride } : {})
+    // The fetch policy (timeout / size / provider route) is the shared owner's (fetchProviderMedia).
+    const outputMaterializer = createGenerationOutputMaterializer()
     const generationRegistry = authorities.generationModuleRegistry ?? initialGenerationScope.registry
     // P4 S2: real per-shot pricing from the live catalog (resolve lazily so pricing edits apply).
     const resolveModelPricing = (providerId: string, modelId: string) => createCatalogModelPricingResolver(readCatalog().models)(providerId, modelId)
@@ -257,9 +254,7 @@ export async function startCapabilityCore(
       intentMacKey: ensureCapabilitySigningKey('generation-intent'),
       providers: input.providers,
       // 画布那台交回来的产物已经落在项目里：记进 Run，不再下载一次；不是本地地址的走通用物化。
-      materializeOutput: async ({ projectId, providerTaskId, output, job }) => (isCanvasProviderId(job.provider)
-        && canvasLocalArtifactReceipt({ projectId, projectRoot: input.projectRoot, providerTaskId, output }))
-        || outputMaterializer.materialize({ projectId, providerTaskId, output, providerId: job.provider }),
+      materializeOutput: canvasAwareOutputMaterializer(input.projectRoot, outputMaterializer),
     })
     type SubmittableRun = {
       projectId: string
@@ -653,17 +648,12 @@ export async function startCapabilityCore(
       approvalPolicy: readAgentApprovalPolicy,
       proposalReceiptFor: authorities.proposalReceiptFor,
       openCredentialsInNomi: authorities.openCredentialsInNomi ?? (async ({ sessionId }: { sessionId: string; vendorName: string }) => {
-        const win = getMainWindow()
-        if (!win || win.isDestroyed()) throw new Error('Nomi window unavailable')
-        // macOS 上只 win.focus() 不够：它让某扇窗成为 key window，但不会把 Nomi 变成最前面的
-        // **应用**——用户还是看不见它。app.focus({steal:true}) 管的是后面那件事，两件都要做。
+        if (mainWindowPhase() !== 'open') throw new Error('Nomi window unavailable')
+        // 叫回只发意图：主窗主人在 macOS 上另做 app.focus({steal:true})——只 focus 窗口不会把 Nomi 变成最前面的应用。
         // 2026-09-06 实测这条路径能把窗口叫到前台（tests/ux/mcp-key-window.walk.mjs）；
         // 那条走查在锁屏/无前台登录会话时会用阳性对照判出「窗口服务器不给任何 App 焦点」并明说没跑成，
         // 不会把环境没功率报成 Nomi 的 bug。
-        if (process.platform === 'darwin') app.focus({ steal: true })
-        if (win.isMinimized()) win.restore()
-        win.show()
-        win.focus()
+        revealMainWindow('mcp-credentials')
         await requestRenderer('integration.open-credentials', { sessionId }, 30_000)
         return { opened: true }
       }),

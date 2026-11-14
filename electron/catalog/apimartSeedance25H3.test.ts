@@ -9,6 +9,7 @@ import { applyParamMap } from "./paramTranslate";
 import { taskTemplateParams } from "./taskParams";
 
 import type { CatalogState } from "./types";
+import { modeWrittenInMeta } from "../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers";
 const emptyCatalog = (): CatalogState => ({ version: 4, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
 
 function renderH3I2vBody(extras: Record<string, unknown>) {
@@ -77,7 +78,7 @@ describe("APIMart Seedance 2.5 / MiniMax-H3 curated 接入", () => {
     const archetype = getArchetypeById("seedance-2.5-apimart");
     expect(archetype).toBeTruthy();
     const meta = { archetype: { id: "seedance-2.5-apimart", modeId: "firstlast" } };
-    const params = buildArchetypeInputParams(meta, archetype!, { firstFrameUrl: "https://x/first.png", lastFrameUrl: "https://x/last.png" });
+    const params = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, archetype!), { firstFrameUrl: "https://x/first.png", lastFrameUrl: "https://x/last.png" });
     expect(params.image_with_roles).toEqual([
       { url: "https://x/first.png", role: "first_frame" },
       { url: "https://x/last.png", role: "last_frame" },
@@ -89,7 +90,7 @@ describe("APIMart Seedance 2.5 / MiniMax-H3 curated 接入", () => {
     const archetype = getArchetypeById("minimax-h3-apimart");
     expect(archetype).toBeTruthy();
     const meta = { archetype: { id: "minimax-h3-apimart", modeId: "first" } };
-    const params = buildArchetypeInputParams(meta, archetype!, { firstFrameUrl: "https://x/first.png" });
+    const params = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, archetype!), { firstFrameUrl: "https://x/first.png" });
     expect(params.first_frame_image).toBe("https://x/first.png");
     expect(params.first_frame_url).toBeUndefined();
   });
@@ -105,13 +106,15 @@ describe("APIMart Seedance 2.5 / MiniMax-H3 curated 接入", () => {
     ).rejects.toThrow(/首尾帧.*参考素材/);
   });
 
-  it("H3 多模态参考拒绝音频单独输入，并清理首尾帧模式忽略的字段", async () => {
+  it("H3 的请求变换不再判参考组合（「音频不能单独输入」归发送前的通用判定），只清理首尾帧模式忽略的字段", async () => {
+    // 只放音频的多模态参考由 applyHeadlessParamDefaults → validateModeConstraints 在两个发送口拒（electron/parity/modeInputCheck.test.ts）；
+    // 变换里再判一份就是第二份判定（2026-11-14 删）。
     const ref = renderH3I2vBody({
       audio_urls: ["https://x/reference.mp3"],
     });
     await expect(
       applyRequestTransform(ref.mapping.create.request_transform, ref.body, { baseUrl: "https://api.apimart.ai" }),
-    ).rejects.toThrow(/音频不能单独/);
+    ).resolves.toBeTruthy();
 
     const frame = renderH3I2vBody({
       first_frame_image: "https://x/first.png",

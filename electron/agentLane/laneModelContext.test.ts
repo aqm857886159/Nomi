@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { MODEL_FACING_TOOL_SPECS, modelCatalogReadSpec } from '../shared/agentCapabilities/modelFacingToolRegistry'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
-import { formatLaneModelIndex } from './laneModelContext'
+import { formatLaneModelDelta, formatLaneModelIndex } from './laneModelContext'
 import { LANE_TOOL_REQUEST_TOOL_NAME } from './laneToolGroups.mjs'
 
 const context = {
@@ -57,13 +57,24 @@ describe('用户声明的默认模型：模型看得到，且说的是同一个�
     expect(text).toContain('用户没点名模型时')
     expect(text).toContain('以用户点名的为准')
     expect(text).toContain('先在回话里说清为什么换')
-    // 没声明的任务不出行——不告诉模型一个不存在的默认。
-    expect(text).not.toContain('改图')
-    expect(text).not.toContain('文生视频')
+    expect(text).toContain('图片默认（改图 / 带参考图）：没有能用的已保存默认')
+    expect(text).toContain('视频默认（文生视频）：没有能用的已保存默认')
   })
 
-  it('一个默认都没有：整段不出', () => {
-    expect(formatLaneModelIndex(context, {})).not.toContain('用户在设置里选的默认模型')
-    expect(formatLaneModelIndex(context)).not.toContain('用户在设置里选的默认模型')
+  it('自动选：四种任务都明确缺省，要求 Agent 从目录点名并回话报显示名', () => {
+    const text = formatLaneModelIndex(context, {})
+    expect(text.match(/没有能用的已保存默认/g)).toHaveLength(4)
+    expect(text).toContain('「自动选」')
+    expect(text).toContain('必须在 modelId 里点名一个具体模型')
+    expect(text).toContain('从可用目录里挑')
+    expect(text).toContain('在回话里用显示名告诉用户挑了谁')
+    expect(text).toContain('以用户点名的为准')
+  })
+
+  it('未读取默认：目录增量和历史索引不能把未知说成自动选', () => {
+    expect(formatLaneModelIndex(context)).not.toContain('没有能用的已保存默认')
+    const changed = { ...context, availableModels: [{ ...context.availableModels![0], displayName: 'Updated' }] }
+    expect(formatLaneModelDelta(changed, context)).not.toContain('没有能用的已保存默认')
+    expect(formatLaneModelIndex({ availableModels: [] } as unknown as LaneComposerContext)).toBe('')
   })
 })

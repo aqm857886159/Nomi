@@ -1,11 +1,18 @@
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../i18n'
 import type { LocaleDigest, UpdateEvent } from '../../../electron/shared/updateReminder'
 import { UpdateDialogCard } from './UpdateDialog'
 import { deriveDialogView } from './updateDialogView'
 import { closeUpdateDialog, openUpdateDialog, requestInstall, resetUpdateStoreForTests, startUpdateSync, useUpdateStore } from './updateStore'
+
+
+// 这里守更新状态和决定语义；真实 Mantine 高度 / 裁切由实验室普查量。
+vi.mock('../../design', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../design')>(),
+  DesignModal: ({ title, actions, children }: { title: React.ReactNode; actions: React.ReactNode; children: React.ReactNode }) => <section>{title}{children}{actions}</section>,
+}))
 
 const digest: LocaleDigest = { title: '标题', groups: [{ heading: '组', items: ['条目'] }], hiddenGroups: 0 }
 const base = { dialogOpen: true, errorStage: null, canAutoInstall: true, macStepsShown: false } as const

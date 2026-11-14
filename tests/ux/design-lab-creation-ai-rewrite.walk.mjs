@@ -78,7 +78,7 @@ async function liveJourney(page, record) {
   expect(record, accepted.includes(REWRITTEN_ZH) && !accepted.includes(TARGET_ZH), `Enter 之后正文没有被换成新的：${accepted}`)
   await shot('live-04-accepted')
   await page.locator('.workbench-editor__content').click()
-  await page.keyboard.press('Control+z')
+  await page.keyboard.press('ControlOrMeta+z')
   const undone = await text()
   expect(record, undone.includes(TARGET_ZH) && !undone.includes(REWRITTEN_ZH), `Ctrl+Z 没有撤回到改写前：${undone}`)
   await shot('live-05-undone')
@@ -152,10 +152,61 @@ async function liveJourney(page, record) {
 fs.mkdirSync(OUT_DIR, { recursive: true })
 
 /**
+ * 选区浮条「拆成镜头」的位置与长相（样张 B，用户 2026-11-12 拍板；清单 SelectionStoryboard）。
+ * 读的是浮条真 DOM 的从左到右顺序，不读截图：「放回生成组」「换回胶片」「AI 编辑不在时丢了分隔线」都会在这里红。
+ */
+async function expectSelectionBarState(page, state, record) {
+  const layout = await page.evaluate(() => {
+    const bar = document.querySelector('.workbench-selection-popover')
+    if (!bar) return null
+    const slot = (node) => {
+      if (node.classList.contains('workbench-selection-popover__divider')) return 'divider'
+      if (node.classList.contains('workbench-selection-popover__format-group')) return 'format'
+      const cluster = node.getAttribute('data-selection-cluster')
+      if (!cluster) return node.className
+      const items = [...node.children].map((child) => (
+        child.classList.contains('workbench-selection-popover__tool--ai') ? 'ai-edit' : child.getAttribute('data-selection-action') ?? '?'
+      ))
+      return `${cluster}[${items.join(',')}]`
+    }
+    const storyboard = bar.querySelector('[data-selection-action="storyboard"]')
+    return {
+      slots: [...bar.children].map(slot),
+      storyboardIcon: storyboard?.querySelector('svg')?.getAttribute('class') ?? '',
+      storyboardDisabled: storyboard ? storyboard.disabled : null,
+      storyboardName: storyboard?.getAttribute('aria-label') ?? '',
+      storyboardTitle: storyboard?.getAttribute('title') ?? '',
+    }
+  })
+  if (!layout) {
+    record(`${state.id} 选区浮条没出来`)
+    return
+  }
+  const scene = state.id.includes('no-ai-edit') ? 'no-ai-edit' : state.id.includes('unavailable') ? 'unavailable' : 'ready'
+  const besideAi = scene === 'no-ai-edit' ? 'beside-ai-edit[storyboard]' : 'beside-ai-edit[ai-edit,storyboard]'
+  const expected = ['format', 'divider', besideAi, 'divider', 'generate[image,video]']
+  // board:SelectionStoryboard/bar.shell board:SelectionStoryboard/bar.storyboard-beside-ai-edit board:SelectionStoryboard/bar.generate-pair
+  expect(record, JSON.stringify(layout.slots) === JSON.stringify(expected), `${state.id} 浮条从左到右应是 ${expected.join(' | ')}，实际 ${layout.slots.join(' | ')}`)
+  // board:SelectionStoryboard/bar.storyboard-icon
+  expect(record, layout.storyboardIcon.includes('tabler-icon-layout-rows'), `${state.id} 「拆成镜头」图标不是分镜 IconLayoutRows：${layout.storyboardIcon}`)
+  // board:SelectionStoryboard/bar.storyboard-name
+  const name = uiText(state.id.includes('-en-') ? 'en' : 'zh-CN', 'creationAi.selection.storyboard')
+  expect(record, layout.storyboardName === name && layout.storyboardTitle === name, `${state.id} 「拆成镜头」悬停名字不对：${layout.storyboardName} / ${layout.storyboardTitle}`)
+  // board:SelectionStoryboard/bar.storyboard-unavailable
+  expect(record, layout.storyboardDisabled === (scene === 'unavailable'), `${state.id} 「拆成镜头」置灰状态不对：disabled=${layout.storyboardDisabled}`)
+  // board:SelectionStoryboard/bar.no-ai-edit
+  if (scene === 'no-ai-edit') expect(record, !layout.slots.some((slot) => slot.includes('ai-edit,')), `${state.id} 没有 AI 编辑时浮条上还画着它`)
+}
+
+/**
  * 每一格的检查（walkDesignLabScreen 的逐格钩子）。注意：这和「控制文案动作词登记」里登记的 assertState 不是一件事——
  * 那些是各走查自己的逐格断言，这里也是；它们都只是传给走查框架的钩子，不写控制文案登记。所以不复用别人的函数，只用不同的名字声明。
  */
 async function expectRewriteState(page, state, record) {
+    if (state.id.startsWith('selbar-')) {
+      await expectSelectionBarState(page, state, record)
+      return
+    }
     if (state.id === 'rewrite-live-zh-light') {
       await liveJourney(page, record)
       return

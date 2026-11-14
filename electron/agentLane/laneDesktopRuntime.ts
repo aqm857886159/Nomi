@@ -175,7 +175,7 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
             .filter(Boolean).join('\n\n'),
           systemPromptClosing: buildLanguageRule,
           tools: ports.tools, toolLifecycle: ports.toolLifecycle, input,
-          // 工具失败的匿名计数（没开遥测时 `recordTelemetryEvent` 一条都不入队）：五格标识符，不带入参与正文。
+          // 工具失败的匿名计数（没开遥测时 `recordTelemetryEvent` 一条都不入队）：五格标识符 + 可选的闭合原因码，不带入参与正文。
           onToolFailure: (failure) => {
             recordTelemetryEvent({ eventName: 'agent.tool.failed', props: agentToolFailedProps(failure, { vendorKey: selected?.model.vendorKey }) },
               app.getVersion(), getDesktopLocale())

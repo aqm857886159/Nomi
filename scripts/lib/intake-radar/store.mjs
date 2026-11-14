@@ -1,7 +1,7 @@
 // Intake Radar —— 仓库外缓存层：原始数据、增量状态、报告全部落在这里，一行都不进仓库。
 //
 // 目录形状故意和 `D:\tmp\intake-pull.mjs` 已经下载好的那份一模一样（`<cacheDir>/<feedback|
-// events|trajectories>/<date>/<uuid>.json`），这样把 NOMI_INTAKE_CACHE 指到那份临时下载
+// events>/<date>/<uuid>.json`），这样把 NOMI_INTAKE_CACHE 指到那份临时下载
 // 上，脚本能直接认出「这些键已经在本地」，不用重下——增量的单一判据仍然是 state.json
 // 里的 seenKeys（见下），文件是否已经在磁盘只影响「要不要再打一次网络请求」。
 
@@ -91,7 +91,7 @@ function walkJsonFiles(dir, baseDir, out) {
 }
 
 /**
- * 读某个前缀（`feedback/` | `events/` | `trajectories/`）下缓存里现有的全部原始记录。
+ * 读某个前缀（`feedback/` | `events/`）下缓存里现有的全部原始记录。
  * 单个文件解析失败不中断整批——收进 `corrupt`，让调用方决定怎么在报告里说清楚
  * 「这几条本地读不出来」，而不是让一份坏文件拖垮整份报告。
  */

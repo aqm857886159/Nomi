@@ -3,19 +3,17 @@
 // （复用 nomi:production-deep-link 通道，renderer 既有处理器会定位到 run）。
 // 通知钩子绝不允许影响制作主流程：全部 try/catch 吞错。
 
-import { BrowserWindow } from 'electron'
 import { showDesktopNotification } from '../desktopNotification'
+import { revealMainWindow, sendToMainWindow } from '../mainWindowPresence'
 
 import { createNoticeDedupe, decideProductionNotice } from './productionNotifications'
 import type { ProductionRun, RunEvent } from './productionRunTypes'
 
+// 叫回只发意图，由主窗主人亮主窗（藏着、最小化都行）；主窗此刻能收就投递一次深链。
+// MCP stdio 无窗进程没有主人：通知仍有价值（提示用户开 Nomi），点击不动。
 function focusAndDeepLink(target: { projectId: string; runId: string }): void {
-  const win = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed())
-  if (!win) return // MCP stdio 无窗进程：通知仍有价值（提示用户开 Nomi），点击无窗可聚焦则不动
-  if (win.isMinimized()) win.restore()
-  win.show()
-  win.focus()
-  win.webContents.send('nomi:production-deep-link', target)
+  revealMainWindow('production-notification')
+  sendToMainWindow('nomi:production-deep-link', target)
 }
 
 /** 装一个可直接塞给 service deps.onEvents 的监听器。 */

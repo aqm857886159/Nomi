@@ -1,0 +1,27 @@
+// 在 v0.24.1 的导出里跑：用当时真实的同意写入（writeTelemetrySettings）和入队（recordTelemetryEvent）
+// 落一个「开着统计、队列里有待发事件」的设置目录。事件形状照 v0.24.1 各发送口当时发的那样（生成完成带
+// attemptCountBucket、失败带 errorType；启动、导出、更新、流畅度汇总）。不配接收地址，什么都不发出去。
+// 用法：NOMI_SETTINGS_DIR=<空目录> NOMI_OLD_OUT=<输出目录> NOMI_OLD_COMMIT=<sha> npx tsx zzTelemetryOutboxGen.ts
+import fs from 'node:fs'
+import path from 'node:path'
+import { writeTelemetrySettings } from './electron/telemetry/telemetrySettings'
+import { recordTelemetryEvent, readTelemetrySummary } from './electron/telemetry/telemetryOutbox'
+
+const root = process.env.NOMI_SETTINGS_DIR!
+const out = process.env.NOMI_OLD_OUT!
+writeTelemetrySettings({ enabled: true })
+const events = [
+  { eventName: 'app.started', props: { appMajor: 0, appMinor: 24, osFamily: 'macos', locale: 'zh-CN' } },
+  { eventName: 'generation.completed', props: { capability: 'video', durationBucket: '>5s', result: 'failure', attemptCountBucket: '1', errorType: 'unknown' } },
+  { eventName: 'generation.completed', props: { capability: 'image', durationBucket: '1-5s', result: 'success', attemptCountBucket: '1' } },
+  { eventName: 'export.completed', props: { format: 'mp4', durationBucket: '>5s', result: 'success' } },
+  { eventName: 'update.action', props: { action: 'download', result: 'failure', reason: 'network' } },
+  { eventName: 'perf.session.summary', props: { interactionP75: '100-200', interactionP95: '200-500', longFramesPerMin: '1-3', longestFrame: '100-250', observedMinutes: '5-30', page: 'generation', nodes: '21-100', imageNodes: '1-20', generating: true, cpuCores: '9-16', memoryGb: '8plus' } },
+] as const
+const accepted = events.map((event) => recordTelemetryEvent(event as never, '0.24.1', 'zh-CN'))
+if (accepted.some((ok) => !ok)) throw new Error(`v0.24.1 拒收了：${JSON.stringify(accepted)}`)
+const summary = readTelemetrySummary()
+fs.mkdirSync(out, { recursive: true })
+for (const file of ['telemetry-settings.json', 'telemetry-outbox.json']) fs.copyFileSync(path.join(root, file), path.join(out, file))
+fs.writeFileSync(path.join(out, 'manifest.json'), `${JSON.stringify({ release: 'v0.24.1', recordedFrom: process.env.NOMI_OLD_COMMIT, pendingCount: summary.pendingCount, eventNames: events.map((e) => e.eventName) }, null, 2)}\n`)
+console.log('ok', JSON.stringify(summary))

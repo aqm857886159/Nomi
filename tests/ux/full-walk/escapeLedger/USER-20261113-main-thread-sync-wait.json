@@ -1,0 +1,21 @@
+{
+  "id": "USER-20261113-main-thread-sync-wait",
+  "since": "2026-11-13",
+  "source": "用户 2026-11-13 的话：「有没有可能把这种问题的根因都找到并且解决 就是原地等待问题 冻住问题什么的」。方向检查 docs/engineering/direction-checks/2026-11-13-main-thread-sync-wait.md。",
+  "category": "performance-coverage",
+  "problem": "保存遇到文件被杀毒 / 同步盘占着时，主进程原地睡着退避（约 400ms）、注册表锁自旋，这期间所有窗口的请求都没人应；保存之外，清单锁、同步回调里的写入、花钱运行的记账和锁也在主进程上原地等。#1500 想用「不睡、定时器重排整次保存」解决，两轮独立验收不通过（Agent / MCP 已回执的写入之后被整份盖回；注册表锁留孤儿、下一次卡约 3 秒），走了退路：只落导出收尾改名换异步、热路径同步文件操作的 lint 规则与存量冻结。保存热路径的冻结没有解决。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-13-save-hotpath-safe-subset.md",
+    "docs/engineering/direction-checks/2026-11-13-main-thread-sync-wait.md",
+    "electron/workspace/saveParity.test.ts",
+    "tests/perf/save-hotpath-bench.mjs",
+    "下一刀：把保存整体搬出主进程（工作线程 / 子进程），在那边照旧原地等、所有写入方经同一个队列；要先写设计。合入时回来把这一条结账。"
+  ],
+  "completionCommits": []
+}

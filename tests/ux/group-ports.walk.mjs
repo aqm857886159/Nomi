@@ -131,21 +131,21 @@ await win.getByRole('button', { name: '生成整组', exact: true }).click()
 // 等真实条件（确认卡出现），不是盲等固定毫秒：机器慢一点 sleep 就不够，读到空却报绿。
 // 超时不抛——下面的 check 仍要把「读到什么」打出来，保留这条走查的失败可读性。
 await win
-  .locator('div.fixed.inset-0')
+  .locator('[data-spend-confirm-dialog]')
   .filter({ hasText: /开始生成/ })
   .last()
   .waitFor({ state: 'visible' })
   .catch(() => {})
 await snap(win, 'after-run-group')
 const confirmCard = await win.evaluate(() => {
-  const veil = Array.from(document.querySelectorAll('.fixed.inset-0')).find((element) => element.textContent?.includes('开始生成'))
+  const veil = Array.from(document.querySelectorAll('[data-spend-confirm-dialog]')).find((element) => element.textContent?.includes('开始生成'))
   return veil ? veil.textContent?.replace(/\s+/g, ' ').trim() ?? '' : null
 })
 console.log('  → 确认卡:', JSON.stringify(confirmCard))
 check('整组运行走现成的批量确认卡', typeof confirmCard === 'string' && /开始生成/.test(confirmCard), String(confirmCard))
 // 确认卡现在是逐项清单（每个节点一行、没生成的默认勾上），张数 = 清单行数；不再有一句「生成 N 张」。
 const confirmRows = await win.evaluate(() => {
-  const boxes = Array.from(document.querySelectorAll('.fixed.inset-0 [data-v4-block="plan-rows"] input[type="checkbox"]'))
+  const boxes = Array.from(document.querySelectorAll('[data-spend-confirm-dialog] [data-v4-block="plan-rows"] input[type="checkbox"]'))
   return { rows: boxes.length, checked: boxes.filter((box) => box.checked).length }
 })
 check('确认卡张数 = 组成员数 4（4 行、都默认勾上）', confirmRows.rows === 4 && confirmRows.checked === 4, JSON.stringify(confirmRows))
@@ -153,7 +153,7 @@ check('确认卡张数 = 组成员数 4（4 行、都默认勾上）', confirmRo
 const cancelBtn = win.locator('button', { hasText: /^取消$/ }).first()
 if (await cancelBtn.count()) await cancelBtn.click({ timeout: 4000 }).catch(() => {})
 await expect.poll(() => win.locator('[data-group-toolbar="true"]').count()).toBeGreaterThan(0)
-const veilGone = await win.evaluate(() => !Array.from(document.querySelectorAll('.fixed.inset-0')).some((element) => element.textContent?.includes('开始生成')))
+const veilGone = await win.evaluate(() => !Array.from(document.querySelectorAll('[data-spend-confirm-dialog]')).some((element) => element.textContent?.includes('开始生成')))
 check('取消后确认卡收掉', veilGone)
 
 // ③ 连到组：加一个组外节点 → 从它拉线 → 组框应变成可落点（虚线 + 加深底色）

@@ -287,7 +287,7 @@ async function runLifecycle(kind: "video" | "audio", mode: AdapterModeDraft): Pr
     if (normalized.result.status !== "succeeded") return { ok: false, stage: "poll", error: "task never reached a terminal success" };
     const evidence: CertificationMediaEvidence[] = [];
     for (const asset of normalized.result.assets) {
-      evidence.push(await certifyMediaArtifact({ source: asset.url, expectedKind: kind, allowedPrivateOrigins: [baseUrl] }));
+      evidence.push(await certifyMediaArtifact({ source: asset.url, expectedKind: kind }));
     }
     return { ok: true, mediaEvidence: evidence, ...(remoteTaskId ? { remoteTaskId } : {}) };
   } catch (error) {

@@ -8,7 +8,7 @@ import { readCatalog } from "../catalog/catalogStore";
 import { desktopT } from "../i18n";
 import { classifyTaskCacheMiss, wasTaskAdmitted } from "./taskAdmission";
 import { taskFailureMessageFromResponse } from "./responseParsing";
-import { unlocalizedTaskAsset } from "./unlocalizedTaskAsset";
+import { localizeTaskAssets } from "../assets/localizeTaskAsset";
 import { traceVendorCompleted } from "../events/vendorCallTrace";
 import { extractProviderCostActual } from "../vendor/cost";
 import { rememberTaskResult } from "../vendor/fingerprintCache";
@@ -22,7 +22,6 @@ import {
   executeProfileOperation,
   findExecutableModel,
   findTaskMapping,
-  localizeTaskAsset,
 } from "../runtime";
 import { logWarn } from "../logging/logger";
 import { retrievalStageError } from "./retrievalStageError";
@@ -209,7 +208,8 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
     } catch (error) {
       throw retrievalStageError("retrieval-query", error);
     }
-    const readResult = async (response: unknown, operation: NonNullable<typeof queryOperation>) => {
+    // 有 result 那一跳的通道，产物在 result 那一跳落盘：query 这一跳只读状态，不下载（否则一笔四张会先下四张、再下四张）。
+    const readResult = async (response: unknown, operation: NonNullable<typeof queryOperation>, landsFiles: boolean) => {
       try {
         return await buildProfileTaskResult({
           response,
@@ -218,7 +218,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
           request: cached.request,
           taskIdFallback: taskId,
           wantedKind: cached.wantedKind || model.kind,
-          projectId: cached.projectId,
+          projectId: landsFiles ? cached.projectId : undefined,
           nodeId: cached.nodeId,
           vendor,
           model,
@@ -228,7 +228,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
         throw retrievalStageError("retrieval-download", error);
       }
     };
-    let normalized = await readResult(executed.response, activeQuery);
+    let normalized = await readResult(executed.response, activeQuery, !mapping.result);
     if (normalized.result.status === "succeeded" && mapping.result) {
       // Preserve the accepted receipt before any result download; failure only retries this GET.
       admitTask(taskId, { ...cached, mapping, providerMeta: { ...queryProviderMeta, ...normalized.providerMeta } });
@@ -252,7 +252,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
       } catch (error) {
         throw retrievalStageError(mapping.result.mediaResponse ? "retrieval-download" : "retrieval-query", error);
       }
-      const resultNormalized = await readResult(executed.response, mapping.result);
+      const resultNormalized = await readResult(executed.response, mapping.result, true);
       normalized = { ...resultNormalized, actualCost: resultNormalized.actualCost ?? normalized.actualCost, providerMeta: { ...resultProviderMeta, ...resultNormalized.providerMeta } };
     }
     // 认不出的动词：连击够久也**不判失败**（原则 1），而是交「可找回」并如实报出原始动词。
@@ -305,17 +305,15 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
   }
 
   // 没有 query 的任务：create 那一刻的响应也只经唯一读法读（tasks/taskResultReading），不另走一份兜底路径表。
-  const assetUrl = readTaskResponse({ response: cached.raw, responseMapping: null, statusMapping: undefined, wantedKind: expectedMediaKind(cached.wantedKind) }).assetUrls[0] ?? "";
-  if (assetUrl) {
+  const assetUrls = readTaskResponse({ response: cached.raw, responseMapping: null, statusMapping: undefined, wantedKind: expectedMediaKind(cached.wantedKind) }).assetUrls;
+  if (assetUrls.length) {
     const type: "image" | "video" | "audio" | "model3d" = cached.wantedKind === "video" ? "video" : cached.wantedKind === "audio" ? "audio" : cached.wantedKind === "model3d" ? "model3d" : "image";
-    // vendor 提示必须带上：本地 ComfyUI 的产物 URL 是私网 /view，缺它 hardenedFetch 会按 SSRF 拒下载。
+    // vendor 提示要带上：落地时按这家的网络设置（providerNetwork）取回。
     const vendorHint = readCatalog().vendors.find((item) => item.key === cached.vendor);
-    // 落地失败由落地门自己挂取回阶段码（同一个 retrievalStageError），这里不再包一层。
-    const asset = cached.projectId
-      ? await localizeTaskAsset(cached.projectId, assetUrl, type, cached.nodeId, vendorHint)
-      : unlocalizedTaskAsset(type, assetUrl);
+    // 落地失败由落地门自己挂取回阶段码（同一个 retrievalStageError），这里不再包一层。一笔给几份就落几份。
+    const assets: TaskResult["assets"] = await localizeTaskAssets(cached.projectId, assetUrls, type, cached.nodeId, vendorHint);
     taskCache.delete(taskId);
-    const lateResult: TaskResult = { id: taskId, kind: cached.request.kind, status: "succeeded", assets: [asset], raw: cached.raw };
+    const lateResult: TaskResult = { id: taskId, kind: cached.request.kind, status: "succeeded", assets, raw: cached.raw };
     rememberTaskResult(cached.projectId || "", cached.fingerprint, lateResult);
     return { vendor: cached.vendor, result: lateResult };
   }

@@ -1,0 +1,48 @@
+{
+  "name": "尺寸与位置把手按下认领浏览器手势",
+  "subject": "ui.resize-separator-gesture",
+  "lifecycle": "live-interaction",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/ui/app-shell/shell/ShellRail.tsx",
+    "symbol": "DrawerResizeHandle"
+  },
+  "write_api": [
+    {
+      "path": "src/ui/app-shell/shell/ShellRail.tsx",
+      "symbol": "DrawerResizeHandle"
+    },
+    {
+      "path": "src/workbench/AssistantPane.tsx",
+      "symbol": "AssistantPane"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "symbol": "TimelineResizeHandle"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx",
+      "symbol": "PipViewport"
+    },
+    {
+      "path": "src/ui/onboarding/workflowPage/WorkflowGraphCanvas.tsx",
+      "symbol": "WorkflowGraphCanvas"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/ui/input/resizeSeparatorGesture.structure.test.ts",
+  "allowed_consumers": [
+    "src/workbench/WorkbenchShell.tsx",
+    "src/workbench/creation/CreationWorkspace.tsx",
+    "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+    "src/workbench/generation/GenerationWorkspace.tsx",
+    "src/workbench/preview/PreviewWorkspace.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx",
+    "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx"
+  ],
+  "since": "2026-11-09",
+  "notes": "原三个分隔条 owner 不变；本轮把 PiP 缩放/标题移动与工作流图空白平移统一换成相同 pointerdown.preventDefault 写法，不另写 helper。工作流主键和交互控件早退在认领之前保留。守卫按 resize/grab/move 光标与捕获/onMove 会话识别，不按 role 或路径白名单。跨文件/库托管/外置 CSS/非 pointerdown 明列边界；几何、钳制和持久化仍归原 owner。根因合同 docs/fixes/2026-11-09-resize-separator-gesture.root-cause.json。"
+}

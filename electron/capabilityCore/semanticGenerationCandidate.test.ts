@@ -95,7 +95,7 @@ describe("semantic generation candidate", () => {
         modes: ["text_to_audio"], parameterSchema: {}, assetInputSchema: {},
         providers: [{ providerId: "fixture", models: [{ modelId: "voice-model", modes: ["text_to_audio"], parameterSchema: {}, capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true } }] }],
       }]);
-      expect(() => shotTaskKind({ params: { prompt: "x", modelId: "voice-model" }, registry: audio })).toThrow(/makes neither images nor videos \(it does: text_to_audio\)/);
+      expect(() => shotTaskKind({ params: { prompt: "x", modelId: "voice-model" }, registry: audio })).toThrow(/voice-model cannot do images or videos\. It does: text_to_audio/);
     });
   });
 
@@ -220,7 +220,7 @@ describe("semantic generation candidate", () => {
       params: { prompt: "x", taskKind: "text_to_image", modelId: "ghost-model" },
       candidateFrom: parse,
       registry,
-    })).toThrow(/没有配置可用的图片模型/);
+    })).toThrow(/Model ghost-model is not in the model catalog/);
   });
 
   it("lets explicit fields override saved defaults without exposing internal IDs", () => {
@@ -286,13 +286,13 @@ describe("semantic generation candidate", () => {
     // 阳性对照：上一条的绿不是因为判据恒真。没点名 + 没默认 = 照旧拒绝，不许按目录行序挑一个花钱。
     expect(() => semanticCandidateFromParams({
       operationId: "op-unnamed", params: { prompt: "生成一张图", taskKind: "text_to_image" }, candidateFrom: parse, registry,
-    })).toThrow(/没有配置可用的图片模型/);
+    })).toThrow(/No image model was named and the user has no default image model/);
     // 点了名但目录里没有这个身份，也照旧拒绝（不为不存在的模型编一个 module）。
     expect(() => semanticCandidateFromParams({
       operationId: "op-unknown",
       params: { prompt: "生成一张图", taskKind: "text_to_image", providerId: "fixture", modelId: "not-in-catalog" },
       candidateFrom: parse, registry,
-    })).toThrow(/没有配置可用的图片模型/);
+    })).toThrow(/Model fixture\/not-in-catalog is not in the model catalog/);
     // 种类也没写：先问它要哪一种（目录里认不出这个模型，就不知道它出什么）。
     expect(() => semanticCandidateFromParams({
       operationId: "op-unknown-kind",

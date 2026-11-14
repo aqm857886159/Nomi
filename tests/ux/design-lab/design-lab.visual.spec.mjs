@@ -6,6 +6,7 @@
 //
 // 基线只从 CI 的 macOS 机器取回：`pnpm run design-lab:accept -- --run <运行号>`（见 visualMode.mjs）。
 // 任何一趟（含 CI）配置里都写死 updateSnapshots:'none'，谁也不能顺手把红洗绿。
+import fs from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { LAB_SCREEN_IDS, pendingApprovalScreens, readCalibration, readLabStates } from './labStates.mjs'
 
@@ -38,10 +39,14 @@ for (const screen of LAB_SCREEN_IDS) {
     })
 
     for (const state of states) {
-      test(`状态 ${state.id} · ${state.name}`, async ({ page }) => {
+      test(`状态 ${state.id} · ${state.name}`, async ({ page }, testInfo) => {
         if (DIRECTOR_SCREENS.has(screen)) await page.setViewportSize({ width: 1280, height: 933 })
         if (screen === 'storyboard' && state.id === 'sb-row-06-generating') {
           // Fix only Date: real animation/timers still run, while elapsed narration is deterministic.
+          await page.clock.setFixedTime(new Date('2026-09-10T00:00:00Z'))
+        }
+        if (screen === 'primitives-surfaces' && state.id === 'ps-28-feedback-dialog') {
+          // 反馈卡第一行印「这次对话停下了 · 时:分」，取的是当前时间——不固定时钟，这一格每趟都差几十个像素。
           await page.clock.setFixedTime(new Date('2026-09-10T00:00:00Z'))
         }
         const errors = []
@@ -81,8 +86,20 @@ for (const screen of LAB_SCREEN_IDS) {
         }
         // 浮层类形态走 BodyPortal + fixed 定位，根本不在舞台的子树里——按元素截会截出
         // 「浮层没打开」的假证据，所以这一族改截整屏（注册项里显式声明 capture: 'viewport'）。
-        if (state.capture === 'viewport') await expect(page).toHaveScreenshot([screen, `${state.id}.png`], tolerance)
-        else await expect(shot).toHaveScreenshot([screen, `${state.id}.png`], tolerance)
+        const target = state.capture === 'viewport' ? page : shot
+        // 新状态的第一张基线（2026-11-13）：配置写死 updateSnapshots:'none'，这时缺基线只会报
+        // 「A snapshot doesn't exist」、不落 -actual.png，CI 产物里没有图可取，新状态就永远拿不到基线
+        //（两个界面 PR 因此挂了 4 天）。这里只在基线文件不存在时把这一格存成 design-lab:accept 认的那个
+        // 路径；下面的比对照旧判红，基线仍然只能经 accept、由人看过后提交。
+        // 动作弹窗右侧是实时 3D 预览：模型异步加载、加载完就一直在动，这一块的像素每趟都不同
+        //（加载中 / 不同的动画帧）。这一格钉的是弹窗在最小窗口里的布局，预览区整块遮住不比。
+        const mask = screen === 'primitives-surfaces' && state.id === 'ps-33-action-dialog' ? [page.getByRole('dialog').locator('div.bg-nomi-ink')] : undefined
+        // 遮罩按预览区的底色类名找：预览容器哪天换了类名，遮罩会悄悄一个都遮不到、这一格重新变得每趟不同——先断言遮得到。
+        if (mask) await expect(mask[0], `${state.id}：遮罩没找到预览区`).toHaveCount(1)
+        if (!fs.existsSync(testInfo.snapshotPath(screen, `${state.id}.png`))) {
+          await target.screenshot({ path: testInfo.outputPath(screen, `${state.id}-actual.png`), animations: 'disabled', caret: 'hide', scale: 'css', mask })
+        }
+        await expect(target).toHaveScreenshot([screen, `${state.id}.png`], mask ? { ...tolerance, mask } : tolerance)
         expect(errors, `渲染 ${state.id} 时页面抛错`).toEqual([])
       })
     }

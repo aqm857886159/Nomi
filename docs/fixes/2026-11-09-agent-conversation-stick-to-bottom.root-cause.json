@@ -1,0 +1,163 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-09-agent-conversation-stick-to-bottom",
+  "problem_type": "Conversation follow intent and viewport lifecycle ownership",
+  "symptom": "Switching Agent conversations lands above the latest message; streaming and sending while reading earlier messages can leave the latest output out of view.",
+  "direct_cause": "The previous panel retained a follow boolean across conversations and followed row-count dependencies instead of content height. Sending did not explicitly resume following.",
+  "class_root": "No shared scroll owner distinguished explicit latest-message intent from reading intent and hidden-host restoration.",
+  "affected_population": [
+    "Creation, canvas and timeline resident conversations",
+    "Streaming text, expanding cards, asynchronous history and panel collapse/expand"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx"
+  ],
+  "entry_points": [
+    "Resident host supplies project/surface/conversation identity",
+    "Composer submit and jump-to-latest explicitly resume following",
+    "Scroll viewport handles older-history anchors and hidden-host restoration"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/samdenty/use-stick-to-bottom/blob/main/src/useStickToBottom.ts",
+      "checked_at": "2026-11-09",
+      "purpose": "Installed 1.1.6 source owns content-height follow, user-scroll cancellation and explicit resume."
+    }
+  ],
+  "invariants": [
+    "One useStickToBottom instance owns follow intent for every resident surface.",
+    "Conversation changes and sends explicitly request latest output; upward reading cancels follow.",
+    "History anchors write only while not following; collapse/expand preserves the prior reading position."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/spendCard/spendCardLabKit.tsx",
+      "symbol": "AgentPanelV4Panel"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/b2cFormFixtures.tsx",
+      "symbol": "AgentPanelV4Panel"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/states/03-flow.tsx",
+      "symbol": "AgentPanelV4Panel"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "AgentPanelV4Panel"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/agentPanelV4LabHost.tsx",
+      "symbol": "ProjectAgentResidentShell"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "ProjectAgentResidentShell"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "useStickToBottom"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "WorkbenchShell and the lab host must mount the resident host; the three design-lab fixtures and resident shell must render the shared panel. All call the same panel scroll boundary rather than implementing their own follow policy."
+  },
+  "generality_proof": "Every production surface renders ProjectAgentResidentShell and then AgentPanelV4Panel. The shell supplies project/surface/thread identity as an input, not a second scroll owner. Only the shared panel binds library follow state and domain restoration; content-height following is independent of row kind or provider.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "AgentPanelV4Panel",
+      "responsibility": "Bind the library scroll/content refs and all explicit follow and restoration events."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "creation/canvas/timeline resident panel",
+      "disposition": "enforced",
+      "evidence": "One AgentPanelV4Panel render supplies conversationKey composed from project, surface and session."
+    },
+    {
+      "path": "src/devlab/designLab/v4/states/03-flow.tsx",
+      "entry_point": "flow state fixtures",
+      "disposition": "enforced",
+      "evidence": "Fixtures render AgentPanelV4Panel directly and inherit the same scroll owner."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any thread switch, new stream or hidden panel can repeat the stale-follow mechanism across all resident surfaces.",
+    "same_class_scan": [
+      "door-map AgentPanelV4Panel: four reader files, one production shell.",
+      "door-map ProjectAgentResidentShell: WorkbenchShell and design-lab host.",
+      "Search for atBottomRef, flowScrollMemoryFor and residentTranscriptScroll confirms the previous owners are removed.",
+      "door-map useStickToBottom: one write owner in AgentPanelV4Panel; the library is the sole generic follow owner."
+    ]
+  },
+  "prevention": {
+    "kind": "dependency-upgrade",
+    "enforcement_path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+    "invariant": "Follow content geometry through one library owner; explicit latest intent resumes following.",
+    "failure_mode": "Upward reading releases follow; no fallback to the deleted row-count policy.",
+    "exception_policy": "none",
+    "strategy": "Replace the homemade generic follow policy, remove duplicate memory/dead policy, and register a framework boundary rejecting hand-rolled follow-bottom.",
+    "artifacts": [
+      "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "docs/engineering/framework-boundaries.json"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/v4/asyncReadIdentity.test.ts",
+    "tests/ux/agent-conversation-follow.walk.mjs",
+    "tests/ux/agent-thinking-overlap.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/v4/asyncReadIdentity.test.ts",
+    "tests/ux/agent-conversation-follow.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/v4/agentPanelV4ScrollMemory.ts",
+      "src/workbench/ai/resident/residentTranscriptScroll.ts"
+    ],
+    "rationale": "Remove per-thread memory and unused duplicate follow policy with their tests; panel owns only domain pagination and collapse restoration."
+  },
+  "dependency_lifecycle": {
+    "decision": "upgrade-now",
+    "current": "Homemade row-count follow policy",
+    "target": "use-stick-to-bottom 1.1.6 (MIT, no runtime dependencies)",
+    "rationale": "Replace generic scroll tracking with the installed content-height library.",
+    "exit_criteria": [
+      "Retain while conversation landing, upward reading and hidden-host restoration regressions pass; reassess on a failing lifecycle regression or unsupported React version."
+    ]
+  },
+  "migration": "No persisted schema changes. Scroll memory was in-process only. Switching surfaces now lands at latest output as does switching threads.",
+  "residual_risks": [
+    "Real-provider user journey is unverified: only loopback fixtures are authorized.",
+    "Dock/float moves with exactly unchanged geometry may not trigger restoration.",
+    "Main matrix completed with 9 green / 18 red, but this branch UI matrix and performance remain unverified.",
+    "Send-visible performance debt and optimistic echo are explicitly split to D3-11 by coordinator; the hot projection reader is outside this PR. Five authorized branch baselines are recorded. Same-lock send medians differ from main by 7.96/10.99/15.24 percent. Two unchanged 70px follow-walk checks still fail during the initial user-bubble mount before a new assistant response appears; sampled gaps after the new response appears are at most 49px. No predicate or generic scrolling fallback was changed; complete quick validation and independent acceptance remain unverified."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-09",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+    "tests": [
+      "src/workbench/ai/v4/asyncReadIdentity.test.ts",
+      "tests/ux/agent-conversation-follow.walk.mjs"
+    ]
+  }
+}

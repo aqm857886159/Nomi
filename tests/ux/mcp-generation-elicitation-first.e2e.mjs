@@ -117,7 +117,7 @@ try {
   const token = fs.readFileSync(path.join(dirs.capabilityDir, 'token'), 'utf8').trim()
 
   // 任意生成确认卡的定位器（单镜与多镜共用这条 GUI 兜底门；标题都含「允许 Nomi 生成」）。
-  const gateCard = win.locator('.fixed.inset-0').filter({ hasText: '允许 Nomi 生成' })
+  const gateCard = win.locator('[data-spend-confirm-dialog]').filter({ hasText: '允许 Nomi 生成' })
 
   // ── Phase A 基线：不声明 elicitation → GUI 卡真的会浮（证探针活）。──
   const a = await driveGate(dirs, token, { capabilities: {}, clientName: 'no-elicit-client', providerOrigin: provider.origin })

@@ -1,0 +1,268 @@
+[
+ {
+  "round": "zh-light",
+  "check": "switch-B-to-A-lands-at-bottom",
+  "pass": true,
+  "detail": {
+   "at0": 1,
+   "at250": 1,
+   "at1000": 1,
+   "height": 3093,
+   "client": 508
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "switch-A-to-B-lands-at-bottom",
+  "pass": false,
+  "detail": {
+   "at0": 534,
+   "at250": 534,
+   "at1000": 534,
+   "height": 3093,
+   "client": 508
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "switch-back-to-A-after-reading-B-midway-lands-at-bottom",
+  "pass": true,
+  "detail": {
+   "leftBGap": 1734,
+   "at0": 1,
+   "at250": 1,
+   "at1000": 1,
+   "height": 3093,
+   "client": 508
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "collapse-expand-restores-midway-position",
+  "pass": false,
+  "detail": {
+   "before": 1292,
+   "after": 0
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "collapse-expand-at-bottom-stays-at-bottom",
+  "pass": false,
+  "detail": {
+   "top": 0,
+   "height": 3093,
+   "client": 508,
+   "gap": 2585
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "jump-latest-hidden-at-bottom",
+  "pass": true,
+  "detail": {}
+ },
+ {
+  "round": "zh-light",
+  "check": "streaming-follows-while-at-bottom",
+  "pass": false,
+  "detail": {
+   "frames": 262,
+   "maxGap": 625
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "scrolled-up-reader-is-not-dragged",
+  "pass": true,
+  "detail": {
+   "before": 2088,
+   "after": 2088,
+   "gapAfterScroll": 1314,
+   "streamedChars": 216
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "jump-latest-appears-when-scrolled-up",
+  "pass": false,
+  "detail": {
+   "visible": false,
+   "labelOk": false
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "jump-latest-returns-to-bottom-and-keeps-following",
+  "pass": false,
+  "detail": {
+   "reason": "没有「回到最新」按钮"
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "streaming-ends-at-bottom",
+  "pass": false,
+  "detail": {
+   "top": 2088,
+   "height": 6558,
+   "client": 508,
+   "gap": 3963
+  }
+ },
+ {
+  "round": "zh-light",
+  "check": "send-while-scrolled-up-returns-to-bottom",
+  "pass": false,
+  "detail": {
+   "gapBeforeSend": 5463,
+   "afterBubble": 6080,
+   "afterReply": 6080
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "reload-lands-at-bottom",
+  "pass": false,
+  "detail": {
+   "at0": 6687,
+   "at250": 6687,
+   "at1000": 6687,
+   "height": 7175,
+   "client": 488
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "switch-B-to-A-lands-at-bottom",
+  "pass": true,
+  "detail": {
+   "at0": 0,
+   "at250": 0,
+   "at1000": 0,
+   "height": 7175,
+   "client": 488
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "switch-A-to-B-lands-at-bottom",
+  "pass": true,
+  "detail": {
+   "at0": 1,
+   "at250": 1,
+   "at1000": 1,
+   "height": 3093,
+   "client": 488
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "switch-back-to-A-after-reading-B-midway-lands-at-bottom",
+  "pass": true,
+  "detail": {
+   "leftBGap": 1201,
+   "at0": 0,
+   "at250": 0,
+   "at1000": 0,
+   "height": 7175,
+   "client": 488
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "collapse-expand-restores-midway-position",
+  "pass": false,
+  "detail": {
+   "before": 3343,
+   "after": 0
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "collapse-expand-at-bottom-stays-at-bottom",
+  "pass": false,
+  "detail": {
+   "top": 0,
+   "height": 7175,
+   "client": 488,
+   "gap": 6687
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "jump-latest-hidden-at-bottom",
+  "pass": true,
+  "detail": {}
+ },
+ {
+  "round": "en-dark",
+  "check": "streaming-follows-while-at-bottom",
+  "pass": false,
+  "detail": {
+   "frames": 278,
+   "maxGap": 624
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "scrolled-up-reader-is-not-dragged",
+  "pass": true,
+  "detail": {
+   "before": 6170,
+   "after": 6170,
+   "gapAfterScroll": 1313,
+   "streamedChars": 216
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "jump-latest-appears-when-scrolled-up",
+  "pass": false,
+  "detail": {
+   "visible": false,
+   "labelOk": false
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "jump-latest-returns-to-bottom-and-keeps-following",
+  "pass": false,
+  "detail": {
+   "reason": "没有「回到最新」按钮"
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "streaming-ends-at-bottom",
+  "pass": false,
+  "detail": {
+   "top": 6170,
+   "height": 10641,
+   "client": 488,
+   "gap": 3983
+  }
+ },
+ {
+  "round": "en-dark",
+  "check": "send-while-scrolled-up-returns-to-bottom",
+  "pass": false,
+  "detail": {
+   "gapBeforeSend": 5483,
+   "afterBubble": 6099,
+   "afterReply": 6099
+  }
+ },
+ {
+  "round": "zh-dark",
+  "check": "jump-latest-appears-when-scrolled-up",
+  "pass": false,
+  "detail": {}
+ },
+ {
+  "round": "en-light",
+  "check": "jump-latest-appears-when-scrolled-up",
+  "pass": false,
+  "detail": {}
+ }
+]

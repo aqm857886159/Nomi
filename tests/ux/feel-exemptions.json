@@ -105,17 +105,6 @@
           "fontSizes": [
             11
           ]
-        },
-        {
-          "target": [
-            "span"
-          ],
-          "text": [
-            "变体"
-          ],
-          "fontSizes": [
-            11
-          ]
         }
       ]
     }

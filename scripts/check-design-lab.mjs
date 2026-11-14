@@ -54,7 +54,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const { readLabStates, readCalibration, baselineDirFor, pendingApprovalScreens, LAB_SCREEN_IDS } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/labStates.mjs')).href)
 
 const { triageLabRun, collectDiffImages, formatLabFailure } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/failureTriage.mjs')).href)
-const { inspectLabPort, formatForeignHolder } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/labServer.mjs')).href)
+const { inspectLabPort, formatForeignHolder, labChildEnv } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/labServer.mjs')).href)
 const { LAB_ORIGIN, LAB_RESULTS_DIR } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/playwright.config.mjs')).href)
 const { currentRunnerIdentity, decideVisualMode, describeRunner, isCiEnvironment, visualVerdict } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/visualMode.mjs')).href)
 
@@ -67,6 +67,17 @@ const MIRRORS_ONLY = process.argv.includes('--mirrors-only')
 
 const errors = []
 const fail = (message) => errors.push(message)
+// 类型检查的结论单独存：它红了不再提前结束，结构检查和截图比对照样跑完，最后一起报
+// （2026-11-14：模型菜单那个 PR 类型检查红了两轮，第三轮才第一次跑到截图比对，才看到 19 张基线对不上）。
+// 所有出口都走 finish()，所以不管后面哪一段先结束，类型检查的红都不会被吞掉。
+let typecheckError = null
+const finish = (code = 0) => {
+  if (typecheckError) {
+    console.error(`\n❌ 设计实验室门岗：类型检查未通过（上面其余结论照常给出；退出码按「任一项不过」算）：\n${typecheckError}`)
+    process.exit(1)
+  }
+  process.exit(code)
+}
 
 // ── 0. 实验室代码本身的类型检查 ───────────────────────────────────────────────
 //
@@ -74,13 +85,23 @@ const fail = (message) => errors.push(message)
 // （那正是它进不了安装包的原因）。副作用是：实验室代码此前一行都没被类型检查覆盖——
 // 一处少了一层 `../` 的相对路径能一路静默到 Playwright 跑十几分钟后整屏白屏。
 // 防线建在最早能拦住的那层（R28）：先跑一遍 tsconfig.devlab.json，再谈截图。
+//
+// 内存上限写明（MiB），不吃机器默认值：不写时，同一条命令在 CI 的 Mac 机器上实测到约 2G 就被杀
+// （JavaScript heap out of memory，崩溃时堆 2042M），在开发机上却能过。实验室会顺着 import 把几乎整个应用
+// 带进来（主线 5875 个文件），2026-11-14 量到主线已经贴着 2G：主线在 2048 上限下刚好能过，一个只多 114 个
+// 文件的 PR 在同样的上限下被杀。那不是类型错，是同一道检查在两种机器上不是同一个条件。
+// 方向复盘：docs/engineering/direction-checks/2026-11-14-design-lab-tsc-heap.md。
+const LAB_TSC_HEAP_MB = 4096
 if (!MIRRORS_ONLY) {
-  const typecheck = spawnSync(process.execPath, [path.join(repoRoot, 'node_modules/typescript/bin/tsc'), '--noEmit', '-p', 'tsconfig.devlab.json'], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  })
+  const typecheck = spawnSync(
+    process.execPath,
+    [`--max-old-space-size=${LAB_TSC_HEAP_MB}`, path.join(repoRoot, 'node_modules/typescript/bin/tsc'), '--noEmit', '-p', 'tsconfig.devlab.json'],
+    { cwd: repoRoot, encoding: 'utf8' },
+  )
   if (typecheck.status !== 0) {
-    fail(`实验室代码类型检查未通过（tsconfig.devlab.json）：\n${(typecheck.stdout || typecheck.stderr || '').trim()}`)
+    typecheckError = `实验室代码类型检查未通过（tsconfig.devlab.json）：\n${(typecheck.stdout || typecheck.stderr || '').trim()}`
+    // 先报类型错误，再跑后面的（截图比对要十几分钟，不能让人等到最后才看到它）。
+    console.error(`❌ ${typecheckError}\n↷ 类型检查没过，但结构检查和截图比对照常继续，结论一起报。\n`)
   }
 }
 
@@ -185,7 +206,9 @@ const runnerIdentity = currentRunnerIdentity()
 const visualMode = decideVisualMode({ identity: runnerIdentity, calibrated: calibration.calibratedRunner, ci: isCiEnvironment() })
 // CI 的 macOS 机器上，新状态缺基线不在结构这一关拦：视觉那一关会把它判成「快照缺失」照样红，
 // 同时产出这一格的新图供 design-lab:accept 取回——在这里先拦，新状态就永远拿不到第一张基线。
-const missingBaselineIsVisualStage = visualMode === 'strict' || visualMode === 'runner-drift'
+// 本机（advisory）也一样：推送前钩子在这里拦，PR 推不上去，CI 就永远产不出第一张图（11-09 弹窗迁移撞上，
+// 10-18 起没有新状态进来过）。合并照样被拦：CI macOS 视觉关判「快照缺失」红，Linux 上这一关（skip-platform）仍判缺基线红。
+const missingBaselineIsVisualStage = visualMode === 'strict' || visualMode === 'runner-drift' || visualMode === 'advisory'
 // 「基线待用户拍板」的屏：见 calibration.json 的 why.pendingApprovalScreens。
 // 没被人看过的屏没有可回归的对象，现在录基线只会把「今天碰巧长这样」钉成「应该长这样」。
 const pending = pendingApprovalScreens()
@@ -267,11 +290,11 @@ for (const screen of LAB_SCREEN_IDS) {
 if (errors.length) {
   console.error('❌ 设计实验室门岗：')
   for (const message of errors) console.error(`   · ${message}`)
-  process.exit(1)
+  finish(1)
 }
 if (MIRRORS_ONLY) {
   console.log('✅ 设计实验室结构 + mirrors 行号检查通过（--mirrors-only：未跑 tsc 与像素比对，完整版在 CI）')
-  process.exit(0)
+  finish(0)
 }
 
 console.log(
@@ -282,7 +305,7 @@ console.log(
 for (const [screen, why] of Object.entries(pending)) {
   if (!LAB_SCREEN_IDS.includes(screen)) {
     console.error(`❌ calibration.json 登记了不存在的屏 ${screen}——登记过期了，删掉它`)
-    process.exit(1)
+    finish(1)
   }
   console.log(`\n⚠️  ${screen} 屏的视觉基线**尚未拍板**，本次没有比对它的像素。\n   ${why}`)
 }
@@ -291,7 +314,7 @@ for (const [screen, why] of Object.entries(pending)) {
 
 if (SKIP_VISUAL) {
   console.log('↷ --structure-only：跳过视觉比对')
-  process.exit(0)
+  finish(0)
 }
 if (visualMode === 'skip-platform') {
   console.log(
@@ -299,7 +322,7 @@ if (visualMode === 'skip-platform') {
     `   基线由 CI 的 macOS 机器（${describeRunner(calibration.calibratedRunner)}）渲染；跨平台字体栅格化不同，逐像素比会红在平台上不是设计上。\n` +
     `   改了界面的 PR 由 CI 的 Design Lab (macOS) 任务比对。`,
   )
-  process.exit(0)
+  finish(0)
 }
 if (isCiEnvironment()) {
   // 把这台机器的身份留在产物里：design-lab:accept 取回新图时据此更新 calibratedRunner。
@@ -319,7 +342,7 @@ if (visualMode === 'runner-drift') {
 const portVerdict = inspectLabPort('visual')
 if (portVerdict.status === 'foreign') {
   console.error(`\n${formatForeignHolder(portVerdict)}`)
-  process.exit(1)
+  finish(1)
 }
 if (portVerdict.status === 'unknown') {
   console.log(`↷ 端口 ${portVerdict.port} 的归属问不出来（${portVerdict.reason}）——继续跑，但这一趟没有归属证明。`)
@@ -338,8 +361,9 @@ const runStatus = await new Promise((resolve) => {
     cwd: repoRoot,
     stdio: ['inherit', 'pipe', 'pipe'],
     ...(process.platform === 'win32' ? { shell: true } : {}),
+    // labChildEnv：把本机地址并进 NO_PROXY，免得 shell 里的 HTTP_PROXY 把「本机服务起来没有」的探测截走、误报基础设施失败。
     env: {
-      ...process.env,
+      ...labChildEnv(process.env),
       ...(requestedScreenArg ? { NOMI_DESIGN_LAB_SCREEN: requestedScreenArg } : {}),
     },
   })
@@ -376,4 +400,4 @@ if (verdict.kind === 'pass-other-runner') {
 if (verdict.kind === 'pass') {
   console.log(visualMode === 'advisory' ? '\n✅ 本机比对全部相符（参考结果，以 CI 为准）' : '\n✅ 视觉基线全绿')
 }
-process.exit(verdict.exitCode)
+finish(verdict.exitCode)

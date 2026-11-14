@@ -6,5 +6,7 @@
   // 类型检查覆盖**：一处写错的相对路径（少一层 `../`）在 tsc 下静默通过，直到 Playwright 跑了
   // 十几分钟、整屏白屏才发现。防线要建在最早能拦住的那层（R28）——`check:design-lab` 现在先跑这一份。
   "extends": "./tsconfig.json",
-  "include": ["src/devlab/designLab.tsx", "src/vendor/**/*.d.ts", "src/rawText.d.ts"]
+  // 全局声明文件整目录收，和 `tsconfig.app.json` 同一写法：以前是逐个点名，新增一份声明（例如图标的
+  // `svgAssets.d.ts`）只补了主配置，这里漏掉，本机全绿、CI 才红。
+  "include": ["src/devlab/designLab.tsx", "src/**/*.d.ts"]
 }

@@ -155,9 +155,10 @@ export function failedGuardSummary(output, ran) {
  */
 const SCAN_GUARDS_TEST_TIMEOUT = '--testTimeout=180000'
 
-export function scanGuardsToRun(files) {
-  if (files === null) return SCAN_GUARDS
-  return SCAN_GUARDS.filter((guard) => {
+export function scanGuardsToRun(files, nodeTests = false) {
+  const guards = SCAN_GUARDS.filter((guard) => /\.node-test\.[cm]?[jt]s$/.test(guard.file) === nodeTests)
+  if (files === null) return guards
+  return guards.filter((guard) => {
     if (touchesScanGuard(guard, files)) return true
     const impl = closureOf(`guard:${guard.file}`, [guard.file])
     return files.some((file) => impl.has(file))
@@ -186,10 +187,17 @@ export const SCAN_TESTS = Object.freeze([
   {
     name: SCAN_GUARDS_GATE,
     // 扫描型测试的耗时跟着机器负载走（单跑最长约 13 秒，本机同时跑走查 / 构建时同一条超过 30 秒——2026-10-10 #1128 推送被它假红）。超时不是它们要报的信号，放宽到 3 分钟；真卡死由推送前钩子的总时限兜。
-    argv: [VITEST_ENTRY, 'run', SCAN_GUARDS_TEST_TIMEOUT, ...SCAN_GUARDS.map((guard) => guard.file)],
+    argv: [VITEST_ENTRY, 'run', SCAN_GUARDS_TEST_TIMEOUT, ...scanGuardsToRun(null).map((guard) => guard.file)],
     argvFor: (files) => [VITEST_ENTRY, 'run', SCAN_GUARDS_TEST_TIMEOUT, ...scanGuardsToRun(files).map((guard) => guard.file)],
     rerun: 'node node_modules/vitest/vitest.mjs run <上面输出里 FAIL 点名的守卫测试文件>',
     when: (files) => scanGuardsToRun(files).length > 0,
+  },
+  {
+    name: 'test:node-scan-guards',
+    argv: ['--import=tsx', '--test', ...scanGuardsToRun(null, true).map((guard) => guard.file)],
+    argvFor: (files) => ['--import=tsx', '--test', ...scanGuardsToRun(files, true).map((guard) => guard.file)],
+    rerun: 'node --import tsx --test <上面输出里点名的 node 守卫测试文件>',
+    when: (files) => scanGuardsToRun(files, true).length > 0,
   },
 ])
 

@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { nodeTryRecipes, runNodeTryRecipe } from './nodeTryRecipes'
+import { runNodeTryRecipe, useNodeTryRecipes } from './nodeTryRecipes'
 import { pickCanvasInputFor } from './nodeInputActions'
 import { NodeEmptyState } from '../nodes/render/NodeEmptyState'
 import { useNodeEmptyStateContext } from '../nodes/render/NodeEmptyStateContext'
@@ -28,7 +28,7 @@ function TrySeparator(): JSX.Element {
  */
 export function NodeTryList({ node }: { node: GenerationCanvasNode }): JSX.Element | null {
   const { t } = useTranslation()
-  const recipes = nodeTryRecipes(node)
+  const recipes = useNodeTryRecipes(node)
   if (!recipes.length) return null
   return (
     <ul

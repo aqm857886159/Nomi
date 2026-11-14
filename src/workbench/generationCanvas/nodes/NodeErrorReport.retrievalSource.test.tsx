@@ -84,15 +84,6 @@ describe('「已提交、没取回」错误卡的主按钮按任务来源分', (
     expect(markup).not.toContain(i18n.t('generationCommon.observability.error.retrievalIncomplete.hintWithoutTask'))
   })
 
-  it('取片被出网策略拦、没有 taskId：先去检查网络那一行，次动作重试；说明不提重新取回', () => {
-    const nodeId = canvasNode()
-    const markup = renderToStaticMarkup(<NodeErrorReport message={tagNomiError('outbound-blocked', 'blocked')} nodeId={nodeId} run={{ id: 'run-1' }} meta={{}} onRetry={() => {}} />)
-    expect(markup).toContain(i18n.t('generationCommon.observability.action.modelAccess.main'))
-    expect(markup).toContain(i18n.t('generationCommon.observability.action.retry.alt'))
-    expect(markup).toContain(i18n.t('generationCommon.observability.error.outboundBlocked.hintWithoutTask'))
-    expect(markup).not.toContain(i18n.t('generationCommon.production.runAction.retry-retrieval'))
-  })
-
   it('点「去重新取回」：节点回到可找回态，错误原话留着（面板照样给技术详情）', () => {
     const nodeId = canvasNode('task-paid-3')
     expect(reopenRecoverableNode(nodeId)).toBe(true)

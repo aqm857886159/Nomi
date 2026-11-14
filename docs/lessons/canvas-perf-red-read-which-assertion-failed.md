@@ -20,7 +20,8 @@ pass=false 的唯一来源：warmupFailures = ["marquee selected only 8 nodes"]
 一条命令就能看出来，省掉两轮返工：
 
 ```bash
-gh run download <run-id> -n canvas-performance-evidence -D /tmp/ev
+# 2026-11-14 起这个作业按场景分两片，证据包名带片号：门岗场景在 -1，版本宫格场景在 -2。
+gh run download <run-id> -n canvas-performance-evidence-1 -D /tmp/ev
 node -e 'const j=require("/tmp/ev/tests/ux/perf-results/canvas-validation-gate.json");
   console.log("pass",j.pass,"warmupFailures",JSON.stringify(j.warmupFailures));
   for(const[k,v]of Object.entries(j.summary)) if(v.verdict?.pass===false)

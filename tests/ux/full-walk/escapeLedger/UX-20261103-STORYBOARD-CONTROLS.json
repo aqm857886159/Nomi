@@ -1,0 +1,39 @@
+{
+  "id": "UX-20261103-STORYBOARD-CONTROLS",
+  "since": "2026-11-03",
+  "source": "用户 2026-11-02 控件去重与 Agent 反馈拍板",
+  "category": "parameter-contract",
+  "problem": "重复的整片和选中配置遮挡逐镜选择，选中交给 Agent 只有引用而没有面板反馈。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑪",
+    "⑫"
+  ],
+  "useCases": [
+    "S2"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "fixedInPr": 1505,
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-02-storyboard-only-what-works.md",
+    "docs/fixes/2026-11-03-storyboard-per-shot-controls.root-cause.json",
+    "tests/ux/storyboard-only-what-works.test.mjs",
+    "docs/evidence/2026-11-09-storyboard-premerge/README.md",
+    "docs/evidence/2026-11-09-storyboard-premerge/app-receipt.json",
+    "docs/evidence/2026-11-09-storyboard-strips/replay-receipt.json",
+    "docs/evidence/2026-11-13-storyboard-land/README.md",
+    "Scope of this entry (design card rows ⑪ ⑫): duplicated film-level and selection-level configuration removed; handing selected shots to Agent now yields three visible results (reference, panel opens, input focused). What the Agent does after receiving the target (draft_shots failing with generation_operation_not_found, already broken on main before this change) is a different problem (a shot request has no single owner once the model or mode changes) and stays open; it is not claimed fixed here."
+  ],
+  "completionCommits": [
+    "f9489e888d399594bd2ca79f344cad51301a87bc",
+    "228ca124de921652646d9386a0c3fd95f4a8f44f",
+    "eae307b8885833f23e2e1634fb81e9921214e3ac"
+  ],
+  "rootCauseContract": "docs/fixes/2026-11-03-storyboard-per-shot-controls.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/ux/storyboard-only-what-works.test.mjs"
+  }
+}

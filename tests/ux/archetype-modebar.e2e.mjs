@@ -261,7 +261,7 @@ try {
 
   // ── 变体轴：切「快速」→ 清晰度收窄成 480/720 ──────────────────────────────
   await win.keyboard.press('Escape')
-  const pickedVariant = await pickFromSelect('变体', (t) => t === '快速', '变体')
+  const pickedVariant = await pickFromSelect('模型', (t) => t.startsWith('Seedance 2.0') && t.includes('快速'), '模型菜单里的快速变体行')
   await clickOrFail(composer.locator('button[aria-label="生成参数"]'), '「生成参数」（快速变体）')
   await expectVisible(paramPanel, '生成参数面板重新打开')
   await expect(resolution.locator('[role="radio"]'), '快速变体的清晰度应当只剩 480p/720p')
@@ -273,9 +273,6 @@ try {
   record('切「快速」变体 → 清晰度收窄成 480/720，1080p 消失', pickedVariant)
   await shot('params-fast')
 
-  // Seedance 有变体轴，先证明「变体」下拉测得到，好让下面 HappyHorse 的「没有变体」不是空话。
-  const variantProof = await proveProbe(composer.locator('[aria-label="变体"]'), 'Seedance 2.0 确实有「变体」下拉')
-
   // ── 换 HappyHorse 1.0：另一套 4 模式真名，且它没有变体轴 ───────────────────
   await win.keyboard.press('Escape')
   const pickedHappy = await pickFromSelect('模型', (t) => t.startsWith('HappyHorse 1.0'), '模型')
@@ -283,11 +280,7 @@ try {
   await expect(modeGroup.locator('button'), 'HappyHorse：4 个模式各用自己的真名')
     .toHaveText(['文生视频', '图生视频', '角色参考', '视频编辑'])
   await expectVisible(composer.getByText('纯文本生成'), 'HappyHorse：提示行显示当前模式说明')
-  await expectAbsent(composer.locator('[aria-label="变体"]'), {
-    provenBy: variantProof,
-    message: 'HappyHorse 档案没声明 variants，不该出现「变体」下拉',
-  })
-  record('换 HappyHorse 1.0 → 换成它自己的 4 个模式真名，且无变体下拉', pickedHappy)
+  record('换 HappyHorse 1.0 → 换成它自己的 4 个模式真名，', pickedHappy)
   await shot('happyhorse')
 
   console.log(`\n✅ 走查通过：${passed} 条判据 · 截图 ${path.relative(repoRoot, shotsDir)}/`)

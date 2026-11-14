@@ -16,6 +16,7 @@ import { invalidateOutboundEnvironment, readOutboundEnvironment, seedLabTrustedP
 export async function applyProxyAtBoot(): Promise<void> {
   // 实验室 loopback 夹具的精确 origin 与代理线路同属「启动时装网络配置」这一步，一并在这里落实；
   // 打包版本里整体空操作（见 networkOutboundPolicy.seedLabTrustedPrivateOrigins）。
+  // 2026-11-13 起只有「抓来的文字会进模型」的入口（hardenedFetch textEntersModelContext）还认这份例外，生成链路不再按地址判。
   seedLabTrustedPrivateOrigins(app.isPackaged);
   await applySystemProxy(session.defaultSession, readProxyPrefs());
 }
@@ -28,7 +29,8 @@ export function registerProxyIpc(): void {
     assertTrustedSender(event);
     await getAppDispatcher().catch(() => undefined); // status carries boot/application failure
     // 面板要显示「检测到本地代理（fake-ip）」这一行，所以在这里把那次有界探测（≤1.5s、进程内
-    // 只跑一次）落实到位——生成路径读的是同一份缓存，不会因为面板没开过就判得不一样。
+    // 只跑一次）落实到位。2026-11-13 起生成链路不再读它；读它判地址的只剩「抓来的文字会进模型」那几个入口
+    // （hardenedFetch textEntersModelContext），它们和这一行读的是同一份缓存。
     await readOutboundEnvironment().catch(() => undefined);
     return { ok: true, status: getProxyStatus(readProxyPrefs()) };
   });

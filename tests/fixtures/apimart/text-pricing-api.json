@@ -28,9 +28,7 @@
     "deepseek-v4-flash",
     "gemini-3.5-flash"
   ],
-  "unpricedOnPurpose": {
-    "deepseek-v3.1-terminus": "全量价目表 /api/pricing/models/all 和文档都没有它，单模型接口只回旧倍率（v1）价；真调用确认前不填价"
-  },
+  "unpricedOnPurpose": {},
   "models": {
     "gpt-6-astra": {
       "billing_type": "tiered_token",
@@ -757,25 +755,6 @@
       "legacy_ratio": {
         "model_ratio": 0.75,
         "completion_ratio": 6
-      }
-    },
-    "deepseek-v3.1-terminus": {
-      "billing_type": "model_ratio",
-      "source": "v1",
-      "price_factor": 0.8,
-      "time_rate": 1,
-      "rates": {
-        "input": 0.51,
-        "output": 1.53
-      },
-      "effective_rates": {
-        "input": 0.408,
-        "output": 1.224
-      },
-      "tier_count": 1,
-      "legacy_ratio": {
-        "model_ratio": 0.255,
-        "completion_ratio": 3
       }
     }
   }

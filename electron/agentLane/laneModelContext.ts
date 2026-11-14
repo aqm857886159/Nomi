@@ -28,17 +28,19 @@ export function modelDisplayNameOf(context: Pick<LaneComposerContext, 'available
   return entry?.displayName || entry?.label || modelId
 }
 
-/** 默认模型这一段。没有任何默认 = 整段不出（不告诉模型一个不存在的默认）。 */
+/** 只有实时 resolver 的答案能声明缺省；目录增量 / 历史索引未读默认时不猜。 */
 function formatDeclaredDefaults(defaults: LaneDeclaredDefaults | undefined, context: Pick<LaneComposerContext, 'availableModels'>): string[] {
-  const lines = DEFAULT_LINE.flatMap(([taskKind, label]) => {
-    const declared = defaults?.[taskKind]
-    return declared ? [`${label}：${modelDisplayNameOf(context, declared.vendor, declared.modelId)}（modelId: ${declared.modelId}，vendor: ${declared.vendor}——仅供工具参数）`] : []
+  if (defaults === undefined) return []
+  const lines = DEFAULT_LINE.map(([taskKind, label]) => {
+    const declared = defaults[taskKind]
+    return declared
+      ? `${label}：${modelDisplayNameOf(context, declared.vendor, declared.modelId)}（modelId: ${declared.modelId}，vendor: ${declared.vendor}——仅供工具参数）`
+      : `${label}：没有能用的已保存默认（含「自动选」）。`
   })
-  if (!lines.length) return []
   return [
-    '用户在设置里选的默认模型（这是用户的声明，不是建议）：',
+    '用户的默认模型状态（这是用户的声明，不是建议）：',
     ...lines,
-    '用户没点名模型时，图片 / 视频任务一律用上面对应的默认（起草时不填 modelId，宿主会按默认补）；用户点名了模型，以用户点名的为准。',
+    '用户没点名模型时，有可用默认的任务用上面对应的默认（起草时不填 modelId，宿主会按默认补）；没有可用默认的任务，必须在 modelId 里点名一个具体模型，从可用目录里挑，并在回话里用显示名告诉用户挑了谁；用户点名了模型，以用户点名的为准。',
     '默认模型做不了这次的事（例如需要参考图而它的模式没有参考槽）才可以换：先在回话里说清为什么换、换成了谁，再起草；不许悄悄换。对用户提到任何模型时，只说它的显示名（上面冒号后、括号前的那个名字，也是用户在卡上和设置里看到的那个），不要念 modelId 或 vendor——那是给工具参数用的内部标识，用户不认。回话里提到的模型只能取自上面的默认和下面的索引，不要凭印象说。',
   ]
 }

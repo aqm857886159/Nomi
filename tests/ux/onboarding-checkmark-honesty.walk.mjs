@@ -18,6 +18,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible, proveProbe, expect, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -184,9 +185,12 @@ try {
   await win.keyboard.press('Escape')
   await panel.waitFor({ state: 'hidden', timeout: stationTimeout() })
 
-  // —— F5：点「拆成镜头·落画布」→ 因缺可用大脑失败，断言走 recovery 卡、**不含**英文原串 ——
-  const storyboardBtn = win.locator('[data-action-run="storyboard"]').first()
-  await clickOrFail(storyboardBtn, '拆成镜头·落画布', { timeout: 8000 })
+  // —— F5：点 Agent 面板空态里的「拆分镜」起手式 → 因缺可用大脑失败，断言走 recovery 卡、**不含**英文原串 ——
+  // （旧入口：创作区里浮出的「拆成镜头·落画布」动作卡，那张卡在 Agent 宿主迁移后就没人挂了；起手式是现役的同一件事。）
+  const storyboardBtn = win.getByRole('button', { name: uiText('zh-CN', 'agentPanelV4.starterBreakShots'), exact: true }).first()
+  await clickOrFail(storyboardBtn, 'Agent 面板「拆分镜」起手式', { timeout: stationTimeout() })
+  // 起手式只把话填进输入框，要点「发送」才真发出去。
+  await clickOrFail(win.getByRole('button', { name: '发送', exact: true }).first(), 'Agent 面板「发送」', { timeout: stationTimeout() })
 
   // 缺大脑是**确定性**失败（不发网络请求，chooseTextModel 直接抛）——很快落终态。
   // recovery 卡锚点：data-recovery="no-text-model"；错误卡锚点：面板级错误带 data-agent-error（v4 起错误由外壳那条带说）。

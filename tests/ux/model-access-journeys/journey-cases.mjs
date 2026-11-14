@@ -96,7 +96,7 @@ async function runCanvasNode(ui, recorder, { kind, modelId, prompt }) {
 // (only agent runs, >1 runs, or the first hosting disclosure do) — so its absence
 // is expected, not a failure. Bounded wait: only treat a visible gate as actionable.
 async function confirmSpendGate(page, timeoutMs = 4000) {
-  const gate = page.locator('div.fixed.inset-0').filter({ hasText: /开始生成|会消耗模型额度|将生成/ }).first()
+  const gate = page.locator('[data-spend-confirm-dialog]').filter({ hasText: /开始生成|会消耗模型额度|将生成/ }).first()
   try {
     await gate.waitFor({ state: 'visible', timeout: timeoutMs })
   } catch {

@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 
 import { isJsonRecord, findIllegalHeader } from "../jsonUtils";
-import { isPrivateHost } from "../networkHostPolicy";
 import { parseModelListPage } from "../ai/onboarding/modelListResponse";
 import { hardenedFetch } from "../hardenedFetch";
 import type {
@@ -30,7 +29,6 @@ export type LocalAiProbeFetch = (request: {
   url: string;
   headers: Record<string, string>;
   signal: AbortSignal;
-  allowedPrivateOrigins: string[];
 }) => Promise<{ status: number; body: string }>;
 
 export type LocalAiExternalProbeDependencies = {
@@ -42,7 +40,6 @@ type NormalizedTarget = {
   origin: string;
   rootUrl: URL;
   apiBaseUrl: string;
-  allowedPrivateOrigins: string[];
 };
 
 type WellKnown = {
@@ -109,7 +106,6 @@ function normalizeTarget(rawBaseUrl: string): NormalizedTarget {
     origin: parsed.origin,
     rootUrl,
     apiBaseUrl: apiUrl.toString().replace(/\/+$/, ""),
-    allowedPrivateOrigins: isPrivateHost(parsed.hostname) ? [parsed.origin] : [],
   };
 }
 
@@ -140,7 +136,6 @@ async function defaultProbeFetch(request: Parameters<LocalAiProbeFetch>[0]): Pro
     allowRedirect: false,
     throwOnNon2xx: false,
     maxBytes: PROBE_MAX_BYTES,
-    allowedPrivateOrigins: request.allowedPrivateOrigins,
   });
   return { status: response.status, body: response.bytes.toString("utf8") };
 }
@@ -301,7 +296,6 @@ export async function probeLocalAiExternalRuntime(
         url,
         headers,
         signal,
-        allowedPrivateOrigins: target.allowedPrivateOrigins,
       });
       state.sawHttpResponse = true;
       return result;

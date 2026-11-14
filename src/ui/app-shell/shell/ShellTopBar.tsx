@@ -58,6 +58,51 @@ function BarTooltip({ label, children }: { label: string; children: JSX.Element 
   )
 }
 
+/** 右簇离居中分段至少留这么宽；不足就把「导出 MP4」收成只留图标（WindowNarrow 板 topbar.export-icon）。 */
+const EXPORT_SEGMENT_GAP = 12
+
+/**
+ * 「导出 MP4」放不下才收：量右簇左沿到分段右沿的空当（按内容量，不按窗口宽断点，narrow.one-threshold）。
+ * 收起后按「上次完整时多宽」判断放回去够不够，来回拖窗不在临界处抖；换语言 / 文案变了先放开重量一次。
+ */
+function useExportCompact(
+  enabled: boolean,
+  labelKey: string,
+  refs: { header: React.RefObject<HTMLElement | null>; segment: React.RefObject<HTMLElement | null>; toolbar: React.RefObject<HTMLElement | null>; exportButton: React.RefObject<HTMLElement | null> },
+): boolean {
+  const [compact, setCompact] = React.useState(false)
+  const fullWidth = React.useRef(0)
+  React.useLayoutEffect(() => {
+    setCompact(false)
+    fullWidth.current = 0
+  }, [enabled, labelKey])
+  React.useLayoutEffect(() => {
+    const header = refs.header.current
+    if (!enabled || !header || typeof ResizeObserver === 'undefined') return undefined
+    const measure = () => {
+      const segment = refs.segment.current?.getBoundingClientRect()
+      const toolbar = refs.toolbar.current?.getBoundingClientRect()
+      const button = refs.exportButton.current?.getBoundingClientRect()
+      if (!segment || !toolbar || !button || segment.width === 0) return
+      const gap = toolbar.left - segment.right
+      setCompact((current) => {
+        if (!current) {
+          fullWidth.current = button.width
+          return gap < EXPORT_SEGMENT_GAP
+        }
+        return gap - Math.max(0, fullWidth.current - button.width) < EXPORT_SEGMENT_GAP
+      })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(header)
+    if (refs.toolbar.current) observer.observe(refs.toolbar.current)
+    if (refs.segment.current) observer.observe(refs.segment.current)
+    return () => observer.disconnect()
+  }, [enabled, labelKey, refs])
+  return enabled && compact
+}
+
 function openBrowser(): void {
   window.dispatchEvent(new CustomEvent('nomi-open-browser'))
 }
@@ -147,7 +192,8 @@ function ProjectMenu({
         }}
         onDoubleClick={() => { setDraft(projectName); setRenaming(true) }}
       >
-        <span className="min-w-0 truncate">{projectName}</span>
+        {/* 左簇内容宽 ≤ 89（放不下两个字加省略号）时整段藏起，只留箭头；全名在 title / aria-label（WindowNarrow 板 topbar.project-name-hide）。 */}
+        <span className="min-w-0 truncate [@container_(max-width:89px)]:hidden" data-shell-project-name>{projectName}</span>
         <IconChevronDown size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
       </button>
       <WorkbenchMenu open={open} onOpenChange={setOpen} anchorRect={rect} items={items} className="min-w-[220px] max-w-[320px]" ariaLabel={t('appShell.topbar.projectMenu', { name: projectName })} />
@@ -200,8 +246,16 @@ export function ShellTopBar({
   const exportLabel = exportBusy && exportStageKey
     ? t('timelinePreview.exportBusyReason', { stage: t(exportStageKey), percent: exportPercent })
     : t('timelinePreview.exportMp4')
+  const exportText = exportBusy ? t('timelinePreview.exporting', { percent: exportPercent }) : t('timelinePreview.exportMp4')
+  const headerRef = React.useRef<HTMLElement | null>(null)
+  const segmentRef = React.useRef<HTMLDivElement | null>(null)
+  const toolbarRef = React.useRef<HTMLDivElement | null>(null)
+  const exportRef = React.useRef<HTMLButtonElement | null>(null)
+  const measureRefs = React.useMemo(() => ({ header: headerRef, segment: segmentRef, toolbar: toolbarRef, exportButton: exportRef }), [])
+  const exportCompact = useExportCompact(workspaceMode === 'preview', exportText, measureRefs)
   return (
     <header
+      ref={headerRef}
       className="app-drag relative grid w-full select-none grid-cols-[minmax(0,1fr)_auto] items-center gap-2 bg-nomi-chrome text-nomi-ink"
       style={{
         height: SHELL_TOPBAR_HEIGHT,
@@ -213,7 +267,7 @@ export function ShellTopBar({
       data-shell-platform={platform}
     >
       <TooltipProvider delayDuration={250} disableHoverableContent>
-        <div className="flex h-full min-w-0 max-w-[calc(50%-136px)] items-center gap-1.5" style={{ paddingLeft: platform === 'mac' ? SHELL_MAC_TRAFFIC_WIDTH : 12 }}>
+        <div className="flex h-full min-w-0 max-w-[calc(50%-136px)] items-center gap-1.5 [container-type:inline-size]" style={{ paddingLeft: platform === 'mac' ? SHELL_MAC_TRAFFIC_WIDTH : 12 }} data-shell-left-cluster>
           <span className="app-no-drag inline-flex shrink-0 items-center" data-shell-brand aria-hidden="true">
             <NomiLogoMark size={20} />
           </span>
@@ -243,7 +297,7 @@ export function ShellTopBar({
             两簇宽度怎么变、有没有更新胶囊都不推它。生成页的「画布 | 列表」挂在分段右边的槽里，同样绝对定位、
             不占位、不参与居中（槽在分段的右沿之外）。 */}
         {workspaceMode && onWorkspaceModeChange ? (
-          <div className="absolute left-1/2 top-0 flex h-full -translate-x-1/2 items-center" data-shell-stage-center>
+          <div ref={segmentRef} className="absolute left-1/2 top-0 flex h-full -translate-x-1/2 items-center" data-shell-stage-center>
             <span className="app-no-drag"><NomiStepper value={workspaceMode} onChange={onWorkspaceModeChange} meta={stepperMeta} /></span>
             {workspaceMode === 'generation' ? (
               <span className="app-no-drag absolute left-full top-1/2 ml-2 -translate-y-1/2" data-shell-view-switcher-slot>{viewSwitcher}</span>
@@ -251,26 +305,30 @@ export function ShellTopBar({
           </div>
         ) : null}
 
-        <div className="flex h-full shrink-0 items-center justify-end gap-0.5 justify-self-end pr-2" role="toolbar" aria-label={t('appBar.globalActions')}>
+        <div ref={toolbarRef} className="flex h-full shrink-0 items-center justify-end gap-0.5 justify-self-end pr-2" role="toolbar" aria-label={t('appBar.globalActions')}>
           {workspaceMode === 'preview' ? (
             <>
               <span className="app-no-drag"><EditingLayoutMenu /></span>
               <BarTooltip label={exportLabel}>
                 <span title={exportLabel} style={{ display: 'contents' }}>
                   <WorkbenchButton
+                    ref={exportRef}
                     className={cn(
-                      'app-no-drag mx-1 inline-flex h-7 items-center gap-1.5 rounded-pill border-0 px-3 text-caption font-medium',
+                      'app-no-drag mx-1 inline-flex h-7 items-center gap-1.5 rounded-pill border-0 text-caption font-medium',
                       'bg-nomi-ink text-nomi-paper hover:bg-nomi-ink-80 disabled:cursor-not-allowed disabled:opacity-60',
+                      // 放不下：同一颗钮只留图标（28 圆），悬停出字（外面那层 BarTooltip）。
+                      exportCompact ? 'w-7 justify-center px-0' : 'px-3',
                     )}
                     iconTier="corner"
                     aria-label={exportLabel}
                     data-export-busy={exportBusy ? 'true' : 'false'}
                     data-shell-export
+                    data-shell-export-compact={exportCompact ? 'true' : undefined}
                     loading={exportBusy}
                     onClick={requestPreviewExport}
                   >
                     {exportBusy ? null : <IconDownload />}
-                    <span className="whitespace-nowrap">{exportBusy ? t('timelinePreview.exporting', { percent: exportPercent }) : t('timelinePreview.exportMp4')}</span>
+                    <span className={cn('whitespace-nowrap', exportCompact && 'hidden')}>{exportText}</span>
                   </WorkbenchButton>
                 </span>
               </BarTooltip>

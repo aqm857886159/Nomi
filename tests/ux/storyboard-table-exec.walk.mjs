@@ -133,7 +133,7 @@ win.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.
 win.on('pageerror', (error) => consoleErrors.push(`pageerror: ${String(error?.message || error).slice(0, 300)}`))
 const snap = async (name) => { await screenshotSettled(win, { path: path.join(outDir, name) }) }
 const frame = (n) => win.locator(`[data-storyboard-row="${n}"] [data-storyboard-frame]`).first()
-const spendDialog = () => win.locator('div.fixed.inset-0').filter({ hasText: /开始生成|额度/ }).last()
+const spendDialog = () => win.locator('[data-spend-confirm-dialog]').filter({ hasText: /开始生成|额度/ }).last()
 
 try {
   await win.evaluate(() => {

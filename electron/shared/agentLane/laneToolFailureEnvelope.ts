@@ -14,9 +14,10 @@
  * 它的 result 支持 `details`（`harness/agent-harness.d.ts:564`），和成功那条路
  * （`details.nextAction`）逐字同形，不是第二套机制。
  *
- * 本文件**一个运行时依赖都没有**，理由与 `laneToolNextAction.ts` 逐字相同：渲染层要 import 它，
+ * 本文件**只依赖同样零依赖的 `generationProblem.ts`**，理由与 `laneToolNextAction.ts` 逐字相同：渲染层要 import 它，
  * 而它不能把 `agentCapabilities/*` → zod 那条链拖进浏览器 bundle（#614 白屏）。
  */
+import { generationProblemOf, type GenerationProblem } from "../generationProblem";
 
 /**
  * 一条入参问题属于哪一类。面板按它出本地话（「没有这个字段，是不是要写 X」「要填 A、B 之一」……），
@@ -61,6 +62,11 @@ export interface LaneToolPublicFailure {
   readonly issues?: readonly LaneToolPublicIssue[];
   /** `code === "wrong_verb"` 时正确的动词名。 */
   readonly useInstead?: string;
+  /**
+   * `code === "generation_input_invalid"` 时的闭合原因（2026-11-08 起）。面板按 `problem.code` 说原因，遥测记它。
+   * 0.24 及以前的转录没有这一格：面板照旧按 `code` + `issues` 说，一个字都不变。
+   */
+  readonly problem?: GenerationProblem;
 }
 
 /** 从工具结果的 `details` 里读回信封。形状不对就当没有——历史转录里什么版本都可能有。 */
@@ -76,8 +82,14 @@ export function laneToolFailureOf(details: unknown): LaneToolPublicFailure | und
       ? { allowed: record.allowed as string[] } : {}),
     ...(Array.isArray(record.issues) ? { issues: record.issues.flatMap(publicIssueOf) } : {}),
     ...(typeof record.useInstead === "string" ? { useInstead: record.useInstead } : {}),
+    ...(problemOf(record.problem)),
   };
 }
+
+const problemOf = (value: unknown): { problem?: GenerationProblem } => {
+  const problem = generationProblemOf(value);
+  return problem ? { problem } : {};
+};
 
 const stringList = (value: unknown): readonly string[] | undefined =>
   Array.isArray(value) && value.every((item) => typeof item === "string") ? value as string[] : undefined;

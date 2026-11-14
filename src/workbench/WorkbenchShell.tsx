@@ -9,7 +9,6 @@ import {
     useWorkbenchStore,
     type WorkspaceMode,
 } from "./workbenchStore";
-import { assistantWidthMaxFor } from "./assistantWidthBounds";
 import { cn } from "../utils/cn";
 import { cancelCanvasDraggingWithin } from "./generationCanvas/components/canvasDraggingFlag";
 import { getGenerationNodeExecutionKind } from "./generationCanvas/model/generationNodeKinds";
@@ -22,7 +21,7 @@ import { ShellFrame } from '../ui/app-shell/shell/ShellFrame';
 import { ShellTopBar } from '../ui/app-shell/shell/ShellTopBar';
 import { ShellRail } from '../ui/app-shell/shell/ShellRail';
 import { ShellAgentHost } from '../ui/app-shell/shell/ShellAgentHost';
-import { useEffectiveAgentForm } from '../ui/app-shell/shell/agentFormStore';
+import { useShownForm } from '../ui/app-shell/shell/agentFormStore';
 import { useShellLayoutStore } from '../ui/app-shell/shell/shellLayoutStore';
 import { bindPerfScene } from './observability/perfScene';
 import { GenerationViewSwitcher } from './generation/list/GenerationViewSwitcher';
@@ -232,7 +231,7 @@ export default function WorkbenchShell({
     // 小球 / 浮窗的坐标系：生成页给画布那一格（让开底边时间轴），其余页用整块内容区。
     const [generationAgentLayer, setGenerationAgentLayer] = React.useState<HTMLDivElement | null>(null);
     // Agent 占不占右栏由这一页的形态决定（停靠才占）。
-    const agentForm = useEffectiveAgentForm(agentSurface);
+    const agentForm = useShownForm(agentSurface);
     const workspaceAiCollapsed = agentForm !== 'dock';
     const railCollapsed = useShellLayoutStore((state) => state.railCollapsed);
     const setRailCollapsed = useShellLayoutStore((state) => state.setRailCollapsed);
@@ -264,27 +263,6 @@ export default function WorkbenchShell({
     React.useEffect(() => {
         writeWorkspaceModeToUrl(workspaceMode);
     }, [workspaceMode]);
-
-    /**
-     * 窗口变窄时把**超限的**面板宽度钳回来（09-01 定稿 §11.2 窄窗态）。
-     *
-     * 只收上限、不动没超限的宽度：用户拖出来的 340 在任何窗口下都还是 340，窗口变窄不是他改主意了。
-     * 超限的那份必须钳——不钳的话内容侧（探索栏 60 + 画布底线 700 = 760）会被面板吃掉，
-     * 画布窄到看不了，而用户看到的现象是「窗口一小画布就废了」，根本联想不到是面板宽度。
-     *
-     * 放在这里而不是某个面里：面板四个面共用同一个 `assistantWidth`，钳一次就够；
-     * 挂在某个面上，切到别的面再缩窗口就漏了。
-     */
-    React.useEffect(() => {
-        const clampToViewport = (): void => {
-            const store = useWorkbenchStore.getState();
-            const max = assistantWidthMaxFor(window.innerWidth);
-            if (store.editingPanelLayout.assistantWidth > max) store.setAssistantWidth(max);
-        };
-        clampToViewport();
-        window.addEventListener("resize", clampToViewport);
-        return () => window.removeEventListener("resize", clampToViewport);
-    }, []);
 
     React.useEffect(() => {
         setMountedWorkspaceModes((current) =>

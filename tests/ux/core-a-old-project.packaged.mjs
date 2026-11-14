@@ -294,7 +294,7 @@ export async function openCopiedStoryboardEditor(win, { original, design, copyRo
   await openStoryboardEditor(win, design.id, '打开原分镜方案')
   const editor = win.locator('[data-storyboard-editor="true"]')
   await expect(editor).toBeVisible()
-  await expect(editor.locator('[data-storyboard-bulkbar]')).toBeVisible()
+  await expect(editor.locator('[data-storyboard-aspect-default]')).toBeVisible()
   await expect(editor.locator('[data-storyboard-row]')).toHaveCount(design.plan.shots.length)
   return editor
 }

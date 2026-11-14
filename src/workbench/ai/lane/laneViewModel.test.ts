@@ -11,6 +11,9 @@ import { LANE_APPROVAL_NOTE_TYPE, LANE_TASK_STATUSES } from '../../../../electro
 import { laneInterventionSource, laneViewModel, type LaneViewModelLabels } from './laneViewModel'
 import { readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
 import { laneToolFailureDetail, laneToolFailureSummary } from './laneToolFailureText'
+import type { SkillListItemDto } from '../../api/skillApi'
+import { STORYBOARD_PLANNER_SKILL } from '../../generationCanvas/agent/storyboardLauncher'
+import { skillLabelForKey } from '../../skillLibrary/skillDisplay'
 
 const labels: LaneViewModelLabels = {
   toolLabel: (name) => `[${name}]`,
@@ -377,6 +380,25 @@ describe('laneViewModel', () => {
     // 没挂技能的那一轮**整行不出**：印一个空凭据等于说「用了个说不出名字的技能」。
     expect(model.items[2]).toEqual({ kind: 'user', text: '再来一句。' })
     expect(JSON.stringify(model.items[3])).not.toContain('skill')
+  })
+
+
+  it('分镜启动器发的点号 key：气泡小签和回复头上的凭据两处都印技能库里的名字（2026-11-08）', () => {
+    next = 0
+    // 真形状：目录里技能的 name 是短横线（SKILL.md），启动器发的 key 是点号；名字走真的 skillLabelForKey。
+    const planner = {
+      name: 'workbench-storyboard-planner', directoryName: 'workbench-storyboard-planner', label: 'workbench-storyboard-planner',
+      curation: { title: { 'zh-CN': '分镜规划', en: 'Storyboard planning' } },
+    } as unknown as SkillListItemDto
+    for (const [language, title] of [['zh-CN', '分镜规划'], ['en', 'Storyboard planning']] as const) {
+      const model = laneViewModel(projection([
+        { ...part({ kind: 'user', text: '雨夜的街头。' }), skillKey: STORYBOARD_PLANNER_SKILL.key, skillSnapshot: { name: 'workbench-storyboard-planner', contentHash: 'hash-a' } } as LanePart,
+        part({ kind: 'assistant-text', text: '好的。', streaming: false }),
+      ]), { ...labels, skillLabel: (key) => skillLabelForKey([planner], key, language) })
+      expect(model.items[0], language).toMatchObject({ kind: 'user', chips: [{ kind: 'skill', label: title }] })
+      expect(model.items[1], language).toMatchObject({ kind: 'assistant', skill: title })
+      expect(JSON.stringify(model.items), language).not.toContain(STORYBOARD_PLANNER_SKILL.key)
+    }
   })
 
   it('发出去的用户消息带着附件签；解不出来的文件画「附件不可用」，不消失', () => {

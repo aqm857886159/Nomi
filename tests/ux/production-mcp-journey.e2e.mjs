@@ -127,12 +127,15 @@ async function openProjectFromLibrary(window, wantedProjectId) {
   )
 }
 
+// 花钱确认弹窗的主决定键有两种底栏（通用决定栏 / 制作闸专用），各带自己的标记；这里两种都认。
+const PRIMARY_DECISION = ':is([data-spend-confirm-action="confirm"], [data-production-action="confirm"])'
+
 async function approveCurrentProductionGate(window) {
   await openRunFromTaskCenter(window)
   await window.locator('[data-production-primary-action]').first().click()
-  const overlay = window.locator('.fixed.inset-0').filter({ has: window.locator('button') }).last()
+  const overlay = window.locator('[data-spend-confirm-dialog]').last()
   await overlay.waitFor({ timeout: 5_000 })
-  await overlay.locator('button').last().click()
+  await overlay.locator(PRIMARY_DECISION).click()
 }
 
 let gui = null
@@ -253,8 +256,7 @@ try {
   await window.waitForTimeout(600)
   check(await window.locator('[data-direction-candidate="kinetic"]').getAttribute('data-direction-selected') === 'true', 'selection survives re-renders (no reset to first candidate)')
   await window.screenshot({ path: path.join(shotsDir, '01a-direction-candidates.png') })
-  const directionOverlay = window.locator('.fixed.inset-0').filter({ has: window.locator('button') }).last()
-  await directionOverlay.locator('button').last().click()
+  await window.locator('[data-spend-confirm-dialog]').last().locator(PRIMARY_DECISION).click()
   let run = await waitForRunStatus(projectId, runId, 'awaiting_script_review')
   const decidedDirection = run.gates.find((gate) => gate.gateId === 'gate-direction-v1')
   check(decidedDirection?.decidedChoiceKey === 'kinetic', 'approval records the chosen direction as decidedChoiceKey')

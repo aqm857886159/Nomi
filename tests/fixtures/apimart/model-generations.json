@@ -18,7 +18,7 @@
     "source": "https://api.apimart.ai/api/pricing/models/all",
     "latest": ["deepseek-v4.1-flash"],
     "previous": ["deepseek-v4-flash"],
-    "older": ["deepseek-v3.1-terminus"]
+    "older": []
   },
   {
     "family": "gemini-flash",

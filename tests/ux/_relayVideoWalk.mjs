@@ -8,7 +8,6 @@ import { quietElectronSpawn, repoRoot } from './_launchApp.mjs'
 import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
 import { findNodeHitPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { uiText } from './full-walk/invariants.mjs'
 
 /** An isolated MCP transport calls the exact production declaration handler, without an LLM. */
 export async function relayModelClient({ settingsDir, userDataDir, tempRoot, env = {} }) {
@@ -61,8 +60,8 @@ const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
  * The menu shows the row's display name: a declared relay row shows its id, a built-in row shows its label
  * (gpt-image-2.6-flare → 「GPT Image 2.6 Flare」), so an option matches either exactly.
  */
-export function relayModelOption(win, modelKey, label) {
-  const names = [...new Set([modelKey, label].filter(Boolean))].map(escapeRegExp)
+export function relayModelOption(win, modelKey, label, extraNames = []) {
+  const names = [...new Set([modelKey, label, ...extraNames].filter(Boolean))].map(escapeRegExp)
   return win.locator('[data-nomi-select-dropdown]:visible').getByRole('option').filter({ has: win.getByText(new RegExp(`^(?:${names.join('|')})$`)) })
 }
 
@@ -72,7 +71,7 @@ export function relayModelOption(win, modelKey, label) {
  * the menu lists models by the node's current mode (no reference = text mode), so a model without a text mode only
  * shows up after a creator has put a reference in.
  */
-export async function prepareRelayVideo({ win, newProject, model, capture, kind = 'video', beforeModelPick }) {
+export async function prepareRelayVideo({ win, newProject, model, capture, kind = 'video', beforeModelPick, extraOptionNames = [] }) {
   const { projectId, projectRoot } = await newProject()
   await openCanvas(win)
   await collapseAgentPanel(win)
@@ -82,8 +81,6 @@ export async function prepareRelayVideo({ win, newProject, model, capture, kind 
   await expect.poll(async () => Boolean(await fresh()), { timeout: stationTimeout() }).toBe(true)
   const id = (await fresh()).id
   const node = win.locator(`[data-node-id="${id}"]`)
-  const locale = await win.evaluate(() => localStorage.getItem('nomi:locale:v1') || 'zh-CN')
-  const textMode = node.getByText(uiText(locale, `generationCommon.nodeTry.${kind}.text`), { exact: true })
   // A reload drops the selection and fit-view overshoots: use the zoom UI and a real pointer target.
   // At 100% an input-driven mode's composer and option list leave the viewport, so stay at 60%.
   const exposeComposer = async () => {
@@ -91,7 +88,6 @@ export async function prepareRelayVideo({ win, newProject, model, capture, kind 
     const hit = await findNodeHitPoint(win, { nodeSelector: `.react-flow__node[data-id="${id}"]` })
     expect(hit, 'The node has a real pointer target').toBeTruthy()
     await win.mouse.click(hit.x, hit.y)
-    if (await textMode.isVisible().catch(() => false)) await textMode.click()
   }
   await exposeComposer()
   if (beforeModelPick) await beforeModelPick({ nodeId: id, node, projectId, projectRoot })
@@ -105,7 +101,7 @@ export async function prepareRelayVideo({ win, newProject, model, capture, kind 
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await capture('model-menu')
   let neededReload = false
-  const option = () => relayModelOption(win, model.modelKey, projection?.label)
+  const option = () => relayModelOption(win, model.modelKey, projection?.label, extraOptionNames)
   if (!(await option().count())) {
     await capture('model-missing-before-reload')
     await win.keyboard.press('Escape')

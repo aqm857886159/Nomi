@@ -22,7 +22,6 @@
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [
-    "electron/capabilityCore/apimartGenerationQuery.ts",
     "electron/catalog/apimartImages.ts",
     "electron/catalog/apimartVideos.ts"
   ],

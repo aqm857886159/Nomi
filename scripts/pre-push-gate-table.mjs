@@ -43,6 +43,7 @@ export const CI_ONLY = Object.freeze([
     gates: [
       'check:root-cause-contracts', // > 90 秒（含 54 条合同校验测试）
       'check:claude-hooks', // > 90 秒
+      'check:claude-hooks-real-entry', // 约 8 分钟：钩子真入口测试整份（从 check:claude-hooks 拆出，CI 里单独一个并行作业）
       'check:hook-behavior', // > 90 秒
       'check:generation-entrances', // 约 85 秒
       'check:concept-owners', // 约 77 秒；阻断门（2026-10-19 用户拍板改回挡合并，不是 advisory）

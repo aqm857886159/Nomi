@@ -171,6 +171,7 @@ export { default as IconPencil } from '@tabler/icons-react/dist/esm/icons/IconPe
 export { default as IconPhoto } from '@tabler/icons-react/dist/esm/icons/IconPhoto.mjs'
 export { default as IconPhotoPlus } from '@tabler/icons-react/dist/esm/icons/IconPhotoPlus.mjs'
 export { default as IconPhotoStar } from '@tabler/icons-react/dist/esm/icons/IconPhotoStar.mjs'
+export { default as IconPhotoVideo } from '@tabler/icons-react/dist/esm/icons/IconPhotoVideo.mjs'
 export { default as IconPin } from '@tabler/icons-react/dist/esm/icons/IconPin.mjs'
 export { default as IconPinFilled } from '@tabler/icons-react/dist/esm/icons/IconPinFilled.mjs'
 export { default as IconPlane } from '@tabler/icons-react/dist/esm/icons/IconPlane.mjs'

@@ -223,7 +223,8 @@ async function journey(locale) {
   const card = win.locator('[data-feedback-card]').first()
   const receipt = win.locator('[data-feedback-receipt]').first()
   const phase = (name) => win.locator(`[data-feedback-card][data-feedback-phase="${name}"]`).first()
-  const send = card.locator('[data-feedback-send]').first()
+  // 弹窗里「发送」住在弹窗的决定栏（卡的内容区之外，设计系统 §3.5），所以按窗口找，不按卡找。
+  const send = win.locator('[data-feedback-send]').first()
   const note = card.locator('input[data-feedback-note], [data-feedback-note] input').first()
   const summaries = locale === 'en'
     ? { import: 'That file type is not supported', agent: 'The conversation stopped' }
@@ -532,7 +533,7 @@ async function journey(locale) {
     await openCard(bare.win, { surface: 'import', summary: summaries.import })
     const bareCard = bare.win.locator('[data-feedback-card]').first()
     await expectVisible(bareCard, '没配接收端时卡也要能打开')
-    await clickOrFail(bareCard.locator('[data-feedback-send]').first(), '没配接收端时点「发送」')
+    await clickOrFail(bare.win.locator('[data-feedback-send]').first(), '没配接收端时点「发送」')
     await expectVisible(bare.win.locator('[data-feedback-card][data-feedback-phase="unconfigured"]').first(), '没配接收端时应当说清楚')
     check(await textOf(bareCard.locator('[data-feedback-error]').first()) === t.unconfigured, `${locale}：没配接收端的文案不对`)
     await screenshotSettled(bare.win, { path: path.join(shotsDir, `${locale}-${String(shotNumber + 1).padStart(2, '0')}-unconfigured.png`) })

@@ -83,16 +83,6 @@ describe('视觉道失败分诊', () => {
     expect(triage.verdict).toBe(LAB_VERDICT.SERVER_UNREACHABLE)
   })
 
-  it('预热阶段的机器标记也认得出来（globalSetup 挂掉那条路）', () => {
-    const triage = triageLabRun({
-      output: 'NOMI_LAB_WARMUP_UNREACHABLE http://127.0.0.1:5378 —— 预热阶段就没能加载实验室页面',
-      diffImages: [],
-      exitCode: 1,
-    })
-    expect(triage.verdict).toBe(LAB_VERDICT.SERVER_UNREACHABLE)
-    expect(triage.unreachable).toContain('warmup-unreachable')
-  })
-
   it('真的产出了差异图，才说「视觉基线不符」', () => {
     const triage = triageLabRun({
       output: PIXEL_MISMATCH_RUN,

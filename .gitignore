@@ -199,3 +199,6 @@ docs/evidence/**/FAIL-*.png
 /nightly-walks/
 /nightly-results/
 /nightly-summary.md
+
+# Claude Design 运行时，拍板源只引用、不入库
+docs/design/boards/**/source/support.js

@@ -15,7 +15,7 @@
 - [x] 新界面 / 改交互
 - [ ] 花钱
 - [ ] 长跑 / 可打断
-- [ ] Agent 行为
+- [x] Agent 行为（按路径推出：改到了 `src/workbench/ai/` 下的身份行、输入框定位口和状态注释；Agent 说话、规划、摆东西的逻辑没动）
 - [ ] 大数据量 / 画布 / 长列表
 - [ ] 生成效果
 - [ ] 数据格式
@@ -44,6 +44,7 @@
 - ② Susan Kare 谈 Mac 图标（https://qz.com/1666437/mac-icon-designer-susan-kare-explains-the-inspiration-for-her-designs）· 16×16 黑白像素里画开机笑脸，告诉用户「有事在发生」，把等待变友好 · 改了：最用力的是「在跑」「等你」两类（变圆转弧、长成胶囊）；44px 和 16px 各自单独画、单独看。
 - ③ WALL·E 角色设计（https://en.wikipedia.org/wiki/WALL-E_(character)）· 没有嘴和鼻子，全靠一对眼睛演情绪，先当电器再加感情 · 确认了：只给眼睛不给嘴，「刚做完」的笑、「出错」的塌都由眼睛形状和身体姿态表达。
 - ④ Duolingo 角色动画（https://rive.app/blog/duolingo-s-ai-powered-video-call-brings-lily-to-life）· 用状态机实时混合动画，不逐个手做每种反应 · 改了：用 CSS 过渡在状态之间连续变形，时长进设计系统一档 token；不自写动画引擎，也不为这一处引入动画库。
+- 出口：不涉及：本次没有新增、扩大或挪动挡人的保护。拖完吞掉的只是浏览器在同一次松手里补发的那一次 click，这次松手的任务一结束标记就清掉（`AgentBallFace.test.ts` 钉住），下一次真点击照常开面板；拖动、右键、⌘J、Mod+\ 都不受影响。
 
 ★1 用户怎么用：当我收起 Agent 面板在画布上干活时，我想不打开面板就知道它在跑、在等我、做完了还是出错了，以便只在它需要我时才分心。证据：0.25 走查（见 ★9）
 - ① 步骤：在 Agent 里说「把第 2 场拆成分镜」→ 收起面板回到画布 → 小球变圆转弧（在跑）→ 中途要花钱，长成「等你确认 2」胶囊 → 点小球打开面板逐项确认 → 收起，继续跑 → 轻跳眯眼（刚做完）→ 2.4 秒后挂上蓝点（有新消息）→ 点开看结果。
@@ -92,9 +93,34 @@
 8 真实条件：全部 `unverified`，0.25 实现后逐项跑：Windows / 英文界面（胶囊更长）/ 最小窗口 / 暗色 / 减弱动效 / 键盘全程（Tab 到小球有焦点描边、回车打开、⌘J）/ 100% 缩放的普通屏上 44px 和 16px 是否清楚。
 
 ★9 验收与回滚：0.25 实现 PR 由另一条线独立验收（新界面类强制），验收线只核下面这份清单。证据：`## 独立验收` 一节；`pnpm run check:board-parity`
-- ① 验收清单：拍板清单两块板的每个元素都是 implemented 且有走查断言（`board:AgentPersona/<元素>`、`board:AgentIdentityRow/<元素>`）；八种样子各一张真截图（浅色 / 暗色、中 / 英），和拍板拼页逐格对账；功能普查 A-1 到 A-12、I-1 到 I-2 逐行写「在新位置可用（走查名）」；`perf-scenario` 交数字。
+- ① 验收清单：拍板清单两块板的每个元素都是 implemented 且有走查断言（`board:AgentPersona/<元素>`、`board:AgentIdentityRow/<元素>`），以下例外按「实现时的取舍」照实核：`variant.setup`（取舍 1，随 D2-1）、`variant.long-task`（取舍 2，等 Run 状态接进小球）留 `missing`；身份行 `identity.face` / `identity.wordmark` 组件已换、但 `NomiIdentityRow` 现在没有挂载点、用户看不到，留 `in-progress`（owner D2-1），只核组件单测与几何，不核真界面；八种样子各一张真截图（浅色 / 暗色、中 / 英），和拍板拼页逐格对账；功能普查 A-1 到 A-12、I-1 到 I-2 逐行写「在新位置可用（走查名）」；`perf-scenario` 交数字。
 - ② 反例（这一类会从哪回来）：小球自己打开了面板；眼睛跟随引起整个外壳重渲染（React Profiler 看提交次数）；减弱动效下还在动；拖动不到 4px 没算点击，或拖完被当成点击；右键菜单、⌘J 失效；胶囊没往左长、把右缘推出屏幕；英文胶囊字被截；暗色身体写死 hex 不走 token；`data-agent-ball` / `-dock-status` / `-dock-count` / `-dock-unread` / `-ball-progress` 少了一个（走查会全瞎）；面板开着时刚做完却挂上了未读点；出错时读屏不读；身份行的脸在动；`NomiLoadingMark` 或 App 图标被顺手换了。
 - ③ 开工第一步：独立只读线按代码复核两块板的功能普查（现有功能全表，带代码出处），漏的先补进清单再动手。
 - ④ 回滚：revert 0.25 的实现 PR（一个合并提交）；没有数据迁移，没有开关。
 
 拍板图清单：`docs/design/boards/2026-10-27-agent-persona/AgentPersona.board.json`（小球，15 个元素）、`AgentIdentityRow.board.json`（身份行，3 个元素）；证据：`pnpm run check:board-parity`
+
+### 实现时的取舍（2026-11-07）
+
+实现线 I-agent-persona 开工前写下。前 7 条是协调会话按任务书定的，后面几条是实现线按拍板意思代定、事后报协调的。
+
+| # | 取舍 | 为什么 / 老用户怎么过 | 谁定的 |
+|---|---|---|---|
+| 1 | 「先连一个模型」胶囊（`variant.setup`）这一刀不做，板上留 `missing`，备注「随 D2-1 接入引导实现」 | 接入引导 D2-1 正在改「没有文本模型」那条路，现在先做胶囊，下一刀还得跟着改；老用户照旧：没连模型时点小球，面板里的恢复卡给下一步 | 协调 11-07 |
+| 2 | 「长任务」那条按镜头数增长的弧（`variant.long-task`）不做，板上留 `missing`，理由是小球还拿不到「第几镜 / 共几镜」的真数据 | 不拿回合 running、阶段数、计时器去凑一个假进度（Q6「不做假进度」）；在那之前「在跑」只有转圈一种 | 协调 11-07 |
+| 3 | 未读点和其它状态叠在一起时，照今天的规则：在跑、刚做完时未读点照挂；等你确认、出错时不挂（这两种更要紧，各自占右上角） | 不改 `resolveDockStatus` 的先后，也不改未读条数的算法，只换脸 | 协调 11-07 |
+| 4 | 时长：新 token 只有「形变」一档 550ms + `cubic-bezier(.16,1,.3,1)`（`--nomi-duration-morph` / `--nomi-ease-morph`，Tailwind 与 `src/theme/nomi-tokens.css` 两处同步，§2.7 写清只给形象用）；其它交互过渡照旧 fast 140ms；小样里写死的 400 / 250 / 350ms 不照抄；跳一下 700ms、转圈 1.1s、低头扫 1.4s、约 20 秒眨一次眼是组件里的周期常量，不进全局 token | 一档 token 只为一个组件，再多就成了平行的时长体系 | 协调 11-07 |
+| 5 | 眼睛颜色照小样源码：胶囊上的眼睛和字一样是 warning 的深色（`--nomi-warning-ink`），暗色照源码（也落在 warning token 上）；身份行和其它状态是白眼 | 板上「眼睛恒为白色」说的是身份行；白眼压在浅琥珀胶囊上看不见，源码本来就是深色 | 协调 11-07 |
+| 6 | 身份行 `NomiIdentityRow` 把 16px 的旧标换成静态脸：不眨眼、不跟鼠标、没有任何动效；挂的位置不动 | Q7 / 身份行板 Q2 | 协调 11-07 |
+| 7 | `NomiLogoMark` 组件本身和面板头部的 `NomiBrand` 不动 | Q10 边界 | 协调 11-07 |
+| 8 | 旧脸（纸色圆底里放 logo 标）同一个提交删掉，不留开关 | P1；老用户升级后直接看到新脸，行为一样 | 任务书 |
+| 9 | 眼睛跟随的监听放在 `AgentBallFace`（板 `persona.eyes` 的写法），不放 `ShellAgentHost`（本卡「范围」那句早于板）；`ShellAgentHost` 只在尺寸推导非改不可时才动 | 跟随只管这一颗球自己的长相，挂在长相组件里，外壳不多一条全局监听 | 实现线代定 |
+| 10 | 跟随：只在真实的 pointermove 上算，一帧最多算一次（rAF 合并），只写两个 CSS 变量，不写 Zustand、不进 React state；离小球中心 160px 外归位一次就不再写；鼠标离开窗口 / 窗口失焦归位；卸载时取消 rAF、摘监听；减弱动效时不挂监听 | Q9；★7 预算「跟随不触发重渲染、空闲没有持续动画帧」 | 实现线代定 |
+| 11 | 眨眼用一个约 20 秒的定时器给脸加一次性的眨眼标记，眨完摘掉；只在空闲 / 有新消息时眨；窗口在后台（`document.hidden`）或减弱动效时不眨。不用无限循环的 CSS 动画 | 无限循环动画即使大部分时间不动也会每帧跑合成；定时器让空闲时没有在跑的动画 | 实现线代定 |
+| 12 | 胶囊宽度按字的实际宽度长（两侧留白按小样比例），最宽不超过 132px（`PILL_WIDTH`）；`ShellAgentHost` 给的 132×44 点击区域照旧不缩 | Q8「胶囊最宽 132，点击区域不缩」；英文「Confirm N」比中文短，按字长不会截字 | 实现线代定 |
+| 13 | 悬停说明照旧用原生 `title`（板 `persona.tooltip`：说明 = 现在的 title）；小样里那颗自画气泡不做 | 不另造一套提示组件；原生提示截不到图，走查改断言 title 文字 | 实现线代定 |
+| 14 | 压在深色画面上 / 暗色模式的那圈浅描边用 `ring-nomi-media-ink` 加透明度（浅色 30%、暗色 14%），不写 hex | 板 `persona.on-dark`「走 token，不写死 hex」 | 实现线代定 |
+| 15 | 性能场景 `agent-ball-eye-follow` 用现成规模 L（96 图 + 96 视频 = 192 个节点，离「200 个节点」最近的媒体档），照 `canvas-pan-while-agent-streaming` 的跑法：Agent 在流式吐字、面板收成小球时，鼠标在小球 160px 内连续转圈；另量两段：跟随期间小球按钮的 React 重渲染次数、空闲时整页的 rAF 请求数与小球上在跑的动画数 | 不另起量具；★7 的四个预算都要有读数 | 实现线代定 |
+| 16 | 老 bug 顺手修：拖小球松手后面板会弹开。原因：react-rnd 不拦松手时浏览器补发的那次 click，`ShellAgentHost` 的 onDragStop 只是「动得少就 return」，没挡这次 click（普查 A-2 当时标了「未验证」）。修法：「几乎没动」的界收成一个数 `BALL_CLICK_SLOP_PX = 4`（`agentFormStore`），拖过界就吞掉紧跟的那一次 click（标记只活到这次松手的输入任务结束），位置照存；抖 2px 照常当点击。复现：脱离 Nomi 的 `rnd-click.mjs`（react-rnd 里放一颗普通按钮，拖 120px 松手收到 1 次 click）；走查 `_agentPersonaWalk.mjs` 第 ⑤ 段与单测钉住 | ★9 反例「拖完被当成点击」；只让行为回到注释与本卡写的合同，点击、右键、⌘J 不变 | 协调 11-07（选 A） |
+| 17 | 小球透明点击框上的焦点环用 `focus-visible:!outline-none` 压掉，只留身体上那道（和 `AgentPanelV4Receipt` 同写法）。原因：全局底座 `:root :focus-visible:not(文本框)`（`tailwind.config.ts`）特异性高过 `focus-visible:outline-none`，不加 `!` 会在 44px 圆框外再画一圈；复现：脱离 Nomi 的 `focus-probe.mjs`（真 tailwind 配置 + 无头 Chromium，Tab 到按钮读计算样式）。**等全局焦点环改成 `:where()` 后去掉这个 `!`**（协调另派一条线，连同门岗「写了 outline-none 必须有可见的替代焦点样式」） | ★9 反例「焦点描边不在可见的形上」；走查第 ③ 段量按钮自身描边不可见 | 协调 11-07 |
+| 18 | 老 bug 顺手修：点开 Agent 后焦点进不了输入框（点小球、⌘J、右键「浮窗 / 停靠」、头部三形态切换四种入口都是；「叫回」本来就只切形态、不聚焦）。原因：`ShellAgentHost` 的 `focusComposerSoon` 找的是 `#project-agent-resident textarea`，10-12（ed086ea3e）输入框换成 TipTap 可编辑区后里面没有 textarea 了，找满 20 帧悄悄放弃，近一个月没人发现（夜跑 11-06 的 shell-redesign 正是红在「Ctrl+J 打开后焦点不在 Agent 输入框」，但夜跑每天 367 条里红 142 条，淹掉了）。修法：定位口归输入框持有——`AgentPanelV4Composer` 从自己给编辑区的属性推出 `AGENT_COMPOSER_INPUT_SELECTOR` 导出，外壳只引用它；找满还找不到走 `logRendererWarn` 出声（开发时进 DevTools，打包版只落日志、不打扰用户）；浏览器单测挂真输入框按外壳同一个找法聚焦（用旧的 textarea 找法跑是红的）；两条走查断言改认这个口。光标落在开头还是末尾不在本次范围，行为同 10-12 之前 | ★9「行为一个不少」里的「点开聚焦输入框」；普查行为本来在主干上就是坏的，不修本 PR 证明不了 | 协调 11-07（选 A，加「找不到出声」与查走查路由）；**2026-11-13 并 main：已被主线同类修复 14cfc80fb（`requestResidentComposerFocus`）取代，本 PR 不再带，分支这份连同测试删掉（协调 11-13 批）** |

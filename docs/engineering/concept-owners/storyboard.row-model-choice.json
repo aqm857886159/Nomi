@@ -1,0 +1,26 @@
+{
+  "name": "分镜行模型菜单的显式类型与模型选择",
+  "subject": "storyboard.row-model-choice",
+  "lifecycle": "author",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+    "symbol": "ShotComposerBar"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+      "symbol": "ShotComposerBar"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/creation/storyboard/storyboardModelVendorIdentity.test.ts",
+  "allowed_consumers": [
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx"
+  ],
+  "since": "2026-11-09",
+  "notes": "根因合同 2026-11-03-storyboard-per-shot-controls：只登记每镜模型菜单构造类型/模型补丁的现有入口。默认模型不换类型，显式跨组选择调用 shotKindPatch 和 planModelSelection；模型供应商成对写入仍由现有 helper 负责，不替代目录身份或 Agent 编辑边界。登记不表示所有模型的时长已通过实机验收。"
+}

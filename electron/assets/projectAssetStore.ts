@@ -413,8 +413,6 @@ export function moveAssetFile(
 
 type RemoteAssetImportOptions = {
   assertCurrent?: () => void;
-  /** 仅供 main 进程内部已配置的本地生成服务使用；renderer IPC 无法注入第二参数。 */
-  trustedPrivateOrigin?: string;
   certificationEvidence?: CertificationMediaEvidence;
   /**
    * 产出这条 URL 的那家 vendor 的自有线路配置（`Vendor.network`）。
@@ -583,7 +581,6 @@ async function importRemoteAssetToStore(payload: unknown, options: RemoteAssetIm
   }
   if (!/^https?:\/\//i.test(url)) throw new Error("Only http(s), data, and nomi-local assets are supported");
   const fetched = await fetchProviderMedia(url, {
-    ...(options.trustedPrivateOrigin ? { trustedPrivateOrigin: options.trustedPrivateOrigin } : {}),
     ...(options.providerNetwork ? { providerNetwork: options.providerNetwork } : {}),
   });
   const bytes = fetched.bytes;

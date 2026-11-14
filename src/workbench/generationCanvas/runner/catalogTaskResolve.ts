@@ -29,11 +29,11 @@ import {
   replaceCustomCapabilityContractMeta,
   resolveArchetypeForModel,
 } from '../../../../electron/shared/modelArchetypes'
-import { currentArchetypeMode } from '../nodes/controls/archetypeMeta'
+import { carryHumanModePreference, sendArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
 import { resolveComfyWorkflowTaskKind } from '../../../../electron/catalog/comfyuiWorkflowTaskContract'
 import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
-import { remapArchetypeMode, resolveUsableModelForNode } from './usableVendorModel'
+import { resolveUsableModelForNode } from './usableVendorModel'
 import type { MediaDimensions } from '../nodes/nodeSizing'
 
 export type CatalogTaskActionOptions = {
@@ -238,14 +238,12 @@ export async function resolveExecutableNodeFromCatalog(
 
   const resolvedVendor = asTrimmedString(match.vendorKey)
   if (!resolvedVendor) throw new Error(`模型目录缺少 vendorKey：${modelKey}`)
-  // 跨档案迁移（family 兜底，如 Seedance kie↔apimart）时把 node.meta.archetype 重映射到目标档案；
-  // 同档案（同 id）保持原样（参数槽会按新 vendorKey 自动特化，无需动用户填的值）。
+  // 跨档案迁移（family 兜底，如 Seedance kie↔apimart）：不替节点挑方式（这次按什么发由现算的方式按意图对上目标档案，
+  // 见 sendArchetypeMode）；人手选过的摆法按同一种意图带过去。同档案（同 id）保持原样。
   const sourceArchetype = resolveArchetypeForModel({ modelKey, modelAlias, vendorKey: vendor, meta })
   const targetArchetype = resolveArchetypeForModel({ modelKey: match.modelKey, modelAlias: match.modelAlias, vendorKey: resolvedVendor, meta: match.meta })
-  const remappedArchetype = targetArchetype
-    ? remapArchetypeMode(sourceArchetype, asTrimmedString((meta.archetype as { modeId?: unknown } | undefined)?.modeId) || undefined, targetArchetype, vendor, resolvedVendor)
-    : null
-  const migratedMeta = replaceCustomCapabilityContractMeta(meta, match.meta)
+  const carriedMeta = targetArchetype ? carryHumanModePreference(meta, sourceArchetype, targetArchetype) : meta
+  const migratedMeta = replaceCustomCapabilityContractMeta(carriedMeta, match.meta)
 
   return {
     ...node,
@@ -256,7 +254,6 @@ export async function resolveExecutableNodeFromCatalog(
       modelVendor: resolvedVendor,
       vendor: resolvedVendor,
       modelLabel: asTrimmedString(match.labelZh) || modelKey,
-      ...(remappedArchetype ? { archetype: remappedArchetype } : {}),
       ...(isVideoLikeGenerationNodeKind(node.kind)
         ? { videoModel: asTrimmedString(match.modelKey) || modelKey, videoModelVendor: resolvedVendor }
         : { imageModel: asTrimmedString(match.modelKey) || modelKey, imageModelVendor: resolvedVendor }),
@@ -277,7 +274,7 @@ export function resolveTaskKind(node: GenerationCanvasNode, references: Partial<
   if (executionKind === 'video' || executionKind === 'image' || executionKind === 'audio' || executionKind === 'model3d') {
     const archetype = resolveTaskArchetype(meta)
     if (archetype) {
-      const transport = modeTransportFor(currentArchetypeMode(archetype, meta), archetype, selectedVendor(node))
+      const transport = modeTransportFor(sendArchetypeMode(archetype, node, references), archetype, selectedVendor(node))
       if (transport) return transport
     }
   }

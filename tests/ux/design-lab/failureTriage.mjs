@@ -28,8 +28,8 @@ export const LAB_VERDICT = {
 
 /**
  * 「预览服务器不可达」的签名。全都取自 Chromium / Playwright 自己打印的原文，
- * 不是我们自己编的字符串——除了 warmUp 那条机器标记（见 warmUp.mjs），
- * 它存在的意义是：即便将来 Playwright 换了 globalSetup 的报错排版，这一条仍然认得出来。
+ * 不是我们自己编的字符串。（2026-11-14 前还有一条预热阶段的机器标记；对着打包产物跑以后
+ * 没有预热了，打包或托管起不来由 webServer 那两条签名认出来。）
  */
 export const UNREACHABLE_SIGNATURES = [
   { tag: 'connection-refused', re: /net::ERR_CONNECTION_REFUSED/ },
@@ -41,7 +41,6 @@ export const UNREACHABLE_SIGNATURES = [
   { tag: 'webserver-not-started', re: /Process from config\.webServer was not able to start/ },
   { tag: 'webserver-timeout', re: /Timed out waiting \d+ms from config\.webServer/ },
   { tag: 'port-taken', re: /is already used|EADDRINUSE/ },
-  { tag: 'warmup-unreachable', re: /NOMI_LAB_WARMUP_UNREACHABLE/ },
 ]
 
 const BASELINE_MISSING_RE = /A snapshot doesn't exist at/

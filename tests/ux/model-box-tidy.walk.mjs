@@ -228,8 +228,9 @@ try {
     message: '藏起来的模型在模型框里一行都不出现',
   })
   console.log('  ✓ 藏起来的模型在模型框里一行都不出现')
-  const note = await win.locator('[data-nomi-select-hidden-note]').last().innerText()
-  check(/已隐藏\s*1\s*个/.test(note), `模型框底部说清藏了几个：「${note.trim()}」`)
+  // 2026-11-14：底部那行脚注并进了最后一行「隐藏模型 N」（点它去设置里的模型顺序页）。
+  const footer = win.getByRole('button', { name: /隐藏模型\s*1/ }).last()
+  check(await footer.count() === 1, `模型框底部说清藏了几个：「${(await footer.innerText()).trim()}」`)
   // 滚到这次真正在考的那两行再截：不滚的话截到的是列表顶上那几个内置模型，
   // 「Beta 排在 Alpha 前面」这件事在图里根本看不见。
   await win.getByRole('option').filter({ hasText: '模型框 Alpha' }).first().scrollIntoViewIfNeeded()
@@ -276,7 +277,7 @@ try {
   await closeSettings(win)
   await openModelPicker(win)
   check((await optionLabels(win)).some((label) => label.includes('模型框 Gamma')), '找回之后它又回到了模型框里')
-  check(await win.locator('[data-nomi-select-hidden-note]').count() === 0, '一个都没藏时，模型框底部不再多出那行脚注')
+  check(await win.getByRole('button', { name: /隐藏模型\s*\d/ }).count() === 0, '一个都没藏时，模型框底部的「隐藏模型」不带数字')
 
   console.log('model box tidy journey passed')
 } finally {

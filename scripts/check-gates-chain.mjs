@@ -17,6 +17,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { TIER_COMMANDS } from './run-gates-tests.mjs'
+import { PROFILES, STAGES } from '../tests/system/profiles.mjs'
+import { SLOW_TEST_FILES } from './pre-push-related-tests.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -149,7 +151,47 @@ function collectReachableCommands(scripts, reachable) {
   return [...reachable].map((name) => scripts[name] ?? '').join('\n')
 }
 
+/**
+ * 分作业核对（2026-11-14）：CI 把 gates:contracts 的清单按 `--except` / `--only` 切开并行跑。
+ * 「--except 点名的门没人接手」和「门岗从链里消失」是同一类无声失效：Contracts 作业照样绿，那道门再也不跑。
+ * 规矩：任何 profile 里被 `--except` 的门，必须在**同一个 profile 组**（ci-contracts 对应的 ci-contracts-hooks……）
+ * 之外的另一个 ci-* profile 里被 `--only` 点名，且那个 profile 的 stage 是 `gates:contracts`（同一份清单，不另抄）。
+ * 返回问题列表，空 = 通过。stages / profiles 可注入，测试拿它做阳性对照。
+ */
+export function splitCoverageProblems(stages = STAGES, profiles = PROFILES) {
+  const flagNames = (stage, flag) => (stage.args ?? []).filter((arg) => arg.startsWith(`${flag}=`)).flatMap((arg) => arg.slice(flag.length + 1).split(',').map((name) => name.trim()).filter(Boolean))
+  const ciStageIds = new Set(Object.entries(profiles).filter(([name]) => name.startsWith('ci-')).flatMap(([, ids]) => ids))
+  const problems = []
+  for (const stage of Object.values(stages)) {
+    if (!ciStageIds.has(stage.id)) continue
+    for (const name of flagNames(stage, '--except')) {
+      const takers = Object.values(stages).filter((other) => other !== stage && ciStageIds.has(other.id) && other.args?.includes('gates:contracts') && flagNames(other, '--only').includes(name))
+      if (takers.length === 0) problems.push(`${name}：stage「${stage.id}」用 --except 跳过了它，但没有任何 CI stage 用 --only 接手（门岗会无声消失）`)
+    }
+  }
+  return problems
+}
+
+/**
+ * 「慢测试整份只在 CI 跑」的名单（SLOW_TEST_FILES）里每个文件，必须被 gates 链里某个脚本的命令点名。
+ * 否则把它从一条命令里挪走又没接到别处，就是一份测试再也没人跑——同样无声、同样 CI 一片绿。
+ */
+export function slowTestFileProblems(scripts, reachable, slowFiles = SLOW_TEST_FILES) {
+  const commands = [...reachable].map((name) => scripts[name] ?? '')
+  return Object.keys(slowFiles)
+    .filter((file) => !commands.some((command) => command.includes(file) || command.includes(`./${file}`)))
+    .map((file) => `${file}：在 SLOW_TEST_FILES 里（只在 CI 跑），但 gates 链可达的任何脚本命令都没点名它——这份测试没人跑`)
+}
+
 function main() {
+  const splitProblems = splitCoverageProblems()
+  if (splitProblems.length > 0) {
+    console.error('❌ gates:contracts 分作业没接上：')
+    for (const problem of splitProblems) console.error(`   · ${problem}`)
+    console.error('  → tests/system/profiles.mjs：每个 --except 的门都要有一个 ci-* profile 的 stage 用 --only 接手')
+    process.exit(1)
+  }
+
   const { file, pkg } = readPackageJson()
   const scripts = pkg.scripts ?? {}
 
@@ -160,6 +202,12 @@ function main() {
 
   const reachable = resolveReachable(scripts, 'gates')
   const reachableCommands = collectReachableCommands(scripts, reachable)
+  const slowProblems = slowTestFileProblems(scripts, reachable)
+  if (slowProblems.length > 0) {
+    console.error('❌ 有「只在 CI 跑」的测试文件没人跑：')
+    for (const problem of slowProblems) console.error(`   · ${problem}`)
+    process.exit(1)
+  }
 
   const allChecks = Object.keys(scripts).filter((name) => name.startsWith('check:'))
   const missing = []

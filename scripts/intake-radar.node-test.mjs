@@ -77,7 +77,7 @@ test('run(): list 失败 → 返回 1，明说"今天没查成"，不写 state',
 
 test('run(): 首次成功运行 → 全部键都算新的，写 state + 报告', async () => {
   const cacheDir = tmpCacheDir()
-  const { fetchImpl, getLog } = makeFakeFetch({ objectsByPrefix: { 'feedback/': ['feedback/2026-09-27/a.json'], 'events/': [], 'trajectories/': [] } })
+  const { fetchImpl, getLog } = makeFakeFetch({ objectsByPrefix: { 'feedback/': ['feedback/2026-09-27/a.json'], 'events/': [] } })
   const logs = []
   const code = await run({
     cacheDirOverride: cacheDir,
@@ -104,7 +104,7 @@ test('run(): 首次成功运行 → 全部键都算新的，写 state + 报告',
 
 test('run(): 第二轮只把新键算"新增"，已见过的键不再重复下载', async () => {
   const cacheDir = tmpCacheDir()
-  const shared = { objectsByPrefix: { 'feedback/': ['feedback/2026-09-27/a.json'], 'events/': [], 'trajectories/': [] } }
+  const shared = { objectsByPrefix: { 'feedback/': ['feedback/2026-09-27/a.json'], 'events/': [] } }
 
   const first = makeFakeFetch(shared)
   await run({ cacheDirOverride: cacheDir, resolveCredentialsImpl: OK_CREDENTIALS, fetchImpl: first.fetchImpl, now: () => new Date('2026-09-29T08:00:00.000Z'), log: () => {}, errorLog: () => {} })
@@ -133,7 +133,7 @@ test('run(): 缓存目录里已经有文件、但 state.json 是空的（比如�
   fs.mkdirSync(path.dirname(dest), { recursive: true })
   fs.writeFileSync(dest, fakeFeedbackContent('pre'))
 
-  const { fetchImpl, getLog } = makeFakeFetch({ objectsByPrefix: { 'feedback/': [preExistingKey], 'events/': [], 'trajectories/': [] } })
+  const { fetchImpl, getLog } = makeFakeFetch({ objectsByPrefix: { 'feedback/': [preExistingKey], 'events/': [] } })
   const code = await run({ cacheDirOverride: cacheDir, resolveCredentialsImpl: OK_CREDENTIALS, fetchImpl, now: () => new Date('2026-09-29T08:00:00.000Z'), log: () => {}, errorLog: () => {} })
 
   assert.equal(code, 0)
@@ -177,7 +177,7 @@ test('version regression uses existing fetch/cache, returns nonzero and renders 
 // ---------------------------------------------------------------------------
 
 const quiet = { resolveCredentialsImpl: OK_CREDENTIALS, log: () => {}, errorLog: () => {} }
-const objects = (...keys) => ({ objectsByPrefix: { 'feedback/': keys, 'events/': [], 'trajectories/': [] } })
+const objects = (...keys) => ({ objectsByPrefix: { 'feedback/': keys, 'events/': [] } })
 const runAt = (cacheDir, iso, shared, extra = {}) => run({ cacheDirOverride: cacheDir, fetchImpl: makeFakeFetch(shared).fetchImpl, now: () => new Date(iso), ...quiet, ...extra })
 const pendingIds = (cacheDir) => untriagedItems(readInbox(cacheDir)).map((item) => item.id)
 const reports = (cacheDir, extension = '.json') => fs.readdirSync(path.join(cacheDir, 'reports')).filter((name) => name.endsWith(extension)).sort()
@@ -282,7 +282,7 @@ test('版本健康判停、退出码 1：账照样更新，新反馈照样在', 
   const cacheDir = tmpCacheDir()
   const events = [23, 24].flatMap((appMinor) => Array.from({ length: appMinor === 24 ? 10 : 300 }, (_item, index) => ({ sessionId: `s${index % 2}`, timestamp: '2026-10-29T00:00:00Z', eventName: 'generation.completed', props: { capability: 'image', result: appMinor === 24 ? 'failure' : 'success', durationBucket: '<1s', errorType: 'unknown' }, systemProps: { appMajor: 0, appMinor } })))
   writeRawFile(cacheDir, 'events/2026-10-29/e.json', Buffer.from(JSON.stringify({ payload: { events } })))
-  const code = await runAt(cacheDir, '2026-10-29T08:00:00.000Z', { objectsByPrefix: { 'feedback/': ['feedback/2026-10-29/a.json'], 'events/': ['events/2026-10-29/e.json'], 'trajectories/': [] } }, { healthOptions: { newVersion: '0.24.0', oldVersion: '0.23.2' } })
+  const code = await runAt(cacheDir, '2026-10-29T08:00:00.000Z', { objectsByPrefix: { 'feedback/': ['feedback/2026-10-29/a.json'], 'events/': ['events/2026-10-29/e.json'] } }, { healthOptions: { newVersion: '0.24.0', oldVersion: '0.23.2' } })
   assert.equal(code, 1)
   assert.deepEqual(pendingIds(cacheDir), ['a'])
 })

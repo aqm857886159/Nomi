@@ -79,11 +79,11 @@ export function FindReferencePanel({
   const [result, setResult] = React.useState<ReferenceSearchResult | null>(null)
   const [addingId, setAddingId] = React.useState<string | null>(null)
   const [addedIds, setAddedIds] = React.useState<ReadonlySet<string>>(new Set())
-  const inputRef = React.useRef<HTMLDivElement | null>(null)
+  const inputRef = React.useRef<HTMLInputElement | null>(null)
 
   /** 把焦点送回输入框——「改」与「换个词」都是同一个动作：回去改那个词。 */
   const focusKeyword = React.useCallback(() => {
-    inputRef.current?.querySelector('input')?.focus()
+    inputRef.current?.focus()
   }, [])
 
   const platformName = t(`assetLibrary.findReference.platform.${platform}`)
@@ -188,8 +188,9 @@ export function FindReferencePanel({
         <span className="text-micro text-nomi-ink-30">{t('assetLibrary.findReference.projectScope')}</span>
       </div>
 
-      <div className="px-3 pb-2" ref={inputRef}>
+      <div className="px-3 pb-2">
         <DesignSearchInput
+          ref={inputRef}
           className="w-full"
           value={keyword}
           onChange={setKeyword}

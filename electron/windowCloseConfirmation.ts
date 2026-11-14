@@ -1,9 +1,9 @@
 import { BrowserWindow, dialog, ipcMain } from "electron";
 import { randomUUID } from "node:crypto";
-import { continueRequestedQuit, resetQuitRequest } from "./quitTeardown";
+import { beginMainWindowClose, cancelMainWindowClose, noteCloseConfirmationInstalled, revealMainWindow, settleConfirmedClose } from "./mainWindowPresence";
+import { resetQuitRequest } from "./quitTeardown";
 
 export const CLOSE_ACK_DEADLINE_MS = 1500;
-const windowsAllowedToClose = new WeakSet<BrowserWindow>();
 const pendingCloseRequests = new WeakMap<BrowserWindow, { requestId: string; acked: boolean }>();
 const pendingCloseTimers = new WeakMap<BrowserWindow, ReturnType<typeof setTimeout>>();
 const pendingCloseDialogs = new WeakMap<BrowserWindow, Promise<void>>();
@@ -24,16 +24,16 @@ function parseCloseResponse(payload: unknown): { requestId: string; kind: "ack" 
   return { requestId, kind: "decision", confirmed: (payload as { confirmed?: unknown }).confirmed === true };
 }
 
-function forceClose(mainWindow: BrowserWindow): void {
-  if (mainWindow.isDestroyed()) return;
-  windowsAllowedToClose.add(mainWindow);
-  mainWindow.close();
+// 关窗的结果（退 / 藏）只由主窗主人决定；这里只负责「问用户」这一步。取消 = 撤销还没放行的退出。
+function cancelClose(): void {
+  resetQuitRequest();
+  cancelMainWindowClose();
 }
 
 function showNativeCloseDialog(mainWindow: BrowserWindow): void {
   const existing = pendingCloseDialogs.get(mainWindow);
   if (existing) {
-    mainWindow.focus();
+    revealMainWindow("close-confirmation");
     return;
   }
   // 只传 options：带父窗口会跨线程持有属主，Windows 第三方输入法下整个 app 闪退（electron/nativeDialogParent.invariant.test.ts）。
@@ -47,11 +47,11 @@ function showNativeCloseDialog(mainWindow: BrowserWindow): void {
     detail: "Force quitting may lose unsaved content.",
   }).then((result) => {
     pendingCloseDialogs.delete(mainWindow);
-    if (result.response === 0) forceClose(mainWindow);
-    else resetQuitRequest();
+    if (result.response === 0) settleConfirmedClose(mainWindow, { force: true });
+    else cancelClose();
   }).catch(() => {
     pendingCloseDialogs.delete(mainWindow);
-    resetQuitRequest();
+    cancelClose();
   });
   pendingCloseDialogs.set(mainWindow, dialogPromise);
 }
@@ -74,26 +74,23 @@ function registerCloseResponseIpc(): void {
     }
     clearPendingClose(mainWindow);
     if (!response.confirmed || mainWindow.isDestroyed()) {
-      resetQuitRequest();
+      cancelClose();
       return;
     }
-    forceClose(mainWindow);
+    settleConfirmedClose(mainWindow);
   });
 }
 
 export function installWindowCloseConfirmation(mainWindow: BrowserWindow): void {
   registerCloseResponseIpc();
+  noteCloseConfirmationInstalled(mainWindow);
   mainWindow.on("close", (event) => {
-    if (windowsAllowedToClose.has(mainWindow)) {
-      windowsAllowedToClose.delete(mainWindow);
-      return;
-    }
-    if (pendingCloseRequests.has(mainWindow) || pendingCloseDialogs.has(mainWindow)) {
-      event.preventDefault();
-      mainWindow.focus();
-      return;
-    }
+    // 主人先判：已放行 → 关；后台冷启没人见过又空闲 → 主人直接存盘退出；其余先把窗口亮出来再问（看不见的窗口不发问）。
+    const start = beginMainWindowClose(mainWindow);
+    if (start === "proceed") return;
     event.preventDefault();
+    if (start === "handled") return;
+    if (pendingCloseRequests.has(mainWindow) || pendingCloseDialogs.has(mainWindow)) return;
     const requestId = randomUUID();
     pendingCloseRequests.set(mainWindow, { requestId, acked: false });
     const timer = setTimeout(() => {
@@ -104,7 +101,6 @@ export function installWindowCloseConfirmation(mainWindow: BrowserWindow): void 
     }, CLOSE_ACK_DEADLINE_MS);
     timer.unref?.();
     pendingCloseTimers.set(mainWindow, timer);
-    mainWindow.focus();
     mainWindow.webContents.send("nomi:window:close-request", { requestId });
   });
   // A renderer that ACKed and then crashed or hung can never deliver the user's decision: the window
@@ -116,11 +112,5 @@ export function installWindowCloseConfirmation(mainWindow: BrowserWindow): void 
   };
   mainWindow.webContents.on("render-process-gone", rendererLost);
   mainWindow.on("unresponsive", rendererLost);
-  mainWindow.on("closed", () => {
-    clearPendingClose(mainWindow);
-    // Preventing the window "close" event cancels Electron's in-flight quit (⌘Q / Dock / app.quit). Once the user
-    // confirmed and the window is gone, resume the quit they asked for; after the window list
-    // settles so Electron does not re-close a closing window. No-op when no quit was requested.
-    setImmediate(continueRequestedQuit);
-  });
+  mainWindow.on("closed", () => clearPendingClose(mainWindow));
 }

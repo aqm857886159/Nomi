@@ -1,4 +1,5 @@
-import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
+import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
+import type { GenerationNodeResults } from './catalogTaskResultParse'
 import type { ProjectBinding } from '../../../../electron/shared/projectBinding'
 import type { CatalogTaskActionOptions } from './catalogTaskResolve'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
@@ -32,7 +33,7 @@ export type GenerationNodeExecutorContext = {
 export type GenerationNodeExecutor = (
   node: GenerationCanvasNode,
   context: GenerationNodeExecutorContext,
-) => Promise<GenerationNodeResult>
+) => Promise<GenerationNodeResults>
 
 export const generationNodeExecutor: GenerationNodeExecutor = async (node, context) => {
   const executionKind = getGenerationNodeExecutionKind(node.kind)

@@ -1,0 +1,18 @@
+摘要：768P · 5s
+方式格：Reference
+输入：1张图
+---
+Resolution
+480P
+768P
+1080P
+Duration (seconds)
+5
+Aspect ratio
+Auto
+16:9
+9:16
+1:1
+4:3
+3:4
+21:9

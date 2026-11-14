@@ -22,11 +22,15 @@
     {
       "path": "electron/assets/projectAssetStore.ts",
       "symbol": "copyAssetFile"
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "writeGeneratedAsset"
     }
   ],
   "forbidden_derivations": [],
   "parity_test": "electron/assets/generatedOutputKindGate.test.ts",
   "allowed_consumers": [],
   "since": "2026-11-07",
-  "notes": "合同 docs/fixes/2026-11-07-tts-save-expected-kind.root-cause.json（复盘 docs/engineering/direction-checks/2026-11-07-tts-save-expected-kind.md）：#1213 起生成产物落盘要说清「它该是哪一类」，没说在落盘关口 generatedExpectation 拒（generated_output_expected_kind_required）。0.23.2 起同步配音把供应商字节交给了用户文件的门、没说要音频，扣了费存不进项目。现在「生成产物 ⇒ 期望类型非空」在三扇门的类型上成对：远程取回 RemoteAssetImportPayload（kind 省略或 generated 必须带期望类型）、拷文件 copyAssetFile（配对重载：generated 配非空期望类型，用户的东西写明 kind 配 null）、用户文件的门 importLocalFile 不收 generated（概念 asset.local-file-import）；字节那扇「kind 不定」的 storeAssetBytes 只在素材模块里用、不导出。素材模块内部 kind 来自数据的两处（跨项目复制读 sidecar、nomi-local 引用）和渲染层经 IPC 来的载荷只在运行时由 generatedExpectation 查。生成产物的字节一律走 writeGeneratedAsset / writeGeneratedDeterministicAsset（期望类型必填）→ prepareVerifiedGeneratedAsset → publishVerifiedGeneratedAsset（概念 asset.generated-media-decode）。"
+  "notes": "合同 docs/fixes/2026-11-07-tts-save-expected-kind.root-cause.json（复盘 docs/engineering/direction-checks/2026-11-07-tts-save-expected-kind.md）：#1213 起生成产物落盘要说清「它该是哪一类」，没说在落盘关口 generatedExpectation 拒（generated_output_expected_kind_required）。0.23.2 起同步配音把供应商字节交给了用户文件的门、没说要音频，扣了费存不进项目。现在「生成产物 ⇒ 期望类型非空」在三扇门的类型上成对：远程取回 RemoteAssetImportPayload（kind 省略或 generated 必须带期望类型）、拷文件 copyAssetFile（配对重载：generated 配非空期望类型，用户的东西写明 kind 配 null）、用户文件的门 importLocalFile 不收 generated（概念 asset.local-file-import）；字节那扇「kind 不定」的 storeAssetBytes 只在素材模块里用、不导出。素材模块内部 kind 来自数据的两处（跨项目复制读 sidecar、nomi-local 引用）和渲染层经 IPC 来的载荷只在运行时由 generatedExpectation 查。生成产物的字节一律走 writeGeneratedAsset / writeGeneratedDeterministicAsset（期望类型必填；2026-11-09 起自定义调用脚本的 saveFile 也直接调 writeGeneratedAsset，期望类型 = 任务种类，合同 docs/fixes/2026-11-09-a4d-deferred-entries.root-cause.json）→ prepareVerifiedGeneratedAsset → publishVerifiedGeneratedAsset（概念 asset.generated-media-decode）。"
 }

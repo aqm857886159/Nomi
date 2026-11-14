@@ -1,0 +1,692 @@
+{
+  "board": "StoryboardOnlyWhatWorks",
+  "approvedOn": "2026-11-02",
+  "stage": "built",
+  "sourceBoundary": "已批准的五张画布源码在 source；preview 是同一源码展开的亮、暗及选中/菜单/旧版变体。作废全选变体不收录。未由本线实跑的保留项保持 in-progress，交独立验收逐项确认。",
+  "priorArt": [
+    {
+      "url": "https://github.com/aqm857886159/Nomi/blob/6ae1ccd181b48c3bea0ac0b85961953b1bd06042/src/workbench/generationCanvas/components/CanvasSelectionToolbar.tsx",
+      "takeaway": "画布删除了选中生成和批量模型，各对象保留自己的选择。",
+      "decisionImpact": "确认选中只用于交接和删除。"
+    },
+    {
+      "url": "https://github.com/aqm857886159/Nomi/blob/a5387c33bc05ce65b064635754e1bb18f5353495/docs/design/2026-09-05-storyboard-table-v6-design-contract.md",
+      "takeaway": "项目默认画幅与逐镜覆盖分工，覆盖镜不随默认改变。",
+      "decisionImpact": "确认整片画幅保留并搬家。"
+    },
+    {
+      "url": "https://kitsu.cg-wire.com/guides/review-publishing/update-task-progress/",
+      "takeaway": "多选同类制作任务后可统一改状态并确认。",
+      "decisionImpact": "不沿用批量模型编辑；每镜模型是创作选择，图片和视频目录不同。"
+    }
+  ],
+  "elements": [
+    {
+      "id": "context.shell",
+      "label": "工作台既有分区、项目名与工作区切换",
+      "candidates": [
+        "001-nav-工作台分区",
+        "002-svg",
+        "003-span-文稿",
+        "004-svg",
+        "005-span-目录",
+        "006-svg",
+        "007-span-素材",
+        "008-svg",
+        "009-span-流程",
+        "010-svg",
+        "011-span-Skill",
+        "012-svg",
+        "013-span-提示词",
+        "014-div-N",
+        "015-span-未命名项目1102061",
+        "016-span-创作",
+        "017-span-生成03",
+        "018-span-预览"
+      ],
+      "status": "in-progress",
+      "owner": "storyboard-strips",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "header.title",
+      "label": "方案标题与镜头数量",
+      "candidates": [
+        "019-svg",
+        "020-span-林薇在旧书店找到一封信",
+        "021-span-3镜"
+      ],
+      "status": "in-progress",
+      "owner": "storyboard-strips",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "header.canvas",
+      "label": "查看或放到画布",
+      "candidates": [
+        "022-button",
+        "023-span-查看画布"
+      ],
+      "status": "in-progress",
+      "owner": "storyboard-strips",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "anchor.section",
+      "label": "跨镜头参考卡、展开、添加参考",
+      "candidates": [
+        "024-span-跨镜头要一致的",
+        "025-span-全部展开",
+        "026-span-林薇",
+        "027-span-未生成",
+        "028-span-旧书店",
+        "029-span-未生成",
+        "030-button",
+        "031-span-添加参考"
+      ],
+      "status": "in-progress",
+      "owner": "storyboard-strips",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "heading.playback",
+      "label": "分镜标题与顺播",
+      "candidates": [
+        "032-span-分镜3镜",
+        "033-span",
+        "034-span-顺播"
+      ],
+      "status": "in-progress",
+      "owner": "storyboard-strips",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "heading.film",
+      "label": "整片画幅",
+      "candidates": [
+        "035-span-整片画幅",
+        "036-span-按模型默认",
+        "037-svg"
+      ],
+      "status": "implemented",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "assertion": "board:StoryboardOnlyWhatWorks/heading.film"
+    },
+    {
+      "id": "row.select",
+      "label": "拖动、选中与行菜单",
+      "candidates": [
+        "038-svg",
+        "039-input-选中镜1",
+        "040-button",
+        "050-svg",
+        "051-input-选中镜2",
+        "052-button",
+        "062-svg",
+        "063-input-选中镜3",
+        "064-button"
+      ],
+      "status": "in-progress",
+      "owner": "storyboard-strips",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "row.prompt",
+      "label": "镜号与提示词",
+      "candidates": [
+        "041-span-01",
+        "042-span-林薇在旧书店找到一封信",
+        "053-span-02",
+        "054-span-林薇走到旧书店窗边",
+        "065-span-03",
+        "066-span-林薇在灯下拆开那封信"
+      ],
+      "status": "in-progress",
+      "owner": "storyboard-strips",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "row.model",
+      "label": "每镜模型菜单",
+      "candidates": [
+        "043-button",
+        "044-span-GPTImage2",
+        "045-svg",
+        "055-button",
+        "056-span-GPTImage2",
+        "057-svg",
+        "067-button",
+        "068-span-GPTImage2",
+        "069-svg"
+      ],
+      "status": "implemented",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "assertion": "board:StoryboardOnlyWhatWorks/row.model"
+    },
+    {
+      "id": "row.params",
+      "label": "每镜参数摘要与面板",
+      "candidates": [
+        "046-span-文生图自动1K",
+        "047-svg",
+        "058-span-文生图自动1K",
+        "059-svg",
+        "070-span-文生图自动1K",
+        "071-svg"
+      ],
+      "status": "in-progress",
+      "owner": "storyboard-strips",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "row.generate",
+      "label": "每镜生成",
+      "candidates": [
+        "048-button",
+        "049-span-生成",
+        "060-button",
+        "061-span-生成",
+        "072-button",
+        "073-span-生成"
+      ],
+      "status": "in-progress",
+      "owner": "storyboard-strips",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "footer.back",
+      "label": "返回原稿",
+      "candidates": [
+        "074-button",
+        "075-span-返回原稿"
+      ],
+      "status": "in-progress",
+      "owner": "storyboard-strips",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "footer.progress",
+      "label": "生成进度",
+      "candidates": [
+        "076-span-已生成03镜"
+      ],
+      "status": "in-progress",
+      "owner": "storyboard-strips",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "footer.generate-remaining",
+      "label": "生成剩余",
+      "candidates": [
+        "077-button",
+        "078-span-生成剩余"
+      ],
+      "status": "in-progress",
+      "owner": "storyboard-strips",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "selection.actions",
+      "label": "已选数量、清除、交给 Agent、删除已选",
+      "candidates": [],
+      "status": "implemented",
+      "assertion": "board:StoryboardOnlyWhatWorks/selection.actions",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "row.keyframe-toggle",
+      "label": "视频镜首帧图开关",
+      "candidates": [],
+      "status": "implemented",
+      "assertion": "board:StoryboardOnlyWhatWorks/row.keyframe-toggle",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ]
+    },
+    {
+      "id": "removed.strips",
+      "label": "AI 草拟行与整片配置条",
+      "candidates": [],
+      "status": "dropped",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "userDecision": {
+        "quote": "可以删掉这里的AI草拟和全部镜头设置什么的东西吧 和画布的逻辑一致 全部镜头生成配置没用",
+        "date": "2026-11-02"
+      }
+    },
+    {
+      "id": "removed.selection-config",
+      "label": "选中配置、生成已选与跳过",
+      "candidates": [],
+      "status": "dropped",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "userDecision": {
+        "quote": "可以删掉这里的AI草拟和全部镜头设置什么的东西吧 和画布的逻辑一致 全部镜头生成配置没用",
+        "date": "2026-11-02"
+      }
+    },
+    {
+      "id": "removed.duplicate-agent",
+      "label": "页脚与行菜单的 Agent 交接",
+      "candidates": [],
+      "status": "dropped",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "userDecision": {
+        "quote": "可以删掉这里的AI草拟和全部镜头设置什么的东西吧 和画布的逻辑一致 全部镜头生成配置没用",
+        "date": "2026-11-02"
+      }
+    },
+    {
+      "id": "removed.skip",
+      "label": "单镜和选中的本次跳过",
+      "candidates": [],
+      "status": "dropped",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "userDecision": {
+        "quote": "可以删掉这里的AI草拟和全部镜头设置什么的东西吧 和画布的逻辑一致 全部镜头生成配置没用",
+        "date": "2026-11-02"
+      }
+    },
+    {
+      "id": "removed.type-picker",
+      "label": "原独立镜头类型选择器",
+      "candidates": [],
+      "status": "dropped",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "userDecision": {
+        "quote": "可以删掉这里的AI草拟和全部镜头设置什么的东西吧 和画布的逻辑一致 全部镜头生成配置没用",
+        "date": "2026-11-02"
+      }
+    }
+  ],
+  "decor": [],
+  "functionCensus": [
+    {
+      "function": "工作台分区、项目标题、创作/生成/预览切换",
+      "before": "原工作台壳",
+      "after": "context.shell",
+      "creatorPurpose": "保留既有入口，不改画布或生成列表"
+    },
+    {
+      "function": "修改方案标题、查看镜数",
+      "before": "编辑器标题行",
+      "after": "header.title",
+      "creatorPurpose": "保留标题写口与实时数量"
+    },
+    {
+      "function": "查看或放到画布",
+      "before": "标题行",
+      "after": "header.canvas",
+      "creatorPurpose": "保留原落地与定位行为"
+    },
+    {
+      "function": "参考卡展开、收起、添加、改提示词/模型/参数、改类别、删除、生成、重试、恢复、锁定、预览、按引用筛选",
+      "before": "既有跨镜头参考区",
+      "after": "anchor.section",
+      "creatorPurpose": "保留现有参考卡逻辑与图片模型目录"
+    },
+    {
+      "function": "顺序播放全片或场",
+      "before": "分镜标题行、场头",
+      "after": "heading.playback",
+      "creatorPurpose": "保留现有播放队列"
+    },
+    {
+      "function": "整片画幅及覆盖/能力提示",
+      "before": "原批量条中的项目画幅",
+      "after": "heading.film",
+      "creatorPurpose": "搬到顺播右侧；原取值、写口、交集与提示不变"
+    },
+    {
+      "function": "单镜选择、增减选中集合、Shift 范围选择、拖动与键盘移位",
+      "before": "行首与快捷键",
+      "after": "row.select",
+      "creatorPurpose": "保留选择与排序，选择不触发生成"
+    },
+    {
+      "function": "行菜单下方插入、复制、移场、定位、锁定、删除",
+      "before": "行首 ⋯",
+      "after": "row.select",
+      "creatorPurpose": "保留既有动作；有场才出移场；锁定与移场语义不改"
+    },
+    {
+      "function": "提示词、片段预设、来源定位与 @ 引用",
+      "before": "镜头内容区",
+      "after": "row.prompt",
+      "creatorPurpose": "保留原编辑与素材写口"
+    },
+    {
+      "function": "预览、结果动作、历史版本、引用条、引用增删、素材选择器、缺必填与错误反馈",
+      "before": "镜头视觉列与内容区",
+      "after": "row.prompt",
+      "creatorPurpose": "保留原组件；失败面不变"
+    },
+    {
+      "function": "选择默认模型、图片模型、视频模型及供应商",
+      "before": "每镜底栏",
+      "after": "row.model",
+      "creatorPurpose": "默认在前、按图片/视频分组；显式跨组时类型与模型成对写"
+    },
+    {
+      "function": "模式、画幅覆盖、时长、清晰度及其它声明参数",
+      "before": "每镜参数摘要面板",
+      "after": "row.params",
+      "creatorPurpose": "继续由档案派生，跟随所选模型"
+    },
+    {
+      "function": "逐镜生成、重试、恢复",
+      "before": "每镜内容区底栏",
+      "after": "row.generate",
+      "creatorPurpose": "保留原执行通路与防重复闸"
+    },
+    {
+      "function": "返回原稿",
+      "before": "页脚",
+      "after": "footer.back",
+      "creatorPurpose": "保留原返回目标"
+    },
+    {
+      "function": "生成进度与不进批量原因",
+      "before": "页脚",
+      "after": "footer.progress",
+      "creatorPurpose": "保留真实计数与锁定排除"
+    },
+    {
+      "function": "生成剩余、确认卡逐项去除、取消、确认",
+      "before": "页脚和原确认卡",
+      "after": "footer.generate-remaining",
+      "creatorPurpose": "保留单一批量入口；每镜使用自己的配置"
+    },
+    {
+      "function": "已选 N、×、交给 Agent、删除已选",
+      "before": "选中浮条",
+      "after": "selection.actions",
+      "creatorPurpose": "只留两种动作；引用写入后复用展开与输入聚焦"
+    },
+    {
+      "function": "先出首帧图，再出视频",
+      "before": "原图片+视频类型选择",
+      "after": "row.keyframe-toggle",
+      "creatorPurpose": "搬到视频镜 ⋯ 开关；关闭保留首帧草稿、视频模型和参数"
+    },
+    {
+      "function": "AI 草拟行与整片配置条",
+      "before": "旧分镜编辑器",
+      "after": "removed.strips",
+      "creatorPurpose": "删除冗余控件；多镜修改选择后交给 Agent，按项生成在确认卡中去除",
+      "userDecision": {
+        "quote": "可以删掉这里的AI草拟和全部镜头设置什么的东西吧 和画布的逻辑一致 全部镜头生成配置没用",
+        "date": "2026-11-02"
+      }
+    },
+    {
+      "function": "选中配置、生成已选与跳过",
+      "before": "旧分镜编辑器",
+      "after": "removed.selection-config",
+      "creatorPurpose": "删除冗余控件；多镜修改选择后交给 Agent，按项生成在确认卡中去除",
+      "userDecision": {
+        "quote": "可以删掉这里的AI草拟和全部镜头设置什么的东西吧 和画布的逻辑一致 全部镜头生成配置没用",
+        "date": "2026-11-02"
+      }
+    },
+    {
+      "function": "页脚与行菜单的 Agent 交接",
+      "before": "旧分镜编辑器",
+      "after": "removed.duplicate-agent",
+      "creatorPurpose": "删除冗余控件；多镜修改选择后交给 Agent，按项生成在确认卡中去除",
+      "userDecision": {
+        "quote": "可以删掉这里的AI草拟和全部镜头设置什么的东西吧 和画布的逻辑一致 全部镜头生成配置没用",
+        "date": "2026-11-02"
+      }
+    },
+    {
+      "function": "单镜和选中的本次跳过",
+      "before": "旧分镜编辑器",
+      "after": "removed.skip",
+      "creatorPurpose": "删除冗余控件；多镜修改选择后交给 Agent，按项生成在确认卡中去除",
+      "userDecision": {
+        "quote": "可以删掉这里的AI草拟和全部镜头设置什么的东西吧 和画布的逻辑一致 全部镜头生成配置没用",
+        "date": "2026-11-02"
+      }
+    },
+    {
+      "function": "原独立镜头类型选择器",
+      "before": "旧分镜编辑器",
+      "after": "removed.type-picker",
+      "creatorPurpose": "删除冗余控件；多镜修改选择后交给 Agent，按项生成在确认卡中去除",
+      "userDecision": {
+        "quote": "可以删掉这里的AI草拟和全部镜头设置什么的东西吧 和画布的逻辑一致 全部镜头生成配置没用",
+        "date": "2026-11-02"
+      }
+    }
+  ]
+}

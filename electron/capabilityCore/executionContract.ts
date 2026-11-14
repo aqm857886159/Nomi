@@ -6,6 +6,7 @@ import { generationPlanningHintType } from "./generationPlanningParameters";
 import { draftFieldForMisplacedParameter } from "../shared/agentCapabilities/draftFieldAliases";
 import { hasMentions, numberPromptReferences, projectPromptForSend } from "../shared/storyboard/promptMentions";
 import { closestKey as nearestKeyOf } from "../shared/agentLane/toolInputIssues";
+import { generationProblemFrom, type GenerationProblem, type GenerationProblemInput } from "../shared/generationProblem";
 
 export const EXECUTION_CONTRACT_SCHEMA_VERSION = 1 as const;
 
@@ -120,8 +121,13 @@ export class ContractCompilationError extends Error {
   readonly rejection?: ParameterRejection;
   /** 语言中立的事实，由传输层原样送到模型眼前。 */
   readonly details?: Record<string, string | number>;
+  /**
+   * 闭合原因（`generationProblem.ts`）：比例 / 时长 / 参考超量这些有专门码的拒收在抛出时就定。
+   * 不给时传输层按 `parameter_not_allowed` + `rejection.path` 补上——起草期的拒收没有一条不带原因出去。
+   */
+  readonly problem?: GenerationProblem;
 
-  constructor(message: string, rejection?: ParameterRejection) {
+  constructor(message: string, rejection?: ParameterRejection, problem?: GenerationProblemInput) {
     super(message);
     this.name = "ContractCompilationError";
     this.code = rejection?.code ?? "contract_invalid";
@@ -129,6 +135,7 @@ export class ContractCompilationError extends Error {
       this.rejection = rejection;
       this.details = rejectionDetails(rejection);
     }
+    if (problem) this.problem = generationProblemFrom(problem);
   }
 }
 
@@ -346,8 +353,14 @@ export function admitPlanCandidate(
   if (candidate.modeId !== undefined && !candidate.modeId.trim()) throw new ContractCompilationError("Mode id must not be empty");
   if (candidate.sealedContractHash) throw new NewDraftRequiredError();
   const module = registry.resolve({ moduleId: candidate.moduleId, providerId: candidate.providerId, modelId: candidate.modelId, mode: candidate.mode });
-  if (candidate.references.length > (module.assetInputSchema.references?.max ?? Number.MAX_SAFE_INTEGER)) {
-    throw new ContractCompilationError("参考素材数量超过当前模式支持的上限");
+  const referenceMax = module.assetInputSchema.references?.max;
+  if (referenceMax !== undefined && candidate.references.length > referenceMax) {
+    throw new ContractCompilationError(
+      `${candidate.providerId}/${candidate.modelId} takes at most ${referenceMax} reference${referenceMax === 1 ? "" : "s"} in this mode; `
+      + `got ${candidate.references.length}. Keep the ones that matter most, or ask the user which to drop.`,
+      { code: "parameter_out_of_range", path: "references", max: referenceMax },
+      { code: "reference_over_capacity", field: "references", max: referenceMax, model: `${candidate.providerId}/${candidate.modelId}`, value: candidate.references.length },
+    );
   }
   const effectiveModule = options.parameterSchema ? { ...module, parameterSchema: options.parameterSchema } : module;
   return { module, ...compileParameters(candidate, effectiveModule, options.allowedVariantIds) };

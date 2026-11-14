@@ -143,7 +143,6 @@ export async function certifyTaskOutputAndSettleComfyCandidate(input: {
   status: TaskStatus;
   urls: readonly string[];
   kind: Extract<CertificationMediaKind, "image" | "video" | "audio" | "model3d">;
-  vendorBaseUrl: string;
 }): Promise<{ candidate?: ComfyStagedCandidate; evidence: CertificationMediaEvidence[] }> {
   const revisionId = text(input.request.extras?.comfyCertificationRevisionId);
   if (revisionId && !input.modelKey) throw new Error("ComfyUI staged candidate model is missing");
@@ -152,7 +151,7 @@ export async function certifyTaskOutputAndSettleComfyCandidate(input: {
     : undefined;
   if (input.request.extras?.certifyOutput === true && input.status === "succeeded") {
     try {
-      const evidence = await certifyTaskOutputUrls({ urls: input.urls, kind: input.kind, vendorBaseUrl: input.vendorBaseUrl });
+      const evidence = await certifyTaskOutputUrls({ urls: input.urls, kind: input.kind });
       return { ...(candidate ? { candidate } : {}), evidence };
     } catch (error) {
       if (candidate) failComfyCandidate(candidate, (error as { reasonCode?: string })?.reasonCode);

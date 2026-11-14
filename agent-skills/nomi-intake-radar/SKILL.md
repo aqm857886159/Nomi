@@ -1,6 +1,6 @@
 ---
 name: nomi-intake-radar
-description: 每次 Nomi 会话开始自动跑用户反馈雷达——先跑 `pnpm run intake:radar` 抓 Cloudflare 上的反馈/用量事件/Agent 轨迹并汇总，再对汇总结果做分诊：真 bug / 配置问题 / 体验问题 / 数据上报问题，挂私有待办，给用户今天最该看的 1-2 件事。
+description: 每次 Nomi 会话开始自动跑用户反馈雷达——先跑 `pnpm run intake:radar` 抓 Cloudflare 上的反馈/用量事件并汇总，再对汇总结果做分诊：真 bug / 配置问题 / 体验问题 / 数据上报问题，挂私有待办，给用户今天最该看的 1-2 件事。
 ---
 
 # Nomi 用户反馈雷达
@@ -21,7 +21,8 @@ description: 每次 Nomi 会话开始自动跑用户反馈雷达——先跑 `pn
 已知的两个缺口（2026-09-29 查实，写进这里是为了不用每次都重新排查一遍；如果之后有人把它们接上了，删掉对应这条，别留着误导）：
 
 - **`generation.completed` 目前只覆盖「画布直生成」**：唯一的上报点是 `src/workbench/api/taskApi.ts` 的 `runWorkbenchTaskByVendor`（渲染层，画布节点执行器 `catalogTaskActions.ts` 调它）。**「制作流程」（ProductionRun，`electron/productionRun/`，多镜头批量调度）和「Agent 付费卡」触发的生成（`electron/capabilityCore/mcpStdioServer.ts`、`appIntegration.ts` 调 `createProductionGenerationSubmission`）整条链路里没有任何 telemetry 调用**——不是成功事件漏报而失败事件正常报，是这两条路径的生成**完全不出现**在 `generation.completed` 里，无论成败。所以任何从这份数据算出来的生成成功率，**只代表画布直生成这一条路径**，不能说成"Nomi 的生成成功率"。看到这类数字要在汇报里加一句「样本只覆盖画布直生成，制作流程/Agent 生成不在里面」。这本身也是要挂私有待办的一条（数据上报问题，不是产品 bug），可以引用 `electron/telemetry/telemetryOutbox.ts` 的 `recordTelemetryEvent`——它是渲染层 IPC 和主进程都能直接调的唯一出口，ProductionRun 要补报点时不用建新链路，在它判定终态的地方直接调这个函数即可（接线本身不在这份技能的职责里，只在待办里写清楚"接到哪"）。
-- **Agent 轨迹（`trajectories/` 前缀）条数是 0，这是预期状态，不是新发现**：生产代码里没有任何地方把独立的轨迹对象放进上报队列（`enqueueIntake('trajectories', …)` 只在测试文件里出现过）。`electron/telemetry/trajectoryProjection.ts` 的 `projectLaneTrajectory` 唯一的生产调用方是 `electron/feedback/feedbackReport.ts`——只在用户手动提交"一键反馈"时，把最近 3 个回合的白名单投影**附带**在那份反馈里，不是独立上报。看到轨迹条数为 0 不用再报一遍"发现轨迹没接"，除非将来接上之后条数还是 0（那才是真异常）。
+- **独立的 Agent 轨迹上报 2026-11-13 删了**（客户端队列、接收端路由、雷达前缀一起删；从没有发布版本发过）。轨迹只作为一键反馈包里的附件到达（`projectLaneTrajectory`，用户手动提交时附最近 3 个回合的白名单投影）。报告里不再有「轨迹条数」。
+- **定位读数（报告「定位读数」一节）**：按补丁版的失败率、失败里上游 `unknown` / 本机规则 `uncoded` 的占比、上次没正常结束的启动占比、主进程停顿分布。只有 2026-11-13 之后的版本带这些格；老版本事件记成 `x.y.?` 或「不带细节」。`unknown` / `uncoded` 占比高 = 码还没覆盖到，分诊时记成「补码」类待办，不要去猜具体原因。
 
 对生成结果按能力/版本/系统/日期看的时候同理：事件的 `systemProps` 只有 `appMajor.appMinor`，没有补丁号——报告里出现的"版本"是"0.22"这个粒度，不是完整版本号，不要在汇报里假装精确到补丁版本。
 
@@ -59,4 +60,4 @@ description: 每次 Nomi 会话开始自动跑用户反馈雷达——先跑 `pn
 
 ## 隐私
 
-原始反馈/事件/轨迹只留在本机缓存目录（脚本已经保证不进仓库、不进任何提交）。这份技能自己的输出——包括私有待办里新增的条目——只能是归纳后的问题描述，不贴用户反馈原文、不贴附件内容、不贴账号 id、不贴任何价格/成本数字。跟"论文雷达""模型雷达"一样，这份技能的判断额度默认已授权，不用为了跑一次分诊再单独问用户。
+原始反馈/事件只留在本机缓存目录（脚本已经保证不进仓库、不进任何提交）。这份技能自己的输出——包括私有待办里新增的条目——只能是归纳后的问题描述，不贴用户反馈原文、不贴附件内容、不贴账号 id、不贴任何价格/成本数字。跟"论文雷达""模型雷达"一样，这份技能的判断额度默认已授权，不用为了跑一次分诊再单独问用户。

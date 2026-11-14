@@ -1,0 +1,27 @@
+{
+  "id": "USER-20261112-outbound-proxy-blocked",
+  "since": "2026-11-12",
+  "source": "用户反馈：生成「发送前被本机拦下」，开着代理反复遇到，希望这类拦截能删掉；2026-11-13 用户拍板删掉整层（docs/engineering/direction-checks/2026-11-13-outbound-address-layer-delete.md）。",
+  "category": "claims-and-outcomes",
+  "problem": "开着代理（TUN / fake-ip）的创作者，提交到自己保存的接入地址时被 Nomi 按解析出的地址拦下，界面说「发送前被本机拦下」；同一类问题此前按单格修过多次（v4 198.18 豁免、探测缓存过期、v6 合成段），每次换一种代理默认值就再坏一次。局域网主机名接入地址还会出现提交能过、取回被拒（扣了钱取不回）。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "fixedInPr": 1496,
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/fixes/2026-11-13-outbound-address-layer-delete.root-cause.json",
+    "docs/engineering/direction-checks/2026-11-13-outbound-address-layer-delete.md",
+    "docs/plan/2026-11-13-outbound-address-layer-delete.md",
+    "electron/outboundNoAddressBlock.test.ts：198.18 / 127.0.0.1 / nas.lan / 192.168 的提交与取回都过；密钥绑别的 origin 仍在本机拦下；丙 4 / 丙 5 仍拒本机文档。把地址判据接回默认路径 → 红。",
+    "未验证：Windows 真机（缺机器）；开着真代理的真实提交 / 取回闭环未跑（用回环假上游 + 真 Electron 代替）。"
+  ],
+  "completionCommits": ["3c0e2022c"],
+  "rootCauseContract": "docs/fixes/2026-11-13-outbound-address-layer-delete.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/outboundNoAddressBlock.test.ts"
+  }
+}

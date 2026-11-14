@@ -1,7 +1,7 @@
 // Mock new-api 网关（Issue #8 自动 E2E 用，零依赖 node http）。
 // 按 new-api 官方文档形状返回，让我们在**没有真实付费中转**的情况下，对着忠实 mock 验证
 // Nomi 自己写的代码：onboarding 拉取/分类/保存 + 节点生成的路由/轮询/解析。
-// 真实 vendor 字段的细微差异由防御式 extractAssetUrl + issue reporter 跑探测脚本确认。
+// 真实 vendor 字段的细微差异由防御式 extractAssetUrls + issue reporter 跑探测脚本确认。
 //
 // 端点（doc.newapi.pro / newapi.ai）：
 //   GET  /v1/models                     → {object:list, data:[{id,object:model}]}（混合图/视频/文本 id）

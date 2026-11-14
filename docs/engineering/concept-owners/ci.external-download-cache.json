@@ -1,0 +1,24 @@
+{
+  "name": "CI 外部二进制缓存",
+  "subject": "ci.external-download-cache",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": ".github/actions/cache-external-downloads/action.yml",
+    "symbol": "runs"
+  },
+  "write_api": [
+    {
+      "path": ".github/actions/cache-external-downloads/action.yml",
+      "symbol": "runs"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/ci-external-download-cache.node-test.mjs",
+  "allowed_consumers": [".github/workflows"],
+  "since": "2026-11-09",
+  "notes": "下载器环境、缓存目录及版本键由一个复合动作定义；全部安装、打包和 installer 单测入口由全工作流结构测试核对，SCAN_GUARDS 的 node 批次在推送前执行同一测试。缓存命中不跳过原安装与校验，不改变下载源或版本。"
+}

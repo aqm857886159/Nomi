@@ -33,6 +33,7 @@ jobs:
           node-version: 24
 
       # 不跑根包的 postinstall（它会下载 Electron 运行时）：导出脚本只读 App 的 TS 源，用不到 Electron。
+      - uses: ./.github/actions/cache-external-downloads
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 

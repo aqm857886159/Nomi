@@ -28,16 +28,12 @@ async function load() {
   return import('./intakeQueue')
 }
 
-describe('反馈/轨迹的落盘队列', () => {
-  it('入队即落盘；两种货物各自一个文件（清轨迹不该连带清反馈）', async () => {
+describe('反馈的落盘队列', () => {
+  it('入队即落盘，文件名带货物名', async () => {
     const queue = await load()
     queue.enqueueIntake('feedback', { summary: 'a' })
-    queue.enqueueIntake('trajectories', { turn: 1 })
     expect(fs.existsSync(path.join(root, 'intake-queue-feedback.json'))).toBe(true)
-    expect(fs.existsSync(path.join(root, 'intake-queue-trajectories.json'))).toBe(true)
-    expect(queue.clearIntakeQueue('trajectories')).toEqual({ deletedCount: 1 })
     expect(queue.readIntakeQueue('feedback')).toHaveLength(1)
-    expect(queue.readIntakeQueue('trajectories')).toHaveLength(0)
   })
 
   it('队列文件坏了不该让下一次反馈也发不出去', async () => {

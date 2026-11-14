@@ -23,7 +23,7 @@ function reconcilePayload(projectId) {
   return {
     projectId, runId: RUN_ID, materializationOperationId: OP_ID, planName: '恢复的批次',
     shots: [
-      { shotId: 'shot-1', role: 'shot', kind: 'video', title: '镜头 1', prompt: '已完成镜', result: { id: 'production-job-shot-1', type: 'video', url: 'nomi-local://asset/p/shot-1.mp4', createdAt: Date.now() } },
+      { shotId: 'shot-1', role: 'shot', kind: 'video', title: '镜头 1', prompt: '已完成镜', runRecordId: 'production-job-shot-1', results: [{ id: 'production-job-shot-1', type: 'video', url: 'nomi-local://asset/p/shot-1.mp4', createdAt: Date.now() }] },
       { shotId: 'shot-2', role: 'shot', kind: 'video', title: '镜头 2', prompt: '未完成镜' },
     ],
   }

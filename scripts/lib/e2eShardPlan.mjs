@@ -5,7 +5,8 @@
 // workflow 里不写死分配——新增一条走查 / 一个普查格会自动进某一片，不可能漏跑（assertPartition 与结构测试守这一条）。
 //
 // 分配：按历史耗时做 LPT 装箱（最长的先放，每次放进当前最轻的一片），不按文件名平分。
-// 耗时来源：近 4 次 main/PR 成功运行的逐步耗时均值（2026-10-09，job 步骤 started_at/completed_at）与普查逐格时间戳；
+// 耗时来源：近 5 次 main 成功运行的逐步耗时中位数（2026-11-13，job 步骤 started_at/completed_at）与普查逐格时间戳（按屏取每格平均）；
+// 2026-10-09 的旧数字落后了：director-crowd 当时没登记（按默认 4 秒算、实测 17），最慢一片（金路径 + MCP 握手 + 38 格）比计划多 6 分钟。
 // 数字只用来均衡，不是预算——差一点只会让某片稍长，不会漏跑任何走查。
 //
 // 为什么每片各自 build，而不是上游 job 出 artifact 共享：build 实测 ~65 秒；共享要多一个串行上游 job
@@ -20,23 +21,30 @@ import { listMeasurableTargets } from '../../tests/ux/design-lab/popupGeometryTa
  */
 export const E2E_UNITS = Object.freeze([
   Object.freeze({ id: 'feel', seconds: 14 }), // 浏览器手感机制（node --test 三个文件）
-  Object.freeze({ id: 'smoke', seconds: 45 }), // Electron 冒烟
-  Object.freeze({ id: 'journeys', seconds: 75 }), // CI-safe 用户旅程
-  Object.freeze({ id: 'mcp-journey', seconds: 170 }), // MCP L1 握手
-  Object.freeze({ id: 'mcp-elicitation', seconds: 25 }), // MCP elicitation-first
-  Object.freeze({ id: 'real-user-journeys', seconds: 300 }), // 真实用户 loopback 旅程
-  Object.freeze({ id: 'golden', seconds: 47 }), // 金路径
-  Object.freeze({ id: 'spend-walks', seconds: 270 }), // 花钱路径走查（阻断子集，由路由表给清单）
-  Object.freeze({ id: 'canvas-critical', seconds: 300 }), // 关键画布验收（仅 canvas==critical 时跑）
+  Object.freeze({ id: 'smoke', seconds: 48 }), // Electron 冒烟
+  Object.freeze({ id: 'journeys', seconds: 55 }), // CI-safe 用户旅程
+  Object.freeze({ id: 'mcp-journey', seconds: 199 }), // MCP L1 握手
+  Object.freeze({ id: 'mcp-elicitation', seconds: 28 }), // MCP elicitation-first
+  Object.freeze({ id: 'real-user-journeys', seconds: 340 }), // 真实用户 loopback 旅程
+  Object.freeze({ id: 'golden', seconds: 88 }), // 金路径
+  Object.freeze({ id: 'spend-walks', seconds: 230 }), // 花钱路径走查（阻断子集，由路由表给清单）
+  // 关键画布验收只在 canvas==critical 时才跑（典型 PR 不跑）：按「期望值」给 100 秒——填满最坏档（300）会让其余 PR 里那一片空着一半，
+  // 全按 0 算又会让关键档那片长出 5 分钟。要调它，先数最近一批 PR 里 canvas==critical 的占比。
+  Object.freeze({ id: 'canvas-critical', seconds: 100 }),
 ])
 
 /** 弹层几何普查逐格耗时（秒/格），按屏；没登记的屏用默认值。导演台是 WebGL 软渲染，慢一个量级。 */
 export const CENSUS_SECONDS_BY_SCREEN = Object.freeze({
-  'director-refine': 32,
-  'director-3dbox': 11,
-  'catalog-liveness': 6,
+  'director-refine': 43,
+  'director-3dbox': 15,
+  'director-crowd': 17,
+  'catalog-liveness': 32,
+  'primitives-surfaces': 13,
+  storyboard: 22,
+  'node-quick-actions': 6,
+  'node-composer-bar': 5,
 })
-export const CENSUS_DEFAULT_SECONDS = 4
+export const CENSUS_DEFAULT_SECONDS = 4.5
 
 const cellSeconds = (cell) => CENSUS_SECONDS_BY_SCREEN[cell.split('/')[0]] ?? CENSUS_DEFAULT_SECONDS
 

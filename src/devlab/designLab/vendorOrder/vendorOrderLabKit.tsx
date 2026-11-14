@@ -19,8 +19,7 @@ import { dedupeModelOptions } from '../../../config/modelIdentity'
 import { seedModelCatalogForTests } from '../../../config/modelCatalogCache'
 import { ModelBoxOrderSection } from '../../../workbench/settings/ModelBoxOrderSection'
 import { seedModelBoxPreferenceForLab } from '../../../workbench/common/useModelBoxPreference'
-import { buildModelSelectOptions, modelBoxHiddenNote } from '../../../workbench/common/useDedupedModelSelect'
-import { partitionByModelBoxPreference } from '../../../config/modelBoxPreference'
+import { buildModelMenu, modelVisibilityFooterAction } from '../../../workbench/common/useDedupedModelSelect'
 import type { ModelOption } from '../../../config/models'
 import type { ModelBoxPreferenceSettings } from '../../../../electron/shared/contracts/modelBoxPreference'
 
@@ -59,22 +58,15 @@ export function ModelPickerStage({
   // 而且取景台自己变成「看着能点、其实是张图」——那就又是一份骗人的证据。
   const [picked, setPicked] = React.useState(selected)
   React.useEffect(() => { setPicked(selected) }, [selected])
-  const options = React.useMemo(
-    () => buildModelSelectOptions(
+  // 菜单整个由**生产那份**算出（行、顺序、底部「隐藏模型 N」的 N 都是它给的），夹具里不写死任何一个数。
+  const menu = React.useMemo(
+    () => buildModelMenu(
       dedupeModelOptions([...models]),
       NEVER_AILING,
       preferredVendorKeys,
       modelBoxPreference,
     ),
     [models, preferredVendorKeys, modelBoxPreference],
-  )
-  // 脚注的条数也由**生产那份**判据算（同一个 partition 函数），不是夹具里写死一个「2」。
-  const hiddenNote = React.useMemo(
-    () => modelBoxHiddenNote(partitionByModelBoxPreference(
-      dedupeModelOptions([...models]),
-      modelBoxPreference,
-    ).hidden.length),
-    [models, modelBoxPreference],
   )
   // 浮层的 portal 目标必须在首帧就拿得到，所以先渲染一帧再点——`useLayoutEffect` 里
   // ref 已经指向真实节点，点击同一帧内完成，`markReady` 的两帧 rAF 之后浮层早就定好位了。
@@ -93,12 +85,12 @@ export function ModelPickerStage({
         placeholder="选择模型"
         triggerMaxWidth={150}
         value={picked}
-        options={options}
+        options={menu.options}
         onChange={setPicked}
         // 点 chip = 换这一行走哪家。真机把 (modelKey, vendor) 一起写进节点；实验室没有节点可写，
         // 但仍要**真的**改选中值，否则这个 chip 就是个点不动的装饰。
         onChipChange={(optionValue) => setPicked(optionValue)}
-        hiddenNote={hiddenNote}
+        footerAction={modelVisibilityFooterAction(menu.hiddenCount)}
         portalTarget={stageRef}
       />
     </div>

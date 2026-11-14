@@ -27,6 +27,10 @@
     {
       "path": "electron/capabilityCore/semanticGenerationCandidate.ts",
       "symbol": "declaredDefaultDeviations"
+    },
+    {
+      "path": "electron/agentLane/laneModelContext.ts",
+      "symbol": "formatLaneModelIndex"
     }
   ],
   "forbidden_derivations": [],
@@ -40,8 +44,10 @@
     "src/workbench/settings/DefaultGenerationModelsSection.tsx",
     "electron/settings/generationModelDefaultsIpc.ts",
     "electron/agentLane/laneDesktopRuntime.ts",
-    "electron/capabilityCore/mcpGenerationTools.ts"
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneContextBudget.mts"
   ],
   "since": "2026-09-30",
-  "notes": "设置里的「图片默认 / 视频默认」只存 (vendorKey, modelKey) 两段（generation-model-defaults.json）；「此刻真能用的默认是谁」只有 createGenerationDefaultModelResolver 回答。Agent 被告知的默认（laneDesktopModelDefaults → 模型索引）与宿主没点名时实际补上的默认、以及偏离默认时递还给模型的事实（declaredDefaultDeviations）是同一个函数的答案。"
+  "notes": "设置里的「图片默认 / 视频默认」只存 (vendorKey, modelKey) 两段（generation-model-defaults.json）；「此刻真能用的默认是谁」只有 createGenerationDefaultModelResolver 回答。Agent 被告知的默认（laneDesktopModelDefaults → 模型索引）与宿主没点名时实际补上的默认、以及偏离默认时递还给模型的事实（declaredDefaultDeviations）是同一个函数的答案。 模型索引的 formatLaneModelIndex 是同一 resolver 答案给 Agent 的投影接口：有默认时说明默认，实时缺省时说明由 Agent 点名；历史/增量未读默认时不推断缺省，不解释第二份默认规则。 laneHost 与 laneContextBudget 是该索引现有的实时/历史消费者，登记沿用现有入口；默认解释权与 pending 的渲染层迁移范围不变。"
 }

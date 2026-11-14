@@ -84,7 +84,7 @@ export function setupCanvasShots(options: {
     buildSubmission: (input) => createProductionGenerationSubmission({
       repository: service.repository, projectRoot: input.projectRoot, immutableProjectUuid: input.immutableProjectUuid, projectGeneration: input.projectGeneration,
       intentMacKey: "intent-key", providers: input.providers,
-      materializeOutput: async ({ projectId, providerTaskId, output }) => canvasLocalArtifactReceipt({ projectId, projectRoot: root, providerTaskId, output })!,
+      materializeOutput: async ({ projectId, providerTaskId, output, outputIndex }) => canvasLocalArtifactReceipt({ projectId, projectRoot: root, providerTaskId, output, outputIndex })!,
       ...(options.now ? { now: options.now } : {}),
     }),
     previewBlock: async (_projectId, nodeId) => { previewCalls.push(nodeId); return options.previewBlock ?? null; },

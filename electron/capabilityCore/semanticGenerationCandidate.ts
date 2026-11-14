@@ -1,7 +1,8 @@
 import { transportTaskKindForModeId } from "../shared/videoCapabilities";
 import { resolveShotTaskKind, type ShotTaskKindRefusal } from "../shared/generationShotKind";
 import { modelKindForTaskKind } from "../shared/capabilityModeManifest";
-import { GENERATION_ARGUMENT_REFUSAL, refuseToModel } from "./transportFailure";
+import { refuseArgument, refuseGeneration } from "./transportFailure";
+import { closestKey } from "../shared/agentLane/toolInputIssues";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import type { PlanCandidate } from "./executionContract";
 import { ModuleRegistryError, type ModuleResolveInput } from "./moduleRegistry";
@@ -118,7 +119,7 @@ function isTaskKind(value: unknown): value is GenerationDefaultTaskKind {
 
 function record(value: unknown, label: string): Record<string, unknown> {
   if (value === undefined) return {};
-  if (!value || typeof value !== "object" || Array.isArray(value)) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `${label} must be an object`);
+  if (!value || typeof value !== "object" || Array.isArray(value)) refuseArgument(`${label} must be an object`);
   return { ...(value as Record<string, unknown>) };
 }
 
@@ -147,21 +148,21 @@ export function pinAssetReference(item: unknown, resolve?: ResolveAssetReference
     return kind ? { ...reference, kind } : reference;
   }
   const assetId = text(reference.assetId);
-  if (!assetId) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "参考素材需要 assetId（来自 look_at_media）");
+  if (!assetId) refuseArgument("参考素材需要 assetId（来自 look_at_media）", { field: "references" });
   const identity = resolve?.(assetId);
   if (!identity) {
     // 模型最常见的两种错法，分开说：给了一个**镜头 id**（说明书曾经说这里收镜头 id，见 writeVerbs 的
     // `references`），和给了一个**根本不在库里的 assetId**。两种的下一步不一样，合成一句话等于两种都没说清。
-    refuseToModel(GENERATION_ARGUMENT_REFUSAL, /^(gen-v2-|shot-)/.test(assetId)
+    refuseArgument(/^(gen-v2-|shot-)/.test(assetId)
       ? `${assetId} 看起来是画布上的一个镜头/节点 id，不是素材库里的文件。references 只收 look_at_media 给出的 assetId；要复用另一镜的形象，把它写进 storyboard.anchorIds。`
-      : `参考素材 ${assetId} 不在这个项目的素材库里，请先用 look_at_media 找到它的 assetId`);
+      : `参考素材 ${assetId} 不在这个项目的素材库里，请先用 look_at_media 找到它的 assetId`, { field: "references" });
   }
   return { ...reference, contentHash: identity.contentHash, version: identity.version, ...(identity.kind ? { kind: identity.kind } : {}) };
 }
 
 function references(value: unknown, resolve?: ResolveAssetReferenceIdentity): unknown[] {
   if (value === undefined) return [];
-  if (!Array.isArray(value)) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "references must be an array of asset ids.");
+  if (!Array.isArray(value)) refuseArgument("references must be an array of asset ids.", { field: "references" });
   return value.map((item) => pinAssetReference(item, resolve));
 }
 
@@ -172,7 +173,7 @@ function references(value: unknown, resolve?: ResolveAssetReferenceIdentity): un
 function explicitTaskKind(params: SemanticGenerationCandidateParams): GenerationDefaultTaskKind | undefined {
   const explicit = params.taskKind;
   if (explicit !== undefined) {
-    if (!isTaskKind(explicit)) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "taskKind must be text_to_image, image_edit, text_to_video or image_to_video");
+    if (!isTaskKind(explicit)) refuseArgument("taskKind must be text_to_image, image_edit, text_to_video or image_to_video");
     return explicit;
   }
   const mode = normalized(params.mode);
@@ -206,27 +207,76 @@ function namedModelModes(registry: SemanticGenerationCandidateDeps["registry"], 
 
 const TASK_KINDS_TEXT = "text_to_image, image_edit, text_to_video or image_to_video";
 
-/** 「这个模型做不了这一种」——两处拒绝（定种类时、核目录时）说同一句话。 */
-function cannotDo(modelId: string, requested: string, supported: readonly string[]): string {
-  return `Model ${modelId} cannot do ${requested}. It does: ${supported.join(", ")}. Name a model that does ${requested}, or change taskKind.`;
+/**
+ * 点名的模型不在目录里时，目录里**最接近**的那一个（`provider/model`）。判据是全仓唯一的近似键 owner
+ * （`toolInputIssues.closestKey`：大小写 / 分隔符折叠后相等、前后缀包含、编辑距离），不另写一份。
+ * 先在点名的那一家里找，再在全目录里找；做得了这一种任务的优先。够不上「接近」就不给——不凑一个。
+ *
+ * 2026-11-08 真实轨迹：`volcengine` + `doubao-seedream-5-0-pro`（用户没接火山，apimart 有同名模型）、
+ * `apimart` + `doubao-seedream-4-5-251128`（apimart 上叫 `doubao-seedream-4.5`）。
+ */
+export function nearestCatalogModel(
+  registry: SemanticGenerationCandidateDeps["registry"],
+  modelId: string,
+  providerId: string,
+  taskKind?: string,
+): string | undefined {
+  if (!modelId) return undefined;
+  const rows: { providerId: string; modelId: string; modes: readonly string[] }[] = [];
+  for (const manifest of registry?.snapshot?.() ?? []) {
+    const providers = manifest && typeof manifest === "object" ? (manifest as { providers?: unknown }).providers : undefined;
+    if (!Array.isArray(providers)) continue;
+    for (const provider of providers) {
+      if (!provider || typeof provider !== "object") continue;
+      const rowProvider = text((provider as { providerId?: unknown }).providerId);
+      const models = (provider as { models?: unknown }).models;
+      if (!rowProvider || !Array.isArray(models)) continue;
+      for (const model of models) {
+        if (!model || typeof model !== "object") continue;
+        const rowModel = text((model as { modelId?: unknown }).modelId);
+        const modes = (model as { modes?: unknown }).modes;
+        if (rowModel) rows.push({ providerId: rowProvider, modelId: rowModel, modes: Array.isArray(modes) ? modes.filter((mode): mode is string => typeof mode === "string") : [] });
+      }
+    }
+  }
+  const capable = taskKind ? rows.filter((row) => row.modes.some((mode) => normalized(mode) === normalized(taskKind))) : rows;
+  for (const pool of [capable.filter((row) => row.providerId === providerId), capable, rows]) {
+    const hit = closestKey(modelId, pool.map((row) => row.modelId));
+    const row = hit ? pool.find((candidate) => candidate.modelId === hit) : undefined;
+    if (row) return `${row.providerId}/${row.modelId}`;
+  }
+  return undefined;
+}
+
+const modelLabel = (providerId: string, modelId: string): string => (providerId ? `${providerId}/${modelId}` : modelId);
+
+/** 「这个模型不在目录里」——定种类时、核目录时、合成候选时三处说同一句话（码 `unknown_model`）。 */
+function refuseUnknownModel(registry: SemanticGenerationCandidateDeps["registry"], modelId: string, providerId: string, taskKind?: string): never {
+  const nearest = nearestCatalogModel(registry, modelId, providerId, taskKind);
+  return refuseGeneration({ code: "unknown_model", field: "candidate.modelId", model: modelLabel(providerId, modelId), ...(nearest ? { nearest } : {}) });
+}
+
+/** 「这个模型做不了这一种」——两处拒绝（定种类时、核目录时）说同一句话（码 `mode_not_in_model`）。 */
+function refuseCannotDo(model: string, requested: string, supported: readonly string[]): never {
+  return refuseGeneration({ code: "mode_not_in_model", field: "taskKind", model, value: requested, allowed: supported });
 }
 
 /**
  * 种类定不下来时给调用方（多半是 Agent，外部 MCP 宿主也是）的那句话：说清是哪一种情形、下一步怎么写。
  * 写给模型看，和这一层其余的拒绝一样用英文（它照着改参数，不转述原话）。
  */
-function refuseShotTaskKind(refusal: ShotTaskKindRefusal, modelId: string): never {
+function refuseShotTaskKind(refusal: ShotTaskKindRefusal, deps: Pick<SemanticGenerationCandidateDeps, "params" | "registry">, modelId: string): never {
+  const providerId = text(deps.params.providerId);
   switch (refusal.reason) {
     case "kind_unspecified":
-      return refuseToModel(GENERATION_ARGUMENT_REFUSAL, modelId
-        ? `Model ${modelId} is not in the model catalog, so Nomi cannot tell what it makes. Name a model from list_models, or set taskKind (${TASK_KINDS_TEXT}).`
-        : `Say what this shot makes: set taskKind (${TASK_KINDS_TEXT}), or name a model from list_models. Nomi does not guess it from the prompt.`);
+      // 点了名却定不出种类 = 目录里没有这个模型（有的话它的模式就定了种类）。
+      if (modelId) return refuseUnknownModel(deps.registry, modelId, providerId);
+      return refuseArgument(`Say what this shot makes: set taskKind (${TASK_KINDS_TEXT}), or name a model from list_models. Nomi does not guess it from the prompt.`, { field: "taskKind" });
     case "model_cannot_do":
-      return refuseToModel(GENERATION_ARGUMENT_REFUSAL, refusal.requested
-        ? cannotDo(modelId, refusal.requested, refusal.declared)
-        : `Model ${modelId} makes neither images nor videos (it does: ${refusal.declared.join(", ") || "nothing published"}). Name an image or video model from list_models.`);
+      return refuseCannotDo(modelLabel(providerId, modelId), refusal.requested ?? "images or videos", refusal.declared);
     case "model_ambiguous":
-      return refuseToModel(GENERATION_ARGUMENT_REFUSAL, `Model ${modelId} makes both images and videos; set taskKind to one of: ${refusal.supported.join(", ")}.`);
+      return refuseArgument(`Model ${modelId} makes both images and videos; set taskKind to one of: ${refusal.supported.join(", ")}.`,
+        { field: "taskKind", allowed: refusal.supported });
   }
 }
 
@@ -243,7 +293,7 @@ export function shotTaskKind(deps: Pick<SemanticGenerationCandidateDeps, "params
     ...(modelId ? { modelModes: namedModelModes(deps.registry, modelId, text(deps.params.providerId)) } : {}),
     hasReferences: Array.isArray(deps.params.references) && deps.params.references.length > 0,
   });
-  if (!verdict.ok) return refuseShotTaskKind(verdict.refusal, modelId);
+  if (!verdict.ok) return refuseShotTaskKind(verdict.refusal, deps, modelId);
   return verdict.taskKind;
 }
 
@@ -272,21 +322,19 @@ export function admitShotIdentity(
   role?: string,
 ): void {
   if (role === "anchor" && modelKindForTaskKind(candidate.mode) !== "image") {
-    refuseToModel(GENERATION_ARGUMENT_REFUSAL, `A reference card (role "anchor") must be an image: it fixes how a character or place looks. This one is ${candidate.mode}. Name an image model for it, or make it a normal shot.`);
+    refuseArgument(`A reference card (role "anchor") must be an image: it fixes how a character or place looks. This one is ${candidate.mode}. Name an image model for it, or make it a normal shot.`, { field: "role" });
   }
   try {
     registry.resolve({ moduleId: candidate.moduleId, providerId: candidate.providerId, modelId: candidate.modelId, mode: candidate.mode });
   } catch (error) {
     if (!(error instanceof ModuleRegistryError)) throw error;
     const declared = namedModelModes(registry, candidate.modelId, candidate.providerId) ?? [];
-    if (declared.length === 0) {
-      refuseToModel(GENERATION_ARGUMENT_REFUSAL, `Model ${candidate.providerId}/${candidate.modelId} is not in the model catalog. Name a model from list_models.`);
-    }
+    if (declared.length === 0) refuseUnknownModel(registry, candidate.modelId, candidate.providerId, candidate.mode);
     if (!declared.some((mode) => normalized(mode) === normalized(candidate.mode))) {
-      refuseToModel(GENERATION_ARGUMENT_REFUSAL, cannotDo(candidate.modelId, candidate.mode, declared));
+      refuseCannotDo(`${candidate.providerId}/${candidate.modelId}`, candidate.mode, declared);
     }
     // 模型做得了这一种，目录却对不上（模块 / 拼法）：照目录的原话说，别说成「做不了」。
-    refuseToModel(GENERATION_ARGUMENT_REFUSAL, `${error.message}. Model ${candidate.modelId} declares: ${declared.join(", ")}.`);
+    refuseArgument(`${error.message}. Model ${candidate.modelId} declares: ${declared.join(", ")}.`, { field: "mode", allowed: declared });
   }
 }
 
@@ -396,7 +444,7 @@ export function semanticCandidateFromParams(deps: SemanticGenerationCandidateDep
       : { ...explicit, references: references(explicit.references, deps.resolveAssetReferenceIdentity) });
   }
   const prompt = text(deps.params.prompt);
-  if (!prompt) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "prompt is required when candidate is omitted");
+  if (!prompt) refuseArgument("prompt is required when candidate is omitted");
 
   const taskKind = shotTaskKind(deps);
   const configured = deps.defaultModelForTaskKind?.(taskKind);
@@ -413,12 +461,12 @@ export function semanticCandidateFromParams(deps: SemanticGenerationCandidateDep
   const providerId = text(deps.params.providerId) || named?.providerId || fallback?.providerId;
   const modelId = namedModelId || fallback?.modelId;
   if (!moduleId || !providerId || !modelId) {
-    // 这句话有两个读者，得同时说得通（2026-09-18 真机实测）：用户能去设置里选，**而 Agent 不能**。
-    // 只写「请先在设置中选择模型」时，DeepSeek 连着调了 6 次 `draft_shots`、每次收到同一句话，
-    // 它看得见 `list_models` 里那个能用的模型却不知道自己可以点名它——一条本可恢复的路被说成了死路。
-    const kind = taskKind.includes("video") ? "视频" : "图片";
-    refuseToModel(GENERATION_ARGUMENT_REFUSAL, `没有配置可用的${kind}模型。请在设置里选一个默认${kind}模型；`
-      + `或者在这次调用里直接点名要用的模型（candidate: { providerId, modelId }，取自 list_models）。`);
+    // 两种情形，两个码（2026-11-08）：**点了名却在目录里找不到** = `unknown_model`（带最接近的那一个）；
+    // 没点名也没有默认 = `no_default_model`。以前两者是同一句「没有配置可用的图片模型」——39 题轨迹里
+    // 9 次模型点名的 id 只是拼错 / 供应商写错，却被告知去设置里配默认模型。
+    // 后一句有两个读者（2026-09-18 真机实测）：用户能去设置里选，**而 Agent 不能**，所以正文同时说「这次调用里直接点名」。
+    if (namedModelId) refuseUnknownModel(deps.registry, namedModelId, text(deps.params.providerId), taskKind);
+    refuseGeneration({ code: "no_default_model", field: "candidate.modelId", media: taskKind.includes("video") ? "video" : "image" });
   }
   // A saved mode/variant belongs to the saved provider+model identity.  If the
   // user explicitly chooses another model, carrying those fields across can

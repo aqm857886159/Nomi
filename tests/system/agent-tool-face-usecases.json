@@ -35,7 +35,7 @@
     "page_click_success_rate"
   ],
   "banks": [
-    "docs/evidence/2026-09-15-skill-real-run/skill-bank.json",
+    "evals/datasets/skill-real-run-bank.json",
     "docs/plan/agent-tool-face-v2-evidence/r30-bank.json"
   ],
   "cases": [

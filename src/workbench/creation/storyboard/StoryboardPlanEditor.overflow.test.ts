@@ -33,7 +33,7 @@ describe('分镜编辑器：列宽钉在容器上，不由最长那一行说了�
   it('编辑器 grid 写死单列模板（不靠隐式 auto 列）', () => {
     const section = editor.slice(editor.indexOf('data-storyboard-editor="true"') - 900, editor.indexOf('data-storyboard-editor="true"'))
     expect(section).toContain('grid-cols-1')
-    expect(section).toContain('grid-rows-[auto_auto_auto_minmax(0,1fr)_auto]')
+    expect(section).toContain('grid-rows-[auto_minmax(0,1fr)_auto]')
   })
 
   /** 第二道保险：内容反过来撑宽滚动区这条路也堵死，顺带给行提供容器查询的锚。 */
@@ -61,15 +61,15 @@ describe('分镜页脚：让位的是说明文字，不是要用户去做事的�
    * 这句话本来也没有行动价值（R2）。提示行只留流程指引，页脚也不许再长出它。
    */
   it('zh：提示行与页脚都不再承诺「每次生成前确认花费」', () => {
-    expect(zhStoryboardEditor.spendHint).toBe('先生成参考卡锁住长相，再生成镜头')
+    expect(zhStoryboardEditor).not.toHaveProperty('spendHint')
     const zhFooterValues: string[] = Object.values(zhStoryboardEditor.footer)
-    expect([zhStoryboardEditor.spendHint, ...zhFooterValues].some((value) => value.includes('确认花费'))).toBe(false)
+    expect(zhFooterValues.some((value) => value.includes('确认花费'))).toBe(false)
   })
 
   it('en：hint and footer no longer promise "Cost is confirmed before every generation"', () => {
-    expect(enStoryboardEditor.spendHint).toBe('Generate reference cards to lock looks first, then shots')
+    expect(enStoryboardEditor).not.toHaveProperty('spendHint')
     const enFooterValues: string[] = Object.values(enStoryboardEditor.footer)
-    expect([enStoryboardEditor.spendHint, ...enFooterValues].some((value) => value.includes('Cost is confirmed'))).toBe(false)
+    expect(enFooterValues.some((value) => value.includes('Cost is confirmed'))).toBe(false)
   })
 
   /** 页脚右组只剩主动作；左组仍是 `min-w-0` + `truncate`（摘要让位、按钮不让位）。 */

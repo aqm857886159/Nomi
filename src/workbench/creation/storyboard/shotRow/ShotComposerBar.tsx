@@ -6,7 +6,7 @@ import type { ModelOption } from '../../../../config/models'
 import type { DynamicModelControl } from '../../../generationCanvas/nodes/controls/parameterControlModel'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
-import { DURATION_OPTIONS_SEC, planModelSelection, shotTypeOf, type PlanShotPatch } from '../../../generationCanvas/agent/storyboardPlanEdits'
+import { DURATION_OPTIONS_SEC, planModelSelection, shotKindPatch, shotTypeOf, type PlanShotPatch } from '../../../generationCanvas/agent/storyboardPlanEdits'
 import StoryboardComposerParams from './StoryboardComposerParams'
 
 /**
@@ -47,6 +47,7 @@ export default function ShotComposerBar({
   const { t } = useTranslation()
   const isImageShot = shotTypeOf(shot) === 'image'
   const duration = effectiveShotDurationSec(shot)
+  const modelGroupLabels = React.useMemo(() => ({ image: t('storyboardEditor.imageModels'), video: t('storyboardEditor.videoModels') }), [t])
 
   // 发出去时携带的参数 = 行写着的 + 生效画幅（整片默认在这里合进来，与 `resolveShotParams` 同一语义）。
   const target = React.useMemo(() => ({
@@ -77,10 +78,15 @@ export default function ShotComposerBar({
         <StoryboardComposerParams
           target={target}
           kind={isImageShot ? 'image' : 'video'}
+          modelGroupLabels={modelGroupLabels}
           modelOptions={modelOptions ?? []}
           metaOverrides={metaOverrides}
           extraControls={stayControl}
-          onModelChange={(value, vendor) => onUpdate(planModelSelection(value, vendor))}
+          onModelChange={(value, vendor) => {
+            const selected = modelOptions?.find(option => option.value === value && (!vendor || option.vendor === vendor))
+            const nextKind = selected?.kind === 'image' ? 'image' : selected?.kind === 'video' ? 'video' : undefined
+            onUpdate({ ...(value && nextKind && nextKind !== (isImageShot ? 'image' : 'video') ? shotKindPatch(shot, nextKind) : {}), ...planModelSelection(value, vendor) })
+          }}
           onModeChange={(modeId) => onUpdate({ modeId, params: undefined })}
           onChange={(change) => {
             if (change.kind === 'aspect') onChangeAspect(change.value)

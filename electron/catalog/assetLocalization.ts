@@ -71,8 +71,6 @@ export function trustedOriginalUrl(asset: Pick<LocalAsset, "originalUrl" | "ageM
   return asset.originalUrl;
 }
 
-// 取回产物时信任哪个本机 / 内网 origin：不在这里判（此前只信 ComfyUI 的那份已删，#975 A），
-// 全仓唯一的判据是 electron/vendor/vendorOutboundGuard.ts 的 trustedRetrievalOrigin。
 export type LocalAssetReader = (url: string) => LocalAsset | null;
 export type HttpPostJson = (url: string, headers: Record<string, string>, body: unknown) => Promise<unknown>;
 // extraFields：multipart 里除 file 外的文本字段(如 KIE stream 的 uploadPath/fileName)。

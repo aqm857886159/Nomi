@@ -71,6 +71,7 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      - uses: ./.github/actions/cache-external-downloads
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
 

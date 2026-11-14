@@ -189,7 +189,7 @@ try {
   }, hostingNodeId)
 
   const hostingBlock = win.locator('[data-hosting-disclosure="true"]')
-  const spendCard = win.locator('div.fixed.inset-0').filter({ has: hostingBlock }).first()
+  const spendCard = win.locator('[data-spend-confirm-dialog]').filter({ has: hostingBlock }).first()
   const cardProof = await proveProbe(hostingBlock, '真实漏斗下合并确认卡与披露块确实出现')
   await expectVisible(hostingBlock, '花钱卡内含完整公共托管披露')
   // 披露文案取自 i18n（generationCommon.spendHostingDisclosure.*），不是走查手写的串——
@@ -220,7 +220,7 @@ try {
   // 于是那道门恒绿（假绿）。判据要跟着「所见」走，别跟着「某个类名」走。
   const strayOverlays = await win.evaluate(() => {
     const block = document.querySelector('[data-hosting-disclosure="true"]')
-    const card = block?.closest('div.fixed.inset-0')
+    const card = block?.closest('[data-spend-confirm-dialog]')
     const ghosts = []
     for (const el of document.querySelectorAll('body *')) {
       if (card && (card.contains(el) || el.contains(card))) continue
@@ -271,7 +271,7 @@ try {
     // （画布/侧栏都有），量到的根本不是卡上那个主按钮 —— 那正是「量错对象」式假红/假绿。
     const read = () => {
       const block = document.querySelector('[data-hosting-disclosure="true"]')
-      const card = block?.closest('div.fixed.inset-0')
+      const card = block?.closest('[data-spend-confirm-dialog]')
       if (!card) return null
       const button = [...card.querySelectorAll('button')].find((el) => el.textContent?.trim() === '生成')
       if (!button) return null
@@ -294,7 +294,7 @@ try {
   // 收敛后再断言按钮**真的换到了暗色**（不是浅色残留、也不是被洗白的中间帧）。
   const darkButtonColor = await win.evaluate(() => {
     const block = document.querySelector('[data-hosting-disclosure="true"]')
-    const card = block?.closest('div.fixed.inset-0')
+    const card = block?.closest('[data-spend-confirm-dialog]')
     const button = [...(card?.querySelectorAll('button') || [])].find((el) => el.textContent?.trim() === '生成')
     if (!button) throw new Error('卡内找不到「生成」按钮')
     const style = getComputedStyle(button)

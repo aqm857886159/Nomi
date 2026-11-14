@@ -58,10 +58,15 @@ export type MaterializeShotInput = {
   prompt?: string
   /** 这一镜候选的模型身份与选择（主进程线类型的同一份，见 electron/shared/canvas/materializeShotCandidate.ts）。它在则节点模型以它为准。 */
   candidate?: LandedShotCandidate
-  /** 已完成镜的结果（打开项目补齐时一并回填；确认即落时为空）。 */
-  result?: GenerationNodeResult
+  /**
+   * 已完成镜的全部结果（这一镜那笔作业账上的每一份产物，按落账顺序；打开项目补齐时一并回填；确认即落时为空）。
+   * 一次出几张就有几张，都进这一镜的版本历史，最后一张是最新的版本。
+   */
+  results?: readonly GenerationNodeResult[]
+  /** 带 results 时：这些结果归哪条运行记录（主进程按这一镜那笔作业派的号）。每份都按它结账（nodeRunOutcomePatch 的同一条归属规则）。 */
+  runRecordId?: string
   mediaDimensions?: MediaDimensions
-  /** 没有 result 时：这一镜在节点上的运行状态。 */
+  /** 没有 results 时：这一镜在节点上的运行状态。 */
   generation?: MaterializeShotGeneration
   /**
    * Run 里这一镜记着 detached：只许动画布上已有的节点，绝不新建（主进程 MaterializeShotWire.existingOnly）。
@@ -304,7 +309,7 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   for (const shot of ordered) {
     const nodeId = clientIdToNodeId[shot.shotId]
     if (!nodeId) continue
-    if (shot.result) inLandingTxn(() => attachShotResult({ nodeId, result: shot.result!, mediaDimensions: shot.mediaDimensions }))
+    if (shot.results?.length) for (const result of shot.results) inLandingTxn(() => attachShotResult({ nodeId, result, mediaDimensions: shot.mediaDimensions, runId: shot.runRecordId }))
     else if (shot.generation) inLandingTxn(() => applyShotGeneration(nodeId, shot.generation!))
   }
 
@@ -314,8 +319,7 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   for (const shot of incoming) {
     const boundNodeId = typeof shot.nodeId === 'string' ? shot.nodeId.trim() : ''
     if (!boundNodeId || liveNodeIds.has(boundNodeId) || clientIdToNodeId[shot.shotId]) continue
-    const held = heldOutcomeOf(shot)
-    if (held) holdOnce(boundNodeId, held)
+    for (const held of heldOutcomesOf(shot)) holdOnce(boundNodeId, held)
   }
 
   // 付费卡确认落地不再挪画布、不再切分类（2026-09-25 用户：「付费卡点击之后画布就闪动一下，然后我就找不到
@@ -355,6 +359,8 @@ export type AttachShotResultPayload = {
   nodeId?: string
   result?: GenerationNodeResult
   mediaDimensions?: MediaDimensions
+  /** 这份结果归哪条运行记录：带号就按号结掉自己那条（不带号 = 只结掉在跑的制作记录，旧调用照旧）。 */
+  runId?: string
 }
 
 export type AttachShotResultOutcome = { attached: true; nodeId: string } | { skipped: 'node-removed' | 'no-result' | 'already-attached' }
@@ -381,20 +387,20 @@ export function attachShotResult(payload: AttachShotResultPayload): AttachShotRe
   const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
   if (!node) {
     // 节点在生成中被删了（钱已花）：结局按 nodeId 暂存，撤销把节点带回来时落上去（与普通画布同一语义）。
-    holdOnce(nodeId, { kind: 'result', result, ...(payload.mediaDimensions ? { mediaDimensions: payload.mediaDimensions } : {}) })
+    holdOnce(nodeId, { kind: 'result', result, ...(payload.mediaDimensions ? { mediaDimensions: payload.mediaDimensions } : {}), ...(payload.runId ? { runId: payload.runId } : {}) })
     return { skipped: 'node-removed' }
   }
   const known = [node.result, ...(node.history ?? [])].some((entry) => entry?.id === result.id && entry.url === result.url)
   if (known) return { skipped: 'already-attached' }
-  useGenerationCanvasStore.getState().addNodeResult(nodeId, result, payload.mediaDimensions)
+  useGenerationCanvasStore.getState().addNodeResult(nodeId, result, payload.mediaDimensions, payload.runId)
   return { attached: true, nodeId }
 }
 
-/** 一镜带来的结局里，节点不在时值得暂存的那一份：出片了的结果，或确定的失败。生成中 / 已结束 / 可找回是瞬态，跟着下一次投影走。 */
-function heldOutcomeOf(shot: MaterializeShotInput): HeldNodeOutcome | null {
-  if (shot.result) return { kind: 'result', result: shot.result, ...(shot.mediaDimensions ? { mediaDimensions: shot.mediaDimensions } : {}) }
-  if (shot.generation?.state === 'failed') return { kind: 'status', status: 'error', ...(shot.generation.message ? { error: shot.generation.message } : {}) }
-  return null
+/** 一镜带来的结局里，节点不在时值得暂存的那些：出片了的每一份结果，或确定的失败。生成中 / 已结束 / 可找回是瞬态，跟着下一次投影走。 */
+function heldOutcomesOf(shot: MaterializeShotInput): HeldNodeOutcome[] {
+  if (shot.results?.length) return shot.results.map((result) => ({ kind: 'result', result, ...(shot.mediaDimensions ? { mediaDimensions: shot.mediaDimensions } : {}), ...(shot.runRecordId ? { runId: shot.runRecordId } : {}) }))
+  if (shot.generation?.state === 'failed') return [{ kind: 'status', status: 'error', ...(shot.generation.message ? { error: shot.generation.message } : {}) }]
+  return []
 }
 
 /** Run 每变一次就投影一次：同一份结局只暂存一次（否则节点回来时同一张图会落成两个版本）。 */

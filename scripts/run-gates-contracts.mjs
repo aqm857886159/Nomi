@@ -30,7 +30,14 @@
  *      （`docs-index` / `doc-status` / `research-sources` 在同一次拍板里被**移出** PR 的 Contracts，不再是 advisory。）
  * 「这个门岗老是红、很烦」在前两类里都不是理由——那是要么修根因、要么删门岗，不是降级。
  *
- * 用法：node scripts/run-gates-contracts.mjs [--advisory=a,b] <check:x> <check:y> ...
+ * ── 分作业（--only / --except，2026-11-14）──
+ * CI 的 Contracts 作业曾是一条 108 道门的顺序链，最慢那道（真入口测试，约 8 分钟）占 40% 以上。
+ * 现在把**同一份清单**按名字切成两半并行跑：Contracts 作业传 `--except=<慢门>`，
+ * 另一个作业传 `--only=<慢门>`；本机 `pnpm run gates` 不传，仍是全量。清单只此一份，不另抄。
+ * 切开不是减门：`--except` 点名的门必须在清单里、且**必须有一个 `--only` 作业接手**——
+ * 后者由 check:gates-chain 对着 tests/system/profiles.mjs 核对（只写了 except 没人接 = 红）。
+ *
+ * 用法：node scripts/run-gates-contracts.mjs [--advisory=a,b] [--only=a,b | --except=a,b] <check:x> <check:y> ...
  * 门岗清单仍然逐个写在 package.json 的 `gates:contracts` 里（顺序即执行顺序），
  * 这样 `check:gates-chain` 依旧能从 package.json 一眼看全，不用去解析别的数据文件。
  */
@@ -75,7 +82,17 @@ export function advisoryNote(name) {
 export function parseGateArgs(argv) {
   const gates = []
   const advisory = new Set()
+  const only = new Set()
+  const except = new Set()
+  const collect = (target, arg, prefix) => {
+    for (const name of arg.slice(prefix.length).split(',')) {
+      const trimmed = name.trim()
+      if (trimmed) target.add(trimmed)
+    }
+  }
   for (const arg of argv) {
+    if (arg.startsWith('--only=')) { collect(only, arg, '--only='); continue }
+    if (arg.startsWith('--except=')) { collect(except, arg, '--except='); continue }
     if (arg.startsWith('--advisory=')) {
       for (const name of arg.slice('--advisory='.length).split(',')) {
         const trimmed = name.trim()
@@ -95,7 +112,15 @@ export function parseGateArgs(argv) {
       `--advisory 点名了不在链里的门岗：${orphanAdvisory.join('、')}（名单过期了，删掉或把它接回链里）`,
     )
   }
-  return { gates, advisory }
+  if (only.size > 0 && except.size > 0) throw new GateConfigError('--only 和 --except 不能同时给')
+  const unknownSplit = [...only, ...except].filter((name) => !gates.includes(name))
+  if (unknownSplit.length > 0) {
+    throw new GateConfigError(`--only / --except 点名了不在链里的门岗：${unknownSplit.join('、')}（名单过期了，删掉或把它接回链里）`)
+  }
+  const selected = only.size > 0 ? gates.filter((name) => only.has(name)) : gates.filter((name) => !except.has(name))
+  if (selected.length === 0) throw new GateConfigError('--only / --except 之后没有任何门岗可跑——等于什么都没验')
+  const deferred = gates.filter((name) => !selected.includes(name))
+  return { gates: selected, advisory: new Set([...advisory].filter((name) => selected.includes(name))), deferred }
 }
 
 /** 门岗名必须是 package.json 里真实存在的脚本，否则 pnpm 只会说 "Command not found" 而没人看。 */
@@ -213,7 +238,10 @@ function spawnGate(name) {
 }
 
 async function main() {
-  const { gates, advisory } = parseGateArgs(process.argv.slice(2))
+  const { gates, advisory, deferred } = parseGateArgs(process.argv.slice(2))
+  if (deferred.length > 0) {
+    process.stdout.write(`本次不跑（由并行的另一个作业用 --only 接手，见 check:gates-chain 的核对）：${deferred.join('、')}\n`)
+  }
   const scripts = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).scripts ?? {}
   assertGatesExist(gates, scripts)
   const startedAt = Date.now()

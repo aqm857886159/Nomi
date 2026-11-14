@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url'
 import { verifyBuild } from '../../scripts/package-build-stamp.mjs'
 
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
+import { decideSyntheticCredentialStorage } from './_launchApp.mjs'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
 import { blockedError, guardLoadedError, hostedUploadRelayOrigin, newNetLogFile, paidWalkAllowlist, readNetLog, watchNetLog } from './_paidNetwork.mjs'
 import {
@@ -182,7 +183,10 @@ export async function openPaidWalk(script, name, models, deps = {}) {
   const removeCredentialCopy = () => removeRealCredentials({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, profile })
   let seeded = []
   if (!envKey) {
-    try { seeded = seedRealModels({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, models, profile }) }
+    try {
+      seeded = seedRealModels({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, models, profile })
+      if (decideSyntheticCredentialStorage({ isolate: true, settingsDir: walk.settingsDir, userDataDir: walk.userDataDir })) throw new Error('real credential copy is missing its source marker')
+    }
     catch (error) { netWatch.stop(); removeCredentialCopy(); await walk.fixture.close(); throw error }
     walk.report.seededModels = seeded.map((row) => `${row.vendorKey}/${row.modelKey}`)
     walk.report.realProfileBefore = guard.realProfileBefore

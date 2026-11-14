@@ -64,8 +64,7 @@ export const REACHABILITY_ENTRIES = Object.freeze([
  */
 export const NOT_PARAMETER_ENTRIES = Object.freeze([
   Object.freeze({ owner: 'src/workbench/ai/v4/AgentPanelV4SpendCardBody.tsx', why: 'Agent 付费卡（2026-10-24 D2 起）：卡上只有指向元素和一行只读摘要，不配参数——点指向元素到节点底栏去改（node-bar 已覆盖）；聊天卡不许引节点编辑器由 depcruise chat-card-no-import-node-editor 守' }),
-  Object.freeze({ owner: 'src/workbench/creation/storyboard/StoryboardBulkBar.tsx', why: '分镜批量条：一次给多镜统一换模型 / 种类 / 整片画幅；各镜模型不同、参数表不同，逐参数批量设没有共同的一张表——单镜参数在行底栏配' }),
-  Object.freeze({ owner: 'src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx', why: '分镜选中工具条：选中几镜后统一换模型（按镜种分档），同上' }),
+  Object.freeze({ owner: 'src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx', why: '分镜选中工具条：选中几镜后交给 Agent 或删除，不配参数' }),
   Object.freeze({ owner: 'src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx', why: '图片快捷动作（改图 / 扩图 / 抠图 / 多机位）只派生一个新节点、不扣费；新节点的参数在它自己的底栏配（node-bar 已覆盖）' }),
   Object.freeze({ owner: 'src/workbench/settings/ModelBoxOrderSection.tsx', why: '设置里排模型框顺序 / 隐藏模型，不生成、不配参数' }),
   Object.freeze({ owner: 'src/workbench/generationCanvas/runner/runProjectDelivery.ts', why: '运行时读控件解析参数，不是用户可点的界面' }),
@@ -131,10 +130,38 @@ function controlsReach(controls) {
   return reach
 }
 
+/**
+ * 创作者怎么到这种方式：在底栏方式格里选它，再把这种方式的每个格子各放一件（方式按输入现算，2026-11-12；
+ * 没放输入时一律按文字方式，所以只写 modeId、不放输入的节点到不了带图方式的参数）。
+ */
+const SLOT_INPUT = Object.freeze({
+  image_ref: { edgeMode: 'reference', kind: 'image' },
+  video_ref: { edgeMode: 'reference', kind: 'video' },
+  source_video: { edgeMode: 'reference', kind: 'video' },
+  first_frame: { edgeMode: 'first_frame', kind: 'image' },
+  last_frame: { edgeMode: 'last_frame', kind: 'image' },
+  audio_ref: { edgeMode: 'reference', kind: 'audio' },
+})
+
+function nodeOnCanvasFor(row, mode) {
+  const meta = { ...nodeMetaFor(row, mode), archetype: { id: row.archetype.id, modeId: mode.id, modeChosenBy: 'human' } }
+  const node = { id: 'target', kind: row.kind, meta }
+  const sources = []
+  const edges = []
+  for (const slot of mode.slots ?? []) {
+    const input = SLOT_INPUT[slot.kind]
+    if (!input) continue
+    const id = `in-${sources.length}`
+    sources.push({ id, kind: input.kind, meta: {} })
+    edges.push({ id: `e-${id}`, source: id, target: node.id, mode: input.edgeMode })
+  }
+  return { meta, node, graph: { nodes: [node, ...sources], edges } }
+}
+
 /** 节点底栏：在这个模式下能选到的参数键（及每键的可选值）、能切到的模式、能切到的变体。 */
 function nodeBarReach(row, mode) {
-  const meta = nodeMetaFor(row, mode)
-  const controls = resolveRenderedControls(row.option, meta, row.kind === 'image', row.kind === 'video')
+  const { meta, node, graph } = nodeOnCanvasFor(row, mode)
+  const controls = resolveRenderedControls(row.option, meta, row.kind === 'image', row.kind === 'video', { node, graph })
   return {
     params: controlsReach(controls),
     modes: archetypeModeChoices(row.archetype).map((choice) => choice.id),

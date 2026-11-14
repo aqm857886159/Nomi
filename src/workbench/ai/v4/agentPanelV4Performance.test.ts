@@ -11,6 +11,11 @@ import type { LanePart, LaneProjection, LaneUsage } from '../../../../electron/s
 // This render-count host has no DOM/ProseMirror view. Keep the panel and composer
 // real, but leave the DOM editor adapter unmounted; Electron walks cover its input.
 vi.mock('../../common/useNomiRichTextEditor', () => ({ useNomiTiptapEditor: () => null }))
+// 同理：悬停提示浮层（Radix）收尾时要读 window，这个宿主没有。换成直通——触发元素照常渲染，浮层内容不渲染。
+vi.mock('../../../design/tooltip', () => {
+  const passThrough = ({ children }: { children?: React.ReactNode }) => children ?? null
+  return { TooltipProvider: passThrough, Tooltip: passThrough, TooltipTrigger: passThrough, TooltipContent: () => null }
+})
 
 const runtime = vi.hoisted(() => {
   const i18n = { language: 'zh-CN', resolvedLanguage: 'zh-CN' }
@@ -170,6 +175,8 @@ function panelRenderer() {
 beforeEach(() => {
   // The composer measures itself; this host has no layout engine, so layout observers are inert.
   vi.stubGlobal('ResizeObserver', class { observe(): void {} unobserve(): void {} disconnect(): void {} })
+  // 跟到底（use-stick-to-bottom）在下一帧才滚；这里没有帧，也没有可滚的东西，帧回调就不排。
+  vi.stubGlobal('requestAnimationFrame', () => 0)
   runtime.t.mockClear()
   runtime.rowLabelsCalls = 0
   runtime.i18n.language = 'zh-CN'

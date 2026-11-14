@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 react、react-i18next、../../../../../../design（NomiSelect / WorkbenchButton / WorkbenchIconButton）、../../../../../../vendor/tablerIcons、../../../../../../utils/cn、
  *          ../../DirectorEditorContext、../../scene/pipCamera（PipRect / pipCameraIdOf）、../../model/cameraLens 的 exportAspectRatio
- * [OUTPUT]: 对外提供 PipViewport：画中画节目小窗的 DOM 外壳（默认左下，与导演视图同位，头部 机位下拉 · mm · 画幅 chip / LIVE / 折叠、透明画面区、进入·退出机位 + FOV 读数、拖标题移动、拖角缩放 280–520px）；
+ * [OUTPUT]: 对外提供 PipViewport：画中画节目小窗的 DOM 外壳（默认左下，与导演视图同位，头部 机位下拉 · mm · 画幅 chip / LIVE / 折叠、透明画面区、进入·退出机位 + FOV 读数、按下认领手势、拖标题移动、拖角缩放 280–520px）；
  *           导演视图（presentation）时同一个组件钉在视口左下（同一个角）、只有一行「▷ 镜头 N · 景别 · 运镜 · 画幅」，不给机位下拉 / 焦距 / FOV / 进入视角
  * [POS]: director/panels/viewport 的画中画（清单 §2.5 V7）：画面本身由 scene/PipRenderer 在主画布同一位置剪裁渲染，这里只量矩形写进 ref、
  *        没有机位或节目黑场时盖黑底「无信号」；位置/宽度/折叠持久到 localStorage。
@@ -100,6 +100,7 @@ export function PipViewport({ rectRef, canvasHostRef, presentation }: { rectRef:
 
   const beginDrag = (event: React.PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return
+    event.preventDefault()
     const target = event.currentTarget
     target.setPointerCapture(event.pointerId)
     const startX = event.clientX
@@ -132,6 +133,7 @@ export function PipViewport({ rectRef, canvasHostRef, presentation }: { rectRef:
 
   const beginResize = (event: React.PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return
+    event.preventDefault()
     event.stopPropagation()
     const target = event.currentTarget
     target.setPointerCapture(event.pointerId)

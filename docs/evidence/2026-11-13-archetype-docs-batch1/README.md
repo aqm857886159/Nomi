@@ -1,0 +1,92 @@
+# 档案对文档第一批：真窗口免费演练截图（2026-11-13，替换 11-12 那一批）
+
+- 走查：`tests/ux/archetype-docs-batch1-screens.walk.mjs`（免费：隔离资料 + 夹具凭据，APIMart 地址重定向到本机夹具，不出网、不点生成、不读 Key）。
+- 范围：Seedance 2.5、可灵 4.0 Flash、MiniMax H3-Max、Seedream 5.5、Seedream 5.0 Pro，中文 / 英文各一轨。
+- 跑法（方式住在底栏方式格，按输入现算）：按真人顺序摆输入——没放东西 → 放一张图 → 再放一张图；视频模型另开一个节点只放一段合成源视频（ffmpeg testsrc，5 秒）。每种输入下截方式菜单，再把亮着的方式逐个点一遍、开参数面板截。同一方式只截第一次。
+- 命名：`<模型>-模型菜单-<zh|en>.png`、`<模型>-方式菜单-<输入>-<zh|en>.png`、`<模型>-<方式号>-<zh|en>-面板[-2].png`（`-2` 是面板要滚、滚到底的第二张）；同名 `.txt` 是那一刻的参数摘要、方式格、输入和面板全文。
+- `facts.json`：每个方式的面板尺寸、可滚区、越出面板框的控件、被截断的文字（全部为空）。
+- 方式号：Seedance `t2v` / `first` 首帧 / `firstlast` / `omni` / `edit` / `extend`；可灵 `t2v` / `i2v` / `ref` / `edit` / `extend`；H3-Max `t2v` / `i2v` 首尾帧 / `ref`；图片 `t2i` / `edit`（放图后）。
+- 没覆盖：各方式参考槽的张数上限只看了方式菜单里的说明文字，没有逐个放满核对；真付费出片没有跑。
+
+## 文件清单（共 80 张）
+
+- `kling-4.0-flash-edit-en-面板.png`
+- `kling-4.0-flash-edit-zh-面板.png`
+- `kling-4.0-flash-extend-en-面板.png`
+- `kling-4.0-flash-extend-zh-面板.png`
+- `kling-4.0-flash-i2v-en-面板.png`
+- `kling-4.0-flash-i2v-zh-面板.png`
+- `kling-4.0-flash-ref-en-面板.png`
+- `kling-4.0-flash-ref-zh-面板.png`
+- `kling-4.0-flash-t2v-en-面板.png`
+- `kling-4.0-flash-t2v-zh-面板.png`
+- `kling-4.0-flash-方式菜单-1张图-en.png`
+- `kling-4.0-flash-方式菜单-1张图-zh.png`
+- `kling-4.0-flash-方式菜单-1段视频-en.png`
+- `kling-4.0-flash-方式菜单-1段视频-zh.png`
+- `kling-4.0-flash-方式菜单-2张图-en.png`
+- `kling-4.0-flash-方式菜单-2张图-zh.png`
+- `kling-4.0-flash-方式菜单-无参考-en.png`
+- `kling-4.0-flash-方式菜单-无参考-zh.png`
+- `kling-4.0-flash-模型菜单-en.png`
+- `kling-4.0-flash-模型菜单-zh.png`
+- `minimax-h3-max-i2v-en-面板.png`
+- `minimax-h3-max-i2v-zh-面板.png`
+- `minimax-h3-max-ref-en-面板.png`
+- `minimax-h3-max-ref-zh-面板.png`
+- `minimax-h3-max-t2v-en-面板.png`
+- `minimax-h3-max-t2v-zh-面板.png`
+- `minimax-h3-max-方式菜单-1张图-en.png`
+- `minimax-h3-max-方式菜单-1张图-zh.png`
+- `minimax-h3-max-方式菜单-1段视频-en.png`
+- `minimax-h3-max-方式菜单-1段视频-zh.png`
+- `minimax-h3-max-方式菜单-2张图-en.png`
+- `minimax-h3-max-方式菜单-2张图-zh.png`
+- `minimax-h3-max-方式菜单-无参考-en.png`
+- `minimax-h3-max-方式菜单-无参考-zh.png`
+- `minimax-h3-max-模型菜单-en.png`
+- `minimax-h3-max-模型菜单-zh.png`
+- `seedance-2.5-edit-en-面板.png`
+- `seedance-2.5-edit-zh-面板.png`
+- `seedance-2.5-extend-en-面板.png`
+- `seedance-2.5-extend-zh-面板.png`
+- `seedance-2.5-first-en-面板.png`
+- `seedance-2.5-first-zh-面板.png`
+- `seedance-2.5-firstlast-en-面板.png`
+- `seedance-2.5-firstlast-zh-面板.png`
+- `seedance-2.5-omni-en-面板-2.png`
+- `seedance-2.5-omni-en-面板.png`
+- `seedance-2.5-omni-zh-面板-2.png`
+- `seedance-2.5-omni-zh-面板.png`
+- `seedance-2.5-t2v-en-面板-2.png`
+- `seedance-2.5-t2v-en-面板.png`
+- `seedance-2.5-t2v-zh-面板-2.png`
+- `seedance-2.5-t2v-zh-面板.png`
+- `seedance-2.5-方式菜单-1张图-en.png`
+- `seedance-2.5-方式菜单-1张图-zh.png`
+- `seedance-2.5-方式菜单-1段视频-en.png`
+- `seedance-2.5-方式菜单-1段视频-zh.png`
+- `seedance-2.5-方式菜单-2张图-en.png`
+- `seedance-2.5-方式菜单-2张图-zh.png`
+- `seedance-2.5-方式菜单-无参考-en.png`
+- `seedance-2.5-方式菜单-无参考-zh.png`
+- `seedance-2.5-模型菜单-en.png`
+- `seedance-2.5-模型菜单-zh.png`
+- `seedream-5.0-pro-edit-en-面板-2.png`
+- `seedream-5.0-pro-edit-en-面板.png`
+- `seedream-5.0-pro-edit-zh-面板-2.png`
+- `seedream-5.0-pro-edit-zh-面板.png`
+- `seedream-5.0-pro-t2i-en-面板.png`
+- `seedream-5.0-pro-t2i-zh-面板.png`
+- `seedream-5.0-pro-模型菜单-en.png`
+- `seedream-5.0-pro-模型菜单-zh.png`
+- `seedream-5.5-edit-en-面板-2.png`
+- `seedream-5.5-edit-en-面板.png`
+- `seedream-5.5-edit-zh-面板-2.png`
+- `seedream-5.5-edit-zh-面板.png`
+- `seedream-5.5-t2i-en-面板-2.png`
+- `seedream-5.5-t2i-en-面板.png`
+- `seedream-5.5-t2i-zh-面板-2.png`
+- `seedream-5.5-t2i-zh-面板.png`
+- `seedream-5.5-模型菜单-en.png`
+- `seedream-5.5-模型菜单-zh.png`

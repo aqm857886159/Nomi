@@ -32,6 +32,7 @@ import {
 type Props = {
   target: ComposerTarget
   kind: 'image' | 'video'
+  modelGroupLabels?: Record<'image' | 'video', string> | undefined
   modelOptions: readonly ModelOption[]
   /** 叠在画布 meta 上的分镜值（镜头的 `duration` 住 `durationSec`）。 */
   metaOverrides?: Readonly<Record<string, unknown>>
@@ -44,7 +45,7 @@ type Props = {
 }
 
 export default function StoryboardComposerParams({
-  target, kind, modelOptions, metaOverrides, extraControls = [], onModelChange, onModeChange, onChange, onExtraChange,
+  target, kind, modelGroupLabels, modelOptions, metaOverrides, extraControls = [], onModelChange, onModeChange, onChange, onExtraChange,
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const orderedVendorKeys = useVendorPreferenceOrder()
@@ -87,6 +88,7 @@ export default function StoryboardComposerParams({
     <span className="flex min-w-0 items-center" data-storyboard-composer-params={kind}>
       <InlineParameterBar
         modelOptions={modelOptions}
+        modelGroupLabels={modelGroupLabels}
         modelCatalogStatus={{ message: kind === 'image' ? t('storyboardEditor.anchor.noImageModel') : t('storyboardEditor.strategy.noVideoModelTitle') }}
         renderedControls={controls}
         selectedModelOption={option}

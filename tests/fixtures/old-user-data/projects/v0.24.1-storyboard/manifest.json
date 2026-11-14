@@ -1,0 +1,91 @@
+{
+  "release": "v0.24.1",
+  "sourceCommit": "21beebc789803925e2540d1eb4bd3e6255790673",
+  "generator": "generators/zzStoryboardGen.ts.txt",
+  "projectId": "workspace-94d5cd32-629d-42be-affa-d23789741659",
+  "documentId": "doc-4ee70cc3-a825-45bf-94af-974262914c35",
+  "designId": "storyboard-c6f3b649-003c-4fc4-99ed-c664f7ecf98b",
+  "folder": "project",
+  "expectedPlan": {
+    "title": "Old bookshop storyboard",
+    "anchors": [
+      {
+        "id": "anchor-1",
+        "kind": "character",
+        "name": "Reader",
+        "description": "Reader in a blue coat",
+        "carrier": "visual",
+        "scope": "selective",
+        "referenceUrl": "https://example.invalid/old-reader.png",
+        "referenceKind": "image"
+      }
+    ],
+    "shots": [
+      {
+        "index": 1,
+        "shotId": "shot-1",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [
+          "anchor-1"
+        ],
+        "prompt": "Old shot 1",
+        "modelKey": "doubao-seedance-2.0",
+        "modelVendor": "apimart",
+        "sceneId": "scene-1",
+        "params": {
+          "aspect_ratio": "16:9"
+        },
+        "keyframe": {
+          "enabled": true,
+          "prompt": "Keep this authored first frame"
+        },
+        "referenceBindings": {
+          "image_ref": [
+            {
+              "url": "https://example.invalid/old-reader.png",
+              "name": "Old reader",
+              "anchorId": "anchor-1"
+            }
+          ]
+        }
+      },
+      {
+        "index": 2,
+        "shotId": "shot-2",
+        "shotKind": "video",
+        "durationSec": 8,
+        "anchorIds": [
+          "anchor-1"
+        ],
+        "prompt": "Old shot 2",
+        "modelKey": "doubao-seedance-2.0",
+        "modelVendor": "apimart",
+        "sceneId": "scene-1",
+        "params": {
+          "aspect_ratio": "9:16"
+        },
+        "keyframe": {
+          "enabled": false,
+          "prompt": "Keep this authored first frame"
+        },
+        "referenceBindings": {
+          "image_ref": [
+            {
+              "url": "https://example.invalid/old-reader.png",
+              "name": "Old reader",
+              "anchorId": "anchor-1"
+            }
+          ]
+        }
+      }
+    ],
+    "aspectRatio": "9:16",
+    "scenes": [
+      {
+        "id": "scene-1",
+        "title": "Bookshop"
+      }
+    ]
+  }
+}

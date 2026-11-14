@@ -9,7 +9,12 @@
 // `placeholder` 属性，占位是 Placeholder 扩展挂在空段落上的 `data-placeholder`，再由 CSS `::before` 画出来。按 `placeholder` 属性
 // （断言 / getAttribute / DOM 属性 / 属性选择器 / getByPlaceholder）读它，读到 null，而且只在夜跑里红、没人在 PR 里看见。
 // 读占位的唯一出口是 composerPlaceholder / expectComposerPlaceholder（读空段落 `::before` 画出来的字，也就是用户眼睛看到的那句）。
+//
+// 清空是同一类（2026-11-07，#1359 验收卡点）：`.fill('')` 打在 TipTap 输入框上，Playwright 只在 DOM 里选中全部、再触发删除，
+// ProseMirror 自己的选区可能还停在句末（空选区）——删除被吞掉、原句留着，走查红在「清空没清掉」，时灵时不灵（main 上也复现）。
+// 清空的唯一出口是 clearComposerText（聚焦后 ControlOrMeta+A 再 Backspace，和真人清法一样，经编辑器自己的键盘处理）。
 const BIND = /(?:const|let|var)\s+(\w+)\s*=\s*[^\n]*?(?:COMPOSER_INPUT|data-v4-control="input")/g
+const EMPTY_FILL = /\.fill\(\s*(['"`])\1\s*\)/
 const READ = /\.(?:toHaveValue|inputValue)\s*\(/
 const INPUT_REF = /COMPOSER_INPUT|data-v4-control="input"/
 /** 按 `placeholder` 读：属性断言 / getAttribute / DOM 属性 / 属性选择器 / getByPlaceholder。`data-placeholder`、`face.placeholder` 这类别的名字不算。 */
@@ -40,9 +45,14 @@ export function findComposerInputReads(code) {
   const hits = []
   const useValue = '改用 composerText() / expectComposerText()（agent-runtime-walk-support.mjs）'
   const usePlaceholder = '改用 composerPlaceholder() / expectComposerPlaceholder()（agent-runtime-walk-support.mjs）：TipTap 输入框没有 placeholder 属性，占位是空段落 ::before 画出来的字'
+  const useClear = '改用 clearComposerText()（agent-runtime-walk-support.mjs）：聚焦后 ControlOrMeta+A 再 Backspace；fill(\'\') 在 TipTap 上只同步了 DOM 选区，ProseMirror 选区没跟上时删除被吞'
   for (const { line, text } of lines) {
     const push = (use) => hits.push({ line, text: text.trim().slice(0, 120), use })
     if (/textarea\[data-v4-control="input"\]/.test(text)) { push(useValue); continue }
+    if (EMPTY_FILL.test(text)) {
+      if (INPUT_REF.test(text)) { push(useClear); continue }
+      if ([...names].some((name) => new RegExp(String.raw`\b${name}\s*\.\s*fill\(\s*(['"\x60])\1`).test(text))) { push(useClear); continue }
+    }
     if (READ.test(text)) {
       if (INPUT_REF.test(text)) { push(useValue); continue }
       if ([...names].some((name) => new RegExp(String.raw`(?:expect\(\s*${name}\b|\b${name}\s*\.\s*inputValue)`).test(text))) { push(useValue); continue }

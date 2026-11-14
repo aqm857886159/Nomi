@@ -1,4 +1,5 @@
-// 「用户主动交出去的东西，必须最终送达」的落盘队列。反馈与轨迹两个调用方共用。
+// 「用户主动交出去的东西，必须最终送达」的落盘队列。现在只有一键反馈一个调用方
+// （独立的 Agent 轨迹货物 2026-11-13 删了：没有任何发布版本往里放过东西）。
 //
 // 与 `telemetryOutbox.ts` 的分工（**为什么是两个模块而不是一个**，别来合并）：
 //   · telemetryOutbox 的契约是「攒一批匿名计数，并把待发/已发条数给设置页看」。
@@ -7,7 +8,6 @@
 //     就是回执），一条一发（反馈要立刻拿到编号），而且**反馈那一路不过 enabled 闸**。
 // 把两者合成一个，`enabled` 那道闸就得长出例外分支——而闸子一有例外就迟早漏。
 // 真正的单一 owner 落在**传输**那一层（`intakeClient.ts`），不在队列这一层。
-import fs from 'node:fs'
 import crypto from 'node:crypto'
 import path from 'node:path'
 import { readJsonFile, renameSyncWithRetry, writeJsonFileAtomic } from '../jsonFile'
@@ -15,8 +15,8 @@ import { logWarn } from '../logging/logger'
 import { getSettingsRoot } from '../settings/settingsRoot'
 import { intakeConfigured, IntakeHttpError, postIntake, type IntakeResult } from './intakeClient'
 
-/** 队列按货物分文件：清掉轨迹不该连带清掉用户已经点过发送的反馈。 */
-export type IntakeQueueKind = 'trajectories' | 'feedback'
+/** 队列按货物分文件（文件名带货物名）；现在只有反馈一种。 */
+export type IntakeQueueKind = 'feedback'
 
 const MAX_PENDING = 50
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
@@ -112,17 +112,6 @@ export function readIntakeQueue(kind: IntakeQueueKind): IntakeQueueItem[] {
   const store = readQueueStore(kind)
   prune(store)
   return store.pending
-}
-
-/** 关掉「帮 Nomi 变好」时清轨迹队列。**不清反馈队列**——见 `feedbackReport.ts` 的说明。 */
-export function clearIntakeQueue(kind: IntakeQueueKind): { deletedCount: number } {
-  const deletedCount = readQueueStore(kind).pending.length
-  try {
-    fs.rmSync(queuePath(kind), { force: true })
-  } catch {
-    /* 删本机缓存是尽力而为 */
-  }
-  return { deletedCount }
 }
 
 /** 改队列文件失败只记一笔：货已经送到或已被拒收，这时候抛出去没有人接得住。 */

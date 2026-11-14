@@ -22,7 +22,7 @@ import { plannedInputFromCandidate } from '../../src/workbench/generationCanvas/
 import { nodeOwnReferenceInputs, planReferenceProjection } from '../../src/workbench/generationCanvas/model/referenceInputSlots'
 import { nodeSelectedModelAddress } from '../../src/workbench/generationCanvas/nodes/controls/parameterControlModel'
 import { nodePointerSummaryFacts } from '../../src/workbench/ai/pointer/nodePointerFace'
-import { parseAspectRatioValue } from '../../electron/shared/aspectRatioValue'
+import { readAspectRatioGeometry } from '../../electron/shared/aspectRatioValue'
 
 const SEED_NOW = '2026-10-05T00:00:00.000Z'
 
@@ -30,15 +30,14 @@ const SEED_NOW = '2026-10-05T00:00:00.000Z'
 export const INTENT_FIELDS = Object.freeze(['model', 'count', 'durationSec', 'references', 'aspectRatio'])
 
 /**
- * 一站上的比例：参数里第一个「值本身是比例」的键（真实键各家不同：size / aspect_ratio / ratio …），
- * 换算成同一种写法比（`1280:720` 与 `16:9` 是同一个比例，差 3% 以内算同一个——和宿主像素档的容差一致）。
- * 值不是比例（`720P`、`2048x2048`、`auto`）的键跳过：它们管的不是比例。
+ * 一站上的几何：比例与像素尺寸共用owner读取宽高；不把界面控件分类当作几何判据。
+ * 不含宽高的清晰度/自动档（720P、auto）跳过。
  */
 const ASPECT_CARRIERS = ['aspect_ratio', 'aspectRatio', 'ratio', 'size', 'image_size', 'imageSize', 'video_size', 'videoSize']
 function aspectOf(parameters) {
   for (const key of ASPECT_CARRIERS) {
-    const ratio = parseAspectRatioValue(parameters?.[key])
-    if (ratio !== null) return { key, value: parameters[key], ratio }
+    const geometry = readAspectRatioGeometry(parameters?.[key])
+    if (geometry !== null) return { key, value: parameters[key], ratio: geometry.width / geometry.height }
   }
   return undefined
 }
@@ -106,7 +105,7 @@ export async function observeIntent(world, intent) {
     }))
     const draftCall = verbToTransportCall({ toolCallId: 'law10-draft', toolName: 'draft_shots', args: { shots } })
     const created = await callTool(transport, draftCall.call.toolName, draftCall.call.args)
-    const saidRatio = intent.aspectRatio === undefined ? undefined : parseAspectRatioValue(intent.aspectRatio) ?? undefined
+    const saidRatio = aspectOf({ aspectRatio: intent.aspectRatio })?.ratio
     const said = { model: `${intent.providerId}/${intent.modelId}`, count: intent.count, durationSec: intent.durationSec, references: intent.references?.length ?? 0, aspectRatio: saidRatio }
     if (!created?.ok) return { refused: true, refusal: JSON.stringify(created), said }
     await spend.canvasLanding.settleCanvasLanding(PROJECT_ID)
@@ -151,9 +150,10 @@ export async function observeIntent(world, intent) {
       durationSec: facts?.durationSec ?? undefined,
       // 卡上不摆参考（见 NOT_CARRIED_BY_DESIGN）。
       references: undefined,
-      aspectRatio: facts?.aspect ? parseAspectRatioValue(facts.aspect) ?? undefined : undefined,
+      aspectRatio: aspectOf({ aspectRatio: facts?.aspect })?.ratio,
     }
-    return { refused: false, said, draft, node, card: cardView }
+    return { refused: false, said, draft, node, card: cardView,
+      raw: { draft: draftShots[0].candidate, node: firstNode, card: facts } }
   } finally {
     resetSpendFixture()
   }

@@ -65,6 +65,8 @@ const ASPECT_RATIO = "{{request.params.aspect_ratio}}";
 const ASPECT_RATIO_OPTIONAL = "{{request.params.aspect_ratio_wire}}";
 const OPTIONAL_ASPECT_PARAM_MAP: ParamMap = { rules: [{ wire: "aspect_ratio_wire", fromMany: ["aspect_ratio"], transform: "omitAuto" }] };
 const GROUNDING = "{{request.params.grounding}}"; // FLUX 3 联网检索（布尔）
+const WATERMARK = "{{request.params.watermark}}";
+const NSFW_CHECK = "{{request.params.nsfw_check}}"; // 提交前内容审核（官方默认 false；命中返回同步 400、不扣费）
 const OUTPUT_FORMAT = "{{request.params.output_format}}";
 const STEPS = "{{request.params.steps}}";
 const SEED = "{{request.params.seed}}"; // 可选种子（无默认 → 未填则模板丢弃）
@@ -121,8 +123,14 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
   imageModel({
     modelKey: "doubao-seedream-5-0-pro", labelZh: "Seedream 5.0 Pro", archetypeId: "seedream-5-pro",
     requestTransform: "apimart-canonical-model-id",
-    t2iBody: { size: SIZE, resolution: RESOLUTION },
-    editBody: { size: SIZE, resolution: RESOLUTION, image_urls: IMAGE_URLS },
+    t2iBody: { size: SIZE, resolution: RESOLUTION, output_format: OUTPUT_FORMAT, watermark: WATERMARK, nsfw_check: NSFW_CHECK },
+    editBody: { size: SIZE, resolution: RESOLUTION, background: BACKGROUND, output_format: OUTPUT_FORMAT, watermark: WATERMARK, nsfw_check: NSFW_CHECK, image_urls: IMAGE_URLS },
+  }),
+  // Seedream 5.5（2026-11-12 照 docs.apimart.ai seedream-5-5/generation.md 对账，能力表见 docs/models/capabilities/seedream-5-5.md）。
+  imageModel({
+    modelKey: "seedream-5-5", labelZh: "Seedream 5.5", archetypeId: "seedream-5-5",
+    t2iBody: { size: SIZE, resolution: RESOLUTION, background: BACKGROUND, output_format: OUTPUT_FORMAT, watermark: WATERMARK, nsfw_check: NSFW_CHECK },
+    editBody: { size: SIZE, resolution: RESOLUTION, background: BACKGROUND, output_format: OUTPUT_FORMAT, watermark: WATERMARK, nsfw_check: NSFW_CHECK, image_urls: IMAGE_URLS },
   }),
   // 共享档案（kie 已建）：Seedream / Nano Banana(Gemini) / GPT-Image-2 —— apimart 专属 params 由档案 vendorParams 提供。
   imageModel({

@@ -1,7 +1,7 @@
 // 提示词库聚合 + 1h TTL 缓存(仿 events/secretsProvider.ts:失败回退旧缓存)。
 // 缓存内存 + 磁盘双层:进程内 1h TTL 内存命中;首次访问从 userData 水合,成功拉取后原子落盘,
 // 故重启后无需重拉、离线也能出旧库(避免「每次开 App 都去 GitHub raw 拉一遍」)。
-// 拉取走 hardenedFetchText(代理自动继承,SSRF/超时加固);惰性刷新,无后台 timer(沿用代码库习惯)。
+// 拉取走 hardenedFetchText(代理自动继承,超时加固);惰性刷新,无后台 timer(沿用代码库习惯)。
 // 对外出口恒定前置内置包(builtinPacks):内置内容随构建走、不进缓存,在线拉取只增减外部源。
 import path from "node:path";
 import { hardenedFetchText } from "../hardenedFetch";
