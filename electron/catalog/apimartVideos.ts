@@ -157,12 +157,11 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   // Sora 2 已退役（2026-09-28，OpenAI 于 2026-09-24 关停 Sora 2 与 Videos API）：这里删掉的同时，
   // seedBuiltins 的退役清单把老装机里已落盘的那一行摘掉——两处必须同删，否则启动时插回来来回抖。
   // Veo 3.1：变体（fast/quality/lite）→ {{request.params.model}}。i2v 含 generation_type（reference 参考图 /
-  // frame 首尾帧，由 mode.fixedParams 注入）；duration 固定 8 不发（走 API 默认）。图生方式档案不声明比例（跟输入图走）。
+  // frame 首尾帧，由 mode.fixedParams 注入）；duration 固定 8 不发（走 API 默认）。图模式同样发比例（官方页示例即图生 + aspect_ratio）。
   videoModel({
     modelKey: "veo3.1-fast", labelZh: "Veo 3.1", archetypeId: "veo-3.1", modelRef: VARIANT_MODEL_REF,
     t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION },
-    i2vBody: { resolution: RESOLUTION, image_urls: IMAGE_URLS, generation_type: GENERATION_TYPE },
-    i2vDrops: ["aspect_ratio"],
+    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, image_urls: IMAGE_URLS, generation_type: GENERATION_TYPE },
   }),
   // Kling v3：共享 kie 的 kling-3.0 档案（i2v 结构对齐：image_urls 数组槽）+ apimart vendorParams（图生不声明比例，跟首/尾帧走）。
   videoModel({

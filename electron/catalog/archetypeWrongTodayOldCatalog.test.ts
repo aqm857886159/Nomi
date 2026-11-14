@@ -2,7 +2,7 @@
  * 老用户守卫（2026-11-15，档案「今天就是错的」五处）：v0.24.1 写盘的真实老目录（model-catalog.json）里，
  * MiniMax H3 两条映射的 body 还引用 `{{request.params.webhook}}`，GPT Image 2.5 改图的 body 还是 `{{request.params.size}}`。
  * 升级（applyBuiltinSeeds）必须把它们换成主线的映射：否则老用户的 H3 照旧把节点上存着的回调地址发出去、
- * GPT 改图照旧把「自动」当 size 发出去——档案改了，老用户的请求却没变。
+ * GPT 改图照旧把「自动」当 size 发出去、Veo 图生照旧丢掉比例——档案改了，老用户的请求却没变。
  * 这里用老存档走升级，再用升级后的映射真造一遍请求体（模板 + 参数翻译，不出网）。
  */
 import fs from "node:fs";
@@ -31,7 +31,7 @@ function bodyFor(state: CatalogState, modelKey: string, taskKind: string, params
   return buildHttpRequest({ baseUrl: "https://api.apimart.ai", authType: "bearer", apiKey: "TEST_SECRET", context, operation: mapping.create }).body as Record<string, unknown>;
 }
 
-describe("v0.24.1 老目录升级后：H3 不发 webhook、GPT 改图「自动」不发 size", () => {
+describe("v0.24.1 老目录升级后：H3 不发 webhook、GPT 改图「自动」不发 size、Veo 图生发比例", () => {
   const upgraded = () => applyBuiltinSeeds(structuredClone(original), "2026-11-15").state;
 
   it("老存档确实是旧形状（夹具前提）", () => {
@@ -56,9 +56,22 @@ describe("v0.24.1 老目录升级后：H3 不发 webhook、GPT 改图「自动�
     expect(bodyFor(upgraded(), "gpt-image-2.5-flare", "image_edit", { ...refs, size: "16:9" }).size).toBe("16:9");
   });
 
-  it.each(["kling-v3", "veo3.1-fast"])("%s 图生：老映射本来就不发比例，升级后同样不发（不回归）", (modelKey) => {
+  it("GPT Image 2 改图：老节点存着「auto」，升级前发 size=auto（官方：auto 出 1:1）、升级后不发；存着 16:9 照发", () => {
+    const refs = { input_urls: ["https://cdn.example/a.png"], resolution: "1K" };
+    expect(bodyFor(original, "gpt-image-2", "image_edit", { ...refs, aspect_ratio: "auto" }).size).toBe("auto");
+    expect(bodyFor(upgraded(), "gpt-image-2", "image_edit", { ...refs, aspect_ratio: "auto" })).not.toHaveProperty("size");
+    expect(bodyFor(upgraded(), "gpt-image-2", "image_edit", { ...refs, aspect_ratio: "16:9" }).size).toBe("16:9");
+  });
+
+  it("可灵 3.0 图生：老映射本来就不发比例，升级后同样不发（不回归）", () => {
     const params = { aspect_ratio: "9:16", image_urls: ["https://cdn.example/a.png"], resolution: "720p" };
-    expect(bodyFor(original, modelKey, "image_to_video", params)).not.toHaveProperty("aspect_ratio");
-    expect(bodyFor(upgraded(), modelKey, "image_to_video", params)).not.toHaveProperty("aspect_ratio");
+    expect(bodyFor(original, "kling-v3", "image_to_video", params)).not.toHaveProperty("aspect_ratio");
+    expect(bodyFor(upgraded(), "kling-v3", "image_to_video", params)).not.toHaveProperty("aspect_ratio");
+  });
+
+  it("Veo 3.1 图生：老映射不发比例，升级后发节点上存着的那个（老节点存的 9:16 第一次真的发出去）", () => {
+    const params = { aspect_ratio: "9:16", image_urls: ["https://cdn.example/a.png"], resolution: "720p", generation_type: "reference" };
+    expect(bodyFor(original, "veo3.1-fast", "image_to_video", params)).not.toHaveProperty("aspect_ratio");
+    expect(bodyFor(upgraded(), "veo3.1-fast", "image_to_video", params).aspect_ratio).toBe("9:16");
   });
 });

@@ -54,15 +54,16 @@ describe("全目录普查（档案 × 变体 × 供应商分层 × 模式）", (
   // 2026-11-07 +56 个组合（剩余 11 个图片与 14 个视频档案的各模式 × 供应商分层）：其中 44 个有比例控件、12 个没有（改图 / 图生里比例跟随输入图）。
   // 2026-10-06 +2：Topaz 图片放大、Recraft 清晰放大各一个 upscale 组合（放大没有比例控件，归进下面「没有比例选择」）。
   // 2026-11-12 文档对齐第一批：新增可灵 4.0 Flash / Seedream 5.5 两个档案与既有档案的新方式（共 +15 个组合，+9 个有比例控件，+6 个没有）。
-  // 2026-11-15 −7 个有比例控件（组合数不变）：Veo 3.1 三个变体 × 参考图 / 首尾帧、可灵 3.0 的 APIMart 图生，比例跟输入图走，档案不再声明。
-  it("总数与「有比例控件」的数和验收线对得上：420 个组合，按共享判据 282 个有比例控件", () => {
+  // 2026-11-15 −1 个有比例控件（组合数不变）：可灵 3.0 的 APIMart 图生，比例跟首 / 尾帧走，档案不再声明。
+  // （Veo 3.1 三个变体 × 参考图 / 首尾帧的比例照官方页露出并发出，不在这次减数里。）
+  it("总数与「有比例控件」的数和验收线对得上：420 个组合，按共享判据 288 个有比例控件", () => {
     expect(combos).toHaveLength(420);
-    expect(combos.filter((combo) => combo.controls.some((control) => optionsAreAspectRatios(control.options)))).toHaveLength(282);
+    expect(combos.filter((combo) => combo.controls.some((control) => optionsAreAspectRatios(control.options)))).toHaveLength(288);
   });
 
-  it("宿主翻译多认 13 个（Runway 上带「自动 + 分辨率档」的 Wan 3.0 / Seedream 5 Pro / Grok Imagine 图像），125 个没有比例选择，没有一个组合有两个比例控件", () => {
+  it("宿主翻译多认 13 个（Runway 上带「自动 + 分辨率档」的 Wan 3.0 / Seedream 5 Pro / Grok Imagine 图像），119 个没有比例选择，没有一个组合有两个比例控件", () => {
     const outcomes = combos.map((combo) => resolveAspectRatioChoice("16:9", combo.controls));
-    expect(outcomes.filter((outcome) => !outcome.ok && outcome.reason === "no_ratio_control")).toHaveLength(125);
+    expect(outcomes.filter((outcome) => !outcome.ok && outcome.reason === "no_ratio_control")).toHaveLength(119);
     expect(outcomes.filter((outcome) => !outcome.ok && outcome.reason === "ambiguous")).toHaveLength(0);
   });
 

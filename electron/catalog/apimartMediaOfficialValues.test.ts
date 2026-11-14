@@ -118,7 +118,7 @@ export const OFFICIAL_VALUES: Record<string, Official> = {
     resolution: ["480p", "720p", "1080p"],
     duration: { min: 2, max: 30 },
   },
-  // 2026-11-15 再核（图生方式不再声明比例那一刀）：videos/veo3/generation「16:9 / 9:16」「720p (Default) / 1080p / 4k」，时长固定 8 不声明。
+  // 2026-11-15 再核：videos/veo3/generation「16:9 / 9:16」（不分方式，图模式同样声明并发出）「720p (Default) / 1080p / 4k」，时长固定 8 不声明。
   "veo-3.1": { aspect_ratio: ["16:9", "9:16"], resolution: ["720p", "1080p", "4k"] },
   // videos/kling-v3/generation：mode std / pro / 4k，duration「Range: 3-15」，aspect_ratio 16:9 / 9:16 / 1:1。
   "kling-3.0": { mode: ["std", "pro", "4k"], duration: { min: 3, max: 15 }, aspect_ratio: ["16:9", "9:16", "1:1"] },

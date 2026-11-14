@@ -187,6 +187,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     "image_to_video": {
       "*": {
         "generation_type": "reference",
+        "aspect_ratio": "16:9",
         "resolution": "720p"
       },
       "runway": {

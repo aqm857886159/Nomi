@@ -37,10 +37,14 @@ function imageCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.
 }
 
 // GPT Image 2 的 apimart 翻译（铁律）：中性 比例(aspect_ratio) → apimart 的 size 字段；
-// 清晰度档位小写（apimart 历史用 1k/2k/4k，中性 canonical 用 1K/2K/4K）。线缆输出与迁移前完全一致。
+// 清晰度档位小写（apimart 历史用 1k/2k/4k，中性 canonical 用 1K/2K/4K）。
+// 改图比例「自动」= 不发 size（omitAuto，同 2.5 / 2.6）：官方原话「Without `size`, output resolution = input image resolution;
+// with `size`, output is forced to the specified ratio」「When `size` is set to `auto`, the default ratio is `1:1`」——显式发 auto
+// 出的是 1:1，不是跟输入图。只有改图 body 读 size_wire；文生图仍读 size（auto 照发）。
 const GPT_IMAGE_2_APIMART_PARAM_MAP: ParamMap = {
   rules: [
     { wire: "size", from: "aspect_ratio" },
+    { wire: "size_wire", fromMany: ["aspect_ratio"], transform: "omitAuto" },
     { wire: "resolution", fromMany: ["resolution"], transform: "toLowerCase" },
   ],
 };
@@ -165,7 +169,7 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
     modelKey: "gpt-image-2", labelZh: "GPT Image 2", archetypeId: "gpt-image-2",
     t2iBody: { size: SIZE, resolution: RESOLUTION },
     // GPT 档案改图槽 inputKey=input_urls（kie 契约），apimart 字段名是 image_urls → 值读 input_urls。
-    editBody: { size: SIZE, resolution: RESOLUTION, image_urls: "{{request.params.input_urls}}" },
+    editBody: { size: EDIT_SIZE_FOLLOWS_INPUT, resolution: RESOLUTION, image_urls: "{{request.params.input_urls}}" },
     // 铁律迁移：gpt-image-2 已中性化（档案 params=比例+清晰度），apimart 字段是 size/resolution → 翻译。
     paramMap: GPT_IMAGE_2_APIMART_PARAM_MAP,
   }),
