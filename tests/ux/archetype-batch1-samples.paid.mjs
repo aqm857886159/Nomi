@@ -88,7 +88,9 @@ const SAMPLES = [
   },
   {
     id: 'D', label: 'Veo 3.1 Fast · 参考图 · 9:16 · 720p', model: VEO, modeKind: 'reference', modeId: 'reference', input: 'imageTall', optIn: true,
-    meta: metaOf(VEO, 'veo-3.1', 'reference', { aspect_ratio: '9:16', resolution: '720p' }),
+    // aspect_ratio_user_set：创作者在比例控件上明确选过 9:16。不带这个标记，连线那一刻会按「视频比例的产品默认」
+    // 重铺（nodes/videoAspectSeed），这一发要核的 9:16 就被换掉了——花钱前核对会拦下（2026-11-15 第一次跑就拦在这）。
+    meta: metaOf(VEO, 'veo-3.1', 'reference', { aspect_ratio: '9:16', aspect_ratio_user_set: true, resolution: '720p' }),
     judge: (body) => [
       ...(body.aspect_ratio === '9:16' ? [] : [`aspect_ratio 是 ${JSON.stringify(body.aspect_ratio)}，这一发要 9:16`]),
       ...(body.resolution === '720p' ? [] : [`resolution 是 ${JSON.stringify(body.resolution)}，应是 720p`]),
