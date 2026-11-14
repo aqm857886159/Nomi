@@ -3,7 +3,7 @@
 // 标「不露出」的 absent 记号，档案里必须真没有。记号写法见 docs/models/capabilities/README.md。
 import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { getArchetypeById, specializeArchetypeForVendor } from './index'
+import { getArchetypeById, MODEL_ARCHETYPES, specializeArchetypeForVendor } from './index'
 import type { ModelArchetype } from './types'
 
 const TABLE_DIR = new URL('../../../docs/models/capabilities/', import.meta.url)
@@ -277,6 +277,51 @@ describe('capability tables (docs/models/capabilities) vs archetypes', () => {
       const untokened = { ...table, rows: table.rows.map((row) => ({ ...row, tokens: row.tokens.filter((t) => t.kind !== 'requires' && t.kind !== 'when') })) }
       expect(checkTable(untokened, archetype).some((p) => /requires 记号|when 记号/.test(p)), `${table.file} 表删掉记号后应当变红`).toBe(true)
     }
+  })
+
+  // 输入约束（requiresAnyOf / slotEmpty）会让主进程发送前拒收，只准写在「文档原话是硬约束」的地方：
+  // 档案要有能力表、表里那一行的引文带 not supported / requires / must。文档只是「建议」（如 Wan 3.0「音频不建议单独使用」）不准写。
+  // 能力表之前就有的 Seedance 2.0 家族列在下面，理由写明；新加一个档案的约束而没有表 → 红。
+  const CONSTRAINTS_BEFORE_TABLES: Record<string, string> = {
+    'seedance-2': '2.0 家族参考音频须配图或视频，能力表之前就声明（2.5 已解除，见 seedance25.ts）',
+    'seedance-2-apimart': '同 seedance-2',
+    'volcengine-seedance-2': '同 seedance-2',
+    'dreamina-seedance-2': '同 seedance-2',
+    'minimax-h3-apimart': '原由 apimart-minimax-h3 请求变换判「音频不能单独输入」，2026-11-14 搬进档案；原文同 H3-Max 表「audio alone is not supported」',
+  }
+  const HARD_CONSTRAINT_QUOTE = /not supported|requires|must/i
+
+  function inputConstraintSites(archetype: ModelArchetype): string[] {
+    const sites: string[] = []
+    for (const mode of archetype.modes) {
+      for (const slot of mode.slots) if (slot.requiresAnyOf?.length) sites.push(`${mode.id}/${slot.kind} requiresAnyOf`)
+      for (const params of [mode.params, ...Object.values(mode.vendorParams ?? {})]) {
+        for (const p of params) if (p.optionConstraints?.some((c) => 'slotEmpty' in c.when)) sites.push(`${mode.id}/${p.key} slotEmpty`)
+      }
+    }
+    return sites
+  }
+
+  function unbackedConstraints(archetypes: readonly ModelArchetype[]): string[] {
+    const tabled = new Set(tables.map((t) => t.archetypeId))
+    return archetypes.filter((a) => inputConstraintSites(a).length && !tabled.has(a.id) && !(a.id in CONSTRAINTS_BEFORE_TABLES))
+      .map((a) => `${a.id}：${inputConstraintSites(a).join('、')}`)
+  }
+
+  it('input constraints only live where a capability table quotes a hard rule (Wan 3.0 「建议」 stays out)', () => {
+    expect(unbackedConstraints(MODEL_ARCHETYPES), '这些档案写了输入约束，却没有能力表引文撑着').toEqual([])
+    for (const id of Object.keys(CONSTRAINTS_BEFORE_TABLES)) expect(inputConstraintSites(getArchetypeById(id) ?? { modes: [] } as unknown as ModelArchetype).length, `${id} 已没有约束，从例外表删掉`).toBeGreaterThan(0)
+    for (const table of tables) {
+      for (const row of table.rows) {
+        if (row.tokens.some((t) => t.kind === 'requires' || t.kind === 'when')) expect(row.quote, `${table.file}「${row.item}」引文不是硬约束原话`).toMatch(HARD_CONSTRAINT_QUOTE)
+      }
+    }
+  })
+
+  it('goes red when a table-less archetype grows an input constraint (Wan 3.0 audio written as requiresAnyOf)', () => {
+    const wan = getArchetypeById('wan-3.0')!
+    const grown: ModelArchetype = { ...wan, modes: wan.modes.map((m) => ({ ...m, slots: m.slots.map((s) => (s.kind === 'audio_ref' ? { ...s, requiresAnyOf: ['image_ref', 'video_ref'] as const } as typeof s : s)) })) }
+    expect(unbackedConstraints(MODEL_ARCHETYPES.map((a) => (a.id === wan.id ? grown : a)))).toEqual([`wan-3.0：${grown.modes.filter((m) => m.slots.some((s) => s.kind === 'audio_ref')).map((m) => `${m.id}/audio_ref requiresAnyOf`).join('、')}`])
   })
 
   // 反例：表里标「露出」的参数，从档案里拿掉 → 红；档案里多长一个表里没有的参数 → 红。
