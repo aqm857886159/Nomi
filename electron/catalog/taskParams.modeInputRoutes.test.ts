@@ -117,8 +117,8 @@ const ROUTE_MISSING = ["apimart/suno-v5.5/cover", "apimart/suno-v5.5/extend"];
 
 describe("性质：每个模型 × 每个方式，给足下限的素材，判定不许说「缺输入」", () => {
   it("按 mapping body 发（看得清）：缺输入 0 格；「这家没有这个方式」只在点名的格子", () => {
-    const { cells, noMapping } = scan(sendRouteFor(""));
-    const missing = cells.filter((cell) => cell.outcome === "mode_input_missing").map((cell) => cell.where);
+    const { cells } = scan(sendRouteFor(""));
+    const missing =cells.filter((cell) => cell.outcome === "mode_input_missing").map((cell) => cell.where);
     const routeMissing = cells.filter((cell) => cell.outcome === "mode_route_missing").map((cell) => cell.where).sort();
     expect(missing).toEqual([]);
     expect(routeMissing).toEqual(ROUTE_MISSING);
