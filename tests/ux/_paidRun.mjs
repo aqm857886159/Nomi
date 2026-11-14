@@ -507,7 +507,26 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     .filter((entry) => entry.kind === 'allowed-request' || entry.kind === 'allowed-response'))
     .map((entry) => (envKey ? redactNetLogEntry(entry, secrets) : entry))
   // `rehearsal`：这一场是不是演练（null / 'no-key' / 'real-key'）。脚本不需要为演练多写任何东西，想跳过只在真付费时才有意义的核对时可以读它。
-  return { walk, label, lockToAuthorizedModels, finish, readAllowedRequests, rehearsal }
+  /**
+   * 自带转发代理的脚本（在测试进程里压住 / 改写回包）从这里拿上游，不自己读放行名单：
+   * 不演练 = 名单上的真供应商；不要 Key 的演练 = 本机供应商替身（不转发）；别的演练档 = 没有上游（脚本照旧在起窗前抛错）。
+   * `launchEnvVia(proxyOrigin)` 把代理插在 App 和上游之间，其余改道（中转替身）原样保留——脚本不再整个覆盖改道表。
+   */
+  const vendorUpstream = () => {
+    const from = (rehearsal ? judgedAllow : allow)[0] ?? null
+    const sameOrigin = (a, b) => { try { return new URL(a).origin === new URL(b).origin } catch { return false } }
+    const vendorStandIn = from ? standIns.find((item) => sameOrigin(item.redirect.from, from)) : null
+    const target = vendorStandIn ? vendorStandIn.origin : rehearsal ? null : from
+    const others = standIns.filter((item) => item !== vendorStandIn)
+    return {
+      from, target,
+      launchEnvVia: (proxyOrigin) => ({
+        NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from, to: proxyOrigin }, ...others.map((item) => item.redirect)]),
+        NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: [proxyOrigin, ...standIns.map((item) => item.origin)].join(','),
+      }),
+    }
+  }
+  return { walk, label, lockToAuthorizedModels, finish, readAllowedRequests, rehearsal, vendorUpstream }
 }
 
 function blockedRequestPath(url) {

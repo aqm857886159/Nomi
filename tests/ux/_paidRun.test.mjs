@@ -424,6 +424,20 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
     process.exitCode = 0
   })
 
+  it('r2 · 自带转发代理的脚本从 vendorUpstream 拿上游：演练 = 本机供应商替身（不是真供应商），代理插在 App 和替身之间、中转替身那条改道保留；真付费 = 名单上的真供应商', async () => {
+    const { deps, root } = fakeWalk()
+    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: noKeyEnv(root), hostedUploads: true })
+    const upstream = paid.vendorUpstream()
+    expect(upstream).toMatchObject({ from: 'https://api.apimart.ai', target: 'http://127.0.0.1:40001' })
+    const env = upstream.launchEnvVia('http://127.0.0.1:49999')
+    const relay = deps.startStandIn.mock.calls[1][0].origin
+    expect(JSON.parse(env.NOMI_TEST_NETWORK_REDIRECTS)).toEqual([{ from: 'https://api.apimart.ai', to: 'http://127.0.0.1:49999' }, { from: relay, to: 'http://127.0.0.1:40002' }])
+    expect(env.NOMI_LAB_TRUSTED_PRIVATE_ORIGINS).toBe('http://127.0.0.1:49999,http://127.0.0.1:40001,http://127.0.0.1:40002')
+    expect(paid.walk.report.networkAllowlist).toEqual([]) // 演练时闸的放行名单仍是空的：代理就算转发，也只能到替身
+    const real = await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: { NOMI_SPEND_OK: '1', CI: '', APIMART_API_KEY: 'sk-real-looking-key-0123456789', NOMI_REAL_PROFILE_USER_DATA: path.join(root, 'none') }, assertRehearsed: () => {} })
+    expect(real.vendorUpstream().target).toBe(real.walk.report.networkAllowlist[0])
+  })
+
   it('替身只在不要 Key 那档起；不演练、real-key 档都不起', async () => {
     const { deps, root } = fakeWalk()
     await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: { NOMI_SPEND_OK: '1', CI: '', APIMART_API_KEY: 'sk-real-looking-key-0123456789', NOMI_REAL_PROFILE_USER_DATA: path.join(root, 'none') }, assertRehearsed: () => {} })

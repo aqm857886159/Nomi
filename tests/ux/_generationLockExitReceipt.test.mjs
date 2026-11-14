@@ -1,65 +1,39 @@
 import { afterEach, expect, it } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import vm from 'node:vm'
-import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
 import { assertPaidBuildReady } from './_paidRun.mjs'
-import { LOCK_EXIT_JOURNEY_CONDITIONS, assertLockExitHostingReceipt } from './_generationLockExitHosting.mjs'
 import { LOCK_EXIT_BUILD_MARKERS } from './_generationLockExitSteps.mjs'
+
+// 2026-11-15 起两份付费入口不再要求手递一张旧式演练收据（NOMI_*_REHEARSAL_RECEIPT + git diff）：
+// 花钱前的门由 openPaidWalk 的通用收据把守（脚本指纹 + 构建身份 + 走到的站，见 _paidRun.test.mjs），
+// 四段旅程本身的免费演练（*.rehearsal.walk.mjs）照旧每晚跑、自己核托管披露。
+const PAID_ENTRIES = ['generation-lock-exit-real.paid.mjs', 'shot-result-ownership-real.paid.mjs']
+const read = (name) => fs.readFileSync(path.join('tests/ux', name), 'utf8')
+
+it.each(PAID_ENTRIES)('%s: no hand-carried rehearsal receipt; the generic receipt in openPaidWalk is the only spend gate', (name) => {
+  const source = read(name)
+  expect(source).not.toMatch(/_REHEARSAL_RECEIPT/)
+  expect(source).not.toMatch(/execFileSync\('git'/)
+  expect(source).toMatch(/await openPaidWalk\(/)
+})
+
+it.each(PAID_ENTRIES)('%s: the forwarding proxy takes its upstream from openPaidWalk (stand-in when rehearsing), never from the allowlist directly', (name) => {
+  const source = read(name)
+  expect(source).toMatch(/paid\.vendorUpstream\(\)/)
+  expect(source).not.toMatch(/networkAllowlist\[0\]/)
+  // 改道表由 openPaidWalk 给（保留中转替身那条），脚本不再整个覆盖
+  expect(source).toMatch(/upstream\.launchEnvVia\(proxy\.origin\)/)
+})
 
 const roots = []
 afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }) })
-function fixture() {
+it('the old IPC-only product cannot pass the updated repair markers', () => {
   const parent = path.resolve(process.env.NOMI_LOCK_EXIT_OUT || '.tmp/generation-lock-exit')
   fs.mkdirSync(parent, { recursive: true })
   const root = fs.mkdtempSync(path.join(parent, 'receipt-unit-')); roots.push(root)
-  const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: 'pipe' }).trim()
-  git(['init', '-q'])
   const write = (name, text) => { const file = path.join(root, name); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text) }
-  const commit = () => { git(['add', '.']); git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'fixture']); return git(['rev-parse', 'HEAD']) }
-  write('src/guard.ts', 'old source'); write('electron/host.ts', 'host')
-  const first = commit()
-  const source = fs.readFileSync('tests/ux/generation-lock-exit-real.paid.mjs', 'utf8')
-  const prefix = source.slice(source.indexOf('const receiptPath'), source.indexOf('const model'))
-  const green = { commit: first, status: 'passed', report: { journeyConditions: LOCK_EXIT_JOURNEY_CONDITIONS, hostingDisclosure: 1, stages: ['storyboard', 'canvas', 'list', 'restart'], openRunStages: ['window-close', 'sigkill', 'reload', 'retrieve', 'resend'].map(name => ({ name, status: 'passed', commit: first })) } }
-  const validate = (receipt = green) => {
-    const file = path.join(root, 'receipt.json'); fs.writeFileSync(file, JSON.stringify(receipt))
-    // Execute only the actual preflight block; no paid entry, credentials or provider is invoked.
-    vm.runInNewContext(prefix, { fs, assert, assertLockExitHostingReceipt: receipt => assertLockExitHostingReceipt(JSON.parse(JSON.stringify(receipt))), process: { env: { NOMI_LOCK_EXIT_REHEARSAL_RECEIPT: file } }, execFileSync: (exe, args) => execFileSync(exe, args, { cwd: root, stdio: 'pipe' }) })
-  }
-  return { root, write, commit, first, validate, green }
-}
-it('paid receipt accepts the same source through documentation-only commits', () => {
-  const f = fixture(); f.write('docs/note.md', 'docs only'); f.commit(); expect(() => f.validate()).not.toThrow()
-})
-it.each(['src/guard.ts', 'electron/host.ts'])('paid receipt rejects an older source commit changed in %s', file => {
-  const f = fixture(); f.write(file, 'changed'); f.commit(); expect(() => f.validate()).toThrow()
-})
-it('paid receipt rejects dirty product source even when its commit equals HEAD', () => {
-  const f = fixture(); f.write('src/guard.ts', 'uncommitted'); expect(() => f.validate()).toThrow()
-})
-it.each([
-  { status: 'passed', report: { stages: ['storyboard', 'canvas', 'list', 'restart'] } },
-  { commit: '--output=bad', status: 'passed', report: { stages: ['storyboard', 'canvas', 'list', 'restart'] } },
-  { status: 'failed', report: { stages: ['storyboard', 'canvas', 'list', 'restart'] } },
-  { status: 'passed', report: { stages: ['storyboard'] } },
-  { status: 'passed', report: { stages: ['storyboard', 'canvas', 'list', 'restart'] }, commit: 'a'.repeat(40) },
-])('paid receipt rejects missing provenance or incomplete rehearsal %#', receipt => {
-  const f = fixture(); expect(() => f.validate(receipt)).toThrow()
-})
-it('the old IPC-only product cannot pass the updated repair markers', () => {
-  const f = fixture(); f.write('dist/main.js', 'nomi:tasks:canvas-open-runs')
-  expect(() => assertPaidBuildReady(f.root, { markers: LOCK_EXIT_BUILD_MARKERS, verify: () => {} })).toThrow(/标记/)
-  f.write('dist/main.js', LOCK_EXIT_BUILD_MARKERS.join('\n'))
-  expect(() => assertPaidBuildReady(f.root, { markers: LOCK_EXIT_BUILD_MARKERS, verify: () => {} })).not.toThrow()
-})
-
-it.each([undefined, 0])('paid entry rejects a complete rehearsal without hosting disclosure %j', hostingDisclosure => {
-  const f = fixture()
-  expect(() => f.validate({ ...f.green, report: { ...f.green.report, hostingDisclosure } })).toThrow(/hosting disclosure/)
-})
-it('paid entry rejects a complete rehearsal with different journey conditions', () => {
-  const f = fixture()
-  expect(() => f.validate({ ...f.green, report: { ...f.green.report, journeyConditions: { ...LOCK_EXIT_JOURNEY_CONDITIONS, anonymousAssetHosting: 'allow' } } })).toThrow(/conditions must match/)
+  write('dist/main.js', 'nomi:tasks:canvas-open-runs')
+  expect(() => assertPaidBuildReady(root, { markers: LOCK_EXIT_BUILD_MARKERS, verify: () => {} })).toThrow(/标记/)
+  write('dist/main.js', LOCK_EXIT_BUILD_MARKERS.join('\n'))
+  expect(() => assertPaidBuildReady(root, { markers: LOCK_EXIT_BUILD_MARKERS, verify: () => {} })).not.toThrow()
 })
