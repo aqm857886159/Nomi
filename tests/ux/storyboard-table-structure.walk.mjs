@@ -188,7 +188,8 @@ async function openEditor(locale) {
   await expectVisible(row(1), '第一镜未渲染')
   // 证明真的在这一语言的现场（只有那一种语言才有的说法）。
   await expectVisible(
-    editor().getByText(locale === 'en' ? 'Generate reference cards to lock looks first' : '先生成参考卡锁住长相', { exact: false }).first(),
+    // 语言标记取第 1 镜行上「生成」钮的无障碍名（storyboardEditor 的 generateAria，两种语言各一句）；原来用的「先生成参考卡…」提示文案已从产品里删掉。
+    editor().locator(`[data-storyboard-row="1"] [aria-label="${locale === 'en' ? 'Generate shot 1' : '生成镜 1'}"]`).first(),
     `界面没有切到 ${locale}——这一轮拍出来的不是这门语言的证据`,
   )
 }
