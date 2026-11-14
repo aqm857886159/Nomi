@@ -1,0 +1,48 @@
+{
+  "script": "archetype-batch1-samples.paid.mjs",
+  "startedAt": "2026-11-14T16:59:34.851Z",
+  "samples": [
+    {
+      "id": "A1",
+      "label": "可灵 4.0 Flash · 视频编辑 · 比例不动",
+      "model": "apimart/kling-v4-flash",
+      "request": {
+        "problems": [],
+        "createRequests": 1,
+        "keys": [
+          "aspect_ratio",
+          "model",
+          "nsfw_check",
+          "omni_reference_task_type",
+          "prompt",
+          "video_urls"
+        ],
+        "model": "kling-v4-flash",
+        "aspect_ratio": "16:9"
+      },
+      "providerTaskIds": [
+        "task_01M7DG0WD0NCH49SW4PPNW4F67"
+      ],
+      "landed": {
+        "durationSeconds": 4.041667,
+        "width": 1280,
+        "height": 720,
+        "bytes": 1758910,
+        "keptAt": ".tmp/pi-archetype-batch1-samples-development-1794675574214/A1-result.mp4"
+      },
+      "result": "passed"
+    }
+  ],
+  "finishedAt": "2026-11-14T17:00:56.945Z",
+  "paidCalls": 1,
+  "spend": [
+    {
+      "taskId": "task_01M7DG0WD0NCH49SW4PPNW4F67",
+      "status": "ready",
+      "model": "kling-v4-flash",
+      "vendor": "apimart"
+    }
+  ],
+  "result": "passed",
+  "error": null
+}
