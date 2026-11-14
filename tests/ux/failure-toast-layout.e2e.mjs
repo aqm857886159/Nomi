@@ -41,7 +41,8 @@ try {
       await page.evaluate(() => window.__toastFixture.showFailure())
       const proof = await proveProbe(toasts, 'the probe counts the failure toast while one is on screen')
       const check = async (label, run) => {
-        await page.evaluate(() => window.__toastFixture.clear())
+        // 面板标记也在每个场景开头清掉：上一个场景在「面板开着」时红了，不许把开着的面板带进下一个场景冒充它的红。
+        await page.evaluate(() => { window.__toastFixture.clear(); window.__toastFixture.closePanels() })
         await expectAbsent(toasts, { provenBy: proof, message: 'the stage is empty before the scenario starts' })
         try { await run() } catch (error) { failures.push(`[${tag}] ${label}: ${String(error?.message ?? error).split('\n')[0]}`) }
       }
