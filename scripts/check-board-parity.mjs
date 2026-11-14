@@ -316,7 +316,7 @@ export function checkBoundaryCoverage({ board, manifest, date }) {
 
 /**
  * 直接引用某个文件的非测试源文件（src/ 和 electron/ 下，设计实验室的屏算）。只看直接引用，不追多层。
- * 唯一的例外是桶文件：只把组件转出去的 `export { X } from './组件'`（如 src/design/index.ts）不算一处，
+ * 唯一的例外是桶文件：只把组件原样转出去（re-export，如 src/design/index.ts）的不算一处，
  * 改成列出「从桶里取了 X 的文件」——它们才是真的直接用到组件的地方。桶套桶不追。
  * 解析用 TypeScript 自带的 AST（import / export from / import()），相对路径按 TS 的扩展名规则解析；仓库没有路径别名。
  */
