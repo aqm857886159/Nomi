@@ -33,12 +33,14 @@ import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { placeUploadedImages } from "../../src/workbench/generationCanvas/nodes/controls/referenceList";
 import { assertProductionGenerationPayloadHash } from "../productionRun/productionGenerationAuthorization";
 import { installFetchCapture, seedParityCatalog } from "./generationParityTestUtils";
+import { definiteSendRefusalOf } from "../shared/contracts/definiteSendRefusal";
+import { desktopT } from "../desktopStrings";
 
 const capture = installFetchCapture();
 await seedParityCatalog(["apimart"]);
 afterAll(() => capture.restore());
 
-type Case = { name: string; archetypeId: string; modelId: string; modeId: string; parameters: Record<string, unknown> };
+type Case = { name: string; archetypeId: string; modelId: string; modeId: string; parameters: Record<string, unknown>; images?: number };
 
 /** 与真实宿主同形：候选归一 → 编译合同 → 运行时适配器 prepareAuthorization（批准时算指纹的就是它）。 */
 async function prepared(c: Case): Promise<{ providerRequest: Record<string, unknown>; providerRequestHash: string }> {
@@ -55,7 +57,7 @@ async function prepared(c: Case): Promise<{ providerRequest: Record<string, unkn
   const archetype = specializeArchetypeForVendor(getArchetypeById(c.archetypeId)!, "apimart");
   const mode = archetype.modes.find((candidate) => candidate.id === c.modeId)!;
   const slots = mode.slots.filter((slot: { kind: string }) => ["first_frame", "last_frame", "image_ref"].includes(slot.kind));
-  const urls = Array.from({ length: Math.max(1, slots.reduce((sum: number, slot: { min: number }) => sum + slot.min, 0)) }, (_, i) => `https://assets.example.com/ref/img-${i + 1}.png`);
+  const urls = Array.from({ length: c.images ?? Math.max(1, slots.reduce((sum: number, slot: { min: number }) => sum + slot.min, 0)) }, (_, i) => `https://assets.example.com/ref/img-${i + 1}.png`);
   const placed = placeUploadedImages(mode, slots.length ? urls : []);
   const references: Array<{ assetId: string; contentHash: string; version: number; kind: "image"; role: "first_frame" | "last_frame" | "reference" }> = [];
   mode.slots.forEach((slot: { kind: string }, i: number) => (placed.bySlot[i] ?? []).forEach((u: string) => references.push({
@@ -105,6 +107,31 @@ describe("升级前已批准、还没发出去的 Run 作业：新代码重算�
       expect(() => assertProductionGenerationPayloadHash(now.providerRequest, old)).toThrow("Provider wire payload no longer matches the approved authorization");
     }
     if (key === "refDefault") expect(now.providerRequest.size ?? (now.providerRequest.body as Record<string, unknown> | undefined)?.size).toBeDefined();
+  });
+});
+
+/**
+ * 这一刀（发送前方式输入检查，docs/plan/2026-11-14-mode-input-check.md）新造的一类拒收：升级前批准、方式要的输入请求里没有的镜头，
+ * 升级后派发时 prepareAuthorization 抛「发送前确定拒收」（带出路句）。提交门认它 → 这一镜落 needs_attention + 原话，而不是一直排队
+ * （productionGenerationAuthorizationFlow.test.ts「definite pre-send refusal」、multiShotBatchScheduler.test.ts 同名一组钉住）。
+ */
+describe("升级前已批准、方式缺必需输入的 Run 作业：派发时是确定拒收（带出路），不是卡在排队", () => {
+  const slotName = (label: string, kind: "video_ref" | "last_frame") => desktopT("modeInput.slotName", { label, kind: desktopT(`modeInput.slotKind.${kind}`) });
+  const fits = (archetypeId: string, modeId: string) => desktopT("modeInput.fitsMode", {
+    mode: specializeArchetypeForVendor(getArchetypeById(archetypeId)!, "apimart").modes.find((m) => m.id === modeId)!.vendorTerm, modeId,
+  });
+  const REFUSED: Array<[Case, string]> = [
+    [{ name: "可灵 4.0 Flash 编辑：1 张图、没有源视频", archetypeId: "kling-v4-flash", modelId: "kling-v4-flash", modeId: "edit", parameters: {}, images: 1 },
+      desktopT("modeInput.slotMissing", { slot: slotName("源视频", "video_ref") }) + fits("kling-v4-flash", "ref")],
+    [{ name: "MiniMax-H3 首尾帧：只有 1 张图", archetypeId: "minimax-h3-apimart", modelId: "MiniMax-H3", modeId: "firstlast", parameters: {}, images: 1 },
+      desktopT("modeInput.slotMissing", { slot: slotName("尾帧", "last_frame") }) + fits("minimax-h3-apimart", "first")],
+  ];
+  it.each(REFUSED.map(([c, text]) => [c.name, c, text] as const))("%s", async (_name, c, text) => {
+    const callsBefore = capture.calls.length;
+    const error = await prepared(c).then(() => null, (caught: unknown) => caught);
+    expect(error, "必须在派发前拒收，不能照发").not.toBeNull();
+    expect(definiteSendRefusalOf(error)).toMatchObject({ code: "mode_input_missing", message: text });
+    expect(capture.calls.length, "零请求").toBe(callsBefore);
   });
 });
 

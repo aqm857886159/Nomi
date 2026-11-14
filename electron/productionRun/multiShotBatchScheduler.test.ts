@@ -12,6 +12,7 @@ import { createProductionRunRepository } from "./productionRunRepository";
 import { createMultiShotBatchScheduler } from "./multiShotBatchScheduler";
 import type { ProductionGenerationShot } from "./productionRunTypes";
 import { landingThatBinds } from "./landFirstTestUtils";
+import { ModeInputMissingError } from "../catalog/taskParams";
 
 // P4 S4 — batch scheduler orchestrator over a REAL repository + mock provider (zero quota). TDD:
 // these lock the SAFETY invariants — stop dispatches nothing new,
@@ -226,6 +227,45 @@ describe("P4 S4 batch scheduler — stop semantics", () => {
     expect(submit).toHaveBeenCalledTimes(1); // paused → no new submissions
     expect(outcome.progress.completed).toBe(1); // shot-a finished + preserved
     expect(outcome.progress.pending).toBe(2);
+  });
+});
+
+describe("definite pre-send refusal at dispatch (mode input missing)", () => {
+  it("the refused shot lands on needs_attention and the next drive does not dispatch it again; its sibling is sent", async () => {
+    const shots = [shotEntry("shot-a", "a"), shotEntry("shot-b", "b")];
+    const { root, repository } = setupBatch(shots);
+    const submit = vi.fn(async () => ({ providerTaskId: `task-${submit.mock.calls.length + 1}` }));
+    const text = "这次没有发出：这个方式需要源视频，请求里没有。请补上源视频，或换一个方式。";
+    const builtFor: string[] = [];
+    const provider = mockProvider(submit);
+    provider.buildRequest = (input) => {
+      builtFor.push(input.prompt);
+      if (input.prompt === "a") throw new Error("provider wrapper", { cause: new ModeInputMissingError(text) });
+      return input;
+    };
+    const drive = () => createMultiShotBatchScheduler({
+      repository, landShots: landingThatBinds(repository),
+      submission: createProductionGenerationSubmission({
+        repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+        intentMacKey: "test-intent-key", provider,
+        materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.png` }),
+        now: () => NOW,
+      }),
+      projectId: "project-1", runId: "op-batch", now: () => NOW, options: {},
+    }).runToQuiescence();
+
+    await drive();
+    const jobFor = (shotId: string) => repository.read("project-1", "op-batch")!.jobs.find((job) => job.metadata?.shotId === shotId);
+    expect(jobFor("shot-a")).toMatchObject({ status: "needs_attention", errorCode: "mode_input_missing", errorMessage: text });
+    expect(submit).toHaveBeenCalledTimes(1); // only shot-b
+    const builtA = builtFor.filter((prompt) => prompt === "a").length;
+    expect(builtA).toBe(1);
+
+    // 下一趟（重启 / 再踢一次）：这一镜不再进派发，连请求都不再搭。
+    await drive();
+    expect(builtFor.filter((prompt) => prompt === "a").length).toBe(builtA);
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(jobFor("shot-a")?.status).toBe("needs_attention");
   });
 });
 

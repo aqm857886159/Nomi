@@ -17,6 +17,7 @@ import {
 import { nextGenerationAttempt } from "./prepareProductionGenerationAuthorization";
 import { authorizationGateForJob } from "../shared/productionSpendAuthority";
 import { DispatchConsentLapsedError, dispatchConsentOpen } from "../shared/productionDispatchConsent";
+import { definiteSendRefusalOf } from "../shared/contracts/definiteSendRefusal";
 import { createProductionRunRuntimeEnvelope } from "./productionRunRuntimeEnvelope";
 import { createProductionRunIntentLog } from "./productionRunIntentLog";
 import { productionRunPaths } from "./productionRunPaths";
@@ -282,13 +283,24 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     // 过了窗口 = 没有人替他续：这一镜不派，调度器接住这个错，批次如实停下等他再点一次（不是失败）。
     if (!dispatchConsentOpen(gate, now())) throw new DispatchConsentLapsedError(gateId, jobId);
 
-    // This is the last zero-side-effect check. If provider serialization drifted since the gate,
-    // nothing below (Run events, ledger, intents, runtime envelope or provider) is touched.
-    const providerPreparation = adapter.prepareAuthorization({
-      contract,
-      providerIdempotencyKey: authorized.providerIdempotencyKey,
-      referenceUrls: authorized.referenceUrls,
-    });
+    // Last check before any submission side effect. Provider serialization drift and every ordinary error touch
+    // nothing (Run events, ledger, intents, runtime envelope or provider). The one durable write allowed here is a
+    // definite pre-send refusal (`DefiniteSendRefusal`, e.g. the mode's required input is missing after an upgrade):
+    // the job lands on needs_attention with the refusal text instead of staying queued forever, then the error rethrows.
+    let providerPreparation: ReturnType<typeof adapter.prepareAuthorization>;
+    try {
+      providerPreparation = adapter.prepareAuthorization({
+        contract,
+        providerIdempotencyKey: authorized.providerIdempotencyKey,
+        referenceUrls: authorized.referenceUrls,
+      });
+    } catch (error) {
+      const refusal = definiteSendRefusalOf(error);
+      if (refusal && existingJob.status === "authorized") {
+        command(current, "job.status", { jobId, status: "needs_attention", patch: { errorCode: refusal.code, errorMessage: refusal.message.slice(0, 512) } }, `definite-send-refusal:${jobId}`);
+      }
+      throw error;
+    }
     if (providerPreparation.providerRequestHash !== authorized.providerWirePayloadHash) {
       throw new Error("Provider wire payload no longer matches the approved authorization");
     }
