@@ -6,6 +6,7 @@ import { SkillDetail } from '../../../../workbench/skillLibrary/SkillDetail'
 import { BrowserPromptExtractionSettingsModal } from '../../../../ui/browser/prompt/BrowserPromptExtractionSettingsModal'
 import { normalizeBrowserPromptExtractionTemplateSettings } from '../../../../ui/browser/prompt/browserPromptExtractionSettings'
 import { LabLocaleGate } from '../../labLocaleGate'
+import { holdDesignLabReady } from '../../labReadyHold'
 import type { LabState } from '../../labScreen'
 
 import { HandbookPanel } from '../../../../workbench/onboarding/HandbookPanel'
@@ -48,6 +49,8 @@ function SelectionSaveStage(): JSX.Element {
   // 真实选中文字 → 浮钮 → 保存卡；不写入资料，不调用保存 API。
   const ref = React.useRef<HTMLParagraphElement>(null)
   React.useEffect(() => {
+    // 浮钮点开保存卡之前不许举就绪旗：否则截到的是「只有浮钮、卡没打开」（labReadyHold.ts）。
+    const release = holdDesignLabReady('selection-save:open')
     const range = document.createRange()
     if (ref.current) range.selectNodeContents(ref.current)
     window.getSelection()?.removeAllRanges()
@@ -55,9 +58,9 @@ function SelectionSaveStage(): JSX.Element {
     document.dispatchEvent(new Event('selectionchange'))
     const timer = window.setInterval(() => {
       const button = document.querySelector<HTMLButtonElement>('button[data-selection-prompt-ui]')
-      if (button) { button.click(); window.clearInterval(timer) }
+      if (button) { button.click(); window.clearInterval(timer); release() }
     }, 50)
-    return () => window.clearInterval(timer)
+    return () => { window.clearInterval(timer); release() }
   }, [])
   return <div data-workspace-input-active="true" data-shortcut-surface="canvas">
     <div className="generation-canvas-v2-node" data-node-id={selectionNode.id}><p ref={ref}>A long prompt selected from the canvas. A quiet forest at sunrise.</p></div>
@@ -71,15 +74,17 @@ const noop = (): void => undefined
 const emptyAgentSnapshot = labHostState({ items: [] })
 function OpenSequence({ selectors, children }: { selectors: readonly string[]; children: React.ReactNode }): JSX.Element {
   React.useEffect(() => {
+    // 点开序列走完之前不许举就绪旗：否则截到的是「弹窗 / 浮层还没点开」的样子（labReadyHold.ts）。
+    const release = holdDesignLabReady('open-sequence')
     let next = 0
     const timer = window.setInterval(() => {
       const button = document.querySelector<HTMLElement>(selectors[next])
       if (!button) return
       button.click()
       next += 1
-      if (next === selectors.length) window.clearInterval(timer)
+      if (next === selectors.length) { window.clearInterval(timer); release() }
     }, 60)
-    return () => window.clearInterval(timer)
+    return () => { window.clearInterval(timer); release() }
   }, [selectors])
   return <>{children}</>
 }

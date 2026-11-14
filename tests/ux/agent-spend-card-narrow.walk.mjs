@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 真实用户任务（D2 第③步，NodePointer 板 A4 在真 App 里）：**窄窗口里，对话浮在画布上、把画布盖住大半，点付费卡上的指向元素。**
 //
-// 最小窗 1100×720，用户把对话浮窗从左上角那个改大小的角拉大、盖住画布大半，再点卡上的第 2 镜：
+// 最小窗（electron/shared/mainWindowSize.json，现 700×720），用户把对话浮窗从左上角那个改大小的角拉大、盖住画布大半，再点卡上的第 2 镜：
 //   · board:NodePointer/pointer.narrow.collapse —— 对话收成右下的小球，画布露出来，那个节点闪一下、就在眼前；
 //   · board:NodePointer/pointer.narrow.back —— 画布那一格底部正中出现「回到对话」（压在加节点条上面）；按 Esc 或点它，
 //     对话原样回来（还是那么大的浮窗），焦点落回刚点的那一项，它标着「已定位」。
@@ -9,12 +9,13 @@
 // 拉大的浮窗——三个标题**看得见的字**互不相同（共用一长截开头时截中间）；「已定位」和那一格露着的「不生成 ×」两个包围盒不相交，
 // 小钮也不压标题。
 // 反例：
-//   · 同一个最小窗、默认大小的浮窗只占一角：点指向元素，对话不收、不出「回到对话」，画布照样定位过去（A3 的样子）；
+//   · 1100 宽（COUNTER_WINDOW；最小窗 700 里默认浮窗已经挡住画布、本来就该收）、默认大小的浮窗只占一角：点指向元素，对话不收、不出「回到对话」，画布照样定位过去（A3 的样子）；
 //   · 收成小球以后用户点小球把对话叫回来（没经「回到对话」）：「回到对话」跟着没了；之后用面板头上的「收起」再收成小球，
 //     不会冒出一颗指着旧镜头的「回到对话」。
 // 中文 · 浅色一轮，英文 · 暗色一轮（截图两轨）。只有远端供应商是 loopback 夹具（零额度）；这条走查一笔都不发（最后取消卡）。
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { AGENT_PANEL, CANVAS_ADD_BAR, COLLAPSE_BUTTON } from './_shell.mjs'
 import {
   CARD_BODY, POINTER, armCanvasBridges, canvasHighlightOf, canvasNode, cardTitle, createPresenter, pointerAway, pointerFace,
@@ -39,6 +40,12 @@ const RETURN_PILL = '[data-node-pointer-return-dock="generation"] [data-node-poi
 const CLEARANCE = 12
 
 const present = createPresenter('S_NARROW')
+/**
+ * 反例「默认浮窗只占一角、点指向对话不收」要画布还有空地。最小窗降到 700 以后，默认浮窗（384 宽）已经把画布空地挤到
+ * revealNodeFromChat 的 POINTER_REVEAL_MIN_FREE（280×220）以下——那里本来就该收。所以反例段在改最小窗之前的 1100 宽里走，
+ * 走完回最小窗再拉大、点第 2 镜。这不是最小窗（最小窗只读 _minWindow.mjs）。
+ */
+const COUNTER_WINDOW = Object.freeze({ width: 1100, height: MIN_WINDOW.height })
 
 const rectOf = (win, selector) => win.evaluate((sel) => {
   const rect = document.querySelector(sel)?.getBoundingClientRect()
@@ -262,16 +269,39 @@ async function runRound(walk, win, { locale, scheme, round }) {
   const card = drafted.card
   const cardProof = await proveProbe(card, `${round}：付费卡在 Agent 面板的介入槽里`)
   await expect(card.locator('[data-v4-block="slot-title"]')).toContainText(cardTitle(locale, 3, 'image'))
+  // WindowNarrow 板：最小窗已在窄窗档（< 1060），付费卡原样在浮窗里，「生成 N 张」和取消两颗钮都整个露在浮窗与窗口里。
+  const actions = await card.evaluate((root) => {
+    const float = root.closest('[data-agent-float]')?.getBoundingClientRect()
+    const inside = (selector) => {
+      const box = root.querySelector(selector)?.getBoundingClientRect()
+      if (!box || !float || box.width < 1) return false
+      return box.left >= Math.max(0, float.left) - 0.5 && box.right <= Math.min(window.innerWidth, float.right) + 0.5
+        && box.top >= Math.max(0, float.top) - 0.5 && box.bottom <= Math.min(window.innerHeight, float.bottom) + 0.5
+    }
+    return { inFloat: Boolean(float), confirm: inside('[data-v4-control="confirm"]'), dismiss: inside('[data-v4-control="slot-dismiss"]') }
+  })
+  expect(actions, `board:WindowNarrow/spendcard.in-float：${round}，付费卡在浮窗里，「生成 N 张」和取消都在窗内`).toEqual({ inFloat: true, confirm: true, dismiss: true })
+  await walk.snap(r('spend-card-in-float'))
   const nodes = await shotNodes(win, walk.report.projectId, drafted.operationId)
   expect(nodes.every((shot) => shot.nodeId), `${round}：三镜都落到了画布上`).toBe(true)
   const [first, second, third] = nodes.map((shot) => shot.nodeId)
   await expect(card.locator(`${CARD_BODY} ${POINTER}`), `${round}：卡上是三个指向元素`).toHaveCount(3)
   const facts = walk.report.rounds[round] = { locale, scheme, nodes: [first, second, third] }
 
+  await walk.resizeWindow(COUNTER_WINDOW.width, COUNTER_WINDOW.height)
+  if (round === 'zh-light') {
+    await expect(win.locator(FLOAT), `${round}：${COUNTER_WINDOW.width} 宽里对话仍是浮窗`).toBeVisible()
+  } else {
+    // 上一轮在最小窗里用形态切换明确选了「缩成小球」（存成小球），之后点小球叫出的是窄窗临时浮窗、不写存档（WindowNarrow 板 D2）：
+    // 拉宽回到存下的小球。人在宽窗里点小球叫出浮窗——这一下才存成浮窗，之后回最小窗也还是这个浮窗（下面「拉大浮窗」那段靠它）。
+    await expect(win.locator('[data-agent-ball]').first(), `${round}：窄窗里点开的临时浮窗，拉宽回到存下的小球`).toBeVisible()
+    await expandResidentPanel(win)
+    await expect(win.locator(FLOAT), `${round}：${COUNTER_WINDOW.width} 宽里点小球叫出浮窗`).toBeVisible()
+  }
   const formBefore = await rectOf(win, FLOAT)
   facts.titlesAtStart = { floatWidth: formBefore?.width ?? null, texts: await expectTitlesTellable(card, `卡刚出来（浮窗 ${Math.round(formBefore?.width ?? 0)}px）`) }
   if (formBefore && (await floatCoverage(win)) < 0.5) {
-    // 反例：默认大小的浮窗只占一角（同一个最小窗）——点指向元素，对话不收、不出「回到对话」，画布照样定位过去。
+    // 反例：默认大小的浮窗只占一角（COUNTER_WINDOW 宽，画布还有空地）——点指向元素，对话不收、不出「回到对话」，画布照样定位过去。
     facts.defaultFloat = { rect: formBefore, coverage: await floatCoverage(win) }
     await watchCanvasHighlights(win)
     await clickOrFail(pointerFace(card, first), `${round}：默认浮窗下点第 1 镜`)
@@ -295,10 +325,10 @@ async function runRound(walk, win, { locale, scheme, round }) {
     facts.titlesNarrow = await expectTitlesTellable(card, `${round}：窄面板`)
     await walk.snap(r('narrow-panel-located-and-tellable-titles'))
     await pointerAway(win)
-    facts.enlargedFloat = await enlargeFloat(win, `${round}：把浮窗拉大`)
-  } else {
-    facts.enlargedFloat = formBefore
   }
+  // 回最小窗：浮窗还没盖住画布大半就像用户一样拉大；已经盖住（第二轮沿用上一轮拉大的浮窗）就照原样。
+  await walk.resizeWindow(MIN_WINDOW.width, MIN_WINDOW.height)
+  facts.enlargedFloat = (await floatCoverage(win)) < 0.5 ? await enlargeFloat(win, `${round}：把浮窗拉大`) : await rectOf(win, FLOAT)
   facts.coverage = await floatCoverage(win)
   await walk.snap(r('float-covers-the-canvas'))
   const floatBefore = await rectOf(win, FLOAT)
@@ -358,7 +388,7 @@ try {
   await openCanvas(win)
   const noShare = win.getByRole('button', { name: '不分享', exact: true }).first()
   if (await noShare.isVisible().catch(() => false)) await noShare.click()
-  walk.report.window = await walk.resizeWindow(1100, 720)
+  walk.report.window = await walk.resizeWindow(MIN_WINDOW.width, MIN_WINDOW.height)
   await expect(win.locator(FLOAT), '最小窗里对话是浮窗').toBeVisible()
   await runRound(walk, win, { locale: 'zh-CN', scheme: 'light', round: 'zh-light' })
 

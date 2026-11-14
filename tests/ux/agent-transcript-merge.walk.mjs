@@ -119,12 +119,19 @@ try {
   expect(skillName, 'composer 上那颗 chip 印的是技能 key，不是技能库里的名字').not.toContain(SKILL_ID)
   // 挂着的时候这颗 chip 在 —— 下面「发完就没了」那条断言因此是测得到的，不是恒真的空话。
   const chipProof = await proveProbe(composerChip, '挂上技能后 composer 顶上有那颗 chip')
-  // Skill 钮上不再点第二次名（2026-09-10 用户反馈 #2）：钮里只剩图标 + 文字，
-  // 那颗 accent 小点是多出来的一个 span，所以这条等式红了就是它复活了。
+  // Skill 钮上不再点第二次名（2026-09-10 用户反馈 #2）：钮里只有图标和它自己的名字。
+  // 名字包在一个 span 里（面板窄时只留图标要藏它）；那颗 accent 小点是没有字的另一个 span，
+  // 所以「多出第三件」或「span 里不是名字」就是它复活了。
+  const skillButton = await panel.locator(COMPOSER_SKILL).evaluate(el => ({
+    name: el.getAttribute('aria-label'),
+    parts: [...el.children].map(child => ({ tag: child.tagName.toLowerCase(), text: (child.textContent ?? '').trim() })),
+  }))
   expect(
-    await panel.locator(COMPOSER_SKILL).evaluate(el => [...el.children].map(child => child.tagName.toLowerCase())),
+    skillButton.parts.map(part => part.tag),
     'Skill 钮上多了一件东西（那颗小点已删，反馈在 chip 上）',
-  ).toEqual(['svg'])
+  ).toEqual(['svg', 'span'])
+  expect(skillButton.name?.length ?? 0, 'Skill 钮没有名字').toBeGreaterThan(0)
+  expect(skillButton.parts[1].text, 'Skill 钮里那个 span 不是它的名字（没有字的 span 就是那颗小点）').toBe(skillButton.name)
 
   const answered = walk.fixture.expectText({
     label: 'skill turn', match: body => flattenRequestText(body).includes(SKILL_ASK),

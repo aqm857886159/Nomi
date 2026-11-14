@@ -9,6 +9,10 @@
 //   ② 窗口变宽变窄、开关 Nomi、点被让成条的那一栏，都不改存下的开合与栏宽（layout.read 读的就是 Agent 看到的那份）；
 //   ③ 只有用户亲手拖分隔条才写回；拖成收起条 = 关掉那一栏；
 //   ④ 展开的侧栏里没有东西越出栏边、没有被省略号截断（属性栏最窄 200 时，整片 / 视频 / 图片 / 字幕四种选中态逐个查——设计实验室只按默认 240 画过它）。
+//   ⑤ 预览页藏着（切到创作页）时改窗口宽，再回预览页，三列宽度仍落在规则算出的值上（面板库 4.12.3 在页面藏着时按位置给三列排序、
+//      顺序排乱，回来时三列宽被套到错的列上：素材栏 32、属性栏约 480；升级到 ≥ 4.14.2 才修）。
+//      路径 G：1100 进过预览 → 创作 → 拉到 1280 → 回预览。路径 D（1060 进过预览 → 创作 → 拖到 1000 → 回预览）要窗口能缩到 1000 以下，
+//      今天最小窗是 1100 做不到，等窄窗外壳合入后补一条同样的断言。
 // 零额度：空画布 + 只有元数据的时间轴（不带媒体文件），不碰任何生成。中英两轨各跑一遍（NOMI_WALK_LOCALES=zh-CN,en 可选）。
 // Run: pnpm run build && node tests/ux/preview-narrow-panels.walk.mjs
 //      打包产物：NOMI_WALK_APP=release/mac-arm64/Nomi.app/Contents/MacOS/Nomi node tests/ux/preview-narrow-panels.walk.mjs
@@ -248,9 +252,10 @@ async function runLocale(locale) {
     await expectRow('1440 关 Nomi', [300, 830, 240], [BOARD.row1440Closed])
     await shot('1440-nomi-closed')
     await ensureAgentPanelOpen(win, 'reopen Nomi', { form: 'dock' })
-    // 1100 时外壳把超限的 Nomi 宽从 390 钳到 340（WorkbenchShell「窄窗只收上限」，09-01 定稿），回到 1440 不会自己放回去：
-    // 舞台 1022，两栏都放得下（300 + 240，预览 482）。
-    await expectRow('1440 重新开 Nomi（Nomi 已被钳到 340）', [300, 482, 240])
+    // 1100 时 Nomi 只是**显示**让到 340（Grid 让步），存的 390 一个字节没改（方向检查 2026-11-08 选项 2a，用户拍板「都按推荐」）：
+    // 回到 1440 面板回到 390，舞台和一开始「1440 开 Nomi」一样。
+    await expectRow('1440 重新开 Nomi（Nomi 宽回到 390）', [292, 480, 200])
+    check('1440 重新开 Nomi：存的 Nomi 宽仍是 390', (await readIntent()).assistantWidth === 390, `实际 ${(await readIntent()).assistantWidth}`)
     await expectIntent('开关 Nomi 之后', defaults)
 
     // ── 只有用户亲手拖才写回 ──
@@ -287,7 +292,66 @@ async function runLocale(locale) {
   }
 }
 
+/** ⑤ 页面藏着时改窗宽再回来（路径 G）：独立开一个应用，默认布局，量三列。 */
+async function runHiddenResize(locale) {
+  console.log(`\n── ${locale} · 藏着改窗宽 ──`)
+  const tag = locale === 'en' ? 'en' : 'zh'
+  const tempRoot = makeTempDir('nomi-preview-hidden-')
+  const projectsDir = path.join(tempRoot, 'projects')
+  const projectName = `preview-hidden-${tag}`
+  writeProject(projectsDir, `walk-${projectName}`, projectName)
+  let app
+  try {
+    const launched = await launchNomiApp({
+      name: `preview-hidden-resize-${tag}`, tempRoot, projectsDir, settleMs: 0, timeout: 300_000,
+      ...(executablePath ? { executablePath } : {}),
+      viewportSize: { width: 1280, height: HEIGHT },
+      initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', 'nomi-color-scheme': 'light', __nomiE2E: '1' },
+    })
+    app = launched.app
+    let win = launched.win
+    await clickOrFail(win.locator('[data-project-card]', { hasText: projectName }).first(), 'open project', { timeout: stationTimeout() })
+    for (let i = 0; i < 40 && !app.windows().some((page) => /projectId=/.test(page.url())); i += 1) await win.waitForTimeout(250)
+    win = app.windows().find((page) => /projectId=/.test(page.url())) ?? win
+    const resize = async (width) => {
+      const browserWindow = await app.browserWindow(win)
+      await browserWindow.evaluate((windowRef, size) => windowRef.setContentSize(size.width, size.height), { width, height: HEIGHT })
+      await win.setViewportSize({ width, height: HEIGHT })
+    }
+    const measure = () => win.evaluate(() => {
+      const width = (id) => Math.round(document.querySelector(`[data-panel][data-testid="${id}"]`)?.getBoundingClientRect().width ?? -1)
+      return [width('editing-surface-source'), width('editing-surface-preview'), width('editing-surface-inspector')]
+    })
+    const expectCols = async (label, wanted) => {
+      let m = await measure()
+      const ok = () => wanted.every((value, index) => Math.abs(m[index] - value) <= TOLERANCE)
+      for (let waited = 0; !ok() && waited < SETTLE_MS; waited += 100) { await win.waitForTimeout(100); m = await measure() }
+      check(`${label}：${wanted.join(' / ')} [${BOARD.keepsIntent}]`, ok(), `实际 ${m.join(' / ')}`)
+    }
+    await resize(1280)
+    await win.locator('.nomi-stepper').first().waitFor({ timeout: stationTimeout({ operations: 2 }) })
+    await switchWorkspace(win, 'creation')
+    await ensureAgentPanelOpen(win, 'Nomi docked', { form: 'dock' })
+    await resize(1100)
+    await switchWorkspace(win, 'preview')
+    await expectCols('G：1100 进过预览', [240, 410, RAIL])
+    await switchWorkspace(win, 'creation')
+    await resize(1280)
+    await switchWorkspace(win, 'preview')
+    // 1100 时外壳把 Nomi 宽从 390 钳到 340 不会放回去：舞台 862 = 300 + 530 + 32。
+    await expectCols('G：藏着从 1100 拉到 1280 再回预览', [300, 530, RAIL])
+    await screenshotSettled(win, { path: path.join(shotsDir, `hidden-resize-${tag}.png`) })
+  } catch (error) {
+    failures.push(`${locale} 藏着改窗宽: ${String(error?.stack || error).slice(0, 800)}`)
+    console.log(`  ❌ ${locale} 藏着改窗宽走查中断：${error?.message || error}`)
+  } finally {
+    await app?.close().catch(() => {})
+    fs.rmSync(tempRoot, { recursive: true, force: true })
+  }
+}
+
 for (const locale of locales) await runLocale(locale)
+for (const locale of locales) await runHiddenResize(locale)
 if (failures.length > 0) {
   console.log(`\n❌ preview-narrow-panels: ${failures.length} 处不对\n${failures.map((line) => `  · ${line}`).join('\n')}`)
   process.exit(1)

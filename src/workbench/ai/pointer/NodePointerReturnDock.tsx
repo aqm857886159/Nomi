@@ -8,7 +8,7 @@
 // 只在「点了指向、对话收成了小球」那段时间里在：用户没经「回到对话」就把对话叫回来了（点小球），这一枚作废、清掉，
 // 免得以后因为别的原因收成小球时，底部冒出一颗指着旧镜头的「回到对话」。
 import React, { type JSX } from 'react'
-import { useAgentFormStore, type AgentFormSurface } from '../../../ui/app-shell/shell/agentFormStore'
+import { useEffectiveAgentForm, type AgentFormSurface } from '../../../ui/app-shell/shell/agentFormStore'
 import { useCanvasBottomDockRects } from '../../generationCanvas/reactFlow/useCanvasBottomDockRects'
 import { NodePointerReturnToChat } from './NodePointerGroup'
 import { useNodePointerStore } from './nodePointerStore'
@@ -17,7 +17,8 @@ import { RETURN_DOCK_EDGE_GAP, returnDockBottom } from './returnDockPlacement'
 /** 画布那一格里的「回到对话」：对话因为点指向收成了小球时才摆出来。 */
 export function NodePointerReturnDock({ surface }: { surface: AgentFormSurface }): JSX.Element | null {
   const mine = useNodePointerStore((state) => state.returnTo?.surface === surface)
-  const form = useAgentFormStore((state) => state.bySurface[surface].form)
+  // 此刻显示的形态（窄窗档里收成小球的是派生，不改存档；看存档就会漏掉它）。
+  const form = useEffectiveAgentForm(surface)
   const active = mine && form === 'ball'
   // 对话从小球回来、却没经过「回到对话」（returnToChat 会先清掉这一枚）：作废。只认「从小球离开」这一下，
   // 收起那一刻（先记 returnTo、再收成小球）不会被误清。
