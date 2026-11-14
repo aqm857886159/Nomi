@@ -41,7 +41,8 @@ for (const locale of ['zh-CN', 'en']) test(`per-shot controls ${locale}`, async 
     const model = page.locator('[data-storyboard-composer-bar="true"]').getByRole('button', { name: text('generationCommon.parameters.model'), exact: true })
     const imageSummary = await page.locator('[data-parameter-summary]').innerText()
     await model.click()
-    await expect(page.getByRole('option').first(), 'board:StoryboardOnlyWhatWorks/row.model').toHaveText(text('storyboardEditor.defaultModel'))
+    // 第一行是「默认模型」：它现在是一行带品牌图和一句「跟随设置里的默认 · 现在是 X」的选项，所以量名字在不在，不量整行文字相等。
+    await expect(page.getByRole('option').first(), 'board:StoryboardOnlyWhatWorks/row.model').toContainText(text('storyboardEditor.defaultModel'))
     await expect(page.getByText(text('storyboardEditor.imageModels'), { exact: true })).toBeVisible()
     await expect(page.getByText(text('storyboardEditor.videoModels'), { exact: true })).toBeVisible()
     fs.mkdirSync(path.resolve('tests/ux/shots/storyboard-only-what-works'), { recursive: true })
