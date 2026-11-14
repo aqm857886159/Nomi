@@ -116,6 +116,7 @@ describe('页内全屏层的挂载点 = 画布那一格', () => {
 
   it('GenerationWorkspace 不自己读 workspaceMode / Agent 形态来摆页内层（版面归网格，可见性归外壳传来的 active）', () => {
     expect(source).not.toContain('workspaceMode')
-    expect(source).not.toContain('useEffectiveAgentForm')
+    expect(source).not.toContain('useShownForm')
+    expect(source).not.toContain('agentFormStore')
   })
 })

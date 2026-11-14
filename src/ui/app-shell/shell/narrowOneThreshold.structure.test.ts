@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 // WindowNarrow 板约束 narrow.one-threshold（用户 2026-11-07 拍板）：外壳只有一处「窗口宽 < 1060」的判断
-// （agentFormStore 的 NARROW_TIER_QUERY，由 ShellAgentHost 一条 matchMedia 订阅）；各界面别的地方只按
+// （agentFormViewStore 的 NARROW_TIER_QUERY，由 ShellAgentHost 一条 matchMedia 订阅；启动时那一读也在 agentFormViewStore）；各界面别的地方只按
 // 「内容放不下才收」（容器查询 / ResizeObserver），不再各写一套窗口宽断点。
 // 这里钉写法：新增窗口宽断点（matchMedia 宽度查询、拿 window.innerWidth 跟数字比、Tailwind 视口任意值变体）就红。
 // 下面的名单是 2026-11-08 已有的那几处（各有各的历史，不在这次改动里动），只许减不许加。
@@ -39,8 +39,8 @@ describe('窄窗只有一个阈值（narrow.one-threshold）', () => {
 
   it('按窗口宽查的 matchMedia 只有外壳那一条', () => {
     const hits = files.flatMap(({ file, text }) => (/matchMedia\(\s*(?!['"`]\(prefers-)/.test(text) ? [file] : []))
-    expect(hits.sort()).toEqual(['src/ui/app-shell/shell/ShellAgentHost.tsx', 'src/ui/app-shell/shell/agentFormStore.ts'])
-    const store = files.find(({ file }) => file === 'src/ui/app-shell/shell/agentFormStore.ts')!.text
+    expect(hits.sort()).toEqual(['src/ui/app-shell/shell/ShellAgentHost.tsx', 'src/ui/app-shell/shell/agentFormViewStore.ts'])
+    const store = files.find(({ file }) => file === 'src/ui/app-shell/shell/agentFormViewStore.ts')!.text
     expect(store).toContain('export const NARROW_TIER_WIDTH = ASSISTANT_CONTENT_FLOOR + ASSISTANT_WIDTH_MIN')
     const host = files.find(({ file }) => file === 'src/ui/app-shell/shell/ShellAgentHost.tsx')!.text
     expect(host).toContain('window.matchMedia(NARROW_TIER_QUERY)')

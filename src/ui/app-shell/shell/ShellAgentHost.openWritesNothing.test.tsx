@@ -17,7 +17,7 @@ vi.mock('react-dom', async (importOriginal) => ({ ...(await importOriginal<typeo
 
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
 import { cloneEditingPanelLayout, EDITING_PANEL_DEFAULTS } from '../../../workbench/preview/panelLayout'
-import { useAgentFormStore, type AgentFormSurface } from './agentFormStore'
+import { chooseAgentPlacement, collapseAgent, type AgentFormSurface } from './agentFormStore'
 import { ShellAgentHost } from './ShellAgentHost'
 
 /** 够 React DOM 挂几个 div 的最小 DOM（仓库单测是 node 环境、没有 jsdom）。 */
@@ -96,7 +96,9 @@ describe('挂上外壳不让项目落盘（打开项目什么都不点）', () =
   for (const surface of SURFACES) {
     for (const form of ['ball', 'dock'] as const) {
       it(`${surface} · 本机形态=${form}：persistRevision 不变，显示态跟本机形态，落盘那份的开合还是项目原值`, async () => {
-        useAgentFormStore.setState((state) => ({ bySurface: { ...state.bySurface, [surface]: { ...state.bySurface[surface], form } } }))
+        // 本机这一页存的样子：收着（小球）/ 开着停靠——用人的动作摆出来，和真用户存下的同一份。
+        if (form === 'ball') collapseAgent(surface)
+        else chooseAgentPlacement(surface, 'dock')
         const before = useWorkbenchStore.getState().persistRevision
         await act(async () => root.render(<ShellAgentHost surface={surface} dockTarget={null} agent={null} />))
         const after = useWorkbenchStore.getState()
@@ -108,10 +110,10 @@ describe('挂上外壳不让项目落盘（打开项目什么都不点）', () =
   }
 
   it('挂着时用户按 ⌘\\ 收成小球：显示态跟着收，项目照样不落盘', async () => {
-    useAgentFormStore.setState((state) => ({ bySurface: { ...state.bySurface, preview: { ...state.bySurface.preview, form: 'dock' } } }))
+    chooseAgentPlacement('preview', 'dock')
     await act(async () => root.render(<ShellAgentHost surface="preview" dockTarget={null} agent={null} />))
     const before = useWorkbenchStore.getState().persistRevision
-    await act(async () => useAgentFormStore.getState().setForm('preview', 'ball'))
+    await act(async () => collapseAgent('preview'))
     expect(useWorkbenchStore.getState().projectAgentDockCollapsed).toBe(true)
     expect(useWorkbenchStore.getState().persistRevision).toBe(before)
     expect(useWorkbenchStore.getState().editingPanelLayout.visibility.assistant).toBe(true)

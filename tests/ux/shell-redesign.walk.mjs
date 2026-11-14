@@ -494,9 +494,8 @@ try {
   // 协调裁决第 57 项：浮窗窄时头部按钮收进「⋯」（线程 / 历史与形态三选一都在里面）。
   if (want('check-float-compact')) {
     await win.evaluate(() => {
-      const store = window.__nomiAgentFormStore?.getState()
-      store?.setFloatRect('generation', { x: 600, y: 200, width: 320, height: 460 })
-      store?.setForm('generation', 'float')
+      window.__nomiAgentFormStore?.getState().setFloatRect('generation', { x: 600, y: 200, width: 320, height: 460 })
+      window.__nomiAgentForm?.chooseAgentPlacement('generation', 'float')
     })
     await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), '窄浮窗没有打开').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     const more = win.locator('[data-agent-float="generation"] [data-v4-control="more"]')
@@ -506,8 +505,7 @@ try {
     await shoot(win, 'check-float-compact')
     await win.keyboard.press('Escape')
     await win.evaluate(() => {
-      const store = window.__nomiAgentFormStore?.getState()
-      store?.setForm('generation', 'ball')
+      window.__nomiAgentForm?.collapseAgent('generation')
     })
   }
 

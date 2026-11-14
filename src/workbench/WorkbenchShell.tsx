@@ -21,7 +21,7 @@ import { ShellFrame } from '../ui/app-shell/shell/ShellFrame';
 import { ShellTopBar } from '../ui/app-shell/shell/ShellTopBar';
 import { ShellRail } from '../ui/app-shell/shell/ShellRail';
 import { ShellAgentHost } from '../ui/app-shell/shell/ShellAgentHost';
-import { useEffectiveAgentForm } from '../ui/app-shell/shell/agentFormStore';
+import { useShownForm } from '../ui/app-shell/shell/agentFormStore';
 import { useShellLayoutStore } from '../ui/app-shell/shell/shellLayoutStore';
 import { bindPerfScene } from './observability/perfScene';
 import { GenerationViewSwitcher } from './generation/list/GenerationViewSwitcher';
@@ -231,7 +231,7 @@ export default function WorkbenchShell({
     // 小球 / 浮窗的坐标系：生成页给画布那一格（让开底边时间轴），其余页用整块内容区。
     const [generationAgentLayer, setGenerationAgentLayer] = React.useState<HTMLDivElement | null>(null);
     // Agent 占不占右栏由这一页的形态决定（停靠才占）。
-    const agentForm = useEffectiveAgentForm(agentSurface);
+    const agentForm = useShownForm(agentSurface);
     const workspaceAiCollapsed = agentForm !== 'dock';
     const railCollapsed = useShellLayoutStore((state) => state.railCollapsed);
     const setRailCollapsed = useShellLayoutStore((state) => state.setRailCollapsed);

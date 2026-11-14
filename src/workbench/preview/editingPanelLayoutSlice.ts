@@ -15,7 +15,7 @@ import {
  *
  * 两样东西，别混：
  *  - `editingPanelLayout`：**随项目落盘**的那一份（projectRecordSchema.editingPanelLayout，整份写进项目文件）。
- *  - Nomi 栏此刻开没开：**显示态** `projectAgentDockCollapsed`。它由这台机器每页的形态偏好（agentFormStore.bySurface）
+ *  - Nomi 栏此刻开没开：**显示态** `projectAgentDockCollapsed`。它由这台机器每页的形态偏好（agentFormStore：人存的摆法与开合，经唯一读函数 shownForm）
  *    驱动，谁都能读，但永远不让项目落盘（用户 2026-11-13 拍板「跟机器走」）。
  *
  * 所以 `editingPanelLayout.visibility.assistant` 是**项目里原来那个值**：只在打开项目还原时赋值，
@@ -33,7 +33,7 @@ export type EditingPanelLayoutSlice = {
   editingPanelLayout: EditingPanelLayout
   /**
    * 常驻 Nomi 栏此刻收起没有（显示态）。2026-09-06 用户拍板：**默认展开**，并**记住用户上次的开合**；
-   * 2026-11-13 拍板「跟机器走」：记住的是这台机器每页的形态（agentFormStore.bySurface，外壳单向同步到这里），
+   * 2026-11-13 拍板「跟机器走」：记住的是这台机器每页的形态（agentFormStore 的 shownForm，外壳单向同步到这里），
    * 不再写进项目文件。改它不让项目落盘。
    */
   projectAgentDockCollapsed: boolean
