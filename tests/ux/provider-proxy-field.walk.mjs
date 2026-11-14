@@ -73,13 +73,14 @@ try {
   await snap(win, 'custom-api-form')
 
   // 文案对照 src/i18n/locales/modelSetup.ts（默认 zh-CN，window 未暴露 t）。
-  const advancedLabel = '高级设置'
+  // 设置页的「高级设置（接口协议 / 自定义请求头）」按键取（生成框底栏另有一个「高级设置」，抄字面会和它撞）。
+  const advancedLabel = uiText('zh-CN', 'modelSetup.advanced')
   const proxyPlaceholder = '如：http://127.0.0.1:7897 或 socks5://127.0.0.1:7897'
   const invalidText = '需以 http://、https:// 或 socks:// 开头'
   // 认代理输入框而非 label 文本：placeholder 唯一，locator 稳；toBeHidden/toBeVisible 自动重试，
   // 且正确把「Mantine Collapse 收起(高度0裁剪)」判成 hidden、展开判成 visible。
   const proxyInput = win.locator(`input[placeholder="${proxyPlaceholder}"]`)
-  const advanced = win.locator('button, [role="button"], a', { hasText: new RegExp(advancedLabel) }).first()
+  const advanced = win.locator('button, [role="button"], a', { hasText: advancedLabel }).first()
 
   // ① §1.5：高级区默认收起 → 代理字段此刻应隐藏（不抢 L1 常驻位）。
   //   先在展开态用 proveProbe 证明「这个 placeholder locator 真能测到代理框」（硬断言，找不到就抛，

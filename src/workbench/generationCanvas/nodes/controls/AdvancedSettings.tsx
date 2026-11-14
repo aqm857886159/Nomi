@@ -81,8 +81,7 @@ export function ParameterHelpMark({ name, text }: { name: string; text: string }
           data-parameter-help-text="true"
           onEscapeKeyDown={() => setPinned(false)}
           onPointerDownOutside={() => setPinned(false)}
-          className="max-w-[280px] whitespace-normal select-text border-nomi-line bg-nomi-paper p-2 leading-normal text-nomi-ink-80"
-          style={{ zIndex: 700 }}
+          className="z-popover max-w-[280px] whitespace-normal select-text border-nomi-line bg-nomi-paper p-2 leading-normal text-nomi-ink-80"
         >
           {text}
         </TooltipContent>
@@ -133,8 +132,8 @@ function AdvancedSettingRow({ control, meta, onParameterControlChange }: Paramet
     )
   }
   return (
-    <div className="flex items-center justify-between gap-3" style={{ minHeight: 28 }} data-advanced-setting={control.key}>
-      <div className="flex min-w-0 items-center gap-1 text-caption text-nomi-ink-80">
+    <div className="flex items-center gap-3" style={{ minHeight: 28 }} data-advanced-setting={control.key}>
+      <div className="flex min-w-0 flex-1 items-center gap-1 text-caption text-nomi-ink-80">
         <span className="min-w-0">{label}</span>
         {helpKey ? <ParameterHelpMark name={label} text={t(helpKey)} /> : null}
       </div>
