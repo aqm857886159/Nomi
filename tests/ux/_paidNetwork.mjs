@@ -107,6 +107,85 @@ export function blockedError(entries, allow) {
   return new Error(`付费走查出网被挡（立即失败，没有干等）：\n  ${hosts.join('\n  ')}\n放行名单：${allow.join('、')}`)
 }
 
+/** 被挡的那一行 → 报告里记的那条请求：层、方法（闸的 fetch 层不记方法，就是 null）、主机、路径。不带查询串（签名、key 参数都在那里）。 */
+export function blockedRequestOf(entry) {
+  let pathname = null
+  try { pathname = new URL(String(entry?.url ?? '')).pathname || null } catch { /* 读不出 URL：没有路径 */ } // 连接层是 tcp://host:port，路径是空的
+  return { via: entry?.via ?? null, method: entry?.method ?? null, host: String(entry?.host ?? ''), path: pathname }
+}
+
+/**
+ * 演练判据（纯函数，2026-11-15）：付费走查带演练开关跑时，传给闸的放行名单是空的，供应商一个请求都出不去；
+ * 这里只回答「这一场走到了花钱前的最后一步没有」。通过只有一种：
+ *   收窄花钱面之后（`lockedAtEntry` = 收窄完成那一刻账本有几行；没收窄过 = null）网络闸挡下的**第一条**请求，
+ *   主机是这份脚本授权的供应商（`judgedAllow` = 不演练时本来会放行的名单）。
+ * 收窄之前挡下的授权供应商请求（接入页存 key 之后查余额、验证）照记不判：真付费时它们本来就放行、不花钱，演练里被挡也出不了门。
+ * 其余全是不过：任何时候挡下别的源、没走到收窄、收窄后没发请求、脚本先失败（`scriptError` 且闸还没让 App 停下——`stoppedByGuard` 为假）。
+ * 宁可错判不过，不错判通过：分不清先后的（脚本报错时闸还没来得及停 App）一律判不过。
+ */
+export function rehearsalVerdict({ entries, lockedAtEntry = null, judgedAllow = [], scriptError = null, stoppedByGuard = false }) {
+  const said = (error) => String(error?.message ?? error).split('\n')[0].slice(0, 300)
+  const shown = (request) => `${request.via} ${request.method ?? '-'} ${request.host}${request.path ?? ''}`
+  const allow = parseAllowlist(judgedAllow.join(','))
+  const blocked = entries.map((entry, index) => ({ entry, index })).filter(({ entry }) => entry?.kind === 'blocked')
+  const preLock = blocked.filter(({ index }) => lockedAtEntry === null || index < lockedAtEntry).map(({ entry }) => blockedRequestOf(entry))
+  const foreign = blocked.find(({ entry }) => !listsHost(allow, String(entry.host ?? '')))
+  if (foreign) {
+    const request = blockedRequestOf(foreign.entry)
+    return { passed: false, request, preLock, reason: `挡下的是授权供应商之外的源 ${request.host}（${shown(request)}）` }
+  }
+  if (lockedAtEntry === null) {
+    return { passed: false, request: null, preLock, reason: `没走到收窄花钱面${scriptError ? `——${said(scriptError)}` : ''}${preLock.length ? `（之前挡下过 ${preLock.map(shown).join('、')}）` : ''}` }
+  }
+  const first = blocked.find(({ index }) => index >= lockedAtEntry)
+  if (!first) {
+    return { passed: false, request: null, preLock, reason: scriptError
+      ? `脚本在向供应商发第一条请求之前就失败——${said(scriptError)}`
+      : '脚本跑完也没有向供应商发出请求——证明不了走到了发请求这一步' }
+  }
+  const request = blockedRequestOf(first.entry)
+  if (scriptError && !stoppedByGuard) return { passed: false, request, preLock, reason: `脚本在网络闸挡下之前（或同时）就失败——${said(scriptError)}（之后挡下的是 ${shown(request)}）` }
+  return { passed: true, request, preLock, reason: `走到了第一条供应商请求：${shown(request)}` }
+}
+
+/** 演练时什么时候让 App 停下：收窄之后的第一条被挡请求，或任何时候挡下别的源（这两种都已经能下结论）。 */
+export function rehearsalShouldStop(entries, { lockedAtEntry = null, judgedAllow = [] }) {
+  const allow = parseAllowlist(judgedAllow.join(','))
+  return entries.some((entry, index) => entry?.kind === 'blocked' && ((lockedAtEntry !== null && index >= lockedAtEntry) || !listsHost(allow, String(entry.host ?? ''))))
+}
+
+/**
+ * 不要 Key 那一档演练的「本机替身供应商」：被测 App 经产品闸已有的测试改道（NOMI_TEST_NETWORK_REDIRECTS）把供应商的源指到这里。
+ * 为什么要它：产品存 key 后用供应商的免费探测（APIMart 是 GET /v1/balance）确认 key 能用，网络被挡就诚实地记「待定」、模型不放出来，
+ * 假钥匙的演练于是卡在接入页。替身只答登记过的免费探测（`freeAnswers`：'GET /path' → JSON），别的请求一律记成账本里的被挡行
+ * （带方法与路径，判据照旧）并回 503——**从不转发**，结构上到不了真供应商。不读、不记请求头和请求体（里面有钥匙）。
+ */
+export async function startRehearsalVendor({ origin, netLog, freeAnswers = {} }) {
+  const { default: http } = await import('node:http')
+  const host = new URL(origin).hostname
+  const append = (row) => fs.appendFileSync(netLog, `${JSON.stringify({ ...row, host, pid: process.pid, at: new Date().toISOString() })}\n`)
+  const server = http.createServer((req, res) => {
+    req.resume()
+    const method = String(req.method ?? 'GET').toUpperCase()
+    const pathname = new URL(req.url ?? '/', 'http://stand-in').pathname
+    const answer = freeAnswers[`${method} ${pathname}`]
+    if (answer !== undefined) {
+      append({ kind: 'rehearsal-answered', via: 'rehearsal-vendor', method, url: `${origin}${pathname}` })
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(answer))
+      return
+    }
+    append({ kind: 'blocked', via: 'rehearsal-vendor', method, url: `${origin}${pathname}` })
+    res.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { message: 'Nomi paid-walk rehearsal: request stopped before reaching the vendor' } }))
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const standIn = `http://127.0.0.1:${server.address().port}`
+  return {
+    origin: standIn,
+    env: { NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: origin, to: standIn }]), NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: standIn },
+    close: () => new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()) }),
+  }
+}
+
 /** 建一份本场的账本文件路径（放系统临时目录，不进仓库）。 */
 export function newNetLogFile() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-paid-net-'))
@@ -114,14 +193,14 @@ export function newNetLogFile() {
 }
 
 /**
- * 盯账本：一出现被挡行就回调一次（只回调第一次）。返回 `stop()`（同时给出最终读到的账本）。
+ * 盯账本：一出现被挡行就回调一次（只回调第一次；演练传 `shouldFire` 换判据，见 rehearsalShouldStop）。返回 `stop()`（同时给出最终读到的账本）。
  * 轮询而不是 fs.watch：Windows 上追加写的通知不可靠。
  */
-export function watchNetLog(file, onBlocked, { intervalMs = 300 } = {}) {
+export function watchNetLog(file, onBlocked, { intervalMs = 300, shouldFire = (entries) => blockedEntries(entries).length > 0 } = {}) {
   let fired = false
   const check = () => {
     const entries = readNetLog(file)
-    if (!fired && blockedEntries(entries).length > 0) { fired = true; onBlocked(entries) }
+    if (!fired && shouldFire(entries)) { fired = true; onBlocked(entries) }
     return entries
   }
   const timer = setInterval(check, intervalMs)

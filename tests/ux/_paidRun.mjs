@@ -11,16 +11,18 @@
 //   收据一：原库指纹跑前记下，跑后比对，变了就红；
 //   收据二：这一场真正发生的付费调用（媒体任务号 + 供应商回的 cost 字段；Agent 的 token 用量）。
 //   只记事实、不折算金额——价目会变，而且这是公开仓库。
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { require as tsxRequire } from 'tsx/cjs/api'
 
 import { verifyBuild } from '../../scripts/package-build-stamp.mjs'
 
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { decideSyntheticCredentialStorage } from './_launchApp.mjs'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
-import { blockedError, guardLoadedError, hostedUploadRelayOrigin, newNetLogFile, paidWalkAllowlist, readNetLog, watchNetLog } from './_paidNetwork.mjs'
+import { blockedError, guardLoadedError, hostedUploadRelayOrigin, newNetLogFile, paidWalkAllowlist, readNetLog, rehearsalShouldStop, rehearsalVerdict, startRehearsalVendor, watchNetLog } from './_paidNetwork.mjs'
 import {
   ENV_KEY_ALLOW_CATALOG, ENV_KEY_VAR, ENV_KEY_VENDOR, assertNoSecretOnDisk, assertUsableEnvKey, connectApimartThroughVisibleUi,
   APIMART_TEXT_MODEL_KEYS, collectAppLogs, envKeyOf, filesContainingSecret, paidCredentialSource, readAuthorizedRows, redact, redactNetLogEntry, redactedError,
@@ -32,14 +34,59 @@ export const SPEND_OPT_IN_ENV = 'NOMI_SPEND_OK'
 /** 付费走查缺省的 Agent 大脑（单源）：各脚本都从这里拿，不各写一个 key——写死的 deepseek-v3.2 在 10-27 退役后，Agent 生图付费走查就跑不起来了。它必须在 APIMART_TEXT_MODEL_KEYS 里（单测守）。 */
 export const DEFAULT_PAID_BRAIN = Object.freeze({ vendorKey: ENV_KEY_VENDOR, modelKey: 'deepseek-v4-pro' })
 
+// ── 演练（2026-11-15）：同一份付费脚本，带一个开关免费走一遍花钱前那段路 ──────────────────────────────
+// 起因：付费脚本只在真要花钱时才被跑，花钱前那段路（开项目、建节点、选模型、填参数、找到生成钮）平时没人走，
+// 界面一改就烂，烂了要到花钱那一刻才知道（11-15 一发真付费样片在点生成之前就挂了：新镜头落在视口外）。
+// 演练 = 同一份脚本 + NOMI_PAID_REHEARSAL：传给网络闸的放行名单是空的（供应商一个请求都出不去，结构上花不了钱，
+// 不靠脚本作者记得不点）；网络闸挡下的第一条请求是这份脚本授权的供应商、且在收窄花钱面之后 = 通过（_paidNetwork.mjs#rehearsalVerdict），
+// 通过后落一张收据（脚本及其本地辅助模块的内容指纹 + 构建戳）。真付费入口在花钱之前核这张收据，对不上就拒跑。
+export const REHEARSAL_ENV = 'NOMI_PAID_REHEARSAL'
+/** 两档。不要 Key 的那档能进夜间；要真 Key 的那档只在本机、花钱前跑。 */
+export const REHEARSAL_TIERS = Object.freeze({
+  'no-key': '不要 Key：一把假钥匙经可见接入页装进隔离副本，真实资料目录和环境变量里的真 Key 一概不读；只覆盖 APIMart 的模型',
+  'real-key': '要真 Key、出不了网：凭据照真付费那样装（真实资料副本或环境变量 Key），放行名单是空的',
+})
+/** 不要 Key 那档的假钥匙：形状过得了接入页，值一眼看得出是假的，不是秘密。 */
+export const REHEARSAL_FAKE_KEY = 'nomi-rehearsal-fake-key-not-a-secret'
+
+/**
+ * 替身供应商要答的免费探测：从产品种子里代码拥有的 `credentialProbe` 派生（不手抄第二份），答成「成功判据那个字段 = 0」。
+ * 产品拿它判「key 能用」：网络被挡时它记待定、模型不放出来，假钥匙演练就卡在接入页（2026-11-15 真窗实测）。
+ */
+export function rehearsalFreeAnswers(probe) {
+  const body = {}
+  let node = body
+  const keys = String(probe.successPath).split('.')
+  keys.forEach((key, index) => { node[key] = index === keys.length - 1 ? 0 : {}; node = node[key] })
+  return { [`${String(probe.request.method).toUpperCase()} ${probe.request.path}`]: body }
+}
+const apimartCredentialProbe = () => tsxRequire('../../electron/catalog/apimartVendor.ts', import.meta.url).APIMART_VENDOR_SEED.credentialProbe
+
+/** 这一场是不是演练、哪一档；没设 = null。值不认识就抛（不猜成任何一档）。 */
+export function paidRehearsalTier(env = process.env) {
+  const value = String(env[REHEARSAL_ENV] ?? '').trim()
+  if (!value) return null
+  if (!Object.hasOwn(REHEARSAL_TIERS, value)) throw new Error(`${REHEARSAL_ENV} 只认 ${Object.keys(REHEARSAL_TIERS).join(' / ')}，收到 ${JSON.stringify(value)}（一分钱没花）`)
+  return value
+}
+
 /**
  * 纯判据（单测钉它）：返回拒跑理由，null = 放行。
  * env-key 路（设了 APIMART_API_KEY）不碰真实资料目录，所以「用户的 Nomi 开着」不构成拒跑理由；
  * CI 拒跑与显式 NOMI_SPEND_OK 两道闸两条路一样。
+ * 演练：不要 NOMI_SPEND_OK；和 NOMI_SPEND_OK=1 同时开 = 说不清要不要花钱，拒。不要 Key 那档可以在 CI 里跑（它不读任何 Key）。
  */
 export function paidRunRefusal(script, { env = process.env, nomiRunning = false } = {}) {
+  const rehearsal = String(env[REHEARSAL_ENV] ?? '').trim()
+  if (rehearsal) {
+    if (env[SPEND_OPT_IN_ENV] === '1') return `${script}：${REHEARSAL_ENV} 和 ${SPEND_OPT_IN_ENV}=1 同时开，说不清这一场要不要花钱——演练不要 ${SPEND_OPT_IN_ENV}，花钱不带演练开关`
+    if (!Object.hasOwn(REHEARSAL_TIERS, rehearsal)) return `${REHEARSAL_ENV} 只认 ${Object.keys(REHEARSAL_TIERS).join(' / ')}，收到 ${JSON.stringify(rehearsal)}`
+    if (rehearsal === 'real-key' && env.CI) return `${script} 的 real-key 演练要用真 Key，不在 CI 里跑（CI 用 no-key）`
+    if (rehearsal === 'real-key' && nomiRunning && paidCredentialSource(env) === 'real-profile') return `${script} 要拷用户的真实资料目录，而 Nomi 正开着——关掉 App 再跑（开着拷到的是半新半旧的一份）`
+    return null
+  }
   if (env.CI) return `${script} 会真的调用供应商并扣费，不在 CI 里跑`
-  if (env[SPEND_OPT_IN_ENV] !== '1') return `${script} 会花真钱：显式设 ${SPEND_OPT_IN_ENV}=1 才跑`
+  if (env[SPEND_OPT_IN_ENV] !== '1') return `${script} 会花真钱：显式设 ${SPEND_OPT_IN_ENV}=1 才跑（一分钱没花）。花钱之前先免费演练同一份脚本：${REHEARSAL_ENV}=no-key node tests/ux/${path.basename(script)}——演练过了才放行真付费`
   if (nomiRunning && paidCredentialSource(env) === 'real-profile') return `${script} 要拷用户的真实资料目录，而 Nomi 正开着——关掉 App 再跑（开着拷到的是半新半旧的一份）`
   return null
 }
@@ -54,7 +101,8 @@ export function paidRunRefusal(script, { env = process.env, nomiRunning = false 
  * 打包形态（--packaged）跑的是安装包自带的产物，不看仓库里的 dist，两道都不适用。
  */
 export function assertPaidBuildReady(root, { markers = [], verify = verifyBuild, outputs = ['dist', 'dist-electron'] } = {}) {
-  try { verify(root) }
+  let identity
+  try { identity = verify(root) }
   catch (error) { throw new Error(`付费走查拒跑（一分钱没花）：${String(error?.message ?? error)}——构建产物过期或缺失（构建失败，或构建后源码又被改过），先在无人改动的专用工作树里 pnpm build 成功再跑`) }
   const wanted = markers.filter((marker) => typeof marker === 'string' && marker.length > 0)
   if (markers.length !== wanted.length) throw new Error('付费走查拒跑（一分钱没花）：buildMarkers 里有空值或非字符串')
@@ -73,11 +121,16 @@ export function assertPaidBuildReady(root, { markers = [], verify = verifyBuild,
   }
   if (missing.size) for (const output of outputs) if (fs.existsSync(path.join(root, output))) scan(path.join(root, output))
   if (missing.size) throw new Error(`付费走查拒跑（一分钱没花）：构建产物里找不到被验修复的标记 ${[...missing].map((marker) => JSON.stringify(marker)).join('、')}——产物不含这次要验的修复（旧构建，或标记取成了会被压缩的函数名）`)
+  // 构建戳（verifyBuild 返回的源码树身份）：演练收据记它，真付费核它——同一个戳，不另造一套。
+  return identity
 }
 
 export function assertPaidRunAllowed(script, env = process.env, isNomiRunning = realNomiIsRunning, profile = realNomiProfile({ env })) {
-  const envKeyRoute = paidCredentialSource(env) === 'env-key'
-  const refusal = paidRunRefusal(script, { env, nomiRunning: !envKeyRoute && !env.CI && env[SPEND_OPT_IN_ENV] === '1' && isNomiRunning() })
+  const rehearsal = String(env[REHEARSAL_ENV] ?? '').trim()
+  // 不要 Key 的演练走假钥匙的 env-key 路：不读真实资料目录，所以也不问「用户的 Nomi 开着没有」。
+  const envKeyRoute = rehearsal === 'no-key' || paidCredentialSource(env) === 'env-key'
+  const wouldCopyProfile = !env.CI && (rehearsal ? rehearsal === 'real-key' && env[SPEND_OPT_IN_ENV] !== '1' : env[SPEND_OPT_IN_ENV] === '1')
+  const refusal = paidRunRefusal(script, { env, nomiRunning: !envKeyRoute && wouldCopyProfile && isNomiRunning() })
   if (refusal) throw new Error(refusal)
   // env-key 路从头到尾不读真实资料目录：没有指纹可记，也就没有「跑后比对」。
   if (envKeyRoute) return { realProfileBefore: null, assertRealProfileUntouched: () => null }
@@ -92,6 +145,87 @@ export function assertPaidRunAllowed(script, env = process.env, isNomiRunning = 
       return after
     },
   }
+}
+
+// ── 演练收据 ──────────────────────────────────────────────────────────────
+/** 收据放仓库里被忽略的 `.tmp/`（每个工作树一份）：在哪个工作树演练，就只给哪个工作树的真付费用。 */
+export const REHEARSAL_RECEIPT_DIR = path.join(REPO_ROOT, '.tmp', 'paid-rehearsal', 'receipts')
+export const REHEARSAL_RECEIPT_VERSION = 1
+const LOCAL_IMPORT = /\bfrom\s*['"](\.{1,2}\/[^'"]+)['"]|\bimport\s*\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)|\bimport\s+['"](\.{1,2}\/[^'"]+)['"]/g
+
+/**
+ * 脚本内容指纹：入口文件 + 它经相对路径 import 到的、住在 tests/ 下的全部本地模块（递归），按相对路径排序后整体散列。
+ * 辅助模块（例如找生成钮的 _generateReach.mjs、_paidRun.mjs 自己）改了，同样算「脚本改过」；
+ * tests/ 之外的源码由构建戳管（构建戳把 tests/ 排除在外，两者正好不重叠）。
+ */
+export function scriptFingerprint(entry, { root = REPO_ROOT, readFile = (file) => fs.readFileSync(file, 'utf8'), exists = fs.existsSync } = {}) {
+  const testsRoot = path.join(root, 'tests') + path.sep
+  const seen = new Map()
+  const visit = (file) => {
+    if (seen.has(file) || !exists(file)) return
+    const text = readFile(file)
+    seen.set(file, text)
+    for (const match of text.matchAll(LOCAL_IMPORT)) {
+      const target = path.resolve(path.dirname(file), match[1] ?? match[2] ?? match[3])
+      if (target.startsWith(testsRoot)) visit(target)
+    }
+  }
+  visit(path.resolve(entry))
+  if (!seen.size) throw new Error(`算不出脚本指纹：入口文件不存在 ${entry}`)
+  const hash = crypto.createHash('sha256')
+  for (const [file, text] of [...seen].sort(([a], [b]) => a.localeCompare(b))) hash.update(`${path.relative(root, file).split(path.sep).join('/')}\0${text}\0`)
+  return { fingerprint: `sha256:${hash.digest('hex')}`, files: seen.size }
+}
+
+/** 安装包形态（--packaged）不看仓库 dist，构建身份换成安装包自带的 app.asar（大小 + 修改时间）；找不到 asar 就用可执行文件本身。 */
+export function packagedBuildIdentity(argv, { stat = fs.statSync, exists = fs.existsSync } = {}) {
+  const executable = argv[argv.indexOf('--packaged') + 1]
+  if (!executable) throw new Error('--packaged 后面要跟安装包可执行文件的绝对路径')
+  const candidates = [path.resolve(executable, '..', '..', 'Resources', 'app.asar'), path.join(path.dirname(executable), 'resources', 'app.asar'), executable]
+  const file = candidates.find((candidate) => exists(candidate))
+  if (!file) throw new Error(`安装包可执行文件不存在：${executable}`)
+  const info = stat(file)
+  return `packaged:${path.basename(file)}:size:${info.size}:mtime:${Math.round(info.mtimeMs)}`
+}
+
+export function rehearsalReceiptFile(script, dir = REHEARSAL_RECEIPT_DIR) {
+  return path.join(dir, `${script.split(/[\\/]/).join('__')}.json`)
+}
+
+/**
+ * 纯判据（单测钉它）：真付费入口对这张收据放不放行。返回拒跑理由，null = 放行。
+ * 只认「演练通过 + 同一份脚本指纹 + 同一个构建身份」；任何一样对不上都拒，并说清怎么办。
+ */
+export function rehearsalReceiptRefusal(receipt, { script, fingerprint, build }) {
+  const redo = `先带 ${REHEARSAL_ENV}=no-key 把同一份脚本跑一遍（零花费；只授权非 APIMart 模型的用 ${REHEARSAL_ENV}=real-key），演练通过了再花钱`
+  if (!build) return `${script} 算不出构建身份，收据无从核对——${redo}`
+  if (!receipt) return `${script} 没有演练收据——${redo}`
+  if (receipt.version !== REHEARSAL_RECEIPT_VERSION || receipt.script !== script) return `${script} 的演练收据格式不对或不是这份脚本的——${redo}`
+  if (receipt.passed !== true) return `${script} 上一次演练没过（${String(receipt.reason ?? '').slice(0, 200)}）——${redo}`
+  if (receipt.fingerprint !== fingerprint) return `${script}（或它的本地辅助模块）在演练之后改过——${redo}`
+  if (receipt.build !== build) return `构建在 ${script} 演练之后变了（演练时 ${receipt.build}，现在 ${build}）——${redo}`
+  return null
+}
+
+function readReceipt(file) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return null }
+}
+
+/** 真付费入口的收据核对（openPaidWalk 缺省用它；单测换掉）。必须在建隔离副本、装凭据之前。 */
+export function assertRehearsalReceipt({ script, entry, build, dir = REHEARSAL_RECEIPT_DIR }) {
+  const refusal = rehearsalReceiptRefusal(readReceipt(rehearsalReceiptFile(script, dir)), { script, fingerprint: scriptFingerprint(entry).fingerprint, build })
+  if (refusal) throw new Error(`付费走查拒跑（一分钱没花）：${refusal}`)
+}
+
+/** 演练收尾写这张（过不过都写，过了的才放行真付费）。 */
+export function writeRehearsalReceipt({ script, entry, build, tier, verdict, dir = REHEARSAL_RECEIPT_DIR, now = () => new Date().toISOString() }) {
+  const receipt = {
+    version: REHEARSAL_RECEIPT_VERSION, script, fingerprint: scriptFingerprint(entry).fingerprint, build: build ?? null, tier,
+    passed: verdict.passed === true, reason: verdict.reason, request: verdict.request, at: now(),
+  }
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(rehearsalReceiptFile(script, dir), `${JSON.stringify(receipt, null, 2)}\n`)
+  return receipt
 }
 
 /**
@@ -151,35 +285,61 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     // true = 闸把放行名单上公网请求的请求体（先脱敏：不记请求头、签名查询串与 key 形状的串打码）记进账本，`readAllowedRequests()` 读回。
     // 给要核「App 真正发给供应商的是什么」的付费走查用（参考图错发热修的真付费样本）；缺省关，别的付费走查不变。
     recordAllowedBodies = false,
+    // 演练收据：入口文件（算脚本指纹）、真付费前的收据核对、演练收尾写收据。单测换掉；脚本里不传。
+    entry = process.argv[1], assertRehearsed = assertRehearsalReceipt, writeReceipt = writeRehearsalReceipt, packagedBuild = packagedBuildIdentity,
+    // 不要 Key 那档的本机替身供应商（_paidNetwork.mjs#startRehearsalVendor）。单测换掉。
+    startStandIn = startRehearsalVendor,
   } = deps
   // 真实资料目录的位置跟着传进来的 env 走（缺省就是 process.env，和以前一样）；env-key 路根本不会用到它。
   const profile = realNomiProfile({ env })
   const guard = assertPaidRunAllowed(script, env, isNomiRunning, profile)
+  const rehearsal = paidRehearsalTier(env)
+  // 不要 Key 的演练：凭据换成一把假钥匙走 env-key 路（可见接入页）。真实资料目录、环境变量里的真 Key 一概不读。
+  const credentialEnv = rehearsal === 'no-key' ? { ...env, [ENV_KEY_VAR]: REHEARSAL_FAKE_KEY } : env
   // 产物比源码新 + 产物里有被验修复的标记：不满足就拒跑，必须在建隔离副本、装凭据之前（一分钱没花、什么都没拷）。
-  if (!argv.includes('--packaged')) assertBuild(REPO_ROOT, { markers: buildMarkers })
-  const envKey = paidCredentialSource(env) === 'env-key' ? assertUsableEnvKey(envKeyOf(env)) : ''
+  const build = argv.includes('--packaged') ? packagedBuild(argv) : assertBuild(REPO_ROOT, { markers: buildMarkers })?.tree
+  const receiptScript = entry ? path.relative(REPO_ROOT, path.resolve(entry)).split(path.sep).join('/') : script
+  // 没演练过不让花钱：能花钱的那一场（不是演练、供应商的源要进放行名单）先核收据。vendorNetwork:false 的探测花不了钱，不要收据。
+  if (!rehearsal && vendorNetwork) assertRehearsed({ script: receiptScript, entry, build })
+  const envKey = paidCredentialSource(credentialEnv) === 'env-key' ? assertUsableEnvKey(envKeyOf(credentialEnv)) : ''
   const secrets = envKey ? [envKey] : []
-  if (envKey) assertEnvKeyModels(models)
+  if (envKey) {
+    try { assertEnvKeyModels(models) }
+    catch (error) { throw rehearsal === 'no-key' ? new Error(`不要 Key 的演练只覆盖 APIMart 的模型：${error.message}——这份脚本在本机用 ${REHEARSAL_ENV}=real-key 演练`) : error }
+  }
   // 出网名单按本场授权的供应商自动算（见 _paidNetwork.mjs），连同账本路径一起交给被测 App 的闸；调用方什么都不用配。
+  // 演练：交给闸的名单是空的（一个源都不放）；同一份算出来的名单只拿来判「挡下的是不是授权供应商」（judgedAllow）。
   const hostedUploadOrigin = hostedUploads ? hostedUploadRelayOrigin(env) : null
-  const vendorAllow = !vendorNetwork ? [] : envKey
+  const vendorAllow = !vendorNetwork && !rehearsal ? [] : envKey
     ? paidWalkAllowlist(ENV_KEY_ALLOW_CATALOG, [ENV_KEY_VENDOR])
     : paidWalkAllowlist(readRealCatalog(profile), models.map((model) => model.vendorKey))
-  const allow = [...vendorAllow, ...(hostedUploadOrigin ? [hostedUploadOrigin] : [])]
+  const judgedAllow = [...vendorAllow, ...(hostedUploadOrigin ? [hostedUploadOrigin] : [])]
+  const allow = rehearsal ? [] : judgedAllow
   const netLog = newNetLogFile()
+  // 不要 Key 的演练：供应商的源改道到本机替身——只答免费探测（存 key 后的余额查询），别的请求记成被挡行、从不转发。
+  const standIn = rehearsal === 'no-key'
+    ? await startStandIn({ origin: ENV_KEY_ALLOW_CATALOG.vendors[0].baseUrlHint, netLog, freeAnswers: rehearsalFreeAnswers(apimartCredentialProbe()) })
+    : null
   // env-key 路：被测 App 的环境里把 key 这一项清成空串——key 只留在本进程的闭包里，子进程（含它的崩溃转储、诊断包）拿不到。
-  const walk = await createWalk(name, { env: { NOMI_WALK_ALLOW_ORIGINS: allow.join(','), NOMI_WALK_NET_LOG: netLog, ...(recordAllowedBodies ? { NOMI_WALK_NET_BODIES: '1' } : {}), ...(envKey ? { [ENV_KEY_VAR]: '' } : {}) } })
+  const walk = await Promise.resolve().then(() => createWalk(name, { env: { NOMI_WALK_ALLOW_ORIGINS: allow.join(','), NOMI_WALK_NET_LOG: netLog, ...(recordAllowedBodies ? { NOMI_WALK_NET_BODIES: '1' } : {}), ...(envKey ? { [ENV_KEY_VAR]: '' } : {}), ...(standIn?.env ?? {}) } }))
+    .catch(async (error) => { await standIn?.close(); throw error })
   walk.report.networkAllowlist = allow
   if (hostedUploadOrigin) walk.report.hostedUploadRelayAllowed = hostedUploadOrigin
-  walk.report.credentialSource = envKey ? `env-key（${ENV_KEY_VAR}，只记变量名）` : 'real-profile'
+  walk.report.credentialSource = rehearsal === 'no-key' ? `rehearsal-fake-key（${REHEARSAL_TIERS['no-key']}）` : envKey ? `env-key（${ENV_KEY_VAR}，只记变量名）` : 'real-profile'
+  if (rehearsal) walk.report.rehearsal = { tier: rehearsal, judgedAgainst: judgedAllow, ...(standIn ? { standInVendor: '供应商的源改道到本机替身：只答免费探测，别的请求记成被挡行、从不转发' } : {}) }
   let blocked = null
+  // 演练：闸挡下请求、让 App 停下的那一刻（脚本之后报的错是它的后果）；收窄花钱面完成那一刻账本有几行。
+  let stoppedByGuard = false
+  let lockedAtEntry = null
   // 被挡就地失败：别等 UI 超时（以前一次连接被挡要干等 600 多秒）。关掉 App，让走查脚本里正在等的那一步立刻报错，
   // finish 再把真正的原因（被挡的 host 与层）换到报告里。
+  // 演练：收窄之前挡下的授权供应商请求（存 key 后查余额等）照记不停，收窄之后第一条被挡、或挡下别的源才停（rehearsalShouldStop）。
   const netWatch = watchNetLog(netLog, (entries) => {
     blocked = blockedError(entries, allow)
-    console.error(`[paid] ${redact(blocked.message, secrets)}`)
+    stoppedByGuard = true
+    console.error(`[${rehearsal ? 'rehearsal' : 'paid'}] ${redact(blocked.message, secrets)}`)
     walk.stopApp().catch(() => {})
-  })
+  }, rehearsal ? { shouldFire: (entries) => rehearsalShouldStop(entries, { lockedAtEntry, judgedAllow }) } : {})
   const removeCredentialCopy = () => removeRealCredentials({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, profile })
   let seeded = []
   if (!envKey) {
@@ -187,7 +347,7 @@ export async function openPaidWalk(script, name, models, deps = {}) {
       seeded = seedRealModels({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, models, profile })
       if (decideSyntheticCredentialStorage({ isolate: true, settingsDir: walk.settingsDir, userDataDir: walk.userDataDir })) throw new Error('real credential copy is missing its source marker')
     }
-    catch (error) { netWatch.stop(); removeCredentialCopy(); await walk.fixture.close(); throw error }
+    catch (error) { netWatch.stop(); removeCredentialCopy(); await walk.fixture.close(); await standIn?.close(); throw error }
     walk.report.seededModels = seeded.map((row) => `${row.vendorKey}/${row.modelKey}`)
     walk.report.realProfileBefore = guard.realProfileBefore
     console.log(`[paid] 隔离副本装了：${walk.report.seededModels.join(' · ')}`)
@@ -211,6 +371,7 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     try { walk.report.disabledUnauthorizedModels = await lockSpendTo(win, seeded) }
     catch (error) { throw envKey ? redactedError(error, secrets) : error }
     locked = true
+    lockedAtEntry = readNetLog(netLog).length
     return walk.report.disabledUnauthorizedModels
   }
   // 顺序由这里保证：走查没显式调 lockToAuthorizedModels 也好、先开项目后调也好，newProject 之前都已接入并收窄过。
@@ -245,9 +406,13 @@ export async function openPaidWalk(script, name, models, deps = {}) {
   }
   async function finish(error) {
     const finalEntries = netWatch.stop()
+    await standIn?.close()
     blocked ??= blockedError(finalEntries, allow)
     walk.report.networkBlocked = finalEntries.filter((entry) => entry.kind === 'blocked').map(({ via, host, url }) => ({ via, host, url }))
-    const failure = blocked ?? error
+    // 演练：被挡是预期，判的是「挡下的第一条是不是授权供应商、在不在收窄之后」（_paidNetwork.mjs#rehearsalVerdict）。
+    const verdict = rehearsal ? rehearsalVerdict({ entries: finalEntries, lockedAtEntry, judgedAllow, scriptError: error ?? null, stoppedByGuard }) : null
+    if (verdict) Object.assign(walk.report.rehearsal, { passed: verdict.passed, reason: redact(verdict.reason, secrets), blockedRequest: verdict.request, blockedBeforeSpendLock: verdict.preLock })
+    const failure = verdict ? (verdict.passed ? null : new Error(`演练不过：${verdict.reason}`)) : blocked ?? error
     await walk.finish(envKey && failure ? redactedError(failure, secrets) : failure, {
       unscriptedFixture: true,
       collect: async () => {
@@ -256,6 +421,9 @@ export async function openPaidWalk(script, name, models, deps = {}) {
         let spend
         try { spend = spendReceipt(receiptRoot(walk)) }
         catch (error) { if (!envKey) throw error; spend = { media: [], text: null, readError: redact(String(error?.message ?? error), secrets).slice(0, 300) } }
+        // 演练绊线：供应商从没收到过请求，就不可能有供应商任务号；有了 = 出网闸漏了，判红。
+        const tripped = rehearsal ? spend.media.filter((entry) => entry.taskId) : []
+        if (tripped.length) throw new Error(`演练里出现了供应商任务号（${tripped.map((entry) => entry.taskId).join('、')}）——请求到了供应商，立即查出网闸`)
         if (envKey) {
           envKeyTeardown()
           return { spend, paidCalls: spend.media.length, credentialCopyRemoved: true }
@@ -272,12 +440,23 @@ export async function openPaidWalk(script, name, models, deps = {}) {
       assertNoSecretOnDisk(walk.outputDir, secrets)
       if (hits.length) throw new Error(`key 泄漏进了证据目录（${hits.join('、')}）——文件已删，请立即更换这把 key`)
     }
+    if (verdict) {
+      // 证据全落盘之后才算数：walk.finish 判红（收尾、收据、绊线任何一样）也是不过。
+      const passed = verdict.passed && walk.report.result !== 'failed'
+      const reason = redact(verdict.passed && !passed ? `收尾判红：${String(walk.report.error ?? '').split('\n')[0]}` : verdict.reason, secrets)
+      const receipt = writeReceipt({ script: receiptScript, entry, build, tier: rehearsal, verdict: { ...verdict, passed, reason } })
+      console.log(`[rehearsal] ${passed ? '通过' : '不过'}：${reason}`)
+      // 脚本自己的 catch 在被挡后会设 exitCode=1：演练通过时改回 0。
+      process.exitCode = passed ? 0 : 1
+      return receipt
+    }
   }
   /** 闸记下的放行请求 / 上传响应（recordAllowedBodies 时才有；env-key 路再按 key 原串打码一遍）。要在 finish 之前读：env-key 路收尾会删账本原件。 */
   const readAllowedRequests = () => readNetLog(netLog)
     .filter((entry) => entry.kind === 'allowed-request' || entry.kind === 'allowed-response')
     .map((entry) => (envKey ? redactNetLogEntry(entry, secrets) : entry))
-  return { walk, label, lockToAuthorizedModels, finish, readAllowedRequests }
+  // `rehearsal`：这一场是不是演练（null / 'no-key' / 'real-key'）。脚本不需要为演练多写任何东西，想跳过只在真付费时才有意义的核对时可以读它。
+  return { walk, label, lockToAuthorizedModels, finish, readAllowedRequests, rehearsal }
 }
 
 /** env-key 路只认 APIMart：别家的 key 这条路不管；点名了别家模型就在花钱前拒。 */

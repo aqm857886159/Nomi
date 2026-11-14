@@ -1,8 +1,10 @@
 // 付费走查的出网名单与「被挡即失败」：不真起 App，把 openPaidWalk 的接线、名单计算、被挡即失败各自钉住。
 import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { assertExactOrigin, blockedError, describeBlocked, hostedUploadRelayOrigin, guardLoadedError, paidWalkAllowlist, VENDOR_RESULT_DOMAINS } from './_paidNetwork.mjs'
+import { assertExactOrigin, blockedError, blockedRequestOf, describeBlocked, hostedUploadRelayOrigin, guardLoadedError, paidWalkAllowlist, rehearsalShouldStop, rehearsalVerdict, startRehearsalVendor, VENDOR_RESULT_DOMAINS } from './_paidNetwork.mjs'
 
 const catalog = {
   vendors: [
@@ -103,7 +105,7 @@ describe('openPaidWalk wiring', () => {
       removeRealCredentials: () => true, seedRealModels: () => [{ vendorKey: 'apimart', modelKey: 'm', labelZh: 'm' }],
     }))
     const { openPaidWalk } = await import('./_paidRun.mjs')
-    return { calls, paid: await openPaidWalk('x.paid.mjs', 'x', [{ vendorKey: 'apimart', modelKey: 'm' }], { assertBuild: () => {}, ...extraDeps }) }
+    return { calls, paid: await openPaidWalk('x.paid.mjs', 'x', [{ vendorKey: 'apimart', modelKey: 'm' }], { assertBuild: () => {}, assertRehearsed: () => {}, ...extraDeps }) }
   }
 
   it('hands the guard its allowlist and a ledger path without the caller doing anything', async () => {
@@ -164,5 +166,84 @@ describe('openPaidWalk wiring', () => {
     fs.appendFileSync(calls.options.env.NOMI_WALK_NET_LOG, `${JSON.stringify({ kind: 'blocked', via: 'chromium', host: 'late.invalid' })}\n`)
     await paid.finish(undefined)
     expect(calls.finishedWith.message).toContain('late.invalid')
+  })
+})
+
+// 演练判据（2026-11-15）：放行名单是空的，判的是「挡下的第一条是不是授权供应商、在不在收窄花钱面之后」。宁可错判不过。
+describe('rehearsalVerdict', () => {
+  const judgedAllow = ['https://api.apimart.ai', '*.getapib.org']
+  const loaded = { kind: 'guard-loaded', layers: ['fetch', 'socket', 'chromium'] }
+  const vendorPost = { kind: 'blocked', via: 'chromium', method: 'POST', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/videos/generations?sig=[REDACTED]' }
+  const elsewhere = { kind: 'blocked', via: 'fetch', host: 'telemetry.example.test', url: 'https://telemetry.example.test/e' }
+
+  it('passes when the first blocked request is the authorized vendor after the spend lock, and records method + path without the query', () => {
+    const verdict = rehearsalVerdict({ entries: [loaded, vendorPost], lockedAtEntry: 1, judgedAllow })
+    expect(verdict.passed).toBe(true)
+    expect(verdict.request).toEqual({ via: 'chromium', method: 'POST', host: 'api.apimart.ai', path: '/v1/videos/generations' })
+    expect(JSON.stringify(verdict)).not.toContain('sig=')
+  })
+  it('a script error after the guard stopped the app is the expected consequence, still a pass', () => {
+    expect(rehearsalVerdict({ entries: [loaded, vendorPost], lockedAtEntry: 1, judgedAllow, scriptError: new Error('Target closed'), stoppedByGuard: true }).passed).toBe(true)
+  })
+  it('R5 · a blocked request to some other origin is not a pass, even when a vendor request follows', () => {
+    const verdict = rehearsalVerdict({ entries: [loaded, elsewhere, vendorPost], lockedAtEntry: 1, judgedAllow })
+    expect(verdict.passed).toBe(false)
+    expect(verdict.reason).toContain('授权供应商之外的源 telemetry.example.test')
+  })
+  it('R6 · a vendor request blocked before the spend lock (balance / verification after saving the key) is never the pass by itself', () => {
+    expect(rehearsalVerdict({ entries: [loaded, vendorPost], lockedAtEntry: null, judgedAllow }).reason).toContain('没走到收窄花钱面')
+    expect(rehearsalVerdict({ entries: [loaded, vendorPost, loaded], lockedAtEntry: 3, judgedAllow }).passed).toBe(false)
+  })
+  it('vendor blocks before the lock are recorded, and the first vendor block after the lock is the pass', () => {
+    const balance = { kind: 'blocked', via: 'product-guard', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/balance' }
+    const verdict = rehearsalVerdict({ entries: [loaded, balance, loaded, vendorPost], lockedAtEntry: 3, judgedAllow })
+    expect(verdict).toMatchObject({ passed: true, request: { path: '/v1/videos/generations' }, preLock: [{ path: '/v1/balance' }] })
+  })
+  it('rehearsalShouldStop: keeps the app running through vendor blocks before the lock; stops at the first block after it, or at any other origin', () => {
+    const balance = { kind: 'blocked', via: 'product-guard', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/balance' }
+    expect(rehearsalShouldStop([loaded, balance], { lockedAtEntry: null, judgedAllow })).toBe(false)
+    expect(rehearsalShouldStop([loaded, balance], { lockedAtEntry: 2, judgedAllow })).toBe(false)
+    expect(rehearsalShouldStop([loaded, balance, vendorPost], { lockedAtEntry: 2, judgedAllow })).toBe(true)
+    expect(rehearsalShouldStop([loaded, elsewhere], { lockedAtEntry: null, judgedAllow })).toBe(true)
+  })
+  it('stand-in vendor (no-key tier): answers only the declared free probe, records every other request as a blocked row with method + path, never forwards, never logs headers', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-stand-in-'))
+    const netLog = path.join(dir, 'net.jsonl')
+    fs.writeFileSync(netLog, `${JSON.stringify(loaded)}\n`)
+    const standIn = await startRehearsalVendor({ origin: 'https://api.apimart.ai', netLog, freeAnswers: { 'GET /v1/balance': { remain_balance: 0 } } })
+    try {
+      expect(JSON.parse(standIn.env.NOMI_TEST_NETWORK_REDIRECTS)).toEqual([{ from: 'https://api.apimart.ai', to: standIn.origin }])
+      expect(standIn.env.NOMI_LAB_TRUSTED_PRIVATE_ORIGINS).toBe(standIn.origin)
+      const balance = await fetch(`${standIn.origin}/v1/balance?x=1`, { headers: { authorization: 'Bearer secret-header-value' } })
+      expect(balance.status).toBe(200)
+      expect(await balance.json()).toEqual({ remain_balance: 0 })
+      const lockedAtEntry = fs.readFileSync(netLog, 'utf8').trim().split('\n').length
+      const post = await fetch(`${standIn.origin}/v1/videos/generations?sig=abc`, { method: 'POST', headers: { authorization: 'Bearer secret-header-value' }, body: '{"prompt":"secret-body"}' })
+      expect(post.status).toBe(503)
+      const entries = fs.readFileSync(netLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line))
+      expect(entries.map((entry) => entry.kind)).toEqual(['guard-loaded', 'rehearsal-answered', 'blocked'])
+      expect(fs.readFileSync(netLog, 'utf8')).not.toMatch(/secret-header-value|secret-body|sig=abc/)
+      const verdict = rehearsalVerdict({ entries, lockedAtEntry, judgedAllow, stoppedByGuard: true })
+      expect(verdict).toMatchObject({ passed: true, request: { via: 'rehearsal-vendor', method: 'POST', host: 'api.apimart.ai', path: '/v1/videos/generations' }, preLock: [] })
+    } finally {
+      await standIn.close()
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+  it('the script failing before any vendor request is not a pass, and says where it failed', () => {
+    const verdict = rehearsalVerdict({ entries: [loaded], lockedAtEntry: 1, judgedAllow, scriptError: new Error('找不到生成钮\nstack') })
+    expect(verdict).toMatchObject({ passed: false, request: null })
+    expect(verdict.reason).toContain('之前就失败——找不到生成钮')
+    expect(verdict.reason).not.toContain('stack')
+  })
+  it('a script error the guard did not cause (no stop yet) is not a pass even if a vendor block shows up afterwards', () => {
+    expect(rehearsalVerdict({ entries: [loaded, vendorPost], lockedAtEntry: 1, judgedAllow, scriptError: new Error('own bug'), stoppedByGuard: false }).passed).toBe(false)
+  })
+  it('a run that never sent anything to the vendor is not a pass', () => {
+    expect(rehearsalVerdict({ entries: [loaded], lockedAtEntry: 1, judgedAllow }).reason).toContain('也没有向供应商发出请求')
+  })
+  it('the connection layer has no path; result-download wildcard hosts count as the vendor', () => {
+    expect(blockedRequestOf({ via: 'socket', host: 'api.apimart.ai', url: 'tcp://api.apimart.ai:443' })).toEqual({ via: 'socket', method: null, host: 'api.apimart.ai', path: null })
+    expect(rehearsalVerdict({ entries: [{ kind: 'blocked', via: 'fetch', host: 'cdn.getapib.org', url: 'https://cdn.getapib.org/a.mp4' }], lockedAtEntry: 0, judgedAllow }).passed).toBe(true)
   })
 })
