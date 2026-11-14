@@ -54,7 +54,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const { readLabStates, readCalibration, baselineDirFor, pendingApprovalScreens, LAB_SCREEN_IDS } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/labStates.mjs')).href)
 
 const { triageLabRun, collectDiffImages, formatLabFailure } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/failureTriage.mjs')).href)
-const { inspectLabPort, formatForeignHolder } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/labServer.mjs')).href)
+const { inspectLabPort, formatForeignHolder, labChildEnv } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/labServer.mjs')).href)
 const { LAB_ORIGIN, LAB_RESULTS_DIR } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/playwright.config.mjs')).href)
 const { currentRunnerIdentity, decideVisualMode, describeRunner, isCiEnvironment, visualVerdict } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/visualMode.mjs')).href)
 
@@ -361,8 +361,9 @@ const runStatus = await new Promise((resolve) => {
     cwd: repoRoot,
     stdio: ['inherit', 'pipe', 'pipe'],
     ...(process.platform === 'win32' ? { shell: true } : {}),
+    // labChildEnv：把本机地址并进 NO_PROXY，免得 shell 里的 HTTP_PROXY 把「本机服务起来没有」的探测截走、误报基础设施失败。
     env: {
-      ...process.env,
+      ...labChildEnv(process.env),
       ...(requestedScreenArg ? { NOMI_DESIGN_LAB_SCREEN: requestedScreenArg } : {}),
     },
   })

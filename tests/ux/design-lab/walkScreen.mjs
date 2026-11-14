@@ -139,7 +139,7 @@ export async function walkDesignLabScreen(config) {
     // ① 活页面的注册表必须与源码解析结果一致。
     const live = await render(async (page) => {
       // 第一次加载就是冷启动的 vite（预打包依赖 + 转译整张模块图），慢机器上远超 30s——
-      // 给足这一次（同 warmUp.mjs 的理由），后面每格都是热服务器。
+      // 给足这一次，后面每格都是热服务器。
       await page.goto(`${BASE}/design-lab.html?screen=${config.screen}&frame=1&state=${states[0].id}`, { timeout: 180_000 })
       await waitForLabReady(page, 180_000)
       return page.evaluate(() => window.__designLabStates)
