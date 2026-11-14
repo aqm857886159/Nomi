@@ -25,6 +25,18 @@ function dual(id?: string) {
   return draft;
 }
 describe('declared capability projection publication matrix', () => {
+  it('preserves native text input capabilities and per-model protocol through declaration registration', () => {
+    const draft: ProviderAdapterDraft = {
+      provider: { baseUrl: 'http://127.0.0.1:9000/v1', authType: 'bearer', providerKind: 'openai-compatible' },
+      sources: [{ url: 'https://example.test/docs', evidence: 'Native multimodal inputs' }],
+      assetIngestion: { strategy: 'inline-base64', accepts: ['image', 'audio', 'video'], sourceUrl: 'https://example.test/docs' },
+      models: [{ modelKey: 'user-model', labelZh: 'User model', kind: 'text', inputModalities: ['text', 'image', 'audio', 'video'], textProviderKind: 'google-generative-ai', modes: [{ taskKind: 'chat', delivery: 'synchronous', create: { method: 'POST', path: '/chat/completions', body: { model: '{{model.modelKey}}' } }, sourceUrls: ['https://example.test/docs'] }] }],
+    };
+    const result = registerDeclaredProvider({ card: draft, vendorKey: 'multimodal-relay' });
+    const saved = readCatalog().models.find((row) => row.vendorKey === result.vendorKey)!;
+    expect(saved.meta).toMatchObject({ supportsImageInput: true, supportsAudioInput: true, supportsVideoInput: true, textProviderKind: 'google-generative-ai' });
+    expect(readCatalog().vendors.find((row) => row.key === result.vendorKey)?.providerKind).toBe('openai-compatible');
+  });
   it.each(['opaque-gamma', 'veo3.1-fast'])('registration and promotion preserve the same full fact for %s', (id) => {
     const draft = dual(id);
     const result = registerDeclaredProvider({ card: draft, vendorKey: 'relay' });

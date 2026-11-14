@@ -5,7 +5,7 @@ import { BILLING_MODEL_KINDS, PROFILE_KINDS, type BillingModelKind, type HttpOpe
 // 「哪些 taskKind 的参考媒体是**说明卡声明**进去的」由 PROFILE_KINDS 旁边那份完全划分拥有
 // （新增 kind 不分类 = tsc 红）。这里只消费，不再手抄 Set——手抄那版没有穷尽检查，也说不清
 // image_to_prompt / transcribe 这类「吃媒体但通道写死在运行期」的 kind 该不该要声明。
-import { PROFILE_KIND_REFERENCE_CHANNEL } from "../shared/contracts/modelAccessCapabilities";
+import { AI_SDK_PROVIDER_KINDS, PROFILE_KIND_REFERENCE_CHANNEL } from "../shared/contracts/modelAccessCapabilities";
 import {
   declaredAssetIngestionSchema,
   declaredOmissionsSchema,
@@ -138,9 +138,11 @@ const adapterModesSchema = z
   .min(1)
   .max(16);
 
-export const adapterModelContractSchema: z.ZodType<Pick<AdapterModelDraft, "parameters" | "modes">> = z
+export const adapterModelContractSchema: z.ZodType<Pick<AdapterModelDraft, "parameters" | "modes" | "inputModalities" | "textProviderKind">> = z
   .object({
     parameters: adapterParametersSchema.optional(),
+    inputModalities: z.array(z.enum(['text', 'image', 'audio', 'video'])).min(1).max(4).optional(),
+    textProviderKind: z.enum(AI_SDK_PROVIDER_KINDS).optional(),
     modes: adapterModesSchema,
   });
 
@@ -164,6 +166,8 @@ const adapterDraftModelsSchema = z
         modelKey: z.string().min(1).max(256),
         labelZh: z.string().min(1).max(256),
         kind: z.enum(BILLING_MODEL_KINDS),
+        inputModalities: z.array(z.enum(['text', 'image', 'audio', 'video'])).min(1).max(4).optional(),
+        textProviderKind: z.enum(AI_SDK_PROVIDER_KINDS).optional(),
         parameters: adapterParametersSchema.optional(),
         modes: adapterModesSchema,
       })
@@ -208,7 +212,7 @@ const adapterDraftSchema: z.ZodType<ProviderAdapterDraft> = z
          * 与地址同一档，只能在贴 key 页上改（§6.1）。
          */
         authScheme: z.string().min(1).max(64).optional(),
-        providerKind: z.enum(["openai-compatible", "anthropic", "openai-responses"]).optional(),
+        providerKind: z.enum(AI_SDK_PROVIDER_KINDS).optional(),
       })
       .strict(),
     // 卡顶层那几格从交件 schema 派生，不再抄第二遍（Ponytail 2026-09-18）。差别只有一处，

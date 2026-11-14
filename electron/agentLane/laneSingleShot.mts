@@ -20,6 +20,7 @@ export async function runLaneSingleShot(options: {
   if (captured?.restoredIntent) throw new Error('agent_lane_invalid_command');
   if (captured && options.input?.prepare) captured = await options.input.prepare(captured);
   if (captured) options.input?.activate(captured);
+  options.input?.beginProjection?.();
   const content = captured && options.input
     ? await options.input.providerContent({ role: 'nomi.input', content: options.prompt, context: captured, timestamp: Date.now() })
     : options.prompt;
