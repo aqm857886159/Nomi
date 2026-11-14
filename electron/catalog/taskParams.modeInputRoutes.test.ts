@@ -371,7 +371,7 @@ const sendViaRun = (cell: Cell, mode: ArchetypeMode) => {
   });
 };
 const where = (cell: Cell) => `${cell.vendorKey}/${cell.modelKey}/${cell.mode.id}/${cell.shape}`;
-const CJK = /[　-ヿ㐀-鿿가-힯＀-￯]/;
+const CJK = /[\u3000-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef]/;
 
 /**
  * 「点名即可用」（设计卡 docs/plan/2026-11-14-mode-input-check.md「出路句」）：拒收原话后半句点名的方式号（从拒收错误的
