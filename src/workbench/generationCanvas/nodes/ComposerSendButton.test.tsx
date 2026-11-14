@@ -47,16 +47,18 @@ describe('ComposerSendButton 让法', () => {
 })
 
 describe('composerYieldLadder 让法顺序', () => {
-  it('① 生成钮 → ② 方式格 → ③ 摘要整值地减 → ④ 模型名最后省略', () => {
+  it('① 生成钮 → ② 摘要整值地减 → ③ 方式格只剩图标 → ④ 模型名最后省略', () => {
     const ladder = composerYieldLadder({ sendCollapsible: true, modeCollapsible: true, summaryCandidates: 3 })
     expect(ladder[0]).toEqual(COMPOSER_YIELD_NONE)
     expect(ladder.slice(1)).toEqual([
       { sendIconOnly: true, modeIconOnly: false, summaryIndex: 0, modelEllipsis: false },
-      { sendIconOnly: true, modeIconOnly: true, summaryIndex: 0, modelEllipsis: false },
-      { sendIconOnly: true, modeIconOnly: true, summaryIndex: 1, modelEllipsis: false },
+      { sendIconOnly: true, modeIconOnly: false, summaryIndex: 1, modelEllipsis: false },
+      { sendIconOnly: true, modeIconOnly: false, summaryIndex: 2, modelEllipsis: false },
       { sendIconOnly: true, modeIconOnly: true, summaryIndex: 2, modelEllipsis: false },
       { sendIconOnly: true, modeIconOnly: true, summaryIndex: 2, modelEllipsis: true },
     ])
+    // 模型名永远是最后一步。
+    expect(ladder.findIndex((step) => step.modelEllipsis)).toBe(ladder.length - 1)
   })
 
   it('没有可收的钮 / 方式格时跳过那一步，顺序不变', () => {

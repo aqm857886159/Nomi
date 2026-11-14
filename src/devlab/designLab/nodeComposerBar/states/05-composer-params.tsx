@@ -98,17 +98,18 @@ export const COMPOSER_PARAMS_STATES: readonly LabState[] = [
   },
 ]
 
-type Combo = { archetypeId: string; modeId: string }
+/** values：'longest'（默认）= 参数取最长值，量最挤的样子；'default' = 不填参数、用档案默认值，量「常见组合」。 */
+type Combo = { archetypeId: string; modeId: string; values?: 'longest' | 'default' }
 
 /** 方式要什么输入就摆什么：首帧 / 尾帧放图，参考图 / 视频 / 音频各放够下限（至少 1 个），让按输入现算的方式真落在这一种上。 */
-function scenarioFor({ archetypeId, modeId }: Combo): B3Scenario {
+function scenarioFor({ archetypeId, modeId, values = 'longest' }: Combo): B3Scenario {
   const archetype = MODEL_ARCHETYPES.find((candidate) => candidate.id === archetypeId)!
   const mode = archetype.modes.find((candidate) => candidate.id === modeId)!
   const slot = (kind: string) => mode.slots.find((candidate) => candidate.kind === kind)
   const count = (kind: string) => { const found = slot(kind); return found ? Math.max(1, found.min) : 0 }
   // 底栏最挤的样子：比例 / 清晰度 / 时长 / 数量这几格取字最长的那个值（数字取最大）。
   const params: Record<string, unknown> = {}
-  for (const param of mode.params) {
+  for (const param of values === 'default' ? [] : mode.params) {
     if (!parameterControlRole({ ...param, binding: 'parameter' })) continue
     if (param.options.length) {
       const longest = [...param.options].sort((a, b) => String(b.label ?? b.value).length - String(a.label ?? a.value).length)[0]!
@@ -141,5 +142,6 @@ function MatrixStage(): React.JSX.Element {
     window.__cpMatrix = { combos, set: setCombo, current: () => combo }
     return () => { delete window.__cpMatrix }
   }, [combos, combo])
-  return <div data-cp-matrix={`${combo.archetypeId}/${combo.modeId}`}><ComposerB3Stage key={`${combo.archetypeId}/${combo.modeId}`} scenario={scenario} /></div>
+  const id = `${combo.archetypeId}/${combo.modeId}${combo.values === 'default' ? '#default' : ''}`
+  return <div data-cp-matrix={id}><ComposerB3Stage key={id} scenario={scenario} /></div>
 }

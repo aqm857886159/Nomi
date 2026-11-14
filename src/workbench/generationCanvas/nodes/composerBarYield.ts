@@ -4,10 +4,13 @@
  *
  * 顺序（能在别处看全的先让，名字和影响花钱的最后让）：
  *   ① 生成钮收成只剩「↑」（读屏名不变，悬停提示写钮上原来的字）；
- *   ② 方式格收成只剩图标（悬停 / 读屏给全名）；
- *   ③ 参数摘要从后往前整值地减（`summaryFitCandidates`，三个值 → 两个 → 一个），一个值不截半截；
+ *   ② 参数摘要从后往前整值地减（`summaryFitCandidates`，三个值 → 两个 → 一个），一个值不截半截——
+ *      摘要里的值点开面板就能看全；
+ *   ③ 方式格收成只剩图标（悬停 / 读屏给全名）——方式决定这一镜要放什么输入，比摘要里的值要紧；
+ *      选中的方式没有图标就不收（保留文字），直接进 ④；
  *   ④ 以上都让完还放不下，模型名才末尾省略（title 是全名）。
- * 高级设置图标、提示词工具不让。让的判据只有底栏自己的宽（容器宽），不读窗口宽。
+ * 2026-11-14 协调裁决：②③ 原来是反的，那样画布 600 宽默认值下 34 格会从「写方式名、摘要退掉比例」变成「方式只剩图标」，
+ * 而画布 600 宽是用户看过真截图拍过板的样子。高级设置图标、提示词工具不让。让的判据只有底栏自己的宽（容器宽），不读窗口宽。
  *
  * 让到第几步由 `InlineParameterBar` 量一次，经 `ComposerBarYieldContext` 发给生成钮；方式格读同一个值。
  */
@@ -16,10 +19,10 @@ import React from 'react'
 export type ComposerYieldStep = {
   /** ① 生成钮只剩「↑」。 */
   sendIconOnly: boolean
-  /** ② 方式格只剩图标。 */
-  modeIconOnly: boolean
-  /** ③ 摘要用第几档候选（0 = 全部值）。 */
+  /** ② 摘要用第几档候选（0 = 全部值）。 */
   summaryIndex: number
+  /** ③ 方式格只剩图标。 */
+  modeIconOnly: boolean
   /** ④ 模型名允许末尾省略。 */
   modelEllipsis: boolean
 }
@@ -40,8 +43,8 @@ export function composerYieldLadder({ sendCollapsible, modeCollapsible, summaryC
   let current = COMPOSER_YIELD_NONE
   const push = (patch: Partial<ComposerYieldStep>): void => { current = { ...current, ...patch }; steps.push(current) }
   if (sendCollapsible) push({ sendIconOnly: true })
-  if (modeCollapsible) push({ modeIconOnly: true })
   for (let index = 1; index < summaryCandidates; index += 1) push({ summaryIndex: index })
+  if (modeCollapsible) push({ modeIconOnly: true })
   push({ modelEllipsis: true })
   return steps
 }
