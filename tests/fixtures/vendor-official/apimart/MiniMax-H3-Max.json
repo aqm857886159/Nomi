@@ -72,5 +72,91 @@
         }
       ]
     }
-  }
+  },
+  "requestFields": [
+    {
+      "name": "model",
+      "quote": "Fixed value: `MiniMax-H3-Max`",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "nsfw_check",
+      "quote": "Whether to run content moderation before submitting the video task.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "prompt",
+      "quote": "A non-empty description of the video.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "duration",
+      "quote": "Video duration in seconds.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "resolution",
+      "quote": "Output resolution: `480P`, `768P` (default), or `1080P`.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "aspect_ratio",
+      "quote": "Output aspect ratio.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "first_frame_image",
+      "quote": "Public image URL used as the video's first frame.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "last_frame_image",
+      "quote": "Public image URL used as the video's last frame.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "image_with_roles",
+      "quote": "Role-based image array that can replace `first_frame_image`, `last_frame_image`, or `image_urls`.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "image_urls",
+      "quote": "Public reference-image URL array.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "video_urls",
+      "quote": "Public reference-video URL array;",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "audio_urls",
+      "quote": "Public reference-audio URL array;",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "watermark",
+      "quote": "Whether to add an AIGC watermark.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "webhook",
+      "quote": "Receives a notification when the task reaches a successful or failed terminal state.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+      "fetchedAt": "2026-11-12"
+    }
+  ]
 }

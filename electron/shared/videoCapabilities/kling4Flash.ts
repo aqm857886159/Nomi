@@ -7,14 +7,19 @@ import type { ModelParameterControl, ModelArchetype } from "./types";
 // 比例：文生 16:9 / 9:16 / 1:1 / 21:9；参考与编辑多一个界面上的「auto」（经 omitAuto 不发：官方参考默认 auto、编辑不给比例就跟随源视频，线上永远不会收到 auto 给编辑）；
 // 图生 / 续写发比例会 400，所以这两个方式不声明比例。图生只收一张首帧（尾帧 / 中间帧 / 第二张图都不支持）。
 // 参考方式的声音：audio_setting auto（默认，生成新声音）| origin（保留第一段参考视频的声音，需要有参考视频）；编辑 / 续写官方明说不要发。
-// 替创作者定：resolution 不发、nsfw 类字段不存在；不露出：seconds（duration 的别名，同一件事）、video_url（video_urls 的单值写法）。
+// 替创作者定：resolution 不发；nsfw_check 露出为「提交前内容审核」开关（默认关，同 Seedance 2.5）；不露出：seconds（duration 的别名，同一件事）、video_url（video_urls 的单值写法）。
 
 const opt = (values: string[]): ModelParameterControl["options"] => values.map((value) => ({ value, label: value }));
 
 const DURATION: ModelParameterControl = { key: "duration", label: "时长(秒)", type: "number", options: [], min: 3, max: 20, defaultValue: 5 };
 const ASPECT_T2V: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: opt(["16:9", "9:16", "1:1", "21:9"]), defaultValue: "16:9" };
 const ASPECT_FOLLOW: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: opt(["auto", "16:9", "9:16", "1:1", "21:9"]), defaultValue: "auto" };
-const AUDIO_SETTING: ModelParameterControl = { key: "audio_setting", label: "声音", type: "select", options: [{ value: "auto", label: "auto" }, { value: "origin", label: "保留原声" }], defaultValue: "auto" };
+// 官方：「`origin` requires a reference video」→ 没放参考视频时只剩 auto（面板收窄、发送前拒，同一条规则）。
+const AUDIO_SETTING: ModelParameterControl = {
+  key: "audio_setting", label: "声音", type: "select", options: [{ value: "auto", label: "auto" }, { value: "origin", label: "保留原声" }], defaultValue: "auto",
+  optionConstraints: [{ when: { slotEmpty: "video_ref" }, values: ["auto"] }],
+};
+const NSFW_CHECK: ModelParameterControl = { key: "nsfw_check", label: "提交前内容审核", type: "boolean", options: [], defaultValue: false };
 // 编辑：官方「不给时长 = 跟随源视频（向上取整）」，没有默认值；数字控件没有「跟随源视频」这一档，这个方式先不声明时长（能力表记待定），请求里不带时长 = 跟随源视频。
 
 export const KLING_4_FLASH_ARCHETYPE: ModelArchetype = {
@@ -33,12 +38,12 @@ export const KLING_4_FLASH_ARCHETYPE: ModelArchetype = {
       "audio_setting auto|origin 仅参考生成；omni_reference_task_type auto|reference|edit|extend。",
   }],
   modes: [
-    { id: "t2v", intent: "text", vendorTerm: "文生视频", hint: "纯文字生成 3–20 秒视频", promptRequired: true, transportTaskKind: "text_to_video", slots: [], params: [ASPECT_T2V, DURATION] },
+    { id: "t2v", intent: "text", vendorTerm: "文生视频", hint: "纯文字生成 3–20 秒视频", promptRequired: true, transportTaskKind: "text_to_video", slots: [], params: [ASPECT_T2V, DURATION, NSFW_CHECK] },
     {
       id: "i2v", intent: "single", vendorTerm: "图生视频", hint: "一张首帧；比例跟随首帧，提示词可选", promptRequired: false,
       transportTaskKind: "image_to_video",
       slots: [{ kind: "first_frame", label: "首帧", min: 1, max: 1, inputKey: "first_frame_image", asArray: false }],
-      params: [DURATION],
+      params: [DURATION, NSFW_CHECK],
     },
     {
       id: "ref", intent: "character", vendorTerm: "全能参考", hint: "最多 10 张参考图 + 5 段参考视频（合计 15 个，视频合计 20 秒内）", promptRequired: true,
@@ -48,7 +53,7 @@ export const KLING_4_FLASH_ARCHETYPE: ModelArchetype = {
         { kind: "video_ref", label: "参考视频", min: 0, max: 5, inputKey: "video_urls" },
       ],
       fixedParams: { omni_reference_task_type: "reference" },
-      params: [ASPECT_FOLLOW, DURATION, AUDIO_SETTING],
+      params: [ASPECT_FOLLOW, DURATION, AUDIO_SETTING, NSFW_CHECK],
     },
     {
       id: "edit", intent: "edit", vendorTerm: "视频编辑", hint: "源视频（3–20 秒）+ 提示词改写，可带最多 10 张参考图；声音重新生成", promptRequired: true,
@@ -58,14 +63,14 @@ export const KLING_4_FLASH_ARCHETYPE: ModelArchetype = {
         { kind: "image_ref", label: "参考图", min: 0, max: 10, characterIndexed: true, inputKey: "image_urls" },
       ],
       fixedParams: { omni_reference_task_type: "edit" },
-      params: [ASPECT_FOLLOW],
+      params: [ASPECT_FOLLOW, NSFW_CHECK],
     },
     {
       id: "extend", intent: "edit", vendorTerm: "视频续写", hint: "源视频接着往后生成一段新的 3–20 秒（只返回新片段）；比例沿用原视频", promptRequired: true,
       transportTaskKind: "image_to_video",
       slots: [{ kind: "video_ref", label: "源视频", min: 1, max: 1, inputKey: "video_urls" }],
       fixedParams: { omni_reference_task_type: "extend" },
-      params: [DURATION],
+      params: [DURATION, NSFW_CHECK],
     },
   ],
 };

@@ -175,7 +175,8 @@ function buildBody(model: { modelKey: string; archetypeId?: string; mappings: Ar
   if (!mapping) throw new Error(`${model.modelKey}: no ${taskKind} mapping`);
   const extras = {
     ...applyHeadlessParamDefaults(
-      { modelKey: model.modelKey },
+      // 参考随请求一起交给发送前的主人（两个发送口都是这样）：方式缺必需输入在这里拒，数的是这一次真带的参考。
+      { modelKey: model.modelKey, ...referenceExtras },
       modelReferenceSelection("apimart", { modelKey: model.modelKey, meta: { archetypeId: model.archetypeId } }, taskKind as never),
       mapping.create.defaultParams,
       mapping.create.body,

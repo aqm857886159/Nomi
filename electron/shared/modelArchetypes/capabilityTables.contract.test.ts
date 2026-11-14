@@ -15,7 +15,7 @@ const NOT_EXPOSED_REASONS = ['管道', '同一件事', '文档废弃', '模型�
 export type TableRow = { item: string; quote: string; disposition: string; tokens: Array<{ kind: string; value: string }> }
 export type CapabilityTable = { file: string; archetypeId: string; vendor: string; rows: TableRow[] }
 
-const TOKEN_KINDS = ['mode', 'param', 'slot', 'fixed', 'absent', 'reason', 'pending', 'prompt', 'combine', 'total', 'constrain', 'condition', 'source', 'why']
+const TOKEN_KINDS = ['mode', 'param', 'slot', 'fixed', 'absent', 'reason', 'pending', 'prompt', 'combine', 'total', 'constrain', 'requires', 'when', 'condition', 'source', 'why']
 
 export function parseTable(file: string, text: string): CapabilityTable {
   const archetypeId = /^- archetype:\s*(\S+)/m.exec(text)?.[1] ?? ''
@@ -44,7 +44,7 @@ function modesOf(archetype: ModelArchetype, spec: string): Mode[] {
 /** 逐条核落点，返回问题清单（空 = 一致）。 */
 export function checkTable(table: CapabilityTable, archetype: ModelArchetype): string[] {
   const problems: string[] = []
-  const claimed = { modes: new Set<string>(), params: new Set<string>(), slots: new Set<string>(), fixed: new Set<string>() }
+  const claimed = { modes: new Set<string>(), params: new Set<string>(), slots: new Set<string>(), fixed: new Set<string>(), requires: new Set<string>(), when: new Set<string>() }
 
   for (const row of table.rows) {
     const where = `${table.file} · ${row.item}`
@@ -52,7 +52,7 @@ export function checkTable(table: CapabilityTable, archetype: ModelArchetype): s
     if (row.quote.replace(/[`/ ]/g, '').length < 8) problems.push(`${where}：没有文档原文`)
     const kinds = row.tokens.map((t) => t.kind)
     const counts = row.disposition === '露出' || row.disposition === '替创作者定'
-    if (row.disposition === '露出' && !kinds.some((k) => ['mode', 'param', 'slot', 'fixed', 'combine', 'total', 'constrain', 'absent'].includes(k))) problems.push(`${where}：「露出」没有任何落点记号`)
+    if (row.disposition === '露出' && !kinds.some((k) => ['mode', 'param', 'slot', 'fixed', 'combine', 'total', 'constrain', 'requires', 'when', 'absent'].includes(k))) problems.push(`${where}：「露出」没有任何落点记号`)
     if (row.disposition === '替创作者定' && !kinds.some((k) => k === 'absent' || k === 'fixed')) problems.push(`${where}：「替创作者定」要写固定成什么（fixed）或固定不发（absent）`)
     if (row.disposition === '替创作者定' && !kinds.includes('source')) problems.push(`${where}：「替创作者定」要写出处（source:产品已定·出处 / source:出处未找到）`)
     if (row.disposition === '待用户判' && !row.tokens.some((t) => t.kind === 'why' && t.value.trim())) problems.push(`${where}：「待用户判」要写理由（why）`)
@@ -126,8 +126,32 @@ export function checkTable(table: CapabilityTable, archetype: ModelArchetype): s
         if (!match) { bad('写法不对'); continue }
         for (const mode of modesOf(archetype, match[1]!)) {
           const control = mode?.params.find((p) => p.key === match[2])
-          const found = control?.optionConstraints?.some((c) => c.when.key === match[3] && String(c.when.value) === match[4] && JSON.stringify(c.values.map(String)) === JSON.stringify(match[5]!.split(',')))
+          const found = control?.optionConstraints?.some((c) => 'key' in c.when && c.when.key === match[3] && String(c.when.value) === match[4] && JSON.stringify(c.values.map(String)) === JSON.stringify(match[5]!.split(',')))
           if (!found) bad(`${mode?.id} 里没有这条选项联动`)
+        }
+      } else if (kind === 'requires') {
+        // requires:<方式>/<槽>=<槽|槽>：这个槽不能单独用，至少还要其中一个（档案 slot.requiresAnyOf）。表格里的 | 写成 \|。
+        const match = /^([^/]+)\/([^=]+)=(.+)$/.exec(value)
+        if (!match) { bad('写法不对'); continue }
+        for (const mode of modesOf(archetype, match[1]!)) {
+          const slot = mode?.slots.find((s) => s.kind === match[2])
+          if (!mode || !slot) { bad('档案里没有这个输入槽'); continue }
+          if (JSON.stringify([...(slot.requiresAnyOf ?? [])].sort()) !== JSON.stringify(match[3]!.split(/\\?\|/).sort())) bad(`${mode.id} 的 requiresAnyOf 与档案不符（档案 ${(slot.requiresAnyOf ?? []).join('|') || '没有'}）`)
+          else if (counts) claimed.requires.add(`${mode.id}/${slot.kind}`)
+        }
+      } else if (kind === 'when') {
+        // when:<方式>/<参数>=<值,值>:slotEmpty:<槽>：这个槽没放东西时这些值不能选（档案 optionConstraints 的 slotEmpty 规则，
+        // 规则留下的值 = 选项去掉这些值）。
+        const match = /^([^/]+)\/([^=]+)=([^:]+):slotEmpty:(.+)$/.exec(value)
+        if (!match) { bad('写法不对'); continue }
+        const blocked = match[3]!.split(',')
+        for (const mode of modesOf(archetype, match[1]!)) {
+          const control = mode?.params.find((p) => p.key === match[2])
+          const rule = control?.optionConstraints?.find((c) => 'slotEmpty' in c.when && c.when.slotEmpty === match[4])
+          const expected = control?.options.map((o) => String(o.value)).filter((v) => !blocked.includes(v))
+          if (!mode || !control || !rule) { bad(`${mode?.id} 里没有这条「${match[4]} 空时」的选项约束`); continue }
+          if (JSON.stringify(rule.values.map(String)) !== JSON.stringify(expected)) bad(`${mode.id} 的约束留下的值与档案不符（档案 ${rule.values.join(',')}）`)
+          else if (counts) claimed.when.add(`${mode.id}/${control.key}/${match[4]}`)
         }
       } else if (kind === 'absent') {
         const [scope, key] = value.includes('/') ? value.split('/') : [undefined, value]
@@ -150,8 +174,47 @@ export function checkTable(table: CapabilityTable, archetype: ModelArchetype): s
     for (const p of mode.params) if (!claimed.params.has(`${mode.id}/${p.key}`)) problems.push(`${table.file}：档案有参数 ${mode.id}/${p.key}，表里没有认领它的行`)
     for (const s of mode.slots) if (!claimed.slots.has(`${mode.id}/${s.kind}`)) problems.push(`${table.file}：档案有输入槽 ${mode.id}/${s.kind}，表里没有认领它的行`)
     for (const key of Object.keys(mode.fixedParams ?? {})) if (!claimed.fixed.has(`${mode.id}/${key}`)) problems.push(`${table.file}：档案有固定参数 ${mode.id}/${key}，表里没有认领它的行`)
+    for (const s of mode.slots) if (s.requiresAnyOf?.length && !claimed.requires.has(`${mode.id}/${s.kind}`)) problems.push(`${table.file}：档案有 ${mode.id}/${s.kind} 的 requiresAnyOf，表里没有认领它的 requires 记号`)
+    for (const p of mode.params) {
+      for (const c of p.optionConstraints ?? []) {
+        if ('slotEmpty' in c.when && !claimed.when.has(`${mode.id}/${p.key}/${c.when.slotEmpty}`)) problems.push(`${table.file}：档案有 ${mode.id}/${p.key} 的「${c.when.slotEmpty} 空时」约束，表里没有认领它的 when 记号`)
+      }
+    }
   }
   return problems
+}
+
+/** 一行认领了哪些请求字段：落点记号里的字段名，加上「项」里写出的英文字段名（如 `model`、别名行）。 */
+export function fieldsClaimedByRow(row: TableRow): Set<string> {
+  const fields = new Set<string>(row.item.match(/[a-z][a-z0-9_]*/g) ?? [])
+  for (const { kind, value } of row.tokens) {
+    if (kind === 'param' || kind === 'constrain' || kind === 'when') fields.add(value.slice(value.indexOf('/') + 1).split(/[=:]/)[0]!)
+    else if (kind === 'prompt') fields.add('prompt')
+    else if (kind === 'absent') fields.add(value.includes('/') ? value.split('/')[1]! : value)
+    else if (kind === 'slot') { const inputKey = value.split(':')[2]; if (inputKey) fields.add(inputKey) }
+    else if (kind === 'fixed') fields.add(value.split('=')[0]!.split('/')[1]!)
+    else if (kind === 'combine') fields.add(value.split('=')[1]!)
+  }
+  return fields
+}
+
+/** 文档字段 ↔ 表：官方夹具 `requestFields` 里每个字段（接模型时从文档抄的），表里都要有一行认领（露出 / 不露出 + 原因）。 */
+export function checkRequestFields(table: CapabilityTable, requestFields: ReadonlyArray<{ name: string }>): string[] {
+  const claimed = new Set(table.rows.flatMap((row) => [...fieldsClaimedByRow(row)]))
+  return requestFields.filter((field) => !claimed.has(field.name)).map((field) => `${table.file}：文档字段 ${field.name} 表里没有认领它的行`)
+}
+
+// 表 → 官方夹具（tests/fixtures/vendor-official/apimart/<modelKey>.json）。
+const FIXTURE_BY_ARCHETYPE: Record<string, string> = {
+  'kling-v4-flash': 'kling-v4-flash', 'minimax-h3-max': 'MiniMax-H3-Max', 'seedance-2.5-apimart': 'doubao-seedance-2.5',
+  'seedream-5-5': 'seedream-5-5', 'seedream-5-pro': 'doubao-seedream-5-0-pro',
+}
+type RequestField = { name: string; quote: string; source: string; fetchedAt: string }
+function requestFieldsFor(table: CapabilityTable): RequestField[] {
+  const modelKey = FIXTURE_BY_ARCHETYPE[table.archetypeId]
+  if (!modelKey) throw new Error(`${table.file}：没登记官方夹具`)
+  const fixture = JSON.parse(readFileSync(new URL(`../../../tests/fixtures/vendor-official/apimart/${modelKey}.json`, import.meta.url), 'utf8')) as { requestFields?: RequestField[] }
+  return fixture.requestFields ?? []
 }
 
 function load(): CapabilityTable[] {
@@ -176,6 +239,44 @@ describe('capability tables (docs/models/capabilities) vs archetypes', () => {
 
   it.each(tables.map((t) => [t.file, t] as const))('%s matches its archetype both ways', (_file, table) => {
     expect(checkTable(table, archetypeFor(table))).toEqual([])
+  })
+
+  it.each(tables.map((t) => [t.file, t] as const))('%s claims every request field its official fixture lists', (_file, table) => {
+    const fields = requestFieldsFor(table)
+    expect(fields.length, `${table.file} 的官方夹具没有 requestFields`).toBeGreaterThan(0)
+    for (const field of fields) {
+      expect(field.quote.trim().length, `${field.name} 没有文档原文`).toBeGreaterThan(0)
+      expect(field.source, `${field.name} 出处不是官方文档`).toMatch(/^https:\/\/docs\.apimart\.ai\//)
+      expect(field.fetchedAt, `${field.name} 没有抓取日`).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    }
+    expect(checkRequestFields(table, fields)).toEqual([])
+  })
+
+  // 反例：表里删掉认领某个文档字段的行 → 红（如可灵删掉 nsfw_check 那一行）。
+  it('goes red when a row claiming a documented request field is removed', () => {
+    for (const table of tables) {
+      const fields = requestFieldsFor(table)
+      const victim = table.rows.find((row) => fields.some((f) => fieldsClaimedByRow(row).has(f.name)))!
+      const broken = { ...table, rows: table.rows.filter((row) => row !== victim) }
+      const lost = fields.filter((f) => fieldsClaimedByRow(victim).has(f.name) && !broken.rows.some((row) => fieldsClaimedByRow(row).has(f.name)))
+      if (lost.length) expect(checkRequestFields(broken, fields).length, `${table.file} 删掉「${victim.item}」后应当变红`).toBeGreaterThan(0)
+    }
+  })
+
+  // 反例：requires / when 两种记号双向——档案拿掉 requiresAnyOf 或 slotEmpty 约束 → 表这边红；表删掉记号 → 档案那边红。
+  it('goes red when requiresAnyOf / slotEmpty rules and their table tokens disagree', () => {
+    for (const table of tables) {
+      const archetype = archetypeFor(table)
+      const hasRequires = archetype.modes.some((m) => m.slots.some((s) => s.requiresAnyOf?.length))
+      const hasWhen = archetype.modes.some((m) => m.params.some((p) => p.optionConstraints?.some((c) => 'slotEmpty' in c.when)))
+      if (!hasRequires && !hasWhen) continue
+      const stripped: ModelArchetype = { ...archetype, modes: archetype.modes.map((m) => ({ ...m,
+        slots: m.slots.map(({ requiresAnyOf: _drop, ...s }) => s),
+        params: m.params.map((p) => ({ ...p, optionConstraints: p.optionConstraints?.filter((c) => !('slotEmpty' in c.when)) })) })) }
+      expect(checkTable(table, stripped).some((p) => /requiresAnyOf|空时/.test(p)), `${table.file} 档案拿掉约束后应当变红`).toBe(true)
+      const untokened = { ...table, rows: table.rows.map((row) => ({ ...row, tokens: row.tokens.filter((t) => t.kind !== 'requires' && t.kind !== 'when') })) }
+      expect(checkTable(untokened, archetype).some((p) => /requires 记号|when 记号/.test(p)), `${table.file} 表删掉记号后应当变红`).toBe(true)
+    }
   })
 
   // 反例：表里标「露出」的参数，从档案里拿掉 → 红；档案里多长一个表里没有的参数 → 红。

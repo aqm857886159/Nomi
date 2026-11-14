@@ -23,6 +23,10 @@
     {
       "path": "electron/shared/modelArchetypes/modeParams.ts",
       "symbol": "modeWhenUnrecorded"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/crossFieldConstraints.ts",
+      "symbol": "validateModeConstraints"
     }
   ],
   "forbidden_derivations": [
@@ -49,5 +53,5 @@
     "src/workbench/generationCanvas/runner/catalogTaskActions.ts"
   ],
   "since": "2026-11-12",
-  "notes": "主人是同步纯函数，不写回节点、幂等：渲染层 buildCatalogTaskRequest 按 modeForInputs 现算的方式调一次，主进程 applyHeadlessParamDefaults 读 extras.archetype.modeId / variantId 对同一份请求再调一次（结果不变）。只剥档案管辖的键（所有方式声明过的控件键 ∪ fixedParams 键），extras 里路由、参考、幂等键等混装键原样留。没有方式记录的无界面请求用 modeWhenUnrecorded（主方式规则原样来自 scripts/gen-archetype-wire-defaults.ts）。PR2 之前，Agent 准入 / 模型说明 / 参数面板仍各自读 mode.params，迁移完再按形状补拦截。 主人只定键、补缺省，已给的值一个字节不动；「不在选项里的下拉值修成默认」是 archetypeMeta.ts 的 fixDropdownsBeforeSend，只在渲染层发送前调（读 declaredModeParams 的控件），主进程不调。"
+  "notes": "主人是同步纯函数，不写回节点、幂等：渲染层 buildCatalogTaskRequest 按 modeForInputs 现算的方式调一次，主进程 applyHeadlessParamDefaults 读 extras.archetype.modeId / variantId 对同一份请求再调一次（结果不变）。只剥档案管辖的键（所有方式声明过的控件键 ∪ fixedParams 键），extras 里路由、参考、幂等键等混装键原样留。没有方式记录的无界面请求用 modeWhenUnrecorded（主方式规则原样来自 scripts/gen-archetype-wire-defaults.ts）。PR2 之前，Agent 准入 / 模型说明 / 参数面板仍各自读 mode.params，迁移完再按形状补拦截。 主人只定键、补缺省，已给的值一个字节不动；「不在选项里的下拉值修成默认」是 archetypeMeta.ts 的 fixDropdownsBeforeSend，只在渲染层发送前调（读 declaredModeParams 的控件），主进程不调。 2026-11-14 起「方式收不收这次的输入」也归这一步：crossFieldConstraints.validateModeConstraints 在主人之后、降级之后调一次（docs/plan/2026-11-14-mode-input-check.md），确定拒收带 code mode_input_missing。 不许在 registerRequestTransform 的供应商变换里再判参考组合（H3 变换里「音频不能单独输入」那一支 2026-11-14 删）：那是第二份判定、只有一条路有、拒收话也不一样。结构上由门岗守：validateModeConstraints 是本概念的写接口、概念是 pending，任何不在 allowed_consumers 里的文件（例如某个供应商变换）再调它，check:concept-owners 就红。"
 }

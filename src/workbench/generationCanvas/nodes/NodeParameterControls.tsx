@@ -1,7 +1,7 @@
 import NodeInputReferenceEntry from './NodeInputReferenceEntry'
 import { notify } from '../../../ui/notificationPolicy'
 import { normalizeConditionalParameters } from '../../../../electron/shared/videoCapabilities/crossFieldConstraints'
-import { nodeReferenceCapacity } from './controls/nodeCrossFieldConstraints'
+import { nodeReferenceCapacity, nodeReferenceCounts } from './controls/nodeCrossFieldConstraints'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
@@ -196,9 +196,12 @@ export default function NodeParameterControls({
   // (lost-update 竞态)。updateNode 是整体替换 meta（Object.assign 浅替换），故必须在此处自己合并最新值。
   const getLatestMeta = (): Record<string, unknown> => latestNode(node.id)?.meta || {}
 
+  // 选项依赖参考槽（`when: { slotEmpty }`）按这张卡此刻放了几件来判；和面板收窄同一个数（nodeReferenceCounts）。
+  const referenceCounts = nodeReferenceCounts(node, nodes, edges)
+  const referenceCountsKey = JSON.stringify(referenceCounts)
   const updateMeta = (patch: Record<string, unknown>, options?: CanvasMutationOptions) => {
     updateNode(node.id, {
-      meta: sendMode ? normalizeConditionalParameters(sendMode.params, { ...getLatestMeta(), ...patch }) : { ...getLatestMeta(), ...patch },
+      meta: sendMode ? normalizeConditionalParameters(sendMode.params, { ...getLatestMeta(), ...patch }, referenceCounts) : { ...getLatestMeta(), ...patch },
     }, options)
   }
 
@@ -208,11 +211,11 @@ export default function NodeParameterControls({
   React.useEffect(() => {
     if (!ownsDerivedWrites || !sendMode || !sendModeIsStored) return
     const latest = getLatestMeta()
-    const next = normalizeConditionalParameters(sendMode.params, latest)
+    const next = normalizeConditionalParameters(sendMode.params, latest, referenceCounts)
     if (next !== latest) updateMeta(next, { history: false })
     // The effect only writes when a conditional selection is invalid.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sendMode, sendModeIsStored, meta, ownsDerivedWrites])
+  }, [sendMode, sendModeIsStored, meta, ownsDerivedWrites, referenceCountsKey])
 
   const updateAspectRatioMeta = (patch: Record<string, unknown>, targetRatio: number | null) => {
     const latest = latestNode(node.id)

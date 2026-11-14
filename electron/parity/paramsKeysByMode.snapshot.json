@@ -3,32 +3,19 @@
   "samples": 584,
   "archetypes": 95,
   "samplesWithLeaks": {
-   "canvas": 16,
+   "canvas": 0,
    "run": 0,
-   "either": 16
+   "either": 0
   },
-  "archetypesWithLeaks": 3,
-  "topLeakedKeys": [
-   {
-    "key": "duration",
-    "samples": 15
-   },
-   {
-    "key": "aspect_ratio",
-    "samples": 4
-   },
-   {
-    "key": "audio_setting",
-    "samples": 1
-   }
-  ],
-  "archetypesWithDefaultCarried": 3,
+  "archetypesWithLeaks": 0,
+  "topLeakedKeys": [],
+  "archetypesWithDefaultCarried": 0,
   "emptyDuration": {
-   "canvas": 15,
+   "canvas": 0,
    "run": 0,
    "emptyValue": 0
   },
-  "pathsDiffer": 156
+  "pathsDiffer": 155
  },
  "pathDifferences": [
   {
@@ -164,28 +151,10 @@
    "runStatus": "refused:apimart_provider_error"
   },
   {
-   "id": "happyhorse|kie|happyhorse|i2v->edit",
-   "kind": "facts-differ",
-   "canvasStatus": "sent",
-   "runStatus": "sent"
-  },
-  {
-   "id": "happyhorse|kie|happyhorse|ref->edit",
-   "kind": "facts-differ",
-   "canvasStatus": "sent",
-   "runStatus": "sent"
-  },
-  {
    "id": "happyhorse|kie|happyhorse|ref->i2v",
    "kind": "one-refused",
    "canvasStatus": "sent",
    "runStatus": "refused:apimart_provider_error"
-  },
-  {
-   "id": "happyhorse|kie|happyhorse|t2v->edit",
-   "kind": "facts-differ",
-   "canvasStatus": "sent",
-   "runStatus": "sent"
   },
   {
    "id": "happyhorse|kie|happyhorse|t2v->i2v",
@@ -200,28 +169,10 @@
    "runStatus": "refused:apimart_provider_error"
   },
   {
-   "id": "happyhorse|runway|happyhorse_1_0|i2v->edit",
-   "kind": "facts-differ",
-   "canvasStatus": "sent",
-   "runStatus": "sent"
-  },
-  {
-   "id": "happyhorse|runway|happyhorse_1_0|ref->edit",
-   "kind": "facts-differ",
-   "canvasStatus": "sent",
-   "runStatus": "sent"
-  },
-  {
    "id": "happyhorse|runway|happyhorse_1_0|ref->i2v",
    "kind": "one-refused",
    "canvasStatus": "sent",
    "runStatus": "refused:apimart_provider_error"
-  },
-  {
-   "id": "happyhorse|runway|happyhorse_1_0|t2v->edit",
-   "kind": "facts-differ",
-   "canvasStatus": "sent",
-   "runStatus": "sent"
   },
   {
    "id": "happyhorse|runway|happyhorse_1_0|t2v->i2v",
@@ -263,49 +214,49 @@
    "id": "kling-v4-flash|apimart|kling-v4-flash|edit->extend",
    "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "refused:apimart_provider_error"
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "kling-v4-flash|apimart|kling-v4-flash|extend->edit",
-   "kind": "facts-differ",
+   "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "sent"
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "kling-v4-flash|apimart|kling-v4-flash|i2v->edit",
-   "kind": "facts-differ",
+   "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "sent"
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "kling-v4-flash|apimart|kling-v4-flash|i2v->extend",
    "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "refused:apimart_provider_error"
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "kling-v4-flash|apimart|kling-v4-flash|ref->edit",
-   "kind": "facts-differ",
+   "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "sent"
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "kling-v4-flash|apimart|kling-v4-flash|ref->extend",
    "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "refused:apimart_provider_error"
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "kling-v4-flash|apimart|kling-v4-flash|t2v->edit",
-   "kind": "facts-differ",
+   "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "sent"
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "kling-v4-flash|apimart|kling-v4-flash|t2v->extend",
    "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "refused:apimart_provider_error"
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "meshy6|runninghub|meshy6|text->image",
@@ -428,34 +379,64 @@
    "runStatus": "refused:apimart_provider_error"
   },
   {
-   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|extend->edit",
-   "kind": "facts-differ",
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|edit->extend",
+   "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "sent"
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|extend->edit",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->edit",
-   "kind": "facts-differ",
+   "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "sent"
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->extend",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->edit",
-   "kind": "facts-differ",
+   "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "sent"
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->extend",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->edit",
-   "kind": "facts-differ",
+   "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "sent"
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->extend",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->edit",
-   "kind": "facts-differ",
+   "kind": "one-refused",
    "canvasStatus": "sent",
-   "runStatus": "sent"
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->extend",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "seedance-2.5-runway|runway|seedance2_5|first->firstlast",
@@ -2306,38 +2287,15 @@
   {
    "id": "happyhorse|kie|happyhorse|i2v->edit",
    "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "input.duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "input.duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "input.duration",
-     "value": 5
-    }
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -2346,44 +2304,15 @@
   {
    "id": "happyhorse|kie|happyhorse|ref->edit",
    "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "input.duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "input.duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "input.duration",
-     "value": 5
-    }
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -2409,44 +2338,15 @@
   {
    "id": "happyhorse|kie|happyhorse|t2v->edit",
    "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "input.duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "input.duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "input.duration",
-     "value": 5
-    }
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -2523,32 +2423,15 @@
   {
    "id": "happyhorse|runway|happyhorse_1_0|i2v->edit",
    "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -2574,32 +2457,15 @@
   {
    "id": "happyhorse|runway|happyhorse_1_0|ref->edit",
    "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -2642,38 +2508,15 @@
   {
    "id": "happyhorse|runway|happyhorse_1_0|t2v->edit",
    "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -2821,19 +2664,12 @@
     "status": "sent",
     "statusWithParams": "sent",
     "leaks": [],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "aspect_ratio"
-      ]
-     }
-    ],
+    "defaultCarried": [],
     "emptyDuration": null
    },
    "run": {
-    "status": "refused:apimart_provider_error",
-    "statusWithParams": "refused:apimart_provider_error",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -2844,36 +2680,13 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "audio_setting",
-      "fields": [
-       "audio_setting"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -2884,36 +2697,13 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "audio_setting",
-      "fields": [
-       "audio_setting"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -2925,19 +2715,12 @@
     "status": "sent",
     "statusWithParams": "sent",
     "leaks": [],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "aspect_ratio"
-      ]
-     }
-    ],
+    "defaultCarried": [],
     "emptyDuration": null
    },
    "run": {
-    "status": "refused:apimart_provider_error",
-    "statusWithParams": "refused:apimart_provider_error",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -2948,42 +2731,13 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "audio_setting",
-      "fields": [
-       "audio_setting"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "audio_setting",
-      "fields": [
-       "audio_setting"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -2995,19 +2749,12 @@
     "status": "sent",
     "statusWithParams": "sent",
     "leaks": [],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "aspect_ratio"
-      ]
-     }
-    ],
+    "defaultCarried": [],
     "emptyDuration": null
    },
    "run": {
-    "status": "refused:apimart_provider_error",
-    "statusWithParams": "refused:apimart_provider_error",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -3035,36 +2782,13 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "audio_setting",
-      "fields": [
-       "audio_setting"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -3075,27 +2799,13 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "aspect_ratio"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "aspect_ratio"
-      ]
-     }
-    ],
+    "leaks": [],
+    "defaultCarried": [],
     "emptyDuration": null
    },
    "run": {
-    "status": "refused:apimart_provider_error",
-    "statusWithParams": "refused:apimart_provider_error",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -3663,34 +3373,34 @@
    }
   },
   {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|edit->extend",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
    "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|extend->edit",
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -3701,30 +3411,30 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->extend",
+   "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -3735,30 +3445,30 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->extend",
+   "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -3769,30 +3479,30 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->extend",
+   "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -3803,30 +3513,30 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    },
    "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->extend",
+   "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null

@@ -38,6 +38,7 @@ import { modelReferenceSelection } from '../../../../electron/catalog/modelCatal
 import { findReferenceResidue } from '../../../../electron/catalog/archetypeInput'
 import { assertNoReferenceResidueBeforeSend } from '../../../../electron/tasks/referenceResidueGuard'
 import { matchNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
+import { definiteSendRefusalOf } from '../../../../electron/shared/contracts/definiteSendRefusal'
 import { buildProfileHttpRequest } from '../../../../electron/catalog/profileHttpRequest'
 import {
   NEWAPI_IMAGE_CREATE_OP,
@@ -184,8 +185,15 @@ function wire(transport: Transport, request: { kind: string; prompt: string; ext
     if (matchNomiErrorCode(String((error as Error).message)) === 'reference-not-in-use') return null
     throw error
   }
-  const extras = applyHeadlessParamDefaults(guarded, modelReferenceSelection(transport.vendor.key, transport.model, request.kind),
-    transport.op.defaultParams, transport.op.body)
+  // 发送前的通用判定（方式缺必需输入）也是主进程拒发：放一边的那张不发之后方式缺了输入，就整单不发，同样一个字节都不上线。
+  let extras: Record<string, unknown> | undefined
+  try {
+    extras = applyHeadlessParamDefaults(guarded, modelReferenceSelection(transport.vendor.key, transport.model, request.kind),
+      transport.op.defaultParams, transport.op.body)
+  } catch (error) {
+    if (definiteSendRefusalOf(error)) return null
+    throw error
+  }
   const built = buildProfileHttpRequest({
     vendor: transport.vendor, model: transport.model, apiKey: 'k',
     request: { ...request, extras } as never, operation: transport.op,

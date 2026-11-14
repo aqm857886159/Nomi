@@ -175,7 +175,9 @@ describe("isReferenceFetchRefusal：模型拉不到参考链接", () => {
 
   it.each([
     ["minimaxH3.mixedReferences", {}],
-    ["minimaxH3.audioOnly", {}],
+    ["modeInput.companionMissing", { slot: "参考音频", companions: "参考图或参考视频" }],
+    ["modeInput.slotMissing", { slot: "源视频" }],
+    ["modeInput.optionNeedsSlot", { parameter: "audio_setting", parameterLabel: "声音", value: "origin", valueLabel: "保留原声", slot: "参考视频" }],
     ["runway.seedanceEmptyImage", {}],
     ["outbound.referenceUrlInvalid", { field: "image", detail: "bad" }],
   ] as const)("我们自己的发送前校验 %s（中英）→ 否，重试还是同一个错", (key, values) => {

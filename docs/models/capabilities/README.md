@@ -11,8 +11,9 @@
 最后一列用反引号里的记号写「落到档案哪里」，合同测试 `electron/shared/modelArchetypes/capabilityTables.contract.test.ts` 双向读：
 
 - 表里标「露出 / 替创作者定」的记号，档案里必须真有；
-- 档案里的每个方式、参数、输入槽、固定参数，表里必须有一行认领；
+- 档案里的每个方式、参数、输入槽、固定参数、`requiresAnyOf`、`slotEmpty` 约束，表里必须有一行认领；
 - 标「不露出」的 `absent:` 记号，档案里必须真没有。
+- 官方夹具 `tests/fixtures/vendor-official/apimart/<模型>.json` 的 `requestFields`（接模型时从文档抄的请求字段：名字 + 原文 + 出处 + 抓取日），每个字段表里都要有一行认领：落点记号里出现这个字段名，或「项」里写出它（如 `model`）。
 
 记号：
 
@@ -26,6 +27,8 @@
 | `combine:first=image_with_roles` | 方式把槽合并进这个角色数组 |
 | `total:ref=15` | 方式的参考总数上限 |
 | `constrain:edit/output_format:background=transparent=>png` | 选了某值时另一个参数只剩这些选项 |
+| `requires:ref/audio_ref=image_ref\|video_ref` | 这个输入槽不能单独用，至少还要其中一个槽（档案 `requiresAnyOf`；表格里的 `\|` 要转义） |
+| `when:ref/audio_setting=origin:slotEmpty:video_ref` | 这个槽没放东西时这些值不能选（档案 `optionConstraints` 的 `when: { slotEmpty }`；多个值用逗号） |
 | `absent:key` / `absent:mode/key` | 档案里（这个方式里）没有这个参数 / 输入字段 |
 | `reason:管道` | 不露出的原因（五类之一） |
 | `condition:…` | 「现在做不到」什么条件下能露出 |

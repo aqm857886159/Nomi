@@ -21,8 +21,14 @@ export type ModelParameterControl = {
   /** Media-reference controls retain the declared asset kind; older controls default to image. */
   mediaKind?: "image" | "video" | "audio";
   options: ModelParameterControlOption[];
-  /** Intersect options when another parameter has the declared value. */
-  optionConstraints?: { when: { key: string; value: string | number | boolean }; values: (string | number | boolean)[] }[];
+  /**
+   * Intersect options when another parameter has the declared value, or when a reference slot of this mode is empty
+   * (`slotEmpty`: e.g. Kling 4.0 Flash `origin` requires a reference video). Judged by crossFieldConstraints only.
+   */
+  optionConstraints?: {
+    when: { key: string; value: string | number | boolean } | { slotEmpty: ArchetypeReferenceSlotKind };
+    values: (string | number | boolean)[];
+  }[];
   defaultValue?: string | number | boolean;
   min?: number;
   max?: number;

@@ -14,13 +14,21 @@ import { resolveArchetypeVariant } from "../shared/modelArchetypes/variantResolu
 import { bodyReferencedParamKeys } from "./paramTranslate";
 import { hasMentions, numberPromptReferences, projectPromptForSend } from "../shared/storyboard/promptMentions";
 import { assertReferenceCapacity, bodyReferenceSupport, classifyReferenceKey, referenceUrlCount, type ModelModeBody, type ReferenceFamily } from "./referenceReachability";
-import { referenceKeyCapacityDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
+import { referenceFrameKindFor, referenceKeyCapacityDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
 import { lowerHeadlessReferences } from "../shared/generationLowering/headlessReferences";
 import { withLoweredReferences, type LoweredGeneration } from "../shared/generationLowering/lowerGenerationIntent";
 import { chatImageParts, jsonImageEditInput } from "./referenceCarrierShapes";
 import { readSelectedComfyReferenceContract, type ParameterReferenceSelection } from "./parameterReferenceContract";
 import { resolveWireModel, WIRE_MODEL_PARAM } from "../shared/modelArchetypes/wireModelIdentity";
 import { comparableReferenceUrl, comparableReferenceValues, serializeReferenceParams } from "./outboundReferenceUrl";
+import { referenceValueCount, validateModeConstraints, type ReferenceCounts } from "../shared/videoCapabilities/crossFieldConstraints";
+import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from "../shared/modelArchetypes/types";
+import { declarationForMode } from "../shared/generationLowering/declarationForMode";
+import { specializeArchetypeForVariant } from "../shared/modelArchetypes";
+import { desktopT } from "../desktopStrings";
+import type { DefiniteSendRefusal } from "../shared/contracts/definiteSendRefusal";
+import { modeForInputs, type ModeInput } from "../shared/modelArchetypes/modeForInputs";
+import { SLOT_ACCEPTS } from "../shared/modelArchetypes/anchorPolicy";
 
 
 /** taskTemplateParams 实际用到的 TaskRequest 子集（结构化，避免与 runtime 的 TaskRequest 循环依赖）。 */
@@ -193,7 +201,149 @@ export function applyHeadlessParamDefaults(
   // ③ 参考键形态投影（既有值优先 → 渲染层已填 archetypeInput 时 no-op）。在缺参兜底之后做，看到的是合并后的 extras。
   if (typeof createBody === "undefined") return withDefaults;
   const projected = headlessReferenceLowering(withDefaults, createBody, selected);
-  return projected.placedKeys.length ? withLoweredReferences(withDefaults || {}, projected) : withDefaults;
+  const lowered = projected.placedKeys.length ? withLoweredReferences(withDefaults || {}, projected) : withDefaults;
+  // ④ 这个方式收不收这一次的参数和输入（缺必需输入 / 依赖的槽没有 / 选项要的槽没有 / 参数组合 / 参考合计）：
+  // 两个发送口都经这里，判在降级之后——数的是真要发出去的那几个键。规则只在 crossFieldConstraints 一处。
+  if (modeSelection) assertModeAcceptsInputs(modeSelection, lowered ?? {}, createBody, selected);
+  return lowered;
+}
+
+/** 发送前拒收：方式要的输入请求里没有。`code` 供机读（尺子、Agent 回执）；原话给人看。 */
+export class ModeInputMissingError extends Error implements DefiniteSendRefusal {
+  readonly code = "mode_input_missing";
+  readonly definiteSendRefusal = true as const;
+}
+
+/** 降级后的请求里，这个方式每个槽各带了几件（按绑定数：自己的键数项数，合并键按角色数；扁平合并分不清就整袋都算给它，宁可不拒）。 */
+function loweredSlotCounts(
+  mode: ArchetypeMode,
+  values: Record<string, unknown>,
+  createBody: unknown,
+  selected: ParameterReferenceSelection,
+): ReferenceCounts {
+  const placedByCanvas = isJsonRecord(values.archetypeInput) ? values.archetypeInput : {};
+  const read = (key: string): unknown => {
+    const top = values[key];
+    return referenceValueCount(top) > 0 ? top : placedByCanvas[key];
+  };
+  const countBy = (declaration: ReturnType<typeof declarationForMode>): ReferenceCounts => {
+    const counts: ReferenceCounts = {};
+    for (const binding of declaration.bindings) {
+      const target = binding.target;
+      let count = 0;
+      if (target.select === "declared") count = referenceValueCount(read(target.key));
+      else if (target.select === "combined") {
+        const value = read(target.key);
+        const items = Array.isArray(value) ? value : [];
+        count = binding.encoding.shape === "role-objects"
+          ? items.filter((item) => isJsonRecord(item) && item.role === target.role).length
+          : referenceValueCount(value);
+      }
+      counts[binding.kind] = (counts[binding.kind] ?? 0) + count;
+    }
+    return counts;
+  };
+  // 两份绑定都数、每种取大：按这条 body 的绑定（Run 路降级落的键），和按方式声明的绑定（画布拿不到 body，按方式声明放进
+  // archetypeInput；body 不读合并键的渠道，模板照样从那里取——Runway Veo 首尾帧的 promptImage 就取自 image_urls）。
+  const bodyDeclaration = declarationForMode(mode, createBody);
+  const modeDeclaration = declarationForMode(mode);
+  const byBody = countBy(bodyDeclaration);
+  const byMode = countBy(modeDeclaration);
+  const counts: ReferenceCounts = { ...byBody };
+  for (const [kind, count] of Object.entries(byMode) as Array<[ArchetypeReferenceSlotKind, number]>) counts[kind] = Math.max(counts[kind] ?? 0, count);
+  // body 读、但两份声明都没绑的参考键：调用方直接写在 body 键上的，或没有方式可读时「按 body 推声明」的降级按素材族挑的键
+  // （headless / MCP 给标准输入键：Wan 首帧方式的图落 image_urls、Runway 的图落 image_url）。它们照样发出去。
+  // 键自己说了是首帧 / 尾帧、这个方式又有那个槽 → 只算给那个槽；别的分不清是哪个槽 → 算给这个方式里收这一族素材的每个槽，宁可不拒。
+  const credit = (family: ReferenceFamily, frame: ArchetypeReferenceSlotKind | null, count: number) => {
+    if (count === 0) return;
+    const slots = frame && mode.slots.some((slot) => slot.kind === frame)
+      ? [frame]
+      : mode.slots.filter((slot) => SLOT_ACCEPTS[slot.kind].includes(family)).map((slot) => slot.kind);
+    for (const kind of slots) counts[kind] = Math.max(counts[kind] ?? 0, count);
+  };
+  const bodyKeys = bodyReferencedParamKeys(createBody);
+  const declaredKeys = new Set([...bodyDeclaration.bindings, ...modeDeclaration.bindings]
+    .flatMap(({ target }) => ("key" in target ? [target.key] : [...target.keys])));
+  const bodyFamilies = new Set<ReferenceFamily>();
+  for (const key of bodyKeys) {
+    const family = referenceKeyCapacityDeclarationFor(key, selected)?.family;
+    if (!family) continue;
+    bodyFamilies.add(family);
+    if (!declaredKeys.has(key)) credit(family, referenceFrameKindFor(key) ?? null, referenceValueCount(read(key)));
+  }
+  // 标准输入键（firstFrameUrl / referenceImages …）：有的 body 不读具体键、由模板参数层从它们派生载体（火山 Seedance 的
+  // volcengine_*_content 就从首帧 / 参考图造）。body 读得到这一族素材，就按标准键带的件数算，同样宁可不拒；body 根本没有这一族的位，
+  // 带了也发不出去，不算。
+  const standard = referenceInputParams(values, selected);
+  const STANDARD: ReadonlyArray<readonly [string, ReferenceFamily, ArchetypeReferenceSlotKind | null]> = [
+    ["first_frame_url", "image", "first_frame"], ["last_frame_url", "image", "last_frame"],
+    ["reference_images", "image", null], ["reference_image_urls", "image", null],
+    ["reference_video_urls", "video", null], ["reference_audio_urls", "audio", null],
+  ];
+  for (const [key, family, frame] of STANDARD) {
+    if (bodyFamilies.has(family)) credit(family, frame, referenceValueCount(standard[key]));
+  }
+  return counts;
+}
+
+function slotName(mode: ArchetypeMode, kind: ArchetypeReferenceSlotKind): string {
+  const label = mode.slots.find((slot) => slot.kind === kind)?.label ?? "";
+  return desktopT("modeInput.slotName", { label, kind: desktopT(`modeInput.slotKind.${kind}`) });
+}
+
+/**
+ * 拒收后的出路：这次请求里的输入，同一个模型按「按输入现算方式」（modeForInputs，唯一 owner）能整份收下的那个方式。
+ * 只在算出一个别的方式、且它收得下全部输入时点名；算不出就不说（拒收句前半句照旧）。
+ */
+function modeThatFitsInputs(archetype: ModelArchetype, current: ArchetypeMode, counts: ReferenceCounts): string {
+  const inputs: ModeInput[] = [];
+  for (const [kind, count] of Object.entries(counts) as Array<[ArchetypeReferenceSlotKind, number]>) {
+    // 一件输入先认它在这次请求里的槽，再认同种素材能落的别的槽（同画布上传图的落法：图可以当首帧也可以当参考图）。
+    const asset = SLOT_ACCEPTS[kind][0]!;
+    const slots = [kind, ...(Object.keys(SLOT_ACCEPTS) as ArchetypeReferenceSlotKind[]).filter((other) => other !== kind && SLOT_ACCEPTS[other].includes(asset))];
+    for (let index = 0; index < count; index += 1) inputs.push({ slots, asset });
+  }
+  if (!inputs.length) return "";
+  const fit = modeForInputs(archetype, inputs, null);
+  if (fit.status !== "ok" || fit.taken !== inputs.length || fit.mode.id === current.id) return "";
+  return desktopT("modeInput.fitsMode", { mode: fit.mode.vendorTerm, modeId: fit.mode.id });
+}
+
+function assertModeAcceptsInputs(
+  selection: { archetype: ModelArchetype; modeId: string; variantId?: string },
+  values: Record<string, unknown>,
+  createBody: unknown,
+  selected: ParameterReferenceSelection,
+): void {
+  const archetype = specializeArchetypeForVariant(selection.archetype, selection.variantId);
+  const mode = archetype.modes.find((candidate) => candidate.id === selection.modeId);
+  if (!mode) return;
+  const counts = loweredSlotCounts(mode, values, createBody, selected);
+  const violation = validateModeConstraints(mode, values, counts);
+  if (!violation) return;
+  const refuse = (message: string) => new ModeInputMissingError(`${message}${modeThatFitsInputs(archetype, mode, counts)}`);
+  switch (violation.kind) {
+    case "slotMissing":
+      throw refuse(desktopT("modeInput.slotMissing", { slot: slotName(mode, violation.slot) }));
+    case "companionMissing":
+      throw refuse(desktopT("modeInput.companionMissing", {
+        slot: slotName(mode, violation.slot),
+        companions: violation.companions.map((kind) => slotName(mode, kind)).join(desktopT("modeInput.or")),
+      }));
+    case "optionNeedsSlot": {
+      const control = mode.params.find((candidate) => candidate.key === violation.key);
+      const option = control?.options.find((candidate) => String(candidate.value) === String(violation.value));
+      throw refuse(desktopT("modeInput.optionNeedsSlot", {
+        parameter: violation.key, parameterLabel: control?.label ?? violation.key,
+        value: String(violation.value), valueLabel: option?.label ?? String(violation.value),
+        slot: slotName(mode, violation.slot),
+      }));
+    }
+    case "parameter":
+      throw new Error(desktopT("modelConstraints.parameterCombination", { parameter: violation.key }));
+    case "references":
+      throw new Error(desktopT("modelConstraints.referenceTotal", { max: violation.max }));
+  }
 }
 
 export function taskTemplateParams(request: TaskParamsInput, selected?: ParameterReferenceSelection): JsonRecord {
