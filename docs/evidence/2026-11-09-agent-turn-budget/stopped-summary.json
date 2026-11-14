@@ -9,5 +9,8 @@
   "screenshots": [
     "zh-tool-retry-stopped.png",
     "en-tool-retry-stopped.png"
-  ]
+  ],
+  "rerunOnMergedMain": "d4be0b7539a4641023fc73ebe705e022b68dc6e0",
+  "stopOutputExpandedInBothLocales": true,
+  "requestsAfterStop": 0
 }
