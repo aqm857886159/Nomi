@@ -296,9 +296,8 @@ function projectionRequest(
   // 七项引擎差异之四：图生图/图生视频**一张参考都没带**时，引擎 A 在付费前就拒发
   // （`runtime.ts` 的 imageEditGuardError）；引擎 B 此前照发不误 —— 用户意图「拿图改」，
   // 结果静默退化成纯文生，钱照扣、拿回来的东西跟参考图毫无关系。同一把尺子收在这里。
-  // 引擎 B 的参考素材住在合同里（`input.references` + 授权时封存的 URL 表），而这把共享的尺子
-  // 读的是「headless extras 里带了哪些参考」——所以把封存的那几条 URL 按它认得的标准键喂进去，
-  // 而不是在这里另写一份判据（那就成了同一个问题的第二个答案）。
+  // 引擎 B 的参考住在合同里（`input.references` + 授权时封存的 URL 表），这把共享尺子读「headless extras 带了哪些参考」——
+  // 所以把封存的 URL 按它认得的标准键喂进去，不在这里另写一份判据（那就成了同一个问题的第二个答案）。
   const approvedReferenceUrls = [...new Set([
     ...input.references
       .map((reference) => input.referenceUrls?.[spendReferenceKey(reference)])
