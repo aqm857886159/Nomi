@@ -18,7 +18,6 @@ import type { HttpOperation, ProfileKind } from "./types";
 import type { ParamMap } from "./paramTranslate";
 import { APIMART_CREATE_TASK_ID_PATH, APIMART_STATUS_MAPPING, APIMART_VIDEO_QUERY_OP } from "./apimartVendor";
 import "./apimartMinimaxH3";
-import "./apimartHailuo23";
 import "./apimartModelIds";
 import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
@@ -216,7 +215,6 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   }),
   // Hailuo 2.3：无 aspect_ratio；图生视频用 first_frame_image（字符串，非数组）。变体（标准 / Fast）→ {{request.params.model}}。
   videoModel({
-    requestTransform: "apimart-hailuo-23",
     modelKey: "MiniMax-Hailuo-2.3", labelZh: "Hailuo 2.3", archetypeId: "hailuo-2.3", modelRef: VARIANT_MODEL_REF,
     t2vBody: { resolution: RESOLUTION, duration: DURATION },
     i2vBody: { resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE },
@@ -241,10 +239,10 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   // 参考 / 编辑 / 续写由 mode.fixedParams 注入 omni_reference_task_type，让约束在提交时就校验。
   videoModel({
     modelKey: "kling-v4-flash", labelZh: "可灵 4.0 Flash", archetypeId: "kling-v4-flash",
-    t2vBody: { aspect_ratio: ASPECT_OPTIONAL, duration: DURATION },
+    t2vBody: { aspect_ratio: ASPECT_OPTIONAL, duration: DURATION, nsfw_check: "{{request.params.nsfw_check}}" },
     i2vBody: {
       aspect_ratio: ASPECT_OPTIONAL, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, image_urls: IMAGE_URLS, video_urls: VIDEO_URLS,
-      omni_reference_task_type: "{{request.params.omni_reference_task_type}}", audio_setting: "{{request.params.audio_setting}}",
+      omni_reference_task_type: "{{request.params.omni_reference_task_type}}", audio_setting: "{{request.params.audio_setting}}", nsfw_check: "{{request.params.nsfw_check}}",
     },
     paramMap: OPTIONAL_ASPECT_PARAM_MAP,
   }),
@@ -252,10 +250,10 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   // first_frame_image / last_frame_image，fal 那边的 mapping 把它们写进自己的 image_url / end_image_url）；清晰度 480P / 768P / 1080P，水印不声明（1080P 必须不发）。
   videoModel({
     modelKey: "MiniMax-H3-Max", labelZh: "MiniMax H3-Max", archetypeId: "minimax-h3-max",
-    t2vBody: { resolution: RESOLUTION, duration: DURATION, aspect_ratio: ASPECT },
+    t2vBody: { resolution: RESOLUTION, duration: DURATION, aspect_ratio: ASPECT, nsfw_check: "{{request.params.nsfw_check}}" },
     i2vBody: {
       aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE,
-      image_urls: IMAGE_URLS, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS,
+      image_urls: IMAGE_URLS, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS, nsfw_check: "{{request.params.nsfw_check}}",
     },
   }),
   // Grok Imagine Video 1.5 官方通道：字段名 resolution / aspect_ratio（Ext 那条叫 quality / size），图生只发 image_urls。

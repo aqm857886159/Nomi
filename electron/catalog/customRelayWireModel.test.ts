@@ -124,7 +124,9 @@ describe("自定义中转 · headless / MCP 入口（引擎 A 缺参兜底之后
     ["seedance-2", "image_to_video", "video", NEWAPI_VIDEO_CREATE_OP],
   ] as const)("%s：目录行带 archetypeId 时，兜底默认值也不许把 model 换成档案名", (modelKey, taskKind, kind, operation) => {
     const model = relayModel(modelKey, kind, { meta: { archetypeId: modelKey } });
-    const extras = applyHeadlessParamDefaults({ modelKey }, modelReferenceSelection(RELAY_KEY, model, taskKind), operation.defaultParams, operation.body);
+    // 图生视频带上首帧：一张图都没有的图生视频在发送前就拒（方式缺必需输入），那不是这里要量的。
+    const inputs = taskKind === "image_to_video" ? { firstFrameUrl: "https://assets.example.com/relay/first.png" } : {};
+    const extras = applyHeadlessParamDefaults({ modelKey, ...inputs }, modelReferenceSelection(RELAY_KEY, model, taskKind), operation.defaultParams, operation.body);
     const request = { kind: taskKind, prompt: "a red paper crane", extras } as TaskRequest;
     expect(jsonBodyModel(request, model, operation)).toBe(modelKey);
   });

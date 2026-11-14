@@ -6,9 +6,6 @@
 import { registerRequestTransform, type RequestTransformContext } from "../tasks/requestTransforms";
 import { desktopT } from "../i18n";
 
-import { MINIMAX_H3_APIMART_ARCHETYPE } from "../shared/videoCapabilities/minimaxH3Apimart";
-import { validateModeConstraints } from "../shared/videoCapabilities/crossFieldConstraints";
-
 type JsonRecord = Record<string, unknown>;
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -40,22 +37,13 @@ export function validateMinimaxH3Body(body: unknown, context?: RequestTransformC
     throw new Error(desktopT("minimaxH3.mixedReferences"));
   }
   if (!isRecord(body)) return;
-
-  const referenceMode = MINIMAX_H3_APIMART_ARCHETYPE.modes.find(mode => mode.id === "ref")!;
-  const violation = validateModeConstraints(referenceMode, body);
-  if (violation?.kind === "references") throw new Error(desktopT("modelConstraints.referenceTotal", { max: violation.max }));
+  // 参考合计与「音频不能单独输入」归发送前的通用一步（taskParams → crossFieldConstraints.validateModeConstraints，按档案声明判）；
+  // 这里只剩 APIMart 字段自动路由特有的一条：首尾帧和参考素材两组不能同时出现。
 
   const hasFrame = hasWireValue(body.first_frame_image) || hasWireValue(body.last_frame_image);
-  const hasImageReference = hasWireValue(body.image_urls);
-  const hasVideoReference = hasWireValue(body.video_urls);
-  const hasAudioReference = hasWireValue(body.audio_urls);
-  const hasReference = hasImageReference || hasVideoReference || hasAudioReference;
-
+  const hasReference = hasWireValue(body.image_urls) || hasWireValue(body.video_urls) || hasWireValue(body.audio_urls);
   if (hasFrame && hasReference) {
     throw new Error(desktopT("minimaxH3.mixedReferences"));
-  }
-  if (!hasFrame && hasAudioReference && !hasImageReference && !hasVideoReference) {
-    throw new Error(desktopT("minimaxH3.audioOnly"));
   }
 }
 

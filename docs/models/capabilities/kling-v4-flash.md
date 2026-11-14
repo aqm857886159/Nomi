@@ -24,7 +24,7 @@
 | 比例：文生 | `Text-to-video, reference generation, and editing support 16:9, 9:16, 1:1, and 21:9` / `Text-to-video default: 16:9` | 露出 | `param:t2v/aspect_ratio=16:9,9:16,1:1,21:9@16:9` |
 | 比例：参考 / 编辑（auto = 不发） | `only reference generation accepts auto` / `without aspect_ratio, it follows the input ratio` | 露出 | `param:ref/aspect_ratio=auto,16:9,9:16,1:1,21:9@auto` `param:edit/aspect_ratio=auto,16:9,9:16,1:1,21:9@auto` |
 | 图生不收比例 | `Image-to-video does not accept aspect_ratio or size: nonempty values return HTTP 400` | 不露出 | `absent:i2v/aspect_ratio` `reason:模型无效` |
-| 声音：参考方式 origin / auto | `origin preserves the first reference video's audio; auto generates new audio and is the default.` | 露出 | `param:ref/audio_setting=auto,origin@auto` |
+| 声音：参考方式 origin / auto（origin 要参考视频） | `origin preserves the first reference video's audio; auto generates new audio and is the default.` / `origin requires a reference video.` | 露出 | `param:ref/audio_setting=auto,origin@auto` `when:ref/audio_setting=origin:slotEmpty:video_ref` |
 | 声音：编辑 / 续写不收 | `Editing generates new audio and does not preserve the source audio; omit this parameter in editing requests. Extension does not accept it.` | 不露出 | `absent:edit/audio_setting` `reason:模型无效` |
 | 清晰度只有 720p | `Only 720p, the default when omitted. 1080p returns HTTP 400.` | 不露出 | `absent:resolution` `reason:模型无效`（文档明写只有 720p，1080p 返回 400，只有一个合法值） |
 | 子任务类型 auto | `auto: selects text-to-video, image-to-video, or reference-based generation from the assets; equivalent to omitting the field.` | 不露出 | `reason:同一件事`（等于不发；文生 / 图生本来就不发） |
@@ -35,4 +35,5 @@
 | 首帧字段别名（image_urls 首张） | `It can also be supplied as first_frame in image_with_roles, or as the first image in image_urls.` | 不露出 | `reason:同一件事` |
 | 文档明说不支持的字段 | `last_frame_image, role: "last_frame", role: "keyframe"; audio_urls, audio_url; mode, negative_prompt, watermark: true, audio: false` | 不露出 | `absent:last_frame_image` `absent:audio_urls` `absent:mode` `absent:negative_prompt` `absent:watermark` `absent:audio` `reason:模型无效` |
 | 文档明说不支持的多镜头 / 运镜字段 | `multi_shot, multi_prompt, element_list, video_list; camera_control, voice_list` | 不露出 | `absent:multi_shot` `absent:camera_control` `reason:模型无效` |
+| 提交前内容审核 | `nsfw_check: Whether to run content moderation before submitting the video task. false or omitted: do not send a moderation request, adding no moderation cost or latency (default)` | 露出 | `param:*/nsfw_check=bool@false` |
 | model | `Must be kling-v4-flash.` | 不露出 | `reason:管道` |

@@ -235,6 +235,16 @@ export function bodyDrift(cell: string, path: "canvas" | "run", wire: Wire, snap
   return out;
 }
 
+// 发送前输入判定（2026-11-14，docs/plan/2026-11-14-mode-input-check.md）：Run 路明说了方式、这个方式赖以成立的输入没给 → 不发。
+// 这几格以前照发（编辑 / 续写没源视频；首尾帧只给首帧，协调 11-14 拍板照拒），现在必须是 mode_input_missing，零请求。
+const REFUSED_MISSING_INPUT_ON_RUN = [
+  "doubao-seedance-2.5|edit|n=1", "doubao-seedance-2.5|edit|n=30", "doubao-seedance-2.5|extend|n=1", "doubao-seedance-2.5|extend|n=30",
+  "kling-v4-flash|edit|n=1", "kling-v4-flash|edit|n=10",
+  "MiniMax-H3|firstlast|n=1", "pixverse-v6|firstlast|n=1", "gemini-omni-1.2-flash|firstlast|n=1", "gemini-omni-1.2-flash-ext|firstlast|n=1",
+];
+// 给全输入的请求只许多这一个键：可灵 4.0 Flash、H3-Max（APIMart）露出「提交前内容审核」，默认 false 照发。
+const NSFW_ADDED_MODELS = ["kling-v4-flash", "MiniMax-H3-Max"];
+
 const cells = buildCells();
 const dumpPath = process.env.NOMI_OFFICIAL_WIRE_DUMP;
 const dump: Array<{ cell: string; violations: Violation[]; canvas: Wire; run: Wire }> = [];
@@ -298,8 +308,9 @@ describe("官方字段矩阵：夹具", () => {
     expect(bodyDrift("c", "canvas", { ...body, size: "1:1" }, reg)).toHaveLength(1);
     expect(bodyDrift("c", "canvas", body, reg)).toHaveLength(1);
     expect(bodyDrift("c", "run", { ...body, size: "16:9" }, reg)).toHaveLength(1);
-    // 真快照：登记的新增全部落在 ref 方式，非 ref 格一条都没有。
-    expect(bodies.added.filter((a) => !/\|ref\|/.test(a.cell))).toEqual([]);
+    // 真快照：登记的新增只有可灵 4.0 Flash / H3-Max 的 nsfw_check:false，别的模型、别的键一条都没有。
+    expect(bodies.added.filter((a) => !(NSFW_ADDED_MODELS.includes(a.cell.split("|")[0]!) && a.key === "nsfw_check" && a.value === false))).toEqual([]);
+    expect(bodies.added.length).toBeGreaterThan(0);
   });
 
   it("评判器自检：造一个红的请求体，六条断言各自能抓到", () => {
@@ -326,6 +337,7 @@ describe("官方字段矩阵：模型 × 模式 × 两条路 × 参考图数", (
     it(entry.cell.id + (gap ? "（无官方夹具：没量过）" : ""), async () => {
       const canvas = canvasSendsThisMode(entry) ? await runCanvas(entry) : CANVAS_NOT_THIS_MODE;
       const run = await runCatalog(entry);
+      if (REFUSED_MISSING_INPUT_ON_RUN.includes(entry.cell.id)) expect((run as { code?: string } | null)?.code, "缺方式必需输入：Run 路必须不发").toBe("mode_input_missing");
       const violations = judgeCell(entry, canvas, run);
       if (dumpPath) dump.push({ cell: entry.cell.id, violations, canvas, run });
       if (updateBodies) recordedBodies[entry.cell.id] = { canvas: wireFingerprint(canvas), run: wireFingerprint(run) };

@@ -14,6 +14,8 @@ const DURATION: ModelParameterControl = { key: "duration", label: "时长(秒)",
 const APIMART_RESOLUTION: ModelParameterControl = { key: "resolution", label: "清晰度", type: "select", options: options(["480P", "768P", "1080P"]), defaultValue: "768P" };
 const APIMART_ASPECT_REF: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: options(["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]), defaultValue: "adaptive" };
 const APIMART_ASPECT: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: options(["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]), defaultValue: "16:9" };
+// 官方顶层字段 `nsfw_check boolean (default: false)`：和 Seedance 2.5 同一个开关，默认关（发 false = 官方默认）。
+const APIMART_NSFW_CHECK: ModelParameterControl = { key: "nsfw_check", label: "提交前内容审核", type: "boolean", options: [], defaultValue: false };
 
 export const MINIMAX_H3_MAX_ARCHETYPE: ModelArchetype = {
   id: "minimax-h3-max", family: "minimax", label: "MiniMax H3-Max", kind: "video", defaultModeId: "t2v", transportTaskKind: "text_to_video",
@@ -29,16 +31,17 @@ export const MINIMAX_H3_MAX_ARCHETYPE: ModelArchetype = {
     },
   ],
   modes: [
-    { id: "t2v", intent: "text", vendorTerm: "文生视频", hint: "极速生成视频", promptRequired: true, slots: [], params: [RESOLUTION, DURATION, { key: "aspect_ratio", label: "比例", type: "select", options: options(["16:9", "9:16", "1:1", "4:3", "3:4"]), defaultValue: "16:9" }], vendorParams: { apimart: [APIMART_RESOLUTION, DURATION, APIMART_ASPECT] } },
-    { id: "i2v", intent: "firstlast", vendorTerm: "首尾帧", hint: "首帧必填，尾帧可选", promptRequired: true, transportTaskKind: "image_to_video", slots: [{ kind: "first_frame", label: "首帧", min: 1, max: 1, inputKey: "first_frame_image", asArray: false }, { kind: "last_frame", label: "尾帧", min: 0, max: 1, inputKey: "last_frame_image", asArray: false }], params: [RESOLUTION, DURATION], vendorParams: { apimart: [APIMART_RESOLUTION, DURATION] } },
+    { id: "t2v", intent: "text", vendorTerm: "文生视频", hint: "极速生成视频", promptRequired: true, slots: [], params: [RESOLUTION, DURATION, { key: "aspect_ratio", label: "比例", type: "select", options: options(["16:9", "9:16", "1:1", "4:3", "3:4"]), defaultValue: "16:9" }], vendorParams: { apimart: [APIMART_RESOLUTION, DURATION, APIMART_ASPECT, APIMART_NSFW_CHECK] } },
+    { id: "i2v", intent: "firstlast", vendorTerm: "首尾帧", hint: "首帧必填，尾帧可选", promptRequired: true, transportTaskKind: "image_to_video", slots: [{ kind: "first_frame", label: "首帧", min: 1, max: 1, inputKey: "first_frame_image", asArray: false }, { kind: "last_frame", label: "尾帧", min: 0, max: 1, inputKey: "last_frame_image", asArray: false }], params: [RESOLUTION, DURATION], vendorParams: { apimart: [APIMART_RESOLUTION, DURATION, APIMART_NSFW_CHECK] } },
     {
       id: "ref", intent: "character", vendorTerm: "多模态参考", hint: "参考图 ≤9 + 参考视频 ≤3 + 参考音频 ≤3；音频须配图或视频", promptRequired: true, transportTaskKind: "image_to_video",
       slots: [
         { kind: "image_ref", label: "参考图", min: 0, max: 9, characterIndexed: true, inputKey: "image_urls" },
         { kind: "video_ref", label: "参考视频", min: 0, max: 3, inputKey: "video_urls" },
-        { kind: "audio_ref", label: "参考音频", min: 0, max: 3, inputKey: "audio_urls" },
+        // 官方：「Must accompany at least one reference image or video; audio alone is not supported.」
+        { kind: "audio_ref", label: "参考音频", min: 0, max: 3, inputKey: "audio_urls", requiresAnyOf: ["image_ref", "video_ref"] },
       ],
-      params: [], vendorParams: { apimart: [APIMART_RESOLUTION, DURATION, APIMART_ASPECT_REF] },
+      params: [], vendorParams: { apimart: [APIMART_RESOLUTION, DURATION, APIMART_ASPECT_REF, APIMART_NSFW_CHECK] },
     },
   ],
 };

@@ -32,5 +32,79 @@
       }
     }
   },
-  "scope": "background transparency and layer_decomposition input constraints are not exercised by this matrix; no claim of complete conditional input coverage."
+  "scope": "background transparency and layer_decomposition input constraints are not exercised by this matrix; no claim of complete conditional input coverage.",
+  "requestFields": [
+    {
+      "name": "model",
+      "quote": "Image generation model name",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+      "fetchedAt": "2026-11-08"
+    },
+    {
+      "name": "nsfw_check",
+      "quote": "Whether to run content moderation before submitting the image task.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+      "fetchedAt": "2026-11-08"
+    },
+    {
+      "name": "prompt",
+      "quote": "Text description for image generation",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+      "fetchedAt": "2026-11-08"
+    },
+    {
+      "name": "resolution",
+      "quote": "Resolution tier (lowercase accepted).",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+      "fetchedAt": "2026-11-08"
+    },
+    {
+      "name": "size",
+      "quote": "A tier keyword, aspect ratio, `auto`, or **exact pixel dimensions**.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+      "fetchedAt": "2026-11-08"
+    },
+    {
+      "name": "background",
+      "quote": "Output background mode:",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+      "fetchedAt": "2026-11-08"
+    },
+    {
+      "name": "layer_decomposition",
+      "quote": "Whether to decompose the image into layers.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+      "fetchedAt": "2026-11-08"
+    },
+    {
+      "name": "optimize_prompt_options",
+      "quote": "Prompt optimization mode:",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+      "fetchedAt": "2026-11-08"
+    },
+    {
+      "name": "n",
+      "quote": "Number of images to generate.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+      "fetchedAt": "2026-11-08"
+    },
+    {
+      "name": "image_urls",
+      "quote": "Reference image URL list for single / multi-reference image-to-image, **up to 10**",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+      "fetchedAt": "2026-11-08"
+    },
+    {
+      "name": "output_format",
+      "quote": "Output image format",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+      "fetchedAt": "2026-11-08"
+    },
+    {
+      "name": "watermark",
+      "quote": "Whether to add an \"AI generated\" watermark at the bottom-right",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+      "fetchedAt": "2026-11-08"
+    }
+  ]
 }

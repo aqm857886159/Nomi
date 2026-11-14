@@ -17,6 +17,7 @@ import {
 import { nextGenerationAttempt } from "./prepareProductionGenerationAuthorization";
 import { authorizationGateForJob } from "../shared/productionSpendAuthority";
 import { DispatchConsentLapsedError, dispatchConsentOpen } from "../shared/productionDispatchConsent";
+import { prepareProviderOrLandRefusal, type JobRefusalPatch } from "./productionProviderPreparation";
 import { createProductionRunRuntimeEnvelope } from "./productionRunRuntimeEnvelope";
 import { createProductionRunIntentLog } from "./productionRunIntentLog";
 import { productionRunPaths } from "./productionRunPaths";
@@ -282,16 +283,11 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     // 过了窗口 = 没有人替他续：这一镜不派，调度器接住这个错，批次如实停下等他再点一次（不是失败）。
     if (!dispatchConsentOpen(gate, now())) throw new DispatchConsentLapsedError(gateId, jobId);
 
-    // This is the last zero-side-effect check. If provider serialization drifted since the gate,
-    // nothing below (Run events, ledger, intents, runtime envelope or provider) is touched.
-    const providerPreparation = adapter.prepareAuthorization({
-      contract,
-      providerIdempotencyKey: authorized.providerIdempotencyKey,
-      referenceUrls: authorized.referenceUrls,
-    });
-    if (providerPreparation.providerRequestHash !== authorized.providerWirePayloadHash) {
-      throw new Error("Provider wire payload no longer matches the approved authorization");
-    }
+    // Last check before any submission side effect; the only durable write allowed here is a definite pre-send refusal
+    // landing the job on needs_attention (see productionProviderPreparation).
+    const onRefusal = (patch: JobRefusalPatch) => existingJob.status === "authorized"
+      && command(current, "job.status", { jobId, status: "needs_attention", patch }, `definite-send-refusal:${jobId}`);
+    const providerPreparation = prepareProviderOrLandRefusal(adapter, contract, authorized, onRefusal);
 
     // 先封信封、绑定随提交前那一批一起落盘（发动机收敛第一刀第 3 步的性能尾巴，少一次 Run 落盘）。崩在两者之间：
     // 信封里已经封着那一份绑定（含当时的锁纪元），重来时沿用它，信封 seal 幂等、交出去的还是同一份请求。
