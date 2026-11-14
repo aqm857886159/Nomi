@@ -12,7 +12,7 @@ function sources(directory: string): string[] {
 }
 it('profiles never author derived consumesAnchors and all resolved modes agree with slots', () => {
   const files = [...sources('electron/shared/modelArchetypes'), ...sources('electron/shared/videoCapabilities')]
-  for (const file of files.filter(file => !file.endsWith('/index.ts') && !file.endsWith('/types.ts'))) {
+  for (const file of files.filter(file => !file.endsWith('/entry.ts') && !file.endsWith('/types.ts'))) {
     expect(stripComments(readFileSync(file, 'utf8')), file).not.toMatch(/\bconsumesAnchors\s*:/)
   }
   for (const profile of MODEL_ARCHETYPES) {

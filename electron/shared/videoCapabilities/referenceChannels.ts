@@ -22,7 +22,7 @@
 import { bodyReferencedParamKeys } from "../../catalog/paramTranslate";
 import { parseCustomCapabilityContract } from "../customCapabilityContract";
 import type { ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind } from "./types";
-import { resolveModelArchetype } from "../modelArchetypes/index";
+import { resolveModelArchetype } from "../modelArchetypes/entry";
 
 /**
  * 参考槽种 → 供应商角色词的**唯一表**。画布路（`archetypeMeta.ts buildArchetypeInputParams`）和

@@ -36,7 +36,7 @@
 
 ## ★2 谁说了算
 
-- 新概念「这个模型这一档的档案」→ 唯一 owner：`electron/shared/modelArchetypes/index.ts` 的 `resolveModelArchetype(model, { variant })`。`variant` **必传**：`{ variantId, modelId }`（两个键都要写）、按解析出的档案再定的函数形、或显式 `EVERY_VARIANT`。顺序固定：基础档案 → 供应商 → 型号名作用域 → 方式的锚点消费 → 档（`resolveArchetypeVariant`，已登记 owner，不动）。
+- 新概念「这个模型这一档的档案」→ 唯一 owner：`electron/shared/modelArchetypes/entry.ts`（`index.ts` 原样转出）的 `resolveModelArchetype(model, { variant })`。`variant` **必传**：`{ variantId, modelId }`（两个键都要写）、按解析出的档案再定的函数形、或显式 `EVERY_VARIANT`。顺序固定：基础档案 → 供应商 → 型号名作用域 → 方式的锚点消费 → 档（`resolveArchetypeVariant`，已登记 owner，不动）。
 - 换档用 `rescopeArchetypeVariant(archetype, variant)`：从这份档案的全部档版本重新收窄，不在已收窄的上面再叠一遍。
 - 全目录问题用 `everyBuiltInArchetype()`。
 - 删的并行版（同 PR）：`registry.ts` 私有 `profileFor` + `specializeForProvider`；`referenceChannels.ts` 私有 `builtInArchetypeById`；`recommendation.ts` `effectiveVideoModes` 里的内联 `paramOverrides`；`modelSpecProjection.ts` 的手搓特化链；`getArchetypeById` / `MODEL_ARCHETYPES` / `specializeArchetypeForVariant` / `resolveArchetypeForModel` 不再从 `modelArchetypes/index.ts` 导出（表本身挪到 `builtInCatalog.ts`，只给入口、脚本、测试读）。

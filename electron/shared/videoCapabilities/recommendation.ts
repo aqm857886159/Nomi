@@ -1,7 +1,7 @@
 import type { ArchetypeMode, ArchetypeReferenceSlot, ModelArchetype, ModelParameterControl, ModelParameterControlOption } from "./types";
 import { nearestNumber, numericOptionValues } from "./paramConstraints";
 import { resolveArchetypeVariant } from "../modelArchetypes/variantResolution";
-import { rescopeArchetypeVariant } from "../modelArchetypes/index";
+import { rescopeArchetypeVariant } from "../modelArchetypes/entry";
 
 type Scalar = ModelParameterControlOption["value"];
 

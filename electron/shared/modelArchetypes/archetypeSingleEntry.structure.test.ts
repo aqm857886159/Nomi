@@ -44,6 +44,8 @@ const UNION_USERS = [
   'electron/shared/modelArchetypes/referenceKeys.ts',
   'electron/providerAdapter/promotionMeta.ts',
   'src/workbench/generationCanvas/model/storyboardOverrides.ts',
+  // 只问「这个模型有没有档案」，与哪一档无关。
+  'src/ui/onboarding/CustomCallEditor.tsx',
   // 名单层一行一模型（没分档的菜单行说的也是任一档）。
   'electron/catalog/agentModelEntriesFromCatalog.ts',
   'src/workbench/generationCanvas/agent/availableModels.ts',
@@ -54,7 +56,8 @@ const UNION_USERS = [
   'src/ui/onboarding/ModelCapabilityEditor.tsx',
   'src/ui/onboarding/customCallScriptModes.ts',
   'src/ui/onboarding/modelCapabilityProjection.ts',
-  // 入口自己。
+  // 入口自己（entry.ts 实现，index.ts 原样转出）。
+  'electron/shared/modelArchetypes/entry.ts',
   'electron/shared/modelArchetypes/index.ts',
 ].sort()
 
@@ -69,9 +72,9 @@ describe('档案只有一个入口', () => {
     expect(offenders).toEqual([])
   })
 
-  it('入口目录里只有 index.ts 读档案表', () => {
+  it('入口目录里只有 entry.ts 读档案表', () => {
     const offenders = production
-      .filter((file) => file.startsWith(OWNER_DIR) && !file.endsWith('/index.ts') && !file.endsWith('/builtInCatalog.ts'))
+      .filter((file) => file.startsWith(OWNER_DIR) && !file.endsWith('/entry.ts') && !file.endsWith('/builtInCatalog.ts'))
       .filter((file) => /\b(?:getArchetypeById|MODEL_ARCHETYPES)\b|from ['"]\.\/builtInCatalog['"]/.test(read(file)))
     expect(offenders).toEqual([])
   })
@@ -84,13 +87,13 @@ describe('档案只有一个入口', () => {
   it('按档收窄（读 paramOverrides）只在入口一处', () => {
     const offenders = production
       // 测试夹具（临时装一份改写、用完卸掉）不是读者。
-      .filter((file) => !file.endsWith('/types.ts') && !file.endsWith('modelArchetypes/index.ts') && file !== 'electron/parity/modeParamsVariantFixture.ts')
+      .filter((file) => !file.endsWith('/types.ts') && !file.endsWith('modelArchetypes/entry.ts') && file !== 'electron/parity/modeParamsVariantFixture.ts')
       .filter((file) => /\.paramOverrides\b|\bparamOverrides\s*\?\.|\[\s*['"]paramOverrides['"]\s*\]/.test(read(file)))
     expect(offenders).toEqual([])
   })
 
   it('入口的档没有缺省值', () => {
-    const source = readFileSync(`${OWNER_DIR}index.ts`, 'utf8')
+    const source = readFileSync(`${OWNER_DIR}entry.ts`, 'utf8')
     expect(source).toMatch(/export function resolveModelArchetype\(\s*model: ArchetypeModelLike \| null \| undefined,\s*options: Readonly<\{ variant: ArchetypeVariantPick \}>,?\s*\)/)
     expect(source).toMatch(/export type ArchetypeVariantRequest = Readonly<\{ variantId: unknown; modelId: unknown \}>;/)
     // 只给类型检查看（check:test-types），不真调：少传 = 编译不过。

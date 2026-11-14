@@ -15,7 +15,7 @@ import {
   confirmDialog,
 } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
-import { resolveModelArchetype } from '../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../electron/shared/modelArchetypes'
 import { getTextBrain } from '../../workbench/api/promptLibraryApi'
 import { runWorkbenchTextTaskStream, textTaskFailureText } from '../../workbench/api/taskApi'
 import { stripCodeFences } from './customCallIntent'
@@ -117,7 +117,7 @@ export function CustomCallEditor({
   const requiresCapabilitySetup = Boolean(
     catalogModel &&
     catalogModel.kind !== 'text' &&
-    !resolveModelArchetype(catalogModel, { variant: { variantId: undefined, modelId: undefined } }),
+    !resolveModelArchetype(catalogModel, { variant: EVERY_VARIANT }),
   )
 
   const setScriptForMode = React.useCallback((modeId: string | null, value: string) => {

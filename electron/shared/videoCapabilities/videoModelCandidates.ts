@@ -1,7 +1,7 @@
 // 目录里的视频行 → 推荐 / MCP / Run 用的候选。档案只问唯一入口 resolveModelArchetype（供应商、型号名作用域、档都在入口里），
 // 不在这里另做一份「按 id 找 + 按供应商换参数」（以前的私有副本只换 params、不收 vendorMax，匹配也比入口松：子串命中）。
-// 单开这个文件：registry.ts 是档案表的登记处，入口所在的 modelArchetypes/index.ts 加载时要读它，放回 registry 会成环。
-import { resolveModelArchetype } from "../modelArchetypes/index";
+// 单开这个文件：registry.ts 是档案表的登记处，入口所在的 modelArchetypes/entry.ts 加载时要读它，放回 registry 会成环。
+import { resolveModelArchetype } from "../modelArchetypes/entry";
 import { resolveArchetypeVariant } from "../modelArchetypes/variantResolution";
 import type { VideoModelCandidate } from "./recommendation";
 import { unknownVideoArchetype, type VideoCatalogModel } from "./registry";
