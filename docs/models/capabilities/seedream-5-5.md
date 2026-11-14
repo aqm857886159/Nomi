@@ -15,7 +15,7 @@
 | 透明背景必须 png | `Transparent output requires PNG and cannot use output_format: "jpeg".` | 露出 | `constrain:*/output_format:background=transparent=>png` |
 | 输出格式 png / jpeg | `output_format (default: png): png (default) or jpeg.` | 露出 | `param:*/output_format=png,jpeg@png` |
 | 水印 | `watermark: Optional flag to add a watermark.` | 露出 | `param:*/watermark=bool@false` |
-| 提交前内容审核 | `nsfw_check: Whether to run content moderation before submitting the image task.` | 露出 | `param:*/nsfw_check=bool@false` |
+| 提交前内容审核 | `nsfw_check: Whether to run content moderation before submitting the image task. false or omitted: do not send a moderation request, adding no moderation cost or latency (default)` | 露出 | `param:*/nsfw_check=bool@false` |
 | 张数 n | `n: Must be 1. Image generation produces one image per request` | 不露出 | `absent:n` `reason:模型无效`（文档明写必须为 1，只有一个合法值） |
 | 提示词优化 | `Only {"mode":"standard"} is supported ... prompt optimization cannot be disabled in Seedream 5.5.` | 不露出 | `absent:optimize_prompt_options` `reason:模型无效`（文档明写只支持 standard 且关不掉，只有一个合法值） |
 | 档位关键词写进 size | `Tier: "size": "2K": 1K / 1.5K / 2K; image generation defaults to 2K` | 不露出 | `reason:同一件事`（resolution 控件） |

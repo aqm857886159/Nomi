@@ -29,5 +29,5 @@
 | 角色数组 image_with_roles | `Role-based image array that can replace first_frame_image, last_frame_image, or image_urls.` | 不露出 | `absent:image_with_roles` `reason:同一件事` |
 | 单段 video_url / audio_url | `a single video can also use video_url (string)` / `a single clip can also use audio_url (string)` | 不露出 | `absent:video_url` `absent:audio_url` `reason:同一件事` |
 | webhook | `Receives a notification when the task reaches a successful or failed terminal state.` | 不露出 | `absent:webhook` `reason:管道` |
-| 提交前内容审核 | `nsfw_check: Whether to run content moderation before submitting the video task.` | 露出 | `param:*/nsfw_check=bool@false` |
+| 提交前内容审核 | `nsfw_check: Whether to run content moderation before submitting the video task. false or omitted: do not send a moderation request, adding no moderation cost or latency (default)` | 露出 | `param:*/nsfw_check=bool@false` |
 | model | `Fixed value: MiniMax-H3-Max` | 不露出 | `reason:管道` |
