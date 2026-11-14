@@ -1,0 +1,51 @@
+// 在 0.24.1 的导出里跑（见 tests/fixtures/old-user-data/README.md「Nomi 形态（agent-form/）」）：
+// 用 0.24.1 自己的 useAgentFormStore（setForm / setFloatRect / setBallPoint，persist version 1）把 Nomi 的形态
+// 和浮窗、小球位置落进 localStorage，再把落下来的那串原样写出去。不是手写的形状。
+import { mkdirSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import { describe, it, vi } from 'vitest'
+
+const disk = vi.hoisted(() => {
+  const map = new Map<string, string>()
+  Object.assign(globalThis, {
+    localStorage: {
+      getItem: (key: string) => (map.has(key) ? map.get(key)! : null),
+      setItem: (key: string, value: string) => void map.set(key, value),
+      removeItem: (key: string) => void map.delete(key),
+      clear: () => void map.clear(),
+    },
+  })
+  return map
+})
+
+import { useAgentFormStore, type AgentForm, type AgentFormSurface } from './agentFormStore'
+
+const KEY = 'nomi:shell-agent-form:v1'
+const SURFACES: AgentFormSurface[] = ['creation', 'storyboard', 'generation', 'preview']
+
+/** 每份：每页设成什么（缺 = 这一页创作者没动过，保持 0.24.1 的默认）。位置每页不同，迁完逐页对得上才算没串。 */
+const CASES: Record<string, Partial<Record<AgentFormSurface, AgentForm>>> = {
+  'all-ball': { creation: 'ball', storyboard: 'ball', generation: 'ball', preview: 'ball' },
+  'all-float': { creation: 'float', storyboard: 'float', generation: 'float', preview: 'float' },
+  'all-dock': { creation: 'dock', storyboard: 'dock', generation: 'dock', preview: 'dock' },
+  mixed: { creation: 'ball', storyboard: 'float', generation: 'dock' },
+}
+
+describe('zzAgentFormGen', () => {
+  it('lands agent forms', () => {
+    const out = process.env.V_OUT
+    if (!out) throw new Error('V_OUT 没设')
+    mkdirSync(out, { recursive: true })
+    for (const [name, forms] of Object.entries(CASES)) {
+      disk.clear()
+      useAgentFormStore.setState(useAgentFormStore.getInitialState(), true)
+      SURFACES.forEach((surface, index) => {
+        useAgentFormStore.getState().setFloatRect(surface, { x: 40 + index * 10, y: 60 + index * 10, width: 400 + index * 8, height: 520 + index * 8 })
+        useAgentFormStore.getState().setBallPoint(surface, { x: 900 + index, y: 640 + index })
+        const form = forms[surface]
+        if (form) useAgentFormStore.getState().setForm(surface, form)
+      })
+      writeFileSync(path.join(out, `${name}.json`), `${disk.get(KEY)}\n`)
+    }
+  })
+})

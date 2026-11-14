@@ -416,7 +416,7 @@ try {
   await win.waitForTimeout(250)
   check('缩放键 ＋ / 0 真的绑上了（tooltip 上写了十几天的键位不再是假的）', zoomed.length > 0, `scaleBefore=${scaleBefore} width=${zoomed}`)
 
-  // ⌘\ 归 Nomi：停靠 ↔ 小球（10-08 外壳重设计），而吸附**不该**跟着一起翻
+  // ⌘\ 归 Nomi：收起 / 展开 Nomi（开着收成小球，收着打开到上次选的摆法），而吸附**不该**跟着一起翻
   const snapBeforeMeta = (await snapButton.getAttribute('class') ?? '').includes('accent-soft')
   await win.keyboard.press('Meta+\\')
   await win.waitForTimeout(500)
