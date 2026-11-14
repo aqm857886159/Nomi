@@ -145,3 +145,22 @@ export function assertLabPortOwnership(role, repoRoot = REPO_ROOT) {
   }
   return verdict
 }
+
+/**
+ * 门岗起的子进程（Playwright 和它拉起的打包 / 托管）该用的环境变量：在原样继承的基础上，
+ * 把本机地址并进 NO_PROXY / no_proxy（和已有值合并，不覆盖、不重复）。
+ *
+ * 为什么（2026-11-14）：本机 shell 带 HTTP_PROXY 而 NO_PROXY 为空时，Playwright 探「本机服务起来没有」
+ * 的那个请求按环境变量走代理，被代理截走、永远探不到，门岗于是报「基础设施失败」——服务其实好好的。
+ * 只动给子进程的这一份环境变量，不读、不改、不关任何代理设置；不带代理的机器上多这两项也无害。
+ */
+export const LAB_LOCAL_HOSTS = Object.freeze(['127.0.0.1', 'localhost'])
+
+export function labChildEnv(env = process.env) {
+  const merged = (value) => {
+    const entries = String(value ?? '').split(',').map((item) => item.trim()).filter(Boolean)
+    for (const host of LAB_LOCAL_HOSTS) if (!entries.includes(host)) entries.push(host)
+    return entries.join(',')
+  }
+  return { ...env, NO_PROXY: merged(env.NO_PROXY ?? env.no_proxy), no_proxy: merged(env.no_proxy ?? env.NO_PROXY) }
+}
