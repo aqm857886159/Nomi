@@ -27,6 +27,7 @@ import { openCanvas } from './agent-runtime-walk-support.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { bringButtonIntoReach } from './_generateReach.mjs'
 import { modeName, pickModeByName, readModeCell } from './_modeMenu.mjs'
+import { canvasFitView, collapseAgentPanel } from './_shell.mjs'
 
 const SCRIPT = 'archetype-batch1-samples.paid.mjs'
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -98,6 +99,7 @@ try {
   await paid.lockToAuthorizedModels(win)
   const { projectId, projectRoot } = await walk.newProject()
   await openCanvas(win)
+  await collapseAgentPanel(win)
   await win.waitForFunction(() => Boolean(window.__nomiCanvasStore), null, { timeout: stationTimeout({ operations: 2 }) })
 
   const assetDir = path.join(projectRoot, 'assets', 'imported')
@@ -148,6 +150,8 @@ async function runSample(win, projectRoot, projectId, sources, sample, index, re
     state.selectNode(id)
     return id
   }, { meta: sample.meta, title: `${sample.id} ${sample.label}`, source: sources[sample.input], y: index * 360 - 400 })
+  // 画布只渲染视口里的节点：新镜头可能落在视口外，先像创作者那样点「适应视图」把它带到眼前。
+  await canvasFitView(win, `${sample.id}：适应视图，把新镜头带进视口`)
   const composer = win.locator(`[data-node-id="${shot}"] .generation-canvas-v2-node__composer`).first()
   await expectVisible(composer, `${sample.id}：选中镜头后它的生成框出现`, stationTimeout({ operations: 2 }))
   if (sample.modeKind) {
