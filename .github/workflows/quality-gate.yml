@@ -424,12 +424,18 @@ jobs:
 
   # perf 预算单场景实测 ~763s，是全流水线最长的一根；独立成 job 后它只拖自己，
   # 不再把 smoke/journeys/canvas 走查压在同一根串行棒上。预算与校准（仪器）一字未动。
+  # 2026-11-14：两个场景（门岗 / 版本宫格）彼此独立，按场景分两片并行（清单在 tests/ux/canvas-real-suite.mjs 的
+  # PERFORMANCE_CANVAS_SHARDS，漏分 / 重分让两片启动即 fail-closed）；两片都在 Quality Gate 的必过名单里（matrix 的 job 结果是整体结论）。
   canvas-performance:
     name: Canvas Performance (Linux)
     needs: scope
     if: needs.scope.outputs.performance == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -450,12 +456,12 @@ jobs:
         # 量具要窗口真在屏幕上（声明了前台）；CI 的虚拟屏上没有人在用电脑，显式放行
         env:
           NOMI_WALK_FOREGROUND_OK: '1'
-        run: xvfb-run -a pnpm run test:canvas:performance
+        run: xvfb-run -a pnpm run test:canvas:performance -- --shard ${{ matrix.shard }}/2
       - name: Upload walkthrough evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: canvas-performance-evidence
+          name: canvas-performance-evidence-${{ matrix.shard }}
           path: |
             artifacts/feel/**
             evals/runs/**/screenshots/**

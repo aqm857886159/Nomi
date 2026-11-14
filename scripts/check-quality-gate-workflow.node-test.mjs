@@ -14,7 +14,7 @@ import { PR_BODY_CHECK_NAME, PR_BODY_WORKFLOW_FILE, PR_BODY_WORKFLOW_NAME } from
 import { CHROMIUM_INSTALL_STEP as PLAYWRIGHT_INSTALL_STEP } from './ci-browser-install.mjs'
 import { CORE_SMOKE_SCENARIOS } from '../tests/ux/core-smoke/scenarios.mjs'
 import { PROFILES, STAGES } from '../tests/system/profiles.mjs'
-import { assertFullCanvasShardPartition, FULL_CANVAS_SHARDS } from '../tests/ux/canvas-real-suite.mjs'
+import { assertFullCanvasShardPartition, assertPerformanceCanvasShardPartition, FULL_CANVAS_SHARDS, PERFORMANCE_CANVAS_SCENARIOS, PERFORMANCE_CANVAS_SHARDS } from '../tests/ux/canvas-real-suite.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const workflow = load(fs.readFileSync(path.join(repoRoot, '.github/workflows/quality-gate.yml'), 'utf8'))
@@ -315,22 +315,29 @@ test('full canvas acceptance runs as a fail-closed two-shard matrix that partiti
   assert.match(evidence.with.path, /outputs\/canvas-acceptance\/\*\*/)
 })
 
-test('canvas performance budget runs as its own parallel job with an untouched instrument command', () => {
+test('canvas performance budget runs as its own two-shard matrix that partitions every scenario, with an untouched instrument command', () => {
   const performance = workflow.jobs['canvas-performance']
   assert.equal(performance.needs, 'scope')
   assert.equal(performance.if, "needs.scope.outputs.performance == 'true'")
-  assert.equal(performance.strategy, undefined)
+  assert.deepEqual(performance.strategy, { 'fail-fast': false, matrix: { shard: [1, 2] } })
+  // 每个场景恰好属于一片：漏分 / 重分 / 幽灵场景在这里就红，不用等到 CI 上两片启动时才抛错。
+  assert.equal(PERFORMANCE_CANVAS_SHARDS.length, 2)
+  assert.doesNotThrow(() => assertPerformanceCanvasShardPartition())
+  assert.deepEqual(
+    PERFORMANCE_CANVAS_SHARDS.flat().toSorted(),
+    PERFORMANCE_CANVAS_SCENARIOS.map((scenario) => scenario.id).toSorted(),
+  )
 
   const commands = runCommands(performance)
-  assert.ok(commands.includes('xvfb-run -a pnpm run test:canvas:performance'))
+  assert.ok(commands.includes('xvfb-run -a pnpm run test:canvas:performance -- --shard ${{ matrix.shard }}/2'))
   // 量具声明了前台：CI 虚拟屏上不显式放行，整条按 125 跳过，预算等于没量
-  const budget = performance.steps.find((step) => step.run === 'xvfb-run -a pnpm run test:canvas:performance')
+  const budget = performance.steps.find((step) => step.run === 'xvfb-run -a pnpm run test:canvas:performance -- --shard ${{ matrix.shard }}/2')
   assert.equal(budget.env?.NOMI_WALK_FOREGROUND_OK, '1')
   assert.equal(commands.filter((command) => command === 'pnpm run build').length, 1)
 
   const evidence = performance.steps.find((step) => step.uses === 'actions/upload-artifact@v7')
   assert.equal(evidence.if, 'always()')
-  assert.equal(evidence.with.name, 'canvas-performance-evidence')
+  assert.equal(evidence.with.name, 'canvas-performance-evidence-${{ matrix.shard }}')
   assert.match(evidence.with.path, /tests\/ux\/perf-results\/canvas-\*\.json/)
 })
 

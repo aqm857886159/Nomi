@@ -5,6 +5,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   assertFullCanvasShardPartition,
+  assertPerformanceCanvasShardPartition,
   CRITICAL_CANVAS_SCENARIOS,
   DEFAULT_CANVAS_SCENARIO_TIMEOUT_MS,
   FULL_CANVAS_SCENARIOS,
@@ -12,6 +13,7 @@ import {
   parseCanvasShard,
   parseCanvasSuiteArgv,
   PERFORMANCE_CANVAS_SCENARIOS,
+  PERFORMANCE_CANVAS_SHARDS,
   runCanvasScenario,
   scenariosForProfile,
   summarizeCanvasScenarioFailure,
@@ -76,13 +78,37 @@ describe('real canvas acceptance suite', () => {
   })
 
   it('rejects sharding for non-full profiles and unknown CLI arguments', () => {
-    expect(() => scenariosForProfile('critical', { shard: { index: 1, total: 2 } })).toThrow('only supported for the full profile')
-    expect(() => scenariosForProfile('performance', { shard: { index: 1, total: 2 } })).toThrow('only supported for the full profile')
+    expect(() => scenariosForProfile('critical', { shard: { index: 1, total: 2 } })).toThrow('only supported for the full and performance profiles')
+    expect(() => parseCanvasSuiteArgv(['critical', '--shard', '1/2'])).toThrow('only supported for the full and performance profiles')
     expect(parseCanvasSuiteArgv(['full', '--shard', '1/2'])).toEqual({ profile: 'full', shard: { index: 1, total: 2 } })
     // pnpm 会把 `--` 分隔符原样转发给脚本（CI 实际到达的 argv 形状），npm 则吃掉它；两种都必须可解析。
     expect(parseCanvasSuiteArgv(['full', '--', '--shard', '2/2'])).toEqual({ profile: 'full', shard: { index: 2, total: 2 } })
     expect(parseCanvasSuiteArgv(['critical'])).toEqual({ profile: 'critical', shard: null })
     expect(() => parseCanvasSuiteArgv(['full', '--shards', '1/2'])).toThrow('unknown canvas suite argument')
+  })
+
+  it('partitions every performance scenario into exactly one CI shard, each shard non-empty', () => {
+    expect(() => assertPerformanceCanvasShardPartition()).not.toThrow()
+    const perfIds = PERFORMANCE_CANVAS_SCENARIOS.map((scenario) => scenario.id)
+    const shardedIds = PERFORMANCE_CANVAS_SHARDS.map((_, index) =>
+      scenariosForProfile('performance', { shard: { index: index + 1, total: PERFORMANCE_CANVAS_SHARDS.length } })
+        .map((scenario) => scenario.id),
+    )
+    expect(shardedIds.flat().toSorted()).toEqual(perfIds.toSorted())
+    for (const ids of shardedIds) expect(ids.length).toBeGreaterThan(0)
+    // 分片只决定「哪台机器跑哪个场景」，场景本身（脚本、参数、预算上限、夹具开关）原样不动。
+    const sharded = PERFORMANCE_CANVAS_SHARDS.flatMap((_, index) => scenariosForProfile('performance', { shard: { index: index + 1, total: PERFORMANCE_CANVAS_SHARDS.length } }))
+    expect(sharded.toSorted((a, b) => a.id.localeCompare(b.id))).toEqual([...PERFORMANCE_CANVAS_SCENARIOS].sort((a, b) => a.id.localeCompare(b.id)))
+  })
+
+  it('fails closed when a performance scenario is left out of, or duplicated in, the shard partition', () => {
+    const drifted = [...PERFORMANCE_CANVAS_SCENARIOS, { id: 'brand-new-perf-scenario', script: 'tests/ux/new.e2e.mjs' }]
+    expect(() => assertPerformanceCanvasShardPartition(drifted)).toThrow(/missing=\[brand-new-perf-scenario\]/)
+    expect(() => assertPerformanceCanvasShardPartition(PERFORMANCE_CANVAS_SCENARIOS, [['medium-canvas-performance'], ['medium-canvas-performance']])).toThrow(/duplicated=\[medium-canvas-performance\]/)
+    expect(() => assertPerformanceCanvasShardPartition(PERFORMANCE_CANVAS_SCENARIOS, PERFORMANCE_CANVAS_SHARDS.map((ids) => [...ids, 'ghost']))).toThrow(/unknown=\[ghost/)
+    expect(parseCanvasShard('2/2', 'performance')).toEqual({ index: 2, total: 2 })
+    expect(() => parseCanvasShard('1/3', 'performance')).toThrow('does not match PERFORMANCE_CANVAS_SHARDS')
+    expect(parseCanvasSuiteArgv(['performance', '--', '--shard', '1/2'])).toEqual({ profile: 'performance', shard: { index: 1, total: 2 } })
   })
 
   it('keeps performance separate from functional full acceptance with its own bounded budget', () => {
