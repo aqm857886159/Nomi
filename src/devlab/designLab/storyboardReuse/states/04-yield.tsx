@@ -21,7 +21,7 @@ const LAB_ANCHOR_PADDING = 26
 const labFrameWidth = (combo: YieldCombo): number => combo.width + LAB_FRAME_BORDER + (combo.host === 'anchor' ? LAB_ANCHOR_PADDING : 0)
 
 const SOURCE = 'docs/design/boards/2026-11-14-composer-params/ComposerParams.board.json（便签「边界表」：最窄容器 × 最长名字）'
-const ROW = 'src/workbench/generationCanvas/nodes/composerBarYield.ts'
+const ROW = 'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:406'
 
 const catalog = (kind: 'video' | 'image'): ModelOption[] => MODEL_ARCHETYPES.filter((archetype) => archetype.kind === kind).map((archetype) => ({
   value: archetype.id, modelKey: archetype.id, vendor: 'apimart', vendorName: 'APIMart', label: archetype.label, kind, meta: { archetypeId: archetype.id },
