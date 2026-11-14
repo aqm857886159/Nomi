@@ -200,7 +200,10 @@ describe('InlineParameterBar semantic option presentation wiring', () => {
   it('面板全摊开：高度只由窗口剩余空间决定，没有固定封顶；单参数也走同一只面板', () => {
     expect(source).not.toMatch(/Math\.min\(\s*420/)
     expect(source).not.toMatch(/\b420\b/)
-    expect(source).toContain("const maxHeight = side === 'above' ? spaceAbove : Math.max(160, vh - rect.bottom - 18)")
+    // 2026-11-14 验收条件 2：开向和限高交给共用的锚定浮层几何（上下哪边空间大开哪边），可用区域是工作区（不盖顶栏）。
+    expect(source).toContain("resolveAnchoredPopoverPlacement(rect, { width: PANEL_W, height: natural }, 'center', PANEL_GAP,")
+    expect(source).toContain("trigger.closest('[data-shell-main]')")
+    expect(source).not.toMatch(/Math\.max\(160,/)
     for (const removed of ['soloControl', 'soloOptionControl', 'hugsContent', 'hugWidth', 'data-parameter-solo']) {
       expect(source, removed).not.toContain(removed)
     }

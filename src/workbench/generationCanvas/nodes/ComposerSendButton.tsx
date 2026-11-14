@@ -4,6 +4,8 @@ import { IconArrowUp, IconLoader2 } from '../../../vendor/tablerIcons'
 import { cn } from '../../../utils/cn'
 import { ICON_TIERS } from '../../../design'
 import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
+import { ComposerBarYieldContext } from './composerBarYield'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../design/tooltip'
 
 /**
  * 生成底栏最右的「走」钮——画布节点、画布列表详情、分镜行、分镜参考卡四处同一颗。
@@ -26,7 +28,35 @@ export function ComposerSendButton({
   attrs?: Readonly<Record<`data-${string}`, string>>
 }): JSX.Element {
   const { t } = useTranslation()
-  const button = label ? (
+  // 底栏窄时第①步让法：带字钮只剩「↑」。让到第几步只在 InlineParameterBar 算一次、经 context 发来；不在底栏里 = 默认不收。
+  const { sendIconOnly } = React.useContext(ComposerBarYieldContext)
+  const button = label && sendIconOnly ? (
+    <TooltipProvider delayDuration={120}>
+      <Tooltip delayDuration={120}>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            data-bar-segment="generate"
+            data-icon-only=""
+            onClick={onClick}
+            disabled={busy || disabled}
+            className={cn(
+              'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-nomi-sm bg-nomi-ink text-nomi-paper',
+              busy || disabled ? 'cursor-default opacity-60' : 'hover:opacity-90 active:opacity-80',
+            )}
+            aria-label={ariaLabel}
+            aria-busy={busy}
+            {...attrs}
+          >
+            {busy
+              ? <IconLoader2 size={12} stroke={2} className="animate-spin" aria-hidden />
+              : <IconArrowUp size={12} stroke={2} aria-hidden />}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top">{label}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  ) : label ? (
     <button
       type="button"
       data-bar-segment="generate"

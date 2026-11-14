@@ -10,7 +10,7 @@ import { resolveStoryboardImageDefault, resolveStoryboardVideoDefault } from '..
 import { buildModeMenu } from '../../../generationCanvas/nodes/controls/modeMenuModel'
 import { modeMenuOptions } from '../../../generationCanvas/nodes/controls/modeMenuOptions'
 import { useStoryboardRowDensity } from './storyboardRowDensity'
-import { composerHeadlineSummary } from '../../../generationCanvas/nodes/composerHeadlineSummary'
+import { composerHeadlineParts } from '../../../generationCanvas/nodes/composerHeadlineSummary'
 import { resolveArchetypeForOption } from '../../../generationCanvas/nodes/nodeModelArchetype'
 import type { DynamicModelControl } from '../../../generationCanvas/nodes/controls/parameterControlModel'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
@@ -29,8 +29,8 @@ import {
  * 2026-11-14 用户：「画布以及画布的列表形式 以及 分镜那里……应该是一套设计 都复用」。
  *
  * 分镜自己只多一样东西，走同一块面板，不另造控件：图片镜的「停留时长」（进时间轴停几秒）不是模型参数，
- * 作为面板里的一组选项出现（`extraControls`）。和画布的差别只剩宿主给的宽度、分镜不能选变体（没有存变体的字段）、
- * 图片方式也有方式格（分镜的方式是方案写明的，画布图片节点按放没放图现算、没有这一格）。
+ * 作为面板里的一组选项出现（`extraControls`）。和画布的差别只剩宿主给的宽度、分镜不能选变体（没有存变体的字段）。
+ * 方式格和画布同一条规则（2026-11-14 验收条件 3）：视频有、图片没有。
  */
 
 type DefaultModelRef = { modelKey?: string; modelVendor?: string }
@@ -109,17 +109,16 @@ export default function StoryboardComposerParams({
   const modeId = storedModeId
     || (archetype?.modes.find((mode) => mode.id === archetype.defaultModeId) ?? archetype?.modes[0])?.id
     || ''
-  // 方式格：和画布视频节点同一个菜单（名字、图标、一句说明）。分镜还没放输入，方式是方案写明的、每一行都能选，
-  // 所以不按「这次的输入放不放得下」置灰。图片方式画布没有这一格，这里用档案名。
+  // 方式格：和画布节点同一条规则、同一个菜单（buildModeMenu：视频有这一格，图片没有——画布图片按放没放图现算，
+  // 分镜图片镜由自动引用 / 「+」钮切图生图）。分镜还没放输入，方式是方案写明的、每一行都能选，所以不按输入置灰。
   const modeOptions = React.useMemo(() => {
     if (!archetype || archetype.modes.length < 2) return []
     const visible = archetype.modes.map((mode) => ({ id: mode.id, vendorTerm: translateModelDisplayText(mode.vendorTerm) }))
-    const menu = kind === 'video' ? buildModeMenu({ nodeKind: 'video', archetype, visible, inputs: [], resolvedModeId: modeId || archetype.modes[0]!.id }) : null
-    return menu
-      ? modeMenuOptions(t, menu.rows.map((row) => ({ ...row, disabled: false })))
-      : visible.map((choice) => ({ value: choice.id, label: choice.vendorTerm }))
+    const menu = buildModeMenu({ nodeKind: kind === 'video' ? 'video' : 'other', archetype, visible, inputs: [], resolvedModeId: modeId || archetype.modes[0]!.id })
+    return menu ? modeMenuOptions(t, menu.rows.map((row) => ({ ...row, disabled: false }))) : []
   }, [archetype, kind, modeId, t])
-  const headline = composerHeadlineSummary({
+  // 摘要按整值给（和画布节点同一个 composerHeadlineParts），窄了由底栏从后往前整值地减，不截半截。
+  const headlineParts = composerHeadlineParts({
     isImageLike: kind === 'image',
     isVideoLike: kind === 'video',
     controls: modelControls,
@@ -127,7 +126,6 @@ export default function StoryboardComposerParams({
     formatSeconds: (value) => t('generationCommon.composerBarV1.seconds', { value }),
     autoLabel: t('generationCommon.parameters.auto'),
   })
-  const summary = headline || undefined
 
   const route = (control: Pick<ModelParameterControl, 'key' | 'type' | 'options'>, value: string): void => {
     if (extraKeys.has(control.key)) { onExtraChange?.(control.key, value); return }
@@ -157,8 +155,7 @@ export default function StoryboardComposerParams({
         onModelChange={onModelChange}
         onCatalogControlChange={(control, value) => route({ key: control.key, type: undefined as never, options: [] }, value)}
         onParameterControlChange={(control, value) => route(control, value)}
-        summaryOverride={summary}
-        summaryWidth={{ hug: 280 }}
+        {...(headlineParts.length ? { summaryParts: headlineParts } : {})}
         wrap={compact}
         leadingModelOption={leadingModelOption}
         {...(modeOptions.length ? {
