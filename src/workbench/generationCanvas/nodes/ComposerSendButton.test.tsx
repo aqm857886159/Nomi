@@ -2,7 +2,7 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { ComposerSendButton } from './ComposerSendButton'
-import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldLadder } from './composerBarYield'
+import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldLadder, modeIconRecognizable } from './composerBarYield'
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 
@@ -59,6 +59,17 @@ describe('composerYieldLadder 让法顺序', () => {
     ])
     // 模型名永远是最后一步。
     expect(ladder.findIndex((step) => step.modelEllipsis)).toBe(ladder.length - 1)
+  })
+
+  it('方式格只在图标认得出来时才收：没图标、同菜单撞图标都不收', () => {
+    const A = (): null => null
+    const B = (): null => null
+    const opts = [{ value: 't2v', glyph: <A /> }, { value: 'ref', glyph: <B /> }, { value: 'edit', glyph: <B /> }, { value: 'x' }]
+    expect(modeIconRecognizable(opts, 't2v')).toBe(true)
+    expect(modeIconRecognizable(opts, 'ref')).toBe(false)
+    expect(modeIconRecognizable(opts, 'edit')).toBe(false)
+    expect(modeIconRecognizable(opts, 'x')).toBe(false)
+    expect(modeIconRecognizable(undefined, 't2v')).toBe(false)
   })
 
   it('没有可收的钮 / 方式格时跳过那一步，顺序不变', () => {
