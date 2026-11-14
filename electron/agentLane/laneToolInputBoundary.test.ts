@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { createHttpFixture, type FixtureReply } from '../../tests/agent-runtime/httpFixture.mjs'
 import { createModuleRegistry } from '../capabilityCore/moduleRegistry'
+import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY } from '../shared/agentCapabilities/capabilityApprovalPolicy'
 import { resetSpendFixture, spendWorld } from '../capabilityCore/agentPanelSpendConfirmTestUtils'
 import type { LaneHandle, LanePart } from '../shared/agentLane/laneContracts'
 import { LaneDomainFailure } from '../shared/agentLane/laneToolContract'
@@ -69,10 +70,18 @@ const named = (name: string, args: unknown): Batch => new Batch([[name, args]])
 const CLOSED = Symbol('turn closed by the host')
 
 /** 一条真 lane：每一句用户话之后，模型逐个发写好的调用（一次一个），最后说一句 done。 */
+/** 桌面端的输入口：用户的话以 `nomi.input` 进 lane，发给模型时才转成 user（这里原样转文字）。 */
+const DESKTOP_INPUT: NonNullable<OpenLaneOptions['input']> = {
+  capture: () => ({ approvalPolicy: DEFAULT_PROJECT_AGENT_APPROVAL_POLICY }), activate: () => undefined, rewritePayload: (payload) => payload,
+  providerContent: async (message) => (typeof message.content === 'string' ? message.content : ''),
+}
+
 async function runLane(turns: ReadonlyArray<readonly unknown[]>, options: {
   maxModelRequests?: number; toolLifecycle?: OpenLaneOptions['toolLifecycle']
   /** 第 `at` 次模型请求到达假端点时（回复之前）做一件事，例如用户在这一刻排了一句话。 */
   duringRequest?: { at: number; run: (lane: LaneHandle) => Promise<unknown> }
+  /** 按桌面端的形状发话：用户的话是 `nomi.input`（只在发给模型时才转成 user），不是 pi 的 user 消息。 */
+  desktopInput?: boolean
 } = {}) {
   const world = spendWorld({ registry, videoModelCandidates })
   const adapter = world.transport('request')
@@ -101,7 +110,8 @@ async function runLane(turns: ReadonlyArray<readonly unknown[]>, options: {
     model: { kind: 'openai-compatible', providerId: 'fixture', modelId: 'fixture', baseURL: http.baseURL, authType: 'api-key', apiKey: 'fixture' },
     systemPrompt: 'Tool input boundary fixture.', tools, onToolFailure: (event) => events.push(event),
     ...(options.maxModelRequests ? { limits: { maxModelRequests: options.maxModelRequests } } : {}),
-    ...(options.toolLifecycle ? { toolLifecycle: options.toolLifecycle } : {}) })
+    ...(options.toolLifecycle ? { toolLifecycle: options.toolLifecycle } : {}),
+    ...(options.desktopInput ? { input: DESKTOP_INPUT } : {}) })
   const opened = lane
   cleanups.push(() => opened.close())
   const perTurn: number[] = []
@@ -347,6 +357,14 @@ describe('同一个工具连败 3 次：第 3 次正文带「停」，再发一�
     expect(codes(results)).toEqual(['tool_arguments_invalid', 'tool_arguments_invalid', 'tool_arguments_invalid', 'tool_retry_stopped', 'ok'])
     expect(drafted).toBe(1)
     expect(perTurn, '被收掉的那一轮 4 次；下一句话照常开始，起草 + done 两次').toEqual([4, 2])
+  }, 60_000)
+
+  it('桌面端的话（nomi.input）同样清零：每句话错一次、错满三句之后，第四句话里的调用照常执行', async () => {
+    // 真 App 里用户的话不是 pi 的 user 消息；只认 user 时连败跨回合累加，第四句话的第一次调用就被收掉。
+    const { results, drafted, perTurn } = await runLane([[WRONG_SHAPE], [WRONG_SHAPE], [WRONG_SHAPE], [VALID]], { desktopInput: true })
+    expect(codes(results)).toEqual(['tool_arguments_invalid', 'tool_arguments_invalid', 'tool_arguments_invalid', 'ok'])
+    expect(drafted).toBe(1)
+    expect(perTurn).toEqual([2, 2, 2, 2])
   }, 60_000)
 })
 

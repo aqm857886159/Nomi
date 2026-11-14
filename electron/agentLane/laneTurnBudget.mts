@@ -1,6 +1,7 @@
 import type { AgentHarness, AgentLane, AgentMessage } from '@earendil-works/pi-agent-core';
 import type { Context } from '@earendil-works/pi-agent-core/harness/context';
 import { logWarn } from '../logging/logger.js';
+import { isLaneInputMessage } from '../shared/agentLane/laneInputMessage.js';
 import type { LaneRepeatedFailureTracker } from './laneRepeatedFailure.mjs';
 
 /** 未知工具名在连败计数器里共用的那一个名字（不是任何真实工具名：真实工具名不含括号）。 */
@@ -56,8 +57,10 @@ export function createLaneTurnBudget(failures: LaneRepeatedFailureTracker, maxMo
       // 用户的话**真的进了模型的上下文**（新一轮的输入、或插话 / 排队话被这一轮吃进去）才算回合边界：
       // 连败清零、这一轮重新开放。排队那一刻不算——模型还没读到，墙先倒了它就又能空转三次。
       // 答卡（提问 / 报价）不是一条用户消息，它是那次工具调用的结果，在答的那一刻就清零（见 `execute`）。
+      // 桌面端用户的话是 `nomi.input`（只在发给模型时才转成 user）；只认 `user` 时真 App 里永远不清零，
+      // 连败跨回合累加，用户回一句话后第一次调用就被收掉（2026-11-15 并主线后起草拒收走查第 4 回合卡住）。
       harness.events.on('message_end', (event) => {
-        if (event.message.role !== 'user') return;
+        if (event.message.role !== 'user' && !isLaneInputMessage(event.message)) return;
         failures.reset();
         if (event.runId === turn.runId) turn.over = false;
       });
