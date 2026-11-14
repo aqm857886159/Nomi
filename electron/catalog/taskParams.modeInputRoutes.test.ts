@@ -50,7 +50,7 @@ vi.mock("../capabilityCore/rendererBridge", () => ({
   requestRenderer: async (operation: string) => { throw new Error(`付费路径不该走带超时的桥: ${operation}`); },
 }));
 
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import { applyHeadlessParamDefaults, sendRouteFor, type SendRoute } from "./taskParams";
 import { selectTaskMapping, type ProfileKind } from "./types";
@@ -91,7 +91,7 @@ function scan(route: SendRoute): { cells: Cell[]; noMapping: number } {
   const cells: Cell[] = [];
   let noMapping = 0;
   for (const row of seeded.models) {
-    const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+    const archetype = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
     if (!archetype) continue;
     for (const mode of archetype.modes) {
       const taskKind = modeTransportFor(mode, archetype, row.vendorKey) as ProfileKind | undefined;
@@ -140,7 +140,7 @@ describe("性质：每个模型 × 每个方式，给足下限的素材，判定
   it("反例自检：同一批格子一件素材都不给，看得清时缺输入的格子不为 0（量具不是摆设）", () => {
     let refused = 0;
     for (const row of seeded.models) {
-      const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+      const archetype = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
       for (const mode of archetype?.modes ?? []) {
         if (!mode.slots.some((slot) => slot.min >= 1)) continue;
         const taskKind = modeTransportFor(mode, archetype!, row.vendorKey) as ProfileKind;
@@ -239,7 +239,7 @@ describe("ComfyUI / 自定义工作流（没有档案、没有方式记录）", 
 /** 内置渠道各取一个「方式有必需输入、输入只是图 / 视频」的模型。 */
 function firstRequiredModeOn(vendorKey: string) {
   for (const row of seeded.models.filter((candidate) => candidate.vendorKey === vendorKey)) {
-    const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey, meta: row.meta });
+    const archetype = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
     for (const mode of archetype?.modes ?? []) {
       if (!mode.slots.some((slot) => slot.min >= 1)) continue;
       if (!mode.slots.every((slot) => slot.min === 0 || ["first_frame", "image_ref", "video_ref", "source_video"].includes(slot.kind))) continue;
@@ -335,7 +335,7 @@ type ShapeCell = { vendorKey: string; modelKey: string; modelAlias?: string | nu
 function cells(): ShapeCell[] {
   const out: ShapeCell[] = [];
   for (const row of seeded.models) {
-    const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+    const archetype = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
     if (!archetype) continue;
     for (const mode of archetype.modes) {
       const taskKind = modeTransportFor(mode, archetype, row.vendorKey) as ProfileKind | undefined;

@@ -7,7 +7,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { tagNomiError, NOMI_ERROR_ONLY_BEFORE_SUBMIT, type NomiErrorCode } from '../../../electron/shared/nomiErrorCodes'
 import { encodeStructuredErrorMessage } from '../../../electron/shared/vendorFailure'
 import { GENERATION_LOCAL_REFUSALS } from '../../../electron/shared/contracts/telemetry'
-import { MODEL_ARCHETYPES, resolveArchetypeForModel } from '../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../electron/shared/modelArchetypes/builtInCatalog'
 import { isTelemetryProps } from '../../../electron/telemetry/telemetryEvents'
 import { modeDisplayKind } from '../generationCanvas/nodes/controls/modeMenuModel'
 import { generationFailureFacts, generationModeOf, generationTrackPayload } from './generationTelemetry'
@@ -83,7 +84,7 @@ describe('方式一格：与节点底栏「方式」同一判据', () => {
     let checked = 0
     for (const base of MODEL_ARCHETYPES) {
       const extras = (modeId: string) => ({ modelKey: 'any-model', archetype: { id: base.id, modeId } })
-      const resolved = resolveArchetypeForModel({ modelKey: 'any-model', vendorKey: 'v', meta: extras(base.modes[0]?.id ?? '') })
+      const resolved = resolveModelArchetype({ modelKey: 'any-model', vendorKey: 'v', meta: extras(base.modes[0]?.id ?? '') }, { variant: EVERY_VARIANT })
       if (!resolved) continue
       for (const mode of resolved.modes) {
         expect(generationModeOf('v', extras(mode.id)), `${base.id}/${mode.id}`).toBe(modeDisplayKind(resolved, mode))

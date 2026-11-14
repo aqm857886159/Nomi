@@ -11,7 +11,7 @@
  * 断言主线读写不吞它、不动别的字段（旧版本读到的节点和参考与没有标记时一样）。
  */
 import { describe, expect, it } from 'vitest'
-import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { loadFixture, openProject, readAfterNormalize } from '../../../../tests/fixtures/old-user-data/canvas/canvasModeOldUser.testkit'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 

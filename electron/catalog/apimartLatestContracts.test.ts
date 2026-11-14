@@ -7,7 +7,7 @@ import { buildHttpRequest, buildTemplateContext } from '../ai/requestPipeline';
 import { nomiModelConfigFor } from '../ai/vendorModelConnection';
 import { callModelOnce } from '../agentLane/laneModelCall.mjs';
 import { firstMappedString } from '../tasks/responseParsing';
-import { resolveArchetypeForModel } from '../shared/modelArchetypes';
+import { EVERY_VARIANT, resolveModelArchetype } from '../shared/modelArchetypes';
 import { APIMART_AUDIO_MODELS } from './apimartAudios';
 import { APIMART_TEXT_MODELS, apimartTextPricingApi } from './apimartTexts';
 import { applyHeadlessParamDefaults, taskTemplateParams } from './taskParams';
@@ -138,7 +138,7 @@ describe('APIMart audio official field contracts and request previews', () => {
     for (const sample of [music, sounds]) {
       expect(sample.built.headers.Authorization).toBe('Bearer fixture-only');
       expect(sample.model.archetypeId).toContain('v6');
-      const archetype = resolveArchetypeForModel({ modelKey: sample.model.modelKey, vendorKey: 'apimart', meta: { archetypeId: sample.model.archetypeId } })!;
+      const archetype = resolveModelArchetype({ modelKey: sample.model.modelKey, vendorKey: 'apimart', meta: { archetypeId: sample.model.archetypeId } }, { variant: EVERY_VARIANT })!;
       expect(archetype.modes).toHaveLength(1);
       expect(archetype.modes[0]!.slots).toEqual([]);
       expect(curatedCatalogLifecycle(sample.model.modelKey)).not.toBe('legacy');

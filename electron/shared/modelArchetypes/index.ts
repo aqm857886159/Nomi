@@ -2,9 +2,8 @@ import { anchorsConsumedBy } from './anchorPolicy';
 import { modelNameSourceFor, scopeArchetypeModelNames, type ModelNameSource } from "./modelNameSource";
 import type { ModelParameterControl } from "../videoCapabilities/types";
 import type { ModelArchetype, ModelArchetypeVariant } from "./types";
+// 档案表本身不从这里导出：生产代码拿档案只走 resolveModelArchetype（结构测试 archetypeSingleEntry.structure.test.ts 守）。
 import { getArchetypeById, MODEL_ARCHETYPES } from "./builtInCatalog";
-// 迁移中：旧导出，最后一批删。
-export { getArchetypeById, MODEL_ARCHETYPES } from "./builtInCatalog";
 import { customCapabilityArchetypeForModel } from "./customCapabilityContract";
 import { resolveArchetypeVariant } from "./variantResolution";
 
@@ -226,11 +225,6 @@ export function everyBuiltInArchetype(): readonly ModelArchetype[] {
   return MODEL_ARCHETYPES;
 }
 
-/** 迁移中：旧入口，等价于 resolveModelArchetype(model, { variant: EVERY_VARIANT })。最后一批删。 */
-export function resolveArchetypeForModel(model: ArchetypeModelLike | null | undefined): ModelArchetype | null {
-  return resolveModelArchetype(model, { variant: EVERY_VARIANT });
-}
-
 /** 解析「基础」档案（供应商无关，未特化）：显式 archetypeId 优先，否则按身份匹配 pattern。 */
 function resolveBaseArchetype(model: ArchetypeModelLike): ModelArchetype | null {
   // A valid user-authored capability contract is the most explicit source of truth. It is
@@ -281,11 +275,6 @@ export function specializeArchetypeForVendor(archetype: ModelArchetype, vendorKe
       return { ...m, slots, params: vp ?? m.params };
     }),
   };
-}
-
-/** 迁移中：旧的按档收窄，最后一批删。 */
-export function specializeArchetypeForVariant(archetype: ModelArchetype, variantId: string | null | undefined): ModelArchetype {
-  return rescopeArchetypeVariant(archetype, { variantId, modelId: undefined });
 }
 
 /**

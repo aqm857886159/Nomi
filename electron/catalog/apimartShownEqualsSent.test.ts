@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
-import { getArchetypeById, resolveArchetypeForModel, specializeArchetypeForVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype, rescopeArchetypeVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { declaredModeParams } from "../shared/modelArchetypes/modeParams";
 import { modeTransportFor } from "../shared/videoCapabilities";
 import { APIMART_AUDIO_MODELS } from "./apimartAudios";
@@ -58,7 +59,7 @@ function scanCatalog(): { cells: Cell[]; scannedModels: string[] } {
   const cells: Cell[] = [];
   const scannedModels: string[] = [];
   for (const model of state.models.filter((row) => row.vendorKey === VENDOR)) {
-    const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, modelAlias: model.modelAlias, vendorKey: model.vendorKey, meta: model.meta });
+    const archetype = resolveModelArchetype({ modelKey: model.modelKey, modelAlias: model.modelAlias, vendorKey: model.vendorKey, meta: model.meta }, { variant: EVERY_VARIANT });
     if (!archetype) continue; // 文本模型不走档案
     scannedModels.push(model.modelKey);
     const variants: Array<string | undefined> = archetype.variants?.length ? archetype.variants.map((variant) => variant.id) : [undefined];
@@ -114,7 +115,7 @@ function apimartModes(archetypeId: string) {
   if (!base) throw new Error(`archetype ${archetypeId} missing`);
   const variants: Array<string | undefined> = base.variants?.length ? base.variants.map((variant) => variant.id) : [undefined];
   return variants.flatMap((variantId) => {
-    const archetype = specializeArchetypeForVendor(variantId ? specializeArchetypeForVariant(base, variantId) : base, VENDOR);
+    const archetype = specializeArchetypeForVendor(variantId ? rescopeArchetypeVariant(base, { variantId: variantId, modelId: undefined }) : base, VENDOR);
     return archetype.modes.map((mode) => ({ where: `${archetypeId}${variantId ? `@${variantId}` : ""}/${mode.id}`, mode }));
   });
 }

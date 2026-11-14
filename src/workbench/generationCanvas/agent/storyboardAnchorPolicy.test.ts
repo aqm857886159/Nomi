@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { anchorsConsumedBy } from '../../../../electron/shared/modelArchetypes/anchorPolicy'
 import { validatePlan } from './storyboardPlanEdits'
 import { validateAnchorModelFit } from './storyboardAnchorPolicy'

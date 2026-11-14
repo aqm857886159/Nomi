@@ -13,7 +13,7 @@ import { relayDeclaration } from '../../tests/ux/_relayVideoFixture.mjs';
 import { describe, expect, it } from "vitest";
 import { applyBuiltinSeeds } from "./seedBuiltins";
 import { selectTaskMapping } from "./types";
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
 import { modeTransportFor } from "../shared/videoCapabilities";
 import { applyParamMap, consumedCanonicalKeys, wireReferencedParamKeys } from "./paramTranslate";
 import { NEWAPI_IMAGE_CREATE_OP, NEWAPI_VIDEO_CREATE_OP } from "./newapiTransport";
@@ -47,12 +47,12 @@ describe("参数一致性不变量：内置 (模型×模式) canonical 参数都
     const violations: string[] = [];
 
     for (const model of state.models) {
-      const archetype = resolveArchetypeForModel({
+      const archetype = resolveModelArchetype({
         modelKey: model.modelKey,
         modelAlias: model.modelAlias,
         vendorKey: model.vendorKey,
         meta: model.meta,
-      });
+      }, { variant: EVERY_VARIANT });
       if (!archetype) continue; // 文本/未识别模型不走档案
       // 音频档案（TTS/转写）的标量参数经 audioTaskRunner 的 archetypeInput 通道发送，不走标准 body 模板，
       // 故 body 令牌扫描不适用——由各音频 codec 自己的单测覆盖（doubaoTts.test 等）。

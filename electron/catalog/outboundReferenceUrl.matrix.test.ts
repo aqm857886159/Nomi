@@ -24,7 +24,7 @@ import { bodyReferencedParamKeys } from "./paramTranslate";
 import { renderTemplateValue } from "../ai/requestPipeline";
 import { assertNoReferenceResidueBeforeSend } from "../tasks/referenceResidueGuard";
 import { GENERIC_REFERENCE_KEYS } from "../shared/modelArchetypes/referenceKeys";
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
 import type { CatalogState, HttpOperation, Mapping, Model, Vendor } from "./types";
 import type { TaskRequest } from "../runtime";
 
@@ -102,7 +102,7 @@ const FLAT: Cell[] = SEEDED.mappings
 /** archetypeInput 路的总体：模型行认得出档案（渲染层才会交 archetypeInput）。 */
 const ARCHETYPE: Cell[] = FLAT.filter(({ mapping }) => {
   const { model } = transportFor(mapping);
-  return Boolean(resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: mapping.vendorKey, meta: model.meta as Record<string, unknown> | undefined }));
+  return Boolean(resolveModelArchetype({ modelKey: model.modelKey, vendorKey: mapping.vendorKey, meta: model.meta as Record<string, unknown> | undefined }, { variant: EVERY_VARIANT }));
 });
 
 const extrasWith = (keys: string[]) => Object.fromEntries(keys.map((key) => [key, referenceValue(key, RAW)]));

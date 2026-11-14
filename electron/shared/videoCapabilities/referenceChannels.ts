@@ -21,7 +21,7 @@
  */
 import { bodyReferencedParamKeys } from "../../catalog/paramTranslate";
 import { parseCustomCapabilityContract } from "../customCapabilityContract";
-import type { ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind, ModelArchetype } from "./types";
+import type { ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind } from "./types";
 import { resolveModelArchetype } from "../modelArchetypes/index";
 
 /**

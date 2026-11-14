@@ -27,7 +27,7 @@ vi.mock("../capabilityCore/rendererBridge", () => ({
 import { driveEngineB, installFetchCapture, seedParityCatalog, type FetchCapture } from "./generationParityTestUtils";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { buildArchetypeInputParams } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
-import { getArchetypeById } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { APIMART_VIDEO_MODELS } from "../catalog/apimartVideos";
 import { APIMART_IMAGE_MODELS } from "../catalog/apimartImages";
 import type { ArchetypeMode } from "../shared/modelArchetypes";

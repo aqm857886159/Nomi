@@ -3,7 +3,7 @@
 // manifest.json = 每个节点在 0.24.1 里怎么得到的 + 0.24.1 自己读它读出什么）；重生成：generators/zzCanvasModeGen.ts.txt（README 有命令）。
 // 三份测试（现状 / 目标 / 退回旧版本）共用这里，读方式的口只有一处：改造后换了函数名，只改这一个文件。
 import fs from 'node:fs'
-import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { orderedSentMediaReferenceUrls, sendArchetypeMode } from '../../../../src/workbench/generationCanvas/nodes/controls/archetypeMeta'
 import { canRunGenerationNode } from '../../../../src/workbench/generationCanvas/runner/generationRunController'
 import { resolveTaskKind } from '../../../../src/workbench/generationCanvas/runner/catalogTaskResolve'

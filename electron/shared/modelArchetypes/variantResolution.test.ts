@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MODEL_ARCHETYPES } from ".";
+import { MODEL_ARCHETYPES } from "./builtInCatalog";
 import {
   archetypeBaseModelKey,
   archetypeVariantForModelId,

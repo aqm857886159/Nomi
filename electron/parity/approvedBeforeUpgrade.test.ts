@@ -27,7 +27,8 @@ vi.mock("../capabilityCore/rendererBridge", () => ({
   },
 }));
 
-import { getArchetypeById, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { placeUploadedImages } from "../../src/workbench/generationCanvas/nodes/controls/referenceList";

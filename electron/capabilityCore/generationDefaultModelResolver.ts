@@ -8,7 +8,8 @@ import {
 } from "../settings/generationModelDefaultsSettings";
 import { readCatalog } from "../catalog/catalogStore";
 import { type KeyStatusProbe } from "../catalog/secrets";
-import { buildVideoModelCandidates, videoArchetypeIdFromMeta } from "../shared/videoCapabilities/registry";
+import { videoArchetypeIdFromMeta } from "../shared/videoCapabilities/registry";
+import { buildVideoModelCandidates } from "../shared/videoCapabilities/videoModelCandidates";
 import { effectiveVideoModes } from "../shared/videoCapabilities/recommendation";
 import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
 

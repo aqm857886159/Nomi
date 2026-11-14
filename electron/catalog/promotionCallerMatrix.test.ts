@@ -18,7 +18,7 @@ import { defaultCatalog, type LoadedConnection } from '../providerAdapter/servic
 import { buildOpenAiCompatibleDraft, builtinDraftForUndocumentedEndpoint } from '../providerAdapter/builtinOpenAiCompatibleDraft';
 import { genericCompilation } from '../providerAdapter/serviceFallback';
 import { referenceKeyDeclarationFor } from '../shared/modelArchetypes/referenceKeys';
-import { resolveArchetypeForModel } from '../shared/modelArchetypes';
+import { EVERY_VARIANT, resolveModelArchetype } from '../shared/modelArchetypes';
 import { NEWAPI_VIDEO_CREATE_OP } from './newapiTransport';
 import { deriveModelNameSource } from './modelNameSource';
 import { imageEditGuardError, reachableModeSuggestion } from './taskParamsGuard';
@@ -214,7 +214,7 @@ describe('the model names a relay row can state', () => {
   const resolve = (vendorKey: string, source?: 'archetype') => {
     const state = readCatalog();
     const model = state.models.find(m => m.vendorKey === vendorKey && m.modelKey === row.modelKey)!;
-    return resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey, meta: model.meta, modelNameSource: source ?? deriveModelNameSource(model, state.mappings) });
+    return resolveModelArchetype({ modelKey: model.modelKey, vendorKey, meta: model.meta, modelNameSource: source ?? deriveModelNameSource(model, state.mappings) }, { variant: EVERY_VARIANT });
   };
   it('a certified row states its own key at most, never the shared archetype names', () => {
     const vendorKey = publishStandard(standardProducers['parity-probe']([row])!, row, 'first');

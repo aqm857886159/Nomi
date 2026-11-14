@@ -1,18 +1,18 @@
 import { applyBuiltinSeeds } from '../../electron/catalog/seedBuiltins.ts'
-import { resolveArchetypeForModel, resolveArchetypeVariant, specializeArchetypeForVariant } from '../../electron/shared/modelArchetypes/index.ts'
+import { EVERY_VARIANT, resolveModelArchetype, resolveArchetypeVariant, rescopeArchetypeVariant } from '../../electron/shared/modelArchetypes/index.ts'
 import { isParamValueAllowed, numericRangeOf } from '../../electron/shared/videoCapabilities/paramConstraints.ts'
 
 export const intentions = [3, 5, 8, 12, 20]
 const state = applyBuiltinSeeds({ version: 3, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, '2026-11-09T00:00:00Z').state
 export const missing = []
 export const models = state.models.filter(model => ['image', 'video'].includes(model.kind)).flatMap(model => {
-  const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta })
+  const archetype = resolveModelArchetype({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta }, { variant: EVERY_VARIANT })
   if (!archetype) { missing.push({ model: `${model.vendorKey}/${model.modelKey}`, reason: '未验证：缺量具（无档案）' }); return [] }
   const option = { value: model.modelKey, modelKey: model.modelKey, vendor: model.vendorKey, kind: model.kind, label: model.labelZh, meta: model.meta }
   return [{ model, archetype, option }]
 })
 export function surface(row, modeId = row.archetype.defaultModeId, variantId = resolveArchetypeVariant(row.archetype, { modelId: row.model.modelKey })?.id) {
-  const specialized = specializeArchetypeForVariant(row.archetype, variantId)
+  const specialized = rescopeArchetypeVariant(row.archetype, { variantId: variantId, modelId: undefined })
   const mode = specialized.modes.find(mode => mode.id === modeId) ?? specialized.modes[0]
   return { row, mode, variantId }
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 import { applyRequestTransform } from "../tasks/requestTransforms";
 import { buildArchetypeInputParams } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
-import { getArchetypeById } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { applyBuiltinSeeds } from "./seedBuiltins";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 import { applyParamMap } from "./paramTranslate";
