@@ -79,6 +79,14 @@ export function modelOptionDisplayLabel(modelOptions: readonly ModelOption[], op
   return modelDisplayLabel(group ?? { label: option.label || option.value || '' })
 }
 
+/** 一个目录项在模型菜单里那一行的名字和品牌图（别处要「画一行同样的模型」时问它，不另算）。 */
+export function modelOptionIdentity(modelOptions: readonly ModelOption[], option: ModelOption): { label: string; icon: NomiSelectOption['icon'] } {
+  const group = dedupeModelOptions([...modelOptions]).find((model) => model.providers.some((provider) => provider.option === option
+    || (provider.option.value === option.value && provider.vendor === option.vendor)))
+  const label = modelDisplayLabel(group ?? { label: option.label || option.value || '' })
+  return { label, icon: modelBrandIcon(group ?? { label, providers: [] }) }
+}
+
 /** 该模型是否「病」了：**每一家**供应商都在避让期才算。注入判据便于纯函数单测。 */
 type AilingProbe = (identity: { modelKey: unknown; vendor: unknown }) => boolean
 

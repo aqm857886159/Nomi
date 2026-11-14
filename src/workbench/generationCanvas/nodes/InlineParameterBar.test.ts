@@ -277,7 +277,7 @@ describe('InlineParameterBar 底栏的高级设置', () => {
   }
   beforeEach(() => { captured.selects = []; captured.iconButtons = [] })
   // 图标按钮被替身接走了，属性从替身收到的 props 里读。
-  const advancedToggles = () => captured.iconButtons.filter((props) => (props as Record<string, unknown>)['data-advanced-settings-toggle'] === 'true')
+  const advancedToggles = () => captured.iconButtons.filter((props) => (props as unknown as Record<string, unknown>)['data-advanced-settings-toggle'] === 'true')
 
   it('有高级项：底栏出图标，摘要里只剩面板那几项', () => {
     const html = render([ratio, seed, watermark], { aspect_ratio: '1:1' })

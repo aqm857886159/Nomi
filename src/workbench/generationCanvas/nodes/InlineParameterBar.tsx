@@ -87,7 +87,7 @@ type InlineParameterBarProps = {
    * 模型下拉最前面的一项「不指定模型」（值为空串，选它 = `onModelChange('')`）。
    * 画布节点不传；分镜行传「默认模型」——分镜没选模型时落画布用默认模型，用户要能选回去。
    */
-  leadingModelOption?: { label: string }
+  leadingModelOption?: { label: string; description?: string; icon?: NomiSelectOption['icon'] }
   modelGroupLabels?: Record<'image' | 'video', string> | undefined
   /**
    * 面板最底下的一小段说明（分镜批量 / 多选：「哪些参数为什么没出现」）。画布节点不传。
@@ -471,7 +471,7 @@ export default function InlineParameterBar({
           triggerMaxWidth={wrap ? 260 : summaryWidth === undefined ? 200 : 150}
           className={modelChipClass}
           value={modelSelect.modelValue}
-          options={leadingModelOption ? [{ value: '', label: leadingModelOption.label }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
+          options={leadingModelOption ? [{ value: '', ...leadingModelOption }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
           onChange={(id) => (id || !leadingModelOption ? modelSelect.onModelPick(id) : onModelChange(''))}
           onChipChange={modelSelect.onModelProviderPick}
           footerAction={modelVisibilityFooterAction(modelSelect.hiddenCount)}

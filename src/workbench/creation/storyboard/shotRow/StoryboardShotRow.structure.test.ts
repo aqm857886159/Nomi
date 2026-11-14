@@ -122,6 +122,18 @@ describe('分镜行：对齐（预览框全表同一只、「生成」每行同�
     }
   })
 
+  it('「默认模型」是一行能点的选项，和别的行同一个排法：品牌图 + 名字 + 一句说明（不是小标题）', () => {
+    // 2026-11-14 协调裁决：功能保留；图标 / 说明按落画布同一个解析（resolveStoryboard*Default）取「现在是谁」。
+    expect(composerParams).toContain('useStoryboardDefaultModel(')
+    expect(composerParams).toMatch(/description:\s*defaultIdentity\s*\?/)
+    expect(composerParams).toContain('leadingModelOption={leadingModelOption}')
+    const hook = stripComments(read('src/workbench/creation/storyboard/shotRow/useStoryboardDefaultModel.ts'))
+    expect(hook).toContain('resolveStoryboardImageDefault()')
+    expect(hook).toContain('resolveStoryboardVideoDefault()')
+    const bar = stripComments(read('src/workbench/generationCanvas/nodes/InlineParameterBar.tsx'))
+    expect(bar).toContain("[{ value: '', ...leadingModelOption }, ...modelSelect.modelOptions]")
+  })
+
   it('动作条在图下方常驻，不是压在图上的悬停浮层（设计系统 §1.5.3 反例）', () => {
     expect(frame).not.toContain('group-hover/frame:grid')
     const actions = stripComments(read('src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx'))

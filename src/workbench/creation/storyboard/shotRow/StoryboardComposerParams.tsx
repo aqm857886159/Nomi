@@ -5,6 +5,8 @@ import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 import { findModelOptionByIdentifier } from '../../../../config/modelOptionResolvers'
 import { useVendorPreferenceOrder } from '../../../common/useVendorPreference'
 import InlineParameterBar, { type ComposerFooterSlots } from '../../../generationCanvas/nodes/InlineParameterBar'
+import { modelOptionIdentity } from '../../../common/useDedupedModelSelect'
+import { useStoryboardDefaultModel } from './useStoryboardDefaultModel'
 import { buildModeMenu } from '../../../generationCanvas/nodes/controls/modeMenuModel'
 import { modeMenuOptions } from '../../../generationCanvas/nodes/controls/modeMenuOptions'
 import { useStoryboardRowDensity } from './storyboardRowDensity'
@@ -94,6 +96,15 @@ export default function StoryboardComposerParams({
 
   // 最窄一档（行宽 < 520，E1a 的 320）：模型钮和摘要钮整颗换行、不截字。
   const compact = useStoryboardRowDensity() === 'compact'
+  // 「默认模型」那一行：和别的行同一个排法（品牌图 + 名字 + 一句说明）。点它 = 这一镜不存模型、跟随默认
+  // （落画布时按设置里的默认模型解析，见 resolveStoryboard*Default）。说明里写现在解析到的是哪个。
+  const defaultModel = useStoryboardDefaultModel(kind, modelOptions, orderedVendorKeys)
+  const defaultIdentity = defaultModel ? modelOptionIdentity(modelOptions, defaultModel) : null
+  const leadingModelOption = {
+    label: t('storyboardEditor.defaultModel'),
+    description: defaultIdentity ? t('storyboardEditor.defaultModelNow', { name: defaultIdentity.label }) : t('storyboardEditor.defaultModelNone'),
+    ...(defaultIdentity ? { icon: defaultIdentity.icon } : {}),
+  }
   return (
       <InlineParameterBar
         modelOptions={modelOptions}
@@ -109,7 +120,7 @@ export default function StoryboardComposerParams({
         summaryOverride={summary}
         summaryWidth={{ hug: 280 }}
         wrap={compact}
-        leadingModelOption={{ label: t('storyboardEditor.defaultModel') }}
+        leadingModelOption={leadingModelOption}
         {...(modeOptions.length ? {
           modeMenu: {
             value: modeId,

@@ -72,11 +72,17 @@ export function modeDisplayKind(archetype: ModelArchetype, mode: ArchetypeMode):
 }
 
 /** 每种素材这个方式最多收几件（Infinity = 档案没写上限）；不收的不出现。 */
+/** 格子的主素材：首帧格也收视频（视频接力抽首帧），但对人说「放图」。 */
+function slotAsset(slot: ArchetypeMode['slots'][number]): ReferenceAssetKind {
+  return slot.kind === 'video_ref' || slot.kind === 'source_video' ? 'video' : slot.kind === 'audio_ref' ? 'audio' : 'image'
+}
+
+const ASSET_NOUN: Record<ReferenceAssetKind, 'Images' | 'Videos' | 'Audios'> = { image: 'Images', video: 'Videos', audio: 'Audios' }
+
 function assetCapacities(mode: ArchetypeMode): Map<ReferenceAssetKind, number> {
   const caps = new Map<ReferenceAssetKind, number>()
   for (const slot of mode.slots) {
-    // 首帧格也收视频（视频接力抽首帧），但对人说「放图」：按格子的主素材算。
-    const asset: ReferenceAssetKind = slot.kind === 'video_ref' || slot.kind === 'source_video' ? 'video' : slot.kind === 'audio_ref' ? 'audio' : 'image'
+    const asset = slotAsset(slot)
     caps.set(asset, (caps.get(asset) ?? 0) + capacity(slot))
   }
   if (mode.maxTotalReferences !== undefined) for (const [asset, cap] of caps) caps.set(asset, Math.min(cap, mode.maxTotalReferences))
@@ -130,7 +136,12 @@ function blockedDescription(mode: ArchetypeMode, inputs: readonly ModeInput[], f
     return { key: `${KEY}.takesUpTo${unit}`, values: { count, taken }, name }
   }
   const missing = Math.max(1, mode.slots.reduce((sum, slot) => sum + slot.min, 0) - taken)
-  return { key: `${KEY}.needsMore`, values: { count: missing } }
+  // 缺什么就说什么（可灵「视频编辑」缺的是视频，不是图）：必填槽按主素材数，缺一种说那种，缺几种说「件素材」。
+  const short = ASSET_ORDER.filter((asset) => {
+    const need = mode.slots.filter((slot) => slotAsset(slot) === asset).reduce((sum, slot) => sum + slot.min, 0)
+    return need > inputs.filter((input) => input.asset === asset).length
+  })
+  return { key: `${KEY}.needsMore${short.length === 1 ? ASSET_NOUN[short[0]!] : 'Items'}`, values: { count: missing } }
 }
 
 /**

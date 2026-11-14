@@ -56,6 +56,7 @@ export function AdvancedSettingsIconButton({ open, changed, onToggle }: { open: 
  * 三种触发都要：移上去、点一下（钉住，再点收起）、键盘选到。说明是贴在名字下面的一小块字，不是对话框。
  */
 export function ParameterHelpMark({ name, text }: { name: string; text: string }): JSX.Element {
+  const { t } = useTranslation()
   const [hovered, setHovered] = React.useState(false)
   const [pinned, setPinned] = React.useState(false)
   return (
@@ -63,7 +64,7 @@ export function ParameterHelpMark({ name, text }: { name: string; text: string }
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label={name}
+          aria-label={t('generationCommon.parameters.help.markLabel', { name })}
           aria-expanded={hovered || pinned}
           data-parameter-help="true"
           className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink-60 focus:outline-none focus-visible:bg-nomi-ink-05"

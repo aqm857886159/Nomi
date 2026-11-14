@@ -315,6 +315,21 @@ describe('模型框偏好', () => {
     expect(modelVisibilityFooterAction(0).label).toBe('隐藏模型')
     expect(modelVisibilityFooterAction(2).label).toBe('隐藏模型 2')
   })
+
+  it('「两家并存时变体行按哪家展开」今天复现不出：带变体的组只会有反重力一家（2026-11-14 界面问题，写明而不改）', () => {
+    // 目录映射给反重力的条目钉了带供应商前缀的身份（antigravity-cli:family:…），别家同名模型进不了这一组；
+    // 所以 expandModelRows 用「第一家」算变体和用「这一行实际会用的那家」算，结果永远一样。
+    // 哪天有第二家也给变体、并进同一组，这条先红——那时再按「实际会用的那家」展开。
+    const apimartGemini = toCatalogModelOptions([{
+      modelKey: 'gemini-3.7-flash', vendorKey: 'apimart', labelZh: 'Gemini 3.7 Flash',
+      kind: 'text', enabled: true, published: true, availability: { usable: true } as const, publishedModes: ['chat' as const], createdAt: '', updatedAt: '',
+    }])
+    const deduped = dedupeModelOptions([...variantOptions(), ...apimartGemini])
+    for (const model of deduped.filter((candidate) => candidate.providers.some((provider) => provider.option.variant))) {
+      expect(new Set(model.providers.map((provider) => provider.vendor))).toEqual(new Set(['antigravity-cli']))
+    }
+    expect(deduped.length).toBe(2)
+  })
 })
 
 // 「供应商清单里暂时没有它」（2026-09-21）。

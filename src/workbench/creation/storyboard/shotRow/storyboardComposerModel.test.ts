@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ModelOption } from '../../../../config/models'
+import { planModelSelection } from '../../../generationCanvas/agent/storyboardPlanEdits'
 import { parameterPlacement } from '../../../generationCanvas/nodes/controls/parameterControlModel'
 import { composerEntryIndex, storyboardComposerChange, storyboardComposerControls, storyboardComposerMeta } from './storyboardComposerModel'
 
@@ -89,5 +90,14 @@ describe('分镜行搬进高级设置后：存的、发的字段改前改后一�
     expect(storyboardComposerChange(control('watermark'), 'false', controls)).toEqual({ kind: 'param', key: 'watermark', value: false })
     expect(storyboardComposerChange(control('output_format'), 'mov', controls)).toEqual({ kind: 'param', key: 'output_format', value: 'mov' })
     expect(storyboardComposerChange(control('return_last_frame'), 'true', controls)).toEqual({ kind: 'param', key: 'return_last_frame', value: true })
+  })
+
+  it('「默认模型」那一行换了样子（品牌图 + 说明），点它存的仍是空：不存模型、不存供应商，跟随默认', () => {
+    // InlineParameterBar：点 value '' 的那一行 → onModelChange('')，两个宿主都接 planModelSelection(value, vendor)。
+    expect(planModelSelection('', undefined)).toEqual({ modelKey: undefined, modelVendor: undefined, modeId: undefined, params: undefined })
+    // 点别的行再点回来：同一个写口，结果一样是空。
+    const picked = planModelSelection('doubao-seedance-2.5', 'apimart')
+    expect(picked).toMatchObject({ modelKey: 'doubao-seedance-2.5', modelVendor: 'apimart' })
+    expect(planModelSelection('', picked.modelVendor)).toEqual({ modelKey: undefined, modelVendor: undefined, modeId: undefined, params: undefined })
   })
 })
