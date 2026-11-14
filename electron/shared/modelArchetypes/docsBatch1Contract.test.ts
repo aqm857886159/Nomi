@@ -19,7 +19,7 @@ describe("Seedream 5.0 Pro（APIMart）", () => {
   it("「Transparent output requires PNG」：选透明背景时输出格式只剩 png", () => {
     const format = param("seedream-5-pro", "edit", "output_format");
     expect(values(format)).toEqual(expect.arrayContaining(["jpeg", "png"]));
-    expect(format?.optionConstraints?.some((rule) => rule.when.key === "background" && rule.when.value === "transparent" && rule.values.join() === "png")).toBe(true);
+    expect(format?.optionConstraints?.some((rule) => "key" in rule.when && rule.when.key === "background" && rule.when.value === "transparent" && rule.values.join() === "png")).toBe(true);
     expect(values(param("seedream-5-pro", "edit", "background"))).toEqual(["opaque", "transparent"]);
   });
   it("文生图没有 background（官方：透明只在改图）", () => {
@@ -68,7 +68,8 @@ describe("可灵 4.0 Flash", () => {
   });
   it("「Extension does not accept … aspect_ratio, or audio_setting」", () => {
     const extend = flash().modes.find((mode) => mode.id === "extend")!;
-    expect(extend.params.map((control) => control.key)).toEqual(["duration"]);
+    // nsfw_check 是请求级开关（文档请求体表里每个方式都有），不在这句排除之列。
+    expect(extend.params.map((control) => control.key)).toEqual(["duration", "nsfw_check"]);
   });
   it("参考生成：最多 10 张图 + 5 段视频，合计 15", () => {
     const ref = flash().modes.find((mode) => mode.id === "ref")!;

@@ -60,7 +60,8 @@ const MODES: ModelArchetype["modes"] = [
     slots: [
       { kind: "image_ref", label: "参考图", min: 0, max: 9, characterIndexed: true, inputKey: "image_urls" },
       { kind: "video_ref", label: "参考视频", min: 0, max: 3, inputKey: "video_urls" },
-      { kind: "audio_ref", label: "参考音频", min: 0, max: 3, inputKey: "audio_urls" },
+      // 音频不能单独输入（原由按名字挂的 apimart-minimax-h3 补丁判，现由发送前的通用一步按这条声明判）。
+      { kind: "audio_ref", label: "参考音频", min: 0, max: 3, inputKey: "audio_urls", requiresAnyOf: ["image_ref", "video_ref"] },
     ],
     params: [RESOLUTION, RATIO_ADAPTIVE, DURATION, WATERMARK, WEBHOOK],
   },

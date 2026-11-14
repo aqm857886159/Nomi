@@ -6,6 +6,7 @@ import { NomiColorSchemeProvider } from '../../../src/theme/NomiColorSchemeProvi
 import NodeParameterControls from '../../../src/workbench/generationCanvas/nodes/NodeParameterControls'
 import { useComposerControlProps } from './composerControlProps'
 import { useGenerationCanvasStore } from '../../../src/workbench/generationCanvas/store/generationCanvasStore'
+import { workspaceInputAttributes } from '../../../src/workbench/shortcutSurface'
 
 // The real catalog, real store and real controls; no network generation calls.
 // The placeholder APIMart key is saved by the walk before launch (seedSavedFixtureCredentials): saving it here
@@ -21,7 +22,9 @@ useGenerationCanvasStore.getState().restoreSnapshot({
 function Stage() {
   const node = useGenerationCanvasStore(state => state.nodes[0])
   const controlProps = useComposerControlProps(node, 'contract-video')
-  return <main className="min-h-screen bg-nomi-bg p-8 text-nomi-ink">
+  // 宿主声明（同 GenerationWorkspace / WorkbenchShell 的工作区宿主，e57081ef0 起键盘 / 点外面只认声明了「输入在这」的宿主）：
+  // 不声明，参数面板的 Esc 和点外面关闭在这页一律不响应——那是夹具缺宿主，不是产品行为。
+  return <main className="min-h-screen bg-nomi-bg p-8 text-nomi-ink" {...workspaceInputAttributes(true)}>
     <div className="w-fit rounded-nomi-lg border border-nomi-line bg-nomi-paper p-4" data-contract-stage>
       <NodeParameterControls node={node} section="references" {...controlProps} />
       <NodeParameterControls node={node} section="parameters" {...controlProps} />

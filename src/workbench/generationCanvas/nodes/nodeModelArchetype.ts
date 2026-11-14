@@ -1,4 +1,5 @@
-import { constrainParameterControls } from '../../../../electron/shared/videoCapabilities/crossFieldConstraints'
+import { constrainParameterControls, type ReferenceCounts } from '../../../../electron/shared/videoCapabilities/crossFieldConstraints'
+import { nodeReferenceCounts } from './controls/nodeCrossFieldConstraints'
 // NodeParameterControls 的模型/档案派生纯函数。
 // 从 NodeParameterControls.tsx 抽出，供组件、InlineParameterBar、useNodeModelAutoSelect 共用（单一来源）。
 import type { ModelOption } from '../../../config/models'
@@ -71,6 +72,13 @@ export type RenderedControlsContext =
   | { node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>; graph: ModeGraph }
   | { plannedModeId: string | undefined }
 
+/** 卡在画布上（能看到连线）才数参考；看不到输入时不给计数 → 不按槽收窄（交给发送前判定）。 */
+function renderedReferenceCounts(context: RenderedControlsContext | undefined): ReferenceCounts | undefined {
+  if (!context || !('graph' in context)) return undefined
+  const node = context.graph.nodes.find((candidate) => candidate.id === context.node.id)
+  return node ? nodeReferenceCounts(node, [...context.graph.nodes], [...context.graph.edges]) : undefined
+}
+
 /**
  * 底部参数行要渲染的控件 —— 认得档案的模型用**这次按输入现算出的方式**的标量参数（随模式变，如 HappyHorse
  * i2v 无比例）；认不出的走现有 flat catalog 解析。hook 与组件共用此函数，保证「算宽度」与「实际渲染」
@@ -93,7 +101,7 @@ export function resolveRenderedControls(
       : effectiveArchetypeMode(specialized, context?.node ?? { id: '', meta, kind: isVideoLike ? 'video' : 'image' }, context?.graph ?? { nodes: [], edges: [] }).mode
     return localizeDynamicControls(
       buildDynamicControls({
-        parameterControls: constrainParameterControls(archetypeModeParams(mode), meta),
+        parameterControls: constrainParameterControls(archetypeModeParams(mode), meta, renderedReferenceCounts(context)),
         imageCatalogConfig: null,
         videoCatalogConfig: null,
         isImageLike,

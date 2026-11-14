@@ -1,5 +1,9 @@
 // I-canvas-revert-h：视频档案断开最后一张首帧参考后，生成框回到文生视频。
 // 用法：NOMI_WALK_LANG=zh|en node tests/ux/video-mode-revert.walk.mjs
+//
+// 2026-11-14 清红走查改写：11-12 起方式按输入现算、显示在底栏「方式」格（325237525，清单 ModeBar bar.mode「写的 = 这次真发的」），
+// 节点上存的 archetype.modeId 只是偏好、不再跟着连线改写。所以「连上首帧变单图、断开回文生、不残留」改读底栏方式格写的字，
+// 不再等节点 meta 被写回。
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -9,11 +13,14 @@ import { stationTimeout } from './_station-budget.mjs'
 import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasFitViewButton, newProjectEntry, switchWorkspace } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { modeCell, modeName } from './_modeMenu.mjs'
 
 const repoRoot = process.cwd()
 const locale = process.env.NOMI_WALK_LANG === 'en' ? 'en' : 'zh-CN'
 const languageTag = locale === 'en' ? 'en' : 'zh'
 const generateLabel = uiText(locale, 'generationCommon.composer.generate')
+const textModeName = modeName(locale, 'text')
+const imageModeName = modeName(locale, 'image')
 const tempRoot = path.join(repoRoot, '.tmp', 'nomi-video-mode-revert-' + languageTag)
 const settingsDir = path.join(tempRoot, 'settings')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/video-mode-revert', languageTag)
@@ -131,16 +138,14 @@ try {
   await expect(summary, '视频生成框缺少参数摘要入口').toBeVisible()
 
   await win.evaluate(() => window.__nomiCanvasStore.getState().connectNodes('video-source', 'video-target', 'first_frame'))
-  await win.waitForFunction(() => window.__nomiCanvasStore.getState().nodes.find((node) => node.id === 'video-target')?.meta?.archetype?.modeId === 'i2v', undefined, { timeout: stationTimeout() })
+  const modeButton = modeCell(composer, locale)
+  await expect(modeButton, `连入首帧后底栏方式格写「${imageModeName}」`).toHaveText(imageModeName, { timeout: stationTimeout() })
   const connectedState = await win.evaluate(() => {
     const state = window.__nomiCanvasStore.getState()
-    const targetNode = state.nodes.find((node) => node.id === 'video-target')
-    return {
-      modeId: targetNode?.meta?.archetype?.modeId,
-      edges: state.edges.filter((edge) => edge.target === 'video-target').map((edge) => edge.mode),
-    }
+    return { edges: state.edges.filter((edge) => edge.target === 'video-target').map((edge) => edge.mode) }
   })
-  check('连入首帧后视频档案升格到单图方式', connectedState.modeId === 'i2v' && connectedState.edges[0] === 'first_frame', JSON.stringify(connectedState))
+  const connectedMode = (await modeButton.textContent())?.trim()
+  check('连入首帧后视频档案升格到单图方式', connectedMode === imageModeName && connectedState.edges[0] === 'first_frame', JSON.stringify({ mode: connectedMode, ...connectedState }))
   await win.waitForFunction(() => document.querySelector('[data-node-id="video-target"] [data-reference-row] img') !== null, undefined, { timeout: stationTimeout() })
   await summary.click()
   const panel = win.locator('[data-agent-parameter-panel]').first()
@@ -171,16 +176,13 @@ try {
 
   const edgeId = await win.evaluate(() => window.__nomiCanvasStore.getState().edges.find((edge) => edge.target === 'video-target')?.id)
   await win.evaluate((id) => window.__nomiCanvasStore.getState().disconnectEdge(id), edgeId)
-  await win.waitForFunction(() => window.__nomiCanvasStore.getState().nodes.find((node) => node.id === 'video-target')?.meta?.archetype?.modeId === 't2v', undefined, { timeout: stationTimeout() })
+  await expect(modeButton, `断开最后首帧后底栏方式格写「${textModeName}」`).toHaveText(textModeName, { timeout: stationTimeout() })
   const disconnectedState = await win.evaluate(() => {
     const state = window.__nomiCanvasStore.getState()
-    const targetNode = state.nodes.find((node) => node.id === 'video-target')
-    return {
-      modeId: targetNode?.meta?.archetype?.modeId,
-      edgeCount: state.edges.filter((edge) => edge.target === 'video-target').length,
-    }
+    return { edgeCount: state.edges.filter((edge) => edge.target === 'video-target').length }
   })
-  check('断开最后首帧后回到档案的文生视频方式', disconnectedState.modeId === 't2v' && disconnectedState.edgeCount === 0, JSON.stringify(disconnectedState))
+  const disconnectedMode = (await modeButton.textContent())?.trim()
+  check('断开最后首帧后回到档案的文生视频方式', disconnectedMode === textModeName && disconnectedState.edgeCount === 0, JSON.stringify({ mode: disconnectedMode, ...disconnectedState }))
   await win.waitForFunction(() => document.querySelector('[data-node-id="video-target"] [data-reference-row] img') === null, undefined, { timeout: stationTimeout() })
   await expectAbsent(composer.locator('[data-reference-row] img'), { provenBy: connectedImageProof, message: '断线后生成框仍显示首帧图片' })
   await expect(composer.locator('[data-bar-segment="generate"]'), '回到文生后生成按钮不可点').toBeEnabled()

@@ -54,7 +54,7 @@ import { readCatalog } from "./catalog/catalogStore";
 import { unlocalizedTaskAsset } from "./tasks/unlocalizedTaskAsset";
 import type { BillingModelKind, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./catalog/types";
 import { billingKindForTaskKind, selectTaskMapping } from "./catalog/types";
-import { applyHeadlessParamDefaults, imageEditGuardError, projectOutboundPrompt } from "./catalog/taskParams"; import { assertNoReferenceResidueBeforeSend } from "./tasks/referenceResidueGuard";
+import { applyHeadlessParamDefaults, dispatchedCreateBody, imageEditGuardError, projectOutboundPrompt, sendRouteFor } from "./catalog/taskParams"; import { assertNoReferenceResidueBeforeSend } from "./tasks/referenceResidueGuard";
 import { modelModeBodies, modelReferenceSelection } from "./catalog/modelCatalogListing";
 import { runCustomCallTask } from "./catalog/customCallDispatch";
 import { resolveCustomCallExecution } from "./catalog/customCallMode";
@@ -288,14 +288,16 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   const mapping = stagedCandidate?.mapping || findTaskMapping(effectiveVendorKey, kind, modelKey, modeId);
   // 这一次选中连接的完整身份：第一闸（缺参兜底 + 参考投影的容量拒发）与第三闸（imageEditGuardError）同一份。
   const referenceSelection = modelReferenceSelection(effectiveVendorKey, model as Model, kind, modeId);
-  request.extras = applyHeadlessParamDefaults(assertNoReferenceResidueBeforeSend(request.extras, `${modelKey}/${modeId || "-"}`), referenceSelection, mapping?.create?.defaultParams, mapping?.create?.body);
-  // A5：@ 内联参考在发出去之前投影成 @image1/@video1。判据与注释住 taskParams（引擎 A 只有这一个出口）。
-  request.prompt = projectOutboundPrompt(request.prompt, request.extras);
+  // 真实派发走哪条路只在这里定一次（自定义脚本接管 / 按 mapping body 发）：发送前核输入和下面的老护栏读同一个 route。
   const customCall = resolveCustomCallExecution(model as Model, request, mapping);
   const customCallScript = customCall?.script || "";
+  const sendRoute = sendRouteFor(customCallScript);
+  request.extras = applyHeadlessParamDefaults(assertNoReferenceResidueBeforeSend(request.extras, `${modelKey}/${modeId || "-"}`), referenceSelection, mapping?.create?.defaultParams, mapping?.create?.body, sendRoute);
+  // A5：@ 内联参考在发出去之前投影成 @image1/@video1。判据与注释住 taskParams（引擎 A 只有这一个出口）。
+  request.prompt = projectOutboundPrompt(request.prompt, request.extras);
   // 结果只能写成项目文件（脚本 saveFile、本机进程、同步配音、文件流视频）：没有项目号就在付费闸之前拒——不发请求、不起进程、不扣令牌（projectFileResult）。
   if (!projectId && resultOnlyLandsAsProjectFile(kind, mapping, customCallScript)) throw new Error(desktopT("tasks.resultNeedsProject"));
-  const guardError = imageEditGuardError(kind, request, Boolean(mapping) || Boolean(customCallScript), model.labelZh || model.modelKey, customCallScript ? undefined : mapping?.create?.body, modelModeBodies(readCatalog().mappings, effectiveVendorKey, modelKey, (model as Model).modelAlias, model.meta), referenceSelection);
+  const guardError = imageEditGuardError(kind, request, Boolean(mapping) || Boolean(customCallScript), model.labelZh || model.modelKey, dispatchedCreateBody(sendRoute, mapping?.create?.body), modelModeBodies(readCatalog().mappings, effectiveVendorKey, modelKey, (model as Model).modelAlias, model.meta), referenceSelection);
   if (guardError) throw new Error(guardError);
   if (customCallScript)
     return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, operation: mapping?.create, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, spendGate: admission.spendGate });

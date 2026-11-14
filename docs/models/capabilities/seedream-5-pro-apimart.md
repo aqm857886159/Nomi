@@ -15,7 +15,7 @@
 | 背景 opaque / transparent（只在改图） | `opaque: solid background (default); transparent: transparent background. transparent is available only for image-to-image requests with exactly one input image that already has an alpha channel; output_format: "png" is also required.` | 露出 | `param:edit/background=opaque,transparent@opaque` `absent:t2i/background` |
 | 透明背景必须 png | `output_format: "png" is also required.` | 露出 | `constrain:edit/output_format:background=transparent=>png` |
 | 水印 | `watermark: Whether to add an "AI generated" watermark at the bottom-right` | 露出 | `param:*/watermark=bool@false` |
-| 提交前内容审核 | `nsfw_check: Whether to run content moderation before submitting the image task.` | 露出 | `param:*/nsfw_check=bool@false` |
+| 提交前内容审核 | `nsfw_check: Whether to run content moderation before submitting the image task. false or omitted: do not send a moderation request, adding no moderation cost or latency (default)` | 露出 | `param:*/nsfw_check=bool@false` |
 | 张数 n | `n: Number of images to generate. Only 1 is supported` | 不露出 | `absent:n` `reason:模型无效`（文档明写只支持 1，只有一个合法值） |
 | 提示词优化 | `optimize_prompt_options: standard: standard mode with better quality (default)` | 不露出 | `absent:optimize_prompt_options` `reason:模型无效`（文档明写只有 standard 一档，只有一个合法值） |
 | 档位关键词写进 size | `The tier can be placed directly in size, or supplied through the API Mart extension field resolution ... These forms are equivalent.` | 不露出 | `reason:同一件事`（resolution 控件） |

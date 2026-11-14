@@ -14,13 +14,20 @@ import { resolveArchetypeVariant } from "../shared/modelArchetypes/variantResolu
 import { bodyReferencedParamKeys } from "./paramTranslate";
 import { hasMentions, numberPromptReferences, projectPromptForSend } from "../shared/storyboard/promptMentions";
 import { assertReferenceCapacity, bodyReferenceSupport, classifyReferenceKey, referenceUrlCount, type ModelModeBody, type ReferenceFamily } from "./referenceReachability";
-import { referenceKeyCapacityDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
+import { referenceFrameKindFor, referenceKeyCapacityDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
 import { lowerHeadlessReferences } from "../shared/generationLowering/headlessReferences";
 import { withLoweredReferences, type LoweredGeneration } from "../shared/generationLowering/lowerGenerationIntent";
 import { chatImageParts, jsonImageEditInput } from "./referenceCarrierShapes";
 import { readSelectedComfyReferenceContract, type ParameterReferenceSelection } from "./parameterReferenceContract";
 import { resolveWireModel, WIRE_MODEL_PARAM } from "../shared/modelArchetypes/wireModelIdentity";
 import { comparableReferenceUrl, comparableReferenceValues, serializeReferenceParams } from "./outboundReferenceUrl";
+import { referenceValueCount, validateModeConstraints, type ModeInputEvidence, type ReferenceCounts } from "../shared/videoCapabilities/crossFieldConstraints";
+import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from "../shared/modelArchetypes/types";
+import { declarationForMode } from "../shared/generationLowering/declarationForMode";
+import { specializeArchetypeForVariant } from "../shared/modelArchetypes";
+import { SLOT_ACCEPTS } from "../shared/modelArchetypes/anchorPolicy";
+import { modeInputRefusal } from "./modeInputRefusal";
+export { ModeInputMissingError } from "./modeInputRefusal";
 
 
 /** taskTemplateParams 实际用到的 TaskRequest 子集（结构化，避免与 runtime 的 TaskRequest 循环依赖）。 */
@@ -166,6 +173,8 @@ export function applyHeadlessParamDefaults(
   mappingDefaults: Record<string, unknown> | undefined,
   /** 这条 mapping 的 create body（给了才做参考键形态投影，W1d）。不给 = 只做①②缺参兜底，行为不变。 */
   createBody?: unknown,
+  /** 这次真实派发走哪条路（发送口用 sendRouteFor 定一次）。缺省 = 就按这份 createBody 发。 */
+  route: SendRoute = MAPPING_BODY_ROUTE,
 ): Record<string, unknown> | undefined {
   assertDeclaredCapabilityForTask(selected.modelMeta, selected.taskKind);
   const { taskKind, vendorKey } = selected;
@@ -193,7 +202,123 @@ export function applyHeadlessParamDefaults(
   // ③ 参考键形态投影（既有值优先 → 渲染层已填 archetypeInput 时 no-op）。在缺参兜底之后做，看到的是合并后的 extras。
   if (typeof createBody === "undefined") return withDefaults;
   const projected = headlessReferenceLowering(withDefaults, createBody, selected);
-  return projected.placedKeys.length ? withLoweredReferences(withDefaults || {}, projected) : withDefaults;
+  const lowered = projected.placedKeys.length ? withLoweredReferences(withDefaults || {}, projected) : withDefaults;
+  // ④ 这个方式收不收这一次的参数和输入（缺必需输入 / 依赖的槽没有 / 选项要的槽没有 / 参数组合 / 参考合计）：
+  // 两个发送口都经这里，判在降级之后——数的是真要发出去的那几个键。规则只在 crossFieldConstraints 一处。
+  if (modeSelection) assertModeAcceptsInputs(modeSelection, lowered ?? {}, createBody, selected, route);
+  return lowered;
+}
+
+/**
+ * 这次请求真实派发走哪条路。只在发送口定一次（runtime.ts 解析出自定义调用脚本之后），发送前核输入（第④步）和
+ * 老护栏 imageEditGuardError 读同一个结果：
+ *   · mapping-body：按这条 mapping 的 create body 发，判定看得清这份 body 读哪几族素材。
+ *   · script：自定义调用脚本接管，脚本自己读 params（referenceImages 等），目录里留着的 mapping body 不是派发那份——
+ *     判定看不清，不拒（2026-11-14：新判定按失效的旧 body 把给了图的请求数成 0）。
+ */
+export type SendRoute = { readonly sends: "mapping-body" } | { readonly sends: "script" };
+const MAPPING_BODY_ROUTE: SendRoute = { sends: "mapping-body" };
+export function sendRouteFor(customCallScript: string | undefined): SendRoute {
+  return customCallScript ? { sends: "script" } : MAPPING_BODY_ROUTE;
+}
+/** 这条路真要发出去的 create body（脚本接管 = 没有）。 */
+export function dispatchedCreateBody(route: SendRoute, createBody: unknown): unknown {
+  return route.sends === "script" ? undefined : createBody;
+}
+
+/**
+ * 降级后的请求里，这个方式每个槽各带了几件（按绑定数：自己的键数项数，合并键按角色数；扁平合并分不清就整袋都算给它，宁可不拒），
+ * 外加看不看得清：脚本接管 → unseen（只交下限）；按 body 发 → seen，调用方交了、body 却没有这一族位置的件数记进 unrouted。
+ */
+function modeInputEvidence(
+  mode: ArchetypeMode,
+  values: Record<string, unknown>,
+  createBody: unknown,
+  selected: ParameterReferenceSelection,
+  route: SendRoute,
+): ModeInputEvidence {
+  const placedByCanvas = isJsonRecord(values.archetypeInput) ? values.archetypeInput : {};
+  const read = (key: string): unknown => {
+    const top = values[key];
+    return referenceValueCount(top) > 0 ? top : placedByCanvas[key];
+  };
+  const countBy = (declaration: ReturnType<typeof declarationForMode>): ReferenceCounts => {
+    const counts: ReferenceCounts = {};
+    for (const binding of declaration.bindings) {
+      const target = binding.target;
+      let count = 0;
+      if (target.select === "declared") count = referenceValueCount(read(target.key));
+      else if (target.select === "combined") {
+        const value = read(target.key);
+        const items = Array.isArray(value) ? value : [];
+        count = binding.encoding.shape === "role-objects"
+          ? items.filter((item) => isJsonRecord(item) && item.role === target.role).length
+          : referenceValueCount(value);
+      }
+      counts[binding.kind] = (counts[binding.kind] ?? 0) + count;
+    }
+    return counts;
+  };
+  // 两份绑定都数、每种取大：按这条 body 的绑定（Run 路降级落的键），和按方式声明的绑定（画布拿不到 body，按方式声明放进
+  // archetypeInput；body 不读合并键的渠道，模板照样从那里取——Runway Veo 首尾帧的 promptImage 就取自 image_urls）。
+  const bodyDeclaration = declarationForMode(mode, createBody);
+  const modeDeclaration = declarationForMode(mode);
+  const byBody = countBy(bodyDeclaration);
+  const byMode = countBy(modeDeclaration);
+  const counts: ReferenceCounts = { ...byBody };
+  for (const [kind, count] of Object.entries(byMode) as Array<[ArchetypeReferenceSlotKind, number]>) counts[kind] = Math.max(counts[kind] ?? 0, count);
+  // body 读、但两份声明都没绑的参考键：调用方直接写在 body 键上的，或没有方式可读时「按 body 推声明」的降级按素材族挑的键
+  // （headless / MCP 给标准输入键：Wan 首帧方式的图落 image_urls、Runway 的图落 image_url）。它们照样发出去。
+  // 键自己说了是首帧 / 尾帧、这个方式又有那个槽 → 只算给那个槽；别的分不清是哪个槽 → 算给这个方式里收这一族素材的每个槽，宁可不拒。
+  const credit = (family: ReferenceFamily, frame: ArchetypeReferenceSlotKind | null, count: number, into: ReferenceCounts = counts) => {
+    if (count === 0) return;
+    const slots = frame && mode.slots.some((slot) => slot.kind === frame)
+      ? [frame]
+      : mode.slots.filter((slot) => SLOT_ACCEPTS[slot.kind].includes(family)).map((slot) => slot.kind);
+    for (const kind of slots) into[kind] = Math.max(into[kind] ?? 0, count);
+  };
+  const bodyKeys = bodyReferencedParamKeys(createBody);
+  const declaredKeys = new Set([...bodyDeclaration.bindings, ...modeDeclaration.bindings]
+    .flatMap(({ target }) => ("key" in target ? [target.key] : [...target.keys])));
+  const bodyFamilies = new Set<ReferenceFamily>();
+  for (const key of bodyKeys) {
+    const family = referenceKeyCapacityDeclarationFor(key, selected)?.family;
+    if (!family) continue;
+    bodyFamilies.add(family);
+    if (!declaredKeys.has(key)) credit(family, referenceFrameKindFor(key) ?? null, referenceValueCount(read(key)));
+  }
+  // 标准输入键（firstFrameUrl / referenceImages …）：调用方交进来的素材本身，在被各家键名改写之前。有的 body 不读具体键、
+  // 由模板参数层从它们派生载体（火山 Seedance 的 volcengine_*_content 就从首帧 / 参考图造）。body 读得到这一族素材，就按标准键
+  // 带的件数算，同样宁可不拒；body 根本没有这一族的位 → 带了也发不出去，记进 unrouted（判定说「这家走不了这个方式」，不说「没给」）。
+  // 脚本接管：body 不是派发那份，问它读不读这一族没有意义——标准键照数（下限），整份标成看不清。
+  const standard = referenceInputParams(values, selected);
+  const STANDARD: ReadonlyArray<readonly [string, ReferenceFamily, ArchetypeReferenceSlotKind | null]> = [
+    ["first_frame_url", "image", "first_frame"], ["last_frame_url", "image", "last_frame"],
+    ["reference_images", "image", null], ["reference_image_urls", "image", null],
+    ["reference_video_urls", "video", null], ["reference_audio_urls", "audio", null],
+  ];
+  const unrouted: ReferenceCounts = {};
+  for (const [key, family, frame] of STANDARD) {
+    const routed = route.sends === "script" || bodyFamilies.has(family);
+    credit(family, frame, referenceValueCount(standard[key]), routed ? counts : unrouted);
+  }
+  return route.sends === "script" ? { route: "unseen", counts } : { route: "seen", counts, unrouted };
+}
+
+function assertModeAcceptsInputs(
+  selection: { archetype: ModelArchetype; modeId: string; variantId?: string },
+  values: Record<string, unknown>,
+  createBody: unknown,
+  selected: ParameterReferenceSelection,
+  route: SendRoute,
+): void {
+  const archetype = specializeArchetypeForVariant(selection.archetype, selection.variantId);
+  const mode = archetype.modes.find((candidate) => candidate.id === selection.modeId);
+  if (!mode) return;
+  const evidence = modeInputEvidence(mode, values, createBody, selected, route);
+  const violation = validateModeConstraints(mode, values, evidence);
+  if (!violation) return;
+  throw modeInputRefusal(archetype, mode, evidence.counts, violation);
 }
 
 export function taskTemplateParams(request: TaskParamsInput, selected?: ParameterReferenceSelection): JsonRecord {

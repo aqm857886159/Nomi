@@ -16,7 +16,9 @@ export const agentModelEntrySchema: z.ZodType<AgentModelEntry> = z.object({
       mediaKind: z.enum(['image', 'video']).optional(),
       options: z.array(z.object({ value, label: text, priceLabel: text.optional() }).strict()).max(1024),
       optionConstraints: z.array(z.object({
-        when: z.object({ key: text, value }).strict(), values: z.array(value).max(1024),
+        // 参数 ↔ 参数，或参数 ↔ 参考槽（`slotEmpty`：这个槽没放东西时只剩 values；判定只在 crossFieldConstraints）。
+        when: z.union([z.object({ key: text, value }).strict(), z.object({ slotEmpty: z.enum(ARCHETYPE_REFERENCE_SLOT_KINDS) }).strict()]),
+        values: z.array(value).max(1024),
       }).strict()).max(1024).optional(),
       defaultValue: value.optional(), min: z.number().finite().optional(), max: z.number().finite().optional(),
       step: z.number().finite().optional(), placeholder: text.optional(),
