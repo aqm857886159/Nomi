@@ -72,7 +72,21 @@ export const FULL_CANVAS_SHARDS = Object.freeze([
   Object.freeze(['group-ports', 'card-stack-persistence', 'shortcuts', 'node-context-menu', 'batch-production', 'canvas-landing', 'stuck-modifier', 'far-zoom-clip-drop']),
 ])
 
-export function assertFullCanvasShardPartition(scenarios = FULL_CANVAS_SCENARIOS, shards = FULL_CANVAS_SHARDS) {
+// 画布性能同样按场景分两片并行（quality-gate.yml 的 canvas-performance matrix）。两个场景彼此独立：
+// 各自起一个 benchmark 进程（各自起 Electron、各自建夹具）、各自按自己的 label 写 tests/ux/perf-results/canvas-<label>.json、
+// 预算与判定在 benchmark 内部，不读对方的产物。一个字都没改它们的预算和判定，只是不再串在同一台机器上。
+// 和 full 一样用显式清单：新场景加进 PERFORMANCE_CANVAS_SCENARIOS 却没分片，每片启动即 fail-closed 抛错。
+export const PERFORMANCE_CANVAS_SHARDS = Object.freeze([
+  Object.freeze(['medium-canvas-performance']),
+  Object.freeze(['medium-canvas-version-grids-performance']),
+])
+
+const CANVAS_SHARD_TABLES = Object.freeze({
+  full: { name: 'FULL_CANVAS_SHARDS', shards: FULL_CANVAS_SHARDS },
+  performance: { name: 'PERFORMANCE_CANVAS_SHARDS', shards: PERFORMANCE_CANVAS_SHARDS },
+})
+
+export function assertCanvasShardPartition(scenarios, shards, label = 'full') {
   const assigned = shards.flat()
   const assignedSet = new Set(assigned)
   const scenarioIds = scenarios.map((scenario) => scenario.id)
@@ -82,28 +96,38 @@ export function assertFullCanvasShardPartition(scenarios = FULL_CANVAS_SCENARIOS
   const missing = scenarioIds.filter((id) => !assignedSet.has(id))
   if (duplicated.length || unknown.length || missing.length) {
     throw new Error(
-      `full canvas shard partition is broken: `
+      `${label} canvas shard partition is broken: `
         + `missing=[${missing.join(', ')}] unknown=[${unknown.join(', ')}] duplicated=[${duplicated.join(', ')}]. `
-        + `Every FULL_CANVAS_SCENARIOS id must appear in exactly one FULL_CANVAS_SHARDS bucket.`,
+        + `Every ${label} scenario id must appear in exactly one shard bucket.`,
     )
   }
 }
 
-export function parseCanvasShard(spec) {
+export function assertFullCanvasShardPartition(scenarios = FULL_CANVAS_SCENARIOS, shards = FULL_CANVAS_SHARDS) {
+  assertCanvasShardPartition(scenarios, shards, 'full')
+}
+
+export function assertPerformanceCanvasShardPartition(scenarios = PERFORMANCE_CANVAS_SCENARIOS, shards = PERFORMANCE_CANVAS_SHARDS) {
+  assertCanvasShardPartition(scenarios, shards, 'performance')
+}
+
+export function parseCanvasShard(spec, profile = 'full') {
   const match = /^([0-9]+)\/([0-9]+)$/.exec(String(spec ?? ''))
   if (!match) throw new Error(`invalid canvas shard spec: ${JSON.stringify(spec)} (expected <index>/<total>, e.g. 1/2)`)
   const index = Number(match[1])
   const total = Number(match[2])
-  if (total !== FULL_CANVAS_SHARDS.length) {
-    throw new Error(`canvas shard total ${total} does not match FULL_CANVAS_SHARDS (${FULL_CANVAS_SHARDS.length})`)
+  const table = CANVAS_SHARD_TABLES[profile]
+  if (!table) throw new Error(`canvas shard is only supported for the full and performance profiles, not: ${profile}`)
+  if (total !== table.shards.length) {
+    throw new Error(`canvas shard total ${total} does not match ${table.name} (${table.shards.length})`)
   }
   if (index < 1 || index > total) throw new Error(`canvas shard index ${index} out of range 1..${total}`)
   return { index, total }
 }
 
 export function scenariosForProfile(profile, { shard } = {}) {
-  if (shard && profile !== 'full') {
-    throw new Error(`canvas shard is only supported for the full profile, not: ${profile}`)
+  if (shard && profile !== 'full' && profile !== 'performance') {
+    throw new Error(`canvas shard is only supported for the full and performance profiles, not: ${profile}`)
   }
   if (profile === 'critical') return CRITICAL_CANVAS_SCENARIOS
   if (profile === 'full') {
@@ -112,7 +136,12 @@ export function scenariosForProfile(profile, { shard } = {}) {
     const bucket = new Set(FULL_CANVAS_SHARDS[shard.index - 1])
     return FULL_CANVAS_SCENARIOS.filter((scenario) => bucket.has(scenario.id))
   }
-  if (profile === 'performance') return PERFORMANCE_CANVAS_SCENARIOS
+  if (profile === 'performance') {
+    if (!shard) return PERFORMANCE_CANVAS_SCENARIOS
+    assertPerformanceCanvasShardPartition()
+    const bucket = new Set(PERFORMANCE_CANVAS_SHARDS[shard.index - 1])
+    return PERFORMANCE_CANVAS_SCENARIOS.filter((scenario) => bucket.has(scenario.id))
+  }
   throw new Error(`unknown canvas suite profile: ${profile}`)
 }
 
@@ -225,7 +254,7 @@ export function parseCanvasSuiteArgv(argv) {
     // 选项结束符跳过；其余未知参数照旧 fail-closed。
     if (rest[index] === '--') continue
     if (rest[index] === '--shard') {
-      shard = parseCanvasShard(rest[index + 1])
+      shard = parseCanvasShard(rest[index + 1], profile)
       index += 1
       continue
     }
