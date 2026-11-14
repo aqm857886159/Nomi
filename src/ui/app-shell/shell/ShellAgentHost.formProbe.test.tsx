@@ -65,7 +65,7 @@ afterEach(() => {
 /** 生成页画布那一格里和外壳一起挂着的真「回到对话」。 */
 const withReturnDock = (page: AgentFormSurface): React.ReactElement | null => (page === 'generation' ? React.createElement(NodePointerReturnDock, { surface: 'generation' }) : null)
 const returnDockShown = (): boolean => returnButton.live > 0
-const clickReturn = (p: Probe): void => p.clickWhere((props) => props['data-node-pointer-return'] === 'true', '回到对话')
+const clickReturn = (p: Probe): void => p.clickWhere((props) => props['data-node-pointer-return'] === 'true', 'data-node-pointer-return 按钮')
 
 /** 从创作页面板里点「参考」去画布挑图时，外壳这一侧做的事：ProjectAgentResidentShell 的 pickReferenceOnCanvas 只调这一个动作（结构测试钉住）。 */
 function pickReferenceOnCanvas(p: Probe): void {
