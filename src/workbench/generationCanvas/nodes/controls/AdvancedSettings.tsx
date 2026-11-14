@@ -8,7 +8,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconAdjustmentsHorizontal, IconInfoCircle } from '@tabler/icons-react'
-import { DesignSwitch, NomiSegmented, Tooltip, TooltipContent, TooltipTrigger } from '../../../../design'
+import { DesignSwitch, NomiSegmented, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../../design'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import { NodePromptToolIconButton } from '../NodePromptToolCluster'
 import {
@@ -54,37 +54,40 @@ export function AdvancedSettingsIconButton({ open, changed, onToggle }: { open: 
 /**
  * 名字旁的 ⓘ。用软件里选项上已在用的那一个（12 / stroke 2），不新造问号。
  * 三种触发都要：移上去、点一下（钉住，再点收起）、键盘选到。说明是贴在名字下面的一小块字，不是对话框。
+ * 自带 TooltipProvider：底栏 / 分镜行外面没有全局的那一层，缺了 Radix 直接抛错、整个生成框挂掉。
  */
 export function ParameterHelpMark({ name, text }: { name: string; text: string }): JSX.Element {
   const { t } = useTranslation()
   const [hovered, setHovered] = React.useState(false)
   const [pinned, setPinned] = React.useState(false)
   return (
-    <Tooltip open={hovered || pinned} onOpenChange={setHovered} delayDuration={120}>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          aria-label={t('generationCommon.parameters.help.markLabel', { name })}
-          aria-expanded={hovered || pinned}
-          data-parameter-help="true"
-          className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink-60 focus:outline-none focus-visible:bg-nomi-ink-05"
-          onClick={(event) => { event.stopPropagation(); setPinned((value) => !value) }}
+    <TooltipProvider delayDuration={120}>
+      <Tooltip open={hovered || pinned} onOpenChange={setHovered} delayDuration={120}>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label={t('generationCommon.parameters.help.markLabel', { name })}
+            aria-expanded={hovered || pinned}
+            data-parameter-help="true"
+            className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink-60 focus:outline-none focus-visible:bg-nomi-ink-05"
+            onClick={(event) => { event.stopPropagation(); setPinned((value) => !value) }}
+          >
+            <IconInfoCircle size={12} stroke={2} aria-hidden />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent
+          side="bottom"
+          align="start"
+          data-parameter-help-text="true"
+          onEscapeKeyDown={() => setPinned(false)}
+          onPointerDownOutside={() => setPinned(false)}
+          className="max-w-[280px] whitespace-normal select-text border-nomi-line bg-nomi-paper p-2 leading-normal text-nomi-ink-80"
+          style={{ zIndex: 700 }}
         >
-          <IconInfoCircle size={12} stroke={2} aria-hidden />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent
-        side="bottom"
-        align="start"
-        data-parameter-help-text="true"
-        onEscapeKeyDown={() => setPinned(false)}
-        onPointerDownOutside={() => setPinned(false)}
-        className="max-w-[280px] whitespace-normal select-text border-nomi-line bg-nomi-paper p-2 leading-normal text-nomi-ink-80"
-        style={{ zIndex: 700 }}
-      >
-        {text}
-      </TooltipContent>
-    </Tooltip>
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }
 
