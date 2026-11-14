@@ -247,7 +247,7 @@ async function expectNodePointerState(page, state, record) {
         }
         if (!(await page.locator('[data-external-highlight="flash"]').count())) record(`${state.id} ${A.narrowCollapse}: 收起后画布目标没有闪一下`)
         if (!(await page.locator('[data-agent-ball]').count())) record(`${state.id} ${A.narrowCollapse}: 收起后的小球没画出来`)
-        // Esc 也回到对话：「回到对话」那一颗消失（回去的形态写回 agentFormStore）。
+        // Esc 也回到对话：「回到对话」那一颗消失（机器让位结束，对话回到让开前的样子；人存的形态从没被改过）。
         await page.keyboard.press('Escape')
         await back.first().waitFor({ state: 'detached', timeout: 3000 }).catch(() => record(`${state.id} ${A.narrowBack}: Esc 没有回到对话`))
         await noAccentOutline(page, state, record)

@@ -251,7 +251,7 @@ async function openLightbox() {
   await expect(win.locator(LIGHTBOX)).toBeVisible()
 }
 
-const agentForm = (surface = 'generation') => fixture.win.evaluate((name) => window.__nomiAgentFormStore?.getState().bySurface[name].form, surface)
+const agentForm = (surface = 'generation') => fixture.win.evaluate((name) => window.__nomiAgentForm?.shownForm(name), surface)
 
 try {
   fixture = await launchParityFixture('modal-input-priority')
@@ -560,7 +560,7 @@ try {
     await win.keyboard.press('Meta+j')
     await expect.poll(() => agentForm(), { message: '灯箱只盖画布，Mod+J 照常' }).not.toBe('ball')
     await shot('14-agent-over-lightbox')
-    await win.evaluate(() => window.__nomiAgentFormStore.getState().setForm('generation', 'ball'))
+    await win.evaluate(() => window.__nomiAgentForm.collapseAgent('generation'))
     await pressCloses(win.locator(LIGHTBOX), 'Escape', '灯箱开着')
   })
 

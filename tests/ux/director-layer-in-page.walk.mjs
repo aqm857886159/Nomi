@@ -222,7 +222,8 @@ const resizeTo = async (size) => {
 }
 
 const setAgentForm = async (form) => {
-  await win.evaluate((next) => window.__nomiAgentFormStore.getState().setForm('generation', next), form)
+  // 走真动作摆形态（ball = 收起；float / dock = 选那个摆法），读法只认外壳那一层的 data-agent-form。
+  await win.evaluate((next) => (next === 'ball' ? window.__nomiAgentForm.collapseAgent('generation') : window.__nomiAgentForm.chooseAgentPlacement('generation', next)), form)
   await win.waitForFunction((next) => document.querySelector('[data-shell-agent-layer]')?.getAttribute('data-agent-form') === next, form, { timeout })
   await settleLayout()
 }
