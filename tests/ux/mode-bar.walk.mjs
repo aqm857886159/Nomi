@@ -11,6 +11,7 @@
 //
 // 用法：node tests/ux/mode-bar.walk.mjs        （EVIDENCE=0 只跑断言不截图；BOUNDARY_ONLY=1 只跑边界）
 import { stationTimeout } from './_station-budget.mjs'
+import { NODE_COMPOSER_WIDTH } from './_composerWidth.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { chromium } from 'playwright'
 import { spawn, spawnSync } from 'node:child_process'
@@ -120,7 +121,7 @@ try {
 
         if (state === 'mb-a-no-input-menu') {
           const card = await page.evaluate((sel) => { const el = document.querySelector(sel); if (!el) return null; const s = getComputedStyle(el); return { radius: parseFloat(s.borderTopLeftRadius), width: Math.round(el.getBoundingClientRect().width) } }, CARD)
-          check(`board:ModeBar/composer.shell · ${tag}`, Boolean(card) && card.width === 560 && card.radius >= 9, JSON.stringify(card))
+          check(`board:ModeBar/composer.shell · ${tag}`, Boolean(card) && card.width === NODE_COMPOSER_WIDTH && card.radius >= 9, JSON.stringify(card))
           check(`board:ModeBar/composer.prompt · ${tag}`, (await count(page, `${CARD} [data-prompt-box]`)) === 1)
           const add = await page.evaluate(() => [...document.querySelectorAll('[data-reference-entry], [data-reference-add-entry], [data-asset-add-tile]')].map((el) => { const r = el.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)] }))
           check(`board:ModeBar/ref.add · ${tag}`, add.length >= 2 && add.every(([w, h]) => w === 40 && h === 40), JSON.stringify(add))

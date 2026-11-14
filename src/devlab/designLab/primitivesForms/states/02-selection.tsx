@@ -203,7 +203,7 @@ export const SELECTION_STATES: readonly LabState[] = [
     name: 'NomiSelect · 触发 pill 的形态矩阵（收起态）',
     source: SOURCE_SELECT,
     mirrors: [
-      'src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx:127',
+      'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:468',
       'src/workbench/creation/storyboard/ShotParamControls.tsx:48',
       'src/ui/onboarding/CustomCallScopeSelector.tsx:44',
     ],
@@ -296,7 +296,7 @@ export const SELECTION_STATES: readonly LabState[] = [
     id: 'pf-08-nomi-select-open',
     name: 'NomiSelect · 展开态（供应商 chip 行 / 选中对勾 / 避让减淡行）',
     source: SOURCE_SELECT,
-    mirrors: ['src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx:127'],
+    mirrors: ['src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:468'],
     coverage: 'shell',
     // 展开态由取景台**真的点一下触发钮**得到，不是另画一份下拉（见取景台头注纪律 1）。
     // 带 `onChipChange`：有 chip 的行是可点的第二层（点 chip 换供应商、不选中该行），

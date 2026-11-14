@@ -1,6 +1,6 @@
 import { workspaceInputSurfaceIsActive } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
-import { createPortal } from 'react-dom'
+import { createPortal, flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
@@ -14,23 +14,25 @@ import {
   catalogControlInitialValue,
   controlInitialValue,
   controlValueToString,
+  controlDiffersFromDefault,
   isParameterControl,
   optionValue,
+  parameterPlacement,
 } from './controls/parameterControlModel'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
 import { summaryFitCandidates } from './composerHeadlineSummary'
-import { modelVisibilityFooterAction, useDedupedModelSelect, type ModelVariantMenu } from '../../common/useDedupedModelSelect'
+import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldLadder, modeHasIcon } from './composerBarYield'
+import { useDedupedModelSelect, type ModelVariantMenu } from '../../common/useDedupedModelSelect'
+import { localizeAutoOption } from './parameterOptionPresentation'
 import {
-  localizeAutoOption,
-  soloOptionControl,
-} from './parameterOptionPresentation'
-import {
-  ParameterControlBody,
   ParameterOptionGroup,
   ParameterPanelGroup,
 } from './controls/ParameterControlBody'
+import { AdvancedSettingsIconButton, AdvancedSettingsSection } from './controls/AdvancedSettings'
+import { NodePromptToolCluster } from './NodePromptToolCluster'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
+import { resolveAnchoredPopoverPlacement } from '../../../design/anchoredPopoverPlacement'
 
 type InlineParameterBarProps = {
   modelOptions: readonly ModelOption[]
@@ -58,19 +60,15 @@ type InlineParameterBarProps = {
    * 2026-08-20 用户拍板，是 2026-07-17「摘要 pill」拍板形态内的一处窄例外。
   */
   summaryOverride?: string
-  /** Width of the summary trigger in CSS pixels（不传 = 贴文字宽、最宽 240）。
-   * `{ hug: N }` = 贴文字宽、最宽 N（分镜行：中文「全能参考 · 16:9 · 5 秒」与英文「Omni reference · 16:9 · 5s」
-   * 宽差近一倍，定宽要么英文截断、要么中文留一截空白）。 */
-  summaryWidth?: number | { hug: number }
   /**
    * 放不下就整颗换行、一个字都不截（分镜行最窄一档，E1a 的 320）：模型钮和摘要钮不设最大宽度，横排里是同一条可换行的 flex 行的成员。
    * 不传 = 原样（画布一行、贴文字宽最宽 240）。
    */
   wrap?: boolean
   /**
-   * 摘要的每个整值和退让顺序（画布节点传，见 composerHeadlineParts）。传了 = 底栏永远一行：
-   * 放不下时只退参数这一格，按 dropRank 从小到大整值地退（比例 → 有声 → 清晰度 → 时长，边界样张 K4），
-   * 模型 / 变体 / 方式和右边几颗钮都不缩，一个值不截半截。分镜行不传（它有自己的 summaryWidth / wrap）。
+   * 摘要的每个整值和退让顺序（画布节点、分镜行都传，见 composerHeadlineParts）：放不下时按 dropRank 从小到大
+   * 整值地退（比例 → 有声 → 清晰度 → 时长，边界样张 K4），一个值不截半截；它排在让法顺序的第 ③ 步（composerBarYield.ts）。
+   * 不传 = 面板里各参数的当前值，从后往前整值地退。
    */
   summaryParts?: readonly { text: string; dropRank: number }[]
   /**
@@ -87,13 +85,38 @@ type InlineParameterBarProps = {
    * 模型下拉最前面的一项「不指定模型」（值为空串，选它 = `onModelChange('')`）。
    * 画布节点不传；分镜行传「默认模型」——分镜没选模型时落画布用默认模型，用户要能选回去。
    */
-  leadingModelOption?: { label: string }
+  leadingModelOption?: { label: string; description?: string; icon?: NomiSelectOption['icon'] }
   modelGroupLabels?: Record<'image' | 'video', string> | undefined
   /**
    * 面板最底下的一小段说明（分镜批量 / 多选：「哪些参数为什么没出现」）。画布节点不传。
    * 传了它，即使一个可调参数都没有，触发器也照样出现——点开才读得到「为什么没有」。
    */
   panelFooter?: React.ReactNode
+  /**
+   * 生成底栏（画布节点、画布列表详情、分镜行、分镜参考卡四处同一份，2026-11-14 用户「一套设计都复用」）。
+   * 传了它，这个组件画整条底栏：`[模型][方式][参数] …… [提示词工具][高级设置] [数量] [走]`，
+   * 「高级设置」那五类不进参数面板、在底栏下面原地展开。不传（分镜批量这类只要参数格的地方）= 只有参数格，全部参数都在面板里。
+   */
+  footer?: ComposerFooterSlots
+}
+
+export type ComposerFooterSlots = {
+  /** 右边那排小图标（提示词预设 / 翻译 / 优化）；高级设置那颗排在它们后面。 */
+  tools?: React.ReactNode
+  /** 数量这类紧挨「走」钮左边的东西。 */
+  trailing?: React.ReactNode
+  /** 最右：「走」钮或一枚状态标签。 */
+  action?: React.ReactNode
+  /** 只放流式布局放不下就整颗换行（分镜行最窄一档）；画布一行不换。 */
+  wrap?: boolean
+  /** 宿主的走查锚点（`data-storyboard-composer-bar` 等）。 */
+  attrs?: Readonly<Record<`data-${string}`, string>>
+  /** 宿主给的外边距（画布卡里贴底、分镜框里留内边距）。只许间距，不许改排法。 */
+  className?: string
+  /** 高级设置那段展开后的高度（画布卡有高度上限，要让出这么多）。 */
+  onAdvancedHeightChange?: (height: number) => void
+  /** 提示词工具那组的名字（读屏）。 */
+  toolsLabel?: string
 }
 
 // section="parameters"：底栏 = 模型芯片 + 变体 + **摘要 pill**：  [模型 ▾] [变体 ▾] [16:9 · 5s ▾]
@@ -120,8 +143,42 @@ function summaryPart(control: DynamicModelControl, meta: Record<string, unknown>
   const value = controlInitialValue(control, meta)
   if (!value) return ''
   const matched = control.options.find((o) => controlValueToString(o.value) === value)
-  const label = matched ? matched.label : value.length > 8 ? `${value.slice(0, 8)}…` : value
-  return localizeAutoOption(value, label, autoLabel).text
+  return localizeAutoOption(value, matched ? matched.label : value, autoLabel).text
+}
+
+/**
+ * 把一段滚进离它最近的可滚容器的可视区（最近对齐）：下沿在外就往下滚刚好够；段比可视区还高就让顶对齐。
+ * 不用 `scrollIntoView`：它连 overflow-hidden 的祖先（画布卡、画布本身）一起滚。
+ */
+function revealInScrollParent(el: HTMLElement): void {
+  let scroller: HTMLElement | null = el.parentElement
+  while (scroller) {
+    const overflowY = getComputedStyle(scroller).overflowY
+    if ((overflowY === 'auto' || overflowY === 'scroll') && scroller.scrollHeight > scroller.clientHeight + 1) break
+    scroller = scroller.parentElement
+  }
+  if (!scroller) return
+  const box = el.getBoundingClientRect()
+  const view = scroller.getBoundingClientRect()
+  const viewTop = view.top + scroller.clientTop
+  const viewBottom = viewTop + scroller.clientHeight
+  if (box.bottom <= viewBottom + 0.5 && box.top >= viewTop - 0.5) return
+  const delta = box.height > scroller.clientHeight ? box.top - viewTop : box.bottom > viewBottom ? box.bottom - viewBottom : box.top - viewTop
+  const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  scroller.scrollBy({ top: delta, behavior: reduce ? 'auto' : 'smooth' })
+}
+
+/**
+ * 没有拍板过「那几个值」的执行类（声音 / 文本 / 3D）的摘要：面板里各参数的当前值，每个值是一个整值，
+ * 放不下从后往前整值地减（2026-11-14 验收条件 2：Eleven v3 曾被截成「JBFqnCBs… · … · B…」）。
+ * 自由文本（音色 ID 这类）不进摘要：它在摘要里读不出意思，点开面板看全。
+ */
+function fallbackSummaryParts(controls: readonly DynamicModelControl[], meta: Record<string, unknown>, autoLabel: string): { text: string; dropRank: number }[] {
+  const texts = controls
+    .filter((control) => !(isParameterControl(control) && control.type === 'text'))
+    .map((control) => summaryPart(control, meta, autoLabel))
+    .filter(Boolean)
+  return texts.map((text, index) => ({ text, dropRank: texts.length - index }))
 }
 
 export default function InlineParameterBar({
@@ -136,7 +193,6 @@ export default function InlineParameterBar({
   onParameterControlChange,
   variantMenu,
   summaryOverride,
-  summaryWidth,
   wrap = false,
   summaryParts,
   modeMenu,
@@ -147,6 +203,7 @@ export default function InlineParameterBar({
   leadingModelOption,
   modelGroupLabels,
   panelFooter,
+  footer,
 }: InlineParameterBarProps): JSX.Element {
   const { t } = useTranslation()
   // 去重选择 view-model（hook 必须在任何早返回前调用）。
@@ -159,48 +216,93 @@ export default function InlineParameterBar({
     variantMenu,
   )
 
-  // 摘要 pill 文本：各参数当前值串接（16:9 · 1080p · 5 · 音频）。面板装**全部**参数（pill 不占走任何一个）。
-  const fullSummaryText = summaryOverride || renderedControls
-    .map((c) => summaryPart(c, meta, t('generationCommon.parameters.auto')))
-    .filter(Boolean)
-    .join(' · ')
-
-  // ── 底栏挤时摘要整值地退（K4）。量的是几档候选整颗钮的宽（藏着的量尺），不是截文字。 ──
-  const fitCandidates = !wrap && summaryParts?.length ? summaryFitCandidates(summaryParts) : null
-  const fitKey = fitCandidates ? fitCandidates.join('\n') : ''
-  const summarySlotRef = React.useRef<HTMLDivElement | null>(null)
-  const summaryRulerRef = React.useRef<HTMLDivElement | null>(null)
-  const barRef = React.useRef<HTMLDivElement | null>(null)
-  const identityRef = React.useRef<HTMLDivElement | null>(null)
-  const [fit, setFit] = React.useState<{ index: number; cramped: boolean }>({ index: 0, cramped: false })
+  // 参数去处只问一处（parameterPlacement）：有底栏时五类进「高级设置」，其余进面板；没有底栏的宿主全在面板里。
+  const panelControls = footer ? renderedControls.filter((control) => parameterPlacement(control) === 'panel') : renderedControls
+  const advancedControls = footer ? renderedControls.filter((control) => parameterPlacement(control) === 'advanced') : []
+  const advancedChanged = advancedControls.some((control) => controlDiffersFromDefault(control, meta))
+  // 开着还是收着不记：每次点开节点都是收着的（便签「没放上去的」）。
+  const [advancedOpen, setAdvancedOpen] = React.useState(false)
+  const advancedRef = React.useRef<HTMLDivElement | null>(null)
+  const onAdvancedHeightChange = footer?.onAdvancedHeightChange
+  const showAdvanced = advancedOpen && advancedControls.length > 0
   React.useLayoutEffect(() => {
-    if (!fitKey) return
-    const bar = barRef.current
-    const identity = identityRef.current
-    const ruler = summaryRulerRef.current
-    if (!bar || !identity || !ruler) return
-    const pick = (): void => {
-      // 剩给摘要的宽 = 参数条宽 − 身份几格的「本来宽」− 间距。本来宽要把被省略号藏掉的那截加回来，
-      // 否则模型名一缩、算出来的剩余就变大，又退回不挤 → 来回跳。
-      const hidden = Array.from(identity.querySelectorAll<HTMLElement>('span')).reduce((sum, el) => sum + Math.max(0, el.scrollWidth - el.clientWidth), 0)
-      const gap = parseFloat(getComputedStyle(bar).columnGap) || 0
-      const room = bar.clientWidth - (identity.offsetWidth + hidden) - gap
-      const widths = Array.from(ruler.children).map((child) => (child as HTMLElement).offsetWidth)
-      const index = widths.findIndex((width) => width <= room)
-      const next = index < 0 ? { index: Math.max(0, widths.length - 1), cramped: true } : { index, cramped: false }
-      setFit((prev) => (prev.index === next.index && prev.cramped === next.cramped ? prev : next))
-    }
-    pick()
+    if (!onAdvancedHeightChange) return
+    const section = advancedRef.current
+    if (!showAdvanced || !section) { onAdvancedHeightChange(0); return }
+    const report = (): void => onAdvancedHeightChange(Math.ceil(section.getBoundingClientRect().height + parseFloat(getComputedStyle(section).marginTop || '0')))
+    report()
     if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(pick)
+    const observer = new ResizeObserver(report)
+    observer.observe(section)
+    return () => { observer.disconnect(); onAdvancedHeightChange(0) }
+  }, [showAdvanced, onAdvancedHeightChange])
+  // 点开高级设置那一下：展开的那段下沿在可滚容器的可视区外，就把它滚进来（最近对齐，不跳到顶；
+  // 系统开了减弱动效不带动画）。2026-11-14 验收条件 1、4：最小窗列表详情里展开段在屏幕下面，以为没反应。
+  // 只滚 overflow 是 auto / scroll 的容器（画布卡是 overflow-hidden，不碰；画布本身不许被程序滚动）。
+  const advancedJustOpened = React.useRef(false)
+  React.useLayoutEffect(() => {
+    if (!showAdvanced || !advancedJustOpened.current) return
+    advancedJustOpened.current = false
+    const section = advancedRef.current
+    if (section) revealInScrollParent(section)
+  }, [showAdvanced])
+
+  // 摘要的每个整值：拍板过的那几个值（画布 / 分镜传 summaryParts）> 宿主给的整句 > 面板里各参数的当前值。
+  const autoLabel = t('generationCommon.parameters.auto')
+  const parts = summaryParts?.length
+    ? summaryParts
+    : summaryOverride
+      ? [{ text: summaryOverride, dropRank: 0 }]
+      : fallbackSummaryParts(panelControls, meta, autoLabel)
+  const fullSummaryText = parts.map((part) => part.text).join(' · ')
+
+  // ── 底栏挤的时候谁先让（composerBarYield.ts，四处同一条）：只在这里量一次，经 context 发给生成钮。 ──
+  // 量法：从「什么都不让」起一级一级往上试，直到参数条里的东西不再超出参数条（布局前同步做完，不闪）。
+  // 判据是底栏自己的宽（ResizeObserver 看底栏那一行），不读窗口宽。分镜最窄一档（wrap）整颗换行，不走这里。
+  const fitCandidates = footer && !wrap && parts.length ? summaryFitCandidates(parts) : null
+  const modeCollapsible = modeHasIcon(modeMenu?.options, modeMenu?.value)
+  const ladder = footer && !wrap
+    ? composerYieldLadder({ sendCollapsible: Boolean(footer.action), modeCollapsible, summaryCandidates: fitCandidates?.length ?? 1 })
+    : [COMPOSER_YIELD_NONE]
+  const yielding = ladder.length > 1
+  const fitKey = `${ladder.length}\n${fitCandidates ? fitCandidates.join('\n') : fullSummaryText}\n${selectedModelOption?.value ?? ''}\n${modeMenu?.value ?? ''}`
+  const barRef = React.useRef<HTMLDivElement | null>(null)
+  const footerRowRef = React.useRef<HTMLDivElement | null>(null)
+  const [fitState, setFitState] = React.useState<{ key: string; level: number }>({ key: fitKey, level: 0 })
+  const level = fitState.key === fitKey ? Math.min(fitState.level, ladder.length - 1) : 0
+  const yieldStep = ladder[level] ?? COMPOSER_YIELD_NONE
+  React.useLayoutEffect(() => {
+    if (!yielding) return
+    const bar = barRef.current
+    if (!bar || level >= ladder.length - 1) return
+    // 参数条里排着的东西（都不缩）超出参数条右沿 = 放不下，再让一级。
+    const right = bar.getBoundingClientRect().right
+    const overflow = Array.from(bar.querySelectorAll<HTMLElement>('[data-yield-item]')).some((el) => el.getBoundingClientRect().right > right + 0.5)
+    if (overflow) setFitState({ key: fitKey, level: level + 1 })
+    else if (fitState.key !== fitKey) setFitState({ key: fitKey, level })
+    // fitState 每次 set 都是新对象：ResizeObserver 重置到第 0 级（哪怕本来就是 0）也会再量一遍。
+  }, [yielding, level, ladder.length, fitKey, fitState])
+  React.useLayoutEffect(() => {
+    const row = footerRowRef.current
+    const bar = barRef.current
+    if (!yielding || !row || !bar || typeof ResizeObserver === 'undefined') return
+    // 底栏那一行变宽变窄（窗口、表格列），或参数条被右边的钮挤了（生成钮变成「生成中」）：从头再量，
+    // 变宽时让出去的要收回来。同步做完，画出来的已经是量好的那一级；量完宽度回到原样，不会自己再触发一轮。
+    const widths = (): string => `${Math.round(row.getBoundingClientRect().width)}:${Math.round(bar.getBoundingClientRect().width)}`
+    let seen = widths()
+    const observer = new ResizeObserver(() => {
+      const next = widths()
+      if (next === seen) return
+      flushSync(() => setFitState({ key: fitKey, level: 0 }))
+      seen = widths()
+    })
+    observer.observe(row)
     observer.observe(bar)
-    observer.observe(identity)
     return () => observer.disconnect()
-  }, [fitKey])
-  // 让法顺序（K4，2026-11-12 拍板）：参数那格整值退（比例 → 有声 → 清晰度 → 时长留到最后）→ 只剩时长还放不下，
-  // 才让模型名末尾省略（title 是全名）。变体、方式、右边几颗按钮永远不缩。
-  const fitCramped = Boolean(fitCandidates) && fit.cramped
-  const summaryText = fitCandidates ? fitCandidates[Math.min(fit.index, fitCandidates.length - 1)] ?? fullSummaryText : fullSummaryText
+  }, [fitKey, yielding])
+  const fitCramped = yieldStep.modelEllipsis
+  const summaryText = fitCandidates ? fitCandidates[Math.min(yieldStep.summaryIndex, fitCandidates.length - 1)] ?? fullSummaryText : fullSummaryText
+  const yieldContext = React.useMemo(() => ({ sendIconOnly: yieldStep.sendIconOnly }), [yieldStep.sendIconOnly])
 
   // ── 参数浮层：静止定位（打开定位一次，绝不跟随）。 ──
   // 打开时以触发器（pill / ⚙）中心定位一次，之后绝不跟随；
@@ -208,20 +310,18 @@ export default function InlineParameterBar({
   const [panelOpen, setPanelOpen] = React.useState(false)
   const [panelInit, setPanelInit] = React.useState<{
     left: number
-    /** 触发器自己的左缘。贴内容的浮层按它对齐——320 那个槽不存在时，按槽居中会整体偏左。 */
-    anchorLeft: number
     top: number
-    maxHeight: number
+    maxHeight: number | undefined
     side: 'above' | 'below'
+    /** 打开那一下先不可见地画一次、量出内容的本来高度，再定开向和限高（之后不再动）。 */
+    measured: boolean
   } | null>(null)
   const [frozenSummary, setFrozenSummary] = React.useState('')
   // 触发器只有一个：那颗摘要 pill。
   const triggerRef = React.useRef<HTMLButtonElement | null>(null)
   const panelRef = React.useRef<HTMLDivElement | null>(null)
 
-  // 多参数面板是一叠分组，要一个稳定的列宽才对得齐；**单参数直出不是面板**，它就是那一组选项，
-  // 宽高一律贴内容（2026-09-14 用户退回：「大片都是空白……他本来不需要看那么多地方」）。
-  // 320 在这里只剩「最宽不超过」的作用，不再是「一定这么宽」。
+  // 面板是一叠分组，一个稳定的列宽才对得齐（只有一项也一样）。
   const PANEL_W = 320
   const PANEL_GAP = 6
 
@@ -229,20 +329,34 @@ export default function InlineParameterBar({
     const rect = triggerRef.current?.getBoundingClientRect()
     if (!rect) return
     const vw = window.innerWidth
-    const vh = window.innerHeight
     const centeredLeft = rect.left + rect.width / 2 - PANEL_W / 2
     const left = Math.min(Math.max(8, centeredLeft), Math.max(8, vw - PANEL_W - 8))
-    const spaceAbove = rect.top - 12
-    // 翻向此刻锁定：上方优先（底栏贴卡底），上方不足 240px 才放下方。定位仅此一次。
-    const side: 'above' | 'below' = spaceAbove >= 240 ? 'above' : 'below'
-    const maxHeight = side === 'above' ? Math.min(420, spaceAbove) : Math.min(420, Math.max(160, vh - rect.bottom - 18))
-    // above 用 bottom 锚（面板实高小于 maxHeight 时依然贴住触发器顶）；below 用 top 锚。
-    const top = side === 'above' ? vh - rect.top + PANEL_GAP : rect.bottom + PANEL_GAP
-    const anchorLeft = Math.min(Math.max(8, rect.left), Math.max(8, vw - 120))
-    setPanelInit({ left, anchorLeft, top, maxHeight, side })
+    setPanelInit({ left, top: 0, maxHeight: undefined, side: 'above', measured: false })
     setFrozenSummary(summaryText)
     setPanelOpen(true)
   }
+  // 开向和限高（2026-11-14 验收条件 2：Eleven v3 七项的面板顶到窗口顶、盖住顶栏、最后一项够不着）：
+  // 不限高、全摊开（用户 11-14 照 LibTV）；上方放得下就开上方（底栏贴卡底），不然下方放得下开下方，
+  // 两边都放不下开空间大的那边并限高、在面板里滚。可用区域是工作区（顶栏下面那块），不在壳里（实验室）就是窗口。
+  // 几何和别的锚定浮层同一个函数（resolveAnchoredPopoverPlacement）。定位仅此一次。
+  React.useLayoutEffect(() => {
+    if (!panelOpen || !panelInit || panelInit.measured) return
+    const trigger = triggerRef.current
+    const scroller = panelRef.current?.firstElementChild as HTMLElement | null | undefined
+    if (!trigger || !scroller) return
+    const rect = trigger.getBoundingClientRect()
+    const vh = window.innerHeight
+    const work = trigger.closest('[data-shell-main]')?.getBoundingClientRect()
+    const boundsTop = Math.max(0, work?.top ?? 0)
+    const boundsBottom = Math.min(vh, work?.bottom ?? vh)
+    // 面板外框 1px 描边上下各一。
+    const natural = scroller.scrollHeight + 2
+    const placed = resolveAnchoredPopoverPlacement(rect, { width: PANEL_W, height: natural }, 'center', PANEL_GAP, { width: window.innerWidth, height: boundsBottom - boundsTop, top: boundsTop }, 'top')
+    const side: 'above' | 'below' = placed.top < rect.top ? 'above' : 'below'
+    // 上方用 bottom 锚（内容变少时依然贴住触发器顶），下方用 top 锚；限高 = 那一边剩下的高度（内容变多时在面板里滚）。
+    const room = side === 'above' ? rect.top - PANEL_GAP - boundsTop - 8 : boundsBottom - 8 - rect.bottom - PANEL_GAP
+    setPanelInit({ left: panelInit.left, top: side === 'above' ? vh - rect.top + PANEL_GAP : rect.bottom + PANEL_GAP, maxHeight: Math.max(0, room - 2), side, measured: true })
+  }, [panelOpen, panelInit])
   const closePanel = React.useCallback((): void => {
     setPanelOpen(false)
     setPanelInit(null)
@@ -279,54 +393,48 @@ export default function InlineParameterBar({
   // 面板打开期间 pill 文本冻结（宽度稳定）；关闭后回到实时值。
   const pillText = panelOpen ? frozenSummary : summaryText
 
-  // 单参数直出的浮层宽度 = **最宽那一项的文字宽 + 内边距**，不是那个固定的 320
-  // （2026-09-14 用户两次拍板：一列、每项一行的摆法保持不变，只把右边那截空白收掉；
-  //  ≈128px 而不是 302px，左缘与触发它的 chip 左缘对齐）。
-  //
-  // 为什么不能靠 CSS：这一列是 `minmax(0, 1fr)` 的格子，每项都被拉到容器宽，
-  // 所以量 item 的矩形只会量回容器自己；`max-content` 又会把浮层撑到「全部项排成一行」。
-  // 真正要的那个数是**文字本身**的宽度——用 Range 量内容盒，绕开被拉伸的按钮框。
-  //
-  // 「这是不是单参数直出」问 DOM（`[data-parameter-solo]`）而不是问下面的 soloControl：
-  // 这几个 hook 必须排在 `modelOptions.length === 0` 那条早返回**之前**，而 soloControl 算在它之后。
-  const [hugWidth, setHugWidth] = React.useState<number | null>(null)
-  React.useLayoutEffect(() => {
-    const panel = panelRef.current
-    const group = panel?.querySelector<HTMLElement>('[data-parameter-solo] [role="radiogroup"]')
-    if (!panelOpen || !panel || !group) { setHugWidth(null); return }
-    const items = [...group.querySelectorAll<HTMLElement>('[role="radio"]')]
-    if (items.length === 0) return
-    const range = document.createRange()
-    let widestText = 0
-    let itemPadX = 0
-    for (const item of items) {
-      range.selectNodeContents(item)
-      widestText = Math.max(widestText, range.getBoundingClientRect().width)
-      const itemStyle = getComputedStyle(item)
-      itemPadX = Math.max(itemPadX, parseFloat(itemStyle.paddingLeft || '0') + parseFloat(itemStyle.paddingRight || '0'))
-    }
-    range.detach()
-    if (!widestText) return
-    const groupStyle = getComputedStyle(group)
-    const groupPadX = parseFloat(groupStyle.paddingLeft || '0') + parseFloat(groupStyle.paddingRight || '0')
-    // 面板外壳自己那圈（内边距 + 边框）：量出来而不是写死，改了 p-2 也不用回来改这里。
-    const chrome = panel.getBoundingClientRect().width - group.getBoundingClientRect().width
-    setHugWidth(Math.ceil(widestText + itemPadX + groupPadX + chrome))
-  }, [panelOpen, summaryText])
+  // 「改一个参数写到哪儿去」三件一组传下去：面板、高级设置、每个参数组共用同一份，
+  // 谁也别再自己接一遍（P1）。
+  const controlWiring = { meta, onCatalogControlChange, onParameterControlChange }
+
+  /** 有底栏就把参数格放进整条底栏（四处同一份排法）；没有就只交参数格。 */
+  const wrapFooter = (params: JSX.Element): JSX.Element => {
+    if (!footer) return params
+    const hasAdvanced = advancedControls.length > 0
+    return (
+      <div className={cn('flex w-full min-w-0 shrink-0 flex-col', footer.className)} {...footer.attrs}>
+        <div ref={footerRowRef} data-node-composer-footer data-bar-yield-level={yielding ? String(level) : undefined} className={cn('flex w-full min-w-0 items-center gap-2', footer.wrap ? 'flex-wrap' : 'flex-nowrap')}>
+          <div data-bar-segment="model-params" className="flex min-w-0 flex-1 items-center">{params}</div>
+          {/* 右边那排图标：提示词工具在前，高级设置在后（画板 T：图标之间隔 2、到「走」钮隔 8）。这个方式没有那五类 → 不出这颗。 */}
+          {footer.tools || hasAdvanced ? (
+            <NodePromptToolCluster ariaLabel={footer.toolsLabel ?? t('generationCommon.composerBarV1.promptTools')}>
+              {footer.tools}
+              {hasAdvanced ? (
+                <AdvancedSettingsIconButton open={showAdvanced} changed={advancedChanged} onToggle={() => { advancedJustOpened.current = !advancedOpen; setAdvancedOpen(!advancedOpen) }} />
+              ) : null}
+            </NodePromptToolCluster>
+          ) : null}
+          {footer.trailing}
+          <ComposerBarYieldContext.Provider value={yieldContext}>{footer.action}</ComposerBarYieldContext.Provider>
+        </div>
+        {showAdvanced ? <AdvancedSettingsSection ref={advancedRef} controls={advancedControls} {...controlWiring} /> : null}
+      </div>
+    )
+  }
 
   if (modelOptions.length === 0) {
     // 「还没有清单」和「清单里有但加载中」是两回事：后者画骨架，别画「无模型·配置模型」，
     // 否则点节点的瞬间会先闪一下空态再跳真实芯片（2026-10-11 走查第 4 条）。
     if (modelCatalogStatus.status === 'loading') {
-      return (
+      return wrapFooter(
         <span
           aria-hidden="true"
           data-model-chip-loading="true"
           className="inline-flex h-7 w-28 items-center rounded-full border border-nomi-line bg-nomi-ink-05 animate-pulse"
-        />
+        />,
       )
     }
-    return (
+    return wrapFooter(
       <button
         type="button"
         className={cn(
@@ -344,52 +452,20 @@ export default function InlineParameterBar({
       >
         <span className="truncate">{modelCatalogStatus.message}</span>
         <span className="shrink-0">{t('generationCommon.parameters.configure')}</span>
-      </button>
+      </button>,
     )
   }
 
   // 控件长什么样住在 `controls/ParameterControlBody.tsx`（R9：这个文件只留编排）。
-  // 「改一个参数写到哪儿去」三件一组传下去：面板、单参数直出、每个参数组共用同一份，
-  // 谁也别再自己接一遍（P1）。
-  const controlWiring = { meta, onCatalogControlChange, onParameterControlChange }
 
   const hasProvider = modelSelect.providerOptions.length > 1
   // 触发器只在**里面真有东西**时出现：参数、供应商、生成方式一件都没有的模型，
   // 留一颗点开是空白的触发器比不留更糟。
-  const hasPanel = renderedControls.length > 0 || hasProvider || Boolean(modeChoices?.length && onModeSelect) || Boolean(panelFooter)
-  /**
-   * **只有一个参数时，pill 点开直接就是那个参数的选项列表**（没有面板壳）——2026-09-11 13:00 用户拍板。
-   *
-   * 面板的价值是「一次打开连改多项」。只剩一个参数时它没有那个价值，只剩一层壳：
-   * 图片节点只有尺寸，却要 pill → 面板 → 下拉 → 列表 → 选（四步）。直出之后是两步，选完即关。
-   * 条件写全（供应商、生成方式也算参数组）——少算一个，面板里就会有东西被这条路吞掉。
-   */
-  const soloControl = soloOptionControl({
-    controls: renderedControls,
-    hasProvider: hasProvider || Boolean(panelFooter),
-    hasModeChoices: Boolean(modeChoices?.length && onModeSelect),
-  })
-
-  // **单参数直出不是面板**，它就是那一组选项，宽高一律贴内容
-  // （2026-09-14 用户退回：「大片都是空白，理论上不需要，非常占用视觉空间；他本来不需要看那么多地方」）。
-  // 多参数面板仍要一个稳定列宽把各组小标题对齐，所以只有这条路改。
-  const hugsContent = soloControl !== null
-
+  const hasPanel = panelControls.length > 0 || hasProvider || Boolean(modeChoices?.length && onModeSelect) || Boolean(panelFooter)
   const renderParameterPanel = (): JSX.Element => {
-    // 浮层的名字得说实话：单参数直出时它就是那个参数的选项列表，不是「参数面板」。
-    const surfaceLabel = soloControl
-      ? translateModelDisplayText(soloControl.label)
-      : t('generationCommon.parameters.panel')
-    const content = soloControl ? (
-      <div
-        className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'overflow-y-auto overscroll-contain rounded-nomi-lg p-2')}
-        style={{ maxHeight: panelInit?.maxHeight }}
-        data-parameter-solo={soloControl.key}
-        data-agent-parameter-control={soloControl.key}
-      >
-        <ParameterControlBody control={soloControl} {...controlWiring} onPicked={closePanel} />
-      </div>
-    ) : (
+    // 只有一项也是同一块面板（带小标题、320 宽）：2026-09-11 那条「单参数直出」的贴字宽窄条
+    // （可灵编辑只剩一列比例，68 宽、没有标题，2026-11-13 验收报告）随这一版全摊开删掉。
+    const content = (
       <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'flex flex-col gap-3 overflow-y-auto overscroll-contain rounded-nomi-lg p-3')} style={{ maxHeight: panelInit?.maxHeight }}>
         {modeChoices?.length && onModeSelect ? (
           <div className="flex flex-col gap-1.5" data-agent-generation-mode="true">
@@ -405,7 +481,7 @@ export default function InlineParameterBar({
           </div>
         ) : null}
         {/* 全部参数都在这里（摘要 pill 只是读，不占走任何一个）。 */}
-        {renderedControls.map((control) => (
+        {panelControls.map((control) => (
           <ParameterPanelGroup key={control.key} control={control} {...controlWiring} />
         ))}
         {hasProvider ? (
@@ -429,18 +505,15 @@ export default function InlineParameterBar({
       <div
         ref={panelRef}
         role="group"
-        aria-label={surfaceLabel}
+        aria-label={t('generationCommon.parameters.panel')}
         data-agent-parameter-panel="true"
         className="nokey fixed rounded-nomi-lg border border-nomi-line bg-nomi-paper"
         style={{
           zIndex: 600,
-          left: hugsContent ? panelInit?.anchorLeft : panelInit?.left,
-          ...(panelInit?.side === 'above' ? { bottom: panelInit.top } : { top: panelInit?.top }),
-          ...(hugsContent
-            // 量出来之前先按面板列宽画一帧：一列摆法下 `max-content` 会把浮层撑成
-            // 「全部项排成一行」，比 320 还宽，闪一下比什么都难看。
-            ? { width: hugWidth ?? PANEL_W, maxWidth: PANEL_W }
-            : { width: PANEL_W }),
+          left: panelInit?.left,
+          ...(panelInit?.measured ? {} : { visibility: 'hidden' as const }),
+          ...(panelInit?.side === 'above' && panelInit.measured ? { bottom: panelInit.top } : { top: panelInit?.top }),
+          width: PANEL_W,
           boxShadow: 'var(--workbench-shadow-pop)',
         }}
       >
@@ -449,31 +522,25 @@ export default function InlineParameterBar({
     )
   }
 
-  // 默认贴文字宽（最宽 240）：B3 摘要印「比例 · 清晰度 · 时长」，定宽 110 会把清晰度截成「720…」。
-  const resolvedSummaryWidth = wrap || typeof summaryWidth === 'object' ? undefined : summaryWidth
-  const summaryMaxWidth = wrap ? undefined : typeof summaryWidth === 'object' ? summaryWidth.hug : summaryWidth === undefined ? 240 : undefined
   // 分镜行最窄一档（wrap）放不下就整颗换行，身份两枚不缩——模型是这一行的一等决策（§1.5.4）。
-  // 其余只有一颗定宽 pill，不存在「装不下」，行窄时让位的只有**模型**那枚：它的值区是有意的
-  // 省略号、hover 的 title 是全名。变体是短枚举（「变体 5.0」），和分镜底栏的模式 / 时长同一条规则
-  // （2026-10-06 前分镜旧底栏的让位表同一条规则：短枚举从不缩）——2026-09-21 走查：1100×720 英文下它被压到值区只剩
-  // 5px，「Variant 5.0」读成「Variant E」，缩它省下的几像素换来的是一颗读不出的芯片。
-  const modelChipClass = wrap || (fitCandidates && !fitCramped) ? 'shrink-0' : undefined
+  // 有底栏（四处）时谁让由让法那一级说了算（composerBarYield.ts）：让到最后一级之前模型、方式、摘要都不缩，
+  // 最后一级模型名才末尾省略（title 是全名）。变体是短枚举，从不缩（2026-09-21 走查：「Variant 5.0」被压成「Variant E」）。
+  // 没有底栏的（实验室里只要参数格的地方）照旧：模型那枚让位、摘要最宽 240。
+  const modelChipClass = wrap || (yielding && !fitCramped) ? 'shrink-0' : undefined
   const identityRow = (
-    // 2026-09-22 总合并裁决：模型 chip 让宽由 `modelChipClass` 说了算（变体格已并进模型菜单，不再有第二枚）。
-    // 「EN 下 Kling 3.0 压住 16:9」由它覆盖；留下的是**判据**——参数条一行里相邻两颗控件不许相压
-    // （`tests/ux/design-lab-ask-card-in-panel.walk.mjs` 的重叠断言，原样保留、照跑）。
-    <div ref={identityRef} className={cn('flex items-center gap-1.5', fitCandidates && !fitCramped ? 'shrink-0' : 'min-w-0')}>
+    // 判据：参数条一行里相邻两颗控件不许相压（`tests/ux/design-lab-ask-card-in-panel.walk.mjs` 的重叠断言，原样保留、照跑）。
+    <div data-yield-item className={cn('flex items-center gap-1.5', yielding && !fitCramped ? 'shrink-0' : 'min-w-0')}>
       {!hideModel ? (
         <NomiSelect
           ariaLabel={t('generationCommon.parameters.model')}
           placeholder={t('generationCommon.parameters.selectModel')}
-          triggerMaxWidth={wrap ? 260 : summaryWidth === undefined ? 200 : 150}
+          triggerMaxWidth={wrap ? 260 : 200}
           className={modelChipClass}
           value={modelSelect.modelValue}
-          options={leadingModelOption ? [{ value: '', label: leadingModelOption.label }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
+          options={leadingModelOption ? [{ value: '', ...leadingModelOption }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
           onChange={(id) => (id || !leadingModelOption ? modelSelect.onModelPick(id) : onModelChange(''))}
           onChipChange={modelSelect.onModelProviderPick}
-          footerAction={modelVisibilityFooterAction(modelSelect.hiddenCount)}
+          footerAction={modelSelect.visibilityFooter}
         />
       ) : null}
       {modeMenu ? (
@@ -484,6 +551,7 @@ export default function InlineParameterBar({
           value={modeMenu.value}
           options={modeMenu.options}
           onChange={modeMenu.onChange}
+          triggerIconOnly={yieldStep.modeIconOnly}
         />
       ) : null}
     </div>
@@ -497,22 +565,23 @@ export default function InlineParameterBar({
       // 走查锚点：断言得能拿到那串摘要本身，
       // 不能靠中文 aria-label 去找（换个语言就断了）。
       data-parameter-summary={pillText}
+      data-yield-item
       aria-label={t('generationCommon.parameters.generationParameters')}
       aria-expanded={panelOpen}
       title={(fitCandidates ? fullSummaryText : pillText) || t('generationCommon.parameters.generationParameters')}
-      data-parameter-summary-cramped={fitCandidates && fit.cramped ? 'true' : undefined}
+      data-parameter-summary-cramped={fitCandidates && fitCramped ? 'true' : undefined}
       onClick={() => (panelOpen ? closePanel() : openPanel())}
       className={cn(
         'inline-flex items-center gap-1 h-7 pl-2.5 pr-2 rounded-pill border border-nomi-line bg-nomi-ink-05',
-        // 贴文字宽（hug，分镜行）时允许收：行窄、字体宽（Linux / mac 字体比 Windows 宽）时先截断摘要文字，
-        // 不把右端的「生成」挤出卡外（2026-10-06 #1042）。定宽的画布节点照旧不收。
-        fitCandidates ? 'shrink-0' : summaryMaxWidth !== undefined ? 'shrink' : 'shrink-0',
+        // 在让的底栏里摘要不缩（有值的放不下就少一个值；一个值都没有、只写「参数」的也不缩——缩了就是「Param…」，
+        // 放不下交给让法往下一级让）；没有底栏的照旧最宽 240、可收。
+        fitCandidates || wrap || yielding ? 'shrink-0' : 'shrink',
         'justify-between text-caption text-nomi-ink-80 cursor-pointer min-w-0',
         'hover:border-nomi-ink-20 focus:outline-none focus-visible:border-nomi-ink-40',
       )}
-      style={fitCandidates ? undefined : summaryMaxWidth !== undefined ? { maxWidth: summaryMaxWidth } : { width: resolvedSummaryWidth }}
+      style={fitCandidates || wrap || yielding ? undefined : { maxWidth: 240 }}
     >
-      <span className="min-w-0 truncate" style={{ maxWidth: wrap || fitCandidates ? 'none' : 240 }}>
+      <span className="min-w-0 truncate" style={{ maxWidth: wrap || fitCandidates || yielding ? 'none' : 240 }}>
         {pillText || t('generationCommon.parameters.parameters')}
       </span>
       <IconChevronDown
@@ -538,23 +607,14 @@ export default function InlineParameterBar({
         'min-w-0',
         // 分镜行最窄一档（wrap）放不下就整颗换行；其余一行（画布节点长相不变）。
         cn('flex items-center', wrap ? 'flex-wrap gap-2' : 'gap-1.5'),
-        // 整值退让要知道「还剩多宽」：参数条吃满这一段，摘要槽吃满身份几格之后的剩余。
-        fitCandidates && 'flex-1',
+        // 让法要知道「还剩多宽」：参数条吃满这一段，摘要槽吃满身份几格之后的剩余。
+        yielding && 'flex-1',
       )}
     >
       <div className="contents">{identityRow}</div>
-      {summaryTrigger && fitCandidates ? (
-        <div ref={summarySlotRef} data-parameter-summary-slot="true" className={cn('relative flex items-center', fitCramped ? 'flex-none' : 'min-w-0 flex-1')}>
+      {summaryTrigger && yielding ? (
+        <div data-parameter-summary-slot="true" className={cn('relative flex items-center', fitCramped ? 'flex-none' : 'min-w-0 flex-1')}>
           {summaryTrigger}
-          {/* 量尺：每一档候选画成一颗同样的钮，藏起来量宽；不占位、不可点、读屏不读。 */}
-          <div ref={summaryRulerRef} aria-hidden className="pointer-events-none invisible absolute left-0 top-0 flex w-max flex-col items-start">
-            {fitCandidates.map((text) => (
-              <span key={text} className="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-pill border pl-2.5 pr-2 text-caption">
-                {text}
-                <span className="shrink-0" style={{ width: ICON_TIERS.corner.size }} />
-              </span>
-            ))}
-          </div>
           {panelPortal}
         </div>
       ) : summaryTrigger ? (
@@ -566,13 +626,13 @@ export default function InlineParameterBar({
     </div>
   )
   // 这一次读目录失败、但上一份清单还在屏上：说清楚「仍是旧的」和原因（只在这个状态多一行，平时 DOM 不变）。
-  if (modelCatalogStatus.status !== 'stale_kept') return bar
-  return (
+  if (modelCatalogStatus.status !== 'stale_kept') return wrapFooter(bar)
+  return wrapFooter(
     <div className="flex min-w-0 flex-col gap-1">
       {bar}
       <span role="status" data-model-catalog-stale="true" title={modelCatalogStatus.message} className="min-w-0 break-words text-micro text-nomi-warning">
         {modelCatalogStatus.message}
       </span>
-    </div>
+    </div>,
   )
 }

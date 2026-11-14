@@ -91,7 +91,7 @@ import referenceRowTail, { modelLimitNotice } from './controls/referenceRowTail'
 import { computeReferenceRowModel } from './controls/referenceRowModel'
 import type { AssetRef, AssetKind } from '../../assets/assetTypes'
 import { pickNodeSlotReference } from './nodeSlotReferencePick'
-import InlineParameterBar from './InlineParameterBar'
+import InlineParameterBar, { type ComposerFooterSlots } from './InlineParameterBar'
 import { composerHeadlineParts } from './composerHeadlineSummary'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
@@ -109,6 +109,8 @@ type NodeParameterControlsProps = {
   onInsertMention?: (url: string) => void
   /** 以下三件由生成框各算一份往下传（2026-10-16 可疑点 f / g）：控件不自己订整表、不各算一遍模型清单。 */
   graph: ComposerGraph; modelOptionsState: ModelOptionsState; readMappings: VendorMappingsReader
+  /** section="parameters"：整条生成底栏（见 InlineParameterBar 的 `footer`）。 */
+  footer?: ComposerFooterSlots
 }
 
 export default function NodeParameterControls({
@@ -116,6 +118,7 @@ export default function NodeParameterControls({
   section = 'all',
   onInsertMention,
   graph, modelOptionsState, readMappings,
+  footer,
 }: NodeParameterControlsProps): JSX.Element | null {
   const openProjectId = useOpenProjectId()
   const reportFeedback = React.useCallback((message: string) => {
@@ -534,6 +537,7 @@ export default function NodeParameterControls({
         onCatalogControlChange={handleCatalogControlChange}
         onParameterControlChange={handleParameterControlChange}
         variantMenu={variantMenu}
+        {...(footer ? { footer } : {})}
         summaryOverride={summaryOverride}
         {...(headlineParts.length ? { summaryParts: headlineParts } : {})}
         // 视频节点的方式在底栏自己一格（参数面板里不再有「生成方式」）；图片没有，声音 / 3D 仍在参考区上方的模式栏。

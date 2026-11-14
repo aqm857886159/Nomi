@@ -1,0 +1,27 @@
+{
+  "id": "composer-open-params-flat-7-200",
+  "feature": "生成框：参数面板全摊开（不限高、不收起）后，点参数摘要钮，面板 7 项全部画出",
+  "script": "tests/perf/composer-refs-bench.mjs",
+  "args": [
+    "--op",
+    "open-params-flat"
+  ],
+  "scale": "画布 200 个节点；选中 ElevenLabs v3 语音，面板 7 项（全目录面板项数最多）",
+  "metrics": [
+    "response",
+    "longTasks"
+  ],
+  "budget": 100,
+  "group": "② 生成框里的操作",
+  "budgetStatus": "proposed",
+  "budgetBasis": "默认预算「操作到可见反馈 ≤100ms」（docs/engineering/perf-scenarios.md；人对「点了有反应」的感知阈值约 100ms，RAIL / Nielsen）；同类场景 composer-open-params-refs-30 基线中位 45.6ms。200 个节点是画布选中出生成框场景的最坏规模（canvas-select-composer-*-200），预算不放宽",
+  "baseline": {
+    "median": 33.2,
+    "p95": 40.2,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-14",
+    "commit": "7f1a5b513",
+    "noisy": true
+  }
+}

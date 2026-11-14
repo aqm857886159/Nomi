@@ -79,6 +79,14 @@ export function modelOptionDisplayLabel(modelOptions: readonly ModelOption[], op
   return modelDisplayLabel(group ?? { label: option.label || option.value || '' })
 }
 
+/** 一个目录项在模型菜单里那一行的名字和品牌图（别处要「画一行同样的模型」时问它，不另算）。 */
+export function modelOptionIdentity(modelOptions: readonly ModelOption[], option: ModelOption): { label: string; icon: NomiSelectOption['icon'] } {
+  const group = dedupeModelOptions([...modelOptions]).find((model) => model.providers.some((provider) => provider.option === option
+    || (provider.option.value === option.value && provider.vendor === option.vendor)))
+  const label = modelDisplayLabel(group ?? { label: option.label || option.value || '' })
+  return { label, icon: modelBrandIcon(group ?? { label, providers: [] }) }
+}
+
 /** 该模型是否「病」了：**每一家**供应商都在避让期才算。注入判据便于纯函数单测。 */
 type AilingProbe = (identity: { modelKey: unknown; vendor: unknown }) => boolean
 
@@ -115,7 +123,11 @@ export const CONNECT_VENDOR_OPTION_VALUE = '\u0000nomi-connect-vendor'
  * 那个家就是设置里的模型列表，图标（眼睛）与措辞（显示 / 隐藏）与这里逐字相同。
  * 这条也是全仓所有模型框共用的同一份实现（节点 / 镜卡 / 批量），不各写一份（B7 的「三处心智不一」）。
  */
-export function modelVisibilityFooterAction(hiddenCount = 0): { label: string; icon: React.ReactNode; onSelect: () => void } {
+export function modelVisibilityFooterAction(
+  { hiddenCount, rows }: Pick<ModelMenu, 'hiddenCount' | 'rows'>,
+): { label: string; icon: React.ReactNode; onSelect: () => void } | undefined {
+  // 一家都没接入（菜单只有「去接入」那一行）、也没藏过：没有可藏的模型，这一行只是噪音（2026-11-14）。
+  if (rows.size === 0 && hiddenCount === 0) return undefined
   return {
     // 「隐藏模型 N」：N = 创作者自己藏起来的行数；一个都没藏就只写「隐藏模型」（不无缘无故多一个 0）。
     // 以前「已隐藏 N 个 · 在设置里找回」是另一行脚注——同一件事两行字，并成这一行。
@@ -412,8 +424,8 @@ export interface DedupedModelSelectView {
   onProviderPick: (addressValue: string) => void
   /** 当前选中的去重模型（供上层取档案/变体等）。 */
   selectedModel: DedupedModel | null
-  /** 创作者自己藏起来的行数（模型框底部「隐藏模型 N」的 N）。 */
-  hiddenCount: number
+  /** 模型框底部那一行「隐藏模型 N」（没有可藏的模型时没有）。 */
+  visibilityFooter: ReturnType<typeof modelVisibilityFooterAction>
 }
 
 /**
@@ -543,6 +555,6 @@ export function useDedupedModelSelect(
     providerValue,
     onProviderPick,
     selectedModel,
-    hiddenCount: menu.hiddenCount,
+    visibilityFooter: modelVisibilityFooterAction(menu),
   }
 }

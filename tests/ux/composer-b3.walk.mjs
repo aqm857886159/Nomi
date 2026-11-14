@@ -9,7 +9,7 @@
 // 用法：node tests/ux/composer-b3.walk.mjs        （EVIDENCE=0 只跑断言不截图）
 import { stationTimeout } from './_station-budget.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
-import { uiText, uiTextPattern } from './full-walk/invariants.mjs'
+import { uiText, uiTextPattern, uiTextWith } from './full-walk/invariants.mjs'
 
 const zh = (key) => uiText('zh-CN', key)
 import { chromium } from 'playwright'
@@ -19,6 +19,7 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { REPO_ROOT } from './design-lab/labStates.mjs'
 import { assertLabPortOwnership, labPortFor } from './design-lab/labServer.mjs'
+import { NODE_COMPOSER_WIDTH } from './_composerWidth.mjs'
 
 const ROLE = 'walk-composer-b3'
 const HOST = '127.0.0.1'
@@ -110,7 +111,7 @@ try {
   {
     const { page, context } = await open(B3, 'b3a-video-empty')
     const card = await page.evaluate((sel) => { const el = document.querySelector(sel); if (!el) return null; const s = getComputedStyle(el); return { radius: parseFloat(s.borderTopLeftRadius), shadow: s.boxShadow !== 'none', width: Math.round(el.getBoundingClientRect().width) } }, CARD)
-    check('board:ComposerB3/node.card', Boolean(card) && card.radius >= 9 && card.radius <= 12 && card.shadow && card.width === 560, JSON.stringify(card))
+    check('board:ComposerB3/node.card', Boolean(card) && card.radius >= 9 && card.radius <= 12 && card.shadow && card.width === NODE_COMPOSER_WIDTH, JSON.stringify(card))
     const pick = await box(page, '[data-reference-entry]')
     check('board:ComposerB3/ref.tool.canvas-pick', pick?.w === 40 && pick?.h === 40, JSON.stringify(pick))
     const plus = await box(page, '[data-reference-add-entry], [data-asset-add-tile]')
@@ -499,7 +500,10 @@ try {
             const c = row?.querySelector('[data-storyboard-content-column]')?.getBoundingClientRect()
             return Boolean(v && c && v.bottom <= c.top + 1)
           })(),
-          paramsReadable: [...(bar?.querySelectorAll('[data-parameter-summary]') ?? [])].every((el) => el.getBoundingClientRect().width >= 60),
+          // 2026-11-14 让法（协调裁决顺序 B）：窄时摘要按整值减（可能只剩「5s」），所以不再要求 ≥60px，改为「整值、不被挤、不溢出」
+          paramsReadable: [...(bar?.querySelectorAll('[data-parameter-summary]') ?? [])].every((el) => el.scrollWidth <= el.clientWidth + 1 && !el.closest('[data-parameter-summary-cramped]')),
+          generateAria: generate?.getAttribute('aria-label') ?? '',
+          generateIconOnly: generate?.hasAttribute('data-icon-only') ?? false,
           // 字不截断（样张 E1a 320 档原注）：条里没有任何被省略号截掉的字
           truncated: [...(bar?.querySelectorAll('*') ?? [])].filter((el) => getComputedStyle(el).textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth).map((el) => el.textContent?.trim()),
           generateText: generate?.textContent?.trim() ?? '',
@@ -507,7 +511,11 @@ try {
       })
       check(`board:ComposerB3/host.storyboard-row.refs-above.${width}.${lang}`, facts.above && facts.chips.length >= 1 && facts.chips.every((c) => c.h === 28 && c.name) && facts.arrow && facts.generateInsideBar && !facts.clipped && facts.paramsReadable && !facts.truncated.length && (width >= 520 || (facts.density === 'compact' && facts.thumbAbove)), JSON.stringify(facts))
       // 英文图真是英文（此前分镜实验室屏不认 ?lang=en，英文图和中文图逐字节相同，几条「英文」断言是空跑）
-      check(`board:ComposerB3/host.storyboard-row.lang.${width}.${lang}`, lang === 'en' ? facts.generateText === uiText('en', 'storyboardEditor.frame.generate') : facts.generateText === zh('storyboardEditor.frame.generate'), facts.generateText)
+      // 让法第一步生成钮只剩 ↑：这时字在提示和读屏名字里，按读屏名字认语言
+      const locale = lang === 'en' ? 'en' : 'zh-CN'
+      check(`board:ComposerB3/host.storyboard-row.lang.${width}.${lang}`, facts.generateIconOnly
+        ? facts.generateText === '' && facts.generateAria === uiTextWith(locale, 'storyboardEditor.frame.generateAria', { index: 1 })
+        : facts.generateText === uiText(locale, 'storyboardEditor.frame.generate'), JSON.stringify({ text: facts.generateText, aria: facts.generateAria, iconOnly: facts.generateIconOnly }))
       await shot(page, 'storyboard-reuse', `sbl-e1a-${width}`, `E1a-${width}-${lang}-light`)
       if (lang === 'en' && WITH_EVIDENCE) {
         const hash = (name) => createHash('sha256').update(fs.readFileSync(path.join(EVIDENCE_DIR, name))).digest('hex')

@@ -1,8 +1,8 @@
 // R13 走查：节点生成浮框「钉在节点正下方、定宽、被挡就挡、不漂移」+ 底栏不被裁 + ×N 通用化。
 //
 // 2026-09-25 用户拍板改了放置规则：浮框不再 clamp 进视口、不再翻到上方、不再给左栏/底部停靠区让位，
-// 宽度恒 560（屏幕像素）。原话：「有时候位置不在下面而是在节点中间」「遮挡就遮挡了，保持位置」。
-// 所以这里的判据从「在视口内」换成「顶边 = 节点底边 + 14 × 缩放、中线 = 节点中线、宽 = 560」，
+// 宽度恒 = NODE_COMPOSER_WIDTH（屏幕像素，nodeSizing.ts）。原话：「有时候位置不在下面而是在节点中间」「遮挡就遮挡了，保持位置」。
+// 所以这里的判据从「在视口内」换成「顶边 = 节点底边 + 14 × 缩放、中线 = 节点中线、宽 = NODE_COMPOSER_WIDTH」，
 // 并在窄画布下反过来断：浮框**不**被收窄、**不**被推回视口。
 //
 // 症状（2026-09-10 用户真机反馈 #10 / #11）：
@@ -22,6 +22,7 @@
 // 全程 UI 驱动（建节点、选节点、拖画布都是真实鼠标动作），不灌 store、不注入夹具。
 // 用法: node tests/ux/node-composer-placement.walk.mjs（需先 pnpm run build）
 import { launchNomiApp } from './_launchApp.mjs'
+import { NODE_COMPOSER_WIDTH } from './_composerWidth.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { expect, screenshotSettled } from './_assert.mjs'
@@ -158,9 +159,6 @@ async function measure() {
       // 摊开的可点项数（分段 chip 与列表项都是 role=radio）。它是上面那句「没有下拉」的基线：
       // 面板整个空着时「没有下拉」也成立，而那种绿和真绿在观测上一模一样。
       panelOptionCount: document.querySelectorAll('[data-agent-parameter-panel="true"] [role="radio"]').length,
-      // 单参数直出：点 pill 出来的就是那一个参数的选项列表，没有面板壳。null = 走的是面板。
-      panelSolo: document.querySelector('[data-agent-parameter-panel="true"] [data-parameter-solo]')
-        ?.getAttribute('data-parameter-solo') ?? null,
       panelOpen: document.querySelectorAll('[data-agent-parameter-panel="true"]').length,
     }
   })
@@ -230,8 +228,8 @@ function checkComposerBarV1(label, m) {
 let sawPanelPick = false
 
 // 浮框钉在节点正下方的唯一判据（与 composerCanvasPlacement 同一个不变量，这里在真机屏幕坐标里验）：
-// 顶边 = 节点底边 + 14 × 缩放；中线 = 节点中线；屏幕宽 = 560。不看视口、不看停靠区——那些不再是输入。
-const COMPOSER_WIDTH = 560
+// 顶边 = 节点底边 + 14 × 缩放；中线 = 节点中线；屏幕宽 = NODE_COMPOSER_WIDTH。不看视口、不看停靠区——那些不再是输入。
+const COMPOSER_WIDTH = NODE_COMPOSER_WIDTH
 const COMPOSER_GAP = 14
 function assertPinned(label, m) {
   const expectedTop = m.node.bottom + COMPOSER_GAP * m.zoom
@@ -239,7 +237,7 @@ function assertPinned(label, m) {
   check(`${label}：浮框顶边 = 节点底边 + 14×缩放（在节点下面，不压在节点身上）`, Math.abs(m.card.top - expectedTop) <= 2,
     `card.top=${Math.round(m.card.top)} 期望 ${Math.round(expectedTop)}（node.bottom=${Math.round(m.node.bottom)} zoom=${m.zoom.toFixed(2)}）`)
   check(`${label}：浮框中线 = 节点中线`, Math.abs(centreDelta) <= 2, `偏 ${centreDelta.toFixed(1)}px`)
-  check(`${label}：浮框宽恒 560`, Math.abs(m.card.width - COMPOSER_WIDTH) <= 1, `实测 ${m.card.width.toFixed(1)}`)
+  check(`${label}：浮框宽恒 ${COMPOSER_WIDTH}`, Math.abs(m.card.width - COMPOSER_WIDTH) <= 1, `实测 ${m.card.width.toFixed(1)}`)
 }
 
 /**
@@ -309,7 +307,7 @@ try {
   if (!first) throw new Error('量不到浮框几何：舞台 / 节点 / 卡片有一个没找到')
   console.log('  几何:', JSON.stringify(first, null, 2))
 
-  // ① 钉在节点正下方：顶边 = 节点底边 + 14×缩放，中线 = 节点中线，宽 = 560。三条同一个判据函数。
+  // ① 钉在节点正下方：顶边 = 节点底边 + 14×缩放，中线 = 节点中线，宽 = NODE_COMPOSER_WIDTH。三条同一个判据函数。
   assertPinned('视频节点', first)
   // ③ 底栏所有控件都在卡内并且真的点得到（不是被 overflow-hidden 裁在外面）。
   check('底栏控件全部在卡内', first.controlsInsideCard, `控件 ${first.controlCount} 个，${first.footerRows} 行`)
@@ -347,9 +345,9 @@ try {
     withPanel.panelSelects === 0 && withPanel.panelOptionCount > 0,
     `下拉 ${withPanel.panelSelects} 个 / 摊开的可点项 ${withPanel.panelOptionCount} 个`,
   )
-  check('视频节点是多参数，走的是面板不是单参数直出（两条路各守各的）',
-    withPanel.panelControlKeys.length > 1 && withPanel.panelSolo === null,
-    `参数 ${withPanel.panelControlKeys.length} 组 / solo=${withPanel.panelSolo}`)
+  check('视频节点是多参数，面板里摊开不止一组',
+    withPanel.panelControlKeys.length > 1,
+    `参数 ${withPanel.panelControlKeys.length} 组`)
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '06-video-param-panel.png') })
   // 挑一个**没被选中**的分段档。定位先在页面里算好「哪一组的第几项」再用稳定选择器点：
   // 直接写 `[aria-checked="false"]` 会在点完之后指向另一项（选择器自己失效了），
@@ -479,13 +477,12 @@ try {
   // 「单参数直出 / 多参数走面板」是同一条规则的两面。这台机器上**没有**单参数的图片模型
   // （内置可用的那个档案声明了比例 + 清晰度，pill 只是按 v1.1 的口径挑两个值报），
   // 所以真机这一侧只量得到「多参数 → 面板、不走直出」这半边；
-  // 直出那半边由设计实验室 `composer-bar-panel-solo-direct` 那一格守（Agnes Image 是**真实档案**，
-  // 只声明一个「尺寸」参数，正是用户 09-11 13:00 截图里那种模型），那一格会真的点一项、
-  // 断言列表随即关闭。两边合起来才覆盖整条规则——这里不假装真机上走到了一个不存在的模型。
+  // 只有一项的面板（Agnes Image 只声明一个「尺寸」）由设计实验室 `composer-bar-panel-solo-direct` 那一格守：
+  // 2026-11-14 起它也是同一只 320 面板，选完不关。
   check(
-    `图片节点是多参数（${imageOpen.panelControlKeys.join(' / ')}），走的是面板不是单参数直出`,
-    imageOpen.panelControlKeys.length > 1 && imageOpen.panelSolo === null,
-    `参数 ${imageOpen.panelControlKeys.length} 组 / solo=${imageOpen.panelSolo}`,
+    `图片节点是多参数（${imageOpen.panelControlKeys.join(' / ')}），面板里摊开不止一组`,
+    imageOpen.panelControlKeys.length > 1,
+    `参数 ${imageOpen.panelControlKeys.length} 组`,
   )
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '07-image-param-panel.png') })
   await dismiss()
@@ -495,7 +492,7 @@ try {
   // React Flow 各读各的尺寸」——实测就是这条路先炸了：composer 整个从 DOM 消失，量了 8 次全
   // null）。真实会让画布变窄的是**拉宽常驻 Agent 面板**这个既有 UI（`AssistantPane` 的
   // 分隔条，键盘 End 直接跳到当前视口下的最大宽度），画布宽度因此被真实地挤掉一块，
-  // 不用碰原生窗口。2026-09-25 起这里断的是反面：画布变窄了，浮框**照旧** 560 宽、照旧钉在节点下，
+  // 不用碰原生窗口。2026-09-25 起这里断的是反面：画布变窄了，浮框**照旧** NODE_COMPOSER_WIDTH 宽、照旧钉在节点下，
   // 伸出画布的那截就被挡住（用户拍板「遮挡就遮挡了」）——不收窄、不推回视口。
   // 生成页的 Agent 默认是小球：拉宽要先叫出来并停靠（分隔条只有停靠形态才有）。
   await ensureAgentPanelOpen(getWin(), '叫出 Agent 并停靠', { form: 'dock' })

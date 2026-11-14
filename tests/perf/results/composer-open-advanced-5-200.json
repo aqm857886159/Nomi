@@ -1,0 +1,56 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "a3ecfe3c6",
+  "head": "a3ecfe3c606c81f935b4007c9b8c793b2f18bd26",
+  "dirty": true,
+  "sourceTree": "7ce17947e056b05fba58db6434a775a1996d87d9",
+  "date": "2026-11-14",
+  "runs": 5,
+  "results": [
+    {
+      "id": "composer-open-advanced-5-200",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 48.8,
+          "p95": 55.4
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "response": [
+          56.8,
+          48.8,
+          48.5,
+          48.6,
+          49.6
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "budget": 100,
+      "baseline": {
+        "median": 48.9,
+        "p95": 49.1,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "date": "2026-11-14",
+        "commit": "7f1a5b513",
+        "noisy": true
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

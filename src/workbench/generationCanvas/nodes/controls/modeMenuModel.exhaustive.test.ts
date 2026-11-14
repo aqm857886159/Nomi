@@ -168,3 +168,52 @@ describe('方式菜单穷举（视频档案 × 每种方式 × 0–4 张图）',
     expect(kling.menu!.rows.map((row) => modeRowName(tOf('zh-CN'), row))).toEqual([ZH.T2V, ZH.I2V])
   })
 })
+
+// 2026-11-14 模型档案第一批验收 C2：可灵「视频编辑」没放视频时写成「还要再放 1 张图」——缺什么就说什么。
+// 判据从档案槽 derive：必填槽（min > 0）按主素材（首帧格算图、源视频 / 参考视频算视频、参考音频算音频）数，
+// 缺的只有一种素材 → 说那种；缺好几种 → 说「件素材」。
+describe('「还要再放」说的是真缺的那种素材', () => {
+  const primary = (kind: string): 'image' | 'video' | 'audio' => kind === 'video_ref' || kind === 'source_video' ? 'video' : kind === 'audio_ref' ? 'audio' : 'image'
+  const NOUN = { image: 'Images', video: 'Videos', audio: 'Audios' } as const
+  it('全部视频档案 × 方式 × 输入：needsMore 的名词和缺的素材一致', () => {
+    const wrong: string[] = []
+    let seen = 0
+    for (const { archetype, inputName, inputs, menu } of cases) {
+      if (!menu) continue
+      for (const row of menu.rows) {
+        if (!row.description.key.startsWith(`${M}.needsMore`)) continue
+        seen += 1
+        const mode = archetype.modes.find((candidate) => candidate.id === row.id)!
+        const short = (['image', 'video', 'audio'] as const).filter((asset) => {
+          const need = mode.slots.filter((slot) => primary(slot.kind) === asset).reduce((sum, slot) => sum + slot.min, 0)
+          return need > inputs.filter((input) => input.asset === asset).length
+        })
+        const expected = short.length === 1 ? `${M}.needsMore${NOUN[short[0]!]}` : `${M}.needsMoreItems`
+        if (row.description.key !== expected) wrong.push(`${archetype.id}/${inputName}/${row.id}: ${row.description.key} ≠ ${expected}`)
+      }
+    }
+    expect(seen).toBeGreaterThan(0)
+    expect(wrong).toEqual([])
+  })
+
+  // 同一类的另一处：还没放东西时那句「先放…」。Seedance 2.5「视频编辑」必须有源视频，以前写成「先放图、视频或音频」。
+  it('还没放东西时「先放…」：有必填素材就只列必填的那几种', () => {
+    const wrong: string[] = []
+    let seen = 0
+    for (const { archetype, inputName, menu } of cases) {
+      if (!menu || inputName !== 'none') continue
+      for (const row of menu.rows) {
+        if (row.description.key !== `${M}.needKinds`) continue
+        seen += 1
+        const mode = archetype.modes.find((candidate) => candidate.id === row.id)!
+        const required = (['image', 'video', 'audio'] as const).filter((asset) => mode.slots.some((slot) => slot.min > 0 && primary(slot.kind) === asset))
+        if (required.length === 0) continue
+        const listed = (row.description.list?.items ?? []).map((item) => item.key.replace(`${M}.kind`, ''))
+        const expected = required.map((asset) => NOUN[asset])
+        if (JSON.stringify(listed) !== JSON.stringify(expected)) wrong.push(`${archetype.id}/${row.id}: ${listed.join('+')} ≠ ${expected.join('+')}`)
+      }
+    }
+    expect(seen).toBeGreaterThan(0)
+    expect(wrong).toEqual([])
+  })
+})

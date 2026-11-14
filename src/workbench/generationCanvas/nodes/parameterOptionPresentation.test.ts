@@ -4,9 +4,7 @@ import {
   localizeAutoOption,
   parameterOptionLayout,
   resolveParameterOptionPurpose,
-  soloOptionControl,
 } from './parameterOptionPresentation'
-import type { DynamicModelControl } from './controls/parameterControlModel'
 
 describe('localizeAutoOption', () => {
   it('localizes the visible label without changing the internal auto value', () => {
@@ -86,32 +84,5 @@ describe('parameterOptionLayout', () => {
 
   it('does not mistake a generic automatic resolution group for aspect ratios', () => {
     expect(resolveParameterOptionPurpose(options('auto', '1K', '2K', '4K'))).toBe('generic')
-  })
-})
-
-describe('soloOptionControl', () => {
-  const size: DynamicModelControl = {
-    key: 'size', label: '尺寸', type: 'select', binding: 'parameter',
-    options: [{ value: '1024x1024', label: '1024x1024' }, { value: '1536x1024', label: '1536x1024' }],
-    defaultValue: '1024x1024',
-  }
-  const duration: DynamicModelControl = {
-    key: 'duration', label: '时长', type: 'number', binding: 'parameter', options: [], min: 4, max: 8, defaultValue: 5,
-  }
-  const base = { hasProvider: false, hasModeChoices: false }
-
-  it('只有一个带候选项的参数时，pill 直接出它的选项（不套面板壳）', () => {
-    expect(soloOptionControl({ ...base, controls: [size] })).toBe(size)
-  })
-
-  it('面板里还有别的东西就退回面板：第二个参数 / 供应商 / 生成方式', () => {
-    expect(soloOptionControl({ ...base, controls: [size, duration] })).toBeNull()
-    expect(soloOptionControl({ ...base, controls: [size], hasProvider: true })).toBeNull()
-    expect(soloOptionControl({ ...base, controls: [size], hasModeChoices: true })).toBeNull()
-  })
-
-  it('没有候选项的控件（滑杆/数字框/开关）不走直出：脱了小标题读不出它在调什么', () => {
-    expect(soloOptionControl({ ...base, controls: [duration] })).toBeNull()
-    expect(soloOptionControl({ ...base, controls: [] })).toBeNull()
   })
 })

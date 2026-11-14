@@ -4,7 +4,9 @@ import { Combobox, useCombobox } from '@mantine/core'
 import { IconCheck, IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../utils/cn'
 import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
+import { fittedOptionsHeight } from './anchoredPopoverPlacement'
 import { NomiIdentityIcon, type NomiIdentityIconSource } from './NomiIdentityIcon'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip'
 
 /**
  * NomiSelect —— 设计系统的「选择面板」组件（27 个文件在用，是本仓选择器的主力）。
@@ -110,6 +112,11 @@ export type NomiSelectProps = {
   footerAction?: { label: string; icon?: React.ReactNode; onSelect: () => void }
   /** 下拉最上面的小标题（如「生成方式」）：不是选项，键盘导航不进它。 */
   heading?: string
+  /**
+   * 触发器只画选中项的图标、不画字（生成底栏挤的时候方式格让成图标，见 composerBarYield.ts）。
+   * 选中项没有图标就照旧画字（不出空触发器）。收起时全名在悬停提示（设计系统 Tooltip）和读屏说明里。
+   */
+  triggerIconOnly?: boolean
 }
 
 const SURFACE_SHADOW = 'var(--workbench-shadow-pop)'
@@ -126,6 +133,12 @@ const DROPDOWN_MAX_WIDTH_WITH_CHIPS = 380
 const DROPDOWN_MAX_WIDTH_WITH_DESCRIPTION = 340
 /** 带品牌图的行（模型菜单）：图方块 28 + 一行说明，340 放不下「文生/图生/首尾帧/参考 · 最高 1080p · 最长 30 秒」。 */
 const DROPDOWN_MAX_WIDTH_WITH_RICH_ROWS = 400
+/**
+ * 组件自己的一条规则（不是调用方的开关，2026-11-14 方向检查）：选项不超过这么多行的菜单整个露出、不滚；
+ * 超过的照旧按固定最高（380 / 240）在菜单里滚。起因：方式菜单六行带说明，固定 240 时第 6 行只露半行。
+ */
+export const NOMI_SELECT_WHOLE_ROWS = 8
+
 function toneClass(tone: NomiSelectTone | undefined, kind: 'badge' | 'trailing'): string {
   if (tone === 'accent') return 'bg-nomi-accent-soft text-nomi-accent'
   if (tone === 'danger') return 'text-workbench-danger'
@@ -153,6 +166,7 @@ export function NomiSelect({
   dropdownAlign = 'start',
   footerAction,
   heading,
+  triggerIconOnly = false,
 }: NomiSelectProps): JSX.Element {
   const { t } = useTranslation()
   const [more, setMore] = React.useState(false)
@@ -180,8 +194,62 @@ export function NomiSelect({
   const query = search.trim().toLocaleLowerCase()
   const visibleOptions = searchable && query ? options.filter((option) => option.label.toLocaleLowerCase().includes(query)) : options.filter((option) => more || !option.more || option.value === value)
   const hasChips = options.some((option) => (option.chips?.length ?? 0) > 0)
+  const optionsRef = React.useRef<HTMLDivElement | null>(null)
+  // 行数不超过 NOMI_SELECT_WHOLE_ROWS 才挂 size 中间件、去掉固定最高；超过的菜单中间件和类名都和今天一样。
+  const showWhole = visibleOptions.length <= NOMI_SELECT_WHOLE_ROWS
+  const rowFit = showWhole ? {
+    apply: ({ availableHeight }: { availableHeight: number }) => {
+      const list = optionsRef.current
+      if (list) list.style.maxHeight = `${fittedOptionsHeight(list, availableHeight)}px`
+    },
+  } : undefined
+  // 搜索把行数从 ≤8 筛回 >8 时，把整露时写上的高度摘掉，交回固定最高。
+  React.useLayoutEffect(() => {
+    if (!showWhole && optionsRef.current) optionsRef.current.style.maxHeight = ''
+  }, [showWhole])
 
-  return (
+  // 只画图标：选中项真有图标才收（没有就照旧画字，不出空触发器）。
+  const iconOnly = triggerIconOnly && Boolean(selected?.icon || selected?.glyph)
+  const triggerButton = (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      title={iconOnly ? undefined : title ?? selected?.label ?? (value || undefined)}
+      {...(iconOnly ? { 'aria-description': selected?.label } : {})}
+      disabled={disabled}
+      onClick={() => combobox.toggleDropdown()}
+      className={cn(
+        'inline-flex min-w-0 items-center gap-1 pl-2.5 pr-2 rounded-pill border border-nomi-line bg-nomi-paper',
+        'cursor-pointer disabled:cursor-not-allowed disabled:opacity-50',
+        'focus:outline-none focus-visible:border-nomi-ink-40 hover:border-nomi-ink-20',
+        heightClass,
+        className,
+      )}
+      style={triggerMinWidth === undefined ? undefined : { minWidth: triggerMinWidth }}
+    >
+      {leadingLabel ? (
+        <span className="shrink-0 text-micro leading-none text-nomi-ink-40">{leadingLabel}</span>
+      ) : null}
+      {selected?.icon ? <NomiIdentityIcon icon={selected.icon} /> : null}
+      {selected?.glyph ? <span className="grid shrink-0 place-items-center text-nomi-ink-60" aria-hidden>{selected.glyph}</span> : null}
+      {iconOnly ? null : (
+        <span
+          className="min-w-0 truncate text-caption text-nomi-ink-80"
+          style={triggerMaxWidth ? { maxWidth: triggerMaxWidth } : undefined}
+        >
+          {triggerText}
+        </span>
+      )}
+      {triggerBadge ? (
+        <span className={cn('shrink-0 text-micro leading-none px-1.5 py-[1px] rounded-pill', toneClass(triggerBadge.tone, 'badge'))}>
+          {triggerBadge.text}
+        </span>
+      ) : null}
+      <IconChevronDown size={12} stroke={1.6} className="shrink-0 text-nomi-ink-40 pointer-events-none" aria-hidden />
+    </button>
+  )
+
+  const combo = (
     <Combobox
       store={combobox}
       withinPortal
@@ -194,7 +262,7 @@ export function NomiSelect({
       position={dropdownAlign === 'end' ? 'bottom-end' : 'bottom-start'}
       offset={6}
       zIndex={NOMI_OVERLAY_Z_INDEX.popover}
-      middlewares={{ flip: true, shift: true }}
+      middlewares={rowFit ? { flip: true, shift: true, size: rowFit } : { flip: true, shift: true }}
       onOptionSubmit={(val) => {
         onChange(val)
         combobox.closeDropdown()
@@ -220,39 +288,7 @@ export function NomiSelect({
       }}
     >
       <Combobox.Target>
-        <button
-          type="button"
-          aria-label={ariaLabel}
-          title={title ?? selected?.label ?? (value || undefined)}
-          disabled={disabled}
-          onClick={() => combobox.toggleDropdown()}
-          className={cn(
-            'inline-flex min-w-0 items-center gap-1 pl-2.5 pr-2 rounded-pill border border-nomi-line bg-nomi-paper',
-            'cursor-pointer disabled:cursor-not-allowed disabled:opacity-50',
-            'focus:outline-none focus-visible:border-nomi-ink-40 hover:border-nomi-ink-20',
-            heightClass,
-            className,
-          )}
-          style={triggerMinWidth === undefined ? undefined : { minWidth: triggerMinWidth }}
-        >
-          {leadingLabel ? (
-            <span className="shrink-0 text-micro leading-none text-nomi-ink-40">{leadingLabel}</span>
-          ) : null}
-          {selected?.icon ? <NomiIdentityIcon icon={selected.icon} /> : null}
-          {selected?.glyph ? <span className="grid shrink-0 place-items-center text-nomi-ink-60" aria-hidden>{selected.glyph}</span> : null}
-          <span
-            className="min-w-0 truncate text-caption text-nomi-ink-80"
-            style={triggerMaxWidth ? { maxWidth: triggerMaxWidth } : undefined}
-          >
-            {triggerText}
-          </span>
-          {triggerBadge ? (
-            <span className={cn('shrink-0 text-micro leading-none px-1.5 py-[1px] rounded-pill', toneClass(triggerBadge.tone, 'badge'))}>
-              {triggerBadge.text}
-            </span>
-          ) : null}
-          <IconChevronDown size={12} stroke={1.6} className="shrink-0 text-nomi-ink-40 pointer-events-none" aria-hidden />
-        </button>
+        {iconOnly ? <TooltipTrigger asChild>{triggerButton}</TooltipTrigger> : triggerButton}
       </Combobox.Target>
 
       <Combobox.Dropdown data-nomi-select-dropdown className="nokey">
@@ -277,7 +313,7 @@ export function NomiSelect({
             portalTarget 指回节点自身 DOM，而不是 document.body）——挂了就必须挡住滚轮被画布
             当缩放吃掉；没挂进画布时这两个 class 谁也不认，纯粹无操作。 */}
         {/* 带图 + 说明的行（模型菜单）每行 46px：240 只放得下 5 行，翻一屏才见「隐藏模型」——放到 8 行高；尾行钉在滚动区外、永远看得见。 */}
-        <Combobox.Options className={cn('nowheel nodrag overflow-auto', hasRichRows ? 'max-h-[380px]' : 'max-h-[240px]')}>
+        <Combobox.Options ref={optionsRef} data-nomi-select-whole={showWhole ? '' : undefined} className={cn('nowheel nodrag overflow-auto', showWhole ? undefined : hasRichRows ? 'max-h-[380px]' : 'max-h-[240px]')}>
           {visibleOptions.length === 0 ? <Combobox.Empty>{t('common.noMatchingOptions')}</Combobox.Empty> : null}
           {visibleOptions.map((option, index) => {
             const isSel = option.value === value
@@ -382,4 +418,14 @@ export function NomiSelect({
       </Combobox.Dropdown>
     </Combobox>
   )
+  // 收成图标时外面包设计系统的提示（自带 Provider：底栏外面不一定有全局那层，缺了 Radix 直接抛错）。不收时就是 combo 本身。
+  // 提示内容放在 Combobox 外面：Combobox 的孩子不多一格，不收时连自动生成的 id 都和以前一样。
+  return iconOnly ? (
+    <TooltipProvider delayDuration={120}>
+      <Tooltip delayDuration={120}>
+        {combo}
+        <TooltipContent side="top">{selected?.label}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  ) : combo
 }

@@ -7,6 +7,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import {
   CONNECT_VENDOR_OPTION_VALUE,
+  buildModelMenu,
   buildModelSelectOptions,
   buildProviderSelectOptions,
   modelVisibilityFooterAction,
@@ -312,8 +313,32 @@ describe('模型框偏好', () => {
   })
 
   it('底部「隐藏模型 N」：藏过才带数，没藏过就只是「隐藏模型」', () => {
-    expect(modelVisibilityFooterAction(0).label).toBe('隐藏模型')
-    expect(modelVisibilityFooterAction(2).label).toBe('隐藏模型 2')
+    const rows = new Map([['x', {} as never]])
+    expect(modelVisibilityFooterAction({ hiddenCount: 0, rows })?.label).toBe('隐藏模型')
+    expect(modelVisibilityFooterAction({ hiddenCount: 2, rows })?.label).toBe('隐藏模型 2')
+  })
+
+  it('「两家并存时变体行按哪家展开」今天复现不出：带变体的组只会有反重力一家（2026-11-14 界面问题，写明而不改）', () => {
+    // 目录映射给反重力的条目钉了带供应商前缀的身份（antigravity-cli:family:…），别家同名模型进不了这一组；
+    // 所以 expandModelRows 用「第一家」算变体和用「这一行实际会用的那家」算，结果永远一样。
+    // 哪天有第二家也给变体、并进同一组，这条先红——那时再按「实际会用的那家」展开。
+    const apimartGemini = toCatalogModelOptions([{
+      modelKey: 'gemini-3.7-flash', vendorKey: 'apimart', labelZh: 'Gemini 3.7 Flash',
+      kind: 'text', enabled: true, published: true, availability: { usable: true } as const, publishedModes: ['chat' as const], createdAt: '', updatedAt: '',
+    }])
+    const deduped = dedupeModelOptions([...variantOptions(), ...apimartGemini])
+    for (const model of deduped.filter((candidate) => candidate.providers.some((provider) => provider.option.variant))) {
+      expect(new Set(model.providers.map((provider) => provider.vendor))).toEqual(new Set(['antigravity-cli']))
+    }
+    expect(deduped.length).toBe(2)
+  })
+
+  it('一家都没接入（菜单只有「去接入」那一行）：没有可藏的模型，不出「隐藏模型」（2026-11-14 界面问题）', () => {
+    const empty = buildModelMenu([], () => false)
+    expect(empty.options.map((option) => option.value)).toEqual([CONNECT_VENDOR_OPTION_VALUE])
+    expect(modelVisibilityFooterAction(empty)).toBeUndefined()
+    // 全藏光了：行没了但藏过的还在，照旧给「隐藏模型 N」找回入口。
+    expect(modelVisibilityFooterAction({ hiddenCount: 3, rows: new Map() })?.label).toBe('隐藏模型 3')
   })
 })
 

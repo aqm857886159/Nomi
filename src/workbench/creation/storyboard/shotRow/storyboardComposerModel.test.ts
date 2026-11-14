@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ModelOption } from '../../../../config/models'
+import { planModelSelection } from '../../../generationCanvas/agent/storyboardPlanEdits'
+import { parameterPlacement } from '../../../generationCanvas/nodes/controls/parameterControlModel'
 import { composerEntryIndex, storyboardComposerChange, storyboardComposerControls, storyboardComposerMeta } from './storyboardComposerModel'
 
 /**
@@ -54,5 +56,48 @@ describe('storyboardComposerChange：控件 → 分镜字段', () => {
   it('其余参数 → params，按声明类型（开关是布尔）', () => {
     expect(storyboardComposerChange(control('resolution'), '480p', controls)).toEqual({ kind: 'param', key: 'resolution', value: '480p' })
     expect(storyboardComposerChange(control('generate_audio'), 'false', controls)).toEqual({ kind: 'param', key: 'generate_audio', value: false })
+  })
+})
+
+/**
+ * 2026-11-14 三处一套：分镜行底栏换成画布同一只组件、五类参数搬进「高级设置」之后，
+ * **存的字段和发出去的字段一项不变**——搬的只是「在哪儿改」，不是「存什么、发什么」。
+ * 发出去的 = 落画布同一个构造器（`buildPlannedNodeMeta`，projectShotNode 也用它）算出的 meta，所以冻结 meta 就是冻结请求字段。
+ * 用真档案 doubao-seedance-2.5（apimart）：它一个模式里五类里占四类 + 返回尾帧，是高级项最多的一档。
+ */
+describe('分镜行搬进高级设置后：存的、发的字段改前改后一样', () => {
+  const SEEDANCE_APIMART = { value: 'doubao-seedance-2.5', label: 'Seedance 2.5', vendor: 'apimart', modelKey: 'doubao-seedance-2.5' } as ModelOption
+  const target = { modelKey: 'doubao-seedance-2.5', modelVendor: 'apimart', modeId: 't2v', params: { seed: 7, watermark: true } } as const
+  const meta = storyboardComposerMeta(target, composerEntryIndex(SEEDANCE_APIMART))
+  const controls = storyboardComposerControls(SEEDANCE_APIMART, meta, 'video')
+
+  it('发出去的字段（meta）逐项冻结：老镜头存的种子 / 水印照发，没写的取档案默认，不多不少', () => {
+    const { archetype: _archetype, ...fields } = meta
+    expect(fields).toEqual({
+      modelKey: 'doubao-seedance-2.5', modelLabel: 'Seedance 2.5', modelVendor: 'apimart', vendor: 'apimart',
+      size: 'adaptive', resolution: '720p', duration: 5, generate_audio: true,
+      return_last_frame: false, watermark: true, output_format: 'mp4', nsfw_check: false, seed: 7,
+    })
+  })
+
+  it('每个控件不在面板就在高级设置，一个都不丢；高级里那几项改了照样写回 params', () => {
+    const panel = controls.filter((control) => parameterPlacement(control) === 'panel').map((control) => control.key)
+    const advanced = controls.filter((control) => parameterPlacement(control) === 'advanced').map((control) => control.key)
+    expect(panel).toEqual(['size', 'resolution', 'duration', 'generate_audio'])
+    expect(advanced).toEqual(['return_last_frame', 'seed', 'watermark', 'output_format', 'nsfw_check'])
+    const control = (key: string) => controls.find((candidate) => candidate.key === key)! as Parameters<typeof storyboardComposerChange>[0]
+    expect(storyboardComposerChange(control('seed'), '42', controls)).toEqual({ kind: 'param', key: 'seed', value: 42 })
+    expect(storyboardComposerChange(control('watermark'), 'false', controls)).toEqual({ kind: 'param', key: 'watermark', value: false })
+    expect(storyboardComposerChange(control('output_format'), 'mov', controls)).toEqual({ kind: 'param', key: 'output_format', value: 'mov' })
+    expect(storyboardComposerChange(control('return_last_frame'), 'true', controls)).toEqual({ kind: 'param', key: 'return_last_frame', value: true })
+  })
+
+  it('「默认模型」那一行换了样子（品牌图 + 说明），点它存的仍是空：不存模型、不存供应商，跟随默认', () => {
+    // InlineParameterBar：点 value '' 的那一行 → onModelChange('')，两个宿主都接 planModelSelection(value, vendor)。
+    expect(planModelSelection('', undefined)).toEqual({ modelKey: undefined, modelVendor: undefined, modeId: undefined, params: undefined })
+    // 点别的行再点回来：同一个写口，结果一样是空。
+    const picked = planModelSelection('doubao-seedance-2.5', 'apimart')
+    expect(picked).toMatchObject({ modelKey: 'doubao-seedance-2.5', modelVendor: 'apimart' })
+    expect(planModelSelection('', picked.modelVendor)).toEqual({ modelKey: undefined, modelVendor: undefined, modeId: undefined, params: undefined })
   })
 })
