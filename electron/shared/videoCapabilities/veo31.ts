@@ -11,10 +11,14 @@ import { RUNWAY_GENERATE_AUDIO_CONTROL, runwayDurationControl, runwayRatioContro
 
 const opt = (values: string[]): ModelParameterControl["options"] => values.map((value) => ({ value, label: value }));
 
+const RESOLUTION: ModelParameterControl = { key: "resolution", label: "清晰度", type: "select", options: opt(["720p", "1080p", "4k"]), defaultValue: "720p" };
 const PARAMS: ModelParameterControl[] = [
   { key: "aspect_ratio", label: "比例", type: "select", options: opt(["16:9", "9:16"]), defaultValue: "16:9" },
-  { key: "resolution", label: "清晰度", type: "select", options: opt(["720p", "1080p", "4k"]), defaultValue: "720p" },
+  RESOLUTION,
 ];
+// 图模式（参考图 / 首尾帧）不给选比例：APIMart 这两种方式从来不发 aspect_ratio（比例跟输入图走），控件在、值却发不出去
+// = 选了没用。以前是目录里的 i2vDrops 在发送时丢，现在档案不声明，面板、Agent 说明、发送读同一份（2026-11-15）。
+const IMAGE_MODE_PARAMS: ModelParameterControl[] = [RESOLUTION];
 
 // Runway 转售的 veo3.1 / veo3.1_fast：Runway union 的 veo 变体是 ratio / duration / audio——
 // **没有 resolution**（apimart 的 720p/1080p/4k 在这里发不出去），比例是像素式枚举
@@ -32,6 +36,7 @@ export const VEO_3_1_ARCHETYPE: ModelArchetype = {
   legacyIds: ["runway-video"],
   id: "veo-3.1",
   family: "veo",
+  sources: [{ url: "https://docs.apimart.ai/en/api-reference/videos/veo3/generation.md", checkedAt: "2026-11-15", vendorKey: "apimart", covers: "aspect_ratio 16:9 / 9:16（页面没写图生时收不收；APIMart 图模式 body 一直不发它）；Note: veo3.1-quality model does not support reference mode；veo3.1-lite model does not support this parameter（generation_type / image_urls）" }],
   label: "Veo 3.1",
   kind: "video",
   defaultModeId: "t2v",
@@ -44,7 +49,7 @@ export const VEO_3_1_ARCHETYPE: ModelArchetype = {
       id: "reference", intent: "single", vendorTerm: "参考图", hint: "参考图驱动（最多 3 张）", promptRequired: true,
       transportTaskKind: "image_to_video",
       slots: [{ kind: "image_ref", label: "参考图", min: 1, max: 3, inputKey: "image_urls" }],
-      params: PARAMS, vendorParams: { runway: RUNWAY_PARAMS },
+      params: IMAGE_MODE_PARAMS, vendorParams: { runway: RUNWAY_PARAMS },
       fixedParams: { generation_type: "reference" },
     },
     {
@@ -56,7 +61,7 @@ export const VEO_3_1_ARCHETYPE: ModelArchetype = {
       ],
       // 首尾帧 → image_urls 有序扁平数组 [首url, 尾url]（位置语义，非 role 对象）。
       combineSlotsInto: { key: "image_urls", flat: true },
-      params: PARAMS, vendorParams: { runway: RUNWAY_PARAMS },
+      params: IMAGE_MODE_PARAMS, vendorParams: { runway: RUNWAY_PARAMS },
       fixedParams: { generation_type: "frame" },
     },
   ],

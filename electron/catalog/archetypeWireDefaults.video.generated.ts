@@ -187,7 +187,6 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     "image_to_video": {
       "*": {
         "generation_type": "reference",
-        "aspect_ratio": "16:9",
         "resolution": "720p"
       },
       "runway": {
@@ -272,7 +271,6 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       "apimart": {
         "mode": "pro",
         "duration": 5,
-        "aspect_ratio": "16:9",
         "audio": false
       }
     }

@@ -99,11 +99,8 @@ const NAMED_IN_AUDIT = [
  * 显示了、但这个方式**故意不发**的参数（映射里明示 drop）。棘轮：只许减；某天开始发了，这里会红，提醒删掉这条。
  * 键 = `模型/方式/参数`。付费卡的摘要行读的是节点显示，所以这几格同样是「卡上写着、线上没有」——见设计卡 §四。
  */
-const NOT_SENT_BY_DESIGN: Readonly<Record<string, string>> = {
-  "kling-v3/i2v/aspect_ratio": "APIMart 图生视频：比例由首 / 尾帧决定，映射 i2vDrops 明示不发（electron/catalog/apimartVideos.ts）",
-  "veo3.1-fast/frame/aspect_ratio": "APIMart 首尾帧：比例跟首帧图走，映射 i2vDrops 明示不发（electron/catalog/apimartVideos.ts）",
-  "veo3.1-fast/reference/aspect_ratio": "APIMart 参考图：比例跟参考图走，映射 i2vDrops 明示不发（electron/catalog/apimartVideos.ts）",
-};
+// 2026-11-15 清空：可灵 3.0 图生、Veo 3.1 参考图 / 首尾帧的比例改成档案不声明（不再显示），不再是「显示了却不发」。
+const NOT_SENT_BY_DESIGN: Readonly<Record<string, string>> = {};
 
 /**
  * 档案声明了、APIMart 目录没给这个模型发布的方式（Agent 起草当场被宿主拒：「cannot do …」），不进格子。

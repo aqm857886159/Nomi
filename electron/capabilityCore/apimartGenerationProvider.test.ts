@@ -596,7 +596,8 @@ describe("APIMart observe-only generation provider", () => {
         resolution: "768p",
         aspectRatio: "16:9",
         firstFrameUrl: "https://cdn.example/first.png",
-        webhook: "",
+        // 老节点上存着的回调地址也不发：webhook 是管道，档案和目录都不再声明它（能力表「不露出 · 管道」）。
+        webhook: "https://hooks.example/done",
       },
     }));
     expect(body).toMatchObject({
