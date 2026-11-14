@@ -433,7 +433,7 @@ export const desktopTranslations = {
     "modeInput.optionNeedsSlot": "This request was not sent: {{parameter}} set to {{value}} needs {{slot}} and the request has none. Add {{slot}}, or choose another option.",
     "modeInput.routeMissing": "This request was not sent: the provider you are using does not offer this mode, so {{slot}} can't be sent. Switch to a provider that offers this mode, or switch to another mode.",
     "modeInput.or": " or ",
-    "modeInput.fitsMode": " The current inputs fit the {{mode}} mode ({{modeId}}).",
+    "modeInput.fitsMode": " The current inputs can be sent in mode {{modeId}}.",
     "modeInput.slotName": "{{kind}}",
     "modeInput.slotKind.first_frame": "a first frame",
     "modeInput.slotKind.last_frame": "a last frame",

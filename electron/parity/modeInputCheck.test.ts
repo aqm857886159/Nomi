@@ -32,7 +32,7 @@ import type { OutboundRecord } from "./outboundRecord";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import type { ArchetypeReferenceSlotKind } from "../shared/modelArchetypes/types";
 import { KLING_4_FLASH_ARCHETYPE } from "../shared/videoCapabilities/kling4Flash";
-import { getArchetypeById } from "../shared/modelArchetypes";
+import { getArchetypeById, resolveArchetypeForModel } from "../shared/modelArchetypes";
 import { MINIMAX_H3_APIMART_ARCHETYPE } from "../shared/videoCapabilities/minimaxH3Apimart";
 import { PIXVERSE_V6_ARCHETYPE } from "../shared/videoCapabilities/pixverse6";
 import type { ModelArchetype } from "../shared/modelArchetypes/types";
@@ -198,6 +198,23 @@ describe("槽位下限：Run 路显式首尾帧只给 1 张图（协调 2026-11-
     const record = await run({ modelId, modeId: "firstlast", mode: "image_to_video", refs: [first(IMG_A)] });
     expectRefused(record, lastMissing);
     expect(record.failure?.message).toBe(`${lastMissing()}${fits(archetype, fitting)}`);
+  });
+
+  // 独立验收量到的：只给尾帧时，旧出路句把尾帧当成能改落首帧 / 参考图，点名全能参考 / 首帧；照原样只换方式再发，Run 路按角色放参考
+  // 那一步拒（Seedance 2.0：方式没有尾帧的位置；2.5 / Wan 3.0：参考没被用上）。现在尾帧只按尾帧槽算，算不出可发的方式就不点名。
+  it.each([
+    ["doubao-seedance-2.0", "omni"],
+    ["doubao-seedance-2.5", "first"],
+    ["wan3.0-video", "first"],
+  ] as const)("%s firstlast + 只有尾帧 → 不发，只说前半句（旧出路 %s 照原样再发仍被拒）", async (modelId, oldHint) => {
+    const last: Ref = { url: IMG_A, kind: "image", role: "last_frame" };
+    const archetype = resolveArchetypeForModel({ modelKey: modelId, vendorKey: "apimart" })!;
+    const firstMissing = desktopT("modeInput.slotMissing", { slot: slotOf(archetype, "firstlast", "first_frame") });
+    const record = await run({ modelId, modeId: "firstlast", mode: "image_to_video", refs: [last] });
+    expectRefused(record, () => firstMissing);
+    expect(record.failure?.message).toBe(firstMissing);
+    const retried = await run({ modelId, modeId: oldHint, mode: "image_to_video", refs: [last] });
+    expect(retried.request, "旧出路照原样再发确实发不出去（这就是不再点名它的原因）").toBeUndefined();
   });
 
   it("首帧 + 尾帧都给照发（反例）", async () => {
