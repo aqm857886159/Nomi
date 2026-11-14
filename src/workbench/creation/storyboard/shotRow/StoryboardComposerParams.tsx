@@ -4,7 +4,9 @@ import type { ModelOption } from '../../../../config/models'
 import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 import { findModelOptionByIdentifier } from '../../../../config/modelOptionResolvers'
 import { useVendorPreferenceOrder } from '../../../common/useVendorPreference'
-import InlineParameterBar from '../../../generationCanvas/nodes/InlineParameterBar'
+import InlineParameterBar, { type ComposerFooterSlots } from '../../../generationCanvas/nodes/InlineParameterBar'
+import { buildModeMenu } from '../../../generationCanvas/nodes/controls/modeMenuModel'
+import { modeMenuOptions } from '../../../generationCanvas/nodes/controls/modeMenuOptions'
 import { useStoryboardRowDensity } from './storyboardRowDensity'
 import { composerHeadlineSummary } from '../../../generationCanvas/nodes/composerHeadlineSummary'
 import { resolveArchetypeForOption } from '../../../generationCanvas/nodes/nodeModelArchetype'
@@ -20,13 +22,13 @@ import {
 } from './storyboardComposerModel'
 
 /**
- * 分镜行（镜头 / 参考卡）的参数区 = **画布节点底栏同一个组件**（`InlineParameterBar`，summary 摆法）：
- * 一颗模型按钮 + 一颗参数汇总按钮，点开是平铺面板（清晰度分段 / 带图形的比例格 / 时长滑条 / 开关），
- * 生成方式在面板顶上一组。2026-10-05 用户：「选择参数要复用画布那个地方的方式」。
+ * 分镜行（镜头 / 参考卡）的整条底栏 = **画布节点底栏同一个组件**（`InlineParameterBar` 带 `footer`）：
+ * 模型｜方式｜参数｜（有的话）高级设置 …… 走。2026-10-05 用户：「选择参数要复用画布那个地方的方式」；
+ * 2026-11-14 用户：「画布以及画布的列表形式 以及 分镜那里……应该是一套设计 都复用」。
  *
- * 分镜自己只多两样东西，都走同一块面板，不另造控件：
- *   · 汇总按钮的文字多报一个「生成方式」——分镜一屏十几行，扫一眼要知道哪镜是首帧、哪镜是全能参考；
- *   · 图片镜的「停留时长」（进时间轴停几秒）不是模型参数，作为面板里的一组选项出现（`extraControls`）。
+ * 分镜自己只多一样东西，走同一块面板，不另造控件：图片镜的「停留时长」（进时间轴停几秒）不是模型参数，
+ * 作为面板里的一组选项出现（`extraControls`）。和画布的差别只剩宿主给的宽度、分镜不能选变体（没有存变体的字段）、
+ * 图片方式也有方式格（分镜的方式是方案写明的，画布图片节点按放没放图现算、没有这一格）。
  */
 
 type Props = {
@@ -42,10 +44,12 @@ type Props = {
   onModeChange: (modeId: string) => void
   onChange: (change: ComposerChange) => void
   onExtraChange?: (key: string, value: string) => void
+  /** 底栏右半边（走钮 / 状态标签）和宿主锚点；见 InlineParameterBar 的 `footer`。 */
+  footer: ComposerFooterSlots
 }
 
 export default function StoryboardComposerParams({
-  target, kind, modelGroupLabels, modelOptions, metaOverrides, extraControls = [], onModelChange, onModeChange, onChange, onExtraChange,
+  target, kind, modelGroupLabels, modelOptions, metaOverrides, extraControls = [], onModelChange, onModeChange, onChange, onExtraChange, footer,
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const orderedVendorKeys = useVendorPreferenceOrder()
@@ -62,11 +66,17 @@ export default function StoryboardComposerParams({
   const extraKeys = React.useMemo(() => new Set(extraControls.map((control) => control.key)), [extraControls])
 
   const archetype = resolveArchetypeForOption(option)
-  const modeChoices = archetype && archetype.modes.length > 1
-    ? archetype.modes.map((mode) => ({ id: mode.id, label: translateModelDisplayText(mode.vendorTerm) }))
-    : []
   const modeId = (meta.archetype as { modeId?: string } | undefined)?.modeId ?? ''
-  const modeLabel = modeChoices.find((choice) => choice.id === modeId)?.label
+  // 方式格：和画布视频节点同一个菜单（名字、图标、一句说明）。分镜还没放输入，方式是方案写明的、每一行都能选，
+  // 所以不按「这次的输入放不放得下」置灰。图片方式画布没有这一格，这里用档案名。
+  const modeOptions = React.useMemo(() => {
+    if (!archetype || archetype.modes.length < 2) return []
+    const visible = archetype.modes.map((mode) => ({ id: mode.id, vendorTerm: translateModelDisplayText(mode.vendorTerm) }))
+    const menu = kind === 'video' ? buildModeMenu({ nodeKind: 'video', archetype, visible, inputs: [], resolvedModeId: modeId || archetype.modes[0]!.id }) : null
+    return menu
+      ? modeMenuOptions(t, menu.rows.map((row) => ({ ...row, disabled: false })))
+      : visible.map((choice) => ({ value: choice.id, label: choice.vendorTerm }))
+  }, [archetype, kind, modeId, t])
   const headline = composerHeadlineSummary({
     isImageLike: kind === 'image',
     isVideoLike: kind === 'video',
@@ -75,7 +85,7 @@ export default function StoryboardComposerParams({
     formatSeconds: (value) => t('generationCommon.composerBarV1.seconds', { value }),
     autoLabel: t('generationCommon.parameters.auto'),
   })
-  const summary = [modeLabel, headline].filter(Boolean).join(' · ') || undefined
+  const summary = headline || undefined
 
   const route = (control: Pick<ModelParameterControl, 'key' | 'type' | 'options'>, value: string): void => {
     if (extraKeys.has(control.key)) { onExtraChange?.(control.key, value); return }
@@ -85,7 +95,6 @@ export default function StoryboardComposerParams({
   // 最窄一档（行宽 < 520，E1a 的 320）：模型钮和摘要钮整颗换行、不截字。
   const compact = useStoryboardRowDensity() === 'compact'
   return (
-    <span className="flex min-w-0 items-center" data-storyboard-composer-params={kind}>
       <InlineParameterBar
         modelOptions={modelOptions}
         modelGroupLabels={modelGroupLabels}
@@ -101,8 +110,16 @@ export default function StoryboardComposerParams({
         summaryWidth={{ hug: 280 }}
         wrap={compact}
         leadingModelOption={{ label: t('storyboardEditor.defaultModel') }}
-        {...(modeChoices.length ? { modeChoices, activeModeId: modeId, onModeSelect: onModeChange } : {})}
+        {...(modeOptions.length ? {
+          modeMenu: {
+            value: modeId,
+            heading: t('generationCommon.modeMenu.heading'),
+            ariaLabel: t('generationCommon.modeMenu.heading'),
+            onChange: onModeChange,
+            options: modeOptions,
+          },
+        } : {})}
+        footer={{ ...footer, wrap: compact, attrs: { ...footer.attrs, 'data-storyboard-composer-params': kind } }}
       />
-    </span>
   )
 }

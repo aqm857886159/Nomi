@@ -96,15 +96,30 @@ describe('分镜行：对齐（预览框全表同一只、「生成」每行同�
     expect(frame).not.toContain('object-cover')
   })
 
+  // 2026-11-14 三处一套（协调裁决 A）：底栏那一行由画布同一只 InlineParameterBar 的 footer 画，
+  // 「生成」是它的 action 槽，住在那一行最右端；分镜这边只剩外框（分隔线 + 内边距）。
   it('画面格里只有一颗「生成」的家——底栏右端（不再在框里放一颗重复的）', () => {
     expect(frame).not.toContain("t('storyboardEditor.frame.generate')")
-    expect(composerBar).toContain('ml-auto')
+    expect(composerBar).toMatch(/footer=\{\{[\s\S]*action:[\s\S]*<ComposerSendButton/)
     expect(composerBar).toContain('data-storyboard-generate-state')
   })
 
   it('底栏一行；窄到放不下时整颗参数换行、「生成」独占右下（E1a 最窄档），不是把内容挤出卡外', () => {
-    expect(composerBar).toContain('flex-wrap')
+    // 换行开关由宿主给（compact = 窄档），那一行自己的 flex-wrap 写在共用底栏里。
+    expect(composerParams).toContain('wrap: compact')
+    const bar = stripComments(read('src/workbench/generationCanvas/nodes/InlineParameterBar.tsx'))
+    expect(bar).toContain("footer.wrap ? 'flex-wrap' : 'flex-nowrap'")
     expect(composerBar).not.toMatch(/grid-cols-\[/)
+  })
+
+  it('分镜行和参考卡没有自己那一套底栏框：旧 ComposerBarRow / ComposerGenerateButton 删干净', () => {
+    const anchor = stripComments(read('src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx'))
+    for (const source of [composerBar, anchor]) {
+      expect(source).not.toContain('ComposerBarRow')
+      expect(source).not.toContain('ComposerGenerateButton')
+      expect(source).toContain('<StoryboardComposerParams')
+      expect(source).toContain('<ComposerSendButton')
+    }
   })
 
   it('动作条在图下方常驻，不是压在图上的悬停浮层（设计系统 §1.5.3 反例）', () => {
