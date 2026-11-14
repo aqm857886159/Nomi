@@ -1,8 +1,9 @@
 // 窄窗档（WindowNarrow 板，用户 2026-11-07 拍板）：窗口宽 < 1060 时停靠的 Nomi 临时显示成小球、点开是浮窗，
 // 宽回来自动停回。约束 narrow.display-only：只有人亲手点形态切换才写存档——拖窗跨阈值多少次，存下的形态一个字节不变。
+// 窄窗里每一下点击 × 每种存下的形态的全表在 agentFormNarrowGestures.test.ts。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ASSISTANT_CONTENT_FLOOR, ASSISTANT_WIDTH_MIN } from '../../../workbench/assistantWidthBounds'
-import { NARROW_TIER_QUERY, NARROW_TIER_WIDTH, effectiveAgentForm, readEffectiveAgentForm, useAgentFormStore } from './agentFormStore'
+import { NARROW_TIER_QUERY, NARROW_TIER_WIDTH, effectiveAgentForm, readEffectiveAgentForm, useAgentFormStore, type NarrowShown } from './agentFormStore'
 
 const STORAGE_KEY = 'nomi:shell-agent-form:v1'
 
@@ -43,16 +44,20 @@ describe('窄窗档：只是派生，存档不动', () => {
     expect(NARROW_TIER_QUERY).toBe('(width < 1060px)')
   })
 
-  it('派生表：只改存着「停靠」的页；窄窗优先于 dockSuppressed', () => {
-    const view = (windowNarrow: boolean, narrowOpen: boolean, dockSuppressed: boolean) => ({ windowNarrow, narrowOpen, dockSuppressed })
-    expect(effectiveAgentForm('dock', view(false, false, false))).toBe('dock')
-    expect(effectiveAgentForm('dock', view(true, false, false))).toBe('ball')
-    expect(effectiveAgentForm('dock', view(true, true, false))).toBe('float')
-    expect(effectiveAgentForm('dock', view(true, true, true))).toBe('float')
-    expect(effectiveAgentForm('dock', view(false, false, true))).toBe('ball')
+  it('派生表：窄窗里没人点过 = 停靠收成小球、小球浮窗照存档；点过按 narrowShown 摆；窄窗优先于 dockSuppressed', () => {
+    const view = (windowNarrow: boolean, narrowShown: NarrowShown, dockSuppressed: boolean) => ({ windowNarrow, narrowShown, dockSuppressed })
+    expect(effectiveAgentForm('dock', view(false, null, false))).toBe('dock')
+    expect(effectiveAgentForm('dock', view(true, null, false))).toBe('ball')
+    expect(effectiveAgentForm('dock', view(true, 'float', false))).toBe('float')
+    expect(effectiveAgentForm('dock', view(true, 'float', true))).toBe('float')
+    expect(effectiveAgentForm('dock', view(false, null, true))).toBe('ball')
+    expect(effectiveAgentForm('ball', view(true, null, false))).toBe('ball')
+    expect(effectiveAgentForm('ball', view(true, 'float', false))).toBe('float')
+    expect(effectiveAgentForm('float', view(true, null, false))).toBe('float')
+    expect(effectiveAgentForm('float', view(true, 'ball', false))).toBe('ball')
     for (const stored of ['ball', 'float'] as const) {
-      expect(effectiveAgentForm(stored, view(true, true, true))).toBe(stored)
-      expect(effectiveAgentForm(stored, view(false, false, false))).toBe(stored)
+      expect(effectiveAgentForm(stored, view(false, null, true))).toBe(stored)
+      expect(effectiveAgentForm(stored, view(false, null, false))).toBe(stored)
     }
   })
 
@@ -111,22 +116,16 @@ describe('窄窗档：只是派生，存档不动', () => {
     expect(readEffectiveAgentForm('creation')).toBe('ball')
   })
 
-  it('人亲手要停靠（原来存的是小球）：记下「停靠」，此刻以浮窗打开，宽回来就是停靠', () => {
+  it('存着小球的页窄窗里点开（创作页的「打开」是停靠）：此刻浮窗，存档还是小球，宽回来还是小球', () => {
     const state = useAgentFormStore.getState()
     state.setForm('creation', 'ball')
     state.setWindowNarrow(true)
+    const before = persisted()
     state.requestForm('creation', 'dock')
-    expect(useAgentFormStore.getState().bySurface.creation.form).toBe('dock')
     expect(readEffectiveAgentForm('creation')).toBe('float')
+    expect(persisted()).toBe(before)
     state.setWindowNarrow(false)
-    expect(readEffectiveAgentForm('creation')).toBe('dock')
-  })
-
-  it('不是停靠的页在窄窗里照常写形态（画布页小球 → 浮窗是人手点的）', () => {
-    const state = useAgentFormStore.getState()
-    state.setWindowNarrow(true)
-    state.requestForm('generation', 'float')
-    expect(useAgentFormStore.getState().bySurface.generation.form).toBe('float')
+    expect(readEffectiveAgentForm('creation')).toBe('ball')
   })
 
   it('不在窄窗档：requestForm 就是 setForm', () => {

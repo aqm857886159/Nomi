@@ -8,7 +8,7 @@
 //   3. 快捷键：Mod+J 打开并聚焦输入框；Mod+\ 当前页在「停靠 ↔ 小球」之间切（浮窗时收成小球）；
 //   4. 小球 / 浮窗的坐标系：工作区给的「浮层位」（生成页 = 画布那一格，让开底边时间轴），没给就是整块内容区。
 // 窄窗档（窗口宽 < NARROW_TIER_WIDTH，WindowNarrow 板）：这里挂唯一的 matchMedia，写 agentFormStore.windowNarrow；
-// 停靠的页此刻显示成小球、点开是浮窗，形态切换里「停靠」变灰；所有「人要某个形态」都走 requestForm，存档只在人亲手点时写。
+// 停靠的页此刻显示成小球、点开是浮窗，形态切换里「停靠」变灰；点开 / 收起走 requestForm（窄窗不写存档），形态切换里明确选的走 chooseForm。
 // 拖动、改大小、出界约束全交给 react-rnd；窗口缩小后的「夹回可见区」在渲染时算（不回写），见 agentFormStore.clampRect。
 import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
@@ -61,7 +61,7 @@ function openFormFor(surface: AgentFormSurface): AgentForm {
  */
 function shownIgnoringSuppression(surface: AgentFormSurface): AgentForm {
   const state = useAgentFormStore.getState()
-  return effectiveAgentForm(state.bySurface[surface].form, { windowNarrow: state.windowNarrow, narrowOpen: state.narrowOpen, dockSuppressed: false })
+  return effectiveAgentForm(state.bySurface[surface].form, { windowNarrow: state.windowNarrow, narrowShown: state.narrowShown, dockSuppressed: false })
 }
 
 function useAreaSize(node: HTMLElement | null): { width: number; height: number } {
@@ -84,7 +84,7 @@ function BallIcon(): JSX.Element {
 /** 面板头部右端：小球 · 浮窗 · 停靠 三选一，当前形态高亮（CanvasAgent 板 .form）。 */
 function FormSwitch({ surface, form }: { surface: AgentFormSurface; form: AgentForm }): JSX.Element {
   const { t } = useTranslation()
-  const requestForm = useAgentFormStore((state) => state.requestForm)
+  const chooseForm = useAgentFormStore((state) => state.chooseForm)
   const narrow = useAgentFormStore((state) => state.windowNarrow)
   const options: { id: AgentForm; label: string; icon: JSX.Element }[] = [
     { id: 'ball', label: t('appShell.agent.toBall'), icon: <BallIcon /> },
@@ -112,7 +112,7 @@ function FormSwitch({ surface, form }: { surface: AgentFormSurface; form: AgentF
               data-agent-form-blocked={blocked ? 'narrow' : undefined}
               onClick={() => {
                 if (blocked) return
-                requestForm(surface, option.id)
+                chooseForm(surface, option.id)
                 if (option.id !== 'ball') requestResidentComposerFocus()
               }}
               className={cn(
@@ -269,6 +269,7 @@ export function ShellAgentHost({
   const { t } = useTranslation()
   const form = useEffectiveAgentForm(surface)
   const requestForm = useAgentFormStore((state) => state.requestForm)
+  const chooseForm = useAgentFormStore((state) => state.chooseForm)
   const narrow = useAgentFormStore((state) => state.windowNarrow)
   const narrowMotion = useAgentFormStore((state) => state.narrowMotion)
   const restoring = narrowMotion === 'restore'
@@ -346,14 +347,14 @@ export function ShellAgentHost({
   const slot = React.useMemo<AgentPanelHeaderSlot>(() => ({
     actions: <FormSwitch surface={surface} form={form} />,
     menuItems: [
-      { id: 'form-ball', label: t('appShell.agent.toBall'), onSelect: () => requestForm(surface, 'ball') },
-      { id: 'form-float', label: t('appShell.agent.toFloat'), onSelect: () => requestForm(surface, 'float') },
+      { id: 'form-ball', label: t('appShell.agent.toBall'), onSelect: () => chooseForm(surface, 'ball') },
+      { id: 'form-float', label: t('appShell.agent.toFloat'), onSelect: () => chooseForm(surface, 'float') },
       narrow
         ? { id: 'form-dock', label: t('appShell.agent.toDock'), disabled: true, disabledReason: t('appShell.agent.dockNarrow', { width: NARROW_TIER_WIDTH }), onSelect: () => undefined }
-        : { id: 'form-dock', label: t('appShell.agent.toDock'), onSelect: () => requestForm(surface, 'dock') },
+        : { id: 'form-dock', label: t('appShell.agent.toDock'), onSelect: () => chooseForm(surface, 'dock') },
     ],
     ...(form === 'float' ? { dragHandleClassName: cn(DRAG_HANDLE, 'cursor-move') } : {}),
-  }), [form, narrow, requestForm, surface, t])
+  }), [chooseForm, form, narrow, surface, t])
   // 面板只挂**一棵**稳定的 React 树（react-reverse-portal：InPortal 渲染一次，OutPortal 决定它的 DOM 落在哪）。
   // 三形态切换只是把同一个 DOM 节点挪到停靠栏 / 浮窗 / 隐藏容器，不卸载重挂——待确认卡的勾选与折叠、滚动、
   // 历史分页、线程菜单、草稿都留在原地（#1136 评审阻断 1：此前每种形态 portal 到不同容器，切一次就整棵重挂）。

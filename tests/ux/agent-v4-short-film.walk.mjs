@@ -13,6 +13,7 @@
 // 用法：node tests/ux/agent-v4-short-film.walk.mjs
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -215,7 +216,10 @@ try {
   await waitForV4TurnIdle(win, { panel: CREATION_PANEL, settledBy: panel.locator(ASSISTANT_MESSAGE).last() })
   await expect(panel.locator(ASSISTANT_MESSAGE).last()).toContainText('街—门—杯—人')
 
-  const roomyBounds = await walk.resizeWindow(1100, 720)
+  // 要的不是最小窗，是「最窄的仍停靠窗」：宽 1100 = 窄窗阈值 1060（主内容底线 760 + 停靠栏下限 300）之上留 40 余量，
+  // 面板上限 min(600, 1100−760) = 340 由它推出；高取最小窗的高（只从 _minWindow.mjs 读，不手写）。
+  const DOCK_TIER_NARROWEST = { width: 1100, height: MIN_WINDOW.height }
+  const roomyBounds = await walk.resizeWindow(DOCK_TIER_NARROWEST.width, DOCK_TIER_NARROWEST.height)
   await expect(panel.locator(V4_PANEL), '最小窗下面板仍可停靠，不强制收起').toBeVisible()
   await expect.poll(async () => Math.round((await panel.locator(V4_PANEL).boundingBox())?.width ?? 0),
     { message: '最小窗下面板宽必须收在上限 340 之内（min(600, 1100−760)）', timeout: 30_000 })

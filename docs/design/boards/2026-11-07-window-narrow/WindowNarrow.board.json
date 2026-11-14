@@ -140,7 +140,7 @@
    "states": [
     "narrow"
    ],
-   "component": "electron/main.ts:286-287",
+   "component": "electron/shared/mainWindowSize.json（electron/main.ts 的 BrowserWindow 展开 MIN_WINDOW_SIZE）",
    "candidates": [],
    "status": "implemented",
    "owner": "I-window-narrow-shell",
@@ -155,7 +155,7 @@
    "states": [
     "narrow"
    ],
-   "component": "src/workbench/WorkbenchShell.tsx:278（现有 resize 监听）+ useEffectiveAgentForm（同 dockSuppressed 派生）",
+   "component": "src/ui/app-shell/shell/agentFormStore.ts NARROW_TIER_WIDTH / NARROW_TIER_QUERY + ShellAgentHost.tsx 唯一的 matchMedia（写 windowNarrow）+ useEffectiveAgentForm（同 dockSuppressed 派生）",
    "candidates": [],
    "status": "implemented",
    "owner": "I-window-narrow-shell",

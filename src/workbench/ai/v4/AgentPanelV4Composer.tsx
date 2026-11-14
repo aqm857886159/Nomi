@@ -289,22 +289,31 @@ export function AgentPanelV4Composer({
           <IconChevronDown size={12} className="shrink-0" />
         </V4Row>
         <span className="h-4 w-px shrink-0 bg-nomi-line" aria-hidden="true" />
-        <V4Row as="button"
-          type="button"
-          onClick={() => onTogglePopover?.('skill')}
-          aria-expanded={openPopover === 'skill'}
-          className={cn(
-            'h-7 shrink-0 whitespace-nowrap rounded-nomi-sm px-1 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05',
-            skillSelected && 'bg-nomi-ink-05',
-          )}
-          data-v4-control="skill"
-          aria-pressed={skillSelected}
-          aria-label={t('agentPanelV4.skill')}
-          title={t('agentPanelV4.skill')}
-        >
-          <IconPackage size={14} />
-          <span className="[@container_(max-width:285px)]:hidden">{t('agentPanelV4.skill')}</span>
-        </V4Row>
+        {/* 面板窄到只剩图标时悬停出字：和顶栏「导出 MP4」只留图标时同一个设计系统提示（不用原生 title）。 */}
+        <TooltipProvider delayDuration={250} disableHoverableContent>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex shrink-0">
+                <V4Row as="button"
+                  type="button"
+                  onClick={() => onTogglePopover?.('skill')}
+                  aria-expanded={openPopover === 'skill'}
+                  className={cn(
+                    'h-7 shrink-0 whitespace-nowrap rounded-nomi-sm px-1 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05',
+                    skillSelected && 'bg-nomi-ink-05',
+                  )}
+                  data-v4-control="skill"
+                  aria-pressed={skillSelected}
+                  aria-label={t('agentPanelV4.skill')}
+                >
+                  <IconPackage size={14} />
+                  <span className="[@container_(max-width:285px)]:hidden">{t('agentPanelV4.skill')}</span>
+                </V4Row>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="z-popover" data-v4-skill-hint>{t('agentPanelV4.skill')}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* 2026-09-10 走查反馈：权限+发送两钮会跟着模型名长度左右漂——定稿本就画了
             「Skill …… 权限」之间的推开的空档，这里把空档落成 flex-1 spacer，

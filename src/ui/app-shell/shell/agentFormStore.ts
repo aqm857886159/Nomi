@@ -9,7 +9,8 @@
 // （形态 = 小球 ⇔ 收起，ShellAgentHost 那条 effect），不并存两份各说各的「Agent 现在占不占位」。
 //
 // 窄窗档（WindowNarrow 板，用户 2026-11-07 拍板）：窗口宽 < 1060 时，存着「停靠」的那一页**这一刻**显示成小球，
-// 点开是浮窗；宽回来自动停回。只是派生（同 dockSuppressed），存下的形态一个字节不改——只有人亲手点形态切换才写。
+// 点开是浮窗；宽回来自动停回。窄窗档是纯显示档：点开、收起只改「这一刻怎么摆」（narrowShown），存下的形态一个字节不改，
+// 不管存的是停靠、小球还是浮窗——只有人在形态切换里明确选的那一下才写（chooseForm）。
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { ASSISTANT_CONTENT_FLOOR, ASSISTANT_WIDTH_MIN } from '../../../workbench/assistantWidthBounds'
@@ -60,6 +61,14 @@ function initialWindowNarrow(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(NARROW_TIER_QUERY).matches
 }
 
+/** 窄窗档里「这一刻」的摆法覆盖；null = 按存档派生。 */
+export type NarrowShown = 'ball' | 'float' | null
+
+/** 窄窗档里没人点过时，这一页按存档该怎么摆：停靠放不下 = 小球；小球、浮窗照存档。 */
+function narrowNatural(stored: AgentForm): 'ball' | 'float' {
+  return stored === 'float' ? 'float' : 'ball'
+}
+
 type AgentFormState = {
   bySurface: Record<AgentFormSurface, SurfaceForm>
   setForm: (surface: AgentFormSurface, form: AgentForm) => void
@@ -73,18 +82,25 @@ type AgentFormState = {
   setDockSuppressed: (suppressed: boolean) => void
   /** 窄窗档：窗口宽此刻 < NARROW_TIER_WIDTH。只由 ShellAgentHost 的 matchMedia 写，不持久化。 */
   windowNarrow: boolean
-  /** 窄窗档里，被扣住的停靠此刻以浮窗摆出来（人点开了）；跨阈值即复位。不持久化。 */
-  narrowOpen: boolean
+  /**
+   * 窄窗档里人点开 / 收起之后**这一刻**怎么摆：null = 按存档的样子（停靠、小球 → 小球；浮窗 → 浮窗）；
+   * 'float' = 点开成临时浮窗；'ball' = 收成小球。跨阈值即复位。不持久化。
+   */
+  narrowShown: NarrowShown
   narrowMotion: NarrowMotion
   /** `animate: false` = 启动时的第一次对齐，不是「跨过」阈值，不播过渡。 */
   setWindowNarrow: (narrow: boolean, options?: { animate?: boolean }) => void
   clearNarrowMotion: () => void
   /**
-   * 人亲手要某个形态（形态切换、小球点开 / 右键、⌘J、Mod+\\、别处叫回）的唯一入口。
-   * 窄窗档里停靠被扣着：要小球 / 浮窗只改这一刻怎么摆（narrowOpen），不写存档，宽回来照样停回；
-   * 要停靠 = 记下「停靠」、这一刻以浮窗打开。不在窄窗档就照常写形态。
+   * 点开 / 收起（小球点开 / 右键、⌘J、Mod+\\、别处叫回、指向节点时让开）的唯一入口。
+   * 宽窗照常写形态；窄窗档只改这一刻怎么摆（narrowShown），不写存档——宽回来是存下的那个样子。
    */
   requestForm: (surface: AgentFormSurface, form: AgentForm) => void
+  /**
+   * 人在形态切换（面板头部三选一、「⋯」菜单）里明确选的形态。宽窗 = 写；窄窗档里只有存着浮窗的页
+   * （窄窗里它就是真浮窗）照写，存着停靠 / 小球的页此刻是临时浮窗，选小球 = 收起，同 requestForm 不写。
+   */
+  chooseForm: (surface: AgentFormSurface, form: AgentForm) => void
 }
 
 function initialSurfaces(): Record<AgentFormSurface, SurfaceForm> {
@@ -100,33 +116,34 @@ export const useAgentFormStore = create<AgentFormState>()(persist((set, get) => 
   bySurface: initialSurfaces(),
   dockSuppressed: false,
   windowNarrow: initialWindowNarrow(),
-  narrowOpen: false,
+  narrowShown: null,
   narrowMotion: null,
   setDockSuppressed: (dockSuppressed) => set((state) => (state.dockSuppressed === dockSuppressed ? state : { dockSuppressed })),
   setWindowNarrow: (windowNarrow, options) => set((state) => (state.windowNarrow === windowNarrow ? state : {
     windowNarrow,
-    narrowOpen: false,
+    narrowShown: null,
     narrowMotion: options?.animate === false ? null : windowNarrow ? 'collapse' : 'restore',
   })),
   clearNarrowMotion: () => set((state) => (state.narrowMotion === null ? state : { narrowMotion: null })),
   requestForm: (surface, form) => {
     const state = get()
-    const stored = state.bySurface[surface].form
     if (!state.windowNarrow) {
       state.setForm(surface, form)
       return
     }
-    if (form === 'dock') {
-      if (stored !== 'dock') state.setForm(surface, 'dock')
-      if (!state.narrowOpen) set({ narrowOpen: true })
-      return
-    }
-    if (stored === 'dock') {
-      const narrowOpen = form === 'float'
-      if (state.narrowOpen !== narrowOpen) set({ narrowOpen })
+    // 窄窗里停靠放不下：要停靠 = 要打开 = 此刻浮窗。
+    const want = form === 'dock' ? 'float' : form
+    const narrowShown = want === narrowNatural(state.bySurface[surface].form) ? null : want
+    if (state.narrowShown !== narrowShown) set({ narrowShown })
+  },
+  chooseForm: (surface, form) => {
+    const state = get()
+    if (state.windowNarrow && state.bySurface[surface].form !== 'float') {
+      state.requestForm(surface, form)
       return
     }
     state.setForm(surface, form)
+    if (state.narrowShown !== null) set({ narrowShown: null })
   },
   setForm: (surface, form) => set((state) => (
     state.bySurface[surface].form === form ? state : { bySurface: { ...state.bySurface, [surface]: { ...state.bySurface[surface], form } } }
@@ -200,30 +217,30 @@ export function createBallDragClickGuard(schedule: (reset: () => void) => void =
 export const agentFormStoreLifetime = declareStoreLifetime({
   store: 'useAgentFormStore',
   // 形态与位置是这台机器的界面偏好（每页一份）；「此刻有东西要整块右边」只在这个项目里有意义。
-  fields: { bySurface: 'window', dockSuppressed: 'project', windowNarrow: 'window', narrowOpen: 'window', narrowMotion: 'window' },
+  fields: { bySurface: 'window', dockSuppressed: 'project', windowNarrow: 'window', narrowShown: 'window', narrowMotion: 'window' },
   releaseProject: () => useAgentFormStore.setState({ dockSuppressed: false }),
 })
 
 /**
- * 这一页**此刻**的形态。两条派生，都只作用于存着「停靠」的页，都不写回形态（所以「回来」不需要记任何东西）：
- *  - 窄窗档（窗口宽 < NARROW_TIER_WIDTH）：停靠 = 小球；人点开了（narrowOpen）= 浮窗；
+ * 这一页**此刻**的形态。两条派生，都不写回形态（所以「回来」不需要记任何东西）：
+ *  - 窄窗档（窗口宽 < NARROW_TIER_WIDTH）：人点开 / 收起过就按 narrowShown 摆；没点过：停靠 = 小球，小球、浮窗照存档；
  *  - 有东西要整块右边时（例如生成页列表的大详情置位 dockSuppressed）：停靠 = 小球。
  */
 export function effectiveAgentForm(
   stored: AgentForm,
-  view: { windowNarrow: boolean; narrowOpen: boolean; dockSuppressed: boolean },
+  view: { windowNarrow: boolean; narrowShown: NarrowShown; dockSuppressed: boolean },
 ): AgentForm {
+  if (view.windowNarrow) return view.narrowShown ?? narrowNatural(stored)
   if (stored !== 'dock') return stored
-  if (view.windowNarrow) return view.narrowOpen ? 'float' : 'ball'
   return view.dockSuppressed ? 'ball' : 'dock'
 }
 
 export function useEffectiveAgentForm(surface: AgentFormSurface): AgentForm {
   const stored = useAgentFormStore((state) => state.bySurface[surface].form)
   const windowNarrow = useAgentFormStore((state) => state.windowNarrow)
-  const narrowOpen = useAgentFormStore((state) => state.narrowOpen)
+  const narrowShown = useAgentFormStore((state) => state.narrowShown)
   const dockSuppressed = useAgentFormStore((state) => state.dockSuppressed)
-  return effectiveAgentForm(stored, { windowNarrow, narrowOpen, dockSuppressed })
+  return effectiveAgentForm(stored, { windowNarrow, narrowShown, dockSuppressed })
 }
 
 /** 非 React 处（快捷键、订阅回调）读「此刻的形态」；和 useEffectiveAgentForm 同一条派生。 */

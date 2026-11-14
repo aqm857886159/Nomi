@@ -362,6 +362,14 @@ async function runRound({ locale, scheme, tag, projectName }) {
       check(`${BOARD.tight} 1060（面板 300）：Skill 只留图标、读屏仍念 Skill，模型钮 ≥ 64`, composer.skillTextShown === false && composer.skillLabel === uiText(locale, 'agentPanelV4.skill') && composer.model >= 64 && composer.skillRight <= composer.panelRight, JSON.stringify(composer))
       check(`${BOARD.tight} 1060（面板 300）：发送钮在输入框里、这一排不溢出`, composer.sendInside === true && composer.rowOverflow === 0, JSON.stringify(composer))
       await shot(win, 'creation-1060-dock-tight')
+      // 只剩图标时悬停出字：设计系统提示（同「导出 MP4」只留图标），不是原生 title。
+      const skillButton = win.locator(`${AGENT_PANEL} [data-v4-control="skill"]`).first()
+      await skillButton.hover()
+      const skillHint = win.locator('[data-v4-skill-hint]').first()
+      const hintShown = await skillHint.waitFor({ state: 'visible', timeout: DEFAULT_TIMEOUT_MS }).then(() => true, () => false)
+      const hintText = hintShown ? (await skillHint.textContent())?.trim() : null
+      check(`${BOARD.tight} 1060（面板 300）：悬停 Skill 出设计系统提示「Skill」、钮上没有原生 title`, hintShown && Boolean(hintText?.startsWith(uiText(locale, 'agentPanelV4.skill'))) && (await skillButton.getAttribute('title')) === null, `提示「${hintText}」`)
+      await win.mouse.move(0, HEIGHT / 2)
     }
     await resize(THRESHOLD - 1)
     await expect(narrowBall.first(), '1059 应收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
@@ -580,6 +588,68 @@ async function runRound({ locale, scheme, tag, projectName }) {
     await expect(dockLayer.first(), '回到 1100 应停回').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
     const end = await snapshot()
     check(`${BOARD.noWriteback} 走完回到 1100：存的 Nomi 宽仍是 390、停靠没被改掉`, JSON.parse(end.layout).assistantWidth === 390 && JSON.parse(end.form ?? '{}').state?.bySurface?.creation?.form !== 'ball', `${end.layout.slice(0, 120)}`)
+
+    // ── 存着小球的页：窄窗里点开、收起都不改存档（独立验收 2026-11-14 查出：收起后拉宽 / 重开变成停靠） ──
+    // 人先在宽窗里亲手把创作页收成小球（这一下是形态切换，写存档）；再缩到 700 点小球、问一句、收起；拉到 1280；窄着关掉重开。
+    const storedCreationForm = () => win.evaluate(() => JSON.parse(window.localStorage.getItem('nomi:shell-agent-form:v1') ?? '{}').state?.bySurface?.creation?.form ?? null)
+    const anyBall = win.locator(AGENT_BALL)
+    await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), '1100 创作页亲手收成小球')
+    await expect(anyBall.first(), '1100 收起后应是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    check(`${BOARD.noWriteback} 存小球起点：宽窗里亲手收起 = 存档写成小球`, (await storedCreationForm()) === 'ball', String(await storedCreationForm()))
+    await drag(WIDE, NARROW)
+    await expect(anyBall.first(), '700 存着小球的页应是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await clickOrFail(anyBall.first(), '700 点小球（存着小球）')
+    await expect(win.locator('[data-agent-float]').first(), '700 存着小球、点小球应出浮窗').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    check(`${BOARD.noWriteback} 存小球 · 700 点开：存档还是小球`, (await storedCreationForm()) === 'ball', String(await storedCreationForm()))
+    await shot(win, 'stored-ball-700-open')
+    await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), '700 浮窗收起（存着小球）')
+    await expect(anyBall.first(), '700 收起后应是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    check(`${BOARD.noWriteback} 存小球 · 700 收起：存档还是小球`, (await storedCreationForm()) === 'ball', String(await storedCreationForm()))
+    await shot(win, 'stored-ball-700-collapsed')
+    const ROOMY = 1280
+    await drag(NARROW, ROOMY)
+    await win.waitForTimeout(600)
+    {
+      const dockAfter = await win.locator('[data-shell-agent-layer][data-agent-form="dock"]').count()
+      check(`${BOARD.noWriteback} 存小球 · 拉到 1280：画面上是小球、没有停靠栏`, (await anyBall.first().isVisible()) && dockAfter === 0, `停靠栏 ${dockAfter}`)
+      check(`${BOARD.noWriteback} 存小球 · 拉到 1280：存档还是小球`, (await storedCreationForm()) === 'ball', String(await storedCreationForm()))
+    }
+    await shot(win, 'stored-ball-1280')
+    // 窄着关掉重开：同一份本机资料（userData），只剩落盘那份。
+    await resize(NARROW)
+    await clickOrFail(anyBall.first(), '700 再点开一次（关窗时浮窗开着）')
+    await expect(win.locator('[data-agent-float]').first()).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await app.close()
+    app = undefined
+    const relaunched = await launchNomiApp({
+      name: `window-narrow-shell-${tag}-relaunch`, tempRoot, projectsDir, settleMs: 0, timeout: 300_000,
+      ...(executablePath ? { executablePath } : {}),
+      viewportSize: { width: NARROW, height: HEIGHT },
+    })
+    app = relaunched.app
+    win = relaunched.win
+    const projectCard = win.locator('[data-project-card]', { hasText: projectName.slice(0, 12) }).first()
+    // 重开落在项目库（不自动开上次的项目）就点回那个项目；已经在项目里就跳过。
+    const onLibrary = await Promise.race([
+      projectCard.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) }).then(() => true),
+      win.locator('.nomi-stepper').first().waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) }).then(() => false),
+    ]).catch(() => false)
+    if (onLibrary) {
+      await clickOrFail(projectCard, 'reopen project', { timeout: stationTimeout() })
+      for (let i = 0; i < 40 && !app.windows().some((page) => /projectId=/.test(page.url())); i += 1) await win.waitForTimeout(250)
+      win = app.windows().find((page) => /projectId=/.test(page.url())) ?? win
+    }
+    await resize(NARROW)
+    await win.locator('.nomi-stepper').first().waitFor({ timeout: stationTimeout({ operations: 2 }) })
+    await switchWorkspace(win, 'creation')
+    await expect(win.locator(AGENT_BALL).first(), '窄着重开：存着小球的创作页应是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    check(`${BOARD.noWriteback} 存小球 · 窄着关掉重开：存档还是小球`, (await storedCreationForm()) === 'ball', String(await storedCreationForm()))
+    await resize(ROOMY)
+    await win.waitForTimeout(600)
+    {
+      const dockAfter = await win.locator('[data-shell-agent-layer][data-agent-form="dock"]').count()
+      check(`${BOARD.noWriteback} 存小球 · 重开后拉到 1280：还是小球、没有停靠栏`, (await win.locator(AGENT_BALL).first().isVisible()) && dockAfter === 0, `停靠栏 ${dockAfter}`)
+    }
   } catch (error) {
     failures.push(`${tag}: ${error.message.split('\n')[0]}`)
     console.log(`  ❌ ${tag} 中断：${error.message}`)

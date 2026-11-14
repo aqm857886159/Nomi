@@ -289,7 +289,11 @@ async function runRound(walk, win, { locale, scheme, round }) {
   const facts = walk.report.rounds[round] = { locale, scheme, nodes: [first, second, third] }
 
   await walk.resizeWindow(COUNTER_WINDOW.width, COUNTER_WINDOW.height)
-  await expect(win.locator(FLOAT), `${round}：${COUNTER_WINDOW.width} 宽里对话仍是浮窗`).toBeVisible()
+  // 窄窗里点开的是临时浮窗、不写存档（WindowNarrow 板 D2）：生成页存的是小球，拉宽回到小球。人在宽窗里点小球再叫出浮窗——这一下才存成浮窗，
+  // 之后回最小窗也还是这个浮窗（下面「拉大浮窗」那段靠它）。
+  await expect(win.locator('[data-agent-ball]').first(), `${round}：窄窗里点开的临时浮窗，拉宽回到存下的小球`).toBeVisible()
+  await expandResidentPanel(win)
+  await expect(win.locator(FLOAT), `${round}：${COUNTER_WINDOW.width} 宽里点小球叫出浮窗`).toBeVisible()
   const formBefore = await rectOf(win, FLOAT)
   facts.titlesAtStart = { floatWidth: formBefore?.width ?? null, texts: await expectTitlesTellable(card, `卡刚出来（浮窗 ${Math.round(formBefore?.width ?? 0)}px）`) }
   if (formBefore && (await floatCoverage(win)) < 0.5) {
