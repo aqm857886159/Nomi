@@ -205,3 +205,43 @@ describe("槽位下限：Run 路显式首尾帧只给 1 张图（协调 2026-11-
     expect(record.request?.body).toMatchObject({ first_frame_image: IMG_A, last_frame_image: `${IMG_A}?last` });
   });
 });
+
+describe("渠道走不了这个方式：Suno V5.5 在 APIMart 上续写 / 翻唱（APIMart 只有文生音乐那条路，请求体没有放原曲的位置）", () => {
+  const SUNO = () => getArchetypeById("suno-v5.5")!;
+  const routeMissing = (modeId: string) => desktopT("modeInput.routeMissing", { mode: SUNO().modes.find((m) => m.id === modeId)!.vendorTerm, slot: slotOf(SUNO(), modeId, "audio_ref") });
+  const sunoCanvas = (vendorKey: string, modeId: string) => driveEngineA(capture, {
+    vendorKey, kind: "text_to_audio", prompt: "一段旋律",
+    extras: { modelKey: "suno-v5.5", nodeId: "parity-node", projectId: "parity-project", archetype: { id: "suno-v5.5", modeId }, referenceAudioUrls: [AUD_A] },
+  });
+  beforeAll(async () => { await seedParityCatalog(["apimart", "kie"]); });
+
+  it.each(["extend", "cover"])("%s 给了原曲 → 不发、零请求、机读码 mode_route_missing，原话说「这家没有这个方式」而不是「请求里没有原曲」（中英两轨）", async (modeId) => {
+    const record = await sunoCanvas("apimart", modeId);
+    expect(capture.calls).toHaveLength(0);
+    expect(record.failure?.code).toBe("mode_route_missing");
+    expect(record.failure?.message).toBe(routeMissing(modeId));
+    // Run 路更早一步就拒了：生成门按这条 mapping 收哪些参数核对，audio_urls 不在里面（这一刀之前就是这样，不经过发送前核输入）。
+    const viaRun = await run({ modelId: "suno-v5.5", modeId, mode: "text_to_audio", refs: [audio(AUD_A)] });
+    expect(capture.calls).toHaveLength(0);
+    expect(viaRun.failure?.message).toContain("audio_urls");
+    setDesktopLocale("en");
+    try {
+      const english = await sunoCanvas("apimart", modeId);
+      expect(english.failure?.code).toBe("mode_route_missing");
+      expect(english.failure?.message).toBe(routeMissing(modeId));
+    } finally {
+      setDesktopLocale("zh-CN");
+    }
+  });
+
+  it("没给原曲 → 仍是「请求里没有」那一句（两种数成 0 分得开）", async () => {
+    const record = await driveEngineA(capture, { vendorKey: "apimart", kind: "text_to_audio", prompt: "一段旋律", extras: { modelKey: "suno-v5.5", nodeId: "parity-node", archetype: { id: "suno-v5.5", modeId: "extend" } } });
+    expectRefused(record, () => desktopT("modeInput.slotMissing", { slot: slotOf(SUNO(), "extend", "audio_ref") }));
+  });
+
+  it.each(["extend", "cover"])("反过来：kie 上有 %s 这条路、原曲给全 → 照发，请求体里带着原曲", async (modeId) => {
+    const record = await sunoCanvas("kie", modeId);
+    expect(record.failure, JSON.stringify(record.failure)).toBeUndefined();
+    expect(JSON.stringify(record.request?.body)).toContain(AUD_A);
+  });
+});

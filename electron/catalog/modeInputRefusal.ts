@@ -15,6 +15,12 @@ export class ModeInputMissingError extends Error implements DefiniteSendRefusal 
   readonly definiteSendRefusal = true as const;
 }
 
+/** 发送前拒收：素材给了，但当前这家的请求里没有这个方式要的那一族素材的位置（发出去一定丢素材）。 */
+export class ModeRouteMissingError extends Error implements DefiniteSendRefusal {
+  readonly code = "mode_route_missing";
+  readonly definiteSendRefusal = true as const;
+}
+
 function slotName(mode: ArchetypeMode, kind: ArchetypeReferenceSlotKind): string {
   const label = mode.slots.find((slot) => slot.kind === kind)?.label ?? "";
   // 英文轨按槽的种类说；编辑 / 续写方式里的视频是被改的那段「源视频」，不是参考视频（中文轨用档案的槽名，本来就写着源视频）。
@@ -44,6 +50,8 @@ function modeThatFitsInputs(archetype: ModelArchetype, current: ArchetypeMode, c
 export function modeInputRefusal(archetype: ModelArchetype, mode: ArchetypeMode, counts: ReferenceCounts, violation: ModeConstraintViolation): Error {
   const refuse = (message: string): Error => new ModeInputMissingError(`${message}${modeThatFitsInputs(archetype, mode, counts)}`);
   switch (violation.kind) {
+    case "slotUnrouted":
+      return new ModeRouteMissingError(`${desktopT("modeInput.routeMissing", { mode: mode.vendorTerm, slot: slotName(mode, violation.slot) })}${modeThatFitsInputs(archetype, mode, counts)}`);
     case "slotMissing":
       return refuse(desktopT("modeInput.slotMissing", { slot: slotName(mode, violation.slot) }));
     case "companionMissing":

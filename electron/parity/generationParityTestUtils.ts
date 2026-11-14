@@ -12,6 +12,7 @@
  */
 import type { CatalogState } from "../catalog/types";
 import { redactAuthorization, type OutboundRecord } from "./outboundRecord";
+import { definiteSendRefusalOf } from "../shared/generationDefiniteSendRefusal";
 
 export type CapturedCall = {
   url: string;
@@ -136,8 +137,10 @@ function recordFromCall(call: CapturedCall | undefined, notes?: Record<string, u
 
 function failureCode(error: unknown): string {
   const candidate = error as { code?: unknown; name?: unknown; message?: unknown; cause?: { code?: unknown } };
-  // 发送前的输入判定（modeInputRefusal 的 ModeInputMissingError）经 Run 路的供应商包装后机读码只在 cause 上：只认这一个，别的样本口径不变。
-  if (candidate?.cause?.code === "mode_input_missing") return "mode_input_missing";
+  // 发送前确定拒收（modeInputRefusal 的 mode_input_missing / mode_route_missing）经 Run 路的供应商包装后机读码只在 cause 上：
+  // 认确定拒收这一个接口（和 Run 提交门同一个读法），别的样本口径不变。
+  const definite = definiteSendRefusalOf(error);
+  if (definite) return definite.code;
   if (typeof candidate?.code === "string" && candidate.code.trim()) return candidate.code;
   const message = String(candidate?.message ?? error);
   // 供应商就绪那一步的机读身份（`mcpGenerationTools.ts:638` 的 `configured_provider`）。
