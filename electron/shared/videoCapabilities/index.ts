@@ -1,4 +1,5 @@
-export { buildVideoModelCandidates, sourceBackedVideoProfiles, transportTaskKindForModeId, videoArchetypeIdFromMeta } from "./registry";
+export { sourceBackedVideoProfiles, transportTaskKindForModeId, videoArchetypeIdFromMeta } from "./registry";
+export { buildVideoModelCandidates } from "./videoModelCandidates";
 
 // Video archetype definitions live here (canonical home). This barrel is the
 // single public surface the renderer imports from — no re-export shells in
