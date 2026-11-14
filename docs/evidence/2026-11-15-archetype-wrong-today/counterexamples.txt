@@ -1,0 +1,11 @@
+A 全扫改回只点名几个模型: 改坏 rc=1 [2 failed | 15 passed (17)] → 还原 rc=0 [17 passed (17)]  OK
+B 登记里多加一条（发得出去的格子）: 改坏 rc=1 [2 failed | 15 passed (17)] → 还原 rc=0 [17 passed (17)]  OK
+C Veo 图模式露出比例但请求里不带: 改坏 rc=1 [6 failed | 292 passed (298)] → 还原 rc=0 [298 passed (298)]  OK
+D GPT Image 2 改图「自动」又带上 size: 改坏 rc=1 [4 failed | 301 passed (305)] → 还原 rc=0 [305 passed (305)]  OK
+E Veo 图模式又藏掉比例: 改坏 rc=1 [1 failed | 16 passed (17)] → 还原 rc=0 [17 passed (17)]  OK
+F 把 webhook 控件加回 H3 档案: 改坏 rc=1 [3 failed | 35 passed (38)] → 还原 rc=0 [38 passed (38)]  OK
+G GPT Image 2.5 改图 body 改回 size: 改坏 rc=1 [1 failed | 36 passed (37)] → 还原 rc=0 [37 passed (37)]  OK
+H Seedance 2.0 放素材的方式又要求提示词: 改坏 rc=1 [1 failed | 16 passed (17)] → 还原 rc=0 [17 passed (17)]  OK
+I Seedream 4.5 文生比例加回 auto: 改坏 rc=1 [1 failed | 16 passed (17)] → 还原 rc=0 [17 passed (17)]  OK
+J 可灵 3.0 APIMart 图生又给比例: 改坏 rc=1 [2 failed | 15 passed (17)] → 还原 rc=0 [17 passed (17)]  OK
+git status after: clean
