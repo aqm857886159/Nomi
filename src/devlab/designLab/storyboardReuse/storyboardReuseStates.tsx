@@ -3,6 +3,7 @@
 import { REUSE_STATES } from './states/01-reuse'
 import { LAYOUT_STATES } from './states/02-layout'
 import { PORTRAIT_STATES } from './states/03-portrait'
+import { YIELD_STATES } from './states/04-yield'
 import type { LabState } from '../labScreen'
 
-export const STORYBOARD_REUSE_STATES: readonly LabState[] = [...REUSE_STATES, ...LAYOUT_STATES, ...PORTRAIT_STATES]
+export const STORYBOARD_REUSE_STATES: readonly LabState[] = [...REUSE_STATES, ...LAYOUT_STATES, ...PORTRAIT_STATES, ...YIELD_STATES]

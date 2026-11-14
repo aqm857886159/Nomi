@@ -21,7 +21,7 @@ import {
 } from './controls/parameterControlModel'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
 import { summaryFitCandidates } from './composerHeadlineSummary'
-import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldLadder, modeIconRecognizable } from './composerBarYield'
+import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldLadder, modeHasIcon } from './composerBarYield'
 import { useDedupedModelSelect, type ModelVariantMenu } from '../../common/useDedupedModelSelect'
 import { localizeAutoOption } from './parameterOptionPresentation'
 import {
@@ -260,8 +260,7 @@ export default function InlineParameterBar({
   // 量法：从「什么都不让」起一级一级往上试，直到参数条里的东西不再超出参数条（布局前同步做完，不闪）。
   // 判据是底栏自己的宽（ResizeObserver 看底栏那一行），不读窗口宽。分镜最窄一档（wrap）整颗换行，不走这里。
   const fitCandidates = footer && !wrap && parts.length ? summaryFitCandidates(parts) : null
-  // 方式格只在图标认得出来时才收（modeIconRecognizable：有图标、同菜单里不和别的方式撞图标）。
-  const modeCollapsible = modeIconRecognizable(modeMenu?.options, modeMenu?.value)
+  const modeCollapsible = modeHasIcon(modeMenu?.options, modeMenu?.value)
   const ladder = footer && !wrap
     ? composerYieldLadder({ sendCollapsible: Boolean(footer.action), modeCollapsible, summaryCandidates: fitCandidates?.length ?? 1 })
     : [COMPOSER_YIELD_NONE]

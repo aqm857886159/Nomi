@@ -211,6 +211,44 @@ try {
     await second.context.close()
   }
 
+  // ── ②b 高级设置展开后滚进可视区（#1525 验收条件 1、4）：最小窗列表详情 + 分镜行 1280×800 ──
+  // 先把可滚容器滚到「高级设置」图标刚好贴在可视区下沿（展开段一定落在可视区外），再点开：展开段下沿必须回到可视区里。
+  for (const { lang, scheme } of RUNS) {
+    for (const [screen, state, viewport] of [['generation-list', 'list-detail-done', { width: 700, height: 720 }], ['storyboard', 'sb-row-01-draft-inherited-aspect', { width: 1280, height: 800 }]]) {
+      const tag = `${state} ${viewport.width}x${viewport.height} ${lang}-${scheme}`
+      const { page, context } = await open(state, { lang, scheme, screen, viewport })
+      const toggle = page.locator('[data-advanced-settings-toggle]').first()
+      let facts = null
+      try {
+        await proveProbe(toggle, `${state} 里有「高级设置」图标`)
+        const parked = await toggle.evaluate((el) => {
+          let node = el.parentElement
+          while (node && !(/(auto|scroll)/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1)) node = node.parentElement
+          if (!node) return null
+          const r = el.getBoundingClientRect(); const c = node.getBoundingClientRect()
+          node.scrollTop += r.bottom - c.bottom + 2
+          return { scrollerTop: node.scrollTop }
+        })
+        await page.waitForTimeout(100)
+        await toggle.click()
+        await page.waitForFunction(() => Boolean(document.querySelector('[data-advanced-settings]')), null, { timeout: stationTimeout({ operations: 1 }) })
+        await page.waitForTimeout(600)
+        facts = await page.evaluate(() => {
+          const section = document.querySelector('[data-advanced-settings]')
+          let node = section?.parentElement
+          while (node && !(/(auto|scroll)/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1)) node = node.parentElement
+          const s = section.getBoundingClientRect(); const c = node ? node.getBoundingClientRect() : { top: 0, bottom: window.innerHeight }
+          return { sectionBottom: Math.round(s.bottom), sectionTop: Math.round(s.top), visibleTop: Math.round(Math.max(0, c.top)), visibleBottom: Math.round(Math.min(window.innerHeight, c.bottom)), hasScroller: Boolean(node) }
+        })
+        facts.parked = parked
+      } catch (error) { facts = { error: String(error).split('\n')[0] } }
+      report.narrow.push({ what: 'advanced-reveal', state, lang, facts })
+      check(`board:ComposerParams/advanced.section · 展开后下沿在可视区里（${tag}）`, Boolean(facts && !facts.error) && facts.sectionBottom <= facts.visibleBottom + 1 && facts.sectionTop >= facts.visibleTop - 1, JSON.stringify(facts))
+      await shot(page, `advanced-reveal-${state}-${viewport.width}x${viewport.height}-${lang}-${scheme}`, { full: true })
+      await context.close()
+    }
+  }
+
   // ── ③ 分镜行 / 参考卡：同一只底栏 ──
   for (const { lang, scheme } of RUNS) {
     // 参考卡出过图后，生成走图下的「重新生成」，底栏里本来就没有生成钮（02 两张都已出图）；
@@ -249,6 +287,32 @@ try {
     }
   }
 
+  // ── ③b 边界：最窄不换行的分镜行（行内宽 520）× 名字最长的视频模型 × 最长方式名 ──
+  // 谁让、让到哪：生成钮 → 摘要整值地减 → 方式图标 → 模型名最后省略；底栏不溢出、不折行，摘要不截半个值。
+  for (const { lang, scheme } of RUNS) {
+    const state = `sbl-yield-narrowest-longest-${lang}`
+    const { page, context } = await open(state, { lang, scheme, screen: 'storyboard-reuse' })
+    const facts = await page.evaluate(() => {
+      const footer = document.querySelector('[data-node-composer-footer]')
+      if (!footer) return null
+      const summary = footer.querySelector('[data-parameter-summary]')
+      const shown = (summary?.getAttribute('data-parameter-summary') ?? '').split(' · ').filter(Boolean)
+      const full = (summary?.getAttribute('title') ?? '').split(' · ').filter(Boolean)
+      return {
+        level: footer.getAttribute('data-bar-yield-level'),
+        overflow: footer.scrollWidth > footer.clientWidth + 1,
+        tall: Math.round(footer.getBoundingClientRect().height) > 32,
+        sendIconOnly: Boolean(footer.querySelector('[data-icon-only]')),
+        midCut: shown.some((value) => !full.includes(value)),
+        width: Math.round(footer.getBoundingClientRect().width),
+      }
+    })
+    report.storyboard.push({ state, lang, ...facts })
+    check(`边界 · ${state}：底栏在让（生成钮先收成 ↑）、不溢出、不折行、摘要不截半个值`, Boolean(facts) && facts.level !== null && facts.sendIconOnly && !facts.overflow && !facts.tall && !facts.midCut, JSON.stringify(facts))
+    await shot(page, `${state}-${scheme}`)
+    await context.close()
+  }
+
   // ── ④ 全目录矩阵 ──
   if (WITH_MATRIX) {
     const matrix = { zh: null, en: null }
@@ -257,7 +321,7 @@ try {
       const modelLabel = t('generationCommon.parameters.model')
       const { page, context } = await open('cp-matrix', { lang, scheme: 'light' })
       const combos = await page.evaluate(() => window.__cpMatrix.combos)
-      const tally = { combos: combos.length, threeOrMore: 0, two: 0, durationOnly: 0, oneOther: 0, noParams: 0, modelEllipsis: 0, problems: [], noFooter: [] }
+      const tally = { combos: combos.length, threeOrMore: 0, two: 0, durationOnly: 0, oneOther: 0, noParams: 0, modelEllipsis: 0, midCut: [], problems: [], noFooter: [] }
       for (const combo of combos) {
         const id = `${combo.archetypeId}/${combo.modeId}`
         await page.evaluate((c) => window.__cpMatrix.set(c), combo)
@@ -293,10 +357,14 @@ try {
         else if (shown.length === 1 && /\d+\s*(s|秒)$/.test(shown[0])) tally.durationOnly += 1
         else tally.oneOther += 1
         if (modelClipped) tally.modelEllipsis += 1
+        // 从半个值中间截（#1525 验收条件 2）：露出来的每个值都必须是完整值之一，摘要格自己也不许被省略号截。
+        const summaryCell = f.summary && f.cells.find((cell) => cell.title === f.summary.title)
+        if (shown.some((value) => /…/.test(value) || !full.includes(value)) || summaryCell?.clipped) tally.midCut.push({ id, shown: f.summary?.text, full: f.summary?.title })
         if (overlaps || outside || f.overflow || tall) tally.problems.push({ id, overlaps, outside, overflow: f.overflow, tall, summary: f.summary, model: model?.title ?? null })
       }
       matrix[lang] = tally
-      console.log(`  矩阵 ${lang}：${JSON.stringify({ ...tally, problems: tally.problems.length, noFooter: tally.noFooter.length })}`)
+      console.log(`  矩阵 ${lang}：${JSON.stringify({ ...tally, midCut: tally.midCut.length, problems: tally.problems.length, noFooter: tally.noFooter.length })}`)
+      check(`边界 · 全目录矩阵 ${lang}：摘要从半个值中间截 0 处 · ${combos.length} 个组合`, tally.midCut.length === 0, JSON.stringify(tally.midCut.slice(0, 5)))
       check(`边界 · 全目录矩阵 ${lang}：底栏不互相盖、不出框、不折行 · ${combos.length} 个组合`, tally.problems.length === 0, JSON.stringify(tally.problems.slice(0, 5)))
       await context.close()
     }

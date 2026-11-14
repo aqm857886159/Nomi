@@ -2,7 +2,7 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { ComposerSendButton } from './ComposerSendButton'
-import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldLadder, modeIconRecognizable } from './composerBarYield'
+import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldLadder, modeHasIcon } from './composerBarYield'
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 
@@ -61,15 +61,15 @@ describe('composerYieldLadder 让法顺序', () => {
     expect(ladder.findIndex((step) => step.modelEllipsis)).toBe(ladder.length - 1)
   })
 
-  it('方式格只在图标认得出来时才收：没图标、同菜单撞图标都不收', () => {
+  it('方式格有图标就收（撞图标也收），没图标保留文字', () => {
     const A = (): null => null
     const B = (): null => null
     const opts = [{ value: 't2v', glyph: <A /> }, { value: 'ref', glyph: <B /> }, { value: 'edit', glyph: <B /> }, { value: 'x' }]
-    expect(modeIconRecognizable(opts, 't2v')).toBe(true)
-    expect(modeIconRecognizable(opts, 'ref')).toBe(false)
-    expect(modeIconRecognizable(opts, 'edit')).toBe(false)
-    expect(modeIconRecognizable(opts, 'x')).toBe(false)
-    expect(modeIconRecognizable(undefined, 't2v')).toBe(false)
+    expect(modeHasIcon(opts, 't2v')).toBe(true)
+    expect(modeHasIcon(opts, 'ref')).toBe(true)
+    expect(modeHasIcon(opts, 'edit')).toBe(true)
+    expect(modeHasIcon(opts, 'x')).toBe(false)
+    expect(modeHasIcon(undefined, 't2v')).toBe(false)
   })
 
   it('没有可收的钮 / 方式格时跳过那一步，顺序不变', () => {

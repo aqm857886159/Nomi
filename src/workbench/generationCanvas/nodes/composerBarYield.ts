@@ -49,20 +49,13 @@ export function composerYieldLadder({ sendCollapsible, modeCollapsible, summaryC
   return steps
 }
 
-type IconBearing = { value?: string; glyph?: React.ReactNode; icon?: unknown }
-const iconOf = (option: IconBearing | undefined): unknown => (
-  option?.glyph && React.isValidElement(option.glyph) ? option.glyph.type : option?.glyph ?? option?.icon
-)
-
 /**
- * ③ 方式格能不能收成图标：选中的方式有图标，且同一个菜单里没有别的方式用同一个图标——
- * 参考 / 编辑 / 延长共用一个图标的菜单，收成图标就分不清是哪一种了。认不出就不收、保留文字，直接进 ④。
+ * ③ 方式格能不能收成图标：选中的方式有图标就收（同一菜单里几种方式共用一个图标也收——全名在悬停、读屏、下拉里都有，
+ * 模型名连着价钱，排在它后面让；2026-11-14 协调裁决）。没有图标就不收、保留文字，直接进 ④。
  */
-export function modeIconRecognizable(options: readonly IconBearing[] | undefined, value: string | undefined): boolean {
+export function modeHasIcon(options: readonly { value?: string; glyph?: React.ReactNode; icon?: unknown }[] | undefined, value: string | undefined): boolean {
   const selected = options?.find((option) => option.value === value)
-  const icon = iconOf(selected)
-  if (!icon) return false
-  return !options!.some((option) => option !== selected && iconOf(option) === icon)
+  return Boolean(selected?.glyph || selected?.icon)
 }
 
 /** 发给底栏里别的组件（生成钮）的那一份：默认 = 没在让（不在这只底栏里的用法一个像素不变）。 */
