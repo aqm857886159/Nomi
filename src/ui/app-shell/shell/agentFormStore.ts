@@ -4,7 +4,8 @@
 // 这里只存结果；只有一件事是自己算的：窗口缩小 / 浮窗被拖出可见区时把它夹回来（`clampRect`），
 // 因为 react-rnd 的 `bounds` 只在拖动中生效、容器变小时不会重新夹（见设计卡格 ★3）。
 //
-// `projectAgentDockCollapsed`（Agent 的 layout.read/write 契约里叫 visibility.assistant）只由这里的形态单向写
+// Nomi 栏开没开**记在这台机器上**，就是这里每页的形态（用户 2026-11-13 拍板「跟机器走」）；不写进项目文件。
+// 显示态 `projectAgentDockCollapsed`（Agent layout.read 的 visibility.assistant）只由这里的形态单向写
 // （形态 = 小球 ⇔ 收起，ShellAgentHost 那条 effect），不并存两份各说各的「Agent 现在占不占位」。
 //
 // 窄窗档（WindowNarrow 板，用户 2026-11-07 拍板）：窗口宽 < 1060 时，存着「停靠」的那一页**这一刻**显示成小球，

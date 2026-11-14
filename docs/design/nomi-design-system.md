@@ -1262,6 +1262,7 @@ showUndoToast({ message, onUndo, isUndoable, watchUndoable })
 | Agent 形态：浮窗（可拖动、可改大小的小窗）| `IconPictureInPicture` | Agent 面板头部三选一、小球右键菜单（`ShellAgentHost`，2026-10-08 CanvasAgent 板）。画中画图形 = 「浮在内容上的一块小窗」，`IconAppWindow` 读成整窗 |
 | Agent 形态：停靠在右侧 | `IconLayoutSidebarRight` | 同上三选一与右键菜单。与左栏收起用的 `IconLayoutSidebarLeftCollapse` 同族，方向说明停在哪一边 |
 | 中英互译提示词（选中段或整段，原地替换）| `IconLanguage` | 生成节点浮框 B 簇 `NodePromptTranslator`，在「优化」左边。词典里没有现成的：`IconWorld` 读成「联网/公开」、`IconAbc`/`IconLetterCase` 读成「大小写/字体」——「文/A」双字形是各家翻译按钮的通用图形，遮住文字也说得出是翻译 |
+| 模型是谁家的（模型菜单每行 + 底栏模型格）| **品牌图标，不是 Tabler**：`@lobehub/icons-static-svg`（MIT）单色 svg，一张「模型家族 → 图标」表（`src/config/modelFamilyIcons.ts`），表里没有的显示名字首字母方块；组件里不按供应商 / 模型名分支 | 模型菜单行（28px 方块，`NomiIdentityIcon` `size="lg"`）与底栏模型格（同一枚 sm / md，底栏挤时参数格先让、模型名最后让、图标永不让）。**只认档案里写明的家族**——自定义模型不借别家的脸；单色图标暗色下反相。品牌图是「身份」不是「动作」，不进 `check:icon-semantics` 词典，也不能拿来当按钮图标（2026-11-14，样张 K6）|
 | 你的项目和素材留在本机、这次操作不动它（一句保证，放在动作前的说明行里）| `IconShieldCheck` | 应用内更新弹窗 `UpdateDialog` 的「项目和素材都在你电脑上，更新只换 Nomi 本身」那一行（2026-10-09）。词典里没有现成的：`IconLock` 已是「自动化与权限 / 受限」的语义，在这里会读成「被锁住」；`IconFolder` 读成「文件夹入口」而不是「保证」；`IconCircleCheck` 只表状态完成，不表保护。|
 | 剪辑（取视频的一段，拖入点 / 出点）| `IconCut` | 视频节点浮条「剪辑」钮（样张 `video-node-next`，2026-10-09 待拍板）。与剪辑节点「分割片段」同一把刀：都是在时间轴上切 |
 | 拆解（把一条视频按镜头分开）| `IconLayoutRows` | 视频节点浮条「拆解▾」及其「按镜头拆」项（同上样张）。取分镜分类图标（§7 shots）：拆出来的产物就是分镜，不再用剪刀，免得和「剪辑」并排两把剪刀；创作区选区浮条「拆成镜头」（2026-11-12 用户拍板样张 B，替掉读作「视频」的胶片 `IconMovie`，钮挪到「AI 编辑」右边，不和图片 / 视频排在「生成」组里） |

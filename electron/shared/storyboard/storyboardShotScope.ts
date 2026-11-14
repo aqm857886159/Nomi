@@ -9,7 +9,7 @@ import type { ModelParameterControl } from '../videoCapabilities/types'
  * 2026-09-12 从「画幅作用域」推广成「整片级设置作用域」）。
  *
  * 为什么单独一层：v5 把画幅当逐镜参数——只有 `PlanShot.params.aspect_ratio` 一处在写，
- * 批量条的「整片画幅」其实是「把同一个值抄进每一行」。于是"这一镜真的不一样"和
+ * 整片画幅选择器当时其实是「把同一个值抄进每一行」。于是"这一镜真的不一样"和
  * "这一镜只是继承了整片默认"在数据上长得一模一样，UI 分不出来，只能每行常驻一枚
  * 永远显示同一个值的胶囊（95% 的行里零信息量）。
  *
@@ -26,7 +26,7 @@ import type { ModelParameterControl } from '../videoCapabilities/types'
  * v6 只做对了一半：`plan.aspectRatio` 是真相源没错，但**只有分镜表 UI 在读它**。落画布那两条路
  * （`storyboardPlan.buildShotRowNodes` 建节点、`storyboardProjection.projectShotNode` 写回节点）
  * 各自直接铺 `shot.params`，于是"继承整片默认"的行——也就是 95% 的行——落到画布上**不带
- * `aspect_ratio`**，静默回落成模型档案默认（`auto` / `16:9`）。用户在批量条上设成 9:16、
+ * `aspect_ratio`**，静默回落成模型档案默认（`auto` / `16:9`）。用户在整片画幅上设成 9:16、
  * 表里每一格也画成竖的，出片仍是横的：**界面显示的和请求体携带的是两份真相**。
  *
  * 根因不是"少合并了一个键"，而是**这一层只导出了给 UI 看的 getter，没导出给请求体用的 resolver**。
@@ -41,7 +41,7 @@ import type { ModelParameterControl } from '../videoCapabilities/types'
  * 且两条落地路径都没有绕过 resolver 直接铺 `shot.params`。
  */
 
-/** 画幅预设（批量条与行级覆盖共用一份；档案声明了别的档时按并集出，不拦供应商的自定义值）。 */
+/** 画幅预设（整片画幅与行级覆盖共用一份；档案声明了别的档时按并集出，不拦供应商的自定义值）。 */
 export const ASPECT_OPTIONS: readonly string[] = ['16:9', '9:16', '1:1', '4:3', '3:4', '3:2', '2:3']
 
 /**
@@ -92,7 +92,7 @@ function profileDefaultAspect(plan: StoryboardPlan): string {
   return ''
 }
 
-/** 整片默认画幅（批量条那枚胶囊显示的值；'' = 还没定，按模型默认走）。 */
+/** 整片默认画幅（整片画幅那枚胶囊显示的值；'' = 还没定，按模型默认走）。 */
 export function planDefaultAspect(plan: StoryboardPlan): string {
   // 显式设过 → 就是它（含显式设成 '' = 交回模型默认）。没设过才按「全镜共同值 → 片种声明」derive。
   return plan.aspectRatio ?? (commonShotAspect(plan) || profileDefaultAspect(plan))
@@ -101,8 +101,7 @@ export function planDefaultAspect(plan: StoryboardPlan): string {
 /**
  * 登记表：加一条整片级设置就在这里加一行。
  *
- * 今天只有画幅一条真的住在 plan 上。类型 / 模型 / 时长的"整片"入口是**批量编辑**
- * （`storyboardPlanEdits.apply*ToAll` 把值写进每一行），它们在数据上就是逐镜值、没有第二段作用域，
+ * 今天只有画幅一条真的住在 plan 上。类型 / 模型 / 时长没有"整片"入口（逐镜各改各的；早先的批量编辑已删），它们在数据上就是逐镜值、没有第二段作用域，
  * 因此不属于这张表——落画布时本来就随 `shot.*` 一起走。把它们塞进来等于再造一遍 v5 那个
  * "抄进每一行"的老问题。见 `docs/plan/2026-09-12-storyboard-plan-defaults-passthrough.md` 的普查表。
  */
@@ -128,7 +127,7 @@ export function effectiveShotAspect(plan: StoryboardPlan, shot: PlanShot): strin
   return shotAspectOverride(shot) ?? planDefaultAspect(plan)
 }
 
-/** 覆盖了画幅的行数（批量条右侧那句"已覆盖画幅的 N 镜不跟着变"读它）。 */
+/** 覆盖了画幅的行数（整片画幅旁那句"已覆盖画幅的 N 镜不跟着变"读它）。 */
 export function overriddenAspectCount(plan: StoryboardPlan): number {
   return plan.shots.filter((shot) => isAspectOverridden(plan, shot)).length
 }

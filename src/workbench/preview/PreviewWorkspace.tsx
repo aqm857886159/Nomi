@@ -140,7 +140,9 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
   const initialLayout = React.useRef(layout).current
   const durationFrame = React.useMemo(() => computeTimelineDuration(timeline), [timeline])
   const activeClips = React.useMemo(() => resolveActiveClipsAtFrame(timeline, playheadFrame), [timeline, playheadFrame])
-  const assistantVisible = layout.visibility.assistant && !aiCollapsed
+  // Nomi 栏开合读显示态（跟机器走）；layout.visibility.assistant 是项目里存的原值，不拿来画。
+  const assistantShown = useWorkbenchStore((state) => !state.projectAgentDockCollapsed)
+  const assistantVisible = assistantShown && !aiCollapsed
 
   useTimelinePlaybackClock({ playing, playheadFrame, durationFrame, fps: timeline.fps, onPlayheadChange: setTimelinePlayhead, onPlayingChange: setTimelinePlaying })
 

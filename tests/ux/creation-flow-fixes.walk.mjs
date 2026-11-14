@@ -2,10 +2,10 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 2026-08-17 创作链路五修的真机走查（R13：截图 + 人眼判断，不是只跑 expect）。
 //
 // 覆盖用户实测反馈的五条：
-//   A 分镜方案「全部镜头」批量条 —— 一次把 12 个图片镜改成视频镜（原来要逐镜改十几次）
+//   A（已退役）分镜方案「全部镜头」批量条——分镜页瘦身（#1505）把批量条连同类型 / 模型 / 时长的整片入口一起删了，没有现役对应物
 //   B 素材库「智能分组」tab 已删干净
 //   C（已退役）分镜方案卡锚在对话消息上——方案卡与「直达分镜」入口已从对话里移除（805096d41），方案改从左栏「文稿」抽屉进入，没有现役对应物
-//   D 选了「素材规划」专职模式 → 不再被拆分镜劫持（浮现卡也不冒出来）
+//   D（已退役）选了「素材规划」专职模式 → 不再被拆分镜劫持——拆分镜浮现卡（StoryboardNudge）在 Agent 宿主迁移时就没人挂了，没有现役对应物
 //   E Agent 面板 → 档位弹层 → 系统提示词：全文可见、可改、可恢复默认（不再是 64px 小框）
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectVisible, expectCount, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
@@ -14,8 +14,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { leaveProjectIfOpen, switchWorkspace } from './_shell.mjs'
-import { openStoryboardEditor } from './_creationResourceTree.mjs'
+import { ensureAgentPanelOpen, leaveProjectIfOpen, switchWorkspace } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempRoot = makeTempDir('nomi-creation-flow-')
@@ -27,29 +26,6 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/creation-flow-fixes')
 
 fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
 fs.mkdirSync(shotsDir, { recursive: true })
-
-const SHOT_COUNT = 12
-// 复刻用户遇到的现场：拆出来一整套**图片**镜（shotKind='image'），这正是要逐镜改十几次的那个状态。
-const shots = Array.from({ length: SHOT_COUNT }, (_, index) => ({
-  index: index + 1,
-  shotKind: 'image',
-  durationSec: 0,
-  anchorIds: ['anchor-lin'],
-  prompt: `第 ${index + 1} 镜：雨夜追逐，霓虹在积水里碎开。`,
-}))
-
-const storyboardPlan = {
-  title: '雨夜追逐',
-  anchors: [{
-    id: 'anchor-lin',
-    kind: 'character',
-    name: '林薇',
-    description: '短发女性，黑色风衣，雨夜',
-    carrier: 'visual',
-    scope: 'selective',
-  }],
-  shots,
-}
 
 const project = {
   id: projectId,
@@ -70,7 +46,6 @@ const project = {
           type: 'paragraph',
           content: [{
             type: 'text',
-            // 够长（≥60 字）才会触发 StoryboardNudge 的浮现条件——D 要验的正是「够长但也不该浮」。
             text: '林薇在雨夜的老码头被人追赶，她穿过一条又一条积水的巷子，霓虹灯牌在水面上碎成一片一片。她知道对方要的是那只旧铁盒，可她还没想明白，铁盒里那张照片究竟意味着什么。',
           }],
         }],
@@ -79,30 +54,13 @@ const project = {
     },
     timeline: null,
     generationCanvas: { nodes: [], edges: [], selectedNodeIds: [], groups: [] },
-    storyboardPlan,
+    storyboardPlan: null,
     storyboardPlanCommitted: false,
   },
 }
 
 for (const target of [path.join(projectRoot, 'project.json'), path.join(projectRoot, '.nomi', 'project.json')]) {
   fs.writeFileSync(target, JSON.stringify(project, null, 2))
-}
-
-// D 要验的是「还没拆过、故事够长」时的浮现卡：这个状态下卡片本该出现（通用模式），
-// 而选了专职模式就该消失。项目 1 已经有方案了（storyboardPlan≠null → 卡片天然不显示），
-// 在那里测等于什么都没测——所以另起一个干净项目。
-const nudgeProjectId = 'creation-flow-nudge'
-const nudgeProjectRoot = path.join(projectsDir, `creation-flow-${nudgeProjectId}`)
-fs.mkdirSync(path.join(nudgeProjectRoot, '.nomi'), { recursive: true })
-const nudgeProject = {
-  ...project,
-  id: nudgeProjectId,
-  name: '专职模式不被劫持',
-  lastKnownRootPath: nudgeProjectRoot,
-  payload: { ...project.payload, storyboardPlan: null, storyboardPlanCommitted: false },
-}
-for (const target of [path.join(nudgeProjectRoot, 'project.json'), path.join(nudgeProjectRoot, '.nomi', 'project.json')]) {
-  fs.writeFileSync(target, JSON.stringify(nudgeProject, null, 2))
 }
 
 const { app, win } = await launchNomiApp({
@@ -158,106 +116,6 @@ async function openProject(name) {
   await expectVisible(win.getByLabel('创作区', { exact: true }), '点了「创作」但创作区没出现')
 }
 
-// ───────────────────────── A 批量条 ─────────────────────────
-async function verifyBulkBar() {
-  // 方案从左栏「文稿」抽屉里的方案行进入（对话里的方案卡已退役）。
-  await openStoryboardEditor(win, { pick: 'first' }, '打开分镜方案')
-
-  const scope = win.getByText('全部镜头', { exact: true }).first()
-  try {
-    // 编辑器是点开后异步挂载的：一次性 isVisible() 会在挂载完成前取样。
-    await expectVisible(scope, '编辑器里找不到「全部镜头」批量条')
-  } catch (error) {
-    await shot('A-bulk-bar-before')
-    record('A 批量条存在', false, `编辑器里找不到「全部镜头」批量条：${String(error).split('\n')[0]}`)
-    return
-  }
-  await shot('A-bulk-bar-before')
-  record('A 批量条存在', true, '「全部镜头」批量条常驻在编辑器里，带作用域组名')
-
-  const typeSelect = win.getByLabel('全部镜头的类型').first()
-  // 只读镜卡自己的「镜头类型」选择器，不读全页文本 —— 全页文本会把批量条、
-  // 我自己 seed 的对话文案一起算进去，数字对不上真实镜卡状态。
-  const shotTypeSelects = win.getByLabel('镜头类型')
-  const videoShots = shotTypeSelects.filter({ hasText: '视频' })
-  const before = await videoShots.count()
-  await typeSelect.selectOption({ label: '视频' }).catch(async () => {
-    await typeSelect.click()
-    await win.getByRole('option', { name: '视频' }).first().click()
-  })
-
-  // 全部改成视频后：每张镜卡都该出现「时长」选择器（图片镜没有时长）。
-  // 用重试断言等这个结果，不用 sleep —— 12 张卡重渲染的耗时不是常数。
-  let flipped = true
-  let flipDetail = ''
-  try {
-    await expectCount(win.getByLabel(/^时长$/), SHOT_COUNT, `期望 ${SHOT_COUNT} 张镜卡都出现时长选择器（=全变视频镜）`)
-    await expectCount(videoShots, SHOT_COUNT, `期望 ${SHOT_COUNT} 张镜卡的类型选择器都显示「视频」`)
-  } catch (error) {
-    flipped = false
-    flipDetail = String(error).split('\n')[0]
-  }
-  await shot('A-bulk-bar-after-video')
-  const after = await videoShots.count()
-  const durationCount = await win.getByLabel(/^时长$/).count()
-  record('A 一次改全部镜头', flipped,
-    flipped ? `一次操作后 ${durationCount} 张镜卡都出现时长选择器（=全变视频镜），显示「视频」的镜卡 ${before}→${after}`
-      : `只有 ${durationCount} 张镜卡变成视频镜，期望 ${SHOT_COUNT}：${flipDetail}`)
-}
-
-// ───────────────────────── D 素材规划不被劫持 ─────────────────────────
-async function verifyAssetsModeNotHijacked() {
-  await win.keyboard.press('Escape').catch(() => {})
-  await openProject(nudgeProject.name)
-
-  // 精确锚点：只数浮现的拆镜头动作卡本身，不数页面上出现的「拆成镜头」字样
-  // （第一版就是被我自己 seed 的那句用户消息骗了，误报成产品 bug）。
-  const nudgeCard = win.locator('[data-action-card="storyboard"]')
-
-  // 基线（proveProbe 形式①：目标本身可证）——先在**它该出现**的现场证明一次。
-  // 不先证明测得到，「没看到卡」和「探针根本没生效」在观测上完全一样。
-  let proof = null
-  let baselineCount = 0
-  try {
-    proof = await proveProbe(nudgeCard, '通用模式下确实会浮拆镜头卡')
-    baselineCount = await nudgeCard.count()
-  } catch (error) {
-    await shot('D-baseline-general-mode')
-    record('D 基线：通用模式确实会浮拆镜头卡', false,
-      `通用模式下也没浮卡 —— 基线不成立，下面那条通过不算数：${String(error).split('\n')[0]}`)
-    record('D 素材规划下不推拆分镜', false, '基线不成立，这条无从判定（不给假绿）')
-    return
-  }
-  await shot('D-baseline-general-mode')
-  record('D 基线：通用模式确实会浮拆镜头卡', true,
-    `通用模式下浮现了 ${baselineCount} 张拆镜头卡（说明这条检查测得到东西）`)
-
-  // 用选择器自己的锚点，别靠 hasText 模糊猜 —— 猜偏了会静默点空（click 外面还包着 catch），
-  // 于是「模式压根没切」被当成「切了但卡还在」，两种结果在旧写法里长得一模一样。
-  const chip = win.locator('[data-creation-prompt-picker="true"]').first()
-  const assetsEntry = win.locator('[data-prompt-option="assets"]').first()
-
-  let gone = true
-  let goneDetail = '选中素材规划后浮现卡消失，没有抢用户已经指好的路'
-  try {
-    await expectVisible(chip, '创作 composer 里找不到提示词选择器')
-    await chip.click()
-    await expectVisible(assetsEntry, '选择器里找不到「素材规划」这一档')
-    await assetsEntry.click()
-    // 切档的真信号 = chip 标签跟着变，不是等够 600ms。
-    // chip 上显示的是短名「素材」（creationAi.modes.assets.short），不是选项行里的全名「素材规划」。
-    // 这一步必须硬验：切档失败和「切了但卡还在」在旧写法里长得一模一样，
-    // 一旦分不清，这条检查就退化成「在通用模式下问有没有卡」——必假红或必假绿。
-    await expectVisible(chip.filter({ hasText: '素材' }), '点了「素材规划」但 chip 标签没跟着变（模式其实没切过去）')
-    await expectAbsent(nudgeCard, { provenBy: proof, message: '选了素材规划专职模式后不该再浮拆镜头卡' })
-  } catch (error) {
-    gone = false
-    goneDetail = `仍有 ${await nudgeCard.count()} 张拆镜头卡冒出来：${String(error).split('\n')[0]}`
-  }
-  await shot('D-assets-mode-selected')
-  record('D 素材规划下不推拆分镜', gone, goneDetail)
-}
-
 // ───────────────────────── B 智能分组已删 ─────────────────────────
 async function verifySmartGroupGone() {
   // 智能分组过去住在生成区的素材库面板里 —— 得真的走到那个面才算查过。
@@ -298,6 +156,8 @@ async function verifySmartGroupGone() {
 async function verifySystemPromptSettings() {
   // 2026-09-14 搬家：编辑器从设置 → AI 策略搬到 Agent 面板的档位弹层底部，走真人路径打开。
   try {
+    // 前一步 B 停在生成区，常驻 Agent 面板在那里收成小球——先叫出来，再点档位钮。
+    await ensureAgentPanelOpen(win)
     await openSystemPromptEditor(win)
   } catch (error) {
     await shot('E-settings-missing')
@@ -319,7 +179,8 @@ async function verifySystemPromptSettings() {
 
   // 默认选中的是「通用」，它的提示词本来就只有 ~48 字 —— 拿它验「不截断」等于没验。
   // 换成「素材」：那份是用户 2026-08-12 提供的全资产大师规范，上万字，旧小框硬截在 360 字。
-  await win.getByRole('button', { name: '素材', exact: true }).first().click().catch(() => {})
+  // 限定在编辑器弹窗里找：页面左栏也有一个叫「素材」的按钮，排在弹窗前面，不限定会点到它。
+  await win.locator('[data-system-prompt-editor]').getByRole('button', { name: '素材', exact: true }).first().click().catch(() => {})
   // 切档后编辑框内容是异步换的：轮询等它换成长文，别拿固定 sleep 赌（切太慢会读到「通用」那 48 字，假红）。
   await expect
     .poll(async () => ((await box.inputValue().catch(() => '')) || '').length, {
@@ -371,10 +232,8 @@ try {
   await openProject(project.name)
   await shot('00-creation-workspace')
 
-  await verifyBulkBar()
   await verifySmartGroupGone()
   await verifySystemPromptSettings()
-  await verifyAssetsModeNotHijacked()
 
   console.log('\n──────── 走查小结 ────────')
   console.log(JSON.stringify(findings, null, 2))

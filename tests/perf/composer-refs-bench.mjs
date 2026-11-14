@@ -5,7 +5,7 @@
 // 计时器是仓库唯一的 responseTimer（输入事件起表 → 判据到位再过两帧），长任务来自它自带的 PerformanceObserver。
 // 不是打包后的 Electron：Electron 夹具项目没有可用的模型目录，生成框里根本没有参考数组，量不到参考行（2026-10-19 试过，见 PR）。
 //
-// 用法：node tests/perf/composer-refs-bench.mjs --op open-params|hover-ref|open-mode-menu|remove-ref [--runs 5] [--label x]
+// 用法：node tests/perf/composer-refs-bench.mjs --op open-params|hover-ref|open-mode-menu|open-model-menu|remove-ref [--runs 5] [--label x]
 // 2026-11-12：生成方式从参数面板挪到底栏自己一格、按输入现算；面板里切方式的旧操作（switch-mode）随面板那一段一起删了，
 // 换成「点开方式菜单」和「移走一张参考 → 方式与行尾重算」。
 import { chromium } from 'playwright'
@@ -20,7 +20,7 @@ const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i
 const OP = arg('--op', 'open-params')
 const RUNS = Number(arg('--runs', '5'))
 const LABEL = arg('--label', OP)
-if (!['open-params', 'hover-ref', 'open-mode-menu', 'remove-ref'].includes(OP)) throw new Error(`未知操作 ${OP}`)
+if (!['open-params', 'hover-ref', 'open-mode-menu', 'open-model-menu', 'remove-ref'].includes(OP)) throw new Error(`未知操作 ${OP}`)
 
 const ROLE = 'perf-composer-refs'
 const HOST = '127.0.0.1'
@@ -70,6 +70,12 @@ try {
       // 方式格的 aria-label 是菜单小标题「生成方式」（实验室默认中文）。Seedance 2.5 有 4 种方式，每行都带一句说明。
       await armResponse(page, { predicate: 'modeMenuOpen', arg: 4 })
       await page.locator('[data-node-composer-footer] button[aria-label="生成方式"]').click()
+      const response = await takeResponse(page)
+      sample = { responseMs: response.ms, longTasks: response.longTasks }
+    } else if (OP === 'open-model-menu') {
+      // 模型格（aria-label「模型」）：菜单每一行 = 品牌图标 + 名字 + 一句按档案现算的能力描述（含变体行）。
+      await armResponse(page, { predicate: 'modeMenuOpen', arg: 3 })
+      await page.locator('[data-node-composer-footer] button[aria-label="模型"]').click()
       const response = await takeResponse(page)
       sample = { responseMs: response.ms, longTasks: response.longTasks }
     } else {

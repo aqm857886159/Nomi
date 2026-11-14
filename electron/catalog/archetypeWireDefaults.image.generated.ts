@@ -299,6 +299,13 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
       "runway": {
         "aspect_ratio": "1024:1024",
         "output_count": 1
+      },
+      "apimart": {
+        "size": "1:1",
+        "resolution": "2K",
+        "output_format": "jpeg",
+        "watermark": false,
+        "nsfw_check": false
       }
     },
     "image_edit": {
@@ -309,6 +316,36 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
       "runway": {
         "aspect_ratio": "1024:1024",
         "output_count": 1
+      },
+      "apimart": {
+        "size": "1:1",
+        "resolution": "2K",
+        "background": "opaque",
+        "output_format": "jpeg",
+        "watermark": false,
+        "nsfw_check": false
+      }
+    }
+  },
+  "seedream-5-5": {
+    "text_to_image": {
+      "*": {
+        "size": "1:1",
+        "resolution": "2K",
+        "background": "auto",
+        "output_format": "png",
+        "watermark": false,
+        "nsfw_check": false
+      }
+    },
+    "image_edit": {
+      "*": {
+        "size": "1:1",
+        "resolution": "2K",
+        "background": "auto",
+        "output_format": "png",
+        "watermark": false,
+        "nsfw_check": false
       }
     }
   },
@@ -561,34 +598,6 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
         "resolution": "1K",
         "background": "auto",
         "quality": "medium"
-      }
-    }
-  },
-  "gemini-nano-banana-2.1": {
-    "text_to_image": {
-      "*": {
-        "size": "auto",
-        "resolution": "1K"
-      }
-    },
-    "image_edit": {
-      "*": {
-        "size": "auto",
-        "resolution": "1K"
-      }
-    }
-  },
-  "gemini-nano-banana-2.1-ext": {
-    "text_to_image": {
-      "*": {
-        "size": "auto",
-        "resolution": "1K"
-      }
-    },
-    "image_edit": {
-      "*": {
-        "size": "auto",
-        "resolution": "1K"
       }
     }
   }

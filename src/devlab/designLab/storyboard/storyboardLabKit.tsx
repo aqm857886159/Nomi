@@ -1,4 +1,5 @@
 import React, { type JSX } from 'react'
+import { LabLocaleGate } from '../labLocaleGate'
 import StoryboardShotRow from '../../../workbench/creation/storyboard/shotRow/StoryboardShotRow'
 import { StoryboardRowsBox } from '../../../workbench/creation/storyboard/shotRow/storyboardRowDensity'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../../workbench/assets/AssetPreviewDialog'
@@ -98,7 +99,9 @@ export function RowStage(overrides: RowOverrides & { clip?: boolean; width?: num
   const models = shot.shotKind === 'image' ? LAB_IMAGE_MODELS : LAB_VIDEO_MODELS
   const mode = resolveShotArchetypeMode(findModelOptionByIdentifier(models, shot.modelKey, shot.modelVendor), shot.modeId)?.mode ?? null
   const exec = labExec({ missingSlots: missingRequiredSlots(mode, shot, LAB_ANCHORS), ...overrides.exec })
-  return (
+  // 证据脚本用 ?lang=en 把同一格再截一遍英文（格子本身只登记中文一份）；不带参数 = 原样，不多包一层。
+  const gate = (node: JSX.Element): JSX.Element => (new URL(window.location.href).searchParams.get('lang') === 'en' ? <LabLocaleGate locale="en">{node}</LabLocaleGate> : node)
+  return gate(
     <TableStage clip={overrides.clip ?? true} width={overrides.width} height={overrides.height}>
       <StoryboardShotRow
         shot={shot}
@@ -127,7 +130,7 @@ export function RowStage(overrides: RowOverrides & { clip?: boolean; width?: num
         onUpdate={NOOP}
         onRemove={NOOP}
       />
-    </TableStage>
+    </TableStage>,
   )
 }
 

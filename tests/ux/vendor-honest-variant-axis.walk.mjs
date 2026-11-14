@@ -10,6 +10,10 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //
 // Runway 之所以敢写死，是因为它把 veo3.1 与 veo3.1_fast 建成**两个目录行**，本就不需要变体轴。
 //
+// 2026-11-14 起变体不再是底栏的一个小下拉，而是**模型菜单里的行**（「Veo 3.1 快速 / 高质」各占一行）。
+// 所以「变体轴活着」= 菜单里同一个模型有多条变体行；「Runway 没有变体」= 菜单里 Runway 的行**恰好就是它的目录行**，
+// 一条多的都没有（多一条 = 点了不会换型号的假行，和当年那个惰性小下拉是同一个骗局）。
+//
 // ── 为什么判据不能是「变体的 modelKey 在目录里有没有对应行」───────────────
 //
 // APIMart 的 veo 只有 `veo3.1-fast` 一行，quality/lite 根本不是独立行。按那个判据会把 APIMart 活着的
@@ -25,7 +29,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // ── 为什么「Runway 没有变体」这句话必须先有阳性对照 ──────────────────────
 //
 // 「变体选择器不在」这种断言天然会空洞通过：模型下拉根本没渲染、composer 整个塌掉、选择器改了名——
-// 三种情况下它一样成立。所以每一处 expectAbsent 都用 proveProbe 先在**它该出现的那一屏**（APIMart /
+// 三种情况下它一样成立。所以「Runway 没有变体行」先在**它该出现的那一屏**（APIMart /
 // 即梦）当场证明探针抓得到，再去 Runway 那屏证明它不在。没有阳性对照的绿灯不作数。
 //
 // ── 只覆盖画布面；提案面板那一半**验不了**，文件末尾如实声明原因 ──────────
@@ -41,7 +45,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp, seedSavedFixtureCredentials } from './_launchApp.mjs'
-import { expect, expectVisible, expectAbsent, proveProbe, clickOrFail } from './_assert.mjs'
+import { expect, expectVisible, clickOrFail } from './_assert.mjs'
 import { canvasAddBar, newProjectEntry } from './_shell.mjs'
 import { modeName, modeCell, openModeMenu, closeModeMenu } from './_modeMenu.mjs'
 
@@ -101,10 +105,39 @@ async function readModes() {
   await closeModeMenu(win)
   return rows.map((row) => row.name)
 }
-// 变体选择器 = InlineParameterBar 里紧跟模型芯片的小下拉，aria-label 走 i18n 的
-// generationCommon.parameters.variant（zh-CN = 「变体」）。它和已删的「每次生成几个」（2026-10-06 删）
-// 不是一回事，别混。
-const variantSelect = composer.locator('[aria-label="变体"]')
+// 变体 = 模型菜单（底栏模型格点开）里的行。菜单行的名字在 [data-nomi-select-option-label] 里；
+// 「更多」展开后才看得到默认收起的行。
+const menuDropdown = win.locator('[data-nomi-select-dropdown]')
+const menuOptions = win.locator('[data-nomi-select-dropdown] [role="option"]')
+const menuLabelOf = (option) => option.locator('[data-nomi-select-option-label]')
+
+/** 打开模型菜单并展开「更多」，返回现在看得到的全部行名（顺序 = 菜单顺序）。 */
+async function openModelMenu() {
+  await clickOrFail(composer.locator('[aria-label="模型"]'), '模型格')
+  await expectVisible(menuDropdown.first(), '模型菜单打开了')
+  await expect(menuOptions, '模型菜单点开了却一行都没有（目录空了？供应商没启用？）').not.toHaveCount(0)
+  const more = menuDropdown.first().locator('button', { hasText: '更多' })
+  if (await more.count()) {
+    await more.first().click()
+    await win.waitForTimeout(250)
+  }
+  return readOptionLabels()
+}
+/** 每个 option 各取自己的行名（和 option 一一对应，点哪一行就按这个下标取那个 option）。 */
+async function readOptionLabels() {
+  const options = await menuOptions.all()
+  return Promise.all(options.map(async (option) => ((await menuLabelOf(option).first().textContent()) ?? '').trim()))
+}
+async function closeModelMenu() {
+  await win.keyboard.press('Escape')
+  await win.waitForTimeout(250)
+}
+/** 只读一眼菜单（读完关上）。 */
+async function readMenuLabels() {
+  const labels = await openModelMenu()
+  await closeModelMenu()
+  return labels
+}
 
 /**
  * 读节点**真正绑定到**的模型身份（vendor + modelKey），而不是下拉里点了哪一条。
@@ -117,11 +150,31 @@ const variantSelect = composer.locator('[aria-label="变体"]')
 async function readBoundIdentity() {
   return win.evaluate(() => {
     const el = document.querySelector('.generation-canvas-v2-node')
-    const key = Object.keys(el || {}).find((k) => k.startsWith('__react'))
-    let fiber = el && key ? el[key] : null
-    let depth = 0
-    while (fiber && depth < 400) {
-      const meta = fiber.memoizedProps?.node?.meta
+    const empty = { modelKey: null, modelVendor: null, variantId: null, archetypeId: null }
+    if (!el) return empty
+    // DOM 上挂的 fiber 可能是上一轮渲染的备份（props 是旧的）。从根的 current 树往下找到这个 DOM，
+    // 沿祖先读 node.meta，读到的才是当前这一帧的值。
+    const rootEl = document.getElementById('root') || document.body.firstElementChild
+    const containerKey = Object.keys(rootEl || {}).find((k) => k.startsWith('__reactContainer'))
+    const rootFiber = containerKey ? rootEl[containerKey] : null
+    const top = rootFiber?.stateNode?.current ?? rootFiber
+    if (!top) return empty
+    const path = []
+    let found = null
+    const walk = (f) => {
+      while (f && !found) {
+        path.push(f)
+        if (f.stateNode === el) { found = [...path]; return }
+        if (f.child) walk(f.child)
+        if (found) return
+        path.pop()
+        f = f.sibling
+      }
+    }
+    walk(top)
+    if (!found) return empty
+    for (let i = found.length - 1; i >= 0; i -= 1) {
+      const meta = found[i].memoizedProps?.node?.meta
       if (meta && (meta.modelKey || meta.modelVendor)) {
         return {
           modelKey: meta.modelKey ?? null,
@@ -130,33 +183,33 @@ async function readBoundIdentity() {
           archetypeId: meta.archetype?.id ?? null,
         }
       }
-      fiber = fiber.return
-      depth += 1
     }
-    return { modelKey: null, modelVendor: null, variantId: null, archetypeId: null }
+    return empty
   })
 }
 
 /**
- * 从 NomiSelect 里挑模型。`:visible` 是硬要求——Mantine 把未展开弹层的选项也留在 DOM 里，
- * 裸选会选到画布上别的下拉（变体、每次生成几个…）的选项。
+ * 从模型菜单里点一行。`match` 按行名（不含供应商附注）判。点之前先把菜单展开，
+ * 点的是 DOM 里这一行本身，不按下标猜。
  */
 async function pickModel(match, humanLabel) {
-  await clickOrFail(composer.locator('[aria-label="模型"]'), '模型下拉')
-  const options = win.locator('[role="option"]:visible')
-  await expect(options, '模型下拉点开了却一个选项都没有（目录空了？供应商没启用？）').not.toHaveCount(0)
-  const texts = (await options.allTextContents()).map((t) => t.trim())
-  const index = texts.findIndex(match)
-  if (index < 0) throw new Error(`WALK FAIL: 模型下拉里没有「${humanLabel}」。实际选项：${JSON.stringify(texts)}`)
-  await options.nth(index).click()
+  const labels = await openModelMenu()
+  const index = labels.findIndex(match)
+  if (index < 0) throw new Error(`WALK FAIL: 模型菜单里没有「${humanLabel}」。实际行名：${JSON.stringify(labels)}`)
+  await menuOptions.nth(index).click()
   await win.waitForTimeout(600)
-  return texts[index]
+  return labels[index]
 }
 
 /** 选中模型 + 身份闸。控件读取一律排在它后面。 */
 async function selectAndBind({ pick, humanLabel, expectVendor, expectModelKey, tag }) {
   const picked = await pickModel(pick, humanLabel)
-  const identity = await readBoundIdentity()
+  // 选中到 meta 落库有异步间隔：轮询到身份对上或超时再下结论，不按固定 600ms 一刀读。
+  let identity = await readBoundIdentity()
+  for (let i = 0; i < 20 && (identity.modelVendor !== expectVendor || identity.modelKey !== expectModelKey); i += 1) {
+    await win.waitForTimeout(250)
+    identity = await readBoundIdentity()
+  }
   const file = await shot(tag)
   if (identity.modelVendor !== expectVendor || identity.modelKey !== expectModelKey) {
     throw new Error(
@@ -175,10 +228,14 @@ function assertNoRendererUpdateDepth(label) {
   throw new Error(`WALK FAIL: ${label} renderer hit React #185 (Maximum update depth exceeded): ${rendererUpdateDepthErrors[0]}`)
 }
 
-/** 读变体下拉当前展示的文案（视觉证据的 DOM 对照物）。控件不在时返回 null。 */
-async function readVariantSummary() {
-  if ((await variantSelect.count()) === 0) return null
-  return (await variantSelect.first().innerText()).replace(/\s+/g, ' ').trim()
+/** Runway 目录里的视频行（种子目录）。菜单里 Runway 的行必须恰好是它们，一条变体行都不能多。 */
+const RUNWAY_VIDEO_ROWS = [
+  'Runway Gen-4.5', 'Runway Seedance 2', 'Runway Seedance 2 Fast', 'Runway Seedance 2 Mini',
+  'Runway Veo 3.1', 'Runway Veo 3.1 Fast', 'Runway Gemini Omni Flash', 'Runway HappyHorse 1.0',
+]
+async function expectRunwayRowsAreCatalogRows(label, message) {
+  const labels = (await readMenuLabels()).filter((t) => t.startsWith('Runway '))
+  expect([...labels].sort(), `${label}：${message}\n  实际 Runway 行：${JSON.stringify(labels)}`).toEqual([...RUNWAY_VIDEO_ROWS].sort())
 }
 
 const observations = {}
@@ -230,16 +287,17 @@ try {
   // APIMart 的 veo mapping 写的是 model:"{{request.params.model}}" → 切变体真会换发出去的串
   // → 控件必须在。这一屏同时是下面「Runway 没有」的探针证明现场。
   const apimart = await selectAndBind({
-    pick: (t) => t.startsWith('Veo 3.1') && t.includes('APIMart'),
-    humanLabel: 'APIMart Veo 3.1',
+    pick: (t) => /^Veo 3\.1 /.test(t),
+    humanLabel: 'APIMart Veo 3.1（变体行）',
     expectVendor: 'apimart',
     expectModelKey: 'veo3.1-fast',
     tag: 'apimart-veo31-variant-present',
   })
-  const variantProof = await proveProbe(variantSelect, 'APIMart Veo 3.1 的「变体」选择器确实会出现')
-  await expect(variantSelect, 'APIMart 的 veo mapping 参数化了 model，变体选择器必须在')
-    .toHaveCount(1)
-  apimart.variant = await readVariantSummary()
+  // 阳性对照：APIMart 的 Veo 3.1 在菜单里有 ≥2 条变体行（快速 / 高质…）。这是下面「Runway 没有」的探针证明现场。
+  const veoLabels = await readMenuLabels()
+  const veoVariantRows = veoLabels.filter((t) => /^Veo 3\.1 /.test(t))
+  expect(veoVariantRows.length, `APIMart 的 veo mapping 参数化了 model，菜单里 Veo 3.1 必须有多条变体行。实际：${JSON.stringify(veoLabels)}`).toBeGreaterThanOrEqual(2)
+  apimart.variant = { rows: veoVariantRows, bound: apimart.identity.variantId }
   apimart.modes = await readModes()
   observations['apimart/veo3.1-fast'] = apimart
   record(`APIMart Veo 3.1 绑定 ${apimart.identity.modelVendor}/${apimart.identity.modelKey} · 变体 = ${JSON.stringify(apimart.variant)} · 模式栏 = ${JSON.stringify(apimart.modes)}`, apimart.file)
@@ -247,38 +305,37 @@ try {
   // ══ A ②（回归警戒线）即梦 Seedance：**没有 HTTP body**，变体全靠 CLI argv ══
   // 只扫 body 的实现会在这里把 6 个活着的变体一起藏掉。它必须仍然有变体选择器。
   const dreamina = await selectAndBind({
-    pick: (t) => t.includes('即梦 Seedance'),
+    pick: (t) => t === '即梦 Seedance（会员）',
     humanLabel: '即梦 Seedance（会员）',
     expectVendor: 'dreamina',
     expectModelKey: 'dreamina-seedance-2.0',
     tag: 'dreamina-seedance-variant-present',
   })
-  await expect(
-    variantSelect,
+  const dreaminaLabels = await readMenuLabels()
+  const dreaminaVariantRows = dreaminaLabels.filter((t) => t.startsWith('即梦 Seedance（会员） '))
+  expect(
+    dreaminaVariantRows.length,
     '即梦走本地 CLI、create op 根本没有 HTTP body，model 藏在 --model_version={{request.params.model}} 这条 argv 里。\n'
-      + '  这里丢了变体选择器 = 收窄只扫了 body、没算 process.args（wireReferencedParamKeys 的回归），\n'
-      + '  后果是即梦 6 个真能用的型号被一起藏掉——这是「收窄过头砍掉真功能」，比不收窄更糟。',
-  ).toHaveCount(1)
-  dreamina.variant = await readVariantSummary()
+      + '  菜单里丢了即梦的变体行 = 收窄只扫了 body、没算 process.args（wireReferencedParamKeys 的回归），\n'
+      + `  后果是即梦 6 个真能用的型号被一起藏掉——这是「收窄过头砍掉真功能」，比不收窄更糟。实际：${JSON.stringify(dreaminaLabels)}`,
+  ).toBeGreaterThanOrEqual(2)
+  dreamina.variant = { rows: dreaminaVariantRows, bound: dreamina.identity.variantId }
   dreamina.modes = await readModes()
   observations['dreamina/dreamina-seedance-2.0'] = dreamina
   record(`即梦 Seedance 绑定 ${dreamina.identity.modelVendor}/${dreamina.identity.modelKey} · 变体 = ${JSON.stringify(dreamina.variant)}`, dreamina.file)
 
   // ══ A ③（核心）Runway Veo 3.1：model 写死 → 变体轴整条不显示 ══════════════
   const runway = await selectAndBind({
-    pick: (t) => t.startsWith('Runway Veo 3.1') && !t.includes('Fast'),
+    pick: (t) => t === 'Runway Veo 3.1',
     humanLabel: 'Runway Veo 3.1',
     expectVendor: 'runway',
     expectModelKey: 'veo3.1',
     tag: 'runway-veo31-variant-absent',
   })
   assertNoRendererUpdateDepth('Runway Veo 3.1 选中后')
-  await expectAbsent(variantSelect, {
-    provenBy: variantProof,
-    message: 'Runway 把 create op 的 model 写成字面量——切变体一个字节都不会变。\n'
-      + '  控件还在 = 摆一个点了没反应的开关骗用户（比没有更糟）。\n'
-      + '  Runway 本就不需要这条轴：它把 veo3.1 / veo3.1_fast 建成了两个目录行。',
-  })
+  await expectRunwayRowsAreCatalogRows('Runway Veo 3.1 选中后', 'Runway 把 create op 的 model 写成字面量——切变体一个字节都不会变。\n'
+    + '  菜单里多出来的变体行 = 摆一排点了没反应的行骗用户（比没有更糟）。\n'
+    + '  Runway 本就不需要这条轴：它把 veo3.1 / veo3.1_fast 建成了两个目录行。')
   // 同屏顺带钉住模式栏与比例没被这次改动误伤（变体轴与模式轴正交，收窄一条不许波及另一条）。
   expect(await readModes(), 'Runway Veo 3.1 的方式菜单不该被变体轴收窄波及').toEqual([modeName('zh', 'text'), modeName('zh', 'image')])
   await clickOrFail(composer.locator('button[aria-label="生成参数"]'), '「生成参数」（Runway Veo 3.1）')
@@ -289,52 +346,49 @@ try {
   runway.paramShot = await shot('runway-veo31-params')
   await win.keyboard.press('Escape')
   await win.waitForTimeout(400)
-  runway.variant = await readVariantSummary()
+  runway.variant = null
   runway.modes = await readModes()
   observations['runway/veo3.1'] = runway
-  record(`Runway Veo 3.1 绑定 ${runway.identity.modelVendor}/${runway.identity.modelKey} · 变体控件 = ${runway.variant === null ? '不存在（已收窄）' : JSON.stringify(runway.variant)} · 模式栏 = ${JSON.stringify(runway.modes)}`, runway.file)
+  record(`Runway Veo 3.1 绑定 ${runway.identity.modelVendor}/${runway.identity.modelKey} · 变体行 = 无（已收窄，菜单里只有它的目录行） · 模式栏 = ${JSON.stringify(runway.modes)}`, runway.file)
   record('核心对照成立：同一条变体轴 APIMart / 即梦 露出、Runway 收窄消失')
 
   // ══ A ④ Runway 的其余变体行：同一条判据，逐行钉死 ══════════════════════════
   // 静态探针（对真实种子目录跑 wireReferencedParamKeys）说 Runway 的 6 个带变体行**全部**惰性。
   // 只验 veo3.1 一行的话，「收窄只对某一行生效」这种半吊子回归会溜过去，所以逐行都走一遍。
   for (const row of [
-    { pick: (t) => /Runway Seedance 2Runway/.test(t), label: 'Runway Seedance 2', modelKey: 'seedance2', tag: 'runway-seedance2-variant-absent' },
-    { pick: (t) => /Runway Seedance 2 FastRunway/.test(t), label: 'Runway Seedance 2 Fast', modelKey: 'seedance2_fast', tag: 'runway-seedance2-fast-variant-absent' },
-    { pick: (t) => /Runway Seedance 2 MiniRunway/.test(t), label: 'Runway Seedance 2 Mini', modelKey: 'seedance2_mini', tag: 'runway-seedance2-mini-variant-absent' },
-    { pick: (t) => t.startsWith('Runway Wan 3'), label: 'Runway Wan 3', modelKey: 'wan3', tag: 'runway-wan3-variant-absent' },
+    { pick: (t) => t === 'Runway Seedance 2', label: 'Runway Seedance 2', modelKey: 'seedance2', tag: 'runway-seedance2-variant-absent' },
+    { pick: (t) => t === 'Runway Seedance 2 Fast', label: 'Runway Seedance 2 Fast', modelKey: 'seedance2_fast', tag: 'runway-seedance2-fast-variant-absent' },
+    { pick: (t) => t === 'Runway Seedance 2 Mini', label: 'Runway Seedance 2 Mini', modelKey: 'seedance2_mini', tag: 'runway-seedance2-mini-variant-absent' },
+    // Runway Wan 3 与 APIMart 的 Wan 3.0 合并成菜单里的同一行（按家族去重），没有独立的 Runway 行，所以不在这里点。
   ]) {
     const bound = await selectAndBind({
       pick: row.pick, humanLabel: row.label, expectVendor: 'runway', expectModelKey: row.modelKey, tag: row.tag,
     })
-    await expectAbsent(variantSelect, {
-      provenBy: variantProof,
-      message: `${row.label} 的 create op 同样把 model 写死，变体选择器不该出现。`,
-    })
-    bound.variant = await readVariantSummary()
+    await expectRunwayRowsAreCatalogRows(`${row.label} 选中后`, `${row.label} 的 create op 同样把 model 写死，菜单里不该有它的变体行。`)
+    bound.variant = null
     bound.modes = await readModes()
     observations[`runway/${row.modelKey}`] = bound
-    record(`${row.label} 绑定 ${bound.identity.modelVendor}/${bound.identity.modelKey} · 变体控件 = 不存在（已收窄） · 模式栏 = ${JSON.stringify(bound.modes)}`, bound.file)
+    record(`${row.label} 绑定 ${bound.identity.modelVendor}/${bound.identity.modelKey} · 变体行 = 无（已收窄） · 模式栏 = ${JSON.stringify(bound.modes)}`, bound.file)
   }
 
   // ── 回切阳性对照：证明「消失」不是整个控件层塌了 ──────────────────────────
   // 上面连着 5 行都「没有变体选择器」。如果此刻 composer 其实已经渲染坏了、或者选择器改了名，
   // 这 5 条会一起假绿。所以最后回到 APIMart 再证一次它**还回得来**——一次性排除这两种系统性假绿。
   const backToApimart = await selectAndBind({
-    pick: (t) => t.startsWith('Veo 3.1') && t.includes('APIMart'),
+    pick: (t) => /^Veo 3\.1 /.test(t),
     humanLabel: 'APIMart Veo 3.1（回切）',
     expectVendor: 'apimart',
     expectModelKey: 'veo3.1-fast',
     tag: 'contrast-back-to-apimart-variant-returns',
   })
-  await expect(
-    variantSelect,
-    '回切 APIMart 后变体选择器必须重新出现。它没回来 = 上面那 5 条「不存在」全是假绿（控件层塌了/改名了），\n'
+  const backLabels = await readMenuLabels()
+  expect(
+    backLabels.filter((t) => /^Veo 3\.1 /.test(t)).length,
+    '回切 APIMart 后菜单里的 Veo 3.1 变体行必须重新出现。它没回来 = 上面那几条「Runway 没有变体行」全是假绿（菜单读坏了/改名了），\n'
       + '  而不是收窄生效——两者长得一模一样，这一条就是用来把它们分开的。',
-  ).toHaveCount(1)
-  backToApimart.variant = await readVariantSummary()
+  ).toBeGreaterThanOrEqual(2)
   observations['contrast/back-to-apimart'] = backToApimart
-  record(`回切阳性对照成立：变体选择器重新出现 = ${JSON.stringify(backToApimart.variant)}`, backToApimart.file)
+  record(`回切阳性对照成立：变体行重新出现 = ${JSON.stringify(backToApimart.variant)}`, backToApimart.file)
 
   // ══ B：Agent 提案面板的模式/变体收窄 —— **本走查无法覆盖，如实声明** ══════
   //

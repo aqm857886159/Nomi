@@ -1,0 +1,28 @@
+摘要：1:1 · 2K
+方式格：（无）
+输入：1张图
+---
+Aspect ratio
+Auto
+16:9
+9:16
+1:1
+4:3
+3:4
+3:2
+2:3
+21:9
+2:1
+1:2
+Resolution
+1K
+1.5K
+2K
+Background
+Opaque
+Transparent background
+Format
+jpeg
+png
+Add watermark
+Content moderation before submit

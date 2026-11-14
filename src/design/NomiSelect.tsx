@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Combobox, useCombobox } from '@mantine/core'
-import { IconCheck, IconChevronDown, IconEyeOff } from '@tabler/icons-react'
+import { IconCheck, IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../utils/cn'
 import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
 import { NomiIdentityIcon, type NomiIdentityIconSource } from './NomiIdentityIcon'
@@ -108,16 +108,6 @@ export type NomiSelectProps = {
    * 这是设计系统组件，不该知道「隐藏」该用哪个图标。
    */
   footerAction?: { label: string; icon?: React.ReactNode; onSelect: () => void }
-  /**
-   * 列表底部那一行「有些选项被你藏起来了」的脚注（模型框：「已隐藏 N 个 · 在设置里找回」）。
-   *
-   * 为什么它是这个组件的一个具名槽、而不是一个通用的 footer：一个通用插槽会立刻被拿去塞
-   * 别的东西（提示、广告、第二个动作），而这里要表达的只有一件事——**这个列表不是全部**。
-   * 空串/缺省 = 什么都不渲染：没藏过东西的下拉不该无缘无故多一条脚注。
-   *
-   * 它与 footerAction 是两件事，不是两份实现：一个可点（做点什么），一个只陈述（这不是全部）。
-   */
-  hiddenNote?: string
   /** 下拉最上面的小标题（如「生成方式」）：不是选项，键盘导航不进它。 */
   heading?: string
 }
@@ -134,6 +124,8 @@ const DROPDOWN_MAX_WIDTH = 280
 const DROPDOWN_MAX_WIDTH_WITH_CHIPS = 380
 /** 带一句说明的行（方式菜单）：说明最长约 30 个汉字 / 60 个字母，340 宽里最多两行、不截断（边界样张 K5）。 */
 const DROPDOWN_MAX_WIDTH_WITH_DESCRIPTION = 340
+/** 带品牌图的行（模型菜单）：图方块 28 + 一行说明，340 放不下「文生/图生/首尾帧/参考 · 最高 1080p · 最长 30 秒」。 */
+const DROPDOWN_MAX_WIDTH_WITH_RICH_ROWS = 400
 function toneClass(tone: NomiSelectTone | undefined, kind: 'badge' | 'trailing'): string {
   if (tone === 'accent') return 'bg-nomi-accent-soft text-nomi-accent'
   if (tone === 'danger') return 'text-workbench-danger'
@@ -160,7 +152,6 @@ export function NomiSelect({
   portalTarget,
   dropdownAlign = 'start',
   footerAction,
-  hiddenNote,
   heading,
 }: NomiSelectProps): JSX.Element {
   const { t } = useTranslation()
@@ -184,6 +175,7 @@ export function NomiSelect({
   }, [combobox.dropdownOpened, combobox.targetRef, searchable])
   const selected = options.find((option) => option.value === value)
   const triggerText = selected?.label ?? (value || placeholder || t('common.select'))
+  const hasRichRows = options.some((option) => option.icon && option.description)
   const heightClass = size === 'xs' ? 'h-6' : 'h-7'
   const query = search.trim().toLocaleLowerCase()
   const visibleOptions = searchable && query ? options.filter((option) => option.label.toLocaleLowerCase().includes(query)) : options.filter((option) => more || !option.more || option.value === value)
@@ -210,7 +202,7 @@ export function NomiSelect({
       styles={{
         dropdown: {
           padding: 4,
-          maxWidth: hasChips ? DROPDOWN_MAX_WIDTH_WITH_CHIPS : options.some((option) => option.description) ? DROPDOWN_MAX_WIDTH_WITH_DESCRIPTION : DROPDOWN_MAX_WIDTH,
+          maxWidth: hasRichRows ? DROPDOWN_MAX_WIDTH_WITH_RICH_ROWS : hasChips ? DROPDOWN_MAX_WIDTH_WITH_CHIPS : options.some((option) => option.description) ? DROPDOWN_MAX_WIDTH_WITH_DESCRIPTION : DROPDOWN_MAX_WIDTH,
           border: '1px solid var(--nomi-line)',
           borderRadius: 'var(--nomi-radius-lg)',
           background: 'var(--nomi-paper)',
@@ -284,7 +276,8 @@ export function NomiSelect({
             通用组件不知道自己会不会被挂进画布节点内部（如生成画布的行内参数面板把
             portalTarget 指回节点自身 DOM，而不是 document.body）——挂了就必须挡住滚轮被画布
             当缩放吃掉；没挂进画布时这两个 class 谁也不认，纯粹无操作。 */}
-        <Combobox.Options className="nowheel nodrag max-h-[240px] overflow-auto">
+        {/* 带图 + 说明的行（模型菜单）每行 46px：240 只放得下 5 行，翻一屏才见「隐藏模型」——放到 8 行高；尾行钉在滚动区外、永远看得见。 */}
+        <Combobox.Options className={cn('nowheel nodrag overflow-auto', hasRichRows ? 'max-h-[380px]' : 'max-h-[240px]')}>
           {visibleOptions.length === 0 ? <Combobox.Empty>{t('common.noMatchingOptions')}</Combobox.Empty> : null}
           {visibleOptions.map((option, index) => {
             const isSel = option.value === value
@@ -297,7 +290,7 @@ export function NomiSelect({
                 {/* dimmed：整行减淡但仍可点（「能选、眼下不建议」）。不用 disabled——那是"点不了"，
                     两种语义别混（近期连败的模型仍允许手动选，是拍板过的原则）。 */}
                 <span className={cn('flex min-w-0 items-center gap-2 w-full', option.dimmed ? 'opacity-45' : '', option.description ? 'py-1.5' : '')}>
-                  {option.icon ? <NomiIdentityIcon icon={option.icon} size="md" /> : null}
+                  {option.icon ? <NomiIdentityIcon icon={option.icon} size={option.description ? 'lg' : 'md'} /> : null}
                   {option.glyph ? <span className={cn('grid shrink-0 place-items-center self-start pt-px', option.disabled ? 'text-nomi-ink-30' : 'text-nomi-ink-60')} aria-hidden>{option.glyph}</span> : null}
                   {/* `flex-1` 而不是让附注 `ml-auto` 撑开：名字是这一行的主语，剩余宽度先归它，
                       附注/chip/对勾都是 `shrink-0` 的附属物。没有 flex-1 时名字会被 chip 一路压到 0
@@ -312,7 +305,8 @@ export function NomiSelect({
                       >
                         {option.label}
                       </span>
-                      <span data-nomi-select-option-description className="min-w-0 whitespace-normal text-balance text-micro leading-tight text-nomi-ink-60">{option.description}</span>
+                      {/* 带品牌图的行（模型菜单）：说明只占一行、放不下省略号，全文在整行 title 里；没图的行（方式菜单）说明照旧可换行不截断。 */}
+                      <span data-nomi-select-option-description className={cn('min-w-0 text-micro leading-tight text-nomi-ink-60', option.icon ? 'truncate' : 'whitespace-normal text-balance')}>{option.description}</span>
                     </span>
                   ) : (
                     <span
@@ -374,27 +368,16 @@ export function NomiSelect({
           {!more && !query && options.some((option) => option.more && option.value !== value) ? (
             <button type="button" onClick={() => { setMore(true); combobox.resetSelectedOption() }} className="w-full px-2 py-1.5 text-left text-caption text-nomi-ink-60">{t('onboardingProviders.modelControls.more')}</button>
           ) : null}
-          {footerAction ? (
-            <button
-              type="button"
-              onClick={() => { combobox.closeDropdown(); footerAction.onSelect() }}
-              className="mt-0.5 flex w-full items-center gap-1.5 border-t border-nomi-line px-2 py-1.5 text-left text-caption text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink"
-            >
-              {footerAction.icon}
-              {footerAction.label}
-            </button>
-          ) : null}
         </Combobox.Options>
-        {hiddenNote ? (
-          // 不是选项：它点不了、也不该被键盘导航选中——藏起来的东西要找回在设置里，
-          // 这行只负责让「列表变短了」这件事说出来（放在 Options 外面就自然不进 Mantine 的选项序列）。
-          <div
-            data-nomi-select-hidden-note
-            className="mt-0.5 flex h-7 items-center gap-1.5 border-t border-nomi-line px-2.5 text-micro leading-none text-nomi-ink-40"
+        {footerAction ? (
+          <button
+            type="button"
+            onClick={() => { combobox.closeDropdown(); footerAction.onSelect() }}
+            className="mt-0.5 flex w-full items-center gap-1.5 border-t border-nomi-line px-2 py-1.5 text-left text-caption text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink"
           >
-            <IconEyeOff size={12} stroke={1.7} aria-hidden="true" />
-            {hiddenNote}
-          </div>
+            {footerAction.icon}
+            {footerAction.label}
+          </button>
         ) : null}
       </Combobox.Dropdown>
     </Combobox>
