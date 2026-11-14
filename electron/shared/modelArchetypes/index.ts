@@ -1,61 +1,10 @@
 import { anchorsConsumedBy } from './anchorPolicy';
 import { modelNameSourceFor, scopeArchetypeModelNames, type ModelNameSource } from "./modelNameSource";
 import type { ModelParameterControl } from "../videoCapabilities/types";
-// Video archetypes are defined in electron/shared/videoCapabilities (canonical home,
-// shared with main-process planning). The renderer takes the whole video set from that
-// single barrel's registry (sourceBackedVideoProfiles) instead of naming each profile —
-// adding a video model touches the electron side only (profile file + registry line);
-// this file does not change (二期档案归一：清双登记，35 个 video 档案不再手列第二份).
-import { sourceBackedVideoProfiles } from "../videoCapabilities";
-import { HUNYUAN3D_ARCHETYPE } from "./hunyuan3d";
-import { HITEM3D_ARCHETYPE } from "./hitem3d";
-import { MESHY6_ARCHETYPE } from "./meshy6";
-import { RUNNINGHUB_IMAGE_ARCHETYPES } from "./runninghubImageArchetypes";
-import { GPT_IMAGE_2_ARCHETYPE } from "./gptImage2";
-import { GPT_IMAGE_25_FLARE_ARCHETYPE, GPT_IMAGE_25_SUNBURST_ARCHETYPE } from "./gptImage25";
-import { GPT_IMAGE_26_FLARE_ARCHETYPE, GPT_IMAGE_26_SUNBURST_ARCHETYPE } from "./gptImage26";
-import { NANO_BANANA_21_ARCHETYPE, NANO_BANANA_21_EXT_ARCHETYPE } from "./nanoBanana21";
-import { NANO_BANANA_LITE_ARCHETYPE, NANO_BANANA_LITE_EXT_ARCHETYPE } from "./nanoBananaLite";
-import { FLUX_3_IMAGE_ARCHETYPE, FLUX_3_IMAGE_KLEIN_ARCHETYPE } from "./flux3";
-import { GROK_IMAGINE_IMAGE_20_OFFICIAL_ARCHETYPE } from "./grokImageOfficial";
-import { HY_IMAGE_V35_ARCHETYPE } from "./hunyuanImage35";
-import { MUSE_IMAGE_EXT_ARCHETYPE } from "./museImage";
-import { WAN_27_IMAGE_ARCHETYPE, WAN_27_IMAGE_PRO_ARCHETYPE } from "./wan27Image";
-import { SEEDREAM_ARCHETYPE } from "./seedream";
-import { NANO_BANANA_ARCHETYPE } from "./nanoBanana";
-import { NANO_BANANA_2_ARCHETYPE, NANO_BANANA_2_LITE_ARCHETYPE } from "./nanoBanana2";
-import { KIE_SEEDREAM_5_LITE_ARCHETYPE, KIE_SEEDREAM_5_PRO_ARCHETYPE } from "./kieSeedream5";
-import { FLUX_2_PRO_ARCHETYPE } from "./flux2Pro";
-import { QWEN_IMAGE_ARCHETYPE } from "./qwenImage";
-import { QWEN_IMAGE_3_ARCHETYPE } from "./qwenImage3";
-import { IMAGEN_4_ARCHETYPE } from "./imagen4";
-import { IMAGEN_4_FAST_ARCHETYPE, IMAGEN_4_ULTRA_ARCHETYPE } from "./imagen4Kie";
-import { Z_IMAGE_ARCHETYPE } from "./zImage";
-import { SEEDREAM_5_PRO_ARCHETYPE } from "./seedream5Pro";
-import { SEEDREAM_55_ARCHETYPE } from "./seedream55";
-import { AUDIO_ARCHETYPE } from "./audioArchetype";
-import { LOCAL_SPEECH_ARCHETYPE } from "./localSpeech";
-import { DOUBAO_TTS_ARCHETYPE } from "./doubaoTtsArchetype";
-import { SEED_TTS_ARCHETYPE } from "./seedTtsArchetype";
-import { MODELSCOPE_IMAGE_ARCHETYPE, MODELSCOPE_IMAGE_EDIT_ARCHETYPE } from "./modelscopeImage";
-import { SEEDREAM_VOLCENGINE_ARCHETYPE } from "./seedreamVolcengine";
-import { SEEDREAM_VOLCENGINE_5_PRO_ARCHETYPE } from "./seedreamVolcengine5Pro";
-import { DREAMINA_IMAGE_ARCHETYPE } from "./dreaminaImage";
-import { DREAMINA_UPSCALE_ARCHETYPE } from "./dreaminaUpscale";
-import { RECRAFT_CRISP_UPSCALE_ARCHETYPE, TOPAZ_IMAGE_UPSCALE_ARCHETYPE } from "./imageUpscale";
-import { AGNES_IMAGE_ARCHETYPE, AGNES_IMAGE_21_ARCHETYPE } from "./agnesImage";
-import { HIGGSFIELD_SOUL_2_ARCHETYPE, HIGGSFIELD_SOUL_CINEMA_ARCHETYPE } from "./higgsfieldSoul";
-import { ANTIGRAVITY_IMAGE_ARCHETYPE } from "./antigravityImage";
-import { CODEX_IMAGEGEN_ARCHETYPE } from "./codexImagegen";
-import { SUNO_V55_ARCHETYPE, SUNO_SFX_V55_ARCHETYPE, SUNO_V6_ARCHETYPES } from "./sunoAudio";
-import { LYRIA_35_ARCHETYPE } from "./lyria35";
-import { MINIMAX_SPEECH_28_ARCHETYPE } from "./minimaxSpeech28";
-import { ELEVEN_MULTILINGUAL_V2_ARCHETYPE, ELEVEN_MUSIC_V2_ARCHETYPE, ELEVEN_SCRIBE_V2_ARCHETYPE, ELEVEN_SFX_V2_ARCHETYPE, ELEVEN_V3_ARCHETYPE } from "./elevenAudio";
-import { MESHY_7_ARCHETYPE } from "./meshy7";
-import { MINIMAX_MUSIC_3_ARCHETYPE } from "./minimaxMusic3";
-import { RUNWAY_NATIVE_IMAGE_ARCHETYPES } from "./runwayNativeImage";
-import { RUNWAY_SEED_AUDIO_ARCHETYPE } from "./runwaySeedAudio";
-import type { ModelArchetype } from "./types";
+import type { ModelArchetype, ModelArchetypeVariant } from "./types";
+import { getArchetypeById, MODEL_ARCHETYPES } from "./builtInCatalog";
+// 迁移中：旧导出，最后一批删。
+export { getArchetypeById, MODEL_ARCHETYPES } from "./builtInCatalog";
 import { customCapabilityArchetypeForModel } from "./customCapabilityContract";
 import { resolveArchetypeVariant } from "./variantResolution";
 
@@ -88,31 +37,6 @@ export {
 } from "./customCapabilityContract";
 export type { CustomCapabilityContractV1, CustomCapabilityModeV1 } from "./customCapabilityContract";
 
-/**
- * 内置档案注册表。登记处按 kind 分家（一功能一个家）：
- * - video → electron/shared/videoCapabilities/registry.ts 的 SOURCE_BACKED_PROFILES（唯一登记点，
- *   渲染层整块派生，不再手列第二份——接一个 video 模型只碰 electron 侧：档案文件 + registry 一行）；
- * - image / audio / 3D → 本文件下方的非 video 列表登记一条。
- * ⚠️ 顺序还有**第二个后果**：新用户没配默认时，分镜兜底阶梯（availableModels.pickStoryboardDefaultModel）
- * 按候选顺序取第一个匹配 /gpt[\s-]?image/ 的模型。故 GPT Image 2.5 两档**刻意排在 2 之后**——
- * 接一批新档案不该顺带改掉新用户的默认图片模型（那是产品决定，要单独拍板，不该由 import 顺序偷偷决定）。
- * storyboardDefaults.snapshot.test.ts 就是拦这件事的哨兵：它 2026-09-18 当场抓到过一次。
- *
- * 顺序即三趟身份匹配的同趟决胜顺序（见 resolveBaseArchetype）；video 块的顺序就是 registry
- * 声明序——渲染层与 registry 平局判据共用同一份决胜序，同一身份串两侧永远同一个赢家
- * （2026-09-02 修复 "veo3.1" 同串双身份后不再有任何 legacy pin）。跨档案同串的赢家由
- * resolutionOrder.test.ts 锁死，重排/新增若翻转任何赢家该测试即红。
- */
-export const MODEL_ARCHETYPES: readonly ModelArchetype[] = [
-  ...sourceBackedVideoProfiles(),
-  MINIMAX_MUSIC_3_ARCHETYPE, MINIMAX_SPEECH_28_ARCHETYPE, ELEVEN_V3_ARCHETYPE, ELEVEN_MULTILINGUAL_V2_ARCHETYPE, ELEVEN_MUSIC_V2_ARCHETYPE, ELEVEN_SFX_V2_ARCHETYPE, ELEVEN_SCRIBE_V2_ARCHETYPE, MESHY_7_ARCHETYPE, ...RUNWAY_NATIVE_IMAGE_ARCHETYPES, RUNWAY_SEED_AUDIO_ARCHETYPE, GPT_IMAGE_2_ARCHETYPE, SEEDREAM_ARCHETYPE, KIE_SEEDREAM_5_PRO_ARCHETYPE, KIE_SEEDREAM_5_LITE_ARCHETYPE, NANO_BANANA_2_ARCHETYPE, NANO_BANANA_2_LITE_ARCHETYPE, NANO_BANANA_ARCHETYPE, FLUX_2_PRO_ARCHETYPE, QWEN_IMAGE_3_ARCHETYPE, QWEN_IMAGE_ARCHETYPE, IMAGEN_4_ARCHETYPE, Z_IMAGE_ARCHETYPE, SEEDREAM_5_PRO_ARCHETYPE, SEEDREAM_55_ARCHETYPE, AUDIO_ARCHETYPE, SUNO_V55_ARCHETYPE, SUNO_SFX_V55_ARCHETYPE, ...SUNO_V6_ARCHETYPES, LYRIA_35_ARCHETYPE, DOUBAO_TTS_ARCHETYPE, SEED_TTS_ARCHETYPE, MODELSCOPE_IMAGE_ARCHETYPE, MODELSCOPE_IMAGE_EDIT_ARCHETYPE, SEEDREAM_VOLCENGINE_ARCHETYPE, SEEDREAM_VOLCENGINE_5_PRO_ARCHETYPE, DREAMINA_IMAGE_ARCHETYPE, DREAMINA_UPSCALE_ARCHETYPE, TOPAZ_IMAGE_UPSCALE_ARCHETYPE, RECRAFT_CRISP_UPSCALE_ARCHETYPE, CODEX_IMAGEGEN_ARCHETYPE, ANTIGRAVITY_IMAGE_ARCHETYPE, HUNYUAN3D_ARCHETYPE, HITEM3D_ARCHETYPE, MESHY6_ARCHETYPE, ...RUNNINGHUB_IMAGE_ARCHETYPES, AGNES_IMAGE_ARCHETYPE, AGNES_IMAGE_21_ARCHETYPE, LOCAL_SPEECH_ARCHETYPE, HIGGSFIELD_SOUL_2_ARCHETYPE, HIGGSFIELD_SOUL_CINEMA_ARCHETYPE, GPT_IMAGE_25_FLARE_ARCHETYPE, GPT_IMAGE_25_SUNBURST_ARCHETYPE, GPT_IMAGE_26_FLARE_ARCHETYPE, GPT_IMAGE_26_SUNBURST_ARCHETYPE, NANO_BANANA_21_ARCHETYPE, NANO_BANANA_21_EXT_ARCHETYPE, NANO_BANANA_LITE_ARCHETYPE, NANO_BANANA_LITE_EXT_ARCHETYPE, FLUX_3_IMAGE_ARCHETYPE, FLUX_3_IMAGE_KLEIN_ARCHETYPE, GROK_IMAGINE_IMAGE_20_OFFICIAL_ARCHETYPE, HY_IMAGE_V35_ARCHETYPE, MUSE_IMAGE_EXT_ARCHETYPE, WAN_27_IMAGE_ARCHETYPE, WAN_27_IMAGE_PRO_ARCHETYPE, IMAGEN_4_FAST_ARCHETYPE, IMAGEN_4_ULTRA_ARCHETYPE,
-];
-
-/** 按 id 取档案。 */
-export function getArchetypeById(id: string | null | undefined): ModelArchetype | null {
-  if (!id) return null;
-  return MODEL_ARCHETYPES.find((a) => a.id === id) || null;
-}
 
 /** 归一模型标识：去掉 "models/" 前缀、trim、小写。 */
 function normalizeIdentifier(value: unknown): string {
@@ -190,24 +114,121 @@ function readArchetypeIdFromMeta(meta: unknown): string | null {
 }
 
 /**
- * 解析一个 catalog 模型对应的档案 —— **供应商无关**，这是「换任意供应商也能用模板」的核心。
- * 顺序：
- *   1. meta.archetypeId（catalog 模型）或 meta.archetype.id（画布节点）显式指定 → 直接取。
- *   2. 否则按模型身份（modelKey / 别名）匹配 identifierPatterns —— 任何人经任何供应商接入
- *      同一个模型都会命中，不依赖 kie。
- *   3. 都不中 → null（渲染层走「通用」回退，按接入文档原样展示，不藏能力）。
- * 传输侧前提（2026-07-24 修正）：档案投影**叠加**在标准参考面之上、不得独占参考通道——
- * 自定义中转的模板只认标准键（reference_images/chat_image_parts/image_url），吞掉它们会让
- * 中转上撞档案名的模型改图不带图（群反馈根因）。该不变量钉在 buildReferenceExtras +
- * referenceInputParams，两处测试锁死；本函数保持纯识别、不做 vendor 门。
+ * 「全部档」记号：问的是这个模型**任一档**的事（剥掉别的档留下的旧键、画档位轴、名单层一行一模型……），
+ * 不是某一档的参数。名字上看得出是有意的；用到它的生产文件是一张只减不增的名单（archetypeSingleEntry.structure.test.ts）。
  */
-export function resolveArchetypeForModel(model: ArchetypeModelLike | null | undefined): ModelArchetype | null {
+export const EVERY_VARIANT: unique symbol = Symbol("archetype.every-variant");
+
+/** 具体的一档：两个键都要写（值可以空）——空 / 认不出按唯一 owner resolveArchetypeVariant 的规则落档。 */
+export type ArchetypeVariantRequest = Readonly<{ variantId: unknown; modelId: unknown }>;
+
+/**
+ * 这次要哪一档。**没有缺省值**（先例同文件 vendorKey：漏传 = 拿到没收窄的档案，类型层逼每个调用点表态）：
+ * - 具体的一档（`{ variantId, modelId }`）；
+ * - 按解析出的档案再定的一档（函数形）：存档里记的 variantId 只在「记的就是这个档案」时才算，这个判断要先认出档案；
+ * - `EVERY_VARIANT`：全部档的并集。
+ */
+export type ArchetypeVariantPick =
+  | ArchetypeVariantRequest
+  | ((archetype: ModelArchetype) => ArchetypeVariantRequest)
+  | typeof EVERY_VARIANT;
+
+/** 每份基础档案按（供应商, 型号名来源）作用域后的结果；同一组输入同一个对象（渲染层靠引用相等省重渲染）。 */
+const scopedCache = new WeakMap<ModelArchetype, Map<string, ModelArchetype>>();
+/** 作用域后的档案按档收窄的结果；记着收窄时那份 paramOverrides（测试夹具会临时装卸），换了就重算。 */
+const narrowedCache = new WeakMap<ModelArchetype, Map<string, { overrides: ModelArchetypeVariant["paramOverrides"]; value: ModelArchetype }>>();
+/** 收窄结果 → 它的全部档版本（换档 / 并集问题从这里回到同一份全集，不在收窄过的上面再收一遍）。 */
+const everyVariantOf = new WeakMap<ModelArchetype, ModelArchetype>();
+
+function scopedArchetype(base: ModelArchetype, model: ArchetypeModelLike): ModelArchetype {
+  const source = modelNameSourceFor(model);
+  const key = `${typeof model.vendorKey === "string" ? model.vendorKey.trim() : ""}\u0000${source ?? ""}`;
+  let byKey = scopedCache.get(base);
+  const hit = byKey?.get(key);
+  if (hit) return hit;
+  // 型号名按供应商作用域解析：这家这一行不接受档案的型号名 → 档案只给参数（modelNameSource.ts，唯一一处）。
+  const resolved = scopeArchetypeModelNames(specializeArchetypeForVendor(base, model.vendorKey), source);
+  const value: ModelArchetype = { ...resolved, modes: resolved.modes.map((mode) => ({ ...mode, consumesAnchors: anchorsConsumedBy(mode) })) };
+  if (!byKey) scopedCache.set(base, (byKey = new Map()));
+  byKey.set(key, value);
+  everyVariantOf.set(value, value);
+  return value;
+}
+
+/**
+ * 按档收窄——**唯一一份写法**：各方式的 params 叠上这一档的 paramOverrides（如 Seedance fast 的清晰度只 480/720）。
+ * 身份 / 方式 / 参考槽不变（这一刀只收参数；「这一档能用哪些方式」是下一刀）。没有档、这一档没有改写 → 原样返回全集那个对象。
+ */
+function narrowToVariant(every: ModelArchetype, pick: ArchetypeVariantPick): ModelArchetype {
+  if (pick === EVERY_VARIANT) return every;
+  const request = typeof pick === "function" ? pick(every) : pick;
+  const variant = resolveArchetypeVariant(every, { variantId: request.variantId, modelId: request.modelId });
+  const overrides = variant?.paramOverrides;
+  if (!variant || !overrides) return every;
+  let byVariant = narrowedCache.get(every);
+  const hit = byVariant?.get(variant.id);
+  if (hit && hit.overrides === overrides) return hit.value;
+  const value: ModelArchetype = {
+    ...every,
+    modes: every.modes.map((mode) => {
+      const fn = overrides[mode.id];
+      return fn ? { ...mode, params: fn(mode.params) } : mode;
+    }),
+  };
+  if (!byVariant) narrowedCache.set(every, (byVariant = new Map()));
+  byVariant.set(variant.id, { overrides, value });
+  everyVariantOf.set(value, every);
+  return value;
+}
+
+/**
+ * **给模型和档，拿到已经按档收窄好的档案**——生产代码拿模型档案的唯一入口（设计卡 docs/plan/2026-11-15-archetype-single-entry.md）。
+ * 顺序固定：基础档案（自写能力合同 → 显式 id + legacyIds 迁移 → 三趟身份匹配）→ 供应商 → 型号名作用域 → 方式的锚点消费 → 档。
+ * 认不出 → null（渲染层走「通用」回退，按接入文档原样展示，不藏能力）。供应商无关识别、标准参考面不被档案独占的前提
+ * 同以前（2026-07-24：档案投影叠加在标准参考面之上，buildReferenceExtras + referenceInputParams 两处测试锁死）。
+ * 同一组输入返回同一个对象；自写能力合同的档案每次现解析（没有可以拿来当键的稳定对象），不在此列。
+ */
+export function resolveModelArchetype(
+  model: ArchetypeModelLike | null | undefined,
+  options: Readonly<{ variant: ArchetypeVariantPick }>,
+): ModelArchetype | null {
   if (!model) return null;
   const base = resolveBaseArchetype(model);
   if (!base) return null;
-  // 型号名按供应商作用域解析：这家这一行不接受档案的型号名 → 档案只给参数（modelNameSource.ts，唯一一处）。
-  const resolved = scopeArchetypeModelNames(specializeArchetypeForVendor(base, model.vendorKey), modelNameSourceFor(model));
-  return { ...resolved, modes: resolved.modes.map((mode) => ({ ...mode, consumesAnchors: anchorsConsumedBy(mode) })) };
+  return narrowToVariant(scopedArchetype(base, model), options.variant);
+}
+
+/**
+ * 节点 / 分镜镜头上存着的那一档（函数形的档）：`meta.archetype.variantId` 只在记的就是这个档案时才算（换过模型留下的旧档不算），
+ * 连同模型名交给唯一 owner resolveArchetypeVariant——渲染层 currentArchetypeVariant 的同一组输入。
+ */
+export function variantRecordedInMeta(meta: unknown, modelId: unknown): (archetype: ModelArchetype) => ArchetypeVariantRequest {
+  const stored = meta && typeof meta === "object" ? (meta as { archetype?: unknown }).archetype : undefined;
+  const record = stored && typeof stored === "object" ? stored as { id?: unknown; variantId?: unknown } : {};
+  const id = typeof record.id === "string" ? record.id : "";
+  const variantId = typeof record.variantId === "string" ? record.variantId : "";
+  return (archetype) => ({ variantId: id && id === archetype.id ? variantId : undefined, modelId });
+}
+
+/**
+ * 手上已经有入口给的档案、要换一档（切档时把越界下拉夹回、方式参数 owner 按请求里记的档出键）：
+ * 从它的全部档版本重新收窄，不在已收窄的上面再叠一遍。不是入口给的档案（自写合同、测试手搓的）按它自己就是全集处理。
+ */
+export function rescopeArchetypeVariant(archetype: ModelArchetype, variant: ArchetypeVariantPick): ModelArchetype {
+  return narrowToVariant(everyVariantOf.get(archetype) ?? archetype, variant);
+}
+
+/**
+ * 全目录的内置档案（全部档、未作用域）——只回答「全目录有没有哪个档案……」这类问题（参考键普查、全目录登记过的参数键）。
+ * 生产里的使用点是一张只减不增的名单（archetypeSingleEntry.structure.test.ts）；拿某个模型的档案一律走 resolveModelArchetype。
+ */
+export function everyBuiltInArchetype(): readonly ModelArchetype[] {
+  return MODEL_ARCHETYPES;
+}
+
+/** 迁移中：旧入口，等价于 resolveModelArchetype(model, { variant: EVERY_VARIANT })。最后一批删。 */
+export function resolveArchetypeForModel(model: ArchetypeModelLike | null | undefined): ModelArchetype | null {
+  return resolveModelArchetype(model, { variant: EVERY_VARIANT });
 }
 
 /** 解析「基础」档案（供应商无关，未特化）：显式 archetypeId 优先，否则按身份匹配 pattern。 */
@@ -262,37 +283,20 @@ export function specializeArchetypeForVendor(archetype: ModelArchetype, vendorKe
   };
 }
 
-/**
- * **变体特化（A 变体轴的运行时叠加）**：把档案各 mode 的 params 按选中变体的 paramOverrides 收窄
- * （如 Seedance fast 变体的 resolution 仅 480/720）。仿 specializeArchetypeForVendor —— 身份/能力形状
- * （id/family/label/modes 结构/slots）不变，只 params 这层按变体叠加。无 variants、变体无 paramOverrides、
- * 无变体、或变体无 paramOverrides → 原样返回（零开销）。**纯函数**，渲染读取点与构造层共用，保证 UI 选项收窄与发送一致。
- * 哪个变体由唯一 owner `resolveArchetypeVariant` 定（认不出的 id 与不传一样落默认变体——以前这里落「不特化」，
- * 于是参数面是标准版的、实际跑的却是默认的 fast）。手上有模型名的调用方先用 owner 连模型名一起解出 id 再传进来。
- */
+/** 迁移中：旧的按档收窄，最后一批删。 */
 export function specializeArchetypeForVariant(archetype: ModelArchetype, variantId: string | null | undefined): ModelArchetype {
-  const variant = resolveArchetypeVariant(archetype, { variantId });
-  const overrides = variant?.paramOverrides;
-  if (!overrides) return archetype;
-  return {
-    ...archetype,
-    modes: archetype.modes.map((m) => {
-      const fn = overrides[m.id];
-      return fn ? { ...m, params: fn(m.params) } : m;
-    }),
-  };
+  return rescopeArchetypeVariant(archetype, { variantId, modelId: undefined });
 }
 
 /**
- * 认得的模型 → 该档案默认模式的参数控件（ModelParameterControl[]，复用现有控件类型）；
+ * 认得的模型 → 该档案默认档、默认模式的参数控件（ModelParameterControl[]，复用现有控件类型）；
  * 认不出 → null（调用方走现有 flat 解析）。供 model-options 适配层把它注入到 option.meta，
- * 让现有渲染路径不变就能渲染档案控件。**供应商无关**（resolveArchetypeForModel 只看模型身份）。
+ * 让现有渲染路径不变就能渲染档案控件。**供应商无关**（入口只看模型身份）。
  */
 export function archetypeParameterControls(model: ArchetypeModelLike | null | undefined): ModelParameterControl[] | null {
-  const archetype = resolveArchetypeForModel(model);
+  // 默认档（variants 档案的默认档可能收窄某 mode 的参数，如 Seedance 标准档不收窄、fast 收窄）：只按档案默认、不按模型名反推。
+  const archetype = resolveModelArchetype(model, { variant: (every) => ({ variantId: every.defaultVariantId, modelId: undefined }) });
   if (!archetype) return null;
-  // 默认变体特化（variants 档案的默认变体可能收窄某 mode 的参数，如 Seedance 标准变体不收窄、fast 收窄）。
-  const specialized = specializeArchetypeForVariant(archetype, archetype.defaultVariantId);
-  const mode = specialized.modes.find((m) => m.id === specialized.defaultModeId) ?? specialized.modes[0];
+  const mode = archetype.modes.find((m) => m.id === archetype.defaultModeId) ?? archetype.modes[0];
   return mode ? mode.params : null;
 }
