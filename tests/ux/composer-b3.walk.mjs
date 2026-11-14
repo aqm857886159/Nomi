@@ -19,6 +19,7 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { REPO_ROOT } from './design-lab/labStates.mjs'
 import { assertLabPortOwnership, labPortFor } from './design-lab/labServer.mjs'
+import { NODE_COMPOSER_WIDTH } from './_composerWidth.mjs'
 
 const ROLE = 'walk-composer-b3'
 const HOST = '127.0.0.1'
@@ -110,7 +111,7 @@ try {
   {
     const { page, context } = await open(B3, 'b3a-video-empty')
     const card = await page.evaluate((sel) => { const el = document.querySelector(sel); if (!el) return null; const s = getComputedStyle(el); return { radius: parseFloat(s.borderTopLeftRadius), shadow: s.boxShadow !== 'none', width: Math.round(el.getBoundingClientRect().width) } }, CARD)
-    check('board:ComposerB3/node.card', Boolean(card) && card.radius >= 9 && card.radius <= 12 && card.shadow && card.width === 560, JSON.stringify(card))
+    check('board:ComposerB3/node.card', Boolean(card) && card.radius >= 9 && card.radius <= 12 && card.shadow && card.width === NODE_COMPOSER_WIDTH, JSON.stringify(card))
     const pick = await box(page, '[data-reference-entry]')
     check('board:ComposerB3/ref.tool.canvas-pick', pick?.w === 40 && pick?.h === 40, JSON.stringify(pick))
     const plus = await box(page, '[data-reference-add-entry], [data-asset-add-tile]')
