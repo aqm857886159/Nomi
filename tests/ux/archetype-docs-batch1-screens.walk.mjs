@@ -3,15 +3,15 @@
 //   node tests/ux/archetype-docs-batch1-screens.walk.mjs
 // 零花费：隔离资料 + 夹具凭据（createRuntimeWalk 的 apimart 夹具档），APIMart 地址被重定向到本机夹具，不出网、不读真实 Key、不点生成。
 // 不改任何界面代码，只读界面：参数面板里写了什么、有没有被挤出框，按真实 DOM 量，交给报告对着能力表逐行勾。
-// 环境变量：NOMI_SHOTS_OUT 截图落地目录（仓库外；不给就落系统临时目录）；NOMI_SHOTS_ONLY 只跑某个型号（逗号分隔，调试用）；
+// 环境变量：NOMI_SHOTS_OUT 截图落地目录（绝对路径；不给就落仓库里被忽略的 .tmp/walk-archetype-docs-batch1/）；NOMI_SHOTS_ONLY 只跑某个型号（逗号分隔，调试用）；
 // NOMI_SHOTS_LOCALES 只跑某轨（zh-CN / en，逗号分隔）。
 //
 // 方式按输入现算（2026-11-12 起方式住在底栏方式格，放不下当前输入的方式置灰），所以按真人的顺序摆几种输入，每种输入下把方式格里
 // 亮着的方式逐个点一遍、开参数面板截：没放东西 → 放一张图 → 再放一张图；视频模型另开一个节点只放一段源视频（编辑 / 续写）。
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
 import { clickOrFail, expect, expectHidden, expectVisible, screenshotSettled } from './_assert.mjs'
 import { closeModeMenu, modeName, openModeMenu, pickModeByName, readModeCell } from './_modeMenu.mjs'
@@ -24,8 +24,8 @@ import { stationTimeout } from './_station-budget.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 
 const PICKER = '[data-testid="asset-picker"]'
-// 没给 NOMI_SHOTS_OUT 时落到系统临时目录（仍在仓库外）：这条在夜跑清单里，夜跑不设这个变量，以前一启动就红（2026-11-14 清红走查）。
-const OUT = process.env.NOMI_SHOTS_OUT || fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-archetype-docs-batch1-'))
+// 没给 NOMI_SHOTS_OUT 时落到仓库里被忽略的 .tmp/ 草稿区：这条在夜跑清单里，夜跑不设这个变量，以前一启动就红（2026-11-14 清红走查）。
+const OUT = process.env.NOMI_SHOTS_OUT || fileURLToPath(new URL('../../.tmp/walk-archetype-docs-batch1/', import.meta.url))
 if (!path.isAbsolute(OUT)) throw new Error('NOMI_SHOTS_OUT 必须是绝对路径（截图落地目录）')
 fs.mkdirSync(OUT, { recursive: true })
 

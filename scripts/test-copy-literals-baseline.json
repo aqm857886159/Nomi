@@ -264,7 +264,7 @@
   "tests/ux/model-access-journeys/manifest.mjs": 1,
   "tests/ux/model-availability-agreement.walk.mjs": 5,
   "tests/ux/model-box-tidy.walk.mjs": 2,
-  "tests/ux/model-contract-limits.walk.mjs": 4,
+  "tests/ux/model-contract-limits.walk.mjs": 3,
   "tests/ux/model-pick-confirm.walk.mjs": 1,
   "tests/ux/narrowed-mode-guidance.walk.mjs": 1,
   "tests/ux/new-models-20260729.walk.mjs": 1,
