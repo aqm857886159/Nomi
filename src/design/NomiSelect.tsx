@@ -4,6 +4,7 @@ import { Combobox, useCombobox } from '@mantine/core'
 import { IconCheck, IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../utils/cn'
 import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
+import { fittedOptionsHeight } from './anchoredPopoverPlacement'
 import { NomiIdentityIcon, type NomiIdentityIconSource } from './NomiIdentityIcon'
 
 /**
@@ -131,15 +132,6 @@ const DROPDOWN_MAX_WIDTH_WITH_RICH_ROWS = 400
  * 超过的照旧按固定最高（380 / 240）在菜单里滚。起因：方式菜单六行带说明，固定 240 时第 6 行只露半行。
  */
 export const NOMI_SELECT_WHOLE_ROWS = 8
-/**
- * 整个露出的菜单的选项区高度：内容多高就多高，但不许被窗口边切掉——
- * 窗口剩余高度（减去小标题、尾行这些滚动区外的部分）放不下时取窗口那一截，在菜单里滚。纯 DOM 量，不猜行高。
- */
-export function fittedOptionsHeight(list: HTMLElement, availableHeight: number): number {
-  const dropdown = list.parentElement
-  const outside = dropdown ? Math.max(0, dropdown.getBoundingClientRect().height - list.getBoundingClientRect().height) : 0
-  return Math.max(0, Math.floor(Math.min(list.scrollHeight, availableHeight - outside)))
-}
 
 function toneClass(tone: NomiSelectTone | undefined, kind: 'badge' | 'trailing'): string {
   if (tone === 'accent') return 'bg-nomi-accent-soft text-nomi-accent'

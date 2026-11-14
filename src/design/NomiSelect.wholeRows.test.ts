@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { MODEL_ARCHETYPES } from '../../electron/shared/modelArchetypes'
-import { fittedOptionsHeight, NOMI_SELECT_WHOLE_ROWS } from './NomiSelect'
+import { NOMI_SELECT_WHOLE_ROWS } from './NomiSelect'
+import { fittedOptionsHeight } from './anchoredPopoverPlacement'
 
 /**
  * NomiSelect 自己的一条规则（2026-11-14 方向检查：共用组件的能力不靠各调用方各带开关）：
