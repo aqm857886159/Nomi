@@ -14,7 +14,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { PAID_WALKS_WITHOUT_OPEN_PAID_WALK, REHEARSAL_ENV, SPEND_OPT_IN_ENV, rehearsalReceiptFile } from './_paidRun.mjs'
+import { REHEARSAL_ENV, SPEND_OPT_IN_ENV, rehearsalReceiptFile } from './_paidRun.mjs'
+import { reasonFromLog, rehearsalTargets } from './_paidRehearsalList.mjs'
 import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -22,21 +23,6 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 function option(name, fallback) {
   const index = process.argv.indexOf(name)
   return index >= 0 ? process.argv[index + 1] : fallback
-}
-
-/** 要演练的脚本：tests/ux 下所有 *.paid.mjs，去掉不走 openPaidWalk 的例外表（它们没有演练开关）。 */
-export function rehearsalTargets(files, exceptions = PAID_WALKS_WITHOUT_OPEN_PAID_WALK) {
-  const excluded = new Set(exceptions.map((entry) => path.basename(entry.file)))
-  return files.filter((file) => file.endsWith('.paid.mjs') && !excluded.has(file)).sort()
-}
-
-/** 日志 → 一句原因：最后一句 [rehearsal]，没有就最后一句像错误的行。 */
-export function reasonFromLog(text) {
-  const lines = String(text).split('\n').map((line) => line.trim()).filter(Boolean)
-  const tagged = lines.filter((line) => line.startsWith('[rehearsal]')).at(-1)
-  if (tagged) return tagged.replace(/^\[rehearsal\]\s*/, '')
-  const error = lines.filter((line) => /Error|拒跑|失败|不过|throw/i.test(line) && !line.startsWith('at ')).at(-1)
-  return (error ?? lines.at(-1) ?? '没有输出').slice(0, 300)
 }
 
 const trackedChanges = () => execFileSync('git', ['diff', '--name-only'], { cwd: REPO_ROOT, encoding: 'utf8' }).split('\n').filter(Boolean)

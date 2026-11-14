@@ -1,7 +1,7 @@
 // 批量演练的两个纯函数：挑哪些脚本、日志 → 一句原因。
 import { describe, expect, it } from 'vitest'
 
-import { reasonFromLog, rehearsalTargets } from './_paidRehearsalBatch.mjs'
+import { reasonFromLog, rehearsalTargets } from './_paidRehearsalList.mjs'
 
 describe('paid rehearsal batch', () => {
   it('targets every *.paid.mjs except the ones that do not open through openPaidWalk', () => {

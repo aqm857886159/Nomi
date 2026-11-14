@@ -158,8 +158,8 @@ const LOCAL_IMPORT = /\bfrom\s*['"](\.{1,2}\/[^'"]+)['"]|\bimport\s*\(\s*['"](\.
  * 辅助模块（例如找生成钮的 _generateReach.mjs、_paidRun.mjs 自己）改了，同样算「脚本改过」；
  * tests/ 之外的源码由构建戳管（构建戳把 tests/ 排除在外，两者正好不重叠）。
  */
-export function scriptFingerprint(entry, { root = REPO_ROOT, readFile = (file) => fs.readFileSync(file, 'utf8'), exists = fs.existsSync } = {}) {
-  const testsRoot = path.join(root, 'tests') + path.sep
+export function scriptFingerprint(entry, { repoBase = REPO_ROOT, readFile = (file) => fs.readFileSync(file, 'utf8'), exists = fs.existsSync } = {}) {
+  const testsRoot = path.join(repoBase, 'tests') + path.sep
   const seen = new Map()
   const visit = (file) => {
     if (seen.has(file) || !exists(file)) return
@@ -173,7 +173,7 @@ export function scriptFingerprint(entry, { root = REPO_ROOT, readFile = (file) =
   visit(path.resolve(entry))
   if (!seen.size) throw new Error(`算不出脚本指纹：入口文件不存在 ${entry}`)
   const hash = crypto.createHash('sha256')
-  for (const [file, text] of [...seen].sort(([a], [b]) => a.localeCompare(b))) hash.update(`${path.relative(root, file).split(path.sep).join('/')}\0${text}\0`)
+  for (const [file, text] of [...seen].sort(([a], [b]) => a.localeCompare(b))) hash.update(`${path.relative(repoBase, file).split(path.sep).join('/')}\0${text}\0`)
   return { fingerprint: `sha256:${hash.digest('hex')}`, files: seen.size }
 }
 
@@ -188,8 +188,8 @@ export function packagedBuildIdentity(argv, { stat = fs.statSync, exists = fs.ex
   return `packaged:${path.basename(file)}:size:${info.size}:mtime:${Math.round(info.mtimeMs)}`
 }
 
-export function rehearsalReceiptFile(script, dir = REHEARSAL_RECEIPT_DIR) {
-  return path.join(dir, `${script.split(/[\\/]/).join('__')}.json`)
+export function rehearsalReceiptFile(script, receiptDir = REHEARSAL_RECEIPT_DIR) {
+  return path.join(receiptDir, `${script.split(/[\\/]/).join('__')}.json`)
 }
 
 /**
@@ -212,19 +212,19 @@ function readReceipt(file) {
 }
 
 /** 真付费入口的收据核对（openPaidWalk 缺省用它；单测换掉）。必须在建隔离副本、装凭据之前。 */
-export function assertRehearsalReceipt({ script, entry, build, dir = REHEARSAL_RECEIPT_DIR }) {
-  const refusal = rehearsalReceiptRefusal(readReceipt(rehearsalReceiptFile(script, dir)), { script, fingerprint: scriptFingerprint(entry).fingerprint, build })
+export function assertRehearsalReceipt({ script, entry, build, receiptDir = REHEARSAL_RECEIPT_DIR }) {
+  const refusal = rehearsalReceiptRefusal(readReceipt(rehearsalReceiptFile(script, receiptDir)), { script, fingerprint: scriptFingerprint(entry).fingerprint, build })
   if (refusal) throw new Error(`付费走查拒跑（一分钱没花）：${refusal}`)
 }
 
 /** 演练收尾写这张（过不过都写，过了的才放行真付费）。 */
-export function writeRehearsalReceipt({ script, entry, build, tier, verdict, dir = REHEARSAL_RECEIPT_DIR, now = () => new Date().toISOString() }) {
+export function writeRehearsalReceipt({ script, entry, build, tier, verdict, receiptDir = REHEARSAL_RECEIPT_DIR, now = () => new Date().toISOString() }) {
   const receipt = {
     version: REHEARSAL_RECEIPT_VERSION, script, fingerprint: scriptFingerprint(entry).fingerprint, build: build ?? null, tier,
     passed: verdict.passed === true, reason: verdict.reason, request: verdict.request, at: now(),
   }
-  fs.mkdirSync(dir, { recursive: true })
-  fs.writeFileSync(rehearsalReceiptFile(script, dir), `${JSON.stringify(receipt, null, 2)}\n`)
+  fs.mkdirSync(receiptDir, { recursive: true })
+  fs.writeFileSync(rehearsalReceiptFile(script, receiptDir), `${JSON.stringify(receipt, null, 2)}\n`)
   return receipt
 }
 

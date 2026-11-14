@@ -1,8 +1,9 @@
 // 付费走查的出网名单与「被挡即失败」：不真起 App，把 openPaidWalk 的接线、名单计算、被挡即失败各自钉住。
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 
 import { assertExactOrigin, blockedError, blockedRequestOf, describeBlocked, hostedUploadRelayOrigin, guardLoadedError, paidWalkAllowlist, rehearsalShouldStop, rehearsalVerdict, startRehearsalVendor, VENDOR_RESULT_DOMAINS } from './_paidNetwork.mjs'
 
@@ -207,7 +208,7 @@ describe('rehearsalVerdict', () => {
     expect(rehearsalShouldStop([loaded, elsewhere], { lockedAtEntry: null, judgedAllow })).toBe(true)
   })
   it('stand-in vendor (no-key tier): answers only the declared free probe, records every other request as a blocked row with method + path, never forwards, never logs headers', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-stand-in-'))
+    const dir = makeTempDir('nomi-stand-in-')
     const netLog = path.join(dir, 'net.jsonl')
     fs.writeFileSync(netLog, `${JSON.stringify(loaded)}\n`)
     const standIn = await startRehearsalVendor({ origin: 'https://api.apimart.ai', netLog, freeAnswers: { 'GET /v1/balance': { remain_balance: 0 } } })

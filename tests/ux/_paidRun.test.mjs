@@ -8,6 +8,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+
 import {
   PAID_WALKS_WITHOUT_OPEN_PAID_WALK, PRODUCT_SOURCE_DIRS, REHEARSAL_FAKE_KEY, rehearsalFreeAnswers, assertPaidBuildReady, assertRehearsalReceipt, handedOverRuns, jobVendor, openPaidWalk, packagedBuildIdentity,
   paidBuildMarkerProblems, paidRunRefusal, paidWalkCoverageProblems, rehearsalReceiptFile, rehearsalReceiptRefusal, scriptFingerprint, writeRehearsalReceipt,
@@ -286,22 +288,23 @@ describe('rehearsal · 收据判据', () => {
     expect(rehearsalReceiptRefusal(good, { ...want, build: undefined })).toContain('算不出构建身份')
   })
   it('R4 · 脚本改一个字符、或它 import 的本地辅助模块改一个字符，指纹都变；写收据 → 核收据走同一套', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-rehearsal-fp-'))
+    const root = makeTempDir('nomi-rehearsal-fp-')
     const dir = path.join(root, 'tests', 'ux')
     fs.mkdirSync(dir, { recursive: true })
     const entry = path.join(dir, 'x.paid.mjs')
     fs.writeFileSync(entry, "import { reach } from './_reach.mjs'\nawait reach()\n")
     fs.writeFileSync(path.join(dir, '_reach.mjs'), "export const reach = async () => 'generate'\n")
-    const first = scriptFingerprint(entry, { root })
+    const first = scriptFingerprint(entry, { repoBase: root })
     expect(first.files).toBe(2)
     fs.writeFileSync(path.join(dir, '_reach.mjs'), "export const reach = async () => 'generatE'\n")
-    expect(scriptFingerprint(entry, { root }).fingerprint).not.toBe(first.fingerprint)
+    expect(scriptFingerprint(entry, { repoBase: root }).fingerprint).not.toBe(first.fingerprint)
     const receipts = path.join(root, 'receipts')
-    writeRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', tier: 'no-key', verdict: { passed: true, reason: 'ok', request: null }, dir: receipts })
-    expect(() => assertRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', dir: receipts })).not.toThrow()
+    writeRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', tier: 'no-key', verdict: { passed: true, reason: 'ok', request: null }, receiptDir: receipts })
+    expect(() => assertRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', receiptDir: receipts })).not.toThrow()
     fs.appendFileSync(entry, ' ')
-    expect(() => assertRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', dir: receipts })).toThrow(/一分钱没花.*演练之后改过/)
-    expect(rehearsalReceiptFile('tests/ux/x.paid.mjs', receipts)).toBe(path.join(receipts, 'tests__ux__x.paid.mjs.json'))
+    expect(() => assertRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', receiptDir: receipts })).toThrow(/一分钱没花.*演练之后改过/)
+    // 收据文件名 = 脚本的仓库相对路径，分隔符换成双下划线（写成 join：整串字面量会被走查选择器门岗误读成 CSS 类名）
+    expect(rehearsalReceiptFile('tests/ux/x.paid.mjs', receipts)).toBe(path.join(receipts, ['tests', 'ux', 'x.paid.mjs.json'].join('__')))
   })
   it('安装包形态：构建身份取安装包的 app.asar（大小 + 修改时间）', () => {
     const asar = path.resolve('/A/Nomi.app/Contents/MacOS/Nomi', '..', '..', 'Resources', 'app.asar')
@@ -312,7 +315,7 @@ describe('rehearsal · 收据判据', () => {
 describe('rehearsal · openPaidWalk 接线（假 App）', () => {
   const MODELS = [{ vendorKey: 'apimart', modelKey: 'kling-v4-flash' }]
   function fakeWalk({ media = [] } = {}) {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-rehearsal-walk-'))
+    const root = makeTempDir('nomi-rehearsal-walk-')
     const tempRoot = path.join(root, 'isolated')
     const outputDir = path.join(root, 'evidence')
     const projectRoot = path.join(tempRoot, 'projects', 'p1')
