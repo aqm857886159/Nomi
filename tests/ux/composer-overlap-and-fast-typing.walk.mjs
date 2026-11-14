@@ -36,6 +36,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { stationTimeout } from './_station-budget.mjs'
+import { NODE_COMPOSER_WIDTH } from './_composerWidth.mjs'
 import { clickOrFail, expect, expectAbsent, expectHittable, expectVisible, proveProbe } from './_assert.mjs'
 import { waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { addCanvasNode, canvasAddBar, canvasFitView, newProjectEntry, setAppLanguage, switchWorkspace } from './_shell.mjs'
@@ -56,13 +57,8 @@ const DOCKS = '[data-canvas-bottom-dock]'
 const IN_USE_TILE = '[data-reference-row] [data-asset-slot-group="array"] [data-asset-tile], [data-reference-row] [data-asset-slot] [data-asset-tile]'
 // 与 composerCanvasPlacement.ts 的 NODE_COMPOSER_GAP / NODE_COMPOSER_WIDTH 同一组数（前者是画布单位，后者是屏幕像素）。
 const COMPOSER_GAP = 14
-// 宽度只有一个家（nodeSizing.ts 的 NODE_COMPOSER_WIDTH）：这里从源文件读，不再抄一份数（11-14 从 560 加宽到 600 时这里写死过）。
-const COMPOSER_WIDTH = (() => {
-  const source = fs.readFileSync(new URL('../../src/workbench/generationCanvas/nodes/nodeSizing.ts', import.meta.url), 'utf8')
-  const match = /export const NODE_COMPOSER_WIDTH = (\d+)/.exec(source)
-  if (!match) throw new Error('nodeSizing.ts 里找不到 NODE_COMPOSER_WIDTH')
-  return Number(match[1])
-})()
+// 宽度只有一个家（nodeSizing.ts 的 NODE_COMPOSER_WIDTH），由 _composerWidth.mjs 从源文件读。
+const COMPOSER_WIDTH = NODE_COMPOSER_WIDTH
 // 最小窗口 = electron/main.ts 的 minWidth / minHeight。
 const MIN_VIEWPORT = Object.freeze({ width: 1100, height: 720 })
 // 界面上选的那个图片模型：内置 APIMart 档案里的 GPT Image 2（文生图 + 参考图生图，参考槽收图），出图地址由出网闸指到本机夹具。

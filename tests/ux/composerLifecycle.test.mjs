@@ -2,6 +2,7 @@ import { beforeAll, expect, it } from 'vitest'
 import { chromium } from 'playwright'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 import { useBrowserFixture } from './_browserFixture.mjs'
+import { NODE_COMPOSER_WIDTH } from './_composerWidth.mjs'
 const ENTRY = 'tests/ux/fixtures/composer-lifecycle-harness.html'
 const fixture = useBrowserFixture({ entries: [ENTRY], browserType: chromium })
 let page
@@ -204,7 +205,7 @@ it('pins the card right below the node whatever the stage edges, toolbar, docks 
       await page.locator('#geometry-stage .generation-canvas-v2-node').evaluate((node, point) => { node.style.left = point[0] + 'px'; node.style.top = point[1] + 'px' }, [left, top])
       await expect.poll(async () => {
         const m = await sample()
-        return Math.abs(m.cardTop - (m.nodeBottom + 14 * zoom)) < 1 && Math.abs(m.cardWidth - 560) < 1 && Math.abs(m.cardCentre - m.nodeCentre) < 1
+        return Math.abs(m.cardTop - (m.nodeBottom + 14 * zoom)) < 1 && Math.abs(m.cardWidth - NODE_COMPOSER_WIDTH) < 1 && Math.abs(m.cardCentre - m.nodeCentre) < 1
       }, { message: `zoom=${zoom} node=(${left},${top})` }).toBe(true)
     }
   }
