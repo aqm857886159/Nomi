@@ -330,10 +330,10 @@ function standardKeys(refs: RunRef[]): Record<string, unknown> {
   };
 }
 
-type Cell = { vendorKey: string; modelKey: string; modelAlias?: string; meta: unknown; archetype: ModelArchetype; mode: ArchetypeMode; taskKind: ProfileKind; shape: string; refs: RunRef[] };
+type ShapeCell = { vendorKey: string; modelKey: string; modelAlias?: string | null; meta: unknown; archetype: ModelArchetype; mode: ArchetypeMode; taskKind: ProfileKind; shape: string; refs: RunRef[] };
 /** 全目录：内置每一行 × 档案每个方式（有派发路径的）× 上面几种「不够」的输入。 */
-function cells(): Cell[] {
-  const out: Cell[] = [];
+function cells(): ShapeCell[] {
+  const out: ShapeCell[] = [];
   for (const row of seeded.models) {
     const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
     if (!archetype) continue;
@@ -347,7 +347,7 @@ function cells(): Cell[] {
 }
 
 /** 发送前入口（两个发送口都经它）：同一份请求值，方式号用给的这个，模板和选择身份取这个方式自己的。拒了返回错误对象。 */
-function sendHeadless(cell: Cell, mode: ArchetypeMode): unknown {
+function sendHeadless(cell: ShapeCell, mode: ArchetypeMode): unknown {
   const taskKind = (modeTransportFor(mode, cell.archetype, cell.vendorKey) ?? cell.taskKind) as ProfileKind;
   const mapping = selectTaskMapping(seeded.mappings, cell.vendorKey, taskKind, cell.modelKey, mode.id);
   lastRefusal.error = undefined;
@@ -362,7 +362,7 @@ function sendHeadless(cell: Cell, mode: ArchetypeMode): unknown {
     return error;
   }
 }
-const sendViaRun = (cell: Cell, mode: ArchetypeMode) => {
+const sendViaRun = (cell: ShapeCell, mode: ArchetypeMode) => {
   lastRefusal.error = undefined;
   return driveEngineB(capture, {
     vendorKey: cell.vendorKey, modelId: cell.modelKey, mode: modeTransportFor(mode, cell.archetype, cell.vendorKey) ?? cell.taskKind, modeId: mode.id,
@@ -370,7 +370,7 @@ const sendViaRun = (cell: Cell, mode: ArchetypeMode) => {
     referenceUrls: Object.fromEntries(cell.refs.map((ref) => [spendReferenceKey(ref as never), ref.assetId])),
   });
 };
-const where = (cell: Cell) => `${cell.vendorKey}/${cell.modelKey}/${cell.mode.id}/${cell.shape}`;
+const where = (cell: ShapeCell) => `${cell.vendorKey}/${cell.modelKey}/${cell.mode.id}/${cell.shape}`;
 const CJK = /[\u3000-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef]/;
 
 /**
