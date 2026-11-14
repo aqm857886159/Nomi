@@ -3,6 +3,7 @@
 // 工程存 localStorage（nomi:director-lab:project），关闭后可重开或重置。不进 prod 构建。
 import React, { type JSX } from 'react'
 import { createRoot } from 'react-dom/client'
+import { declareLabCanvasInputHost } from './labCanvasInputHost'
 import '@fontsource-variable/inter/wght.css'
 import '@fontsource-variable/fraunces/wght.css'
 import '@mantine/core/styles/UnstyledButton.css'
@@ -80,7 +81,10 @@ primeNomiColorScheme()
 const projectSession = createProjectSessionTestHarness()
 await projectSession.open('director-lab')
 
-createRoot(document.getElementById('root')!).render(
+// 导演台在生产里住在画布那一格里（3f78e2e06），快捷键走画布宿主那扇门；试验页替它声明。
+const root = document.getElementById('root')!
+declareLabCanvasInputHost(root)
+createRoot(root).render(
   <React.StrictMode>
     <NomiColorSchemeProvider>
       <NomiAppProviders>
