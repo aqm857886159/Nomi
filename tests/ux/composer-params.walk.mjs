@@ -14,7 +14,7 @@
 import { stationTimeout } from './_station-budget.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 import { NODE_COMPOSER_WIDTH } from './_composerWidth.mjs'
-import { uiTextWith } from './full-walk/invariants.mjs'
+import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { chromium } from 'playwright'
 import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -163,7 +163,11 @@ try {
         const texts = ['seed', 'returnLastFrame', 'moderation'].map((key) => t(`generationCommon.parameters.help.${key}`))
         check(`board:ComposerParams/help.text · 悬停出说明 · ${tag}`, texts.includes(help ?? ''), String(help))
         await shot(page, `cp-t4-help-open-${lang}-${scheme}`)
-        await page.mouse.move(5, 5)
+        // 移开鼠标、等说明收起，再拍 T2 本格（不然 T2 的图里会带着 T4 的说明）。
+        // 分几步移：Radix 离开按钮后要再收到一次「在说明框外」的移动才收起，一步跳过去只有一次移动事件（真鼠标是连续的）。
+        await page.mouse.move(5, 5, { steps: 8 })
+        await page.waitForFunction(() => !document.querySelector('[data-parameter-help-text]'), null, { timeout: stationTimeout({ operations: 1 }) }).then(() => true).catch(() => false)
+          .then((closed) => check(`board:ComposerParams/help.text · 鼠标移开说明收起 · ${tag}`, closed))
       }
       if (state === 'cp-t3-advanced-changed') check(`board:ComposerParams/bar.advanced · 里面填过种子 → 图标带点 · ${tag}`, f.toggle?.changed === true, JSON.stringify(f.toggle))
       if (state === 'cp-t8-both-open') check(`边界 · T8 面板和高级设置同时开、都在视口里 · ${tag}`, Boolean(f.panel && f.advanced) && f.panel.bottom <= f.viewport.h && f.advanced.bottom <= f.viewport.h, JSON.stringify({ panel: f.panel && [f.panel.top, f.panel.bottom], advanced: f.advanced && [f.advanced.top, f.advanced.bottom] }))
@@ -235,6 +239,11 @@ try {
         facts.error = String(error).split('\n')[0]
       }
       check(`board:ComposerParams/storyboard.row · ${state} 底栏是画布同一只（生成钮都在同一种底栏里）· ${lang}-${scheme}`, sameBar, JSON.stringify(facts))
+      // 没存方式的镜头：方式格写这一镜实际会用的方式，不露 NomiSelect 的占位「选择」。
+      const modeLabel = uiText(lang === 'en' ? 'en' : 'zh-CN', 'generationCommon.modeMenu.heading')
+      const modeTexts = await page.evaluate((label) => [...document.querySelectorAll(`[data-node-composer-footer] button[aria-label="${label}"]`)].map((el) => el.textContent?.trim() ?? ''), modeLabel)
+      const placeholder = [uiText('zh-CN', 'common.select'), uiText('en', 'common.select')]
+      check(`board:ComposerParams/storyboard.row · ${state} 方式格不露占位字 · ${lang}-${scheme}`, modeTexts.every((text) => text && !placeholder.includes(text)), JSON.stringify(modeTexts))
       await shot(page, `${state}-${lang}-${scheme}`, { full: true })
       await context.close()
     }

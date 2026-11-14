@@ -1,0 +1,560 @@
+{
+  "samples": [
+    {
+      "state": "cp-t-panel-flat",
+      "lang": "zh",
+      "scheme": "light",
+      "summary": {
+        "text": "自动 · 720p · 5s",
+        "title": "自动 · 720p · 5s",
+        "cramped": false
+      },
+      "panelRows": 4,
+      "panelKeys": [
+        "size",
+        "resolution",
+        "duration"
+      ],
+      "advanced": null,
+      "toggle": {
+        "label": "高级设置",
+        "changed": false,
+        "inFooter": true
+      },
+      "capped": []
+    },
+    {
+      "state": "cp-t2-advanced-open",
+      "lang": "zh",
+      "scheme": "light",
+      "summary": {
+        "text": "自动 · 720p · 5s",
+        "title": "自动 · 720p · 5s",
+        "cramped": false
+      },
+      "panelRows": null,
+      "advanced": [
+        "return_last_frame",
+        "seed",
+        "watermark",
+        "output_format",
+        "nsfw_check"
+      ],
+      "toggle": {
+        "label": "高级设置",
+        "changed": false,
+        "inFooter": true
+      },
+      "capped": []
+    },
+    {
+      "state": "cp-t3-advanced-changed",
+      "lang": "zh",
+      "scheme": "light",
+      "summary": {
+        "text": "自动 · 720p · 5s",
+        "title": "自动 · 720p · 5s",
+        "cramped": false
+      },
+      "panelRows": null,
+      "advanced": null,
+      "toggle": {
+        "label": "高级设置",
+        "changed": true,
+        "inFooter": true
+      },
+      "capped": []
+    },
+    {
+      "state": "cp-t8-both-open",
+      "lang": "zh",
+      "scheme": "light",
+      "summary": {
+        "text": "自动 · 720p · 5s",
+        "title": "自动 · 720p · 5s",
+        "cramped": false
+      },
+      "panelRows": 4,
+      "panelKeys": [
+        "size",
+        "resolution",
+        "duration"
+      ],
+      "advanced": [
+        "return_last_frame",
+        "seed",
+        "watermark",
+        "output_format",
+        "nsfw_check"
+      ],
+      "toggle": {
+        "label": "高级设置",
+        "changed": false,
+        "inFooter": true
+      },
+      "capped": []
+    },
+    {
+      "state": "cp-u-image-model",
+      "lang": "zh",
+      "scheme": "light",
+      "summary": {
+        "text": "1:1 · 2K",
+        "title": "1:1 · 2K",
+        "cramped": false
+      },
+      "panelRows": 3,
+      "panelKeys": [
+        "size",
+        "resolution",
+        "background"
+      ],
+      "advanced": [
+        "output_format",
+        "watermark",
+        "nsfw_check"
+      ],
+      "toggle": {
+        "label": "高级设置",
+        "changed": false,
+        "inFooter": true
+      },
+      "capped": []
+    },
+    {
+      "state": "cp-u2-max-main",
+      "lang": "zh",
+      "scheme": "light",
+      "summary": {
+        "text": "JBFqnCBs… · 0.5 · 0.75 · 0 · 1 · 增强音色相似度",
+        "title": "JBFqnCBs… · 0.5 · 0.75 · 0 · 1 · 增强音色相似度",
+        "cramped": false
+      },
+      "panelRows": 7,
+      "panelKeys": [
+        "voice_id",
+        "language_code",
+        "stability",
+        "similarity_boost",
+        "style",
+        "speed"
+      ],
+      "advanced": null,
+      "toggle": null,
+      "capped": []
+    },
+    {
+      "state": "cp-u3-single-advanced",
+      "lang": "zh",
+      "scheme": "light",
+      "summary": {
+        "text": "自动 · 720p · 5s",
+        "title": "自动 · 720p · 5s",
+        "cramped": false
+      },
+      "panelRows": null,
+      "advanced": [
+        "return_last_frame"
+      ],
+      "toggle": {
+        "label": "高级设置",
+        "changed": false,
+        "inFooter": true
+      },
+      "capped": []
+    },
+    {
+      "state": "cp-l-options-56",
+      "lang": "zh",
+      "scheme": "light",
+      "summary": {
+        "text": "512:512",
+        "title": "512:512",
+        "cramped": false
+      },
+      "panelRows": 1,
+      "panelKeys": [
+        "aspect_ratio"
+      ],
+      "advanced": null,
+      "toggle": null,
+      "capped": [
+        {
+          "h": 142,
+          "sh": 648,
+          "row": 42
+        }
+      ]
+    },
+    {
+      "state": "cp-q-longest-label",
+      "lang": "zh",
+      "scheme": "light",
+      "summary": {
+        "text": "3s",
+        "title": "3s",
+        "cramped": false
+      },
+      "panelRows": 2,
+      "panelKeys": [
+        "video_resolution",
+        "duration"
+      ],
+      "advanced": null,
+      "toggle": null,
+      "capped": []
+    },
+    {
+      "state": "cp-solo-panel",
+      "lang": "zh",
+      "scheme": "light",
+      "summary": {
+        "text": "自动",
+        "title": "自动",
+        "cramped": false
+      },
+      "panelRows": 1,
+      "panelKeys": [
+        "aspect_ratio"
+      ],
+      "advanced": null,
+      "toggle": null,
+      "capped": []
+    },
+    {
+      "state": "cp-t-panel-flat",
+      "lang": "en",
+      "scheme": "dark",
+      "summary": {
+        "text": "Auto · 720p · 5s",
+        "title": "Auto · 720p · 5s",
+        "cramped": false
+      },
+      "panelRows": 4,
+      "panelKeys": [
+        "size",
+        "resolution",
+        "duration"
+      ],
+      "advanced": null,
+      "toggle": {
+        "label": "Advanced settings",
+        "changed": false,
+        "inFooter": true
+      },
+      "capped": []
+    },
+    {
+      "state": "cp-t2-advanced-open",
+      "lang": "en",
+      "scheme": "dark",
+      "summary": {
+        "text": "Auto · 720p · 5s",
+        "title": "Auto · 720p · 5s",
+        "cramped": false
+      },
+      "panelRows": null,
+      "advanced": [
+        "return_last_frame",
+        "seed",
+        "watermark",
+        "output_format",
+        "nsfw_check"
+      ],
+      "toggle": {
+        "label": "Advanced settings",
+        "changed": false,
+        "inFooter": true
+      },
+      "capped": []
+    },
+    {
+      "state": "cp-t3-advanced-changed",
+      "lang": "en",
+      "scheme": "dark",
+      "summary": {
+        "text": "Auto · 720p · 5s",
+        "title": "Auto · 720p · 5s",
+        "cramped": false
+      },
+      "panelRows": null,
+      "advanced": null,
+      "toggle": {
+        "label": "Advanced settings",
+        "changed": true,
+        "inFooter": true
+      },
+      "capped": []
+    },
+    {
+      "state": "cp-t8-both-open",
+      "lang": "en",
+      "scheme": "dark",
+      "summary": {
+        "text": "Auto · 720p · 5s",
+        "title": "Auto · 720p · 5s",
+        "cramped": false
+      },
+      "panelRows": 4,
+      "panelKeys": [
+        "size",
+        "resolution",
+        "duration"
+      ],
+      "advanced": [
+        "return_last_frame",
+        "seed",
+        "watermark",
+        "output_format",
+        "nsfw_check"
+      ],
+      "toggle": {
+        "label": "Advanced settings",
+        "changed": false,
+        "inFooter": true
+      },
+      "capped": []
+    },
+    {
+      "state": "cp-u-image-model",
+      "lang": "en",
+      "scheme": "dark",
+      "summary": {
+        "text": "1:1 · 2K",
+        "title": "1:1 · 2K",
+        "cramped": false
+      },
+      "panelRows": 3,
+      "panelKeys": [
+        "size",
+        "resolution",
+        "background"
+      ],
+      "advanced": [
+        "output_format",
+        "watermark",
+        "nsfw_check"
+      ],
+      "toggle": {
+        "label": "Advanced settings",
+        "changed": false,
+        "inFooter": true
+      },
+      "capped": []
+    },
+    {
+      "state": "cp-u2-max-main",
+      "lang": "en",
+      "scheme": "dark",
+      "summary": {
+        "text": "JBFqnCBs… · 0.5 · 0.75 · 0 · 1 · Boost voice similarity",
+        "title": "JBFqnCBs… · 0.5 · 0.75 · 0 · 1 · Boost voice similarity",
+        "cramped": false
+      },
+      "panelRows": 7,
+      "panelKeys": [
+        "voice_id",
+        "language_code",
+        "stability",
+        "similarity_boost",
+        "style",
+        "speed"
+      ],
+      "advanced": null,
+      "toggle": null,
+      "capped": []
+    },
+    {
+      "state": "cp-u3-single-advanced",
+      "lang": "en",
+      "scheme": "dark",
+      "summary": {
+        "text": "Auto · 720p · 5s",
+        "title": "Auto · 720p · 5s",
+        "cramped": false
+      },
+      "panelRows": null,
+      "advanced": [
+        "return_last_frame"
+      ],
+      "toggle": {
+        "label": "Advanced settings",
+        "changed": false,
+        "inFooter": true
+      },
+      "capped": []
+    },
+    {
+      "state": "cp-l-options-56",
+      "lang": "en",
+      "scheme": "dark",
+      "summary": {
+        "text": "512:512",
+        "title": "512:512",
+        "cramped": false
+      },
+      "panelRows": 1,
+      "panelKeys": [
+        "aspect_ratio"
+      ],
+      "advanced": null,
+      "toggle": null,
+      "capped": [
+        {
+          "h": 142,
+          "sh": 648,
+          "row": 42
+        }
+      ]
+    },
+    {
+      "state": "cp-q-longest-label",
+      "lang": "en",
+      "scheme": "dark",
+      "summary": {
+        "text": "3s",
+        "title": "3s",
+        "cramped": false
+      },
+      "panelRows": 2,
+      "panelKeys": [
+        "video_resolution",
+        "duration"
+      ],
+      "advanced": null,
+      "toggle": null,
+      "capped": []
+    },
+    {
+      "state": "cp-solo-panel",
+      "lang": "en",
+      "scheme": "dark",
+      "summary": {
+        "text": "Auto",
+        "title": "Auto",
+        "cramped": false
+      },
+      "panelRows": 1,
+      "panelKeys": [
+        "aspect_ratio"
+      ],
+      "advanced": null,
+      "toggle": null,
+      "capped": []
+    }
+  ],
+  "narrow": [
+    {
+      "what": "mode-menu",
+      "lang": "zh",
+      "menu": {
+        "rows": 6,
+        "whole": true,
+        "top": 452,
+        "bottom": 720,
+        "scrolls": true,
+        "lastFullyVisible": false,
+        "vh": 720
+      }
+    },
+    {
+      "what": "panel-7",
+      "lang": "zh",
+      "panel": {
+        "top": 277,
+        "bottom": 710,
+        "scrolls": false
+      }
+    },
+    {
+      "what": "mode-menu",
+      "lang": "en",
+      "menu": {
+        "rows": 6,
+        "whole": true,
+        "top": 452,
+        "bottom": 720,
+        "scrolls": true,
+        "lastFullyVisible": false,
+        "vh": 720
+      }
+    },
+    {
+      "what": "panel-7",
+      "lang": "en",
+      "panel": {
+        "top": 277,
+        "bottom": 710,
+        "scrolls": false
+      }
+    }
+  ],
+  "storyboard": [
+    {
+      "state": "sb-row-01-draft-inherited-aspect",
+      "lang": "zh",
+      "footers": 1,
+      "sends": 1,
+      "stray": 0
+    },
+    {
+      "state": "sb-zone-02-anchors-expanded",
+      "lang": "zh",
+      "footers": 2,
+      "sends": 0,
+      "stray": 0
+    },
+    {
+      "state": "sbr-05-anchors-wide",
+      "lang": "zh",
+      "footers": 2,
+      "sends": 1,
+      "stray": 0
+    },
+    {
+      "state": "sb-row-01-draft-inherited-aspect",
+      "lang": "en",
+      "footers": 1,
+      "sends": 1,
+      "stray": 0
+    },
+    {
+      "state": "sb-zone-02-anchors-expanded",
+      "lang": "en",
+      "footers": 2,
+      "sends": 0,
+      "stray": 0
+    },
+    {
+      "state": "sbr-05-anchors-wide",
+      "lang": "en",
+      "footers": 2,
+      "sends": 1,
+      "stray": 0
+    }
+  ],
+  "matrix": {
+    "zh": {
+      "combos": 274,
+      "threeOrMore": 251,
+      "two": 7,
+      "durationOnly": 0,
+      "oneOther": 7,
+      "noParams": 9,
+      "modelEllipsis": 0,
+      "problems": [],
+      "noFooter": []
+    },
+    "en": {
+      "combos": 274,
+      "threeOrMore": 220,
+      "two": 26,
+      "durationOnly": 12,
+      "oneOther": 7,
+      "noParams": 9,
+      "modelEllipsis": 1,
+      "problems": [],
+      "noFooter": []
+    }
+  }
+}
