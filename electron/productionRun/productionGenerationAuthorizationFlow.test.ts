@@ -16,7 +16,7 @@ import { createProductionGenerationSubmission } from "./productionGenerationSubm
 import { productionRunPaths } from "./productionRunPaths";
 import { createProductionRunRepository } from "./productionRunRepository";
 import { landedAdmission } from "./landFirstTestUtils";
-import { ModeInputMissingError } from "../catalog/taskParams";
+import { ModeInputMissingError } from "../catalog/modeInputRefusal";
 
 const NOW = "2026-08-23T00:00:00.000Z";
 const roots: string[] = [];

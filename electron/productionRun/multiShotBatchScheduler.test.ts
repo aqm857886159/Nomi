@@ -12,7 +12,7 @@ import { createProductionRunRepository } from "./productionRunRepository";
 import { createMultiShotBatchScheduler } from "./multiShotBatchScheduler";
 import type { ProductionGenerationShot } from "./productionRunTypes";
 import { landingThatBinds } from "./landFirstTestUtils";
-import { ModeInputMissingError } from "../catalog/taskParams";
+import { ModeInputMissingError } from "../catalog/modeInputRefusal";
 
 // P4 S4 — batch scheduler orchestrator over a REAL repository + mock provider (zero quota). TDD:
 // these lock the SAFETY invariants — stop dispatches nothing new,

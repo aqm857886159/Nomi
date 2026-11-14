@@ -38,7 +38,7 @@ import { modelReferenceSelection } from '../../../../electron/catalog/modelCatal
 import { findReferenceResidue } from '../../../../electron/catalog/archetypeInput'
 import { assertNoReferenceResidueBeforeSend } from '../../../../electron/tasks/referenceResidueGuard'
 import { matchNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
-import { definiteSendRefusalOf } from '../../../../electron/shared/contracts/definiteSendRefusal'
+import { definiteSendRefusalOf } from '../../../../electron/shared/generationDefiniteSendRefusal'
 import { buildProfileHttpRequest } from '../../../../electron/catalog/profileHttpRequest'
 import {
   NEWAPI_IMAGE_CREATE_OP,

@@ -8,6 +8,9 @@ import { APIMART_VIDEO_MODELS } from './apimartVideos';
 import { applyHeadlessParamDefaults } from './taskParams';
 import { validateMinimaxH3Body } from './apimartMinimaxH3';
 import { desktopT } from '../desktopStrings';
+import { MINIMAX_H3_APIMART_ARCHETYPE } from '../shared/videoCapabilities/minimaxH3Apimart';
+/** 拒收原话里的槽名照档案取。 */
+const h3RefLabel = (kind: string) => MINIMAX_H3_APIMART_ARCHETYPE.modes.find((m) => m.id === 'ref')!.slots.find((s) => s.kind === kind)!.label;
 
 function send(modelKey: string, archetypeId: string, taskKind: string, modeId: string, extras: Record<string, unknown>, variantId?: string) {
   const mapping = APIMART_VIDEO_MODELS.find(model => model.modelKey === modelKey)!.mappings.find(row => row.taskKind === taskKind)!;
@@ -37,10 +40,10 @@ describe('APIMart request contract（发送前通用一步）', () => {
   });
   it('MiniMax H3：只放音频在发送前拒（按档案 requiresAnyOf，不再按模型名）', () => {
     const companion = desktopT('modeInput.companionMissing', {
-      slot: desktopT('modeInput.slotName', { label: '参考音频', kind: desktopT('modeInput.slotKind.audio_ref') }),
+      slot: desktopT('modeInput.slotName', { label: h3RefLabel('audio_ref'), kind: desktopT('modeInput.slotKind.audio_ref') }),
       companions: [
-        desktopT('modeInput.slotName', { label: '参考图', kind: desktopT('modeInput.slotKind.image_ref') }),
-        desktopT('modeInput.slotName', { label: '参考视频', kind: desktopT('modeInput.slotKind.video_ref') }),
+        desktopT('modeInput.slotName', { label: h3RefLabel('image_ref'), kind: desktopT('modeInput.slotKind.image_ref') }),
+        desktopT('modeInput.slotName', { label: h3RefLabel('video_ref'), kind: desktopT('modeInput.slotKind.video_ref') }),
       ].join(desktopT('modeInput.or')),
     });
     expect(() => send('MiniMax-H3', 'minimax-h3-apimart', 'image_to_video', 'ref', { audio_urls: ['https://example.com/a.mp3'] })).toThrow(companion);

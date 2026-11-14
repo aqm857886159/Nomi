@@ -25,10 +25,9 @@ import { referenceValueCount, validateModeConstraints, type ReferenceCounts } fr
 import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from "../shared/modelArchetypes/types";
 import { declarationForMode } from "../shared/generationLowering/declarationForMode";
 import { specializeArchetypeForVariant } from "../shared/modelArchetypes";
-import { desktopT } from "../desktopStrings";
-import type { DefiniteSendRefusal } from "../shared/contracts/definiteSendRefusal";
-import { modeForInputs, type ModeInput } from "../shared/modelArchetypes/modeForInputs";
 import { SLOT_ACCEPTS } from "../shared/modelArchetypes/anchorPolicy";
+import { modeInputRefusal } from "./modeInputRefusal";
+export { ModeInputMissingError } from "./modeInputRefusal";
 
 
 /** taskTemplateParams 实际用到的 TaskRequest 子集（结构化，避免与 runtime 的 TaskRequest 循环依赖）。 */
@@ -208,12 +207,6 @@ export function applyHeadlessParamDefaults(
   return lowered;
 }
 
-/** 发送前拒收：方式要的输入请求里没有。`code` 供机读（尺子、Agent 回执）；原话给人看。 */
-export class ModeInputMissingError extends Error implements DefiniteSendRefusal {
-  readonly code = "mode_input_missing";
-  readonly definiteSendRefusal = true as const;
-}
-
 /** 降级后的请求里，这个方式每个槽各带了几件（按绑定数：自己的键数项数，合并键按角色数；扁平合并分不清就整袋都算给它，宁可不拒）。 */
 function loweredSlotCounts(
   mode: ArchetypeMode,
@@ -286,29 +279,6 @@ function loweredSlotCounts(
   return counts;
 }
 
-function slotName(mode: ArchetypeMode, kind: ArchetypeReferenceSlotKind): string {
-  const label = mode.slots.find((slot) => slot.kind === kind)?.label ?? "";
-  return desktopT("modeInput.slotName", { label, kind: desktopT(`modeInput.slotKind.${kind}`) });
-}
-
-/**
- * 拒收后的出路：这次请求里的输入，同一个模型按「按输入现算方式」（modeForInputs，唯一 owner）能整份收下的那个方式。
- * 只在算出一个别的方式、且它收得下全部输入时点名；算不出就不说（拒收句前半句照旧）。
- */
-function modeThatFitsInputs(archetype: ModelArchetype, current: ArchetypeMode, counts: ReferenceCounts): string {
-  const inputs: ModeInput[] = [];
-  for (const [kind, count] of Object.entries(counts) as Array<[ArchetypeReferenceSlotKind, number]>) {
-    // 一件输入先认它在这次请求里的槽，再认同种素材能落的别的槽（同画布上传图的落法：图可以当首帧也可以当参考图）。
-    const asset = SLOT_ACCEPTS[kind][0]!;
-    const slots = [kind, ...(Object.keys(SLOT_ACCEPTS) as ArchetypeReferenceSlotKind[]).filter((other) => other !== kind && SLOT_ACCEPTS[other].includes(asset))];
-    for (let index = 0; index < count; index += 1) inputs.push({ slots, asset });
-  }
-  if (!inputs.length) return "";
-  const fit = modeForInputs(archetype, inputs, null);
-  if (fit.status !== "ok" || fit.taken !== inputs.length || fit.mode.id === current.id) return "";
-  return desktopT("modeInput.fitsMode", { mode: fit.mode.vendorTerm, modeId: fit.mode.id });
-}
-
 function assertModeAcceptsInputs(
   selection: { archetype: ModelArchetype; modeId: string; variantId?: string },
   values: Record<string, unknown>,
@@ -321,29 +291,7 @@ function assertModeAcceptsInputs(
   const counts = loweredSlotCounts(mode, values, createBody, selected);
   const violation = validateModeConstraints(mode, values, counts);
   if (!violation) return;
-  const refuse = (message: string) => new ModeInputMissingError(`${message}${modeThatFitsInputs(archetype, mode, counts)}`);
-  switch (violation.kind) {
-    case "slotMissing":
-      throw refuse(desktopT("modeInput.slotMissing", { slot: slotName(mode, violation.slot) }));
-    case "companionMissing":
-      throw refuse(desktopT("modeInput.companionMissing", {
-        slot: slotName(mode, violation.slot),
-        companions: violation.companions.map((kind) => slotName(mode, kind)).join(desktopT("modeInput.or")),
-      }));
-    case "optionNeedsSlot": {
-      const control = mode.params.find((candidate) => candidate.key === violation.key);
-      const option = control?.options.find((candidate) => String(candidate.value) === String(violation.value));
-      throw refuse(desktopT("modeInput.optionNeedsSlot", {
-        parameter: violation.key, parameterLabel: control?.label ?? violation.key,
-        value: String(violation.value), valueLabel: option?.label ?? String(violation.value),
-        slot: slotName(mode, violation.slot),
-      }));
-    }
-    case "parameter":
-      throw new Error(desktopT("modelConstraints.parameterCombination", { parameter: violation.key }));
-    case "references":
-      throw new Error(desktopT("modelConstraints.referenceTotal", { max: violation.max }));
-  }
+  throw modeInputRefusal(archetype, mode, counts, violation);
 }
 
 export function taskTemplateParams(request: TaskParamsInput, selected?: ParameterReferenceSelection): JsonRecord {

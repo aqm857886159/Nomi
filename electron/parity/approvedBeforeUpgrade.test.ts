@@ -33,7 +33,7 @@ import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { placeUploadedImages } from "../../src/workbench/generationCanvas/nodes/controls/referenceList";
 import { assertProductionGenerationPayloadHash } from "../productionRun/productionGenerationAuthorization";
 import { installFetchCapture, seedParityCatalog } from "./generationParityTestUtils";
-import { definiteSendRefusalOf } from "../shared/contracts/definiteSendRefusal";
+import { definiteSendRefusalOf } from "../shared/generationDefiniteSendRefusal";
 import { desktopT } from "../desktopStrings";
 
 const capture = installFetchCapture();

@@ -26,11 +26,13 @@ import { createGenerationNode } from "../../src/workbench/generationCanvas/model
 import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/runner/catalogTaskActions";
 import { resolveGenerationReferences } from "../../src/workbench/generationCanvas/runner/generationReferenceResolver";
 import { desktopT } from "../desktopStrings";
+import { setDesktopLocale } from "../desktopLocale";
 import { driveEngineA, driveEngineB, installFetchCapture, seedParityCatalog, type FetchCapture } from "./generationParityTestUtils";
 import type { OutboundRecord } from "./outboundRecord";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import type { ArchetypeReferenceSlotKind } from "../shared/modelArchetypes/types";
 import { KLING_4_FLASH_ARCHETYPE } from "../shared/videoCapabilities/kling4Flash";
+import { getArchetypeById } from "../shared/modelArchetypes";
 import { MINIMAX_H3_APIMART_ARCHETYPE } from "../shared/videoCapabilities/minimaxH3Apimart";
 import { PIXVERSE_V6_ARCHETYPE } from "../shared/videoCapabilities/pixverse6";
 import type { ModelArchetype } from "../shared/modelArchetypes/types";
@@ -83,6 +85,9 @@ function expectRefused(record: OutboundRecord, message: () => string) {
 }
 
 const slot = (label: string, kind: ArchetypeReferenceSlotKind) => desktopT("modeInput.slotName", { label, kind: desktopT(`modeInput.slotKind.${kind}`) });
+/** 槽名照档案取（拒收原话里的中文槽名就是档案的 label）。 */
+const slotOf = (archetype: ModelArchetype, modeId: string, kind: ArchetypeReferenceSlotKind) =>
+  slot(archetype.modes.find((m) => m.id === modeId)!.slots.find((s) => s.kind === kind)!.label, kind);
 
 /** 拒收句后面的出路：现有输入能整份收下的那个方式（按输入现算方式那一个函数算出来的）。 */
 const fits = (archetype: ModelArchetype, modeId: string) =>
@@ -90,6 +95,7 @@ const fits = (archetype: ModelArchetype, modeId: string) =>
 
 const KLING = { modelKey: "kling-v4-flash", archetypeId: "kling-v4-flash" };
 const H3 = { modelKey: "MiniMax-H3-Max", archetypeId: "minimax-h3-max" };
+const h3Max = () => getArchetypeById(H3.archetypeId)!;
 
 describe("槽位下限：可灵 4.0 Flash 视频编辑没给源视频", () => {
   const missing = () => desktopT("modeInput.slotMissing", { slot: slot("源视频", "video_ref") });
@@ -104,6 +110,20 @@ describe("槽位下限：可灵 4.0 Flash 视频编辑没给源视频", () => {
     const record = await run({ modelId: KLING.modelKey, modeId: "extend", mode: "image_to_video" });
     expectRefused(record, missing);
     expect(record.failure?.message).toBe(missing());
+  });
+
+  it("英文轨：编辑 / 续写里缺的视频说成 source video，不说 reference video（免费走查 en-dark 抓到的）", async () => {
+    setDesktopLocale("en");
+    try {
+      for (const modeId of ["edit", "extend"]) {
+        const record = await run({ modelId: KLING.modelKey, modeId, mode: "image_to_video" });
+        expect(record.failure?.code).toBe("mode_input_missing");
+        expect(record.failure?.message).toContain("needs a source video");
+        expect(record.failure?.message).not.toContain("reference video");
+      }
+    } finally {
+      setDesktopLocale("zh-CN");
+    }
   });
 
   it("画布路（runtime）：请求里钉着编辑方式、源视频却不在了（如批准后源视频被删）→ 不发", async () => {
@@ -130,8 +150,8 @@ describe("槽位下限：可灵 4.0 Flash 视频编辑没给源视频", () => {
 
 describe("requiresAnyOf：H3-Max（APIMart）多模态参考只放音频", () => {
   const companion = () => desktopT("modeInput.companionMissing", {
-    slot: slot("参考音频", "audio_ref"),
-    companions: [slot("参考图", "image_ref"), slot("参考视频", "video_ref")].join(desktopT("modeInput.or")),
+    slot: slotOf(h3Max(), "ref", "audio_ref"),
+    companions: [slotOf(h3Max(), "ref", "image_ref"), slotOf(h3Max(), "ref", "video_ref")].join(desktopT("modeInput.or")),
   });
 
   it("Run 路：只有音频 → 不发", async () => {
@@ -149,7 +169,7 @@ describe("requiresAnyOf：H3-Max（APIMart）多模态参考只放音频", () =>
 });
 
 describe("选项依赖槽位：可灵 4.0 Flash 全能参考「保留原声」要参考视频", () => {
-  const needs = () => desktopT("modeInput.optionNeedsSlot", { parameter: "audio_setting", parameterLabel: "声音", value: "origin", valueLabel: "保留原声", slot: slot("参考视频", "video_ref") });
+  const needs = () => desktopT("modeInput.optionNeedsSlot", { parameter: "audio_setting", parameterLabel: "声音", value: "origin", valueLabel: "保留原声", slot: slotOf(KLING_4_FLASH_ARCHETYPE, "ref", "video_ref") });
 
   it("Run 路：只放图 + audio_setting=origin → 不发", async () => {
     expectRefused(await run({ modelId: KLING.modelKey, modeId: "ref", mode: "image_to_video", params: { audio_setting: "origin" }, refs: [image(IMG_A)] }), needs);

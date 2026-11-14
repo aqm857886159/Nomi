@@ -136,7 +136,7 @@ function recordFromCall(call: CapturedCall | undefined, notes?: Record<string, u
 
 function failureCode(error: unknown): string {
   const candidate = error as { code?: unknown; name?: unknown; message?: unknown; cause?: { code?: unknown } };
-  // 发送前的输入判定（taskParams 的 ModeInputMissingError）经 Run 路的供应商包装后机读码只在 cause 上：只认这一个，别的样本口径不变。
+  // 发送前的输入判定（modeInputRefusal 的 ModeInputMissingError）经 Run 路的供应商包装后机读码只在 cause 上：只认这一个，别的样本口径不变。
   if (candidate?.cause?.code === "mode_input_missing") return "mode_input_missing";
   if (typeof candidate?.code === "string" && candidate.code.trim()) return candidate.code;
   const message = String(candidate?.message ?? error);
