@@ -272,7 +272,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     setPopover(null)
     setPendingReferencePick({ projectId:openProjectId, threadId:data.activeThreadId })
     const forms = useAgentFormStore.getState()
-    if (forms.bySurface.generation.form === 'ball') forms.setForm('generation', 'float')
+    if (forms.bySurface.generation.form === 'ball') forms.requestForm('generation', 'float')
     useWorkbenchStore.getState().setWorkspaceMode('generation')
   }
   React.useEffect(() => {

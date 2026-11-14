@@ -1,6 +1,6 @@
 import { workspaceInputSurfaceIsActive } from '../shortcutSurface'
 import { AssistantPane } from '../AssistantPane'
-import { assistantPaneWidth } from '../assistantWidthBounds'
+import { assistantDockColumns } from '../assistantWidthBounds'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Group, Panel, Separator, useGroupRef, usePanelRef, type GroupImperativeHandle, type Layout, type LayoutChangedMeta } from 'react-resizable-panels'
@@ -213,7 +213,7 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
           这一行就留在原来的 852 高，Nomi 栏里付费卡的「生成」和时间轴掉出窗外、又没有滚动（实测）
           （2026-11-07 窄窗拍板 F2 / preview.grid-rows；四个工作区根网格同一条，见 workspaceRootGrid.structure.test.ts）。 */}
       <div className="grid h-full w-full min-w-0" id="editing-surface-root"
-        style={{ gridTemplateColumns: assistantVisible ? `minmax(0,1fr) ${assistantPaneWidth(layout.assistantWidth)}px` : 'minmax(0,1fr)', gridTemplateRows: 'minmax(0,1fr)' }}>
+        style={{ gridTemplateColumns: assistantVisible ? assistantDockColumns(layout.assistantWidth) : 'minmax(0,1fr)', gridTemplateRows: 'minmax(0,1fr)' }}>
         <div className="min-h-0 min-w-0 overflow-hidden rounded-panel bg-[var(--workbench-bg)] ring-1 ring-nomi-line-soft" id="editing-surface-main">
           <Group orientation="vertical" className="h-full" id="editing-surface-left" groupRef={columnGroupRef} elementRef={columnElementRef} onLayoutChanged={onColumnLayoutChanged}>
             <Panel id={COLUMN_PANEL.stage} minSize={EDITING_PANEL_BOUNDS.stage.min}>

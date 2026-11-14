@@ -6,7 +6,8 @@
 // 面板窄（浮窗被拖小）时，历史和形态切换一起收进头部一颗「⋯」，菜单项由 menuItems 给。
 import React from 'react'
 
-export type AgentPanelHeaderSlotMenuItem = { id: string; label: string; onSelect: () => void }
+/** disabled + disabledReason：此刻点不了、为什么（例如窄窗档里的「停靠」）。 */
+export type AgentPanelHeaderSlotMenuItem = { id: string; label: string; onSelect: () => void; disabled?: boolean; disabledReason?: string }
 
 export type AgentPanelHeaderSlot = {
   /** 代替「收起」钮的那组形态按钮。 */

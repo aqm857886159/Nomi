@@ -1,7 +1,7 @@
 import { cancelCanvasInputGestures, workspaceInputAttributes } from '../shortcutSurface'
 import { cancelCanvasDraggingWithin } from '../generationCanvas/components/canvasDraggingFlag'
 import { AssistantPane } from '../AssistantPane'
-import { assistantPaneWidth } from '../assistantWidthBounds'
+import { assistantDockColumnsAnimated, assistantPaneWidth } from '../assistantWidthBounds'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconChevronUp, IconLayoutList } from '@tabler/icons-react'
@@ -101,7 +101,8 @@ export default function GenerationWorkspace({
   const workspaceStyle = {
     '--generation-assistant-width': assistantColumnWidth,
     '--generation-assistant-target-width': assistantTargetWidth,
-    gridTemplateColumns: isDockedAssistant ? 'minmax(0,1fr) var(--generation-assistant-width)' : 'minmax(0,1fr)',
+    // 停靠栏那一轨的最宽由会动画的变量给（收起 / 展开逐帧插值），放不下时 Grid 按容器真实宽度让到 308，不写存档。
+    gridTemplateColumns: isDockedAssistant ? assistantDockColumnsAnimated('var(--generation-assistant-width)') : 'minmax(0,1fr)',
     gridTemplateRows: `minmax(0,1fr) ${timelineCollapsed ? '0px' : `${timelineHeight}px`}`,
     '--workbench-timeline-height': `${timelineHeight}px`,
   } as React.CSSProperties & {
