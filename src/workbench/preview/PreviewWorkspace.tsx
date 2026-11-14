@@ -196,7 +196,7 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!workspaceInputSurfaceIsActive(inputHostRef.current)) return
-      // ⌘\ 收 Agent 搬到外壳（ShellAgentHost）：四个面统一「停靠 ↔ 小球」，这里只留面板布局撤销。
+      // ⌘\ 收 Agent 搬到外壳（ShellAgentHost）：四个面统一「收起 ↔ 打开到上次选的摆法」，这里只留面板布局撤销。
       if (event.metaKey && event.key.toLowerCase() === 'z' && undoEditingPanelLayout()) event.preventDefault()
     }
     window.addEventListener('keydown', onKeyDown)

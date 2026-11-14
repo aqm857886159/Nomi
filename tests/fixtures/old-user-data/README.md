@@ -68,6 +68,18 @@ cp tests/fixtures/old-user-data/generators/zzCanvasModeGen.ts.txt "$D/src/workbe
 
 退回旧版本的手工一半（每次改造那一刀跑一次）：把主线读写后存回的画布片段写成文件，在 0.24.1 导出里用同一个生成器文件的第二段读回——`V_IN=<片段.json> V_MANIFEST=<夹具 manifest.json> V_REPORT=<输出> pnpm exec vitest run <生成器文件> -t "reads what"`，逐节点对 manifest 里录下的 0.24.1 读法；节点一个不少、方式读得出，除主线有意改了方式的格子外读法一致。
 
+## Nomi 形态（`agent-form/`）
+
+老用户本机 localStorage 里 Nomi 小球 / 浮窗 / 停靠那一串（键 `nomi:shell-agent-form:v1`，persist version 1，每页一个三值 `form` 加浮窗位置大小、小球位置），用 0.24.1 自己的 store 写口落出来，不是手写的形状。
+
+| 目录 | 谁落的 | 怎么落的 | 里面有什么 |
+|---|---|---|---|
+| `agent-form/v0.24.1-local-storage` | 0.24.1（提交见 manifest.json） | 在 0.24.1 的导出里跑 `generators/zzAgentFormGen.ts.txt`：真实的 `setForm` / `setFloatRect` / `setBallPoint`，落完把那一串原样写出 | 四份：四页全小球、全浮窗、全停靠（3 种旧值 × 4 页 = 12 格），加一份各页不同（含一页没动过的默认）；每页的位置都不同，迁完逐页对得上才算没串页 |
+
+重生成：同上面画布那段，把生成器拷成导出里的 `src/ui/app-shell/shell/zzAgentFormGen.test.ts`，`V_OUT=<目录> pnpm exec vitest run src/ui/app-shell/shell/zzAgentFormGen.test.ts`。
+
+用法：`src/ui/app-shell/shell/agentFormStore.migrate.test.ts` 把每一串放进 localStorage 后让主线的 store 读：每页的摆法 + 收没收起对、此刻显示和升级前一样、位置大小原样；迁完落回去的那串再读一遍，逐字相等。
+
 ## 怎么跑
 
 ```

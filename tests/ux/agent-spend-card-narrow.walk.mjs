@@ -12,6 +12,7 @@
 //   · 1100 宽（COUNTER_WINDOW；最小窗 700 里默认浮窗已经挡住画布、本来就该收）、默认大小的浮窗只占一角：点指向元素，对话不收、不出「回到对话」，画布照样定位过去（A3 的样子）；
 //   · 收成小球以后用户点小球把对话叫回来（没经「回到对话」）：「回到对话」跟着没了；之后用面板头上的「收起」再收成小球，
 //     不会冒出一颗指着旧镜头的「回到对话」。
+//   · 点了指向、对话让开之后把窗口拉宽：窄窗里的临时状态全结束，「回到对话」同一拍没了，对话是存下的样子，存档不改。
 // 中文 · 浅色一轮，英文 · 暗色一轮（截图两轨）。只有远端供应商是 loopback 夹具（零额度）；这条走查一笔都不发（最后取消卡）。
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -289,15 +290,8 @@ async function runRound(walk, win, { locale, scheme, round }) {
   const facts = walk.report.rounds[round] = { locale, scheme, nodes: [first, second, third] }
 
   await walk.resizeWindow(COUNTER_WINDOW.width, COUNTER_WINDOW.height)
-  if (round === 'zh-light') {
-    await expect(win.locator(FLOAT), `${round}：${COUNTER_WINDOW.width} 宽里对话仍是浮窗`).toBeVisible()
-  } else {
-    // 上一轮在最小窗里用形态切换明确选了「缩成小球」（存成小球），之后点小球叫出的是窄窗临时浮窗、不写存档（WindowNarrow 板 D2）：
-    // 拉宽回到存下的小球。人在宽窗里点小球叫出浮窗——这一下才存成浮窗，之后回最小窗也还是这个浮窗（下面「拉大浮窗」那段靠它）。
-    await expect(win.locator('[data-agent-ball]').first(), `${round}：窄窗里点开的临时浮窗，拉宽回到存下的小球`).toBeVisible()
-    await expandResidentPanel(win)
-    await expect(win.locator(FLOAT), `${round}：${COUNTER_WINDOW.width} 宽里点小球叫出浮窗`).toBeVisible()
-  }
+  // 两轮都是浮窗：上一轮在最小窗里点开 / 收起都只改此刻、不写存档（窄窗里点开、收起不改存下的样子），存的还是「浮窗 · 开着」。
+  await expect(win.locator(FLOAT), `${round}：${COUNTER_WINDOW.width} 宽里对话是存下的浮窗`).toBeVisible()
   const formBefore = await rectOf(win, FLOAT)
   facts.titlesAtStart = { floatWidth: formBefore?.width ?? null, texts: await expectTitlesTellable(card, `卡刚出来（浮窗 ${Math.round(formBefore?.width ?? 0)}px）`) }
   if (formBefore && (await floatCoverage(win)) < 0.5) {
@@ -365,6 +359,18 @@ async function runRound(walk, win, { locale, scheme, round }) {
   await walk.snap(r('collapse-by-hand-no-stale-back-pill'))
   await expandResidentPanel(win)
 
+  // 反例：点了指向、对话让开之后把窗口拉宽——窄窗里的临时状态全结束：「回到对话」同一拍没了，对话是存下的样子（这里存的是浮窗 · 开着），
+  // 存档一个字节不改。拉回最小窗接着走。
+  await clickPointerCollapses(walk, win, card, second, { locale, label: `${round}：再点第 2 镜` })
+  const storedBeforeWiden = await win.evaluate(() => localStorage.getItem('nomi:shell-agent-form:v1'))
+  await walk.resizeWindow(COUNTER_WINDOW.width, COUNTER_WINDOW.height)
+  await expect(win.locator(RETURN_PILL), `${A.back}：让开之后拉宽，「回到对话」跟着没了`).toHaveCount(0, { timeout: stationTimeout() })
+  await expect(win.locator(FLOAT), `${round}：让开之后拉宽，对话回到存下的浮窗`).toBeVisible({ timeout: stationTimeout() })
+  expect(await win.evaluate(() => localStorage.getItem('nomi:shell-agent-form:v1')), `${round}：让开再拉宽，存档没被改`).toBe(storedBeforeWiden)
+  await walk.snap(r('yield-then-widen-shows-stored'))
+  await walk.resizeWindow(MIN_WINDOW.width, MIN_WINDOW.height)
+  await expandResidentPanel(win)
+
   // 收尾：取消这张卡（一笔都不发）。
   await closeSpendCard(card, `${round}：取消这张卡`)
   await expectAbsent(card, { provenBy: cardProof, message: `${round}：取消之后卡退出介入槽` })
@@ -416,7 +422,7 @@ try {
   walk.report.verified = [
     'default-float-in-min-window-does-not-collapse', 'enlarged-float-collapses-on-pointer-click', 'node-flashes-and-is-in-view',
     'back-pill-bottom-centre-above-add-node-bar', 'escape-returns-to-the-same-float', 'pill-click-returns-to-the-same-float',
-    'focus-lands-on-the-clicked-pointer-and-it-is-located', 'ball-reopen-clears-the-pill', 'manual-collapse-shows-no-stale-pill',
+    'focus-lands-on-the-clicked-pointer-and-it-is-located', 'ball-reopen-clears-the-pill', 'manual-collapse-shows-no-stale-pill', 'yield-then-widen-clears-the-pill',
     'tile-titles-tellable-at-default-narrow-and-enlarged-widths', 'located-and-exclude-never-overlap', 'exclude-never-covers-the-title',
   ]
 } catch (error) {
