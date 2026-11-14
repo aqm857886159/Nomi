@@ -1,5 +1,5 @@
 import { AssistantPane } from '../AssistantPane'
-import { assistantPaneWidth } from '../assistantWidthBounds'
+import { assistantDockColumns } from '../assistantWidthBounds'
 import { useWorkbenchStore } from '../workbenchStore'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -27,7 +27,7 @@ export default function CreationWorkspace({ aiCollapsed = false, agentDockRef }:
         // 行模板必须写（隐式 auto 行会被内容最小高撑过窗口；四个工作区根网格同一条，见 workspaceRootGrid.structure.test.ts）。
         'grid grid-rows-[minmax(0,1fr)]',
       )}
-      style={{ gridTemplateColumns: agentDockRef && !aiCollapsed ? `minmax(0,1fr) ${assistantPaneWidth(width)}px` : 'minmax(0,1fr)' }}
+      style={{ gridTemplateColumns: agentDockRef && !aiCollapsed ? assistantDockColumns(width) : 'minmax(0,1fr)' }}
       aria-label={t('creationAi.workspace.aria')}
     >
       <div className="min-w-0 min-h-0 flex flex-col">

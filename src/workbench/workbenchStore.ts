@@ -361,8 +361,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     if (!isWorkspaceMode(mode)) return
     set({ workspaceMode: mode })
   },
-  // 上限按**当下的视口**算，不是一个写死的 600（定稿 §11.2 窄窗态）。视口从 store 里读不到，
-  // 只能问 window；非 DOM 环境（单测、node）落回 0 → `assistantWidthMaxFor` 报满上限。
+  // 只有人亲手拖 / 按键走这扇门（AssistantPane），上限按当下视口算、手柄跟手；别的写入口经 clampEditingPanelLayout 不读窗口。
+  // 视口从 store 里读不到，只能问 window；非 DOM 环境（单测、node）落回 0 → `assistantWidthMaxFor` 报满上限。
   setAssistantWidth: (width) => get().syncEditingPanelSize({
     assistantWidth: clampAssistantWidth(width, typeof window === 'undefined' ? 0 : window.innerWidth),
   }),

@@ -896,6 +896,16 @@ export default {
           '0%, 100%': { opacity: '0.5' },
           '50%': { opacity: '0.8' },
         },
+        // 窗口拉窄跨过窄窗阈值（WindowNarrow 板 agent.collapse-motion）：停靠的 Nomi 收拢成右下角的小球 /
+        // 拉宽回来展回停靠栏。每次跨阈值**只播一次**，减弱动效时由调用处的 motion-safe: 直接换掉。
+        'nomi-agent-gather': {
+          '0%': { transform: 'translateX(-24px) scale(0.6)', opacity: '0' },
+          '100%': { transform: 'none', opacity: '1' },
+        },
+        'nomi-agent-dock-in': {
+          '0%': { transform: 'translateX(24px)', opacity: '0' },
+          '100%': { transform: 'none', opacity: '1' },
+        },
         // Agent 形象（NomiAgentFace）的动作周期。时长是这个组件的常量，不是全局 token（设计卡
         // docs/plan/2026-10-27-agent-persona.md「实现时的取舍」第 4 条）；减弱动效时组件一律 motion-reduce:animate-none。
         // 在跑时眼睛低头左右扫（±0.8 个形象单位）。
@@ -918,6 +928,8 @@ export default {
         'nomi-badge-settle': 'nomi-badge-settle 420ms ease-out 1',
         'remove-bg-pulse': 'remove-bg-pulse 1.2s ease-in-out infinite',
         'remove-bg-pulse-slow': 'remove-bg-pulse 1.5s ease-in-out infinite',
+        'nomi-agent-gather': 'nomi-agent-gather 260ms var(--nomi-ease-fast) 1',
+        'nomi-agent-dock-in': 'nomi-agent-dock-in 260ms var(--nomi-ease-fast) 1',
         'nomi-agent-scan': 'nomi-agent-scan 1.4s ease-in-out infinite alternate',
         'nomi-agent-hop': 'nomi-agent-hop 700ms var(--nomi-ease-morph) 1',
         'nomi-agent-blink': 'nomi-agent-blink 600ms ease-in-out 1',

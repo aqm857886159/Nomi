@@ -23,6 +23,7 @@ import './designLab/labPlatform'
 import React, { type JSX } from 'react'
 import { workspaceInputAttributes } from '../workbench/shortcutSurface'
 import { createRoot } from 'react-dom/client'
+import { MotionGlobalConfig } from 'framer-motion'
 import '@fontsource-variable/inter/wght.css'
 import '@fontsource-variable/fraunces/wght.css'
 // 2026-09-08：**不要**在这里 import `@mantine/core/styles/<组件>.css` 单份样式。
@@ -40,6 +41,7 @@ import { persistColorScheme, primeNomiColorScheme } from '../theme/colorScheme'
 import { findLabScreen, findLabState, LAB_SCREENS } from './designLab/labScreens'
 import type { LabScreen, LabState } from './designLab/labScreen'
 import { designLabHoldCount } from './designLab/labReadyHold'
+import { pendingSuspenseBoundaryCount } from './designLab/labSuspenseProbe'
 
 const params = new URL(window.location.href).searchParams
 const screen = findLabScreen(params.get('screen'))
@@ -83,7 +85,7 @@ function Cell({ state }: { state: LabState }): JSX.Element {
 function ContactSheet({ screen: sheetScreen }: { screen: LabScreen }): JSX.Element {
   const [loaded, setLoaded] = React.useState(0)
   React.useEffect(() => {
-    if (loaded >= sheetScreen.states.length) markReady()
+    if (loaded >= sheetScreen.states.length) void markReady()
   }, [loaded, sheetScreen])
   return (
     <div style={{ padding: 16 }}>
@@ -134,7 +136,7 @@ function ContactSheet({ screen: sheetScreen }: { screen: LabScreen }): JSX.Eleme
 }
 
 function SingleState({ state }: { state: LabState }): JSX.Element {
-  React.useEffect(() => { markReady() }, [])
+  React.useEffect(() => { void markReady() }, [])
   if (frameMode) return <Cell state={state} />
   return (
     <div style={{ padding: 16 }}>
@@ -214,20 +216,54 @@ function DesignLabApp(): JSX.Element {
 /**
  * 截图的就绪信号。走查等的是这个旗，不是墙钟——「等 2 秒应该够了」这种写法
  * 单跑绿、并行翻红（R18/`check:test-waits` 拦的正是那一族）。
- * 先等格子登记的持有全部释放（`labReadyHold.ts`：3D 场景这类异步落定的格子自己说什么时候好），
- * 再两帧 rAF 让 React 提交 + 布局都落定后举旗。
+ *
+ * 这一格要画的东西全到齐才举旗，每一类都用平台 / 框架现成的完成信号，不数毫秒：
+ *   ① 格子登记的持有全部释放（`labReadyHold.ts`：3D 场景、打开弹窗的点击序列这类异步落定的格子自己说什么时候好）；
+ *   ② 没有 Suspense 边界还在显示 fallback（`labSuspenseProbe.ts`：应用里 React.lazy 的块都到了）；
+ *   ③ 字体落地（`document.fonts.ready`）；
+ *   ④ 页面里的图片加载完（`<img>` 的 load / error 事件）；
+ *   ⑤ 脚本驱动的动画（framer-motion）直接落终态，见下面 MotionGlobalConfig；CSS 动画由截图时的 animations:'disabled' 快进。
+ * 三、四两步是异步的，等完再回头查一遍 ①②（字体 / 图片到了可能又触发新的提交），
+ * 都还成立才两帧 rAF 让提交 + 布局落定后举旗。
+ * 2026-11-14 以前只等 ① + 两帧：开发服务器慢、碰巧盖住；对着打包产物跑，十来格截到的是只有外壳和加载标的样子。
  */
-function markReady(): void {
-  if (designLabHoldCount() > 0) {
-    requestAnimationFrame(markReady)
-    return
-  }
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      ;(window as unknown as { __designLabReady?: boolean }).__designLabReady = true
-    })
-  })
+function settledNow(): boolean {
+  const root = document.getElementById('design-lab-root')
+  return designLabHoldCount() === 0 && root !== null && pendingSuspenseBoundaryCount(root) === 0
 }
+
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()))
+}
+
+async function waitAssetsLoaded(): Promise<void> {
+  await document.fonts.ready
+  // 图片等它自己的 load / error 事件。刻意不用 img.decode()：它会把图换到另一条解码路径，
+  // 缩小画的品牌小标因此和平常差 190 个像素（实测：对每张图都 decode 后三趟一致地和基线不符）。
+  const pending = [...document.images].filter((image) => !image.complete && image.loading !== 'lazy')
+  await Promise.all(pending.map((image) => new Promise<void>((resolve) => {
+    image.addEventListener('load', () => resolve(), { once: true })
+    image.addEventListener('error', () => resolve(), { once: true })
+  })))
+}
+
+async function markReady(): Promise<void> {
+  for (;;) {
+    while (!settledNow()) await nextFrame()
+    await nextFrame()
+    await waitAssetsLoaded()
+    if (!settledNow()) continue
+    await nextFrame()
+    await nextFrame()
+    if (settledNow()) break
+  }
+  ;(window as unknown as { __designLabReady?: boolean }).__designLabReady = true
+}
+
+// 动画类的第四样：CSS 动画 / 过渡由截图那一步的 animations:'disabled' 快进到终点，
+// framer-motion 是脚本逐帧驱动的，那一招管不到它（开屏动画那一格截到的是卡片缩放到一半）。
+// 用 framer-motion 自带的测试开关让它直接落到终态——框架给的现成办法，不数毫秒。
+MotionGlobalConfig.skipAnimations = true
 
 // 实验室**永远显式钉死**明暗档：App 的默认是「天黑自动暗」（按本地时间），
 // 视觉基线要是跟着钟走，同一份代码上午绿、晚上红。默认浅色，`?scheme=dark` 手动看暗色。

@@ -45,6 +45,8 @@ export const zhAppShell = {
     ballUnread: '{{count}} 条新消息',
     formMenu: 'Agent 形态',
     floatAria: 'Nomi 浮窗',
+    dockNarrow: '窗口太窄，先不停靠 · 宽过 {{width}} 自动停回',
+    ballNarrow: '窗口窄，Nomi 先收在这里（{{shortcut}} 打开）',
   },
   library: {
     tabsAria: '项目库页签',
@@ -110,6 +112,8 @@ export const enAppShell: typeof zhAppShell = {
     ballUnread: 'New messages: {{count}}',
     formMenu: 'Agent layout',
     floatAria: 'Nomi floating window',
+    dockNarrow: 'Too narrow to dock · docks again above {{width}}',
+    ballNarrow: 'Window is narrow, Nomi waits here ({{shortcut}} to open)',
   },
   library: {
     tabsAria: 'Library tabs',

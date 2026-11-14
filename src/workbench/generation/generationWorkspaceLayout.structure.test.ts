@@ -35,7 +35,8 @@ const source = stripComments(fs.readFileSync(workspaceFile, 'utf8'))
 describe('生成面外壳：底部带横贯、面板被顶上去', () => {
   it('工作区是「内容行 + 时间轴行」两行、「画布列 + 助手列」两列的网格', () => {
     expect(source).toContain('grid-rows-[minmax(0,1fr)_var(--workbench-timeline-height)]')
-    expect(source).toContain("gridTemplateColumns: isDockedAssistant ? 'minmax(0,1fr) var(--generation-assistant-width)' : 'minmax(0,1fr)'")
+    // 两列出自唯一出处 assistantDockColumns*（内容先保底、停靠栏放不下就让，不读窗口、不写存档）；停靠栏那一轨的最宽是会动画的变量。
+    expect(source).toContain("gridTemplateColumns: isDockedAssistant ? assistantDockColumnsAnimated('var(--generation-assistant-width)') : 'minmax(0,1fr)'")
     expect(source).toContain('gridTemplateRows: `minmax(0,1fr) ${timelineCollapsed ? \'0px\' : `${timelineHeight}px`}`')
   })
 

@@ -367,9 +367,6 @@
     "1db25a17b544bdd771286494390bd5f5d3e2619b2fa970ee304407f228bf0136": 1,
     "5b8b5cb3aaa8c75a8ebbecc109cd3bd5c0fb513c413e85a4773d99f2368908a6": 1
   },
-  "tests/ux/design-lab/warmUp.mjs": {
-    "d0cc15b2cd46f319c4daa58d51ebbf8cf09c172a17a3d972c40c45027b24227d": 1
-  },
   "tests/ux/editing-real-user-pass.walk.mjs": {
     "2607405759684432c0366cdf297d3b0956d569545a83830569088741e12bb5c2": 2
   },

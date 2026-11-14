@@ -21,6 +21,7 @@ import {
 } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 
 const FLOW = `${CREATION_PANEL} ${V4_FLOW}`
 const JUMP = `${CREATION_PANEL} [data-v4-control="jump-latest"]`
@@ -76,8 +77,9 @@ try {
   await win.reload()
   await walk.newProject()
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL)
-  // 最小窗：面板只剩四百多像素高，几轮长回答才真的溢出（大窗里装得下，滚动位置恒 0，检查都是恒真式）。
-  await walk.resizeWindow(1100, 720)
+  // 最矮的窗（高取最小窗 MIN_WINDOW.height）：面板只剩四百多像素高，几轮长回答才真的溢出（大窗里装得下，滚动位置恒 0，检查都是恒真式）。
+  // 宽取 1100 = 最窄的仍停靠窗：最小窗 700 宽低于窄窗阈值 1060，停靠的面板会临时收成小球，这里要量的是停靠栏。
+  await walk.resizeWindow(1100, MIN_WINDOW.height)
   walk.report.window = await win.evaluate(() => ({ width: innerWidth, height: innerHeight }))
   const panel = win.locator(CREATION_PANEL)
   const flow = win.locator(FLOW)
