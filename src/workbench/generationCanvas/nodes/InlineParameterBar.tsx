@@ -21,7 +21,7 @@ import {
 } from './controls/parameterControlModel'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
 import { summaryFitCandidates } from './composerHeadlineSummary'
-import { modelVisibilityFooterAction, useDedupedModelSelect, type ModelVariantMenu } from '../../common/useDedupedModelSelect'
+import { useDedupedModelSelect, type ModelVariantMenu } from '../../common/useDedupedModelSelect'
 import { localizeAutoOption } from './parameterOptionPresentation'
 import {
   ParameterOptionGroup,
@@ -474,7 +474,7 @@ export default function InlineParameterBar({
           options={leadingModelOption ? [{ value: '', ...leadingModelOption }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
           onChange={(id) => (id || !leadingModelOption ? modelSelect.onModelPick(id) : onModelChange(''))}
           onChipChange={modelSelect.onModelProviderPick}
-          footerAction={modelVisibilityFooterAction(modelSelect.hiddenCount)}
+          footerAction={modelSelect.visibilityFooter}
         />
       ) : null}
       {modeMenu ? (

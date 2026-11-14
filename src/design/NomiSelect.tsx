@@ -126,6 +126,21 @@ const DROPDOWN_MAX_WIDTH_WITH_CHIPS = 380
 const DROPDOWN_MAX_WIDTH_WITH_DESCRIPTION = 340
 /** 带品牌图的行（模型菜单）：图方块 28 + 一行说明，340 放不下「文生/图生/首尾帧/参考 · 最高 1080p · 最长 30 秒」。 */
 const DROPDOWN_MAX_WIDTH_WITH_RICH_ROWS = 400
+/**
+ * 组件自己的一条规则（不是调用方的开关，2026-11-14 方向检查）：选项不超过这么多行的菜单整个露出、不滚；
+ * 超过的照旧按固定最高（380 / 240）在菜单里滚。起因：方式菜单六行带说明，固定 240 时第 6 行只露半行。
+ */
+export const NOMI_SELECT_WHOLE_ROWS = 8
+/**
+ * 整个露出的菜单的选项区高度：内容多高就多高，但不许被窗口边切掉——
+ * 窗口剩余高度（减去小标题、尾行这些滚动区外的部分）放不下时取窗口那一截，在菜单里滚。纯 DOM 量，不猜行高。
+ */
+export function fittedOptionsHeight(list: HTMLElement, availableHeight: number): number {
+  const dropdown = list.parentElement
+  const outside = dropdown ? Math.max(0, dropdown.getBoundingClientRect().height - list.getBoundingClientRect().height) : 0
+  return Math.max(0, Math.floor(Math.min(list.scrollHeight, availableHeight - outside)))
+}
+
 function toneClass(tone: NomiSelectTone | undefined, kind: 'badge' | 'trailing'): string {
   if (tone === 'accent') return 'bg-nomi-accent-soft text-nomi-accent'
   if (tone === 'danger') return 'text-workbench-danger'
@@ -180,6 +195,19 @@ export function NomiSelect({
   const query = search.trim().toLocaleLowerCase()
   const visibleOptions = searchable && query ? options.filter((option) => option.label.toLocaleLowerCase().includes(query)) : options.filter((option) => more || !option.more || option.value === value)
   const hasChips = options.some((option) => (option.chips?.length ?? 0) > 0)
+  const optionsRef = React.useRef<HTMLDivElement | null>(null)
+  // 行数不超过 NOMI_SELECT_WHOLE_ROWS 才挂 size 中间件、去掉固定最高；超过的菜单中间件和类名都和今天一样。
+  const showWhole = visibleOptions.length <= NOMI_SELECT_WHOLE_ROWS
+  const rowFit = showWhole ? {
+    apply: ({ availableHeight }: { availableHeight: number }) => {
+      const list = optionsRef.current
+      if (list) list.style.maxHeight = `${fittedOptionsHeight(list, availableHeight)}px`
+    },
+  } : undefined
+  // 搜索把行数从 ≤8 筛回 >8 时，把整露时写上的高度摘掉，交回固定最高。
+  React.useLayoutEffect(() => {
+    if (!showWhole && optionsRef.current) optionsRef.current.style.maxHeight = ''
+  }, [showWhole])
 
   return (
     <Combobox
@@ -194,7 +222,7 @@ export function NomiSelect({
       position={dropdownAlign === 'end' ? 'bottom-end' : 'bottom-start'}
       offset={6}
       zIndex={NOMI_OVERLAY_Z_INDEX.popover}
-      middlewares={{ flip: true, shift: true }}
+      middlewares={rowFit ? { flip: true, shift: true, size: rowFit } : { flip: true, shift: true }}
       onOptionSubmit={(val) => {
         onChange(val)
         combobox.closeDropdown()
@@ -277,7 +305,7 @@ export function NomiSelect({
             portalTarget 指回节点自身 DOM，而不是 document.body）——挂了就必须挡住滚轮被画布
             当缩放吃掉；没挂进画布时这两个 class 谁也不认，纯粹无操作。 */}
         {/* 带图 + 说明的行（模型菜单）每行 46px：240 只放得下 5 行，翻一屏才见「隐藏模型」——放到 8 行高；尾行钉在滚动区外、永远看得见。 */}
-        <Combobox.Options className={cn('nowheel nodrag overflow-auto', hasRichRows ? 'max-h-[380px]' : 'max-h-[240px]')}>
+        <Combobox.Options ref={optionsRef} data-nomi-select-whole={showWhole ? '' : undefined} className={cn('nowheel nodrag overflow-auto', showWhole ? undefined : hasRichRows ? 'max-h-[380px]' : 'max-h-[240px]')}>
           {visibleOptions.length === 0 ? <Combobox.Empty>{t('common.noMatchingOptions')}</Combobox.Empty> : null}
           {visibleOptions.map((option, index) => {
             const isSel = option.value === value
