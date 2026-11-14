@@ -1,5 +1,7 @@
 # 设计卡：Agent 定的参数落到画布节点上要原样留住（F-landing-defaults）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ```
 改动名：落地线带变体（PR-a）+ 视频比例默认值收进一处（PR-b）   线：F-landing-defaults   类别：[花钱][其他]
 ```

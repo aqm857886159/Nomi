@@ -1,5 +1,7 @@
 # 设计卡：用户逐字给的提示词，Agent 照写，不扩写（逃逸账本 USER-20261107-agent-expands-verbatim-prompt）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：Agent 对用户给出的提示词原文逐字落，只有用户让它写 / 润色 / 扩写时才扩写　线：I-style-verbatim　类别：[其他]（Agent 行为；模型可见文字；不碰界面元素，不花钱）
 
 ### 功能分类

@@ -1,5 +1,7 @@
 # 方向检查（类根因复盘）：3D 预演参考挂接（I-3d-ref）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：提交时 `fix-churn` 命中 `directorPreviewState.ts`（近 14 天已有 `aafea7949`、`e65ffa7d4` 两个 fix，这一刀是第 3 个）与目录 `director/model/`（第 5 个）、词典 `director.ts#agent`（第 3 个）。开工时对三个文件一起跑 `fix-churn` 输出「未命中」，提交时的门岗按文件逐个算才报出，这是开工那一步的漏报，已在交付里单独说明。
 > 本刀不是「第 3 次补同一个洞」：近两个 fix 补的是「过期预演也挡花钱闸」「超长按当前工程判」，本刀碰到的是同一个文件里的**另一条**判据（无指纹的旧预演放行）。但同目录反复出现的共同形状是「靠一个旧凭据判新鲜 / 判已挂」，所以按规矩写这一页，结构性结论交拍板。
 > 复盘前先钉特征测试：`directorPreviewStale.spendGate.test.ts`（原有的「旧预演无指纹放行」那一条被改为「按过期挡」，是协调 10-21 明确的产品决定）、`directorProduce.test.ts`、`directorPreviewCapture.test.ts`、`attachCameraMoveToTarget.test.ts` 全部保留并通过。

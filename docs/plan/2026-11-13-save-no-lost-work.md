@@ -1,5 +1,7 @@
 # 保存不丢作品（D-main-thread-unblock 第二刀 PR1）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 设计卡全文：`/Users/aoqimin/Nomi-coord/tmp/D-main-thread-unblock/design-card.md`（协调会话私有仓）；方向检查：`docs/engineering/direction-checks/2026-11-13-save-item-quarantine.md`。
 
 ## ★1 要保住的结果

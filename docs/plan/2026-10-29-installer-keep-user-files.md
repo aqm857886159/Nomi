@@ -1,5 +1,7 @@
 # Windows 升级 / 卸载只删安装器自己装的文件
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 线：I-installer-r4；类别：可打断。2026-10-30 用户裁定甲，见 [方向检查与裁定](../engineering/direction-checks/2026-10-30-installer-keep-user-files.md)。本页是第 4 轮动手前合同，替换原搬家方案。
 
 事故：用户把项目放在 `F:\Nomi_new\xiangmu`，从 0.24.0 更新后五个项目被默认卸载段永久删除。

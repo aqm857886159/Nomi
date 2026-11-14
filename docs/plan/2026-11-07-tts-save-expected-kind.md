@@ -1,5 +1,7 @@
 # 设计卡：配音扣了钱却存不进项目（2026-11-07）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 实现线 I-tts-save-expected-kind，第 1 轮修补 I-tts-save-r2（按复盘 `docs/engineering/direction-checks/2026-11-07-tts-save-expected-kind.md` 第 7.4 节改三处） · 分支 `fix/tts-save-expected-kind-r2` · 根因合同 `docs/fixes/2026-11-07-tts-save-expected-kind.root-cause.json` · 逃逸账本 `tests/ux/full-walk/escapeLedger/PAID-20261107-tts-save-expected-kind.json`
 
 这次碰了花钱路径（没项目时在付费闸之前拒），按四类填 9 格。

@@ -1,5 +1,7 @@
 # 方向检查：过期预演也挡花钱——挡住原因的词表跨进程抄了五份（第四轮，2026-10-16）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`fix-churn` 命中 `electron/capabilityCore/appIntegration.ts`（14 天第 16 个）、`appIntegrationCanvasShot.ts`（第 3 个）、`electron/agentLane/laneExtendedDesktopPorts.ts`（第 3 个）、`runner/` 目录（第 16 个）、`NodeGenerationComposer.tsx`（第 6 个）、`capability/directorPreviewBlocksOp.ts`（第 3 个）。
 > 协调 10-16 定（「钱只花在用户以为的东西上」）：用户不点「出成片」、直接在视频节点上点 ↑，挂着的预演如果在手改之后已过期，和「渲染中 / 失败」一样挡住，提示先重渲，并给一键重渲出口；判据与「能不能出片」读同一份。
 

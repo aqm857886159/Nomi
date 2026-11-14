@@ -1,5 +1,7 @@
 # 方向检查：导演台（和全景查看器）是页面里的东西，却挂成了盖住整窗的 body 层（2026-10-29）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`src/workbench/generationCanvas/nodes/director/` 目录近 14 天 18 个 fix（`git log --since=2026-10-15`，诊断线 R-blockers-repro 第 7 节同口径）；`node scripts/fix-churn.mjs` 对 `src/ui/app-shell/windowChrome.ts` 实测命中（目录 `src/ui/app-shell/` 14 天已有 2 个 fix，这一刀碰它是第 3 个）。同一族上两次：2026-09-04 Windows 窗口栏（全屏层盖住拖拽带）、2026-10-27 开屏「跳过」（顶栏压住它）。
 > 例外条款：要改的文件本身（`DirectorEditor.tsx`、`DirectorNode.tsx`、`WorkbenchShell.tsx`、`ShellAgentHost.tsx`）14 天内 fix 数为 0；改法是「换」——portal 目标换成生成页那一格，同提交删掉自己算位置的那一套，不新增分支或特例；适用协调代批，用户也已当面拍了方向（第 7 节原话）。
 > 设计卡：[`2026-10-29-director-layer-in-page.md`](2026-10-29-director-layer-in-page.md)。证据：`coord-handoff/reports/R-blockers-repro.md` 第 3–5 节（复现与截图）。

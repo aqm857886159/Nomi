@@ -1,5 +1,7 @@
 # 方向检查：迁移确认凭据被「读状态」顶掉、失败路径在宿主目录留 .nomi-prev 残留（#1142，V-1142b 第 2 项）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 触发：`node scripts/fix-churn.mjs electron/capabilityCore/mcpHostMigration.ts` 命中——文件 14 天内已有 2 个 fix，这一刀是第 3 个；自写登记 `mcp-protocol`（to-replace）30 天内第 33 个 fix。按 `docs/engineering/direction-check-template.md` 写，**拍板前不动实现**，只钉了两条特征测试（见文末）。
 
 ## 0. 一句话根因

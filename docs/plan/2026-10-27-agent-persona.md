@@ -1,5 +1,7 @@
 # Agent 形象（设计卡）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ```
 改动名：右下 Agent 小球换成形象（G · 去框：一块形加两只眼），聊天身份行换成它的静态脸
 线/负责人：I-agent-persona（0.25 派出）；「长任务」一档跟 I-agent-closeout-a（Run 状态接进小球）

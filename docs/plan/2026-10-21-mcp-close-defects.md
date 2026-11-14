@@ -1,5 +1,7 @@
 # 设计卡：MCP 收口前的五个「说的和做的对不上」（D1–D4、D6）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 线/负责人：实现线 I-mcp-fix（nomi-worker）　　类别：[花钱]（D3 改外部 Agent 的默认行为）　[新界面]（D2 改失效框主按钮的文字和行为，无新元素）　[其他]
 来源：`D:/Nomi-coord-state/reports/R-mcp-close.md` 第 6 节（Codex 读码）；任务书 `D:/Nomi-coord-state/briefs/20261021/I-mcp-fix.md`。
 

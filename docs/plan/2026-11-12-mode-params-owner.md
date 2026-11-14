@@ -1,5 +1,7 @@
 # 设计卡：「这个方式认哪些参数」收成一处，显示、发送、Agent 都问它
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：方式参数主人。设计：一条只读设计线；实现：PR1。类别：[花钱]（改的是花钱那条路上发出去的请求体），9 格全填。
 读的版本：origin/main @ f8a351447（含尺子 #1488）；`feat/mode-bar` @ 033a106f3（按「它已在 main 上」设计）；`feat/archetype-docs-batch1` @ 7c1492a11 只读它对 `taskParams.ts` 的 diff。
 Direction-Check：`taskParams.ts` 14 天 4 个 fix，PR1 提交须带 `Direction-Check: docs/engineering/direction-checks/2026-11-12-taskparams.md`（该复盘推荐「换一种做法」，本卡就是它）。

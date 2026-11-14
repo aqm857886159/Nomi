@@ -1,5 +1,7 @@
 # workbench effect cleanup 普查
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 范围：`src/workbench` 的 `useEffect` / `useLayoutEffect`（含 `React.`），TypeScript AST 提取 377 个返回表达式，含 `undefined`、直接 setup 调用及其返回的 disposer；不是 377 个业务 cleanup。再按关闭、写状态、发事件及间接 callback 逐项核调用者。原始明细在本线外部报告的证据目录，不将用户资料入库。
 
 | 位置 | cleanup 动作 | 判断与处置 |

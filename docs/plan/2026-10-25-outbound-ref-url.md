@@ -1,5 +1,7 @@
 # 出站参考链接在参数层统一序列化（设计卡）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：出站参考链接在参数层统一序列化  线/负责人：fix/outbound-ref-url（第 1 轮）· I-ref-url-r2（第 2 轮）  类别：[花钱][长跑（路径推出）]
 
 > 第 2 轮（2026-10-25）重写本卡：第 1 轮把收口放在传输层、按发出去的字段名另写了一张键表，类级测试拿它跑红 51 格（见 ★9），本轮把收口换到参数层、第 1 轮的传输层改写整套删掉。复盘：`docs/engineering/direction-checks/2026-10-25-outbound-reference-url.md`（「第 2 轮」一节）。根因合同：`docs/fixes/2026-10-25-outbound-ref-url.root-cause.json`。
