@@ -126,8 +126,8 @@
       "lang": "zh",
       "scheme": "light",
       "summary": {
-        "text": "JBFqnCBs… · 0.5 · 0.75 · 0 · 1 · 增强音色相似度",
-        "title": "JBFqnCBs… · 0.5 · 0.75 · 0 · 1 · 增强音色相似度",
+        "text": "0.5 · 0.75 · 0 · 1 · 增强音色相似度",
+        "title": "0.5 · 0.75 · 0 · 1 · 增强音色相似度",
         "cramped": false
       },
       "panelRows": 7,
@@ -347,8 +347,8 @@
       "lang": "en",
       "scheme": "dark",
       "summary": {
-        "text": "JBFqnCBs… · 0.5 · 0.75 · 0 · 1 · Boost voice similarity",
-        "title": "JBFqnCBs… · 0.5 · 0.75 · 0 · 1 · Boost voice similarity",
+        "text": "0.5 · 0.75 · 0 · 1 · Boost voice similarity",
+        "title": "0.5 · 0.75 · 0 · 1 · Boost voice similarity",
         "cramped": false
       },
       "panelRows": 7,
@@ -462,8 +462,21 @@
       "lang": "zh",
       "panel": {
         "top": 277,
-        "bottom": 710,
+        "bottom": 711,
         "scrolls": false
+      }
+    },
+    {
+      "what": "panel-7-mid",
+      "lang": "zh",
+      "shift": 103,
+      "mid": {
+        "anchorTop": 346,
+        "top": 380,
+        "bottom": 712,
+        "vh": 720,
+        "scrolls": true,
+        "lastReachable": true
       }
     },
     {
@@ -484,8 +497,55 @@
       "lang": "en",
       "panel": {
         "top": 277,
-        "bottom": 710,
+        "bottom": 711,
         "scrolls": false
+      }
+    },
+    {
+      "what": "panel-7-mid",
+      "lang": "en",
+      "shift": 103,
+      "mid": {
+        "anchorTop": 346,
+        "top": 380,
+        "bottom": 712,
+        "vh": 720,
+        "scrolls": true,
+        "lastReachable": true
+      }
+    },
+    {
+      "what": "advanced-reveal",
+      "state": "sb-row-01-draft-inherited-aspect",
+      "lang": "zh",
+      "facts": {
+        "sectionBottom": 800,
+        "sectionTop": 748,
+        "visibleTop": 0,
+        "visibleBottom": 800,
+        "hasScroller": true,
+        "parked": {
+          "scrollerTop": 147,
+          "toggleBottom": 796,
+          "viewBottom": 800
+        }
+      }
+    },
+    {
+      "what": "advanced-reveal",
+      "state": "sb-row-01-draft-inherited-aspect",
+      "lang": "en",
+      "facts": {
+        "sectionBottom": 800,
+        "sectionTop": 748,
+        "visibleTop": 0,
+        "visibleBottom": 800,
+        "hasScroller": true,
+        "parked": {
+          "scrollerTop": 147,
+          "toggleBottom": 796,
+          "viewBottom": 800
+        }
       }
     }
   ],
@@ -531,6 +591,184 @@
       "footers": 2,
       "sends": 1,
       "stray": 0
+    },
+    {
+      "state": "sbl-yield-narrowest-longest-zh",
+      "lang": "zh",
+      "level": "5",
+      "overflow": false,
+      "tall": false,
+      "sendIconOnly": true,
+      "midCut": false,
+      "width": 342
+    },
+    {
+      "state": "sbl-yield-narrowest-longest-en",
+      "lang": "en",
+      "level": "5",
+      "overflow": false,
+      "tall": false,
+      "sendIconOnly": true,
+      "midCut": false,
+      "width": 342
+    },
+    {
+      "what": "sbl-yield-matrix",
+      "lang": "zh",
+      "cells": 510,
+      "overflow": 0,
+      "tall": 0,
+      "summarySqueezed": [],
+      "commonClipped": [],
+      "modeRule": [],
+      "modelClipped": 13,
+      "footerWidths": {
+        "shot@598": 342,
+        "anchor@598": 342,
+        "shot@650": 394,
+        "anchor@650": 394
+      },
+      "fourAt598": [
+        {
+          "id": "shot:seedance-2.5-apimart/t2v@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:seedance-2.5-apimart/first@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:seedance-2.5-apimart/firstlast@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:seedance-2.5-apimart/omni@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:seedance-2.5-apimart/edit@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:seedance-2.5-apimart/extend@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:kling-v4-flash/t2v@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:kling-v4-flash/i2v@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:kling-v4-flash/ref@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:kling-v4-flash/edit@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:kling-v4-flash/extend@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:veo3.1-fast-official/t2v@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:veo3.1-fast-official/i2v@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:gpt-image-2.5-flare/t2i@598",
+          "clipped": false
+        },
+        {
+          "id": "anchor:gpt-image-2.5-flare/t2i@598",
+          "clipped": false
+        }
+      ]
+    },
+    {
+      "what": "sbl-yield-matrix",
+      "lang": "en",
+      "cells": 510,
+      "overflow": 0,
+      "tall": 0,
+      "summarySqueezed": [],
+      "commonClipped": [],
+      "modeRule": [],
+      "modelClipped": 16,
+      "footerWidths": {
+        "shot@598": 342,
+        "anchor@598": 342,
+        "shot@650": 394,
+        "anchor@650": 394
+      },
+      "fourAt598": [
+        {
+          "id": "shot:seedance-2.5-apimart/t2v@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:seedance-2.5-apimart/first@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:seedance-2.5-apimart/firstlast@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:seedance-2.5-apimart/omni@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:seedance-2.5-apimart/edit@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:seedance-2.5-apimart/extend@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:kling-v4-flash/t2v@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:kling-v4-flash/i2v@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:kling-v4-flash/ref@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:kling-v4-flash/edit@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:kling-v4-flash/extend@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:veo3.1-fast-official/t2v@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:veo3.1-fast-official/i2v@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:gpt-image-2.5-flare/t2i@598",
+          "clipped": false
+        },
+        {
+          "id": "anchor:gpt-image-2.5-flare/t2i@598",
+          "clipped": false
+        }
+      ]
     }
   ],
   "matrix": {
@@ -542,6 +780,7 @@
       "oneOther": 7,
       "noParams": 9,
       "modelEllipsis": 0,
+      "midCut": [],
       "problems": [],
       "noFooter": []
     },
@@ -552,7 +791,8 @@
       "durationOnly": 12,
       "oneOther": 7,
       "noParams": 9,
-      "modelEllipsis": 1,
+      "modelEllipsis": 0,
+      "midCut": [],
       "problems": [],
       "noFooter": []
     }

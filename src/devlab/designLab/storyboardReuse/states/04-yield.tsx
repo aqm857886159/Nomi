@@ -11,11 +11,14 @@ import { layoutPlan } from '../storyboardLayoutFixtures'
 /**
  * 底栏「谁先让、让到哪」在分镜行 / 参考卡上的量具（2026-11-14 参数面板验收条件 1 + 边界表）：
  * 目录 = 每个档案一行（名字读档案本身），一格只摆一镜 / 一张卡，换档案 × 方式 × 宽度由走查经 `window.__sblYield.set` 来。
- * 宽度是**取景框宽**（带 1px 边框，框宽 = 行宽 + 2）。真窗实测（2026-11-14，窗口最小宽 700 合入后）：
- * 窗口 700 → 分镜行宽 598（取景框 600）；窗口 1060–1100 停靠 Agent → 行宽 650（取景框 652）。
- * 行宽 < 520 整颗换行、不走让法，真实窗口走不到。
+ * 宽度是**真窗里的行宽**（分镜行宽 = 参考区宽）。真窗实测（2026-11-14，窗口最小宽 700 合入后）：
+ * 窗口 700 → 行宽 598 → 底栏 342；窗口 1060–1100 停靠 Agent → 行宽 650 → 底栏 394；任何窗口宽都不进紧凑档（行宽 < 520）。
+ * 取景框的 1px 边框（2）、参考区外面实验室自己加的 p-3（24）再加实测差的 2 由 labFrameWidth 补回去，两种宿主的底栏都和真窗一样宽（走查核 342 / 394）。
  */
-export const REAL_NARROWEST_FRAME = 600
+export const REAL_NARROWEST_ROW = 598
+const LAB_FRAME_BORDER = 2
+const LAB_ANCHOR_PADDING = 26
+const labFrameWidth = (combo: YieldCombo): number => combo.width + LAB_FRAME_BORDER + (combo.host === 'anchor' ? LAB_ANCHOR_PADDING : 0)
 
 const SOURCE = 'docs/design/boards/2026-11-14-composer-params/ComposerParams.board.json（便签「边界表」：最窄容器 × 最长名字）'
 const ROW = 'src/workbench/generationCanvas/nodes/composerBarYield.ts'
@@ -33,13 +36,13 @@ function YieldCell({ combo }: { combo: YieldCombo }): React.JSX.Element {
   const archetype = MODEL_ARCHETYPES.find((candidate) => candidate.id === combo.archetypeId)!
   if (combo.host === 'anchor') {
     const anchor: PlanAnchor = { id: 'a-yield', kind: 'character', name: '林薇', description: '短发，深色风衣，眼神冷', carrier: 'visual', modelKey: archetype.id, modelVendor: 'apimart', params: {} }
-    return <LayoutAnchors cards={[labAnchorRuntime(anchor)]} aspect="16:9" width={combo.width} imageModels={MODELS.image} />
+    return <LayoutAnchors cards={[labAnchorRuntime(anchor)]} aspect="16:9" width={labFrameWidth(combo)} imageModels={MODELS.image} />
   }
   const shot = labShot({
     index: 1, shotKind: archetype.kind === 'image' ? 'image' : 'video', modelKey: archetype.id, modelVendor: 'apimart', modeId: combo.modeId,
     anchorIds: [], prompt: PROMPT, referenceBindings: {}, ...(archetype.kind === 'image' ? { durationSec: 3 } : {}),
   })
-  return <LayoutRows plan={layoutPlan('16:9', [shot])} width={combo.width} models={MODELS} />
+  return <LayoutRows plan={layoutPlan('16:9', [shot])} width={labFrameWidth(combo)} models={MODELS} />
 }
 
 declare global {
@@ -60,7 +63,7 @@ function combosAt(width: number): YieldCombo[] {
 const modeCount = (archetypeId: string): number => MODEL_ARCHETYPES.find((archetype) => archetype.id === archetypeId)?.modes.length ?? 0
 
 function MatrixStage(): React.JSX.Element {
-  const [combo, setCombo] = React.useState<YieldCombo>(() => combosAt(REAL_NARROWEST_FRAME)[0]!)
+  const [combo, setCombo] = React.useState<YieldCombo>(() => combosAt(REAL_NARROWEST_ROW)[0]!)
   React.useEffect(() => {
     window.__sblYield = { combos: combosAt, set: setCombo, modeCount }
     return () => { delete window.__sblYield }
@@ -73,7 +76,7 @@ function MatrixStage(): React.JSX.Element {
 function longestVideoCombo(): YieldCombo {
   const archetype = MODEL_ARCHETYPES.filter((candidate) => candidate.kind === 'video').sort((a, b) => b.label.length - a.label.length)[0]!
   const mode = [...archetype.modes].sort((a, b) => b.vendorTerm.length - a.vendorTerm.length)[0]!
-  return { host: 'shot', kind: 'video', archetypeId: archetype.id, modeId: mode.id, width: REAL_NARROWEST_FRAME }
+  return { host: 'shot', kind: 'video', archetypeId: archetype.id, modeId: mode.id, width: REAL_NARROWEST_ROW }
 }
 
 export const YIELD_STATES: readonly LabState[] = [

@@ -15,7 +15,7 @@ const base: NomiSelectProps = {
   onChange: () => undefined,
   ariaLabel: '方式',
   options: [
-    { value: 't2v', label: '文生视频', glyph },
+    { value: 't2v', label: '纯文字方式', glyph },
     { value: 'i2v', label: '首帧生视频', glyph },
   ],
 }
@@ -45,7 +45,7 @@ describe('NomiSelect triggerIconOnly', () => {
   })
 
   it('为 true 但选中项没有图标：照旧画字，和不收时逐字相同', () => {
-    const plain = { options: [{ value: 't2v', label: '文生视频' }, { value: 'i2v', label: '首帧生视频' }] }
+    const plain = { options: [{ value: 't2v', label: '纯文字方式' }, { value: 'i2v', label: '首帧生视频' }] }
     expect(render({ ...plain, triggerIconOnly: true })).toBe(render(plain))
   })
 })

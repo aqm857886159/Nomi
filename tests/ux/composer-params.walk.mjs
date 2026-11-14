@@ -208,26 +208,66 @@ try {
     report.narrow.push({ what: 'panel-7', lang, panel: f.panel && { top: f.panel.top, bottom: f.panel.bottom, scrolls: f.panel.scrolls } })
     check(`边界 · 700×720 七项面板不出窗口（放不下在面板里滚）· ${tag}`, Boolean(f.panel) && f.panel.top >= 0 && f.panel.bottom <= f.viewport.h + 0.5, JSON.stringify(f.panel && { top: f.panel.top, bottom: f.panel.bottom, scrolls: f.panel.scrolls }))
     await shot(second.page, `narrow-700x720-panel-7-${lang}-${scheme}`, { full: true })
+    // 最坏位置：生成框停在最小窗正中间（上下都放不下七项），面板必须限高、在面板里滚，最后一项滚得到。
+    // 上面那格面板朝下放得下，限高不限高看不出来；这一格才量得到「放不下就限高」。
+    await second.page.keyboard.press('Escape')
+    await second.page.waitForFunction((sel) => !document.querySelector(sel), PANEL, { timeout: stationTimeout({ operations: 1 }) })
+    const pill = second.page.locator(`${FOOTER} [data-parameter-summary]`).first()
+    const shift = await pill.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const delta = Math.round(window.innerHeight / 2 - (r.top + r.bottom) / 2)
+      // 用 margin 推，不用 transform：transform 会让 fixed 定位的面板跟着偏，量的就不是窗口了。
+      const root = document.getElementById('design-lab-root')
+      root.style.marginTop = `${(parseFloat(getComputedStyle(root).marginTop) || 0) + delta}px`
+      return delta
+    })
+    await pill.click()
+    await second.page.waitForFunction((sel) => Boolean(document.querySelector(sel)), PANEL, { timeout: stationTimeout({ operations: 1 }) })
+    await second.page.waitForTimeout(200)
+    const mid = await second.page.evaluate(([sel, footerSel]) => {
+      const pillBox = document.querySelector(`${footerSel} [data-parameter-summary]`)?.getBoundingClientRect()
+      const panel = document.querySelector(sel)
+      const scroller = panel?.firstElementChild
+      const r = panel.getBoundingClientRect()
+      if (scroller) scroller.scrollTop = scroller.scrollHeight
+      const last = [...(scroller?.querySelectorAll('[data-agent-parameter-control]') ?? [])].at(-1)?.getBoundingClientRect()
+      const sr = scroller?.getBoundingClientRect()
+      return { anchorTop: Math.round(pillBox?.top ?? -1), top: Math.round(r.top), bottom: Math.round(r.bottom), vh: window.innerHeight, scrolls: scroller ? scroller.scrollHeight > scroller.clientHeight + 1 : null, lastReachable: Boolean(last && sr) && last.bottom <= sr.bottom + 0.5 }
+    }, [PANEL, FOOTER])
+    report.narrow.push({ what: 'panel-7-mid', lang, shift, mid })
+    check(`边界 · 700×720 生成框在窗口正中、七项上下都放不下：面板不出窗口、限高在面板里滚、最后一项滚得到 · ${tag}`, mid.top >= 0 && mid.bottom <= mid.vh + 0.5 && mid.scrolls === true && mid.lastReachable, JSON.stringify({ shift, ...mid }))
     await second.context.close()
   }
 
-  // ── ②b 高级设置展开后滚进可视区（#1525 验收条件 1、4）：最小窗列表详情 + 分镜行 1280×800 ──
-  // 先把可滚容器滚到「高级设置」图标刚好贴在可视区下沿（展开段一定落在可视区外），再点开：展开段下沿必须回到可视区里。
+  // ── ②b 高级设置展开后滚进可视区（#1525 验收条件 1、4）：分镜行 1280×800 ──
+  // 先把可滚容器滚到「高级设置」图标刚好露在可视区下沿上面（展开段整段落在可视区外），再点开：展开段下沿必须回到可视区里。
+  // 最小窗列表详情在真窗里量（composer-b3-real 的 host-list-detail-min-window-advanced）：实验室那一格没种模型目录，生成框只画骨架。
   for (const { lang, scheme } of RUNS) {
-    for (const [screen, state, viewport] of [['generation-list', 'list-detail-done', { width: 700, height: 720 }], ['storyboard', 'sb-row-01-draft-inherited-aspect', { width: 1280, height: 800 }]]) {
+    for (const [screen, state, viewport] of [['storyboard', 'sb-row-01-draft-inherited-aspect', { width: 1280, height: 800 }]]) {
       const tag = `${state} ${viewport.width}x${viewport.height} ${lang}-${scheme}`
       const { page, context } = await open(state, { lang, scheme, screen, viewport })
       const toggle = page.locator('[data-advanced-settings-toggle]').first()
       let facts = null
       try {
         await proveProbe(toggle, `${state} 里有「高级设置」图标`)
+        // 实验室格比真窗矮、没东西可滚：把图标最近的可滚容器（没有就用实验室根）下沿对齐窗口下沿、上下各垫一屏，
+        // 和真窗分镜页「自己的可滚容器里滚」同一种滚法。
+        await toggle.evaluate((el) => {
+          let node = el.parentElement
+          while (node && node !== document.body && !/(auto|scroll)/.test(getComputedStyle(node).overflowY)) node = node.parentElement
+          if (!node || node === document.body) { node = document.getElementById('design-lab-root'); node.style.overflowY = 'auto' }
+          node.style.maxHeight = `${Math.max(200, window.innerHeight - Math.max(0, node.getBoundingClientRect().top))}px`
+          // 垫块用子元素，不用 padding：border-box 的高度压不过 padding，容器会被撑高、下沿跑到窗口外。
+          for (const where of ['afterbegin', 'beforeend']) node.insertAdjacentHTML(where, '<div data-walk-spacer style="height:100vh"></div>')
+        })
         const parked = await toggle.evaluate((el) => {
           let node = el.parentElement
           while (node && !(/(auto|scroll)/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1)) node = node.parentElement
           if (!node) return null
           const r = el.getBoundingClientRect(); const c = node.getBoundingClientRect()
-          node.scrollTop += r.bottom - c.bottom + 2
-          return { scrollerTop: node.scrollTop }
+          // 图标整个露在下沿上面 4px（点它时浏览器不用先滚），展开段整段落在下沿外。
+          node.scrollTop += r.bottom - c.bottom + 4
+          return { scrollerTop: node.scrollTop, toggleBottom: Math.round(el.getBoundingClientRect().bottom), viewBottom: Math.round(c.bottom) }
         })
         await page.waitForTimeout(100)
         await toggle.click()
@@ -243,7 +283,8 @@ try {
         facts.parked = parked
       } catch (error) { facts = { error: String(error).split('\n')[0] } }
       report.narrow.push({ what: 'advanced-reveal', state, lang, facts })
-      check(`board:ComposerParams/advanced.section · 展开后下沿在可视区里（${tag}）`, Boolean(facts && !facts.error) && facts.sectionBottom <= facts.visibleBottom + 1 && facts.sectionTop >= facts.visibleTop - 1, JSON.stringify(facts))
+      console.log(`  · 高级设置滚入 ${tag}：${JSON.stringify(facts)}`)
+      check(`board:ComposerParams/advanced.section · 展开后下沿在可视区里（${tag}）`, Boolean(facts && !facts.error) && Boolean(facts.parked) && facts.parked.toggleBottom > facts.parked.viewBottom - 40 && facts.hasScroller && facts.sectionBottom <= facts.visibleBottom + 1 && facts.sectionTop >= facts.visibleTop - 1, JSON.stringify(facts))
       await shot(page, `advanced-reveal-${state}-${viewport.width}x${viewport.height}-${lang}-${scheme}`, { full: true })
       await context.close()
     }
@@ -313,17 +354,20 @@ try {
     await context.close()
   }
 
-  // ── ③c 分镜行 / 参考卡全目录：真实最窄的行宽下（窗口 700：行宽 598 → 取景框 600；窗口 1060–1100 停靠 Agent：行宽 650 → 652）──
+  // ── ③c 分镜行 / 参考卡全目录：真实最窄的行宽下（窗口 700：行宽 598 → 底栏 342；窗口 1060–1100 停靠 Agent：行宽 650 → 底栏 394）──
+  // 宽度传的是真窗的行宽 / 参考区宽，取景框边框和实验室外边距由量具自己补，参考卡底栏和真窗一样宽。
   // 每个档案一行的目录 × 每种方式；判：底栏不溢出、不折行，摘要格不缩（不出「Param…」、不截半个值），
   // 常见模型的名字完整；方式格和画布同一条规则（视频有、图片和参考卡没有）。
   if (WITH_MATRIX) {
+    // 真窗实测的四个常见模型（窗口 700 下名字一格不省略，协调裁决甲的前提）。
+    const FOUR = /^(seedance-2\.5-apimart|kling-v4-flash|veo3\.1-fast-official|gpt-image-2\.5-flare)\//
     const COMMON = /^(seedance-2\.5-apimart|seedance-2-apimart|kling-v4|kling-v4-flash|veo-3\.1|veo3\.1-fast-official|veo3\.1-quality-official|gpt-image-2|gpt-image-2\.5-flare|gpt-image-2\.6-flare|nano-banana|nano-banana-2|gemini-nano-banana-2\.1)\//
     for (const { lang, scheme, locale } of RUNS) {
       const modeLabel = uiTextWith(locale, 'generationCommon.modeMenu.heading')
       const { page, context } = await open('sbl-yield-matrix', { lang, scheme, screen: 'storyboard-reuse' })
       await page.waitForFunction(() => Boolean(window.__sblYield), null, { timeout: stationTimeout({ operations: 2 }) })
-      const tally = { cells: 0, overflow: [], tall: [], summarySqueezed: [], commonClipped: [], modeRule: [], modelClipped: 0 }
-      for (const width of [600, 652]) {
+      const tally = { cells: 0, overflow: [], tall: [], summarySqueezed: [], commonClipped: [], modeRule: [], modelClipped: 0, footerWidths: {}, fourAt598: [] }
+      for (const width of [598, 650]) {
         const combos = await page.evaluate((w) => window.__sblYield.combos(w), width)
         for (const combo of combos) {
           const id = `${combo.host}:${combo.archetypeId}/${combo.modeId}@${combo.width}`
@@ -345,10 +389,13 @@ try {
               modelClipped: [...footer.querySelectorAll('*')].some((el) => getComputedStyle(el).textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth && !summary?.contains(el)),
               hasMode: footer.querySelectorAll(`button[aria-label="${label}"]`).length > 0,
               model: model?.textContent?.trim() ?? '',
+              footerWidth: Math.round(footer.getBoundingClientRect().width),
             }
           }, modeLabel)
           tally.cells += 1
           const key = id.split(':')[1]
+          tally.footerWidths[`${combo.host}@${width}`] = f.footerWidth
+          if (width === 598 && FOUR.test(key)) tally.fourAt598.push({ id, clipped: f.modelClipped })
           if (f.overflow) tally.overflow.push(id)
           if (f.tall) tally.tall.push(id)
           if (f.summarySqueezed) tally.summarySqueezed.push(id)
@@ -364,6 +411,11 @@ try {
       check(`边界 · 分镜行 / 参考卡全目录 ${lang}：最窄真实行宽下底栏不溢出、不折行 · ${tally.cells} 格`, tally.cells > 0 && !tally.overflow.length && !tally.tall.length, JSON.stringify([...tally.overflow, ...tally.tall].slice(0, 5)))
       check(`边界 · 分镜行 / 参考卡全目录 ${lang}：摘要格不缩、不截半个值`, tally.cells > 0 && !tally.summarySqueezed.length, JSON.stringify(tally.summarySqueezed.slice(0, 5)))
       check(`board:ComposerParams/bar.model · 分镜行 / 参考卡全目录 ${lang}：常见模型（Seedance / 可灵 / Veo / GPT Image / Nano Banana）名字完整`, tally.cells > 0 && !tally.commonClipped.length, JSON.stringify(tally.commonClipped.slice(0, 5)))
+      // 量具和真窗对得上：行宽 598 → 分镜行和参考卡底栏都是 342，行宽 650 → 394（真窗实测，差 ±2 内算对上）。
+      const fw = tally.footerWidths
+      const calibrated = [['shot@598', 342], ['anchor@598', 342], ['shot@650', 394], ['anchor@650', 394]].every(([k, want]) => Math.abs((fw[k] ?? 0) - want) <= 2)
+      check(`边界 · 分镜行 / 参考卡全目录 ${lang}：实验室底栏宽和真窗一致（598 → 342，650 → 394）`, calibrated, JSON.stringify(fw))
+      check(`board:ComposerParams/bar.model · 窗口 700（行宽 598）下四个常见模型（Seedance 2.5 / 可灵 4.0 Flash / Veo 3.1 Fast 官方 / GPT Image 2.5）名字不省略 · ${lang}`, tally.fourAt598.length >= 4 && tally.fourAt598.every((c) => !c.clipped), JSON.stringify(tally.fourAt598.filter((c) => c.clipped).slice(0, 5)))
       check(`board:ComposerParams/storyboard.row · 分镜行 / 参考卡全目录 ${lang}：方式格和画布同一条规则（视频有、图片和参考卡没有）`, tally.cells > 0 && !tally.modeRule.length, JSON.stringify(tally.modeRule.slice(0, 5)))
       await context.close()
     }
