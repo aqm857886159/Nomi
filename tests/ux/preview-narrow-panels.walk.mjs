@@ -11,8 +11,8 @@
 //   ④ 展开的侧栏里没有东西越出栏边、没有被省略号截断（属性栏最窄 200 时，整片 / 视频 / 图片 / 字幕四种选中态逐个查——设计实验室只按默认 240 画过它）。
 //   ⑤ 预览页藏着（切到创作页）时改窗口宽，再回预览页，三列宽度仍落在规则算出的值上（面板库 4.12.3 在页面藏着时按位置给三列排序、
 //      顺序排乱，回来时三列宽被套到错的列上：素材栏 32、属性栏约 480；升级到 ≥ 4.14.2 才修）。
-//      路径 G：1100 进过预览 → 创作 → 拉到 1280 → 回预览。路径 D（1060 进过预览 → 创作 → 拖到 1000 → 回预览）要窗口能缩到 1000 以下，
-//      今天最小窗是 1100 做不到，等窄窗外壳合入后补一条同样的断言。
+//      路径 G：1100 进过预览 → 创作 → 拉到 1280 → 回预览。路径 D：1060 进过预览 → 创作 → 拖到 1000 → 回预览（窗口能缩到 700 以后才量得出，
+//      同一个 runHiddenResize 里第二条路，独立开一个应用）。
 // 零额度：空画布 + 只有元数据的时间轴（不带媒体文件），不碰任何生成。中英两轨各跑一遍（NOMI_WALK_LOCALES=zh-CN,en 可选）。
 // Run: pnpm run build && node tests/ux/preview-narrow-panels.walk.mjs
 //      打包产物：NOMI_WALK_APP=release/mac-arm64/Nomi.app/Contents/MacOS/Nomi node tests/ux/preview-narrow-panels.walk.mjs
@@ -37,6 +37,11 @@ const RAIL = 32
 const MIN = { source: 240, inspector: 200 }
 const TOLERANCE = 1
 const SETTLE_MS = 3000
+// 路径 D 的三列期望（左 / 预览 / 属性），2026-11 在最小窗 700 的外壳上实量（预览页开着时窗口 1060 → 1000 也是这三个数，下面第二条断言守这一点）：
+//   1060：Nomi 仍停靠，舞台 682 = 面板库给的 240 + 410 + 32（左栏最小 240，属性栏被让成 32 的收起条）。
+//   1000：低于窄窗阈值 1060，Nomi 收成小球不再占列，舞台 930 = 250 + 480 + 200（面板库按存下的比例摊开，三列都 ≥ 各自最小宽）。
+const D_AT_1060 = [240, 410, RAIL]
+const D_AT_1000 = [250, 480, 200]
 
 // 拍板清单 docs/design/boards/2026-11-04-preview-narrow-panels/PreviewNarrowPanels.board.json 的元素断言（check:board-parity 认这些名字）。
 const BOARD = {
@@ -292,10 +297,10 @@ async function runLocale(locale) {
   }
 }
 
-/** ⑤ 页面藏着时改窗宽再回来（路径 G）：独立开一个应用，默认布局，量三列。 */
-async function runHiddenResize(locale) {
-  console.log(`\n── ${locale} · 藏着改窗宽 ──`)
-  const tag = locale === 'en' ? 'en' : 'zh'
+/** ⑤ 页面藏着时改窗宽再回来（路径 G 拉宽、路径 D 缩窄）：每条路独立开一个应用，默认布局，量三列。 */
+async function runHiddenResize(locale, route = 'G') {
+  console.log(`\n── ${locale} · 藏着改窗宽 · 路径 ${route} ──`)
+  const tag = `${locale === 'en' ? 'en' : 'zh'}${route === 'G' ? '' : `-${route}`}`
   const tempRoot = makeTempDir('nomi-preview-hidden-')
   const projectsDir = path.join(tempRoot, 'projects')
   const projectName = `preview-hidden-${tag}`
@@ -332,14 +337,30 @@ async function runHiddenResize(locale) {
     await win.locator('.nomi-stepper').first().waitFor({ timeout: stationTimeout({ operations: 2 }) })
     await switchWorkspace(win, 'creation')
     await ensureAgentPanelOpen(win, 'Nomi docked', { form: 'dock' })
-    await resize(1100)
-    await switchWorkspace(win, 'preview')
-    await expectCols('G：1100 进过预览', [240, 410, RAIL])
-    await switchWorkspace(win, 'creation')
-    await resize(1280)
-    await switchWorkspace(win, 'preview')
-    // 1100 时外壳把 Nomi 宽从 390 钳到 340 不会放回去：舞台 862 = 300 + 530 + 32。
-    await expectCols('G：藏着从 1100 拉到 1280 再回预览', [300, 530, RAIL])
+    if (route === 'G') {
+      await resize(1100)
+      await switchWorkspace(win, 'preview')
+      await expectCols('G：1100 进过预览', [240, 410, RAIL])
+      await switchWorkspace(win, 'creation')
+      await resize(1280)
+      await switchWorkspace(win, 'preview')
+      // 窗口变窄不再改存下的 Nomi 宽（08b22ca8e），拉回 1280 与一直在 1280 同形：舞台 812 = 300 + 480 + 32，等于上面「1280 开 Nomi」那一行。
+      // （旧版外壳 1100 时把 Nomi 宽从 390 钳到 340 不放回去，舞台 862 = 300 + 530 + 32，数字已过期。）
+      await expectCols('G：藏着从 1100 拉到 1280 再回预览', [300, 480, RAIL])
+    } else {
+      await resize(1060)
+      await switchWorkspace(win, 'preview')
+      await expectCols('D：1060 进过预览', D_AT_1060)
+      await switchWorkspace(win, 'creation')
+      await resize(1000)
+      await switchWorkspace(win, 'preview')
+      await expectCols('D：藏着从 1060 拖到 1000 再回预览', D_AT_1000)
+      // 对照：同样的 1060 → 1000，页面开着（不藏）时面板库当场算出的三列，必须和藏着再回来的一样。
+      await resize(1060)
+      await expectCols('D：对照·预览页开着拖回 1060', D_AT_1060)
+      await resize(1000)
+      await expectCols('D：对照·预览页开着从 1060 拖到 1000', D_AT_1000)
+    }
     await screenshotSettled(win, { path: path.join(shotsDir, `hidden-resize-${tag}.png`) })
   } catch (error) {
     failures.push(`${locale} 藏着改窗宽: ${String(error?.stack || error).slice(0, 800)}`)
@@ -352,6 +373,7 @@ async function runHiddenResize(locale) {
 
 for (const locale of locales) await runLocale(locale)
 for (const locale of locales) await runHiddenResize(locale)
+for (const locale of locales) await runHiddenResize(locale, 'D')
 if (failures.length > 0) {
   console.log(`\n❌ preview-narrow-panels: ${failures.length} 处不对\n${failures.map((line) => `  · ${line}`).join('\n')}`)
   process.exit(1)
