@@ -1,7 +1,8 @@
 // 实验室打包产物进不了安装包（2026-11-14）：目录不在 package.json build.files 收的任何顶层位置里，
-// 也在 .gitignore 里。谁把 LAB_BUNDLE_DIR 挪进 dist/ 之类会打包的位置，这里先红。
+// 也在 .gitignore 和 eslint 的忽略里。谁把 LAB_BUNDLE_DIR 挪进 dist/ 之类会打包的位置，这里先红。
 import fs from 'node:fs'
 import path from 'node:path'
+import { ESLint } from 'eslint'
 import { describe, expect, it } from 'vitest'
 import { LAB_BUNDLE_DIR, bundleDirIsPackaged, packagedRoots } from './labBundle.mjs'
 import { REPO_ROOT } from './labStates.mjs'
@@ -23,6 +24,12 @@ describe('实验室打包产物的位置', () => {
     const top = path.relative(REPO_ROOT, LAB_BUNDLE_DIR).split(path.sep)[0]
     const ignore = fs.readFileSync(path.join(REPO_ROOT, '.gitignore'), 'utf8').split('\n').map((line) => line.trim())
     expect(ignore).toContain(`${top}/`)
+  })
+
+  it('目录被 eslint 忽略：lint:ci 在门岗链里排在截图比对之后，不会去扫压缩过的产物', async () => {
+    const eslint = new ESLint({ cwd: REPO_ROOT })
+    expect(await eslint.isPathIgnored(path.join(LAB_BUNDLE_DIR, 'assets', 'design-lab.js'))).toBe(true)
+    expect(await eslint.isPathIgnored(path.join(REPO_ROOT, 'tests', 'ux', 'design-lab', 'labBundle.mjs'))).toBe(false)
   })
 
   it('视觉基线那一趟真的对着这个目录托管（打包和托管用同一份配置）', () => {
