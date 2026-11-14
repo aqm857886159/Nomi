@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 
-import { assertExactOrigin, blockedError, blockedRequestOf, describeBlocked, hostedUploadRelayOrigin, guardLoadedError, paidWalkAllowlist, rehearsalShouldStop, rehearsalVerdict, startRehearsalVendor, VENDOR_RESULT_DOMAINS } from './_paidNetwork.mjs'
+import { assertExactOrigin, blockedError, blockedRequestOf, describeBlocked, hostedUploadRelayOrigin, guardLoadedError, paidWalkAllowlist, rehearsalLedgerRequests, rehearsalShouldStop, rehearsalStation, rehearsalVerdict, standInLaunchEnv, startRehearsalStandIn, stationReaches, VENDOR_RESULT_DOMAINS } from './_paidNetwork.mjs'
 
 const catalog = {
   vendors: [
@@ -207,29 +207,96 @@ describe('rehearsalVerdict', () => {
     expect(rehearsalShouldStop([loaded, balance, vendorPost], { lockedAtEntry: 2, judgedAllow })).toBe(true)
     expect(rehearsalShouldStop([loaded, elsewhere], { lockedAtEntry: null, judgedAllow })).toBe(true)
   })
-  it('stand-in vendor (no-key tier): answers only the declared free probe, records every other request as a blocked row with method + path, never forwards, never logs headers', async () => {
+  it('stand-in vendor (no-key tier): answers only the declared free probe and upload, records every other request with method + path + scrubbed body, never logs headers', async () => {
     const dir = makeTempDir('nomi-stand-in-')
     const netLog = path.join(dir, 'net.jsonl')
     fs.writeFileSync(netLog, `${JSON.stringify(loaded)}\n`)
-    const standIn = await startRehearsalVendor({ origin: 'https://api.apimart.ai', netLog, freeAnswers: { 'GET /v1/balance': { remain_balance: 0 } } })
+    const keyShaped = ['sk', 'abcdefghijklmnopqrstuvwxyz0123'].join('-') // 拼出来的假串：只为验它被打码
+    const standIn = await startRehearsalStandIn({ origin: 'https://api.apimart.ai', netLog, freeAnswers: { 'GET /v1/balance': { remain_balance: 0 } }, uploadAnswers: { 'POST /v1/uploads/images': 'url' } })
     try {
-      expect(JSON.parse(standIn.env.NOMI_TEST_NETWORK_REDIRECTS)).toEqual([{ from: 'https://api.apimart.ai', to: standIn.origin }])
-      expect(standIn.env.NOMI_LAB_TRUSTED_PRIVATE_ORIGINS).toBe(standIn.origin)
+      expect(standInLaunchEnv([standIn])).toEqual({ NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: 'https://api.apimart.ai', to: standIn.origin }]), NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: standIn.origin })
       const balance = await fetch(`${standIn.origin}/v1/balance?x=1`, { headers: { authorization: 'Bearer secret-header-value' } })
       expect(balance.status).toBe(200)
       expect(await balance.json()).toEqual({ remain_balance: 0 })
       const lockedAtEntry = fs.readFileSync(netLog, 'utf8').trim().split('\n').length
-      const post = await fetch(`${standIn.origin}/v1/videos/generations?sig=abc`, { method: 'POST', headers: { authorization: 'Bearer secret-header-value' }, body: '{"prompt":"secret-body"}' })
-      expect(post.status).toBe(503)
+      const form = new FormData()
+      form.append('file', new Blob([new Uint8Array(5)]), 'ref.png')
+      const upload = await fetch(`${standIn.origin}/v1/uploads/images`, { method: 'POST', body: form })
+      expect((await upload.json()).url).toMatch(new RegExp(`^${standIn.origin}/rehearsal-asset/1$`))
+      const post = await fetch(`${standIn.origin}/v1/videos/generations?sig=abc`, { method: 'POST', headers: { authorization: 'Bearer secret-header-value', 'content-type': 'application/json' }, body: JSON.stringify({ model: 'kling', aspect_ratio: '16:9', token: keyShaped }) })
+      expect(post.status).toBe(400)
       const entries = fs.readFileSync(netLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line))
-      expect(entries.map((entry) => entry.kind)).toEqual(['guard-loaded', 'rehearsal-answered', 'blocked'])
-      expect(fs.readFileSync(netLog, 'utf8')).not.toMatch(/secret-header-value|secret-body|sig=abc/)
+      expect(entries.map((entry) => entry.kind)).toEqual(['guard-loaded', 'rehearsal-answered', 'rehearsal-answered', 'blocked'])
+      expect(fs.readFileSync(netLog, 'utf8')).not.toMatch(/secret-header-value|sig=abc/)
+      expect(fs.readFileSync(netLog, 'utf8')).not.toContain(keyShaped)
+      const [request] = rehearsalLedgerRequests(entries)
+      expect(request).toMatchObject({ kind: 'allowed-request', method: 'POST', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/videos/generations' })
+      expect(Object.keys(JSON.parse(request.body.text)).sort()).toEqual(['aspect_ratio', 'model', 'token'])
       const verdict = rehearsalVerdict({ entries, lockedAtEntry, judgedAllow, stoppedByGuard: true })
-      expect(verdict).toMatchObject({ passed: true, request: { via: 'rehearsal-vendor', method: 'POST', host: 'api.apimart.ai', path: '/v1/videos/generations' }, preLock: [] })
+      expect(verdict).toMatchObject({ passed: true, station: 'vendor-create', request: { via: 'rehearsal-vendor', method: 'POST', host: 'api.apimart.ai', path: '/v1/videos/generations' }, preLock: [] })
     } finally {
       await standIn.close()
       fs.rmSync(dir, { recursive: true, force: true })
     }
+  })
+  it('R9 · the relay stand-in answers the upload itself and never forwards: the real origin it stands in for gets zero requests', async () => {
+    const dir = makeTempDir('nomi-stand-in-relay-')
+    const netLog = path.join(dir, 'net.jsonl')
+    fs.writeFileSync(netLog, `${JSON.stringify(loaded)}\n`)
+    const { default: http } = await import('node:http')
+    let realHits = 0
+    const real = http.createServer((req, res) => { realHits += 1; res.end('{}') })
+    await new Promise((resolve) => real.listen(0, '127.0.0.1', resolve))
+    const realOrigin = `http://127.0.0.1:${real.address().port}`
+    const relay = await startRehearsalStandIn({ origin: realOrigin, netLog, role: 'relay', uploadAnswers: { 'POST /v1/assets': 'url' } })
+    try {
+      const form = new FormData()
+      form.append('file', new Blob([new Uint8Array(3)]), 'source.mp4')
+      expect((await (await fetch(`${relay.origin}/v1/assets`, { method: 'POST', body: form })).json()).url).toContain(`${relay.origin}/rehearsal-asset/`)
+      expect((await fetch(`${relay.origin}/v1/other`, { method: 'POST', body: 'x' })).status).toBe(400)
+      expect(realHits).toBe(0)
+      const entries = fs.readFileSync(netLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line))
+      expect(entries.slice(1).map((entry) => [entry.kind, entry.role, entry.via])).toEqual([['rehearsal-answered', 'relay', 'rehearsal-relay'], ['blocked', 'relay', 'rehearsal-relay']])
+      expect(rehearsalLedgerRequests(entries)).toEqual([]) // 中转那条不是供应商请求：脚本的请求体判据读不到它
+    } finally {
+      await relay.close()
+      await new Promise((resolve) => real.close(resolve))
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+  it('stations: before-click < upload-relay < vendor-read < vendor-create; only reaching upload is not a pass for a script whose end is the create request', () => {
+    const relayAllow = ['https://nomi-asset-relay.example.workers.dev']
+    const uploaded = { kind: 'rehearsal-answered', answer: 'upload', via: 'rehearsal-relay', role: 'relay', host: 'nomi-asset-relay.example.workers.dev' }
+    const create = { kind: 'blocked', via: 'rehearsal-vendor', role: 'vendor', method: 'POST', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/videos/generations' }
+    const list = { kind: 'blocked', via: 'rehearsal-vendor', role: 'vendor', method: 'GET', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/models' }
+    expect(rehearsalStation([loaded], { lockedAtEntry: 1, vendorAllow: judgedAllow, relayAllow })).toBe('before-click')
+    expect(rehearsalStation([loaded, uploaded], { lockedAtEntry: 1, vendorAllow: judgedAllow, relayAllow })).toBe('upload-relay')
+    expect(rehearsalStation([loaded, uploaded, list], { lockedAtEntry: 1, vendorAllow: judgedAllow, relayAllow })).toBe('vendor-read')
+    expect(rehearsalStation([loaded, uploaded, list, create], { lockedAtEntry: 1, vendorAllow: judgedAllow, relayAllow })).toBe('vendor-create')
+    const onlyUpload = rehearsalVerdict({ entries: [loaded, uploaded], lockedAtEntry: 1, judgedAllow, relayAllow, stoppedByGuard: true })
+    expect(onlyUpload).toMatchObject({ passed: false, station: 'upload-relay' })
+    expect(onlyUpload.reason).toContain('只走到了「upload-relay」')
+    expect(rehearsalVerdict({ entries: [loaded, list], lockedAtEntry: 1, judgedAllow, stoppedByGuard: true }).passed).toBe(false)
+    expect(rehearsalVerdict({ entries: [loaded, list], lockedAtEntry: 1, judgedAllow, stoppedByGuard: true, endsAt: 'vendor-read' }).passed).toBe(true)
+    expect(stationReaches('vendor-create', 'vendor-read')).toBe(true)
+    expect(stationReaches(undefined, 'vendor-create')).toBe(false)
+  })
+  it('a body check the script runs after the stand-in recorded the create request fails the rehearsal and names the key', () => {
+    const create = { kind: 'blocked', via: 'rehearsal-vendor', role: 'vendor', method: 'POST', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/videos/generations' }
+    const verdict = rehearsalVerdict({ entries: [loaded, create], lockedAtEntry: 1, judgedAllow, scriptError: new Error('请求体判据没过：aspect_ratio 是 "1:1"，这一发要 16:9') })
+    expect(verdict).toMatchObject({ passed: false, station: 'vendor-create' })
+    expect(verdict.reason).toContain('aspect_ratio')
+  })
+  it('rehearsalShouldStop: scripts that judge the body keep the app until they finish (bounded by the grace period); other scripts stop at the create request', () => {
+    const at = '2026-11-15T00:00:00.000Z'
+    const create = { kind: 'blocked', via: 'rehearsal-vendor', role: 'vendor', method: 'POST', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/videos/generations', at }
+    const list = { kind: 'blocked', via: 'rehearsal-vendor', role: 'vendor', method: 'GET', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/models', at }
+    const now = Date.parse(at) + 1000
+    expect(rehearsalShouldStop([loaded, create], { lockedAtEntry: 1, judgedAllow, now })).toBe(true)
+    expect(rehearsalShouldStop([loaded, create], { lockedAtEntry: 1, judgedAllow, holdForScript: true, now })).toBe(false)
+    expect(rehearsalShouldStop([loaded, create], { lockedAtEntry: 1, judgedAllow, holdForScript: true, now: now + 30_000 })).toBe(true)
+    expect(rehearsalShouldStop([loaded, list], { lockedAtEntry: 1, judgedAllow, now })).toBe(false)
+    expect(rehearsalShouldStop([loaded, list], { lockedAtEntry: 1, judgedAllow, now: now + 30_000 })).toBe(true)
   })
   it('the script failing before any vendor request is not a pass, and says where it failed', () => {
     const verdict = rehearsalVerdict({ entries: [loaded], lockedAtEntry: 1, judgedAllow, scriptError: new Error('找不到生成钮\nstack') })
@@ -245,6 +312,9 @@ describe('rehearsalVerdict', () => {
   })
   it('the connection layer has no path; result-download wildcard hosts count as the vendor', () => {
     expect(blockedRequestOf({ via: 'socket', host: 'api.apimart.ai', url: 'tcp://api.apimart.ai:443' })).toEqual({ via: 'socket', method: null, host: 'api.apimart.ai', path: null })
-    expect(rehearsalVerdict({ entries: [{ kind: 'blocked', via: 'fetch', host: 'cdn.getapib.org', url: 'https://cdn.getapib.org/a.mp4' }], lockedAtEntry: 0, judgedAllow }).passed).toBe(true)
+    // fetch 层不记方法：只能算「读」——终点是创建请求的脚本靠它判不了过（宁低不高）
+    const cdn = [{ kind: 'blocked', via: 'fetch', host: 'cdn.getapib.org', url: 'https://cdn.getapib.org/a.mp4' }]
+    expect(rehearsalVerdict({ entries: cdn, lockedAtEntry: 0, judgedAllow, endsAt: 'vendor-read' }).passed).toBe(true)
+    expect(rehearsalVerdict({ entries: cdn, lockedAtEntry: 0, judgedAllow }).passed).toBe(false)
   })
 })

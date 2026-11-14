@@ -13,7 +13,9 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import {
   PAID_WALKS_WITHOUT_OPEN_PAID_WALK, PRODUCT_SOURCE_DIRS, REHEARSAL_FAKE_KEY, rehearsalFreeAnswers, assertPaidBuildReady, assertRehearsalReceipt, handedOverRuns, jobVendor, openPaidWalk, packagedBuildIdentity,
   paidBuildMarkerProblems, paidRunRefusal, paidWalkCoverageProblems, rehearsalReceiptFile, rehearsalReceiptRefusal, scriptFingerprint, writeRehearsalReceipt,
+  REHEARSAL_ENDPOINTS, REHEARSAL_RECEIPT_VERSION, rehearsalEndpointOf,
 } from './_paidRun.mjs'
+import { REHEARSAL_STATIONS } from './_paidNetwork.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -273,7 +275,7 @@ describe('rehearsal · 开关判据', () => {
 
 describe('rehearsal · 收据判据', () => {
   const want = { script: 'tests/ux/x.paid.mjs', fingerprint: 'sha256:a', build: 'tree-1' }
-  const good = { version: 1, script: 'tests/ux/x.paid.mjs', fingerprint: 'sha256:a', build: 'tree-1', passed: true }
+  const good = { version: REHEARSAL_RECEIPT_VERSION, script: 'tests/ux/x.paid.mjs', fingerprint: 'sha256:a', build: 'tree-1', passed: true, station: 'vendor-create' }
   it('演练通过后，同一份脚本、同一个构建放行', () => {
     expect(rehearsalReceiptRefusal(good, want)).toBeNull()
   })
@@ -287,6 +289,20 @@ describe('rehearsal · 收据判据', () => {
     expect(rehearsalReceiptRefusal({ ...good, script: 'tests/ux/y.paid.mjs' }, want)).toContain('不是这份脚本的')
     expect(rehearsalReceiptRefusal(good, { ...want, build: undefined })).toContain('算不出构建身份')
   })
+  it('r2 · 收据记下走到了哪一站：只走到上传中转（或更早、或没记）的拒；声明了终点的脚本按它的终点认', () => {
+    expect(rehearsalReceiptRefusal({ ...good, station: 'upload-relay' }, want)).toMatch(/只走到了「upload-relay」.*终点是「vendor-create」/)
+    expect(rehearsalReceiptRefusal({ ...good, station: undefined }, want)).toContain('只走到了「未知」')
+    expect(rehearsalReceiptRefusal({ ...good, station: 'vendor-read' }, want)).toContain('vendor-read')
+    expect(rehearsalReceiptRefusal({ ...good, station: 'vendor-read' }, { ...want, endsAt: 'vendor-read' })).toBeNull()
+    expect(rehearsalEndpointOf('tests/ux/x.paid.mjs', { 'x.paid.mjs': { endsAt: 'vendor-read', why: '只查列表' } })).toBe('vendor-read')
+    expect(rehearsalEndpointOf('tests/ux/y.paid.mjs', { 'x.paid.mjs': { endsAt: 'vendor-read', why: '只查列表' } })).toBe('vendor-create')
+    // 声明表里每一条都写了理由、终点是认得的站
+    for (const [script, row] of Object.entries(REHEARSAL_ENDPOINTS)) {
+      expect(script).toMatch(/\.paid\.mjs$/)
+      expect(REHEARSAL_STATIONS).toContain(row.endsAt)
+      expect(String(row.why ?? '').length).toBeGreaterThan(4)
+    }
+  })
   it('R4 · 脚本改一个字符、或它 import 的本地辅助模块改一个字符，指纹都变；写收据 → 核收据走同一套', () => {
     const root = makeTempDir('nomi-rehearsal-fp-')
     const dir = path.join(root, 'tests', 'ux')
@@ -299,7 +315,7 @@ describe('rehearsal · 收据判据', () => {
     fs.writeFileSync(path.join(dir, '_reach.mjs'), "export const reach = async () => 'generatE'\n")
     expect(scriptFingerprint(entry, { repoBase: root }).fingerprint).not.toBe(first.fingerprint)
     const receipts = path.join(root, 'receipts')
-    writeRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', tier: 'no-key', verdict: { passed: true, reason: 'ok', request: null }, receiptDir: receipts })
+    writeRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', tier: 'no-key', verdict: { passed: true, reason: 'ok', request: null, station: 'vendor-create' }, receiptDir: receipts })
     expect(() => assertRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', receiptDir: receipts })).not.toThrow()
     fs.appendFileSync(entry, ' ')
     expect(() => assertRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', receiptDir: receipts })).toThrow(/一分钱没花.*演练之后改过/)
@@ -340,13 +356,14 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
       }
     })
     const receipts = []
+    let standInCount = 1
     const deps = {
       createWalk, assertBuild: () => ({ tree: 'tree-1' }), argv: [], entry: 'tests/ux/x.paid.mjs',
       connect: async (_win, { apiKey }) => { seen.connectKey = apiKey; return { keySaved: true } },
       readRows: async () => MODELS.map((model) => ({ ...model, kind: 'video', labelZh: 'x' })), lockSpendTo: async () => 0,
       assertRehearsed: vi.fn(() => { throw new Error('receipt checked') }),
       writeReceipt: (receipt) => { receipts.push(receipt); return receipt },
-      startStandIn: vi.fn(async (options) => ({ options, env: { NOMI_TEST_NETWORK_REDIRECTS: '[stand-in]' }, close: vi.fn(async () => {}) })),
+      startStandIn: vi.fn(async (options) => { const to = `http://127.0.0.1:${40000 + standInCount++}`; return { options, origin: to, redirect: { from: options.origin, to }, close: vi.fn(async () => {}) } }),
     }
     const vendorBlock = `${JSON.stringify({ kind: 'blocked', via: 'chromium', method: 'POST', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/videos/generations' })}\n`
     return { seen, deps, receipts, vendorBlock, root }
@@ -370,10 +387,41 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
     expect(seen.connectKey).toBe(REHEARSAL_FAKE_KEY)
     expect(deps.assertRehearsed).not.toHaveBeenCalled()
     // 供应商的源改道到本机替身，替身只答产品种子声明的免费探测（APIMart 的余额查询）
-    expect(seen.options.env.NOMI_TEST_NETWORK_REDIRECTS).toBe('[stand-in]')
+    expect(JSON.parse(seen.options.env.NOMI_TEST_NETWORK_REDIRECTS)).toEqual([{ from: 'https://api.apimart.ai', to: 'http://127.0.0.1:40001' }])
     const standIn = deps.startStandIn.mock.calls[0][0]
     expect(standIn.origin).toBe('https://api.apimart.ai')
+    expect(standIn.role).toBe('vendor')
     expect(standIn.freeAnswers).toEqual({ 'GET /v1/balance': { remain_balance: 0 } })
+    // 供应商自己的上传口也由替身答（路径、回链字段取产品的声明）
+    expect(standIn.uploadAnswers).toEqual({ 'POST /v1/uploads/images': 'url' })
+    expect(deps.startStandIn).toHaveBeenCalledTimes(1) // 没带本地素材：不起中转替身
+  })
+
+  it('r2 · 带本地素材（hostedUploads）：中转也改道到本机替身，只答上传；判据的供应商名单里没有中转', async () => {
+    const { seen, deps, root } = fakeWalk()
+    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: noKeyEnv(root), hostedUploads: true })
+    const redirects = JSON.parse(seen.options.env.NOMI_TEST_NETWORK_REDIRECTS)
+    expect(redirects).toHaveLength(2)
+    const relay = deps.startStandIn.mock.calls[1][0]
+    expect(relay.role).toBe('relay')
+    expect(redirects[1]).toEqual({ from: relay.origin, to: 'http://127.0.0.1:40002' })
+    expect(relay.uploadAnswers).toEqual({ [`POST ${new URL(relay.origin + '/v1/assets').pathname}`]: 'url' })
+    expect(paid.walk.report.rehearsal.judgedAgainst).not.toContain(relay.origin)
+    expect(paid.walk.report.rehearsal.relay).toEqual([relay.origin])
+    expect(seen.options.env.NOMI_WALK_ALLOW_ORIGINS).toBe('')
+    expect(seen.options.env.NOMI_LAB_TRUSTED_PRIVATE_ORIGINS).toBe('http://127.0.0.1:40001,http://127.0.0.1:40002')
+  })
+
+  it('r2 · 读账本的口演练时返回替身记下的供应商请求（同一个形状），脚本的请求体判据照样判；读不到就是空（判据红）', async () => {
+    const { seen, deps, root } = fakeWalk()
+    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: noKeyEnv(root), recordAllowedBodies: true })
+    await paid.walk.start({ first: true })
+    expect(paid.readAllowedRequests()).toEqual([])
+    fs.appendFileSync(seen.options.env.NOMI_WALK_NET_LOG, `${JSON.stringify({ kind: 'blocked', via: 'rehearsal-vendor', role: 'vendor', method: 'POST', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/videos/generations', body: { text: '{"duration":5}' } })}\n`)
+    const [request] = paid.readAllowedRequests()
+    expect(request).toMatchObject({ kind: 'allowed-request', method: 'POST', host: 'api.apimart.ai', body: { text: '{"duration":5}' } })
+    await paid.finish(new Error('x'))
+    process.exitCode = 0
   })
 
   it('替身只在不要 Key 那档起；不演练、real-key 档都不起', async () => {
@@ -403,9 +451,9 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
     process.exitCode = 1 // 脚本自己的 catch 在被挡后会这么设
     await paid.finish(undefined)
     expect(paid.walk.report.result).toBe('passed')
-    expect(paid.walk.report.rehearsal).toMatchObject({ passed: true, blockedRequest: { method: 'POST', host: 'api.apimart.ai', path: '/v1/videos/generations' } })
+    expect(paid.walk.report.rehearsal).toMatchObject({ passed: true, station: 'vendor-create', blockedRequest: { method: 'POST', host: 'api.apimart.ai', path: '/v1/videos/generations' } })
     expect(receipts).toHaveLength(1)
-    expect(receipts[0]).toMatchObject({ script: 'tests/ux/x.paid.mjs', build: 'tree-1', tier: 'no-key', verdict: { passed: true } })
+    expect(receipts[0]).toMatchObject({ script: 'tests/ux/x.paid.mjs', build: 'tree-1', tier: 'no-key', verdict: { passed: true, station: 'vendor-create' } })
     expect(process.exitCode).toBe(0)
   })
 

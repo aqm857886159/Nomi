@@ -22,7 +22,7 @@ import { verifyBuild } from '../../scripts/package-build-stamp.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { decideSyntheticCredentialStorage } from './_launchApp.mjs'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
-import { blockedError, guardLoadedError, hostedUploadRelayOrigin, newNetLogFile, paidWalkAllowlist, readNetLog, rehearsalShouldStop, rehearsalVerdict, startRehearsalVendor, watchNetLog } from './_paidNetwork.mjs'
+import { blockedError, guardLoadedError, hostedUploadRelayOrigin, newNetLogFile, paidWalkAllowlist, readNetLog, rehearsalLedgerRequests, rehearsalShouldStop, rehearsalVerdict, standInLaunchEnv, startRehearsalStandIn, stationReaches, watchNetLog } from './_paidNetwork.mjs'
 import {
   ENV_KEY_ALLOW_CATALOG, ENV_KEY_VAR, ENV_KEY_VENDOR, assertNoSecretOnDisk, assertUsableEnvKey, connectApimartThroughVisibleUi,
   APIMART_TEXT_MODEL_KEYS, collectAppLogs, envKeyOf, filesContainingSecret, paidCredentialSource, readAuthorizedRows, redact, redactNetLogEntry, redactedError,
@@ -61,6 +61,34 @@ export function rehearsalFreeAnswers(probe) {
   return { [`${String(probe.request.method).toUpperCase()} ${probe.request.path}`]: body }
 }
 const apimartCredentialProbe = () => tsxRequire('../../electron/catalog/apimartVendor.ts', import.meta.url).APIMART_VENDOR_SEED.credentialProbe
+
+/**
+ * 替身要答的上传（r2）：供应商自己的上传口、App 的托管上传中转，都从产品代码拥有的声明派生（不手抄第二份）：
+ * 路径取声明里的端点，回链字段取声明里的 `urlPath`。答一个本机假地址，流程接着走到「向供应商发创建请求」。
+ */
+export function rehearsalUploadAnswers(ingestion) {
+  if (!ingestion || ingestion.strategy !== 'upload-multipart' || !ingestion.urlPath) return {}
+  const pathname = ingestion.endpointPath ?? new URL(ingestion.endpoint).pathname
+  return { [`POST ${pathname}`]: ingestion.urlPath }
+}
+const apimartUploadIngestion = () => tsxRequire('../../electron/catalog/assetIngestionRegistry.ts', import.meta.url).CURATED_ASSET_INGESTION.apimart
+/** 中转的收法：路径跟着当前配置的中转端点（hostedUploadRelayOrigin 同一个来源），回链字段取产品的中转声明。 */
+function relayUploadIngestion(relayOrigin, env) {
+  const { nomiPublicAssetRelayCandidate } = tsxRequire('../../electron/catalog/assetLocalization.ts', import.meta.url)
+  const declared = nomiPublicAssetRelayCandidate()?.ingestion
+  const endpoint = String(env.NOMI_ASSET_RELAY_URL || '').trim() || declared?.endpoint
+  if (!declared || !endpoint || new URL(endpoint).origin !== relayOrigin) return null
+  return { ...declared, endpoint }
+}
+
+/**
+ * 演练的终点（r2）：缺省每份付费脚本都要走到「供应商收到会花钱的那条请求」（vendor-create），真付费入口只认走到这一站的收据。
+ * 脚本本身就不发创建请求的（只验接入、只查列表 / 余额）在这里声明它的终点和理由，不能含糊；表外的一律 vendor-create。
+ */
+export const REHEARSAL_ENDPOINTS = Object.freeze({})
+export function rehearsalEndpointOf(script, table = REHEARSAL_ENDPOINTS) {
+  return table[path.basename(String(script))]?.endsAt ?? 'vendor-create'
+}
 
 /** 这一场是不是演练、哪一档；没设 = null。值不认识就抛（不猜成任何一档）。 */
 export function paidRehearsalTier(env = process.env) {
@@ -150,7 +178,7 @@ export function assertPaidRunAllowed(script, env = process.env, isNomiRunning = 
 // ── 演练收据 ──────────────────────────────────────────────────────────────
 /** 收据放仓库里被忽略的 `.tmp/`（每个工作树一份）：在哪个工作树演练，就只给哪个工作树的真付费用。 */
 export const REHEARSAL_RECEIPT_DIR = path.join(REPO_ROOT, '.tmp', 'paid-rehearsal', 'receipts')
-export const REHEARSAL_RECEIPT_VERSION = 1
+export const REHEARSAL_RECEIPT_VERSION = 2
 const LOCAL_IMPORT = /\bfrom\s*['"](\.{1,2}\/[^'"]+)['"]|\bimport\s*\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)|\bimport\s+['"](\.{1,2}\/[^'"]+)['"]/g
 
 /**
@@ -196,7 +224,7 @@ export function rehearsalReceiptFile(script, receiptDir = REHEARSAL_RECEIPT_DIR)
  * 纯判据（单测钉它）：真付费入口对这张收据放不放行。返回拒跑理由，null = 放行。
  * 只认「演练通过 + 同一份脚本指纹 + 同一个构建身份」；任何一样对不上都拒，并说清怎么办。
  */
-export function rehearsalReceiptRefusal(receipt, { script, fingerprint, build }) {
+export function rehearsalReceiptRefusal(receipt, { script, fingerprint, build, endsAt = rehearsalEndpointOf(script) }) {
   const redo = `先带 ${REHEARSAL_ENV}=no-key 把同一份脚本跑一遍（零花费；只授权非 APIMart 模型的用 ${REHEARSAL_ENV}=real-key），演练通过了再花钱`
   if (!build) return `${script} 算不出构建身份，收据无从核对——${redo}`
   if (!receipt) return `${script} 没有演练收据——${redo}`
@@ -204,6 +232,8 @@ export function rehearsalReceiptRefusal(receipt, { script, fingerprint, build })
   if (receipt.passed !== true) return `${script} 上一次演练没过（${String(receipt.reason ?? '').slice(0, 200)}）——${redo}`
   if (receipt.fingerprint !== fingerprint) return `${script}（或它的本地辅助模块）在演练之后改过——${redo}`
   if (receipt.build !== build) return `构建在 ${script} 演练之后变了（演练时 ${receipt.build}，现在 ${build}）——${redo}`
+  // 只走到上传中转（或更早）的收据不放行：真正决定花不花钱、请求体对不对的那一条没走到（r2 裁决 1）。
+  if (!stationReaches(receipt.station, endsAt)) return `${script} 的演练只走到了「${receipt.station ?? '未知'}」，这份脚本的终点是「${endsAt}」——花钱前那段路没走完，${redo}`
   return null
 }
 
@@ -221,7 +251,7 @@ export function assertRehearsalReceipt({ script, entry, build, receiptDir = REHE
 export function writeRehearsalReceipt({ script, entry, build, tier, verdict, receiptDir = REHEARSAL_RECEIPT_DIR, now = () => new Date().toISOString() }) {
   const receipt = {
     version: REHEARSAL_RECEIPT_VERSION, script, fingerprint: scriptFingerprint(entry).fingerprint, build: build ?? null, tier,
-    passed: verdict.passed === true, reason: verdict.reason, request: verdict.request, at: now(),
+    passed: verdict.passed === true, reason: verdict.reason, station: verdict.station ?? null, endsAt: verdict.endsAt ?? null, request: verdict.request, at: now(),
   }
   fs.mkdirSync(receiptDir, { recursive: true })
   fs.writeFileSync(rehearsalReceiptFile(script, receiptDir), `${JSON.stringify(receipt, null, 2)}\n`)
@@ -287,8 +317,10 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     recordAllowedBodies = false,
     // 演练收据：入口文件（算脚本指纹）、真付费前的收据核对、演练收尾写收据。单测换掉；脚本里不传。
     entry = process.argv[1], assertRehearsed = assertRehearsalReceipt, writeReceipt = writeRehearsalReceipt, packagedBuild = packagedBuildIdentity,
-    // 不要 Key 那档的本机替身供应商（_paidNetwork.mjs#startRehearsalVendor）。单测换掉。
-    startStandIn = startRehearsalVendor,
+    // 不要 Key 那档的本机替身（供应商 + 托管上传中转，_paidNetwork.mjs#startRehearsalStandIn）。单测换掉。
+    startStandIn = startRehearsalStandIn,
+    // 演练时替身记下会花钱的那条请求后，要判请求体的脚本（recordAllowedBodies）多久没收尾就兜底关 App。
+    rehearsalGraceMs = 20_000,
   } = deps
   // 真实资料目录的位置跟着传进来的 env 走（缺省就是 process.env，和以前一样）；env-key 路根本不会用到它。
   const profile = realNomiProfile({ env })
@@ -313,20 +345,30 @@ export async function openPaidWalk(script, name, models, deps = {}) {
   const vendorAllow = !vendorNetwork && !rehearsal ? [] : envKey
     ? paidWalkAllowlist(ENV_KEY_ALLOW_CATALOG, [ENV_KEY_VENDOR])
     : paidWalkAllowlist(readRealCatalog(profile), models.map((model) => model.vendorKey))
-  const judgedAllow = [...vendorAllow, ...(hostedUploadOrigin ? [hostedUploadOrigin] : [])]
-  const allow = rehearsal ? [] : judgedAllow
+  const relayAllow = hostedUploadOrigin ? [hostedUploadOrigin] : []
+  const judgedAllow = vendorAllow
+  const allow = rehearsal ? [] : [...vendorAllow, ...relayAllow]
+  const endsAt = rehearsalEndpointOf(receiptScript)
   const netLog = newNetLogFile()
   // 不要 Key 的演练：供应商的源改道到本机替身——只答免费探测（存 key 后的余额查询），别的请求记成被挡行、从不转发。
-  const standIn = rehearsal === 'no-key'
-    ? await startStandIn({ origin: ENV_KEY_ALLOW_CATALOG.vendors[0].baseUrlHint, netLog, freeAnswers: rehearsalFreeAnswers(apimartCredentialProbe()) })
-    : null
+  // 带本地参考素材的（hostedUploads）：App 的托管上传中转也改道到一个本机替身——只答上传（回本机假地址），不转发，流程接着走到供应商（r2 裁决 1）。
+  const standIns = []
+  const closeStandIns = () => Promise.all(standIns.map((item) => item.close()))
+  if (rehearsal === 'no-key') {
+    try {
+      const apimartUpload = apimartUploadIngestion()
+      standIns.push(await startStandIn({ origin: ENV_KEY_ALLOW_CATALOG.vendors[0].baseUrlHint, netLog, role: 'vendor', freeAnswers: rehearsalFreeAnswers(apimartCredentialProbe()), uploadAnswers: rehearsalUploadAnswers(apimartUpload) }))
+      if (hostedUploadOrigin) standIns.push(await startStandIn({ origin: hostedUploadOrigin, netLog, role: 'relay', uploadAnswers: rehearsalUploadAnswers(relayUploadIngestion(hostedUploadOrigin, env)) }))
+    } catch (error) { await closeStandIns(); throw error }
+  }
+  const standIn = standIns.length ? { env: standInLaunchEnv(standIns), close: closeStandIns } : null
   // env-key 路：被测 App 的环境里把 key 这一项清成空串——key 只留在本进程的闭包里，子进程（含它的崩溃转储、诊断包）拿不到。
   const walk = await Promise.resolve().then(() => createWalk(name, { env: { NOMI_WALK_ALLOW_ORIGINS: allow.join(','), NOMI_WALK_NET_LOG: netLog, ...(recordAllowedBodies ? { NOMI_WALK_NET_BODIES: '1' } : {}), ...(envKey ? { [ENV_KEY_VAR]: '' } : {}), ...(standIn?.env ?? {}) } }))
     .catch(async (error) => { await standIn?.close(); throw error })
   walk.report.networkAllowlist = allow
   if (hostedUploadOrigin) walk.report.hostedUploadRelayAllowed = hostedUploadOrigin
   walk.report.credentialSource = rehearsal === 'no-key' ? `rehearsal-fake-key（${REHEARSAL_TIERS['no-key']}）` : envKey ? `env-key（${ENV_KEY_VAR}，只记变量名）` : 'real-profile'
-  if (rehearsal) walk.report.rehearsal = { tier: rehearsal, judgedAgainst: judgedAllow, ...(standIn ? { standInVendor: '供应商的源改道到本机替身：只答免费探测，别的请求记成被挡行、从不转发' } : {}) }
+  if (rehearsal) walk.report.rehearsal = { tier: rehearsal, judgedAgainst: judgedAllow, relay: relayAllow, endsAt, ...(standIn ? { standIn: `改道到本机替身的源：${standIns.map((item) => item.redirect.from).join('、')}——只答免费探测和上传（回本机假地址），别的请求记成被挡行（方法、路径、脱敏后的请求体），从不转发` } : {}) }
   let blocked = null
   // 演练：闸挡下请求、让 App 停下的那一刻（脚本之后报的错是它的后果）；收窄花钱面完成那一刻账本有几行。
   let stoppedByGuard = false
@@ -339,7 +381,7 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     stoppedByGuard = true
     console.error(`[${rehearsal ? 'rehearsal' : 'paid'}] ${redact(blocked.message, secrets)}`)
     walk.stopApp().catch(() => {})
-  }, rehearsal ? { shouldFire: (entries) => rehearsalShouldStop(entries, { lockedAtEntry, judgedAllow }) } : {})
+  }, rehearsal ? { shouldFire: (entries) => rehearsalShouldStop(entries, { lockedAtEntry, judgedAllow, relayAllow, holdForScript: recordAllowedBodies, graceMs: rehearsalGraceMs }) } : {})
   const removeCredentialCopy = () => removeRealCredentials({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, profile })
   let seeded = []
   if (!envKey) {
@@ -410,8 +452,16 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     blocked ??= blockedError(finalEntries, allow)
     walk.report.networkBlocked = finalEntries.filter((entry) => entry.kind === 'blocked').map(({ via, host, url }) => ({ via, host, url }))
     // 演练：被挡是预期，判的是「挡下的第一条是不是授权供应商、在不在收窄之后」（_paidNetwork.mjs#rehearsalVerdict）。
-    const verdict = rehearsal ? rehearsalVerdict({ entries: finalEntries, lockedAtEntry, judgedAllow, scriptError: error ?? null, stoppedByGuard }) : null
-    if (verdict) Object.assign(walk.report.rehearsal, { passed: verdict.passed, reason: redact(verdict.reason, secrets), blockedRequest: verdict.request, blockedBeforeSpendLock: verdict.preLock })
+    const verdict = rehearsal ? rehearsalVerdict({ entries: finalEntries, lockedAtEntry, judgedAllow, relayAllow, scriptError: error ?? null, stoppedByGuard, endsAt }) : null
+    if (verdict) {
+      Object.assign(walk.report.rehearsal, { passed: verdict.passed, station: verdict.station, reason: redact(verdict.reason, secrets), blockedRequest: verdict.request, blockedBeforeSpendLock: verdict.preLock })
+      // 替身记下的供应商请求：方法、路径、请求体的键（请求体本身已脱敏，留在账本里；报告只放键，够看出「多发了一个键 / 少了比例」）。
+      walk.report.rehearsal.vendorRequests = rehearsalLedgerRequests(finalEntries).filter((_, index, all) => index >= all.length - 8).map((entry) => {
+        let keys = null
+        try { keys = Object.keys(JSON.parse(String(entry.body?.text ?? ''))).sort() } catch { /* 不是 JSON：只记方法和路径 */ }
+        return { method: entry.method, path: blockedRequestPath(entry.url), bodyKeys: keys, bodyBytes: entry.body?.bytes ?? null }
+      })
+    }
     const failure = verdict ? (verdict.passed ? null : new Error(`演练不过：${verdict.reason}`)) : blocked ?? error
     await walk.finish(envKey && failure ? redactedError(failure, secrets) : failure, {
       unscriptedFixture: true,
@@ -452,11 +502,16 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     }
   }
   /** 闸记下的放行请求 / 上传响应（recordAllowedBodies 时才有；env-key 路再按 key 原串打码一遍）。要在 finish 之前读：env-key 路收尾会删账本原件。 */
-  const readAllowedRequests = () => readNetLog(netLog)
-    .filter((entry) => entry.kind === 'allowed-request' || entry.kind === 'allowed-response')
+  // 演练时读回替身记下的供应商请求（同一个形状，见 _paidNetwork.mjs#rehearsalLedgerRequests）：脚本读账本判请求体的那段演练时照样判（r2 裁决 2）。
+  const readAllowedRequests = () => (rehearsal === 'no-key' ? rehearsalLedgerRequests(readNetLog(netLog)) : readNetLog(netLog)
+    .filter((entry) => entry.kind === 'allowed-request' || entry.kind === 'allowed-response'))
     .map((entry) => (envKey ? redactNetLogEntry(entry, secrets) : entry))
   // `rehearsal`：这一场是不是演练（null / 'no-key' / 'real-key'）。脚本不需要为演练多写任何东西，想跳过只在真付费时才有意义的核对时可以读它。
   return { walk, label, lockToAuthorizedModels, finish, readAllowedRequests, rehearsal }
+}
+
+function blockedRequestPath(url) {
+  try { return new URL(String(url)).pathname } catch { return null }
 }
 
 /** env-key 路只认 APIMart：别家的 key 这条路不管；点名了别家模型就在花钱前拒。 */

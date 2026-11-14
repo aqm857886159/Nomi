@@ -196,6 +196,8 @@ async function runSample(win, projectRoot, projectId, sources, sample, index, re
     done = (await nodeNow()).node
   }
   record.request = judgeLedger(paid.readAllowedRequests().slice(ledgerBefore), sample)
+  // 演练（替身记下了创建请求、没有真回包）：请求体判据在这里真的判，判完这一发就结束；真付费路径不变。
+  if (paid.rehearsal) { if (record.request.problems.length) throw new Error(`请求体判据没过：${record.request.problems.join('；')}`); return }
   record.providerTaskIds = (done?.runs ?? []).map((item) => item?.taskId).filter(Boolean)
   if (!landed(done)) throw new Error(`成片没落到这个镜头上（最多等 ${Math.round(LANDS_MS / 1000)} 秒）：状态 ${done?.status ?? '（读不到节点）'}，${String(done?.error ?? '').slice(0, 300)}`)
   const media = await probeLandedMedia(projectRoot, projectId, done.result.url)

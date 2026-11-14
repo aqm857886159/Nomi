@@ -16,6 +16,8 @@ import { require as tsxRequire } from 'tsx/cjs/api'
 
 // 判定函数与走查闸四层共用同一份（electron/shared/walkAllowlist.cjs），诊断不再自己写一套匹配。
 const { listsHost, parseAllowlist } = createRequire(import.meta.url)('../../electron/shared/walkAllowlist.cjs')
+// 请求体脱敏与闸同一份（不记请求头；Key 形状的串、签名查询串打码）。
+const { scrubText: scrubUrlText } = createRequire(import.meta.url)('../../scripts/walkthrough-url-shape.cjs')
 
 /** 供应商 key → 它的成品下载域名。写法同闸：精确 origin，或 `*.域名`（含子域）。只放域名。 */
 export const VENDOR_RESULT_DOMAINS = Object.freeze({
@@ -114,76 +116,180 @@ export function blockedRequestOf(entry) {
   return { via: entry?.via ?? null, method: entry?.method ?? null, host: String(entry?.host ?? ''), path: pathname }
 }
 
+/** 演练档的站（由浅到深）：点生成之前就停了 / 走到 App 的上传（中转或供应商自己的上传口）/ 供应商只收到读请求 / 供应商收到会花钱的那条请求。 */
+export const REHEARSAL_STATIONS = Object.freeze(['before-click', 'upload-relay', 'vendor-read', 'vendor-create'])
+const STATION_RANK = Object.fromEntries(REHEARSAL_STATIONS.map((station, index) => [station, index]))
+const READ_METHODS = new Set(['GET', 'HEAD'])
+const isStandInRow = (entry) => entry?.via === 'rehearsal-vendor' || entry?.via === 'rehearsal-relay'
+const isVendorRequestRow = (entry, vendorAllow) => entry?.kind === 'blocked' && entry?.role !== 'relay' && listsHost(vendorAllow, String(entry?.host ?? ''))
+const isSpendingRow = (entry) => Boolean(entry?.method) && !READ_METHODS.has(String(entry.method).toUpperCase())
+
 /**
- * 演练判据（纯函数，2026-11-15）：付费走查带演练开关跑时，传给闸的放行名单是空的，供应商一个请求都出不去；
- * 这里只回答「这一场走到了花钱前的最后一步没有」。通过只有一种：
- *   收窄花钱面之后（`lockedAtEntry` = 收窄完成那一刻账本有几行；没收窄过 = null）网络闸挡下的**第一条**请求，
- *   主机是这份脚本授权的供应商（`judgedAllow` = 不演练时本来会放行的名单）。
- * 收窄之前挡下的授权供应商请求（接入页存 key 之后查余额、验证）照记不判：真付费时它们本来就放行、不花钱，演练里被挡也出不了门。
- * 其余全是不过：任何时候挡下别的源、没走到收窄、收窄后没发请求、脚本先失败（`scriptError` 且闸还没让 App 停下——`stoppedByGuard` 为假）。
- * 宁可错判不过，不错判通过：分不清先后的（脚本报错时闸还没来得及停 App）一律判不过。
+ * 这一场演练走到了哪一站（纯函数）：只看收窄花钱面之后（`lockedAtEntry` 起）的账本行。
+ *   vendor-create = 供应商（替身）收到了一条不是 GET / HEAD 的请求——创建、对话这类会花钱的那条；
+ *   vendor-read   = 只有 GET / HEAD（查列表、查余额、探链接），或闸挡下了授权供应商的请求但不知道方法（fetch 层不记方法：宁低不高）；
+ *   upload-relay  = 只走到了上传（替身答过上传，或中转的请求被挡）；
+ *   before-click  = 收窄之后什么请求都没有。
  */
-export function rehearsalVerdict({ entries, lockedAtEntry = null, judgedAllow = [], scriptError = null, stoppedByGuard = false }) {
+export function rehearsalStation(entries, { lockedAtEntry = null, vendorAllow = [], relayAllow = [] } = {}) {
+  if (lockedAtEntry === null) return 'before-click'
+  const vendor = parseAllowlist(vendorAllow.join(','))
+  const relay = parseAllowlist(relayAllow.join(','))
+  const after = entries.slice(lockedAtEntry)
+  const vendorRows = after.filter((entry) => isVendorRequestRow(entry, vendor))
+  if (vendorRows.some(isSpendingRow)) return 'vendor-create'
+  if (vendorRows.length) return 'vendor-read'
+  const uploaded = after.some((entry) => (entry?.kind === 'rehearsal-answered' && entry.answer === 'upload')
+    || (entry?.kind === 'blocked' && listsHost(relay, String(entry?.host ?? ''))))
+  return uploaded ? 'upload-relay' : 'before-click'
+}
+
+/** 走到的站够不够这份脚本的终点。 */
+export function stationReaches(station, endsAt) {
+  return (STATION_RANK[station] ?? -1) >= (STATION_RANK[endsAt] ?? Number.POSITIVE_INFINITY)
+}
+
+/**
+ * 演练判据（纯函数，2026-11-15；r2 加了「走到哪一站」与上传中转）：付费走查带演练开关跑时，传给闸的放行名单是空的，
+ * 供应商与中转的源改道到本机替身（不转发），一个请求都出不去；这里只回答「这一场走到了花钱前的最后一步没有」。通过要同时满足：
+ *   ① 任何时候都没有挡下授权源之外的请求（`judgedAllow` = 不演练时本来会放行的供应商名单，`relayAllow` = 托管上传中转）；
+ *   ② 走到了收窄花钱面（`lockedAtEntry` = 收窄完成那一刻账本有几行；没收窄过 = null）；
+ *   ③ 脚本没有先于闸报错（`scriptError` 且闸还没让 App 停下——`stoppedByGuard` 为假）。要判请求体的脚本在替身记下之后
+ *      自己读账本判，判据不过就是这里的 scriptError，原因原样进报告（点名哪个键）；
+ *   ④ 收窄之后走到的站 ≥ 这份脚本的终点 `endsAt`（缺省 vendor-create）。
+ * 收窄之前挡下的授权供应商请求照记不判。宁可错判不过，不错判通过。
+ */
+export function rehearsalVerdict({ entries, lockedAtEntry = null, judgedAllow = [], relayAllow = [], scriptError = null, stoppedByGuard = false, endsAt = 'vendor-create' }) {
   const said = (error) => String(error?.message ?? error).split('\n')[0].slice(0, 300)
   const shown = (request) => `${request.via} ${request.method ?? '-'} ${request.host}${request.path ?? ''}`
-  const allow = parseAllowlist(judgedAllow.join(','))
+  const allow = parseAllowlist([...judgedAllow, ...relayAllow].join(','))
+  const relay = parseAllowlist(relayAllow.join(','))
+  const vendor = parseAllowlist(judgedAllow.join(','))
+  const station = rehearsalStation(entries, { lockedAtEntry, vendorAllow: judgedAllow, relayAllow })
   const blocked = entries.map((entry, index) => ({ entry, index })).filter(({ entry }) => entry?.kind === 'blocked')
   const preLock = blocked.filter(({ index }) => lockedAtEntry === null || index < lockedAtEntry).map(({ entry }) => blockedRequestOf(entry))
   const foreign = blocked.find(({ entry }) => !listsHost(allow, String(entry.host ?? '')))
+  const base = { station, endsAt, preLock }
   if (foreign) {
     const request = blockedRequestOf(foreign.entry)
-    return { passed: false, request, preLock, reason: `挡下的是授权供应商之外的源 ${request.host}（${shown(request)}）` }
+    return { ...base, passed: false, request, reason: `挡下的是授权供应商之外的源 ${request.host}（${shown(request)}）` }
   }
   if (lockedAtEntry === null) {
-    return { passed: false, request: null, preLock, reason: `没走到收窄花钱面${scriptError ? `——${said(scriptError)}` : ''}${preLock.length ? `（之前挡下过 ${preLock.map(shown).join('、')}）` : ''}` }
+    return { ...base, passed: false, request: null, reason: `没走到收窄花钱面${scriptError ? `——${said(scriptError)}` : ''}${preLock.length ? `（之前挡下过 ${preLock.map(shown).join('、')}）` : ''}` }
   }
-  const first = blocked.find(({ index }) => index >= lockedAtEntry)
-  if (!first) {
-    return { passed: false, request: null, preLock, reason: scriptError
+  const after = blocked.filter(({ index }) => index >= lockedAtEntry)
+  const shownRow = after.find(({ entry }) => isVendorRequestRow(entry, vendor) && isSpendingRow(entry))
+    ?? after.find(({ entry }) => isVendorRequestRow(entry, vendor))
+    ?? after.find(({ entry }) => listsHost(relay, String(entry.host ?? '')))
+  const request = shownRow ? blockedRequestOf(shownRow.entry) : null
+  const where = request ? `（替身记下的是 ${shown(request)}）` : ''
+  if (scriptError && !stoppedByGuard) {
+    return { ...base, passed: false, request, reason: station === 'before-click'
       ? `脚本在向供应商发第一条请求之前就失败——${said(scriptError)}`
-      : '脚本跑完也没有向供应商发出请求——证明不了走到了发请求这一步' }
+      : `走到了「${station}」，但脚本自己的核对没过——${said(scriptError)}${where}` }
   }
-  const request = blockedRequestOf(first.entry)
-  if (scriptError && !stoppedByGuard) return { passed: false, request, preLock, reason: `脚本在网络闸挡下之前（或同时）就失败——${said(scriptError)}（之后挡下的是 ${shown(request)}）` }
-  return { passed: true, request, preLock, reason: `走到了第一条供应商请求：${shown(request)}` }
-}
-
-/** 演练时什么时候让 App 停下：收窄之后的第一条被挡请求，或任何时候挡下别的源（这两种都已经能下结论）。 */
-export function rehearsalShouldStop(entries, { lockedAtEntry = null, judgedAllow = [] }) {
-  const allow = parseAllowlist(judgedAllow.join(','))
-  return entries.some((entry, index) => entry?.kind === 'blocked' && ((lockedAtEntry !== null && index >= lockedAtEntry) || !listsHost(allow, String(entry.host ?? ''))))
+  if (!stationReaches(station, endsAt)) {
+    return { ...base, passed: false, request, reason: station === 'before-click'
+      ? '脚本跑完也没有向供应商发出请求——证明不了走到了发请求这一步'
+      : `只走到了「${station}」，这份脚本的终点是「${endsAt}」${where}` }
+  }
+  return { ...base, passed: true, request, reason: `走到了「${station}」：${shown(request)}` }
 }
 
 /**
- * 不要 Key 那一档演练的「本机替身供应商」：被测 App 经产品闸已有的测试改道（NOMI_TEST_NETWORK_REDIRECTS）把供应商的源指到这里。
- * 为什么要它：产品存 key 后用供应商的免费探测（APIMart 是 GET /v1/balance）确认 key 能用，网络被挡就诚实地记「待定」、模型不放出来，
- * 假钥匙的演练于是卡在接入页。替身只答登记过的免费探测（`freeAnswers`：'GET /path' → JSON），别的请求一律记成账本里的被挡行
- * （带方法与路径，判据照旧）并回 503——**从不转发**，结构上到不了真供应商。不读、不记请求头和请求体（里面有钥匙）。
+ * 演练时什么时候让 App 停下（纯函数）：
+ *   · 任何时候挡下授权源之外的请求 → 立刻停（已经能下结论：不过）；
+ *   · 收窄之后闸（不是替身）挡下了请求 → 立刻停（App 那一步已经失败，等也没用）；
+ *   · 收窄之后替身记下供应商会花钱的那条请求 → 不判请求体的脚本立刻停；要判请求体的脚本（`holdForScript`）先不停，让它自己读账本判完；
+ *   · 其余（只记下了读请求、只走到上传、或要判请求体的脚本迟迟不收尾）→ 收窄后第一条记录之后 `graceMs` 兜底停。
  */
-export async function startRehearsalVendor({ origin, netLog, freeAnswers = {} }) {
+export function rehearsalShouldStop(entries, { lockedAtEntry = null, judgedAllow = [], relayAllow = [], holdForScript = false, graceMs = 20_000, now = Date.now() } = {}) {
+  const allow = parseAllowlist([...judgedAllow, ...relayAllow].join(','))
+  if (entries.some((entry) => entry?.kind === 'blocked' && !listsHost(allow, String(entry.host ?? '')))) return true
+  if (lockedAtEntry === null) return false
+  const vendor = parseAllowlist(judgedAllow.join(','))
+  const after = entries.slice(lockedAtEntry).filter((entry) => entry?.kind === 'blocked' || entry?.kind === 'rehearsal-answered')
+  if (after.some((entry) => entry.kind === 'blocked' && !isStandInRow(entry))) return true
+  if (!holdForScript && after.some((entry) => isVendorRequestRow(entry, vendor) && isSpendingRow(entry))) return true
+  const first = after[0]
+  return Boolean(first) && now - Date.parse(first.at ?? '') >= graceMs
+}
+
+/**
+ * 演练时 `readAllowedRequests()` 读回的东西：替身记下的供应商请求，换成真付费时闸记的 `allowed-request` 同一个形状
+ * （主机是供应商本来的主机、URL 是本来的 URL、请求体已脱敏），脚本里读账本判请求体的那段不用为演练改一个字。
+ */
+export function rehearsalLedgerRequests(entries) {
+  return entries.filter((entry) => entry?.kind === 'blocked' && entry.via === 'rehearsal-vendor')
+    .map(({ method, url, host, body, at }) => ({ kind: 'allowed-request', via: 'rehearsal-vendor', method, url, host, body: body ?? null, at }))
+}
+
+function nestedAnswer(fieldPath, value) {
+  const body = {}
+  let node = body
+  const keys = String(fieldPath).split('.')
+  keys.forEach((key, index) => { node[key] = index === keys.length - 1 ? value : {}; node = node[key] })
+  return body
+}
+
+const STAND_IN_BODY_LIMIT = 64 * 1024
+/** 替身记请求体：JSON / 文本按闸的同一套脱敏（scrubText：Key 形状的串、签名查询串打码）；multipart 与二进制只记字节数（里面是素材本身）。 */
+export function describeStandInBody(bytes, contentType = '') {
+  if (!bytes?.length) return null
+  if (/multipart|octet-stream|image\/|video\/|audio\//i.test(String(contentType))) return { bytes: bytes.length }
+  const scrubbed = scrubUrlText(bytes.toString('utf8'))
+  return { text: scrubbed.slice(0, STAND_IN_BODY_LIMIT), truncated: scrubbed.length > STAND_IN_BODY_LIMIT }
+}
+
+/**
+ * 演练档的本机替身（2026-11-15；r2 加了上传中转与请求体）：被测 App 经产品闸已有的测试改道（NOMI_TEST_NETWORK_REDIRECTS）把**一个**源指到这里。
+ * `role`：'vendor' = 供应商，'relay' = App 的托管上传中转。**从不转发**，结构上到不了真供应商 / 真中转。
+ *   · `freeAnswers`（'GET /path' → JSON）：登记过的免费探测，照答（存 key 后的余额查询）。
+ *   · `uploadAnswers`（'POST /path' → 回链字段路径，如 'url'）：上传，回一个本机的假地址（指回替身自己），流程接着走到下一站。
+ *   · 其余请求：记一行 `blocked`（方法、路径、脱敏后的请求体），GET / HEAD 回 503，别的回 400（不可重试：App 当场把这一发判失败，不重试、不干等）。
+ * 不记请求头（钥匙在头里）。
+ */
+export async function startRehearsalStandIn({ origin, netLog, role = 'vendor', freeAnswers = {}, uploadAnswers = {} }) {
   const { default: http } = await import('node:http')
   const host = new URL(origin).hostname
-  const append = (row) => fs.appendFileSync(netLog, `${JSON.stringify({ ...row, host, pid: process.pid, at: new Date().toISOString() })}\n`)
-  const server = http.createServer((req, res) => {
-    req.resume()
+  const via = role === 'relay' ? 'rehearsal-relay' : 'rehearsal-vendor'
+  const append = (row) => fs.appendFileSync(netLog, `${JSON.stringify({ ...row, via, role, host, pid: process.pid, at: new Date().toISOString() })}\n`)
+  let assets = 0
+  let standIn = ''
+  const server = http.createServer(async (req, res) => {
+    const chunks = []
+    for await (const chunk of req) chunks.push(chunk)
     const method = String(req.method ?? 'GET').toUpperCase()
     const pathname = new URL(req.url ?? '/', 'http://stand-in').pathname
-    const answer = freeAnswers[`${method} ${pathname}`]
-    if (answer !== undefined) {
-      append({ kind: 'rehearsal-answered', via: 'rehearsal-vendor', method, url: `${origin}${pathname}` })
-      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(answer))
+    const url = `${origin}${pathname}`
+    const reply = (status, body) => res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(body))
+    const free = freeAnswers[`${method} ${pathname}`]
+    if (free !== undefined) { append({ kind: 'rehearsal-answered', answer: 'free-probe', method, url }); reply(200, free); return }
+    const upload = uploadAnswers[`${method} ${pathname}`]
+    if (upload !== undefined) {
+      assets += 1
+      const fakeUrl = `${standIn}/rehearsal-asset/${assets}`
+      append({ kind: 'rehearsal-answered', answer: 'upload', method, url, bytes: Buffer.concat(chunks).length, fakeUrl })
+      reply(200, nestedAnswer(upload, fakeUrl))
       return
     }
-    append({ kind: 'blocked', via: 'rehearsal-vendor', method, url: `${origin}${pathname}` })
-    res.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { message: 'Nomi paid-walk rehearsal: request stopped before reaching the vendor' } }))
+    append({ kind: 'blocked', method, url, body: describeStandInBody(Buffer.concat(chunks), req.headers['content-type']) })
+    reply(READ_METHODS.has(method) ? 503 : 400, { error: { message: 'Nomi paid-walk rehearsal: request stopped before reaching the vendor' } })
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const standIn = `http://127.0.0.1:${server.address().port}`
+  standIn = `http://127.0.0.1:${server.address().port}`
   return {
     origin: standIn,
-    env: { NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: origin, to: standIn }]), NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: standIn },
+    redirect: { from: origin, to: standIn },
     close: () => new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()) }),
   }
+}
+
+/** 几个替身 → 交给被测 App 的环境：一张改道表（每个源一条）+ 本机源进可信名单。 */
+export function standInLaunchEnv(standIns) {
+  const live = standIns.filter(Boolean)
+  if (!live.length) return {}
+  return { NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify(live.map((item) => item.redirect)), NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: live.map((item) => item.origin).join(',') }
 }
 
 /** 建一份本场的账本文件路径（放系统临时目录，不进仓库）。 */
