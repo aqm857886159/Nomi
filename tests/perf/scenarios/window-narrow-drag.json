@@ -19,8 +19,12 @@
   "group": "⑪ 拖窗口边过窄窗档",
   "budgetStatus": "proposed",
   "budgetBasis": "拖窗口边是连续手势、要跟手：60Hz 下 p95 帧间隔不超过 2 帧（33ms），仓库默认预算同此；同类连续手势 timeline-scrub 基线中位 18.3ms（Windows，10-16）",
-  "measurement": {
-    "state": "pending",
-    "reason": "实现线已在本机量过 5 次并把数字贴进 PR；基线待协调会话在安静窗口用 --update-baseline 写入（实现线不许写基线）"
+  "baseline": {
+    "median": 10.4,
+    "p95": 10.4,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-14",
+    "commit": "21ed49663"
   }
 }
