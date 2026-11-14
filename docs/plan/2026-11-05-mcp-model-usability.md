@@ -1,5 +1,7 @@
 # 模型清单按原始可用性转述
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 类别：其他，外部 AI 结果文字修复；标准设计卡，不走短档。面板拆分暂缓，规范对照保留在 `docs/engineering/direction-checks/2026-11-05-mcp-run-read.md`。
 
 ## ★1 用户怎么用

@@ -1,5 +1,7 @@
 # 已选择模式的参考图投影与容量
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 设计卡
 
 ★0 查过 APIMart Vidu Q4 官方页（generation.md，15 张合计限制，决定超量反例），Wan 2.7 官方页（角色数组区分角色参考，决定同类覆盖），Seedance 2.0 官方页（首尾顺序和角色词，决定测试从创建请求走到 fetch）。出处和字段见本分支各模型档案的 sources 及官方页，证据在 apimartDocsAlignRunPath.test.ts。

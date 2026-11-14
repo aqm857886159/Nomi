@@ -1,5 +1,7 @@
 # 反馈雷达 Mac 凭据收口（2026-10-25）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 任务书：`/Users/aoqimin/Nomi-coord/Nomi-service/coord-handoff/briefs/20261023-mac/I-intake-mac.md`。
 > 根因合同：[`2026-10-25-intake-radar-mac-credentials.root-cause.json`](../fixes/2026-10-25-intake-radar-mac-credentials.root-cause.json)。
 

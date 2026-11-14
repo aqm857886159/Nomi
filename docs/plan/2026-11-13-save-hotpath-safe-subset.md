@@ -1,5 +1,7 @@
 # 设计卡：保存热路径「安全的那一小块」（#1500 两轮验收不通过后走退路）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：save-hotpath-safe-subset　线：I-save-hotpath-safe-subset（实现）　类别：[其他]
 方向检查：`docs/engineering/direction-checks/2026-11-13-main-thread-sync-wait.md`（第 3 轮结论在末尾）。
 

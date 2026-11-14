@@ -1,5 +1,7 @@
 # Current audio and text catalog declarations
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 类别：[花钱][其他]；声明更新，不新增运行时通道，不改界面布局。
 
 ## ★0 先查别人

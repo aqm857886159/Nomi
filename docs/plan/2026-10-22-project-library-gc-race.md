@@ -1,5 +1,7 @@
 # 设计卡：项目库收尾——列表只读不删项目（N1）、一项读不出只坏一张卡（N2）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 实现线 P-library-2，验收线 V-plibrary2。方向检查（用户 10-22 拍板 C′ 共用部分）：`docs/plan/2026-10-21-project-library-direction-check.md` 的 N1 节、§8 和 §8a。
 > 类别：丢数据（N1）按 9 格全填；N2 是纯 bug 修复下的界面改动，按 pure-bugfix 例外写拍板图一格。
 

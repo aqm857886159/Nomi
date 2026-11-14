@@ -1,5 +1,7 @@
 # 画板会话生命周期设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 线：I-whiteboard-session-lifecycle（Mac，实现线）。类别：纯修复；用户已批准方向检查。
 
 ## ★1 用户怎么用

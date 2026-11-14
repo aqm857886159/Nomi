@@ -1,5 +1,7 @@
 # 导演计划编译器：为什么修了五轮还在冒新 bug（类根因分析）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：分析稿（2026-10-05），只读分析，未改生产代码。分支 `analysis/director-compiler-root-cause`（从 `fix/director-compiler-r5` 的 `e22cc8ea3` 切出）。
 > 配套特征测试：`src/workbench/generationCanvas/nodes/director/model/compiler/directorSpatialInvariants.characterization.test.ts`（5 条，全绿，锁住今天的违例账）。
 > 结论需要协调会话拍板（第 4 节三选一），本稿不擅自实施。

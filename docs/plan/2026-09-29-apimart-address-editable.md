@@ -1,5 +1,7 @@
 # APIMart 接入地址归用户改（0.22.5 热修）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 背景
 
 用户反馈：新电脑上把 APIMart 改成国内地址，保存报英文「Certification-owned connection changes require a new integration session」，老电脑能改。主域在部分网络连不上，不会翻墙的用户完全用不了。

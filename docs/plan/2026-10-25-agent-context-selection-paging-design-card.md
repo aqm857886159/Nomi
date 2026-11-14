@@ -1,5 +1,7 @@
 # Agent 上下文选区分页设计卡（#1263-r3）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：AgentContextSnapshot 投影与 `read_selection` 分页读口  
 线/负责人：修复线  
 类别：[其他][Agent 行为][大数据量 / 长列表][新增功能 / 性能]
