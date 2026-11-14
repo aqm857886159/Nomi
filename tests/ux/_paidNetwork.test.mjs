@@ -297,6 +297,8 @@ describe('rehearsalVerdict', () => {
     expect(rehearsalShouldStop([loaded, create], { lockedAtEntry: 1, judgedAllow, holdForScript: true, now: now + 30_000 })).toBe(true)
     expect(rehearsalShouldStop([loaded, list], { lockedAtEntry: 1, judgedAllow, now })).toBe(false)
     expect(rehearsalShouldStop([loaded, list], { lockedAtEntry: 1, judgedAllow, now: now + 30_000 })).toBe(true)
+    // 只读脚本声明了终点 vendor-read：第一条读请求就是终点，立刻停（不等兜底、不让脚本拿着 503 自己报错）
+    expect(rehearsalShouldStop([loaded, list], { lockedAtEntry: 1, judgedAllow, endsAt: 'vendor-read', now })).toBe(true)
   })
   it('the script failing before any vendor request is not a pass, and says where it failed', () => {
     const verdict = rehearsalVerdict({ entries: [loaded], lockedAtEntry: 1, judgedAllow, scriptError: new Error('找不到生成钮\nstack') })

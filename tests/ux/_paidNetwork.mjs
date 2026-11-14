@@ -200,17 +200,18 @@ export function rehearsalVerdict({ entries, lockedAtEntry = null, judgedAllow = 
  * 演练时什么时候让 App 停下（纯函数）：
  *   · 任何时候挡下授权源之外的请求 → 立刻停（已经能下结论：不过）；
  *   · 收窄之后闸（不是替身）挡下了请求 → 立刻停（App 那一步已经失败，等也没用）；
- *   · 收窄之后替身记下供应商会花钱的那条请求 → 不判请求体的脚本立刻停；要判请求体的脚本（`holdForScript`）先不停，让它自己读账本判完；
- *   · 其余（只记下了读请求、只走到上传、或要判请求体的脚本迟迟不收尾）→ 收窄后第一条记录之后 `graceMs` 兜底停。
+ *   · 收窄之后替身记下的供应商请求到了这份脚本的终点 `endsAt`（缺省 = 会花钱的那条；只读脚本声明 vendor-read = 任何一条读请求）
+ *     → 不判请求体的脚本立刻停；要判请求体的脚本（`holdForScript`）先不停，让它自己读账本判完；
+ *   · 其余（还没到终点的读请求、只走到上传、或要判请求体的脚本迟迟不收尾）→ 收窄后第一条记录之后 `graceMs` 兜底停。
  */
-export function rehearsalShouldStop(entries, { lockedAtEntry = null, judgedAllow = [], relayAllow = [], holdForScript = false, graceMs = 20_000, now = Date.now() } = {}) {
+export function rehearsalShouldStop(entries, { lockedAtEntry = null, judgedAllow = [], relayAllow = [], holdForScript = false, graceMs = 20_000, endsAt = 'vendor-create', now = Date.now() } = {}) {
   const allow = parseAllowlist([...judgedAllow, ...relayAllow].join(','))
   if (entries.some((entry) => entry?.kind === 'blocked' && !listsHost(allow, String(entry.host ?? '')))) return true
   if (lockedAtEntry === null) return false
   const vendor = parseAllowlist(judgedAllow.join(','))
   const after = entries.slice(lockedAtEntry).filter((entry) => entry?.kind === 'blocked' || entry?.kind === 'rehearsal-answered')
   if (after.some((entry) => entry.kind === 'blocked' && !isStandInRow(entry))) return true
-  if (!holdForScript && after.some((entry) => isVendorRequestRow(entry, vendor) && isSpendingRow(entry))) return true
+  if (!holdForScript && after.some((entry) => isVendorRequestRow(entry, vendor) && stationReaches(isSpendingRow(entry) ? 'vendor-create' : 'vendor-read', endsAt))) return true
   const first = after[0]
   return Boolean(first) && now - Date.parse(first.at ?? '') >= graceMs
 }

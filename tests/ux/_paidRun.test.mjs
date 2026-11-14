@@ -453,6 +453,17 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
     process.exitCode = 0
   })
 
+  it('r2 · 脚本自己把 report.rehearsal 写成一个布尔开关（老脚本的写法）：收尾不崩，演练一节照样落进报告', async () => {
+    const { seen, deps, receipts, vendorBlock, root } = fakeWalk()
+    const paid = await openAndLock(deps, noKeyEnv(root))
+    paid.walk.report.rehearsal = false
+    fs.appendFileSync(seen.options.env.NOMI_WALK_NET_LOG, vendorBlock)
+    await paid.finish(undefined)
+    expect(paid.walk.report.rehearsal).toMatchObject({ tier: 'no-key', passed: true, station: 'vendor-create' })
+    expect(receipts[0].verdict.passed).toBe(true)
+    process.exitCode = 0
+  })
+
   it('替身只在不要 Key 那档起；不演练、real-key 档都不起', async () => {
     const { deps, root } = fakeWalk()
     await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: { NOMI_SPEND_OK: '1', CI: '', APIMART_API_KEY: 'sk-real-looking-key-0123456789', NOMI_REAL_PROFILE_USER_DATA: path.join(root, 'none') }, assertRehearsed: () => {} })

@@ -85,7 +85,9 @@ function relayUploadIngestion(relayOrigin, env) {
  * 演练的终点（r2）：缺省每份付费脚本都要走到「供应商收到会花钱的那条请求」（vendor-create），真付费入口只认走到这一站的收据。
  * 脚本本身就不发创建请求的（只验接入、只查列表 / 余额）在这里声明它的终点和理由，不能含糊；表外的一律 vendor-create。
  */
-export const REHEARSAL_ENDPOINTS = Object.freeze({})
+export const REHEARSAL_ENDPOINTS = Object.freeze({
+  'apimart-text-list-real.paid.mjs': { endsAt: 'vendor-read', why: '文字模型列表对账：只发两条只读 GET（模型列表、余额），本来就不发创建请求' },
+})
 export function rehearsalEndpointOf(script, table = REHEARSAL_ENDPOINTS) {
   return table[path.basename(String(script))]?.endsAt ?? 'vendor-create'
 }
@@ -371,7 +373,9 @@ export async function openPaidWalk(script, name, models, deps = {}) {
   walk.report.networkAllowlist = allow
   if (hostedUploadOrigin) walk.report.hostedUploadRelayAllowed = hostedUploadOrigin
   walk.report.credentialSource = rehearsal === 'no-key' ? `rehearsal-fake-key（${REHEARSAL_TIERS['no-key']}）` : envKey ? `env-key（${ENV_KEY_VAR}，只记变量名）` : 'real-profile'
-  if (rehearsal) walk.report.rehearsal = { tier: rehearsal, judgedAgainst: judgedAllow, relay: relayAllow, endsAt, ...(standIn ? { standIn: `改道到本机替身的源：${standIns.map((item) => item.redirect.from).join('、')}——只答免费探测和上传（回本机假地址），别的请求记成被挡行（方法、路径、脱敏后的请求体），从不转发` } : {}) }
+  // 报告里的 rehearsal 一节归 openPaidWalk：拿本地引用写，收尾再挂回去（有的老脚本自己往 report.rehearsal 写一个布尔开关，会把它盖掉）。
+  const rehearsalReport = rehearsal ? { tier: rehearsal, judgedAgainst: judgedAllow, relay: relayAllow, endsAt, ...(standIn ? { standIn: `改道到本机替身的源：${standIns.map((item) => item.redirect.from).join('、')}——只答免费探测和上传（回本机假地址），别的请求记成被挡行（方法、路径、脱敏后的请求体），从不转发` } : {}) } : null
+  if (rehearsalReport) walk.report.rehearsal = rehearsalReport
   let blocked = null
   // 演练：闸挡下请求、让 App 停下的那一刻（脚本之后报的错是它的后果）；收窄花钱面完成那一刻账本有几行。
   let stoppedByGuard = false
@@ -384,7 +388,7 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     stoppedByGuard = true
     console.error(`[${rehearsal ? 'rehearsal' : 'paid'}] ${redact(blocked.message, secrets)}`)
     walk.stopApp().catch(() => {})
-  }, rehearsal ? { shouldFire: (entries) => rehearsalShouldStop(entries, { lockedAtEntry, judgedAllow, relayAllow, holdForScript: recordAllowedBodies && judgesBodyInRehearsal, graceMs: rehearsalGraceMs }) } : {})
+  }, rehearsal ? { shouldFire: (entries) => rehearsalShouldStop(entries, { lockedAtEntry, judgedAllow, relayAllow, holdForScript: recordAllowedBodies && judgesBodyInRehearsal, graceMs: rehearsalGraceMs, endsAt }) } : {})
   const removeCredentialCopy = () => removeRealCredentials({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, profile })
   let seeded = []
   if (!envKey) {
@@ -457,9 +461,10 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     // 演练：被挡是预期，判的是「挡下的第一条是不是授权供应商、在不在收窄之后」（_paidNetwork.mjs#rehearsalVerdict）。
     const verdict = rehearsal ? rehearsalVerdict({ entries: finalEntries, lockedAtEntry, judgedAllow, relayAllow, scriptError: error ?? null, stoppedByGuard, endsAt }) : null
     if (verdict) {
-      Object.assign(walk.report.rehearsal, { passed: verdict.passed, station: verdict.station, reason: redact(verdict.reason, secrets), blockedRequest: verdict.request, blockedBeforeSpendLock: verdict.preLock })
+      walk.report.rehearsal = rehearsalReport
+      Object.assign(rehearsalReport, { passed: verdict.passed, station: verdict.station, reason: redact(verdict.reason, secrets), blockedRequest: verdict.request, blockedBeforeSpendLock: verdict.preLock })
       // 替身记下的供应商请求：方法、路径、请求体的键（请求体本身已脱敏，留在账本里；报告只放键，够看出「多发了一个键 / 少了比例」）。
-      walk.report.rehearsal.vendorRequests = rehearsalLedgerRequests(finalEntries).filter((_, index, all) => index >= all.length - 8).map((entry) => {
+      rehearsalReport.vendorRequests = rehearsalLedgerRequests(finalEntries).filter((_, index, all) => index >= all.length - 8).map((entry) => {
         let keys = null
         try { keys = Object.keys(JSON.parse(String(entry.body?.text ?? ''))).sort() } catch { /* 不是 JSON：只记方法和路径 */ }
         return { method: entry.method, path: blockedRequestPath(entry.url), bodyKeys: keys, bodyBytes: entry.body?.bytes ?? null }
