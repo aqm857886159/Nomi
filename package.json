@@ -387,7 +387,7 @@
     "react-dom": "^19.3.0",
     "react-i18next": "17.0.10",
     "react-reconciler": "0.34.0",
-    "react-resizable-panels": "^4.12.3",
+    "react-resizable-panels": "^4.22.1",
     "react-reverse-portal": "2.3.0",
     "react-rnd": "10.5.3",
     "react-router-dom": "^7.9.6",
