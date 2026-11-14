@@ -6,12 +6,15 @@
 //   NOMI_SPEND_OK=1 node tests/ux/archetype-batch1-samples.paid.mjs [--packaged <Nomi 可执行文件的绝对路径>]
 //     # 凭据缺省从真实资料目录拷进隔离副本（key 不经脚本）；隔离副本里要有 apimart 的这三行：kling-v4-flash / doubao-seedance-2.5 / MiniMax-H3-Max。
 //   NOMI_SAMPLES_ONLY=A1,A2,B,C 只跑其中几发（重跑失败那一发用；不给就四发全跑）。
+//   NOMI_SAMPLES_ONLY=D NOMI_SAMPLES_EVIDENCE=docs/evidence/2026-11-15-archetype-wrong-today/paid 只跑后加的那一发（D 不在缺省的四发里，必须点名）。
 //
 // 共四发视频（价目：内置 APIMart 行没有价，跑前协调看 APIMart 价目页）：
 //   A1 可灵 4.0 Flash · 视频编辑 · ffmpeg 造的 4 秒 1:1 源视频 · 不带时长 · 比例不动（档案默认）
 //   A2 同上 · 比例 16:9                       → 编辑不带时长上游收；记成片画幅（不动比例时是否跟随源视频 1:1、16:9 时改不改——PR3 的依据，只记不判）
 //   B  Seedance 2.5 · 全能参考 · 1 张图 · 1080p · 5 秒 · output_format=mov · watermark=false → 1080p 档与新键上游收、回来是 mov
 //   C  MiniMax H3-Max（APIMart）· 多模态参考 · 1 张图 · aspect_ratio=adaptive · 768P · 5 秒 → 新通道行跑通、adaptive 被接受
+// 后加的一发（设计卡 docs/plan/2026-11-15-archetype-wrong-today.md；只在点名时跑）：
+//   D  Veo 3.1 Fast（APIMart）· 参考图 · 1 张竖图 · aspect_ratio=9:16 · 720p → 图模式带比例上游收不收、成片是不是竖的
 // 每发：花钱前核对节点（模型 / 方式 / 参数 / 连线）→ 点 ↑ → 确认 → 等成片落回 → 闸账本里这一发的视频创建请求恰好 1 次、请求体按判据 → ffprobe 量成片。
 // 请求体从走查网络闸的账本读（openPaidWalk 的 recordAllowedBodies：不记请求头，签名查询串与 key 形状的串先打码）。
 // 证据摘要写 docs/evidence/2026-11-14-mode-input-check/paid/report.json。
@@ -31,13 +34,14 @@ import { canvasFitView, collapseAgentPanel } from './_shell.mjs'
 
 const SCRIPT = 'archetype-batch1-samples.paid.mjs'
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const EVIDENCE_DIR = path.join(REPO_ROOT, 'docs/evidence/2026-11-14-mode-input-check/paid')
+const EVIDENCE_DIR = path.join(REPO_ROOT, process.env.NOMI_SAMPLES_EVIDENCE || 'docs/evidence/2026-11-14-mode-input-check/paid')
 const APIMART_HOST = 'api.apimart.ai'
 const LANDS_MS = stationTimeout({ turns: 6 })
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const KLING = { vendorKey: 'apimart', modelKey: 'kling-v4-flash' }
 const SEEDANCE = { vendorKey: 'apimart', modelKey: 'doubao-seedance-2.5' }
 const H3MAX = { vendorKey: 'apimart', modelKey: 'MiniMax-H3-Max' }
+const VEO = { vendorKey: 'apimart', modelKey: 'veo3.1-fast' }
 const metaOf = (model, archetypeId, modeId, params) => ({ modelKey: model.modelKey, modelVendor: model.vendorKey, vendor: model.vendorKey, archetype: { id: archetypeId, modeId }, ...params })
 
 /** 四发：输入（edge 用哪个素材）、节点参数、花钱前核对、请求体判据。 */
@@ -82,9 +86,21 @@ const SAMPLES = [
       ...(Array.isArray(body.image_urls) && body.image_urls.length === 1 ? [] : [`image_urls 不是一张：${JSON.stringify(body.image_urls)}`]),
     ],
   },
+  {
+    id: 'D', label: 'Veo 3.1 Fast · 参考图 · 9:16 · 720p', model: VEO, modeKind: 'reference', modeId: 'reference', input: 'imageTall', optIn: true,
+    meta: metaOf(VEO, 'veo-3.1', 'reference', { aspect_ratio: '9:16', resolution: '720p' }),
+    judge: (body) => [
+      ...(body.aspect_ratio === '9:16' ? [] : [`aspect_ratio 是 ${JSON.stringify(body.aspect_ratio)}，这一发要 9:16`]),
+      ...(body.resolution === '720p' ? [] : [`resolution 是 ${JSON.stringify(body.resolution)}，应是 720p`]),
+      ...(Array.isArray(body.image_urls) && body.image_urls.length === 1 ? [] : [`image_urls 不是一张：${JSON.stringify(body.image_urls)}`]),
+    ],
+    // 上游收了比例还不够：成片得真是竖的，不然就是「收了但没认」。
+    landed: (media) => ((media.probe.height ?? 0) > (media.probe.width ?? 0) ? [] : [`成片不是竖的（${media.probe.width}×${media.probe.height}）：上游在图模式下没认 9:16`]),
+  },
 ]
 const only = (process.env.NOMI_SAMPLES_ONLY ?? '').split(',').map((item) => item.trim()).filter(Boolean)
-const chosen = SAMPLES.filter((sample) => !only.length || only.includes(sample.id))
+// optIn 的样片只在点名时跑：缺省还是原来那四发，后加的不会被「全跑」顺手带上、多花一笔。
+const chosen = SAMPLES.filter((sample) => (only.length ? only.includes(sample.id) : !sample.optIn))
 const models = [...new Map(chosen.map((sample) => [sample.model.modelKey, sample.model])).values()]
 
 // 主进程产物（dist-electron）不压缩：本修复的拒收机读码原样进产物，修前的构建里没有。
@@ -107,7 +123,8 @@ try {
   const run = (args) => execFileSync(ffmpeg.path, ['-hide_banner', '-loglevel', 'error', ...args], { stdio: 'pipe' })
   run(['-f', 'lavfi', '-i', 'testsrc=s=1024x1024:r=1', '-frames:v', '1', '-y', path.join(assetDir, 'ref.png')])
   run(['-f', 'lavfi', '-i', 'testsrc=s=720x720:r=24:d=4', '-pix_fmt', 'yuv420p', '-y', path.join(assetDir, 'source-1x1.mp4')])
-  const sources = await win.evaluate(({ imageUrl, videoUrl }) => {
+  run(['-f', 'lavfi', '-i', 'testsrc=s=720x1280:r=1', '-frames:v', '1', '-y', path.join(assetDir, 'ref-9x16.png')])
+  const sources = await win.evaluate(({ imageUrl, tallUrl, videoUrl }) => {
     const state = window.__nomiCanvasStore.getState()
     const add = (kind, title, url, y, meta) => {
       const id = state.addNode({ kind, title, prompt: '', position: { x: -560, y }, meta }).id
@@ -115,8 +132,12 @@ try {
       state.updateNode(id, { status: 'success', result, history: [result] })
       return id
     }
-    return { image: add('image', 'ref.png', imageUrl, -200, { imageWidth: 1024, imageHeight: 1024 }), video: add('video', 'source-1x1.mp4', videoUrl, 200, {}) }
-  }, { imageUrl: `nomi-local://asset/${projectId}/assets/imported/ref.png`, videoUrl: `nomi-local://asset/${projectId}/assets/imported/source-1x1.mp4` })
+    return {
+      image: add('image', 'ref.png', imageUrl, -200, { imageWidth: 1024, imageHeight: 1024 }),
+      imageTall: add('image', 'ref-9x16.png', tallUrl, -700, { imageWidth: 720, imageHeight: 1280 }),
+      video: add('video', 'source-1x1.mp4', videoUrl, 200, {}),
+    }
+  }, { imageUrl: `nomi-local://asset/${projectId}/assets/imported/ref.png`, tallUrl: `nomi-local://asset/${projectId}/assets/imported/ref-9x16.png`, videoUrl: `nomi-local://asset/${projectId}/assets/imported/source-1x1.mp4` })
 
   for (const [index, sample] of chosen.entries()) {
     const record = { id: sample.id, label: sample.label, model: `${sample.model.vendorKey}/${sample.model.modelKey}` }
