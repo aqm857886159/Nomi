@@ -408,6 +408,32 @@ async function playDuring(p: Probe, during: During, width: 'wide' | 'narrow'): P
   if (during === 'relaunch') await p.relaunch()
 }
 
+// 两种让位叠起来：挑参考图把收着的对话摆出来，接着点聊天里的指向让开，再点「回到对话」。
+// 回到对话是人点开（openAgent）：对话回来；宽窗里存的是收着的那页记下「开着」（和人点小球一样）。只撤让位会回到小球——按了没反应那一类。
+const STACKED_RETURN: Record<'wide' | 'narrow', Record<OldForm, { shown: Shown; diskChanged: boolean }>> = {
+  wide: { ball: { shown: 'float', diskChanged: true }, dock: { shown: 'dock', diskChanged: false }, float: { shown: 'float', diskChanged: false } },
+  narrow: { ball: { shown: 'float', diskChanged: false }, dock: { shown: 'float', diskChanged: false }, float: { shown: 'float', diskChanged: false } },
+}
+
+describe('挑参考图摆出来 → 指向让开 → 点「回到对话」', () => {
+  for (const width of ['wide', 'narrow'] as const) {
+    for (const stored of STORED_CYCLE) {
+      it(`${width} · 生成页存 ${stored}`, async () => {
+        const { p, disk } = await bootHold('pickRef', width, stored)
+        probe = p
+        yieldChatToCanvas({ surface: 'generation', nodeId: 'n1', label: '镜 01' })
+        p.settle()
+        expect(p.shown()).toBe('ball')
+        expect(returnDockShown()).toBe(true)
+        clickReturn(p)
+        expect(p.shown(), '回到对话 = 人点开').toBe(STACKED_RETURN[width][stored].shown)
+        expect(returnDockShown()).toBe(false)
+        expect(p.disk() !== disk, '存档变没变').toBe(STACKED_RETURN[width][stored].diskChanged)
+      })
+    }
+  }
+})
+
 describe('机器让位 × 让位期间发生的事 × 之后（点「回到对话」/ 不点）', () => {
   for (const hold of ['pointer', 'pickRef'] as const) {
     for (const width of ['wide', 'narrow'] as const) {
