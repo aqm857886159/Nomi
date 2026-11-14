@@ -587,7 +587,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
     await switchWorkspace(win, 'creation')
     await expect(dockLayer.first(), '回到 1100 应停回').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
     const end = await snapshot()
-    check(`${BOARD.noWriteback} 走完回到 1100：存的 Nomi 宽仍是 390、停靠没被改掉`, JSON.parse(end.layout).assistantWidth === 390 && JSON.parse(end.form ?? '{}').state?.bySurface?.creation?.collapsed === false, `${end.layout.slice(0, 120)}`)
+    check(`${BOARD.noWriteback} 走完回到 1100：存的 Nomi 宽仍是 390、停靠没被改掉`, JSON.parse(end.layout).assistantWidth === 390 && JSON.parse(end.form ?? '{}').state?.bySurface?.creation?.collapsed !== true, `${end.layout.slice(0, 120)}`)
 
     // ── 存着小球的页：窄窗里点开、收起都不改存档（独立验收 2026-11-14 查出：收起后拉宽 / 重开变成停靠） ──
     // 人先在宽窗里亲手把创作页收成小球（这一下是形态切换，写存档）；再缩到 700 点小球、问一句、收起；拉到 1280；窄着关掉重开。

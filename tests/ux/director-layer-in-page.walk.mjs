@@ -396,6 +396,8 @@ await section('1-geometry', async () => {
 // ═══ 小节 2：Agent 交互（小球叫出 / 浮窗拖到导演层上面 / 停靠栏拖宽）══════════════════════
 await section('2-agent', async () => {
   await resizeTo(SIZES[0])
+  // 收起再点开回到上次选的摆法（用户 2026-11-14 拍板）：几何矩阵最后选的是停靠，这里先选回浮窗再收起。
+  await setAgentForm('float')
   await setAgentForm('ball')
   const ballClicked = await win.locator('[data-agent-ball]').first().click({ timeout: 4000 }).then(() => true, () => false)
   if (ballClicked) await win.waitForFunction(() => document.querySelector('[data-shell-agent-layer]')?.getAttribute('data-agent-form') === 'float', null, { timeout: 4000 }).catch(() => undefined)
