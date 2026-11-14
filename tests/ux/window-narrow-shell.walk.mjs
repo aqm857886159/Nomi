@@ -68,7 +68,6 @@ const BOARD = {
 }
 
 const failures = []
-const knownIssues = []
 const check = (name, ok, detail = '') => {
   if (!ok) failures.push(`${name}${detail ? ` — ${detail}` : ''}`)
   console.log(`  ${ok ? '✅' : '❌'} ${name}${detail ? ` — ${detail}` : ''}`)
@@ -252,20 +251,9 @@ async function runRound({ locale, scheme, tag, projectName }) {
 
     const dockLayer = win.locator('[data-shell-agent-layer][data-agent-form="dock"]')
     const narrowBall = win.locator('[data-agent-ball-narrow="true"]')
-    // 落盘那份拆成两段：用户的意图（各栏宽、左栏 / 属性栏开合、预设）逐字节比；visibility.assistant 是「停靠占不占位」的投影，
-    // 由外壳形态单向写（ShellAgentHost），窄窗收成小球那一下会被翻成 false 并自动存一次——把「显示投影」和「落盘意图」拆开
-    // 是移交的后续一题（计划表 A4g）。这里单独记它最后停在哪，不混进意图那一段，也不藏：停错了打 ⚠ 并进报告。
-    const readDiskLayout = () => JSON.parse(fs.readFileSync(projectFile, 'utf8')).payload?.editingPanelLayout ?? null
-    const readDisk = () => {
-      const layout = readDiskLayout()
-      if (!layout) return 'null'
-      const { visibility = {}, ...rest } = layout
-      const intentVisibility = { ...visibility }
-      delete intentVisibility.assistant
-      return JSON.stringify({ ...rest, visibility: intentVisibility })
-    }
-    const readDiskProjection = () => String(readDiskLayout()?.visibility?.assistant)
-    const projectionDrift = []
+    // 落盘那份整份逐字节比，含 Nomi 栏开合（visibility.assistant）：外壳按形态同步的只是显示态，窄窗收成小球不许让项目落盘
+    // （主线「打开不写」把显示态和落盘那份拆开后，这里不再给开合留例外）。
+    const readDisk = () => JSON.stringify(JSON.parse(fs.readFileSync(projectFile, 'utf8')).payload?.editingPanelLayout ?? null)
     const snapshot = async () => ({
       ...(await win.evaluate(async () => ({
         form: window.localStorage.getItem('nomi:shell-agent-form:v1'),
@@ -301,7 +289,6 @@ async function runRound({ locale, scheme, tag, projectName }) {
     const dockProof = await proveProbe(dockLayer, '1100 宽停靠时找得到停靠栏')
     await win.waitForTimeout(2500)
     const before = await snapshot()
-    const beforeProjection = readDiskProjection()
     check(`${BOARD.noWriteback} 起点：存的 Nomi 宽 390`, JSON.parse(before.layout).assistantWidth === 390, before.layout)
     for (let trip = 1; trip <= 3; trip += 1) {
       await drag(WIDE, NARROW)
@@ -310,24 +297,20 @@ async function runRound({ locale, scheme, tag, projectName }) {
       const narrow = await snapshot()
       check(`${BOARD.noWriteback} 第 ${trip} 次 700：存的形态 / 抽屉宽 / Nomi 宽不变`, narrow.form === before.form && narrow.shellLayout === before.shellLayout && JSON.parse(narrow.layout).assistantWidth === 390, diffKeys(before, narrow).join(','))
       if (trip === 1) await shot(win, 'creation-700-ball')
+      // 人在 700 停一下（够自动保存防抖 700ms + 写盘）：这时直接关窗，项目文件就是这一份——必须还是拖窄之前那份。
+      await win.waitForTimeout(1500)
+      const heldNarrow = readDisk()
+      check(`${BOARD.noWriteback} 第 ${trip} 次 700 停住：项目文件里的版面（含 Nomi 栏开合）逐字节不变`, heldNarrow === before.disk, `${before.disk} → ${heldNarrow}`)
       await drag(NARROW, WIDE)
       await expect(dockLayer.first(), `第 ${trip} 次拉回 1100：没有自动停回`).toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
       await win.waitForTimeout(1000)
       const settled = await settle(before)
       const back = settled.snap
       settleLog.push(settled.ms)
-      const projection = readDiskProjection()
-      if (projection !== beforeProjection) projectionDrift.push(`第 ${trip} 趟：落盘 visibility.assistant ${beforeProjection} → ${projection}（界面是停靠，layout.read 为 ${JSON.parse(back.layout).visibility?.assistant}）`)
       check(`${BOARD.noWriteback} 第 ${trip} 次回到 1100：四份存档逐字节相同`, diffKeys(before, back).length === 0, diffKeys(before, back).map((key) => `${key}: ${before[key]} → ${back[key]}`).join(' | '))
       check(`${BOARD.tier} 第 ${trip} 次回到 1100：Nomi 宽还原`, Math.abs(((await rectOf(win, AGENT_PANEL))?.width ?? 0) - panelWide) <= 1, `前 ${panelWide}`)
     }
     console.log(`  · 三趟拉回 1100 后四份存档落定用时（ms，含自动保存防抖 700）：${settleLog.join(' / ')}`)
-    if (projectionDrift.length > 0) {
-      console.log(`  ⚠ 已知（移交 A4g 后续：显示投影与落盘意图拆开）：停靠投影落盘没跟回来 — ${projectionDrift.join('；')}`)
-      knownIssues.push(`${tag}：${projectionDrift.join('；')}`)
-    } else {
-      console.log('  · 停靠投影落盘（visibility.assistant）三趟都跟回来了')
-    }
     {
       const motions = await motionCount()
       const gather = motions.filter((name) => name.includes('gather')).length
@@ -608,11 +591,6 @@ async function runRound({ locale, scheme, tag, projectName }) {
 }
 
 for (const round of rounds) await runRound(round)
-
-if (knownIssues.length) {
-  console.log(`\n⚠ 已知、已移交（A4g 后续：显示投影与落盘意图拆开）${knownIssues.length} 轮：`)
-  for (const item of knownIssues) console.log(`  - ${item}`)
-}
 
 if (failures.length) {
   console.log(`\n❌ window-narrow-shell：${failures.length} 条没过`)
