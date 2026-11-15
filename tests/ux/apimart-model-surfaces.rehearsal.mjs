@@ -9,7 +9,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp, seedSavedFixtureCredentials } from './_launchApp.mjs'
 import { clickOrFail, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { addCanvasNode, closeSettings, newProjectEntry, openSettings, switchWorkspace } from './_shell.mjs'
+import { addCanvasNode, backToLibrary, closeSettings, newProjectEntry, openSettings, switchWorkspace } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 const output = path.resolve(process.env.NOMI_SURFACE_EVIDENCE || '.tmp/model-surface-rehearsal')
@@ -47,6 +47,8 @@ const origin = 'http://127.0.0.1:' + server.address().port
 const results = []
 const absenceControls = []
 const settingsRows = []
+const sends = []
+let explicitSends = 0
 async function recordSettingsRows(win, locale, scheme) {
   const rows = await win.evaluate(() => {
     const header = document.querySelector('[data-model-account="apimart"]').firstElementChild
@@ -181,9 +183,14 @@ try {
       await expect(send, 'board:ModelSurfaces/cost.hover').toHaveAttribute('aria-description', /1[.,]95/)
       await expect(send.locator('..')).toHaveAttribute('title', /0[.,]195/)
       await screenshotSettled(win, { path: shot(locale, 'public-estimate') })
-      // 悬停那一句（cost.hover）：真悬停，等提示浮出再截。
+      // 悬停那一句（cost.hover）：钮外层的原生 title（系统提示框，截图拍不到），这里真悬停后读回悬停落在哪颗钮、那颗钮的 title。
       await send.hover()
-      await expect(win.getByRole('tooltip').first()).toBeVisible({ timeout: stationTimeout() })
+      const hovered = await win.evaluate(() => {
+        const el = [...document.querySelectorAll(':hover')].pop()
+        return el?.closest('[title]')?.getAttribute('title') ?? ''
+      })
+      assert.match(hovered, /0[.,]195/, 'hover lands on the send button that carries the estimate sentence')
+      results.push({ locale, hoverTitle: hovered })
       await screenshotSettled(win, { path: shot(locale, 'hover') })
       await win.mouse.move(5, 5)
       results.push({ locale, catalog: previousCatalog ? 'v0.24.1-apimart' : 'fresh', quote: await send.innerText() })
@@ -211,23 +218,18 @@ try {
             try { button.click() } finally { Date.now = realNow }
           })
           await expect.poll(() => calls.filter(call => call.path === '/v1/user/balance').length).toBeGreaterThan(priorBalanceReads)
-          assert.equal(calls.filter(call => call.method !== 'GET').length, 0)
+          assert.equal(calls.filter(call => call.method !== 'GET').length, explicitSends)
         } else if (state === 'valid') {
           await expect(send).not.toHaveAccessibleName(uiText(locale, 'onboardingProviders.account.billing'))
-          // 真点发送：写一句提示词再点，走到花钱确认就取消（拒收那条路），上游一笔 POST 都不该收到。
-          const videoComposer = win.locator('[data-composer-host="canvas"]:visible').first()
-          await videoComposer.locator('[data-prompt-box] .ProseMirror').first().fill('清晨的码头，镜头缓慢推近')
-          await clickOrFail(send, 'click send with a public estimate')
-          const dialog = win.locator('[data-spend-confirm-dialog]').first()
-          await expectVisible(dialog, 'spend confirmation after send')
-          await screenshotSettled(win, { path: shot(locale, 'send-confirm') })
-          await clickOrFail(dialog.locator('[data-spend-confirm-action="cancel"]'), 'cancel spend confirmation')
-          assert.equal(calls.filter(call => call.method !== 'GET').length, 0)
         } else {
           await expect(send).not.toHaveAccessibleName(uiText(locale, 'onboardingProviders.account.billing'))
         }
       }
       if (!perfFile) {
+        // 图片节点放进一个新项目：和视频节点同屏时，第二张的生成框会落到窗口外（主干画布的落点，和本刀无关）。
+        await backToLibrary(win)
+        await clickOrFail(newProjectEntry(win), 'new project for the image node')
+        await switchWorkspace(win, 'generation')
         await addCanvasNode(win, 'image')
         const imageComposer = win.locator('[data-composer-host="canvas"]:visible').last()
         const imagePicker = imageComposer.getByRole('button', { name: uiText(locale, 'generationCommon.parameters.model'), exact: true })
@@ -250,13 +252,32 @@ try {
         await expect(imageSend.locator('..')).toHaveAttribute('title', /0[.,]035/)
         await screenshotSettled(win, { path: shot(locale, 'output-estimate') })
         results.push({ locale, model: 'gpt-image-2.6-flare', outputEstimate: await imageSend.getAttribute('aria-description') })
+        // 真点发送：写一句提示词再点。上游是本机假服务（非 GET 一律 405，不产出媒体）：
+        // 弹花钱确认就取消；直接发出就记下那一笔，看节点上创作者看到什么。
+        await imageComposer.locator('[data-prompt-box] .ProseMirror').first().fill('清晨的码头，一只白鹭')
+        const postsBefore = calls.filter(call => call.method !== 'GET').length
+        await clickOrFail(imageSend, 'click send with an output estimate')
+        const dialog = win.locator('[data-spend-confirm-dialog]').first()
+        await expect.poll(async () => (await dialog.isVisible()) || calls.filter(call => call.method !== 'GET').length > postsBefore,
+          { timeout: stationTimeout() }).toBe(true)
+        if (await dialog.isVisible()) {
+          await screenshotSettled(win, { path: shot(locale, 'send-confirm') })
+          await clickOrFail(dialog.locator('[data-spend-confirm-action="cancel"]'), 'cancel spend confirmation')
+          sends.push({ locale, outcome: 'confirm-cancelled', posts: calls.filter(call => call.method !== 'GET').length - postsBefore })
+        } else {
+          await win.waitForTimeout(1500)
+          await screenshotSettled(win, { path: shot(locale, 'send-fake-upstream') })
+          sends.push({ locale, outcome: 'sent-to-fake-upstream', posts: calls.filter(call => call.method !== 'GET').slice(postsBefore) })
+        }
+        explicitSends += calls.filter(call => call.method !== 'GET').length - postsBefore
       }
     } finally { await app.close(); fs.rmSync(root, { recursive: true, force: true }) }
   }
-  assert.equal(calls.filter(c => c.method !== 'GET').length, 0)
+  // 非 GET 只许来自上面那一次真点发送（假上游 405，不产出媒体）。
+  assert.equal(calls.filter(c => c.method !== 'GET').length, explicitSends)
   assert(calls.some(c => c.path === '/api/pricing/model'))
   if (perfFile) {
     fs.writeFileSync(perfFile, JSON.stringify({ runs, noisy: os.loadavg()[0] >= 10, metrics: { response: pickerResponseMs } }))
   }
-  fs.writeFileSync(path.join(output, 'receipt' + (scheme === 'dark' ? '-dark' : '') + '.json'), JSON.stringify({ results, absenceControls, settingsRows, reads: calls, generationSubmissions: 0 }, null, 2))
+  fs.writeFileSync(path.join(output, 'receipt' + (scheme === 'dark' ? '-dark' : '') + '.json'), JSON.stringify({ results, sends, absenceControls, settingsRows, reads: calls, generationSubmissions: explicitSends }, null, 2))
 } finally { server.close() }
