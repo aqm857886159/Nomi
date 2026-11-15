@@ -9,7 +9,7 @@ import { registerRequestTransform } from "../tasks/requestTransforms";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { readMaterializationOutputs } from "./apimartGenerationOutputs";
 import { desktopT } from "../desktopStrings";
-import { installVariantFixture, VARIANT_FIXTURE } from "../testSupport/modeParamsVariantFixture";
+import { installVariantFixture, VARIANT_FIXTURE } from "../parity/modeParamsVariantFixture";
 
 /** 授权时封存的那份 URL 快照，键就是付费卡上那一条参考的身份。 */
 function approvedUrls(entries: ReadonlyArray<readonly [Record<string, unknown>, string]>): Record<string, string> {

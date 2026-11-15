@@ -14,7 +14,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { EVERY_VARIANT, resolveModelArchetype, rescopeArchetypeVariant } from './index'
 import { MODEL_ARCHETYPES } from './builtInCatalog'
-import { installVariantFixture, VARIANT_FIXTURE } from '../../testSupport/modeParamsVariantFixture'
+import { installVariantFixture, VARIANT_FIXTURE } from '../../parity/modeParamsVariantFixture'
 
 const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\s\/\/ .*$/gm, '')
 
@@ -109,7 +109,7 @@ describe('档案只有一个入口', () => {
   it('按档收窄（读 paramOverrides）只在入口一处', () => {
     const offenders = production
       // 测试夹具（临时装一份改写、用完卸掉）不是读者。
-      .filter((file) => !file.endsWith('/types.ts') && !file.endsWith('modelArchetypes/entry.ts') && file !== 'electron/testSupport/modeParamsVariantFixture.ts')
+      .filter((file) => !file.endsWith('/types.ts') && !file.endsWith('modelArchetypes/entry.ts') && file !== 'electron/parity/modeParamsVariantFixture.ts')
       .filter((file) => /\.paramOverrides\b|\bparamOverrides\s*\?\.|\[\s*['"]paramOverrides['"]\s*\]/.test(read(file)))
     expect(offenders).toEqual([])
   })
