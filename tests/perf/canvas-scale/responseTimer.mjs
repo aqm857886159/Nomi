@@ -74,6 +74,11 @@ const INSTALL_SOURCE = `(() => {
       return document.querySelectorAll('[data-composer-host] [data-reference-row] [data-asset-tile]').length === count
         && Boolean(tail) && tail.textContent.includes(String(count))
     },
+    // 付费确认拆开：点对话里那一组的「还有 N 个镜头」→ 那一组 N 行全画出来、那颗按钮收走。
+    offerRowsShown(count) {
+      const group = document.querySelector('[data-v4-block="generation-receipt-pointers"][data-offer-open="true"]')
+      return Boolean(group) && !group.querySelector('[data-node-pointer-more]') && group.querySelectorAll('[data-node-pointer="row"]').length >= count
+    },
     // 聊天里的指向元素（D2，NodePointer 板）：悬停它 → 画布上那个节点的外壳亮起（hover）。
     pointerNodeLit(nodeId) {
       return shellOf(nodeId)?.getAttribute('data-external-highlight') === 'hover'

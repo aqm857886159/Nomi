@@ -24,6 +24,8 @@ const A = {
   narrowBack: 'board:NodePointer/pointer.narrow.back',
   row: 'board:NodePointer/pointer.p2.row',
   chip: 'board:NodePointer/pointer.p2.chip',
+  // 列表行折起（付费确认拆开那张板的元素：对话里那一组超过 4 行折起）。
+  rowsMore: 'board:SpendAskSplit/chat.rows.more',
 }
 
 const pointer = (id, scope = '') => `${scope} [data-node-pointer-id="${id}"]`.trim()
@@ -164,6 +166,22 @@ async function expectNodePointerState(page, state, record) {
         await page.locator('[data-node-pointer-more="2"]').first().click()
         const expanded = await groups.nth(2).locator('[data-node-pointer="card"]').count()
         if (expanded !== 5) record(`${state.id} ${A.more}: 点「还有 2 个」后应全露 5 个，实际 ${expanded}`)
+        await noAccentOutline(page, state, record)
+        break
+      }
+      case 'np-rows-fold': {
+        // 5 行：露前 4 行 +「还有 1 个镜头」；点了全露、那颗按钮收走。正好 4 行：不折。
+        const five = page.locator('[data-lab-rows="five"]')
+        const four = page.locator('[data-lab-rows="four"]')
+        const shown = await five.locator('[data-node-pointer="row"]').count()
+        if (shown !== 4) record(`${state.id} ${A.rowsMore}: 5 行应只露 4 行，实际 ${shown}`)
+        const more = five.locator('[data-node-pointer-more]')
+        const moreText = (await more.textContent().catch(() => null))?.trim()
+        if (moreText !== '还有 1 个镜头') record(`${state.id} ${A.rowsMore}: 折起那一颗应是「还有 1 个镜头」，实际「${moreText}」`)
+        if (await four.locator('[data-node-pointer="row"]').count() !== 4 || await four.locator('[data-node-pointer-more]').count()) record(`${state.id} ${A.rowsMore}: 正好 4 行不该折`)
+        await more.click()
+        const opened = await five.locator('[data-node-pointer="row"]').count()
+        if (opened !== 5 || await five.locator('[data-node-pointer-more]').count()) record(`${state.id} ${A.rowsMore}: 点了「还有 1 个镜头」应全露 5 行、按钮收走，实际 ${opened} 行`)
         await noAccentOutline(page, state, record)
         break
       }

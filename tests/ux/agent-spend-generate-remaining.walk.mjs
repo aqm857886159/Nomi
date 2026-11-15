@@ -4,7 +4,7 @@
 //
 //   · 节点上点 ↑：画布接走这一镜（和卡上交出去走的是同一条画布单节点提交）。卡上那一镜的指向元素跟着节点说「生成中」、
 //     不再算在主按钮里，主按钮换成「生成剩下 2 段」（板 card.generate）；
-//   · 卡上「不生成 ×」去掉一段 → 「生成剩下 1 段」；再点「恢复」→ 回到 2（去掉的不算在 N 里，board:SpendCardQ1/card.pointer.exclude）；
+//   · 对话里那一行的「不生成 ×」去掉一段 → 「生成剩下 1 段」；再点「恢复」→ 回到 2（去掉的不算在 N 里，board:SpendAskSplit/chat.rows.exclude）；
 //   · 「生成剩下 2 段」：只交那两段（第 1 段不再发一次），供应商一共收到三笔、各一次；卡收起来，出价按「已交给画布」关，
 //     回执照实说：两段是卡上交出去的、第 1 段是画布上接走的；对话流那一行指着三段（画布接走的也是这一次生成的）。
 //   · 中英各一遍；每一遍都核「卡上摘要 = 节点参数 = 假上游收到的请求体」；
@@ -21,7 +21,7 @@ import { flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   CARD_TITLE, EXCLUDE, RECEIPT_POINTERS, RESTORE,
   armCanvasBridges, canvasRunsOf, cardFacts, createPresenter, generateOnNode, nodeParams, offerFacts, pointerAway,
-  pointerOf, pressPrimary, primaryLabel, rowOf, say, shotGestureReceipts, shotNodes, wireParams,
+  pressPrimary, primaryLabel, rowOf, say, shotGestureReceipts, shotNodes, wireParams,
 } from './_spendCardWalk.mjs'
 import { CANVAS_PANEL, createRuntimeWalk, openCanvas, recorded } from './agent-runtime-walk-support.mjs'
 

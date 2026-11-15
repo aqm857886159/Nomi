@@ -83,7 +83,9 @@
 
 ## ★7 性能
 
-新增的操作：展开「还有 N 个镜头」；悬停某一行（画布节点同亮）。最坏规模：一次出价的镜头数上限（实现线从宿主起草上限读出来写进卡里）。预算：展开和悬停各在一帧预算内，量法按 `docs/engineering/perf-scenarios.md` 登记一个场景并跑出基线，数字交进 PR。
+新增的操作：展开「还有 N 个镜头」；悬停某一行（画布节点同亮）。最坏规模：一次出价 40 镜（宿主上限：`electron/shared/agentCapabilities/generationPlanSchemas.ts` 里出价镜头 `.max(40)`）、画布 200 个有图节点。预算：仓库默认「操作到可见反馈 ≤100ms」，两下取慢的那一下。
+
+场景 `tests/perf/scenarios/spend-rows-expand-hover-40.json`（量具 `tests/perf/canvas-scale-bench.mjs` 的工作台场景 `spend-rows-expand-hover-40`：每次采样先按「取消」收掉上一份、再让 Agent 出一份新的 40 镜出价（面板收成小球时仍挂在 DOM 里，收起再打开不会让那一组回到折起），新那一组是折起的；点「还有 36 个镜头」到 40 行全画出来，再停到最后一行到画布节点亮）。实现线只量不写基线（`--measure-only`），登记为待测，基线由协调或验收线写。数字：见下一行（实现线跑完填）。
 
 ## 8 真实条件
 

@@ -457,6 +457,7 @@ export function NodePointer({
                 model.face.kind === 'removed' && 'text-nomi-ink-40',
               )}
               title={second}
+              data-node-pointer-detail=""
             >
               {second}
             </span>

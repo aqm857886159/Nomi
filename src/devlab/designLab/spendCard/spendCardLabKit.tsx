@@ -1,12 +1,13 @@
-// 设计实验室 · 屏「付费卡」（SpendCardQ1 板 ①–⑧ 与连带状态，2026-10-24 D2 第③步）的取景台。
+// 设计实验室 · 屏「付费确认」（SpendAskSplit 板，2026-11-15 拆开；失败 / 刹车 / 读不到 / 逐镜价格沿用 SpendCardQ1 板）的取景台。
 //
 // 格子里挂的全是生产件，实验室只喂三样夹具：
-//   · 画布节点（现役画布 store）——卡上每一个字都从节点现读（模型名、比例、时长、清晰度、价、分镜号、本机预检）；
-//   · 制作 Run（落地投影缓存）——指向元素上的「等你确认 / 排队中 / 已去掉」、收据下那几镜都从它派生；
+//   · 画布节点（现役画布 store）——条上和行里每一个字都从节点现读（模型名、比例、时长、清晰度、价、分镜号、本机预检）；
+//   · 制作 Run（落地投影缓存）——行里的「排队中 / 已去掉，不生成」、发完那一组都从它派生；
 //   · 宿主推过来的那一次出价（`PendingSpendRead`）——和主进程投影同一个形状。
-// 卡由生产钩子 `useAgentPanelSpendCard` 算（和真面板同一条路），卡体是 `AgentPanelV4SpendCardBody`（指向元素 = NodePointer
-// 生产件），卡壳与面板是 `AgentPanelV4Panel`；完成那一格的收据由两层真投影（pi 转录 → `projectLaneSnapshot` → `laneViewModel`）
-// 跑出来。卡上点什么都不会发出去：实验室没有宿主（按下去会弹「没有连上」那一句，这是既定语义）。
+// 条由生产钩子 `useAgentPanelSpendCard` 算（和真面板同一条路），条体是 `AgentPanelV4SpendCardBody`，面板是 `AgentPanelV4Panel`；
+// 这一批镜头由面板挂在对话里（`GenerationReceiptPointers`，列表行 = NodePointer 生产件），没有生成记录的格子画在对话最后。
+// 完成那一格的生成记录由两层真投影（pi 转录 → `projectLaneSnapshot` → `laneViewModel`）跑出来。
+// 点什么都不会发出去：实验室没有宿主（按下去会弹「没有连上」那一句，这是既定语义）。
 //
 // 主进程那份投影（`projectPendingSpendConfirm`）跑在 Node 里，浏览器跑不了，所以出价这一份由夹具按同一个形状写出来；
 // Run 与出价从同一份场景生成——两边说的是同一件事，指向元素上的样子与卡上的话不会各说各的。
@@ -60,9 +61,12 @@ const PRICING: Record<'flat' | 'by-duration', ModelOptionPricing> = {
   'by-duration': { cost: 0.7, enabled: true, specCosts: [{ specKey: 'duration:5', cost: 0.18, enabled: true }] },
 }
 
+/** 夹具最多摆几镜（板 SpendAskSplit 的 12 镜样张；宿主一次出价上限 40 由性能场景量）。 */
+export const SPEND_LAB_MAX_SHOTS = 12
+
 export type SpendLabShot = Readonly<{
-  /** 分镜里第几镜：节点标题、「镜 NN」都从这里来。 */
-  shot: 1 | 2 | 3
+  /** 分镜里第几镜（1–SPEND_LAB_MAX_SHOTS）：节点标题、「镜 NN」都从这里来。 */
+  shot: number
   /** 方案一图片帧要走真实图片节点；旧格默认仍是视频。 */
   kind?: 'image' | 'video'
   /** 夹具里的节点标题；不带分镜计划时，窄卡也必须按标题公共前缀截断。 */
@@ -98,20 +102,38 @@ export type SpendLabScenario = Readonly<{
   draftedOther?: boolean
 }>
 
-const TITLES: Record<1 | 2 | 3, readonly [string, string]> = {
-  1: ['纸船出发', 'Paper boat departs'],
-  2: ['越过落叶', 'Past the leaves'],
-  3: ['漂向远处', 'Drifting away'],
+/** 12 镜的标题（探索稿 Split / Rows 那一组）。 */
+const TITLES: readonly (readonly [string, string])[] = [
+  ['纸船出发', 'Paper boat departs'],
+  ['越过落叶', 'Past the leaves'],
+  ['漂向远处', 'Drifting away'],
+  ['撞上石阶', 'Bumps the stone steps'],
+  ['孩子追来', 'A child runs after it'],
+  ['伸手去够', 'Reaching for it'],
+  ['水面倒影', 'Reflection on the water'],
+  ['雨又落下', 'Rain falls again'],
+  ['纸船打转', 'The boat spins'],
+  ['钻进涵洞', 'Into the culvert'],
+  ['亮处出来', 'Out into the light'],
+  ['汇入小河', 'Joining the river'],
+]
+const PROMPTS: readonly (readonly [string, string])[] = [
+  ['清晨的小河，一只纸船被轻轻放进水里，镜头贴着水面跟着它出发', 'A paper boat is set on a quiet morning stream; the camera follows it at water level'],
+  ['纸船穿过漂在水面的落叶，叶子擦过船身，慢慢转了个弯', 'The boat threads through floating leaves that brush its sides as it turns'],
+  ['远景：纸船越漂越远，变成河面上一个小白点', 'Wide shot: the boat drifts away until it is a small white dot on the river'],
+]
+const TONES = ['#c9d6dc|#93a9b8', '#3d4f5c|#c7a46a', '#a8b9a0|#5d7a63'] as const
+const titleOf = (shot: number): readonly [string, string] => TITLES[(shot - 1) % TITLES.length]!
+const promptOf = (shot: number): readonly [string, string] => {
+  const known = PROMPTS[shot - 1]
+  if (known) return known
+  const [zh, en] = titleOf(shot)
+  return [`雨后的小河，${zh}，镜头贴着水面`, `After the rain on the stream: ${en.toLowerCase()}, camera at water level`]
 }
-const PROMPTS: Record<1 | 2 | 3, readonly [string, string]> = {
-  1: ['清晨的小河，一只纸船被轻轻放进水里，镜头贴着水面跟着它出发', 'A paper boat is set on a quiet morning stream; the camera follows it at water level'],
-  2: ['纸船穿过漂在水面的落叶，叶子擦过船身，慢慢转了个弯', 'The boat threads through floating leaves that brush its sides as it turns'],
-  3: ['远景：纸船越漂越远，变成河面上一个小白点', 'Wide shot: the boat drifts away until it is a small white dot on the river'],
-}
-const TONES: Record<1 | 2 | 3, string> = { 1: '#c9d6dc|#93a9b8', 2: '#3d4f5c|#c7a46a', 3: '#a8b9a0|#5d7a63' }
+const toneOf = (shot: number): string => TONES[(shot - 1) % TONES.length]!
 
 const shotIdOf = (shot: Pick<SpendLabShot, 'shot'>): string => `lab-shot-${shot.shot}`
-export const spendLabNodeId = (shot: 1 | 2 | 3): string => `lab-spend-node-${shot}`
+export const spendLabNodeId = (shot: number): string => `lab-spend-node-${shot}`
 
 const IMAGE_MODEL = Object.freeze({ providerId: 'apimart', modelId: 'gpt-image-2' })
 
@@ -132,15 +154,15 @@ function labNode(shot: SpendLabShot, locale: Locale): GenerationCanvasNode {
     id: spendLabNodeId(shot.shot),
     kind,
     categoryId: 'shots',
-    title: shot.title ? L(locale, shot.title[0], shot.title[1]) : L(locale, TITLES[shot.shot][0], TITLES[shot.shot][1]),
-    prompt: shot.emptyPrompt ? '' : L(locale, PROMPTS[shot.shot][0], PROMPTS[shot.shot][1]),
+    title: shot.title ? L(locale, shot.title[0], shot.title[1]) : L(locale, titleOf(shot.shot)[0], titleOf(shot.shot)[1]),
+    prompt: shot.emptyPrompt ? '' : L(locale, promptOf(shot.shot)[0], promptOf(shot.shot)[1]),
     position: { x: 0, y: 0 },
     size: portrait ? { width: 192, height: 340 } : { width: 340, height: 192 },
     status: shot.node === 'done' ? 'success' : shot.node ? 'running' : 'idle',
     // 「提交中」= 节点自己的运行记录走到把任务发给模型那一步（状态条读的就是这一格）；不带开始时间，截图不随墙钟变。
     ...(shot.node === 'submitting' ? { progress: { phase: 'requesting', updatedAt: 1 } } : {}),
     // 无头 Chromium 不解 H.264：结果给成首帧图（指向元素读的也正是这一张）。
-    ...(shot.node === 'done' ? { result: { id: `lab-spend-art-${shot.shot}`, type: 'image' as const, url: shotArt(shot.shot, ratio, TONES[shot.shot]), createdAt: 1 } } : {}),
+    ...(shot.node === 'done' ? { result: { id: `lab-spend-art-${shot.shot}`, type: 'image' as const, url: shotArt(shot.shot, ratio, toneOf(shot.shot)), createdAt: 1 } } : {}),
     meta: {
       modelKey: model.modelId, modelVendor: model.providerId, aspect_ratio: ratio,
       ...(kind === 'video' ? { duration: shot.duration ?? 4 } : {}),
@@ -249,6 +271,8 @@ export type SpendLabScene = Readonly<{
   focus?: string
   /** 把「逐镜 · N 镜」那一块折叠展开（替手点一下）。 */
   openPerShot?: boolean
+  /** 对话里那一组点开「还有 N 个镜头」（替手点一下；那是一颗普通按钮，合成点击和真点击走同一个 onClick）。 */
+  unfold?: boolean
 }>
 
 /** 替手点一下「逐镜 · N 镜」：原生 `<details>` 没有受控的开关，实验室只把它打开，长相由组件自己画。 */
@@ -258,6 +282,20 @@ function LabOpenPerShot(): null {
     const frame = window.requestAnimationFrame(() => {
       const fold = document.querySelector('[data-v4-block="price-per-item"]')
       if (fold instanceof HTMLDetailsElement) fold.open = true
+      window.requestAnimationFrame(release)
+    })
+    return () => { window.cancelAnimationFrame(frame); release() }
+  }, [])
+  return null
+}
+
+/** 替手点一下「还有 N 个镜头」：对话里那一组全露（不再收回）。 */
+function LabUnfold(): null {
+  React.useEffect(() => {
+    const release = holdDesignLabReady('spend-card:unfold')
+    const frame = window.requestAnimationFrame(() => {
+      const more = document.querySelector('[data-v4-block="generation-receipt-pointers"] [data-node-pointer-more]')
+      if (more instanceof HTMLElement) more.click()
       window.requestAnimationFrame(release)
     })
     return () => { window.cancelAnimationFrame(frame); release() }
@@ -307,7 +345,7 @@ export function SpendCardStage({ scenario, locale: pinned = 'zh-CN', scene = {},
     setSeeded(true)
   }, [scenario, locale])
   useLabSettled(seeded)
-  const content = seeded ? <>{children}{scene.openPerShot ? <LabOpenPerShot /> : null}{scene.focus ? <LabFocus target={scene.focus} /> : null}</> : null
+  const content = seeded ? <>{children}{scene.openPerShot ? <LabOpenPerShot /> : null}{scene.unfold ? <LabUnfold /> : null}{scene.focus ? <LabFocus target={scene.focus} /> : null}</> : null
   if (bare) return <>{content}</>
   return (
     <LabLocaleGate locale={locale}>
@@ -317,7 +355,8 @@ export function SpendCardStage({ scenario, locale: pinned = 'zh-CN', scene = {},
 }
 
 /**
- * 只有介入槽那一格（词表那一屏「⑤ 介入槽 · 付费」用：每种 kind 一格单件）。数据同样走生产钩子，卡体同样是生产卡体。
+ * 只有介入槽那一格（词表那一屏「⑤ 介入槽 · 付费」用：每种 kind 一格单件）。数据同样走生产钩子，条体同样是生产条体；
+ * 这一格没有对话流，镜头那一组不画（它住在对话里）。
  */
 export function SpendCardSlot({ scenario }: { scenario: SpendLabScenario }): JSX.Element | null {
   const read = React.useMemo(() => labRead(scenario), [scenario])
@@ -353,9 +392,9 @@ function useSpendLaneLabels() {
 }
 
 /**
- * 真面板里那张卡：上面对话流（Agent 那一句；完成态是那一轮——用户那句话、收起的过程行、过程行下面露着的那一句与组指向）、
- * 介入槽里那张卡、下面输入框。卡与收据都由生产件从夹具现算（`useAgentPanelSpendCard`、`laneViewModel`、`collapseV4Flow`），
- * 这里一个字都不手写。
+ * 真面板：上面对话流（Agent 那一句 + 那一批镜头一行一个；完成态是那一轮——用户那句话、收起的过程行、过程行下面露着的那一组与
+ * 「✓ 已发出 N 段」）、输入框上方那一条确认、下面输入框。条与那一组都由生产件从夹具现算（`useAgentPanelSpendCard`、
+ * `laneViewModel`、`collapseV4Flow`），这里一个字都不手写。
  */
 export function SpendCardPanel({ scenario, locale = 'zh-CN', width = V4_PANEL_WIDTH, height = 640, flow, composer, contextUsed = 36000 }: {
   scenario: SpendLabScenario
@@ -373,15 +412,19 @@ export function SpendCardPanel({ scenario, locale = 'zh-CN', width = V4_PANEL_WI
   const fx = useV4Fixtures()
   const laneLabels = useSpendLaneLabels()
   const { t } = useTranslation()
-  const lead = React.useMemo<readonly V4FlowItem[]>(() => flow ?? (scenario.message
-    ? [
-      { kind: 'user', text: L(locale, scenario.message[0], scenario.message[1]) },
-      { kind: 'tool', receipt: { label: L(locale, '准备生成', 'Prepare generation'), action: 'image', status: 'output-available' } },
-    ]
-    : scenario.done
-    // 和真面板同一条路：两层投影出流水，再按回合把工作折成一行过程（收据在折起来的那一行里，那一句与组指向露在外面）。
-    ? collapseV4Flow(laneFlowItems(laneSnapshotGenerateDone(OPERATION_ID, scenario.shots.map(shotIdOf), locale === 'en'), laneLabels), t)
-    : [{ kind: 'assistant', text: SENTENCE(locale, scenario.shots.length), status: 'complete' }]), [flow, scenario, locale, laneLabels, t])
+  const lead = React.useMemo<readonly V4FlowItem[]>(() => {
+    if (flow) return flow
+    // 和真面板同一条路：两层投影出流水，再按回合把工作折成一行过程（生成记录在折起来的那一行里，那一组与回执露在外面）。
+    if (scenario.done) return collapseV4Flow(laneFlowItems(laneSnapshotGenerateDone(OPERATION_ID, scenario.shots.map(shotIdOf), locale === 'en'), laneLabels), t)
+    // 等确认：那一条生成记录带着这一次出价的号（真面板里 laneViewModel 给），那一组就挂在它下面。
+    const prepare: V4FlowItem = {
+      kind: 'tool',
+      receipt: { label: L(locale, '准备生成', 'Prepare generation'), action: scenario.shots[0]?.kind === 'image' ? 'image' : 'video', status: 'output-available', generation: { operationId: OPERATION_ID } },
+    }
+    return scenario.message
+      ? [{ kind: 'user', text: L(locale, scenario.message[0], scenario.message[1]) }, prepare]
+      : [prepare, { kind: 'assistant', text: SENTENCE(locale, scenario.shots.length), status: 'complete' }]
+  }, [flow, scenario, locale, laneLabels, t])
   const body = spend.body ? <AgentPanelV4SpendCardBody {...spend.body} narrow={width <= 320} /> : null
   // 刹车只在「直接生成」档出现：输入框停在这一档、上沿那条常驻提醒也在，和真面板同一个样子。
   const brakeComposer = scenario.brake ? {
