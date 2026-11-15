@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import i18n from '../../../../i18n'
-import { getArchetypeById, specializeArchetypeForVariant, type ModelArchetype } from '../../../../../electron/shared/modelArchetypes'
+import { getArchetypeById, specializeArchetypeForVariant, specializeArchetypeForVendor, type ModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import { archetypeModeById, archetypeModeModelEnum, type ResolvedReferenceValues } from './archetypeMeta'
 import { ARCHETYPE_WIRE_MODEL, resolveWireModel } from '../../../../../electron/shared/modelArchetypes/wireModelIdentity'
 import { archetypeModeChoices } from './channelModeReach'
@@ -141,6 +141,18 @@ describe('applyHumanModeChoice — 只写偏好，参考值全局保留', () => 
     expect(send('t2v').ratio).toBe('16:9')
     // 反向：模式没收窄的参数不受影响（别夹过头把用户的正常选择也清了）。
     expect(send('first').resolution).toBe('1080p')
+  })
+
+  // 2026-11-15 老节点：Seedream 4.5（APIMart）文生图的比例以前列着 auto，老节点可能存着它。现在文生不列 auto，
+  // 发送前修成这个方式的默认 1:1（不写回）；切到改图（有 auto）照发 auto。
+  it('Seedream 4.5 APIMart：老文生节点存着 size=auto → 发送前修成 1:1；改图照发 auto', () => {
+    const seedream = specializeArchetypeForVendor(getArchetypeById('seedream')!, 'apimart')
+    const meta = { size: 'auto', resolution: '4K' }
+    const send = (modeId: string) => fixDropdownsBeforeSend({ archetype: seedream, modeId }, effectiveModeParams({ archetype: seedream, modeId, stored: meta }).params)
+    expect(send('t2i').size).toBe('1:1')
+    expect(send('t2i').resolution).toBe('4K')
+    expect(send('edit').size).toBe('auto')
+    expect(meta.size).toBe('auto')
   })
 })
 

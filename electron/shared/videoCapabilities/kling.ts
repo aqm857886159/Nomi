@@ -26,9 +26,16 @@ const APIMART_KLING_PARAMS: ModelParameterControl[] = [
   { key: "negative_prompt", label: "负向提示", type: "text", options: [], placeholder: "排除的元素…" },
 ];
 
+// APIMart 图生方式不给选比例：APIMart 文档「In image-to-video mode, aspect_ratio may be overridden by the actual
+// image ratio」，目录一直在图生里丢掉它。控件在、值发不出去 = 选了没用，故 APIMart 的图生参数不声明它
+// （以前是 APIMart 目录的 i2vDrops 在发送时丢，2026-11-15 收回档案一处）。共享 params（fal / kie）不动：fal 图生 body 照发
+// aspect_ratio，改它会动 fal 的请求体，不在这一刀。
+const withoutAspectRatio = (params: ModelParameterControl[]) => params.filter((control) => control.key !== "aspect_ratio");
+
 export const KLING_3_ARCHETYPE: ModelArchetype = {
   id: "kling-3.0",
   family: "kling",
+  sources: [{ url: "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation.md", checkedAt: "2026-11-15", vendorKey: "apimart", covers: "aspect_ratio 16:9 / 9:16 / 1:1, default 16:9; In image-to-video mode, aspect_ratio may be overridden by the actual image ratio" }],
   label: "可灵 3.0",
   kind: "video",
   defaultModeId: "t2v",
@@ -57,7 +64,7 @@ export const KLING_3_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "image_to_video",
       slots: [{ kind: "image_ref", label: "首/尾帧", min: 1, max: 2, inputKey: "image_urls" }],
       params: KLING_PARAMS,
-      vendorParams: { apimart: APIMART_KLING_PARAMS },
+      vendorParams: { apimart: withoutAspectRatio(APIMART_KLING_PARAMS) },
     },
   ],
 };

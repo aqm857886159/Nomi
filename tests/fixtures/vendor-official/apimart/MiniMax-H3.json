@@ -655,5 +655,91 @@
         }
       ]
     }
-  }
+  },
+  "requestFields": [
+    {
+      "name": "model",
+      "quote": "Fixed value: `MiniMax-H3`",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "nsfw_check",
+      "quote": "Whether to run content moderation before submitting the video task.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "prompt",
+      "quote": "Video content description. Required and non-empty in every scenario, max 7000 characters per request.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "duration",
+      "quote": "Output duration (seconds)",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "resolution",
+      "quote": "Video resolution",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "aspect_ratio",
+      "quote": "Aspect ratio. You may also pass `size` or `ratio` with the same effect.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "first_frame_image",
+      "quote": "First-frame image URL",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "last_frame_image",
+      "quote": "Last-frame image URL",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "image_with_roles",
+      "quote": "Role-tagged image array.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "image_urls",
+      "quote": "Array of reference image URLs",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "video_urls",
+      "quote": "Array of reference video URLs",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "audio_urls",
+      "quote": "Array of reference audio URLs",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "watermark",
+      "quote": "Whether to add an AIGC watermark",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    },
+    {
+      "name": "webhook",
+      "quote": "URL that receives a push when the task reaches a terminal state (success / failure)",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation",
+      "fetchedAt": "2026-11-15"
+    }
+  ]
 }
