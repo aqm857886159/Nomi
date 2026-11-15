@@ -411,7 +411,7 @@ async function expectSpendCardState(page, state, record) {
       break
     }
     case 'spend-mixed':
-    case 'spend-mixed-en': {
+    case 'spend-mixed-en-dark': {
       await expectDecide(page, state, record, bar, { confirm: all(3), perShot: true, paramsHas: ['Seedance', '480p'], paramsLacks: ['16:9', '9:16'] })
       expectRows(state, record, group, { total: 3, details: ['16:9 · 4s', '9:16 · 5s', '9:16 · 4s'] })
       const label = tr(locale, 'agentPanelV4.spendParamsPerItem')

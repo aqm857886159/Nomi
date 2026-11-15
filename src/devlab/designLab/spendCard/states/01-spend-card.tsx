@@ -217,10 +217,11 @@ export const SPEND_CARD_STATES: readonly LabState[] = [
     render: () => <Cell scenario={SCENARIOS.mixed} scene={{ openPerShot: true }} />,
   },
   {
-    id: 'spend-mixed-en',
-    name: '逐镜参数不同（English）',
+    id: 'spend-mixed-en-dark',
+    name: '逐镜参数不同（English · dark）',
     source: SOURCE,
     coverage: 'shell',
+    scheme: 'dark',
     render: () => <Cell scenario={SCENARIOS.mixed} locale="en" scene={{ openPerShot: true }} />,
   },
   {

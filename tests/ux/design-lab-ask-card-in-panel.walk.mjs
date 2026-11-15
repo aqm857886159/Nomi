@@ -66,8 +66,8 @@ const STATES = [
   [SPEND('spend-sending'), 'spend-sending', 'dark'],
   // 面板压窄到 300：指向元素只留镜号 + 缩略图，主按钮与页脚不被裁、不横向滚动。
   [SPEND('spend-batch-narrow'), 'spend-narrow', 'light'],
-  // 英文长文案（逐镜不同的摘要 + 逐镜明细展开）。
-  [SPEND('spend-mixed', 'spend-mixed-en'), 'spend-mixed', 'light'],
+  // 逐镜不同（不同项写在各行第二行 + 逐镜明细展开）；英文那一格是暗色（spend-mixed-en-dark），在付费确认走查里量。
+  [SPEND('spend-mixed'), 'spend-mixed', 'light'],
 ]
 
 const failures = []
