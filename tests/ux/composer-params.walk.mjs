@@ -357,7 +357,7 @@ try {
   // ── ③c 分镜行 / 参考卡全目录：真实最窄的行宽下（窗口 700：行宽 598 → 底栏 342；窗口 1060–1100 停靠 Agent：行宽 650 → 底栏 394）──
   // 宽度传的是真窗的行宽 / 参考区宽，取景框边框和实验室外边距由量具自己补，参考卡底栏和真窗一样宽。
   // 每个档案一行的目录 × 每种方式；判：底栏不溢出、不折行，摘要格不缩（不出「Param…」、不截半个值），
-  // 常见模型的名字完整；方式格和画布同一条规则（视频有、图片和参考卡没有）。
+  // 常见模型的名字完整；方式格：档案有两种以上方式就有（分镜的方式是方案写明的，图片镜和参考卡也要切得回去）。
   if (WITH_MATRIX) {
     // 真窗实测的四个常见模型（窗口 700 下名字一格不省略，协调裁决甲的前提）。
     const FOUR = /^(seedance-2\.5-apimart|kling-v4-flash|veo3\.1-fast-official|gpt-image-2\.5-flare)\//
@@ -400,9 +400,9 @@ try {
           if (f.tall) tally.tall.push(id)
           if (f.summarySqueezed) tally.summarySqueezed.push(id)
           if (f.modelClipped) { tally.modelClipped += 1; if (COMMON.test(key)) tally.commonClipped.push(id) }
-          // 方式格：图片镜和参考卡没有；视频有两种以上方式才有（buildModeMenu 同一条规则）。
+          // 方式格：视频镜、图片镜、参考卡一样，档案有两种以上方式就有（存成改图的图片镜要切得回文生图）。
           const archetypeModes = await page.evaluate((c) => window.__sblYield.modeCount(c.archetypeId), combo)
-          const wantMode = combo.host === 'shot' && combo.kind === 'video' && archetypeModes >= 2
+          const wantMode = archetypeModes >= 2
           if (f.hasMode !== wantMode) tally.modeRule.push(`${id}（有方式格=${f.hasMode}）`)
         }
       }
@@ -416,7 +416,7 @@ try {
       const calibrated = [['shot@598', 342], ['anchor@598', 342], ['shot@650', 394], ['anchor@650', 394]].every(([k, want]) => Math.abs((fw[k] ?? 0) - want) <= 2)
       check(`边界 · 分镜行 / 参考卡全目录 ${lang}：实验室底栏宽和真窗一致（598 → 342，650 → 394）`, calibrated, JSON.stringify(fw))
       check(`board:ComposerParams/bar.model · 窗口 700（行宽 598）下四个常见模型（Seedance 2.5 / 可灵 4.0 Flash / Veo 3.1 Fast 官方 / GPT Image 2.5）名字不省略 · ${lang}`, tally.fourAt598.length >= 4 && tally.fourAt598.every((c) => !c.clipped), JSON.stringify(tally.fourAt598.filter((c) => c.clipped).slice(0, 5)))
-      check(`board:ComposerParams/storyboard.row · 分镜行 / 参考卡全目录 ${lang}：方式格和画布同一条规则（视频有、图片和参考卡没有）`, tally.cells > 0 && !tally.modeRule.length, JSON.stringify(tally.modeRule.slice(0, 5)))
+      check(`board:ComposerParams/storyboard.row · 分镜行 / 参考卡全目录 ${lang}：两种以上方式就有方式格（视频镜、图片镜、参考卡一样）`, tally.cells > 0 && !tally.modeRule.length, JSON.stringify(tally.modeRule.slice(0, 5)))
       await context.close()
     }
   }

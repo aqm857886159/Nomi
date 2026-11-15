@@ -53,8 +53,12 @@ function combosAt(width: number): YieldCombo[] {
   return MODEL_ARCHETYPES.flatMap((archetype): YieldCombo[] => {
     if (archetype.kind === 'video') return archetype.modes.map((mode) => ({ host: 'shot', kind: 'video', archetypeId: archetype.id, modeId: mode.id, width }))
     if (archetype.kind === 'image') {
+      // 图片镜也有方式格（带字、没有图标），每种方式名宽不一样，逐个摆；参考卡照旧只摆默认那种。
       const modeId = archetype.defaultModeId ?? archetype.modes[0]!.id
-      return [{ host: 'shot', kind: 'image', archetypeId: archetype.id, modeId, width }, { host: 'anchor', kind: 'image', archetypeId: archetype.id, modeId, width }]
+      return [
+        ...archetype.modes.map((mode): YieldCombo => ({ host: 'shot', kind: 'image', archetypeId: archetype.id, modeId: mode.id, width })),
+        { host: 'anchor', kind: 'image', archetypeId: archetype.id, modeId, width },
+      ]
     }
     return []
   })
