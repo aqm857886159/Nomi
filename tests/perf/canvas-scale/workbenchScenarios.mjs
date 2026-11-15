@@ -1420,7 +1420,8 @@ async function spendCardNodeEditRefresh(page, ctx) {
  * 付费确认拆开（设计卡 docs/plan/2026-11-15-spend-ask-split.md ★7）：最坏规模 200 个有图节点 + 一次出价 40 镜。
  * 每次采样都是一份新出价（不计时）：上一份还开着就按「取消」收掉，再让 Agent 起草 40 镜、摆上确认条——对话里新那一组是折起的
  *   （露 4 行 +「还有 36 个镜头」）。面板收成小球时仍挂在 DOM 里，收起再打开不会让那一组回到折起，所以只能每次出新的。
- *   画布每次采样多 40 个节点（4 次采样到 360 个），比只有 200 个节点更难，数字偏保守。
+ *   「取消」不删节点（09-21 Q3），所以收掉之后把上一份那 40 个节点从画布 store 删掉，每次采样的画布都是 200 + 40 个节点
+ *   （不删的话节点越积越多，适应视图缩到远景，节点外壳不挂，悬停量不到）。
  *   ① 点「还有 36 个镜头」→ 40 行全画出来（expandResponseMs）；
  *   ② 鼠标停到最后一行 → 画布上那个节点外壳亮（hoverResponseMs；节点没挂在画布上就换一行往前找挂着的）。
  * 主数取 ①② 里慢的那一下；长任务按整个窗口数。
@@ -1433,6 +1434,10 @@ async function freshSpendRows(page, ctx) {
     await prior.card.locator('[data-v4-control="slot-dismiss"]').click()
     await prior.turnDone.received
     await page.locator(kit.SPEND_CARD).waitFor({ state: 'detached', timeout: 15000 })
+    await page.evaluate((ids) => {
+      const store = window.__nomiCanvasStore
+      for (const id of ids) store.getState().deleteNode(id)
+    }, prior.ids ?? [])
   }
   await clearSelection(page)
   await ensureAgentPanelOpen(page)
@@ -1445,7 +1450,7 @@ async function freshSpendRows(page, ctx) {
   })
   await canvasFitViewButton(page).click()
   await sleep(page, 1200)
-  ctx.state.spendRows = { card, turnDone, kit }
+  ctx.state.spendRows = { card, turnDone, kit, ids: [] }
   return ctx.state.spendRows
 }
 
@@ -1466,6 +1471,7 @@ async function spendRowsExpandHover(page, ctx) {
   const expand = await takeOrSkip(page, ctx, `点「还有 ${hidden} 个镜头」之后 ${total} 行没全画出来`)
   if (expand.skipped) return expand
   const ids = await rows.locator(kit.POINTER).evaluateAll((elements) => elements.map((element) => element.getAttribute('data-node-pointer-id')))
+  ctx.state.spendRows.ids = ids
   const mounted = await mountedShotIds(page, ids)
   const nodeId = mounted.at(-1)
   if (!nodeId) { await ctx.stopWindow(page); return { skipped: '40 镜的节点一个都没挂在画布上' } }

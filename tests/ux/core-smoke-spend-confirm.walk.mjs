@@ -27,7 +27,7 @@ import {
   expandResidentPanel, readProject, recorded, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
-import { CARD_EDITORS, cardFacts, pointerOf } from './_spendCardWalk.mjs'
+import { CARD_EDITORS, POINTER, cardFacts, pointerFace } from './_spendCardWalk.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 const ASK = 'CORE_SMOKE_SPEND：帮我生成一张六棱柱的图。'
@@ -103,8 +103,10 @@ try {
   const confirmLabel = uiText(smoke.locale === 'en' ? 'en' : 'zh-CN', 'agentPanelV4.spendCard.generate')
   await expect(confirmButton, '确认按钮的名字是词典键 spendCard.generate 的值（单张：「生成」）').toHaveAccessibleName(confirmLabel)
   expect((await confirmButton.innerText()), '确认按钮上不含金额或货币符号').not.toMatch(/[¥￥$€£]|[0-9]/)
-  // D2：卡 = 指向元素 + 一行只读摘要 + 「生成」；要看要改就点指向元素、去节点上——卡上没有提示词框、没有参数。
-  await expect(card.locator(pointerOf(drafted.id)), '卡指着草稿落下的那个节点').toBeVisible()
+  // 付费确认拆开（2026-11-15）：镜头住在对话里那一组（一行一个、指着节点），确认条只剩共同参数 + 按钮；
+  // 要看要改就点那一行、去节点上——条上没有指向元素、没有提示词框、没有参数编辑。
+  await expect(pointerFace(win, drafted.id), '对话里那一组指着草稿落下的那个节点').toBeVisible()
+  await expect(card.locator(POINTER), '确认条上不再放指向元素').toHaveCount(0)
   await expect(card.locator(CARD_EDITORS), '卡上没有可改的东西').toHaveCount(0)
   expect(fixture.images, '卡还没答，一次媒体请求都不许发').toHaveLength(0)
   const nodesWithDraft = (await readProject(win, projectId)).payload.generationCanvas.nodes.map((entry) => entry.id).sort()
