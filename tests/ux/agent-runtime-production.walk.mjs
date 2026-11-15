@@ -6,7 +6,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
-import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
+import { FIXTURE_IMAGE_HANDLE, FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   APPROVAL_CARD, CANVAS_PANEL, COMPOSER_SEND, CREATION_PANEL, DOCUMENT, INTERVENTION_CONFIRM, TOOL_RECEIPT,
   createRuntimeWalk, hasToolResult,
@@ -61,7 +61,7 @@ try {
     match: (body) => flattenRequestText(body).includes('F_INLINE_STORY') && !hasToolResult(body, PLAN_CALL),
     reply: { type: 'tool', id: PLAN_CALL, name: 'draft_shots', args: {
       shots: [{ title: 'F镜头', taskKind: 'text_to_image',
-        modelId: FIXTURE_IMAGE_MODEL, modeId: 't2i', parameters: { size: '1024x1024' },
+        model: FIXTURE_IMAGE_HANDLE, modeId: 't2i', parameters: { size: '1024x1024' },
         prompt: '正面中景，红色杯子放在白桌中央。' }],
     } },
   })

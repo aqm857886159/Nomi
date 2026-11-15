@@ -45,10 +45,13 @@ const lease = {
 /** deepseek-v4-pro 在 2026-10-18 真走查里写的那一份（逐键）。 */
 const WRITTEN_BY_BRAIN = { resolution: "480p", size: "16:9", generate_audio: false, seed: null };
 
+/** 这条消息带上来的可用模型清单（`draft_shots` 的完整名字在 lane 这一侧按它查）。 */
+const LANE_MODELS = [{ vendor: "apimart", modelId: "doubao-seedance-2.0", modelAlias: null }];
+
 const shotWith = (parameters: Record<string, unknown>, title?: string) => ({
   ...(title ? { title } : {}),
   prompt: "一只纸船在雨后的水洼里慢慢漂，清晨的光", taskKind: "text_to_video",
-  candidate: { providerId: "apimart", modelId: "doubao-seedance-2.0" },
+  model: "doubao-seedance-2.0@apimart",
   parameters,
 });
 
@@ -60,7 +63,7 @@ function harness() {
   } as never);
   const adapter = createPiGenerationTransportAdapter(binding, { planning: handler as never, leaseFor: () => lease });
   const draftShots = async (args: Record<string, unknown>) => {
-    const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args })!;
+    const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args }, LANE_MODELS)!;
     return adapter.tryExecute(translated.call, new AbortController().signal);
   };
   const direct = (capability: string, params: Record<string, unknown>) => handler({
@@ -136,7 +139,7 @@ describe("起草就判参数：对外 MCP 的各个入口", () => {
     // 对外 MCP 的多镜 shots 与 Agent 的 draft_shots 落在同一份宿主 create 载荷上（`draftShotToPlanShot`）。
     const { operation: _operation, ...args } = verbToTransportCall({
       toolCallId: "call-mcp", toolName: "draft_shots", args: { shots: [shotWith({ seed: "abc" }, "镜1"), shotWith({}, "镜2")] },
-    })!.call.args as Record<string, unknown>;
+    }, LANE_MODELS)!.call.args as Record<string, unknown>;
     await expect(direct("create", args)).rejects.toBeInstanceOf(ContractCompilationError);
     expect(create).not.toHaveBeenCalled();
   });

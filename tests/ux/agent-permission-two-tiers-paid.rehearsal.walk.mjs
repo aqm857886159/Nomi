@@ -31,9 +31,9 @@ const ASK_PLAN_MORE = `${PLAN2_MARK}：再补第 3 个镜头，也现在就生�
 const ASK_NOGEN = `${NOGEN_MARK}: draft one more shot.`
 const ASK_CANVAS = `${CANVAS_MARK}：生成 2 张参考图。`
 const ASK_STOP = `${STOP_MARK}: generate 2 more images.`
-const candidate = { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }
+const model = `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`
 // seed: null —— 模型的坏习惯：把「不设」的可选参数写成 null（2026-10-18 真走查），夹具大脑每一镜都演一遍。
-const shot = (title, prompt) => ({ title, prompt, taskKind: 'text_to_image', candidate, parameters: { seed: null } })
+const shot = (title, prompt) => ({ title, prompt, taskKind: 'text_to_image', model, parameters: { seed: null } })
 /** 最后一条用户消息：同一个会话里前面几轮的口令还留在历史里，认口令只认最新这一条。 */
 const lastUserText = (body) => flattenRequestText({ messages: (body.messages ?? []).filter((message) => message.role === 'user').slice(-1) })
 const toolResultText = (body, callId) => String((body.messages ?? []).find((message) => message.role === 'tool' && message.tool_call_id === callId)?.content ?? '')

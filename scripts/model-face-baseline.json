@@ -252,7 +252,7 @@
       "aliasBoundInput": null,
       "alsoCovers": null,
       "contractId": "generation.context.read",
-      "description": "Read the models the user has connected: each model's modes, parameters with allowed values, and reference slots. Before choosing a modelId or any parameter in draft_shots, and when the user asks which models can do something. It cannot connect a model or take an API key (start_model_setup). Never invent a modelId — use the exact strings returned here. kind (image, video or audio) narrows the catalog; modelId returns one model in full; vendor picks which provider when two of them carry the same modelId. Nothing changes; it only reads.",
+      "description": "Read the models the user has connected: each model's modes, parameters with allowed values, and reference slots. Before choosing a model or any parameter in draft_shots, and when the user asks which models can do something. It cannot connect a model or take an API key (start_model_setup). Never invent a model name — copy the exact full name returned here. kind (image, video or audio) narrows the catalog; model (a full name from the list) returns that one model in full. Nothing changes; it only reads.",
       "effect": "read",
       "effectGroups": null,
       "examples": [
@@ -290,12 +290,8 @@
             ],
             "type": "string"
           },
-          "modelId": {
-            "description": "Catalog id of one model to read in full — the same modelId this verb returns and draft_shots takes.\nminLength=1.",
-            "type": "string"
-          },
-          "vendor": {
-            "description": "Provider of that model. Required when the thin list shows the same modelId under two providers — they are two different models with different modes and parameters.\nminLength=1.",
+          "model": {
+            "description": "Full name of one model to read in full — the same name this verb returns and draft_shots takes.\nminLength=1.",
             "type": "string"
           }
         },
@@ -465,7 +461,7 @@
       "aliasBoundInput": null,
       "alsoCovers": null,
       "contractId": "generation.plan",
-      "description": "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement. Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, add shots, or change a shot's prompt, model, parameters or references. New drafts do not request generation or show a spend card — call generate for that, unless the user said not to generate yet. Updating an already-presented draft retains its existing approval policy; use the returned result to determine whether that policy started generation. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot). For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level candidate or taskKind is the default for shots that omit their own; model values come from list_models. No operationId: new plan (same-request calls add to it unless newPlan). operationId + shots without shotId: append. operationId + one shotId: revise it, sending only changed fields (title/role are fixed). The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
+      "description": "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement. Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, add shots, or change a shot's prompt, model, parameters or references. New drafts do not request generation or show a spend card — call generate for that, unless the user said not to generate yet. Updating an already-presented draft retains its existing approval policy; use the returned result to determine whether that policy started generation. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot). For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level taskKind is the default for shots that omit their own; model is a full name copied from list_models. No operationId: new plan (same-request calls add to it unless newPlan). operationId + shots without shotId: append. operationId + one shotId: revise it, sending only changed fields (title/role are fixed). The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
       "effect": "reversible_local",
       "effectGroups": [
         "canvas-node-creation"
@@ -475,10 +471,7 @@
           "arguments": {
             "shots": [
               {
-                "candidate": {
-                  "modelId": "image-1",
-                  "providerId": "apimart"
-                },
+                "model": "image-1@apimart",
                 "prompt": "sunrise over the sea, wide shot, warm light",
                 "taskKind": "text_to_image",
                 "title": "Opening"
@@ -519,25 +512,6 @@
       "publishedJsonSchema": {
         "additionalProperties": false,
         "properties": {
-          "candidate": {
-            "additionalProperties": true,
-            "description": "Default catalog candidate for these shots.",
-            "properties": {
-              "modelId": {
-                "description": "Model id from list_models.\nminLength=1.",
-                "type": "string"
-              },
-              "providerId": {
-                "description": "Provider id from list_models.\nminLength=1.",
-                "type": "string"
-              }
-            },
-            "required": [
-              "providerId",
-              "modelId"
-            ],
-            "type": "object"
-          },
           "newPlan": {
             "description": "Only if the user asks for a separate plan.",
             "type": "boolean"
@@ -555,25 +529,6 @@
                   "description": "e.g. 16:9 or auto.",
                   "type": "string"
                 },
-                "candidate": {
-                  "additionalProperties": true,
-                  "description": "Catalog candidate identity when known.",
-                  "properties": {
-                    "modelId": {
-                      "description": "Model id from list_models.\nminLength=1.",
-                      "type": "string"
-                    },
-                    "providerId": {
-                      "description": "Provider id from list_models.\nminLength=1.",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "providerId",
-                    "modelId"
-                  ],
-                  "type": "object"
-                },
                 "durationSec": {
                   "description": "Clip length in seconds; omit for stills. The only place for length, never parameters.",
                   "exclusiveMinimum": 0,
@@ -584,8 +539,8 @@
                   "description": "Mode id from list_models; it decides taskKind.\nminLength=1.",
                   "type": "string"
                 },
-                "modelId": {
-                  "description": "Catalog model id from list_models; omit for the user's default.\nminLength=1.",
+                "model": {
+                  "description": "Model full name from list_models; omit for the user's default.\nminLength=1.",
                   "type": "string"
                 },
                 "parameters": {
@@ -715,12 +670,8 @@
                           "description": "Mode",
                           "type": "string"
                         },
-                        "modelKey": {
-                          "description": "Model id",
-                          "type": "string"
-                        },
-                        "modelVendor": {
-                          "description": "Provider",
+                        "model": {
+                          "description": "Model full name from list_models\nminLength=1.",
                           "type": "string"
                         },
                         "params": {
@@ -870,7 +821,7 @@
                   "type": "object"
                 },
                 "taskKind": {
-                  "description": "What to make. Omit when modelId or modeId decides it; otherwise required.",
+                  "description": "What to make. Omit when model or modeId decides it; otherwise required.",
                   "enum": [
                     "text_to_image",
                     "image_edit",

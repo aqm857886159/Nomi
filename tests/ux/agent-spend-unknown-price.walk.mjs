@@ -26,7 +26,7 @@ const ZERO = /[¥￥$]\s?0(?!\d)|0\.00/
 const present = createPresenter('S_UNPRICED')
 const prism = (line) => (tag) => [{
   title: `${tag} 六棱柱`, prompt: `${tag} ${line}`, taskKind: 'text_to_image',
-  candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }, parameters: {},
+  model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`, parameters: {},
 }]
 
 /** ① 卡上一句价格的话都没有，主按钮「生成」可点，没有任何 0。 */

@@ -71,7 +71,7 @@ function lane() {
       plans: designs().map(design => ({ id: design.id, title: design.title })) }
     return async (args: Record<string, unknown>): Promise<Reply> => {
       const admitted = draftShotsVerb.schema.parse(draftShotsVerb.prepareArguments ? draftShotsVerb.prepareArguments(args) : args)
-      const translated = verbToTransportCall({ toolCallId: `call-${++seq}`, toolName: 'draft_shots', args: admitted })!
+      const translated = verbToTransportCall({ toolCallId: `call-${++seq}`, toolName: 'draft_shots', args: admitted }, MODELS)!
       return adapter.tryExecute(translated.call, new AbortController().signal, {
         storyboardTarget: target, sourceDocument: { documentId: 'doc', revision: 1, contentHash: 'hash' },
       }) as Promise<Reply>
@@ -85,9 +85,10 @@ beforeEach(() => {
   store.hydrateStoryboardDesigns({})
 })
 
-const model = { providerId: 'acme', modelId: 'doc-img' }
+const MODELS = [{ vendor: 'acme', modelId: 'doc-img' }]
+const model = 'doc-img@acme'
 const shot = (title: string, parameters?: Record<string, unknown>) =>
-  ({ title, prompt: `${title}：海边日出`, taskKind: 'text_to_image', candidate: model, ...(parameters ? { parameters } : {}) })
+  ({ title, prompt: `${title}：海边日出`, taskKind: 'text_to_image', model, ...(parameters ? { parameters } : {}) })
 
 describe('文稿方案 · 模型写的未知键', () => {
   it('建方案（create）：未知键当场拒，一份方案都不落', async () => {

@@ -48,7 +48,7 @@ async function draftTask({ walk, win, input, brainLabel, rehearsal, locale }) {
   const ask = `${input.story} 请起草恰好${input.draftShots}镜的图片分镜方案，使用 ${input.image.vendorKey}/${input.image.modelKey}，text_to_image，参数 ${JSON.stringify(input.parameters)}。只创建方案草稿，不报价、不生成、不问问题；不要参考卡、首帧、视频或占位节点，完成后停止。`
   if (rehearsal) {
     walk.fixture.expectText({ label: 'fixed story draft', match: body => JSON.stringify(body).includes(input.story),
-      reply: { type: 'tool', id: 'release-core-draft', name: 'draft_shots', args: { shots: input.shots.slice(0, input.draftShots).map(shot => ({ title: shot.prompt, prompt: shot.prompt, taskKind: 'text_to_image', parameters: input.parameters, candidate: { providerId: input.image.vendorKey, modelId: input.image.modelKey } })) } } })
+      reply: { type: 'tool', id: 'release-core-draft', name: 'draft_shots', args: { shots: input.shots.slice(0, input.draftShots).map(shot => ({ title: shot.prompt, prompt: shot.prompt, taskKind: 'text_to_image', parameters: input.parameters, model: `${input.image.modelKey}@${input.image.vendorKey}` })) } } })
     walk.fixture.respond({ label: 'draft complete', match: body => (body.messages ?? []).some(m => m.role === 'tool' && m.tool_call_id === 'release-core-draft'), reply: { type: 'text', text: '分镜草稿已完成。' } })
   }
   const began = Date.now()

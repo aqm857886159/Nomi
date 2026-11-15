@@ -85,9 +85,26 @@ export function resolveModelHandle<T extends ModelHandleRow>(rows: readonly T[],
   return { ok: false, reason: "unknown", nearest: nearestModelHandles(rows, wanted, sameFamily) };
 }
 
-/** 最像的 ≤3 个完整名字：同档案的优先，再按全仓唯一的近似键判据（`closestKey`）逐个取。够不上「像」就不凑。 */
+/**
+ * 最像的 ≤3 个完整名字。排序：
+ *  ① 模型 id 一字不差、只是家写错了的（`id@别家`、`别家/id`）——轨迹里最常见的错就是这一种，对的那个必须排第一；
+ *  ①b 家写对了、只是 id 少了日期尾巴的；② 同档案的；③ 再按全仓唯一的近似键判据（`closestKey`）逐个取。够不上「像」就不凑。
+ * ① 只做「整串以 `id@` 开头 / 以 `/id` 结尾」的比较，不切这串字（见文件头纪律 2）。
+ */
 export function nearestModelHandles(rows: readonly ModelHandleRow[], written: string, sameFamily: readonly ModelHandleRow[] = []): string[] {
-  const picked = uniqueHandles(sameFamily).slice(0, NEAREST_MODEL_HANDLE_LIMIT);
+  const lower = written.trim().toLowerCase();
+  const sameId = rows.filter((row) => {
+    const id = row.modelId.toLowerCase();
+    return lower.startsWith(id + SEPARATOR) || lower.endsWith("/" + id);
+  });
+  // ①b 家写对了、id 少了日期尾巴（`doubao-seedream-4-5@volcengine` ↔ `doubao-seedream-4-5-251128@volcengine`）。
+  const datedSibling = rows.filter((row) => {
+    const suffix = row.vendor ? (SEPARATOR + row.vendor).toLowerCase() : "";
+    if (!suffix || !lower.endsWith(suffix)) return false;
+    const stem = lower.slice(0, -suffix.length);
+    return stem.length > 0 && row.modelId.toLowerCase().startsWith(stem + "-");
+  });
+  const picked = uniqueHandles([...sameId, ...datedSibling, ...sameFamily]).slice(0, NEAREST_MODEL_HANDLE_LIMIT);
   // 每行两个可比的串：完整名字和模型 id（模型多半只写了 id，或照旧格式写了 `供应商/模型`）。
   const pool = rows.flatMap((row) => {
     const handle = modelHandleOf(row);

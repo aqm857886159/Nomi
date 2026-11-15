@@ -21,7 +21,7 @@ import {
  * 是同一个 `modelSpecRow` 投影，不是第二份（用户拍板：MCP 不能重造一套，而是复用）。
  */
 export function listModelSpecRows(): ModelSpecRow[] {
-  return agentModelEntriesFromCatalog(readCatalog()).map((row) => modelSpecRow(row.entry, row.availability))
+  return agentModelEntriesFromCatalog(readCatalog()).map((row) => modelSpecRow(row.entry, "mcp", row.availability))
 }
 
 /**
@@ -39,7 +39,7 @@ export function requireModelSpecDetail(modelId: string, vendor: unknown, state: 
   const named = typeof vendor === 'string' ? vendor : undefined
   const found = resolveModelEntry(rows.map((row) => row.entry), modelId, named)
   if (found.ok) {
-    return modelSpecDetail(found.entry, rows.find((row) => row.entry === found.entry)!.availability)
+    return modelSpecDetail(found.entry, "mcp", rows.find((row) => row.entry === found.entry)!.availability)
   }
   const vendorsForModelId = found.vendors.join(',') || '(none)'
   if (found.reason === 'ambiguous') {

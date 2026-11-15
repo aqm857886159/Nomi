@@ -73,7 +73,7 @@ function harness() {
     .shots.map((shot) => shot.candidate?.parameters);
   /** Agent 调一次 `draft_shots`（lane 真翻译），再 `generate` 把它摆到卡上；回落到节点上的每镜参数。 */
   const cardAfter = async (draftShotsArgs: Record<string, unknown>) => {
-    const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args: draftShotsArgs })!;
+    const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args: draftShotsArgs }, LANE_MODELS)!;
     const created = await handler({ capability: "create", params: translated.call.args as Record<string, unknown>, lease, origin } as never) as { operation: { operationId: string } };
     const operationId = created.operation.operationId;
     await handler({ capability: "present", params: { operationId }, lease, origin } as never);
@@ -84,6 +84,16 @@ function harness() {
   return { handler, cardAfter, landedParameters, origin, repository };
 }
 
+/**
+ * 这条消息带上来的可用模型清单（`draft_shots` 的完整名字在 lane 这一侧按它查）。`ghost-model@kie` 是故意的：
+ * 消息发出时清单里还有、宿主目录里已经没有（清单与目录不同步）——这时拦它的是宿主的身份准入，下面最后一条证的就是那一层。
+ */
+const LANE_MODELS = [
+  { vendor: "apimart", modelId: "z-image-turbo", modelAlias: null },
+  { vendor: "kie", modelId: "nano-banana-2", modelAlias: null },
+  { vendor: "kie", modelId: "ghost-model", modelAlias: null },
+];
+
 afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
@@ -92,7 +102,7 @@ describe("Agent 说的比例 = 落到节点上的比例（卡上摘要读节点�
   it("Z-Image：说 16:9，节点上是 size=16:9（不再是出厂 1:1）", async () => {
     const { cardAfter } = harness();
     const { shots } = await cardAfter({
-      shots: [{ prompt: "海边日出", taskKind: "text_to_image", aspectRatio: "16:9", candidate: { providerId: "apimart", modelId: "z-image-turbo" } }],
+      shots: [{ prompt: "海边日出", taskKind: "text_to_image", aspectRatio: "16:9", model: "z-image-turbo@apimart" }],
     });
     expect(shots).toEqual([{ size: "16:9" }]);
   });
@@ -100,8 +110,8 @@ describe("Agent 说的比例 = 落到节点上的比例（卡上摘要读节点�
   it("Nano Banana 2（kie）多镜：说 1:1，每一镜节点上都是 aspect_ratio=1:1（不再是出厂「自动」）", async () => {
     const { cardAfter } = harness();
     const { shots } = await cardAfter({
-      candidate: { providerId: "kie", modelId: "nano-banana-2" }, taskKind: "text_to_image",
-      shots: [{ prompt: "第一镜", aspectRatio: "1:1" }, { prompt: "第二镜", aspectRatio: "1:1" }],
+      taskKind: "text_to_image",
+      shots: [{ prompt: "第一镜", aspectRatio: "1:1", model: "nano-banana-2@kie" }, { prompt: "第二镜", aspectRatio: "1:1", model: "nano-banana-2@kie" }],
     });
     expect(shots).toEqual([{ aspect_ratio: "1:1" }, { aspect_ratio: "1:1" }]);
   });
@@ -109,13 +119,13 @@ describe("Agent 说的比例 = 落到节点上的比例（卡上摘要读节点�
   it("改草稿「把第 2 镜改成 9:16」：节点上那一镜跟着变、清晰度不动，读盘归一不会把它当残留清掉", async () => {
     const { handler, cardAfter, landedParameters, origin, repository } = harness();
     const { operationId } = await cardAfter({
-      candidate: { providerId: "kie", modelId: "nano-banana-2" }, taskKind: "text_to_image",
+      taskKind: "text_to_image",
       shots: [
-        { shotId: "shot-1", prompt: "第一镜", aspectRatio: "16:9", parameters: { resolution: "4K" } },
-        { shotId: "shot-2", prompt: "第二镜", aspectRatio: "16:9", parameters: { resolution: "4K" } },
+        { shotId: "shot-1", prompt: "第一镜", aspectRatio: "16:9", parameters: { resolution: "4K" }, model: "nano-banana-2@kie" },
+        { shotId: "shot-2", prompt: "第二镜", aspectRatio: "16:9", parameters: { resolution: "4K" }, model: "nano-banana-2@kie" },
       ],
     });
-    const revision = verbToTransportCall({ toolCallId: "call-2", toolName: "draft_shots", args: { operationId, shots: [{ shotId: "shot-2", aspectRatio: "9:16" }] } })!;
+    const revision = verbToTransportCall({ toolCallId: "call-2", toolName: "draft_shots", args: { operationId, shots: [{ shotId: "shot-2", aspectRatio: "9:16" }] } }, LANE_MODELS)!;
     const revised = await handler({ capability: "plan", params: revision.call.args as Record<string, unknown>, lease, origin } as never) as { changeset?: unknown };
     // 回给 Agent 的结果里说清这一次改了什么：只有比例，清晰度没动。
     expect(revised.changeset).toMatchObject({ changedParameters: [{ key: "aspect_ratio", before: "16:9", after: "9:16" }] });
@@ -137,8 +147,8 @@ describe("Agent 说的比例 = 落到节点上的比例（卡上摘要读节点�
   it("模型做不到（Z-Image 要 21:9）：草稿不落、卡不出，拒绝里带合法值", async () => {
     const { handler } = harness();
     const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args: {
-      shots: [{ prompt: "海边日出", taskKind: "text_to_image", aspectRatio: "21:9", candidate: { providerId: "apimart", modelId: "z-image-turbo" } }],
-    } })!;
+      shots: [{ prompt: "海边日出", taskKind: "text_to_image", aspectRatio: "21:9", model: "z-image-turbo@apimart" }],
+    } }, LANE_MODELS)!;
     await expect(handler({ capability: "create", params: translated.call.args as Record<string, unknown>, lease, origin: { host: "nomi", actorId: "agent-panel" } } as never))
       .rejects.toMatchObject({ code: "parameter_not_in_enum", details: { allowedValues: "1:1,4:3,3:4,16:9,9:16,3:2,2:3" } });
   });
@@ -146,8 +156,8 @@ describe("Agent 说的比例 = 落到节点上的比例（卡上摘要读节点�
   it("目录里认不出的模型：语义键留在候选里不翻，紧接着的身份准入拒掉——不落草稿、不出卡、到不了花钱那一步", async () => {
     const { handler, repository } = harness();
     const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args: {
-      shots: [{ prompt: "海边日出", taskKind: "text_to_image", aspectRatio: "16:9", candidate: { providerId: "kie", modelId: "ghost-model" } }],
-    } })!;
+      shots: [{ prompt: "海边日出", taskKind: "text_to_image", aspectRatio: "16:9", model: "ghost-model@kie" }],
+    } }, LANE_MODELS)!;
     await expect(handler({ capability: "create", params: translated.call.args as Record<string, unknown>, lease, origin: { host: "nomi", actorId: "agent-panel" } } as never))
       .rejects.toThrow("kie/ghost-model is not in the model catalog");
     expect(repository.list(PROJECT_ID)).toEqual([]);

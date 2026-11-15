@@ -1,4 +1,4 @@
-import { storyboardAuthorFieldsSchema } from '../generationPlanSchemas'
+import { storyboardModelFaceSchema } from '../generationPlanSchemas'
 // 十四个写动词（设计正本 §5.2）：一个动词一种状态一种效果。执行那一半住 `electron/agentLane/`：常驻的
 // （write_script / 三个画布写 / start_model_setup）在 `laneDocumentTools.ts` / `laneCanvasTools.ts` /
 // `laneDesktopTools.ts` 各自绑定；延迟组的经 `laneVerbTransport.ts` 翻成传输方法，`laneExtendedDesktopPorts.ts` 执行。
@@ -31,29 +31,28 @@ const generationParameters = z.record(z.union([z.string(), z.number(), z.boolean
 /** 一镜草稿：模型填的是**语义**（提示词/模型/参数/参考），候选身份由宿主按目录合成，与单镜路径同一个解析器。 */
 export const draftShotSchema = z.object({
   shotId: shotId.optional().describe("Shot id to revise; omit for a new shot."),
-  storyboard: storyboardAuthorFieldsSchema.optional().describe("Original author fields; anchors require kind and carrier."),
+  storyboard: storyboardModelFaceSchema.optional().describe("Original author fields; anchors require kind and carrier."),
   title: z.string().trim().min(1).max(120).optional().describe("Short human title in the user's language, shown on the canvas node and spend card."),
   prompt: z.string().trim().min(1).max(8_000).optional().describe("Prompt in the user's language; required for a new shot."),
   // 2026-09-30（付费卡① 第 9 条）：种类不再按提示词猜。点名了模型（或 modeId）就由它定；两样都没点名时必须写明。
-  // 措辞压到最短：这几句算在 draft_shots 的 schema 预算里（stage3-probe-p5 的 core 785），规矩写一遍在这里，modeId / modelId / 顶层只留指向。
-  taskKind: z.enum(["text_to_image", "image_edit", "text_to_video", "image_to_video"]).optional().describe("What to make. Omit when modelId or modeId decides it; otherwise required."),
+  // 措辞压到最短：这几句算在 draft_shots 的 schema 预算里（stage3-probe-p5 的 core 785），规矩写一遍在这里，modeId / model / 顶层只留指向。
+  taskKind: z.enum(["text_to_image", "image_edit", "text_to_video", "image_to_video"]).optional().describe("What to make. Omit when model or modeId decides it; otherwise required."),
   role: z.enum(["anchor", "shot"]).optional().describe("anchor = a character/scene/style reference card reused by other shots; shot (default) = a numbered shot."),
   durationSec: z.number().positive().max(600).optional().describe("Clip length in seconds; omit for stills. The only place for length, never parameters."),
   // 2026-10-05：比例同理。各家的键名不一样（size / aspect_ratio / ratio / aspectRatio），模型只能猜；猜驼峰那次
   // 被宿主当意图键静默吞掉，用户付了钱拿到默认画幅。这里只收语义，宿主按所选模式翻成真实键（翻不了就拒）。
   aspectRatio: z.string().trim().optional().describe("e.g. 16:9 or auto."),
-  modelId: z.string().trim().min(1).optional().describe("Catalog model id from list_models; omit for the user's default."),
+  // 2026-11-15：点名模型只有这一个家、一个名字（`模型id@供应商`，list_models 与系统提示词索引印什么就抄什么）。
+  // 之前有三个家（`modelId`、`candidate{providerId,modelId}`、顶层 `candidate`），而索引只印半个名字：
+  // 真模型评测那轮 24 次拒收有 13 次是「id 抄对、家配错」。宿主按整串查表（`modelHandle.ts`），落盘形状不变。
+  model: z.string().trim().min(1).optional().describe("Model full name from list_models; omit for the user's default."),
   // 2026-10-18：list_models 把变体（`variants`）投给了模型，可模型面这里却没有地方写——它只好把 `variant` 塞进 parameters，
-  // 被起草校验当未知参数拒掉。变体是身份的一部分（和 modelId 同级），不是参数。
+  // 被起草校验当未知参数拒掉。变体是身份的一部分（和 model 同级），不是参数。
   variantId: z.string().trim().min(1).optional().describe("From list_models variants."),
   // 2026-09-22：`taskKind` 与 `modeId` 是同一件事实的两种写法。模式定了，种类就定了
   // （`transportTaskKindForModeId` 从档案扫出来），所以说明书直接告诉模型「写了模式就别再写种类」——
   // 两个都填正是它自己给自己造矛盾的地方（run2 A3/A6 三次）。
   modeId: z.string().trim().min(1).optional().describe("Mode id from list_models; it decides taskKind."),
-  candidate: z.object({
-    providerId: z.string().trim().min(1).describe("Provider id from list_models."),
-    modelId: z.string().trim().min(1).describe("Model id from list_models."),
-  }).optional().describe("Catalog candidate identity when known."),
   parameters: generationParameters.optional().describe("Profile values but length/ratio; revisions change named keys only, null deletes."),
   // 2026-09-22：这句话原来写着「asset ids …**or shot ids** (from look_at_canvas or this call)」，
   // 而解析这一头（`pinAssetReference`）只认项目素材库里的 assetId——镜头 id 送进来**必然**被拒，
@@ -103,23 +102,15 @@ const prepareWriteScriptArguments = (() => {
 })();
 
 /**
- * `shots[].modelId` 与 `shots[].candidate.modelId` 是**同一件事的两个位置**（都写着 "from list_models"）：
- * 平铺的那个只点模型，`candidate` 连供应商一起点。两个都填且互相矛盾时，传输层无论选哪个都是在替用户
- * 决定「这一笔花在哪个模型上」——那正是 2026-09-18 根因合同要消灭的沉默。所以这里当场退回去问模型，
- * 而不是挑一个。
- *
- * 2026-09-18 之前平铺的那个叫 `modelKey`，于是这条拒绝还得先解释「这两个名字是同一件事」；
- * 名字统一之后它只剩本来的职责：同一件事被说了两遍且说法不一致。
- */
-/**
  * 一镜把**同一件事写了两遍且说法不一样** → 当场拒绝并点名两处。
  *
  * 两条判据同一个形状，所以住同一个函数（它们不是两个功能，是一条规则的两格）：
- *   · 模型身份：`modelId` 与 `candidate.modelId`；
  *   · 时长：`durationSec` 与 `parameters.duration`；
  *   · 比例：`parameters.aspectRatio` **一律**拒（2026-10-05）。它不是「两处写同一个数就放行」那一格：
  *     `aspectRatio` 在宿主那边是语义载体键（投影把 `shots[].aspectRatio` 放进去），模型直接写它
  *     就是在宿主的位置上替宿主做翻译，而它写的又恰好是最常猜错的那个名字。
+ *
+ * 模型身份那一格 2026-11-15 删了：模型面只剩一个 `model` 字段，「两处对不上」在形状上写不出来了。
  *
  * 时长这一条是 2026-09-21 实测加的：A3 那一镜同时写了 `durationSec: 43.7` 与
  * `parameters.duration: 5`（投影里 `durationSec` 赢，于是用户会拿到一段 43.7 秒的片子）。
@@ -128,7 +119,7 @@ const prepareWriteScriptArguments = (() => {
  *
  * **能宽容就宽容**：两处写的是同一个数 → 放行（不是歧义）；只写了一处 → 放行。
  */
-function rejectDuplicateShotIdentity(args: unknown): Record<string, unknown> {
+function rejectDuplicateShotFacts(args: unknown): Record<string, unknown> {
   const record = (args && typeof args === "object" && !Array.isArray(args) ? args : {}) as Record<string, unknown>;
   const shots = Array.isArray(record.shots) ? record.shots : [];
   const refuse = (because: string): never => {
@@ -136,16 +127,7 @@ function rejectDuplicateShotIdentity(args: unknown): Record<string, unknown> {
   };
   for (const shot of shots) {
     if (!shot || typeof shot !== "object") continue;
-    const { modelId, candidate, durationSec, parameters } = shot as {
-      modelId?: unknown; candidate?: { modelId?: unknown };
-      durationSec?: unknown; parameters?: { duration?: unknown; aspectRatio?: unknown };
-    };
-    const declared = candidate && typeof candidate === "object" ? candidate.modelId : undefined;
-    if (typeof modelId === "string" && typeof declared === "string" && modelId.trim() && declared.trim()
-      && modelId.trim() !== declared.trim()) {
-      refuse(`A shot names two different models: modelId="${modelId.trim()}" and candidate.modelId="${declared.trim()}". `
-        + "Both come from list_models and mean the same thing; pass only one so the shot has a single model identity.");
-    }
+    const { durationSec, parameters } = shot as { durationSec?: unknown; parameters?: { duration?: unknown; aspectRatio?: unknown } };
     // 比例只有一个家：模型面上的 `aspectRatio`。`parameters.aspectRatio` 正是 2026-10-05 那次被静默吞掉的写法，
     // 现在当场说清，而不是替它挪过去——挪过去就又成了「同一件事写两处、宿主替它挑一个」。
     if (parameters && typeof parameters === "object" && Object.prototype.hasOwnProperty.call(parameters, "aspectRatio")) {
@@ -192,17 +174,13 @@ export function writeVerbs(): VerbDeclaration[] {
       does: "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement.",
       useWhen: "Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, add shots, or change a shot's prompt, model, parameters or references.",
       notWhen: "New drafts do not request generation or show a spend card — call generate for that, unless the user said not to generate yet. Updating an already-presented draft retains its existing approval policy; use the returned result to determine whether that policy started generation. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot).",
-      params: "For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level candidate or taskKind is the default for shots that omit their own; model values come from list_models. No operationId: new plan (same-request calls add to it unless newPlan). operationId + shots without shotId: append. operationId + one shotId: revise it, sending only changed fields (title/role are fixed).",
+      params: "For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level taskKind is the default for shots that omit their own; model is a full name copied from list_models. No operationId: new plan (same-request calls add to it unless newPlan). operationId + shots without shotId: append. operationId + one shotId: revise it, sending only changed fields (title/role are fixed).",
     },
     promptGuidelines: [...READ_GUIDELINES, ...CANVAS_NODE_PROMPT_GUIDELINES],
     schema: z.object({
       operationId: z.string().trim().min(1).max(160).optional().describe("Plan id from a draft_shots result."),
       newPlan: z.boolean().optional().describe("Only if the user asks for a separate plan."),
       taskKind: z.enum(["text_to_image", "image_edit", "text_to_video", "image_to_video"]).optional().describe("Default taskKind for shots that set none."),
-      candidate: z.object({
-        providerId: z.string().trim().min(1).describe("Provider id from list_models."),
-        modelId: z.string().trim().min(1).describe("Model id from list_models."),
-      }).optional().describe("Default catalog candidate for these shots."),
       shots: z.array(draftShotSchema).min(1).max(40).describe("The shots to create or update."),
     }).strict().superRefine((value, context) => {
       // `shotId` 只在「改已有草稿」时有意义。少了这条约束，模型发
@@ -228,7 +206,7 @@ export function writeVerbs(): VerbDeclaration[] {
         const empty = value.shots.findIndex((shot) => Object.keys(shot).filter((key) => key !== "shotId").length === 0);
         if (empty >= 0) {
           context.addIssue({ code: z.ZodIssueCode.custom, path: ["shots", empty],
-            message: "this revision changes nothing — include at least one of prompt, modelId/candidate, modeId, parameters, references, durationSec, aspectRatio" });
+            message: "this revision changes nothing — include at least one of prompt, model, modeId, parameters, references, durationSec, aspectRatio" });
         }
       }
       const stray = value.shots.findIndex((shot) => shot.shotId !== undefined);
@@ -275,10 +253,10 @@ export function writeVerbs(): VerbDeclaration[] {
       // （`anchorsOnly` note，`mcpGenerationTools` 的 create 返回里），不是一次拒绝。
     }),
     examples: [
-      { when: "One opening still:", arguments: { shots: [{ title: "Opening", prompt: "sunrise over the sea, wide shot, warm light", taskKind: "text_to_image", candidate: { providerId: "apimart", modelId: "image-1" } }] } },
+      { when: "One opening still:", arguments: { shots: [{ title: "Opening", prompt: "sunrise over the sea, wide shot, warm light", taskKind: "text_to_image", model: "image-1@apimart" }] } },
       { when: "Change one existing shot's prompt:", arguments: { operationId: "op-1", shots: [{ shotId: "shot-3", prompt: "夜景，霓虹灯下的街道" }] } },
     ],
-    prepareArguments: (args: unknown) => rejectDuplicateShotIdentity(modelArgumentTolerance({ arrayFields: ["shots"] })(args)),
+    prepareArguments: (args: unknown) => rejectDuplicateShotFacts(modelArgumentTolerance({ arrayFields: ["shots"] })(args)),
   };
 
   const generate: VerbDeclaration = {

@@ -74,7 +74,7 @@ function agentReply(body) {
   if (lastUserAt >= 0 && messageText(messages[lastUserAt]).includes('WALK_AGENT')) {
     return { kind: 'tool', id: DRAFT_CALL, name: 'draft_shots', args: { shots: [{
       prompt: '一只橘猫坐在窗台上，水彩风格', taskKind: 'text_to_image',
-      candidate: { providerId: 'apimart', modelId: 'gpt-image-2' }, parameters: { aspect_ratio: '1:1' },
+      model: 'gpt-image-2@apimart', parameters: { aspect_ratio: '1:1' },
     }] } }
   }
   return { kind: 'text', text: '好的。' }

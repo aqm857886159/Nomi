@@ -70,7 +70,7 @@ try {
     label: 'pb02-draft',
     marker: 'PB02',
     steps: [
-      { name: 'draft_shots', args: { shots: [{ prompt, taskKind: 'text_to_image', candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }, parameters: { aspect_ratio: '1:1' } }] } },
+      { name: 'draft_shots', args: { shots: [{ prompt, taskKind: 'text_to_image', model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`, parameters: { aspect_ratio: '1:1' } }] } },
       { name: 'generate', args: ({ previous }) => ({ operationId: operationIdOf(previous) }) },
       { text: EN ? 'Started.' : '好的，开始生成。' },
     ],
@@ -114,7 +114,7 @@ try {
     // 记号不能含「PB02」：B 那一轮用完之后留着一个认「PB02」的重试应答，含它就会被 B 抢答。
     marker: 'PB2C',
     steps: [
-      { name: 'draft_shots', args: { shots: [{ prompt: promptC, taskKind: 'text_to_image', candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }, parameters: { aspect_ratio: '1:1' } }] } },
+      { name: 'draft_shots', args: { shots: [{ prompt: promptC, taskKind: 'text_to_image', model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`, parameters: { aspect_ratio: '1:1' } }] } },
       { name: 'generate', args: ({ previous }) => ({ operationId: operationIdOf(previous) }) },
       { text: EN ? 'Started.' : '好的，开始生成。' },
     ],

@@ -10,7 +10,11 @@ import { verbToTransportCall } from "../../../agentLane/laneVerbTransport";
 import { NOT_YET_DECLARED, PROVENANCE_UNVERIFIABLE, VERB_FIELD_PROVENANCE } from "./verbFieldProvenance";
 import { VERB_DECLARATIONS } from "../verbDeclarations";
 
-const translate = (args: unknown) => verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args })!.call.args;
+const MODELS = [
+  { vendor: "apimart", modelId: "image-1", modelAlias: null },
+  { vendor: "apimart", modelId: "video-1", modelAlias: null },
+];
+const translate = (args: unknown) => verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args }, MODELS)!.call.args;
 
 describe("draft_shots 的投影与对照表时代逐字节相同", () => {
   it("① 时长落 parameters.duration 并与已有 parameters 合并，不是一个宿主没有的顶层字段", () => {
@@ -18,11 +22,12 @@ describe("draft_shots 的投影与对照表时代逐字节相同", () => {
       .toMatchObject({ operation: "create", prompt: "p", parameters: { seed: 7, duration: 3 }, cardHidden: true });
   });
 
-  it("② 目录点名赢过平铺的 modelId，两件各自落位（谁赢是声明出来的，不靠写的顺序）", () => {
-    expect(translate({ shots: [{ prompt: "p", modelId: "fallback", candidate: { providerId: "apimart", modelId: "image-1" } }] }))
+  it("② 一个完整名字拆回宿主的两件身份；不点名就两件都不带（宿主按用户默认补）", () => {
+    expect(translate({ shots: [{ prompt: "p", model: "image-1@apimart" }] }))
       .toMatchObject({ providerId: "apimart", modelId: "image-1" });
-    // 只给平铺 modelId 时它就是赢家——否则上一条可能只是「candidate 恒赢」而平铺那条根本没接。
-    expect(translate({ shots: [{ prompt: "p", modelId: "fallback" }] })).toMatchObject({ modelId: "fallback" });
+    const unnamed = translate({ shots: [{ prompt: "p" }] }) as Record<string, unknown>;
+    expect(unnamed).not.toHaveProperty("modelId");
+    expect(unnamed).not.toHaveProperty("providerId");
   });
 
   it("③ 参考素材出去的是宿主认的引用外壳，身份留给宿主补", () => {
@@ -67,12 +72,12 @@ describe("draft_shots 的投影与对照表时代逐字节相同", () => {
     expect(translate({ newPlan: true, shots: [{ prompt: "a" }, { prompt: "b" }] })).toMatchObject({ operation: "create", newPlan: true });
   });
 
-  it("顶层缺省折进每一镜，逐镜自己写的优先", () => {
+  it("顶层缺省（只剩 taskKind）折进每一镜，逐镜自己写的优先", () => {
     const multi = translate({
-      taskKind: "text_to_video", candidate: { providerId: "apimart", modelId: "video-1" },
-      shots: [{ role: "anchor", prompt: "a", taskKind: "text_to_image" }, { role: "shot", prompt: "b" }],
+      taskKind: "text_to_video",
+      shots: [{ role: "anchor", prompt: "a", taskKind: "text_to_image", model: "image-1@apimart" }, { role: "shot", prompt: "b", model: "video-1@apimart" }],
     }) as { shots: Array<Record<string, unknown>> };
-    expect(multi.shots[0]).toMatchObject({ taskKind: "text_to_image", providerId: "apimart", modelId: "video-1" });
+    expect(multi.shots[0]).toMatchObject({ taskKind: "text_to_image", providerId: "apimart", modelId: "image-1" });
     expect(multi.shots[1]).toMatchObject({ taskKind: "text_to_video", providerId: "apimart", modelId: "video-1" });
   });
 });

@@ -67,7 +67,7 @@ const CASES = [
     shot: {
       title: '设定·午后窗台', taskKind: 'text_to_image',
       prompt: '午后斜阳洒进窗户的室内窗台，一只橘白相间的短毛猫慵懒地趴在窗台上，暖黄色调，柔和自然光。',
-      candidate: { providerId: 'volcengine', modelId: 'doubao-seedream-5-0-pro' },
+      model: 'doubao-seedream-5-0-pro@volcengine',
     },
   },
   {
@@ -79,7 +79,7 @@ const CASES = [
     shot: {
       title: '海边灯塔', taskKind: 'text_to_image', aspectRatio: '21:9',
       prompt: '深夜海岸，一座白墙红纹的灯塔矗立在岩礁上，光柱扫过漆黑海面，冷蓝夜雾。',
-      candidate: { providerId: 'apimart', modelId: 'z-image-turbo' },
+      model: 'z-image-turbo@apimart',
     },
   },
   {
@@ -145,7 +145,7 @@ try {
         expect(flattenRequestText(body), '实时提示已要求 Agent 点名并报显示名').toContain('必须在 modelId 里点名一个具体模型')
         return { type: 'tool', id, name: 'draft_shots', args: { shots: [{
           title: '雪夜木屋', taskKind: 'text_to_image', prompt: '夜晚细雪，木屋窗户透出暖黄色灯光，四周是松树林。',
-          candidate: { providerId: 'apimart', modelId: 'z-image-turbo' },
+          model: 'z-image-turbo@apimart',
         }] } }
       }
       const item = CASES.find((candidate) => lastUserText(body).includes(candidate.ask))

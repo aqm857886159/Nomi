@@ -25,7 +25,7 @@
  *   C 类 · 翻译层改了名字/单位/嵌套，两端对不上
  *          （`durationSec` → 顶层 `durationSeconds`，而宿主的时长在 `parameters.duration` 里）
  *   D 类 · 翻译层**静默丢掉**动词声明过的字段 —— 最阴的一条，因为它连错都不报
- *          （顶层 `taskKind` / `candidate`、逐镜 `candidate`：模型点名「用 apimart 的 image-1」，
+ *          （顶层 `taskKind` / `candidate`、逐镜 `candidate`（今天是逐镜 `model`）：模型点名「用 apimart 的 image-1」，
  *            宿主照用户默认模型去花钱，没有任何人被告知）
  *
  * 这些全都编译得过、单测过、广播得出去，只有真模型在下一次**付费**运行里用一次失败告诉你。
@@ -69,6 +69,7 @@ const { CAPABILITY_CONTRACTS } = await load('electron/shared/agentCapabilities/r
 const { toPublishedJsonSchema } = await load('electron/shared/agentCapabilities/modelVisibleJsonSchema.ts')
 const { toSemanticInput, toModelFacingToolSpec } = await load('electron/shared/agentCapabilities/modelFacingTools.ts')
 const { verbToTransportCall, exportJobTransportCall } = await load('electron/agentLane/laneVerbTransport.ts')
+const { modelHandleOf } = await load('electron/shared/agentCapabilities/modelHandle.ts')
 const { generationPlanInputSchema, generationStatusInputSchema } = await load('electron/shared/agentCapabilities/generationPlanSchemas.ts')
 const { GENERATION_METHODS } = await load('electron/shared/agentCapabilities/generation.ts')
 const { PROVENANCE_UNVERIFIABLE } = await load('electron/shared/agentCapabilities/verbs/verbFieldProvenance.ts')
@@ -241,12 +242,50 @@ function leafValues(value) {
   return new Set(leafPaths(value).keys())
 }
 
+/**
+ * 这次调用里模型写下的每个模型名字，各配一行目录：带 `@` 的按最后一个 `@` 拆成（模型 id, 供应商），
+ * 不带的当成没有供应商的一行。
+ *
+ * 为什么不用真目录：这道门量的是「字段到没到宿主」，不是「名字查不查得到」（查表另有单测）。
+ * 用真目录时，探针造的 `s5` 这类名字会被当场拒收，逐字段探针就一条都跑不到 `model`。
+ */
+function gateModelsOf(args) {
+  const names = new Set()
+  const visit = (value) => {
+    if (Array.isArray(value)) { value.forEach(visit); return }
+    if (!isRecord(value)) return
+    for (const [key, item] of Object.entries(value)) {
+      if (key === 'model' && typeof item === 'string') names.add(item)
+      else visit(item)
+    }
+  }
+  visit(args)
+  return [...names].map((name) => {
+    const at = name.lastIndexOf('@')
+    return at > 0 ? { modelId: name.slice(0, at), vendor: name.slice(at + 1) } : { modelId: name, vendor: null }
+  })
+}
+
+/**
+ * 宿主收到的是两件身份（`providerId` / `modelId`），模型写的是一个完整名字。R3 比的是叶子值，
+ * 所以把宿主那两件用**同一个**拼名函数（`modelHandleOf`）拼回去，一起算进「到达宿主的值」——
+ * 丢了任何一件，拼回来的名字就和模型写的对不上，R3 当场红。
+ */
+function hostModelHandles(value, out = []) {
+  if (Array.isArray(value)) { for (const item of value) hostModelHandles(item, out); return out }
+  if (!isRecord(value)) return out
+  if (typeof value.modelId === 'string') out.push(modelHandleOf({ modelId: value.modelId, vendor: value.providerId || null }))
+  if (typeof value.modelKey === 'string') out.push(modelHandleOf({ modelId: value.modelKey, vendor: value.modelVendor || null }))
+  for (const item of Object.values(value)) hostModelHandles(item, out)
+  return out
+}
+
 /** 把一个动词的一次调用走完整条路；返回这次调用的全部问题。 */
 function checkCall(verb, spec, contract, label, args) {
   const problems = []
   let transported
   try {
-    transported = verbToTransportCall({ toolCallId: 'gate-1', toolName: verb.name, args })
+    transported = verbToTransportCall({ toolCallId: 'gate-1', toolName: verb.name, args }, gateModelsOf(args))
   } catch (error) {
     return { problems: [`${label}：翻译层抛了 — ${error.message}`], translated: undefined }
   }
@@ -281,20 +320,21 @@ function checkCall(verb, spec, contract, label, args) {
       return { problems: [...problems, `${label} → ${contract.id}：语义翻译抛了 — ${error.message}`], translated: undefined }
     }
   }
-  return { problems, translated }
+  const handles = hostModelHandles(translated)
+  return { problems, translated: handles.length ? [translated, handles] : translated }
 }
 
 /**
  * R3 · 逐字段探针：从最小实例出发，**一次只加一个字段**，看这个字段的值有没有到达宿主。
  *
  * 为什么不是「把字段填满再整体比对」：填满时一个字段可能被另一个更具体的字段合法地盖掉
- * （顶层 `candidate` 被逐镜 `candidate` 覆盖），整体比对分不清「被覆盖」和「被丢掉」。
+ * （顶层缺省被逐镜同名字段覆盖），整体比对分不清「被覆盖」和「被丢掉」。
  * 一次一个变量，量到的才是这个字段自己的命运。
  */
 /**
  * 把最小实例修到「过得了这个动词自己的 refine」为止：**只补它点名缺的那几条路径**，值从示例里取。
  *
- * 为什么不整份换成示例：示例里本来就带着更具体的字段（逐镜 `candidate` / `modelId`），
+ * 为什么不整份换成示例：示例里本来就带着更具体的字段（逐镜 `model`），
  * 再去探顶层同名字段时它会被合法地覆盖——那是「被盖掉」，不是「被丢掉」，整份换会把这类误报带回来。
  * 补不齐（示例里也没有那个值）就返回 undefined，由调用方当场报问题，不许静默跳过。
  */
@@ -414,7 +454,7 @@ function checkVerb(verb) {
   // 而 `if (...success) { ... }` 把这件事吞得无声无息（教训 `vacuous-probe-passes-forever`：
   // 测不到它命名的那件事，断言就永远绿）。C 类变异（时长落到一个语义不对的宿主字段上）因此抓不到。
   // 现在：**按这个动词自己报的缺口**从示例里补最少的那几个字段（只补它点名的路径，不整份换成示例——
-  // 整份换会把「顶层 candidate 被逐镜 candidate 合法覆盖」这类误报带回来），补不齐就当场报问题。
+  // 整份换会把「顶层缺省被逐镜同名字段合法覆盖」这类误报带回来），补不齐就当场报问题。
   const probeBase = repairedMinimal(verb, minimal, seeds)
   if (probeBase === undefined) {
     problems.push('R3 逐字段：最小实例与全部示例都过不了这个动词自己的 refine，逐字段探针一条都没跑——这把尺子在这个动词上是瞎的'

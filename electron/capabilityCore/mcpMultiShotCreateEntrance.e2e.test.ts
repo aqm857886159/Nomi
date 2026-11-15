@@ -369,7 +369,7 @@ describe("P4 S6.5 — lane draft_shots：镜头只给语义字段、不给 candi
 
   /** lane 真正发出的 params —— 动词在前，翻译层在中，这里取它的产物。 */
   const lanePlanParams = (shots: unknown[]): Record<string, unknown> => {
-    const transported = verbToTransportCall({ toolCallId: "t-draft", toolName: "draft_shots", args: { shots } });
+    const transported = verbToTransportCall({ toolCallId: "t-draft", toolName: "draft_shots", args: { shots } }, []);
     if (!transported) throw new Error("draft_shots 没有走延迟组传输层");
     return transported.call.args as Record<string, unknown>;
   };

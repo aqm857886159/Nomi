@@ -24,7 +24,7 @@ const SCRIPT = 'agent-shot-scope-real.rehearsal.walk.mjs'
 const FAKE_KEY = 'rehearsal-fake-key-0123456789abcdef'
 const IMAGE = { vendorKey: 'apimart', modelKey: 'gemini-3.1-flash-image-preview' }
 const SHOT_SCOPE_BUILD_MARKER = 'call generate again with shotIds naming them'
-const CANDIDATE = { providerId: IMAGE.vendorKey, modelId: IMAGE.modelKey }
+const MODEL = `${IMAGE.modelKey}@${IMAGE.vendorKey}`
 const startedAt = new Date().toISOString()
 
 // ── 剧本大脑 ───────────────────────────────────────────────────────────────────
@@ -71,9 +71,9 @@ function brainMove(body) {
     case 'T1':
       if (!done.has('ss-t1-draft')) {
         return { type: 'tool', id: 'ss-t1-draft', name: 'draft_shots', args: { shots: [
-          { title: '红纸船', prompt: '雨后水洼里漂着的红色纸船', taskKind: 'text_to_image', candidate: CANDIDATE, aspectRatio: '1:1' },
-          { title: '橘猫', prompt: '窗台上晒太阳的橘猫', taskKind: 'text_to_image', candidate: CANDIDATE, aspectRatio: '1:1' },
-          { title: '灯塔', prompt: '黄昏海边的灯塔', taskKind: 'text_to_image', candidate: CANDIDATE, aspectRatio: '1:1' },
+          { title: '红纸船', prompt: '雨后水洼里漂着的红色纸船', taskKind: 'text_to_image', model: MODEL, aspectRatio: '1:1' },
+          { title: '橘猫', prompt: '窗台上晒太阳的橘猫', taskKind: 'text_to_image', model: MODEL, aspectRatio: '1:1' },
+          { title: '灯塔', prompt: '黄昏海边的灯塔', taskKind: 'text_to_image', model: MODEL, aspectRatio: '1:1' },
         ] } }
       }
       if (!done.has('ss-t1-gen')) return { type: 'tool', id: 'ss-t1-gen', name: 'generate', args: { operationId } }
@@ -102,7 +102,7 @@ function brainMove(body) {
       // 先试「往同一份草稿里补一镜」（draft_shots 的说明就是这么写的）；画布草稿没有这条路，宿主拒并指路「另起一份草稿」，再照做。
       if (!done.has('ss-t8-append')) {
         return { type: 'tool', id: 'ss-t8-append', name: 'draft_shots', args: { operationId, shots: [
-          { title: '结尾镜头', prompt: '黄昏海边的灯塔慢慢暗下来，海面归于平静', taskKind: 'text_to_image', candidate: CANDIDATE, aspectRatio: '1:1' },
+          { title: '结尾镜头', prompt: '黄昏海边的灯塔慢慢暗下来，海面归于平静', taskKind: 'text_to_image', model: MODEL, aspectRatio: '1:1' },
         ] } }
       }
       const appended = resultText(messages, 'ss-t8-append')
@@ -112,7 +112,7 @@ function brainMove(body) {
       }
       if (!done.has('ss-t8-draft')) {
         return { type: 'tool', id: 'ss-t8-draft', name: 'draft_shots', args: { shots: [
-          { title: '结尾镜头', prompt: '黄昏海边的灯塔慢慢暗下来，海面归于平静', taskKind: 'text_to_image', candidate: CANDIDATE, aspectRatio: '1:1' },
+          { title: '结尾镜头', prompt: '黄昏海边的灯塔慢慢暗下来，海面归于平静', taskKind: 'text_to_image', model: MODEL, aspectRatio: '1:1' },
         ] } }
       }
       const fresh = resultText(messages, 'ss-t8-draft')

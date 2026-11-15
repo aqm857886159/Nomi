@@ -72,7 +72,7 @@ export interface GenerationProblem {
   readonly field?: string;
   /** 合法值（模式 id / 比例 / 时长档 / 参考用途）。 */
   readonly allowed?: readonly string[];
-  /** 目录里最接近的那一个（`provider/model`），只在真的接近时才有。 */
+  /** 目录里最接近的那一个，只在真的接近时才有。对外 MCP 那一面是 `provider/model`；应用内 Agent 那一面是完整名字 `modelId@vendor`（`modelHandle.ts`）。 */
   readonly nearest?: string;
   readonly min?: number;
   readonly max?: number;

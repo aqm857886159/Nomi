@@ -29,11 +29,11 @@ async function readLockExitProject(page, projectId) {
   return record
 }
 
-export function lockExitDraft(candidate) {
+export function lockExitDraft(model) {
   return [
-    { title: '林薇', role: 'anchor', storyboard: { kind: 'character', carrier: 'visual' }, prompt: '林薇，短发，灰色外套', taskKind: 'text_to_image', candidate },
-    { title: '旧书店', role: 'anchor', storyboard: { kind: 'scene', carrier: 'visual' }, prompt: '旧书店，木桌和窗户', taskKind: 'text_to_image', candidate },
-    ...['林薇在旧书店找到一封信', '林薇走到旧书店窗边', '林薇把信放在旧书店的桌上'].map(prompt => ({ title: prompt, prompt, taskKind: 'text_to_image', candidate, storyboard: { anchorIds: ['anchor-1', 'anchor-2'] } })),
+    { title: '林薇', role: 'anchor', storyboard: { kind: 'character', carrier: 'visual' }, prompt: '林薇，短发，灰色外套', taskKind: 'text_to_image', model },
+    { title: '旧书店', role: 'anchor', storyboard: { kind: 'scene', carrier: 'visual' }, prompt: '旧书店，木桌和窗户', taskKind: 'text_to_image', model },
+    ...['林薇在旧书店找到一封信', '林薇走到旧书店窗边', '林薇把信放在旧书店的桌上'].map(prompt => ({ title: prompt, prompt, taskKind: 'text_to_image', model, storyboard: { anchorIds: ['anchor-1', 'anchor-2'] } })),
   ]
 }
 
@@ -253,7 +253,7 @@ export async function a4LockExitJourney(input) {
 export async function prepareLockExitStoryboard({ page, projectId, model, textLabel, fixture }) {
   await readLockExitProject(page, projectId)
   await chooseAssistantModel(page, textLabel, CREATION_PANEL)
-  const draftedShots = lockExitDraft({ providerId: model.vendorKey, modelId: model.modelKey })
+  const draftedShots = lockExitDraft(`${model.modelKey}@${model.vendorKey}`)
     if (fixture) {
       fixture.expectText({ label: 'story script to storyboard', match: body => JSON.stringify(body).includes('旧书店'), reply: { type: 'tool', id: 'lock-exit-draft', name: 'draft_shots', args: { shots: draftedShots } } })
       fixture.respond({ label: 'storyboard drafted', match: body => (body.messages ?? []).some(m => m.role === 'tool' && m.tool_call_id === 'lock-exit-draft'), reply: { type: 'text', text: '分镜方案已起草，请打开分镜表确认后生成。' } })

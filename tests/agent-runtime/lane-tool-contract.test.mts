@@ -329,7 +329,7 @@ test('动词 → 宿主契约贯通：声明的示例、以及真实分镜那种
         : undefined;
   const failures: string[] = [];
   const check = (label: string, toolName: string, args: unknown): void => {
-    const transported = verbToTransportCall({ toolCallId: 't-1', toolName, args });
+    const transported = verbToTransportCall({ toolCallId: 't-1', toolName, args }, [{ vendor: 'apimart', modelId: 'image-1', modelAlias: null }]);
     if (!transported) return;
     const hostSchema = hostSchemaFor(transported.call.toolName);
     if (!hostSchema) return;

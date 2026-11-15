@@ -1,6 +1,7 @@
 import { MODEL_ANCHOR_GUIDANCE } from '../shared/agentCapabilities/availableModels'
 import type { AgentModelEntry } from '../shared/agentCapabilities/availableModels'
 import { modelCatalogReadSpec } from '../shared/agentCapabilities/modelFacingToolRegistry'
+import { modelHandleOf } from '../shared/agentCapabilities/modelHandle'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
 import type { GenerationDefaultTaskKind } from '../settings/generationModelDefaultsContract'
 
@@ -34,14 +35,14 @@ function formatDeclaredDefaults(defaults: LaneDeclaredDefaults | undefined, cont
   const lines = DEFAULT_LINE.map(([taskKind, label]) => {
     const declared = defaults[taskKind]
     return declared
-      ? `${label}：${modelDisplayNameOf(context, declared.vendor, declared.modelId)}（modelId: ${declared.modelId}，vendor: ${declared.vendor}——仅供工具参数）`
+      ? `${label}：${modelDisplayNameOf(context, declared.vendor, declared.modelId)}（${modelHandleOf(declared)}——仅供工具参数）`
       : `${label}：没有能用的已保存默认（含「自动选」）。`
   })
   return [
     '用户的默认模型状态（这是用户的声明，不是建议）：',
     ...lines,
-    '用户没点名模型时，有可用默认的任务用上面对应的默认（起草时不填 modelId，宿主会按默认补）；没有可用默认的任务，必须在 modelId 里点名一个具体模型，从可用目录里挑，并在回话里用显示名告诉用户挑了谁；用户点名了模型，以用户点名的为准。',
-    '默认模型做不了这次的事（例如需要参考图而它的模式没有参考槽）才可以换：先在回话里说清为什么换、换成了谁，再起草；不许悄悄换。对用户提到任何模型时，只说它的显示名（上面冒号后、括号前的那个名字，也是用户在卡上和设置里看到的那个），不要念 modelId 或 vendor——那是给工具参数用的内部标识，用户不认。回话里提到的模型只能取自上面的默认和下面的索引，不要凭印象说。',
+    '用户没点名模型时，有可用默认的任务用上面对应的默认（起草时不填 model，宿主会按默认补）；没有可用默认的任务，必须在 model 里点名一个具体模型，从可用目录里挑，并在回话里用显示名告诉用户挑了谁；用户点名了模型，以用户点名的为准。',
+    '默认模型做不了这次的事（例如需要参考图而它的模式没有参考槽）才可以换：先在回话里说清为什么换、换成了谁，再起草；不许悄悄换。对用户提到任何模型时，只说它的显示名（上面冒号后、括号前的那个名字，也是用户在卡上和设置里看到的那个），不要念括号里的完整名字——那是给工具参数用的内部标识，用户不认。回话里提到的模型只能取自上面的默认和下面的索引，不要凭印象说。',
   ]
 }
 
@@ -62,16 +63,16 @@ export function formatLaneModelIndex(context: LaneComposerContext, defaults?: La
       byResolution.set(resolution, names);
     }
     const modes = [...byResolution].map(([resolution, names]) => `${names.join(',')}${resolution ? `[${resolution}]` : ''}`).join('/');
-    lines.push(`${entry.modelId}${entry.displayName ? `（显示名：${entry.displayName}）` : ''}: ${modes}`);
+    lines.push(`${modelHandleOf(entry)}${entry.displayName ? `（显示名：${entry.displayName}）` : ''}: ${modes}`);
   }
   if (!lines.length && !selected && !formatDeclaredDefaults(defaults, context).length) return '';
   return [
-    '可用模型索引（modelId: modeId[resolution]；* 是默认模式，逗号并列模式共用同一档位；保留原大小写）：',
+    '可用模型索引（完整名字: modeId[resolution]；* 是默认模式，逗号并列模式共用同一档位；draft_shots 的 model 原样抄冒号前的完整名字）：',
     ...(selected ? [`text ${selected.vendorKey}/${selected.modelKey}（当前对话）`] : []),
     ...lines,
     ...formatDeclaredDefaults(defaults, context),
     ...MODEL_ANCHOR_GUIDANCE,
-    `这里只列图片/视频任务。完整类别、参数、参考槽与各模式约束：nomi_request_tools group=models 后 ${MODEL_CATALOG_READ_VERB}（可用 modelId 缩小）；使用未列参数或参考边前先查。不要猜档位或混用不同模式参数。对用户提到模型时只说显示名（索引里「显示名：」那一个），不要念 modelId / vendor。`,
+    `这里只列图片/视频任务。完整类别、参数、参考槽与各模式约束：${MODEL_CATALOG_READ_VERB}（可用 model 缩小）；使用未列参数或参考边前先查。不要猜档位或混用不同模式参数。对用户提到模型时只说显示名（索引里「显示名：」那一个），不要念完整名字。`,
   ].join('\n');
 }
 
@@ -87,7 +88,7 @@ export function formatLaneModelDelta(context: LaneComposerContext, previous?: La
   if (!changed.length && !removed.length) return '';
   return ['本回合模型目录变化（覆盖之前的同名条目；失效模型不可再用）：',
     ...(changed.length ? [formatLaneModelIndex({ ...context, availableModels: changed }),
-      ...changed.filter(entry => entry.kind !== 'image' && entry.kind !== 'video').map(entry => `新增/更新 ${entry.kind} ${entry.modelId}`)] : []),
-    ...removed.map(entry => `失效 ${entry.kind} ${entry.vendor ?? ''}/${entry.modelId}`),
+      ...changed.filter(entry => entry.kind !== 'image' && entry.kind !== 'video').map(entry => `新增/更新 ${entry.kind} ${modelHandleOf(entry)}`)] : []),
+    ...removed.map(entry => `失效 ${entry.kind} ${modelHandleOf(entry)}`),
   ].filter(Boolean).join('\n');
 }

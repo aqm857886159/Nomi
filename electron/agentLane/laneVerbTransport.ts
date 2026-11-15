@@ -37,8 +37,9 @@ import {
 import { cancelJobGenerationArgs, checkJobGenerationArgs } from '../shared/agentCapabilities/verbs/verbDualDomain'
 import {
   draftShotsPatchEnvelope, draftShotToCandidatePatch, draftShotToFlatCreate, draftShotToPlanShot,
-  withDraftShotsDefaults, type DraftShot, type DraftShotsArgs,
+  resolveDraftShotModels, withDraftShotsDefaults, type DraftShot, type DraftShotsArgs, type ResolvedModelName,
 } from '../shared/agentCapabilities/verbs/draftShotsProjection'
+import type { ModelHandleRow } from '../shared/agentCapabilities/modelHandle'
 
 type Args = Record<string, unknown>
 
@@ -63,12 +64,15 @@ type GenerationTransportArgs =
 
 /** 一次翻译的结果：走哪条传输、方法名与方法参数。生成 lane 的方法名与**参数形状**都按宿主收窄。 */
 export type VerbTransportCall =
-  | Readonly<{ lane: 'generation'; call: RuntimeToolCall<GenerationTransportArgs> & { toolName: GenerationMethodName } }>
+  | Readonly<{ lane: 'generation'; call: RuntimeToolCall<GenerationTransportArgs> & { toolName: GenerationMethodName };
+    /** `draft_shots` 里 Agent 写的不是完整名字、被认出来的那几个（回执告诉它落成了谁）。 */
+    resolvedModels?: readonly ResolvedModelName[] }>
   | Readonly<{ lane: 'timeline' | 'canvas' | 'export' | 'media' | 'skillRead' | 'skillWrite'; call: RuntimeToolCall }>
 
 /** 生成 lane 的一次调用：`toolName` 只能是 `GENERATION_METHODS` 里的名字，`args` 只能是宿主认的那几支。 */
-function generationCall(base: { toolCallId: string }, toolName: GenerationMethodName, args: GenerationTransportArgs): VerbTransportCall {
-  return { lane: 'generation', call: { ...base, toolName, args } }
+function generationCall(base: { toolCallId: string }, toolName: GenerationMethodName, args: GenerationTransportArgs,
+  resolvedModels: readonly ResolvedModelName[] = []): VerbTransportCall {
+  return { lane: 'generation', call: { ...base, toolName, args }, ...(resolvedModels.length ? { resolvedModels } : {}) }
 }
 
 /**
@@ -84,8 +88,11 @@ function addsNewShots(shots: readonly DraftShot[]): boolean {
 /**
  * 把一个延迟组动词调用翻成传输层调用。返回 `undefined` = 这个动词不走延迟组（常驻工具自己绑执行）。
  * 参数在这里**只改形状不改语义**：schema 已由 pi 的 ajv 验过。
+ *
+ * `models` 必传：`draft_shots` 点名模型用完整名字，要在**这条消息带上来的同一份可用模型清单**里查表
+ * （模型在索引与 list_models 里看到的就是它）。不给可选：可选的注入点 = 可选的真相，漏接时每个名字都会「查不到」。
  */
-export function verbToTransportCall(call: RuntimeToolCall): VerbTransportCall | undefined {
+export function verbToTransportCall(call: RuntimeToolCall, models: readonly ModelHandleRow[]): VerbTransportCall | undefined {
   const args = (call.args && typeof call.args === 'object' ? call.args : {}) as Args
   const base = { toolCallId: call.toolCallId }
   switch (call.toolName) {
@@ -95,13 +102,16 @@ export function verbToTransportCall(call: RuntimeToolCall): VerbTransportCall | 
       const draft = { ...args, shots: Array.isArray(args.shots) ? args.shots : [] } as unknown as DraftShotsArgs
       // 顶层缺省折进每一镜；逐镜自己写的优先。
       const shots = draft.shots.map((shot) => withDraftShotsDefaults(draft, shot))
+      // 完整名字 → 宿主的两件身份；查不到 / 有歧义当场拒收（带完整名字），什么都没跑。
+      const { models: identities, resolved } = resolveDraftShotModels(shots, models)
+      const planShots = () => shots.map((shot, index) => draftShotToPlanShot(shot, identities[index]!))
       // 分支判断是真逻辑（改草稿 / 单镜摊平 / 多镜），不是字段名单——它留在这里。
       if (draft.operationId !== undefined && addsNewShots(shots)) {
         // 带 operationId 的**新**镜头（不带 shotId，带标题或角色、或不止一镜）：补到那份方案后面——
         // 「先立角色、再补镜头」「再加两镜」落在同一份上，不再新建一份（用户 10-05「建了好几个方案」）。
         return generationCall(base, GENERATION_METHODS.plan, {
-          operation: 'extend', operationId: draft.operationId, shots: shots.map(draftShotToPlanShot),
-        })
+          operation: 'extend', operationId: draft.operationId, shots: planShots(),
+        }, resolved)
       }
       if (draft.operationId !== undefined) {
         // 修改已有草稿：带 `shotId` = 改多镜草稿里的那一镜（那一镜候选 revision +1 → 已落的节点按它重绑定）；
@@ -111,8 +121,8 @@ export function verbToTransportCall(call: RuntimeToolCall): VerbTransportCall | 
         // 由 `draftShotToCandidatePatch` 当场拒绝，不在这里摘。
         const first = shots[0] ?? ({} as DraftShot)
         return generationCall(base, GENERATION_METHODS.plan, {
-          ...draftShotsPatchEnvelope(draft, first), operation: 'patch', patch: draftShotToCandidatePatch(first),
-        })
+          ...draftShotsPatchEnvelope(draft, first), operation: 'patch', patch: draftShotToCandidatePatch(first, identities[0] ?? {}),
+        }, resolved)
       }
       // 新草稿先保存且隐藏报价卡（`cardHidden`）；文稿方案不自动落画布，放置由现有落地入口负责。
       if (shots.length === 1 && !shots[0]?.role && !shots[0]?.title) {
@@ -120,12 +130,12 @@ export function verbToTransportCall(call: RuntimeToolCall): VerbTransportCall | 
         // **带 role 或 title 的不走这条**：这两个都是镜头信封上的字段，而顶层没有它们的位置。
         // 摊平就只能悄悄丢掉——那正是这一整条链的病根。
         return generationCall(base, GENERATION_METHODS.plan, {
-          operation: 'create', ...draftShotToFlatCreate(shots[0]!), cardHidden: true, ...(draft.newPlan ? { newPlan: true } : {}),
-        })
+          operation: 'create', ...draftShotToFlatCreate(shots[0]!, identities[0]!), cardHidden: true, ...(draft.newPlan ? { newPlan: true } : {}),
+        }, resolved)
       }
       return generationCall(base, GENERATION_METHODS.plan, {
-        operation: 'create', shots: shots.map(draftShotToPlanShot), cardHidden: true, ...(draft.newPlan ? { newPlan: true } : {}),
-      })
+        operation: 'create', shots: planShots(), cardHidden: true, ...(draft.newPlan ? { newPlan: true } : {}),
+      }, resolved)
     }
     case 'generate':
       // 投影：模型面就是 `present` 分支减掉 `operation`，字段名逐字相同。

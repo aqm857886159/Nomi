@@ -35,15 +35,15 @@ describe('对用户提到模型时只说显示名，id 只给工具参数', () =
   const named = { ...context, availableModels: [{ ...context.availableModels![0], displayName: 'Image One (display)' }] } as unknown as LaneComposerContext
   it('默认那一行先写用户认得的名字，id 标明「仅供工具参数」；索引每个模型带显示名；规则写明只说显示名', () => {
     const text = formatLaneModelIndex(named, { text_to_image: { vendor: 'fixture', modelId: 'image-1' } })
-    expect(text).toContain('图片默认（文生图）：Image One (display)（modelId: image-1，vendor: fixture——仅供工具参数）')
-    expect(text).toContain('image-1（显示名：Image One (display)）')
+    expect(text).toContain('图片默认（文生图）：Image One (display)（image-1@fixture——仅供工具参数）')
+    expect(text).toContain('image-1@fixture（显示名：Image One (display)）')
     expect(text).toContain('只说它的显示名')
-    expect(text).toContain('不要念 modelId')
+    expect(text).toContain('不要念括号里的完整名字')
   })
   it('渲染层没给名字：退回目录 label，再退回 modelId——绝不编一个名字', () => {
     const noName = { ...context, availableModels: [{ ...context.availableModels![0], label: '目录名' }] } as unknown as LaneComposerContext
-    expect(formatLaneModelIndex(noName, { text_to_image: { vendor: 'fixture', modelId: 'image-1' } })).toContain('图片默认（文生图）：目录名（modelId: image-1')
-    expect(formatLaneModelIndex(context, { text_to_image: { vendor: 'fixture', modelId: 'ghost' } })).toContain('图片默认（文生图）：ghost（modelId: ghost')
+    expect(formatLaneModelIndex(noName, { text_to_image: { vendor: 'fixture', modelId: 'image-1' } })).toContain('图片默认（文生图）：目录名（image-1@fixture')
+    expect(formatLaneModelIndex(context, { text_to_image: { vendor: 'fixture', modelId: 'ghost' } })).toContain('图片默认（文生图）：ghost（ghost@fixture')
   })
 })
 
@@ -52,8 +52,8 @@ describe('用户声明的默认模型：模型看得到，且说的是同一个�
 
   it('索引里有「图片默认 / 视频默认」，并带着「没点名用默认、点名听用户、换了要先说」三条规则', () => {
     const text = formatLaneModelIndex(context, declared)
-    expect(text).toContain('图片默认（文生图）：image-1（modelId: image-1，vendor: fixture')
-    expect(text).toContain('视频默认（图生视频）：video-9（modelId: video-9，vendor: fixture')
+    expect(text).toContain('图片默认（文生图）：image-1（image-1@fixture')
+    expect(text).toContain('视频默认（图生视频）：video-9（video-9@fixture')
     expect(text).toContain('用户没点名模型时')
     expect(text).toContain('以用户点名的为准')
     expect(text).toContain('先在回话里说清为什么换')
@@ -65,7 +65,7 @@ describe('用户声明的默认模型：模型看得到，且说的是同一个�
     const text = formatLaneModelIndex(context, {})
     expect(text.match(/没有能用的已保存默认/g)).toHaveLength(4)
     expect(text).toContain('「自动选」')
-    expect(text).toContain('必须在 modelId 里点名一个具体模型')
+    expect(text).toContain('必须在 model 里点名一个具体模型')
     expect(text).toContain('从可用目录里挑')
     expect(text).toContain('在回话里用显示名告诉用户挑了谁')
     expect(text).toContain('以用户点名的为准')
@@ -76,5 +76,23 @@ describe('用户声明的默认模型：模型看得到，且说的是同一个�
     const changed = { ...context, availableModels: [{ ...context.availableModels![0], displayName: 'Updated' }] }
     expect(formatLaneModelDelta(changed, context)).not.toContain('没有能用的已保存默认')
     expect(formatLaneModelIndex({ availableModels: [] } as unknown as LaneComposerContext)).toBe('')
+  })
+})
+
+describe('索引、默认段、变化段印的都是完整名字（2026-11-15 单一名字）', () => {
+  const twoVendors = { ...context, availableModels: [
+    { ...context.availableModels![0] },
+    { ...context.availableModels![0], vendor: 'other' },
+  ] } as unknown as LaneComposerContext
+  it('同一个模型 id 两家都有：索引里是两个不同的完整名字，没有只印半个名字的行', () => {
+    const text = formatLaneModelIndex(twoVendors)
+    expect(text).toContain('image-1@fixture: standard*')
+    expect(text).toContain('image-1@other: standard*')
+    expect(text).not.toMatch(/^image-1:/m)
+  })
+  it('变化段的新增 / 失效同样用完整名字；过时的「先请求工具组」那句已删', () => {
+    const removed = formatLaneModelDelta({ ...context, availableModels: [] } as unknown as LaneComposerContext, context)
+    expect(removed).toContain('失效 image image-1@fixture')
+    expect(formatLaneModelIndex(context)).not.toContain('nomi_request_tools')
   })
 })
