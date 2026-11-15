@@ -84,12 +84,14 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO2: Record<string, Record<string, Recor
     "text_to_video": {
       "*": {
         "aspect_ratio": "16:9",
-        "duration": 5
+        "duration": 5,
+        "nsfw_check": false
       }
     },
     "image_to_video": {
       "*": {
-        "duration": 5
+        "duration": 5,
+        "nsfw_check": false
       }
     }
   },

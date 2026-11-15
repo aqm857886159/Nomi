@@ -78,7 +78,8 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       "apimart": {
         "resolution": "768P",
         "duration": 5,
-        "aspect_ratio": "16:9"
+        "aspect_ratio": "16:9",
+        "nsfw_check": false
       }
     },
     "image_to_video": {
@@ -88,7 +89,8 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       },
       "apimart": {
         "resolution": "768P",
-        "duration": 5
+        "duration": 5,
+        "nsfw_check": false
       }
     }
   },
