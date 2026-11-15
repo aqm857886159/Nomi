@@ -12,7 +12,7 @@
 //   node tests/ux/ui.mjs press Escape          按键（Playwright 键名）
 //   node tests/ux/ui.mjs hover <同 click 的定位>
 //   node tests/ux/ui.mjs drag x1 y1 x2 y2 [steps]
-//   node tests/ux/ui.mjs eval "document.title" 只读探针（不许用它改状态）
+//   node tests/ux/ui.mjs read "document.title" 只读探针：在页面里求一个表达式的值（不许用它改状态）
 //   node tests/ux/ui.mjs wait 800
 //   node tests/ux/ui.mjs down                 关掉这次起的实例（证据留下）
 import { spawn } from 'node:child_process'
@@ -24,7 +24,7 @@ import { parseDriverArgs, pidAlive, profileBanner } from './uiDriverOptions.mjs'
 
 const DIR = UI_DIR
 const DRIVER = path.join(path.dirname(fileURLToPath(import.meta.url)), 'ui-driver.mjs')
-const ACTIONS = ['up', 'down', 'doctor', 'features', 'goto', 'snap', 'shot', 'click', 'fill', 'press', 'hover', 'setfile', 'eval', 'drag', 'move', 'wait', 'quit', 'probe-latency', 'fps-start', 'fps-stop', 'density', 'contrast']
+const ACTIONS = ['up', 'down', 'doctor', 'features', 'goto', 'snap', 'shot', 'click', 'fill', 'press', 'hover', 'setfile', 'read', 'drag', 'move', 'wait', 'quit', 'probe-latency', 'fps-start', 'fps-stop', 'density', 'contrast']
 const [action, ...rest] = process.argv.slice(2)
 if (!action || !ACTIONS.includes(action)) {
   console.error(`用法: node tests/ux/ui.mjs <${ACTIONS.join('|')}> ...（详见文件头）`)
@@ -123,7 +123,7 @@ else {
   else if (action === 'fill') { cmd.sel = rest[0]; cmd.val = rest.slice(1).join(' ') }
   else if (action === 'press') cmd.key = rest[0]
   else if (action === 'setfile') { cmd.sel = rest[0]; cmd.path = rest.slice(1).join(' ') }
-  else if (action === 'eval') cmd.js = rest.join(' ')
+  else if (action === 'read') cmd.js = rest.join(' ')
   else if (action === 'drag') { cmd.x1 = Number(rest[0]); cmd.y1 = Number(rest[1]); cmd.x2 = Number(rest[2]); cmd.y2 = Number(rest[3]); cmd.steps = Number(rest[4] || 12) }
   else if (action === 'move') { cmd.x = Number(rest[0]); cmd.y = Number(rest[1]) }
   else if (action === 'wait') cmd.ms = Number(rest[0] || 500)

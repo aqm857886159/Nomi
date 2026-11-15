@@ -306,8 +306,8 @@ async function run(cmd) {
     case 'press': { await target().keyboard.press(cmd.key); await target().waitForTimeout(cmd.wait ?? 400); return { ok: `pressed ${cmd.key}`, shot: await shot('live') } }
     case 'hover': { await locate(target(), cmd.target).first().hover({ timeout: 5000 }); await target().waitForTimeout(cmd.wait ?? 400); return { ok: `hovered ${cmd.target}`, shot: await shot('live') } }
     case 'setfile': { await target().locator(cmd.sel).first().setInputFiles(cmd.path, { timeout: 5000 }); await target().waitForTimeout(cmd.wait ?? 800); return { ok: true, shot: await shot('live') } }
-    // eval 只当只读探针（读 DOM / 读文字）；改状态一律走界面动作（验收走查规矩 1：禁 evaluate 改状态）。
-    case 'eval': return { value: await target().evaluate(cmd.js) }
+    // read 只当只读探针（读 DOM / 读文字）；改状态一律走界面动作（验收走查规矩 1：禁 evaluate 改状态）。
+    case 'read': return { value: await target().evaluate(cmd.js) }
     case 'drag': {
       // 真鼠标拖拽：按下 → 分步移动 → 松手。用于 trim / 拖片 / reorder / scrub 等手势（click 测不了）。
       const w = target()

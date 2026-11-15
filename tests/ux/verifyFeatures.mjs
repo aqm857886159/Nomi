@@ -22,6 +22,7 @@ const localeOf = (ctx) => ctx.options.locale
 
 /** 没在项目里就新建一个空白项目进去（像人一样点项目库的「新建」）；已在项目里什么也不做。 */
 async function ensureProject(ctx) {
+  await shell.closeSettings(ctx.win(), 'goto（先关掉开着的设置弹窗）')
   if (await shell.isInProject(ctx.win())) return
   await shell.createBlankProject(ctx.win())
 }
@@ -42,19 +43,19 @@ async function ensureSelectedNode(ctx, kind = 'image') {
 export const FEATURES = {
   library: {
     summary: '项目库（新建 / 打开项目的地方）',
-    exits: ['_shell.mjs#leaveProjectIfOpen', '_shell.mjs#assertInLibrary'],
+    exits: ['_shell.mjs#closeSettings', '_shell.mjs#leaveProjectIfOpen', '_shell.mjs#assertInLibrary'],
     async goto(ctx) {
+      await shell.closeSettings(ctx.win(), 'goto library（先关掉开着的设置弹窗）')
       await shell.leaveProjectIfOpen(ctx.win(), 'goto library')
       await shell.assertInLibrary(ctx.win())
     },
   },
   storyboard: {
-    summary: '创作页的分镜编辑器（镜头行 + 参考卡）；没有项目就新建一个、没有方案就新建一份',
-    exits: ['_shell.mjs#isInProject', '_shell.mjs#createBlankProject', '_shell.mjs#switchWorkspace', '_shell.mjs#ensureStoryboardPlan', '_creationResourceTree.mjs#openStoryboardEditor'],
+    summary: '创作页的分镜编辑器（镜头行 + 参考卡）；没有项目就新建一个（新项目自带一份空分镜方案）',
+    exits: ['_shell.mjs#closeSettings', '_shell.mjs#isInProject', '_shell.mjs#createBlankProject', '_shell.mjs#switchWorkspace', '_creationResourceTree.mjs#openStoryboardEditor'],
     async goto(ctx) {
       await ensureProject(ctx)
       await shell.switchWorkspace(ctx.win(), 'creation')
-      await shell.ensureStoryboardPlan(ctx.win())
       await creationTree.openStoryboardEditor(ctx.win(), { pick: 'first' }, 'goto storyboard')
     },
   },
@@ -77,7 +78,7 @@ export const FEATURES = {
     exits: ['_shell.mjs#selectOrAddCanvasNode', '_shell.mjs#openNodeParams'],
     async goto(ctx) {
       await ensureSelectedNode(ctx, ctx.args[0] || 'image')
-      await shell.openNodeParams(ctx.win(), { advanced: true })
+      await shell.openNodeParams(ctx.win())
     },
   },
   'model-menu': {
