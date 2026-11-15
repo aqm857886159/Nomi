@@ -122,7 +122,10 @@ export function triageLine(cacheDir) {
 
 /** 报错原因进开工提示前去掉本机路径和凭据形状，只留第一行。 */
 function safeReason(error) {
-  const raw = String(error?.stderr || error?.message || error || '未知错误').split('\n').map((l) => l.trim()).find(Boolean) ?? '未知错误'
+  const text = [error?.stderr, error?.message, error].map((v) => (v == null ? '' : String(v))).find((v) => v.trim())
+  // 什么都没带的报错也要留下线索：说清拿到的是什么类型的值，不印一句没信息的话。
+  if (!text) return `报错没有带任何文字（拿到的是 ${error === null ? 'null' : typeof error}）`
+  const raw = text.split('\n').map((l) => l.trim()).find(Boolean)
   return raw.replace(/(?:[A-Za-z]:)?[\\/](?:Users|home)[\\/]\S+/g, '<本机路径>').replace(/\b(?:gh[pousr]_|github_pat_)\w+/g, '<凭据>').slice(0, 160)
 }
 
