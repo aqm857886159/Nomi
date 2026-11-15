@@ -2462,7 +2462,8 @@
         "electron/ai/onboarding/vendorPriceRequest.ts",
         "src/ui/onboarding/useVendorAccountFacts.ts",
         "src/workbench/common/apimartAccountDisplay.ts",
-        "src/workbench/generationCanvas/spend/useNodePricePreview.ts"
+        "src/workbench/generationCanvas/spend/useNodePricePreview.ts",
+        "src/workbench/generationCanvas/spend/useSendCost.ts"
       ],
       "alternativesChecked": [
         {
