@@ -311,9 +311,10 @@ export function V4Intervention({
       {data.progress ? (
         // 动作已经交出去、正在一段一段走（付费确认条「正在发出 k/N 段」，板 2026-11-15 ask.sending）：不摆主动作，
         // 左边转圈 + 进度那一句、右边那颗文字「取消」就是停下。条上没有标题时转圈挪到这一行（标题行不画）。
+        // 这一句是条上唯一的一句话：正文字号、加粗、墨色，转圈也是墨色（样张 ask.sending 的 `.st` / `.spin`）。
         <>
-          <span className="flex min-w-0 items-center gap-1.5 text-caption text-nomi-ink-60" data-v4-block="slot-progress">
-            {data.title ? null : <span className="shrink-0 text-nomi-accent" data-v4-block="slot-title-icon"><StatusSpinner size={14} /></span>}
+          <span className="flex min-w-0 items-center gap-1.5 text-body-sm font-semibold text-nomi-ink" data-v4-block="slot-progress">
+            {data.title ? null : <span className="shrink-0 text-nomi-ink" data-v4-block="slot-title-icon"><StatusSpinner size={12} /></span>}
             {data.progress.hint}
           </span>
           <span className="flex-1" />
@@ -400,9 +401,8 @@ export function V4Intervention({
       kind={data.kind}
       waiting={shellWaiting}
       {...(data.failed ? { tone: 'danger' as const } : {})}
-      // 付费确认条（SpendAskSplit 板 ask.params / ask.actions）：参数那一行和按钮那一行之间不画横线，两行之间只隔 8px。
-      // 内容区空着（正在发出）时页脚自己的上下边距照留。
-      {...(data.kind === 'spend' ? { className: '[&>footer]:border-t-0 [&>div:not(:empty)+footer]:pt-0' } : {})}
+      // 付费确认条（SpendAskSplit 板 ask.params / ask.actions）：参数那一行和按钮那一行之间不画横线。
+      footerDivider={data.kind !== 'spend'}
       // 标题就是**一句话**，不再是带底色卡头条里的一行小字（2026-09-22 换壳）。
       // 徽章（「生成 · Nomi 选的」「不可逆」「可撤销」）紧跟标题、同一行：来源信息说的是「这张卡是什么」，属于标题行。
       // 付费确认条等人决定 / 正在发出时没有标题（板 2026-11-15 ask.title：按钮已经说了要做什么、几段），整行不画。

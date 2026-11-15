@@ -416,10 +416,11 @@ export function SpendCardPanel({ scenario, locale = 'zh-CN', width = V4_PANEL_WI
     if (flow) return flow
     // 和真面板同一条路：两层投影出流水，再按回合把工作折成一行过程（生成记录在折起来的那一行里，那一组与回执露在外面）。
     if (scenario.done) return collapseV4Flow(laneFlowItems(laneSnapshotGenerateDone(OPERATION_ID, scenario.shots.map(shotIdOf), locale === 'en'), laneLabels), t)
-    // 等确认：那一条生成记录带着这一次出价的号（真面板里 laneViewModel 给），那一组就挂在它下面。
+    // 等确认：真面板里 `generate` 停在预检期等人、还没回包，那一条生成记录是「进行中」、还没带出价号（号在回包里，laneViewModel 才给），
+    // 那一组由面板画在它后面（`SpendOfferRowsWithoutRecord`）。这里照这个样子摆，不画一条假的「完成」。
     const prepare: V4FlowItem = {
       kind: 'tool',
-      receipt: { label: L(locale, '准备生成', 'Prepare generation'), action: scenario.shots[0]?.kind === 'image' ? 'image' : 'video', status: 'output-available', generation: { operationId: OPERATION_ID } },
+      receipt: { label: L(locale, '准备生成', 'Prepare generation'), action: scenario.shots[0]?.kind === 'image' ? 'image' : 'video', status: 'input-available' },
     }
     return scenario.message
       ? [{ kind: 'user', text: L(locale, scenario.message[0], scenario.message[1]) }, prepare]

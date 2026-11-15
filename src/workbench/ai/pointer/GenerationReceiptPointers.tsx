@@ -92,7 +92,7 @@ export function GenerationReceiptPointers({ operationId }: { operationId?: strin
       />
       {offer ? null : (
         <span className="flex items-center gap-1.5 text-caption text-nomi-ink-60" data-v4-block="generation-receipt-line" data-receipt-phase={phase}>
-          <IconCheck size={14} aria-hidden="true" className="shrink-0 text-nomi-success" />
+          <IconCheck size={14} aria-hidden="true" className="shrink-0" />
           {t(RECEIPT_COPY[unit][phase], { count: subjects.length })}
         </span>
       )}

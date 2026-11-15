@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconMessage } from '@tabler/icons-react'
+import { IconChevronRight, IconMessage } from '@tabler/icons-react'
 import { useOverlayEscape } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { nodePointerGroupVisible, nodePointerTitleTails, pointerHoverStack } from './nodePointerFace'
@@ -27,18 +27,13 @@ export type NodePointerRowAccessory = Readonly<{
 function PointerRow({ row, accessory }: { row: React.ReactNode; accessory: NodePointerRowAccessory }): JSX.Element {
   return (
     <div
-      className="group/pointer-row relative min-w-0"
+      // 淡下去的那一行（去掉了、不生成）整行铺一层浅灰底，字照常可读（SpendAskSplit 板 chat.rows.exclude 的 `.rw.off`）。
+      className={cn('group/pointer-row relative min-w-0', accessory.dimmed && '[&>button]:bg-nomi-ink-10')}
       data-node-pointer-row=""
       data-accessory-pinned={accessory.pinned ? 'true' : undefined}
+      data-node-pointer-row-dimmed={accessory.dimmed ? 'true' : undefined}
     >
       {row}
-      {accessory.dimmed ? (
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 rounded-nomi bg-nomi-paper/60"
-          data-node-pointer-row-dimmed="true"
-        />
-      ) : null}
       <span
         className={cn(
           'absolute inset-y-0 right-1 z-[5] flex items-center transition-opacity',
@@ -96,12 +91,14 @@ function NodePointerRows({
       {visible.hidden ? (
         <button
           type="button"
-          className="self-start rounded-nomi-sm px-1 py-0.5 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink"
+          className="inline-flex items-center gap-0.5 self-start rounded-nomi-sm px-1 py-0.5 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink"
           aria-expanded={false}
           data-node-pointer-more={visible.hidden}
           onClick={() => setExpanded(true)}
         >
           {t('nodePointer.moreShots', { count: visible.hidden })}
+          {/* 样张 chat.rows.more「还有 8 个镜头 ›」：后面一个小箭头说「点了还有」。 */}
+          <IconChevronRight size={12} stroke={1.8} aria-hidden="true" />
         </button>
       ) : null}
     </div>

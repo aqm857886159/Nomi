@@ -140,7 +140,7 @@ async function groupFacts(page) {
           detail: el.querySelector('[data-node-pointer-detail]')?.textContent?.trim() ?? null,
           located: Boolean(el.querySelector('[data-node-pointer-located]')),
           height: el.getBoundingClientRect().height,
-          dimmed: Boolean(wrap?.querySelector('[data-node-pointer-row-dimmed]')),
+          dimmed: wrap?.getAttribute('data-node-pointer-row-dimmed') === 'true',
           pinned: wrap?.getAttribute('data-accessory-pinned') === 'true',
           // 小钮是行的兄弟，不在行（按钮）里面。
           nested: Boolean(el.querySelector('button')),
