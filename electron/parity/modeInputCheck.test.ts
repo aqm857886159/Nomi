@@ -32,7 +32,8 @@ import type { OutboundRecord } from "./outboundRecord";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import type { ArchetypeReferenceSlotKind } from "../shared/modelArchetypes/types";
 import { KLING_4_FLASH_ARCHETYPE } from "../shared/videoCapabilities/kling4Flash";
-import { getArchetypeById, resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { MINIMAX_H3_APIMART_ARCHETYPE } from "../shared/videoCapabilities/minimaxH3Apimart";
 import { PIXVERSE_V6_ARCHETYPE } from "../shared/videoCapabilities/pixverse6";
 import type { ModelArchetype } from "../shared/modelArchetypes/types";
@@ -208,7 +209,7 @@ describe("槽位下限：Run 路显式首尾帧只给 1 张图（协调 2026-11-
     ["wan3.0-video", "first"],
   ] as const)("%s firstlast + 只有尾帧 → 不发，只说前半句（旧出路 %s 照原样再发仍被拒）", async (modelId, oldHint) => {
     const last: Ref = { url: IMG_A, kind: "image", role: "last_frame" };
-    const archetype = resolveArchetypeForModel({ modelKey: modelId, vendorKey: "apimart" })!;
+    const archetype = resolveModelArchetype({ modelKey: modelId, vendorKey: "apimart" }, { variant: EVERY_VARIANT })!;
     const firstMissing = desktopT("modeInput.slotMissing", { slot: slotOf(archetype, "firstlast", "first_frame") });
     const record = await run({ modelId, modeId: "firstlast", mode: "image_to_video", refs: [last] });
     expectRefused(record, () => firstMissing);

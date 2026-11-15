@@ -32,7 +32,7 @@ import { openCanvas, readProject } from './agent-runtime-walk-support.mjs'
 import { fileMapper, pageReadComposer, readComposerReferences } from './_composerReferenceRow.mjs'
 import { bareUrl, referenceRejection } from './_referenceLeakWire.mjs'
 
-const { getArchetypeById } = tsxRequire('../../electron/shared/modelArchetypes/index.ts', import.meta.url)
+const { getArchetypeById } = tsxRequire('../../electron/shared/modelArchetypes/builtInCatalog.ts', import.meta.url)
 const { modeForInputs } = tsxRequire('../../electron/shared/modelArchetypes/modeForInputs.ts', import.meta.url)
 const { EDGE_MODE_SLOTS } = tsxRequire('../../electron/shared/canvas/edgeAdmission.ts', import.meta.url)
 const { combineChannelForMode } = tsxRequire('../../electron/shared/videoCapabilities/referenceChannels.ts', import.meta.url)

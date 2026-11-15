@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MODEL_ARCHETYPES } from "../electron/shared/modelArchetypes/index.ts";
+import { MODEL_ARCHETYPES } from "../electron/shared/modelArchetypes/builtInCatalog.ts";
 import type { ModelArchetype } from "../electron/shared/modelArchetypes/types.ts";
 import { modeTransportFor } from "../electron/shared/videoCapabilities/modeTransport.ts";
 
@@ -74,7 +74,7 @@ export function buildWireDefaultsFor(archetypes: readonly ModelArchetype[]): Wir
       }
     }
     for (const { vendorKey, taskKind, mode } of primaryModeByBucket.values()) {
-      // 通用 params 落 "*"；有 vendorParams 覆盖的 vendor 用自己那组（覆盖=整组替换，与 resolveArchetypeForModel 一致），
+      // 通用 params 落 "*"；有 vendorParams 覆盖的 vendor 用自己那组（覆盖=整组替换，与 resolveModelArchetype 一致），
       // 只覆盖了 transport 没覆盖参数的 vendor 沿用通用组。
       const params = (vendorKey === "*" ? undefined : mode.vendorParams?.[vendorKey]) ?? mode.params ?? [];
       const d: Record<string, unknown> = {};
@@ -145,7 +145,7 @@ export function buildArchetypeSizeRatioSemantic(): SizeRatioSemantic {
  * 档案身份表：{ archetypeId: identifierPatterns[] }。
  * 为什么也要桥过去：主进程要能从 modelKey 认出档案（中转接入时决定「这个模型有没有可复用的
  * 原生报文」、启动自愈时同理），而档案住 src/config、electron 直接 import 不到。匹配规则与
- * resolveArchetypeForModel 同源（整串相等 或 去掉 vendor 前缀后的末段相等），实现在
+ * resolveModelArchetype 同源（整串相等 或 去掉 vendor 前缀后的末段相等），实现在
  * electron/catalog/archetypeIdentity.ts。
  */
 export function buildArchetypeIdentifierPatterns(): Record<string, string[]> {

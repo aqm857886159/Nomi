@@ -184,7 +184,7 @@ function taskRequest(directory: Opened, vendorKey: string, projectId: string, mo
 
 /** What a canvas node builds: the node's archetype mode that sends this task, with the picture on the slot that mode offers. */
 function canvasRequest(directory: Opened, vendorKey: string, projectId: string, model: CatalogModel, taskKind: string): SendRequest | null {
-  const archetype = directory.archetypes.resolveArchetypeForModel({ modelKey: model.modelKey, modelAlias: model.modelAlias, vendorKey, meta: model.meta });
+  const archetype = directory.archetypes.resolveModelArchetype({ modelKey: model.modelKey, modelAlias: model.modelAlias, vendorKey, meta: model.meta }, { variant: directory.archetypes.EVERY_VARIANT });
   const mode = archetype?.modes.find((candidate) => directory.transport.modeTransportFor(candidate, archetype, vendorKey) === taskKind);
   if (!archetype || !mode) return null;
   const picture = `${directory.origin}${PICTURE_PATH}`;

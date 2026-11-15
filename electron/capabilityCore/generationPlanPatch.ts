@@ -8,7 +8,7 @@ import { normalizeAuthoredCandidate, stripParametersNotAccepted, videoCompileOpt
 import { admitShotIdentity, declaredModeForModel } from "./semanticGenerationCandidate";
 import type { ModuleRegistry } from "./moduleRegistry";
 import type { VideoModelCandidate } from "../shared/videoCapabilities/recommendation";
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { resolveModelArchetype } from "../shared/modelArchetypes";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import { mergeNamedParameters, parameterChanges } from "../shared/generationParameterPatch";
 
@@ -35,7 +35,7 @@ function modeForArchetypeMode(
   modelId: string,
   modeId: string,
 ): string | undefined {
-  const archetype = resolveArchetypeForModel({ modelKey: modelId, vendorKey: providerId });
+  const archetype = resolveModelArchetype({ modelKey: modelId, vendorKey: providerId }, { variant: { variantId: undefined, modelId } });
   const mode = archetype?.modes.find((candidate) => normalizedModelIdentity(candidate.id) === normalizedModelIdentity(modeId));
   const transport = mode && archetype ? modeTransportFor(mode, archetype, providerId) : undefined;
   if (!transport) return undefined;

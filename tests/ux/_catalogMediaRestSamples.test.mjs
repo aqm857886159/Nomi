@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import { APIMART_IMAGE_MODELS } from '../../electron/catalog/apimartImages.ts'
 import { APIMART_VIDEO_MODELS } from '../../electron/catalog/apimartVideos.ts'
-import { getArchetypeById } from '../../electron/shared/modelArchetypes/index.ts'
+import { getArchetypeById } from '../../electron/shared/modelArchetypes/builtInCatalog.ts'
 import { archetypeModeChoices } from '../../src/workbench/generationCanvas/nodes/controls/channelModeReach.ts'
 import { buildModeMenu, modeRowName } from '../../src/workbench/generationCanvas/nodes/controls/modeMenuModel.ts'
 import { modeForInputs } from '../../electron/shared/modelArchetypes/modeForInputs.ts'

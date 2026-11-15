@@ -1,7 +1,7 @@
 import type { PlanShot, StoryboardPlan } from './storyboardPlan'
 import { storyboardProfileForKey } from './storyboardProfiles'
 import { ASPECT_RATIO_SEMANTIC_KEY, aspectRatioControlKey, aspectRatioControlsOf, placeAspectRatio, type AspectRatioControlLike } from '../aspectRatioValue'
-import { resolveArchetypeForModel } from '../modelArchetypes'
+import { resolveModelArchetype, variantRecordedInMeta } from '../modelArchetypes'
 import type { ModelParameterControl } from '../videoCapabilities/types'
 
 /**
@@ -197,7 +197,7 @@ export function unsupportedFilmDefaultKeys(
  */
 export function shotModeControls(model: Readonly<{ modelKey?: string; modelVendor?: string; modeId?: string; meta?: unknown }>): ModelParameterControl[] | null {
   if (!model.modelKey) return null
-  const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: model.modelVendor ?? null, meta: model.meta as never })
+  const archetype = resolveModelArchetype({ modelKey: model.modelKey, vendorKey: model.modelVendor ?? null, meta: model.meta as never }, { variant: variantRecordedInMeta(model.meta, model.modelKey) })
   const mode = archetype?.modes.find((candidate) => candidate.id === model.modeId)
     ?? archetype?.modes.find((candidate) => candidate.id === archetype.defaultModeId)
   return mode ? [...mode.params] : null

@@ -13,7 +13,7 @@
  *     在这家作用域里；
  *   · 画布发出（buildCatalogTaskRequest → 主进程按同一个选法挑映射 → templateContext 的 request.params.model，即线上模型名
  *     owner 的输出）：在这家作用域里；
- *   · 档案解析（resolveArchetypeForModel / buildVideoModelCandidates）：不接受档案型号名的行，解析出来的档案上一个型号名都没有；
+ *   · 档案解析（resolveModelArchetype / buildVideoModelCandidates）：不接受档案型号名的行，解析出来的档案上一个型号名都没有；
  *   · Agent 能力清单（主进程 agentModelEntriesFromCatalog 与渲染层 buildAgentModelEntries）：变体只出现在接受档案型号名的行。
  * 「这家的作用域」= 这家目录行自己的 key / 别名 ∪（内置家里、映射声明接受档案型号名的那些行所用档案的型号名）。
  * 不是内置家的连接（用户自建中转）作用域只有它自己目录行的 key / 别名——这条是**独立于被测代码**的判据：档案上的型号名只有
@@ -39,7 +39,8 @@ vi.mock("../capabilityCore/rendererBridge", () => ({
 import type { CatalogState } from "../catalog/types";
 import type { PlanCandidate } from "../capabilityCore/executionContract";
 import { deriveModelNameSource } from "../catalog/modelNameSource";
-import { getArchetypeById, resolveArchetypeForModel, type ModelArchetype } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype, type ModelArchetype } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { buildVideoModelCandidates, videoArchetypeIdFromMeta } from "../shared/videoCapabilities";
 import { selectTaskMapping } from "../catalog/types";
 import { templateContext } from "../catalog/profileHttpRequest";
@@ -89,7 +90,7 @@ function archetypeModelNames(archetype: ModelArchetype | null): string[] {
 
 const unscopedArchetypeOf = (row: Row) => {
   const id = videoArchetypeIdFromMeta(row.meta);
-  return (id ? getArchetypeById(id) : null) ?? resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta, modelNameSource: "archetype" });
+  return (id ? getArchetypeById(id) : null) ?? resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta, modelNameSource: "archetype" }, { variant: EVERY_VARIANT });
 };
 const sourceOf = (row: Row) => deriveModelNameSource(row, catalog.mappings);
 /** 内置家（含兄弟连接 `kie--x`）：只有它们的目录契约认证过档案上的型号名。 */
@@ -173,7 +174,7 @@ describe("Agent 能力清单：变体只出现在接受档案型号名的行，�
 describe("档案解析：不接受档案型号名的行，解析出来的档案上没有任何型号名（两个解析口同一个收窄）", () => {
   for (const row of rows) {
     it(`${row.vendorKey}/${row.modelKey}（${sourceOf(row)}）`, () => {
-      const viaResolver = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+      const viaResolver = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
       const viaCandidates = row.kind === "video"
         ? buildVideoModelCandidates([{ provider: row.vendorKey, modelKey: row.modelKey, label: row.labelZh, archetypeId: videoArchetypeIdFromMeta(row.meta) }])[0]?.archetype ?? null
         : null;
@@ -235,7 +236,7 @@ describe("宿主归一：身份留在这家目录里，发出型号在这家作�
 
 describe("画布发出：request.params.model（线上模型名 owner 的输出）在这家作用域里", () => {
   for (const row of rows) {
-    const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+    const archetype = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
     if (!archetype) continue;
     const variants: Array<string | undefined> = [undefined, ...(archetype.variants ?? []).map((variant) => variant.id)];
     for (const mode of archetype.modes) {

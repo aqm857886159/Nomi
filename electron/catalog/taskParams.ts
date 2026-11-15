@@ -6,7 +6,7 @@
 // params 的坑，都只在"真实参数构建"里暴露，埋在 2500 行 runtime 里既测不到也容易回归。
 import { assertDeclaredCapabilityForTask } from "../shared/modelAvailability";
 import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { resolveModelArchetype, type ArchetypeVariantRequest } from "../shared/modelArchetypes";
 import { referenceInputParams } from "./archetypeInput";
 import { ARCHETYPE_SIZE_RATIO_SEMANTIC } from "./archetypeWireDefaults.generated";
 import { declaredModeParams, effectiveModeParams, modeWhenUnrecorded } from "../shared/modelArchetypes/modeParams";
@@ -23,7 +23,6 @@ import { serializeReferenceParams } from "./outboundReferenceUrl";
 import { referenceValueCount, validateModeConstraints, type ModeInputEvidence, type ReferenceCounts } from "../shared/videoCapabilities/crossFieldConstraints";
 import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from "../shared/modelArchetypes/types";
 import { declarationForMode } from "../shared/generationLowering/declarationForMode";
-import { specializeArchetypeForVariant } from "../shared/modelArchetypes";
 import { SLOT_ACCEPTS } from "../shared/modelArchetypes/anchorPolicy";
 import { modeInputRefusal } from "./modeInputRefusal";
 export { ModeInputMissingError } from "./modeInputRefusal";
@@ -96,14 +95,11 @@ function sizeDefaultIsRatioSemantic(
 }
 
 /** 请求里记着的变体（只认属于这个档案的记录；没写 id 的宿主合同也算），连同模型名交给变体的唯一 owner。 */
-function recordedVariantId(archetype: NonNullable<ReturnType<typeof resolveArchetypeForModel>>, extras: Record<string, unknown> | undefined, modelKey: string | undefined): string | undefined {
+function recordedVariantRequest(archetype: ModelArchetype, extras: Record<string, unknown> | undefined, modelKey: string | undefined): ArchetypeVariantRequest {
   const selection = isJsonRecord(extras?.archetype) ? extras.archetype : {};
   const id = firstString(selection.id);
   const belongs = !id || id === archetype.id || (archetype.legacyIds ?? []).includes(id);
-  return resolveArchetypeVariant(archetype, {
-    ...(belongs ? { variantId: selection.variantId } : {}),
-    modelId: firstString(extras?.modelKey, modelKey),
-  })?.id;
+  return { variantId: belongs ? selection.variantId : undefined, modelId: firstString(extras?.modelKey, modelKey) };
 }
 
 /** 这个方式自己的默认值（固定参数 + 控件默认值），只给 size 别名闸的回退判据读。 */
@@ -143,16 +139,18 @@ export function applyHeadlessParamDefaults(
   const { taskKind, vendorKey } = selected;
   const declaredArchetype = isJsonRecord(selected.modelMeta) ? selected.modelMeta.archetypeId : undefined;
   const archetypeId = typeof declaredArchetype === "string" && declaredArchetype ? declaredArchetype : undefined;
-  const archetype = selected.modeId || archetypeId ? resolveArchetypeForModel({
+  // 档案按请求里记着的那一档收窄（入口给的就是收窄好的；方式、管辖键、输入核对都读这一份）。
+  const variant = (every: ModelArchetype) => recordedVariantRequest(every, extras, selected.modelKey);
+  const archetype = selected.modeId || archetypeId ? resolveModelArchetype({
     modelKey: selected.modelKey, modelAlias: selected.modelAlias, vendorKey, meta: selected.modelMeta,
-  }) : null;
+  }, { variant }) : null;
   // 方式：请求里记着的为准；没有记录的只在目录行自己声明了档案时按主方式补（自建中转按模型名认出的档案不在这里补，老报文被升级测试钉住）。
   const mode = archetype
     ? (selected.modeId ? archetype.modes.find((candidate) => candidate.id === selected.modeId) : undefined)
       ?? (archetypeId ? modeWhenUnrecorded(archetype, taskKind, vendorKey) : undefined)
     : undefined;
   const modeSelection = archetype && mode
-    ? { archetype, modeId: mode.id, variantId: recordedVariantId(archetype, extras, selected.modelKey) }
+    ? { archetype, modeId: mode.id, variantId: resolveArchetypeVariant(archetype, variant(archetype))?.id }
     : null;
   // extras.size 是比例形（调用方 aspect_ratio 铺来的）、但本模式的 size 是像素语义 → 剥掉，让档案像素默认接管。
   // 只针对「比例形的 caller size」，UI 路自己填的真实像素 size 不受影响（它不匹配 RATIO_VALUE_RE）。
@@ -275,7 +273,8 @@ function assertModeAcceptsInputs(
   selected: ParameterReferenceSelection,
   route: SendRoute,
 ): void {
-  const archetype = specializeArchetypeForVariant(selection.archetype, selection.variantId);
+  // selection.archetype 是入口按 selection.variantId 那一档收窄好的，不再收一遍。
+  const { archetype } = selection;
   const mode = archetype.modes.find((candidate) => candidate.id === selection.modeId);
   if (!mode) return;
   const evidence = modeInputEvidence(mode, values, createBody, selected, route);

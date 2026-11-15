@@ -42,7 +42,7 @@ vi.mock("../capabilityCore/rendererBridge", () => ({
   },
 }));
 
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { ARCHETYPE_WIRE_DEFAULTS } from "../catalog/archetypeWireDefaults.generated";
@@ -64,7 +64,7 @@ const seeded = await seedParityCatalog([]);
 }
 afterAll(() => capture.restore());
 
-type Archetype = NonNullable<ReturnType<typeof resolveArchetypeForModel>>;
+type Archetype = NonNullable<ReturnType<typeof resolveModelArchetype>>;
 type Mode = Archetype["modes"][number];
 type Control = Mode["params"][number];
 type Row = (typeof seeded.models)[number];
@@ -291,7 +291,7 @@ type Plan = { id: string; row: Row; archetype: Archetype; from: Mode; to: Mode }
 function enumeratePlans(): Plan[] {
   const plans: Plan[] = [];
   for (const row of seeded.models) {
-    const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+    const archetype = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
     if (!archetype) continue;
     for (const from of archetype.modes) {
       for (const to of archetype.modes) {

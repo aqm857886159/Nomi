@@ -24,7 +24,7 @@
 // renderTemplateValue / modeSlotReach），绝不另写一把尺子——门岗用一把尺子、UI 用另一把，
 // 正是它本该拦住的那种病。
 //
-// 认不出档案的模型（resolveArchetypeForModel → null）不算违规：通用回退形状不做模式收窄，
+// 认不出档案的模型（resolveModelArchetype → null）不算违规：通用回退形状不做模式收窄，
 // 没有「档案承诺」可违。无 create.body 的 op（multipart：参考走 imageSource 不走 body）同样跳过——
 // 它们由 multipartOperation 的自有测试守（本门岗只管模板 body 这一面，不假装管得了它管不到的）。
 //
@@ -32,7 +32,7 @@
 // R17：改判据前先验它会红（把 falOfficial.ts 那一 token 改回 `p("image_urls")` → 必须报出那一条）。
 import { applyBuiltinSeeds } from "../electron/catalog/seedBuiltins";
 import type { CatalogState } from "../electron/catalog/types";
-import { resolveArchetypeForModel } from "../electron/shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../electron/shared/modelArchetypes";
 import { buildArchetypeInputParams } from "../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
 import { taskTemplateParams } from "../electron/catalog/taskParams";
 import { renderTemplateValue } from "../electron/ai/requestPipeline";
@@ -78,7 +78,7 @@ export function findOutboundContractBreaches(state: CatalogState): { breaches: C
     const model = inVendor.find((m) => m.modelKey === modelKey) ?? inVendor.find((m) => m.modelAlias === modelKey);
     if (!model) continue;
 
-    const archetype = resolveArchetypeForModel(model);
+    const archetype = resolveModelArchetype(model, { variant: EVERY_VARIANT });
     if (!archetype) continue; // 通用回退形状：无档案承诺。
 
     const mode = archetype.modes.find((m) => m.id === modeId);

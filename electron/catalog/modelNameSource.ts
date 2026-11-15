@@ -14,7 +14,7 @@
 // 映射怎么选与发送时完全一样（selectTaskMapping：同一任务种类下精确绑定这一行的映射优先，没有才用这家的通用模板），
 // 所以这里说「接受」的行，发送时真会把档案型号名发出去；说「不接受」的行，档案型号名一个字都进不了请求。
 // 不写任何供应商名、型号名。结果随目录读出给渲染层（listModelCatalogModels），
-// 并装成本进程的查询口（catalogStore），两侧的档案解析（resolveArchetypeForModel / buildVideoModelCandidates）只认这个结果。
+// 并装成本进程的查询口（catalogStore），两侧的档案解析（resolveModelArchetype / buildVideoModelCandidates）只认这个结果。
 import type { ModelNameSource } from "../shared/modelArchetypes/modelNameSource";
 import { operationSelectsArchetypeWireModel } from "../shared/modelArchetypes/wireModelIdentity";
 import { selectTaskMapping, type Mapping } from "./types";

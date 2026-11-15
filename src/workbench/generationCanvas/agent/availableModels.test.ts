@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { buildAgentModelEntries, pickSavedDefaultModel, pickStoryboardDefaultModel } from "./availableModels";
 import type { ModelOption } from "../../../config/models";
 
-// 用 meta.archetypeId 显式命中内置档案（resolveArchetypeForModel 优先看 archetypeId）。
+// 用 meta.archetypeId 显式命中内置档案（resolveModelArchetype 优先看 archetypeId）。
 function opt(over: Partial<ModelOption>): ModelOption {
   return { value: "v", label: "L", ...over };
 }

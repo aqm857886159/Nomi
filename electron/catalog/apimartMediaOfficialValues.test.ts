@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MODEL_ARCHETYPES, getArchetypeById, specializeArchetypeForVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { rescopeArchetypeVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { MODEL_ARCHETYPES, getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import type { ModelParameterControl } from "../shared/videoCapabilities/types";
 import { APIMART_IMAGE_MODELS } from "./apimartImages";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
@@ -150,7 +151,7 @@ function apimartControls(archetypeId: string): Array<{ where: string; control: M
   const variants: Array<string | undefined> = base.variants?.length ? base.variants.map((variant) => variant.id) : [undefined];
   const rows: Array<{ where: string; control: ModelParameterControl }> = [];
   for (const variantId of variants) {
-    const archetype = variantId ? specializeArchetypeForVariant(base, variantId) : base;
+    const archetype = variantId ? rescopeArchetypeVariant(base, { variantId: variantId, modelId: undefined }) : base;
     for (const mode of specializeArchetypeForVendor(archetype, "apimart").modes) {
       for (const control of mode.params ?? []) rows.push({ where: `${archetypeId}${variantId ? `@${variantId}` : ""}/${mode.id}/${control.key}`, control });
     }

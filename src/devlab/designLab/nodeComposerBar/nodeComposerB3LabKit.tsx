@@ -14,7 +14,7 @@ import { useGenerationCanvasStore } from '../../../workbench/generationCanvas/st
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
 import { seedModelCatalogForTests } from '../../../config/modelCatalogCache'
 import type { ModelOption } from '../../../config/models'
-import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../../../workbench/generationCanvas/model/generationCanvasTypes'
 
 export const B3_CELL_WIDTH = 900

@@ -37,7 +37,7 @@ vi.mock("electron", async () => {
 
 import type { PlanCandidate } from "../capabilityCore/executionContract";
 import { normalizeVideoCandidate, videoCandidateForPlan } from "../capabilityCore/mcpGenerationVideoResolve";
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
 import { buildVideoModelCandidates, videoArchetypeIdFromMeta } from "../shared/videoCapabilities";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import type { VideoModelCandidate } from "../shared/videoCapabilities";
@@ -78,7 +78,7 @@ function planCandidate(row: VariantRow, extra: Partial<PlanCandidate> = {}): Pla
 
 /** 画布节点 / 付费卡那一侧：一个刚落地、没存过变体的节点，显示的是哪个变体。 */
 function rendererVariantId(row: VariantRow): string | undefined {
-  const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, vendorKey: row.vendorKey, meta: row.meta });
+  const archetype = resolveModelArchetype({ modelKey: row.modelKey, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
   if (!archetype) return undefined;
   return currentArchetypeVariant(archetype, { modelKey: row.modelKey, archetype: { id: archetype.id, modeId: archetype.defaultModeId } })?.id;
 }

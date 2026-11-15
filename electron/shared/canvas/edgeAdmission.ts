@@ -6,7 +6,7 @@
 // 现在：规则一份（本文件）；渲染层 `referenceEdgeCapability` 从这里 re-export，不另存。
 //
 // 只管**新建**：已经存在的旧边（老项目）照常加载、显示、能断开，这里不回头删它们。
-import { resolveArchetypeForModel, type ArchetypeReferenceSlotKind, type ModelArchetype } from '../modelArchetypes'
+import { resolveModelArchetype, variantRecordedInMeta, type ArchetypeReferenceSlotKind, type ModelArchetype } from '../modelArchetypes'
 import { SLOT_ACCEPTS, type ReferenceAssetKind } from '../modelArchetypes/anchorPolicy'
 import { NODE_EXECUTION_KIND_BY_NODE_KIND } from './nodeExecutionKinds'
 
@@ -94,8 +94,9 @@ export const EDGE_MODE_SLOTS: Record<EdgeAdmissionMode, readonly ArchetypeRefere
 }
 
 /**
- * 从节点 meta 解析模型档案 —— 一律走发送路径同一个解析器 `resolveArchetypeForModel`（它自己读 meta 里的显式 id 并做 legacyIds 迁移，
+ * 从节点 meta 解析模型档案 —— 一律走发送路径同一个入口 `resolveModelArchetype`（它自己读 meta 里的显式 id 并做 legacyIds 迁移，
  * 不在这里就地读 `meta.archetype.id`：那条捷径跳过迁移，同一节点两条路径认到两个档案，2026-09-08 修过）。
+ * 档就是节点自己存着的那一档（variantRecordedInMeta：只认同一档案记的、连同模型名交给唯一 owner）。
  */
 export function archetypeForNode(node: EdgeEndpoint): ModelArchetype | null {
   const meta = node.meta
@@ -103,11 +104,11 @@ export function archetypeForNode(node: EdgeEndpoint): ModelArchetype | null {
   const record = meta as Record<string, unknown>
   const modelKey = typeof record.modelKey === 'string' ? record.modelKey : ''
   const modelVendor = record.modelVendor
-  return resolveArchetypeForModel({
+  return resolveModelArchetype({
     modelKey,
     vendorKey: typeof modelVendor === 'string' ? modelVendor : null,
     meta,
-  })
+  }, { variant: variantRecordedInMeta(meta, modelKey) })
 }
 
 /** 目标模型跨所有模式声明过的参考槽种类(union);无档案 → null(放行,不校验)。 */

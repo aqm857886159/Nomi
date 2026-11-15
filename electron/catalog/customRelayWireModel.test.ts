@@ -40,7 +40,7 @@ import type { TaskRequest } from "../runtime";
 import { wireReferencedParamKeys } from "./paramTranslate";
 import { operationSelectsArchetypeWireModel } from "../shared/modelArchetypes/wireModelIdentity";
 import { builtinVendorSeed } from "./builtinVendorSeeds";
-import { getArchetypeById } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import fs from "node:fs";
 import path from "node:path";
 

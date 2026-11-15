@@ -3,13 +3,13 @@
 // （验收阻断 1、2：界面上看着对、发出去却少了图，用户照样被扣钱。）
 import { describe, expect, it } from 'vitest'
 import type { ModelOption } from '../../../../config/models'
-import { resolveArchetypeForModel, type ModelArchetype } from '../../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype, type ModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import { createGenerationNode } from '../../model/graphOps'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { buildNodeModelChangePatch } from '../buildNodeModelChangePatch'
 import { applyHumanModeChoice, buildArchetypeInputParams, effectiveArchetypeMode } from './archetypeMeta'
 
-const seedance = resolveArchetypeForModel({ modelKey: 'seedance-2', vendorKey: 'apimart', meta: {} } as never)!
+const seedance = resolveModelArchetype({ modelKey: 'seedance-2', vendorKey: 'apimart', meta: {} } as never, { variant: EVERY_VARIANT })!
 
 /** 底栏方式菜单：只写偏好（参考列表不动）。 */
 const choose = (meta: Record<string, unknown>, spec: ModelArchetype, modeId: string) => applyHumanModeChoice(meta, spec, modeId)
@@ -57,7 +57,7 @@ describe('换模型之后发出去的请求（上传的首尾帧）', () => {
     const archetype = { id: 'seedance-2', modeId: 'firstlast', ...(chosenBy ? { modeChosenBy: chosenBy } : {}) }
     const node = { ...createGenerationNode({ id: 'v', kind: 'video' }), meta: { modelKey: 'seedance-2', modelVendor: 'apimart', vendor: 'apimart', archetype, firstFrameUrl: 'a', lastFrameUrl: 'b' } }
     const meta = buildNodeModelChangePatch({ node, nodes: [node], edges: [], modelOptions: [option('seedance-2'), option(modelKey)], value: modelKey, vendor: 'apimart' }).meta
-    return { meta, spec: resolveArchetypeForModel({ modelKey, vendorKey: 'apimart', meta: {} } as never)! }
+    return { meta, spec: resolveModelArchetype({ modelKey, vendorKey: 'apimart', meta: {} } as never, { variant: EVERY_VARIANT })! }
   }
 
   it.each(['wan-2.7', 'veo-3.1', 'kling-3.0', 'grok-imagine-1.5-video'])('换到 %s：两张图都在发出去的请求里（不会掉成纯文生）', (modelKey) => {

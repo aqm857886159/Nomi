@@ -8,7 +8,7 @@ import {
   SEEDANCE_2_5_APIMART_ARCHETYPE,
   SEEDANCE_2_5_ARCHETYPE,
 } from '../videoCapabilities'
-import { resolveArchetypeForModel } from './index'
+import { EVERY_VARIANT, resolveModelArchetype } from './index'
 
 const DOC_LIMITS = { image_ref: 30, video_ref: 10, audio_ref: 10 } as const
 /** apimart 官方字段名（与 kie 的 reference_*_urls 不同——这正是要独立档案的原因）。 */
@@ -95,7 +95,7 @@ describe('Seedance 2.5 identity routing', () => {
     ['bytedance/seedance-2-5', 'seedance-2.5'],
     ['doubao-seedance-2.0', 'seedance-2-apimart'],
   ])('routes %s to %s', (modelKey, expectedId) => {
-    expect(resolveArchetypeForModel({ modelKey, vendorKey: null })?.id).toBe(expectedId)
+    expect(resolveModelArchetype({ modelKey, vendorKey: null }, { variant: EVERY_VARIANT })?.id).toBe(expectedId)
   })
 
   // 同一个模型两条通道，能力形状必须一致——差的只该是字段名与供应商硬约束。

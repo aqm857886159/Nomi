@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { RUNWAY_OFFICIAL_MODELS } from "./runwayOfficial";
 import { modeSlotReach } from "./referenceReachability";
-import { MODEL_ARCHETYPES, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { MODEL_ARCHETYPES } from "../shared/modelArchetypes/builtInCatalog";
 import {
   RUNWAY_AUDIO_ENDPOINTS,
   RUNWAY_SEED_AUDIO_REFERENCE_MAX,

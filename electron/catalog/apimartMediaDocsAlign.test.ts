@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import { buildHttpRequest, buildTemplateContext, looksLikeLogicalError } from "../ai/requestPipeline";
 import { buildArchetypeInputParams } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
-import { getArchetypeById } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { firstMappedString } from "../tasks/responseParsing";
 import { APIMART_IMAGE_MODELS } from "./apimartImages";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";

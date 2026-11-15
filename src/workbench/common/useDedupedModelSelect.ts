@@ -20,7 +20,7 @@ import { providerIdentityIcon } from '../../config/modelProviderIdentity'
 import { modelArchetypeOf, modelBrandIcon } from '../../config/modelFamilyIcons'
 import { modelCapabilityLine } from '../../config/modelCapabilityLine'
 import { applyModelBoxDefaults } from '../../config/modelBoxDefaults'
-import { specializeArchetypeForVariant } from '../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT } from '../../../electron/shared/modelArchetypes'
 
 import type { ModelProviderRef } from '../../config/modelIdentity'
 
@@ -214,7 +214,7 @@ function expandModelRows(model: DedupedModel, variantMenu: ModelVariantMenu | un
       return { key: menuRowKey(model.canonicalId, label), model, variant: { id: label, label, source: 'catalog' as const, provider } }
     })
   }
-  const archetype = variantMenu ? modelArchetypeOf(model) : null
+  const archetype = variantMenu ? modelArchetypeOf(model, { variantId: undefined, modelId: undefined }) : null
   const variants = archetype?.variants
   if (variantMenu && archetype && variants && variants.length > 1 && (variantMenu.axisLiveOf?.(model) ?? true)) {
     return variants.map((variant) => ({
@@ -240,9 +240,9 @@ function menuRowLabel(row: ModelMenuRow): string {
 
 /** 行上的一句能力描述：按这一行的档案（变体行按变体收窄后的档案）现算。 */
 function menuRowDescription(row: ModelMenuRow): string {
-  const archetype = modelArchetypeOf(row.model)
-  if (!archetype) return ''
-  return modelCapabilityLine(row.variant?.source === 'archetype' ? specializeArchetypeForVariant(archetype, row.variant.id) : archetype)
+  // 没分档的行说的是这个模型任一档能做的（并集）；变体行按那一档收窄。
+  const archetype = modelArchetypeOf(row.model, row.variant?.source === 'archetype' ? { variantId: row.variant.id, modelId: undefined } : EVERY_VARIANT)
+  return archetype ? modelCapabilityLine(archetype) : ''
 }
 
 /** 菜单上默认走的那家：被最多行选作生效供应商的那家（并列取全局顺序里靠前的）。 */

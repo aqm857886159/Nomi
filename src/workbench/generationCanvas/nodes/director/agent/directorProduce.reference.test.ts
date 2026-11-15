@@ -5,7 +5,8 @@
  * 不起 Electron、不花钱：请求只构建、不发送。
  */
 import { beforeEach, describe, expect, it } from 'vitest'
-import { MODEL_ARCHETYPES, specializeArchetypeForVariant } from '../../../../../../electron/shared/modelArchetypes'
+import { rescopeArchetypeVariant } from '../../../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { generationCanvasTools } from '../../../agent/generationCanvasTools'
 import { applyProposalBatch } from '../../../agent/proposalTxn'
 import { buildCatalogTaskRequest } from '../../../runner/catalogTaskActions'
@@ -156,7 +157,7 @@ it('档案变体只收窄参数，不改变参考槽形状，因此不算换模�
   for (const archetype of MODEL_ARCHETYPES) {
     const baseShape = archetype.modes.map((mode) => mode.slots)
     for (const variant of archetype.variants ?? []) {
-      const specialized = specializeArchetypeForVariant(archetype, variant.id)
+      const specialized = rescopeArchetypeVariant(archetype, { variantId: variant.id, modelId: undefined })
       expect(specialized.modes.map((mode) => mode.slots), `${archetype.id}:${variant.id}`).toEqual(baseShape)
     }
   }

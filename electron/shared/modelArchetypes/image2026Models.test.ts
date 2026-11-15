@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getArchetypeById, resolveArchetypeForModel } from "./index";
+import { EVERY_VARIANT, resolveModelArchetype } from "./index";
+import { getArchetypeById } from "./builtInCatalog";
 
 // ---------------------------------------------------------------------------
 // 2026-08-26 新接入的一批图像模型（Nano Banana 2 族 / kie Seedream 5.0 族 / Qwen-Image 3.0 / FLUX.2 Pro）
@@ -25,13 +26,13 @@ const optionValues = (archetypeId: string, modeId: string, key: string) => {
 describe("Nano Banana 2（gemini-3.1-flash-image 代）", () => {
   it("主款与 apimart 认回 nano-banana-2；lite 认回自己的档案，且都不被 2.5 代抢走", () => {
     // 认错档案不报错，只是参数域用错：2.5 档案的改图槽是 10，拿不到本代的 14。
-    expect(resolveArchetypeForModel(kie("nano-banana-2"))?.id).toBe("nano-banana-2");
-    expect(resolveArchetypeForModel(apimart("gemini-3.1-flash-image-preview"))?.id).toBe("nano-banana-2");
+    expect(resolveModelArchetype(kie("nano-banana-2"), { variant: EVERY_VARIANT })?.id).toBe("nano-banana-2");
+    expect(resolveModelArchetype(apimart("gemini-3.1-flash-image-preview"), { variant: EVERY_VARIANT })?.id).toBe("nano-banana-2");
     // lite 单独一档：它没有 resolution/output_format，共用主款档案会在 UI 上摆出无效控件。
-    expect(resolveArchetypeForModel(kie("nano-banana-2-lite"))?.id).toBe("nano-banana-2-lite");
+    expect(resolveModelArchetype(kie("nano-banana-2-lite"), { variant: EVERY_VARIANT })?.id).toBe("nano-banana-2-lite");
     // 老 2.5 代必须还在自己的档案里（本轮是新增一代，不是替换）。
-    expect(resolveArchetypeForModel(kie("nano-banana"))?.id).toBe("nano-banana");
-    expect(resolveArchetypeForModel(apimart("gemini-2.5-flash-image-preview"))?.id).toBe("nano-banana");
+    expect(resolveModelArchetype(kie("nano-banana"), { variant: EVERY_VARIANT })?.id).toBe("nano-banana");
+    expect(resolveModelArchetype(apimart("gemini-2.5-flash-image-preview"), { variant: EVERY_VARIANT })?.id).toBe("nano-banana");
   });
 
   it("改图参考图上限 14 张 —— 本代最大卖点（全市场最多）", () => {
@@ -80,12 +81,12 @@ describe("Nano Banana 2（gemini-3.1-flash-image 代）", () => {
 describe("kie Seedream 5.0（pro / lite 分档）", () => {
   it("四个 model id（两档 × 文生图/改图）各自认回正确的档案", () => {
     // kie 把文生图与改图拆成两个 model id，两个都要能认回同一个档案。
-    expect(resolveArchetypeForModel(kie("seedream/5-pro-text-to-image"))?.id).toBe("kie-seedream-5-pro");
-    expect(resolveArchetypeForModel(kie("seedream/5-pro-image-to-image"))?.id).toBe("kie-seedream-5-pro");
-    expect(resolveArchetypeForModel(kie("seedream/5-lite-text-to-image"))?.id).toBe("kie-seedream-5-lite");
-    expect(resolveArchetypeForModel(kie("seedream/5-lite-image-to-image"))?.id).toBe("kie-seedream-5-lite");
+    expect(resolveModelArchetype(kie("seedream/5-pro-text-to-image"), { variant: EVERY_VARIANT })?.id).toBe("kie-seedream-5-pro");
+    expect(resolveModelArchetype(kie("seedream/5-pro-image-to-image"), { variant: EVERY_VARIANT })?.id).toBe("kie-seedream-5-pro");
+    expect(resolveModelArchetype(kie("seedream/5-lite-text-to-image"), { variant: EVERY_VARIANT })?.id).toBe("kie-seedream-5-lite");
+    expect(resolveModelArchetype(kie("seedream/5-lite-image-to-image"), { variant: EVERY_VARIANT })?.id).toBe("kie-seedream-5-lite");
     // 4.5 伞档案没被抢走（它仍现役）。
-    expect(resolveArchetypeForModel(kie("seedream"))?.id).toBe("seedream");
+    expect(resolveModelArchetype(kie("seedream"), { variant: EVERY_VARIANT })?.id).toBe("seedream");
   });
 
   it("两个 mode 各自带 kie 的真实 model id 做 modelEnum（这是「两个 id」的收口处）", () => {
@@ -121,9 +122,9 @@ describe("kie Seedream 5.0（pro / lite 分档）", () => {
 
 describe("Qwen-Image 3.0（apimart）", () => {
   it("标准与 Pro 都认回 3.0 档案，且不与 2.0 混淆", () => {
-    expect(resolveArchetypeForModel(apimart("qwen-image-3.0"))?.id).toBe("qwen-image-3");
-    expect(resolveArchetypeForModel(apimart("qwen-image-3.0-pro"))?.id).toBe("qwen-image-3");
-    expect(resolveArchetypeForModel(apimart("qwen-image-2.0"))?.id).toBe("qwen-image");
+    expect(resolveModelArchetype(apimart("qwen-image-3.0"), { variant: EVERY_VARIANT })?.id).toBe("qwen-image-3");
+    expect(resolveModelArchetype(apimart("qwen-image-3.0-pro"), { variant: EVERY_VARIANT })?.id).toBe("qwen-image-3");
+    expect(resolveModelArchetype(apimart("qwen-image-2.0"), { variant: EVERY_VARIANT })?.id).toBe("qwen-image");
   });
 
   it("改图参考图 1–3 张（2.0 档案写的是 4，别照抄）", () => {
@@ -149,8 +150,8 @@ describe("Qwen-Image 3.0（apimart）", () => {
 
 describe("FLUX.2 Pro（kie）", () => {
   it("两个 model id 都认回同一档案，两 mode 各带自己的 modelEnum", () => {
-    expect(resolveArchetypeForModel(kie("flux-2/pro-text-to-image"))?.id).toBe("flux-2-pro");
-    expect(resolveArchetypeForModel(kie("flux-2/pro-image-to-image"))?.id).toBe("flux-2-pro");
+    expect(resolveModelArchetype(kie("flux-2/pro-text-to-image"), { variant: EVERY_VARIANT })?.id).toBe("flux-2-pro");
+    expect(resolveModelArchetype(kie("flux-2/pro-image-to-image"), { variant: EVERY_VARIANT })?.id).toBe("flux-2-pro");
     const arch = getArchetypeById("flux-2-pro")!;
     expect(arch.modes.map((m) => m.modelEnum)).toEqual(["flux-2/pro-text-to-image", "flux-2/pro-image-to-image"]);
   });

@@ -10,13 +10,11 @@ import {
   buildEffectiveImageCatalogConfig,
   buildEffectiveVideoCatalogConfig,
 } from './controls/parameterControlModel'
-import { specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
+import { resolveModelArchetype, variantRecordedInMeta, type ArchetypeVariantPick } from '../../../../electron/shared/modelArchetypes'
 import {
   archetypeModeById,
   archetypeModeParams,
-  currentArchetypeVariant,
   effectiveArchetypeMode,
-  resolveArchetypeForModel,
   type ModeGraph,
 } from './controls/archetypeMeta'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -41,7 +39,7 @@ export function chooseDefaultModelOption(
     /image-to-image|img2img|i2i|image2video|edit|inpaint/i.test(
       `${option.value} ${option.modelKey || ''} ${option.modelAlias || ''}`,
     )
-  const recognized = options.filter((option) => Boolean(resolveArchetypeForOption(option)))
+  const recognized = options.filter((option) => Boolean(resolveArchetypeForOption(option, { variantId: undefined, modelId: option.modelKey })))
   const runnable = recognized.filter((option) => !needsReference(option))
   // 健康避让（modelHealthMemory）：近 24h 连败 ≥2 的模型让出「自动默认」位——上游挂掉的模型
   // 不再霸占默认让新节点必死（2026-07-29 批量体检根治）。只影响自动默认（手动选择不拦）；
@@ -54,14 +52,15 @@ export function chooseDefaultModelOption(
   )
 }
 
-export function resolveArchetypeForOption(option: ModelOption | null) {
-  return resolveArchetypeForModel({
+/** 目录行的档案：档必传（节点上的用 variantRecordedInMeta(node.meta, …)，只问身份 / 方式的给具体一档）。 */
+export function resolveArchetypeForOption(option: ModelOption | null, variant: ArchetypeVariantPick) {
+  return resolveModelArchetype({
     modelKey: option?.modelKey,
     modelAlias: option?.modelAlias,
     vendorKey: option?.vendor,
     meta: option?.meta,
     ...(option?.modelNameSource ? { modelNameSource: option.modelNameSource } : {}),
-  })
+  }, { variant })
 }
 
 /**
@@ -91,11 +90,9 @@ export function resolveRenderedControls(
   isVideoLike: boolean,
   context?: RenderedControlsContext,
 ): DynamicModelControl[] {
-  const archetype = resolveArchetypeForOption(option)
-  if (archetype) {
-    // 变体特化：选中变体可能收窄某 mode 的参数（如 Seedance fast 的 resolution 仅 480/720）。
-    // 收窄发生在 params 这层，故先按 variantId 特化档案再取当前模式的 params。
-    const specialized = specializeArchetypeForVariant(archetype, currentArchetypeVariant(archetype, meta)?.id)
+  // 按节点记着的那一档收窄（如 Seedance fast 的 resolution 仅 480/720）：入口给的就是收窄好的。
+  const specialized = resolveArchetypeForOption(option, variantRecordedInMeta(meta, meta.modelKey))
+  if (specialized) {
     const mode = context && 'plannedModeId' in context
       ? archetypeModeById(specialized, context.plannedModeId)
       : effectiveArchetypeMode(specialized, context?.node ?? { id: '', meta, kind: isVideoLike ? 'video' : 'image' }, context?.graph ?? { nodes: [], edges: [] }).mode

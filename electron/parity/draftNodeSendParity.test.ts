@@ -58,8 +58,12 @@ import { generationCandidateSchema } from "../shared/agentCapabilities/generatio
 import type { ProductionGenerationShot, ProductionRun } from "../productionRun/productionRunTypes";
 import { buildMaterializeShotsPayload } from "../productionRun/multiShotCanvasLanding";
 import {
-  resolveArchetypeForModel, resolveArchetypeVariant, specializeArchetypeForVariant,
-  type ArchetypeMode, type ModelArchetype,
+  EVERY_VARIANT,
+  resolveModelArchetype,
+  resolveArchetypeVariant,
+  rescopeArchetypeVariant,
+  type ArchetypeMode,
+  type ModelArchetype,
 } from "../shared/modelArchetypes";
 import type { ArchetypeReferenceSlotKind, ModelParameterControl } from "../shared/videoCapabilities/types";
 import { constrainParameterControls, normalizeConditionalParameters, type ReferenceCounts } from "../shared/videoCapabilities/crossFieldConstraints";
@@ -150,7 +154,7 @@ type Row = { modelKey: string; kind: "video" | "image"; archetype: ModelArchetyp
 const rows: Row[] = catalog.models
   .filter((model) => model.vendorKey === VENDOR && (model.kind === "video" || model.kind === "image"))
   .flatMap((model): Row[] => {
-    const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta });
+    const archetype = resolveModelArchetype({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta }, { variant: EVERY_VARIANT });
     const option = options.find((candidate) => candidate.vendor === VENDOR && (candidate.modelKey || candidate.value) === model.modelKey);
     const listed = entryByKey.has(`${VENDOR}::${model.modelKey}`);
     return archetype && option && listed ? [{ modelKey: model.modelKey, kind: model.kind as Row["kind"], archetype, option }] : [];
@@ -248,7 +252,7 @@ function nonDefaultVariantId(archetype: ModelArchetype): string | undefined {
 /** Agent 起草这一镜：draft_shots 的短路径 + 宿主归一 + 落库前的同一道准入。 */
 function draftCandidate(row: Row, mode: ArchetypeMode, draft: Draft): { candidate: PlanCandidate; references: DraftedReference[] } {
   const variantId = draft === "changed" ? nonDefaultVariantId(row.archetype) : undefined;
-  const surface = specializeArchetypeForVariant(row.archetype, resolveArchetypeVariant(row.archetype, { ...(variantId ? { variantId } : {}), modelId: row.modelKey })?.id);
+  const surface = rescopeArchetypeVariant(row.archetype, { variantId: resolveArchetypeVariant(row.archetype, { ...(variantId ? { variantId } : {}), modelId: row.modelKey })?.id, modelId: undefined });
   const surfaceMode = surface.modes.find((candidate) => candidate.id === mode.id) ?? mode;
   const references = draftedReferences(mode);
   const params = {

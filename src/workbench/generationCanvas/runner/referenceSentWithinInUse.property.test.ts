@@ -28,11 +28,12 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ModelOption } from '../../../config/models'
 import {
-  MODEL_ARCHETYPES,
-  resolveArchetypeForModel,
+  EVERY_VARIANT,
+  resolveModelArchetype,
   type ArchetypeMode,
   type ModelArchetype,
 } from '../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { applyHeadlessParamDefaults, taskTemplateParams } from '../../../../electron/catalog/taskParams'
 import { modelReferenceSelection } from '../../../../electron/catalog/modelCatalogListing'
 import { findReferenceResidue } from '../../../../electron/catalog/archetypeInput'
@@ -103,7 +104,7 @@ function swapModel(graph: Graph, toModelKey: string, vendor: string): { graph: G
     node: graph.node, nodes: graph.nodes, edges: graph.edges,
     modelOptions: [option(from, vendor), option(toModelKey, vendor)], value: toModelKey, vendor,
   })
-  const archetype = resolveArchetypeForModel({ modelKey: toModelKey, vendorKey: vendor, meta: {} })!
+  const archetype = resolveModelArchetype({ modelKey: toModelKey, vendorKey: vendor, meta: {} }, { variant: EVERY_VARIANT })!
   const ensured = ensureArchetypeNodeMeta(meta, archetype) ?? meta
   const node = { ...graph.node, meta: ensured }
   return { graph: { ...graph, node, nodes: graph.nodes.map((n) => (n.id === node.id ? node : n)) }, archetype }
@@ -389,12 +390,12 @@ const imageOrVideo = MODEL_ARCHETYPES
   .map((archetype) => ({ archetype, modelKey: archetype.identifierPatterns[0]!, vendor: 'apimart' }))
 const everyArchetype = MODEL_ARCHETYPES.map((archetype) => ({ archetype, modelKey: archetype.identifierPatterns[0]!, vendor: 'apimart' }))
 const apimartArchetypes = APIMART_MODELS.flatMap((model) => {
-  const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: 'apimart', meta: { archetypeId: model.archetypeId } })
+  const archetype = resolveModelArchetype({ modelKey: model.modelKey, vendorKey: 'apimart', meta: { archetypeId: model.archetypeId } }, { variant: EVERY_VARIANT })
   return archetype && archetype.id === model.archetypeId ? [{ archetype, modelKey: model.modelKey, vendor: 'apimart', model }] : []
 })
 /** 内置目录里每个认得出档案的视频 / 图片模型行（同一个档案经几家接入就有几行）。 */
 const seededArchetypes = SEEDED.models.flatMap((model) => {
-  const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta as Record<string, unknown> | undefined })
+  const archetype = resolveModelArchetype({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta as Record<string, unknown> | undefined }, { variant: EVERY_VARIANT })
   return archetype && (archetype.kind === 'video' || archetype.kind === 'image') ? [{ archetype, modelKey: model.modelKey, vendor: model.vendorKey }] : []
 })
 
@@ -573,10 +574,10 @@ describe('键表完整性：请求体实际读的参考键都在 GENERIC_REFEREN
 
 // ── 线上四个场景（复盘表 1a–4）+ 没误伤 ───────────────────────────────────────────────
 
-const archetypeOf = (modelKey: string, vendor = 'apimart') => resolveArchetypeForModel({ modelKey, vendorKey: vendor, meta: {} })!
+const archetypeOf = (modelKey: string, vendor = 'apimart') => resolveModelArchetype({ modelKey, vendorKey: vendor, meta: {} }, { variant: EVERY_VARIANT })!
 
 function bodies(graph: Graph, modelKey = String(graph.node.meta?.modelKey)) {
-  const archetype = resolveArchetypeForModel({ modelKey, vendorKey: 'apimart', meta: graph.node.meta })!
+  const archetype = resolveModelArchetype({ modelKey, vendorKey: 'apimart', meta: graph.node.meta }, { variant: EVERY_VARIANT })!
   const request = rendererRequest(graph)
   const modeId = effectiveArchetypeMode(archetype, graph.node, graph).mode.id
   const apimart = APIMART_MODELS.find((model) => model.modelKey === modelKey)
@@ -875,7 +876,7 @@ describe('免费抓包：本机假上游收到的请求体（四个场景 + 没�
   it.each(CASES)('%s', async (name, makeGraph, modelKey, relayExpected, apimartExpected) => {
     const graph = makeGraph()
     const request = rendererRequest(graph)
-    const archetype = resolveArchetypeForModel({ modelKey, vendorKey: 'apimart', meta: graph.node.meta })!
+    const archetype = resolveModelArchetype({ modelKey, vendorKey: 'apimart', meta: graph.node.meta }, { variant: EVERY_VARIANT })!
     // 传输按这次真发的方式挑（存着的只是偏好）。
     const modeId = effectiveArchetypeMode(archetype, graph.node, graph).mode.id
     const apimart = APIMART_MODELS.find((model) => model.modelKey === modelKey)
