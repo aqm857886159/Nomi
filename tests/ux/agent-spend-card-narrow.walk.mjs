@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // 真实用户任务（D2 第③步，NodePointer 板 A4 在真 App 里）：**窄窗口里，对话浮在画布上、把画布盖住大半，点付费卡上的指向元素。**
 //
-// 最小窗（electron/shared/mainWindowSize.json，现 700×720），用户把对话浮窗从左上角那个改大小的角拉大、盖住画布大半，再点卡上的第 2 镜：
+// 最小窗（electron/shared/mainWindowSize.json，现 700×720），用户把对话浮窗从左上角那个改大小的角拉大、盖住画布大半，再点对话里那一组的第 2 行：
 //   · board:NodePointer/pointer.narrow.collapse —— 对话收成右下的小球，画布露出来，那个节点闪一下、就在眼前；
 //   · board:NodePointer/pointer.narrow.back —— 画布那一格底部正中出现「回到对话」（压在加节点条上面）；按 Esc 或点它，
 //     对话原样回来（还是那么大的浮窗），焦点落回刚点的那一项，它标着「已定位」。
-// 卡上三格在三种宽下都分得清（用户 10-25 圈出的两处实现缺陷）：默认浮窗（一格约 108px）、最窄浮窗（≤320，窄面板）、
-// 拉大的浮窗——三个标题**看得见的字**互不相同（共用一长截开头时截中间）；「已定位」和那一格露着的「不生成 ×」两个包围盒不相交，
-// 小钮也不压标题。
+// 对话里那一组三行在三种宽下都分得清（用户 10-25 圈出的两处实现缺陷；2026-11-15 拆开后镜头住在对话里，一行一个）：默认浮窗、
+// 最窄浮窗（≤320，窄面板）、拉大的浮窗——三个标题**看得见的字**互不相同（共用一长截开头时截中间）；「已定位」和那一行露着的
+// 「不生成 ×」两个包围盒不相交，小钮也不压标题。
 // 反例：
 //   · 1100 宽（COUNTER_WINDOW；最小窗 700 里默认浮窗已经挡住画布、本来就该收）、默认大小的浮窗只占一角：点指向元素，对话不收、不出「回到对话」，画布照样定位过去（A3 的样子）；
 //   · 收成小球以后用户点小球把对话叫回来（没经「回到对话」）：「回到对话」跟着没了；之后用面板头上的「收起」再收成小球，
@@ -19,8 +19,8 @@ import { stationTimeout } from './_station-budget.mjs'
 import { MIN_WINDOW } from './_minWindow.mjs'
 import { AGENT_PANEL, CANVAS_ADD_BAR, COLLAPSE_BUTTON } from './_shell.mjs'
 import {
-  CARD_BODY, POINTER, armCanvasBridges, canvasHighlightOf, canvasNode, cardTitle, createPresenter, pointerAway, pointerFace,
-  pointerOf, say, seenHighlights, shotNodes, watchCanvasHighlights,
+  CARD_PRIMARY, POINTER, armCanvasBridges, canvasHighlightOf, canvasNode, createPresenter, offerRows, pointerAway, pointerFace,
+  pointerOf, primaryLabel, say, seenHighlights, shotNodes, watchCanvasHighlights,
 } from './_spendCardWalk.mjs'
 import { COLLAPSED_DOCK, closeSpendCard, createRuntimeWalk, expandResidentPanel, openCanvas, recorded } from './agent-runtime-walk-support.mjs'
 
@@ -29,7 +29,10 @@ const A = {
   collapse: 'board:NodePointer/pointer.narrow.collapse',
   back: 'board:NodePointer/pointer.narrow.back',
   located: 'board:NodePointer/pointer.located',
-  exclude: 'board:SpendCardQ1/card.pointer.exclude',
+  exclude: 'board:SpendAskSplit/chat.rows.exclude',
+  rows: 'board:SpendAskSplit/chat.rows',
+  noPointers: 'board:SpendAskSplit/ask.pointers',
+  title: 'board:SpendAskSplit/ask.title',
   label: 'board:NodePointer/pointer.label',
 }
 /** 画布那一格（小球、浮窗、加节点条、「回到对话」都在这一格的坐标里）。 */
@@ -101,11 +104,11 @@ async function shrinkFloat(win, label) {
 }
 
 /**
- * 卡上每一格标题此刻**看得见**的字：被截掉的不算、被露着的小钮盖住的不算，截了的那一截补一个「…」。
+ * 对话里那一组每一行标题此刻**看得见**的字：被截掉的不算、被露着的小钮盖住的不算，截了的那一截补一个「…」。
  * 「看得见」按每个字自己的方框量（Range），省略号占的那一截按同一字体量出来再扣掉——和人眼看到的差不过一个字，
- * 分不分得清三格足够。
+ * 分不分得清三行足够。
  */
-const visibleTitles = (card) => card.evaluate((root) => {
+const visibleTitles = (card) => offerRows(card).evaluate((root) => {
   const opacityOf = (element, stop) => {
     let value = 1
     for (let node = element; node && node !== stop; node = node.parentElement) value *= Number(getComputedStyle(node).opacity)
@@ -114,7 +117,7 @@ const visibleTitles = (card) => card.evaluate((root) => {
   const toggles = [...root.querySelectorAll('[data-spend-exclusion]')].filter((element) => opacityOf(element, root) > 0.01).map((element) => element.getBoundingClientRect())
   const context = document.createElement('canvas').getContext('2d')
   const range = document.createRange()
-  return [...root.querySelectorAll('[data-v4-block="spend-body"] [data-node-pointer] [data-node-pointer-title]')].map((title) => {
+  return [...root.querySelectorAll('[data-node-pointer] [data-node-pointer-title]')].map((title) => {
     let text = ''
     const walker = document.createTreeWalker(title, NodeFilter.SHOW_TEXT)
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -144,27 +147,27 @@ const visibleTitles = (card) => card.evaluate((root) => {
   })
 })
 
-/** 三格标题看得见的字互不相同；全名还在悬停提示和读屏名里。 */
+/** 三行标题看得见的字互不相同；全名还在悬停提示和读屏名里。 */
 async function expectTitlesTellable(card, label) {
   const titles = await visibleTitles(card)
-  expect(titles.length, `${A.label}：${label}，卡上三格都有标题`).toBe(3)
+  expect(titles.length, `${A.label}：${label}，那一组三行都有标题`).toBe(3)
   const texts = titles.map((title) => title.text)
   expect(new Set(texts).size, `${A.label}：${label}，三个标题看得见的字互不相同 ${JSON.stringify(texts)}`).toBe(3)
   for (const title of titles) {
-    expect(title.text.replace('…', '').length, `${A.label}：${label}，每格至少露几个字 ${JSON.stringify(texts)}`).toBeGreaterThan(1)
+    expect(title.text.replace('…', '').length, `${A.label}：${label}，每行至少露几个字 ${JSON.stringify(texts)}`).toBeGreaterThan(1)
     expect(title.hover.length > 0 && title.aria.includes(title.hover), `${A.label}：${label}，全名在悬停提示和读屏名里 ${JSON.stringify(title)}`).toBe(true)
   }
   return texts
 }
 
 /**
- * 那一格标着「已定位」、小钮此刻露着：两个包围盒不相交，小钮也不压标题。
- * 小钮量**看得见的那一块**：「不生成 ×」是 28px 透明点击区里一颗 16px 圆点（共用 ThumbCornerX，和参考图的 × 同一件），
- * 压不压胶囊 / 标题要看圆点；透明的点击区本来就伸到框外 10px，量它会把「看不见的边」当成压住。
+ * 那一行标着「已定位」、行尾小钮此刻露着：两个包围盒不相交，小钮也不压标题。
+ * 小钮量**看得见的那一块**：「不生成 ×」是透明点击区里一颗 16px 圆点（共用 ThumbCornerX），
+ * 压不压「已定位」/ 标题要看圆点；透明的点击区比圆点大，量它会把「看不见的边」当成压住。
  */
 async function expectLocatedClear(card, nodeId, label) {
-  const read = () => card.evaluate((root, id) => {
-    const cell = root.querySelector(`[data-node-pointer-id="${id}"]`)?.closest('[data-node-pointer-cell]')
+  const read = () => offerRows(card).evaluate((root, id) => {
+    const cell = root.querySelector(`[data-node-pointer-id="${id}"]`)?.closest('[data-node-pointer-row]')
     const box = (element) => {
       const rect = element?.getBoundingClientRect()
       return rect ? { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom } : null
@@ -182,15 +185,15 @@ async function expectLocatedClear(card, nodeId, label) {
     }
   }, nodeId)
   let facts = await read()
-  expect(facts.located, `${A.located}：${label}，那一格标着「已定位」`).toBeTruthy()
-  expect(facts.toggle, `${A.exclude}：${label}，那一格有「不生成 ×」`).toBeTruthy()
+  expect(facts.located, `${A.located}：${label}，那一行标着「已定位」`).toBeTruthy()
+  expect(facts.toggle, `${A.exclude}：${label}，那一行行尾有「不生成 ×」`).toBeTruthy()
   // 小钮是淡入的（transition-opacity）：等它露全了再量，不拿半透明那一帧下结论。
   await expect.poll(async () => (facts = await read()).opacity,
-    { message: `${A.exclude}：${label}，焦点在那一格，「不生成 ×」露着（这一刻才谈得上压不压）`, timeout: 2000 }).toBeGreaterThan(0.99)
+    { message: `${A.exclude}：${label}，焦点在那一行，「不生成 ×」露着（这一刻才谈得上压不压）`, timeout: 2000 }).toBeGreaterThan(0.99)
   const apart = facts.located.right <= facts.toggle.left || facts.toggle.right <= facts.located.left
     || facts.located.bottom <= facts.toggle.top || facts.toggle.bottom <= facts.located.top
   expect(apart, `${A.located}：${label}，「已定位」和「不生成 ×」不重叠 ${JSON.stringify(facts)}`).toBe(true)
-  // 方案一：标题行不给缩略图上的 × 让位（× 在缩略图角上、不占标题行）；× 的圆点也不压标题字。
+  // 行尾让出一截给 ×（有一行挂就都让）：× 的圆点不压标题字。
   if (facts.title) {
     const clear = facts.title.right <= facts.toggle.left || facts.toggle.right <= facts.title.left
       || facts.title.bottom <= facts.toggle.top || facts.toggle.bottom <= facts.title.top
@@ -225,10 +228,10 @@ const focusDescription = (win) => win.evaluate(() => {
   return [tag, ...marks].join(' ')
 })
 
-/** 点卡上那一镜的缩略图：对话收成小球、画布闪那个节点、底部出「回到对话」。 */
+/** 点对话里那一镜那一行：对话收成小球、画布闪那个节点、底部出「回到对话」。 */
 async function clickPointerCollapses(walk, win, card, nodeId, { locale, label }) {
   await watchCanvasHighlights(win)
-  await clickOrFail(pointerFace(card, nodeId), `${label}：点卡上那一镜的缩略图`)
+  await clickOrFail(pointerFace(card, nodeId), `${label}：点对话里那一镜那一行`)
   const ball = win.locator(COLLAPSED_DOCK).first()
   await expect(ball, `${A.collapse}：对话收成右下的小球`).toBeVisible({ timeout: stationTimeout() })
   await expect(win.locator(AGENT_PANEL).first(), `${A.collapse}：浮窗让开了画布`).toBeHidden()
@@ -252,7 +255,7 @@ async function expectBackInChat(win, card, nodeId, floatBefore, label) {
     expect(Math.abs(float[key] - floatBefore[key]), `${A.back}：${label}，浮窗还是原来那么大、在原处（${key}）`).toBeLessThanOrEqual(2)
   }
   await expect.poll(() => focusedPointer(win), { message: `${A.back}：${label}，焦点落回刚点的那一项`, timeout: stationTimeout() }).toBe(nodeId)
-  await expect(card.locator(`${pointerOf(nodeId)} [data-node-pointer-located]`), `${A.back}：${label}，那一项标着「已定位」`).toBeVisible()
+  await expect(offerRows(card).locator(`${pointerOf(nodeId)} [data-node-pointer-located]`), `${A.back}：${label}，那一项标着「已定位」`).toBeVisible()
 }
 
 async function runRound(walk, win, { locale, scheme, round }) {
@@ -269,7 +272,9 @@ async function runRound(walk, win, { locale, scheme, round }) {
   })
   const card = drafted.card
   const cardProof = await proveProbe(card, `${round}：付费卡在 Agent 面板的介入槽里`)
-  await expect(card.locator('[data-v4-block="slot-title"]')).toContainText(cardTitle(locale, 3, 'image'))
+  // 确认条不画标题问话、不画镜头（板 ask.title / ask.pointers）：按钮说「生成 3 张」，镜头在对话里那一组。
+  await expect(card.locator(CARD_PRIMARY)).toContainText(primaryLabel(locale, { count: 3, kind: 'image' }))
+  await expect(card.locator('[data-v4-block="slot-title"]'), `${A.title}：${round}，确认条没有标题问话`).toHaveCount(0)
   // WindowNarrow 板：最小窗已在窄窗档（< 1060），付费卡原样在浮窗里，「生成 N 张」和取消两颗钮都整个露在浮窗与窗口里。
   const actions = await card.evaluate((root) => {
     const float = root.closest('[data-agent-float]')?.getBoundingClientRect()
@@ -286,14 +291,15 @@ async function runRound(walk, win, { locale, scheme, round }) {
   const nodes = await shotNodes(win, walk.report.projectId, drafted.operationId)
   expect(nodes.every((shot) => shot.nodeId), `${round}：三镜都落到了画布上`).toBe(true)
   const [first, second, third] = nodes.map((shot) => shot.nodeId)
-  await expect(card.locator(`${CARD_BODY} ${POINTER}`), `${round}：卡上是三个指向元素`).toHaveCount(3)
+  await expect(offerRows(card).locator(POINTER), `${A.rows}：${round}，对话里那一组是三行`).toHaveCount(3)
+  await expect(card.locator(POINTER), `${A.noPointers}：${round}，确认条上一个指向元素都没有`).toHaveCount(0)
   const facts = walk.report.rounds[round] = { locale, scheme, nodes: [first, second, third] }
 
   await walk.resizeWindow(COUNTER_WINDOW.width, COUNTER_WINDOW.height)
   // 两轮都是浮窗：上一轮在最小窗里点开 / 收起都只改此刻、不写存档（窄窗里点开、收起不改存下的样子），存的还是「浮窗 · 开着」。
   await expect(win.locator(FLOAT), `${round}：${COUNTER_WINDOW.width} 宽里对话是存下的浮窗`).toBeVisible()
   const formBefore = await rectOf(win, FLOAT)
-  facts.titlesAtStart = { floatWidth: formBefore?.width ?? null, texts: await expectTitlesTellable(card, `卡刚出来（浮窗 ${Math.round(formBefore?.width ?? 0)}px）`) }
+  facts.titlesAtStart = { floatWidth: formBefore?.width ?? null, texts: await expectTitlesTellable(card, `刚摆出来（浮窗 ${Math.round(formBefore?.width ?? 0)}px）`) }
   if (formBefore && (await floatCoverage(win)) < 0.5) {
     // 反例：默认大小的浮窗只占一角（COUNTER_WINDOW 宽，画布还有空地）——点指向元素，对话不收、不出「回到对话」，画布照样定位过去。
     facts.defaultFloat = { rect: formBefore, coverage: await floatCoverage(win) }
@@ -303,18 +309,18 @@ async function runRound(walk, win, { locale, scheme, round }) {
       { message: `${round}：默认浮窗下点指向元素，画布上那个节点照样闪一下`, timeout: stationTimeout() }).toBe(true)
     await expect(win.locator(AGENT_PANEL).first(), `${round}：浮窗只占一角，对话不收`).toBeVisible()
     await expect(win.locator(RETURN_PILL), `${round}：对话没收，就没有「回到对话」`).toHaveCount(0)
-    // 焦点留在刚点的那一格上：「不生成 ×」露着、那一格标着「已定位」——用户 10-25 圈出的「已定 不生成 ×」就是这一刻。
+    // 焦点留在刚点的那一行上：「不生成 ×」露着、那一行标着「已定位」——用户 10-25 圈出的「已定 不生成 ×」就是这一刻。
     facts.locatedAtStart = await expectLocatedClear(card, first, `${round}：默认浮窗下点了第 1 镜`)
-    facts.titlesWithToggle = await expectTitlesTellable(card, `${round}：默认浮窗、第 1 格的小钮露着`)
+    facts.titlesWithToggle = await expectTitlesTellable(card, `${round}：默认浮窗、第 1 行的小钮露着`)
     await walk.snap(r('default-float-stays-open'))
     await pointerAway(win)
     // 焦点还在那一项上 = 聚焦联动（板 A3），节点亮着是对的：记下来，不等它灭。
     facts.highlightAfterDefaultClick = await canvasHighlightOf(win, first)
 
-    // 窄面板（浮窗拉到最窄，≤320）：一格约 86px，「不生成」只剩 ×；三格照样分得清，「已定位」照样不被压。
+    // 窄面板（浮窗拉到最窄，≤320）：「不生成」只有 ×；三行照样分得清，「已定位」照样不被压。
     facts.narrowFloat = await shrinkFloat(win, `${round}：把浮窗拉到最窄`)
-    await expect(card.locator('[data-spend-exclusion="exclude"]').first(), `${A.exclude}：${round}，窄面板里「不生成 ×」只剩 ×`).toHaveText('')
-    await card.locator(pointerOf(first)).focus()
+    await expect(offerRows(card).locator('[data-spend-exclusion="exclude"]').first(), `${A.exclude}：${round}，窄面板里「不生成 ×」只有 ×`).toHaveText('')
+    await offerRows(card).locator(pointerOf(first)).focus()
     facts.locatedNarrow = await expectLocatedClear(card, first, `${round}：窄面板、聚焦第 1 镜`)
     facts.titlesNarrow = await expectTitlesTellable(card, `${round}：窄面板`)
     await walk.snap(r('narrow-panel-located-and-tellable-titles'))
@@ -423,7 +429,7 @@ try {
     'default-float-in-min-window-does-not-collapse', 'enlarged-float-collapses-on-pointer-click', 'node-flashes-and-is-in-view',
     'back-pill-bottom-centre-above-add-node-bar', 'escape-returns-to-the-same-float', 'pill-click-returns-to-the-same-float',
     'focus-lands-on-the-clicked-pointer-and-it-is-located', 'ball-reopen-clears-the-pill', 'manual-collapse-shows-no-stale-pill', 'yield-then-widen-clears-the-pill',
-    'tile-titles-tellable-at-default-narrow-and-enlarged-widths', 'located-and-exclude-never-overlap', 'exclude-never-covers-the-title',
+    'row-titles-tellable-at-default-narrow-and-enlarged-widths', 'bar-has-no-title-and-no-pointer', 'located-and-exclude-never-overlap', 'exclude-never-covers-the-title',
   ]
 } catch (error) {
   failure = error

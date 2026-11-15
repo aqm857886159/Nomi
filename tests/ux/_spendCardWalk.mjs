@@ -1,7 +1,9 @@
-// 付费卡（D2 第③步，SpendCardQ1 板）真 App 走查共用的那几件：让夹具里的 Agent 起草几镜、`generate` 把它们摆上卡；
-// 读卡（此刻摆着的一切）、读宿主账本（这一次出价、交接、画布那几镜的单镜 Run）、读画布节点。
+// 付费确认（D2 第③步；2026-11-15 拆开，板 spend-ask-split）真 App 走查共用的那几件：让夹具里的 Agent 起草几镜、`generate` 把它们摆出来；
+// 读确认条和对话里那一组（此刻摆着的一切）、读宿主账本（这一次出价、交接、画布那几镜的单镜 Run）、读画布节点。
 //
-// 卡 = 指向元素 + 一行只读摘要 + 「生成」（主按钮）+「取消」。卡上没有可改的东西——要改就点指向元素、去节点的生成框里改。
+// 拆开之后两处：对话里那一组 = 这一次要确认的镜头一行一个（超过 4 行折起「还有 N 个镜头」，行尾悬停露「不生成 ×」，去掉的常驻「恢复」）；
+// 输入框上方的确认条 = 一行共同参数 +「取消」「生成 N 段」（没有标题问话、没有指向元素）。条上没有可改的东西——要改就点那一行、去节点的生成框里改。
+// 走查里的 `card` 仍是确认条；要找行，用 `offerRows(card)`（同一个窗口里对话那一组）。
 // 点「生成」把这几镜交给画布：每一镜走画布单节点提交（和节点 ↑ 同一条路）。宿主在这一次出价上记交接（`handOvers`），
 // 画布那一镜的单镜 Run 号记在交接上（`canvasRunId`），派发结论写回同一笔（`settled.outcome`）；制作 Run 自己不派作业。
 // 期望的字一律从词典按键取（`say`），不在走查里另抄一份文案。
@@ -24,19 +26,21 @@ export const CARD_BADGE = '[data-v4-block="slot-badge"]'
 export const CARD_PRIMARY = INTERVENTION_CONFIRM
 export const CARD_CANCEL = INTERVENTION_REJECT
 export const CARD_BODY = '[data-v4-block="spend-body"]'
+/** 确认条上那一行共同参数（每一镜都一样的才写在这；有差别的那一项回到那一行的第二行）。 */
+export const CARD_PARAMS = '[data-v4-block="spend-params"]'
 export const CARD_PROGRESS = '[data-v4-block="slot-progress"]'
 export const CARD_NOTICE = '[data-v4-block="spend-notice"]'
 export const CARD_PER_SHOT = '[data-v4-block="price-per-item"]'
 export const POINTER = '[data-node-pointer]'
 export const pointerOf = (nodeId) => `[data-node-pointer-id="${nodeId}"]`
-/**
- * 像人那样指着这一镜的缩略图（画面框正中）。不用整个指向元素的几何中心：那一点落在标题行和画面之间的缝上，
- * 不是人会点的地方（悬停才露出来的「不生成 ×」归组、挂在标题行右端）——人眼看着缩略图点，点的是画面中间。
- */
-export const pointerFace = (scope, nodeId) => scope.locator(`${pointerOf(nodeId)} [data-node-pointer-frame]`).first()
-export const GROUP_SUMMARY = '[data-node-pointer-group-summary]'
-/** 组下方那一行在悬停某个指向元素时换成那一镜自己的摘要（镜号 · 模型 · 比例 · 时长，从节点现算）。 */
-export const HOVER_SUMMARY = '[data-node-pointer-hover-summary]'
+/** 对话里那一组：这一次出价开着时要确认的那一批（`data-offer-open`），关了之后是交出去的那几段（Q4 收据，同一个位置）。 */
+export const OFFER_ROWS = `${CANVAS_PANEL} [data-v4-block="generation-receipt-pointers"][data-offer-open="true"]`
+/** 一行（整行是一颗按钮：点了定位节点）；行尾小动作是它的兄弟，包在 `[data-node-pointer-row]` 里。 */
+export const ROW = '[data-node-pointer-row]'
+/** 确认条在哪个窗口，对话那一组就在哪个窗口：从条（或窗口）找到那一组。 */
+export const offerRows = (scope) => ('page' in scope && typeof scope.page === 'function' ? scope.page() : scope).locator(OFFER_ROWS)
+/** 像人那样指着这一镜那一行（整行是按钮）。`scope` 可以是条、窗口或那一组。 */
+export const pointerFace = (scope, nodeId) => offerRows(scope).locator(pointerOf(nodeId)).first()
 export const EXCLUDE = '[data-spend-exclusion="exclude"]'
 export const RESTORE = '[data-spend-exclusion="restore"]'
 /** 「取消」之后那一句（卡这时已经关了）：`useAgentPanelSpendCard` 推它时的原因。 */
@@ -55,13 +59,7 @@ export const MONEY = /[¥￥$€£]|\d+\.\d{2}/
 /** 界面上写的那一句（词典按键取 + 填占位，带 count 走复数）。`locale`：'zh-CN' | 'en'。 */
 export const say = (locale, key, values = {}) => uiTextWith(locale, key, values)
 
-/** 卡的标题那一句（「生成这 N 段视频？」/「生成剩下的视频？」）。 */
-export const cardTitle = (locale, count, kind, { remaining = false } = {}) => say(locale, remaining
-  ? (kind === 'video' ? 'agentPanelV4.spendParamsTitleRemainingVideo' : 'agentPanelV4.spendParamsTitleRemainingImage')
-  : count === 1
-    ? (kind === 'video' ? 'agentPanelV4.spendParamsTitleSingle' : 'agentPanelV4.spendParamsTitleImageSingle')
-    : (kind === 'video' ? 'agentPanelV4.spendParamsTitle' : 'agentPanelV4.spendParamsTitleImage'), { count })
-/** 主按钮那一句：单段「生成」，多段「全部生成（N）」，节点上点过 ↑ 之后「生成剩下 N 段 / 张」。 */
+/** 主按钮那一句：单段「生成」，多段「生成 N 段 / 张」，节点上点过 ↑ 之后同样按剩下的数说。 */
 export function primaryLabel(locale, { count, kind, remaining = false, single = false }) {
   if (single || count === 0) return say(locale, 'agentPanelV4.spendCard.generate')
   if (remaining) return say(locale, kind === 'video' ? 'agentPanelV4.spendConfirmRemainingVideo' : 'agentPanelV4.spendConfirmRemainingImage', { count })
@@ -139,8 +137,10 @@ export function createPresenter(prefix) {
     const card = win.locator(SPEND_CARD)
     const count = shotIds?.length ?? drafted.length
     if (waitForCard) {
-      await expect(card.locator(CARD_TITLE), `${tag}：卡上问的是这 ${count} 镜`).toContainText(cardTitle(locale, count, kind),
+      // 确认条不画标题问话：按钮说了做什么、几段（板 ask.title）。对话里那一组同时出现。
+      await expect(card.locator(CARD_PRIMARY), `${tag}：确认条上的按钮说的是这 ${count} 镜`).toContainText(primaryLabel(locale, { count, kind, single: count === 1 }),
         { timeout: stationTimeout({ operations: Math.max(4, Math.ceil(count / 4)) }) })
+      await expect(offerRows(card), `${tag}：对话里出现这一次要确认的那一组`).toHaveCount(1, { timeout: stationTimeout() })
     }
     return { card, operationId, turnDone, tag, receipt: () => receipt, request: () => request }
   }
@@ -371,9 +371,11 @@ export async function editNodeParameter(win, nodeId, key, { pick } = {}) {
 // ── 卡（此刻摆着的一切，一次读完，断言在 Node 这边比）────────────────────────────────────────────
 
 export function cardFacts(win) {
-  return win.evaluate(({ cardSelector, editors }) => {
+  return win.evaluate(({ cardSelector, rowsSelector, editors }) => {
     const card = document.querySelector(cardSelector)
     if (!card) return null
+    // 行住在对话里那一组（出价开着时），不在条上。
+    const rows = document.querySelector(rowsSelector)
     const text = (selector) => card.querySelector(selector)?.textContent?.trim() ?? null
     const confirm = card.querySelector('[data-v4-control="confirm"]')
     const dismiss = card.querySelector('[data-v4-control="slot-dismiss"]')
@@ -392,48 +394,43 @@ export function cardFacts(win) {
       progress: text('[data-v4-block="slot-progress"]'),
       confirm: confirm ? { text: (confirm.textContent ?? '').replace('⏎', '').trim(), disabled: confirm.disabled } : null,
       dismiss: dismiss ? { text: dismiss.textContent?.trim() ?? '', disabled: dismiss.disabled } : null,
-      pointers: body ? [...body.querySelectorAll('[data-node-pointer]')].map((el) => ({
+      pointers: rows ? [...rows.querySelectorAll('[data-node-pointer]')].filter((el) => el.hasAttribute('data-node-pointer-id')).map((el) => ({
         id: el.getAttribute('data-node-pointer-id'), face: el.getAttribute('data-node-pointer-face'), text: el.textContent ?? '',
       })) : [],
-      toggles: body ? [...body.querySelectorAll('[data-spend-exclusion]')].map((el) => ({
+      // 条上不许再有指向元素（板 ask.pointers）：一镜也不画。
+      pointersOnBar: card.querySelectorAll('[data-node-pointer]').length,
+      toggles: rows ? [...rows.querySelectorAll('[data-spend-exclusion]')].map((el) => ({
         kind: el.getAttribute('data-spend-exclusion'),
-        cell: el.closest('[data-node-pointer-cell]')?.querySelector('[data-node-pointer]')?.getAttribute('data-node-pointer-id') ?? null,
+        row: el.closest('[data-node-pointer-row]')?.querySelector('[data-node-pointer]')?.getAttribute('data-node-pointer-id') ?? null,
       })) : [],
+      more: rows?.querySelector('[data-node-pointer-more]')?.textContent?.trim() ?? null,
       notices: [...card.querySelectorAll('[data-v4-block="spend-notice"]')].map((el) => ({ tone: el.getAttribute('data-tone'), text: el.textContent?.trim() ?? '' })),
-      groupSummary: body?.querySelector('[data-node-pointer-group-summary]')?.textContent?.trim() ?? null,
+      params: body?.querySelector('[data-v4-block="spend-params"]')?.textContent?.trim() ?? null,
       editors: card.querySelectorAll(editors).length,
       cardText: card.textContent ?? '',
+      rowsText: rows?.textContent ?? '',
     }
-  }, { cardSelector: SPEND_CARD, editors: CARD_EDITORS })
+  }, { cardSelector: SPEND_CARD, rowsSelector: OFFER_ROWS, editors: CARD_EDITORS })
 }
 
-/** 把鼠标挪开（组下方那一行回到宿主给的那一句；读 `cardFacts().groupSummary` 之前要先挪开）。 */
+/** 把鼠标挪开（行尾的「不生成 ×」收回去、画布上那一镜不再同亮）。 */
 export async function pointerAway(win) {
   await win.mouse.move(2, 2)
 }
 
-/** 悬停某个指向元素，读组下方那一行此刻印的这一镜摘要（从节点现算），读完把鼠标挪开。 */
-export async function hoverSummaryOf(win, nodeId) {
-  await pointerFace(win.locator(`${SPEND_CARD} ${CARD_BODY}`), nodeId).hover()
-  const line = win.locator(`${SPEND_CARD} ${CARD_BODY} ${HOVER_SUMMARY}`)
-  await expect(line, `悬停 ${nodeId} 时组下方那一行换成这一镜的摘要`).toBeVisible({ timeout: stationTimeout() })
-  const text = (await line.innerText()).trim()
-  await pointerAway(win)
-  return text
-}
-
-/** 单段卡：指向元素自己的摘要那几行（单张卡画面左、摘要右）。 */
-export function singlePointerText(win) {
-  return win.locator(`${SPEND_CARD} ${CARD_BODY} ${POINTER}`).first().innerText()
+/** 对话里那一组里这一镜那一行此刻的字（标题 + 有话要说时的第二行：和别的镜不一样的参数 / 状态）。 */
+export async function rowTextOf(win, nodeId) {
+  await unfoldPointers(win, `读 ${nodeId} 那一行`)
+  return (await pointerFace(win, nodeId).innerText()).trim()
 }
 
 /**
- * 去节点上点 ↑：点卡上那一镜的缩略图 → 生成框为它打开 → 点生成框底栏的 ↑（和画布上直接在节点上生成同一条路）。
- * 画布接走这一镜：卡上那个指向元素跟着节点说「生成中」，不再算在主按钮里。
+ * 去节点上点 ↑：点对话里那一镜那一行 → 生成框为它打开 → 点生成框底栏的 ↑（和画布上直接在节点上生成同一条路）。
+ * 画布接走这一镜：那一行跟着节点说「生成中」，不再算在主按钮里。
  */
 export async function generateOnNode(win, card, nodeId, label) {
   await unfoldPointers(card, label)
-  await clickOrFail(pointerFace(card, nodeId), `${label}：点卡上那一镜的缩略图`)
+  await clickOrFail(pointerFace(card, nodeId), `${label}：点对话里那一镜那一行`)
   // 认这一镜自己的生成框（挂在它的画布节点里）：不认 DOM 里第一张——别的节点的框可能还开着。
   const composer = win.locator(`${canvasNode(nodeId)} ${NODE_COMPOSER}`)
   await expect(composer, `${label}：这一镜的生成框打开了`).toBeVisible({ timeout: stationTimeout() })
@@ -472,20 +469,22 @@ export function taskPanelSettledProblems(rows, { offerRunId, canvasRunIds = [], 
 }
 
 /**
- * 组指向 5 个起折叠：最后一格盖「还有 N 个」（板 pointer.group.more），点它是展开、不是定位。要点 / 要悬停某一镜之前先展开，
- * 不然点到的可能是那一格的「展开」（第三镜就在那一格底下）。
+ * 对话里那一组超过 4 行折起：第 4 行下面一颗字按钮「还有 N 个镜头」（板 chat.rows.more），点它是展开、不是定位。
+ * 要点 / 要悬停某一镜之前先展开。`scope`：条、窗口或那一组。
  */
-export async function unfoldPointers(card, label) {
-  const more = card.locator('[data-node-pointer-more]')
+export async function unfoldPointers(scope, label) {
+  const more = offerRows(scope).locator('[data-node-pointer-more]')
   if (!(await more.count())) return
-  await clickOrFail(more.first(), `${label}：组指向「还有 N 个」，先展开`)
+  await clickOrFail(more.first(), `${label}：那一组「还有 N 个镜头」，先展开`)
   await expect(more, `${label}：展开之后不再折`).toHaveCount(0, { timeout: stationTimeout() })
 }
 
-/** 卡上某一镜那一格里的「不生成 ×」（悬停那一镜的缩略图才露出来）。 */
+/** 这一镜那一行（含行尾小动作那一槽）。 */
+export const rowOf = (scope, nodeId) => offerRows(scope).locator(ROW).filter({ has: offerRows(scope).page().locator(pointerOf(nodeId)) })
+
+/** 那一镜那一行行尾的「不生成 ×」（悬停那一行才露出来）。 */
 export async function excludeShot(card, nodeId, label) {
   await unfoldPointers(card, label)
   await pointerFace(card, nodeId).hover()
-  const cell = card.locator('[data-node-pointer-cell]').filter({ has: card.page().locator(pointerOf(nodeId)) })
-  await clickOrFail(cell.locator(EXCLUDE), label)
+  await clickOrFail(rowOf(card, nodeId).locator(EXCLUDE), label)
 }

@@ -19,8 +19,8 @@ import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  MONEY, NODE_COMPOSER, armCanvasBridges, canvasRunsOf, cardFacts, cardTitle, createPresenter, editNodeParameter, offerFacts,
-  pointerAway, pointerFace, pressPrimary, primaryLabel, readRun, shotNodes, singlePointerText,
+  MONEY, NODE_COMPOSER, armCanvasBridges, canvasRunsOf, cardFacts, createPresenter, editNodeParameter, offerFacts,
+  pointerAway, pointerFace, pressPrimary, primaryLabel, readRun, shotNodes,
 } from './_spendCardWalk.mjs'
 import { createRuntimeWalk, openCanvas, recorded } from './agent-runtime-walk-support.mjs'
 
@@ -54,14 +54,16 @@ try {
   expect(drafted?.nodeId, '起草那一刻这一镜就落在画布上').toBeTruthy()
   await pointerAway(win)
   const before = await cardFacts(win)
-  expect(before.title, '卡问的是这一张').toBe(cardTitle(LOCALE, 1, 'image'))
+  expect(before.title, '确认条不画标题问话（按钮说了「生成」）').toBeNull()
+  expect(before.pointers.map((pointer) => pointer.id), '对话里那一组就是这一镜').toEqual([drafted.nodeId])
+  expect(before.pointersOnBar, '确认条上一个指向元素都没有').toBe(0)
   expect(before.confirm?.text, '单张的主按钮是「生成」').toBe(primaryLabel(LOCALE, { count: 1, kind: 'image', single: true }))
   expect(before.editors, '卡上没有任何可改的东西（改参数的家只有节点）').toBe(0)
   expect(before.cardText, '这台机器算不出价：卡上不说任何价格的话').not.toMatch(MONEY)
   expect(walk.fixture.images, '卡还没按之前，一次供应商生成都没发生').toHaveLength(0)
 
   // ② 点卡上那一镜 → 节点的生成框为它打开 → 在那里把清晰度换成 2K（真的点开参数面板再选一项）。
-  await clickOrFail(pointerFace(card, drafted.nodeId), '点卡上那一镜的缩略图')
+  await clickOrFail(pointerFace(card, drafted.nodeId), '点对话里那一镜那一行')
   const composer = win.locator(NODE_COMPOSER)
   await expect(composer, '这一镜的生成框打开了').toBeVisible({ timeout: stationTimeout() })
   const resolution = await editNodeParameter(win, drafted.nodeId, 'resolution', { pick: EDITED_RESOLUTION })
@@ -78,8 +80,8 @@ try {
     { message: '打的字真的接在节点提示词的末尾', timeout: stationTimeout() }).toMatch(new RegExp(`${EDITED_PROMPT_TAIL}\\s*$`))
   await win.keyboard.press('Escape')
   await pointerAway(win)
-  // 卡上那一镜的摘要从节点现算：节点上改了，卡上跟着说 2K。
-  await expect.poll(() => singlePointerText(win), { message: '卡上那一镜的摘要跟着节点说 2K', timeout: stationTimeout() }).toContain(EDITED_RESOLUTION)
+  // 确认条那一行共同参数从节点现算：节点上改了，条上跟着说 2K（单镜时它的参数就是共同参数）。
+  await expect.poll(async () => (await cardFacts(win))?.params ?? '', { message: '确认条那一行参数跟着节点说 2K', timeout: stationTimeout() }).toContain(EDITED_RESOLUTION)
   await walk.snap('spend-card-after-node-edit')
 
   // ③ 按「生成」。先等「有结论」再判对错：只等供应商的话，一次被拒会以超时的形状报出来，看不见卡上说的原因。

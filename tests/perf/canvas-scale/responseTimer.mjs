@@ -84,9 +84,9 @@ const INSTALL_SOURCE = `(() => {
       const viewport = document.querySelector('.react-flow__viewport')
       return shellOf(nodeId)?.getAttribute('data-external-highlight') === 'flash' && Boolean(viewport) && viewport.style.transform !== before
     },
-    // 在节点生成框里改了一个参数 → 付费卡组下方那一行摘要换了字（卡从节点现算，不留第二份）。
+    // 在节点生成框里改了一个参数 → 付费确认条那一行共同参数换了字（从节点现算，不留第二份）。
     spendSummaryChanged({ card, before }) {
-      const line = document.querySelector(card + ' [data-node-pointer-group-summary]')
+      const line = document.querySelector(card + ' [data-v4-block="spend-params"]')
       return Boolean(line) && line.textContent.trim() !== before
     },
     nodeCountAbove(count) {

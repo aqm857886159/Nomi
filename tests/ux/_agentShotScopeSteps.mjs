@@ -21,7 +21,7 @@ import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } fro
 import { envKeyOf } from './_paidEnvKey.mjs'
 import { readProductionRuns, spendReceipt } from './_paidRun.mjs'
 import { readLaneSpend } from './_laneSpendProbe.mjs'
-import { CARD_PRIMARY, CARD_TITLE, SPEND_CARD, armCanvasBridges, cardFacts, excludeShot, nodeMeta, pointerAway } from './_spendCardWalk.mjs'
+import { CARD_PRIMARY, SPEND_CARD, armCanvasBridges, cardFacts, excludeShot, nodeMeta, pointerAway } from './_spendCardWalk.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { readLaneTranscripts } from './agent-lane-observer.mjs'
 import {
@@ -227,8 +227,8 @@ export async function runShotScopeJourney(journey, { walk, paid, brainLabel, exp
       result.projectionShotIds = row.shots.map((shot) => shot.shotId)
       result.nodeOfShot = Object.fromEntries(row.shots.filter((shot) => shot.nodeId).map((shot) => [shot.shotId, shot.nodeId]))
     }
-    await expect(card.locator(CARD_TITLE), `${operationId}：卡出现在介入槽里`).toBeVisible({ timeout: stationTimeout({ operations: 4 }) }).catch(() => undefined)
-    // 指向元素是卡按投影渲染出来的：等它和投影说的节点一致再读（超时不抛，不一致本身就是硬断言要报的事）。
+    await expect(card.locator(CARD_PRIMARY), `${operationId}：确认条出现在介入槽里`).toBeVisible({ timeout: stationTimeout({ operations: 4 }) }).catch(() => undefined)
+    // 对话里那一组行是按同一份投影渲染出来的：等它和投影说的节点一致再读（超时不抛，不一致本身就是硬断言要报的事）。
     const wantedNodes = Object.values(result.nodeOfShot).sort().join()
     await expect.poll(async () => ((await cardFacts(win))?.pointers ?? []).map((pointer) => pointer.id).sort().join(),
       { message: `${operationId}：界面指向的节点和卡的投影对不上`, timeout: stationTimeout({ operations: 2 }) }).toBe(wantedNodes).catch(() => undefined)

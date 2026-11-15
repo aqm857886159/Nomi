@@ -1241,7 +1241,7 @@ async function ensureSpendCard(page, ctx) {
     })),
   })
   await kit.unfoldPointers(card, '性能场景')
-  const ids = await card.locator(`${kit.CARD_BODY} ${kit.POINTER}`).evaluateAll((elements) => elements.map((element) => element.getAttribute('data-node-pointer-id')))
+  const ids = await kit.offerRows(card).locator(kit.POINTER).evaluateAll((elements) => elements.map((element) => element.getAttribute('data-node-pointer-id')))
   await canvasFitViewButton(page).click()
   await sleep(page, 1200)
   ctx.state.spendCard = { card, ids, kit }
@@ -1386,10 +1386,10 @@ async function spendCardNodeEditRefresh(page, ctx) {
     await page.keyboard.press('Escape')
     return { skipped: `参数面板里没有可换的比例选项（面板里的控件：${controls.join('、') || '无'}）` }
   }
-  // 鼠标此刻在画布的参数面板上，不在卡上：组下方那一行是宿主给的摘要，不是悬停时那一镜自己的。
-  const summary = page.locator(`${kit.SPEND_CARD} ${kit.CARD_BODY} ${kit.GROUP_SUMMARY}`).first()
+  // 确认条那一行共同参数从节点现算：改了一镜的比例，比例不再是共同项，那一行就换字。
+  const summary = page.locator(`${kit.SPEND_CARD} ${kit.CARD_PARAMS}`).first()
   const before = ((await summary.textContent().catch(() => null)) ?? '').trim()
-  if (!before) return { skipped: '卡上组下方那一行摘要没露出来' }
+  if (!before) return { skipped: '确认条那一行共同参数没露出来' }
   await option.scrollIntoViewIfNeeded()
   await armResponse(page, { predicate: 'spendSummaryChanged', arg: { card: kit.SPEND_CARD, before }, timeoutMs: 5000 })
   await ctx.startWindow(page)
