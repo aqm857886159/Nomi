@@ -36,7 +36,8 @@
 - 真实任务（原始轨迹，11-15 真 App）：P18（4 个竖屏镜头）、P21（首尾帧用两张图）、P06（fast + 无音频 + 4k）。
 - 指标（目标 → 信号 → 指标；量具 = `tests/ux/agent-param-eval-real-model.walk.mjs` + `tests/ux/agent-param-eval-judge.mjs`，题集 `tests/ux/agent-param-eval.cases.json`）：
   - 主指标「写入一次过准入」= 一次过准入的写入调用 / 全部写入调用。11-09 主线基线 43.2%，目标 ≥ 60%。
-  - 主指标「第二次以内写对」= 题内第一次写入被拒后、下一次同工具调用就过的比例（`agent-param-eval-judge.mjs` 的 `secondTryRate`，本卡新增；基线从 11-15 三题重判得出）。目标 ≥ 80%。
+  - 主指标「第二次以内写对」= 题内第一次写入被拒后、下一次同工具调用就过的比例（`agent-param-eval-judge.mjs` 的 `secondTryRate`，本卡新增；基线从 11-15 三题重判得出：0/2 = 0%）。目标 ≥ 80%。
+  - 成本：模型列表摘要每行加 `modeFacts`（每种方式能写的比例 / 时长，事实相同的方式合并）。量具 = 内置目录种子 + P18 那次真 `list_models` 原文按行补字段。P18 真名单（49 个视频模型）12,470 → 17,904 字（×1.44，约多 1.8k token，只在调 `list_models` 那一轮）；内置全目录 60,556 → 76,659 字（×1.27）、只看视频 ×1.41。没过任务书的 1.5 倍停点；`modelSpecModeFacts.class.test.ts` 守 1.5 倍上限，并全目录逐方式核「名单写的值准入层都收、名单说没有的准入层都拒」。
   - 质量指标：平均重试 11-09 基线 1.21，目标 ≤ 0.6。
   - 护栏：30 步全成功的长回合不受影响（`laneToolInputBoundary.test.ts`）；同一调用只记 1 次连败。
   - 免费夹具（本卡新增，`electron/capabilityCore/draftShotsAdmissionAll.test.ts`、`electron/agentLane/laneToolInputBoundary.test.ts`）：用三份轨迹里的真实错入参，断言新正文一次列出全部问题。真模型数字由协调跑（★9）。
