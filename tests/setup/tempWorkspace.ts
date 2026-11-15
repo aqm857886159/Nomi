@@ -69,12 +69,13 @@ export function setup(): () => void {
   const workspace = createTempWorkspace();
   return () => {
     workspace.teardown();
-    // 事后断言：整轮单测没往默认能力目录里新建 / 删除过东西（有人绕过了上面那条变量，例如手写 spawn 或硬编码 home 路径）。
-    // 只读 stat，不读里面的文件。创作者的 Nomi 正开着时它自己也会改这个目录，那种情况会误报——先关 Nomi 再跑。
+    // 事后提醒（只提醒，不 throw、不改退出码）：整轮单测期间默认能力目录被新建 / 删除过东西，可能有人绕过了上面那条变量
+    // （手写 spawn、硬编码 home 路径）。只读 stat，不读里面的文件。创作者的 Nomi 一开一关、别的线并行跑测试都会动这个目录，
+    // 判据会误报，所以不硬红；硬红的是「全局配置里没设」那道（scripts/testCapabilityDirIsolation.test.ts）。
     if (defaultCapabilityDirStamp() !== before) {
-      throw new Error(
-        "单测期间默认能力目录（主目录下 .nomi/capability-core）被改动：有测试绕过了 NOMI_CAPABILITY_DIR 隔离。" +
-          "（若创作者的 Nomi 正开着，它自己也会改这个目录——关掉再跑。）",
+      console.warn(
+        "\n[提醒] 默认能力目录（主目录下 .nomi/capability-core）在这次运行期间被改动过。" +
+          "如果创作者的 Nomi 开着或刚开关过，可以忽略；否则用假主目录（HOME 指到空目录）跑一遍，找出是哪条测试。\n",
       );
     }
   };

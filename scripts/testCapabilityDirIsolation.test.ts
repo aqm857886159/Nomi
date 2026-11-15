@@ -2,9 +2,10 @@
 //
 // 拦得住：① 全局启动配置（tests/setup/tempWorkspace.ts）不再把 NOMI_CAPABILITY_DIR 指到本轮临时目录；
 //        ② 起窗共用助手（tests/ux/_launchApp.mjs）又改回继承外层 shell 的值；
-//        ③ 跑完整套单测后默认能力目录被改动（globalSetup 的事后 stat 断言，同在 tempWorkspace.ts）。
+// 另有一道只提醒、不红的事后检查（tempWorkspace.ts teardown）：整套跑完默认能力目录修改时间变了就打印一句提醒。
+//        它会被创作者的 Nomi 开关、别的线并行测试误触发，所以不做成硬红。
 // 拦不住：手写 spawn / 硬编码 home 路径且清掉环境变量的代码、vitest 之外直接起的 node 进程——
-//        这类只能靠 ③ 在整套跑完时事后发现，不靠这里。
+//        这类至多靠上面的提醒事后发现，不能事前阻止。
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
