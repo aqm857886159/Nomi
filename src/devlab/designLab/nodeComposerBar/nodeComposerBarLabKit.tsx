@@ -30,6 +30,7 @@ import { LabCanvasViewport } from '../labCanvasViewport'
 import BaseGenerationNode from '../../../workbench/generationCanvas/nodes/BaseGenerationNode'
 import InlineParameterBar from '../../../workbench/generationCanvas/nodes/InlineParameterBar'
 import { resolveArchetypeForOption, resolveRenderedControls } from '../../../workbench/generationCanvas/nodes/nodeModelArchetype'
+import { variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
 import { toCatalogModelOptions } from '../../../config/modelOptionMappers'
 import { seedModelCatalogForTests } from '../../../config/modelCatalogCache'
 import type { ModelCatalogModelDto } from '../../../workbench/api/modelCatalogApi'
@@ -60,7 +61,7 @@ export type BarKind = 'video' | 'image'
 export const COMPOSER_CHUNK = import('../../../workbench/generationCanvas/nodes/NodeGenerationComposer')
 
 // ── 只读目录桥 ────────────────────────────────────────────────────────────────
-// 两个真实存在的档案模型。modelKey 必须是档案认得的串，否则 resolveArchetypeForModel 落空、
+// 两个真实存在的档案模型。modelKey 必须是档案认得的串，否则 resolveModelArchetype 落空、
 // 参数控件退回「flat catalog 解析」——那时屏幕上就没有比例/时长了，而它正是这一屏的主角。
 const CATALOG_MODELS = [
   {
@@ -72,6 +73,8 @@ const CATALOG_MODELS = [
     vendorKey: 'apimart',
     labelZh: 'Seedance 2',
     kind: 'video',
+    // 生产的内置目录行都带档案 id（模型菜单的品牌图标和能力描述靠它）。
+    meta: { archetypeId: 'seedance-2' },
     enabled: true,
     published: true,
     publishedModes: ['text_to_video', 'image_to_video'],
@@ -83,6 +86,7 @@ const CATALOG_MODELS = [
     vendorKey: 'apimart',
     labelZh: 'GPT Image 2',
     kind: 'image',
+    meta: { archetypeId: 'gpt-image-2' },
     enabled: true,
     published: true,
     publishedModes: ['text_to_image', 'image_edit'],
@@ -309,7 +313,7 @@ export function ParamPanelStage({ kind }: { kind: ParamPanelKind }): JSX.Element
           modelCatalogStatus={{ message: '' }}
           renderedControls={controls}
           selectedModelOption={option}
-          archetype={resolveArchetypeForOption(option)}
+          archetype={resolveArchetypeForOption(option, variantRecordedInMeta(meta, meta.modelKey))}
           meta={meta}
           onModelChange={() => {}}
           onCatalogControlChange={(control, value) => setMeta((prev) => ({ ...prev, [control.key]: value }))}

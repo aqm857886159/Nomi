@@ -42,7 +42,8 @@ export type {
   WorkbenchMenuRadioGroup,
   WorkbenchMenuSeparator,
 } from './menu'
-export { NomiBrand, NomiWordmark, NomiAILabel, NomiLoadingMark, NomiLogoMark, NomiStepper } from './identity'
+export { NomiBrand, NomiWordmark, NomiAILabel, NomiAgentFace, NomiLoadingMark, NomiLogoMark, NomiStepper } from './identity'
+export type { NomiAgentPose } from './identity'
 export { NomiSelect } from './NomiSelect'
 export type { NomiSelectProps, NomiSelectOption, NomiSelectTone } from './NomiSelect'
 export { NomiIdentityIcon } from './NomiIdentityIcon'
@@ -50,6 +51,8 @@ export type { NomiIdentityIconSource } from './NomiIdentityIcon'
 export { VendorLogoImage } from './vendorLogoImage'
 export { NomiSegmented } from './NomiSegmented'
 export type { NomiSegmentedProps, NomiSegmentedOption } from './NomiSegmented'
+export { NomiOverflowRow } from './NomiOverflowRow'
+export type { NomiOverflowRowProps, NomiOverflowRowGroup, NomiOverflowRowItem } from './NomiOverflowRow'
 export { BodyPortal } from './portal'
 export { AnchoredPopover } from './AnchoredPopover'
 export type { AnchoredPopoverProps } from './AnchoredPopover'

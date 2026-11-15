@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url'
 import { collectAriaLabelLiterals, extractInterpolatedValues, isAriaLabelAlive } from './lib/ariaLabelLiterals.mjs'
 import { findRawShellAnchors, RAW_SHELL_EXEMPT } from './lib/rawShellAnchors.mjs'
 import { findComposerInputReads } from './lib/composerInputReads.mjs'
+import { findBareComposerWidths, readComposerWidth } from './lib/bareComposerWidth.mjs'
 import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
 import { findAbsenceWithoutBaseline } from './lib/absenceWithoutBaseline.mjs'
 import { collectRenderText, countDeadDataAttributesAtRevision, findDeadDataAttributes } from './lib/deadDataAttributes.mjs'
@@ -90,6 +91,9 @@ const RENDER_TEXT = collectRenderText(repoRoot)
 
 /** src/ 里带 `{{插值}}` 的字符串值（i18n 模板）——「添加视频节点」这类拼出来的 label 靠它判活。 */
 const SRC_INTERPOLATED = extractInterpolatedValues(SRC_TEXT)
+
+/** 生成框现宽（bare-composer-width 规则用）。 */
+const COMPOSER_WIDTH_NOW = readComposerWidth(fs.readFileSync(path.join(repoRoot, 'src/workbench/generationCanvas/nodes/nodeSizing.ts'), 'utf8'))
 
 const RULES = [
   {
@@ -242,6 +246,15 @@ const RULES = [
     // 2026-10-28 加拦按 placeholder 属性读占位（短片走查自 10-12 起每晚红在这、没人在 PR 里看见）。
     scan(code, file) {
       return findComposerInputReads(code).map((hit) => ({ ...hit, text: `${hit.text} —— ${hit.use}`, file }))
+    },
+  },
+  {
+    id: 'bare-composer-width',
+    label: '走查裸写了生成框宽度（560 / 600 这类数）——宽只有一个家 nodeSizing.ts 的 NODE_COMPOSER_WIDTH，改宽时裸写的那份悄悄变红',
+    appliesTo: (file) => file.includes(`${path.sep}tests${path.sep}ux${path.sep}`) && !file.endsWith(`${path.sep}_composerWidth.mjs`),
+    // 2026-11-14 #1525 验收条件 4：560 → 600 时 composer-b3 写死的 560 红到验收才被看见。判定逻辑住 scripts/lib/bareComposerWidth.mjs（可单测）。
+    scan(code, file) {
+      return findBareComposerWidths(code, COMPOSER_WIDTH_NOW).map((hit) => ({ ...hit, text: `${hit.text} —— 改读 tests/ux/_composerWidth.mjs 的 NODE_COMPOSER_WIDTH`, file }))
     },
   },
 ]

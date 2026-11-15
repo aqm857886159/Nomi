@@ -1,0 +1,26 @@
+{
+  "id": "composer-open-model-menu-refs-30",
+  "feature": "生成框底栏的模型格：参考行有 30 张图时点开模型菜单，每一行（品牌图标 + 名字 + 按档案现算的一句能力描述，变体各占一行）都画出来",
+  "script": "tests/perf/composer-refs-bench.mjs",
+  "args": [
+    "--op",
+    "open-model-menu"
+  ],
+  "scale": "生成框参考行 30 张图（最坏规模），模型菜单 7 行左右（含变体行与「更多」折叠）",
+  "metrics": [
+    "response",
+    "longTasks"
+  ],
+  "budget": 100,
+  "group": "② 生成框里的操作",
+  "budgetStatus": "proposed",
+  "budgetBasis": "默认预算「操作到可见反馈 ≤100ms」（docs/engineering/perf-scenarios.md）。新增的是每行一个品牌图标（静态 svg 资源，按需加载）和一句按档案现算的描述（O(行数 × 档案选项数)）；不放宽预算",
+  "baseline": {
+    "median": 25.7,
+    "p95": 31.4,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-13",
+    "commit": "edae9ce31"
+  }
+}

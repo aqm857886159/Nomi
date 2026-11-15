@@ -1,4 +1,5 @@
 import type { SkillListItemDto } from '../api/skillApi'
+import { findSkillRecord } from '../../../electron/shared/skillKey'
 
 /**
  * 一个技能在界面上叫什么。**只此一份**。
@@ -22,6 +23,15 @@ export function skillDisplayTitle(skill: SkillListItemDto, language: string): st
  * 而恢复草稿、技能库「使用」各自存的那份名字也各是各的。
  */
 export function skillLabelForKey(skills: readonly SkillListItemDto[], key: string, language: string): string {
-  const found = skills.find((skill) => skill.name === key)
+  const found = skillForKey(skills, key)
   return found ? skillDisplayTitle(found, language) : key
+}
+
+/**
+ * 一个技能 key 指技能库里的哪一个。和主进程「这一轮注入哪份 SKILL.md」是**同一份查找**（`electron/shared/skillKey.ts`）：
+ * 2026-11-08 之前这里按 `name` 精确比，主进程按归一比——分镜启动器发的点号 key `workbench.storyboard.planner`
+ * 主进程认得、技能照常注入，界面却认不得，气泡小签和「已载入技能：」都印成了 key。
+ */
+export function skillForKey(skills: readonly SkillListItemDto[], key: string): SkillListItemDto | null {
+  return findSkillRecord(key, '', skills)
 }

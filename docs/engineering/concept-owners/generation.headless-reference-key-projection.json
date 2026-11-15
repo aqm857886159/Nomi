@@ -20,12 +20,28 @@
       "symbol": "referenceKeyCapacityDeclarationFor"
     },
     {
-      "path": "electron/catalog/taskParams.ts",
-      "symbol": "projectReferencesOntoBodyKeys"
-    },
-    {
       "path": "electron/catalog/referenceReachability.ts",
       "symbol": "bodyReferenceSupport"
+    },
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "headlessReferenceOverlay"
+    },
+    {
+      "path": "electron/shared/generationLowering/headlessReferences.ts",
+      "symbol": "lowerHeadlessReferences"
+    },
+    {
+      "path": "electron/shared/generationLowering/lowerGenerationIntent.ts",
+      "symbol": "lowerGenerationIntent"
+    },
+    {
+      "path": "electron/shared/generationLowering/lowerGenerationIntent.ts",
+      "symbol": "withLoweredReferences"
+    },
+    {
+      "path": "electron/shared/generationLowering/runReferences.ts",
+      "symbol": "placeApprovedRunReferences"
     }
   ],
   "forbidden_derivations": [
@@ -38,6 +54,21 @@
       "symbol": "CONTROL_KEY_PREFIX",
       "kind": "definition",
       "why": "控制键黑名单只是另一份不完整的键名推断，不能替代显式媒体类别声明。"
+    },
+    {
+      "symbol": "FRAME_SLOTS",
+      "kind": "definition",
+      "why": "按键名正则猜首尾帧 / 角色数组 / 列表形状（/first_frame/、/with_roles|_contents?/、/_urls$|images$/）会把新键错归一类；形状与帧意图只读 referenceKeys.ts 的显式声明表。"
+    },
+    {
+      "symbol": "OBJECT_SHAPE_REF_KEY",
+      "kind": "definition",
+      "why": "同 FRAME_SLOTS：按键名正则猜角色数组 / URL 数组形状，S3 换成 referenceKeys.ts 的显式形状声明。"
+    },
+    {
+      "symbol": "ARRAY_SHAPE_REF_KEY",
+      "kind": "definition",
+      "why": "同 FRAME_SLOTS：按键名正则猜角色数组 / URL 数组形状，S3 换成 referenceKeys.ts 的显式形状声明。"
     }
   ],
   "allowed_consumers": [
@@ -45,8 +76,10 @@
     "electron/catalog/modelCatalogListing.ts",
     "electron/catalog/taskParams.ts",
     "scripts/reference-key-census.ts",
-    "electron/catalog/referenceKeyProjectionCensus.test.ts"
+    "electron/catalog/referenceKeyProjectionCensus.test.ts",
+    "electron/shared/generationLowering/headlessReferences.ts",
+    "electron/shared/generationLowering/runReferences.ts"
   ],
   "since": "2026-10-25",
-  "notes": "模型容量先从选中档案的 typed reference slots、slot.max 与 combineSlotsInto 读取；没有对应模型声明时才回落到显式 headlessReferenceKeys、TRANSLATED_REFERENCE_INPUT_KEYS 与 APIMart 别名组的键形态。referenceReachability、taskParams 拒发建议和 modelCatalogListing 只读同一份模型作用域判据；没有同类声明位或超过 max 时 headless 请求在网络前拒发，并提示调用方写明参数名。 2026-10-27（合同 docs/fixes/2026-10-27-first-gate-full-model-identity.root-cause.json）：第一闸 applyHeadlessParamDefaults 收的身份就是 modelReferenceSelection 的投影（与清单、第三闸同一个；引擎 A 交给第三闸的是同一个对象），不再手搭只有 archetypeId 的缩减身份，自写能力合同声明的上限在第一闸就生效；projectReferencesOntoBodyKeys 的显式值容量循环挪到「没带参考就返回」之前，直接写进 body 键的参考同样计数。"
+  "notes": "模型容量先从选中档案的 typed reference slots、slot.max 与 combineSlotsInto 读取；没有对应模型声明时才回落到显式 headlessReferenceKeys、TRANSLATED_REFERENCE_INPUT_KEYS 与 APIMart 别名组的键形态。referenceReachability、taskParams 拒发建议和 modelCatalogListing 只读同一份模型作用域判据；没有同类声明位或超过 max 时 headless 请求在网络前拒发，并提示调用方写明参数名。 2026-10-27（合同 docs/fixes/2026-10-27-first-gate-full-model-identity.root-cause.json）：第一闸 applyHeadlessParamDefaults 收的身份就是 modelReferenceSelection 的投影（与清单、第三闸同一个；引擎 A 交给第三闸的是同一个对象），不再手搭只有 archetypeId 的缩减身份，自写能力合同声明的上限在第一闸就生效；projectReferencesOntoBodyKeys 的显式值容量循环挪到「没带参考就返回」之前，直接写进 body 键的参考同样计数。 2026-11-08（S3，合同 docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：参考放进 body 的哪个键收成一个降级函数 lowerGenerationIntent（shared/generationLowering/），画布按档案模式的声明、headless 按 body 推出的声明（headlessReferences.ts）、Run 路按模式 + body（runReferences.ts）三个入口共用；taskParams 里按键名猜形状的三条正则删掉，换成 referenceKeys.ts 的形状 / 帧意图声明表；Run 路的别名镜像与写死的角色 → 键表同提交删除，结构守卫 generationLowering/referencePlacementOwnership.test.ts 拦旧名回来与 lowering 之外的静态参考键写入。 2026-11-09（方向检查 docs/engineering/direction-checks/2026-11-09-reference-assembly-boundary.md）：静态写键扫描删掉，换成结构：lowerGenerationIntent 的产物不透明，只经 withLoweredReferences 并进参数；能出网的请求体由 profileHttpRequest.ts 封存、只经 sendProfileJson 发；谁能 import 解析器 / 并入口 / 发送口 / 原始出网由 eslint.config.mjs 的模块边界名单管（referenceAssemblyBoundary.test.ts / .lint.test.ts）。"
 }

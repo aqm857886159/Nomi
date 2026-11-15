@@ -7,8 +7,8 @@
 //
 // 判定必须同时看**连线**与**上传**两个来源：用户连了一个图片节点进来，伴随要求就该算满足，
 // 只读 meta（hasArchetypeArrayReferences 的口径）会把连线来的图当不存在 → 误拦。
-import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from '../../../../../electron/shared/modelArchetypes'
-import { currentArchetypeMode, readArchetypeArray, referenceSlotStorage } from './archetypeMeta'
+import type { ArchetypeMode, ArchetypeReferenceSlotKind } from '../../../../../electron/shared/modelArchetypes'
+import { readArchetypeArray, referenceSlotStorage } from './archetypeMeta'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 
 /** 未满足跨槽依赖的槽 + 它缺的伴随项（析取：任一即可）。标签已本地化，可直接进文案。 */
@@ -90,10 +90,9 @@ export function unmetReferenceDependency(
 /** 节点级便利入口：解析当前模式 → 算已填 kind → 判依赖。无档案 → null（不接管）。 */
 export function nodeUnmetReferenceDependency(
   meta: Record<string, unknown> | undefined,
-  archetype: ModelArchetype | null | undefined,
+  mode: ArchetypeMode | null | undefined,
   fromEdges?: EdgeReferenceCounts,
 ): UnmetReferenceDependency | null {
-  if (!archetype) return null
-  const mode = currentArchetypeMode(archetype, meta)
+  if (!mode) return null
   return unmetReferenceDependency(mode, filledReferenceKinds(meta, mode, fromEdges))
 }

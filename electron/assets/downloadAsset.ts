@@ -35,7 +35,7 @@ export async function fetchAssetBytes(rawUrl: string): Promise<Buffer> {
     return readFile(resolveProjectRelativePath(projectId, relativeParts.join("/")));
   }
   if (/^https?:/i.test(rawUrl)) {
-    // Provider result URLs must use the same proxy-aware, bounded, SSRF-safe
+    // Provider result URLs must use the same proxy-aware, bounded
     // route as generation localization. Electron's net.fetch follows the
     // Chromium session, while production generation uses the app-owned
     // undici route; splitting them made a result downloadable in one path but

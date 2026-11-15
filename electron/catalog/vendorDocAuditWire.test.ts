@@ -33,7 +33,7 @@ describe("official vendor-doc audit wire construction", () => {
     // 2026-10-06 +2 kie：Topaz 图片放大、Recraft 清晰放大，各只有一条 image_edit（没有 prompt，见 imageUpscale.ts）。
     expect(mappings.filter((mapping) => mapping.vendorKey === "kie")).toHaveLength(40);
     // 2026-09-28 −2 apimart：Sora 2 退役（文生 + 图生两条 mapping 随目录行一起摘掉）。
-    expect(mappings.filter((mapping) => mapping.vendorKey === "apimart")).toHaveLength(113); // Suno V6 音乐/音效 +6；媒体 +4：GPT Image 2.6 Flare/Sunburst 各 t2i+改图；2026-11-07 +49：剩余图片 11 个各 2 条、视频 14 个各 2 条（Vidu Q4 预览版只有图生 1 条）
+    expect(mappings.filter((mapping) => mapping.vendorKey === "apimart")).toHaveLength(119); // 2026-11-12 +6：Seedream 5.5 / 可灵 4.0 Flash / MiniMax H3-Max 各 2 条；之前： Suno V6 音乐/音效 +6；媒体 +4：GPT Image 2.6 Flare/Sunburst 各 t2i+改图；2026-11-07 +49：剩余图片 11 个各 2 条、视频 14 个各 2 条（Vidu Q4 预览版只有图生 1 条）
 
     for (const mapping of mappings) {
       const operation = mapping.create;

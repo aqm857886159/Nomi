@@ -113,12 +113,12 @@ const sorted = (list) => [...list].sort().join('、')
 
 /**
  * 判：花钱前 B3 生成框上标的就是场景要的样子——frames 每格恰好一张、是那张图（在用）；参考数组里没有在用的图；
- * 「未用到」恰好是 unused 那几张，每格一张、格下写着 unusedLabels 里的一句（界面中英两种语言都认，词典取，不手写）。
+ * 「未用到」恰好是 unused 那几张，每格一张（只变淡、格下不写字：边界样张 K3，用户 2026-11-12）。
  * @param {ReturnType<typeof readComposerReferences>} snapshot
- * @param {{ frames: Array<{ slot: string, file: string }>, unused: string[], fileOf: (src: string) => string | null, unusedLabels?: string[] }} scene
+ * @param {{ frames: Array<{ slot: string, file: string }>, unused: string[], fileOf: (src: string) => string | null }} scene
  * @returns {{ problems: string[], summary: Record<string, unknown> }}
  */
-export function judgeComposerReferences(snapshot, { frames, unused, fileOf, unusedLabels = [] }) {
+export function judgeComposerReferences(snapshot, { frames, unused, fileOf }) {
   const problems = []
   // 认不出的图只露路径最后一段（本地地址里没有密钥，但报告要短）。
   const name = (src) => fileOf(src) ?? `?${String(src).split('?')[0].split('/').pop().slice(0, 40)}`
@@ -144,7 +144,6 @@ export function judgeComposerReferences(snapshot, { frames, unused, fileOf, unus
   if (sorted(unusedShown) !== sorted(unused)) problems.push(`标「未用到」的是 ${unusedShown.join('、') || '（没有）'}，应恰好是 ${unused.join('、')}`)
   snapshot.unused.forEach((entry, index) => {
     if (entry.tiles !== 1 || entry.srcs.length !== 1) problems.push(`第 ${index + 1} 个「未用到」格里有 ${entry.tiles} 张小图、${entry.srcs.length} 张出了图（应各 1 张；没出图 = 图片加载失败）`)
-    if (unusedLabels.length && !unusedLabels.some((label) => entry.text.includes(label))) problems.push(`第 ${index + 1} 个「未用到」格下写的是「${entry.text}」，不是「${unusedLabels.join('」或「')}」`)
   })
 
   const everySrc = [...snapshot.slots, ...snapshot.arrays, ...snapshot.unused].flatMap((cell) => cell.srcs)

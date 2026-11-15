@@ -5,7 +5,7 @@ import { addAnchor, updateAnchor, validatePlan } from '../generationCanvas/agent
 import { setPlanDefaultAspect } from '../generationCanvas/agent/storyboardShotScope'
 import { parseStoryboardPlan } from '../generationCanvas/agent/storyboardPlanSchema'
 import { readCurrentWorkbenchProjectPayload } from './workbenchProjectSession'
-import { normalizePayload, normalizeRecord } from './projectNormalize'
+import { normalizePayload, normalizePayloadWithQuarantine, normalizeRecord } from './projectNormalize'
 import { assertWorkbenchProjectMediaUrlsPersistable } from './projectMediaMigration'
 
 const summary = { id: 'draft-contract', name: 'Draft', createdAt: 1, updatedAt: 1 }
@@ -48,7 +48,7 @@ describe('editor drafts use the real store and persistence boundary', () => {
   it('strict plan admission still rejects the default empty aspect', () => {
     expect(() => parseStoryboardPlan(setPlanDefaultAspect(createEmptyStoryboardPlan(), ''))).toThrow()
   })
-  it('rejects malformed shape and reports only schema field paths, never record keys or content', () => {
+  it('quarantines a malformed item and reports only schema field paths, never record keys or content', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
       const plan = fresh()
@@ -56,8 +56,10 @@ describe('editor drafts use the real store and persistence boundary', () => {
       const payload = readCurrentWorkbenchProjectPayload()
       const designs = payload.storyboardDesignsByDocumentId!.doc
       const malformed = { ...payload, storyboardDesignsByDocumentId: { 'private-document-key': [{ ...designs[0], plan: { ...plan, anchors: [{ ...plan.anchors[0], carrier: 'private-content' }] } }] } }
-      expect(() => normalizePayload(malformed)).toThrow()
-      expect(JSON.stringify(warn.mock.calls)).toContain('storyboardDesignsByDocumentId.*.0.plan.anchors.0.carrier')
+      const out = normalizePayloadWithQuarantine(malformed)
+      expect(out.quarantined).toHaveLength(1)
+      expect(out.payload.storyboardDesignsByDocumentId?.['private-document-key'] ?? []).toEqual([])
+      expect(JSON.stringify(warn.mock.calls)).toContain('plan.anchors[0].carrier')
       expect(JSON.stringify(warn.mock.calls)).not.toContain('private-document-key')
       expect(JSON.stringify(warn.mock.calls)).not.toContain('private-content')
     } finally { warn.mockRestore() }

@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createModuleRegistry } from "./moduleRegistry";
-import { createMultiShotCreateHelpers } from "./mcpGenerationMultiShot";
+import { createMultiShotCreateHelpers, refuseIfStoryboardRejected } from "./mcpGenerationMultiShot";
 import { draftShotFromPlan } from "./mcpGenerationMultiShot";
 import { generationCandidateSchema } from "../shared/agentCapabilities/generationPlanSchemas";
 import { compileExecutionContract, type PlanCandidate } from "./executionContract";
@@ -99,5 +99,22 @@ describe("多镜 plan 入口 · 语义镜（动词交出来的那种形状）", 
       }],
     });
     expect(shots![0].candidate).toMatchObject({ candidateId: "cand-1", modelId: "image-model" });
+  });
+});
+
+describe("renderer refusal of an unsavable plan reaches the model as field paths", () => {
+  it("names the field, says nothing changed, and never echoes values", () => {
+    expect(() => refuseIfStoryboardRejected({ status: "rejected", issues: [{ path: "shots[1].durationSec", problem: "needs number, got nan" }] }))
+      .toThrow(/not saved and nothing changed.*shots\[1\]\.durationSec needs number/);
+  });
+  it("lets saved and unrelated replies through untouched", () => {
+    expect(() => refuseIfStoryboardRejected({ status: "saved" })).not.toThrow();
+    expect(() => refuseIfStoryboardRejected(null)).not.toThrow();
+    expect(() => refuseIfStoryboardRejected({ status: "rejected", issues: [] })).not.toThrow();
+  });
+  it("bounds a hostile reply", () => {
+    try { refuseIfStoryboardRejected({ status: "rejected", issues: Array.from({ length: 50 }, () => ({ path: "p".repeat(500), problem: "q".repeat(500) })) }); }
+    catch (error) { expect(String((error as Error).message).length).toBeLessThan(2500); return; }
+    throw new Error("expected refusal");
   });
 });

@@ -233,6 +233,16 @@ describe('applyCanvasToolCall canonical nomi_canvas_plan patch_shots', () => {
     useWorkbenchStore.getState().hydrateStoryboardDesigns({})
     await expect(patch({ select: { kind: 'all' }, patch: { prompt: 'x' } })).rejects.toMatchObject({ code: 'capability_target_stale' })
   })
+
+  it('a patch that leaves the plan unsavable is refused as capability_input_invalid naming the field; the state does not change', async () => {
+    const broken: StoryboardPlan = { ...plan, shots: plan.shots.map((shot, position) => (position === 1 ? { ...shot, durationSec: Number.NaN } : shot)) }
+    useWorkbenchStore.getState().hydrateStoryboardDesigns({ 'doc-1': [{ id: 'test-doc-1', documentId: 'doc-1', title: plan.title, plan: broken, committed: false, status: 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1 }] })
+    const before = useWorkbenchStore.getState().storyboardDesignsByDocumentId
+    await expect(patch({ select: { kind: 'indexes', indexes: [1] }, patch: { prompt: 'x' } })).rejects.toMatchObject({
+      code: 'capability_input_invalid', fields: expect.stringContaining('shots[1].durationSec'),
+    })
+    expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId).toBe(before)
+  })
 })
 
 // 图片+视频分镜落画布的镜号语义：首帧图带 storyboardKeyframe 标记不自动领号，

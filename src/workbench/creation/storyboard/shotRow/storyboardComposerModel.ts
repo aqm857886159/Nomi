@@ -54,14 +54,18 @@ export function storyboardComposerMeta(target: ComposerTarget, entries: Readonly
   }, entries) ?? {}
 }
 
-/** 底栏要渲染的控件：画布节点同一个函数（`resolveRenderedControls`）。 */
+/**
+ * 底栏要渲染的控件：画布节点同一个函数（`resolveRenderedControls`）。分镜行还没有输入可算，参数按方案写明的方式
+ * （面板顶上那组分镜方式），不按「没放图就是文生」现算——否则行头写着首帧、参数却是文生的（2026-11-12）。
+ */
 export function storyboardComposerControls(
   option: ModelOption | null,
   meta: Record<string, unknown>,
   kind: 'image' | 'video',
 ): DynamicModelControl[] {
   if (!option) return []
-  return resolveRenderedControls(option, meta, kind === 'image', kind === 'video')
+  const plannedModeId = (meta.archetype as { modeId?: unknown } | undefined)?.modeId
+  return resolveRenderedControls(option, meta, kind === 'image', kind === 'video', { plannedModeId: typeof plannedModeId === 'string' ? plannedModeId : undefined })
 }
 
 /** 面板里改了一个控件之后，分镜要写的那一处。 */

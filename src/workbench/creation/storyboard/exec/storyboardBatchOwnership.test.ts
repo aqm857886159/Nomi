@@ -72,7 +72,7 @@ beforeEach(async () => {
 afterEach(() => { session.dispose(); vi.restoreAllMocks() })
 
 function seed(current: StoryboardPlan) {
-  useWorkbenchStore.setState({ activeDocumentId: 'doc', activeStoryboardId: 'design', storyboardDesignsByDocumentId: { doc: [{ id: 'design', plan: current, documentId: 'doc' } as never] } })
+  useWorkbenchStore.setState({ activeDocumentId: 'doc', activeStoryboardId: 'design', storyboardDesignsByDocumentId: { doc: [{ id: 'design', plan: current, documentId: 'doc', title: 'design', committed: false, status: 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1 } as never] } })
 }
 const readCurrentPlan = () => useWorkbenchStore.getState().storyboardDesignsByDocumentId.doc[0].plan as StoryboardPlan
 const rowsOf = (current: StoryboardPlan) => deriveStoryboardRowRuntimes({ plan: current, designId: 'design', nodes: nodes(), imageModelOptions: [], videoModelOptions: [] })

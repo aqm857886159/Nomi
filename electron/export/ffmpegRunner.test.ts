@@ -439,3 +439,53 @@ describe("renderFiltergraphToMp4", () => {
     expect(fs.existsSync(attempted)).toBe(false);
   });
 })
+describe("导出最终改名撞上占用（播放器 / 资源管理器预览开着旧成品）", () => {
+  const heldRename = (holdMs: number) => {
+    const rename = fs.promises.rename.bind(fs.promises);
+    let first: number | null = null;
+    let attempts = 0;
+    const spy = vi.spyOn(fs.promises, "rename").mockImplementation(async (from, to) => {
+      if (String(from).endsWith(".partial.mp4")) {
+        attempts += 1;
+        first ??= Date.now();
+        if (Date.now() - first < holdMs) throw Object.assign(new Error("injected EPERM"), { code: "EPERM" });
+      }
+      return rename(from, to);
+    });
+    return { spy, get attempts() { return attempts; } };
+  };
+  const exportHeld = (projectDir: string) => transcodeWebmToMp4({
+    projectDir,
+    inputBytes: Buffer.from("webm-bytes"),
+    outputName: "held",
+    ffmpegPath: "/usr/local/bin/ffmpeg",
+    runProcess: async (_command, args) => {
+      fs.writeFileSync(args[args.length - 1], "mp4-bytes");
+      return { code: 0, stderr: "" };
+    },
+  });
+
+  it("占用 300ms：导出照常完成，成品文件在，中间文件不留", async () => {
+    const projectDir = makeTempDir();
+    const held = heldRename(300);
+    try {
+      const result = await exportHeld(projectDir);
+      expect(fs.readFileSync(result.absolutePath, "utf8")).toBe("mp4-bytes");
+      expect(fs.readdirSync(path.dirname(result.absolutePath)).filter((name) => name.includes(".partial"))).toEqual([]);
+      expect(held.attempts).toBeGreaterThan(1);
+    } finally {
+      held.spy.mockRestore();
+    }
+  });
+
+  it("一直被占着：用长退避表（8 次等待、共 9 次尝试）再报失败，不原地睡", async () => {
+    const projectDir = makeTempDir();
+    const held = heldRename(Infinity);
+    try {
+      await expect(exportHeld(projectDir)).rejects.toMatchObject({ code: "EPERM" });
+    } finally {
+      held.spy.mockRestore();
+    }
+    expect(held.attempts).toBe(9);
+  });
+});

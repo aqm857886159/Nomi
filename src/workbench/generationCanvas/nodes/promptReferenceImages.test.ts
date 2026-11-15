@@ -2,7 +2,8 @@ import { expect, it } from 'vitest'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { NodeWriteAccess } from './nodeWriteAccess'
 import { applyPromptReferenceImages } from './promptReferenceImages'
-import { referenceDemandsBeforeFirstMode } from './controls/archetypeMeta'
+import { effectiveArchetypeMode } from './controls/archetypeMeta'
+import { archetypeForNode } from '../agent/referenceEdgeCapability'
 
 const REF = 'data:image/jpeg;base64,AAAA'
 const OTHER = 'https://example.test/second.png'
@@ -28,15 +29,16 @@ it('a card that has no model yet keeps the images in the image-reference slot (d
   expect(applyPromptReferenceImages('card', [REF, REF, OTHER], access)).toBe('placed')
   expect(read().meta?.referenceImageUrls).toEqual([REF, OTHER])
   expect(read().meta?.archetype).toBeUndefined()
-  // 第一次定生成方式时这两张图算「要用参考」：要一个收得下图片的槽
-  expect(referenceDemandsBeforeFirstMode(read().meta)).toEqual([{ slots: ['image_ref'], asset: 'image' }])
 })
 
-it('a card already on a model that also edits images is moved to that mode with the images in place', () => {
+it('a card already on a model that also edits images keeps its stored mode; the images make it send as the edit mode', () => {
   const { access, read } = card(onModel('gpt-image-2', 'apimart', 't2i'))
   expect(applyPromptReferenceImages('card', [REF], access)).toBe('placed')
-  expect((read().meta?.archetype as { modeId?: string }).modeId).toBe('i2i')
+  // 机器不写方式（方式按输入现算）：存着的还是 t2i，放进来的图让这次按改图发。
+  expect((read().meta?.archetype as { modeId?: string }).modeId).toBe('t2i')
   expect(read().meta?.referenceImageUrls).toEqual([REF])
+  const archetype = archetypeForNode(read())!
+  expect(effectiveArchetypeMode(archetype, read(), { nodes: [read()], edges: [] }).mode.id).toBe('i2i')
 })
 
 it('a model with no image reference in any mode reports unsupported and writes nothing', () => {
@@ -49,9 +51,4 @@ it('no reference images is a no-op', () => {
   const { access, read } = card({})
   expect(applyPromptReferenceImages('card', ['', ''], access)).toBe('none')
   expect(read().meta).toEqual({})
-})
-
-it('leftover references on a card whose mode was already chosen are not intent (the user switched away)', () => {
-  expect(referenceDemandsBeforeFirstMode({ ...onModel('gpt-image-2', 'apimart', 't2i'), referenceImageUrls: [REF] })).toEqual([])
-  expect(referenceDemandsBeforeFirstMode({ referenceVideoUrls: ['v.mp4'], referenceImageUrls: [] })).toEqual([{ slots: ['video_ref'], asset: 'video' }])
 })

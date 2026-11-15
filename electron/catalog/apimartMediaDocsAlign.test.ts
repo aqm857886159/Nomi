@@ -9,13 +9,14 @@
 import { describe, expect, it } from "vitest";
 import { buildHttpRequest, buildTemplateContext, looksLikeLogicalError } from "../ai/requestPipeline";
 import { buildArchetypeInputParams } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
-import { getArchetypeById } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { firstMappedString } from "../tasks/responseParsing";
 import { APIMART_IMAGE_MODELS } from "./apimartImages";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
-import { ARCHETYPE_WIRE_DEFAULTS } from "./archetypeWireDefaults.generated";
+import { headlessDefaultsOf } from "../shared/modelArchetypes/catalogFacts";
 import { applyParamMap } from "./paramTranslate";
 import { taskTemplateParams } from "./taskParams";
+import { modeWrittenInMeta } from "../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers";
 
 const FIRST = "https://example.invalid/first.png";
 const LAST = "https://example.invalid/last.png";
@@ -37,7 +38,7 @@ function renderCanvasBody(modelKey: string, modeId: string, references: Paramete
   const taskKind = mode.transportTaskKind ?? archetype.transportTaskKind;
   const mapping = model.mappings.find((item) => item.taskKind === taskKind)!;
   const defaults = Object.fromEntries(mode.params.flatMap((param) => param.defaultValue === undefined ? [] : [[param.key, param.defaultValue]]));
-  const inputs = buildArchetypeInputParams({ archetype: { id: archetype.id, modeId } }, archetype, references);
+  const inputs = buildArchetypeInputParams({ archetype: { id: archetype.id, modeId } }, modeWrittenInMeta({ archetype: { id: archetype.id, modeId } }, archetype), references);
   const request = { kind: taskKind, prompt: "人物转身看向窗外", extras: { ...defaults, ...inputs } };
   const context = buildTemplateContext({
     request: request as never,
@@ -80,8 +81,8 @@ describe("② Omni 1.2 比例只有 16:9 | 9:16，没有「自动」", () => {
         expect(aspect!.options.map((option) => option.value), `${archetypeId}/${mode.id}`).toEqual(["16:9", "9:16"]);
         expect(aspect!.defaultValue).toBe("16:9");
       }
-      // 生成物（headless 默认值）里也不许有 auto。
-      expect(JSON.stringify(ARCHETYPE_WIRE_DEFAULTS[archetypeId] ?? {})).not.toMatch(/"aspect_ratio":"auto"/);
+      // 无界面缺参兜底的默认值里也不许有 auto。
+      expect(JSON.stringify(headlessDefaultsOf(archetype))).not.toMatch(/"aspect_ratio":"auto"/);
     });
   }
 

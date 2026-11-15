@@ -435,7 +435,7 @@ function storyboardBatchRows(ctx: RowActionContext, rows: readonly StoryboardRow
     label: i18n.t('storyboardEditor.batch.shotLabel', { index: row.shot.index, text: row.shot.prompt.trim() || row.shot.shotKind }),
     checked: true,
     group: i18n.t('storyboardEditor.batch.groupShots', { count: rows.length }),
-    aside: row.shot.modelKey || i18n.t('storyboardEditor.bulk.aspectDefault'),
+    aside: row.shot.modelKey || i18n.t('storyboardEditor.aspectScope.modelDefault'),
   }))
   return { planRows: [...anchorRows, ...shotRows], selection: { rows: [...rows], anchors } }
 }

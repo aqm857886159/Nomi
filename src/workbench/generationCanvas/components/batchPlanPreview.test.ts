@@ -32,6 +32,7 @@ vi.mock('../spend/spendConfirm', () => ({
   confirmGenerationSpend: mocks.confirmGenerationSpend,
   describeGenerationCost: vi.fn(() => '1 image'),
   generationCostContextForNodes: vi.fn(() => ({ vendorKey: 'v', modelKey: 'm', etaStats: [] })),
+  withGenerationEtaStats: vi.fn(async (context: object) => context),
 }))
 
 vi.mock('../store/generationCanvasStore', () => ({

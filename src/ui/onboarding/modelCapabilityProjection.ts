@@ -4,7 +4,8 @@ import {
 } from '../../config/modelCatalogMeta'
 import {
   modeTransportFor,
-  resolveArchetypeForModel,
+  EVERY_VARIANT,
+  resolveModelArchetype,
   type ArchetypeIntent,
   type ArchetypeReferenceSlotKind,
   type ModelArchetype,
@@ -171,11 +172,11 @@ export function projectModelCapability(input: ProjectModelCapabilityInput): Mode
   const { model } = input
   const archetype = input.archetype !== undefined
     ? input.archetype
-    : resolveArchetypeForModel({
+    : resolveModelArchetype({
         modelKey: model.modelKey,
         vendorKey: model.vendorKey,
         meta: model.meta,
-      })
+      }, { variant: EVERY_VARIANT })
   return {
     source: archetype ? 'archetype' : 'transport-only',
     inputContract: archetype ? 'known' : 'unknown',

@@ -1,0 +1,30 @@
+{
+  "name": "thinking-overlap",
+  "locale": "zh-CN",
+  "mode": "development",
+  "overlaps": {
+    "early": [],
+    "streaming": [],
+    "complete": []
+  },
+  "injectedOverlap": [
+    [
+      0,
+      1
+    ]
+  ],
+  "textRequests": 3,
+  "imageRequests": 0,
+  "paidCalls": 0,
+  "unexpected": [],
+  "result": "failed",
+  "runtimeHead": "eb5f50800e6c0fb9b2676e5db005a5ffef351835",
+  "expectedThinkingDetails": 2,
+  "actualThinkingDetails": 1,
+  "failure": "existing count assertion conflicts with C77 one-process-level disclosure",
+  "criteriaChanged": false,
+  "productEdited": false,
+  "screenshot": "docs/evidence/2026-11-09-agent-conversation-follow-branch/closure-thinking-zh-complete.png",
+  "screenshotInspected": true,
+  "recordedAt": "2026-11-09T11:12:37.747801+08:00"
+}

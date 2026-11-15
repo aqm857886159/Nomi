@@ -10,7 +10,7 @@
 // 不改成前缀匹配是有意的：那会让 "seedance-2" 误命中 "seedance-2-fast"（档案注释明写要防这个）。
 // 所以约定是**列完整 key**，由本测试把关：新增内置模型忘了补 pattern，这里立刻红。
 import { describe, expect, it } from "vitest";
-import { archetypeIdForModel } from "./archetypeIdentity";
+import { archetypeIdForModel } from "../shared/modelArchetypes";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 import { APIMART_IMAGE_MODELS } from "./apimartImages";
 import { VOLCENGINE_VIDEO_MODELS } from "./volcengineVideos";

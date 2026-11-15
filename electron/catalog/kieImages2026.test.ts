@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 import { applyBuiltinSeeds } from "./seedBuiltins";
 import { KIE_IMAGE_MODELS_2026, KIE_UPSCALE_MODELS } from "./kieImages2026";
-import { getArchetypeById } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { APIMART_IMAGE_MODELS } from "./apimartImages";
 import { applyParamMap } from "./paramTranslate";
 import { taskTemplateParams } from "./taskParams";

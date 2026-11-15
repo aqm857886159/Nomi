@@ -22,7 +22,8 @@
 import type { ArchetypeMode } from "./types";
 import type { VideoModelCandidate } from "./recommendation";
 import { effectiveVideoModes } from "./recommendation";
-import { clampToRange, isParamValueAllowed, modeDurationRange, numericRangeOf } from "./paramConstraints";
+import { modeDurationRange } from "./paramConstraints";
+import { resolveModelParams } from "./resolveModelParams";
 
 /**
  * 逻辑镜头输入（调用方 = storyboard planner / GUI；durationSec 建议用演时换算的真实表演秒）。
@@ -191,58 +192,23 @@ function resolveShot(shot: PlanShotInput, candidates: readonly VideoModelCandida
   output.durationMin = range?.min ?? null;
   output.durationMax = range?.max ?? null;
 
-  // 参数：只保留档案真实键；未知键丢弃；越界的 select/number 分别回默认或钳值。
-  // 合法性判定全部走 paramConstraints.isParamValueAllowed（唯一 owner）；这里只决定「不合法之后怎么办」。
-  const params: Record<string, string | number | boolean> = {};
-  for (const [key, rawValue] of Object.entries(shot.params ?? {})) {
-    const control = mode.params.find((item) => item.key === key);
-    if (!control) {
-      issues.push({ code: "param.unknown", shotId: shot.id, params: { modeLabel: output.modeLabel, key } });
-      continue;
-    }
-    if (typeof rawValue !== "string" && typeof rawValue !== "number" && typeof rawValue !== "boolean") continue;
-    if (key === "duration") continue; // duration 由下面的模式范围统一裁决，不走通用参数分支
-    if (isParamValueAllowed(control, rawValue)) {
-      params[key] = rawValue;
-      continue;
-    }
-    if (control.options.length > 0) {
-      issues.push({
-        code: "param.value",
-        shotId: shot.id,
-        params: { key, value: String(rawValue), allowed: control.options.map((option) => String(option.value)).join(" / ") },
-      });
-      if (control.defaultValue !== undefined) params[key] = control.defaultValue;
-      continue;
-    }
-    if (control.type === "number" && typeof rawValue === "number") {
-      const numberRange = numericRangeOf(control);
-      const min = typeof control.min === "number" ? control.min : Number.NEGATIVE_INFINITY;
-      const max = typeof control.max === "number" ? control.max : Number.POSITIVE_INFINITY;
-      const clamped = numberRange ? clampToRange(rawValue, numberRange).value : Math.min(max, Math.max(min, rawValue));
-      issues.push({ code: "param.clamped", shotId: shot.id, params: { key, value: rawValue, min, max, clamped } });
-      params[key] = clamped;
-      continue;
-    }
-    // boolean/text 控件的非法值（类型不符）：丢弃并回默认，不猜。
-    issues.push({ code: "param.value", shotId: shot.id, params: { key, value: String(rawValue), allowed: control.type } });
-    if (control.defaultValue !== undefined) params[key] = control.defaultValue;
+  const normalized = resolveModelParams({
+    controls: mode.params, intent: { duration: shot.durationSec }, previousParams: shot.params ?? {},
+    policy: { author: '发送复查', invalid: '钳+说明', durationRange: range },
+  });
+  const params = normalized.params as PlanShotOutput["params"];
+  for (const change of normalized.changes) {
+    issues.push({
+      code: change.reason as PlanIssueCode, shotId: shot.id,
+      params: change.reason === 'param.unknown' ? { modeLabel: output.modeLabel, ...change.details } : change.details,
+    });
   }
 
   // duration：由模式的合法集合裁决（覆盖用户填的任意值）。
   if (!range) {
     issues.push({ code: "duration.unsupported", shotId: shot.id, params: { modeLabel: output.modeLabel } });
   } else {
-    const clamped = clampToRange(shot.durationSec, range);
-    params.duration = clamped.value;
     const roundedDesired = Math.round(shot.durationSec);
-    if (clamped.changed) {
-      issues.push({
-        code: "duration.clamped",
-        shotId: shot.id,
-        params: { wanted: shot.durationSec, min: range.min, max: range.max, clamped: clamped.value },
-      });
-    }
     if (roundedDesired < range.min) {
       issues.push({
         code: "duration.underflow",

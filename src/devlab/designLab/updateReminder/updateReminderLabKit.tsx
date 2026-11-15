@@ -266,7 +266,7 @@ export function DialogStage({ locale = 'zh-CN', view, version, canAutoInstall = 
   const localeReady = useLabLocale(locale)
   return (
     // 底色 = 现役 UpdaterDialog 遮罩（bg-nomi-ink/20）压在页面底色上的样子；取景只到弹窗外沿 24px。
-    <div data-design-lab-stage="update-dialog" className="inline-block bg-nomi-bg">
+    <div data-design-lab-stage="update-dialog" className="relative h-[800px] w-[560px] bg-nomi-bg [transform:translateZ(0)]">
       <div className="bg-nomi-ink/20 p-6">
         {localeReady ? (
           <UpdateDialogCard

@@ -1,0 +1,229 @@
+{
+  "release": "v0.24.1",
+  "producedBy": "tests/fixtures/old-user-data/generators/zzCanvasModeGen.ts.txt，在 v0.24.1 导出里用 0.24.1 的真实 store 写口（addNode / connectNodes / updateNode + applyArchetypeModeSwitch / copySelectedNodes + pasteNodes / disconnectEdge）和 buildPlannedNodeMeta 造节点，readDocumentSnapshot() 取存盘片段",
+  "regenerate": "git archive v0.24.1 | tar -x -C <空目录>；链接 node_modules；把生成器放到 src/workbench/generationCanvas/store/zzCanvasModeGen.test.ts；V_OUT=<输出目录> pnpm exec vitest run 那个文件（README 里有全文）",
+  "canvasJsonIs": "项目文件 payload.generationCanvas 的存盘片段（readDocumentSnapshot 的原样输出）",
+  "scenarios": [
+    {
+      "key": "ctrl-image-t2i-no-image",
+      "nodeId": "gen-v2-image-loyw3v29-01xz",
+      "group": "control",
+      "how": "图片节点选 nano-banana，什么都没放，写了提示词（默认文生图）"
+    },
+    {
+      "key": "ctrl-image-edit-with-image",
+      "nodeId": "gen-v2-image-loyw3v2c-04ja",
+      "group": "control",
+      "how": "图片节点连一张已生成的图（连线升格成改图），提示词写好"
+    },
+    {
+      "key": "ctrl-video-t2v",
+      "nodeId": "gen-v2-video-loyw3v2e-05ty",
+      "group": "control",
+      "how": "视频节点选 Seedance 2，什么都没放，写了提示词（默认文生视频）"
+    },
+    {
+      "key": "ctrl-video-first-with-first-frame",
+      "nodeId": "gen-v2-video-loyw3v2h-08f9",
+      "group": "control",
+      "how": "视频节点点「首帧」，再把一张图连成首帧"
+    },
+    {
+      "key": "dc1-video-empty-reference-clicked",
+      "nodeId": "gen-v2-video-loyw3v2k-09px",
+      "group": "design-card",
+      "how": "空视频节点，写好提示词，在参数面板点了「参考」（omni）分段，一张图都没放"
+    },
+    {
+      "key": "dc2-image-edit-pasted-alone",
+      "nodeId": "gen-v2-image-loyw3v2o-0cb8-copy-1700000000018-0dlvy",
+      "group": "design-card",
+      "how": "选中上面那个连着图的改图节点，只复制它自己、粘贴：新节点带着「改图」方式，边没带过来（参考图丢了）"
+    },
+    {
+      "key": "dc3-video-firstlast-first-frame-cleared",
+      "nodeId": "gen-v2-video-loyw3v2s-0g77",
+      "group": "design-card",
+      "how": "点「首尾帧」，把一张图连成首帧，再把这条线删掉（首帧清空）；方式停在首尾帧"
+    },
+    {
+      "key": "dc4-video-firstlast-five-refs",
+      "nodeId": "gen-v2-video-loyw3v30-0nz4",
+      "group": "design-card",
+      "how": "先连 5 张参考图（自动成了「参考」方式），再手点「首尾帧」分段：方式停在首尾帧，5 张都连着"
+    },
+    {
+      "key": "dc5-image-t2i-with-image",
+      "nodeId": "gen-v2-image-loyw3v34-0qkg",
+      "group": "design-card",
+      "how": "图片节点连了一张角色图（升格成改图），又手点回「文生图」分段：图还连着，存着的方式是文生"
+    },
+    {
+      "key": "dc6-agent-plan-image-edit-no-refs",
+      "nodeId": "gen-v2-image-loyw3v37-0rv3",
+      "group": "design-card",
+      "how": "Agent 起草（或分镜落地）一个图片节点，计划里写了 modeId=edit，没有给任何参考；用 0.24.1 的 buildPlannedNodeMeta 写 meta"
+    },
+    {
+      "key": "dc6b-agent-plan-video-firstlast",
+      "nodeId": "gen-v2-video-loyw3v38-0t5r",
+      "group": "design-card",
+      "how": "Agent 起草一个视频节点，计划里写了 modeId=firstlast，随后连了一张参考图（连线没有把它改回参考）"
+    },
+    {
+      "key": "dc7-audio-transcribe-no-audio",
+      "nodeId": "gen-v2-audio-loyw3v3a-0vr2",
+      "group": "design-card",
+      "how": "声音节点选「声音转写」模型（默认就是转写方式），没有放音频"
+    },
+    {
+      "key": "dc8-model3d-image-no-image",
+      "nodeId": "gen-v2-model3d-loyw3v3c-0x1q",
+      "group": "design-card",
+      "how": "3D 节点选混元 3D，在参数面板点了「图生 3D」分段，没放图"
+    }
+  ],
+  "v0241Reads": {
+    "ctrl-image-t2i-no-image": {
+      "storedModeId": "t2i",
+      "readModeId": "t2i",
+      "taskKind": "text_to_image",
+      "canRun": true,
+      "incomingEdges": []
+    },
+    "ctrl-image-edit-with-image": {
+      "storedModeId": "edit",
+      "readModeId": "edit",
+      "taskKind": "image_edit",
+      "canRun": true,
+      "incomingEdges": [
+        {
+          "id": "edge-gen-v2-image-loyw3v2b-038n::gen-v2-image-loyw3v2c-04ja::0",
+          "source": "gen-v2-image-loyw3v2b-038n",
+          "mode": "reference"
+        }
+      ]
+    },
+    "ctrl-video-t2v": {
+      "storedModeId": "t2v",
+      "readModeId": "t2v",
+      "taskKind": "text_to_video",
+      "canRun": true,
+      "incomingEdges": []
+    },
+    "ctrl-video-first-with-first-frame": {
+      "storedModeId": "first",
+      "readModeId": "first",
+      "taskKind": "image_to_video",
+      "canRun": true,
+      "incomingEdges": [
+        {
+          "id": "edge-gen-v2-image-loyw3v2g-074l::gen-v2-video-loyw3v2h-08f9::0",
+          "source": "gen-v2-image-loyw3v2g-074l",
+          "mode": "first_frame"
+        }
+      ]
+    },
+    "dc1-video-empty-reference-clicked": {
+      "storedModeId": "omni",
+      "readModeId": "omni",
+      "taskKind": "image_to_video",
+      "canRun": false,
+      "incomingEdges": []
+    },
+    "dc2-image-edit-pasted-alone": {
+      "storedModeId": "edit",
+      "readModeId": "edit",
+      "taskKind": "image_edit",
+      "canRun": false,
+      "incomingEdges": []
+    },
+    "dc3-video-firstlast-first-frame-cleared": {
+      "storedModeId": "firstlast",
+      "readModeId": "firstlast",
+      "taskKind": "image_to_video",
+      "canRun": false,
+      "incomingEdges": []
+    },
+    "dc4-video-firstlast-five-refs": {
+      "storedModeId": "firstlast",
+      "readModeId": "firstlast",
+      "taskKind": "image_to_video",
+      "canRun": true,
+      "incomingEdges": [
+        {
+          "id": "edge-gen-v2-image-loyw3v2v-0hhu::gen-v2-video-loyw3v30-0nz4::0",
+          "source": "gen-v2-image-loyw3v2v-0hhu",
+          "mode": "reference"
+        },
+        {
+          "id": "edge-gen-v2-image-loyw3v2w-0isi::gen-v2-video-loyw3v30-0nz4::1",
+          "source": "gen-v2-image-loyw3v2w-0isi",
+          "mode": "reference"
+        },
+        {
+          "id": "edge-gen-v2-image-loyw3v2x-0k36::gen-v2-video-loyw3v30-0nz4::2",
+          "source": "gen-v2-image-loyw3v2x-0k36",
+          "mode": "reference"
+        },
+        {
+          "id": "edge-gen-v2-image-loyw3v2y-0ldt::gen-v2-video-loyw3v30-0nz4::3",
+          "source": "gen-v2-image-loyw3v2y-0ldt",
+          "mode": "reference"
+        },
+        {
+          "id": "edge-gen-v2-image-loyw3v2z-0moh::gen-v2-video-loyw3v30-0nz4::4",
+          "source": "gen-v2-image-loyw3v2z-0moh",
+          "mode": "reference"
+        }
+      ]
+    },
+    "dc5-image-t2i-with-image": {
+      "storedModeId": "t2i",
+      "readModeId": "t2i",
+      "taskKind": "text_to_image",
+      "canRun": true,
+      "incomingEdges": [
+        {
+          "id": "edge-gen-v2-image-loyw3v33-0p9s::gen-v2-image-loyw3v34-0qkg::0",
+          "source": "gen-v2-image-loyw3v33-0p9s",
+          "mode": "reference"
+        }
+      ]
+    },
+    "dc6-agent-plan-image-edit-no-refs": {
+      "storedModeId": "edit",
+      "readModeId": "edit",
+      "taskKind": "image_edit",
+      "canRun": false,
+      "incomingEdges": []
+    },
+    "dc6b-agent-plan-video-firstlast": {
+      "storedModeId": "firstlast",
+      "readModeId": "firstlast",
+      "taskKind": "image_to_video",
+      "canRun": true,
+      "incomingEdges": [
+        {
+          "id": "edge-gen-v2-image-loyw3v39-0uge::gen-v2-video-loyw3v38-0t5r::0",
+          "source": "gen-v2-image-loyw3v39-0uge",
+          "mode": "reference"
+        }
+      ]
+    },
+    "dc7-audio-transcribe-no-audio": {
+      "storedModeId": "transcribe",
+      "readModeId": "transcribe",
+      "taskKind": "transcribe",
+      "canRun": false,
+      "incomingEdges": []
+    },
+    "dc8-model3d-image-no-image": {
+      "storedModeId": "image",
+      "readModeId": "image",
+      "taskKind": "image_to_3d",
+      "canRun": false,
+      "incomingEdges": []
+    }
+  }
+}

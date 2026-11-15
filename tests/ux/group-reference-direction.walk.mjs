@@ -184,6 +184,8 @@ try {
   const state = await win.evaluate(async () => {
     const { useGenerationCanvasStore } = await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')
     const { resolveReferenceSlots } = await import('/src/workbench/generationCanvas/runner/referenceSlots.ts')
+    const { archetypeForNode } = await import('/src/workbench/generationCanvas/agent/referenceEdgeCapability.ts')
+    const { effectiveArchetypeMode } = await import('/src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts')
     const current = useGenerationCanvasStore.getState()
     const target = current.nodes.find((node) => node.id === 'target')
     const fills = target ? resolveReferenceSlots(target, current.nodes, current.edges).flatMap((slot) => slot.fills.map((fill) => fill.url)) : []
@@ -192,7 +194,8 @@ try {
       .map((node) => node.result?.url)
     return {
       edges: current.edges.map((edge) => ({ source: edge.source, target: edge.target, order: edge.order, viaGroupId: edge.viaGroupId })),
-      modeId: target?.meta?.archetype?.modeId,
+      // 方式按输入现算（存盘字段已不再被机器改写）：读渲染层唯一入口，带整张图。
+      modeId: target ? effectiveArchetypeMode(archetypeForNode(target), target, { nodes: current.nodes, edges: current.edges }).mode.id : undefined,
       fills,
       sourceUrls,
       outputLinks: current.groups.find((group) => group.id === 'reference-group')?.outputLinks,
@@ -233,11 +236,14 @@ try {
   await win.waitForTimeout(500)
   const disconnected = await win.evaluate(async () => {
     const { useGenerationCanvasStore } = await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')
+    const { archetypeForNode } = await import('/src/workbench/generationCanvas/agent/referenceEdgeCapability.ts')
+    const { effectiveArchetypeMode } = await import('/src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts')
     const current = useGenerationCanvasStore.getState()
+    const target = current.nodes.find((node) => node.id === 'target')
     return {
       edgeCount: current.edges.length,
       outputLinks: current.groups.find((group) => group.id === 'reference-group')?.outputLinks,
-      modeId: current.nodes.find((node) => node.id === 'target')?.meta?.archetype?.modeId,
+      modeId: target ? effectiveArchetypeMode(archetypeForNode(target), target, { nodes: current.nodes, edges: current.edges }).mode.id : undefined,
     }
   })
   check('断开编组连接会撤掉全部展开边', disconnected.edgeCount === 0, JSON.stringify(disconnected))
@@ -253,11 +259,13 @@ try {
   await win.waitForTimeout(700)
   const reconnected = await win.evaluate(async () => {
     const { useGenerationCanvasStore } = await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')
+    const { archetypeForNode } = await import('/src/workbench/generationCanvas/agent/referenceEdgeCapability.ts')
+    const { effectiveArchetypeMode } = await import('/src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts')
     const current = useGenerationCanvasStore.getState()
     const target = current.nodes.find((node) => node.id === 'target')
     return {
       edgeCount: current.edges.filter((edge) => edge.target === 'target').length,
-      modeId: target?.meta?.archetype?.modeId,
+      modeId: target ? effectiveArchetypeMode(archetypeForNode(target), target, { nodes: current.nodes, edges: current.edges }).mode.id : undefined,
     }
   })
   check('生成框未挂载时重新连参考立即升格到改图', reconnected.edgeCount === 1 && reconnected.modeId === 'edit', JSON.stringify(reconnected))

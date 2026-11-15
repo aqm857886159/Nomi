@@ -28,18 +28,11 @@ export type NomiErrorCode =
   // 请求没离开本机、服务商没被请求到。为什么拒而不是悄悄省略 size：省略后服务商按它自己的默认尺寸出图，
   // 用户选的画幅被换成另一个，界面上写的却还是他选的那个。下一步是在生成框里换一个比例（或换一个支持该比例的模型）再生成。
   | 'aspect-ratio-unsupported'
-  // Nomi **自己的**出站安全策略拒绝了这次取片（私网/回环/fake-ip 未确证）。与上面几条 asset-* 同族：
-  // 失败在我们这侧、服务商根本没被请求到。但它还多一件事——任务**已经付过钱**且上游多半已完成，
-  // 所以正确的下一步是「修网络再免费重新拉取」，绝不是「重新生成」（那要再付一次）。
-  | 'outbound-blocked'
-  // 同一族的**提交侧**：出站策略在付费请求发出**之前**拒了它。与上面一条刻意分家，因为「钱怎么样了」
-  // 相反——请求从未离开本机，供应商没被请求到、没有计费，也不存在可找回的 taskId。共用一个码会让
-  // 渲染层给出一颗按不动的「重新拉取结果」，并配一句「钱已经付过」的假话。
-  | 'outbound-blocked-submit'
   // 带着用户密钥的请求，目的地不是他保存这把 key 时确认过的那个 origin（凭据绑定，
-  // catalog/credentialBinding.ts）。与上面两条同族「请求没离开本机、没有计费」，但**下一步不同**：
-  // 这里没有网络要修——要么是有人在用户没看见的时候改了地址，要么是他确实换了供应商地址而
-  // 还没重新保存密钥。正确的动作是回接入页重新保存一次，不是去看代理。
+  // catalog/credentialBinding.ts）。请求没离开本机、没有计费；没有网络要修——要么是有人在用户没看见的
+  // 时候改了地址，要么是他确实换了供应商地址而还没重新保存密钥。正确的动作是回接入页重新保存一次。
+  // （生成链路上按目的地**地址**拒绝的那两个码 outbound-blocked / outbound-blocked-submit 已于 2026-11-13 删掉，
+  // 老数据见 matchNomiErrorCode 的 RETIRED_CODES。）
   | 'outbound-blocked-credential-origin'
   // 带着密钥的请求，对方回了一个跳转（3xx）。Nomi 不跟着走——自定义鉴权头和 POST 正文会被带去第二个网站
   // （fetch 只会在跨域时去掉 Authorization）。请求**已经**到过用户配置的那个地址，所以与上面几条不同：
@@ -53,9 +46,8 @@ export type NomiErrorCode =
   // 付费提交发出后没拿到回复（连接被重置 / 响应超时 / 提交途中进程退出）：供应商**可能已经收下**，
   // Nomi 没法自动核对。不能说「没发到」，也不能自动重发；下一步是先去服务商后台核对。
   | 'submission-unknown'
-  // 供应商已经做完、钱已经花了，但 Nomi 把结果**取回到本机**这一步确定性地没成（出站策略拒、对方答 4xx /
-  // 跳转 / 类型不对 / 超上限）。与 outbound-blocked 不同：那条只说「策略拦了、去看网络」；这条覆盖整个
-  // 取回失败族，而且下一步只有一个——在任务面板点「重新取回」（免费、不重新生成）。绝不给重试（= 再生成再付钱）。
+  // 供应商已经做完、钱已经花了，但 Nomi 把结果**取回到本机**这一步确定性地没成（对方答 4xx /
+  // 跳转 / 类型不对 / 超上限）。这条覆盖整个取回失败族，而且下一步只有一个——在任务面板点「重新取回」（免费、不重新生成）。绝不给重试（= 再生成再付钱）。
   | 'output-retrieval-failed'
   // 这一步完全在用户这台电脑上做（ffmpeg 截帧 / 本机深度推理 / 本地素材复制），没有任何服务商参与。
   // 失败原因不在「模型」，所以错误卡只留「重试」，不给「换个模型」。生产者一律走 tagLocalProcessingError（渲染层单一入口）。
@@ -64,11 +56,11 @@ export type NomiErrorCode =
   // 统一落「可找回」（免费重新取回，绝不重新提交），并说清卡在哪一步：
   //   retrieval-query    查任务这一步报错（无可用渠道 / 路由不存在 / 任务号无效 / 网络……）
   //   retrieval-parse    上游有回答，但读不出结果（说成了却没地址 / 状态词认不出）
-  //   retrieval-download 有地址，下载到本机没成（出站被拦另有 outbound-blocked）
+  //   retrieval-download 有地址，下载到本机没成
   //   retrieval-timeout  等到上限还没终态
   //   retrieval-unavailable  这一次 Nomi 连问都问不了（模型 / 供应商被关或删了、Key 没了，或本机重建不出这次查询）：供应商什么都没说，
   //                      不是它判的失败，开回来再点就能取回。界面要说这个原因（recoverableCopy 的第三种说法），所以单独一个码，不从人话里猜
-  // 提交阶段（还没拿到任务号）的失败不在这一族：那时没有可找回的任务，见 submission-* / outbound-blocked-submit。
+  // 提交阶段（还没拿到任务号）的失败不在这一族：那时没有可找回的任务，见 submission-*。
   | 'retrieval-query'
   | 'retrieval-parse'
   | 'retrieval-download'
@@ -92,8 +84,6 @@ export const NOMI_ERROR_ONLY_BEFORE_SUBMIT: Readonly<Record<NomiErrorCode, boole
   'reference-not-in-use': true,
   // 请求构造阶段拒发（只有提交前这一个生产者：create 操作的参数翻译），话是「没发出去、换个比例再生成」。
   'aspect-ratio-unsupported': true,
-  'outbound-blocked': false,
-  'outbound-blocked-submit': true,
   'outbound-blocked-credential-origin': true,
   'credential-redirect': false,
   'output-unreadable': false,
@@ -120,10 +110,30 @@ export function tagNomiError(code: NomiErrorCode, humanMessage: string): string 
 /** 「这一次问不了」那一句（查询方抛、账本存都用它）：固定英文，不带任何外部原文。给人看的话在词表里，按码选。 */
 export const RETRIEVAL_UNAVAILABLE_MESSAGE = tagNomiError('retrieval-unavailable', 'Nomi cannot ask the provider about this accepted task right now')
 
-/** classify 端：从 message 里解出 Nomi 错误码；没有标记 → null（走 legacy 兜底）。 */
+/**
+ * 已删掉的码在老数据里怎么读（节点 / 任务账本里存着带标记的原话，升级后还会被读到）。
+ * - `outbound-blocked`：取回那一步被地址判据拦下，任务已付费、结果还在供应商那边 → 读成 retrieval-download
+ *   （可找回、免费重新取回；那一层删掉后重新取回就能取到）。
+ * - `outbound-blocked-submit`：付费请求在发出前被地址判据拦下，没花钱、没有任务号 → 不给码（null），
+ *   按普通失败显示、可以直接重新生成（那一层删掉后重新生成就能发出去）。
+ */
+const RETIRED_CODES: Readonly<Record<string, NomiErrorCode | null>> = {
+  'outbound-blocked': 'retrieval-download',
+  'outbound-blocked-submit': null,
+}
+
+function isKnownNomiErrorCode(code: string): code is NomiErrorCode {
+  return Object.prototype.hasOwnProperty.call(NOMI_ERROR_ONLY_BEFORE_SUBMIT, code)
+}
+
+/** classify 端：从 message 里解出 Nomi 错误码；没有标记 / 认不出的码 → null（走 legacy 兜底）。 */
 export function matchNomiErrorCode(message: string): NomiErrorCode | null {
   const m = MARKER_RE.exec(String(message || ''))
-  if (m) return m[1] as NomiErrorCode
+  if (m) {
+    const code = m[1]
+    if (isKnownNomiErrorCode(code)) return code
+    return Object.prototype.hasOwnProperty.call(RETIRED_CODES, code) ? RETIRED_CODES[code] : null
+  }
   // Frozen pre-code serialization templates from catalogTaskResolve. Decode only
   // whole historical records here; new producers must tag their translated prose.
   // This is a bounded old-data migration, not substring classification.
@@ -143,9 +153,9 @@ export function stripNomiErrorCode(message: string): string {
 
 /**
  * 「结果取回」族：带这些码的失败一律落可找回（任务已受理，免费重新取回），不进红色失败、不重新提交。
- * 不另立一张码表：族 = 上面 NomiErrorCode 里 `retrieval-` 开头的那几个，加出站被拦（取回侧那一条）——
+ * 不另立一张码表：族 = 上面 NomiErrorCode 里 `retrieval-` 开头的那几个——
  * 码的唯一定义仍是 NomiErrorCode，新增一个 retrieval-* 阶段码自动归族。
  */
-export function isRetrievalStageCode(code: NomiErrorCode | null): code is Extract<NomiErrorCode, `retrieval-${string}` | 'outbound-blocked'> {
-  return code !== null && (code.startsWith('retrieval-') || code === 'outbound-blocked')
+export function isRetrievalStageCode(code: NomiErrorCode | null): code is Extract<NomiErrorCode, `retrieval-${string}`> {
+  return code !== null && code.startsWith('retrieval-')
 }

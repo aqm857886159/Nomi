@@ -7,22 +7,20 @@ import type { ModelOption } from '../../../config/models'
 import {
   parseCustomCapabilityContract,
   replaceCustomCapabilityContractMeta,
+  resolveModelArchetype,
+  variantRecordedInMeta,
 } from '../../../../electron/shared/modelArchetypes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { projectParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { buildModelControls, defaultPatchForControls, readMeta } from './controls/parameterControlModel'
 import {
-  applyArchetypeModeSwitch,
+  carryHumanModePreference,
   ensureArchetypeNodeMeta,
   normalizeArchetypeVariantMeta,
-  referenceDemandsBeforeFirstMode,
-  resolveArchetypeForModel,
 } from './controls/archetypeMeta'
-import { resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { CanvasMutationOptions } from '../store/canvasGuards'
 import { whenCanvasWriteBoundarySettled } from '../events/canvasWriteBoundary'
-import { remapArchetypeMode } from '../runner/usableVendorModel'
 import { selectedModelKey } from '../runner/catalogTaskResolve'
 import { useToastStore } from '../../../ui/toast'
 import { classifyGenerationError } from '../../observability/classifyError'
@@ -53,22 +51,16 @@ import {
 } from './nodeRecoveryNotice'
 
 /**
- * 档案命名空间 meta 的初始化（落到默认模式；已连着参考就顺手促到收得下的模式）。幂等：已是该档案 → null。
+ * 档案命名空间 meta 的初始化（记下档案和默认摆法，来历不明；这次按什么发由 modeForInputs 按输入现算）。幂等：已是该档案 → null。
  * 「选默认模型」和「选到一个有档案的模型」两处共用：默认模型那一笔写里就把档案一起初始化好，
  * 不再先写模型、重渲、再写档案（2026-10-16 可疑点 i：新卡第一次挂载的级联写）。
- * 出生就带着参考的卡（提示词库「放上画布」带参考图）第一次定模式时，那些参考和活边一起算——
- * 否则新卡落在文生图，参考图摆在 meta 里谁也看不见（2026-10-24 库排版走查）。
+ * 出生就带着参考的卡（提示词库「放上画布」带参考图）不用再促模式：那些参考本身就是输入，现算时按它们摆。
  */
 function initializedArchetypeMeta(
-  node: GenerationCanvasNode,
   meta: Record<string, unknown>,
   archetype: NonNullable<ReturnType<typeof resolveArchetypeForOption>>,
 ): Record<string, unknown> | null {
-  const patch = ensureArchetypeNodeMeta(meta, archetype)
-  if (!patch) return null
-  const state = useGenerationCanvasStore.getState()
-  const promotedModeId = resolveModeForConnectedReferences({ ...node, meta: patch }, state.nodes, state.edges, referenceDemandsBeforeFirstMode(meta))
-  return promotedModeId ? applyArchetypeModeSwitch(patch, archetype, promotedModeId) : patch
+  return ensureArchetypeNodeMeta(meta, archetype)
 }
 
 type UseNodeModelAutoSelectArgs = {
@@ -204,9 +196,9 @@ export function useNodeModelAutoSelect({
         ? { videoModel: firstOption.value, videoModelVendor: firstOption.vendor || null }
         : { imageModel: firstOption.value, imageModelVendor: firstOption.vendor || null }),
     }, firstOption.meta)
-    const firstArchetype = resolveArchetypeForOption(firstOption)
+    const firstArchetype = resolveArchetypeForOption(firstOption, { variantId: undefined, modelId: firstOption.modelKey })
     writeDerivedMeta(node.id, {
-      meta: (firstArchetype && initializedArchetypeMeta(latestNode, defaultMeta, firstArchetype)) || defaultMeta,
+      meta: (firstArchetype && initializedArchetypeMeta(defaultMeta, firstArchetype)) || defaultMeta,
     })
   }, [defaultsReady, getLatestNode, isGenerationNode, isImageLike, isVideoLike, modelOptions, node.id, selectedModelValue, t, writeDerivedMeta])
 
@@ -254,12 +246,12 @@ export function useNodeModelAutoSelect({
     // 这个组合在目录里根本不存在 → 生成面板直接报「加载失败」。R13 真机走查抓到的就是这个。
     if (selectedModelOption) return
     const latestMeta = getLatestMeta()
-    const sourceArchetype = resolveArchetypeForModel({
+    const sourceArchetype = resolveModelArchetype({
       modelKey: selectedModelValue,
       modelAlias: readMeta(latestMeta, 'modelAlias'),
       vendorKey: readMeta(latestMeta, 'modelVendor') || readMeta(latestMeta, 'vendor'),
       meta: latestMeta,
-    })
+    }, { variant: variantRecordedInMeta(latestMeta, latestMeta.modelKey) })
     if (!sourceArchetype?.variants?.length) return
     const patch = normalizeArchetypeVariantMeta(latestMeta, sourceArchetype)
     if (!patch) return
@@ -292,29 +284,20 @@ export function useNodeModelAutoSelect({
     const sourceVendor = failure && failed ? failed.vendorKey : currentVendor
     // 点名给用户看的是显示名，不是 key（key 只用来认「是哪一家」）。
     const sourceVendorLabel = vendorLabelFor(modelOptions, sourceVendor)
-    const sourceArchetype = resolveArchetypeForModel({
+    const sourceArchetype = resolveModelArchetype({
       modelKey: selectedModelValue,
       modelAlias: readMeta(latestMeta, 'modelAlias'),
       vendorKey: sourceVendor,
       meta: latestMeta,
-    })
+    }, { variant: variantRecordedInMeta(latestMeta, latestMeta.modelKey) })
     if (!sourceArchetype) return
     const alternatives = modelOptions.filter((option) => option.vendor !== sourceVendor)
     const target =
-      alternatives.find((option) => resolveArchetypeForOption(option)?.id === sourceArchetype.id) ||
-      alternatives.find((option) => resolveArchetypeForOption(option)?.family === sourceArchetype.family)
+      alternatives.find((option) => resolveArchetypeForOption(option, { variantId: undefined, modelId: option.modelKey })?.id === sourceArchetype.id) ||
+      alternatives.find((option) => resolveArchetypeForOption(option, { variantId: undefined, modelId: option.modelKey })?.family === sourceArchetype.family)
     const optionVendor = typeof target?.vendor === 'string' ? target.vendor.trim() : ''
     if (!target?.value || !optionVendor) return
-    const targetArchetype = resolveArchetypeForOption(target)
-    const remapped = targetArchetype
-      ? remapArchetypeMode(
-          sourceArchetype,
-          (latestMeta.archetype as { modeId?: string } | undefined)?.modeId,
-          targetArchetype,
-          sourceVendor,
-          optionVendor,
-        )
-      : null
+    const targetArchetype = resolveArchetypeForOption(target, { variantId: undefined, modelId: target.modelKey })
     const sourceModel = readMeta(latestMeta, 'modelAlias') || readMeta(latestMeta, 'modelKey') || selectedModelValue
     const pinned = { vendorKey: currentVendor, modelKey: selectedModelKey(latestNode) }
     useToastStore.getState().push({
@@ -338,15 +321,16 @@ export function useNodeModelAutoSelect({
         const current = getLatestMeta()
         if (readMeta(current, 'modelVendor') !== readMeta(latestMeta, 'modelVendor')
           || readMeta(current, 'modelKey') !== readMeta(latestMeta, 'modelKey')) return
+        // 换到别家：人手选过的摆法按同一种意图带过去，其余不替节点挑方式（发送时按输入现算）。
+        const carried = targetArchetype ? carryHumanModePreference(current, sourceArchetype, targetArchetype) : current
         updateNode(node.id, {
           meta: {
-            ...replaceCustomCapabilityContractMeta(current, target.meta),
+            ...replaceCustomCapabilityContractMeta(carried, target.meta),
             modelKey: target.modelKey || target.value,
             modelAlias: target.modelAlias || target.value,
             modelVendor: optionVendor,
             vendor: optionVendor,
             modelLabel: target.label,
-            ...(remapped ? { archetype: remapped } : {}),
             ...(isVideoLike
               ? { videoModel: target.value, videoModelVendor: optionVendor }
               : { imageModel: target.value, imageModelVendor: optionVendor }),
@@ -386,7 +370,7 @@ export function useNodeModelAutoSelect({
     const latestModelKey = typeof latestNode.meta?.modelKey === 'string' ? latestNode.meta.modelKey : ''
     if (selectedModelOption && latestModelKey
       && ![selectedModelOption.modelKey, selectedModelOption.value, selectedModelOption.modelAlias].includes(latestModelKey)) return
-    const initialized = initializedArchetypeMeta(latestNode, latestNode.meta || {}, archetype)
+    const initialized = initializedArchetypeMeta(latestNode.meta || {}, archetype)
     if (initialized) writeDerivedMeta(node.id, { meta: initialized })
   }, [archetype, getLatestNode, isGenerationNode, node.id, selectedModelOption, writeDerivedMeta])
 }

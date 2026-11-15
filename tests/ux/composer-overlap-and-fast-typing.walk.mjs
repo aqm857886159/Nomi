@@ -22,9 +22,9 @@
 // 断言钉的是用户看得见的结果：
 //   · 模型是从界面上选的：选之前芯片上不是它；菜单里列着它；点完芯片显示它、再开菜单勾在它那行；参考入口可点；
 //   · 参考图真用上了：接进来后参考行里是一张在用的小图（不是淡显的「未用到」）；
-//   · 浮框卡片顶边 = 节点底边 + 14×缩放、中线 = 节点中线、屏幕宽恒 560——默认位置、拖到左下停靠区那片、
-//     压到舞台底边（以前会翻上去的现场）、缩到最小窗口（1100×720 内容区）各测一次；伸出舞台 / 钻到停靠区底下是预期；
-//   · 底栏芯片文字不被裁断——只允许「有意省略号 + title 全名 + 省略后仍 ≥24px」（1100×720 EN 是现场）；
+//   · 浮框卡片顶边 = 节点底边 + 14×缩放、中线 = 节点中线、屏幕宽恒 NODE_COMPOSER_WIDTH——默认位置、拖到左下停靠区那片、
+//     压到舞台底边（以前会翻上去的现场）、缩到最小窗口（electron/shared/mainWindowSize.json 内容区）各测一次；伸出舞台 / 钻到停靠区底下是预期；
+//   · 底栏芯片文字不被裁断——只允许「有意省略号 + title 全名 + 省略后仍 ≥24px」（当时 1100×720 EN 是现场）；
 //   · 0ms / 5ms 逐键键入 ≥80 字符中英混合串（含空格与标点）后，编辑器与输入逐字相同、文字从未倒退（图片 + 视频节点）；
 //   · 一次性粘贴长文本逐字相同；
 //   · 外部改写（优化 → 应用）把夹具回的那句逐字写进编辑器，之后继续快打不丢字；夹具恰好收到一次带原句的请求；
@@ -36,6 +36,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { stationTimeout } from './_station-budget.mjs'
+import { NODE_COMPOSER_WIDTH } from './_composerWidth.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { clickOrFail, expect, expectAbsent, expectHittable, expectVisible, proveProbe } from './_assert.mjs'
 import { waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { addCanvasNode, canvasAddBar, canvasFitView, newProjectEntry, setAppLanguage, switchWorkspace } from './_shell.mjs'
@@ -56,9 +58,10 @@ const DOCKS = '[data-canvas-bottom-dock]'
 const IN_USE_TILE = '[data-reference-row] [data-asset-slot-group="array"] [data-asset-tile], [data-reference-row] [data-asset-slot] [data-asset-tile]'
 // 与 composerCanvasPlacement.ts 的 NODE_COMPOSER_GAP / NODE_COMPOSER_WIDTH 同一组数（前者是画布单位，后者是屏幕像素）。
 const COMPOSER_GAP = 14
-const COMPOSER_WIDTH = 560
-// 最小窗口 = electron/main.ts 的 minWidth / minHeight。
-const MIN_VIEWPORT = Object.freeze({ width: 1100, height: 720 })
+// 宽度只有一个家（nodeSizing.ts 的 NODE_COMPOSER_WIDTH），由 _composerWidth.mjs 从源文件读。
+const COMPOSER_WIDTH = NODE_COMPOSER_WIDTH
+// 最小窗口 = electron/shared/mainWindowSize.json（主进程 minWidth / minHeight 同读它）。
+const MIN_VIEWPORT = Object.freeze({ width: MIN_WINDOW.width, height: MIN_WINDOW.height })
 // 界面上选的那个图片模型：内置 APIMart 档案里的 GPT Image 2（文生图 + 参考图生图，参考槽收图），出图地址由出网闸指到本机夹具。
 const PICKED_MODEL = FIXTURE_APIMART_MODEL_LABEL
 const IMPORT_TIMEOUT = stationTimeout({ operations: 4 })
@@ -130,7 +133,10 @@ async function pickModelInComposer(win, nodeId, locale, label) {
   const row = menu.getByRole('option').filter({ has: win.locator('[data-nomi-select-option-label]', { hasText: new RegExp(`^${escapeForRegExp(PICKED_MODEL)}$`) }) })
   await clickOrFail(chip, `${label}：点模型芯片`)
   await expectVisible(menu, `${label}：模型菜单开了`)
-  await expect(row, `${label}：模型菜单里列着 ${PICKED_MODEL}（菜单只列此刻能用的模型）`).toHaveCount(1)
+  // 跟随现状（2026-11-14 a42bf46f1）：没整理过模型框的创作者，GPT Image 2 默认收在菜单底下「更多」里——真人路径是先点「更多」再找它。
+  const moreButton = menu.getByRole('button', { name: uiText(locale, 'onboardingProviders.modelControls.more'), exact: true })
+  if (await row.count() === 0 && await moreButton.isVisible().catch(() => false)) await clickOrFail(moreButton, `${label}：点菜单底下「更多」展开默认收起的模型`)
+  await expect(row,`${label}：模型菜单里列着 ${PICKED_MODEL}（菜单只列此刻能用的模型）`).toHaveCount(1)
   await clickOrFail(row, `${label}：在菜单里点 ${PICKED_MODEL}`)
   await expect(chip, `${label}：芯片显示选中的模型`).toHaveText(PICKED_MODEL)
   await clickOrFail(chip, `${label}：再开模型菜单核对勾选`)
@@ -329,7 +335,7 @@ function pinProblems(geometry) {
 
 /**
  * 浮框钉在节点正下方（2026-09-25 用户拍板「钉在节点正下方、宽度固定、被挡就挡」）：
- * 顶边 = 节点底边 + 14×缩放、中线 = 节点中线、屏幕宽恒 560。不看视口、不看停靠区——那些不再是输入，
+ * 顶边 = 节点底边 + 14×缩放、中线 = 节点中线、屏幕宽恒 NODE_COMPOSER_WIDTH。不看视口、不看停靠区——那些不再是输入，
  * 所以卡压进缩放条 / 时间轴胶囊、伸出舞台都**不算**失败。
  * `pushedOffStage`：这一格是「以前会翻上去」的现场——先证卡确实伸出了舞台底边（基线，不然这格是摆设），再断它仍钉在下方。
  */

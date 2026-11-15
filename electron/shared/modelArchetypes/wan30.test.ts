@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getArchetypeById, resolveArchetypeForModel } from "./index";
+import { EVERY_VARIANT, resolveModelArchetype } from "./index";
+import { getArchetypeById } from "./builtInCatalog";
 import type { ModelArchetype } from "./types";
+import { modeWrittenInMeta } from "../../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers";
 
 // ---------------------------------------------------------------------------
 // Wan 3.0 契约锁（kie + apimart）。每个数字都出自 2026-08-26/27 实抓官方文档：
@@ -20,17 +22,17 @@ const slotMaxByKind = (arch: ModelArchetype, modeId: string) =>
 
 describe("Wan 3.0 身份解析", () => {
   it("kie 的两个 model id 都命中 wan-3.0（高速版是变体，不是另一个档案）", () => {
-    expect(resolveArchetypeForModel({ modelKey: "wan/3-0-video", vendorKey: "kie" })?.id).toBe("wan-3.0");
-    expect(resolveArchetypeForModel({ modelKey: "wan/3-0-video-prime", vendorKey: "kie" })?.id).toBe("wan-3.0");
+    expect(resolveModelArchetype({ modelKey: "wan/3-0-video", vendorKey: "kie" }, { variant: EVERY_VARIANT })?.id).toBe("wan-3.0");
+    expect(resolveModelArchetype({ modelKey: "wan/3-0-video-prime", vendorKey: "kie" }, { variant: EVERY_VARIANT })?.id).toBe("wan-3.0");
   });
 
   it("apimart 的单 id 命中 wan-3.0-apimart（两家契约不同，各自成档案）", () => {
-    expect(resolveArchetypeForModel({ modelKey: "wan3.0-video", vendorKey: "apimart" })?.id).toBe("wan-3.0-apimart");
+    expect(resolveModelArchetype({ modelKey: "wan3.0-video", vendorKey: "apimart" }, { variant: EVERY_VARIANT })?.id).toBe("wan-3.0-apimart");
   });
 
   it("不会误吃 Wan 2.7（前缀相近，匹配必须是整串级别）", () => {
-    expect(resolveArchetypeForModel({ modelKey: "wan2.7", vendorKey: "apimart" })?.id).toBe("wan-2.7");
-    expect(resolveArchetypeForModel({ modelKey: "wan2.7-r2v", vendorKey: "apimart" })?.id).toBe("wan-2.7");
+    expect(resolveModelArchetype({ modelKey: "wan2.7", vendorKey: "apimart" }, { variant: EVERY_VARIANT })?.id).toBe("wan-2.7");
+    expect(resolveModelArchetype({ modelKey: "wan2.7-r2v", vendorKey: "apimart" }, { variant: EVERY_VARIANT })?.id).toBe("wan-2.7");
   });
 });
 
@@ -165,7 +167,7 @@ describe("Wan 3.0 kie 变体真的会发出去（不只是档案里写对了）"
     const arch = KIE();
     // 生产同一条链：节点 meta（只存选择）→ 渲染层投影 → 主进程参数层（线上模型名 owner）→ kie 报文。
     const wireModelOf = (meta: Record<string, unknown>) => {
-      const archetypeInput = buildArchetypeInputParams(meta, arch);
+      const archetypeInput = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, arch));
       // 2026-10-16 新不变式：投影永远不带 model，线上名只由 wireModelIdentity 决定。
       expect(archetypeInput).not.toHaveProperty("model");
       const request = { kind: "text_to_video", prompt: "x", extras: { ...meta, modelKey: WAN_3_0_MODEL_SEED.modelKey, archetypeInput } };
@@ -191,20 +193,20 @@ describe("Wan 3.0 kie 变体真的会发出去（不只是档案里写对了）"
   // 同理钉 apimart 的 generation_type：它是两族的唯一判据，投影漏了就等于让上游猜。
   // （付费验收报告称发出去了，但保存下来的 wire.log 没留住那条报文 → 这里做确定性复核。）
   it("apimart 各模式投影出正确的 generation_type", async () => {
-    const { applyArchetypeModeSwitch, buildArchetypeInputParams, ensureArchetypeNodeMeta } = await import(
+    const { applyHumanModeChoice, buildArchetypeInputParams, ensureArchetypeNodeMeta } = await import(
       "../../../src/workbench/generationCanvas/nodes/controls/archetypeMeta"
     );
     const arch = APIMART();
     let meta: Record<string, unknown> = ensureArchetypeNodeMeta({}, arch)!;
 
-    meta = applyArchetypeModeSwitch(meta, arch, "ref");
-    expect(buildArchetypeInputParams(meta, arch).generation_type).toBe("reference");
+    meta = applyHumanModeChoice(meta, arch, "ref");
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, arch)).generation_type).toBe("reference");
 
-    meta = applyArchetypeModeSwitch(meta, arch, "first");
-    expect(buildArchetypeInputParams(meta, arch).generation_type).toBe("frame");
+    meta = applyHumanModeChoice(meta, arch, "first");
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, arch)).generation_type).toBe("frame");
 
-    meta = applyArchetypeModeSwitch(meta, arch, "firstlast");
-    expect(buildArchetypeInputParams(meta, arch).generation_type).toBe("frame");
+    meta = applyHumanModeChoice(meta, arch, "firstlast");
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, arch)).generation_type).toBe("frame");
   });
 });
 

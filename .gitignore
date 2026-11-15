@@ -41,6 +41,7 @@ project-data/
 .agents/skills/*
 !.agents/skills/root-cause-remediation/
 !.agents/skills/root-cause-remediation/SKILL.md
+!.agents/skills/verify-nomi/
 .tapcanvas/
 artifacts/
 orchestration/
@@ -199,3 +200,6 @@ docs/evidence/**/FAIL-*.png
 /nightly-walks/
 /nightly-results/
 /nightly-summary.md
+
+# Claude Design 运行时，拍板源只引用、不入库
+docs/design/boards/**/source/support.js

@@ -18,6 +18,8 @@
 export function probePopupGeometry() {
   const EPS = 1
   const visible = (el) => {
+    // 原生 details 收起时，后代仍可有矩形；用浏览器的绘制可见性排除它们。
+    if (el.checkVisibility?.({ checkOpacity: true, checkVisibilityCSS: true }) === false) return false
     const rect = el.getBoundingClientRect()
     const style = getComputedStyle(el)
     return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && Number(style.opacity) > 0 && style.display !== 'none'
@@ -50,5 +52,38 @@ export function probePopupGeometry() {
       else if (row && overlap(r, row)) violations.push({ rule: 'popup-covers-toolbar-row', trigger: name(trigger), layer: name(layer), rowBox: box(row), layerBox: box(r) })
     }
   }
-  return { triggers: triggers.length, layers: layers.length, violations }
+  // 普通弹层可能铺满视口；真正会被裁的是里面的对话框与决定按钮，不能只量 Portal 根。
+  const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(visible)
+  const decisions = new Set(dialogs.flatMap(dialog => [...dialog.querySelectorAll('[data-decision-bar] button, footer button, [data-design-modal-actions] button, [data-settings-close], .mantine-Modal-close')].filter(visible)))
+  // 工作区不迁普通弹窗；取景显式点名它真实的标题 / 操作区，不把正文列表滚动当裁切。
+  const workspaces = [...document.querySelectorAll('[data-dialog-census-workspace]')]
+  const workspaceControls = new Set()
+  for (const expected of document.querySelectorAll('[data-dialog-census-expects]')) {
+    const selector = expected.getAttribute('data-dialog-census-expects')
+    if (!selector || ![...document.querySelectorAll(selector)].some(visible)) violations.push({ rule: 'dialog-missing', selector })
+  }
+  for (const workspace of [...workspaces, ...document.querySelectorAll('[data-dialog-census-actions]')]) {
+    const selector = workspace.getAttribute('data-dialog-census-workspace') || workspace.getAttribute('data-dialog-census-actions')
+    const controls = selector ? [...document.querySelectorAll(selector)].filter(visible) : []
+    if (!controls.length) violations.push({ rule: 'dialog-workspace-controls-missing', selector })
+    for (const control of controls) { if (workspaces.includes(workspace)) workspaceControls.add(control); decisions.add(control) }
+  }
+  for (const dialog of dialogs) {
+    const r = dialog.getBoundingClientRect()
+    if (r.left < -EPS || r.top < -EPS || r.right > innerWidth + EPS || r.bottom > innerHeight + EPS) {
+      violations.push({ rule: 'dialog-out-of-viewport', dialog: name(dialog), dialogBox: box(r), viewport: box(viewport) })
+    }
+  }
+  for (const action of decisions) {
+    const r = action.getBoundingClientRect()
+    let clip = r.left < -EPS || r.top < -EPS || r.right > innerWidth + EPS || r.bottom > innerHeight + EPS
+    for (let parent = action.parentElement; parent; parent = parent.parentElement) {
+      const style = getComputedStyle(parent)
+      const pr = parent.getBoundingClientRect()
+      if (/(auto|hidden|scroll|clip)/.test(style.overflowY) && (r.top < pr.top - EPS || r.bottom > pr.bottom + EPS)) clip = true
+      if (/(auto|hidden|scroll|clip)/.test(style.overflowX) && (r.left < pr.left - EPS || r.right > pr.right + EPS)) clip = true
+    }
+    if (clip) violations.push({ rule: 'dialog-decision-clipped', action: name(action), actionBox: box(r) })
+  }
+  return { triggers: triggers.length, layers: layers.length, dialogs: dialogs.length, decisions: decisions.size, workspaces: workspaces.length, workspaceControls: workspaceControls.size, violations }
 }

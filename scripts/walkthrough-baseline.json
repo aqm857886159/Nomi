@@ -1,10 +1,10 @@
 {
   "absence-without-baseline": 56,
-  "whole-page-text": 29,
+  "whole-page-text": 28,
   "sleep-as-done-signal": 65,
   "dead-selector": 0,
   "dead-aria-label": 7,
-  "dead-data-attr": 40,
+  "dead-data-attr": 38,
   "source-scan-without-strip": 9,
   "positional-project-open": 0,
   "raw-shell-anchor": 0,

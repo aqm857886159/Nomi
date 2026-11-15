@@ -271,13 +271,16 @@
           "text",
           "single",
           "firstlast",
-          "character"
+          "character",
+          "edit"
         ],
         "modeTerms": [
           "文生视频",
           "首帧",
           "首尾帧",
-          "全能参考"
+          "全能参考",
+          "视频编辑",
+          "视频续写"
         ],
         "references": {
           "first_frame": 1,
@@ -569,6 +572,7 @@
         },
         "resolutions": [
           "1K",
+          "1.5K",
           "2K"
         ],
         "aspectRatios": [
@@ -1358,6 +1362,67 @@
       }
     },
     {
+      "slug": "minimax-h3-max",
+      "canonicalId": "minimax h3-max",
+      "label": "MiniMax H3-Max",
+      "kind": "video",
+      "lifecycle": "flagship",
+      "recognized": true,
+      "archetypeIds": [
+        "minimax-h3-max"
+      ],
+      "family": "minimax",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "apimart",
+          "name": "APIMart",
+          "authType": "bearer"
+        },
+        {
+          "key": "fal",
+          "name": "fal.ai",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "firstlast",
+          "character"
+        ],
+        "modeTerms": [
+          "文生视频",
+          "首尾帧",
+          "多模态参考"
+        ],
+        "references": {
+          "first_frame": 1,
+          "last_frame": 1,
+          "image_ref": 9,
+          "video_ref": 3,
+          "audio_ref": 3
+        },
+        "resolutions": [
+          "480P",
+          "768P"
+        ],
+        "aspectRatios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "durationSeconds": {
+          "min": 5,
+          "max": 15
+        },
+        "audio": false,
+        "variants": []
+      }
+    },
+    {
       "slug": "gpt-image-2-fal",
       "canonicalId": "gpt image 2 · fal",
       "label": "GPT Image 2 · fal",
@@ -1412,57 +1477,6 @@
           "9:21"
         ],
         "durationSeconds": null,
-        "audio": false,
-        "variants": []
-      }
-    },
-    {
-      "slug": "minimax-h3-max",
-      "canonicalId": "minimax h3-max",
-      "label": "MiniMax H3-Max · fal",
-      "kind": "video",
-      "lifecycle": "flagship",
-      "recognized": true,
-      "archetypeIds": [
-        "minimax-h3-max"
-      ],
-      "family": "minimax",
-      "identityGapWith": null,
-      "vendors": [
-        {
-          "key": "fal",
-          "name": "fal.ai",
-          "authType": "bearer"
-        }
-      ],
-      "facts": {
-        "intents": [
-          "text",
-          "firstlast"
-        ],
-        "modeTerms": [
-          "文生视频",
-          "首尾帧"
-        ],
-        "references": {
-          "first_frame": 1,
-          "last_frame": 1
-        },
-        "resolutions": [
-          "480P",
-          "768P"
-        ],
-        "aspectRatios": [
-          "16:9",
-          "9:16",
-          "1:1",
-          "4:3",
-          "3:4"
-        ],
-        "durationSeconds": {
-          "min": 5,
-          "max": 15
-        },
         "audio": false,
         "variants": []
       }
@@ -2643,6 +2657,59 @@
       }
     },
     {
+      "slug": "seedream-5-5",
+      "canonicalId": "seedream 5.5",
+      "label": "Seedream 5.5",
+      "kind": "image",
+      "lifecycle": "companion",
+      "recognized": true,
+      "archetypeIds": [
+        "seedream-5-5"
+      ],
+      "family": "seedream",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "apimart",
+          "name": "APIMart",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "edit"
+        ],
+        "modeTerms": [
+          "文生图",
+          "改图"
+        ],
+        "references": {
+          "image_ref": 10
+        },
+        "resolutions": [
+          "1K",
+          "1.5K",
+          "2K"
+        ],
+        "aspectRatios": [
+          "1:1",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16",
+          "3:2",
+          "2:3",
+          "21:9",
+          "2:1",
+          "1:2"
+        ],
+        "durationSeconds": null,
+        "audio": false,
+        "variants": []
+      }
+    },
+    {
       "slug": "nano-banana-2-1",
       "canonicalId": "nano banana 2.1",
       "label": "Nano Banana 2.1",
@@ -3590,6 +3657,60 @@
         "durationSeconds": {
           "min": 3,
           "max": 30
+        },
+        "audio": false,
+        "variants": []
+      }
+    },
+    {
+      "slug": "kling-v4-flash",
+      "canonicalId": "可灵 4.0 flash",
+      "label": "可灵 4.0 Flash",
+      "kind": "video",
+      "lifecycle": "companion",
+      "recognized": true,
+      "archetypeIds": [
+        "kling-v4-flash"
+      ],
+      "family": "kling",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "apimart",
+          "name": "APIMart",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "single",
+          "character",
+          "edit"
+        ],
+        "modeTerms": [
+          "文生视频",
+          "图生视频",
+          "全能参考",
+          "视频编辑",
+          "视频续写"
+        ],
+        "references": {
+          "first_frame": 1,
+          "image_ref": 10,
+          "video_ref": 5
+        },
+        "resolutions": [],
+        "aspectRatios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "21:9",
+          "auto"
+        ],
+        "durationSeconds": {
+          "min": 3,
+          "max": 20
         },
         "audio": false,
         "variants": []

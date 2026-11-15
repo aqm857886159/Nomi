@@ -1,0 +1,24 @@
+{
+  "id": "REV-20261113-open-writes-project",
+  "since": "2026-11-13",
+  "source": "独立验收测出：打开项目什么都不点就关，项目文件被整份重写（类根因复盘 docs/engineering/direction-checks/2026-11-13-open-writes-project.md，84 次真窗里 78 次）。用户 2026-11-13 拍板「跟机器走」。",
+  "category": "interaction-semantics",
+  "problem": "创作者只是打开项目看一眼、什么都没点就关，项目文件的内容和修改时间却变了，放在网盘里或与人来回传的项目会触发同步、冒出冲突副本。两个触发：外壳挂载时把本机每页的 Nomi 形态（小球 / 停靠）当作开合写进项目并让项目落盘；创作页编辑器挂载把空文稿 `[]` 写成一段空段落并当成编辑。老格式项目搭这趟车被整份补全。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/engineering/direction-checks/2026-11-13-open-writes-project.md",
+    "结构性预防 1（结构上做不出来）：src/workbench/preview/editingPanelLayoutSlice.ts 的 LAYOUT_ACTION_LAYERS 写入层登记表（satisfies Record<LayoutActionName, LayoutActionLayer>）；唯一落盘口 commitLayout 只收非 display 层的动作，并把 visibility.assistant 钉在打开时的值，挂载 / 叫回 / 收起展开只能改显示态",
+    "结构性预防 2（门岗自动拦）：tests/ux/open-writes-nothing.walk.mjs 真窗零点击打开→关断言 project.json 逐字节不变（4 页 × 本机偏好 2 种 + 收起再关 + 重开记得收起 + 敲字反例 + v0.20 老项目两次打开不冒假冲突 + 手改项目文件冲突照报）",
+    "src/workbench/preview/agentDockPersistence.test.ts（任意动作序列后落盘的 Nomi 开合等于打开时的值；登记表与 slice 动作一一对应；slice 只有一处写 persistRevision）",
+    "src/ui/app-shell/shell/ShellAgentHost.openWritesNothing.test.tsx（挂上外壳 persistRevision 不变）",
+    "src/workbench/creation/WorkbenchEditor.initNotEdit.test.ts（空文稿两种写法相等）",
+    "electron/workspace/workspaceProjectIdentity.syncBaseline.test.ts（补身份写完同步基线只在基线等于写前内容时跟上；基线不同冲突照报；没有基线不造）"
+  ],
+  "completionCommits": [],
+  "notes": "状态待合入后由协调会话结账；未覆盖：窄窗时外壳按窗宽夹 Nomi 栏宽仍会落盘一次（栏宽不在这一刀范围），lastKnownRootPath 与项目目录里的 Agent 会话文件见复盘 §6。 v0.20 那一代没有身份字段的项目，升级后第一次打开会补写两个身份字段一次，之后不写。"
+}

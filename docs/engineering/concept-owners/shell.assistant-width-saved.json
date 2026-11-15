@@ -1,0 +1,25 @@
+{
+  "name": "用户拖出来的 Nomi 停靠栏宽（存档里那一份，只按 300–600 规范，不看窗口）",
+  "subject": "shell.assistant-width-saved",
+  "lifecycle": "preference",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/assistantWidthBounds.ts",
+    "symbol": "normalizeAssistantWidth"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/assistantWidthBounds.ts",
+      "symbol": "normalizeAssistantWidth"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/preview/panelLayout.ts"
+  ],
+  "since": "2026-11-08",
+  "notes": "editingPanelLayout.assistantWidth 存的是用户意图：写进存档前只按 ASSISTANT_WIDTH_MIN / MAX 规范，不按 window.innerWidth 钳（2026-11-08-assistant-width-writeback：窗口变窄把显示值写回存档）。窗口放不下时显示让多少归 shell.assistant-dock-columns，不写回这里。"
+}

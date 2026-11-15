@@ -1,0 +1,13 @@
+✔ allows only a height burst whose very next frame recovers; retains raw max and each exception (0.584583ms)
+✔ rejects two consecutive gaps even when both frames have a height burst (0.065333ms)
+✔ rejects an unrecovered final burst: removing next-frame recovery must turn this test red (0.040375ms)
+✔ rejects lag without a >70px height burst, including exactly 70px growth (0.355292ms)
+✔ keeps >20 samples and accepts the original 70px boundary without exceptions (0.05025ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30.614833

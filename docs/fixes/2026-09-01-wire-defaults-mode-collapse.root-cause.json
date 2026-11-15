@@ -58,14 +58,14 @@
   ],
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "scripts/gen-archetype-wire-defaults.ts",
+    "enforcement_path": "electron/shared/modelArchetypes/catalogFacts.ts",
     "invariant": "每个 (archetypeId, transportTaskKind) 的 headless 兜底默认只取一个确定性主模式的参数（defaultModeId 落在该 taskKind 则用它，否则用该 taskKind 首个声明的模式）；同一 taskKind 的其它模式的 params/modelEnum/fixedParams 绝不覆盖进该 taskKind 的兜底。",
     "failure_mode": "若回退成「遍历顺序里最后一个模式胜」或任何非确定性收口，后声明的模式（如 ref/omni/edit/cover）会静默覆盖主模式（t2v/first/music）的默认，把错的 model enum / 错的比例默认（含 adaptive）写进兜底 → headless 路把 adaptive 当纯文生默认发给 vendor 触发 400（minimax-h3 t2va 场景实证）。",
     "exception_policy": "none",
     "strategy": "把收口逻辑收敛到唯一生成边界 buildWireDefaultsFor：先用 primaryModeByTaskKind 为每个 taskKind 定主模式，再仅对主模式展开 params/fixedParams/model；输出形状不变故消费侧零改动。回归测试用合成假档案钉住「多模式同 taskKind 各模式默认互不污染」，check:archetype-defaults 门保证生成产物与生成器同步（再生漂移即红），check:root-cause-contracts 钉住本边界。",
     "artifacts": [
-      "scripts/gen-archetype-wire-defaults.ts",
-      "scripts/gen-archetype-wire-defaults.test.ts"
+      "electron/shared/modelArchetypes/catalogFacts.ts",
+      "electron/shared/modelArchetypes/catalogFacts.test.ts"
     ]
   },
   "invariants": [
@@ -85,10 +85,10 @@
     ]
   },
   "class_regression_tests": [
-    "scripts/gen-archetype-wire-defaults.test.ts"
+    "electron/shared/modelArchetypes/catalogFacts.test.ts"
   ],
   "regression_tests": [
-    "scripts/gen-archetype-wire-defaults.test.ts"
+    "electron/shared/modelArchetypes/catalogFacts.test.ts"
   ],
   "legacy_paths": {
     "status": "not-applicable",

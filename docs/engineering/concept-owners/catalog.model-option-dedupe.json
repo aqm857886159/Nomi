@@ -20,7 +20,6 @@
   "parity_test": "src/config/modelIdentity.channelMerge.test.ts",
   "allowed_consumers": [
     "src/workbench/common/useDedupedModelSelect.ts",
-    "src/workbench/common/BulkModelPicker.tsx",
     "src/workbench/settings/ModelBoxOrderSection.tsx",
     "src/devlab/designLab/vendorOrder/vendorOrderLabKit.tsx"
   ],

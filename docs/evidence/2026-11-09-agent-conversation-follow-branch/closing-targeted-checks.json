@@ -1,0 +1,28 @@
+{
+  "runHead": "4bf124287",
+  "checks": [
+    {
+      "id": "prebundle",
+      "command": "node node_modules/vitest/vitest.mjs run scripts/viteOptimizeDeps.test.mjs",
+      "exit": 0,
+      "sourceLogSha256": "b505f1ecd9c3f9d8734f3d686d260994b65b5edc8506f877bcc2cf3750803f0a",
+      "result": "2 tests passed; the complete scan-guards suite was not rerun"
+    },
+    {
+      "id": "test-waits",
+      "command": "pnpm run check:test-waits",
+      "exit": 0,
+      "sourceLogSha256": "233d44be8766dea66b53e5a5ed92ff9cf2c45a2cb3b0e688124c32bd4e1b22ae",
+      "result": "station waits: 603 baseline occurrences, 0 new/stale; gate passed"
+    },
+    {
+      "id": "walkthroughs",
+      "command": "pnpm run check:walkthroughs",
+      "exit": 0,
+      "sourceLogSha256": "f58b56c495c14e004e5be774612c9f83623326cc487302b8f28f171efc025d45",
+      "result": "absence-without-baseline=56; gate passed"
+    }
+  ],
+  "baselinesChanged": false,
+  "guardFilesChanged": false
+}

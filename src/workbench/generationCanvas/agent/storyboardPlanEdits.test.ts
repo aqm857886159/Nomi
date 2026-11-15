@@ -5,14 +5,8 @@ import {
   addExternalReferenceAnchor,
   addScene,
   addShot,
-  applyDurationToAll,
-  applyModelToAll,
-  applyShotKindToAll,
   changeAnchorKind,
   defaultCarrierForKind,
-  deriveBulkDuration,
-  deriveBulkModelKey,
-  deriveBulkShotKind,
   makeAnchorId,
   makeSceneId,
   moveShot,
@@ -189,115 +183,6 @@ describe('storyboardPlanEdits — 镜头类型档位', () => {
   })
 })
 
-describe('storyboardPlanEdits — 整片批量应用', () => {
-  it('applyShotKindToAll 把全镜改成同一档，逐镜等价于 shotKindPatch', () => {
-    const plan = planOf([
-      { index: 1, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'a', modelKey: 'img-m' },
-      { index: 2, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'b' },
-    ])
-    const next = applyShotKindToAll(plan, 'video')
-    expect(next.shots.map(shotTypeOf)).toEqual(['video', 'video'])
-    expect(next.shots.every((s) => s.durationSec === 5)).toBe(true)
-    expect(next.shots[0].modelKey).toBeUndefined()
-    // 与逐镜改同构
-    expect(next.shots[0]).toEqual({ ...plan.shots[0], ...shotKindPatch(plan.shots[0], 'video') })
-  })
-
-  it('applyShotKindToAll 对已是目标档的镜头原样返回（同一引用，不无谓清参数）', () => {
-    const plan = planOf([
-      { index: 1, shotKind: 'video', durationSec: 8, anchorIds: [], prompt: 'a', modelKey: 'keep' },
-      { index: 2, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'b' },
-    ])
-    const next = applyShotKindToAll(plan, 'video')
-    expect(next.shots[0]).toBe(plan.shots[0])
-    expect(next.shots[0].modelKey).toBe('keep')
-    expect(shotTypeOf(next.shots[1])).toBe('video')
-  })
-
-  it('applyModelToAll 写 modelKey 并清 modeId/params；空串 = 回默认模型', () => {
-    const plan = planOf([
-      { index: 1, durationSec: 5, anchorIds: [], prompt: 'a', modelKey: 'x', modeId: 'mx', params: { a: 1 } },
-      { index: 2, durationSec: 5, anchorIds: [], prompt: 'b' },
-    ])
-    const next = applyModelToAll(plan, 'seedance')
-    expect(next.shots.map((s) => s.modelKey)).toEqual(['seedance', 'seedance'])
-    expect(next.shots.every((s) => s.modeId === undefined && s.params === undefined)).toBe(true)
-    expect(applyModelToAll(next, '').shots.every((s) => s.modelKey === undefined)).toBe(true)
-  })
-
-  it('applyDurationToAll 只改视频镜，图片镜不动；非法值原样返回', () => {
-    const plan = planOf([
-      { index: 1, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'a' },
-      { index: 2, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: 'b' },
-    ])
-    const next = applyDurationToAll(plan, 10)
-    expect(next.shots.map((s) => s.durationSec)).toEqual([0, 10])
-    expect(applyDurationToAll(plan, 0)).toBe(plan)
-    expect(applyDurationToAll(plan, Number.NaN)).toBe(plan)
-  })
-})
-
-describe('storyboardPlanEdits — 批量条当前值（混合判定）', () => {
-  it('deriveBulkShotKind：全同 → 该档；不同 → null（显「混合」）；无镜 → null', () => {
-    expect(deriveBulkShotKind(planOf([
-      { index: 1, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'a' },
-      { index: 2, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'b' },
-    ]))).toBe('image')
-    expect(deriveBulkShotKind(planOf([
-      { index: 1, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'a' },
-      { index: 2, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: 'b' },
-    ]))).toBeNull()
-    // video vs image-video 也算不一致
-    expect(deriveBulkShotKind(planOf([
-      { index: 1, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: 'a' },
-      { index: 2, shotKind: 'video', durationSec: 5, keyframe: { enabled: true }, anchorIds: [], prompt: 'b' },
-    ]))).toBeNull()
-    expect(deriveBulkShotKind(planOf([]))).toBeNull()
-  })
-
-  it('deriveBulkModelKey：都没选 → 空串（默认模型）；一选一没选 → null', () => {
-    expect(deriveBulkModelKey(planOf([
-      { index: 1, durationSec: 5, anchorIds: [], prompt: 'a' },
-      { index: 2, durationSec: 5, anchorIds: [], prompt: 'b' },
-    ]))).toBe('')
-    expect(deriveBulkModelKey(planOf([
-      { index: 1, durationSec: 5, anchorIds: [], prompt: 'a', modelKey: 'x' },
-      { index: 2, durationSec: 5, anchorIds: [], prompt: 'b', modelKey: 'x' },
-    ]))).toBe('x')
-    expect(deriveBulkModelKey(planOf([
-      { index: 1, durationSec: 5, anchorIds: [], prompt: 'a', modelKey: 'x' },
-      { index: 2, durationSec: 5, anchorIds: [], prompt: 'b' },
-    ]))).toBeNull()
-  })
-
-  it('deriveBulkDuration：只看视频镜；全图片镜 → null；视频镜时长不同 → null', () => {
-    expect(deriveBulkDuration(planOf([
-      { index: 1, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'a' },
-      { index: 2, shotKind: 'video', durationSec: 8, anchorIds: [], prompt: 'b' },
-      { index: 3, shotKind: 'video', durationSec: 8, anchorIds: [], prompt: 'c' },
-    ]))).toBe(8)
-    expect(deriveBulkDuration(planOf([
-      { index: 1, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'a' },
-    ]))).toBeNull()
-    expect(deriveBulkDuration(planOf([
-      { index: 1, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: 'a' },
-      { index: 2, shotKind: 'video', durationSec: 8, anchorIds: [], prompt: 'b' },
-    ]))).toBeNull()
-  })
-
-  it('批量改完 → derive 回同一个值（往返一致，批量条不会改完还显「混合」）', () => {
-    const mixed = planOf([
-      { index: 1, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'a' },
-      { index: 2, shotKind: 'video', durationSec: 8, anchorIds: [], prompt: 'b', modelKey: 'x' },
-    ])
-    expect(deriveBulkShotKind(mixed)).toBeNull()
-    const unified = applyShotKindToAll(mixed, 'image-video')
-    expect(deriveBulkShotKind(unified)).toBe('image-video')
-    expect(deriveBulkModelKey(unified)).toBe('')
-    expect(deriveBulkDuration(applyDurationToAll(unified, 6))).toBe(6)
-  })
-})
-
 // ── 场分组（v5）：场感知移动 / 场增删改名 / 分组 derive / 合计口径 ──
 
 const scenedPlan = (): StoryboardPlan => ({
@@ -430,36 +315,5 @@ describe('storyboardPlanEdits — addShot 继承上一镜（v5）', () => {
   it('空方案仍默认视频 5s（旧行为）', () => {
     const p = addShot(planOf([]))
     expect(p.shots[0]).toMatchObject({ index: 1, durationSec: 5 })
-  })
-})
-
-describe('applyModelToAll：厂商与模型成对写', () => {
-  // BulkModelPicker 的每一行本来就是「模型 × 具体哪一家」，它把 vendor 一起回调出来。
-  // 这里以前只写 modelKey，落画布时按 key 反查目录首家 = 「选 A 家发去 B 家」。
-  const planOf = (): StoryboardPlan => ({
-    title: 't',
-    anchors: [],
-    shots: [
-      { index: 1, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: 'a', modelKey: 'old', modelVendor: 'kie', modeId: 'm', params: { resolution: '720p' } },
-      { index: 2, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: 'b' },
-    ],
-  })
-
-  it('选定模型时 vendor 跟着写进每一镜', () => {
-    const next = applyModelToAll(planOf(), 'nano-banana', 'apimart')
-    expect(next.shots.map((shot) => [shot.modelKey, shot.modelVendor])).toEqual([
-      ['nano-banana', 'apimart'],
-      ['nano-banana', 'apimart'],
-    ])
-  })
-
-  it('回「默认模型」时 vendor 一并清掉（不留下一个无主的厂商）', () => {
-    const next = applyModelToAll(planOf(), '')
-    expect(next.shots.every((shot) => shot.modelKey === undefined && shot.modelVendor === undefined)).toBe(true)
-  })
-
-  it('换模型仍清 modeId/params（模式与参数属于具体模型）', () => {
-    const next = applyModelToAll(planOf(), 'nano-banana', 'apimart')
-    expect(next.shots.every((shot) => shot.modeId === undefined && shot.params === undefined)).toBe(true)
   })
 })

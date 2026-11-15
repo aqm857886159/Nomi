@@ -1,0 +1,2110 @@
+[
+  {
+    "model": "doubao-seedance-2.5",
+    "locale": "zh-CN",
+    "menuShot": "seedance-2.5-模型菜单-zh.png",
+    "modeMenus": [
+      {
+        "state": "无参考",
+        "menuShot": "seedance-2.5-方式菜单-无参考-zh.png",
+        "rows": [
+          {
+            "name": "文生视频",
+            "description": "只用文字",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "图生视频",
+            "description": "先放 1 张图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "首尾帧",
+            "description": "先放 1–2 张图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "全能参考",
+            "description": "先放图、视频或音频",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "视频编辑",
+            "description": "先放图、视频或音频",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "视频续写",
+            "description": "先放图、视频或音频",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "1张图",
+        "menuShot": "seedance-2.5-方式菜单-1张图-zh.png",
+        "rows": [
+          {
+            "name": "文生视频",
+            "description": "已放 1 张图，文生视频不带图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "图生视频",
+            "description": "1 张图当开头",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "首尾帧",
+            "description": "开头 1 张，结尾可以不放",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "全能参考",
+            "description": "最多 30 张图、10 段视频、10 段音频",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "视频编辑",
+            "description": "还要再放 1 张图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "视频续写",
+            "description": "还要再放 1 张图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "2张图",
+        "menuShot": "seedance-2.5-方式菜单-2张图-zh.png",
+        "rows": [
+          {
+            "name": "文生视频",
+            "description": "已放 2 张图，文生视频不带图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "图生视频",
+            "description": "已放 2 张，图生视频只用 1 张",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "首尾帧",
+            "description": "开头 1 张，结尾可以不放",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "全能参考",
+            "description": "最多 30 张图、10 段视频、10 段音频",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "视频编辑",
+            "description": "还要再放 1 张图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "视频续写",
+            "description": "还要再放 1 张图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "1段视频",
+        "menuShot": "seedance-2.5-方式菜单-1段视频-zh.png",
+        "rows": [
+          {
+            "name": "文生视频",
+            "description": "已放 1 件素材，文生视频不带素材",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "图生视频",
+            "description": "已放 1 件素材，这种方式一件也用不上",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "首尾帧",
+            "description": "已放 1 件素材，这种方式一件也用不上",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "全能参考",
+            "description": "最多 30 张图、10 段视频、10 段音频",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "视频编辑",
+            "description": "最多 30 张图、10 段视频、10 段音频",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "视频续写",
+            "description": "最多 30 张图、10 段视频、10 段音频",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      }
+    ],
+    "modes": [
+      {
+        "modeId": "t2v",
+        "state": "无参考",
+        "pickedName": "文生视频",
+        "cell": "文生视频",
+        "summary": "16:9 · 720p · 5s",
+        "shots": [
+          "seedance-2.5-t2v-zh-面板.png",
+          "seedance-2.5-t2v-zh-面板-2.png"
+        ],
+        "box": {
+          "x": 551,
+          "y": 396,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 523,
+            "clientHeight": 420
+          }
+        ],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "first",
+        "state": "1张图",
+        "pickedName": "图生视频",
+        "cell": "图生视频",
+        "summary": "720p · 5s",
+        "shots": [
+          "seedance-2.5-first-zh-面板.png"
+        ],
+        "box": {
+          "x": 533,
+          "y": 418,
+          "width": 320,
+          "height": 400
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "firstlast",
+        "state": "1张图",
+        "pickedName": "首尾帧",
+        "cell": "首尾帧",
+        "summary": "720p · 5s",
+        "shots": [
+          "seedance-2.5-firstlast-zh-面板.png"
+        ],
+        "box": {
+          "x": 521,
+          "y": 438,
+          "width": 320,
+          "height": 400
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "omni",
+        "state": "1张图",
+        "pickedName": "全能参考",
+        "cell": "全能参考",
+        "summary": "16:9 · 720p · 5s",
+        "shots": [
+          "seedance-2.5-omni-zh-面板.png",
+          "seedance-2.5-omni-zh-面板-2.png"
+        ],
+        "box": {
+          "x": 551,
+          "y": 396,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 523,
+            "clientHeight": 420
+          }
+        ],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "firstlast",
+        "state": "2张图",
+        "pickedName": "首尾帧",
+        "cell": "首尾帧",
+        "summary": "720p · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "omni",
+        "state": "2张图",
+        "pickedName": "全能参考",
+        "cell": "全能参考",
+        "summary": "16:9 · 720p · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "omni",
+        "state": "1段视频",
+        "pickedName": "全能参考",
+        "cell": "全能参考",
+        "summary": "16:9 · 720p · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "edit",
+        "state": "1段视频",
+        "pickedName": "视频编辑",
+        "cell": "视频编辑",
+        "summary": "720p",
+        "shots": [
+          "seedance-2.5-edit-zh-面板.png"
+        ],
+        "box": {
+          "x": 520,
+          "y": 465,
+          "width": 320,
+          "height": 353
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "extend",
+        "state": "1段视频",
+        "pickedName": "视频续写",
+        "cell": "视频续写",
+        "summary": "720p · 5s",
+        "shots": [
+          "seedance-2.5-extend-zh-面板.png"
+        ],
+        "box": {
+          "x": 533,
+          "y": 418,
+          "width": 320,
+          "height": 400
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      }
+    ]
+  },
+  {
+    "model": "kling-v4-flash",
+    "locale": "zh-CN",
+    "menuShot": "kling-4.0-flash-模型菜单-zh.png",
+    "modeMenus": [
+      {
+        "state": "无参考",
+        "menuShot": "kling-4.0-flash-方式菜单-无参考-zh.png",
+        "rows": [
+          {
+            "name": "文生视频",
+            "description": "只用文字",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "图生视频",
+            "description": "先放 1 张图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "全能参考",
+            "description": "先放图或视频",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "视频编辑",
+            "description": "先放图或视频",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "视频续写",
+            "description": "先放视频",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "1张图",
+        "menuShot": "kling-4.0-flash-方式菜单-1张图-zh.png",
+        "rows": [
+          {
+            "name": "文生视频",
+            "description": "已放 1 张图，文生视频不带图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "图生视频",
+            "description": "1 张图当开头",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "全能参考",
+            "description": "最多 10 张图、5 段视频",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "视频编辑",
+            "description": "还要再放 1 张图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "视频续写",
+            "description": "已放 1 张图，这种方式一张也用不上",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "2张图",
+        "menuShot": "kling-4.0-flash-方式菜单-2张图-zh.png",
+        "rows": [
+          {
+            "name": "文生视频",
+            "description": "已放 2 张图，文生视频不带图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "图生视频",
+            "description": "已放 2 张，图生视频只用 1 张",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "全能参考",
+            "description": "最多 10 张图、5 段视频",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "视频编辑",
+            "description": "还要再放 1 张图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "视频续写",
+            "description": "已放 2 张图，这种方式一张也用不上",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "1段视频",
+        "menuShot": "kling-4.0-flash-方式菜单-1段视频-zh.png",
+        "rows": [
+          {
+            "name": "文生视频",
+            "description": "已放 1 件素材，文生视频不带素材",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "图生视频",
+            "description": "已放 1 件素材，这种方式一件也用不上",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "全能参考",
+            "description": "最多 10 张图、5 段视频",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "视频编辑",
+            "description": "最多 10 张图、1 段视频",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "视频续写",
+            "description": "最多 1 段视频",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      }
+    ],
+    "modes": [
+      {
+        "modeId": "t2v",
+        "state": "无参考",
+        "pickedName": "文生视频",
+        "cell": "文生视频",
+        "summary": "16:9 · 5s",
+        "shots": [
+          "kling-4.0-flash-t2v-zh-面板.png"
+        ],
+        "box": {
+          "x": 532,
+          "y": 678,
+          "width": 320,
+          "height": 140
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "i2v",
+        "state": "1张图",
+        "pickedName": "图生视频",
+        "cell": "图生视频",
+        "summary": "5s",
+        "shots": [
+          "kling-4.0-flash-i2v-zh-面板.png"
+        ],
+        "box": {
+          "x": 514,
+          "y": 757,
+          "width": 320,
+          "height": 61
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "ref",
+        "state": "1张图",
+        "pickedName": "全能参考",
+        "cell": "全能参考",
+        "summary": "16:9 · 5s",
+        "shots": [
+          "kling-4.0-flash-ref-zh-面板.png"
+        ],
+        "box": {
+          "x": 532,
+          "y": 567,
+          "width": 320,
+          "height": 251
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "ref",
+        "state": "2张图",
+        "pickedName": "全能参考",
+        "cell": "全能参考",
+        "summary": "16:9 · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "ref",
+        "state": "1段视频",
+        "pickedName": "全能参考",
+        "cell": "全能参考",
+        "summary": "16:9 · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "edit",
+        "state": "1段视频",
+        "pickedName": "视频编辑",
+        "cell": "视频编辑",
+        "summary": "16:9",
+        "shots": [
+          "kling-4.0-flash-edit-zh-面板.png"
+        ],
+        "box": {
+          "x": 648,
+          "y": 566,
+          "width": 68,
+          "height": 252
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "extend",
+        "state": "1段视频",
+        "pickedName": "视频续写",
+        "cell": "视频续写",
+        "summary": "5s",
+        "shots": [
+          "kling-4.0-flash-extend-zh-面板.png"
+        ],
+        "box": {
+          "x": 514,
+          "y": 757,
+          "width": 320,
+          "height": 61
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      }
+    ]
+  },
+  {
+    "model": "MiniMax-H3-Max",
+    "locale": "zh-CN",
+    "menuShot": "minimax-h3-max-模型菜单-zh.png",
+    "modeMenus": [
+      {
+        "state": "无参考",
+        "menuShot": "minimax-h3-max-方式菜单-无参考-zh.png",
+        "rows": [
+          {
+            "name": "文生视频",
+            "description": "只用文字",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "图生视频",
+            "description": "先放 1–2 张图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "全能参考",
+            "description": "先放图、视频或音频",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "1张图",
+        "menuShot": "minimax-h3-max-方式菜单-1张图-zh.png",
+        "rows": [
+          {
+            "name": "文生视频",
+            "description": "已放 1 张图，文生视频不带图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "图生视频",
+            "description": "开头 1 张，结尾可以不放",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "全能参考",
+            "description": "最多 9 张图、3 段视频、3 段音频",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "2张图",
+        "menuShot": "minimax-h3-max-方式菜单-2张图-zh.png",
+        "rows": [
+          {
+            "name": "文生视频",
+            "description": "已放 2 张图，文生视频不带图",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "图生视频",
+            "description": "开头 1 张，结尾可以不放",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "全能参考",
+            "description": "最多 9 张图、3 段视频、3 段音频",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "1段视频",
+        "menuShot": "minimax-h3-max-方式菜单-1段视频-zh.png",
+        "rows": [
+          {
+            "name": "文生视频",
+            "description": "已放 1 件素材，文生视频不带素材",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "图生视频",
+            "description": "已放 1 件素材，这种方式一件也用不上",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "全能参考",
+            "description": "最多 9 张图、3 段视频、3 段音频",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          }
+        ]
+      }
+    ],
+    "modes": [
+      {
+        "modeId": "t2v",
+        "state": "无参考",
+        "pickedName": "文生视频",
+        "cell": "文生视频",
+        "summary": "16:9 · 768P · 5s",
+        "shots": [
+          "minimax-h3-max-t2v-zh-面板.png"
+        ],
+        "box": {
+          "x": 569,
+          "y": 567,
+          "width": 320,
+          "height": 251
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "i2v",
+        "state": "1张图",
+        "pickedName": "图生视频",
+        "cell": "图生视频",
+        "summary": "768P · 5s",
+        "shots": [
+          "minimax-h3-max-i2v-zh-面板.png"
+        ],
+        "box": {
+          "x": 550,
+          "y": 712,
+          "width": 320,
+          "height": 126
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "ref",
+        "state": "1张图",
+        "pickedName": "全能参考",
+        "cell": "全能参考",
+        "summary": "16:9 · 768P · 5s",
+        "shots": [
+          "minimax-h3-max-ref-zh-面板.png"
+        ],
+        "box": {
+          "x": 569,
+          "y": 567,
+          "width": 320,
+          "height": 251
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "i2v",
+        "state": "2张图",
+        "pickedName": "图生视频",
+        "cell": "图生视频",
+        "summary": "768P · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "ref",
+        "state": "2张图",
+        "pickedName": "全能参考",
+        "cell": "全能参考",
+        "summary": "16:9 · 768P · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "ref",
+        "state": "1段视频",
+        "pickedName": "全能参考",
+        "cell": "全能参考",
+        "summary": "16:9 · 768P · 5s",
+        "repeat": true
+      }
+    ]
+  },
+  {
+    "model": "seedream-5-5",
+    "locale": "zh-CN",
+    "menuShot": "seedream-5.5-模型菜单-zh.png",
+    "modeMenus": [],
+    "modes": [
+      {
+        "modeId": "t2i",
+        "state": "无参考",
+        "pickedName": null,
+        "cell": null,
+        "summary": "1:1 · 2K",
+        "shots": [
+          "seedream-5.5-t2i-zh-面板.png",
+          "seedream-5.5-t2i-zh-面板-2.png"
+        ],
+        "box": {
+          "x": 436,
+          "y": 279,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 454,
+            "clientHeight": 420
+          }
+        ],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "edit",
+        "state": "1张图",
+        "pickedName": null,
+        "cell": null,
+        "summary": "1:1 · 2K",
+        "shots": [
+          "seedream-5.5-edit-zh-面板.png",
+          "seedream-5.5-edit-zh-面板-2.png"
+        ],
+        "box": {
+          "x": 436,
+          "y": 279,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 454,
+            "clientHeight": 420
+          }
+        ],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "edit",
+        "state": "2张图",
+        "pickedName": null,
+        "cell": null,
+        "summary": "1:1 · 2K",
+        "repeat": true
+      }
+    ]
+  },
+  {
+    "model": "doubao-seedream-5-0-pro",
+    "locale": "zh-CN",
+    "menuShot": "seedream-5.0-pro-模型菜单-zh.png",
+    "modeMenus": [],
+    "modes": [
+      {
+        "modeId": "t2i",
+        "state": "无参考",
+        "pickedName": null,
+        "cell": null,
+        "summary": "1:1 · 2K",
+        "shots": [
+          "seedream-5.0-pro-t2i-zh-面板.png"
+        ],
+        "box": {
+          "x": 458,
+          "y": 310,
+          "width": 320,
+          "height": 391
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "edit",
+        "state": "1张图",
+        "pickedName": null,
+        "cell": null,
+        "summary": "1:1 · 2K",
+        "shots": [
+          "seedream-5.0-pro-edit-zh-面板.png",
+          "seedream-5.0-pro-edit-zh-面板-2.png"
+        ],
+        "box": {
+          "x": 458,
+          "y": 279,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 454,
+            "clientHeight": 420
+          }
+        ],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "edit",
+        "state": "2张图",
+        "pickedName": null,
+        "cell": null,
+        "summary": "1:1 · 2K",
+        "repeat": true
+      }
+    ]
+  },
+  {
+    "model": "seedream-5-5",
+    "locale": "en",
+    "menuShot": "seedream-5.5-模型菜单-en.png",
+    "modeMenus": [],
+    "modes": [
+      {
+        "modeId": "t2i",
+        "state": "无参考",
+        "pickedName": null,
+        "cell": null,
+        "summary": "1:1 · 2K",
+        "shots": [
+          "seedream-5.5-t2i-en-面板.png",
+          "seedream-5.5-t2i-en-面板-2.png"
+        ],
+        "box": {
+          "x": 436,
+          "y": 279,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 518,
+            "clientHeight": 420
+          }
+        ],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "edit",
+        "state": "1张图",
+        "pickedName": null,
+        "cell": null,
+        "summary": "1:1 · 2K",
+        "shots": [
+          "seedream-5.5-edit-en-面板.png",
+          "seedream-5.5-edit-en-面板-2.png"
+        ],
+        "box": {
+          "x": 436,
+          "y": 279,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 518,
+            "clientHeight": 420
+          }
+        ],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "edit",
+        "state": "2张图",
+        "pickedName": null,
+        "cell": null,
+        "summary": "1:1 · 2K",
+        "repeat": true
+      }
+    ]
+  },
+  {
+    "model": "doubao-seedream-5-0-pro",
+    "locale": "en",
+    "menuShot": "seedream-5.0-pro-模型菜单-en.png",
+    "modeMenus": [],
+    "modes": [
+      {
+        "modeId": "t2i",
+        "state": "无参考",
+        "pickedName": null,
+        "cell": null,
+        "summary": "1:1 · 2K",
+        "shots": [
+          "seedream-5.0-pro-t2i-en-面板.png"
+        ],
+        "box": {
+          "x": 458,
+          "y": 310,
+          "width": 320,
+          "height": 391
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "edit",
+        "state": "1张图",
+        "pickedName": null,
+        "cell": null,
+        "summary": "1:1 · 2K",
+        "shots": [
+          "seedream-5.0-pro-edit-en-面板.png",
+          "seedream-5.0-pro-edit-en-面板-2.png"
+        ],
+        "box": {
+          "x": 458,
+          "y": 279,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 486,
+            "clientHeight": 420
+          }
+        ],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "edit",
+        "state": "2张图",
+        "pickedName": null,
+        "cell": null,
+        "summary": "1:1 · 2K",
+        "repeat": true
+      }
+    ]
+  },
+  {
+    "model": "doubao-seedance-2.5",
+    "locale": "en",
+    "menuShot": "seedance-2.5-模型菜单-en.png",
+    "modeMenus": [
+      {
+        "state": "无参考",
+        "menuShot": "seedance-2.5-方式菜单-无参考-en.png",
+        "rows": [
+          {
+            "name": "Text to video",
+            "description": "Text only",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "Image to video",
+            "description": "Add 1 image first",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "First & last frame",
+            "description": "Add 1–2 images first",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Omni reference",
+            "description": "Add images, videos or audio first",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Video editing",
+            "description": "Add images, videos or audio first",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Video extension",
+            "description": "Add images, videos or audio first",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "1张图",
+        "menuShot": "seedance-2.5-方式菜单-1张图-en.png",
+        "rows": [
+          {
+            "name": "Text to video",
+            "description": "1 image added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Image to video",
+            "description": "1 image as the opening",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "First & last frame",
+            "description": "1 for the opening, ending optional",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Omni reference",
+            "description": "Up to 30 images, 10 videos, 10 audio clips",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "Video editing",
+            "description": "Needs 1 more image",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Video extension",
+            "description": "Needs 1 more image",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "2张图",
+        "menuShot": "seedance-2.5-方式菜单-2张图-en.png",
+        "rows": [
+          {
+            "name": "Text to video",
+            "description": "2 images added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Image to video",
+            "description": "2 images added, takes 1",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "First & last frame",
+            "description": "1 for the opening, ending optional",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Omni reference",
+            "description": "Up to 30 images, 10 videos, 10 audio clips",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "Video editing",
+            "description": "Needs 1 more image",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Video extension",
+            "description": "Needs 1 more image",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "1段视频",
+        "menuShot": "seedance-2.5-方式菜单-1段视频-en.png",
+        "rows": [
+          {
+            "name": "Text to video",
+            "description": "1 input added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Image to video",
+            "description": "1 input added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "First & last frame",
+            "description": "1 input added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Omni reference",
+            "description": "Up to 30 images, 10 videos, 10 audio clips",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "Video editing",
+            "description": "Up to 30 images, 10 videos, 10 audio clips",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Video extension",
+            "description": "Up to 30 images, 10 videos, 10 audio clips",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      }
+    ],
+    "modes": [
+      {
+        "modeId": "t2v",
+        "state": "无参考",
+        "pickedName": "Text to video",
+        "cell": "Text to video",
+        "summary": "720p · 5s",
+        "shots": [
+          "seedance-2.5-t2v-en-面板.png",
+          "seedance-2.5-t2v-en-面板-2.png"
+        ],
+        "box": {
+          "x": 557,
+          "y": 396,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 523,
+            "clientHeight": 420
+          }
+        ],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "first",
+        "state": "1张图",
+        "pickedName": "Image to video",
+        "cell": "Image to video",
+        "summary": "720p · 5s",
+        "shots": [
+          "seedance-2.5-first-en-面板.png"
+        ],
+        "box": {
+          "x": 568,
+          "y": 418,
+          "width": 320,
+          "height": 400
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "firstlast",
+        "state": "1张图",
+        "pickedName": "First & last frame",
+        "cell": "First & last frame",
+        "summary": "720p · 5s",
+        "shots": [
+          "seedance-2.5-firstlast-en-面板.png"
+        ],
+        "box": {
+          "x": 581,
+          "y": 438,
+          "width": 320,
+          "height": 400
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "omni",
+        "state": "1张图",
+        "pickedName": "Omni reference",
+        "cell": "Omni reference",
+        "summary": "720p · 5s",
+        "shots": [
+          "seedance-2.5-omni-en-面板.png",
+          "seedance-2.5-omni-en-面板-2.png"
+        ],
+        "box": {
+          "x": 572,
+          "y": 396,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 523,
+            "clientHeight": 420
+          }
+        ],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "firstlast",
+        "state": "2张图",
+        "pickedName": "First & last frame",
+        "cell": "First & last frame",
+        "summary": "720p · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "omni",
+        "state": "2张图",
+        "pickedName": "Omni reference",
+        "cell": "Omni reference",
+        "summary": "720p · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "omni",
+        "state": "1段视频",
+        "pickedName": "Omni reference",
+        "cell": "Omni reference",
+        "summary": "720p · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "edit",
+        "state": "1段视频",
+        "pickedName": "Video editing",
+        "cell": "Video editing",
+        "summary": "720p",
+        "shots": [
+          "seedance-2.5-edit-en-面板.png"
+        ],
+        "box": {
+          "x": 547,
+          "y": 465,
+          "width": 320,
+          "height": 353
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "extend",
+        "state": "1段视频",
+        "pickedName": "Video extension",
+        "cell": "Video extension",
+        "summary": "720p · 5s",
+        "shots": [
+          "seedance-2.5-extend-en-面板.png"
+        ],
+        "box": {
+          "x": 575,
+          "y": 418,
+          "width": 320,
+          "height": 400
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      }
+    ]
+  },
+  {
+    "model": "kling-v4-flash",
+    "locale": "en",
+    "menuShot": "kling-4.0-flash-模型菜单-en.png",
+    "modeMenus": [
+      {
+        "state": "无参考",
+        "menuShot": "kling-4.0-flash-方式菜单-无参考-en.png",
+        "rows": [
+          {
+            "name": "Text to video",
+            "description": "Text only",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "Image to video",
+            "description": "Add 1 image first",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Omni reference",
+            "description": "Add images or videos first",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Video editing",
+            "description": "Add images or videos first",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Video extension",
+            "description": "Add videos first",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "1张图",
+        "menuShot": "kling-4.0-flash-方式菜单-1张图-en.png",
+        "rows": [
+          {
+            "name": "Text to video",
+            "description": "1 image added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Image to video",
+            "description": "1 image as the opening",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Omni reference",
+            "description": "Up to 10 images, 5 videos",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "Video editing",
+            "description": "Needs 1 more image",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Video extension",
+            "description": "1 image added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "2张图",
+        "menuShot": "kling-4.0-flash-方式菜单-2张图-en.png",
+        "rows": [
+          {
+            "name": "Text to video",
+            "description": "2 images added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Image to video",
+            "description": "2 images added, takes 1",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Omni reference",
+            "description": "Up to 10 images, 5 videos",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "Video editing",
+            "description": "Needs 1 more image",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Video extension",
+            "description": "2 images added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "1段视频",
+        "menuShot": "kling-4.0-flash-方式菜单-1段视频-en.png",
+        "rows": [
+          {
+            "name": "Text to video",
+            "description": "1 input added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Image to video",
+            "description": "1 input added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Omni reference",
+            "description": "Up to 10 images, 5 videos",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "Video editing",
+            "description": "Up to 10 images, 1 video",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Video extension",
+            "description": "Up to 1 video",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      }
+    ],
+    "modes": [
+      {
+        "modeId": "t2v",
+        "state": "无参考",
+        "pickedName": "Text to video",
+        "cell": "Text to video",
+        "summary": "16:9 · 5s",
+        "shots": [
+          "kling-4.0-flash-t2v-en-面板.png"
+        ],
+        "box": {
+          "x": 561,
+          "y": 678,
+          "width": 320,
+          "height": 140
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "i2v",
+        "state": "1张图",
+        "pickedName": "Image to video",
+        "cell": "Image to video",
+        "summary": "5s",
+        "shots": [
+          "kling-4.0-flash-i2v-en-面板.png"
+        ],
+        "box": {
+          "x": 553,
+          "y": 757,
+          "width": 320,
+          "height": 61
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "ref",
+        "state": "1张图",
+        "pickedName": "Omni reference",
+        "cell": "Omni reference",
+        "summary": "16:9 · 5s",
+        "shots": [
+          "kling-4.0-flash-ref-en-面板.png"
+        ],
+        "box": {
+          "x": 575,
+          "y": 535,
+          "width": 320,
+          "height": 283
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "ref",
+        "state": "2张图",
+        "pickedName": "Omni reference",
+        "cell": "Omni reference",
+        "summary": "16:9 · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "ref",
+        "state": "1段视频",
+        "pickedName": "Omni reference",
+        "cell": "Omni reference",
+        "summary": "16:9 · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "edit",
+        "state": "1段视频",
+        "pickedName": "Video editing",
+        "cell": "Video editing",
+        "summary": "16:9",
+        "shots": [
+          "kling-4.0-flash-edit-en-面板.png"
+        ],
+        "box": {
+          "x": 679,
+          "y": 566,
+          "width": 69,
+          "height": 252
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "extend",
+        "state": "1段视频",
+        "pickedName": "Video extension",
+        "cell": "Video extension",
+        "summary": "5s",
+        "shots": [
+          "kling-4.0-flash-extend-en-面板.png"
+        ],
+        "box": {
+          "x": 560,
+          "y": 757,
+          "width": 320,
+          "height": 61
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      }
+    ]
+  },
+  {
+    "model": "MiniMax-H3-Max",
+    "locale": "en",
+    "menuShot": "minimax-h3-max-模型菜单-en.png",
+    "modeMenus": [
+      {
+        "state": "无参考",
+        "menuShot": "minimax-h3-max-方式菜单-无参考-en.png",
+        "rows": [
+          {
+            "name": "Text to video",
+            "description": "Text only",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          },
+          {
+            "name": "Image to video",
+            "description": "Add 1–2 images first",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Reference",
+            "description": "Add images, videos or audio first",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "1张图",
+        "menuShot": "minimax-h3-max-方式菜单-1张图-en.png",
+        "rows": [
+          {
+            "name": "Text to video",
+            "description": "1 image added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Image to video",
+            "description": "1 for the opening, ending optional",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Reference",
+            "description": "Up to 9 images, 3 videos, 3 audio clips",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "2张图",
+        "menuShot": "minimax-h3-max-方式菜单-2张图-en.png",
+        "rows": [
+          {
+            "name": "Text to video",
+            "description": "2 images added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Image to video",
+            "description": "1 for the opening, ending optional",
+            "disabled": false,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Reference",
+            "description": "Up to 9 images, 3 videos, 3 audio clips",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          }
+        ]
+      },
+      {
+        "state": "1段视频",
+        "menuShot": "minimax-h3-max-方式菜单-1段视频-en.png",
+        "rows": [
+          {
+            "name": "Text to video",
+            "description": "1 input added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Image to video",
+            "description": "1 input added, takes none",
+            "disabled": true,
+            "checked": false,
+            "icon": true
+          },
+          {
+            "name": "Reference",
+            "description": "Up to 9 images, 3 videos, 3 audio clips",
+            "disabled": false,
+            "checked": true,
+            "icon": true
+          }
+        ]
+      }
+    ],
+    "modes": [
+      {
+        "modeId": "t2v",
+        "state": "无参考",
+        "pickedName": "Text to video",
+        "cell": "Text to video",
+        "summary": "768P · 5s",
+        "shots": [
+          "minimax-h3-max-t2v-en-面板.png"
+        ],
+        "box": {
+          "x": 575,
+          "y": 567,
+          "width": 320,
+          "height": 251
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "i2v",
+        "state": "1张图",
+        "pickedName": "Image to video",
+        "cell": "Image to video",
+        "summary": "768P · 5s",
+        "shots": [
+          "minimax-h3-max-i2v-en-面板.png"
+        ],
+        "box": {
+          "x": 586,
+          "y": 712,
+          "width": 320,
+          "height": 126
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "ref",
+        "state": "1张图",
+        "pickedName": "Reference",
+        "cell": "Reference",
+        "summary": "768P · 5s",
+        "shots": [
+          "minimax-h3-max-ref-en-面板.png"
+        ],
+        "box": {
+          "x": 560,
+          "y": 567,
+          "width": 320,
+          "height": 251
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": [],
+        "truncated": []
+      },
+      {
+        "modeId": "i2v",
+        "state": "2张图",
+        "pickedName": "Image to video",
+        "cell": "Image to video",
+        "summary": "768P · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "ref",
+        "state": "2张图",
+        "pickedName": "Reference",
+        "cell": "Reference",
+        "summary": "768P · 5s",
+        "repeat": true
+      },
+      {
+        "modeId": "ref",
+        "state": "1段视频",
+        "pickedName": "Reference",
+        "cell": "Reference",
+        "summary": "768P · 5s",
+        "repeat": true
+      }
+    ]
+  }
+]

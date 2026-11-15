@@ -11,6 +11,7 @@ import { assertTrustedSender } from "../ipcSenderGuard";
 import { projectDirById } from "./repository";
 import { measureProjectOpenMainStageSync } from "./projectOpenTimeline";
 import { applyCanvasNodePatch } from "./projectCanvasWrite";
+import { quarantineWriteResult, type QuarantineWriteFailure, type QuarantineWriteOutcome } from "./projectQuarantine";
 import type { ProjectBinding } from "../shared/projectBinding";
 
 import { logError } from '../logging/logger'
@@ -96,6 +97,23 @@ export function registerProjectsIpc(deps: ProjectsIpcDeps): void {
       logError('workspace', 'project-save-rejected', undefined, { channel: 'nomi:projects:save-async', reason: reason.kind, code: reason.code, errno: reason.errno, syscall: reason.syscall, stage: reason.stage })
       return { ok: false, error: 'project-save-failed', reason }
     }
+  });
+  // 隔离区：被挡下的那一项原样留一份（渲染层发来，主进程只往项目自己的 .nomi/quarantine 写）。
+  // 写不成就回失败包络：渲染层据此这次不覆盖 project.json（那一项的内容不会从盘上、隔离区、新项目文件三处同时消失）。
+  // 包络里只有系统错误码和「第几项 / 哪类 / 字段路径」，不带内容。
+  ipcMain.handle("nomi:projects:quarantine-write", (event, projectId: unknown, items: unknown): IpcResult<QuarantineWriteOutcome, QuarantineWriteFailure> => {
+    let result: IpcResult<QuarantineWriteOutcome, QuarantineWriteFailure>;
+    try {
+      assertTrustedSender(event);
+      result = quarantineWriteResult(typeof projectId === "string" && projectId ? projectDirById(projectId) : null, items);
+    } catch (error) {
+      result = { ok: false, error: "project-quarantine-write-failed", reason: { ...projectSaveFailure(error, "authorize"), item: null } };
+    }
+    if (!result.ok && result.reason) {
+      const { reason } = result;
+      logError("workspace", "project-quarantine-write-failed", undefined, { reason: reason.kind, code: reason.code, syscall: reason.syscall, item: reason.item ? `${reason.item.index}:${reason.item.container}.${reason.item.field}` : null });
+    }
+    return result;
   });
   ipcMain.handle("nomi:projects:apply-canvas-node-patch", (event, input: unknown) => {
       assertTrustedSender(event);

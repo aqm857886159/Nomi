@@ -108,7 +108,7 @@ export const FAL_OFFICIAL_MODELS: FalModel[] = [
     modelKey: "minimax/h3-max", labelZh: "MiniMax H3-Max · fal", kind: "video", archetypeId: "minimax-h3-max",
     mappings: [
       mapping("minimax/h3-max", "text_to_video", "t2v", "MiniMax H3-Max · 文生视频", "minimax/h3-max/text-to-video", { prompt: "{{request.prompt}}", duration: p("duration"), resolution: p("resolution"), seed: p("seed"), aspect_ratio: p("aspect_ratio"), enable_safety_checker: p("enable_safety_checker"), prompt_expansion_mode: p("prompt_expansion_mode") }, "video.url"),
-      mapping("minimax/h3-max", "image_to_video", "i2v", "MiniMax H3-Max · 图生视频", "minimax/h3-max/image-to-video", { prompt: "{{request.prompt}}", image_url: p("image_url"), end_image_url: p("end_image_url"), duration: p("duration"), resolution: p("resolution"), seed: p("seed"), enable_safety_checker: p("enable_safety_checker"), prompt_expansion_mode: p("prompt_expansion_mode") }, "video.url"),
+      mapping("minimax/h3-max", "image_to_video", "i2v", "MiniMax H3-Max · 图生视频", "minimax/h3-max/image-to-video", { prompt: "{{request.prompt}}", image_url: p("first_frame_image"), end_image_url: p("last_frame_image"), duration: p("duration"), resolution: p("resolution"), seed: p("seed"), enable_safety_checker: p("enable_safety_checker"), prompt_expansion_mode: p("prompt_expansion_mode") }, "video.url"),
     ],
   },
   {

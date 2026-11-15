@@ -5,7 +5,8 @@
  * 不起 Electron、不花钱：请求只构建、不发送。
  */
 import { beforeEach, describe, expect, it } from 'vitest'
-import { MODEL_ARCHETYPES, specializeArchetypeForVariant } from '../../../../../../electron/shared/modelArchetypes'
+import { rescopeArchetypeVariant } from '../../../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { generationCanvasTools } from '../../../agent/generationCanvasTools'
 import { applyProposalBatch } from '../../../agent/proposalTxn'
 import { buildCatalogTaskRequest } from '../../../runner/catalogTaskActions'
@@ -16,7 +17,7 @@ import { directorPreviewSpendBlock } from '../model/directorPreviewState'
 import { normalizeDirectorProject } from '../model/directorProject'
 import type { DirectorProject } from '../model/directorTypes'
 import { archetypeForNode } from '../../../agent/referenceEdgeCapability'
-import { applyArchetypeModeSwitch, currentArchetypeMode } from '../../controls/archetypeMeta'
+import { applyHumanModeChoice, effectiveArchetypeMode } from '../../controls/archetypeMeta'
 import { removeFromArray, type ReferenceWriteContext } from '../../controls/referenceWrites'
 import type { DirectorWriteDomainResult } from './applyDirectorWrite'
 import { applyPreviewCaptured, previewCapturePlan, requestDirectorPreviewRender } from './directorPreviewCapture'
@@ -76,8 +77,8 @@ const setShotMeta = (shotId: string, patch: Record<string, unknown>): void => {
 const removePreviewReference = (shotId: string): void => {
   const current = node(shotId)!
   const archetype = archetypeForNode(current)!
-  const archMode = currentArchetypeMode(archetype, current.meta ?? {})
   const canvas = store()
+  const archMode = effectiveArchetypeMode(archetype, current, { nodes: canvas.nodes, edges: canvas.edges }).mode
   const ctx: ReferenceWriteContext = {
     node: current,
     archMode,
@@ -156,7 +157,7 @@ it('档案变体只收窄参数，不改变参考槽形状，因此不算换模�
   for (const archetype of MODEL_ARCHETYPES) {
     const baseShape = archetype.modes.map((mode) => mode.slots)
     for (const variant of archetype.variants ?? []) {
-      const specialized = specializeArchetypeForVariant(archetype, variant.id)
+      const specialized = rescopeArchetypeVariant(archetype, { variantId: variant.id, modelId: undefined })
       expect(specialized.modes.map((mode) => mode.slots), `${archetype.id}:${variant.id}`).toEqual(baseShape)
     }
   }
@@ -187,7 +188,7 @@ describe('节点上直接点 ↑：挂接始终是当前的', () => {
       const current = node(shotId)!
       const archetype = archetypeForNode(current)!
       const target = archetype.modes.find((mode) => mode.intent === 'text')!
-      store().updateNode(shotId, { meta: applyArchetypeModeSwitch(current.meta ?? {}, archetype, target.id) })
+      store().updateNode(shotId, { meta: applyHumanModeChoice(current.meta ?? {}, archetype, target.id) })
       expect(node(shotId)?.meta?.referenceVideoUrls ?? []).toEqual([])
       expect((node(shotId)?.meta?.archetype as { modeId: string }).modeId).toBe('t2v')
       expect(node(shotId)?.meta?.cameraMoveAttachedUrl).toBe(URL_V1)

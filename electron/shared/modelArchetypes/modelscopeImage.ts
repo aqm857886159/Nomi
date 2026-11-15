@@ -25,7 +25,7 @@ export const MODELSCOPE_IMAGE_ARCHETYPE: ModelArchetype = {
   defaultModeId: "t2i",
   transportTaskKind: "text_to_image",
   // 用魔搭命名空间形式（带斜杠），不与 apimart 的裸名 z-image / qwen-image 撞；
-  // 且 seed 模型已显式带 archetypeId（resolveArchetypeForModel 显式优先），这里只是给用户自接同名模型兜底。
+  // 且 seed 模型已显式带 archetypeId（resolveModelArchetype 显式优先），这里只是给用户自接同名模型兜底。
   // ⚠️ 匹配是严格相等不是前缀：只写 "black-forest-labs/flux" 这类前缀形永远匹配不到真实 key，
   // 必须列完整 key（seededModelIdentity.test 会红）。前缀项保留——对同名裸模型仍有意义。
   identifierPatterns: [

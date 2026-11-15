@@ -15,7 +15,7 @@ const calibration = readCalibration()
 // 端口按 worktree 派生（labServer.mjs）。以前这里写死 5197——那是整台机器的全局单例，
 // 而 `reuseExistingServer` 只探「有没有人应答」：2026-09-06 实测到 5197 上应答的是另一棵
 // worktree 的 vite，本树的基线会被拿去和别的分支的 UI 比。派生把争用消掉，
-// warmUp 里的归属断言再把「万一还是撞上了」fail-closed 掉。
+// labOwnershipSetup 里的归属断言再把「万一还是撞上了」fail-closed 掉。
 export const LAB_PORT = labPortFor('visual')
 export const LAB_ORIGIN = labOriginFor('visual')
 
@@ -25,9 +25,8 @@ export const LAB_RESULTS_DIR = path.join(REPO_ROOT, 'test-results')
 
 export default defineConfig({
   testDir: '.',
-  // 冷启动的 vite 会在头几条用例中间做完预打包并整页 reload，撞上去要么等不到就绪旗、
-  // 要么在半渲染帧上截图比出假红。预热跑一次真实加载，把那段窗口关掉（见 warmUp.mjs）。
-  globalSetup: './warmUp.mjs',
+  // 像素被信任之前先证明答话的服务器是本树的（见 labOwnershipSetup.mjs）。
+  globalSetup: './labOwnershipSetup.mjs',
   testMatch: /.*\.visual\.spec\.mjs$/,
   // 基线路径：tests/ux/design-lab/__baselines__/<屏>/<id>.png。
   // 屏这一层由 `toHaveScreenshot([screen, id + '.png'])` 的**数组形式**给出——数组的每一项是一段
@@ -61,12 +60,21 @@ export default defineConfig({
     colorScheme: calibration.colorScheme,
   },
   webServer: {
-    // Tailwind 产物是 dev server 中间件从 public/ 读的，不先生成就整页无样式——
+    // 对着**打包产物**跑（2026-11-14，labBundle.mjs）：先打包实验室入口，再用 vite preview 静态托管。
+    // 开页到就绪从约 1.3 秒降到约 0.3 秒；开发服务器冷启动的预打包、整页重载、预热一并没有了。
+    // Tailwind 产物在 public/ 里、打包时拷进产物，不先生成就整页无样式——
     // 那会渲染出一套「所有 token 都不在」的基线，比红更糟。
-    command: `node scripts/build-tailwind.mjs && npx vite --host 127.0.0.1 --port ${LAB_PORT} --strictPort`,
+    command: [
+      'node scripts/build-tailwind.mjs',
+      'npx vite build --config tests/ux/design-lab/vite.lab.config.mjs --logLevel warn',
+      `npx vite preview --config tests/ux/design-lab/vite.lab.config.mjs --host 127.0.0.1 --port ${LAB_PORT} --strictPort`,
+    ].join(' && '),
     cwd: '../../..',
     url: `${LAB_ORIGIN}/design-lab.html?screen=agent-panel&frame=1`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    // 永不复用已经在跑的服务：它托管的是上一次打的包，改了格子不重打就会拿旧图比——
+    // 每趟都重打、重托管；端口上已有人应答就让 Playwright 当场报「已被占用」。
+    reuseExistingServer: false,
+    // 含打包（本机约 30 秒，线上 3 核机更慢）。
+    timeout: 300_000,
   },
 })

@@ -60,11 +60,13 @@ describe('handOverPrecheck：节点自己的那几条', () => {
     expect(codes(['v1'], [video('v1', 't2v'), director])).toEqual({ v1: 'parameter_rejected:director_preview_blocked' })
   })
 
-  it('图生视频没有参考图 → reference_required；只放一段参考音频 → reference_combination_invalid', () => {
+  // 方式按输入现算（2026-11-12）：存着图生视频、却没放图 → 这次按文字生成，不拦（设计卡 ★9 ②）；
+  // 只放一段参考音频，哪种方式都收不下（音频要搭图或视频）→ 照旧拦。
+  it('存着图生视频但没放图 → 按文字生成、不拦；只放一段参考音频 → reference_combination_invalid', () => {
     expect(codes(['a', 'b'], [
       video('a', 'i2v'),
       video('b', 'omni', { referenceAudioUrls: ['nomi-local://asset/p/a.mp3'] }),
-    ])).toEqual({ a: 'parameter_rejected:reference_required', b: 'parameter_rejected:reference_combination_invalid' })
+    ])).toEqual({ b: 'parameter_rejected:reference_combination_invalid' })
   })
 
   it('提示词空着、这个方式要提示词 → prompt_required', () => {

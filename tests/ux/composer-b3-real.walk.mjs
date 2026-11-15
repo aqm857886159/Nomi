@@ -3,7 +3,7 @@
 //
 // 一条用户路径把改造的每一处都走到：
 //   画布节点生成框（选中 → 参考行小图 / 悬停小提示 / 悬停大图 / 提示词里的「小图 + 名字」）
-//   → 参数面板（生成方式在顶部、切到首尾帧、对调、切回、改比例）
+//   → 底栏方式格（2026-11-12 起方式按输入现算：放不下全部输入的方式置灰并说原因）→ 首尾帧对调 → 参数面板改比例
 //   → 加参考（「+」→ 选择器 → 真上传一张图）
 //   → 切模型（模型菜单只列模型）
 //   → 四个复用宿主：节点错误报告 / 列表详情 / Agent 输入框的参考钮 / 分镜表镜头行。
@@ -20,6 +20,8 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasFitView, collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
+import { closeModeMenu, modeName, openModeMenu, pickMode as pickModeRow } from './_modeMenu.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const evidenceDir = path.join(repoRoot, 'docs/evidence/2026-10-19-b1a/real')
@@ -135,6 +137,7 @@ function seedProfile(root) {
 async function runPass({ locale, scheme }) {
   const en = locale === 'en'
   const tag = `${locale === 'en' ? 'en' : 'zh'}-${scheme}`
+  const ml = en ? 'en' : 'zh'
   const root = makeTempDir(`nomi-b3-real-${tag}-`)
   const profile = seedProfile(root)
   const launched = await launchNomiApp({
@@ -196,32 +199,30 @@ async function runPass({ locale, scheme }) {
     })
 
     await section('params-and-modes', async () => {
+      // target-video：2 条参考连线 + 1 张上传 = 3 张图。方式按输入现算：首尾帧只收 2 张，放不下全部 → 菜单里置灰并说原因。
       await selectNode('target-video')
       const c = composer()
-      await c.locator('[data-parameter-summary]').click()
-      const panel = win.locator('[data-agent-parameter-panel]')
-      await expectVisible(panel, '参数面板')
-      const modes = await panel.locator('[data-agent-generation-mode] [role="radio"]').allTextContents()
-      check(`[${tag}] 生成方式在面板顶部，没有文生`, modes.length >= 2 && !modes.some((m) => /文生|text/i.test(m)), modes.join('|'))
-      await snap('04-params-panel')
-      await panel.locator('[data-agent-generation-mode] [role="radio"]', { hasText: new RegExp('首尾帧|First / Last') }).first().click()
-      // 面板是盖在生成框上面的浮层：先收起它，再看下面的格。
-      await win.keyboard.press('Escape')
-      await expectVisible(c.locator('[data-asset-slot-label]').first(), '首尾帧格出现')
-      check(`[${tag}] 切到首尾帧：首帧 / 尾帧两格 + 对调钮`, (await c.locator('[data-asset-slot-label]').count()) === 2 && (await c.locator('[data-reference-swap]').count()) === 1)
-      const chipsInFirstLast = await c.locator('[data-storyboard-mention-chip]').evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')))
-      check(`[${tag}] 切到首尾帧后提示词里的小块仍写名字（不退回「参考图」）`, chipsInFirstLast.join() === '女主肖像,海边小镇', chipsInFirstLast.join())
+      const rows = await openModeMenu(win, c, ml)
+      await snap('04-mode-menu')
+      await closeModeMenu(win)
+      const firstLastRow = rows.find((row) => row.name === modeName(ml, 'firstLast'))
+      check(`[${tag}] 方式菜单：3 张图时首尾帧置灰并说原因，带勾的是全能参考`, Boolean(firstLastRow?.disabled) && firstLastRow.description.length > 2 && rows.find((row) => row.checked)?.name === modeName(ml, 'reference'), JSON.stringify(rows))
+      // 首尾帧两格 + 对调：edges-video（两条参考连线、手选过首尾帧）。
+      await selectNode('edges-video')
+      const e = composer()
+      await expectVisible(e.locator('[data-asset-slot-label]').first(), '首尾帧格出现')
+      check(`[${tag}] 首尾帧：首帧 / 尾帧两格 + 对调钮`, (await e.locator('[data-asset-slot-label]').count()) === 2 && (await e.locator('[data-reference-swap]').count()) === 1)
       await snap('05-first-last')
-      const before = await c.locator('[data-asset-slot]').evaluateAll((els) => els.map((el) => el.querySelector('img')?.getAttribute('src') ?? 'empty').join('|'))
-      await c.locator('[data-reference-swap]').click()
+      const before = await e.locator('[data-asset-slot]').evaluateAll((els) => els.map((el) => el.querySelector('img')?.getAttribute('src') ?? 'empty').join('|'))
+      await e.locator('[data-reference-swap]').click()
       await win.waitForFunction((was) => [...document.querySelectorAll('.generation-canvas-v2-node__composer [data-asset-slot]')].map((el) => el.querySelector('img')?.getAttribute('src') ?? 'empty').join('|') !== was, before, { timeout: stationTimeout() })
       check(`[${tag}] 对调钮真的把首帧 / 尾帧换了位置`, true)
-      // 切回参考，参考的图还在（切回参考还在）
-      await win.keyboard.press('Escape')
-      await c.locator('[data-parameter-summary]').click()
-      await panel.locator('[data-agent-generation-mode] [role="radio"]').first().click()
-      await expectVisible(c.locator('[data-reference-row] [data-asset-tile]').first(), '切回参考后小图还在')
-      // 改比例
+      // 改比例（参数面板还在，只是没有「生成方式」那一段了）
+      await selectNode('target-video')
+      await composer().locator('[data-parameter-summary]').click()
+      const panel = win.locator('[data-agent-parameter-panel]')
+      await expectVisible(panel, '参数面板')
+      check(`[${tag}] 参数面板里没有「生成方式」那一段`, (await panel.locator('[data-agent-generation-mode]').count()) === 0)
       await panel.getByRole('radio', { name: '9:16' }).first().click()
       // 面板打开期间摘要钮是冻结的（宽度稳定）：收起以后再读。
       await win.keyboard.press('Escape')
@@ -312,11 +313,11 @@ async function runPass({ locale, scheme }) {
     await section('keep-run-and-host', async () => {
       await selectNode('error-video')
       const c = composer()
-      await c.locator('[data-parameter-summary]').click()
-      await win.locator('[data-agent-parameter-panel] [data-agent-generation-mode] [role="radio"]', { hasText: new RegExp('首尾帧|First / Last') }).first().click()
-      await win.keyboard.press('Escape')
-      const reason = await c.locator('[data-bar-segment="generate"]').evaluate((el) => ({ disabled: el.disabled, title: el.closest('span[title]')?.getAttribute('title') ?? '' }))
-      check(`[${tag}] board:ComposerB3/keep.run.disabled-reason：缺必需首帧时 ↑ 禁用并写原因`, reason.disabled && reason.title.length > 4, JSON.stringify(reason))
+      // 空节点：方式按输入现算是文生视频；要首帧的方式在菜单里置灰并说「先放图」（以前是切过去再让 ↑ 禁用写原因）。
+      const rows = await openModeMenu(win, c, ml)
+      await closeModeMenu(win)
+      const needsImage = rows.filter((row) => row.name !== modeName(ml, 'text'))
+      check(`[${tag}] board:ComposerB3/keep.run.disabled-reason：空节点上带图的方式置灰并写原因`, needsImage.length >= 1 && needsImage.every((row) => row.disabled && row.description.length > 2), JSON.stringify(rows))
       // 多选不挂生成框（先证探针：单选时它在）
       const proof = await proveProbe(win.locator('.generation-canvas-v2-node__composer'), '单选节点时生成框挂在节点下')
       await win.locator('.react-flow__node[data-id="target-video"]').click({ position: { x: 8, y: 8 }, modifiers: ['Shift'] })
@@ -340,14 +341,7 @@ async function runPass({ locale, scheme }) {
     })
 
     // ── 往返（参考图结构重写的验收线）：节点上只存一份有序参考列表，换方式 / 换模型都不改它 ──
-    const pickMode = async (pattern) => {
-      const c = composer()
-      await c.locator('[data-parameter-summary]').click()
-      const panel = win.locator('[data-agent-parameter-panel]')
-      await expectVisible(panel, '参数面板')
-      await panel.locator('[data-agent-generation-mode] [role="radio"]', { hasText: pattern }).first().click()
-      await win.keyboard.press('Escape')
-    }
+    const pickMode = (kind) => pickModeRow(win, composer(), ml, kind)
     const pickModel = async (name) => {
       await composer().locator('[data-bar-segment="model-params"] button').first().click()
       await win.locator('[role="option"]').filter({ hasText: name }).first().click()
@@ -360,34 +354,31 @@ async function runPass({ locale, scheme }) {
       slots: el.querySelectorAll('[data-asset-slot] [data-asset-tile]').length,
     }))
     await section('roundtrip-three-refs', async () => {
+      // 3 张上传参考：首尾帧收不下全部 → 菜单里置灰（以前能切过去、第 3 张淡显「未用到」；2026-11-12 起方式按输入现算）。
       await selectNode('trio-video')
       const before = await tileCounts()
-      await pickMode(new RegExp('首尾帧|First / Last'))
+      const rows = await openModeMenu(win, composer(), ml)
+      await closeModeMenu(win)
+      const firstLastRow = rows.find((row) => row.name === modeName(ml, 'firstLast'))
+      await snap('20-roundtrip-three-firstlast')
+      const after = await tileCounts()
+      check(`[${tag}] 3 张上传参考：首尾帧置灰并说原因，3 张一张不少、没有「未用到」`, Boolean(firstLastRow?.disabled) && before.tiles === 3 && after.tiles === 3 && after.unused === 0, JSON.stringify({ before, after, rows }))
+    })
+    await section('remove-then-first-last', async () => {
+      // 删掉 1 张（悬停出 ×）→ 剩 2 张，首尾帧可点 → 切过去 2 格、没有未用到 → 切回全能参考还是 2 张（列表一张不少）。
+      await selectNode('trio-video')
+      await composer().locator('[data-reference-row] [data-asset-tile]').last().hover()
+      await composer().locator('[data-reference-row] [data-asset-tile-remove]').last().click()
+      await win.waitForFunction(() => document.querySelectorAll('.generation-canvas-v2-node__composer [data-reference-row] [data-asset-tile]').length === 2, null, { timeout: stationTimeout() })
+      await pickMode('firstLast')
       await expectVisible(composer().locator('[data-asset-slot-label]').first(), '首尾帧格出现')
       const mid = await tileCounts()
-      await snap('20-roundtrip-three-firstlast')
-      const trioState = await win.evaluate(() => { const st = window.__nomiCanvasStore?.getState(); const n = st?.nodes.find((node) => node.id === 'trio-video'); return { meta: n ? { archetype: n.meta?.archetype, refs: n.meta?.referenceImageUrls, gap: n.meta?.referenceFirstFrameEmpty, first: n.meta?.firstFrameUrl, last: n.meta?.lastFrameUrl } : null, edges: st?.edges.filter((e) => e.target === 'trio-video').map((e) => [e.source, e.mode]) } })
-      await pickMode(/^(参考|Reference)$/)
-      await win.waitForFunction(() => !document.querySelector('.generation-canvas-v2-node__composer [data-reference-unused]'), null, { timeout: stationTimeout() })
-      const back = await tileCounts()
-      await snap('21-roundtrip-three-back')
-      check(`[${tag}] 往返：3 张上传参考 → 首尾帧（首帧、尾帧 + 1 张未用到）→ 参考，3 张一张不少`, before.tiles === 3 && mid.slots === 2 && mid.unused === 1 && back.tiles === 3 && back.unused === 0, JSON.stringify({ before, mid, back, trioState }))
-    })
-    await section('remove-unused', async () => {
-      // ⑫（用户 10-22 拍板）：3 张上传参考切首尾帧，第 3 张「未用到」悬停出同一颗 ×，点了从节点上删掉；切回参考只剩 2 张。
-      await selectNode('trio-video')
-      await pickMode(new RegExp('首尾帧|First / Last'))
-      await expectVisible(composer().locator('[data-reference-unused] [data-asset-tile]').first(), '未用到那张')
-      await composer().locator('[data-reference-unused] [data-asset-tile]').first().hover()
-      await composer().locator('[data-reference-unused] [data-asset-tile-remove]').first().click()
-      await win.waitForFunction(() => !document.querySelector('.generation-canvas-v2-node__composer [data-reference-unused]'), null, { timeout: stationTimeout() })
-      const mid = await tileCounts()
-      await pickMode(/^(参考|Reference)$/)
-      await win.waitForFunction(() => document.querySelectorAll('.generation-canvas-v2-node__composer [data-reference-row] [data-asset-tile]').length === 2, null, { timeout: stationTimeout() }).catch(() => {})
+      await pickMode('reference')
+      await win.waitForFunction(() => !document.querySelector('.generation-canvas-v2-node__composer [data-asset-slot-label]'), null, { timeout: stationTimeout() }).catch(() => {})
       const back = await tileCounts()
       await win.mouse.move(5, 5)
       await snap('25-remove-unused-back')
-      check(`[${tag}] 「未用到」那张点 × 删掉：首尾帧 2 格不动，切回参考只剩 2 张（用户 10-22 拍板 ⑫）`, mid.slots === 2 && mid.unused === 0 && back.tiles === 2, JSON.stringify({ mid, back }))
+      check(`[${tag}] 删到 2 张：首尾帧 2 格、没有未用到；切回全能参考 2 张一张不少`, mid.slots === 2 && mid.unused === 0 && back.tiles === 2, JSON.stringify({ mid, back }))
     })
     await section('legacy-parked', async () => {
       // 旧工程以前藏着的首帧：淡显「未用到」、悬停写「名字 · 点一下用上」；点一下放回在用，一张不少（#1269 条件 4）。
@@ -446,6 +437,76 @@ async function runPass({ locale, scheme }) {
       await snap('11-list-detail')
       await win.locator('[data-generation-view-switcher]').first().click()
       await expectVisible(win.locator('.generation-canvas-v2__stage'), '回到画布')
+    })
+
+    // 参数面板（2026-11-14 ComposerParams 板 advanced.section）：最小窗的列表详情里，「高级设置」贴着可视区下沿时点开，
+    // 展开段要滚回可视区里（最近对齐）。实验室那一格没种模型目录量不到，所以在真窗这里量。
+    await section('host-list-detail-min-window-advanced', async () => {
+      const bw = await app.browserWindow(win)
+      const before = await win.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))
+      await bw.evaluate((w, size) => w.setContentSize(size.width, size.height), MIN_WINDOW)
+      await win.setViewportSize(MIN_WINDOW)
+      try {
+        await clickOrFail(win.locator('[data-generation-view-switcher]'), '最小窗里的画布 / 列表切换')
+        await expectVisible(win.locator('[data-generation-list]'), '列表视图（最小窗）')
+        // 上一段已进过「海边清晨」的详情，切回列表时直接回到那张详情（左边是缩略条，不是卡片网格）；只有落在网格时才点卡。
+        await win.waitForTimeout(300)
+        if (!(await win.locator('[data-composer-host="inline"]').first().isVisible())) {
+          await clickOrFail(win.locator('[data-list-card]', { hasText: T('海边清晨', '海边清晨') }), '最小窗列表里「海边清晨」那张卡')
+        }
+        await expectVisible(win.locator('[data-composer-host="inline"]'), '最小窗列表详情里的生成框')
+        const toggle = win.locator('[data-composer-host="inline"] [data-advanced-settings-toggle]').first()
+        await proveProbe(toggle, '最小窗列表详情里有「高级设置」图标')
+        const parked = await toggle.evaluate((el) => {
+          let node = el.parentElement
+          while (node && !(/(auto|scroll)/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1)) node = node.parentElement
+          if (!node) return null
+          const r = el.getBoundingClientRect(); const c = node.getBoundingClientRect()
+          // 停在可视区下沿往上 56：最小窗右下角有 44px 的 Nomi 小球（主线问题，另排），贴着下沿会点到小球。展开段比 56 高，照样落在可视区外。
+          node.scrollTop += r.bottom - c.bottom + 56
+          const after = el.getBoundingClientRect()
+          const hit = document.elementFromPoint(after.left + after.width / 2, after.top + after.height / 2)
+          return { scrollerTop: node.scrollTop, toggleBottom: Math.round(after.bottom), viewBottom: Math.round(c.bottom), hitIsToggle: Boolean(hit && el.contains(hit)) }
+        })
+        // parked 为 null = 这一尺寸下详情页没有可滚容器（预览区自己缩，整页放得下），这时断言量的是「展开后仍整段在窗口里」；
+        // 「滚进来」那条路径由实验室分镜行 1280×800 那格（composer-params 走查 ②b）量。
+        console.log(`  · [${tag}] 高级设置图标停的位置：${parked ? JSON.stringify(parked) : '详情页不滚（整页放得下）'}`)
+        await win.waitForTimeout(100)
+        await clickOrFail(toggle, '最小窗列表详情里的「高级设置」图标')
+        await win.waitForFunction(() => Boolean(document.querySelector('[data-composer-host="inline"] [data-advanced-settings]')), null, { timeout: stationTimeout({ operations: 1 }) })
+        await win.waitForTimeout(600)
+        const facts = await win.evaluate(() => {
+          const sectionEl = document.querySelector('[data-composer-host="inline"] [data-advanced-settings]')
+          let node = sectionEl.parentElement
+          while (node && !(/(auto|scroll)/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1)) node = node.parentElement
+          const s = sectionEl.getBoundingClientRect(); const c = node ? node.getBoundingClientRect() : { top: 0, bottom: window.innerHeight }
+          return { sectionTop: Math.round(s.top), sectionBottom: Math.round(s.bottom), visibleTop: Math.round(Math.max(0, c.top)), visibleBottom: Math.round(Math.min(window.innerHeight, c.bottom)), hasScroller: Boolean(node) }
+        })
+        check(`[${tag}] board:ComposerParams/advanced.section · 最小窗 ${MIN_WINDOW.width}×${MIN_WINDOW.height} 列表详情：高级设置展开后滚回可视区`, facts.sectionBottom <= facts.visibleBottom + 1 && facts.sectionTop >= facts.visibleTop - 1, JSON.stringify({ ...facts, parked }))
+        await screenshotSettled(win, { path: path.join(repoRoot, 'docs/evidence/2026-11-14-composer-params', `advanced-reveal-real-list-detail-${MIN_WINDOW.width}x${MIN_WINDOW.height}-${tag}.png`) })
+        // 只记事实、不判（不是这次带来的）：鼠标停在提示词框上滚轮，外层详情滚不滚。
+        const prompt = win.locator('[data-composer-host="inline"] [data-prompt-box]').first()
+        const promptBox = await prompt.boundingBox()
+        if (promptBox) {
+          const outerTop = () => win.evaluate(() => {
+            let node = document.querySelector('[data-composer-host="inline"] [data-prompt-box]')?.parentElement
+            while (node && !(/(auto|scroll)/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1)) node = node.parentElement
+            return node ? Math.round(node.scrollTop) : null
+          })
+          const beforeWheel = await outerTop()
+          await win.mouse.move(promptBox.x + promptBox.width / 2, promptBox.y + Math.min(promptBox.height / 2, 20))
+          await win.mouse.wheel(0, -400)
+          await win.waitForTimeout(300)
+          console.log(`  · [${tag}] 提示词框上滚轮（向上 400）：外层 scrollTop ${beforeWheel} → ${await outerTop()}`)
+        }
+        await clickOrFail(win.locator('[data-generation-view-switcher]'), '最小窗里切回画布')
+        await expectVisible(win.locator('.generation-canvas-v2__stage'), '回到画布')
+      } finally {
+        if (before) {
+          await bw.evaluate((w, size) => w.setContentSize(size.width, size.height), before)
+          await win.setViewportSize(before)
+        }
+      }
     })
 
     await section('host-agent-input', async () => {

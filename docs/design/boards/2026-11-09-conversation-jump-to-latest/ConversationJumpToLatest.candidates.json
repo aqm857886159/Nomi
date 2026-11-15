@@ -1,0 +1,9 @@
+{
+  "board": "ConversationJumpToLatest",
+  "extractor": "manual-domain-census@1",
+  "note": "没有独立 Claude Design 画布可抽；候选按 Agent 面板对话流里真实的「回到最新」生产组件人工普查。",
+  "candidates": [
+    { "id": "001-jump-button", "kind": "domain-control", "text": "「回到最新」向下箭头圆钮" },
+    { "id": "002-jump-button-hover", "kind": "domain-state", "text": "「回到最新」悬停加深" }
+  ]
+}

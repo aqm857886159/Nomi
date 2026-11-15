@@ -1,4 +1,5 @@
-export { buildVideoModelCandidates, sourceBackedVideoProfiles, transportTaskKindForModeId, videoArchetypeIdFromMeta } from "./registry";
+export { sourceBackedVideoProfiles, transportTaskKindForModeId, videoArchetypeIdFromMeta } from "./registry";
+export { buildVideoModelCandidates } from "./videoModelCandidates";
 
 // Video archetype definitions live here (canonical home). This barrel is the
 // single public surface the renderer imports from — no re-export shells in
@@ -36,7 +37,7 @@ export { WAN_3_0_ARCHETYPE } from "./wan30";
 export { WAN_3_0_APIMART_ARCHETYPE } from "./wan30Apimart";
 
 export { modeTransportFor } from "./modeTransport";
-export { archetypeModeForModel, combineChannelForMode, lowerCombinedReferences, combineRoleForContractReference, combineRoleForSlot, REFERENCE_ROLE_FOR_KIND, referenceCombineChannelFor, slotJoinsCombine } from "./referenceChannels";
+export { archetypeModeForModel, combineChannelForMode, combineRoleForSlot, REFERENCE_ROLE_FOR_KIND, referenceCombineChannelFor, slotJoinsCombine } from "./referenceChannels";
 export type { CombineRoleSlot, ReferenceCombineChannel } from "./referenceChannels";
 export { applyMergeProposal, applySplitProposal, resolveGenerationPlan } from "./planResolver";
 export { GenerationResolveErrorCode } from "./planResolutionContracts";

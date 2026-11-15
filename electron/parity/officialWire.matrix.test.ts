@@ -25,6 +25,8 @@
 /// <reference types="vite/client" />
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
 
 vi.mock("electron", async () => {
   const nodeFs = await import("node:fs");
@@ -40,7 +42,8 @@ vi.mock("../capabilityCore/rendererBridge", () => ({
   },
 }));
 
-import { getArchetypeById, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import { videoArchetypeIdFromMeta } from "../shared/videoCapabilities";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
@@ -48,9 +51,11 @@ import { createGenerationNode } from "../../src/workbench/generationCanvas/model
 import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/runner/catalogTaskActions";
 import { resolveGenerationReferences } from "../../src/workbench/generationCanvas/runner/generationReferenceResolver";
 import { placeUploadedImages } from "../../src/workbench/generationCanvas/nodes/controls/referenceList";
+import { effectiveArchetypeMode } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
 import { driveEngineA, driveEngineB, installFetchCapture, seedParityCatalog } from "./generationParityTestUtils";
 
 import knownRedTable from "./officialWire.known-red.json";
+import bodiesSnapshot from "./officialWire.bodies.snapshot.json";
 
 import { ASSERTIONS, judgeBody, judgePaths, isRefused, reasonSignatures, type Fact, type ModeFact, type ModelFixture, type Violation, type Wire } from "../../tests/parity/officialWireJudge";
 type KnownRed = {
@@ -114,10 +119,10 @@ function buildCells() {
   return cells;
 }
 
-async function runCanvas(entry: ReturnType<typeof buildCells>[number]): Promise<Wire> {
+function canvasNode(entry: ReturnType<typeof buildCells>[number]) {
   const { cell, row, mode, archetype } = entry;
   const urls = Array.from({ length: cell.n }, (_, i) => refUrl(i + 1));
-  const node = {
+  return {
     ...createGenerationNode({ id: "n", kind: cell.kind, prompt: "一个镜头" }),
     meta: {
       modelKey: row.modelKey,
@@ -127,6 +132,19 @@ async function runCanvas(entry: ReturnType<typeof buildCells>[number]): Promise<
       ...(cell.n ? { referenceImageUrls: urls } : {}),
     },
   } as never;
+}
+
+/**
+ * 方式按输入现算（2026-11-12）：画布节点上存的方式只是偏好，这 n 张图放不下它时画布按别的方式发（没放图 → 文生；
+ * 一张图放不进首尾帧 → 换成收得下的那种）。这种格子画布路根本不会以这个方式发，只量 Run 路（Agent 明说方式时照样要守官方字段）。
+ */
+function canvasSendsThisMode(entry: ReturnType<typeof buildCells>[number]): boolean {
+  const node = canvasNode(entry) as { id: string };
+  return effectiveArchetypeMode(entry.archetype, node as never, { nodes: [node as never], edges: [] }).mode.id === entry.mode.id;
+}
+
+async function runCanvas(entry: ReturnType<typeof buildCells>[number]): Promise<Wire> {
+  const node = canvasNode(entry);
   try {
     const req = buildCatalogTaskRequest(node, { references: resolveGenerationReferences(node, { nodes: [node], edges: [] }) }).request;
     const rec = await driveEngineA(capture, { vendorKey: "apimart", kind: req.kind, prompt: req.prompt, extras: req.extras as never });
@@ -174,12 +192,59 @@ function judgeCell(entry: ReturnType<typeof buildCells>[number], canvas: Wire, r
   if (!fx) return [{ assertion: "officialKeys", reason: missingFixtureReason, detail: "无官方夹具：没量过" }];
   const out: Violation[] = [];
   for (const [label, wire] of [["画布", canvas], ["Run", run]] as const) {
-    if (isRefused(wire)) continue;
+    if (wire === CANVAS_NOT_THIS_MODE || isRefused(wire)) continue;
     out.push(...judgeBody(wire as Record<string, unknown>, fx.noReference ? { referenceKeys: {} } : fx, entry.cell.n).map((v) => ({ ...v, reason: { path: label === "画布" ? "canvas" : "run", ...v.reason }, detail: `${label}：${v.detail}` })));
   }
-  out.push(...judgePaths(canvas, run));
+  if (canvas !== CANVAS_NOT_THIS_MODE) out.push(...judgePaths(canvas, run));
   return out;
 }
+
+const CANVAS_NOT_THIS_MODE = "画布按输入换了方式，不以这格的方式发";
+
+// 请求体字节护栏：每格两条路的请求体指纹（键排序后）。只许出现 `added` 里登记的新增键（键、值、路都对上），
+// 不许少键、不许改值、不许多别的键。改动发出去的字节时 NOMI_UPDATE_OFFICIAL_WIRE_BODIES=1 重录（清空 added），差异在 PR 里逐条看。
+type BodiesSnapshot = { note: string; added: Array<{ cell: string; path: "canvas" | "run"; key: string; value: unknown }>; bodies: Record<string, { canvas: string; run: string }> };
+const BODIES_PATH = fileURLToPath(new URL("./officialWire.bodies.snapshot.json", import.meta.url));
+const updateBodies = process.env.NOMI_UPDATE_OFFICIAL_WIRE_BODIES === "1";
+const bodies = bodiesSnapshot as BodiesSnapshot;
+const recordedBodies: BodiesSnapshot["bodies"] = {};
+function canonicalWire(value: unknown): string {
+  if (value && typeof value === "object") {
+    if (Array.isArray(value)) return `[${value.map(canonicalWire).join(",")}]`;
+    return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${canonicalWire((value as Record<string, unknown>)[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+const wireFingerprint = (wire: Wire): string => createHash("sha256").update(canonicalWire(JSON.parse(JSON.stringify(wire ?? null)))).digest("hex").slice(0, 16);
+/** 当前请求体去掉登记的新增键后，和修前指纹比；登记的键必须在、值必须对。返回差异说明（空 = 符合）。 */
+export function bodyDrift(cell: string, path: "canvas" | "run", wire: Wire, snapshot: BodiesSnapshot = bodies): string[] {
+  const expected = snapshot.bodies[cell]?.[path];
+  if (!expected) return [`${cell}/${path}: 快照里没有这一格`];
+  const allowed = snapshot.added.filter((a) => a.cell === cell && a.path === path);
+  let current: Wire = wire;
+  const out: string[] = [];
+  if (allowed.length) {
+    if (!wire || typeof wire !== "object") return [`${cell}/${path}: 登记了新增键 ${allowed.map((a) => a.key)}，但请求没发出去`];
+    const rest = { ...(wire as Record<string, unknown>) };
+    for (const a of allowed) {
+      if (canonicalWire(rest[a.key]) !== canonicalWire(a.value)) out.push(`${cell}/${path}: 登记新增 ${a.key}=${JSON.stringify(a.value)}，实际 ${JSON.stringify(rest[a.key])}`);
+      delete rest[a.key];
+    }
+    current = rest as Wire;
+  }
+  if (wireFingerprint(current) !== expected) out.push(`${cell}/${path}: 请求体与快照指纹不同（多键 / 少键 / 改值）`);
+  return out;
+}
+
+// 发送前输入判定（2026-11-14，docs/plan/2026-11-14-mode-input-check.md）：Run 路明说了方式、这个方式赖以成立的输入没给 → 不发。
+// 这几格以前照发（编辑 / 续写没源视频；首尾帧只给首帧，协调 11-14 拍板照拒），现在必须是 mode_input_missing，零请求。
+const REFUSED_MISSING_INPUT_ON_RUN = [
+  "doubao-seedance-2.5|edit|n=1", "doubao-seedance-2.5|edit|n=30", "doubao-seedance-2.5|extend|n=1", "doubao-seedance-2.5|extend|n=30",
+  "kling-v4-flash|edit|n=1", "kling-v4-flash|edit|n=10",
+  "MiniMax-H3|firstlast|n=1", "pixverse-v6|firstlast|n=1", "gemini-omni-1.2-flash|firstlast|n=1", "gemini-omni-1.2-flash-ext|firstlast|n=1",
+];
+// 给全输入的请求只许多这一个键：可灵 4.0 Flash、H3-Max（APIMart）露出「提交前内容审核」，默认 false 照发。
+const NSFW_ADDED_MODELS = ["kling-v4-flash", "MiniMax-H3-Max"];
 
 const cells = buildCells();
 const dumpPath = process.env.NOMI_OFFICIAL_WIRE_DUMP;
@@ -232,6 +297,23 @@ describe("官方字段矩阵：夹具", () => {
     expect(bad).toEqual([]);
   });
 
+  it("请求体字节护栏自检：多一个未登记的键、少一个键、改值、登记键值不对都判红；只多登记的那个键判绿", () => {
+    const body = { model: "m", prompt: "p", duration: 5 };
+    const snap = (added: BodiesSnapshot["added"]) => ({ note: "", added, bodies: { c: { canvas: wireFingerprint(body), run: wireFingerprint(body) } } });
+    expect(bodyDrift("c", "canvas", body, snap([]))).toEqual([]);
+    expect(bodyDrift("c", "canvas", { ...body, aspect_ratio: "16:9" }, snap([]))).toHaveLength(1);
+    expect(bodyDrift("c", "canvas", { model: "m", prompt: "p" }, snap([]))).toHaveLength(1);
+    expect(bodyDrift("c", "canvas", { ...body, duration: 10 }, snap([]))).toHaveLength(1);
+    const reg = snap([{ cell: "c", path: "canvas", key: "size", value: "16:9" }]);
+    expect(bodyDrift("c", "canvas", { ...body, size: "16:9" }, reg)).toEqual([]);
+    expect(bodyDrift("c", "canvas", { ...body, size: "1:1" }, reg)).toHaveLength(1);
+    expect(bodyDrift("c", "canvas", body, reg)).toHaveLength(1);
+    expect(bodyDrift("c", "run", { ...body, size: "16:9" }, reg)).toHaveLength(1);
+    // 真快照：登记的新增只有可灵 4.0 Flash / H3-Max 的 nsfw_check:false，别的模型、别的键一条都没有。
+    expect(bodies.added.filter((a) => !(NSFW_ADDED_MODELS.includes(a.cell.split("|")[0]!) && a.key === "nsfw_check" && a.value === false))).toEqual([]);
+    expect(bodies.added.length).toBeGreaterThan(0);
+  });
+
   it("评判器自检：造一个红的请求体，六条断言各自能抓到", () => {
     const mode: ModeFact = {
       referenceKeys: {
@@ -254,10 +336,13 @@ describe("官方字段矩阵：模型 × 模式 × 两条路 × 参考图数", (
   for (const entry of cells) {
     const gap = knownRed.fixtureGaps.find((g) => g.modelMode === `${entry.cell.modelKey}|${entry.cell.modeId}`);
     it(entry.cell.id + (gap ? "（无官方夹具：没量过）" : ""), async () => {
-      const canvas = await runCanvas(entry);
+      const canvas = canvasSendsThisMode(entry) ? await runCanvas(entry) : CANVAS_NOT_THIS_MODE;
       const run = await runCatalog(entry);
+      if (REFUSED_MISSING_INPUT_ON_RUN.includes(entry.cell.id)) expect((run as { code?: string } | null)?.code, "缺方式必需输入：Run 路必须不发").toBe("mode_input_missing");
       const violations = judgeCell(entry, canvas, run);
       if (dumpPath) dump.push({ cell: entry.cell.id, violations, canvas, run });
+      if (updateBodies) recordedBodies[entry.cell.id] = { canvas: wireFingerprint(canvas), run: wireFingerprint(run) };
+      else expect([...bodyDrift(entry.cell.id, "canvas", canvas), ...bodyDrift(entry.cell.id, "run", run)]).toEqual([]);
       const expected = [...(redByCell.get(entry.cell.id) ?? []), ...(gap ? [{ assertion: "officialKeys", reason: gap.reason }] : [])];
       expect(reasonSignatures(violations), `known-red 原因特征必须逐项相符；消失、新增或同名换因都要更新经复核的登记\n${violations.map((v) => `${v.assertion}: ${v.detail}`).join("\n")}`).toEqual(reasonSignatures(expected));
     }, 60_000);
@@ -266,4 +351,5 @@ describe("官方字段矩阵：模型 × 模式 × 两条路 × 参考图数", (
 
 afterAll(() => {
   if (dumpPath) writeFileSync(dumpPath, JSON.stringify(dump, null, 1));
+  if (updateBodies) writeFileSync(BODIES_PATH, `${JSON.stringify({ note: bodies.note, added: [], bodies: Object.fromEntries(Object.entries(recordedBodies).sort(([a], [b]) => (a < b ? -1 : 1))) }, null, 1)}\n`);
 });

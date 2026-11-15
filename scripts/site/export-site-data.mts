@@ -18,7 +18,7 @@ import { applyBuiltinSeeds } from "../../electron/catalog/seedBuiltins.ts";
 import type { CatalogState } from "../../electron/catalog/types.ts";
 import { PROMPT_SOURCES } from "../../electron/promptLibrary/promptSources.ts";
 import { aspectRatioControlKey, aspectRatioControlsOf } from "../../electron/shared/aspectRatioValue.ts";
-import { MODEL_ARCHETYPES } from "../../electron/shared/modelArchetypes/index.ts";
+import { MODEL_ARCHETYPES } from "../../electron/shared/modelArchetypes/builtInCatalog.ts";
 import { dedupeModelOptions, modelCatalogLifecycle } from "../../src/config/modelIdentity.ts";
 import { toCatalogModelOptions } from "../../src/config/modelOptionMappers.ts";
 import { isReleasedForSite, resolveReleasedVersion } from "./released-version.mjs";

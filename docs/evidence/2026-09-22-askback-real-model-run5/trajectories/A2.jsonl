@@ -1,2 +1,0 @@
-{"caseId":"A2","userSays":"把这个改好看点","toolCallId":"call_792ea5d6f6ac46e98af8a526","name":"read_script","args":{"scope":"selection"},"isError":false,"resultText":"","hasResult":true,"seq":10,"errorKind":"none","attempt":1,"settled":true}
-{"caseId":"A2","toolCallId":"call_e3cc7a3f76e0440ab8b33235","name":"read_script","args":{"scope":"full"},"isError":false,"resultText":"深夜十一点，招牌灯还亮着。\n她把牛骨汤从锅里舀进碗，热气糊住镜头，面条一根根落下去，最后撒一把葱花。\n她端着碗坐下，吸溜第一口。","hasResult":true,"seq":11,"errorKind":"none","attempt":1,"settled":true}

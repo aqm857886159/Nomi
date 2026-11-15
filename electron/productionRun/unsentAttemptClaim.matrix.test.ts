@@ -3,7 +3,7 @@
  *
  * 现象（V-1042 第 22 张截图）：参考卡第一次生成被出网闸拦下，请求根本没出本机；用户换了模型点「重试」，
  * 被认领拒成 needs_reconcile，卡面只写「生成失败」。根因：提交出口只从**最后那个错误的 cause 链**里找
- * 「没写出去」的证据，在本机就被拦下的失败（出网策略、请求头、密钥、网络设置……）错误里没有任何连接证据，
+ * 「没写出去」的证据，在本机就被拦下的失败（凭据绑定、请求头、密钥、网络设置……）错误里没有任何连接证据，
  * 一律落成「结果未知」。修法：由网络出口（appFetch）给每次付费派发记账，判据只在
  * `outboundDispatchEvidence.observeSubmissionHandoffs`。
  *
@@ -39,7 +39,7 @@ import { landedAdmission } from "./landFirstTestUtils";
 import type { CatalogState, Vendor } from "../catalog/types";
 import { requestJson } from "../vendor/vendorHttp";
 import { runDreaminaCli } from "../catalog/dreaminaCli";
-import { setSubmitOutboundDepsForTests } from "../vendor/vendorOutboundGuard";
+import { deriveCredentialBinding } from "../catalog/credentialBinding";
 import { applySystemProxy } from "../systemProxy";
 import { runTaskIpcGuard } from "../tasks/taskIpcGuard";
 import { canvasRunIdFor } from "./canvasShotRunIndex";
@@ -92,7 +92,7 @@ type Kind = {
   /** 第一次尝试的回环行为（网络类）；本机类第一次根本到不了回环。 */
   server: Behaviour;
   /** 第一次尝试在本机怎么失败（只用于本机类）；第二次尝试一律正常。 */
-  local?: "outbound-policy" | "illegal-header" | "credential-missing" | "fetch-layer-blocked" | "write-then-refused"
+  local?: "credential-origin" | "illegal-header" | "credential-missing" | "fetch-layer-blocked" | "write-then-refused"
     | "cli-timeout" | "cli-killed" | "cli-nonzero" | "cli-not-installed";
   expect: "released" | "reconcile" | "rejected";
   /** 失败面的分类（classifyGenerationError 的 kind）。 */
@@ -100,7 +100,7 @@ type Kind = {
 };
 
 const KINDS: Kind[] = [
-  { id: "outbound-policy", label: "出网策略拦（Nomi 自己的出站闸）", server: "accept", local: "outbound-policy", expect: "released", face: "outbound-blocked-submit" },
+  { id: "credential-origin", label: "密钥要去的地址不是保存时确认的那个（凭据绑定拦）", server: "accept", local: "credential-origin", expect: "released", face: "outbound-blocked-credential-origin" },
   { id: "illegal-header", label: "本机准入拒（请求头不合法）", server: "accept", local: "illegal-header", expect: "released", face: "submission-not-sent" },
   { id: "credential-missing", label: "凭据缺失", server: "accept", local: "credential-missing", expect: "released", face: "submission-not-sent" },
   { id: "fetch-layer-blocked", label: "出网闸在连上之前拒（走查闸 / 防火墙）", server: "accept", local: "fetch-layer-blocked", expect: "released", face: "network" },
@@ -147,14 +147,8 @@ beforeEach(() => {
   cliRuns.count = 0;
   phase.failing = false;
   phase.local = undefined;
-  setSubmitOutboundDepsForTests({
-    resolve: async (hostname) => (hostname === "api.blocked-vendor.test" ? [{ address: "10.0.0.8", family: 4 as const }] : [{ address: "93.184.216.34", family: 4 as const }]),
-    readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
-    isApplicationProxyActive: () => false,
-  });
 });
 afterEach(async () => {
-  setSubmitOutboundDepsForTests(null);
   for (const socket of sockets) socket.destroy();
   sockets.clear();
   for (const server of servers.splice(0)) await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -164,14 +158,16 @@ afterEach(async () => {
 // ── 引擎 A：画布那台的传输（vendorHttp.requestJson → appFetch）─────────────────────────────────
 
 function engineATransport(origin: string): CanvasTransport {
-  const vendor = (baseUrlHint: string) => ({ key: "acme", authType: "bearer", baseUrlHint } as unknown as Vendor);
+  // 连接的密钥在保存那一刻绑在回环供应商的 origin 上（凭据绑定，catalog/credentialBinding.ts）：带密钥去别处一律在本机拦下，不出网。
+  const binding = deriveCredentialBinding({ baseUrlHint: origin, authType: "bearer" }, "2026-10-06T00:00:00.000Z");
+  const vendor = (baseUrlHint: string) => ({ key: "acme", authType: "bearer", baseUrlHint, credentialBinding: binding } as unknown as Vendor);
   const transport = {
     networkTransport: "app-fetch" as const,
     execute: async (payload: { request: { kind: string; prompt: string } }): Promise<CanvasTaskResult> => {
       const local = phase.failing ? phase.local : undefined;
       let base = origin;
       let apiKey = "test-key";
-      if (local === "outbound-policy") base = "https://api.blocked-vendor.test";
+      if (local === "credential-origin") base = "https://api.elsewhere-vendor.test";
       if (local === "illegal-header") apiKey = "密钥里混进了中文";
       // 引擎 A 的密钥在 runTask 的模型解析里取（findExecutableModel）；这里是那一步的最小替身——判据不看错误长什么样，
       // 只看这次派发有没有请求交给网络，所以替身的错误文案无关紧要。
@@ -185,9 +181,9 @@ function engineATransport(origin: string): CanvasTransport {
         throw new Error(`dreamina CLI exited ${ran.code}: ${ran.stderr.slice(0, 200)}`);
       }
       if (local === "write-then-refused") {
-        // 自定义调用脚本：第一步真发出去了（供应商收下），第二步去了一个出网策略不放行的地址。
+        // 自定义调用脚本：第一步真发出去了（供应商收下），第二步带着密钥去了另一个 origin，被凭据绑定在本机拦下（不出网）。
         await requestJson(vendor(origin), apiKey, "POST", `${origin}/v1/images/generations`, { Authorization: `Bearer ${apiKey}` }, {}, { prompt: payload.request.prompt, step: 1 });
-        base = "https://api.blocked-vendor.test";
+        base = "https://api.elsewhere-vendor.test";
       }
       const body = await requestJson(vendor(base), apiKey, "POST", `${base}/v1/images/generations`, { Authorization: `Bearer ${apiKey}` }, {}, { prompt: payload.request.prompt }) as { data: Array<{ task_id: string }> };
       const id = body.data[0].task_id;
@@ -273,7 +269,7 @@ describe.each(ENTRIES)("入口：$label", (entry) => {
     if (kind.expect === "released") {
       expect(firstReceived, "确定没离开本机：供应商一笔都没收到").toBe(kind.local === "write-then-refused" ? 1 : 0);
       expect(surface.kind, "失败面说清原因").toBe(kind.face);
-      expect(surface.primary, "下一步：处理好直接重试（出网策略这一类先去网络设置）").not.toBe("reconcile");
+      expect(surface.primary, "下一步：处理好直接重试（凭据绑定这一类先去模型接入重新保存）").not.toBe("reconcile");
     }
     // 用户直接重试（参考卡这一格还换了模型）：认领放行，这一次真的发出去，供应商只多收一笔。
     const retried = await fx.submit(node, "rr-2", "林薇，短发风衣", entry.extras("img-model"));
@@ -402,8 +398,8 @@ function approvedExternalRun(provider: GenerationProvider) {
   return { repository, submission, shotId: draftCandidate.candidateId };
 }
 
-/** 引擎 B 没有提交侧出网策略（另报）、没有多步脚本、也没有 CLI 子进程：这几格不适用，矩阵里如实标出来。 */
-const ENGINE_B_KINDS = KINDS.filter((kind) => kind.local !== "outbound-policy" && kind.local !== "write-then-refused" && !kind.local?.startsWith("cli-"));
+/** 引擎 B 的替身不带凭据绑定、没有多步脚本、也没有 CLI 子进程：这几格不适用，矩阵里如实标出来。 */
+const ENGINE_B_KINDS = KINDS.filter((kind) => kind.local !== "credential-origin" && kind.local !== "write-then-refused" && !kind.local?.startsWith("cli-"));
 
 describe("入口：外部宿主开跑（制作提交出口）", () => {
   it.each(ENGINE_B_KINDS)("$label", async (kind) => {

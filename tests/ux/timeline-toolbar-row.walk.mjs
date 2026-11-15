@@ -293,12 +293,12 @@ try {
   expect(squeezed.overlapsFirstTrack, '挤窄后工具条压住了第一条轨道').toBe(false)
   expect(
     squeezed.toolbarScrollWidth <= squeezed.toolbarClientWidth + 1,
-    `用户能到达的最窄配置（最小窗 1100 + 助手拖到上限）下，三簇本来就该一行放得下：`
+    `最窄的停靠配置（内容区底线 760：窗宽 1060 + 助手 300，或 1100 + 340）下，三簇本来就该一行放得下：`
       + `scrollWidth=${squeezed.toolbarScrollWidth} clientWidth=${squeezed.toolbarClientWidth}`,
   ).toBe(true)
   await screenshotSettled(win, { path: path.join(shotsDir, '05-squeezed-toolbar-still-one-row.png') })
 
-  // ⑥ 横向滚动这层安全网：用户拖不到那么窄（主窗 minWidth=1100，electron/main.ts:283），
+  // ⑥ 横向滚动这层安全网：停靠档里内容区不会窄过 760（窗宽 < 1060 时助手收成小球，窄窗另由 WindowNarrow 板 preview.timeline-toolbar 测），
   //    所以这一步**拿仪器**把这一行压到 320px，证明放不下时它是「滚」而不是「换行 / 裁掉」。
   //    320 = 「装得下最宽的那一簇（视图，约 186px）+ 行尾的 ? 钮」但装不下三簇的宽度；
   //    再窄就连一簇都放不下，那时「够得着」本来就不成立，量到的会是量具的毛病不是产品的。

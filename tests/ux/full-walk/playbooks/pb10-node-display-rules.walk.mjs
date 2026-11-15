@@ -39,9 +39,9 @@ const pb = await startPlaybook({
       { ...base, id: 'shot-three', kind: 'image', title: 'Shot 3', prompt: '', position: { x: 980, y: 90 }, status: 'success',
         result: imageResult('three-r1', 4, 1), history: [imageResult('three-r1', 4, 1)],
         meta: { ...imageMeta(), productionRunId: 'run-display', productionShotId: 'shot-three' } },
-      // 请求没出门的失败（出站策略拦下）：标题只说原因，没有「未计费」。
+      // 请求没出门的失败（凭据绑定拦下）：标题只说原因，没有「未计费」。
       { ...base, id: 'blocked', kind: 'image', title: 'Blocked', prompt: 'x', position: { x: 520, y: 520 }, status: 'error',
-        error: 'NOMI_ERR::outbound-blocked-submit:: request was blocked before it left this machine', history: [],
+        error: 'NOMI_ERR::outbound-blocked-credential-origin:: request was blocked before it left this machine', history: [],
         meta: { modelKey: FIXTURE_IMAGE_MODEL, modelVendor: FIXTURE_VENDOR, imageModel: FIXTURE_IMAGE_MODEL, imageModelVendor: FIXTURE_VENDOR } },
       // 点 ↑ 生成：存好后节点上什么回执都不挂。
       { ...base, id: 'saver', kind: 'image', title: 'Saver', prompt: 'rainy corner', position: { x: 60, y: 520 }, status: 'idle', history: [],

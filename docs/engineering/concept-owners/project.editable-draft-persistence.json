@@ -18,6 +18,18 @@
     {
       "path": "src/workbench/project/projectNormalize.ts",
       "symbol": "normalizePayload"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/storyboardDesignSchema.ts",
+      "symbol": "storyboardDesignSchema"
+    },
+    {
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "normalizePayloadWithQuarantine"
+    },
+    {
+      "path": "src/workbench/workbenchDocumentSlice.ts",
+      "symbol": "designWritable"
     }
   ],
   "forbidden_derivations": [],
@@ -28,5 +40,5 @@
   ],
   "parity_test": "src/workbench/project/editorPersistability.property.test.ts",
   "since": "2026-10-30",
-  "notes": "草稿 schema 拥有可存结构；normalizePayload 只是同一形状的存盘、读盘与旧键迁移入口，不再拥有内容必填规则。严格模型/Agent schema 只从草稿 extend 内容约束，不是第二份持久化 owner。"
+  "notes": "草稿 schema 拥有可存结构；normalizePayload 只是同一形状的存盘、读盘与旧键迁移入口，不再拥有内容必填规则。严格模型/Agent schema 只从草稿 extend 内容约束，不是第二份持久化 owner。 2026-11-13：写入口（setStoryboardPlan 等 setter 经 designWritable）用 storyboardDesignSchema 自己判，存盘 / 读盘走 normalizePayloadWithQuarantine 逐项隔离；它们都是这同一份形状的入口，不是第二份 owner。"
 }

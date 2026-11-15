@@ -66,7 +66,7 @@ function renderTable(count: number): { rows: number; editors: number } {
     plan, rows, anchorCards: [], imageModelOptions: [], videoModelOptions: VIDEO_MODELS,
     emptyPromptShots: new Set<number>(), onChange: NOOP,
     onGenerateRow: NOOP, onRegenerateRow: NOOP, onToggleLockRow: NOOP, onOpenPreviewRow: NOOP, onRerunFreshRefsRow: NOOP,
-    onGenerateSelected: NOOP, onDeleteSelected: NOOP,
+    onDeleteSelected: NOOP,
   })))
   return {
     rows: html.match(/data-storyboard-row="\d+"/g)?.length ?? 0,

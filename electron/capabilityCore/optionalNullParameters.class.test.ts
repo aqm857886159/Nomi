@@ -11,7 +11,8 @@ import { ContractCompilationError, admitPlanCandidate, compileExecutionContract,
 import { GENERATION_PLANNING_HINT_KEYS } from "./generationPlanningParameters";
 import { parameterFieldForControl } from "./modelAdmissionSchema";
 import type { ModuleManifest, ParameterField } from "./moduleManifest";
-import { MODEL_ARCHETYPES, specializeArchetypeForVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { rescopeArchetypeVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { MODEL_ARCHETYPES } from "../shared/modelArchetypes/builtInCatalog";
 
 const manifest: ModuleManifest = {
   moduleId: "generation.single-shot",
@@ -44,7 +45,7 @@ function schemaCombos(): Array<{ id: string; schema: Record<string, ParameterFie
   for (const base of MODEL_ARCHETYPES) {
     const variants: Array<string | undefined> = base.variants?.length ? base.variants.map((variant) => variant.id) : [undefined];
     for (const variantId of variants) {
-      const archetype = variantId ? specializeArchetypeForVariant(base, variantId) : base;
+      const archetype = variantId ? rescopeArchetypeVariant(base, { variantId: variantId, modelId: undefined }) : base;
       const vendors = [null, ...new Set(archetype.modes.flatMap((mode) => Object.keys(mode.vendorParams ?? {})))];
       for (const vendor of vendors) {
         for (const mode of specializeArchetypeForVendor(archetype, vendor).modes) {

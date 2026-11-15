@@ -1,0 +1,57 @@
+✔ allows only a height burst whose very next frame recovers; retains raw max and each exception (0.558167ms)
+✖ rejects two consecutive gaps even when both frames have a height burst (0.32625ms)
+✖ rejects an unrecovered final burst: removing next-frame recovery must turn this test red (0.072625ms)
+✔ rejects lag without a >70px height burst, including exactly 70px growth (0.485875ms)
+✔ keeps >20 samples and accepts the original 70px boundary without exceptions (0.079041ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 3
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33.4665
+
+✖ failing tests:
+
+test at tests/ux/_conversationFollow.node-test.mjs:21:1
+✖ rejects two consecutive gaps even when both frames have a height burst (0.32625ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file://<worktree>/tests/ux/_conversationFollow.node-test.mjs:25:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/_conversationFollow.node-test.mjs:29:1
+✖ rejects an unrecovered final burst: removing next-frame recovery must turn this test red (0.072625ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file://<worktree>/tests/ux/_conversationFollow.node-test.mjs:30:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

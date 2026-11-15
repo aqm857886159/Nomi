@@ -107,9 +107,9 @@
       "candidates": [
         "077-p-外形和logo同一块底色"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "新品牌组件 NomiAgentFace（src/design/identity.tsx，§3.9 第七个品牌组件），AgentBallFace（src/ui/app-shell/shell/AgentBallFace.tsx）用它替换现在的 NomiLogoMark"
+      "status": "implemented",
+      "component": "新品牌组件 NomiAgentFace（src/design/identity.tsx，§3.9 第七个品牌组件），AgentBallFace（src/ui/app-shell/shell/AgentBallFace.tsx）用它替换现在的 NomiLogoMark",
+      "assertion": "board:AgentPersona/persona.body"
     },
     {
       "id": "persona.size",
@@ -122,9 +122,9 @@
       "candidates": [
         "006-span-实际尺寸44px浅色画布"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "agentFormStore.ts 的 BALL_SIZE 与 ShellAgentHost 的 PILL_WIDTH，原值不动"
+      "status": "implemented",
+      "component": "agentFormStore.ts 的 BALL_SIZE 与 ShellAgentHost 的 PILL_WIDTH，原值不动",
+      "assertion": "board:AgentPersona/persona.size"
     },
     {
       "id": "persona.eyes",
@@ -140,9 +140,9 @@
         "050-span-鼠标在左上方时眼睛往左上",
         "078-p-眼睛宽为边长的15高30"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "NomiAgentFace 内部；跟鼠标的监听挂在 AgentBallFace，只在 160px 半径内生效"
+      "status": "implemented",
+      "component": "NomiAgentFace 内部；跟鼠标的监听挂在 AgentBallFace，只在 160px 半径内生效",
+      "assertion": "board:AgentPersona/persona.eyes"
     },
     {
       "id": "state.idle",
@@ -157,9 +157,9 @@
         "011-b-空闲",
         "012-span-不动约20秒眨一下眼就是"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "AgentBallFace，status = idle（V4DockStatus）"
+      "status": "implemented",
+      "component": "AgentBallFace，status = idle（V4DockStatus）",
+      "assertion": "board:AgentPersona/state.idle"
     },
     {
       "id": "state.running",
@@ -174,9 +174,9 @@
         "014-b-在跑",
         "015-span-变圆蓝弧绕着转眼睛低头扫"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "AgentBallFace running 分支（保留 data-agent-ball-progress）"
+      "status": "implemented",
+      "component": "AgentBallFace running 分支（保留 data-agent-ball-progress）",
+      "assertion": "board:AgentPersona/state.running"
     },
     {
       "id": "state.needs-confirm",
@@ -196,9 +196,9 @@
         "021-span-等你确认2",
         "022-span-等你确认2"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "AgentBallFace pill 分支（agentBallIsPill；ShellAgentHost 的 PILL_WIDTH 与右缘锚点照旧），文案沿用 appShell.agent.ballPending"
+      "status": "implemented",
+      "component": "AgentBallFace pill 分支（agentBallIsPill；ShellAgentHost 的 PILL_WIDTH 与右缘锚点照旧），文案沿用 appShell.agent.ballPending",
+      "assertion": "board:AgentPersona/state.needs-confirm"
     },
     {
       "id": "state.done",
@@ -212,9 +212,9 @@
         "024-b-刚做完",
         "025-span-轻跳一下眯眼笑停24秒"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "AgentBallFace，status = done"
+      "status": "implemented",
+      "component": "AgentBallFace，status = done",
+      "assertion": "board:AgentPersona/state.done"
     },
     {
       "id": "state.failed",
@@ -229,9 +229,9 @@
         "027-b-出错",
         "028-span-歪倒眼神塌下右上一颗红点"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "AgentBallFace failed 分支（danger 点与 aria-label 照旧）"
+      "status": "implemented",
+      "component": "AgentBallFace failed 分支（danger 点与 aria-label 照旧）",
+      "assertion": "board:AgentPersona/state.failed"
     },
     {
       "id": "variant.unread",
@@ -245,9 +245,9 @@
         "031-b-有新消息",
         "032-span-空闲的变体加一颗蓝点眼睛"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "AgentBallFace 未读分支：DotMark + ShellAgentHost 里 useResidentActivityStore 的 dockUnreadCount（扣掉等你确认的条数，现有算法不变）"
+      "status": "implemented",
+      "component": "AgentBallFace 未读分支：DotMark + ShellAgentHost 里 useResidentActivityStore 的 dockUnreadCount（扣掉等你确认的条数，现有算法不变）",
+      "assertion": "board:AgentPersona/variant.unread"
     },
     {
       "id": "variant.long-task",
@@ -273,7 +273,8 @@
       ],
       "status": "missing",
       "owner": "I-agent-closeout-a",
-      "component": "AgentBallFace 新分支；数据要 Run 状态接进小球（收尾 A），现在 running 只看回合（useAgentPanelV4Data）"
+      "component": "AgentBallFace 新分支；数据要 Run 状态接进小球（收尾 A），现在 running 只看回合（useAgentPanelV4Data）",
+      "note": "本轮不做（协调 2026-11-07 取舍第 2 条）：小球现在只知道「有回合在跑」，拿不到「第几镜 / 共几镜」，硬画进度条就是造假进度；等 Run 状态接进小球（收尾 A）再做。"
     },
     {
       "id": "variant.setup",
@@ -295,8 +296,9 @@
         "046-span-先连一个模型"
       ],
       "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "AgentBallFace pill 分支的新文案（zh / en 进 i18n）；状态来源是 NomiStudioApp 已有的 useHasTextModel().hasTextModel === false（与「还没连文本模型」恢复卡同一个判定，不另写一份）；点开面板后由现有恢复卡给下一步"
+      "owner": "D2-1",
+      "component": "AgentBallFace pill 分支的新文案（zh / en 进 i18n）；状态来源是 NomiStudioApp 已有的 useHasTextModel().hasTextModel === false（与「还没连文本模型」恢复卡同一个判定，不另写一份）；点开面板后由现有恢复卡给下一步",
+      "note": "随 D2-1 接入引导实现（协调 2026-11-07 取舍第 1 条）：「先连模型」从哪一刻起出现、点开后去哪，跟接入引导一起定；本轮小球不出这句。"
     },
     {
       "id": "persona.tooltip",
@@ -331,9 +333,9 @@
         "075-div",
         "076-span-生成视频第58镜"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "ShellAgentHost 组 title（appShell.agent.ballOpen / ballPending / ballUnread 与 dockStatusLabel），不照抄小样字面"
+      "status": "implemented",
+      "component": "ShellAgentHost 组 title（appShell.agent.ballOpen / ballPending / ballUnread 与 dockStatusLabel），不照抄小样字面",
+      "assertion": "board:AgentPersona/persona.tooltip"
     },
     {
       "id": "motion.morph-token",
@@ -347,9 +349,9 @@
       "candidates": [
         "079-p-形变任意两个状态之间连续"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "tailwind.config.ts 新增 --nomi-duration-morph / --nomi-ease-morph 与对应类名，docs/design/nomi-design-system.md §2.7 同步"
+      "status": "implemented",
+      "component": "tailwind.config.ts 新增 --nomi-duration-morph / --nomi-ease-morph 与对应类名，docs/design/nomi-design-system.md §2.7 同步",
+      "assertion": "board:AgentPersona/motion.morph-token"
     },
     {
       "id": "persona.on-dark",
@@ -363,9 +365,9 @@
         "008-span-暗色模式",
         "080-p-暗色和深色画面身体加一圈"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "NomiAgentFace 的描边，走 token，不写死 hex"
+      "status": "implemented",
+      "component": "NomiAgentFace 的描边，走 token，不写死 hex",
+      "assertion": "board:AgentPersona/persona.on-dark"
     },
     {
       "id": "ball.behaviors",
@@ -378,9 +380,9 @@
       "candidates": [
         "081-p-只换脸不换行为点一下打开"
       ],
-      "status": "missing",
-      "owner": "I-agent-persona",
-      "component": "ShellAgentHost（Rnd 拖动、onContextMenu → WorkbenchMenu、open → setForm + focusComposerSoon）与 AgentBallFace 的 data 属性，原样保留"
+      "status": "implemented",
+      "component": "ShellAgentHost（Rnd 拖动、onContextMenu → WorkbenchMenu、open → setForm + requestResidentComposerFocus，2026-11-13 并 main 后换成主线的聚焦入口）与 AgentBallFace 的 data 属性，原样保留",
+      "assertion": "board:AgentPersona/ball.behaviors"
     }
   ],
   "decor": [

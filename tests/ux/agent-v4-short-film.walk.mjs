@@ -13,6 +13,7 @@
 // 用法：node tests/ux/agent-v4-short-film.walk.mjs
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -199,7 +200,8 @@ try {
 
   // ── 5.5 最小窗 + 收起：藏的是面板，不是「我读到哪儿了」 ────────────────────
   //
-  // 09-01 定稿 §11.2 最小窗态说的是 **1100×720**（`electron/main.ts:299-300` 锁死的那个数）：
+  // 09-01 定稿 §11.2「最小窗态」原指 1100×720。11-07 起最小窗降到 700（WindowNarrow 板），窗宽 < 1060 时停靠临时收成小球，
+  // 所以这里量的是**最窄的仍停靠窗**——1100 仍在停靠档里，上限 min(600, 1100−760) = 340 的推导不变（不是最小窗）：
   // 面板**仍可停靠、不强制收起**，拖宽上限收到 min(600, 1100−760) = 340。所以先把窗口调到那个数，
   // 在真实最小窗里验；顺带这也是唯一能让对话流真的溢出的地方——默认大窗里这几条消息装得下，
   // scrollTop 恒 0，「收起前后相等」会是个恒真式（`race-repro-needs-positive-control`）。
@@ -214,7 +216,10 @@ try {
   await waitForV4TurnIdle(win, { panel: CREATION_PANEL, settledBy: panel.locator(ASSISTANT_MESSAGE).last() })
   await expect(panel.locator(ASSISTANT_MESSAGE).last()).toContainText('街—门—杯—人')
 
-  const roomyBounds = await walk.resizeWindow(1100, 720)
+  // 要的不是最小窗，是「最窄的仍停靠窗」：宽 1100 = 窄窗阈值 1060（主内容底线 760 + 停靠栏下限 300）之上留 40 余量，
+  // 面板上限 min(600, 1100−760) = 340 由它推出；高取最小窗的高（只从 _minWindow.mjs 读，不手写）。
+  const DOCK_TIER_NARROWEST = { width: 1100, height: MIN_WINDOW.height }
+  const roomyBounds = await walk.resizeWindow(DOCK_TIER_NARROWEST.width, DOCK_TIER_NARROWEST.height)
   await expect(panel.locator(V4_PANEL), '最小窗下面板仍可停靠，不强制收起').toBeVisible()
   await expect.poll(async () => Math.round((await panel.locator(V4_PANEL).boundingBox())?.width ?? 0),
     { message: '最小窗下面板宽必须收在上限 340 之内（min(600, 1100−760)）', timeout: 30_000 })

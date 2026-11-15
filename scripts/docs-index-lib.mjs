@@ -13,6 +13,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { trackedFiles } from './lib/gitPaths.mjs'
 
 /** 受索引纪律管辖的文档目录（相对仓库根）。新增一类要纳管就加在这里。 */
 export const INDEXED_DOC_ROOTS = ['docs/plan', 'docs/superpowers/plans', 'docs/lessons']
@@ -90,4 +91,42 @@ export function scanDocumentIndex(repoRoot) {
     indexFiles.flatMap((file) => extractLinkTargets(repoRoot, file)).filter((target) => documentSet.has(target)),
   )
   return { documents, indexFiles, indexed, unindexed: documents.filter((file) => !indexed.has(file)) }
+}
+
+/** 仓库里被 git 跟踪的 markdown（仓库相对路径）。图片链接检查的扫描范围：全仓，不止受索引管辖的目录。 */
+export function listTrackedMarkdown(repoRoot) {
+  return trackedFiles({ cwd: repoRoot }).filter((file) => file.endsWith('.md'))
+}
+
+/**
+ * 死图片链接：`![alt](相对路径)` 指向的文件不存在。
+ * 只查仓内相对路径 / 仓库根绝对路径；http(s)、data:、mailto: 等外链不联网、不查；代码块和注释里的不算。
+ * 证据目录以后会整体搬出仓库，嵌图不能再指向一个已经不在的文件——这条判据让「搬走时漏改的链接」当场红。
+ * 返回 [{ doc, target }]，doc / target 都是仓库相对路径。
+ */
+export function findDeadImageEmbeds(repoRoot, markdownFiles) {
+  const dead = []
+  const pattern = /!\[[^\n]*?\]\(\s*(?:<([^>\n]+)>|([^\s)\n]+))(?:\s+["'][^"'\n]*["'])?\s*\)/g
+  for (const rel of markdownFiles) {
+    const file = path.join(repoRoot, rel)
+    if (!fs.existsSync(file)) continue // 已被删除但还在索引里的文件，由 git 自己的状态决定，不在这里判
+    const source = stripNonProse(fs.readFileSync(file, 'utf8')).replace(/`[^`\n]*`/g, '') // 行内代码里写的 ![](…) 是在讲语法，不是嵌图
+    for (const match of source.matchAll(pattern)) {
+      const raw = (match[1] ?? match[2]).trim()
+      if (!raw || raw.startsWith('#') || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(raw)) continue
+      let decoded
+      try {
+        decoded = decodeURIComponent(raw)
+      } catch {
+        decoded = raw
+      }
+      const withoutSuffix = decoded.split(/[?#]/, 1)[0].replaceAll('\\', '/')
+      if (!withoutSuffix) continue
+      const absolute = withoutSuffix.startsWith('/')
+        ? path.resolve(repoRoot, withoutSuffix.slice(1))
+        : path.resolve(path.dirname(file), withoutSuffix)
+      if (!fs.existsSync(absolute)) dead.push({ doc: rel, target: toRepoRelative(repoRoot, absolute) })
+    }
+  }
+  return dead
 }

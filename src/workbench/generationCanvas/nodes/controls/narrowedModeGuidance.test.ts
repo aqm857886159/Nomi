@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import i18n from '../../../../i18n'
 import {
   candidatesForArchetype,
   hiddenModesForChannel,
@@ -20,7 +21,9 @@ const T2V = mode('t2v', '文生视频', [])
 // first_frame→first_frame_url、last_frame→last_frame_url、image_ref→reference_image_urls。
 // 自造 kind 会让 modeSlotReach 恒判 none，测试就测不到真判据了。
 const FLF = mode('flf', '首尾帧', [{ kind: 'first_frame' }, { kind: 'last_frame' }] as ArchetypeMode['slots'])
-const OMNI = mode('omni', '全能参考', [{ kind: 'image_ref' }] as ArchetypeMode['slots'])
+// 全能参考的说法按词典取（与方式菜单同一条键），不手抄。
+const OMNI_TERM = (i18n.getFixedT('zh-CN') as unknown as (key: string) => string)('generationCommon.modeMenu.name.reference')
+const OMNI = mode('omni', OMNI_TERM, [{ kind: 'image_ref' }] as ArchetypeMode['slots'])
 
 const archetype = { id: 'seedance2', defaultModeId: 't2v', modes: [T2V, FLF, OMNI] } as unknown as ModelArchetype
 
@@ -71,7 +74,7 @@ describe('resolveNarrowedModeGuidance', () => {
     })
     expect(guidance).toEqual({
       kind: 'switch',
-      hiddenModeTerms: ['首尾帧', '全能参考'],
+      hiddenModeTerms: ['首尾帧', OMNI_TERM],
       target: kie,
     })
   })
@@ -83,7 +86,7 @@ describe('resolveNarrowedModeGuidance', () => {
       candidates: [kie],
       bodyForCandidate: () => null,
     })
-    expect(guidance).toEqual({ kind: 'none', hiddenModeTerms: ['首尾帧', '全能参考'] })
+    expect(guidance).toEqual({ kind: 'none', hiddenModeTerms: ['首尾帧', OMNI_TERM] })
   })
 
   it('只做得了一半的家不配当落点 → none（换过去还是缺，等于再骗一次）', () => {
@@ -94,7 +97,7 @@ describe('resolveNarrowedModeGuidance', () => {
       // 首尾帧行、全能参考不行（后者的 body 压根不引用 reference_image_urls）
       bodyForCandidate: (_c, m) => (m.id === 'flf' ? RICH_BODY : null),
     })
-    expect(guidance).toEqual({ kind: 'none', hiddenModeTerms: ['首尾帧', '全能参考'] })
+    expect(guidance).toEqual({ kind: 'none', hiddenModeTerms: ['首尾帧', OMNI_TERM] })
   })
 
   it('查不到（undefined，fail-open）→ 没有被藏的模式 → 完全不提示', () => {

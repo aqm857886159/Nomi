@@ -2,7 +2,6 @@ import {
   type ModelCatalogModelDto,
   type ModelCatalogVendorDto,
 } from '../../api/modelCatalogApi'
-import { modeTransportFor, type ModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import { modelSuccessorDepth } from '../../../../electron/shared/vendorLineage'
 
 function normalizeIdentifier(value: unknown): string {
@@ -25,7 +24,7 @@ export type UsableModelQuery = {
   modelAlias?: string
   /** 节点当前钉的供应商（用于解析源 archetype；可空）。 */
   vendor?: string
-  /** 节点 meta（resolveArchetypeForModel 会读 meta.archetypeId，并据此特化）。 */
+  /** 节点 meta（resolveModelArchetype 会读 meta.archetypeId，并据此特化）。 */
   meta?: unknown
   /** 当前 kind 下、enabled 的全部 catalog 模型。 */
   models: ModelCatalogModelDto[]
@@ -63,33 +62,4 @@ export function resolveUsableModelForNode(query: UsableModelQuery): ModelCatalog
   })
   successors.sort((left, right) => right.depth - left.depth || right.model.updatedAt.localeCompare(left.model.updatedAt))
   return successors[0]?.model || null
-}
-
-/**
- * 跨档案迁移时（family 兜底命中，源/目标 archetypeId 不同）重映射 node.meta.archetype：
- * 按 transportTaskKind 在目标档案里找意图等价的模式（保住 t2v/i2v / 文生·改图），落不到用目标 defaultModeId。
- * 同档案（id 相同）返回 null —— 调用方保持节点原 archetype meta 不动。
- *
- * 源/目标各自的 vendorKey **必须分别传**：传输桶是供应商特化的（modeTransportFor），迁移正是「换供应商」
- * 这件事本身。拿源供应商的桶去查目标档案会把 kie 的 text_to_video 拿去 Runway 侧比对，配错模式。
- */
-export function remapArchetypeMode(
-  sourceArchetype: ModelArchetype | null,
-  sourceModeId: string | undefined,
-  targetArchetype: ModelArchetype,
-  sourceVendorKey: string | null | undefined,
-  targetVendorKey: string | null | undefined,
-): { id: string; modeId: string } | null {
-  if (sourceArchetype && sourceArchetype.id === targetArchetype.id) return null
-
-  const sourceMode = sourceArchetype?.modes.find((mode) => mode.id === sourceModeId)
-  const sourceTransport = sourceMode ? modeTransportFor(sourceMode, sourceArchetype, sourceVendorKey) : undefined
-
-  const matched = sourceTransport
-    ? targetArchetype.modes.find((mode) => modeTransportFor(mode, targetArchetype, targetVendorKey) === sourceTransport)
-    : undefined
-  const target = matched
-    || targetArchetype.modes.find((mode) => mode.id === targetArchetype.defaultModeId)
-    || targetArchetype.modes[0]
-  return target ? { id: targetArchetype.id, modeId: target.id } : null
 }

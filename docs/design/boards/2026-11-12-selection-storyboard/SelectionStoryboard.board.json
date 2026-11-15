@@ -1,0 +1,300 @@
+{
+  "board": "SelectionStoryboard",
+  "approvedOn": "2026-11-12",
+  "stage": "built",
+  "visualReview": "用户 2026-11-12 在 Claude Design 画布「选中文字浮条：拆成镜头图标」上对比现状、方案 A（只换图标）、方案 B（换图标并挪到「AI 编辑」右边）后说「图标样张选 B」。协调逐张对过设计系统再交用户。",
+  "sourceBoundary": "source/SelectionStoryboard.dc.html 是画布上 OptionB.dc.html 的原样副本，source/SelectionStoryboard-en.dc.html 是 OptionB-en.dc.html，source/canvas.json 是画布描述；Claude Design 的运行时文件不入库。preview/SelectionStoryboard.html 是把这两张去掉运行时外壳后上下拼成的静态页，只用来抽候选。现状和方案 A 两张没被选，不入库。",
+  "designIntent": "「拆成镜头」看起来就是拆分镜，也不再和「生成图片 / 生成视频」挤在一组；点了之后对话里写的是技能的名字，不是一串 key。",
+  "priorArt": [
+    {
+      "url": "https://www.nngroup.com/articles/icon-usability/",
+      "takeaway": "大多数图标对用户是有歧义的，要靠文字标签消除；不要只靠悬停才露出名字。",
+      "decisionImpact": "确认了要换掉被读成「视频」的胶片图标，选语义表里已登记为「拆解」的分镜图标；没照学「常显文字」：浮条按密度优先、样张保持悬停名字，用户拍板尺寸与名字不变。"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/apps/design/controls/command-bar",
+      "takeaway": "命令要按逻辑分组，组之间用分隔符；同一个命令放在稳定的位置。",
+      "decisionImpact": "确认了按「做什么」分组：建节点的两颗一组，交给 AI 处理文字的放「AI 编辑」那组；组间沿用已有分隔线，不新造。"
+    },
+    {
+      "url": "https://www.notion.com/help/guides/notion-ai-for-docs",
+      "takeaway": "Notion 选中文字后，AI 处理文字（Edit with AI）是独立于格式化的一类入口。",
+      "decisionImpact": "确认了「拆成镜头」这种把选中文字交给 AI 的动作，挨着「AI 编辑」放比挨着「生成节点」放更好认；但两颗去处不同（AI 编辑原地改写、拆成镜头进对话），不合成一颗。"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "text": "选方案 B：图标换成 IconLayoutRows，挪到「AI 编辑」右边，中间不加分隔线；「生成」组只剩图片、视频。",
+      "source": "用户 2026-11-12「图标样张选 B」"
+    },
+    {
+      "id": "D2",
+      "text": "挪位理由只写一条：它不是「生成一个节点」。不写成「两颗都交给 Nomi」——「AI 编辑」是原地改写、不进对话。",
+      "source": "协调会话 2026-11-12 任务书，按用户选 B 的样张说明"
+    },
+    {
+      "id": "D3",
+      "text": "悬停样式、尺寸、间距、名字「拆成镜头 / Split into shots」都不变。",
+      "source": "用户 2026-11-12 选 B 的样张：只改图标和位置"
+    }
+  ],
+  "elements": [
+    {
+      "id": "bar.shell",
+      "label": "选中文字后的浮条外壳和左边原有的格式钮（加粗、斜体、标题 1、标题 2）与「AI 编辑」：长相、尺寸、间距、悬停样式都不变。",
+      "change": "keep",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover"
+      ],
+      "candidates": [
+        "003-div-选中文本工具",
+        "004-button-加粗",
+        "005-svg",
+        "006-button-斜体",
+        "007-svg",
+        "008-button-标题1",
+        "009-svg",
+        "010-button-标题2",
+        "011-svg",
+        "012-button-AI编辑",
+        "013-span-N",
+        "022-svg",
+        "023-svg",
+        "024-svg",
+        "025-svg",
+        "026-span-AI编辑",
+        "027-span-N",
+        "033-svg",
+        "034-svg",
+        "035-svg",
+        "036-svg",
+        "037-span-AI编辑",
+        "038-span-N",
+        "042-svg",
+        "043-svg",
+        "044-svg",
+        "045-svg",
+        "056-div-Selectedtext",
+        "057-button-Bold",
+        "058-svg",
+        "059-button-Italic",
+        "060-svg",
+        "061-button-Heading1",
+        "062-svg",
+        "063-button-Heading2",
+        "064-svg",
+        "065-button-AIedit",
+        "066-span-N",
+        "075-svg",
+        "076-svg",
+        "077-svg",
+        "078-svg",
+        "079-span-AIedit",
+        "080-span-N"
+      ],
+      "status": "implemented",
+      "assertion": "board:SelectionStoryboard/bar.shell"
+    },
+    {
+      "id": "bar.storyboard-beside-ai-edit",
+      "label": "「拆成镜头」/ \"Split into shots\" 挪到「AI 编辑」右边，和它同一组、中间不加分隔线。理由只有一条：它不是「生成一个节点」，不和图片、视频排在一起。",
+      "change": "restyle",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover"
+      ],
+      "candidates": [
+        "014-button-拆成镜头",
+        "067-button-Splitintosho"
+      ],
+      "status": "implemented",
+      "assertion": "board:SelectionStoryboard/bar.storyboard-beside-ai-edit",
+      "note": "替掉原来排在「生成」组第三颗的位置（10-19 CreationAiRewrite 板 popover.storyboard）。"
+    },
+    {
+      "id": "bar.storyboard-icon",
+      "label": "「拆成镜头」的图标换成分镜 IconLayoutRows（设计系统语义图标表「拆解」），不再用胶片 IconMovie。",
+      "change": "restyle",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "015-svg",
+        "028-svg",
+        "068-svg",
+        "081-svg"
+      ],
+      "status": "implemented",
+      "assertion": "board:SelectionStoryboard/bar.storyboard-icon"
+    },
+    {
+      "id": "bar.storyboard-name",
+      "label": "悬停名字照旧：「拆成镜头」/ \"Split into shots\"，同一个词条，样式不变。",
+      "change": "keep",
+      "states": [
+        "zh-en",
+        "hover"
+      ],
+      "candidates": [
+        "029-span-拆成镜头",
+        "082-span-Splitintosho"
+      ],
+      "status": "implemented",
+      "assertion": "board:SelectionStoryboard/bar.storyboard-name"
+    },
+    {
+      "id": "bar.generate-pair",
+      "label": "「生成」组只剩「生成图片」「生成视频」两颗，各自建对应的画布节点、不发文字。",
+      "change": "restyle",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover"
+      ],
+      "candidates": [
+        "016-span-生成",
+        "017-button-生成图片",
+        "018-svg",
+        "019-button-生成视频",
+        "020-svg",
+        "030-svg",
+        "031-svg",
+        "040-svg",
+        "041-svg",
+        "047-svg",
+        "048-svg",
+        "069-span-Generate",
+        "070-button-Generateimag",
+        "071-svg",
+        "072-button-Generatevide",
+        "073-svg",
+        "083-svg",
+        "084-svg"
+      ],
+      "status": "implemented",
+      "assertion": "board:SelectionStoryboard/bar.generate-pair"
+    },
+    {
+      "id": "bar.storyboard-unavailable",
+      "label": "没有分镜启动器（不在创作面）时「拆成镜头」置灰，位置不变，悬停名字照常。",
+      "change": "keep",
+      "states": [
+        "disabled",
+        "zh-en"
+      ],
+      "candidates": [
+        "039-svg"
+      ],
+      "status": "implemented",
+      "assertion": "board:SelectionStoryboard/bar.storyboard-unavailable"
+    },
+    {
+      "id": "bar.no-ai-edit",
+      "label": "没有「AI 编辑」时它和它的分隔线不出现，「拆成镜头」单独夹在两条分隔线之间。",
+      "change": "new",
+      "states": [
+        "zh-en"
+      ],
+      "candidates": [
+        "046-svg"
+      ],
+      "status": "implemented",
+      "assertion": "board:SelectionStoryboard/bar.no-ai-edit"
+    },
+    {
+      "id": "chat.skill-chip",
+      "label": "点了之后右侧对话里的用户气泡：技能小签印技能库里的名字「分镜规划」/ \"Storyboard planning\"，不印原始 key。",
+      "change": "restyle",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "050-span-分镜规划",
+        "051-svg",
+        "052-span-雨夜的街头女孩撑着红伞穿",
+        "086-span-Storyboardpl",
+        "087-svg",
+        "088-span-Agirlwithare"
+      ],
+      "status": "implemented",
+      "assertion": "board:SelectionStoryboard/chat.skill-chip",
+      "note": "修 bug：渲染层按 name 精确比，认不得点号 key，小签印出 key。和主进程走同一份查找。"
+    },
+    {
+      "id": "chat.skill-loaded",
+      "label": "回复头上「已载入技能：分镜规划」/ \"Skill loaded: Storyboard planning\"，和气泡小签同一份查找。",
+      "change": "restyle",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "053-div-已载入技能分镜规划",
+        "089-div-SkillloadedS"
+      ],
+      "status": "implemented",
+      "assertion": "board:SelectionStoryboard/chat.skill-loaded"
+    }
+  ],
+  "decor": [
+    "001-div-实际大小",
+    "002-span-雨夜的街头女孩撑着红伞穿",
+    "021-div-放大2鼠标停在拆成镜头上",
+    "032-div-其它状态实际大小左拆成镜",
+    "049-div-点了之后右侧对话里",
+    "054-div-Actualsize",
+    "055-span-Agirlwithare",
+    "074-div-2zoompointer",
+    "085-div-Aftertheclic"
+  ],
+  "functionCensus": [
+    {
+      "censusId": "SS-01",
+      "function": "把选中文字交给 Agent 拆成镜头",
+      "before": "「生成」组第三颗，胶片图标",
+      "after": "bar.storyboard-beside-ai-edit",
+      "afterNote": "同一个分镜启动器，去处不变"
+    },
+    {
+      "censusId": "SS-02",
+      "function": "选中文字建图片节点",
+      "before": "「生成」组第一颗",
+      "after": "bar.generate-pair",
+      "afterNote": "不变"
+    },
+    {
+      "censusId": "SS-03",
+      "function": "选中文字建视频节点",
+      "before": "「生成」组第二颗",
+      "after": "bar.generate-pair",
+      "afterNote": "不变"
+    },
+    {
+      "censusId": "SS-04",
+      "function": "不在创作面时拆成镜头不可用",
+      "before": "第三颗置灰",
+      "after": "bar.storyboard-unavailable",
+      "afterNote": "新位置上置灰"
+    },
+    {
+      "censusId": "SS-05",
+      "function": "AI 编辑原地改写",
+      "before": "「AI 编辑」钮",
+      "after": "bar.shell",
+      "afterNote": "不变"
+    },
+    {
+      "censusId": "SS-06",
+      "function": "对话里看出这条用了哪个技能",
+      "before": "气泡小签与「已载入技能」印 key",
+      "after": "chat.skill-chip",
+      "afterNote": "印技能库名字"
+    }
+  ]
+}

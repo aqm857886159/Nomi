@@ -6,8 +6,8 @@
 //   ② **上传初始化端点**带着 key 去了别家（`assetIngestion.endpoint` 是第二个带 key 的出口）；
 //   ③ **旧数据 / 手改的 catalog 文件**——vendor 行上的地址被换掉，而密钥原样留着。
 // 每条都配阳性对照：没有对照的绿灯说不清是「判对了」还是「一律拦 / 一律放行」。
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { authorizeSubmitDestination, setSubmitOutboundDepsForTests } from "./vendorOutboundGuard";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { authorizeSubmitDestination } from "./vendorOutboundGuard";
 import {
   ENFORCED_BINDING_FIELDS,
   deriveCredentialBinding,
@@ -18,17 +18,6 @@ import { codeDeclaredFallbackOrigins } from "./vendorBaseFallback";
 import { matchNomiErrorCode } from "../shared/nomiErrorCodes";
 import { VendorRequestError, requestJson } from "./vendorHttp";
 import type { Vendor } from "../catalog/types";
-import type { OutboundEnvironment } from "../networkOutboundPolicy";
-
-const NO_LOCAL_PROXY: OutboundEnvironment = { syntheticResolver: false, syntheticSample: "" };
-
-function seedPublicInternet(): void {
-  setSubmitOutboundDepsForTests({
-    resolve: async () => [{ address: "104.18.32.7", family: 4 as const }],
-    readEnvironment: async () => NO_LOCAL_PROXY,
-    isApplicationProxyActive: () => false,
-  });
-}
 
 /** 一条「用户在贴 key 页上确认过 https://api.relay.example 」的连接。 */
 function boundVendor(overrides: Record<string, unknown> = {}) {
@@ -46,17 +35,10 @@ function boundVendor(overrides: Record<string, unknown> = {}) {
 }
 
 describe("凭据绑定：key 只去用户确认过的 origin", () => {
-  // 每条用例都要钉死网络事实（绝不碰真 DNS，见 seedPublicInternet 的理由），所以钉在这里一次。
-  beforeEach(() => {
-    setSubmitOutboundDepsForTests(null);
-    seedPublicInternet();
-  });
-
   it("① 说明卡里一条绝对 URL 指向别家 → 带 key 的请求被拦，且挂的是凭据绑定那条码", async () => {
     const refusal = await authorizeSubmitDestination({
       vendor: boundVendor(),
       url: "https://collector.attacker.example/v1/images/generations",
-      routedThroughProviderProxy: false,
       carriesCredential: true,
     });
     expect(refusal).toBeTruthy();
@@ -71,7 +53,6 @@ describe("凭据绑定：key 只去用户确认过的 origin", () => {
     const refusal = await authorizeSubmitDestination({
       vendor: boundVendor(),
       url: "https://uploads.other.example/v1/uploads",
-      routedThroughProviderProxy: false,
       carriesCredential: true,
     });
     expect(matchNomiErrorCode(refusal as string)).toBe("outbound-blocked-credential-origin");
@@ -83,7 +64,6 @@ describe("凭据绑定：key 只去用户确认过的 origin", () => {
     const refusal = await authorizeSubmitDestination({
       vendor: tampered,
       url: "https://api.elsewhere.example/v1/chat/completions",
-      routedThroughProviderProxy: false,
       carriesCredential: true,
     });
     expect(matchNomiErrorCode(refusal as string)).toBe("outbound-blocked-credential-origin");
@@ -93,7 +73,6 @@ describe("凭据绑定：key 只去用户确认过的 origin", () => {
     await expect(authorizeSubmitDestination({
       vendor: boundVendor(),
       url: "https://api.relay.example/v1/images/generations",
-      routedThroughProviderProxy: false,
       carriesCredential: true,
     })).resolves.toBeNull();
   });
@@ -102,7 +81,6 @@ describe("凭据绑定：key 只去用户确认过的 origin", () => {
     await expect(authorizeSubmitDestination({
       vendor: boundVendor(),
       url: "https://s3.amazonaws.example/bucket/abc?signature=1",
-      routedThroughProviderProxy: false,
       carriesCredential: false,
     })).resolves.toBeNull();
   });
@@ -121,7 +99,6 @@ describe("凭据绑定：key 只去用户确认过的 origin", () => {
     await expect(authorizeSubmitDestination({
       vendor: { ...apimart, credentialBinding: deriveCredentialBinding(apimart, "t") },
       url: "https://api.apib.ai/v1/tasks",
-      routedThroughProviderProxy: false,
       carriesCredential: true,
     })).resolves.toBeNull();
   });
@@ -130,7 +107,6 @@ describe("凭据绑定：key 只去用户确认过的 origin", () => {
     await expect(authorizeSubmitDestination({
       vendor: { key: "legacy", baseUrlHint: "https://api.legacy.example", credentialBinding: undefined },
       url: "https://api.legacy.example/v1/tasks",
-      routedThroughProviderProxy: false,
       carriesCredential: true,
     })).resolves.toBeNull();
   });
@@ -143,7 +119,6 @@ describe("凭据绑定：key 只去用户确认过的 origin", () => {
     const refusal = await authorizeSubmitDestination({
       vendor: rebranded,
       url: "https://api.relay.example/v1/images/generations",
-      routedThroughProviderProxy: false,
       carriesCredential: true,
     });
     expect(matchNomiErrorCode(refusal as string)).toBe("outbound-blocked-credential-origin");
@@ -156,7 +131,6 @@ describe("凭据绑定：key 只去用户确认过的 origin", () => {
     await expect(authorizeSubmitDestination({
       vendor: proxied,
       url: "https://api.relay.example/v1/images/generations",
-      routedThroughProviderProxy: true,
       carriesCredential: true,
     })).resolves.toBeNull();
   });
@@ -183,15 +157,7 @@ describe("凭据绑定：key 只去用户确认过的 origin", () => {
 // 这句话是靠**位置**成立的，不是靠文案（与 vendorBaseFallback 文件头第 3 条同一个道理：
 // 连接未建立 ⇒ 不可能已计费）。fetch 被换成一个「被调用就算失败」的桩。
 describe("端到端：带 key 的请求被拦时，fetch 从未被调用", () => {
-  beforeEach(() => {
-    setSubmitOutboundDepsForTests({
-      resolve: async () => [{ address: "93.184.216.34", family: 4 as const }],
-      readEnvironment: async () => NO_LOCAL_PROXY,
-      isApplicationProxyActive: () => false,
-    });
-  });
   afterEach(() => {
-    setSubmitOutboundDepsForTests(null);
     vi.unstubAllGlobals();
   });
 

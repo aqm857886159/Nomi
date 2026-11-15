@@ -1,84 +1,106 @@
-// 常驻交互式 UI 驱动（开一次、不关、边看边点）。
+// 常驻交互驱动（开一次、不关、边看边点）——各线验证界面的默认工具，技能见 .agents/skills/verify-nomi/SKILL.md。
 //
-// 解决两个老毛病：① 每个一次性脚本都 launch→点→close，app 闪开闪关；
-// ② 选择器全靠提前盲猜。改成：app 启动一次保持开着，AI 用 `snap` 看真实可点元素、
-// `shot` 截图判断、`click`/`fill` 操作、再 `shot` 看结果——感知→决策→行动→再感知。
+// 不直接跑它：用 `node tests/ux/ui.mjs up [参数]` 起（它在后台起本文件、等到可驱动才返回），`node tests/ux/ui.mjs down` 关。
+// 默认隔离 + 安静：临时资料、临时能力目录、屏外不抢焦点；要真实资料必须 `--real-profile` + NOMI_WALK_FOREGROUND_OK=1。
+// 参数见 uiDriverOptions.mjs；命令见 ui.mjs。证据（截图、命令流水 commands.jsonl、错误日志）落仓库外的证据目录。
 //
-// 用法：
-//   后台启动：  node tests/ux/ui-driver.mjs   （用 Bash run_in_background:true）
-//     默认用真实资料（isolate:false）：装不了安静仪表、窗口会到前台，要带 NOMI_WALK_FOREGROUND_OK=1 才起，否则按 125 跳过；
-//     设 NOMI_UI_USER_DATA=<目录> 则隔离起、默认安静（屏外、不抢焦点）。
-//   发命令：    node tests/ux/ui.mjs <action> ...   （见 ui.mjs）
-//   关闭：      node tests/ux/ui.mjs quit
-//
-// Electron 专用（Nomi 要主进程+IPC 桥，普通浏览器预览工具附不上去）。
-import { exitIfWalkSkipped, launchNomiApp } from "./_launchApp.mjs";
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { UI_DIR } from "./uiDir.mjs";
+// Electron 专用（Nomi 要主进程 + IPC 桥，普通浏览器预览工具附不上去）。
+import { exitIfWalkSkipped, launchNomiApp } from './_launchApp.mjs'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { verifyBuild } from '../../scripts/package-build-stamp.mjs'
+import { stationTimeout } from './_station-budget.mjs'
+import { UI_DIR } from './uiDir.mjs'
+import {
+  acquireInstanceLock, buildLaunchOptions, parseDriverArgs, profileBanner, seedDataFixture, shotFileName,
+} from './uiDriverOptions.mjs'
+import { FEATURES, describeWhere } from './verifyFeatures.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-// 按 worktree 派生的唯一 IPC 目录（不再写死 /tmp/nomi-ui，根治多会话串台，见 uiDir.mjs）。
-const DIR = UI_DIR;
-const SHOTS = path.join(repoRoot, "tests/ux/shots");
-fs.mkdirSync(DIR, { recursive: true });
-fs.mkdirSync(SHOTS, { recursive: true });
-for (const f of fs.readdirSync(DIR)) fs.rmSync(path.join(DIR, f), { force: true });
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const DIR = UI_DIR
 
-// 多会话隔离（另一半根治）：单实例锁是 per-userData（main.ts:63）。默认用系统 userData
-// （单会话便利:能开已有/示例项目）；设 NOMI_UI_USER_DATA（兼容 main 早先的 NOMI_UI_USERDATA）
-// 则用隔离 userData 起一份全新实例——多会话同时跑时必须用它，否则抢默认 userData 的锁会起不来。
-const isolateUserData = process.env.NOMI_UI_USER_DATA || process.env.NOMI_UI_USERDATA;
-// 未设隔离路径时走 isolate:false = 系统默认 userData（保住上面那条「能开已有/示例项目」的设计，
-// 且不把 macOS 路径写死——各平台交给 Electron 自己解析）。
-const uiExecutable = process.env.NOMI_UI_EXECUTABLE; // 可选：用打包版二进制走查（验证物=用户所见物）
-const extraLaunch = uiExecutable ? { executablePath: uiExecutable } : {};
-const { app, win: _win } = isolateUserData
-  ? await launchNomiApp({ name: "ui-driver", userDataDir: isolateUserData, settleMs: 0, ...extraLaunch })
-  : await launchNomiApp({
-    name: "ui-driver",
-    isolate: false,
-    settleMs: 0,
-    foreground: "交互式驱动开着真实资料给人边看边点（能开已有 / 示例项目）",
-    ...extraLaunch,
-  }).catch(exitIfWalkSkipped);
-const ERRLOG = path.join(DIR, "errors.log");
-const logErr = (kind, msg) => { try { fs.appendFileSync(ERRLOG, `[${kind}] ${msg}\n`); } catch { /* ignore */ } };
-// 多窗口（v0.10.13+）：打开项目会新开一个 studio 窗口、关掉起始窗口。固定 firstWindow 引用会失效。
-// 改成始终追最新一个「活着」的窗口：新窗口出现即接管，命令前用 getWin() 取活窗口。
-let win = _win;
-function wireWin(w) {
-  w.on("pageerror", (e) => logErr("pageerror", (e && e.stack) || String(e)));
-  w.on("console", (m) => { if (m.type() === "error") logErr("console.error", m.text()); });
-  w.on("crash", () => logErr("crash", "renderer crashed"));
-  w.on("close", () => logErr("close", "page closed"));
+let options
+try {
+  options = parseDriverArgs(process.argv.slice(2))
+} catch (error) {
+  console.error(error.message)
+  process.exit(2)
 }
-wireWin(win);
-// 不再每次新窗口都 latch（会粘上检查更新等瞬时弹窗）；只 wire 日志，由 getWin 选活窗口。
-app.on("window", (w) => { wireWin(w); logErr("window", "new window seen"); });
-// 命令执行前确保 win 指向一个未关闭的窗口；当前的关了就回退到「最像主界面」的活窗口
-// （优先 hash 含 studio/library 的，再退最后一个），避免粘在已关闭页上。
+let lock
+try {
+  lock = acquireInstanceLock(DIR)
+} catch (error) {
+  console.error(error.message)
+  process.exit(error.code === 'INSTANCE_RUNNING' ? 3 : 1)
+}
+for (const name of ['req.json', 'res.json', 'ready', 'state.json']) fs.rmSync(path.join(DIR, name), { force: true })
+const releaseLock = () => {
+  for (const name of ['ready', 'state.json']) fs.rmSync(path.join(DIR, name), { force: true })
+  try {
+    if (Number(fs.readFileSync(lock, 'utf8')) === process.pid) fs.rmSync(lock, { force: true })
+  } catch { /* already gone */ }
+}
+process.once('exit', releaseLock)
+
+console.log(profileBanner(options))
+const OUT = options.out
+fs.mkdirSync(OUT, { recursive: true })
+const ERRLOG = path.join(OUT, 'errors.log')
+const JOURNAL = path.join(OUT, 'commands.jsonl')
+const logErr = (kind, msg) => { try { fs.appendFileSync(ERRLOG, `[${new Date().toISOString()}] [${kind}] ${msg}\n`) } catch { /* ignore */ } }
+
+const startedAt = Date.now()
+const tempRoot = options.isolated ? makeTempDir('ui-driver-') : null
+const settingsDir = options.isolated ? seedDataFixture(options.data, tempRoot) : null
+const launched = await launchNomiApp(buildLaunchOptions(options, { tempRoot, settingsDir })).catch(exitIfWalkSkipped)
+const { app } = launched
+const appPid = app.process()?.pid ?? null
+
+// 多窗口：打开项目会新开一个 studio 窗口、关掉起始窗口。命令前用 getWin() 取活窗口；新窗口一律套上点名的内容尺寸。
+async function applySize(page) {
+  if (!options.isolated) return
+  try {
+    const browserWindow = await app.browserWindow(page)
+    await browserWindow.evaluate((window, size) => window.setContentSize(size.width, size.height), options.size)
+    await page.setViewportSize(options.size)
+  } catch (error) {
+    logErr('resize', String(error?.message || error))
+  }
+}
+function wireWin(w) {
+  w.on('pageerror', (e) => logErr('pageerror', (e && e.stack) || String(e)))
+  w.on('console', (m) => { if (m.type() === 'error') logErr('console.error', m.text()) })
+  w.on('crash', () => logErr('crash', 'renderer crashed'))
+  w.on('close', () => logErr('close', 'page closed'))
+}
+wireWin(launched.win)
+app.on('window', (w) => { wireWin(w); logErr('window', 'new window seen'); void applySize(w) })
+let win = launched.win
 function pickLiveWin() {
-  const live = app.windows().filter((w) => !w.isClosed());
-  if (live.length === 0) return win;
-  // 多窗口时优先「打开了项目的 studio 窗口」（hash 含 projectId）——避免粘在项目库/起始窗口，
-  // 根治 eval/shot 落在不同窗口的串台（截图/驱动各打各的）。
-  const proj = live.find((w) => { try { return /projectId=/.test(w.url()); } catch { return false; } });
-  if (proj) return proj;
-  const main = live.find((w) => { try { return /studio|library|#\//.test(w.url()); } catch { return false; } });
-  return main || live[live.length - 1];
+  const live = app.windows().filter((w) => !w.isClosed())
+  if (live.length === 0) return win
+  // 多窗口时优先「打开了项目的 studio 窗口」（hash 含 projectId），避免粘在项目库 / 起始窗口上。
+  const proj = live.find((w) => { try { return /projectId=/.test(w.url()) } catch { return false } })
+  if (proj) return proj
+  const main = live.find((w) => { try { return /studio|library|#\//.test(w.url()) } catch { return false } })
+  return main || live[live.length - 1]
 }
 function getWin() {
-  // 每次都按活窗口重选（不再缓存可能已关闭/非目标的 win），消除关窗竞态。
-  win = pickLiveWin();
-  return win;
+  win = pickLiveWin()
+  return win
 }
-// ── E5 体验探针（页面侧）：延迟 / 帧率 / 认知密度 / 对比度。注入式，不改产品行为。
+
+// 设计实验室不是 Electron 窗口（vite 开发服务器上的独立页）：`goto design-lab` 时由 verifyFeatures 起它，
+// 之后的 shot / snap / click 落在实验室页上，直到 goto 一个应用里的功能再切回来。
+const surface = { lab: null }
+const target = () => (surface.lab?.active ? surface.lab.page : getWin())
+
+// ── E5 体验探针（页面侧）：延迟 / 帧率 / 认知密度 / 对比度。注入式，只读，不改产品行为。
 // 见 docs/plan/2026-06-20-experience-feel-audit.md §3。
 const PROBE_SRC = `(() => {
   if (window.__nomiProbe) return 'exists';
-  // 任意 CSS 颜色（含 oklch/hsl/var）→ 真实 RGBA：靠 canvas 渲染回读，不靠正则猜格式。
   const _cv = document.createElement('canvas'); _cv.width = _cv.height = 1; const _ctx = _cv.getContext('2d', { willReadFrequently: true });
   const toRGBA = (s) => { _ctx.clearRect(0,0,1,1); _ctx.fillStyle = '#000000'; _ctx.fillStyle = String(s||''); _ctx.fillRect(0,0,1,1); const d = _ctx.getImageData(0,0,1,1).data; return [d[0], d[1], d[2], d[3]]; };
   const overWhite = (c) => { const a = c[3]/255; return [Math.round(c[0]*a + 255*(1-a)), Math.round(c[1]*a + 255*(1-a)), Math.round(c[2]*a + 255*(1-a))]; };
@@ -137,109 +159,213 @@ const PROBE_SRC = `(() => {
     },
   };
   return 'installed';
-})()`;
-async function ensureProbe(w) { try { await w.evaluate(PROBE_SRC); } catch { /* ignore */ } }
+})()`
+async function ensureProbe(w) { try { await w.evaluate(PROBE_SRC) } catch { /* ignore */ } }
 
-await win.waitForLoadState("domcontentloaded");
-await win.waitForTimeout(1200);
-fs.writeFileSync(path.join(DIR, "ready"), String(process.pid));
-console.log(`DRIVER READY pid=${process.pid} repoRoot=${repoRoot} IPC=${DIR} — app 已开，保持运行。用 tests/ux/ui.mjs 发命令。`);
+await launched.win.waitForLoadState('domcontentloaded')
+await launched.win.waitForTimeout(800)
+const readySec = Math.round((Date.now() - startedAt) / 100) / 10
+const state = {
+  driverPid: process.pid,
+  appPid,
+  isolated: options.isolated,
+  locale: options.locale,
+  theme: options.theme,
+  size: options.sizeName,
+  data: options.data,
+  out: OUT,
+  tempRoot,
+  executable: options.executablePath ?? 'dev-build',
+  startedAt: new Date(startedAt).toISOString(),
+  readySec,
+}
+fs.writeFileSync(path.join(DIR, 'state.json'), JSON.stringify(state, null, 2))
+fs.writeFileSync(path.join(DIR, 'ready'), String(process.pid))
+console.log(`DRIVER READY in ${readySec}s pid=${process.pid} app=${appPid} out=${OUT} IPC=${DIR}`)
 
 async function shot(name) {
-  const p = path.join(SHOTS, (name || "live") + ".png");
-  await getWin().screenshot({ path: p });
-  return p;
+  const p = path.join(OUT, shotFileName(name, options))
+  await target().screenshot({ path: p })
+  return p
 }
-// 快照：当前所有"可交互元素"的 标签/文字/aria/位置——AI 据此决定点哪，不用盲猜。
+// 快照：当前所有「可交互元素」的 标签 / 文字 / aria / 位置——据此决定点哪，不用盲猜。
 async function snap() {
-  return getWin().evaluate(() => {
-    const out = [];
-    const els = document.querySelectorAll('button,a,[role="button"],[role="tab"],input,select,textarea,[contenteditable="true"]');
+  return target().evaluate(() => {
+    const out = []
+    const els = document.querySelectorAll('button,a,[role="button"],[role="tab"],[role="option"],[role="menuitem"],input,select,textarea,[contenteditable="true"]')
     for (const e of els) {
-      const r = e.getBoundingClientRect();
-      if (r.width < 3 || r.height < 3 || r.bottom < 0 || r.top > innerHeight) continue;
-      const text = (e.textContent || "").replace(/\s+/g, " ").trim().slice(0, 48);
-      const aria = e.getAttribute("aria-label") || "";
-      const ph = e.getAttribute("placeholder") || "";
-      out.push({ tag: e.tagName.toLowerCase(), text, aria, ph, x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) });
+      const r = e.getBoundingClientRect()
+      if (r.width < 3 || r.height < 3 || r.bottom < 0 || r.top > innerHeight) continue
+      const text = (e.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 48)
+      const aria = e.getAttribute('aria-label') || ''
+      const ph = e.getAttribute('placeholder') || ''
+      out.push({ tag: e.tagName.toLowerCase(), text, aria, ph, x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) })
     }
-    return out.slice(0, 140);
-  });
+    return out.slice(0, 140)
+  })
 }
-// 点击：支持 "aria:xxx" / "css:sel" / "text:xxx" / 纯文字（默认按可见文字模糊匹配）/ "xy:120,80"。
-async function click(target) {
-  const w = getWin();
-  if (target.startsWith("xy:")) {
-    const [x, y] = target.slice(3).split(",").map(Number);
-    await w.mouse.click(x, y);
-    return "clicked xy " + x + "," + y;
+// 点击：支持 "aria:xxx" / "css:sel" / "text:xxx" / "role:button=名字" / 纯文字（默认按可见文字模糊匹配）/ "xy:120,80"。
+async function click(spec) {
+  const w = target()
+  if (spec.startsWith('xy:')) {
+    const [x, y] = spec.slice(3).split(',').map(Number)
+    await w.mouse.click(x, y)
+    return 'clicked xy ' + x + ',' + y
   }
-  let loc;
-  if (target.startsWith("css:")) loc = w.locator(target.slice(4));
-  else if (target.startsWith("aria:")) loc = w.locator(`[aria-label="${target.slice(5)}"]`);
-  else loc = w.getByText(target.startsWith("text:") ? target.slice(5) : target, { exact: false });
-  await loc.first().click({ timeout: 5000 });
-  return "clicked: " + target;
+  await locate(w, spec).first().click({ timeout: stationTimeout() })
+  return 'clicked: ' + spec
+}
+function locate(w, spec) {
+  if (spec.startsWith('css:')) return w.locator(spec.slice(4))
+  if (spec.startsWith('aria:')) return w.locator(`[aria-label="${spec.slice(5)}"]`)
+  if (spec.startsWith('role:')) {
+    const [role, name] = spec.slice(5).split('=')
+    return w.getByRole(role, name ? { name, exact: false } : {})
+  }
+  return w.getByText(spec.startsWith('text:') ? spec.slice(5) : spec, { exact: false })
+}
+
+// 自检：只读，回答「这个实例值不值得驱动」。
+async function doctor() {
+  const problems = []
+  let build = 'packaged executable (not checked)'
+  if (!options.executablePath) {
+    try {
+      verifyBuild(repoRoot)
+      build = 'fresh (构建戳 = 当前源码)'
+    } catch (error) {
+      build = 'STALE'
+      problems.push(`构建产物比源码旧：先 pnpm run build 再 down / up（${String(error.message).slice(0, 160)}）`)
+    }
+  }
+  const appAlive = (() => { try { process.kill(appPid, 0); return true } catch { return false } })()
+  if (!appAlive) problems.push(`App 进程 ${appPid} 不在了：down 再 up`)
+  const w = getWin()
+  let page = null
+  try {
+    page = await w.evaluate(() => ({
+      url: location.href.replace(/^file:\/\/.*?#/, '#'),
+      vw: innerWidth,
+      vh: innerHeight,
+      lang: document.documentElement.lang,
+      locale: localStorage.getItem('nomi:locale:v1'),
+      scheme: localStorage.getItem('nomi-color-scheme'),
+      dark: document.documentElement.classList.contains('dark') || document.documentElement.dataset.colorScheme === 'dark',
+    }))
+  } catch (error) {
+    problems.push(`读不到窗口：${String(error.message).slice(0, 120)}`)
+  }
+  const where = page ? await describeWhere(w).catch((error) => `unknown (${error.message})`) : 'unknown'
+  if (page && options.isolated && (page.vw !== options.size.width || page.vh !== options.size.height)) {
+    problems.push(`窗口内容尺寸 ${page.vw}×${page.vh}，不是点名的 ${options.sizeName}`)
+  }
+  if (page && options.isolated && page.locale !== options.locale) problems.push(`语言是 ${page.locale}，不是点名的 ${options.locale}`)
+  const errors = fs.existsSync(ERRLOG) ? fs.readFileSync(ERRLOG, 'utf8').split('\n').filter((line) => /\[(pageerror|crash)\]/.test(line)).length : 0
+  if (errors) problems.push(`渲染层报错 ${errors} 条（见 ${ERRLOG}）`)
+  return {
+    ok: problems.length === 0,
+    ours: { driverPid: process.pid, appPid, appAlive, startedAt: state.startedAt },
+    profile: options.isolated ? `isolated (${tempRoot ?? options.userDataDir})` : 'REAL PROFILE',
+    build,
+    locale: page?.locale ?? null,
+    theme: page ? `${page.scheme ?? 'system'}${page.dark ? ' (dark rendered)' : ''}` : null,
+    size: page ? `${page.vw}x${page.vh}` : null,
+    where,
+    windows: app.windows().filter((x) => !x.isClosed()).length,
+    labOpen: Boolean(surface.lab?.active),
+    out: OUT,
+    problems,
+  }
+}
+
+async function goto(name, args) {
+  const feature = FEATURES[name]
+  if (!feature) return { error: `没有这个功能名「${name}」。可选：${Object.keys(FEATURES).join(' / ')}` }
+  const ctx = { app, win: getWin, options, surface, repoRoot, out: OUT, args, logErr }
+  if (surface.lab && !feature.lab) surface.lab.active = false
+  try {
+    await feature.goto(ctx)
+  } catch (error) {
+    const failedShot = await shot(`goto-${name}-failed`).catch(() => null)
+    return { error: `goto ${name} 没走到：${String(error?.message || error).split('\n')[0]}`, shot: failedShot }
+  }
+  const page = target()
+  await page.waitForTimeout(300)
+  const where = surface.lab?.active ? `design-lab ${surface.lab.url}` : await describeWhere(page).catch(() => 'unknown')
+  return { at: where, shot: await shot(`goto-${name}`) }
 }
 
 async function run(cmd) {
   switch (cmd.action) {
-    case "shot": return { shot: await shot(cmd.name) };
-    case "snap": return { snap: await snap() };
-    case "click": { const r = await click(cmd.target); await getWin().waitForTimeout(cmd.wait ?? 700); return { ok: r, shot: await shot("live") }; }
-    case "fill": { await getWin().locator(cmd.sel).first().fill(cmd.val, { timeout: 5000 }); await getWin().waitForTimeout(300); return { ok: true, shot: await shot("live") }; }
-    case "setfile": { await getWin().locator(cmd.sel).first().setInputFiles(cmd.path, { timeout: 5000 }); await getWin().waitForTimeout(cmd.wait ?? 800); return { ok: true, shot: await shot("live") }; }
-    case "eval": return { value: await getWin().evaluate(cmd.js) };
-    case "drag": {
-      // 真鼠标拖拽：按下→分步移动→松手。用于 trim/拖片/reorder/scrub 等手势（click 测不了）。
-      const w = getWin();
-      const steps = Math.max(1, cmd.steps ?? 12);
-      await w.mouse.move(cmd.x1, cmd.y1);
-      await w.mouse.down();
+    case 'shot': return { shot: await shot(cmd.name) }
+    case 'snap': return { snap: await snap() }
+    case 'doctor': return { doctor: await doctor() }
+    case 'features': return { features: Object.fromEntries(Object.entries(FEATURES).map(([key, f]) => [key, f.summary])) }
+    case 'goto': return goto(cmd.name, cmd.args ?? [])
+    case 'click': { const r = await click(cmd.target); await target().waitForTimeout(cmd.wait ?? 700); return { ok: r, shot: await shot('live') } }
+    case 'fill': { await locate(target(), cmd.sel).first().fill(cmd.val, { timeout: stationTimeout() }); await target().waitForTimeout(300); return { ok: true, shot: await shot('live') } }
+    case 'press': { await target().keyboard.press(cmd.key); await target().waitForTimeout(cmd.wait ?? 400); return { ok: `pressed ${cmd.key}`, shot: await shot('live') } }
+    case 'hover': { await locate(target(), cmd.target).first().hover({ timeout: 5000 }); await target().waitForTimeout(cmd.wait ?? 400); return { ok: `hovered ${cmd.target}`, shot: await shot('live') } }
+    case 'setfile': { await target().locator(cmd.sel).first().setInputFiles(cmd.path, { timeout: 5000 }); await target().waitForTimeout(cmd.wait ?? 800); return { ok: true, shot: await shot('live') } }
+    // read 只当只读探针（读 DOM / 读文字）；改状态一律走界面动作（验收走查规矩 1：禁 evaluate 改状态）。
+    case 'read': return { value: await target().evaluate(cmd.js) }
+    case 'drag': {
+      // 真鼠标拖拽：按下 → 分步移动 → 松手。用于 trim / 拖片 / reorder / scrub 等手势（click 测不了）。
+      const w = target()
+      const steps = Math.max(1, cmd.steps ?? 12)
+      await w.mouse.move(cmd.x1, cmd.y1)
+      await w.mouse.down()
       for (let i = 1; i <= steps; i += 1) {
-        const t = i / steps;
-        await w.mouse.move(cmd.x1 + (cmd.x2 - cmd.x1) * t, cmd.y1 + (cmd.y2 - cmd.y1) * t);
-        await w.waitForTimeout(12);
+        const t = i / steps
+        await w.mouse.move(cmd.x1 + (cmd.x2 - cmd.x1) * t, cmd.y1 + (cmd.y2 - cmd.y1) * t)
+        await w.waitForTimeout(12)
       }
-      await w.mouse.up();
-      await w.waitForTimeout(cmd.wait ?? 400);
-      return { ok: `drag ${cmd.x1},${cmd.y1} -> ${cmd.x2},${cmd.y2}`, shot: await shot("live") };
+      await w.mouse.up()
+      await w.waitForTimeout(cmd.wait ?? 400)
+      return { ok: `drag ${cmd.x1},${cmd.y1} -> ${cmd.x2},${cmd.y2}`, shot: await shot('live') }
     }
-    case "move": { await getWin().mouse.move(cmd.x, cmd.y); await getWin().waitForTimeout(cmd.wait ?? 250); return { ok: `move ${cmd.x},${cmd.y}`, shot: await shot("live") }; }
-    case "wait": await getWin().waitForTimeout(cmd.ms ?? 500); return { ok: true };
+    case 'move': { await target().mouse.move(cmd.x, cmd.y); await target().waitForTimeout(cmd.wait ?? 250); return { ok: `move ${cmd.x},${cmd.y}`, shot: await shot('live') } }
+    case 'wait': await target().waitForTimeout(cmd.ms ?? 500); return { ok: true }
     // ── E5 探针动作 ──
-    case "probe-latency": {
-      // 测「click→首视觉反馈」与「内容沉降」延迟 + 有无 skeleton/spinner/进度。target 同 click 语法。
-      const w = getWin(); await ensureProbe(w);
-      await w.evaluate("window.__nomiProbe.startLatency()");
-      const r = await click(cmd.target);
-      await w.waitForTimeout(cmd.wait ?? 1800);
-      const m = await w.evaluate("window.__nomiProbe.readLatency()");
-      return { ok: r, latency: m, shot: await shot(cmd.name || "live") };
+    case 'probe-latency': {
+      // 测「click → 首视觉反馈」与「内容沉降」延迟 + 有无 skeleton / spinner / 进度。target 同 click 语法。
+      const w = target(); await ensureProbe(w)
+      await w.evaluate('window.__nomiProbe.startLatency()')
+      const r = await click(cmd.target)
+      await w.waitForTimeout(cmd.wait ?? 1800)
+      const m = await w.evaluate('window.__nomiProbe.readLatency()')
+      return { ok: r, latency: m, shot: await shot(cmd.name || 'live') }
     }
-    case "fps-start": { const w = getWin(); await ensureProbe(w); await w.evaluate("window.__nomiProbe.startFps()"); return { ok: "fps measuring…" }; }
-    case "fps-stop": { const m = await getWin().evaluate("window.__nomiProbe.readFps()"); return { fps: m }; }
-    case "density": { const w = getWin(); await ensureProbe(w); return { density: await w.evaluate("window.__nomiProbe.density()") }; }
-    case "contrast": { const w = getWin(); await ensureProbe(w); return { contrast: await w.evaluate(`window.__nomiProbe.contrast(${JSON.stringify(cmd.sel)})`) }; }
-    case "quit": return { quit: true };
-    default: return { error: "unknown action: " + cmd.action };
+    case 'fps-start': { const w = target(); await ensureProbe(w); await w.evaluate('window.__nomiProbe.startFps()'); return { ok: 'fps measuring…' } }
+    case 'fps-stop': { const m = await target().evaluate('window.__nomiProbe.readFps()'); return { fps: m } }
+    case 'density': { const w = target(); await ensureProbe(w); return { density: await w.evaluate('window.__nomiProbe.density()') } }
+    case 'contrast': { const w = target(); await ensureProbe(w); return { contrast: await w.evaluate(`window.__nomiProbe.contrast(${JSON.stringify(cmd.sel)})`) } }
+    case 'quit': return { quit: true }
+    default: return { error: 'unknown action: ' + cmd.action }
   }
 }
 
-let running = true;
+let running = true
+const stop = () => { running = false }
+process.once('SIGTERM', stop)
+process.once('SIGINT', stop)
 while (running) {
-  const reqP = path.join(DIR, "req.json");
+  const reqP = path.join(DIR, 'req.json')
   if (fs.existsSync(reqP)) {
-    let cmd = null;
-    try { cmd = JSON.parse(fs.readFileSync(reqP, "utf8")); } catch { /* ignore */ }
-    fs.rmSync(reqP, { force: true });
-    let res;
-    try { res = cmd ? await run(cmd) : { error: "bad req" }; }
-    catch (e) { res = { error: String((e && e.message) || e) }; }
-    fs.writeFileSync(path.join(DIR, "res.json"), JSON.stringify(res));
-    if (res.quit) running = false;
+    let cmd = null
+    try { cmd = JSON.parse(fs.readFileSync(reqP, 'utf8')) } catch { /* ignore */ }
+    fs.rmSync(reqP, { force: true })
+    const t0 = Date.now()
+    let res
+    try { res = cmd ? await run(cmd) : { error: 'bad req' } } catch (e) { res = { error: String((e && e.message) || e) } }
+    fs.appendFileSync(JOURNAL, JSON.stringify({ t: new Date(t0).toISOString(), ms: Date.now() - t0, ...(cmd ?? {}), ok: !res.error, ...(res.error ? { error: String(res.error).slice(0, 300) } : {}) }) + '\n')
+    fs.writeFileSync(path.join(DIR, 'res.json'), JSON.stringify(res))
+    if (res.quit) running = false
   }
-  await new Promise((r) => setTimeout(r, 150));
+  await new Promise((r) => setTimeout(r, 150))
 }
-await app.close().catch(() => {});
-console.log("DRIVER STOPPED");
+await surface.lab?.close?.().catch(() => {})
+await launched.close().catch(() => {})
+releaseLock()
+console.log(`DRIVER STOPPED（证据留在 ${OUT}）`)
+process.exit(0)

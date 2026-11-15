@@ -20,7 +20,7 @@
 // 「先放一边」（PARKED_KEY）：不落槽、不发，参考行里淡显「未用到」；用户点它一下才算放回在用。用户没主动放进来的图，
 // 不替他花钱。判据只看旧界面真实显示了什么（main 上的 resolveReferenceSlots：首帧槽读 firstFrameUrl、尾帧槽读
 // lastFrameUrl、参考数组槽读 referenceImageUrls，别的键一概不显示），按节点记着的那个方式（meta.archetype）算。
-import { getArchetypeById, type ArchetypeMode, type ArchetypeReferenceSlotKind } from '../../../../../electron/shared/modelArchetypes'
+import { resolveModelArchetype, type ArchetypeMode, type ArchetypeReferenceSlotKind } from '../../../../../electron/shared/modelArchetypes'
 import { REFERENCE_PARKED_KEY } from '../../../../../electron/shared/modelArchetypes/referenceKeys'
 
 /** 这份有序列表住的键（和参考数组槽的存储键同一个，旧数据里纯参考方式的节点因此不用迁移）。 */
@@ -107,12 +107,13 @@ export function firstFrameLeftEmpty(meta: Record<string, unknown> | undefined): 
 type ModeSlots = Pick<ArchetypeMode, 'slots'>
 
 /**
- * 旧节点「当时那个方式」：节点记着的档案 + modeId（getArchetypeById；记着的方式认不出就落档案默认方式）。
+ * 旧节点「当时那个方式」：节点记着的档案 + modeId（按记着的档案 id 走入口；记着的方式认不出就落档案默认方式）。
  * 档案也认不出（旧档案 id、还没初始化过 archetype 的节点）→ 用调用方给的方式；都没有 → null（不判先放一边）。
  */
 function legacySeenMode(meta: Record<string, unknown>, fallback?: ModeSlots | null): ModeSlots | null {
   const stored = meta.archetype && typeof meta.archetype === 'object' ? meta.archetype as { id?: unknown; modeId?: unknown } : null
-  const archetype = typeof stored?.id === 'string' ? getArchetypeById(stored.id) : null
+  // 只看方式的参考槽（各档相同）：按记着的档案 id 走入口，不按 id 直接查表。
+  const archetype = typeof stored?.id === 'string' ? resolveModelArchetype({ vendorKey: null, meta: { archetypeId: stored.id } }, { variant: { variantId: undefined, modelId: undefined } }) : null
   if (!archetype) return fallback ?? null
   return archetype.modes.find((mode) => mode.id === stored?.modeId) ?? archetype.modes.find((mode) => mode.id === archetype.defaultModeId) ?? archetype.modes[0] ?? fallback ?? null
 }

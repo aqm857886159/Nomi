@@ -1,0 +1,11 @@
+{
+  "storageKey": "nomi:shell-agent-form:v1",
+  "landedBy": "v0.24.1 (21beebc789803925e2540d1eb4bd3e6255790673), its own useAgentFormStore setForm / setFloatRect / setBallPoint, persist version 1",
+  "generator": "tests/fixtures/old-user-data/generators/zzAgentFormGen.ts.txt",
+  "cases": {
+    "all-ball": { "creation": "ball", "storyboard": "ball", "generation": "ball", "preview": "ball" },
+    "all-float": { "creation": "float", "storyboard": "float", "generation": "float", "preview": "float" },
+    "all-dock": { "creation": "dock", "storyboard": "dock", "generation": "dock", "preview": "dock" },
+    "mixed": { "creation": "ball", "storyboard": "float", "generation": "dock", "preview": "dock (untouched default)" }
+  }
+}

@@ -18,7 +18,6 @@ import type { HttpOperation, ProfileKind } from "./types";
 import type { ParamMap } from "./paramTranslate";
 import { APIMART_CREATE_TASK_ID_PATH, APIMART_STATUS_MAPPING, APIMART_VIDEO_QUERY_OP } from "./apimartVendor";
 import "./apimartMinimaxH3";
-import "./apimartHailuo23";
 import "./apimartModelIds";
 import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
@@ -102,7 +101,10 @@ function videoModel(p: {
   /** 省略 = 该模型无纯文生模式（Vidu Q3 参考生：image_urls 必填，只有 i2v mapping）。 */
   t2vBody?: Record<string, unknown>;
   i2vBody?: Record<string, unknown>;
-  /** i2v 模式「故意不发」的 canonical 参数（比例由图自动决定）。明示 drop 满足铁律不变量，行为不变。 */
+  /**
+   * i2v 收到也不发的键（明示 drop）。档案图生已不声明它们（面板不显示），这里只为「调用方照旧带来」时不发、也不拒：
+   * Agent / MCP 无界面请求不过方式参数 owner，严格的生成提供方见到映射不认的键会整单拒（apimartGenerationProjection）。
+   */
   i2vDrops?: string[];
   /** 两个方式共用的参数翻译（如「不选就不发」的比例）；i2v 同时有 i2vDrops 时 drops 并入。 */
   paramMap?: ParamMap;
@@ -155,19 +157,18 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   // Sora 2 已退役（2026-09-28，OpenAI 于 2026-09-24 关停 Sora 2 与 Videos API）：这里删掉的同时，
   // seedBuiltins 的退役清单把老装机里已落盘的那一行摘掉——两处必须同删，否则启动时插回来来回抖。
   // Veo 3.1：变体（fast/quality/lite）→ {{request.params.model}}。i2v 含 generation_type（reference 参考图 /
-  // frame 首尾帧，由 mode.fixedParams 注入）；duration 固定 8 不发（走 API 默认）。
+  // frame 首尾帧，由 mode.fixedParams 注入）；duration 固定 8 不发（走 API 默认）。图模式同样发比例（官方页示例即图生 + aspect_ratio）。
   videoModel({
     modelKey: "veo3.1-fast", labelZh: "Veo 3.1", archetypeId: "veo-3.1", modelRef: VARIANT_MODEL_REF,
     t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION },
-    i2vBody: { resolution: RESOLUTION, image_urls: IMAGE_URLS, generation_type: GENERATION_TYPE },
-    i2vDrops: ["aspect_ratio"],
+    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, image_urls: IMAGE_URLS, generation_type: GENERATION_TYPE },
   }),
-  // Kling v3：共享 kie 的 kling-3.0 档案（i2v 结构对齐：image_urls 数组槽）+ apimart vendorParams。
+  // Kling v3：共享 kie 的 kling-3.0 档案（i2v 结构对齐：image_urls 数组槽）+ apimart vendorParams（图生不声明比例，跟首/尾帧走）。
   videoModel({
     modelKey: "kling-v3", labelZh: "可灵 3.0", archetypeId: "kling-3.0",
     t2vBody: { mode: MODE, duration: DURATION, aspect_ratio: ASPECT, audio: AUDIO, negative_prompt: NEGATIVE_PROMPT },
     i2vBody: { mode: MODE, duration: DURATION, image_urls: IMAGE_URLS, audio: AUDIO, negative_prompt: NEGATIVE_PROMPT },
-    i2vDrops: ["aspect_ratio"], // i2v 比例由首/尾帧决定
+    i2vDrops: ["aspect_ratio"],
   }),
   // Seedance 2.0：catalog 始终只有 **1 个**基础行；档案提供 Seedance 2.0 / Fast / Mini 三种模式。
   // 3 变体由档案 variants 声明（seedanceApimart.ts），用户经 VariantBar 切换；body 的 model 字段取
@@ -183,14 +184,17 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   videoModel({
     modelKey: "doubao-seedance-2.5", labelZh: "Seedance 2.5", archetypeId: "seedance-2.5-apimart",
     requestTransform: "apimart-canonical-model-id",
-    t2vBody: { ...SEEDANCE_T2V_BODY, return_last_frame: RETURN_LAST_FRAME },
-    i2vBody: { ...SEEDANCE_I2V_BODY, return_last_frame: RETURN_LAST_FRAME },
+    // watermark / output_format 是 2.5 页新列的字段；omni_reference_task_type 由视频编辑 / 续写方式的 fixedParams 注入（其余方式不带，保持 auto）。
+    t2vBody: { ...SEEDANCE_T2V_BODY, return_last_frame: RETURN_LAST_FRAME, watermark: WATERMARK, output_format: "{{request.params.output_format}}", nsfw_check: "{{request.params.nsfw_check}}" },
+    i2vBody: { ...SEEDANCE_I2V_BODY, return_last_frame: RETURN_LAST_FRAME, watermark: WATERMARK, output_format: "{{request.params.output_format}}", nsfw_check: "{{request.params.nsfw_check}}", omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
   }),
   videoModel({
     modelKey: "MiniMax-H3", labelZh: "MiniMax H3", archetypeId: "minimax-h3-apimart",
     requestTransform: "apimart-minimax-h3",
-    t2vBody: { duration: DURATION, resolution: RESOLUTION, aspect_ratio: ASPECT, watermark: "{{request.params.watermark}}", webhook: "{{request.params.webhook}}" },
-    i2vBody: { duration: DURATION, resolution: RESOLUTION, aspect_ratio: ASPECT, watermark: "{{request.params.watermark}}", webhook: "{{request.params.webhook}}", first_frame_image: "{{request.params.first_frame_image}}", last_frame_image: "{{request.params.last_frame_image}}", image_urls: IMAGE_URLS, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS },
+    // webhook 是管道（能力表「不露出 · 管道」）：档案不声明、body 不引用；老节点存着的或调用方带来的照旧收下不发，不整单拒。
+    paramMap: { drops: ["webhook"], rules: [] },
+    t2vBody: { duration: DURATION, resolution: RESOLUTION, aspect_ratio: ASPECT, watermark: "{{request.params.watermark}}" },
+    i2vBody: { duration: DURATION, resolution: RESOLUTION, aspect_ratio: ASPECT, watermark: "{{request.params.watermark}}", first_frame_image: "{{request.params.first_frame_image}}", last_frame_image: "{{request.params.last_frame_image}}", image_urls: IMAGE_URLS, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS },
   }),
   // Wan 2.7（2026-07-29 升级角色参考）：三模式经 per-mode modelEnum 发不同 model（t2v/i2v=wan2.7、
   // 角色参考=wan2.7-r2v）→ body model 改取 {{request.params.model}}。i2v/ref 共用一条 i2v mapping：
@@ -215,7 +219,6 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   }),
   // Hailuo 2.3：无 aspect_ratio；图生视频用 first_frame_image（字符串，非数组）。变体（标准 / Fast）→ {{request.params.model}}。
   videoModel({
-    requestTransform: "apimart-hailuo-23",
     modelKey: "MiniMax-Hailuo-2.3", labelZh: "Hailuo 2.3", archetypeId: "hailuo-2.3", modelRef: VARIANT_MODEL_REF,
     t2vBody: { resolution: RESOLUTION, duration: DURATION },
     i2vBody: { resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE },
@@ -234,6 +237,28 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     modelKey: "kling-v4", labelZh: "可灵 4.0", archetypeId: "kling-v4",
     t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
     i2vBody: { resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE },
+  }),
+  // 可灵 4.0 Flash（2026-11-12 整页对齐官方页，能力表 docs/models/capabilities/kling-v4-flash.md）：五种方式（文生 / 图生 / 全能参考 / 编辑 / 续写）。
+  // 只有 720p（默认，不发清晰度）；比例选「auto」= 不发（omitAuto；图生与续写发比例会 400，由方式的声明保证不带）；
+  // 参考 / 编辑 / 续写由 mode.fixedParams 注入 omni_reference_task_type，让约束在提交时就校验。
+  videoModel({
+    modelKey: "kling-v4-flash", labelZh: "可灵 4.0 Flash", archetypeId: "kling-v4-flash",
+    t2vBody: { aspect_ratio: ASPECT_OPTIONAL, duration: DURATION, nsfw_check: "{{request.params.nsfw_check}}" },
+    i2vBody: {
+      aspect_ratio: ASPECT_OPTIONAL, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, image_urls: IMAGE_URLS, video_urls: VIDEO_URLS,
+      omni_reference_task_type: "{{request.params.omni_reference_task_type}}", audio_setting: "{{request.params.audio_setting}}", nsfw_check: "{{request.params.nsfw_check}}",
+    },
+    paramMap: OPTIONAL_ASPECT_PARAM_MAP,
+  }),
+  // MiniMax H3-Max（2026-11-12 照官方页 videos/minimax-h3/max 整页对账，含多模态参考方式 ref）：与 fal 共用 minimax-h3-max 档案（槽键就是标准帧键
+  // first_frame_image / last_frame_image，fal 那边的 mapping 把它们写进自己的 image_url / end_image_url）；清晰度 480P / 768P / 1080P，水印不声明（1080P 必须不发）。
+  videoModel({
+    modelKey: "MiniMax-H3-Max", labelZh: "MiniMax H3-Max", archetypeId: "minimax-h3-max",
+    t2vBody: { resolution: RESOLUTION, duration: DURATION, aspect_ratio: ASPECT, nsfw_check: "{{request.params.nsfw_check}}" },
+    i2vBody: {
+      aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE,
+      image_urls: IMAGE_URLS, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS, nsfw_check: "{{request.params.nsfw_check}}",
+    },
   }),
   // Grok Imagine Video 1.5 官方通道：字段名 resolution / aspect_ratio（Ext 那条叫 quality / size），图生只发 image_urls。
   videoModel({

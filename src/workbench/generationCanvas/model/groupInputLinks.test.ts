@@ -3,6 +3,8 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode, NodeGroup } from './generationCanvasTypes'
 import { planGroupLinkEdges, removeGroupLinkEdgesForMember, upsertGroupInputLink, upsertGroupOutputLink } from './groupInputLinks'
 import { resolveReferenceSlots } from '../runner/referenceSlots'
+import { archetypeForNode } from '../agent/referenceEdgeCapability'
+import { effectiveArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { setCanvasEventSinkForTests, type CanvasShadowEvent } from '../events/canvasEventEmitter'
 import { applyCanvasEvent, type CanvasProjection } from '../events/canvasEventReducer'
 
@@ -188,7 +190,7 @@ describe('connectToGroup — 真 store', () => {
     expect(edgesTo('m2')).toHaveLength(0)
   })
 
-  it('从目标左输入端连编组 = 组内两张图都成为目标参考，并自动切到改图模式', () => {
+  it('从目标左输入端连编组 = 组内两张图都成为目标参考，按改图发（方式按输入现算）', () => {
     seed(
       [imageNode('a', 'https://x/a.png'), imageNode('b', 'https://x/b.png'), referenceTarget('dst')],
       [group('g1', ['a', 'b'])],
@@ -200,7 +202,7 @@ describe('connectToGroup — 真 store', () => {
     expect(edgesTo('dst').map((edge) => edge.source)).toEqual(['a', 'b'])
     expect(state.groups[0]?.outputLinks).toEqual([{ targetNodeId: 'dst' }])
     const target = state.nodes.find((node) => node.id === 'dst')!
-    expect((target.meta?.archetype as { modeId?: string } | undefined)?.modeId).toBe('edit')
+    expect(effectiveArchetypeMode(archetypeForNode(target)!, target, { nodes: state.nodes, edges: state.edges }).mode.id).toBe('edit')
     expect(resolveReferenceSlots(target, state.nodes, state.edges)[0]?.fills.map((fill) => fill.url)).toEqual([
       'https://x/a.png',
       'https://x/b.png',

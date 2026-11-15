@@ -18,7 +18,7 @@ function seedreamCreateOp(): HttpOperation {
     // watermark:false 去掉火山默认的「AI生成」角标（真实验证：默认带角标，false 后干净）——创作工具默认要干净图。
     body: { model: "{{model.modelKey}}", prompt: "{{request.prompt}}", size: "{{request.params.size}}", watermark: false },
     response_mapping: { image_url: "data.0.url" },
-    // size 等档案默认由 archetypeWireDefaults 桥接兜底（runtime.ts，单一真相源=档案 seedreamVolcengine.ts）。
+    // size 等档案默认由发送前的 effectiveModeParams 按档案现补（单一真相源=档案 seedreamVolcengine.ts）。
   };
 }
 

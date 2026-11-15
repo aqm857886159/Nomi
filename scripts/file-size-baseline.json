@@ -489,8 +489,8 @@
     },
     "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx": {
       "kind": "frozen",
-      "max": 839,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 812,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆。839→812：方式格下拉行（controls/modeMenuOptions.tsx）、首尾帧对调钮判据（referenceWrites.frameSwapControl）、参考行 AssetSlot 列表（controls/composerAssetSlots.ts）搬出",
       "topDeclarations": [
         {
           "name": "NodeParameterControls",

@@ -111,9 +111,10 @@ export function collectRedRounds({ runs, attemptConclusion, jobs, log }) {
     for (const { n, final } of attempts) {
       const jobList = jobs(run.databaseId, n)
       const failedJobs = [...new Set(jobList.filter((job) => job.name !== QUALITY_GATE_WORKFLOW && FAILED.has(job.conclusion)).map((job) => job.name.replace(/ \(\d+\)$/, '')))].sort()
-      const contracts = jobList.find((job) => job.name === CONTRACTS_JOB && FAILED.has(job.conclusion))
-      const summary = contracts ? parseContractsSummary(log(contracts.id)) : null
-      const gates = summary ? summary.gates : contracts ? null : []
+      // 合同门岗分在几个并行作业里跑（「Contracts」和「Contracts (…)」），红了的每个都读它自己的汇总，合成一份
+      const contracts = jobList.filter((job) => (job.name === CONTRACTS_JOB || job.name.startsWith(`${CONTRACTS_JOB} (`)) && FAILED.has(job.conclusion))
+      const summaries = contracts.map((job) => parseContractsSummary(log(job.id))).filter(Boolean)
+      const gates = contracts.length === 0 ? [] : summaries.length === 0 ? null : [...new Set(summaries.flatMap((summary) => summary.gates))]
       // 没有哪个 job 真失败、只是被取消（没分到机器、被手动取消）：PR 上照样是红的、要人重跑，但不是哪道门岗拦的，单列
       const cancelledOnly = !jobList.some((job) => job.name !== QUALITY_GATE_WORKFLOW && FAILED.has(job.conclusion) && job.conclusion !== 'cancelled')
       rounds.push({ runId: run.databaseId, attempt: n, final, branch: run.headBranch, head: run.headSha, at: run.createdAt, failedJobs, gates, cancelledOnly, ...classifyRed({ failedJobs, gates }) })

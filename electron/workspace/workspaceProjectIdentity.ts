@@ -1,8 +1,12 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 
+import { getSettingsRoot } from "../settings/settingsRoot";
 import { readSettledWorkspaceIdentity, withWorkspaceManifestMutation } from "./workspaceManifest";
 import type { WorkspaceManifestLockOptions } from "./workspaceManifestLock";
+import { workspaceProjectFile } from "./workspacePaths";
+import { followWorkspaceSyncBaselineAfterOwnWrite } from "./workspaceSyncBaseline";
 import { WorkspaceProjectIdentityUnavailableError, type WorkspaceProjectRecordV2 } from "./workspaceTypes";
 
 export { WorkspaceProjectIdentityUnavailableError } from "./workspaceTypes";
@@ -23,7 +27,43 @@ export type WorkspaceProjectIdentity = {
 export type EnsureWorkspaceProjectIdentityOptions = {
   randomUuid?: () => string;
   lockOptions?: WorkspaceManifestLockOptions;
+  /** 同步基线所在的设置根；默认 getSettingsRoot()（测试传临时目录）。 */
+  settingsRoot?: string;
 };
+
+const sha256 = (bytes: Buffer): string => crypto.createHash("sha256").update(bytes).digest("hex");
+const canonicalJson = (bytes: Buffer): string | null => {
+  try {
+    return JSON.stringify(JSON.parse(bytes.toString("utf8")));
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * 补身份是这台机器自己写的项目文件，不是别处改的：写完让同步基线跟上，否则下次打开项目卡会报
+ * 「另一台电脑有新版本」（2026-11-13 打开不写：老项目打开不点就关，第二次打开冒假冲突）。
+ * 只在基线就是写前那份时才跟（followWorkspaceSyncBaselineAfterOwnWrite），真冲突照报。
+ * 设置根拿不到（测试里没配）或读写失败就不跟——基线只是缓存，不跟 = 维持原样。
+ */
+async function followSyncBaselineAfterIdentityWrite(
+  options: EnsureWorkspaceProjectIdentityOptions,
+  manifestPath: string,
+  projectId: string,
+  beforeHash: string,
+): Promise<void> {
+  try {
+    const settingsRoot = options.settingsRoot ?? getSettingsRoot();
+    const after = await fsp.readFile(manifestPath);
+    const raw = JSON.parse(after.toString("utf8")) as { revision?: unknown };
+    followWorkspaceSyncBaselineAfterOwnWrite(settingsRoot, projectId, {
+      beforeHash,
+      after: { revision: typeof raw.revision === "number" ? raw.revision : 0, contentHash: sha256(after) },
+    });
+  } catch {
+    // 身份已经落定；基线跟不上只等于今天的样子（下次打开可能提示一次，用户「重新检查」即可采纳），不让补身份失败。
+  }
+}
 
 function identityUnavailable(message: string, cause?: unknown): WorkspaceProjectIdentityUnavailableError {
   return new WorkspaceProjectIdentityUnavailableError(message, cause === undefined ? undefined : { cause });
@@ -99,8 +139,14 @@ export async function ensureWorkspaceProjectIdentity(
 ): Promise<WorkspaceProjectIdentity> {
   const settled = readSettledWorkspaceProjectIdentity(actualRootPath);
   if (settled) return settled;
+  // 写前那份的字节（拿锁前异步读；锁里只比「锁里读到的内容就是它」，对不上就不跟基线）。
+  const manifestPath = workspaceProjectFile(actualRootPath);
+  const before = await fsp.readFile(manifestPath).catch(() => null);
+  const beforeHash = before ? sha256(before) : null;
+  const beforeJson = before ? canonicalJson(before) : null;
+  const ownWrite: { projectId: string | null } = { projectId: null };
   try {
-    return await withWorkspaceManifestMutation(
+    const identity = await withWorkspaceManifestMutation(
       actualRootPath,
       (context) => {
         if (!context.current || !context.currentRaw) {
@@ -121,6 +167,7 @@ export async function ensureWorkspaceProjectIdentity(
           return projectIdentity(mainIdentity, context.canonicalRootPath);
         }
 
+        ownWrite.projectId = beforeJson !== null && JSON.stringify(context.currentRaw) === beforeJson ? context.current.id : null;
         const selectedIdentity = backupIdentity ?? {
           ...context.current,
           immutableProjectUuid: (options.randomUuid ?? (() => crypto.randomUUID()))(),
@@ -151,6 +198,8 @@ export async function ensureWorkspaceProjectIdentity(
       options.lockOptions,
       { localizeEmbeddedMedia: false },
     );
+    if (ownWrite.projectId && beforeHash) await followSyncBaselineAfterIdentityWrite(options, manifestPath, ownWrite.projectId, beforeHash);
+    return identity;
   } catch (error) {
     if (error instanceof WorkspaceProjectIdentityUnavailableError) throw error;
     throw identityUnavailable("Workspace project identity could not be completed", error);

@@ -8,7 +8,7 @@
 // 落实成 max=1，闸门看的是实际携带的 URL 条数，这中间的翻译才是会出错的地方。
 import { describe, expect, it } from "vitest";
 import { modeSlotReach, DEFAULT_SLOT_INPUT_KEY, type ReachSlot } from "./referenceReachability";
-import { unreachableReferenceLabels } from "./taskParams";
+import { unreachableReferenceLabels } from "./taskParamsGuard";
 import { NEWAPI_VIDEO_CREATE_OP } from "./newapiTransport";
 
 const RELAY = NEWAPI_VIDEO_CREATE_OP.body;

@@ -7,7 +7,7 @@
 
 推送前把关的是 git 的 pre-push 钩子（`scripts/pre-push-contracts.mjs`）：按改动选出快检门岗并行跑、一次列出全部失败项，没有缩小门岗集合的开关；完整门岗交给 CI，合并只认 CI 全绿 + 合并前扫描 + main 上的收据（2026-10-24 用户拍板「改成 CI 把关：推分支前本机只跑快检，完整门岗交给 CI，合并照旧只认 CI 全绿和 main 上的收据」，推送前不再要本机 `pnpm run gates` 的通过凭据；设计卡 `docs/plan/2026-10-24-push-gate-ci.md`）。跳过 git 钩子的推送写法（`--no-verify` / `core.hooksPath`）照常放行，但记进被推那棵树的 `.claude/push-bypass.log`，没确认的绕口由快检里的 `check:push-bypass` 拦下这棵树的下一次推送。快检比完整门岗少，分支上的 CI 偶尔会红——红在分支上，进不了 main。
 
-CI 按风险面分层：contracts 始终跑（一次跑完全部门岗再汇总，不再第一个红就停；`check:concept-owners` 阻断（2026-10-19 用户拍板改回挡合并，取代 10-02 的警告档）；`check:docs-index` / `check:doc-status` / `check:ledger` 已移出 PR 的 Contracts——合入 main 后由 `docs-autosync` workflow 自动补齐回写；档案默认值生成物由 `archetype-autosync` 工作流自动重生成；`check:root-cause-contracts` 只对 schema 不合法阻断）；unit 独立选 focused/full（**本机 `pnpm run gates` 也按同一份 `scripts/validation-policy.mjs` 分档**，全量一万两千多个测试交给 CI 并行机器，不再占着全机那把 gates 锁；想本机兜底跑全量用 `pnpm run gates:full`）；Electron、真实旅程、React Flow 画布、性能和 macOS package 各按受影响路径独立触发，`main` push 也按真实 `before..after` 分类，不因事件名自动全量。删除/重命名、空 diff、测试/CI 分类器自身和手动发布边界 fail-closed 到全维度。连续小修先在本地收敛，再一次性验证和 push，不让每个微提交反复触发全套 CI。
+CI 按风险面分层：contracts 始终跑（一次跑完全部门岗再汇总，不再第一个红就停；`check:concept-owners` 阻断（2026-10-19 用户拍板改回挡合并，取代 10-02 的警告档）；`check:docs-index` / `check:doc-status` / `check:ledger` 已移出 PR 的 Contracts——合入 main 后由 `docs-autosync` workflow 自动补齐回写；`check:root-cause-contracts` 只对 schema 不合法阻断）；unit 独立选 focused/full（**本机 `pnpm run gates` 也按同一份 `scripts/validation-policy.mjs` 分档**，全量一万两千多个测试交给 CI 并行机器，不再占着全机那把 gates 锁；想本机兜底跑全量用 `pnpm run gates:full`）；Electron、真实旅程、React Flow 画布、性能和 macOS package 各按受影响路径独立触发，`main` push 也按真实 `before..after` 分类，不因事件名自动全量。删除/重命名、空 diff、测试/CI 分类器自身和手动发布边界 fail-closed 到全维度。连续小修先在本地收敛，再一次性验证和 push，不让每个微提交反复触发全套 CI。
 
 ## 交付身份只走统一命令（R11）
 

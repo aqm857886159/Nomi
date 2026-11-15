@@ -24,6 +24,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { expect, expectHittable, expectOverlayReachable, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint, CANVAS_STAGE_SELECTOR } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
 import { canvasControlsHelpDialog, canvasControlsHelpTrigger, canvasFitViewButton, canvasFrameToolPressed, collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
@@ -115,6 +116,10 @@ async function nodeVisibleInStage(id) {
   }, { selector: sel(id), stageSelector: CANVAS_STAGE_SELECTOR })
 }
 
+// 画布视口（平移 + 缩放）原样读出来：React Flow 把它写在 .react-flow__viewport 的 transform 上。
+async function readViewport() {
+  return win.evaluate(() => getComputedStyle(document.querySelector('.react-flow__viewport')).transform)
+}
 async function clickBlank() {
   const point = await findCanvasBlankPoint(win, { preference: 'bottom' })
   expect(point, '画布上找不到真空白').not.toBeNull()
@@ -133,6 +138,16 @@ async function clickNode(id, { shift = false } = {}) {
   if (shift) await win.keyboard.up('Shift')
   await expect(win.locator(sel(id)), `${id} 点了没选中`).toHaveClass(/selected/)
   await waitForVisualQuiescence(win)
+}
+/**
+ * 选一张点得到的卡：窗宽 < 1060 时 Agent 面板是浮在画布上的浮窗（不让出一列），「适应画面」后 img-c 可能整张压在浮窗底下；
+ * 这里只要「选中一张图片卡 → 底部出选择浮条 + composer」这个前提，所以按顺序挑第一张点得到的。1280 下 img-c 照旧点得到、行为不变。
+ */
+async function clickFirstHittableImage(ids) {
+  for (const id of ids) {
+    if (await findNodeHitPoint(win, { nodeSelector: sel(id) }) !== null) return clickNode(id)
+  }
+  return clickNode(ids[0]) // 一张都点不到：照原样报「找不到一处点得到的地方」
 }
 async function undoOnce() {
   await win.keyboard.press(`${MOD}+z`)
@@ -183,13 +198,30 @@ try {
     const beforeIds = await nodeIds()
     const beforeEdges = await edgeCount()
     const beforePos = await positions()
+    // 视口规则（2026-09-25 用户拍板，b17df53c7）：程序不主动平移 / 缩放画布；新东西不在屏里时由画布边缘提示指路、点了才过去。
+    // 原来这里断「⌘D 后视口跟过去、副本自己出现在视口里」，那条自动露出 9-25 已按拍板删掉；改断现行合同：
+    // 按下 ⌘D 视口一动不动；两张副本要么就在屏里、选中着，要么边缘提示报「2 个」、点一下过去后两张副本完整在屏里、仍是选中的。
+    const viewportBefore = await readViewport()
+    await shot('01-cmd-d-before')
     await win.keyboard.press(`${MOD}+d`)
     await waitForVisualQuiescence(win)
-    // 副本（复制后的选区）不用任何操作就在视口里——整簇避让把它推远了，视口得跟过去。
-    const copies = await win.evaluate(() => Array.from(document.querySelectorAll('.react-flow__node.selected')).map((n) => n.getAttribute('data-id')))
-    const copiesVisible = copies.length === 2 && (await Promise.all(copies.map(nodeVisibleInStage))).every(Boolean)
-    check(copiesVisible, '⌘D·两张副本不用手动找，就完整出现在视口里', { copies })
+    check(await readViewport() === viewportBefore, '⌘D·视口不动（程序不主动平移 / 缩放）', { before: viewportBefore, after: await readViewport() })
+    const selectedNow = () => win.evaluate(() => Array.from(document.querySelectorAll('.react-flow__node.selected')).map((n) => n.getAttribute('data-id')))
+    const hint = win.locator('[data-canvas-arrival-hint]')
+    let copies = (await selectedNow()).filter((id) => id !== 'img-a' && id !== 'img-c')
+    const onScreen = copies.length === 2 && (await Promise.all(copies.map(nodeVisibleInStage))).every(Boolean)
+    const hintCount = (await hint.count()) ? await hint.first().getAttribute('data-arrival-count') : null
+    check(onScreen || hintCount === '2', '⌘D·两张副本要么就在屏里，要么边缘提示报 2 个', { copies, hintCount })
     await shot('01-cmd-d-duplicated')
+    if (!onScreen && hintCount === '2') {
+      await expectHittable(hint.first(), '⌘D·边缘提示点得到')
+      await hint.first().click()
+      await waitForVisualQuiescence(win)
+      copies = (await selectedNow()).filter((id) => id !== 'img-a' && id !== 'img-c')
+      const reached = copies.length === 2 && (await Promise.all(copies.map(nodeVisibleInStage))).every(Boolean)
+      check(reached, '⌘D·点边缘提示后两张副本完整在视口里、仍是选中的', { copies })
+      await shot('01b-cmd-d-arrival-hint-followed')
+    }
     await expect.poll(async () => (await nodeIds()).length, { message: '⌘D 后没多出两张卡' }).toBe(beforeIds.length + 2)
     const afterPos = await positions()
     check(await edgeCount() === beforeEdges + 1, '⌘D·两张副本之间的连线一起复制（不带到选区外的边）', { before: beforeEdges, after: await edgeCount() })
@@ -306,8 +338,8 @@ try {
   const layouts = [
     { name: '1280-agent-open', width: 1280, height: 900, agent: true },
     { name: '1280-agent-collapsed', width: 1280, height: 900, agent: false },
-    { name: 'min-agent-open', width: 1100, height: 720, agent: true },
-    { name: 'min-agent-collapsed', width: 1100, height: 720, agent: false },
+    { name: 'min-agent-open', width: MIN_WINDOW.width, height: MIN_WINDOW.height, agent: true },
+    { name: 'min-agent-collapsed', width: MIN_WINDOW.width, height: MIN_WINDOW.height, agent: false },
   ]
   results.help = []
   // 两种底部浮层状态都要过：没选中；选中一张 = 选择浮条 + composer。（原先没选中时还有「生成全部」批量条，已删。）
@@ -315,7 +347,7 @@ try {
     await resize(layout.width, layout.height)
     await setAgentPanel(layout.agent)
     await fitAll()
-    if (layout.selection === 'one') await clickNode('img-c')
+    if (layout.selection === 'one') await clickFirstHittableImage(['img-c', 'img-a'])
     else await clickBlank()
     layout.name = `${layout.name}-${layout.selection}`
     const row = { layout: layout.name }

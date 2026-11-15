@@ -3,6 +3,8 @@
 import { describe, expect, it } from 'vitest'
 import { archetypeForNode } from '../agent/referenceEdgeCapability'
 import { resolveMentionReference } from './canvasReferenceConnection'
+import { effectiveArchetypeModeWithInputs } from '../nodes/controls/archetypeMeta'
+import { EDGE_MODE_SLOTS } from '../../../../electron/shared/canvas/edgeAdmission'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from './generationCanvasTypes'
 
 function videoNode(id: string, modeId = ''): GenerationCanvasNode {
@@ -28,14 +30,13 @@ describe('resolveMentionReference', () => {
     expect(videoRefMode).toBeTruthy()
   })
 
-  it('@ a video in a frame-only mode switches to a mode with a video reference slot and never builds a frame edge', () => {
+  it('@ a video with a frame-only preference builds a reference edge (never a frame edge); the mode it sends as takes the video', () => {
     const target = videoNode('t', frameOnlyMode.id)
     const route = resolveMentionReference(target, [target], [], 'video')
-    expect(route.ok).toBe(true)
-    if (!route.ok) return
-    expect(route.edgeMode).toBe('reference')
-    const switched = archetype.modes.find((mode) => mode.id === route.switchToModeId)
-    expect(switched?.slots.some((slot) => slot.kind === 'video_ref')).toBe(true)
+    expect(route).toEqual({ ok: true, edgeMode: 'reference' })
+    // 连线不写方式：放了这段视频之后按什么发由 owner 现算，现算出的方式收得下参考视频。
+    const sent = effectiveArchetypeModeWithInputs(archetype, target, { nodes: [target], edges: [] }, [{ slots: EDGE_MODE_SLOTS.reference, asset: 'video' }])
+    expect(sent.mode.slots.some((slot) => slot.kind === 'video_ref')).toBe(true)
   })
 
   it('does not switch modes when the node already has first / last frame inputs', () => {
@@ -45,10 +46,10 @@ describe('resolveMentionReference', () => {
     expect(resolveMentionReference(target, [target, frame], edges, 'video')).toEqual({ ok: false, reason: 'blocked_by_frame_edges' })
   })
 
-  it('stays in the current mode when it already has the reference slot', () => {
+  it('a reference preference gets the same plain reference edge', () => {
     const target = videoNode('t', videoRefMode.id)
     const route = resolveMentionReference(target, [target], [], 'video')
-    expect(route).toMatchObject({ ok: true, switchToModeId: null, edgeMode: 'reference' })
+    expect(route).toEqual({ ok: true, edgeMode: 'reference' })
   })
 
   it('reports the limit instead of adding when the reference slot is full', () => {
@@ -62,6 +63,6 @@ describe('resolveMentionReference', () => {
 
   it('a node without a model archetype gets a plain reference edge', () => {
     const target = { ...videoNode('t'), meta: {} } as GenerationCanvasNode
-    expect(resolveMentionReference(target, [target], [], 'image')).toEqual({ ok: true, switchToModeId: null, edgeMode: 'reference' })
+    expect(resolveMentionReference(target, [target], [], 'image')).toEqual({ ok: true, edgeMode: 'reference' })
   })
 })

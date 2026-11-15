@@ -158,7 +158,7 @@ export const RUNWAY_GEN4_IMAGE_TURBO_ARCHETYPE: ModelArchetype = {
 
 /**
  * Muse Image —— **Meta 的模型**（Meta Superintelligence Labs 2026-07-07 发布），Runway 是转售渠道之一，
- * 不是 Runway 自家出品（此前这里写错成「Runway 自家模型」）。身份按模型走：seedModelIdentity 里
+ * 不是 Runway 自家出品（此前这里写错成「Runway 自家模型」）。身份按模型走：modelCanonicalIds 里
  * `muse_image` → "muse image"，以后别家接同一个模型能自动并成一条。
  * `id` / `family` 保持原样：它们是已落盘节点 meta 里的档案指针，改了老节点就认不回来。
  * ratio 全是大尺寸（1600:1600 起，含 auto），outputCount ≤10——这些是 Runway 那条线缆的事实。

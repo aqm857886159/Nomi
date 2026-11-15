@@ -25,6 +25,7 @@ vi.mock('../spend/spendConfirm', () => ({
   confirmGenerationSpend: mocks.confirmGenerationSpend,
   describeGenerationCost: vi.fn(() => ''),
   generationCostContextForNodes: vi.fn(() => ({})),
+  withGenerationEtaStats: vi.fn(async (context: object) => context),
 }))
 vi.mock('../store/generationCanvasStore', () => ({ useGenerationCanvasStore: { getState: () => ({ nodes: mocks.nodes, edges: mocks.edges }) } }))
 

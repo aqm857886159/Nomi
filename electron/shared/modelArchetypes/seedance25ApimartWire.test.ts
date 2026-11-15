@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildArchetypeInputParams } from '../../../src/workbench/generationCanvas/nodes/controls/archetypeMeta'
 import { SEEDANCE_2_5_APIMART_ARCHETYPE } from '../videoCapabilities'
+import { modeWrittenInMeta } from '../../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers'
 
 /** 模拟「从别的模型切过来」的节点：比例残留 16:9。 */
 const carriedOver = (modeId: string) => ({
@@ -21,7 +22,7 @@ const carriedOver = (modeId: string) => ({
 
 describe('Seedance 2.5 apimart · 首尾帧硬约束压得住残留值', () => {
   it.each(['first', 'firstlast'])('forces size=adaptive in %s mode even when the node carries 16:9', (modeId) => {
-    const params = buildArchetypeInputParams(carriedOver(modeId), SEEDANCE_2_5_APIMART_ARCHETYPE, {
+    const params = buildArchetypeInputParams(carriedOver(modeId), modeWrittenInMeta(carriedOver(modeId), SEEDANCE_2_5_APIMART_ARCHETYPE), {
       firstFrameUrl: 'https://example.com/a.png',
       lastFrameUrl: 'https://example.com/b.png',
     })
@@ -33,13 +34,13 @@ describe('Seedance 2.5 apimart · 首尾帧硬约束压得住残留值', () => {
   //  taskTemplateParams 里 ...refInput 排在 size 之后，所以档案注入的键才压得过 meta——
   //  也正因为这个顺序，上面首尾帧那两条才成立。）
   it('does not inject a ratio in text-to-video, leaving the user choice untouched', () => {
-    const params = buildArchetypeInputParams(carriedOver('t2v'), SEEDANCE_2_5_APIMART_ARCHETYPE)
+    const params = buildArchetypeInputParams(carriedOver('t2v'), modeWrittenInMeta(carriedOver('t2v'), SEEDANCE_2_5_APIMART_ARCHETYPE))
     expect(params.size).toBeUndefined()
   })
 
   // 首尾帧走 image_with_roles 角色数组（apimart 契约），不是 kie 的独立 first/last_frame_url。
   it('packs first and last frames into image_with_roles', () => {
-    const params = buildArchetypeInputParams(carriedOver('firstlast'), SEEDANCE_2_5_APIMART_ARCHETYPE, {
+    const params = buildArchetypeInputParams(carriedOver('firstlast'), modeWrittenInMeta(carriedOver('firstlast'), SEEDANCE_2_5_APIMART_ARCHETYPE), {
       firstFrameUrl: 'https://example.com/a.png',
       lastFrameUrl: 'https://example.com/b.png',
     })

@@ -85,8 +85,9 @@ export const runtimeBridge = {
       }>,
     read: (projectId: string, fromSeq: number) =>
       ipcRenderer.invoke("nomi:events:read", { projectId, fromSeq }) as Promise<{ ok: boolean; events: unknown[] }>,
+    // 付费确认卡的预计耗时：异步取（以前 sendSync，主进程忙着落地结果时点「生成」会冻住渲染层）。
     generationEtaStats: (projectId: string) =>
-      ipcRenderer.sendSync('nomi:events:generation-eta-stats', { projectId }) as { ok: boolean; stats: unknown[] },
+      ipcRenderer.invoke("nomi:events:generation-eta-stats", { projectId }) as Promise<{ ok: boolean; stats: unknown[] }>,
   },
   capability: {
     // 「接入 AI 编程助手」卡：读状态/配置 + 一键写入/撤销 ~/.claude.json。

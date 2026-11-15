@@ -7,5 +7,5 @@
   // 两个 PR 各自绿、合在一起页面直接崩，main 的 Unit 红。同类夹具当时一共 16 处类型错。
   // 与 tsconfig.devlab.json 同一个做法：继承应用的 tsconfig.json，只换 include。
   "extends": "./tsconfig.json",
-  "include": ["tests/ux/fixtures/*.tsx", "src/vendor/**/*.d.ts", "src/rawText.d.ts"]
+  "include": ["tests/ux/fixtures/*.tsx", "src/**/*.d.ts"]
 }

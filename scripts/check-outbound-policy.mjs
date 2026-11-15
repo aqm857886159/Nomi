@@ -1,33 +1,28 @@
 #!/usr/bin/env node
-// 出站策略单一 owner 门岗（R28：防线建在最早能拦住的那层）。
+// 出站地址判据单一 owner 门岗（R28：防线建在最早能拦住的那层）。
 //
-// 抓的是**一整族**「同一次生成的两半在两条路上」的退化。类根因见
-// docs/fixes/2026-09-07-outbound-policy-split-across-submit-and-retrieval.root-cause.json：
-// 提交走 appFetch（对目的地零策略），取回走 hardenedFetch（DNS 解析 + 私网分类会拒绝），
-// 于是存在「我们愿意为之付钱的目的地，是我们拒绝读取的目的地」——2026-09-06 真实验收里
-// 10 条视频钱扣了、一帧取不回。
+// 2026-11-13 起，生成的提交 / 取回 / 下载**不再按目的地地址判**（开着代理的创作者一直被它拦；
+// 方向复盘 docs/engineering/direction-checks/2026-11-13-outbound-address-layer-delete.md）。
+// 地址判据只剩「抓来的文字会进模型」的入口（hardenedFetch 的 textEntersModelContext：Agent 读文档、
+// 接入向导抓文档）。原来的规则 2（谁能 import appFetch 的棘轮）守的是「裸出口不过地址判据」，
+// 现在默认路径本来就不判，它没有东西可守了，同提交删掉。密钥的两条（只去保存时确认的 origin、
+// 遇跳转即停）由 check:credential-origin 和凭据绑定的测试守，不在这里。
 //
-// 一次修好不算完；**下一个**新增的出站模块只要自己 new 一条路、自己判一次目的地，同族问题就回来。
-// 这个门岗把「只有一个 owner 判目的地」变成机器判据：
+// 留下的三条：
 //
-//   规则 1（硬零，无基线）：`electron/networkHostPolicy.ts` 里不许再出现 env 逃生口。
-//       旧的 `LAB_ALLOW_LOCALHOST === '1'` 会把整个私网分类器关掉（连 169.254 云元数据一起放行），
-//       而且随包发布。实验室要 loopback 只能报精确 origin（setLabTrustedPrivateOrigins）。
+//   规则 1（硬零，无基线）：生产代码不许出现 ALLOW_LOCALHOST / ALLOW_PRIVATE / DISABLE_SSRF 一类 env 开关。
+//       它会随包发布、关掉整个分类器。实验室要 loopback 只能报精确 origin（setLabTrustedPrivateOrigins）。
 //
-//   规则 2（棘轮，存身份不存数字）：谁能直接 import `appFetch`（= 拿到一条不过目的地策略的裸出口）
-//       冻结在 scripts/outbound-policy-baseline.json。新增 importer → 红；基线里已消失的 → 也红
-//       （否则会变成永久豁免）。想新增一条出站路径，就得先在这里显式登记并说明为什么它不需要策略。
-//
-//   规则 3（棘轮）：谁能直接 import `isPrivateHost`（= 自己做私网分类）同样冻结。
-//       目的地分类只该有一个 owner；第二处分类就是第二个判据，也就是下一次不对称。
+//   规则 3（棘轮）：谁能直接 import `isPrivateHost`（= 自己做私网分类）冻结在 scripts/outbound-policy-baseline.json。
+//       分类只该有一个 owner；新增 importer → 红，基线里已消失的 → 也红（否则变成永久豁免）。
 //
 //   规则 4（硬零，无基线）：错误洗白点。生产代码里不许再写
 //       `error.message ? error.message : '生成失败'` / `|| 'Generation failed'` 这一族兜底——
 //       它把「我们不知道发生了什么」印成一句与顶部状态徽标一字不差的话，零信息零下一步，
-//       还顺手盖掉了本可展示的线索。2026-09-06 那条写清了「钱没丢、去确认代理」的出站错误，
-//       就是被这一族洗成两个字的。唯一允许的写法是 src/workbench/observability/opaqueFailure.ts
+//       还顺手盖掉了本可展示的线索。唯一允许的写法是 src/workbench/observability/opaqueFailure.ts
 //       的 describeOpaqueFailure（它保留 message/类名/原值，兜底句走 i18n 且刻意不等于徽标文案）。
 //       硬零而非棘轮：修完之后一处都不剩，留基线等于给这一族发返场票。i18n 词表本身与测试豁免。
+//       （规则编号沿用旧号，免得历史文档里的「规则 4」对不上。）
 //
 // 用法：
 //   node ./scripts/check-outbound-policy.mjs                    校验（棘轮）
@@ -47,10 +42,8 @@ const POLICY_OWNERS = new Set([
   'electron/networkOutboundPolicy.ts',
   'electron/networkHostPolicy.ts',
   'electron/hardenedFetch.ts',
-  'electron/appFetch.ts',
 ])
 
-const APP_FETCH_IMPORT = /\bfrom\s+["'][^"']*\/?appFetch["']/
 const PRIVATE_HOST_IMPORT = /import\s*(?:type\s*)?\{[^}]*\bisPrivateHost\b[^}]*\}\s*from/
 const ENV_ESCAPE_HATCH = /process\.env\.[A-Z0-9_]*(?:ALLOW_LOCALHOST|ALLOW_PRIVATE|DISABLE_SSRF)[A-Z0-9_]*/
 /**
@@ -96,7 +89,6 @@ function walk(dir, out = []) {
 
 const files = SCAN_ROOTS.flatMap((root) => walk(path.join(repoRoot, root)))
 
-const appFetchImporters = []
 const privateHostImporters = []
 const escapeHatches = []
 const launderingPoints = []
@@ -105,7 +97,6 @@ for (const absolute of files) {
   const relative = path.relative(repoRoot, absolute).split(path.sep).join('/')
   const source = fs.readFileSync(absolute, 'utf8')
   if (!POLICY_OWNERS.has(relative)) {
-    if (APP_FETCH_IMPORT.test(source)) appFetchImporters.push(relative)
     if (PRIVATE_HOST_IMPORT.test(source)) privateHostImporters.push(relative)
   }
   // 规则 1 覆盖整棵**生产**树，含 owner 自己：逃生口在哪儿都不许有。
@@ -121,16 +112,15 @@ for (const absolute of files) {
   }
 }
 
-appFetchImporters.sort()
 privateHostImporters.sort()
 
 const updating = process.argv.includes('--update-baseline')
 if (updating) {
   fs.writeFileSync(
     baselinePath,
-    `${JSON.stringify({ appFetchImporters, privateHostImporters }, null, 2)}\n`,
+    `${JSON.stringify({ privateHostImporters }, null, 2)}\n`,
   )
-  console.log(`outbound-policy baseline updated: ${appFetchImporters.length} appFetch, ${privateHostImporters.length} isPrivateHost`)
+  console.log(`outbound-policy baseline updated: ${privateHostImporters.length} isPrivateHost`)
   process.exit(0)
 }
 
@@ -178,20 +168,11 @@ function diffRatchet(label, current, frozen, guidance) {
 }
 
 diffRatchet(
-  ' import appFetch',
-  appFetchImporters,
-  baseline.appFetchImporters,
-  '这是一条**不过目的地策略**的裸出口。若这条路会拿用户/Agent/供应商给的 URL 出站，\n'
-  + '  请改走 hardenedFetch（它向 networkOutboundPolicy 问同一个判据）；确实不需要策略的\n'
-  + '  （本机 127.0.0.1 探测、已由上层判过的 vendor 传输），在基线里登记并写清理由。',
-)
-
-diffRatchet(
   ' import isPrivateHost',
   privateHostImporters,
   baseline.privateHostImporters,
   '目的地分类只允许有一个 owner（electron/networkOutboundPolicy.ts）。第二处分类 = 第二个判据，\n'
-  + '  也就是下一次「提交放行、取回拒绝」。请改用 classifyOutboundAddresses / hardenedFetch。',
+  + '  两处判据迟早说法不一。只有「抓来的文字会进模型」的入口才判地址：请改用 hardenedFetch 的 textEntersModelContext。',
 )
 
 if (problems.length) {
@@ -202,5 +183,5 @@ if (problems.length) {
 }
 
 console.log(
-  `outbound policy OK — appFetch importers ${appFetchImporters.length}, isPrivateHost importers ${privateHostImporters.length}, env escape hatches 0, error laundering points 0`,
+  `outbound policy OK — isPrivateHost importers ${privateHostImporters.length}, env escape hatches 0, error laundering points 0`,
 )

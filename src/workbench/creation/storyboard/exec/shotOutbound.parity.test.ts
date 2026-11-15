@@ -1,6 +1,6 @@
 vi.mock('../../../../config/useModelOptions', () => ({ preloadModelOptions: async () => [{ value: 'MiniMax-H3', modelKey: 'MiniMax-H3', vendor: 'apimart', label: 'MiniMax-H3' }] }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import type { ArchetypeMode } from '../../../../../electron/shared/modelArchetypes/types'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvasToolCall'
@@ -40,7 +40,7 @@ vi.mock('../../../generationCanvas/components/batchPlanPreview', () => ({
   },
 }))
 
-const archetype = resolveArchetypeForModel({ modelKey: 'MiniMax-H3', vendorKey: 'apimart' })!
+const archetype = resolveModelArchetype({ modelKey: 'MiniMax-H3', vendorKey: 'apimart' }, { variant: EVERY_VARIANT })!
 const mode: ArchetypeMode = archetype.modes.find((candidate) => candidate.slots.some((slot) => slot.kind === 'image_ref'))
   ?? archetype.modes.find((candidate) => candidate.slots.length > 0)!
 const slot = mode.slots.find((candidate) => candidate.kind === 'image_ref') ?? mode.slots[0]
@@ -98,6 +98,13 @@ beforeEach(() => {
 })
 
 describe('一镜发出去的只有行上的提示词和行上看得见的参考图（唯一出口 compileShotOutbound）', () => {
+  it('retains a disabled keyframe draft without compiling it as an active prompt', () => {
+    const keyframe = { enabled: false, prompt: 'saved keyframe draft' }
+    expect(compileShotOutbound({ ...shot, keyframe }, 'keyframe').prompt).toBe(DRAGON)
+    expect(compileShotOutbound({ ...shot, keyframe: { ...keyframe, enabled: true } }, 'keyframe').prompt).toBe(keyframe.prompt)
+    expect(keyframe).toEqual({ enabled: false, prompt: 'saved keyframe draft' })
+  })
+
   it('出口本身：提示词逐字等于行上写的，参考图只有行上摆着的；anchorIds 不参与', () => {
     const outbound = compileShotOutbound(shot, 'shot')
     expect(outbound.prompt).toBe(DRAGON)

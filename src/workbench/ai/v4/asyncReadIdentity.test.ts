@@ -27,13 +27,24 @@ function harness(Component: React.ComponentType<ProbeProps>) {
     async settle() { for (let i = 0; i < 8; i++) await Promise.resolve(); renderer.flushPassiveEffects() }, close: () => renderer.close() }
 }
 function deferred<T = unknown>() { let resolve!: (v: T) => void; let reject!: (e: Error) => void; const promise = new Promise<T>((a, b) => { resolve = a; reject = b }); return { promise, resolve, reject } }
-function panel() {
+// 跟到底归现成库（use-stick-to-bottom）；这里换成一个只报「跟没跟着底」的替身，让分页钉位那段真代码照常跑。
+const stickDouble = (following: boolean) => function useStickToBottomDouble() {
+  return React.useMemo(() => {
+    const scrollRef = Object.assign((node: unknown) => { scrollRef.current = node }, { current: null as unknown })
+    const contentRef = Object.assign((node: unknown) => { contentRef.current = node }, { current: null as unknown })
+    return { scrollRef, contentRef, scrollToBottom: () => Promise.resolve(following), stopScroll: () => undefined, isAtBottom: following, state: { isAtBottom: following } }
+  }, [])
+}
+class NoResizeObserver { observe() {} disconnect() {} }
+function panel({ following = false }: { following?: boolean } = {}) {
   const source = readFileSync(new URL('./AgentPanelV4Panel.tsx', import.meta.url), 'utf8')
-  const hooks = source.slice(source.indexOf('  const scrollRef = React.useRef'), source.indexOf('  return (\n    <section', source.indexOf('  const scrollRef = React.useRef')))
-  const context = evaluate(`function Probe({flow,onLoadOlder,scrollMemory,flowTail,slot,queue,historyIdentity,historyCursor}) {${hooks}\nreturn React.createElement('scroll',{ref:scrollRef,historyError});}`, {})
+  const start = source.indexOf('  const stick = useStickToBottom(')
+  if (start < 0) throw new Error('AgentPanelV4Panel.tsx 里找不到 useStickToBottom：钩子段的起点变了，这条测试要跟着改')
+  const hooks = source.slice(start, source.indexOf('  return (\n    <section', start))
+  const context = evaluate(`function Probe({flow,onLoadOlder,flowTail,slot,queue,historyIdentity,historyCursor,conversationKey,composer}) {${hooks}\nreturn React.createElement('scroll',{ref:scrollRef,historyError});}`, { useStickToBottom: stickDouble(following), ResizeObserver: NoResizeObserver })
   return harness(context.Probe)
 }
-const props = (id: string, load: () => Promise<unknown>, memory = { current: { top: 0, atBottom: false } }) => ({ historyIdentity: id, historyCursor: id + '1', flow: [{ identity: id + '1' }], scrollMemory: memory, onLoadOlder: load })
+const props = (id: string, load: () => Promise<unknown>) => ({ historyIdentity: id, historyCursor: id + '1', flow: [{ identity: id + '1' }], onLoadOlder: load })
 describe('pagination lifecycle in actual Panel hooks', () => {
   it.each(['resolve', 'reject'] as const)('new short conversation starts immediately; old %s cannot settle its request', async outcome => {
     const h = panel(), a = deferred(), b = deferred(); let calls = 0
@@ -52,14 +63,13 @@ describe('pagination lifecycle in actual Panel hooks', () => {
   })
   it('same session in a new workspace and unmount invalidate old settlements', async () => {
     const h = panel(), old = deferred(), next = deferred(); let calls = 0
-    const memory = { current: { top: 0, atBottom: false } }
-    h.render(props('w1/lane/session', () => old.promise, memory)); h.scroll()
-    h.render(props('w2/lane/session', () => { calls++; return next.promise }, memory)); h.scroll()
+    h.render(props('w1/lane/session', () => old.promise)); h.scroll()
+    h.render(props('w2/lane/session', () => { calls++; return next.promise })); h.scroll()
     expect(calls).toBe(1)
     old.reject(new Error('old workspace')); await h.settle()
     expect(h.node().props.historyError).toBe(false)
     h.close(); next.reject(new Error('unmounted')); await h.settle()
-    h.render(props('w2/lane/session', () => Promise.resolve('w2/lane/session1'), memory))
+    h.render(props('w2/lane/session', () => Promise.resolve('w2/lane/session1')))
     expect(h.node().props.historyError).toBe(false); h.close()
   })
   it('current failure reports locally, retry and same-session rerenders keep one request', async () => {
@@ -83,6 +93,16 @@ describe('pagination lifecycle in actual Panel hooks', () => {
       h.render({ ...p, historyCursor: 'A0', flow: [{ identity: 'A0' }, ...p.flow] })
       expect(h.node().scrollTop).toBe(410)
       if (order === 'commit-first') { page.resolve('A0'); await h.settle() }
+    } finally { h.close() }
+  })
+  it('leaves a reader who is following the bottom to the follow lock when older history prepends', async () => {
+    const h = panel({ following: true }), page = deferred(); const p = props('A', () => page.promise)
+    h.render(p); h.node().scrollTop = 10; h.scroll()
+    try {
+      page.resolve('A0'); await h.settle()
+      h.node().scrollHeight = 1400
+      h.render({ ...p, historyCursor: 'A0', flow: [{ identity: 'A0' }, ...p.flow] })
+      expect(h.node().scrollTop, 'the anchor must not fight the follow lock for the same scrollTop').toBe(10)
     } finally { h.close() }
   })
   it('keeps the reading position when another scroll arrives between page ACK and flow commit', async () => {

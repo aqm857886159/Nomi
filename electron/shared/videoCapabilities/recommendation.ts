@@ -1,6 +1,7 @@
 import type { ArchetypeMode, ArchetypeReferenceSlot, ModelArchetype, ModelParameterControl, ModelParameterControlOption } from "./types";
 import { nearestNumber, numericOptionValues } from "./paramConstraints";
 import { resolveArchetypeVariant } from "../modelArchetypes/variantResolution";
+import { rescopeArchetypeVariant } from "../modelArchetypes/entry";
 
 type Scalar = ModelParameterControlOption["value"];
 
@@ -112,14 +113,9 @@ export function videoVariantIdsOf(archetype: ModelArchetype): string[] {
   ])];
 }
 
-export const effectiveVideoModes = (candidate: VideoModelCandidate): ArchetypeMode[] => {
-  // 哪个变体只问唯一 owner（以前这里不认别名、认不出就不特化，与派发那一侧各算各的）。
-  const variant = resolveArchetypeVariant(candidate.archetype, { variantId: candidate.variantId, modelId: candidate.modelKey });
-  return candidate.archetype.modes.map((mode) => {
-    const override = variant?.paramOverrides?.[mode.id];
-    return override ? { ...mode, params: override(mode.params) } : mode;
-  });
-};
+/** 这个候选这一档的方式（按档收窄只在入口一处：候选的档案来自入口，换档也从它的全部档版本重收，不在这里抄一份）。 */
+export const effectiveVideoModes = (candidate: VideoModelCandidate): ArchetypeMode[] =>
+  rescopeArchetypeVariant(candidate.archetype, { variantId: candidate.variantId, modelId: candidate.modelKey }).modes;
 
 const chooseParamValue = (control: ModelParameterControl, input: VideoGenerationRecommendationInput): Scalar | undefined => {
   const requestedDuration = input.goals?.durationSeconds;

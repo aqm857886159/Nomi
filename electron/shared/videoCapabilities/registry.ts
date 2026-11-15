@@ -4,9 +4,7 @@ import type {
   ModelArchetype,
   ModelParameterControl,
 } from "./types";
-import type { VideoModelCandidate } from "./recommendation";
-import { resolveArchetypeVariant } from "../modelArchetypes/variantResolution";
-import { modelNameSourceFor, scopeArchetypeModelNames, type ModelNameSource } from "../modelArchetypes/modelNameSource";
+import type { ModelNameSource } from "../modelArchetypes/modelNameSource";
 import { AGNES_VIDEO_ARCHETYPE } from "./agnesVideo";
 import { AGNES_VIDEO_25_ARCHETYPE, AGNES_VIDEO_25_FLASH_ARCHETYPE } from "./agnesVideo25";
 import { DREAMINA_MULTIFRAME_ARCHETYPE } from "./dreaminaMultiframe";
@@ -18,6 +16,7 @@ import { HAPPYHORSE_1_1_ARCHETYPE } from "./happyhorse11";
 import { KLING_3_ARCHETYPE } from "./kling";
 import { KLING_3_TURBO_ARCHETYPE } from "./kling30Turbo";
 import { KLING_4_ARCHETYPE } from "./kling4";
+import { KLING_4_FLASH_ARCHETYPE } from "./kling4Flash";
 import { GROK_IMAGINE_VIDEO_15_OFFICIAL_ARCHETYPE } from "./grokImagineVideoOfficial";
 import { PIXVERSE_V6_ARCHETYPE, PIXVERSE_V6_MAX_ARCHETYPE } from "./pixverse6";
 import { FLUX_3_VIDEO_ARCHETYPE, MUSE_VIDEO_EXT_ARCHETYPE } from "./museFluxVideo";
@@ -105,6 +104,7 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   AGNES_VIDEO_25_ARCHETYPE,
   AGNES_VIDEO_25_FLASH_ARCHETYPE,
   KLING_4_ARCHETYPE,
+  KLING_4_FLASH_ARCHETYPE,
   GROK_IMAGINE_VIDEO_15_OFFICIAL_ARCHETYPE,
   PIXVERSE_V6_ARCHETYPE,
   PIXVERSE_V6_MAX_ARCHETYPE,
@@ -119,52 +119,6 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   GEMINI_OMNI_12_FLASH_ARCHETYPE,
   GEMINI_OMNI_12_FLASH_EXT_ARCHETYPE,
 ];
-
-/**
- * A loose substring hit must not let a **lower version** capture a **higher version** key.
- * The 10k substring tier is weighted by pattern length, so `bytedance/seedance-2` (20 chars)
- * outscored `seedance-2.5` (12) on the key `bytedance/seedance-2.5` — the resolver handed a
- * 2.5 model the 2.0 profile. The renderer has no substring tier and got this right, so the
- * two resolvers disagreed on exactly this family.
- *
- * Rule: when the pattern already **ends in a digit**, it is version-terminated; a key that
- * continues that version (`.5`, `-5`, `_5`, `5`) is a *different* model, not this one.
- * A pattern that does not end in a digit (`happyhorse`) is a family name, so a version suffix
- * (`happyhorse_1_0`) still belongs to it — that hit stays valid.
- *
- * Same for a kind suffix: `wan2.7` + `-image` (`wan2.7-image`, `wan2.7-image-pro`) is the image model of that
- * generation, not the video one, so the video profile must not claim it (the renderer resolves it to the image profile).
- */
-function substringHitIsVersionSafe(normalizedKey: string, candidate: string): boolean {
-  if (!/[0-9]$/.test(candidate)) return true; // family-name pattern: version suffixes still belong to it
-  const at = normalizedKey.indexOf(candidate);
-  const rest = normalizedKey.slice(at + candidate.length);
-  return !/^[.\-_]?[0-9]/.test(rest) && !/^[-_]image/.test(rest);
-}
-
-/** 与渲染层 rawIdentifier 同规则（trim + 去 "models/" 前缀）：归一化必须两侧一致，
- * 否则同一身份串会在渲染层（精确趟命中）与这里（掉进忽略大小写的 includes 档）得出不同赢家
- * （2026-09-02 实例："models/MiniMax-H3" 曾在这里丢掉大小写信号、认成 kie 档案）。 */
-function stripModelsPrefix(value: string): string {
-  const raw = value.trim();
-  return raw.startsWith("models/") ? raw.slice("models/".length) : raw;
-}
-
-function modelProfileMatchScore(modelKey: string, profile: ModelArchetype): number {
-  const raw = stripModelsPrefix(modelKey);
-  const normalized = raw.toLowerCase();
-  return profile.identifierPatterns.reduce((best, pattern) => {
-    const rawPattern = pattern.trim();
-    const candidate = rawPattern.toLowerCase();
-    if (!candidate) return best;
-    if (raw === rawPattern) return Math.max(best, 30_000 + rawPattern.length);
-    if (normalized === candidate) return Math.max(best, 20_000 + candidate.length);
-    if (normalized.includes(candidate) && substringHitIsVersionSafe(normalized, candidate)) {
-      return Math.max(best, 10_000 + candidate.length);
-    }
-    return best;
-  }, 0);
-}
 
 function controlsFor(model: VideoCatalogModel): ModelParameterControl[] {
   return (model.parameterControls ?? []).map((control) => ({
@@ -194,7 +148,7 @@ function unknownExpressionMode(input: {
  * It keeps the model usable for the common text/image paths while refusing to
  * invent first/last-frame, omni, motion-reference or native camera support.
  */
-function unknownVideoArchetype(model: VideoCatalogModel): ModelArchetype {
+export function unknownVideoArchetype(model: VideoCatalogModel): ModelArchetype {
   const params = controlsFor(model);
   return {
     id: `catalog-video-${model.provider}-${model.modelKey}`,
@@ -229,39 +183,6 @@ function unknownVideoArchetype(model: VideoCatalogModel): ModelArchetype {
   };
 }
 
-function profileFor(model: VideoCatalogModel): ModelArchetype {
-  const exact = model.archetypeId
-    ? SOURCE_BACKED_PROFILES.find((profile) => profile.id === model.archetypeId)
-    : undefined;
-  if (exact) return exact;
-  const ranked = SOURCE_BACKED_PROFILES
-    .map((profile) => ({ profile, score: modelProfileMatchScore(model.modelKey, profile) }))
-    .filter((match) => match.score > 0)
-    .sort((left, right) => right.score - left.score);
-  return ranked[0]?.profile ?? unknownVideoArchetype(model);
-}
-
-function specializeForProvider(archetype: ModelArchetype, provider: string): ModelArchetype {
-  if (!archetype.modes.some((mode) => mode.vendorParams?.[provider])) return archetype;
-  return {
-    ...archetype,
-    modes: archetype.modes.map((mode) => {
-      const params = mode.vendorParams?.[provider];
-      return params ? { ...mode, params } : mode;
-    }),
-  };
-}
-
-/** 这条目录行默认跑哪个变体——问唯一 owner。基础行（如 `doubao-seedance-2.0`）是默认变体，不是反推出的 standard。 */
-function variantFor(model: VideoCatalogModel, archetype: ModelArchetype): string | undefined {
-  return resolveArchetypeVariant(archetype, { modelId: model.modelKey })?.id;
-}
-
-/**
- * Resolve the current catalog into recommendation candidates. The returned
- * list changes when the user changes provider/model; no provider-name branch
- * or fixed candidate list is required by the recommender.
- */
 /**
  * 一个**模式 id**（`t2v` / `i2v` / `omni` / `firstlast` …）决定了它的任务种类吗？
  *
@@ -286,28 +207,6 @@ export function transportTaskKindForModeId(modeId: string): string | undefined {
     }
   }
   return kinds.size === 1 ? [...kinds][0] : undefined;
-}
-
-export function buildVideoModelCandidates(models: readonly VideoCatalogModel[]): VideoModelCandidate[] {
-  return models
-    .filter((model) => model.provider.trim() && model.modelKey.trim())
-    .map((model) => {
-      // 型号名按供应商作用域解析（与 resolveArchetypeForModel 同一个函数）：不接受档案型号名的行，档案只给参数。
-      const archetype = scopeArchetypeModelNames(
-        specializeForProvider(profileFor(model), model.provider),
-        modelNameSourceFor({ vendorKey: model.provider, modelKey: model.modelKey, modelNameSource: model.modelNameSource }),
-      );
-      return {
-        provider: model.provider,
-        modelKey: model.modelKey,
-        label: model.label || model.modelKey,
-        archetype,
-        ...(variantFor(model, archetype) ? { variantId: variantFor(model, archetype) } : {}),
-        ...(archetype.variants?.length ? {
-          variantChoices: archetype.variants.map((variant) => ({ id: variant.id, label: variant.label, modelKey: variant.modelKey })),
-        } : {}),
-      };
-    });
 }
 
 export function sourceBackedVideoProfiles(): readonly ModelArchetype[] {

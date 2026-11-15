@@ -17,7 +17,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import type { Session } from "electron";
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { compileExecutionContract, type PlanCandidate } from "../capabilityCore/executionContract";
 import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
@@ -31,7 +31,6 @@ import { createMultiShotBatchScheduler } from "./multiShotBatchScheduler";
 import type { ProductionGenerationShot } from "./productionRunTypes";
 import { applySystemProxy, createFreshConnectionDispatcher } from "../systemProxy";
 import { describeOutboundFailure } from "../outboundDispatchEvidence";
-import { setSubmitOutboundDepsForTests } from "../vendor/vendorOutboundGuard";
 import { landingThatBinds } from "./landFirstTestUtils";
 
 const roots: string[] = [];
@@ -292,15 +291,7 @@ describe("宿主级：真实 socket 上付费提交的重发规则", () => {
   beforeAll(async () => {
     await applySystemProxy({ setProxy: async () => undefined } as unknown as Session, { mode: "off", customUrl: "" });
   });
-  beforeEach(() => {
-    setSubmitOutboundDepsForTests({
-      resolve: async () => [{ address: "93.184.216.34", family: 4 as const }],
-      readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
-      isApplicationProxyActive: () => false,
-    });
-  });
   afterEach(async () => {
-    setSubmitOutboundDepsForTests(null);
     for (const socket of sockets) socket.destroy();
     sockets.clear();
     for (const server of servers.splice(0)) await new Promise<void>((resolve) => server.close(() => resolve()));

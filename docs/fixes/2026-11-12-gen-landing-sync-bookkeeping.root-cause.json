@@ -1,0 +1,287 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-12-gen-landing-sync-bookkeeping",
+  "detected_by": "user",
+  "problem_type": "生成结果落地时，主进程上为每张图同步重做已经做过的活：重读项目文件核对目录、同步 IPC 取预计耗时、整读产物重算哈希",
+  "symptom": "画布上连点几张图生成，图陆续落地的那几秒软件发卡（用户 2026-11-12：「在做图片生成的时候 软件特别卡」）。60 张图的画布上 8 张 4K 同时落地，主进程一次停顿中位 822ms；点生成那一下渲染层最长一段 184ms，其中四成卡在一次同步 IPC。",
+  "direct_cause": "electron/workspace/workspaceRepository.ts 的 resolveWorkspaceProjectDir 每次都整读、解析一遍 .nomi/project.json 核对编号，落地一张图要被问十几次；electron/preload/runtimeBridge.ts 的 generationEtaStats 用 ipcRenderer.sendSync，主进程 electron/events/eventsIpc.ts 用 ipcMain.on + returnValue 同步回；electron/capabilityCore/canvasShotRunApi.ts 的 canvasLocalArtifactReceipt 无条件 readFileSync 整份产物再算 sha256，而落地门写盘时已经流式算过。",
+  "class_root": "每张图的记账在主进程上同步做，而且有几样是「已经知道答案还再算一遍」：目录答案没有被记住、哈希没有顺着产物传下去、只读查询用了同步通道。并发张数一多，这些同步活在主进程上叠加，期间所有要等主进程回话的操作排队。",
+  "migration": "不涉及存量数据：目录答案只记在内存里（重启即无，第一次照旧整读并做旧格式迁移）；产物对象多带一个只在主进程内传的可选 contentHash；IPC 通道名不变、只换成异步。",
+  "affected_population": [
+    "在画布上同时生成多张图（单张连点、批量卡）的创作者",
+    "项目文件较大（节点多、版本历史长）的老项目，重读一次的代价更大"
+  ],
+  "scope_paths": [
+    "electron/workspace/workspaceRepository.ts",
+    "electron/preload/runtimeBridge.ts",
+    "electron/events/eventsIpc.ts",
+    "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "electron/capabilityCore/canvasShotRunApi.ts",
+    "electron/assets/localizeTaskAsset.ts"
+  ],
+  "entry_points": [
+    "electron/workspace/workspaceRepository.ts resolveWorkspaceProjectDir（20 扇读门：运行记录、事件日志、项目记忆、资产目录、MCP / RPC、项目会话等）",
+    "src/workbench/generationCanvas/spend/spendConfirm.ts withGenerationEtaStats（单张 generationRunController、批量 batchPlanPreview）",
+    "electron/capabilityCore/canvasShotRunApi.ts canvasLocalArtifactReceipt（画布那台的提交出口 canvasAwareOutputMaterializer）"
+  ],
+  "invariants": [
+    "同一编号的项目，凭据（登记目录 + 项目文件 stat 指纹）不变时找目录不再读项目文件；凭据一变就重新核对，绝不回旧目录",
+    "渲染层取预计耗时不经同步 IPC；付费确认卡出现时数值已在卡上",
+    "落地回执记下的哈希是落地门写盘时算的那一份，回执不整读产物文件"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/assetFolders.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasReadExecutionRuntime.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasReadSurfaceRuntime.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotRunApi.ts",
+      "symbol": "canvasLocalArtifactReceipt"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotTestUtils.ts",
+      "symbol": "canvasLocalArtifactReceipt"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/projectAgentReceiptResolver.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/projectSessionRuntime.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/rpcServer.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/diagnostics/agentTraceIpc.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/diagnostics/diagnosticsIpc.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/events/eventLogRepository.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/experience/experienceRepository.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/feedback/feedbackIpc.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/memory/projectMemory.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntime.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/projects/repository.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/workspace/workspaceRepository.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "withGenerationEtaStats"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "withGenerationEtaStats"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "generationEtaStats"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceRepository.ts",
+      "symbol": "saveWorkspaceProject"
+    },
+    {
+      "kind": "read",
+      "path": "electron/events/eventsIpc.ts",
+      "symbol": "nomi:events:generation-eta-stats"
+    },
+    {
+      "kind": "read",
+      "path": "electron/preload/runtimeBridge.ts",
+      "symbol": "generationEtaStats"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localizeTaskAsset.ts",
+      "symbol": "localizeTaskAsset"
+    }
+  ],
+  "door_reduction": {
+    "before": 29,
+    "after": 29,
+    "why_not": "这一刀不减门：找目录的 20 扇读门（含主人自己）都是合理的读，修在主人函数内部（记住答案 + 凭据核对），调用方一行不改，保存这一扇写门写完就地换凭据；预计耗时是 IPC 两端 + 取数函数 + 2 个调用方，只把同步换成异步；回执是生产 1 扇 + 测试装配 1 扇，哈希改由落地门（localizeTaskAsset）顺产物传来。"
+  },
+  "regression_tests": [
+    "electron/workspace/workspaceProjectDirResolution.test.ts",
+    "electron/capabilityCore/canvasLandingReceiptHash.test.ts",
+    "src/workbench/generationCanvas/runner/spendConfirmEtaAsync.test.ts",
+    "src/workbench/generationCanvas/spend/spendConfirm.test.ts"
+  ],
+  "residual_risks": [
+    "外部工具绕过原子写、在同一纳秒内原地改写同样大小的项目文件，stat 指纹不变，找目录会沿用记住的答案（Nomi 自己的写口都是暂存后改名，指纹必变）",
+    "Windows 未验证：NTFS 上 inode / ctime 的语义与 APFS 不同，凭据失效判定没在 Windows 上跑过",
+    "生成落地时的卡没有解决完：运行记录记账与锁、整份项目保存、fsync 仍在主进程上（逃逸账本 USER-20261112-gen-landing-stall，第二刀）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/tutorial/performance",
+      "checked_at": "2026-11-12",
+      "purpose": "主进程别做阻塞 I/O、渲染层别用 sendSync：只读查询换 invoke / handle"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/npm/write-file-atomic",
+      "checked_at": "2026-11-12",
+      "purpose": "暂存后改名的原子写会换 inode / mtime，所以 stat 指纹能当「项目文件没被换」的凭据"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新的「每张图都调一次」的入口都可能再加一次同步读盘或同步 IPC；不量就看不见，直到用户报卡。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs resolveWorkspaceProjectDir → 20 扇读门，全部经过同一个主人函数",
+      "node scripts/door-map.mjs generationEtaStats → 1 扇（spendConfirm.ts），git grep 'describeGenerationCost(' 生产调用只有 generationRunController.ts、batchPlanPreview.ts",
+      "node scripts/door-map.mjs canvasLocalArtifactReceipt → 生产 1 扇（canvasAwareOutputMaterializer），测试装配 1 扇",
+      "scripts/renderer-sync-ipc-baseline.json：渲染层同步 IPC 冻结清单，本条通道已删"
+    ]
+  },
+  "generality_proof": "修在三个主人处而不是调用方：找目录的记忆和凭据只在 workspaceRepository 内部，20 扇门自动受益；同步 IPC 由 check:renderer-sync-ipc 的棘轮清单守（加回同步就红）；哈希从落地门顺产物传到回执，回执是画布那台唯一的记账口。新性能场景 gen-landing-8-concurrent 用真 Electron 数这三种同步活的次数，硬预算 0。",
+  "shared_boundaries": [
+    {
+      "path": "electron/workspace/workspaceRepository.ts",
+      "symbol": "resolveWorkspaceProjectDir",
+      "responsibility": "按项目编号找目录；记住已核对过的答案，凭据（登记目录 + 项目文件 stat 指纹）变了就重新核对。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/workspace/workspaceRepository.ts",
+      "entry_point": "resolveWorkspaceProjectDir",
+      "disposition": "enforced",
+      "evidence": "workspaceProjectDirResolution.test.ts：50 次最多读 1 次；四种失效 + 项目文件被换都给新答案或 null。"
+    },
+    {
+      "path": "electron/capabilityCore/canvasShotRunApi.ts",
+      "entry_point": "canvasLocalArtifactReceipt",
+      "disposition": "enforced",
+      "evidence": "canvasLandingReceiptHash.test.ts：一次 4 张，回执不读产物文件，哈希等于真实哈希。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "entry_point": "withGenerationEtaStats",
+      "disposition": "enforced",
+      "evidence": "spendConfirmEtaAsync.test.ts：回话到之前不出卡；失败给冷启动估计；renderer-sync-ipc 基线删掉这条通道。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/workspace/workspaceRepository.ts",
+    "invariant": "生成落地时主进程上不为每张图同步重做已经做过的活：找目录不重读项目文件、不走同步 IPC、回执不整读产物。",
+    "failure_mode": "去掉找目录的记忆 → workspaceProjectDirResolution.test.ts 读次数红、性能场景 landingDirManifestReads > 0；改回 sendSync → check:renderer-sync-ipc 红、性能场景 landingSyncIpcCalls > 0；回执不用传来的哈希 → canvasLandingReceiptHash.test.ts 读次数红、性能场景 landingReceiptRereads > 0。",
+    "exception_policy": "none",
+    "strategy": "答案记在主人处并带凭据核对；只读查询换异步通道；落地时算好的哈希顺着产物传给回执。",
+    "artifacts": [
+      "electron/workspace/workspaceRepository.ts",
+      "electron/workspace/workspaceProjectDirResolution.test.ts",
+      "tests/perf/scenarios/gen-landing-8-concurrent.json",
+      "scripts/renderer-sync-ipc-baseline.json"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/workspace/workspaceProjectDirResolution.test.ts",
+    "electron/capabilityCore/canvasLandingReceiptHash.test.ts",
+    "src/workbench/generationCanvas/runner/spendConfirmEtaAsync.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/workspace/workspaceRepository.ts",
+      "electron/preload/runtimeBridge.ts",
+      "electron/events/eventsIpc.ts"
+    ],
+    "rationale": "每次找目录必读项目文件的那段、sendSync 通道和主进程 ipcMain.on + returnValue、spendConfirm 里同步取数的那段同提交删掉。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只动 Nomi 自己的代码，没有第三方依赖。",
+    "exit_criteria": []
+  },
+  "recurrence_check_on": "2026-12-12",
+  "invariant_owner_layer": {
+    "layer": "electron/workspace/workspaceRepository.ts",
+    "tests": [
+      "electron/workspace/workspaceProjectDirResolution.test.ts"
+    ]
+  }
+}

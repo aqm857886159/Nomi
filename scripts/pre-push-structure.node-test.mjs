@@ -540,8 +540,15 @@ test('登记（C）：相关单测与结构门岗在选择表 / 输入声明 / �
     assert.ok(selectGates([file]).includes('test:pre-push-structure'), `改了 ${file} 应选中 test:pre-push-structure`)
   }
   assert.ok(!selectGates(['docs/engineering/x.md']).includes('test:pre-push-structure'))
-  // CI 里仍然跑它（check:claude-hooks 的命令列着）
+  // CI 里仍然跑它（check:claude-hooks 的命令列着）；慢的那份真入口测试拆到 check:claude-hooks-real-entry，两处合起来一份不少
   assert.match(pkg.scripts['check:claude-hooks'], /pre-push-structure\.node-test\.mjs/)
+  assert.doesNotMatch(pkg.scripts['check:claude-hooks'], /pre-push-contracts\.node-test\.mjs/, '重测试不能在两处各跑一遍')
+  assert.match(pkg.scripts['check:claude-hooks-real-entry'], /pre-push-contracts\.node-test\.mjs/)
+  assert.ok(CI_ONLY.some((group) => group.gates.includes('check:claude-hooks-real-entry')), '新拆出的门要在推送前门表里表态')
+  // 改了门表 / 入口 / package.json 仍选中结构门岗（它盯着上面这几条）；真入口那份整份只在 CI
+  for (const file of ['scripts/pre-push-contracts.mjs', 'scripts/pre-push-contracts.node-test.mjs', 'scripts/pre-push-gate-table.mjs', 'package.json']) {
+    assert.ok(selectGates([file]).includes('test:pre-push-structure'), `改了 ${file} 应选中 test:pre-push-structure`)
+  }
   // 相关单测：源码改动选中、纯文档不选、算不出改动全选；入口里真的接了线
   assert.ok(selectGates(['src/ui/A.tsx']).includes(RELATED_TESTS_GATE.name))
   assert.ok(selectGates(['scripts/foo.mjs']).includes(RELATED_TESTS_GATE.name))

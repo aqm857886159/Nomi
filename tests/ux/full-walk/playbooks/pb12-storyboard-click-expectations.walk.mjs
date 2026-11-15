@@ -11,9 +11,9 @@
 // 隔离资料目录，不连用户开着的 Nomi。
 import { clickOrFail, expect } from '../../_assert.mjs'
 import { stationTimeout } from '../../_station-budget.mjs'
+import { ensureCreationResourceTree, openStoryboardEditor } from '../../_creationResourceTree.mjs'
 import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from '../../agent-runtime-fixture.mjs'
 import { STORYBOARD_CLICK_TARGETS } from '../catalog.mjs'
-import { uiText } from '../invariants.mjs'
 import { readPlaybookEnvironment, startPlaybook } from '../launch.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
@@ -52,7 +52,7 @@ const pb = await startPlaybook({
     },
   }),
 })
-const { smoke, fixture, monitor, locale } = pb
+const { smoke, fixture, monitor } = pb
 const win = () => smoke.win
 const editor = () => win().locator('[data-storyboard-editor="true"]:visible')
 const row = (index) => editor().locator(`[data-storyboard-row="${index}"]`)
@@ -126,7 +126,7 @@ function describeRow(entry) {
   const parts = [entry.selected ? '选中了' : '没有选中']
   if (!entry.visible) parts.push('整行看不见了')
   if (entry.opacity < 1) parts.push(`整行变淡到 ${Math.round(entry.opacity * 100)}%`)
-  if (entry.skipped) parts.push('被标成「本次跳过」')
+  if (entry.skipped) parts.push('出现了已删除的跳过标记')
   if (!entry.composerVisible) parts.push('底栏看不见了')
   return parts.join('，')
 }
@@ -136,9 +136,10 @@ try {
   await monitor.step('打开项目（从项目库）', () => smoke.openProject(), { surfaces: ['*'], critical: true })
   await monitor.step('切到创作页，从侧栏点开这份分镜方案', async () => {
     await clickOrFail(win().locator('.nomi-stepper__step[data-mode="creation"]').first(), '顶栏「创作」')
+    await ensureCreationResourceTree(win(), 'PB12打开分镜方案')
     const item = win().locator(`[data-storyboard-id="${DESIGN}"]`).first()
     await expect(item, '侧栏里有这份分镜方案').toBeVisible({ timeout: stationTimeout() })
-    await clickOrFail(item, '侧栏选中分镜方案')
+    await openStoryboardEditor(win(), DESIGN, '侧栏选中分镜方案')
     await expect(editor().locator('[data-storyboard-row]'), '三镜').toHaveCount(3, { timeout: stationTimeout() })
   }, { surfaces: ['*'], critical: true })
   await monitor.screenshot('01-storyboard-initial')
@@ -217,16 +218,17 @@ try {
   await monitor.checkClickTarget(targetOf('sb-param-duration'), {
     observe: readPage,
     act: async () => {
-      const trigger = row(2).locator(`[data-storyboard-composer-bar] [aria-label="${uiText(locale, 'storyboardEditor.row.stayHint')}"]`).first()
+      const trigger = row(2).locator('[data-storyboard-composer-bar] [data-parameter-summary]').first()
       await clickOrFail(trigger, '第 2 镜底栏的时长格')
-      const dropdown = win().locator('[data-nomi-select-dropdown]:visible').last()
+      const dropdown = win().locator('[data-agent-parameter-control="__storyboard_stay_seconds"]:visible').last()
       await expect(dropdown, '时长下拉展开了').toBeVisible({ timeout: stationTimeout() })
-      const options = dropdown.locator('[role="option"]')
+      const options = dropdown.locator('[role="radio"]')
       const labels = await options.allInnerTexts()
       const index = labels.findIndex((label) => /\d/.test(label) && Number(label.match(/\d+/)?.[0]) !== 4)
       if (index < 0) throw new Error(`时长下拉里没有 4 秒以外的选项：${labels.join(' / ')}`)
       picked = { label: labels[index].trim(), seconds: Number(labels[index].match(/\d+/)[0]) }
       await options.nth(index).click()
+      await win().keyboard.press('Escape')
       // 等它落盘（自动保存有节拍）；等不到就按落盘里的真实值判，不在这里放水。
       await expect.poll(async () => (await readPage()).saved.find((entry) => entry.index === 2)?.durationSec, { timeout: stationTimeout() }).toBe(picked.seconds).catch(() => undefined)
     },
@@ -254,7 +256,7 @@ try {
       return { ok, actual: `勾上之后第 3 镜${describeRow(target)}${countChange(before, after)}${gone.length ? `；这些东西不见了：${gone.slice(0, 6).join('、')}` : ''}` }
     },
   })
-  // 收回「本次跳过」，免得它影响后面的生成（这一下不是被测动作）。
+  // 清除选中，复原行首复选框（这一下不是被测动作）。
   await monitor.step('把第 3 镜的小方框取消勾选（复原）', async () => {
     const box = row(3).locator('input[type="checkbox"]').first()
     if (await box.isChecked().catch(() => false)) await clickOrFail(box, '第 3 镜行首的小方框（取消）')

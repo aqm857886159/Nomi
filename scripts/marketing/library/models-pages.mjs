@@ -270,7 +270,7 @@ ${renderDownloadBand(locale)}`
     dateModified: String(editorial.checkedAt),
     mainEntityOfPage: { '@id': canonical },
     about: { '@type': 'Thing', name },
-    author: { '@type': 'Organization', name: 'Nomi', url: `${runtimeFacts.siteUrl}/` },
+    author: { '@id': `${runtimeFacts.siteUrl}/#organization` },
     citation: editorial.sources.map((source) => source.url),
   }
   const metadata = buildMetadata(locale, {

@@ -12,7 +12,6 @@ describe("certifyTaskOutputUrls", () => {
     await expect(certifyTaskOutputUrls({
       urls: [`data:image/png;base64,${png.toString("base64")}`],
       kind: "image",
-      vendorBaseUrl: "http://127.0.0.1:8188",
     })).resolves.toHaveLength(1);
   });
 
@@ -21,7 +20,6 @@ describe("certifyTaskOutputUrls", () => {
     const error = await certifyTaskOutputUrls({
       urls: [`data:video/mp4;base64,${fake.toString("base64")}`],
       kind: "video",
-      vendorBaseUrl: "http://127.0.0.1:8188",
     }).catch((caught) => caught);
     expect(error).toBeInstanceOf(CertificationMediaError);
   });

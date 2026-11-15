@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { IconCheck, IconClock } from '@tabler/icons-react'
 import { DesignButton, DesignCheckbox, DesignTextInput } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
+import { cn } from '../../utils/cn'
 import { snapshotPerfSummary } from '../../workbench/observability/perfCollector'
 import { buildFeedbackDiagnostics } from './feedbackDiagnostics'
 import { feedbackSummaryLine, feedbackSurfaceOf } from './feedbackSummary'
@@ -42,10 +43,20 @@ const EXCLUDED_ITEM_LABELS = new Map<string, string>([
   [FEEDBACK_MANIFEST_ITEMS.perf, 'feedbackReport.attachItem.perf'],
 ])
 
+/** 「发送」那颗主动作：卡在弹窗里时交给弹窗的决定栏去画（设计系统 §3.5），卡只给事实。 */
+export type FeedbackSendAction = {
+  label: string
+  disabled: boolean
+  /** 禁用时给用户看的原因（拿不到桌面桥）。 */
+  hint?: string
+  onSend: () => void
+}
+
 export function FeedbackReportCard({
   request = null,
   onDone,
   showHeading = true,
+  frame,
 }: {
   request?: FeedbackOpenRequest | null
   /** 发完（拿到编号或排队）后调用，带上这行回执该留多久。浮层态用它关窗，内嵌态用它退回首页。 */
@@ -56,6 +67,11 @@ export function FeedbackReportCard({
    * 两个标题会在卡上方留出一条空白带，而「面板尺寸由内容派生、空白=冗余」是拍板过的规则。
    */
   showHeading?: boolean
+  /**
+   * 装在弹窗里时由宿主给：卡的内容进弹窗中间那块（自己滚），「发送」进弹窗的决定栏（不滚，永远看得全）。
+   * 不给 = 内嵌在页面里（设置 → 关于），「发送」照旧在卡的最后一行。发完收成回执时 `send` 为 null。
+   */
+  frame?: (parts: { card: JSX.Element; send: FeedbackSendAction | null }) => JSX.Element
 }): JSX.Element {
   const { t } = useTranslation()
   const bridge = getDesktopBridge()
@@ -157,7 +173,7 @@ export function FeedbackReportCard({
 
   // 发完就收成一行。用户拿到编号之后这张卡没有任何别的用途（⑥：只给编号，不做回复闭环）。
   if (phase === 'sent' || phase === 'queued') {
-    return (
+    const receiptRow = (
       <div data-feedback-card data-feedback-phase={phase} className="flex items-start gap-2 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2 text-caption text-nomi-ink-60">
         {phase === 'sent'
           ? <IconCheck size={15} stroke={1.8} className="mt-px shrink-0 text-nomi-accent" aria-hidden="true" />
@@ -173,6 +189,7 @@ export function FeedbackReportCard({
         </div>
       </div>
     )
+    return frame ? frame({ card: receiptRow, send: null }) : receiptRow
   }
 
   // 这一行写的是这次真会带什么：工具轨迹只有对话里的问题才有，卡顿数字要攒够了才有。
@@ -180,8 +197,22 @@ export function FeedbackReportCard({
   const contentAttached = manifest !== null && manifest !== 'loading'
     && !manifest.excluded.some((item) => item.what === FEEDBACK_MANIFEST_ITEMS.content)
 
-  return (
-    <div data-feedback-card data-feedback-phase={phase} className="space-y-3 rounded-nomi border border-nomi-line bg-nomi-paper p-3.5">
+  const sendAction: FeedbackSendAction = {
+    label: phase === 'sending' ? t('feedbackReport.sending') : t('feedbackReport.send'),
+    /* R13/C1：拿不到桥就禁用并说清为什么，不做一颗点了没反应的钮。 */
+    disabled: !api || phase === 'sending',
+    hint: api ? undefined : t('feedbackReport.bridgeMissing'),
+    onSend: () => { void send() },
+  }
+
+  const card = (
+    <div
+      data-feedback-card
+      data-feedback-phase={phase}
+      // 放进弹窗时（frame）：卡最高 = 弹窗中间那块的高度，清单是唯一会缩的那段（下面）——
+      // 留言框、发送后的说明行始终在眼前，「发送」在决定栏（设计系统 §3.5；11-01 方向检查 §6「清单单独滚动」）。
+      className={cn('space-y-3 rounded-nomi border border-nomi-line bg-nomi-paper p-3.5', frame && 'flex min-h-0 flex-col')}
+    >
       {showHeading ? <h2 className="text-body-sm font-medium text-nomi-ink">{t('feedbackReport.title')}</h2> : null}
 
       {/* 一行自动摘要：机器已经知道的东西机器自己填。 */}
@@ -203,8 +234,12 @@ export function FeedbackReportCard({
       </div>
 
       {viewing ? (
-        // 清单多长都不能把「发送」挤出窗口：最高到放得下卡上其余部分为止，多的在这里滚。
-        <div data-feedback-manifest className="max-h-[calc(100vh-24rem)] space-y-1 overflow-y-auto rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2">
+        // 清单不写自己的高度数字：弹窗里它吃掉卡里剩下的高度、超出就在自己这段里滚（窗口多高给多高）；
+        // 内嵌在设置页时随页面一起滚。
+        <div
+          data-feedback-manifest
+          className={cn('space-y-1 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2', frame && 'min-h-0 overflow-y-auto overscroll-contain')}
+        >
           {manifest === 'loading' ? (
             <p className="text-micro text-nomi-ink-40">{t('feedbackReport.manifestLoading')}</p>
           ) : manifest === null ? (
@@ -264,18 +299,20 @@ export function FeedbackReportCard({
         <p data-feedback-error className="text-caption text-nomi-ink-60">{t('feedbackReport.failed')}</p>
       ) : null}
 
-      <div className="flex items-center gap-2">
-        <DesignButton
-          data-feedback-send
-          variant="filled"
-          /* R13/C1：拿不到桥就禁用并说清为什么，不做一颗点了没反应的钮。 */
-          disabled={!api || phase === 'sending'}
-          title={api ? undefined : t('feedbackReport.bridgeMissing')}
-          onClick={() => { void send() }}
-        >
-          {phase === 'sending' ? t('feedbackReport.sending') : t('feedbackReport.send')}
-        </DesignButton>
-      </div>
+      {frame ? null : (
+        <div className="flex items-center gap-2">
+          <DesignButton
+            data-feedback-send
+            variant="filled"
+            disabled={sendAction.disabled}
+            title={sendAction.hint}
+            onClick={sendAction.onSend}
+          >
+            {sendAction.label}
+          </DesignButton>
+        </div>
+      )}
     </div>
   )
+  return frame ? frame({ card, send: sendAction }) : card
 }

@@ -108,11 +108,12 @@ export function ModelSettingsDetailDialog({
       closeOnEscape={escapeAction === 'close'}
       closeOnClickOutside
       returnFocus
+      // 高度上限和滚动归属归外壳（设计系统 §3.5）：这里只给工作台的固定高度 640（翻页时弹窗不跳），
+      // 窗口更矮时由外壳的上限压住；各页自己的列表在页里滚。
       classNames={{
-        inner: 'p-2 sm:p-6',
-        content: 'flex h-[calc(100svh-16px)] max-h-[calc(100svh-16px)] w-full flex-col overflow-hidden rounded-nomi-lg shadow-nomi-lg sm:h-[min(640px,calc(100svh-48px))]',
+        content: 'h-[640px] w-full rounded-nomi-lg shadow-nomi-lg',
         header: 'sr-only',
-        body: 'relative flex min-h-0 flex-1 flex-col overflow-hidden p-0',
+        body: 'relative p-0',
       }}
     >
       <div

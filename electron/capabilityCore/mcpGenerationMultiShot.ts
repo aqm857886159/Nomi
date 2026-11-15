@@ -523,6 +523,24 @@ export function addShotsGuidance(designId: string): string {
     + 'is also added to this plan. Start a separate plan only when the user explicitly asks for another one: pass newPlan: true.';
 }
 
+
+/**
+ * 渲染层的 store 写入口拒收了这份方案（存不下：某个字段不合格）。它回 `{status:'rejected', issues:[{path, problem}]}`，
+ * 这里换成给模型的「哪个字段、要什么、状态没变」——模型按字段路径自己改，不贴 zod 原文，也不让它在一份写不进去的方案上重试。
+ * 路径和说明只取字符串、限长；不回显任何内容值。
+ */
+export function refuseIfStoryboardRejected(reply: unknown): void {
+  if (!reply || typeof reply !== 'object' || (reply as { status?: unknown }).status !== 'rejected') return;
+  const raw = (reply as { issues?: unknown }).issues;
+  const issues = (Array.isArray(raw) ? raw : []).flatMap((item) => {
+    const path = item && typeof item === 'object' ? (item as { path?: unknown }).path : undefined;
+    const problem = item && typeof item === 'object' ? (item as { problem?: unknown }).problem : undefined;
+    return typeof path === 'string' && typeof problem === 'string' ? [{ path: path.slice(0, 120), problem: problem.slice(0, 160) }] : [];
+  }).slice(0, 8);
+  if (!issues.length) return;
+  refuseArgument(`The storyboard plan was not saved and nothing changed. Fix these fields and send it again: ${issues.map((issue) => `${issue.path} ${issue.problem}`).join('; ')}.`, { field: issues[0].path });
+}
+
 /** 补进方案的那几行（id 由方案正本那一侧按方案此刻的样子发）。 */
 export type StoryboardExtendedFact = Readonly<{ designId: string; added: readonly AppendedStoryboardSubject[]; addShots: string }>;
 
@@ -533,6 +551,7 @@ export type StoryboardExtendedFact = Readonly<{ designId: string; added: readonl
 export async function extendStoryboardDesign(request: RequestRenderer,
   input: {projectId:string;documentId:string;designId:string;subjects:ReadonlyArray<PlanAnchor | PlanShot>}): Promise<StoryboardExtendedFact> {
   const reply = await request('storyboard.extend-design', input, STORYBOARD_RENDERER_TIMEOUT_MS) as {status?:unknown;designId?:unknown;added?:unknown} | null;
+  refuseIfStoryboardRejected(reply);
   if (!reply || reply.status!=='saved' || reply.designId!==input.designId || !Array.isArray(reply.added) || reply.added.length!==input.subjects.length) {
     throw new Error('storyboard_design_save_rejected');
   }
@@ -551,6 +570,7 @@ const STORYBOARD_RENDERER_TIMEOUT_MS = 15_000;
 export async function upsertStoryboardDesign(request: RequestRenderer,
   input: {projectId:string;documentId:string;designId:string;plan:StoryboardPlan;initiator:'user'|'agent'}): Promise<void> {
   const reply = await request('storyboard.upsert-design', input, STORYBOARD_RENDERER_TIMEOUT_MS) as {status?:unknown;designId?:unknown} | null;
+  refuseIfStoryboardRejected(reply);
   if (!reply || reply.status!=='saved' || reply.designId!==input.designId) throw new Error('storyboard_design_save_rejected');
 }
 
@@ -626,6 +646,7 @@ export async function patchStoryboardAuthoring(current: {sourceDocumentId?:strin
     {projectId,documentId:current.sourceDocumentId,designId,shotId:params.shotId,patch,...(references ? {references} : {})},
     STORYBOARD_RENDERER_TIMEOUT_MS) as {status?:unknown;shotId?:unknown;shots?:unknown;anchorHoldsShotNumber?:unknown} | null;
   if (reply?.status==='shot-not-found') refuseArgument(shotNotFoundMessage(String(params.shotId), reply));
+  refuseIfStoryboardRejected(reply);
   if (!reply || reply.status!=='saved' || reply.shotId!==params.shotId) throw new Error('storyboard_design_save_rejected');
 }
 

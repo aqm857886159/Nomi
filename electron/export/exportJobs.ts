@@ -126,7 +126,7 @@ function writeTextOverlayFiles(rawManifest: unknown, jobDir: string): FfmpegText
 }
 
 // 探测进行中（建任务之前）的中止口：App 退出时 abortAllActiveExports 一并中止，探测子进程不留孤儿，
-// 这次导出以「取消」收场。不进 activeExportAbortControllers——那张表是「在编码的导出」，后台自动退出等按它数活。
+// 这次导出以「取消」收场。不进 activeExportAbortControllers（那张表只管编码段的中止）；算忙由 activeExportCount 一并数。
 const preparingExportAbortControllers = new Set<AbortController>();
 
 function profileWithAudio(rawProfile: Record<string, unknown>, anyHasAudio: boolean): NomiRenderManifestV1["profile"] {
@@ -413,9 +413,13 @@ export function abortAllActiveExports(): number {
 const EXPORT_TEMP_INPUT_WRITABLE_STATUSES = new Set(["queued", "preparing", "planning", "rendering", "encoding", "muxing", "finalizing"]);
 const activeExportAbortControllers = new Map<string, AbortController>();
 
-/** 现在有几个导出在跑（后台自动退出、更新重启安装都据此判断「还有活没干完」）。 */
+/**
+ * 现在有几个导出在跑——「有活在跑」唯一真相里导出那一份（关窗藏 / 退、后台自动退出、更新安装都据此判断）。
+ * 本次运行里的导出从建任务前的素材探测起、到终态都算：建任务之后、编码之前还要靠渲染层录 webm / 推下一步，
+ * 只数编码段会把这段当空闲，关窗就把活断了。以前会话留在磁盘上的 active 作业在 hydrate 时已收成 failed，不算。
+ */
 export function activeExportCount(): number {
-  return activeExportAbortControllers.size;
+  return exportJobManager.activeJobIds().length + preparingExportAbortControllers.size;
 }
 
 function requireWritableExportJob(projectIdentity: ExportJobProjectIdentity, jobId: unknown): ExportJobSnapshot {

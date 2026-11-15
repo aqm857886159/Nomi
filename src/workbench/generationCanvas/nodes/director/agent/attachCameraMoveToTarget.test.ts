@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode } from '../../../model/generationCanvasTypes'
 import { encodeMention } from '../../../../../../electron/shared/storyboard/promptMentions'
 import { CAMERA_MOVE_ATTACHED_URL_KEY, computeAttachCameraMove } from './attachCameraMoveToTarget'
+import { archetypeForNode } from '../../../agent/referenceEdgeCapability'
+import { effectiveArchetypeMode } from '../../controls/archetypeMeta'
 
 // seedance-2-apimart 有 omni 模式（含 video_ref → referenceVideoUrls，无首 / 尾帧槽）；imagen-4 = 纯文生（无 video_ref 槽 → prompt 地板降级）
 function videoNode(overrides: Partial<GenerationCanvasNode> & { meta?: Record<string, unknown> } = {}): GenerationCanvasNode {
@@ -23,11 +25,13 @@ describe('computeAttachCameraMove — 运镜小片附到目标镜头（可替换
     expect(computeAttachCameraMove(undefined, 'nomi://a.mp4', 'push_in')).toEqual({ kind: 'noop' })
   })
 
-  it('首次附着（有 video_ref 槽）→ 切 omni + 填 referenceVideoUrls + 记指纹 + 追加参考句（引用标记，发送时投影成 @videoN）', () => {
+  it('首次附着（有 video_ref 槽）→ 按 omni 发 + 填 referenceVideoUrls + 记指纹 + 追加参考句（引用标记，发送时投影成 @videoN）', () => {
     const outcome = computeAttachCameraMove(videoNode(), 'nomi://a.mp4', 'push_in')
     expect(outcome.kind).toBe('patch')
     if (outcome.kind !== 'patch') return
-    expect((outcome.patch.meta.archetype as { modeId: string }).modeId).toBe('omni')
+    // 不写方式：放进参考视频后方式按输入现算成全能参考（2026-11-12）。
+    const attached = { ...videoNode(), meta: outcome.patch.meta } as GenerationCanvasNode
+    expect(effectiveArchetypeMode(archetypeForNode(attached)!, attached, { nodes: [attached], edges: [] }).mode.id).toBe('omni')
     expect(refUrls(outcome)).toEqual(['nomi://a.mp4'])
     expect(outcome.patch.meta[CAMERA_MOVE_ATTACHED_URL_KEY]).toBe('nomi://a.mp4')
     expect(outcome.patch.prompt).toContain(`${encodeMention('nomi://a.mp4')} 跟随这段参考视频的运镜`)

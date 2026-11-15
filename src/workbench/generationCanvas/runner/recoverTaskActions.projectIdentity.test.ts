@@ -121,7 +121,7 @@ describe('recovery reads only the task identity', () => {
   // 节点必须留在可找回（主动作 = 再查一次），绝不进带「重试生成」的错误态。
   it('a recovery query refused with a pre-submit code stays recoverable, never the paid-retry error state', async () => {
     const nodeId = recoverableNode({ projectId: 'project-a' })
-    vi.mocked(fetchWorkbenchTaskResultByVendor).mockRejectedValue(new Error('NOMI_ERR::outbound-blocked-submit:: 这次生成**没有发出去**'))
+    vi.mocked(fetchWorkbenchTaskResultByVendor).mockRejectedValue(new Error('NOMI_ERR::outbound-blocked-credential-origin:: 这次生成**没有发出去**'))
     await recoverInOpenProject(nodeId)
     expect(useGenerationCanvasStore.getState().nodes.find((node) => node.id === nodeId)?.status).toBe('recoverable')
   })

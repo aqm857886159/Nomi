@@ -1,13 +1,9 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { createPortal } from 'react-dom'
-import { motion } from 'framer-motion'
-import { IconFolderPlus, IconTrash, IconX } from '../../../vendor/tablerIcons'
+import { IconFolderPlus, IconTrash } from '../../../vendor/tablerIcons'
 import { cn } from '../../../utils/cn'
-import { DecisionBar } from '../../../design'
-import { useModalInputLayer } from '../../../design/modalInputLayer'
+import { DecisionBar, DesignModal } from '../../../design'
 import { BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS, type BrowserPromptExtractionMode } from './browserPromptExtraction'
-import { TOOL_BUTTON_CLASS } from '../popover/browserAssetPopoverConstants'
 import type { BrowserPromptExtractionTemplate, BrowserPromptExtractionTemplateSettings } from '../popover/browserAssetPopoverTypes'
 import {
   browserPromptExtractionTemplatesForMode,
@@ -59,7 +55,6 @@ export function BrowserPromptExtractionSettingsModal({
   onSave,
   onClose,
 }: BrowserPromptExtractionSettingsModalProps): JSX.Element {
-  useModalInputLayer(true)
   const { t } = useTranslation()
   const [draft, setDraft] = React.useState(() => normalizeBrowserPromptExtractionTemplateSettings(settings))
   const [mode, setMode] = React.useState<BrowserPromptExtractionMode>('replicate')
@@ -120,18 +115,42 @@ export function BrowserPromptExtractionSettingsModal({
     }))
   }, [isDefaultTemplate, mode])
 
-  const dialog = (
-    <div className="fixed inset-0 z-[3400] grid place-items-center bg-nomi-ink/38 p-5 font-nomi-sans text-nomi-ink backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-label={t('browserAssets.extraction.settings')} data-nomi-prompt-extraction-settings-dialog="true" onMouseDown={(event) => event.stopPropagation()}>
-      <motion.div className="flex h-[min(720px,calc(100vh-40px))] w-[min(920px,calc(100vw-40px))] flex-col overflow-hidden rounded-nomi-lg border border-nomi-line bg-nomi-paper shadow-nomi-lg" initial={{ opacity: 0, scale: 0.985, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.16, ease: 'easeOut' }}>
-        <div className="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-nomi-line-soft px-4">
-          <div className="min-w-0">
-            <div className="truncate text-body-sm font-bold text-nomi-ink">{t('browserAssets.extraction.settings')}</div>
-            <div className="mt-0.5 truncate text-micro text-nomi-ink-40">{t('browserAssets.extraction.settingsPath')}</div>
-          </div>
-          <button type="button" className={TOOL_BUTTON_CLASS} aria-label={t('browserAssets.extraction.closeSettings')} onClick={onClose}>
-            <IconX size={17} stroke={1.8} aria-hidden="true" />
-          </button>
-        </div>
+  return (
+    <DesignModal
+      opened
+      onClose={onClose}
+      accessibleName={t('browserAssets.extraction.settings')}
+      title={<div>{t('browserAssets.extraction.settings')}<div className="mt-0.5 text-micro font-normal text-nomi-ink-40">{t('browserAssets.extraction.settingsPath')}</div></div>}
+      size={920}
+      centered
+      closeOnClickOutside={false}
+      closeOnEscape={false}
+      trapFocus={false}
+      returnFocus={false}
+      closeButtonProps={{ 'aria-label': t('browserAssets.extraction.closeSettings') }}
+      contentAttributes={{ 'data-nomi-prompt-extraction-settings-dialog': 'true' }}
+      actions={
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-caption text-nomi-ink-40">{projectAvailable ? t('browserAssets.extraction.projectPortable') : t('browserAssets.extraction.projectUnavailable')}</div>
+              <DecisionBar
+                className="min-w-[280px] flex-1"
+                leading={isDefaultTemplate ? (
+                  <button type="button" className="inline-flex h-9 items-center rounded-nomi border border-nomi-line bg-nomi-paper px-3 text-caption font-semibold text-nomi-ink-60 hover:bg-nomi-ink-05" onClick={resetDefaultTemplate}>{t('browserAssets.extraction.restoreDefault')}</button>
+                ) : (
+                  <button type="button" className="inline-flex h-9 items-center gap-2 rounded-nomi border border-workbench-danger/35 bg-nomi-paper px-3 text-caption font-semibold text-workbench-danger hover:bg-workbench-danger-soft" onClick={deleteSelectedTemplate}>
+                    <IconTrash size={16} stroke={1.8} aria-hidden="true" />
+                    {t('browserAssets.extraction.delete')}
+                  </button>
+                )}
+                size="md"
+                cancelLabel={t('browserAssets.extraction.cancel')}
+                onCancel={onClose}
+                primaryLabel={t('browserAssets.extraction.save')}
+                onPrimary={() => onSave(normalizeBrowserPromptExtractionTemplateSettings(draft))}
+              />
+            </div>
+      }
+    >
         <div className="grid min-h-0 flex-1 gap-4 overflow-hidden p-4 md:grid-cols-[220px_minmax(0,1fr)]">
           <section className="flex min-h-0 flex-col gap-3">
             <div className="grid grid-cols-2 gap-1 rounded-nomi bg-nomi-ink-05 p-1">
@@ -166,29 +185,9 @@ export function BrowserPromptExtractionSettingsModal({
               <span className="text-caption font-semibold text-nomi-ink-60">{t('browserAssets.extraction.prompt')}</span>
               <textarea value={selectedTemplate.prompt} className="min-h-[340px] flex-1 resize-none rounded-nomi border border-nomi-line bg-nomi-bg p-3 text-body-sm leading-relaxed text-nomi-ink outline-none focus:border-nomi-ink-40" onChange={(event) => updateTemplate({ prompt: event.target.value })} />
             </label>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-caption text-nomi-ink-40">{projectAvailable ? t('browserAssets.extraction.projectPortable') : t('browserAssets.extraction.projectUnavailable')}</div>
-              <DecisionBar
-                className="min-w-[280px] flex-1"
-                leading={isDefaultTemplate ? (
-                  <button type="button" className="inline-flex h-9 items-center rounded-nomi border border-nomi-line bg-nomi-paper px-3 text-caption font-semibold text-nomi-ink-60 hover:bg-nomi-ink-05" onClick={resetDefaultTemplate}>{t('browserAssets.extraction.restoreDefault')}</button>
-                ) : (
-                  <button type="button" className="inline-flex h-9 items-center gap-2 rounded-nomi border border-workbench-danger/35 bg-nomi-paper px-3 text-caption font-semibold text-workbench-danger hover:bg-workbench-danger-soft" onClick={deleteSelectedTemplate}>
-                    <IconTrash size={16} stroke={1.8} aria-hidden="true" />
-                    {t('browserAssets.extraction.delete')}
-                  </button>
-                )}
-                size="md"
-                cancelLabel={t('browserAssets.extraction.cancel')}
-                onCancel={onClose}
-                primaryLabel={t('browserAssets.extraction.save')}
-                onPrimary={() => onSave(normalizeBrowserPromptExtractionTemplateSettings(draft))}
-              />
-            </div>
+
           </section>
         </div>
-      </motion.div>
-    </div>
+    </DesignModal>
   )
-  return typeof document === 'undefined' ? dialog : createPortal(dialog, document.body)
 }

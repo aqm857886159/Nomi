@@ -1,58 +1,16 @@
 /**
- * 出站目的地策略的**唯一 owner**（P2 类根因修复，见 docs/fixes/2026-09-07-outbound-policy-split-across-submit-and-retrieval.root-cause.json）。
+ * 按目的地**地址**判断出网的唯一 owner——现在只服务「取回的文字会进模型」的入口
+ * （`hardenedFetch` 的 `textEntersModelContext`：Agent 读文档网址 `catalogCommit.fetchModelCatalogDocs`、
+ * 接入向导抓文档 `providerAdapter/providedDocs.ts` / `docsDiscovery.ts`）。
  *
- * 病根不是「黑名单多了一段」，而是**同一次生成的出站决策被判了两次**：
- *   · 提交/轮询走 vendorHttp → appFetch，对目的地**零策略**（信任用户配置的 vendor origin）；
- *   · 取回产物走 hardenedFetch，对目的地做 DNS 解析 + 私网分类，**可以拒绝**。
- * 于是存在一个致命的不对称：**我们愿意为之付钱的目的地，可能是我们拒绝读取的目的地**。
- * 2026-09-06 真实验收就撞上了：Clash/Surge TUN + fake-ip 把 `api.apimart.ai` 解析进
- * `198.18.0.0/15`（RFC 2544 基准测试段），POST 放行、GET 被自己拦下——10 条视频钱扣了、
- * 一帧都取不回来，界面只说「生成失败」。
+ * 生成的提交、轮询、上传、取回成片、下载、探测、媒体转发都**不再**问这里（2026-11-13 用户拍板删掉
+ * 那一层：开着代理的人一直被它拦，见 docs/engineering/direction-checks/2026-11-13-outbound-address-layer-delete.md）。
+ * 这两处为什么还留：任意网页文字进模型上下文，是唯一说得出真实路径的一条（恶意文档页诱导 Agent 去读
+ * 本机 / 内网地址）；协调 2026-11-13 定「这一轮原样保留、另行定夺」。新增调用方先过协调会话。
  *
- * 本模块把那个决策收成**一处**：`classifyOutboundAddresses` 是唯一的判据，
- * `readOutboundEnvironment` 是唯一的环境事实，`check:outbound-policy` 棘轮盯着所有
- * `appFetch` / `isPrivateHost` 的引用点，谁再长出第二个分类器都会报红。
- * 环境事实**在进程内只探一次并缓存**——这正是「一处判定、结果带到取回」：提交那一刻算出的
- * 网络环境，取回时读到的是同一份，不可能中途翻脸。
- *
- * 2026-09-07 第二轮起，**提交侧也走这里**：`vendorHttp.requestVendor` 在发出付费请求之前调
- * `authorizeOutboundDestination`，与取回侧同一个函数、同一份环境事实。用户显式配在模型设置里的
- * vendor origin 仍然可以是私网（本地 ComfyUI / 局域网自建中转是正当配置），但它走的是**声明式
- * 精确 origin 例外**，不是「提交侧不判」——两者的区别是后者对任何目的地都放行。
- * 提交被拦时请求**从未离开本机**，所以供应商没被请求到、不可能计费；文案据此与取回侧分家
- * （取回侧是「钱已付、免费重取」，提交侧是「没扣费、修好网络重新生成」）。
- *
- * ── fake-ip 为什么可以放行（依据，不是宽容）────────────────────────────────────────────
- * `198.18.0.0/15` 由 RFC 2544 §C.2.2 分配给**网络互联设备基准测试**，RFC 5735/6890 把它列为
- * 特殊用途保留段——它不是 RFC 1918 私网，任何真实内网服务都不该住在那里。而 Clash / Surge /
- * sing-box 这类本地代理的 fake-ip 模式**默认就把它当合成地址池**（Clash `fake-ip-range` 默认
- * `198.18.0.1/16`），把每一个域名映射进去，真正的 DNS 由代理在自己那侧做。
- * 也就是说：本机解析器一旦在合成答案，`198.18.x` 就**不是一个可被 SSRF 打到的目的地**，
- * 而是「交给代理去解析」的记号。门岗真正要挡的 `127/8`、`10/8`、`172.16/12`、`192.168/16`、
- * `169.254/16`（云元数据）全部**保持拦截**，一条都不放。
- *
- * 关键在于：放行必须有**阳性证据**，不能因为「用户可能开了代理」就默认放行。
- * 证据取自 `probeSyntheticResolver`：向一个**随机的、不可能存在的域名**发一次 DNS 查询。
- * 正常解析器必答 NXDOMAIN；只有在合成答案的解析器才会给出地址。给出的地址落在 198.18/15 时，
- * 才认定「本机跑着 fake-ip 代理」。探测失败/超时/答不出 → 按**没有**代理处理（fail-closed，维持拦截）。
- *
- * **探测名必须用真实 TLD（.com/.net），不能用 `.invalid`/`.test`/`.example`。** 这一条是在真机上
- * 撞出来的，反直觉且致命：RFC 6761 要求解析器**在本地**就把这些保留 TLD 答成 NXDOMAIN，查询根本
- * 到不了代理。2026-09-07 在用户机器上实测（fake-ip 确实开着，`api.apimart.ai → 198.18.0.140`）：
- *
- *     nomi-fakeip-probe-74rf3q9vwd.com     -> 198.18.2.228   （代理答的，✅ 证据成立）
- *     nomi-fakeip-probe-2xcw16ci3b.net     -> 198.18.2.229   （✅）
- *     nomi-fakeip-probe-gqortvorri.invalid -> ENOTFOUND      （❌ 系统本地答的，探不到代理）
- *     nomi-fakeip-probe-6md3vt5xmq.test    -> ENOTFOUND      （❌）
- *     nomi-fakeip-probe-6tt2saelif.example -> ENOTFOUND      （❌）
- *
- * 换言之，「保证不存在」的名字恰恰因为**太规范**而无法当探针——它规范到根本不出门。随机 .com 标签
- * 撞上真实注册域名的概率可忽略，且即便撞上，真实域名解析出的是公网地址、不在 198.18/15，
- * 不会造成误判。查的是不存在的名字，除 DNS 外不产生任何出站流量。
- *
- * 逃生口：本模块**没有** env 开关。实验室要的 loopback 由 `main.ts` 在 `!app.isPackaged` 时
- * 显式注入精确 origin（`setLabTrustedPrivateOrigins`），打包版本连读都不读——旧的
- * `LAB_ALLOW_LOCALHOST=1` 是把分类器整个关掉（连 169.254 元数据一起放行），已删除。
+ * 判据（原样）：名字层拒本机 / 内网 / 链路本地字面量与 localhost/.local（实验室精确 origin 例外，只在未打包构建）；
+ * 直连时解析后按地址拒，代理合成地址段 `198.18.0.0/15` 只有在探测证实本机解析器在合成答案、且目标是带点的公网名时放行；
+ * 经代理时只判名字。探测名必须用真实 TLD（.com/.net）：`.invalid`/`.test` 会被系统本地答 NXDOMAIN，到不了代理。
  */
 import net from "node:net";
 import { lookup as dnsLookup } from "node:dns/promises";
@@ -80,13 +38,7 @@ export type OutboundRefusalReason =
   /** 解析不出任何地址。 */
   | "unresolvable";
 
-/**
- * 出站被策略拒绝时的**结构化**错误（不是裸 `new Error(字符串)`）。
- *
- * 为什么必须结构化：验收里这条错误一路被压成「生成失败」，用户面前没有任何线索。下游要能
- * 区分「安全策略拦的」与「上游挂了」，并据此给出**不同的下一步**——前者可以在设置里确认代理
- * 后**免费重新拉取**（任务已付费、上游已成功），后者才需要重试生成。
- */
+/** 出站被地址判据拒绝时的结构化错误（只有 `textEntersModelContext` 的入口会抛）。 */
 export class OutboundDestinationRefusedError extends Error {
   readonly reason: OutboundRefusalReason;
   readonly hostname: string;
@@ -300,9 +252,6 @@ export function coarseAddressLabel(address: string): string {
  *               本机解析出的东西不是这次连接会用的那份，拿它判等于判了一个不存在的目的地。
  */
 export type OutboundRouteKind = "direct" | "proxy";
-
-/** 这次出站是「花钱那一步」还是「拿东西那一步」——两者被拦时用户该做的事完全不同。 */
-export type OutboundStage = "submit" | "retrieval";
 
 export type OutboundAuthorization =
   | { allowed: true; route: OutboundRouteKind; pinnedAddresses: readonly ResolvedHostAddress[] | null }

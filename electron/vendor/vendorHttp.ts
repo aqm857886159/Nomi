@@ -193,7 +193,7 @@ async function requestVendor(
   if (options.retryOnNotWritten && options.idempotencyKey) {
     requestHeaders[options.idempotencyHeader?.trim() || "Idempotency-Key"] = options.idempotencyKey;
   }
-  // ── 出站策略：提交侧与取回侧问**同一个** owner、读同一份进程内环境事实 ────────────────
+  // ── 密钥去向：带 key 的请求只去保存时确认的 origin ────────────────────────────────
   // 判据跑在这里而不是更下面，是因为「不扣费」这条承诺就是靠位置成立的：refusal 抛在
   // fetchVendorWithBaseFallback 之前，请求一个字节都没离开本机，供应商不可能计费
   // （与 vendorBaseFallback 文件头第 3 条同一个道理：连接未建立 ⇒ 不可能已计费）。
@@ -205,12 +205,11 @@ async function requestVendor(
   const submitRefusal = await authorizeSubmitDestination({
     vendor,
     url: finalUrl,
-    routedThroughProviderProxy: Boolean(dispatcher),
     // 「这次带 key 了吗」不在守卫里重猜：`collectRequestSecretValues` 已经按这一次具体请求
     // 算过一遍（头、鉴权 query、query），复用同一个答案。
     carriesCredential: requestSecrets.length > 0,
   });
-  // 授权是本轮新插进来的一段 await（要做 DNS），于是**取消有了一个新的落点**：调用方在这段
+  // 授权是一段 await，于是**取消有了一个新的落点**：调用方在这段
   // 窗口里 abort，signal 已经是 aborted 而 fetch 还没被调用过。不在这里接住的话，取消要么被
   // 无声吞掉（照旧把付费请求发出去），要么落进一个已经 abort 的 signal 上、事件永不再触发。
   // 接住它，且原样抛出取消原因——与下面 catch 里的 callerCancellation 同一条纪律。

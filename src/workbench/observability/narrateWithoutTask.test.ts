@@ -14,7 +14,6 @@ import {
 } from './narrate'
 import { generatedMediaValidationError } from '../../../electron/assets/generatedMediaDecode'
 import { retrievalStageError } from '../../../electron/tasks/retrievalStageError'
-import { describeOutboundRefusal } from '../../../electron/networkOutboundMessage'
 
 afterAll(async () => { await i18n.changeLanguage('zh-CN') })
 
@@ -54,16 +53,6 @@ describe('A10：渲染层读落地门抛出的真错误', () => {
       expect(shown.primary).toBe('retry')
       for (const label of retrieveAgainLabels()) expect(shown.hint).not.toContain(label)
     })
-
-    it(`${lang} · 取片被出网策略拦 → outbound-blocked；没有任务号时先去网络那一行、次动作重试，说明不提重新取回`, async () => {
-      await i18n.changeLanguage(lang)
-      const message = describeOutboundRefusal({ reason: 'private-address', hostname: 'cdn.provider.test', observedAddress: '198.18.0.7', syntheticResolver: false, stage: 'retrieval' })
-      const report = classifyGenerationError(message)
-      expect(report.kind).toBe('outbound-blocked')
-      const shown = withoutTask(report.kind)
-      expect([shown.primary, shown.secondary]).toEqual(['open-model-access', 'retry'])
-      for (const label of retrieveAgainLabels()) expect(shown.hint).not.toContain(label)
-    })
   }
 })
 
@@ -87,7 +76,7 @@ describe('类守门：没有任务号时，任何一类都不暗示能取回', (
 
   it('探针活着：有任务号时（默认）这几类确实指向重新取回——无任务表管的正是它们', async () => {
     await i18n.changeLanguage('zh-CN')
-    for (const kind of ['retrieval-incomplete', 'output-retrieval-failed', 'outbound-blocked'] as const) {
+    for (const kind of ['retrieval-incomplete', 'output-retrieval-failed'] as const) {
       const { hint } = narrateGenerationError(kind)
       expect(retrieveAgainLabels().some((label) => hint.includes(label)), kind).toBe(true)
       expect(narrateGenerationErrorWithoutTask(kind), kind).not.toBeNull()

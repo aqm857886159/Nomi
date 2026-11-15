@@ -1,0 +1,18 @@
+{
+  "_": "「面板上露出了、这次请求里却没有去处」的存量格（棘轮：只减不增）。键 = 模型@变体/方式/参数；值 = 一句是什么情况。修好一格就删一条；apimartShownEqualsSent.test.ts 两向核对 + 条数上限守着它。",
+  "cells": {
+    "audio suno-v5.5/music/customMode": "Suno V5.5 音乐生成：APIMart 这一行的 body 写死 custom:false，面板上的「自定义模式」开关发不出去",
+    "audio suno-v5.5/music/style": "同上：自定义模式下的风格，APIMart body 不引用",
+    "audio suno-v5.5/music/title": "同上：自定义模式下的标题，APIMart body 不引用",
+    "audio suno-v5.5/music/duration": "同上：时长控件，APIMart body 不引用",
+    "audio suno-v5.5/extend/defaultParamFlag": "Suno V5.5 续写：APIMart 只发布了音乐生成一条映射，续写方式落到它上面，续写参数全发不出去",
+    "audio suno-v5.5/extend/continueAt": "同上：续写起点",
+    "audio suno-v5.5/extend/style": "同上：续写的风格",
+    "audio suno-v5.5/extend/title": "同上：续写的标题",
+    "audio suno-v5.5/cover/customMode": "Suno V5.5 翻唱：同续写，落到音乐生成那条映射上，翻唱参数发不出去",
+    "audio suno-v5.5/cover/style": "同上：翻唱的风格",
+    "audio suno-v5.5/cover/title": "同上：翻唱的标题",
+    "image grok-imagine-2.0-ext/i2i/aspect_ratio": "Grok Imagine 2.0 Ext：档案有改图方式，APIMart 只给这一行发布了文生图（没有改图映射），面板上这一方式整体发不出去",
+    "image grok-imagine-2.0-ext/i2i/output_count": "同上：改图方式的张数"
+  }
+}

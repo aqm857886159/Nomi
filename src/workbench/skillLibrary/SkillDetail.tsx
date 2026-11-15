@@ -28,22 +28,15 @@ export function SkillDetail({ entry, addToChatBlockedReason, onClose, onAddToCha
   return (
     <DesignModal
       opened
+      contentAttributes={{ 'data-skill-detail': entry.id }}
+      accessibleName={entry.title}
       onClose={onClose}
-      title={entry.title}
-      withCloseButton={false}
-      size={720}
-      padding={0}
-      xOffset={24}
-      yOffset={48}
-      styles={{ inner: { justifyContent: 'flex-end' } }}
-      classNames={{ content: 'rounded-modal bg-nomi-paper shadow-nomi-lg', header: 'sr-only', body: 'p-0' }}
-    >
-      <div data-skill-detail={entry.id} className="flex h-[760px] max-h-[calc(100vh-96px)] flex-col">
+      title={
         <header className="relative flex shrink-0 gap-5 border-b border-nomi-line px-6 pb-5 pt-6">
           <SkillMedia cover={entry.cover} preview={entry.preview} play illustration={entry.illustration} expiredLabel={t('libraries.prompt.card.expired')}
             className="h-[120px] w-48 shrink-0 overflow-hidden rounded-nomi-sm object-cover" />
           <div className="flex min-w-0 flex-col gap-2 pr-8">
-            <h1 className="m-0 font-nomi-display text-h1 font-medium leading-8 text-nomi-ink" data-skill-detail-title>{entry.title}</h1>
+            <span className="m-0 font-nomi-display text-h1 font-medium leading-8 text-nomi-ink" data-skill-detail-title>{entry.title}</span>
             {entry.description ? <p className="m-0 text-body-sm leading-5 text-nomi-ink-60">{entry.description}</p> : null}
             <LibraryDetailMeta data-skill-detail-meta>
               {entry.group ? <span>{entry.group.label}</span> : null}
@@ -67,12 +60,8 @@ export function SkillDetail({ entry, addToChatBlockedReason, onClose, onAddToCha
             <IconX size={16} stroke={2} />
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">
-          <div className="max-w-[640px] text-body leading-relaxed text-nomi-ink-80">
-            {invalid ? <p role="alert" className="mb-3 mt-0 text-caption text-workbench-danger" data-skill-detail-invalid>{invalid}</p> : null}
-            <NomiMarkdown>{galleryBody(entry)}</NomiMarkdown>
-          </div>
-        </div>
+      }
+      actions={
         <LibraryDetailFooter
           leading={onDelete ? (
             <LibraryDetailIconButton danger icon={<IconTrash size={16} stroke={1.8} />} label={t('libraries.skill.deleteSkill')} onClick={onDelete} data-skill-detail-delete />
@@ -83,6 +72,24 @@ export function SkillDetail({ entry, addToChatBlockedReason, onClose, onAddToCha
             {t('libraries.skill.addToChat')}
           </LibraryDetailPrimary>
         </LibraryDetailFooter>
+      }
+      withCloseButton={false}
+      size={720}
+      padding={0}
+      xOffset={24}
+      yOffset={48}
+      styles={{ inner: { justifyContent: 'flex-end' } }}
+      classNames={{ content: 'rounded-modal bg-nomi-paper shadow-nomi-lg', header: 'p-0', title: 'w-full', body: 'p-0' }}
+    >
+      <div>
+
+        <div className="px-6 py-5">
+          <div className="max-w-[640px] text-body leading-relaxed text-nomi-ink-80">
+            {invalid ? <p role="alert" className="mb-3 mt-0 text-caption text-workbench-danger" data-skill-detail-invalid>{invalid}</p> : null}
+            <NomiMarkdown>{galleryBody(entry)}</NomiMarkdown>
+          </div>
+        </div>
+
       </div>
     </DesignModal>
   )

@@ -38,8 +38,10 @@ try {
 
   // 两次真实生成任务的 mock 结果，经过同一个主进程 telemetry bridge，避免供应商额度与素材依赖。
   await win.evaluate(async () => {
-    await window.nomiDesktop.telemetry?.track({ eventName: 'generation.completed', props: { capability: 'image', durationBucket: '1-5s', result: 'success', attemptCountBucket: '1' } })
-    await window.nomiDesktop.telemetry?.track({ eventName: 'generation.completed', props: { capability: 'image', durationBucket: '1-5s', result: 'success', attemptCountBucket: '1' } })
+    // 形状 = 渲染层真实交的那份（src/workbench/api/generationTelemetry.ts）：modelClass 由主进程按 vendorKey 补。
+    const props = { capability: 'image', durationBucket: '1-5s', result: 'success', mode: 'text', submitDuration: '1-5s', waitDuration: 'none', upstreamStatus: 'ok' }
+    await window.nomiDesktop.telemetry?.track({ eventName: 'generation.completed', vendorKey: 'apimart', props })
+    await window.nomiDesktop.telemetry?.track({ eventName: 'generation.completed', vendorKey: 'my-relay', props })
   })
   await section.getByRole('button', { name: '查看待发 / 已发摘要', exact: true }).click()
   await expectVisible(section.locator('[data-telemetry-summary-list]'), '摘要列表')

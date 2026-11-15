@@ -3,7 +3,7 @@ import type { useGenerationCanvasStore } from '../../../generationCanvas/store/g
 import { findShotNode, findShotKeyframeNode } from './storyboardNodeBinding'
 import { buildAgentModelEntries } from '../../../generationCanvas/agent/availableModels'
 import { buildModelEntryIndex } from '../../../generationCanvas/agent/plannedNodeMeta'
-import { resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
+import { resolveModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
 import { overriddenShotFields, nodeShotField } from '../../../generationCanvas/model/storyboardOverrides'
 import { effectiveShotValue } from '../shotRow/shotRowModel'
@@ -24,6 +24,7 @@ export function projectShotNode(
   plan: StoryboardPlan, shot: PlanShot, node: GenerationCanvasNode,
   part: 'shot' | 'keyframe', entryByKey: ReadonlyMap<string, AgentModelEntry>, mode?: ArchetypeMode | null,
 ): Partial<GenerationCanvasNode> {
+  if (part === 'keyframe' && (shot.shotKind === 'image' || shot.keyframe?.enabled !== true)) return {}
   const isImageShot = shot.shotKind === 'image'
   const fields = part === 'shot' ? overriddenShotFields(node) : []
   const prompt = fields.includes('prompt') ? String(effectiveShotValue(shot, node, 'prompt') ?? '')
@@ -91,7 +92,7 @@ export function projectShotNode(
  */
 export function projectShotOntoNodeByPlanMode(plan: StoryboardPlan, shot: PlanShot, node: GenerationCanvasNode): Partial<GenerationCanvasNode> {
   const entries = buildModelEntryIndex(buildAgentModelEntries(shot.modelKey ? [{ value: shot.modelKey, label: shot.modelKey, vendor: shot.modelVendor, kind: shot.shotKind ?? 'video' }] : []))
-  const profile = resolveArchetypeForModel({ modelKey: shot.modelKey ?? '', vendorKey: shot.modelVendor })
+  const profile = resolveModelArchetype({ modelKey: shot.modelKey ?? '', vendorKey: shot.modelVendor }, { variant: { variantId: undefined, modelId: shot.modelKey } })
   const mode = profile?.modes.find(candidate => candidate.id === (shot.modeId ?? profile.defaultModeId)) ?? null
   return projectShotNode(plan, shot, node, 'shot', entries, mode)
 }
@@ -110,7 +111,7 @@ export function projectStoryboardDesign(design: Pick<StoryboardDesign, 'id' | 'p
     const entries = buildModelEntryIndex(buildAgentModelEntries(shot.modelKey ? [{ value: shot.modelKey, label: shot.modelKey, vendor: shot.modelVendor, kind: shot.shotKind ?? 'video' }] : []))
     const node = findShotNode(canvas.nodes, design.id, shot)
     if (node && !node.regeneratedFrom && !node.derivedFrom) canvas.updateNode(node.id, projectShotOntoNodeByPlanMode(design.plan, shot, node), { origin: 'storyboard-projection', history: false })
-    const keyframe = findShotKeyframeNode(canvas.nodes, design.id, shot)
+    const keyframe = shot.shotKind !== 'image' && shot.keyframe?.enabled === true ? findShotKeyframeNode(canvas.nodes, design.id, shot) : null
     if (keyframe) canvas.updateNode(keyframe.id, projectShotNode(design.plan, shot, keyframe, 'keyframe', entries), { origin: 'storyboard-projection', history: false })
   }
 }

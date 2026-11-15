@@ -1,0 +1,38 @@
+{
+  "name": "thinking-overlap",
+  "mode": "development",
+  "locale": "zh-CN",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "paidCalls": 0,
+  "overlaps": {
+    "early": [],
+    "streaming": [],
+    "complete": []
+  },
+  "injectedOverlap": [
+    [
+      0,
+      1
+    ]
+  ],
+  "textRequests": 3,
+  "imageRequests": 0,
+  "unexpected": [],
+  "result": "failed",
+  "head": "13ee743b9",
+  "countAssertion": "passed: one process-level thinking detail",
+  "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('[data-agent-resident=\"true\"][data-agent-panel=\"true\"][data-agent-surface=\"generation\"]').locator('[data-v4-block=\"thinking\"] details').first().locator('summary')\n    - locator resolved to <summary data-v4-row=\"true\" class=\"flex min-w-0 items-center gap-1.5 min-h-7 cursor-pointer list-none [&::-webkit-details-marker]:hidden\">…</summary>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 100ms\n    58 × waiting for element to be visible, enabled and stable\n       - element is not visible\n     - retrying click action\n       - waiting 500ms\n\n    at tests/ux/agent-thinking-overlap.walk.mjs:110:37",
+  "coldRestore": "not reached",
+  "english": "not run after scope stop",
+  "screenshots": [
+    "authorized-thinking-zh-01.png",
+    "authorized-thinking-zh-02.png",
+    "authorized-thinking-zh-03.png"
+  ],
+  "screenshotsInspected": true,
+  "historyProof": "thinking-count-history-proof.json",
+  "scopeStop": "Next repair requires opening the parent process before clicking its hidden thinking summary; authorization permits only two counts and related comments."
+}

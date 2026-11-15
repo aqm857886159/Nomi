@@ -24,7 +24,7 @@ import { bodyReferencedParamKeys } from "./paramTranslate";
 import { renderTemplateValue } from "../ai/requestPipeline";
 import { assertNoReferenceResidueBeforeSend } from "../tasks/referenceResidueGuard";
 import { GENERIC_REFERENCE_KEYS } from "../shared/modelArchetypes/referenceKeys";
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
 import type { CatalogState, HttpOperation, Mapping, Model, Vendor } from "./types";
 import type { TaskRequest } from "../runtime";
 
@@ -102,7 +102,7 @@ const FLAT: Cell[] = SEEDED.mappings
 /** archetypeInput 路的总体：模型行认得出档案（渲染层才会交 archetypeInput）。 */
 const ARCHETYPE: Cell[] = FLAT.filter(({ mapping }) => {
   const { model } = transportFor(mapping);
-  return Boolean(resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: mapping.vendorKey, meta: model.meta as Record<string, unknown> | undefined }));
+  return Boolean(resolveModelArchetype({ modelKey: model.modelKey, vendorKey: mapping.vendorKey, meta: model.meta as Record<string, unknown> | undefined }, { variant: EVERY_VARIANT }));
 });
 
 const extrasWith = (keys: string[]) => Object.fromEntries(keys.map((key) => [key, referenceValue(key, RAW)]));
@@ -126,7 +126,7 @@ describe(`出站参考链接：参数层序列化覆盖 ${FLAT.length} 条内置
     expect(sent).toContain(SERIALIZED);
   });
 
-  // headless / MCP 调用方只给标准输入键：参考由主进程翻译、按请求体读的键投影落位（projectReferencesOntoBodyKeys），
+  // headless / MCP 调用方只给标准输入键：参考由主进程翻译、按请求体读的键落位（headlessReferenceOverlay → 唯一降级函数），
   // 落到的键不一定在共享键表里（Wan 3.0 / Kling 3.0 的 audio、RunningHub 的 generateAudio …）。
   const CANONICAL = { referenceImages: [RAW], firstFrameUrl: RAW, lastFrameUrl: RAW, referenceVideoUrls: [RAW], referenceAudioUrls: [RAW] };
   it.each(FLAT)("标准输入键路 $id：请求里没有原样空格", ({ mapping }) => {

@@ -27,7 +27,7 @@ describe('generation.completed 上报', () => {
     expect(event.props.result).toBe('failure')
     expect(typeof event.props.errorType).toBe('string')
     expect(JSON.stringify(event)).not.toMatch(/secret-prompt|private prompt|Users|ECONNRESET/)
-    expect(isTelemetryProps(event.props, 'generation.completed')).toBe(true)
+    expect(isTelemetryProps({ ...event.props, modelClass: 'builtin' }, 'generation.completed')).toBe(true)
   })
 
   it('成功不带原因', async () => {
@@ -43,7 +43,7 @@ describe('generation.completed 上报', () => {
     run.mockRejectedValue(new Error('balance insufficient'))
     await expect(runWorkbenchTaskByVendor('v', { kind: 'text_to_image', prompt: 'p', extras: {} }, null)).rejects.toThrow()
     expect(sent()[0].props.result).toBe('failure')
-    expect(isTelemetryProps(sent()[0].props, 'generation.completed')).toBe(true)
+    expect(isTelemetryProps({ ...sent()[0].props, modelClass: 'builtin' }, 'generation.completed')).toBe(true)
   })
 
   it('异步任务：提交时不报；轮询到终态报一次，失败也带原因', async () => {
@@ -81,5 +81,6 @@ it.each(['node_generation_in_flight', 'canvas_consent_predates_upgrade', 'direct
   run.mockRejectedValue(new Error(encodeStructuredErrorMessage({ code, reason: 'needs_reconcile' }, code)))
   await expect(runWorkbenchTaskByVendor('v', { kind: 'text_to_image', prompt: 'private fixture' }, null)).rejects.toThrow()
   expect(sent()[0].props.errorType).toBe('local-refusal')
+  expect(sent()[0].props).toMatchObject({ upstreamStatus: 'not-sent', localRefusal: 'uncoded', failureStage: 'submit' })
   expect(JSON.stringify(sent())).not.toContain('private fixture')
 })

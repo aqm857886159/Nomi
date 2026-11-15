@@ -27,13 +27,14 @@ import type { ResolvedGenerationReferences } from './generationReferenceResolver
 import {
   modeTransportFor,
   replaceCustomCapabilityContractMeta,
-  resolveArchetypeForModel,
+  resolveModelArchetype,
+  variantRecordedInMeta,
 } from '../../../../electron/shared/modelArchetypes'
-import { currentArchetypeMode } from '../nodes/controls/archetypeMeta'
+import { carryHumanModePreference, sendArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
 import { resolveComfyWorkflowTaskKind } from '../../../../electron/catalog/comfyuiWorkflowTaskContract'
 import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
-import { remapArchetypeMode, resolveUsableModelForNode } from './usableVendorModel'
+import { resolveUsableModelForNode } from './usableVendorModel'
 import type { MediaDimensions } from '../nodes/nodeSizing'
 
 export type CatalogTaskActionOptions = {
@@ -103,12 +104,12 @@ export function resolveTaskArchetype(meta: Record<string, unknown>) {
   // 判据必须用前缀判据而非字面量：第 2+ 台实例的 key 是 `comfyui-local-{slug}`（见
   // AddComfyuiInstanceButton），硬比 'comfyui-local' 只保得住第一台。
   if (isComfyuiVendorKey(vendor)) return null
-  return resolveArchetypeForModel({
+  return resolveModelArchetype({
     modelKey,
     modelAlias: asTrimmedString(meta.modelAlias),
     vendorKey: vendor || null,
     meta,
-  })
+  }, { variant: variantRecordedInMeta(meta, meta.modelKey) })
 }
 
 export function selectedVendor(node: GenerationCanvasNode): string {
@@ -231,21 +232,19 @@ export async function resolveExecutableNodeFromCatalog(
   const modelAlias = asTrimmedString(meta.modelAlias)
   const match = resolveUsableModelForNode({ modelKey, modelAlias, vendor, meta, models, vendors })
   if (!match) {
-    const sourceArchetype = resolveArchetypeForModel({ modelKey, modelAlias, vendorKey: vendor, meta })
+    const sourceArchetype = resolveModelArchetype({ modelKey, modelAlias, vendorKey: vendor, meta }, { variant: variantRecordedInMeta(meta, meta.modelKey) })
     const brand = sourceArchetype?.label || asTrimmedString(meta.modelLabel) || modelKey
     throw new Error(tagNomiError('model-config', `当前没有已连接的供应商提供「${brand}」模型。请重新连接原供应商，或在该节点上改选一个已连接供应商的模型。`))
   }
 
   const resolvedVendor = asTrimmedString(match.vendorKey)
   if (!resolvedVendor) throw new Error(`模型目录缺少 vendorKey：${modelKey}`)
-  // 跨档案迁移（family 兜底，如 Seedance kie↔apimart）时把 node.meta.archetype 重映射到目标档案；
-  // 同档案（同 id）保持原样（参数槽会按新 vendorKey 自动特化，无需动用户填的值）。
-  const sourceArchetype = resolveArchetypeForModel({ modelKey, modelAlias, vendorKey: vendor, meta })
-  const targetArchetype = resolveArchetypeForModel({ modelKey: match.modelKey, modelAlias: match.modelAlias, vendorKey: resolvedVendor, meta: match.meta })
-  const remappedArchetype = targetArchetype
-    ? remapArchetypeMode(sourceArchetype, asTrimmedString((meta.archetype as { modeId?: unknown } | undefined)?.modeId) || undefined, targetArchetype, vendor, resolvedVendor)
-    : null
-  const migratedMeta = replaceCustomCapabilityContractMeta(meta, match.meta)
+  // 跨档案迁移（family 兜底，如 Seedance kie↔apimart）：不替节点挑方式（这次按什么发由现算的方式按意图对上目标档案，
+  // 见 sendArchetypeMode）；人手选过的摆法按同一种意图带过去。同档案（同 id）保持原样。
+  const sourceArchetype = resolveModelArchetype({ modelKey, modelAlias, vendorKey: vendor, meta }, { variant: variantRecordedInMeta(meta, meta.modelKey) })
+  const targetArchetype = resolveModelArchetype({ modelKey: match.modelKey, modelAlias: match.modelAlias, vendorKey: resolvedVendor, meta: match.meta }, { variant: { variantId: undefined, modelId: match.modelKey } })
+  const carriedMeta = targetArchetype ? carryHumanModePreference(meta, sourceArchetype, targetArchetype) : meta
+  const migratedMeta = replaceCustomCapabilityContractMeta(carriedMeta, match.meta)
 
   return {
     ...node,
@@ -256,7 +255,6 @@ export async function resolveExecutableNodeFromCatalog(
       modelVendor: resolvedVendor,
       vendor: resolvedVendor,
       modelLabel: asTrimmedString(match.labelZh) || modelKey,
-      ...(remappedArchetype ? { archetype: remappedArchetype } : {}),
       ...(isVideoLikeGenerationNodeKind(node.kind)
         ? { videoModel: asTrimmedString(match.modelKey) || modelKey, videoModelVendor: resolvedVendor }
         : { imageModel: asTrimmedString(match.modelKey) || modelKey, imageModelVendor: resolvedVendor }),
@@ -277,7 +275,7 @@ export function resolveTaskKind(node: GenerationCanvasNode, references: Partial<
   if (executionKind === 'video' || executionKind === 'image' || executionKind === 'audio' || executionKind === 'model3d') {
     const archetype = resolveTaskArchetype(meta)
     if (archetype) {
-      const transport = modeTransportFor(currentArchetypeMode(archetype, meta), archetype, selectedVendor(node))
+      const transport = modeTransportFor(sendArchetypeMode(archetype, node, references), archetype, selectedVendor(node))
       if (transport) return transport
     }
   }

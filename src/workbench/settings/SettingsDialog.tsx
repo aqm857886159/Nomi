@@ -1,15 +1,13 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Portal } from '@mantine/core'
-import { IconAdjustmentsHorizontal, IconBrain, IconFolder, IconInfoCircle, IconLock, IconPlugConnected, IconX } from '@tabler/icons-react'
+import { IconAdjustmentsHorizontal, IconBrain, IconFolder, IconInfoCircle, IconLock, IconPlugConnected } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { confirmDialog, NOMI_OVERLAY_Z_INDEX } from '../../design'
+import { confirmDialog, DesignModal, NOMI_OVERLAY_Z_INDEX } from '../../design'
 import {
   getSettingsEscapeOwnership,
   settingsEscapeTargetWasRemoved,
   shouldYieldSettingsEscape,
 } from '../../design/overlayLayers'
-import { useModalInputLayer } from '../../design/modalInputLayer'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { useNomiColorScheme } from '../../theme/colorScheme'
 import { getAppLocale, setAppLocale, SUPPORTED_LOCALES, type AppLocale } from '../../i18n'
@@ -79,7 +77,6 @@ export function SettingsDialog({
   onClose: () => void
   onReplaySplash?: () => void
 }): JSX.Element {
-  useModalInputLayer(true)
   const { t } = useTranslation()
   const { isDark } = useNomiColorScheme()
   const [tab, setTab] = React.useState<SettingsTab>(initialTab)
@@ -91,7 +88,7 @@ export function SettingsDialog({
   const locale = getAppLocale()
   const [automationPolicy, setAutomationPolicy] = React.useState<AutomationPolicySettings>(defaultAutomationPolicySettings)
   const [automationPolicyLoaded, setAutomationPolicyLoaded] = React.useState(false)
-  const dialogRef = React.useRef<HTMLDivElement>(null)
+  const dialogRef = React.useRef<HTMLDivElement | null>(null)
   const contentRef = React.useRef<HTMLElement>(null)
   const navRef = React.useRef<HTMLElement>(null)
   const closePromptOpenRef = React.useRef(false)
@@ -243,31 +240,31 @@ export function SettingsDialog({
   }, [automationPolicyLoaded])
 
   return (
-    <Portal>
-      <div
-        ref={dialogRef}
-        data-settings-overlay
-        className="fixed inset-0 flex items-center justify-center bg-black/45 p-2 sm:p-6"
-        style={{ zIndex: NOMI_OVERLAY_Z_INDEX.applicationModal }}
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('settings.title')}
-        onPointerDown={(event) => {
-          if (event.target === event.currentTarget) void requestClose()
-        }}
-      >
+    <DesignModal
+      opened
+      onClose={() => { void requestClose() }}
+      title={t('settings.title')}
+      size={760}
+      centered
+      padding={0}
+      innerScroll
+      closeOnEscape={false}
+      trapFocus={false}
+      returnFocus={false}
+      zIndex={NOMI_OVERLAY_Z_INDEX.applicationModal}
+      contentAttributes={{ 'data-settings-overlay': 'true', 'data-settings-dialog': 'true', 'data-settings-tab': tab, 'data-settings-frame': 'shell' }}
+      closeButtonProps={{ 'aria-label': t('settings.close'), ...{ 'data-settings-close': 'true' } }}
+      classNames={{ content: 'rounded-nomi-lg bg-nomi-paper shadow-nomi-lg', header: 'px-4 py-3', body: 'p-0' }}
+    >
         <div
-          data-settings-dialog
-          data-settings-tab={tab}
-          data-settings-frame="fixed"
-          className="relative flex h-[calc(100svh-16px)] w-full max-w-[760px] flex-col overflow-hidden rounded-nomi-lg border border-nomi-line bg-nomi-paper shadow-nomi-lg sm:h-[min(560px,calc(100svh-48px))] sm:flex-row"
+          ref={(node) => { dialogRef.current = node?.closest<HTMLDivElement>('[role="dialog"]') ?? null }}
+          className="relative flex h-[560px] min-h-0 flex-col overflow-hidden sm:flex-row"
         >
           <aside
             ref={navRef}
             data-settings-nav
             className="flex w-full flex-none flex-row gap-0.5 overflow-x-auto border-b border-nomi-line bg-nomi-ink-05 p-2 sm:w-[196px] sm:flex-col sm:overflow-x-visible sm:border-b-0 sm:border-r sm:p-3.5"
           >
-            <div className="hidden px-3 pb-3 pt-1 text-body-sm font-medium text-nomi-ink sm:block">{t('settings.title')}</div>
             {TABS.map(({ id, icon: Icon, labelKey }) => (
               <button
                 key={id}
@@ -292,16 +289,6 @@ export function SettingsDialog({
               tab === 'models' ? 'overflow-hidden p-0' : 'overflow-y-auto p-4 sm:p-6',
             )}
           >
-            <button
-              type="button"
-              data-settings-close
-              className="absolute right-3 top-3 z-30 grid size-8 place-items-center rounded-nomi-sm border-0 bg-transparent cursor-pointer text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink"
-              aria-label={t('settings.close')}
-              onClick={() => { void requestClose() }}
-            >
-              <IconX size={16} stroke={1.8} aria-hidden="true" />
-            </button>
-
             {modelsMounted ? (
               // 模型管理是独立工作区，首次访问后保持挂载。切走再回来时，向导步骤和脚本草稿不会重置。
               <div
@@ -410,7 +397,6 @@ export function SettingsDialog({
             ) : null}
           </section>
         </div>
-      </div>
-    </Portal>
+    </DesignModal>
   )
 }

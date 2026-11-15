@@ -1,0 +1,14 @@
+{
+  "head": "1a6957d41e7ffb80a9519cefbc89bda4730d93da",
+  "version": "1.1.6",
+  "options": {
+    "initial": "instant",
+    "resize": "instant"
+  },
+  "explicitInstantCalls": 4,
+  "mergeChecks": "5 assertions passed; installed function extracted without changes",
+  "sourceSha256": "70871508b69d0beeded81b7f8ce8028e55976901c2dd4c9a31688969597d6a33",
+  "readmeSha256": "5452e2e821f68a00554613932af42dc02784b9ea624ed0c7cc0995b44c1aed02",
+  "typesSha256": "65891a4ae521b5c5c09a6d45cbeb30d519f54a9c45415cfa6ee2fb43ae352d4e",
+  "configChange": "none: requested initial/resize instant is already present"
+}

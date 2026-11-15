@@ -2,8 +2,16 @@ import { describe, expect, it } from 'vitest'
 import type { ModelOption } from '../../../config/models'
 import { createGenerationNode } from '../model/graphOps'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import { buildNodeModelChangePatch } from './buildNodeModelChangePatch'
+import { archetypeForNode } from '../agent/referenceEdgeCapability'
+import { effectiveArchetypeMode } from './controls/archetypeMeta'
+
+/** 换完模型这次真按哪种方式发（方式按输入现算，换模型不替节点挑方式，2026-11-12）。 */
+function sendModeAfter(node: GenerationCanvasNode, meta: Record<string, unknown>, nodes: GenerationCanvasNode[], edges: GenerationCanvasEdge[]) {
+  const next = { ...node, meta }
+  return effectiveArchetypeMode(archetypeForNode(next)!, next, { nodes: nodes.map((item) => (item.id === node.id ? next : item)), edges }).mode
+}
 
 function option(partial: Partial<ModelOption> & Pick<ModelOption, 'value' | 'label'>): ModelOption {
   return partial
@@ -76,14 +84,10 @@ describe('buildNodeModelChangePatch', () => {
       imageModelVendor: 'next-vendor',
     })
     expect(patch.meta.old_only).toBeUndefined()
-    expect(patch.changeset).toEqual({
-      retained: [],
-      removed: [{ key: 'old_only', value: 'x' }],
-      changedDefaults: [{ key: 'quality', from: undefined, to: 'high' }],
-    })
+
   })
 
-  it('reports retained controls and defaults that replace an existing value', () => {
+  it('retains compatible defaults and resets incompatible values', () => {
     const current = option({ value: 'old', label: 'Old', vendor: 'v', meta: {
       parameterControls: [
         { key: 'quality', label: 'Quality', type: 'select', options: [{ value: 'high', label: 'High' }], defaultValue: 'high' },
@@ -98,14 +102,10 @@ describe('buildNodeModelChangePatch', () => {
     } })
     const node = { ...createGenerationNode({ id: 'image', kind: 'image' }), meta: { modelKey: 'old', modelVendor: 'v', quality: 'low', ratio: 'wide' } }
     const patch = buildNodeModelChangePatch({ node, nodes: [node], edges: [], modelOptions: [current, next], value: 'next', vendor: 'v' })
-    expect(patch.changeset).toEqual({
-      retained: [{ key: 'ratio', value: 'wide' }],
-      removed: [],
-      changedDefaults: [{ key: 'quality', from: 'low', to: 'standard' }],
-    })
+    expect(patch.meta).toMatchObject({ ratio: 'wide', quality: 'standard' })
   })
 
-  it('uses the video product aspect default and promotes a referenced archetype mode', () => {
+  it('uses the video product aspect default; the first-frame edge makes it send as the first-frame mode', () => {
     const source: GenerationCanvasNode = {
       ...createGenerationNode({ id: 'source', kind: 'image' }),
       result: { id: 'result', type: 'image', url: 'https://example.com/source.png', createdAt: 0 },
@@ -142,14 +142,14 @@ describe('buildNodeModelChangePatch', () => {
     })
 
     expect(patch.meta.aspect_ratio).toBe('9:16')
-    expect(patch.meta.archetype).toMatchObject({ modeId: 'first' })
+    expect(sendModeAfter(video, patch.meta, [source, video], [edge]).id).toBe('first')
   })
 
   describe('换模型时上传放进槽里的图跟着走（验收阻断 2）', () => {
     const seedance = option({ value: 'seedance-2', modelKey: 'seedance-2', vendor: 'apimart', label: 'Seedance 2.0' })
     const archetypeKeys = ['wan-2.7', 'veo-3.1', 'kling-3.0', 'grok-imagine-1.5-video', 'seedance-2-apimart']
     const targets = archetypeKeys
-      .map((key) => ({ key, found: resolveArchetypeForModel({ modelKey: key, vendorKey: 'apimart', meta: {} } as never) }))
+      .map((key) => ({ key, found: resolveModelArchetype({ modelKey: key, vendorKey: 'apimart', meta: {} } as never, { variant: EVERY_VARIANT }) }))
       .filter((row) => row.found)
     const swapTo = (key: string, meta: Record<string, unknown>) => {
       const node: GenerationCanvasNode = { ...createGenerationNode({ id: 'v', kind: 'video' }), meta: { modelKey: 'seedance-2', modelVendor: 'apimart', vendor: 'apimart', archetype: { id: 'seedance-2', modeId: meta.__mode ?? 'firstlast' }, ...meta } }
@@ -159,10 +159,9 @@ describe('buildNodeModelChangePatch', () => {
 
     it.each(targets.map((row) => [row.key]))('上传的两张首尾帧换到 %s：节点不会掉成文生，图落在该方式的槽里', (key) => {
       const result = swapTo(key, { firstFrameUrl: 'a', lastFrameUrl: 'b' })
-      const spec = resolveArchetypeForModel({ modelKey: key, vendorKey: 'apimart', meta: {} } as never)!
-      const modeId = (result.meta.archetype as { modeId: string }).modeId
-      const mode = spec.modes.find((m) => m.id === modeId)!
-      expect(mode.intent, `${key} 换完停在 ${modeId}`).not.toBe('text')
+      const node = { ...createGenerationNode({ id: 'v', kind: 'video' }) }
+      const mode = sendModeAfter(node, result.meta, [node], [])
+      expect(mode.intent, `${key} 换完按 ${mode.id} 发`).not.toBe('text')
       const kinds = new Set(mode.slots.map((slot) => slot.kind))
       // 参考列表不动：旧的首 / 尾帧键落成规范的一份有序列表，首帧在前（一张不少、顺序不变）
       expect(result.meta.referenceImageUrls).toEqual(['a', 'b'])
@@ -171,7 +170,7 @@ describe('buildNodeModelChangePatch', () => {
     })
 
     it('新模型一个能收图的方式都没有：图留在参考列表里（不丢），不删', () => {
-      const textOnly = resolveArchetypeForModel({ modelKey: 'minimax-h3-regeneration', vendorKey: 'apimart', meta: {} } as never)
+      const textOnly = resolveModelArchetype({ modelKey: 'minimax-h3-regeneration', vendorKey: 'apimart', meta: {} } as never, { variant: EVERY_VARIANT })
       if (!textOnly) return
       const result = swapTo('minimax-h3-regeneration', { firstFrameUrl: 'a', lastFrameUrl: 'b' })
       expect(result.meta.referenceImageUrls).toEqual(['a', 'b'])

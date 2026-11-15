@@ -7,6 +7,7 @@ import type { NomiSelectProps } from '../../../design/NomiSelect'
 import type { WorkbenchIconButtonProps } from '../../../design/actions'
 import { toCatalogModelOptions } from '../../../config/modelOptionMappers'
 import InlineParameterBar from './InlineParameterBar'
+import { summaryFitCandidates } from './composerHeadlineSummary'
 import type { DynamicModelControl } from './controls/parameterControlModel'
 
 const captured = vi.hoisted(() => ({ selects: [] as NomiSelectProps[], iconButtons: [] as WorkbenchIconButtonProps[] }))
@@ -24,9 +25,14 @@ vi.mock('../../../design', async () => ({
   NomiSegmented: () => null,
   DesignSwitch: () => null,
   DesignSearchInput: () => null,
+  // 底栏图标排（提示词工具 + 高级设置）用到的气泡：静态渲染里只要把孩子画出来。
+  Tooltip: ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+  TooltipProvider: ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+  TooltipTrigger: ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+  TooltipContent: () => null,
 }))
 
-describe('InlineParameterBar catalog variant control', () => {
+describe('InlineParameterBar 模型格（变体是菜单里的行）', () => {
   beforeEach(() => { captured.selects = []; captured.iconButtons = [] })
 
   function render(tiers: string[], selected: string) {
@@ -43,33 +49,29 @@ describe('InlineParameterBar catalog variant control', () => {
     return { html, onModelChange }
   }
 
-  it('uses the existing model + variant controls and writes the exact selected ID', () => {
+  // 2026-11-14：底栏没有单独的「变体」格了——变体是模型菜单里的行（用户拍板）。
+  it('底栏只有一个模型格；变体档位是它菜单里的行，点哪行就写哪个精确模型', () => {
     const { html, onModelChange } = render(['low', 'medium', 'high'], 'high')
-    expect(captured.selects).toHaveLength(2)
-    expect(html).toContain('Gemini 3.7 Flash')
-    expect(html).toContain('High')
-    const variant = captured.selects[1]
-    variant.onChange(variant.options.find(option => option.label === 'Low')!.value)
+    expect(captured.selects).toHaveLength(1)
+    expect(captured.selects[0].ariaLabel).toBe('模型')
+    expect(html).toContain('Gemini 3.7 Flash High')
+    expect(captured.selects[0].options.map(option => option.label)).toEqual(['Gemini 3.7 Flash Low', 'Gemini 3.7 Flash Medium', 'Gemini 3.7 Flash High'])
+    captured.selects[0].onChange(captured.selects[0].options.find(option => option.label.endsWith('Low'))!.value)
     expect(onModelChange).toHaveBeenCalledWith('gemini-3.7-flash-low', 'antigravity-cli')
   })
 
-  // 2026-09-21 走查：1100×720 英文下画布节点（summary 摆法）的变体芯片被压到值区只剩 5px，
-  // 「Variant 5.0」读成「Variant E」。行窄时让位的只许是模型那枚（有意省略号 + title 全名）；
-  // 变体是短枚举，从不缩——与分镜旧底栏让位表的「短枚举不缩」同一条规则（分镜 2026-10-06 起直接用本组件）。
-  it('summary: only the model chip yields width; the short variant enum never shrinks', () => {
+  // 2026-09-21 走查：1100×720 英文下参数条里相邻控件互相压；让位的只许是模型名那一枚（省略号 + title 全名），图标从不让。
+  it('summary: 模型格是唯一会让位的那枚，旁边不再有「变体」格', () => {
     render(['low', 'medium', 'high'], 'high')
-    const [model, variant] = captured.selects
-    expect(variant.leadingLabel).toBeTruthy()
-    expect(variant.className ?? '').toContain('shrink-0')
-    expect(model.className ?? '').not.toContain('shrink-0')
+    expect(captured.selects.map(select => select.leadingLabel)).toEqual([undefined])
+    expect(captured.selects[0].className ?? '').not.toContain('shrink-0')
   })
 
-  it('shows a single enabled tier as a fixed value without offering disabled tiers', () => {
+  it('只剩一档时就是一行，菜单里不编造没开的档', () => {
     const { html } = render(['high'], 'high')
-    expect(captured.selects).toHaveLength(2)
-    expect(captured.selects[1].disabled).toBe(true)
-    expect(captured.selects[1].options.map(option => option.label)).toEqual(['High'])
-    expect(html).toContain('High')
+    expect(captured.selects).toHaveLength(1)
+    expect(captured.selects[0].options.map(option => option.label)).toEqual(['Gemini 3.7 Flash'])
+    expect(html).toContain('Gemini 3.7 Flash')
   })
 })
 
@@ -134,7 +136,8 @@ describe('InlineParameterBar 摘要 pill', () => {
   it('一行、不换行，身份行是自己的 flex 盒', () => {
     const { html } = render([ratio, duration], {})
     expect(barClass(html).split(' ')).not.toContain('flex-wrap')
-    expect(html).toContain('class="flex min-w-0 items-center gap-1.5"')
+    // 身份行能缩（min-w-0）：参数退到只剩时长还放不下时，模型名末尾省略（2026-11-12 让法顺序）；量得到空间时变 shrink-0。
+    expect(html).toContain('class="flex items-center gap-1.5 min-w-0"')
   })
 
   // 逐参数 chip / 就地展开面板 / 竖排那几种摆法只给过聊天里的卡，随旧卡一起删了：不许长回来。
@@ -192,24 +195,25 @@ describe('InlineParameterBar semantic option presentation wiring', () => {
     expect(body).toContain("optionLayout === 'chips-column' ? 'column' : 'fill'")
   })
 
-  // 2026-09-14 用户两次拍板之后的最终形态：**一列、每项一行的摆法不动**（横排换行被退回：
-  // 「两个一行、三个一行反而更难受」），只把浮层右边那截空白收掉——宽度 = 最宽项文字宽 + 内边距。
-  it('单参数直出：摆法仍是一列，浮层宽度由最宽项的文字派生而不是固定 320', () => {
-    expect(source).toContain('hugsContent')
-    expect(source).toContain('hugWidth')
-    // 量的是文字（Range 量内容盒），不是被 1fr 拉伸的按钮框——量错对象就会量回容器自己。
-    expect(source).toContain('range.selectNodeContents(item)')
-    // 左缘与触发它的 chip 对齐，不按那个不存在的 320 槽居中。
-    expect(source).toContain('hugsContent ? panelInit?.anchorLeft : panelInit?.left')
-    // 横排换行那一版已整段撤掉：一种摆法、一份控件体（P1）。
-    expect(source).not.toContain("'chips-wrap'")
+  // 2026-11-14 用户定稿（画板 T / U）：参数面板全摊开——不再有 420 封顶，只受窗口高度限制，
+  // 窗口放不下才在面板里滚；只有一项的面板也是同一只 320 面板（旧「单参数直出」那条 68 宽细条整段删了）。
+  it('面板全摊开：高度只由窗口剩余空间决定，没有固定封顶；单参数也走同一只面板', () => {
+    expect(source).not.toMatch(/Math\.min\(\s*420/)
+    expect(source).not.toMatch(/\b420\b/)
+    // 2026-11-14 验收条件 2：开向和限高交给共用的锚定浮层几何（上下哪边空间大开哪边），可用区域是工作区（不盖顶栏）。
+    expect(source).toContain("resolveAnchoredPopoverPlacement(rect, { width: PANEL_W, height: natural }, 'center', PANEL_GAP,")
+    expect(source).toContain("trigger.closest('[data-shell-main]')")
+    expect(source).not.toMatch(/Math\.max\(160,/)
+    for (const removed of ['soloControl', 'soloOptionControl', 'hugsContent', 'hugWidth', 'data-parameter-solo']) {
+      expect(source, removed).not.toContain(removed)
+    }
+    expect(body.match(/export function ParameterControlBody\(/g) ?? []).toHaveLength(1)
   })
 
-  // 单参数直出与面板走的是**同一个** ParameterControlBody：给单参数另写一套渲染就是并行版。
-  it('单参数直出与面板共用同一处控件渲染（ParameterControlBody 只有一个定义）', () => {
-    expect(body.match(/export function ParameterControlBody\(/g) ?? []).toHaveLength(1)
-    expect(source).toContain('<ParameterControlBody control={soloControl} {...controlWiring} onPicked={closePanel} />')
-    expect(body).toContain('<ParameterControlBody')
+  // 便签：56 个选项那一格最多显示三排，多的在这一格里自己滚，不把整块面板撑高。
+  it('一格选项最多三排，多出来的在格里自己滚', () => {
+    expect(body).toContain('OPTION_GROUP_VISIBLE_ROWS = 3')
+    expect(body).toContain('data-option-group-capped')
   })
 })
 
@@ -232,5 +236,80 @@ describe('InlineParameterBar 清单空态（走查 §4）', () => {
 
   it('确认没有清单（非加载）时不画骨架', () => {
     expect(renderEmpty('ready')).not.toContain('data-model-chip-loading')
+  })
+})
+
+// 底栏挤时摘要整值地退（边界样张 K4）：比例 → 有声 → 清晰度 → 时长留到最后；永远至少留一个值，不出现半个值。
+describe('summaryFitCandidates', () => {
+  const part = (text: string, dropRank: number) => ({ text, dropRank })
+  it('从全写开始，按 dropRank 从小到大一档一档整值地退，最后只剩时长', () => {
+    expect(summaryFitCandidates([part('21:9', 0), part('有声', 1), part('1080p', 2), part('15s', 3)])).toEqual([
+      '21:9 · 有声 · 1080p · 15s',
+      '有声 · 1080p · 15s',
+      '1080p · 15s',
+      '15s',
+    ])
+  })
+  it('同一档的几个值一起退；只有一档时不退', () => {
+    expect(summaryFitCandidates([part('16:9', 0), part('720p', 2), part('5s', 3)])).toEqual(['16:9 · 720p · 5s', '720p · 5s', '5s'])
+    expect(summaryFitCandidates([part('5s', 3)])).toEqual(['5s'])
+    expect(summaryFitCandidates([])).toEqual([])
+  })
+})
+
+// 2026-11-14 用户定稿（画板 T / T2 / T4）：高级设置是底栏右边那排图标里的一颗；
+// 去处只由 parameterPlacement 一处决定，这里只验「宿主给了底栏 → 拆开；有改过的值 → 小点；没有高级项 → 不出图标」。
+describe('InlineParameterBar 底栏的高级设置', () => {
+  const ratio: DynamicModelControl = {
+    key: 'aspect_ratio', label: '比例', type: 'select', binding: 'parameter',
+    options: [{ value: '1:1', label: '1:1' }, { value: '16:9', label: '16:9' }], defaultValue: '16:9',
+  }
+  const seed: DynamicModelControl = { key: 'seed', label: '种子', type: 'number', binding: 'parameter', options: [] }
+  const watermark: DynamicModelControl = { key: 'watermark', label: '添加水印', type: 'boolean', binding: 'parameter', options: [], defaultValue: false }
+  const modelOptions = toCatalogModelOptions([{
+    modelKey: 'seedance-2', vendorKey: 'apimart', labelZh: 'Seedance 2',
+    kind: 'video', enabled: true, published: true, availability: { usable: true } as const, publishedModes: ['text_to_video' as const], createdAt: '', updatedAt: '',
+  }])
+  function render(renderedControls: DynamicModelControl[], meta: Record<string, unknown>, withFooter = true) {
+    return renderToStaticMarkup(React.createElement(InlineParameterBar, {
+      modelOptions, selectedModelOption: modelOptions[0], modelCatalogStatus: { message: '' },
+      renderedControls, archetype: null, meta,
+      onModelChange: vi.fn(), onCatalogControlChange: vi.fn(), onParameterControlChange: vi.fn(),
+      ...(withFooter ? { footer: { action: React.createElement('button', { 'data-test-send': 'true' }) } } : {}),
+    }))
+  }
+  beforeEach(() => { captured.selects = []; captured.iconButtons = [] })
+  // 图标按钮被替身接走了，属性从替身收到的 props 里读。
+  const advancedToggles = () => captured.iconButtons.filter((props) => (props as unknown as Record<string, unknown>)['data-advanced-settings-toggle'] === 'true')
+
+  it('有高级项：底栏出图标，摘要里只剩面板那几项', () => {
+    const html = render([ratio, seed, watermark], { aspect_ratio: '1:1' })
+    expect(advancedToggles()).toHaveLength(1)
+    expect(html).toContain('data-parameter-summary="1:1"')
+    expect(html).toContain('data-test-send="true"')
+    // 收着：开合不记，挂载时一律收起。
+    expect(html).not.toContain('data-advanced-settings="true"')
+  })
+
+  it('高级里有值不是默认 → 图标带小点；全是默认 → 不带', () => {
+    const dot = (meta: Record<string, unknown>) => {
+      captured.iconButtons = []
+      const html = render([ratio, seed, watermark], meta)
+      const [toggle] = advancedToggles()
+      return { attr: toggle?.['data-advanced-settings-changed' as keyof WorkbenchIconButtonProps], drawn: html.includes('data-prompt-tool-active="true"') }
+    }
+    expect(dot({ watermark: false })).toEqual({ attr: undefined, drawn: false })
+    expect(dot({ seed: 20261114 })).toEqual({ attr: 'true', drawn: true })
+    expect(dot({ watermark: true })).toEqual({ attr: 'true', drawn: true })
+  })
+
+  it('这种方式没有高级项 → 图标整颗不出', () => {
+    render([ratio], {})
+    expect(advancedToggles()).toHaveLength(0)
+  })
+
+  it('宿主不给底栏（批量弹窗、实验室小样）→ 不拆，图标不出', () => {
+    render([ratio, seed], { aspect_ratio: '1:1' }, false)
+    expect(advancedToggles()).toHaveLength(0)
   })
 })

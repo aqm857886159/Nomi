@@ -17,6 +17,7 @@ import {
   screenshotSettled,
 } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { NODE_COMPOSER_WIDTH } from './_composerWidth.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { expectArrivalsReachable, expectCanvasViewportHeld, expectToolbarInsideStageEverywhere, findCanvasBlankPoint, findEdgeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { backToLibrary, canvasFitViewButton } from './_shell.mjs'
@@ -195,11 +196,11 @@ try {
   // 换成守新形态下真正该成立的两条，两条都跟这一幕强相关（画布上正好摊着展开的雨夜参考组）：
   //   ① 钉住（2026-09-25 用户拍板「钉在节点正下方、宽度固定、被挡就挡」，owner 是
   //      src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts）：卡顶边 = 节点底边 + 14×缩放、
-  //      卡中线 = 节点中线、屏幕宽恒 560。不再 clamp 进视口、不再翻到上方，所以这里没有「翻转/贴边」的例外分支——
+  //      卡中线 = 节点中线、屏幕宽恒 = NODE_COMPOSER_WIDTH。不再 clamp 进视口、不再翻到上方，所以这里没有「翻转/贴边」的例外分支——
   //      「跑到一块空地上去」「压在节点中间」这两种漂移在这条下都当场红。判据与 node-composer-placement.walk.mjs 的 assertPinned 同一口径。
   //   ② 不被别的节点盖住：卡在**画布舞台内**的采样点上命中的不许是别的节点。盖住别的节点可以（新设计就这么定的）；
   //      伸出舞台、钻到停靠区底下被挡住也可以（「被挡就挡」），所以舞台外的采样点不算、非节点的遮挡不算。
-  await expect.poll(() => imageNode.evaluate((selected) => {
+  await expect.poll(() => imageNode.evaluate((selected, composerWidth) => {
     const anchor = selected.querySelector('.generation-canvas-v2-node__composer')
     const card = anchor?.querySelector('.generation-canvas-v2-node__composer-card')
     const stage = selected.closest('.generation-canvas-v2__stage')
@@ -219,8 +220,8 @@ try {
     // ① 中线 = 节点中线。
     const centreDelta = (cardRect.left + cardRect.right) / 2 - (nodeRect.left + nodeRect.right) / 2
     if (Math.abs(centreDelta) > 2) problems.push(`浮框中线偏离节点中线 ${centreDelta.toFixed(1)}px`)
-    // ① 屏幕宽恒 560。
-    if (Math.abs(cardRect.width - 560) > 1) problems.push(`浮框宽 ${cardRect.width.toFixed(1)}，应恒为 560`)
+    // ① 屏幕宽恒 = NODE_COMPOSER_WIDTH。
+    if (Math.abs(cardRect.width - composerWidth) > 1) problems.push(`浮框宽 ${cardRect.width.toFixed(1)}，应恒为 ${composerWidth}`)
     // ② 左中右三点各打一次真实命中测试；只数落在舞台内的点，只把「别的节点」算作回归。
     for (const ratio of [0.15, 0.5, 0.85]) {
       const x = cardRect.left + cardRect.width * ratio
@@ -234,7 +235,7 @@ try {
       }
     }
     return problems
-  }), { message: '参数卡必须钉在自己节点正下方（顶边 = 节点底边 + 14×缩放、中线对齐、宽 560），并且不被别的节点盖住' }).toEqual([])
+  }, NODE_COMPOSER_WIDTH), { message: `参数卡必须钉在自己节点正下方（顶边 = 节点底边 + 14×缩放、中线对齐、宽 ${NODE_COMPOSER_WIDTH}），并且不被别的节点盖住` }).toEqual([])
   const regenerate = imageNode.locator('.generation-canvas-v2-node__composer-card').getByRole('button', { name: '重新生成', exact: true })
   await regenerate.scrollIntoViewIfNeeded()
   await expect.poll(() => regenerate.evaluate(button => {
@@ -253,7 +254,7 @@ try {
   check('三版铺成三张卡，最新在前', beforeOrder.join(',') === 'image-v3,image-v2,image-v1', beforeOrder.join(','))
   await screenshotSettled(win, { path: path.join(outputDir, '02-real-version-cards-light.png') })
   const card = (identity) => grid.locator(`[data-version-identity="${identity}"]`)
-  // 节点此刻是选中的：宫格铺开时不挂生成浮框（它钉在节点正下方、定宽 560，会盖住宫格下面几行；V-1054）。
+  // 节点此刻是选中的：宫格铺开时不挂生成浮框（它钉在节点正下方、定宽 NODE_COMPOSER_WIDTH，会盖住宫格下面几行；V-1054）。
   await expect.poll(() => imageNode.locator('[data-composer-host="canvas"]').count(), { message: '铺开时选中节点不挂生成浮框', timeout: stationTimeout() }).toBe(0)
   check('铺开时选中节点不挂生成浮框（不盖宫格）', true)
   // 再点空白取消选中：铺开是持久的，取消选中不收起。
