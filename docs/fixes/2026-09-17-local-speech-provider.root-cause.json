@@ -567,15 +567,13 @@
     },
     {
       "kind": "read",
-      "path": "electron/catalog/archetypeIdentifiers.generated.ts",
-      "line": 3,
-      "symbol": "ARCHETYPE_IDENTIFIER_PATTERNS"
+      "path": "electron/shared/modelArchetypes/entry.ts",
+      "symbol": "archetypeIdForModel"
     },
     {
       "kind": "read",
-      "path": "electron/catalog/archetypeModes.generated.ts",
-      "line": 3,
-      "symbol": "ARCHETYPE_MODE_MANIFEST"
+      "path": "electron/shared/modelArchetypes/entry.ts",
+      "symbol": "builtInModeManifest"
     }
   ],
   "door_reduction": {

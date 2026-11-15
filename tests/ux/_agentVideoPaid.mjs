@@ -1,7 +1,7 @@
 // Agent 发起的**真视频**付费走查共用的三件事（agent-video-landing.paid.mjs / agent-queued-shots.paid.mjs）：
 // 被授权的那一档是什么、花钱前怎么核对 Agent 写的草稿、落地后怎么核对那段真 mp4。
 //
-// 为什么花钱前必须核对草稿：Seedance 2.0 在 Nomi 里的默认参数是 720p · 5 秒 · 带音频（archetypeWireDefaults），
+// 为什么花钱前必须核对草稿：Seedance 2.0 在 Nomi 里的默认参数是 720p · 5 秒 · 带音频（档案声明的默认值，发送时从档案现算），
 // 比被授权的 480p · 4 秒 · 无音频贵出好几倍。模型漏写一个字段，花的就是默认那一档。
 // 所以卡摆出来之后、按下去之前，先读落盘的制作 Run（宿主真正会派发的那一份），不对就关卡、一分钱不花。
 import fs from 'node:fs'

@@ -6,9 +6,8 @@
 // params 的坑，都只在"真实参数构建"里暴露，埋在 2500 行 runtime 里既测不到也容易回归。
 import { assertDeclaredCapabilityForTask } from "../shared/modelAvailability";
 import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
-import { resolveModelArchetype, type ArchetypeVariantRequest } from "../shared/modelArchetypes";
+import { builtInSizeIsRatioSemantic, resolveModelArchetype, type ArchetypeVariantRequest } from "../shared/modelArchetypes";
 import { referenceInputParams } from "./archetypeInput";
-import { ARCHETYPE_SIZE_RATIO_SEMANTIC } from "./archetypeWireDefaults.generated";
 import { declaredModeParams, effectiveModeParams, modeWhenUnrecorded } from "../shared/modelArchetypes/modeParams";
 import { resolveArchetypeVariant } from "../shared/modelArchetypes/variantResolution";
 import { bodyReferencedParamKeys } from "./paramTranslate";
@@ -70,10 +69,10 @@ const RATIO_VALUE_RE = /^\d+\s*:\s*\d+$/;
  * mapping/档案默认在此汇合）加闸：size 键是比例语义时才准调用方比例落到 size；是像素语义或压根没有 size →
  * 不落（size 那半留给档案像素默认，调用方比例对这个只会说像素的目标不适用）。
  *
- * **判据从档案 size 控件的选项集 DERIVE**（生成期算好、桥进 ARCHETYPE_SIZE_RATIO_SEMANTIC）：选项集里有真比例档
+ * **判据从档案 size 控件的选项集 DERIVE**（入口 builtInSizeIsRatioSemantic 发送时现算）：选项集里有真比例档
  * （16:9…）→ 这个 size 键是比例语义，哪怕它的默认值是 "adaptive" 这种比例族自动档（seedance-2.5-apimart t2v
  * 正是此例：size 默认 "adaptive"、body 只读 size，旧的「按默认值字面 /^\d+:\d+$/ 猜」会误判成像素语义、把调用方
- * 16:9 剥掉 → 画幅被吞）。只有档案里查不到该 (archetypeId, taskKind)（如自定义/未桥接的档案）才回退到旧的
+ * 16:9 剥掉 → 画幅被吞）。只有档案里查不到该 (archetypeId, taskKind)（如自定义 / 不是内置的档案）才回退到旧的
  * **默认值字面形状**正则兜底。语义无歧义的 aspect_ratio / aspectRatio 别名不受此限，照常保留（模板没引用就自然被丢弃）。
  * **纯 derive，无 vendor 名单。**
  */
@@ -84,9 +83,9 @@ function sizeDefaultIsRatioSemantic(
   mappingDefaults: Record<string, unknown> | undefined,
 ): boolean {
   // ① 首选：档案 size 控件选项集 derive 出的比例语义标记（覆盖 "adaptive" 这类默认值猜不出的比例族档）。
-  const emitted = archetypeId ? ARCHETYPE_SIZE_RATIO_SEMANTIC[archetypeId]?.[taskKind] : undefined;
+  const emitted = archetypeId ? builtInSizeIsRatioSemantic(archetypeId, taskKind) : undefined;
   if (typeof emitted === "boolean") return emitted;
-  // ② 回退（未桥接的档案）：按合并后真正生效的 size 默认值字面形状猜。
+  // ② 回退（不是内置档案）：按合并后真正生效的 size 默认值字面形状猜。
   // 有效默认 = 合并后真正生效的那个（mappingDefaults 是更贴近的兜底、后铺，故它有 size 时以它为准）。
   const effective = mappingDefaults && "size" in mappingDefaults
     ? mappingDefaults.size

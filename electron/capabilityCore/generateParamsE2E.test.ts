@@ -71,7 +71,7 @@ function renderSeedreamBody(extras: Record<string, unknown>): Record<string, unk
 }
 
 // Seedance 2.5 · apimart 文生视频：body 只读 `size`（SEEDANCE_T2V_BODY），size 控件默认 "adaptive"。
-// 档案 size 选项集里有 16:9 等真比例档 → size 是**比例语义**（由 ARCHETYPE_SIZE_RATIO_SEMANTIC derive），
+// 档案 size 选项集里有 16:9 等真比例档 → size 是**比例语义**（入口 builtInSizeIsRatioSemantic 现算），
 // 故调用方 aspect_ratio 该落进 size；不传时保持默认 "adaptive"。
 const SEEDANCE_25 = APIMART_VIDEO_MODELS.find((m) => m.archetypeId === "seedance-2.5-apimart")!;
 const SEEDANCE_25_T2V: ModeProfile = {

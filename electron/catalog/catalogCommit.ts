@@ -490,7 +490,7 @@ export function draftShapeForKind(
     if (create) {
       return {
         targetKind: "image",
-        // 同视频分支：不落通用标准参数（这条 wire 没这些键），headless 缺参由 archetypeWireDefaults 按档案兜底。
+        // 同视频分支：不落通用标准参数（这条 wire 没这些键），headless 缺参由发送前的 effectiveModeParams 按档案现补。
         modelFields: [],
         mappingCreate: create,
         ...(edit ? { mappingEdit: edit } : {}),

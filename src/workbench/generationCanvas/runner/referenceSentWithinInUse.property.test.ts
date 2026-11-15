@@ -52,7 +52,6 @@ import { selectTaskMapping, type CatalogState, type HttpOperation, type Model, t
 import { applyBuiltinSeeds } from '../../../../electron/catalog/seedBuiltins'
 import { wireReferencedParamKeys } from '../../../../electron/catalog/paramTranslate'
 import { DEFAULT_SLOT_INPUT_KEY } from '../../../../electron/catalog/referenceReachability'
-import { ARCHETYPE_WIRE_DEFAULTS } from '../../../../electron/catalog/archetypeWireDefaults.generated'
 import { GENERIC_REFERENCE_KEYS } from '../../../../electron/shared/modelArchetypes/referenceKeys'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { createGenerationNode } from '../model/graphOps'
@@ -251,7 +250,6 @@ function declaredScalarKeys(): Set<string> {
       for (const key of Object.keys(mode.fixedParams ?? {})) keys.add(key)
     }
   }
-  for (const byKind of Object.values(ARCHETYPE_WIRE_DEFAULTS)) for (const byVendor of Object.values(byKind)) for (const defaults of Object.values(byVendor)) for (const key of Object.keys(defaults)) keys.add(key)
   for (const mapping of SEEDED.mappings) {
     for (const key of Object.keys(mapping.create.defaultParams ?? {})) keys.add(key)
     for (const rule of mapping.create.paramMap?.rules ?? []) keys.add(rule.wire)

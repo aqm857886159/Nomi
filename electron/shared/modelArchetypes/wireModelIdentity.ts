@@ -77,7 +77,7 @@ export function connectionWireModel(connection: Pick<WireModelConnection, "model
 
 /**
  * 没有显式 modeId 时按 (vendor, taskKind) 选主模式：档案默认模式在这个桶里就用它，否则取桶里首个声明的模式。
- * 与 headless 缺参兜底（gen-archetype-wire-defaults 的「主模式判据」）同一条规则。
+ * 与 headless 缺参兜底（catalogFacts.headlessDefaultsOf 的「主模式判据」）同一条规则。
  */
 function modeForTask(archetype: ModelArchetype, vendorKey: string, taskKind: string): ArchetypeMode | undefined {
   const inBucket = archetype.modes.filter((mode) => modeTransportFor(mode, archetype, vendorKey) === taskKind);

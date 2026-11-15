@@ -79,8 +79,8 @@ const { enModelDisplayText } = tsxRequire('../../src/i18n/locales/modelDisplayTe
 // 档案真名就是中文统一叫法那个词，所以按词典键取它当查表的键，不在测试里抄字面量。
 const shownReference = (locale) => (locale === 'en' ? enModelDisplayText[name('zh-CN', 'reference')] : name(locale, 'reference'))
 // 「只列这个模型真有的方式」（清单 mode.menu）：行数按档案里 Seedance 2.5（APIMart）真有的方式数算，不写死。
-const { ARCHETYPE_MODE_MANIFEST_VIDEO } = tsxRequire('../../electron/catalog/archetypeModes.video.generated.ts', import.meta.url)
-const SEEDANCE25_MODE_COUNT = Object.keys(ARCHETYPE_MODE_MANIFEST_VIDEO['seedance-2.5-apimart'].modes).length
+const { builtInModeManifest } = tsxRequire('../../electron/shared/modelArchetypes/index.ts', import.meta.url)
+const SEEDANCE25_MODE_COUNT = Object.keys(builtInModeManifest('seedance-2.5-apimart').modes).length
 
 /** 打开着的方式菜单：小标题、每行（名字 / 说明 / 置灰 / 打勾）。 */
 const readMenu = (page) => page.evaluate(() => {

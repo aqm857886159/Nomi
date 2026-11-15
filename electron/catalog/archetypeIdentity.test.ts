@@ -1,9 +1,8 @@
-// 主进程侧「modelKey → 档案 id」：身份表由档案生成，匹配规则与渲染层 identifierMatchesPattern 同源。
+// 主进程侧「modelKey → 档案 id」（入口 entry.ts 的 archetypeIdForModel，从档案现算，匹配规则与 resolveModelArchetype 同一组函数）。
 import { describe, expect, it } from "vitest";
-import { archetypeIdForModel } from "./archetypeIdentity";
 import { nativeWireProfileForArchetype } from "./nativeWireProfiles";
 import { hostRootBase } from "../ai/requestPipeline";
-import { archetypeParameterControls, EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
+import { archetypeIdForModel, archetypeParameterControls, EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
 import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 
 describe("archetypeIdForModel", () => {

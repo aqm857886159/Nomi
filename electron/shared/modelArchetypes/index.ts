@@ -27,7 +27,11 @@ export {
 } from "./customCapabilityContract";
 export type { CustomCapabilityContractV1, CustomCapabilityModeV1 } from "./customCapabilityContract";
 export {
+  archetypeIdForModel,
   archetypeParameterControls,
+  builtInHeadlessDefaults,
+  builtInModeManifest,
+  builtInSizeIsRatioSemantic,
   everyBuiltInArchetype,
   EVERY_VARIANT,
   rescopeArchetypeVariant,
