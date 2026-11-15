@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-// 「新节点连底栏落在看得见的地方」只有一个来源：底栏占多高取 composerFocusFootprint，底部停靠条由外壳登记、宿主现量后发布空地。
+// 「新节点连底栏落在看得见的地方」只有一个来源：底栏占多高取 composerInitialFootprint（新建只留刚建出来的高度），底部停靠条由外壳登记、宿主现量后发布空地。
 // store 层不许再抄一份停靠条名单、停靠条 / 底栏高度数字，也不许在落点算式里按节点种类写分支。
 const STORE = fileURLToPath(new URL('./', import.meta.url))
 const stripComments = (text: string): string => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')

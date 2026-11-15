@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useWorkbenchStore } from '../../workbenchStore'
-import { composerFocusFootprint } from '../nodes/composerCanvasPlacement'
+import { composerInitialFootprint } from '../nodes/composerCanvasPlacement'
 import { CANVAS_FOCUS_PADDING } from '../reactFlow/focusViewportRecovery'
 import { placeBlockInVisibleArea, publishCanvasStageSize, visibleCanvasRect, visibleInsertionPoint } from './canvasVisibleArea'
 import { getGenerationNodeFootprintSize } from '../model/generationNodeKinds'
@@ -69,7 +69,7 @@ describe('canvasVisibleArea', () => {
     const short = view(1280, 716, 660)
     const shortest = view(1100, 636, 580)
     const block = (kind: string) => {
-      const composer = composerFocusFootprint(kind)
+      const composer = composerInitialFootprint(kind)
       return getGenerationNodeFootprintSize(kind as never).height + (composer ? composer.gap + composer.height : 0)
     }
     beforeEach(() => {
@@ -84,7 +84,7 @@ describe('canvasVisibleArea', () => {
       expect(visibleInsertionPoint('shots', undefined, roomy)).toEqual({ x: 1440 * 0.38, y: 876 * 0.28 })
     })
 
-    it('default window, kinds with a composer: x unchanged, y only goes up until node + gap + worst-case composer ends one margin above the free area bottom', () => {
+    it('default window, kinds with a composer: x unchanged, y only goes up until node + gap + just-created composer ends one margin above the free area bottom', () => {
       for (const kind of ['image', 'video', 'text']) {
         const point = visibleInsertionPoint('shots', kind, roomy)!
         expect(point.x).toBe(1440 * 0.38)
@@ -95,17 +95,23 @@ describe('canvasVisibleArea', () => {
       }
     })
 
-    it('default window numbers: image lifts to 46 (stage y 86), text stays at 245.28, video no longer fits and sits flush at the margin', () => {
-      expect(visibleInsertionPoint('shots', 'image', roomy)!.y).toBe(820 - CANVAS_FOCUS_PADDING - (280 + 64 + 14 + 400))
+    it('default window numbers: image lifts only 19.28 (stage y 266 vs 285.28 on the old trunk), video lifts to its block bottom (its nominal height 340 is taller than the rendered 236), text stays at 245.28', () => {
+      expect(visibleInsertionPoint('shots', 'image', roomy)!.y).toBe(820 - CANVAS_FOCUS_PADDING - (280 + 64 + 14 + 220))
       expect(visibleInsertionPoint('shots', 'text', roomy)!.y).toBe(876 * 0.28)
-      expect(visibleInsertionPoint('shots', 'video', roomy)!.y).toBe(CANVAS_FOCUS_PADDING)
+      expect(visibleInsertionPoint('shots', 'video', roomy)!.y).toBe(820 - CANVAS_FOCUS_PADDING - block('video'))
+      // 默认窗口图片节点和主干落点（舞台内 245.28）差不超过 20 像素
+      expect(876 * 0.28 - visibleInsertionPoint('shots', 'image', roomy)!.y).toBeLessThanOrEqual(20)
     })
 
-    it('block taller than the free area (short windows): node top sits one margin below the free area top, same margin as focus', () => {
-      for (const v of [short, shortest]) {
-        for (const kind of ['image', 'video']) {
-          expect(visibleInsertionPoint('shots', kind, v)!.y).toBe(CANVAS_FOCUS_PADDING)
-        }
+    it('1280×800: the image block fits, so the node top stays clear of the free-area top by more than the title tag and toolbar need (36)', () => {
+      expect(visibleInsertionPoint('shots', 'image', short)!.y).toBe(660 - CANVAS_FOCUS_PADDING - block('image'))
+      expect(visibleInsertionPoint('shots', 'image', short)!.y).toBeGreaterThan(36)
+      expect(visibleInsertionPoint('shots', 'text', short)!.y).toBeGreaterThan(36)
+    })
+
+    it('block taller than the free area (1100×720): node top sits one margin below the free area top, same margin as focus', () => {
+      for (const kind of ['image', 'video']) {
+        expect(visibleInsertionPoint('shots', kind, shortest)!.y).toBe(CANVAS_FOCUS_PADDING)
       }
     })
 

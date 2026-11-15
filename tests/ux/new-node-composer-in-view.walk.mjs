@@ -6,6 +6,8 @@
 // 这条走查走真入口（加节点条上的钮），断言：
 //   · 1280×800、1100×720：新建图片 / 视频 / 文字节点后，底栏最下面一行的按钮点得到、加节点条每个按钮点得到、再点一次加节点条能加出第二个节点（elementFromPoint 命中自己）；
 //   · 1440×960（默认窗口）：新节点 x 与改前逐像素相同，y 只往上提（基线数写在下面 BASELINE_1440）；
+//   · 1280×800：节点上方的标题小标签上沿不低于舞台上沿（没被切）、节点自己的小工具条下沿不低于节点上沿（没压在节点上）；
+//   · 每种带底栏的节点：真实底栏卡高度 ≤ 落点给底栏留的「刚建出来的高度」且差 ≤ 24（数从 composerCanvasPlacement.ts 读，悄悄漂了就红）；
 //   · 新建前后 .react-flow__viewport 的 transform 一字不变（程序不挪画布）。
 // 中文浅色 + 英文深色各一轨。零额度：不点生成，隔离 profile，窗口在屏外。
 // 用法：pnpm run build && node tests/ux/new-node-composer-in-view.walk.mjs
@@ -45,6 +47,13 @@ const COMPOSER_CARD = '.generation-canvas-v2-node__composer-card, [data-text-pro
 const FOOTER = '[data-node-composer-footer]'
 const DOCKS = '[data-canvas-bottom-dock]'
 
+// 落点给底栏留的「刚建出来的高度」：数只在 composerCanvasPlacement.ts 里写一处，走查读源码里的常量。
+const placementSource = fs.readFileSync(path.join(repoRoot, 'src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts'), 'utf8')
+const readConst = (name) => Number(new RegExp(`const ${name} = (\\d+)`).exec(placementSource)?.[1])
+const INITIAL_HEIGHT = { image: readConst('COMPOSER_INITIAL_HEIGHT'), video: readConst('COMPOSER_INITIAL_HEIGHT'), text: readConst('TEXT_COMPOSER_INITIAL_HEIGHT') }
+const INITIAL_SLACK = 24
+if (!Object.values(INITIAL_HEIGHT).every((n) => n > 0)) throw new Error('读不到 composerCanvasPlacement.ts 里的刚建出来的底栏高度常量，走查跟着改')
+
 const failures = []
 const rows = []
 
@@ -63,6 +72,8 @@ async function measure(win) {
       .map((el) => ({ el, r: el.getBoundingClientRect() }))
       .filter(({ r }) => r.width > 0 && r.height > 0)
     const topDock = dockRects.reduce((best, d) => (best === null || d.r.top < best ? d.r.top : best), null)
+    const label = nodeEl ? nodeEl.querySelector('[data-node-label-row]') : null
+    const toolbar = nodeEl ? nodeEl.querySelector('[data-node-floating-toolbar]') : null
     const buttons = footerEl ? Array.from(footerEl.querySelectorAll('button')) : []
     const lowest = buttons.reduce((m, b) => Math.max(m, b.getBoundingClientRect().bottom), -Infinity)
     const bottomRow = buttons
@@ -85,6 +96,8 @@ async function measure(win) {
       stage: rect(stageEl),
       node: rect(nodeEl),
       card: rect(cardEl),
+      label: rect(label),
+      toolbar: rect(toolbar),
       topDock,
       docks: dockRects.map(({ el, r }) => ({ cls: String(el.className).slice(0, 40), top: r.top, left: r.left, right: r.right, bottom: r.bottom })),
       bottomRow,
@@ -126,10 +139,22 @@ async function runCombo(size, track) {
       const m = await measure(win)
       const label = `${tag} ${kind}`
       rows.push({ label, m, before, after })
-      console.log(`${label}: ${JSON.stringify({ node: m.node, card: m.card, topDock: m.topDock, bottomRow: m.bottomRow })}`)
+      console.log(`${label}: ${JSON.stringify({ node: m.node, card: m.card, label: m.label, toolbar: m.toolbar, stage: m.stage, topDock: m.topDock, bottomRow: m.bottomRow })}`)
       await screenshotSettled(win, { path: path.join(shotsDir, `${tag}.${kind}.png`) })
       if (!MEASURE_ONLY) {
         if (!sameCanvasViewport(before, after)) fail(`${label}：新建后视口变了 ${JSON.stringify(before)} → ${JSON.stringify(after)}`)
+        if (m.card && INITIAL_HEIGHT[kind]) {
+          const real = m.card.h
+          if (real > INITIAL_HEIGHT[kind] + 0.5) fail(`${label}：真实底栏高 ${real.toFixed(1)} 比落点留的刚建出来高度 ${INITIAL_HEIGHT[kind]} 还高（数漂了）`)
+          if (INITIAL_HEIGHT[kind] - real > INITIAL_SLACK) fail(`${label}：落点留的刚建出来高度 ${INITIAL_HEIGHT[kind]} 比真实底栏高 ${real.toFixed(1)} 多留了 ${(INITIAL_HEIGHT[kind] - real).toFixed(1)}，超过 ${INITIAL_SLACK}（数漂了）`)
+        }
+        if (size.name === '1280x800' && kind !== 'video') {
+          // 标题小标签没被舞台上沿切；小工具条不压在节点上（选中时才出现，新建即选中）。
+          if (!m.label) fail(`${label}：没找到标题小标签`)
+          else if (m.label.y < m.stage.y - 0.5) fail(`${label}：标题小标签上沿 ${m.label.y.toFixed(1)} 高过舞台上沿 ${m.stage.y.toFixed(1)}，被切`)
+          if (!m.toolbar) fail(`${label}：没找到节点小工具条`)
+          else if (m.toolbar.bottom > m.node.y + 0.5) fail(`${label}：小工具条下沿 ${m.toolbar.bottom.toFixed(1)} 压在节点上沿 ${m.node.y.toFixed(1)} 之下`)
+        }
         if (size.short) {
           // 判据是「点得到」，不是边线：1100×720 下底栏卡自己的下内边距可以伸进停靠条上沿几像素，里面的按钮仍点得到。
           const bad = m.bottomRow.filter((b) => !b.ok)
@@ -153,8 +178,8 @@ async function runCombo(size, track) {
             if (m.node.y > want.y + 0.5) fail(`${label}：1440×960 落点 y ${m.node.y} 比主干基线 ${want.y} 还低（只许往上提）`)
             if (kind === 'text' && Math.abs(m.node.y - want.y) > 0.5) fail(`${label}：1440×960 文字节点整块放得下，落点 y ${m.node.y} 应等于主干基线 ${want.y}`)
           }
-          // 图片节点放得下：连「底栏最坏高度 400（composerFocusFootprint，对焦用的同一个数）」也落在停靠条上沿之上。
-          if (kind === 'image' && m.node && m.topDock !== null && m.node.y + m.node.h + 14 + 400 > m.topDock + 0.5) fail(`${label}：1440×960 图片节点连最坏高度底栏也该放得进空地，实际整块下沿 ${(m.node.y + m.node.h + 14 + 400).toFixed(1)} > 停靠条上沿 ${m.topDock.toFixed(1)}`)
+          // 默认窗口落点和主干差不超过 20 像素（只给底栏留刚建出来的高度，不再把节点顶到舞台上沿）。
+          if (want && m.node && want.y - m.node.y > 20) fail(`${label}：1440×960 落点 y ${m.node.y} 比主干基线 ${want.y} 提高了 ${(want.y - m.node.y).toFixed(1)}，超过 20`)
           if (m.card && m.topDock !== null && m.card.bottom > m.topDock + 0.5) fail(`${label}：1440×960 底栏下沿 ${m.card.bottom.toFixed(1)} 压到停靠条上沿 ${m.topDock.toFixed(1)} 下面`)
         }
       }
