@@ -96,6 +96,7 @@
     "experience:report": "node tests/ux/experience/report.mjs",
     "experience:test": "node --test tests/ux/experience/*.node-test.mjs",
     "radar:models": "tsx scripts/model-radar.ts",
+    "radar:docs": "tsx scripts/model-doc-drift.ts",
     "apimart:health": "tsx scripts/apimart-model-health.ts",
     "check:tikhub-search": "node --test ./scripts/research/tikhub-search.node-test.mjs",
     "research:tikhub": "node ./scripts/research/tikhub-search.mjs",
