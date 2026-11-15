@@ -362,11 +362,23 @@ try {
     // 真窗实测的四个常见模型（窗口 700 下名字一格不省略，协调裁决甲的前提）。
     const FOUR = /^(seedance-2\.5-apimart|kling-v4-flash|veo3\.1-fast-official|gpt-image-2\.5-flare)\//
     const COMMON = /^(seedance-2\.5-apimart|seedance-2-apimart|kling-v4|kling-v4-flash|veo-3\.1|veo3\.1-fast-official|veo3\.1-quality-official|gpt-image-2|gpt-image-2\.5-flare|gpt-image-2\.6-flare|nano-banana|nano-banana-2|gemini-nano-banana-2\.1)\//
+    // 2026-11-15 用户定「先合」：图片镜的方式格退回来之后没有图标可让（让位第 ③ 步只能保留文字），英文方式名长，
+    // 行宽 598 下这 6 个常见图片模型的名字会被省略（title 全名）。等「方式按输入现算」那一刀让图片方式格消失时收回。
+    // 这张名单只减不增：只认英文、只认行宽 598、只认下面这 16 格；多一格就红。
+    const EN_IMAGE_MODE_CLIPPED = new Set([
+      'shot:gpt-image-2/t2i@598', 'shot:gpt-image-2/i2i@598', 'anchor:gpt-image-2/t2i@598',
+      'shot:nano-banana-2/t2i@598', 'anchor:nano-banana-2/t2i@598',
+      'shot:nano-banana/t2i@598', 'anchor:nano-banana/t2i@598',
+      'shot:gpt-image-2.5-flare/t2i@598', 'shot:gpt-image-2.5-flare/i2i@598', 'anchor:gpt-image-2.5-flare/t2i@598',
+      'shot:gpt-image-2.6-flare/t2i@598', 'shot:gpt-image-2.6-flare/i2i@598', 'anchor:gpt-image-2.6-flare/t2i@598',
+      'shot:gemini-nano-banana-2.1/t2i@598', 'shot:gemini-nano-banana-2.1/i2i@598', 'anchor:gemini-nano-banana-2.1/t2i@598',
+    ])
+    const allowedClip = (lang, id) => lang === 'en' && EN_IMAGE_MODE_CLIPPED.has(id)
     for (const { lang, scheme, locale } of RUNS) {
       const modeLabel = uiTextWith(locale, 'generationCommon.modeMenu.heading')
       const { page, context } = await open('sbl-yield-matrix', { lang, scheme, screen: 'storyboard-reuse' })
       await page.waitForFunction(() => Boolean(window.__sblYield), null, { timeout: stationTimeout({ operations: 2 }) })
-      const tally = { cells: 0, overflow: [], tall: [], summarySqueezed: [], commonClipped: [], modeRule: [], modelClipped: 0, footerWidths: {}, fourAt598: [] }
+      const tally = { cells: 0, overflow: [], tall: [], summarySqueezed: [], commonClipped: [], clippedUntitled: [], modeRule: [], modelClipped: 0, footerWidths: {}, fourAt598: [] }
       for (const width of [598, 650]) {
         const combos = await page.evaluate((w) => window.__sblYield.combos(w), width)
         for (const combo of combos) {
@@ -389,17 +401,22 @@ try {
               modelClipped: [...footer.querySelectorAll('*')].some((el) => getComputedStyle(el).textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth && !summary?.contains(el)),
               hasMode: footer.querySelectorAll(`button[aria-label="${label}"]`).length > 0,
               model: model?.textContent?.trim() ?? '',
+              modelTitled: [...footer.querySelectorAll('[title]')].some((el) => !summary?.contains(el) && (el.getAttribute('title') ?? '').trim().length > 0),
               footerWidth: Math.round(footer.getBoundingClientRect().width),
             }
           }, modeLabel)
           tally.cells += 1
           const key = id.split(':')[1]
           tally.footerWidths[`${combo.host}@${width}`] = f.footerWidth
-          if (width === 598 && FOUR.test(key)) tally.fourAt598.push({ id, clipped: f.modelClipped })
+          if (width === 598 && FOUR.test(key)) tally.fourAt598.push({ id, clipped: f.modelClipped && !allowedClip(lang, id) })
           if (f.overflow) tally.overflow.push(id)
           if (f.tall) tally.tall.push(id)
           if (f.summarySqueezed) tally.summarySqueezed.push(id)
-          if (f.modelClipped) { tally.modelClipped += 1; if (COMMON.test(key)) tally.commonClipped.push(id) }
+          if (f.modelClipped) {
+            tally.modelClipped += 1
+            if (COMMON.test(key) && !allowedClip(lang, id)) tally.commonClipped.push(id)
+            if (!f.modelTitled) tally.clippedUntitled.push(id)
+          }
           // 方式格：视频镜、图片镜、参考卡一样，档案有两种以上方式就有（存成改图的图片镜要切得回文生图）。
           const archetypeModes = await page.evaluate((c) => window.__sblYield.modeCount(c.archetypeId), combo)
           const wantMode = archetypeModes >= 2
@@ -410,12 +427,13 @@ try {
       console.log(`  分镜全目录 ${lang}：${JSON.stringify({ cells: tally.cells, modelClipped: tally.modelClipped, overflow: tally.overflow.length, tall: tally.tall.length, summarySqueezed: tally.summarySqueezed.length, commonClipped: tally.commonClipped.length, modeRule: tally.modeRule.length })}`)
       check(`边界 · 分镜行 / 参考卡全目录 ${lang}：最窄真实行宽下底栏不溢出、不折行 · ${tally.cells} 格`, tally.cells > 0 && !tally.overflow.length && !tally.tall.length, JSON.stringify([...tally.overflow, ...tally.tall].slice(0, 5)))
       check(`边界 · 分镜行 / 参考卡全目录 ${lang}：摘要格不缩、不截半个值`, tally.cells > 0 && !tally.summarySqueezed.length, JSON.stringify(tally.summarySqueezed.slice(0, 5)))
-      check(`board:ComposerParams/bar.model · 分镜行 / 参考卡全目录 ${lang}：常见模型（Seedance / 可灵 / Veo / GPT Image / Nano Banana）名字完整`, tally.cells > 0 && !tally.commonClipped.length, JSON.stringify(tally.commonClipped.slice(0, 5)))
+      check(`board:ComposerParams/bar.model · 分镜行 / 参考卡全目录 ${lang}：常见模型（Seedance / 可灵 / Veo / GPT Image / Nano Banana）名字完整（英文行宽 598 下 6 个图片模型的 16 格除外，名单只减不增）`, tally.cells > 0 && !tally.commonClipped.length, JSON.stringify(tally.commonClipped.slice(0, 5)))
+      check(`board:ComposerParams/bar.model · 分镜行 / 参考卡全目录 ${lang}：名字被省略的格都带 title（悬停看得到全名）· ${tally.modelClipped} 格`, !tally.clippedUntitled.length, JSON.stringify(tally.clippedUntitled.slice(0, 5)))
       // 量具和真窗对得上：行宽 598 → 分镜行和参考卡底栏都是 342，行宽 650 → 394（真窗实测，差 ±2 内算对上）。
       const fw = tally.footerWidths
       const calibrated = [['shot@598', 342], ['anchor@598', 342], ['shot@650', 394], ['anchor@650', 394]].every(([k, want]) => Math.abs((fw[k] ?? 0) - want) <= 2)
       check(`边界 · 分镜行 / 参考卡全目录 ${lang}：实验室底栏宽和真窗一致（598 → 342，650 → 394）`, calibrated, JSON.stringify(fw))
-      check(`board:ComposerParams/bar.model · 窗口 700（行宽 598）下四个常见模型（Seedance 2.5 / 可灵 4.0 Flash / Veo 3.1 Fast 官方 / GPT Image 2.5）名字不省略 · ${lang}`, tally.fourAt598.length >= 4 && tally.fourAt598.every((c) => !c.clipped), JSON.stringify(tally.fourAt598.filter((c) => c.clipped).slice(0, 5)))
+      check(`board:ComposerParams/bar.model · 窗口 700（行宽 598）下四个常见模型（Seedance 2.5 / 可灵 4.0 Flash / Veo 3.1 Fast 官方 / GPT Image 2.5）名字不省略（英文下 GPT Image 2.5 的图片镜除外，见上面的名单）· ${lang}`, tally.fourAt598.length >= 4 && tally.fourAt598.every((c) => !c.clipped), JSON.stringify(tally.fourAt598.filter((c) => c.clipped).slice(0, 5)))
       check(`board:ComposerParams/storyboard.row · 分镜行 / 参考卡全目录 ${lang}：两种以上方式就有方式格（视频镜、图片镜、参考卡一样）`, tally.cells > 0 && !tally.modeRule.length, JSON.stringify(tally.modeRule.slice(0, 5)))
       await context.close()
     }

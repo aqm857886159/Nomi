@@ -615,13 +615,14 @@
     {
       "what": "sbl-yield-matrix",
       "lang": "zh",
-      "cells": 510,
+      "cells": 596,
       "overflow": 0,
       "tall": 0,
       "summarySqueezed": [],
       "commonClipped": [],
+      "clippedUntitled": [],
       "modeRule": [],
-      "modelClipped": 13,
+      "modelClipped": 80,
       "footerWidths": {
         "shot@598": 342,
         "anchor@598": 342,
@@ -683,6 +684,10 @@
         },
         {
           "id": "shot:gpt-image-2.5-flare/t2i@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:gpt-image-2.5-flare/i2i@598",
           "clipped": false
         },
         {
@@ -694,13 +699,14 @@
     {
       "what": "sbl-yield-matrix",
       "lang": "en",
-      "cells": 510,
+      "cells": 596,
       "overflow": 0,
       "tall": 0,
       "summarySqueezed": [],
       "commonClipped": [],
+      "clippedUntitled": [],
       "modeRule": [],
-      "modelClipped": 16,
+      "modelClipped": 186,
       "footerWidths": {
         "shot@598": 342,
         "anchor@598": 342,
@@ -762,6 +768,10 @@
         },
         {
           "id": "shot:gpt-image-2.5-flare/t2i@598",
+          "clipped": false
+        },
+        {
+          "id": "shot:gpt-image-2.5-flare/i2i@598",
           "clipped": false
         },
         {
