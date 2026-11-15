@@ -13,6 +13,9 @@ import { addCanvasNode, closeSettings, newProjectEntry, openSettings, switchWork
 import { uiText } from './full-walk/invariants.mjs'
 
 const output = path.resolve(process.env.NOMI_SURFACE_EVIDENCE || '.tmp/model-surface-rehearsal')
+// 缺省浅色；NOMI_SURFACE_SCHEME=dark 整轮按暗色起（截图名带 dark），中文轨中途切暗那一段只在浅色轮跑。
+const scheme = process.env.NOMI_SURFACE_SCHEME === 'dark' ? 'dark' : 'light'
+const shot = (locale, name) => path.join(output, locale + '-' + name + (scheme === 'dark' ? '-dark' : '') + '.png')
 fs.mkdirSync(output, { recursive: true })
 const calls = []
 let accountMode = 'valid'
@@ -81,7 +84,7 @@ try {
       name: 'apimart-model-surfaces-' + locale, userDataDir: settingsDir, settingsDir, projectsDir: path.join(root, 'projects'),
       syntheticCredentialStorage: true,
       env: { NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: 'https://api.apimart.ai', to: origin }]) },
-      initialLocalStorage: { 'nomi-color-scheme': 'light', 'nomi:locale:v1': locale, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen',
+      initialLocalStorage: { 'nomi-color-scheme': scheme, 'nomi:locale:v1': locale, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen',
         'nomi-onboarding-checklist:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' },
     }
     fs.mkdirSync(options.projectsDir, { recursive: true })
@@ -101,9 +104,9 @@ try {
       await expect(card, 'board:ModelSurfaces/settings.account-card').toContainText('52.3')
       await expect(card).toContainText('19.6')
       await expect(card).toContainText(uiText(locale, 'onboardingProviders.account.unlimited'))
-      if (!perfFile) await recordSettingsRows(win, locale, 'light')
-      await screenshotSettled(win, { path: path.join(output, locale + '-account.png') })
-      if (!perfFile && locale === 'zh-CN') {
+      if (!perfFile) await recordSettingsRows(win, locale, scheme)
+      await screenshotSettled(win, { path: shot(locale, 'account') })
+      if (!perfFile && locale === 'zh-CN' && scheme === 'light') {
         const general = await openSettings(win, { tab: 'general' })
         await clickOrFail(general.getByRole('button', { name: uiText(locale, 'theme.switchToDark'), exact: true }), 'switch to dark theme')
         await expect(win.locator('html')).toHaveAttribute('data-theme', 'dark')
@@ -118,7 +121,7 @@ try {
       await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(900, 700))
       const bounds = await card.evaluate(el => [el.scrollWidth, el.clientWidth])
       assert(bounds[0] <= bounds[1] + 1, 'Account contents fit narrow settings')
-      await screenshotSettled(win, { path: path.join(output, locale + '-account-narrow.png') })
+      await screenshotSettled(win, { path: shot(locale, 'account-narrow') })
       await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1220, 840))
       accountMode = 'unknown'
       await card.getByRole('button', { name: uiText(locale, 'onboardingProviders.account.refresh') }).click()
@@ -171,13 +174,18 @@ try {
       const row = menu.getByRole('option').filter({ hasText: 'Mini' }).first()
       await expect(row, 'board:ModelSurfaces/picker.search').toBeVisible()
       await expect(row.locator('[data-nomi-select-option-description]'), 'board:ModelSurfaces/picker.row').not.toHaveCount(0)
-      await screenshotSettled(win, { path: path.join(output, locale + '-model-picker.png') })
+      await screenshotSettled(win, { path: shot(locale, 'model-picker') })
       await row.click()
       const send = win.locator('[data-bar-segment="generate"]').first()
       await expect(send, 'board:ModelSurfaces/cost.send-pill').toHaveAttribute('data-price-source', /api\/pricing\/model/, { timeout: stationTimeout() })
       await expect(send, 'board:ModelSurfaces/cost.hover').toHaveAttribute('aria-description', /1[.,]95/)
       await expect(send.locator('..')).toHaveAttribute('title', /0[.,]195/)
-      await screenshotSettled(win, { path: path.join(output, locale + '-public-estimate.png') })
+      await screenshotSettled(win, { path: shot(locale, 'public-estimate') })
+      // 悬停那一句（cost.hover）：真悬停，等提示浮出再截。
+      await send.hover()
+      await expect(win.getByRole('tooltip').first()).toBeVisible({ timeout: stationTimeout() })
+      await screenshotSettled(win, { path: shot(locale, 'hover') })
+      await win.mouse.move(5, 5)
       results.push({ locale, catalog: previousCatalog ? 'v0.24.1-apimart' : 'fresh', quote: await send.innerText() })
       for (const state of ['low', 'empty', 'valid']) {
         accountMode = state
@@ -186,9 +194,14 @@ try {
         const amount = state === 'empty' ? '0' : state === 'low' ? '1' : '52.3'
         await expect(card).toContainText(uiText(locale, 'onboardingProviders.account.credits').replace('{{value}}', amount))
         await closeSettings(win)
+        if (state === 'low') {
+          // 非零但低于公开估价：钮照常可发，钮下一行只提示差值（cost.low-balance 的提示态）。
+          await expect(win.locator('[data-send-cost-notice]').first()).toBeVisible()
+          await screenshotSettled(win, { path: shot(locale, 'low-balance') })
+        }
         if (state === 'empty') {
           await expect(send, 'board:ModelSurfaces/cost.low-balance').toHaveAccessibleName(uiText(locale, 'onboardingProviders.account.billing'))
-          await screenshotSettled(win, { path: path.join(output, locale + '-zero-balance.png') })
+          await screenshotSettled(win, { path: shot(locale, 'zero-balance') })
           await expect(send).toBeEnabled()
           const priorBalanceReads = calls.filter(call => call.path === '/v1/user/balance').length
           // A button painted as billing can expire between render and click. Its click must only refresh.
@@ -198,6 +211,17 @@ try {
             try { button.click() } finally { Date.now = realNow }
           })
           await expect.poll(() => calls.filter(call => call.path === '/v1/user/balance').length).toBeGreaterThan(priorBalanceReads)
+          assert.equal(calls.filter(call => call.method !== 'GET').length, 0)
+        } else if (state === 'valid') {
+          await expect(send).not.toHaveAccessibleName(uiText(locale, 'onboardingProviders.account.billing'))
+          // 真点发送：写一句提示词再点，走到花钱确认就取消（拒收那条路），上游一笔 POST 都不该收到。
+          const videoComposer = win.locator('[data-composer-host="canvas"]:visible').first()
+          await videoComposer.locator('[data-prompt-box] .ProseMirror').first().fill('清晨的码头，镜头缓慢推近')
+          await clickOrFail(send, 'click send with a public estimate')
+          const dialog = win.locator('[data-spend-confirm-dialog]').first()
+          await expectVisible(dialog, 'spend confirmation after send')
+          await screenshotSettled(win, { path: shot(locale, 'send-confirm') })
+          await clickOrFail(dialog.locator('[data-spend-confirm-action="cancel"]'), 'cancel spend confirmation')
           assert.equal(calls.filter(call => call.method !== 'GET').length, 0)
         } else {
           await expect(send).not.toHaveAccessibleName(uiText(locale, 'onboardingProviders.account.billing'))
@@ -215,7 +239,7 @@ try {
         // 算不出：钮上只剩 ↑，不印数、不印 0、不印「—」。
         await expect(imageSend.locator('[data-send-cost]'), 'board:ModelSurfaces/cost.send-pill').toHaveCount(0)
         await expect(imageSend).toHaveText('')
-        await screenshotSettled(win, { path: path.join(output, locale + '-price-unknown.png') })
+        await screenshotSettled(win, { path: shot(locale, 'price-unknown') })
         await imageComposer.locator('[data-parameter-summary]').click()
         const size = win.locator('[data-agent-parameter-control="size"]').first()
         await size.getByText('1:1', { exact: true }).click()
@@ -224,7 +248,7 @@ try {
         await expect(imageSend).toHaveAttribute('data-price-source', /model=gpt-image-2.6-flare/)
         await expect(imageSend).toHaveAttribute('aria-description', /token/i)
         await expect(imageSend.locator('..')).toHaveAttribute('title', /0[.,]035/)
-        await screenshotSettled(win, { path: path.join(output, locale + '-output-estimate.png') })
+        await screenshotSettled(win, { path: shot(locale, 'output-estimate') })
         results.push({ locale, model: 'gpt-image-2.6-flare', outputEstimate: await imageSend.getAttribute('aria-description') })
       }
     } finally { await app.close(); fs.rmSync(root, { recursive: true, force: true }) }
@@ -234,5 +258,5 @@ try {
   if (perfFile) {
     fs.writeFileSync(perfFile, JSON.stringify({ runs, noisy: os.loadavg()[0] >= 10, metrics: { response: pickerResponseMs } }))
   }
-  fs.writeFileSync(path.join(output, 'receipt.json'), JSON.stringify({ results, absenceControls, settingsRows, reads: calls, generationSubmissions: 0 }, null, 2))
+  fs.writeFileSync(path.join(output, 'receipt' + (scheme === 'dark' ? '-dark' : '') + '.json'), JSON.stringify({ results, absenceControls, settingsRows, reads: calls, generationSubmissions: 0 }, null, 2))
 } finally { server.close() }
