@@ -55,8 +55,8 @@ describe('chooseDefaultModelOption 健康避让', () => {
   const seedream: ModelOption = { value: 'doubao-seedream-4.5', label: 'Seedream 4.5', vendor: 'apimart', modelKey: 'doubao-seedream-4.5', meta: { archetypeId: 'seedream' } }
 
   it('fixture 守卫：两个候选都是「带档案」模型', () => {
-    expect(resolveArchetypeForOption(imagen)).toBeTruthy()
-    expect(resolveArchetypeForOption(seedream)).toBeTruthy()
+    expect(resolveArchetypeForOption(imagen, { variantId: undefined, modelId: imagen.modelKey })).toBeTruthy()
+    expect(resolveArchetypeForOption(seedream, { variantId: undefined, modelId: seedream.modelKey })).toBeTruthy()
   })
 
   it('默认位第一名连败 ≥2 → 自动让位给下一个健康模型', () => {

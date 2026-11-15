@@ -19,14 +19,14 @@
 //
 // ── 判据（读运行时真值，不做正则猜测）─────────────────────────────────────
 // 对 seed 后的内置目录里每条 mapping：若它带 `modelKey` 且带非空 `modeId`，
-// 找到该 (vendorKey, modelKey) 的模型行 → `resolveArchetypeForModel` 取档案，则
+// 找到该 (vendorKey, modelKey) 的模型行 → `resolveModelArchetype` 取档案，则
 //   • 孤儿拼写：`modeId` 在 `archetype.modes` 里找不到同名 mode → 这条线缆永远选不中；
 //   • 孤儿错桶：找得到 mode，但 `modeTransportFor(mode, archetype, vendorKey) !== mapping.taskKind`
 //     → 档案把这个模式路由去了别的桶，selectTaskMapping 在那个桶里找不到本条。
-// 两者都用**生产同一批函数**（resolveArchetypeForModel / modeTransportFor），不另写一份判断：
+// 两者都用**生产同一批函数**（resolveModelArchetype / modeTransportFor），不另写一份判断：
 // 门岗用一把尺子、UI 用另一把，就是它本该拦住的那种病。
 //
-// 认不出档案的模型（resolveArchetypeForModel → null）**不算违规**：那是「通用回退」形状，
+// 认不出档案的模型（resolveModelArchetype → null）**不算违规**：那是「通用回退」形状，
 // 渲染层按接入文档原样展示、不做模式收窄，没有线缆闲置问题。
 //
 // 硬零（不是棘轮）：2026-09-03 全目录实测存量违规 = 6 条，与本轮修复的 4 族完全重合，
@@ -35,7 +35,7 @@
 // R17：改判据前先验它会红（把任一条修复回退 → 本门岗必须报出那一条）。
 import { applyBuiltinSeeds } from "../electron/catalog/seedBuiltins";
 import type { CatalogState } from "../electron/catalog/types";
-import { resolveArchetypeForModel } from "../electron/shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../electron/shared/modelArchetypes";
 import { modeTransportFor } from "../electron/shared/videoCapabilities";
 
 type Orphan = {
@@ -67,7 +67,7 @@ export function findOrphanMappingCables(state: CatalogState): Orphan[] {
     const model = inVendor.find((m) => m.modelKey === modelKey) ?? inVendor.find((m) => m.modelAlias === modelKey);
     if (!model) continue; // 没有目录行 = 另一类问题（孤儿 mapping 无模型），不在本门岗范围。
 
-    const archetype = resolveArchetypeForModel(model);
+    const archetype = resolveModelArchetype(model, { variant: EVERY_VARIANT });
     if (!archetype) continue; // 通用回退形状：不做模式收窄，无闲置线缆问题。
 
     const mode = archetype.modes.find((m) => m.id === modeId);

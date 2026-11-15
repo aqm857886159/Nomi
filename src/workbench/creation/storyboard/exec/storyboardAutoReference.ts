@@ -2,7 +2,7 @@ import type { GenerationCanvasNode } from '../../../generationCanvas/model/gener
 import type { GenerationQueueEntry } from '../../../generationCanvas/runner/generationQueueStore'
 import { deriveAnchorCardRuntimes, deriveStoryboardRowRuntimes } from './storyboardRowStatus'
 import { insertAutoMentions, removeMention, type AutoMentionCandidate } from '../../../assets/promptMentions'
-import { resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
+import { resolveModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import type { ArchetypeMode, ModelArchetype } from '../../../../../electron/shared/modelArchetypes/types'
 import type { PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
 import { stableShotId } from '../../../generationCanvas/agent/storyboardPlan'
@@ -31,7 +31,7 @@ export type ReadyAnchorImage = { anchorId: string; name: string; url: string }
 
 function shotArchetype(shot: PlanShot): ModelArchetype | null {
   if (!shot.modelKey) return null
-  return resolveArchetypeForModel({ modelKey: shot.modelKey, vendorKey: shot.modelVendor ?? null })
+  return resolveModelArchetype({ modelKey: shot.modelKey, vendorKey: shot.modelVendor ?? null }, { variant: { variantId: undefined, modelId: shot.modelKey } })
 }
 
 function currentMode(archetype: ModelArchetype, shot: PlanShot): ArchetypeMode | undefined {

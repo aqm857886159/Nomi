@@ -5,7 +5,7 @@ import { applyCanvasToolCall } from './applyCanvasToolCall'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { parseStoryboardPlan } from './storyboardPlanSchema'
 import type { StoryboardPlan } from './storyboardPlan'
-import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import { anchorsConsumedBy } from '../../../../electron/shared/modelArchetypes/anchorPolicy'
 import { deriveStoryboardRowRuntimes } from '../../creation/storyboard/exec/storyboardRowStatus'
 import { normalizeStoryboardAnchorDefaults, validateAnchorModelFit } from './storyboardAnchorPolicy'
@@ -40,7 +40,7 @@ describe('real character reference at the shared storyboard write boundary', () 
     const plan = await write(input)
     if (process.env.ANCHOR_REAL_CAPTURE) writeFileSync(`docs/plan/anchor-real-evidence/${process.env.ANCHOR_REAL_CAPTURE}.json`, JSON.stringify(plan, null, 2) + '\n')
     for (const shot of plan.shots) {
-      const archetype = resolveArchetypeForModel({ modelKey: shot.modelKey!, vendorKey: shot.modelVendor })!
+      const archetype = resolveModelArchetype({ modelKey: shot.modelKey!, vendorKey: shot.modelVendor }, { variant: EVERY_VARIANT })!
       const mode = archetype.modes.find(mode => mode.id === shot.modeId)!
       expect(anchorsConsumedBy(mode), `shot ${shot.index}`).not.toContain('none')
       expect(shot.referenceBindings?.image_ref).toEqual([{ url: anchor.referenceUrl, name: anchor.name, anchorId: anchor.id }])

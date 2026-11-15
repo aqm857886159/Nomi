@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { MODEL_ARCHETYPES, resolveArchetypeForModel } from "./index";
+import { EVERY_VARIANT, resolveModelArchetype } from "./index";
+import { MODEL_ARCHETYPES } from "./builtInCatalog";
 import { buildVideoModelCandidates, sourceBackedVideoProfiles } from "../videoCapabilities";
 
 // 二期档案归一（2026-09-02）的结构保证：MODEL_ARCHETYPES 的 video 块改为从
@@ -16,7 +17,7 @@ import { buildVideoModelCandidates, sourceBackedVideoProfiles } from "../videoCa
 // 的目录行显式 pin 了 archetypeId，从不走身份匹配）。pin 已删，两侧共用 registry 声明序，
 // 「专属档案赢平台判别串」规则自此无例外；跨侧一致性由文末对拍测试永久锁住。
 
-const resolve = (modelKey: string) => resolveArchetypeForModel({ modelKey, vendorKey: null })?.id ?? null;
+const resolve = (modelKey: string) => resolveModelArchetype({ modelKey, vendorKey: null }, { variant: EVERY_VARIANT })?.id ?? null;
 
 describe("MODEL_ARCHETYPES 派生构造（video 单一登记点）", () => {
   it("video 子集与 registry 完全同集（引用级）——接 video 模型只登记在 registry 一处", () => {
@@ -106,7 +107,7 @@ describe("pattern 自解析不变量（除已登记例外，每个 pattern 解�
 
 describe("同串双身份禁令：渲染层与 registry 平局判据对全语料逐串对拍", () => {
   // 这类分裂（"veo3.1" 事故）的病灶：两侧各持一份决胜逻辑，同一身份串两个赢家——推荐/规划层
-  // （registry profileFor）许诺一个档案，UI/发送路（resolveArchetypeForModel）却按另一个档案发报文。
+  // （registry profileFor）许诺一个档案，UI/发送路（resolveModelArchetype）却按另一个档案发报文。
   // 不变量：对「全部档案 identifierPatterns + variant modelKey + legacyIds ×
   // {raw, lower, UPPER, models/ 前缀, 裸末段, vendor 前缀末段}」全语料，凡两侧都认领的串，
   // 赢家必须相同。认领面允许不同（registry 有 includes 宽容档给推荐兜底、渲染层刻意只认相等），

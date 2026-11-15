@@ -1,6 +1,6 @@
 // 参考图的唯一主人：一份有序列表 + 唯一落槽规则（referenceList.ts）。
 import { describe, expect, it } from 'vitest'
-import { resolveArchetypeForModel, type ArchetypeMode } from '../../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype, type ArchetypeMode } from '../../../../../electron/shared/modelArchetypes'
 import {
   FIRST_FRAME_EMPTY_KEY,
   PARKED_KEY,
@@ -18,7 +18,7 @@ import {
   withReferenceList,
 } from './referenceList'
 
-const seedance = resolveArchetypeForModel({ modelKey: 'seedance-2', vendorKey: 'apimart', meta: {} } as never)!
+const seedance = resolveModelArchetype({ modelKey: 'seedance-2', vendorKey: 'apimart', meta: {} } as never, { variant: EVERY_VARIANT })!
 const mode = (id: string): ArchetypeMode => seedance.modes.find((m) => m.id === id)!
 
 describe('placeUploadedImages：列表按顺序落进当前方式收图的槽', () => {

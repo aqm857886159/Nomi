@@ -21,9 +21,8 @@ import {
   archetypeBaseModelKey,
   archetypeVariantForModelId,
   canonicalArchetypeVariantId,
-  resolveArchetypeForModel,
+  rescopeArchetypeVariant,
   resolveArchetypeVariant,
-  specializeArchetypeForVariant,
 } from '../../../../../electron/shared/modelArchetypes'
 import type { ImageUrlSlot } from '../../model/parameterReferenceSlots'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
@@ -44,7 +43,6 @@ export { archetypeModeParams, archetypeModeSourceVideoSlot, localizeModelParamet
 import { lowerGenerationIntent, loweringAsArray, type IntentReference } from '../../../../../electron/shared/generationLowering/lowerGenerationIntent'
 import { declarationForMode } from '../../../../../electron/shared/generationLowering/declarationForMode'
 
-export { resolveArchetypeForModel }
 export type { ModelArchetype, ArchetypeMode, ModelArchetypeVariant }
 
 // 可达性判据（第三闸与 UI 收窄共用的那把尺子）经**本模块**转出给渲染层的其它文件（channelModeReach）。
@@ -551,7 +549,7 @@ function rewriteArchetypeRecord(
 ): Record<string, unknown> {
   const meta = normalizeReferenceListMeta(rawMeta, storedPreferenceMode(archetype, rawMeta)) ?? rawMeta
   const variantId = preservedVariantId(meta, archetype)
-  const specialized = specializeArchetypeForVariant(archetype, variantId)
+  const specialized = rescopeArchetypeVariant(archetype, { variantId, modelId: undefined })
   const nextMode = specialized.modes.find((m) => m.id === modeId) ?? specialized.modes[0]
   const clamped = nextMode ? resolveModelParams({ controls: nextMode.params, intent: {}, previousParams: meta, policy: { author: '人手', invalid: '只修下拉不管数值' } }).params : meta
   return { ...clamped, archetype: { ...keep, id: archetype.id, modeId: nextMode.id, ...(variantId ? { variantId } : {}) } }
@@ -574,7 +572,7 @@ export function applyArchetypeVariantSwitch(
   // 用户点的那一档；认不出的 id 与不传一样落默认变体（唯一 owner 的规则）。
   const nextVariant = resolveArchetypeVariant(archetype, { variantId: nextVariantId })!
   // 按新变体特化出当前模式的参数声明，把存量越界的 select 值夹回默认（D1：4k→fast 变体不再漏发）。
-  const specialized = specializeArchetypeForVariant(archetype, nextVariant.id)
+  const specialized = rescopeArchetypeVariant(archetype, { variantId: nextVariant.id, modelId: undefined })
   const mode =
     specialized.modes.find((m) => m.id === modeId) ??
     specialized.modes.find((m) => m.id === specialized.defaultModeId) ??

@@ -7,7 +7,8 @@
 // 这些数是目录的事实，目录长了就会变：变的时候改这里的数，并在 PR 里说一句是哪个档案带来的。
 import { describe, expect, it } from "vitest";
 
-import { MODEL_ARCHETYPES, specializeArchetypeForVariant, specializeArchetypeForVendor } from "./modelArchetypes";
+import { rescopeArchetypeVariant, specializeArchetypeForVendor } from "./modelArchetypes";
+import { MODEL_ARCHETYPES } from "./modelArchetypes/builtInCatalog";
 import { aspectRatioControlKey, optionsAreAspectRatios, resolveAspectRatioChoice, sameAspectRatio } from "./aspectRatioValue";
 import { isAspectRatioControl, videoAspectDefaultPatch, type DynamicModelControl } from "../../src/workbench/generationCanvas/nodes/controls/parameterControlModel";
 
@@ -18,7 +19,7 @@ function census(): Combo[] {
   for (const base of MODEL_ARCHETYPES) {
     const variants: Array<string | undefined> = base.variants?.length ? base.variants.map((variant) => variant.id) : [undefined];
     for (const variantId of variants) {
-      const archetype = variantId ? specializeArchetypeForVariant(base, variantId) : base;
+      const archetype = variantId ? rescopeArchetypeVariant(base, { variantId: variantId, modelId: undefined }) : base;
       const vendors = [null, ...new Set(archetype.modes.flatMap((mode) => Object.keys(mode.vendorParams ?? {})))];
       for (const vendor of vendors) {
         for (const mode of specializeArchetypeForVendor(archetype, vendor).modes) {

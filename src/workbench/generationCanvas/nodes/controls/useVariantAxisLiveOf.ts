@@ -1,6 +1,6 @@
 // 模型菜单里别的行（没选中的）的变体轴起不起作用。和 `useChannelCreateBody` 同一套线缆读取，只是按「行」而不是按「当前节点」问。
 import React from 'react'
-import { modeTransportFor, resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, modeTransportFor, resolveModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import type { ModelOption } from '../../../../config/models'
 import { archetypeVariantAxisIsLive } from './channelModeReach'
 import { readModeChannelBody, type VendorMappingsReader } from './useChannelCreateBody'
@@ -12,10 +12,10 @@ import { readModeChannelBody, type VendorMappingsReader } from './useChannelCrea
  */
 export function variantAxisLiveForProviders(providers: ReadonlyArray<{ option: ModelOption }>, readMappings: VendorMappingsReader): boolean {
   return providers.some(({ option }) => {
-    const archetype = resolveArchetypeForModel({
+    const archetype = resolveModelArchetype({
       modelKey: option.modelKey, modelAlias: option.modelAlias, vendorKey: option.vendor, meta: option.meta,
       ...(option.modelNameSource ? { modelNameSource: option.modelNameSource } : {}),
-    })
+    }, { variant: EVERY_VARIANT })
     if (!archetype) return true
     return archetype.modes.some((mode) => {
       const body = readModeChannelBody(option.vendor ?? '', option.value, (modeTransportFor(mode, archetype, option.vendor) ?? '') as string, mode.id, readMappings)

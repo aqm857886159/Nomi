@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import i18n from '../../../../i18n'
-import { getArchetypeById, specializeArchetypeForVariant, specializeArchetypeForVendor, type ModelArchetype } from '../../../../../electron/shared/modelArchetypes'
+import { rescopeArchetypeVariant, specializeArchetypeForVendor, type ModelArchetype } from '../../../../../electron/shared/modelArchetypes'
+import { getArchetypeById } from '../../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { archetypeModeById, archetypeModeModelEnum, type ResolvedReferenceValues } from './archetypeMeta'
 import { ARCHETYPE_WIRE_MODEL, resolveWireModel } from '../../../../../electron/shared/modelArchetypes/wireModelIdentity'
 import { archetypeModeChoices } from './channelModeReach'
@@ -616,24 +617,24 @@ describe('变体轴 — 发出的 model（线上 model 由 wireModelIdentity 解
 
 describe('变体轴 — params 收窄（specializeArchetypeForVariant）', () => {
   it('fast 变体：resolution 选项收窄到 480/720（无 1080）', () => {
-    const fast = specializeArchetypeForVariant(SEEDANCE_APIMART, 'fast')
+    const fast = rescopeArchetypeVariant(SEEDANCE_APIMART, { variantId: 'fast', modelId: undefined })
     for (const mode of fast.modes) {
       const res = mode.params.find((p) => p.key === 'resolution')
       expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p'])
     }
   })
   it('Mini 变体：同样收窄 480/720', () => {
-    const mini = specializeArchetypeForVariant(SEEDANCE_APIMART, 'mini')
+    const mini = rescopeArchetypeVariant(SEEDANCE_APIMART, { variantId: 'mini', modelId: undefined })
     const res = mini.modes[0].params.find((p) => p.key === 'resolution')
     expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p'])
   })
   it('standard 变体：resolution 含 4k（基础档独占的 2026-06 4K 升级）', () => {
-    const arch = specializeArchetypeForVariant(SEEDANCE_APIMART, 'standard')
+    const arch = rescopeArchetypeVariant(SEEDANCE_APIMART, { variantId: 'standard', modelId: undefined })
     const res = arch.modes[0].params.find((p) => p.key === 'resolution')
     expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p', '1080p', '4k'])
   })
   it('无 variantId → 取默认 Fast（仅 480/720）', () => {
-    const arch = specializeArchetypeForVariant(SEEDANCE_APIMART, undefined)
+    const arch = rescopeArchetypeVariant(SEEDANCE_APIMART, { variantId: undefined, modelId: undefined })
     const res = arch.modes[0].params.find((p) => p.key === 'resolution')
     expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p'])
   })

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { archetypeForNode, isTextPromptEdge, referenceAssetKindForNode, validateReferenceEdge, partitionConnectableEdges } from './referenceEdgeCapability'
-import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { GENERATION_NODE_KINDS, getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 
-// archetypeId 显式命中内置档案(resolveArchetypeForModel/getArchetypeById 优先看它):
+// archetypeId 显式命中内置档案(resolveModelArchetype/getArchetypeById 优先看它):
 //   imagen-4   = 纯文生(所有模式 slots:[])——不吃任何参考
 //   seedream   = t2i(slots:[]) + edit(image_ref)——union 有图片参考槽
 //   seedance-2 = 视频,omni 有 image_ref/video_ref/audio_ref + first/firstlast 帧槽
@@ -171,7 +171,7 @@ describe('partitionConnectableEdges — 批准时剔除连不上的边(批准≡
 // 「连线后自动切方式」「按活边对账方式」两组测试随机器切方式一起删了：方式现在按输入现算（modeForInputs），
 // 连线不写方式；对应的守护在 modeForInputs.exhaustive.test.ts 与 canvasModeNineStates.test.ts。
 import { findVideoRefMode } from './referenceEdgeCapability'
-import { getArchetypeById } from '../../../../electron/shared/modelArchetypes'
+import { getArchetypeById } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 
 describe('findVideoRefMode — 档案有没有 video_ref 槽', () => {
   it('Seedance 2.0 (omni 有 video_ref) → 返回 omni 模式 + referenceVideoUrls + video_urls', () => {
@@ -212,12 +212,12 @@ describe('archetypeForNode 与发送路径同源（2026-09-08 Agnes 2.1 根因�
     expect(archetypeForNode(legacyNode)?.id).toBe('agnes-image-2.1')
   })
 
-  it('与发送路径 resolveArchetypeForModel 逐字一致（不是各写一份判断）', () => {
-    const viaSend = resolveArchetypeForModel({
+  it('与发送路径 resolveModelArchetype 逐字一致（不是各写一份判断）', () => {
+    const viaSend = resolveModelArchetype({
       modelKey: 'agnes-image-2.1-flash',
       vendorKey: 'agnes',
       meta: legacyNode.meta as Record<string, unknown>,
-    })
+    }, { variant: EVERY_VARIANT })
     expect(archetypeForNode(legacyNode)?.id).toBe(viaSend?.id)
   })
 

@@ -12,7 +12,7 @@ import {
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { resolveTaskKind } from './catalogTaskResolve'
 import { GENERATION_NODE_KINDS, getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
-import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { encodeMention } from '../../assets/promptMentions'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { TaskRequestDto, TaskResultDto } from '../../api/taskApi'

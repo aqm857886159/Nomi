@@ -15,10 +15,10 @@ import { orderByVendorPreference } from "../../../../electron/shared/contracts/v
 //     effect3（供应商断开自愈）覆盖 agent 选择。
 //
 // 参数随 (model × mode × vendor) 三元组变：每个 model 带 modes[]，每个 mode 带自己的 params
-// （resolveArchetypeForModel 内部已按 vendor 特化）。agent 必须同时选 modelKey + modeId。
+// （resolveModelArchetype 内部已按 vendor 特化）。agent 必须同时选 modelKey + modeId。
 import type { ModelOption } from "../../../config/models";
 import { parseModelParameterControls } from "../../../config/modelCatalogMeta";
-import { resolveArchetypeForModel } from "../../../../electron/shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../../../../electron/shared/modelArchetypes";
 import { preloadModelOptions } from "../../../config/modelCatalogCache";
 import { pickImplicitVendorMatch } from "../../../config/modelIdentity";
 import i18n from "../../../i18n";
@@ -45,12 +45,13 @@ export function buildAgentModelEntries(options: readonly ModelOption[]): AgentMo
     // 身份键含 vendor：同名模型来自不同供应商是**两个模型**，不是重复项。
     const identity = `${option.vendor ?? ""}::${modelKey}`;
     if (!modelKey || seen.has(identity)) continue;
-    const archetype = resolveArchetypeForModel({
+    // 名单层一行一模型：任一档能做的都列上（按档给是 Agent 模型详情的事）。
+    const archetype = resolveModelArchetype({
       modelKey: option.modelKey ?? option.value,
       modelAlias: option.modelAlias,
       vendorKey: option.vendor,
       meta: option.meta,
-    });
+    }, { variant: EVERY_VARIANT });
     // Text/chat models deliberately have no media archetype. Their catalog kind
     // plus the published `chat` mode is sufficient to preserve an explicit
     // user/agent selection; dropping them here silently changes the request to

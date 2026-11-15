@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { setDesktopLocale } from "../desktopLocale";
 import { desktopT } from "../desktopStrings";
-import { MODEL_ARCHETYPES } from "../shared/modelArchetypes";
+import { MODEL_ARCHETYPES } from "../shared/modelArchetypes/builtInCatalog";
 import { GPT_IMAGE_2_ARCHETYPE } from "../shared/modelArchetypes/gptImage2";
 import { matchNomiErrorCode, tagNomiError } from "../shared/nomiErrorCodes";
 import {

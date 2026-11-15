@@ -9,7 +9,8 @@ import { referenceKeyDeclarationFor, referenceKeyCapacityDeclarationFor } from "
 import { applyBuiltinSeeds } from "../electron/catalog/seedBuiltins";
 import type { CatalogState } from "../electron/catalog/types";
 import { GENERIC_REFERENCE_KEYS } from "../electron/shared/modelArchetypes/referenceKeys";
-import { getArchetypeById, resolveArchetypeForModel } from "../electron/shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../electron/shared/modelArchetypes";
+import { getArchetypeById } from "../electron/shared/modelArchetypes/builtInCatalog";
 import type { ModelParameterControl } from "../electron/shared/videoCapabilities/types";
 
 const NOW = "2026-10-25T00:00:00.000Z";
@@ -79,12 +80,12 @@ export function buildReferenceKeyCensus() {
   const modelByKey = new Map(state.models.map((model) => [`${model.vendorKey}:${model.modelKey}`, model]));
   const modelContexts = state.models.map((model) => ({
     model,
-    archetype: resolveArchetypeForModel({
+    archetype: resolveModelArchetype({
       modelKey: model.modelKey,
       modelAlias: model.modelAlias,
       vendorKey: model.vendorKey,
       meta: model.meta,
-    }),
+    }, { variant: EVERY_VARIANT }),
   }));
   const modelsWithReferenceDeclarations = modelContexts.filter(({ archetype }) =>
     Boolean(archetype?.headlessReferenceKeys?.length || archetype?.modes.some((mode) => mode.slots.length > 0 || mode.combineSlotsInto)),

@@ -3,7 +3,7 @@
 // 反例：把 modeForInputs 改回「直接用存着的 modeId」→「放得下全部就放得下全部」「偏好放不下不算数」两组红；
 // 把自动换方式关掉（偏好放不下也照用）→ 同两组红。
 import { describe, expect, it } from 'vitest'
-import { MODEL_ARCHETYPES } from './index'
+import { MODEL_ARCHETYPES } from './builtInCatalog'
 import { modeForInputs, modeTakenCount, modeTakesAllInputs, type ModeInput, type ModePreference } from './modeForInputs'
 
 const REFERENCE: ModeInput['slots'] = ['image_ref', 'video_ref', 'source_video', 'first_frame', 'last_frame', 'audio_ref']

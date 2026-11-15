@@ -20,7 +20,7 @@
 // 公开仓库：这里只写用户看得见的事实与代码位置，不写价格、供应商合作信息或私有待办编号。
 import { applyBuiltinSeeds } from '../../electron/catalog/seedBuiltins'
 import { derivePublishedExecution } from '../../electron/shared/modelPublication'
-import { resolveArchetypeForModel, specializeArchetypeForVariant } from '../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype, rescopeArchetypeVariant } from '../../electron/shared/modelArchetypes'
 import { modeTransportFor } from '../../electron/shared/videoCapabilities'
 import { toCatalogModelOptions } from '../../src/config/modelOptionMappers'
 import { resolveRenderedControls } from '../../src/workbench/generationCanvas/nodes/nodeModelArchetype'
@@ -89,7 +89,7 @@ export function publishedModelRows() {
     if (!execution.published || execution.publishedModes.length === 0) continue
     const [option] = toCatalogModelOptions([model])
     if (!option) continue
-    const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, modelAlias: model.modelAlias ?? null, vendorKey: model.vendorKey, meta: model.meta })
+    const archetype = resolveModelArchetype({ modelKey: model.modelKey, modelAlias: model.modelAlias ?? null, vendorKey: model.vendorKey, meta: model.meta }, { variant: EVERY_VARIANT })
     if (!archetype) continue
     rows.push({ vendorKey: model.vendorKey, modelKey: model.modelKey, kind: model.kind, option, archetype, publishedModes: execution.publishedModes })
   }
@@ -98,7 +98,7 @@ export function publishedModelRows() {
 
 /** 这家真发得出的模式（档案模式的传输类型在已发布执行里）。 */
 function sendableModes(row) {
-  const specialized = specializeArchetypeForVariant(row.archetype, row.archetype.defaultVariantId)
+  const specialized = rescopeArchetypeVariant(row.archetype, { variantId: row.archetype.defaultVariantId, modelId: undefined })
   return specialized.modes.filter((mode) => row.publishedModes.includes(modeTransportFor(mode, specialized, row.vendorKey)))
 }
 

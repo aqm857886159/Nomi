@@ -3,7 +3,8 @@
 // 标「不露出」的 absent 记号，档案里必须真没有。记号写法见 docs/models/capabilities/README.md。
 import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { getArchetypeById, MODEL_ARCHETYPES, specializeArchetypeForVendor } from './index'
+import { specializeArchetypeForVendor } from './index'
+import { getArchetypeById, MODEL_ARCHETYPES } from './builtInCatalog'
 import type { ModelArchetype } from './types'
 
 const TABLE_DIR = new URL('../../../docs/models/capabilities/', import.meta.url)

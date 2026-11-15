@@ -7,9 +7,8 @@ import type { AgentModelEntry } from "./availableModels";
 import { resolveModelParams } from "../../../../electron/shared/videoCapabilities/resolveModelParams";
 import {
   canonicalArchetypeVariantId,
-  resolveArchetypeForModel,
-  resolveArchetypeVariant,
-  specializeArchetypeForVariant,
+  resolveModelArchetype,
+  type ArchetypeVariantPick,
   type ModelArchetype,
 } from "../../../../electron/shared/modelArchetypes";
 import { pickImplicitVendorMatch } from "../../../config/modelIdentity";
@@ -35,14 +34,14 @@ function nonBlankString(value: unknown): string {
 /** Resolve the curated archetype again at the write boundary so variant
  * parameter narrowing and the persisted `{ id, modeId, variantId }` namespace
  * use the same source as the canvas composer. */
-function entryArchetype(entry: AgentModelEntry): ModelArchetype | null {
+function entryArchetype(entry: AgentModelEntry, variant: ArchetypeVariantPick): ModelArchetype | null {
   if (!entry.archetypeId) return null;
-  return resolveArchetypeForModel({
+  return resolveModelArchetype({
     modelKey: entry.modelId,
     modelAlias: entry.modelAlias,
     vendorKey: entry.vendor,
     meta: { archetypeId: entry.archetypeId },
-  });
+  }, { variant });
 }
 
 /**
@@ -100,7 +99,8 @@ export function buildPlannedNodeMeta(
   if (requestedVendor && entry.vendor && requestedVendor !== entry.vendor) return undefined;
   const persistedVendor = requestedVendor || entry.vendor || "";
 
-  const archetype = entryArchetype(entry);
+  // 存档只记显式、有效的那一档；参数面永远是这个节点真跑的那一档（入口按唯一 owner 落档）。
+  const archetype = entryArchetype(entry, (every) => ({ variantId: canonicalArchetypeVariantId(every, planned.variantId), modelId: modelKey }));
   // Persist only an explicit, valid variant (an invalid one is ignored). The
   // parameter surface, however, is always the surface of the variant this node
   // will actually run on — the one owner (`resolveArchetypeVariant`) answers
@@ -108,10 +108,7 @@ export function buildPlannedNodeMeta(
   // 2026-09-26 an omitted variant kept the unspecialized (standard) surface
   // while the node ran on the default (fast) variant.
   const variantId = archetype ? canonicalArchetypeVariantId(archetype, planned.variantId) : "";
-  const runningVariantId = archetype ? resolveArchetypeVariant(archetype, { variantId, modelId: modelKey })?.id : undefined;
-  const effectiveArchetype = archetype && runningVariantId
-    ? specializeArchetypeForVariant(archetype, runningVariantId)
-    : archetype;
+  const effectiveArchetype = archetype;
 
   const wantModeId = typeof planned.modeId === "string" ? planned.modeId.trim() : "";
   // Normalize the renderer-facing and agent-facing mode shapes before the

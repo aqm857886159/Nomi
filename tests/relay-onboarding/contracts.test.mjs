@@ -13,7 +13,7 @@ import { buildOpenAiCompatibleDraft } from '../../electron/providerAdapter/built
 import { validateProviderAdapterDraft } from '../../electron/providerAdapter/validator.ts'
 import { readCatalog, upsertModelCatalogVendorApiKey } from '../../electron/catalog/catalogStore.ts'
 import { submitDeclaration } from '../../electron/capabilityCore/modelOnboarding/submitDeclaration.ts'
-import { resolveArchetypeForModel } from '../../electron/shared/modelArchetypes/index.ts'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../electron/shared/modelArchetypes/index.ts'
 import { agentModelEntriesFromCatalog } from '../../electron/catalog/agentModelEntriesFromCatalog.ts'
 import { createProject, executeProfileOperation, buildProfileTaskResult, runTask, fetchTaskResult } from '../../electron/runtime.ts'
 import { tryModel } from '../../electron/capabilityCore/modelOnboarding/tryModel.ts'
@@ -72,7 +72,7 @@ describe('relay onboarding reproducible gaps', () => {
 
   it('a valid declaration retains parameters in the catalog capability contract', async () => {
     const { row } = await register()
-    const archetype = resolveArchetypeForModel(row)
+    const archetype = resolveModelArchetype(row, { variant: EVERY_VARIANT })
     expect(archetype?.modes[0].params.map((p) => p.key)).toEqual(expect.arrayContaining(['duration', 'resolution']))
   })
 
@@ -80,7 +80,7 @@ describe('relay onboarding reproducible gaps', () => {
     const { row } = await register({ id: 'opaque-beta', frameOnly: true })
     const mapping = readCatalog().mappings.find((m) => m.modelKey === row.modelKey)
     expect(mapping.taskKind).toBe('image_to_video')
-    expect(resolveArchetypeForModel(row)?.modes[0].slots).toEqual(expect.arrayContaining([expect.objectContaining({ min: 1 })]))
+    expect(resolveModelArchetype(row, { variant: EVERY_VARIANT })?.modes[0].slots).toEqual(expect.arrayContaining([expect.objectContaining({ min: 1 })]))
   })
 
   it('replacing a declaration removes an obsolete mode previously owned by that declaration', async () => {

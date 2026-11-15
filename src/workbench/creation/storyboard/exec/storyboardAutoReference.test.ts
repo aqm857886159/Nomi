@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { encodeMention, mentionUrlsInOrder } from '../../../assets/promptMentions'
 import type { PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
 import { autoReferencePlan, autoReferenceShot } from './storyboardAutoReference'
-import { MODEL_ARCHETYPES, resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../../electron/shared/modelArchetypes/builtInCatalog'
 
 /**
  * 分镜侧调用方 `autoReferencePlan`：参考卡出图 → 引用它的镜头「名字后面补 @ + 参考框绑上」，两件一起成。
@@ -112,7 +113,7 @@ describe('普查：所有档案 × 所有起步模式，@ 与绑定一起成、�
     for (const mode of archetype.modes) {
       it(`${archetype.id} · ${mode.id}`, () => {
         const before: PlanShot = { index: 1, shotId: 'shot-1', durationSec: 5, anchorIds: [], prompt: '林薇冲进后巷', modelKey, modeId: mode.id }
-        const resolvedHere = resolveArchetypeForModel({ modelKey, vendorKey: null })
+        const resolvedHere = resolveModelArchetype({ modelKey, vendorKey: null }, { variant: EVERY_VARIANT })
         if (resolvedHere?.id !== archetype.id) return // 识别串命中了别的档案：这一格不归它
         const next = autoReferenceShot(before, [LINWEI])
         const mentioned = mentionUrlsInOrder(next.prompt).includes(LINWEI.url)

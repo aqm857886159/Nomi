@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { MODEL_ARCHETYPES, specializeArchetypeForVendor } from './index'
+import { specializeArchetypeForVendor } from './index'
+import { MODEL_ARCHETYPES } from './builtInCatalog'
 import { frameSwapKeepsSendable, modeTakesAllInputs, type ModeInput } from './modeForInputs'
 import type { ArchetypeMode, ModelArchetype } from './types'
 

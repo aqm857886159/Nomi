@@ -13,7 +13,7 @@ Direction-Check：`electron/catalog/taskParams.ts` 是热点，提交带 `Direct
 |---|---|---|---|
 | 1 | MiniMax H3（APIMart）有 webhook 文本框，填了也收不到任何东西（Nomi 自己轮询） | 档案 `minimaxH3Apimart.ts` 四个方式删掉控件；目录 `apimartVideos.ts` 两条 body 删掉 `webhook`，`paramMap.drops` 收下老节点存的值；`apimartMinimaxH3.ts` 删掉「空 webhook 就删键」的补丁；能力表新建 `docs/models/capabilities/minimax-h3-apimart.md`，记作 `absent:webhook reason:管道` | 文档列了 `webhook`（任务完成回调地址），见 docs.apimart.ai/cn/api-reference/videos/minimax-h3/generation |
 | 2 | 可灵 3.0（APIMart）图生方式露着比例，选了也没用：发送时被目录的 `i2vDrops` 丢掉 | `kling.ts` 的 i2v 只给 APIMart 去掉比例（fal / kie 不动，fal 图生 body 仍发） | Kling：「In image-to-video mode, aspect_ratio may be overridden by the actual image ratio」（kling-v3/generation） |
-| 2b | Veo 3.1（APIMart）参考图 / 首尾帧：比例露着、发送时却被 `i2vDrops` 丢掉（独立验收查出：第一版把它藏掉，方向反了） | `veo31.ts` 两个图模式改回和文生同一组参数（比例 16:9 / 9:16 + 清晰度）；`apimartVideos.ts` 图生 body 引用 `aspect_ratio`、删掉 `i2vDrops` | veo3/generation：`aspect_ratio` 只列 16:9 / 9:16、不分方式；页上的请求示例就是带 `image_urls` 的图生请求，同时写 `"aspect_ratio": "16:9"`。以前不发是 2026-06-07 首版照抄 Sora 图生 body 形状，git 历史里没有文档或上游报错依据。上游图模式认不认比例：`unverified`，待一发付费核 |
+| 2b | Veo 3.1（APIMart）参考图 / 首尾帧：比例露着、发送时却被 `i2vDrops` 丢掉（独立验收查出：第一版把它藏掉，方向反了） | `veo31.ts` 两个图模式改回和文生同一组参数（比例 16:9 / 9:16 + 清晰度）；`apimartVideos.ts` 图生 body 引用 `aspect_ratio`、删掉 `i2vDrops` | veo3/generation：`aspect_ratio` 只列 16:9 / 9:16、不分方式；页上的请求示例就是带 `image_urls` 的图生请求，同时写 `"aspect_ratio": "16:9"`。以前不发是 2026-06-07 首版照抄 Sora 图生 body 形状，git 历史里没有文档或上游报错依据。上游图模式认不认比例：参考图方式已真付费核过一发（2026-11-15，发 9:16，成片 720×1280，证据 `docs/evidence/2026-11-15-archetype-wrong-today/paid/report.json`）；首尾帧方式没核，和参考图走同一段请求体 |
 | 3 | Seedream 4.5（APIMart）文生图的比例有「auto」，文档写 auto 需要参考图 | `seedream.ts` 拆成文生 / 改图两组比例，文生不列 auto | 「auto - Auto-match reference image aspect ratio (requires image_urls)」 |
 | 4 | GPT Image 2 / 2.5 / 2.6（APIMart）改图时选比例「自动」，我们把 `size: "auto"` 发出去。文档说不发才跟随原图比例（GPT Image 2 是独立验收查出的同类漏网） | `apimartImages.ts` 改图 body 读 `size_wire`，paramMap 用现成的 `omitAuto`：auto → 不发，具体比例照发；文生不变 | 2.5 / 2.6：「For image-to-image requests, omit size to let the service calculate … first input image's aspect ratio」；GPT Image 2：「Without `size`, output resolution = input image resolution」「When `size` is set to `auto`, the default ratio is `1:1`」。同类再扫：其余改图模型的文档都写「不传或 auto 都跟参考图」，0 个 |
 | 5 | Seedance 2.0 / Wan 3.0 / Wan 3.0 Prime（APIMart）放了素材的方式仍要求必填提示词，被我们自己拦住发不出去 | `seedanceApimart.ts` 的 i2v / omni / firstlast 和 `wan30Apimart.ts` 的 first / firstlast / ref 都改成 `promptRequired: false`（文生仍必填） | Seedance：「Required for text-to-video; optional for image-to-video or video-reference-to-video」；Wan：「Required unless media fields are provided (at least one of prompt or media)」 |
@@ -90,7 +90,7 @@ Direction-Check：`electron/catalog/taskParams.ts` 是热点，提交带 `Direct
   - 升级前：发 `size: "auto"`。
   - 升级后：不发。存着 16:9 的照发。
 - **可灵 3.0 图生存着比例**：升级前后都不发（老映射本来就丢），不回归。
-- **Veo 3.1 图生存着比例**：升级前不发（老映射丢）；升级后发存着的值（例如 9:16）。这是有意的变化，上游认不认 `unverified`，待一发付费核。
+- **Veo 3.1 图生存着比例**：升级前不发（老映射丢）；升级后发存着的值（例如 9:16）。这是有意的变化；上游认不认：参考图方式已真付费核过一发（2026-11-15，发 9:16，成片 720×1280，证据 `docs/evidence/2026-11-15-archetype-wrong-today/paid/report.json`）；首尾帧方式没核，和参考图走同一段请求体。
 - **Seedream 4.5 文生节点存着 auto**
   - 发送前，渲染层 `fixDropdownsBeforeSend` 把不在选项里的值修成默认 1:1；改图方式的 auto 照留。
   - 证据：`archetypeMeta.test.ts` 新用例。真实旧存档里找不到这种节点，用的是按 0.24.1 节点形状构造的 meta，所以这一条记「半真实」。
@@ -142,7 +142,7 @@ Direction-Check：`electron/catalog/taskParams.ts` 是热点，提交带 `Direct
 - 风险 1：Seedance / Wan 放素材时空提示词上游真的收不收。文档说收，没有付费实测，记 `unverified`。
   - 若上游拒：用户看到现有失败卡、带上游原话，不扣费（任务没受理）。
 - 风险 2：GPT 改图不发 size 时上游按原图比例。文档原话如此，付费实测同样 `unverified`。
-- 风险 3：Veo 3.1 图模式发 `aspect_ratio` 上游认不认。文档示例就是这样发的，付费实测 `unverified`。
+- 风险 3：Veo 3.1 图模式发 `aspect_ratio` 上游认不认。文档示例就是这样发的；参考图方式已真付费核过一发（2026-11-15，发 9:16，成片 720×1280，证据 `docs/evidence/2026-11-15-archetype-wrong-today/paid/report.json`）；首尾帧方式没核，和参考图走同一段请求体。
   - 若上游拒：用户看到现有失败卡、带上游原话；回退办法是档案改回不露、body 改回 drop，并把上游原话写进能力表的「不露出」原因。
 
 ## ★7 性能
@@ -156,7 +156,7 @@ Direction-Check：`electron/catalog/taskParams.ts` 是热点，提交带 `Direct
 ## 8 真实条件
 
 - Mac 本地：单测、官方请求体矩阵、v0.24.1 真实目录回放、真窗截图。截图用隔离资料目录、零花费、不点生成，中文浅色 + 英文暗色。
-- 真付费：本线不跑，`unverified`。建议协调跑两发：
+- 真付费：本线不跑。协调已跑第一发（Veo，通过，证据同上）；第二发（GPT 改图）没跑，仍 `unverified`——现成的付费样片脚本只支持视频。原建议的两发：
   - Veo 3.1 Fast 参考图方式，1 张竖图，比例 9:16、720p。判据：上游受理，成片竖屏。
   - GPT Image 2（或 2.5）改图选「自动」。判据：请求体没有 `size`，成片和原图同比例。
 - Windows / 干净安装：`unverified`。

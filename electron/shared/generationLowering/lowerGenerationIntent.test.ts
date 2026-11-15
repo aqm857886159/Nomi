@@ -6,7 +6,7 @@
  * `referencePlacement.characterization.test.ts`，整条请求体逐格比对在 `electron/parity/officialWire.matrix.test.ts`。
  */
 import { describe, expect, it } from "vitest";
-import { MODEL_ARCHETYPES } from "../modelArchetypes";
+import { MODEL_ARCHETYPES } from "../modelArchetypes/builtInCatalog";
 import { combineChannelForMode, slotJoinsCombine } from "../videoCapabilities/referenceChannels";
 import { SEEDANCE_2_APIMART_ARCHETYPE } from "../videoCapabilities/seedanceApimart";
 import { declarationForMode } from "./declarationForMode";

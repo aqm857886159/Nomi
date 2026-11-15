@@ -32,7 +32,7 @@ import qwen from '@lobehub/icons-static-svg/icons/qwen.svg'
 import runway from '@lobehub/icons-static-svg/icons/runway.svg'
 import suno from '@lobehub/icons-static-svg/icons/suno.svg'
 import vidu from '@lobehub/icons-static-svg/icons/vidu.svg'
-import { resolveArchetypeForModel } from '../../electron/shared/modelArchetypes'
+import { resolveModelArchetype, type ArchetypeVariantPick } from '../../electron/shared/modelArchetypes'
 import type { ModelArchetype } from '../../electron/shared/modelArchetypes/types'
 import type { DedupedModel } from './modelIdentity'
 import type { NomiIdentityIconSource } from '../design'
@@ -94,16 +94,16 @@ export function modelNameInitial(name: string): string {
  * 不在这里再写一份匹配。菜单行的图标、能力描述、变体行都读这一个——底栏其余各格（方式、参数）认档案用的也是它，
  * 所以自己接的中转上只靠型号名认出的模型，菜单和底栏说的是同一件事。认不出档案的行：没有家族、没有描述、没有变体行。
  */
-export function modelArchetypeOf(model: Pick<DedupedModel, 'providers'>): ModelArchetype | null {
+export function modelArchetypeOf(model: Pick<DedupedModel, 'providers'>, variant: ArchetypeVariantPick): ModelArchetype | null {
   for (const provider of model.providers) {
     const option = provider.option
-    const archetype = resolveArchetypeForModel({
+    const archetype = resolveModelArchetype({
       modelKey: provider.modelKey ?? option.modelKey,
       modelAlias: provider.modelAlias ?? option.modelAlias,
       vendorKey: provider.vendor ?? option.vendor,
       meta: option.meta,
       ...(option.modelNameSource ? { modelNameSource: option.modelNameSource } : {}),
-    })
+    }, { variant })
     if (archetype) return archetype
   }
   return null
@@ -111,7 +111,7 @@ export function modelArchetypeOf(model: Pick<DedupedModel, 'providers'>): ModelA
 
 /** 一组模型的家族（品牌图标按它取）。 */
 export function modelFamilyOf(model: Pick<DedupedModel, 'providers'>): string {
-  return modelArchetypeOf(model)?.family ?? ''
+  return modelArchetypeOf(model, { variantId: undefined, modelId: undefined })?.family ?? ''
 }
 
 /** 模型的身份图：认得家族 → 品牌图（单色）；认不得 → 名字首字母字块。永远有东西可画。 */
