@@ -227,7 +227,7 @@ describe("未知键：每一扇主进程写入门当场拒，同一份输入得�
       const seen = await door.run(world, NEAR_MISS);
       expect(seen.accepted, "写错的键被放行了 = 这扇门不经准入").toBe(false);
       if (seen.accepted) return;
-      // 共享边界那句话逐字相同；多镜的门在它后面多一行「是哪一镜」（`draftShotRefusals.ts`，定位只有那一处知道）。
+      // 共享边界那句话逐字相同；多镜的门在它后面多一行「是哪一镜」（`shotDraftRefusals.ts`，定位只有那一处知道）。
       expect(seen.message.slice(0, expected.message.length)).toBe(expected.message);
       expect(seen.message.slice(expected.message.length)).toMatch(/^(\nWhich shot: shots\[1\] "镜2" .*)?$/);
       // Agent 的门只带粗码 + 具体码（`admission`）；MCP 的门另带语言中立的 details。两边的具体码都是同一个。

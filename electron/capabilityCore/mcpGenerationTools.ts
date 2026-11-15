@@ -1,7 +1,7 @@
 import { refuseArgument } from "./transportFailure";
 import { pinAssetReference, type AssetReferenceIdentity } from "./semanticGenerationCandidate";
 import { presentStoryboardAuthoring, patchStoryboardAuthoring, addShotsGuidance } from './mcpGenerationMultiShot';
-import { createDraftShotRefusals } from "./draftShotRefusals";
+import { createDraftShotRefusals } from "./shotDraftRefusals";
 import { createDocumentPlanAuthoring } from './generationDocumentPlan';
 import { GenerationOperationNotFoundError } from '../productionRun/productionRunErrors';
 import { generationTaskReference } from '../shared/agentCapabilities/taskReference';
@@ -299,7 +299,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     params: Record<string, unknown>,
     registry: GenerationPlanningHandlerDependencies["registry"] = deps.registry,
   ): Promise<GenerationOperationDraftShot[] | undefined> => {
-    // 逐镜判完再一起说（`draftShotRefusals.ts`）：第一个坏镜头不再挡住后面那几镜的问题，每条带镜头号 / 模型 / 方式。
+    // 逐镜判完再一起说（`shotDraftRefusals.ts`）：第一个坏镜头不再挡住后面那几镜的问题，每条带镜头号 / 模型 / 方式。
     const refusals = createDraftShotRefusals();
     const draftShots = await resolveCreateShots(projectId, params, registry, refusals);
     if (!draftShots) return undefined;

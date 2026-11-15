@@ -1,5 +1,5 @@
 import { refuseArgument, refuseGeneration } from "./transportFailure";
-import type { DraftShotLocator, DraftShotRefusals } from "./draftShotRefusals";
+import type { DraftShotLocator, DraftShotRefusals } from "./shotDraftRefusals";
 import type { PlanAnchor, PlanShot, StoryboardPlan } from '../shared/storyboard/storyboardPlan';
 import { appendStoryboardSubjects, nextStoryboardSubjectIds, StoryboardSubjectIdentityError, type AppendedStoryboardSubject } from '../shared/storyboard/storyboardSubjectIdentity';
 import { generationTaskReference } from '../shared/agentCapabilities/taskReference';
@@ -358,7 +358,7 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
     params: Record<string, unknown>,
     registry: MultiShotHelperDeps["registry"] = deps.registry,
     /**
-     * 模型自己写的逐镜计划（`params.shots`）逐镜判完再说（`draftShotRefusals.ts`）：给了就不在第一个坏镜头处抛，
+     * 模型自己写的逐镜计划（`params.shots`）逐镜判完再说（`shotDraftRefusals.ts`）：给了就不在第一个坏镜头处抛，
      * 被拒的镜头不在返回里，由调用方判完后一段再 `finish()`。不给 = 今天的遇错即抛。
      */
     refusals?: DraftShotRefusals,

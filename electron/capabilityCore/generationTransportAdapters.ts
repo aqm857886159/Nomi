@@ -9,7 +9,7 @@ import { logWarn } from "../logging/logger";
 import { GENERATION_ARGUMENT_REFUSAL, refuseArgument, safeTransportFailure } from "./transportFailure";
 import { ContractCompilationError } from "./executionContract";
 import { issuesFromParameterRejection } from "../shared/agentLane/toolInputIssues";
-import { DraftShotsRefusal } from "./draftShotRefusals";
+import { DraftShotsRefusal } from "./shotDraftRefusals";
 import { generationProblemFrom, type GenerationProblem } from "../shared/generationProblem";
 import type { RuntimeToolCall, RuntimeToolDecision } from "../shared/agentCapabilities/transportContracts";
 import { GENERATION_METHODS, GENERATION_METHOD_NAMES, isGenerationMethodName, type GenerationMethodName } from "../shared/agentCapabilities/generation";
