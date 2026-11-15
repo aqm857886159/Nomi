@@ -86,7 +86,8 @@ await walkDesignLabScreen({
     // ── v1.2 两格：点开之后那一层（用户 2026-09-11 13:00 真机拍板「点好几次」）。
     // 它们证的是两句话，而这两句都不是截图看得出来的：
     //   ① 面板里**一个下拉都没有**——选项本身就是可点的项；
-    //   ② 只有一个参数时**没有面板壳**——点 pill 直出那组项，点一项即写入并关闭（共 2 步）。
+    //   ② 只有一个参数时也是**同一只 320 面板**（2026-11-14 用户定稿「面板和 LibTV 保持一致」：
+    //      旧「单参数直出」那条 68 宽竖条整段删了），点一项写入、面板不关。
     if (state.id.startsWith('composer-bar-panel-')) {
       const solo = state.id.endsWith('-solo-direct')
       const shape = await page.evaluate(() => {
@@ -97,7 +98,6 @@ await walkDesignLabScreen({
           selects: panel.querySelectorAll('[aria-haspopup="listbox"]').length,
           options: panel.querySelectorAll('[role="radio"]').length,
           groups: panel.querySelectorAll('[data-agent-parameter-control]').length,
-          soloKey: panel.querySelector('[data-parameter-solo]')?.getAttribute('data-parameter-solo') ?? null,
           checked: [...panel.querySelectorAll('[role="radio"]')].findIndex((radio) => radio.getAttribute('aria-checked') === 'true'),
         }
       })
@@ -156,21 +156,15 @@ await walkDesignLabScreen({
           record(`${state.id} 第 ${i + 1} 行只用了 ${Math.round(fit.used[i])}/${Math.round(fit.inner)}px，下一行的第一项（约 ${Math.round(nextFirst)}px）本来放得下——下一行才换行（§1.5.2.4）`)
         }
       }
-      // ① 浮层宽不得明显宽于最宽项的文字。只对**单参数直出**成立：它就是那一组选项，
-      // 没有别的东西要对齐；多组面板允许一个稳定列宽去对齐各组小标题（§1.5.2.4 明写的那半句）。
-      if (solo && fit.panelWidth > fit.widestText + 40) {
-        record(`${state.id} 浮层宽 ${Math.round(fit.panelWidth)}px，最宽一项的文字只有 ${Math.round(fit.widestText)}px——右边那截是冗余空白（§1.5.2.4）`)
-      }
       if (solo) {
-        if (!shape.soloKey) record(`${state.id} 只有一个参数时应直出选项（找不到 [data-parameter-solo]）`)
-        if (shape.groups > 1) record(`${state.id} 单参数直出不该套面板壳，却数到 ${shape.groups} 组参数`)
-        // 「点一项即关」只能真点一次才知道。截图已在这之前拍完，这里点不会影响基线。
-        const before = await page.locator('[data-parameter-solo] [role="radio"][aria-checked="true"]').count()
-        const target = page.locator('[data-parameter-solo] [role="radio"]').nth(shape.checked === 0 ? 1 : 0)
+        // 只有一项的面板：和多项面板同一只（宽 320），不是贴着文字收窄的细条。
+        if (Math.round(fit.panelWidth) !== 320) record(`${state.id} 只有一项的面板宽 ${Math.round(fit.panelWidth)}px，应和别的面板一样 320（不再是细竖条）`)
+        if (shape.groups !== 1) record(`${state.id} 只有一项的面板应恰好 1 组参数，实际 ${shape.groups} 组`)
+        // 点一项写入、面板不关（同一只面板，一种行为）。截图已在这之前拍完，这里点不会影响基线。
+        const target = page.locator('[data-agent-parameter-panel="true"] [role="radio"]').nth(shape.checked === 0 ? 1 : 0)
         await target.click()
         const stillOpen = await page.locator('[data-agent-parameter-panel="true"]').count()
-        if (before !== 1) record(`${state.id} 点之前应恰好一项选中，实际 ${before} 项`)
-        if (stillOpen) record(`${state.id} 单参数直出选完必须自己关掉（它不是面板，没有连改多项这回事）`)
+        if (!stillOpen) record(`${state.id} 只有一项的面板选完不该自己关（它和多项面板是同一只）`)
       } else if (shape.groups < 2) {
         record(`${state.id} 多参数那一格应有多组参数，实际 ${shape.groups} 组`)
       }
