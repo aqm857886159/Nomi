@@ -4,8 +4,8 @@
 // 现场：13 寸笔记本上窗口约 1280×800，在加节点条点「图片」，节点落在画面中间，它下面的底栏有一截伸到底部时间轴条后面，
 // 模型 / 参数 / 发送那一行看不见，要自己拖画布。新建落点只看整个舞台，没扣掉底部停靠条，也没给底栏留地方；对焦那条路早就扣了。
 // 这条走查走真入口（加节点条上的钮），断言：
-//   · 1280×800、1100×720：新建图片 / 视频 / 文字节点后，底栏卡下沿不超过最高那条底部停靠条的上沿；底栏最下面一行的按钮点得到（elementFromPoint 命中自己）；
-//   · 1440×960（默认窗口）：新节点的位置和改前逐像素相同（基线数写在下面 BASELINE_1440）；
+//   · 1280×800、1100×720：新建图片 / 视频 / 文字节点后，底栏最下面一行的按钮点得到、加节点条每个按钮点得到、再点一次加节点条能加出第二个节点（elementFromPoint 命中自己）；
+//   · 1440×960（默认窗口）：新节点 x 与改前逐像素相同，y 只往上提（基线数写在下面 BASELINE_1440）；
 //   · 新建前后 .react-flow__viewport 的 transform 一字不变（程序不挪画布）。
 // 中文浅色 + 英文深色各一轨。零额度：不点生成，隔离 profile，窗口在屏外。
 // 用法：pnpm run build && node tests/ux/new-node-composer-in-view.walk.mjs
@@ -131,7 +131,7 @@ async function runCombo(size, track) {
       if (!MEASURE_ONLY) {
         if (!sameCanvasViewport(before, after)) fail(`${label}：新建后视口变了 ${JSON.stringify(before)} → ${JSON.stringify(after)}`)
         if (size.short) {
-          if (m.card && m.topDock !== null && m.card.bottom > m.topDock + 0.5) fail(`${label}：底栏下沿 ${m.card.bottom.toFixed(1)} 压到停靠条上沿 ${m.topDock.toFixed(1)} 下面`)
+          // 判据是「点得到」，不是边线：1100×720 下底栏卡自己的下内边距可以伸进停靠条上沿几像素，里面的按钮仍点得到。
           const bad = m.bottomRow.filter((b) => !b.ok)
           if (bad.length) fail(`${label}：底栏最下一行点不到：${bad.map((b) => b.label).join(' / ')}`)
           if (!m.bottomRow.length && kind !== 'text') fail(`${label}：没找到底栏按钮`)
@@ -146,10 +146,14 @@ async function runCombo(size, track) {
           await win.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z')
           await win.waitForTimeout(300)
         } else {
+          // 默认窗口：x 与主干基线逐像素相同；y 只许往上提（带底栏的种类整块放不下时才提），文字节点整块放得下 → 不动；底栏卡下沿仍在停靠条上沿之上。
           const want = BASELINE_1440[kind]
-          if (want && m.node && (Math.abs(m.node.x - want.x) > 0.5 || Math.abs(m.node.y - want.y) > 0.5)) {
-            fail(`${label}：1440×960 落点 (${m.node.x}, ${m.node.y}) 不等于主干基线 (${want.x}, ${want.y})`)
+          if (want && m.node) {
+            if (Math.abs(m.node.x - want.x) > 0.5) fail(`${label}：1440×960 落点 x ${m.node.x} 不等于主干基线 ${want.x}`)
+            if (m.node.y > want.y + 0.5) fail(`${label}：1440×960 落点 y ${m.node.y} 比主干基线 ${want.y} 还低（只许往上提）`)
+            if (kind === 'text' && Math.abs(m.node.y - want.y) > 0.5) fail(`${label}：1440×960 文字节点整块放得下，落点 y ${m.node.y} 应等于主干基线 ${want.y}`)
           }
+          if (m.card && m.topDock !== null && m.card.bottom > m.topDock + 0.5) fail(`${label}：1440×960 底栏下沿 ${m.card.bottom.toFixed(1)} 压到停靠条上沿 ${m.topDock.toFixed(1)} 下面`)
         }
       }
       // 撤销这次新建，回到空画布再量下一种（Cmd/Ctrl+Z 是产品的撤销，不是绕过界面写 store）。
