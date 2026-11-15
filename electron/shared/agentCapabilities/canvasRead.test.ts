@@ -7,6 +7,7 @@ import {
   canvasReadSemanticInputSchema,
   projectCanvasRead,
 } from "./canvasRead";
+import { projectCanvasForAgent } from "./canvasReadCompact";
 
 const FORBIDDEN_RESULT_KEYS = [
   "raw",
@@ -358,8 +359,7 @@ describe("projectCanvasRead", () => {
     for (const forbidden of FORBIDDEN_RESULT_KEYS) expect(keys).not.toContain(forbidden);
   });
 
-  it("给出当前结果在素材库里的 assetId（references 收的是它，不是结果身份）；画布读那一行也带上", async () => {
-    const { projectCanvasForAgent } = await import("./canvasReadCompact");
+  it("给出当前结果在素材库里的 assetId（references 收的是它，不是结果身份）；画布读那一行也带上", () => {
     const read = projectCanvasRead({
       nodes: [{
         id: "gen-v2-asset-mwgzapa4-cm99", kind: "image", status: "success",
