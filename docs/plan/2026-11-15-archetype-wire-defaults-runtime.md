@@ -4,18 +4,29 @@
 > 四类：碰**花钱**（无界面 / Agent / MCP 发起生成时 Run 路的合法参数表、size 比例闸都在发送路上），9 格全填。
 > 分三段提交，每段各自是绿的、能单独留下：①默认值表 ②身份表 ③方式表。
 
+### 功能分类
+- [ ] 新界面 / 改交互
+- [x] 花钱
+- [x] 长跑 / 可打断
+- [ ] Agent 行为
+- [ ] 大数据量 / 画布 / 长列表
+- [ ] 生成效果
+- [x] 数据格式
+- [x] 新增功能 / 性能
+
 ## ★0 先查别人（「生成出来再提交的派生表」vs「运行时 / 构建时从源头现算」）
 
 - Go 官方博客《Generating code》（https://go.dev/blog/generate）· `go generate` 是作者手动跑、不在 `go build` 里；生成文件要提交，是因为**拿包的人跑不了生成器** · **确认了**：提交派生文件只在「消费方够不到源头」时才成立。我们当初生成这张表的理由正是「主进程 import 不到档案」——档案搬进 `electron/shared` 之后这个前提没了，提交派生副本就只剩代价（靠机器人 PR 同步，合不进去就漂）。
 - Prisma《Generating Prisma Client》（https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/generating-prisma-client）· 建议在 `postinstall` 或生产构建前跑 `prisma generate`，理由原话「so deployments always use a current client」 · **确认了**：派生物要么在用之前现生成，要么就会和源头不同步；它也没有给出「提交生成物再靠流程同步」这条路。
 - Bazel `genrule`（https://bazel.build/reference/be/general）· 生成文件是构建期从源头算出来的输出，不进仓库 · **改了**：我们连构建期都不需要——档案本身就是 TypeScript 数据，主进程和渲染层都直接 import 得到，所以选「发送时现算、按档案对象记住结果」，不另加构建步骤。
+- 出口：不涉及：这一刀不新增、不扩大、不挪动任何挡人的保护（不加门、拦截、等待），只换发送前读默认值 / 认档案 / 方式清单的地方，认不出档案时的回退与今天相同。
 - 仓库内先例：`electron/shared/modelArchetypes/modeParams.ts` 的 `modeWhenUnrecorded` 已经把生成脚本的「主模式判据」搬成运行时函数（11-12）；`effectiveModeParams` 早就在发送时从档案现填默认值 · **确认了**：同一份逻辑已经在运行时跑着，生成表是剩下的第二份。
 
 ## ★1 用户怎么用
 
 当我让 Agent 或外部工具（MCP）替我发一条 MiniMax H3 Max / 可灵 V4 Flash 视频时，我想它发出去的参数和我自己在画布上选同一个模型点生成的一样，以便同一个模型不会因为谁按的按钮而表现不同。
 
-这一刀创作者**没有可见变化**：模型菜单、方式菜单、参数行、Agent / MCP 工具说明一字不改。唯一的行为变化是主干上已经落后于档案的 4 格（见下表），现在和档案一致。
+这一刀创作者**没有可见变化**：模型菜单、方式菜单、参数行、Agent / MCP 工具说明一字不改。主干上的生成表已经落后于档案 4 格（见下表），现在和档案一致；实测这 4 格在主干上也没有漏到请求里——发送前的 `effectiveModeParams` 本来就按档案现补默认值，Run 路合法参数表里 `nsfw_check` 也已经由别的层给出，所以请求体、合法参数表前后逐字节相同（见 ★8）。
 
 不做什么：不改档案声明、界面、文案、布局、工具说明；不加门、拦截、提示；不做档 × 方式（下一刀）。
 
@@ -34,8 +45,8 @@
 4 格都是 `nsfw_check`（内容审核开关），不改时长、清晰度、数量、档位，不改花多少钱。
 
 指标：
-- 主：档案派生、又提交进仓库当运行时数据读的文件 13 → 0。量具：新结构测试 `electron/shared/modelArchetypes/noCommittedDerivedTables.structure.test.ts`（扫生产代码 import `*.generated` 的读方）。
-- 质量：现算 vs 新鲜生成 全目录逐格 0 差（默认值 701 格、比例语义 55 格、身份 132 格、方式 406 格）。量具：一次性对照脚本（不进仓库），留在仓库的是对档案声明的性质断言 + 代表档案手写期望。
+- 主：档案派生、又提交进仓库当运行时数据读的文件 13 → 0。量具：新结构测试 `electron/noCommittedDerivedData.structure.test.ts`（扫 electron/ 与 src/ 生产代码的相对 import，目标文件名带 `.generated.` 或文件头写 `@generated` 就算；名单只减不增，现在 2 项，都是源头不在仓库代码里的：JSON Schema 官方元 schema 预编译校验器、从 GLB 二进制读出的动作元数据）。
+- 质量：现算 vs 新鲜生成 全目录逐格 0 差（默认值 701 格、比例语义 55 格、身份 132 格、方式 406 格）；身份另用主干旧实现 vs 现算跑了 5817 组（全目录识别串 × 7 种写法 × 3 种别名），0 差。量具：一次性对照脚本（不进仓库），留在仓库的是对档案声明的性质断言 + 代表档案手写期望。
 - 护栏：请求体快照 `electron/parity/officialWire.bodies.snapshot.json`、`paramsKeysByMode` 矩阵除上表 4 格外 0 行改动。
 - 护栏：渲染层首屏不因方式表现算变慢。量具：`pnpm run perf:scenarios -- --measure-only` 模型菜单 / 方式菜单场景前后各 2 次。
 
@@ -56,7 +67,7 @@
 
 | 调用方 | 靠它什么 | 改后 |
 | --- | --- | --- |
-| `electron/capabilityCore/moduleCatalogBootstrap.ts` | Run 路合法参数表第 ③ 层：档案声明过默认值的键 | 问入口现算；上表 4 格多出 `nsfw_check` 这个合法键，其余逐格同 |
+| `electron/capabilityCore/moduleCatalogBootstrap.ts` | Run 路合法参数表第 ③ 层：档案声明过默认值的键 | 问入口现算；上表 4 格第 ③ 层多出 `nsfw_check`，合并后的合法参数表不变（别的层本来就有这个键），其余逐格同 |
 | `electron/catalog/taskParams.ts` | size 别名闸：这个档案这种任务的 size 是不是比例语义 | 问入口现算，逐格同 |
 | `electron/catalog/archetypeIdentity.ts`（`customCallDraft.ts`、`capabilityModeManifest.ts` 经它） | modelKey → 内置档案 id | 删私有匹配规则，转问入口（与 `resolveModelArchetype` 同一份三趟匹配），逐格同 |
 | `electron/shared/capabilityModeManifest.ts`（主进程 + 渲染层） | 内置档案的方式 id → 任务种类、默认方式 | 问入口现算（按档案对象记住），逐格同；不在模块加载时算全目录 |
@@ -95,7 +106,7 @@
 
 ## 8 真实条件
 
-Windows：unverified（纯 TS 推导，无平台分支）；真规模：全目录对照；真付费：0 发——用假上游抓 MiniMax H3 Max 与 Seedance 2.5 的无界面请求体。
+Windows：unverified（纯 TS 推导，无平台分支）；真规模：全目录对照；真付费：0 发——用假上游抓 MiniMax H3 Max 与 Seedance 2.5 的无界面请求体：参数留空时 MiniMax 带 `nsfw_check: false`，Agent 给 `true` 时照发 `true`；Seedance 2.5 请求体、两者 Run 路合法参数表在主干与本分支逐字节相同。
 
 ## 拍板图清单
 
@@ -106,18 +117,18 @@ Windows：unverified（纯 TS 推导，无平台分支）；真规模：全目�
 | # | 反例（改坏什么） | 应该红的测试 |
 | --- | --- | --- |
 | 1 | 现算函数漏掉某档案某个默认值（跳过一个控件） | `catalogFacts.test.ts` 全目录性质断言「声明了默认值的键一定出现」+ 代表档案手写期望 |
-| 2 | 既有值被默认值盖掉（bootstrap / taskParams 兜底顺序反了） | `catalogFacts.test.ts` / 现有 `generateParamsE2E.test.ts` caller-wins 用例 |
+| 2 | 既有值被默认值盖掉（taskParams 兜底时丢了调用方给的值） | 现有 `electron/capabilityCore/generateParamsE2E.test.ts` caller-wins 用例 |
 | 3 | 供应商专属默认值串到别的供应商（vendorParams 当通用） | `catalogFacts.test.ts`「kling-3.0 apimart 与 kie 的 duration 类型不同」+ 全目录性质断言 |
-| 4 | 加回一份 `*.generated.ts` 并在生产代码里读它 | 新结构测试 `noCommittedDerivedTables.structure.test.ts` |
+| 4 | 加回一份 `*.generated.ts` 并在生产代码里读它 | 新结构测试 `noCommittedDerivedData.structure.test.ts` |
 | 5 | 现算函数绕过入口直接读 `builtInCatalog` | `archetypeSingleEntry.structure.test.ts`「入口目录里只有 entry.ts 读档案表」 |
 | 6 | size 比例语义对某个档案判反 | `catalogFacts.test.ts` seedance-2.5-apimart / seedream 为真、volcengine-seedream / modelscope-image 无 |
 | 7 | 身份匹配丢了变体 modelKey / 改成末段优先 | `archetypeIdentity.test.ts`（现有用例）+ `catalogFacts.test.ts` 变体 modelKey 用例 |
-| 8 | 方式清单的任务种类判错 / 漏方式 | `capabilityModeManifest` 现有测试 + `catalogFacts.test.ts` 全目录性质断言 |
+| 8 | 方式清单的任务种类判错 / 漏方式 | `catalogFacts.test.ts`「方式菜单清单」代表档案手写期望与全目录性质断言 + 读方 `customCallMode.test.ts`、`modelPublication.test.ts` |
 | 9 | 请求体在上表 4 格之外变了 | `officialWire.bodies.snapshot.json`、`paramsKeysByMode.matrix.test.ts` |
 
 回滚：单 PR，`git revert <merge>` 即回（恢复生成文件与脚本）；无存量迁移。
 
 ## 已知限制 / 下一刀
 
-- 新守卫拦的是「生产代码 import 名字带 `.generated` 的文件」；拦不住手写一份常量表抄档案（那一类由 `archetypeSingleEntry.structure.test.ts` 的「不碰档案表 / 私有副本」部分兜）。
+- 新守卫拦的是「生产代码 import 名字带 `.generated` 或文件头写 `@generated` 的文件」；拦不住手写一份常量表抄档案（那一类由 `archetypeSingleEntry.structure.test.ts` 的「不碰档案表 / 私有副本」部分兜）。
 - 档 × 方式的门（下一刀，用户看得见，先出图）。

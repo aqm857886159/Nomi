@@ -7,7 +7,7 @@ import type { ModelArchetype, ModelArchetypeVariant } from "./types";
 // 档案表本身不从这里导出：生产代码拿档案只走 resolveModelArchetype（结构测试 archetypeSingleEntry.structure.test.ts 守）。
 import { getArchetypeById, MODEL_ARCHETYPES } from "./builtInCatalog";
 import { customCapabilityArchetypeForModel } from "./customCapabilityContract";
-import { headlessDefaultsOf, identityPatternsOf, sizeRatioTaskKindsOf } from "./catalogFacts";
+import { headlessDefaultsOf, identityPatternsOf, modeManifestOf, sizeRatioTaskKindsOf } from "./catalogFacts";
 import { resolveArchetypeVariant } from "./variantResolution";
 
 
@@ -214,6 +214,15 @@ export function builtInHeadlessDefaults(archetypeId: string | null | undefined, 
 export function builtInSizeIsRatioSemantic(archetypeId: string | null | undefined, taskKind: string): true | undefined {
   const archetype = getArchetypeById(archetypeId);
   return archetype && sizeRatioTaskKindsOf(archetype).has(taskKind) ? true : undefined;
+}
+
+/**
+ * 方式菜单：这个内置档案的主方式 + 每个方式走哪种任务（推法见 catalogFacts.modeManifestOf，用到哪个档案才算、算完记住）。
+ * 认不出档案 → undefined。
+ */
+export function builtInModeManifest(archetypeId: string | null | undefined): Readonly<{ defaultModeId: string; modes: Readonly<Record<string, string>> }> | undefined {
+  const archetype = getArchetypeById(archetypeId);
+  return archetype ? modeManifestOf(archetype) : undefined;
 }
 
 /**

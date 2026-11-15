@@ -18,17 +18,11 @@ const NOT_SHIPPED = `src${path.sep}devlab${path.sep}`;
  * 源头不在仓库里的生成文件（只减不增）。
  * - modelSchemaMetaValidator.generated.cjs：JSON Schema 2020-12 官方元 schema 用固定版本 Ajv 预编译出的校验器；
  *   源头是外部标准 + 锁定的依赖版本，仓库里没有另一份会被人改的事实。
+ * - ualActions.ts：从 UAL 动作 GLB（二进制资产）读出的动作元数据；源头不是代码能 import 的声明，运行时解析 GLB 只为拿名字和时长不划算。
  */
 const ALLOWED_GENERATED = [
   "electron/capabilityCore/modelSchemaMetaValidator.generated.cjs",
-  // ualActions.ts：从 UAL 动作 GLB（二进制资产）读出的动作元数据；源头不是代码能 import 的声明，运行时解析 GLB 只为拿名字和时长不划算。
   "src/workbench/generationCanvas/nodes/director/model/assetCatalog/ualActions.ts",
-  // 档案方式清单：同一类（档案的副本），同一刀下一段改成现算并删掉。
-  "electron/catalog/archetypeModes.generated.ts",
-  "electron/catalog/archetypeModes.audio.generated.ts",
-  "electron/catalog/archetypeModes.image.generated.ts",
-  "electron/catalog/archetypeModes.model3d.generated.ts",
-  "electron/catalog/archetypeModes.video.generated.ts",
 ].sort();
 
 function productionSources(directory: string): string[] {

@@ -36,7 +36,6 @@ const readWithReexports = (relative, seen = new Set()) => {
     return readWithReexports(target, seen);
   }).join("\n");
 };
-const exists = (relative) => fs.existsSync(path.join(repoRoot, relative));
 const urlOk = (value) => /^https:\/\//i.test(String(value || ""));
 const forbiddenSecret = /(sk-[A-Za-z0-9]{12,}|Bearer\s+[A-Za-z0-9._-]{16,}|Key\s+[A-Za-z0-9._-]{16,})/;
 
@@ -120,10 +119,6 @@ for (const [vendorKey, contractPath] of curatedContracts) {
     if (!covered.has(mappingId)) errors.push(`${vendorKey}: curated mapping ${mappingId} has no certification ledger entry`);
   }
 }
-
-for (const generated of [
-  "electron/catalog/archetypeModes.generated.ts",
-]) if (!exists(generated)) errors.push(`generated archetype artifact missing: ${generated}`);
 
 if (errors.length) {
   console.error("✖ model certification coverage gate failed");

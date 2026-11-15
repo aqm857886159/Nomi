@@ -1,5 +1,4 @@
-import { ARCHETYPE_MODE_MANIFEST } from "../catalog/archetypeModes.generated";
-import { archetypeIdForModel } from "./modelArchetypes";
+import { archetypeIdForModel, builtInModeManifest as archetypeModeManifest } from "./modelArchetypes";
 import { parseCustomCapabilityContract } from "./customCapabilityContract";
 import { modeTransportFor } from "./videoCapabilities/modeTransport";
 import type { BillingModelKind, ProfileKind } from "../catalog/types";
@@ -87,9 +86,9 @@ function customCapabilityModeManifest(model: CapabilityModeModel): CapabilityMod
 function builtInModeManifest(model: CapabilityModeModel): CapabilityModeManifest | null {
   const explicitId = explicitArchetypeId(model.meta);
   const inferredId = archetypeIdForModel(model.modelKey, model.modelAlias);
-  const archetypeId = explicitId && ARCHETYPE_MODE_MANIFEST[explicitId] ? explicitId : inferredId;
+  const archetypeId = explicitId && archetypeModeManifest(explicitId) ? explicitId : inferredId;
   if (!archetypeId) return null;
-  const manifest = ARCHETYPE_MODE_MANIFEST[archetypeId];
+  const manifest = archetypeModeManifest(archetypeId);
   const modelKind = trim(model.kind) as Exclude<BillingModelKind, "text">;
   const allowedTaskKinds = TASK_KINDS_BY_MODEL_KIND[modelKind];
   if (!manifest || !allowedTaskKinds) return null;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getArchetypeById, MODEL_ARCHETYPES } from "./builtInCatalog";
-import { archetypeIdForModel, builtInHeadlessDefaults, builtInSizeIsRatioSemantic } from "./entry";
+import { archetypeIdForModel, builtInHeadlessDefaults, builtInModeManifest, builtInSizeIsRatioSemantic } from "./entry";
 import { headlessDefaultsOf, identityPatternsOf, sizeRatioTaskKindsOf } from "./catalogFacts";
 import { modeTransportFor } from "../videoCapabilities/modeTransport";
 import type { ArchetypeMode, ModelArchetype } from "./types";
@@ -246,5 +246,33 @@ describe("主进程只凭模型名认档案（archetypeIdForModel）", () => {
     }
     expect(archetypeIdForModel("not-a-known-model")).toBeNull();
     expect(archetypeIdForModel(null, undefined)).toBeNull();
+  });
+})
+
+describe("方式菜单清单（builtInModeManifest）", () => {
+  it("代表档案：主方式 + 每个方式走的任务种类（手写期望）", () => {
+    expect(builtInModeManifest("seedance-2.5-apimart")).toEqual({
+      defaultModeId: "t2v",
+      modes: { t2v: "text_to_video", first: "image_to_video", firstlast: "image_to_video", omni: "image_to_video", edit: "image_to_video", extend: "image_to_video" },
+    });
+    expect(builtInModeManifest("volcengine-seedream")).toEqual({ defaultModeId: "t2i", modes: { t2i: "text_to_image", edit: "image_edit" } });
+    // 同一任务种类的几个方式（参考图 / 首帧都走文生视频接口）各占一行，不并成一个。
+    expect(builtInModeManifest("minimax-h3")).toEqual({ defaultModeId: "t2v", modes: { t2v: "text_to_video", i2v: "text_to_video", ref: "text_to_video" } });
+  });
+
+  it("全目录：方式行 = 档案声明的方式、同序；主方式就是档案的 defaultModeId；认不出 → undefined", () => {
+    for (const entry of MODEL_ARCHETYPES) {
+      const manifest = builtInModeManifest(entry.id);
+      expect(Object.keys(manifest?.modes ?? {}), entry.id).toEqual(entry.modes.map((mode) => mode.id));
+      expect(manifest?.defaultModeId, entry.id).toBe(entry.defaultModeId);
+      // 方式表不吃供应商特化：方式自己声明的接口种类，没声明就用档案的（直接读声明，不经被测函数）。
+      for (const mode of entry.modes) expect(manifest?.modes[mode.id], `${entry.id}.${mode.id}`).toBe(mode.transportTaskKind ?? entry.transportTaskKind);
+    }
+    expect(builtInModeManifest("no-such-archetype")).toBeUndefined();
+    expect(builtInModeManifest(null)).toBeUndefined();
+  });
+
+  it("用到才算、算完记住：同一档案两次拿到同一个对象", () => {
+    expect(builtInModeManifest("seedance-2.5-apimart")).toBe(builtInModeManifest("seedance-2.5-apimart"));
   });
 })

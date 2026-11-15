@@ -30,6 +30,7 @@ export {
   archetypeIdForModel,
   archetypeParameterControls,
   builtInHeadlessDefaults,
+  builtInModeManifest,
   builtInSizeIsRatioSemantic,
   everyBuiltInArchetype,
   EVERY_VARIANT,
