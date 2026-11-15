@@ -151,7 +151,14 @@ export function PointerFaceArt({
       return <img src={face.preview.src} alt="" draggable={false} className="absolute inset-0 size-full object-cover" />
     if (face.kind === 'generating' || face.kind === 'processing')
       return <GenerationWaitingSurface previewLabel="" audio={model.node?.kind === 'audio'} />
-    return null
+    // 还没出画面：方框正中放这一镜的种类图标（视频是摄像机、图片是图片，和画布节点同一套），不留空白方框（SpendAskSplit 板 chat.rows）。
+    const ThumbKindIcon = model.node ? getGenerationNodeIcon(model.node.kind) : null
+    if (!ThumbKindIcon) return null
+    return (
+      <span className="absolute inset-0 grid place-items-center text-nomi-ink-60" data-node-pointer-center="icon" aria-hidden="true">
+        <ThumbKindIcon size={14} stroke={1.8} />
+      </span>
+    )
   }
   const KindIcon = model.node ? getGenerationNodeIcon(model.node.kind) : null
   // 小标在指向元素上贴得更近（板：4px），样子与节点那一枚同一个组件。

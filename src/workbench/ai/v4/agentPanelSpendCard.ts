@@ -140,6 +140,13 @@ export function spendCardStoppedMessage(
 const join = (parts: ReadonlyArray<string | null | undefined | false>, separator = ' · '): string =>
   parts.filter((part): part is string => Boolean(part)).join(separator)
 
+/**
+ * 参数那一行的拼法（SpendAskSplit 板 ask.params「Seedance 2（Nomi 选的）· 16:9」）：前一段以全角右括号收尾时，
+ * 括号自带的留白已经够了，分隔点前不再加空格，否则读成「）  · 」一段空隙。
+ */
+const joinParams = (parts: ReadonlyArray<string | null | undefined | false>): string =>
+  parts.filter((part): part is string => Boolean(part)).reduce((line, part) => (line ? `${line}${line.endsWith('）') ? '· ' : ' · '}${part}` : part), '')
+
 function distinct<T>(values: readonly T[]): T[] {
   return [...new Set(values)]
 }
@@ -170,7 +177,7 @@ export function spendCardCommonParams(facts: readonly SpendCardShotFacts[], t: T
   const differing = differingDimensions(facts)
   const keep = (dimension: Dimension): boolean => !differing.has(dimension)
   const seconds = keep('duration') && first.durationSec ? formatSeconds(first.durationSec) : null
-  const line = join([
+  const line = joinParams([
     keep('model') ? modelText(first.model, pickedByNomi, t) : null,
     keep('aspect') ? first.aspect : null,
     keep('resolution') ? first.resolution : null,
@@ -181,7 +188,7 @@ export function spendCardCommonParams(facts: readonly SpendCardShotFacts[], t: T
 
 /** 这一镜那一行第二行：和这一批共同值不一样的那几项（只写这一镜自己的值）；都一样就没有。 */
 function spendCardShotNote(fact: SpendCardShotFacts, differing: ReadonlySet<Dimension>, t: Translate, pickedByNomi = false): string | undefined {
-  const line = join([
+  const line = joinParams([
     differing.has('model') ? modelText(fact.model, pickedByNomi, t) : null,
     differing.has('aspect') ? (fact.aspect ?? t('agentPanelV4.spendCard.summaryAuto')) : null,
     differing.has('resolution') ? fact.resolution : null,

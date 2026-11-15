@@ -376,7 +376,7 @@ export function SpendCardSlot({ scenario }: { scenario: SpendLabScenario }): JSX
 }
 
 /** Agent 那一句（起草完了，卡在下面问）。 */
-const SENTENCE = (locale: Locale, count: number) => L(locale, `已在画布上起草了 ${count} 个镜头，确认就开始生成。`, `Drafted ${count} ${count === 1 ? 'shot' : 'shots'} on the canvas. Confirm to start generating.`)
+const SENTENCE = (locale: Locale, count: number) => L(locale, `起草了 ${count} 个镜头。`, `Drafted ${count} ${count === 1 ? 'shot' : 'shots'}.`)
 
 /**
  * 两层投影要的词表：和面板同一份（`labViewModelLabels`），工具那一行的人话名字换成生产那一份（`readableToolName`），
@@ -423,7 +423,9 @@ export function SpendCardPanel({ scenario, locale = 'zh-CN', width = V4_PANEL_WI
     }
     return scenario.message
       ? [{ kind: 'user', text: L(locale, scenario.message[0], scenario.message[1]) }, prepare]
-      : [prepare, { kind: 'assistant', text: SENTENCE(locale, scenario.shots.length), status: 'complete' }]
+      // Agent 那句话在生成记录之前：真面板里 `generate` 在预检期等人（工具还没回包），模型这一轮能说的话只会在工具调用前面，
+      // 工具后面的话要等用户点完才有；所以那一组（挂在记录下面）永远在这句话下面（SpendAskSplit 板 chat.rows）。
+      : [{ kind: 'assistant', text: SENTENCE(locale, scenario.shots.length), status: 'complete' }, prepare]
   }, [flow, scenario, locale, laneLabels, t])
   const body = spend.body ? <AgentPanelV4SpendCardBody {...spend.body} narrow={width <= 320} /> : null
   // 刹车只在「直接生成」档出现：输入框停在这一档、上沿那条常驻提醒也在，和真面板同一个样子。
