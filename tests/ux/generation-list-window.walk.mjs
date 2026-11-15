@@ -174,7 +174,8 @@ async function composerStates(scope) {
   await root.locator('[data-parameter-summary]').click()
   await win.waitForTimeout(500)
   const params = await grab()
-  await root.locator('[data-node-composer-prompt]').click()
+  // 全摊开的参数面板开在底栏上方、盖住提示词框（点不到），用 Esc 收起（面板自带的收法）。
+  await win.keyboard.press('Escape')
   await win.waitForTimeout(300)
   await root.locator('button[aria-haspopup="listbox"]').click()
   await win.waitForTimeout(500)

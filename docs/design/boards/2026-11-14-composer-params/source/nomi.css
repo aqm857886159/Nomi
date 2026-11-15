@@ -1,0 +1,124 @@
+/* Nomi 节点生成框：token 和组件规格抄自已拍板的 ModeBar 板（docs/design/boards/2026-11-12-mode-bar/source），新增的只有 .pnote / .sub / .sbrow 几段 */
+.light{--nomi-logo-ground:oklch(.22 .01 80);--nomi-bg:oklch(.985 .003 90);--nomi-paper:oklch(1 0 0);--nomi-ink:oklch(.22 .01 80);--nomi-ink80:oklch(.32 .01 80);--nomi-ink60:oklch(.5 .01 80);--nomi-ink10:oklch(.94 .003 80);--nomi-ink05:oklch(.97 .003 80);--nomi-line:oklch(.91 .004 80);--nomi-accent:oklch(.55 .13 250);--nomi-shadow-sm:0 1px 2px oklch(0 0 0/0.04),0 1px 1px oklch(0 0 0/0.03);--nomi-shadow-md:0 2px 4px oklch(0 0 0/0.04),0 8px 24px oklch(0 0 0/0.06);--nomi-shadow-lg:0 4px 8px oklch(0 0 0/0.05),0 20px 50px oklch(0 0 0/0.08)}
+.dark{--nomi-logo-ground:oklch(.30 .01 80);--nomi-bg:oklch(.18 .006 80);--nomi-paper:oklch(.235 .007 80);--nomi-ink:oklch(.93 .006 85);--nomi-ink80:oklch(.84 .006 85);--nomi-ink60:oklch(.7 .006 85);--nomi-ink10:oklch(.34 .006 85);--nomi-ink05:oklch(.3 .006 85);--nomi-line:oklch(.36 .007 80);--nomi-accent:oklch(.7 .13 250);--nomi-shadow-sm:0 1px 2px oklch(0 0 0/0.32),0 1px 1px oklch(0 0 0/0.22);--nomi-shadow-md:0 2px 5px oklch(0 0 0/0.30),0 14px 34px oklch(0 0 0/0.32);--nomi-shadow-lg:0 4px 10px oklch(0 0 0/0.30),0 24px 64px oklch(0 0 0/0.40)}
+.pane{--nomi-radius-sm:6px;--nomi-radius:10px;box-sizing:border-box;width:640px;padding:24px 20px;background-color:var(--nomi-bg);background-image:radial-gradient(var(--nomi-ink10) 1px,transparent 1px);background-size:18px 18px;color:var(--nomi-ink);font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;font-size:13px;line-height:1.5;display:flex;flex-direction:column;justify-content:flex-end}
+.node{position:relative;box-sizing:border-box;width:600px;padding:12px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-md)}
+.refs{display:flex;align-items:flex-start;gap:8px;min-height:40px}
+.tb{flex:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:var(--nomi-radius-sm);background:var(--nomi-ink05);color:var(--nomi-ink80)}
+.t{flex:none;width:40px;height:40px}
+.t svg{display:block;border-radius:var(--nomi-radius-sm)}
+.cell{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:40px}
+.cell .lb{font-size:12px;color:var(--nomi-ink60);white-space:nowrap}
+.sw{flex:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;margin-top:6px;padding:0;border:1px solid var(--nomi-line);border-radius:999px;background:var(--nomi-paper);color:var(--nomi-ink80)}
+.ib{flex:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:1px solid transparent;border-radius:999px;background:transparent;color:var(--nomi-ink80)}
+.prompt{padding:8px 4px;min-height:72px;font-size:14px;line-height:1.6}
+.bar{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding-top:4px}
+.bar .sp{flex:1;min-width:0}
+.anch{position:relative;flex:none;display:inline-flex;min-width:0}
+.chip{flex:none;display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 10px;border:1px solid var(--nomi-line);border-radius:999px;background:var(--nomi-paper);color:var(--nomi-ink);font:inherit;font-size:12px;white-space:nowrap}
+.chip svg{flex:none}
+.chip.fill{background:var(--nomi-ink05)}
+.chip.fill.open{background:var(--nomi-ink10)}
+.chip.sm{height:24px;padding:0 10px;font-weight:500}
+.ctile{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:var(--nomi-ink05);color:var(--nomi-ink);font-size:9px;font-weight:600}
+.send{flex:none;width:30px;height:30px;padding:0;border:0;border-radius:999px;background:var(--nomi-ink);color:var(--nomi-paper);display:flex;align-items:center;justify-content:center}
+.send.off{opacity:.35}
+.pop{position:absolute;z-index:3;left:0;bottom:36px;box-sizing:border-box;width:320px;padding:12px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:14px;box-shadow:var(--nomi-shadow-lg)}
+.pop.static{position:static;box-shadow:var(--nomi-shadow-md)}
+.gl{font-size:11px;font-weight:600;color:var(--nomi-ink60);margin:12px 0 6px}
+.gl.first{margin-top:0}
+.seg{display:flex;padding:3px;background:var(--nomi-ink05);border-radius:8px}
+.seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--nomi-ink60);font:inherit;font-size:12px}
+.seg button.on{background:var(--nomi-paper);color:var(--nomi-ink);font-weight:600;box-shadow:var(--nomi-shadow-sm)}
+.rat{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;padding:3px;background:var(--nomi-ink05);border-radius:8px}
+.rat div{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 4px;border-radius:6px;font-size:11px;color:var(--nomi-ink60)}
+.rat div.on{background:var(--nomi-paper);color:var(--nomi-ink);font-weight:600;box-shadow:var(--nomi-shadow-sm)}
+.rat .bx{display:flex;align-items:center;justify-content:center;height:16px}
+.rat i{display:block;border:1.5px solid currentColor;border-radius:2px}
+.sl{display:flex;align-items:center;gap:12px;font-size:12px}
+.sl .tr{position:relative;flex:1;height:4px;border-radius:2px;background:var(--nomi-ink10)}
+.sl .tr b{position:absolute;left:0;top:0;height:4px;border-radius:2px;background:var(--nomi-accent)}
+.sl .tr u{position:absolute;top:-5px;width:14px;height:14px;margin-left:-7px;box-sizing:border-box;border:3px solid var(--nomi-accent);border-radius:999px;background:var(--nomi-paper)}
+.tg{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:11px;font-weight:600;color:var(--nomi-ink60)}
+.tg .tsw{width:34px;height:18px;border-radius:999px;background:var(--nomi-accent);position:relative}
+.tg .tsw::after{content:"";position:absolute;right:3px;top:3px;width:12px;height:12px;border-radius:999px;background:var(--nomi-paper)}
+.tg .tsw.off{background:var(--nomi-ink10)}
+.tg .tsw.off::after{right:auto;left:3px}
+.inp{box-sizing:border-box;width:100%;height:32px;padding:0 10px;border:1px solid var(--nomi-line);border-radius:8px;background:var(--nomi-paper);color:var(--nomi-ink);font:inherit;font-size:12px}
+.inp::placeholder{color:var(--nomi-ink60)}
+/* 新增：换模型后的就地说明。和已有的行尾灰字同一种字（12 / 18，ink60，改动处 ink 500） */
+.pnote{display:flex;flex-wrap:wrap;align-items:center;gap:0 12px;padding:0 4px 6px;font-size:12px;line-height:18px;color:var(--nomi-ink60)}
+.pnote .it{white-space:nowrap}
+.pnote b{font-weight:500;color:var(--nomi-ink)}
+.pnote.act{color:var(--nomi-ink);gap:6px 10px;padding-bottom:8px}
+/* 新增：参数面板里被改的那一项下面的一行 */
+.sub{margin-top:6px;font-size:11px;line-height:16px;color:var(--nomi-ink60)}
+.sub b{font-weight:500;color:var(--nomi-ink)}
+/* 新增：「更多设置」那一行 */
+.more{display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;margin-top:12px;padding:10px 0 0;border:0;border-top:1px solid var(--nomi-line);background:transparent;color:var(--nomi-ink60);font:inherit;font-size:11px;font-weight:600;text-align:left}
+.more .vals{flex:1;min-width:0;font-weight:400;color:var(--nomi-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.more svg{flex:none;margin-left:auto}
+.scrollbox{position:relative;overflow:hidden}
+.scrollbox .sbar{position:absolute;right:-8px;top:2px;width:4px;border-radius:2px;background:var(--nomi-ink10)}
+/* 分镜页一行（照 2026-11-13 真窗截图：缩略图 + 提示词框 + 底栏） */
+.sbpane{box-sizing:border-box;padding:16px;background:var(--nomi-paper);color:var(--nomi-ink);font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;font-size:13px;line-height:1.5;display:flex;gap:12px;align-items:flex-start}
+.sbhandle{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;width:16px;padding-top:4px;color:var(--nomi-ink60)}
+.sbcheck{width:12px;height:12px;border:1px solid var(--nomi-ink60);border-radius:3px}
+.sbthumb{position:relative;flex:none;box-sizing:border-box;width:134px;height:180px;border:1px dashed var(--nomi-line);border-radius:var(--nomi-radius,10px);background:var(--nomi-ink05)}
+.sbthumb .no{position:absolute;left:6px;top:6px;padding:0 6px;border-radius:999px;background:var(--nomi-ink10);color:var(--nomi-ink60);font-size:11px;line-height:18px}
+.sbbox{flex:1;min-width:0;border:1px solid var(--nomi-line);border-radius:8px}
+.sbbox .txt{padding:10px;min-height:74px;font-size:13px}
+.sbbox .add{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;margin-bottom:8px;border:0;border-radius:6px;background:var(--nomi-ink05);color:var(--nomi-ink80)}
+.sbbar{display:flex;align-items:center;gap:6px;padding:6px 8px;border-top:1px solid var(--nomi-line)}
+.sbbar .pnote{padding:0 0 0 6px}
+.sbgen{flex:none;display:inline-flex;align-items:center;gap:4px;height:28px;margin-left:auto;padding:0 10px;border:0;border-radius:6px;background:var(--nomi-ink);color:var(--nomi-paper);font:inherit;font-size:12px;font-weight:600}
+/* 第二排：参数面板单独一张（面板规格同上：宽 320、圆角 14、内距 12、最高 420） */
+.ppane{--nomi-radius-sm:6px;--nomi-radius:10px;box-sizing:border-box;width:360px;padding:20px;background-color:var(--nomi-bg);background-image:radial-gradient(var(--nomi-ink10) 1px,transparent 1px);background-size:18px 18px;color:var(--nomi-ink);font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;font-size:13px;line-height:1.5;display:flex;align-items:flex-start}
+.pop.static.clip{position:relative;left:auto;bottom:auto;max-height:420px;overflow:hidden}
+.pop.fade::after{content:"";position:absolute;left:1px;right:1px;bottom:1px;height:32px;background:linear-gradient(to bottom,transparent,var(--nomi-paper));border-radius:0 0 13px 13px;pointer-events:none}
+.more .names{flex:1;min-width:0;font-weight:400;color:var(--nomi-ink60);white-space:nowrap}
+.more .vals{white-space:nowrap}
+.more.open{color:var(--nomi-ink)}
+.grp{margin-top:14px;padding-top:2px;border-top:1px solid var(--nomi-line)}
+.ratwrap{position:relative}
+.ratwrap.scroll .rat{max-height:140px;overflow:hidden}
+.ratwrap .vbar{position:absolute;right:-7px;top:4px;width:3px;height:34px;border-radius:2px;background:var(--nomi-ink60);opacity:.45}
+.ratwrap .cnt{margin-top:6px;font-size:11px;line-height:16px;color:var(--nomi-ink60)}
+/* 分段小标题、滚到底的一帧 */
+.grp{margin-top:14px;padding-top:10px;border-top:1px solid var(--nomi-line);font-size:11px;line-height:16px;font-weight:400;color:var(--nomi-ink60)}
+.grp+.gl,.grp+.tg{margin-top:8px}
+.pop.clip{max-height:420px;overflow:hidden}
+.pop.static.clip.end{height:420px;display:flex;flex-direction:column;justify-content:flex-end}
+.pop.static.clip.end>*{flex:none}
+.pop.fadetop::before{content:"";position:absolute;z-index:1;left:1px;right:1px;top:1px;height:32px;background:linear-gradient(to top,transparent,var(--nomi-paper));border-radius:13px 13px 0 0;pointer-events:none}
+/* 名字旁的说明标记（沿用选项上已有的那个 ⓘ，12px）和点开的说明 */
+.lbl{position:relative;display:inline-flex;align-items:center;gap:4px}
+.qi{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;padding:0;border:0;border-radius:999px;background:transparent;color:var(--nomi-ink60)}
+.qi.on{background:var(--nomi-ink10);color:var(--nomi-ink)}
+.tip{position:absolute;z-index:2;left:0;top:22px;box-sizing:border-box;width:264px;padding:8px 10px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:8px;box-shadow:var(--nomi-shadow-md);font-size:12px;line-height:18px;font-weight:400;color:var(--nomi-ink80);white-space:normal}
+/* 11-14 改：照 LibTV，面板全摊开；不常改的进底栏「高级设置」，点开在底栏下面原地展开 */
+.ib.on{background:var(--nomi-ink10);color:var(--nomi-ink)}
+.ib.has{position:relative}
+.ib.has::after{content:"";position:absolute;right:3px;top:3px;width:6px;height:6px;border-radius:999px;background:var(--nomi-accent);box-shadow:0 0 0 1.5px var(--nomi-paper)}
+.adv{margin-top:10px;padding:8px 4px 0;border-top:1px solid var(--nomi-line)}
+.adv .ttl{font-size:11px;line-height:16px;font-weight:600;color:var(--nomi-ink60);margin-bottom:2px}
+.adv .row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:32px;font-size:12px;color:var(--nomi-ink)}
+.adv .row .inp{flex:none;width:140px;height:26px}
+.adv .row .seg{flex:none;width:140px;padding:2px;box-sizing:border-box}
+.adv .row .seg button{height:22px}
+.adv .tsw{flex:none;width:34px;height:18px;border-radius:999px;background:var(--nomi-accent);position:relative}
+.adv .tsw::after{content:"";position:absolute;right:3px;top:3px;width:12px;height:12px;border-radius:999px;background:var(--nomi-paper)}
+.adv .tsw.off{background:var(--nomi-ink10)}
+.adv .tsw.off::after{right:auto;left:3px}
+.ppane.col{flex-direction:column;align-items:flex-start;gap:10px}
+.ppane .cap{font-size:11px;line-height:16px;color:var(--nomi-ink60)}
+.advcard{box-sizing:border-box;width:320px;padding:0 12px 8px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-sm)}
+.advcard .adv{margin-top:0;border-top:0}
+.seg.wrap4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px}
+.shot{box-sizing:border-box;width:600px;padding:20px;background:#1b1b1b}
+.shot img{display:block;width:560px;height:auto;border-radius:8px}
+/* 11-14 独立检查后按真组件改：右边几颗图标之间隔 2、到生成钮隔 8；滑杆右边数字最小宽 28 右对齐；说明气泡出在名字右边的空处，不盖别的名字 */
+.bar .ib + .ib{margin-left:-4px}
+.bar .ib + .send{margin-left:2px}
+.sl span{min-width:28px;text-align:right}
+.adv .tip{left:calc(100% + 8px);top:-10px}

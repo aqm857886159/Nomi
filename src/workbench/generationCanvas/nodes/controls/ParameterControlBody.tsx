@@ -1,4 +1,4 @@
-// 参数控件本体的渲染层 —— **面板、单参数直出、付费卡 ⚙ 面板共用这一处**。
+// 参数控件本体的渲染层 —— **参数面板只有这一处**（高级设置那几项的行样子在 AdvancedSettings.tsx，取值写回同一套 wiring）。
 //
 // 这里只回答一件事：「一个参数在摊开的面上长什么样」。
 // 谁来打开这块面、面里还摆不摆供应商/生成方式、pill 上印什么 —— 那些是编排，
@@ -55,7 +55,7 @@ export type ParameterControlWiring = {
  * 所以聚焦期间显示本地草稿，只在草稿构成完整数值时才提交；失焦时若仍是中间态就丢弃草稿回到已提交值。
  * 文本参数没有这个问题，逐键提交即可。
  */
-function ParameterTextInput({
+export function ParameterTextInput({
   control,
   value,
   onCommit,
@@ -222,25 +222,50 @@ export function ParameterOptionGroup({
     }
   })
   return (
-    <NomiSegmented
-      ariaLabel={ariaLabel}
-      value={value}
-      options={options}
-      // 双行组无需再撑最小高：每项都带 18px 图形槽（含空占位）→ 内容自然等高。
-      density="compact"
-      fit={optionLayout === 'chips-column' ? 'column' : 'fill'}
-      onChange={onChange}
-    />
+    <ThreeRowCap measureKey={`${options.length}:${value}`}>
+      <NomiSegmented
+        ariaLabel={ariaLabel}
+        value={value}
+        options={options}
+        // 双行组无需再撑最小高：每项都带 18px 图形槽（含空占位）→ 内容自然等高。
+        density="compact"
+        fit={optionLayout === 'chips-column' ? 'column' : 'fill'}
+        onChange={onChange}
+      />
+    </ThreeRowCap>
   )
 }
 
+/** 一格里最多露几行选项（画板 L：Gemini 图片模型的比例 56 个——最多露三行、在自己那一格里滚，面板本身不滚）。 */
+const OPTION_GROUP_VISIBLE_ROWS = 3
+
 /**
- * 控件本体（一组摊开的选项 / 滑杆 / 输入框）——**面板与「单参数直出」共用这一处**。
- * 差的只有外面套不套那行小标题；给单参数另写一套渲染就是并行版（P1）。
- *
- * `onPicked` 只有单参数直出那条路会传：那时这组选项就是弹出来的全部内容，选完即关（共 2 步）。
- * 面板里**不传**——面板的价值正是「一次打开连改多项」，选一下就关掉等于把它变回下拉。
+ * 选项超过三行时，这一格自己滚。行数按真实排出来的位置量（列数随面板宽、标签长短变，写死「几个一行」会错）：
+ * 第四行的上沿就是这一格的可视高度。不到四行什么都不做——绝大多数参数走这条路，不多一层滚动。
  */
+function ThreeRowCap({ children, measureKey }: { children: React.ReactNode; measureKey: string }): JSX.Element {
+  const ref = React.useRef<HTMLDivElement | null>(null)
+  const [cap, setCap] = React.useState<number | null>(null)
+  React.useLayoutEffect(() => {
+    const host = ref.current
+    const items = host ? [...host.querySelectorAll<HTMLElement>('[role="radio"]')] : []
+    if (!host || items.length === 0) return
+    const tops = [...new Set(items.map((item) => Math.round(item.offsetTop)))].sort((a, b) => a - b)
+    const next = tops.length > OPTION_GROUP_VISIBLE_ROWS ? tops[OPTION_GROUP_VISIBLE_ROWS] : null
+    setCap((prev) => (prev === next ? prev : next))
+  }, [measureKey])
+  return (
+    <div
+      ref={ref}
+      data-option-group-capped={cap ? 'true' : undefined}
+      className={cn('relative min-w-0', cap && cn(NODE_SCROLL_REGION_CLASS_NAME, 'overflow-y-auto overscroll-contain rounded-nomi'))}
+      style={cap ? { maxHeight: cap } : undefined}
+    >
+      {children}
+    </div>
+  )
+}
+
 /**
  * 连续数值滑杆（时长秒数这类）。拖动期间只改本地显示，松手 / 方向键改完（Mantine `onChangeEnd`）才提交一次：
  * 每一步都写画布状态会让整张图的订阅者跟着重渲、还多一步撤销（2026-09-25 画布跟手实测：32 个视频时每步约 40 ms）。
@@ -290,23 +315,17 @@ export function ParameterControlBody({
   meta,
   onCatalogControlChange,
   onParameterControlChange,
-  onPicked,
 }: ParameterControlWiring & {
   control: DynamicModelControl
-  onPicked?: () => void
 }): JSX.Element {
   const label = translateModelDisplayText(control.label)
-  const pick = (commit: (value: string) => void) => (value: string): void => {
-    commit(value)
-    onPicked?.()
-  }
   if (!isParameterControl(control)) {
     return (
       <ParameterOptionGroup
         ariaLabel={label}
         value={catalogControlInitialValue(control, meta)}
         rawOptions={control.options.map((o) => ({ value: optionValue(o), text: optionLabel(o) }))}
-        onChange={pick((v) => onCatalogControlChange(control, v))}
+        onChange={(v) => onCatalogControlChange(control, v)}
       />
     )
   }
@@ -319,7 +338,7 @@ export function ParameterControlBody({
           value: controlValueToString(o.value),
           text: formatVideoOptionLabel(o.label, o.priceLabel),
         }))}
-        onChange={pick((v) => onParameterControlChange(control, v))}
+        onChange={(v) => onParameterControlChange(control, v)}
       />
     )
   }

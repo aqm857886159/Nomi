@@ -28,7 +28,7 @@ import { storyboardFailureCopy } from '../exec/storyboardFailureCopy'
 import StoryboardRowShell from '../shotRow/StoryboardRowShell'
 import ShotReferenceStrip from '../shotRow/ShotReferenceStrip'
 import StoryboardComposerParams from '../shotRow/StoryboardComposerParams'
-import { ComposerBarRow, ComposerGenerateButton } from '../shotRow/ShotComposerBar'
+import { ComposerSendButton } from '../../../generationCanvas/nodes/ComposerSendButton'
 import { removeBinding } from '../shotRow/shotReferenceSlots'
 import { containedBox, densityBox, frameMediaBox, isPortraitBox, sameAspectAsBox, visualColumnWidth } from '../shotRow/shotFrameGeometry'
 import { useStoryboardRowNarrow } from '../shotRow/storyboardRowDensity'
@@ -262,26 +262,33 @@ export default function StoryboardAnchorRow({
               className="w-full border-0 bg-transparent px-2.5 py-2 text-body-sm leading-normal text-nomi-ink-80 outline-none"
             />
             {runtime.visual ? (
-              <ComposerBarRow
-                barId="anchor"
-                params={(
-                  <StoryboardComposerParams
-                    target={anchor}
-                    kind="image"
-                    modelOptions={modelOptions}
-                    onModelChange={(value, vendor) => onUpdate(planModelSelection(value, vendor))}
-                    onModeChange={(modeId) => onUpdate({ modeId })}
-                    onChange={(change) => {
-                      // 锚没有整片默认那一段：比例就写进它自己的参数（语义槽 aspect_ratio，落地时按模式翻成真实键）。
-                      const key = change.kind === 'param' ? change.key : 'aspect_ratio'
-                      onUpdate({ params: { ...(anchor.params ?? {}), [key]: change.value } })
-                    }}
-                  />
-                )}
-                action={canGenerate ? (
-                  <ComposerGenerateButton onGenerate={onGenerate} generating={actionBusy} ariaLabel={t('storyboardEditor.anchor.generateAria', { name: displayName })} />
-                ) : null}
-              />
+              // 分隔线和内边距是这只框自己的；底栏本身和画布、镜头行同一份。
+              <div className="mt-auto border-t border-nomi-line-soft px-2 py-1.5">
+                <StoryboardComposerParams
+                  target={anchor}
+                  kind="image"
+                  modelOptions={modelOptions}
+                  onModelChange={(value, vendor) => onUpdate(planModelSelection(value, vendor))}
+                  onModeChange={(modeId) => onUpdate({ modeId })}
+                  onChange={(change) => {
+                    // 锚没有整片默认那一段：比例就写进它自己的参数（语义槽 aspect_ratio，落地时按模式翻成真实键）。
+                    const key = change.kind === 'param' ? change.key : 'aspect_ratio'
+                    onUpdate({ params: { ...(anchor.params ?? {}), [key]: change.value } })
+                  }}
+                  footer={{
+                    attrs: { 'data-storyboard-composer-bar': 'anchor' },
+                    action: canGenerate ? (
+                      <ComposerSendButton
+                        label={t('storyboardEditor.frame.generate')}
+                        busy={actionBusy}
+                        onClick={onGenerate}
+                        ariaLabel={t('storyboardEditor.anchor.generateAria', { name: displayName })}
+                        attrs={{ 'data-storyboard-generate-state': actionBusy ? 'busy' : 'idle' }}
+                      />
+                    ) : null,
+                  }}
+                />
+              </div>
             ) : null}
           </div>
         </div>

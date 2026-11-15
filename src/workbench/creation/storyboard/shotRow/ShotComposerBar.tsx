@@ -1,13 +1,12 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconArrowUp, IconLoader2 } from '../../../../vendor/tablerIcons'
-import { cn } from '../../../../utils/cn'
 import type { ModelOption } from '../../../../config/models'
 import type { DynamicModelControl } from '../../../generationCanvas/nodes/controls/parameterControlModel'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import { DURATION_OPTIONS_SEC, planModelSelection, shotKindPatch, shotTypeOf, type PlanShotPatch } from '../../../generationCanvas/agent/storyboardPlanEdits'
 import StoryboardComposerParams from './StoryboardComposerParams'
+import { ComposerSendButton } from '../../../generationCanvas/nodes/ComposerSendButton'
 
 /**
  * 镜头行提示词框下方的底栏：**左边是画布节点同一套参数区，右边是「生成」**。
@@ -72,79 +71,42 @@ export default function ShotComposerBar({
   }, [isImageShot, duration, t])
 
   return (
-    <ComposerBarRow
-      barId="true"
-      params={(
-        <StoryboardComposerParams
-          target={target}
-          kind={isImageShot ? 'image' : 'video'}
-          modelGroupLabels={modelGroupLabels}
-          modelOptions={modelOptions ?? []}
-          metaOverrides={metaOverrides}
-          extraControls={stayControl}
-          onModelChange={(value, vendor) => {
-            const selected = modelOptions?.find(option => option.value === value && (!vendor || option.vendor === vendor))
-            const nextKind = selected?.kind === 'image' ? 'image' : selected?.kind === 'video' ? 'video' : undefined
-            onUpdate({ ...(value && nextKind && nextKind !== (isImageShot ? 'image' : 'video') ? shotKindPatch(shot, nextKind) : {}), ...planModelSelection(value, vendor) })
-          }}
-          onModeChange={(modeId) => onUpdate({ modeId, params: undefined })}
-          onChange={(change) => {
-            if (change.kind === 'aspect') onChangeAspect(change.value)
-            else if (change.kind === 'duration') onUpdate({ durationSec: change.value })
-            else onUpdate({ params: { ...(shot.params ?? {}), [change.key]: change.value } })
-          }}
-          onExtraChange={(_key, value) => onUpdate({ durationSec: Number(value) })}
-        />
-      )}
-      action={statusTag ? (
-        <span className="rounded-pill bg-nomi-ink-05 px-2 py-0.5 text-micro text-nomi-ink-60">{statusTag}</span>
-      ) : onGenerate ? (
-        <ComposerGenerateButton
-          onGenerate={onGenerate}
-          generating={generating}
-          ariaLabel={t('storyboardEditor.frame.generateAria', { index: shot.index })}
-        />
-      ) : null}
-    />
-  )
-}
-
-/**
- * 底栏的一行：左边参数区，右端一个动作（「生成」或状态标签）。镜头行与参考卡共用这一份——
- * 「生成钉在最右」只在这里写一次（`check:tokens` 行尾贴边的棘轮按文件数，不许每处各写一份）。
- */
-export function ComposerBarRow({ barId, params, action }: { barId: string; params: React.ReactNode; action: React.ReactNode }): JSX.Element {
-  return (
-    <div
-      className="mt-auto flex min-w-0 flex-wrap items-center gap-2 border-t border-nomi-line-soft px-2 py-1.5"
-      data-storyboard-composer-bar={barId}
-    >
-      {params}
-      {/* 「生成」永远钉在最右，和参数区同一基线。 */}
-      {action ? <div className="ml-auto shrink-0">{action}</div> : null}
+    // 分隔线和内边距是分镜这只框自己的（今天主线就这样）；底栏本身和画布同一份。
+    <div className="mt-auto border-t border-nomi-line-soft px-2 py-1.5">
+      <StoryboardComposerParams
+        target={target}
+        kind={isImageShot ? 'image' : 'video'}
+        modelGroupLabels={modelGroupLabels}
+        modelOptions={modelOptions ?? []}
+        metaOverrides={metaOverrides}
+        extraControls={stayControl}
+        onModelChange={(value, vendor) => {
+          const selected = modelOptions?.find(option => option.value === value && (!vendor || option.vendor === vendor))
+          const nextKind = selected?.kind === 'image' ? 'image' : selected?.kind === 'video' ? 'video' : undefined
+          onUpdate({ ...(value && nextKind && nextKind !== (isImageShot ? 'image' : 'video') ? shotKindPatch(shot, nextKind) : {}), ...planModelSelection(value, vendor) })
+        }}
+        onModeChange={(modeId) => onUpdate({ modeId, params: undefined })}
+        onChange={(change) => {
+          if (change.kind === 'aspect') onChangeAspect(change.value)
+          else if (change.kind === 'duration') onUpdate({ durationSec: change.value })
+          else onUpdate({ params: { ...(shot.params ?? {}), [change.key]: change.value } })
+        }}
+        onExtraChange={(_key, value) => onUpdate({ durationSec: Number(value) })}
+        footer={{
+          attrs: { 'data-storyboard-composer-bar': 'true' },
+          action: statusTag ? (
+            <span className="shrink-0 rounded-pill bg-nomi-ink-05 px-2 py-0.5 text-micro text-nomi-ink-60">{statusTag}</span>
+          ) : onGenerate ? (
+            <ComposerSendButton
+              label={t('storyboardEditor.frame.generate')}
+              busy={generating}
+              onClick={onGenerate}
+              ariaLabel={t('storyboardEditor.frame.generateAria', { index: shot.index })}
+              attrs={{ 'data-storyboard-generate-state': generating ? 'busy' : 'idle' }}
+            />
+          ) : null,
+        }}
+      />
     </div>
-  )
-}
-
-/** 「生成」按钮。忙态同时是闸：`disabled` 让第二下点不进去（2026-09-11 用户实测连点三下 = 排队三次）。 */
-export function ComposerGenerateButton({ onGenerate, generating = false, ariaLabel }: { onGenerate: () => void; generating?: boolean; ariaLabel: string }): JSX.Element {
-  const { t } = useTranslation()
-  return (
-    <button
-      type="button"
-      onClick={onGenerate}
-      disabled={generating}
-      data-storyboard-generate-state={generating ? 'busy' : 'idle'}
-      className={cn(
-        'inline-flex h-7 items-center gap-1 rounded-nomi-sm bg-nomi-ink px-2.5 text-caption font-medium text-nomi-paper',
-        generating ? 'cursor-default opacity-60' : 'hover:opacity-90 active:opacity-80',
-      )}
-      aria-label={ariaLabel}
-      aria-busy={generating}
-    >
-      {generating ? <IconLoader2 size={12} stroke={2} className="animate-spin" aria-hidden /> : null}
-      {generating ? t('storyboardEditor.frame.generating') : t('storyboardEditor.frame.generate')}
-      {generating ? null : <IconArrowUp size={12} stroke={2} aria-hidden />}
-    </button>
   )
 }

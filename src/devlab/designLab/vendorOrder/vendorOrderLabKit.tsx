@@ -90,7 +90,7 @@ export function ModelPickerStage({
         // 点 chip = 换这一行走哪家。真机把 (modelKey, vendor) 一起写进节点；实验室没有节点可写，
         // 但仍要**真的**改选中值，否则这个 chip 就是个点不动的装饰。
         onChipChange={(optionValue) => setPicked(optionValue)}
-        footerAction={modelVisibilityFooterAction(menu.hiddenCount)}
+        footerAction={modelVisibilityFooterAction(menu)}
         portalTarget={stageRef}
       />
     </div>

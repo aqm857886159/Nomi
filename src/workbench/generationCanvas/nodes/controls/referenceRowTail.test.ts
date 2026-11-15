@@ -19,6 +19,13 @@ describe('referenceCountText', () => {
     expect(referenceCountText(en, { image: 1, video: 0, audio: 0 })).toBe(en('assetLibrary.refRow.count', { count: 1 }))
   })
 
+  // 模型档案第一批验收 C7：英文放 1 张图时写成「1 references」。单复数跟着数走。
+  it('英文单复数：1 reference / 2 references', () => {
+    expect(referenceCountText(en, { image: 1, video: 0, audio: 0 })).toBe('1 reference')
+    expect(referenceCountText(en, { image: 2, video: 0, audio: 0 })).toBe('2 references')
+    expect(referenceCountText(zh, { image: 1, video: 0, audio: 0 })).toBe('参考图 1 张')
+  })
+
   it('两种以上 → 按类型报数，顺序固定 图 · 视频 · 音频', () => {
     expect(referenceCountText(zh, { image: 30, video: 10, audio: 10 })).toBe('图 30 · 视频 10 · 音频 10')
     expect(referenceCountText(en, { image: 30, video: 10, audio: 10 })).toBe('30 images · 10 videos · 10 audio')
