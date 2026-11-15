@@ -1,17 +1,19 @@
 #!/usr/bin/env node
 // Coordinator-only paid entry. Rehearse first; the forwarding proxy enforces a thirteen-image ceiling, reserving one of fourteen for the coordinator price probe.
+// 演练（NOMI_PAID_REHEARSAL=no-key）走同一份脚本到第一条创建请求；四段旅程 + 五种中断的免费演练收据（下面那段）只在真付费时核——通用演练替不了它。
 import { LOCK_EXIT_JOURNEY_CONDITIONS, applyLockExitJourneyConditions, assertLockExitHostingReceipt } from './_generationLockExitHosting.mjs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
-import { openPaidWalk, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
+import { openPaidWalk, paidRehearsalTier, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
 import { ENV_KEY_VENDOR } from './_paidEnvKey.mjs'
 import { createRuntimeWalk, openCanvas } from './agent-runtime-walk-support.mjs'
 import { createLockExitJourneyProxy, LOCK_EXIT_JOURNEY_REPLY_HOLD_MS } from './_generationLockExitProxy.mjs'
 import { generationLockExitJourney, lockExitFixtureInput, LOCK_EXIT_BUILD_MARKERS } from './_generationLockExitSteps.mjs'
 
 // A partial rehearsal is not authorization to spend on an unfinished four-stage journey.
+if (!paidRehearsalTier()) {
 const receiptPath = process.env.NOMI_LOCK_EXIT_REHEARSAL_RECEIPT
 assert.ok(receiptPath, 'Provide the green four-stage rehearsal receipt before running the paid entry')
 const rehearsal = JSON.parse(fs.readFileSync(receiptPath, 'utf8'))
@@ -23,6 +25,7 @@ assert.deepEqual(rehearsal.report?.openRunStages?.map(stage => stage.name), ['wi
 assert.ok(rehearsal.report.openRunStages.every(stage => stage.status === 'passed' && stage.commit === rehearsal.commit), 'Every added scenario must pass on the same source commit')
 execFileSync('git', ['diff', '--quiet', rehearsal.commit, 'HEAD', '--', 'src', 'electron'])
 execFileSync('git', ['diff', '--quiet', 'HEAD', '--', 'src', 'electron'])
+}
 const model = { vendorKey: ENV_KEY_VENDOR, modelKey: 'gpt-image-2' }
 let launchEnv
 const paid = await openPaidWalk('generation-lock-exit-real.paid.mjs', 'generation-lock-exit-real', [DEFAULT_PAID_BRAIN, model], {
@@ -33,10 +36,12 @@ const paid = await openPaidWalk('generation-lock-exit-real.paid.mjs', 'generatio
 const { walk } = paid
 let proxy, failure
 try {
-  const target = walk.report.networkAllowlist[0]
-  if (!target || !/^https:\/\//.test(target)) throw new Error('The authorized upstream API origin is missing')
+  // 上游从 openPaidWalk 拿：真付费 = 名单上的真供应商；演练 = 本机替身（不转发），代理照样插在中间、走同一条路。
+  const upstream = paid.vendorUpstream()
+  const target = upstream.target
+  if (!target || (!paid.rehearsal && !/^https:\/\//.test(target))) throw new Error('The authorized upstream API origin is missing')
   proxy = await createLockExitJourneyProxy({ target, imageModel: model.modelKey, maxImages: 13 })
-  Object.assign(launchEnv, { NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: target, to: proxy.origin }]), NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: proxy.origin })
+  Object.assign(launchEnv, upstream.launchEnvVia(proxy.origin))
   const { win } = await walk.start({ first: true })
   await paid.lockToAuthorizedModels(win)
   await applyLockExitJourneyConditions(win)
