@@ -28,4 +28,8 @@ node tests/ux/ui.mjs shot storyboard
 - 每镜的模型钮 aria 都叫「模型」，`click 'aria:模型'` 只点第一镜；点别的镜按 `snap` 给的坐标 `xy:<x>,<y>` 点。
 - 700×720 下 Agent 面板默认收成小球（宽度让给分镜）。
 - 分镜编辑器的唯一入口是 `tests/ux/_creationResourceTree.mjs` 的 `openStoryboardEditor`（有静态守卫），别另写「点方案行」。
+- 图片镜的「方式」不在行上单独一颗：在「生成参数」面板里（英文 `aria:Generation parameters`），选项是「文生图 / 改图」（`text:Text-to-image` / `text:Edit image`）；选完 `press Escape` 收面板。
+- 改图缺参考图时，缩略格变红框「缺 输入图」（英文 Missing Input image），底栏多一句「N 个缺必需参考（不进批量）」；读这句判有没有红框，比认颜色稳。
+- 从模型菜单挑模型会顺带勾上这一镜（底栏出「已选 1 镜」），截图前留意。
+- 读回落盘：`goto library` 后点那张卡的「继续创作」（悬停才出，按 `snap` 坐标 `xy:` 点），再 `goto storyboard`。直接在项目库 `goto storyboard` 会**新建**一个空白项目，读到的是新项目。
 - 不要点「生成」/「生成剩余」：隔离实例没钥匙，验证不花钱。
