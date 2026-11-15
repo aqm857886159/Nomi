@@ -101,6 +101,25 @@ describe('档案只有一个入口', () => {
     expect(exported.filter((edge) => !allowedTargets.has(edge.split(' -> ')[1]))).toEqual([])
   })
 
+  // 依赖规则管「目录外谁 import 哪个声明文件」，管不到目录内的公开文件 import 声明（验收反例 10 原样：referenceChannels 里 import ./viduQ3 自拼表），
+  // 也管不到经 videoCapabilities/index.ts 转出的档案常量——按常量名守：点名某个档案常量（XXX_ARCHETYPE）的只能是声明文件本身、登记处和转出口。
+  it('点名单个档案常量的文件只有声明文件、登记处和转出口', () => {
+    const config = readFileSync('.dependency-cruiser.mjs', 'utf8')
+    const list = (name: string) => [...(new RegExp(`${name} = Object\\.freeze\\(\\[([^\\]]*)\\]`).exec(config)?.[1] ?? '').matchAll(/'(\w+)'/g)].map((match) => match[1])
+    const publicByDir = new Map([[OWNER_DIR, list('ARCHETYPE_PUBLIC_FILES')], ['electron/shared/videoCapabilities/', list('VIDEO_PUBLIC_FILES')]])
+    for (const files of publicByDir.values()) expect(files.length).toBeGreaterThan(5)
+    const NAMED_CONSTANT = /\b(?!MODEL_ARCHETYPES\b)[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_ARCHETYPES?\b/
+    const HOMES = new Set(['electron/shared/videoCapabilities/index.ts', 'electron/shared/videoCapabilities/registry.ts'])
+    const offenders = production.filter((file) => NAMED_CONSTANT.test(read(file))).filter((file) => {
+      if (HOMES.has(file) || file.startsWith(NOT_SHIPPED) || file.startsWith('electron/testSupport/')) return false
+      const dir = [...publicByDir.keys()].find((prefix) => file.startsWith(prefix))
+      if (!dir) return true
+      const base = file.slice(dir.length).replace(/\.(?:tsx?|mts)$/, '')
+      return publicByDir.get(dir)!.includes(base)
+    })
+    expect(offenders).toEqual([])
+  })
+
   it('「全部档」口的使用点是一张只减不增的名单', () => {
     const users = production.filter((file) => /\b(?:EVERY_VARIANT|everyBuiltInArchetype)\b/.test(read(file))).sort()
     expect(users).toEqual(UNION_USERS)

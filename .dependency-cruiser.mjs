@@ -38,6 +38,12 @@ export const ARCHETYPE_PUBLIC_FILES = Object.freeze([
   'index', 'entry', 'anchorPolicy', 'variantResolution', 'modelNameSource', 'wireModelIdentity',
   'modeParams', 'referenceKeys', 'modeForInputs', 'types',
 ])
+/** 视频档案目录对外公开的文件（目录外的生产代码今天实际 import 的就这些）；其余是各档案声明，私有。 */
+export const VIDEO_PUBLIC_FILES = Object.freeze([
+  'index', 'types', 'registry', 'planResolver', 'modeTransport', 'crossFieldConstraints', 'referenceChannels',
+  'runwayWireFacts', 'recommendation', 'videoModelCandidates', 'planResolutionContracts', 'resolveModelParams',
+])
+const VIDEO_PRIVATE_PATH = `^electron/shared/videoCapabilities/(?!(?:${VIDEO_PUBLIC_FILES.join('|')})\\.(?:tsx?|mts)$)`
 const ARCHETYPE_DIR = '^electron/shared/modelArchetypes/'
 const ARCHETYPE_PRIVATE_PATH = `${ARCHETYPE_DIR}(?!(?:${ARCHETYPE_PUBLIC_FILES.join('|')})\\.(?:tsx?|mts)$)`
 const ARCHETYPE_TABLE_PATH = `${ARCHETYPE_DIR}builtInCatalog\\.ts$`
@@ -182,6 +188,20 @@ export default {
       severity: 'error',
       from: { path: ARCHETYPE_DIR, pathNot: `${ARCHETYPE_DIR}entry\\.ts$` },
       to: { path: ARCHETYPE_TABLE_PATH },
+    },
+
+    // 视频档案的声明文件（electron/shared/videoCapabilities/ 里 VIDEO_PUBLIC_FILES 之外的一切，新增文件默认私有）：
+    // 目录外不许 import——拿某个档案常量自拼一张表（验收反例 10：Run 口 import ./viduQ3 自拼 myTable）等于绕过入口。
+    // 管不到的：目录内的公开文件（recommendation、referenceChannels……）import 声明、以及经 videoCapabilities/index.ts
+    // 转出的 31 个档案常量（今天 index 就这么转出，依赖规则按文件边判，它和登记处 registry 同属「点名各档案」的家）——
+    // 留给档案单入口结构测试按常量名守。
+    {
+      name: 'archetype-video-declarations-via-entry',
+      comment:
+        `视频档案的声明文件（viduQ3、seedance…各档案常量）目录外的生产代码不许 import——自拼一张表等于绕过档案入口，拿不到按供应商 / 档收窄的档案。${ARCHETYPE_HOW_TO}当前零违规，硬零。`,
+      severity: 'error',
+      from: { path: '^(?:src|electron|workers)/', pathNot: ['^electron/shared/videoCapabilities/', '^src/devlab/'] },
+      to: { path: VIDEO_PRIVATE_PATH },
     },
 
     // R-B4 禁新增「完全静态」循环。
