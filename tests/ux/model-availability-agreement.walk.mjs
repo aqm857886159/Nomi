@@ -214,7 +214,7 @@ const askMainProcess = () => getWin().evaluate(async ({ vendorKey }) => {
 /** 真人路径：设置 → 更多已适配平台 → 魔搭社区 → 粘贴 key → 保存验证。 */
 async function pasteKeyLikeAHuman() {
   await openSettings()
-  await clickOrFail(getWin().locator('[data-model-home-action="more-adapted"]').first(), '「更多已适配平台」查看全部')
+  await clickOrFail(await revealModelConnection(getWin(), getWin().locator('[data-model-home-action="more-adapted"]').first()), '「更多已适配平台」查看全部')
   await clickOrFail(
     getWin().locator('button', { hasText: VENDOR_LABEL }).filter({ hasNotText: '查看全部' }).first(),
     `${VENDOR_LABEL} 接入行`,

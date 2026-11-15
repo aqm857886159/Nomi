@@ -22,7 +22,7 @@ import {
   readProject,
 } from '../agent-runtime-walk-support.mjs'
 import { startFixtureServer } from '../model-access-journeys/fixture-server.mjs'
-import { canvasAddBar, newProjectEntry } from '../_shell.mjs'
+import { canvasAddBar, newProjectEntry, revealModelConnection } from '../_shell.mjs'
 
 export async function runJourney(journey, collector) {
   const tempRoot = await makeTempDirAsync('nomi-experience-')
@@ -74,7 +74,7 @@ export async function runJourney(journey, collector) {
         'open-models',
         win.getByRole('dialog', { name: '设置', exact: true }).getByRole('button', { name: '模型', exact: true }),
       )
-      await click('custom-api', win.locator('[data-model-home-action="custom-api"]'))
+      await click('custom-api', await revealModelConnection(win, win.locator('[data-model-home-action="custom-api"]')))
       await fill('connection-name', win.getByPlaceholder('如：TOAPI 中转'), 'Experience Loopback')
       await fill('connection-url', win.getByPlaceholder('https://api.openai.com/v1'), fixture.origin)
       await fill('connection-key', win.getByPlaceholder('sk-...'), 'sk-fixture-key')

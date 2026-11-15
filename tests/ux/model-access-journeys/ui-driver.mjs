@@ -104,6 +104,7 @@ export async function launchJourneyUi({ journey, recorder }) {
   // is the stable anchor). Reveals it from either collapsed group first.
   async function openHomeConnection(vendorKey) {
     const row = win.locator(`[data-model-home-available="${vendorKey}"]`)
+    await revealModelConnection(win, row, { timeout: stationTimeout() })
     if (!(await row.isVisible().catch(() => false))) await expandHomeGroup('more-adapted')
     if (!(await row.isVisible().catch(() => false))) await expandHomeGroup('other-ways')
     await row.first().waitFor({ state: 'visible', timeout: 8000 })
@@ -113,11 +114,7 @@ export async function launchJourneyUi({ journey, recorder }) {
   async function openRelayWizard() {
     await expandGenerationProviders()
     // "自定义 API / 中转站" is the relay/custom-base-URL entry on the model home.
-    const customApi = win.locator('[data-model-home-action="custom-api"]').first()
-    if (!(await customApi.isVisible().catch(() => false))) {
-      const otherWays = win.locator('[data-model-home-action="other-ways"]').first()
-      if (await otherWays.isVisible().catch(() => false)) await otherWays.click()
-    }
+    const customApi = await revealModelConnection(win, win.locator('[data-model-home-action="custom-api"]').first(), { timeout: stationTimeout() })
     await customApi.waitFor({ state: 'visible', timeout: stationTimeout() })
     await customApi.click()
     // The wizard renders as a page (header 接入 API / 中转站). Anchor on the name

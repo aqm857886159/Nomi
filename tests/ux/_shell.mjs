@@ -159,31 +159,38 @@ export async function openModelSettings(win, { label = 'open model settings', ti
 }
 
 /**
- * 模型设置首页上 APIMart 以外的连接（老用户的中转站 / 自定义 / 各家直连）收在「其他接入方式」折叠里（板 ModelSurfaces）。
- * 走查要点那一行：先看它在不在眼前，不在就展开折叠（已展开不再点，免得收回去）。返回那一行的 locator。
+ * 模型设置首页上 APIMart 以外的一切（已接入的中转站 / 自定义 / 各家直连、更多已适配平台、本机模型与会员、自定义 API）
+ * 收在「其他接入方式」大折叠里（板 ModelSurfaces）；其中本机模型 / 自定义 API 这类还在一层「本机模型与会员」小组里。
+ * 走查要点模型设置首页上的任何一行都走这里：行已在眼前直接返回；否则展开大折叠，仍看不见再展开小组
+ * （已展开的不再点，免得收回去）。返回那一行的 locator。
  * @param {import('playwright').Page} win
  * @param {import('playwright').Locator} row
  */
 export async function revealModelConnection(win, row, { label = 'reveal model connection', timeout } = {}) {
+  const budget = timeout === undefined ? {} : { timeout }
   if (await row.first().isVisible().catch(() => false)) return row
   const fold = win.locator('details[data-model-home-other-connections]').first()
+  await expect(row.first().or(fold).first(), `${label}：模型设置首页上既没有这一行也没有「其他接入方式」折叠`).toBeVisible(budget)
+  if (await row.first().isVisible().catch(() => false)) return row
   if (await fold.count() && !(await fold.evaluate((el) => el.open))) {
-    await clickOrFail(fold.locator('summary').first(), `${label}（展开「其他接入方式」）`, timeout === undefined ? {} : { timeout })
+    await clickOrFail(fold.locator('summary').first(), `${label}（展开「其他接入方式」）`, budget)
+  }
+  if (await row.first().isVisible().catch(() => false)) return row
+  const group = win.locator('[data-model-home-action="other-ways"]').first()
+  if (await group.isVisible().catch(() => false) && (await group.getAttribute('aria-expanded')) !== 'true') {
+    await clickOrFail(group, `${label}（展开「本机模型与会员」）`, budget)
   }
   return row
 }
 
 /**
- * 模型设置首页 →「自定义 API / 中转站」接入向导（弹出「添加一个 AI 模型」）。
- * 没有已接入项时这一行直接摆在首页；有已接入项时它收在「其他接入方式」折叠里，先展开。点完等向导出现。
+ * 模型设置首页 →「自定义 API / 中转站」接入向导（弹出「添加一个 AI 模型」）。行可能收在折叠里，经 revealModelConnection 展开。
  */
 export async function openCustomApiWizard(win, { label = 'open custom API wizard', timeout } = {}) {
   const budget = timeout === undefined ? {} : { timeout }
   await openModelSettings(win, { label, timeout })
   const customApi = win.locator('[data-model-home-action="custom-api"]').first()
-  await expect(customApi.or(win.locator('[data-model-home-action="other-ways"]').first()).first(), `${label}：模型设置首页上既没有「自定义 API」也没有「其他接入方式」`).toBeVisible(budget)
-  if (!(await customApi.isVisible().catch(() => false))) await clickOrFail(win.locator('[data-model-home-action="other-ways"]').first(), `${label}（展开「其他接入方式」）`, budget)
-  await clickOrFail(customApi, `${label}（点「自定义 API / 中转站」）`, budget)
+  await clickOrFail(await revealModelConnection(win, customApi, { label, timeout }), `${label}（点「自定义 API / 中转站」）`, budget)
 }
 
 /**
