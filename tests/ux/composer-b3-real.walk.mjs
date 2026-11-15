@@ -21,6 +21,7 @@ import { clickOrFail, expectAbsent, expectVisible, proveProbe, screenshotSettled
 import { canvasFitView, collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { closeModeMenu, modeName, openModeMenu, pickMode as pickModeRow } from './_modeMenu.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const evidenceDir = path.join(repoRoot, 'docs/evidence/2026-10-19-b1a/real')
@@ -436,6 +437,76 @@ async function runPass({ locale, scheme }) {
       await snap('11-list-detail')
       await win.locator('[data-generation-view-switcher]').first().click()
       await expectVisible(win.locator('.generation-canvas-v2__stage'), '回到画布')
+    })
+
+    // 参数面板（2026-11-14 ComposerParams 板 advanced.section）：最小窗的列表详情里，「高级设置」贴着可视区下沿时点开，
+    // 展开段要滚回可视区里（最近对齐）。实验室那一格没种模型目录量不到，所以在真窗这里量。
+    await section('host-list-detail-min-window-advanced', async () => {
+      const bw = await app.browserWindow(win)
+      const before = await win.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))
+      await bw.evaluate((w, size) => w.setContentSize(size.width, size.height), MIN_WINDOW)
+      await win.setViewportSize(MIN_WINDOW)
+      try {
+        await clickOrFail(win.locator('[data-generation-view-switcher]'), '最小窗里的画布 / 列表切换')
+        await expectVisible(win.locator('[data-generation-list]'), '列表视图（最小窗）')
+        // 上一段已进过「海边清晨」的详情，切回列表时直接回到那张详情（左边是缩略条，不是卡片网格）；只有落在网格时才点卡。
+        await win.waitForTimeout(300)
+        if (!(await win.locator('[data-composer-host="inline"]').first().isVisible())) {
+          await clickOrFail(win.locator('[data-list-card]', { hasText: T('海边清晨', '海边清晨') }), '最小窗列表里「海边清晨」那张卡')
+        }
+        await expectVisible(win.locator('[data-composer-host="inline"]'), '最小窗列表详情里的生成框')
+        const toggle = win.locator('[data-composer-host="inline"] [data-advanced-settings-toggle]').first()
+        await proveProbe(toggle, '最小窗列表详情里有「高级设置」图标')
+        const parked = await toggle.evaluate((el) => {
+          let node = el.parentElement
+          while (node && !(/(auto|scroll)/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1)) node = node.parentElement
+          if (!node) return null
+          const r = el.getBoundingClientRect(); const c = node.getBoundingClientRect()
+          // 停在可视区下沿往上 56：最小窗右下角有 44px 的 Nomi 小球（主线问题，另排），贴着下沿会点到小球。展开段比 56 高，照样落在可视区外。
+          node.scrollTop += r.bottom - c.bottom + 56
+          const after = el.getBoundingClientRect()
+          const hit = document.elementFromPoint(after.left + after.width / 2, after.top + after.height / 2)
+          return { scrollerTop: node.scrollTop, toggleBottom: Math.round(after.bottom), viewBottom: Math.round(c.bottom), hitIsToggle: Boolean(hit && el.contains(hit)) }
+        })
+        // parked 为 null = 这一尺寸下详情页没有可滚容器（预览区自己缩，整页放得下），这时断言量的是「展开后仍整段在窗口里」；
+        // 「滚进来」那条路径由实验室分镜行 1280×800 那格（composer-params 走查 ②b）量。
+        console.log(`  · [${tag}] 高级设置图标停的位置：${parked ? JSON.stringify(parked) : '详情页不滚（整页放得下）'}`)
+        await win.waitForTimeout(100)
+        await clickOrFail(toggle, '最小窗列表详情里的「高级设置」图标')
+        await win.waitForFunction(() => Boolean(document.querySelector('[data-composer-host="inline"] [data-advanced-settings]')), null, { timeout: stationTimeout({ operations: 1 }) })
+        await win.waitForTimeout(600)
+        const facts = await win.evaluate(() => {
+          const sectionEl = document.querySelector('[data-composer-host="inline"] [data-advanced-settings]')
+          let node = sectionEl.parentElement
+          while (node && !(/(auto|scroll)/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1)) node = node.parentElement
+          const s = sectionEl.getBoundingClientRect(); const c = node ? node.getBoundingClientRect() : { top: 0, bottom: window.innerHeight }
+          return { sectionTop: Math.round(s.top), sectionBottom: Math.round(s.bottom), visibleTop: Math.round(Math.max(0, c.top)), visibleBottom: Math.round(Math.min(window.innerHeight, c.bottom)), hasScroller: Boolean(node) }
+        })
+        check(`[${tag}] board:ComposerParams/advanced.section · 最小窗 ${MIN_WINDOW.width}×${MIN_WINDOW.height} 列表详情：高级设置展开后滚回可视区`, facts.sectionBottom <= facts.visibleBottom + 1 && facts.sectionTop >= facts.visibleTop - 1, JSON.stringify({ ...facts, parked }))
+        await screenshotSettled(win, { path: path.join(repoRoot, 'docs/evidence/2026-11-14-composer-params', `advanced-reveal-real-list-detail-${MIN_WINDOW.width}x${MIN_WINDOW.height}-${tag}.png`) })
+        // 只记事实、不判（不是这次带来的）：鼠标停在提示词框上滚轮，外层详情滚不滚。
+        const prompt = win.locator('[data-composer-host="inline"] [data-prompt-box]').first()
+        const promptBox = await prompt.boundingBox()
+        if (promptBox) {
+          const outerTop = () => win.evaluate(() => {
+            let node = document.querySelector('[data-composer-host="inline"] [data-prompt-box]')?.parentElement
+            while (node && !(/(auto|scroll)/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1)) node = node.parentElement
+            return node ? Math.round(node.scrollTop) : null
+          })
+          const beforeWheel = await outerTop()
+          await win.mouse.move(promptBox.x + promptBox.width / 2, promptBox.y + Math.min(promptBox.height / 2, 20))
+          await win.mouse.wheel(0, -400)
+          await win.waitForTimeout(300)
+          console.log(`  · [${tag}] 提示词框上滚轮（向上 400）：外层 scrollTop ${beforeWheel} → ${await outerTop()}`)
+        }
+        await clickOrFail(win.locator('[data-generation-view-switcher]'), '最小窗里切回画布')
+        await expectVisible(win.locator('.generation-canvas-v2__stage'), '回到画布')
+      } finally {
+        if (before) {
+          await bw.evaluate((w, size) => w.setContentSize(size.width, size.height), before)
+          await win.setViewportSize(before)
+        }
+      }
     })
 
     await section('host-agent-input', async () => {

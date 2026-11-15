@@ -81,6 +81,21 @@ const MODELS: Record<B3Model, { option: ModelOption; archetype: string; variantI
   },
 }
 
+/** 按档案 id 现拼一行目录（参数面板样张 U / L / Q 和全目录矩阵用）：名字、种类都读档案本身。 */
+function archetypeSpec(archetypeId: string): { option: ModelOption; archetype: string } {
+  const archetype = MODEL_ARCHETYPES.find((candidate) => candidate.id === archetypeId)
+  if (!archetype) throw new Error(`实验室：档案 ${archetypeId} 不存在`)
+  return { option: { value: archetype.id, modelKey: archetype.id, vendor: 'apimart', vendorName: 'APIMart', label: archetype.label, kind: archetype.kind }, archetype: archetype.id }
+}
+
+/** 每种节点要种的目录档（节点按当前方式取清单，种全了换方式也取得到）。 */
+const REQUIRED_MODES = {
+  video: ['text_to_video', 'image_to_video'],
+  image: ['text_to_image', 'image_edit'],
+  audio: ['text_to_audio', 'image_to_audio', 'transcribe'],
+  model3d: ['text_to_3d', 'image_to_3d'],
+} as const
+
 /** 生产目录的每一行都带档案 id（模型菜单的品牌图标和能力描述靠它）；实验室的行跟生产同形。 */
 const withArchetype = (model: { option: ModelOption; archetype: string }): ModelOption => ({ ...model.option, meta: { archetypeId: model.archetype } })
 
@@ -128,8 +143,10 @@ const HEALTH = {
 }
 
 export type B3Scenario = {
-  kind: 'video' | 'image'
+  kind: 'video' | 'image' | 'audio' | 'model3d'
   model: B3Model
+  /** 不用上面那几行固定模型，直接按档案 id 拼（种类、名字读档案；参数只取档案默认 + params）。 */
+  archetypeId?: string
   /** 档案里的方式 id（seedance-2：t2v / first / firstlast / omni）。缺省 = 档案默认。 */
   modeId?: string
   prompt?: string
@@ -147,8 +164,8 @@ export type B3Scenario = {
   secondChannel?: boolean
   /** 渠道缺方式（B3p）：当前渠道只配了「参考」，发不出首帧 / 首尾帧。switch = 别家渠道能做（出换渠道的文字链接）；none = 谁都做不了。 */
   channelGap?: 'switch' | 'none'
-  /** 打开后自动点一下的东西：参数面板 / 模型菜单 / 底栏方式菜单。 */
-  open?: 'params' | 'model' | 'mode'
+  /** 打开后自动点一下的东西：参数面板 / 模型菜单 / 底栏方式菜单 / 底栏「高级设置」/ 参数面板和高级设置都开。 */
+  open?: 'params' | 'model' | 'mode' | 'advanced' | 'params-advanced'
   /** 模型菜单的目录：apimart = APIMart 目录里的全部视频行（真数据：最多行 / 最长名 / 最长描述）；two-vendors = 再加另一家供应商的几行（供应商名规则）。缺省 = 实验室那几行。 */
   catalog?: 'apimart' | 'two-vendors'
   /** 参数值覆盖（边界 K4：21:9 · 1080p · 15s 这种最长的一串）。 */
@@ -160,10 +177,12 @@ export type B3Scenario = {
   locale?: 'zh-CN' | 'en'
   /** 节点宽高（视觉大小）。 */
   size?: { width: number; height: number }
+  /** 画布上另放这么多张已出图的图片节点（不连线），量「大画布上点开面板」的最坏规模。 */
+  fillerNodes?: number
 }
 
 function buildNodes(scenario: B3Scenario): { nodes: GenerationCanvasNode[]; edges: GenerationCanvasEdge[]; targetId: string } {
-  const spec = MODELS[scenario.model]
+  const spec = scenario.archetypeId ? archetypeSpec(scenario.archetypeId) : MODELS[scenario.model]
   const targetId = 'b3-target'
   const meta: Record<string, unknown> = {
     modelKey: spec.option.modelKey,
@@ -172,9 +191,11 @@ function buildNodes(scenario: B3Scenario): { nodes: GenerationCanvasNode[]; edge
     vendor: spec.option.vendor,
     modelLabel: spec.option.label,
     ...(scenario.kind === 'video' ? { videoModel: spec.option.value, videoModelVendor: spec.option.vendor } : {}),
-    archetype: { id: spec.archetype, ...(scenario.modeId ? { modeId: scenario.modeId } : {}), ...(spec.variantId ? { variantId: spec.variantId } : {}) },
-    aspect_ratio: scenario.kind === 'video' ? '16:9' : '1:1',
-    ...(scenario.kind === 'video' ? { duration: 5, resolution: '720p', generate_audio: true } : { resolution: '2K' }),
+    archetype: { id: spec.archetype, ...(scenario.modeId ? { modeId: scenario.modeId } : {}), ...('variantId' in spec && spec.variantId ? { variantId: spec.variantId } : {}) },
+    ...(scenario.archetypeId ? {} : {
+      aspect_ratio: scenario.kind === 'video' ? '16:9' : '1:1',
+      ...(scenario.kind === 'video' ? { duration: 5, resolution: '720p', generate_audio: true } : { resolution: '2K' }),
+    }),
     ...(scenario.arrayRefs?.length ? { referenceImageUrls: scenario.arrayRefs.map(refUrl) } : {}),
     ...(scenario.frames?.first ? { firstFrameUrl: refUrl(scenario.frames.first) } : {}),
     ...(scenario.frames?.last ? { lastFrameUrl: refUrl(scenario.frames.last) } : {}),
@@ -223,7 +244,18 @@ function buildNodes(scenario: B3Scenario): { nodes: GenerationCanvasNode[]; edge
     ...(scenario.edgeRefs ?? []).map((ref, index): GenerationCanvasEdge => ({ id: `b3-edge-${index}`, source: `b3-src-${index}`, target: targetId, mode: ref.mode ?? 'reference', order: index })),
     ...textNodes.map((node): GenerationCanvasEdge => ({ id: 'b3-edge-text', source: node.id, target: targetId, order: 99 })),
   ]
-  return { nodes: [target, ...sources, ...media, ...textNodes], edges, targetId }
+  const fillers: GenerationCanvasNode[] = Array.from({ length: scenario.fillerNodes ?? 0 }, (_, index) => ({
+    id: `b3-filler-${index}`,
+    kind: 'image',
+    categoryId: 'shots',
+    title: `画面 ${index + 1}`,
+    prompt: '雨夜的街口，霓虹映在积水里。',
+    position: { x: 800 + (index % 20) * 260, y: Math.floor(index / 20) * 220 },
+    size: { width: 240, height: 180 },
+    status: 'success',
+    result: { id: `b3-filler-${index}-r`, type: 'image', url: refUrl(`画面#${index}`), createdAt: 1 },
+  } as GenerationCanvasNode))
+  return { nodes: [target, ...sources, ...media, ...textNodes, ...fillers], edges, targetId }
 }
 
 /** 提示词里的引用：`@[asset:url]`，名字由生产的 ReferenceNamesContext 现算。 */
@@ -255,6 +287,17 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
   const built = React.useMemo(() => buildNodes(scenario), [scenario])
   const [ready, setReady] = React.useState(false)
   React.useLayoutEffect(() => {
+    if (scenario.archetypeId) {
+      // 按档案拼的格：目录 = 这一种节点的全部档案（真数据），每种方式档都种上。
+      const kind = scenario.kind
+      const options = MODEL_ARCHETYPES.filter((archetype) => archetype.kind === kind).map((archetype) => archetypeSpec(archetype.id).option)
+      const withMeta = options.map((option) => ({ ...option, meta: { archetypeId: option.value } }))
+      seedModelCatalogForTests(HEALTH, REQUIRED_MODES[kind].map((requiredMode) => ({ kind, requiredMode, options: withMeta })))
+      useWorkbenchStore.setState({ activeCategoryId: 'shots' })
+      useGenerationCanvasStore.setState({ nodes: built.nodes, edges: built.edges, selectedNodeIds: [built.targetId] })
+      setReady(true)
+      return
+    }
     const videoOptions = scenario.catalog ? realVideoCatalog(scenario.catalog) : [withArchetype(MODELS.seedance), withArchetype(scenario.model === 'seedance25Apimart' ? MODELS.seedance25Apimart : MODELS.seedance25), withArchetype(MODELS.kling4), withArchetype(MODELS.wan), ...EXTRA_VIDEO_OPTIONS, ...(scenario.secondChannel || scenario.channelGap === 'switch' ? [SECOND_CHANNEL] : [])]
     const imageOptions = [withArchetype(MODELS.imagen), withArchetype(MODELS['gpt-image']), withArchetype(MODELS.soul)]
     seedModelCatalogForTests(HEALTH, [
@@ -270,7 +313,7 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
     useWorkbenchStore.setState({ activeCategoryId: 'shots' })
     useGenerationCanvasStore.setState({ nodes: built.nodes, edges: built.edges, selectedNodeIds: [built.targetId] })
     setReady(true)
-  }, [built, scenario.secondChannel])
+  }, [built, scenario.secondChannel, scenario.archetypeId, scenario.kind])
   const node = useGenerationCanvasStore((state) => state.nodes.find((candidate) => candidate.id === built.targetId))
   const stageRef = React.useRef<HTMLDivElement>(null)
 
@@ -301,7 +344,19 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
     const tick = (): void => {
       const root = stageRef.current
       if (!root) return
-      if (scenario.open) {
+      if (scenario.open === 'advanced' || scenario.open === 'params-advanced') {
+        // 底栏这一块在模型目录到位后会重挂一次：点完要看到展开段真的在，没在（被重挂收起）就隔一会儿再点。
+        const toggle = root.querySelector<HTMLButtonElement>('[data-advanced-settings-toggle]')
+        const summary = root.querySelector<HTMLButtonElement>('[data-parameter-summary]')
+        const needSummary = scenario.open === 'params-advanced'
+        const sectionOpen = Boolean(root.querySelector('[data-advanced-settings]'))
+        const panelOpen = Boolean(document.querySelector('[data-agent-parameter-panel]'))
+        if (sectionOpen && (!needSummary || panelOpen)) { setActed(true); release(); return }
+        if (toggle && frame % 20 === 0) {
+          if (!sectionOpen) toggle.click()
+          if (needSummary && !panelOpen) summary?.click()
+        }
+      } else if (scenario.open) {
         const selector = scenario.open === 'params' ? '[data-parameter-summary]' : 'button[role="combobox"][aria-label]:not([data-parameter-chip])'
         const modeLabel = t('generationCommon.modeMenu.heading')
         const trigger = scenario.open === 'params'

@@ -221,6 +221,11 @@ async function main() {
   if (added.length > 0) {
     console.error(`\n✖ 分层边界回归：${added.length} 处**新增**违规（不在基线里）：`)
     for (const { rule, readable } of added) console.error(`   · [${rule}] ${readable}`)
+    // 每条被踩的规则把自己的中文说明打出来（规则住 .dependency-cruiser.mjs 的 comment）：红了该改走哪条路，规则自己说。
+    for (const name of new Set(added.map(({ rule }) => rule))) {
+      const comment = ruleConfig.forbidden.find((rule) => rule.name === name)?.comment
+      if (comment) console.error(`\n  [${name}] ${comment}`)
+    }
     console.error('')
     console.error('  这类越界当场能编译、却把架构越拆越糊（渲染 bundle 打进主进程码 / 加载顺序炸弹）。')
     console.error('  修法：渲染层走 desktop bridge 或中立契约层 electron/shared/contracts/；')
