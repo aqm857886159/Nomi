@@ -21,7 +21,7 @@ function fixture() {
   write('src/guard.ts', 'old source'); write('electron/host.ts', 'host')
   const first = commit()
   const source = fs.readFileSync('tests/ux/generation-lock-exit-real.paid.mjs', 'utf8')
-  const prefix = source.slice(source.indexOf('const receiptPath'), source.indexOf('const model'))
+  const prefix = source.slice(source.indexOf('const receiptPath'), source.indexOf('\n}\nconst model'))
   const green = { commit: first, status: 'passed', report: { journeyConditions: LOCK_EXIT_JOURNEY_CONDITIONS, hostingDisclosure: 1, stages: ['storyboard', 'canvas', 'list', 'restart'], openRunStages: ['window-close', 'sigkill', 'reload', 'retrieve', 'resend'].map(name => ({ name, status: 'passed', commit: first })) } }
   const validate = (receipt = green) => {
     const file = path.join(root, 'receipt.json'); fs.writeFileSync(file, JSON.stringify(receipt))
@@ -62,4 +62,21 @@ it.each([undefined, 0])('paid entry rejects a complete rehearsal without hosting
 it('paid entry rejects a complete rehearsal with different journey conditions', () => {
   const f = fixture()
   expect(() => f.validate({ ...f.green, report: { ...f.green.report, journeyConditions: { ...LOCK_EXIT_JOURNEY_CONDITIONS, anonymousAssetHosting: 'allow' } } })).toThrow(/conditions must match/)
+})
+
+// 两份付费入口的旅程收据核对恢复原样（2026-11-15 独立验收真问题 5）：只在真付费那一场核，演练那一场跳过；
+// 跳过的条件只有「这一场是演练」一个（paidRehearsalTier），核对本身一个字不改。
+it.each([
+  ['generation-lock-exit-real.paid.mjs', 'NOMI_LOCK_EXIT_REHEARSAL_RECEIPT', "assertLockExitHostingReceipt(rehearsal)"],
+  ['shot-result-ownership-real.paid.mjs', 'NOMI_OWNERSHIP_REHEARSAL_RECEIPT', "Object.values(rehearsal.report.checks).every(Boolean)"],
+])('%s: the journey receipt is checked before the paid session, skipped only when rehearsing', (name, envName, check) => {
+  const source = fs.readFileSync(path.join('tests/ux', name), 'utf8')
+  const guard = source.indexOf('if (!paidRehearsalTier()) {')
+  expect(guard).toBeGreaterThan(0)
+  expect(source.indexOf(`process.env.${envName}`)).toBeGreaterThan(guard)
+  expect(source.indexOf(check)).toBeGreaterThan(guard)
+  expect(source.indexOf("execFileSync('git', ['diff', '--quiet', 'HEAD', '--', 'src', 'electron'])")).toBeGreaterThan(guard)
+  expect(source.indexOf("execFileSync('git', ['diff', '--quiet', 'HEAD', '--', 'src', 'electron'])")).toBeLessThan(source.indexOf('await openPaidWalk('))
+  expect(source.match(/paidRehearsalTier\(/g)).toHaveLength(1)
+  expect(source).toContain('paid.vendorUpstream()')
 })
