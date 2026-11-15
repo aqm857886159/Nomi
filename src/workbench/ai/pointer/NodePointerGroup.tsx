@@ -96,7 +96,7 @@ function NodePointerRows({
       {visible.hidden ? (
         <button
           type="button"
-          className="self-start rounded-nomi-sm px-1 py-0.5 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-ink"
+          className="self-start rounded-nomi-sm px-1 py-0.5 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink"
           aria-expanded={false}
           data-node-pointer-more={visible.hidden}
           onClick={() => setExpanded(true)}
