@@ -16,6 +16,7 @@ import { createProductionGenerationSubmission } from "./productionGenerationSubm
 import { productionRunPaths } from "./productionRunPaths";
 import { createProductionRunRepository } from "./productionRunRepository";
 import { landedAdmission } from "./landFirstTestUtils";
+import { ModeInputMissingError } from "../catalog/modeInputRefusal";
 
 const NOW = "2026-08-23T00:00:00.000Z";
 const roots: string[] = [];
@@ -70,15 +71,19 @@ function setup(approve = true, hardCap = 10) {
   const planCandidate = candidate();
   const contract = compileExecutionContract(planCandidate, registry);
   let drifted = false;
+  let throwAtBuild: Error | null = null;
   const submit = vi.fn(async () => ({ providerTaskId: `provider-task-${submit.mock.calls.length}` }));
   const provider: GenerationProvider = {
     providerId: "fixture-provider",
     capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
-    buildRequest: (request) => ({
+    buildRequest: (request) => {
+      if (throwAtBuild) throw throwAtBuild;
+      return {
       model: request.modelId,
       prompt: drifted ? `${request.prompt} changed` : request.prompt,
       parameters: request.parameters,
-    }),
+      };
+    },
     submit,
   };
   repository.createGenerationDraft({
@@ -136,7 +141,7 @@ function setup(approve = true, hardCap = 10) {
     providers: [provider],
     now: () => NOW,
   });
-  return { root, repository, contract, authorization, submission, submit, provider, setDrifted: (value: boolean) => { drifted = value; } };
+  return { root, repository, contract, authorization, submission, submit, provider, setDrifted: (value: boolean) => { drifted = value; }, setThrowAtBuild: (error: Error | null) => { throwAtBuild = error; } };
 }
 
 afterEach(() => {
@@ -496,7 +501,8 @@ describe("Run-owned paid generation authorization", () => {
 
   it("rejects provider payload drift before any durable or provider side effect", async () => {
     const { root, repository, authorization, submission, submit, setDrifted } = setup();
-    // 先落节点（派发前的那一步，属于开拍、不属于提交出口）；之后提交出口什么都不许再写。
+    // 先落节点（派发前的那一步，属于开拍、不属于提交出口）。之后提交出口派发前唯一的写入是「确定拒收 → needs_attention」
+    // （见下一组）；指纹漂移今天还不是确定拒收，所以这里什么都不写。
     const admission = await landedAdmission(repository, "project-1", "op-1");
     const beforeRun = structuredClone(repository.read("project-1", "op-1"));
     const beforeApprovals = structuredClone(repository.readApprovals("project-1", "op-1"));
@@ -513,6 +519,92 @@ describe("Run-owned paid generation authorization", () => {
     expect(fs.existsSync(paths.intents)).toBe(false);
     expect(fs.existsSync(path.join(root, ".nomi", "runs", "op-1", "jobs", authorization.envelope.jobs[0].jobId, "runtime-envelope.json"))).toBe(false);
     expect(submit).not.toHaveBeenCalled();
+  });
+
+  describe("definite pre-send refusal (mode input missing) at dispatch", () => {
+    // 升级前批准、派发时新代码才发现方式要的输入请求里没有：真实目录路径上的两种（可灵编辑缺源视频、H3 首尾帧只给 1 张图）
+    // 由 electron/parity/approvedBeforeUpgrade.test.ts 钉原话；这里钉提交门怎么落：job → needs_attention + 原话，零请求、零出站。
+    const REFUSALS = [
+      ["Kling edit without a source video", "这次没有发出：这个方式需要源视频，请求里没有。请补上源视频，或换一个方式。现有输入可以用「全能参考」方式（ref）发。"],
+      ["MiniMax-H3 first+last with one image", "这次没有发出：这个方式需要尾帧，请求里没有。请补上尾帧，或换一个方式。现有输入可以用「首帧」方式（first）发。"],
+    ] as const;
+
+    it.each(REFUSALS)("%s: the job lands on needs_attention with the refusal text; nothing is reserved, written to the outbox or sent", async (_name, text) => {
+      const { root, repository, authorization, submission, submit, setThrowAtBuild } = setup();
+      const admission = await landedAdmission(repository, "project-1", "op-1");
+      const beforeApprovals = structuredClone(repository.readApprovals("project-1", "op-1"));
+      const beforeLedger = structuredClone(repository.readBudgetLedger("project-1", "op-1"));
+      // 供应商适配层会再包一层（CatalogGenerationProviderError 带 cause）：提交门顺着 cause 认。
+      setThrowAtBuild(new Error("provider wrapper", { cause: new ModeInputMissingError(text) }));
+
+      await expect(submission.start({ projectId: "project-1", operationId: "op-1", admission })).rejects.toThrow("provider wrapper");
+
+      const run = repository.read("project-1", "op-1")!;
+      expect(run.jobs).toEqual([expect.objectContaining({
+        jobId: authorization.envelope.jobs[0].jobId,
+        status: "needs_attention",
+        errorCode: "mode_input_missing",
+        errorMessage: text,
+      })]);
+      expect(repository.readApprovals("project-1", "op-1")).toEqual(beforeApprovals);
+      expect(repository.readBudgetLedger("project-1", "op-1")).toEqual(beforeLedger);
+      expect(run.budget.reserved).toBe(0);
+      const paths = productionRunPaths(root, "op-1");
+      expect(fs.existsSync(paths.intents)).toBe(false);
+      expect(fs.existsSync(path.join(root, ".nomi", "runs", "op-1", "jobs", authorization.envelope.jobs[0].jobId, "runtime-envelope.json"))).toBe(false);
+      expect(submit).not.toHaveBeenCalled();
+
+      // 再开一次门也不会发：这一镜已经不是 authorized（防重复派发）。
+      await expect(submission.start({ projectId: "project-1", operationId: "op-1", admission })).rejects.toThrow();
+      expect(submit).not.toHaveBeenCalled();
+    });
+
+    it("an ordinary error from prepareAuthorization writes nothing (the write door is not widened)", async () => {
+      const { root, repository, submission, submit, setThrowAtBuild } = setup();
+      const admission = await landedAdmission(repository, "project-1", "op-1");
+      const beforeRun = structuredClone(repository.read("project-1", "op-1"));
+      const beforeLedger = structuredClone(repository.readBudgetLedger("project-1", "op-1"));
+      const plain = Object.assign(new Error("socket hang up"), { code: "mode_input_missing" });
+      setThrowAtBuild(plain);
+
+      await expect(submission.start({ projectId: "project-1", operationId: "op-1", admission })).rejects.toThrow("socket hang up");
+
+      expect(repository.read("project-1", "op-1")).toEqual(beforeRun);
+      expect(repository.readBudgetLedger("project-1", "op-1")).toEqual(beforeLedger);
+      expect(fs.existsSync(productionRunPaths(root, "op-1").intents)).toBe(false);
+      expect(submit).not.toHaveBeenCalled();
+    });
+
+    it("the creator has a way out: after the input is added, the needs_attention shot is re-approved and sent as attempt 2", async () => {
+      const { repository, submission, submit, provider, setThrowAtBuild } = setup(true, 12);
+      setThrowAtBuild(new ModeInputMissingError(REFUSALS[0][1]));
+      await expect(submission.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).rejects.toThrow();
+      let run = repository.read("project-1", "op-1")!;
+      const refusedJob = run.jobs[0];
+      expect(refusedJob.status).toBe("needs_attention");
+      // 批过还没派的那份钱随 authorized 离开而不再算进已担（committedLiability 只数 authorized），第二份批得下。
+      setThrowAtBuild(null);
+      const reauthorization = prepareProductionGenerationReauthorization({
+        lease, projectRevision: 12, run, providers: [provider],
+        resolveShotPrice: () => ({ known: true, amount: 6 }), now: "2026-08-23T00:01:00.000Z",
+      });
+      run = repository.execute("project-1", "op-1", {
+        commandId: "rework-after-refusal", expectedRevision: run.revision, type: "generation.reauthorize",
+        payload: { authorization: reauthorization }, issuedAt: "2026-08-23T00:01:00.000Z",
+      }).run;
+      run = repository.execute("project-1", "op-1", {
+        commandId: "approve-after-refusal", expectedRevision: run.revision, type: "gate.decide",
+        payload: { gateId: reauthorization.envelope.gateId, status: "approved", receiptId: "receipt-after-refusal", authorizationDigest: reauthorization.authorizationDigest },
+        issuedAt: "2026-08-23T00:01:00.000Z",
+      }).run;
+      expect(run.jobs.find((job) => job.attempt === 2)).toMatchObject({ status: "authorized", parentJobId: refusedJob.jobId });
+
+      await submission.start({ projectId: "project-1", operationId: "op-1", attempt: 2, admission: await landedAdmission(repository, "project-1", "op-1") });
+      expect(submit).toHaveBeenCalledTimes(1);
+      const final = repository.read("project-1", "op-1")!;
+      expect(final.jobs.find((job) => job.attempt === 1)?.status).toBe("needs_attention");
+      expect(final.jobs.find((job) => job.attempt === 2)).toMatchObject({ status: "provider_accepted" });
+    });
   });
 
   it("submits the already-verified prepared request without creating another Approval or authorization", async () => {

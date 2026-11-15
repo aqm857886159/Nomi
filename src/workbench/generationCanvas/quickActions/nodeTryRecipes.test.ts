@@ -7,7 +7,7 @@ import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeKind } f
 import { useGenerationCanvasStore, __resetGenerationCanvasHistoryForTests } from '../store/generationCanvasStore'
 import { useNodePromptFocusStore } from '../nodes/nodePromptFocus'
 import { nodeTryRecipes, runNodeTryRecipe, type NodeTryRecipeId } from './nodeTryRecipes'
-import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { modeDisplayKind } from '../nodes/controls/modeMenuModel'
 import { archetypeForNode } from '../agent/referenceEdgeCapability'
 import { effectiveArchetypeMode } from '../nodes/controls/archetypeMeta'

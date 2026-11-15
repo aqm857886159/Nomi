@@ -10,7 +10,8 @@ import { describe, expect, it } from "vitest";
 
 import { applyBuiltinSeeds } from "../catalog/seedBuiltins";
 import { agentModelEntriesFromCatalog } from "../catalog/agentModelEntriesFromCatalog";
-import { getArchetypeById, resolveArchetypeForModel, resolveArchetypeVariant, specializeArchetypeForVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype, resolveArchetypeVariant, rescopeArchetypeVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { createLaneModelRead } from "../agentLane/laneModelRead.mjs";
 import { findModelEntry, modelSpecDetail, modelSpecRow, vendorsCarrying, type ModelSpecDetail } from "../shared/agentCapabilities/modelSpecProjection";
 import { catalogAvailabilityFor, requireModelSpecDetail } from "./modelSpecRead";
@@ -205,14 +206,14 @@ describe("model spec parity across the two model faces", () => {
     for (const row of state.models) {
       const detail = mcpDetail(row.modelKey, row.vendorKey);
       if (!detail) continue;
-      const base = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+      const base = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
       if (!base?.variants?.length) {
         expect(detail.variants).toBeUndefined();
         continue;
       }
       expect(detail.defaultVariantId).toBe(resolveArchetypeVariant(base, { modelId: row.modelKey })?.id);
       for (const variant of detail.variants ?? []) {
-        const active = specializeArchetypeForVariant(base, variant.id);
+        const active = rescopeArchetypeVariant(base, { variantId: variant.id, modelId: undefined });
         for (const mode of detail.modes) {
           const declared = Object.fromEntries(mode.params.map((param) => [param.key, param]));
           for (const [key, value] of Object.entries(variant.parameterOverridesByMode?.[mode.modeId] ?? {})) {

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { APIMART_AUDIO_MODELS } from "./apimartAudios";
 import { APIMART_IMAGE_MODELS } from "./apimartImages";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
-import { modeTransportFor, resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, modeTransportFor, resolveModelArchetype } from "../shared/modelArchetypes";
 import type { HttpOperation, ProfileKind } from "./types";
 import type { ArchetypeMode, ArchetypeReferenceSlot } from "../shared/modelArchetypes/types";
 
@@ -82,7 +82,8 @@ export function contractFingerprint(value: unknown): string {
 }
 
 function modeFor(archetypeId: string, modelKey: string, taskKind: ProfileKind, index: number): ArchetypeMode | null {
-  const archetype = resolveArchetypeForModel({ modelKey, vendorKey: "apimart", meta: { archetypeId } });
+  // 体检指纹记的是这一行全部档的参数范围（以前就是这样；按行那一档收窄会让 Seedance 等带档的指纹整体换一遍——这一刀不改，见设计卡「拿不准的调用点」）。
+  const archetype = resolveModelArchetype({ modelKey, vendorKey: "apimart", meta: { archetypeId } }, { variant: EVERY_VARIANT });
   if (!archetype) return null;
   const modes = archetype.modes.filter((mode) => modeTransportFor(mode, archetype, "apimart") === taskKind);
   return modes[index] ?? modes[0] ?? null;

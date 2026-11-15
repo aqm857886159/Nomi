@@ -38,7 +38,7 @@ import type { CatalogState } from "../catalog/types";
 import type { PlanCandidate } from "../capabilityCore/executionContract";
 import type { ProductionGenerationShot, ProductionRun } from "../productionRun/productionRunTypes";
 import { buildMaterializeShotsPayload } from "../productionRun/multiShotCanvasLanding";
-import { resolveArchetypeForModel, specializeArchetypeForVariant, type ModelArchetype } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype, rescopeArchetypeVariant, type ModelArchetype } from "../shared/modelArchetypes";
 import { buildVideoModelCandidates, videoArchetypeIdFromMeta, type VideoModelCandidate } from "../shared/videoCapabilities";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import { toCatalogModelOptions } from "../../src/config/modelOptionMappers";
@@ -74,7 +74,7 @@ type Row = { vendorKey: string; modelKey: string; archetype: ModelArchetype; sou
 
 function rowOf(model: CatalogState["models"][number]): Row | null {
   const source = videoCandidates.find((candidate) => candidate.provider === model.vendorKey && candidate.modelKey === model.modelKey);
-  const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta });
+  const archetype = resolveModelArchetype({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta }, { variant: EVERY_VARIANT });
   return source && archetype ? { vendorKey: model.vendorKey, modelKey: model.modelKey, archetype, source } : null;
 }
 
@@ -218,7 +218,7 @@ describe("APIMart：节点上点 ↑ 发出的 model === 宿主路发出的 mode
  */
 describe("APIMart：Agent 写的视频比例，落地节点 = 节点路发出 = 宿主路发出（默认方式）", () => {
   for (const row of apimartVideoRows) {
-    const spec = specializeArchetypeForVariant(row.archetype, row.archetype.defaultVariantId);
+    const spec = rescopeArchetypeVariant(row.archetype, { variantId: row.archetype.defaultVariantId, modelId: undefined });
     const mode = spec.modes.find((item) => item.id === textOnlyMode(row)!.id) ?? spec.modes[0]!;
     const control = mode.params.find((param) => /ratio|size/i.test(param.key)
       && (param.options ?? []).some((option) => option.value === "9:16"));

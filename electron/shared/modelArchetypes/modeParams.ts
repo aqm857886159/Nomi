@@ -8,7 +8,7 @@
 // 整袋剥会剥坏；管辖范围 = 这个档案所有方式声明过的控件键 ∪ 所有方式的固定参数键（都按供应商、变体特化后）。
 import { modeTransportFor } from '../videoCapabilities/modeTransport'
 import type { ModelParameterControl } from '../videoCapabilities/types'
-import { specializeArchetypeForVariant } from './index'
+import { EVERY_VARIANT, rescopeArchetypeVariant } from './index'
 import type { ArchetypeMode, ModelArchetype } from './types'
 
 export type DeclaredModeParams = {
@@ -19,7 +19,7 @@ export type DeclaredModeParams = {
 }
 
 export type ModeParamsSelection = {
-  /** 已按供应商特化的档案（resolveArchetypeForModel 的结果）。 */
+  /** 入口 resolveModelArchetype 给的档案（收没收窄到哪一档都行：这里按 variantId 从它的全部档版本重新收）。 */
   archetype: ModelArchetype
   /** 这次的变体；空 / 认不出 → 档案默认变体（唯一 owner resolveArchetypeVariant 的规则）。 */
   variantId?: string | null
@@ -30,11 +30,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-/** 档案按变体特化后的这一个方式；方式 id 认不出 → null。 */
-function specializedMode(selection: ModeParamsSelection): { archetype: ModelArchetype; mode: ArchetypeMode } | null {
-  const archetype = specializeArchetypeForVariant(selection.archetype, selection.variantId)
+/** 档案按这次的档收窄后的这一个方式（连同全部档版本，给管辖键用）；方式 id 认不出 → null。 */
+function specializedMode(selection: ModeParamsSelection): { every: ModelArchetype; mode: ArchetypeMode } | null {
+  const archetype = rescopeArchetypeVariant(selection.archetype, { variantId: selection.variantId, modelId: undefined })
   const mode = archetype.modes.find((candidate) => candidate.id === selection.modeId)
-  return mode ? { archetype, mode } : null
+  return mode ? { every: rescopeArchetypeVariant(selection.archetype, EVERY_VARIANT), mode } : null
 }
 
 /** 这个方式声明了哪些控件和固定参数（按供应商 + 变体特化后）。方式认不出 → null。 */
@@ -44,7 +44,10 @@ export function declaredModeParams(selection: ModeParamsSelection): DeclaredMode
   return { controls: resolved.mode.params, fixedParams: resolved.mode.fixedParams ?? {} }
 }
 
-/** 档案管辖的键：所有方式声明过的控件键 ∪ 所有方式的固定参数键（传进来的档案已特化）。 */
+/**
+ * 档案管辖的键：**全部档**所有方式声明过的控件键 ∪ 所有方式的固定参数键（按供应商作用域后）。读全部档是有意的：
+ * 别的档留在节点上的旧键也要归管、按这个方式剥掉，否则换档后旧键原样漏发（显式并集口的使用点之一）。
+ */
 function governedKeys(archetype: ModelArchetype): Set<string> {
   const keys = new Set<string>()
   for (const mode of archetype.modes) {
@@ -70,9 +73,9 @@ export function effectiveModeParams(input: ModeParamsSelection & { stored: Reado
 } {
   const resolved = specializedMode(input)
   if (!resolved) return { params: { ...input.stored }, dropped: [] }
-  const { archetype, mode } = resolved
+  const { every, mode } = resolved
   const declared = new Set([...mode.params.map((control) => control.key), ...Object.keys(mode.fixedParams ?? {})])
-  const governed = governedKeys(archetype)
+  const governed = governedKeys(every)
   const dropped: string[] = []
   const kept: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(input.stored)) {

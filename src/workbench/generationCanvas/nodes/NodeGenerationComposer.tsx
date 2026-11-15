@@ -33,7 +33,7 @@ import {
   isModel3dLikeGenerationNodeKind,
   isVideoLikeGenerationNodeKind,
 } from '../model/generationNodeKinds'
-import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
+import { resolveModelArchetype, variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
 import { effectiveArchetypeMode } from './controls/archetypeMeta'
 import { applyPromptReferenceImages } from './promptReferenceImages'
 import { useComposerPromptExpand } from './useComposerPromptExpand'
@@ -190,12 +190,12 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   const audioMode = React.useMemo(() => {
     if (!isAudioKind) return null
     const meta = node.meta || {}
-    const archetype = resolveArchetypeForModel({
+    const archetype = resolveModelArchetype({
       modelKey: typeof meta.modelKey === 'string' ? meta.modelKey : undefined,
       modelAlias: typeof meta.modelAlias === 'string' ? meta.modelAlias : undefined,
       vendorKey: typeof meta.modelVendor === 'string' ? meta.modelVendor : typeof meta.vendor === 'string' ? meta.vendor : null,
       meta,
-    })
+    }, { variant: variantRecordedInMeta(meta, meta.modelKey) })
     // 声音档案的方式是人选的任务、不按输入改：只问节点自己就够。
     return archetype ? effectiveArchetypeMode(archetype, node, { nodes: [node], edges: [] }).mode : null
   }, [isAudioKind, node])

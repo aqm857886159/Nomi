@@ -5,7 +5,7 @@
 import React from 'react'
 import { ComposerB3Stage, type B3Scenario } from '../nodeComposerB3LabKit'
 import type { LabState } from '../../labScreen'
-import { MODEL_ARCHETYPES } from '../../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { parameterControlRole } from '../../../../workbench/generationCanvas/nodes/controls/parameterControlModel'
 
 const MIRRORS = [

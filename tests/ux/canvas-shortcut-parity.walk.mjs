@@ -116,6 +116,10 @@ async function nodeVisibleInStage(id) {
   }, { selector: sel(id), stageSelector: CANVAS_STAGE_SELECTOR })
 }
 
+// 画布视口（平移 + 缩放）原样读出来：React Flow 把它写在 .react-flow__viewport 的 transform 上。
+async function readViewport() {
+  return win.evaluate(() => getComputedStyle(document.querySelector('.react-flow__viewport')).transform)
+}
 async function clickBlank() {
   const point = await findCanvasBlankPoint(win, { preference: 'bottom' })
   expect(point, '画布上找不到真空白').not.toBeNull()
@@ -194,13 +198,30 @@ try {
     const beforeIds = await nodeIds()
     const beforeEdges = await edgeCount()
     const beforePos = await positions()
+    // 视口规则（2026-09-25 用户拍板，b17df53c7）：程序不主动平移 / 缩放画布；新东西不在屏里时由画布边缘提示指路、点了才过去。
+    // 原来这里断「⌘D 后视口跟过去、副本自己出现在视口里」，那条自动露出 9-25 已按拍板删掉；改断现行合同：
+    // 按下 ⌘D 视口一动不动；两张副本要么就在屏里、选中着，要么边缘提示报「2 个」、点一下过去后两张副本完整在屏里、仍是选中的。
+    const viewportBefore = await readViewport()
+    await shot('01-cmd-d-before')
     await win.keyboard.press(`${MOD}+d`)
     await waitForVisualQuiescence(win)
-    // 副本（复制后的选区）不用任何操作就在视口里——整簇避让把它推远了，视口得跟过去。
-    const copies = await win.evaluate(() => Array.from(document.querySelectorAll('.react-flow__node.selected')).map((n) => n.getAttribute('data-id')))
-    const copiesVisible = copies.length === 2 && (await Promise.all(copies.map(nodeVisibleInStage))).every(Boolean)
-    check(copiesVisible, '⌘D·两张副本不用手动找，就完整出现在视口里', { copies })
+    check(await readViewport() === viewportBefore, '⌘D·视口不动（程序不主动平移 / 缩放）', { before: viewportBefore, after: await readViewport() })
+    const selectedNow = () => win.evaluate(() => Array.from(document.querySelectorAll('.react-flow__node.selected')).map((n) => n.getAttribute('data-id')))
+    const hint = win.locator('[data-canvas-arrival-hint]')
+    let copies = (await selectedNow()).filter((id) => id !== 'img-a' && id !== 'img-c')
+    const onScreen = copies.length === 2 && (await Promise.all(copies.map(nodeVisibleInStage))).every(Boolean)
+    const hintCount = (await hint.count()) ? await hint.first().getAttribute('data-arrival-count') : null
+    check(onScreen || hintCount === '2', '⌘D·两张副本要么就在屏里，要么边缘提示报 2 个', { copies, hintCount })
     await shot('01-cmd-d-duplicated')
+    if (!onScreen && hintCount === '2') {
+      await expectHittable(hint.first(), '⌘D·边缘提示点得到')
+      await hint.first().click()
+      await waitForVisualQuiescence(win)
+      copies = (await selectedNow()).filter((id) => id !== 'img-a' && id !== 'img-c')
+      const reached = copies.length === 2 && (await Promise.all(copies.map(nodeVisibleInStage))).every(Boolean)
+      check(reached, '⌘D·点边缘提示后两张副本完整在视口里、仍是选中的', { copies })
+      await shot('01b-cmd-d-arrival-hint-followed')
+    }
     await expect.poll(async () => (await nodeIds()).length, { message: '⌘D 后没多出两张卡' }).toBe(beforeIds.length + 2)
     const afterPos = await positions()
     check(await edgeCount() === beforeEdges + 1, '⌘D·两张副本之间的连线一起复制（不带到选区外的边）', { before: beforeEdges, after: await edgeCount() })

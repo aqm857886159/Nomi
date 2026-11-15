@@ -1,7 +1,7 @@
 import { pickStoryboardDefaultModel, type AgentModelEntry } from './availableModels'
 import { appendBinding, bindingsOf } from '../../creation/storyboard/shotRow/shotReferenceSlots'
 import { slotAsArray } from '../nodes/controls/archetypeMeta'
-import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
+import { resolveModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import { pickImplicitVendorMatch } from '../../../config/modelIdentity'
 import { anchorsConsumedBy } from '../../../../electron/shared/modelArchetypes/anchorPolicy'
 import type { ArchetypeMode } from '../../../../electron/shared/modelArchetypes/types'
@@ -37,7 +37,7 @@ export function ignoredShotAnchors(_plan: StoryboardPlan, shot: PlanShot, mode: 
 /** Advisory only: a user's explicit t2v choice is accepted unchanged. */
 export function validateAnchorModelFit(plan: StoryboardPlan): AnchorModelFitIssue[] {
   return plan.shots.flatMap(shot => {
-    const archetype = resolveArchetypeForModel({ modelKey: shot.modelKey ?? '', vendorKey: shot.modelVendor })
+    const archetype = resolveModelArchetype({ modelKey: shot.modelKey ?? '', vendorKey: shot.modelVendor }, { variant: { variantId: undefined, modelId: shot.modelKey } })
     if (!archetype) return []
     const mode = archetype.modes.find(candidate => candidate.id === (shot.modeId ?? archetype.defaultModeId))
     const ignoredAnchors = ignoredShotAnchors(plan, shot, mode)
@@ -80,8 +80,8 @@ export function normalizeStoryboardAnchorDefaults(plan: StoryboardPlan, entries:
       ? pickImplicitVendorMatch(sameModel, candidate => candidate.vendor, orderedVendorKeys)
       : pickStoryboardDefaultModel(entries, kind, orderedVendorKeys)
     if (!entry) throw new Error(i18n.t('storyboardEditor.anchorPolicy.catalogMissing', { index: shot.index }))
-    const archetype = resolveArchetypeForModel({ modelKey: entry.modelId, modelAlias: entry.modelAlias,
-      vendorKey: entry.vendor, meta: { archetypeId: entry.archetypeId } })
+    const archetype = resolveModelArchetype({ modelKey: entry.modelId, modelAlias: entry.modelAlias,
+      vendorKey: entry.vendor, meta: { archetypeId: entry.archetypeId } }, { variant: { variantId: undefined, modelId: entry.modelId } })
     const modes = archetype?.modes.filter(mode => entry.modes.some(candidate => candidate.modeId === mode.id)) ?? []
     const referenceModes = modes.filter(mode => mode.slots.some(slot => slot.kind === 'image_ref' || slot.kind === 'first_frame'))
     if (!referenceModes.length) return { ...shot, modelKey: entry.modelId, ...(entry.vendor ? { modelVendor: entry.vendor } : {}), modeId: shot.modeId ?? entry.defaultModeId }

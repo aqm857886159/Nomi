@@ -83,5 +83,91 @@
         }
       }
     }
-  }
+  },
+  "requestFields": [
+    {
+      "name": "model",
+      "quote": "Must be `kling-v4-flash`.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "nsfw_check",
+      "quote": "Whether to run content moderation before submitting the video task.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "prompt",
+      "quote": "Describe the content to generate or edit.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "duration",
+      "quote": "Integer seconds from `3` to `20`, normally defaulting to `5`.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "seconds",
+      "quote": "Alias for `duration`, with the same rules.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "resolution",
+      "quote": "Only `720p`, the default when omitted.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "aspect_ratio",
+      "quote": "Text-to-video, reference generation, and editing support `16:9`, `9:16`, `1:1`, and `21:9`;",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "image_urls",
+      "quote": "Image-to-video accepts exactly one first frame;",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "image_with_roles",
+      "quote": "Each item has `url` and `role`.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "first_frame_image",
+      "quote": "First-frame image URL for image-to-video.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "video_urls",
+      "quote": "Up to 5 reference videos, no longer than 20 seconds in total.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "video_url",
+      "quote": "Input video URL for editing or extension.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "omni_reference_task_type",
+      "quote": "Supports `auto`, `reference`, `edit`, and `extend`.",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "audio_setting",
+      "quote": "For reference generation with video: `origin` preserves the first reference video’s audio;",
+      "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v4-flash/generation",
+      "fetchedAt": "2026-11-12"
+    }
+  ]
 }

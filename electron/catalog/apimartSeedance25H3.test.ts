@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 import { applyRequestTransform } from "../tasks/requestTransforms";
 import { buildArchetypeInputParams } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
-import { getArchetypeById } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { applyBuiltinSeeds } from "./seedBuiltins";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 import { applyParamMap } from "./paramTranslate";
@@ -106,18 +106,20 @@ describe("APIMart Seedance 2.5 / MiniMax-H3 curated 接入", () => {
     ).rejects.toThrow(/首尾帧.*参考素材/);
   });
 
-  it("H3 多模态参考拒绝音频单独输入，并清理首尾帧模式忽略的字段", async () => {
+  it("H3 的请求变换不再判参考组合（「音频不能单独输入」归发送前的通用判定），只清理首尾帧模式忽略的字段", async () => {
+    // 只放音频的多模态参考由 applyHeadlessParamDefaults → validateModeConstraints 在两个发送口拒（electron/parity/modeInputCheck.test.ts）；
+    // 变换里再判一份就是第二份判定（2026-11-14 删）。
     const ref = renderH3I2vBody({
       audio_urls: ["https://x/reference.mp3"],
     });
     await expect(
       applyRequestTransform(ref.mapping.create.request_transform, ref.body, { baseUrl: "https://api.apimart.ai" }),
-    ).rejects.toThrow(/音频不能单独/);
+    ).resolves.toBeTruthy();
 
     const frame = renderH3I2vBody({
       first_frame_image: "https://x/first.png",
       aspect_ratio: "16:9",
-      webhook: "",
+      webhook: "https://hooks.example/done",
     });
     const transformed = await applyRequestTransform(frame.mapping.create.request_transform, frame.body, { baseUrl: "https://api.apimart.ai" });
     expect(transformed).not.toHaveProperty("aspect_ratio");

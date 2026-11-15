@@ -26,7 +26,8 @@ import { createGenerationNode } from "../../src/workbench/generationCanvas/model
 import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/runner/catalogTaskActions";
 import { resolveGenerationReferences } from "../../src/workbench/generationCanvas/runner/generationReferenceResolver";
 import { driveEngineA, driveEngineB, installFetchCapture, seedParityCatalog, type FetchCapture } from "./generationParityTestUtils";
-import { getArchetypeById, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 
 const REF_A = "https://assets.example.com/docs-align/a.png";

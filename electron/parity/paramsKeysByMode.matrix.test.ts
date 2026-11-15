@@ -17,7 +17,8 @@
  *
  * 已知局限：字段认法按「路径末段 = 键名」，供应商把键改名后落到别的字段名的，认不出来；
  * 值取 A 控件里一个不等于默认值的可选值（只有一个可选值才用默认值），以免泄漏恰好等于 B 线缆默认值而被吞；只有一个可选值的键仍可能被吞；
- * 需要视频 / 音频参考才能受理的方式，量到的是「被拒」（status 记 refused:<code>），量不到键。
+ * 画布路按槽下限放假的视频 / 音频链接；Run 路只放图——需要视频 / 音频参考的方式在 Run 路量到的是「被拒」
+ * （status 记 refused:<code>，缺方式必需输入是 refused:mode_input_missing），量不到键。
  * image-url 类控件（要真素材）不放进节点参数。
  *
  * 更新快照：NOMI_UPDATE_PARAMS_KEYS_SNAPSHOT=1 pnpm exec vitest run electron/parity/paramsKeysByMode.matrix.test.ts
@@ -41,7 +42,7 @@ vi.mock("../capabilityCore/rendererBridge", () => ({
   },
 }));
 
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { ARCHETYPE_WIRE_DEFAULTS } from "../catalog/archetypeWireDefaults.generated";
@@ -63,7 +64,7 @@ const seeded = await seedParityCatalog([]);
 }
 afterAll(() => capture.restore());
 
-type Archetype = NonNullable<ReturnType<typeof resolveArchetypeForModel>>;
+type Archetype = NonNullable<ReturnType<typeof resolveModelArchetype>>;
 type Mode = Archetype["modes"][number];
 type Control = Mode["params"][number];
 type Row = (typeof seeded.models)[number];
@@ -128,10 +129,16 @@ const statusOf = (record: OutboundRecord): string => (record.request ? "sent" : 
 type Wire = OutboundRecord;
 type SampleContext = { row: Row; archetype: Archetype; mode: Mode; refCount: number };
 
+const slotFloor = (mode: Mode, kinds: readonly string[]): number =>
+  mode.slots.filter((slot: { kind: string }) => kinds.includes(slot.kind)).reduce((sum: number, slot: { min: number }) => sum + slot.min, 0);
+
 /** 画布 / 分镜那条路：节点（meta 里平放参数）→ 真实的 buildCatalogTaskRequest → 引擎 A。 */
 async function sendCanvas(ctx: SampleContext, params: Record<string, unknown>): Promise<Wire> {
   const { row, archetype, mode, refCount } = ctx;
   const urls = Array.from({ length: refCount }, (_, i) => refUrl(i + 1));
+  // 视频 / 音频按槽下限放假链接（编辑 / 续写要源视频），画布这条路量得到键；Run 路只放图，缺必需输入的量到的是拒收。
+  const videos = Array.from({ length: slotFloor(mode, ["video_ref", "source_video"]) }, (_, i) => `${REF}vid-${i + 1}.mp4`);
+  const audios = Array.from({ length: slotFloor(mode, ["audio_ref"]) }, (_, i) => `${REF}aud-${i + 1}.mp3`);
   const node = {
     ...createGenerationNode({ id: "n", kind: archetype.kind, prompt: "一个镜头" }),
     meta: {
@@ -141,6 +148,8 @@ async function sendCanvas(ctx: SampleContext, params: Record<string, unknown>): 
       archetype: { id: archetype.id, modeId: mode.id },
       ...params,
       ...(refCount ? { referenceImageUrls: urls } : {}),
+      ...(videos.length ? { referenceVideoUrls: videos } : {}),
+      ...(audios.length ? { referenceAudioUrls: audios } : {}),
     },
   } as never;
   try {
@@ -282,7 +291,7 @@ type Plan = { id: string; row: Row; archetype: Archetype; from: Mode; to: Mode }
 function enumeratePlans(): Plan[] {
   const plans: Plan[] = [];
   for (const row of seeded.models) {
-    const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+    const archetype = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
     if (!archetype) continue;
     for (const from of archetype.modes) {
       for (const to of archetype.modes) {

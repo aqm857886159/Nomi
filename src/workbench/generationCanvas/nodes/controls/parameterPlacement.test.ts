@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MODEL_ARCHETYPES } from '../../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../../electron/shared/modelArchetypes/builtInCatalog'
 import {
   ADVANCED_CLASS_BY_KEY,
   advancedParameterClass,

@@ -58,11 +58,15 @@ import { generationCandidateSchema } from "../shared/agentCapabilities/generatio
 import type { ProductionGenerationShot, ProductionRun } from "../productionRun/productionRunTypes";
 import { buildMaterializeShotsPayload } from "../productionRun/multiShotCanvasLanding";
 import {
-  resolveArchetypeForModel, resolveArchetypeVariant, specializeArchetypeForVariant,
-  type ArchetypeMode, type ModelArchetype,
+  EVERY_VARIANT,
+  resolveModelArchetype,
+  resolveArchetypeVariant,
+  rescopeArchetypeVariant,
+  type ArchetypeMode,
+  type ModelArchetype,
 } from "../shared/modelArchetypes";
 import type { ArchetypeReferenceSlotKind, ModelParameterControl } from "../shared/videoCapabilities/types";
-import { constrainParameterControls } from "../shared/videoCapabilities/crossFieldConstraints";
+import { constrainParameterControls, normalizeConditionalParameters, type ReferenceCounts } from "../shared/videoCapabilities/crossFieldConstraints";
 import { isParamValueAllowed } from "../shared/videoCapabilities/paramConstraints";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import { toCatalogModelOptions } from "../../src/config/modelOptionMappers";
@@ -99,11 +103,8 @@ const NAMED_IN_AUDIT = [
  * 显示了、但这个方式**故意不发**的参数（映射里明示 drop）。棘轮：只许减；某天开始发了，这里会红，提醒删掉这条。
  * 键 = `模型/方式/参数`。付费卡的摘要行读的是节点显示，所以这几格同样是「卡上写着、线上没有」——见设计卡 §四。
  */
-const NOT_SENT_BY_DESIGN: Readonly<Record<string, string>> = {
-  "kling-v3/i2v/aspect_ratio": "APIMart 图生视频：比例由首 / 尾帧决定，映射 i2vDrops 明示不发（electron/catalog/apimartVideos.ts）",
-  "veo3.1-fast/frame/aspect_ratio": "APIMart 首尾帧：比例跟首帧图走，映射 i2vDrops 明示不发（electron/catalog/apimartVideos.ts）",
-  "veo3.1-fast/reference/aspect_ratio": "APIMart 参考图：比例跟参考图走，映射 i2vDrops 明示不发（electron/catalog/apimartVideos.ts）",
-};
+// 2026-11-15 清空：可灵 3.0 图生的比例改成档案不声明（不再显示）；Veo 3.1 参考图 / 首尾帧的比例改成真的发出去。两处都不再是「显示了却不发」。
+const NOT_SENT_BY_DESIGN: Readonly<Record<string, string>> = {};
 
 /**
  * 档案声明了、APIMart 目录没给这个模型发布的方式（Agent 起草当场被宿主拒：「cannot do …」），不进格子。
@@ -153,7 +154,7 @@ type Row = { modelKey: string; kind: "video" | "image"; archetype: ModelArchetyp
 const rows: Row[] = catalog.models
   .filter((model) => model.vendorKey === VENDOR && (model.kind === "video" || model.kind === "image"))
   .flatMap((model): Row[] => {
-    const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta });
+    const archetype = resolveModelArchetype({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta }, { variant: EVERY_VARIANT });
     const option = options.find((candidate) => candidate.vendor === VENDOR && (candidate.modelKey || candidate.value) === model.modelKey);
     const listed = entryByKey.has(`${VENDOR}::${model.modelKey}`);
     return archetype && option && listed ? [{ modelKey: model.modelKey, kind: model.kind as Row["kind"], archetype, option }] : [];
@@ -191,6 +192,15 @@ function draftedReferences(mode: ArchetypeMode): DraftedReference[] {
   });
 }
 
+/** 这一稿带的参考在各槽上的件数（和 draftedReferences 同一份挑法）：选项要的槽空着时，面板不给那一项、发送前也拒。 */
+function draftedCounts(mode: ArchetypeMode): ReferenceCounts {
+  const required = mode.slots.flatMap((slot) => Array.from({ length: slot.min }, () => slot));
+  const slots = required.length > 0 ? required : mode.intent === "text" ? [] : mode.slots.slice(0, 1);
+  const counts: ReferenceCounts = {};
+  for (const slot of slots) counts[slot.kind] = (counts[slot.kind] ?? 0) + 1;
+  return counts;
+}
+
 /** 一个合法的、和 `current` 不同的值（选项型取第一个不同项；开关取反；数值取上 / 下限；文本写一句）。 */
 function alternativeValue(control: ModelParameterControl, current: unknown): string | number | boolean | undefined {
   const same = (value: unknown) => String(value) === String(current);
@@ -207,17 +217,26 @@ function alternativeValue(control: ModelParameterControl, current: unknown): str
 }
 
 /** 「改过」那一稿：每个参数都写成非默认值，一个个定（跨字段约束按已定的值收窄后再挑下一个）。 */
-function changedParameters(params: readonly ModelParameterControl[]): Record<string, string | number | boolean> {
+function changedParameters(params: readonly ModelParameterControl[], counts: ReferenceCounts): Record<string, string | number | boolean> {
   const chosen: Record<string, string | number | boolean> = {};
   for (const control of params) {
     if (control.type === "image-url") continue;
-    const constrained = constrainParameterControls([...params], chosen).find((candidate) => candidate.key === control.key) ?? control;
+    const constrained = constrainParameterControls([...params], chosen, counts).find((candidate) => candidate.key === control.key) ?? control;
     const value = alternativeValue(constrained, constrained.defaultValue ?? constrained.options[0]?.value);
     if (value !== undefined && isParamValueAllowed(constrained, value)) chosen[control.key] = value;
   }
-  // 后挑的值可能收窄了先挑的：收窄后不再合法的那几个退回默认（不写），保证这一稿本身是合法的。
-  const final = constrainParameterControls([...params], chosen);
-  return Object.fromEntries(Object.entries(chosen).filter(([key, value]) => {
+  // 后挑的值可能收窄了先挑的：收窄后不再合法的那几个按面板同一个函数规整成收窄后的默认（Seedream 透明背景 → 格式写成 png），
+  // 保证这一稿本身是合法的——退回「不写」不行：不写就按原默认发，原默认可能正是被收窄掉的那一项。
+  // 被收窄、又没挑上值的那一格也写明（透明背景下格式只剩 png，「改过」挑不出第二个值）：不写的话落地按原默认 jpeg 存，
+  // 发送前按同一份约束拒（落地不规整联动参数，见报告「留给后面的」）。
+  const normalized = normalizeConditionalParameters([...params], chosen, counts) as Record<string, string | number | boolean>;
+  for (const control of constrainParameterControls([...params], normalized, counts)) {
+    const original = params.find((candidate) => candidate.key === control.key);
+    if (control.key in normalized || !original || control.options.length === original.options.length || control.defaultValue === undefined) continue;
+    normalized[control.key] = control.defaultValue as string | number | boolean;
+  }
+  const final = constrainParameterControls([...params], normalized, counts);
+  return Object.fromEntries(Object.entries(normalized).filter(([key, value]) => {
     const control = final.find((candidate) => candidate.key === key);
     return control ? isParamValueAllowed(control, value) : false;
   }));
@@ -233,14 +252,14 @@ function nonDefaultVariantId(archetype: ModelArchetype): string | undefined {
 /** Agent 起草这一镜：draft_shots 的短路径 + 宿主归一 + 落库前的同一道准入。 */
 function draftCandidate(row: Row, mode: ArchetypeMode, draft: Draft): { candidate: PlanCandidate; references: DraftedReference[] } {
   const variantId = draft === "changed" ? nonDefaultVariantId(row.archetype) : undefined;
-  const surface = specializeArchetypeForVariant(row.archetype, resolveArchetypeVariant(row.archetype, { ...(variantId ? { variantId } : {}), modelId: row.modelKey })?.id);
+  const surface = rescopeArchetypeVariant(row.archetype, { variantId: resolveArchetypeVariant(row.archetype, { ...(variantId ? { variantId } : {}), modelId: row.modelKey })?.id, modelId: undefined });
   const surfaceMode = surface.modes.find((candidate) => candidate.id === mode.id) ?? mode;
   const references = draftedReferences(mode);
   const params = {
     prompt: PROMPT, providerId: VENDOR, modelId: row.modelKey,
     taskKind: modeTransportFor(mode, row.archetype, VENDOR), modeId: mode.id,
     ...(variantId ? { variantId } : {}),
-    parameters: draft === "changed" ? changedParameters(surfaceMode.params) : {},
+    parameters: draft === "changed" ? changedParameters(surfaceMode.params, draftedCounts(surfaceMode)) : {},
     ...(references.length ? { references: references.map(({ assetId, role }) => ({ assetId, role })) } : {}),
   };
   const semantic = semanticCandidateFromParams({
@@ -314,16 +333,21 @@ function renderedControls(row: Row, node: GenerationCanvasNode): DynamicModelCon
 /**
  * 生成框上把这个参数改成另一个合法值：底栏有档位就点另一档（显示串 → meta 值走生成框同一个 `parseControlInput`），
  * 没有档位（开关 / 大区间数值 / 文本）就按控件声明取一个不同的合法值。
+ * 和面板同口径：可选项先按已定的值和这一稿带的参考收窄（选项要的槽空着就不给那一项），改完再按同一个函数把联动的参数规整
+ * （Seedream 选透明背景，格式跟着只剩 png）——面板上改不出的组合，这里也不造。
  */
-function editedNode(node: GenerationCanvasNode, control: DynamicModelControl): GenerationCanvasNode | null {
+function editedNode(node: GenerationCanvasNode, raw: DynamicModelControl, mode: ArchetypeMode, counts: ReferenceCounts): GenerationCanvasNode | null {
   const meta = metaOf(node);
+  const narrowed = isParameterControl(raw) ? constrainParameterControls([...mode.params], meta, counts).find((candidate) => candidate.key === raw.key) : undefined;
+  const control = (narrowed ? { ...raw, options: narrowed.options } : raw) as DynamicModelControl;
   const shown = parameterChipValue(control, meta);
   const chip = parameterChipOptions(control).find((option) => option.value !== shown)?.value;
   const value = !isParameterControl(control) ? chip
     : chip !== undefined && control.type !== "boolean" ? parseControlInput(control, chip)
     : alternativeValue(control, meta[control.key] ?? control.defaultValue);
   if (value === undefined || value === null) return null;
-  return { ...node, meta: { ...meta, [control.key]: value } };
+  const next = { ...meta, [control.key]: value };
+  return { ...node, meta: isParameterControl(control) ? normalizeConditionalParameters([...mode.params], next, counts) : next };
 }
 
 /** 生成框上切到另一个变体（变体分段那一个写口）。 */
@@ -404,7 +428,7 @@ describe("起草 → 落地节点 → 生成框显示 → 节点上发出：四�
           const switched = variantSwitchedNode(row, node);
           if (switched) expect(await sendFromNode(switched), `${label}：切了变体，发出去的没变`).not.toEqual(wire);
           for (const control of controls) {
-            const edited = editedNode(node, control);
+            const edited = editedNode(node, control, mode, draftedCounts(mode));
             if (!edited) continue;
             const editedBody = await sendFromNode(edited);
             const cell = `${row.modelKey}/${mode.id}/${control.key}`;

@@ -640,6 +640,16 @@
         "symbol": "modeForInputs"
       },
       "reason": "2026-11-12 方式按输入现算：打开项目 / 回放事件尾巴后不再需要一次收敛写入——存着的方式只当偏好读，放不下当前输入就按输入现算，旧项目不改盘（真窗回放核过老节点 meta 字节不变）；convergeStuckInputModes 同提交删除。10-25 合同「加载后不停在没输入的带图方式」由 modeForInputs 持有，守它的测试：modeForInputs.exhaustive.test.ts、tests/ux/mode-bar-replay.walk.mjs 第 06 幕。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-02-relay-no-mapping-reference-drop.root-cause.json",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "imageEditGuardError / NO_MAPPING_FALLBACK_BODY",
+      "anchor": {
+        "path": "electron/catalog/taskParamsGuard.ts",
+        "symbol": "imageEditGuardError / NO_MAPPING_FALLBACK_BODY"
+      },
+      "reason": "2026-11-15 taskParams.ts 按职责拆三份（发送参数 / 携带参考读法 / 发前诚实护栏），函数体逐字搬：发前护栏 imageEditGuardError 与兜底 body 形状 NO_MAPPING_FALLBACK_BODY 一起搬进 taskParamsGuard.ts，行为零变化；唯一生产调用点 runtime.ts 与 capabilityCore 发送口改从新文件导入。守它的测试照旧是 taskParams.test.ts 的兜底 body 与次序用例。"
     }
   ],
   "retirements": [

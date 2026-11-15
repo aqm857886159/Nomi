@@ -11,7 +11,7 @@ import { libraryGroup } from '../library/libraryGroups'
 import { useOpenProjectId } from '../project/useOpenProjectId'
 import { canvasNodeToAssetRefs } from '../assets/assetTypes'
 import { listNodeMediaResults } from '../generationCanvas/model/nodeResultLifecycle'
-import { useAgentFormStore } from '../../ui/app-shell/shell/agentFormStore'
+import { machineHold } from '../../ui/app-shell/shell/agentFormStore'
 import { enterCanvasPickMode } from '../generationCanvas/store/canvasPickMode'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import React, { type JSX } from 'react'
@@ -271,8 +271,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const pickReferenceOnCanvas = () => {
     setPopover(null)
     setPendingReferencePick({ projectId:openProjectId, threadId:data.activeThreadId })
-    const forms = useAgentFormStore.getState()
-    if (forms.bySurface.generation.form === 'ball') forms.requestForm('generation', 'float')
+    // 挑图要看得见对话（收着时挑图模式会被收起取消）：机器把生成页的 Nomi 临时摆出来，不改人存的收没收起。
+    machineHold('generation', 'open')
     useWorkbenchStore.getState().setWorkspaceMode('generation')
   }
   React.useEffect(() => {

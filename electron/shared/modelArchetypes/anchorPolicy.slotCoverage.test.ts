@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MODEL_ARCHETYPES } from './index'
+import { MODEL_ARCHETYPES } from './builtInCatalog'
 import { SLOT_ACCEPTS } from './anchorPolicy'
 import type { ArchetypeReferenceSlotKind } from './types'
 

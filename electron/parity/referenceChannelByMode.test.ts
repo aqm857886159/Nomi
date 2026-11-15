@@ -65,6 +65,8 @@ describe("参考通道由档案模式决定（NEW-1）", () => {
   it("纯函数：模式声明了合并槽、且 body 真引用它 → 用合并槽", () => {
     expect(referenceCombineChannelFor({
       meta: { archetypeId: "seedance-2.5-apimart" },
+      modelKey: null,
+      vendorKey: null,
       kind: "video",
       modeId: "first",
       createBody: SEEDANCE_I2V_BODY,
@@ -74,6 +76,8 @@ describe("参考通道由档案模式决定（NEW-1）", () => {
   it("纯函数：同一条 body，模式换成全能参考 → 不合并（扁平族键）", () => {
     expect(referenceCombineChannelFor({
       meta: { archetypeId: "seedance-2.5-apimart" },
+      modelKey: null,
+      vendorKey: null,
       kind: "video",
       modeId: "omni",
       createBody: SEEDANCE_I2V_BODY,
@@ -83,6 +87,8 @@ describe("参考通道由档案模式决定（NEW-1）", () => {
   it("纯函数：没有模式 → 不合并（手动 headless 路也从不填对象形态键）", () => {
     expect(referenceCombineChannelFor({
       meta: { archetypeId: "seedance-2.5-apimart" },
+      modelKey: null,
+      vendorKey: null,
       kind: "video",
       createBody: SEEDANCE_I2V_BODY,
     })).toBeNull();
@@ -91,6 +97,8 @@ describe("参考通道由档案模式决定（NEW-1）", () => {
   it("纯函数：模式声明了合并槽、但这条渠道的 body 不引用它 → 发不出去，退回扁平族键", () => {
     expect(referenceCombineChannelFor({
       meta: { archetypeId: "seedance-2.5-apimart" },
+      modelKey: null,
+      vendorKey: null,
       kind: "video",
       modeId: "first",
       createBody: { image_urls: "{{request.params.image_urls}}" },

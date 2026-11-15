@@ -28,16 +28,18 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ModelOption } from '../../../config/models'
 import {
-  MODEL_ARCHETYPES,
-  resolveArchetypeForModel,
+  EVERY_VARIANT,
+  resolveModelArchetype,
   type ArchetypeMode,
   type ModelArchetype,
 } from '../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { applyHeadlessParamDefaults, taskTemplateParams } from '../../../../electron/catalog/taskParams'
 import { modelReferenceSelection } from '../../../../electron/catalog/modelCatalogListing'
 import { findReferenceResidue } from '../../../../electron/catalog/archetypeInput'
 import { assertNoReferenceResidueBeforeSend } from '../../../../electron/tasks/referenceResidueGuard'
 import { matchNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
+import { definiteSendRefusalOf } from '../../../../electron/shared/generationDefiniteSendRefusal'
 import { buildProfileHttpRequest } from '../../../../electron/catalog/profileHttpRequest'
 import {
   NEWAPI_IMAGE_CREATE_OP,
@@ -102,7 +104,7 @@ function swapModel(graph: Graph, toModelKey: string, vendor: string): { graph: G
     node: graph.node, nodes: graph.nodes, edges: graph.edges,
     modelOptions: [option(from, vendor), option(toModelKey, vendor)], value: toModelKey, vendor,
   })
-  const archetype = resolveArchetypeForModel({ modelKey: toModelKey, vendorKey: vendor, meta: {} })!
+  const archetype = resolveModelArchetype({ modelKey: toModelKey, vendorKey: vendor, meta: {} }, { variant: EVERY_VARIANT })!
   const ensured = ensureArchetypeNodeMeta(meta, archetype) ?? meta
   const node = { ...graph.node, meta: ensured }
   return { graph: { ...graph, node, nodes: graph.nodes.map((n) => (n.id === node.id ? node : n)) }, archetype }
@@ -184,8 +186,15 @@ function wire(transport: Transport, request: { kind: string; prompt: string; ext
     if (matchNomiErrorCode(String((error as Error).message)) === 'reference-not-in-use') return null
     throw error
   }
-  const extras = applyHeadlessParamDefaults(guarded, modelReferenceSelection(transport.vendor.key, transport.model, request.kind),
-    transport.op.defaultParams, transport.op.body)
+  // 发送前的通用判定（方式缺必需输入）也是主进程拒发：放一边的那张不发之后方式缺了输入，就整单不发，同样一个字节都不上线。
+  let extras: Record<string, unknown> | undefined
+  try {
+    extras = applyHeadlessParamDefaults(guarded, modelReferenceSelection(transport.vendor.key, transport.model, request.kind),
+      transport.op.defaultParams, transport.op.body)
+  } catch (error) {
+    if (definiteSendRefusalOf(error)) return null
+    throw error
+  }
   const built = buildProfileHttpRequest({
     vendor: transport.vendor, model: transport.model, apiKey: 'k',
     request: { ...request, extras } as never, operation: transport.op,
@@ -381,12 +390,12 @@ const imageOrVideo = MODEL_ARCHETYPES
   .map((archetype) => ({ archetype, modelKey: archetype.identifierPatterns[0]!, vendor: 'apimart' }))
 const everyArchetype = MODEL_ARCHETYPES.map((archetype) => ({ archetype, modelKey: archetype.identifierPatterns[0]!, vendor: 'apimart' }))
 const apimartArchetypes = APIMART_MODELS.flatMap((model) => {
-  const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: 'apimart', meta: { archetypeId: model.archetypeId } })
+  const archetype = resolveModelArchetype({ modelKey: model.modelKey, vendorKey: 'apimart', meta: { archetypeId: model.archetypeId } }, { variant: EVERY_VARIANT })
   return archetype && archetype.id === model.archetypeId ? [{ archetype, modelKey: model.modelKey, vendor: 'apimart', model }] : []
 })
 /** 内置目录里每个认得出档案的视频 / 图片模型行（同一个档案经几家接入就有几行）。 */
 const seededArchetypes = SEEDED.models.flatMap((model) => {
-  const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta as Record<string, unknown> | undefined })
+  const archetype = resolveModelArchetype({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta as Record<string, unknown> | undefined }, { variant: EVERY_VARIANT })
   return archetype && (archetype.kind === 'video' || archetype.kind === 'image') ? [{ archetype, modelKey: model.modelKey, vendor: model.vendorKey }] : []
 })
 
@@ -565,10 +574,10 @@ describe('键表完整性：请求体实际读的参考键都在 GENERIC_REFEREN
 
 // ── 线上四个场景（复盘表 1a–4）+ 没误伤 ───────────────────────────────────────────────
 
-const archetypeOf = (modelKey: string, vendor = 'apimart') => resolveArchetypeForModel({ modelKey, vendorKey: vendor, meta: {} })!
+const archetypeOf = (modelKey: string, vendor = 'apimart') => resolveModelArchetype({ modelKey, vendorKey: vendor, meta: {} }, { variant: EVERY_VARIANT })!
 
 function bodies(graph: Graph, modelKey = String(graph.node.meta?.modelKey)) {
-  const archetype = resolveArchetypeForModel({ modelKey, vendorKey: 'apimart', meta: graph.node.meta })!
+  const archetype = resolveModelArchetype({ modelKey, vendorKey: 'apimart', meta: graph.node.meta }, { variant: EVERY_VARIANT })!
   const request = rendererRequest(graph)
   const modeId = effectiveArchetypeMode(archetype, graph.node, graph).mode.id
   const apimart = APIMART_MODELS.find((model) => model.modelKey === modelKey)
@@ -867,7 +876,7 @@ describe('免费抓包：本机假上游收到的请求体（四个场景 + 没�
   it.each(CASES)('%s', async (name, makeGraph, modelKey, relayExpected, apimartExpected) => {
     const graph = makeGraph()
     const request = rendererRequest(graph)
-    const archetype = resolveArchetypeForModel({ modelKey, vendorKey: 'apimart', meta: graph.node.meta })!
+    const archetype = resolveModelArchetype({ modelKey, vendorKey: 'apimart', meta: graph.node.meta }, { variant: EVERY_VARIANT })!
     // 传输按这次真发的方式挑（存着的只是偏好）。
     const modeId = effectiveArchetypeMode(archetype, graph.node, graph).mode.id
     const apimart = APIMART_MODELS.find((model) => model.modelKey === modelKey)

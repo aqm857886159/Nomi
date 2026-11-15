@@ -5,7 +5,7 @@ import { applyBuiltinSeeds } from "./seedBuiltins";
 import type { CatalogState } from "./types";
 import { findOutboundContractBreaches } from "../../scripts/check-reference-outbound-contract";
 import { buildArchetypeInputParams } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
 import { taskTemplateParams } from "./taskParams";
 import { renderTemplateValue } from "../ai/requestPipeline";
 import { modeWrittenInMeta } from "../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers";
@@ -30,7 +30,7 @@ describe("参考图出站合同", () => {
       (m) => m.vendorKey === "fal" && m.modelKey === "openai/gpt-image-2" && m.modeId === "i2i",
     );
     expect(model && mapping).toBeTruthy();
-    const archetype = resolveArchetypeForModel(model!)!;
+    const archetype = resolveModelArchetype(model!, { variant: EVERY_VARIANT })!;
     expect(archetype.id).toBe("gpt-image-2");
 
     const refs = ["https://assets.test/a.png", "https://assets.test/b.png"];

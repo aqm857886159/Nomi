@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { getArchetypeById, resolveArchetypeForModel, specializeArchetypeForVariant, type ArchetypeModelLike } from "./index";
+import { EVERY_VARIANT, resolveModelArchetype, rescopeArchetypeVariant, type ArchetypeModelLike } from "./index";
+import { getArchetypeById } from "./builtInCatalog";
 
 /** Fixture factory: fill in the required `vendorKey` (null = vendor unknown) so inline objects stay concise. */
 const m = (fields: Omit<ArchetypeModelLike, "vendorKey"> & Partial<Pick<ArchetypeModelLike, "vendorKey">>): ArchetypeModelLike => ({
@@ -13,22 +14,22 @@ const m = (fields: Omit<ArchetypeModelLike, "vendorKey"> & Partial<Pick<Archetyp
 // referenceInputParams，各自测试锁死，2026-07-24 根因收口）。
 // 认不出的模型 → null（渲染层走通用回退）。'seedance-2' 不误命中 'seedance-2-fast'。
 
-describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
+describe("resolveModelArchetype — 供应商无关的识别桥", () => {
   it("显式 meta.archetypeId（我们 seed 的记录）直接命中", () => {
-    const a = resolveArchetypeForModel(m({ modelKey: "bytedance/seedance-2", meta: { archetypeId: "seedance-2" } }));
+    const a = resolveModelArchetype(m({ modelKey: "bytedance/seedance-2", meta: { archetypeId: "seedance-2" } }), { variant: EVERY_VARIANT });
     expect(a?.id).toBe("seedance-2");
   });
 
   it("画布节点持久化的 meta.archetype.id 直接命中，即使供应商 modelKey 不在 patterns", () => {
-    const a = resolveArchetypeForModel(m({
+    const a = resolveModelArchetype(m({
       modelKey: "vendor-specific-key-not-in-patterns",
       meta: { archetype: { id: "volcengine-seedream", modeId: "edit" } },
-    }));
+    }), { variant: EVERY_VARIANT });
     expect(a?.id).toBe("volcengine-seedream");
   });
 
   it("无 meta，仅靠 modelKey 身份命中（用户自接、非 kie 也行）", () => {
-    expect(resolveArchetypeForModel(m({ modelKey: "bytedance/seedance-2" }))?.id).toBe("seedance-2");
+    expect(resolveModelArchetype(m({ modelKey: "bytedance/seedance-2" }), { variant: EVERY_VARIANT })?.id).toBe("seedance-2");
   });
 
   it("同一模型、不同供应商的各种标识都命中同一档案", () => {
@@ -40,15 +41,15 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
       m({ modelKey: "models/bytedance/seedance-2" }), // 带 models/ 前缀
     ];
     for (const v of variants) {
-      expect(resolveArchetypeForModel(v)?.id).toBe("seedance-2");
+      expect(resolveModelArchetype(v, { variant: EVERY_VARIANT })?.id).toBe("seedance-2");
     }
   });
 
   it("kie Seedance 变体合并：标准/Fast/Mini 三 modelKey 都解析到同一基础档案 seedance-2（不再多份）", () => {
     // 合并后只剩 1 份 seedance-2；标准 + Fast + Mini 的 modelKey 都命中它（identifierPatterns 收纳）。
-    expect(resolveArchetypeForModel(m({ modelKey: "bytedance/seedance-2" }))?.id).toBe("seedance-2");
-    expect(resolveArchetypeForModel(m({ modelKey: "bytedance/seedance-2-fast" }))?.id).toBe("seedance-2");
-    expect(resolveArchetypeForModel(m({ modelKey: "bytedance/seedance-2-mini" }))?.id).toBe("seedance-2");
+    expect(resolveModelArchetype(m({ modelKey: "bytedance/seedance-2" }), { variant: EVERY_VARIANT })?.id).toBe("seedance-2");
+    expect(resolveModelArchetype(m({ modelKey: "bytedance/seedance-2-fast" }), { variant: EVERY_VARIANT })?.id).toBe("seedance-2");
+    expect(resolveModelArchetype(m({ modelKey: "bytedance/seedance-2-mini" }), { variant: EVERY_VARIANT })?.id).toBe("seedance-2");
     expect(getArchetypeById("seedance-2-fast")).toBeNull();
     // 'seedance-2' 不误命中 'seedance-2-mini'（末段相等判定）：mini 串解到档案，但档案 id 仍是 seedance-2。
   });
@@ -56,7 +57,7 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
   it("kie Seedance 变体：标准含 4k（2026-06 4K 升级），fast/mini 收窄到 480/720", () => {
     const base = getArchetypeById("seedance-2")!;
     const resOf = (variantId: string) =>
-      specializeArchetypeForVariant(base, variantId).modes[0].params.find((p) => p.key === "resolution")!.options.map((o) => o.value);
+      rescopeArchetypeVariant(base, { variantId: variantId, modelId: undefined }).modes[0].params.find((p) => p.key === "resolution")!.options.map((o) => o.value);
     expect(resOf("standard")).toEqual(["480p", "720p", "1080p", "4k"]);
     expect(resOf("fast")).toEqual(["480p", "720p"]);
     expect(resOf("mini")).toEqual(["480p", "720p"]);
@@ -74,10 +75,10 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
       "doubao-seedance-2.0-face",
       "doubao-seedance-2.0-fast-face",
     ]) {
-      expect(resolveArchetypeForModel(m({ modelKey }))?.id).toBe("seedance-2-apimart");
+      expect(resolveModelArchetype(m({ modelKey }), { variant: EVERY_VARIANT })?.id).toBe("seedance-2-apimart");
     }
     // UI 只声明三模式，默认 Fast；catalog 基础行仍是标准 modelKey。
-    const arch = resolveArchetypeForModel(m({ modelKey: "doubao-seedance-2.0" }));
+    const arch = resolveModelArchetype(m({ modelKey: "doubao-seedance-2.0" }), { variant: EVERY_VARIANT });
     expect(arch?.variants?.map((v) => v.id)).toEqual(["standard", "fast", "mini"]);
     expect(arch?.variants?.map((v) => v.label)).toEqual(["Seedance 2.0", "Fast", "Mini"]);
     expect(arch?.defaultVariantId).toBe("fast");
@@ -87,7 +88,7 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
   it("apimart Seedance 清晰度按当前模式约束：标准含 4k；Fast/Mini 仅 480/720", () => {
     const base = getArchetypeById("seedance-2-apimart")!;
     const resOf = (variantId: string) =>
-      specializeArchetypeForVariant(base, variantId).modes[0].params.find((p) => p.key === "resolution")!.options.map((o) => o.value);
+      rescopeArchetypeVariant(base, { variantId: variantId, modelId: undefined }).modes[0].params.find((p) => p.key === "resolution")!.options.map((o) => o.value);
     expect(resOf("standard")).toEqual(["480p", "720p", "1080p", "4k"]);
     expect(resOf("fast")).toEqual(["480p", "720p"]);
     expect(resOf("mini")).toEqual(["480p", "720p"]);
@@ -96,8 +97,8 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
   });
 
   it("Grok Imagine 1.5：官方主键/兼容别名命中同一视频档案", () => {
-    expect(resolveArchetypeForModel(m({ modelKey: "grok-imagine-1.5-video-apimart" }))?.id).toBe("grok-imagine-1.5-video");
-    expect(resolveArchetypeForModel(m({ modelKey: "grok-imagine-1.5-video-ext" }))?.id).toBe("grok-imagine-1.5-video");
+    expect(resolveModelArchetype(m({ modelKey: "grok-imagine-1.5-video-apimart" }), { variant: EVERY_VARIANT })?.id).toBe("grok-imagine-1.5-video");
+    expect(resolveModelArchetype(m({ modelKey: "grok-imagine-1.5-video-ext" }), { variant: EVERY_VARIANT })?.id).toBe("grok-imagine-1.5-video");
     const arch = getArchetypeById("grok-imagine-1.5-video")!;
     expect(arch.modes.map((m) => m.id)).toEqual(["t2v", "i2v"]);
     expect(arch.modes.find((m) => m.id === "i2v")?.slots[0]).toMatchObject({ inputKey: "image_urls", max: 7 });
@@ -105,9 +106,9 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
   });
 
   it("火山方舟 Seedance 2.0：标准/Fast/Mini 解析到火山专属档案", () => {
-    expect(resolveArchetypeForModel(m({ modelKey: "doubao-seedance-2-0-260128" }))?.id).toBe("volcengine-seedance-2");
-    expect(resolveArchetypeForModel(m({ modelKey: "doubao-seedance-2-0-fast-260128" }))?.id).toBe("volcengine-seedance-2");
-    expect(resolveArchetypeForModel(m({ modelKey: "doubao-seedance-2-0-mini-260615" }))?.id).toBe("volcengine-seedance-2");
+    expect(resolveModelArchetype(m({ modelKey: "doubao-seedance-2-0-260128" }), { variant: EVERY_VARIANT })?.id).toBe("volcengine-seedance-2");
+    expect(resolveModelArchetype(m({ modelKey: "doubao-seedance-2-0-fast-260128" }), { variant: EVERY_VARIANT })?.id).toBe("volcengine-seedance-2");
+    expect(resolveModelArchetype(m({ modelKey: "doubao-seedance-2-0-mini-260615" }), { variant: EVERY_VARIANT })?.id).toBe("volcengine-seedance-2");
     const arch = getArchetypeById("volcengine-seedance-2")!;
     expect(arch.variants?.map((v) => v.id)).toEqual(["standard", "fast", "mini"]);
   });
@@ -115,7 +116,7 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
   it("火山方舟 Seedance Fast/Mini 变体：resolution 收窄到 480/720", () => {
     const base = getArchetypeById("volcengine-seedance-2")!;
     const resOf = (variantId: string) =>
-      specializeArchetypeForVariant(base, variantId).modes[0].params.find((p) => p.key === "resolution")!.options.map((o) => o.value);
+      rescopeArchetypeVariant(base, { variantId: variantId, modelId: undefined }).modes[0].params.find((p) => p.key === "resolution")!.options.map((o) => o.value);
     expect(resOf("standard")).toEqual(["480p", "720p", "1080p", "4k"]);
     expect(resOf("fast")).toEqual(["480p", "720p"]);
     expect(resOf("mini")).toEqual(["480p", "720p"]);
@@ -127,12 +128,12 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
     const seedance = getArchetypeById("dreamina-seedance-2")!;
     const modeIds = seedance.modes.map((mm) => mm.id); // t2v/i2v/firstlast/multimodal
     const resOf = (variantId: string, modeId: string) => {
-      const spec = specializeArchetypeForVariant(seedance, variantId);
+      const spec = rescopeArchetypeVariant(seedance, { variantId: variantId, modelId: undefined });
       const mode = spec.modes.find((mm) => mm.id === modeId)!;
       return mode.params.find((p) => p.key === "video_resolution")!.options.map((o) => o.value);
     };
     const durOf = (variantId: string, modeId: string) => {
-      const spec = specializeArchetypeForVariant(seedance, variantId);
+      const spec = rescopeArchetypeVariant(seedance, { variantId: variantId, modelId: undefined });
       const mode = spec.modes.find((mm) => mm.id === modeId)!;
       const d = mode.params.find((p) => p.key === "duration")!;
       return { min: d.min, max: d.max };
@@ -173,7 +174,7 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
     it("图片档：5.0Pro 清晰度 1.5k/2k/4k（无 1k，v1.4.16）；3.0/3.1 → 1k/2k；4.x/5.0 → 2k/4k", () => {
       const img = getArchetypeById("dreamina-image")!;
       const imgResOf = (variantId: string, modeId: string) => {
-        const spec = specializeArchetypeForVariant(img, variantId);
+        const spec = rescopeArchetypeVariant(img, { variantId: variantId, modelId: undefined });
         const mode = spec.modes.find((mm) => mm.id === modeId)!;
         return mode.params.find((p) => p.key === "resolution_type")!.options.map((o) => o.value);
       };
@@ -188,9 +189,9 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
   });
 
   it("认不出的模型 → null（渲染层走通用回退）", () => {
-    expect(resolveArchetypeForModel(m({ modelKey: "acme/some-unknown-video-model" }))).toBeNull();
-    expect(resolveArchetypeForModel(null)).toBeNull();
-    expect(resolveArchetypeForModel(m({}))).toBeNull();
+    expect(resolveModelArchetype(m({ modelKey: "acme/some-unknown-video-model" }), { variant: EVERY_VARIANT })).toBeNull();
+    expect(resolveModelArchetype(null, { variant: EVERY_VARIANT })).toBeNull();
+    expect(resolveModelArchetype(m({}), { variant: EVERY_VARIANT })).toBeNull();
   });
 
   it("首帧模式的标量参数复用 ModelParameterControl 形状（规则 1，非并行类型）", () => {
@@ -201,15 +202,15 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
   });
 });
 
-describe("resolveArchetypeForModel — vendorKey 只做 B 层特化，不改变解析（2026-07-24 钉死）", () => {
+describe("resolveModelArchetype — vendorKey 只做 B 层特化，不改变解析（2026-07-24 钉死）", () => {
   it("自定义中转 vendor 照常按身份命中（seed-tts/中转 Seedance 类档案就是给中转用的）", () => {
-    expect(resolveArchetypeForModel({ modelKey: "gpt-image-2", vendorKey: "my-relay" })?.id).toBe("gpt-image-2");
-    expect(resolveArchetypeForModel({ modelKey: "bytedance/seedance-2", vendorKey: "one-api-xx" })?.id).toBe("seedance-2");
+    expect(resolveModelArchetype({ modelKey: "gpt-image-2", vendorKey: "my-relay" }, { variant: EVERY_VARIANT })?.id).toBe("gpt-image-2");
+    expect(resolveModelArchetype({ modelKey: "bytedance/seedance-2", vendorKey: "one-api-xx" }, { variant: EVERY_VARIANT })?.id).toBe("seedance-2");
   });
 
   it("vendorKey null/undefined/空串与传内置家一致命中（必传只为逼调用点显式表态）", () => {
-    expect(resolveArchetypeForModel({ modelKey: "gpt-image-2", vendorKey: null })?.id).toBe("gpt-image-2");
-    expect(resolveArchetypeForModel({ modelKey: "gpt-image-2", vendorKey: undefined })?.id).toBe("gpt-image-2");
-    expect(resolveArchetypeForModel({ modelKey: "gpt-image-2", vendorKey: "kie" })?.id).toBe("gpt-image-2");
+    expect(resolveModelArchetype({ modelKey: "gpt-image-2", vendorKey: null }, { variant: EVERY_VARIANT })?.id).toBe("gpt-image-2");
+    expect(resolveModelArchetype({ modelKey: "gpt-image-2", vendorKey: undefined }, { variant: EVERY_VARIANT })?.id).toBe("gpt-image-2");
+    expect(resolveModelArchetype({ modelKey: "gpt-image-2", vendorKey: "kie" }, { variant: EVERY_VARIANT })?.id).toBe("gpt-image-2");
   });
 });

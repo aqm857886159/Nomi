@@ -6,7 +6,7 @@ import type { Mapping, ProfileKind } from '../catalog/types';
 import { normalizeCustomCapabilityContract, parseCustomCapabilityContract, type CustomCapabilityContractV1 } from '../shared/customCapabilityContract';
 import { modelKindForTaskKind } from '../shared/capabilityModeManifest';
 import { consumedCanonicalKeys, wireReferencedParamKeys } from '../catalog/paramTranslate';
-import { MODEL_ARCHETYPES } from '../shared/modelArchetypes';
+import { everyBuiltInArchetype } from '../shared/modelArchetypes';
 import { DERIVED_REFERENCE_CARRIER_KEYS, referenceKeyDeclarationFor } from '../shared/modelArchetypes/referenceKeys';
 import type { ArchetypeReferenceSlot, ArchetypeTransportTaskKind, ModelParameterControl } from '../shared/videoCapabilities/types';
 
@@ -131,7 +131,7 @@ const isWireName = (key: string): boolean => Object.prototype.hasOwnProperty.cal
 
 export function assertNeutralDeclarationParameters(candidate: AdapterModelDraft): void {
   if (candidate.kind === 'text') return;
-  const registered = new Set(MODEL_ARCHETYPES.filter((a) => a.kind === candidate.kind).flatMap((a) => a.modes.flatMap((m) => m.params.map((p) => p.key))));
+  const registered = new Set(everyBuiltInArchetype().filter((a) => a.kind === candidate.kind).flatMap((a) => a.modes.flatMap((m) => m.params.map((p) => p.key))));
   // A wire name is refused below even when some model registers it, so it is not offered as a key.
   const offered = [...registered].filter((key) => !isWireName(key)).sort();
   for (const p of candidate.parameters || []) {

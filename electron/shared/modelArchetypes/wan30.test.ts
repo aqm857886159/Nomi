@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getArchetypeById, resolveArchetypeForModel } from "./index";
+import { EVERY_VARIANT, resolveModelArchetype } from "./index";
+import { getArchetypeById } from "./builtInCatalog";
 import type { ModelArchetype } from "./types";
 import { modeWrittenInMeta } from "../../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers";
 
@@ -21,17 +22,17 @@ const slotMaxByKind = (arch: ModelArchetype, modeId: string) =>
 
 describe("Wan 3.0 身份解析", () => {
   it("kie 的两个 model id 都命中 wan-3.0（高速版是变体，不是另一个档案）", () => {
-    expect(resolveArchetypeForModel({ modelKey: "wan/3-0-video", vendorKey: "kie" })?.id).toBe("wan-3.0");
-    expect(resolveArchetypeForModel({ modelKey: "wan/3-0-video-prime", vendorKey: "kie" })?.id).toBe("wan-3.0");
+    expect(resolveModelArchetype({ modelKey: "wan/3-0-video", vendorKey: "kie" }, { variant: EVERY_VARIANT })?.id).toBe("wan-3.0");
+    expect(resolveModelArchetype({ modelKey: "wan/3-0-video-prime", vendorKey: "kie" }, { variant: EVERY_VARIANT })?.id).toBe("wan-3.0");
   });
 
   it("apimart 的单 id 命中 wan-3.0-apimart（两家契约不同，各自成档案）", () => {
-    expect(resolveArchetypeForModel({ modelKey: "wan3.0-video", vendorKey: "apimart" })?.id).toBe("wan-3.0-apimart");
+    expect(resolveModelArchetype({ modelKey: "wan3.0-video", vendorKey: "apimart" }, { variant: EVERY_VARIANT })?.id).toBe("wan-3.0-apimart");
   });
 
   it("不会误吃 Wan 2.7（前缀相近，匹配必须是整串级别）", () => {
-    expect(resolveArchetypeForModel({ modelKey: "wan2.7", vendorKey: "apimart" })?.id).toBe("wan-2.7");
-    expect(resolveArchetypeForModel({ modelKey: "wan2.7-r2v", vendorKey: "apimart" })?.id).toBe("wan-2.7");
+    expect(resolveModelArchetype({ modelKey: "wan2.7", vendorKey: "apimart" }, { variant: EVERY_VARIANT })?.id).toBe("wan-2.7");
+    expect(resolveModelArchetype({ modelKey: "wan2.7-r2v", vendorKey: "apimart" }, { variant: EVERY_VARIANT })?.id).toBe("wan-2.7");
   });
 });
 

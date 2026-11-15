@@ -11,8 +11,8 @@ import {
   collectModeInputs,
   effectiveArchetypeModeWithUpload,
   type ModeGraph,
-  resolveArchetypeForModel,
 } from '../nodes/controls/archetypeMeta'
+import { resolveModelArchetype, variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
 import { isImageUploadSlot, REFERENCE_LIST_KEY } from '../nodes/controls/referenceList'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 
@@ -63,12 +63,12 @@ type NodeLike = Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>
 
 function archetypeOfNode(node: NodeLike) {
   const m = (node.meta || {}) as Record<string, unknown>
-  return resolveArchetypeForModel({
+  return resolveModelArchetype({
     modelKey: typeof m.modelKey === 'string' ? m.modelKey : undefined,
     modelAlias: typeof m.modelAlias === 'string' ? m.modelAlias : undefined,
     vendorKey: typeof m.modelVendor === 'string' ? m.modelVendor : typeof m.vendor === 'string' ? m.vendor : null,
     meta: m,
-  })
+  }, { variant: variantRecordedInMeta(m, m.modelKey) })
 }
 
 /**
@@ -89,7 +89,7 @@ export type NodeReferenceAddPlan = { slot: ArchetypeArraySlot | null; fits: bool
 /**
  * 「再放一件 kind 进这个节点」的唯一判据——落格（addAssetUrlToNode）、生成框「+」给哪几类（addableReferenceKinds）、
  * 收不收拖放都问它。方式按「放进去之后的输入」现算（effectiveArchetypeModeWithUpload → modeForInputs），不读存着的方式。
- * 无档案 → null（内置家之内供应商无关；自定义中转不套档案，vendor 门在 resolveArchetypeForModel）。
+ * 无档案 → null（内置家之内供应商无关；自定义中转不套档案，vendor 门在 resolveModelArchetype）。
  */
 export function planNodeReferenceAdd(node: NodeLike, graph: ModeGraph, kind: AssetDropKind): NodeReferenceAddPlan | null {
   const archetype = archetypeOfNode(node)

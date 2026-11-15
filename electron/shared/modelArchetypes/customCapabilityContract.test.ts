@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   parseCustomCapabilityContract,
-  resolveArchetypeForModel,
+  EVERY_VARIANT,
+  resolveModelArchetype,
 } from './index'
 
 const FUTURE_VIDEO_CONTRACT = {
@@ -78,7 +79,7 @@ const model = (contract: unknown, modelKey = 'future-video-v1') => ({
 
 describe('custom capability contract v1', () => {
   it('lets an unknown model explicitly expose multiple modes that share one task kind', () => {
-    const archetype = resolveArchetypeForModel(model(FUTURE_VIDEO_CONTRACT))
+    const archetype = resolveModelArchetype(model(FUTURE_VIDEO_CONTRACT), { variant: EVERY_VARIANT })
 
     expect(archetype).toMatchObject({
       kind: 'video',
@@ -104,7 +105,7 @@ describe('custom capability contract v1', () => {
   })
 
   it('prioritizes a valid explicit contract over a curated identity match', () => {
-    const archetype = resolveArchetypeForModel(model(FUTURE_VIDEO_CONTRACT, 'bytedance/seedance-2'))
+    const archetype = resolveModelArchetype(model(FUTURE_VIDEO_CONTRACT, 'bytedance/seedance-2'), { variant: EVERY_VARIANT })
 
     expect(archetype?.id).toBe('custom-capability:bytedance%2Fseedance-2')
     expect(archetype?.modes.map((mode) => mode.id)).toEqual(['references', 'frames'])
@@ -194,8 +195,8 @@ describe('custom capability contract v1', () => {
     }],
   ])('rejects %s without throwing and falls back to curated/identity resolution', (_name, invalid) => {
     expect(parseCustomCapabilityContract({ customCapabilityContract: invalid })).toBeNull()
-    expect(resolveArchetypeForModel(model(invalid, 'bytedance/seedance-2'))?.id).toBe('seedance-2')
-    expect(resolveArchetypeForModel(model(invalid))).toBeNull()
+    expect(resolveModelArchetype(model(invalid, 'bytedance/seedance-2'), { variant: EVERY_VARIANT })?.id).toBe('seedance-2')
+    expect(resolveModelArchetype(model(invalid), { variant: EVERY_VARIANT })).toBeNull()
   })
 
   it('does not throw on a non-JSON/circular contract', () => {

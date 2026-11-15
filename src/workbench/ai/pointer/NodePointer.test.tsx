@@ -371,7 +371,7 @@ describe('NodePointerReturnToChat · the visible words obey §1.8 rule 3, the ac
 
   it('English: the visible text is at most two words, the read-out and hover name keep “Back to chat”', async () => {
     await i18n.changeLanguage('en')
-    POINTER_SERVER.returnTo = { surface: 'generation', form: 'float', nodeId: 'n1', label: 'Shot 02' }
+    POINTER_SERVER.returnTo = { surface: 'generation', nodeId: 'n1', label: 'Shot 02' }
     const plain = renderToStaticMarkup(<NodePointerReturnToChat />)
     expect(words(visibleText(plain))).toBeLessThanOrEqual(2)
     expect(plain).toContain('aria-label="Back to chat"')
@@ -386,7 +386,7 @@ describe('NodePointerReturnToChat · the visible words obey §1.8 rule 3, the ac
   })
 
   it('Chinese: at most four characters (verb first), the same words as the accessible name', () => {
-    POINTER_SERVER.returnTo = { surface: 'generation', form: 'float', nodeId: 'n1', label: '镜 02' }
+    POINTER_SERVER.returnTo = { surface: 'generation', nodeId: 'n1', label: '镜 02' }
     const plain = renderToStaticMarkup(<NodePointerReturnToChat />)
     expect(visibleText(plain)).toBe(i18n.t('nodePointer.backToChat'))
     expect([...visibleText(plain)].length).toBeLessThanOrEqual(4)

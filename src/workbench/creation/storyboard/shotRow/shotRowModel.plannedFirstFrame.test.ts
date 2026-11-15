@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MODEL_ARCHETYPES } from '../../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../../electron/shared/modelArchetypes/builtInCatalog'
 import type { ArchetypeMode, ArchetypeReferenceSlot, ModelArchetype } from '../../../../../electron/shared/modelArchetypes/types'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'

@@ -5,7 +5,7 @@ import { KIE_IMAGE_MODELS_2026 } from "./kieImages2026";
 import { APIMART_IMAGE_MODELS } from "./apimartImages";
 import { applyParamMap } from "./paramTranslate";
 import { taskTemplateParams } from "./taskParams";
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
 import { KIE_GPT_IMAGE_25_ONE_K_ONLY_RATIOS, KIE_GPT_IMAGE_25_TRANSFORM, validateKieGptImage25Body } from "./kieGptImage25";
 import { applyRequestTransformSync, validateRequestTransformSync } from "../tasks/requestTransforms";
 import type { CatalogState, HttpOperation } from "./types";
@@ -55,7 +55,7 @@ const renderApimart = (modelKey: string, taskKind: string, extras: Record<string
 
 /** 该 (模型, 供应商) 在 UI 上真正给得出的标量参数键（B 分层 vendorParams 已叠加）。 */
 const paramKeys = (modelKey: string, vendorKey: string, modeId: string): string[] => {
-  const archetype = resolveArchetypeForModel({ modelKey, vendorKey })!;
+  const archetype = resolveModelArchetype({ modelKey, vendorKey }, { variant: EVERY_VARIANT })!;
   return archetype.modes.find((m) => m.id === modeId)!.params.map((p) => p.key).sort();
 };
 
@@ -112,7 +112,7 @@ describe("GPT Image 2.5 · apimart 线缆（单 id 双模式）", () => {
 
   it("两档的改图槽都是 16 张（两家文档一致）", () => {
     for (const key of ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"]) {
-      const slot = resolveArchetypeForModel({ modelKey: key, vendorKey: "apimart" })!.modes.find((m) => m.id === "i2i")!.slots[0];
+      const slot = resolveModelArchetype({ modelKey: key, vendorKey: "apimart" }, { variant: EVERY_VARIANT })!.modes.find((m) => m.id === "i2i")!.slots[0];
       expect(slot.max, key).toBe(16);
       expect(slot.inputKey, key).toBe("input_urls");
     }
@@ -121,8 +121,8 @@ describe("GPT Image 2.5 · apimart 线缆（单 id 双模式）", () => {
 
 describe("Gemini 3 Pro 图像 · apimart 并入既有 Runway 档案（P4）", () => {
   it("两家共用一个档案 id，不是第二份档案", () => {
-    expect(resolveArchetypeForModel({ modelKey: "gemini-3-pro-image-preview", vendorKey: "apimart" })!.id).toBe("gemini-image-3-pro");
-    expect(resolveArchetypeForModel({ modelKey: "gemini_image3_pro", vendorKey: "runway" })!.id).toBe("gemini-image-3-pro");
+    expect(resolveModelArchetype({ modelKey: "gemini-3-pro-image-preview", vendorKey: "apimart" }, { variant: EVERY_VARIANT })!.id).toBe("gemini-image-3-pro");
+    expect(resolveModelArchetype({ modelKey: "gemini_image3_pro", vendorKey: "runway" }, { variant: EVERY_VARIANT })!.id).toBe("gemini-image-3-pro");
   });
 
   it("改图：Runway 契约槽名 reference_image_urls → apimart 线缆名 image_urls", () => {
@@ -133,12 +133,12 @@ describe("Gemini 3 Pro 图像 · apimart 并入既有 Runway 档案（P4）", ()
   });
 
   it("参考图上限 14（模型本身的能力，两家一致）", () => {
-    const slot = resolveArchetypeForModel({ modelKey: "gemini-3-pro-image-preview", vendorKey: "apimart" })!.modes.find((m) => m.id === "i2i")!.slots[0];
+    const slot = resolveModelArchetype({ modelKey: "gemini-3-pro-image-preview", vendorKey: "apimart" }, { variant: EVERY_VARIANT })!.modes.find((m) => m.id === "i2i")!.slots[0];
     expect(slot.max).toBe(14);
   });
 
   it("apimart 侧给朝向式比例，Runway 侧给像素式比例（一个值在另一家都不合法）", () => {
-    const apimartOptions = resolveArchetypeForModel({ modelKey: "gemini-3-pro-image-preview", vendorKey: "apimart" })!
+    const apimartOptions = resolveModelArchetype({ modelKey: "gemini-3-pro-image-preview", vendorKey: "apimart" }, { variant: EVERY_VARIANT })!
       .modes.find((m) => m.id === "t2i")!.params.find((p) => p.key === "size")!.options!.map((o) => o.value);
     expect(apimartOptions).toContain("16:9");
     expect(apimartOptions.some((v) => String(v).includes("1344"))).toBe(false);
@@ -154,7 +154,7 @@ describe("Grok Imagine 2.0 Ext · apimart 只有文生图（文档明写 Not sup
   });
 
   it("并进既有档案而非新建第二份", () => {
-    expect(resolveArchetypeForModel({ modelKey: "grok-imagine-2.0-ext", vendorKey: "apimart" })!.id).toBe("grok-imagine-image-2");
+    expect(resolveModelArchetype({ modelKey: "grok-imagine-2.0-ext", vendorKey: "apimart" }, { variant: EVERY_VARIANT })!.id).toBe("grok-imagine-image-2");
   });
 
   it("只发 size —— resolution 唯一合法值是 \"quality\"，档案因此不摆这个控件", () => {
@@ -167,14 +167,14 @@ describe("Grok Imagine 2.0 Ext · apimart 只有文生图（文档明写 Not sup
 describe("Imagen 4 Fast / Ultra · kie（纯文生图）", () => {
   it("两档默认比例不同（fast 16:9 / ultra 1:1）—— 文档 default 逐字不同，别照抄", () => {
     const ratioDefault = (modelKey: string) =>
-      resolveArchetypeForModel({ modelKey, vendorKey: "kie" })!.modes[0].params.find((p) => p.key === "aspect_ratio")!.defaultValue;
+      resolveModelArchetype({ modelKey, vendorKey: "kie" }, { variant: EVERY_VARIANT })!.modes[0].params.find((p) => p.key === "aspect_ratio")!.defaultValue;
     expect(ratioDefault("google/imagen4-fast")).toBe("16:9");
     expect(ratioDefault("google/imagen4-ultra")).toBe("1:1");
   });
 
   it("没有改图模式，也不种 image_edit mapping（input 里根本没有图片字段）", () => {
     for (const key of ["google/imagen4-fast", "google/imagen4-ultra"]) {
-      expect(resolveArchetypeForModel({ modelKey: key, vendorKey: "kie" })!.modes.map((m) => m.id), key).toEqual(["t2i"]);
+      expect(resolveModelArchetype({ modelKey: key, vendorKey: "kie" }, { variant: EVERY_VARIANT })!.modes.map((m) => m.id), key).toEqual(["t2i"]);
       expect(KIE_IMAGE_MODELS_2026.find((m) => m.modelKey === key)!.mappings.map((m) => m.taskKind), key).toEqual(["text_to_image"]);
     }
   });

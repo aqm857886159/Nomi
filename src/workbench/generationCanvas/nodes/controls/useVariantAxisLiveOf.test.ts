@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { modeTransportFor, resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
+import { modeTransportFor, EVERY_VARIANT, resolveModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import type { ModelOption } from '../../../../config/models'
 import { vendorMappingsReader } from './useChannelCreateBody'
 import { variantAxisLiveForProviders } from './useVariantAxisLiveOf'
 
 const option = { value: 'veo3.1', label: 'Veo 3.1', vendor: 'runwayish', modelKey: 'veo3.1', meta: { archetypeId: 'veo-3.1' } } as unknown as ModelOption
-const archetype = resolveArchetypeForModel({ modelKey: option.modelKey, vendorKey: option.vendor, meta: option.meta })
+const archetype = resolveModelArchetype({ modelKey: option.modelKey, vendorKey: option.vendor, meta: option.meta }, { variant: EVERY_VARIANT })
 
 /** 给这个档案的前 n 个模式各造一条该家的渠道映射。 */
 function mappingsFor(model: string, modes: number) {

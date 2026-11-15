@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { MODEL_ARCHETYPES } from '../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../electron/shared/modelArchetypes/builtInCatalog'
 import { NOMI_SELECT_WHOLE_ROWS } from './NomiSelect'
 import { fittedOptionsHeight } from './anchoredPopoverPlacement'
 

@@ -105,7 +105,7 @@ const SEEDANCE_2_MODES: ModelArchetype["modes"] = [
   },
 ];
 
-// Fast / Mini 变体清晰度仅 480/720（无 1080/4k，kie 文档）。运行时按 variantId 叠加（specializeArchetypeForVariant），
+// Fast / Mini 变体清晰度仅 480/720（无 1080/4k，kie 文档）。运行时按 variantId 叠加（rescopeArchetypeVariant），
 // 不再档案级复制——变体是正交轴，跨所有 mode 收窄 resolution。Fast 与 Mini 收窄目标相同，复用同一份 override（不另造）。
 const LOW_RES: ModelParameterControl = {
   key: "resolution", label: "清晰度", type: "select", options: toOptions(["480p", "720p"]), defaultValue: "720p",

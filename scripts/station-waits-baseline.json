@@ -333,7 +333,6 @@
   "tests/ux/creation-work-surfaces.e2e.mjs": {
     "b1d896482b4dd51a8b0a9a70cf102f22e446cf398d716e0cc232cda0d44ac968": 1,
     "016305ded10ea7d6fc0e00704186f3bdd7a4659413a26ac85e8112567f52dd58": 1,
-    "1bbce7217efbe8374b992963e4e06d0dd5ceeeb7987e3ad1742fe1c65da46649": 1,
     "e7590250ac71670203f9e58bacecacb5dbbf67f8d71323ced24571068380c891": 1
   },
   "tests/ux/cross-device-continuation.e2e.mjs": {

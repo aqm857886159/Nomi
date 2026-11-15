@@ -18,8 +18,9 @@ import { normalizeAspectRatioToWH } from '../../../../electron/shared/aspectRati
 import { archetypeForNode } from '../agent/referenceEdgeCapability'
 import { effectiveArchetypeMode } from '../nodes/controls/archetypeMeta'
 
-// Kling 3.0：图连进来按「参考」边收（比例规则只看首帧 / 尾帧 / 参考三种输入，角色参考不算——2026-07-17 规则原样）。
-const KLING = 'kling-v3'
+// Veo 3.1 Fast 官方通道：图连进来按「参考」边收（比例规则只看首帧 / 尾帧 / 参考三种输入，角色参考不算——2026-07-17 规则原样）。
+// 2026-11-15 起 APIMart 的 Kling 3.0 图生不再有比例档（官方图生不收 aspect_ratio，画面跟图走），会数比例的这一半换成图生仍有比例档的 Veo 官方通道。
+const VEO_OFFICIAL = 'veo3.1-fast-official'
 // Seedance 2.5：比例控件叫 size、档案默认 adaptive；图连进来走全能参考的角色槽（character_ref 边）。
 const SEEDANCE = 'doubao-seedance-2.5'
 // 只发布「图生视频」的两个模型（目录种子里只有一条 image_to_video 映射，下面「前提」那条测试从种子本身核）。
@@ -36,7 +37,7 @@ type CatalogRows = Parameters<typeof toCatalogModelOptions>[0]
 const row = (modelKey: string, vendorKey: string, labelZh: string, publishedModes: string[]) =>
   ({ modelKey, vendorKey, labelZh, kind: 'video', enabled: true, published: true, publishedModes, availability: { usable: true } })
 const ROWS = [
-  row(KLING, 'apimart', 'Kling 3.0', ['text_to_video', 'image_to_video']),
+  row(VEO_OFFICIAL, 'apimart', 'Veo 3.1 Fast 官方', ['text_to_video', 'image_to_video']),
   row(SEEDANCE, 'apimart', 'Seedance 2.5', ['text_to_video', 'image_to_video']),
   row(VIDU, 'apimart', 'Vidu Q3', seededModes(APIMART_VIDEO_MODELS, VIDU)),
   row(RUNWAY, 'runway', 'Runway Gen-4 Turbo', seededModes(RUNWAY_OFFICIAL_MODELS, RUNWAY)),
@@ -55,7 +56,7 @@ function image(id: string, aspect: string): GenerationCanvasNode {
 }
 
 /** 落地 / 手建后已经有模型的视频节点（meta 走落画布同一个构造器）。 */
-function video(id: string, params: Record<string, unknown> = {}, modelKey = KLING, vendor = 'apimart'): GenerationCanvasNode {
+function video(id: string, params: Record<string, unknown> = {}, modelKey = VEO_OFFICIAL, vendor = 'apimart'): GenerationCanvasNode {
   const meta = buildPlannedNodeMeta({ modelKey, vendor, params }, ENTRIES)
   if (!meta) throw new Error('fixture model not in the entry index')
   return { id, title: id, kind: 'video', categoryId: 'shots', position: { x: 600, y: 0 }, meta }
@@ -278,7 +279,7 @@ describe('只有新边属于比例规则会数的输入才重算比例', () => {
   })
 
   // 方式按输入现算（2026-11-12）：一条首帧边按首帧发；APIMart Seedance 2.5 的首帧方式没有比例档（画面跟首帧走），
-  // 这一格不该写比例。会数的输入照常重算的那半由 Kling 那几条（参考 / 首帧边都有比例档）守。
+  // 这一格不该写比例。会数的输入照常重算的那半由 Veo 官方通道那几条（参考 / 首帧边都有比例档）守。
   it('同一个 Seedance 2.5 连的是首帧边 → 按首帧发；首帧方式没有比例档，比例跟首帧走、不写', () => {
     state().restoreSnapshot({ nodes: [image('tall', '9:16'), video('s', {}, SEEDANCE)], edges: [], groups: [] })
     connect('tall', 's', 'first_frame')
@@ -287,7 +288,7 @@ describe('只有新边属于比例规则会数的输入才重算比例', () => {
     expect(metaOf('s').aspect_ratio).toBeUndefined()
   })
 
-  it('Kling 3.0 连一条竖图首帧边 → 按首帧发，比例照常按输入重算（9:16）', () => {
+  it('Veo 3.1 Fast 官方连一条竖图首帧边 → 按首帧发，比例照常按输入重算（9:16）', () => {
     state().restoreSnapshot({ nodes: [image('tall', '9:16'), video('v')], edges: [], groups: [] })
     connect('tall', 'v', 'first_frame')
     expect(sendModeOf('v')).toBe('i2v')
@@ -312,7 +313,7 @@ describe('外部 MCP 连线（applyExternalGraph）', () => {
     externalWrite(tallToV)
     expect(state().edges.map((edge) => edge.id)).toEqual(['ext-edge'])
     expect(aspectOf('v')).toBe('9:16')
-    // 和进程内 Agent 连线同一口径：方式按输入现算（Kling 连了参考 → 图生）。
+    // 和进程内 Agent 连线同一口径：方式按输入现算（Veo 官方连了参考 → 图生）。
     expect(sendModeOf('v')).toBe('i2v')
     state().undo()
     expect(state().readDocumentSnapshot()).toEqual(before)

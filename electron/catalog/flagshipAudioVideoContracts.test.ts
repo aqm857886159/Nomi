@@ -8,7 +8,8 @@ import { RUNWAY_OFFICIAL_BLOCKERS, RUNWAY_OFFICIAL_ENDPOINTS, RUNWAY_VENDOR_SEED
 import { applyRequestTransform } from "../tasks/requestTransforms";
 import { selectTaskMapping, type CatalogState } from "./types";
 import { buildTemplateContext, renderTemplateValue } from "../ai/requestPipeline";
-import { getArchetypeById, resolveArchetypeVariant, specializeArchetypeForVariant } from "../shared/modelArchetypes";
+import { resolveArchetypeVariant, rescopeArchetypeVariant } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 
 function emptyCatalog(): CatalogState {
   return { version: 11, vendors: [], models: [], mappings: [], apiKeysByVendor: {} };
@@ -301,7 +302,7 @@ describe("Runway veo3.1 的变体判定不影响显示与发送", () => {
     for (const modelKey of ["veo3.1", "veo3.1_fast"]) {
       expect(resolveArchetypeVariant(veo, { modelId: modelKey })?.id, modelKey).toBe("fast");
     }
-    expect(specializeArchetypeForVariant(veo, "fast").modes).toEqual(veo.modes);
+    expect(rescopeArchetypeVariant(veo, { variantId: "fast", modelId: undefined }).modes).toEqual(veo.modes);
     const state = applyBuiltinSeeds(emptyCatalog(), "2026-09-28T00:00:00.000Z").state;
     for (const [modelKey, modeId, taskKind] of [
       ["veo3.1", "t2v", "text_to_video"], ["veo3.1", "frame", "image_to_video"],

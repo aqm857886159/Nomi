@@ -8,7 +8,7 @@
 // 判据本身复用 electron/catalog/referenceReachability（与第三闸同一把尺子），这里只测「模式级」那层包装。
 import { describe, it, expect } from 'vitest'
 import type { ArchetypeMode } from '../../../../../electron/shared/modelArchetypes'
-import { getArchetypeById } from '../../../../../electron/shared/modelArchetypes'
+import { getArchetypeById } from '../../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { modeSlotReach } from '../../../../../electron/catalog/referenceReachability'
 import {
   archetypeModeChoices,

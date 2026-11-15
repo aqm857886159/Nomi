@@ -24,5 +24,97 @@
         }
       }
     }
-  }
+  },
+  "requestFields": [
+    {
+      "name": "model",
+      "quote": "Set to `seedream-5-5`.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "nsfw_check",
+      "quote": "Whether to run content moderation before submitting the image task.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "prompt",
+      "quote": "Required for text-to-image and image-to-image.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "image_urls",
+      "quote": "Up to 10 references for image generation;",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "size",
+      "quote": "Image generation defaults to `2K` and accepts a tier, aspect ratio, or exact pixels as described below.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "resolution",
+      "quote": "For image generation, use `1K` / `1.5K` / `2K` with an aspect-ratio `size`.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "background",
+      "quote": "Image generation supports `auto` (default), `transparent`, or `opaque`.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "output_format",
+      "quote": "`png` (default) or `jpeg`.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "n",
+      "quote": "Must be `1`.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "watermark",
+      "quote": "Optional flag to add a watermark.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "optimize_prompt_options",
+      "quote": "Only `{\"mode\":\"standard\"}` is supported.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "layer_decomposition",
+      "quote": "Set to `true` to separate the input into a base image and transparent layers.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "layer_decomposition_options",
+      "quote": "Only valid with `layer_decomposition: true`;",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "max_images",
+      "quote": "Integer `2`–`100`, default `30`.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    },
+    {
+      "name": "text_recognition",
+      "quote": "Optional boolean.",
+      "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+      "fetchedAt": "2026-11-12"
+    }
+  ]
 }

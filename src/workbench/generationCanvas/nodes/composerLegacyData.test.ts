@@ -7,7 +7,7 @@
  * 提示词里引用块要显示的名字也能从旧数据里算出来。
  */
 import { describe, expect, it } from 'vitest'
-import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { mentionUrlsInOrder } from '../../assets/promptMentions'
 import { resolveReferenceInfos } from '../../assets/referenceNames'
@@ -18,7 +18,7 @@ import { readReferenceList } from './controls/referenceList'
 import { resolveReferencePlacement } from '../runner/referenceSlots'
 import { buildModeMenu } from './controls/modeMenuModel'
 
-const spec = resolveArchetypeForModel({ modelKey: 'seedance-2', vendorKey: 'apimart', meta: {} } as never)!
+const spec = resolveModelArchetype({ modelKey: 'seedance-2', vendorKey: 'apimart', meta: {} } as never, { variant: EVERY_VARIANT })!
 const U1 = 'http://x/refs/a.png'
 const U2 = 'http://x/refs/b.png'
 const UP = 'http://x/refs/from-node.png'

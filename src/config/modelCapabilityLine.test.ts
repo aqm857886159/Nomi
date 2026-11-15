@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { getArchetypeById, specializeArchetypeForVariant } from '../../electron/shared/modelArchetypes'
+import { rescopeArchetypeVariant } from '../../electron/shared/modelArchetypes'
+import { getArchetypeById } from '../../electron/shared/modelArchetypes/builtInCatalog'
 import i18n from '../i18n'
 import { modelCapabilityLine } from './modelCapabilityLine'
 
@@ -17,7 +18,7 @@ describe('modelCapabilityLine（一行能力描述，按档案现算）', () => 
   it('变体按自己收窄后的档案算：Fast 的分辨率上限不高于标准', () => {
     const base = getArchetypeById('seedance-2-apimart')!
     const rank = (line: string) => { const m = /最高 (\d+)([pK])/.exec(line); return m ? Number(m[1]) * (m[2] === 'K' ? 1000 : 1) : 0 }
-    expect(rank(modelCapabilityLine(specializeArchetypeForVariant(base, 'fast')))).toBeLessThan(rank(modelCapabilityLine(specializeArchetypeForVariant(base, 'standard'))))
+    expect(rank(modelCapabilityLine(rescopeArchetypeVariant(base, { variantId: 'fast', modelId: undefined })))).toBeLessThan(rank(modelCapabilityLine(rescopeArchetypeVariant(base, { variantId: 'standard', modelId: undefined }))))
   })
 
   it('图片：文生图 / 改图；没有档案 → 空串（不编）', () => {

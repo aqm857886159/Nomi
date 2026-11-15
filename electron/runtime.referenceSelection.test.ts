@@ -12,7 +12,11 @@ vi.mock("./capabilityCore/rendererBridge", () => ({
 // 第一闸、第三闸照常执行，只是记下它们收到的参数。
 vi.mock("./catalog/taskParams", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./catalog/taskParams")>();
-  return { ...actual, imageEditGuardError: vi.fn(actual.imageEditGuardError), applyHeadlessParamDefaults: vi.fn(actual.applyHeadlessParamDefaults) };
+  return { ...actual, applyHeadlessParamDefaults: vi.fn(actual.applyHeadlessParamDefaults) };
+});
+vi.mock("./catalog/taskParamsGuard", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./catalog/taskParamsGuard")>();
+  return { ...actual, imageEditGuardError: vi.fn(actual.imageEditGuardError) };
 });
 
 /**
@@ -44,7 +48,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { upsertModelCatalogMapping, upsertModelCatalogModel, upsertModelCatalogVendor, upsertModelCatalogVendorApiKey } from "./catalog/catalogStore";
-import { applyHeadlessParamDefaults, imageEditGuardError } from "./catalog/taskParams";
+import { applyHeadlessParamDefaults } from "./catalog/taskParams";
+import { imageEditGuardError } from "./catalog/taskParamsGuard";
 import { desktopT } from "./desktopStrings";
 import { mintSpendGrant } from "./spendGrant";
 import { runTask } from "./runtime";

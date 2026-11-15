@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { writeFileSync, readFileSync } from 'node:fs'
-import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import type { ModelOption } from '../../../config/models'
 import { resolveStoryboardImageDefault, resolveStoryboardVideoDefault } from './availableModels'
 const catalog = vi.hoisted(() => ({ options: [] as ModelOption[] }))

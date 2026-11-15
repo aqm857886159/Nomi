@@ -3,7 +3,8 @@
 // 反例：把置灰判断改成恒不置灰 → 「能点 ⇔ 选了会生效」红；把小字里的数改成档案 max 以外的值 → 「报数和槽上限一致」红。
 import { describe, expect, it } from 'vitest'
 import i18n from '../../../../i18n'
-import { MODEL_ARCHETYPES, specializeArchetypeForVendor, type ArchetypeMode } from '../../../../../electron/shared/modelArchetypes'
+import { specializeArchetypeForVendor, type ArchetypeMode } from '../../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { modeForInputs, modeTakenCount, type ModeInput } from '../../../../../electron/shared/modelArchetypes/modeForInputs'
 import { buildModeMenu, modeDisplayKind, modeRowName, renderModeMenuText, type ModeMenuText } from './modeMenuModel'
 

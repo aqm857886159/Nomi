@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getArchetypeById, resolveArchetypeForModel } from "./index";
+import { EVERY_VARIANT, resolveModelArchetype } from "./index";
+import { getArchetypeById } from "./builtInCatalog";
 
 // ---------------------------------------------------------------------------
 // 火山方舟 2026-08-26 新接入的两个模型（Seedream 5.0 pro / Seedance 2.5）的**契约锁**。
@@ -21,7 +22,7 @@ describe("Seedream 5.0 pro（doubao-seedream-5-0-pro-260628）", () => {
   it("按完整 key 严格相等命中自己的档案（不是被 lite 档或 apimart 那份 pro 档抢走）", () => {
     // identifierMatchesPattern 是严格相等匹配：写前缀形（"doubao-seedream-5-0-pro"）命中不了真实 key。
     // 认错档案的后果不是报错，是**参数域用错**——lite 的 4K 档到 pro 上必 400。
-    expect(resolveArchetypeForModel(m(KEY))?.id).toBe("volcengine-seedream-5-pro");
+    expect(resolveModelArchetype(m(KEY), { variant: EVERY_VARIANT })?.id).toBe("volcengine-seedream-5-pro");
   });
 
   it("文生图 + 改图两模式都在，改图上限 10 张（pro 是 10，lite/4.x 是 14）", () => {
@@ -62,7 +63,7 @@ describe("Seedream 5.0 lite / 4.5 / 4.0（共用 volcengine-seedream 档案）",
     "doubao-seedream-4-5-251128",
     "doubao-seedream-4-0-250828",
   ])("%s 命中 volcengine-seedream", (key) => {
-    expect(resolveArchetypeForModel(m(key))?.id).toBe("volcengine-seedream");
+    expect(resolveModelArchetype(m(key), { variant: EVERY_VARIANT })?.id).toBe("volcengine-seedream");
   });
 
   it("每个 size 档都落在三个模型的官方像素域**交集** [3686400, 16777216] 内", () => {
@@ -88,7 +89,7 @@ describe("Seedance 2.5（doubao-seedance-2-5-260628）", () => {
   const KEY = "doubao-seedance-2-5-260628";
 
   it("按完整 key 命中自己的档案（不被 2.0 档或别家的 seedance-2-5 档抢走）", () => {
-    expect(resolveArchetypeForModel(m(KEY))?.id).toBe("volcengine-seedance-2-5");
+    expect(resolveModelArchetype(m(KEY), { variant: EVERY_VARIANT })?.id).toBe("volcengine-seedance-2-5");
   });
 
   it("四模式齐备，全模态参考上限 30 图 / 10 视频 / 10 音频", () => {

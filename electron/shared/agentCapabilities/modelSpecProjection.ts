@@ -17,7 +17,7 @@
 // 为什么薄的那一档必须真薄：108 个模型的完整说明书是十万字量级，塞进每一回合就是把
 // 上下文烧光、把工具写对率拖垮。薄名单只留**选型需要的最少字段**，选定之后再查那一个。
 import type { AgentModelEntry, AgentModelVariant } from "./availableModels";
-import { getArchetypeById, resolveArchetypeVariant, specializeArchetypeForVariant, specializeArchetypeForVendor } from "../modelArchetypes";
+import { resolveArchetypeVariant, resolveModelArchetype } from "../modelArchetypes";
 import type { ModelParameterControl } from "../videoCapabilities/types";
 
 /** 这个模型此刻能不能用——与 Nomi 自己界面里的下拉读的是同一个答案。 */
@@ -108,18 +108,24 @@ function variantDetails(entry: AgentModelEntry): Pick<ModelSpecDetail, "modes" |
   const unmodified = { modes: entry.modes, ...(entry.variants?.length ? { variants: entry.variants } : {}),
     ...(entry.defaultVariantId ? { defaultVariantId: entry.defaultVariantId } : {}) };
   if (!entry.variants?.length || !entry.archetypeId) return unmodified;
-  const base = getArchetypeById(entry.archetypeId);
-  if (!base) return unmodified; // User-declared models without a registered archetype own their supplied controls.
-  const scoped = specializeArchetypeForVendor(base, entry.vendor);
-  const defaultVariantId = resolveArchetypeVariant(scoped, { modelId: entry.modelId })?.id;
-  const defaultArchetype = specializeArchetypeForVariant(scoped, defaultVariantId);
+  // 每一档的参数都问唯一入口（以前这里自己串「按 id 找 → 供应商 → 档」）。名单层给的方式是全部档的并集，这一刀不变。
+  const model = { modelKey: entry.modelId, modelAlias: entry.modelAlias, vendorKey: entry.vendor, meta: { archetypeId: entry.archetypeId } };
+  const archetypeFor = (variant: { variantId: string | undefined; modelId: string | undefined }) => {
+    const archetype = resolveModelArchetype(model, { variant });
+    // User-declared models without a registered archetype own their supplied controls (an unknown id must not fall back to name matching).
+    return archetype?.id === entry.archetypeId ? archetype : null;
+  };
+  const defaultArchetype = archetypeFor({ variantId: undefined, modelId: entry.modelId });
+  if (!defaultArchetype) return unmodified;
+  const defaultVariantId = resolveArchetypeVariant(defaultArchetype, { modelId: entry.modelId })?.id;
   const modes = entry.modes.map((mode) => {
     const params = defaultArchetype.modes.find((item) => item.id === mode.modeId)?.params;
     return params ? { ...mode, params } : mode;
   });
   const variants = entry.variants.map((variant) => {
     if (variant.id === defaultVariantId) return variant;
-    const selected = specializeArchetypeForVariant(scoped, variant.id);
+    const selected = archetypeFor({ variantId: variant.id, modelId: undefined });
+    if (!selected) return variant;
     const byMode: Record<string, Record<string, ModelParameterControl | null>> = {};
     for (const mode of modes) {
       const params = selected.modes.find((item) => item.id === mode.modeId)?.params;

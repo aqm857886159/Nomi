@@ -102,7 +102,7 @@ export default function StoryboardComposerParams({
   )
   const extraKeys = React.useMemo(() => new Set(extraControls.map((control) => control.key)), [extraControls])
 
-  const archetype = resolveArchetypeForOption(option)
+  const archetype = resolveArchetypeForOption(option, { variantId: undefined, modelId: option?.modelKey })
   const storedModeId = (meta.archetype as { modeId?: string } | undefined)?.modeId ?? ''
   // 没存方式的镜头照「这一镜实际会用的方式」显示（和发送同一个解析：存的 → 档案默认 → 第一种），
   // 不显示「选择」——以前分镜只在摘要前缀存了的方式名，没存就不写；换成方式格后空值会露出 NomiSelect 的「选择」。

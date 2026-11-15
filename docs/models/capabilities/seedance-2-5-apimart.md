@@ -25,7 +25,7 @@
 | 种子 | `seed: Random seed. Different seeds usually yield different results for the same request` | 露出 | `param:*/seed` |
 | 水印 | `watermark: Add an “AI generated” watermark. Default false.` | 露出 | `param:*/watermark=bool@false` |
 | 输出容器 mp4 / mov | `Output container: mp4 (default); mov: higher color precision — recommended for edit / extend workflows` | 露出 | `param:*/output_format=mp4,mov@mp4` |
-| 提交前内容审核 | `nsfw_check: Whether to run content moderation before submitting the video task. true: use omni-moderation-latest to review prompts and input images` | 露出 | `param:*/nsfw_check=bool@false` |
+| 提交前内容审核 | `nsfw_check: Whether to run content moderation before submitting the video task. true: use omni-moderation-latest to review prompts and input images` / `false or omitted: do not send a moderation request, adding no moderation cost or latency (default)` | 露出 | `param:*/nsfw_check=bool@false` |
 | 全能参考不声明子任务类型 | `Reference-to-video: References + normal descriptive prompt; no sub-task type needed. Avoid words like “edit / extend / continue / delete / replace” in the prompt to prevent misclassification` | 不露出 | `absent:omni/omni_reference_task_type` `reason:同一件事`（文档：全能参考不需要子任务类型，auto 等于不发） |
 | 子任务类型 auto / reference | `Sub-task type hint: auto / reference / edit / extend.` | 不露出 | `reason:同一件事`（auto 等于不发；edit / extend 已由方式钉死；reference 与全能参考默认同一件事） |
 | 别名 aspect_ratio | `Aspect ratio (field name aspect_ratio is also accepted).` | 不露出 | `absent:aspect_ratio` `reason:同一件事` |

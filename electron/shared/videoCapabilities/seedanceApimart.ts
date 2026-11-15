@@ -11,10 +11,10 @@ const PARAMS: ModelParameterControl[] = [
 ];
 
 const APIMART_SOURCE: ArchetypeSource = {
-  url: "https://docs.apimart.ai/cn/api-reference/videos/doubao-seedance-2-0/generation",
-  checkedAt: "2026-08-24",
+  url: "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation.md",
+  checkedAt: "2026-11-15",
   vendorKey: "apimart",
-  covers: "image/video/audio reference channels, role arrays, and mutual exclusions",
+  covers: "image/video/audio reference channels, role arrays, and mutual exclusions; prompt: Required for text-to-video; optional for image-to-video or video-reference-to-video",
 };
 
 const VOLCENGINE_SOURCE: ArchetypeSource = {
@@ -39,6 +39,8 @@ const MOTION_REFERENCE_CHANNEL = {
   evidence: APIMART_SOURCE,
 };
 
+// 提示词只在文生必填：APIMart 原话「Required for text-to-video; optional for image-to-video or video-reference-to-video」
+// ——放了素材的三种方式不拦空提示词（2026-11-15，用户 11-13 口径：拿不准的只提醒、不拦）。
 const MODES: ModelArchetype["modes"] = [
   {
     id: "t2v",
@@ -56,7 +58,7 @@ const MODES: ModelArchetype["modes"] = [
     intent: "single",
     vendorTerm: "图生视频",
     hint: "首帧/参考图驱动（最多 9 张）",
-    promptRequired: true,
+    promptRequired: false,
     transportTaskKind: "image_to_video",
     slots: [{ kind: "image_ref", label: "参考图", min: 1, max: 9, inputKey: "image_urls" }],
     expressionChannels: [PROMPT_CAMERA_CHANNEL],
@@ -67,7 +69,7 @@ const MODES: ModelArchetype["modes"] = [
     intent: "character",
     vendorTerm: "全能参考",
     hint: "多模态参考；最多 9 图 / 3 视频 / 3 音频",
-    promptRequired: true,
+    promptRequired: false,
     transportTaskKind: "image_to_video",
     slots: [
       { kind: "image_ref", label: "角色参考", min: 0, max: 9, characterIndexed: true, inputKey: "image_urls" },
@@ -82,7 +84,7 @@ const MODES: ModelArchetype["modes"] = [
     intent: "firstlast",
     vendorTerm: "首尾帧",
     hint: "首帧 + 尾帧，自动补间过渡",
-    promptRequired: true,
+    promptRequired: false,
     transportTaskKind: "image_to_video",
     slots: [
       { kind: "first_frame", label: "首帧", min: 1, max: 1 },

@@ -11,7 +11,7 @@ import { planStoryboardFromScript } from '../../electron/capabilityCore/mcpStory
 import { admitPlanCandidate, ContractCompilationError } from '../../electron/capabilityCore/executionContract.ts'
 import { archetypeCompileOptions } from '../../electron/capabilityCore/modelAdmissionSchema.ts'
 import { createModuleRegistry } from '../../electron/capabilityCore/moduleRegistry.ts'
-import { specializeArchetypeForVariant } from '../../electron/shared/modelArchetypes/index.ts'
+import { rescopeArchetypeVariant } from '../../electron/shared/modelArchetypes/index.ts'
 import { storyboardShotToCreateNodesArgs } from '../../src/workbench/generationCanvas/agent/storyboardPlan.ts'
 import { plannedFirstFrameSlot } from '../../src/workbench/creation/storyboard/shotRow/shotRowModel.ts'
 import { composerWrite, referenceModeWrite } from './ui.mjs'
@@ -24,7 +24,7 @@ export const shotOf = (target, params) => ({ index: 1, shotKind: target.row.mode
 const metaOf = (target, params) => ({ ...params, modelKey: target.row.model.modelKey, modelVendor: target.row.model.vendorKey, archetype: { id: target.row.archetype.id, modeId: target.mode.id, ...(target.variantId ? { variantId: target.variantId } : {}) } })
 function selectedSurface(row, meta) {
   const variant = currentArchetypeVariant(row.archetype, meta)?.id
-  const specialized = specializeArchetypeForVariant(row.archetype, variant)
+  const specialized = rescopeArchetypeVariant(row.archetype, { variantId: variant, modelId: undefined })
   return surface(row, modeWrittenInMeta(meta, specialized).id, variant)
 }
 function savedShot(shot, target) {
