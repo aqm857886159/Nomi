@@ -38,7 +38,11 @@ const CORE_TOKEN_BUDGET = 804;
 // tool. Preserve the old core cap separately; explicitly account for the new subtree.
 // This is a +486 total-cap change, not an unchanged budget. No schema field, validator,
 // description or estimator is removed to fit. See core-a-restart.md, P5 contract review.
-const FULL_TOKEN_BUDGET = 1_733; // total 实测 1_725（+22，variantId，见上）+ 余量 8
+// 2026-11-15 +21：`storyboard.referenceUrl` / `referenceSourceNodeId` 两格的描述点名「镜头用的图走 references」，
+// `shots[].references` 描述点名 assetId 从 look_at_canvas 的素材行来（实测 total 1_725→1_746，core 796→798）。
+// 真走查里模型想让镜头用画布上的两张图，写进了参考卡这两格、留空 URL，被拒时缺字段那一行只说「Anchor media URL」，
+// 没告诉它该去哪；缺字段那一行会带上字段描述，所以这句只能放在描述里。已压到每格多 6 个词。按看得见的方式记账，余量留 8。
+const FULL_TOKEN_BUDGET = 1_754; // total 实测 1_746（+21，见上）+ 余量 8
 
 type DraftPublishedSchema = {
   properties: { shots: { items: { properties: Record<string, unknown> } } };

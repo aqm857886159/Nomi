@@ -605,7 +605,7 @@
                   "type": "string"
                 },
                 "references": {
-                  "description": "Library asset ids: the assetId on a look_at_canvas media row, or from look_at_media (not a node or result id). To reuse another shot's look use storyboard.anchorIds.",
+                  "description": "Library assetIds from look_at_canvas media rows or look_at_media, not node or result ids. To reuse another shot's look use storyboard.anchorIds.",
                   "items": {
                     "description": "minLength=1.",
                     "type": "string"
@@ -827,11 +827,11 @@
                       "type": "string"
                     },
                     "referenceSourceNodeId": {
-                      "description": "Anchor card source node id. A shot that uses canvas or library media lists their assetIds in references instead\nminLength=1.",
+                      "description": "Anchor card source node id; shot media goes in references\nminLength=1.",
                       "type": "string"
                     },
                     "referenceUrl": {
-                      "description": "Anchor card media URL. A shot that uses canvas or library media lists their assetIds in references instead\nminLength=1.",
+                      "description": "Anchor card media URL; shot media goes in references\nminLength=1.",
                       "type": "string"
                     },
                     "sceneId": {

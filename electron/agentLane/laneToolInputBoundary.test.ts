@@ -327,7 +327,7 @@ describe('一次列全：多镜一起被拒，计数与认墙不变', () => {
   it('P21 第 2 次：镜头上写了参考卡的 referenceUrl（空）→ 那一行点名 references', async () => {
     const p21 = { shots: [shot({ storyboard: { kind: 'character', carrier: 'visual', referenceSourceNodeId: 'gen-v2-asset-mwgzapa4-cm99', referenceUrl: '', referenceKind: 'image' } })] }
     const { results } = await runLane([[p21]])
-    expect(results[0]!.text).toMatch(/- shots\.0\.storyboard\.referenceUrl: required, but missing \(expected string\)\. Anchor card media URL\. A shot that uses canvas or library media lists their assetIds in references instead\./)
+    expect(results[0]!.text).toMatch(/- shots\.0\.storyboard\.referenceUrl: required, but missing \(expected string\)\. Anchor card media URL; shot media goes in references\./)
   }, 60_000)
 
   it('30 步全成功的长回合：一次都不拦、一次都不记', async () => {
