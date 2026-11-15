@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { verbToTransportCall } from "../../../agentLane/laneVerbTransport";
 import { NOT_YET_DECLARED, PROVENANCE_UNVERIFIABLE, VERB_FIELD_PROVENANCE } from "./verbFieldProvenance";
 import { VERB_DECLARATIONS } from "../verbDeclarations";
+import { toPublishedJsonSchema } from "../modelVisibleJsonSchema";
 
 const MODELS = [
   { vendor: "apimart", modelId: "image-1", modelAlias: null },
@@ -120,5 +121,26 @@ describe("比例只有一个家（2026-10-05：用户说 16:9，卡上是档案�
 
   it("schema 收它（严格对象，少这一行模型写了也会被 ajv 拒）", () => {
     expect(draftShots.schema.safeParse({ shots: [{ prompt: "p", aspectRatio: "16:9" }] }).success).toBe(true);
+  });
+});
+
+describe("模型身份只有一个家（2026-11-15：完整名字 model）", () => {
+  const draftShots = VERB_DECLARATIONS.find((verb) => verb.name === "draft_shots")!;
+  const IDENTITY_PIECES = ["modelId", "modelKey", "vendor", "providerId", "modelVendor", "candidate", "provider"];
+  const keysOf = (schema: unknown): string[] => Object.keys((schema as { properties?: Record<string, unknown> }).properties ?? {});
+
+  it("模型看到的顶层、每镜、关键帧里，点名模型的只有 model 一个字段——两半的身份字段一个都没有", () => {
+    const published = toPublishedJsonSchema(draftShots.schema) as { properties: Record<string, { items?: { properties?: Record<string, unknown> } }> };
+    const shot = published.properties.shots!.items!;
+    const keyframe = (shot.properties!.storyboard as { properties: Record<string, unknown> }).properties.keyframe;
+    for (const [where, schema] of [["顶层", published], ["每镜", shot], ["关键帧", keyframe]] as const) {
+      const keys = keysOf(schema);
+      expect(keys.length, `${where}一个字段都没读到，断言是空的`).toBeGreaterThan(0);
+      expect(keys.filter((key) => IDENTITY_PIECES.includes(key)), `${where}又长出了半个身份`).toEqual([]);
+      if (where !== "顶层") expect(keys, where).toContain("model");
+    }
+    // 严格对象：模型写了两半的身份字段，当场拒，不会被静默吃掉。
+    expect(draftShots.schema.safeParse({ shots: [{ prompt: "p", modelId: "image-1" }] }).success).toBe(false);
+    expect(draftShots.schema.safeParse({ shots: [{ prompt: "p", vendor: "apimart" }] }).success).toBe(false);
   });
 });
