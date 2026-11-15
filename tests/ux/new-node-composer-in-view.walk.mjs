@@ -1,0 +1,157 @@
+#!/usr/bin/env node
+// 新建节点连同它的底栏一起落在看得见的地方（矮窗口里加节点，底栏的「模型 / 参数 / 发送」那一行不被时间轴条盖住）。
+//
+// 现场：13 寸笔记本上窗口约 1280×800，在加节点条点「图片」，节点落在画面中间，它下面的底栏有一截伸到底部时间轴条后面，
+// 模型 / 参数 / 发送那一行看不见，要自己拖画布。新建落点只看整个舞台，没扣掉底部停靠条，也没给底栏留地方；对焦那条路早就扣了。
+// 这条走查走真入口（加节点条上的钮），断言：
+//   · 1280×800、1100×720：新建图片 / 视频 / 文字节点后，底栏卡下沿不超过最高那条底部停靠条的上沿；底栏最下面一行的按钮点得到（elementFromPoint 命中自己）；
+//   · 1440×960（默认窗口）：新节点的位置和改前逐像素相同（基线数写在下面 BASELINE_1440）；
+//   · 新建前后 .react-flow__viewport 的 transform 一字不变（程序不挪画布）。
+// 中文浅色 + 英文深色各一轨。零额度：不点生成，隔离 profile，窗口在屏外。
+// 用法：pnpm run build && node tests/ux/new-node-composer-in-view.walk.mjs
+// 想只量不断言（改前复现用）：NOMI_WALK_MEASURE_ONLY=1
+import fs from 'node:fs'
+import path from 'node:path'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { readCanvasViewport, sameCanvasViewport, waitForCanvasViewportSettled } from './_canvasHit.mjs'
+import { screenshotSettled } from './_assert.mjs'
+import { addCanvasNode, newProjectEntry, switchWorkspace } from './_shell.mjs'
+
+const MEASURE_ONLY = process.env.NOMI_WALK_MEASURE_ONLY === '1'
+const shotsDir = process.env.NOMI_WALK_SHOTS_DIR || path.join(repoRoot, 'tests/ux/shots/new-node-composer-in-view')
+fs.mkdirSync(shotsDir, { recursive: true })
+
+const SIZES = [
+  { name: '1280x800', width: 1280, height: 800, short: true },
+  { name: '1100x720', width: 1100, height: 720, short: true },
+  { name: '1440x960', width: 1440, height: 960, short: false },
+]
+const TRACKS = [
+  { locale: 'zh-CN', scheme: 'light' },
+  { locale: 'en', scheme: 'dark' },
+]
+const KINDS = ['image', 'video', 'text']
+
+// 1440×960 空画布新建节点在主干（556bc3388）上量到的节点左上角（屏幕像素，视口 0,0 缩放 1）。改前改后都必须是这组数。
+const BASELINE_1440 = {
+  image: { x: 581.36, y: 285.28 },
+  video: { x: 581.36, y: 285.28 },
+  text: { x: 581.36, y: 285.28 },
+}
+
+const STAGE = '.generation-canvas-v2__stage'
+const NODE = '.generation-canvas-v2-node[data-node-id]'
+const COMPOSER_CARD = '.generation-canvas-v2-node__composer-card, [data-text-process-box]'
+const FOOTER = '[data-node-composer-footer]'
+const DOCKS = '[data-canvas-bottom-dock]'
+
+const failures = []
+const rows = []
+
+async function measure(win) {
+  return win.evaluate(({ stage, node, card, footer, docks }) => {
+    const rect = (el) => {
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      return { x: r.left, y: r.top, w: r.width, h: r.height, bottom: r.bottom }
+    }
+    const stageEl = document.querySelector(stage)
+    const nodeEl = document.querySelector(node)
+    const cardEl = document.querySelector(card)
+    const footerEl = document.querySelector(footer)
+    const dockRects = Array.from(document.querySelectorAll(docks))
+      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      .filter(({ r }) => r.width > 0 && r.height > 0)
+    const topDock = dockRects.reduce((best, d) => (best === null || d.r.top < best ? d.r.top : best), null)
+    const buttons = footerEl ? Array.from(footerEl.querySelectorAll('button')) : []
+    const lowest = buttons.reduce((m, b) => Math.max(m, b.getBoundingClientRect().bottom), -Infinity)
+    const bottomRow = buttons
+      .filter((b) => Math.abs(b.getBoundingClientRect().bottom - lowest) < 4)
+      .map((b) => {
+        const r = b.getBoundingClientRect()
+        const cx = r.left + r.width / 2
+        const cy = r.top + r.height / 2
+        const hit = document.elementFromPoint(cx, cy)
+        return { label: b.getAttribute('aria-label') || (b.textContent || '').trim().slice(0, 12), ok: !!hit && (hit === b || b.contains(hit)), cy }
+      })
+    return {
+      innerHeight,
+      stage: rect(stageEl),
+      node: rect(nodeEl),
+      card: rect(cardEl),
+      topDock,
+      docks: dockRects.map(({ el, r }) => ({ cls: String(el.className).slice(0, 40), top: r.top, left: r.left, right: r.right, bottom: r.bottom })),
+      bottomRow,
+    }
+  }, { stage: STAGE, node: NODE, card: COMPOSER_CARD, footer: FOOTER, docks: DOCKS })
+}
+
+function fail(message) {
+  failures.push(message)
+  console.log(`  FAIL ${message}`)
+}
+
+async function runCombo(size, track) {
+  const tag = `${size.name}.${track.locale}.${track.scheme}`
+  const { app, win } = await launchNomiApp({
+    name: `new-node-composer-in-view-${size.name}`,
+    viewportSize: { width: size.width, height: size.height },
+    args: ['--no-proxy-server'],
+    settleMs: 0,
+    initialLocalStorage: {
+      'nomi:splash:v1': 'seen',
+      'nomi:journey-tour:v1': 'seen',
+      'nomi:canvas-gesture-hint:v1': 'seen',
+      'nomi:locale:v1': track.locale,
+      'nomi-color-scheme': track.scheme,
+    },
+  })
+  try {
+    await newProjectEntry(win).click()
+    await switchWorkspace(win, 'generation', '切到生成工作区')
+    await win.locator(STAGE).first().waitFor()
+    await waitForCanvasViewportSettled(win)
+    for (const kind of KINDS) {
+      const before = await readCanvasViewport(win)
+      await addCanvasNode(win, kind)
+      await win.locator(NODE).first().waitFor()
+      await win.waitForTimeout(700)
+      const after = await readCanvasViewport(win)
+      const m = await measure(win)
+      const label = `${tag} ${kind}`
+      rows.push({ label, m, before, after })
+      console.log(`${label}: ${JSON.stringify({ node: m.node, card: m.card, topDock: m.topDock, bottomRow: m.bottomRow })}`)
+      await screenshotSettled(win, { path: path.join(shotsDir, `${tag}.${kind}.png`) })
+      if (!MEASURE_ONLY) {
+        if (!sameCanvasViewport(before, after)) fail(`${label}：新建后视口变了 ${JSON.stringify(before)} → ${JSON.stringify(after)}`)
+        if (size.short) {
+          if (m.card && m.topDock !== null && m.card.bottom > m.topDock + 0.5) fail(`${label}：底栏下沿 ${m.card.bottom.toFixed(1)} 压到停靠条上沿 ${m.topDock.toFixed(1)} 下面`)
+          const bad = m.bottomRow.filter((b) => !b.ok)
+          if (bad.length) fail(`${label}：底栏最下一行点不到：${bad.map((b) => b.label).join(' / ')}`)
+          if (!m.bottomRow.length && kind !== 'text') fail(`${label}：没找到底栏按钮`)
+        } else {
+          const want = BASELINE_1440[kind]
+          if (want && m.node && (Math.abs(m.node.x - want.x) > 0.5 || Math.abs(m.node.y - want.y) > 0.5)) {
+            fail(`${label}：1440×960 落点 (${m.node.x}, ${m.node.y}) 不等于主干基线 (${want.x}, ${want.y})`)
+          }
+        }
+      }
+      // 撤销这次新建，回到空画布再量下一种（Cmd/Ctrl+Z 是产品的撤销，不是绕过界面写 store）。
+      await win.locator(STAGE).first().click({ position: { x: 4, y: 4 }, force: true }).catch(() => {})
+      await win.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z')
+      await win.waitForTimeout(300)
+      if ((await win.locator(NODE).count()) !== 0) fail(`${label}：撤销后画布上还有节点，下一种量不准`)
+    }
+  } finally {
+    await app.close().catch(() => {})
+  }
+}
+
+for (const size of SIZES) for (const track of TRACKS) await runCombo(size, track)
+
+fs.writeFileSync(path.join(shotsDir, 'rows.json'), JSON.stringify(rows, null, 2))
+if (failures.length) {
+  console.log(`new-node-composer-in-view: ${failures.length} FAIL`)
+  process.exit(1)
+}
+console.log(`new-node-composer-in-view: ${MEASURE_ONLY ? 'MEASURED' : 'OK'}`)
