@@ -8,7 +8,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled, expectNoCjkInEnglishDom } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { modelSettingsEntry, openModelSettings } from './_shell.mjs'
+import { modelSettingsEntry, openModelSettings, revealModelConnection } from './_shell.mjs'
 
 const tempRoot = makeTempDir('nomi-model-discovery-')
 const shots = path.join(tempRoot, 'shots')
@@ -81,7 +81,7 @@ async function home() {
   await expect(win.locator('[data-model-settings-page="home"]')).toBeVisible()
 }
 async function openPicker(vendorKey) {
-  await clickOrFail(win.locator(`[data-model-home-connection="${vendorKey}"]`), `连接 ${vendorKey}`)
+  await clickOrFail(await revealModelConnection(win, win.locator(`[data-model-home-connection="${vendorKey}"]`)), `连接 ${vendorKey}`)
   await expect(win.locator(`[data-model-settings-vendor="${vendorKey}"]`)).toBeVisible()
   await clickOrFail(win.getByRole('button', { name: /添加其他|Add More/, exact: true }), '添加其他')
 }

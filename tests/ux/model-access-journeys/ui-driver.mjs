@@ -4,7 +4,7 @@ import { launchNomiApp } from '../_launchApp.mjs'
 import { stationTimeout } from '../_station-budget.mjs'
 import { uiText } from '../full-walk/invariants.mjs'
 import { JourneyFailure } from './evidence.mjs'
-import { canvasAddBar, newProjectEntry } from '../_shell.mjs'
+import { canvasAddBar, newProjectEntry, revealModelConnection } from '../_shell.mjs'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Model-access UI driver — reconfigured 2026-09-01 to main's current IA.
@@ -260,7 +260,7 @@ export async function launchJourneyUi({ journey, recorder }) {
       await win.waitForTimeout(250)
     }
     await home.waitFor({ state: 'visible', timeout: stationTimeout() })
-    await win.locator(`[data-model-home-connection="${vendorKey}"]`).first().click()
+    await (await revealModelConnection(win, win.locator(`[data-model-home-connection="${vendorKey}"]`).first())).click()
     const connection = win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendorKey}"]`)
     await connection.waitFor({ state: 'visible', timeout: stationTimeout() })
     await connection.locator('button', { hasText: modelKey }).first().click()

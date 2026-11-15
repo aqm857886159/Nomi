@@ -7,6 +7,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { revealModelConnection } from '../tests/ux/_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.settings-model-access-save-first-walk')
@@ -339,7 +340,7 @@ async function openSettingsModels(win) {
 
 async function openConnectionFromHome(win, vendorKey) {
   await win.locator('[data-settings-section="models"]').waitFor({ state: 'visible' })
-  const connectionButton = win.locator(`[data-model-home-connection="${vendorKey}"]`)
+  const connectionButton = await revealModelConnection(win, win.locator(`[data-model-home-connection="${vendorKey}"]`))
   await connectionButton.waitFor({ state: 'visible' })
   await connectionButton.click()
   await win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendorKey}"]`).waitFor({ state: 'visible' })
@@ -451,12 +452,12 @@ try {
 
   await addPage.locator('[data-model-settings-back]').click()
   await modelHome.waitFor({ state: 'visible' })
-  await modelHome.locator(`[data-model-home-connection="${vendor.key}"]`).waitFor({ state: 'visible' })
+  await (await revealModelConnection(win, modelHome.locator(`[data-model-home-connection="${vendor.key}"]`))).waitFor({ state: 'visible' })
   await settings.locator('[data-settings-close]').click()
   await settings.waitFor({ state: 'detached' })
 
   await openSettingsModels(win)
-  await modelHome.locator(`[data-model-home-connection="${vendor.key}"]`).waitFor({ state: 'visible' })
+  await (await revealModelConnection(win, modelHome.locator(`[data-model-home-connection="${vendor.key}"]`))).waitFor({ state: 'visible' })
   await openConnectionFromHome(win, vendor.key)
   // The connection detail performs one non-blocking cached health probe. Capture it
   // before opening the explicit model picker; the picker itself must remain local

@@ -167,14 +167,12 @@ try {
         await picker.click()
       }
       await search.fill('seedance')
-      const row = menu.getByRole('option').filter({ hasText: 'Seedance 2.0' }).first()
+      // 主干菜单：变体各占一行、行上一句能力描述（代替分支原先的能力芯片）。
+      const row = menu.getByRole('option').filter({ hasText: 'Mini' }).first()
       await expect(row, 'board:ModelSurfaces/picker.search').toBeVisible()
-      await expect(row.locator('[data-model-capability]'), 'board:ModelSurfaces/picker.row').not.toHaveCount(0)
+      await expect(row.locator('[data-nomi-select-option-description]'), 'board:ModelSurfaces/picker.row').not.toHaveCount(0)
       await screenshotSettled(win, { path: path.join(output, locale + '-model-picker.png') })
       await row.click()
-      const variant = win.getByRole('button', { name: uiText(locale, 'generationCommon.parameters.variant'), exact: true }).first()
-      await variant.click()
-      await win.getByRole('option').filter({ hasText: 'Mini' }).first().click()
       const send = win.locator('[data-bar-segment="generate"]').first()
       await expect(send, 'board:ModelSurfaces/cost.send-pill').toHaveAttribute('data-price-source', /api\/pricing\/model/, { timeout: stationTimeout() })
       await expect(send, 'board:ModelSurfaces/cost.hover').toHaveAttribute('aria-description', /1[.,]95/)
@@ -214,6 +212,10 @@ try {
         await menu.getByRole('option').filter({ hasText: 'GPT Image 2.6 Flare' }).click()
         const imageSend = imageComposer.locator('[data-bar-segment="generate"]')
         await expect(imageSend).toHaveAttribute('aria-description', uiText(locale, 'onboardingProviders.account.priceUnknown'))
+        // 算不出：钮上只剩 ↑，不印数、不印 0、不印「—」。
+        await expect(imageSend.locator('[data-send-cost]'), 'board:ModelSurfaces/cost.send-pill').toHaveCount(0)
+        await expect(imageSend).toHaveText('')
+        await screenshotSettled(win, { path: path.join(output, locale + '-price-unknown.png') })
         await imageComposer.locator('[data-parameter-summary]').click()
         const size = win.locator('[data-agent-parameter-control="size"]').first()
         await size.getByText('1:1', { exact: true }).click()

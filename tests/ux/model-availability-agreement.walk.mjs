@@ -44,7 +44,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { backToLibrary, ensureAgentPanelOpen, newProjectEntry, openModelSettings } from './_shell.mjs'
+import { backToLibrary, ensureAgentPanelOpen, newProjectEntry, openModelSettings, revealModelConnection } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/model-availability-agreement')
@@ -233,7 +233,7 @@ async function pasteKeyLikeAHuman() {
 /** 真人路径：设置 → 点这家连接行 → 断开 → 确认。 */
 async function disconnectLikeAHuman() {
   await openSettings()
-  await clickOrFail(connectionRow().first(), `${VENDOR_LABEL} 连接行`)
+  await clickOrFail(await revealModelConnection(getWin(), connectionRow().first()), `${VENDOR_LABEL} 连接行`)
   await clickOrFail(getWin().locator('button', { hasText: /^断开$/ }).first(), '断开')
   // 确认卡的可量表面是 data-confirm-dialog-surface（落在可见 content 内）；
   // 拿卡片里那颗同名的「断开」会被 Mantine 的遮罩挡住点不到
@@ -352,7 +352,7 @@ try {
 
   // ── 状态五：用户把这家断开（钥匙没了）──────────────────────────────────────
   await openSettings()
-  const rowProof = await proveProbe(connectionRow(), `设置页「已接入」里有 ${VENDOR_LABEL} 这一行`)
+  const rowProof = await proveProbe(await revealModelConnection(getWin(), connectionRow()), `设置页「已接入」里有 ${VENDOR_LABEL} 这一行`)
   await disconnectLikeAHuman()
   await assertAgreement('拔了钥匙', {
     usable: 0, reasons: ['credential_missing', 'model_unpublished'], brainReady: false, settingsUsable: 0, settingsPending: 0,

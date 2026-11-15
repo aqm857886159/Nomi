@@ -159,6 +159,21 @@ export async function openModelSettings(win, { label = 'open model settings', ti
 }
 
 /**
+ * 模型设置首页上 APIMart 以外的连接（老用户的中转站 / 自定义 / 各家直连）收在「其他接入方式」折叠里（板 ModelSurfaces）。
+ * 走查要点那一行：先看它在不在眼前，不在就展开折叠（已展开不再点，免得收回去）。返回那一行的 locator。
+ * @param {import('playwright').Page} win
+ * @param {import('playwright').Locator} row
+ */
+export async function revealModelConnection(win, row, { label = 'reveal model connection', timeout } = {}) {
+  if (await row.first().isVisible().catch(() => false)) return row
+  const fold = win.locator('details[data-model-home-other-connections]').first()
+  if (await fold.count() && !(await fold.evaluate((el) => el.open))) {
+    await clickOrFail(fold.locator('summary').first(), `${label}（展开「其他接入方式」）`, timeout === undefined ? {} : { timeout })
+  }
+  return row
+}
+
+/**
  * 模型设置首页 →「自定义 API / 中转站」接入向导（弹出「添加一个 AI 模型」）。
  * 没有已接入项时这一行直接摆在首页；有已接入项时它收在「其他接入方式」折叠里，先展开。点完等向导出现。
  */
