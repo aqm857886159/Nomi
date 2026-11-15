@@ -53,7 +53,11 @@ const parameters = z.record(generationJsonValueSchema);
 /** Original author-only fields; candidate identity and prompt keep their existing input owner. */
 const authorFieldDescriptions: Record<string,string> = {
   kind:'Anchor category',carrier:'Visual or text guidance',scope:'All or selected',
-  referenceUrl:'Anchor media URL',referenceKind:'Anchor media type',referenceSourceNodeId:'Source node id',
+  // 这两格只属于参考卡（锚）自带的那张图。2026-11-15 P21：模型想让一个镜头用画布上的两张图，写进了这里、留空 URL；
+  // 镜头用画布 / 素材库里的图走 `shots[].references`（素材库 assetId），说明里直接点名，缺字段那一行也会带上这句。
+  referenceUrl:'Anchor card media URL. A shot that uses canvas or library media lists their assetIds in references instead',
+  referenceKind:'Anchor media type',
+  referenceSourceNodeId:'Anchor card source node id. A shot that uses canvas or library media lists their assetIds in references instead',
   anchorIds:'Reused anchor ids',referenceBindings:'Ordered slot media',promptSegments:'Prompt text ranges',
   variationType:'Variation strength',camIdx:'Camera preset index',ffDesc:'First-frame description',lfDesc:'Last-frame description',
   motionDesc:'Frame-to-frame motion',continuity:'Continuity facts',keyframe:'Independent keyframe',

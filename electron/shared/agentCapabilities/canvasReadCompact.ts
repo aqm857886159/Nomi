@@ -139,6 +139,7 @@ export function projectCanvasForAgent(result: CanvasReadResult): CanvasAgentProj
       node.text ? ` | text: ${compactHead(node.text, 60)}${node.textTruncated ? "(正文已截断)" : ""}` : "",
       node.currentResultId ? ` | currentResultId: ${compactHead(node.currentResultId, 120)}` : "",
       resultIds ? ` | resultIds: ${resultIds}` : "",
+      node.assetId ? ` | assetId: ${compactHead(node.assetId, 120)}` : "",
       node.taskRef ? ` | taskRef: ${JSON.stringify(node.taskRef)}` : "",
       node.shotTable ? ` | 分镜表 ${node.shotTable.rowCount} 镜（行见下方）` : "",
       node.director ? ` | 3D-BOX revision=${node.director.revision} shots=${boundedJoin(node.director.shots, 120, ",", (name) => compactHead(name, 40)).text} actors=${boundedJoin(node.director.actors, 80, ",", (name) => compactHead(name, 40)).text}${node.director.setPieces.length ? ` setPieces=${boundedJoin(node.director.setPieces, 60, ",", (name) => compactHead(name, 40)).text}` : ""} issues=${node.director.issueCount} preview=${node.director.preview}${node.director.previewTargetNodeId ? `→${compactHead(node.director.previewTargetNodeId, 120)}` : ""}${node.director.previewAssetId ? ` previewAssetId=${compactHead(node.director.previewAssetId, 120)}` : ""}` : "",

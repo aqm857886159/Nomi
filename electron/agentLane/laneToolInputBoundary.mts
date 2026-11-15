@@ -45,6 +45,8 @@ export const LANE_TOOL_RETRY_STOPPED_CODE = 'tool_retry_stopped' satisfies LaneT
 /** 两种立即结果的首行头。`Validation failed for tool "X"` 也是走查脚本数「参数被拒」的那个头。 */
 const rejectedHead = (toolName: string): string => `Validation failed for tool "${toolName}"`;
 const stoppedHead = (toolName: string): string => `${toolName} was not run (${LANE_TOOL_RETRY_STOPPED_CODE}). `;
+/** 这里的拒收都在工具自己的准入之前：下一步那句照实说「后面那层还没查」。 */
+const LATER = { laterChecksPending: true } as const;
 
 
 type BoundaryTool = Pick<AgentHarnessTool<undefined>, 'name' | 'parameters' | 'prepareArguments'>;
@@ -167,7 +169,7 @@ export function createLaneToolInputBoundary(options: Readonly<{
     const zodIssues = zodIssuesOfError(error);
     if (!zodIssues) return undefined;
     return reject(toolName, toolArgumentsRejected(toolName,
-      issuesFromZod(zodIssues, args, originals.get(toolName)?.parameters), exampleOf(toolName)));
+      issuesFromZod(zodIssues, args, originals.get(toolName)?.parameters), exampleOf(toolName), LATER));
   }
 
   function contractFailure(toolName: string, args: unknown): LaneToolFailureShape | undefined {
@@ -176,7 +178,7 @@ export function createLaneToolInputBoundary(options: Readonly<{
     const parsed = spec.schema.safeParse(args);
     if (parsed.success) return undefined;
     const issues = zodIssuesOfError(parsed.error);
-    return issues ? toolArgumentsRejected(toolName, issuesFromZod(issues, args, originals.get(toolName)?.parameters), exampleOf(toolName)) : undefined;
+    return issues ? toolArgumentsRejected(toolName, issuesFromZod(issues, args, originals.get(toolName)?.parameters), exampleOf(toolName), LATER) : undefined;
   }
 
   function derivedFailure({ toolName, args, text }: Readonly<{ toolName: string; args: unknown; text: string }>): LaneToolPublicFailure | undefined {
@@ -211,7 +213,7 @@ export function createLaneToolInputBoundary(options: Readonly<{
           if (!own.ok) throw new Error(reject(tool.name, own.failure));
           const verdict = piVerdict(tool, own.args);
           if (!verdict.ok) {
-            throw new Error(reject(tool.name, toolArgumentsRejected(tool.name, shapeIssues(tool, own.args, verdict.paths), exampleOf(tool.name))));
+            throw new Error(reject(tool.name, toolArgumentsRejected(tool.name, shapeIssues(tool, own.args, verdict.paths), exampleOf(tool.name), LATER)));
           }
           return own.args as never;
         };

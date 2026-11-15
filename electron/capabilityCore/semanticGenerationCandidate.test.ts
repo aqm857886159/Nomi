@@ -180,6 +180,19 @@ describe("semantic generation candidate", () => {
     expect(candidate.references).toEqual([pinned]);
   });
 
+  it("P21 第 3 次：把画布的结果身份当素材写进 references → 点名这是结果身份，指去画布读那一行的 assetId", () => {
+    const attempt = () => semanticCandidateFromParams({
+      operationId: "op-result-id",
+      params: { prompt: "两人对峙", taskKind: "image_edit", references: [{ assetId: "asset-gen-v2-asset-mwgzapa4-cm99-asset-ea375ce9e81764ee1589" }] },
+      candidateFrom: parse,
+      allowRegistryFallback: true,
+      registry,
+      resolveAssetReferenceIdentity: () => undefined,
+    });
+    expect(attempt).toThrow(/结果身份/);
+    expect(attempt).toThrow(/look_at_canvas 素材节点那一行的 assetId/);
+  });
+
   it("素材不在本项目时报人话，而不是一个模型看不懂的 Required", () => {
     const attempt = () => semanticCandidateFromParams({
       operationId: "op-missing",

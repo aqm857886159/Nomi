@@ -99,7 +99,18 @@ const EXAMPLE_TEXT_LIMIT = 600;
  * 熔断按 `tool_arguments_invalid` + 字段路径认墙。2026-11-07 之前三处各写各的
  * （pi 默认文本 / `argumentFailure` / 裸 issue JSON）。
  */
-export function toolArgumentsRejected(toolName: string, issues: readonly ToolInputIssue[], example?: unknown): LaneToolFailureShape {
+/**
+ * 入参边界（形状 / 契约）拒收时，工具自己的准入（对着项目和所选模型的那一层）还没跑：改完形状它可能再报。
+ * 两层没法一起跑（准入在执行里、要读项目），所以照实说一句，模型就不会把「形状过了」当成「这份能落」（2026-11-15）。
+ */
+export const LATER_CHECKS_NOT_RUN = "Only the argument shapes were checked; the tool's own checks against the project and the chosen model run once these are fixed and may report more.";
+
+export function toolArgumentsRejected(
+  toolName: string,
+  issues: readonly ToolInputIssue[],
+  example?: unknown,
+  options: Readonly<{ laterChecksPending?: boolean }> = {},
+): LaneToolFailureShape {
   const fields = issues.length === 1 ? "1 field" : `${issues.length} fields`;
   // 第一条「不在表里」的合法值也挂到顶层 `allowed`：熔断撞满转 `ask_user` 时，这几个值就是现成的选项。
   const allowed = issues.find((issue) => issue.kind === "not_allowed" && issue.allowed && issue.allowed.length > 0)?.allowed;
@@ -109,7 +120,8 @@ export function toolArgumentsRejected(toolName: string, issues: readonly ToolInp
     issues,
     ...(allowed ? { allowed } : {}),
     ...(example === undefined ? {} : { example }),
-    nextAction: `Fix the listed fields and call ${toolName} again with the same intent. Fields that belong to another operation must be left out.`,
+    nextAction: `Fix the listed fields and call ${toolName} again with the same intent. Fields that belong to another operation must be left out.`
+      + (options.laterChecksPending ? ` ${LATER_CHECKS_NOT_RUN}` : ""),
   };
 }
 

@@ -48,7 +48,8 @@ export function admitAuthoredDuration(
   if (!fieldKey) {
     throw new ContractCompilationError(
       `${model} 这个模式没有时长参数，片子多长由模型自己定。请去掉 durationSec；如果用户一定要这个时长，换一个能设时长的模型，或者先问用户。`,
-      { code: "unknown_parameter", path: "durationSec", allowedKeys },
+      { code: "unknown_parameter", path: "durationSec", allowedKeys, takesNoValueInMode: true,
+        note: "This mode has no duration setting (the model decides the length). Omit durationSec for this shot, or pick a mode or model that sets duration" },
       { code: "duration_not_in_mode", field: "durationSec", model, value },
     );
   }

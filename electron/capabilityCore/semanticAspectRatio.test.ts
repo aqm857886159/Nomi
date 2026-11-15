@@ -9,6 +9,8 @@ import { ContractCompilationError, compileExecutionContract, type PlanCandidate 
 import { normalizeAuthoredCandidate } from "./mcpGenerationVideoResolve";
 import { createModuleRegistry } from "./moduleRegistry";
 import { resolvePlanPatch } from "./generationPlanPatch";
+import { projectSemanticAspectRatio } from "./semanticAspectRatio";
+import { issuesFromParameterRejection, renderToolInputIssue } from "../shared/agentLane/toolInputIssues";
 
 const capabilities = { submitIdempotency: true, query: true, reconcile: true, cancel: true };
 const registry = createModuleRegistry([{
@@ -244,5 +246,28 @@ describe("Seedream 历史比例拒收重放", () => {
   });
   it.each(["abcx", "0x720", "2560x"])("%s 宿主照旧拒收", value => {
     expect(() => translate("volcengine", "doubao-seedream-4-5-251128", "text_to_image", { aspectRatio: value })).toThrow();
+  });
+});
+
+// 比例只有一个家：`aspectRatio`（10-05 拍板）。这个方式的比例只收自动（首帧跟着输入图）时，
+// 正文与字段清单都说「这一镜去掉 aspectRatio」——不说「no such field here」，也不再指去 parameters.<比例键>
+// （11-15 P18：模型照那句把 9:16 写进 parameters.ratio，又被拒一次）。
+describe("只收自动的方式：比例的家只有一个", () => {
+  const autoOnly = { ratio: { type: "enum" as const, enum: ["adaptive"] }, duration: { type: "number" as const, min: 4, max: 30 } };
+  const write = (value: string) => projectSemanticAspectRatio(candidate("volcengine", "video-x", "image_to_video", { aspectRatio: value }), autoOnly);
+
+  it("拒；正文说只收自动、去掉 aspectRatio，不指去 parameters", () => {
+    const error = rejection(() => write("9:16"));
+    expect(error.message).toContain("its ratio only takes adaptive");
+    expect(error.message).toContain("Leave aspectRatio out of this shot.");
+    expect(error.message).not.toContain("set that one in parameters");
+    expect(error.problem).toMatchObject({ code: "ratio_not_in_mode", field: "aspectRatio" });
+  });
+
+  it("字段清单那条是 not_allowed + 说明，不是「没有这个字段」", () => {
+    const issues = issuesFromParameterRejection(rejection(() => write("9:16")).rejection!);
+    expect(issues).toEqual([expect.objectContaining({ path: "aspectRatio", kind: "not_allowed", allowed: [] })]);
+    expect(renderToolInputIssue(issues[0]!)).toContain("Omit aspectRatio for this shot");
+    expect(renderToolInputIssue(issues[0]!)).not.toContain("no such field");
   });
 });

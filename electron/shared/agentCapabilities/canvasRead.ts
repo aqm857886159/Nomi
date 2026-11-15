@@ -65,6 +65,11 @@ const canvasReadNodeSchema = z
     hasResult: z.boolean(),
     currentResultId: opaqueResultIdSchema.optional(),
     resultIds: z.array(opaqueResultIdSchema).optional(),
+    /**
+     * 当前结果在项目素材库里的 id（`draft_shots` 的 references 收的就是它）。结果身份（`currentResultId`）是画布自己的
+     * 编号，不是素材库的；2026-11-15 真实轨迹里模型把结果身份写进 references 被拒，再去 look_at_media 搜一遍才找到它。
+     */
+    assetId: trimmedNonEmptyStringSchema.optional(),
     taskRef: taskReferenceSchema.optional(),
     /**
      * 这个节点挂着的模型身份（只有标识，不含参数——参数按需去 `nomi_read{target:"model"}` 查，
@@ -327,6 +332,7 @@ function projectNode(value: unknown, seen: Set<string>): CanvasReadNode | undefi
   const status = parseGenerationNodeStatus(rawStatus) ?? "idle";
   const currentResultId = resultId(node.result);
   const resultIds = stableResultIds(node);
+  const assetId = nonEmptyString(asRecord(node.result)?.assetId);
   const prompt = typeof node.prompt === "string" ? node.prompt : "";
   const runId = nonEmptyString(asRecord(node.meta)?.productionRunId);
   const model = projectNodeModel(asRecord(node.meta));
@@ -348,6 +354,7 @@ function projectNode(value: unknown, seen: Set<string>): CanvasReadNode | undefi
     hasResult: asRecord(node.result) !== undefined,
     ...(currentResultId ? { currentResultId } : {}),
     ...(resultIds.length ? { resultIds } : {}),
+    ...(assetId ? { assetId } : {}),
     ...(runId ? { taskRef: { domain: 'generation' as const, jobId: runId } } : {}),
     ...(model ? { model } : {}),
     ...(director ? { director } : {}),

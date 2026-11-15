@@ -59,7 +59,7 @@ export const draftShotSchema = z.object({
   // 而解析这一头（`pinAssetReference`）只认项目素材库里的 assetId——镜头 id 送进来**必然**被拒，
   // 理由还是「不在这个项目的素材库里」（run2 的 A1/A4 各一次，模型照着说明书做的）。
   // 跨镜复用走的是 `storyboard.anchorIds`，不是这里。说明书按真的那份写。
-  references: z.array(z.string().trim().min(1)).max(30).optional().describe("Asset ids from look_at_media. To reuse another shot's look use storyboard.anchorIds, not a shot id."),
+  references: z.array(z.string().trim().min(1)).max(30).optional().describe("Library asset ids: the assetId on a look_at_canvas media row, or from look_at_media (not a node or result id). To reuse another shot's look use storyboard.anchorIds."),
 }).strict();
 
 /**

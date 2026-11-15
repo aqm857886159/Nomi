@@ -358,6 +358,19 @@ describe("projectCanvasRead", () => {
     for (const forbidden of FORBIDDEN_RESULT_KEYS) expect(keys).not.toContain(forbidden);
   });
 
+  it("给出当前结果在素材库里的 assetId（references 收的是它，不是结果身份）；画布读那一行也带上", async () => {
+    const { projectCanvasForAgent } = await import("./canvasReadCompact");
+    const read = projectCanvasRead({
+      nodes: [{
+        id: "gen-v2-asset-mwgzapa4-cm99", kind: "image", status: "success",
+        result: { id: "asset-gen-v2-asset-mwgzapa4-cm99-asset-ea375ce9e81764ee1589", assetId: "asset-ea375ce9e81764ee1589" },
+      }],
+    });
+    expect(read.nodes[0]).toMatchObject({ assetId: "asset-ea375ce9e81764ee1589" });
+    expect(read.nodes[0]?.currentResultId).not.toBe(read.nodes[0]?.assetId);
+    expect(JSON.stringify(projectCanvasForAgent(read))).toContain("| assetId: asset-ea375ce9e81764ee1589");
+  });
+
   it("never treats URL or text fallbacks as a result identity", () => {
     const [node] = projectCanvasRead({
       nodes: [

@@ -11,7 +11,7 @@
 //   · 比例控件 = 选项除自动档外全是比例的那个（几何判据在 `electron/shared/aspectRatioValue.ts`；界面分类另有导出）；
 //   · 翻不了（没有比例控件 / 值不在选项里 / 和 parameters 里真实键写的不一样）→ 当场拒，带合法值。
 // **不回落默认**：回落默认就是用户付钱拿到一张他没要的画幅——这一族缺陷本身。
-import { ASPECT_RATIO_SEMANTIC_KEY, resolveAspectRatioGeometryChoice } from "../shared/aspectRatioValue";
+import { ASPECT_RATIO_SEMANTIC_KEY, isAutoOptionValue, resolveAspectRatioGeometryChoice } from "../shared/aspectRatioValue";
 import { ContractCompilationError, type PlanCandidate } from "./executionContract";
 import type { ParameterField } from "./moduleManifest";
 
@@ -70,10 +70,18 @@ export function projectSemanticAspectRatio(
         { code: "unknown_parameter", path, allowedKeys },
       );
     }
+    // 这个模式里写着比例键、却只有自动档（Seedance 首帧模式的 ratio 只收 adaptive）：照实说「只收自动」，
+    // 不再指它去 parameters 里写——2026-11-15 真实轨迹里模型照那句把 9:16 写进 parameters.ratio，又被拒一次。
+    const autoOnly = controls.filter((control) => control.options.length > 0 && control.options.every((option) => isAutoOptionValue(option.value)));
+    const autoOnlyText = autoOnly.map((control) => `its ${control.key} only takes ${control.options.map((option) => display(option.value)).join("/")}`).join("; ");
+    const pixelKeys = allowedKeys.filter((key) => !autoOnly.some((control) => control.key === key));
+    const note = autoOnly.length
+      ? `This mode has no ratio choice (${autoOnlyText}; the frame follows the input image). Omit aspectRatio for this shot`
+      : "This mode has no ratio choice. Omit aspectRatio for this shot";
     throw new ContractCompilationError(
-      `${model} has no frame-ratio choice in this mode (it may follow the input image, or size the frame in pixels). `
-      + `Leave aspectRatio out${allowedKeys.length ? `; if one of its parameters (${allowedKeys.join(", ")}) is what you mean, set that one in parameters` : ""}.`,
-      { code: "unknown_parameter", path, allowedKeys },
+      `${model} has no frame-ratio choice in this mode${autoOnly.length ? ` (${autoOnlyText}; the frame follows the input image)` : " (it may follow the input image, or size the frame in pixels)"}. `
+      + `Leave aspectRatio out of this shot${!autoOnly.length && pixelKeys.length ? `; if one of its parameters (${pixelKeys.join(", ")}) sizes the frame the way you mean, set that one in parameters` : ""}.`,
+      { code: "unknown_parameter", path, allowedKeys, takesNoValueInMode: true, note },
       { code: "ratio_not_in_mode", field: path, model, value: requested.trim() },
     );
   }

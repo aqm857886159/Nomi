@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { admitAuthoredDuration } from "./generationAuthoredDuration";
 import { ContractCompilationError, type PlanCandidate } from "./executionContract";
+import { issuesFromParameterRejection, renderToolInputIssue } from "../shared/agentLane/toolInputIssues";
 
 const candidate = (parameters: Record<string, unknown>): PlanCandidate => ({
   candidateId: "cand-1", revision: 1, moduleId: "generation.single-shot", providerId: "apimart", modelId: "model-x",
@@ -53,5 +54,19 @@ describe("admitAuthoredDuration", () => {
   it("不是正的秒数：拒", () => {
     expect(refusalOf(() => admitAuthoredDuration(candidate({ duration: "abc" }), { duration: { type: "number" } })).rejection)
       .toMatchObject({ code: "parameter_type_mismatch" });
+  });
+});
+
+// 时长只有一个家：`durationSec`。这个方式不收时长时，模型读到的字段清单说「这一镜去掉 durationSec」，
+// 不说「no such field here」——形状层明明收这个字段，两层不能各说一个家（2026-11-15，方向复盘）。
+describe("没有时长的方式：字段清单与正文是同一个说法", () => {
+  it("清单那条是 not_allowed + 去掉的说明，不是「没有这个字段」", () => {
+    const error = refusalOf(() => admitAuthoredDuration(candidate({ duration: 8 }), { aspect_ratio: { type: "enum", enum: ["16:9"] } }));
+    const issues = issuesFromParameterRejection(error.rejection!);
+    expect(issues).toEqual([expect.objectContaining({ path: "durationSec", kind: "not_allowed", allowed: [] })]);
+    const line = renderToolInputIssue(issues[0]!);
+    expect(line).toContain("Omit durationSec for this shot");
+    expect(line).not.toContain("no such field");
+    expect(error.problem).toMatchObject({ code: "duration_not_in_mode", field: "durationSec" });
   });
 });

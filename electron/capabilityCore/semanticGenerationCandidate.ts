@@ -153,8 +153,9 @@ export function pinAssetReference(item: unknown, resolve?: ResolveAssetReference
   if (!identity) {
     // 模型最常见的两种错法，分开说：给了一个**镜头 id**（说明书曾经说这里收镜头 id，见 writeVerbs 的
     // `references`），和给了一个**根本不在库里的 assetId**。两种的下一步不一样，合成一句话等于两种都没说清。
-    refuseArgument(/^(gen-v2-|shot-)/.test(assetId)
-      ? `${assetId} 看起来是画布上的一个镜头/节点 id，不是素材库里的文件。references 只收 look_at_media 给出的 assetId；要复用另一镜的形象，把它写进 storyboard.anchorIds。`
+    // 第三种（2026-11-15 P21）：画布节点的**结果身份**（`asset-<节点 id>-<素材 id>`）。画布读那一行的 assetId 才是素材库的。
+    refuseArgument(/^(asset-)?(gen-v2-|shot-)/.test(assetId)
+      ? `${assetId} 看起来是画布上的一个镜头/节点 id 或结果身份，不是素材库里的文件。references 只收素材库的 assetId（look_at_canvas 素材节点那一行的 assetId，或 look_at_media 给出的）；要复用另一镜的形象，把它写进 storyboard.anchorIds。`
       : `参考素材 ${assetId} 不在这个项目的素材库里，请先用 look_at_media 找到它的 assetId`, { field: "references" });
   }
   return { ...reference, contentHash: identity.contentHash, version: identity.version, ...(identity.kind ? { kind: identity.kind } : {}) };

@@ -231,8 +231,9 @@ export function createLaneTools(
         // 失败走入参拒收的唯一构造点（`toolArgumentsRejected`）：字段路径 + 合法值 / 近似键 + 一个对的例子。
         const bound = descriptor.schema.safeParse(params);
         if (!bound.success) {
+          // 这一次 parse 在领域执行之前：照实说工具自己的准入还没跑（改完形状它可能再报）。
           const failure = toolArgumentsRejected(descriptor.name,
-            issuesFromZod(bound.error.issues, params, parameters), descriptor.examples[0]?.arguments);
+            issuesFromZod(bound.error.issues, params, parameters), descriptor.examples[0]?.arguments, { laterChecksPending: true });
           rememberToolFailure(toolCallId, failure);
           throw new LaneToolFailure(renderLaneToolFailure(failure));
         }

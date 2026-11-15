@@ -69,6 +69,14 @@ export type ParameterRejection = {
   allowedVariantIds?: string[];
   /** 写错位置的字段：这个键其实是起草（draft）的顶层字段，该放到那个字段（`draftFieldAliases.ts`）。 */
   useField?: string;
+  /**
+   * 字段本身合法（模型面有这个位置），只是**这个模式**给不了它任何值（只跟输入图走的比例、没有时长档的模式）。
+   * 给模型的那一行就不说「没有这个字段」（形状层刚收下它，两层说法会打架），而说「这个模式不收，这一镜去掉它」。
+   * 码仍是原来那个（下一步提示、对外错误码不变）。
+   */
+  takesNoValueInMode?: true;
+  /** 给模型的一句英文原话（为什么、该怎么改）。不进公开信封。 */
+  note?: string;
 };
 
 export type ExecutionContractV1 = {

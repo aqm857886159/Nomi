@@ -15,7 +15,7 @@ import { createHttpFixture } from '../../tests/agent-runtime/httpFixture.mjs'
 import { createModuleRegistry } from '../capabilityCore/moduleRegistry'
 import { resetSpendFixture, spendWorld } from '../capabilityCore/agentPanelSpendConfirmTestUtils'
 import type { LaneHandle, LanePart } from '../shared/agentLane/laneContracts'
-import { LaneDomainFailure } from '../shared/agentLane/laneToolContract'
+import { LATER_CHECKS_NOT_RUN, LaneDomainFailure, toolArgumentsRejected } from '../shared/agentLane/laneToolContract'
 import type { GenerationProblemCode } from '../shared/generationProblem'
 import { buildVideoModelCandidates } from '../shared/videoCapabilities'
 import { createExtendedLaneTools } from './laneExtendedTools'
@@ -288,3 +288,53 @@ describe('反例：模型无视拦截，一直调同一个工具', () => {
     expect(capped.results.at(-1)!.text).toMatch(/reached its 5-model-request limit/)
   }, 60_000)
 })
+
+// 2026-11-15「一次列全」（`docs/plan/2026-11-15-agent-first-time-right.md` ★9 第 4–7 条）：一次拒收列好几镜，连败照样一次记 1；
+// 形状层拒收照实说「后面那层还没查」；全成功的长回合不受影响。
+describe('一次列全：多镜一起被拒，计数与认墙不变', () => {
+  const TWO_BAD = { shots: [{ ...params({ resolution: '4k' }), title: '镜1' }, { ...params({ resolution: '4k' }), title: '镜2' }] }
+
+  it('两镜同一处错：一次调用只记 1 次，第 3 次才停（不因为列了两条多记）；两条都列出、各带镜头', async () => {
+    const { results, events } = await runLane([Array(3).fill(TWO_BAD)])
+    expect(events.map(({ attempt, breakerTripped }) => [attempt, breakerTripped])).toEqual([[1, false], [2, false], [3, true]])
+    expect(results[0]!.text).toContain('2 shots were refused')
+    expect(results[0]!.text).toMatch(/- parameters\.resolution \(shots\[0\] "镜1" [^\n]*\): value is not allowed/)
+    expect(results[0]!.text).toMatch(/- parameters\.resolution \(shots\[1\] "镜2" [^\n]*\): value is not allowed/)
+    expect(results[1]!.text).not.toMatch(STOP)
+    expect(results[2]!.text).toMatch(STOP)
+    // 面板拿到的公开清单：两条、同一路径写法，定位不进去。
+    expect(failureOf(results[0]!)?.issues?.map((issue) => issue.path)).toEqual(['parameters.resolution', 'parameters.resolution'])
+    expect(JSON.stringify(failureOf(results[0]!))).not.toContain('shots[0]')
+  }, 60_000)
+
+  it('一镜错与两镜同一处错认的是同一堵墙（认墙按字段，不按条数）', async () => {
+    const { results } = await runLane([[WRONG_VALUE, TWO_BAD, WRONG_VALUE]])
+    expect(results[2]!.text).toMatch(STOP)
+  }, 60_000)
+
+  it('形状层拒收：下一步那句照实说工具自己的准入还没跑', async () => {
+    const { results } = await runLane([[WRONG_SHAPE]])
+    expect(results[0]!.text).toContain("Only the argument shapes were checked; the tool's own checks against the project and the chosen model run once these are fixed and may report more.")
+  }, 60_000)
+
+  it('不传选项的调用方（领域层、执行层以外）：下一步那句逐字同今天，不带「还没查」', () => {
+    const issues = [{ path: 'shots.0.title', kind: 'missing' as const }]
+    expect(toolArgumentsRejected('draft_shots', issues).nextAction).not.toContain(LATER_CHECKS_NOT_RUN)
+    expect(toolArgumentsRejected('draft_shots', issues, undefined, { laterChecksPending: true }).nextAction)
+      .toBe(`${toolArgumentsRejected('draft_shots', issues).nextAction} ${LATER_CHECKS_NOT_RUN}`)
+  })
+
+  it('P21 第 2 次：镜头上写了参考卡的 referenceUrl（空）→ 那一行点名 references', async () => {
+    const p21 = { shots: [shot({ storyboard: { kind: 'character', carrier: 'visual', referenceSourceNodeId: 'gen-v2-asset-mwgzapa4-cm99', referenceUrl: '', referenceKind: 'image' } })] }
+    const { results } = await runLane([[p21]])
+    expect(results[0]!.text).toMatch(/- shots\.0\.storyboard\.referenceUrl: required, but missing \(expected string\)\. Anchor card media URL\. A shot that uses canvas or library media lists their assetIds in references instead\./)
+  }, 60_000)
+
+  it('30 步全成功的长回合：一次都不拦、一次都不记', async () => {
+    const { results, events, drafted } = await runLane([Array(30).fill({ shots: [shot()] })])
+    expect(drafted).toBe(30)
+    expect(events).toEqual([])
+    expect(results.every((result) => !result.text.includes('tool_retry_stopped'))).toBe(true)
+  }, 120_000)
+})
+

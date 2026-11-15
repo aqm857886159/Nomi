@@ -21,6 +21,8 @@ export interface ToolInputIssue extends LaneToolPublicIssue {
   readonly received?: string;
   /** 我们契约里写的约束原话（英文，给模型）。不进公开信封。 */
   readonly note?: string;
+  /** 这一条属于哪一镜（`shots[2] "标题" (模型, mode …)`）：一次拒收列好几镜时才有。不进公开信封，路径写法因此不变。 */
+  readonly where?: string;
 }
 
 /** 一次拒收最多列几条。`anyOf` 每个分支各报一条，不封顶会刷屏。 */
@@ -31,6 +33,7 @@ const RECEIVED_TEXT_LIMIT = 32;
 
 type JsonSchemaNode = Readonly<{
   type?: unknown;
+  description?: unknown;
   properties?: Readonly<Record<string, JsonSchemaNode>>;
   additionalProperties?: unknown;
   items?: unknown;
@@ -198,6 +201,18 @@ export function zodIssuesOfError(error: unknown): readonly ZodLikeIssue[] | unde
   return candidate.issues as ZodLikeIssue[];
 }
 
+/**
+ * 缺字段那一行带上这个字段在模型面上的说明：只说「缺了」，模型会照字面补一个值（P21 补了一个空 URL）；
+ * 说明里写着它属于谁、该用哪个字段，下一次就写对地方。没有说明就不带。
+ */
+function missingWithDescription(issue: ToolInputIssue, schema: unknown, segments: readonly (string | number)[]): ToolInputIssue {
+  if (schema === undefined || issue.note) return issue;
+  // 只取说明的第一行：schema 转换会在后面追加约束行（`minLength=1`），那是给校验器的，不是给模型的话。
+  const description = schemaNodeAt(schema, segments)?.description;
+  const head = typeof description === "string" ? description.split("\n")[0]!.trim() : "";
+  return head ? { ...issue, note: head } : issue;
+}
+
 export function issuesFromZod(zodIssues: readonly ZodLikeIssue[], args: unknown, schema?: unknown): ToolInputIssue[] {
   const out: ToolInputIssue[] = [];
   // 执行期抛出的 ZodError 校验的是契约语义输入，不是模型发来的那份参数——那时手里没有 args，
@@ -210,7 +225,7 @@ export function issuesFromZod(zodIssues: readonly ZodLikeIssue[], args: unknown,
     switch (issue.code) {
       case "invalid_type":
         out.push(issue.received === "undefined" || (known && value === undefined && issue.received === undefined)
-          ? { path, kind: "missing", ...(typeof issue.expected === "string" ? { expected: issue.expected } : {}) }
+          ? missingWithDescription({ path, kind: "missing", ...(typeof issue.expected === "string" ? { expected: issue.expected } : {}) }, schema, issue.path)
           : { path, kind: "wrong_type", ...(typeof issue.expected === "string" ? { expected: issue.expected } : {}),
             ...(typeof issue.received === "string" ? { receivedType: issue.received } : known ? { receivedType: typeNameOf(value) } : {}),
             ...(received ? { received } : {}) });
@@ -230,7 +245,7 @@ export function issuesFromZod(zodIssues: readonly ZodLikeIssue[], args: unknown,
         break;
       case "too_small":
         if (issue.type === "array") out.push({ path, kind: "too_few", ...(typeof issue.minimum === "number" ? { min: issue.minimum } : {}) });
-        else if (issue.type === "string" && issue.minimum === 1) out.push({ path, kind: "missing", expected: "string" });
+        else if (issue.type === "string" && issue.minimum === 1) out.push(missingWithDescription({ path, kind: "missing", expected: "string" }, schema, issue.path));
         else if (issue.type === "number" || issue.type === "bigint") out.push({ path, kind: "out_of_range", ...(typeof issue.minimum === "number" ? { min: issue.minimum } : {}), ...(received ? { received } : {}) });
         else out.push({ path, kind: "invalid", note: issue.message });
         break;
@@ -277,7 +292,7 @@ export function issuesFromTypeBox(errors: readonly TypeBoxLikeError[], args: unk
     switch (error.keyword) {
       case "required":
         for (const name of (params.requiredProperties as readonly string[] | undefined) ?? []) {
-          out.push({ path: joinPath([...segments, name]), kind: "missing" });
+          out.push(missingWithDescription({ path: joinPath([...segments, name]), kind: "missing" }, schema, [...segments, name]));
         }
         break;
       case "additionalProperties":
@@ -312,7 +327,7 @@ export function issuesFromTypeBox(errors: readonly TypeBoxLikeError[], args: unk
         out.push({ path, kind: "out_of_range", ...(typeof params.limit === "number" ? { max: params.limit } : {}), ...(received ? { received } : {}) });
         break;
       case "minLength":
-        out.push(params.limit === 1 ? { path, kind: "missing", expected: "string" } : { path, kind: "invalid", note: error.message });
+        out.push(params.limit === 1 ? missingWithDescription({ path, kind: "missing", expected: "string" }, schema, segments) : { path, kind: "invalid", note: error.message });
         break;
       default:
         out.push({ path, kind: "invalid", note: error.message, ...(received ? { received } : {}) });
@@ -335,10 +350,16 @@ export type ParameterRejectionLike = Readonly<{
   max?: number;
   allowedVariantIds?: readonly string[];
   useField?: string;
+  takesNoValueInMode?: true;
+  note?: string;
 }>;
 
 export function issuesFromParameterRejection(rejection: ParameterRejectionLike): ToolInputIssue[] {
   const path = rejection.path || "(root)";
+  // 模型面有这个位置、这个模式给不了值：不说「没有这个字段」（形状层刚收下它），说「这个模式不收」。
+  if (rejection.takesNoValueInMode) {
+    return [{ path, kind: "not_allowed", allowed: [], ...(rejection.note ? { note: rejection.note } : {}) }];
+  }
   switch (rejection.code) {
     case "unknown_parameter":
       return [{ path, kind: "unknown_field",
@@ -401,12 +422,12 @@ export function renderToolInputIssue(issue: ToolInputIssue): string {
       line = `is invalid${got}.`;
   }
   if (issue.note) line += ` ${issue.note.replace(/\.?$/, ".")}`;
-  return `  - ${issue.path}: ${line}`;
+  return `  - ${issue.path}${issue.where ? ` (${issue.where})` : ""}: ${line}`;
 }
 
 /** 公开那一份：去掉收到的值和只给模型的原话（面板 / 对外 MCP / 转录信封都只拿这一份）。 */
 export function publicToolInputIssues(issues: readonly ToolInputIssue[]): LaneToolPublicIssue[] {
-  return issues.map(({ received: _received, note: _note, ...rest }) => rest);
+  return issues.map(({ received: _received, note: _note, where: _where, ...rest }) => rest);
 }
 
 /** 墙用的字段路径（熔断按「工具 + 码 + 字段」认墙）。 */

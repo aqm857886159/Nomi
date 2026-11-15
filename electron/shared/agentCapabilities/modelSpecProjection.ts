@@ -19,6 +19,7 @@
 import type { AgentModelEntry, AgentModelVariant } from "./availableModels";
 import { getArchetypeById, resolveArchetypeVariant, specializeArchetypeForVariant, specializeArchetypeForVendor } from "../modelArchetypes";
 import type { ModelParameterControl } from "../videoCapabilities/types";
+import { aspectRatioControlKey, aspectRatioControlsOf, isAutoOptionValue, normalizeAspectRatioToWH, readAspectRatioGeometry } from "../aspectRatioValue";
 
 /** 这个模型此刻能不能用——与 Nomi 自己界面里的下拉读的是同一个答案。 */
 export type ModelAvailabilityFacts = {
@@ -44,6 +45,13 @@ export type ModelSpecRow = Partial<ModelAvailabilityFacts> & {
   variantIds?: string[];
   /** 能力位：这个模型**任一模式**吃不吃图/视频/音频参考。连边与选型都靠它先筛一轮。 */
   accepts: { image: boolean; video: boolean; audio: boolean; multiImage: boolean };
+  /**
+   * 每种方式能写哪些比例 / 时长（`draft_shots` 的 `aspectRatio` / `durationSec`），一行说完，事实相同的方式合并。
+   * 例：`t2v: aspectRatio 16:9|9:16|auto, durationSec 4-15; first,firstlast: no aspectRatio, durationSec 4-15`。
+   * 为什么在薄名单里（2026-11-15）：不读详情就起草的模型，以前只知道方式名，于是给首帧镜头写比例、被拒、再猜。
+   * 只放这两项——它们是起草时每一镜都要写、又按方式变的那两个；其余参数仍在详情那一档。
+   */
+  modeFacts?: string;
 };
 
 /** 单模型详情：薄名单那一行 + 全部模式、参数、参考槽、变体。 */
@@ -72,12 +80,67 @@ function acceptsOf(entry: AgentModelEntry): ModelSpecRow["accepts"] {
   };
 }
 
+/** 时长住的键：与准入层 `generationAuthoredDuration.ts` 的 `DURATION_KEYS` 同一组。 */
+const DURATION_KEYS = new Set(["duration", "durationSeconds"]);
+
+/** 分辨率档的自动（`auto_720p` / `auto_2k`）：模型写 `auto`，准入层按同档规则挑（`aspectRatioValue.ts`）。 */
+const TIERED_AUTO = /^auto_\d+\s*[pk]$/i;
+
+const reducedRatio = (value: unknown): string | null => {
+  if (isAutoOptionValue(value) || (typeof value === "string" && TIERED_AUTO.test(value.trim()))) return "auto";
+  // 比例写法原样（21:9 不约成 7:3）；只有像素档（1280x720）才约成比例。
+  const written = normalizeAspectRatioToWH(value);
+  if (written) return written;
+  const size = readAspectRatioGeometry(value);
+  if (!size) return null;
+  let [a, b] = [Math.round(size.width), Math.round(size.height)];
+  while (b) [a, b] = [b, a % b];
+  return `${Math.round(size.width) / a}:${Math.round(size.height) / a}`;
+};
+
+/**
+ * 这种方式的 `aspectRatio` 能写什么：按准入层同一个判据（几何投影后唯一的比例控件，`aspectRatioValue.ts`）找控件，
+ * 像素档约成比例、去重；没有比例控件（含「只收自动」的方式）→ `no aspectRatio`，与准入层拒的那一类同一个答案。
+ */
+function ratioFact(params: readonly ModelParameterControl[]): string {
+  const controls = aspectRatioControlsOf(params).map((control) => ({ ...control,
+    options: control.options.map((option) => ({ ...option, value: reducedRatio(option.value) ?? option.value })) }));
+  const key = aspectRatioControlKey(controls);
+  if (!key) return "no aspectRatio";
+  const values = [...new Set(controls.find((control) => control.key === key)!.options.map((option) => String(option.value)))];
+  return `aspectRatio ${values.join("|")}`;
+}
+
+/**
+ * 这种方式的 `durationSec`：范围写 `4-15`，档位写 `6|10`，没有时长参数写 `no durationSec`。只给视频。
+ * 一个参数都没声明的方式不写：准入层对空表判不了（原样放行），名单不替它说「没有」。
+ */
+function durationFact(params: readonly ModelParameterControl[]): string | undefined {
+  if (params.length === 0) return undefined;
+  const control = params.find((param) => DURATION_KEYS.has(param.key));
+  if (!control) return "no durationSec";
+  if (control.options.length) return `durationSec ${control.options.map((option) => String(option.value)).join("|")}`;
+  return control.min !== undefined || control.max !== undefined ? `durationSec ${control.min ?? ""}-${control.max ?? ""}` : "durationSec";
+}
+
+function modeFactsOf(entry: AgentModelEntry): string | undefined {
+  if (entry.kind !== "video" && entry.kind !== "image") return undefined;
+  const groups = new Map<string, string[]>();
+  for (const mode of entry.modes) {
+    const duration = entry.kind === "video" ? durationFact(mode.params) : undefined;
+    const facts = [ratioFact(mode.params), ...(duration ? [duration] : [])].join(", ");
+    groups.set(facts, [...(groups.get(facts) ?? []), mode.modeId]);
+  }
+  return groups.size ? [...groups].map(([facts, modeIds]) => `${modeIds.join(",")}: ${facts}`).join("; ") : undefined;
+}
+
 /**
  * `availability` 可缺省：应用内那一面的清单是渲染层按「此刻可用」筛过再推上来的，
  * 少数装配路径（测试夹具、还没接目录的宿主）拿不到那三样。**缺就不写**，不编一个 `usable: true`
  * ——「不知道」和「可用」是两件事。生产两面都由目录注入，故两面都有。
  */
 export function modelSpecRow(entry: AgentModelEntry, availability?: ModelAvailabilityFacts): ModelSpecRow {
+  const modeFacts = modeFactsOf(entry);
   return {
     modelId: entry.modelId,
     vendor: entry.vendor,
@@ -86,6 +149,7 @@ export function modelSpecRow(entry: AgentModelEntry, availability?: ModelAvailab
     modeIds: entry.modes.map((mode) => mode.modeId),
     ...(entry.variants?.length ? { variantIds: entry.variants.map((variant) => variant.id) } : {}),
     accepts: acceptsOf(entry),
+    ...(modeFacts ? { modeFacts } : {}),
     ...availability,
   };
 }
