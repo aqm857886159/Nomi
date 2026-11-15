@@ -111,12 +111,41 @@ export function planShotsFromRuns(runJsons) {
 
 function check(name, ok, detail) { return { name, ok: Boolean(ok), ...(detail ? { detail } : {}) } }
 
-/** 一条参数期望对一镜判：landed / asked / explained / fail。 */
+/**
+ * 这一题里 Agent 自己读过的模型说明书（`list_models{modelId}` 的结果）：`vendor/modelId` → 它全部方式、全部变体声明过的参数键。
+ * 只信轨迹里真读到的那份；没读过的模型返回 undefined（判不了「有没有这个参数」，照旧严判）。
+ */
+export function modelParamKeysFromCalls(calls) {
+  const out = new Map()
+  for (const call of calls) {
+    if (call.name !== 'list_models' || call.isError) continue
+    let model
+    try { model = JSON.parse(call.resultText ?? '')?.model } catch { continue }
+    if (!model?.modelId || !Array.isArray(model.modes)) continue
+    const keys = new Set()
+    for (const mode of model.modes) for (const param of mode.params ?? []) keys.add(param.key)
+    for (const variant of model.variants ?? []) {
+      for (const changes of Object.values(variant.parameterOverridesByMode ?? {})) {
+        for (const [key, control] of Object.entries(changes ?? {})) if (control) keys.add(key)
+      }
+    }
+    out.set(`${model.vendor ?? ''}/${model.modelId}`, keys)
+  }
+  return out
+}
+
+/** 一条参数期望对一镜判：landed / asked / explained / model-has-no-such-param / fail。 */
 function judgeParam(spec, shot, ctx) {
   const actual = readParam(shot, spec.kind)
   const wanted = spec.oneOf ?? [spec.value]
   const landed = wanted.some((value) => sameValue(spec.kind, actual, value))
   if (landed) return { ok: true, how: 'landed', actual }
+  // 所选模型根本没有这一类参数（P06：Veo 3.1 没有音频开关）——这一条在它身上永远落不下，不算错；
+  // 只在轨迹里真读过这个模型的说明书时才这样判，没读过的照旧严判。
+  const declared = ctx.modelParamKeys?.get(`${shot?.providerId ?? ''}/${shot?.modelId ?? ''}`)
+  if (declared && actual === undefined && !ALIASES[spec.kind].some((key) => declared.has(key))) {
+    return { ok: true, how: 'model-has-no-such-param', actual }
+  }
   if (spec.honest) {
     if (ctx.askedUser) return { ok: true, how: 'asked', actual }
     const mentionsAsked = wanted.some((value) => textMentions(ctx.finalText, value))
@@ -162,38 +191,50 @@ export function judgeTask({ task, calls, finalText = '', shotsBefore = [], shots
   })))
   const writes = annotated.filter((call) => WRITE_TOOLS.has(call.name))
   const writesAccepted = writes.filter((call) => !call.isError)
-  // 重试：同一工具、上一次调用被拒后的再次调用。
+  // 重试：同一工具、上一次调用被拒后的再次调用。只进汇总（平均重试数），不决定整题过不过——
+  // 创作者看到的是草稿落没落、参数对不对，不是中间试了几次（2026-11-15 方向复盘：P18「重试≤1」比止损的 3 次还严）。
   let retries = 0
+  // 第二次写对：一个写入工具从「上一次没被拒」到被拒（一段连拒的开头），紧接着的下一次同名调用就被准入。
+  let firstRejections = 0
+  let fixedOnSecondTry = 0
   const lastRejected = new Map()
+  const openStreak = new Map()
   for (const call of annotated) {
     if (lastRejected.get(call.name) === true) retries += 1
+    if (WRITE_TOOLS.has(call.name)) {
+      if (openStreak.get(call.name) === 'first') { if (!call.isError) fixedOnSecondTry += 1; openStreak.set(call.name, 'done') }
+      if (call.isError && lastRejected.get(call.name) !== true) { firstRejections += 1; openStreak.set(call.name, 'first') }
+    }
     lastRejected.set(call.name, call.isError)
   }
   const burst3 = annotated.some((call) => call.isError && call.attempt >= 3)
   const askedUser = annotated.some((call) => call.name === 'ask_user')
-  const ctx = { askedUser, finalText }
+  // 「转问了」只在回合**停在那个问题上**时才能替没落草稿开脱：问完又接着写、写失败了（P18），草稿没落就是没落。
+  const lastAsk = annotated.findLastIndex((call) => call.name === 'ask_user')
+  const endedOnAsk = lastAsk >= 0 && !annotated.slice(lastAsk + 1).some((call) => FIRST_WRITE_TOOLS.has(call.name))
+  const stopped = annotated.find((call) => /\btool_retry_stopped\b/.test(call.resultText ?? ''))
+  const ctx = { askedUser, finalText, modelParamKeys: modelParamKeysFromCalls(annotated) }
   const checks = []
 
-  const firstWrite = annotated.find((call) => FIRST_WRITE_TOOLS.has(call.name) || call.name === 'ask_user')
   if (expect.firstWrite === 'none') {
     checks.push(check('只问不做：没有写入类调用', writes.length === 0 && !annotated.some((c) => c.name === 'generate'), writes.map((c) => c.name).join(',')))
   } else if (expect.firstWrite) {
-    // 允许先读后写：读类工具（look_at_*、list_models、read_*）出现在 firstWrite 白名单里就算对路；
-    // 但必须有至少一个白名单里的写入类动作，或者合法地转问。
-    const wroteExpected = annotated.some((call) => expect.firstWrite.includes(call.name) && (FIRST_WRITE_TOOLS.has(call.name)))
-    checks.push(check('选对工具', wroteExpected || (askedUser && expect.allowAsk !== false), `首个动作 ${firstWrite?.name ?? '无'}`))
-    const firstActual = annotated.find((call) => FIRST_WRITE_TOOLS.has(call.name))
-    if (firstActual) checks.push(check('第一个写入动作在白名单内', expect.firstWrite.includes(firstActual.name), firstActual.name))
+    // 看创作者看得到的结果：白名单里的写入至少有一次真的落地（被准入），或者回合停在问创作者的那个问题上。
+    // 先读后写、第一个动作是什么都不判——那是过程，不是结果（P18 第一个动作是 read_script，照样该算对路）。
+    const landed = annotated.find((call) => expect.firstWrite.includes(call.name) && FIRST_WRITE_TOOLS.has(call.name) && !call.isError)
+    checks.push(check('该做的写入落地了', Boolean(landed) || (endedOnAsk && expect.allowAsk !== false),
+      landed ? landed.name : `没有被准入的 ${expect.firstWrite.filter((name) => FIRST_WRITE_TOOLS.has(name)).join('/')}${endedOnAsk ? '' : '，也没停在问题上'}`))
   }
   for (const name of expect.mustCall ?? []) checks.push(check(`调用了 ${name}`, annotated.some((c) => c.name === name)))
   for (const name of expect.mustCallAccepted ?? []) checks.push(check(`${name} 至少一次被准入`, annotated.some((c) => c.name === name && !c.isError)))
   if (expect.noGenerate) checks.push(check('说了先别生成就不调 generate', !annotated.some((c) => c.name === 'generate')))
   if (expect.spendCardShown) checks.push(check('停在付费确认卡', cardsAnswered.some((card) => card.startsWith('spend'))))
-  if (expect.retryMax !== undefined) checks.push(check(`重试≤${expect.retryMax}`, retries <= expect.retryMax, `实际 ${retries}`))
   checks.push(check('同一错误未连发 3 次', !burst3))
+  // 回合被止损掐掉时，创作者那边是「它说要接着起草，然后没了」（P18 正文最后一句是 Now I'll draft）。
+  checks.push(check('没被无声掐掉', !stopped, stopped ? `${stopped.name} 被停（tool_retry_stopped）` : undefined))
 
   // 草稿计划
-  const resolvedByAsk = askedUser
+  const resolvedByAsk = endedOnAsk
   const plan = expect.plan
   if (plan) {
     const included = shotsAfter.filter((shot) => shot.included && shot.role !== 'anchor')
@@ -219,7 +260,7 @@ export function judgeTask({ task, calls, finalText = '', shotsBefore = [], shots
     const included = shotsAfter.filter((shot) => shot.included && shot.role !== 'anchor')
     checks.push(check('写入后读回:有草稿', included.length > 0))
     for (const [index, shot] of included.entries()) {
-      checks.push(...judgeShotSpec(expect.readback, shot, { askedUser: false, finalText: '' }, `写入后读回:镜${index + 1}`))
+      checks.push(...judgeShotSpec(expect.readback, shot, { askedUser: false, finalText: '', modelParamKeys: ctx.modelParamKeys }, `写入后读回:镜${index + 1}`))
     }
   }
 
@@ -266,6 +307,8 @@ export function judgeTask({ task, calls, finalText = '', shotsBefore = [], shots
     writeCalls: writes.length,
     writeAccepted: writesAccepted.length,
     retries,
+    firstRejections,
+    fixedOnSecondTry,
     burst3,
     askedUser,
     calls: annotated.map((c) => `${c.name}${c.isError ? '✗' : ''}`),
@@ -313,6 +356,12 @@ export function summarize(results, unscorable = [], tasks = []) {
     turnSuccessRate: { value: ratio(results.filter((r) => r.passed).length, n), passed: results.filter((r) => r.passed).length, total: n },
     turnSuccessRateWithoutCatalogDependent: { value: ratio(withoutCatalog.filter((r) => r.passed).length, withoutCatalog.length), total: withoutCatalog.length },
     avgRetries: { value: ratio(retries, n), total: retries, max: Math.max(0, ...results.map((r) => r.retries)) },
+    // 被拒之后第二次就写对的比例（分母 = 每段连拒的第一次）：拒收正文够不够用，看的就是这个数。
+    secondTryRate: (() => {
+      const fixed = results.reduce((s, r) => s + (r.fixedOnSecondTry ?? 0), 0)
+      const total = results.reduce((s, r) => s + (r.firstRejections ?? 0), 0)
+      return { value: ratio(fixed, total), fixed, total }
+    })(),
     sameErrorBurst3Tasks: results.filter((r) => r.burst3).map((r) => r.id),
     byFamily,
   }
@@ -324,6 +373,7 @@ export function formatSummary(summary) {
     `工具写对率   ${pct(summary.toolWriteRate.value)}  (${summary.toolWriteRate.accepted}/${summary.toolWriteRate.total} 次写入一次过准入)`,
     `回合成功率   ${pct(summary.turnSuccessRate.value)}  (${summary.turnSuccessRate.passed}/${summary.turnSuccessRate.total} 题整题通过；去掉依赖目录的题 ${pct(summary.turnSuccessRateWithoutCatalogDependent.value)})`,
     `平均重试数   ${summary.avgRetries.value === null ? 'n/a' : summary.avgRetries.value.toFixed(2)}  (共 ${summary.avgRetries.total} 次，单题最多 ${summary.avgRetries.max})`,
+    `第二次写对率 ${pct(summary.secondTryRate.value)}  (${summary.secondTryRate.fixed}/${summary.secondTryRate.total} 次被拒后，下一次同名调用就被准入)`,
     `同一错误连发≥3次的题  ${summary.sameErrorBurst3Tasks.length} 题 ${summary.sameErrorBurst3Tasks.join(',')}`,
     `不可判（起始态没搭起来） ${summary.unscorableTasks.length} 题 ${summary.unscorableTasks.join(',')}`,
     ...Object.entries(summary.byModelDependency).map(([group, v]) => `  模型依赖 ${group}: ${v.turnSuccessRate.passed}/${v.turnSuccessRate.total} 题；写入 ${v.toolWriteRate.accepted}/${v.toolWriteRate.total}；不可评 ${v.unscorableTasks.join(',') || '无'}`),

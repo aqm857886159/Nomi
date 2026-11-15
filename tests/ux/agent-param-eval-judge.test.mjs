@@ -85,12 +85,13 @@ describe('阳性对照：该过的过', () => {
 })
 
 describe('阴性对照：该红的红', () => {
-  it('同一错误连发 3 次：burst3，重试数=2，且 retryMax=1 的题红', () => {
+  it('同一错误连发 3 次：burst3，重试数=2，草稿没落 → 红（重试数只进汇总，不再单独判）', () => {
     const result = judgeTask({ task: task('P01'), calls: [bad('draft_shots', ZOD_REJECT), bad('draft_shots', ZOD_REJECT), bad('draft_shots', ZOD_REJECT)], shotsAfter: [] })
     expect(result.burst3).toBe(true)
     expect(result.retries).toBe(2)
     expect(result.passed).toBe(false)
-    expect(result.failed).toEqual(expect.arrayContaining(['重试≤1', '同一错误未连发 3 次']))
+    expect(result.failed).toEqual(expect.arrayContaining(['同一错误未连发 3 次', '该做的写入落地了']))
+    expect(result.failed.join()).not.toContain('重试≤')
   })
   it('静默改值：要 8 秒落了 5 秒、正文一个字没提 → 红', () => {
     const result = judgeTask({ task: task('P01'), calls: [ok('draft_shots')], shotsAfter: [shot({ parameters: { duration: 5, size: '1280x720' } })], finalText: '好了' })
@@ -212,6 +213,51 @@ describe('评分口径回归', () => {
   })
 })
 
+
+// 2026-11-15 三题真模型轨迹（方向复盘「评测和判据本身的问题」）暴露的三处判错：判据看创作者看得到的结果，不看过程。
+describe('判据按创作者看得到的结果判', () => {
+  const detail = (modelId, vendor, keys) => ok('list_models', { modelId }, JSON.stringify({ model: { modelId, vendor, modes: [{ modeId: 't2v', params: keys.map((key) => ({ key })) }] } }))
+  const veoShot = (parameters) => ({ ...shot({ modelId: 'veo3.1-fast', providerId: 'apimart', variantId: 'fast' }), parameters })
+
+  it('P06：所选模型（读过它的说明书）根本没有音频参数 → audio=false 这条不算错', () => {
+    const calls = [detail('veo3.1-fast', 'apimart', ['aspect_ratio', 'resolution']), ok('draft_shots')]
+    const result = judgeTask({ task: task('P06'), calls, shotsAfter: [veoShot({ aspect_ratio: '16:9', resolution: '4k' })] })
+    expect(result.failed).toEqual([])
+    expect(result.checks.find((c) => c.name === '镜1:audio=false').detail).toContain('model-has-no-such-param')
+  })
+  it('P06 阴性：模型有音频开关却没关 → 红；没读过说明书 → 照旧严判', () => {
+    const declared = [detail('veo3.1-fast', 'apimart', ['aspect_ratio', 'resolution', 'generate_audio']), ok('draft_shots')]
+    expect(judgeTask({ task: task('P06'), calls: declared, shotsAfter: [veoShot({ resolution: '4k' })] }).failed).toContain('镜1:audio=false')
+    expect(judgeTask({ task: task('P06'), calls: [ok('draft_shots')], shotsAfter: [veoShot({ resolution: '4k' })] }).failed).toContain('镜1:audio=false')
+  })
+  it('P18：问完又接着写、被停，0 镜 → 「镜头数=4」红（提问只在回合停在问题上时开脱）', () => {
+    const stopped = bad('draft_shots', 'draft_shots was not run (tool_retry_stopped). This turn\'s retries are used up')
+    const result = judgeTask({ task: task('P18'), calls: [ok('read_script'), bad('draft_shots', ADMISSION_REJECT), ok('ask_user'), ok('list_models'), stopped], shotsAfter: [] })
+    expect(result.failed).toEqual(expect.arrayContaining(['镜头数=4', '该做的写入落地了', '没被无声掐掉']))
+  })
+  it('P18 阳性：回合停在问题上、还没起草 → 镜头数这条不算错', () => {
+    const result = judgeTask({ task: task('P18'), calls: [ok('read_script'), ok('ask_user')], shotsAfter: [] })
+    expect(result.failed).not.toContain('镜头数=4')
+    expect(result.failed).not.toContain('该做的写入落地了')
+  })
+  it('第一个动作是读文稿、之后草稿落地 → 「该做的写入落地了」过（不判首个动作）', () => {
+    const shots = Array.from({ length: 4 }, () => shot({ parameters: { ratio: '9:16' } }))
+    const result = judgeTask({ task: task('P18'), calls: [ok('read_script'), ok('look_at_canvas'), bad('draft_shots', ADMISSION_REJECT), ok('draft_shots')], shotsAfter: shots })
+    expect(result.passed).toBe(true)
+    expect(result.retries).toBe(1)
+  })
+  it('第二次写对率：被拒后下一次同名调用就准入算 1；连拒两次再过不算', () => {
+    const a = judgeTask({ task: task('P01'), calls: [bad('draft_shots', ADMISSION_REJECT), ok('draft_shots')] })
+    const b = judgeTask({ task: task('P01'), calls: [bad('draft_shots', ADMISSION_REJECT), bad('draft_shots', ZOD_REJECT), ok('draft_shots')] })
+    expect([a.firstRejections, a.fixedOnSecondTry, b.firstRejections, b.fixedOnSecondTry]).toEqual([1, 1, 1, 0])
+    const summary = summarize([a, b], [], BANK.tasks)
+    expect(summary.secondTryRate).toMatchObject({ fixed: 1, total: 2, value: 0.5 })
+    expect(formatSummary(summary)).toContain('第二次写对率 50.0%')
+  })
+  it('题库里不再有 retryMax（重试数只进汇总）', () => {
+    expect(BANK.tasks.filter((t) => 'retryMax' in t.expect).map((t) => t.id)).toEqual([])
+  })
+})
 
 describe('模型依赖分组', () => {
   it('目录、默认模型与独立题分开统计，缺失题保留在所属组', () => {
