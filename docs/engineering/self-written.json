@@ -1293,6 +1293,35 @@
       "revisitWhen": "监视器规则能以 Playwright 自定义 matcher / reporter 的形式表达而不损失「违反不中断」语义时"
     },
     {
+      "id": "verify-resident-driver",
+      "capability": "常驻验证驱动：隔离起一只 Nomi 窗口常驻，按功能名 goto、看 / 点 / 填 / 截图 / 只读探针，证据落仓库外（各线验证的默认工具，配 .agents/skills/verify-nomi/ 技能与功能地图）",
+      "status": "justified",
+      "paths": [
+        "tests/ux/ui-driver.mjs",
+        "tests/ux/ui.mjs",
+        "tests/ux/uiDir.mjs",
+        "tests/ux/uiDriverOptions.mjs",
+        "tests/ux/uiDriverLab.mjs",
+        "tests/ux/verifyFeatures.mjs"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Microsoft playwright-cli（仓库自带的 playwright 1.60 里，attach --cdp 接已开着的浏览器，snapshot / 按编号 click / fill / screenshot / detach）：2026-11-15 实测能接 Nomi 隔离窗口、不抢前台、开项目后仍接得上，但一次快照字数是自写 snap 的 2.2–2.6 倍（项目库 2006 vs 763，创作页 7817 vs 3593），判据「快照不比 snap 长」不过，看 / 点 / 填暂留自写",
+          "source": "https://github.com/microsoft/playwright-cli"
+        },
+        {
+          "name": "Playwright 的 Electron 启动器与 Page API：启动、定位、点击、截图本来就用它，自写的只是常驻进程 + 文件 IPC 这层壳",
+          "source": "https://playwright.dev/docs/api/class-electron"
+        },
+        {
+          "name": "pstack create-verification-skill：每个项目一份验证技能（起 / 自检 / 驱动 / 取证 / 清理 / 助手）+ 功能地图，技能与地图照它的形状写",
+          "source": "https://github.com/cursor/plugins"
+        }
+      ],
+      "whyNotIntegrated": "通用部分（启动、定位、点击、截图、快照）全交给 Playwright；自写的通用壳只有常驻进程 + 文件 IPC + 参数解析（playwright-cli 能替这一层，卡在快照长度）。领域部分是 verifyFeatures.mjs 的功能名 → 到达步骤（经 _shell.mjs 等外壳出口）、隔离资料与老用户夹具的起法、doctor 读的构建戳与外壳位置——这些是 Nomi 外壳与数据布局独有的。",
+      "revisitWhen": "playwright-cli 的 snapshot 能按可交互元素裁剪到不长于 snap（或支持 depth / 过滤参数）时，删掉自写的 snap / click / fill，驱动只留 goto / doctor / 起停"
+    },
+    {
       "id": "walk-network-allowlist",
       "capability": "走查出网放行名单的判定（精确 origin 含端口 + 通配域名只放 443/80），走查网络闸四层与产品测试网闸共用的唯一正本",
       "status": "justified",
