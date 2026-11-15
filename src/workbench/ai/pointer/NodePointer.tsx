@@ -324,6 +324,13 @@ export type NodePointerProps = {
   suppressAwaitingConfirmation?: boolean
   /** 组给的：缩略图正中已被宿主挂的常驻小动作（「恢复」）占着——这一格不再画自己的正中件（已定位 / 状态胶囊 / 种类图标），判据见 pointerCenterTier。 */
   centerTaken?: boolean
+  /**
+   * 只对 row：第二行写什么。`summary`（默认）= 模型 · 时长那一行摘要；`status` = 只在这一镜有话要说时才有第二行——
+   * 已删除 / 失败原因 / 节点自己的状态（生成中、排队中、已去掉，不生成……）/ 宿主给的 `note`，都没有就只有一行（付费确认：每行都一样的参数在确认条上说一次）。
+   */
+  rowDetail?: 'summary' | 'status'
+  /** 只对 row：行尾给宿主的小动作让出位置（小动作是行的兄弟、压在这一截上，见 NodePointerGroup 的 PointerRow）。 */
+  reserveTrailing?: boolean
 }
 
 export function NodePointer({
@@ -338,6 +345,8 @@ export function NodePointer({
   titleTail,
   suppressAwaitingConfirmation = false,
   centerTaken = false,
+  rowDetail = 'summary',
+  reserveTrailing = false,
 }: NodePointerProps): JSX.Element {
   const { t } = useTranslation()
   const model = usePointerModel(subject)
@@ -416,12 +425,15 @@ export function NodePointer({
           ? (failedOutcome ?? model.status)
           : gone
             ? null
-            : (model.summary('row')[0] ?? model.status)
+            : rowDetail === 'status'
+              ? (rowStatusLine(model, suppressAwaitingConfirmation) ?? subject.note ?? null)
+              : (model.summary('row')[0] ?? model.status)
     return (
       <button
         {...common}
         className={cn(
           'flex min-h-10 w-full min-w-0 items-center gap-2 rounded-nomi border border-nomi-line bg-nomi-paper py-1 pl-1 pr-2 text-left text-caption transition-colors',
+          reserveTrailing && 'pr-9',
           lit && 'border-transparent bg-nomi-ink-05',
           model.face.kind === 'failed' && 'border-nomi-danger-edge',
           gone && 'cursor-default bg-nomi-ink-05',
@@ -535,6 +547,19 @@ export function NodePointer({
       )}
     </button>
   )
+}
+
+/**
+ * 列表行「只写有话要说的」那一档（`rowDetail="status"`）的状态句：节点自己此刻在说的那一句（生成中 / 排队中 / 已去掉，不生成 /
+ * 宿主给的「还没发」/ 已停原因 / 可找回）。结果、空卡没有话要说；「等你确认」在确认条正问着时不重复（`suppressAwaitingConfirmation`）。
+ */
+function rowStatusLine(model: PointerModel, suppressAwaitingConfirmation: boolean): string | null {
+  const face = model.face
+  if (face.kind === 'generating' || face.kind === 'stopped' || face.kind === 'recoverable') return model.status
+  if (face.kind !== 'production') return null
+  if (model.hostStatus) return model.hostStatus
+  if (suppressAwaitingConfirmation && face.state.phase === 'awaiting_confirmation') return null
+  return model.status
 }
 
 /** P2 行尾的状态图标：✓ / 转圈（蓝只留在转圈上）/ 钟 / ⚠ / 断链；点过的那一行写「已定位」。 */

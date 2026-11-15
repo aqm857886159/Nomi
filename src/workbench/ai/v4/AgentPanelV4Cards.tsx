@@ -309,9 +309,13 @@ export function V4Intervention({
     // 不截断、不挤压、主按钮不被挤到下一行（2026-10-01）。中文在默认面板宽下一行放得下。
     <V4Row as="div" className="flex-wrap text-caption" data-v4-block="actions">
       {data.progress ? (
-        // 动作已经交出去、正在一段一段走（付费卡「正在发出 k/N 段」）：不摆主动作，只说怎么停——右边那颗文字「取消」就是停下。
+        // 动作已经交出去、正在一段一段走（付费确认条「正在发出 k/N 段」，板 2026-11-15 ask.sending）：不摆主动作，
+        // 左边转圈 + 进度那一句、右边那颗文字「取消」就是停下。条上没有标题时转圈挪到这一行（标题行不画）。
         <>
-          <span className="text-caption text-nomi-ink-60" data-v4-block="slot-progress">{data.progress.hint}</span>
+          <span className="flex min-w-0 items-center gap-1.5 text-caption text-nomi-ink-60" data-v4-block="slot-progress">
+            {data.title ? null : <span className="shrink-0 text-nomi-accent" data-v4-block="slot-title-icon"><StatusSpinner size={14} /></span>}
+            {data.progress.hint}
+          </span>
           <span className="flex-1" />
           <WorkbenchButton size="sm" className="shrink-0" onClick={dismissCard} data-v4-control="slot-dismiss">
             {dismissLabel}
@@ -334,7 +338,8 @@ export function V4Intervention({
         </>
       ) : (
         <>
-          {/* ── 左：**元信息** ── 次要动作贴着说明文字，数量只由主按钮表达。 */}
+          {/* ── 左：**元信息** ── 次要动作贴着说明文字，数量只由主按钮表达。
+              付费确认条这里留给预估花费（按 11-07 模型面板板 cost.batch-card 印积分，下一刀；这一刀空着）。 */}
           {canEscalate ? (
             <button type="button" className="text-micro text-nomi-ink-40" onClick={onEscalate} data-v4-control="escalate">
               {labels.escalate}
@@ -397,7 +402,8 @@ export function V4Intervention({
       {...(data.failed ? { tone: 'danger' as const } : {})}
       // 标题就是**一句话**，不再是带底色卡头条里的一行小字（2026-09-22 换壳）。
       // 徽章（「生成 · Nomi 选的」「不可逆」「可撤销」）紧跟标题、同一行：来源信息说的是「这张卡是什么」，属于标题行。
-      title={(
+      // 付费确认条等人决定 / 正在发出时没有标题（板 2026-11-15 ask.title：按钮已经说了要做什么、几段），整行不画。
+      title={data.kind === 'spend' && !data.title && !data.badge ? undefined : (
         <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
           {titleIcon}
           <AgentPanelV4Markdown text={data.title} />

@@ -130,7 +130,8 @@ export function V4SlotShell({
       //（cn/twMerge 之外那条路，用户是看不见自己写的顺序不算数的）。
       // 动效不加：出现/消失本身已经是那一下变化，再补一段 transition 就是让一张等人答的卡自己动。
       className={cn(
-        'relative overflow-hidden rounded-nomi border bg-nomi-paper',
+        // 内容区一个字都没有时（付费确认条正在发出：只剩页脚那一行进度 +「取消」）内容区不画、页脚顶上那条线也不画。
+        'relative overflow-hidden rounded-nomi border bg-nomi-paper [&>div:empty+footer]:border-t-0',
         tone === 'danger'
           ? 'border-nomi-danger-edge'
           : waiting
@@ -157,7 +158,7 @@ export function V4SlotShell({
           className="absolute right-1.5 top-1.5 z-10"
         />
       ) : null}
-      <div className="flex flex-col gap-1.5 px-2.5 py-2 text-caption text-nomi-ink">
+      <div className="flex flex-col gap-1.5 px-2.5 py-2 text-caption text-nomi-ink empty:hidden" data-v4-block="slot-content">
         {title ? (
           // `pr-8` 给右上那颗 × 让位——两者同一行，不让位就会压在字上。
           <h3 className="m-0 pr-8 text-body-sm font-semibold text-nomi-ink" data-v4-block="slot-title">{title}</h3>

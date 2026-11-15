@@ -26,7 +26,8 @@ import { V4Intervention, V4Queue, V4TaskCard } from './AgentPanelV4Cards'
 import { V4AssistantMessage, V4Thinking, V4UserBubble } from './AgentPanelV4Message'
 import { V4ErrorBar, V4Process, V4ReceiptNotice, V4ToolGroup, V4ToolReceipt } from './AgentPanelV4Receipt'
 import { flowItemNotices } from './useDirectorPatchNotices'
-import { GenerationReceiptPointers } from '../pointer/GenerationReceiptPointers'
+import { GenerationReceiptPointers, SpendOfferRowsWithoutRecord } from '../pointer/GenerationReceiptPointers'
+import { createSpendOfferRowsStore, SpendOfferRowsContext } from './spendOfferRows'
 import { flowItemGenerations } from '../pointer/generationReceiptFacts'
 import { V4EmptyState } from './AgentPanelV4Empty'
 import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
@@ -388,6 +389,9 @@ export function AgentPanelV4Panel({
     if (node.scrollHeight <= node.clientHeight) onScroll()
     return () => node.removeEventListener('scroll', onScroll)
   }, [onLoadOlder, flow, historyIdentity, historyCursor, pageCompletion, scrollRef])
+  // 付费确认拆开（2026-11-15）：确认条体把这一次出价的行放进来，对话里那一组读出来（每面板一份，见 spendOfferRows.ts）。
+  const [spendOfferRows] = React.useState(createSpendOfferRowsStore)
+  const recordedGenerations = React.useMemo(() => new Set(flow.flatMap(flowItemGenerations)), [flow])
   const onComposerSubmit = composer?.onSubmit
   const submitAndFollow = React.useCallback((choice?: 'primary' | 'secondary') => {
     // 发出去的那句永远要看得见：他刚才翻在半路也拉回最新一条，接着跟（拍板 2）。
@@ -395,6 +399,7 @@ export function AgentPanelV4Panel({
     onComposerSubmit?.(choice)
   }, [onComposerSubmit, scrollToBottom])
   return (
+    <SpendOfferRowsContext.Provider value={spendOfferRows}>
     <section
       // `overflow-clip` 而不是 `overflow-hidden`：hidden 仍然是一个**可以被程序滚动**的
       // 滚动容器，浏览器把新内容 scrollIntoView 时会把 scrollLeft 推走，而用户没有任何手段
@@ -440,10 +445,11 @@ export function AgentPanelV4Panel({
                 />
                 {/* 宿主确定性的提示（例如 3D-BOX 补丁覆盖了手调）画在这一行外面：收起的过程行也照样看得见 */}
                 {flowItemNotices(item).map((notice, position) => <V4ReceiptNotice key={position} text={notice} />)}
-                {/* `generate` 那一行：卡关掉以后挂那几镜的组指向（实时读节点，点了照样定位），同样画在行外面 */}
+                {/* `generate` 那一行：这一次生成的那一组镜头（出价开着时是要确认的那一批，关了是交出去的那几段；实时读节点，点了定位），画在行外面 */}
                 {flowItemGenerations(item).map((operationId) => <GenerationReceiptPointers key={operationId} operationId={operationId} />)}
               </React.Fragment>
             ))}
+            <SpendOfferRowsWithoutRecord recorded={recordedGenerations} />
             {flowTail}
           </div>
         </div>
@@ -481,6 +487,7 @@ export function AgentPanelV4Panel({
         />
       </div>
     </section>
+    </SpendOfferRowsContext.Provider>
   )
 }
 
