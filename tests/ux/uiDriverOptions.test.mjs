@@ -10,6 +10,7 @@ import {
   seedDataFixture, shotFileName, SIZE_PRESETS,
 } from './uiDriverOptions.mjs'
 import { assertForegroundAllowed } from './_launchApp.mjs'
+import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const inside = (dir) => {
@@ -78,26 +79,26 @@ describe('ui-driver defaults', () => {
     for (const [name, rel] of Object.entries(DATA_FIXTURES)) {
       if (rel) expect(fs.existsSync(path.join(repoRoot, rel)), name).toBe(true)
     }
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-ui-driver-seed-'))
+    const tempRoot = makeTempDir('nomi-ui-driver-seed-')
     try {
       const settingsDir = seedDataFixture('v0.24.0-library', tempRoot)
       const registry = fs.readFileSync(path.join(settingsDir, 'recent-workspaces.json'), 'utf8')
       expect(registry).not.toContain('__OLD_USER_ROOT__')
       expect(registry).toContain(path.join(tempRoot, 'old-user'))
     } finally {
-      fs.rmSync(tempRoot, { recursive: true, force: true })
+      cleanupTestTemp(tempRoot)
     }
   })
 
   it('one instance per worktree: a live holder makes the second start fail loudly', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-ui-driver-lock-'))
+    const dir = makeTempDir('nomi-ui-driver-lock-')
     try {
       acquireInstanceLock(dir, process.pid)
       expect(() => acquireInstanceLock(dir, process.pid + 100000)).toThrow(/已经起了一个驱动实例/)
       fs.writeFileSync(path.join(dir, 'instance.lock'), '999999999')
       expect(acquireInstanceLock(dir, process.pid)).toBe(path.join(dir, 'instance.lock'))
     } finally {
-      fs.rmSync(dir, { recursive: true, force: true })
+      cleanupTestTemp(dir)
     }
   })
 })

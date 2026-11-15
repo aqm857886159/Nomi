@@ -11,6 +11,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { verifyBuild } from '../../scripts/package-build-stamp.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { UI_DIR } from './uiDir.mjs'
 import {
   acquireInstanceLock, buildLaunchOptions, parseDriverArgs, profileBanner, seedDataFixture, shotFileName,
@@ -211,7 +212,7 @@ async function click(spec) {
     await w.mouse.click(x, y)
     return 'clicked xy ' + x + ',' + y
   }
-  await locate(w, spec).first().click({ timeout: 5000 })
+  await locate(w, spec).first().click({ timeout: stationTimeout() })
   return 'clicked: ' + spec
 }
 function locate(w, spec) {
@@ -302,7 +303,7 @@ async function run(cmd) {
     case 'features': return { features: Object.fromEntries(Object.entries(FEATURES).map(([key, f]) => [key, f.summary])) }
     case 'goto': return goto(cmd.name, cmd.args ?? [])
     case 'click': { const r = await click(cmd.target); await target().waitForTimeout(cmd.wait ?? 700); return { ok: r, shot: await shot('live') } }
-    case 'fill': { await locate(target(), cmd.sel).first().fill(cmd.val, { timeout: 5000 }); await target().waitForTimeout(300); return { ok: true, shot: await shot('live') } }
+    case 'fill': { await locate(target(), cmd.sel).first().fill(cmd.val, { timeout: stationTimeout() }); await target().waitForTimeout(300); return { ok: true, shot: await shot('live') } }
     case 'press': { await target().keyboard.press(cmd.key); await target().waitForTimeout(cmd.wait ?? 400); return { ok: `pressed ${cmd.key}`, shot: await shot('live') } }
     case 'hover': { await locate(target(), cmd.target).first().hover({ timeout: 5000 }); await target().waitForTimeout(cmd.wait ?? 400); return { ok: `hovered ${cmd.target}`, shot: await shot('live') } }
     case 'setfile': { await target().locator(cmd.sel).first().setInputFiles(cmd.path, { timeout: 5000 }); await target().waitForTimeout(cmd.wait ?? 800); return { ok: true, shot: await shot('live') } }

@@ -454,8 +454,8 @@ export async function assertInLibrary(win, label = '应该在项目库') {
   await expect(newProjectEntry(win), `${label}：没看到「新建项目」入口`).toBeVisible()
 }
 
-/** 像用户一样从项目库新建一个空白项目进去：点「新建空白项目 / 新建项目」，等顶栏工作区分段出现。 */
-export async function createBlankProject(win, label = '新建空白项目') {
+/** 像用户一样从项目库新建一个空白项目进去：点新建入口（newProjectEntry 两种形态都认），等顶栏工作区分段出现。 */
+export async function createBlankProject(win, label = 'create blank project') {
   await expect(newProjectEntry(win), `${label}：项目库里没有「新建项目」入口（不在项目库？）`).toBeVisible()
   await clickOrFail(newProjectEntry(win), label)
   await expect(win.locator(`${STAGE_CENTER} [data-mode]`).first(), `${label}：点完没进项目（顶栏没出现工作区分段）`).toBeVisible()
@@ -491,7 +491,9 @@ async function composerFooterReachable(win) {
  */
 export async function selectOrAddCanvasNode(win, kind, label = `select ${kind} node`) {
   const node = win.locator(CANVAS_NODE(kind)).first()
-  if ((await node.count()) === 0) await addCanvasNode(win, kind)
+  // 基线：先看到画布的添加条（画布真渲染出来了），再数节点；没有才加。数不到不会被误当成「画布还没出来」。
+  await expect(canvasAddBar(win), `${label}：不在画布上（没看到添加条）`).toBeVisible()
+  if (!((await node.count()) > 0)) await addCanvasNode(win, kind)
   await expect(node, `${label}：画布上没有 ${kind} 节点`).toBeVisible()
   for (let step = 0; ; step += 1) {
     if (!(await selectedNodeComposer(win).isVisible().catch(() => false))) await node.click({ position: { x: 8, y: 8 } })

@@ -5,17 +5,17 @@
 //   node tests/ux/verify-features.walk.mjs                     # 默认 1280×800 中文浅色
 //   node tests/ux/verify-features.walk.mjs --locale en --theme dark --size 700x720
 import { spawnSync } from 'node:child_process'
-import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { defaultEvidenceDir } from './uiDriverOptions.mjs'
 import { FEATURES } from './verifyFeatures.mjs'
 
 const UX = path.dirname(fileURLToPath(import.meta.url))
 const CLIENT = path.join(UX, 'ui.mjs')
-const runDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-verify-features-'))
-const env = { ...process.env, NOMI_UI_DIR: path.join(runDir, 'ipc') }
-const out = path.join(runDir, 'evidence')
+// IPC 目录走共享临时助手（进程退出就收）；证据走驱动的默认落点（仓库外、不随退出删）。
+const env = { ...process.env, NOMI_UI_DIR: path.join(makeTempDir('nomi-verify-features-'), 'ipc') }
+const out = path.join(defaultEvidenceDir(), 'verify-features')
 /** 带参数的功能走地图里的默认参数（design-lab 必须点名一屏）。 */
 const ARGS = { 'design-lab': ['storyboard'] }
 

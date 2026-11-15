@@ -6,6 +6,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { stationTimeout } from './_station-budget.mjs'
 import { labChildEnv } from './design-lab/labServer.mjs'
 import { LAB_SCREEN_IDS, readLabStates } from './design-lab/labStates.mjs'
 
@@ -75,7 +76,7 @@ export async function openDesignLabScreen(surface, { screen, state, viewport, th
   lab.url = `${lab.base}/design-lab.html?screen=${encodeURIComponent(screen)}&frame=1${state ? `&state=${encodeURIComponent(state)}` : ''}`
   // 冷启动的 vite 要预打包依赖 + 转译整张模块图，首屏远超 30 秒。
   await lab.page.goto(lab.url, { timeout: 180_000 })
-  await lab.page.waitForFunction(() => window.__designLabReady === true, null, { timeout: 60_000 })
+  await lab.page.waitForFunction(() => window.__designLabReady === true, null, { timeout: stationTimeout({ operations: 4 }) })
   lab.active = true
   return lab.url
 }

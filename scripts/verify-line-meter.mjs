@@ -10,6 +10,7 @@
 // node_modules、dist*、.git 整个跳过——那是拷过来的仓库，不是这条线写的。
 import fs from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const SCRIPT_EXT = /\.(mjs|cjs|js|ts)$/
 const DRIVER_SIGNS = /launchNomiApp|_electron\b|electron\.launch|chromium\.launch|connectOverCDP|\.locator\(|getByRole\(|getByText\(/
@@ -125,4 +126,4 @@ function main(argv) {
   console.log(`驱动脚本 ${row.scripts} 个 · ${row.lines} 行 · 常驻驱动命令 ${row.driverCalls} 次（跳过源码拷贝 ${row.skippedCopies.length} 处）`)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main(process.argv.slice(2))
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main(process.argv.slice(2))
