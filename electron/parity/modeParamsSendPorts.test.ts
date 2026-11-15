@@ -36,7 +36,7 @@ import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/ru
 import { resolveGenerationReferences } from "../../src/workbench/generationCanvas/runner/generationReferenceResolver";
 import { driveEngineA, installFetchCapture, seedParityCatalog } from "./generationParityTestUtils";
 import { recordFields, type OutboundRecord } from "./outboundRecord";
-import { installVariantFixture, VARIANT_FIXTURE } from "./modeParamsVariantFixture";
+import { installVariantFixture, VARIANT_FIXTURE } from "../testSupport/modeParamsVariantFixture";
 
 const capture = installFetchCapture();
 const seeded = await seedParityCatalog([]);
@@ -238,7 +238,7 @@ describe("变体：渲染层和主进程按同一个变体特化", () => {
 // 带变体目录行的主进程默认值护栏：修前指纹 + 这次允许新增的键（和官方请求体矩阵同口径：ref / 多模态方式自己控件上的比例默认值以前没发、现在发）。
 describe("变体夹具（会改方式的键和缺省值的变体）：画布路、无界面路按变体出键", () => {
   // 今天内置档案没有哪个变体会改键 / 缺省值，下面三个断言在「主进程不用记着的 variantId」「干脆不传变体」两种改坏下都不会红；
-  // 夹具（electron/parity/modeParamsVariantFixture.ts）造出差异：standard 变体文生缺省 1080p 且不声明 generate_audio，默认变体 fast 是 720p 且声明。
+  // 夹具（electron/testSupport/modeParamsVariantFixture.ts）造出差异：standard 变体文生缺省 1080p 且不声明 generate_audio，默认变体 fast 是 720p 且声明。
   // Run provider 路同一条断言在 electron/capabilityCore/apimartGenerationProvider.test.ts。
   let restore = () => {};
   beforeAll(() => { restore = installVariantFixture(); });
