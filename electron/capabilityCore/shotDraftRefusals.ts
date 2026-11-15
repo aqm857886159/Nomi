@@ -14,8 +14,10 @@
 //   · 不是我们有意的拒收（TypeError、zod 原始异常……）→ 当场原样抛，不收集。
 import type { ToolInputIssue } from "../shared/agentLane/toolInputIssues";
 import { issuesFromParameterRejection } from "../shared/agentLane/toolInputIssues";
-import { ContractCompilationError } from "./executionContract";
+import { ContractCompilationError, type PlanCandidate } from "./executionContract";
+import { videoCandidateForPlan } from "./mcpGenerationVideoResolve";
 import { GenerationRefusal } from "./transportFailure";
+import { effectiveVideoModes, type VideoModelCandidate } from "../shared/videoCapabilities/recommendation";
 
 /** 一镜在模型眼里的位置：下标与 `shots[]` 一致（从 0 数），其余是它此刻的身份。 */
 export type DraftShotLocator = Readonly<{
@@ -39,6 +41,43 @@ export function draftShotLocatorText(locator: DraftShotLocator, withModel = true
   return `shots[${locator.index}]${title}${identity ? ` (${identity})` : ""}`;
 }
 
+/** 还没合成候选的那一镜（模型原样写的）在拒收里叫什么：只读它自己写着的身份，不猜默认。 */
+export function authoredShotLocator(value: unknown, index: number): DraftShotLocator {
+  const raw = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const text = (key: string): string | undefined => (typeof raw[key] === "string" && (raw[key] as string).trim() ? (raw[key] as string).trim() : undefined);
+  const provider = text("providerId");
+  const model = text("modelId");
+  const modeId = text("modeId");
+  const title = text("title");
+  return {
+    index,
+    ...(title ? { title } : {}),
+    ...(model ? { model: provider ? `${provider}/${model}` : model } : {}),
+    ...(modeId ? { modeId } : {}),
+  };
+}
+
+/** 已合成候选的那一镜：身份读候选（模型 + 方式）；给了视频模型名单就补上方式在供应商那边的叫法，认不出档案就不给。 */
+export function candidateShotLocator(
+  shot: Readonly<{ title?: string; candidate: PlanCandidate }>,
+  index: number,
+  videoModelCandidates?: readonly VideoModelCandidate[],
+): DraftShotLocator {
+  const { candidate } = shot;
+  const modeId = candidate.modeId ?? candidate.mode;
+  const videoCandidate = videoModelCandidates ? videoCandidateForPlan(candidate, videoModelCandidates)?.videoCandidate : undefined;
+  const vendorTerm = videoCandidate && candidate.modeId
+    ? effectiveVideoModes(videoCandidate).find((mode) => mode.id === candidate.modeId)?.vendorTerm
+    : undefined;
+  return {
+    index,
+    ...(shot.title?.trim() ? { title: shot.title.trim() } : {}),
+    model: `${candidate.providerId}/${candidate.modelId}`,
+    ...(modeId ? { modeId } : {}),
+    ...(vendorTerm ? { vendorTerm } : {}),
+  };
+}
+
 /** 多镜一起被拒：第一个坏镜头的 rejection / problem 原样带着（面板行、下一步提示都按它），正文与清单列全部。 */
 export class DraftShotsRefusal extends ContractCompilationError {
   readonly shotIssues: readonly ToolInputIssue[];
@@ -56,7 +95,7 @@ export class DraftShotsRefusal extends ContractCompilationError {
  * 一次起草的逐镜收集器。首建与补镜头共用一个实例：先过「候选合成 + 参考素材」，过了的镜头再过「模型 / 方式 / 参数」，
  * 最后 `finish()` 一次说完。一镜在前一段被拒，后一段就不再判它（它的模型还没定下来）。
  */
-export function createDraftShotRefusals() {
+export function createDraftShotRefusals(options: { videoModelCandidates?: readonly VideoModelCandidate[] | undefined } = {}) {
   const failures: { locator: DraftShotLocator; error: Refusal }[] = [];
   const passed = new Map<number, DraftShotLocator>();
   const failed = new Set<number>();
@@ -80,6 +119,16 @@ export function createDraftShotRefusals() {
 
   const remember = (shotId: string, index: number): void => { indexByShotId.set(shotId, index); };
   const indexOf = (shotId: string, fallback: number): number => indexByShotId.get(shotId) ?? fallback;
+
+  /** 已合成候选的镜头逐个再判一段：被拒的不在返回里（第几镜按 `remember` 记下的算，方式名按建它时给的视频模型名单补）。 */
+  const each = <S extends Readonly<{ shotId: string; title?: string; candidate: PlanCandidate }>, T>(
+    shots: readonly S[],
+    run: (shot: S) => T,
+  ): T[] => shots.flatMap((shot, position) => {
+    const locator = candidateShotLocator(shot, indexOf(shot.shotId, position), options.videoModelCandidates);
+    const value = attempt(locator, () => run(shot));
+    return value === undefined ? [] : [value];
+  });
 
   /** 有镜头被拒就抛（见文件头的不变量）；全过什么都不做。 */
   const finish = (): void => {
@@ -105,7 +154,17 @@ export function createDraftShotRefusals() {
     throw new DraftShotsRefusal(message, ordered[0]!.error, issues);
   };
 
-  return { attempt, remember, indexOf, finish };
+  /** 最后一段：逐镜判完就一次说完（= `each` 再 `finish`）；全过才返回。 */
+  const settle = <S extends Readonly<{ shotId: string; title?: string; candidate: PlanCandidate }>, T>(
+    shots: readonly S[],
+    run: (shot: S) => T,
+  ): T[] => {
+    const passing = each(shots, run);
+    finish();
+    return passing;
+  };
+
+  return { attempt, remember, indexOf, each, settle, finish };
 }
 
 export type DraftShotRefusals = ReturnType<typeof createDraftShotRefusals>;

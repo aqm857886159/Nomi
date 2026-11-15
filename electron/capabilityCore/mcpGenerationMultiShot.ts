@@ -1,5 +1,5 @@
 import { refuseArgument, refuseGeneration } from "./transportFailure";
-import type { DraftShotLocator, DraftShotRefusals } from "./shotDraftRefusals";
+import { authoredShotLocator, type DraftShotRefusals } from "./shotDraftRefusals";
 import type { PlanAnchor, PlanShot, StoryboardPlan } from '../shared/storyboard/storyboardPlan';
 import { appendStoryboardSubjects, nextStoryboardSubjectIds, StoryboardSubjectIdentityError, type AppendedStoryboardSubject } from '../shared/storyboard/storyboardSubjectIdentity';
 import { generationTaskReference } from '../shared/agentCapabilities/taskReference';
@@ -295,34 +295,6 @@ function hostAssignedSubjectIds(raw: readonly unknown[]): string[] {
   }
 }
 
-/** 还没合成候选的那一镜（模型原样写的）在拒收里叫什么：只读它自己写着的身份，不猜默认。 */
-function authoredShotLocator(value: unknown, index: number): DraftShotLocator {
-  const raw = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
-  const text = (key: string): string | undefined => (typeof raw[key] === "string" && (raw[key] as string).trim() ? (raw[key] as string).trim() : undefined);
-  const provider = text("providerId");
-  const model = text("modelId");
-  const modeId = text("modeId");
-  const title = text("title");
-  return {
-    index,
-    ...(title ? { title } : {}),
-    ...(model ? { model: provider ? `${provider}/${model}` : model } : {}),
-    ...(modeId ? { modeId } : {}),
-  };
-}
-
-/** 已合成候选的那一镜：身份读候选（模型 + 方式），方式名由调用方按档案补。 */
-export function candidateShotLocator(shot: GenerationOperationDraftShot, index: number, vendorTerm?: string): DraftShotLocator {
-  const modeId = shot.candidate.modeId ?? shot.candidate.mode;
-  return {
-    index,
-    ...(shot.title?.trim() ? { title: shot.title.trim() } : {}),
-    model: `${shot.candidate.providerId}/${shot.candidate.modelId}`,
-    ...(modeId ? { modeId } : {}),
-    ...(vendorTerm ? { vendorTerm } : {}),
-  };
-}
-
 /** Minimal operation shape the seal helper reads (avoids importing the full GenerationOperation type). */
 /** 封印读的那一份计划：批过的镜带着它那份合同（范围外的镜原样随行时要带上）。 */
 type OperationWithShots = { candidate?: PlanCandidate; shots?: ReadonlyArray<GenerationOperationDraftShot & { contract?: ExecutionContractV1 }> };
@@ -463,22 +435,15 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
     } else {
       return undefined;
     }
-    const passing: GenerationOperationDraftShot[] = [];
-    for (const [position, shot] of shots.entries()) {
-      // 镜头 id 重复、锚占镜号段：发号时（`hostAssignedSubjectIds`）已经拒过。
-      // P4 §5.1.4 锚复用授权面：每个镜的参考素材（复用锚）必须存在且属于本项目（对抗矩阵 #3）。
-      const check = () => {
-        if (deps.assertReferencesResolvable && shot.candidate.references.length > 0) {
-          deps.assertReferencesResolvable(projectId, shot.candidate.references);
-        }
-        return shot;
-      };
-      const checked = refusals
-        ? refusals.attempt(candidateShotLocator(shot, refusals.indexOf(shot.shotId, position)), check)
-        : check();
-      if (checked) passing.push(checked);
-    }
-    shots = passing;
+    // 镜头 id 重复、锚占镜号段：发号时（`hostAssignedSubjectIds`）已经拒过。
+    // P4 §5.1.4 锚复用授权面：每个镜的参考素材（复用锚）必须存在且属于本项目（对抗矩阵 #3）。
+    const checkReferences = (shot: GenerationOperationDraftShot) => {
+      if (deps.assertReferencesResolvable && shot.candidate.references.length > 0) {
+        deps.assertReferencesResolvable(projectId, shot.candidate.references);
+      }
+      return shot;
+    };
+    shots = refusals ? refusals.each(shots, checkReferences) : shots.map(checkReferences);
     // 2026-09-22：原来这里拒绝「只有形象参考」的计划。拦的理由是投影管道（报价行按「非锚」筛），
     // 不是领域——锚本身有候选、有价，present/seal 的范围本来就含它。「先建参考卡、再补镜头」是正常路径
     // （用户 2026-09-21 亲自点名过这条报错）。放行；镜头补在**同一份**方案上（`extend`），不是再建一份。

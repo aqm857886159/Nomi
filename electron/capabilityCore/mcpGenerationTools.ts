@@ -23,7 +23,6 @@ import {
   type ShotPrice,
 } from "../productionRun/shotPricing";
 import {
-  candidateShotLocator,
   createMultiShotCreateHelpers,
   resolveGateScope,
   type AssertReferencesResolvable,
@@ -287,12 +286,6 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     admitPlanCandidate(candidate, registry, videoCompileOptions(candidate, deps.videoModelCandidates));
   };
 
-  /** 这一镜的方式在供应商那边叫什么（拒收定位用）；认不出档案就不给。 */
-  const vendorTermOf = (candidate: PlanCandidate): string | undefined => {
-    const videoCandidate = deps.videoModelCandidates ? videoCandidateForPlan(candidate, deps.videoModelCandidates)?.videoCandidate : undefined;
-    return videoCandidate && candidate.modeId ? effectiveVideoModes(videoCandidate).find((mode) => mode.id === candidate.modeId)?.vendorTerm : undefined;
-  };
-
   /** 起草的每一镜：同一套准入（候选合成 → 归一 → 身份核对 → 参数值）。首建与补镜头都过这一处，不另写一台。 */
   const admitDraftShots = async (
     projectId: string,
@@ -300,22 +293,16 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     registry: GenerationPlanningHandlerDependencies["registry"] = deps.registry,
   ): Promise<GenerationOperationDraftShot[] | undefined> => {
     // 逐镜判完再一起说（`shotDraftRefusals.ts`）：第一个坏镜头不再挡住后面那几镜的问题，每条带镜头号 / 模型 / 方式。
-    const refusals = createDraftShotRefusals();
+    const refusals = createDraftShotRefusals({ videoModelCandidates: deps.videoModelCandidates });
     const draftShots = await resolveCreateShots(projectId, params, registry, refusals);
     if (!draftShots) return undefined;
-    const normalizedShots = draftShots.flatMap((shot, position) => {
-      const index = refusals.indexOf(shot.shotId, position);
-      // 每一镜的「模型 + 模式」落盘前就对过账：矛盾的镜头当场拒绝，不留到付费卡上点下去才发现（第 9 条）。
-      const admitted = refusals.attempt(candidateShotLocator(shot, index, vendorTermOf(shot.candidate)), () => {
-        const normalized = { ...shot, candidate: normalizeAuthoredCandidate(shot.candidate, registry, deps.videoModelCandidates) };
-        admitShotIdentity(normalized.candidate, registry, normalized.role);
-        admitDraftParameters(normalized.candidate, registry);
-        return normalized;
-      });
-      return admitted ? [admitted] : [];
+    // 每一镜的「模型 + 模式」落盘前就对过账：矛盾的镜头当场拒绝，不留到付费卡上点下去才发现（第 9 条）。
+    return refusals.settle(draftShots, (shot) => {
+      const candidate = normalizeAuthoredCandidate(shot.candidate, registry, deps.videoModelCandidates);
+      admitShotIdentity(candidate, registry, shot.role);
+      admitDraftParameters(candidate, registry);
+      return { ...shot, candidate };
     });
-    refusals.finish();
-    return normalizedShots;
   };
 
   /** 单镜起草（一句话生成一张图）的准入。新建单镜草稿与「补一镜到这一请求的方案」共用。 */
