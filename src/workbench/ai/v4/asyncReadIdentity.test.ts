@@ -40,7 +40,7 @@ function panel({ following = false }: { following?: boolean } = {}) {
   const source = readFileSync(new URL('./AgentPanelV4Panel.tsx', import.meta.url), 'utf8')
   const start = source.indexOf('  const stick = useStickToBottom(')
   if (start < 0) throw new Error('AgentPanelV4Panel.tsx 里找不到 useStickToBottom：钩子段的起点变了，这条测试要跟着改')
-  const hooks = source.slice(start, source.indexOf('  return (\n    <section', start))
+  const hooks = source.slice(start, source.indexOf('\n  return (\n', start))
   const context = evaluate(`function Probe({flow,onLoadOlder,flowTail,slot,queue,historyIdentity,historyCursor,conversationKey,composer}) {${hooks}\nreturn React.createElement('scroll',{ref:scrollRef,historyError});}`, { useStickToBottom: stickDouble(following), ResizeObserver: NoResizeObserver })
   return harness(context.Probe)
 }
