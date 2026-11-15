@@ -87,7 +87,8 @@
 
 新增的操作：展开「还有 N 个镜头」；悬停某一行（画布节点同亮）。最坏规模：一次出价 40 镜（宿主上限：`electron/shared/agentCapabilities/generationPlanSchemas.ts` 里出价镜头 `.max(40)`）、画布 200 个有图节点。预算：仓库默认「操作到可见反馈 ≤100ms」，两下取慢的那一下。
 
-场景 `tests/perf/scenarios/spend-rows-expand-hover-40.json`（量具 `tests/perf/canvas-scale-bench.mjs` 的工作台场景 `spend-rows-expand-hover-40`：每次采样先按「取消」收掉上一份、再让 Agent 出一份新的 40 镜出价（面板收成小球时仍挂在 DOM 里，收起再打开不会让那一组回到折起），新那一组是折起的；点「还有 36 个镜头」到 40 行全画出来，再停到最后一行到画布节点亮）。实现线只量不写基线（`--measure-only`），登记为待测，基线由协调或验收线写。数字：见下一行（实现线跑完填）。
+场景 `tests/perf/scenarios/spend-rows-expand-hover-40.json`（量具 `tests/perf/canvas-scale-bench.mjs` 的工作台场景 `spend-rows-expand-hover-40`：每次采样先按「取消」收掉上一份、从画布 store 删掉上一份那 40 个节点（「取消」不删节点，不删的话节点越积越多、适应视图缩到远景、节点外壳不挂），再让 Agent 出一份新的 40 镜出价（面板收成小球时仍挂在 DOM 里，收起再打开不会让那一组回到折起），新那一组是折起的；点「还有 36 个镜头」到 40 行全画出来，再停到最后一行到画布节点亮）。实现线只量不写基线（`--measure-only`），登记为待测，基线由协调或验收线写。数字：见下一行。
+- 实现线 `--measure-only`（提交 acffa83df + 本场景修正，darwin arm64 M5 / 24GB，5 次 + 1 次预热）：中位数 38.9ms / p95 43.4ms / 预算 100ms，长任务 0 次；慢的那一下是悬停到节点亮，点开 40 行比它快。
 
 ## 8 真实条件
 
