@@ -443,6 +443,33 @@ export function canvasControlsHelpDialog(win) {
 }
 
 /**
+ * 「现在在哪」一行字（只读，常驻驱动的 doctor / goto 回报用）：项目库 / 哪个工作区 / 画布或列表 / 设置开在哪个页签 / Agent 面板形态。
+ * 只读外壳发的身份属性，不点任何东西。
+ */
+export async function describeShellLocation(win) {
+  return win.evaluate(({ projectMenu, stage, settings, panel, ball }) => {
+    const visible = (el) => Boolean(el && el.getBoundingClientRect().width > 0)
+    const parts = []
+    const inProject = visible(document.querySelector(projectMenu))
+    if (!inProject) parts.push('library')
+    else {
+      const current = document.querySelector(`${stage} [data-mode][aria-current="page"]`)
+      parts.push(`project:${current?.getAttribute('data-mode') ?? '?'}`)
+      const view = document.querySelector('[data-shell-topbar] [data-generation-view-switcher]')
+      if (view) parts.push(`view:${view.getAttribute('data-generation-view-switcher')}`)
+      if (visible(document.querySelector('.workbench-storyboard'))) parts.push('storyboard-editor')
+      const selected = document.querySelectorAll('[data-node-id].selected, .react-flow__node.selected').length
+      if (selected) parts.push(`selected-nodes:${selected}`)
+    }
+    const dialog = document.querySelector(settings)
+    if (visible(dialog)) parts.push(`settings:${dialog.getAttribute('data-settings-tab')}`)
+    if (visible(document.querySelector(panel))) parts.push('agent:panel')
+    else if (visible(document.querySelector(ball))) parts.push('agent:ball')
+    return parts.join(' · ')
+  }, { projectMenu: PROJECT_MENU, stage: STAGE_CENTER, settings: SETTINGS_DIALOG, panel: AGENT_PANEL, ball: AGENT_BALL })
+}
+
+/**
  * 生成页顶栏里「画布 ↔ 列表」那一个图标切换（外壳 viewSwitcher 槽，紧挨「生成」）。
  * 走查切视图一律经这里，别自己按文案 / 图标猜：按钮上的 data-generation-view-switcher 写的是**当前**视图，
  * 图标和 aria-label 显示的是点了会去的那个。已经在目标视图就什么也不做。
