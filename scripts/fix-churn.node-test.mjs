@@ -8,8 +8,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, test } from 'node:test'
 import { decideDirectionTrailer, docLooksReal, subjectOf } from './check-direction-trailer.mjs'
-import { conceptUnits, CONCEPT_MAX_FILES, loadUnits, selfWrittenUnits } from './fix-churn-units.mjs'
-import { churnFor, desktopNamespaceLines, directionMessage, findHotspots, isDictionaryFile, isUnitSource, isFixSubject, isRevertOfFix, namespaceLines, parseDirectionTrailer, parseHunks, PRIOR_FIX_THRESHOLD, ROOT_NS, stagedNamespaces, touchedNamespaces } from './fix-churn.mjs'
+import { conceptUnits, CONCEPT_MAX_FILES, isSeamProduction, loadSeams, loadUnits, seamUnits, selfWrittenUnits } from './fix-churn-units.mjs'
+import { seamFixCommits, churnFor,desktopNamespaceLines, directionMessage, findHotspots, isDictionaryFile, isUnitSource, isFixSubject, isRevertOfFix, namespaceLines, parseDirectionTrailer, parseHunks, PRIOR_FIX_THRESHOLD, ROOT_NS, stagedNamespaces, touchedNamespaces } from './fix-churn.mjs'
 
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url))
 
@@ -417,5 +417,66 @@ describe('桌面词典按点号键族计数', () => {
       assert.equal(units.length, 1)
       assert.equal(findHotspots(r.root, ['electron/other.ts'], { units }).length, 0, '3 个 fix 都只改词典：electron/ 目录与概念都不该命中')
     } finally { r.cleanup() }
+  })
+})
+
+// ── 第四种单位「交接处」：表的结构 + 计数（只在写任务书时数，不进提交时的方向检查）──────────────────────
+const REPO_ROOT = path.resolve(SCRIPTS, '..')
+const trackedFiles = () => execFileSync('git', ['-c', 'core.quotePath=false', 'ls-files'], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\n').filter(Boolean)
+
+/** 表的结构问题：每行的全图要么是「无」要么是真实存在的文件；路径前缀至少命中一个现存文件。 */
+function seamTableProblems(doc, files, root = REPO_ROOT) {
+  const problems = []
+  for (const seam of doc.seams) {
+    if (!seam.id || !seam.name || !Array.isArray(seam.prefixes) || !seam.prefixes.length) problems.push(`${seam.id}: 缺 id / name / prefixes`)
+    if (seam.map !== '无' && !(typeof seam.map === 'string' && fs.existsSync(path.join(root, seam.map)) && fs.statSync(path.join(root, seam.map)).isFile())) problems.push(`${seam.id}: 全图「${seam.map}」不是「无」也不是仓库里真实存在的文件`)
+    if (typeof seam.checked !== 'boolean') problems.push(`${seam.id}: checked 要写 true / false`)
+    if (!(seam.prefixes ?? []).some((prefix) => files.some((f) => f.startsWith(prefix)))) problems.push(`${seam.id}: 路径前缀一个现存文件都没命中`)
+  }
+  return problems
+}
+
+describe('交接处表与计数', () => {
+  const doc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'docs/engineering/seams.json'), 'utf8'))
+  test('结构：每行全图是「无」或真实存在的文件；路径前缀至少命中一个现存文件；id 不重复', () => {
+    assert.deepEqual(seamTableProblems(doc, trackedFiles()), [])
+    assert.equal(new Set(doc.seams.map((s) => s.id)).size, doc.seams.length)
+  })
+  test('结构测试会红：全图写一个不存在的文件、前缀谁也没命中', () => {
+    const bad = { seams: [{ ...doc.seams[0], map: 'docs/plan/not-a-real-file.md' }, { ...doc.seams[1], prefixes: ['no/such/prefix/'] }] }
+    const problems = seamTableProblems(bad, trackedFiles())
+    assert.equal(problems.length, 2)
+    assert.match(problems[0], /全图/)
+    assert.match(problems[1], /前缀/)
+  })
+  test('交接处单位：14 天 / 已有 1 个 fix 就是第 2 次；不进 loadUnits（提交时的方向检查不认它）', () => {
+    const units = seamUnits(doc)
+    assert.equal(units.length, doc.seams.length)
+    assert.ok(units.every((u) => u.kind === 'seam' && u.windowDays === 14 && u.prior === 1 && u.productionOnly))
+    assert.equal(loadUnits(REPO_ROOT).some((u) => u.kind === 'seam'), false)
+    assert.equal(loadSeams('/nonexistent-root').length, 0)
+  })
+  test('计数：只数窗口内、fix 标题、生产文件；测试 / 文档 / 夹具不算；revert 与 feat 不算', () => {
+    const [unit] = seamUnits({ seams: [{ id: 's', name: 'S', map: '无', checked: true, prefixes: ['src/s/'] }] })
+    const now = Date.parse('2026-11-15T00:00:00Z')
+    const c = (days, subject, files) => ({ sha: 'a'.repeat(40), ms: now - days * 86400000, subject, files })
+    const history = [
+      c(1, 'fix(s): 一', ['src/s/a.ts']),
+      c(2, 'feat(s): 加', ['src/s/a.ts']),
+      c(3, 'fix(s): 只改测试', ['src/s/a.test.ts', 'src/s/__fixtures__/x.json']),
+      c(4, 'fix(s): 只改文档', ['docs/s/a.md']),
+      c(5, 'Revert "fix(s): 一"', ['src/s/a.ts']),
+      c(13, 'fix(s): 窗口内最老', ['src/s/b.ts']),
+      c(15, 'fix(s): 窗口外', ['src/s/b.ts']),
+    ]
+    assert.deepEqual(seamFixCommits(history, now, unit).map((x) => x.subject), ['fix(s): 一', 'fix(s): 窗口内最老'])
+    assert.equal(isSeamProduction('src/s/a.ts'), true)
+    assert.equal(isSeamProduction('tests/perf/results/x.json'), false)
+  })
+  test('前缀是字符串前缀（electron/catalog/taskParams 命中 taskParams.ts），不是目录', () => {
+    const units = seamUnits(doc)
+    const unit = units.find((u) => u.id === 'archetype-panel-request')
+    assert.ok(unit.patterns.some((p) => 'electron/catalog/taskParams.ts'.startsWith(p)))
+    assert.equal(seamFixCommits([{ sha: 'b'.repeat(40), ms: Date.now(), subject: 'fix: x', files: ['electron/catalog/taskParamsFoo.ts'] }], Date.now(), unit).length, 1)
   })
 })
