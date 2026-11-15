@@ -21,6 +21,7 @@ export function reasonFromLog(text) {
 
 /**
  * 演练前就知道跑不了的（缺参数 / 缺环境 / 要真资料那一档）：批量和夜间都记「跳过：要什么」，不进红名单。
+ * 只减不增（2026-11-15 定，和红名单同一种守法：守它的测试在 _paidRehearsalList.test.mjs）——补上演练档的少一份删一份，不许往里加。
  * `env`：缺这些环境变量才跳过（给了就照跑）；`always`：批量从不给的（命令行参数、只在本机真资料里才有的东西），一律跳过。
  * 只写「要什么」，不写为什么坏——坏了的进下面的红名单。
  */
@@ -52,15 +53,52 @@ export const KNOWN_RED = Object.freeze({
   'storyboard-agent-bulk-real.paid.mjs': '发第一条请求之前脚本自己报错：对 undefined 调 replace',
 })
 
-/** 夜间这一步的结论：返回要报红的问题（空 = 绿）。rows = 批量的结果行（{ file, status: 'passed' | 'failed' | 'skipped', reason }）。 */
-export function nightlyProblems(rows, knownRed = KNOWN_RED) {
+/**
+ * 「只到大脑」名单（2026-11-15 定，只减不增；守法同红名单）：本意花媒体钱、演练却只走到 Agent 的大脑请求（替身答不了对话，
+ * 走不到后面的媒体创建）的脚本。它们不算过、也不算坏：单列、点名，夜间按名单判。只在它们能走到创建请求了（例如替身学会答对话）才删。
+ */
+export const BRAIN_ONLY = Object.freeze({
+  'agent-permission-two-tiers.paid.mjs': 'Agent 开口的第一条是 chat/completions，替身答不了对话，走不到媒体创建',
+  'agent-queued-shots.paid.mjs': 'Agent 开口的第一条是 chat/completions，替身答不了对话，走不到媒体创建',
+  'agent-shot-scope-real.paid.mjs': 'Agent 开口的第一条是 chat/completions，替身答不了对话，走不到媒体创建',
+  'agent-spend-per-shot-real.paid.mjs': 'Agent 开口的第一条是 chat/completions，替身答不了对话，走不到媒体创建',
+  'agent-spend-real-image.paid.mjs': 'Agent 开口的第一条是 chat/completions，替身答不了对话，走不到媒体创建',
+  'agent-video-landing.paid.mjs': 'Agent 开口的第一条是 chat/completions，替身答不了对话，走不到媒体创建',
+  'production-shot-claim.paid.mjs': 'Agent 开口的第一条是 chat/completions，替身答不了对话，走不到媒体创建',
+})
+
+/**
+ * 夜间这一步的结论：返回要报红的问题（空 = 绿）。
+ * rows = 批量的结果行（{ file, status: 'passed' | 'failed' | 'brain-only' | 'skipped', reason }）。
+ * 不过：名单外 → 红；只到大脑：「只到大脑」名单外 → 红；名单里的今天过了 / 换了状态 / 没跑到 → 红（提醒删）。
+ */
+export function nightlyProblems(rows, knownRed = KNOWN_RED, brainOnly = BRAIN_ONLY) {
   const problems = []
   const seen = new Set(rows.map((row) => row.file))
   for (const row of rows) {
-    const listed = Object.hasOwn(knownRed, row.file)
-    if (row.status === 'failed' && !listed) problems.push(`${row.file} 演练不过，不在「今天不过」名单里：${row.reason}`)
-    if (row.status === 'passed' && listed) problems.push(`${row.file} 在「今天不过」名单里，但今天过了——把它从名单里删掉`)
+    const red = Object.hasOwn(knownRed, row.file)
+    const brain = Object.hasOwn(brainOnly, row.file)
+    if (row.status === 'failed' && !red) problems.push(`${row.file} 演练不过，不在「今天不过」名单里：${row.reason}`)
+    if (row.status === 'brain-only' && !brain) problems.push(`${row.file} 只走到大脑请求（本意花媒体钱），不在「只到大脑」名单里：${row.reason}`)
+    if (red && row.status !== 'failed' && row.status !== 'skipped') problems.push(`${row.file} 在「今天不过」名单里，但今天${row.status === 'passed' ? '过了' : `是「${row.status}」`}——把它从名单里删掉`)
+    if (brain && row.status !== 'brain-only' && row.status !== 'skipped') problems.push(`${row.file} 在「只到大脑」名单里，但今天${row.status === 'passed' ? '过了' : `是「${row.status}」`}——把它从名单里删掉`)
   }
-  for (const file of Object.keys(knownRed)) if (!seen.has(file)) problems.push(`「今天不过」名单里的 ${file} 这一场没跑到（脚本删了、改名了或被跳过）——把它从名单里删掉`)
+  for (const [name, list] of [['今天不过', knownRed], ['只到大脑', brainOnly]]) {
+    for (const file of Object.keys(list)) if (!seen.has(file)) problems.push(`「${name}」名单里的 ${file} 这一场没跑到（脚本删了、改名了或被跳过）——把它从名单里删掉`)
+  }
   return problems
+}
+
+/** 终点那一列的三类：供应商创建 / 供应商只读 / 只到大脑（声明终点就是大脑的纯文字脚本）。 */
+export const ENDPOINT_CLASSES = Object.freeze({ 'vendor-create': '供应商创建', 'vendor-read': '供应商只读', brain: '只到大脑（声明的终点）' })
+
+/** 汇总：三类终点各几份（过 / 共）、本意花媒体钱却只到大脑的单列名单。rows 要带 endsAt。 */
+export function endpointTally(rows) {
+  const tally = Object.fromEntries(Object.keys(ENDPOINT_CLASSES).map((endsAt) => [endsAt, { total: 0, passed: 0 }]))
+  for (const row of rows) {
+    if (row.status === 'skipped' || !tally[row.endsAt]) continue
+    tally[row.endsAt].total += 1
+    if (row.status === 'passed') tally[row.endsAt].passed += 1
+  }
+  return { tally, brainOnly: rows.filter((row) => row.status === 'brain-only').map((row) => row.file) }
 }

@@ -11,8 +11,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 
 import {
-  PAID_WALKS_WITHOUT_OPEN_PAID_WALK, PRODUCT_SOURCE_DIRS, REHEARSAL_FAKE_KEY, rehearsalFreeAnswers, assertPaidBuildReady, assertRehearsalReceipt, handedOverRuns, jobVendor, openPaidWalk, packagedBuildIdentity,
-  paidBuildMarkerProblems, paidRunRefusal, paidWalkCoverageProblems, rehearsalReceiptFile, rehearsalReceiptRefusal, scriptFingerprint, writeRehearsalReceipt,
+  PAID_WALKS_WITHOUT_OPEN_PAID_WALK, PRODUCT_SOURCE_DIRS, REHEARSAL_FAKE_KEY, rehearsalFreeAnswers, assertPaidBuildReady, handedOverRuns, printRehearsalReminder, rehearsalReminder, jobVendor, openPaidWalk, packagedBuildIdentity,
+  paidBuildMarkerProblems, paidRunRefusal, paidWalkCoverageProblems, rehearsalReceiptFile, scriptFingerprint, writeRehearsalReceipt,
   REHEARSAL_ENDPOINTS, REHEARSAL_RECEIPT_VERSION, rehearsalEndpointOf,
 } from './_paidRun.mjs'
 import { REHEARSAL_STATIONS } from './_paidNetwork.mjs'
@@ -122,7 +122,7 @@ describe('openPaidWalk · build check runs before the isolated copy is built', (
     expect(seen).toEqual([['标记甲']])
     // 打包形态：不调检查（这里走到 createWalk 就抛，证明检查被跳过且没挡在前面）
     const createWalk = vi.fn(async () => { throw new Error('reached createWalk') })
-    await expect(openPaidWalk('x.paid.mjs', 'x', models, { env, createWalk, assertBuild, argv: ['--packaged', 'C:/Nomi.exe'], packagedBuild: () => 'packaged:test', assertRehearsed: () => {} })).rejects.toThrow('reached createWalk')
+    await expect(openPaidWalk('x.paid.mjs', 'x', models, { env, createWalk, assertBuild, argv: ['--packaged', 'C:/Nomi.exe'], packagedBuild: () => 'packaged:test', remindRehearsal: () => {} })).rejects.toThrow('reached createWalk')
     expect(seen).toHaveLength(1)
   })
 })
@@ -146,7 +146,7 @@ describe('openPaidWalk · 接入先于开项目，不靠走查记得顺序', () 
     const connect = vi.fn(async () => { calls.push('connect'); return { keySaved: true } })
     const readRows = vi.fn(async () => [{ vendorKey: 'apimart', modelKey: 'deepseek-v4-flash', labelZh: 'x' }])
     const lockSpendTo = vi.fn(async () => { calls.push('lockSpend'); return 3 })
-    const paid = await openPaidWalk('x.paid.mjs', 'x', models, { env, createWalk, assertBuild: () => {}, assertRehearsed: () => {}, argv: [], connect, readRows, lockSpendTo })
+    const paid = await openPaidWalk('x.paid.mjs', 'x', models, { env, createWalk, assertBuild: () => {}, remindRehearsal: () => {}, argv: [], connect, readRows, lockSpendTo })
     return { paid, calls, win, connect, lockSpendTo }
   }
 
@@ -273,37 +273,47 @@ describe('rehearsal · 开关判据', () => {
   })
 })
 
-describe('rehearsal · 收据判据', () => {
-  const want = { script: 'tests/ux/x.paid.mjs', fingerprint: 'sha256:a', build: 'tree-1' }
-  const good = { version: REHEARSAL_RECEIPT_VERSION, script: 'tests/ux/x.paid.mjs', fingerprint: 'sha256:a', build: 'tree-1', passed: true, station: 'vendor-create' }
-  it('演练通过后，同一份脚本、同一个构建放行', () => {
-    expect(rehearsalReceiptRefusal(good, want)).toBeNull()
+describe('rehearsal · 上次演练的提醒（只提醒，不拦）', () => {
+  const want = { script: 'tests/ux/x.paid.mjs', fingerprint: 'sha256:a', build: 'tree-1', now: Date.parse('2026-11-15T12:00:00Z') }
+  const good = { version: REHEARSAL_RECEIPT_VERSION, script: 'tests/ux/x.paid.mjs', fingerprint: 'sha256:a', build: 'tree-1', passed: true, status: 'passed', station: 'vendor-create', shots: { declared: 4, reached: 4 }, reason: '走到了「vendor-create」', at: '2026-11-15T10:00:00Z' }
+  const text = (receipt, extra = {}) => rehearsalReminder(receipt, { ...want, ...extra }).join('\n')
+  it('同一份脚本、同一个构建：打印什么时候、过没过、走到哪一站、几发里走到几发，不说「没演练过」', () => {
+    const shown = text(good)
+    expect(shown).toMatch(/只提醒，不拦/)
+    expect(shown).toContain('2026-11-15T10:00:00Z（2 小时前）')
+    expect(shown).toMatch(/过 · 走到「vendor-create」，4 发里走到 4 发/)
+    expect(shown).not.toContain('没演练过这个版本')
   })
-  it('R3 · 没有收据拒，并说清先带演练开关跑一遍', () => {
-    expect(rehearsalReceiptRefusal(null, want)).toMatch(/没有演练收据.*NOMI_PAID_REHEARSAL=no-key/)
+  it('R3 · 没有收据 / 别的脚本的收据：明说「没演练过这个版本」，照跑，指出怎么免费演练', () => {
+    for (const receipt of [null, { ...good, script: 'tests/ux/y.paid.mjs' }]) expect(text(receipt)).toMatch(/没演练过这个版本[\s\S]*照跑[\s\S]*NOMI_PAID_REHEARSAL=no-key/)
   })
-  it('R4 · 脚本改过拒；构建变了拒；上一次没过拒；别的脚本的收据拒；算不出构建身份拒', () => {
-    expect(rehearsalReceiptRefusal(good, { ...want, fingerprint: 'sha256:b' })).toContain('演练之后改过')
-    expect(rehearsalReceiptRefusal(good, { ...want, build: 'tree-2' })).toContain('构建在')
-    expect(rehearsalReceiptRefusal({ ...good, passed: false, reason: '找不到生成钮' }, want)).toContain('上一次演练没过（找不到生成钮）')
-    expect(rehearsalReceiptRefusal({ ...good, script: 'tests/ux/y.paid.mjs' }, want)).toContain('不是这份脚本的')
-    expect(rehearsalReceiptRefusal(good, { ...want, build: undefined })).toContain('算不出构建身份')
+  it('R4 · 脚本改过 / 构建变了 / 算不出构建 / 旧格式：「没演练过这个版本」并点名变了什么；上次没过、只到大脑：照实说', () => {
+    expect(text(good, { fingerprint: 'sha256:b' })).toMatch(/没演练过这个版本：脚本（或它的本地辅助模块）在演练之后改过/)
+    expect(text(good, { build: 'tree-2' })).toMatch(/构建变了（演练时 tree-1，现在 tree-2）/)
+    expect(text(good, { build: undefined })).toContain('算不出构建身份')
+    expect(text(good, { fingerprint: null })).toContain('算不出脚本指纹')
+    expect(text({ ...good, version: 2 })).toContain('收据是旧格式')
+    expect(text({ ...good, passed: false, status: 'failed', reason: '找不到生成钮' })).toMatch(/不过 · [\s\S]*找不到生成钮[\s\S]*上次演练不过——照跑/)
+    expect(text({ ...good, passed: false, status: 'brain-only', station: 'brain' })).toMatch(/只到大脑请求（不算过） · 走到「brain」/)
   })
-  it('r2 · 收据记下走到了哪一站：只走到上传中转（或更早、或没记）的拒；声明了终点的脚本按它的终点认', () => {
-    expect(rehearsalReceiptRefusal({ ...good, station: 'upload-relay' }, want)).toMatch(/只走到了「upload-relay」.*终点是「vendor-create」/)
-    expect(rehearsalReceiptRefusal({ ...good, station: undefined }, want)).toContain('只走到了「未知」')
-    expect(rehearsalReceiptRefusal({ ...good, station: 'vendor-read' }, want)).toContain('vendor-read')
-    expect(rehearsalReceiptRefusal({ ...good, station: 'vendor-read' }, { ...want, endsAt: 'vendor-read' })).toBeNull()
+  it('R3 · 真付费入口用的那份提醒从不抛：入口文件不存在、收据目录不存在都只打印', () => {
+    const lines = []
+    const dir = makeTempDir('nomi-rehearsal-none-')
+    expect(() => printRehearsalReminder({ script: 'tests/ux/none.paid.mjs', entry: path.join(dir, 'none.paid.mjs'), build: 'tree-1', receiptDir: path.join(dir, 'r'), log: (line) => lines.push(line) })).not.toThrow()
+    expect(lines.join('\n')).toMatch(/没演练过这个版本[\s\S]*照跑/)
+  })
+  it('终点声明表：每一条都写了理由、文件在、终点是认得的站；表外的一律 vendor-create', () => {
     expect(rehearsalEndpointOf('tests/ux/x.paid.mjs', { 'x.paid.mjs': { endsAt: 'vendor-read', why: '只查列表' } })).toBe('vendor-read')
     expect(rehearsalEndpointOf('tests/ux/y.paid.mjs', { 'x.paid.mjs': { endsAt: 'vendor-read', why: '只查列表' } })).toBe('vendor-create')
-    // 声明表里每一条都写了理由、终点是认得的站
     for (const [script, row] of Object.entries(REHEARSAL_ENDPOINTS)) {
       expect(script).toMatch(/\.paid\.mjs$/)
+      expect(fs.existsSync(path.join('tests', 'ux', script))).toBe(true)
       expect(REHEARSAL_STATIONS).toContain(row.endsAt)
+      expect(row.endsAt).not.toBe('vendor-create')
       expect(String(row.why ?? '').length).toBeGreaterThan(4)
     }
   })
-  it('R4 · 脚本改一个字符、或它 import 的本地辅助模块改一个字符，指纹都变；写收据 → 核收据走同一套', () => {
+  it('R4 · 脚本改一个字符、或它 import 的本地辅助模块改一个字符，指纹都变；写收据 → 提醒读的是同一张', () => {
     const root = makeTempDir('nomi-rehearsal-fp-')
     const dir = path.join(root, 'tests', 'ux')
     fs.mkdirSync(dir, { recursive: true })
@@ -315,10 +325,12 @@ describe('rehearsal · 收据判据', () => {
     fs.writeFileSync(path.join(dir, '_reach.mjs'), "export const reach = async () => 'generatE'\n")
     expect(scriptFingerprint(entry, { repoBase: root }).fingerprint).not.toBe(first.fingerprint)
     const receipts = path.join(root, 'receipts')
-    writeRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', tier: 'no-key', verdict: { passed: true, reason: 'ok', request: null, station: 'vendor-create' }, receiptDir: receipts })
-    expect(() => assertRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', receiptDir: receipts })).not.toThrow()
+    const written = writeRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', tier: 'no-key', verdict: { passed: true, status: 'passed', reason: 'ok', request: null, station: 'vendor-create', shots: { declared: 1, reached: 1 } }, receiptDir: receipts })
+    expect(written).toMatchObject({ version: REHEARSAL_RECEIPT_VERSION, status: 'passed', shots: { declared: 1, reached: 1 } })
+    const read = () => { const lines = []; printRehearsalReminder({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', receiptDir: receipts, log: (line) => lines.push(line) }); return lines.join('\n') }
+    expect(read()).not.toContain('没演练过这个版本')
     fs.appendFileSync(entry, ' ')
-    expect(() => assertRehearsalReceipt({ script: 'tests/ux/x.paid.mjs', entry, build: 'tree-1', receiptDir: receipts })).toThrow(/一分钱没花.*演练之后改过/)
+    expect(read()).toMatch(/没演练过这个版本：脚本（或它的本地辅助模块）在演练之后改过/)
     // 收据文件名 = 脚本的仓库相对路径，分隔符换成双下划线（写成 join：整串字面量会被走查选择器门岗误读成 CSS 类名）
     expect(rehearsalReceiptFile('tests/ux/x.paid.mjs', receipts)).toBe(path.join(receipts, ['tests', 'ux', 'x.paid.mjs.json'].join('__')))
   })
@@ -361,7 +373,7 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
       createWalk, assertBuild: () => ({ tree: 'tree-1' }), argv: [], entry: 'tests/ux/x.paid.mjs',
       connect: async (_win, { apiKey }) => { seen.connectKey = apiKey; return { keySaved: true } },
       readRows: async () => MODELS.map((model) => ({ ...model, kind: 'video', labelZh: 'x' })), lockSpendTo: async () => 0,
-      assertRehearsed: vi.fn(() => { throw new Error('receipt checked') }),
+      remindRehearsal: vi.fn(() => ['[paid] 上次演练（只提醒，不拦）']),
       writeReceipt: (receipt) => { receipts.push(receipt); return receipt },
       startStandIn: vi.fn(async (options) => { const to = `http://127.0.0.1:${40000 + standInCount++}`; return { options, origin: to, redirect: { from: options.origin, to }, close: vi.fn(async () => {}) } }),
     }
@@ -376,7 +388,7 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
     return paid
   }
 
-  it('R1 · 不要 Key 的演练：交给闸的放行名单是空的；真 Key 不进接入页（用假钥匙）；子进程的 Key 是空串；不读真实资料；不核收据', async () => {
+  it('R1 · 不要 Key 的演练：交给闸的放行名单是空的；真 Key 不进接入页（用假钥匙）；子进程的 Key 是空串；不读真实资料；不打印上次演练的提醒', async () => {
     const { seen, deps, root } = fakeWalk()
     const paid = await openAndLock(deps, noKeyEnv(root))
     expect(paid.rehearsal).toBe('no-key')
@@ -385,7 +397,7 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
     expect(paid.walk.report.networkAllowlist).toEqual([])
     expect(paid.walk.report.rehearsal.judgedAgainst).toContain('https://api.apimart.ai')
     expect(seen.connectKey).toBe(REHEARSAL_FAKE_KEY)
-    expect(deps.assertRehearsed).not.toHaveBeenCalled()
+    expect(deps.remindRehearsal).not.toHaveBeenCalled()
     // 供应商的源改道到本机替身，替身只答产品种子声明的免费探测（APIMart 的余额查询）
     expect(JSON.parse(seen.options.env.NOMI_TEST_NETWORK_REDIRECTS)).toEqual([{ from: 'https://api.apimart.ai', to: 'http://127.0.0.1:40001' }])
     const standIn = deps.startStandIn.mock.calls[0][0]
@@ -434,7 +446,7 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
     expect(JSON.parse(env.NOMI_TEST_NETWORK_REDIRECTS)).toEqual([{ from: 'https://api.apimart.ai', to: 'http://127.0.0.1:49999' }, { from: relay, to: 'http://127.0.0.1:40002' }])
     expect(env.NOMI_LAB_TRUSTED_PRIVATE_ORIGINS).toBe('http://127.0.0.1:49999,http://127.0.0.1:40001,http://127.0.0.1:40002')
     expect(paid.walk.report.networkAllowlist).toEqual([]) // 演练时闸的放行名单仍是空的：代理就算转发，也只能到替身
-    const real = await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: { NOMI_SPEND_OK: '1', CI: '', APIMART_API_KEY: 'sk-real-looking-key-0123456789', NOMI_REAL_PROFILE_USER_DATA: path.join(root, 'none') }, assertRehearsed: () => {} })
+    const real = await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: { NOMI_SPEND_OK: '1', CI: '', APIMART_API_KEY: 'sk-real-looking-key-0123456789', NOMI_REAL_PROFILE_USER_DATA: path.join(root, 'none') }, remindRehearsal: () => {} })
     expect(real.vendorUpstream().target).toBe(real.walk.report.networkAllowlist[0])
   })
 
@@ -466,7 +478,7 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
 
   it('替身只在不要 Key 那档起；不演练、real-key 档都不起', async () => {
     const { deps, root } = fakeWalk()
-    await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: { NOMI_SPEND_OK: '1', CI: '', APIMART_API_KEY: 'sk-real-looking-key-0123456789', NOMI_REAL_PROFILE_USER_DATA: path.join(root, 'none') }, assertRehearsed: () => {} })
+    await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: { NOMI_SPEND_OK: '1', CI: '', APIMART_API_KEY: 'sk-real-looking-key-0123456789', NOMI_REAL_PROFILE_USER_DATA: path.join(root, 'none') }, remindRehearsal: () => {} })
     expect(deps.startStandIn).not.toHaveBeenCalled()
   })
 
@@ -525,15 +537,91 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
     expect(deps.createWalk).not.toHaveBeenCalled()
   })
 
-  it('R3 · 真付费（不带演练开关）先核收据，核不过就在建隔离副本之前拒；vendorNetwork:false 的探测不核', async () => {
+  it('R3 · 真付费（不带演练开关）没有收据也不拒：开跑前打印上次演练的情况，照样建隔离副本；提醒自己出错也照跑；vendorNetwork:false 的探测不打印', async () => {
     const { deps, root } = fakeWalk()
     const env = { NOMI_SPEND_OK: '1', CI: '', APIMART_API_KEY: 'sk-real-looking-key-0123456789', NOMI_REAL_PROFILE_USER_DATA: path.join(root, 'none') }
-    await expect(openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env })).rejects.toThrow('receipt checked')
-    expect(deps.assertRehearsed).toHaveBeenCalledWith({ script: 'tests/ux/x.paid.mjs', entry: 'tests/ux/x.paid.mjs', build: 'tree-1' })
-    expect(deps.createWalk).not.toHaveBeenCalled()
-    deps.assertRehearsed.mockClear()
+    await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env })
+    expect(deps.remindRehearsal).toHaveBeenCalledWith({ script: 'tests/ux/x.paid.mjs', entry: 'tests/ux/x.paid.mjs', build: 'tree-1' })
+    expect(deps.createWalk).toHaveBeenCalledTimes(1)
+    await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env, remindRehearsal: () => { throw new Error('boom') } })
+    expect(deps.createWalk).toHaveBeenCalledTimes(2)
+    deps.remindRehearsal.mockClear()
     await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env, vendorNetwork: false })
-    expect(deps.assertRehearsed).not.toHaveBeenCalled()
+    expect(deps.remindRehearsal).not.toHaveBeenCalled()
+  })
+
+  it('原有的拒跑一条不动：没有 NOMI_SPEND_OK、在 CI 里，都在建隔离副本之前拒，也不打印提醒', async () => {
+    const { deps } = fakeWalk()
+    await expect(openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: { CI: '', APIMART_API_KEY: 'sk-real-looking-key-0123456789' } })).rejects.toThrow('NOMI_SPEND_OK=1')
+    await expect(openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: { CI: 'true', NOMI_SPEND_OK: '1' } })).rejects.toThrow()
+    expect(deps.createWalk).not.toHaveBeenCalled()
+    expect(deps.remindRehearsal).not.toHaveBeenCalled()
+  })
+
+  const createRow = (pathname = '/v1/videos/generations') => `${JSON.stringify({ kind: 'blocked', via: 'rehearsal-vendor', role: 'vendor', method: 'POST', host: 'api.apimart.ai', url: `https://api.apimart.ai${pathname}`, at: new Date().toISOString() })}\n`
+  const settle = (ms = 700) => new Promise((resolve) => setTimeout(resolve, ms))
+
+  it('真问题 1 · 自己判请求体的脚本：兜底超时关了 App，脚本随后报的判据错不许吞 → 不过，错的原文进结果和收据', async () => {
+    const { seen, deps, receipts, root } = fakeWalk()
+    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: noKeyEnv(root), recordAllowedBodies: true, judgesBodyInRehearsal: true, rehearsalGraceMs: 200 })
+    await paid.walk.start({ first: true })
+    await paid.lockToAuthorizedModels({ id: 'win' })
+    fs.appendFileSync(seen.options.env.NOMI_WALK_NET_LOG, createRow())
+    await settle(1500)
+    expect(seen.stopped).toBeGreaterThan(0)
+    await paid.finish(new Error('样片没过：A1：请求体判据没过：omni_reference_task_type 是 "reference"，应是 edit'))
+    expect(paid.walk.report.rehearsal).toMatchObject({ passed: false, status: 'failed', stoppedBy: 'idle' })
+    expect(paid.walk.report.rehearsal.reason).toMatch(/兜底超时[\s\S]*omni_reference_task_type/)
+    expect(receipts[0].verdict.scriptError).toContain('omni_reference_task_type')
+    expect(process.exitCode).toBe(1)
+    process.exitCode = 0
+  })
+
+  it('真问题 1 · 自己判请求体的脚本没被关窗、自己抛了判据错 → 不过（错算数）', async () => {
+    const { seen, deps, root } = fakeWalk()
+    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: noKeyEnv(root), recordAllowedBodies: true, judgesBodyInRehearsal: true })
+    await paid.walk.start({ first: true })
+    await paid.lockToAuthorizedModels({ id: 'win' })
+    fs.appendFileSync(seen.options.env.NOMI_WALK_NET_LOG, createRow())
+    await paid.finish(new Error('请求体判据没过：aspect_ratio'))
+    expect(paid.walk.report.rehearsal).toMatchObject({ passed: false, status: 'failed', scriptErrorCounted: true })
+    expect(paid.walk.report.rehearsal.reason).toContain('aspect_ratio')
+    process.exitCode = 0
+  })
+
+  it('真问题 2 · 声明 4 发只走到 2 发 → 不过，写「4 发里只走到 2 发」；4 发都走到 → 过', async () => {
+    for (const [rows, passed] of [[2, false], [4, true]]) {
+      const { seen, deps, receipts, root } = fakeWalk()
+      const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: noKeyEnv(root), recordAllowedBodies: true, judgesBodyInRehearsal: true, rehearsalShots: 4 })
+      await paid.walk.start({ first: true })
+      await paid.lockToAuthorizedModels({ id: 'win' })
+      for (let index = 0; index < rows; index += 1) fs.appendFileSync(seen.options.env.NOMI_WALK_NET_LOG, createRow())
+      await paid.finish(undefined)
+      expect(paid.walk.report.rehearsal.passed).toBe(passed)
+      expect(receipts[0].verdict.shots).toEqual({ declared: 4, reached: rows })
+      if (!passed) expect(paid.walk.report.rehearsal.reason).toContain('4 发里只走到 2 发')
+    }
+    process.exitCode = 0
+  })
+
+  it('声明多发却没开自己判请求体、或发数不是正整数：起窗之前拒', async () => {
+    const { deps, root } = fakeWalk()
+    await expect(openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: noKeyEnv(root), rehearsalShots: 3 })).rejects.toThrow(/声明了 3 发/)
+    await expect(openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: noKeyEnv(root), rehearsalShots: 0 })).rejects.toThrow(/rehearsalShots/)
+    expect(deps.createWalk).not.toHaveBeenCalled()
+  })
+
+  it('真问题 3 · 终点在创建请求、却只走到大脑请求：立刻关 App，状态「只到大脑」，不算过、退出码 0，收据如实记', async () => {
+    const { seen, deps, receipts, root } = fakeWalk()
+    const paid = await openAndLock(deps, noKeyEnv(root))
+    fs.appendFileSync(seen.options.env.NOMI_WALK_NET_LOG, createRow('/v1/chat/completions'))
+    await settle()
+    expect(seen.stopped).toBeGreaterThan(0)
+    process.exitCode = 1
+    await paid.finish(new Error('Target page, context or browser has been closed'))
+    expect(paid.walk.report.rehearsal).toMatchObject({ passed: false, status: 'brain-only', station: 'brain', stoppedBy: 'brain' })
+    expect(receipts[0].verdict).toMatchObject({ passed: false, status: 'brain-only' })
+    expect(process.exitCode).toBe(0)
   })
 
   it('R2 · 两个开关同时开：起窗之前拒', async () => {

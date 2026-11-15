@@ -1,17 +1,32 @@
 #!/usr/bin/env node
 // 只给协调跑的付费入口（两张图）：同一镜画布、分镜表各下一单，旧的那单晚到，两张付了钱的图都要落在这一镜上。
-// 花钱前先带 NOMI_PAID_REHEARSAL=no-key 把本脚本演练一遍（openPaidWalk 的通用收据把门）；旅程本身的免费演练 shot-result-ownership-real.rehearsal.walk.mjs 每晚照跑。
+// 先跑免费演练（tests/ux/shot-result-ownership-real.rehearsal.walk.mjs），把它的收据交给 NOMI_OWNERSHIP_REHEARSAL_RECEIPT。
+// 本脚本自己也能带 NOMI_PAID_REHEARSAL=no-key 演练到第一条创建请求；上面那张旅程收据只在真付费时核——通用演练替不了它。
 // 服务商是真的；「旧的那单晚到」靠本脚本在测试进程里压住任务查询（回「处理中」，不转发），放开后照常转发——出图本身不碰。
 import http from 'node:http'
 import https from 'node:https'
 import path from 'node:path'
+import fs from 'node:fs'
+import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { LOCK_EXIT_JOURNEY_CONDITIONS, applyLockExitJourneyConditions } from './_generationLockExitHosting.mjs'
-import { openPaidWalk, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
+import { openPaidWalk, paidRehearsalTier, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
 import { ENV_KEY_VENDOR } from './_paidEnvKey.mjs'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
 import { createGenerationLockExitProxy } from './_generationLockExitProxy.mjs'
 import { lockExitFixtureInput } from './_generationLockExitSteps.mjs'
 import { shotResultOwnershipJourney, SHOT_RESULT_OWNERSHIP_BUILD_MARKERS } from './_shotResultOwnershipJourney.mjs'
+
+if (!paidRehearsalTier()) {
+const receiptPath = process.env.NOMI_OWNERSHIP_REHEARSAL_RECEIPT
+assert.ok(receiptPath, 'Provide the green free rehearsal receipt before running the paid entry')
+const rehearsal = JSON.parse(fs.readFileSync(receiptPath, 'utf8'))
+assert.equal(rehearsal.status, 'passed', 'The free rehearsal must pass first')
+assert.match(rehearsal.commit ?? '', /^[a-f0-9]{40}$/, 'The rehearsal must identify its exact commit')
+assert.ok(Object.values(rehearsal.report?.checks ?? {}).length && Object.values(rehearsal.report.checks).every(Boolean), 'Every rehearsal check must pass')
+execFileSync('git', ['diff', '--quiet', rehearsal.commit, 'HEAD', '--', 'src', 'electron'])
+execFileSync('git', ['diff', '--quiet', 'HEAD', '--', 'src', 'electron'])
+}
 
 /** 测试进程里的任务查询闸：hold 时对任务查询回「处理中」不转发；其余请求原样转发。 */
 async function createTaskPollHold(target) {

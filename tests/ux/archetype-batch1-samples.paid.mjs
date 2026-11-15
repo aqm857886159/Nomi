@@ -79,7 +79,8 @@ const SAMPLES = [
   },
   {
     id: 'C', label: 'MiniMax H3-Max · 多模态参考 · adaptive · 768P', model: H3MAX, modeKind: 'reference', modeId: 'ref', input: 'image',
-    meta: metaOf(H3MAX, 'minimax-h3-max', 'ref', { aspect_ratio: 'adaptive', resolution: '768P', duration: 5 }),
+    // 同 D：不带 aspect_ratio_user_set，连线那一刻比例按产品默认重铺成 16:9，花钱前核对拦下（11-15 演练走全 4 发时第一次跑到这发才暴露）。
+    meta: metaOf(H3MAX, 'minimax-h3-max', 'ref', { aspect_ratio: 'adaptive', aspect_ratio_user_set: true, resolution: '768P', duration: 5 }),
     judge: (body) => [
       ...(body.aspect_ratio === 'adaptive' ? [] : [`aspect_ratio 是 ${JSON.stringify(body.aspect_ratio)}，应是 adaptive`]),
       ...(body.resolution === '768P' ? [] : [`resolution 是 ${JSON.stringify(body.resolution)}，应是 768P`]),
@@ -106,7 +107,8 @@ const chosen = SAMPLES.filter((sample) => (only.length ? only.includes(sample.id
 const models = [...new Map(chosen.map((sample) => [sample.model.modelKey, sample.model])).values()]
 
 // 主进程产物（dist-electron）不压缩：本修复的拒收机读码原样进产物，修前的构建里没有。
-const paid = await openPaidWalk(SCRIPT, 'archetype-batch1-samples', models, { hostedUploads: true, recordAllowedBodies: true, judgesBodyInRehearsal: true, buildMarkers: ['mode_input_missing'] })
+// 演练：这一场要走几发就声明几发（rehearsalShots），每一发都要走到视频创建请求、请求体判据都过才算过。
+const paid = await openPaidWalk(SCRIPT, 'archetype-batch1-samples', models, { hostedUploads: true, recordAllowedBodies: true, judgesBodyInRehearsal: true, rehearsalShots: chosen.length, buildMarkers: ['mode_input_missing'] })
 const { walk } = paid
 const evidence = { script: SCRIPT, startedAt: new Date().toISOString(), samples: [] }
 let failure
@@ -172,7 +174,9 @@ async function runSample(win, projectRoot, projectId, sources, sample, index, re
     state.connectNodes(source, id, 'reference')
     state.selectNode(id)
     return id
-  }, { meta: sample.meta, title: `${sample.id} ${sample.label}`, source: sources[sample.input], y: index * 360 - 400 })
+  }, { meta: sample.meta, title: `${sample.id} ${sample.label}`, source: sources[sample.input], y: -760 - index * 360 })
+  // 每一发的新镜头摞在最上面：适应视图后它在画面上沿、生成框在它下面的空处。原来往下排，第 3 发起生成框压到画布底栏下面，
+  // 缩小之后生成框又收起，↑ 点不到（演练走全 4 发时才暴露：以前演练第 1 发就收尾）。
   // 画布只渲染视口里的节点：新镜头可能落在视口外，先像创作者那样点「适应视图」把它带到眼前。
   await canvasFitView(win, `${sample.id}：适应视图，把新镜头带进视口`)
   const composer = win.locator(`[data-node-id="${shot}"] .generation-canvas-v2-node__composer`).first()

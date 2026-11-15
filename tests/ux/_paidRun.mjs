@@ -22,11 +22,12 @@ import { verifyBuild } from '../../scripts/package-build-stamp.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { decideSyntheticCredentialStorage } from './_launchApp.mjs'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
-import { blockedError, guardLoadedError, hostedUploadRelayOrigin, newNetLogFile, paidWalkAllowlist, readNetLog, rehearsalLedgerRequests, rehearsalShouldStop, rehearsalVerdict, standInLaunchEnv, startRehearsalStandIn, stationReaches, watchNetLog } from './_paidNetwork.mjs'
+import { blockedError, guardLoadedError, hostedUploadRelayOrigin, newNetLogFile, paidWalkAllowlist, readNetLog, REHEARSAL_STOPS, rehearsalLedgerRequests, rehearsalShouldStop, rehearsalVerdict, scriptErrorText, standInLaunchEnv, startRehearsalStandIn, watchNetLog } from './_paidNetwork.mjs'
 import {
   ENV_KEY_ALLOW_CATALOG, ENV_KEY_VAR, ENV_KEY_VENDOR, assertNoSecretOnDisk, assertUsableEnvKey, connectApimartThroughVisibleUi,
   APIMART_TEXT_MODEL_KEYS, collectAppLogs, envKeyOf, filesContainingSecret, paidCredentialSource, readAuthorizedRows, redact, redactNetLogEntry, redactedError,
 } from './_paidEnvKey.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { readRealCatalog, realNomiIsRunning, realNomiProfile, realProfileFingerprint, removeRealCredentials, seedRealModels } from './_realProfile.mjs'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -38,8 +39,10 @@ export const DEFAULT_PAID_BRAIN = Object.freeze({ vendorKey: ENV_KEY_VENDOR, mod
 // 起因：付费脚本只在真要花钱时才被跑，花钱前那段路（开项目、建节点、选模型、填参数、找到生成钮）平时没人走，
 // 界面一改就烂，烂了要到花钱那一刻才知道（11-15 一发真付费样片在点生成之前就挂了：新镜头落在视口外）。
 // 演练 = 同一份脚本 + NOMI_PAID_REHEARSAL：传给网络闸的放行名单是空的（供应商一个请求都出不去，结构上花不了钱，
-// 不靠脚本作者记得不点）；网络闸挡下的第一条请求是这份脚本授权的供应商、且在收窄花钱面之后 = 通过（_paidNetwork.mjs#rehearsalVerdict），
-// 通过后落一张收据（脚本及其本地辅助模块的内容指纹 + 构建戳）。真付费入口在花钱之前核这张收据，对不上就拒跑。
+// 不靠脚本作者记得不点）；结果如实记走到哪一站、几发里走到几发、脚本自己报没报错（_paidNetwork.mjs#rehearsalVerdict），
+// 落一张收据（脚本及其本地辅助模块的内容指纹 + 构建戳）。真付费入口开跑前把上次演练的情况打印出来——**只提醒、不拦**（第三版，11-15）：
+// 两次事故里钱一分没花，硬闸买到的只是「少白等一轮」，它自己却会误拦真付费（有钥匙那档、跨版本对比），又能被一份手写文件绕过。
+// 指纹只用来判「是不是同一个版本」，不当安全手段；真付费原有的拒跑（CI、NOMI_SPEND_OK、用户的 App 开着、新鲜构建）一条不动。
 export const REHEARSAL_ENV = 'NOMI_PAID_REHEARSAL'
 /** 两档。不要 Key 的那档能进夜间；要真 Key 的那档只在本机、花钱前跑。 */
 export const REHEARSAL_TIERS = Object.freeze({
@@ -82,11 +85,22 @@ function relayUploadIngestion(relayOrigin, env) {
 }
 
 /**
- * 演练的终点（r2）：缺省每份付费脚本都要走到「供应商收到会花钱的那条请求」（vendor-create），真付费入口只认走到这一站的收据。
- * 脚本本身就不发创建请求的（只验接入、只查列表 / 余额）在这里声明它的终点和理由，不能含糊；表外的一律 vendor-create。
+ * 演练的终点（r2；第三版加了 brain）：缺省每份付费脚本都要走到「供应商收到会花媒体钱的那条创建请求」（vendor-create）。
+ * 脚本本身就不发创建请求的在这里声明它的终点和理由，不能含糊；表外的一律 vendor-create：
+ *   · vendor-read：只验接入、只查列表 / 余额；
+ *   · brain：真付费时本来就只花文字模型的钱（对话、改写、读图、工具调用），大脑请求就是它的终点。
+ * 本意花媒体钱、演练只走到大脑的（Agent 驱动出图 / 视频）不在这里：它们的结果如实记「只到大脑请求」，单列。
  */
 export const REHEARSAL_ENDPOINTS = Object.freeze({
   'apimart-text-list-real.paid.mjs': { endsAt: 'vendor-read', why: '文字模型列表对账：只发两条只读 GET（模型列表、余额），本来就不发创建请求' },
+  'agent-long-chat-real.paid.mjs': { endsAt: 'brain', why: '长对话的 token / 时长数字：只花文字模型的钱，不生成媒体' },
+  'agent-shot-kind-real.paid.mjs': { endsAt: 'brain', why: '只看 Agent 起草出来的镜头种类：不点生成，只花文字模型的钱' },
+  'agent-shot-table-remake-real.paid.mjs': { endsAt: 'brain', why: '只看 Agent 读不读得到分镜表的行、起草的是哪几行：只花文字模型的钱' },
+  'creation-ai-rewrite-real.paid.mjs': { endsAt: 'brain', why: '写作区 AI 编辑：一次文字模型调用' },
+  'deconstruct-real.paid.mjs': { endsAt: 'brain', why: '拆解：读图模型的对话请求就是它花钱的那条' },
+  'look-at-canvas-selection-real.paid.mjs': { endsAt: 'brain', why: '只看工具写对率、回合成功率：只花文字模型的钱' },
+  'text-tasks-pi-ai-real.paid.mjs': { endsAt: 'brain', why: '文本任务单次调用：只花文字模型的钱' },
+  'tool-schema-real.paid.mjs': { endsAt: 'brain', why: '一回合文字模型的工具调用，不生成媒体' },
 })
 export function rehearsalEndpointOf(script, table = REHEARSAL_ENDPOINTS) {
   return table[path.basename(String(script))]?.endsAt ?? 'vendor-create'
@@ -177,10 +191,10 @@ export function assertPaidRunAllowed(script, env = process.env, isNomiRunning = 
   }
 }
 
-// ── 演练收据 ──────────────────────────────────────────────────────────────
-/** 收据放仓库里被忽略的 `.tmp/`（每个工作树一份）：在哪个工作树演练，就只给哪个工作树的真付费用。 */
+// ── 演练收据（只用来提醒，不拦）──────────────────────────────────────────────
+/** 收据放仓库里被忽略的 `.tmp/`（每个工作树一份）：在哪个工作树演练，就只在哪个工作树的真付费开跑前被打印出来。 */
 export const REHEARSAL_RECEIPT_DIR = path.join(REPO_ROOT, '.tmp', 'paid-rehearsal', 'receipts')
-export const REHEARSAL_RECEIPT_VERSION = 2
+export const REHEARSAL_RECEIPT_VERSION = 3
 const LOCAL_IMPORT = /\bfrom\s*['"](\.{1,2}\/[^'"]+)['"]|\bimport\s*\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)|\bimport\s+['"](\.{1,2}\/[^'"]+)['"]/g
 
 /**
@@ -222,38 +236,52 @@ export function rehearsalReceiptFile(script, receiptDir = REHEARSAL_RECEIPT_DIR)
   return path.join(receiptDir, `${script.split(/[\\/]/).join('__')}.json`)
 }
 
+const STATUS_WORDS = { passed: '过', failed: '不过', 'brain-only': '只到大脑请求（不算过）' }
+
 /**
- * 纯判据（单测钉它）：真付费入口对这张收据放不放行。返回拒跑理由，null = 放行。
- * 只认「演练通过 + 同一份脚本指纹 + 同一个构建身份」；任何一样对不上都拒，并说清怎么办。
+ * 纯函数（单测钉它）：真付费开跑前打印的那段「上次演练」。永远不拦——返回几行字，openPaidWalk 打印完照跑。
+ * 写：什么时候、过没过、走到哪一站、几发里走到几发；没有收据、收据不是这份脚本的、脚本或构建变过 → 明说「没演练过这个版本」。
+ * 指纹只用来判「是不是同一个版本」，不是安全手段（收据是一份没签名的本地文件，本来就挡不住手写）。
  */
-export function rehearsalReceiptRefusal(receipt, { script, fingerprint, build, endsAt = rehearsalEndpointOf(script) }) {
-  const redo = `先带 ${REHEARSAL_ENV}=no-key 把同一份脚本跑一遍（零花费；只授权非 APIMart 模型的用 ${REHEARSAL_ENV}=real-key），演练通过了再花钱`
-  if (!build) return `${script} 算不出构建身份，收据无从核对——${redo}`
-  if (!receipt) return `${script} 没有演练收据——${redo}`
-  if (receipt.version !== REHEARSAL_RECEIPT_VERSION || receipt.script !== script) return `${script} 的演练收据格式不对或不是这份脚本的——${redo}`
-  if (receipt.passed !== true) return `${script} 上一次演练没过（${String(receipt.reason ?? '').slice(0, 200)}）——${redo}`
-  if (receipt.fingerprint !== fingerprint) return `${script}（或它的本地辅助模块）在演练之后改过——${redo}`
-  if (receipt.build !== build) return `构建在 ${script} 演练之后变了（演练时 ${receipt.build}，现在 ${build}）——${redo}`
-  // 只走到上传中转（或更早）的收据不放行：真正决定花不花钱、请求体对不对的那一条没走到（r2 裁决 1）。
-  if (!stationReaches(receipt.station, endsAt)) return `${script} 的演练只走到了「${receipt.station ?? '未知'}」，这份脚本的终点是「${endsAt}」——花钱前那段路没走完，${redo}`
-  return null
+export function rehearsalReminder(receipt, { script, fingerprint, build, now = Date.now() }) {
+  const redo = `想先免费走一遍：${REHEARSAL_ENV}=no-key node tests/ux/${path.basename(script)}（只授权非 APIMart 模型的用 ${REHEARSAL_ENV}=real-key）`
+  const head = `[paid] 上次演练（只提醒，不拦）：${script}`
+  if (!receipt || receipt.script !== script) return [head, '  没演练过这个版本：没有这份脚本的演练收据——照跑', `  ${redo}`]
+  const hours = Number.isFinite(Date.parse(receipt.at)) ? Math.round((now - Date.parse(receipt.at)) / 36e5 * 10) / 10 : null
+  const status = receipt.status ?? (receipt.passed === true ? 'passed' : 'failed')
+  const shots = receipt.shots ? `，${receipt.shots.declared} 发里走到 ${receipt.shots.reached} 发` : ''
+  const lines = [head, `  ${receipt.at ?? '时间不明'}${hours === null ? '' : `（${hours} 小时前）`} · ${STATUS_WORDS[status] ?? status} · 走到「${receipt.station ?? '未知'}」${shots}`]
+  if (receipt.reason) lines.push(`  ${String(receipt.reason).slice(0, 300)}`)
+  const changed = [
+    ...(receipt.version !== REHEARSAL_RECEIPT_VERSION ? ['收据是旧格式'] : []),
+    ...(fingerprint && receipt.fingerprint !== fingerprint ? ['脚本（或它的本地辅助模块）在演练之后改过'] : []),
+    ...(!fingerprint ? ['算不出脚本指纹'] : []),
+    ...(!build ? ['算不出构建身份'] : build !== receipt.build ? [`构建变了（演练时 ${receipt.build ?? '—'}，现在 ${build}）`] : []),
+  ]
+  if (changed.length) lines.push(`  没演练过这个版本：${changed.join('；')}——照跑`, `  ${redo}`)
+  else if (status !== 'passed') lines.push(`  这个版本上次演练${STATUS_WORDS[status] ?? status}——照跑`, `  ${redo}`)
+  return lines
 }
 
 function readReceipt(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return null }
 }
 
-/** 真付费入口的收据核对（openPaidWalk 缺省用它；单测换掉）。必须在建隔离副本、装凭据之前。 */
-export function assertRehearsalReceipt({ script, entry, build, receiptDir = REHEARSAL_RECEIPT_DIR }) {
-  const refusal = rehearsalReceiptRefusal(readReceipt(rehearsalReceiptFile(script, receiptDir)), { script, fingerprint: scriptFingerprint(entry).fingerprint, build })
-  if (refusal) throw new Error(`付费走查拒跑（一分钱没花）：${refusal}`)
+/** 真付费开跑前的提醒（openPaidWalk 缺省用它；单测换掉）。只打印，任何情况都不抛（算不出指纹也照跑）。 */
+export function printRehearsalReminder({ script, entry, build, receiptDir = REHEARSAL_RECEIPT_DIR, log = console.log }) {
+  let fingerprint = null
+  try { fingerprint = scriptFingerprint(entry).fingerprint } catch { /* 算不出：提醒里明说 */ }
+  const lines = rehearsalReminder(readReceipt(rehearsalReceiptFile(script, receiptDir)), { script, fingerprint, build })
+  for (const line of lines) log(line)
+  return lines
 }
 
-/** 演练收尾写这张（过不过都写，过了的才放行真付费）。 */
+/** 演练收尾写这张（过不过都写）：真付费开跑前读它打印提醒，批量演练读它出清单。 */
 export function writeRehearsalReceipt({ script, entry, build, tier, verdict, receiptDir = REHEARSAL_RECEIPT_DIR, now = () => new Date().toISOString() }) {
   const receipt = {
     version: REHEARSAL_RECEIPT_VERSION, script, fingerprint: scriptFingerprint(entry).fingerprint, build: build ?? null, tier,
-    passed: verdict.passed === true, reason: verdict.reason, station: verdict.station ?? null, endsAt: verdict.endsAt ?? null, request: verdict.request, at: now(),
+    passed: verdict.passed === true, status: verdict.status ?? (verdict.passed === true ? 'passed' : 'failed'), reason: verdict.reason,
+    station: verdict.station ?? null, endsAt: verdict.endsAt ?? null, shots: verdict.shots ?? null, scriptError: verdict.scriptError ?? null, request: verdict.request, at: now(),
   }
   fs.mkdirSync(receiptDir, { recursive: true })
   fs.writeFileSync(rehearsalReceiptFile(script, receiptDir), `${JSON.stringify(receipt, null, 2)}\n`)
@@ -317,16 +345,24 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     // true = 闸把放行名单上公网请求的请求体（先脱敏：不记请求头、签名查询串与 key 形状的串打码）记进账本，`readAllowedRequests()` 读回。
     // 给要核「App 真正发给供应商的是什么」的付费走查用（参考图错发热修的真付费样本）；缺省关，别的付费走查不变。
     recordAllowedBodies = false,
-    // true = 演练时这份脚本自己读账本判请求体、判完就收（archetype 那两行）：替身记下会花钱的那条请求后不立刻关 App，等脚本判完（兜底 rehearsalGraceMs）。
-    // 要和 recordAllowedBodies 一起开。缺省关：没写那两行的脚本在创建请求那一刻就由闸停下（它们会一直等一个替身永远不给的结果，等完就报错）。
+    // true = 演练时这份脚本自己读账本判请求体、判完一发接着走下一发（archetype 那两行）：替身记下创建请求后不关 App，脚本自己收尾；
+    // 替身最后一条记录之后 rehearsalGraceMs 还没收尾就兜底关 App，并判不过（脚本没走完）。脚本自己抛的错一律算数。
+    // 要和 recordAllowedBodies 一起开。缺省关：没写那两行的脚本 =「走到创建请求就结束」，在那一刻由闸停下，之后报的错是关窗的后果、不判。
     judgesBodyInRehearsal = false,
-    // 演练收据：入口文件（算脚本指纹）、真付费前的收据核对、演练收尾写收据。单测换掉；脚本里不传。
-    entry = process.argv[1], assertRehearsed = assertRehearsalReceipt, writeReceipt = writeRehearsalReceipt, packagedBuild = packagedBuildIdentity,
+    // 这份脚本这一场要走几发（每发一条终点那一类的请求）。演练要走到这么多条才算过，结果里写「N 发里走到 M 发」。
+    // 大于 1 的要和 judgesBodyInRehearsal 一起开（不然第一发的创建请求就关 App 了）。
+    rehearsalShots = 1,
+    // 演练收据：入口文件（算脚本指纹）、真付费前的提醒（只打印，不拦）、演练收尾写收据。单测换掉；脚本里不传。
+    entry = process.argv[1], remindRehearsal = printRehearsalReminder, writeReceipt = writeRehearsalReceipt, packagedBuild = packagedBuildIdentity,
     // 不要 Key 那档的本机替身（供应商 + 托管上传中转，_paidNetwork.mjs#startRehearsalStandIn）。单测换掉。
     startStandIn = startRehearsalStandIn,
-    // 演练时替身记下会花钱的那条请求后，自己判请求体的脚本（judgesBodyInRehearsal）多久没收尾就兜底关 App。
-    rehearsalGraceMs = 20_000,
+    // 演练兜底：收窄之后替身 / 闸最后一条记录过了这么久脚本还没收尾，就关 App（判不过）。
+    // 取一个模型回合的站预算（stationTimeout({ turns: 1 })）：两发之间脚本合法地要调画布、等确认框，60 秒不够（样片 B 调视口就被截过）。
+    rehearsalGraceMs = stationTimeout({ turns: 1 }),
   } = deps
+  const holdForScript = recordAllowedBodies && judgesBodyInRehearsal
+  if (!Number.isInteger(rehearsalShots) || rehearsalShots < 1) throw new Error(`rehearsalShots 要是 ≥1 的整数，收到 ${JSON.stringify(rehearsalShots)}（一分钱没花）`)
+  if (rehearsalShots > 1 && !holdForScript) throw new Error(`${script} 声明了 ${rehearsalShots} 发，但没开 recordAllowedBodies + judgesBodyInRehearsal：演练会在第一发的创建请求就关 App，走不全（一分钱没花）`)
   // 真实资料目录的位置跟着传进来的 env 走（缺省就是 process.env，和以前一样）；env-key 路根本不会用到它。
   const profile = realNomiProfile({ env })
   const guard = assertPaidRunAllowed(script, env, isNomiRunning, profile)
@@ -336,8 +372,11 @@ export async function openPaidWalk(script, name, models, deps = {}) {
   // 产物比源码新 + 产物里有被验修复的标记：不满足就拒跑，必须在建隔离副本、装凭据之前（一分钱没花、什么都没拷）。
   const build = argv.includes('--packaged') ? packagedBuild(argv) : assertBuild(REPO_ROOT, { markers: buildMarkers })?.tree
   const receiptScript = entry ? path.relative(REPO_ROOT, path.resolve(entry)).split(path.sep).join('/') : script
-  // 没演练过不让花钱：能花钱的那一场（不是演练、供应商的源要进放行名单）先核收据。vendorNetwork:false 的探测花不了钱，不要收据。
-  if (!rehearsal && vendorNetwork) assertRehearsed({ script: receiptScript, entry, build })
+  // 能花钱的那一场（不是演练、供应商的源要进放行名单）开跑前打印上次演练的情况——只提醒，不拦；提醒本身出了任何错也照跑。
+  if (!rehearsal && vendorNetwork) {
+    try { remindRehearsal({ script: receiptScript, entry, build }) }
+    catch (error) { console.log(`[paid] 上次演练的情况读不出来（只提醒，不拦）：${String(error?.message ?? error).slice(0, 200)}`) }
+  }
   const envKey = paidCredentialSource(credentialEnv) === 'env-key' ? assertUsableEnvKey(envKeyOf(credentialEnv)) : ''
   const secrets = envKey ? [envKey] : []
   if (envKey) {
@@ -374,21 +413,26 @@ export async function openPaidWalk(script, name, models, deps = {}) {
   if (hostedUploadOrigin) walk.report.hostedUploadRelayAllowed = hostedUploadOrigin
   walk.report.credentialSource = rehearsal === 'no-key' ? `rehearsal-fake-key（${REHEARSAL_TIERS['no-key']}）` : envKey ? `env-key（${ENV_KEY_VAR}，只记变量名）` : 'real-profile'
   // 报告里的 rehearsal 一节归 openPaidWalk：拿本地引用写，收尾再挂回去（有的老脚本自己往 report.rehearsal 写一个布尔开关，会把它盖掉）。
-  const rehearsalReport = rehearsal ? { tier: rehearsal, judgedAgainst: judgedAllow, relay: relayAllow, endsAt, ...(standIn ? { standIn: `改道到本机替身的源：${standIns.map((item) => item.redirect.from).join('、')}——只答免费探测和上传（回本机假地址），别的请求记成被挡行（方法、路径、脱敏后的请求体），从不转发` } : {}) } : null
+  const rehearsalReport = rehearsal ? { tier: rehearsal, judgedAgainst: judgedAllow, relay: relayAllow, endsAt, shotsDeclared: rehearsalShots, ...(standIn ? { standIn: `改道到本机替身的源：${standIns.map((item) => item.redirect.from).join('、')}——只答免费探测和上传（回本机假地址），别的请求记成被挡行（方法、路径、脱敏后的请求体），从不转发` } : {}) } : null
   if (rehearsalReport) walk.report.rehearsal = rehearsalReport
   let blocked = null
-  // 演练：闸挡下请求、让 App 停下的那一刻（脚本之后报的错是它的后果）；收窄花钱面完成那一刻账本有几行。
-  let stoppedByGuard = false
+  // 演练：App 是被谁、为什么停下的（REHEARSAL_STOPS 的键；null = 脚本自己收的尾）；收窄花钱面完成那一刻账本有几行。
+  let stoppedBy = null
+  let pendingStop = null
   let lockedAtEntry = null
   // 被挡就地失败：别等 UI 超时（以前一次连接被挡要干等 600 多秒）。关掉 App，让走查脚本里正在等的那一步立刻报错，
   // finish 再把真正的原因（被挡的 host 与层）换到报告里。
-  // 演练：收窄之前挡下的授权供应商请求（存 key 后查余额等）照记不停，收窄之后第一条被挡、或挡下别的源才停（rehearsalShouldStop）。
+  // 演练：收窄之前挡下的授权供应商请求（存 key 后查余额等）照记不停；什么时候停、为什么停见 rehearsalShouldStop。
   const netWatch = watchNetLog(netLog, (entries) => {
-    blocked = blockedError(entries, allow)
-    stoppedByGuard = true
-    console.error(`[${rehearsal ? 'rehearsal' : 'paid'}] ${redact(blocked.message, secrets)}`)
+    if (rehearsal) {
+      stoppedBy = pendingStop
+      console.error(`[rehearsal] 关 App：${REHEARSAL_STOPS[stoppedBy] ?? stoppedBy}`)
+    } else {
+      blocked = blockedError(entries, allow)
+      console.error(`[paid] ${redact(blocked.message, secrets)}`)
+    }
     walk.stopApp().catch(() => {})
-  }, rehearsal ? { shouldFire: (entries) => rehearsalShouldStop(entries, { lockedAtEntry, judgedAllow, relayAllow, holdForScript: recordAllowedBodies && judgesBodyInRehearsal, graceMs: rehearsalGraceMs, endsAt }) } : {})
+  }, rehearsal ? { shouldFire: (entries) => (pendingStop = rehearsalShouldStop(entries, { lockedAtEntry, judgedAllow, relayAllow, holdForScript, graceMs: rehearsalGraceMs, endsAt })) } : {})
   const removeCredentialCopy = () => removeRealCredentials({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, profile })
   let seeded = []
   if (!envKey) {
@@ -459,10 +503,13 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     blocked ??= blockedError(finalEntries, allow)
     walk.report.networkBlocked = finalEntries.filter((entry) => entry.kind === 'blocked').map(({ via, host, url }) => ({ via, host, url }))
     // 演练：被挡是预期，判的是「挡下的第一条是不是授权供应商、在不在收窄之后」（_paidNetwork.mjs#rehearsalVerdict）。
-    const verdict = rehearsal ? rehearsalVerdict({ entries: finalEntries, lockedAtEntry, judgedAllow, relayAllow, scriptError: error ?? null, stoppedByGuard, endsAt }) : null
+    const verdict = rehearsal ? rehearsalVerdict({ entries: finalEntries, lockedAtEntry, judgedAllow, relayAllow, scriptError: error ?? null, stoppedBy, hold: holdForScript, endsAt, shots: rehearsalShots }) : null
     if (verdict) {
       walk.report.rehearsal = rehearsalReport
-      Object.assign(rehearsalReport, { passed: verdict.passed, station: verdict.station, reason: redact(verdict.reason, secrets), blockedRequest: verdict.request, blockedBeforeSpendLock: verdict.preLock })
+      Object.assign(rehearsalReport, {
+        passed: verdict.passed, status: verdict.status, station: verdict.station, shots: verdict.shots, stoppedBy: verdict.stoppedBy, reason: redact(verdict.reason, secrets),
+        scriptError: verdict.scriptError === null ? null : redact(verdict.scriptError, secrets), scriptErrorCounted: verdict.scriptErrorCounted, blockedRequest: verdict.request, blockedBeforeSpendLock: verdict.preLock,
+      })
       // 替身记下的供应商请求：方法、路径、请求体的键（请求体本身已脱敏，留在账本里；报告只放键，够看出「多发了一个键 / 少了比例」）。
       rehearsalReport.vendorRequests = rehearsalLedgerRequests(finalEntries).filter((_, index, all) => index >= all.length - 8).map((entry) => {
         let keys = null
@@ -470,7 +517,8 @@ export async function openPaidWalk(script, name, models, deps = {}) {
         return { method: entry.method, path: blockedRequestPath(entry.url), bodyKeys: keys, bodyBytes: entry.body?.bytes ?? null }
       })
     }
-    const failure = verdict ? (verdict.passed ? null : new Error(`演练不过：${verdict.reason}`)) : blocked ?? error
+    // 「只到大脑请求」不是坏了（替身答不了对话），报告不判红；收据和清单里如实单列。
+    const failure = verdict ? (verdict.passed || verdict.status === 'brain-only' ? null : new Error(`演练不过：${verdict.reason}`)) : blocked ?? error
     await walk.finish(envKey && failure ? redactedError(failure, secrets) : failure, {
       unscriptedFixture: true,
       collect: async () => {
@@ -500,12 +548,14 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     }
     if (verdict) {
       // 证据全落盘之后才算数：walk.finish 判红（收尾、收据、绊线任何一样）也是不过。
-      const passed = verdict.passed && walk.report.result !== 'failed'
-      const reason = redact(verdict.passed && !passed ? `收尾判红：${String(walk.report.error ?? '').split('\n')[0]}` : verdict.reason, secrets)
-      const receipt = writeReceipt({ script: receiptScript, entry, build, tier: rehearsal, verdict: { ...verdict, passed, reason } })
-      console.log(`[rehearsal] ${passed ? '通过' : '不过'}：${reason}`)
-      // 脚本自己的 catch 在被挡后会设 exitCode=1：演练通过时改回 0。
-      process.exitCode = passed ? 0 : 1
+      const finishRed = walk.report.result === 'failed' && verdict.status !== 'failed'
+      const passed = verdict.passed && !finishRed
+      const status = finishRed ? 'failed' : verdict.status
+      const reason = redact(finishRed ? `收尾判红：${scriptErrorText(walk.report.error)}` : verdict.reason, secrets)
+      const receipt = writeReceipt({ script: receiptScript, entry, build, tier: rehearsal, verdict: { ...verdict, passed, status, reason, scriptError: rehearsalReport.scriptError } })
+      console.log(`[rehearsal] ${{ passed: '通过', failed: '不过', 'brain-only': '只到大脑请求（不算过）' }[status]}：${reason}`)
+      // 脚本自己的 catch 在被挡后会设 exitCode=1：演练通过 / 只到大脑时改回 0（只到大脑不是坏了，清单里单列）。
+      process.exitCode = status === 'failed' ? 1 : 0
       return receipt
     }
   }
