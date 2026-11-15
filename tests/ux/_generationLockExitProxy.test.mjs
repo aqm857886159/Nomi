@@ -53,11 +53,14 @@ it('forwards the same bytes, rejects a third concurrent image, drops only a forw
   } finally { await proxy.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) }
 })
 
-it('the paid entry requires a green four-stage rehearsal before opening any paid session', async () => {
+it('the paid entry is gated by the generic rehearsal receipt in openPaidWalk (no hand-carried receipt) and keeps its spend cap', async () => {
   const { readFile } = await import('node:fs/promises')
   const source = await readFile(new URL('./generation-lock-exit-real.paid.mjs', import.meta.url), 'utf8')
-  expect(source.indexOf("assert.equal(rehearsal.status, 'passed'")).toBeLessThan(source.indexOf('const paid = await openPaidWalk('))
-  expect(source).toContain("['storyboard', 'canvas', 'list', 'restart']")
+  // 2026-11-15 起：没演练过就拒跑由 openPaidWalk 的通用收据把守（脚本指纹 + 构建 + 走到的站，见 _paidRun.test.mjs）；
+  // 四段旅程本身的免费演练 generation-lock-exit-real.rehearsal.walk.mjs 每晚照跑。
+  expect(source).toContain('const paid = await openPaidWalk(')
+  expect(source).not.toMatch(/_REHEARSAL_RECEIPT/)
+  expect(source).toContain('paid.vendorUpstream()')
   expect(source).toContain('maxImages: 13')
   expect(source).toContain('reservedPriceProbe: 1')
 })
