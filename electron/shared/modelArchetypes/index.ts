@@ -28,6 +28,8 @@ export {
 export type { CustomCapabilityContractV1, CustomCapabilityModeV1 } from "./customCapabilityContract";
 export {
   archetypeParameterControls,
+  builtInHeadlessDefaults,
+  builtInSizeIsRatioSemantic,
   everyBuiltInArchetype,
   EVERY_VARIANT,
   rescopeArchetypeVariant,

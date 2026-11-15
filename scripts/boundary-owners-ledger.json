@@ -650,6 +650,16 @@
         "symbol": "imageEditGuardError / NO_MAPPING_FALLBACK_BODY"
       },
       "reason": "2026-11-15 taskParams.ts 按职责拆三份（发送参数 / 携带参考读法 / 发前诚实护栏），函数体逐字搬：发前护栏 imageEditGuardError 与兜底 body 形状 NO_MAPPING_FALLBACK_BODY 一起搬进 taskParamsGuard.ts，行为零变化；唯一生产调用点 runtime.ts 与 capabilityCore 发送口改从新文件导入。守它的测试照旧是 taskParams.test.ts 的兜底 body 与次序用例。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-01-wire-defaults-mode-collapse.root-cause.json",
+      "path": "scripts/gen-archetype-wire-defaults.ts",
+      "symbol": "buildWireDefaultsFor",
+      "anchor": {
+        "path": "electron/shared/modelArchetypes/catalogFacts.ts",
+        "symbol": "headlessDefaultsOf"
+      },
+      "reason": "2026-11-15 无界面缺参兜底默认值不再生成表、提交进仓库，改成发送时从档案现算（docs/plan/2026-11-15-archetype-wire-defaults-runtime.md）：buildWireDefaultsFor 的推导逐字搬进 catalogFacts.headlessDefaultsOf（主方式判据、供应商分桶、空默认不落桶后回退 *），生成脚本里这一段与 7 份生成表同提交删除。不变量「同一任务种类多个方式只取主方式的默认值」不变，由 electron/shared/modelArchetypes/catalogFacts.test.ts 守。"
     }
   ],
   "retirements": [

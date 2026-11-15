@@ -42,8 +42,8 @@ test('写入范围只有生成文件：不含 docs，也不含手写源码', () 
 
 test('生成器真的写这几个文件（add-paths 与生成器输出不能漂）', () => {
   const generator = fs.readFileSync(path.join(repoRoot, 'scripts/gen-archetype-wire-defaults.ts'), 'utf8')
-  for (const name of ['archetypeWireDefaults.generated.ts', 'archetypeIdentifiers.generated.ts', 'archetypeModes.generated.ts']) {
+  for (const name of ['archetypeIdentifiers.generated.ts', 'archetypeModes.generated.ts']) {
     assert.ok(generator.includes(name), `${name} 不在生成器输出里`)
   }
-  assert.ok(generator.includes('archetypeWireDefaults.${slug}.generated.ts'), '分片文件名漂了')
+  assert.ok(generator.includes('archetypeModes.${slug}.generated.ts'), '分片文件名漂了')
 })

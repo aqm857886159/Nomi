@@ -65,8 +65,6 @@ jobs:
 
             Publishing uses GITHUB_TOKEN. Token-generated push events do not start new workflow runs, preventing recursion without CI skip markers; a maintainer must approve the PR's workflow runs before required checks can complete.
           add-paths: |
-            electron/catalog/archetypeWireDefaults.generated.ts
-            electron/catalog/archetypeWireDefaults.*.generated.ts
             electron/catalog/archetypeIdentifiers.generated.ts
             electron/catalog/archetypeModes.generated.ts
             electron/catalog/archetypeModes.*.generated.ts

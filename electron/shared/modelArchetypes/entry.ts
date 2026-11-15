@@ -7,6 +7,7 @@ import type { ModelArchetype, ModelArchetypeVariant } from "./types";
 // 档案表本身不从这里导出：生产代码拿档案只走 resolveModelArchetype（结构测试 archetypeSingleEntry.structure.test.ts 守）。
 import { getArchetypeById, MODEL_ARCHETYPES } from "./builtInCatalog";
 import { customCapabilityArchetypeForModel } from "./customCapabilityContract";
+import { headlessDefaultsOf, sizeRatioTaskKindsOf } from "./catalogFacts";
 import { resolveArchetypeVariant } from "./variantResolution";
 
 
@@ -196,6 +197,23 @@ export function rescopeArchetypeVariant(archetype: ModelArchetype, variant: Arch
  */
 export function everyBuiltInArchetype(): readonly ModelArchetype[] {
   return MODEL_ARCHETYPES;
+}
+
+/**
+ * 无界面 / Agent / MCP 发送缺参兜底：这个内置档案 × 任务种类 × 供应商的主方式声明了哪些默认值（推法见 catalogFacts.headlessDefaultsOf）。
+ * 按目录行记着的 archetypeId 找（与以前那张生成表同一个键）；认不出 / 没有默认值 → undefined。
+ */
+export function builtInHeadlessDefaults(archetypeId: string | null | undefined, taskKind: string, vendorKey: string | null | undefined): Readonly<Record<string, unknown>> | undefined {
+  const archetype = getArchetypeById(archetypeId);
+  const perKind = archetype ? headlessDefaultsOf(archetype)[taskKind] : undefined;
+  if (!perKind) return undefined;
+  return (typeof vendorKey === "string" ? perKind[vendorKey] : undefined) ?? perKind["*"];
+}
+
+/** 这个内置档案这种任务的 `size` 键是不是比例语义（推法见 catalogFacts.sizeRatioTaskKindsOf）；认不出档案或不是 → undefined（调用方回退按默认值猜）。 */
+export function builtInSizeIsRatioSemantic(archetypeId: string | null | undefined, taskKind: string): true | undefined {
+  const archetype = getArchetypeById(archetypeId);
+  return archetype && sizeRatioTaskKindsOf(archetype).has(taskKind) ? true : undefined;
 }
 
 /** 解析「基础」档案（供应商无关，未特化）：显式 archetypeId 优先，否则按身份匹配 pattern。 */

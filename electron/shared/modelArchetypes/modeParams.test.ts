@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildWireDefaultsFor } from '../../../scripts/gen-archetype-wire-defaults'
 import { rescopeArchetypeVariant, specializeArchetypeForVendor } from './index'
 import { getArchetypeById, MODEL_ARCHETYPES } from './builtInCatalog'
 import { declaredModeParams, effectiveModeParams, modeWhenUnrecorded } from './modeParams'
+import { headlessDefaultsOf } from './catalogFacts'
 import { modeTransportFor } from '../videoCapabilities/modeTransport'
 import type { ArchetypeMode, ModelArchetype } from './types'
 
@@ -155,12 +155,12 @@ describe('effectiveModeParams：这个方式这次发哪些参数', () => {
   })
 })
 
-describe('modeWhenUnrecorded：没有方式记录时的主方式（规则原样来自生成脚本）', () => {
-  it('全目录逐 (档案, 供应商, 任务类型)：按主方式取出的默认值与生成脚本的桥接表逐字相同', () => {
+describe('modeWhenUnrecorded：没有方式记录时的主方式（与无界面缺参兜底 headlessDefaultsOf 同一条主方式判据）', () => {
+  it('全目录逐 (档案, 供应商, 任务类型)：按主方式取出的默认值与 headlessDefaultsOf 逐字相同', () => {
     const diffs: string[] = []
     let compared = 0
     for (const base of MODEL_ARCHETYPES) {
-      const table = buildWireDefaultsFor([base])[base.id] ?? {}
+      const table = headlessDefaultsOf(base)
       for (const { vendor, archetype } of vendorSpecializations().filter((entry) => entry.archetype.id === base.id)) {
         const vendorKey = vendor === '*' ? null : vendor
         const kinds = new Set(archetype.modes.flatMap((mode) => [modeTransportFor(mode, archetype, vendorKey), modeTransportFor(mode, archetype, null)]))
@@ -171,7 +171,7 @@ describe('modeWhenUnrecorded：没有方式记录时的主方式（规则原样�
           const owned = mode ? effectiveModeParams({ archetype, modeId: mode.id, stored: {} }).params : {}
           compared++
           if (JSON.stringify(Object.entries(owned).sort()) !== JSON.stringify(Object.entries(legacy).sort())) {
-            diffs.push(`${base.id}@${vendor}/${taskKind}: 主方式 ${mode?.id} ${JSON.stringify(owned)} ≠ 桥接表 ${JSON.stringify(legacy)}`)
+            diffs.push(`${base.id}@${vendor}/${taskKind}: 主方式 ${mode?.id} ${JSON.stringify(owned)} ≠ headlessDefaultsOf ${JSON.stringify(legacy)}`)
           }
         }
       }

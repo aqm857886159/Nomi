@@ -101,7 +101,7 @@ export function effectiveModeParams(input: ModeParamsSelection & { stored: Reado
  * 请求里没有方式记录时（Agent / MCP 无界面发送不带 modeId）按 (供应商, 任务类型) 选「主方式」：
  * 档案默认方式落在这个任务类型就用它，否则取这个任务类型首个声明的方式。
  * 供应商桶优先：有方式为这家单独声明了参数或传输桶（vendorParams / vendorTransportTaskKind），就只在这些方式里选；
- * 这家没有单独声明的，按通用传输桶选。规则原样来自 scripts/gen-archetype-wire-defaults.ts 的「主模式判据」。
+ * 这家没有单独声明的，按通用传输桶选。与无界面缺参兜底 catalogFacts.headlessDefaultsOf 的「主模式判据」同一条规则。
  */
 export function modeWhenUnrecorded(archetype: ModelArchetype, taskKind: string, vendorKey: string | null | undefined): ArchetypeMode | undefined {
   const vendor = typeof vendorKey === 'string' ? vendorKey.trim() : ''
