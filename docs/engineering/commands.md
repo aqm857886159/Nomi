@@ -19,6 +19,7 @@
 | `pnpm run delivery:verify-merged -- --expected-sha <SHA>` | 在真实 merged-main 上记录 exact-SHA CI checks 收据，不本地重跑 |
 | `pnpm run test:e2e` | Playwright smoke（零额度，CI-ready） |
 | `NOMI_PAID_REHEARSAL=no-key node tests/ux/<x>.paid.mjs` | 付费走查的免费演练（先 `pnpm build`；不设 `NOMI_SPEND_OK`，和它同时设会被拒）：同一份脚本，放行名单为空、假钥匙走可见接入页、APIMart 的源和 App 的托管上传中转各改道到一个本机替身（只答免费探测和上传、上传回本机假地址，别的请求记下方法 / 路径 / 脱敏请求体、从不转发）；收据记走到了哪一站（点击之前 / 上传中转 / 供应商读请求 / 供应商创建请求），真付费入口只认走到这份脚本终点的收据（缺省创建请求；不发创建请求的在 `_paidRun.mjs#REHEARSAL_ENDPOINTS` 声明），脚本或本地辅助模块改过、构建变了也拒跑。读账本判请求体的脚本演练时照样判（`readAllowedRequests()` 返回替身记下的请求）。只授权非 APIMart 模型的脚本在本机用 `NOMI_PAID_REHEARSAL=real-key`（装真凭据、出不了网）。批量：`node tests/ux/_paidRehearsalBatch.mjs [--only a.paid.mjs,…] [--nightly]` 出过 / 不过 / 跳过清单（缺参数 / 缺环境的记「跳过：要什么」）；夜间走查第 0 批带 `--nightly` 跑，按 `tests/ux/_paidRehearsalList.mjs` 里只减不增的「今天不过」名单判。唯一 owner `tests/ux/_paidRun.mjs` |
+| `pnpm run radar:docs` | 已接入模型的官方文档有没有变（每日雷达第三段，开会话自动跑）：重抓档案 / 目录里全部来源地址 + APIMart 公开价目，和 `docs/research/model-radar/doc-fingerprints.json` 的指纹比；变了 / 没查成 / 新缺口都明着报，核对完 `-- --accept <verdicts.json>` 落表（只读公开文档，不用 Key）|
 | `pnpm run lint:ci` | Lint + max-warnings=95 棘轮（新增 1 个 warning 即红）；存量错误冻结在 `eslint-suppressions.json`（ESLint 批量抑制，只减不增：修掉存量后跑 `pnpm exec eslint --prune-suppressions` 收紧再提交；冻结数要涨须协调确认 `node scripts/coord-approve.mjs --suppressions`，见 delivery-and-review.md「协调确认记录」）|
 | `pnpm run typecheck` | TypeScript 双向类型检查 |
 | `pnpm run check:filesize` | 格式化代码行巨壳门岗（650 黄牌、800 红牌、冻结项只减不增） |

@@ -37,12 +37,16 @@ export const RADARS = [
   { key: 'models', label: '供应商模型雷达', script: 'radar:models', argv: ['node_modules/tsx/dist/cli.mjs', 'scripts/model-radar.ts', '--no-liveness'],
     // 不恢复模型雷达的分诊技能（2026-10-01 用户拍板）：分诊一律按方案文档的规则，由协调会话手做。
     next: () => `\`新增 > 0\` 时按 ${MODEL_TRIAGE_PLAN} 的分诊规则由协调会话处理；要接某个先出接入方案，点头后才写码；快照等用户看过再 -- --update-baseline。${TRIAGE}` },
+  // 已接入模型的官方文档有没有变（指纹表 docs/research/model-radar/doc-fingerprints.json）：只读公开文档与不要 Key 的价目接口。
+  // 要抓几百个地址，所以单独给更长的超时和更宽的摘要；「变了 / 没查成 / 新缺口」排在最前面。
+  { key: 'docs', label: '模型文档漂移', script: 'radar:docs', argv: ['node_modules/tsx/dist/cli.mjs', 'scripts/model-doc-drift.ts'], timeoutMs: 100_000, tailLines: 12, tailChars: 1800,
+    next: () => `变了 / 新缺口：协调会话按完整报告逐项对账，改档案另走任务；对完用 pnpm run radar:docs -- --accept <verdicts.json> 落表（不落表每天都会再报）。「今天没查成」不是「没变」。${TRIAGE}` },
 ]
 const TAIL_LINES = 14
 const TAIL_CHARS = 1200
 const TIMEOUT_MS = 60_000
 const LOCK_STALE_MS = 150_000
-const LOCK_WAIT_MS = 100_000
+const LOCK_WAIT_MS = 125_000
 
 /** 待分诊行里最多列几个编号：开会话时扫一眼，全部的在报告里。 */
 const TRIAGE_LINE_IDS = 5
@@ -51,10 +55,10 @@ const pad = (n) => String(n).padStart(2, '0')
 export const localDate = (now) => `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 const localTime = (now) => `${pad(now.getHours())}:${pad(now.getMinutes())}`
 
-const tail = (text) => {
+const tail = (text, { tailLines = TAIL_LINES, tailChars = TAIL_CHARS } = {}) => {
   const lines = String(text || '').split('\n').map((l) => l.trimEnd()).filter(Boolean)
-  const out = lines.slice(-TAIL_LINES).join('\n')
-  return out.length > TAIL_CHARS ? `…${out.slice(-TAIL_CHARS)}` : out
+  const out = lines.slice(-tailLines).join('\n')
+  return out.length > tailChars ? `…${out.slice(-tailChars)}` : out
 }
 
 /**
@@ -86,7 +90,7 @@ function defaultRun(root, radar) {
     try {
       child = spawn(process.execPath, radar.argv, { cwd: root, windowsHide: true, ...processTreeSpawnOptions() })
     } catch (error) { return resolve({ status: null, stdout, stderr, error }) }
-    const timer = setTimeout(() => { killProcessTree(child, 'SIGTERM'); done({ status: null, signal: 'SIGTERM', stdout, stderr, error: Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' }) }) }, TIMEOUT_MS)
+    const timer = setTimeout(() => { killProcessTree(child, 'SIGTERM'); done({ status: null, signal: 'SIGTERM', stdout, stderr, error: Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' }) }) }, radar.timeoutMs ?? TIMEOUT_MS)
     child.stdout.on('data', (chunk) => { stdout += chunk })
     child.stderr.on('data', (chunk) => { stderr += chunk })
     child.on('error', (error) => done({ status: null, stdout, stderr, error }))
@@ -147,18 +151,18 @@ export async function runDailyRadar({ root, now = new Date(), run = defaultRun, 
     }
     const alarmed = radar.ranWithAlarm?.(result) === true
     if (result.status === 0 || alarmed) {
-      const text = tail(result.stdout) || '（脚本没有输出）'
+      const text = tail(result.stdout, radar) || '（脚本没有输出）'
       next[radar.key] = { ok: true, at, text }
       lines.push(`【${radar.label}】已跑（${at}，pnpm run ${radar.script}）${alarmed ? '，版本健康判停（退出码 1 是这个结论，不是脚本报错）' : ''}：`)
       lines.push(text)
       lines.push(`→ ${radar.next(radar.skill ? hasSkill(radar.skill) : true)}`)
     } else {
-      const why = result.error?.code === 'ETIMEDOUT' || result.signal ? `超时（>${TIMEOUT_MS / 1000}s）`
+      const why = result.error?.code === 'ETIMEDOUT' || result.signal ? `超时（>${(radar.timeoutMs ?? TIMEOUT_MS) / 1000}s）`
         : result.error ? `没能启动：${result.error.message}`
           : `脚本退出码 ${result.status}`
       next[radar.key] = { ok: false, at, why }
       lines.push(`【${radar.label}】今天没查成：${why}。这是脚本报错，**不是没有新东西**——不要说成「没有新反馈 / 没有新模型」。下次会话会重试；手动重跑：pnpm run ${radar.script}`)
-      const detail = tail(result.stderr || result.stdout)
+      const detail = tail(result.stderr || result.stdout, radar)
       if (detail) lines.push(detail)
     }
   }
@@ -186,7 +190,7 @@ export async function runSession({ root, env = process.env, now = () => new Date
   const lockFile = `${stateFile}.lock`
   let waited = 0
   while (!tryLock(lockFile)) {
-    if (waited >= lockWaitMs) return '【每日雷达】另一个会话的雷达跑了超过 100 秒还没出结果；不是没有新东西。稍后重开会话会拿到缓存摘要，或手动跑 pnpm run intake:radar / pnpm run radar:models。'
+    if (waited >= lockWaitMs) return '【每日雷达】另一个会话的雷达跑了超过 125 秒还没出结果；不是没有新东西。稍后重开会话会拿到缓存摘要，或手动跑 pnpm run intake:radar / pnpm run radar:models。'
     await sleep(2000)
     waited += 2000
   }
