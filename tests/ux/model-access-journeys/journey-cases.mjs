@@ -6,6 +6,7 @@ import { JourneyBlocked, JourneyFailure } from './evidence.mjs'
 import { addCanvasNodeFromRail } from '../_canvasRail.mjs'
 import { addTextNode } from '../_textTasksSteps.mjs'
 import { stationTimeout } from '../_station-budget.mjs'
+import { revealModelConnection } from '../_shell.mjs'
 import { uiText } from '../full-walk/invariants.mjs'
 
 async function requireVisible(locator, code, message, timeout = 5000) {
@@ -475,7 +476,8 @@ async function closeWizard(ui) {
 async function knownSingleKey(journey, ui, fixture, recorder) {
   await recorder.step('entry', '展开已知平台卡并查看单 Key 入口', async () => {
     await ui.openModels(); await ui.expandGenerationProviders()
-    const card = ui.win.getByRole('button', { name: /APIMart/ }).first()
+    // APIMart 的入口：没接入时是首页账户卡上的「连接」钮，带 data-model-home-available="apimart"（不靠按钮名里有没有 APIMart）。
+    const card = ui.win.locator('[data-model-home-available="apimart"]').first()
     await requireVisible(card, 'known-provider-card-missing', '已知平台 APIMart 卡不存在')
     await card.click()
     const input = ui.win.getByPlaceholder(/sk-|API Key/i).last()
@@ -699,7 +701,7 @@ async function localRuntime(journey, ui, fixture, recorder) {
   await recorder.step('entry', '从真实模型面板展开本地运行时入口', async () => {
     await ui.openModels()
     const row = ui.win.locator(`[data-model-home-available="${vendorKey}"]`)
-    if (!(await row.isVisible().catch(() => false))) await ui.expandHomeGroup('other-ways')
+    await revealModelConnection(ui.win, row, { timeout: stationTimeout() }).catch(() => {})
     await requireVisible(row.first(), 'local-runtime-entry-missing', `${journey.title} 的入口不存在`)
     const entry = await row.first().textContent()
     await ui.openHomeConnection(vendorKey)
@@ -734,7 +736,7 @@ async function codexLocalImage(journey, ui, fixture, recorder) {
   await recorder.step('entry', '从真实模型面板打开 Codex 本地生图卡', async () => {
     await ui.openModels()
     const row = ui.win.locator('[data-model-home-available="codex-local"]')
-    if (!(await row.isVisible().catch(() => false))) await ui.expandHomeGroup('other-ways')
+    await revealModelConnection(ui.win, row, { timeout: stationTimeout() }).catch(() => {})
     await requireVisible(row.first(), 'local-runtime-entry-missing', `${journey.title} 的入口不存在`)
     const entry = await row.first().textContent()
     await ui.openHomeConnection('codex-local')
