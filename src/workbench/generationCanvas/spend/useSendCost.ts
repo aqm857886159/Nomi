@@ -10,7 +10,7 @@ import { useNodePricePreview } from './useNodePricePreview'
 export type SendCost = {
   /** 胶囊上印的数（「≈」前缀 = 按输出估）；算不出 = undefined，钮上只剩 ↑。 */
   credits?: string
-  /** 悬停 / 读屏那一句：「约 N 积分（$x）· 按公开价估」或「暂时算不出」。不走这家估价时 undefined。 */
+  /** 悬停 / 读屏那一句：「约 N 积分（$x）· 按公开价估」或「暂时估不出这次用量」。不走这家估价时 undefined。 */
   description?: string
   /** 估价从哪来（走查锚点）。 */
   source?: string

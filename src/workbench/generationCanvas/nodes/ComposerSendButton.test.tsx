@@ -46,6 +46,25 @@ describe('ComposerSendButton 让法', () => {
   })
 })
 
+describe('ComposerSendButton 花费格（板 ModelSurfaces：cost.send-pill / cost.low-balance）', () => {
+  const round = { ariaLabel: '生成', onClick: () => undefined }
+  it('有估价：硬币 + 积分数 + ↑ 在同一颗钮里，悬停那句进读屏描述', () => {
+    const html = render(<ComposerSendButton {...round} cost={{ text: '19.5', coin: true }} description="预计 19.5 积分" />)
+    expect(html).toContain('data-send-cost="credits"')
+    expect(html).toMatch(/data-send-cost="credits"[^>]*><svg[^>]*>.*<\/svg>19\.5<\/span><svg/)
+    expect(html).toContain('aria-description="预计 19.5 积分"')
+  })
+  it('余额为 0：钮上换成动作字、不带硬币', () => {
+    const html = render(<ComposerSendButton {...round} cost={{ text: '去充值', coin: false }} />)
+    expect(html).toContain('data-send-cost="action"')
+    expect(html).toContain('>去充值</span>')
+  })
+  it('算不出 / 忙着：钮上不印数，和没有花费格时逐字相同', () => {
+    expect(render(<ComposerSendButton {...round} />)).not.toContain('data-send-cost')
+    expect(render(<ComposerSendButton {...round} busy cost={{ text: '19.5', coin: true }} />)).toBe(render(<ComposerSendButton {...round} busy />))
+  })
+})
+
 describe('composerYieldLadder 让法顺序', () => {
   it('① 生成钮 → ② 摘要整值地减 → ③ 方式格只剩图标 → ④ 模型名最后省略', () => {
     const ladder = composerYieldLadder({ sendCollapsible: true, modeCollapsible: true, summaryCandidates: 3 })
