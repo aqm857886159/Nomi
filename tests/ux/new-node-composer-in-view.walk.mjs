@@ -15,7 +15,7 @@ import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { readCanvasViewport, sameCanvasViewport, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { screenshotSettled } from './_assert.mjs'
-import { addCanvasNode, newProjectEntry, switchWorkspace } from './_shell.mjs'
+import { addCanvasNode, canvasAddBar, CANVAS_ADD_BAR, newProjectEntry, switchWorkspace } from './_shell.mjs'
 
 const MEASURE_ONLY = process.env.NOMI_WALK_MEASURE_ONLY === '1'
 const shotsDir = process.env.NOMI_WALK_SHOTS_DIR || path.join(repoRoot, 'tests/ux/shots/new-node-composer-in-view')
@@ -89,7 +89,7 @@ async function measure(win) {
       docks: dockRects.map(({ el, r }) => ({ cls: String(el.className).slice(0, 40), top: r.top, left: r.left, right: r.right, bottom: r.bottom })),
       bottomRow,
     }
-  }, { stage: STAGE, node: NODE, card: COMPOSER_CARD, footer: FOOTER, docks: DOCKS, addBar: '.generation-canvas-v2-toolbar' })
+  }, { stage: STAGE, node: NODE, card: COMPOSER_CARD, footer: FOOTER, docks: DOCKS, addBar: CANVAS_ADD_BAR })
 }
 
 function fail(message) {
@@ -139,7 +139,7 @@ async function runCombo(size, track) {
           if (!m.addBarButtons.length) fail(`${label}：没找到加节点条按钮`)
           if (badBar.length) fail(`${label}：加节点条上点不到：${badBar.map((b) => b.label).join(' / ')}`)
           // 不先点空白处取消选择，直接再点一次加节点条，要能加出第二个节点。
-          await win.locator('.generation-canvas-v2-toolbar [data-add-intent="image"]').first().click({ timeout: 3000 }).catch(() => {})
+          await canvasAddBar(win).locator('[data-add-intent="image"]').first().click({ timeout: 3000 }).catch(() => {})
           await win.waitForTimeout(500)
           const count = await win.locator(NODE).count()
           if (count !== 2) fail(`${label}：再点一次加节点条没加出第二个节点（节点数 ${count}）`)
@@ -162,7 +162,7 @@ async function runCombo(size, track) {
       await win.locator(STAGE).first().click({ position: { x: 4, y: 4 }, force: true }).catch(() => {})
       await win.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z')
       await win.waitForTimeout(300)
-      if ((await win.locator(NODE).count()) !== 0) fail(`${label}：撤销后画布上还有节点，下一种量不准`)
+      if ((await win.locator(NODE).count()) > 0) fail(`${label}：撤销后画布上还有节点，下一种量不准`)
     }
   } finally {
     await app.close().catch(() => {})
