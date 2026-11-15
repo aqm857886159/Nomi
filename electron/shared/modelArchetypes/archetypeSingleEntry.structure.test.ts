@@ -168,7 +168,7 @@ describe('入口按档收窄（真实内置档案）', () => {
         const got = resolveModelArchetype(model, { variant: { variantId: variant.id, modelId: undefined } })!
         expect(got.modes.map((mode) => mode.id), `${profile.id}/${variant.id}`).toEqual(every.modes.map((mode) => mode.id))
         for (const mode of every.modes) {
-          const fn = overrides[mode.id]
+          const fn = overrides[mode.id] as ((params: typeof mode.params) => typeof mode.params) | undefined
           const expected = fn ? fn(mode.params) : mode.params
           const actual = got.modes.find((item) => item.id === mode.id)!.params
           expect(actual, `${profile.id}/${variant.id}/${mode.id}`).toEqual(expected)
