@@ -2,7 +2,7 @@
 // 「主进程 / Run provider 按变体出键」就没有可观测差异、改坏了也红不起来（独立验收 V-mode-params-pr1 条件 1）。
 // 这里给 Seedance 2.0（APIMart）的 standard 变体临时加一份文生方式的改写：清晰度缺省 1080p、不声明 generate_audio。
 // 默认变体 fast 没有这份改写 —— 所以「按变体出键」与「落到默认变体出键」在这个夹具下字节不同。
-import { SEEDANCE_2_APIMART_ARCHETYPE } from "../../shared/videoCapabilities/seedanceApimart";
+import { SEEDANCE_2_APIMART_ARCHETYPE } from "../shared/videoCapabilities/seedanceApimart";
 
 export const VARIANT_FIXTURE = {
   archetypeId: "seedance-2-apimart",
