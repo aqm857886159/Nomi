@@ -11,6 +11,9 @@ import { RUNWAY_GENERATE_AUDIO_CONTROL, runwayDurationControl, runwayRatioContro
 
 const opt = (values: string[]): ModelParameterControl["options"] => values.map((value) => ({ value, label: value }));
 
+// 三个方式同一组：文生、参考图、首尾帧都露出比例并发出去。官方页 aspect_ratio 不分方式（16:9 / 9:16），
+// 页上的请求示例本身就是带 image_urls 的图生请求、同时写着 "aspect_ratio": "16:9"（2026-11-15 核）。
+// 图模式以前不发，是 2026-06-07 首版照抄 Sora 图生的 body 形状，没有文档或上游报错依据。
 const PARAMS: ModelParameterControl[] = [
   { key: "aspect_ratio", label: "比例", type: "select", options: opt(["16:9", "9:16"]), defaultValue: "16:9" },
   { key: "resolution", label: "清晰度", type: "select", options: opt(["720p", "1080p", "4k"]), defaultValue: "720p" },
@@ -32,6 +35,7 @@ export const VEO_3_1_ARCHETYPE: ModelArchetype = {
   legacyIds: ["runway-video"],
   id: "veo-3.1",
   family: "veo",
+  sources: [{ url: "https://docs.apimart.ai/en/api-reference/videos/veo3/generation.md", checkedAt: "2026-11-15", vendorKey: "apimart", covers: "aspect_ratio 16:9 / 9:16，不分方式；请求示例同时带 image_urls 与 \"aspect_ratio\": \"16:9\"（图模式发比例上游认不认：unverified，待一发付费核）；Note: veo3.1-quality model does not support reference mode；veo3.1-lite model does not support this parameter（generation_type / image_urls）" }],
   label: "Veo 3.1",
   kind: "video",
   defaultModeId: "t2v",

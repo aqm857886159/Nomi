@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { applyHeadlessParamDefaults, hasImageEditReferences, taskTemplateParams, firstReferenceImage, headlessReferenceOverlay, unreachableReferenceLabels, imageEditGuardError, NO_MAPPING_FALLBACK_BODY } from "./taskParams";
+import { applyHeadlessParamDefaults, taskTemplateParams, headlessReferenceOverlay } from "./taskParams";
+import { hasImageEditReferences, firstReferenceImage } from "./taskParamsReferences";
+import { unreachableReferenceLabels, imageEditGuardError, NO_MAPPING_FALLBACK_BODY } from "./taskParamsGuard";
 import { referenceKeyDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
 import { modelReferenceSelection } from "./modelCatalogListing";
 import { desktopT } from "../desktopStrings";

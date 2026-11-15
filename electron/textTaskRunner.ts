@@ -15,7 +15,7 @@ import { nomiModelConfigFor } from "./ai/vendorModelConnection";
 import { sanitizeForBroadCompat } from "./ai/promptSanitize";
 import { runAntigravityTask } from "./ai/antigravityTask";
 import { ANTIGRAVITY_VENDOR_KEY } from "./shared/antigravity";
-import { allReferenceImages } from "./catalog/taskParams";
+import { allReferenceImages } from "./catalog/taskParamsReferences";
 import { firstString, trim } from "./jsonUtils";
 import { desktopT } from "./i18n";
 import { billingKindForTaskKind, findExecutableModelForTask, type TaskRequest, type TaskResult } from "./runtime";

@@ -272,7 +272,6 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       "apimart": {
         "mode": "pro",
         "duration": 5,
-        "aspect_ratio": "16:9",
         "audio": false
       }
     }
