@@ -48,7 +48,7 @@ export type ModelHandleLookup<T extends ModelHandleRow> =
 const uniqueHandles = (rows: readonly ModelHandleRow[]): string[] => [...new Set(rows.map(modelHandleOf))];
 const lastSegment = (id: string): string => id.slice(id.lastIndexOf("/") + 1);
 
-function decide<T extends ModelHandleRow>(rows: readonly T[], via: "handle" | "model_id"): ModelHandleLookup<T> | undefined {
+function onlyMatchOf<T extends ModelHandleRow>(rows: readonly T[], via: "handle" | "model_id"): ModelHandleLookup<T> | undefined {
   if (rows.length === 0) return undefined;
   const handles = uniqueHandles(rows);
   if (rows.length === 1) return { ok: true, row: rows[0]!, handle: handles[0]!, via };
@@ -68,16 +68,16 @@ function decide<T extends ModelHandleRow>(rows: readonly T[], via: "handle" | "m
 export function resolveModelHandle<T extends ModelHandleRow>(rows: readonly T[], written: string): ModelHandleLookup<T> {
   const wanted = written.trim();
   if (!wanted) return { ok: false, reason: "unknown", nearest: [] };
-  const exact = decide(rows.filter((row) => modelHandleOf(row) === wanted), "handle")
-    ?? decide(rows.filter((row) => modelHandleOf(row).toLowerCase() === wanted.toLowerCase()), "handle");
+  const exact = onlyMatchOf(rows.filter((row) => modelHandleOf(row) === wanted), "handle")
+    ?? onlyMatchOf(rows.filter((row) => modelHandleOf(row).toLowerCase() === wanted.toLowerCase()), "handle");
   if (exact) return exact;
   const lower = wanted.toLowerCase();
-  const byId = decide(rows.filter((row) => row.modelId.toLowerCase() === lower || (row.modelAlias ?? "").toLowerCase() === lower), "model_id");
+  const byId = onlyMatchOf(rows.filter((row) => row.modelId.toLowerCase() === lower || (row.modelAlias ?? "").toLowerCase() === lower), "model_id");
   if (byId) return byId;
   // 写的东西里带了别的前缀（`apimart/…`、`…@kie`）就只比整串：那是 Agent 点了「哪一家」，
   // 近似层不许把它悄悄落到另一家（11-15 那 13 次拒收正是「id 对、家错」）。只有光秃秃的末段才按末段比。
   const bare = !wanted.includes("/") && !wanted.includes(SEPARATOR);
-  const near = decide(rows.filter((row) => foldKey(row.modelId) === foldKey(wanted)
+  const near = onlyMatchOf(rows.filter((row) => foldKey(row.modelId) === foldKey(wanted)
     || (bare && foldKey(lastSegment(row.modelId)) === foldKey(wanted))), "model_id");
   if (near) return near;
   const family = archetypeIdForModel(wanted);
