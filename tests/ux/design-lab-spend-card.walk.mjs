@@ -126,7 +126,7 @@ async function groupFacts(page) {
       inBar: Boolean(root.closest('[data-v4-block="intervention"]')),
       folded: Boolean(root.closest('details:not([open])')),
       // 前面那一条是不是生成记录（挂在它下面）：同一个对话项里、组之前有那一条工具记录。
-      afterRecord: Boolean(root.previousElementSibling || root.parentElement?.querySelector('[data-v4-block="tool"], [data-v4-tool], details')),
+      afterRecord: Boolean(root.previousElementSibling || root.parentElement?.querySelector('[data-v4-block="tool"], details')),
       rows: [...root.querySelectorAll('[data-node-pointer="row"]')].map((el) => {
         const wrap = el.closest('[data-node-pointer-row]')
         const toggle = wrap?.querySelector('[data-spend-exclusion]') ?? null

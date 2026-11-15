@@ -17,7 +17,7 @@ import type { GenerationCanvasState } from '../../generationCanvas/store/canvasS
 import { ThumbCornerX } from '../../assets/ThumbCornerX'
 import { IconCheck } from '../v4/AgentPanelV4Icons'
 import type { SpendCardPointer } from '../v4/agentPanelSpendCard'
-import { spendOfferSubject, useSpendOfferRows, type SpendOfferRows } from '../v4/spendOfferRows'
+import { spendOfferSubject, useSpendOfferRows, type SpendOfferRows } from '../v4/spendCardOfferRows'
 import { NodePointerGroup, type NodePointerRowAccessory } from './NodePointerGroup'
 import type { NodePointerSubject } from './nodePointerModel'
 import { receiptLine, receiptShotNodeIds, type ReceiptLine } from './generationReceiptFacts'

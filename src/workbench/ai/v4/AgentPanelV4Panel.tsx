@@ -27,7 +27,7 @@ import { V4AssistantMessage, V4Thinking, V4UserBubble } from './AgentPanelV4Mess
 import { V4ErrorBar, V4Process, V4ReceiptNotice, V4ToolGroup, V4ToolReceipt } from './AgentPanelV4Receipt'
 import { flowItemNotices } from './useDirectorPatchNotices'
 import { GenerationReceiptPointers, SpendOfferRowsWithoutRecord } from '../pointer/GenerationReceiptPointers'
-import { createSpendOfferRowsStore, SpendOfferRowsContext } from './spendOfferRows'
+import { createSpendOfferRowsStore, SpendOfferRowsContext } from './spendCardOfferRows'
 import { flowItemGenerations } from '../pointer/generationReceiptFacts'
 import { V4EmptyState } from './AgentPanelV4Empty'
 import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
@@ -269,7 +269,7 @@ export function AgentPanelV4Panel({
     ...(legacy.archivedItems ? [t('agentPanelV4.legacyArchived')] : []),
     ...(legacy.missingToolArguments ? [t('agentPanelV4.legacyMissingArguments')] : []),
   ].join(t('agentPanelV4.legacySeparator')) : undefined
-  // 付费确认拆开（2026-11-15）：确认条体把这一次出价的行放进来，对话里那一组读出来（每面板一份，见 spendOfferRows.ts）。
+  // 付费确认拆开（2026-11-15）：确认条体把这一次出价的行放进来，对话里那一组读出来（每面板一份，见 spendCardOfferRows.ts）。
   const [spendOfferRows] = React.useState(createSpendOfferRowsStore)
   const recordedGenerations = React.useMemo(() => new Set(flow.flatMap(flowItemGenerations)), [flow])
   // 跟到底交给现成库 use-stick-to-bottom（StackBlitz，MIT）：它看的是**内容高度**——流式长字、卡片展开、

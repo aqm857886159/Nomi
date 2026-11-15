@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 
 import { AgentPanelV4SpendCardBody, type SpendCardBodyProps } from './AgentPanelV4SpendCardBody'
-import { createSpendOfferRowsStore, SpendOfferRowsContext } from './spendOfferRows'
+import { createSpendOfferRowsStore, SpendOfferRowsContext } from './spendCardOfferRows'
 import { createReactTestRenderer } from './testReactRenderer'
 
 const pointers = Array.from({ length: 12 }, (_, index) => ({

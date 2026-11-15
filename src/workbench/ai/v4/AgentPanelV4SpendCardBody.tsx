@@ -7,7 +7,7 @@
 import React, { type JSX } from 'react'
 import { IconAlertTriangle } from './AgentPanelV4Icons'
 import type { SpendCardNotice, SpendCardPointer } from './agentPanelSpendCard'
-import { usePublishSpendOfferRows } from './spendOfferRows'
+import { usePublishSpendOfferRows } from './spendCardOfferRows'
 
 export type SpendCardBodyProps = Readonly<{
   /** 这一次出价的号：对话里那一条生成记录带着同一个号，那一组就挂在它下面。 */

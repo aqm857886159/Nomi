@@ -9,7 +9,7 @@ import i18n from '../../../i18n'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { createReactTestRenderer } from '../v4/testReactRenderer'
-import { createSpendOfferRowsStore, SpendOfferRowsContext, type SpendOfferRows } from '../v4/spendOfferRows'
+import { createSpendOfferRowsStore, SpendOfferRowsContext, type SpendOfferRows } from '../v4/spendCardOfferRows'
 import { GenerationReceiptPointers, SpendOfferRowsWithoutRecord } from './GenerationReceiptPointers'
 
 type Host = { type: string; props: Record<string, unknown> }
