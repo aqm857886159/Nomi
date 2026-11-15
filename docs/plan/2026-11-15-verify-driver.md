@@ -2,12 +2,25 @@
 
 实现线写，2026-11-15。只改测试仪器（`tests/ux/ui-driver.mjs`、`tests/ux/ui.mjs`、`tests/ux/uiDir.mjs`、`tests/ux/_shell.mjs` 补出口）、加一份验证技能和功能地图（`.agents/skills/verify-nomi/`）、一个量用量的脚本；产品代码一个字不改。
 
-## ★0 先查别人
+## 先查别人（★0）
 
-1. Lauren Tan 的 `create-verification-skill`（cursor/plugins 仓库 pstack 目录）· 每个项目一份验证技能，固定六节：起、自检（这个实例值不值得驱动）、驱动、取证、清理、助手；外加功能地图，每个功能一份文件、四节（子功能、从用户角度怎么走到、用驱动怎么做、坑）；生成后必须自己照着跑通一遍、清理后证据还在 · 技能和地图就照这个形状写；第 9 步「照着技能做一次真验证」就是它的第 4 节。
-2. 微软 `playwright-cli`（github.com/microsoft/playwright-cli，README 核过：`attach --cdp=<地址>` 接已开着的浏览器，`snapshot` 出带 `e<编号>` 的页面快照，`click <编号>` / `fill <编号> <字>` / `screenshot --filename=`，`detach` 不关对方；本地 playwright ≥ 1.59 可用 `npx playwright cli`）· 先试接：接得上我们的 Electron 窗口就把驱动里自写的「列可点元素 / 按文字点 / 填」删掉换它；接不上照实写卡在哪。
-3. 我们自己 10-15 的方向检查（`docs/engineering/direction-check-2026-10-15-walkthrough-instruments.md`）· 外壳可达操作只有一个出口 `tests/ux/_shell.mjs` · `goto` 只调 `_shell.mjs` / `_canvasHit.mjs` 的出口，缺的补进 `_shell.mjs`，驱动里不另写选择器。
-4. 补核：Playwright 的 Electron 启动器自己就带 `--remote-debugging-port=0`（playwright-core 1.60 `electronArguments`），Chromium 的调试口默认只绑 127.0.0.1；所以试接不需要再开新端口，读现有那个口即可，打包配置不沾。
+依赖里已有？
+- `playwright-core/types/types.d.ts:2053`（仓库依赖 Playwright 1.60 带的 playwright-core 包内路径）· `page.ariaSnapshot({ depth, mode: 'ai', boxes })` 自带无障碍树快照、元素引用和限深；`_electron` 启动器在 `types.d.ts:17254` · **确认了**驱动建在 Playwright 的 Electron 启动和角色 / data 属性定位上、不自造定位层；但它只管「看 / 点」，不知道我们的功能入口在哪，「走到某功能」仍要自己写。
+
+仓库里已有？
+- `tests/ux/ui.mjs:20`（升级前的命令表：snap / shot / click / fill / eval / wait / quit 等）与 `tests/ux/_launchApp.mjs:668`（`launchNomiApp`，隔离资料 / 能力目录 / 窗口尺寸都是现成入参）· 常驻驱动和隔离启动早就有 · **改了**做法：不新写驱动，只翻默认值、加 `doctor` / `goto`，参数全走 `launchNomiApp` 的现成入参。
+- `tests/ux/_shell.mjs:217`（`newProjectEntry`）、`tests/ux/_shell.mjs:311`（`addCanvasNode`）· 外壳可达操作的唯一出口；10-15 方向检查（[direction-check-2026-10-15-walkthrough-instruments.md](../engineering/direction-check-2026-10-15-walkthrough-instruments.md)）定了「走查不许各抄各的外壳位置」· **确认了**：`goto` 只调 `_shell.mjs` / `_canvasHit.mjs`，缺的出口补进 `_shell.mjs`，驱动里不另写选择器。
+
+生态里已有？
+- playwright-cli（https://github.com/microsoft/playwright-cli ，README 核过 `attach --cdp`、`snapshot [--depth=N]`、`click <ref>`）· 两轮真接到隔离的 Nomi 窗口：接得上、不抢前台，但整页快照是现有 `snap` 的 2.2–2.6 倍；限深复试时，分镜行上要点的按钮在第 18 层，限到 18 层仍是 2.35 倍，再浅按钮就不在快照里了 · **确认了**保留自写的 `snap`（只列可点元素 + 中心坐标），何时重看见下面的结论。
+- Playwright MCP（https://github.com/microsoft/playwright-mcp ）· 同样用无障碍树快照；控制长度靠 `browser_snapshot` 的 `depth` / `target`（只拍一个元素）和 `browser_find`（按文字或正则在快照里搜，比拍整页省）；「走到」靠 `browser_navigate` 打开 URL · **确认了**两件事：控制长度的正路是「只看一块 / 按文字找」而不是整页限深，和 `snap` 只列可点元素同向；它的「走到」靠 URL，而我们的功能入口在单页应用里没有 URL，所以 `goto <功能名>` 必须写在 `_shell.mjs` 出口之上。
+- pstack 的 create-verification-skill（https://github.com/cursor/plugins/blob/main/pstack/skills/create-verification-skill/SKILL.md ）· 每个应用一份验证技能，六节 Launch / Doctor / Drive / Evidence / Cleanup / Helpers，外加 `features/` 功能地图（README + 每个功能一份，四个 H2：Sub-features / How to get to it (user POV) / Driving it with <harness> / Gotchas）；生成后必须自己端到端跑一遍，清理后证据还在 · **改了**交付形状：技能和地图照这个写，第 9 步「只用技能命令做一次真验证」就是它要求的那一遍。作者 Lauren Tan 的公开演讲《All Code Is Slop (Except Mine)》（https://www.youtube.com/watch?v=O_zcc6Xl12g ）讲的就是「功能地图 + 可复用驱动」这套做法，是这次方案的出发点。
+- 补核：Playwright 的 Electron 启动器自己就带 `--remote-debugging-port=0`（playwright-core 1.60 `electronArguments`），Chromium 的调试口默认只绑 127.0.0.1；所以试接不需要再开新端口，读现有那个口即可，打包配置不沾。
+
+自媒体里怎么说？
+- 没查到相关讨论（本线没有做自媒体检索）。
+
+结论：自研。理由只认领域约束：要走到的是我们自己的功能入口（单页应用、没有 URL，入口散在画布 / 分镜 / 设置里），现成工具只管「看 / 点」；现成快照比我们的 `snap` 长一倍以上，限深也压不下来。通用部分（启动、定位、截图）全部用 Playwright。重看条件：playwright-cli 或 Playwright MCP 的快照能只列可交互元素、且长度 ≤ 现有 `snap` 时，换掉自写的 snap / click / fill。
 
 ## ★1 用户怎么用（这里的「用户」是做验证的线）
 
