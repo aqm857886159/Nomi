@@ -2,7 +2,7 @@
 //
 // 每一格都是真面板（生产钩子 useAgentPanelSpendCard + 生产条体 + 生产面板）：这一批镜头在对话里一行一个（挂在那一条生成记录下面），
 // 输入框上方那一条确认只有共同参数 + 两颗按钮。夹具只是画布节点、制作 Run 与宿主推过来的那一次出价。
-// 每一格截图（中英、光暗、392 / 320）+ 下面这些板断言。断言名就是板里各元素的 `assertion`（check:board-parity R4）。
+// 每一格截图（中英、光暗、390 / 320）+ 下面这些板断言。断言名就是板里各元素的 `assertion`（check:board-parity R4）。
 // 期望的字一律从词典按键取；看不见的宿主行为（点「生成」走画布那一台发动机、节点改了行跟着变、收起后小球数上它）在真 Electron 里钉：
 // tests/ux/agent-spend-card.walk.mjs。
 //
@@ -58,7 +58,7 @@ const localeOf = (id) => (/-en(?:-|$)/.test(id) ? 'en' : 'zh-CN')
 const darkOf = (id) => /-dark(?:-|$)/.test(id)
 const narrowOf = (id) => /-narrow$/.test(id)
 
-/** 3 镜和 12 镜条的高度（中文明 392 那两格）：条上没有一样东西随段数变多，所以两个数必须一样。 */
+/** 3 镜和 12 镜条的高度（中文明 390 那两格）：条上没有一样东西随段数变多，所以两个数必须一样。 */
 const barHeights = {}
 
 /** 输入框上方那一条此刻摆着的一切。 */
@@ -498,7 +498,7 @@ async function expectSpendCardState(page, state, record) {
       break
     }
     case 'spend-unclear': {
-      await expectFailure(page, state, record, bar, group, { shot: 2, titleKey: 'agentPanelV4.spendCard.failedTitle.unclear', reasonKey: 'agentPanelV4.spendCard.failure.unclear', locateKey: 'agentPanelV4.spendCard.goCheck', unclear: true, rowDetail: tr(locale, 'agentPanelV4.spendCard.pointerUnclear') })
+      await expectFailure(page, state, record, bar, group, { shot: 2, titleKey: 'agentPanelV4.spendCard.failedTitle.unclear', reasonKey: 'agentPanelV4.spendCard.failure.unclear', locateKey: 'agentPanelV4.spendCard.goCheck', unclear: true, rowDetail: tr(locale, 'agentPanelV4.spendCard.failure.unclear') })
       break
     }
     case 'spend-blocked': {
@@ -511,7 +511,9 @@ async function expectSpendCardState(page, state, record) {
       const notice = bar.notices.find((item) => item.tone === 'danger')
       const line = tr(locale, 'agentPanelV4.spendCard.blockedNotice', { shot: '镜 02', reason: tr(locale, 'agentPanelV4.spendCard.failure.prompt_required') })
       if (!notice || notice.text.trim() !== line) record(`${state.id} ${A.askFailure}: 应只多一行说明「${line}」，实际 ${JSON.stringify(bar.notices)}`)
-      if (!(group.rows[1]?.detail ?? '').includes(tr(locale, 'agentPanelV4.spendCard.pointerCannotSend'))) record(`${state.id} ${A.note}: 发不出去的那一行应说「${tr(locale, 'agentPanelV4.spendCard.pointerCannotSend')}」：${group.rows[1]?.detail}`)
+      // 那一行第二行写原因（和条上那一句同一个产地，设计卡 ★4「那一行红色第二行写原因」）。
+      const reason = tr(locale, 'agentPanelV4.spendCard.failure.prompt_required')
+      if (!(group.rows[1]?.detail ?? '').includes(reason)) record(`${state.id} ${A.note}: 发不出去的那一行第二行应写原因「${reason}」：${group.rows[1]?.detail}`)
       break
     }
     case 'spend-price-unknown': {
