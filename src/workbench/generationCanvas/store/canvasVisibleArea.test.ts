@@ -3,7 +3,7 @@ import { useWorkbenchStore } from '../../workbenchStore'
 import { composerFocusFootprint } from '../nodes/composerCanvasPlacement'
 import { CANVAS_FOCUS_PADDING } from '../reactFlow/focusViewportRecovery'
 import { placeBlockInVisibleArea, publishCanvasStageSize, visibleCanvasRect, visibleInsertionPoint } from './canvasVisibleArea'
-import { occupiedSize } from './resolveInsertionPosition'
+import { getGenerationNodeFootprintSize } from '../model/generationNodeKinds'
 
 const stageSize = { width: 1000, height: 600 }
 const stage = { stage: stageSize, free: { left: 0, top: 0, width: 1000, height: 600 } }
@@ -70,7 +70,7 @@ describe('canvasVisibleArea', () => {
     const shortest = view(1100, 636, 580)
     const block = (kind: string) => {
       const composer = composerFocusFootprint(kind)
-      return occupiedSize({ kind: kind as never }).height + (composer ? composer.gap + composer.height : 0)
+      return getGenerationNodeFootprintSize(kind as never).height + (composer ? composer.gap + composer.height : 0)
     }
     beforeEach(() => {
       useWorkbenchStore.setState({ categoryViewports: {} })
@@ -93,6 +93,12 @@ describe('canvasVisibleArea', () => {
         expect(point.y).toBe(Math.max(CANVAS_FOCUS_PADDING, expected))
         if (block(kind) <= 820 - CANVAS_FOCUS_PADDING * 2) expect(point.y + block(kind)).toBeLessThanOrEqual(820 - CANVAS_FOCUS_PADDING + 1e-9)
       }
+    })
+
+    it('default window numbers: image lifts to 46 (stage y 86), text stays at 245.28, video no longer fits and sits flush at the margin', () => {
+      expect(visibleInsertionPoint('shots', 'image', roomy)!.y).toBe(820 - CANVAS_FOCUS_PADDING - (280 + 64 + 14 + 400))
+      expect(visibleInsertionPoint('shots', 'text', roomy)!.y).toBe(876 * 0.28)
+      expect(visibleInsertionPoint('shots', 'video', roomy)!.y).toBe(CANVAS_FOCUS_PADDING)
     })
 
     it('block taller than the free area (short windows): node top sits one margin below the free area top, same margin as focus', () => {

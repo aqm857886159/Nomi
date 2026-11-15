@@ -153,6 +153,8 @@ async function runCombo(size, track) {
             if (m.node.y > want.y + 0.5) fail(`${label}：1440×960 落点 y ${m.node.y} 比主干基线 ${want.y} 还低（只许往上提）`)
             if (kind === 'text' && Math.abs(m.node.y - want.y) > 0.5) fail(`${label}：1440×960 文字节点整块放得下，落点 y ${m.node.y} 应等于主干基线 ${want.y}`)
           }
+          // 图片节点放得下：连「底栏最坏高度 400（composerFocusFootprint，对焦用的同一个数）」也落在停靠条上沿之上。
+          if (kind === 'image' && m.node && m.topDock !== null && m.node.y + m.node.h + 14 + 400 > m.topDock + 0.5) fail(`${label}：1440×960 图片节点连最坏高度底栏也该放得进空地，实际整块下沿 ${(m.node.y + m.node.h + 14 + 400).toFixed(1)} > 停靠条上沿 ${m.topDock.toFixed(1)}`)
           if (m.card && m.topDock !== null && m.card.bottom > m.topDock + 0.5) fail(`${label}：1440×960 底栏下沿 ${m.card.bottom.toFixed(1)} 压到停靠条上沿 ${m.topDock.toFixed(1)} 下面`)
         }
       }

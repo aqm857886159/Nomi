@@ -1,6 +1,6 @@
 import { useWorkbenchStore } from '../../workbenchStore'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
-import { occupiedSize } from './resolveInsertionPosition'
+import { getGenerationNodeFootprintSize } from '../model/generationNodeKinds'
 import { composerFocusFootprint } from '../nodes/composerCanvasPlacement'
 import { CANVAS_FOCUS_PADDING } from '../reactFlow/focusViewportRecovery'
 
@@ -87,7 +87,8 @@ export function placeBlockInVisibleArea(
  * 新东西的落点。横向：舞台宽 38%（与工具条新建一直以来的落点同一个比例）。竖向：「今天的比例落点」（舞台高 28%）
  * 只往上提，提到「节点 + 间距 + 底栏最坏高度」整块的下沿不超过空地下沿减留边；整块比空地还高就让节点顶贴空地上沿留边：
  *   y = max(空地上沿 + 留边, min(比例落点, 空地下沿 − 留边 − 整块高))
- * 一条算式管所有种类：不带底栏的种类整块高 = 节点高，装得下就不变。底栏占多高只取 `composerFocusFootprint`
+ * 节点高取「足迹」（名义尺寸 + 渲染余量，避让与批量布局共用的那一份）：新建时 store 里的名义高度比真实渲染低（图片 280 对 340），不取足迹底栏会落低。
+ * 一条算式管所有种类：不带底栏的种类整块高 = 节点足迹高，装得下就不变。底栏占多高只取 `composerFocusFootprint`
  * （对焦用的同一个数），留边与对焦同源（`CANVAS_FOCUS_PADDING`）；不量 DOM、不挪视口。舞台未知时 null。
  */
 export function visibleInsertionPoint(
@@ -101,7 +102,7 @@ export function visibleInsertionPoint(
   const stageRect = toCanvas(categoryId, { left: 0, top: 0, width: view.stage.width, height: view.stage.height })
   const proportional = { x: stageRect.x + stageRect.width * 0.38, y: stageRect.y + stageRect.height * 0.28 }
   const composer = kind ? composerFocusFootprint(kind) : null
-  const nodeHeight = kind ? occupiedSize({ kind: kind as GenerationNodeKind }).height : 0
+  const nodeHeight = kind ? getGenerationNodeFootprintSize(kind as GenerationNodeKind).height : 0
   const blockHeight = nodeHeight + (composer ? composer.gap + composer.height / zoom : 0)
   const pad = CANVAS_FOCUS_PADDING / zoom
   const y = Math.max(area.y + pad, Math.min(proportional.y, area.y + area.height - pad - blockHeight))
