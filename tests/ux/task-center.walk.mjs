@@ -1,5 +1,6 @@
 // 任务中心 R13 走查 —— Playwright _electron 驱动真 app（隔离 userData 绕开单实例锁）。
 // 用法: node tests/ux/task-center.walk.mjs
+// 想在矮窗口跑：NOMI_WALK_SIZE=1280x800（缺省用默认窗口）。
 // 产出: tests/ux/shots/task-center/*.png —— 顶栏按钮三态 + 面板四种队列状态 + 画布「排队中」角标，
 //        人眼判断有无溢出/挤压/文案截断/对比度塌陷。
 //
@@ -10,6 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
+import { addCanvasNode, canvasFitView } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/task-center')
@@ -40,6 +42,7 @@ const { app, win } = await launchNomiApp({
   userDataDir: userData,
   args: ['--no-proxy-server'],
   settleMs: 0,
+  ...(process.env.NOMI_WALK_SIZE ? { viewportSize: { width: Number(process.env.NOMI_WALK_SIZE.split('x')[0]), height: Number(process.env.NOMI_WALK_SIZE.split('x')[1]) } } : {}),
 })
 
 // 压掉首启 splash / 引导旅途 / 手势提示，并开 E2E 桥，然后 reload 让它们生效。
@@ -79,18 +82,16 @@ if (await genTab.count()) await genTab.click({ timeout: 5000 }).catch(() => {})
 await win.waitForTimeout(2500)
 await snap(win, 'generation-area-empty-canvas')
 
-// 用真 UI 加 8 个图片节点（画布左侧工具栏「添加图片节点」）。不走 store 后门——画布 store 的 E2E 桥
-// 只在运镜捕获时才挂，且真点按钮本来就更忠实。
-const addImage = win.locator('[aria-label="添加图片节点"]').first()
-if (!(await addImage.count())) {
-  console.error('❌ 找不到画布「添加图片节点」按钮——停。')
-  await app.close()
-  process.exit(1)
-}
+// 用真 UI 加 8 个图片节点（画布底部加节点条「图片」）。不走 store 后门——画布 store 的 E2E 桥
+// 只在运镜捕获时才挂，且真点按钮本来就更忠实。像创作者那样加：新节点选中后它的底栏会盖住加节点条，
+// 每加一个先点一下画布空白处取消选中（addCanvasNode 里的 revealCanvasDock 就是这么做的）。
 for (let i = 0; i < 8; i += 1) {
-  await addImage.click({ timeout: 4000 })
+  await addCanvasNode(win, 'image')
   await win.waitForTimeout(260)
 }
+await win.waitForTimeout(900)
+// 8 张图片节点一屏摆不下，画布只渲染看得见的那几张：像创作者那样点「适应视图」把它们都收进来，后面才读得到 8 个 id。
+await canvasFitView(win)
 await win.waitForTimeout(900)
 
 // 节点 id 从 DOM 上读（真实渲染出来的那些），不依赖任何 store 后门。
