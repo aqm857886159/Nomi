@@ -773,10 +773,6 @@
     "b4b8c30b90c01279908d78387baaede3d5ba512cc24fd8d99d2c00d9075d756f": 1,
     "d3b5a04cf1f8292ea388f1664dfe52730cd7503db95d1df995a2cccb3d9cc244": 1
   },
-  "tests/ux/ui-driver.mjs": {
-    "60a0865f6704fb7cd5d99fdddace986bdca43fa77df25a6769e6a6af7aafd377": 1,
-    "a264ff832ceae77d10d94500db890d9d1c8e0f4ee847fb8a02b350196776fced": 1
-  },
   "tests/ux/vendor-baseurl-discoverability.walk.mjs": {
     "a908fbca26e65a5965c5a05f4e4b3f13d494f249417ae7064d9f304b988496a5": 1,
     "038dbe4831ff8c444220f801a479b42009fb2a8fca3f027e048499f08ce09e27": 1,

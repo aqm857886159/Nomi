@@ -442,6 +442,114 @@ export function canvasControlsHelpDialog(win) {
   return win.getByRole('dialog', { name: new RegExp(`^(${alternatives(['generationCommon.canvas.controlsHelp.aria'])})$`) })
 }
 
+// ── 常驻驱动 goto 用的到达出口（2026-11-15，tests/ux/verifyFeatures.mjs 只调这里，不自写选择器）──────────────
+
+/** 现在在不在某个项目里（顶栏有项目名菜单 = 在；项目库没有）。只读。 */
+export async function isInProject(win) {
+  return win.locator(PROJECT_MENU).first().isVisible().catch(() => false)
+}
+
+/** 确认现在在项目库（「新建项目」入口看得见）。不在就红。 */
+export async function assertInLibrary(win, label = '应该在项目库') {
+  await expect(newProjectEntry(win), `${label}：没看到「新建项目」入口`).toBeVisible()
+}
+
+/** 像用户一样从项目库新建一个空白项目进去：点新建入口（newProjectEntry 两种形态都认），等顶栏工作区分段出现。 */
+export async function createBlankProject(win, label = 'create blank project') {
+  await expect(newProjectEntry(win), `${label}：项目库里没有「新建项目」入口（不在项目库？）`).toBeVisible()
+  await clickOrFail(newProjectEntry(win), label)
+  await expect(win.locator(`${STAGE_CENTER} [data-mode]`).first(), `${label}：点完没进项目（顶栏没出现工作区分段）`).toBeVisible()
+}
+
+const CANVAS_NODE = (kind) => `.generation-canvas-v2-node[data-kind="${kind}"]`
+/** 画布节点的生成框（选中节点才有；同一时刻只挂一只）。 */
+const NODE_COMPOSER = '.generation-canvas-v2-node__composer'
+
+/** 选中节点的生成框（只返回定位器）。 */
+export function selectedNodeComposer(win) {
+  return win.locator(NODE_COMPOSER).last()
+}
+
+/** 生成框底栏中心点上最顶层的是不是底栏自己（被时间轴条 / 窗口下沿盖住时不是）。 */
+async function composerFooterReachable(win) {
+  const footer = selectedNodeComposer(win).locator('[data-node-composer-footer]').first()
+  if (!(await footer.isVisible().catch(() => false))) return false
+  return footer.evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    if (r.bottom > window.innerHeight) return false
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    return !!hit && el.contains(hit)
+  })
+}
+
+/**
+ * 画布上选中一个 `kind` 节点、让它的生成框和底栏都点得到：已有这种节点就点它的左上角（不点正中——正中可能是「参考图生图」之类的入口），
+ * 没有就从加节点条新建一个（新建的会自动选中）。
+ * 生成框挂在节点下方：窗口矮（1280×800 实测）时底栏会落到时间轴条下面或窗口外，真人这时会缩小画布再点——这里照做，
+ * 每缩一档重新选中、再看底栏中心是不是它自己，最多 6 档；还够不着就红（不绕过遮挡去点）。
+ * @param {'image'|'video'|'text'} kind
+ */
+export async function selectOrAddCanvasNode(win, kind, label = `select ${kind} node`) {
+  const node = win.locator(CANVAS_NODE(kind)).first()
+  // 基线：先看到画布的添加条（画布真渲染出来了），再数节点；没有才加。数不到不会被误当成「画布还没出来」。
+  await expect(canvasAddBar(win), `${label}：不在画布上（没看到添加条）`).toBeVisible()
+  if (!((await node.count()) > 0)) await addCanvasNode(win, kind)
+  await expect(node, `${label}：画布上没有 ${kind} 节点`).toBeVisible()
+  for (let step = 0; ; step += 1) {
+    if (!(await selectedNodeComposer(win).isVisible().catch(() => false))) await node.click({ position: { x: 8, y: 8 } })
+    await expect(selectedNodeComposer(win), `${label}：选中后生成框没出来`).toBeVisible()
+    if (await composerFooterReachable(win)) return
+    if (step >= 6) throw new Error(`${label}：缩小 6 档后生成框底栏仍被盖住 / 在窗口外`)
+    await canvasZoomStep(win, 'out', `${label}（底栏被盖住，缩小画布）`)
+  }
+}
+
+/** 选中节点生成框底栏里的模型芯片（模型菜单的触发器）。 */
+export function nodeModelTrigger(win) {
+  return selectedNodeComposer(win).getByRole('button', { name: new RegExp(`^(${alternatives(['generationCommon.parameters.model'])})`) }).first()
+}
+
+/** 打开选中节点底栏的模型菜单（点模型芯片），等菜单出来。 */
+export async function openNodeModelMenu(win, label = 'open node model menu') {
+  await clickOrFail(nodeModelTrigger(win), label)
+  await expect(win.getByRole('listbox').or(win.getByRole('menu')).first(), `${label}：点了模型芯片，菜单没出来`).toBeVisible()
+}
+
+/** 打开选中节点底栏的参数面板（点那颗参数摘要 pill），等面板出来。 */
+export async function openNodeParams(win, label = 'open node params') {
+  const pill = selectedNodeComposer(win).locator('[data-parameter-summary]').first()
+  await expect(pill, `${label}：底栏里没有参数摘要（这个模型没有可调参数，或还没选模型）`).toBeVisible()
+  if ((await pill.getAttribute('aria-expanded')) !== 'true') await clickOrFail(pill, label)
+  await expect(win.locator('[data-agent-parameter-panel]').first(), `${label}：点了参数摘要，面板没出来`).toBeVisible()
+}
+
+/**
+ * 「现在在哪」一行字（只读，常驻驱动的 doctor / goto 回报用）：项目库 / 哪个工作区 / 画布或列表 / 设置开在哪个页签 / Agent 面板形态。
+ * 只读外壳发的身份属性，不点任何东西。
+ */
+export async function describeShellLocation(win) {
+  return win.evaluate(({ projectMenu, stage, settings, panel, ball }) => {
+    const visible = (el) => Boolean(el && el.getBoundingClientRect().width > 0)
+    const parts = []
+    const inProject = visible(document.querySelector(projectMenu))
+    if (!inProject) parts.push('library')
+    else {
+      const current = document.querySelector(`${stage} [data-mode][aria-current="page"]`)
+      parts.push(`project:${current?.getAttribute('data-mode') ?? '?'}`)
+      const view = document.querySelector('[data-shell-topbar] [data-generation-view-switcher]')
+      if (view) parts.push(`view:${view.getAttribute('data-generation-view-switcher')}`)
+      if (visible(document.querySelector('.workbench-storyboard'))) parts.push('storyboard-editor')
+      const selected = [...document.querySelectorAll('.react-flow__node.selected')].filter(visible).length
+      if (selected) parts.push(`selected-nodes:${selected}`)
+    }
+    const dialog = document.querySelector(settings)
+    if (visible(dialog)) parts.push(`settings:${dialog.getAttribute('data-settings-tab')}`)
+    if (visible(document.querySelector(panel))) parts.push('agent:panel')
+    else if (visible(document.querySelector(ball))) parts.push('agent:ball')
+    return parts.join(' · ')
+  }, { projectMenu: PROJECT_MENU, stage: STAGE_CENTER, settings: SETTINGS_DIALOG, panel: AGENT_PANEL, ball: AGENT_BALL })
+}
+
 /**
  * 生成页顶栏里「画布 ↔ 列表」那一个图标切换（外壳 viewSwitcher 槽，紧挨「生成」）。
  * 走查切视图一律经这里，别自己按文案 / 图标猜：按钮上的 data-generation-view-switcher 写的是**当前**视图，

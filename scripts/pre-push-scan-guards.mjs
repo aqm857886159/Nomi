@@ -189,6 +189,7 @@ export const NOT_SOURCE_SCANS = Object.freeze({
   'scripts/check-site-pricing.node-test.mjs': '同 check-site-attribution：站点扫描函数的夹具单测',
   'scripts/check-site-schema.node-test.mjs': '同 check-site-attribution：站点扫描函数的夹具单测',
   'tests/ux/feel-policy.test.mjs': '测 feel-nightly 的收集函数：喂 makeTempDir 建的夹具目录',
+  'tests/ux/uiDriverOptions.test.mjs': '测常驻驱动启动参数：readdirSync 只拷一份点名的旧项目库夹具进 makeTempDir 建的临时根；electron-build-artifacts 是经 _launchApp 间接 import 进来的，测试里不调用',
 })
 
 /** 推送前里这一项的名字（pre-push-contracts.mjs 的 SCAN_TESTS 里有它）：所有登记的守卫在一个 vitest 进程里批量跑。 */

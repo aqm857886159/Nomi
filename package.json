@@ -178,7 +178,7 @@
     "delivery:preflight": "node scripts/git-delivery.mjs preflight",
     "delivery:verify-merged": "node scripts/git-delivery.mjs verify-merged",
     "check:mockup-contracts": "node --test ./scripts/check-mockup-contracts.node-test.mjs && node ./scripts/check-mockup-contracts.mjs",
-    "check:walkthroughs": "node --test ./scripts/check-walkthroughs.node-test.mjs ./tests/ux/g1/walk-session.node-test.mjs ./tests/ux/g1/sweep-budget.node-test.mjs ./tests/ux/g1/sweep-evidence.node-test.mjs ./tests/ux/g1/cases.node-test.mjs && node ./scripts/check-walkthroughs.mjs",
+    "check:walkthroughs": "node --test ./scripts/check-walkthroughs.node-test.mjs ./tests/ux/g1/walk-session.node-test.mjs ./tests/ux/g1/sweep-budget.node-test.mjs ./tests/ux/g1/sweep-evidence.node-test.mjs ./tests/ux/g1/cases.node-test.mjs ./tests/ux/verify-features.node-test.mjs && node ./scripts/check-walkthroughs.mjs",
     "check:full-walk-catalog": "node --test ./scripts/check-full-walk-catalog.node-test.mjs && node ./scripts/check-full-walk-catalog.mjs",
     "check:main-console": "node --test ./scripts/check-main-console.node-test.mjs && node ./scripts/check-main-console.mjs",
     "check:heavy-path": "node ./scripts/check-heavy-path.mjs",
