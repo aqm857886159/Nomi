@@ -49,7 +49,7 @@ const failures = []
 const rows = []
 
 async function measure(win) {
-  return win.evaluate(({ stage, node, card, footer, docks }) => {
+  return win.evaluate(({ stage, node, card, footer, docks, addBar }) => {
     const rect = (el) => {
       if (!el) return null
       const r = el.getBoundingClientRect()
@@ -74,7 +74,13 @@ async function measure(win) {
         const hit = document.elementFromPoint(cx, cy)
         return { label: b.getAttribute('aria-label') || (b.textContent || '').trim().slice(0, 12), ok: !!hit && (hit === b || b.contains(hit)), cy }
       })
+    const addBarButtons = Array.from(document.querySelectorAll(addBar + ' button')).map((b) => {
+      const r = b.getBoundingClientRect()
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return { label: b.getAttribute('aria-label') || (b.textContent || '').trim().slice(0, 12), ok: r.width > 0 && !!hit && (hit === b || b.contains(hit)) }
+    })
     return {
+      addBarButtons,
       innerHeight,
       stage: rect(stageEl),
       node: rect(nodeEl),
@@ -83,7 +89,7 @@ async function measure(win) {
       docks: dockRects.map(({ el, r }) => ({ cls: String(el.className).slice(0, 40), top: r.top, left: r.left, right: r.right, bottom: r.bottom })),
       bottomRow,
     }
-  }, { stage: STAGE, node: NODE, card: COMPOSER_CARD, footer: FOOTER, docks: DOCKS })
+  }, { stage: STAGE, node: NODE, card: COMPOSER_CARD, footer: FOOTER, docks: DOCKS, addBar: '.generation-canvas-v2-toolbar' })
 }
 
 function fail(message) {
@@ -129,6 +135,16 @@ async function runCombo(size, track) {
           const bad = m.bottomRow.filter((b) => !b.ok)
           if (bad.length) fail(`${label}：底栏最下一行点不到：${bad.map((b) => b.label).join(' / ')}`)
           if (!m.bottomRow.length && kind !== 'text') fail(`${label}：没找到底栏按钮`)
+          const badBar = m.addBarButtons.filter((b) => !b.ok)
+          if (!m.addBarButtons.length) fail(`${label}：没找到加节点条按钮`)
+          if (badBar.length) fail(`${label}：加节点条上点不到：${badBar.map((b) => b.label).join(' / ')}`)
+          // 不先点空白处取消选择，直接再点一次加节点条，要能加出第二个节点。
+          await win.locator('.generation-canvas-v2-toolbar [data-add-intent="image"]').first().click({ timeout: 3000 }).catch(() => {})
+          await win.waitForTimeout(500)
+          const count = await win.locator(NODE).count()
+          if (count !== 2) fail(`${label}：再点一次加节点条没加出第二个节点（节点数 ${count}）`)
+          await win.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z')
+          await win.waitForTimeout(300)
         } else {
           const want = BASELINE_1440[kind]
           if (want && m.node && (Math.abs(m.node.x - want.x) > 0.5 || Math.abs(m.node.y - want.y) > 0.5)) {

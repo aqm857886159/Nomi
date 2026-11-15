@@ -91,7 +91,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     // currentState.nodes 算 max+1；categoryId 已在上面定好，显式传入让工厂与 store 一致。
     // 先按期望落点造出节点、再解落点：避让要拿**新节点自己的真实占位**（含 meta / 显式 size 带来的渲染尺寸）去比，
     // 不是 registry 名义尺寸；同一个盒子用来比，已有节点那边同理（见 resolveInsertionPosition 的 occupiedSize）。
-    const requested = input.position ?? visibleInsertionPoint(categoryId) ?? { x: 120, y: 360 }
+    const requested = input.position ?? visibleInsertionPoint(categoryId, input.kind) ?? { x: 120, y: 360 }
     const nextNode = buildCanvasNode(
       {
         kind: input.kind,
