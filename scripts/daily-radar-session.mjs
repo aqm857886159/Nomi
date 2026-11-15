@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { readInbox, untriagedItems } from './lib/intake-radar/inbox.mjs'
 import { resolveCacheDir } from './lib/intake-radar/store.mjs'
 import { killProcessTree, processTreeSpawnOptions } from './lib/processTree.mjs'
+import { execGhReadSync } from './lib/transientRetry.mjs'
 
 const TRIAGE = '分诊只由协调会话做；其他会话看到不动手、不写待办。'
 const MODEL_TRIAGE_PLAN = 'docs/plan/2026-08-27-vendor-model-radar.md'
@@ -43,6 +44,13 @@ const TAIL_CHARS = 1200
 const TIMEOUT_MS = 60_000
 const LOCK_STALE_MS = 150_000
 const LOCK_WAIT_MS = 100_000
+
+/** 夜跑问题单标题里的固定词（scripts/nightly-walk-summary.mjs 的 ISSUE_TITLE；问题单号不写死，每次按标题找）。 */
+const NIGHTLY_TITLE = '夜跑走查失败'
+const NIGHTLY_NIGHTS = 3
+const NIGHTLY_MAX_LISTED = 12
+const NIGHTLY_POINTER = '新转红的由协调会话当天定责（走查过时 / 产品真坏 / 环境），其他会话看到不动手。'
+const DAY_MS = 24 * 60 * 60 * 1000
 
 /** 待分诊行里最多列几个编号：开会话时扫一眼，全部的在报告里。 */
 const TRIAGE_LINE_IDS = 5
@@ -112,6 +120,63 @@ export function triageLine(cacheDir) {
   return `【待分诊】${pending.length} 条还没记进待办（最新：${ids}${pending.length > TRIAGE_LINE_IDS ? ' …' : ''}）。协调会话分诊后出账：pnpm run intake:radar -- --triaged <编号…> --todo <待办号或说明>。`
 }
 
+/** 报错原因进开工提示前去掉本机路径和凭据形状，只留第一行。 */
+function safeReason(error) {
+  const raw = String(error?.stderr || error?.message || error || '未知错误').split('\n').map((l) => l.trim()).find(Boolean) ?? '未知错误'
+  return raw.replace(/(?:[A-Za-z]:)?[\\/](?:Users|home)[\\/]\S+/g, '<本机路径>').replace(/\b(?:gh[pousr]_|github_pat_)\w+/g, '<凭据>').slice(0, 160)
+}
+
+/**
+ * 夜跑走查段的纯逻辑：issue = gh issue view 的 { body, comments }。返回 { ok: true, text } 或 { ok: false, why }。
+ * 格式和 scripts/nightly-walk-summary.mjs 写的对齐：正文「本夜 / Nightly walkthroughs / 应跑」三行，评论里「新增红项」逐条。
+ * 任何一处对不上都返回 ok:false——绝不把「读不懂」说成「没有新红」。
+ */
+export function nightlyWalkLine({ number, body, comments, now = new Date() }) {
+  const tonight = /本夜：\[run (\d+)\]\(([^)]+)\)；SHA ([0-9a-f]{7,40})；(\d{4}-\d{2}-\d{2}T[\d:.]+Z)/.exec(String(body ?? ''))
+  const counts = /Nightly walkthroughs: (\d+)\/(\d+) passed; (\d+) failed; (\d+) skipped\./.exec(String(body ?? ''))
+  const planned = /应跑 (\d+)，实收有效 (\d+)；绿 (\d+)，跳过 (\d+)，缺失 (\d+)。/.exec(String(body ?? ''))
+  if (!tonight || !counts || !planned || !Array.isArray(comments)) return { ok: false, why: `问题单 #${number} 的正文格式和 nightly-walk-summary 写的对不上（本夜 / 应跑行读不出来）` }
+  const verdict = /^## 【夜跑整体红】：(.+)$/m.exec(body)
+  const runAt = new Date(tonight[4])
+  const ageDays = Math.floor((now.getTime() - runAt.getTime()) / DAY_MS)
+  const windowStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - (NIGHTLY_NIGHTS - 1) * DAY_MS
+  const seen = new Map()
+  for (const comment of comments) {
+    if (!(Date.parse(comment?.createdAt) >= windowStart) || !String(comment.body).includes('新增红项')) continue
+    for (const line of String(comment.body).split('\n')) {
+      const m = /^- (\S+?)：.*首红 SHA ([0-9a-f]{7,40}) \/.*上次绿 SHA (\S+?)；/.exec(line)
+      if (m) seen.set(m[1], { walk: m[1], red: m[2].slice(0, 9), green: m[3] === 'unknown' ? '未知' : m[3].slice(0, 9) })
+    }
+  }
+  const unparsed = comments.some((c) => Date.parse(c?.createdAt) >= windowStart && String(c.body).includes('新增红项') && !/首红 SHA/.test(String(c.body)))
+  if (unparsed) return { ok: false, why: `问题单 #${number} 的「新增红项」评论格式和 nightly-walk-summary 写的对不上` }
+  const list = [...seen.values()]
+  const lines = [
+    `最近一次跑完：${runAt.toISOString().slice(0, 10)}${ageDays >= 2 ? `（已是 ${ageDays} 天前，这两晚没有新结果）` : ''}，提交 ${tonight[3].slice(0, 9)}，结论：${verdict ? `红（${verdict[1]}）` : '绿'}（问题单 #${number}，run ${tonight[1]}）。`,
+    `应跑 ${planned[1]}、绿 ${counts[1]}、红 ${counts[3]}、缺 ${planned[5]}（另跳过 ${planned[4]}）。`,
+    list.length === 0
+      ? `最近 ${NIGHTLY_NIGHTS} 晚新转红：0 条（问题单评论里没有「新增红项」）。`
+      : `最近 ${NIGHTLY_NIGHTS} 晚新转红 ${list.length} 条（名字 · 首红提交 · 上次绿提交）：`,
+    ...list.slice(0, NIGHTLY_MAX_LISTED).map((e) => `- ${e.walk} · ${e.red} · ${e.green}`),
+    ...(list.length > NIGHTLY_MAX_LISTED ? [`另有 ${list.length - NIGHTLY_MAX_LISTED} 条（全部见问题单 #${number} 的评论）`] : []),
+  ]
+  return { ok: true, text: lines.join('\n') }
+}
+
+/** 从 gh（只读）取夜跑问题单并解析；取不到 = { ok: false, why }。按标题找，不写死问题单号。 */
+export function fetchNightlyWalk({ root, now = new Date(), gh = (args) => execGhReadSync(args, { cwd: root, timeout: 25_000 }) } = {}) {
+  try {
+    const found = JSON.parse(gh(['issue', 'list', '--state', 'open', '--search', `${NIGHTLY_TITLE} in:title`, '--json', 'number,title']))
+    if (!Array.isArray(found)) return { ok: false, why: 'gh 返回的问题单列表读不出来' }
+    if (found.length === 0) return { ok: false, why: `没找到标题含「${NIGHTLY_TITLE}」的开着的问题单（可能已恢复关闭，也可能标题变了）` }
+    if (found.length > 1) return { ok: false, why: `标题含「${NIGHTLY_TITLE}」的开着的问题单有 ${found.length} 张，认不准是哪张` }
+    const issue = JSON.parse(gh(['issue', 'view', String(found[0].number), '--json', 'body,comments']))
+    return nightlyWalkLine({ number: found[0].number, body: issue.body, comments: issue.comments, now })
+  } catch (error) {
+    return { ok: false, why: safeReason(error) }
+  }
+}
+
 /**
  * 三日竞品雷达的提醒句。产出只落私有仓（用户 2026-10-15 拍板）：本机位置读 NOMI_PRIVATE_REPO，
  * 没设 / 目录不对 = 明说「今天没查成」，绝不落回公开仓——公开仓这边没有任何可写的输出位置。
@@ -128,7 +193,7 @@ export function competitiveRadarLine({ hasSkill, privateRepo, dirExists = fs.exi
  * 纯逻辑（可测）：返回 { text, state }。run(root, radar) 注入；两个雷达**并行**。
  * state = 机器级的当天标记 + 摘要：今天已成功的直接给缓存摘要（带跑的时间），失败的重跑。
  */
-export async function runDailyRadar({ root, now = new Date(), run = defaultRun, state = {}, hasSkill = (name) => skillExists(name, { root }), privateRepo = process.env.NOMI_PRIVATE_REPO, dirExists = fs.existsSync, readTriageLine = () => triageLine(resolveCacheDir(process.env)) }) {
+export async function runDailyRadar({ root, now = new Date(), run = defaultRun, state = {}, hasSkill = (name) => skillExists(name, { root }), privateRepo = process.env.NOMI_PRIVATE_REPO, dirExists = fs.existsSync, readTriageLine = () => triageLine(resolveCacheDir(process.env)), fetchNightly = () => fetchNightlyWalk({ root, now }) }) {
   const today = localDate(now)
   const next = state.date === today ? { ...state } : { date: today }
 
@@ -164,6 +229,22 @@ export async function runDailyRadar({ root, now = new Date(), run = defaultRun, 
   }
   // 放在雷达跑完之后读：这一轮新到的也要算进去。
   lines.splice(lines.findIndex((line) => line.startsWith(`【${RADARS[1].label}】`)), 0, readTriageLine())
+
+  // 夜跑走查：和别的雷达一样每天一次、成功才缓存；取不到明说，下次会话重试。
+  if (next.nightly?.ok) {
+    lines.push(`【夜跑走查】今天 ${next.nightly.at} 已在本机查过（别的会话先开了；摘要如下，以当时为准）：`, next.nightly.text)
+  } else {
+    const got = fetchNightly()
+    const at = localTime(now)
+    if (got.ok) {
+      next.nightly = { ok: true, at, text: got.text }
+      lines.push(`【夜跑走查】已查（${at}，gh 只读）：`, got.text)
+    } else {
+      next.nightly = { ok: false, at, why: got.why }
+      lines.push(`【夜跑走查】今天没查成：${got.why}。**不是没有新转红**；下次会话会重试，或手动看 gh issue list --search "${NIGHTLY_TITLE} in:title"。`)
+    }
+  }
+  lines.push(`→ ${NIGHTLY_POINTER}`)
 
   lines.push(competitiveRadarLine({ hasSkill: hasSkill('nomi-competitive-radar'), privateRepo, dirExists }))
   return { text: lines.join('\n'), state: next }

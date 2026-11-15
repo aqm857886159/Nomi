@@ -13,13 +13,18 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, test } from 'node:test'
-import { RADARS, localDate, radarStateFile, runDailyRadar, runSession, skillExists, triageLine, tryLock, unlock } from './daily-radar-session.mjs'
+import { RADARS, fetchNightlyWalk, localDate, nightlyWalkLine, radarStateFile, runDailyRadar, runSession, skillExists, triageLine, tryLock, unlock } from './daily-radar-session.mjs'
 import { buildIntakeReport } from './lib/intake-radar/aggregate.mjs'
 import { writeInbox } from './lib/intake-radar/inbox.mjs'
 import { renderTerminalSummary } from './lib/intake-radar/render.mjs'
 
 // 没注入读账函数的用例也不碰这台机器上真实的雷达缓存。
 process.env.NOMI_INTAKE_CACHE = makeTempDir('nomi-radar-default-cache-')
+
+// 没注入夜跑取数函数的用例也不碰真实 GitHub：PATH 最前放一个一定失败的假 gh。
+const FAKE_GH_DIR = makeTempDir('nomi-radar-fake-gh-')
+fs.writeFileSync(path.join(FAKE_GH_DIR, 'gh'), '#!/bin/sh\necho "gh: not logged in" >&2\nexit 1\n', { mode: 0o755 })
+process.env.PATH = `${FAKE_GH_DIR}${path.delimiter}${process.env.PATH}`
 
 const NOW = new Date(2026, 9, 2, 9, 5) // 2026-10-02 09:05 本机时间
 const LATER = new Date(2026, 9, 2, 14, 30)
@@ -432,5 +437,90 @@ describe('待分诊：每次开会话现读，新反馈从哪条分支都漏不�
       assert.match(summary, /2026-10-31T115200Z\.md/)
       assert.match(summary, /继续放量/)
     }
+  })
+})
+
+// —— 夜跑走查段：用假的 gh 输出（和 scripts/nightly-walk-summary.mjs 写的格式一致）喂三种情况 ——
+const NIGHT_NOW = new Date('2026-11-16T01:00:00Z')
+const nightBody = (head = '## 【夜跑整体红】：失败率 32.5% > 20%\n\n') => `<!-- nightly-report:start -->\n${head}本夜：[run 555](https://github.com/o/r/actions/runs/555)；SHA 556bc33880528c20535665899d8d1fae399b5f97；2026-11-15T12:34:57.404Z\nNightly walkthroughs: 212/403 passed; 102 failed; 4 skipped.\n应跑 403，实收有效 318；绿 212，跳过 4，缺失 85。\n<!-- nightly-report:end -->`
+const redLine = (walk, red, green) => `- tests/ux/${walk}.walk.mjs：首次观测红、基线未知；FAIL x；[日志 a.log][logs-1-1]；首红 SHA ${red} / [run 1][run-1] / 2026-11-14T12:00:00.000Z；上次绿 SHA ${green}；建议主人：协调分诊`
+const redComment = (createdAt, ...lines) => ({ createdAt, body: `新增红项（首次观测点，不声明致因提交）：\n${lines.join('\n')}\n\n[run-1]: https://x` })
+const fakeGh = (number, issue) => (args) => (args[1] === 'list' ? JSON.stringify([{ number, title: '【夜跑整体红】夜跑走查失败' }]) : JSON.stringify(issue))
+
+describe('夜跑走查', () => {
+  test('有新转红：写出最近一晚结论、应跑/绿/红/缺、名字 + 首红提交 + 上次绿提交、指路句', () => {
+    const issue = { body: nightBody(), comments: [
+      redComment('2026-11-05T12:00:00Z', redLine('old-one', 'a'.repeat(40), 'b'.repeat(40))),
+      redComment('2026-11-14T12:07:50Z', redLine('agent-domain-owners', 'c'.repeat(40), 'unknown'), redLine('agent-process-tone', 'd'.repeat(40), 'e'.repeat(40))),
+    ] }
+    const got = fetchNightlyWalk({ root: '/x', now: NIGHT_NOW, gh: fakeGh(77, issue) })
+    assert.equal(got.ok, true)
+    assert.match(got.text, /最近一次跑完：2026-11-15，提交 556bc3388，结论：红/)
+    assert.match(got.text, /应跑 403、绿 212、红 102、缺 85/)
+    assert.match(got.text, /最近 3 晚新转红 2 条/)
+    assert.match(got.text, /- tests\/ux\/agent-domain-owners\.walk\.mjs · ccccccccc · 未知/)
+    assert.match(got.text, /- tests\/ux\/agent-process-tone\.walk\.mjs · ddddddddd · eeeeeeeee/)
+    assert.doesNotMatch(got.text, /old-one/, '3 晚之前的不列')
+  })
+
+  test('没有新转红：明说 0 条，且和「没查成」不是一个说法', () => {
+    const got = fetchNightlyWalk({ root: '/x', now: NIGHT_NOW, gh: fakeGh(77, { body: nightBody(''), comments: [{ createdAt: '2026-11-04T11:05:14Z', body: '夜跑已恢复' }] }) })
+    assert.equal(got.ok, true)
+    assert.match(got.text, /结论：绿/)
+    assert.match(got.text, /最近 3 晚新转红：0 条/)
+    assert.doesNotMatch(got.text, /没查成/)
+  })
+
+  test('取不到：gh 报错 / 没找到问题单 / 格式变了，都是 ok:false 并带原因，进开工提示写成「今天没查成」「不是没有新转红」', async () => {
+    const boom = () => { throw Object.assign(new Error('x'), { stderr: 'gh: not logged in, see /Users/someone/.config/gh token ghp_abcdef123456' }) }
+    const a = fetchNightlyWalk({ root: '/x', now: NIGHT_NOW, gh: boom })
+    assert.equal(a.ok, false)
+    assert.doesNotMatch(a.why, /\/Users\/|ghp_/, '原因里不带本机路径和凭据')
+    const b = fetchNightlyWalk({ root: '/x', now: NIGHT_NOW, gh: () => '[]' })
+    assert.equal(b.ok, false)
+    assert.match(b.why, /没找到/)
+    const c = fetchNightlyWalk({ root: '/x', now: NIGHT_NOW, gh: fakeGh(9, { body: '随便写点什么', comments: [] }) })
+    assert.equal(c.ok, false)
+    assert.match(c.why, /格式.*对不上/)
+    const d = nightlyWalkLine({ number: 9, body: nightBody(), comments: [redComment('2026-11-15T12:00:00Z', '- 乱了：没有约定的字段')], now: NIGHT_NOW })
+    assert.equal(d.ok, false, '评论里有「新增红项」却一条都读不出来 = 格式变了，不能当没有')
+    const { text } = await runDailyRadar({ root: '/x', now: NOW, run: okRun(), hasSkill: allSkills, fetchNightly: () => b })
+    assert.match(text, /【夜跑走查】今天没查成：没找到/)
+    assert.match(text, /不是没有新转红/)
+    assert.doesNotMatch(text, /最近 3 晚新转红：0 条/)
+  })
+
+  test('问题单号不是写死的：换一个号照样取到，且只按标题找、view 用的是找到的号', () => {
+    const seen = []
+    const gh = (args) => { seen.push(args); return fakeGh(4242, { body: nightBody(), comments: [] })(args) }
+    const got = fetchNightlyWalk({ root: '/x', now: NIGHT_NOW, gh })
+    assert.equal(got.ok, true)
+    assert.match(got.text, /#4242/)
+    assert.equal(seen[1][2], '4242')
+    assert.ok(seen[0].some((a) => a.includes('夜跑走查失败')))
+    assert.ok(!fs.readFileSync(fileURLToPath(new URL('./daily-radar-session.mjs', import.meta.url)), 'utf8').includes('1121'))
+  })
+
+  test('新转红超过 12 条：只列 12 条并写「另有 N 条」', () => {
+    const lines = Array.from({ length: 15 }, (_, i) => redLine(`w${String(i).padStart(2, '0')}`, 'a'.repeat(40), 'b'.repeat(40)))
+    const got = nightlyWalkLine({ number: 1, body: nightBody(), comments: [redComment('2026-11-15T12:00:00Z', ...lines)], now: NIGHT_NOW })
+    assert.equal(got.text.split('\n').filter((l) => l.startsWith('- ')).length, 12)
+    assert.match(got.text, /另有 3 条/)
+  })
+
+  test('进开工提示：成功带指路句；每天一次，同一天第二个会话拿缓存不再调 gh；失败不缓存、下次重试', async () => {
+    let calls = 0
+    const ok = () => { calls += 1; return { ok: true, text: '夜跑摘要行' } }
+    const first = await runDailyRadar({ root: '/x', now: NOW, run: okRun(), hasSkill: allSkills, fetchNightly: ok })
+    assert.match(first.text, /【夜跑走查】已查/)
+    assert.match(first.text, /新转红的由协调会话当天定责（走查过时 \/ 产品真坏 \/ 环境），其他会话看到不动手/)
+    const second = await runDailyRadar({ root: '/x', now: LATER, run: okRun(), hasSkill: allSkills, state: first.state, fetchNightly: ok })
+    assert.equal(calls, 1)
+    assert.match(second.text, /【夜跑走查】今天 09:05 已在本机查过/)
+    const failed = await runDailyRadar({ root: '/x', now: NOW, run: okRun(), hasSkill: allSkills, fetchNightly: () => ({ ok: false, why: '断网' }) })
+    assert.equal(failed.state.nightly.ok, false)
+    const retry = await runDailyRadar({ root: '/x', now: LATER, run: okRun(), hasSkill: allSkills, state: failed.state, fetchNightly: ok })
+    assert.equal(calls, 2)
+    assert.match(retry.text, /夜跑摘要行/)
   })
 })
