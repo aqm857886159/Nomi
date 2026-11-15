@@ -639,7 +639,7 @@ export function withPackagedPlaywrightOrigin(args, isPackaged) {
  * @param {string} [options.userDataDir]    单独指定（默认 <tempRoot>/user-data）
  * @param {string} [options.settingsDir]    单独指定（默认 <tempRoot>/settings）
  * @param {string} [options.projectsDir]    单独指定（默认 <tempRoot>/projects）
- * @param {string} [options.capabilityDir]  优先于 env.NOMI_CAPABILITY_DIR；均未设时隔离实例派生 <tempRoot>/capability
+ * @param {string} [options.capabilityDir]  优先于 env.NOMI_CAPABILITY_DIR（options.env，不含外层 shell）；均未设时隔离实例派生 <tempRoot>/capability
  * @param {string} [options.hostConfigDir]  宿主配置（CLAUDE_CONFIG_DIR / CODEX_HOME …）的隔离目录；默认 <tempRoot>/host-config
  * @param {number} [options.testedCatalogVersion]  被测构建的 catalog 版本；默认读取仓库 canonical manifest
  * @param {{width: number, height: number}} [options.viewportSize] Content viewport; defaults to ACCEPTANCE_VIEWPORT.
@@ -719,9 +719,10 @@ export async function launchNomiApp(options = {}) {
   const settingsDir = isolate ? (options.settingsDir ?? path.join(tempRoot, 'settings')) : null
   const projectsDir = isolate ? (options.projectsDir ?? path.join(tempRoot, 'projects')) : null
   // GUI advert/token 与 helper 发现目录必须同源；显式配置优先，最后才派生隔离默认值。
+  // 隔离实例**不继承**外面 shell 的 NOMI_CAPABILITY_DIR（它可能指着别的实例甚至创作者的真目录）：只认显式配置，其余一律派生。
+  // 非隔离（isolate:false，真实 profile）本来就不派生，继承靠 baseEnv 原样带进去。
   const capabilityDir = options.capabilityDir
     ?? extraEnv.NOMI_CAPABILITY_DIR
-    ?? process.env.NOMI_CAPABILITY_DIR
     ?? (isolate ? path.join(tempRoot, 'capability') : null)
   // isolate:false 用的就是真实 profile 与真实宿主配置（ui-driver / --real-connect 的既定设计），不动宿主变量。
   const hostConfigDir = isolate ? (options.hostConfigDir ?? path.join(tempRoot, 'host-config')) : null
