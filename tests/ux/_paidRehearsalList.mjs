@@ -48,6 +48,8 @@ export function rehearsalSkipOf(file, env = process.env, table = REHEARSAL_SKIPS
  * 夜间：名单外的不过 → 红；名单里的今天过了 → 也红（提醒把它删掉）；名单里写了已经不存在的脚本 → 红。只修了才删，不许往里加。
  */
 export const KNOWN_RED = Object.freeze({
+  'canvas-spend-policy.paid.mjs': '花钱前核对没过：新节点的模型不是被授权的 z-image-turbo（脚本在点生成前自己停下）',
+  'storyboard-agent-bulk-real.paid.mjs': '发第一条请求之前脚本自己报错：对 undefined 调 replace',
 })
 
 /** 夜间这一步的结论：返回要报红的问题（空 = 绿）。rows = 批量的结果行（{ file, status: 'passed' | 'failed' | 'skipped', reason }）。 */

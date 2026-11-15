@@ -7,7 +7,7 @@ import { KNOWN_RED, REHEARSAL_SKIPS, nightlyProblems, reasonFromLog, rehearsalSk
 
 // 红名单定下那天（2026-11-15）的全集：名单只能是它的子集——修好一份删一份，不许往里加新的。
 // 要加，就得同时改这一行；评审看到这一行变长就是违约。
-const KNOWN_RED_BASELINE_20261115 = new Set(['canvas-spend-policy.paid.mjs', 'storyboard-agent-bulk-real.paid.mjs', 'generation-lock-exit-real.paid.mjs', 'shot-result-ownership-real.paid.mjs'])
+const KNOWN_RED_BASELINE_20261115 = new Set(['canvas-spend-policy.paid.mjs', 'storyboard-agent-bulk-real.paid.mjs'])
 const targets = rehearsalTargets(fs.readdirSync(path.join('tests', 'ux')))
 
 describe('paid rehearsal batch', () => {
