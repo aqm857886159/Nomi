@@ -4,6 +4,7 @@ import { COMPOSER_BAR_STATES } from './states/01-bar'
 import { COMPOSER_B3_STATES } from './states/02-b3'
 import { COMPOSER_MODE_BAR_STATES } from './states/03-mode-bar'
 import { COMPOSER_MODEL_MENU_STATES } from './states/04-model-menu'
+import { COMPOSER_PARAMS_STATES } from './states/05-composer-params'
 import type { LabState } from '../labScreen'
 
-export const NODE_COMPOSER_BAR_STATES: readonly LabState[] = [...COMPOSER_BAR_STATES, ...COMPOSER_B3_STATES, ...COMPOSER_MODE_BAR_STATES, ...COMPOSER_MODEL_MENU_STATES]
+export const NODE_COMPOSER_BAR_STATES: readonly LabState[] = [...COMPOSER_BAR_STATES, ...COMPOSER_B3_STATES, ...COMPOSER_MODE_BAR_STATES, ...COMPOSER_MODEL_MENU_STATES, ...COMPOSER_PARAMS_STATES]

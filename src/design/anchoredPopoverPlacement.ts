@@ -63,3 +63,13 @@ export function resolveAnchoredPopoverPlacement(
   left = Math.max(viewportLeft + MARGIN, left)
   return { ...vertical, left }
 }
+
+/**
+ * NomiSelect 整个露出的菜单的选项区高度：内容多高就多高，但不许被窗口边切掉——
+ * 窗口剩余高度（减去小标题、尾行这些滚动区外的部分）放不下时取窗口那一截，在菜单里滚。纯 DOM 量，不猜行高。
+ */
+export function fittedOptionsHeight(list: HTMLElement, availableHeight: number): number {
+  const dropdown = list.parentElement
+  const outside = dropdown ? Math.max(0, dropdown.getBoundingClientRect().height - list.getBoundingClientRect().height) : 0
+  return Math.max(0, Math.floor(Math.min(list.scrollHeight, availableHeight - outside)))
+}

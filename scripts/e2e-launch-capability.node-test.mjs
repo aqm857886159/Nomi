@@ -36,8 +36,9 @@ for (const scenario of ['env', 'explicit', 'inherited', 'derived', 'non-isolated
       expected = options.capabilityDir
     }
     if (scenario === 'inherited') {
+      // 外层 shell 设了也盖掉：隔离窗口只认显式配置，否则用自己的派生目录（外层值可能指着创作者真目录）。
       process.env.NOMI_CAPABILITY_DIR = path.join(root, 'inherited')
-      expected = process.env.NOMI_CAPABILITY_DIR
+      expected = path.join(root, 'capability')
     }
     if (scenario === 'derived') expected = path.join(root, 'capability')
     if (scenario === 'non-isolated') {
@@ -60,6 +61,6 @@ for (const scenario of ['env', 'explicit', 'inherited', 'derived', 'non-isolated
     assert.equal(launched.env.NOMI_CAPABILITY_DIR, expected)
     assert.equal(handle.capabilityDir, expected ?? null)
     if (expected) assert.ok(fs.statSync(expected).isDirectory())
-    if (scenario !== 'derived') assert.equal(fs.existsSync(path.join(root, 'capability')), false)
+    if (scenario !== 'derived' && scenario !== 'inherited') assert.equal(fs.existsSync(path.join(root, 'capability')), false)
   })
 }

@@ -179,6 +179,50 @@ export function parameterControlRole(control: DynamicModelControl): ParameterRol
   return PARAMETER_ROLE_BY_KEY[control.key] ?? null
 }
 
+/**
+ * 参数的**去处**：参数面板，还是底栏「高级设置」（用户 2026-11-14 定稿，画板 T / 便签「规则」）。
+ *
+ * 进高级设置的只有五类——种子、水印、输出格式、提交前内容审核、返回尾帧；其余都在面板里，拿不准的也在面板里；
+ * 影响价钱的永远在面板里。归属按参数的**语义**（键名，和上面比例 / 时长 / 清晰度那几组别名同一层），
+ * 不按模型、不按供应商：同一个键在哪个模型里都去同一个地方（`parameterPlacement.test.ts` 全目录钉住）。
+ * 面板和高级设置都只从 `parameterPlacement` 读，没有第二份。
+ */
+export type AdvancedParameterClass = 'seed' | 'watermark' | 'outputFormat' | 'moderation' | 'returnLastFrame'
+
+export const ADVANCED_CLASS_BY_KEY: Readonly<Record<string, AdvancedParameterClass>> = {
+  seed: 'seed',
+  watermark: 'watermark',
+  ...Object.fromEntries(FORMAT_ALIASES.map((key) => [key, 'outputFormat' as const])),
+  nsfw_check: 'moderation',
+  return_last_frame: 'returnLastFrame',
+}
+
+/** 影响价钱：比例 / 时长 / 清晰度 / 数量这几个角色，或者任何一个选项带价签。 */
+export function parameterAffectsPrice(control: DynamicModelControl): boolean {
+  if (parameterControlRole(control) !== null) return true
+  return isParameterControl(control) && control.options.some((option) => Boolean(option.priceLabel))
+}
+
+export function advancedParameterClass(control: DynamicModelControl): AdvancedParameterClass | null {
+  if (!isParameterControl(control) || parameterAffectsPrice(control)) return null
+  return ADVANCED_CLASS_BY_KEY[control.key] ?? null
+}
+
+export function parameterPlacement(control: DynamicModelControl): 'panel' | 'advanced' {
+  return advancedParameterClass(control) ? 'advanced' : 'panel'
+}
+
+/** 这一项此刻不是默认值（高级设置收着时图标上那个小点，画板 T3）。默认 = 不看节点存的值时它会是什么。 */
+export function controlDiffersFromDefault(control: DynamicModelControl, meta: Record<string, unknown>): boolean {
+  if (!isParameterControl(control)) return catalogControlInitialValue(control, meta) !== catalogControlInitialValue(control, {})
+  // 开关没声明默认时读出来是空串，和「关」是同一个意思。
+  const read = (source: Record<string, unknown>): string => {
+    const value = controlInitialValue(control, source)
+    return control.type === 'boolean' && value === '' ? 'false' : value
+  }
+  return read(meta) !== read({})
+}
+
 export function readMeta(meta: Record<string, unknown> | undefined, key: string): string {
   const value = meta?.[key]
   return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
@@ -305,17 +349,6 @@ export function catalogControlInitialValue(control: DynamicCatalogControl, meta:
 
 export function isParameterControl(control: DynamicModelControl): control is DynamicParameterControl {
   return control.binding === 'parameter'
-}
-
-/**
- * 这个控件在参数面板里是不是渲成「一组摊开的候选项」。
- *
- * 判据就是**它有没有候选项**：有 → 面板里画的是可点的项（chip 一排/一列，或带搜索的列表）；
- * 没有 → 滑杆 / 数字框 / 开关。单参数直出那条路（底栏 pill 只管一个参数时，点开直接给这组项、
- * 不套面板壳）只对前者成立——把一根没有标题的滑杆直接弹在半空中，谁也不知道它在调什么。
- */
-export function hasFlatOptions(control: DynamicModelControl): boolean {
-  return control.options.length > 0
 }
 
 function controlEquivalentKeys(key: string): string[] {

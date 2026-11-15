@@ -49,6 +49,20 @@ const INSTALL_SOURCE = `(() => {
     paramPanelOpen() {
       return visible(document.querySelector('[data-agent-parameter-panel]'))
     },
+    // 点参数摘要钮：参数面板出现，而且全摊开的 N 项都画出来了（2026-11-14 面板不再限高、不再收起）。
+    // 按「面板里一行一项」数（开关那一行没有 data-agent-parameter-control，按它数会少一项；和 composer-params 走查同一数法）。
+    paramPanelRows(rows) {
+      const panel = document.querySelector('[data-agent-parameter-panel]')
+      const scroller = panel?.firstElementChild
+      if (!visible(panel) || !scroller) return false
+      const items = [...scroller.children].filter((el) => !el.hasAttribute('data-agent-generation-mode') && !el.hasAttribute('data-parameter-panel-footer'))
+      return items.length >= rows
+    },
+    // 点底栏的「高级设置」：底栏下面那一块出现，N 项都画出来了。
+    advancedOpen(rows) {
+      const section = document.querySelector('[data-advanced-settings]')
+      return visible(section) && section.querySelectorAll('[data-advanced-setting]').length >= rows
+    },
     // 点底栏的方式格：方式菜单出现，每一行的说明（按这次的输入现算、放不下的报数）都已画出。
     modeMenuOpen(rows) {
       const dropdown = [...document.querySelectorAll('[data-nomi-select-dropdown]')].find(visible)

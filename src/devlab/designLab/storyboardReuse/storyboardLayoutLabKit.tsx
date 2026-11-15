@@ -8,6 +8,7 @@ import { frameMediaBox } from '../../../workbench/creation/storyboard/shotRow/sh
 import type { PlanShot, StoryboardPlan } from '../../../workbench/generationCanvas/agent/storyboardPlan'
 import { effectiveShotAspect, planDefaultAspect } from '../../../workbench/generationCanvas/agent/storyboardShotScope'
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
+import type { ModelOption } from '../../../config/models'
 import { labExec, NOOP } from '../storyboard/storyboardFixtures'
 import { REUSE_IMAGE_MODELS, REUSE_VIDEO_MODELS } from './storyboardReuseFixtures'
 import { LabLocaleGate } from '../labLocaleGate'
@@ -35,13 +36,15 @@ export function LayoutStage({ width, children }: { width: number; children: Reac
   return english ? <LabLocaleGate locale="en">{rows}</LabLocaleGate> : rows
 }
 
-export function LayoutRows({ plan, width, execs = {} }: { plan: StoryboardPlan; width: number; execs?: Partial<Record<number, Partial<ShotRowExec>>> }): JSX.Element {
+type LabModels = { video: readonly ModelOption[]; image: readonly ModelOption[] }
+
+export function LayoutRows({ plan, width, execs = {}, models: catalog }: { plan: StoryboardPlan; width: number; execs?: Partial<Record<number, Partial<ShotRowExec>>>; models?: LabModels }): JSX.Element {
   const box = frameMediaBox(planDefaultAspect(plan))
   return (
     <LayoutStage width={width}>
       <div className="flex flex-col divide-y divide-nomi-line-soft">
         {plan.shots.map((shot) => {
-          const models = shot.shotKind === 'image' ? REUSE_IMAGE_MODELS : REUSE_VIDEO_MODELS
+          const models = [...(shot.shotKind === 'image' ? catalog?.image ?? REUSE_IMAGE_MODELS : catalog?.video ?? REUSE_VIDEO_MODELS)]
           const mode = resolveShotArchetypeMode(findModelOptionByIdentifier(models, shot.modelKey, shot.modelVendor), shot.modeId)?.mode ?? null
           const exec = labExec({ missingSlots: missingRequiredSlots(mode, shot, plan.anchors), ...execs[shot.index] })
           return (
@@ -80,14 +83,14 @@ export function LayoutRows({ plan, width, execs = {} }: { plan: StoryboardPlan; 
   )
 }
 
-export function LayoutAnchors({ cards, aspect, width }: { cards: AnchorCardRuntime[]; aspect: string; width: number }): JSX.Element {
+export function LayoutAnchors({ cards, aspect, width, imageModels }: { cards: AnchorCardRuntime[]; aspect: string; width: number; imageModels?: readonly ModelOption[] }): JSX.Element {
   return (
     <LayoutStage width={width}>
       <div className="p-3">
         <StoryboardAnchorZone
           cards={cards}
           aspect={aspect}
-          imageModelOptions={REUSE_IMAGE_MODELS}
+          imageModelOptions={[...(imageModels ?? REUSE_IMAGE_MODELS)]}
           expanded
           onToggleExpanded={NOOP}
           onUpdateAnchor={NOOP}
