@@ -3,7 +3,7 @@ import { isJsonRecord, nowIso } from "../jsonUtils";
 import { humanizeModelKey } from "./modelLabel";
 import { mutateCatalog, readCatalog } from "./catalogStore";
 import type { BillingModelKind, Model } from "./types";
-import { archetypeIdForModel } from "./archetypeIdentity";
+import { archetypeIdForModel } from "../shared/modelArchetypes";
 
 const CUSTOM_CALL_DRAFT_KINDS = new Set<BillingModelKind>(["text", "image", "video", "audio", "model3d"]);
 

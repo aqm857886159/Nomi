@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getArchetypeById, MODEL_ARCHETYPES } from "./builtInCatalog";
-import { builtInHeadlessDefaults, builtInSizeIsRatioSemantic } from "./entry";
-import { headlessDefaultsOf, sizeRatioTaskKindsOf } from "./catalogFacts";
+import { archetypeIdForModel, builtInHeadlessDefaults, builtInSizeIsRatioSemantic } from "./entry";
+import { headlessDefaultsOf, identityPatternsOf, sizeRatioTaskKindsOf } from "./catalogFacts";
 import { modeTransportFor } from "../videoCapabilities/modeTransport";
 import type { ArchetypeMode, ModelArchetype } from "./types";
 import { ARCHETYPE_WIRE_MODEL, resolveWireModel } from "./wireModelIdentity";
@@ -227,4 +227,24 @@ describe('same-taskKind multi-mode collapse（主模式收口，不互相污染�
     // happyhorse 同病（edit 模式曾胜出）：现为 t2v。
     expect(headlessWire('happyhorse')).toBe('happyhorse/text-to-video')
   })
+})
+
+describe("主进程只凭模型名认档案（archetypeIdForModel）", () => {
+  it("身份 = identifierPatterns + 各档 modelKey（去空去重保序）；每个识别串认回它自己或更早声明的同名档案", () => {
+    const withVariantKeys = MODEL_ARCHETYPES.filter((entry) => (entry.variants ?? []).some((variant) => variant.modelKey && !entry.identifierPatterns.includes(variant.modelKey)));
+    expect(withVariantKeys.length).toBeGreaterThan(0);
+    for (const entry of MODEL_ARCHETYPES) {
+      const patterns = identityPatternsOf(entry);
+      const declared = [...entry.identifierPatterns, ...(entry.variants ?? []).map((variant) => variant.modelKey ?? "")];
+      expect(patterns, entry.id).toEqual([...new Set(declared.map((value) => String(value).trim()).filter(Boolean))]);
+      for (const pattern of patterns) {
+        const owner = archetypeIdForModel(pattern);
+        expect(owner, `${entry.id} ← ${pattern}`).not.toBeNull();
+        const ownerIndex = MODEL_ARCHETYPES.findIndex((candidate) => candidate.id === owner);
+        expect(ownerIndex <= MODEL_ARCHETYPES.indexOf(entry), `${entry.id} ← ${pattern} 被 ${owner} 抢走`).toBe(true);
+      }
+    }
+    expect(archetypeIdForModel("not-a-known-model")).toBeNull();
+    expect(archetypeIdForModel(null, undefined)).toBeNull();
+  });
 })

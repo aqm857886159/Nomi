@@ -1,5 +1,5 @@
-// 把档案(electron/shared/modelArchetypes)的身份表与方式清单抽成纯数据，桥接给 electron。
-// 无界面缺参兜底的默认值表、size 比例语义表已改成发送时从档案现算（electron/shared/modelArchetypes/catalogFacts.ts），不再生成。
+// 把档案(electron/shared/modelArchetypes)的方式清单抽成纯数据，桥接给 electron。
+// 无界面缺参兜底的默认值表、size 比例语义表、身份表已改成用时从档案现算（electron/shared/modelArchetypes/catalogFacts.ts），不再生成。
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,25 +10,6 @@ type ModeManifest = Record<string, {
   defaultModeId: string;
   modes: Record<string, string>;
 }>;
-/**
- * 档案身份表：{ archetypeId: identifierPatterns[] }。
- * 为什么也要桥过去：主进程要能从 modelKey 认出档案（中转接入时决定「这个模型有没有可复用的
- * 原生报文」、启动自愈时同理），而档案住 src/config、electron 直接 import 不到。匹配规则与
- * resolveModelArchetype 同源（整串相等 或 去掉 vendor 前缀后的末段相等），实现在
- * electron/catalog/archetypeIdentity.ts。
- */
-export function buildArchetypeIdentifierPatterns(): Record<string, string[]> {
-  const out: Record<string, string[]> = {};
-  for (const arch of MODEL_ARCHETYPES) {
-    const patterns = [...(arch.identifierPatterns ?? [])];
-    // 变体 modelKey 也是这个档案的身份（用户接入的可能是 fast/mini 那一支）。
-    for (const v of arch.variants ?? []) if (v.modelKey) patterns.push(v.modelKey);
-    const unique = [...new Set(patterns.map((p) => String(p).trim()).filter(Boolean))];
-    if (unique.length) out[arch.id] = unique;
-  }
-  return out;
-}
-
 /**
  * 主进程脚本派发只需要确认「这个 modeId 是否属于该档案、走哪个 taskKind」。
  * 这里从完整档案生成最窄清单，避免 Electron 反向 import renderer 源码，也不在主进程
@@ -103,14 +84,6 @@ function shardSlugs<T>(table: Record<string, T>): Array<{ slug: string; body: Re
     .flatMap((slug) => chunkByLines(byKind[slug]).map((body, index) => ({ slug: index === 0 ? slug : `${slug}${index + 1}`, body })));
 }
 
-/** 身份表单独一个文件。 */
-export function renderIdentifiersFile(identifiers: Record<string, string[]>): string {
-  return (
-    `${BANNER}// 档案身份桥接：主进程从 modelKey 认出档案（中转接入选原生报文用）；匹配实现在 archetypeIdentity.ts。\n` +
-    `export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = ${JSON.stringify(identifiers, null, 2)};\n`
-  );
-}
-
 /** 模式清单同样按 kind 分片（`archetypeModes.<slug>.generated.ts`），出口 archetypeModes.generated.ts 合并。 */
 export function renderModesShards(manifest: ModeManifest): Array<{ file: string; content: string }> {
   return shardSlugs(manifest).map(({ slug, body }) => ({
@@ -140,7 +113,6 @@ export const normalizeGeneratedText = (value: string): string => value.replaceAl
 if (isMain) {
   const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../electron/catalog");
   const outputs: Array<{ file: string; content: string }> = [
-    { file: "archetypeIdentifiers.generated.ts", content: renderIdentifiersFile(buildArchetypeIdentifierPatterns()) },
     ...renderModesShards(buildArchetypeModeManifest()),
     { file: "archetypeModes.generated.ts", content: renderModesFile(buildArchetypeModeManifest()) },
   ];

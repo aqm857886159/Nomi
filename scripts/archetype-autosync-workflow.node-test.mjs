@@ -35,14 +35,14 @@ test('先装依赖、再重新生成，最后才发布；不递归、不跳 CI�
 
 test('写入范围只有生成文件：不含 docs，也不含手写源码', () => {
   const paths = publish.with['add-paths'].trim().split('\n').map((line) => line.trim())
-  assert.ok(paths.length >= 3)
+  assert.ok(paths.length >= 2)
   for (const entry of paths) assert.match(entry, /^electron\/catalog\/archetype[A-Za-z.*]*\.generated\.ts$/, entry)
   assert.ok(!paths.some((entry) => entry.startsWith('docs')))
 })
 
 test('生成器真的写这几个文件（add-paths 与生成器输出不能漂）', () => {
   const generator = fs.readFileSync(path.join(repoRoot, 'scripts/gen-archetype-wire-defaults.ts'), 'utf8')
-  for (const name of ['archetypeIdentifiers.generated.ts', 'archetypeModes.generated.ts']) {
+  for (const name of ['archetypeModes.generated.ts']) {
     assert.ok(generator.includes(name), `${name} 不在生成器输出里`)
   }
   assert.ok(generator.includes('archetypeModes.${slug}.generated.ts'), '分片文件名漂了')

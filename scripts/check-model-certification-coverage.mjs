@@ -122,7 +122,6 @@ for (const [vendorKey, contractPath] of curatedContracts) {
 }
 
 for (const generated of [
-  "electron/catalog/archetypeIdentifiers.generated.ts",
   "electron/catalog/archetypeModes.generated.ts",
 ]) if (!exists(generated)) errors.push(`generated archetype artifact missing: ${generated}`);
 

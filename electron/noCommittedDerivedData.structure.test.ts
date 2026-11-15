@@ -23,8 +23,7 @@ const ALLOWED_GENERATED = [
   "electron/capabilityCore/modelSchemaMetaValidator.generated.cjs",
   // ualActions.ts：从 UAL 动作 GLB（二进制资产）读出的动作元数据；源头不是代码能 import 的声明，运行时解析 GLB 只为拿名字和时长不划算。
   "src/workbench/generationCanvas/nodes/director/model/assetCatalog/ualActions.ts",
-  // 档案身份表 / 方式清单：同一类（档案的副本），同一刀接下来两段改成现算并删掉。
-  "electron/catalog/archetypeIdentifiers.generated.ts",
+  // 档案方式清单：同一类（档案的副本），同一刀下一段改成现算并删掉。
   "electron/catalog/archetypeModes.generated.ts",
   "electron/catalog/archetypeModes.audio.generated.ts",
   "electron/catalog/archetypeModes.image.generated.ts",

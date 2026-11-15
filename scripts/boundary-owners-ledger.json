@@ -660,6 +660,16 @@
         "symbol": "headlessDefaultsOf"
       },
       "reason": "2026-11-15 无界面缺参兜底默认值不再生成表、提交进仓库，改成发送时从档案现算（docs/plan/2026-11-15-archetype-wire-defaults-runtime.md）：buildWireDefaultsFor 的推导逐字搬进 catalogFacts.headlessDefaultsOf（主方式判据、供应商分桶、空默认不落桶后回退 *），生成脚本里这一段与 7 份生成表同提交删除。不变量「同一任务种类多个方式只取主方式的默认值」不变，由 electron/shared/modelArchetypes/catalogFacts.test.ts 守。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-28-nano-banana-pro-identifier.root-cause.json",
+      "path": "electron/catalog/archetypeIdentifiers.generated.ts",
+      "symbol": "ARCHETYPE_IDENTIFIER_PATTERNS",
+      "anchor": {
+        "path": "electron/shared/modelArchetypes/catalogFacts.ts",
+        "symbol": "identityPatternsOf"
+      },
+      "reason": "2026-11-15 档案身份识别串不再生成表、提交进仓库，改成入口用时现算（docs/plan/2026-11-15-archetype-wire-defaults-runtime.md）：identityPatternsOf 从档案声明取 identifierPatterns + 各档 modelKey（去空去重保序），与原生成脚本同一条规则；匹配由 entry.ts 的 archetypeIdForModel 做，和 resolveModelArchetype 同一组三趟匹配函数。主干旧实现 vs 现算全目录 5817 组 0 差。不变量「每个识别串只属于一个档案」不变，由 electron/catalog/archetypeIdentity.test.ts 与 catalogFacts.test.ts 守。"
     }
   ],
   "retirements": [

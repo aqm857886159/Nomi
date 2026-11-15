@@ -7,7 +7,7 @@ import type { ModelArchetype, ModelArchetypeVariant } from "./types";
 // 档案表本身不从这里导出：生产代码拿档案只走 resolveModelArchetype（结构测试 archetypeSingleEntry.structure.test.ts 守）。
 import { getArchetypeById, MODEL_ARCHETYPES } from "./builtInCatalog";
 import { customCapabilityArchetypeForModel } from "./customCapabilityContract";
-import { headlessDefaultsOf, sizeRatioTaskKindsOf } from "./catalogFacts";
+import { headlessDefaultsOf, identityPatternsOf, sizeRatioTaskKindsOf } from "./catalogFacts";
 import { resolveArchetypeVariant } from "./variantResolution";
 
 
@@ -31,7 +31,7 @@ function lastSegment(identifier: string): string {
 /**
  * 匹配分两档，**精确整串永远优先于末段**（见 resolveBaseArchetype 的两趟解析）。
  * 只认相等、不认前缀：故 seedance-2 不会误命中 seedance-2-fast。
- * ⚠️ 规则与 electron/catalog/archetypeIdentity 逐字对齐，改一处必改两处。
+ * 主进程只凭模型名认档案（archetypeIdForModel）也用这同一组函数。
  */
 function matchesExact(identifier: string, pattern: string): boolean {
   const id = normalizeIdentifier(identifier);
@@ -214,6 +214,22 @@ export function builtInHeadlessDefaults(archetypeId: string | null | undefined, 
 export function builtInSizeIsRatioSemantic(archetypeId: string | null | undefined, taskKind: string): true | undefined {
   const archetype = getArchetypeById(archetypeId);
   return archetype && sizeRatioTaskKindsOf(archetype).has(taskKind) ? true : undefined;
+}
+
+/**
+ * 只凭 modelKey / modelAlias 认内置档案 id（主进程：中转接入选原生报文、自写调用草稿、方式清单）；认不出 → null。
+ * 身份 = identifierPatterns + 各档 modelKey（catalogFacts.identityPatternsOf）；三趟匹配规则与 resolveBaseArchetype 同一组函数。
+ * 与 resolveModelArchetype 的差别：不读 meta（显式 id / 自写能力合同由调用方自己先看），认得各档 modelKey。
+ */
+export function archetypeIdForModel(modelKey?: string | null, modelAlias?: string | null): string | null {
+  const identities = [modelKey, modelAlias].filter((v): v is string => typeof v === "string" && v.trim() !== "");
+  if (identities.length === 0) return null;
+  for (const match of [matchesCaseExact, matchesExact, matchesLastSegment]) {
+    for (const archetype of MODEL_ARCHETYPES) {
+      if (identityPatternsOf(archetype).some((pattern) => identities.some((identity) => match(identity, pattern)))) return archetype.id;
+    }
+  }
+  return null;
 }
 
 /** 解析「基础」档案（供应商无关，未特化）：显式 archetypeId 优先，否则按身份匹配 pattern。 */

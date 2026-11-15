@@ -1,5 +1,5 @@
 import { ARCHETYPE_MODE_MANIFEST } from "../catalog/archetypeModes.generated";
-import { archetypeIdForModel } from "../catalog/archetypeIdentity";
+import { archetypeIdForModel } from "./modelArchetypes";
 import { parseCustomCapabilityContract } from "./customCapabilityContract";
 import { modeTransportFor } from "./videoCapabilities/modeTransport";
 import type { BillingModelKind, ProfileKind } from "../catalog/types";
