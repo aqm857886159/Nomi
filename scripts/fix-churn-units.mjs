@@ -51,7 +51,44 @@ export function conceptUnits(doc) {
   return units
 }
 
-export const unitMatches = (unit, file) => unit.patterns.some((pattern) => pathMatches(pattern, norm(file)))
+/** 交接处（docs/engineering/seams.json）：一个事实从这头传到那头、一路上好几个文件都要对得上的那一段。 */
+export const SEAM_WINDOW_DAYS = 14
+/** 近 14 天已有 1 个 fix，这一刀就是第 2 次修（用户 2026-11-15 拍板）。 */
+export const SEAM_PRIOR_FIX = 1
+
+/** 非测试、非文档的生产文件才算碰了交接处。 */
+export const isSeamProduction = (rel) => {
+  const r = norm(rel)
+  return !(r.startsWith('docs/') || r.startsWith('tests/perf/results') || /\.(test|spec|node-test)\.[cm]?[jt]sx?$/.test(r) || /\.(png|jpg|md)$/.test(r) || r.includes('/__fixtures__/'))
+}
+
+/** 交接处表 → 单位。注意：它不进 loadUnits——只在写任务书时数（check-dispatch-brief），提交时的方向检查不认它。 */
+export function seamUnits(doc) {
+  return (doc?.seams ?? []).map((seam) => ({
+    kind: 'seam',
+    id: seam.id,
+    label: `交接处「${seam.name}」`,
+    name: seam.name,
+    owner: seam.owner,
+    map: seam.map && seam.map !== '无' ? seam.map : null,
+    checked: seam.checked !== false,
+    patterns: seam.prefixes ?? [],
+    windowDays: SEAM_WINDOW_DAYS,
+    prior: SEAM_PRIOR_FIX,
+    maxFiles: null,
+    productionOnly: true,
+  }))
+}
+
+/** 读工作树里的交接处表；读不到 / 解析失败 = 空（fail-open）。 */
+export function loadSeams(root) {
+  try { return seamUnits(JSON.parse(fs.readFileSync(path.join(root, 'docs/engineering/seams.json'), 'utf8'))) } catch { return [] }
+}
+
+/** 路径前缀匹配（seam 的 patterns 是前缀，不是 glob / 目录）；其余单位照旧走 pathMatches。 */
+export const unitMatches = (unit, file) => unit.kind === 'seam'
+  ? unit.patterns.some((prefix) => norm(file).startsWith(prefix))
+  : unit.patterns.some((pattern) => pathMatches(pattern, norm(file)))
 
 /** 读工作树里的两份登记；读不到 / 解析失败 = 空（fail-open，方向检查不因它挂掉）。 */
 export function loadUnits(root) {

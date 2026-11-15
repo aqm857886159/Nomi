@@ -4,12 +4,15 @@
 // 基础七项：① 写了范围；② 写了不碰清单；③ 写了停点（做到哪就停）；④ 若是修补第 3 轮及以上，必须引用方向检查复盘文档；⑤ 讲到模型可见工具改动，必须引用模型可见工具必读清单；
 // ⑥ 实现线任务书要有一行「删掉：选 / 不选，理由」（P5 三条路里的「删掉」，只写在规则里时会被跳过）；⑦ 删东西不许写成「全仓搜到就删」，范围按归属列文件。
 // ⑧ 实现类和设计类要答「调用方：」一行（不改已有函数的行为，或改哪个函数 + 数法 + 文件数 + 后果表）。
+// ⑨ 任务书点到的路径命中交接处表（docs/engineering/seams.json）里的某一处、且这一处 14 天内已经修过 ≥1 次（这一刀是第 2 次）：
+//    要有一行「交接处：<名字>，读了 <全图路径>」或「交接处：<名字>，不算同一处：<理由>」；表外路径照旧。
 // 另查范围内存在文件的热点（复用原计数器；文件热点缺方向文档拦，目录 / 概念只提示）和实现任务自验的反例红绿合同（明确纯测试 / 文档 / 配置任务可免）。
 // 界面任务还须引用设计系统。声明用关键词判，热点只读 Git，不调模型；退出码 1 = 缺项（派工前补齐）。
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { directionMessage, findHotspots } from './fix-churn.mjs'
+import { directionMessage, findHotspots, loadHistory, seamFixCommits } from './fix-churn.mjs'
+import { loadSeams, SEAM_WINDOW_DAYS } from './fix-churn-units.mjs'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -94,12 +97,55 @@ export function callerAnswerProblems(text) {
   return missing.length ? [`「调用方：」作答不全，缺${missing.join('、')}${fix}`] : []
 }
 
+// ⑨ 交接处
+const SEAM_LINE = /^\s*[-*]?\s*\**交接处\**\s*[：:]\s*(\S.*)$/gm
+const SEAM_HINT = '任务书里加一行「交接处：<这一处的名字>，读了 <全图路径>」，或「交接处：<这一处的名字>，不算同一处：<理由>」；没有全图就先画（画完登记进 docs/engineering/seams.json）'
+
+/** 任务书里点到的路径（反引号里带 / 的），取范围一节；没有范围一节就取全文。绝对路径剥到仓库内相对部分。 */
+export function briefPaths(text) {
+  const body = text.replace(/```[\s\S]*?```/g, '')
+  const scope = briefSection(body, '范围|scope').split(/^\s*(?:不在范围|范围外)[：:]/m, 1)[0]
+  const source = scope || body
+  return [...new Set([...source.matchAll(/`([^`\s]+\/[^`\s]*)`/g)].map((m) => m[1].replace(/^\/.*?\/(electron|src|tests|scripts)\//, '$1/').replace(/\*+$/, '')))]
+}
+
+/** 「读了 <路径>」里的路径要在仓库里真实存在。 */
+const mapExists = (root, raw) => {
+  const rel = raw.replace(/^[`'"「（(]+|[`'"」）)，。；,.;]+$/g, '')
+  return rel !== '' && !path.isAbsolute(rel) && !rel.split(/[\\/]/).includes('..') && fs.existsSync(path.join(root, rel))
+}
+
+/** ⑨ 交接处检查：返回缺项说明（空 = 通过）。seams / history 可注入（测试用），默认读仓库表与 ref 上近 14 天的历史。 */
+export function seamProblems(text, { root = REPO_ROOT, ref = 'origin/main', seams, history, now = Date.now() } = {}) {
+  const paths = briefPaths(text)
+  const table = (seams ?? loadSeams(root)).filter((seam) => paths.some((p) => seam.patterns.some((prefix) => p.startsWith(prefix))))
+  if (!table.length) return []
+  const log = history ?? loadHistory(root, { ref, days: SEAM_WINDOW_DAYS })
+  const lines = [...text.replace(/```[\s\S]*?```/g, '').matchAll(SEAM_LINE)].map((m) => m[1])
+  const problems = []
+  for (const seam of table) {
+    const fixes = seamFixCommits(log, now, seam)
+    if (fixes.length < seam.prior) continue
+    const answered = lines.some((line) => (line.includes(seam.name) || line.includes(seam.id)) && (
+      /不算同一处\s*[：:]\s*\S/.test(line) || [...line.matchAll(/读了\s*(\S+)/g)].some((m) => mapExists(root, m[1]))))
+    if (answered) continue
+    problems.push([
+      `${seam.label}${seam.checked ? '' : '（这一行的路径范围没核过，可能误伤；确实不是同一处就写「不算同一处：<理由>」）'}近 ${SEAM_WINDOW_DAYS} 天已修过 ${fixes.length} 次，这一刀是第 ${fixes.length + 1} 次，先停下看它的全图，没有就先画：`,
+      ...fixes.slice(0, 12).map((c) => `    ${c.sha.slice(0, 9)} ${c.subject.slice(0, 80)}`),
+      ...(fixes.length > 12 ? [`    …另 ${fixes.length - 12} 个`] : []),
+      `  全图：${seam.map ?? '还没有，先画'}`,
+      `  ${SEAM_HINT}`,
+    ].join('\n'))
+  }
+  return problems
+}
+
 export function isImplementationBrief(text, file = '') {
   return /^I-/.test(path.basename(file)) || /实现线/.test(text.split('\n', 1)[0])
 }
 
 /** 返回缺项说明数组（空 = 通过）；热点只读 Git，提示写入 warnings。 */
-export function checkDispatchBrief(text, { implementation = false, design = false, root = REPO_ROOT, ref = 'origin/main', warnings = [] } = {}) {
+export function checkDispatchBrief(text, { implementation = false, design = false, root = REPO_ROOT, ref = 'origin/main', warnings = [], seamOptions = {} } = {}) {
   const problems = []
   for (const c of CHECKS) if (!c.re.test(text)) problems.push(`缺${c.key}：${c.hint}`)
   const n = roundNumber(text)
@@ -127,6 +173,7 @@ export function checkDispatchBrief(text, { implementation = false, design = fals
   if (fileHits.length && !/docs\/engineering\/direction-checks\/[^\s`#)]+\.md(?:#[^\s`)]*)?/.test(text)) {
     problems.push(`${directionMessage(fileHits)}\n先派独立方向检查，并在任务书引用 docs/engineering/direction-checks/ 下的方向检查文档`)
   }
+  problems.push(...seamProblems(text, { root, ref, ...seamOptions }))
   // 「」引号里、代码块里的是举例（讲反面例子、测试样本），不是指令。
   const instructions = text.replace(/```[\s\S]*?```/g, '').replace(/「[^」\n]*」/g, '')
   const wide = WHOLE_REPO_DELETE.exec(instructions)

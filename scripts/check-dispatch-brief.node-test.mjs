@@ -6,7 +6,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { makeTempDir } from './_test-temp.mjs'
 import * as checker from './check-dispatch-brief.mjs'
-import { checkDispatchBrief, roundNumber } from './check-dispatch-brief.mjs'
+import { checkDispatchBrief, roundNumber, seamProblems } from './check-dispatch-brief.mjs'
+import { loadSeams, seamUnits } from './fix-churn-units.mjs'
 
 const SELF_CHECK = '\n## 自验\n设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告。'
 
@@ -320,5 +321,74 @@ describe('界面先对设计系统', () => {
     assert.match(hooked.stderr, /缺设计系统引用/)
     fs.writeFileSync(file, `${IMPLEMENTATION_GOOD}\n调整界面。${SELF_CHECK}${DESIGN_REF}`)
     assert.equal(runHook(`读任务书 ${file}`).status, 0)
+  })
+})
+
+// ── ⑨ 交接处：同一个交接处两周内第 2 次修，先停下看它的全图（夹具历史，不联网、不读真实仓库历史）────────────
+const SEAM_NOW = Date.parse('2026-11-15T12:00:00Z')
+const DAY = 86400000
+const seamTable = seamUnits({ seams: [
+  { id: 'seam-a', name: '甲 → 乙', owner: '甲', map: 'docs/engineering/seams.json', checked: true, prefixes: ['src/seamA/'] },
+  { id: 'seam-b', name: '丙 → 丁', owner: '未核', map: '无', checked: false, prefixes: ['src/seamB/'] },
+] })
+const fixAt = (daysAgo, files, subject = 'fix(a): 修一刀') => ({ sha: `${daysAgo}${files.length}`.padEnd(40, 'f'), ms: SEAM_NOW - daysAgo * DAY, subject, files })
+const seamOpts = (history) => ({ seamOptions: { seams: seamTable, history, now: SEAM_NOW } })
+const seamBrief = (files, extra = '') => `${scopeBrief(files)}${extra}`
+const A_FILE = 'src/seamA/panel.ts'
+
+describe('交接处：任务书点到的路径命中交接处且这一处两周内已修过', () => {
+  test('第 1 次修不拦（窗口内没有 fix、或只有窗口外 / 非 fix / 非生产文件）', () => {
+    for (const history of [
+      [],
+      [fixAt(15, [A_FILE])],
+      [fixAt(2, [A_FILE], 'feat(a): 加一个')],
+      [fixAt(2, ['src/seamA/panel.test.ts', 'docs/seamA/x.md'])],
+      [fixAt(2, ['src/other/x.ts'])],
+    ]) assert.deepEqual(checkDispatchBrief(seamBrief([A_FILE]), { ...IMPLEMENTATION, ...seamOpts(history) }), [])
+  })
+  test('第 2 次修、任务书没有「交接处：」一行 → 拦，并打出这一处两周内的修和全图路径', () => {
+    const out = checkDispatchBrief(seamBrief([A_FILE]), { ...IMPLEMENTATION, ...seamOpts([fixAt(3, [A_FILE], 'fix(a): 前一刀')]) }).join('\n')
+    assert.match(out, /交接处「甲 → 乙」近 14 天已修过 1 次，这一刀是第 2 次/)
+    assert.match(out, /fix\(a\): 前一刀/)
+    assert.match(out, /全图：docs\/engineering\/seams\.json/)
+  })
+  test('「交接处：」一行：读了全图（路径真实存在）→ 过；读了不存在的路径 → 仍拦', () => {
+    const history = [fixAt(3, [A_FILE])]
+    const run = (line) => checkDispatchBrief(seamBrief([A_FILE], `\n${line}`), { ...IMPLEMENTATION, ...seamOpts(history) })
+    assert.deepEqual(run('交接处：甲 → 乙，读了 docs/engineering/seams.json'), [])
+    assert.deepEqual(run('- **交接处**：seam-a，读了 `docs/engineering/seams.json`。'), [])
+    assert.match(run('交接处：甲 → 乙，读了 docs/not-there.md').join(), /交接处「甲 → 乙」/)
+    assert.match(run('交接处：别的名字，读了 docs/engineering/seams.json').join(), /交接处「甲 → 乙」/)
+  })
+  test('「交接处：」一行：不算同一处 + 理由 → 过；没理由 → 拦', () => {
+    const history = [fixAt(3, [A_FILE])]
+    const run = (line) => checkDispatchBrief(seamBrief([A_FILE], `\n${line}`), { ...IMPLEMENTATION, ...seamOpts(history) })
+    assert.deepEqual(run('交接处：甲 → 乙，不算同一处：这次只改文案，不碰传递的事实'), [])
+    assert.match(run('交接处：甲 → 乙，不算同一处：').join(), /交接处「甲 → 乙」/)
+  })
+  test('命中路径没核过的行：照样拦，提示注明可能误伤，没有全图就写「还没有，先画」', () => {
+    const out = checkDispatchBrief(seamBrief(['src/seamB/x.ts']), { ...IMPLEMENTATION, ...seamOpts([fixAt(1, ['src/seamB/y.ts'])]) }).join('\n')
+    assert.match(out, /路径范围没核过，可能误伤/)
+    assert.match(out, /全图：还没有，先画/)
+  })
+  test('表外路径：和没有这条检查时的输出完全相同', () => {
+    const text = seamBrief(['src/elsewhere/x.ts', 'electron/y.ts'])
+    const history = [fixAt(1, ['src/elsewhere/x.ts']), fixAt(2, ['src/elsewhere/x.ts'])]
+    assert.deepEqual(checkDispatchBrief(text, { ...IMPLEMENTATION, ...seamOpts(history) }), checkDispatchBrief(text, IMPLEMENTATION))
+    assert.deepEqual(seamProblems(text, { seams: seamTable, history, now: SEAM_NOW }), [])
+  })
+  test('范围外提到的路径不算「点到」；两处都命中就各要一行', () => {
+    const notTouched = `${scopeBrief(['src/ok/x.ts'])}\n不在范围：\`${A_FILE}\``
+    assert.deepEqual(checkDispatchBrief(notTouched, { ...IMPLEMENTATION, ...seamOpts([fixAt(1, [A_FILE])]) }), [])
+    const both = checkDispatchBrief(seamBrief([A_FILE, 'src/seamB/x.ts'], '\n交接处：甲 → 乙，不算同一处：文案'), { ...IMPLEMENTATION, ...seamOpts([fixAt(1, [A_FILE, 'src/seamB/x.ts'])]) }).join('\n')
+    assert.match(both, /丙 → 丁/)
+    assert.doesNotMatch(both, /交接处「甲 → 乙」/)
+  })
+  test('真实表里「档案 → Agent 写参数」这一处按表命中（夹具历史）', () => {
+    const seams = loadSeams(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'))
+    const out = seamProblems(scopeBrief(['electron/agentLane/y.ts']), { seams, history: [fixAt(2, ['electron/agentLane/x.ts'])], now: SEAM_NOW })
+    assert.equal(out.length, 1)
+    assert.match(out[0], /档案 → Agent 写参数/)
+    assert.match(out[0], /还没有，先画/)
   })
 })
