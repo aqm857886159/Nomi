@@ -88,7 +88,8 @@ export const WAN_3_0_APIMART_ARCHETYPE: ModelArchetype = {
         "比例字段名是 size（aspect_ratio 仅别名）adaptive|16:9|4:3|1:1|3:4|9:16 默认 adaptive；" +
         "resolution 480P|720P|1080P 默认 1080P；duration [2,30] 或 -1 默认 5；audio 默认 true；" +
         "watermark 默认 false；nsfw_check 默认 false；seed [0,2147483647]；" +
-        "响应 data[0].task_id，两族素材禁止混用",
+        "响应 data[0].task_id，两族素材禁止混用；" +
+        "prompt：Required unless media fields are provided (at least one of prompt or media)（2026-11-15 核，放了素材的方式提示词不必填）",
     },
   ],
   modes: [
@@ -107,7 +108,7 @@ export const WAN_3_0_APIMART_ARCHETYPE: ModelArchetype = {
       intent: "single",
       vendorTerm: "首帧",
       hint: "单张首帧图驱动生成（比例由首帧决定）",
-      promptRequired: true,
+      promptRequired: false,
       transportTaskKind: "image_to_video",
       slots: [{ kind: "first_frame", label: "首帧", min: 1, max: 1 }],
       combineSlotsInto: { key: "image_with_roles" },
@@ -119,7 +120,7 @@ export const WAN_3_0_APIMART_ARCHETYPE: ModelArchetype = {
       intent: "firstlast",
       vendorTerm: "首尾帧",
       hint: "首帧 + 尾帧，过渡更可控（比例由首帧决定）",
-      promptRequired: true,
+      promptRequired: false,
       transportTaskKind: "image_to_video",
       slots: [
         { kind: "first_frame", label: "首帧", min: 1, max: 1 },
@@ -136,7 +137,7 @@ export const WAN_3_0_APIMART_ARCHETYPE: ModelArchetype = {
       intent: "character",
       vendorTerm: "全能参考",
       hint: "多模态参考；最多 10 图 / 5 视频 / 5 音频（视频与音频每段 1-15 秒）",
-      promptRequired: true,
+      promptRequired: false,
       transportTaskKind: "image_to_video",
       fixedParams: { generation_type: "reference" },
       slots: [

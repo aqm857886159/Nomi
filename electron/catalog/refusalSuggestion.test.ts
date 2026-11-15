@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { imageEditGuardError, reachableModeSuggestion } from "./taskParams";
+import { imageEditGuardError, reachableModeSuggestion } from "./taskParamsGuard";
 import type { ModelModeBody } from "./referenceReachability";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 import { NEWAPI_VIDEO_CREATE_OP } from "./newapiTransport";

@@ -56,8 +56,6 @@ export function normalizeMinimaxH3Body(body: unknown, context?: RequestTransform
   const normalized = { ...body };
   // APIMart 文档规定 I2V 比例由输入图片决定，显式 aspect_ratio 会被忽略；不把旧模式残值发出去。
   if (hasFrame) delete normalized.aspect_ratio;
-  // 可选 webhook 的空字符串不是有效地址，省略它而不是把空字段交给上游校验。
-  if (typeof normalized.webhook === "string" && normalized.webhook.trim() === "") delete normalized.webhook;
   return normalized;
 }
 

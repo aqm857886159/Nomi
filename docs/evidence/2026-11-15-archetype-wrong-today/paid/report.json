@@ -1,0 +1,48 @@
+{
+  "script": "archetype-batch1-samples.paid.mjs",
+  "startedAt": "2026-11-14T22:20:18.211Z",
+  "samples": [
+    {
+      "id": "D",
+      "label": "Veo 3.1 Fast · 参考图 · 9:16 · 720p",
+      "model": "apimart/veo3.1-fast",
+      "request": {
+        "problems": [],
+        "createRequests": 1,
+        "keys": [
+          "aspect_ratio",
+          "generation_type",
+          "image_urls",
+          "model",
+          "prompt",
+          "resolution"
+        ],
+        "model": "veo3.1-fast",
+        "aspect_ratio": "9:16"
+      },
+      "providerTaskIds": [
+        "task_01M7E2C252TWETCAMHY8NXA7PK"
+      ],
+      "landed": {
+        "durationSeconds": 7.93,
+        "width": 720,
+        "height": 1280,
+        "bytes": 2242257,
+        "keptAt": ".tmp/pi-archetype-batch1-samples-development-1794694817377/D-result.mp4"
+      },
+      "result": "passed"
+    }
+  ],
+  "finishedAt": "2026-11-14T22:21:40.531Z",
+  "paidCalls": 1,
+  "spend": [
+    {
+      "taskId": "task_01M7E2C252TWETCAMHY8NXA7PK",
+      "status": "ready",
+      "model": "veo3.1-fast",
+      "vendor": "apimart"
+    }
+  ],
+  "result": "passed",
+  "error": null
+}
