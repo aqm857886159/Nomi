@@ -11,7 +11,7 @@
 //   2. **设计文档的形态覆盖**——21 形态 + P0 17 件索引里的每一件，注册表里必须有对应状态。
 //      设计文档新加一个形态而实验室没跟上 = 红。
 //   3. **基线 ↔ 注册表一一对应**——多一张孤儿 PNG（状态删了图没删）或少一张（状态加了没录基线）都红。
-//   4. **视觉基线本身**——在已校准平台上真跑 Playwright `toHaveScreenshot`。
+//   4. **视觉比较**——CI 硬比拍板图；本机用同机渲染的 merge-base 比相对变化。
 //   5. **陈列格声明它镜像的真实调用点**（2026-09-07 用户抓到的系统性缺陷，见下）。
 //
 // 关于第 5 条（`mirrors`）：
@@ -27,17 +27,12 @@
 //   本格只是能力展示、生产尚无调用点）。缺字段红；指到不存在的文件或越界的行号也红——
 //   陈旧的指路牌比没有指路牌更糟。
 //
-// 关于第 4 条为什么要按平台开关（这不是逃生口，是诚实）：
-//   基线 PNG 是在 macOS 上渲染、由用户在 macOS 上拍板的。字体栅格化在 macOS 与
-//   ubuntu runner（xvfb 软渲染）上本来就不一样，把 darwin 的 PNG 拿去 linux 上逐像素比 = 必红，
-//   而且红的是**平台**不是设计。仓库刚在画布性能预算上栽过同一个坑
-//   （docs/lessons：canvas-perf-budget-calibrated-on-macos-fails-on-linux）。
-//   所以：已校准平台上**硬跑**；未校准平台上**明说没跑**，既不假装绿也不制造假红。
-//   不是放宽容差（放宽容差 = 把门岗关掉还留个门框）。
-//   2026-10-18 起校准单位从「操作系统」细化到「一台机器」：CI 的 macOS 托管机（calibration.json 的
-//   calibratedRunner）。之前任何一台 Mac 录的图都算数、合并路径上又没人比对，不同机器的图混在一起、
-//   界面改了没人重录，用户本机一跑 97 张不符。现在 CI 那台机器硬拦；本机 Mac 只报告不阻断；
-//   基线只从 CI 运行的产物取回（pnpm run design-lab:accept），本机不录。判定见 tests/ux/design-lab/visualMode.mjs。
+// 关于第 4 条的比较对象：CI 的 macOS 基准机硬比已拍板 PNG，判据与取回方式不变。
+// 本机用同机、同浏览器渲染的 git merge-base HEAD origin/main 比当前代码，不再拿 CI 图作参考。
+// 基准放在工作树外的机器 / 浏览器 / 视口 / 提交缓存，临时源码与当前未提交文件隔离；
+// Playwright 自己生成快照与差异图，逐格报告变化、新增、删除和本机不稳定格。
+// 本机变化不阻断、合并以 CI 为准；服务器、页面或基准渲染失败非零，不能冒充没变。
+// 实现与生命周期见 tests/ux/design-lab/localRelative.mjs；模式判定见 visualMode.mjs。
 //
 // 关于第 4 条**失败了怎么说**（2026-09-06 重修）：
 //   在此之前，Playwright 只要非零退出，这里就一律说「视觉基线不符，差异图在 test-results/ 下」。
@@ -206,9 +201,9 @@ const runnerIdentity = currentRunnerIdentity()
 const visualMode = decideVisualMode({ identity: runnerIdentity, calibrated: calibration.calibratedRunner, ci: isCiEnvironment() })
 // CI 的 macOS 机器上，新状态缺基线不在结构这一关拦：视觉那一关会把它判成「快照缺失」照样红，
 // 同时产出这一格的新图供 design-lab:accept 取回——在这里先拦，新状态就永远拿不到第一张基线。
-// 本机（advisory）也一样：推送前钩子在这里拦，PR 推不上去，CI 就永远产不出第一张图（11-09 弹窗迁移撞上，
+// 本机（local-relative）也一样：推送前钩子在这里拦，PR 推不上去，CI 就永远产不出第一张图（11-09 弹窗迁移撞上，
 // 10-18 起没有新状态进来过）。合并照样被拦：CI macOS 视觉关判「快照缺失」红，Linux 上这一关（skip-platform）仍判缺基线红。
-const missingBaselineIsVisualStage = visualMode === 'strict' || visualMode === 'runner-drift' || visualMode === 'advisory'
+const missingBaselineIsVisualStage = visualMode === 'strict' || visualMode === 'runner-drift' || visualMode === 'local-relative'
 // 「基线待用户拍板」的屏：见 calibration.json 的 why.pendingApprovalScreens。
 // 没被人看过的屏没有可回归的对象，现在录基线只会把「今天碰巧长这样」钉成「应该长这样」。
 const pending = pendingApprovalScreens()
@@ -228,7 +223,8 @@ for (const screen of LAB_SCREEN_IDS) {
   if (!pending[screen]) {
     for (const id of ids) {
       if (baselineIds.has(id)) continue
-      if (missingBaselineIsVisualStage) console.log(`↷ ${screen}/${id} 还没有基线：视觉那一关会判红并产出新图，用 pnpm run design-lab:accept 取回`)
+      if (visualMode === 'local-relative') console.log(`↷ ${screen}/${id} 尚无 CI 拍板基线；本机仍按同机主分支比较`)
+      else if (missingBaselineIsVisualStage) console.log(`↷ ${screen}/${id} 还没有基线：视觉那一关会判红并产出新图，用 pnpm run design-lab:accept 取回`)
       else fail(`${screen} 的状态 ${id} 没有视觉基线：PR 上 CI 的 Design Lab (macOS) 会产出新图，用 pnpm run design-lab:accept -- --run <运行号> 取回`)
     }
   }
@@ -330,9 +326,6 @@ if (isCiEnvironment()) {
   fs.mkdirSync(path.dirname(runnerFile), { recursive: true })
   fs.writeFileSync(runnerFile, `${JSON.stringify(runnerIdentity, null, 2)}\n`)
 }
-if (visualMode === 'advisory') {
-  console.log(`↷ 本机（${describeRunner(runnerIdentity)}）不是基准机（CI 的 ${describeRunner(calibration.calibratedRunner)}）：照样比对并报告差异，但不阻断，以 CI 为准。`)
-}
 if (visualMode === 'runner-drift') {
   console.log(`⚠️  这台 CI 机器（${describeRunner(runnerIdentity)}）与录基线的机器（${describeRunner(calibration.calibratedRunner)}）版本不同：照样比对，只按像素判红绿。`)
 }
@@ -346,6 +339,11 @@ if (portVerdict.status === 'foreign') {
 }
 if (portVerdict.status === 'unknown') {
   console.log(`↷ 端口 ${portVerdict.port} 的归属问不出来（${portVerdict.reason}）——继续跑，但这一趟没有归属证明。`)
+}
+
+if (visualMode === 'local-relative') {
+  const { runLocalRelative } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/localRelative.mjs')).href)
+  finish(await runLocalRelative({ repoRoot, runner: runnerIdentity, calibration, resultsDir: LAB_RESULTS_DIR, screen: requestedScreenArg }))
 }
 
 // 之前留下的差异图会让「这一趟有没有产出图」这个判据失真——先清干净，判据才成立。
@@ -385,9 +383,6 @@ if (runStatus !== 0) {
   console.error(formatLabFailure(triage, { resultsDir: LAB_RESULTS_DIR, origin: LAB_ORIGIN }))
 }
 const verdict = visualVerdict({ mode: visualMode, pixelsPassed: runStatus === 0 })
-if (verdict.kind === 'advisory-mismatch') {
-  console.log('\n↷ 以上是本机参考结果，不阻断；合并以 CI 的 Design Lab (macOS) 为准。')
-}
 if (verdict.kind === 'mismatch-other-runner') {
   console.error(
     `\n   这台机器（${describeRunner(runnerIdentity)}）不是录基线的那台（${describeRunner(calibration.calibratedRunner)}）：` +
@@ -398,6 +393,6 @@ if (verdict.kind === 'pass-other-runner') {
   console.log(`\n✅ 视觉基线全绿（这台 ${describeRunner(runnerIdentity)} 与录基线的 ${describeRunner(calibration.calibratedRunner)} 版本不同，像素都在容差内，不用重录）`)
 }
 if (verdict.kind === 'pass') {
-  console.log(visualMode === 'advisory' ? '\n✅ 本机比对全部相符（参考结果，以 CI 为准）' : '\n✅ 视觉基线全绿')
+  console.log('\n✅ 视觉基线全绿')
 }
 finish(verdict.exitCode)

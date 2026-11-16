@@ -1,0 +1,222 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-17-design-lab-local-relative",
+  "problem_type": "视觉结论与机器环境和源码基准脱离",
+  "symptom": "未改界面的本机主分支仍与 CI 图 158 格不符，门岗却提示是设计改动被拦住。",
+  "direct_cause": "本机 macOS 与 CI 机器系统小版本不同，字体栅格化变化。",
+  "class_root": "非基准环境没有用同机同浏览器的源码基准回答相对变化问题。",
+  "affected_population": [
+    "本机实现者运行设计实验室检查",
+    "升级系统或浏览器后的本机视觉检查"
+  ],
+  "scope_paths": [
+    "scripts/check-design-lab.mjs",
+    "tests/ux/design-lab/visualMode.mjs",
+    "tests/ux/design-lab/localRelative.mjs"
+  ],
+  "entry_points": [
+    "package.json 的 check:design-lab 与 gates:contracts",
+    "CI quality-gate.yml 的 Design Lab (macOS)",
+    "scripts/pre-push-contracts.mjs 的 --mirrors-only 直调，只做结构检查，保持原行为"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://playwright.dev/docs/test-snapshots",
+      "checked_at": "2026-11-17",
+      "purpose": "确认宿主环境影响截图，并复用 snapshotPathTemplate 和 update-snapshots"
+    }
+  ],
+  "invariants": [
+    "本机绝不与 CI 已拍板 PNG 作像素比较",
+    "本机缓存绑定机器、浏览器、视口与 merge-base 提交",
+    "基准源码渲染不写当前未提交文件",
+    "渲染基础设施失败非零退出",
+    "CI 的严格像素判据原样保留",
+    "基准和当前代码使用当前校准的同一视口、缩放与配色，缓存身份与实际渲染一致。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/check-design-lab.mjs",
+      "symbol": "decideVisualMode"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-design-lab.mjs",
+      "symbol": "visualVerdict"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/design-lab/localRelative.mjs",
+      "symbol": "localConfigSource"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/design-lab/localRelative.mjs",
+      "symbol": "readRelativeReport"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/design-lab/localRelative.mjs",
+      "symbol": "cacheKey"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/design-lab/localRelative.test.mjs",
+      "symbol": "cacheKey"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/design-lab/localRelative.test.mjs",
+      "symbol": "localConfigSource"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/design-lab/localRelative.test.mjs",
+      "symbol": "readRelativeReport"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/design-lab/visualMode.mjs",
+      "symbol": "sameRunner"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/design-lab/visualMode.test.mjs",
+      "symbol": "sameRunner"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/design-lab/visualMode.test.mjs",
+      "symbol": "decideVisualMode"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/design-lab/visualMode.test.mjs",
+      "symbol": "visualVerdict"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-design-lab.mjs",
+      "symbol": "runLocalRelative"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/design-lab/localRelative.mjs",
+      "symbol": "withBaselineSource"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/design-lab/localRelative.test.mjs",
+      "symbol": "runLocalRelative"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/design-lab/localRelative.test.mjs",
+      "symbol": "withBaselineSource"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 16,
+    "why_not": "CI 的模式选择和退出判据必须保留；本机共用一个比较装配边界，其缓存、隔离源码、配置及报告各有直接调用和单测，不另开并行比较实现。"
+  },
+  "generality_proof": "本机入口先按环境选唯一的同机相对路径，所有格共用 Playwright 配置与报告读取；缓存键跨机器和提交隔离，未完成报告不能变成零变化。",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/design-lab/visualMode.mjs",
+      "symbol": "decideVisualMode",
+      "responsibility": "CI 与本机比较对象只由此选择"
+    },
+    {
+      "path": "tests/ux/design-lab/localRelative.mjs",
+      "symbol": "runLocalRelative",
+      "responsibility": "同机基准、隔离渲染、报告及缓存的唯一装配边界"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-design-lab.mjs",
+      "entry_point": "check:design-lab 本机运行",
+      "disposition": "enforced",
+      "evidence": "非 CI 入口只走 runLocalRelative，不再触发 CI PNG 比对。"
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "Design Lab (macOS)",
+      "disposition": "not-affected",
+      "evidence": "CI 仍 strict/runner-drift，保留原 Playwright 配置及退出判据。"
+    },
+    {
+      "path": "scripts/pre-push-contracts.mjs",
+      "entry_point": "check:design-lab-mirrors",
+      "disposition": "not-affected",
+      "evidence": "只传 --mirrors-only，在视觉比较之前退出；新增行为不进入这条调用。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "另一台机器、系统或浏览器升级都能重现跨环境像素误差。",
+    "same_class_scan": [
+      "git grep -n check:design-lab：package 及 workflow 执行入口，文档和 gates 链引用一并核对",
+      "git log -- tests/ux/design-lab/visualMode.mjs：查验 10-18 跨机 97 格与 11-06 CI 漂移旧案",
+      "door-map --read=decideVisualMode,visualVerdict --roots=scripts,tests/ux/design-lab --include-tests"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/design-lab/localRelative.mjs",
+    "invariant": "本机像素比较两端必须来自本机渲染的指定源码提交。",
+    "failure_mode": "基准生成、解析、页面或服务错误非零退出并落失败报告。",
+    "exception_policy": "none",
+    "strategy": "替换本机 advisory 比对；每次缓存渲染两遍，单列不稳定格，基础设施错误不进入变化计数。",
+    "artifacts": [
+      "tests/ux/design-lab/localRelative.mjs",
+      "scripts/check-design-lab.mjs",
+      "tests/ux/design-lab/visualMode.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/design-lab/localRelative.test.mjs",
+    "tests/ux/design-lab/visualMode.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/design-lab/localRelative.test.mjs",
+    "tests/ux/design-lab/visualMode.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/check-design-lab.mjs",
+      "tests/ux/design-lab/visualMode.mjs"
+    ],
+    "rationale": "同提交删掉本机 advisory 与 advisory-mismatch，不留选项或回退。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "Playwright 1.60.0，现有 patched 安装",
+    "target": "继续用现有 toHaveScreenshot / JSON reporter，不引入另一比图实现",
+    "rationale": "问题是选择了异机比较对象，现有 Playwright 已具备同机截图与像素比较能力。",
+    "exit_criteria": [
+      "升级 Playwright 时重跑本机稳定性和缓存隔离测试；浏览器版本变更自动换缓存。"
+    ]
+  },
+  "migration": "不涉及产品或存量用户数据；旧 advisory 路径删除，缓存只收同机临时图，拍板 PNG 与 accept 原样。",
+  "residual_risks": [
+    "两遍稳定性采样仍可能漏掉更罕见的随机格；结果逐格公开。",
+    "CI 镜像未来字体真变化仍会整体像素红，按原 accept 人工确认流程处理，本次不改。"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-30",
+  "invariant_owner_layer": {
+    "layer": "tests/ux/design-lab/localRelative.mjs",
+    "tests": [
+      "tests/ux/design-lab/localRelative.test.mjs"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "delete",
+    "characterization_test": "tests/ux/design-lab/visualMode.test.mjs"
+  }
+}

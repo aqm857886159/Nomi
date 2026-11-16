@@ -9,6 +9,7 @@
 | `pnpm build` | Vite 构建 + electron tsc |
 | `pnpm run test` | Vitest 单测 |
 | `pnpm run gates` | 本机完整自检（按风险分档）：contracts 全部 + **改动相关**的测试 + build；碰测试基础设施/删改名/空 diff 自动升全量并打印原因。推送前不必跑（2026-10-24 起推送只过 git 钩子的快检，完整门岗以 CI 为准），想在推之前自己兜底时用 |
+| `pnpm run check:design-lab` | 本机用同机渲染的 `git merge-base HEAD origin/main` 比现有视觉道覆盖的格，变化/新增/删除/本机不稳定格写入 `outputs/design-lab/relative.json`；变化不阻断，基础设施失败非零。缓存位于用户缓存目录 `~/.cache/nomi/design-lab/`（机器/浏览器/视口/基准提交分键，保留最近 4 份），不覆盖拍板基线。CI 仍硬比已拍板基线，合并以 CI 为准；`-- --screen <屏>` 限定当前比较，基准仍全量生成 |
 | `pnpm run gates:full` | 本机完整自检的全量档（今天的全量测试）：测试基础设施改动、手动发布边界、想自己兜底时用 |
 | `pnpm run test:core-smoke -- --fixture <empty\|used\|profile-copy>` | 核心流程冒烟（空节点 composer / 「2 版」托盘 / 编组框删除+⌘Z / 平移手势）：非纯文档 PR 与 main push 必跑，CI 两遍（空项目 / 用过的项目）；`profile-copy` 只在本机、深拷贝真实资料跑完即删。清单唯一 owner `tests/ux/core-smoke/scenarios.mjs` |
 | `pnpm run test:system:focused` | 普通 PR 的 changed/sibling/related tests；仍须配合 contracts |
