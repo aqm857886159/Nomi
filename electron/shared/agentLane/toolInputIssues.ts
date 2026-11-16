@@ -373,7 +373,7 @@ export function renderToolInputIssue(issue: ToolInputIssue): string {
   let line: string;
   switch (issue.kind) {
     case "unknown_field":
-      line = issue.nearest ? `no such field here; did you mean "${issue.nearest}"?` : "no such field here; remove it and retry the same tool.";
+      line = issue.nearest ? `no such field here; did you mean "${issue.nearest}"?` : "no such field here; remove it.";
       if (issue.allowed?.length) line += ` Fields allowed here: ${list(issue.allowed)}.`;
       break;
     case "not_allowed":
