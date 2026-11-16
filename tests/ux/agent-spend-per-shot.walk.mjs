@@ -24,8 +24,8 @@ import {
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 
-const IMAGE = { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }
-const VIDEO = { providerId: 'apimart', modelId: 'doubao-seedance-2.0' }
+const IMAGE = `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`
+const VIDEO = 'doubao-seedance-2.0@apimart'
 /** 今天没有价格：卡上不许出现这几句（第 1 行）。 */
 const RETIRED = /仍要生成|价格未知|Generate anyway|price unknown/i
 const PAGER = '[data-v4-block="pager"]'
@@ -67,8 +67,8 @@ async function snap(walk, id, label, card) {
 const shotsOf = (count, kind) => (tag) => [...Array(count).keys()].map((index) => ({
   title: `${tag}-${index + 1}`, prompt: `${tag} 第 ${index + 1} 镜：渔港清晨`,
   ...(kind === 'video'
-    ? { taskKind: 'text_to_video', candidate: VIDEO, durationSec: 4, parameters: { resolution: '480p', generate_audio: false } }
-    : { taskKind: 'text_to_image', candidate: IMAGE }),
+    ? { taskKind: 'text_to_video', model: VIDEO, durationSec: 4, parameters: { resolution: '480p', generate_audio: false } }
+    : { taskKind: 'text_to_image', model: IMAGE }),
 }))
 
 /** 起草 `count` 镜、`generate` 把它们摆上卡；顺带读回每一镜落在画布上的节点。 */

@@ -35,10 +35,13 @@ const videoModelCandidates = buildVideoModelCandidates([
   { provider: "apimart", modelKey: "doubao-seedance-2.0-mini", label: "Seedance 2.0 Mini" },
 ]);
 
+/** 这条消息带上来的可用模型清单：`draft_shots` 的完整名字在这里查。 */
+const LANE_MODELS = [{ vendor: "apimart", modelId: "doubao-seedance-2.0", modelAlias: null }];
+
 type Shot = Record<string, unknown> & { parameters?: Record<string, unknown> };
 const goodShot = (): Shot => ({
   title: "纸船", prompt: "一只纸船在雨后的水洼里慢慢漂，清晨的光", taskKind: "text_to_video",
-  candidate: { providerId: "apimart", modelId: "doubao-seedance-2.0" },
+  model: "doubao-seedance-2.0@apimart",
   parameters: { duration: 4, resolution: "480p", generate_audio: false },
 });
 
@@ -89,7 +92,7 @@ async function runAgentTurns(first: Shot, expectOutcome: "card" | "stopped") {
   const world = spendWorld({ registry, videoModelCandidates });
   const adapter = world.transport("request");
   const tools = createExtendedLaneTools({
-    execute: async (call, signal) => adapter.tryExecute(verbToTransportCall(call)!.call, signal) as never,
+    execute: async (call, signal) => adapter.tryExecute(verbToTransportCall(call, LANE_MODELS)!.call, signal) as never,
   });
   const draftTool = tools.find((tool) => tool.name === "draft_shots")!;
   const signal = new AbortController().signal;

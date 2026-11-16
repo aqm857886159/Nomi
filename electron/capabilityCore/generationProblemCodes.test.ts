@@ -65,6 +65,8 @@ describe("unknown_model：点了名的模型不在目录里", () => {
     }));
     expect(problem).toMatchObject({ code: "unknown_model", field: "candidate.modelId", nearest: "apimart/doubao-seedream-5-0-pro", next: "use_nearest_model" });
     expect(message).toContain("volcengine/doubao-seedream-5-0-pro is not in the model catalog");
+    expect(message).toContain(problem!.nearest!);
+    expect(message).not.toMatch(/providerId|modelId/);
     expect(message).not.toMatch(/没有配置可用|has no default/);
   });
 

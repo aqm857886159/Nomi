@@ -45,7 +45,7 @@ const shot = (index, extra = {}, parameters = {}) => ({
   title: `镜头 ${index + 1}`,
   prompt: `第 ${index + 1} 个镜头：一只纸船在雨后的水洼里慢慢漂，清晨的光从屋檐斜照下来，水面有细小的涟漪`,
   taskKind: 'text_to_video',
-  candidate: { providerId: 'apimart', modelId: 'doubao-seedance-2.0' },
+  model: 'doubao-seedance-2.0@apimart',
   parameters: { duration: 5, resolution: '720p', generate_audio: false, ...parameters },
   ...extra,
 })

@@ -23,6 +23,7 @@ import { taskReferenceSchema } from '../shared/agentCapabilities/taskReference'
 import { GENERATE_USER_DECISION_KEY, type GenerateUserDecision } from '../shared/agentLane/generateUserDecision'
 import type { GenerationInvocationContext } from '../shared/agentCapabilities/generationInvocationContext'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
+import type { AgentModelEntry } from '../shared/agentCapabilities/availableModels'
 
 type Prepared =
   | { kind: 'timeline'; value: PreparedTimelineWrite }
@@ -32,6 +33,8 @@ type Prepared =
   | { kind: 'direct'; value: { call: RuntimeToolCall } }
 
 type Pending = { call: RuntimeToolCall; prepared: Prepared; approved?: CanvasWriteApprovalAuthority | true; generationContext?: GenerationInvocationContext
+  /** 预检时这条消息带上来的可用模型清单：`draft_shots` 的完整名字在它里面查表，执行期用同一份，不重新取。 */
+  models: readonly AgentModelEntry[]
   /** `generate` 在预检期就已经有了结局（见 `preflightGenerate`）：execute 只把它交出去，不再碰领域、不再等任何人。 */
   decided?: RuntimeToolDecision }
 
@@ -160,11 +163,13 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
   const pending = new Map<string, Pending>()
   let disposed = false
 
-  const translate = (wire: RuntimeToolCall): VerbTransportCall => {
+  /** 模型在索引与 list_models 里看到的那份清单（随这条消息来）；没有渲染层上下文 = 空清单，点名的名字一律「查不到」并指向 list_models。 */
+  const currentModels = (): readonly AgentModelEntry[] => input.context?.()?.availableModels ?? []
+  const translate = (wire: RuntimeToolCall, models: readonly AgentModelEntry[]): VerbTransportCall => {
     if ((wire.toolName === 'check_job' || wire.toolName === 'cancel_job') && !taskReferenceSchema.safeParse(wire.args).success) {
       rejectPreparation('task_reference_required')
     }
-    const translated = verbToTransportCall(wire)
+    const translated = verbToTransportCall(wire, models)
     if (!translated) rejectPreparation('capability_unsupported')
     return translated
   }
@@ -181,7 +186,8 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
       const contract = capabilityContractById(modelToolCapabilityId(spec, call.args))
       if (!contract) rejectPreparation('capability_unsupported')
       if (contract.effect === 'read') return
-      const { lane, call: transport } = translate(call)
+      const models = currentModels()
+      const { lane, call: transport } = translate(call, models)
       let prepared: Prepared
       if (lane === 'timeline') {
         const value = await input.timelineWrite.prepare(transport, signal)
@@ -205,7 +211,7 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
         prepared = { kind: 'direct', value: { call } }
       }
       if (disposed || signal.aborted) rejectPreparation('capability_cancelled')
-      pending.set(call.toolCallId, { call, prepared, generationContext: captureGenerationContext(input.context?.()) })
+      pending.set(call.toolCallId, { call, prepared, models, generationContext: captureGenerationContext(input.context?.()) })
     },
     async approved(call, record, host) {
       const entry = pending.get(call.toolCallId)
@@ -254,7 +260,7 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
       }
       if (blocks.length) return directorPreviewBlockedDecision(blocks)
     }
-    const { call: transport } = translate(entry.call)
+    const { call: transport } = translate(entry.call, entry.models)
     const operationId = String((entry.call.args as { operationId?: unknown }).operationId ?? '')
     let card: ReturnType<typeof input.spendCard.whenCardCloses> | undefined
     try {
@@ -296,7 +302,7 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
   }
 
   async function executeRead(call: RuntimeToolCall, signal: AbortSignal): Promise<RuntimeToolDecision> {
-    const { lane, call: transport } = translate(call)
+    const { lane, call: transport } = translate(call, currentModels())
     if (lane === 'skillRead') return await input.skillRead.tryExecute(transport, signal) ?? failure('capability_unsupported')
     if (lane === 'media' || lane === 'export') return await input.phase4.tryExecuteRead(transport, signal) ?? failure('capability_unsupported')
     if (lane === 'generation') {
@@ -332,8 +338,14 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
       // 再 present 一次会把用户刚答完的那张卡重新摆出来。
       if (entry.decided) return entry.decided
       // 传输方法名同样由声明翻（`translate`），不按组名手写；生成面不在 → #785 那句「此刻是哪个相」。
-      const { call: transport } = translate(normalizedCall)
+      const translated = translate(normalizedCall, entry.models)
+      const { call: transport } = translated
+      const resolvedModels = translated.lane === 'generation' ? translated.resolvedModels : undefined
       result = await input.generation()?.tryExecute(transport, signal, entry.generationContext) ?? generationSurfaceUnavailable()
+      // Agent 写的不是完整名字、被认出来的：回执里照实说落成了谁（下次照抄完整名字）。
+      if (result.ok && resolvedModels?.length && result.result && typeof result.result === 'object') {
+        result = { ...result, result: { ...(result.result as Record<string, unknown>), modelNamesResolved: resolvedModels } }
+      }
     } else {
       if (approved === true) return failure('capability_authority_invalid')
       switch (prepared.kind) {

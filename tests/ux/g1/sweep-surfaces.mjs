@@ -5,7 +5,7 @@ import { expect, clickOrFail } from '../_assert.mjs'
 import { openSystemPromptEditor } from '../_systemPromptEditor.mjs'
 import { DOCUMENT, CREATION_PANEL, COMPOSER_INPUT, COMPOSER_SEND, INTERVENTION_CONFIRM, APPROVAL_CARD,
   openCanvas, sendCreation, hasToolResult, clearComposerText } from '../agent-runtime-walk-support.mjs'
-import { FIXTURE_IMAGE_MODEL } from '../agent-runtime-fixture.mjs'
+import { FIXTURE_IMAGE_HANDLE, FIXTURE_IMAGE_MODEL } from '../agent-runtime-fixture.mjs'
 import { shots } from './c0-fixture.mjs'
 import { repairStoryboard } from './sweep-repair.mjs'
 import { writeJson } from './sweep-evidence.mjs'
@@ -37,7 +37,7 @@ export async function runSurface({ walk, win, input, fixture, realText, director
       const id = 'sweep-plan'
       if (fixture) fixture.expectText({ label: 'sweep plan', match: body => !hasToolResult(body, id),
         reply: { type: 'tool', id, name: 'draft_shots', args: {
-          shots: shots.map((s, index) => ({ title: `Sweep 分镜 · ${index + 1}`, taskKind: 'text_to_image', modelId: FIXTURE_IMAGE_MODEL, modeId: 't2i', parameters: { size: input.boundary === 'aspect' ? '9:16' : '16:9' }, prompt: input.text.slice(0, 200) + s.prompt })),
+          shots: shots.map((s, index) => ({ title: `Sweep 分镜 · ${index + 1}`, taskKind: 'text_to_image', model: FIXTURE_IMAGE_HANDLE, modeId: 't2i', parameters: { size: input.boundary === 'aspect' ? '9:16' : '16:9' }, prompt: input.text.slice(0, 200) + s.prompt })),
         } } })
       if (fixture) fixture.expectText({ label: 'sweep tool result', match: body => hasToolResult(body, id),
         reply: { type: 'text', text: 'SWEEP_DONE：请审阅分镜。' } })

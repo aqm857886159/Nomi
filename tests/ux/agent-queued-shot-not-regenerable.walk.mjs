@@ -52,7 +52,7 @@ const GENERATE_CALL = 's-queue-go-1'
 const GENERATE_BUTTON = '[data-bar-segment="generate"]'
 const PAGER = '[data-v4-block="pager"]'
 const LOCALE = { zh: 'zh-CN', en: 'en' }
-const candidate = { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }
+const model = `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`
 /** 供应商收到的请求按镜认：请求体里的提示词带着这一镜的标题词。 */
 const SHOT_WORD = { 'shot-1': '窗台', 'shot-2': '沙发' }
 const requestsOfShot = (walk, shotId) => walk.fixture.images.filter((record) => String(record.body?.prompt ?? '').includes(SHOT_WORD[shotId]))
@@ -179,8 +179,8 @@ try {
     match: (body) => flattenRequestText(body).includes('S_QUEUE_ASK'),
     reply: { type: 'tool', id: PLAN_CALL, name: 'draft_shots', args: {
       shots: [
-        { title: '窗台', prompt: '一只橘猫在窗台上晒太阳', taskKind: 'text_to_image', candidate },
-        { title: '沙发', prompt: '一只橘猫在沙发上打盹', taskKind: 'text_to_image', candidate },
+        { title: '窗台', prompt: '一只橘猫在窗台上晒太阳', taskKind: 'text_to_image', model },
+        { title: '沙发', prompt: '一只橘猫在沙发上打盹', taskKind: 'text_to_image', model },
       ],
     } },
   })

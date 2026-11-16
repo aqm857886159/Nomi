@@ -49,6 +49,15 @@ function sampleArgsFor(verb: string): Record<string, unknown> {
 /**
  * 延迟目录里经领域端口执行的动词 + `check_job`（它是读动词，同样走 `executeRead` 的生成→导出两跳）。
  */
+/** 这条消息带上来的可用模型清单（`draft_shots` 的完整名字在它里面查）。`video-1` 两家都有：只写 id 要拒。 */
+const MODELS = [
+  { vendor: "apimart", modelId: "image-1", modelAlias: null },
+  { vendor: "apimart", modelId: "video-1", modelAlias: null },
+  { vendor: "kie", modelId: "video-1", modelAlias: null },
+  { vendor: "kie", modelId: "bytedance/seedance-2", modelAlias: null },
+];
+const translate = (call: Parameters<typeof verbToTransportCall>[0]) => verbToTransportCall(call, MODELS);
+
 function transportedVerbs(): string[] {
   const deferred = LANE_DEFERRED_TOOL_CATALOG
     .filter((spec) => spec.contractId !== "timeline.read")
@@ -60,7 +69,7 @@ function transportedVerbs(): string[] {
 describe("verbToTransportCall · every transported verb lands on a method its lane adapter accepts", () => {
   for (const verb of transportedVerbs()) {
     it(`${verb} translates to a routable method`, () => {
-      const translated = verbToTransportCall({ toolCallId: "call-1", toolName: verb, args: sampleArgsFor(verb) });
+      const translated = translate({ toolCallId: "call-1", toolName: verb, args: sampleArgsFor(verb) });
       expect(translated, `${verb} has no transport mapping (lane would answer capability_unsupported)`).toBeDefined();
       const { lane, call } = translated!;
       expect(ACCEPTED_BY_LANE[lane](call.toolName),
@@ -79,33 +88,68 @@ describe("verbToTransportCall · every transported verb lands on a method its la
   //
   // 这一族比「被拒收」更险：模型点名「用 apimart 的 image-1」，翻译层把点名整只丢掉，宿主照用户的
   // 默认模型去**花钱**，而没有任何一层报错。所以这里断的是「值有没有到达宿主」，不是「有没有报错」。
-  it("逐镜目录点名（candidate）到得了宿主，而不是被悄悄换成用户的默认模型", () => {
-    const translated = verbToTransportCall({
+  it("逐镜点名的完整名字到得了宿主（拆回两件身份），而不是被悄悄换成用户的默认模型", () => {
+    const translated = translate({
       toolCallId: "call-1", toolName: "draft_shots",
-      args: { shots: [{ prompt: "海上日出", candidate: { providerId: "apimart", modelId: "image-1" } }] },
+      args: { shots: [{ prompt: "海上日出", model: "image-1@apimart" }] },
     })!;
     expect(translated.call.args).toMatchObject({ operation: "create", providerId: "apimart", modelId: "image-1" });
+    expect(translated).not.toHaveProperty("resolvedModels");
   });
 
-  it("顶层缺省（taskKind / candidate）折进每一镜，逐镜自己写的值优先", () => {
-    const translated = verbToTransportCall({
+  it("顶层缺省只剩 taskKind，折进每一镜；逐镜自己写的值优先，模型各镜自己点名", () => {
+    const translated = translate({
       toolCallId: "call-1", toolName: "draft_shots",
       args: {
-        taskKind: "text_to_video", candidate: { providerId: "apimart", modelId: "video-1" },
+        taskKind: "text_to_video",
         shots: [
-          { role: "anchor", prompt: "角色卡", taskKind: "text_to_image" },
-          { role: "shot", prompt: "第一镜" },
+          { role: "anchor", prompt: "角色卡", taskKind: "text_to_image", model: "image-1@apimart" },
+          { role: "shot", prompt: "第一镜", model: "video-1@kie" },
         ],
       },
     })!;
     const shots = (translated.call.args as { shots: Array<Record<string, unknown>> }).shots;
-    // 逐镜自己写的 taskKind 赢；没写的那镜拿顶层缺省。两镜都拿到顶层点名的模型身份。
-    expect(shots[0]).toMatchObject({ taskKind: "text_to_image", providerId: "apimart", modelId: "video-1" });
-    expect(shots[1]).toMatchObject({ taskKind: "text_to_video", providerId: "apimart", modelId: "video-1" });
+    expect(shots[0]).toMatchObject({ taskKind: "text_to_image", providerId: "apimart", modelId: "image-1" });
+    expect(shots[1]).toMatchObject({ taskKind: "text_to_video", providerId: "kie", modelId: "video-1" });
+  });
+
+  it("只写模型 id、目录里只有一家：放行，并把落成的完整名字带回去", () => {
+    const translated = translate({ toolCallId: "call-1", toolName: "draft_shots",
+      args: { shots: [{ prompt: "海上日出", model: "image-1" }] } })!;
+    expect(translated.call.args).toMatchObject({ providerId: "apimart", modelId: "image-1" });
+    expect(translated).toMatchObject({ resolvedModels: [{ written: "image-1", model: "image-1@apimart" }] });
+  });
+
+  it("只写模型 id、两家都有：拒一次，列出那几个完整名字，不替 Agent 挑", () => {
+    expect(() => translate({ toolCallId: "call-1", toolName: "draft_shots",
+      args: { shots: [{ prompt: "第一镜", model: "video-1" }] } })).toThrow(expect.objectContaining({
+      failure: expect.objectContaining({ code: "tool_arguments_invalid",
+        issues: [expect.objectContaining({ path: "shots.0.model", allowed: ["video-1@apimart", "video-1@kie"] })] }) }));
+  });
+
+  it("名字查不到：拒收并给最像的完整名字作下一步；码和闭合原因与宿主那一层的「目录里没有」同一个（面板、遥测不变）", () => {
+    let failure: { code: string; message: string; nextAction: string; issues: Array<{ allowed?: string[] }>; problem?: { code: string; field?: string; nearest?: string } } | undefined;
+    try {
+      translate({ toolCallId: "call-1", toolName: "draft_shots", args: { shots: [{ prompt: "第一镜", model: "image-1@kie" }] } });
+    } catch (error) { failure = (error as { failure: typeof failure }).failure; }
+    expect(failure?.code).toBe("generation_input_invalid");
+    expect(failure?.problem).toMatchObject({ code: "unknown_model", field: "shots.0.model", nearest: "image-1@apimart", next: "use_nearest_model" });
+    expect(failure?.message).toMatch(/model image-1@kie is not in the model list/);
+    expect(failure?.issues[0]?.allowed).toContain("image-1@apimart");
+    expect(failure?.nextAction).toMatch(/list_models/);
+  });
+
+  it("分镜子对象的独立关键帧：keyframe.model 换回宿主的 modelKey / modelVendor（落盘字段不变）", () => {
+    const translated = translate({ toolCallId: "call-1", toolName: "draft_shots", args: { shots: [
+      { prompt: "第一镜", title: "镜 1", storyboard: { keyframe: { enabled: true, prompt: "关键帧", model: "bytedance/seedance-2@kie" } } },
+      { prompt: "第二镜", title: "镜 2" },
+    ] } })!;
+    const shots = (translated.call.args as { shots: Array<{ storyboard?: { keyframe?: Record<string, unknown> } }> }).shots;
+    expect(shots[0]?.storyboard?.keyframe).toEqual({ enabled: true, prompt: "关键帧", modelKey: "bytedance/seedance-2", modelVendor: "kie" });
   });
 
   it("时长落在 parameters.duration 里（宿主读时长只认这一处），不是一个宿主没有的顶层字段", () => {
-    const translated = verbToTransportCall({
+    const translated = translate({
       toolCallId: "call-1", toolName: "draft_shots",
       args: { shots: [{ prompt: "第一镜", durationSec: 3 }] },
     })!;
@@ -114,7 +158,7 @@ describe("verbToTransportCall · every transported verb lands on a method its la
   });
 
   it("参考素材只带 assetId 递下去——身份由宿主按项目素材库补，不要模型发明", () => {
-    const translated = verbToTransportCall({
+    const translated = translate({
       toolCallId: "call-1", toolName: "draft_shots",
       args: { shots: [{ prompt: "第一镜", references: ["asset-1"] }] },
     })!;
@@ -123,8 +167,8 @@ describe("verbToTransportCall · every transported verb lands on a method its la
 
   it("start_model_setup 不经延迟组翻译（它是常驻动词；那条 modelSetup 分支是死的，已删）", () => {
     // 阳性对照：同一把尺子对真正走延迟组的动词返回的是一次翻译，所以 undefined 不是「恒 undefined」。
-    expect(verbToTransportCall({ toolCallId: "call-1", toolName: "start_model_setup", args: { provider: "DeepSeek" } })).toBeUndefined();
-    expect(verbToTransportCall({ toolCallId: "call-1", toolName: "read_skill", args: { name: "ugc-ad" } })).toBeDefined();
+    expect(translate({ toolCallId: "call-1", toolName: "start_model_setup", args: { provider: "DeepSeek" } })).toBeUndefined();
+    expect(translate({ toolCallId: "call-1", toolName: "read_skill", args: { name: "ugc-ad" } })).toBeDefined();
   });
 
   it("a name that is not a generation method is rejected by the generation adapter", () => {
@@ -138,13 +182,13 @@ describe("verbToTransportCall · every transported verb lands on a method its la
 // `{ operationId, shots: [{ shotId, prompt }] }`，翻译层曾把 shotId 声明成 drop，于是「改第 2 镜」永远改的是顶层候选。
 describe("draft_shots with operationId · one shot of a multi-shot draft", () => {
   it("lifts the shotId onto the plan patch envelope so the host edits that shot, not the top-level candidate", () => {
-    const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots",
+    const translated = translate({ toolCallId: "call-1", toolName: "draft_shots",
       args: { operationId: "op-1", shots: [{ shotId: "shot-2", prompt: "逆光侧脸" }] } });
     expect(translated?.call.args).toEqual({ operation: "patch", operationId: "op-1", shotId: "shot-2", patch: { prompt: "逆光侧脸" } });
   });
 
   it("omits shotId for a single-shot draft (top-level candidate, unchanged)", () => {
-    const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots",
+    const translated = translate({ toolCallId: "call-1", toolName: "draft_shots",
       args: { operationId: "op-1", shots: [{ prompt: "换一句" }] } });
     expect(translated?.call.args).toEqual({ operation: "patch", operationId: "op-1", patch: { prompt: "换一句" } });
   });

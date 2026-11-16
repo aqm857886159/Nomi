@@ -136,7 +136,7 @@ try {
     label: 'the agent drafts one titled image shot and does not generate',
     match: (body) => flattenRequestText(body).includes('S_DRAFT_HOLD'),
     reply: { type: 'tool', id: PLAN_CALL, name: 'draft_shots', args: {
-      shots: [{ title: '窗台橘猫', prompt: '一只在窗台上晒太阳的橘猫', taskKind: 'text_to_image', candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL } }],
+      shots: [{ title: '窗台橘猫', prompt: '一只在窗台上晒太阳的橘猫', taskKind: 'text_to_image', model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}` }],
     } },
   })
   let operationId

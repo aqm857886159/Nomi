@@ -14,7 +14,7 @@ import { estimateTokens } from '@earendil-works/pi-agent-core';
 import { createExtendedLaneTools, type LaneExtendedPort } from '../../electron/agentLane/laneExtendedTools.js';
 import type { LaneToolDescriptor } from '../../electron/agentLane/laneRuntimePort.js';
 import { createLaneTools } from '../../electron/agentLane/laneTools.mjs';
-import { storyboardAuthorFieldsSchema } from '../../electron/shared/agentCapabilities/generationPlanSchemas.js';
+import { storyboardModelFaceSchema } from '../../electron/shared/agentCapabilities/generationPlanSchemas.js';
 import { toPublishedJsonSchema } from '../../electron/shared/agentCapabilities/modelVisibleJsonSchema.js';
 import { createLaneFixture } from './laneFixture.mjs';
 
@@ -85,7 +85,7 @@ test('P5 ① · size of the draft_shots schema, by pi\'s own estimator', () => {
     console.log(`[P5①]   ${tool.name}: ≈ ${size} tokens`);
   }
   const properties = Object.keys((storyboard.parameters as { properties: Record<string, unknown> }).properties);
-  assert.deepEqual(properties, ['operationId', 'newPlan', 'taskKind', 'candidate', 'shots'], 'draft_shots root: the draft to revise, the explicit start-another-plan switch (#1038), per-draft defaults, and the shots');
+  assert.deepEqual(properties, ['operationId', 'newPlan', 'taskKind', 'shots'], 'draft_shots root: the draft to revise, the explicit start-another-plan switch (#1038), per-draft defaults, and the shots');
   // B1c's original envelope still cannot grow prose beyond its original cap.
   assert.ok(coreTokens <= CORE_TOKEN_BUDGET, `core estimate (${coreTokens}) exceeds ${CORE_TOKEN_BUDGET}`);
   assert.ok(schemaTokens + descriptionTokens <= FULL_TOKEN_BUDGET,
@@ -102,7 +102,8 @@ test('P5 authoring growth preserves the complete canonical author schema, includ
     key === '$ref' && typeof value === 'string' && value.startsWith(`${prefix}/`)
       ? `#${value.slice(prefix.length)}` : value)) as Record<string, unknown>;
   delete normalized.description; // optional wrapper guidance belongs to draft_shots
-  const canonical = { ...toPublishedJsonSchema(storyboardAuthorFieldsSchema) };
+  // 模型面的作者字段 = 宿主作者字段，只是关键帧的模型身份写成一个完整名字（`model`）。
+  const canonical = { ...toPublishedJsonSchema(storyboardModelFaceSchema) };
   delete canonical.$schema; // a nested schema has no document-level dialect declaration
   assert.deepEqual(normalized, canonical, 'budget reduction must not silently narrow original author capabilities');
 });

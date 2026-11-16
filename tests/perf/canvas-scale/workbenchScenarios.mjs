@@ -71,7 +71,7 @@ const STREAM_TEXT = '镜头缓缓推进，雨夜的街道上霓虹倒映在积�
 // D2 付费卡：最坏规模一张卡 12 个指向元素（组指向 5 个起折叠，展开后全露）。
 const SPEND_CARD_SCENARIOS = new Set(['pointer-hover-focus', 'spend-card-node-edit-refresh'])
 const SPEND_CARD_SHOTS = 12
-const SPEND_CARD_CANDIDATE = { providerId: 'apimart', modelId: 'doubao-seedance-2.0' }
+const SPEND_CARD_CANDIDATE = 'doubao-seedance-2.0@apimart'
 // Agent 对话（设计卡 docs/plan/2026-11-09-agent-conversation-stick-to-bottom.md ★7）：历史条数 = 起 App 前塞进项目的旧版对话条数
 // （用户 / 回答交替；走旧版迁移那条真路径进当前对话，不另造会话格式）。mixed = 回答里混 Markdown 标题、列表、代码块。
 const CHAT_SCENARIOS = Object.freeze({
@@ -1237,7 +1237,7 @@ async function ensureSpendCard(page, ctx) {
   const { card } = await present({ fixture: ctx.extras.provider, report: {} }, page, {
     kind: 'video',
     shots: (tag) => Array.from({ length: SPEND_CARD_SHOTS }, (_, index) => ({
-      title: `${tag} 镜 ${index + 1}`, prompt: `${tag} 第 ${index + 1} 镜：雨夜的站台，列车进站的灯扫过积水`, taskKind: 'text_to_video', candidate: SPEND_CARD_CANDIDATE,
+      title: `${tag} 镜 ${index + 1}`, prompt: `${tag} 第 ${index + 1} 镜：雨夜的站台，列车进站的灯扫过积水`, taskKind: 'text_to_video', model: SPEND_CARD_CANDIDATE,
     })),
   })
   await kit.unfoldPointers(card, '性能场景')

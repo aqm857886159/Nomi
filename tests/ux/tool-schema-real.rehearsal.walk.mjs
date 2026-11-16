@@ -17,8 +17,8 @@ for (const locale of ['zh-CN', 'en']) {
       ? { type: 'tool', id: 'schema-read', name: 'read_script', args: {} }
       : !hasToolResult(body, 'schema-draft')
         ? { type: 'tool', id: 'schema-draft', name: 'draft_shots', args: { shots: [
-          { title: '纸船', taskKind: 'text_to_image', candidate: { providerId: DEFAULT_SCHEMA_DRAFT_IMAGE.vendorKey, modelId: DEFAULT_SCHEMA_DRAFT_IMAGE.modelKey }, prompt: '水洼中的红色纸船' },
-          { title: '橘猫', taskKind: 'text_to_image', candidate: { providerId: DEFAULT_SCHEMA_DRAFT_IMAGE.vendorKey, modelId: DEFAULT_SCHEMA_DRAFT_IMAGE.modelKey }, prompt: '窗台上的橘猫' },
+          { title: '纸船', taskKind: 'text_to_image', model: `${DEFAULT_SCHEMA_DRAFT_IMAGE.modelKey}@${DEFAULT_SCHEMA_DRAFT_IMAGE.vendorKey}`, prompt: '水洼中的红色纸船' },
+          { title: '橘猫', taskKind: 'text_to_image', model: `${DEFAULT_SCHEMA_DRAFT_IMAGE.modelKey}@${DEFAULT_SCHEMA_DRAFT_IMAGE.vendorKey}`, prompt: '窗台上的橘猫' },
         ] } }
         : { type: 'text', text: 'Two drafts created.' },
   })

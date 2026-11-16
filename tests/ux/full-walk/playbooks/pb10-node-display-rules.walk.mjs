@@ -173,7 +173,7 @@ try {
     marker: 'PB10-',
     steps: [
       // 刻意不给标题：节点标题只能走产品的回退规则。
-      { name: 'draft_shots', args: { shots: SHOTS.map((prompt) => ({ prompt, taskKind: 'text_to_video', candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: VIDEO_MODEL } })) } },
+      { name: 'draft_shots', args: { shots: SHOTS.map((prompt) => ({ prompt, taskKind: 'text_to_video', model: `${VIDEO_MODEL}@${FIXTURE_APIMART_VENDOR}` })) } },
       { name: 'generate', args: ({ previous }) => ({ operationId: operationIdOf(previous) }) },
       { text: EN ? 'Both shots are generating.' : '两镜都开始生成了。' },
     ],

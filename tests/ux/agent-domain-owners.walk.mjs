@@ -148,7 +148,7 @@ try {
       // 守规矩的模型：宿主告诉了它「图片默认（文生图）：家/模型」就不点名、让宿主补；没告诉就按自己的偏好点名。
       const turn = scriptTurn(fixture, { label: 'dom-image-default', marker: 'DOM-IMG', steps: [
         { name: 'draft_shots', args: ({ body }) => ({ shots: [{ prompt: EN ? 'a red paper boat in a puddle' : '雨后水洼里的红色纸船', taskKind: 'text_to_image', parameters: { aspect_ratio: '1:1' },
-          ...(toldDefault(body, '图片默认（文生图）') ? {} : { candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: IMAGE_NAMED.modelKey } }) }] }) },
+          ...(toldDefault(body, '图片默认（文生图）') ? {} : { model: `${IMAGE_NAMED.modelKey}@${FIXTURE_APIMART_VENDOR}` }) }] }) },
         { name: 'generate', args: ({ previous }) => ({ operationId: operationIdOf(previous) }) },
         { text: EN ? 'The card is ready.' : '付费卡摆好了。' },
       ] })
@@ -166,7 +166,7 @@ try {
     const label = await pickDefault(EN ? 'Video default' : '视频默认', VIDEO_DEFAULT)
     const turn = scriptTurn(fixture, { label: 'dom-video-default', marker: 'DOM-VID', steps: [
       { name: 'draft_shots', args: ({ body }) => ({ shots: [{ prompt: EN ? 'boats rocking in the morning mist' : '清晨雾里小船轻轻摇晃', taskKind: 'text_to_video',
-        ...(toldDefault(body, '视频默认（文生视频）') ? {} : { candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: 'seedance-2.0' } }) }] }) },
+        ...(toldDefault(body, '视频默认（文生视频）') ? {} : { model: `seedance-2.0@${FIXTURE_APIMART_VENDOR}` }) }] }) },
       { name: 'generate', args: ({ previous }) => ({ operationId: operationIdOf(previous) }) },
       { text: EN ? 'The card is ready.' : '付费卡摆好了。' },
     ] })
@@ -183,7 +183,7 @@ try {
   await row('default-named', EN ? 'Tell the Agent "draw this one with Z"' : '跟 Agent 说「这张用 Z 画」', EN ? 'The card shows Z' : '卡上是 Z', async (record) => {
     const turn = scriptTurn(fixture, { label: 'dom-image-named', marker: 'DOM-NAME', steps: [
       { name: 'draft_shots', args: { shots: [{ prompt: EN ? 'a lighthouse at dusk' : '黄昏的灯塔', taskKind: 'text_to_image', parameters: { aspect_ratio: '1:1' },
-        candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: IMAGE_NAMED.modelKey } }] } },
+        model: `${IMAGE_NAMED.modelKey}@${FIXTURE_APIMART_VENDOR}` }] } },
       { name: 'generate', args: ({ previous }) => ({ operationId: operationIdOf(previous) }) },
       { text: EN ? 'The card is ready.' : '付费卡摆好了。' },
     ] })
@@ -203,7 +203,7 @@ try {
       const turn = scriptTurn(fixture, { label: 'dom-image-switch', marker: 'DOM-SWITCH', steps: [
         // 默认（Nano Banana 2）做不了「多图参考」这件事，模型改用另一个：这一步宿主会把「和用户默认不一致」作为事实递回来。
         { name: 'draft_shots', args: { shots: [{ prompt: EN ? 'merge these two harbour photos' : '把这两张海港照片合成一张', taskKind: 'text_to_image', parameters: { aspect_ratio: '1:1' },
-          candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: IMAGE_NAMED.modelKey } }] } },
+          model: `${IMAGE_NAMED.modelKey}@${FIXTURE_APIMART_VENDOR}` }] } },
         // 先说为什么换、换成谁——话里的模型名读宿主递回来的偏离事实，不是脚本写死的。
         { name: 'generate', text: ({ previous }) => {
           // 对用户说话只用宿主递回来的**显示名**（和卡上、设置里同一个名字），不念 id。
@@ -245,7 +245,7 @@ try {
     const before = await listState()
     const turn = scriptTurn(fixture, { label: 'dom-storyboard-button', marker: 'DOM-BTN', steps: [
       { name: 'draft_shots', args: { shots: SHOTS.map((prompt, index) => ({ title: `${EN ? 'Shot' : '镜头'} ${index + 1}`, prompt, taskKind: 'text_to_video',
-        candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: 'kling-v3' } })) } },
+        model: `kling-v3@${FIXTURE_APIMART_VENDOR}` })) } },
       { text: EN ? 'The storyboard is written.' : '分镜写好了。' },
     ] })
     await pb.monitor.step('用户：选中文稿文字，点「拆成镜头」', async () => {
@@ -272,7 +272,7 @@ try {
     const before = await listState()
     const turn = scriptTurn(fixture, { label: 'dom-storyboard', marker: 'DOM-SB', steps: [
       { name: 'draft_shots', args: { shots: SHOTS.map((prompt, index) => ({ title: `${EN ? 'Shot' : '镜头'} ${index + 1}`, prompt, taskKind: 'text_to_video',
-        candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: 'kling-v3' } })) } },
+        model: `kling-v3@${FIXTURE_APIMART_VENDOR}` })) } },
       { text: ({ previous }) => {
         const saved = /"storyboardSaved":\{"designId":"([^"]+)","title":"([^"]*)","opened":false/.exec(String(previous ?? ''))
         return saved ? (EN ? `The storyboard "${saved[2]}" is written. It is in the left column under your document — click it to open.` : `分镜「${saved[2]}」写好了，在左栏原稿下面，点它就能打开。`)

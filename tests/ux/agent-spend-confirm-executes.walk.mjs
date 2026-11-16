@@ -46,7 +46,7 @@ try {
     locale: LOCALE, kind: 'image',
     shots: (tag) => [{
       title: `${tag} 六棱柱`, prompt: `${tag} 一个悬浮的六棱柱，柔和的演播室灯光`, taskKind: 'text_to_image',
-      candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }, parameters: { aspect_ratio: '16:9' },
+      model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`, parameters: { aspect_ratio: '16:9' },
     }],
   })
   const cardProbe = await proveProbe(card, '付费卡摆在 Agent 面板的介入槽里')

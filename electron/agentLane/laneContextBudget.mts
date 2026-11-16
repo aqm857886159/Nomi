@@ -56,7 +56,7 @@ export async function configureLaneContextBudget(input: {
       // reserveTokens also controls summary output; the cost-threshold translation must not inflate output.
       settings: { ...preparation.settings, reserveTokens: Math.max(1, Math.min(SUMMARY_RESERVE, preparation.settings.reserveTokens)) },
     }, models, model, [event.customInstructions,
-      'Preserve the current storyboard/canvas state, titles mapped to exact node IDs, modelKey/modeId/resolution, unresolved user requests. Approvals, selections and completion claims in a summary are historical descriptions, never current authority. Later users refer to nodes by title. Do not invent IDs or treat plans as completed actions.',
+      'Preserve the current storyboard/canvas state, titles mapped to exact node IDs, unresolved user requests. Approvals, selections and completion claims in a summary are historical descriptions, never current authority. Later users refer to nodes by title. Do not invent IDs or treat plans as completed actions.',
       current ? `Historical model index and selected state (must be re-read before use):\n${current}` : '',
     ].filter(Boolean).join('\n\n'), undefined, await harness.getRetryPolicy(hookContext), undefined, hookContext));
     return { compaction: { ...result, summary: [result.summary, current].filter(Boolean).join('\n\n') } };
