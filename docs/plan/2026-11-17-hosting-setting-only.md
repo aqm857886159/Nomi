@@ -9,7 +9,7 @@
 - Terraform `apply -input=false`（https://developer.hashicorp.com/terraform/cli/commands/apply ，协调亲眼打开过）· 没人可问时保守地当作不同意、明确失败，要自动放行就事先写进配置 · **确认了**：没开开关就停下、说清，不在流程里临时放行。
 - ComfyUI 服务端说明（https://raw.githubusercontent.com/Comfy-Org/docs/main/development/comfyui-server/comms_overview.mdx ，协调亲眼打开过）· 执行的那一层只认提交上来的东西，不认界面后来的状态 · **确认了**：放不放行由做事的那一层自己读自己的设置，不由界面带一个「已同意」过来。
 - 两种写代码的助手的权限说明（https://code.claude.com/docs/en/permissions ，调研线打开的，协调没亲眼看）· 「这一次同意」和「以后都允许」分开存，后者是一条设置 · **改了**：我们只留后者。前者在发版软件的默认通道下走不到，为它维持一套签发和兑换不值。
-- 出口：开关随时可开可关；关着时走不通会停在一张写明原因和下一步的卡上，可以重试、换小一点的文件、换一个带上传通道的供应商，或去设置里打开开关。
+- 出口：Terraform `apply -input=false`（https://developer.hashicorp.com/terraform/cli/commands/apply ）· 没人可问时明确失败并说出原因，改好配置后重跑就能继续 · 确认了：开关随时可开可关；关着时走不通会停在一张写明原因和下一步的卡上，可以重试、换小一点的文件、换一个带上传通道的供应商，或去设置里打开开关。
 
 ## ★1 用户怎么用
 
