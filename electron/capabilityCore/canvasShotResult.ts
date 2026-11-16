@@ -1,12 +1,9 @@
+export { latestJobForShot as latestJob } from '../shared/productionShotJobs'
 import { productionJobPhase } from '../shared/productionShotPhase'
 /** 画布单镜从 Run 账本读出来的那一份结果：最新一笔作业、它的产物、交回渲染层的形状。只读，不写账本。 */
 import { localAssetUrl } from "../assets/assetPaths";
 import type { ProductionArtifact, ProductionJob, ProductionRun } from "../productionRun/productionRunTypes";
 import type { CanvasTaskResult } from "./canvasTransportProvider";
-
-export function latestJob(run: ProductionRun): ProductionJob | undefined {
-  return [...run.jobs].sort((left, right) => right.attempt - left.attempt)[0];
-}
 
 /** 这笔作业账上的全部产物（一次出几张就几张，按落账顺序 = 上游交回的顺序）。 */
 export function readyArtifacts(run: ProductionRun, job: ProductionJob): ProductionArtifact[] {
