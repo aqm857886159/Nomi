@@ -2,8 +2,8 @@
 // 剧本 PB01 · 「让 Agent 画两张图，我只要第 1 张：第 2 张点『不生成 ×』，再按生成」
 //
 // 已知问题（0.22.1，用户报告 U01 / U02）：两页的付费卡只在第 1 页点了「仍要生成」就整份开跑，第二张还没确认；Agent 说「已经开始跑」。
-// 剧本 id 沿用那次报告。D2 起（2026-10-24）卡上没有翻页了：一张卡指着两段（指向元素 + 一行只读摘要 + 主按钮），「只要第 1 张」
-// 就是在第 2 段上点「不生成 ×」再按主按钮。被测的还是同一件事：按钮许诺几镜就只发几镜，去掉的那一镜不跟着发出去，
+// 剧本 id 沿用那次报告。D2 起（2026-10-24）没有翻页了；2026-11-15 拆开后两段在对话里一行一个、输入框上方一条确认（共同参数 + 主按钮），
+// 「只要第 1 张」就是悬停第 2 行、点行尾的「不生成 ×」再按主按钮。被测的还是同一件事：按钮许诺几镜就只发几镜，去掉的那一镜不跟着发出去，
 // 没点的不悄悄没了，回执不说「都开始了」。
 //
 // 乱用：先把第 2 段去掉、恢复、再去掉一次才按；点完再点一下出好的那张图看看（节点角标），再在节点上按 ↑ 出一版。
@@ -12,7 +12,7 @@
 // 零花费：大脑与供应商都是本机夹具；目录里不种价（= 今天每一台干净装机），卡上不说价格。
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect } from '../../_assert.mjs'
 import { findNodeHitPoint } from '../../_canvasHit.mjs'
-import { CARD_TITLE, SPEND_CARD, cardTitle, primaryLabel } from '../../_spendCardWalk.mjs'
+import { OFFER_ROWS, ROW, SPEND_CARD, primaryLabel } from '../../_spendCardWalk.mjs'
 import { stationTimeout } from '../../_station-budget.mjs'
 import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR } from '../../agent-runtime-fixture.mjs'
 import { CANVAS_PANEL, INTERVENTION_CONFIRM, expandResidentPanel, sendCanvas } from '../../agent-runtime-walk-support.mjs'
@@ -38,11 +38,12 @@ const SHOTS = EN
   ? ['A white cat lying on the windowsill of a morning cafe, soft light', 'The same cafe, a barista pouring latte art behind the counter']
   : ['清晨咖啡馆的窗台上趴着一只白猫，柔和的晨光', '同一家咖啡馆，吧台后的咖啡师在拉花']
 const card = () => smoke.win.locator(SPEND_CARD)
-const cells = () => card().locator('[data-v4-block="spend-body"] [data-node-pointer-cell]')
-// 标题那一格还带着「生成 · Nomi 选的」角标、主按钮还带着「⏎」：只认里面那一句（toContainText），不全等。
-const title = () => card().locator(CARD_TITLE)
+/** 对话里那一组的每一行（含行尾小动作那一槽）。 */
+const cells = () => smoke.win.locator(`${OFFER_ROWS} ${ROW}`)
+// 主按钮还带着「⏎」：只认里面那一句（toContainText），不全等。
+const primary = () => card().locator(INTERVENTION_CONFIRM)
 
-/** 第 n 段（0 起）那一格右上的小钮：「不生成 ×」平时藏着，悬停这一格才露出来、才点得到；「恢复」常驻。 */
+/** 第 n 段（0 起）那一行行尾的小钮：「不生成 ×」平时藏着，悬停这一行才露出来、才点得到；「恢复」常驻。 */
 async function toggleShot(index, kind, label) {
   const cell = cells().nth(index)
   if (kind === 'exclude') await cell.hover()
@@ -74,7 +75,7 @@ try {
   await monitor.step('用户：让 Agent 画两张图', () => sendCanvas(smoke.win, ASK), { surfaces: [] })
   await monitor.step('等 Agent 起草两镜、摆出付费卡', async () => {
     await expect(card(), 'Agent 起草完要在面板里摆一张付费卡').toBeVisible({ timeout: stationTimeout({ turns: 1 }) })
-    await expect(cells(), '一张卡指着两段').toHaveCount(2, { timeout: DEFAULT_TIMEOUT_MS })
+    await expect(cells(), '对话里那一组是两行').toHaveCount(2, { timeout: DEFAULT_TIMEOUT_MS })
     await expect(card().locator(INTERVENTION_CONFIRM), '主按钮说两段一起生成').toContainText(primaryLabel(LOCALE, { count: 2, kind: 'image' }))
   }, { user: false, surfaces: [] })
 
@@ -82,9 +83,9 @@ try {
     await toggleShot(1, 'exclude', '第 2 段的「不生成 ×」')
     await expect(cells().nth(1).locator('[data-spend-exclusion="restore"]'), '去掉的那一段常驻「恢复」').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     await toggleShot(1, 'restore', '第 2 段的「恢复」')
-    await expect(title(), '恢复之后标题又数两段').toContainText(cardTitle(LOCALE, 2, 'image'), { timeout: DEFAULT_TIMEOUT_MS })
+    await expect(primary(), '恢复之后主按钮又数两段').toContainText(primaryLabel(LOCALE, { count: 2, kind: 'image' }), { timeout: DEFAULT_TIMEOUT_MS })
     await toggleShot(1, 'exclude', '第 2 段的「不生成 ×」（再一次）')
-    await expect(title(), '标题只数还要生成的第 1 段').toContainText(cardTitle(LOCALE, 1, 'image'), { timeout: DEFAULT_TIMEOUT_MS })
+    await expect(primary(), '主按钮只数还要生成的第 1 段').toContainText(primaryLabel(LOCALE, { count: 1, kind: 'image' }), { timeout: DEFAULT_TIMEOUT_MS })
   })
 
   await monitor.step('按主按钮（只交第 1 段）', async () => {

@@ -4,7 +4,7 @@
 //
 //   · 节点上点 ↑：画布接走这一镜（和卡上交出去走的是同一条画布单节点提交）。卡上那一镜的指向元素跟着节点说「生成中」、
 //     不再算在主按钮里，主按钮换成「生成剩下 2 段」（板 card.generate）；
-//   · 卡上「不生成 ×」去掉一段 → 「生成剩下 1 段」；再点「恢复」→ 回到 2（去掉的不算在 N 里，board:SpendCardQ1/card.pointer.exclude）；
+//   · 对话里那一行的「不生成 ×」去掉一段 → 「生成剩下 1 段」；再点「恢复」→ 回到 2（去掉的不算在 N 里，board:SpendAskSplit/chat.rows.exclude）；
 //   · 「生成剩下 2 段」：只交那两段（第 1 段不再发一次），供应商一共收到三笔、各一次；卡收起来，出价按「已交给画布」关，
 //     回执照实说：两段是卡上交出去的、第 1 段是画布上接走的；对话流那一行指着三段（画布接走的也是这一次生成的）。
 //   · 中英各一遍；每一遍都核「卡上摘要 = 节点参数 = 假上游收到的请求体」；
@@ -20,13 +20,13 @@ import { stationTimeout } from './_station-budget.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   CARD_TITLE, EXCLUDE, RECEIPT_POINTERS, RESTORE,
-  armCanvasBridges, canvasRunsOf, cardFacts, cardTitle, createPresenter, generateOnNode, nodeParams, offerFacts, pointerAway,
-  pointerOf, pressPrimary, primaryLabel, say, shotGestureReceipts, shotNodes, wireParams,
+  armCanvasBridges, canvasRunsOf, cardFacts, createPresenter, generateOnNode, nodeParams, offerFacts, pointerAway,
+  pressPrimary, primaryLabel, rowOf, say, shotGestureReceipts, shotNodes, wireParams,
 } from './_spendCardWalk.mjs'
 import { CANVAS_PANEL, createRuntimeWalk, openCanvas, recorded } from './agent-runtime-walk-support.mjs'
 
 const VIDEO = { providerId: 'apimart', modelId: 'doubao-seedance-2.0' }
-const A = { generate: 'board:SpendCardQ1/card.generate', exclude: 'board:SpendCardQ1/card.pointer.exclude' }
+const A = { generate: 'board:SpendAskSplit/ask.actions', exclude: 'board:SpendAskSplit/chat.rows.exclude' }
 
 const present = createPresenter('S_REMAIN')
 
@@ -39,11 +39,10 @@ function requestsByShot(walk, from, shots) {
   })
 }
 
-/** 卡上某个指向元素那一格里的「不生成 ×」/「恢复」（悬停那一镜的缩略图才露出来，人就是这么点的）。 */
+/** 对话里那一镜那一行行尾的「不生成 ×」/「恢复」（「不生成 ×」悬停那一行才露出来，人就是这么点的；「恢复」常驻）。 */
 async function toggleExclusion(card, nodeId, kind, label) {
-  const cell = card.locator('[data-node-pointer-cell]').filter({ has: card.page().locator(pointerOf(nodeId)) })
-  // 恢复按钮位于缩略图中央；先把鼠标放到同一格的边缘触发格子 hover，避免按钮出现后拦截
-  // 「悬停画面正中」的定位动作。真实用户先进入格子，再点中央按钮，规格不变。
+  const cell = rowOf(card, nodeId)
+  // 先进那一行（左上角，缩略图那一块）触发行 hover，行尾的小钮才露出来。
   await cell.hover({ position: { x: 4, y: 4 } })
   await clickOrFail(cell.locator(kind === 'exclude' ? EXCLUDE : RESTORE), label)
 }
@@ -77,10 +76,10 @@ async function remainingRound(walk, win, { projectId, projectRoot }, locale) {
   await expect.poll(() => walk.fixture.videos.length - videosBefore, { message: `${tag}：节点上点 ↑ 发出一笔`, timeout: stationTimeout({ operations: 4 }) }).toBe(1)
   await expect(card.locator('[data-v4-control="confirm"]'), `${A.generate}：画布接走第 1 镜之后，主按钮是「生成剩下 2 段」`)
     .toHaveText(new RegExp(escape(primaryLabel(locale, { count: 2, kind: 'video', remaining: true }))), { timeout: stationTimeout({ operations: 4 }) })
-  await expect(card.locator(CARD_TITLE), `${tag}：标题只问剩下的两段`).toContainText(cardTitle(locale, 2, 'video', { remaining: true }))
+  await expect(card.locator(CARD_TITLE), `${tag}：确认条不画标题问话（按钮已经说了剩下几段）`).toHaveCount(0)
   facts = await cardFacts(win)
   expect(facts.pointers.map((pointer) => pointer.id), `${tag}：三个指向元素都还在（第 1 镜跟着节点说它在生成）`).toEqual(nodes.map((shot) => shot.nodeId))
-  expect(facts.toggles.filter((toggle) => toggle.cell === nodes[0].nodeId), `${tag}：画布接走的那一镜没有「不生成 ×」`).toEqual([])
+  expect(facts.toggles.filter((toggle) => toggle.row === nodes[0].nodeId), `${tag}：画布接走的那一镜没有「不生成 ×」`).toEqual([])
 
   // 去掉第 3 段 → 「生成剩下 1 段」；恢复 → 回到 2。
   await toggleExclusion(card, nodes[2].nodeId, 'exclude', `${tag}：第 3 段「不生成 ×」`)

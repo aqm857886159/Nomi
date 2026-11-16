@@ -237,6 +237,30 @@ export const NODE_POINTER_STATES: readonly LabState[] = [
     },
   },
   {
+    // 列表行折起（SpendAskSplit 板 chat.rows.more，2026-11-15）：超过 4 行露前 4 行 +「还有 N 个镜头」；正好 4 行不折。
+    id: 'np-rows-fold',
+    name: '列表行折起：5 行露 4 行 +「还有 1 个镜头」；正好 4 行不折',
+    source: 'docs/design/boards/2026-11-15-spend-ask-split/SpendAskSplit.board.json',
+    coverage: 'component-only',
+    render: () => {
+      const s = subjects('zh-CN')
+      return (
+        <NodePointerStage>
+          <div className="flex items-start gap-10">
+            <div style={{ width: 360 }} data-lab-rows="five">
+              <LabCaption>5 个镜头：露前 4 行，下面「还有 1 个镜头」，点了全露</LabCaption>
+              <NodePointerGroup subjects={s.five} density="row" rowDetail="status" />
+            </div>
+            <div style={{ width: 360 }} data-lab-rows="four">
+              <LabCaption>正好 4 个：不折</LabCaption>
+              <NodePointerGroup subjects={s.four} density="row" rowDetail="status" />
+            </div>
+          </div>
+        </NodePointerStage>
+      )
+    },
+  },
+  {
     id: 'np-hover',
     name: 'A3 ① 悬停镜 02：两边同时亮（中性深色细线，不用蓝）',
     source: SOURCE,

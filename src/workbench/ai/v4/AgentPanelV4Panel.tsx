@@ -26,7 +26,8 @@ import { V4Intervention, V4Queue, V4TaskCard } from './AgentPanelV4Cards'
 import { V4AssistantMessage, V4Thinking, V4UserBubble } from './AgentPanelV4Message'
 import { V4ErrorBar, V4Process, V4ReceiptNotice, V4ToolGroup, V4ToolReceipt } from './AgentPanelV4Receipt'
 import { flowItemNotices } from './useDirectorPatchNotices'
-import { GenerationReceiptPointers } from '../pointer/GenerationReceiptPointers'
+import { GenerationReceiptPointers, SpendOfferRowsWithoutRecord } from '../pointer/GenerationReceiptPointers'
+import { createSpendOfferRowsStore, SpendOfferRowsContext } from './spendCardOfferRows'
 import { flowItemGenerations } from '../pointer/generationReceiptFacts'
 import { V4EmptyState } from './AgentPanelV4Empty'
 import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
@@ -268,6 +269,9 @@ export function AgentPanelV4Panel({
     ...(legacy.archivedItems ? [t('agentPanelV4.legacyArchived')] : []),
     ...(legacy.missingToolArguments ? [t('agentPanelV4.legacyMissingArguments')] : []),
   ].join(t('agentPanelV4.legacySeparator')) : undefined
+  // 付费确认拆开（2026-11-15）：确认条体把这一次出价的行放进来，对话里那一组读出来（每面板一份，见 spendCardOfferRows.ts）。
+  const [spendOfferRows] = React.useState(createSpendOfferRowsStore)
+  const recordedGenerations = React.useMemo(() => new Set(flow.flatMap(flowItemGenerations)), [flow])
   // 跟到底交给现成库 use-stick-to-bottom（StackBlitz，MIT）：它看的是**内容高度**——流式长字、卡片展开、
   // 图片撑高都算，不看条目数；人往上翻（滚轮 / 拖滚动条 / 拖选文字）就松开不拽他，滚回离底 70px 以内自己重新跟上。
   // 这里只留两件本来就属于我们的事：「加载更早」时钉住他读到的那一行；收起 / 换形态回来时回到原处（定稿 §11.2）。
@@ -395,92 +399,95 @@ export function AgentPanelV4Panel({
     onComposerSubmit?.(choice)
   }, [onComposerSubmit, scrollToBottom])
   return (
-    <section
-      // `overflow-clip` 而不是 `overflow-hidden`：hidden 仍然是一个**可以被程序滚动**的
-      // 滚动容器，浏览器把新内容 scrollIntoView 时会把 scrollLeft 推走，而用户没有任何手段
-      // 拖回来——一次溢出就变成永久裁切。面板自身在两个方向上都不该滚（对话流有自己的
-      // `overflow-y-auto`），所以直接 clip：把「溢出」留在能看见的地方，不留一个静默的坏状态。
-      className={cn('flex flex-col', workspacePanelFrame)}
-      style={{ width, height }}
-      data-v4-panel="true"
-    >
-      <header className={cn('flex shrink-0 items-center gap-2 text-body-sm font-semibold', workspaceFrame ? workspacePanelHeader : 'h-10 border-b border-nomi-line-soft px-3', headerSlot?.dragHandleClassName)}>
-        <NomiBrand markSize={18} wordSize={14} />
-        <V4ContextRing usage={context} labels={labels.context} />
-        <span className="flex-1" />
-        {headerSlot ? (
-          <V4HeaderShellActions slot={headerSlot} compact={width < AGENT_HEADER_COMPACT_WIDTH} onHistory={onHistory} historyLabel={t('agentPanelV4.history')} moreLabel={t('agentPanelV4.headerMore')} />
-        ) : (
-        <span className="flex shrink-0 gap-2 text-nomi-ink-40">
-          <button type="button" aria-label={t('agentPanelV4.history')} onClick={onHistory} data-v4-control="history">
-            <IconHistory size={15} />
-          </button>
-          <button type="button" aria-label={t('agentPanelV4.collapsePanel')} onClick={onCollapse} data-v4-control="collapse">
-            <IconLayoutSidebarRightCollapse size={15} />
-          </button>
-        </span>
-        )}
-      </header>
-      {legacyNotice ? <p className="shrink-0 truncate px-3 pt-2 text-micro text-nomi-ink-60" title={legacyNotice} data-v4-legacy="true">{legacyNotice}</p> : null}
-      <div className="relative flex min-h-0 flex-1 flex-col">
-        <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2.5" data-v4-flow="true">
-          {/* 跟到底量的是这一层的高度；`grow` 让空态在内容不满时照样垂直居中。 */}
-          <div ref={contentRef} className="flex shrink-0 grow flex-col gap-2.5 [&>*]:shrink-0" data-v4-flow-rows="true">
-            {/* 空态只在**流为空**时占这块地方：来了第一条消息它就永远不再出现，
-                所以它不是常驻件、不参与控件预算（设计系统 §1.5）。 */}
-            {historyError ? <div role="alert">{t('agentPanelV4.historyLoadFailed')}</div> : null}
-            {flow.length === 0 ? <V4EmptyState surface={surface} onStarter={onStarter} /> : null}
-            {flow.map((item, index) => (
-              <React.Fragment key={item.identity ?? `${item.kind}-${index}`}>
-                <V4FlowRow
-                  item={item}
-                  index={index}
-                  darkMode={darkMode}
-                  handlers={stableFlowHandlers}
-                />
-                {/* 宿主确定性的提示（例如 3D-BOX 补丁覆盖了手调）画在这一行外面：收起的过程行也照样看得见 */}
-                {flowItemNotices(item).map((notice, position) => <V4ReceiptNotice key={position} text={notice} />)}
-                {/* `generate` 那一行：卡关掉以后挂那几镜的组指向（实时读节点，点了照样定位），同样画在行外面 */}
-                {flowItemGenerations(item).map((operationId) => <GenerationReceiptPointers key={operationId} operationId={operationId} />)}
-              </React.Fragment>
-            ))}
-            {flowTail}
+    <SpendOfferRowsContext.Provider value={spendOfferRows}>
+      <section
+        // `overflow-clip` 而不是 `overflow-hidden`：hidden 仍然是一个**可以被程序滚动**的
+        // 滚动容器，浏览器把新内容 scrollIntoView 时会把 scrollLeft 推走，而用户没有任何手段
+        // 拖回来——一次溢出就变成永久裁切。面板自身在两个方向上都不该滚（对话流有自己的
+        // `overflow-y-auto`），所以直接 clip：把「溢出」留在能看见的地方，不留一个静默的坏状态。
+        className={cn('flex flex-col', workspacePanelFrame)}
+        style={{ width, height }}
+        data-v4-panel="true"
+      >
+        <header className={cn('flex shrink-0 items-center gap-2 text-body-sm font-semibold', workspaceFrame ? workspacePanelHeader : 'h-10 border-b border-nomi-line-soft px-3', headerSlot?.dragHandleClassName)}>
+          <NomiBrand markSize={18} wordSize={14} />
+          <V4ContextRing usage={context} labels={labels.context} />
+          <span className="flex-1" />
+          {headerSlot ? (
+            <V4HeaderShellActions slot={headerSlot} compact={width < AGENT_HEADER_COMPACT_WIDTH} onHistory={onHistory} historyLabel={t('agentPanelV4.history')} moreLabel={t('agentPanelV4.headerMore')} />
+          ) : (
+          <span className="flex shrink-0 gap-2 text-nomi-ink-40">
+            <button type="button" aria-label={t('agentPanelV4.history')} onClick={onHistory} data-v4-control="history">
+              <IconHistory size={15} />
+            </button>
+            <button type="button" aria-label={t('agentPanelV4.collapsePanel')} onClick={onCollapse} data-v4-control="collapse">
+              <IconLayoutSidebarRightCollapse size={15} />
+            </button>
+          </span>
+          )}
+        </header>
+        {legacyNotice ? <p className="shrink-0 truncate px-3 pt-2 text-micro text-nomi-ink-60" title={legacyNotice} data-v4-legacy="true">{legacyNotice}</p> : null}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2.5" data-v4-flow="true">
+            {/* 跟到底量的是这一层的高度；`grow` 让空态在内容不满时照样垂直居中。 */}
+            <div ref={contentRef} className="flex shrink-0 grow flex-col gap-2.5 [&>*]:shrink-0" data-v4-flow-rows="true">
+              {/* 空态只在**流为空**时占这块地方：来了第一条消息它就永远不再出现，
+                  所以它不是常驻件、不参与控件预算（设计系统 §1.5）。 */}
+              {historyError ? <div role="alert">{t('agentPanelV4.historyLoadFailed')}</div> : null}
+              {flow.length === 0 ? <V4EmptyState surface={surface} onStarter={onStarter} /> : null}
+              {flow.map((item, index) => (
+                <React.Fragment key={item.identity ?? `${item.kind}-${index}`}>
+                  <V4FlowRow
+                    item={item}
+                    index={index}
+                    darkMode={darkMode}
+                    handlers={stableFlowHandlers}
+                  />
+                  {/* 宿主确定性的提示（例如 3D-BOX 补丁覆盖了手调）画在这一行外面：收起的过程行也照样看得见 */}
+                  {flowItemNotices(item).map((notice, position) => <V4ReceiptNotice key={position} text={notice} />)}
+                  {/* `generate` 那一行：这一次生成的那一组镜头（出价开着时是要确认的那一批，关了是交出去的那几段；实时读节点，点了定位），画在行外面 */}
+                  {flowItemGenerations(item).map((operationId) => <GenerationReceiptPointers key={operationId} operationId={operationId} />)}
+                </React.Fragment>
+              ))}
+              <SpendOfferRowsWithoutRecord recorded={recordedGenerations} />
+              {flowTail}
+            </div>
           </div>
+          {/* 往上翻着读时才出现（ConversationJumpToLatest 板）：点一下回到最新一条并接着跟；回到底就消失。 */}
+          {stick.isAtBottom ? null : (
+            <WorkbenchIconButton
+              size="sm"
+              icon={<IconArrowDown />}
+              label={t('agentPanelV4.jumpToLatest')}
+              onClick={() => void scrollToBottom('instant')}
+              className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-nomi-line bg-nomi-paper text-nomi-ink-60 shadow-nomi-sm hover:bg-nomi-paper hover:text-nomi-ink"
+              data-v4-control="jump-latest"
+            />
+          )}
         </div>
-        {/* 往上翻着读时才出现（ConversationJumpToLatest 板）：点一下回到最新一条并接着跟；回到底就消失。 */}
-        {stick.isAtBottom ? null : (
-          <WorkbenchIconButton
-            size="sm"
-            icon={<IconArrowDown />}
-            label={t('agentPanelV4.jumpToLatest')}
-            onClick={() => void scrollToBottom('instant')}
-            className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-nomi-line bg-nomi-paper text-nomi-ink-60 shadow-nomi-sm hover:bg-nomi-paper hover:text-nomi-ink"
-            data-v4-control="jump-latest"
+        {slot ? (
+          <div className="shrink-0 px-2.5 pb-2">
+            <V4Intervention data={slot} labels={labels.intervention} {...(slotBody ? { body: slotBody } : {})} {...(slotWaiting === undefined ? {} : { waiting: slotWaiting })} {...slotHandlers} />
+          </div>
+        ) : null}
+        {queue?.length ? (
+          <div className="shrink-0 px-2.5 pb-2">
+            <V4Queue rows={queue} labels={labels.queue} {...queueHandlers} />
+            {queueHint ? <p className="px-1 pt-1 text-micro text-nomi-ink-60">{queueHint}</p> : null}
+          </div>
+        ) : null}
+        <div className={cn('flex shrink-0 flex-col gap-1.5 px-2.5 pb-2.5', !slot && !queue?.length && 'pt-2')}>
+          {composerBanner}
+          <AgentPanelV4Composer
+            panelHeight={height}
+            {...composer}
+            onSubmit={onComposerSubmit ? submitAndFollow : undefined}
+            mode={composer?.mode ?? 'idle'}
+            permission={composer?.permission ?? DEFAULT_PERMISSION_TIER}
           />
-        )}
-      </div>
-      {slot ? (
-        <div className="shrink-0 px-2.5 pb-2">
-          <V4Intervention data={slot} labels={labels.intervention} {...(slotBody ? { body: slotBody } : {})} {...(slotWaiting === undefined ? {} : { waiting: slotWaiting })} {...slotHandlers} />
         </div>
-      ) : null}
-      {queue?.length ? (
-        <div className="shrink-0 px-2.5 pb-2">
-          <V4Queue rows={queue} labels={labels.queue} {...queueHandlers} />
-          {queueHint ? <p className="px-1 pt-1 text-micro text-nomi-ink-60">{queueHint}</p> : null}
-        </div>
-      ) : null}
-      <div className={cn('flex shrink-0 flex-col gap-1.5 px-2.5 pb-2.5', !slot && !queue?.length && 'pt-2')}>
-        {composerBanner}
-        <AgentPanelV4Composer
-          panelHeight={height}
-          {...composer}
-          onSubmit={onComposerSubmit ? submitAndFollow : undefined}
-          mode={composer?.mode ?? 'idle'}
-          permission={composer?.permission ?? DEFAULT_PERMISSION_TIER}
-        />
-      </div>
-    </section>
+      </section>
+    </SpendOfferRowsContext.Provider>
   )
 }
 

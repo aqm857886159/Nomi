@@ -12,7 +12,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   CARD_CANCEL, CARD_EDITORS, NODE_COMPOSER, SPEND_CARD,
-  cardFacts, cardTitle, editNodeParameter, hoverSummaryOf, nodeParams, pointerAway, pointerFace,
+  cardFacts, editNodeParameter, nodeParams, pointerAway, pointerFace, primaryLabel, rowTextOf,
 } from './_spendCardWalk.mjs'
 import {
   CANVAS_PANEL, COMPOSER, COMPOSER_PERMISSION,
@@ -103,8 +103,8 @@ export async function checkSpendScopeJourney(walk, win) {
   expect(await graph(), '摆上卡不动画布').toEqual(draftedGraph)
   await pointerAway(win)
   let facts = await cardFacts(win)
-  expect(facts.title, '卡只问点名的这 3 镜，不是整份 33 镜的计划').toBe(cardTitle('zh-CN', 3, 'image'))
-  expect(facts.pointers.map((pointer) => pointer.id), '三个指向元素按顺序指着那三个节点').toEqual(requestedNodeIds)
+  expect(facts.confirm?.text, '确认条只答应点名的这 3 镜，不是整份 33 镜的计划').toBe(primaryLabel('zh-CN', { count: 3, kind: 'image' }))
+  expect(facts.pointers.map((pointer) => pointer.id), '对话里那一组三行按顺序指着那三个节点').toEqual(requestedNodeIds)
   expect(facts.editors, '卡上没有编辑器').toBe(0)
   // 点名摆上卡只开一次出价，不改这一批：被点名的几镜写 included 与 updatedAt，没点名的一字不动、整批没缩。
   const expectPlanKept = async (label) => {
@@ -118,11 +118,10 @@ export async function checkSpendScopeJourney(walk, win) {
   await expectPlanKept('摆上卡之后')
   await walk.snap('cj1-three-of-33-pointers')
 
-  // 在节点里改第 2 镜：点它的指向元素 → 生成框打开 → 改提示词、改比例。卡上只有那一镜的摘要变。
+  // 在节点里改第 2 镜：点对话里它那一行 → 生成框打开 → 改提示词、改比例。只有那一镜那一行多出它和别人不同的比例。
   const third = requestedNodeIds[2]
   const second = requestedNodeIds[1]
-  const thirdHoverBefore = await hoverSummaryOf(win, third)
-  await clickOrFail(pointerFace(card, second), '点第 2 个指向元素的缩略图（去节点里改）')
+  await clickOrFail(pointerFace(card, second), '点对话里第 2 行（去节点里改）')
   const promptBox = win.locator(`${NODE_COMPOSER} [contenteditable="true"]`).first()
   await expect(promptBox, '第 2 镜的生成框打开了').toBeVisible({ timeout: stationTimeout() })
   await promptBox.click()
@@ -132,9 +131,11 @@ export async function checkSpendScopeJourney(walk, win) {
   await expect.poll(async () => (await liveNode(second))?.prompt, { message: '第 2 镜节点上的提示词改了', timeout: stationTimeout() }).toBe(editedPrompt)
   const aspect = await editNodeParameter(win, second, 'aspect_ratio', { pick: '16:9' })
   expect(nodeParams((await liveNode(second)).meta).aspect, '第 2 镜节点上的比例改成了 16:9').toBe('16:9')
-  const secondHover = await hoverSummaryOf(win, second)
-  expect(secondHover, '卡上第 2 镜的摘要读的是节点上改过的比例').toContain('16:9')
-  expect(await hoverSummaryOf(win, third), '第 3 镜的摘要没被第 2 镜带走').toBe(thirdHoverBefore)
+  await pointerAway(win)
+  const secondHover = await rowTextOf(win, second)
+  expect(secondHover, '第 2 行的第二行读的是节点上改过的比例（和别的镜不同，回到它自己那一行）').toContain('16:9')
+  expect(await rowTextOf(win, third), '第 3 行没被第 2 镜的比例带走').not.toContain('16:9')
+  expect((await cardFacts(win))?.params ?? '', '确认条那一行只写共同项：比例不同了就不再写比例').not.toContain('16:9')
   expect((await liveNode(third)).prompt, '第 3 镜节点上的提示词没变').toBe('CJ1_anchor_3 原始画面')
   await expectPlanKept('在节点里改了第 2 镜之后')
   expect(walk.fixture.images, '改节点不提交').toHaveLength(0)
@@ -179,7 +180,7 @@ export async function checkSpendScopeJourney(walk, win) {
   facts = await cardFacts(win)
   expect(facts.pointers.map((pointer) => pointer.id), '回来的卡指着同样那三个节点').toEqual(requestedNodeIds)
   expect(await card.locator(CARD_EDITORS).count(), '回来的卡上同样没有编辑器').toBe(0)
-  expect(await hoverSummaryOf(win, second), '第 2 镜在节点上的改动还在，卡上读得到').toBe(secondHover)
+  expect(await rowTextOf(win, second), '第 2 镜在节点上的改动还在，它那一行读得到').toBe(secondHover)
   expect((await liveNode(second)).prompt, '第 2 镜节点上改的提示词还在').toBe(editedPrompt)
   await expectPlanKept('重新出价之后（镜头、参数、锚点一个字不丢）')
   expect((await graph()).nodes.map((node) => node.id).sort(), '经过一整个回合，画布节点一个不多也一个不少').toEqual(afterBoth)

@@ -11,7 +11,6 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconAlertTriangle,
-  IconCheck,
   IconClock,
   IconClockSearch,
   IconFocus2,
@@ -26,7 +25,7 @@ import { GenerationWaitingSurface } from '../../generationCanvas/nodes/Generatio
 import { NodeCornerPill } from '../../generationCanvas/nodes/ProductionShotPlaceholder'
 import { productionShotCornerText } from '../../generationCanvas/nodes/productionShotCorner'
 import { NodeShotLabel, ShotNumberPill } from '../../generation/list/CanvasListLinks'
-import { nodePointerLocatable, pointerCenterTier, type NodePointerFace } from './nodePointerFace'
+import { nodePointerLocatable, pointerCenterTier } from './nodePointerFace'
 import {
   SLOT_ASPECT,
   frameTone,
@@ -151,7 +150,14 @@ export function PointerFaceArt({
       return <img src={face.preview.src} alt="" draggable={false} className="absolute inset-0 size-full object-cover" />
     if (face.kind === 'generating' || face.kind === 'processing')
       return <GenerationWaitingSurface previewLabel="" audio={model.node?.kind === 'audio'} />
-    return null
+    // 还没出画面：方框正中放这一镜的种类图标（视频是摄像机、图片是图片，和画布节点同一套），不留空白方框（SpendAskSplit 板 chat.rows）。
+    const ThumbKindIcon = model.node ? getGenerationNodeIcon(model.node.kind) : null
+    if (!ThumbKindIcon) return null
+    return (
+      <span className="absolute inset-0 grid place-items-center text-nomi-ink-60" data-node-pointer-center="icon" aria-hidden="true">
+        <ThumbKindIcon size={14} stroke={1.8} />
+      </span>
+    )
   }
   const KindIcon = model.node ? getGenerationNodeIcon(model.node.kind) : null
   // 小标在指向元素上贴得更近（板：4px），样子与节点那一枚同一个组件。
@@ -324,6 +330,13 @@ export type NodePointerProps = {
   suppressAwaitingConfirmation?: boolean
   /** 组给的：缩略图正中已被宿主挂的常驻小动作（「恢复」）占着——这一格不再画自己的正中件（已定位 / 状态胶囊 / 种类图标），判据见 pointerCenterTier。 */
   centerTaken?: boolean
+  /**
+   * 只对 row：第二行写什么。`summary`（默认）= 模型 · 时长那一行摘要；`status` = 只在这一镜有话要说时才有第二行——
+   * 已删除 / 失败原因 / 节点自己的状态（生成中、排队中、已去掉，不生成……）/ 宿主给的 `note`，都没有就只有一行（付费确认：每行都一样的参数在确认条上说一次）。
+   */
+  rowDetail?: 'summary' | 'status'
+  /** 只对 row：行尾给宿主的小动作让出位置（小动作是行的兄弟、压在这一截上，见 NodePointerGroup 的 PointerRow）。 */
+  reserveTrailing?: boolean
 }
 
 export function NodePointer({
@@ -338,6 +351,8 @@ export function NodePointer({
   titleTail,
   suppressAwaitingConfirmation = false,
   centerTaken = false,
+  rowDetail = 'summary',
+  reserveTrailing = false,
 }: NodePointerProps): JSX.Element {
   const { t } = useTranslation()
   const model = usePointerModel(subject)
@@ -416,12 +431,15 @@ export function NodePointer({
           ? (failedOutcome ?? model.status)
           : gone
             ? null
-            : (model.summary('row')[0] ?? model.status)
+            : rowDetail === 'status'
+              ? (rowStatusLine(model, suppressAwaitingConfirmation) ?? subject.note ?? null)
+              : (rowProgressLine(model) ?? model.summary('row')[0] ?? model.status)
     return (
       <button
         {...common}
         className={cn(
           'flex min-h-10 w-full min-w-0 items-center gap-2 rounded-nomi border border-nomi-line bg-nomi-paper py-1 pl-1 pr-2 text-left text-caption transition-colors',
+          reserveTrailing && 'pr-9',
           lit && 'border-transparent bg-nomi-ink-05',
           model.face.kind === 'failed' && 'border-nomi-danger-edge',
           gone && 'cursor-default bg-nomi-ink-05',
@@ -445,12 +463,13 @@ export function NodePointer({
                 model.face.kind === 'removed' && 'text-nomi-ink-40',
               )}
               title={second}
+              data-node-pointer-detail=""
             >
               {second}
             </span>
           ) : null}
         </span>
-        <RowTrailing face={model.face} located={located} />
+        {located ? <RowLocated /> : null}
       </button>
     )
   }
@@ -537,42 +556,41 @@ export function NodePointer({
   )
 }
 
-/** P2 行尾的状态图标：✓ / 转圈（蓝只留在转圈上）/ 钟 / ⚠ / 断链；点过的那一行写「已定位」。 */
-function RowTrailing({ face, located }: { face: NodePointerFace; located: boolean }): JSX.Element | null {
+/**
+ * 列表行「只写有话要说的」那一档（`rowDetail="status"`）的状态句：节点自己此刻在说的那一句（生成中 / 排队中 / 已去掉，不生成 /
+ * 宿主给的「还没发」/ 已停原因 / 可找回）。结果、空卡没有话要说；「等你确认」在确认条正问着时不重复（`suppressAwaitingConfirmation`）。
+ */
+function rowStatusLine(model: PointerModel, suppressAwaitingConfirmation: boolean): string | null {
+  const face = model.face
+  if (face.kind === 'generating' || face.kind === 'stopped' || face.kind === 'recoverable') return model.status
+  if (face.kind !== 'production') return null
+  if (model.hostStatus) return model.hostStatus
+  if (suppressAwaitingConfirmation && face.state.phase === 'awaiting_confirmation') return null
+  return model.status
+}
+
+/**
+ * 摘要档（`rowDetail="summary"`）里，这一镜在路上时第二行改说状态（生成中 / 排队中 / 已停 / 可找回），不说摘要：
+ * 行尾不再有状态图标（用户 2026-11-16 定，SpendAskSplit 板取代 NodePointer 板 pointer.p2.row 那一句和 pointer.state.*），
+ * 状态只由缩略图和标题下这一行小字说；做完的那一行就是缩略图 + 标题 + 摘要，没有勾。
+ */
+function rowProgressLine(model: PointerModel): string | null {
+  const face = model.face
+  if (face.kind === 'generating' || face.kind === 'stopped' || face.kind === 'recoverable') return model.status
+  if (face.kind === 'production' && face.state.phase === 'queued') return model.status
+  return null
+}
+
+/** 行尾只剩一样东西：点过的那一行写「已定位」（它说的是你刚点了它，不是这一镜的状态）。 */
+function RowLocated(): JSX.Element {
   const { t } = useTranslation()
-  if (located) {
-    return (
-      <span
-        className="inline-flex shrink-0 items-center gap-1 text-micro text-nomi-ink-60"
-        data-node-pointer-located="true"
-      >
-        <IconFocus2 size={12} stroke={1.8} aria-hidden="true" />
-        {t('nodePointer.located')}
-      </span>
-    )
-  }
-  const queued =
-    (face.kind === 'generating' && face.feedback.phase === 'queued') ||
-    (face.kind === 'production' && face.state.phase === 'queued')
-  const icon =
-    face.kind === 'result' ? (
-      <IconCheck size={14} stroke={1.8} className="text-nomi-ink-60" />
-    ) : queued ? (
-      <IconClock size={14} stroke={1.8} className="text-nomi-ink-60" />
-    ) : face.kind === 'generating' || face.kind === 'processing' ? (
-      <IconLoader2 size={14} stroke={1.8} className="animate-spin text-nomi-accent motion-reduce:animate-none" />
-    ) : face.kind === 'failed' ? (
-      <IconAlertTriangle size={14} stroke={1.8} className="text-nomi-danger-ink" />
-    ) : face.kind === 'removed' ? (
-      <IconLinkOff size={14} stroke={1.8} className="text-nomi-ink-40" />
-    ) : face.kind === 'stopped' ? (
-      <IconPlayerPause size={14} stroke={1.8} className="text-nomi-warning" />
-    ) : face.kind === 'recoverable' ? (
-      <IconClockSearch size={14} stroke={1.8} className="text-nomi-ink-60" />
-    ) : null
-  return icon ? (
-    <span className="grid shrink-0 place-items-center" aria-hidden="true">
-      {icon}
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 text-micro text-nomi-ink-60"
+      data-node-pointer-located="true"
+    >
+      <IconFocus2 size={12} stroke={1.8} aria-hidden="true" />
+      {t('nodePointer.located')}
     </span>
-  ) : null
+  )
 }

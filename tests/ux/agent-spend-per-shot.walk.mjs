@@ -15,7 +15,7 @@ import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } fro
 import { stationTimeout } from './_station-budget.mjs'
 import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR } from './agent-runtime-fixture.mjs'
 import {
-  CARD_EDITORS, CARD_PRIMARY, CARD_TITLE, POINTER, armCanvasBridges, cardTitle, createPresenter, excludeShot, generateOnNode,
+  CARD_EDITORS, CARD_PRIMARY, CARD_TITLE, POINTER, armCanvasBridges, createPresenter, excludeShot, generateOnNode, offerRows,
   offerFacts, pointerFace, pressPrimary, primaryLabel, shotNodes,
 } from './_spendCardWalk.mjs'
 import {
@@ -46,10 +46,10 @@ async function row(id, title, check) {
   console.log(`[per-shot] ${rows[id].ok ? 'PASS' : 'FAIL'} ${id} ${title} ${rows[id].detail}`)
 }
 
-/** 整窗一张 + 卡的近景一张。拍之前把鼠标挪到标题上：刚点过的按钮还停在悬停态。 */
+/** 整窗一张 + 确认条的近景一张。拍之前把鼠标挪到条的左上角（空着的那一块）：刚点过的按钮还停在悬停态。 */
 async function snap(walk, id, label, card) {
   try {
-    if (card && await card.isVisible().catch(() => false)) await card.locator(CARD_TITLE).hover({ position: { x: 2, y: 2 } })
+    if (card && await card.isVisible().catch(() => false)) await card.hover({ position: { x: 2, y: 2 } })
     const file = await walk.snap(`${id}-${label}`)
     const shots = [file]
     if (card && await card.isVisible().catch(() => false)) {
@@ -84,8 +84,7 @@ const sentShots = (records, from) => records.slice(from).map((record) => /第 (\
 
 /** 画布上这一镜的占位此刻写着什么（点卡上它的指向元素，画布先把它带到眼前，再读）。 */
 async function placeholderOf(win, card, nodeId) {
-  // 被去掉的格子中央会常驻「恢复」按钮；点同一缩略图的边缘仍是同一个指向元素，
-  // 但不会让恢复按钮遮住定位手势。
+  // 被去掉的那一行行尾常驻「恢复」；点那一行左边（缩略图那一块），不让「恢复」挡住定位手势。
   await clickOrFail(pointerFace(card, nodeId), '点那一镜的指向元素，把画布带到它跟前', { position: { x: 4, y: 4 } })
   const marker = win.locator(`[data-production-shot-node="${nodeId}"]`).first()
   await expect(marker, '那一镜的占位在眼前').toBeVisible({ timeout: stationTimeout() })
@@ -103,9 +102,10 @@ async function runLocale(walk, win, projectId, locale) {
   {
     const before = walk.fixture.images.length
     const { card, tag, turnDone, receipt, operationId, nodes } = await presentShots(walk, win, projectId, locale, 2)
-    await row(R(1), '2 张图的卡：问话标题、两个指向元素、「全部生成（2）」；没有翻页、没有可改的东西、没有「仍要生成」和价格未知', async () => {
-      await expect(card.locator(CARD_TITLE)).toContainText(cardTitle(L, 2, 'image'))
-      await expect(card.locator(POINTER)).toHaveCount(2)
+    await row(R(1), '2 张图：对话里两行、确认条没有标题也没有指向元素、「生成 2 张」；没有翻页、没有可改的东西、没有「仍要生成」和价格未知', async () => {
+      await expect(card.locator(CARD_TITLE)).toHaveCount(0)
+      await expect(card.locator(POINTER)).toHaveCount(0)
+      await expect(offerRows(card).locator(POINTER)).toHaveCount(2)
       await expect(card.locator(CARD_PRIMARY)).toContainText(primaryLabel(L, { count: 2, kind: 'image' }))
       await expect(card.locator(PAGER)).toHaveCount(0)
       await expect(card.locator(CARD_EDITORS)).toHaveCount(0)
@@ -117,7 +117,7 @@ async function runLocale(walk, win, projectId, locale) {
     await generateOnNode(win, card, nodes[0].nodeId, `${locale}：在节点上生成第 1 张`)
     await row(R(2), '节点上生成第 1 张：供应商只收到第 1 张；卡还在、问的是剩下那 1 张；第 2 张还在等你确认', async () => {
       await expect.poll(() => walk.fixture.images.length - before, { timeout: stationTimeout({ operations: 4 }) }).toBe(1)
-      await expect(card.locator(CARD_TITLE)).toContainText(cardTitle(L, 1, 'image', { remaining: true }), { timeout: stationTimeout({ operations: 4 }) })
+      await expect(card.locator(CARD_PRIMARY)).toContainText(primaryLabel(L, { count: 1, kind: 'image', remaining: true }), { timeout: stationTimeout({ operations: 4 }) })
       await expect(card.locator(CARD_PRIMARY)).toContainText(primaryLabel(L, { count: 1, kind: 'image', remaining: true }))
       const sent = sentShots(walk.fixture.images, before)
       if (sent.join() !== '1') throw new Error(`供应商收到：${sent.join()}`)
@@ -146,7 +146,7 @@ async function runLocale(walk, win, projectId, locale) {
     const before = walk.fixture.images.length
     const { card, tag, turnDone, receipt, operationId, nodes } = await presentShots(walk, win, projectId, locale, 2)
     await excludeShot(card, nodes[0].nodeId, `${locale}：第 1 张「不生成 ×」`)
-    await expect(card.locator(CARD_TITLE)).toContainText(cardTitle(L, 1, 'image'), { timeout: stationTimeout({ operations: 4 }) })
+    await expect(card.locator(CARD_PRIMARY)).toContainText(primaryLabel(L, { count: 1, kind: 'image' }), { timeout: stationTimeout({ operations: 4 }) })
     const first = await placeholderOf(win, card, nodes[0].nodeId)
     await snap(walk, R(4), 'after-remove', card)
     const label = await primaryText(card)
@@ -167,7 +167,7 @@ async function runLocale(walk, win, projectId, locale) {
     const before = walk.fixture.images.length
     const { card, tag, turnDone, receipt, operationId, nodes } = await presentShots(walk, win, projectId, locale, 2)
     await generateOnNode(win, card, nodes[0].nodeId, `${locale}：在节点上生成第 1 张`)
-    await expect(card.locator(CARD_TITLE)).toContainText(cardTitle(L, 1, 'image', { remaining: true }), { timeout: stationTimeout({ operations: 4 }) })
+    await expect(card.locator(CARD_PRIMARY)).toContainText(primaryLabel(L, { count: 1, kind: 'image', remaining: true }), { timeout: stationTimeout({ operations: 4 }) })
     await closeSpendCard(card, `${locale}：「取消」`)
     await row(R(5), '生成第 1 张后「取消」：第 2 张没发；回执说第 2 张用户取消了、没生成；第 1 张是画布上接走的', async () => {
       await recorded(turnDone.received, `${tag}: generate returns`)
@@ -186,7 +186,7 @@ async function runLocale(walk, win, projectId, locale) {
     const before = walk.fixture.images.length
     const { card, tag, receipt, request, turnDone, nodes } = await presentShots(walk, win, projectId, locale, 2)
     await generateOnNode(win, card, nodes[0].nodeId, `${locale}：在节点上生成第 1 张`)
-    await expect(card.locator(CARD_TITLE)).toContainText(cardTitle(L, 1, 'image', { remaining: true }), { timeout: stationTimeout({ operations: 4 }) })
+    await expect(card.locator(CARD_PRIMARY)).toContainText(primaryLabel(L, { count: 1, kind: 'image', remaining: true }), { timeout: stationTimeout({ operations: 4 }) })
     await win.locator(`${CANVAS_PANEL} ${COMPOSER_INPUT}`).fill(interrupt(locale, tag))
     await clickOrFail(win.locator(`${CANVAS_PANEL} ${COMPOSER_SEND}`), `${locale}：卡开着时打字发出去`)
     await row(R(6), '生成第 1 张后直接打字：第 2 张没发；Agent 按打的字办，回执里知道第 2 张没生成', async () => {
@@ -206,11 +206,11 @@ async function runLocale(walk, win, projectId, locale) {
     const before = walk.fixture.images.length
     const { card, tag, turnDone, receipt, nodes } = await presentShots(walk, win, projectId, locale, 5)
     await generateOnNode(win, card, nodes[0].nodeId, `${locale}：在节点上生成第 1 张`)
-    await expect(card.locator(CARD_TITLE)).toContainText(cardTitle(L, 4, 'image', { remaining: true }), { timeout: stationTimeout({ operations: 4 }) })
+    await expect(card.locator(CARD_PRIMARY)).toContainText(primaryLabel(L, { count: 4, kind: 'image', remaining: true }), { timeout: stationTimeout({ operations: 4 }) })
     await excludeShot(card, nodes[1].nodeId, `${locale}：第 2 张「不生成 ×」`)
-    await expect(card.locator(CARD_TITLE)).toContainText(cardTitle(L, 3, 'image', { remaining: true }), { timeout: stationTimeout({ operations: 4 }) })
+    await expect(card.locator(CARD_PRIMARY)).toContainText(primaryLabel(L, { count: 3, kind: 'image', remaining: true }), { timeout: stationTimeout({ operations: 4 }) })
     await generateOnNode(win, card, nodes[2].nodeId, `${locale}：在节点上生成第 3 张`)
-    await expect(card.locator(CARD_TITLE)).toContainText(cardTitle(L, 2, 'image', { remaining: true }), { timeout: stationTimeout({ operations: 4 }) })
+    await expect(card.locator(CARD_PRIMARY)).toContainText(primaryLabel(L, { count: 2, kind: 'image', remaining: true }), { timeout: stationTimeout({ operations: 4 }) })
     await expect(card.locator(CARD_PRIMARY)).toContainText(primaryLabel(L, { count: 2, kind: 'image', remaining: true }))
     await snap(walk, R(9), 'two-left', card)
     await closeSpendCard(card, `${locale}：「取消」`)
@@ -260,8 +260,8 @@ async function runLocale(walk, win, projectId, locale) {
   {
     const before = walk.fixture.videos.length
     const { card, turnDone, tag } = await presentShots(walk, win, projectId, locale, 1, 'video')
-    await row(R(12), '视频的卡：标题说「段」，主按钮「生成」；点了就发这一段', async () => {
-      await expect(card.locator(CARD_TITLE)).toContainText(cardTitle(L, 1, 'video'))
+    await row(R(12), '视频的确认：不画标题，主按钮「生成」；点了就发这一段', async () => {
+      await expect(card.locator(CARD_TITLE)).toHaveCount(0)
       await expect(card.locator(CARD_PRIMARY)).toContainText(primaryLabel(L, { count: 1, kind: 'video', single: true }))
       return (await card.innerText()).replace(/\s+/g, ' ').slice(0, 120)
     })

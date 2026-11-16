@@ -42,10 +42,16 @@ export function V4SlotShell({
   title,
   dismiss,
   footer,
+  footerDivider = true,
   children,
   ...rest
 }: {
   kind: V4InterventionKind
+  /**
+   * 页脚上那条分隔线画不画（默认画）。付费确认条不画（SpendAskSplit 板 ask.params / ask.actions：参数一行和按钮一行之间只隔 8px）；
+   * 不画时内容区空着（正在发出）页脚自己的上边距照留。
+   */
+  footerDivider?: boolean
   /**
    * 这张卡此刻**在等用户回答**（2026-09-22 用户拍板）。
    *
@@ -130,7 +136,8 @@ export function V4SlotShell({
       //（cn/twMerge 之外那条路，用户是看不见自己写的顺序不算数的）。
       // 动效不加：出现/消失本身已经是那一下变化，再补一段 transition 就是让一张等人答的卡自己动。
       className={cn(
-        'relative overflow-hidden rounded-nomi border bg-nomi-paper',
+        // 内容区一个字都没有时（付费确认条正在发出：只剩页脚那一行进度 +「取消」）内容区不画、页脚顶上那条线也不画。
+        'relative overflow-hidden rounded-nomi border bg-nomi-paper [&>div:empty+footer]:border-t-0',
         tone === 'danger'
           ? 'border-nomi-danger-edge'
           : waiting
@@ -157,7 +164,7 @@ export function V4SlotShell({
           className="absolute right-1.5 top-1.5 z-10"
         />
       ) : null}
-      <div className="flex flex-col gap-1.5 px-2.5 py-2 text-caption text-nomi-ink">
+      <div className="peer flex flex-col gap-1.5 px-2.5 py-2 text-caption text-nomi-ink empty:hidden" data-v4-block="slot-content">
         {title ? (
           // `pr-8` 给右上那颗 × 让位——两者同一行，不让位就会压在字上。
           <h3 className="m-0 pr-8 text-body-sm font-semibold text-nomi-ink" data-v4-block="slot-title">{title}</h3>
@@ -165,7 +172,7 @@ export function V4SlotShell({
         {children}
       </div>
       {footer ? (
-        <footer className="flex flex-col gap-1.5 border-t border-nomi-line-soft px-2.5 py-2 text-caption">{footer}</footer>
+        <footer className={cn('flex flex-col gap-1.5 px-2.5 py-2 text-caption', footerDivider ? 'border-t border-nomi-line-soft' : 'pt-0 peer-empty:pt-2')}>{footer}</footer>
       ) : null}
     </aside>
   )

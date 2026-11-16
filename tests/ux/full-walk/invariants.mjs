@@ -139,24 +139,16 @@ export function uiTextWith(locale, key, values = {}, dictionaries = loadDictiona
   return template.replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, (_, name) => String(values[name] ?? `{{${name}}}`))
 }
 
-/** 付费卡标题那两句（视频 / 图片），都带 i18next 复数。 */
-const SPEND_CARD_TITLE_KEYS = Object.freeze(['agentPanelV4.spendParamsTitle', 'agentPanelV4.spendParamsTitleImage'])
-
 /**
- * 付费卡标题写的是几镜：照词典里标题那两句，从 1 数到 `maxCount` 逐个去对。不能只抓数字——英文单数是
- * 「Generate this image?」，没有数字（以前没数字就回落到出价里的镜数，D2 起出价里还有去掉的镜，单数标题被读成 2 镜）。
- * `title` 是标题那一格的全部文字（后面可能跟着「生成 · Nomi 选的」角标），所以按开头对。对不上返回 null。
+ * 付费确认条主按钮说的是几镜（2026-11-15 拆开后确认条不画标题问话，数量只在主按钮上）：单段那一句「生成」没有数字 → 1；
+ * 「生成 N 段 / 张」读数字；别的（「再试一次」、去核对）→ null，不猜。按钮后面可能跟着「⏎」，按开头对。
  */
-export function spendCardTitleCount(title, locale, maxCount, dictionaries = loadDictionaries()) {
-  const text = String(title ?? '')
-  const matches = (key, count) => {
-    const phrase = uiTextWith(locale, key, { count }, dictionaries)
-    return text === phrase || text.startsWith(`${phrase} `)
-  }
-  if (SPEND_CARD_TITLE_KEYS.some((key) => matches(key, 1))) return 1
-  // 方案一把数量交给主按钮；复数标题只证明「不止一镜」，具体数量由按钮范围读取。
-  if (SPEND_CARD_TITLE_KEYS.some((key) => matches(key, 2))) return null
-  return null
+export function spendButtonCount(label, locale, dictionaries = loadDictionaries()) {
+  const text = String(label ?? '').replace('⏎', '').trim()
+  if (!text) return null
+  if (text === uiTextWith(locale, 'agentPanelV4.spendCard.generate', {}, dictionaries)) return 1
+  const digits = /(\d+)/.exec(text)?.[1]
+  return digits ? Number(digits) : null
 }
 
 /** 把一条带 `{{占位}}` 的文案变成正则源码：字面部分原样转义，占位变成同名捕获组（anchored = 必须从头开始）。 */
