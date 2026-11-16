@@ -82,6 +82,8 @@
 - [判定「这段从没生效过」之前，先顺着效果找一遍所有来源](dead-code-verdict-must-trace-the-effect.md) — 以「main 上没生效」为由删代码或说服用户改拍板之前；按效果（如 requestCanvasFit）数门，别只看要删的那个调用者
 ## B. 测试与 CI 的红绿判读
 
+- [本机视觉变化要与同机渲染的源码基准比较](compare-local-visuals-on-the-same-machine.md) — 主分支在开发机大量像素不符、异机字形差异与本机随机格
+
 - [CI 的 E2E 链是串行 fail-fast，本地 gates 一条都不含——push 前先本地跑完整条链](ci-e2e-is-fail-fast-so-run-the-whole-chain-locally-before-push.md) — ✅ 已固化（`pnpm run test:e2e:ci-chain` + CI 汇总步 + 正文现取）；连红几轮但每轮红的是不同走查 = 发现被串行化，不是没到根因
 - [Release-critical 旅程必须一轮收齐失败](release-critical-must-collect-all-failures.md) — RC 的 Electron/MCP/性能链串行但不中断，最后统一判定并上传证据；防止一轮只暴露第一条红
 - [启动器默认值不能覆盖调用配置](launcher-defaults-must-not-override-env.md) — GUI 已起但 MCP resources/list 超时：先打印双方 capabilityDir；默认派生只能在显式参数与 env 都未配置时发生。

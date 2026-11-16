@@ -3,8 +3,8 @@
 // 以前的校准单位是操作系统（calibratedPlatform: darwin），基线由谁的 Mac 录都算数，
 // 合并路径上也没有任何一台机器比对——于是不同 Mac 录的图混在一起、界面改了没人重录，
 // 用户本机一跑就是 97 张不符。现在校准单位是**一台机器**：CI 的 macOS 托管机
-// （calibration.json 的 calibratedRunner）。它比对就硬拦；别的 Mac 只报告不阻断；
-// 基线只从 CI 那次运行的产物取回（scripts/design-lab-accept.mjs），本机不录。
+// （calibration.json 的 calibratedRunner）。它比对就硬拦；本机改与同机渲染的主分支 merge-base 比；
+// 基线只从 CI 那次运行的产物取回（scripts/design-lab-accept.mjs），本机缓存图不作拍板基线。
 import { spawnSync } from 'node:child_process'
 
 /** 「macOS 26.4.1」与「26.4」视为同一台机器：字体随小版本走，补丁版本不换字体。 */
@@ -40,15 +40,15 @@ export function describeRunner(identity) {
 
 /**
  * 这一趟视觉道怎么跑：
- * - `skip-platform`：不是 macOS，不比像素（字体栅格化不同，红的是平台不是设计）；
+ * - `skip-platform`：CI 上不是 macOS，不比像素（字体栅格化不同，红的是平台不是设计）；
  * - `strict`：CI 上、机器与基准机一致，不符就红；
  * - `runner-drift`：CI 上、机器与基准机不一致（镜像升级或首次登记），照样比对、产出新图，判法同 strict，
  *   只是不符时多说一句「是镜像换了」；
- * - `advisory`：本机 Mac，比对并报告差异，不阻断——本机不是基准机，以 CI 为准。
+ * - `local-relative`：本机用同机 merge-base 快照比较，变化不阻断，基础设施失败非零；合并以 CI 为准。
  */
 export function decideVisualMode({ identity, calibrated, ci }) {
+  if (!ci) return 'local-relative'
   if (identity.platform !== 'darwin') return 'skip-platform'
-  if (!ci) return 'advisory'
   return sameRunner(identity, calibrated) ? 'strict' : 'runner-drift'
 }
 
@@ -63,7 +63,6 @@ export function decideVisualMode({ identity, calibrated, ci }) {
  */
 export function visualVerdict({ mode, pixelsPassed }) {
   if (pixelsPassed) return { exitCode: 0, kind: mode === 'runner-drift' ? 'pass-other-runner' : 'pass' }
-  if (mode === 'advisory') return { exitCode: 0, kind: 'advisory-mismatch' }
   return { exitCode: 1, kind: mode === 'runner-drift' ? 'mismatch-other-runner' : 'mismatch' }
 }
 
