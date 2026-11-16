@@ -3,18 +3,6 @@
   "note": "check:concept-owners 的棘轮基线（R17.0）：存身份（概念 + 文件 + 符号）不存裸数字，必须等于现状，只减不增。second_write_ports = 已知的第二写口债（每条写清为什么暂时收不掉）；pending_write_doors = pending 概念那条旧路在登记那一刻的全部生产写门，冻结——旧路上再长一扇就红，收掉一扇就必须删掉对应条目。新条目只能随「这次才登记 / 这次才转成 pending」的概念一起进来（和 merge-base 比）。unregistered_boundaries = 受管合同声明了共享边界、但还没登记成概念写接口的存量债（2026-10-06 冻结 37 处，只减不增，新增当场红；登记 owner 要人判断，机器补不了，负责与清债节奏见 docs/engineering/experience-system.md「概念 owner 存量债」）。本文件只能手改，没有 --update。",
   "second_write_ports": [
     {
-      "concept": "一镜对应哪些生成 job（镜 ↔ job 对应）",
-      "path": "electron/productionRun/productionQaVerdict.ts",
-      "symbol": "latestJobForShot",
-      "reason": "审片按画布节点 id（不是镜 id）找「这一镜最新那次生成」，排序也不同（attempt 后按 updatedAt，主人按 createdAt）。是不是同一件事要由制作 lane 判：是就改用 productionShotJobs.latestJobForShot，不是就登记独立概念并改名。#921 合入时留下，本 PR 不改生产文件。"
-    },
-    {
-      "concept": "一镜对应哪些生成 job（镜 ↔ job 对应）",
-      "path": "electron/shared/productionShotPhase.ts",
-      "symbol": "jobsForShot",
-      "reason": "#921 把镜 ↔ job 对应收进 productionShotJobs.jobsForShot，但这里还留着一份私有同名实现，而且多镜分支不按 stageId === 'generate' 过滤，比主人宽：同一件事两份判据、两种结果。收口 = 改 import productionShotJobs 那一份。本 PR 不改生产文件，先记债。"
-    },
-    {
       "concept": "面向用户的文案不断言「零成本」或「会花钱」（扫描所有 locale 与桌面端字符串）",
       "path": "electron/capabilityCore/mcpProtocol.ts",
       "symbol": "resources",

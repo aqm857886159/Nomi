@@ -17,7 +17,7 @@ import type {
   ProductionRun,
   RunCommand,
 } from "../productionRun/productionRunTypes";
-import { currentShotAttempt, jobEndedAfterProviderAnswer, jobEndedBeforeAcceptance } from "../shared/productionShotJobs";
+import { currentShotAttempt, hasUnresolvedShotSubmission, jobEndedAfterProviderAnswer, jobEndedBeforeAcceptance, latestJobForShot } from "../shared/productionShotJobs";
 import { canvasShotClaimCommandId } from "../shared/productionRunCommandId";
 import { decideShotClaim } from "../shared/decideShotClaim";
 import type { CanvasConsentShot } from "./appIntegrationCanvasShot";
@@ -173,6 +173,7 @@ export function settleFromRun(input: {
   projectId: string;
   link: CanvasHandOverLink | undefined;
   canvasRunId: string;
+  shotId?: string;
   error: unknown;
   readRun: (projectId: string, runId: string) => ProductionRun | null;
   writeBack: (input: {
@@ -187,18 +188,20 @@ export function settleFromRun(input: {
   const { projectId, link, canvasRunId, error, readRun, writeBack, now } = input;
   if (!link) return;
   const run = readRun(projectId, canvasRunId);
-  const job = run ? [...run.jobs].sort((left, right) => right.attempt - left.attempt)[0] : undefined;
+  const job = run ? latestJobForShot(run, input.shotId) : undefined;
   writeBack({
     projectId,
     link,
     canvasRunId,
     // 确定结束在受理之前 = 没交到；确定结束在供应商答复之后（答了、本机没落下）= 交到了；其余拿不出证据 = 结果未知。
     settlement:
-      !job || jobEndedBeforeAcceptance(job)
-        ? { outcome: "not_sent", failure: handOverFailureOf(error, job) }
-        : jobEndedAfterProviderAnswer(job)
-          ? { outcome: "accepted" }
-          : { outcome: "unknown" },
+      !job && run && hasUnresolvedShotSubmission(run, input.shotId)
+        ? { outcome: "unknown" }
+        : !job || jobEndedBeforeAcceptance(job)
+          ? { outcome: "not_sent", failure: handOverFailureOf(error, job) }
+          : jobEndedAfterProviderAnswer(job)
+            ? { outcome: "accepted" }
+            : { outcome: "unknown" },
     now,
   });
 }
