@@ -14,7 +14,7 @@ const SOURCE = /\.(ts|tsx|mts)$/;
 const TEST = /\.(test|e2e|spec)\.|\/__tests__\//;
 
 // `${…modelId|modelKey…}@${…vendor|providerId|vendorKey|modelVendor…}`：模型身份两件拼成一串。
-const CONCAT = /\$\{[^}]*\b(?:modelId|modelKey)\b[^}]*\}@\$\{[^}]*\b(?:vendor|providerId|vendorKey|modelVendor)\b[^}]*\}/;
+const CONCAT = /\$\{[^}]*\b(?:modelId|modelKey)\b[^}]*\}@\$\{[^}]*\b(?:vendor|providerId|vendorKey|modelVendor)\b[^}]*\}|\+\s*["']@["']\s*\+|\.join\(\s*["']@["']\s*\)/;
 // 拿 `@` 去切 / 找完整名字（只看同一行里提到 model 的）。
 const PARSE = /\b(?:model\w*|handle\w*)\b[^\n]*\.(?:split|lastIndexOf|indexOf)\(\s*["']@["']\s*\)/i;
 
@@ -55,6 +55,8 @@ describe("模型完整名字只有一个家", () => {
   it("阳性对照：尺子认得出两种违规写法", () => {
     expect(CONCAT.test("const name = `${row.modelId}@${row.vendor}`")).toBe(true);
     expect(CONCAT.test("label: `${model.modelKey}@${model.vendorKey}`")).toBe(true);
+    expect(CONCAT.test('const model = a + "@" + b')).toBe(true);
+    expect(CONCAT.test('const model = [a, b].join("@")')).toBe(true);
     expect(PARSE.test("const [id, vendor] = modelName.split('@')")).toBe(true);
     expect(CONCAT.test("occurrence: `${run.id}@${run.updatedAt}`")).toBe(false);
   });

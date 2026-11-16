@@ -65,7 +65,7 @@ describe('用户声明的默认模型：模型看得到，且说的是同一个�
     const text = formatLaneModelIndex(context, {})
     expect(text.match(/没有能用的已保存默认/g)).toHaveLength(4)
     expect(text).toContain('「自动选」')
-    expect(text).toContain('必须在 model 里点名一个具体模型')
+    expect(text).not.toMatch(/不填 model|在 model 里/)
     expect(text).toContain('从可用目录里挑')
     expect(text).toContain('在回话里用显示名告诉用户挑了谁')
     expect(text).toContain('以用户点名的为准')
@@ -89,6 +89,8 @@ describe('索引、默认段、变化段印的都是完整名字（2026-11-15 �
     expect(text).toContain('image-1@fixture: standard*')
     expect(text).toContain('image-1@other: standard*')
     expect(text).not.toMatch(/^image-1:/m)
+    expect(text).toContain('text text-1@fixture（当前对话）')
+    expect(text).not.toContain('text fixture/text-1')
   })
   it('变化段的新增 / 失效同样用完整名字；过时的「先请求工具组」那句已删', () => {
     const removed = formatLaneModelDelta({ ...context, availableModels: [] } as unknown as LaneComposerContext, context)

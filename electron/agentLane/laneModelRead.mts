@@ -52,8 +52,10 @@ export function createLaneModelRead(
     if (args.model !== undefined) {
       // 2026-11-15：应用内这一面点名模型只用完整名字（`模型id@供应商`），与 `draft_shots` 同一张表、同一个查法。
       const found = resolveModelHandle(all, args.model);
+      const detail = found.ok ? modelSpecDetail(found.row, 'lane', availabilityOf(found.row)) : null;
+      if (detail?.variants) detail.variants = detail.variants.map(({ modelKey: _modelKey, ...variant }) => variant);
       const payload = found.ok
-        ? { model: modelSpecDetail(found.row, 'lane', availabilityOf(found.row)),
+        ? { model: detail,
           ...(found.via === 'handle' && found.handle === args.model ? {} : { resolvedFrom: args.model }) }
         : found.reason === 'ambiguous'
           // 只写了模型 id、而它有好几家：**不许替调用方挑**，列出那几个完整名字。
@@ -62,7 +64,7 @@ export function createLaneModelRead(
               errorCode: 'ambiguous_model_vendor',
               error: `Ambiguous model: ${args.model} is carried by ${found.handles.length} providers`,
               candidates: found.handles,
-              recoveryActions: [`Retry with model set to one of: ${found.handles.join(', ')} — the same model id under two providers is two different models.`],
+              recoveryActions: [`Retry with one of: ${found.handles.join(', ')} — the same model id under two providers is two different models.`],
             }
           : {
               model: null,
@@ -71,8 +73,8 @@ export function createLaneModelRead(
               // 拒绝自带出路：最像的几个完整名字；一个都不像就指向薄名单。
               candidates: found.nearest,
               recoveryActions: [found.nearest.length
-                ? `Retry with model set to one of: ${found.nearest.join(', ')}.`
-                : 'Call list_models with no model for the thin list, then copy one full name exactly.'],
+                ? `Retry with one of: ${found.nearest.join(', ')}.`
+                : 'Call list_models for the thin list, then copy one full name exactly.'],
             };
       return { content: [{ type: 'text' as const, text: JSON.stringify(payload) }], details: payload };
     }

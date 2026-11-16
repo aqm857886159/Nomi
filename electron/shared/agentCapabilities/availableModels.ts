@@ -95,7 +95,7 @@ export function formatAvailableModelsForPrompt(entries: readonly AgentModelEntry
     return `- modelId=${entry.modelId}（${entry.label}，${entry.kind}）模式: ${modes}；参数: ${params}`;
   });
   return [
-    "可用模型（为每个分镜/节点选一个，给出 modelId、可选 modeId、params）：",
+    "可用模型（为每个分镜/节点选一个）：",
     ...lines,
     ...MODEL_ANCHOR_GUIDANCE,
     "规则：modelId 必须用上面列出的；modeId 用该模型的模式 id；params 用对应模型/模式支持的取值（如 aspect_ratio=9:16）。用户会在确认卡上调整，配错会被自动纠正。",

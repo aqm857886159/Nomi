@@ -120,7 +120,7 @@ function hostStoryboardOf(storyboard: NonNullable<DraftShot["storyboard"]>, keyf
     ...(keyframeModel ? { modelKey: keyframeModel.modelId, modelVendor: keyframeModel.providerId } : {}) } } as StoryboardAuthorFields;
 }
 
-const LIST_MODELS_NEXT = "Copy a full name exactly as list_models or the model index prints it (modelId@vendor), or omit model for the user's default.";
+const LIST_MODELS_NEXT = "Copy a full name exactly as list_models or the model index prints it.";
 
 /**
  * 有一镜点的名字查不到：码与原因和宿主准入那一层的「目录里没有这个模型」同一个（`generation_input_invalid` +
@@ -134,7 +134,7 @@ function modelNameRejected(issues: readonly ToolInputIssue[], unknown: Readonly<
   return new LaneDomainFailure({
     ...rejected,
     code: GENERATION_INPUT_INVALID_CODE,
-    message: `draft_shots could not complete the requested action (${GENERATION_INPUT_INVALID_CODE}): model ${unknown.written.slice(0, 64)} is not in the model list for this message; nothing ran and nothing was charged.`,
+    message: `draft_shots could not complete the requested action (${GENERATION_INPUT_INVALID_CODE}): model ${unknown.written} is not in the model list for this message; nothing ran and nothing was charged.`,
     nextAction: LIST_MODELS_NEXT,
     problem: generationProblemFrom({ code: "unknown_model", field: unknown.path, ...(unknown.nearest ? { nearest: unknown.nearest } : {}) }),
   });
@@ -161,7 +161,7 @@ export function resolveDraftShotModels(shots: readonly DraftShot[], rows: readon
     }
     const allowed = hit.reason === "ambiguous" ? hit.handles : hit.nearest;
     if (hit.reason !== "ambiguous" && !unknown) unknown = { path, written, ...(allowed[0] ? { nearest: allowed[0] } : {}) };
-    issues.push({ path, kind: "not_allowed", received: written.slice(0, 32), allowed,
+    issues.push({ path, kind: "not_allowed", received: written, allowed,
       note: hit.reason === "ambiguous" ? "several vendors carry this model id; pick one full name"
         : allowed.length ? "no model with this full name" : "no model with this name; call list_models for full names" });
     return undefined;

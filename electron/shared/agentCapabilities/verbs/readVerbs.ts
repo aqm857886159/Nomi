@@ -165,7 +165,7 @@ export function readVerbs(): VerbDeclaration[] {
   }).strict();
   const laneModelDetail = laneModelRow.extend({
     archetypeId: entry.archetypeId!, modelAlias: entry.modelAlias!, defaultModeId: entry.defaultModeId!, defaultVariantId: entry.defaultVariantId!,
-    modes: entry.modes!, variants: z.array(z.object({ id: z.string(), label: z.string(), modelKey: z.string().optional(),
+    modes: entry.modes!, variants: z.array(z.object({ id: z.string(), label: z.string(),
       parameterOverridesByMode: z.record(z.record(z.unknown())).optional() }).strict()).optional(),
   });
   const listModels: VerbDeclaration = {

@@ -89,10 +89,25 @@ describe("generationProblem：起草被拒的闭合原因", () => {
     const next = generationProblemFrom(input).next!;
     for (const text of [generationProblemModelText(input), GENERATION_PROBLEM_NEXT_ACTION_EN[next as Exclude<typeof next, "fix_field">]]) {
       expect(text).toContain("list_models");
-      expect(text).toContain("modelId");
+      expect(text).not.toMatch(/modelId|providerId|candidate/);
+      expect(text).toMatch(/choose an available model.*retry the same tool/);
       expect(text).toContain("display name");
       expect(text).not.toMatch(/ask the user|settings|pick a default/i);
     }
+  });
+
+  it("模型拒收保留原值、最近完整名字和动作，不再教字段写法", () => {
+    const model = "doubao-seedream-5-0-pro-unknown@volcengine";
+    const nearest = "doubao-seedream-5-0-pro@apimart";
+    const input = { code: "unknown_model", model, nearest } as const;
+    const text = generationProblemModelText(input);
+    expect(text).toContain(model);
+    expect(text).toContain(nearest);
+    expect(text).toMatch(/closest/);
+    expect(text).toMatch(/list_models|ask the user/i);
+    expect(text).not.toMatch(/modelId|providerId|candidate/);
+    expect(GENERATION_PROBLEM_NEXT_ACTION_EN.use_nearest_model).toMatch(/same tool.*closest model/i);
+    expect(generationProblemModelText({ code: "unknown_model", model })).toContain("list_models");
   });
 
   it("读回不信任：形状不对的格丢掉，码不在表里整份不要（老转录、被改坏的转录都可能出现）", () => {

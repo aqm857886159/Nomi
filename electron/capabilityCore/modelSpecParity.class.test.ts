@@ -54,6 +54,9 @@ const mcpDetail = (modelId: string, vendor?: string | null) => {
 const factsOf = (spec: unknown): Record<string, unknown> | null => {
   if (!spec || typeof spec !== "object") return null;
   const { model: _lane, modelId: _mcpId, vendor: _mcpVendor, ...facts } = spec as Record<string, unknown>;
+  if (Array.isArray(facts.variants)) {
+    facts.variants = facts.variants.map(({ modelKey: _variantIdentity, ...variant }) => variant);
+  }
   return facts;
 };
 const handleOf = (modelId: string, vendor: string | null | undefined) => modelHandleOf({ modelId, vendor: vendor ?? null });
@@ -211,6 +214,9 @@ describe("model spec parity across the two model faces", () => {
     expect(withVariants, "the seeded catalog has no model with variants — premise gone").toBeTruthy();
     const detail = (await laneCall({ model: modelHandleOf(withVariants!) })).model as Record<string, unknown>;
     expect((detail.variants as unknown[]).length).toBeGreaterThan(0);
+    for (const variant of detail.variants as object[]) expect(variant).not.toHaveProperty("modelKey");
+    const mcp = mcpDetail(withVariants!.modelId, withVariants!.vendor);
+    expect(mcp?.variants).toEqual(expect.arrayContaining([expect.objectContaining({ modelKey: expect.any(String) })]));
     const thin = mcpThin().find((row) => row.modelId === withVariants!.modelId);
     expect(thin?.variantIds?.length).toBeGreaterThan(0);
   });

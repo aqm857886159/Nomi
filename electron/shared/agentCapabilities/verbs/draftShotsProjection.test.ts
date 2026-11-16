@@ -125,6 +125,16 @@ describe("比例只有一个家（2026-10-05：用户说 16:9，卡上是档案�
 });
 
 describe("模型身份只有一个家（2026-11-15：完整名字 model）", () => {
+  it("长完整名字被拒时仍完整回显，不截成无法抄回的 32 字", () => {
+    const written = "doubao-seedream-5-0-pro-unknown-release-with-a-long-model-suffix@volcengine";
+    try {
+      translate({ shots: [{ prompt: "p", model: written }] });
+      expect.fail("unknown model must be refused");
+    } catch (error) {
+      expect((error as { failure: { issues?: Array<{ received?: string }> } }).failure.issues?.[0]?.received).toBe(written);
+      expect((error as Error).message).toContain(written);
+    }
+  });
   const draftShots = VERB_DECLARATIONS.find((verb) => verb.name === "draft_shots")!;
   const IDENTITY_PIECES = ["modelId", "modelKey", "vendor", "providerId", "modelVendor", "candidate", "provider"];
   const keysOf = (schema: unknown): string[] => Object.keys((schema as { properties?: Record<string, unknown> }).properties ?? {});

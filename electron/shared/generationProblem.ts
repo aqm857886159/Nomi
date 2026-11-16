@@ -154,9 +154,7 @@ export function generationProblemModelText(input: GenerationProblemInput): strin
     case "unknown_model":
       return `${input.model ? `Model ${input.model}` : "The named model"} is not in the model catalog`
         + (input.nearest ? `; the closest one is ${input.nearest}.` : ".")
-        + " Name a providerId/modelId exactly as list_models gives it"
-        + (input.nearest ? ` (likely ${input.nearest})` : "")
-        + ", or ask the user which model they mean. A default model is not the problem here.";
+        + " Call list_models, or ask the user which model they mean. A default model is not the problem here.";
     case "no_default_model": {
       const kind = input.media === "video" ? "video" : "image";
       return `No ${kind} model was named and the user has no default ${kind} model. `
@@ -193,7 +191,7 @@ export function generationProblemModelText(input: GenerationProblemInput): strin
   }
 }
 
-const PICK_MODEL_ACTION_EN = "Call list_models, choose an available model, explicitly name its modelId (and providerId as listed) in the draft, and retry the same tool. Tell the user which model you chose using its display name from the catalog, not its ids.";
+const PICK_MODEL_ACTION_EN = "Call list_models, choose an available model, and retry the same tool. Tell the user which model you chose using its display name from the catalog, not its ids.";
 
 /** 给模型读的 `Next:`，按动作词表出。`fix_field` 不在这里——它沿用准入层按字段码给的那句。 */
 export const GENERATION_PROBLEM_NEXT_ACTION_EN: Readonly<Record<Exclude<GenerationProblemNext, "fix_field">, string>> = {
