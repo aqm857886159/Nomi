@@ -15,7 +15,6 @@ vi.mock('../../api/taskApi', () => ({
   pollCanvasShotRun: calls.poll, consentCanvasShots: vi.fn(), mintSpendGrant: vi.fn(), fetchWorkbenchTaskResultByVendor: vi.fn(),
 }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
-vi.mock('./assetUploadConsent', async (original) => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
 vi.mock('./nodeModelHealth', () => ({ recordNodeModelFailure: vi.fn(), recordNodeModelSuccess: vi.fn() }))
 vi.mock('../../library/localProjectStore', () => ({ readLocalProjectAsync: vi.fn(async () => null), saveLocalProject: vi.fn(async () => null) }))
 

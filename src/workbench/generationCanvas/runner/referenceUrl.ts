@@ -1,6 +1,7 @@
 // 参考 URL 解析的**唯一**底层助手：从节点 result 取可用 URL、按白名单校验、按 `nodeId[:resultId]`
 // 引用定位。generationReferenceResolver（生成期）与 referenceSlots（能力驱动槽解析）共用这一份，
 // 不再各写一套（P1 单一真相源）。
+export { collectLocalAssetUrls } from '../../../../electron/catalog/assetValueScheme'
 import { isLocalizableAssetValue } from '../../../../electron/catalog/assetValueScheme'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 

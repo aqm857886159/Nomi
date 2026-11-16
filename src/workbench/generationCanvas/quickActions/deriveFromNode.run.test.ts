@@ -50,10 +50,6 @@ vi.mock('../../api/modelCatalogApi', async (original) => ({
   ...await original<typeof import('../../api/modelCatalogApi')>(),
   listWorkbenchModelCatalogVendors: async () => { throw new Error('no catalog bridge in tests') },
 }))
-vi.mock('../runner/assetUploadConsent', async (original) => ({
-  ...await original<typeof import('../runner/assetUploadConsent')>(),
-  resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }),
-}))
 
 const LOCAL_URL = 'nomi-local://asset/project-a/out.png'
 const TEMPLATE = '这是一张 3×3 机位联系表：同一时刻、同一场景，只换九个机位。'

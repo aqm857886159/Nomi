@@ -9,17 +9,16 @@ import {
 const paidNode = { meta: { modelVendor: 'relay', modelKey: 'image' } }
 
 describe('spendConfirmationRequirement（唯一判据）', () => {
-  // 列：说明 / 发起方 / 一下跑几份 / 首次匿名托管告知 / 要不要确认。金额不在判据里（Nomi 现在不计算价格）。
-  it.each<[string, SpendInitiator, number, boolean, boolean]>([
-    ['reported case: I click ↑ on one node', 'user', 1, false, false],
-    ['storyboard row 「生成镜 N」, one shot', 'user', 1, false, false],
-    ['×2 on one node', 'user', 2, false, true],
-    ['batch of four', 'user', 4, false, true],
-    ['Agent, single run', 'agent', 1, false, true],
-    ['Agent, batch', 'agent', 3, false, true],
-    ['first hosted run discloses', 'user', 1, true, true],
-  ])('%s', (_label, initiator, runCount, hostingDisclosure, expected) => {
-    expect(spendConfirmationRequirement({ initiator, runCount, hostingDisclosure })).toBe(expected)
+  // 列：说明 / 发起方 / 一下跑几份 / 要不要确认。金额不在判据里（Nomi 现在不计算价格）。
+  it.each<[string, SpendInitiator, number, boolean]>([
+    ['reported case: I click ↑ on one node', 'user', 1, false],
+    ['storyboard row 「生成镜 N」, one shot', 'user', 1, false],
+    ['×2 on one node', 'user', 2, true],
+    ['batch of four', 'user', 4, true],
+    ['Agent, single run', 'agent', 1, true],
+    ['Agent, batch', 'agent', 3, true],
+  ])('%s', (_label, initiator, runCount, expected) => {
+    expect(spendConfirmationRequirement({ initiator, runCount })).toBe(expected)
   })
 })
 

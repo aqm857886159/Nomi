@@ -22,7 +22,6 @@ vi.mock('../../library/localProjectStore', () => ({
 }))
 vi.mock('../../api/taskApi', () => ({ canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
-vi.mock('./assetUploadConsent', async original => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
 
 let session: ProjectSessionTestHarness
 beforeEach(() => {
@@ -77,7 +76,7 @@ it.each(['quota', 'local-refusal', 'server'])('A1/A2/A3: %s uses the correct bra
     if (paused) { observedPause = true; state.cancelBatchRemaining(paused.id) }
   })
   try {
-    await runGenerationNodesByPlan({ waves: [nodes.map(n => n.id)], edgesUsed: [], blocked: [] }, { target, concurrency: kind === 'server' ? 1 : 6, retry: { maxAttempts: 1 }, assetUploadConsent: 'not-needed' })
+    await runGenerationNodesByPlan({ waves: [nodes.map(n => n.id)], edgesUsed: [], blocked: [] }, { target, concurrency: kind === 'server' ? 1 : 6, retry: { maxAttempts: 1 } })
     expect(observedPause).toBe(kind === 'server')
     if (kind !== 'server') expect(calls.execute).toHaveBeenCalledTimes(8)
     if (kind === 'local-refusal') expect(recordNodeModelFailure).not.toHaveBeenCalled()
@@ -91,7 +90,7 @@ it.each([false, true])('B3: a single generation takes the node out of another qu
   queue.attachCanvasConsent(batch, new Map([[node.id, 'original-offer']]))
   if (paused) useGenerationQueueStore.setState(state => ({ batches: { ...state.batches, [batch]: { ...state.batches[batch], paused: true } } }))
   calls.execute.mockImplementation(async node => imageRun(node.id))
-  await runGenerationNode(node.id, { target, assetUploadConsent: 'not-needed', retry: { maxAttempts: 1 } })
+  await runGenerationNode(node.id, { target, retry: { maxAttempts: 1 } })
   expect(useGenerationQueueStore.getState().entries.find(e => e.batchId === batch)?.state).toBe('cancelled')
   expect(withdrawCanvasShots).toHaveBeenCalledWith({ projectId: target.projectId, runRecordIds: ['original-offer'], by: 'removed' })
   expect(calls.execute).toHaveBeenCalledOnce()
@@ -139,7 +138,7 @@ it('B2: retrying a failed card while its batch is paused does not resubmit it wh
     if (batch) paused(batch.id)
   })
   const running = runGenerationNodesByPlan({ waves: [nodes.map(node => node.id)], edgesUsed: [], blocked: [] },
-    { target, concurrency: 1, retry: { maxAttempts: 1 }, assetUploadConsent: 'not-needed' })
+    { target, concurrency: 1, retry: { maxAttempts: 1 } })
   const batchId = await pause
   try {
     calls.execute.mockImplementation(async node => imageRun(node.id))

@@ -852,4 +852,13 @@ describe("model trial intent class matrix", () => {
     await expect(intent.submit(retry, async () => { throw new SubmissionNotDispatchedError("never sent", "never_reached_network"); })).rejects.toThrow();
     expect((await hostProcess(settings, { scope: hostScope }).done).out?.owned).toBe(false);
   }, 30_000);
+  it('hosting upload failure gives an unattended caller one actionable sentence', async () => {
+    const result = await trial(argsFor(), { runTask: async () => {
+      throw new SubmissionNotDispatchedError('NOMI_ERR::asset-upload-failed:: fixture upload failed', 'never_reached_network');
+    } });
+    expect(result.code).toBe('provider_failed');
+    expect(result.message).toMatch(/设置|Settings/);
+    expect(creates).toBe(0);
+  });
+
 });

@@ -80,7 +80,6 @@ describe.skipIf(!fs.existsSync(tsxCli))('每种取回异常：真落盘、新进
   ])('%s', async (_name, code, message) => {
     const id = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '镜头 5', meta: { modelVendor: 'apimart', modelKey: 'MiniMax-H3' } }).id
     await runGenerationNodesBatch([id], { target: projectTarget,
-      assetUploadConsent: 'not-needed',
       retry: { maxAttempts: 1 },
       executor: async (node) => {
         useGenerationCanvasStore.getState().setNodeProgress(node.id, { phase: 'still-generating', taskId: 'task-paid-restart' })

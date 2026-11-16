@@ -374,9 +374,6 @@
     "d7e259dfa7c91a74bdb71c164097462715e1ef286c0b2de04e10a5a15703a74d": 1,
     "1536e3beb200b3798c4ea84b0bea32fdf6cdda84202b0a76ef3f8f8ef385fcf0": 1
   },
-  "tests/ux/f3-f16b.walk.mjs": {
-    "6b7005f890da8b1f59162758a280b327c281d7a0599594e68a656c4497aa3f3b": 1
-  },
   "tests/ux/feedback-batch-hardening.walk.mjs": {
     "fdddb80d7b3c6d4038483eef98cfcd0b7c95806991329e15e299fe381f08d897": 1
   },

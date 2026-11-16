@@ -1,15 +1,6 @@
 import type { AssetIngestion, AssetMediaKind } from './types'
 
-export type AnonymousAssetConsent = 'ask' | 'allow' | 'deny'
 export type AssetTransportVisibility = 'provider-private' | 'public-provider' | 'public-anonymous'
-
-export function anonymousConsentFromUnknown(value: unknown): AnonymousAssetConsent {
-  return value === 'allow' || value === 'deny' ? value : 'ask'
-}
-
-export function canUseAnonymousAssetHosting(consent: AnonymousAssetConsent): boolean {
-  return consent === 'allow'
-}
 
 export function ingestionVisibility(ingestion: AssetIngestion): AssetTransportVisibility {
   return ingestion.visibility || (ingestion.strategy === 'anon-chain' ? 'public-anonymous' : 'provider-private')

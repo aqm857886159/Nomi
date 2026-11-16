@@ -711,6 +711,33 @@ export default tseslint.config(
     rules: rawVendorSendRules(RAW_VENDOR_SEND_NAMES),
   },
   {
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', '**/*TestUtils.ts', 'electron/catalog/assetLocalization.ts', 'electron/catalog/assetIngestionRegistry.ts'],
+    plugins: { 'hosting-channel-owner': boundaryPlugin('no-restricted-syntax') },
+    rules: { 'hosting-channel-owner/no-restricted-syntax': ['error',
+      { selector: 'Identifier[name=/^(ANON_UPLOAD_CHAIN|LITTERBOX_INGESTION|TMPFILES_INGESTION)$/]', message: 'Only the asset upload loop may reference third-party hosting channels.' },
+      { selector: 'Literal[value=/tmpfiles\\.org|litter(?:box)?\\.catbox\\.moe/]', message: 'Third-party hosting addresses belong to assetIngestionRegistry, used only by the upload loop.' },
+    ] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', 'src/workbench/settings/AiModelsSection.tsx'],
+    plugins: { 'hosting-setting-owner': boundaryPlugin('no-restricted-syntax') },
+    rules: { 'hosting-setting-owner/no-restricted-syntax': ['error',
+      { selector: 'Property:matches([key.name="anonymousAssetHosting"], [key.value="anonymousAssetHosting"])', message: 'Only the Settings switch may write anonymousAssetHosting.' },
+      { selector: 'AssignmentExpression > MemberExpression.left:matches([property.name="anonymousAssetHosting"], [property.value="anonymousAssetHosting"])', message: 'Only the Settings switch may write anonymousAssetHosting.' },
+    ] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', '**/*TestUtils.ts'],
+    plugins: { 'hosting-consent-retired': boundaryPlugin('no-restricted-syntax') },
+    rules: { 'hosting-consent-retired/no-restricted-syntax': ['error',
+      { selector: 'Identifier[name=/^(anonymousAssetHostingConsent|anonymousConsent|hostingAllowed|assetUploadConsent|hostingDisclosure|anonymousHostingDisclosure)$/]', message: 'Per-run hosting consent is retired; the upload loop reads the main-process setting.' },
+      { selector: 'JSXAttribute[name.name=/^data-hosting-(disclosure|remember)$/]', message: 'Per-run hosting disclosure is retired.' },
+    ] },
+  },
+  {
     // runtime.ts 只留 multipart 上传；它的 JSON 出网走 sendProfileJson。
     files: ['electron/runtime.ts'],
     plugins: { 'raw-vendor-send': rawVendorSendPlugin },

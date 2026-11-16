@@ -1,0 +1,25 @@
+{
+  "id": "USER-20261117-hosting-setting-only",
+  "since": "2026-11-17",
+  "source": "用户报告默认托管策略下参考图未经告知传到第三方；2026-11-17 决定「删掉，用设置开关」。",
+  "category": "interaction-semantics",
+  "problem": "生成调用方自带 allow，上传循环缺省 allow；默认 ask 也会外传参考素材。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-17-hosting-setting-only.md",
+    "electron/catalog/hostingSettingOnly.test.ts"
+  ],
+  "rootCauseContract": "docs/fixes/2026-11-17-hosting-setting-only.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/catalog/hostingSettingOnly.test.ts"
+  },
+  "completionCommits": []
+}

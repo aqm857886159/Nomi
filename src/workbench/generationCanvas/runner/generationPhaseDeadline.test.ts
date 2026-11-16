@@ -252,7 +252,6 @@ function runStuckNode(id: string, fetchTaskResult: () => Promise<{ vendor: strin
   ))
   const settled = runGenerationNodesBatch([id], {
     target: projectTarget,
-    assetUploadConsent: 'not-needed',
     retry: { maxAttempts: 3 },
     executor: (node, context) => runCatalogGenerationTask(node, {
       projectTarget: context.projectTarget,

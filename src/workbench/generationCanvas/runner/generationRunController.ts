@@ -52,34 +52,13 @@ import {
 } from '../nodes/controls/referenceDependency'
 import { dispatchedAttempt, resolveTaskArchetype } from './catalogTaskResolve'
 import i18n from '../../../i18n'
-import {
-  AssetUploadConsentCancelledError,
-  buildConsentNode,
-  hostingDisclosureForResolution,
-  hasLocalAssetReference,
-  resolveAssetUploadConsent,
-} from './assetUploadConsent'
+
 import { buildDialoguePromptSuffix } from '../agent/storyboardDialogue'
 import type { MediaDimensions } from '../nodes/nodeSizing'
 
 function countsTowardGenerationBrake(kind: ReturnType<typeof classifyGenerationError>['kind']): boolean {
   return kind !== 'quota' && kind !== 'local-refusal'
 }
-
-/**
- * 公共临时托管的**已决**同意。注意它是 `RunGenerationNodeOptions` 里唯一必填的字段——
- * 这是故意的，也是 F16b 的根治手法。
- *
- * 为什么必填：旧版把它写成可选的 `assetUploadConsent?: 'allow'`，runner 里再用
- * 「没传就自己弹一张卡」兜底。结果是「忘了传」这件事完全没有信号——编译过、测试绿、
- * 只有真用户在 agent / MCP 路径上每次生成都被第二张卡拦一下。改成必填后，
- * 「谁来问用户」这个问题在**编译期**就必须被每个调用点回答，答不出就不给过。
- *
- * 只有两个合法答案，都必须来自 resolveAssetUploadConsent 的解析结果：
- * - `'allow'`     ：用户已在花钱确认卡上同意（或策略/KIE 判定无需再问）。
- * - `'not-needed'`：这次生成压根不碰公共托管（无本地素材 / 本地 ComfyUI 跑）。
- */
-export type AssetUploadConsentDecision = 'allow' | 'not-needed'
 
 /** Interactive validation is only for approval; author validation survives project switches. */
 export type GenerationApprovalGuards =
@@ -119,11 +98,6 @@ export type RunGenerationNodeOptions = {
   promptSuffix?: string
   /** 队列批次 id（任务中心的调度真相源，见 generationQueueStore）。不传 = 单发，内部自建 1 节点批次。 */
   batchId?: string
-  /**
-   * 上游确认面已解析好的托管同意。**必填**，理由见 AssetUploadConsentDecision。
-   * runner 不问用户——它只执行已经做出的决定。
-   */
-  assetUploadConsent: AssetUploadConsentDecision
   /** 这次运行所属的项目（提交那一刻签发的完整绑定）。**必填**：运行期间只认它，不重读当前项目。 */
   target: RunProjectTarget
   /**
@@ -135,18 +109,12 @@ export type RunGenerationNodeOptions = {
   claimAdmittedByHost?: true
 }
 
-async function resolveHostingDisclosure(node: GenerationCanvasNode | undefined) {
-  return node ? hostingDisclosureForResolution(await resolveAssetUploadConsent(await buildConsentNode(node))) : { allowed: true }
-}
-
-
 type GenerationRunContext = {
   nodes?: GenerationCanvasNode[]
   edges?: GenerationCanvasEdge[]
 }
 
-// options 没有默认值：`= {}` 正是让调用点能省略托管同意的那个逃生口（F16b 根因）。
-// 去掉它之后，「谁问的用户」在编译期就必须有答案。target 同理：运行属于哪个项目在提交那一刻就定死。
+// target 必填：运行属于哪个项目在提交那一刻就定死。
 export async function runGenerationNode(
   nodeId: string,
   options: RunGenerationNodeOptions,
@@ -175,24 +143,7 @@ export async function runGenerationNode(
     )
   }
 
-  // 托管同意在**上游**就已经问完了（花钱确认卡里的披露块，或自主路径的
-  // resolveAutonomousUploadConsent）。这一层不再问、也不再有能问的东西——它只把已决的答案
-  // 往下透传给 executor。F16b 之前这里会自己弹第二张卡，那张卡现已删除，见 assetUploadConsent.ts。
-  const resolvedReferences = resolveGenerationReferences(initialNode, { nodes: initialState.nodes, edges: initialState.edges })
-  // 提交时打上游版本戳（refSnapshot）：参考图后来重生成 → diff 即知「这次产物用的是旧图」。
   whenRunTargetLoaded(target, () => stampUpstreamRefSnapshot(id, { nodes: initialState.nodes, edges: initialState.edges }))
-  const hasLocalReference = hasLocalAssetReference({
-    ...initialNode,
-    references: [
-      ...(initialNode.references || []),
-      ...resolvedReferences.referenceImages,
-      ...resolvedReferences.referenceVideos,
-      ...resolvedReferences.referenceAudios,
-      ...(resolvedReferences.firstFrameUrl ? [resolvedReferences.firstFrameUrl] : []),
-      ...(resolvedReferences.lastFrameUrl ? [resolvedReferences.lastFrameUrl] : []),
-      ...(resolvedReferences.relayFromVideoUrl ? [resolvedReferences.relayFromVideoUrl] : []),
-    ],
-  })
 
   // 队列登记：批量路径由 runGenerationNodesByPlan 预先整批登记（含后续波次），单发路径自建 1 节点批次。
   // markRunning 只把 queued 翻成 running（幂等），所以两条路都能安全调。
@@ -253,7 +204,6 @@ export async function runGenerationNode(
           // 提交幂等键 = 本次 run.id：重试循环内每次 attempt 复用同一个 run.id，
           // electron 侧台账据此认作「同一次意图提交」→ 重试绝不二次下单。新生成 = 新 run.id。
           idempotencyKey: run.id,
-          ...(hasLocalReference ? { anonymousAssetHostingConsent: 'allow' as const } : {}),
           // S2:catalog 任务各阶段回报 → 节点进度(人话已由 narrate 翻好)。
           onProgress: (progress) => {
             reportProgress({
@@ -315,11 +265,7 @@ export async function runGenerationNode(
       useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
       throw isLocalTaskCancelledError(error) ? error : new LocalTaskCancelledError()
     }
-    if (error instanceof AssetUploadConsentCancelledError) {
-      await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'idle' })
-      useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
-      throw error
-    }
+
     // A polling timeout remains recoverable from its persisted taskId; it is not a model failure.
     if (isRecoverableTimeoutError(error)) {
       await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'recoverable', error: error.message })
@@ -442,8 +388,6 @@ export async function runGenerationNodesBatch(
           assertApprovedInputs: options.assertApprovedInputs,
           executor: options.executor,
           retry: options.retry,
-          // 整批共用一个托管决定：批量确认卡对整批问了一次（batchPlanPreview），别在波次里逐个再问。
-          assetUploadConsent: options.assetUploadConsent,
           target: options.target,
           ...(options.claimAdmittedByHost ? { claimAdmittedByHost: true as const } : {}),
           ...(options.canvasRunRecordIds?.has(nodeId) ? { ledger: 'run' as const, runRecordId: options.canvasRunRecordIds.get(nodeId)! } : {}),
@@ -500,15 +444,13 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
   const open = !opts.rerun && paidNodeLedger(node) ? await canvasOpenRuns({ projectId, nodeId }) : []
   if (open.length && opts.initiator !== 'user') throw Object.assign(new Error('node_generation_in_flight'), { code: 'node_generation_in_flight' })
   if (opts.prepareDependencies?.()) return 'nothing-to-run'
-  const hosting = await resolveHostingDisclosure(node)
-  if (!hosting.allowed) return 'declined'
   let acknowledgedOpenRuns: string[] | undefined
   const askToResend = async (entries: Awaited<ReturnType<typeof canvasOpenRuns>>): Promise<GenerationRunOutcome | null> => {
     if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
     synchronizeCanvasOpenRuns(entries)
     const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
     const unknown = entries.some(entry => entry.reason === 'needs_reconcile') || Boolean(current?.error && classifyGenerationError(current.error).primary === 'release-regenerate')
-    const confirmed = await confirmGenerationResend({ resultUnknown: unknown, kind: current ? spendCostKind(current.kind) : 'image', ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}) })
+    const confirmed = await confirmGenerationResend({ resultUnknown: unknown, kind: current ? spendCostKind(current.kind) : 'image' })
     if (!confirmed) return 'declined'
     if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
     try {
@@ -532,7 +474,6 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
     title: opts.rerun ? i18n.t('generationCommon.spend.generateVariant') : opts.title || i18n.t('generationCommon.spend.startGeneration'),
     message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', await withGenerationEtaStats(generationCostContextForNode(node, projectId))),
     confirmLabel: opts.rerun ? i18n.t('generationCommon.spend.generateVariant') : opts.confirmLabel || i18n.t('generationCommon.spend.generate'),
-    ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
   // **这一行就是那个结局**：2026-09-22 之前它是一个裸 `return`，Agent 那一侧因此读不到
   // 「他点了取消」（见 `generationRunOutcome.ts`）。
@@ -556,7 +497,7 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
   }
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const work = runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...(paidNodeLedger(runNode) ? { ledger: 'run' as const } : {}), initiator: opts.initiator, acknowledgedOpenRuns, assetUploadConsent: 'allow', target: project.binding })
+      const work = runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...(paidNodeLedger(runNode) ? { ledger: 'run' as const } : {}), initiator: opts.initiator, acknowledgedOpenRuns, target: project.binding })
       ready()
       const result = await work
       whenRunTargetLoaded(project.binding, () => {

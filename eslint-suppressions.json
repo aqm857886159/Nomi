@@ -1931,11 +1931,6 @@
       "count": 1
     }
   },
-  "tests/ux/f3-f16b.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 4
-    }
-  },
   "tests/ux/feel-policy.test.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
