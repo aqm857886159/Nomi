@@ -144,6 +144,7 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
       const spend = createDesktopLaneSpend(binding.projectId, () => workspace?.refreshSpend())
       let ports: ReturnType<typeof createDesktopLaneTools>
       try { ports = createDesktopLaneTools({ session, binding, surface, context: () => activeInput, receipts, generationFactory, spendCard: spend,
+        modelDefaults: readLaneDeclaredDefaults,
         // 与下面 `approval.policy` 同一个来源（`composer`，不是 `activeInput`）：档位是「用户现在
         // 选的那一档」，切完下一次调用就该照它走，而不是等下一条消息把快照带进来。
         approvalPolicy: () => composer.approvalPolicy,

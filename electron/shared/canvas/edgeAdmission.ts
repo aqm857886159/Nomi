@@ -93,6 +93,27 @@ export const EDGE_MODE_SLOTS: Record<EdgeAdmissionMode, readonly ArchetypeRefere
   composition_ref: ['image_ref'],
 }
 
+/** 一条「挂在节点身上的参考需求」：它想落的槽种类集合 × 源资产类型（`modeForInputs` 的一件输入就是它）。 */
+export type ReferenceDemand = { slots: readonly ArchetypeReferenceSlotKind[]; asset: ReferenceAssetKind }
+
+/** 参考的用途 → 对应的连线语义（首 / 尾帧照名；角色、通用、音频都按通用参考，落哪一格由目标的槽位解析定）。 */
+export function edgeModeForReferenceRole(role: string | undefined): EdgeAdmissionMode {
+  return role === 'first_frame' || role === 'last_frame' ? role : 'reference'
+}
+
+/**
+ * 一条按用途给出的参考（不是连线）要的槽：和那条用途对应的连线要的一样。画布的上传列表和主进程的候选参考
+ * （`{kind, role}`，缺 kind 按图片——传输层的缺省也是图片）都经这一处折成 `modeForInputs` 的输入，不各写一张。
+ */
+export function referenceDemandForRole(role: string | undefined, asset: ReferenceAssetKind): ReferenceDemand {
+  return { slots: EDGE_MODE_SLOTS[edgeModeForReferenceRole(role)], asset }
+}
+
+/** 候选上的参考（主进程的 `PlanCandidate.references`）→ 这次的输入。 */
+export function referenceDemandsForCandidate(references: ReadonlyArray<Readonly<{ kind?: ReferenceAssetKind; role?: string }>>): ReferenceDemand[] {
+  return references.map((reference) => referenceDemandForRole(reference.role, reference.kind ?? 'image'))
+}
+
 /**
  * 从节点 meta 解析模型档案 —— 一律走发送路径同一个入口 `resolveModelArchetype`（它自己读 meta 里的显式 id 并做 legacyIds 迁移，
  * 不在这里就地读 `meta.archetype.id`：那条捷径跳过迁移，同一节点两条路径认到两个档案，2026-09-08 修过）。

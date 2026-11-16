@@ -55,10 +55,12 @@ describe("拒绝信里不许出现 undefined", () => {
     const fs = await import("node:fs");
     const source = fs.readFileSync("electron/capabilityCore/mcpGenerationVideoResolve.ts", "utf8");
     // 拒收现在由闭合原因生成正文（`refuseGeneration`），事实常写在下一行的 `allowed:` / `detail:` 里，所以整份文件扫插值。
-    const refusals = source.split("\n").filter((line) => line.includes("transportTaskKind") && line.includes("${"));
+    // 2026-11-17 起桶由 `modeTransportFor` 三级答（供应商特化 > 方式 > 档案），拒收里插的是它的答案 `transport`，同样可能缺。
+    const refusals = source.split("\n").filter((line) => (line.includes("transportTaskKind") || line.includes("${transport}")) && line.includes("${"));
     expect(refusals.length, "扫描器至少认得出那一处带守卫的插值").toBeGreaterThan(0);
     // 直接把 `${mode.transportTaskKind}` 插进句子里的写法一条都不许剩（要么走 `kind` 守卫，要么走三元）。
     expect(refusals.filter((line) => /\$\{mode\.transportTaskKind\}/.test(line))).toEqual([]);
     expect(refusals.filter((line) => /\$\{item\.transportTaskKind\}/.test(line) && !line.includes("item.transportTaskKind ?"))).toEqual([]);
+    expect(refusals.filter((line) => line.includes("${transport}") && !line.includes("transport ?"))).toEqual([]);
   });
 });

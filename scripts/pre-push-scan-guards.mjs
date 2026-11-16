@@ -87,7 +87,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/productionRun/landFirstOneAdmission.test.ts', roots: ELECTRON }, // 6 秒
   { file: 'electron/settings/sideBySideInstallSeed.test.ts', roots: ELECTRON }, // 3 秒
   { file: 'electron/shared/agentCapabilities/directGenerationBrakes.boundaries.test.ts', roots: ELECTRON }, // 代答付费只剩一个入口：遍历 electron 找直接调 spendDecidedByPolicy 的生产文件（3 秒）
-  { file: 'electron/shared/agentCapabilities/modelHandle.structure.test.ts', roots: ['electron', 'src'] }, // 模型完整名字只在 modelHandle.ts 拼和切：遍历 electron + src 的生产代码（2 秒）
+  { file: 'electron/shared/agentCapabilities/modelHandle.structure.test.ts', roots: ['electron', 'src'] }, // 模型完整名字只在 modelHandle.ts 拼和切、写下的名字只在那里认、发送方式只在 modeForInputs 挑：遍历 electron + src 的生产代码（2 秒）
   { file: 'electron/update/installGate.structure.test.ts', roots: ELECTRON }, // 2 秒
   { file: 'electron/durability.test.ts', roots: ['electron', 'src', 'scripts', 'tests'] }, // 只有测试 harness 能翻成 ephemeral：四个根目录都扫（9 秒）
   { file: 'electron/providerAdapter/architecture.test.ts', roots: ['electron/providerAdapter'] }, // 2 秒
