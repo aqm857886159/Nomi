@@ -345,6 +345,51 @@ const REFERENCE_MERGE_CALLERS = {
   'electron/shared/generationLowering/runReferences.ts': 'Run 路把产物并进合同参数',
   'electron/catalog/taskParams.ts': 'headless 默认参数里并入产物（applyHeadlessParamDefaults）',
 }
+// ⑧ 新模型「怎么调、对不对」只有一个家（2026-11-17，设计卡 docs/plan/2026-11-17-declaration-one-home.md）：三条接入路（设置向导 /
+// 接入会话 / 整卡提交）只消费结果。草稿从哪来、身份怎么锁只由 serviceCompilation 判；模式语义与中性参数键只由 validator 判
+// （外部卡唯一收件口 validateProviderAdapterDraft，编译器专用口 validateCompiledAdapterDraft）；selfCheck 只转述 validator 的结论。
+// 下面每组一个命名空间、名单逐文件写理由：名单外的新文件用具名 / 命名空间 / 再导出 / 动态 import / require 拿这些判断都当场红
+// （electron/providerAdapter/declarationOwnership.lint.test.ts）。测试文件不在范围内（要替身）。
+const DECLARATION_HOME_GROUPS = [
+  {
+    namespace: 'declaration-standard-draft', module: 'builtinOpenAiCompatibleDraft', names: ['buildOpenAiCompatibleDraft'],
+    owners: {
+      'electron/providerAdapter/serviceFallback.ts': '内置模板草稿的唯一产出口（genericCompilation），草稿来源由 serviceCompilation 选',
+      'electron/parity/generationParityTestUtils.ts': '生成一致性探针的测试工具（不进产品路径）',
+    },
+    message: '内置模板草稿只由 serviceFallback.genericCompilation 产出、由 serviceCompilation.prepareRunCompilation 选用；新入口交连接给 ProviderAdapterService，不自己拼草稿。确实要新产出口就在 eslint.config.mjs 的 DECLARATION_HOME_GROUPS 登记理由。',
+  },
+  {
+    namespace: 'declaration-generic-compilation', module: 'serviceFallback', names: ['genericCompilation'],
+    owners: { 'electron/providerAdapter/serviceCompilation.ts': '草稿来源的唯一判断（交来的卡 / 私有地址 / 编译 / 内置模板）' },
+    message: '草稿来源只由 serviceCompilation.prepareRunCompilation 判；新入口不自己选内置模板。确实要新口就在 eslint.config.mjs 的 DECLARATION_HOME_GROUPS 登记理由。',
+  },
+  {
+    namespace: 'declaration-compiled-intake', module: 'validator', names: ['validateCompiledAdapterDraft'],
+    owners: { 'electron/providerAdapter/compiler.ts': '内置编译器的卡走内置上传注册表，可省 assetIngestion（validator.ts 里写了理由）' },
+    message: '外部交来的卡只走 validateProviderAdapterDraft（assetIngestion 必填、中性键必查）；可省 assetIngestion 的专用口只给内置编译器。确实要新口就在 eslint.config.mjs 的 DECLARATION_HOME_GROUPS 登记理由。',
+  },
+  {
+    namespace: 'declaration-neutral-keys', module: 'promotionMeta', names: ['assertNeutralDeclarationParameters'],
+    owners: { 'electron/providerAdapter/validator.ts': '收件口：参数键是不是中性键只在这里判' },
+    message: '参数键是不是 Nomi 中性键只由收件口（validator.ts）判，登记 / 发布只投影；已登记的数据不重判（老用户的模型照旧能用）。',
+  },
+  {
+    namespace: 'declaration-mode-defect', module: 'validator', names: ['adapterModeDefect'],
+    owners: { 'electron/providerAdapter/selfCheck.ts': '自检只转述 validator 的模式结论' },
+    message: '模式语义（通道、任务与模型类型、参考槽、异步查询）只由 validator.adapterModeDefect 判；新入口调 validateProviderAdapterDraft 或交给 selfCheck，不自己判。',
+  },
+]
+const declarationHomeBlocks = DECLARATION_HOME_GROUPS.map(({ namespace, module, names, owners, message }) => ({
+  files: GENERATION_BOUNDARY_FILES,
+  ignores: [...GENERATION_BOUNDARY_TEST_FILES, `electron/providerAdapter/${module}.ts`, ...Object.keys(owners)],
+  plugins: { [namespace]: boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+  rules: {
+    [`${namespace}/no-restricted-imports`]: ['error', { patterns: [{ group: moduleSources(module), importNames: names, message }] }],
+    [`${namespace}/no-restricted-syntax`]: ['error', ...dynamicModuleSelectors(module, names, message)],
+  },
+}))
+
 const REFERENCE_LOWERING_NAMES = ['lowerGenerationIntent', 'withLoweredReferences']
 const referenceLoweringPlugin = { rules: { ...boundaryPlugin('no-restricted-imports', 'no-restricted-syntax').rules, 'narrow-imports': builtinRules.get('no-restricted-imports') } }
 const referenceLoweringOnly = (importName) => ({ 'reference-lowering-owner/narrow-imports': ['error', { patterns: [{ group: moduleSources('lowerGenerationIntent'), importNames: [importName], message: REFERENCE_LOWERING_MESSAGE }] }] })
@@ -785,6 +830,8 @@ export default tseslint.config(
     plugins: { 'reference-lowering-owner': referenceLoweringPlugin },
     rules: referenceLoweringOnly('lowerGenerationIntent'),
   },
+  // 新模型调用判断的家（见上面 ⑧），每组一个命名空间，文件范围互不覆盖。
+  ...declarationHomeBlocks,
   {
     // 项目存读只认草稿；严格面属于模型/Agent 作者入参。测试可验证两面的区别。
     files: ['src/workbench/project/**/*.{ts,tsx}'],
