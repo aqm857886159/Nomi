@@ -1,4 +1,4 @@
-import { refuseArgument, refuseGeneration } from "./transportFailure";
+import { refuseArgument } from "./transportFailure";
 import type { PlanAnchor, PlanShot, StoryboardPlan } from '../shared/storyboard/storyboardPlan';
 import { appendStoryboardSubjects, nextStoryboardSubjectIds, StoryboardSubjectIdentityError, type AppendedStoryboardSubject } from '../shared/storyboard/storyboardSubjectIdentity';
 import { generationTaskReference } from '../shared/agentCapabilities/taskReference';
@@ -19,8 +19,6 @@ import crypto from "node:crypto";
 
 import { type ExecutionContractV1, type PlanCandidate } from "./executionContract";
 import type { ModuleRegistry } from "./moduleRegistry";
-import type { VideoModelCandidate } from "../shared/videoCapabilities/recommendation";
-import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
 import { generationShotEnvelopeOf, type GenerationShotEnvelope } from "../shared/generationShotEnvelope";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import {
@@ -31,6 +29,7 @@ import {
   type SemanticGenerationCandidateDeps,
 } from "./semanticGenerationCandidate";
 import type { ShotPrice } from "../productionRun/shotPricing";
+import type { ResolvedModelName } from "../shared/agentCapabilities/modelHandle";
 
 /**
  * P4 S6.5 生产入口: a draft shot the multi-shot `create` entrance persists (candidate/role/included;
@@ -169,7 +168,7 @@ export function draftShotFromPlan(
   index: number,
   assignedId: string,
   parsers: MultiShotCandidateParsers,
-  semantic?: Pick<SemanticGenerationCandidateDeps, "defaultModelForTaskKind" | "registry" | "allowRegistryFallback" | "resolveAssetReferenceIdentity">,
+  semantic?: StoryboardSemanticDeps,
 ): GenerationOperationDraftShot {
   const raw = parsers.record(value, `generation shot ${index}`);
   const authored = raw.storyboard === undefined ? undefined : storyboardAuthorFieldsSchema.parse(raw.storyboard);
@@ -183,16 +182,27 @@ export function draftShotFromPlan(
     ...(semantic?.registry ? { registry: semantic.registry } : {}),
     ...(semantic?.allowRegistryFallback ? { allowRegistryFallback: semantic.allowRegistryFallback } : {}),
     ...(semantic?.resolveAssetReferenceIdentity ? { resolveAssetReferenceIdentity: semantic.resolveAssetReferenceIdentity } : {}),
+    ...(semantic?.noteResolvedModelName ? { noteResolvedModelName: semantic.noteResolvedModelName } : {}),
   });
   return { ...env, candidate, ...(authored ? { storyboard: authored } : {}) };
 }
 
 /**
  * P4 S6.5 `scriptText` 入口: turn a planner shot draft into a full draft shot. The planner gives a prompt
- * (+ optional model/mode/refs); the handler fills module/provider/model defaults from the first configured
- * video candidate (single-provider v1 = APIMart). candidateId/revision are synthesized (draft-stable).
+ * (+ optional model/mode/refs, inherited from the request); the candidate is assembled by **the same**
+ * semantic synthesizer as `shots` and single-shot create (`semanticCandidateFromParams`): the named model is
+ * resolved by the one name owner, an unnamed shot takes the user's saved default, and the mode is left to the
+ * one mode owner at normalization. 2026-11-17：这里以前逐字段补默认（连默认的 `modeId` 一起），点名别家时
+ * 也把默认那家的方式带过去；夹具还有一个「取第一个视频候选」的逃生口——都删了，拟镜不再是第二台合成器。
  */
-export function draftShotFromStoryboard(draft: StoryboardShotDraft, index: number, assignedId: string, defaults: () => { moduleId: string; providerId: string; modelId: string; mode: string; modeId?: string }, parsers: MultiShotCandidateParsers): GenerationOperationDraftShot {
+export function draftShotFromStoryboard(
+  draft: StoryboardShotDraft,
+  index: number,
+  assignedId: string,
+  taskKind: GenerationDefaultTaskKind,
+  parsers: MultiShotCandidateParsers,
+  semantic?: StoryboardSemanticDeps,
+): GenerationOperationDraftShot {
   const raw = draft as Record<string, unknown>;
   const env = shotEnvelope(raw, index, assignedId);
   if (typeof draft.prompt !== "string" || !draft.prompt.trim()) refuseArgument(`Storyboard shot ${index} needs a prompt`);
@@ -200,41 +210,47 @@ export function draftShotFromStoryboard(draft: StoryboardShotDraft, index: numbe
     && (!Number.isFinite(draft.durationSeconds) || draft.durationSeconds <= 0)) {
     refuseArgument(`Storyboard shot ${index} has an invalid duration`);
   }
-  // Resolve module/provider/model/mode defaults lazily — only when the planner left a field unset, so a
-  // fully-specified board never requires a configured video model just to build defaults it won't use.
-  const needsDefaults = draft.moduleId === undefined || draft.providerId === undefined || draft.modelId === undefined || draft.mode === undefined;
-  const fallback = needsDefaults ? defaults() : { moduleId: "", providerId: "", modelId: "", mode: "" };
-  const selectedModeId = draft.modeId ?? fallback.modeId;
-  const candidate = parsers.candidateFrom({
-    candidateId: `cand-${env.shotId}`,
-    revision: 1,
-    moduleId: draft.moduleId ?? fallback.moduleId,
-    providerId: draft.providerId ?? fallback.providerId,
-    modelId: draft.modelId ?? fallback.modelId,
-    ...(selectedModeId ? { modeId: selectedModeId } : {}),
-    ...(draft.variantId ? { variantId: draft.variantId } : {}),
-    mode: draft.mode ?? fallback.mode,
-    prompt: draft.prompt,
-    parameters: {
-      ...(draft.parameters ?? {}),
-      // `durationSeconds` is a planner-level name; provider contracts use the
-      // canonical `duration` field. An explicitly supplied parameter remains
-      // authoritative and is validated by the selected model schema at seal.
-      ...(draft.durationSeconds !== undefined
-        && (draft.parameters?.duration === undefined && draft.parameters?.durationSeconds === undefined)
-        ? { duration: draft.durationSeconds }
-        : {}),
+  const candidate = semanticCandidateFromParams({
+    operationId: env.shotId,
+    params: {
+      prompt: draft.prompt,
+      ...(draft.mode !== undefined ? { mode: draft.mode } : {}),
+      ...(draft.moduleId !== undefined ? { moduleId: draft.moduleId } : {}),
+      ...(draft.providerId !== undefined ? { providerId: draft.providerId } : {}),
+      ...(draft.modelId !== undefined ? { modelId: draft.modelId } : {}),
+      ...(draft.modeId !== undefined ? { modeId: draft.modeId } : {}),
+      ...(draft.variantId !== undefined ? { variantId: draft.variantId } : {}),
+      parameters: {
+        ...(draft.parameters ?? {}),
+        // `durationSeconds` is a planner-level name; provider contracts use the
+        // canonical `duration` field. An explicitly supplied parameter remains
+        // authoritative and is validated by the selected model schema at seal.
+        ...(draft.durationSeconds !== undefined
+          && (draft.parameters?.duration === undefined && draft.parameters?.durationSeconds === undefined)
+          ? { duration: draft.durationSeconds }
+          : {}),
+      },
+      references: draft.references ?? [],
     },
-    references: draft.references ?? [],
+    candidateFrom: parsers.candidateFrom,
+    // 这一镜的种类：规划器 / 请求写明的优先，否则按镜头角色与有没有参考定下的那一种（调用方给）。
+    taskKindWhenUnstated: taskKind,
+    ...(semantic?.defaultModelForTaskKind ? { defaultModelForTaskKind: semantic.defaultModelForTaskKind } : {}),
+    ...(semantic?.registry ? { registry: semantic.registry } : {}),
+    ...(semantic?.allowRegistryFallback ? { allowRegistryFallback: semantic.allowRegistryFallback } : {}),
+    ...(semantic?.resolveAssetReferenceIdentity ? { resolveAssetReferenceIdentity: semantic.resolveAssetReferenceIdentity } : {}),
+    ...(semantic?.noteResolvedModelName ? { noteResolvedModelName: semantic.noteResolvedModelName } : {}),
   });
   return { ...env, candidate };
 }
+
+/** 两条起草路（`shots` / `scriptText`）交给语义合成器的同一份依赖。 */
+type StoryboardSemanticDeps = Pick<SemanticGenerationCandidateDeps, "defaultModelForTaskKind" | "registry" | "allowRegistryFallback" | "resolveAssetReferenceIdentity" | "noteResolvedModelName">;
 
 /** The shared derivations the multi-shot factory needs (all pure, all single source of truth from S2/S4). */
 export type MultiShotHelperDeps = {
   /** `resolve` 是密封期用的；`snapshot` 是语义合成期用的（缺省即不做目录兜底）。 */
   registry: Pick<ModuleRegistry, "resolve"> & Partial<Pick<ModuleRegistry, "snapshot">>;
-  videoModelCandidates?: readonly VideoModelCandidate[];
   planStoryboard?: (input: {
     projectId: string;
     scriptText: string;
@@ -252,19 +268,12 @@ export type MultiShotHelperDeps = {
    */
   compileContract: (candidate: PlanCandidate, projectId: string) => ExecutionContractV1;
   priceForCandidate: (candidate: PlanCandidate) => ShotPrice;
-  effectiveVideoModes: (candidate: VideoModelCandidate) => Array<{ id?: string; transportTaskKind?: string }>;
   /**
    * Saved Workbench model preferences projected into the semantic planner.
    * Optional for isolated legacy fixtures; production wiring always supplies
    * the catalog-backed resolver so scriptText never silently picks row zero.
    */
-  defaultModelForTaskKind?: (taskKind: GenerationDefaultTaskKind) => {
-    moduleId: string;
-    providerId: string;
-    modelId: string;
-    mode: string;
-    modeId?: string;
-  } | undefined;
+  defaultModelForTaskKind?: SemanticGenerationCandidateDeps["defaultModelForTaskKind"];
   /** Unit-fixture escape hatch only; production requires a saved default or
    * explicit per-shot model identity. */
   allowRegistryFallback?: boolean;
@@ -304,43 +313,40 @@ type OperationWithShots = { candidate?: PlanCandidate; shots?: ReadonlyArray<Gen
  * Extracted from the handler closure to keep mcpGenerationTools.ts under the 800-line shell gate (R9).
  */
 export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
-  const storyboardDefaults = (taskKind: GenerationDefaultTaskKind): { moduleId: string; providerId: string; modelId: string; mode: string; modeId?: string } => {
-    const configured = deps.defaultModelForTaskKind?.(taskKind);
-    if (configured) return configured;
-    if (!deps.allowRegistryFallback) {
-      refuseGeneration({ code: "no_default_model", field: "modelId", media: "video" });
-    }
-    const first = deps.videoModelCandidates?.[0];
-    if (!first) refuseGeneration({ code: "no_default_model", field: "modelId", media: "video" });
-    const selectedMode = deps.effectiveVideoModes(first).find((item) => item.transportTaskKind === taskKind)
-      ?? deps.effectiveVideoModes(first)[0];
-    const mode = selectedMode?.transportTaskKind ?? "image-to-video";
-    return { moduleId: SINGLE_SHOT_GENERATION_MODULE_ID, providerId: first.provider, modelId: first.modelKey, mode, ...(selectedMode?.id ? { modeId: selectedMode.id } : {}) };
-  };
+  /** 两条起草路交给语义合成器的同一份依赖（`shots` 与 `scriptText` 不各配一份）。 */
+  const semanticDeps = (
+    projectId: string,
+    registry: MultiShotHelperDeps["registry"],
+    noteResolvedModelName: ((entry: ResolvedModelName) => void) | undefined,
+  ): StoryboardSemanticDeps => ({
+    ...(deps.defaultModelForTaskKind ? { defaultModelForTaskKind: deps.defaultModelForTaskKind } : {}),
+    ...(registry.snapshot ? { registry } : {}),
+    ...(deps.allowRegistryFallback ? { allowRegistryFallback: deps.allowRegistryFallback } : {}),
+    ...(deps.resolveAssetReferenceIdentity
+      ? { resolveAssetReferenceIdentity: (assetId: string) => deps.resolveAssetReferenceIdentity!(projectId, assetId) }
+      : {}),
+    ...(noteResolvedModelName ? { noteResolvedModelName } : {}),
+  });
 
   /**
    * `params.shots` (client `plan` entrance) or `params.scriptText` (storyboard planner entrance) → draft
    * shots; neither → undefined (single-shot). Validation failures are human-readable (client-visible).
    * 2026-09-22 起**不再**要求至少一个非锚镜头：锚本身要生成、有价、会被 seal，「只有参考卡」是一条
    * 正常的中间状态（镜头随后补进同一份方案）。草稿上给一条安静提示，不拒绝。
+   * `noteResolvedModelName`：点名的模型不是一字不差落下的，每认一次递一条（进 create 回执）。
    */
   const resolveCreateShots = async (
     projectId: string,
     params: Record<string, unknown>,
     registry: MultiShotHelperDeps["registry"] = deps.registry,
+    noteResolvedModelName?: (entry: ResolvedModelName) => void,
   ): Promise<GenerationOperationDraftShot[] | undefined> => {
+    const semantic = semanticDeps(projectId, registry, noteResolvedModelName);
     let shots: GenerationOperationDraftShot[];
     if (Array.isArray(params.shots)) {
       if (params.shots.length === 0) refuseArgument("多镜生成需要至少一个镜头");
       const ids = hostAssignedSubjectIds(params.shots);
-      shots = params.shots.map((shot, index) => draftShotFromPlan(shot, index, ids[index], deps.parsers, {
-        ...(deps.defaultModelForTaskKind ? { defaultModelForTaskKind: deps.defaultModelForTaskKind } : {}),
-        ...(registry.snapshot ? { registry } : {}),
-        ...(deps.allowRegistryFallback ? { allowRegistryFallback: deps.allowRegistryFallback } : {}),
-        ...(deps.resolveAssetReferenceIdentity
-          ? { resolveAssetReferenceIdentity: (assetId: string) => deps.resolveAssetReferenceIdentity!(projectId, assetId) }
-          : {}),
-      }));
+      shots = params.shots.map((shot, index) => draftShotFromPlan(shot, index, ids[index], deps.parsers, semantic));
     } else if (typeof params.scriptText === "string" || isLongFormGenerationRequest(params)) {
       // A minute-scale natural-language request must not silently collapse to
       // one provider clip. Promote it to the same storyboard seam as an
@@ -417,7 +423,7 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
             : {}),
           ...(shot.references === undefined && sharedReferences !== undefined ? { references: sharedReferences } : {}),
         } as StoryboardShotDraft;
-        return draftShotFromStoryboard(inherited, index, ids[index], () => storyboardDefaults(taskKind), deps.parsers);
+        return draftShotFromStoryboard(inherited, index, ids[index], taskKind, deps.parsers, semantic);
       });
     } else {
       return undefined;

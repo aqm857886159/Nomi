@@ -37,7 +37,10 @@
 import type { z } from "zod";
 
 import { generationPlanInputSchema, type StoryboardAuthorFields } from "../generationPlanSchemas";
-import { resolveModelHandle, type ModelHandleRow } from "../modelHandle";
+import { resolveModelForTask, resolvedModelNameOf, type ModelHandleRow, type ModelIdentity, type ResolvedModelName } from "../modelHandle";
+import { resolveShotTaskKind, statedShotTaskKind } from "../../generationShotKind";
+import { modelKindForTaskKind } from "../../capabilityModeManifest";
+import { GENERATION_DEFAULT_TASK_KINDS, type GenerationDefaultTaskKind } from "../../../settings/generationModelDefaultsContract";
 import { LaneDomainFailure, toolArgumentsRejected } from "../../agentLane/laneToolContract";
 import type { ToolInputIssue } from "../../agentLane/toolInputIssues";
 import { generationShotEnvelopeOf, type GenerationShotEnvelope } from "../../generationShotEnvelope";
@@ -58,8 +61,10 @@ export type DraftShotsArgs = { operationId?: string; newPlan?: boolean; taskKind
 export type DraftShotModelIdentity = Readonly<{ providerId: string; modelId: string }>;
 /** 一镜查到的身份：镜头自己的（`model`）与独立关键帧的（`storyboard.keyframe.model`）。缺 = 没点名 = 用户默认。 */
 export type DraftShotModels = Readonly<{ shot?: DraftShotModelIdentity; keyframe?: DraftShotModelIdentity }>;
-/** Agent 写的不是完整名字、宿主替它认出来了：回执里告诉它落成了谁，下次照抄完整名字。 */
-export type ResolvedModelName = Readonly<{ written: string; model: string }>;
+/** Agent 写的不是完整名字、宿主替它认出来了：回执里告诉它落成了谁，下次照抄完整名字（形状与判据住名字主人）。 */
+export type { ResolvedModelName };
+/** 用户给每一种任务设的默认（lane 由 `readLaneDeclaredDefaults` 给，和宿主补默认问的是同一个解析器）。 */
+export type DraftShotModelDefaults = Readonly<Partial<Record<GenerationDefaultTaskKind, ModelIdentity>>>;
 /** 宿主的多镜 create 里的一镜。 */
 type PlanShot = NonNullable<PlanCreate["shots"]>[number];
 /** 宿主的候选 patch（改草稿那一支）。 */
@@ -141,39 +146,57 @@ function modelNameRejected(issues: readonly ToolInputIssue[], unknown: Readonly<
 }
 
 /**
- * 每一镜点名的模型 → 宿主的两件身份。**名字只在这里查**（`resolveModelHandle`），清单是这条消息带上来的
- * 同一份可用模型（模型在索引和 list_models 里看到的就是它）。拒收只有两种，都带下一步：
+ * 每一镜点名的模型 → 宿主的两件身份。**名字只在名字主人认**（`resolveModelForTask`，与宿主语义合成同一个函数），
+ * 清单是这条消息带上来的同一份可用模型（模型在索引和 list_models 里看到的就是它）。拒收只有两种，都带下一步：
  *   · 查不到：给最像的 ≤3 个完整名字（一个都不像就指向 list_models）；
- *   · 只写了 id 而多家都有：列出那几个完整名字。
+ *   · 只写了 id 而多家都有，又没有一家是用户给「这一种任务」设的默认（U1）：列出那几个完整名字。
+ *     恰好一家是默认 → 落它，回执写明「同名有 N 家，按你的默认用了哪家」。
+ * 「这一种任务」：这一镜明写的（`statedShotTaskKind`），没写就按对上的那几行是图还是视频 + 这一镜带没带参考
+ * （`resolveShotTaskKind`，和宿主定种类同一个判据）。独立关键帧恒为文生图。
  * （第三种「这个模型做不了这类任务」在宿主准入那一层，照旧。）
  * 全部问题一次说完，不让模型一镜一镜地撞。
  */
-export function resolveDraftShotModels(shots: readonly DraftShot[], rows: readonly ModelHandleRow[]): { models: DraftShotModels[]; resolved: ResolvedModelName[] } {
+export function resolveDraftShotModels(
+  shots: readonly DraftShot[],
+  rows: readonly LaneModelRow[],
+  defaults: DraftShotModelDefaults = {},
+): { models: DraftShotModels[]; resolved: ResolvedModelName[] } {
   const issues: ToolInputIssue[] = [];
   const resolved: ResolvedModelName[] = [];
   let unknown: { path: string; written: string; nearest?: string } | undefined;
-  const lookup = (written: string | undefined, path: string): DraftShotModelIdentity | undefined => {
+  const lookup = (written: string | undefined, path: string, taskKindOf: (matches: readonly LaneModelRow[]) => GenerationDefaultTaskKind | undefined): DraftShotModelIdentity | undefined => {
     if (written === undefined) return undefined;
-    const hit = resolveModelHandle(rows, written);
+    const hit = resolveModelForTask(rows, written, { taskKindOf, defaultFor: (taskKind) => defaults[taskKind] });
     if (hit.ok) {
-      if (hit.via !== "handle" || hit.handle !== written) resolved.push({ written, model: hit.handle });
+      const name = resolvedModelNameOf(written, hit);
+      if (name) resolved.push(name);
       return { providerId: hit.row.vendor ?? "", modelId: hit.row.modelId };
     }
     const allowed = hit.reason === "ambiguous" ? hit.handles : hit.nearest;
     if (hit.reason !== "ambiguous" && !unknown) unknown = { path, written, ...(allowed[0] ? { nearest: allowed[0] } : {}) };
     issues.push({ path, kind: "not_allowed", received: written, allowed,
-      note: hit.reason === "ambiguous" ? "several vendors carry this model id; pick one full name"
+      note: hit.reason === "ambiguous" ? "several vendors carry this model id and none is the user's default for this kind of task; pick one full name"
         : allowed.length ? "no model with this full name" : "no model with this name; call list_models for full names" });
     return undefined;
   };
   const models = shots.map((shot, index) => ({
-    shot: lookup(shot.model, `shots.${index}.model`),
-    keyframe: lookup(shot.storyboard?.keyframe?.model, `shots.${index}.storyboard.keyframe.model`),
+    shot: lookup(shot.model, `shots.${index}.model`, (matches) => statedShotTaskKind(shot) ?? kindFromRows(matches, (shot.references?.length ?? 0) > 0)),
+    keyframe: lookup(shot.storyboard?.keyframe?.model, `shots.${index}.storyboard.keyframe.model`, () => "text_to_image"),
   }));
   if (issues.length) {
     throw modelNameRejected(issues, unknown);
   }
   return { models, resolved };
+}
+
+/** lane 清单里的一行：名字主人要的身份，外加它出什么（`AgentModelEntry` 天然满足）。 */
+type LaneModelRow = ModelHandleRow & Readonly<{ kind?: string }>;
+
+/** 对上的那几行出什么（图 / 视频）+ 有没有参考 → 这一种任务。判据是宿主那一个（`resolveShotTaskKind`）。 */
+function kindFromRows(matches: readonly LaneModelRow[], hasReferences: boolean): GenerationDefaultTaskKind | undefined {
+  const modelModes = GENERATION_DEFAULT_TASK_KINDS.filter((taskKind) => matches.some((row) => row.kind === modelKindForTaskKind(taskKind)));
+  const verdict = resolveShotTaskKind({ modelModes, hasReferences });
+  return verdict.ok ? verdict.taskKind : undefined;
 }
 
 /**
