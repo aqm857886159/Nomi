@@ -1,0 +1,19 @@
+{
+  "id": "gate-live-catalog-40-shots",
+  "feature": "生成门按「现在的」模型表答：外部 Agent 交卡 / 存密钥后不用重启，预览、过门、建草稿读同一张现取的表",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/gate-live-catalog-bench.mjs",
+    "--"
+  ],
+  "scale": "一个 40 镜的 Run：内置种子全量（所有内置家）、APIMart 一把假密钥；40 镜各走一次预览 + 过门；目录先变一次，第一次问要重算整张表",
+  "metrics": [
+    "perGateCatalogReadMs",
+    "gatePassMs",
+    "catalogRebuildMs"
+  ],
+  "budget": 5,
+  "budgetStatus": "proposed",
+  "budgetBasis": "主指标 perGateCatalogReadMs = 目录没变时门问一次目录的单次毫秒（缓存按目录文件字节认身份，命中只是读一次文件 + 比一次身份）。门之后是一次真生成（秒级到分钟级）和创作者的确认，5ms 在其中可以忽略；超过说明缓存没命中、每次都在重算整张表（实测重算一次约 100ms）。gatePassMs（40 镜预览 + 过门总耗时）和 catalogRebuildMs（目录刚变后第一次重算）只打印。"
+}

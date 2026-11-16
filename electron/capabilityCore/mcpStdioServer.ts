@@ -43,7 +43,6 @@ import { requestQuit } from '../quitTeardown'
 import { createMultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
 import { prepareProductionGenerationAuthorizationWithReferences } from '../productionRun/prepareProductionGenerationAuthorization'
 import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
-import type { ModuleRegistry } from './moduleRegistry'
 import { createLiveGenerationRuntime } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
 import { productionFixtureBaseOriginFromEnv } from '../shared/productionRunE2eFixtureGate'
@@ -85,7 +84,6 @@ export type McpStdioServerOptions = {
   authorizeGeneration?: DispatchContext['authorizeGeneration']
   generationContext?: (params: Record<string, unknown>) => unknown | Promise<unknown>
   generationPlanning?: DispatchContext['generationPlanning']
-  generationModuleRegistry?: Pick<ModuleRegistry, 'resolve'>
   projectRevisionResolver?: (projectId: string) => number | undefined
   /** Main-owned receipt resolver for the headless stdio process. */
   proposalReceiptFor?: (projectId: string) => ReturnType<typeof createProjectAgentProposalReceiptService> | undefined | Promise<ReturnType<typeof createProjectAgentProposalReceiptService> | undefined>
@@ -278,9 +276,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     }),
   })
   const readProviderBootstrap = liveGenerationRuntime.readBootstrap
-  const initialGenerationScope = liveGenerationRuntime.createDraftScope()
   const outputMaterializer = createGenerationOutputMaterializer()
-  const generationRegistry = authorities.generationModuleRegistry ?? initialGenerationScope.registry
   // P4 S2: derive real per-shot prices from the live catalog pricing (readCatalog reflects user edits;
   // resolve lazily so a mid-session pricing change is picked up). Preview/gate use the model-pricing
   // resolver; the submission seam uses the contract→ShotPrice resolver for its ledger amounts.
@@ -289,7 +285,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   const operationStore = createProductionGenerationOperationStore(productionRuns)
   const generationPlanning = authorities.generationPlanning
     ?? createGenerationPlanningHandler({
-      registry: generationRegistry,
+      registry: liveGenerationRuntime.registry,
       createDraftScope: liveGenerationRuntime.createDraftScope,
       operations: operationStore,
       get videoModelCandidates() { return deriveUsableVideoModelCandidates() },

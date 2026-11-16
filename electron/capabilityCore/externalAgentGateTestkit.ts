@@ -91,7 +91,7 @@ export function videoCard(baseUrl: string, modelKey: string, extra: Record<strin
 /** 生成工具，和两个宿主同一种接线。 */
 export function hostWiredPlanning(runtime: LiveGenerationRuntime = createLiveGenerationRuntime()) {
   const handler = createGenerationPlanningHandler({
-    registry: (runtime as { registry?: never }).registry ?? runtime.createDraftScope().registry, // TEMP-RED
+    registry: runtime.registry,
     createDraftScope: runtime.createDraftScope,
     operations: createInMemoryGenerationOperationStore(),
     now: () => "2026-11-16T00:00:00.000Z",

@@ -7,9 +7,13 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { readCatalog } from "../catalog/catalogStore";
+import { fileURLToPath } from "node:url";
+
+import { ensureBuiltinModelSeeds, readCatalog, upsertModelCatalogVendor } from "../catalog/catalogStore";
+import { builtinVendorSeed } from "../catalog/builtinVendorSeeds";
+import { codeDeclaredFallbackOrigins } from "../vendor/vendorBaseFallback";
 import { createLiveGenerationRuntime } from "./liveGenerationRuntime";
-import { callTool, draftPreviewGate, FAKE_KEY, freshSettingsDir, hostWiredPlanning, readinessOf, videoCard } from "./externalAgentGateTestkit";
+import { callTool, draftPreviewGate, FAKE_KEY, freshSettingsDir, hostWiredPlanning, openOldUserDir, readinessOf, videoCard } from "./externalAgentGateTestkit";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -81,6 +85,21 @@ describe("external Agent: declared model reaches the confirm step", () => {
     expect(rowAfter).toEqual(rowBefore);
   });
 
+  it("same address but a different way to carry the key is refused too, naming the field; the row is untouched", async () => {
+    freshSettingsDir("other-auth");
+    const before = apimartRow();
+    const submitted = await callTool("nomi_model_setup", {
+      action: "submit_declaration", vendorKey: "apimart",
+      declaration: videoCard("https://api.apimart.ai", "muse-video-x", { provider: { baseUrl: "https://api.apimart.ai", authType: "bearer", authHeader: "X-Api-Key" } }),
+    });
+    expect(submitted.ok).toBe(false);
+    expect(JSON.stringify(submitted)).toContain("provider.authHeader");
+    expect(JSON.stringify(submitted)).not.toContain("provider.baseUrl");
+    const { updatedAt: _a, ...rowBefore } = before;
+    const { updatedAt: _b, ...rowAfter } = apimartRow();
+    expect(rowAfter).toEqual(rowBefore);
+  });
+
   it("a card that declares a model already in the built-in catalog is refused by name and leaves the connection alone", async () => {
     freshSettingsDir("builtin-name");
     await callTool("nomi_model_setup", { action: "set_key", vendorKey: "apimart", apiKey: FAKE_KEY });
@@ -88,5 +107,49 @@ describe("external Agent: declared model reaches the confirm step", () => {
     expect(submitted.ok).toBe(false);
     expect(JSON.stringify(submitted)).toContain("flux-3-video");
     expect(readinessOf("apimart")?.providerReady).toBe(true);
+  });
+});
+
+/**
+ * 老用户升级：0.24.0 真版本造出来的三种盘（tests/fixtures/old-user-data/builtin-connection/），
+ * 启动对账之后内置连接自己好，不用重存密钥、不用删卡。
+ */
+describe("old users on the built-in APIMart connection heal at startup", () => {
+  const fixture = (name: string) => fileURLToPath(new URL(`../../tests/fixtures/old-user-data/builtin-connection/${name}/`, import.meta.url));
+  const seedIngestion = () => builtinVendorSeed("apimart")?.assetIngestion ?? null;
+
+  it.each([
+    ["v0.24.0-builtin-plain", null],
+    ["v0.24.0-builtin-card", "muse-video-x"],
+    ["v0.24.0-builtin-card-later-builtin", "flux-3-video"],
+  ] as const)("%s: built-in models and the card's model reach confirm after upgrade", async (name, cardModel) => {
+    openOldUserDir(fixture(name));
+    ensureBuiltinModelSeeds();
+    expect(apimartRow().assetIngestion ?? null).toEqual(seedIngestion());
+    expect(readinessOf("apimart")?.providerReady).toBe(true);
+    const planning = hostWiredPlanning();
+    const builtin = await draftPreviewGate(planning, builtinImageModel(planning.runtime));
+    expect(builtin.gate?.nextAction, JSON.stringify(builtin.gate)).toBe("confirm");
+    if (cardModel) {
+      const declared = await draftPreviewGate(planning, { providerId: "apimart", modelId: cardModel, mode: "text_to_video" });
+      expect(declared.gate?.nextAction, JSON.stringify(declared.gate)).toBe("confirm");
+    }
+    if (cardModel === "flux-3-video") {
+      // 卡早于内置目录收这个模型：现在内置档案说了算，卡的标记和路由都摘了。
+      const row = readCatalog().models.find((model) => model.vendorKey === "apimart" && model.modelKey === "flux-3-video");
+      expect((row?.meta as Record<string, unknown> | undefined)?.adapter).toBeUndefined();
+    }
+  });
+
+  it("an address the user set in Settings stays: the official fallback line keeps working, an unknown relay stays as it is today", async () => {
+    const fallback = codeDeclaredFallbackOrigins("apimart")[0];
+    expect(fallback).toBeTruthy();
+    for (const [baseUrl, ready] of [[fallback!, true], ["https://relay.example.test/v1", false]] as const) {
+      openOldUserDir(fixture("v0.24.0-builtin-card"));
+      upsertModelCatalogVendor({ ...(readCatalog().vendors.find((vendor) => vendor.key === "apimart")!), baseUrlHint: baseUrl });
+      ensureBuiltinModelSeeds();
+      expect(apimartRow().baseUrlHint).toBe(baseUrl);
+      expect(readinessOf("apimart")?.providerReady, baseUrl).toBe(ready);
+    }
   });
 });

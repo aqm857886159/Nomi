@@ -45,7 +45,6 @@ import { createCanvasLandingHost } from '../productionRun/canvasLandingHost'
 import { createGuiLandingProjectAccess, desktopNoticeLocale, landBatchBeforeKick } from './appIntegrationLandFirst'
 import { startSingleShotProduction } from '../productionRun/singleShotProductionStart'
 import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
-import type { ModuleRegistry } from './moduleRegistry'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
 import { createRunObservationDrivers } from './appIntegrationRunObservation'
 import { hasWorkToWatch, runWantsDriver } from '../productionRun/productionRunLifecycle'
@@ -153,7 +152,6 @@ export async function startCapabilityCore(
     confirmGenerationInNomi?: import('./rpcServer').RpcServerOptions['confirmGenerationInNomi']
     generationContext?: (params: Record<string, unknown>) => unknown | Promise<unknown>
     generationPlanning?: DispatchContext['generationPlanning']
-    generationModuleRegistry?: Pick<ModuleRegistry, 'resolve'>
     projectRevisionResolver?: (projectId: string) => number | undefined
     proposalReceiptFor?: import('./rpcServer').RpcServerOptions['proposalReceiptFor']
     openCredentialsInNomi?: import('./rpcServer').RpcServerOptions['openCredentialsInNomi']
@@ -206,13 +204,11 @@ export async function startCapabilityCore(
       }),
     })
     const readProviderBootstrap = liveGenerationRuntime.readBootstrap
-    const initialGenerationScope = liveGenerationRuntime.createDraftScope()
     // 提交出口认得的执行器：目录执行器 + 画布那台的传输（按家各一个 `canvas:<key>`，发动机收敛第一刀）。
     const canvasTransport = lazyCanvasTransport()
     const submissionProviders = () => [...readProviderBootstrap().providers, ...canvasTransportProviders(readCatalog().vendors.map((vendor) => vendor.key), canvasTransport)]
     // The fetch policy (timeout / size / provider route) is the shared owner's (fetchProviderMedia).
     const outputMaterializer = createGenerationOutputMaterializer()
-    const generationRegistry = authorities.generationModuleRegistry ?? initialGenerationScope.registry
     // P4 S2: real per-shot pricing from the live catalog (resolve lazily so pricing edits apply).
     const resolveModelPricing = (providerId: string, modelId: string) => createCatalogModelPricingResolver(readCatalog().models)(providerId, modelId)
     const resolveShotPrice = (contract: Parameters<ReturnType<typeof createCatalogShotPriceResolver>>[0]) => createCatalogShotPriceResolver(readCatalog().models)(contract)
@@ -339,7 +335,7 @@ export async function startCapabilityCore(
     registerBatchSchedulerKicker(kickSchedulerForRun)
     const generationPlanning = authorities.generationPlanning
       ?? createGenerationPlanningHandler({
-        registry: generationRegistry,
+        registry: liveGenerationRuntime.registry,
         createDraftScope: liveGenerationRuntime.createDraftScope,
         operations: operationStore,
         requestRendererDecision,

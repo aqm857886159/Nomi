@@ -29,6 +29,19 @@
 
 用法：`electron/catalog/referenceLinkDelivery.matrix.test.ts` 的「老用户升级后」一组把它拷进一个真项目，走活着、失效、超过 48 小时三种链接状态。升级本身不迁移任何东西（目录版本不变），所以这份夹具只证明：升级后的决定点读得懂旧 `.meta`，且请求和升级前一字不差。
 
+## 内置连接（`builtin-connection/`）
+
+内置 APIMart 连接上的老用户目录，全部在 0.24.0 的导出里跑 `generators/zzBuiltinCardGen.ts.txt` 落下（真实的启动种子、设置页存密钥、AI 交卡登记、删整家）。密钥是假的，升级测试不发任何请求。
+
+| 目录 | 谁落的 | 怎么落的 | 里面有什么 |
+|---|---|---|---|
+| `builtin-connection/v0.24.0-builtin-plain` | 0.24.0 | 打开应用 + 设置页存 APIMart 密钥 | 只有内置连接和内置模型，作对照 |
+| `builtin-connection/v0.24.0-builtin-card` | 0.24.0 | 同上，再让 AI 交一张挂在内置地址上的卡（一个非内置视频模型） | 卡改写过的连接行（素材上传方式被卡覆盖）+ 卡模型；`card.json` 是那张卡 |
+| `builtin-connection/v0.24.0-builtin-card-later-builtin` | 0.24.0 | 同上，卡里的模型是后来进了内置目录的那个 | 卡改写过的连接行 + 带卡认证标记的模型行；`card.json` 是那张卡 |
+| `builtin-connection/v0.24.0-builtin-whole-deleted` | 0.24.0 | 存密钥后用 0.24.0 的删整家（`removeProvider`），再打开一次应用 | 连接行在、0 个模型、逐模型的删除记录、没有密钥 |
+
+用法：`electron/capabilityCore/externalAgentGateReachConfirm.test.ts`（前三份：升级后连接就绪、内置模型与卡模型过门都到确认）、`electron/capabilityCore/builtinWholeDeletionReconnect.test.ts`（最后一份：升级后仍是删掉的，存一次密钥整家回来）。
+
 ## 项目库（`projects/`）
 
 一个老用户的**项目库**：设置目录里的项目登记（`recent-workspaces.json`）、默认位置设置（`project-location.json`），加三个项目文件夹，同样用旧版本自己的真实函数落盘（项目的 `createProject`，含它当时的登记写入，和设置的 `writeProjectsRoot`），不是手写的形状。这里没有 Key、没有地址，只有项目清单和登记。

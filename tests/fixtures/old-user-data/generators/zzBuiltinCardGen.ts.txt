@@ -12,6 +12,7 @@ vi.mock("electron", () => ({
 }));
 import { ensureBuiltinModelSeeds, readCatalog, upsertModelCatalogVendorApiKey } from "./catalogStore";
 import { registerDeclaredProvider } from "./declaredProviderRegistration";
+import { currentCatalogFingerprint, removeProvider } from "../capabilityCore/modelOnboarding/dispatch";
 
 const AUTH = { Authorization: "Bearer {{user_api_key}}" };
 const SOURCE = "https://docs.apimart.ai/en/api-reference/videos/example";
@@ -28,7 +29,7 @@ function card(modelKey: string) {
   };
 }
 
-function shape(name: string, cardModelKey?: string) {
+function shape(name: string, cardModelKey?: string, wholeDelete = false) {
   current = path.join(outRoot, name);
   fs.rmSync(current, { recursive: true, force: true });
   fs.mkdirSync(current, { recursive: true });
@@ -40,6 +41,12 @@ function shape(name: string, cardModelKey?: string) {
     registerDeclaredProvider({ card: c as never, vendorKey: "apimart" }); // Agent 把卡挂到内置连接
     fs.writeFileSync(path.join(current, "card.json"), JSON.stringify(c));
   }
+  if (wholeDelete) {
+    // Agent 经 nomi_remove_provider 整家删（0.24.0 逐模型记进 suppressedBuiltinModels），然后重启一次。
+    const reply = removeProvider({ vendorKey: "apimart", ifUnchanged: currentCatalogFingerprint() });
+    if (!(reply as { ok?: boolean }).ok) throw new Error(JSON.stringify(reply));
+    ensureBuiltinModelSeeds();
+  }
   const state = readCatalog();
   const vendor = state.vendors.find((row) => row.key === "apimart") as Record<string, unknown>;
   console.log("SHAPE", name, "version", state.version, "apimart models", state.models.filter((m) => m.vendorKey === "apimart").length, "assetIngestion", JSON.stringify(vendor.assetIngestion ?? null));
@@ -48,7 +55,7 @@ function shape(name: string, cardModelKey?: string) {
   const file = path.join(current, "model-catalog.json");
   const disk = JSON.parse(fs.readFileSync(file, "utf8"));
   const own = (row: { vendorKey?: string; key?: string }) => (row.vendorKey ?? row.key) === "apimart";
-  fs.writeFileSync(file, `${JSON.stringify({ ...disk, vendors: disk.vendors.filter(own), models: disk.models.filter(own), mappings: disk.mappings.filter(own), apiKeysByVendor: { apimart: disk.apiKeysByVendor.apimart } }, null, 1)}\n`);
+  fs.writeFileSync(file, `${JSON.stringify({ ...disk, vendors: disk.vendors.filter(own), models: disk.models.filter(own), mappings: disk.mappings.filter(own), apiKeysByVendor: disk.apiKeysByVendor.apimart ? { apimart: disk.apiKeysByVendor.apimart } : {} }, null, 1)}\n`);
   for (const extra of fs.readdirSync(current)) if (extra.endsWith(".bak.json")) fs.rmSync(path.join(current, extra));
 }
 
@@ -58,5 +65,6 @@ describe("builtin connection", () => {
     shape("v0.24.0-builtin-card", "muse-video-x");
     // flux-3-video：0.24.0 的内置目录里没有，之后的版本收进了内置目录。
     shape("v0.24.0-builtin-card-later-builtin", "flux-3-video");
+    shape("v0.24.0-builtin-whole-deleted", undefined, true);
   });
 });

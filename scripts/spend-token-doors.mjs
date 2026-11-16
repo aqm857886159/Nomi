@@ -92,6 +92,7 @@ export const SPEND_TOKEN_DOORS = [
 
   // ── 测试工具 ──
   { door: 'write|electron/parity/generationParityTestUtils.ts|runTask', role: 'test-utility', why: '对等矩阵的测试工具，自己铸令牌、不进产品路径。' },
+  { door: 'read|electron/capabilityCore/externalAgentGateTestkit.ts|runTask', role: 'test-utility', why: '外部 Agent 过门测试的装配工具：照宿主把 runTask 递给工具调度，测试只走到门回确认，不铸令牌、不进产品路径。' },
 ]
 
 /** @param {SpendTokenDoor} door */
