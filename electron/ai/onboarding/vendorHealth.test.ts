@@ -304,7 +304,7 @@ describe("checkVendorHealth — 缓存与并发（「重开面板不回退」靠
     fetchSpy.mockResolvedValue(new Response(JSON.stringify({ data: [{ id: 'fixture-model' }] }), { status: 200 }));
     expect((await checkVendorHealth('v')).state).toBe('reachable');
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect(readCatalog().apiKeysByVendor.v.enabled).toBe(true);
+    expect(readCatalog().apiKeysByVendor.v.enabled).toBe(false);
     expect(readCatalog().apiKeysByVendor.v.verificationPending).toBeUndefined();
 
     resetVendorHealthCache();

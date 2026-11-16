@@ -1,3 +1,4 @@
+import { recordModelExecutionResult } from "./modelExecutionVerification";
 // 自定义调用脚本的**任务派发**（从 runtime.runTask 抽出，R12 巨壳门岗净减）。
 // 与 mapping 路径同语义：指纹缓存 → 付费守卫 → 参考素材本地化 → 跑脚本 → 结果落地 → 溯源。
 // localizeTaskAsset 是 runtime 内部函数（定义在那），注入进来避免 ↔ runtime 循环依赖；
@@ -151,7 +152,7 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
     };
     traceVendorCompleted(projectId, { runId: taskId, nodeId, status: "succeeded", assetCount: 0 });
     rememberTaskResult(projectId, fingerprint, textResult);
-    return textResult;
+    return recordModelExecutionResult({ vendor, model, apiKey }, textResult);
   }
 
   const assets = await Promise.all(
@@ -169,5 +170,5 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
   };
   traceVendorCompleted(projectId, { runId: taskId, nodeId, status: "succeeded", assetCount: assets.length });
   rememberTaskResult(projectId, fingerprint, finalResult);
-  return finalResult;
+  return recordModelExecutionResult({ vendor, model, apiKey }, finalResult);
 }

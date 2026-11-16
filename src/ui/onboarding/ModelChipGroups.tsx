@@ -29,6 +29,7 @@ export type ChipModel = {
    * 「这个模型现在能不能用」——主进程算好的**唯一**答案（`electron/shared/modelAvailability.ts`）。
    * 模型设置页的「N 个可使用」读它，和首页横幅 / 助手下拉 / 画布选择器同源。
    */
+  credentialVerificationPending?: boolean
   availability?: ModelAvailability
   /** 后端模型扩展信息；通用 chip 不消费，专用卡可透传读取。 */
   meta?: unknown

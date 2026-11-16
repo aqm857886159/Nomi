@@ -72,7 +72,7 @@ describe('model settings home', () => {
       ready: 1,
     })
     expect(summarizeModelHomeConnection([{ ...configured, adapterState: 'failed' }], mapping))
-      .toMatchObject({ state: 'attention', ready: 1, needsSetup: 1 })
+      .toMatchObject({ state: 'verified', ready: 1, needsSetup: 0 })
     expect(resolveModelHomeStatus({ ...configured, availability: undefined }, mapping)).toBe('needsSetup')
     expect(summarizeModelHomeConnection([{ ...configured, availability: undefined }], mapping).ready).toBe(0)
   })
@@ -123,3 +123,10 @@ describe('model settings home', () => {
       .toEqual(models)
   })
 })
+
+
+it('shows ongoing validation independently of eligibility without counting a missing format as usable', () => {
+ const testing = model({adapterState:'testing',availability:{usable:false,reason:'model_unpublished'}});
+ expect(resolveModelHomeStatus(testing,[])).toBe('working');
+ expect(summarizeModelHomeConnection([testing],[])).toMatchObject({state:'working',ready:0,working:1});
+});

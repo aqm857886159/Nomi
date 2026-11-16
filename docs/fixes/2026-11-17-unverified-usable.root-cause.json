@@ -1,0 +1,372 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-17-unverified-usable",
+  "problem_type": "Verification diagnostic incorrectly controls local execution eligibility",
+  "symptom": "保存未验证或验证失败的连接后模型无法选择，后续成功仍留下旧失败提示。",
+  "direct_cause": "凭据与模型保存/认证把未验证写为停用，发布投影还按认证模式过滤。",
+  "class_root": "验证证据与用户启停意愿复用了同一发布开关，诊断结果被当作请求格式或凭据缺失。",
+  "affected_population": [
+    "自定义兼容连接",
+    "内置供应商待验证凭据",
+    "旧版验证失败模型"
+  ],
+  "scope_paths": [
+    "electron/ai/onboarding/vendorHealth.ts",
+    "electron/catalog/catalogFileAccess.ts",
+    "electron/catalog/catalogMigrations.ts",
+    "electron/catalog/catalogStore.ts",
+    "electron/catalog/credentialPublication.ts",
+    "electron/catalog/customCallDispatch.ts",
+    "electron/catalog/directKeyCredential.ts",
+    "electron/catalog/executableModel.ts",
+    "electron/catalog/modelExecutionVerification.ts",
+    "electron/catalog/rendererCatalogMutation.ts",
+    "electron/catalog/secrets.ts",
+    "electron/catalog/types.ts",
+    "electron/catalog/unverifiedUsableMigration.ts",
+    "electron/catalog/validateCandidateCredential.ts",
+    "electron/catalog/vendorValidationInvalidation.ts",
+    "electron/desktopStrings.ts",
+    "electron/integrationCertification/httpConnector.ts",
+    "electron/integrationCertification/service.ts",
+    "electron/providerAdapter/serviceCatalog.ts",
+    "electron/runtime.ts",
+    "electron/shared/modelAvailability.ts",
+    "electron/shared/modelPublication.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "electron/textTaskRunner.ts",
+    "src/desktop/onboardingBridgeTypes.ts",
+    "src/i18n/locales/onboardingProviders.ts",
+    "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
+    "src/ui/onboarding/ModelAdapterStatusSection.tsx",
+    "src/ui/onboarding/ModelChipGroups.tsx",
+    "src/ui/onboarding/ModelSettingsHome.tsx",
+    "src/ui/onboarding/ModelSettingsWorkspacePages.tsx",
+    "src/ui/onboarding/OnboardingDrawer.tsx",
+    "src/ui/onboarding/adapterTaskVisibility.ts",
+    "src/ui/onboarding/modelSettingsCatalogProjection.ts",
+    "src/ui/onboarding/modelSettingsHomeState.ts",
+    "src/ui/onboarding/useProviderAdapterTasks.ts",
+    "src/workbench/api/modelCatalogApi.ts"
+  ],
+  "entry_points": [
+    "默认模型选择",
+    "画布模型选择",
+    "助手模型选择",
+    "生成、文本、目录服务首用"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "本次恢复用户明确指定的本地目录不变量，依赖行为不决定验证是否拦截。",
+  "invariants": [
+    "有请求格式与可解密密钥的启用模型不依赖验证结果发布。",
+    "缺请求格式、缺密钥和用户显式停用仍不可用。",
+    "一次性数据修正以单调收据记录，目录格式版本不变；用户随后手动停用保持关闭。",
+    "真实成功只清本次使用的凭据和模型验证标记。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "derivePublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationDefaultModelResolver.ts",
+      "symbol": "derivePublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "modelHasPublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/moduleCatalogBootstrap.ts",
+      "symbol": "derivePublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "modelHasPublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogModelAvailability.ts",
+      "symbol": "deriveModelAvailability"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "derivePublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/executableModel.ts",
+      "symbol": "rowServesMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/modelCatalogListing.ts",
+      "symbol": "modelHasPublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "modelHasPublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "derivePublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "modelHasPublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/stagedVendorIdentity.ts",
+      "symbol": "modelHasPublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/stagedVendorIdentity.ts",
+      "symbol": "derivePublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/unverifiedUsableMigration.ts",
+      "symbol": "modelHasPublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/vendorLineageLifecycle.ts",
+      "symbol": "derivePublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "derivePublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "modelHasPublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelAvailability.ts",
+      "symbol": "derivePublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelPublication.ts",
+      "symbol": "derivePublishedExecution"
+    },
+    {
+      "kind": "read",
+      "path": "src/config/modelCatalogCache.ts",
+      "symbol": "rowServesMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/catalogLiveness/states/01-listing.tsx",
+      "symbol": "projectModelSettingsCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/adapterTaskVisibility.ts",
+      "symbol": "adapterFailureIsObsolete"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
+      "symbol": "adapterFailureIsObsolete"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelSettingsHome.tsx",
+      "symbol": "resolveModelHomeStatus"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/modelSettingsHomeState.ts",
+      "symbol": "resolveModelHomeStatus"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingDrawer.tsx",
+      "symbol": "useProviderAdapterTasks"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/useOnboardingDrawerCatalog.ts",
+      "symbol": "projectModelSettingsCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/useProviderAdapterTasks.ts",
+      "symbol": "visibleAdapterRuns"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelV4ModelRows.ts",
+      "symbol": "buildDefaultModelOptions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "symbol": "filterUsableAssistantTextModels"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/settings/DefaultGenerationModelsSection.tsx",
+      "symbol": "buildDefaultModelOptions"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "symbol": "upsertRendererCatalogVendorApiKey"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogMigrations.ts",
+      "symbol": "repairUnverifiedUsable"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "snapshotBeforeMigration"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "invalidateVendorValidation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "recordModelExecutionResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "publishConfiguredVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "revalidatePendingCredential"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "recordModelExecutionResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "revalidatePendingCredential"
+    },
+    {
+      "kind": "write",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "recordModelExecutionResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "revalidatePendingCredential"
+    }
+  ],
+  "door_reduction": {
+    "before": 37,
+    "after": 43,
+    "why_not": "同口径从任务基线 HEAD 提取源码，用同一 AST 工具重数。保留各用户入口；新增共享成功回执与一次性修正写口，不增加独立可用性判据。原读取链 16 门另报。"
+  },
+  "generality_proof": "三个选择器及发送解析器读取共享可用性与发布投影；写入规则不再把验证状态翻译为用户停用。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/modelPublication.ts",
+      "symbol": "derivePublishedExecution",
+      "responsibility": "从已存请求格式派生发布模式。"
+    },
+    {
+      "path": "electron/shared/modelAvailability.ts",
+      "symbol": "deriveModelAvailability",
+      "responsibility": "单一可用性判定。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/config/modelCatalogCache.ts",
+      "entry_point": "optionsFromRows",
+      "disposition": "enforced",
+      "evidence": "rowServesMode读取主进程同一availability。"
+    },
+    {
+      "path": "electron/catalog/executableModel.ts",
+      "entry_point": "findExecutableModel",
+      "disposition": "enforced",
+      "evidence": "catalogModelAvailability读取同一发布与凭据判据。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一验证写入状态通过三个选择器与三个发送入口传播。",
+    "same_class_scan": [
+      "door-map revalidatePendingCredential: 3 caller files",
+      "door-map deriveModelAvailability,derivePublishedExecution,rowServesMode,buildDefaultModelOptions,filterUsableAssistantTextModels: 16 read doors"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/modelPublication.ts",
+    "invariant": "诊断验证不替代请求格式与凭据事实。",
+    "failure_mode": "没有执行声明时不发布。",
+    "exception_policy": "none",
+    "strategy": "删除按验证状态裁剪发布的分支；共享读面只认执行事实，单调收据只恢复一次旧验证停用。",
+    "artifacts": [
+      "electron/shared/modelPublication.ts",
+      "electron/catalog/rendererCatalogMutation.ts",
+      "electron/catalog/catalogMigrations.ts",
+      "electron/catalog/modelExecutionVerification.ts",
+      "electron/catalog/vendorValidationInvalidation.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/unverifiedUsable.test.ts",
+    "src/workbench/ai/modelAvailabilityAgreement.test.ts",
+    "src/config/modelCatalogCache.test.ts",
+    "src/ui/onboarding/adapterTaskVisibility.test.ts",
+    "src/ui/onboarding/assistedOnboardingOwnership.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/unverifiedUsable.test.ts",
+    "src/workbench/ai/modelAvailabilityAgreement.test.ts",
+    "src/config/modelCatalogCache.test.ts",
+    "src/ui/onboarding/adapterTaskVisibility.test.ts",
+    "src/ui/onboarding/assistedOnboardingOwnership.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/modelPublication.ts",
+      "electron/catalog/rendererCatalogMutation.ts",
+      "electron/catalog/validateCandidateCredential.ts"
+    ],
+    "rationale": "删除验证失败阻断、pending停用及按已认证模式发布的旧规则。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "无第三方依赖控制本地验证/发布判据，沿用现有目录版本迁移与UI组件。",
+    "exit_criteria": []
+  },
+  "migration": "不升目录版本（13）。更新提醒只有应用版本，源码与已发包同为0.24.1不能区分；已有修正均绑定目录版本、无可复用账本，故使用目录顶层unverifiedUsableRecovered收据。旧版可读写；降版可能重新停用、丢收据后再升级可能重做。失败后手动开关无法区分的旧模型随一次修正启用。",
+  "residual_risks": [
+    "Windows与真实供应商付费调用不在本线验证范围。"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-24"
+}

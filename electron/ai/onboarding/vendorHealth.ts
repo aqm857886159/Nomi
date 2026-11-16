@@ -144,11 +144,8 @@ async function probe(vendorKey: string, target: Target): Promise<VendorHealth> {
         mutateCatalog((tx, state) => {
           const record = state.apiKeysByVendor[vendorKey];
           if (record?.verificationPending) {
-            // Pending writes stay disabled until this successful probe. Promote
-            // only that pending record; a non-pending user disablement is never
-            // decrypted or sent by this path.
+            // A probe clears its diagnostic only; it never changes user enablement.
             delete record.verificationPending;
-            record.enabled = true;
           }
           for (const patch of modelListReconciliation(state.models, vendorKey, res)) tx.upsertModel(patch);
         });

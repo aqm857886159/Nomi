@@ -89,10 +89,10 @@ describe("direct-key credential validation (apimart liveness probe)", () => {
     await expect(validateCandidateCredential(apimartVendor(state), "sk-test")).resolves.toBe(false);
   });
 
-  it.each([401, 403])("probe %i → key is invalid (throws, candidate never published)", async (status) => {
+  it.each([401, 403])("probe %i is a failed diagnostic, not a save blocker", async (status) => {
     const state = seedApimartCatalog();
     mockAppFetch.mockResolvedValue(probeResponse(status, { code: 401, message: "unauthorized" }));
-    await expect(validateCandidateCredential(apimartVendor(state), "sk-bad")).rejects.toThrow();
+    await expect(validateCandidateCredential(apimartVendor(state), "sk-bad")).resolves.toBe(true);
   });
 
   it("network failure → pending (honest: not faked as available, not misreported as bad key)", async () => {
@@ -113,13 +113,13 @@ describe("direct-key credential publish path", () => {
     expect(state.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(true);
   });
 
-  it("pending key stays disabled and the vendor stays de-published (honesty invariant intact)", async () => {
+  it("pending key publishes configured models while retaining the diagnostic", async () => {
     seedApimartCatalog();
     mockAppFetch.mockRejectedValue(new TypeError("offline"));
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-live", enabled: false });
     const state = readCatalog();
-    expect(state.apiKeysByVendor.apimart).toMatchObject({ enabled: false, verificationPending: true });
-    expect(state.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(false);
+    expect(state.apiKeysByVendor.apimart).toMatchObject({ enabled: true, verificationPending: true });
+    expect(state.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(true);
   });
 
   // 2026-09-29（A10b）：用户在内置 APIMart 上手加一个模型去自检——走的是渲染层真实的新建写门，
@@ -135,7 +135,7 @@ describe("direct-key credential publish path", () => {
     expect(readCatalog().vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(true);
   });
 
-  it("scope drift fails closed: verified key enables the credential but never the vendor", async () => {
+  it("explicitly saving a key for a changed address publishes configured routes with destination binding", async () => {
     const state = seedApimartCatalog();
     // 用户（或旧数据）把 baseUrl 指去别处 → 不再是代码拥有的契约，promote 必须拒绝。
     apimartVendor(state).baseUrlHint = "https://evil.example";
@@ -143,6 +143,6 @@ describe("direct-key credential publish path", () => {
     mockAppFetch.mockResolvedValue(probeResponse(200));
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-live", enabled: false });
     const after = readCatalog();
-    expect(after.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(false);
+    expect(after.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(true);
   });
 });

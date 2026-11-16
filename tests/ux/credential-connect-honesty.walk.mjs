@@ -1,23 +1,6 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
-// R13/R16 走查：保存 vendor key 后，「已接入 / N 个可使用」这套「已可用」表述必须与真实可用性一致。
-//
-// 背景（2026-09-01 CERT 核实）：保存凭据落盘即 enabled:false（认证前不 promote，属正确 fail-closed），
-// 而 resolveTextBrainKeys 要求凭据 enabled===true 才算可用。若某条保存路径只写凭据、忘了把 vendor 同时
-// de-publish，就会出现「vendor.enabled=true + 凭据 enabled:false」的错位——模型设置首页据此把它列进
-// 「已接入 / N 个可使用」，可文本大脑（及一切生成）实际拿不到可用模型。
-//
-// 根因修在 store 最内层共享边界 applyApiKeyUpsert（见 electron/catalog/credentialPublication.ts 与
-// docs/fixes/2026-09-01-credential-enable-honesty.root-cause.json）。认证 promote 一律写
-// enabled:true 故不触发该守卫——态②就是它的不变性证据。
-//
-// 这条走查锁两态的「名实一致」——两态都用真机 resolveTextBrain（渲染口）作真相：
-//   ① 裸凭据写入（bridge upsertVendorApiKey，不配对 upsertVendor）→ vendor 必被 de-publish →
-//      apimart 落「可接入」段、不落「已接入」段；resolveTextBrain=null。
-//   ② 认证成功终态（vendor+model+凭据全 enabled + adapter verified）→ apimart 落「已接入」段；
-//      resolveTextBrain 返回 brain。
-// 判据：UI「已接入段出现」当且仅当 resolveTextBrain 可用。任一态不一致即报红。
-//
-// 用法（零额度可跑；给真 key 更贴真）：APIMART_API_KEY=... node tests/ux/credential-connect-honesty.walk.mjs
+// 保存未验证凭据与认证成功两态，都必须与共享可执行解析得到同一个答案。
+// 只有明确停用的凭据才下架；保存后的探测失败只提示，不影响已有请求格式。
 import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
@@ -109,7 +92,7 @@ function patchDisk(p, { vendorEnabled, credentialEnabled, modelEnabled, certifie
 }
 
 try {
-  // ── 态① 裸凭据写入旁路：fix 后 vendor 必被 de-publish，名实一致 ──
+  // ── 态① 裸凭据写入旁路：fix 后 保存凭据即可使用，名实一致 ──
   {
     const p = mkProfile('bare')
     const { app, win } = await launch('bare', p)
@@ -122,9 +105,10 @@ try {
     const inConnected = await apimartInConnectedSection(win)
     await screenshotSettled(dialog, { path: path.join(shotsDir, '01-bare-credential-home.png') })
     console.log(`  ① 裸凭据: vendor.enabled=${r.vendorEnabled} hasApiKey=${r.hasApiKey} resolver可用=${r.usable} UI已接入段=${inConnected}`)
-    // 硬断言：凭据写入后 vendor 被 de-publish；且「已接入」出现 ⟺ resolver 可用。
-    expect(r.vendorEnabled, '裸凭据写入后 vendor 仍 enabled=true：共享边界没把它 de-publish（会显示已接入但用不了）').toBe(false)
-    expect(inConnected, '裸凭据（resolver 不可用）时 apimart 仍列在「已接入」段：名实不符').toBe(false)
+    // 硬断言：保存后可用；界面与共享解析一致。
+    expect(r.vendorEnabled, '保存凭据后连接应启用，验证仅作提示').toBe(true)
+    expect(r.usable, '已有文本请求格式和凭据应可执行').toBe(true)
+    expect(inConnected, '保存未验证凭据后应列入已接入').toBe(true)
     expect(inConnected, '态①名实不符：UI已接入 ≠ resolver可用').toBe(r.usable)
     await app.close().catch(() => {})
   }

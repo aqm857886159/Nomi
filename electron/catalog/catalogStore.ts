@@ -63,6 +63,7 @@ function defaultCatalog(): CatalogState {
   // No more phantom seed entries (chatfire/sora/gpt-4o-mini) that have no keys.
   return {
     version: CURRENT_CATALOG_VERSION,
+    unverifiedUsableRecovered: true,
     vendors: [],
     models: [],
     mappings: [],
@@ -220,6 +221,7 @@ export function listModelCatalogModels(params?: unknown): Array<Model & {
     ...model,
     ...derivePublishedExecution(model, { mappings: state.mappings }),
     availability: availability.of(model),
+    credentialVerificationPending: state.apiKeysByVendor[model.vendorKey]?.verificationPending === true,
     // 型号名由档案提供还是就是这一行的 key（唯一计算处 ./modelNameSource）；渲染层的档案解析据它收窄档案。
     modelNameSource: nameSources.get(modelNameSourceKey(model.vendorKey, model.modelKey)) ?? "row",
   })) as Array<Model & { published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability; modelNameSource: ModelNameSource }>;
@@ -416,7 +418,8 @@ function applyApiKeyUpsert(state: CatalogState, vendorKey: string, payload: unkn
   };
   // 凭据绑定（§6.1）：全仓唯一的 key 写门，绑定不可能有第二个写入口。判据住 credentialBinding.ts。
   bindCredentialDestination(state.vendors.find((vendor) => vendor.key === key), t);
-  if (!enabled) { invalidateVendorValidation(state, key); depublishVendorForDisabledCredential(state, key, t); }
+  if (!enabled || (existing && decryptApiKeyRecord(existing) !== apiKey)) invalidateVendorValidation(state, key);
+  if (!enabled) depublishVendorForDisabledCredential(state, key, t);
 }
 export function upsertModelCatalogVendorApiKey(vendorKey: string, payload: unknown): unknown {
   const state = readCatalog();

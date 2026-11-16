@@ -260,7 +260,8 @@ describe('model settings workspace structure', () => {
     expect(connections).toContain('hasApiKey: meta?.hasApiKey ?? true')
     expect(connections).toContain('baseUrl: card.meta.baseUrl')
     // 区块标题不许在有家连不上时还写「N 个可使用」（与行内红字打架）。
-    expect(home).toContain('unreachableAside ?? (hasAttention')
+    expect(home).toContain('ready: readyCount, pending: needsSetupCount')
+    expect(home).not.toContain('unreachableAside')
   })
 
   // §1.5.2 一功能一个家：删除整家此前有两个入口（卡头垃圾桶 + 连接组按钮）。

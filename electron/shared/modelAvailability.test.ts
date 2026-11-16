@@ -17,8 +17,8 @@ function textModel(overrides: Partial<PublishedExecutionModel> = {}): PublishedE
  * 一条**走 MCP 接入、认证没走完**的文本模型：`meta.adapter` 在（说明它属于认证域），
  * 但没有 `activeRevision`。这正是 2026-09-12 真实验收里那两个 DeepSeek 模型的形状。
  */
-function uncertifiedAdapterModel(): PublishedExecutionModel {
-  return { enabled: true, vendorKey: "deepseek", modelKey: "deepseek-flash", kind: "text", meta: { adapter: { modes: [], publicationModes: [] } } };
+function unconfiguredMediaModel(): PublishedExecutionModel {
+  return { enabled: true, vendorKey: "deepseek", modelKey: "unconfigured-video", kind: "video", meta: { adapter: { modes: [], publicationModes: [] } } };
 }
 
 function input(overrides: Partial<ModelAvailabilityInput> = {}): ModelAvailabilityInput {
@@ -53,8 +53,8 @@ describe("deriveModelAvailability — 全 App 唯一那条「现在能不能用�
       .toEqual({ usable: false, reason: "model_disabled" });
   });
 
-  it("P0-10 现场：启用着、钥匙也在，但认证没走完 → model_unpublished，不是可用", () => {
-    expect(deriveModelAvailability(input({ model: uncertifiedAdapterModel(), credentialStatus: () => "ok" })))
+  it("缺请求格式的媒体模型仍不可用；有密钥也不例外", () => {
+    expect(deriveModelAvailability(input({ model: unconfiguredMediaModel(), credentialStatus: () => "ok" })))
       .toEqual({ usable: false, reason: "model_unpublished" });
   });
 
@@ -78,7 +78,7 @@ describe("deriveModelAvailability — 全 App 唯一那条「现在能不能用�
     const probe = vi.fn((): ApiKeyDecryptStatus => "missing");
     deriveModelAvailability(input({ vendor: { enabled: true, authType: "none" }, credentialStatus: probe }));
     deriveModelAvailability(input({ vendor: { enabled: false, authType: "bearer" }, credentialStatus: probe }));
-    deriveModelAvailability(input({ model: uncertifiedAdapterModel(), credentialStatus: probe }));
+    deriveModelAvailability(input({ model: unconfiguredMediaModel(), credentialStatus: probe }));
     expect(probe).not.toHaveBeenCalled();
   });
 
@@ -99,7 +99,7 @@ describe("矩阵：认证 × 钥匙 × 启停 × 角色 —— 同一份输入�
         for (const modelEnabled of enabledStates) {
           for (const vendorEnabled of enabledStates) {
             const result = deriveModelAvailability({
-              model: isPublished ? textModel({ enabled: modelEnabled }) : { ...uncertifiedAdapterModel(), enabled: modelEnabled },
+              model: isPublished ? textModel({ enabled: modelEnabled }) : { ...unconfiguredMediaModel(), enabled: modelEnabled },
               vendor: { enabled: vendorEnabled, authType: "bearer" },
               credentialStatus: () => credentialStatus,
             });

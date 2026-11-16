@@ -219,13 +219,14 @@ describe("每一类各自的正路（用户反馈里被点名的四种情形）"
     expect(state.apiKeysByVendor.replicate?.apiKey).toBeTruthy();
   });
 
-  it("apimart（种子带 credentialProbe）：401 仍然判 key 无效，不发布", async () => {
+  it("apimart 免费探测 401 只记未验证，保存并发布", async () => {
     mockAppFetch.mockResolvedValue(new Response("{}", { status: 401 }));
-    await expect(saveKey("apimart", "sk-bad")).rejects.toThrow();
-    expect(readCatalog().vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(false);
+    await expect(saveKey("apimart", "sk-bad")).resolves.toBeUndefined();
+    expect(readCatalog().apiKeysByVendor.apimart).toMatchObject({ enabled: true, verificationPending: true });
+    expect(readCatalog().vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(true);
   });
 
-  it("自定义/中转供应商（无内置种子）发布策略不变：仍由认证晋升决定", async () => {
+  it("自定义中转保存 key 后连接启用，模型仍需请求格式", async () => {
     const seeded = seededCatalog();
     seeded.vendors.push({
       key: "my-relay", name: "自建中转", enabled: false, baseUrlHint: "https://relay.example",
@@ -235,6 +236,6 @@ describe("每一类各自的正路（用户反馈里被点名的四种情形）"
     const modelListProbe = await import("../ai/onboarding/modelListProbe");
     vi.spyOn(modelListProbe, "fetchModelList").mockResolvedValue({ ok: true, models: [], statuses: [200] });
     await upsertRendererCatalogVendorApiKey("my-relay", { apiKey: "sk-relay" });
-    expect(readCatalog().vendors.find((vendor) => vendor.key === "my-relay")?.enabled).toBe(false);
+    expect(readCatalog().vendors.find((vendor) => vendor.key === "my-relay")?.enabled).toBe(true);
   });
 });

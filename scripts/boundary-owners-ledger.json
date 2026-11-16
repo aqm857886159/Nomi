@@ -3,6 +3,16 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-09-10-vendor-key-publish-class.root-cause.json",
+      "path": "electron/catalog/directKeyCredential.ts",
+      "symbol": "publishBuiltinCuratedVendor",
+      "anchor": {
+        "path": "electron/catalog/directKeyCredential.ts",
+        "symbol": "publishConfiguredVendor"
+      },
+      "reason": "2026-11-17 按已批准的未验证可用规则，保存凭据后的连接发布扩展到所有供应商。旧名字与实现同提交删除；连接启用与模型请求格式分开，模型仍由 deriveModelAvailability 判定。directKeyCredential.test.ts 和 unverifiedUsable.test.ts 守本次、缺格式和手动停用反例。"
+    },
+    {
       "contract": "docs/fixes/2026-09-28-channel-model-identity-merge.root-cause.json",
       "path": "electron/catalog/seedModelIdentity.ts",
       "symbol": "CANONICAL_MODEL_IDS",

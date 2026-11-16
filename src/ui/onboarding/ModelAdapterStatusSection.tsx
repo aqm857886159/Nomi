@@ -112,10 +112,16 @@ export function ModelAdapterStatusSection({
           </span>
           <div className="min-w-0 flex-1">
             <h3 className="text-body-sm font-semibold text-nomi-ink">
-              {t(`onboardingProviders.workspace.adapter.title.${state.state}` as 'onboardingProviders.workspace.adapter.title.readyVerified')}
+              {model.availability?.usable && model.adapterState === 'failed'
+                ? t('onboardingProviders.drawer.home.verificationFailedUsable')
+                : model.credentialVerificationPending
+                  ? t('onboardingProviders.keyOnly.offlineTitle')
+                  : t(`onboardingProviders.workspace.adapter.title.${state.state}` as 'onboardingProviders.workspace.adapter.title.readyVerified')}
             </h3>
             <p className="mt-0.5 text-caption leading-relaxed text-nomi-ink-60">
-              {t(`onboardingProviders.workspace.adapter.body.${state.state}` as 'onboardingProviders.workspace.adapter.body.readyVerified')}
+              {model.availability?.usable && model.adapterState === 'failed'
+                ? t('onboardingProviders.drawer.home.verificationFailedUsableHint')
+                : t(`onboardingProviders.workspace.adapter.body.${state.state}` as 'onboardingProviders.workspace.adapter.body.readyVerified')}
             </p>
           </div>
         </div>

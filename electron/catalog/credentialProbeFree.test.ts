@@ -193,11 +193,11 @@ describe("T-MO-10 ① 有免费端点的供应商：保存验证不发生成请�
     expect(calls.some((call) => /chat\/completions/.test(call.url))).toBe(false);
   });
 
-  it("免费端点回 401 仍然判 key 无效（免费不等于不判）", async () => {
+  it("免费端点回 401 只保留未验证，不拒绝保存", async () => {
     const state = seedApimartCatalog();
     mockAppFetch.mockResolvedValue(jsonResponse(401, { error: { message: "invalid API key", type: "apimart_error" } }));
     const { validateCandidateCredential } = await import("./validateCandidateCredential");
-    await expect(validateCandidateCredential(vendorRow(state, "apimart"), "sk-bad")).rejects.toThrow();
+    await expect(validateCandidateCredential(vendorRow(state, "apimart"), "sk-bad")).resolves.toBe(true);
     expect(outboundCalls().some((call) => /chat\/completions/.test(call.url))).toBe(false);
   });
 });

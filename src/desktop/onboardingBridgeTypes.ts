@@ -46,6 +46,7 @@ export type DesktopProviderAdapterRun = {
   id: string
   vendorKey: string
   lineageRootVendorKey?: string
+  sourceVendorKey?: string
   vendorName: string
   selectedModelKeys: string[]
   stage: AdapterRunStage

@@ -179,7 +179,7 @@ describe("B4 pending probe isolation", () => {
     const { revalidatePendingCredential } = await import("./validateCandidateCredential");
     store.upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-offline", enabled: false, verificationPending: true });
     vi.spyOn(await import("../ai/onboarding/modelListProbe"), "fetchModelList").mockResolvedValue({ ok: false, failureKind: "network", statuses: [], error: "offline" });
-    await expect(revalidatePendingCredential("relay")).rejects.toThrow();
+    await expect(revalidatePendingCredential("relay")).resolves.toBeUndefined();
     expect(store.readCatalog().apiKeysByVendor.relay).toMatchObject({ verificationPending: true, enabled: false });
   });
   it("shares concurrent probes and refuses to clear a replacement key with stale evidence", async () => {
@@ -194,7 +194,7 @@ describe("B4 pending probe isolation", () => {
     const result = Promise.allSettled([first, second]);
     store.upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-second", enabled: false, verificationPending: true });
     finish({ ok: true, models: [], statuses: [200] });
-    expect((await result).map(value => value.status)).toEqual(["rejected", "rejected"]);
+    expect((await result).map(value => value.status)).toEqual(["fulfilled", "fulfilled"]);
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(store.readCatalog().apiKeysByVendor.relay.verificationPending).toBe(true);
   });
@@ -211,8 +211,8 @@ it("keeps the pending marker when certification stages the saved credential", as
     models: [{ modelKey: "offline-model", labelZh: "Offline model", kind: "text" }],
   });
   expect(store.readCatalog().apiKeysByVendor[staged.vendor.key].verificationPending).toBe(true);
-  expect(store.readCatalog().vendors.find(v => v.key === staged.vendor.key)?.enabled).toBe(false);
+  expect(store.readCatalog().vendors.find(v => v.key === staged.vendor.key)?.enabled).toBe(true);
   const fetch = vi.spyOn(await import("../ai/onboarding/modelListProbe"), "fetchModelList").mockResolvedValue({ ok: false, failureKind: "network", statuses: [], error: "offline" });
-  await expect(defaultCatalog.load(staged.vendor.key, ["offline-model"])).rejects.toThrow();
+  await expect(defaultCatalog.load(staged.vendor.key, ["offline-model"])).resolves.toBeDefined();
   fetch.mockRestore();
 });

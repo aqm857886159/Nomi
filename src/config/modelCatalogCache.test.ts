@@ -110,7 +110,7 @@ describe('normal picker verified-only projection', () => {
     await expect(preloadModelOptions('image')).resolves.toEqual([])
   })
 
-  it('honors the shared current publication mask through the real DTO-to-picker projection', async () => {
+  it('uses executable formats independently of verification masks through the real DTO-to-picker projection', async () => {
     const source = {
       ...row('shared-image'),
       vendorKey: 'source',
@@ -139,7 +139,7 @@ describe('normal picker verified-only projection', () => {
       { key: 'survivor', name: 'Survivor', enabled: true, authType: 'none' },
     ])
 
-    await expect(preloadModelOptions('image')).resolves.toMatchObject([{ value: 'shared-image', vendor: 'survivor' }])
+    await expect(preloadModelOptions('image')).resolves.toMatchObject([{ value: 'shared-image', vendor: 'source' }, { value: 'shared-image', vendor: 'survivor' }])
     notifyModelOptionsRefresh()
     await expect(preloadModelOptions('imageEdit')).resolves.toMatchObject([{ value: 'shared-image', vendor: 'source' }])
   })
@@ -294,3 +294,16 @@ describe('模式级候选：下拉与主进程同一条判据', () => {
     expect(listed).toEqual(rows.filter((item) => rowServesMode(item, 'transcribe')).map((item) => item.modelKey))
   })
 })
+
+
+describe('unverified configured rows remain selectable', () => {
+ it('uses the real canvas projection for both pending and failed diagnostics', async () => {
+  notifyModelOptionsRefresh();
+  mocks.listVendors.mockResolvedValue([{key: 'relay', name: 'Relay', enabled: true}]);
+  mocks.listModels.mockResolvedValue([
+   {...row('pending', ['text_to_image'], {adapter: {state: 'unverified'}}), credentialVerificationPending: true},
+   row('failed', ['text_to_image'], {adapter: {state: 'failed'}})
+  ]);
+  expect((await preloadModelOptions('image', 'text_to_image')).map(item => item.value)).toEqual(['pending', 'failed']);
+ });
+});

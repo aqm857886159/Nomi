@@ -1,6 +1,5 @@
 import type { Mapping } from '../../../electron/catalog/types'
 import type { ChipModel } from './ModelChipGroups'
-import { projectModelCapability } from './modelCapabilityProjection'
 
 export type ModelHomeStatus = 'working' | 'verified' | 'ready' | 'needsSetup' | 'failed' | 'disabled'
 export type ModelHomeConnectionState = 'working' | 'verified' | 'attention' | 'disabled'
@@ -16,23 +15,16 @@ export type ModelHomeConnectionState = 'working' | 'verified' | 'attention' | 'd
  * 现在「能不能用」只认主进程那一个答案（`model.availability`）；本函数剩下的职责是把
  * **不可用的原因**翻译成这一页的四档：正在跑 / 要你去弄 / 被你关掉了 / 可用。
  */
-export function resolveModelHomeStatus(model: ChipModel, mappings: readonly Mapping[]): ModelHomeStatus {
+export function resolveModelHomeStatus(model: ChipModel, _mappings: readonly Mapping[]): ModelHomeStatus {
   if (model.adapterState === 'testing') return 'working'
-  if (model.adapterState === 'failed') return 'failed'
-  if (model.customCallDraft) return 'needsSetup'
-
-  const capability = projectModelCapability({ model, mappings })
-  const capabilityKnown = model.kind === 'text' || capability.inputContract === 'known'
-  const transportAvailable = model.kind === 'text' || capability.customCall.enabled || capability.transport.mappings.length > 0
-  if (!capabilityKnown || !transportAvailable) return 'needsSetup'
   const availability = model.availability
-  // 缺少主进程结论的旧缓存不能自己推断为可用。
+  if (availability?.usable) {
+    if (model.adapterState === 'failed') return 'failed'
+    return model.adapterState === 'verified' ? 'verified' : 'ready'
+  }
   if (!availability) return model.enabled ? 'needsSetup' : 'disabled'
-  if (availability.usable) return model.adapterState === 'verified' ? 'verified' : 'ready'
-  // 「你自己关掉的」和「还差点什么」要分开：前者一键就能开回来，后者得去做点事。
-  return availability.reason === 'model_disabled' || availability.reason === 'vendor_disabled'
-    ? 'disabled'
-    : 'needsSetup'
+  return availability.reason === 'model_disabled' || availability.reason === 'vendor_disabled' ? 'disabled' : 'needsSetup'
+
 }
 
 export function summarizeModelHomeConnection(
@@ -49,7 +41,7 @@ export function summarizeModelHomeConnection(
   // 自检诊断与可用性是不同维度：失败/进行中的自检不会下架已有模型。
   const ready = models.filter((model) => model.availability?.usable === true).length
   const working = statuses.filter((status) => status === 'working').length
-  const needsSetup = statuses.filter((status) => status === 'needsSetup' || status === 'failed').length
+  const needsSetup = models.filter((model, index) => !model.availability?.usable && (statuses[index] === 'needsSetup' || statuses[index] === 'failed')).length
   const disabled = statuses.filter((status) => status === 'disabled').length
   const state: ModelHomeConnectionState = needsSetup > 0
     ? 'attention'

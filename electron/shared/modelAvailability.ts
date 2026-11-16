@@ -18,7 +18,7 @@
 //
 // 放在 `electron/shared/` 而不是 `electron/catalog/`：渲染层要按同一个枚举读同一份结论
 // （DTO 带 `availability` 过 IPC），共享层是两侧都 import 得到的那一层。
-import { adapterPublicationModeMask, derivePublishedExecution, type PublishedExecutionEvidence, type PublishedExecutionModel } from "./modelPublication";
+import { derivePublishedExecution, type PublishedExecutionEvidence, type PublishedExecutionModel } from "./modelPublication";
 // 钥匙健康度不在这里另立词表：它的单一 owner 是中立契约 `contracts/apiKeyStatus.ts`（R14.1）。
 import { missingDeclaredCapabilityFields, parseCustomCapabilityContract } from "./customCapabilityContract";
 import type { ApiKeyDecryptStatus } from "./contracts/apiKeyStatus";
@@ -36,7 +36,7 @@ export const MODEL_UNUSABLE_REASONS = [
   /** 这一行模型自己被停用。 */
   "model_disabled",
   /**
-   * 目录发布资格不成立：适配器还没认证出 active revision，或没有任何可执行 mapping/脚本。
+   * 目录发布资格不成立：适配器没有任何可执行 mapping/脚本。
    * 这是 MCP 接入走到一半停下时**最常见**的一档——模型行在、启用着、钥匙也在，就是没发布。
    */
   "model_unpublished",
@@ -128,8 +128,7 @@ export function assertDeclaredCapabilityForTask(meta: unknown, taskKind: string)
   const projection = meta && typeof meta === "object" ? (meta as Record<string, unknown>).declarationProjection : undefined;
   if (!projection || typeof projection !== "object" || (projection as Record<string, unknown>).hasMediaContract !== true) return;
   const contract = parseCustomCapabilityContract(meta);
-  const mask = adapterPublicationModeMask(meta);
-  if (contract && (!contract.modes.some((mode) => (mode.transportTaskKind || contract.transportTaskKind) === taskKind) || (mask.present && !mask.modes.includes(taskKind as never)))) {
+  if (contract && (!contract.modes.some((mode) => (mode.transportTaskKind || contract.transportTaskKind) === taskKind))) {
     throw Object.assign(new Error(tagNomiError("model-config", `Declaration does not publish taskKind: ${taskKind}`)), { code: "capability_mode_unavailable" });
   }
 }

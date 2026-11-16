@@ -12,6 +12,8 @@ import { reply } from "../../tests/fixtures/textTasks/textUpstream";
 vi.mock("electron", async () => (await import("../../tests/fixtures/textTasks/textTaskCallerState")).electronMock());
 vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: () => undefined }));
 vi.mock("../events/vendorCallTrace", () => ({ traceVendorCompleted: () => undefined, traceVendorRequested: () => undefined }));
+// Transport matrix isolates catalog persistence; unverifiedUsable.test covers real result recording.
+vi.mock("../catalog/modelExecutionVerification", () => ({ recordModelExecutionResult: (_input: unknown, result: unknown) => result }));
 vi.mock("../catalog/validateCandidateCredential", () => ({ revalidatePendingCredential: async () => undefined }));
 vi.mock("../assets/localAssetFile", async () => (await import("../../tests/fixtures/textTasks/textTaskCallerState")).localAssetMock());
 vi.mock("../runtime", async () => (await import("../../tests/fixtures/textTasks/textTaskCallerState")).runtimeMock());

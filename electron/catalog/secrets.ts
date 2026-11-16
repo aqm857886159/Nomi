@@ -15,7 +15,7 @@ export type ApiKeyRecord = {
   /** v2+: how the apiKey above is encoded. Absent = legacy plaintext (v1). */
   enc?: "safeStorage" | "plain";
   enabled: boolean;
-  /** Connectivity was inconclusive when saved; retry before calling the provider. */
+  /** Verification is pending; this diagnostic never disables the credential. */
   verificationPending?: true;
   createdAt: string;
   updatedAt: string;

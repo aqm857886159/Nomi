@@ -22,6 +22,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import { clickOrFail, expectVisible, expect, screenshotSettled } from './_assert.mjs'
 import { newProjectEntry } from './_shell.mjs'
 
@@ -169,7 +170,7 @@ await step('切到「模型」页签', async () => {
 // ① 首页那一行必须把「连不上」说出来（用户扫视的就是这一屏）。
 const homeRow = win.locator(`[data-model-home-connection="${vendorKey}"]`)
 await expectVisible(homeRow, '首页已连入行')
-await expect(homeRow, '① 401 的家在首页行要显示「连不上」，不能只报模型统计').toContainText('连不上')
+await expect(homeRow, '① 401 只作诊断，已有格式的模型仍可使用').toContainText(uiText('zh-CN', 'onboardingProviders.drawer.home.verificationFailedUsable'))
 await expect(
   win.locator(`[data-model-home-unreachable][data-model-home-connection="${vendorKey}"]`),
   '① 连不上的行要带 data-model-home-unreachable 标记',

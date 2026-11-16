@@ -232,7 +232,7 @@ export function ModelWorkspacePage({
   const capability = projectModelCapability({ model, mappings })
   const capabilityKnown = model.kind === 'text' || capability.inputContract === 'known'
   const transportAvailable = model.kind === 'text' || capability.customCall.enabled || capability.transport.mappings.length > 0
-  const readyForCanvas = capabilityKnown && transportAvailable
+  const readyForCanvas = model.availability?.usable === true || (capabilityKnown && transportAvailable)
   const switchLocked = connection?.enabledLocked ?? Boolean(enabledLocked || !readyForCanvas)
   return (
     <div className="flex h-full min-h-0 flex-col" data-model-settings-page="model" data-model-settings-model={modelKey}>

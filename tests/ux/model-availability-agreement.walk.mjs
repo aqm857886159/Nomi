@@ -61,7 +61,7 @@ const VENDOR_LABEL = '魔搭社区'
 const FAKE_KEY = 'nomi-walk-not-a-real-key'
 /**
  * P0-10 现场那两个 DeepSeek 模型的形状：**启用着、钥匙也在、认证没走完**
- * （`meta.adapter` 在，但没有 activeRevision → 发布资格不成立 → `model_unpublished`）。
+ * （`meta.adapter` 在，没有 activeRevision，但标准文本请求格式本来就可执行）。
  *
  * 为什么要往目录文件里塞这一行，而不是点界面点出来：这种行只有主进程写得出来
  * （MCP / 认证会话），渲染层写入被 `sanitizeRendererModelMutation` 强制按下 enabled
@@ -272,7 +272,7 @@ async function assertAgentDropdown(brainReady, shot) {
   }
   console.log('AGENT_MENU', shot, JSON.stringify(labels))
   await snap('agent-' + shot)
-  check(!labels.some(x => x.includes('MCP 接了一半')), '未发布模型不进入 Agent 候选', JSON.stringify(labels))
+  check(labels.some(x => x.includes('MCP 接了一半')) === brainReady, '标准文本格式的未验证模型只随凭据可用性进入 Agent 候选', JSON.stringify(labels))
   await getWin().keyboard.press('Escape')
   await getWin().keyboard.press('Escape')
   await backToLibrary(getWin(), { label: '返回真实项目库' })
@@ -322,26 +322,26 @@ try {
   injectHalfCertifiedModel()
   await coldStart()
   const halfway = await assertAgreement('多了一行没走完认证的模型 · 仍没钥匙', {
-    usable: 0, reasons: ['credential_missing', 'model_unpublished'], brainReady: false, settingsUsable: 0, settingsPending: 0,
+    usable: 0, reasons: ['credential_missing'], brainReady: false, settingsUsable: 0, settingsPending: 0,
     shot: '02-mcp-halfway-no-key.png',
   })
   check(halfway.rowCount === seededRows + 1, 'MCP 补的那一行确实进了目录（没被内置种子刷掉）', `${seededRows} → ${halfway.rowCount}`)
 
   // ── 状态三：用户在设置卡里粘了一次 key（真人路径，不是往 bridge 里灌）──────────
   // 这一步就是那张对不上的表原本出现的地方：钥匙到位、那一行也「启用着」，
-  // 但它没发布——三处必须一致地把它排除在外，设置页不许把它算进「N 个可使用」。
+  // 验证只提醒，三处都必须将标准格式的文本模型计入可使用。
   await pasteKeyLikeAHuman()
   const connected = await assertAgreement('填了钥匙', {
-    usable: seededRows, reasons: ['model_unpublished', 'usable'], brainReady: true,
-    settingsUsable: seededRows, settingsPending: 1,
+    usable: seededRows + 1, reasons: ['usable'], brainReady: true,
+    settingsUsable: seededRows + 1, settingsPending: 0,
     shot: '03-with-key-settings.png',
   })
 
   // ── 状态四：冷重启（P0-10 正是重启之后才暴露的）─────────────────────────────
   await restart()
   const afterRestart = await assertAgreement('重启之后', {
-    usable: seededRows, reasons: ['model_unpublished', 'usable'], brainReady: true,
-    settingsUsable: seededRows, settingsPending: 1,
+    usable: seededRows + 1, reasons: ['usable'], brainReady: true,
+    settingsUsable: seededRows + 1, settingsPending: 0,
     shot: '04-after-restart.png',
   })
   check(
@@ -355,7 +355,7 @@ try {
   const rowProof = await proveProbe(connectionRow(), `设置页「已接入」里有 ${VENDOR_LABEL} 这一行`)
   await disconnectLikeAHuman()
   await assertAgreement('拔了钥匙', {
-    usable: 0, reasons: ['credential_missing', 'model_unpublished'], brainReady: false, settingsUsable: 0, settingsPending: 0,
+    usable: 0, reasons: ['credential_missing'], brainReady: false, settingsUsable: 0, settingsPending: 0,
     shot: '05-key-removed-settings.png',
   })
   await openSettings()

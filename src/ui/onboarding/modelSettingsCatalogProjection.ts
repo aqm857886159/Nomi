@@ -70,6 +70,7 @@ export function projectModelSettingsCatalog(source: Array<Record<string, unknown
       enabled: row.enabled !== false,
       unlisted: row.unlisted === true,
       published: row.published === true,
+      credentialVerificationPending: row.credentialVerificationPending === true,
       // 主进程投影下发的可用性结论，原样带过来。形状不认（旧缓存/损坏行）时 fail-closed 成不可用，
       // 而不是默默当可用——「三个地方两个答案」正是从某一处自己兜底开始的。
       availability: asRecord(row.availability)?.usable === true

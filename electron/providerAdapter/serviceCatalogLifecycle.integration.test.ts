@@ -300,7 +300,7 @@ describe("ProviderAdapterService real catalog candidate lifecycle", () => {
     ]);
   });
 
-  it("keeps a de-published seeded text vendor disabled when chat verification fails", async () => {
+  it("preserves a manually disabled text model when chat verification fails", async () => {
     seedUnpublishedTextCatalog();
     const service = new ProviderAdapterService(
       new ProviderAdapterStore(path.join(userDataRoot, "provider-adapters.json")),
@@ -328,7 +328,7 @@ describe("ProviderAdapterService real catalog candidate lifecycle", () => {
     await service.executeRun(started.id);
 
     expect(service.getRun(started.id)?.stage).toBe("failed");
-    expect(readCatalog().vendors.find((vendor) => vendor.key === rootVendorKey)).toMatchObject({ enabled: false });
+    expect(readCatalog().vendors.find((vendor) => vendor.key === rootVendorKey)).toMatchObject({ enabled: true });
     expect(listModelCatalogModels({ vendorKey: rootVendorKey })).toEqual([
       expect.objectContaining({ modelKey: textModelKey, enabled: false, published: false, publishedModes: [] }),
     ]);

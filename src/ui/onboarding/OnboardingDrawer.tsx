@@ -192,7 +192,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     recordRun: recordAdapterRun,
     cancelRun: cancelAdapterRun,
     retryRun: retryAdapterRun,
-  } = useProviderAdapterTasks()
+  } = useProviderAdapterTasks(models)
   const previousAdapterRunsRef = React.useRef(adapterRuns)
   const [adaptStartingModel, setAdaptStartingModel] = React.useState<string | null>(null)
   const connectionRecoveryRequestRef = React.useRef(0)
@@ -756,6 +756,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       bridgeMissing={bridgeMissing}
       loadError={loadError} readOnly={readOnly} onImported={refresh}
       taskCount={visibleAdapterTaskRuns.length}
+      adapterRuns={adapterRuns}
       taskContent={
         <AdapterTaskList
           runs={visibleAdapterTaskRuns}

@@ -1,3 +1,4 @@
+import type { DesktopHttpCertificationRun } from '../../desktop/onboardingBridgeTypes'
 import React, { type JSX } from 'react'
 import { builtinVendorKeyOfKey } from '../../../electron/shared/builtinVendorIdentity'
 import {
@@ -214,12 +215,9 @@ function AvailableConnectionRow({
 function ConnectedRow({
   connection,
   mappings,
-  onHealthChange,
 }: {
   connection: ModelSettingsHomeConnection
   mappings: readonly Mapping[]
-  /** 把「这家连不上」报给区块标题，免得标题写「24 个可使用」而底下那行写「连不上」。 */
-  onHealthChange: (vendorKey: string, unreachable: boolean) => void
 }): JSX.Element {
   const { t } = useTranslation()
   const displayName = translateModelDisplayText(connection.name)
@@ -232,19 +230,21 @@ function ConnectedRow({
   const pill = health ? vendorConnectionPill(health) : null
   const unreachable = pill?.status === 'error'
 
-  React.useEffect(() => {
-    onHealthChange(connection.vendorKey, unreachable)
-  }, [connection.vendorKey, unreachable, onHealthChange])
-  const state: ModelHomeConnectionState = unreachable ? 'attention' : summary.state
-  const statusLabel = connection.credentialVerificationPending
+  const state: ModelHomeConnectionState = summary.working > 0 ? 'working' : unreachable ? 'attention' : summary.state
+  const verificationFailed = summary.ready > 0 && (unreachable || connection.models.some((model) => model.availability?.usable && model.adapterState === 'failed'))
+  const unverified = connection.credentialVerificationPending || (!connection.models.some((model) => model.adapterState === 'verified')
+    && connection.models.some((model) => model.availability?.usable && (model.adapterState === 'unverified' || model.customCallDraft)))
+  const statusLabel = summary.working > 0
+    ? t('onboardingProviders.drawer.home.workingCount', { count: summary.working })
+    : verificationFailed
+    ? t('onboardingProviders.drawer.home.verificationFailedUsable')
+    : unverified
     ? t('onboardingProviders.keyOnly.offlineTitle')
     : unreachable && pill
     ? t(pill.labelKey)
     : summary.state === 'attention'
       ? t('onboardingProviders.drawer.home.needsSetupCount', { count: summary.needsSetup })
-      : summary.state === 'working'
-        ? t('onboardingProviders.drawer.home.workingCount', { count: summary.working })
-        : summary.state === 'disabled'
+      : summary.state === 'disabled'
           ? t('onboardingProviders.drawer.home.disabledCount', { count: summary.disabled })
           : t('onboardingProviders.drawer.home.readyCount', { count: summary.ready })
 
@@ -266,7 +266,7 @@ function ConnectedRow({
         </span>
       </span>
       <span className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 text-micro',
+        'inline-flex max-w-[48%] shrink-0 items-center gap-1.5 text-right text-micro',
         unreachable ? 'text-workbench-danger' : CONNECTION_STATUS_TEXT_TONE[state],
       )}>
         <span className={cn(
@@ -284,12 +284,10 @@ function ConnectedRows({
   connections,
   mappings,
   search,
-  onHealthChange,
 }: {
   connections: ModelSettingsHomeConnection[]
   mappings: readonly Mapping[]
   search: string
-  onHealthChange: (vendorKey: string, unreachable: boolean) => void
 }): JSX.Element | null {
   const normalizedSearch = search.trim().toLocaleLowerCase()
   const filtered = connections.filter((connection) => {
@@ -307,7 +305,6 @@ function ConnectedRows({
           key={connection.vendorKey}
           connection={connection}
           mappings={mappings}
-          onHealthChange={onHealthChange}
         />
       ))}
     </RowGroup>
@@ -341,6 +338,7 @@ export function ModelSettingsHome({
   loadError,
   readOnly,
   taskCount,
+  adapterRuns = [],
   taskContent,
   diagnostic,
   networkContent,
@@ -361,6 +359,7 @@ export function ModelSettingsHome({
   /** 目录只能读不能改的原因；null = 可写。 */
   readOnly: ModelCatalogReadOnlyDto | null
   taskCount: number
+  adapterRuns?: readonly DesktopHttpCertificationRun[]
   taskContent?: React.ReactNode
   diagnostic?: React.ReactNode
   networkContent?: React.ReactNode
@@ -378,21 +377,10 @@ export function ModelSettingsHome({
   const [morePlatformsOpen, setMorePlatformsOpen] = React.useState(false)
   const [otherWaysOpen, setOtherWaysOpen] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
-  // 各行探完把结果报上来（探测本身仍归每行的 useVendorHealth，这里只收结论，不第二次探）。
-  const [unreachableKeys, setUnreachableKeys] = React.useState<ReadonlySet<string>>(() => new Set())
-  const handleHealthChange = React.useCallback((vendorKey: string, unreachable: boolean) => {
-    setUnreachableKeys((prev) => {
-      if (prev.has(vendorKey) === unreachable) return prev
-      const next = new Set(prev)
-      if (unreachable) next.add(vendorKey)
-      else next.delete(vendorKey)
-      return next
-    })
-  }, [])
   const allModels = connections.flatMap((connection) => connection.models)
   const statuses = allModels.map((model) => resolveModelHomeStatus(model, mappings))
-  const needsSetupCount = statuses.filter((status) => status === 'needsSetup' || status === 'failed').length
-  const readyCount = statuses.filter((status) => status === 'ready' || status === 'verified').length
+  const needsSetupCount = allModels.filter((model, index) => !model.availability?.usable && (statuses[index] === 'needsSetup' || statuses[index] === 'failed')).length
+  const readyCount = allModels.filter((model) => model.availability?.usable).length
   const hasConnections = connections.length > 0
   const showSearch = hasConnections && (connections.length >= 4 || allModels.length >= 8)
   const hasAttention = taskCount > 0 || needsSetupCount > 0
@@ -408,17 +396,13 @@ export function ModelSettingsHome({
     ? t('onboardingProviders.drawer.home.subtitle', { connections: connections.length, models: allModels.length })
     : t('onboardingProviders.drawer.home.emptySubtitle')
 
-  // 「连不上」压倒模型统计：一家都通不了的时候，标题写「24 个可使用」是在骗人（与行内红字打架）。
-  const unreachableAside = unreachableKeys.size > 0
-    ? t('onboardingProviders.drawer.home.unreachableCount', { count: unreachableKeys.size })
-    : null
   const connectedSection = hasConnections ? (
     <section className="mt-5" data-model-home-connected>
       <SectionHeading
         title={t('onboardingProviders.drawer.home.connected')}
-        aside={unreachableAside ?? (hasAttention
+        aside={(hasAttention
           // 「可使用」的口径必须和每个连接行里那句一样（`summary.ready`）——同一个 i18n key
-          // 在页头算一份、在行里算另一份，就是同屏两个答案。停用的、正在跑的都不算「可使用」。
+          // 在页头算一份、在行里算另一份，就是同屏两个答案。
           ? t('onboardingProviders.drawer.home.connectedAttention', { ready: readyCount, pending: needsSetupCount })
           : t('onboardingProviders.drawer.home.readyCount', { count: readyCount }))}
       />
@@ -426,7 +410,6 @@ export function ModelSettingsHome({
         connections={connections}
         mappings={mappings}
         search={search}
-        onHealthChange={handleHealthChange}
       />
     </section>
   ) : null
@@ -576,7 +559,7 @@ export function ModelSettingsHome({
             {/* 「用 AI 帮我接入」：想接模型的人一定会到这一屏，所以入口就放在这一屏的最上面
                 （搜索框正下方）。它不是一个模型家，也不接 MCP——只把「跟助手说什么」交到手上。 */}
             <section className="mt-4" data-model-home-assisted>
-              <AiAssistedOnboardingSection />
+              <AiAssistedOnboardingSection connections={connections} runs={adapterRuns} />
             </section>
 
             {taskCount > 0 && taskContent ? (

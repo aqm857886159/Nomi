@@ -109,14 +109,13 @@ describe('relay onboarding reproducible gaps', () => {
     expect(relay.hits.filter((h) => h.method === 'POST')).toHaveLength(0)
   })
 
-  it('control: a disabled credential produces an honest declaration next action', async () => {
+  it('control: renderer-saved credentials remain usable before certification', async () => {
     const { row, card } = await register()
-    // The visible custom-connection page deliberately stages the credential disabled until promotion.
-    // Calling the real renderer boundary, rather than the privileged key writer, is essential.
+    // Exercise the real renderer save boundary, including its diagnostic-only probe.
     await upsertRendererCatalogVendorApiKey(row.vendorKey, { apiKey: FAKE_RELAY_KEY, enabled: true })
     const reply = await submitDeclaration({ vendorKey: row.vendorKey, declaration: JSON.stringify(card) })
     expect(reply.ok, JSON.stringify(reply)).toBe(true)
-    expect(reply.state.selfCheck.credential).toMatchObject({ checked: false })
+    expect(reply.state.selfCheck.credential).toMatchObject({ checked: true, ok: true })
     const state = readCatalog()
     const saved = state.models.find((m) => m.vendorKey === row.vendorKey && m.modelKey === row.modelKey)
     const usable = catalogModelAvailability(state, saved).usable

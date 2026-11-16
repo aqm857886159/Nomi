@@ -1,37 +1,8 @@
-// 内置供应商凭据的验证与发布 —— 2026-09-10 走查反馈回归修复（第二刀：从 apimart 一家扩到整类）。
-//
-// 根因（docs/plan/2026-09-10-ux-feedback-triage.md §5）：direct-key 供应商（apimart）
-// 的设计契约是「填 key 即解锁全部预置模型」，但两道门把它拦死：
-//   ① 验证用 `GET /v1/models` 的可达性当 key 有效性判据，而 apimart 对该端点回 401
-//     （vendorBaseFallback.ts 有注释确认）→ 存 key 转圈 12s 后报「验证失败」；
-//   ② 渲染层 key 写入强制 `enabled:false` + `verificationPending`，凭据停用又把
-//     vendor 整体 de-publish → 模型从选择器和 agent 可用清单里全部消失。
-// key 明明能用（直连生成没问题），目录却藏着——名实不一的假阴性。
-//
-// 本文件给出 direct-key 的两条正路（只对 isBuiltinDirectKeyVendor 且带 credentialProbe
-// 的种子生效，certification 供应商一律走原路，诚实门不变量不放松）：
-//   ① 验证 = 种子里代码拥有的 credentialProbe。**2026-09-22（T-MO-10）起它必须是免费的，
-//     否则先问**：apimart 已从 `POST /api/v1/chat/completions`（真实生成、扣用户积分）换成
-//     `GET /v1/balance`（零费用、坏 key 回 401，实测有对照组），并与每周雷达的逐模型
-//     存活探针 `livenessProbe` 彻底分家。发不发、花不花钱由
-//     `credentialProbePolicy.ts` 单点决定，本文件只执行。
-//     401/403 → key 无效（throw）；探测成功 → verified；网络/上游其它失败 → pending
-//     （诚实：不假装可用，也不把网络抖动误报成 key 错误）；用户拒绝付费探测 → declined。
-//   ② 发布 = 凭据落盘后把 vendor 行重新 enable（内置家的「认证」就是代码拥有的契约本身：
-//     scope 匹配 + 无认证占用 + curated 执行契约还在，三者缺一就不发布，供应商改过
-//     baseUrl / 契约漂移照样 fail-closed）。
-//
-// 2026-09-10 第二刀：以上两条原来只对 apimart 生效（发布判据写死 vendorKey、验证判据写死
-// /v1/models），另外 17 家内置供应商填 key 后整家下架且重启不自愈。现在两条判据都由**种子声明**
-// 派生：`credentialProbePolicy` 决定怎么验、花不花钱，`hasBuiltinCuratedExecution`（登记表驱动）
-// 决定能不能发布。见 docs/plan/2026-09-10-vendor-key-publish-class.md。
-
+// Credential probes remain diagnostic; configured routes publish independently of their outcome.
 import { mutateCatalog, readCatalog } from './catalogStore'
-import { builtinVendorSeed, builtinVendorScopeMatches } from './builtinVendorSeeds'
+import { builtinVendorSeed } from './builtinVendorSeeds'
 import { credentialProbePlan } from './credentialProbePolicy'
 import { confirmCredentialProbeSpend } from './credentialProbeConfirm'
-import { hasBuiltinCuratedExecution } from './seedBuiltins'
-import { isCertificationOwnedConnection } from './certificationOwnership'
 import { buildHttpRequest, appendQueryParams } from '../ai/requestPipeline'
 import { readNestedRecord } from '../jsonUtils'
 import { appFetch } from '../appFetch'
@@ -109,25 +80,11 @@ export async function probeDirectKeyCredential(vendor: Vendor, apiKey: string, o
   }
 }
 
-/**
- * 把这家内置供应商重新置为已发布（凭据存下来之后调用）。
- *
- * 守卫仍是 bootstrap 检查的同一组三条（scope 匹配 / 无认证适配器接管 / 代码拥有的执行契约完好），
- * 缺一就不发布——供应商改过 baseUrl、契约漂移、被认证接管，照样 fail-closed。
- *
- * 2026-09-10：去掉 `isBuiltinDirectKeyVendor` 前置。发布该由**种子声明的契约**决定，
- * 不该由 vendor 名的白名单决定：18 家内置里只有 apimart 是 direct-key，于是另外 17 家
- * 填完 key 就整家下架且重启不自愈（seedVendor 存在即跳过）。判据换成登记表之后，
- * 「新接一家忘了改发布判据」这一族在装配期就没有了。
- */
-export function publishBuiltinCuratedVendor(vendorKey: string): void {
-  if (!builtinVendorSeed(vendorKey)) return
+/** Saving a key enables the connection; model availability still requires its own request format. */
+export function publishConfiguredVendor(vendorKey: string): void {
   mutateCatalog((_tx, current) => {
     const vendor = current.vendors.find((item) => item.key === vendorKey)
     if (!vendor || vendor.enabled) return
-    if (isCertificationOwnedConnection(current, vendorKey)) return
-    if (!builtinVendorScopeMatches(vendor)) return
-    if (!hasBuiltinCuratedExecution(current, vendorKey)) return
     vendor.enabled = true
     vendor.updatedAt = new Date().toISOString()
   })

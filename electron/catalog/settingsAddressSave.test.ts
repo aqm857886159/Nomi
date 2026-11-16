@@ -95,8 +95,8 @@ describe("设置页亲手改接口地址", () => {
     freshInstall();
     blockedPrimaryNetwork();
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-fixture", enabled: false });
-    expect(readCatalog().apiKeysByVendor.apimart).toMatchObject({ enabled: false, verificationPending: true });
-    expect(apimart().enabled).toBe(false);
+    expect(readCatalog().apiKeysByVendor.apimart).toMatchObject({ enabled: true, verificationPending: true });
+    expect(apimart().enabled).toBe(true);
 
     upsertRendererCatalogVendor({ key: "apimart", baseUrlHint: "https://api.apib.ai" });
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-fixture", enabled: false });

@@ -1,0 +1,34 @@
+{
+  "name": "模型此刻是否有可执行格式和凭据",
+  "subject": "catalog.model-availability",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/modelAvailability.ts",
+    "symbol": "deriveModelAvailability"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/modelAvailability.ts",
+      "symbol": "deriveModelAvailability"
+    },
+    {
+      "path": "electron/shared/modelPublication.ts",
+      "symbol": "derivePublishedExecution"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/modelAvailabilityAgreement.test.ts",
+  "allowed_consumers": [
+    "electron/catalog/catalogModelAvailability.ts",
+    "electron/catalog/catalogStore.ts",
+    "electron/catalog/executableModel.ts",
+    "src/config/modelCatalogCache.ts",
+    "src/ui/onboarding/modelSettingsHomeState.ts"
+  ],
+  "since": "2026-11-17",
+  "notes": "补登记既有共享判据：发布模式来自已存请求格式，可用性再核对启用状态和凭据；验证诊断不参与拒绝。catalog.mode-serving 消费该投影，在可用模型中问某个任务模式，不能替代这一层基础事实。合同 docs/fixes/2026-11-17-unverified-usable.root-cause.json，三个选择器和执行解析同目录对账。"
+}
