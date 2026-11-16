@@ -18,8 +18,9 @@
     "electron/catalog/referenceLinkDelivery.matrix.test.ts",
     "eslint.config.mjs",
     "结构性预防：hosting-channel-owner/no-restricted-syntax 限定匿名通道定义和地址归属；hosting-setting-owner/no-restricted-syntax 限定界面设置写口；hosting-consent-retired/no-restricted-syntax 拦旧许可字段和告知标记复活；类级矩阵 electron/catalog/hostingSettingOnly.test.ts 验证关闭、缺省、未知值及伪造调用方允许均不能上传，allow保留失败换路。",
-    "实现提交已完成，独立验收待填写；当前分支尚无PR，fixedInPr待真实PR创建后由协调回填，不虚构编号。"
+    "实现提交已完成，独立验收在 PR 上进行。"
   ],
+  "fixedInPr": 1556,
   "rootCauseContract": "docs/fixes/2026-11-17-hosting-setting-only.root-cause.json",
   "classCheck": {
     "kind": "matrix",
