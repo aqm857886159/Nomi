@@ -227,6 +227,8 @@ export type DesktopOnboardingBridge = {
   guessKinds: (payload: { ids: string[] }) => Promise<{
     kinds: Record<string, 'text' | 'image' | 'video' | 'audio' | 'model3d'>
   }>
+  /** 发送键上的约价：交最终请求，回公开价估出的数（只读、不带凭据）；算不出 = null。 */
+  vendorPricePreview: (payload: import("../../electron/shared/contracts/vendorPricePreview").VendorPriceRequest) => Promise<import("../../electron/shared/contracts/vendorPricePreview").VendorPricePreview | null>
   /**
    * 这家现在能不能用。凭证由主进程自取（renderer 只有 hasApiKey 布尔），所以自动检查
    * 必须走这条而不是 testConnection——后者要调用方手上有明文 key。

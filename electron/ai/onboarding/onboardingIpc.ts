@@ -8,11 +8,13 @@ import {
   fetchModelList,
   readExtraHeaders,
 } from "./modelListProbe";
-import { normalizeProviderKind } from "../../catalog/catalogStore";
+import { normalizeProviderKind, readCatalog } from "../../catalog/catalogStore";
 import { credentialProbePlan } from "../../catalog/credentialProbePolicy";
 import { connectionAuthSpec } from "../../catalog/vendorAuthSpec";
 import type { VendorAuthSpec } from "../requestPipeline";
 import { checkVendorHealth } from "./vendorHealth";
+import { priceQueryFromRequest } from "./vendorPriceRequest";
+import { readVendorPricePreview } from "./vendorPricePreview";
 
 import { assertTrustedSender } from "../../ipcSenderGuard";
 import { registerAntigravityIpc } from "../antigravityIpc";
@@ -40,6 +42,14 @@ export function registerOnboardingIpc(): void {
   // 「这家验一次 key 要不要花钱」——接入页的按钮文案读它（T-MO-10，用户 2026-09-22 拍板）。
   // 判据不在渲染层第二次成立：这里只是把主进程那份唯一策略（credentialProbePolicy）投影出去，
   // 「AI 读文档」接入路径已下线（Issue #8：改为中转拉取式接入图片/视频/文本）。
+
+  // 发送键上的约价：渲染层交来最终请求，这里只投影成询价、读公开价目（不带凭据的 GET）。
+  // 约价只是显示——这条口不创建任务、不发生成请求、不产生花钱授权。
+  ipcMain.handle("nomi:onboarding:vendor-price-preview", (event, payload) => {
+    assertTrustedSender(event);
+    const query = priceQueryFromRequest(payload, readCatalog());
+    return query ? readVendorPricePreview(query) : null;
+  });
 
   // 供应商连接健康：模型面板每次打开时按家自查「现在能不能用」。凭证由主进程自取——
   // renderer 只有 hasApiKey 布尔，这也是旧实现「只在粘贴 key 那一刻能测」的根因。

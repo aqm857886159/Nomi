@@ -990,6 +990,12 @@ export const zhGenerationCommon = {
     uploading: '上传中',
     uploadingEllipsis: '上传中…',
     dropToAddReference: '松手添加为参考',
+    // 发送键上的约价（悬停 / 读屏那一句）。可以印预估、不断言实扣、算不出不写 0（2026-11-15）；精确文案门岗逐字登记。
+    sendCost: {
+      estimate: '这次约 {{value}} 积分（{{usd}}）。按 APIMart 公开价估，出完按 APIMart 实际扣费记。',
+      outputEstimate: '仅输出约 {{value}} 积分（{{usd}}）· 实际按 token 结算',
+      priceUnknown: '暂时估不出这次用量',
+    },
   },
   whiteboard: {
     operationInProgress: '当前操作完成后即可保存',
@@ -2750,6 +2756,11 @@ export const enGenerationCommon = {
     uploading: 'Uploading',
     uploadingEllipsis: 'Uploading…',
     dropToAddReference: 'Drop to add as a reference',
+    sendCost: {
+      estimate: 'About {{value}} credits ({{usd}}) this time. Estimated at the APIMart public rate; recorded at the actual APIMart charge once done.',
+      outputEstimate: 'Output estimate {{value}} credits ({{usd}}) · billed by actual tokens',
+      priceUnknown: 'No usage estimate yet',
+    },
   },
   whiteboard: {
     operationInProgress: 'Finish the current operation before saving',
