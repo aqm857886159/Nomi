@@ -94,8 +94,8 @@ describe('model settings workspace structure', () => {
     expect(tasks).toContain('setInterval')
     expect(drawer).toContain('<AdapterTaskList')
     expect(drawer).toContain('<AdapterTaskWorkspace')
-    expect(drawer).toContain('const closeWizard = React.useCallback')
-    expect(drawer).toContain('onClose={closeWizard}')
+    // 关掉向导 = 回上一页（同一个 goBack，不另起别名）
+    expect(drawer).toContain('onClose={goBack}')
     expect(drawer).toContain('replaceModelSettingsPage(current, { type: \'verification\', runId: nextRun.id })')
     expect(drawer).not.toContain('wizardRunId')
     expect(drawer).not.toContain('handleWizardRunChange')
