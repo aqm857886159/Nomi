@@ -222,8 +222,8 @@ describe('对照：真实落地的结果删掉后照旧回收（扫描不能把�
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [{ id: 'n', kind: 'image', title: 'n', position: { x: 0, y: 0 }, status: 'idle' }], edges: [], groups: [] }, P)
     const store = useGenerationCanvasStore.getState()
     store.applyRunOutcome('n', { kind: 'run-started', run: { id: 'run-1', status: 'running', startedAt: 1, updatedAt: 1 } as never })
-    store.applyRunOutcome('n', { kind: 'result', runId: 'run-1', result: { ...image('a'), assetId: 'asset-a', taskId: 'task-1',
-      raw: { asset: { data: { relativePath: target.relativePath, url: image('a').url } } } } as GenerationNodeResult })
+    store.addNodeResult('n', { ...image('a'), assetId: 'asset-a', taskId: 'task-1',
+      raw: { asset: { data: { relativePath: target.relativePath, url: image('a').url } } } } as GenerationNodeResult, undefined, 'run-1')
     const landed = useGenerationCanvasStore.getState().nodes[0]
     expect(landed.result?.id).toBe('a')
     const live = readLoadedProjectLivenessContent(P, 'alive')!
