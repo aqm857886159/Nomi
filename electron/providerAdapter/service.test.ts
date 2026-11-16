@@ -90,6 +90,7 @@ function externalDraft(): ProviderAdapterDraft {
   return {
     provider: { baseUrl: "https://api.example.com/v1", authType: "bearer" },
     sources: [{ url: "https://docs.example.com/api", evidence: "API reference" }],
+    assetIngestion: { strategy: "none", sourceUrl: "https://docs.example.com/api" },
     models: [
       {
         modelKey: "text-v1",

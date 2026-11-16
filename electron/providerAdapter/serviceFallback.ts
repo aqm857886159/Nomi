@@ -1,5 +1,5 @@
 import type { BillingModelKind, Model, ProfileKind } from "../catalog/types";
-import { buildOpenAiCompatibleDraft } from "./builtinOpenAiCompatibleDraft";
+import { buildOpenAiCompatibleDraft, declaredMediaProtocols } from "./builtinOpenAiCompatibleDraft";
 import type { LoadedConnection } from "./serviceCatalog";
 import type {
   AdapterModelDraft,
@@ -45,11 +45,15 @@ export function genericCompilation(
   connection: LoadedConnection,
   models: readonly Model[],
 ): ProviderAdapterCompilation {
+  // 模型的**完整身份**都带上：别名决定改图走哪种协议（不透明 id + 别名 gpt-image-2 → multipart
+  // /v1/images/edits），连接上写明的媒体协议决定视频有没有通道。此前私网主机那条路带了、这里没带，
+  // 同一个模型从两条路进来得到两张卡（2026-11-17 收成这一处）。
   const draft = buildOpenAiCompatibleDraft({
     baseUrl: String(connection.vendor.baseUrlHint || ""),
     authType: connection.vendor.authType || "bearer",
+    mediaProtocols: declaredMediaProtocols(connection.vendor),
     ...(connection.vendor.providerKind ? { providerKind: connection.vendor.providerKind } : {}),
-    models: models.map((model) => ({ modelKey: model.modelKey, labelZh: model.labelZh, kind: model.kind })),
+    models: models.map((model) => ({ modelKey: model.modelKey, labelZh: model.labelZh, kind: model.kind, modelAlias: model.modelAlias ?? null })),
   });
   const usable = draft.models.filter((model) => model.modes.length > 0);
   const unusable = draft.models.filter((model) => model.modes.length === 0);

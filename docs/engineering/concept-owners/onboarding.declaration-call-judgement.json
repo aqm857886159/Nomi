@@ -1,0 +1,39 @@
+{
+  "name": "新接模型怎么调、对不对：三条接入路只消费一个判断",
+  "subject": "onboarding.declaration-call-judgement",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/providerAdapter/validator.ts",
+    "symbol": "validateProviderAdapterDraft"
+  },
+  "write_api": [
+    {
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "validateProviderAdapterDraft"
+    },
+    {
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "adapterModeDefect"
+    },
+    {
+      "path": "electron/providerAdapter/serviceCompilation.ts",
+      "symbol": "prepareRunCompilation"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/providerAdapter/declarationEntryParity.test.ts",
+  "allowed_consumers": [
+    "electron/providerAdapter/service.ts",
+    "electron/providerAdapter/selfCheck.ts",
+    "electron/providerAdapter/compiler.ts",
+    "electron/providerAdapter/agentCompileRequest.ts",
+    "electron/capabilityCore/modelOnboarding/submitDeclaration.ts",
+    "electron/integrationCertification/integrationSession.ts"
+  ],
+  "since": "2026-11-17",
+  "notes": "设置向导 / 旧会话恢复（ProviderAdapterService）、接入会话（交件喂进向导）、整卡提交三条路，对同一张卡给同一个结论。草稿从哪来、身份怎么锁只由 serviceCompilation.prepareRunCompilation 判（私有地址与公开地址同一个内置模板口，带别名与声明协议）；模式语义（通道、任务与模型类型、参考槽、异步查询）由 validator.adapterModeDefect 判，selfCheck 只转述；参数键是不是 Nomi 中性键只在收件口判，登记与发布只投影。外部卡必须写 assetIngestion（含 none），只有内置编译器走专用口 validateCompiledAdapterDraft 可省；编译器被拒时把拒绝原因带给下一次尝试。只管新交的卡：已登记的声明在启动、读目录、发请求时不再过收件校验，老用户已接进来的模型照旧能用（electron/providerAdapter/declarationUpgrade.test.ts）。谁能拿这些判断由 eslint.config.mjs 的 DECLARATION_HOME_GROUPS 守。设计卡 docs/plan/2026-11-17-declaration-one-home.md。"
+}
