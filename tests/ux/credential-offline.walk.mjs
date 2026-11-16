@@ -10,8 +10,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 // NOMI_WALK_LOCALE=en walks the English UI; shots land in a per-locale folder so zh/en frames never overwrite each other.
 const locale = process.env.NOMI_WALK_LOCALE === 'en' ? 'en' : 'zh-CN'
 const COPY = locale === 'en'
-  ? { save: 'Save Verify', offline: 'Not verified', offlineHint: 'You can use the model now', rechecked: 'preset models ready', recheckedHint: 'already selectable', replace: 'Replace key', back: 'Back', stored: 'is stored on this machine', kept: 'previous' }
-  : { save: '保存验证', offline: '未验证', offlineHint: '可以直接选择模型并使用', rechecked: '预置模型可用', recheckedHint: '现在就能在画布', replace: '更换密钥', back: '返回', stored: '已经存着', kept: '原密钥' }
+  ? { save: 'Save Verify', offline: 'Not verified', offlineHint: 'You can use the model now', rechecked: 'preset models ready', recheckedHint: 'already selectable', replace: 'Replace key', stored: 'is stored on this machine', kept: 'previous' }
+  : { save: '保存验证', offline: '未验证', offlineHint: '可以直接选择模型并使用', rechecked: '预置模型可用', recheckedHint: '现在就能在画布', replace: '更换密钥', stored: '已经存着', kept: '原密钥' }
 // 2026-11-17「没验证的也能用」：离线存下的密钥不再停用连接——连接和密钥都启用、只挂「未验证」提醒，
 // 这一家落在「已接入」行；联网复验清掉提醒后，预置模型本来就可用，卡片说的是「已接入，预置模型可用」。
 const shots = path.join(root, 'tests/ux/shots/credential-offline', locale === 'en' ? 'en' : 'zh')
@@ -72,7 +72,8 @@ try {
   expect(health.state).toBe('reachable')
   await screenshotSettled(win, { path: path.join(shots, '03-rejected-keeps-key.png') })
   // 回到首页：这一家在「已接入」里（离线保存那一刻起就在，不再落回「可接入」）。
-  await win.getByRole('button', { name: COPY.back, exact: true }).click()
+  // 填 key 卡里也有一个「返回」按钮；回首页点的是模型设置页自己的返回。
+  await win.locator('[data-model-settings-back]').click()
   await expect(win.locator('[data-model-home-connection="apimart"]')).toBeVisible()
   await screenshotSettled(win, { path: path.join(shots, '01b-home-row-badge.png') })
   console.log('PASS: offline save keeps the connection on with a not-verified badge, online automatic revalidation, 401 preserves old key; zero paid calls')
