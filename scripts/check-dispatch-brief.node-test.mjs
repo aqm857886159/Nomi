@@ -389,6 +389,9 @@ describe('交接处：任务书点到的路径命中交接处且这一处两周�
     const out = seamProblems(scopeBrief(['electron/agentLane/y.ts']), { seams, history: [fixAt(2, ['electron/agentLane/x.ts'])], now: SEAM_NOW })
     assert.equal(out.length, 1)
     assert.match(out[0], /档案 → Agent 写参数/)
-    assert.match(out[0], /还没有，先画/)
+    // 「全图」那一句的期望从表里现读：登记了全图就该印出那个路径，没登记才是「还没有，先画」。
+    const seam = seams.find((unit) => unit.name === '档案 → Agent 写参数')
+    if (seam?.map) assert.ok(out[0].includes(`全图：${seam.map}`), `应印出表里登记的全图 ${seam.map}`)
+    else assert.match(out[0], /还没有，先画/)
   })
 })

@@ -28,7 +28,7 @@
       "id": "agent-writes-params",
       "name": "档案 → Agent 写参数",
       "owner": "未定（方向待用户定：模型只有一个把手，Agent 只说意图，宿主用面板同一组档案函数落参数）",
-      "map": "无",
+      "map": "docs/plan/2026-11-16-agent-writes-params-seam.md",
       "checked": true,
       "prefixes": [
         "electron/agentLane/",
