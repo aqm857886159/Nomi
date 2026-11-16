@@ -177,7 +177,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   // 有则「生成」不裸跑，转而排依赖波次（参考先生成→本节点后生成）走批量确认条。
   const pendingRefKey = React.useMemo(() => collectUngeneratedReferenceAncestors(node.id, graph).join(','), [node.id, graph])
   const hasPendingRefs = pendingRefKey.length > 0
-  // 发送键旁的公开估价：忙着 / 要先备齐参考时不印数。
+  // 发送键旁的公开估价：忙着 / 要先备齐参考时不印数；余额刚查到且不够时那一格换成「还差 N 积分 · 去充值」。
   const sendCost = useSendCost(node, graph, { idle: !isGenerating && !hasPendingRefs })
   // 视频缺参考本会禁用「生成」；但若缺的是「连了线、只是还没生成」的上游 → 仍可点（去备齐），不禁用。
   const canGenerateNow = canGenerate || hasPendingRefs
@@ -506,26 +506,20 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
                   />
                 ) : null}
                 <ComposerSendButton
-                  title={[disabledReason, sendCost.description].filter(Boolean).join(' · ') || generateTitle}
+                  title={generateTitle}
                   busy={isGenerating}
-                  ariaLabel={sendCost.billing ? sendCost.billingLabel : hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
+                  ariaLabel={hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
                   description={sendCost.description}
-                  cost={sendCost.billing ? { text: sendCost.billingLabel, coin: false } : sendCost.credits ? { text: sendCost.credits, coin: true } : undefined}
+                  cost={sendCost.slot}
                   attrs={sendCost.source ? { 'data-price-source': sendCost.source } : undefined}
-                  disabled={!sendCost.billing && (!canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null)}
-                  onClick={sendCost.billing ? sendCost.onBilling : handleGenerate}
+                  disabled={!canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null}
+                  onClick={handleGenerate}
                 />
               </>
             ),
           }}
         />
       )}
-      {!readOnly && sendCost.notice ? (
-        <div role="status" data-send-cost-notice className="flex shrink-0 items-center justify-end gap-1 px-3 py-1 text-micro text-nomi-ink-60">
-          {sendCost.notice.text}
-          {sendCost.notice.canRefresh ? <WorkbenchIconButton icon={<IconRefresh />} label={t('onboardingProviders.account.refresh')} size="sm" onClick={sendCost.refresh} /> : null}
-        </div>
-      ) : null}
       </div>
       {isDragOver ? (
         <div

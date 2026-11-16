@@ -808,7 +808,7 @@
         "1043-span-搜模型",
         "1169-span-搜模型"
       ],
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "S2 画布模型选择器",
       "assertion": "board:ModelSurfaces/picker.search"
     },
@@ -1358,8 +1358,13 @@
         "1614-span-111K1image",
         "1615-svg"
       ],
-      "status": "missing",
-      "owner": "S2b 画布参数芯片"
+      "status": "dropped",
+      "owner": "S2b 画布参数芯片",
+      "userDecision": {
+        "quote": "有些地方我们现在已经去做了重新修改了。比如说我们的那个确认卡，包括参数那个条，但是其他你要可以看一下，跟原来的一致。",
+        "date": "2026-11-16",
+        "supersededBy": "docs/design/boards/2026-11-14-composer-params（bar.params + params.panel）"
+      }
     },
     {
       "id": "picker.vendor-switch-hint",
@@ -1558,8 +1563,13 @@
         "1299-span-取消",
         "1300-span-生成3段"
       ],
-      "status": "missing",
-      "owner": "S3 生成前估价与费用回执"
+      "status": "dropped",
+      "owner": "S3 生成前估价与费用回执",
+      "userDecision": {
+        "quote": "有些地方我们现在已经去做了重新修改了。比如说我们的那个确认卡，包括参数那个条，但是其他你要可以看一下，跟原来的一致。",
+        "date": "2026-11-16",
+        "supersededBy": "11-15 付费确认拆开（批量 / Agent 付费确认另一刀）"
+      }
     },
     {
       "id": "cost.provenance",

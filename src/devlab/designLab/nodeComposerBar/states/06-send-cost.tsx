@@ -30,6 +30,30 @@ export const COMPOSER_SEND_COST_STATES: readonly LabState[] = [
     render: stage({ ...SEEDANCE, locale: 'en', params: LONGEST, quote: { usd: 123.456, credits: 1234.56, source: 'lab', basis: 'output-estimate' } }),
   },
   {
+    id: 'sc-d-low-balance',
+    name: '余额刚查到且不够（11.9 < 19.5）：同一行里发送键换成「还差 7.6 积分」+「去充值 ↗」，底栏不长高',
+    source: SOURCE.replace('cost.send-pill', 'cost.low-balance'), mirrors: MIRRORS, coverage: 'shell', scheme: 'light',
+    render: stage({ ...SEEDANCE, quote: { usd: 1.95, credits: 19.5, source: 'lab' }, balanceCredits: 11.9 }),
+  },
+  {
+    id: 'sc-e-low-balance-crowded-en',
+    name: '最挤的余额不够：英文、参数取最长值、还差的数最长（1,234.56）+ Top up',
+    source: SOURCE.replace('cost.send-pill', 'cost.low-balance'), mirrors: MIRRORS, coverage: 'shell', scheme: 'light',
+    render: stage({ ...SEEDANCE, locale: 'en', params: LONGEST, quote: { usd: 123.456, credits: 1234.56, source: 'lab' }, balanceCredits: 0 }),
+  },
+  {
+    id: 'sc-f-disabled',
+    name: '还没写提示词（发不出去）：胶囊照样印估价，整颗变灰不可点',
+    source: SOURCE, mirrors: MIRRORS, coverage: 'shell', scheme: 'light',
+    render: stage({ ...SEEDANCE, prompt: '', quote: { usd: 1.95, credits: 19.5, source: 'lab' } }),
+  },
+  {
+    id: 'sc-g-loading',
+    name: '生成中：不印数，发送键走主干忙态（和没有估价时逐字相同）',
+    source: SOURCE, mirrors: MIRRORS, coverage: 'shell', scheme: 'light',
+    render: stage({ ...SEEDANCE, running: true, quote: { usd: 1.95, credits: 19.5, source: 'lab' } }),
+  },
+  {
     id: 'sc-c-unknown',
     name: '算不出：钮上只剩 ↑，不印数、不印 0',
     source: SOURCE, mirrors: MIRRORS, coverage: 'shell', scheme: 'light',

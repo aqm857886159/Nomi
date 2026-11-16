@@ -62,9 +62,9 @@ export const COST_LABEL_EXACT = Object.freeze({
   // Approved APIMart account and public-rate display. Each key admits only this wording.
   'onboardingProviders.account.credits': Object.freeze({ 'zh-CN': '{{value}} 积分', en: '{{value}} credits' }),
   'onboardingProviders.account.billing': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),
-  'onboardingProviders.account.estimate': Object.freeze({ 'zh-CN': '预计 {{value}} 积分（{{usd}}）· APIMart 公开默认价，最终按实际用量结算', en: 'Estimated {{value}} credits ({{usd}}) · public APIMart rate, final charge based on actual use' }),
+  'onboardingProviders.account.estimate': Object.freeze({ 'zh-CN': '这次约 {{value}} 积分（{{usd}}）。按 APIMart 公开价估，出完按 APIMart 实际扣费记。', en: 'About {{value}} credits ({{usd}}) this time. Estimated at the APIMart public rate; recorded at the actual APIMart charge once done.' }),
   'onboardingProviders.account.outputEstimate': Object.freeze({ 'zh-CN': '仅输出约 {{value}} 积分（{{usd}}）· 实际按 token 结算', en: 'Output estimate {{value}} credits ({{usd}}) · billed by actual tokens' }),
-  'onboardingProviders.account.shortfall': Object.freeze({ 'zh-CN': '低于公开估价 {{value}} 积分', en: '{{value}} credits below the public estimate' }),
+  'onboardingProviders.account.shortBy': Object.freeze({ 'zh-CN': '还差 {{value}} 积分', en: '{{value}} credits short' }),
 })
 
 /**

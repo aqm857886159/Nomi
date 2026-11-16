@@ -181,49 +181,78 @@ try {
       const send = win.locator('[data-bar-segment="generate"]').first()
       await expect(send, 'board:ModelSurfaces/cost.send-pill').toHaveAttribute('data-price-source', /api\/pricing\/model/, { timeout: stationTimeout() })
       await expect(send, 'board:ModelSurfaces/cost.hover').toHaveAttribute('aria-description', /1[.,]95/)
-      await expect(send.locator('..')).toHaveAttribute('title', /0[.,]195/)
+      await expect(send.locator('[data-send-cost="credits"]'), 'board:ModelSurfaces/cost.send-pill').toHaveText(/1[.,]95/)
+      const footer = win.locator('[data-node-composer-footer]').first()
+      const footerHeight = async () => (await footer.boundingBox()).height
+      const pillHeight = await footerHeight()
       await screenshotSettled(win, { path: shot(locale, 'public-estimate') })
-      // 悬停那一句（cost.hover）：钮外层的原生 title（系统提示框，截图拍不到），这里真悬停后读回悬停落在哪颗钮、那颗钮的 title。
+      // 悬停那一句（cost.hover）：设计系统 Tooltip，截图拍得到；句子照板原文。
       await send.hover()
-      const hovered = await win.evaluate(() => {
-        const el = [...document.querySelectorAll(':hover')].pop()
-        return el?.closest('[title]')?.getAttribute('title') ?? ''
-      })
-      assert.match(hovered, /0[.,]195/, 'hover lands on the send button that carries the estimate sentence')
-      results.push({ locale, hoverTitle: hovered })
+      const tip = win.locator('[data-send-cost-hover]').first()
+      await expect(tip, 'board:ModelSurfaces/cost.hover').toBeVisible({ timeout: stationTimeout() })
+      await expect(tip).toHaveText(/1[.,]95/)
+      await expect(tip).toHaveText(/0[.,]195/)
+      results.push({ locale, hoverText: await tip.innerText() })
       await screenshotSettled(win, { path: shot(locale, 'hover') })
-      await win.mouse.move(5, 5)
+      // 指针移开（Radix 离开后要再收到一次移动才收起，真鼠标是连续移动；这里分步移两次）。
+      await footer.hover({ position: { x: 4, y: 4 } })
+      await win.mouse.move(20, 20, { steps: 5 })
+      await expect(tip).toHaveCount(0, { timeout: stationTimeout() })
       results.push({ locale, catalog: previousCatalog ? 'v0.24.1-apimart' : 'fresh', quote: await send.innerText() })
-      for (const state of ['low', 'empty', 'valid']) {
+      // 去充值走 window.open → 主进程 shell.openExternal；走查把渲染层 window.open 换成记录器，只记 URL、不真开浏览器。
+      await win.evaluate(() => { window.__nomiOpened = []; window.open = (url) => { window.__nomiOpened.push(String(url)); return null } })
+      const slot = win.locator('[data-bar-segment="generate"]').first()
+      for (const state of ['unknown', 'low', 'empty', 'valid']) {
         accountMode = state
         await openSettings(win, { tab: 'models' })
         await card.getByRole('button', { name: uiText(locale, 'onboardingProviders.account.refresh') }).click()
-        const amount = state === 'empty' ? '0' : state === 'low' ? '1' : '52.3'
-        await expect(card).toContainText(uiText(locale, 'onboardingProviders.account.credits').replace('{{value}}', amount))
+        if (state === 'unknown') await expect(card).toContainText(uiText(locale, 'onboardingProviders.account.unavailable'))
+        else await expect(card).toContainText(uiText(locale, 'onboardingProviders.account.credits').replace('{{value}}', state === 'empty' ? '0' : state === 'low' ? '1' : '52.3'))
         await closeSettings(win)
-        if (state === 'low') {
-          // 非零但低于公开估价：钮照常可发，钮下一行只提示差值（cost.low-balance 的提示态）。
-          await expect(win.locator('[data-send-cost-notice]').first()).toBeVisible()
-          await screenshotSettled(win, { path: shot(locale, 'low-balance') })
+        if (state === 'unknown' || state === 'valid') {
+          // 余额查不到 / 够：照常是发送胶囊，不换成去充值。
+          await expect(slot.locator('[data-send-cost="credits"]'), 'board:ModelSurfaces/cost.low-balance').toBeVisible()
+          await expect(win.locator('[data-send-cost="shortfall"]')).toHaveCount(0)
+          continue
         }
+        // 余额刚查到且低于估价（1 < 1.95）/ 为零：同一行里发送键换成「还差 N 积分」+「去充值」，底栏不长高、下面没有第二行。
+        const shortfall = win.locator('[data-send-cost="shortfall"]').first()
+        const gap = state === 'empty' ? '1[.,]95' : '0[.,]95'
+        await expect(shortfall, 'board:ModelSurfaces/cost.low-balance').toContainText(new RegExp(uiText(locale, 'onboardingProviders.account.shortBy').replace('{{value}}', gap)))
+        await expect(win.locator('[data-bar-segment="generate"] button[aria-label="' + uiText(locale, 'generationCommon.composer.generateAsset') + '"]')).toHaveCount(0)
+        const lowHeight = await footerHeight()
+        // 「还差 N 积分」和「去充值」在同一行：两者竖直中线相差不到 1px。
+        const centers = await shortfall.evaluate(el => [...el.children].map(child => { const r = child.getBoundingClientRect(); return r.top + r.height / 2 }))
+        assert.equal(centers.length, 2)
+        assert(Math.abs(centers[0] - centers[1]) < 1, 'shortfall text and top-up button share one row')
+        assert.equal(lowHeight, pillHeight, 'low-balance footer height equals the normal pill footer height')
+        // 让位次序：底栏挤时先让摘要、方式名（共用让法 ②③），「还差 N 积分」和「去充值」不在让法里——
+        // 两者都不被截断（内容宽 ≤ 自身宽），且整颗落在底栏里面点得到。
+        const fit = await shortfall.evaluate(el => {
+          const bar = el.closest('[data-bar-segment]').parentElement.getBoundingClientRect()
+          const r = el.getBoundingClientRect()
+          return { clipped: [el, ...el.children].some(child => child.scrollWidth > child.clientWidth + 1), inside: r.left >= bar.left - 0.5 && r.right <= bar.right + 0.5 }
+        })
+        assert.deepEqual(fit, { clipped: false, inside: true }, 'shortfall and top-up are never truncated and stay inside the bar')
+        results.push({ locale, state, footerHeight: { pill: pillHeight, low: lowHeight } })
+        await screenshotSettled(win, { path: shot(locale, state === 'low' ? 'low-balance' : 'zero-balance') })
+        const topUp = shortfall.getByRole('button', { name: uiText(locale, 'onboardingProviders.account.billing') })
         if (state === 'empty') {
-          await expect(send, 'board:ModelSurfaces/cost.low-balance').toHaveAccessibleName(uiText(locale, 'onboardingProviders.account.billing'))
-          await screenshotSettled(win, { path: shot(locale, 'zero-balance') })
-          await expect(send).toBeEnabled()
           const priorBalanceReads = calls.filter(call => call.path === '/v1/user/balance').length
-          // A button painted as billing can expire between render and click. Its click must only refresh.
-          await send.evaluate(button => {
+          // 钮画成「去充值」之后读数可能过期：过期时点它只重读，不把人送去充值页。
+          await topUp.evaluate(button => {
             const realNow = Date.now
             Date.now = () => realNow() + 31_000
             try { button.click() } finally { Date.now = realNow }
           })
           await expect.poll(() => calls.filter(call => call.path === '/v1/user/balance').length).toBeGreaterThan(priorBalanceReads)
-          assert.equal(calls.filter(call => call.method !== 'GET').length, explicitSends)
-        } else if (state === 'valid') {
-          await expect(send).not.toHaveAccessibleName(uiText(locale, 'onboardingProviders.account.billing'))
-        } else {
-          await expect(send).not.toHaveAccessibleName(uiText(locale, 'onboardingProviders.account.billing'))
+          assert.deepEqual(await win.evaluate(() => window.__nomiOpened), [])
         }
+        await clickOrFail(topUp, 'click top up')
+        const opened = await win.evaluate(() => window.__nomiOpened.splice(0))
+        assert.deepEqual(opened, [locale.startsWith('zh') ? 'https://apimart.ai/zh/billing' : 'https://apimart.ai/billing'])
+        results.push({ locale, state, topUpOpened: opened })
+        assert.equal(calls.filter(call => call.method !== 'GET').length, explicitSends)
       }
       if (!perfFile) {
         // 图片节点放进一个新项目：和视频节点同屏时，第二张的生成框会落到窗口外（主干画布的落点，和本刀无关）。
@@ -249,7 +278,9 @@ try {
         await expect(imageSend, 'board:ModelSurfaces/cost.send-pill').toHaveText(/0[.,]35/, { timeout: stationTimeout() })
         await expect(imageSend).toHaveAttribute('data-price-source', /model=gpt-image-2.6-flare/)
         await expect(imageSend).toHaveAttribute('aria-description', /token/i)
-        await expect(imageSend.locator('..')).toHaveAttribute('title', /0[.,]035/)
+        await imageSend.hover()
+        await expect(win.locator('[data-send-cost-hover]').first(), 'board:ModelSurfaces/cost.hover').toHaveText(/0[.,]035/, { timeout: stationTimeout() })
+        await win.mouse.move(5, 5)
         await screenshotSettled(win, { path: shot(locale, 'output-estimate') })
         results.push({ locale, model: 'gpt-image-2.6-flare', outputEstimate: await imageSend.getAttribute('aria-description') })
         // 真点发送：写一句提示词再点。上游是本机假服务（非 GET 一律 405，不产出媒体）：
