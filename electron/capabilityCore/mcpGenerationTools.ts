@@ -9,7 +9,6 @@ import { shotsOnOffer } from "../shared/agentCapabilities/generationShotScope";
 import crypto from "node:crypto";
 import { hasMentions } from "../shared/storyboard/promptMentions";
 import {
-  admitPlanCandidate,
   compileExecutionContract,
   type ExecutionContractV1,
   type PlanCandidate,
@@ -33,7 +32,6 @@ import {
   candidateHasCharacterReference,
   candidatesForCurrentVideoModel,
   modelSupportsReferenceImage,
-  normalizeAuthoredCandidate,
   normalizeVideoCandidate,
   shotDurationSeconds,
   videoCandidateForPlan,
@@ -55,7 +53,8 @@ import { resolveGenerationPlan } from "../shared/videoCapabilities/planResolver"
 import { generationResolveInputSchema } from "../shared/agentCapabilities/generation";
 import { normalizeStoredDraft, resolvePlanPatch } from "./generationPlanPatch";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
-import { DECLARED_DEFAULT_DEVIATION_NOTE, admitShotIdentity, declaredDefaultDeviations, semanticCandidateFromParams } from "./semanticGenerationCandidate";
+import { DECLARED_DEFAULT_DEVIATION_NOTE, declaredDefaultDeviations } from "./semanticGenerationCandidate";
+import { createDraftAdmission } from "./generationDraftAdmission";
 import type { ResolvedModelName } from "../shared/agentCapabilities/modelHandle";
 import { projectGenerationOperationPreview } from "./mcpGenerationPreview";
 import { generationCandidateSchema } from "../shared/agentCapabilities/generationPlanSchemas";
@@ -277,67 +276,6 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     ...(deps.resolveStoryboardReferenceUrl ? { resolveStoryboardReferenceUrl: deps.resolveStoryboardReferenceUrl } : {}),
   });
 
-  /**
-   * 起草那一刻就过**确认时用的同一个** `compileParameters`（经 `admitPlanCandidate`，不另写一份校验）。
-   * 2026-10-18：起草只核了「模型 + 模式」、不核参数值，坏参数（`seed: "abc"`）照样进草稿、出付费卡，
-   * 点「生成」才在合同编译口被拒。现在草稿落库之前就判，拒绝是现有的结构化 ParameterRejection，模型当场能改对再交。
-   */
-  const admitDraftParameters = (candidate: PlanCandidate, registry: GenerationPlanningHandlerDependencies["registry"]): void => {
-    admitPlanCandidate(candidate, registry, videoCompileOptions(candidate, deps.videoModelCandidates));
-  };
-
-  /** 起草的每一镜：同一套准入（候选合成 → 归一 → 身份核对 → 参数值）。首建与补镜头都过这一处，不另写一台。 */
-  const admitDraftShots = async (
-    projectId: string,
-    params: Record<string, unknown>,
-    registry: GenerationPlanningHandlerDependencies["registry"] = deps.registry,
-    noteResolvedModelName?: (entry: ResolvedModelName) => void,
-  ): Promise<GenerationOperationDraftShot[] | undefined> => {
-    const draftShots = await resolveCreateShots(projectId, params, registry, noteResolvedModelName);
-    if (!draftShots) return undefined;
-    const normalizedShots = draftShots.map((shot) => ({ ...shot, candidate: normalizeAuthoredCandidate(shot.candidate, registry, deps.videoModelCandidates) }));
-    // 每一镜的「模型 + 模式」落盘前就对过账：矛盾的镜头当场拒绝，不留到付费卡上点下去才发现（第 9 条）。
-    for (const shot of normalizedShots) {
-      admitShotIdentity(shot.candidate, registry, shot.role);
-      admitDraftParameters(shot.candidate, registry);
-    }
-    return normalizedShots;
-  };
-
-  /** 单镜起草（一句话生成一张图）的准入。新建单镜草稿与「补一镜到这一请求的方案」共用。 */
-  const admitSingleCandidate = (
-    projectId: string,
-    operationId: string,
-    params: Record<string, unknown>,
-    registry: GenerationPlanningHandlerDependencies["registry"] = deps.registry,
-    noteResolvedModelName?: (entry: ResolvedModelName) => void,
-  ): PlanCandidate => {
-    // A natural-language create request only needs `prompt`.  Keep the
-    // explicit candidate path intact, but compile the short path at this
-    // boundary so the model never has to invent internal candidate IDs or
-    // provider wiring (the previous behavior surfaced as a false refusal).
-    const singleCandidate = semanticCandidateFromParams({
-      operationId,
-      params,
-      candidateFrom,
-      ...(deps.defaultModelForTaskKind ? { defaultModelForTaskKind: deps.defaultModelForTaskKind } : {}),
-      ...(registry.snapshot ? { registry } : {}),
-      ...(deps.resolveAssetReferenceIdentity
-        ? { resolveAssetReferenceIdentity: (assetId: string) => deps.resolveAssetReferenceIdentity!(projectId, assetId) }
-        : {}),
-      ...(noteResolvedModelName ? { noteResolvedModelName } : {}),
-    });
-    // P4 §5.1.4 锚复用授权面（单镜同守，P2 通用性）：单镜引用外来/不存在资产也当场拒——references 有三个入口，
-    // 单镜 candidate 是其一，不能只堵多镜。多镜路已在 resolveCreateShots 内校验过。
-    if (deps.assertReferencesResolvable && singleCandidate.references.length > 0) {
-      deps.assertReferencesResolvable(projectId, singleCandidate.references);
-    }
-    const normalizedSingle = normalizeAuthoredCandidate(singleCandidate, registry, deps.videoModelCandidates);
-    admitShotIdentity(normalizedSingle, registry);
-    admitDraftParameters(normalizedSingle, registry);
-    return normalizedSingle;
-  };
-
   /** 补进一份文稿方案后的回执：草稿还是那份（id 不变），补上的行与它们的 id 在 `storyboardExtended` 里。 */
   const extendedReceipt = async (operation: GenerationOperation, shots: readonly GenerationOperationDraftShot[], names: { modelNamesResolved?: readonly ResolvedModelName[] }, note?: string) => {
     const storyboardExtended = await documentPlans.extendDocumentPlan(operation.projectId, operation.sourceDocumentId!, operation.operationId, shots);
@@ -355,6 +293,9 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     ...(deps.assertReferencesResolvable ? { assertReferencesResolvable: deps.assertReferencesResolvable } : {}),
     ...(deps.resolveAssetReferenceIdentity ? { resolveAssetReferenceIdentity: deps.resolveAssetReferenceIdentity } : {}),
   });
+
+  /** 起草准入（多镜 / 补镜 / 单镜同一套：合成 → 归一 → 身份 → 参数值），住 `generationDraftAdmission.ts`。 */
+  const { admitDraftShots, admitSingleCandidate } = createDraftAdmission({ ...deps, candidateFrom, resolveCreateShots });
 
   /**
    * P4 S4 — build the real multi-shot display.shots (the ASSEMBLY the S3a card was waiting on;
