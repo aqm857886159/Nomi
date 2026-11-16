@@ -1,0 +1,79 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "ee1b289b3",
+  "head": "ee1b289b337ca1013421547b393a43fda414083d",
+  "dirty": true,
+  "sourceTree": "a433fecd5f025955ec06964abd024a6291e7b02c",
+  "date": "2026-11-16",
+  "runs": 5,
+  "results": [
+    {
+      "id": "asset-liveness-scan-worst",
+      "metrics": {
+        "scanMs": {
+          "runs": 5,
+          "median": 30.9,
+          "p95": 35
+        },
+        "lookupMs": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        },
+        "listFilterMs": {
+          "runs": 5,
+          "median": 31.1,
+          "p95": 35.3
+        },
+        "referencedFiles": {
+          "runs": 5,
+          "median": 1000,
+          "p95": 1000
+        }
+      },
+      "samples": {
+        "scanMs": [
+          30.924874999999986,
+          35.233041000000014,
+          34.16258399999998,
+          28.413708999999983,
+          27.150458000000015
+        ],
+        "lookupMs": [
+          0.00019399999999996,
+          0.00024758299999996325,
+          0.00027133400000002437,
+          0.00022154199999999946,
+          0.00021916699999997036
+        ],
+        "listFilterMs": [
+          31.118874999999946,
+          35.48062399999998,
+          34.433918000000006,
+          28.635250999999982,
+          27.369624999999985
+        ],
+        "referencedFiles": [
+          1000,
+          1000,
+          1000,
+          1000,
+          1000
+        ]
+      },
+      "budget": 50,
+      "baseline": {
+        "median": 27.7,
+        "p95": 29,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "date": "2026-11-16",
+        "commit": "ee1b289b3"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}
