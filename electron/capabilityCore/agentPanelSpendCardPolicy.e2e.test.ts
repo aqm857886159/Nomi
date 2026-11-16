@@ -115,18 +115,6 @@ describe("「直接生成」档答不了：卡带着原因出来，由人点", (
     expect(world.pending()!.shots.map((shot) => [shot.offer, shot.failure?.code])).toEqual([["not_sent", "renderer_unavailable"], ["not_sent", "renderer_unavailable"]]);
     expect(world.pending()!.manualDecisionRequired).toBe(true);
   });
-
-  it("本机参考要匿名托管：策略不替用户答这一问（不带托管同意交），卡出来；人在卡上看过披露、点了主按钮才发", async () => {
-    const world = spendWorld({ validateNode: (node, context) => node.shotId === "shot-1" && !context.hostingAllowed ? { kind: "not_sent", code: "asset_hosting_consent_required" } : null });
-    await shotsDraft(world, [{}, {}], false);
-    await modelPresents(world, "direct");
-    expect(world.renderer.handOverCalls.map((call) => call.hostingAllowed)).toEqual([false]);
-    expect(world.sentShots()).toEqual(["shot-2"]);
-    expect(world.pending()!.shots.find((shot) => shot.shotId === "shot-1")).toMatchObject({ offer: "not_sent", failure: { code: "asset_hosting_consent_required" } });
-    await world.generate(undefined, world.pending(), true);
-    await world.renderer.drain();
-    expect(world.sentShots().sort()).toEqual(["shot-1", "shot-2"]);
-  });
 });
 
 describe("其它档：一个字没变", () => {

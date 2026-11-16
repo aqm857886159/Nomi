@@ -21,7 +21,6 @@ const host = vi.hoisted(() => ({
   push: vi.fn(),
   warn: vi.fn(),
   reveal: vi.fn(),
-  hosting: vi.fn(),
   precheck: vi.fn(),
 }))
 vi.mock('../../production/productionRunApi', () => ({
@@ -42,7 +41,6 @@ vi.mock('../../../desktop/rendererLog', async (importOriginal) => ({
   logRendererWarn: host.warn,
 }))
 vi.mock('../pointer/revealNodeFromChat', () => ({ revealNodeFromChat: host.reveal, returnToChat: vi.fn() }))
-vi.mock('../../generationCanvas/components/batchPlanPreview', () => ({ resolveBatchHostingNodes: host.hosting }))
 vi.mock('../../production/handOverPrecheck', () => ({ handOverPrecheck: host.precheck }))
 // 模型目录是异步读的；这里换成同步桩：节点上选的是 img-model 就认得（显示名「Img Model」，没有价目表 → 价未知）。
 vi.mock('../../generation/list/generationListModelLabels', () => {
@@ -136,7 +134,6 @@ const storage = { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.f
 beforeEach(async () => {
   await i18n.changeLanguage('zh-CN')
   for (const fn of Object.values(host)) fn.mockReset()
-  host.hosting.mockResolvedValue({ needsConfirmation: false })
   host.precheck.mockImplementation(() => new Map())
   host.handOverSpend.mockResolvedValue(OK('handed_over'))
   host.discardSpend.mockResolvedValue(OK('discarded'))
@@ -333,19 +330,6 @@ describe('按下那一刻：卡上画着的 = 交出去的', () => {
     api.primary()
     expect(host.handOverSpend).not.toHaveBeenCalled()
     expect(host.reveal).toHaveBeenCalledWith(expect.objectContaining({ nodeId: 'n2' }))
-  })
-
-  it.each([
-    { needs: true, says: '要先把本机参考图传到公共临时托管：卡上摆那一句原文，按「生成」就是同意这一次' },
-    { needs: false, says: '不用托管：卡上不摆那一句，按「生成」也不带同意' },
-  ])('$says', async ({ needs }) => {
-    host.hosting.mockResolvedValue({ needsConfirmation: needs })
-    const view = mount(ready(offer([shot(1), shot(2)])))
-    await view.settle()
-    const disclosure = i18n.t('generationCommon.spendHostingDisclosure.message')
-    expect(api.body?.notices.some((notice) => notice.text === disclosure)).toBe(needs)
-    api.primary()
-    expect(host.handOverSpend.mock.calls[0]![0]).toMatchObject({ hostingAllowed: needs })
   })
 })
 

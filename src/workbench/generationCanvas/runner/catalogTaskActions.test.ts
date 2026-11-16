@@ -784,11 +784,6 @@ describe('buildCatalogTaskRequest — idempotencyKey 穿透到 request.extras', 
     expect((built.request.extras as Record<string, unknown>).idempotencyKey).toBe('run-abc-123')
   })
 
-  it('anonymous upload consent 穿透到 request.extras', () => {
-    const built = buildCatalogTaskRequest({ ...imageNode(), prompt: 'a cat', meta: { modelKey: 'sd', modelVendor: 'openai' } }, { anonymousAssetHostingConsent: 'allow' })
-    expect((built.request.extras as Record<string, unknown>).anonymousAssetHostingConsent).toBe('allow')
-  })
-
   it('把当前请求实际引用的本地素材作为上传 allowlist 传给主进程', () => {
     const built = buildCatalogTaskRequest(
       {

@@ -1,0 +1,32 @@
+{
+  "id": "USER-20261117-hosting-setting-only",
+  "since": "2026-11-17",
+  "source": "用户报告默认托管策略下参考图未经告知传到第三方；2026-11-17 决定「删掉，用设置开关」。",
+  "category": "interaction-semantics",
+  "problem": "生成调用方自带 allow，上传循环缺省 allow；默认 ask 也会外传参考素材。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-17-hosting-setting-only.md",
+    "electron/catalog/hostingSettingOnly.test.ts",
+    "electron/catalog/referenceLinkDelivery.matrix.test.ts",
+    "eslint.config.mjs",
+    "结构性预防：hosting-channel-owner/no-restricted-syntax 限定匿名通道定义和地址归属；hosting-setting-owner/no-restricted-syntax 限定界面设置写口；hosting-consent-retired/no-restricted-syntax 拦旧许可字段和告知标记复活；类级矩阵 electron/catalog/hostingSettingOnly.test.ts 验证关闭、缺省、未知值及伪造调用方允许均不能上传，allow保留失败换路。",
+    "实现提交已完成，独立验收在 PR 上进行。"
+  ],
+  "fixedInPr": 1556,
+  "rootCauseContract": "docs/fixes/2026-11-17-hosting-setting-only.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/catalog/referenceLinkDelivery.matrix.test.ts"
+  },
+  "completionCommits": [
+    "c83694a96bb26adeb50b0a10ae93ebcfa2c9154d"
+  ]
+}

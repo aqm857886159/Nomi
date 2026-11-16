@@ -45,7 +45,7 @@ afterEach(() => {
 
 const runWith = async (nodeId: string, executor: () => Promise<never | GenerationCanvasNode['result']>) => {
   const target = await session.open('project-a')
-  return runGenerationNode(nodeId, { target, assetUploadConsent: 'not-needed', retry: { maxAttempts: 1 }, executor: executor as never })
+  return runGenerationNode(nodeId, { target, retry: { maxAttempts: 1 }, executor: executor as never })
 }
 
 describe('the run record carries which (vendor, model) the run was dispatched to', () => {

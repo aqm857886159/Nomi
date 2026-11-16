@@ -1,26 +1,32 @@
-import { describe, it, expect, vi } from "vitest";
+import { desktopT } from "../desktopStrings";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import {
   collectLocalAssetUrls,
   assertLocalAssetTransportReady,
   replaceLocalAssetUrls,
-  resolveLocalAsset,
   localizeAssetsForVendor,
   resolveAssetIngestion,
   resolveAssetIngestionWithFallback,
   isLocalAssetUrl,
   trustedOriginalUrl,
   ORIGINAL_URL_TRUST_MS,
-  LITTERBOX_INGESTION,
-  TMPFILES_INGESTION,
-  ANON_UPLOAD_CHAIN,
   assertLocalAssetMediaBytes,
   nomiAssetRelayCandidateFromEnvironment,
   nomiPublicAssetRelayCandidate,
   type LocalAsset,
 } from "./assetLocalization";
+import { LITTERBOX_INGESTION, TMPFILES_INGESTION, ANON_UPLOAD_CHAIN } from "./assetIngestionRegistry";
 import type { AssetIngestion } from "./types";
 import { matchNomiErrorCode } from "../shared/nomiErrorCodes";
 
+const hosting = vi.hoisted(() => ({ policy: 'allow' }))
+vi.mock('../settings/automationPolicySettings', () => ({ readAutomationPolicySettings: () => ({ anonymousAssetHosting: hosting.policy }) }))
+beforeEach(() => { hosting.policy = 'allow' })
+const resolveLocalAsset = async (
+  url: string, ingestion: AssetIngestion, uploadApiKey: string, read: import('./assetLocalization').LocalAssetReader,
+  postJson: import('./assetLocalization').HttpPostJson, postMultipart: import('./assetLocalization').HttpPostMultipart,
+  putBinary?: import('./assetLocalization').HttpPutBinary,
+): Promise<string> => (await localizeAssetsForVendor(url, () => [{ ingestion, uploadApiKey, vendorKey: null }], read, postJson, postMultipart, { linkPolicy: { refused: true, probe: async () => "dead" } }, putBinary)).value as string
 const localUrl = (p: string) => `nomi-local://asset/proj/${p}`;
 // 内联素材（headless/MCP 直接给 data: URI，或落盘失败退回 base64 的兜底路径）。
 const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52]);
@@ -455,7 +461,7 @@ describe("localizeAssetsForVendor", () => {
     const readVideo = (url: string): LocalAsset | null => ({ bytes: Buffer.from("v"), contentType: "video/mp4", fileName: url.split("/").pop() || "v.mp4" });
     const resolver = () => []; // no channel for any kind
     const extras = { referenceVideoUrls: [localUrl("clip.mp4")] };
-    await expect(localizeAssetsForVendor(extras, resolver, readVideo, vi.fn(), noMultipart)).rejects.toThrow(/运镜参考视频需要支持视频上传的通道/);
+    await expect(localizeAssetsForVendor(extras, resolver, readVideo, vi.fn(), noMultipart)).rejects.toThrow(desktopT("assetUpload.noChannel"));
   });
 
   it("does not guess an unknown octet-stream file is an image", async () => {
@@ -484,13 +490,13 @@ describe("localizeAssetsForVendor", () => {
     expect(post).toHaveBeenCalledTimes(1);
   });
 
-  it("requires disclosure before an anonymous fallback upload", async () => {
+  it("disabled hosting rejects an anonymous fallback upload", async () => {
+    hosting.policy = "ask";
     const anonymous: AssetIngestion = {
       strategy: "anon-chain",
       chain: [],
       accepts: ["video"],
       visibility: "public-anonymous",
-      requiresConsent: true,
       ttlSeconds: 60 * 60,
     };
     const postMultipart = vi.fn();
@@ -500,7 +506,7 @@ describe("localizeAssetsForVendor", () => {
       () => ({ bytes: Buffer.from("v"), contentType: "video/mp4", fileName: "clip.mp4" }),
       vi.fn(),
       postMultipart,
-      { anonymousConsent: "ask" },
+      {},
     )).rejects.toThrow(/KIE.*免费|公共临时托管/);
     expect(postMultipart).not.toHaveBeenCalled();
   });
@@ -512,7 +518,6 @@ describe("localizeAssetsForVendor", () => {
       responseIsPlainTextUrl: true,
       accepts: ["video"],
       visibility: "public-anonymous",
-      requiresConsent: true,
       ttlSeconds: 60,
     };
     await expect(localizeAssetsForVendor(
@@ -521,7 +526,7 @@ describe("localizeAssetsForVendor", () => {
       () => ({ bytes: Buffer.from("v"), contentType: "video/mp4", fileName: "clip.mp4" }),
       vi.fn(),
       vi.fn(),
-      { anonymousConsent: "allow" },
+      {},
     )).rejects.toThrow(/有效期|lease|所有上传通道/);
   });
 });
@@ -561,7 +566,7 @@ describe("localizeAssetsForVendor — 上传失败换下一条通道（413 类�
     // 要点名素材、报出大小、点破「超上限」——不能再是「服务商临时故障，稍等重试」那种甩锅文案。
     await expect(run).rejects.toThrow(/clip\.mp4/);
     await expect(run).rejects.toThrow(/3\.0MB/);
-    await expect(run).rejects.toThrow(/超过了所有可用上传通道的大小上限/);
+    await expect(run).rejects.toThrow(/收不下|too large/);
   });
 
   it("非 413 的全失败 → 汇总每条通道各自的原因（别吞掉线索）", async () => {
@@ -579,16 +584,17 @@ describe("localizeAssetsForVendor — 上传失败换下一条通道（413 类�
     await expect(run).rejects.toThrow(/roomy\.example.*fetch failed/s);
   });
 
-  it("私有供应商上传失败时，不被匿名托管 consent 提示遮住根因", async () => {
+  it("私有供应商上传失败时，不被匿名托管提示遮住根因", async () => {
+    hosting.policy = "ask";
     const privateUpload: AssetIngestion = { strategy: "upload-multipart", endpoint: "https://runway.example/v1/uploads", urlPath: "url", accepts: ["video"] };
-    const anonymous: AssetIngestion = { strategy: "anon-chain", chain: [], accepts: ["video"], visibility: "public-anonymous", requiresConsent: true, ttlSeconds: 60 * 60 };
+    const anonymous: AssetIngestion = { strategy: "anon-chain", chain: [], accepts: ["video"], visibility: "public-anonymous", ttlSeconds: 60 * 60 };
     const run = localizeAssetsForVendor(
       { referenceVideoUrls: [localUrl("clip.mp4")] },
       () => [{ vendorKey: "runway", ingestion: privateUpload, uploadApiKey: "key" }, { vendorKey: null, ingestion: anonymous, uploadApiKey: "" }],
       () => ({ bytes: Buffer.from("video"), contentType: "video/mp4", fileName: "clip.mp4" }),
       vi.fn(),
       vi.fn().mockRejectedValue(new Error("素材上传失败(HTTP 400)：X-Runway-Version missing")),
-      { anonymousConsent: "ask" },
+      {},
     );
     await expect(run).rejects.toThrow(/runway\.example.*X-Runway-Version missing/s);
     await expect(run).rejects.not.toThrow(/参考素材需要上传到公共临时托管/);
@@ -915,7 +921,7 @@ describe("localizeAssetsForVendor —— 窗内临时链接发之前先试一下
     const noChannel = () => [];
     expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, readFresh)).not.toThrow();
     expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, readFresh, { linkPolicy: policy("alive") })).not.toThrow();
-    expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, readFresh, { linkPolicy: policy("alive", true) })).toThrow(/没有可用的图片上传通道/);
+    expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, readFresh, { linkPolicy: policy("alive", true) })).toThrow(desktopT("assetUpload.noChannel"));
   });
 });
 
@@ -1115,7 +1121,7 @@ describe("localizeAssetsForVendor — data: URI 与 nomi-local 同链", () => {
 
   it("assertLocalAssetTransportReady：内联素材没有可用通道 → 付费前拒发", () => {
     expect(() => assertLocalAssetTransportReady({ referenceImages: [inlineImageUrl()] }, () => [], neverRead))
-      .toThrow(/没有可用的图片上传通道/);
+      .toThrow(desktopT("assetUpload.noChannel"));
     expect(() => assertLocalAssetTransportReady(
       { referenceImages: [inlineImageUrl()] },
       () => [{ vendorKey: "kie", ingestion: uploadUrlIngestion, uploadApiKey: "k" }],
@@ -1202,7 +1208,7 @@ describe("参考图跟着这次调用的端点走；借用别家时点名是哪�
     const borrowed = { ingestion: { strategy: "upload-multipart", endpoint: "https://api.apimart.ai/v1/uploads/images", urlPath: "url", accepts: ["image"] } as AssetIngestion,
       uploadApiKey: "sk-apimart", vendorKey: "apimart", borrowed: true as const };
     const postMultipart = vi.fn(async () => { throw new Error("素材上传失败(HTTP 402)"); });
-    const error = await localizeAssetsForVendor({ image: [localUrl("ref.png")] }, () => [borrowed], read, vi.fn(), postMultipart as never, { anonymousConsent: "allow" })
+    const error = await localizeAssetsForVendor({ image: [localUrl("ref.png")] }, () => [borrowed], read, vi.fn(), postMultipart as never, {})
       .then(() => null, (failure: Error) => failure);
     expect(error?.message).toMatch(/借用 apimart 的上传通道（api\.apimart\.ai，用的是你在 apimart 的账户）: 素材上传失败\(HTTP 402\)/);
     expect(error?.message).toContain("还没请求这次选的服务商");

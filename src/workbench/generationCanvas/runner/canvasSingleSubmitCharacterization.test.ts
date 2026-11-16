@@ -60,10 +60,6 @@ vi.mock('../../api/modelCatalogApi', async (original) => ({
   ...await original<typeof import('../../api/modelCatalogApi')>(),
   listWorkbenchModelCatalogVendors: async () => { throw new Error('no catalog bridge in tests') },
 }))
-vi.mock('./assetUploadConsent', async (original) => ({
-  ...await original<typeof import('./assetUploadConsent')>(),
-  resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }),
-}))
 
 const IMAGE_META = { modelKey: 'img-model', modelVendor: 'acme', vendor: 'acme' }
 const LOCAL_URL = 'nomi-local://asset/project-a/out.png'

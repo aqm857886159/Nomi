@@ -158,3 +158,11 @@ export function unreachableAssetValueError(value: string): Error {
       `请先把这份素材导入项目（拖进画布 / 素材库导入 / MCP 用 nomi_import_asset），再作为参考连上。`,
   );
 }
+
+/** 递归收集任意 JSON 结构里所有待本地化素材值(nomi-local:// / data:,去重)。标量/数组元素/对象值都认。 */
+export function collectLocalAssetUrls(value: unknown, out: Set<string> = new Set()): Set<string> {
+  if (isLocalizableAssetValue(value)) out.add(value as string);
+  else if (Array.isArray(value)) for (const item of value) collectLocalAssetUrls(item, out);
+  else if (value && typeof value === "object") for (const item of Object.values(value)) collectLocalAssetUrls(item, out);
+  return out;
+}

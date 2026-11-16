@@ -85,8 +85,8 @@ export const zhSettings = {
         cleared: '已清除；恢复使用 Nomi 公共 Relay',
         failed: '保存失败，请检查地址或系统钥匙串',
       },
-      anonymousPrompt: '公共临时托管上传前提醒我',
-      anonymousPromptHint: '未配置 KIE 时仍可临时上传到公共托管；Nomi 会先告诉你托管方、有效期和隐私风险。',
+      anonymousPrompt: '允许第三方公共临时托管',
+      anonymousPromptHint: '别的上传通道都传不上去时，把参考素材临时传到第三方图床，链接任何人可访问、短期有效。关着时会停下来告诉你。',
     },
     systemPrompt: {
       title: '系统提示词',
@@ -337,8 +337,8 @@ export const enSettings = {
         cleared: 'Cleared; using Nomi public Relay',
         failed: 'Could not save; check the URL or system keychain',
       },
-      anonymousPrompt: 'Warn me before public temporary hosting',
-      anonymousPromptHint: 'If KIE is not configured, Nomi can still use a temporary public host, but it will show the host, lifetime, and privacy risk first.',
+      anonymousPrompt: 'Allow third-party public temporary hosting',
+      anonymousPromptHint: 'When other upload channels fail, temporarily upload reference assets to third-party image hosts; anyone can access the short-lived links. When off, Nomi stops and tells you.',
     },
     systemPrompt: {
       title: 'System prompt',

@@ -22,7 +22,7 @@ export const productionRunApi = {
   resumeBatch: (projectId: string, runId: string): Promise<ProductionShotActionResult> => bridge().resumeBatch(projectId, runId),
   // Agent 面板付费卡的动作（D2 第③步），都回结构化 { ok, code }。卡本身随对话投影推过来，这里没有读口。
   /** 「生成」/「全部生成（N）」/「生成剩下 N 段」/「再试一次」：这几镜交给画布。 */
-  handOverSpend: (input: { projectId: string; operationId: string; quoteId: string; shotIds: readonly string[]; hostingAllowed: boolean } & PendingSpendActionIdentity) => bridge().handOverSpend(input),
+  handOverSpend: (input: { projectId: string; operationId: string; quoteId: string; shotIds: readonly string[] } & PendingSpendActionIdentity) => bridge().handOverSpend(input),
   discardSpend: (projectId: string, operationId: string, quoteId: string, identity?: PendingSpendActionIdentity) => bridge().discardSpend(projectId, operationId, quoteId, identity),
   /** 「不生成 ×」：这一镜不生成。 */
   removeSpendShot: (projectId: string, operationId: string, quoteId: string, shotId: string, identity?: PendingSpendActionIdentity) => bridge().removeSpendShot(projectId, operationId, quoteId, shotId, identity),

@@ -293,8 +293,8 @@ export function AiModelsSection({
               <div className="mt-0.5 text-caption leading-relaxed text-nomi-ink-40">{t('settings.ai.upload.anonymousPromptHint')}</div>
             </div>
             <DesignSwitch
-              checked={settings.anonymousAssetHosting === 'ask'}
-              onChange={(event) => onChange({ anonymousAssetHosting: event.currentTarget.checked ? 'ask' : 'allow' })}
+              checked={settings.anonymousAssetHosting === 'allow'}
+              onChange={(event) => onChange({ anonymousAssetHosting: event.currentTarget.checked ? 'allow' : 'ask' })}
               aria-label={t('settings.ai.upload.anonymousPrompt')}
             />
           </div>

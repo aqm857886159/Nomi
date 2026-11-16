@@ -113,9 +113,9 @@ export type SpendWorldOptions = Readonly<{
   previewBlock?: DirectorPreviewSpendBlockReason | "unrecognized" | null;
   /**
    * 渲染层本机就判得出发不出去的那几镜（必填项缺 / 参考不在 / 节点不可用 / 本机参考要匿名托管而这一下没带托管同意）：
-   * 跳过、说原因，主进程记成没发出去（债 a）。`hostingAllowed` = 这一次交接带没带托管同意（卡上那一行披露 + 点了主按钮）。
+   * 跳过、说原因，主进程记成没发出去（债 a）。
    */
-  validateNode?: (node: FakeNode, context: Readonly<{ hostingAllowed: boolean }>) => GenerationHandOverFailure | null;
+  validateNode?: (node: FakeNode) => GenerationHandOverFailure | null;
   /** 一开始就把派发扣住（开好同意、回过话，交的那一下等 `releaseDispatch()`）。 */
   holdDispatch?: boolean;
   /** 起草路要的目录（缺省 = 本文件那份 acme 目录）与视频档案候选。 */
@@ -143,7 +143,7 @@ function rendererDouble(validateNode: SpendWorldOptions["validateNode"]) {
   /** 收到的每一份落地报文（原样，铁律 ⑩ 的宿主矩阵从这里接着走渲染层落节点那几步）。 */
   const payloads: MaterializeShotsWirePayload[] = [];
   const byShot = new Map<string, string>();
-  const handOverCalls: Array<Readonly<{ runId: string; shots: Array<{ shotId: string; nodeId: string }>; hostingAllowed: boolean }>> = [];
+  const handOverCalls: Array<Readonly<{ runId: string; shots: Array<{ shotId: string; nodeId: string }> }>> = [];
   const dispatchErrors: unknown[] = [];
   let nodeSequence = 0;
   let recordSequence = 0;
@@ -210,7 +210,7 @@ function rendererDouble(validateNode: SpendWorldOptions["validateNode"]) {
       return { bindings };
     }
     if (op === HAND_OVER_SHOTS_OP) {
-      const input = payload as { projectId: string; runId: string; shots: Array<{ shotId: string; nodeId: string }>; hostingAllowed: boolean };
+      const input = payload as { projectId: string; runId: string; shots: Array<{ shotId: string; nodeId: string }> };
       handOverCalls.push(structuredClone(input));
       if (handOverFailing) throw Object.assign(new Error("Nomi window unavailable"), { name: "RendererUnavailableError" });
       await beforeConsent?.();
@@ -219,7 +219,7 @@ function rendererDouble(validateNode: SpendWorldOptions["validateNode"]) {
       for (const target of input.shots) {
         const node = nodes.get(target.nodeId);
         if (!node) { skipped.push({ shotId: target.shotId, failure: { kind: "not_sent", code: "canvas_node_missing" } }); continue; }
-        const invalid = validateNode?.(node, { hostingAllowed: input.hostingAllowed });
+        const invalid = validateNode?.(node);
         if (invalid) { skipped.push({ shotId: target.shotId, failure: invalid }); continue; }
         ready.push({ node, runRecordId: `rr-${node.nodeId}-${++recordSequence}` });
       }
@@ -396,9 +396,9 @@ export function spendWorld(options: SpendWorldOptions = {}) {
     remainingOn,
     setProjectOpen: (value: boolean) => { projectOpen = value; },
     /** 卡上点主按钮（`shown` 缺省 = 此刻那一张；`shotIds` 缺省 = 主按钮递的那一叠）。 */
-    generate: (shotIds?: readonly string[], shown: PendingSpendConfirm | undefined = pending(), hostingAllowed = false) => {
+    generate: (shotIds?: readonly string[], shown: PendingSpendConfirm | undefined = pending()) => {
       if (!shown) throw new Error("no card on screen");
-      return card.handOverShots({ ...identityOf(shown), shotIds: shotIds ?? remainingOn(shown), hostingAllowed });
+      return card.handOverShots({ ...identityOf(shown), shotIds: shotIds ?? remainingOn(shown) });
     },
     cancel: (shown: PendingSpendConfirm | undefined = pending()) => {
       if (!shown) throw new Error("no card on screen");

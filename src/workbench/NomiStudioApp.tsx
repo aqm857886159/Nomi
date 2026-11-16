@@ -281,24 +281,7 @@ export default function NomiStudioApp(): JSX.Element {
         ;(
           window as unknown as { __nomiSpendConfirmE2E?: (request: Record<string, unknown>) => Promise<boolean> }
         ).__nomiSpendConfirmE2E = async (request) => {
-          const rememberHosting = request.rememberHosting === true
-          const { rememberHosting: _rememberHosting, ...pendingRequest } = request
-          if (pendingRequest.hostingDisclosure && typeof pendingRequest.hostingDisclosure === 'object') {
-            const disclosure = pendingRequest.hostingDisclosure as Record<string, unknown>
-            pendingRequest.hostingDisclosure = {
-              ...disclosure,
-              onRemember: rememberHosting
-                ? async () => {
-                    const policy = getDesktopBridge()?.settings?.automationPolicy
-                    if (!policy) return
-                    const current = await policy.get()
-                    await policy.set({ ...current, anonymousAssetHosting: 'allow' })
-                    ;(window as unknown as { __nomiSpendRemembered?: boolean }).__nomiSpendRemembered = true
-                  }
-                : undefined,
-            }
-          }
-          return useSpendConfirmStore.getState().requestConfirm(pendingRequest as never)
+          return useSpendConfirmStore.getState().requestConfirm(request as never)
         }
       }
     } catch {

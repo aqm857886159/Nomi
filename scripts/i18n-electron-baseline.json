@@ -1,7 +1,7 @@
 {
   "electron/assets/downloadAsset.ts": 1,
   "electron/assets/localAssetFile.ts": 2,
-  "electron/catalog/assetLocalization.ts": 22,
+  "electron/catalog/assetLocalization.ts": 18,
   "electron/catalog/assetValueScheme.ts": 2,
   "electron/catalog/catalogStore.ts": 3,
   "electron/catalog/comfyuiWorkflowImportStore.ts": 1,
