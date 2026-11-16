@@ -72,20 +72,20 @@
       "responsibility": "参数值层唯一的准入：空值按没填、必填缺失点名、类型 / 枚举 / 范围照旧拒"
     },
     {
-      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "path": "electron/capabilityCore/generationDraftAdmission.ts",
       "symbol": "admitDraftParameters",
       "responsibility": "起草落库前过同一个 admitPlanCandidate：坏参数当场结构化拒绝，不产生草稿 / 付费卡"
     }
   ],
   "same_class_entry_points": [
     {
-      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "path": "electron/capabilityCore/generationDraftAdmission.ts",
       "entry_point": "admitDraftShots",
       "disposition": "enforced",
       "evidence": "多镜 create 与 extend 共用；draftTimeParameterAdmission.test.ts 的多镜用例（seed \"4\" / generate_audio \"false\"）修前红修后绿"
     },
     {
-      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "path": "electron/capabilityCore/generationDraftAdmission.ts",
       "entry_point": "admitSingleCandidate",
       "disposition": "enforced",
       "evidence": "单镜 create（Agent draft_shots 单镜、MCP nomi_operation_plan）；draftTimeParameterAdmission.test.ts 单镜用例"

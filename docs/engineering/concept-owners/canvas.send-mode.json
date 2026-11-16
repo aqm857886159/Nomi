@@ -42,10 +42,15 @@
       "symbol": "currentArchetypeMode",
       "kind": "definition",
       "why": "按存着的 modeId 直接取方式会绕过现算；读方式一律经 effectiveArchetypeMode / sendArchetypeMode。"
+    },
+    {
+      "symbol": "videoModeForPlan",
+      "kind": "definition",
+      "why": "主进程短创建 / 改计划曾各自按 transportTaskKind 在 modes 上筛方式，只看了方式级、漏了档案级，首尾帧没写 modeId 时选错方式（U5）。主进程归一只经 videoModeForCandidate 交 modeForInputs（task 收窄），不另筛。"
     }
   ],
   "allowed_consumers": [],
   "parity_test": "electron/shared/modelArchetypes/modeForInputs.exhaustive.test.ts",
   "since": "2026-11-12",
-  "notes": "根因合同 docs/fixes/2026-11-12-mode-from-inputs.root-cause.json。取代两条旧概念（同提交删登记）：①「画布生成方式在输入全空时回到文生，连线手势单独负责升格」（2026-10-25，主人 canvasConnectDerivations.revertTargetModeForEmptyInputs / convergeStuckInputModes）——输入全空回文生现在是 modeForInputs 的一条不变量（没有输入一律按文字方式发），不再靠订阅和装载收敛去改写存盘；②「连参考图之后切到哪个模式」（2026-09-28，主人 referenceEdgeCapability.resolveModeForReferenceDemand / preferredImageWorkflow）——连了图按哪种方式发同样由 modeForInputs 按档案方式的槽声明现算，不按模型名写死。effectiveArchetypeMode（界面与 Agent 读）、sendArchetypeMode（发送读）是它的两个读取包装；forgetUnfitModeChoices 是唯一会写 modeId 的机器路径——只在一笔手势让人手选的偏好收不下输入时把偏好清掉（随该手势一起撤销），不写新方式。"
+  "notes": "根因合同 docs/fixes/2026-11-12-mode-from-inputs.root-cause.json。取代两条旧概念（同提交删登记）：①「画布生成方式在输入全空时回到文生，连线手势单独负责升格」（2026-10-25，主人 canvasConnectDerivations.revertTargetModeForEmptyInputs / convergeStuckInputModes）——输入全空回文生现在是 modeForInputs 的一条不变量（没有输入一律按文字方式发），不再靠订阅和装载收敛去改写存盘；②「连参考图之后切到哪个模式」（2026-09-28，主人 referenceEdgeCapability.resolveModeForReferenceDemand / preferredImageWorkflow）——连了图按哪种方式发同样由 modeForInputs 按档案方式的槽声明现算，不按模型名写死。effectiveArchetypeMode（界面与 Agent 读）、sendArchetypeMode（发送读）是它的两个读取包装；forgetUnfitModeChoices 是唯一会写 modeId 的机器路径——只在一笔手势让人手选的偏好收不下输入时把偏好清掉（随该手势一起撤销），不写新方式。 2026-11-17：主进程（宿主短创建 / 多镜 / 拟镜 / 改计划）的方式也收进来：videoModeForCandidate 只做装配（statedMode 查说明白的 modeId，否则 modeForInputs 带 task 收窄），是消费方、不登记为写接口——登记了反而会让 videoModeForPlan 在它那个文件里重新定义时被门岗当成「主人自己的文件」放过，默认解析器不再挑 modeId；已知未收一处 modelAdmissionSchema.archetypeModeForCandidate（准入挑校验用参数表，登记在 modelHandle.structure.test.ts）。"
 }

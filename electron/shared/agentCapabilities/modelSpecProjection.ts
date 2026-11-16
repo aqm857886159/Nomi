@@ -178,55 +178,6 @@ export function modelSpecDetail<F extends ModelSpecFace>(entry: AgentModelEntry,
   });
 }
 
-/**
- * 按标识解析一个模型（大小写不敏感）。**三种结果，没有第四种「悄悄挑一个」**：
- *
- *  · 正好一个 → `{ ok: true }`；
- *  · 给了 `vendor` 却没有哪一家匹配 → `not_found`；
- *  · **没给 `vendor`，而这个 modelId 名下有 ≥2 家** → `ambiguous`。
- *
- * 第三条是 2026-09-22 主管自查点出来的同类尾巴：旧实现 `if (!vendor) return matches[0]`
- * 在两个面上都**悄悄返回第一家的说明书**，调用方以为拿到的是它要的那家，
- * 然后照另一家的参数表去下单。与「vendor 不匹配时静默回退」是同一个毛病——
- * 同名模型跨供应商在本仓是**两个模型**（身份唯一键 (vendor, modelId)）。
- */
-export type ModelEntryLookup =
-  | { ok: true; entry: AgentModelEntry }
-  | { ok: false; reason: "not_found" | "ambiguous"; vendors: string[] };
-
-export function resolveModelEntry(
-  entries: readonly AgentModelEntry[],
-  modelId: string,
-  vendor?: string | null,
-): ModelEntryLookup {
-  const matches = entriesWithId(entries, modelId);
-  const vendors = [...new Set(matches.map((entry) => entry.vendor).filter((v): v is string => Boolean(v)))];
-  if (vendor) {
-    const exact = matches.find((entry) => entry.vendor === vendor);
-    return exact ? { ok: true, entry: exact } : { ok: false, reason: "not_found", vendors };
-  }
-  if (matches.length === 0) return { ok: false, reason: "not_found", vendors };
-  if (vendors.length > 1) return { ok: false, reason: "ambiguous", vendors };
-  return { ok: true, entry: matches[0]! };
-}
-
-/** 只要那一个（拿不到就 undefined）。歧义与找不到的区分请用 `resolveModelEntry`。 */
-export function findModelEntry(
-  entries: readonly AgentModelEntry[],
-  modelId: string,
-  vendor?: string | null,
-): AgentModelEntry | undefined {
-  const found = resolveModelEntry(entries, modelId, vendor);
-  return found.ok ? found.entry : undefined;
-}
-
-function entriesWithId(entries: readonly AgentModelEntry[], modelId: string): AgentModelEntry[] {
-  const wanted = modelId.trim().toLowerCase();
-  return entries.filter((entry) =>
-    entry.modelId.toLowerCase() === wanted || (entry.modelAlias ?? "").toLowerCase() === wanted);
-}
-
-/** 这个 modelId 名下有哪几家供应商——拒绝时点名它们，调用方才知道该补哪个 vendor。 */
-export function vendorsCarrying(entries: readonly AgentModelEntry[], modelId: string): string[] {
-  return [...new Set(entriesWithId(entries, modelId).map((entry) => entry.vendor).filter((v): v is string => Boolean(v)))];
-}
+// 写下的模型名 → 哪一个说明书：不在这里认。2026-11-17 起名字只在 `modelHandle.ts` 的名字主人认
+// （`resolveModelIdentity`），外部读详情（`modelSpecRead.requireModelSpecDetail`）直接问它、按原码包装。
+// 以前这里的 `resolveModelEntry` 是第三个认名字的地方：大小写 / 别名认，近似写法不认，和起草那条路各说各的。

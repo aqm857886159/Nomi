@@ -806,6 +806,22 @@ export default tseslint.config(
   // 新模型调用判断的家（见上面 ⑧），每组一个命名空间，文件范围互不覆盖。
   ...declarationHomeBlocks,
   {
+    // 视频推荐只进预览（2026-11-17）：「推荐范围」答的是「还有哪些模型 / 方式可以考虑」，执行路径拿它的首项去定点名模型的方式，
+    // 就是「点名别家仍继承默认的方式」那一类的第二个家。发送方式只由 modeForInputs 定。capabilityCore 里只有两处装配把它注入
+    // mcpGenerationTools 的预览依赖；别的文件具名 / 动态 import 都当场红。独立注册规则 id，别的块盖不到。
+    files: ['electron/capabilityCore/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/capabilityCore/appIntegration.ts', 'electron/capabilityCore/mcpStdioServer.ts'],
+    plugins: { 'recommendation-preview-only': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'recommendation-preview-only/no-restricted-imports': ['error', { patterns: [{
+        group: [...moduleSources('videoCapabilities'), ...moduleSources('videoCapabilities/index'), ...moduleSources('videoCapabilities/recommendation'), ...moduleSources('modelArchetypes'), ...moduleSources('modelArchetypes/index')],
+        importNames: ['recommendVideoGeneration'],
+        message: '视频推荐只进预览：执行路径的发送方式由 modeForInputs 定，不取推荐首项。预览经 mcpGenerationTools 的注入依赖拿它（装配在 appIntegration / mcpStdioServer）。',
+      }] }],
+      'recommendation-preview-only/no-restricted-syntax': ['error', ...dynamicModuleSelectors('(videoCapabilities|modelArchetypes)(.index|.recommendation)?', ['recommendVideoGeneration'], '视频推荐只进预览：执行路径的发送方式由 modeForInputs 定。')],
+    },
+  },
+  {
     // 项目存读只认草稿；严格面属于模型/Agent 作者入参。测试可验证两面的区别。
     files: ['src/workbench/project/**/*.{ts,tsx}'],
     ignores: ['**/*.test.{ts,tsx}'],
