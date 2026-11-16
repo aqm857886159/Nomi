@@ -280,7 +280,7 @@
     },
     "electron/agentLane/laneHost.mts": {
       "kind": "frozen",
-      "max": 917,
+      "max": 897,
       "reason": "新口径落地时已超线，冻结，按职责逐步拆",
       "topDeclarations": [
         {

@@ -939,7 +939,8 @@
       "capability": "同一个工具连着撞同一堵墙的计数与止损",
       "status": "justified",
       "paths": [
-        "electron/agentLane/laneRepeatedFailure.mts"
+        "electron/agentLane/laneRepeatedFailure.mts",
+        "electron/agentLane/laneTurnBudget.mts"
       ],
       "alternativesChecked": [
         {
