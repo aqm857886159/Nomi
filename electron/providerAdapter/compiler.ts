@@ -3,7 +3,7 @@ import { modelCallTransport } from "../ai/modelCallFetch";
 import { modelCallFailure } from "../ai/runtimeVendorError";
 import type { NomiModelConfig } from "../shared/agentLane/laneModelConfig";
 import type { AdapterAuthType, ProviderAdapterCompilation, ProviderAdapterDraft } from "./types";
-import { adapterModelContractSchema, validateProviderAdapterDraft } from "./validator";
+import { adapterModelContractSchema, validateCompiledAdapterDraft } from "./validator";
 import { redactAdapterSecrets, sanitizedAdapterJson } from "./redaction";
 
 export class AdapterNeedsAiError extends Error {
@@ -43,7 +43,7 @@ Security rules:
 - Templates may read only {{user_api_key}}, {{model.modelKey}}, {{request.prompt}}, {{request.params.*}}, and {{providerMeta.*}}.
 
 Mapping rules:
-- Use taskKind chat/prompt_refine for text, text_to_image/image_edit for image, text_to_video/image_to_video for video, text_to_audio/image_to_audio/transcribe for audio, and text_to_3d/image_to_3d for 3D.
+- Use taskKind chat/prompt_refine for text, text_to_image/image_edit for image, text_to_video/image_to_video for video, text_to_audio/transcribe for audio, and text_to_3d/image_to_3d for 3D.
 - For image and video models, actively inspect the supplied evidence for both prompt-only and reference-input modes. Include every documented mode separately, but never infer a mode from the model kind alone.
 - Every reference-input mode must declare referenceParam and referenceShape (single or array): the request.params key and value shape that receive the reference URL.
 - create/query/result are plain HTTP declarations: method, path, optional headers/query/body, response_mapping and provider_meta_mapping.
@@ -55,6 +55,7 @@ Mapping rules:
 - A mode with delivery "asynchronous" must also declare query and statusMapping, or it will be rejected. When completion status and endpoint-specific output use separate requests, also declare result. Query and result may reference identifiers captured through provider_meta_mapping.
 - testParams must contain the smallest documented valid values for a cheap real verification.
 - Model parameters list documented user controls only (select/number/text/boolean), with safe defaults and options when documented.
+- A parameter key is Nomi's neutral key (duration, resolution, aspect_ratio, ...), never the provider's wire field name (seconds, size, image_size, ...). The wire body reads the neutral key, e.g. "seconds": "{{request.params.duration}}". A control with no Nomi key is left out and its value written as a fixed wire value.
 - sources and each mode.sourceUrls must point to the exact supplied pages that support the mapping.
 
 Nomi supplies and locks the provider identity, model id, display label and billing kind. Return only that one model's parameters and modes in the structured contract requested by the schema.`;
@@ -210,6 +211,15 @@ function sourceEvidence(docs: readonly DocPage[]): ProviderAdapterDraft["sources
   }));
 }
 
+/** 上一次被拒的原话接在提示词后面（收件口的拒绝句本来就写成「哪一格、改成什么」）。 */
+function promptWithRejection(prompt: string, rejection: string | undefined): string {
+  if (!rejection) return prompt;
+  return `${prompt}
+
+PREVIOUS ATTEMPT WAS REJECTED BY NOMI (fix exactly this and return the whole contract again)
+${rejection}`;
+}
+
 async function generateModelContract(input: {
   languageModels: readonly CompilerLanguageModel[];
   prompt: string;
@@ -218,6 +228,7 @@ async function generateModelContract(input: {
   validate?: (contract: ReturnType<typeof adapterModelContractSchema.parse>) => void;
 }): Promise<ReturnType<typeof adapterModelContractSchema.parse>> {
   let lastError: unknown = new Error("Model contract generation failed");
+  let lastRejection: string | undefined;
   const attempts = input.languageModels.length === 1
     ? [input.languageModels[0], input.languageModels[0]]
     : input.languageModels.slice(0, 4);
@@ -230,16 +241,18 @@ async function generateModelContract(input: {
     if (input.signal?.aborted) relayAbort();
     else input.signal?.addEventListener("abort", relayAbort, { once: true });
     const timer = setTimeout(() => attemptController.abort(new Error("Adapter compiler model timed out")), 75_000);
+    let answered = false;
     try {
       const result = await input.generate({
         model: languageModel,
         schema: adapterModelContractSchema,
         system: SYSTEM_PROMPT,
-        prompt: input.prompt,
+        prompt: promptWithRejection(input.prompt, lastRejection),
         abortSignal: attemptController.signal,
         maxRetries: 0,
         maxTokens: 6_000,
       });
+      answered = true;
       const contract = adapterModelContractSchema.parse(result.object);
       input.validate?.(contract);
       return contract;
@@ -248,6 +261,9 @@ async function generateModelContract(input: {
         throw input.signal.reason instanceof Error ? input.signal.reason : new Error("Adapter compilation cancelled");
       }
       lastError = error;
+      // 模型交了卡、卡被拒：下一次尝试要知道错在哪——同一句提示词重发，只会交回同一张被拒的卡。
+      // 网络、超时这类没交到卡的失败不算拒绝，不带进提示词。
+      if (answered) lastRejection = redactAdapterSecrets(error instanceof Error ? error.message : String(error)).slice(0, 600);
     } finally {
       clearTimeout(timer);
       input.signal?.removeEventListener("abort", relayAbort);
@@ -302,7 +318,7 @@ ${docsBlock(relevantDocs)}`;
         signal: input.signal,
         generate: dependencies.generate || defaultGenerate,
         validate: (generated) => {
-          validateProviderAdapterDraft({
+          validateCompiledAdapterDraft({
             provider: { baseUrl: input.providerBaseUrl, authType: input.authType },
             sources,
             models: [candidateFor(generated)],
@@ -313,7 +329,7 @@ ${docsBlock(relevantDocs)}`;
         },
       });
       const candidate = candidateFor(contract);
-      const validated = validateProviderAdapterDraft({
+      const validated = validateCompiledAdapterDraft({
         provider: { baseUrl: input.providerBaseUrl, authType: input.authType },
         sources,
         models: [candidate],
@@ -339,7 +355,7 @@ ${docsBlock(relevantDocs)}`;
   if (models.length === 0) {
     throw new Error(`No selected model could be compiled (${failures.map((failure) => `${failure.modelKey}: ${failure.error}`).join("; ")})`);
   }
-  const draft = validateProviderAdapterDraft({
+  const draft = validateCompiledAdapterDraft({
     provider: { baseUrl: input.providerBaseUrl, authType: input.authType },
     sources,
     models,

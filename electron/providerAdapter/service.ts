@@ -14,7 +14,6 @@ import type { BillingModelKind, Model, Vendor } from "../catalog/types";
 import { AdapterNeedsAiError, compileProviderAdapter } from "./compiler";
 import type { DiscoveredDocs } from "./docsDiscovery";
 import { resolveProviderDocs } from "./providedDocs";
-import { builtinDraftForUndocumentedEndpoint } from "./builtinOpenAiCompatibleDraft";
 import {
   connectionFingerprint,
   isTerminalAdapterStage,
@@ -44,10 +43,8 @@ import {
 import {
   compileErrorBanner,
   completedModelCount,
-  genericCompilation,
-  withTextModels,
 } from "./serviceFallback";
-import { discoverAndCompileMediaModels, externallyCompiledDraft } from "./serviceCompilation";
+import { discoverAndCompileMediaModels, prepareRunCompilation } from "./serviceCompilation";
 import { normalizeProviderAdapterInput, registerProviderConnection } from "./registration";
 import {
   activeRunsSupersededBy,
@@ -355,73 +352,49 @@ export class ProviderAdapterService {
         return;
       }
 
-      // 自建/局域网端点没有公开文档可读（为什么见 builtinOpenAiCompatibleDraft 头注释）：不猜文档、
-      // 不叫 AI，直接用内置 OpenAI 兼容契约进真实验证。必须在下面的分级之前——媒体模型也一样适用。
-      const builtinDraft = builtinDraftForUndocumentedEndpoint(connection);
-      if (builtinDraft) {
-        const builtin = genericCompilation(connection, connection.models);
-        const verification = await this.verifyDraft(id, connection, builtin.draft, 1, builtin.failures);
-        await this.promoteFinal(
-          id,
-          builtin.draft,
-          verification.results,
-          verification.deadlineError,
-          Boolean(verification.deadlineError),
-        );
-        return;
-      }
-      // 分级（2026-08-12）：只有「Nomi 不知道接法」的模型才值得查文档 + AI 编译。
-      // 文本的接法全行业已统一到 OpenAI /v1/chat/completions（DeepSeek、Kimi、GLM、Qwen、
-      // 阶跃、MiniMax、豆包、xAI、Mistral 全是；Anthropic、Gemini 也都开了兼容层），
-      // 何况文本模型跑起来走的是文本任务那一条模型调用、根本不读编译出来的草稿——
-      // 编译它纯属白花时间，还平添「文档没抓到 / 编译失败」这些真实使用路径没有的失败模式。
+      // 用哪张卡（交来的卡 → 私网主机内置模板 → 抓文档编译）只在 prepareRunCompilation 里决定。
+      // 分级（2026-08-12）：只有「Nomi 不知道接法」的媒体模型才值得查文档 + AI 编译。
+      // 文本的接法全行业已统一到 OpenAI /v1/chat/completions，文本模型跑起来也不读编译出来的草稿——
       // 旧行为：全部无差别走完整流程，两个 DeepSeek 文本模型烧掉 132 秒后判死。
-      const mediaModels = connection.models.filter((model) => model.kind !== "text");
       const runInput = this.store.getRunInput(id);
-      const suppliedDraft = externallyCompiledDraft(runInput, connection);
-      const needsCompile = mediaModels.length > 0 && !suppliedDraft;
-      let compilation = suppliedDraft ? { draft: suppliedDraft, failures: [] } : genericCompilation(connection, []);
-      const languageModels = needsCompile ? this.dependencies.resolveLanguageModels(connection) : [];
-      if (needsCompile) {
-        const compiled = await discoverAndCompileMediaModels({
-          connection,
-          models: mediaModels,
-          ...(runInput?.docs ? { providedDocs: runInput.docs } : {}),
-          languageModels,
-          discover: this.dependencies.discover,
-          discoverTimeoutMs: this.dependencies.discoverTimeoutMs ?? 45_000,
-          onStage: (stage, modelKey) => this.setStage(id, stage, modelKey),
-          onDocs: (found) => this.updateRunIfActive(id, (run) => ({
-            ...run,
-            sourceUrls: found.sources.map((source) => source.url),
-            lastProgressAt: this.dependencies.now(),
-            updatedAt: this.dependencies.now(),
-          })),
-          runStep: (label, timeoutMs, work) => this.awaitStep(id, label, timeoutMs, work),
-          compileOne: (model, found) => this.awaitStep(
-            id,
-            `Adapter compilation for ${model.modelKey}`,
-            this.dependencies.compileTimeoutMs ?? 120_000,
-            (signal) => this.dependencies.compile({
-              languageModels,
-              providerBaseUrl: String(connection.vendor.baseUrlHint || ""),
-              authType: (connection.vendor.authType || "bearer") as AdapterAuthType,
-              selectedModels: [{ modelKey: model.modelKey, label: model.labelZh, kind: model.kind }],
-              docs: found.sources,
-              signal,
-            }),
-          ),
-        });
-        compilation = compiled.compilation;
-      }
-      // 文本条目不经 AI：接法固定、模式表也固定（chat）。合进草稿只为让验证与展示有位置。
-      // 文本条目**以这里为单一真相**——编译器万一也吐了同名文本条目（误分类/被喂了不该喂的），
-      // 一律以这份为准替换掉，否则同一个模型会出现两条、验证跑两遍（有回归钉子）。
-      const textModels = connection.models.filter((model) => model.kind === "text");
-      const candidate: ProviderAdapterDraft = {
-        ...compilation.draft,
-        models: withTextModels(compilation.draft.models, textModels),
-      };
+      const compilation = await prepareRunCompilation({
+        connection,
+        runInput,
+        compileMedia: async (mediaModels) => {
+          const languageModels = this.dependencies.resolveLanguageModels(connection);
+          const compiled = await discoverAndCompileMediaModels({
+            connection,
+            models: mediaModels,
+            ...(runInput?.docs ? { providedDocs: runInput.docs } : {}),
+            languageModels,
+            discover: this.dependencies.discover,
+            discoverTimeoutMs: this.dependencies.discoverTimeoutMs ?? 45_000,
+            onStage: (stage, modelKey) => this.setStage(id, stage, modelKey),
+            onDocs: (found) => this.updateRunIfActive(id, (run) => ({
+              ...run,
+              sourceUrls: found.sources.map((source) => source.url),
+              lastProgressAt: this.dependencies.now(),
+              updatedAt: this.dependencies.now(),
+            })),
+            runStep: (label, timeoutMs, work) => this.awaitStep(id, label, timeoutMs, work),
+            compileOne: (model, found) => this.awaitStep(
+              id,
+              `Adapter compilation for ${model.modelKey}`,
+              this.dependencies.compileTimeoutMs ?? 120_000,
+              (signal) => this.dependencies.compile({
+                languageModels,
+                providerBaseUrl: String(connection.vendor.baseUrlHint || ""),
+                authType: (connection.vendor.authType || "bearer") as AdapterAuthType,
+                selectedModels: [{ modelKey: model.modelKey, label: model.labelZh, kind: model.kind }],
+                docs: found.sources,
+                signal,
+              }),
+            ),
+          });
+          return compiled.compilation;
+        },
+      });
+      const candidate: ProviderAdapterDraft = compilation.draft;
       // 一次自检，没有第二轮。**自动修复整族删了**（2026-09-11 用户拍板「删掉所有会花用户钱的
       // 自动逻辑」）：它的机制是「失败 → 叫 AI 重写说明卡 → 再发一次真实生成 → 全量回归」，
       // 最坏 3 轮 × 2 模式 = 6 次付费出图，而它修的正是我们自己按 kind 写死的那份配方。

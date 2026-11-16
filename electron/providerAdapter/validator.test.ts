@@ -19,6 +19,7 @@ const baseDraft = (): ProviderAdapterDraft => ({
       evidence: "POST /v1/images/generations accepts model and prompt.",
     },
   ],
+  assetIngestion: { strategy: "none", sourceUrl: "https://docs.example.com/api/images" },
   models: [
     {
       modelKey: "paint-v2",
@@ -369,6 +370,10 @@ describe("assertAdapterModeInvariants（两个生产者共用的那一份）", (
   };
 
   // 全集从 PROFILE_KINDS 旁边那份划分 derive（不是手抄）：加第七种参考类 kind 会自动被锁上。
+  // image_to_audio 例外：Nomi 投不成这个产品能力（准入表里音频只有 text_to_audio / transcribe），
+  // 所以它在「kind 配不配」那一格就被拒，轮不到参考声明——拒的是同一张卡，只是更早一格。
+  const missing = (taskKind: DeclaredReferenceProfileKind, field: string) =>
+    taskKind === "image_to_audio" ? /image_to_audio does not match model kind audio/ : new RegExp(`requires ${field}`);
   for (const taskKind of REFERENCE_TASK_KINDS) {
     const shape = referenceMode[taskKind];
 
@@ -384,7 +389,7 @@ describe("assertAdapterModeInvariants（两个生产者共用的那一份）", (
             sourceUrls: [],
           }],
         }),
-      ).toThrow(/requires referenceParam/);
+      ).toThrow(missing(taskKind, "referenceParam"));
     });
 
     it(`${taskKind} 缺 referenceShape 必须当场抛`, () => {
@@ -399,7 +404,7 @@ describe("assertAdapterModeInvariants（两个生产者共用的那一份）", (
             sourceUrls: [],
           }],
         }),
-      ).toThrow(/requires referenceShape/);
+      ).toThrow(missing(taskKind, "referenceShape"));
     });
   }
 

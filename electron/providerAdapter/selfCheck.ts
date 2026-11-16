@@ -24,7 +24,7 @@ import { fetchModelList, readExtraHeaders } from "../ai/onboarding/modelListProb
 import { isJsonRecord, mergeHeadersCaseInsensitive } from "../jsonUtils";
 import { providerProxyUrl } from "../providerNetwork";
 import { redactAdapterSecrets } from "./redaction";
-import { modeDeliveryDefect } from "../catalog/transportDelivery";
+import { adapterModeDefect } from "./validator";
 import type { AdapterModeDraft } from "./types";
 
 /** 自检拿不下结论时的结构化原因。**这是「我们这边」的维度**，与上游 errorCategory 正交。 */
@@ -112,23 +112,19 @@ export type AdapterContractCheck =
   | { ok: true }
   | { ok: false; reason: Extract<AdapterSelfCheckReason, "no_channel" | "async_without_query" | "reference_slot_missing">; error: string };
 
-/** 需要一张参考图才成立的模式：不声明槽位，参考图整条掉地（生产会被 imageEditGuardError 拒发）。 */
-function requiresReferenceSlot(taskKind: string): boolean {
-  return taskKind === "image_edit" || taskKind.startsWith("image_to_");
-}
-
-/** 纯函数：这条模式的说明卡自己站得住吗。零网络、零成本。 */
+/**
+ * 纯函数：这条模式的说明卡自己站得住吗。零网络、零成本。
+ *
+ * **不自己判**：缺陷由校验器的 `adapterModeDefect` 判，这里只把它的码转成「我们这边缺什么」的
+ * 三个原因（渲染层 adapterFailureAdvice 认的就是这三个）。此前这里自己判了一遍「哪些 taskKind
+ * 要参考槽」，用的是 `startsWith("image_to_")`，把运行期写死通道的 image_to_prompt 也算进去了——
+ * 同一张卡，收件说合格、自检说有缺陷。
+ */
 export function checkAdapterModeContract(model: Model, mode: AdapterModeDraft): AdapterContractCheck {
-  const label = `${model.modelKey}/${mode.taskKind}`;
-  if (!mode.create?.method || !mode.create?.path) {
-    return { ok: false, reason: "no_channel", error: `${label} has no executable request channel` };
-  }
-  const delivery = modeDeliveryDefect(mode);
-  if (delivery) {
-    return { ok: false, reason: "async_without_query", error: `${label} ${delivery}` };
-  }
-  if (requiresReferenceSlot(mode.taskKind) && !mode.referenceParam) {
-    return { ok: false, reason: "reference_slot_missing", error: `${label} does not declare where the reference image goes` };
-  }
-  return { ok: true };
+  const defect = adapterModeDefect(model, mode);
+  if (!defect) return { ok: true };
+  // invalid_mode（kind 不配、映射键不认）在收件处就拒了，到这里只可能是绕过收件的旧数据：
+  // 对用户来说就是「这条模式没有能用的通道」。
+  const reason = defect.code === "invalid_mode" ? "no_channel" : defect.code;
+  return { ok: false, reason, error: defect.message };
 }
