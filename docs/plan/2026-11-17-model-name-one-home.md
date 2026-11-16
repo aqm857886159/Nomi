@@ -71,10 +71,11 @@
 - 另外发现、准备线没列的第 5 处选方式：`electron/capabilityCore/modelAdmissionSchema.ts:77-88` `archetypeModeForCandidate`（非视频候选按桶 / 单方式 / 默认挑参数表）。**不在本刀改**（见下「新发现」），在结构测试的名单里登记为已知待收，不许新增同类。
 
 防第二处（复用现有三件 + 一个对拍）：
-1. 结构测试：把 `modelHandle.structure.test.ts` 扩成「名字和方式各一个家」——`modelHandle.ts` 之外不许对模型 id / 别名做大小写折叠比较或别名比较（`modelId.toLowerCase() ===`、`modelAlias … ===` 这一类）；`modeForInputs.ts` / `modeTransport.ts` 之外不许按 `transportTaskKind` 在 `modes` 上 filter/find 后返回方式；带阳性对照（改名复制会被认出）和阴性对照（按已认出的 `(provider, model)` 精确取目录行的纯投影不报）。名单只减不增，现有一处（`archetypeModeForCandidate`）带理由登记。
+1. 结构测试：把 `modelHandle.structure.test.ts` 扩成「名字和方式各一个家」——`modelHandle.ts` 之外不许对模型 id / 别名做大小写折叠比较或别名比较（`modelId.toLowerCase() ===`、`modelAlias … ===` 这一类）；`modeForInputs.ts` / `modeTransport.ts` 之外不许按 `transportTaskKind` 在 `modes` 上 filter/find 后返回方式；带阳性对照（按写法形状认出旧判据）和阴性对照（按已认出的 `(provider, model)` 精确取目录行的纯投影不报）。名单只减不增，现有一处（`archetypeModeForCandidate`）带理由登记。
 2. eslint 逐文件归属：`recommendVideoGeneration` 在 `electron/capabilityCore/` 只许预览那一处（`mcpGenerationTools.ts` 经注入）引用——「取推荐首项定方式」在执行路径上写不出来。
-3. `check:concept-owners`：新登记概念「写下的模型名认哪一行」（owner `resolveModelHandle`），`forbidden_derivations` 列 `identityForNamedModel`、`resolveModelEntry`、`entriesWithId`；`canvas.send-mode` 的 `forbidden_derivations` 加 `videoModeForPlan`，`write_api` 加主进程归一那一处。
+3. `check:concept-owners`：新登记概念「写下的模型名认哪一行」（owner `resolveModelHandle`），`forbidden_derivations` 列 `identityForNamedModel`、`resolveModelEntry`、`entriesWithId`；`canvas.send-mode` 的 `forbidden_derivations` 加 `videoModeForPlan`；`write_api` 删掉主进程的 `videoModeForCandidate`——写入口名单里的文件整体豁免禁止定义，留着它就等于允许在同一文件里把 `videoModeForPlan` 写回来（反例 7 实测：留着时概念登记不红）。
 4. 五入口对拍 + 全目录性质测试（★1 的量具）：行为上的第二处（哪怕名字不同、写法不同）只要答案不同就红。
+5. 外部生成工具表冻结：对拍里对 `MCP_GENERATION_TOOL_CATALOG` 的名字 / 标题 / 描述 / 入参 schema 取哈希。现有 model-face 门岗只管应用内 29 个动词，工具表改一个字节此前没有任何检查会红（反例 10 实测）。
 
 ## U1–U5 裁定
 
@@ -146,7 +147,7 @@
 
 故意改坏必须报红（改坏 → 哪条检查红 → 还原后绿）：
 1. 在语义合成里恢复按 id 遍历快照取首家（原样恢复 `identityForNamedModel`）→ `check:concept-owners` + 结构测试 + 对拍 U1。
-2. 同上但**改名复制**成别的函数名 → 结构测试（按写法认，不按函数名）+ 对拍 U1。
+2. 同上但**改名复制**成别的函数名 → 对拍 U1 报红；结构测试认不出改名复制（实测不红：精确比较 id 的写法与阴性对照的纯投影同形，结构扫描分不开）。
 3. 名字主人多行时取 `rows[0]` → `modelHandle.test.ts` + 对拍 U1。
 4. 语义合成里对 id 改回精确比较（不走主人）→ 对拍 U2。
 5. 别名不再传给主人 → 对拍 U3。
@@ -154,13 +155,18 @@
 7. 恢复 `videoModeForPlan`（原名或改名，按 `mode.transportTaskKind` 筛桶）→ `check:concept-owners` + 结构测试 + 对拍 U5 + 全目录性质。
 8. 执行路径上取推荐首项定方式（`recommendVideoGeneration(...).recommendations[0]`）→ eslint 归属块。
 9. 调用方递一个不在匹配集合里的 `preferred`、或给方式主人递已选好的方式对象 / 谓词想给自己放行 → `modelHandle.test.ts`（不在匹配集合的 preferred 不起作用）+ 类型检查（`task` 只收 `{kind, vendor}`）。
-10. 外部模型行 / 生成工具表 / 读拒收改一个字节 → model-face 基线 + 对拍外部段。
+10. 外部模型行 / 生成工具表 / 读拒收改一个字节 → 对拍外部段（读详情逐字节、读拒收 `details` 键、生成工具表哈希）。生成工具表那一格 model-face 基线 / `check:model-schema` / `check:mcp-tool-refs` 都不红，靠对拍的哈希。
 11. 阴性对照：按已认出的 `(provider, model)` 精确取目录行（纯投影，例如 `catalogAvailabilityFor`）→ 结构测试**不报**（绿）。
 12. `needsInput` 时偷换成文生或别的方式 → 对拍「说了图生、没给图」格 + 全目录性质。
 13. 默认是别的模型（不在匹配里）时却影响了结果（例如退而按默认的供应商挑一家）→ `modelHandle.test.ts` + 对拍 U1「默认不在匹配里」格。
 14. 结构测试的已知待收名单多加一项 → 结构测试红。
 
 这一类还会从哪里回来：新加一个建镜头入口自己补默认（拟镜就是这样漏的）；新加一个读模型的口自己比 id；某个调用方为了让自己的请求过，把方式算好了塞进来。前两种由结构测试 + 对拍守，第三种由主人只收事实参数守。
+
+已知限制：
+- 结构扫描按写法形状认，换一种写法可能漏（反例 2 即是），行为上的漏网靠五入口对拍兜。
+- 新 eslint 规则认不出命名空间导入（`import * as`）和经 `deps` 注入的误用。
+- 外部读详情没有任务种类，所以 U1 在那里永远是「拒并列出」，不会落默认。
 
 回滚：一个提交，`git revert` 即可；不改落盘形状。
 独立验收：另一条线按本格清单验。
