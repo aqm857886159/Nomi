@@ -112,8 +112,13 @@
     },
     {
       "path": "src/workbench/assets/projectLivenessContent.ts",
-      "symbol": "readLoadedProjectLivenessContent / closedProjectLivenessContent / PROJECT_SESSION_FIELD_ROLES",
-      "responsibility": "唯一的项目内容装配口；读不全返回 null；会话字段归类表。"
+      "symbol": "readLoadedProjectLivenessContent / closedProjectLivenessContent",
+      "responsibility": "唯一的项目内容装配口；读不全返回 null。"
+    },
+    {
+      "path": "src/workbench/project/workbenchProjectContent.ts",
+      "symbol": "PROJECT_SESSION_FIELD_ROLES",
+      "responsibility": "会话字段归类表，和组成载荷的那段放在一起。"
     }
   ],
   "same_class_entry_points": [

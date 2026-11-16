@@ -6,71 +6,13 @@
 // 画布撤销日志不进来：它由「撤销窗口过去才真删」的日志位置机制管（`pendingAssetDeletions.ts`），进扫描会让任何删除都要等到关项目。
 //
 // 拿不到完整内容（画布还没载入、载入的不是目标项目、装配抛错）一律返回 null，判定把 null 当「有人用」。
-// 哪些会话字段算 ②③、哪些不装引用，由 `PROJECT_SESSION_FIELD_ROLES` 一张表说了算；普查测试保证每个「项目寿命」字段都在表里。
+// 哪些会话字段算 ②③、哪些不装引用，由 `PROJECT_SESSION_FIELD_ROLES` 一张表说了算（和组成载荷的那段放在一起：`project/workbenchProjectContent.ts`）；普查测试保证每个「项目寿命」字段都在表里。
 import { logRendererError } from '../../desktop/rendererLog'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import { useWorkbenchStore } from '../workbenchStore'
-import { readCurrentWorkbenchProjectContent } from '../project/workbenchProjectContent'
+import { PROJECT_SESSION_FIELD_ROLES, readCurrentWorkbenchProjectContent, type ProjectSessionFieldRole } from '../project/workbenchProjectContent'
 import type { WorkbenchProjectPayload } from '../project/projectRecordSchema'
-
-/**
- * 每个声明为「项目寿命」的 store 字段装不装文件引用：
- * - `content`：写进项目文件，经 `readCurrentWorkbenchProjectContent` 整份扫描；
- * - `pending`：会话里还没落进项目文件、马上要用的东西（未发的输入、待落地的结果），任何时候都扫；
- * - `session-undo`：会话撤销材料，会话活着时扫，关项目那一次释放不扫；
- * - 其余字符串：不装文件引用，写明理由。
- */
-export type ProjectSessionFieldRole = 'content' | 'pending' | 'session-undo' | { none: string }
-
-const UI_STATE = { none: '界面 / 选择 / 进度状态，只存 id、计数或开关，不装文件地址' } as const
-
-export const PROJECT_SESSION_FIELD_ROLES: Readonly<Record<string, Readonly<Record<string, ProjectSessionFieldRole>>>> = {
-  'useWorkbenchStore': {
-    workbenchDocuments: 'content', activeDocumentId: 'content', categories: 'content', timeline: 'content',
-    storyboardDesignsByDocumentId: 'content', editingPanelLayout: 'content',
-    projectAgentDraft: 'pending', projectAgentDraftDisplayText: 'pending', projectAgentDraftIntent: 'pending',
-    projectAgentAttachments: 'pending', projectAgentReferences: 'pending', selectedLibraryPrompt: 'pending', creationActiveSkill: 'pending',
-    timelineUndoStack: 'session-undo', timelineRedoStack: 'session-undo', detachedTimelineClips: 'session-undo',
-    workspaceMode: UI_STATE, activeCategoryId: UI_STATE, categoryViewports: UI_STATE, canvasFitNonce: UI_STATE, canvasFitCategoryId: UI_STATE,
-    creationAiModeId: UI_STATE, storyboardPlannerLauncher: { none: '视图发布的回调函数，不是数据' },
-    activeStoryboardId: UI_STATE, storyboardRowFocus: UI_STATE, projectAgentDraftRevision: UI_STATE, projectAgentAdmissionId: UI_STATE,
-    projectAgentApprovalPolicy: UI_STATE, projectAgentDockCollapsed: UI_STATE, timelinePlaying: UI_STATE, previewAspectRatio: UI_STATE,
-    selectedTimelineClipIds: UI_STATE, selectedTextClipId: UI_STATE, timelineSnapGuide: UI_STATE, timelineSplitMode: UI_STATE,
-    editingPanelUndoStack: { none: '面板尺寸 / 显隐的撤销，不装文件' }, editingPanelKeep: UI_STATE,
-  },
-  'useGenerationCanvasStore': {
-    nodes: 'content', edges: 'content', groups: 'content',
-    generationAiDraft: 'pending', heldNodeOutcomes: 'pending',
-    generationAiMessages: { none: '画布 AI 已发出的对话记录：记的是过去说过什么，同助手对话历史' },
-    projectId: UI_STATE, isReady: UI_STATE, selectedNodeIds: UI_STATE, pendingConnectionSourceId: UI_STATE,
-    pendingConnectionSourceSide: UI_STATE, pendingConnectionSourceKind: UI_STATE, canUndo: UI_STATE, canRedo: UI_STATE, hasClipboard: UI_STATE,
-    generationAiCollapsed: UI_STATE,
-  },
-  'useAgentFormViewStore': { machineBySurface: UI_STATE },
-  'useNodePromptFocusStore': { request: UI_STATE },
-  'useWhiteboardSession': { nodeId: UI_STATE },
-  'useShotVerifyStore': {
-    status: UI_STATE, deviations: { none: '审片偏差说明（文字 + 节点 id），不是素材引用' }, budget: UI_STATE,
-    projectId: UI_STATE, requestId: UI_STATE, exhausted: UI_STATE,
-  },
-  'useAssetImportProgressStore': { byNode: UI_STATE, settled: UI_STATE },
-  'useNodeExternalHighlightStore': { hoverNodeId: UI_STATE, claims: UI_STATE, flashNodeIds: UI_STATE },
-  'useSpendConfirmStore': { pending: { none: '付费确认卡：参数来自节点本身（已在 content 里）' }, queue: { none: '同 pending' } },
-  'useCanvasPickModeStore': { request: UI_STATE },
-  'useBatchPlanPreviewStore': { plan: { none: '批量生成预览：引用来自节点本身（已在 content 里）' }, running: UI_STATE },
-  'useNodeLivePreviewStore': { byNode: { none: '生成中的实时预览帧，不是项目文件' } },
-  'useResidentActivityStore': { dotClassName: UI_STATE, label: UI_STATE, dockStatus: UI_STATE, dockPendingCount: UI_STATE, dockUnreadCount: UI_STATE },
-  'useResidentComposerFocusStore': { request: UI_STATE },
-  'useProductionRunStore': {
-    projectId: UI_STATE, run: { none: '制作运行台账的只读镜像：记的是过去发生过什么（主进程台账同理）' }, cursor: UI_STATE,
-    loading: UI_STATE, error: UI_STATE, lastPolledAt: UI_STATE, requestedRunId: UI_STATE, navigationTarget: UI_STATE,
-  },
-  'useProductionCanvasLandingStore': { projectId: UI_STATE, runs: { none: '制作运行落地进度：只存 run / 节点 id' }, pinnedForE2E: UI_STATE },
-  'useNodePointerStore': { locatedNodeId: UI_STATE, returnTo: UI_STATE },
-  'useGenerationViewStore': { view: UI_STATE, inspectorKey: UI_STATE },
-  'useGenerationPageLayerTenants': { open: UI_STATE },
-}
 
 /**
  * 不在渲染层 store 里、刻意不算「活引用」的三份持久数据（2026-11-17 协调裁定）。普查测试钉住它们装引用的形状：

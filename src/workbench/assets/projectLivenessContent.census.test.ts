@@ -1,13 +1,13 @@
 // 普查：素材文件存活判定读的「项目内容」有没有漏掉哪个会装文件引用的地方。
 // 每个声明为「项目寿命」的 store 字段都必须在 PROJECT_SESSION_FIELD_ROLES 里归了类（扫 / 不装引用 + 理由）；
-// 表里不许有已经不存在的字段。新加一个项目寿命字段却没归类 → 这里红，先回 projectLivenessContent.ts 判它装不装引用。
+// 表里不许有已经不存在的字段。新加一个项目寿命字段却没归类 → 这里红，先回 project/workbenchProjectContent.ts 的归类表判它装不装引用。
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { storeLifetimeRegistry } from '../project/storeLifetime'
-import { MAIN_PROCESS_RECORDS_NOT_LIVE, PROJECT_SESSION_FIELD_ROLES } from './projectLivenessContent'
+import { MAIN_PROCESS_RECORDS_NOT_LIVE } from './projectLivenessContent'
 import type { ProjectAgentAttachmentClaim } from '../../../electron/shared/workbenchInput'
-import { readCurrentWorkbenchProjectContent } from '../project/workbenchProjectContent'
+import { PROJECT_SESSION_FIELD_ROLES, readCurrentWorkbenchProjectContent } from '../project/workbenchProjectContent'
 import type { WorkbenchProjectPayload } from '../project/projectRecordSchema'
 
 const SRC = path.resolve(__dirname, '../..')

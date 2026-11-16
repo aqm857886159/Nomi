@@ -35,7 +35,7 @@
 - 「项目内容」只有一个装配口 `src/workbench/assets/projectLivenessContent.ts`（`readLoadedProjectLivenessContent(projectId, moment)` / `closedProjectLivenessContent(payload)`；写盘投影抽到 `src/workbench/project/workbenchProjectContent.ts` 的 `readCurrentWorkbenchProjectContent()`，写盘与扫描共用）：
   - 已加载项目：`readCurrentWorkbenchProjectContent()`（就是写盘用的那个函数——写盘多一个字段，扫描自动多一个字段）去掉 `pendingAssetDeletions`、并把画布节点换成「摘掉这次要删的结果之后」的那份；外加不进项目文件、但属于这个项目会话的「还没发出去的输入」：助手输入框附件 / 引用、找回的未发草稿；外加「会话撤销材料」（时间轴撤销 / 重做栈、删节点摘下的片段），只在会话还活着时算（关项目那一次释放不算——撤销栈马上清零）。画布撤销日志不进扫描：它已经由「撤销窗口过去才真删」的日志位置机制管着，进扫描会让任何删除都要等关项目。
   - 画布 store 还没载完（`isReady` 不为真）、当前 `projectId` 和目标文件的项目不一致（清扫期间换了项目）、或装配抛错 → 返回 `null` → 保留。
-  - 普查表 `PROJECT_SESSION_FIELD_ROLES`：每个声明为「项目寿命」的 store 字段归一类（写盘 / 会话未发输入 / 会话撤销材料 / 不装引用 + 理由 / 界面状态），`projectLivenessContent.census.test.ts` 守。
+  - 普查表 `PROJECT_SESSION_FIELD_ROLES`（放在 `src/workbench/project/workbenchProjectContent.ts`，和组成载荷的那段在一起，加载荷字段时归类跟着改）：每个声明为「项目寿命」的 store 字段归一类（写盘 / 会话未发输入 / 会话撤销材料 / 不装引用 + 理由 / 界面状态），`projectLivenessContent.census.test.ts` 守。
   - 关闭的项目：读盘得到的整份 `payload`（同样去掉待删清单、换上摘后的节点）；读不出就照旧报错不删。
 - 消费者（数门：`node scripts/door-map.mjs isProjectFileReferenced` 2 个文件 3 处；`planAssetDeletion` 1 扇；`deleteAssetResult` 4 扇——素材库多选、素材库单张、浏览器素材盒经能力转交、版本卡片；`trashProjectFiles` 2 扇）：
   1. 删除计划 `planAssetDeletion → fileFate`（当场判 trash / keep）；
@@ -63,6 +63,7 @@
   `nomi-local://asset/` 地址带着别的项目 id 的，不算本项目文件的引用（跨项目复制会生成另一份文件）。`data:` 开头的字符串、不含 `/` 或 `\` 的字符串跳过（快路径，见 ★7）。
 - 复用：`parseNomiLocalAssetUrl`、`readCurrentWorkbenchProjectPayload`、现有 `applyAssetResultDeletion`；不引新库（JSON 树遍历几十行，P0：领域内的「哪些内容属于项目」才是这里独有的）。
 - 方向检查：提交时命中概念「项目名（改名只有一个主人，内容保存不写名字）」的口径（该概念 3 个文件，近 14 天 4 个 fix，这一刀算第 5 个）。这一刀在该概念里只改了 `src/workbench/project/projectPersistenceService.ts` 的一行注释（重开清扫处，把判定读的内容改成「整份项目内容，读不全全保留」）；被改文件自身 14 天 fix 数为 1（核法 `git log origin/main --since="14 days ago" --no-merges -- <文件>`），其余改动的源码文件均为 0。改法是换和删（换判定输入、删逐项列举，不新增分支或特例）。协调 2026-11-17 按 P1 例外代批，事后报用户；提交带 `Direction-Check:` 指向本卡。
+- 方向检查（第二处）：`scripts/check-storyboard-owner.mjs` 的分镜设计键允许名单。协调代批（P1 例外，用户 2026-10-22 定）：自写登记口径命中（gate-family），文件本身未命中（14 天 2 个 fix）；名单一处替换（`workbenchProjectSession.ts` → `workbenchProjectContent.ts`，组成载荷的代码搬过去了），无新增。字段归类表随之搬进 `workbenchProjectContent.ts`，`projectLivenessContent.ts` 只 import，不写这个键，不需要进名单。
 - 自写登记：`check:self-written` 跑一遍；判定和装配都在已登记的素材删除领域目录内，预计不需要新登记。
 
 ## ★4 全状态
