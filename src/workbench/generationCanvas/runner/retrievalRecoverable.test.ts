@@ -59,7 +59,6 @@ describe('取回没成 = 已付费但没取回来', () => {
   it('已拿到 taskId 时落 recoverable —— 用户看到的是免费续查，不是付费重试', async () => {
     const id = addNode()
     await runGenerationNodesBatch([id], { target: projectTarget,
-      assetUploadConsent: 'not-needed',
       retry: { maxAttempts: 1 },
       executor: async (node) => {
         // 轮询已经报回任务号（钱在这一刻就花掉了），随后下载结果没成。
@@ -76,7 +75,6 @@ describe('取回没成 = 已付费但没取回来', () => {
   it('没有 taskId 时仍落 error —— 不给一颗按不动的免费按钮', async () => {
     const id = addNode()
     await runGenerationNodesBatch([id], { target: projectTarget,
-      assetUploadConsent: 'not-needed',
       retry: { maxAttempts: 1 },
       executor: async () => {
         throw retrievalDownloadError()
@@ -91,7 +89,6 @@ describe('取回没成 = 已付费但没取回来', () => {
   it('阳性对照：普通上游失败照旧落 error（付费重试才是对的下一步）', async () => {
     const id = addNode()
     await runGenerationNodesBatch([id], { target: projectTarget,
-      assetUploadConsent: 'not-needed',
       retry: { maxAttempts: 1 },
       executor: async (node) => {
         useGenerationCanvasStore.getState().setNodeProgress(node.id, { phase: 'still-generating', taskId: 'task-paid-2' })
@@ -110,7 +107,6 @@ describe('取回没成 = 已付费但没取回来', () => {
   it('取回没成计入刹车，超时可找回不计——两者的省钱方向相反', async () => {
     const blockedId = addNode()
     await runGenerationNodesBatch([blockedId], { target: projectTarget,
-      assetUploadConsent: 'not-needed',
       retry: { maxAttempts: 1 },
       executor: async (node) => {
         useGenerationCanvasStore.getState().setNodeProgress(node.id, { phase: 'still-generating', taskId: 'blocked-1' })
@@ -124,7 +120,6 @@ describe('取回没成 = 已付费但没取回来', () => {
 
     const timeoutId = addNode()
     await runGenerationNodesBatch([timeoutId], { target: projectTarget,
-      assetUploadConsent: 'not-needed',
       retry: { maxAttempts: 1 },
       executor: async () => {
         throw new RecoverableTimeoutError({
@@ -160,7 +155,6 @@ describe('取回没成之后：免费重取片可达（零额度夹具）', () =
       meta: { modelVendor: 'apimart', modelKey: 'MiniMax-H3' },
     }).id
     await runGenerationNodesBatch([id], { target: projectTarget,
-      assetUploadConsent: 'not-needed',
       retry: { maxAttempts: 1 },
       executor: async (node) => {
         useGenerationCanvasStore.getState().setNodeProgress(node.id, { phase: 'still-generating', taskId: 'task-paid-free-1' })
@@ -214,7 +208,6 @@ describe('老数据：已删掉的 outbound-blocked / outbound-blocked-submit', 
   it('取回侧旧码 + 有 taskId → recoverable（重新取回现在能取到）', async () => {
     const id = addNode()
     await runGenerationNodesBatch([id], { target: projectTarget,
-      assetUploadConsent: 'not-needed',
       retry: { maxAttempts: 1 },
       executor: async (node) => {
         useGenerationCanvasStore.getState().setNodeProgress(node.id, { phase: 'still-generating', taskId: 'task-old-1' })
@@ -227,7 +220,6 @@ describe('老数据：已删掉的 outbound-blocked / outbound-blocked-submit', 
   it('提交侧旧码即使节点上留着 taskId 也落 error —— 没花钱，重新生成即可', async () => {
     const id = addNode()
     await runGenerationNodesBatch([id], { target: projectTarget,
-      assetUploadConsent: 'not-needed',
       retry: { maxAttempts: 1 },
       executor: async (node) => {
         useGenerationCanvasStore.getState().setNodeProgress(node.id, { phase: 'still-generating', taskId: 'stale-task' })
@@ -258,7 +250,6 @@ describe('结果取回族（#1213）：带阶段码的取回失败一律可找�
   ])('%s → recoverable（带原话），不进红色失败', async (_code, message) => {
     const id = addNode()
     await runGenerationNodesBatch([id], { target: projectTarget,
-      assetUploadConsent: 'not-needed',
       retry: { maxAttempts: 1 },
       executor: async (node) => {
         useGenerationCanvasStore.getState().setNodeProgress(node.id, { phase: 'still-generating', taskId: 'task-paid-retrieval' })
@@ -277,7 +268,6 @@ describe('结果取回族（#1213）：带阶段码的取回失败一律可找�
       meta: { modelVendor: 'relay', modelKey: 'doubao-seedance-2-0-fast-260128' },
     }).id
     await runGenerationNodesBatch([id], { target: projectTarget,
-      assetUploadConsent: 'not-needed',
       retry: { maxAttempts: 1 },
       executor: async (node) => {
         useGenerationCanvasStore.getState().setNodeProgress(node.id, { phase: 'still-generating', taskId: 'task-paid-parse' })

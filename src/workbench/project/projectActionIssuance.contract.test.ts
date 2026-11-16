@@ -268,7 +268,7 @@ export function backgroundIdentityIsRequired(
   // @ts-expect-error verify belongs to an issued project
   void verify.verifyShotsAndReport(['shot'])
   // @ts-expect-error a batch run needs its project target
-  void runs.runGenerationNodesBatch(['node'], { assetUploadConsent: 'not-needed' })
+  void runs.runGenerationNodesBatch(['node'], {})
   // @ts-expect-error uploads take the issued binding, not a projectId
   void upload.importWorkbenchLocalAssetFile(file, 'name', { projectId: 'p' })
   void recover.recoverNodeResult('node', project)

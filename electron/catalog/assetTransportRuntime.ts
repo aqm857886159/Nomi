@@ -4,7 +4,6 @@ import {
   type ReferenceLinkPolicy,
 } from './assetLocalization'
 import { localizeAssetsForVendor, resolveAssetIngestionWithFallback } from './assetLocalization'
-import { anonymousConsentFromUnknown } from './assetTransportPolicy'
 import { decryptApiKeyRecord, type ApiKeyRecord } from './secrets'
 import { readAutomationPolicySettings, type AutomationPolicySettings } from '../settings/automationPolicySettings'
 import { probeProviderLink } from '../assets/providerMediaFetch'
@@ -37,7 +36,6 @@ export function assetLocalizationOptions(
   settings: AutomationPolicySettings = readAutomationPolicySettings(),
 ): LocalizeAssetsOptions {
   return {
-    anonymousConsent: anonymousConsentFromUnknown(extras?.anonymousAssetHostingConsent ?? settings.anonymousAssetHosting),
     minimizeUploads: settings.minimizeUploads,
     activeAssetUrls: Array.isArray(extras?.activeAssetUrls)
       ? extras.activeAssetUrls.filter((value): value is string => typeof value === 'string')

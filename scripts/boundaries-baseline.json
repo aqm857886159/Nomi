@@ -39,7 +39,6 @@
     "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts -> electron/catalog/types.ts",
     "src/workbench/generationCanvas/nodes/defaultNodeModelSelection.ts -> electron/settings/generationModelDefaultsContract.ts",
     "src/workbench/generationCanvas/nodes/model3d/Model3DViewer.tsx -> electron/assets/model3dValidation.ts",
-    "src/workbench/generationCanvas/runner/catalogTaskActions.ts -> electron/catalog/assetLocalization.ts",
     "src/workbench/generationCanvas/runner/catalogTaskActions.ts -> electron/catalog/parameterReferenceContract.ts",
     "src/workbench/generationCanvas/runner/catalogTaskResolve.ts -> electron/catalog/comfyuiWorkflowTaskContract.ts",
     "src/workbench/generationCanvas/runner/catalogTaskResolve.ts -> electron/catalog/parameterReferenceContract.ts",

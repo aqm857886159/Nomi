@@ -25,7 +25,6 @@ vi.mock('../../../library/localProjectStore', () => ({
 }))
 vi.mock('../../../api/taskApi', () => ({ canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: calls.withdraw, releaseCanvasShotRun: calls.release }))
 vi.mock('../../../generationCanvas/runner/generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
-vi.mock('../../../generationCanvas/runner/assetUploadConsent', async original => ({ ...await original<typeof import('../../../generationCanvas/runner/assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
 vi.mock('../../../generationCanvas/runner/nodeModelHealth', () => ({ recordNodeModelFailure: vi.fn(), recordNodeModelSuccess: vi.fn() }))
 vi.mock('../../../../config/useModelOptions', () => ({ preloadModelOptions: async () => [] }))
 vi.mock('../../../../ui/notificationPolicy', async original => ({ ...await original<typeof import('../../../../ui/notificationPolicy')>(), notify: calls.notify }))

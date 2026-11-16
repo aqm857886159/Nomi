@@ -18,6 +18,10 @@
     {
       "path": "electron/catalog/assetLocalization.ts",
       "symbol": "channelLabel"
+    },
+    {
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "anonymousHostingEnabled"
     }
   ],
   "forbidden_derivations": [],
@@ -27,5 +31,5 @@
     "electron/catalog/assetTransportDescribe.ts"
   ],
   "since": "2026-10-06",
-  "notes": "合同 docs/fixes/2026-10-06-reference-upload-channel.root-cause.json：端点（HttpOperation.assetIngestion）收得下就只用它；否则目标供应商 → 借用别家（borrowed 标记，失败行点名那一家的账户）→ relay → 匿名图床。"
+  "notes": "合同 docs/fixes/2026-10-06-reference-upload-channel.root-cause.json：端点（HttpOperation.assetIngestion）收得下就只用它；否则目标供应商 → 借用别家（borrowed 标记，失败行点名那一家的账户）→ relay → 匿名图床。 2026-11-17：第三方通道定义只供上传循环引用；匿名候选仅由循环/发前预检的 anonymousHostingEnabled 读取主进程当前设置，只有 allow 可用；所有按次同意口已删除。"
 }

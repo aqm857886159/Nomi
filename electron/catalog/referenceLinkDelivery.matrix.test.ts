@@ -1,3 +1,4 @@
+import { desktopT } from "../desktopStrings";
 /**
  * 参考素材的临时链接：发给模型之前先试一下，明确失效才改用本机文件上传（设计卡 docs/plan/2026-11-01-reference-link-delivery.md ★9）。
  *
@@ -20,6 +21,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+const hostingSetting = vi.hoisted(() => ({ value: 'allow' }))
+vi.mock('../settings/automationPolicySettings', async original => ({
+  ...await original<typeof import('../settings/automationPolicySettings')>(),
+  readAutomationPolicySettings: () => ({ anonymousAssetHosting: hostingSetting.value, minimizeUploads: true }),
+}))
+beforeEach(() => { hostingSetting.value = 'allow' })
 const customCall = vi.hoisted(() => ({ runScript: vi.fn(), catalog: { current: null as unknown } }));
 const localAssets = vi.hoisted(() => ({ read: new Map<string, unknown>() }));
 
@@ -54,11 +61,13 @@ vi.mock("../capabilityCore/pendingSpendReferences", async (importOriginal) => ({
 
 import { createPinnedDispatcher, type HardenedFetchDependencies } from "../hardenedFetch";
 import { probeProviderLink, resetProviderLinkProbes } from "../assets/providerMediaFetch";
-import { createProject, executeProfileOperation } from "../runtime";
+import { createProject, executeProfileOperation, runTask } from "../runtime";
 import { readNomiLocalAsset } from "../assets/localAssetFile";
 import { resolveProjectRelativePath } from "../projects/repository";
+import { testModelCatalogMapping } from "./catalogCommit";
+import { tryModel } from "../capabilityCore/modelOnboarding/tryModel";
 import { runCustomCallTask } from "./customCallDispatch";
-import { resolveProductionReferenceUrls } from "../capabilityCore/productionReferenceUrls";
+import { resolveProductionReferenceUrls, reworkReferenceUrls } from "../capabilityCore/productionReferenceUrls";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { matchNomiErrorCode } from "../shared/nomiErrorCodes";
 import {
@@ -318,9 +327,9 @@ describe("上传（失效后走现有通道链，不新增通道）", () => {
     expect(matchNomiErrorCode((failure as Error).message)).toBe("asset-upload-failed");
   });
 
-  it("没有任何通道 → 抛现有的「没有可用的图片上传通道」错误", async () => {
+  it("没有任何通道 → 返回可翻译的无通道原因和下一步", async () => {
     const failure = await sendOne("/gen/status-404", { channels: [] }).catch((error: Error) => error);
-    expect((failure as Error).message).toMatch(/没有可用的图片上传通道/);
+    expect((failure as Error).message).toContain(desktopT("assetUpload.noChannel"));
   });
 
   it.each([
@@ -328,11 +337,12 @@ describe("上传（失效后走现有通道链，不新增通道）", () => {
     ["ask", AnonymousAssetConsentRequiredError],
     ["deny", AnonymousAssetConsentRequiredError],
   ] as const)("只剩匿名通道，公共托管同意为 %s", async (consent, error) => {
+    hostingSetting.value = consent;
     const link = cdn("/gen/status-404");
     const post = vi.fn(async () => ({ url: "https://anon.example/new.png" }));
     const run = () => localizeAssetsForVendor(
-      { input_urls: [localUrl("a.png")] }, () => [{ vendorKey: null as never, ingestion: { strategy: "anon-chain", accepts: ["image", "video", "audio"], visibility: "public-anonymous", requiresConsent: true, chain: [{ ...uploadUrl, endpoint: "https://anon.example/x" }] }, uploadApiKey: "" }],
-      () => asset("a.png", link), post, noMultipart, { linkPolicy: policyWith(), anonymousConsent: consent },
+      { input_urls: [localUrl("a.png")] }, () => [{ vendorKey: null as never, ingestion: { strategy: "anon-chain", accepts: ["image", "video", "audio"], visibility: "public-anonymous", chain: [{ ...uploadUrl, endpoint: "https://anon.example/x" }] }, uploadApiKey: "" }],
+      () => asset("a.png", link), post, noMultipart, { linkPolicy: policyWith() },
     );
     if (error) await expect(run()).rejects.toBeInstanceOf(error);
     else expect(extrasOf(await run())).toEqual(["https://anon.example/new.png"]);
@@ -542,6 +552,53 @@ describe("入口：三个发送入口，窗内链接失效 → 发出去的是�
     expect(outbound).toEqual([]);
   });
 
+  it.each(['runtime', 'custom-script', 'semantic', 'rework'])('hosting off: %s entry sends zero anonymous bytes', async entry => {
+    hostingSetting.value = 'ask';
+    const { vendor, model } = prepare(deadLink());
+    vendor.assetIngestion = { strategy: 'upload-multipart', endpoint: `${origin}/v1/uploads/images`, urlPath: 'url', accepts: ['image'], visibility: 'public-anonymous' };
+    customCall.catalog.current = { version: 13, vendors: [vendor], models: [model], mappings: [], apiKeysByVendor: {} };
+    const reference_ = { assetId: 'asset-1', contentHash: 'hash', version: 1, kind: 'image' as const, role: 'reference' as const };
+    const input = { projectId: 'p', providerId: vendor.key, references: [reference_ as never], assertCurrent() {} };
+    const run = entry === 'runtime' ? runtimeSend(vendor, model)
+      : entry === 'custom-script' ? runCustomCallTask({
+        vendor, model, apiKey: 'sk-test', customConfig: {}, script: 'return {}', taskKind: 'image_edit',
+        request: { kind: 'image_edit', prompt: 'keep the boat', extras: { modelKey: model.modelKey, referenceImages: [reference()], anonymousAssetHostingConsent: 'allow' } },
+        kind: 'image_edit', wantedKind: 'image', projectId: 'p', nodeId: 'n', grantId: 'g', taskId: 't',
+        spendGate: vi.fn(async () => undefined) as never, localizeTaskAsset: vi.fn(),
+      } as unknown as Parameters<typeof runCustomCallTask>[0])
+      : entry === 'semantic' ? resolveProductionReferenceUrls(input)
+      : reworkReferenceUrls({ ...input, frozen: { ref: deadLink() } });
+    const failure = await run.catch((error: Error) => error);
+    expect(failure).toBeInstanceOf(Error);
+    expect(matchNomiErrorCode(String(failure))).toBe('asset-upload-failed');
+    expect(uploads).toHaveLength(0);
+    expect(generated).toHaveLength(0);
+    expect(customCall.runScript).not.toHaveBeenCalled();
+  });
+
+  it.each(['mapping-trial', 'assistant-try-model'])('hosting off: %s executes the real entry and sends zero anonymous bytes', async entry => {
+    hostingSetting.value = 'ask';
+    const { vendor, model } = prepare(deadLink());
+    vendor.authType = 'none';
+    const ingestion: AssetIngestion = { strategy: 'upload-multipart', endpoint: `${origin}/v1/uploads/images`, urlPath: 'url', accepts: ['image'], visibility: 'public-anonymous' };
+    const mapping = { id: 'hosting-trial', vendorKey: vendor.key, modelKey: model.modelKey, taskKind: 'image_edit', enabled: true, create: { ...generateOperation, assetIngestion: ingestion } };
+    customCall.catalog.current = { version: 13, vendors: [vendor], models: [model], mappings: [mapping], apiKeysByVendor: { [vendor.key]: { vendorKey: vendor.key, apiKey: Buffer.from("fixture-only-key").toString("base64"), enc: "safeStorage", enabled: true } } };
+    if (entry === 'mapping-trial') {
+      const failure = await testModelCatalogMapping(mapping.id, { execute: true, modelKey: model.modelKey, extras: { referenceImages: [reference()] } }).catch((error: Error) => error);
+      expect(failure).toBeInstanceOf(Error);
+      expect(matchNomiErrorCode(String(failure))).toBe('asset-upload-failed');
+    } else {
+      const result = await tryModel({ runTask, approvalPolicy: () => ({ mode: 'direct' }) }, {
+        vendorKey: vendor.key, modelKey: model.modelKey, taskKind: 'image_edit', prompt: 'keep the boat', params: { referenceImages: [reference()] },
+      });
+      expect(result, JSON.stringify(result)).toMatchObject({ ok: false, code: 'provider_failed' });
+      if (result.ok) throw new Error('trial unexpectedly succeeded');
+      expect(result.message).toMatch(/设置|Settings/);
+    }
+    expect(uploads).toHaveLength(0);
+    expect(generated).toHaveLength(0);
+  });
+
   it("productionReferenceUrls.ts 做片流程：失效 → 封存的是上传后的新链接", async () => {
     const { vendor, outbound } = prepare(deadLink());
     const reference_ = { assetId: "asset-1", contentHash: "hash", version: 1, kind: "image" as const, role: "reference" as const };
@@ -606,7 +663,7 @@ describe("模型拒绝之后", () => {
     const noChannel = () => [];
     const read = () => asset("a.png", link());
     expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, read, assetLocalizationOptions({ key: "relay-y" }, undefined))).not.toThrow();
-    expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, read, assetLocalizationOptions({ key: "relay-x" }, undefined))).toThrow(/没有可用的图片上传通道/);
+    expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, read, assetLocalizationOptions({ key: "relay-x" }, undefined))).toThrow(desktopT("assetUpload.noChannel"));
   });
 });
 
