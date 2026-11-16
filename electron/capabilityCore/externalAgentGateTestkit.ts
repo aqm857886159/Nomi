@@ -92,7 +92,6 @@ export function videoCard(baseUrl: string, modelKey: string, extra: Record<strin
 export function hostWiredPlanning(runtime: LiveGenerationRuntime = createLiveGenerationRuntime()) {
   const handler = createGenerationPlanningHandler({
     registry: runtime.registry,
-    createDraftScope: runtime.createDraftScope,
     operations: createInMemoryGenerationOperationStore(),
     now: () => "2026-11-16T00:00:00.000Z",
     providerReadiness: ({ providerId }) => runtime.readBootstrap().readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ["configured_provider"] },

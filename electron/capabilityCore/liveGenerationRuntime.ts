@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createGenerationProviderBootstrap, type GenerationProviderBootstrap } from "./generationProviderBootstrap";
 import { createCatalogModuleRegistry } from "./moduleCatalogBootstrap";
 import type { ModuleRegistry } from "./moduleRegistry";
@@ -6,10 +7,20 @@ import type { CatalogState } from "../catalog/types";
 
 export type LiveGenerationRegistry = Pick<ModuleRegistry, "resolve"> & Partial<Pick<ModuleRegistry, "snapshot">>;
 
-export type LiveGenerationRuntimeScope = Readonly<{
-  /** The immutable provider/readiness view captured for this planning call. */
+/**
+ * 生成工具读的那一份目录（2026-11-16 起它是工具唯一的目录来源）。
+ *
+ * `pinForCall` 有就用：一次工具调用（起草 / 预览 / 过门……）在入口取一版目录，调用里所有的
+ * resolve / snapshot / 宿主读就绪（`readBootstrap`）都读这一版；调用结束就放开，之后的问读现在的目录。
+ * 测试里的静态表没有它——静态表本来就只有一版。
+ */
+export type GenerationCatalogRegistry = LiveGenerationRegistry & {
+  pinForCall?: <T>(run: () => Promise<T>) => Promise<T>;
+};
+
+/** 目录某一版算出来的就绪判定和模型表（两者同一版，一起换）。 */
+type CatalogScope = Readonly<{
   readBootstrap: () => GenerationProviderBootstrap;
-  /** The immutable catalog-derived module registry captured for this planning call. */
   registry: LiveGenerationRegistry;
 }>;
 
@@ -23,22 +34,16 @@ export type LiveGenerationRuntimeScope = Readonly<{
  * the middle of a model turn.
  */
 export type LiveGenerationRuntime = {
+  /** 宿主读就绪：一次工具调用之内读钉住的那一版，之外读现在的目录。 */
   readBootstrap: () => GenerationProviderBootstrap;
   /**
-   * Capture one catalog/bootstrap/registry snapshot for one draft lifecycle.
+   * 生成工具读的那一份模型表：调用之外每次问都按**现在的**目录答；一次工具调用之内由 `pinForCall` 钉住一版。
    *
-   * This deliberately is a factory rather than a runtime-wide cache: a later
-   * planning call starts a new scope and therefore observes catalog changes.
-   */
-  createDraftScope: () => LiveGenerationRuntimeScope;
-  /**
-   * 生成工具的门、预览、建草稿读的那一份模型表：每次问都按**现在的**目录答。
-   *
-   * 2026-11-16：两个宿主（应用内、stdio）以前在启动时各拍一份 `createDraftScope().registry` 交给门，
+   * 2026-11-16：两个宿主（应用内、stdio）以前在启动时各拍一份模型表交给门，
    * Agent 交卡登记的新模型建得了草稿（建草稿现拍），到预览 / 过门却被说「Unknown model」，重启才认。
-   * 宿主只许把这一个交给生成工具，不再自己拍快照。
+   * 宿主只许把这一个交给生成工具，不再自己拍快照；生成工具也不再另收一个「起草用的」来源。
    */
-  registry: LiveGenerationRegistry;
+  registry: Required<GenerationCatalogRegistry>;
 };
 
 export type LiveGenerationRuntimeFactories = {
@@ -54,8 +59,7 @@ export function createLiveGenerationRuntime(factories: LiveGenerationRuntimeFact
   const bootstrap = factories.bootstrap ?? ((state, options) => createGenerationProviderBootstrap(state, options));
   const registryFactory = factories.registry ?? ((state, readiness) => createCatalogModuleRegistry(state, { readinessByProvider: readiness }));
 
-  const readBootstrap = (): GenerationProviderBootstrap => bootstrap(catalogReader(), { catalogReader });
-  const createDraftScope = (): LiveGenerationRuntimeScope => {
+  const buildScope = (): CatalogScope => {
     const state = catalogReader();
     const capturedBootstrap = bootstrap(state, { catalogReader });
     const capturedRegistry = registryFactory(state, capturedBootstrap.readinessByProvider);
@@ -67,17 +71,35 @@ export function createLiveGenerationRuntime(factories: LiveGenerationRuntimeFact
   // 一次现算要几十到上百毫秒（全目录的就绪判定 + 模型表），一个 40 镜的 Run 每镜预览、过门都要问好几次：
   // 按目录这一版缓存，目录一变（交卡、存密钥、设置页改动）下一次问就重算。
   const revision = factories.catalogRevision ?? (factories.catalogReader ? undefined : catalogRevisionToken);
-  let cached: { token: object; registry: LiveGenerationRegistry } | null = null;
-  const current = (): LiveGenerationRegistry => {
+  let cached: { token: object; scope: CatalogScope } | null = null;
+  const current = (): CatalogScope => {
     const token = revision?.();
-    if (token && cached?.token === token) return cached.registry;
-    const next = createDraftScope().registry;
-    cached = token ? { token, registry: next } : null;
+    if (token && cached?.token === token) return cached.scope;
+    const next = buildScope();
+    cached = token ? { token, scope: next } : null;
     return next;
   };
-  const registry: LiveGenerationRegistry = {
-    resolve: (input) => current().resolve(input),
-    snapshot: () => current().snapshot?.() ?? [],
+  // 一次工具调用钉住的那一版。调用结束把 `open` 关掉：调用里顺手起的后台活（调度、落地）之后再问，
+  // 读的是那时的目录，不会一直拿着这次调用的旧版本。
+  const callCatalog = new AsyncLocalStorage<{ scope: CatalogScope; open: boolean }>();
+  const pinned = (): CatalogScope | undefined => {
+    const frame = callCatalog.getStore();
+    return frame?.open ? frame.scope : undefined;
   };
-  return { readBootstrap, createDraftScope, registry };
+  const readBootstrap = (): GenerationProviderBootstrap => pinned()?.readBootstrap() ?? bootstrap(catalogReader(), { catalogReader });
+  const view = (): LiveGenerationRegistry => (pinned() ?? current()).registry;
+  const registry = {
+    resolve: (input: Parameters<LiveGenerationRegistry["resolve"]>[0]) => view().resolve(input),
+    snapshot: () => view().snapshot?.() ?? [],
+    pinForCall: async <T>(run: () => Promise<T>): Promise<T> => {
+      if (pinned()) return run(); // 调用里再进一次工具：沿用外层那一版
+      const frame = { scope: current(), open: true };
+      try {
+        return await callCatalog.run(frame, run);
+      } finally {
+        frame.open = false;
+      }
+    },
+  };
+  return { readBootstrap, registry };
 }

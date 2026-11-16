@@ -33,6 +33,7 @@
 ## ★2 谁说了算
 
 - 「现在有哪些模型」：唯一来源是盘上的模型目录；两个宿主（应用内 MCP、独立 stdio 进程）都只经 `createLiveGenerationRuntime().registry` 读，按 `catalogRevisionToken()`（目录文件内容不变就是同一个对象）缓存，版本变了就重建。宿主里不再存启动快照。
+- 「一次工具调用读哪一版」：生成工具入口 `registry.pinForCall` 取一版（`AsyncLocalStorage`），这次调用里起草 / 预览 / 过门的 resolve、snapshot 和宿主读就绪（`readBootstrap`）都读这一版；调用结束就放开，调用里起的后台活之后读现在的目录。生成工具的依赖只剩这一个目录来源（删了可选的 `createDraftScope`，类型上就做不出「起草一版、门另一版」）。方向检查 `docs/engineering/direction-checks/2026-11-16-external-agent-host.md` 第 1 段；生产调用方 2 处、不改盘上格式，所以并进本 PR。
 - 「内置连接的地址 / 认证 / 素材上传方式」：内置种子 + 设置页。交卡只能往内置连接上加非内置的模型（`declaredProviderRegistration.ts#builtinConnectionMismatches`）。
 - 「这家内置连接被用户整家删了」：目录里 `suppressedBuiltinVendors` 一条；只有存这家密钥（`applyApiKeyUpsert`，设置页和 `set_key` 共用）能摘掉。
 
@@ -94,6 +95,8 @@
 7. 两个宿主源码里没有 `createDraftScope().registry` 快照，都传 `registry: liveGenerationRuntime.registry`（静态测试钉）。
 8. 确认卡 / 确认条 / 小卡没有任何文件改动。
 9. perf 场景 `perGateCatalogReadMs` ≤5ms。
+10. 一次工具调用只读一版目录：调用中途目录变了，调用里的模型表和就绪不变、多镜每镜同一版；下一次调用读新版；调用里起的后台活过后读现在的。
+11. 真 Electron 两个宿主（应用内 HTTP、stdio）都先起来再交卡，不重启：起草 → 预览认得 → 过门在窗口弹确认卡，点取消，不发生成请求（`tests/ux/mcp-declared-model-gate.e2e.mjs`）。
 
 反例（改坏 → 红，还原 → 绿，日志进报告）：
 
@@ -102,5 +105,7 @@
 - R3 存密钥不摘整家删除记录 → 整家删两条红。
 - R4 种子不认整家删除记录 → 两条红（删完重启回来了、旧盘）。
 - R5 宿主改回启动快照 → 静态测试红、注册表跟随版本的测试红（主干即此形状，见第 1 条）。
+- R6 `pinForCall` 不钉（直接 run）→ 钉版测试、多镜中途换目录测试红。
+- R7 生成工具入口不包 `pinForCall` → 多镜中途换目录测试红。
 
 回滚：整个 PR revert。盘上新增的 `suppressedBuiltinVendors` 字段旧代码不认、会被忽略——回滚后整家删过的内置连接会在下次启动被种子重新种回来（等于 0.24.0 之前的行为），不丢用户数据。

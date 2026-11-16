@@ -286,7 +286,6 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   const generationPlanning = authorities.generationPlanning
     ?? createGenerationPlanningHandler({
       registry: liveGenerationRuntime.registry,
-      createDraftScope: liveGenerationRuntime.createDraftScope,
       operations: operationStore,
       get videoModelCandidates() { return deriveUsableVideoModelCandidates() },
       defaultModelForTaskKind: (taskKind) => readGenerationDefaultModelResolver()(taskKind),

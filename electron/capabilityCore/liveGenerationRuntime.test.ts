@@ -49,27 +49,22 @@ describe("live generation runtime", () => {
       }),
     });
 
-    const first = runtime.createDraftScope();
-    expect(first.readBootstrap().providers).toHaveLength(0);
-    expect(first.readBootstrap().readinessByProvider.apimart?.providerReady).toBe(false);
+    expect(runtime.readBootstrap().providers).toHaveLength(0);
+    expect(runtime.readBootstrap().readinessByProvider.apimart?.providerReady).toBe(false);
 
     current = catalog("connected");
-    const second = runtime.createDraftScope();
-    expect(second.registry).not.toBe(first.registry);
-    expect(second.readBootstrap().providers).toHaveLength(1);
-    expect(second.readBootstrap().readinessByProvider.apimart?.providerReady).toBe(true);
-    expect(second.registry.resolve({ moduleId: "generation.single-shot", providerId: "apimart", modelId: "fixture-model", mode: "text-to-image" }).capabilities.query).toBe(true);
+    expect(runtime.readBootstrap().providers).toHaveLength(1);
+    expect(runtime.readBootstrap().readinessByProvider.apimart?.providerReady).toBe(true);
+    expect(runtime.registry.resolve({ moduleId: "generation.single-shot", providerId: "apimart", modelId: "fixture-model", mode: "text-to-image" }).capabilities.query).toBe(true);
   });
 
-  it("scopes one catalog snapshot to one draft lifecycle and refreshes the next one", () => {
+  it("一次工具调用只读一版目录：调用中途目录变了，调用里的模型表和就绪都不变；下一次调用读新版；调用里起的后台活过后读现在的", async () => {
     let current = catalog("empty");
-    let catalogReads = 0;
+    let token: object = {};
     let registryBuilds = 0;
     const runtime = createLiveGenerationRuntime({
-      catalogReader: () => {
-        catalogReads += 1;
-        return current;
-      },
+      catalogReader: () => current,
+      catalogRevision: () => token,
       bootstrap: fakeBootstrap,
       registry: (_state, readiness) => {
         registryBuilds += 1;
@@ -84,24 +79,34 @@ describe("live generation runtime", () => {
             outputKinds: ["image"],
             parameterSchema: {},
             assetInputSchema: { references: { kind: "asset" } },
-            capabilities: readiness.apimart?.capabilities ?? { submitIdempotency: false, query: false, reconcile: false, cancel: false },
+            // 「这一版认不认得」：没连上的那版 query=false
+            capabilities: { submitIdempotency: false, query: readiness.apimart?.providerReady === true, reconcile: false, cancel: false },
           }),
           snapshot: () => [],
         };
       },
     });
 
-    const first = runtime.createDraftScope();
-    first.registry.resolve({ moduleId: "generation.single-shot", providerId: "apimart", modelId: "fixture-model", mode: "text-to-image" });
-    first.registry.resolve({ moduleId: "generation.single-shot", providerId: "apimart", modelId: "fixture-model", mode: "text-to-image" });
-    expect(catalogReads).toBe(1);
+    const request = { moduleId: "generation.single-shot", providerId: "apimart", modelId: "fixture-model", mode: "text-to-image" } as const;
+    const changeCatalog = (marker: string) => { current = catalog(marker); token = {}; };
+    let background: Promise<boolean> | undefined;
+
+    const during = await runtime.registry.pinForCall(async () => {
+      const before = runtime.registry.resolve(request).capabilities.query;
+      changeCatalog("connected"); // 交卡 / 存密钥正好落在这次调用中间
+      await Promise.resolve();
+      const after = runtime.registry.resolve(request).capabilities.query;
+      const ready = runtime.readBootstrap().readinessByProvider.apimart?.providerReady;
+      // 嵌套再进一次工具：沿用外层那一版
+      const nested = await runtime.registry.pinForCall(async () => runtime.readBootstrap().readinessByProvider.apimart?.providerReady);
+      background = new Promise((resolve) => setTimeout(() => resolve(runtime.readBootstrap().readinessByProvider.apimart?.providerReady === true), 0));
+      return { before, after, ready, nested };
+    });
+    expect(during).toEqual({ before: false, after: false, ready: false, nested: false });
     expect(registryBuilds).toBe(1);
 
-    current = catalog("connected");
-    const second = runtime.createDraftScope();
-    expect(second.registry).not.toBe(first.registry);
-    expect(second.readBootstrap().readinessByProvider.apimart?.providerReady).toBe(true);
-    expect(catalogReads).toBe(2);
+    expect(await background).toBe(true); // 调用结束后才跑的后台活读现在的目录
+    expect(await runtime.registry.pinForCall(async () => runtime.registry.resolve(request).capabilities.query)).toBe(true);
     expect(registryBuilds).toBe(2);
   });
 

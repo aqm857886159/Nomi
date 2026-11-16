@@ -336,7 +336,6 @@ export async function startCapabilityCore(
     const generationPlanning = authorities.generationPlanning
       ?? createGenerationPlanningHandler({
         registry: liveGenerationRuntime.registry,
-        createDraftScope: liveGenerationRuntime.createDraftScope,
         operations: operationStore,
         requestRendererDecision,
         requestRenderer,
