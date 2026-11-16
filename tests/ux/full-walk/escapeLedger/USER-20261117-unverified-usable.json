@@ -17,7 +17,11 @@
   },
   "evidence": [
     "docs/plan/2026-11-17-unverified-usable.md",
-    "docs/engineering/direction-checks/2026-11-17-unverified-usable.md"
+    "docs/engineering/direction-checks/2026-11-17-unverified-usable.md",
+    "electron/catalog/unverifiedUsableOldUser.test.ts"
   ],
-  "completionCommits": []
+  "completionCommits": [
+    "12de5a880",
+    "9528a1dab"
+  ]
 }

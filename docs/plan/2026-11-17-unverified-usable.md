@@ -10,7 +10,7 @@
 - Open WebUI 接兼容端点（https://docs.openwebui.com/getting-started/quick-start/connect-a-provider/starting-with-openai-compatible/ ）· 保存不验证；拉模型列表报错时仍可手填模型名并使用 · **确认了**：列表探测失败只说明探测失败，不说明不能用。
 - Cherry Studio 模型服务设置（https://docs.cherry-studio-ai.com/pre-basic/settings/providers ）· 加了模型、启用了服务商就进选择器；「检查」是独立动作，文档还提醒检查用的模型可能不支持 · **确认了**：把「加入 / 启用」和「诊断」分开。
 - LibreChat 自定义端点（https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/custom_endpoint ）· 模型清单可以直接声明，抓取失败回到声明的清单 · **确认了**：声明过的模型不依赖探测结果。
-- 出口：每个连接、每个模型都能手动停用；密钥能删；验证随时可以重新点。真发出去被上游拒绝时，错误卡照现有分类指回模型设置。
+- 出口：Cherry Studio 模型服务设置（https://docs.cherry-studio-ai.com/pre-basic/settings/providers ） · 「检查」没过时服务商和模型照样留在列表里，人可以改配置再查，也可以直接用 · **确认了**我们的出口：每个连接、每个模型都能手动停用；密钥能删；验证随时可以重新点；真发出去被上游拒绝时，错误卡照现有分类指回模型设置。
 
 ## ★1 用户怎么用
 
