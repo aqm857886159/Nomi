@@ -3,8 +3,8 @@ import type { Model } from "../catalog/types";
 import { redactAdapterSecrets } from "./redaction";
 import type { LoadedConnection } from "./serviceCatalog";
 import { AdapterWaitError } from "./serviceLifecycle";
-import { appendCompilation, emptyCompilation, genericCompilation } from "./serviceFallback";
-import type { DiscoveredDocs } from "./docsDiscovery";
+import { appendCompilation, emptyCompilation, genericCompilation, withTextModels } from "./serviceFallback";
+import { canHostPublicDocs, type DiscoveredDocs } from "./docsDiscovery";
 import type { AdapterRunStage } from "../shared/providerAdapterContract";
 import type { ProviderAdapterCompilation, ProviderAdapterDraft, ProviderAdapterRunInput } from "./types";
 import { validateProviderAdapterDraft } from "./validator";
@@ -117,14 +117,56 @@ export async function discoverAndCompileMediaModels(input: {
  * 外部（驱动 Agent）编译好的说明卡。跳过「抓文档 + 叫内置文本模型」，**不跳过校验**：
  * 校验放在执行边界而不是只放在收件处，因为说明卡从 MCP propose、可信 UI、以及重启后恢复的
  * 旧 run 三条路都能进来——只在收件处校验，另外两条就能绕过去。
+ *
+ * 选了哪些模型以这次 run 为准，不以卡自己写的为准：卡不能多带用户没选的模型，也不能漏掉选了的
+ * 媒体模型。文本模型可以不写（文本接法固定，由 withTextModels 补）。
  */
-export function externallyCompiledDraft(
+function externallyCompiledDraft(
   runInput: ProviderAdapterRunInput | undefined,
   connection: LoadedConnection,
 ): ProviderAdapterDraft | undefined {
   if (!runInput?.draft) return undefined;
+  const carded = new Set((runInput.draft.models || []).map((model) => model.modelKey));
   return validateProviderAdapterDraft(runInput.draft, {
     providerBaseUrl: String(connection.vendor.baseUrlHint || ""),
-    selectedModelKeys: runInput.draft.models.map((model) => model.modelKey),
+    selectedModelKeys: connection.models
+      .filter((model) => model.kind !== "text" || carded.has(model.modelKey))
+      .map((model) => model.modelKey),
   });
+}
+
+function hostsPublicDocs(connection: LoadedConnection): boolean {
+  try {
+    return canHostPublicDocs(new URL(String(connection.vendor.baseUrlHint || "")).hostname);
+  } catch {
+    return true; // 连 URL 都不合法 → 交给原路径如实报错，别在这里吞掉
+  }
+}
+
+/**
+ * 这次 run 用哪张说明卡——**唯一的家**（2026-11-17 收拢；此前 service.process 里先判私网主机、
+ * 再读交来的卡，私网主机上交了卡也被内置模板盖掉，而且模板丢了别名和协议）。
+ *
+ * 顺序就是优先级：
+ * 1. 交来了卡（设置向导、接入会话、旧会话恢复）→ 用卡，过统一收件校验；
+ * 2. 私网主机（IP / localhost / 内网域）没有公开文档可读 → 内置 OpenAI 兼容模板，带完整身份；
+ * 3. 其余 → 抓文档 + 编译媒体模型（`compileMedia` 由 service 交进来，管分阶段与限时）。
+ * 文本条目以 withTextModels 为单一真相（私网模板自己就按协议写了文本通道，不再替换）。
+ */
+export async function prepareRunCompilation(input: {
+  connection: LoadedConnection;
+  runInput: ProviderAdapterRunInput | undefined;
+  compileMedia: (models: readonly Model[]) => Promise<ProviderAdapterCompilation>;
+}): Promise<ProviderAdapterCompilation> {
+  const { connection } = input;
+  const textModels = connection.models.filter((model) => model.kind === "text");
+  const withText = (compilation: ProviderAdapterCompilation): ProviderAdapterCompilation => ({
+    ...compilation,
+    draft: { ...compilation.draft, models: withTextModels(compilation.draft.models, textModels) },
+  });
+  const supplied = externallyCompiledDraft(input.runInput, connection);
+  if (supplied) return withText({ draft: supplied, failures: [] });
+  if (!hostsPublicDocs(connection)) return genericCompilation(connection, connection.models);
+  const mediaModels = connection.models.filter((model) => model.kind !== "text");
+  return withText(mediaModels.length > 0 ? await input.compileMedia(mediaModels) : genericCompilation(connection, []));
 }

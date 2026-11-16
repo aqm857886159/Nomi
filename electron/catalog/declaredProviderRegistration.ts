@@ -58,7 +58,7 @@ export class DeclaredOriginRewriteError extends Error {
   }
 }
 
-import { projectDeclaredModel, assertDeclaredReplacementOwnership, assertNeutralDeclarationParameters, capabilityFactDigest } from "../providerAdapter/promotionMeta";
+import { projectDeclaredModel, assertDeclaredReplacementOwnership, capabilityFactDigest } from "../providerAdapter/promotionMeta";
 export { mappingRowFromDeclaredMode, DeclaredRouteConflictError, type DeclaredRouteConflict } from "../providerAdapter/promotionMeta";
 
 const originOf = (url: string): string => new URL(url).origin;
@@ -83,7 +83,8 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
   const now = input.now || (() => new Date().toISOString());
 
   // Compile every model before entering the write transaction (all-or-nothing).
-  const projections = card.models.map((model) => { assertNeutralDeclarationParameters(model); return projectDeclaredModel(model, vendorKey); });
+  // 参数键是不是中性键由收件口（validateProviderAdapterDraft）判，这里只投影。
+  const projections = card.models.map((model) => projectDeclaredModel(model, vendorKey));
   return mutateCatalog((tx, state) => {
     const existing = state.vendors.find((vendor) => vendor.key === vendorKey);
     const binding = readCredentialBinding(existing as Vendor | undefined);
