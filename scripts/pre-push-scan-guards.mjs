@@ -181,6 +181,7 @@ export const SCAN_GUARD_COVERED_BY_GATE = Object.freeze({
  * 识别器认成「扫描型」、其实不是对仓库源码做全集断言的测试：{ 测试文件: 理由 }。每条必须真被识别器认到（否则是陈旧项，结构测试红）。
  */
 export const NOT_SOURCE_SCANS = Object.freeze({
+  'tests/ux/design-lab/localRelative.test.mjs': '测同机比较工具：导入闭包的 readdirSync 只枚举工作树外快照缓存，不遍历仓库源码做全集断言',
   'scripts/eng-metrics.node-test.mjs': '测指标脚本：readContracts 喂的是测试自建的临时 docs/fixes 夹具（运行时实测没有遍历仓库目录）',
   'scripts/check-site-attribution.node-test.mjs': '测站点扫描函数：喂测试自建的夹具目录（运行时实测没有遍历仓库目录）；站点整体检查是 CI_ONLY 的 check:site',
   'scripts/check-site-descriptions.node-test.mjs': '同 check-site-attribution：站点扫描函数的夹具单测',
