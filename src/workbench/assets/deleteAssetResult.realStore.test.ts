@@ -42,7 +42,7 @@ function projectAsset(resultId: string): AssetRef {
 }
 
 function setCanvas(result: GenerationNodeResult, history: GenerationNodeResult[]): void {
-  useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node(result, history)], edges: [], groups: [], selectedNodeIds: [] })
+  useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node(result, history)], edges: [], groups: [], selectedNodeIds: [] }, 'project-1')
 }
 
 function toggleGesture(): void {

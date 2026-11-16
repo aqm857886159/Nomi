@@ -1,0 +1,181 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-17-asset-liveness-scan",
+  "problem_type": "存活判定靠逐项列举引用位置，列举之外的引用一律当作没人用",
+  "symptom": "创作者把一张生成图挂到分镜镜头参考、普通节点参考列表或助手输入框上，再删掉产出它的那一版；撤销窗口过去、关项目或重开清扫时，这份文件被移进系统废纸篓，分镜参考 / 节点参考 / 助手输入显示不出来。",
+  "direct_cause": "src/workbench/assets/assetResultDeletion.ts 的 isProjectFileReferenced（修前）只扫节点白板、节点当前 / 历史结果和时间轴片段四处；分镜方案 referenceBindings、节点 meta.referenceImageUrls、工作台 projectAgentAttachments 都不在名单里，删除计划判 trash、延后回收与重开清扫照判照删。",
+  "class_root": "「这份文件还有没有人用」是一个对整份项目内容的问题，却被写成一张手工维护的位置清单：每新增一种能挂文件的地方（分镜参考、节点参考、助手输入……）都要有人记得回来登记，忘一次就是不可逆的删文件；而且拿不到内容时没有「判保留」的默认。",
+  "migration": "删掉旧的逐项列举（resultReferencesFile、readWhiteboardAssetUrls、urlReferencesFile、ProjectFileReferenceScope），同提交换成整份内容扫描；存储格式不变。项目文件里已有的待删清单不迁移，释放前（撤销挤出 / 关项目 / 重开清扫）用新判定逐条重判，只会比以前留得多；已经进系统废纸篓的不管。",
+  "affected_population": [
+    "把生成结果选作分镜镜头参考图、再删掉原结果的创作者",
+    "节点参考列表引用了别的节点结果、再删掉原结果的创作者",
+    "助手输入框挂着某张结果、再删掉原结果的创作者",
+    "项目文件里留有旧版本写下的待删清单、且条目被上述位置引用的老用户"
+  ],
+  "scope_paths": [
+    "src/workbench/assets/",
+    "src/workbench/project/workbenchProjectContent.ts",
+    "src/workbench/project/workbenchProjectSession.ts"
+  ],
+  "entry_points": [
+    "src/workbench/assets/deleteAssetResult.ts deleteAssetResultUnlocked → planAssetDeletion（已加载 / 关闭两条）",
+    "src/workbench/assets/pendingAssetDeletions.ts releaseEvictedAssetDeletions（撤销挤出）",
+    "src/workbench/assets/pendingAssetDeletions.ts releaseLoadedProjectAssetDeletions（关项目 / 换项目）",
+    "src/workbench/assets/pendingAssetDeletions.ts sweepPersistedAssetDeletions（重开清扫）",
+    "src/workbench/assets/pendingAssetDeletions.ts isAssetFileAwaitingTrash / withoutFilesAwaitingTrash（素材库列表）"
+  ],
+  "invariants": [
+    "项目内容（写盘那一份 + 会话里未发的输入 + 会话活着时的撤销材料）里任何一个字符串、任何深度、任何一种地址写法指向这份文件，判定都是「有人用」。",
+    "拿不到完整内容（画布未载入、载入的不是目标项目、装配抛错）一律判「有人用」，不删文件。",
+    "删除计划、延后回收、重开清扫、列表过滤只问 isProjectFileReferenced 一个判定，项目内容只从 readLoadedProjectLivenessContent / closedProjectLivenessContent 一个装配口来。",
+    "每个声明为「项目寿命」的 store 字段都在 PROJECT_SESSION_FIELD_ROLES 里归类。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "readLoadedProjectLivenessContent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "readLoadedProjectLivenessContent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/projectLivenessContent.ts",
+      "symbol": "readCurrentWorkbenchProjectContent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "readCurrentWorkbenchProjectContent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/assetResultDeletion.ts",
+      "symbol": "isProjectFileReferenced"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "planAssetDeletion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "closedProjectLivenessContent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "isProjectFileReferenced"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/workbenchProjectContent.ts",
+      "symbol": "readCurrentWorkbenchProjectContent"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 9,
+    "why_not": "修前「有没有人用」的判定散在四处各读一部分内容（删除计划读节点、延后回收读节点 + 时间轴、关闭项目读盘上节点、列表读节点 + 时间轴）；修后只剩一个判定 + 一个装配口，门表里的每一扇是同一判定 / 同一装配口在不同时刻的调用（当场删、到点删、列表、写盘投影），时刻不同不能合成一扇。"
+  },
+  "regression_tests": [
+    "src/workbench/assets/assetLiveness.realStore.test.ts",
+    "src/workbench/assets/assetLivenessScan.test.ts",
+    "src/workbench/assets/projectLivenessContent.census.test.ts",
+    "src/workbench/assets/assetResultDeletion.test.ts"
+  ],
+  "residual_risks": [
+    "主进程三份数据不扫（已发出的助手对话历史、制作运行台账、主进程排队的未发助手输入）：前两份记的是过去；排队输入在用户中止时才回到输入框，若原结果已删、文件已回收，发出去时附件不可用（已知限制，设计卡写明）。",
+    "按路径后缀比对的写法（裸路径、asset: 前缀、file://）没有项目 id 可核，可能多留文件，不会误删。",
+    "真窗口真手势的走查不在本提交的闭环里；本提交的闭环是真 store + 真删除入口 + 真写盘 + 真删除 IPC，系统废纸篓换成临时目录改名。"
+  ],
+  "internal_only_reason": "引用位置、项目内容的装配与待删清单都是 Nomi 自己的项目格式与会话结构，没有外部 API 决定它们；同类产品的做法（Obsidian 删未用附件丢图、垃圾回收的可达性扫描）只作设计参考，记在设计卡 ★0。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "引用位置会随功能继续增加（分镜参考、节点参考、助手输入都是后加的），手工清单每加一处就可能再漏一次；同一判定被四处消费，漏一处即在四个时刻删文件。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs isProjectFileReferenced：2 个文件 3 处（assetResultDeletion.ts fileFate、pendingAssetDeletions.ts release 与列表），全部改为查整份内容的索引。",
+      "node scripts/door-map.mjs trashProjectFiles：deleteAssetResult.ts 当场删与 pendingAssetDeletions.ts 到点删两扇，前面都经同一判定；主进程 electron/workspace/workspaceFileDelete.ts 只执行，不判定。",
+      "storeLifetimeRegistry 普查：全部项目寿命 store 字段逐个归类（content / pending / session-undo / 不装引用 + 理由），修前漏掉的 projectAgentAttachments、projectAgentReferences、generationAiDraft 现在都在扫描内。"
+    ]
+  },
+  "generality_proof": "判定不再列位置：对项目内容整棵树走一遍收集所有字符串（含键），写盘多一个字段扫描自动多一个字段；会话字段由普查强制归类；读不全返回 null 判保留。所以新加的引用位置不需要回来登记，也不会因为「没登记」被当作没人用。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/assets/assetResultDeletion.ts",
+      "symbol": "collectProjectFileReferences / isProjectFileReferenced",
+      "responsibility": "整份内容建引用索引；唯一的「有没有人用」判定，null 判保留。"
+    },
+    {
+      "path": "src/workbench/assets/projectLivenessContent.ts",
+      "symbol": "readLoadedProjectLivenessContent / closedProjectLivenessContent / PROJECT_SESSION_FIELD_ROLES",
+      "responsibility": "唯一的项目内容装配口；读不全返回 null；会话字段归类表。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "entry_point": "deleteAssetResultUnlocked",
+      "disposition": "enforced",
+      "evidence": "已加载与关闭两条路都经 planAssetDeletion，scope.rest 来自装配口；assetLiveness.realStore.test.ts 三种情形删除当场 keptInUseCount=1。"
+    },
+    {
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "entry_point": "release / isAssetFileAwaitingTrash",
+      "disposition": "enforced",
+      "evidence": "撤销挤出、关项目、重开清扫都在第一个 await 前按项目建一次索引再逐条判；列表按 store 状态记忆一次索引；assetLivenessScan.test.ts 覆盖读不全、ending、列表失效与 v0.24.1 旧清单重判。"
+    },
+    {
+      "path": "electron/workspace/workspaceFileDelete.ts",
+      "entry_point": "nomi:workspace:delete-files",
+      "disposition": "not-affected",
+      "evidence": "主进程只执行渲染层已判定的删除（shell.trashItem），不做引用判定；已发版本里没有别的路径直接删项目素材文件。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/assets/assetResultDeletion.ts",
+    "invariant": "删素材文件前，整份项目内容里没有任何字符串指向它；拿不到完整内容就不删。",
+    "failure_mode": "装配读不全 → null → 判保留、只销账；新加项目寿命字段没归类 → projectLivenessContent.census.test.ts 红；项目文件加字段没归属 → 普查里的字段表编译不过。",
+    "exception_policy": "none",
+    "strategy": "删掉位置清单，改成对整份项目内容的保守扫描；会话字段由普查强制归类。",
+    "artifacts": [
+      "src/workbench/assets/assetResultDeletion.ts",
+      "src/workbench/assets/projectLivenessContent.ts",
+      "src/workbench/assets/pendingAssetDeletions.ts",
+      "src/workbench/project/workbenchProjectContent.ts",
+      "src/workbench/assets/projectLivenessContent.census.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/assets/assetLivenessScan.test.ts",
+    "src/workbench/assets/projectLivenessContent.census.test.ts",
+    "src/workbench/assets/assetLiveness.realStore.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/assets/assetResultDeletion.ts"
+    ],
+    "rationale": "assetResultDeletion.ts 里逐项列举的位置清单（resultReferencesFile、readWhiteboardAssetUrls、urlReferencesFile、ProjectFileReferenceScope）同提交删掉，换成整份内容扫描；无并行版、无兜底。文件本身保留（删除计划仍住在这里）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只动 Nomi 自己的渲染层代码，不涉及第三方依赖。",
+    "exit_criteria": []
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-17",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/assets/assetResultDeletion.ts",
+    "tests": [
+      "src/workbench/assets/assetLivenessScan.test.ts",
+      "src/workbench/assets/projectLivenessContent.census.test.ts",
+      "src/workbench/assets/assetLiveness.realStore.test.ts"
+    ]
+  }
+}

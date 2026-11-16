@@ -7,7 +7,8 @@
 // 3. 换项目 / 关项目（撤销日志清零）时，这个项目的待删全部到点；
 // 4. 待删清单跟着项目一起存盘（payload.pendingAssetDeletions）：App 直接退出来不及删的，
 //    下次打开这个项目时清扫（那时撤销日志是空的，没有任何一步能退回去）。
-// 每次真删之前都用 `isProjectFileReferenced` 再判一次：撤销回来的、时间轴还在用的，一律不删，只销账。
+// 每次真删之前都用 `isProjectFileReferenced` 再判一次（整份项目内容扫描）：撤销回来的、分镜 / 节点参考 / 助手输入 / 时间轴还在用的、
+// 此刻读不全项目内容的，一律不删，只销账。项目文件里旧版本存下的待删清单也走这一判，升级后只会比以前留得多。
 // 真删失败（文件被占用、权限）不销账：留在清单里下次到点再试，连续失败 MAX_DELETE_ATTEMPTS 次才放弃并记日志。
 // 列表也问这里（`isAssetFileAwaitingTrash`）：已经删了、只等撤销窗口过去的文件，素材库两个页签都不再列它
 // （2026-10-24 之前列表按盘上文件把它列回来、换成文件名，删了像没删）。
@@ -16,7 +17,8 @@ import { logRendererError } from '../../desktop/rendererLog'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
 import { registerUndoHistoryEvictionHandler, type UndoHistoryEviction } from '../generationCanvas/events/canvasUndoJournal'
-import { isProjectFileReferenced, type ProjectFileTarget } from './assetResultDeletion'
+import { collectProjectFileReferences, isProjectFileReferenced, type ProjectFileReferences, type ProjectFileTarget } from './assetResultDeletion'
+import { readLoadedProjectLivenessContent, type ProjectSessionMoment } from './projectLivenessContent'
 import type { AssetRef } from './assetTypes'
 
 export type PendingAssetDeletion = ProjectFileTarget & {
@@ -61,14 +63,31 @@ export function readPendingAssetDeletionsVersion(): number {
   return version
 }
 
+/** 此刻已加载项目的引用索引（读不全 = null，判定当「有人用」）。 */
+function loadedProjectReferences(projectId: string, moment: ProjectSessionMoment): ProjectFileReferences | null {
+  const content = readLoadedProjectLivenessContent(projectId, moment)
+  return content ? collectProjectFileReferences(content.nodes, content.rest) : null
+}
+
+// 列表用的索引按「画布 store + 工作台 store 的那一刻状态」记一份：store 一变（任何字段换了引用）就重扫，同一刻的整张列表只扫一次。
+let listMemo: { projectId: string; canvas: object; workbench: object; references: ProjectFileReferences | null } | null = null
+function listReferences(projectId: string): ProjectFileReferences | null {
+  const canvas = useGenerationCanvasStore.getState()
+  const workbench = useWorkbenchStore.getState()
+  if (listMemo && listMemo.projectId === projectId && listMemo.canvas === canvas && listMemo.workbench === workbench) return listMemo.references
+  const references = loadedProjectReferences(projectId, 'alive')
+  listMemo = { projectId, canvas, workbench, references }
+  return references
+}
+
 /**
- * 这份文件是不是「已经删了、只等进回收站」：记在待删清单里（或正在进回收站），而且此刻画布 / 时间轴
- * 没人用它。⌘Z 把那一版撤回来 = 又有人用了，就不算（列表照常列）。引用判定与真删前那一次是同一个函数。
+ * 这份文件是不是「已经删了、只等进回收站」：记在待删清单里（或正在进回收站），而且此刻项目里没人用它。
+ * ⌘Z 把那一版撤回来 = 又有人用了，就不算（列表照常列）。引用判定与真删前那一次是同一个函数。
  */
 export function isAssetFileAwaitingTrash(target: ProjectFileTarget): boolean {
   const key = keyOf(target)
   if (!pending.has(key) && !releasing.has(key)) return false
-  return !isProjectFileReferenced(target, { nodes: useGenerationCanvasStore.getState().nodes, timeline: useWorkbenchStore.getState().timeline })
+  return !isProjectFileReferenced(target, listReferences(target.projectId))
 }
 
 /** 列表用：去掉「已经删了、只等进回收站」的落盘文件。没有待删时原样返回（不新建数组，下游记忆不抖）。 */
@@ -115,16 +134,21 @@ function requeueFailed(entry: PendingAssetDeletion, requeue: boolean): void {
   if (requeue) pending.set(keyOf(entry), { projectId: entry.projectId, relativePath: entry.relativePath, failedAttempts })
 }
 
-/** 到点的逐条再判一次引用：没人用了才删；有人用（撤销回来了 / 时间轴在用）只销账。 */
-async function release(due: readonly PendingAssetDeletion[], requeue: boolean): Promise<AssetDeletionRelease> {
+/** 到点的逐条再判一次引用：没人用了才删；有人用（撤销回来了 / 别处在用 / 读不全）只销账。 */
+async function release(due: readonly PendingAssetDeletion[], requeue: boolean, moment: ProjectSessionMoment): Promise<AssetDeletionRelease> {
   const outcome: AssetDeletionRelease = { deletedFileCount: 0, failedFileCount: 0, keptReferencedCount: 0 }
   if (due.length === 0) return outcome
   // 进回收站这一路上（deleteFiles 还没回来）列表照样不列它；回来以后由主进程的删除广播刷新列表。
   for (const entry of due) releasing.add(keyOf(entry))
   try {
-    // 引用判定读的是此刻已加载项目的画布与时间轴——调用方保证到点的都是这个项目的（见各入口）。
-    const scope = { nodes: useGenerationCanvasStore.getState().nodes, timeline: useWorkbenchStore.getState().timeline }
-    const unreferenced = due.filter((entry) => !isProjectFileReferenced(entry, scope))
+    // 引用判定读的是此刻已加载项目的整份内容，同步、在第一个 await 之前；条目不是此刻载入的项目的 → 读不到 → 保留。
+    // 同一批到点的按项目各扫一次（不随条目数线性变慢）。
+    const byProject = new Map<string, ProjectFileReferences | null>()
+    const referencesOf = (projectId: string) => {
+      if (!byProject.has(projectId)) byProject.set(projectId, loadedProjectReferences(projectId, moment))
+      return byProject.get(projectId) ?? null
+    }
+    const unreferenced = due.filter((entry) => !isProjectFileReferenced(entry, referencesOf(entry.projectId)))
     outcome.keptReferencedCount = due.length - unreferenced.length
     if (unreferenced.length === 0) return outcome
     for (const entry of unreferenced) {
@@ -152,7 +176,7 @@ export function releaseEvictedAssetDeletions(eviction: UndoHistoryEviction): Pro
     entry.journalGeneration === eviction.generation
     && entry.journalPosition !== undefined
     && entry.journalPosition < eviction.oldestReachablePosition
-  )), true)
+  )), true, 'alive')
 }
 
 /**
@@ -160,7 +184,8 @@ export function releaseEvictedAssetDeletions(eviction: UndoHistoryEviction): Pro
  * **之前**同步调用——引用判定读的是此刻的画布（`take` 和判定都在第一个 await 之前完成）。
  */
 export function releaseLoadedProjectAssetDeletions(): Promise<AssetDeletionRelease> {
-  return release(take(() => true), false)
+  // 撤销栈随后清零：会话撤销材料这一次不算「有人用」，不然文件永远删不掉。
+  return release(take(() => true), false, 'ending')
 }
 
 /**
@@ -178,7 +203,7 @@ export async function sweepPersistedAssetDeletions(projectId: string, persisted:
           : []
       })
     : []
-  const outcome = await release(entries, true)
+  const outcome = await release(entries, true, 'alive')
   if (entries.length > 0) onListChanged?.()
   return outcome
 }
@@ -188,6 +213,7 @@ registerUndoHistoryEvictionHandler((eviction) => {
 })
 
 export function __resetPendingAssetDeletionsForTests(): void {
+  listMemo = null
   pending.clear()
   releasing.clear()
   listeners.clear()

@@ -2,7 +2,6 @@ import { trashProjectFiles } from './assetFileDeletion'
 import { logRendererError } from '../../desktop/rendererLog'
 import { readLocalProjectAsync, saveLocalProject } from '../library/localProjectStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
-import { useWorkbenchStore } from '../workbenchStore'
 import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
 import { applyAssetResultDeletion, countRemovedResults, planAssetDeletion, type ProjectFileTarget, type AssetDeletionRequest } from './assetResultDeletion'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
@@ -16,6 +15,7 @@ import {
   pushUndoSnapshot,
 } from '../generationCanvas/events/canvasUndoJournal'
 import { deferAssetFileDeletion, forgetDeferredAssetDeletion } from './pendingAssetDeletions'
+import { closedProjectLivenessContent, readLoadedProjectLivenessContent } from './projectLivenessContent'
 
 export type DeleteAssetResultOutcome = {
   /** 从画布卡上摘掉的结果数（卡本身保留）。 */
@@ -26,7 +26,7 @@ export type DeleteAssetResultOutcome = {
   failedFileCount: number
   /** 文件没当场删、等撤销窗口过去再删（已加载项目里摘了结果的删除都是这样）。 */
   deferredFileCount: number
-  /** 这张素材的文件还被时间轴 / 白板 / 别的结果（含封面）用着，留着没删。 */
+  /** 这张素材的文件项目里还有别处用着（分镜参考、节点参考、助手输入、时间轴、白板、别的结果……），留着没删。 */
   keptInUseCount: number
 }
 
@@ -96,7 +96,9 @@ async function deleteAssetResultUnlocked(
 
   if (inLoadedStore) {
     const store = useGenerationCanvasStore.getState()
-    const plan = planAssetDeletion(asset, { projectId, nodes: store.nodes, timeline: useWorkbenchStore.getState().timeline })
+    // 判定读整份项目内容；读不全（rest = null）判定一律保留文件，结果照样能摘。
+    const live = readLoadedProjectLivenessContent(projectId, 'alive')
+    const plan = planAssetDeletion(asset, { projectId, nodes: store.nodes, rest: live ? live.rest : null })
     if (plan.file?.fate === 'keep') outcome.keptInUseCount = 1
     if (plan.matches.length === 0) {
       return plan.file?.fate === 'trash' ? { ...outcome, ...await trashProjectFile(plan.file.target) } : outcome
@@ -138,7 +140,7 @@ async function deleteAssetResultUnlocked(
   const project = await readLocalProjectAsync(projectId)
   // 读不出这个项目就说失败，不返回一个「什么都没发生」的结果让界面去猜。
   if (!project) throw new Error(`Project could not be read for asset deletion: ${projectId}`)
-  const plan = planAssetDeletion(asset, { projectId, nodes: project.payload.generationCanvas.nodes, timeline: project.payload.timeline })
+  const plan = planAssetDeletion(asset, { projectId, ...closedProjectLivenessContent(project.payload) })
   if (plan.file?.fate === 'keep') outcome.keptInUseCount = 1
   if (plan.matches.length > 0) {
     await saveLocalProject(projectId, {

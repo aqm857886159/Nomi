@@ -16,7 +16,11 @@ vi.mock('../../desktop/bridge', () => ({
 }))
 vi.mock('../generationCanvas/store/generationCanvasStore', () => ({
   useGenerationCanvasStore: {
-    getState: () => ({ nodes: mocks.nodes, updateNode: mocks.updateNode }),
+    // 已加载的是 project-1 的画布（存活判定只认此刻载入的那个项目，读不到就保留文件）。
+    getState: () => ({
+      nodes: mocks.nodes, updateNode: mocks.updateNode, isReady: true, projectId: 'project-1',
+      readDocumentSnapshot: () => ({ nodes: mocks.nodes, edges: [], groups: [] }),
+    }),
   },
 }))
 vi.mock('../project/workbenchProjectSession', () => ({

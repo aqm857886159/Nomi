@@ -55,6 +55,8 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/workbench/generationCanvas/agent/storyboardLauncher.test.ts', roots: ['src'] },
   // 2026-11-12：渲染层不许再写第二份「key → 技能」查找；遍历 src 找按 name 精确比的手写查找（<2 秒）。
   { file: 'src/workbench/skillLibrary/skillDisplay.test.ts', roots: ['src'] },
+  // 2026-11-17：素材文件存活判定的普查——遍历 src 找全部 store 寿命声明，每个「项目寿命」字段都要在存活判定的归类表里（<3 秒）。
+  { file: 'src/workbench/assets/projectLivenessContent.census.test.ts', roots: ['src'] },
   // ── electron/ 全树（遍历 electron 找违规文件）──
   { file: 'scripts/lib/buildInputRefScan.test.mjs', roots: ['src', 'electron'], files: ['vite.config.ts', 'tailwind.config.ts', 'postcss.config.js', 'scripts/build-tailwind.mjs', 'scripts/build-electron.mjs', 'scripts/write-intake-config.mjs', 'scripts/electron-build-artifacts.mjs', 'scripts/package-build-stamp.mjs'] }, // 构建源码不许引用构建戳排除的路径（NON_INPUTS）；遍历 src + electron（<1 秒）
   { file: 'tests/system/async-signature-migration.test.mjs', roots: ['tests', 'electron', 'src', 'scripts'] }, // V-plibrary F3：同步改异步的函数，调用方（含 tests / 脚本）都要 await；遍历四个目录的源码（<1 秒）
