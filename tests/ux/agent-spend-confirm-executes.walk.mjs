@@ -88,8 +88,9 @@ try {
   await pressPrimary(card, '卡上的主按钮「生成」')
   await expect.poll(async () => {
     if (walk.fixture.images.length > 0) return 'sent'
-    const notices = (await cardFacts(win))?.notices ?? []
-    return notices.length ? `refused: ${notices.map((notice) => notice.text).join(' | ')}` : 'waiting'
+    const facts = await cardFacts(win)
+    const said = [...(facts?.notices ?? []).map((notice) => notice.text), ...(facts?.rowFailures ?? [])]
+    return said.length ? `refused: ${said.join(' | ')}` : 'waiting'
   }, { message: '按下「生成」之后必须有结论（发出去了，或者卡上说了为什么不行）', timeout: stationTimeout({ operations: 6 }) }).toBe('sent')
   expect(flattenRequestText((await recorded(turnDone.received, 'generate returns once the user approved the card', stationTimeout({ operations: 6 }))).body),
     '模型读到「用户点了生成、已经开始生成」').toContain('All 1 shot(s) on the card are generating')

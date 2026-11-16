@@ -405,6 +405,8 @@ export function cardFacts(win) {
       })) : [],
       more: rows?.querySelector('[data-node-pointer-more]')?.textContent?.trim() ?? null,
       notices: [...card.querySelectorAll('[data-v4-block="spend-notice"]')].map((el) => ({ tone: el.getAttribute('data-tone'), text: el.textContent?.trim() ?? '' })),
+      // 没成的原因只写在那一镜那一行第二行（2026-11-16 起条上不重复），读失败行的那一句。
+      rowFailures: rows ? [...rows.querySelectorAll('[data-node-pointer][data-node-pointer-face="failed"] [data-node-pointer-detail]')].map((el) => el.textContent?.trim() ?? '') : [],
       params: body?.querySelector('[data-v4-block="spend-params"]')?.textContent?.trim() ?? null,
       editors: card.querySelectorAll(editors).length,
       cardText: card.textContent ?? '',

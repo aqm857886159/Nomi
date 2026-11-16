@@ -22,7 +22,8 @@ const A = {
   params: 'board:SpendAskSplit/ask.params',
   actions: 'board:SpendAskSplit/ask.actions',
   sending: 'board:SpendAskSplit/ask.sending',
-  askFailure: 'board:SpendAskSplit/ask.failure',
+  // 失败整个挪进行里（SpendAskSplit/ask.failure）是另一刀（missing）；条上现在的样子按 card.failure 核。
+  askFailure: 'board:SpendCardQ1/card.failure',
   rows: 'board:SpendAskSplit/chat.rows',
   more: 'board:SpendAskSplit/chat.rows.more',
   exclude: 'board:SpendAskSplit/chat.rows.exclude',
@@ -139,6 +140,8 @@ async function groupFacts(page) {
           title: el.querySelector('[data-node-pointer-title]')?.textContent?.trim() ?? '',
           detail: el.querySelector('[data-node-pointer-detail]')?.textContent?.trim() ?? null,
           located: Boolean(el.querySelector('[data-node-pointer-located]')),
+          // 行尾状态图标（✓ / 转圈 / 钟 / ⚠）2026-11-16 起没有了：缩略图里、「已定位」里的图标不算。
+          trailingIcons: [...el.querySelectorAll('svg')].filter((svg) => !el.firstElementChild?.contains(svg) && !svg.closest('[data-node-pointer-located]')).length,
           height: el.getBoundingClientRect().height,
           dimmed: wrap?.getAttribute('data-node-pointer-row-dimmed') === 'true',
           pinned: wrap?.getAttribute('data-accessory-pinned') === 'true',
@@ -204,6 +207,8 @@ function expectRows(state, record, group, expected) {
   // 行密度：一行 ≥40px、两行也不超过 56px（NodePointerGroup 行那一档）。
   const tall = group.rows.filter((row) => row.height < 39.5 || row.height > 56.5)
   if (tall.length) record(`${state.id} ${A.rows}: 行高不在行密度里：${tall.map((row) => `${row.id}=${row.height.toFixed(1)}`).join(', ')}`)
+  const iconRows = group.rows.filter((row) => row.trailingIcons > 0)
+  if (iconRows.length) record(`${state.id} ${A.rows}: 行尾不该再有状态图标（用户 2026-11-16）：${iconRows.map((row) => row.id).join(', ')}`)
   if (group.rows.some((row) => row.nested)) record(`${state.id} ${A.exclude}: 行（按钮）里面套了按钮——小钮应是行的兄弟`)
   const hint = locale === 'en' ? /Opens it on the canvas/ : /点了在画布上定位/
   const live = group.rows.filter((row) => row.face !== 'removed')
@@ -281,9 +286,12 @@ async function expectFailure(page, state, record, bar, group, expected) {
   const titleMatch = pattern(locale, expected.titleKey).exec(bar.title ?? '')
   if (!titleMatch) record(`${state.id} ${A.failure}: 标题「${bar.title}」不是 ${expected.titleKey} 那一句`)
   const shotRef = titleMatch?.groups?.shot
-  const danger = bar.notices.find((notice) => notice.tone === 'danger')
+  // 原因只说一遍（用户 2026-11-16）：写在那一镜那一行第二行，条上不再摆红字原因。
   const reason = tr(locale, expected.reasonKey)
-  if (!danger || !danger.text.includes(reason)) record(`${state.id} ${A.failure}: 原因行应是「${reason}」，实际 ${JSON.stringify(bar.notices)}`)
+  if (bar.notices.some((notice) => notice.tone === 'danger')) record(`${state.id} ${A.askFailure}: 条上不该再重复原因：${JSON.stringify(bar.notices)}`)
+  if (bar.text.includes(reason)) record(`${state.id} ${A.askFailure}: 条上又说了一遍原因「${reason}」`)
+  const failedRow = group.rows?.find((item) => item.id === NODE(expected.shot))
+  if (!failedRow?.detail?.includes(reason)) record(`${state.id} ${A.askFailure}: 镜 0${expected.shot} 那一行第二行应写原因「${reason}」，实际「${failedRow?.detail}」`)
   const decline = tr(locale, 'agentPanelV4.spendCard.decline')
   if (!bar.dismiss || bar.dismiss.text !== decline || bar.dismiss.disabled) record(`${state.id} ${A.decline}: 失败时否定钮应是「${decline}」且可点：${JSON.stringify(bar.dismiss)}`)
   const name = expected.retry ? A.retry : A.goEdit

@@ -54,6 +54,10 @@ async function faces(page, scope = '') {
     aria: el.getAttribute('aria-label') || '',
     disabled: el.getAttribute('aria-disabled') === 'true',
     text: el.textContent || '',
+    // 行密度行尾的状态图标（✓ / 转圈 / 钟 / ⚠）2026-11-16 起没有了（SpendAskSplit 板取代 pointer.p2.row 那一句和 pointer.state.*）：缩略图、「已定位」里的不算。
+    trailingIcons: el.getAttribute('data-node-pointer') === 'row'
+      ? [...el.querySelectorAll('svg')].filter((svg) => !el.firstElementChild?.contains(svg) && !svg.closest('[data-node-pointer-located]')).length
+      : 0,
   })), `${scope} [data-node-pointer]`.trim())
 }
 
@@ -62,6 +66,8 @@ async function expectStatesBoard(page, state, record, english) {
   const all = await faces(page)
   const face = (id, density = 'card') => all.find((item) => item.id === id && item.density === density)
   const expectFace = (id, kind, name, density = 'card') => { if (face(id, density)?.face !== kind) record(`${state.id} ${name}: ${id}(${density}) 应是 ${kind}，实际 ${face(id, density)?.face}`) }
+  const iconRows = all.filter((item) => item.trailingIcons > 0)
+  if (iconRows.length) record(`${state.id} ${A.row}: 行尾不该再有状态图标（用户 2026-11-16）：${iconRows.map((item) => item.id).join(', ')}`)
   expectFace('np-await', 'production', A.waiting)
   expectFace('np-queued', 'production', A.queued)
   expectFace('np-gen', 'generating', A.generating)

@@ -11,7 +11,6 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconAlertTriangle,
-  IconCheck,
   IconClock,
   IconClockSearch,
   IconFocus2,
@@ -434,7 +433,7 @@ export function NodePointer({
             ? null
             : rowDetail === 'status'
               ? (rowStatusLine(model, suppressAwaitingConfirmation) ?? subject.note ?? null)
-              : (model.summary('row')[0] ?? model.status)
+              : (rowProgressLine(model) ?? model.summary('row')[0] ?? model.status)
     return (
       <button
         {...common}
@@ -470,7 +469,7 @@ export function NodePointer({
             </span>
           ) : null}
         </span>
-        <RowTrailing face={model.face} located={located} />
+        {located ? <RowLocated /> : null}
       </button>
     )
   }
@@ -570,42 +569,28 @@ function rowStatusLine(model: PointerModel, suppressAwaitingConfirmation: boolea
   return model.status
 }
 
-/** P2 行尾的状态图标：✓ / 转圈（蓝只留在转圈上）/ 钟 / ⚠ / 断链；点过的那一行写「已定位」。 */
-function RowTrailing({ face, located }: { face: NodePointerFace; located: boolean }): JSX.Element | null {
+/**
+ * 摘要档（`rowDetail="summary"`）里，这一镜在路上时第二行改说状态（生成中 / 排队中 / 已停 / 可找回），不说摘要：
+ * 行尾不再有状态图标（用户 2026-11-16 定，SpendAskSplit 板取代 NodePointer 板 pointer.p2.row 那一句和 pointer.state.*），
+ * 状态只由缩略图和标题下这一行小字说；做完的那一行就是缩略图 + 标题 + 摘要，没有勾。
+ */
+function rowProgressLine(model: PointerModel): string | null {
+  const face = model.face
+  if (face.kind === 'generating' || face.kind === 'stopped' || face.kind === 'recoverable') return model.status
+  if (face.kind === 'production' && face.state.phase === 'queued') return model.status
+  return null
+}
+
+/** 行尾只剩一样东西：点过的那一行写「已定位」（它说的是你刚点了它，不是这一镜的状态）。 */
+function RowLocated(): JSX.Element {
   const { t } = useTranslation()
-  if (located) {
-    return (
-      <span
-        className="inline-flex shrink-0 items-center gap-1 text-micro text-nomi-ink-60"
-        data-node-pointer-located="true"
-      >
-        <IconFocus2 size={12} stroke={1.8} aria-hidden="true" />
-        {t('nodePointer.located')}
-      </span>
-    )
-  }
-  const queued =
-    (face.kind === 'generating' && face.feedback.phase === 'queued') ||
-    (face.kind === 'production' && face.state.phase === 'queued')
-  const icon =
-    face.kind === 'result' ? (
-      <IconCheck size={14} stroke={1.8} className="text-nomi-ink-60" />
-    ) : queued ? (
-      <IconClock size={14} stroke={1.8} className="text-nomi-ink-60" />
-    ) : face.kind === 'generating' || face.kind === 'processing' ? (
-      <IconLoader2 size={14} stroke={1.8} className="animate-spin text-nomi-accent motion-reduce:animate-none" />
-    ) : face.kind === 'failed' ? (
-      <IconAlertTriangle size={14} stroke={1.8} className="text-nomi-danger-ink" />
-    ) : face.kind === 'removed' ? (
-      <IconLinkOff size={14} stroke={1.8} className="text-nomi-ink-40" />
-    ) : face.kind === 'stopped' ? (
-      <IconPlayerPause size={14} stroke={1.8} className="text-nomi-warning" />
-    ) : face.kind === 'recoverable' ? (
-      <IconClockSearch size={14} stroke={1.8} className="text-nomi-ink-60" />
-    ) : null
-  return icon ? (
-    <span className="grid shrink-0 place-items-center" aria-hidden="true">
-      {icon}
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 text-micro text-nomi-ink-60"
+      data-node-pointer-located="true"
+    >
+      <IconFocus2 size={12} stroke={1.8} aria-hidden="true" />
+      {t('nodePointer.located')}
     </span>
-  ) : null
+  )
 }

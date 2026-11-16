@@ -192,10 +192,10 @@ describe('付费卡投影 · 失败留在卡里', () => {
     expect(card.slot.failed).toBe(true)
     expect(card.slot.dismissLabel).toBe('agentPanelV4.spendCard.decline')
     expect(card.slot.confirmLabel).toBe('agentPanelV4.spendCard.retry')
-    expect(card.notices).toEqual([{ tone: 'danger', text: 'agentPanelV4.spendCard.failure.provider_not_reached' }])
+    expect(card.notices, '原因只说一遍：条上不再摆红字原因（2026-11-16）').toEqual([])
     expect(card.pointers[2]!.hostStatus).toBe('agentPanelV4.spendCard.pointerNotSentYet')
     expect(card.pointers[1]!.hostFailure).toBe('agentPanelV4.spendCard.pointerFailed')
-    expect(card.pointers[1]!.outcome, '原因也写在那一行').toBe('agentPanelV4.spendCard.failure.provider_not_reached')
+    expect(card.pointers[1]!.outcome, '原因写在那一行').toBe('agentPanelV4.spendCard.failure.provider_not_reached')
     expect(card.primary).toEqual({ kind: 'retry', shotIds: ['s2'], hostingAllowed: false })
   })
 
@@ -207,14 +207,16 @@ describe('付费卡投影 · 失败留在卡里', () => {
     expect(card.slot.title).toBe('agentPanelV4.spendCard.failedTitle.rejected(shot=镜 02)')
     expect(card.slot.confirmLabel).toBe('agentPanelV4.spendCard.goEdit(shot=镜 02)')
     expect(card.slot.confirmIcon).toBe('locate')
-    expect(card.notices[0]!.text).toBe('agentPanelV4.spendCard.failure.provider_rejected')
+    expect(card.notices).toEqual([])
+    expect(card.pointers[1]!.outcome).toBe('agentPanelV4.spendCard.failure.provider_rejected')
     expect(card.primary).toEqual({ kind: 'locate', nodeId: 'n2', label: '镜 02' })
   })
 
   it('结果未知：不说没花钱，下一步是去节点上核对（不是再发一次）', () => {
     const card = project([shot(1, { offer: 'unknown' }), shot(2)], [facts(1), facts(2)])
     expect(card.slot.title).toBe('agentPanelV4.spendCard.failedTitle.unclear(shot=镜 01)')
-    expect(card.notices[0]!.text).toBe('agentPanelV4.spendCard.failure.unclear')
+    expect(card.notices).toEqual([])
+    expect(card.pointers[0]!.outcome).toBe('agentPanelV4.spendCard.failure.unclear')
     expect(JSON.stringify(card)).not.toContain('notSentFallback')
     expect(card.slot.confirmLabel).toBe('agentPanelV4.spendCard.goCheck(shot=镜 01)')
     expect(card.primary).toEqual({ kind: 'locate', nodeId: 'n1', label: '镜 01' })
@@ -223,26 +225,27 @@ describe('付费卡投影 · 失败留在卡里', () => {
 
   it('没登记的码按种类说：没发出去 = 这次没花钱、可以再试；参数被拒 = 去节点里改', () => {
     const notSent = project([shot(1, { offer: 'not_sent', failure: { kind: 'not_sent', code: 'some_new_code' } })], [facts(1)])
-    expect(notSent.notices[0]!.text).toBe('agentPanelV4.spendCard.failure.notSentFallback')
+    expect(notSent.pointers[0]!.outcome).toBe('agentPanelV4.spendCard.failure.notSentFallback')
     const rejected = project([shot(1, { offer: 'not_sent', failure: { kind: 'parameter_rejected', code: 'some_new_code' } })], [facts(1)])
-    expect(rejected.notices[0]!.text).toBe('agentPanelV4.spendCard.failure.rejectedFallback')
+    expect(rejected.pointers[0]!.outcome).toBe('agentPanelV4.spendCard.failure.rejectedFallback')
   })
 
-  it('要问托管同意的那一种：原因行就是披露原文，「再试一次」带着这次同意再交', () => {
+  it('要问托管同意的那一种：条上摆一行中性披露原文（按钮旁边），「再试一次」带着这次同意再交', () => {
     const card = project([shot(1, { offer: 'not_sent', failure: { kind: 'not_sent', code: 'asset_hosting_consent_required' } })], [facts(1)])
-    expect(card.notices[0]!.text).toBe('generationCommon.spendHostingDisclosure.message')
+    expect(card.notices).toEqual([{ tone: 'neutral', text: 'generationCommon.spendHostingDisclosure.message' }])
     expect(card.primary).toEqual({ kind: 'retry', shotIds: ['s1'], hostingAllowed: true })
   })
 
   it('再试的那几镜要先传托管、原因却是别的：另摆一行披露原文，「再试一次」才带同意（同意只来自卡上摆着的那一句）', () => {
     const failure = { kind: 'not_sent' as const, code: 'provider_not_reached' }
     const withoutDisclosure = project([shot(1, { offer: 'not_sent', failure })], [facts(1)])
-    expect(withoutDisclosure.notices).toHaveLength(1)
+    expect(withoutDisclosure.notices).toHaveLength(0)
     expect(withoutDisclosure.primary).toEqual({ kind: 'retry', shotIds: ['s1'], hostingAllowed: false })
     const disclosed = project([shot(1, { offer: 'not_sent', failure })], [facts(1)], { hostingDisclosure: true })
-    expect(disclosed.notices[1]).toEqual({ tone: 'neutral', text: 'generationCommon.spendHostingDisclosure.message' })
+    expect(disclosed.notices).toEqual([{ tone: 'neutral', text: 'generationCommon.spendHostingDisclosure.message' }])
+    expect(disclosed.notices[0]).toEqual({ tone: 'neutral', text: 'generationCommon.spendHostingDisclosure.message' })
     expect(disclosed.primary).toEqual({ kind: 'retry', shotIds: ['s1'], hostingAllowed: true })
-    // 原因行就是披露原文时不重复摆。
+    // 原因本身就是要问托管时也只摆这一行。
     const consent = project([shot(1, { offer: 'not_sent', failure: { kind: 'not_sent', code: 'asset_hosting_consent_required' } })], [facts(1)], { hostingDisclosure: true })
     expect(consent.notices).toHaveLength(1)
   })

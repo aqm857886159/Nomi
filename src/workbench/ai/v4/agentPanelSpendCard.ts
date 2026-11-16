@@ -9,7 +9,7 @@
 // 为什么单独一层：这是**钱**的确认，每一句话（几段、哪一镜没发出去、为什么、下一步）都必须能追到产地。住在组件里只能靠
 // 截图证明，住在这里能逐条单测。三种样子只由事实决定：
 //   · 有镜正在交给画布（`handing_over`）→ 「正在发出 k/N 段」，动作行只说怎么停；
-//   · 有镜没发出去 / 结果不确定，或者一段能发的都没有、却有本机判得出发不出去的 → 失败留在确认条里（板 ⑤⑥）；
+//   · 有镜没发出去 / 结果不确定，或者一段能发的都没有、却有本机判得出发不出去的 → 确认条说「镜 N 没有发出去」+「先不发了 / 再试一次」，原因只写在那一镜自己那一行（2026-11-16 起条上不重复）；
 //   · 其余 → 等人决定：「生成」/「生成 N 段」/「生成剩下 N 段」。
 // 钱：这一刀不印合计——确认条按钮那一行左侧留给预估花费（按 11-07 模型面板板 cost.batch-card 印积分，下一刀做）；
 // 只有各镜价格不同时折叠明细里印每镜价（板 D5，照旧）。
@@ -197,31 +197,29 @@ function spendCardShotNote(fact: SpendCardShotFacts, differing: ReadonlySet<Dime
   return line || undefined
 }
 
-/** 失败留在确认条里时，条上那一段（板 ⑤⑥）：标题、原因、主按钮。 */
-function attentionView(attention: Entry, entries: readonly Entry[], view: SpendCardView, t: Translate): Readonly<{ title: string; reason: string; primary: SpendCardPrimary; confirmLabel: string }> {
+/** 失败时条上那一段：标题、主按钮（原因写在没成的那一行，条上不重复）。 */
+function attentionView(attention: Entry, entries: readonly Entry[], view: SpendCardView, t: Translate): Readonly<{ title: string; primary: SpendCardPrimary; confirmLabel: string }> {
   const shot = attention.facts.shotRef
   const locate = (label: string): SpendCardPrimary => ({ kind: 'locate', nodeId: attention.shot.nodeId ?? '', label })
   if (attention.role === 'unclear') {
     // 结果未知：可能已经扣费，不说没花钱；下一步是去节点上核对，不是再发一次（钱可能已经花了）。
-    return { title: t('agentPanelV4.spendCard.failedTitle.unclear', { shot }), reason: t('agentPanelV4.spendCard.failure.unclear'), primary: locate(shot), confirmLabel: t('agentPanelV4.spendCard.goCheck', { shot }) }
+    return { title: t('agentPanelV4.spendCard.failedTitle.unclear', { shot }), primary: locate(shot), confirmLabel: t('agentPanelV4.spendCard.goCheck', { shot }) }
   }
   const failure: GenerationHandOverFailure = (attention.role === 'blocked' ? attention.facts.blocked : attention.shot.failure) ?? { kind: 'not_sent', code: 'not_sent' }
-  const reason = t(handOverFailureCopy(failure))
   if (attention.role === 'blocked') {
     // 还没按就判得出发不出去：参数那一类去节点里改，节点在忙 / 要核对那一类去节点上看。
     const label = failure.kind === 'parameter_rejected' ? t('agentPanelV4.spendCard.goEdit', { shot }) : t('agentPanelV4.spendCard.goCheck', { shot })
-    return { title: t('agentPanelV4.spendCard.failedTitle.blocked', { shot }), reason, primary: locate(shot), confirmLabel: label }
+    return { title: t('agentPanelV4.spendCard.failedTitle.blocked', { shot }), primary: locate(shot), confirmLabel: label }
   }
   if (failure.kind === 'parameter_rejected') {
-    return { title: t('agentPanelV4.spendCard.failedTitle.rejected', { shot }), reason, primary: locate(shot), confirmLabel: t('agentPanelV4.spendCard.goEdit', { shot }) }
+    return { title: t('agentPanelV4.spendCard.failedTitle.rejected', { shot }), primary: locate(shot), confirmLabel: t('agentPanelV4.spendCard.goEdit', { shot }) }
   }
-  // 没发出去（没花钱）：「再试一次」只重发没发出去的那几镜（不连带还没决定的）。要问托管同意的那一种，卡上的原因行就是披露原文，
+  // 没发出去（没花钱）：「再试一次」只重发没发出去的那几镜（不连带还没决定的）。要问托管同意的那一种，条上摆一行披露原文，
   // 这一下点的「再试一次」就是同意这一次。
   const retry = entries.filter((entry) => entry.role === 'notSent' && entry.shot.failure?.kind !== 'parameter_rejected')
   const hostingAllowed = view.hostingDisclosure || retry.some((entry) => failureNeedsHostingConsent(entry.shot.failure))
   return {
     title: t('agentPanelV4.spendCard.failedTitle.notSent', { shot }),
-    reason,
     primary: { kind: 'retry', shotIds: retry.map((entry) => entry.shot.shotId), hostingAllowed },
     confirmLabel: t('agentPanelV4.spendCard.retry'),
   }
@@ -255,7 +253,7 @@ export function projectSpendCard(
     && entry.facts.selected.modelId === entry.shot.draftedModel.modelId)
   // 逐镜不同的那几项只看主按钮这一下要交的那几镜（和确认条上的共同参数同一个集合）。
   const differing = differingDimensions(sendable.map((entry) => entry.facts))
-  // 失败留在确认条里：没发出去 / 结果不确定的那一镜；一段能发的都没有时，本机判得出发不出去的那一镜也是（有能发的时它只占一行说明）。
+  // 失败时的确认条：没发出去 / 结果不确定的那一镜；一段能发的都没有时，本机判得出发不出去的那一镜也是（有能发的时它只占一行说明）。
   const attention = sending ? undefined : entries.find((entry) => entry.role === 'notSent' || entry.role === 'unclear' || (entry.role === 'blocked' && sendable.length === 0))
   const saysVideo = spendCardSaysVideo(sendable.length ? sendable.map((entry) => entry.shot) : entries.map((entry) => entry.shot))
   const brake = pending.brake ? { summary: t(BRAKE_COPY[pending.brake.reason]) } : {}
@@ -309,8 +307,9 @@ export function projectSpendCard(
   if (attention) {
     const shown = attentionView(attention, entries, view, t)
     const retryEmpty = shown.primary.kind === 'retry' && shown.primary.shotIds.length === 0
-    // 「再试一次」带着托管同意交：同意只能来自卡上摆着的那一句原文——原因行就是它（要问同意的那一种），或者另摆一行披露。
-    const disclose = shown.primary.kind === 'retry' && view.hostingDisclosure && shown.reason !== t('generationCommon.spendHostingDisclosure.message')
+    // 原因只说一遍（用户 2026-11-16）：写在没成的那一行第二行（`outcome`），条上只留标题和两颗按钮，不再摆一行红字原因。
+    // 例外只有托管同意：「再试一次」带着同意交，同意只能来自按钮旁边摆着的那一句原文，所以要问同意时条上摆一行中性披露。
+    const disclose = shown.primary.kind === 'retry' && shown.primary.hostingAllowed
     return {
       slot: Object.freeze({
         kind: 'spend' as const,
@@ -323,10 +322,7 @@ export function projectSpendCard(
         ...(view.busy || retryEmpty ? { actionsDisabled: true as const } : {}),
       }),
       pointers,
-      notices: [
-        { tone: 'danger', text: shown.reason },
-        ...(disclose ? [{ tone: 'neutral' as const, text: t('generationCommon.spendHostingDisclosure.message') }] : []),
-      ],
+      notices: disclose ? [{ tone: 'neutral' as const, text: t('generationCommon.spendHostingDisclosure.message') }] : [],
       primary: shown.primary,
     }
   }

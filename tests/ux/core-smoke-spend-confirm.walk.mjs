@@ -133,11 +133,12 @@ try {
     const viewportWrites = await recordCanvasViewportWrites(win)
     await clickOrFail(card.locator(INTERVENTION_CONFIRM), '按下「生成」')
     // 先等出站请求（那是「钱真的动了」的第一个证据），再等 `generate` 把结论递回正在等的那个回合。
-    // 被拒写在卡上那一行说明里：一起等，不让「没发出去」以超时的形状报出来。
+    // 被拒写在那一镜那一行第二行里：一起等，不让「没发出去」以超时的形状报出来。
     await expect.poll(async () => {
       if (fixture.images.length > 0) return 'sent'
-      const notices = (await cardFacts(win))?.notices ?? []
-      return notices.length ? `refused: ${notices.map((notice) => notice.text).join(' | ')}` : 'waiting'
+      const facts = await cardFacts(win)
+      const said = [...(facts?.notices ?? []).map((notice) => notice.text), ...(facts?.rowFailures ?? [])]
+      return said.length ? `refused: ${said.join(' | ')}` : 'waiting'
     }, { timeout: DEFAULT_TIMEOUT_MS, message: '按下「生成」之后必须有结论（发出去了，或者卡上说了为什么不行）' }).toBe('sent')
     expect(fixture.images, '确认之后供应商要收到这一次生成').toHaveLength(1)
     await recorded(turnDone.received, 'generate returns once the user approved')
