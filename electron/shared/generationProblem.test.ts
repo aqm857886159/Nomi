@@ -110,6 +110,17 @@ describe("generationProblem：起草被拒的闭合原因", () => {
     expect(generationProblemModelText({ code: "unknown_model", model })).toContain("list_models");
   });
 
+  it("共用未知模型正文相对已发布的动态拒收只删文字，不新增外部动作", () => {
+    const input = { code: "unknown_model", model: "missing", nearest: "image-1@fixture" } as const;
+    const before = "Model missing is not in the model catalog; the closest one is image-1@fixture. Name a providerId/modelId exactly as list_models gives it (likely image-1@fixture), or ask the user which model they mean. A default model is not the problem here.";
+    let offset = 0;
+    for (const character of generationProblemModelText(input)) {
+      const found = before.indexOf(character, offset);
+      expect(found, `新增了已发布正文中没有的字符：${character}`).toBeGreaterThanOrEqual(offset);
+      offset = found + 1;
+    }
+  });
+
   it("读回不信任：形状不对的格丢掉，码不在表里整份不要（老转录、被改坏的转录都可能出现）", () => {
     const problem = generationProblemFrom(SAMPLES.ratio_not_in_mode);
     expect(generationProblemOf(JSON.parse(JSON.stringify(problem)))).toEqual(problem);

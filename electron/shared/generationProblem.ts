@@ -154,7 +154,7 @@ export function generationProblemModelText(input: GenerationProblemInput): strin
     case "unknown_model":
       return `${input.model ? `Model ${input.model}` : "The named model"} is not in the model catalog`
         + (input.nearest ? `; the closest one is ${input.nearest}.` : ".")
-        + " Call list_models, or ask the user which model they mean. A default model is not the problem here.";
+        + " Name a model exactly as list_models gives it, or ask the user which model they mean. A default model is not the problem here.";
     case "no_default_model": {
       const kind = input.media === "video" ? "video" : "image";
       return `No ${kind} model was named and the user has no default ${kind} model. `
