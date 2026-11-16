@@ -14,8 +14,6 @@ import { confirmGenerationSpend, describeGenerationCost, generationCostContextFo
 import { canvasOpenRuns, consentCanvasShots, withdrawCanvasShots, type CanvasConsentShot } from '../../api/taskApi'
 import { selectedModelKey, selectedVendor } from '../runner/catalogTaskResolve'
 import { createRunId } from '../store/canvasIds'
-import { hasLocalAssetReference, resolveAssetUploadConsent } from '../runner/assetUploadConsent'
-import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
 import { buildDependencyWaves, type DependencyWavePlan } from '../runner/dependencyWaves'
 import type { GenerationRunOutcome } from '../runner/generationRunOutcome'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -91,57 +89,6 @@ export function describeBlockedNotice(plan: DependencyWavePlan): string | null {
 }
 
 /**
- * 一批节点的托管解析：整批只问一次（有一个节点需要披露，整批就带上披露块）。
- * 返回 null = 策略 deny，这批直接不跑。Agent 付费卡交给画布的那几镜也问这一份（卡上的披露行、交接时的同意）。
- */
-export async function resolveBatchHostingNodes(
-  nodes: readonly GenerationCanvasNode[],
-): Promise<Awaited<ReturnType<typeof resolveAssetUploadConsent>> | null> {
-  const canvasState = useGenerationCanvasStore.getState()
-  const consentNodes = nodes.map((node) => {
-      const resolved = resolveGenerationReferences(node, { nodes: [...nodes], edges: canvasState.edges })
-      return {
-        ...node,
-        references: [
-          ...(node.references || []),
-          ...resolved.referenceImages,
-          ...resolved.referenceVideos,
-          ...resolved.referenceAudios,
-          ...(resolved.firstFrameUrl ? [resolved.firstFrameUrl] : []),
-          ...(resolved.lastFrameUrl ? [resolved.lastFrameUrl] : []),
-          ...(resolved.relayFromVideoUrl ? [resolved.relayFromVideoUrl] : []),
-        ],
-      }
-    })
-  let hosting: Awaited<ReturnType<typeof resolveAssetUploadConsent>> = { allowed: true, needsConfirmation: false, remember: async () => {} }
-  for (const node of consentNodes.filter((candidate) => hasLocalAssetReference(candidate))) {
-    const resolution = await resolveAssetUploadConsent(node)
-    if (!resolution.allowed) return null
-    if (resolution.needsConfirmation && !hosting.needsConfirmation) hosting = resolution
-  }
-  return hosting
-}
-
-async function resolveBatchHosting(ids: string[]): Promise<Awaited<ReturnType<typeof resolveAssetUploadConsent>> | null> {
-  const nodesById = new Map(useGenerationCanvasStore.getState().nodes.map((n) => [n.id, n]))
-  return resolveBatchHostingNodes(ids.map((id) => nodesById.get(id)).filter((node): node is GenerationCanvasNode => Boolean(node)))
-}
-
-/** 解析结果 → 花钱卡要不要带披露块。needsConfirmation 时才给，否则整块不渲染。 */
-function hostingDisclosureFor(
-  hosting: Awaited<ReturnType<typeof resolveAssetUploadConsent>>,
-): { hostingDisclosure: { message: string; rememberLabel: string; onRemember: () => Promise<void> } } | Record<string, never> {
-  if (!hosting.needsConfirmation) return {}
-  return {
-    hostingDisclosure: {
-      message: i18n.t('generationCommon.spendHostingDisclosure.message'),
-      rememberLabel: i18n.t('generationCommon.spendHostingDisclosure.remember'),
-      onRemember: hosting.remember,
-    },
-  }
-}
-
-/**
  * 卡上点了确认之后，把这一批里要花钱的每一个节点在主进程开一份出价（一镜一个单镜 Run，出价开着 = 这一镜他同意了）。
  * 不花钱的本地 / 文本节点不在里面。返回节点 → 运行记录号与主进程的 Run 号；一个要花钱的都没有时都是空的。
  */
@@ -191,7 +138,7 @@ export async function confirmAndRunPlan(
   if (ids.length === 0) {
     if (skippedBeforeStart) reportOpenRunSkips(project.binding.projectId, skippedBeforeStart)
     // 无可跑 → 复用人话 toast 报「为什么不能跑」。零节点也就没有素材要上传。
-    if (executionPlan.blocked.length) await runPlanWithToasts(executionPlan, { assetUploadConsent: 'not-needed', project })
+    if (executionPlan.blocked.length) await runPlanWithToasts(executionPlan, { project })
     return 'nothing-to-run'
   }
   let assertApprovedInputs = deferred ? undefined : captureApprovedGenerationInputs(ids)
@@ -199,9 +146,6 @@ export async function confirmAndRunPlan(
   const draftNodes = deferred ? deferred.draftNodes : ids.map((id) => nodesById.get(id)).filter((node): node is GenerationCanvasNode => Boolean(node))
   const draftKinds = new Set(draftNodes.map((node) => spendCostKind(node.kind)))
   const draftCostKind = draftKinds.size === 1 ? [...draftKinds][0] : draftKinds.size === 0 ? 'image' : 'mixed'
-  const hosting = deferred ? await resolveBatchHostingNodes(draftNodes) : await resolveBatchHosting(ids)
-  // 素材托管那张披露卡也是一次「他没同意这次」，不是一个错误。
-  if (!hosting) return 'declined'
   const ok = options.skipSpendConfirmation
     ? true
     : await confirmGenerationSpend(ids.map((id) => nodesById.get(id)), {
@@ -213,7 +157,6 @@ export async function confirmAndRunPlan(
         waveSizes: executionPlan.waves.map((wave) => wave.length),
       })),
       confirmLabel: i18n.t('generationCommon.batchPlan.confirmGenerate'),
-      ...hostingDisclosureFor(hosting),
       ...(itemized ? {
         message: '',
         planRows: itemized.rows,
@@ -239,7 +182,7 @@ export async function confirmAndRunPlan(
     executionPlan = buildDependencyWaves(chosen, { nodes: live.nodes, edges: live.edges })
     ids = executionPlan.waves.flat()
     if (ids.length === 0) {
-      await runPlanWithToasts(executionPlan, { assetUploadConsent: 'not-needed', project })
+      await runPlanWithToasts(executionPlan, { project })
       return 'nothing-to-run'
     }
   }
@@ -273,8 +216,6 @@ export async function confirmAndRunPlan(
     assertApprovedInputs,
     canvasRunRecordIds,
     concurrency: options.concurrency,
-    // 用户刚在上面那张卡里同意了（或判定无需问）——决定在这里定死，波次里不再问第二次。
-    assetUploadConsent: hosting.needsConfirmation ? 'allow' : 'not-needed',
   })
   return 'started'
 }
@@ -283,9 +224,7 @@ export async function confirmAndRunPlan(
  * canvasRunRecordIds：卡上点了确认后主进程为要花钱的节点开好的出价（节点 → 运行记录号），每个节点交的时候认它。 */
 export async function runPlanWithToasts(
   plan: DependencyWavePlan,
-  // assetUploadConsent 必填：整批的托管同意在上面那张批量花钱卡里问过了，这里只是把答案带下去。
-  // 缺省会让 runner 无从判断「谁问的用户」，那正是 F16b 第二张卡的来源。
-  options: { skippedOpenRuns?: number; assertAuthorCurrent?: (graph: RunGraph, executingNodeId: string) => Promise<void>; assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void; canvasRunRecordIds?: ReadonlyMap<string, string>; concurrency?: number; assetUploadConsent: 'allow' | 'not-needed'; project: ProjectExecutionContext },
+  options: { skippedOpenRuns?: number; assertAuthorCurrent?: (graph: RunGraph, executingNodeId: string) => Promise<void>; assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void; canvasRunRecordIds?: ReadonlyMap<string, string>; concurrency?: number; project: ProjectExecutionContext },
 ): Promise<void> {
   // 运行属于发起它的项目：身份（target）在这里定死，之后用户切项目也照样落回原项目。
   const target: RunProjectTarget = options.project.binding
@@ -312,7 +251,6 @@ export async function runPlanWithToasts(
     const result = await runGenerationNodesByPlan(plan, {
       assertAuthorCurrent: options.assertAuthorCurrent,
       assertApprovedInputs: options.assertApprovedInputs,
-      assetUploadConsent: options.assetUploadConsent,
       target,
       ...(options.canvasRunRecordIds?.size ? { canvasRunRecordIds: options.canvasRunRecordIds } : {}),
       ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),

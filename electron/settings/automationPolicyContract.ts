@@ -18,8 +18,8 @@ export type AutomationPolicySettings = {
   maxAttemptsPerJob: number;
   systemNotifications: boolean;
   minimizeUploads: boolean;
-  /** Anonymous temporary hosting is available by default, but UI asks before first use. */
-  anonymousAssetHosting: "ask" | "allow" | "deny";
+  /** Only an explicit allow enables third-party public temporary hosting. */
+  anonymousAssetHosting: "ask" | "allow";
 };
 
 export const DEFAULT_AUTOMATION_POLICY_SETTINGS: AutomationPolicySettings = {
@@ -52,7 +52,7 @@ export function normalizeAutomationPolicySettings(value: unknown): AutomationPol
   const attempts = typeof raw.maxAttemptsPerJob === "number" && Number.isFinite(raw.maxAttemptsPerJob)
     ? Math.min(10, Math.max(1, Math.floor(raw.maxAttemptsPerJob)))
     : DEFAULT_AUTOMATION_POLICY_SETTINGS.maxAttemptsPerJob;
-  const anonymousAssetHosting = raw.anonymousAssetHosting === "allow" || raw.anonymousAssetHosting === "deny"
+  const anonymousAssetHosting = raw.anonymousAssetHosting === "allow"
     ? raw.anonymousAssetHosting
     : DEFAULT_AUTOMATION_POLICY_SETTINGS.anonymousAssetHosting;
   return {

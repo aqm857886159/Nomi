@@ -52,8 +52,6 @@ export type CatalogTaskActionOptions = {
   canvasRun?: { runRecordId: string; acknowledgedOpenRuns?: string[] }
   /** 提交幂等键（= node run.id）：随 request.extras 下到主进程，让同一次意图提交 at-most-once（不二次下单）。 */
   idempotencyKey?: string
-  /** Renderer disclosure gate for a public temporary-host fallback. */
-  anonymousAssetHostingConsent?: 'allow'
   runTask?: (vendor: string, request: TaskRequestDto, projectId: TaskProjectIdentity) => Promise<TaskResultDto>
   listCatalogModels?: (params: { kind?: BillingModelKind; enabled?: boolean; vendorKey?: string }) => Promise<ModelCatalogModelDto[]>
   listCatalogVendors?: () => Promise<ModelCatalogVendorDto[]>

@@ -13,7 +13,6 @@ import { encodeStructuredErrorMessage } from '../../../../electron/vendor/vendor
 const calls = vi.hoisted(() => ({ poll: vi.fn(), open: vi.fn(), execute: vi.fn(), consent: vi.fn(), notify: vi.fn(), hosting: vi.fn() }))
 vi.mock('../../api/taskApi', () => ({ canvasOpenRuns: calls.open, pollCanvasShotRun: calls.poll, fetchWorkbenchTaskResultByVendor: vi.fn(), consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
-vi.mock('./assetUploadConsent', async original => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: calls.hosting }))
 vi.mock('./nodeModelHealth', () => ({ recordNodeModelFailure: vi.fn(), recordNodeModelSuccess: vi.fn() }))
 vi.mock('../../../desktop/bridge', () => ({ getDesktopBridge: () => ({ projects: {} }) }))
 vi.mock('../../../ui/notificationPolicy', async original => ({ ...await original<typeof import('../../../ui/notificationPolicy')>(), notify: calls.notify }))
@@ -157,12 +156,11 @@ it('G9: admission races may ask once more but never loop or turn a machine refus
  expect(calls.execute).toHaveBeenCalledTimes(2);expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledTimes(2)
 })
 
- it('G6: first hosting disclosure shares the resend card and cannot create a second decision', async () => {
+ it('G6: resend card has no per-run hosting disclosure', async () => {
   const id=add();calls.open.mockResolvedValue([{nodeId:id,runId:'old',reason:'in_flight',hasTaskId:false}])
-  calls.hosting.mockResolvedValue({allowed:true,needsConfirmation:true,remember:vi.fn()})
-  await confirmAndRunNode(id,{initiator:'user'})
+   await confirmAndRunNode(id,{initiator:'user'})
   expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledOnce()
-  expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledWith(expect.objectContaining({hostingDisclosure:expect.objectContaining({message:expect.any(String)})}))
+  expect(vi.mocked(useSpendConfirmStore.getState().requestConfirm).mock.calls[0]?.[0]).not.toHaveProperty('hostingDisclosure')
   expect(calls.execute).toHaveBeenCalledOnce()
  })
  it('G5: missing dependencies decline before any disclosure or spend decision', async () => {

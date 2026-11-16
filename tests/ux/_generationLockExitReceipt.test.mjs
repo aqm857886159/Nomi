@@ -22,7 +22,7 @@ function fixture() {
   const first = commit()
   const source = fs.readFileSync('tests/ux/generation-lock-exit-real.paid.mjs', 'utf8')
   const prefix = source.slice(source.indexOf('const receiptPath'), source.indexOf('\n}\nconst model'))
-  const green = { commit: first, status: 'passed', report: { journeyConditions: LOCK_EXIT_JOURNEY_CONDITIONS, hostingDisclosure: 1, stages: ['storyboard', 'canvas', 'list', 'restart'], openRunStages: ['window-close', 'sigkill', 'reload', 'retrieve', 'resend'].map(name => ({ name, status: 'passed', commit: first })) } }
+  const green = { commit: first, status: 'passed', report: { journeyConditions: LOCK_EXIT_JOURNEY_CONDITIONS, observations: { batchConfirmations: [{ hostingDisclosure: false }] }, stages: ['storyboard', 'canvas', 'list', 'restart'], openRunStages: ['window-close', 'sigkill', 'reload', 'retrieve', 'resend'].map(name => ({ name, status: 'passed', commit: first })) } }
   const validate = (receipt = green) => {
     const file = path.join(root, 'receipt.json'); fs.writeFileSync(file, JSON.stringify(receipt))
     // Execute only the actual preflight block; no paid entry, credentials or provider is invoked.
@@ -55,9 +55,9 @@ it('the old IPC-only product cannot pass the updated repair markers', () => {
   expect(() => assertPaidBuildReady(f.root, { markers: LOCK_EXIT_BUILD_MARKERS, verify: () => {} })).not.toThrow()
 })
 
-it.each([undefined, 0])('paid entry rejects a complete rehearsal without hosting disclosure %j', hostingDisclosure => {
+it.each([undefined, [], [{ hostingDisclosure: true }]])('paid entry rejects missing confirmation or restored hosting disclosure %j', batchConfirmations => {
   const f = fixture()
-  expect(() => f.validate({ ...f.green, report: { ...f.green.report, hostingDisclosure } })).toThrow(/hosting disclosure/)
+  expect(() => f.validate({ ...f.green, report: { ...f.green.report, observations: { batchConfirmations } } })).toThrow()
 })
 it('paid entry rejects a complete rehearsal with different journey conditions', () => {
   const f = fixture()

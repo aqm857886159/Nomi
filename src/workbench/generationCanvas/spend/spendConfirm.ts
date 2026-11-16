@@ -82,11 +82,7 @@ export function paidNodeLedger(node: GenerationCanvasNode | undefined): 'run' | 
 
 
 
-export type HostingDisclosure = {
-  message: string
-  rememberLabel: string
-  onRemember?: () => void | Promise<void>
-}
+
 
 // 付费生成确认（渲染层单一收口）。
 // 方案：docs/plan/2026-06-21-spend-confirmation-gate.md；发动机收敛第一刀（2026-10-05）之后，批准住在制作流程的 Run 里：
@@ -146,8 +142,6 @@ export type SpendConfirmRequest = {
   planRows?: readonly PlanRow[]
   /** Receives the user's checklist edits before the batch is materialized. */
   onPlanToggle?: (row: PlanRow, checked: boolean) => void
-  /** When anonymous hosting is required, this disclosure is rendered in the same spend card. */
-  hostingDisclosure?: HostingDisclosure
 }
 
 type Pending = SpendConfirmRequest & { resolve: (ok: boolean) => void }
@@ -164,7 +158,7 @@ export type SpendConfirmState = {
   /** 弹确认；resolve true/false。要不要弹由调用方先过 spendConfirmationRequirement。已有在显 → 入队等候（不覆盖）。 */
   requestConfirm: (req: SpendConfirmRequest) => Promise<boolean>
   /** 对话框按钮回调：ok=确认。决议队首后自动晋升下一个。 */
-  resolvePending: (ok: boolean, rememberHosting?: boolean) => void
+  resolvePending: (ok: boolean) => void
   /**
    * 清单行的勾选：显示的状态只来自队首那一份行数据（受控框），调用方的 onPlanToggle 只是观察者。
    * 锁住的行不翻转。所有带清单的确认（画布组框 / 列表分区头 / 分镜批量）共用这一个口。
@@ -183,7 +177,7 @@ export const useSpendConfirmStore = create<SpendConfirmState>()((set, get) => ({
       else set({ pending: entry })
     })
   },
-  resolvePending: (ok, rememberHosting) => {
+  resolvePending: (ok) => {
     const p = get().pending
     // 先决议当前队首，再从队列晋升下一个到显示位（空则 null）。
     set((state) => {
@@ -193,7 +187,6 @@ export const useSpendConfirmStore = create<SpendConfirmState>()((set, get) => ({
         queue: rest,
       }
     })
-    if (ok && rememberHosting) void p?.hostingDisclosure?.onRemember?.()
     p?.resolve(ok)
   },
   togglePlanRow: (row, checked) => {
@@ -234,20 +227,18 @@ export type SpendInitiator = 'user' | 'agent'
  * 「生成镜 N」，就是他本人要这一张，再弹一张卡让他再点一次，是每天几十次的白摩擦。剩下的都是「意外」的来源：
  *   - Agent / 外部 MCP 发起：人不一定在看，钱这一步必须人点头；
  *   - 一下跑 ≥2 个（×N、多选、批量、先补参考再生成）：点一次花好几份，数目要人看一眼；
- *   - 第一次走匿名托管：告知只能在这张卡里给。
  * **不看金额**（2026-09-26 用户拍板「先把价格这个维度隐藏掉，等后续官方上线再说」）：现在所有模型都走中转、
  * 各家价格不一，Nomi 不计算价格，内置目录里的生成模型一条价都没有——拿金额当判据只会是永远不生效的死判据，
  * 「拿不到报价就问」也会变成每次都问。等有了官方模型供应、价格可算时再重新设计。
  *
- * 纯函数、调用方只报事实（谁发起、跑几个、要不要告知），不在入口上各判各的——
+ * 纯函数、调用方只报事实（谁发起、跑几个），不在入口上各判各的——
  * Ctrl+Enter 单选、重试、分镜行生成、结果卡重新生成走的是不同函数，但都落到这一个判据上。
  */
 export function spendConfirmationRequirement(input: {
   initiator: SpendInitiator
   runCount: number
-  hostingDisclosure: boolean
 }): boolean {
-  return input.initiator === 'agent' || input.runCount > 1 || input.hostingDisclosure
+  return input.initiator === 'agent' || input.runCount > 1
 }
 
 /**
@@ -256,20 +247,18 @@ export function spendConfirmationRequirement(input: {
  */
 export async function confirmGenerationSpend(
   nodes: Array<{ meta?: Record<string, unknown> | null } | undefined>,
-  opts: { title: string; message: string; confirmLabel?: string; hostingDisclosure?: HostingDisclosure; initiator: SpendInitiator; planRows?: readonly PlanRow[]; onPlanToggle?: (row: PlanRow, checked: boolean) => void },
+  opts: { title: string; message: string; confirmLabel?: string; initiator: SpendInitiator; planRows?: readonly PlanRow[]; onPlanToggle?: (row: PlanRow, checked: boolean) => void },
 ): Promise<boolean> {
   if (!generationSpendsCredits(nodes)) return true
   const required = spendConfirmationRequirement({
     initiator: opts.initiator,
     runCount: nodes.length,
-    hostingDisclosure: Boolean(opts.hostingDisclosure),
   })
   if (!required) return true
   return useSpendConfirmStore.getState().requestConfirm({
     title: opts.title,
     message: opts.message,
     ...(opts.confirmLabel ? { confirmLabel: opts.confirmLabel } : {}),
-    ...(opts.hostingDisclosure ? { hostingDisclosure: opts.hostingDisclosure } : {}),
     ...(opts.planRows?.length ? { planRows: opts.planRows, ...(opts.onPlanToggle ? { onPlanToggle: opts.onPlanToggle } : {}) } : {}),
   })
 }
@@ -305,7 +294,6 @@ export async function confirmStoryboardPlanBatch(opts: {
 export async function confirmGenerationResend(input: {
   resultUnknown: boolean
   kind: string
-  hostingDisclosure?: HostingDisclosure
 }): Promise<boolean> {
   const kind = input.kind === 'image' || input.kind === 'video' ? input.kind : 'other'
   return useSpendConfirmStore.getState().requestConfirm({
@@ -314,7 +302,6 @@ export async function confirmGenerationResend(input: {
     message: input.resultUnknown ? i18n.t('generationCommon.spend.resend.unknown') : i18n.t('generationCommon.spend.resend.waiting'),
     confirmLabel: i18n.t('generationCommon.observability.action.releaseRegenerate.main'),
     cancelLabel: i18n.t('common.cancel'),
-    ...(input.hostingDisclosure ? { hostingDisclosure: input.hostingDisclosure } : {}),
   })
 }
 

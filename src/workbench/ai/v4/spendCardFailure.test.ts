@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 import { enAgentPanelV4, zhAgentPanelV4 } from '../../../i18n/locales/agentPanelV4'
 
-import { failureNeedsHostingConsent, HAND_OVER_FAILURE_COPY, handOverFailureCopy, spendActionFailureCopy } from './spendCardFailure'
+import { HAND_OVER_FAILURE_COPY, handOverFailureCopy, spendActionFailureCopy } from './spendCardFailure'
 
 /**
  * 两个产地会回的码：渲染层预检 / 交接（`handOverPrecheck`、`production.hand-over-shots`）与主进程交接 / 派发落定
@@ -60,14 +60,6 @@ describe('交给画布的一镜为什么没发出去', () => {
       const key = handOverFailureCopy({ kind: 'not_sent', code })
       expect(key, code).not.toBe('agentPanelV4.spendCard.failure.notSentFallback')
     }
-  })
-
-  it('没登记的码按种类说；要问托管同意的那一种认得出来', () => {
-    expect(handOverFailureCopy({ kind: 'not_sent', code: 'new_code' })).toBe('agentPanelV4.spendCard.failure.notSentFallback')
-    expect(handOverFailureCopy({ kind: 'parameter_rejected', code: 'new_code' })).toBe('agentPanelV4.spendCard.failure.rejectedFallback')
-    expect(failureNeedsHostingConsent({ kind: 'not_sent', code: 'asset_hosting_consent_required' })).toBe(true)
-    expect(failureNeedsHostingConsent({ kind: 'not_sent', code: 'provider_not_reached' })).toBe(false)
-    expect(failureNeedsHostingConsent(undefined)).toBe(false)
   })
 
   it('这些句子中英两轨都在、不是占位；结果未知那一句不说没发出去', async () => {

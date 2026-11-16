@@ -24,12 +24,7 @@ export const zhGenerationCommon = {
     queueOnly: '这版 ComfyUI 只能安全移除排队任务；如果任务已经运行，它会在本地继续完成',
     failed: '没能确认 ComfyUI 已取消任务；它可能仍在本地运行',
   },
-  spendHostingDisclosure: {
-    // 只说事实（2026-10-01）：不说「免费」，也不替用户推荐某一家上传通道。
-    message: '这次要用到参考图，需先上传到公共临时托管——素材会离开本机，链接短期有效，并存在隐私风险。可以在设置里换上传通道。',
-    remember: '记住我的选择，以后不再问',
-    autonomousBlocked: '这次生成要用到本机素材，需要先上传到公共临时托管，但自动任务不会替你做这个决定。请先在设置里换一个上传通道，或把「匿名素材托管」策略改为允许，然后重试。',
-  },
+  hostingDisabled: '参考素材没传上去；需要的话可以在设置里允许第三方公共临时托管。',
   provenance: {
     dialogAria: '生成记录',
     title: '生成记录 · {{name}}',
@@ -399,11 +394,11 @@ export const zhGenerationCommon = {
       },
       assetUploadFailed: {
         reason: '参考图没能送到服务商',
-        hint: '这个模型要的是一个它能取到的图片地址，而这张图只在你本机。Nomi 按顺序试了能用的上传通道（服务商自己的、借用你接入的另一家的、境外图床），全都没成，所以这次选的服务商还没被请求到，也不会有重复提交。每条通道为什么没成见下方技术详情：写着「借用某家的上传通道」的，是那一家账户的问题（例如 HTTP 402、401），与这次选的模型无关——去那一家处理，或在「模型接入」里断开它；图床连不上多半是代理没覆盖到它们。处理好之后可以直接重试，换个能直接收图的模型也行。',
+        hint: '参考素材还没发出去。请重试、换小一点的文件，或去设置里允许第三方公共临时托管。',
       },
       assetTooLarge: {
         reason: '这个素材太大，传不上去',
-        hint: '本机素材要先换成公网地址才能给服务商用，而这个文件超过了所有可用上传通道的大小上限（HTTP 413），Nomi 每条通道都试过了。重试没用——同一个文件每次都会被同一个上限挡回来。请把它压缩或裁短一点再放进来（视频尤其常见），或在「模型接入」接一个上传上限更高的通道。具体是哪个素材、多大，见下方技术详情。',
+        hint: '请压缩或裁短素材，或去设置里允许第三方公共临时托管。',
       },
       referenceNotInUse: {
         reason: '这次生成没发出去：请求里带了参考区没在用的图',
@@ -1826,11 +1821,7 @@ export const enGenerationCommon = {
     queueOnly: 'This ComfyUI version can only remove queued jobs safely. A running job will continue locally.',
     failed: 'Nomi could not confirm that ComfyUI cancelled the job. It may still be running locally.',
   },
-  spendHostingDisclosure: {
-    message: 'This generation uses a reference image, so it must first be uploaded to a public temporary host—the asset leaves this computer, the link is short-lived, and there is a privacy risk. You can change the upload channel in Settings.',
-    remember: 'Remember my choice and do not ask again',
-    autonomousBlocked: 'This generation needs a local asset uploaded to a public temporary host, and an automated run will not make that choice for you. Change the upload channel in Settings, or set the anonymous asset hosting policy to allow, then retry.',
-  },
+  hostingDisabled: 'Reference assets could not be uploaded; allow third-party public temporary hosting in Settings if needed.',
   provenance: {
     dialogAria: 'Generation record',
     title: 'Generation record · {{name}}',
@@ -2192,11 +2183,11 @@ export const enGenerationCommon = {
       },
       assetUploadFailed: {
         reason: 'Reference image never reached the provider',
-        hint: 'This model needs an image URL it can fetch, but this image only exists on your machine. Nomi tried every available upload channel in order (the provider’s own, one borrowed from another provider you connected, overseas image hosts) and none worked, so the provider you chose was never called and nothing can be submitted twice. The technical details below say why each channel failed: a line saying a channel was borrowed from another provider is a problem with that provider’s account (for example HTTP 402 or 401), not with the model you picked — fix it there, or disconnect that provider under Model Access; an unreachable image host usually means your proxy does not cover it. Once that is sorted you can retry directly, or pick a model that accepts the image directly.',
+        hint: 'Nothing was sent. Retry, use a smaller file, or allow third-party public temporary hosting in Settings.',
       },
       assetTooLarge: {
         reason: 'This asset is too large to upload',
-        hint: 'Local assets must first be turned into a publicly reachable URL, and this file exceeds the size limit of every available upload channel (HTTP 413) — Nomi tried them all. Retrying will not help: the same file hits the same ceiling every time. Compress or trim it (videos especially) and add it again, or connect a channel with a higher upload limit under Model Access. The technical details below name the asset and its size.',
+        hint: 'Compress or trim the asset, or allow third-party public temporary hosting in Settings.',
       },
       referenceNotInUse: {
         reason: 'This generation was not sent: the request carried references that are not in use',
