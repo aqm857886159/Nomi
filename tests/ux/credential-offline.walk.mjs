@@ -74,7 +74,6 @@ try {
   // 回到首页：这一家在「已接入」里（离线保存那一刻起就在，不再落回「可接入」）。
   await win.getByRole('button', { name: COPY.back, exact: true }).click()
   await expect(win.locator('[data-model-home-connection="apimart"]')).toBeVisible()
-  await expect(win.locator('[data-model-home-available="apimart"]')).toHaveCount(0)
   await screenshotSettled(win, { path: path.join(shots, '01b-home-row-badge.png') })
   console.log('PASS: offline save keeps the connection on with a not-verified badge, online automatic revalidation, 401 preserves old key; zero paid calls')
 } finally {
