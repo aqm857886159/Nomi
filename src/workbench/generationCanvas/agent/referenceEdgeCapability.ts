@@ -21,7 +21,7 @@ import { everyBuiltInArchetype } from '../../../../electron/shared/modelArchetyp
 import { effectiveArchetypeMode, effectiveArchetypeModeWithUpload } from '../nodes/controls/archetypeMeta'
 import { SLOT_ACCEPTS, type ReferenceAssetKind } from '../../../../electron/shared/modelArchetypes/anchorPolicy'
 // 「这条边合不合法」的规则只有 electron/shared/canvas/edgeAdmission 一份（主进程 headless 写图也要过它）；这里只 re-export 给渲染层调用方。
-import { EDGE_MODE_SLOTS, archetypeForNode, isTextPromptEdge, referenceAssetKindForNode, validateReferenceEdge } from '../../../../electron/shared/canvas/edgeAdmission'
+import { EDGE_MODE_SLOTS, archetypeForNode, edgeModeForReferenceRole, isTextPromptEdge, referenceAssetKindForNode, referenceDemandForRole, validateReferenceEdge, type ReferenceDemand } from '../../../../electron/shared/canvas/edgeAdmission'
 export { SLOT_ACCEPTS, type ReferenceAssetKind } from '../../../../electron/shared/modelArchetypes/anchorPolicy'
 export { archetypeForNode, isTextPromptEdge, referenceAssetKindForNode, validateReferenceEdge }
 import type { EdgeCapabilityResult, EdgeSkipReason } from '../../../../electron/shared/canvas/edgeAdmission'
@@ -187,8 +187,8 @@ function preferredIncomingImageEdgeMode(
   return acceptsIncomingImage(after) ? edgeModeForArchetypeMode(after, existingEdgesToTarget) : 'reference'
 }
 
-/** 一条「挂在节点身上的参考需求」：它想落的槽种类集合 × 源资产类型。 */
-export type ReferenceDemand = { slots: readonly ArchetypeReferenceSlotKind[]; asset: ReferenceAssetKind }
+/** 按用途给出的参考 → 槽偏好：住在共享层（主进程归一候选也用它），这里只转出去。 */
+export { edgeModeForReferenceRole, referenceDemandForRole, type ReferenceDemand }
 
 /**
  * 一条边（语义 × 源资产）可落的槽，**按偏好排好序**——落槽（referenceSlots.assignEdgeToSlot）与现算方式
@@ -199,16 +199,6 @@ export function preferredSlotKinds(
   asset: ReferenceAssetKind,
 ): ArchetypeReferenceSlotKind[] {
   return EDGE_MODE_SLOTS[mode ?? 'reference'].filter((kind) => SLOT_ACCEPTS[kind].includes(asset))
-}
-
-/** 参考的用途 → 对应的连线语义（首 / 尾帧照名；角色、通用、音频都按通用参考，落哪一格由目标的槽位解析定）。 */
-export function edgeModeForReferenceRole(role: string | undefined): GenerationCanvasEdgeMode {
-  return role === 'first_frame' || role === 'last_frame' ? role : 'reference'
-}
-
-/** 一条按用途给出的参考（不是连线）要的槽：和那条用途对应的连线要的一样。 */
-export function referenceDemandForRole(role: string | undefined, asset: ReferenceAssetKind): ReferenceDemand {
-  return { slots: EDGE_MODE_SLOTS[edgeModeForReferenceRole(role)], asset }
 }
 
 /** 计划里的边(批准前):可能用 clientId(新节点)或真实 id(复用已有卡)。 */

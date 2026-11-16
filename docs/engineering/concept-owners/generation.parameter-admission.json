@@ -76,7 +76,7 @@
       "symbol": "safeFailure"
     },
     {
-      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "path": "electron/capabilityCore/generationDraftAdmission.ts",
       "symbol": "admitDraftParameters"
     },
     {

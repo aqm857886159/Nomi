@@ -4,6 +4,7 @@
 // 两者都读不到目录；而 `core.ts` 贴着 800 行门岗（R9）。本文件是**纯函数**（目录清单由调用方传入），
 // 既不新增一条 core ↔ 本文件的静态环，也可零依赖单测。
 import { CanvasGraphError } from './canvasGraph'
+import { modelHandleOf, nearestModelHandles, resolveModelIdentity } from '../shared/agentCapabilities/modelHandle'
 
 /** 媒体节点 kind → 这个节点该挂什么 kind 的模型。其余 kind（text/shot/output…）不绑模型，不校验。 */
 const MODEL_KIND_FOR_NODE_KIND: Record<string, string> = {
@@ -32,12 +33,9 @@ export function assertCatalogModelIdentity(
   const sameKey = listing.filter((entry) => entry.modelKey === modelKey)
   const matched = identity.vendor ? sameKey.filter((entry) => entry.vendor === identity.vendor) : sameKey
   if (matched.length === 0) {
-    // 「最接近的那个」要两个方向都看：调用方可能少写（`gpt-image` → `gpt-image-2`），
-    // 也可能多写（`gpt-image-2-typo` → `gpt-image-2`）。只看一个方向时后者找不到任何东西。
-    const wanted = modelKey.toLowerCase()
-    const closest = listing.find((entry) => entry.modelKey.toLowerCase() === wanted)
-      ?? listing.find((entry) => entry.modelKey.toLowerCase().includes(wanted))
-      ?? listing.find((entry) => wanted.includes(entry.modelKey.toLowerCase()))
+    // 「最接近的那个」由名字主人给（大小写 / 别名 / 近似 / 最像的，与其余入口同一个阶梯），这里不另写一套折法。
+    // 收下仍只认一字不差：这条路只校验、不改写调用方写下的身份。
+    const closest = closestCatalogRow(listing, identity.vendor, modelKey)
     throw new CanvasGraphError(
       'unknown_model_identity',
       `目录里没有${identity.vendor ? ` ${identity.vendor} 的` : ''}模型 ${modelKey}。`
@@ -59,4 +57,18 @@ export function assertCatalogModelIdentity(
       { modelKey, modelKind: matched[0]!.kind, nodeKind: identity.kind, expectedModelKind },
     )
   }
+}
+
+/** 名字主人认出的那一行；认不出就取它给的最像的第一个；同名多家拿不准时不给（错误里已指向薄名单）。 */
+function closestCatalogRow(listing: readonly ModelIdentityRow[], vendor: string | undefined, modelKey: string): ModelIdentityRow | undefined {
+  const rows = listing.map((entry) => ({ vendor: entry.vendor, modelId: entry.modelKey, entry }))
+  const hit = resolveModelIdentity(rows, { modelId: modelKey, vendor })
+  if (hit.ok) return hit.row.entry
+  if (hit.reason === 'ambiguous') return undefined
+  // 家写对了、只是 id 写错：先在这一家的行里问名字主人要最像的（指到别家的同名近亲，用户照抄也对不上这一家）。
+  const sameVendor = vendor === undefined ? [] : rows.filter((row) => row.vendor === vendor)
+  const pool = sameVendor.length > 0 ? sameVendor : rows
+  const nearest = pool === rows ? hit.nearest : nearestModelHandles(pool, modelKey)
+  const first = nearest[0]
+  return first === undefined ? undefined : pool.find((row) => modelHandleOf(row) === first)?.entry
 }

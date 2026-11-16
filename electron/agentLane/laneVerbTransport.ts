@@ -37,7 +37,7 @@ import {
 import { cancelJobGenerationArgs, checkJobGenerationArgs } from '../shared/agentCapabilities/verbs/verbDualDomain'
 import {
   draftShotsPatchEnvelope, draftShotToCandidatePatch, draftShotToFlatCreate, draftShotToPlanShot,
-  resolveDraftShotModels, withDraftShotsDefaults, type DraftShot, type DraftShotsArgs, type ResolvedModelName,
+  resolveDraftShotModels, withDraftShotsDefaults, type DraftShot, type DraftShotModelDefaults, type DraftShotsArgs, type ResolvedModelName,
 } from '../shared/agentCapabilities/verbs/draftShotsProjection'
 import type { ModelHandleRow } from '../shared/agentCapabilities/modelHandle'
 
@@ -91,8 +91,9 @@ function addsNewShots(shots: readonly DraftShot[]): boolean {
  *
  * `models` 必传：`draft_shots` 点名模型用完整名字，要在**这条消息带上来的同一份可用模型清单**里查表
  * （模型在索引与 list_models 里看到的就是它）。不给可选：可选的注入点 = 可选的真相，漏接时每个名字都会「查不到」。
+ * `defaults`：用户给每一种任务设的默认（同名多家时名字主人只多看这一个事实，U1）；没有就是空表——多家同名照旧拒。
  */
-export function verbToTransportCall(call: RuntimeToolCall, models: readonly ModelHandleRow[]): VerbTransportCall | undefined {
+export function verbToTransportCall(call: RuntimeToolCall, models: readonly (ModelHandleRow & Readonly<{ kind?: string }>)[], defaults: DraftShotModelDefaults = {}): VerbTransportCall | undefined {
   const args = (call.args && typeof call.args === 'object' ? call.args : {}) as Args
   const base = { toolCallId: call.toolCallId }
   switch (call.toolName) {
@@ -103,7 +104,7 @@ export function verbToTransportCall(call: RuntimeToolCall, models: readonly Mode
       // 顶层缺省折进每一镜；逐镜自己写的优先。
       const shots = draft.shots.map((shot) => withDraftShotsDefaults(draft, shot))
       // 完整名字 → 宿主的两件身份；查不到 / 有歧义当场拒收（带完整名字），什么都没跑。
-      const { models: identities, resolved } = resolveDraftShotModels(shots, models)
+      const { models: identities, resolved } = resolveDraftShotModels(shots, models, defaults)
       const planShots = () => shots.map((shot, index) => draftShotToPlanShot(shot, identities[index]!))
       // 分支判断是真逻辑（改草稿 / 单镜摊平 / 多镜），不是字段名单——它留在这里。
       if (draft.operationId !== undefined && addsNewShots(shots)) {
