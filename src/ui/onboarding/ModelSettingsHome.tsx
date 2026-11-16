@@ -23,6 +23,7 @@ import { useVendorHealth } from './useVendorHealth'
 import { vendorConnectionPill } from './vendorConnectionView'
 import {
   resolveModelHomeStatus,
+  unverifiedUsableStatus,
   summarizeModelHomeConnection,
   type ModelHomeConnectionState,
 } from './modelSettingsHomeState'
@@ -231,15 +232,16 @@ function ConnectedRow({
   const unreachable = pill?.status === 'error'
 
   const state: ModelHomeConnectionState = summary.working > 0 ? 'working' : unreachable ? 'attention' : summary.state
-  const verificationFailed = summary.ready > 0 && (unreachable || connection.models.some((model) => model.availability?.usable && model.adapterState === 'failed'))
-  const unverified = connection.credentialVerificationPending || (!connection.models.some((model) => model.adapterState === 'verified')
-    && connection.models.some((model) => model.availability?.usable && (model.adapterState === 'unverified' || model.customCallDraft)))
+  const unverified = summary.working > 0 ? null : unverifiedUsableStatus({
+    credentialVerificationPending: connection.credentialVerificationPending,
+    models: connection.models,
+    unreachable,
+  })
+  const danger = unreachable && !unverified
   const statusLabel = summary.working > 0
     ? t('onboardingProviders.drawer.home.workingCount', { count: summary.working })
-    : verificationFailed
-    ? t('onboardingProviders.drawer.home.verificationFailedUsable')
     : unverified
-    ? t('onboardingProviders.keyOnly.offlineTitle')
+    ? t(unverified.labelKey)
     : unreachable && pill
     ? t(pill.labelKey)
     : summary.state === 'attention'
@@ -267,11 +269,11 @@ function ConnectedRow({
       </span>
       <span className={cn(
         'inline-flex max-w-[48%] shrink-0 items-center gap-1.5 text-right text-micro',
-        unreachable ? 'text-workbench-danger' : CONNECTION_STATUS_TEXT_TONE[state],
+        danger ? 'text-workbench-danger' : CONNECTION_STATUS_TEXT_TONE[unverified ? 'verified' : state],
       )}>
         <span className={cn(
           'size-1.5 rounded-full',
-          unreachable ? 'bg-workbench-danger' : CONNECTION_STATUS_TONE[state],
+          danger ? 'bg-workbench-danger' : CONNECTION_STATUS_TONE[unverified ? 'verified' : state],
         )} />
         {statusLabel}
       </span>

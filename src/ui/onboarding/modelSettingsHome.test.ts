@@ -3,7 +3,31 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { Mapping } from '../../../electron/catalog/types'
 import type { ChipModel } from './ModelChipGroups'
-import { modelsVisibleOnHome, resolveModelHomeStatus, summarizeModelHomeConnection } from './modelSettingsHomeState'
+import { modelsVisibleOnHome, resolveModelHomeStatus, summarizeModelHomeConnection, unverifiedUsableStatus } from './modelSettingsHomeState'
+
+// 协调 2026-11-17：列表行和连接详情徽标只有一个词「未验证」、绿点，同取 unverifiedUsableStatus。
+describe('one word for "not verified but usable"', () => {
+  const usable = { usable: true } as const
+  const unusable = { usable: false, reason: 'model_unpublished' } as const
+  const row = (patch: Partial<ChipModel>): ChipModel => ({ vendorKey: 'relay', modelKey: 'gpt-image-2', labelZh: 'gpt-image-2', kind: 'image', enabled: true, ...patch })
+  it.each([
+    ['pending credential', { credentialVerificationPending: true, models: [row({ availability: usable })], unreachable: false }],
+    ['self-check did not get through (offline / timeout / provider error)', { models: [row({ availability: usable, adapterState: 'failed' })], unreachable: false }],
+    ['connection unreachable but a model has a request format', { models: [row({ availability: usable, adapterState: 'verified' })], unreachable: true }],
+    ['never verified, usable', { models: [row({ availability: usable, adapterState: 'unverified' })], unreachable: false }],
+  ] as const)('%s → 未验证, green', (_name, input) => {
+    expect(unverifiedUsableStatus(input)).toEqual({ labelKey: 'onboardingProviders.keyOnly.offlineTitle', tone: 'ok' })
+  })
+  it.each([
+    ['verified', { models: [row({ availability: usable, adapterState: 'verified' })], unreachable: false }],
+    ['unreachable with nothing usable keeps the red reachability pill', { models: [row({ availability: unusable, adapterState: 'failed' })], unreachable: true }],
+  ] as const)('%s → not this state', (_name, input) => {
+    expect(unverifiedUsableStatus(input)).toBeNull()
+  })
+  it('counts a not-verified usable model as 可使用 (header counting unchanged)', () => {
+    expect(summarizeModelHomeConnection([row({ availability: usable, adapterState: 'failed' }), row({ availability: usable, adapterState: 'unverified' })], [])).toMatchObject({ ready: 2, needsSetup: 0 })
+  })
+})
 
 const model = (patch: Partial<ChipModel> = {}): ChipModel => ({
   vendorKey: 'future-api',

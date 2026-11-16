@@ -34,3 +34,15 @@ describe('model setup copy never makes verification a gate for use', () => {
     expect(offending).toEqual([])
   })
 })
+
+// 协调 2026-11-17：「没验成但能用」只有一个词「未验证」；旧的「验证没通过，仍可使用」「未通过」徽标词条整条删掉，不留并行。
+describe('the retired "verification failed" status words stay deleted', () => {
+  it.each([
+    ['zh', zhOnboardingProviders, /验证没通过|仍可使用/],
+    ['en', enOnboardingProviders, /verification failed|still usable/i],
+  ] as const)('%s', (_name, copy, pattern) => {
+    expect(strings(copy, '', []).filter(([, text]) => pattern.test(text))).toEqual([])
+    expect(copy.drawer.home).not.toHaveProperty('verificationFailedUsable')
+    expect(copy.adapterVerification.cardStatus).not.toHaveProperty('failed')
+  })
+})

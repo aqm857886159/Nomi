@@ -16,6 +16,7 @@ import { ModelEnableEditor } from './ModelEnableEditor'
 import { CustomVendorManage } from './CustomVendorManage'
 import { adapterProviderState } from './adapterVerificationViewModel'
 import { useVendorHealth } from './useVendorHealth'
+import { unverifiedUsableStatus } from './modelSettingsHomeState'
 import { vendorConnectionPill } from './vendorConnectionView'
 import { type ChipModel } from './ModelChipGroups'
 import type { OnboardingVendorMeta } from './useOnboardingDrawerCatalog'
@@ -78,12 +79,21 @@ export function CustomVendorCard({
   })
   const enabledN = models.filter((m) => m.enabled).length
   const adapterCard = adapterProviderState(models)
-  const adapterLabel =
-    adapterCard.state === 'configured'
-      ? t('onboardingProviders.drawer.configured')
-      : t(`onboardingProviders.adapterVerification.cardStatus.${adapterCard.state}`)
   const health = connection ? vendorConnectionPill(connection) : null
   const unreachable = health?.status === 'error'
+  // 「未验证」的词和点色与设置列表行同取一处（unverifiedUsableStatus），不在这里另写一份。
+  const unverified = adapterCard.state === 'testing' ? null : unverifiedUsableStatus({
+    credentialVerificationPending: vendorMeta?.credentialVerificationPending,
+    models,
+    unreachable,
+  })
+  const adapterLabel = unverified
+    ? t(unverified.labelKey)
+    : adapterCard.state === 'configured'
+      ? t('onboardingProviders.drawer.configured')
+      : adapterCard.state === 'failed'
+        ? t('onboardingProviders.drawer.home.needsSetupCount', { count: models.filter((model) => !model.availability?.usable).length })
+        : t(`onboardingProviders.adapterVerification.cardStatus.${adapterCard.state}`)
 
   return (
     <FoldableModelCard
@@ -93,9 +103,9 @@ export function CustomVendorCard({
       name={name}
       subtitle={t('onboardingProviders.drawer.modelsEnabled', { enabled: enabledN, total: models.length })}
       status={
-        unreachable ? 'error' : adapterCard.state === 'configured' || adapterCard.state === 'verified' ? 'ok' : 'todo'
+        unverified ? unverified.tone : unreachable ? 'error' : adapterCard.state === 'configured' || adapterCard.state === 'verified' ? 'ok' : 'todo'
       }
-      statusLabel={unreachable && health ? t(health.labelKey) : adapterLabel}
+      statusLabel={!unverified && unreachable && health ? t(health.labelKey) : adapterLabel}
       defaultExpanded={false}
       onOpenDetails={onOpenDetails}
       detailMode={detailMode}

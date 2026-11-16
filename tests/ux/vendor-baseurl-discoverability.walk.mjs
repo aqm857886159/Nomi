@@ -170,7 +170,7 @@ await step('切到「模型」页签', async () => {
 // ① 首页那一行必须把「连不上」说出来（用户扫视的就是这一屏）。
 const homeRow = win.locator(`[data-model-home-connection="${vendorKey}"]`)
 await expectVisible(homeRow, '首页已连入行')
-await expect(homeRow, '① 401 只作诊断，已有格式的模型仍可使用').toContainText(uiText('zh-CN', 'onboardingProviders.drawer.home.verificationFailedUsable'))
+await expect(homeRow, '① 列表接口 401 只作诊断，已有格式的模型照样能用，行上只说「未验证」').toContainText(uiText('zh-CN', 'onboardingProviders.keyOnly.offlineTitle'))
 await expect(
   win.locator(`[data-model-home-unreachable][data-model-home-connection="${vendorKey}"]`),
   '① 连不上的行要带 data-model-home-unreachable 标记',

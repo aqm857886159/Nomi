@@ -53,6 +53,23 @@ export function summarizeModelHomeConnection(
   return { state, ready, working, needsSetup, disabled }
 }
 
+/**
+ * 「没验证、或这次没验成，但能用」——设置里连接列表行和连接详情徽标**只从这里**取词和点色（协调 2026-11-17）。
+ * 401/403 已在保存时拒收，剩下的「没验成」只有断网 / 超时 / 供应商出错，对创作者和「还没验证」是一回事，所以只有一个词。
+ * 返回 null = 不是这个状态，由各自原有的档位接着判。
+ */
+export function unverifiedUsableStatus(input: {
+  credentialVerificationPending?: boolean
+  models: readonly Pick<ChipModel, 'availability' | 'adapterState' | 'customCallDraft'>[]
+  unreachable: boolean
+}): { labelKey: 'onboardingProviders.keyOnly.offlineTitle'; tone: 'ok' } | null {
+  const usable = input.models.filter((model) => model.availability?.usable === true)
+  const notVerifiedYet = usable.length > 0 && (input.unreachable || usable.some((model) => model.adapterState === 'failed'))
+  const neverVerified = input.credentialVerificationPending === true || (!input.models.some((model) => model.adapterState === 'verified')
+    && usable.some((model) => model.adapterState === 'unverified' || model.customCallDraft))
+  return notVerifiedYet || neverVerified ? { labelKey: 'onboardingProviders.keyOnly.offlineTitle', tone: 'ok' } : null
+}
+
 export function modelsVisibleOnHome({
   models,
   mappings,

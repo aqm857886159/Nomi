@@ -317,7 +317,6 @@ export const zhOnboardingProviders = {
       advanced: '高级与连接设置',
       needsAttention: '需要继续处理',
       noResults: '没有找到匹配的连接或模型',
-      verificationFailedUsable: '验证没通过，仍可使用',
       verificationFailedUsableHint: '已有请求方式，可以直接在模型框里选择并生成，也可以重新验证。',
       readyCount: '{{count}} 个可使用',
       workingCount: '{{count}} 个配置中',
@@ -940,7 +939,6 @@ export const zhOnboardingProviders = {
       testing: '验证中',
       verified: '自检通过',
       partial: '部分可用',
-      failed: '未通过',
     },
   },
   dreamina: {
@@ -1580,7 +1578,6 @@ export const enOnboardingProviders = {
   },
   drawer: {
     home: {
-      verificationFailedUsable: 'Verification failed; still usable',
       verificationFailedUsableHint: 'A request format is configured. Select the model to generate, or verify again.',
       title: 'Models',
       subtitle: '{{connections}} connections · {{models}} models',
@@ -2246,7 +2243,6 @@ export const enOnboardingProviders = {
       testing: 'Verifying',
       verified: 'Self-check passed',
       partial: 'Partially usable',
-      failed: 'Failed',
     },
   },
   dreamina: {

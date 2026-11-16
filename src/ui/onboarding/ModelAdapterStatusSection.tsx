@@ -112,9 +112,7 @@ export function ModelAdapterStatusSection({
           </span>
           <div className="min-w-0 flex-1">
             <h3 className="text-body-sm font-semibold text-nomi-ink">
-              {model.availability?.usable && model.adapterState === 'failed'
-                ? t('onboardingProviders.drawer.home.verificationFailedUsable')
-                : model.credentialVerificationPending
+              {(model.availability?.usable && model.adapterState === 'failed') || model.credentialVerificationPending
                   ? t('onboardingProviders.keyOnly.offlineTitle')
                   : t(`onboardingProviders.workspace.adapter.title.${state.state}` as 'onboardingProviders.workspace.adapter.title.readyVerified')}
             </h3>
