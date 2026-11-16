@@ -9,7 +9,7 @@
 
 /** Nomi's boundary. SDK objects and types stay in the private pi directory. */
 export interface NomiModelConfig {
-  kind: 'openai-compatible' | 'openai-responses' | 'anthropic'
+  kind: 'openai-compatible' | 'openai-responses' | 'anthropic' | 'google-generative-ai'
   providerId: string
   modelId: string
   baseURL: string
@@ -19,6 +19,8 @@ export interface NomiModelConfig {
   contextWindow?: number
   maxOutputTokens?: number
   temperature?: number
+  /** Explicit model input capabilities; media is never inferred from a model name. */
+  inputModalities?: Array<'text' | 'image' | 'audio' | 'video'>
   /**
    * 按 token 计费的价目，**单位一律「美元 / 每百万 token」**（与 `Model.tokenPricing` 同一个单位）。
    * 缺席 = 我们没有这个模型的价目 → 运行时把花费那一行渲染成「不可知」，**不是 0**。

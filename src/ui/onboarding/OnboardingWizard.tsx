@@ -156,7 +156,8 @@ export function OnboardingWizard({
         if (
           config.providerKind === 'anthropic' ||
           config.providerKind === 'openai-compatible' ||
-          config.providerKind === 'openai-responses'
+          config.providerKind === 'openai-responses' ||
+          config.providerKind === 'google-generative-ai'
         ) {
           setProviderKind(config.providerKind)
         }
@@ -370,6 +371,7 @@ export function OnboardingWizard({
         baseUrl: effectiveBaseUrl,
         apiKey: requestAuth.apiKey,
         authType: requestAuth.authType,
+        ...(requestAuth.authHeader ? { authHeader: requestAuth.authHeader } : {}),
         providerKind,
         headers: buildHeadersObject(),
         ...(proxyUrl.trim() ? { proxyUrl: proxyUrl.trim() } : {}),
@@ -392,6 +394,7 @@ export function OnboardingWizard({
     effectiveBaseUrl,
     requestAuth.apiKey,
     requestAuth.authType,
+    requestAuth.authHeader,
     providerKind,
     buildHeadersObject,
     proxyUrl,

@@ -2,7 +2,8 @@ import React, { type JSX } from 'react'
 import { IconChevronRight } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import type { Mapping } from '../../../electron/catalog/types'
-import { parseCustomCapabilityContract } from '../../../electron/shared/modelArchetypes'
+import { textModelInputSettings } from '../../../electron/shared/textModelInput'
+import { PROVIDER_KIND_LABEL } from './onboardingProviderKindLabels'
 import type { ChipModel } from './ModelChipGroups'
 import { projectModelCapability } from './modelCapabilityProjection'
 
@@ -62,10 +63,13 @@ export function ModelCapabilitySummary({
     () => projectModelCapability({ model, mappings }),
     [model, mappings],
   )
-  const hasCustomContract = Boolean(parseCustomCapabilityContract(model.meta))
-  const canEditInput = (model.kind !== 'text' || hasCustomContract) && Boolean(onEdit)
+  const textInputs = textModelInputSettings(model.meta)
+  const canEditInput = Boolean(onEdit)
   const inputSummary = model.kind === 'text'
-    ? t('onboardingProviders.workspace.capability.inputText')
+    ? [t('onboardingProviders.workspace.capability.nativeInput.text'),
+      ...(textInputs.image === true ? [t('onboardingProviders.workspace.capability.nativeInput.image')] : []),
+      ...(textInputs.audio ? [t('onboardingProviders.workspace.capability.nativeInput.audio')] : []),
+      ...(textInputs.video ? [t('onboardingProviders.workspace.capability.nativeInput.video')] : [])].join(' / ')
     : projection.inputContract === 'known'
       ? t('onboardingProviders.workspace.capability.inputKnown', { count: projection.modes.length })
       : t('onboardingProviders.workspace.capability.inputUnknown')
@@ -74,7 +78,7 @@ export function ModelCapabilitySummary({
     : projection.transport.mappings.length > 0
       ? t('onboardingProviders.workspace.capability.requestKnown', { count: projection.transport.mappings.length })
       : model.kind === 'text'
-        ? t('onboardingProviders.workspace.capability.requestDefaultText')
+        ? textInputs.providerKind === 'inherit' ? t('onboardingProviders.workspace.capability.requestDefaultText') : PROVIDER_KIND_LABEL[textInputs.providerKind]
         : t('onboardingProviders.workspace.capability.requestUnknown')
 
   return (

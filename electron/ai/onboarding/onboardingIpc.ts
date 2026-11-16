@@ -26,7 +26,10 @@ import { registerAntigravityIpc } from "../antigravityIpc";
  * 重测一条已存在的连接 → 用它声明的那份（方案词只住在那里，向导上没有填它的格子）。
  */
 function savedConnectionAuth(baseUrl: string, kind: AiSdkProviderKind): VendorAuthSpec {
-  return connectionAuthSpec({ baseUrl, authType: kind === "anthropic" ? "x-api-key" : "bearer" });
+  return connectionAuthSpec({ baseUrl,
+    authType: kind === "anthropic" || kind === 'google-generative-ai' ? "x-api-key" : "bearer",
+    ...(kind === 'google-generative-ai' ? { authHeader: 'x-goog-api-key' } : {}),
+  });
 }
 
 export function registerOnboardingIpc(): void {
@@ -119,7 +122,7 @@ export function registerOnboardingIpc(): void {
       const headers = buildAuthHeaders(kind, apiKey, extraHeaders, savedConnectionAuth(rawBaseUrl, kind));
       const listed = await fetchModelList(kind, rawBaseUrl || "https://api.anthropic.com", headers, controller.signal, { proxyUrl });
       return listed.ok
-        ? { ok: true, status: listed.statuses.at(-1), ...(kind === "anthropic" ? { detectedKind: "anthropic" as const } : {}) }
+        ? { ok: true, status: listed.statuses.at(-1), ...(kind === "anthropic" || kind === 'google-generative-ai' ? { detectedKind: kind } : {}) }
         : { ok: false, status: listed.status, failureKind: listed.failureKind, error: listed.error };
     } finally {
       clearTimeout(timeout);

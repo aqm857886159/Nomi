@@ -194,7 +194,15 @@ export function projectDeclaredModel(candidate: CapabilityModelDraft, vendorKey:
     return mappingRowFromDeclaredMode({ vendorKey, modelKey: candidate.modelKey, label: candidate.labelZh, mode: { ...mode, create }, enabled: !published || published.includes(mode.taskKind) });
   });
   const ownership = { version: 1, hasMediaContract: Boolean(contract), capabilityDigest: capabilityFactDigest(contract), wireDigests: Object.fromEntries(mappings.map((row) => [row.taskKind, capabilityFactDigest(declaredWireFact(row))])) };
-  return { kind: candidate.kind, contract, mappings, taskKinds: candidate.kind === 'text' && !published ? [...new Set<ProfileKind>(['chat', ...modes.map((m) => m.taskKind)])] : modes.map((m) => m.taskKind), meta: { customCapabilityContract: contract || undefined, parameters: candidate.parameters || params.map(({ defaultValue, options, ...p }) => ({ ...p, default: defaultValue, ...(options.length ? { options: options.map((o) => o.value) } : {}) })), declarationProjection: ownership } };
+  const textInputs = candidate.kind === 'text' ? {
+    ...(candidate.inputModalities ? {
+      supportsImageInput: candidate.inputModalities.includes('image'),
+      supportsAudioInput: candidate.inputModalities.includes('audio'),
+      supportsVideoInput: candidate.inputModalities.includes('video'),
+    } : {}),
+    ...(candidate.textProviderKind ? { textProviderKind: candidate.textProviderKind } : {}),
+  } : {};
+  return { kind: candidate.kind, contract, mappings, taskKinds: candidate.kind === 'text' && !published ? [...new Set<ProfileKind>(['chat', ...modes.map((m) => m.taskKind)])] : modes.map((m) => m.taskKind), meta: { customCapabilityContract: contract || undefined, parameters: candidate.parameters || params.map(({ defaultValue, options, ...p }) => ({ ...p, default: defaultValue, ...(options.length ? { options: options.map((o) => o.value) } : {}) })), declarationProjection: ownership, ...textInputs } };
 }
 
 export type DeclaredRouteConflictReason = 'unowned' | 'edited' | 'independent_mode' | 'capability_edited' | 'capability_authored';

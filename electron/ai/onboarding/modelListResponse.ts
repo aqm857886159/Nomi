@@ -4,7 +4,7 @@ import { isJsonRecord, pickUpstreamMessage } from "../../jsonUtils";
 export type ModelListFailureKind = "unsupported" | "auth" | "rate_limit" | "network" | "invalid_response" | "upstream" | "redirect";
 
 export type ModelListPage =
-  | { ok: true; models: string[]; descriptors?: ModelListDescriptor[]; next?: string; afterId?: string }
+  | { ok: true; models: string[]; descriptors?: ModelListDescriptor[]; next?: string; afterId?: string; pageToken?: string }
   | { ok: false; failureKind: ModelListFailureKind; error?: string };
 
 /** Optional metadata carried by OpenRouter-style model records. Bare `{id}`
@@ -59,6 +59,18 @@ export function parseModelListPage(bodyText: string, sanitize?: (message: string
   const failed = businessFailure(json, sanitize);
   if (failed) return failed;
   const record = isJsonRecord(json) ? json : {};
+  // Google native list uses resource names, not OpenAI ids; keep requestable IDs only.
+  if (Array.isArray(record.models) && !Array.isArray(record.data)) {
+    const models = record.models.flatMap((item) => {
+      if (!isJsonRecord(item)) return [];
+      if (Array.isArray(item.supportedGenerationMethods) && !item.supportedGenerationMethods.includes('generateContent')) return [];
+      const name = text(item.name);
+      return name.startsWith('models/') && name.length > 7 ? [name.slice(7)] : [];
+    });
+    const token = text(record.nextPageToken);
+    if (record.nextPageToken !== undefined && !token) return { ok: false, failureKind: 'invalid_response', error: 'Invalid model-list pagination token' };
+    return { ok: true, models: [...new Set(models)], ...(token ? { pageToken: token } : {}) };
+  }
   const nativeResults = Array.isArray(record.results) && !Array.isArray(record.data);
   const list = Array.isArray(json) ? json : Array.isArray(record.data) ? record.data : nativeResults ? record.results as unknown[] : null;
   if (!list) return { ok: false, failureKind: "invalid_response" };

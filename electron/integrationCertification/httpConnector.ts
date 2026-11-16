@@ -41,7 +41,7 @@ export type HttpLocalRuntimeProbeInput = Pick<
   LocalAiExternalProbeInput,
   "baseUrl" | "apiKey" | "authScope" | "signal"
 > & {
-  providerKind: "openai-compatible" | "openai-responses" | "anthropic";
+  providerKind: AiSdkProviderKind;
   authType: "none" | "bearer" | "x-api-key" | "query";
   authHeader?: string;
 };
@@ -87,7 +87,7 @@ function localAiAuthHeader(input: HttpLocalRuntimeProbeInput): LocalAiExternalPr
 
 export function buildHttpDiscoveryRequests(input: {
   baseUrl: string;
-  providerKind: "openai-compatible" | "openai-responses" | "anthropic";
+  providerKind: AiSdkProviderKind;
   authType: "none" | "bearer" | "x-api-key" | "query";
   apiKey: string;
   authHeader?: string;

@@ -37,7 +37,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   // 官方厂商组（文本，地址内置）。
   { id: 'openai', label: 'OpenAI', providerKind: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', keyUrl: 'https://platform.openai.com/api-keys', group: 'official' },
   { id: 'claude', label: 'Claude', providerKind: 'anthropic', baseUrl: '', keyUrl: 'https://console.anthropic.com/settings/keys', group: 'official' },
-  { id: 'gemini', label: 'Gemini', providerKind: 'openai-compatible', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', keyUrl: 'https://aistudio.google.com/apikey', group: 'official' },
+  { id: 'gemini', label: 'Gemini', providerKind: 'google-generative-ai', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', keyUrl: 'https://aistudio.google.com/apikey', group: 'official' },
   { id: 'openrouter', label: 'OpenRouter', providerKind: 'openai-compatible', baseUrl: 'https://openrouter.ai/api/v1', keyUrl: 'https://openrouter.ai/keys', group: 'official' },
   { id: 'siliconflow', label: 'SiliconFlow', providerKind: 'openai-compatible', baseUrl: 'https://api.siliconflow.cn/v1', keyUrl: 'https://cloud.siliconflow.cn/account/ak', group: 'official' },
   { id: 'kimi', label: 'Kimi', providerKind: 'openai-compatible', baseUrl: 'https://api.moonshot.cn/v1', keyUrl: 'https://platform.moonshot.cn/console/api-keys', group: 'official' },

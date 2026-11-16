@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { parseModelListPage, parseModelListResponse } from "./modelListResponse";
 
+describe('Google native model list', () => {
+  it('extracts exact generation IDs and page token while excluding embedding-only models', () => {
+    expect(parseModelListPage(JSON.stringify({ models: [
+      { name: 'models/gemini-custom', supportedGenerationMethods: ['generateContent'] },
+      { name: 'models/embedding-only', supportedGenerationMethods: ['embedContent'] },
+    ], nextPageToken: 'next-2' }))).toEqual({ ok: true, models: ['gemini-custom'], pageToken: 'next-2' })
+  })
+})
+
 describe("parseModelListResponse", () => {
   // 这条是根因回归：new-api/one-api 的 SPA 对未知路径回 200 + index.html。
   // 若把它当「命中但空」，多候选探测就会提前收工，永远试不到真正的 /v1/models。

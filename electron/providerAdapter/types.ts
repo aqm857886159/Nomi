@@ -105,6 +105,10 @@ export type AdapterModelDraft = {
   modelKey: string;
   labelZh: string;
   kind: BillingModelKind;
+  /** Native text-model input capabilities, declared from the provider contract. */
+  inputModalities?: Array<'text' | 'image' | 'audio' | 'video'>;
+  /** Optional model-local text protocol for mixed-protocol relay connections. */
+  textProviderKind?: AiSdkProviderKind;
   parameters?: Array<{
     key: string;
     label: string;

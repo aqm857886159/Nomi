@@ -1,0 +1,35 @@
+{
+  "machine": "win32 x64 Intel(R) Core(TM) i5-14400 x16 / 32GB",
+  "commit": "9848a28f0",
+  "head": "9848a28f0c898e4c090e07dc530a9756f4e3a2fb",
+  "dirty": true,
+  "sourceTree": "b7a0075464dfcc826fa59ed8e4978647ba4333d8",
+  "date": "2026-11-09",
+  "runs": 5,
+  "results": [
+    {
+      "id": "native-media-inline-14m",
+      "metrics": {
+        "transferMs": {
+          "runs": 5,
+          "median": 71.4,
+          "p95": 77
+        }
+      },
+      "samples": {
+        "transferMs": [
+          68.72270000000003,
+          71.43270000000001,
+          76.71250000000003,
+          77.07309999999995,
+          71.38829999999996
+        ]
+      },
+      "budget": 100,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

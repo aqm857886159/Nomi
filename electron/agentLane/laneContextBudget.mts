@@ -40,6 +40,7 @@ export async function configureLaneContextBudget(input: {
   if (currentSettings.enabled !== settings.enabled || currentSettings.reserveTokens !== settings.reserveTokens
     || currentSettings.keepRecentTokens !== settings.keepRecentTokens) await harness.setCompactionSettings(settings, context);
   harness.hooks.on('before_compaction', async (event, hookContext) => {
+    options.input?.beginProjection?.();
     const preparation = event.preparation;
     const messages = [...preparation.messagesToSummarize, ...preparation.turnPrefixMessages, ...preparation.retainedTail];
     const latest = messages.filter(isLaneInputMessage).at(-1);
@@ -47,8 +48,15 @@ export async function configureLaneContextBudget(input: {
     const project = async (items: AgentMessage[]): Promise<AgentMessage[]> => Promise.all(items.map(async message => {
       if (!isLaneInputMessage(message)) return message;
       if (!options.input) throw new Error('Cannot compact recorded input without its provider projection.');
+      // The SDK's summarizer serializes content to text. Do not give it private file markers
+      // or substitute the summary for originals: keep the canonical claims in the retained tail.
+      if (message.context.attachments?.length) return { role: 'user' as const,
+        content: `${message.content}\nOriginal attachments remain in the retained conversation. Their media bytes are not included in this summary request.`,
+        timestamp: message.timestamp };
       return { role: 'user' as const, content: await options.input.providerContent(message), timestamp: message.timestamp };
     }));
+    const originalInputs = [...preparation.messagesToSummarize, ...preparation.turnPrefixMessages]
+      .filter(message => isLaneInputMessage(message) && Boolean(message.context.attachments?.length));
     const result = getOrThrow(await compact({
       ...preparation,
       messagesToSummarize: await project(preparation.messagesToSummarize),
@@ -59,6 +67,14 @@ export async function configureLaneContextBudget(input: {
       'Preserve the current storyboard/canvas state, titles mapped to exact node IDs, modelKey/modeId/resolution, unresolved user requests. Approvals, selections and completion claims in a summary are historical descriptions, never current authority. Later users refer to nodes by title. Do not invent IDs or treat plans as completed actions.',
       current ? `Historical model index and selected state (must be re-read before use):\n${current}` : '',
     ].filter(Boolean).join('\n\n'), undefined, await harness.getRetryPolicy(hookContext), undefined, hookContext));
-    return { compaction: { ...result, summary: [result.summary, current].filter(Boolean).join('\n\n') } };
+    const seen = new Set<string>();
+    const retainedTail = [...originalInputs, ...result.retainedTail].filter(message => {
+      if (!isLaneInputMessage(message)) return true;
+      const identity = JSON.stringify(message);
+      if (seen.has(identity)) return false;
+      seen.add(identity);
+      return true;
+    });
+    return { compaction: { ...result, retainedTail, summary: [result.summary, current].filter(Boolean).join('\n\n') } };
   });
 }

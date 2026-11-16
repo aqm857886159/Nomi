@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-09T09:34:55.448Z",
+  "model": "gemini-4-argon",
+  "elapsedMs": 14553,
+  "wireFacts": {
+    "url": "https://newapi.dragon3api.com/v1beta/models/gemini-4-argon:streamGenerateContent",
+    "inlineMimeTypes": [
+      "image/png",
+      "audio/wav",
+      "video/mp4"
+    ],
+    "bodyBytes": 2750711
+  },
+  "stopReason": "stop",
+  "text": "图片内容：一张展示了深蓝色陶瓷马克杯的特写照片，背景为浅米色。\n视频内容：一段展示了一个蓝色陶瓷小碗放置在木质桌面上的短视频，背景中可以看到模糊的窗户和绿植。\n音频内容：视频为静音，没有音频轨道。\n\nNATIVE_MEDIA_20261109",
+  "usage": {
+    "input": 1515,
+    "output": 209,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "reasoning": 125,
+    "totalTokens": 1724
+  },
+  "testScope": "One real model call using production compiled Nomi model-call/provider/transport; original PNG, WAV and MP4 inline, no transcripts or frame extraction submitted.",
+  "pricingBasis": "unpriced",
+  "verificationLimits": [
+    "Near-silent diagnostic audio does not prove speech recognition quality.",
+    "One provider call proves this tested model/request only.",
+    "SDK zero-valued cost is an unpriced placeholder, not a free-call claim."
+  ]
+}
