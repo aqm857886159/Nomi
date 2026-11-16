@@ -2,30 +2,30 @@
 // （合同 docs/fixes/2026-11-17-asset-liveness-scan.root-cause.json；设计卡 docs/plan/2026-11-17-asset-liveness-scan.md 验收第 10 条）。
 //
 // 创作者的流程，全部真手势：
-//   ① 打开分镜，在镜头 1 的参考格点「+」，从选择器的「画布」一栏选这张生成结果；
+//   ① 打开分镜，在镜头 1 参考行点「+」，从参考选择器的「画布」一栏选这张生成结果；
 //   ② 回画布，铺开那个节点的版本卡，删掉产出它的那一版（不弹确认，提示条给撤销）；
 //   ③ 顶栏项目菜单 → 回项目库（关项目：撤销窗口在这一刻结束，延后回收在这里释放）；
 //   ④ 断言：文件还在原路径、没进回收站；
-//   ⑤ 重开项目 → 分镜 → 镜头 1 的参考图能显示（图片真的解码出像素）。
+//   ⑤ 重开项目 → 分镜 → 镜头 1 的参考小图还挂着、能解码出像素（修前这里裂图）。
 // 修前（只认画布结果 / 白板 / 时间轴的那版判定）③ 之后文件被移进回收站，④ 红；修后绿。
 //
 // 不碰这台电脑真实的回收站：macOS 上项目放在一次性的小磁盘映像卷上（它自己的废纸篓 <卷>/.Trashes/<uid>），
 // 修前那一跑文件就是进了那里，走查顺带把它记进观察；收尾卸载，映像随临时根删掉。CI 的 runner 用完即毁照跑；
 // 其它系统本机跑没有一次性回收站，明着 SKIP。资料目录隔离（launchNomiApp 的 tempRoot），不连任何供应商。
 //
-// 用法：pnpm build && node tests/ux/asset-liveness-storyboard-ref.walk.mjs   （只跑 zh 一轨）
+// 用法：pnpm build && node tests/ux/asset-liveness-storyboard-ref.walk.mjs   （只跑 zh 一轨；WALK_OUT_DIR=<目录> 改截图位置）
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { expect, clickOrFail, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { backToLibrary, canvasFitViewButton, switchGenerationView, switchWorkspace } from './_shell.mjs'
+import { backToLibrary, canvasFitViewButton, canvasSetZoomPercent, switchGenerationView, switchWorkspace } from './_shell.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 
 const NAME = 'asset-liveness-storyboard-ref'
-const outDir = path.join(repoRoot, 'tests/ux/shots', NAME, 'zh-CN')
+const outDir = process.env.WALK_OUT_DIR || path.join(repoRoot, 'tests/ux/shots', NAME, 'zh-CN')
 fs.rmSync(outDir, { recursive: true, force: true })
 fs.mkdirSync(outDir, { recursive: true })
 const tempRoot = makeTempDir('nomi-asset-liveness-')
@@ -74,8 +74,10 @@ const sourceNode = {
   result: result(2), history: [result(2), result(1)], status: 'success',
   position: { x: 120, y: 120 }, size: { width: 320, height: 180 }, meta: { imageWidth: 320, imageHeight: 180, imageAspectRatio: 16 / 9 },
 }
-// APIMart 内置目录里的 Seedance 2.0「图生视频」有一个 image_ref 参考槽 → 镜头行的参考格有「+」。不生成、不连供应商。
-const shot = { index: 1, shotId: 'shot-1', shotKind: 'video', durationSec: 5, anchorIds: [], prompt: '雨夜巷口，镜头缓推', modelKey: 'doubao-seedance-2.0', modelVendor: 'apimart', modeId: 'i2v' }
+// 镜头用即梦会员的 Seedance「全能参考」：这一家是内置的本地 CLI（不要钥匙），隔离资料里也在模型清单上；这个模式有 image_ref
+// 参考槽 → 镜头行的「+」开的是参考选择器。APIMart 的模型在没连钥匙的隔离资料里不在清单上，镜头会没有可用模式，「+」只剩引用菜单、
+// 也挂不上参考（协调 2026-11-17 第一跑就红在这里）。不生成、不调 CLI、不连供应商。
+const shot = { index: 1, shotId: 'shot-1', shotKind: 'video', durationSec: 5, anchorIds: [], prompt: '雨夜巷口，镜头缓推', modelKey: 'dreamina-seedance-2.0', modelVendor: 'dreamina', modeId: 'multimodal' }
 const plan = { title: PROJECT_NAME, anchors: [], shots: [shot] }
 const project = {
   id: projectId, name: PROJECT_NAME, version: 2, createdAt: 1, updatedAt: 1, savedAt: 1, revision: 1, lastKnownRootPath: projectRoot,
@@ -103,6 +105,28 @@ async function openProject() {
   await expectVisible(win.locator('[data-shell-topbar]'), '打开项目后顶栏可见')
 }
 const row = () => win.locator('[data-storyboard-row="1"]').first()
+/** 项目文件里镜头 1 的参考绑定地址（所有槽展开）。 */
+const boundUrls = () => {
+  const designs = readSaved().payload?.storyboardDesignsByDocumentId?.['doc-1'] ?? []
+  const bindings = designs[0]?.plan?.shots?.[0]?.referenceBindings ?? {}
+  return Object.values(bindings).flatMap((value) => (Array.isArray(value) ? value : [value])).map((binding) => binding?.url).filter(Boolean)
+}
+/**
+ * 在窗口里按创作者看到的同一个地址真的取一次文件并解码，能解出像素 = 参考图能显示；文件没了 = 裂图。
+ * 不加缓存破坏参数（本地素材协议拒收任何查询串），改用不走缓存的 fetch，避免读到删前留在内存里的那份。
+ */
+const decodes = (url) => win.evaluate(async (src) => {
+  try {
+    const response = await fetch(src, { cache: 'no-store' })
+    if (!response.ok) return false
+    const bitmap = await createImageBitmap(await response.blob())
+    const ok = bitmap.width > 0
+    bitmap.close()
+    return ok
+  } catch {
+    return false
+  }
+}, url)
 
 try {
   launched = await launchNomiApp({
@@ -113,18 +137,20 @@ try {
   win = launched.win
   await openProject()
 
-  // ① 分镜镜头 1 的参考格「+」→ 选择器「画布」一栏 → 选第 2 版（主图）。
+  // ① 镜头 1 参考行的「+」→ 参考选择器「画布」一栏 → 点画布上那张第 2 版（主图）→ 挂成这一镜的参考，行上出现小图。
   await switchWorkspace(win, 'creation')
   await openStoryboardEditor(win)
-  await clickOrFail(row().locator('[data-storyboard-ref-add] [data-asset-add-tile]').first(), '镜头 1 参考格的「+」')
+  await clickOrFail(row().locator('[data-storyboard-ref-add="own"] [data-asset-add-tile]').first(), '镜头 1 参考行的「+」')
   const picker = win.locator('[data-testid="asset-picker"]').last()
-  await expectVisible(picker, '参考选择器打开')
-  const pick = picker.locator('button', { has: win.locator(`img[src*="liveness-v2"]`) }).first()
-  await clickOrFail(pick, '选择器里点这张生成结果')
+  await expectVisible(picker, '「+」打开参考选择器')
+  await clickOrFail(picker.locator('button', { has: win.locator('img[src*="liveness-v2"]') }).first(), '选择器「画布」一栏里点第 2 版')
   const thumb = row().locator('[data-storyboard-ref-thumb] img').first()
-  await expect.poll(() => thumb.evaluate((img) => img.complete && img.naturalWidth > 0), { message: '镜头 1 的参考图挂上并显示', timeout: stationTimeout() }).toBe(true)
-  observations.boundSrc = await thumb.getAttribute('src')
-  await shotPng('01-storyboard-ref-attached')
+  await expect.poll(() => thumb.evaluate((img) => img.complete && img.naturalWidth > 0).catch(() => false), { message: '镜头 1 的参考小图挂上并显示', timeout: stationTimeout() }).toBe(true)
+  await expect.poll(() => boundUrls().includes(urlOf(2)), { message: '镜头 1 的参考绑定写进了项目文件', timeout: stationTimeout() }).toBe(true)
+  observations.boundAfterAttach = boundUrls()
+  observations.decodedAfterAttach = await decodes(urlOf(2))
+  expect(observations.decodedAfterAttach, '挂上后这张参考图能解码出像素').toBe(true)
+  await shotPng('01-after-attach')
 
   // ② 回画布，铺开版本卡，删掉第 2 版。
   await switchWorkspace(win, 'generation')
@@ -134,36 +160,50 @@ try {
   await clickOrFail(node.locator('[data-version-badge]'), '点节点角标铺开版本卡')
   const card = win.locator('[data-version-grid="liveness-node"] [data-version-identity="liveness-r2"]')
   const cardProof = await proveProbe(card, '第 2 版卡片铺在画布上')
+  // 画布上只有这一个节点，适配视图会放到两倍多；铺开后宫格比视口大，卡片工具条压在顶栏下面。像创作者一样缩小到整张宫格进视口。
+  await canvasSetZoomPercent(win, 60, '铺开后缩小到 60%')
   await card.hover()
   await clickOrFail(card.locator('[data-toolbar-action="delete"]'), '删除第 2 版')
   await expectAbsent(card, { provenBy: cardProof, message: '删除后第 2 版从宫格里消失' })
   await shotPng('02-version-deleted')
   observations.existsRightAfterDelete = fs.existsSync(targetFile)
 
-  // ③ 关项目：回项目库。延后回收在这一刻释放；等写盘把待删清单清掉（释放完成的信号），最多一个站点预算。
+  // ③ 关项目：回项目库。延后回收在这一刻释放。释放完成的信号有两种：写盘把待删清单清掉（修后），
+  // 或文件已经被移进回收站（修前那一版不一定把清单清掉再落盘）。哪个先到都算，最多一个站点预算；都没到也不当场停。
   await backToLibrary(win, { label: '关项目：回项目库' })
-  await expect.poll(() => {
+  const pendingCleared = () => {
     const pending = readSaved().payload?.pendingAssetDeletions
     return !Array.isArray(pending) || !pending.some((entry) => String(entry?.relativePath || entry?.url || '').includes('liveness-v2'))
-  }, { message: '关项目后待删清单释放完', timeout: stationTimeout() }).toBe(true)
-  // 释放是异步的回收站调用：清单落盘后再给它一点时间真的动文件（修前就是这一步把文件移走）。
+  }
+  await expect.poll(() => pendingCleared() || binned().length > 0, { timeout: stationTimeout() }).toBe(true).catch(() => {})
+  // 释放是异步的回收站调用：信号到了再给它一点时间真的动文件（修前就是这一步把文件移走）。
   await win.waitForTimeout(1500)
 
   // ④ 文件还在原路径，没进回收站。
+  observations.pendingClearedAfterClose = pendingCleared()
   observations.existsAfterClose = fs.existsSync(targetFile)
   observations.binnedAfterClose = binned()
   await shotPng('03-closed-back-to-library')
-  expect(observations.binnedAfterClose, '关项目后被分镜参考用着的文件进了回收站').toEqual([])
-  expect(observations.existsAfterClose, '关项目后被分镜参考用着的文件不在原路径').toBe(true)
+  // 这几条先记下、不当场停：修前那一跑也要走到重开，拍下参考格裂图那一帧，最后一起判。
+  const failures = []
+  if (!observations.pendingClearedAfterClose) failures.push('关项目后待删清单没有释放完')
+  if (observations.binnedAfterClose.length) failures.push(`关项目后被分镜参考用着的文件进了回收站：${observations.binnedAfterClose.join(', ')}`)
+  if (!observations.existsAfterClose) failures.push('关项目后被分镜参考用着的文件不在原路径')
 
   // ⑤ 重开 → 分镜 → 参考图能显示。
   await openProject()
   await switchWorkspace(win, 'creation')
   await openStoryboardEditor(win, { pick: 'first' }, '重开后打开分镜')
-  const reopened = row().locator('[data-storyboard-ref-thumb] img').first()
-  await expect.poll(() => reopened.evaluate((img) => img.complete && img.naturalWidth > 0), { message: '重开后镜头 1 的参考图能显示', timeout: stationTimeout() }).toBe(true)
-  observations.reopenedSrc = await reopened.getAttribute('src')
-  await shotPng('04-reopened-storyboard-ref')
+  observations.boundAfterReopen = boundUrls()
+  observations.decodedAfterReopen = await decodes(urlOf(2))
+  const reopenedThumb = row().locator('[data-storyboard-ref-thumb] img').first()
+  observations.reopenedThumbPixels = await reopenedThumb.evaluate((img) => (img.complete ? img.naturalWidth
+    : new Promise((resolve) => { img.onload = () => resolve(img.naturalWidth); img.onerror = () => resolve(0) }))).catch(() => -1)
+  await shotPng('04-after-reopen')
+  if (!observations.boundAfterReopen.includes(urlOf(2))) failures.push('重开后镜头 1 的参考绑定不见了')
+  if (!(observations.decodedAfterReopen && observations.reopenedThumbPixels > 0)) failures.push(`重开后镜头 1 的参考图解码不出像素（裂图）：小图宽 ${observations.reopenedThumbPixels}`)
+  observations.failures = failures
+  if (failures.length) throw new Error(failures.join('；'))
   console.log('PASS 分镜参考挂着的生成结果：删掉那一版、关项目后文件仍在原路径，重开参考图能显示', JSON.stringify(observations))
 } catch (error) {
   observations.error = String(error?.stack || error)
