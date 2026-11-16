@@ -13,7 +13,7 @@ import { agentModelEntriesFromCatalog } from "../catalog/agentModelEntriesFromCa
 import { EVERY_VARIANT, resolveModelArchetype, resolveArchetypeVariant, rescopeArchetypeVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
 import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { createLaneModelRead } from "../agentLane/laneModelRead.mjs";
-import { findModelEntry, modelSpecDetail, modelSpecRow, vendorsCarrying, type ModelSpecDetail } from "../shared/agentCapabilities/modelSpecProjection";
+import { modelSpecRow, type ModelSpecDetail } from "../shared/agentCapabilities/modelSpecProjection";
 import { modelHandleOf } from "../shared/agentCapabilities/modelHandle";
 import { catalogAvailabilityFor, requireModelSpecDetail } from "./modelSpecRead";
 
@@ -42,10 +42,11 @@ const laneCall = async (args: { kind?: string; model?: string }) =>
 
 /** 外部 MCP 那一面：与 `dispatcher` 的 `models.list` / `models.read` 用的是同一对函数。 */
 const mcpThin = () => entries.map((entry) => modelSpecRow(entry, "mcp", availabilityOf(entry)));
-const mcpDetail = (modelId: string, vendor?: string | null) => {
-  const entry = findModelEntry(entries, modelId, vendor);
-  return entry ? modelSpecDetail(entry, "mcp", availabilityOf(entry)) : null;
+// 读详情只经名字主人认（`requireModelSpecDetail` → `resolveModelIdentity`），这里走的就是外部面的那一个函数。
+const mcpDetail = (modelId: string, vendor?: string | null): ModelSpecDetail | null => {
+  try { return requireModelSpecDetail(modelId, vendor ?? undefined, state); } catch { return null; }
 };
+const vendorsCarrying = (list: typeof entries, modelId: string) => list.filter((entry) => entry.modelId === modelId).map((entry) => entry.vendor);
 
 /**
  * 一份事实、两个身份头（2026-11-15）：应用内那一面的身份是一个完整名字 `model`，对外 MCP 那一面是 `modelId` + `vendor`。

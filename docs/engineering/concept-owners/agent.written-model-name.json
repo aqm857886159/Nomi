@@ -1,0 +1,52 @@
+{
+  "name": "助手写下的模型名认成目录里哪一行（大小写、别名、近似、同名多家按这一种任务的默认）",
+  "subject": "agent.written-model-name",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentCapabilities/modelHandle.ts",
+    "symbol": "resolveModelHandle"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentCapabilities/modelHandle.ts",
+      "symbol": "resolveModelHandle"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/modelHandle.ts",
+      "symbol": "resolveModelIdentity"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/modelHandle.ts",
+      "symbol": "resolveModelForTask"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/modelHandle.ts",
+      "symbol": "resolvedModelNameOf"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "identityForNamedModel",
+      "kind": "definition",
+      "why": "宿主短创建曾自己按 modelId 一字不差扫快照、同名多家取第一家：大小写和别名不认，同名多家悄悄落到第一家（U1/U2/U3）。认名字只经 resolveModelForTask。"
+    },
+    {
+      "symbol": "resolveModelEntry",
+      "kind": "definition",
+      "why": "读详情曾自带一份认名字的阶梯（大小写、同名多家列家），与写路径答案不同。读写同经 resolveModelIdentity。"
+    },
+    {
+      "symbol": "entriesWithId",
+      "kind": "definition",
+      "why": "旧读详情阶梯的一级（按 id 找全部家），同属第二个家。"
+    }
+  ],
+  "allowed_consumers": [],
+  "parity_test": "electron/capabilityCore/modelNameModeParity.test.ts",
+  "since": "2026-11-17",
+  "notes": "五个入口（内外助手、单镜、多镜、拟镜、改计划）同一个答案：各入口只递自己的行和事实（这一种任务、用户默认），不各写一份平局规则。同名多家时只多看用户给这一种任务设的默认，且只在已匹配的行里挑；落到默认那家时回执 modelNamesResolved 写明「同名有 N 家，按你的默认用了哪家」。结构上的第二处由 modelHandle.structure.test.ts（名字折叠比较）拦，换了写法的由五入口对拍拦。"
+}

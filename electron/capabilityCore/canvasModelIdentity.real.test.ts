@@ -62,7 +62,10 @@ describe("assertCatalogModelIdentity against the real seeded catalog", () => {
   it("points at the closest real model when the caller misspells one", () => {
     const row = pick("image");
     const error = failure({ vendor: row.vendor, modelKey: row.modelKey.toUpperCase() + "-typo", kind: "image" });
-    expect(String(error.details?.closest)).toContain(row.modelKey);
+    // 近似只经名字主人（与助手写错名字时同一个判据）：给出这一家里一个真实存在、又像这次写法的行。
+    const closest = String(error.details?.closest);
+    expect(closest.startsWith(`${row.vendor}/`)).toBe(true);
+    expect(row.modelKey.toLowerCase().startsWith(closest.slice(row.vendor.length + 1).toLowerCase())).toBe(true);
   });
 
   // ── kind 映射那张表：逐项守，别让「加了个节点 kind 忘了映射」无声通过 ──

@@ -7,8 +7,8 @@ import type { CatalogState } from '../catalog/types'
 import { setCatalogRowLookup } from './modelAdmissionSchema'
 import { currentCatalogFingerprint } from './modelOnboarding/dispatch'
 import { agentModelEntriesFromCatalog } from '../catalog/agentModelEntriesFromCatalog'
+import { resolveModelHandle, resolveModelIdentity } from "../shared/agentCapabilities/modelHandle"
 import {
-  resolveModelEntry,
   modelSpecDetail,
   modelSpecRow,
   type ModelAvailabilityFacts,
@@ -32,18 +32,26 @@ export function listModelSpecRows(): ModelSpecRow[] {
  * 与 `unknown_model_identity`（点名的那家没有它 / 压根没这个模型）。
  * 第一种以前会**悄悄返回第一家**。
  *
+ * 认名字问名字主人（`resolveModelIdentity`，与起草同一个阶梯：大小写 / 别名 / 近似写法；说了 vendor 就只在那一家认）。
+ * 读详情没有「这一种任务」，所以多家同名一律当歧义，不看默认。两种拒绝的码与 `details` 键逐字不变；
+ * `vendorsForModelId` 是「只按 id 认」时对得上的那几家（主人给的行），不是这里另比一次 id。
+ *
  * @param state 缺省读真实目录；测试喂同一份种子状态，接线逐字相同。
  */
 export function requireModelSpecDetail(modelId: string, vendor: unknown, state: CatalogState = readCatalog()): ModelSpecDetail {
   const rows = agentModelEntriesFromCatalog(state)
   const named = typeof vendor === 'string' ? vendor : undefined
-  const found = resolveModelEntry(rows.map((row) => row.entry), modelId, named)
+  const entries = rows.map((row) => row.entry)
+  const found = resolveModelIdentity(entries, { modelId, vendor: named ?? null })
   if (found.ok) {
-    return modelSpecDetail(found.entry, "mcp", rows.find((row) => row.entry === found.entry)!.availability)
+    return modelSpecDetail(found.row, "mcp", rows.find((row) => row.entry === found.row)!.availability)
   }
-  const vendorsForModelId = found.vendors.join(',') || '(none)'
+  const byId = found.reason === 'ambiguous' ? found : resolveModelHandle(entries, modelId)
+  const vendors = [...new Set((byId.ok ? [byId.row] : byId.reason === 'ambiguous' ? byId.rows : [])
+    .map((entry) => entry.vendor).filter((v): v is string => Boolean(v)))]
+  const vendorsForModelId = vendors.join(',') || '(none)'
   if (found.reason === 'ambiguous') {
-    throw Object.assign(new Error(`Ambiguous model: ${modelId} is carried by ${found.vendors.length} providers`), {
+    throw Object.assign(new Error(`Ambiguous model: ${modelId} is carried by ${vendors.length} providers`), {
       code: 'ambiguous_model_vendor',
       details: { modelKey: modelId, vendorsForModelId },
     })
