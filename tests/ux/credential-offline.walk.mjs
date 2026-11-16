@@ -10,10 +10,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 // NOMI_WALK_LOCALE=en walks the English UI; shots land in a per-locale folder so zh/en frames never overwrite each other.
 const locale = process.env.NOMI_WALK_LOCALE === 'en' ? 'en' : 'zh-CN'
 const COPY = locale === 'en'
-  ? { save: 'Save Verify', offline: 'Not verified', offlineHint: 'You can use the model now', rechecked: 'preset models ready', recheckedHint: 'already selectable', replace: 'Replace key', back: 'Back', stored: 'is stored on this machine', kept: 'previous' }
-  : { save: '保存验证', offline: '未验证', offlineHint: '可以直接选择模型并使用', rechecked: '预置模型可用', recheckedHint: '现在就能在画布', replace: '更换密钥', back: '返回', stored: '已经存着', kept: '原密钥' }
+  ? { save: 'Save Verify', offline: 'Not verified', offlineHint: 'You can use the model now', rechecked: 'preset models ready', recheckedHint: 'already selectable', homeOffline: 'Verification failed; still usable', replace: 'Replace key', back: 'Back', stored: 'is stored on this machine', kept: 'previous' }
+  : { save: '保存验证', offline: '未验证', offlineHint: '可以直接选择模型并使用', rechecked: '预置模型可用', recheckedHint: '现在就能在画布', homeOffline: '验证没通过，仍可使用', replace: '更换密钥', back: '返回', stored: '已经存着', kept: '原密钥' }
 // 2026-11-17「没验证的也能用」：离线存下的密钥不再停用连接——连接和密钥都启用、只挂「未验证」提醒，
-// 这一家落在「已接入」行；联网复验清掉提醒后，预置模型本来就可用，卡片说的是「已接入，预置模型可用」。
+// 这一家落在「已接入」行；断网时这一行自己的连通探测也失败，按设计卡「验证失败（含超时）→ 验证没通过，仍可使用」，
+// 卡片里仍是「未验证」；联网复验清掉提醒后，预置模型本来就可用，卡片说的是「已接入，预置模型可用」。
 const shots = path.join(root, 'tests/ux/shots/credential-offline', locale === 'en' ? 'en' : 'zh')
 fs.mkdirSync(shots, { recursive: true })
 const server = http.createServer((req, res) => {
@@ -53,7 +54,7 @@ try {
   await screenshotSettled(win, { path: path.join(shots, '01-offline-saved.png') })
   // Back/reopen proves the badge is sourced from persisted state, not just the save response.
   await win.getByRole('button', { name: COPY.back, exact: true }).click()
-  await expect(win.locator('[data-model-home-connection="apimart"]')).toContainText(COPY.offline)
+  await expect(win.locator('[data-model-home-connection="apimart"]')).toContainText(COPY.homeOffline)
   await screenshotSettled(win, { path: path.join(shots, '01b-home-row-badge.png') })
   await win.locator('[data-model-home-connection="apimart"]').click()
   await expect(page.locator('[data-key-only-success]')).toContainText(COPY.offline)
