@@ -1,0 +1,98 @@
+{
+  "_说明": "交接处表（第一版，2026-11-15）。交接处 = 一个事实从这头传到那头、一路上好几个文件都要对得上的那一段（例如模型档案 → 面板 → 请求体）。prefixes 是路径前缀；一个 PR 改到任何一个前缀下的非测试、非文档生产文件，就算碰了这个交接处。owner 是「这个事实唯一该写在哪」。checked=false 的行路径范围没核过，只按 PR 标题和目录猜的，机器照样数，但提示里会注明可能误伤。map 是这个交接处的全图文件路径（必须是仓库里真实存在的文件），没有就写「无」。机器只管数和拦，是不是同一处由写任务书的人用一行「交接处：」来定。表外的路径，照旧。数法见 scripts/fix-churn-units.mjs 的 seamUnits，任务书检查见 scripts/check-dispatch-brief.mjs。",
+  "seams": [
+    {
+      "id": "archetype-panel-request",
+      "name": "档案 → 面板 → 请求体",
+      "owner": "electron/shared/modelArchetypes/entry.ts 的 resolveModelArchetype / everyBuiltInArchetype",
+      "map": "docs/plan/2026-11-15-archetype-single-entry.md",
+      "checked": true,
+      "prefixes": [
+        "electron/shared/modelArchetypes/",
+        "electron/shared/videoCapabilities/",
+        "electron/shared/imageCapabilities/",
+        "electron/shared/audioCapabilities/",
+        "electron/catalog/taskParams",
+        "electron/catalog/archetype",
+        "electron/catalog/apimart",
+        "electron/catalog/volcengine",
+        "electron/capabilityCore/apimartGenerationProvider",
+        "electron/capabilityCore/moduleCatalogBootstrap",
+        "src/workbench/generationCanvas/nodes/controls/",
+        "src/workbench/generationCanvas/nodes/nodeModelArchetype",
+        "src/workbench/generationCanvas/nodes/InlineParameterBar",
+        "src/workbench/creation/storyboard/shotRow/"
+      ]
+    },
+    {
+      "id": "agent-writes-params",
+      "name": "档案 → Agent 写参数",
+      "owner": "未定（方向待用户定：模型只有一个把手，Agent 只说意图，宿主用面板同一组档案函数落参数）",
+      "map": "docs/plan/2026-11-16-agent-writes-params-seam.md",
+      "checked": true,
+      "prefixes": [
+        "electron/agentLane/",
+        "electron/shared/agentLane/",
+        "electron/shared/agentCapabilities/",
+        "electron/capabilityCore/mcpGenerationTools",
+        "electron/capabilityCore/shotDraft",
+        "src/workbench/ai/lane",
+        "src/workbench/generationCanvas/agent/",
+        "tests/ux/agent-param-eval"
+      ]
+    },
+    {
+      "id": "window-shell-layout",
+      "name": "窗口宽度 → 外壳形态 → 存档",
+      "owner": "未核（src/workbench/preview/panelLayout.ts 是最常被改的一个）",
+      "map": "无",
+      "checked": false,
+      "prefixes": [
+        "src/workbench/preview/panelLayout",
+        "src/workbench/preview/PreviewWorkspace",
+        "src/ui/app-shell/",
+        "src/workbench/AssistantPane",
+        "src/workbench/creation/CreationWorkspace"
+      ]
+    },
+    {
+      "id": "result-to-project",
+      "name": "生成结果 → 项目",
+      "owner": "未核",
+      "map": "无",
+      "checked": false,
+      "prefixes": [
+        "electron/capabilityCore/canvasShotRunApi",
+        "electron/capabilityCore/generationRuntimeAdapter",
+        "electron/assets/localizeTaskAsset",
+        "src/workbench/generationCanvas/runner/"
+      ]
+    },
+    {
+      "id": "reference-to-request",
+      "name": "参考 → 请求体",
+      "owner": "未核",
+      "map": "无",
+      "checked": false,
+      "prefixes": [
+        "electron/shared/generationLowering/",
+        "electron/catalog/outboundReferenceUrl",
+        "electron/catalog/referenceChannels",
+        "electron/shared/modelArchetypes/referenceChannels"
+      ]
+    },
+    {
+      "id": "draft-save",
+      "name": "草稿 → 保存",
+      "owner": "未核",
+      "map": "无",
+      "checked": false,
+      "prefixes": [
+        "electron/projects/",
+        "electron/jsonFile",
+        "electron/workspace/workspaceRepository",
+        "src/workbench/project/"
+      ]
+    }
+  ]
+}

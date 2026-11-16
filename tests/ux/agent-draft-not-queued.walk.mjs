@@ -17,7 +17,7 @@
 // 2026-10-28（I-double-submit-walks）：②③ 两步按 D2 第③步（#1336，用户 2026-10-23 拍板 Q3c / Q1）之后的规矩断言——
 //   以前「报价卡在等人 = 这一镜归制作流程，节点 ↑ 按不下去」（#875）；现在面板出价开着、这一镜还没决定时，节点 ↑ 可按：
 //   按下去就是用户对这一镜的决定（画布发这一镜，卡认出、不再交）。卡上点了「生成」之后这一镜交给画布那一台，
-//   同一镜只发一次靠「同节点在途」挡——这时节点 ↑ 才按不下去。规矩的唯一说法在概念登记
+//   同一镜只发一次靠「同节点在途」挡——这时节点 ↑ 按下去先问「再发一次」（3797fde0c：人亲手点不再被置灰拒绝），没确认就不发。规矩的唯一说法在概念登记
 //   docs/engineering/concept-owners/production.shot-generation-ownership.json 的 notes，这里不另抄。
 //   钱的那半句（任何一扇门都不把同一镜交两次）由集成矩阵 electron/capabilityCore/sameShotOnceDoors.e2e.test.ts 兜；
 //   这一条真机走查只管屏上说真话 + 按钮态，供应商按镜收几个、盘上 Run 的作业是几个做它的硬证据。
@@ -33,6 +33,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { switchAppLocale } from './_permissionTiersPaidSteps.mjs'
 import { canvasRunsOf, offerFacts } from './_spendCardWalk.mjs'
+import { expectGeneratingUpAsksBeforeResend } from './_generatingResendGate.mjs'
 import {
   APPROVAL_CARD, CANVAS_PANEL, INTERVENTION_CONFIRM,
   chooseAssistantModel, createRuntimeWalk, openCanvas, readProject, recorded, sendCanvas,
@@ -237,7 +238,8 @@ try {
   const generatingButton = win.locator(`[data-node-id="${nodeId}"] [data-bar-segment="generate"]`)
   await proveProbe(generatingButton, '选中后生成中这一镜自己的节点生成钮出现')
   await walk.snap('dispatched-selected-en')
-  await expect(generatingButton, '生成中：这一镜的节点生成钮按不下去（同一镜只发一次）').toBeDisabled()
+  // 生成中归画布（3797fde0c，用户 2026-11-02）：钮不置灰，按下去先问「再发一次」，没确认供应商不多收。
+  await expectGeneratingUpAsksBeforeResend(win, generatingButton, { label: '生成中：这一镜的节点生成钮', locale: 'en', countRequests: () => shotRequests(walk).length })
   expect(shotRequests(walk), '同一镜只收到 1 个').toHaveLength(1)
   await win.locator('.react-flow__pane').first().click({ position: { x: 24, y: 24 } })
 

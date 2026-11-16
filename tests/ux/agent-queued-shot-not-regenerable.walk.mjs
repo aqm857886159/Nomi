@@ -20,8 +20,8 @@
 //      中文看完，现场从设置里切英文（不重载：批次在渲染层内存里，重载会丢）再看一遍；
 //   ② 放开受理、任务压在 processing：第一镜交到了、在生成，第二镜仍排在它后面（画布批量并发 1：前一镜出结果才轮到下一镜）；各扇门依旧发不出；
 //   ③ 重载窗口（渲染层内存里什么都没了，英文）——排队那一镜去哪了：被收回，出价账上记着「撤回」（不是悄悄没了），节点说「还没生成」，
-//      供应商从没收到它；第一镜节点变成「可取回」、↑ 看着能按，按下去主进程按节点的在途准入挡住，屏上说「这个节点还在生成」，
-//      供应商仍只收到它 1 个——这一步守的就是 appIntegrationCanvasShot 的 assertNodeIdle（拿掉它，这里要红在「同一镜只收到 1 个」）；
+//      供应商从没收到它；第一镜节点变成「可取回」、↑ 看着能按，按下去问一句「再发一次？上一次还没结束，可能再扣」（3797fde0c，用户 2026-11-02：人亲手点不再被拒，
+//      确认才发），没确认供应商仍只收到它 1 个、取消后什么都没变。主进程 assertNodeIdle 那一道这里不再碰到（碰它要点「再发一次」= 创作者明确同意再扣一次）；
 //   ④ 被收回的第二镜没丢：用户自己按它的 ↑，供应商收到 1 个、出图。
 //
 // 别往 ①②③ 里加慢步骤：夹具压着的受理、压在 processing 的任务，App 这一头各有 2 分钟的等待上限——超了，第一镜变成「结果未知 / 可取回」，
@@ -41,6 +41,7 @@ import {
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { groupFrame, groupFrameGenerateAll, openFrameMenuByRightClick, selectFrameByBlankClick } from './_groupFrame.mjs'
 import { groupGenerateButton } from './_groupGenerate.mjs'
+import { expectGeneratingUpAsksBeforeResend } from './_generatingResendGate.mjs'
 import { switchAppLocale } from './_permissionTiersPaidSteps.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
@@ -132,7 +133,11 @@ async function expectGenerateDoorsClosed(win, walk, { frame, nodeIds, locale, la
     const button = win.locator(`[data-node-id="${nodeId}"] ${GENERATE_BUTTON}`)
     await proveProbe(button, `${label}：选中后 ${shotId} 自己的生成钮出现`)
     if (snap) await snapCloseUp(win, await walk.snap(`${snap}-selected-${shotId}-${locale}`), [node, button])
-    await expect(button, `${label}：${shotId} 的生成钮按不下去`).toBeDisabled()
+    // 还在排队的镜归制作流程，钮必须置灰；已交到供应商、在生成的镜归画布（3797fde0c，用户 2026-11-02）：钮不置灰，
+    // 按下去先问「再发一次」，没确认供应商一笔不多收。两种都量「不会悄悄再发一次」，不钉钮的样子。
+    const queued = (await nodeFace(win, nodeId)).placeholder === 'queued'
+    if (queued || await button.isDisabled()) await expect(button, `${label}：${shotId} 排队中，生成钮按不下去`).toBeDisabled()
+    else await expectGeneratingUpAsksBeforeResend(win, button, { label: `${label}：${shotId}`, locale, countRequests: () => requestsOfShot(walk, shotId).length })
     await deselect(win)
   }
 }
@@ -283,26 +288,22 @@ try {
   expect(perShot(walk), '重载之后排队那一镜供应商仍一次都没收到').toEqual({ 'shot-1': 1, 'shot-2': 0 })
   await walk.snap('reloaded-en')
 
-  // 第一镜：节点变成「可取回」，↑ 看着能按（渲染层不记得它在生成了）——按下去，主进程按节点的在途准入挡住，供应商仍只收到这一镜 1 个。
+  // 第一镜：节点变成「可取回」，↑ 看着能按（渲染层不记得它在生成了）——按下去先问「再发一次」，没确认供应商仍只收到这一镜 1 个。
   const node1 = win.locator(`[data-node-id="${nodeIds['shot-1']}"]`).first()
   await clickOrFail(node1, '重载后选中第一镜')
   const up1 = win.locator(`[data-node-id="${nodeIds['shot-1']}"] ${GENERATE_BUTTON}`)
   await proveProbe(up1, '重载后第一镜自己的生成钮出现')
   await walk.snap('reloaded-shot-1-selected-en')
-  // 这一句是下面「主进程挡」那一步的前提：若 ↑ 在这里变灰，说明渲染层自己挡住了，这一步就不再覆盖主进程的在途准入——得另找办法覆盖它，别让它悄悄变成空话。
-  await expect(up1, '重载之后渲染层不认得第一镜在生成：它的 ↑ 看着按得下去（主进程的在途准入是最后一道）').toBeEnabled()
-  await up1.click({ noWaitAfter: true })
-  const blocked = win.getByText(uiText(LOCALE.en, 'generationCommon.observability.error.nodeInFlight.reason')).first()
-  // 先等「有结论」：要么屏上说了「这个节点还在生成」，要么供应商又收到了请求；再判对错（同一镜只收到 1 个）。
-  await expect.poll(async () => (requestsOfShot(walk, 'shot-1').length > 1 ? 'sent-again' : (await blocked.isVisible()) ? 'blocked' : 'waiting'),
-    { message: '按下 ↑ 之后必须有结论（主进程挡了，或又发出去了）', timeout: stationTimeout({ operations: 4 }) }).not.toBe('waiting')
+  // 重载之后渲染层不认得第一镜在生成（钮不转圈、不置灰），在途只有主进程的账记着。3797fde0c（用户 2026-11-02）之后按下去不再被一句
+  // 「这个节点还在生成」直接拒，而是问「再发一次」——没确认供应商一笔不多收，取消后什么都没变。「确认才发」是创作者自己的明确决定，这里不替他点。
+  await expect(up1, '重载之后渲染层不认得第一镜在生成：它的 ↑ 看着按得下去').toBeEnabled()
+  await expectGeneratingUpAsksBeforeResend(win, up1, { label: '重载后第一镜', locale: 'en', countRequests: () => requestsOfShot(walk, 'shot-1').length, renderedBusy: false })
   expect(requestsOfShot(walk, 'shot-1'), '同一镜只收到 1 个').toHaveLength(1)
-  await expect(blocked, '主进程挡住这一笔，屏上照实说「这个节点还在生成」').toBeVisible()
-  await walk.snap('reloaded-shot-1-blocked-en')
+  await walk.snap('reloaded-shot-1-resend-asked-en')
   await deselect(win)
   walk.report.reloadedMoment = {
     perShot: perShot(walk), offerClosedBy: reloaded.closedBy, handOvers: reloaded.handOvers.map((entry) => `${entry.shotId}:${entry.outcome}`),
-    canvasRuns: runJobsLine(await canvasRunsOf(win, projectId, operationId)), shot1UpBlockedBy: 'nodeInFlight',
+    canvasRuns: runJobsLine(await canvasRunsOf(win, projectId, operationId)), shot1UpAsked: 'resend-confirm',
   }
 
   // ── ⑥ 被收回的第二镜没丢：用户自己按它的 ↑，供应商收到 1 个，出图 ──
@@ -320,7 +321,7 @@ try {
   await walk.snap('done-en')
 
   walk.report.verified = ['queued-shot-frame-generate-disabled', 'queued-shot-generate-button-disabled', 'one-request-per-shot',
-    'reload-withdraws-the-queued-shot-on-the-ledger', 'reload-second-submit-refused-by-main-node-in-flight', 'withdrawn-shot-generates-once-when-asked']
+    'reload-withdraws-the-queued-shot-on-the-ledger', 'reload-second-press-asks-before-resend', 'withdrawn-shot-generates-once-when-asked']
 } catch (error) {
   failure = error
   process.exitCode = 1
