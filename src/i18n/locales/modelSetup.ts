@@ -59,7 +59,7 @@ export const zhModelSetup = {
   fetchModels: '获取模型',
   saveConnection: '保存连接',
   connectionSaved: '连接已安全保存，尚未验证',
-  connectionSavedHint: '获取模型失败也不会丢失。选择模型后会进入真实认证，通过的模式才会变为可用。',
+  connectionSavedHint: '获取模型失败也不会丢失。选好的模型有请求方式就能直接使用；真实验证只作提醒。',
   advanced: '高级设置（接口协议 / 自定义请求头）',
   protocolSummary: '接口协议：{{protocol}} ·',
   autoDetectOnSave: '使用自动选择',
@@ -203,7 +203,7 @@ export const enModelSetup = {
   saveConnection: 'Save connection',
   connectionSaved: 'Connection saved securely, not yet verified',
   connectionSavedHint:
-    'A failed model-list request will not discard it. Selecting models starts real certification; only verified modes become usable.',
+    'A failed model-list request will not discard it. Selected models with a request format can be used right away; real verification is advisory.',
   advanced: 'Advanced settings (protocol / custom headers)',
   protocolSummary: 'Protocol: {{protocol}} ·',
   autoDetectOnSave: 'Use automatic selection',

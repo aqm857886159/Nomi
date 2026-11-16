@@ -121,3 +121,27 @@ it('never conflates sibling connections sharing a builtin root or hides disabled
  expect(visibleAdapterRuns([failed, success])).toEqual([failed]);
  expect(visibleAdapterRuns([failed], [{vendorKey:failed.vendorKey, modelKey:'model-1', adapterState:'verified', enabled:false, availability:{usable:false}}] as never)).toEqual([failed]);
 });
+
+// 半批成功：同一批里一个模型验证通过、另一个没过；之后创作者手动停用通过的那个。
+// 停用是创作者自己的选择，不是新的失败——它在那一批里的「失败」不该因为停用又冒出来。
+describe('a model that verified inside a partial batch stays retired after manual disablement', () => {
+ const verified = { taskKind: 'image', state: 'verified' as const, attempts: 1 }
+ const failedMode = { taskKind: 'image', state: 'failed' as const, attempts: 1 }
+ const partial = {...run('partial', 'partial', '2026-11-17T10:00:00.000Z'), selectedModelKeys: ['model-1', 'model-2'], models: [
+  {modelKey: 'model-1', labelZh: 'One', kind: 'image', modes: [verified]},
+  {modelKey: 'model-2', labelZh: 'Two', kind: 'image', modes: [failedMode]},
+ ]}
+ const disabledOne = {vendorKey: 'example', modelKey: 'model-1', enabled: false, kind: 'image', labelZh: 'One', availability: {usable: false, reason: 'model_disabled'}}
+ it('the partial batch keeps showing only the model that failed', () => {
+  const visible = visibleAdapterRuns([partial], [disabledOne] as never)
+  expect(visible.map((item) => item.selectedModelKeys)).toEqual([['model-2']])
+ })
+ it('an older failure of that model stays retired by the newer in-batch success', () => {
+  const older = {...run('older', 'failed', '2026-11-17T09:00:00.000Z'), selectedModelKeys: ['model-1']}
+  expect(visibleAdapterRuns([older, partial], [disabledOne] as never).map((item) => [item.id, item.selectedModelKeys])).toEqual([['partial', ['model-2']]])
+ })
+ it('a model with one verified and one failed mode keeps its failure', () => {
+  const mixed = {...partial, models: [{modelKey: 'model-1', labelZh: 'One', kind: 'image', modes: [verified, failedMode]}, partial.models[1]]}
+  expect(visibleAdapterRuns([mixed], [disabledOne] as never).map((item) => item.selectedModelKeys)).toEqual([['model-1', 'model-2']])
+ })
+})
