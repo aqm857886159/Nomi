@@ -65,6 +65,7 @@ describe("resolveProviderDocs", () => {
     const parsed = adapterDraftSchema.safeParse({
       provider: { baseUrl: "https://api.example.com/v1", authType: "bearer" },
       sources: [{ url, evidence: "POST /v1/images" }],
+      assetIngestion: { strategy: "none", sourceUrl: url },
       models: [
         {
           modelKey: "paint-v2",
