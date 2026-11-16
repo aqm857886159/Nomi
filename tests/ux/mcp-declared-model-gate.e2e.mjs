@@ -62,9 +62,9 @@ const check = (condition, message, detail) => {
 
 /** 一个宿主的整条路：存密钥 → 交卡 → 起草 → 预览 → 过门 → 窗口弹确认卡 → 点取消。 */
 async function walkHost(label, call, window, projectId, modelKey, shot) {
-  const opened = await call('nomi_session_open', { bootstrap: { mode: 'current_project', clientSessionNonce: `declared-gate-${label}` } })
+  const opened = await call('nomi_session_open', { bootstrap: { mode: 'current_project' } })
   const leaseHandle = opened.json?.leaseHandle || opened.outcome?.leaseHandle
-  check(typeof leaseHandle === 'string', `${label}: 拿到当前项目句柄`)
+  check(typeof leaseHandle === 'string', `${label}: 拿到当前项目句柄`, opened.text.slice(0, 600))
   const keyed = await call('nomi_model_setup', { action: 'set_key', vendorKey: 'apimart', apiKey: FAKE_KEY })
   check(!keyed.isError, `${label}: 存 APIMart 密钥`, keyed.text.slice(0, 300))
   const submitted = await call('nomi_model_setup', { action: 'submit_declaration', vendorKey: 'apimart', declaration: videoCard(modelKey) })
