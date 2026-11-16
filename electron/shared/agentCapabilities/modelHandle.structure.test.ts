@@ -76,6 +76,33 @@ const MODE_OWNERS = new Set([
 const NAME_FOLD = /\b(?:modelId|modelKey|modelAlias)\b(?:\s*\?\?\s*(?:""|''))?\)?\.(?:toLowerCase|toLocaleLowerCase)\(\)\s*[!=]==|[!=]==\s*\(?[\w.?]*\b(?:modelId|modelKey|modelAlias)\b(?:\s*\?\?\s*(?:""|''))?\)?\.(?:toLowerCase|toLocaleLowerCase)\(\)/;
 // 在一组方式上按 transportTaskKind 筛 / 找出方式（「按种类桶挑方式」）。
 const MODE_BUCKET = /modes?\b[^\n]*\.(?:filter|find|findLast)\([^\n]*\btransportTaskKind\b/i;
+// 「供应商可省」地逐家走目录、按写下的 id 找模型——没写供应商时就跨家匹配，等于自己认名字（旧 `identityForNamedModel`
+// / `namedModelModes` 的形状）。判据是两行同段出现：一个可省的供应商守卫 `(vendor && x !== vendor)`，
+// 紧跟着在 find / filter / some 里按模型 id / key / 别名比相等。按已认出的 (供应商, 模型) 精确取行时供应商守卫不可省，不报。
+const OPTIONAL_VENDOR_GUARD = /\(\s*[\w.]*(?:providerId|vendor|vendorKey|ProviderId|Vendor)\w*\s*&&\s*[\w.]+\s*!==\s*[\w.]+\s*\)/;
+const ID_LOOKUP = /\.(?:find|filter|some|findIndex|findLast)\([^\n]*\bmodel(?:Id|Key|Alias)\b[^\n]*===/;
+const NAME_WALK_WINDOW = 12;
+
+function nameWalkViolations(files: readonly string[]): string[] {
+  const hits: string[] = [];
+  for (const file of files) {
+    const relative = path.relative(ROOT, file);
+    if (relative === NAME_OWNER) continue;
+    hits.push(...nameWalkHits(readFileSync(file, "utf8")).map((hit) => `${relative}:${hit}`));
+  }
+  return hits;
+}
+
+function nameWalkHits(source: string): string[] {
+  const lines = source.split("\n");
+  const hits: string[] = [];
+  lines.forEach((line, index) => {
+    if (!OPTIONAL_VENDOR_GUARD.test(line)) return;
+    const lookup = lines.slice(index, index + NAME_WALK_WINDOW).findIndex((candidate) => ID_LOOKUP.test(candidate));
+    if (lookup >= 0) hits.push(`${index + 1}  ${line.trim()}  …  ${lines[index + lookup]!.trim()}`);
+  });
+  return hits;
+}
 
 /**
  * 已知未收的那一处。名单只减不增（数量断言写死 1）。
@@ -110,6 +137,27 @@ describe("写下的模型名只在名字主人认，发送方式只在方式主�
 
   it("名字主人之外没有生产代码把模型 id / 别名折成小写去比", () => {
     expect(lineViolations(files, NAME_FOLD, new Set([NAME_OWNER])), "改用 resolveModelHandle / resolveModelIdentity / resolveModelForTask").toEqual([]);
+  });
+
+  it("名字主人之外没有生产代码「供应商可省」地逐家按写下的 id 找模型", () => {
+    expect(nameWalkViolations(files), "改用 resolveModelIdentity / resolveModelForTask（同名多家按默认或拒，不取遍历到的第一家）").toEqual([]);
+  });
+
+  it("阳性 / 阴性对照：认得出旧认名函数的逐家查找，不误报精确取行", () => {
+    // 旧 `identityForNamedModel`（2026-11-17 删）原文的两行。
+    const legacy = [
+      "      if (!candidateProviderId || (providerId && candidateProviderId !== providerId)) continue;",
+      "      const models = (provider as { models?: unknown }).models;",
+      "      if (!Array.isArray(models)) continue;",
+      "      const model = models.find((candidate) => candidate && typeof candidate === \"object\" && text((candidate as { modelId?: unknown }).modelId) === modelId) as { modes?: unknown } | undefined;",
+    ].join("\n");
+    expect(nameWalkHits(legacy)).toHaveLength(1);
+    // 改名、换变量名也一样：守卫可省 + 按 id 找。
+    expect(nameWalkHits("if (vendor && row.vendorKey !== vendor) continue;\nconst hit = list.filter((m) => m.modelKey === written);")).toHaveLength(1);
+    // 阴性：供应商守卫不可省的精确取行（`modeFromSnapshot` 的形状）。
+    expect(nameWalkHits("const provider = providers.find((item) => item.providerId === selected.providerId);\nconst model = models.find((item) => item.modelId === selected.modelId);")).toEqual([]);
+    // 阴性：可省守卫附近没有按 id 找模型（画布写入核对两段身份一致）。
+    expect(nameWalkHits("if (node.vendor && node.modelVendor && node.vendor !== node.modelVendor) {\n  throw new Error('mismatch');\n}")).toEqual([]);
   });
 
   it("方式主人之外没有生产代码在 modes 上按 transportTaskKind 挑方式", () => {

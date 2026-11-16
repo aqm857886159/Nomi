@@ -33,6 +33,8 @@ import { agentModelEntriesFromCatalog } from "../catalog/agentModelEntriesFromCa
 import { modelSpecDetail } from "../shared/agentCapabilities/modelSpecProjection";
 import { sendArchetypeMode } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
 import { GENERATION_DEFAULT_TASK_KINDS, type GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
+import { createGenerationDefaultModelResolver } from "./generationDefaultModelResolver";
+import type { CatalogState } from "../catalog/types";
 
 const PROJECT_ID = "project-1";
 const MODULE_ID = "generation.single-shot";
@@ -279,6 +281,32 @@ describe("U4 / U5：方式只由点名的模型的档案 + 这次真实输入决
     expect(results["剧本拟镜"]).toEqual(ok("kie", "bytedance/seedance-2", first));
   });
 
+  it("U4 用真实的默认解析器：它只答「哪个模型」、不带方式；拿它当默认，五入口仍只按点名模型的档案选方式", async () => {
+    // 不桩默认解析器：真实目录行（内置种子里的 APIMart Seedance）+ 用户默认设置 → 生产那一个 `createGenerationDefaultModelResolver`。
+    const seededRow = applyBuiltinSeeds({ version: 4, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, "2026-11-17T00:00:00.000Z")
+      .state.models.find((model) => model.vendorKey === "apimart" && model.modelKey === "doubao-seedance-2.0");
+    expect(seededRow, "内置目录里得有 APIMart Seedance，不然这条是空的").toBeDefined();
+    const state: CatalogState = {
+      version: 11,
+      vendors: [{ key: "apimart", name: "APIMart", enabled: true, authType: "bearer", createdAt: "", updatedAt: "" }],
+      models: [{ ...seededRow!, enabled: true }],
+      mappings: (["text_to_video", "image_to_video"] as const).map((taskKind) => ({
+        id: `apimart-seedance-${taskKind}`, vendorKey: "apimart", modelKey: "doubao-seedance-2.0", taskKind, name: taskKind, enabled: true,
+        create: { method: "POST" as const, path: "/video", body: {} }, createdAt: "", updatedAt: "",
+      })),
+      apiKeysByVendor: { apimart: { vendorKey: "apimart", apiKey: Buffer.from("synthetic").toString("base64"), enc: "safeStorage", enabled: true, createdAt: "", updatedAt: "" } },
+    };
+    const saved = { vendorKey: "apimart", modelKey: "doubao-seedance-2.0" };
+    const realDefault = createGenerationDefaultModelResolver(state, { schemaVersion: 1, byTaskKind: { text_to_video: saved, image_to_video: saved } });
+    // 默认的答案只有身份四件，没有方式（2026-11-17 U4：以前这里带出「第一个同桶方式」，点名别家时被继承过去）。
+    for (const kind of ["text_to_video", "image_to_video"] as const) {
+      expect(realDefault(kind), kind).toStrictEqual({ moduleId: MODULE_ID, providerId: "apimart", modelId: "doubao-seedance-2.0", mode: kind });
+    }
+    const first: InputCombo = { label: "首帧", references: [{ assetId: "asset-a", role: "first_frame" }] };
+    const name: NameForm = { label: "KIE Seedance", lane: "bytedance/seedance-2@kie", providerId: "kie", modelId: "bytedance/seedance-2" };
+    expectSameEverywhere(await fiveEntries(name, first, realDefault), ok("kie", "bytedance/seedance-2", first));
+  });
+
   it("U5 KIE Seedance、图生视频、首帧 + 尾帧、没写 modeId → firstlast（画布今天就是 firstlast）", async () => {
     const input = INPUTS.find((item) => item.label === "首帧 + 尾帧")!;
     const name: NameForm = { label: "KIE Seedance", lane: "bytedance/seedance-2@kie", providerId: "kie", modelId: "bytedance/seedance-2" };
@@ -328,6 +356,25 @@ describe("全目录性质：每个内置视频档案 × 每家 × 五种输入�
   });
 });
 
+/** 外部读详情三种拒收的回执（与 origin/main 那一版逐字段相同；改了要在 PR 里说明外部助手看到的什么变了）。 */
+const READ_REFUSALS = {
+  ambiguous: {
+    message: "Ambiguous model: minimax-h3 is carried by 3 providers",
+    code: "ambiguous_model_vendor",
+    details: { modelKey: "minimax-h3", vendorsForModelId: "kie,apimart,minimax" },
+  },
+  unknown: {
+    message: "Unknown model: totally-not-a-model",
+    code: "unknown_model_identity",
+    details: { modelKey: "totally-not-a-model", vendorsForModelId: "(none)" },
+  },
+  unknownAtVendor: {
+    message: "Unknown model: minimax-h3",
+    code: "unknown_model_identity",
+    details: { modelKey: "minimax-h3", vendorsForModelId: "kie,apimart,minimax", vendor: "nope-vendor" },
+  },
+} as const;
+
 describe("外部读详情：成功回包逐字节不变（读的是名字主人认出的那一行本身）", () => {
   const seeded = applyBuiltinSeeds({ version: 4, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, "2026-11-17T00:00:00.000Z").state;
   const rows = agentModelEntriesFromCatalog(seeded);
@@ -350,6 +397,22 @@ describe("外部读详情：成功回包逐字节不变（读的是名字主人�
       return;
     }
     throw new Error("expected ambiguous_model_vendor");
+  });
+
+  // 三种读拒收的回执逐字段冻结（码、正文、details 的每个键和值）：外部助手按这些字段改写下一次调用，改一个键名它就读不到出路了。
+  const readRefusal = (modelId: string, vendor: string | undefined) => {
+    try { requireModelSpecDetail(modelId, vendor, seeded); } catch (error) {
+      const failure = error as Error & { code?: string; details?: Record<string, unknown> };
+      return { message: failure.message, code: failure.code, details: failure.details };
+    }
+    throw new Error(`expected a refusal for ${modelId}`);
+  };
+  it.each([
+    ["同名多家、没说哪家", "minimax-h3", undefined, READ_REFUSALS.ambiguous],
+    ["压根没这个模型", "totally-not-a-model", undefined, READ_REFUSALS.unknown],
+    ["说了的那家没有它", "minimax-h3", "nope-vendor", READ_REFUSALS.unknownAtVendor],
+  ] as const)("读拒收逐字段不变：%s", (_label, modelId, vendor, expected) => {
+    expect(readRefusal(modelId, vendor)).toStrictEqual(expected);
   });
 });
 
