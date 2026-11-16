@@ -219,11 +219,10 @@ describe("每一类各自的正路（用户反馈里被点名的四种情形）"
     expect(state.apiKeysByVendor.replicate?.apiKey).toBeTruthy();
   });
 
-  it("apimart 免费探测 401 只记未验证，保存并发布", async () => {
+  it("apimart（种子带 credentialProbe）：401 仍然判 key 无效，不发布", async () => {
     mockAppFetch.mockResolvedValue(new Response("{}", { status: 401 }));
-    await expect(saveKey("apimart", "sk-bad")).resolves.toBeUndefined();
-    expect(readCatalog().apiKeysByVendor.apimart).toMatchObject({ enabled: true, verificationPending: true });
-    expect(readCatalog().vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(true);
+    await expect(saveKey("apimart", "sk-bad")).rejects.toThrow();
+    expect(readCatalog().vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(false);
   });
 
   it("自定义中转保存 key 后连接启用，模型仍需请求格式", async () => {

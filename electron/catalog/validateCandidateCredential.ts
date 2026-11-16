@@ -31,6 +31,9 @@ export async function validateCandidateCredential(vendor: Vendor, apiKey: string
   // 花不花钱、要不要先问，由 `credentialProbePolicy` 决定，`probeDirectKeyCredential` 执行。
   if (strategy === 'seed-probe') {
     const outcome = await probeDirectKeyCredential(vendor, apiKey)
+    // 种子声明的凭据端点明确回 401/403 = 「验证了，不对」：拒绝、不保存、原密钥保留（协调 2026-11-17 裁定）。
+    // 离线 / 超时 / 5xx 不是这一类，照存、标未验证、可用。
+    if (outcome === 'invalid-key') throw credentialFailure('credential.invalid', vendor.key)
     // `declined` = 用户在报价卡上说了「不发」。那不是失败：密钥照存（标未验证），
     // 判据留给首次真实调用的诚实报错——把它当失败就等于「不付这一下钱就别想接入」。
     return outcome !== 'verified'

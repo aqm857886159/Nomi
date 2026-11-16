@@ -89,10 +89,10 @@ describe("direct-key credential validation (apimart liveness probe)", () => {
     await expect(validateCandidateCredential(apimartVendor(state), "sk-test")).resolves.toBe(false);
   });
 
-  it.each([401, 403])("probe %i is a failed diagnostic, not a save blocker", async (status) => {
+  it.each([401, 403])("probe %i → key is invalid (throws, candidate never published)", async (status) => {
     const state = seedApimartCatalog();
     mockAppFetch.mockResolvedValue(probeResponse(status, { code: 401, message: "unauthorized" }));
-    await expect(validateCandidateCredential(apimartVendor(state), "sk-bad")).resolves.toBe(true);
+    await expect(validateCandidateCredential(apimartVendor(state), "sk-bad")).rejects.toThrow();
   });
 
   it("network failure → pending (honest: not faked as available, not misreported as bad key)", async () => {
