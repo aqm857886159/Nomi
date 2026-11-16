@@ -196,7 +196,6 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
   const previousAdapterRunsRef = React.useRef(adapterRuns)
   const [adaptStartingModel, setAdaptStartingModel] = React.useState<string | null>(null)
   const connectionRecoveryRequestRef = React.useRef(0)
-  const closeWizard = React.useCallback(() => goBack(), [goBack])
   const openCustomCall = React.useCallback(
     (vendorKey: string, modelKey: string) => {
       const model = models.find((item) => item.vendorKey === vendorKey && item.modelKey === modelKey)
@@ -546,7 +545,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       <OnboardingWizard
         opened
         presentation="page"
-        onClose={closeWizard}
+        onClose={goBack}
         onCertificationStarted={handleCertificationStarted}
         onConnectionConfigured={() => refresh()}
         initialPreset={page.preset}

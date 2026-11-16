@@ -1,7 +1,7 @@
 /**
  * 老用户升级：「没验证的也能用」（docs/plan/2026-11-17-unverified-usable.md ★1c）。
  *
- * 三份目录都是 v0.24.1 真实落盘的（tests/fixtures/old-user-data/catalogs/v0.24.1-unverified-usable，生成方法见同目录上一级 README）：
+ * 三份目录都是 v0.24.1 真实落盘的（tests/fixtures/old-user-data/unverified-usable/v0.24.1，生成方法见 tests/fixtures/old-user-data/README.md）：
  * - saved-pending：密钥离线保存，0.24.1 把连接整个停用、密钥记着「待验证」；
  * - failed-disabled：自检 401，0.24.1 自动停掉了两个模型（一个有请求方式，一个没有）；
  * - manual-disabled：验证通过之后创作者自己停掉了一个模型。
@@ -27,7 +27,7 @@ vi.mock("electron", async (importOriginal) => {
   };
 });
 
-const FIXTURES = fileURLToPath(new URL("../../tests/fixtures/old-user-data/catalogs/v0.24.1-unverified-usable", import.meta.url));
+const FIXTURES = fileURLToPath(new URL("../../tests/fixtures/old-user-data/unverified-usable/v0.24.1", import.meta.url));
 const VENDOR = "local-60634";
 const roots: string[] = [];
 
