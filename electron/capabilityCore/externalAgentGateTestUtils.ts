@@ -8,7 +8,6 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { vi } from "vitest";
 
 import { MCP_TOOL_RESOLVER } from "./mcpToolCatalog";
 import { validateToolArguments } from "./mcpProtocol";
@@ -52,10 +51,26 @@ export async function rawDispatch(method: string, params: Record<string, unknown
   catch (error) { return { threw: String((error as Error)?.message || error), code: (error as { code?: string }).code }; }
 }
 
+// 这个文件会跟着主进程一起编译进 dist-electron（只排除 *.test.ts），所以不 import vitest：
+// 资料目录自己换、自己还原，测试在 afterEach 里调 `restoreSettingsDir()`。
+let settingsDirBefore: { value: string | undefined } | null = null;
+function useSettingsDir(dir: string): void {
+  if (!settingsDirBefore) settingsDirBefore = { value: process.env.NOMI_SETTINGS_DIR };
+  process.env.NOMI_SETTINGS_DIR = dir;
+}
+
+/** 把资料目录还原成换之前的样子（测试 afterEach 用）。 */
+export function restoreSettingsDir(): void {
+  if (!settingsDirBefore) return;
+  if (settingsDirBefore.value === undefined) delete process.env.NOMI_SETTINGS_DIR;
+  else process.env.NOMI_SETTINGS_DIR = settingsDirBefore.value;
+  settingsDirBefore = null;
+}
+
 /** 一个干净的资料目录，并「打开一次应用」（启动种子）。 */
 export function freshSettingsDir(tag: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-gate-${tag}-`));
-  vi.stubEnv("NOMI_SETTINGS_DIR", dir);
+  useSettingsDir(dir);
   ensureBuiltinModelSeeds();
   return dir;
 }
@@ -64,7 +79,7 @@ export function freshSettingsDir(tag: string): string {
 export function openOldUserDir(fixtureDir: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-gate-old-"));
   fs.cpSync(fixtureDir, dir, { recursive: true });
-  vi.stubEnv("NOMI_SETTINGS_DIR", dir);
+  useSettingsDir(dir);
   return dir;
 }
 

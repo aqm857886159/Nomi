@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { builtinVendorDeletedUntilKeySaved, deleteModelCatalogModels, ensureBuiltinModelSeeds, readCatalog } from "../catalog/catalogStore";
 import { builtinCatalogModelKeys } from "../catalog/seedBuiltins";
 import { createLiveGenerationRuntime } from "./liveGenerationRuntime";
-import { callTool, draftPreviewGate, FAKE_KEY, freshSettingsDir, hostWiredPlanning, openOldUserDir } from "./externalAgentGateTestkit";
+import { callTool, draftPreviewGate, FAKE_KEY, freshSettingsDir, hostWiredPlanning, openOldUserDir, restoreSettingsDir } from "./externalAgentGateTestUtils";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -28,7 +28,7 @@ vi.mock("electron", async (importOriginal) => {
   };
 });
 
-afterEach(() => { vi.unstubAllEnvs(); });
+afterEach(() => { restoreSettingsDir(); });
 
 const apimartModelKeys = () => new Set(readCatalog().models.filter((model) => model.vendorKey === "apimart").map((model) => model.modelKey));
 

@@ -13,7 +13,7 @@ import { ensureBuiltinModelSeeds, readCatalog, upsertModelCatalogVendor } from "
 import { builtinVendorSeed } from "../catalog/builtinVendorSeeds";
 import { codeDeclaredFallbackOrigins } from "../vendor/vendorBaseFallback";
 import { createLiveGenerationRuntime } from "./liveGenerationRuntime";
-import { callTool, draftPreviewGate, FAKE_KEY, freshSettingsDir, hostWiredPlanning, openOldUserDir, readinessOf, videoCard } from "./externalAgentGateTestkit";
+import { callTool, draftPreviewGate, FAKE_KEY, freshSettingsDir, hostWiredPlanning, openOldUserDir, readinessOf, videoCard, restoreSettingsDir } from "./externalAgentGateTestUtils";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -28,7 +28,7 @@ vi.mock("electron", async (importOriginal) => {
   };
 });
 
-afterEach(() => { vi.unstubAllEnvs(); });
+afterEach(() => { restoreSettingsDir(); });
 
 const apimartRow = () => readCatalog().vendors.find((vendor) => vendor.key === "apimart") as Record<string, unknown>;
 

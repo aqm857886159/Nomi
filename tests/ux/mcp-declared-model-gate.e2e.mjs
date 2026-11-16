@@ -17,6 +17,7 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { launchNomiApp } from './_launchApp.mjs'
 import { makeIsolatedDirs, parseToolResult, repoRoot, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { newProjectEntry } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const dirs = makeIsolatedDirs('nomi-declared-model-gate-')
 const shotsDir = process.env.NOMI_WALK_EVIDENCE_DIR || path.join(repoRoot, 'tests/ux/shots/mcp-declared-model-gate')
@@ -80,7 +81,7 @@ async function walkHost(label, call, window, projectId, modelKey, shot) {
   const gatePromise = call('nomi_operation_gate', { phase: 'request', leaseHandle, projectId, operationId }, { timeoutMs: 120_000 })
   const card = window.locator('[data-spend-confirm-dialog]').filter({ hasText: modelKey })
   const raced = await Promise.race([
-    card.waitFor({ timeout: 30_000 }).then(() => 'card'),
+    card.waitFor({ timeout: stationTimeout({ operations: 2 }) }).then(() => 'card'),
     gatePromise.then((gate) => ({ gate })),
   ])
   if (raced !== 'card') check(false, `${label}: 过门走到确认卡（修前这里说「没就绪 · configured_provider」）`, raced.gate.text.slice(0, 600))
@@ -89,7 +90,7 @@ async function walkHost(label, call, window, projectId, modelKey, shot) {
   await card.locator('[data-spend-confirm-action="cancel"]').click()
   const gate = await gatePromise
   check(!/configured_provider|Unknown model/i.test(gate.text), `${label}: 点取消后门如实收尾，没有回到「没就绪」`, gate.text.slice(0, 400))
-  await card.waitFor({ state: 'detached', timeout: 10_000 })
+  await card.waitFor({ state: 'detached', timeout: stationTimeout() })
   return { gate: gate.text.slice(0, 400) }
 }
 
@@ -112,7 +113,7 @@ try {
   })
   const window = gui.win
   await newProjectEntry(window).click()
-  await window.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 10_000 })
+  await window.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: stationTimeout() })
   const projectId = await window.evaluate(() => new URLSearchParams(window.location.hash.split('?')[1] || '').get('projectId'))
   check(Boolean(projectId), '隔离的 Nomi 窗口打开了一个新项目')
   const token = fs.readFileSync(path.join(dirs.capabilityDir, 'token'), 'utf8').trim()

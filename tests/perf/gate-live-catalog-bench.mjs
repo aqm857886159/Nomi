@@ -16,6 +16,8 @@ import { performance } from 'node:perf_hooks'
 import Module from 'node:module'
 import { require as tsxRequire } from 'tsx/cjs/api'
 
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+
 // 量具不在 Electron 里：换一个只认这条量具的 electron 模块——钥匙串用可逆的假加密（不碰真钥匙串），其余为空。
 const fakeElectron = {
   app: { getPath: () => os.tmpdir(), getAppPath: () => process.cwd(), isPackaged: false },
@@ -36,7 +38,7 @@ const output = arg('--out', '')
 if (!output || !Number.isInteger(runs) || runs < 1) throw new Error('Use --out <result.json> and a positive --runs')
 
 const SHOTS = 40
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-gate-live-catalog-'))
+const root = makeTempDir('nomi-gate-live-catalog-')
 process.env.NOMI_SETTINGS_DIR = path.join(root, 'settings')
 fs.mkdirSync(process.env.NOMI_SETTINGS_DIR, { recursive: true })
 
