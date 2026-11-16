@@ -11,7 +11,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../
  * 生成底栏最右的「走」钮——画布节点、画布列表详情、分镜行、分镜参考卡四处同一颗。
  *
  * 只有一处不同，由宿主说：分镜行 / 参考卡今天就是带字的「生成 ↑」（一屏十几行，字比图标好认；2026-11-14 协调裁决：
- * 今天主线就有的样子不改），画布是圆形 ↑。忙态同时是闸：`disabled` 让第二下点不进去（2026-09-11 用户实测连点三下 = 排队三次）。
+ * 今天主线就有的样子不改），画布是圆形 ↑。
+ *
+ * 忙态的闸两处不一样，都是有意的（别把它们并成一个「能不能按」）：
+ * - 带字两支（分镜行 / 参考卡）：`busy` 时 `disabled`，第二下点不进去（2026-09-11 用户实测连点三下 = 排队三次）。
+ * - 圆形支（画布节点 / 画布列表详情）：生成中不置灰（3797fde0c，用户 2026-11-02「人亲手点不再被拒」）。按下去由
+ *   `confirmAndRunNode` 先问「再发一次？上一次还没结束，可能再扣」，确认才发；同一次点击只发一次靠 `preparingSingleGeneration`。
  */
 export function ComposerSendButton({
   label, busy = false, disabled = false, ariaLabel, title, onClick, attrs,
