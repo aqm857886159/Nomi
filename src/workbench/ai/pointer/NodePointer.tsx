@@ -25,7 +25,7 @@ import { GenerationWaitingSurface } from '../../generationCanvas/nodes/Generatio
 import { NodeCornerPill } from '../../generationCanvas/nodes/ProductionShotPlaceholder'
 import { productionShotCornerText } from '../../generationCanvas/nodes/productionShotCorner'
 import { NodeShotLabel, ShotNumberPill } from '../../generation/list/CanvasListLinks'
-import { nodePointerLocatable, pointerCenterTier, type NodePointerFace } from './nodePointerFace'
+import { nodePointerLocatable, pointerCenterTier } from './nodePointerFace'
 import {
   SLOT_ASPECT,
   frameTone,
