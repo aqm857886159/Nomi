@@ -159,6 +159,26 @@ const VARIANTS = [
   ['带袋与时长键的读取函数', `export const f = (meta) => Number(readParam(meta, 'duration'))`],
 ]
 
+// 同一个调用目标的等价语法；String 仍只在两边字符串化比较时受管。
+const CALL_SHAPES = [
+  ['直接', (fn) => `${fn}(VALUE)`],
+  ['globalThis', (fn) => `globalThis.${fn}(VALUE)`],
+  ['window', (fn) => `window.${fn}(VALUE)`],
+  ['self', (fn) => `self.${fn}(VALUE)`],
+  ['call', (fn) => `${fn}.call(undefined, VALUE)`],
+  ['apply', (fn) => `${fn}.apply(undefined, [VALUE])`],
+  ['Reflect.apply', (fn) => `Reflect.apply(${fn}, undefined, [VALUE])`],
+  ['全局对象和call组合', (fn) => `globalThis.${fn}.call(undefined, VALUE)`],
+  ['全局对象和apply组合', (fn) => `window.${fn}.apply(undefined, [VALUE])`],
+  ['全局对象和Reflect组合', (fn) => `Reflect.apply(self.${fn}, undefined, [VALUE])`],
+  ['计算属性与可选调用', (fn) => `globalThis[${JSON.stringify(fn.split('.')[0])}]${fn.includes('.') ? `.${fn.split('.')[1]}` : ''}?.(VALUE)`],
+]
+const CONVERSION_VARIANTS = ['Number', 'parseInt', 'parseFloat', 'isFinite', 'isNaN',
+  'Number.parseInt', 'Number.parseFloat', 'Number.isFinite', 'Number.isInteger', 'Number.isNaN', 'Number.isSafeInteger']
+  .flatMap((fn) => CALL_SHAPES.map(([shape, call]) => [`${fn} ${shape}`, call(fn)]))
+const STRING_VARIANTS = CALL_SHAPES.map(([shape, call]) => [`String比较 ${shape}`, `${call('String')} === String(other)`])
+const INVOCATION_VARIANTS = [...CONVERSION_VARIANTS, ...STRING_VARIANTS]
+
 // ── 合法写法：必须不红 ──
 const GREEN = [
   ['推荐：创作者目标的时长是外部输入（recommendation 原文）', 'electron/shared/videoCapabilities/recommendation.ts', `
@@ -210,6 +230,31 @@ describe('写法：合法写法必绿', () => {
       expect(await doorHits(source, file)).toBe(0)
     })
   }
+})
+
+describe('等价调用：参数值红，非参数输入与门外编码绿', () => {
+  for (const [name, expression] of INVOCATION_VARIANTS) {
+    const source = (value) => `export const f = (meta, input, other) => ${expression.replaceAll('VALUE', value)}`
+    it(`门内再转换红：${name}`, async () => {
+      expect(await doorHits(source('meta.duration'), 'src/workbench/generation/list/generationListMediaFacts.ts')).toBeGreaterThan(0)
+    })
+    it(`同目录外部目标绿：${name}`, async () => {
+      expect(await doorHits(source('input.goals.durationSeconds'), 'electron/shared/videoCapabilities/recommendation.ts')).toBe(0)
+    })
+    it(`门外供应商编码绿：${name}`, async () => {
+      expect(await hits(repo, source('meta.duration'), 'electron/catalog/paramTranslate.ts')).toBe(0)
+    })
+  }
+  for (const expression of ['Number.call(meta.duration, input.goals.durationSeconds)',
+    'Number.apply(meta.duration, [input.goals.durationSeconds])',
+    'Reflect.apply(Number, meta.duration, [input.goals.durationSeconds])']) {
+    it(`thisArg不是参数值实参：${expression}`, async () => {
+      expect(await doorHits(`export const f = (meta, input) => ${expression}`, 'electron/shared/videoCapabilities/recommendation.ts')).toBe(0)
+    })
+  }
+  it('对象上同名的转换方法不是全局转换', async () => {
+    expect(await doorHits('export const f = (meta, codec) => codec.Number.call(undefined, meta.duration)', 'src/workbench/generation/list/generationListMediaFacts.ts')).toBe(0)
+  })
 })
 
 describe('普查：规则管的目录里一处第二个解析器都没有', () => {

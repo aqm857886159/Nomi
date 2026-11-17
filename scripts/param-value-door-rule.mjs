@@ -84,6 +84,35 @@ function propertyName(member) {
   return null
 }
 
+function globalName(node) {
+  const target = unwrap(node)
+  if (target?.type === 'Identifier') return target.name
+  if (target?.type === 'MemberExpression') {
+    const object = unwrap(target.object)
+    if (object?.type === 'Identifier' && ['globalThis', 'window', 'self'].includes(object.name)) return propertyName(target)
+  }
+  return null
+}
+
+// shortcut: 只展开字面实参数组，出现动态数组绕过时再加文件内来源追踪。
+function callTarget(call) {
+  let callee = unwrap(call.callee)
+  let argument = call.arguments[0]
+  if (callee?.type === 'MemberExpression') {
+    const method = propertyName(callee)
+    if (method === 'apply' && globalName(callee.object) === 'Reflect') {
+      callee = unwrap(call.arguments[0])
+      const args = unwrap(call.arguments[2])
+      argument = args?.type === 'ArrayExpression' ? args.elements[0] : null
+    } else if (method === 'call' || method === 'apply') {
+      callee = unwrap(callee.object)
+      const args = unwrap(call.arguments[1])
+      argument = method === 'call' ? call.arguments[1] : args?.type === 'ArrayExpression' ? args.elements[0] : null
+    }
+  }
+  return { callee, argument }
+}
+
 function calleeName(call) {
   const callee = unwrap(call.callee)
   if (callee?.type === 'Identifier') return callee.name
@@ -191,8 +220,9 @@ function createAnalyzer(context) {
     }
     if (target.type === 'ConditionalExpression') return isOptionValue(target.consequent, depth + 1) || isOptionValue(target.alternate, depth + 1)
     if (target.type === 'LogicalExpression') return isOptionValue(target.left, depth + 1) || isOptionValue(target.right, depth + 1)
-    if (target.type === 'CallExpression' && calleeName(target) === 'String' && unwrap(target.callee).type === 'Identifier') {
-      return target.arguments.some((argument) => isOptionValue(argument, depth + 1))
+    if (target.type === 'CallExpression') {
+      const { callee, argument } = callTarget(target)
+      if (globalName(callee) === 'String') return isOptionValue(argument, depth + 1)
     }
     return false
   }
@@ -232,7 +262,8 @@ function createAnalyzer(context) {
         if (name && PRODUCER_CALLS.has(name)) return true
         if (target.arguments.some((argument) => isBag(argument)) && target.arguments.some((argument) => isDurationLiteral(argument))) return true
         const callee = unwrap(target.callee)
-        if (callee?.type === 'Identifier' && ['String', 'Number'].includes(callee.name)) return target.arguments.some((argument) => isParamSource(argument, depth + 1))
+        const call = callTarget(target)
+        if (['String', 'Number'].includes(globalName(call.callee))) return isParamSource(call.argument, depth + 1)
         if (callee?.type === 'MemberExpression' && ['trim', 'toString', 'valueOf'].includes(propertyName(callee))) return isParamSource(callee.object, depth + 1)
         return false
       }
@@ -272,8 +303,8 @@ function stringLiteral(node) {
 function stringCallArgument(node) {
   const target = unwrap(node)
   if (target?.type !== 'CallExpression') return null
-  const callee = unwrap(target.callee)
-  return callee?.type === 'Identifier' && callee.name === 'String' ? target.arguments[0] ?? null : null
+  const { callee, argument } = callTarget(target)
+  return globalName(callee) === 'String' ? argument ?? null : null
 }
 
 const EQUALITY = new Set(['===', '!==', '==', '!='])
@@ -303,11 +334,10 @@ export const paramValueDoorRule = {
         if (left && right && [left, right].some((argument) => isParamSource(argument) || isOptionValue(argument))) report(node)
       },
       CallExpression(node) {
-        const callee = unwrap(node.callee)
-        const argument = node.arguments[0]
+        const { callee, argument } = callTarget(node)
         if (!argument) return
-        const conversion = (callee?.type === 'Identifier' && CONVERSION_CALLS.has(callee.name))
-          || (callee?.type === 'MemberExpression' && unwrap(callee.object)?.type === 'Identifier' && unwrap(callee.object).name === 'Number' && NUMBER_STATICS.has(propertyName(callee)))
+        const conversion = CONVERSION_CALLS.has(globalName(callee))
+          || (callee?.type === 'MemberExpression' && globalName(callee.object) === 'Number' && NUMBER_STATICS.has(propertyName(callee)))
         if (conversion && (isParamSource(argument) || isOptionValue(argument))) report(node)
       },
       UnaryExpression(node) {
