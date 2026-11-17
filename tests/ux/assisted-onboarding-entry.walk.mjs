@@ -76,6 +76,7 @@ await expectVisible(win.locator('[data-model-settings-page="home"]'), '模型设
 await snap(win, 'models-home')
 
 // ① 卡在顶部，而且排在所有连接区块之前。
+await win.locator('[data-model-home-assisted] > summary').click()
 const card = win.locator('[data-model-home-assisted-onboarding]')
 await expectVisible(card, '① 「用 AI 帮我接入」卡应在模型页落地首屏就可见')
 const order = await win.evaluate(() => {

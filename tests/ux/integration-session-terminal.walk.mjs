@@ -16,7 +16,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible, screenshotSettled } from './_assert.mjs'
-import { openModelSettings } from './_shell.mjs'
+import { openModelSettings, revealModelConnection } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/integration-session-terminal')
@@ -63,12 +63,10 @@ try {
   await snap(win, 'model-settings-deepseek-connected')
 
   // 免费自检那条路（本轮新覆盖的窗口）在界面上的入口：本地 ComfyUI。
-  const others = win.locator('[data-model-home-action="other-ways"]').first()
-  if (await others.count()) { await others.click().catch(() => {}); await win.waitForTimeout(900) }
-  await expectVisible(win.locator('[data-model-home-available="comfyui-local"]').first(), '本地 ComfyUI 行（免费自检那条路）')
+  await expectVisible(await revealModelConnection(win, win.locator('[data-model-home-available="comfyui-local"]').first()), '本地 ComfyUI 行（免费自检那条路）')
   await snap(win, 'other-ways-comfyui-free-selfcheck')
 
-  await clickOrFail(win.locator('[data-model-home-connection="deepseek"], [data-model-home-connected] button').first(), '已接入的连接详情')
+  await clickOrFail(await revealModelConnection(win, win.locator('[data-model-home-connection="deepseek"], [data-model-home-connected] button').first()), '已接入的连接详情')
   await win.waitForTimeout(1400)
   await snap(win, 'deepseek-connection-detail')
 } finally {

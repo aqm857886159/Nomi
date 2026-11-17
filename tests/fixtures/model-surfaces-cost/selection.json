@@ -1,0 +1,131 @@
+{
+  "checkedAt": "2026-11-09",
+  "source": "https://api.apimart.ai/api/pricing/models/all",
+  "detailSource": "https://api.apimart.ai/api/pricing/model?model=gpt-image-2.5-flare",
+  "selected": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1:3",
+    "resolution": "1K",
+    "quality": "low",
+    "usd": 0.001344,
+    "credits": 0.01344
+  },
+  "reason": "Lowest supported explicit output estimate; tied with Sunburst. Input-token charge is additional and unproved. 1K is the smallest exposed resolution, low the lowest quality; 1:3 ties 3:1 for minimum public output price.",
+  "candidates": [
+    {
+      "model": "gpt-image-2.5-flare",
+      "lowestPublicUsd": 0.001344,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "gpt-image-2.5-sunburst",
+      "lowestPublicUsd": 0.001344,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "muse-image-ext",
+      "lowestPublicUsd": 0.0048,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "gpt-image-2.6-flare",
+      "lowestPublicUsd": 0.005664,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "gpt-image-2.6-sunburst",
+      "lowestPublicUsd": 0.005664,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "flux-3-image-klein",
+      "lowestPublicUsd": 0.0064,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "gemini-2.5-flash-image-preview",
+      "lowestPublicUsd": 0.008,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "gemini-3.1-flash-lite-image-ext",
+      "lowestPublicUsd": 0.008,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "gpt-image-2",
+      "lowestPublicUsd": 0.0085,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "z-image-turbo",
+      "lowestPublicUsd": 0.01,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "gemini-3.1-flash-image-preview",
+      "lowestPublicUsd": 0.012,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "gemini-nano-banana-2.1-ext",
+      "lowestPublicUsd": 0.012,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "grok-imagine-2.0-ext",
+      "lowestPublicUsd": 0.015,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "hy-image-v3.5-preview",
+      "lowestPublicUsd": 0.0192,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "gemini-3-pro-image-preview",
+      "lowestPublicUsd": 0.02,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "qwen-image-2.0",
+      "lowestPublicUsd": 0.02,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "qwen-image-3.0",
+      "lowestPublicUsd": 0.0205712,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "wan2.7-image",
+      "lowestPublicUsd": 0.0216,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "grok-imagine-image-2.0",
+      "lowestPublicUsd": 0.032,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "flux-3-image",
+      "lowestPublicUsd": 0.0328,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "wan2.7-image-pro",
+      "lowestPublicUsd": 0.0544,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "gemini-nano-banana-2.1",
+      "lowestPublicUsd": null,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    },
+    {
+      "model": "gemini-3.1-flash-lite-image",
+      "lowestPublicUsd": null,
+      "basis": "fixed image / supported explicit output formula; null means no supported deterministic estimate"
+    }
+  ]
+}

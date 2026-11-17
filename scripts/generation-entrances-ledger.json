@@ -86,6 +86,11 @@
       "reason": "目录提交期的请求渲染校验，不带真实密钥、不出站。"
     },
     {
+      "site": "electron/ai/onboarding/vendorPriceRequest.ts::buildProfileHttpRequest",
+      "count": 1,
+      "reason": "公开估价的纯内存投影：apiKey 固定为空，复用最终 create mapping 渲染 POST 形状以提取准确型号/参数，只返回有限 VendorPriceQuery，不发送渲染报文。价格 IPC 随后只调用 vendorPricePreview 的固定公开价 GET（/api/pricing/model、/api/pricing/models/all），无 Key、无生成报文/headers/query 透传、不生成；不能用 GET 查询函数替代最终任务参数投影而另造映射。vendorPricePreview.test.ts 用真实内置图片/视频映射及合成凭据核对投影不出站、下游仅 GET 且无鉴权头/请求体，坏 method/path 不报价。"
+    },
+    {
       "site": "electron/main.ts::runTask",
       "count": 1,
       "reason": "IPC 装配转发（把 payload 交给 taskIpcHandlers 那条已登记的门）。"

@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "date": "2026-11-08",
+  "scenarioId": "settings-model",
+  "change": {
+    "headSha": "81e973af6d435fbb656e2959d60ff9890453b575",
+    "title": "在画布选用已接的模型并查看估价",
+    "userCan": "读账户额度、搜索画布模型，查不到时打开 AI 接入，并在发送前读本次公开价。"
+  },
+  "verifier": {
+    "line": "I-model-surfaces",
+    "kind": "实施自验"
+  },
+  "machine": {
+    "source": "walk-log",
+    "env": {
+      "device": "macOS arm64，真实开发版 Electron，合成账户及回环供应商",
+      "window": "1220×840、900×700，亮色",
+      "language": "zh-CN、en"
+    },
+    "attempts": [
+      {
+        "label": "首次独验：零余额 + 仅输出估价",
+        "result": "fail",
+        "note": "早期版本保留了生成动作，零余额没有充值与刷新。"
+      },
+      {
+        "label": "首次独验：点充值时上次读取已过期",
+        "result": "fail",
+        "note": "早期版本把充值点击转成发送，方向复盘和现在的反例均保留。"
+      },
+      {
+        "label": "中文：设置、搜索、空结果接入与固定价",
+        "result": "pass"
+      },
+      {
+        "label": "英文：设置、搜索、空结果接入与固定价",
+        "result": "pass"
+      }
+    ],
+    "metrics": [
+      {
+        "name": "供应商媒体创建请求",
+        "unit": "次",
+        "current": 0,
+        "baseline": null,
+        "n": 2,
+        "basis": "script-count",
+        "note": "两个正式语言窗口的回放。"
+      }
+    ]
+  },
+  "human": {
+    "seq": null,
+    "events": {
+      "misclicks": null,
+      "backtracks": null,
+      "helpRequests": null,
+      "firstAttemptSuccess": null
+    },
+    "note": "无人类评分或人工事件观察；不把自动化点击数当误点/回退/求助。"
+  },
+  "guardrails": [
+    {
+      "name": "点击已过期的充值按钮只刷新账户",
+      "result": "pass",
+      "evidence": "tests/ux/apimart-model-surfaces.rehearsal.mjs，receipt.json"
+    },
+    {
+      "name": "账户未知或零余额分别呈现",
+      "result": "pass",
+      "evidence": "同一正式走查使用两种回放数据。"
+    }
+  ],
+  "friction": {
+    "moment": "查不到型号时不知道下一步去哪；充值按钮的过期快照曾改变点击语义。",
+    "decision": "搜索空态走同一个 AI 接入入口；点击充值时保持用户看到的动作。"
+  },
+  "unverified": [
+    {
+      "item": "Windows 安装包与真实会员扣款",
+      "owner": "发布及供应商验证线",
+      "recheck": "对应包与授权的真实收费样本可用时复查。"
+    },
+    {
+      "item": "用户 SEQ 与人工误点",
+      "owner": "人工体验验收",
+      "recheck": "安排独立用户走查时补录。"
+    }
+  ],
+  "evidence": [
+    "docs/evidence/2026-11-08-apimart-model-surfaces/README.md",
+    "docs/evidence/2026-11-08-apimart-model-surfaces/receipt.json",
+    "docs/plan/2026-11-08-price-balance-direction-check.md"
+  ]
+}

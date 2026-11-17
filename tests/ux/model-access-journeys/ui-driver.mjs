@@ -4,7 +4,7 @@ import { launchNomiApp } from '../_launchApp.mjs'
 import { stationTimeout } from '../_station-budget.mjs'
 import { uiText } from '../full-walk/invariants.mjs'
 import { JourneyFailure } from './evidence.mjs'
-import { canvasAddBar, newProjectEntry } from '../_shell.mjs'
+import { canvasAddBar, newProjectEntry, revealModelConnection } from '../_shell.mjs'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Model-access UI driver — reconfigured 2026-09-01 to main's current IA.
@@ -104,6 +104,7 @@ export async function launchJourneyUi({ journey, recorder }) {
   // is the stable anchor). Reveals it from either collapsed group first.
   async function openHomeConnection(vendorKey) {
     const row = win.locator(`[data-model-home-available="${vendorKey}"]`)
+    await revealModelConnection(win, row, { timeout: stationTimeout() })
     if (!(await row.isVisible().catch(() => false))) await expandHomeGroup('more-adapted')
     if (!(await row.isVisible().catch(() => false))) await expandHomeGroup('other-ways')
     await row.first().waitFor({ state: 'visible', timeout: 8000 })
@@ -113,11 +114,7 @@ export async function launchJourneyUi({ journey, recorder }) {
   async function openRelayWizard() {
     await expandGenerationProviders()
     // "自定义 API / 中转站" is the relay/custom-base-URL entry on the model home.
-    const customApi = win.locator('[data-model-home-action="custom-api"]').first()
-    if (!(await customApi.isVisible().catch(() => false))) {
-      const otherWays = win.locator('[data-model-home-action="other-ways"]').first()
-      if (await otherWays.isVisible().catch(() => false)) await otherWays.click()
-    }
+    const customApi = await revealModelConnection(win, win.locator('[data-model-home-action="custom-api"]').first(), { timeout: stationTimeout() })
     await customApi.waitFor({ state: 'visible', timeout: stationTimeout() })
     await customApi.click()
     // The wizard renders as a page (header 接入 API / 中转站). Anchor on the name
@@ -260,7 +257,7 @@ export async function launchJourneyUi({ journey, recorder }) {
       await win.waitForTimeout(250)
     }
     await home.waitFor({ state: 'visible', timeout: stationTimeout() })
-    await win.locator(`[data-model-home-connection="${vendorKey}"]`).first().click()
+    await (await revealModelConnection(win, win.locator(`[data-model-home-connection="${vendorKey}"]`).first())).click()
     const connection = win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendorKey}"]`)
     await connection.waitFor({ state: 'visible', timeout: stationTimeout() })
     await connection.locator('button', { hasText: modelKey }).first().click()

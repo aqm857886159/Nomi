@@ -13,9 +13,11 @@
  * 货币码不合法时 `Intl` 会抛 RangeError（自建中转报上来的码不归我们管）。那时退回
  * 「码 + 两位小数」——丑，但如实；绝不能让一次格式化失败把整张付费卡渲成空白。
  */
-export function formatMoney(locale: string, currency: string, amount: number): string {
+export function formatMoney(locale: string, currency: string, amount: number,
+  precision?: Pick<Intl.NumberFormatOptions, 'maximumFractionDigits' | 'maximumSignificantDigits'>,
+): string {
   try {
-    return new Intl.NumberFormat(locale, { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }).format(amount)
+    return new Intl.NumberFormat(locale, { style: 'currency', currency, currencyDisplay: 'narrowSymbol', ...precision }).format(amount)
   } catch {
     return `${currency} ${amount.toFixed(2)}`
   }

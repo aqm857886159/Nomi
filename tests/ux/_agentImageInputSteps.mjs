@@ -19,7 +19,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect } from './_assert.mjs'
 import { envKeyOf } from './_paidEnvKey.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { closeSettings, openModelSettings } from './_shell.mjs'
+import { closeSettings, openModelSettings, revealModelConnection } from './_shell.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { readLaneTranscripts } from './agent-lane-observer.mjs'
@@ -87,7 +87,7 @@ export function prepareImages({ codeWord = makeCodeWord() } = {}) {
 async function addHandTypedModel(win, { vendorKey, modelId, snap }) {
   const L = (key) => uiText('zh-CN', key)
   await openModelSettings(win, { label: '接入：打开模型设置' })
-  await clickOrFail(win.locator(`[data-model-home-connection="${vendorKey}"]`).first(), `模型设置首页上 ${vendorKey} 的连接行`)
+  await clickOrFail(await revealModelConnection(win, win.locator(`[data-model-home-connection="${vendorKey}"]`).first()), `模型设置首页上 ${vendorKey} 的连接行`)
   const connection = win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendorKey}"]`).first()
   await expect(connection, `点连接行后进到 ${vendorKey} 的连接页`).toBeVisible()
   await clickOrFail(connection.getByRole('button', { name: L('onboardingProviders.workspace.addOtherModels'), exact: true }), '连接页上的「添加其他」')

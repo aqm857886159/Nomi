@@ -9,6 +9,7 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, screenshotSettled } from './_assert.mjs'
+import { revealModelConnection } from './_shell.mjs'
 import { REQUIRED_GUARD_LAYERS, startEgressWatch } from './full-walk/egress.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -72,7 +73,7 @@ try {
   await win.locator('[data-settings-tab-id="models"]').click()
   for (const vendorKey of Object.keys(FIXTURE_KEYS)) {
     // 连接详情页的供应商卡。展开「更换密钥」，凭证说明、占位文字和推广文字一起入镜。
-    await win.locator(`[data-model-home-connection="${vendorKey}"]`).first().click()
+    await (await revealModelConnection(win, win.locator(`[data-model-home-connection="${vendorKey}"]`).first())).click()
     await win.locator('[data-model-connection-edit="apiKey"]').first().click()
     const card = win.locator('[data-model-access-entry]').first()
     const cardText = await card.innerText()

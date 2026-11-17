@@ -1,5 +1,5 @@
 export type ModelSettingsPage =
-  | { type: 'home' }
+  | { type: 'home'; assistedRequest?: number }
   | { type: 'platformConnect'; vendorKey: string }
   | {
       type: 'connection'

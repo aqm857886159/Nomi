@@ -4,7 +4,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRuntimeWalk, readProject } from './agent-runtime-walk-support.mjs'
-import { openCustomApiWizard, openModelSettings } from './_shell.mjs'
+import { openCustomApiWizard, openModelSettings, revealModelConnection } from './_shell.mjs'
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { startRelayVideoFixture, relayDeclaration, FAKE_RELAY_KEY } from './_relayVideoFixture.mjs'
@@ -54,7 +54,7 @@ try {
   // The existing capability form displays the projection; it is never edited to prepare the test.
   for (const model of models) {
     await openModelSettings(win)
-    await win.locator(`[data-model-home-connection="${vendor.key}"]`).click()
+    await (await revealModelConnection(win, win.locator(`[data-model-home-connection="${vendor.key}"]`))).click()
     await win.getByText(model.id, { exact: true }).last().click()
     await win.getByRole('button', { name: new RegExp(`设置 ${model.id} 的输入与生成方式|Set inputs and generation for ${model.id}`) }).click()
     await win.locator('[data-model-settings-page="capability"]').waitFor({ timeout: stationTimeout() })

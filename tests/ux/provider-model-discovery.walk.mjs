@@ -8,7 +8,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled, expectNoCjkInEnglishDom } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { modelSettingsEntry, openModelSettings } from './_shell.mjs'
+import { modelSettingsEntry, openModelSettings, revealModelConnection } from './_shell.mjs'
 
 const tempRoot = makeTempDir('nomi-model-discovery-')
 const shots = path.join(tempRoot, 'shots')
@@ -81,7 +81,7 @@ async function home() {
   await expect(win.locator('[data-model-settings-page="home"]')).toBeVisible()
 }
 async function openPicker(vendorKey) {
-  await clickOrFail(win.locator(`[data-model-home-connection="${vendorKey}"]`), `连接 ${vendorKey}`)
+  await clickOrFail(await revealModelConnection(win, win.locator(`[data-model-home-connection="${vendorKey}"]`)), `连接 ${vendorKey}`)
   await expect(win.locator(`[data-model-settings-vendor="${vendorKey}"]`)).toBeVisible()
   await clickOrFail(win.getByRole('button', { name: /添加其他|Add More/, exact: true }), '添加其他')
 }
@@ -228,9 +228,7 @@ try {
 
   // J3: new connection uses the same failure handling, not just the existing-connection picker.
   await clickOrFail(win.locator('[data-model-settings-back]').first(), '返回首页')
-  const customApi = win.locator('[data-model-home-action="custom-api"]').first()
-  if (!(await customApi.isVisible())) await clickOrFail(win.locator('[data-model-home-action="other-ways"]').first(), 'expand other connection ways')
-  await clickOrFail(customApi, 'open custom connection')
+  await clickOrFail(await revealModelConnection(win, win.locator('[data-model-home-action="custom-api"]').first(), { label: 'expand other connection ways' }), 'open custom connection')
   await win.getByPlaceholder('如：TOAPI 中转').fill('Discovery New Connection')
   await win.getByPlaceholder('https://api.openai.com/v1').fill(`${base}/relay/v1`)
   await win.getByPlaceholder('sk-...').fill('fixture-discovery-key')

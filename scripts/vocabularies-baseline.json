@@ -2191,6 +2191,15 @@
       ],
       "reason": "渲染层生成统计推导的内部参数：结局是在哪扇门上看到的（提交抛错 / 提交即终态 / 轮询终态），只用来推失败阶段，不出门、不进事件。和任务状态不是一回事（同一终态可以从两扇门到达）。",
       "site": "src/workbench/api/generationTelemetry.ts::type:GenerationOutcomeDoor/type-union"
+    },
+    {
+      "members": [
+        "invalid",
+        "unknown",
+        "valid"
+      ],
+      "reason": "VendorAccountFacts.keyState 是现有主进程只读账户事实 DTO 的唯一 Key 验证结论：valid 仅表示免费凭据探测成功，invalid 仅表示明确鉴权拒绝，unknown 表示读取未确认；renderer 直接消费此合同。已查注册表，无同义三态 owner；现有 decoded/invalid/unsupported 是文件解包结果，directory/invalid/missing 是租约目录探测，VendorHealthState 的 reachable/unreachable/unsupported 则描述连接可达性，均不能替代 Key 鉴权证据。",
+      "site": "electron/shared/contracts/vendorAccountFacts.ts::type:VendorAccountFacts/property:keyState/type-union"
     }
   ],
   "debt": [

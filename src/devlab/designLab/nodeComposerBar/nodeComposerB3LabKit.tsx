@@ -14,6 +14,7 @@ import { useGenerationCanvasStore } from '../../../workbench/generationCanvas/st
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
 import { seedModelCatalogForTests } from '../../../config/modelCatalogCache'
 import type { ModelOption } from '../../../config/models'
+import type { VendorPricePreview } from '../../../../electron/shared/contracts/vendorPricePreview'
 import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../../../workbench/generationCanvas/model/generationCanvasTypes'
 
@@ -174,9 +175,15 @@ export type B3Scenario = {
   modeSwitchNotice?: { modeId: string; count: number }
   /** 失败态：整张错误卡盖住节点正文（E1d）。 */
   error?: string
+  /** 生成中（节点 status = running）：发送键走主干的忙态。 */
+  running?: boolean
   locale?: 'zh-CN' | 'en'
   /** 节点宽高（视觉大小）。 */
   size?: { width: number; height: number }
+  /** 发送键旁的公开估价（板 ModelSurfaces cost.send-pill）：桌面桥的 vendorPricePreview 回这一份；null = 算不出。缺省 = 实验室没有估价口（今天的样子）。 */
+  quote?: VendorPricePreview | null
+  /** 账户余额（积分）：给了就由桌面桥回一份「刚查到」的读数，用来画余额不够那一态（cost.low-balance）。缺省 = 查不到余额。 */
+  balanceCredits?: number
   /** 画布上另放这么多张已出图的图片节点（不连线），量「大画布上点开面板」的最坏规模。 */
   fillerNodes?: number
 }
@@ -210,7 +217,7 @@ function buildNodes(scenario: B3Scenario): { nodes: GenerationCanvasNode[]; edge
     prompt: scenario.prompt ?? '',
     position: { x: 0, y: 0 },
     size: scenario.size ?? { width: NODE_WIDTH, height: NODE_HEIGHT },
-    status: scenario.error ? 'error' : 'idle',
+    status: scenario.error ? 'error' : scenario.running ? 'running' : 'idle',
     ...(scenario.error ? { error: scenario.error } : {}),
     meta,
   } as GenerationCanvasNode
@@ -310,10 +317,20 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
       // 渠道 mapping 全表走桌面桥的 listMappings（和生产同一条取数口）；实验室只给这一个方法。
       ;(window as unknown as { nomiDesktop: unknown }).nomiDesktop = { modelCatalog: { listMappings: () => channelMappings(scenario.channelGap!) } }
     }
+    if (scenario.quote !== undefined) {
+      // 估价也走桌面桥（和生产同一条取数口 useNodePricePreview）；只给这一个方法，账户读数不给 = 不判余额。
+      const quote = scenario.quote
+      const balance = scenario.balanceCredits
+      const vendorAccountFacts = balance === undefined ? undefined : async ({ vendorKey }: { vendorKey: string }) => ({
+        vendorKey, checkedAt: Date.now(), keyState: 'valid' as const, accountCredits: balance, keyCredits: null,
+        keyUnlimited: true, usageCredits: null, usageRequests: null,
+      })
+      ;(window as unknown as { nomiDesktop: unknown }).nomiDesktop = { onboarding: { vendorPricePreview: async () => quote, vendorAccountFacts } }
+    }
     useWorkbenchStore.setState({ activeCategoryId: 'shots' })
     useGenerationCanvasStore.setState({ nodes: built.nodes, edges: built.edges, selectedNodeIds: [built.targetId] })
     setReady(true)
-  }, [built, scenario.secondChannel, scenario.archetypeId, scenario.kind])
+  }, [built, scenario.secondChannel, scenario.archetypeId, scenario.kind, scenario.quote, scenario.balanceCredits])
   const node = useGenerationCanvasStore((state) => state.nodes.find((candidate) => candidate.id === built.targetId))
   const stageRef = React.useRef<HTMLDivElement>(null)
 
@@ -324,6 +341,8 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
     const tick = (): void => {
       const root = stageRef.current
       const done = Boolean(root?.querySelector('[data-node-composer-footer] [data-bar-segment="generate"], [data-node-composer-footer] [data-bar-segment="model-params"] button'))
+        // 带估价的格还要等估价回来（防抖 150ms）、胶囊真的长出来。
+        && (!scenario.quote || Boolean(root?.querySelector('[data-send-cost]')))
       if (done || frame > 600) { release(); return }
       frame += 1
       requestAnimationFrame(tick)

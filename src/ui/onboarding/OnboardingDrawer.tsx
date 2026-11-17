@@ -58,7 +58,6 @@ import {
   openModelSettingsDialog,
   openModelSettingsDialogPage,
   openModelSettingsConnectionPage,
-  openModelSettingsPage,
   replaceModelSettingsPage,
   type ModelSettingsPage,
 } from './modelSettingsNavigation'
@@ -84,10 +83,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
   }, [feedbackOwner])
   const feedback = errors[feedbackOwner] ? <p role="alert" className="px-3 py-2 text-caption leading-relaxed text-workbench-danger">{errors[feedbackOwner]}</p> : null
   const detailDialogOwner = modelSettingsDialogOwner(navigation)
-  const openPage = React.useCallback((next: Exclude<ModelSettingsPage, { type: 'home' }>) => {
-    setNavigation((current) => openModelSettingsPage(current, next))
-  }, [])
-  useModelPageRequest(pageRequest, openPage)
+  const { openPage, assistedRequest } = useModelPageRequest(pageRequest, navigation, setNavigation)
   const goBack = React.useCallback(() => setNavigation((current) => backModelSettingsPage(current)), [])
   useModelSettingsPageFocus(page, goBack)
   const openWizard = React.useCallback(
@@ -152,13 +148,8 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     const credential = integrationHandoffs.find((item) => item.target === 'credential')
     if (!credential || openedIntegrationHandoff.current === credential.requestId) return
     openedIntegrationHandoff.current = credential.requestId
-    setNavigation((current) =>
-      openModelSettingsPage(current, {
-        type: 'add',
-        integrationSessionId: credential.sessionId,
-      }),
-    )
-  }, [loaded, integrationHandoffs, navigation])
+    openPage({ type: 'add', integrationSessionId: credential.sessionId })
+  }, [loaded, integrationHandoffs, navigation, openPage])
   const [selectedVariants, setSelectedVariants] = React.useState<Record<string, string>>({})
   const antigravitySession = useAntigravitySettings(
     'vendorKey' in page && page.vendorKey === ANTIGRAVITY_VENDOR_KEY,
@@ -439,9 +430,9 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       refresh()
       setCustomCallTarget(null)
       recordAdapterRun(run)
-      setNavigation((current) => openModelSettingsPage(current, { type: 'verification', runId: run.id }))
+      openPage({ type: 'verification', runId: run.id })
     },
-    [recordAdapterRun, refresh],
+    [openPage, recordAdapterRun, refresh],
   )
 
   if (page.type === 'platformConnect') {
@@ -749,6 +740,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
   }
   return (
     <ModelSettingsHome
+      assistedRequest={assistedRequest}
       connections={homeConnections}
       availableConnections={availableHomeConnections}
       mappings={mappings}

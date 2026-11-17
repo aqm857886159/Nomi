@@ -13,6 +13,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { screenshotSettled } from './_assert.mjs'
+import { revealModelConnection } from './_shell.mjs'
 
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/vendor-connection-identity')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -103,9 +104,7 @@ async function listConnections() {
 async function openAddConnectionForm(hints) {
   await clickFirst(hints.modelAccess, '连接模型入口')
   await win.waitForTimeout(600)
-  await clickFirst(hints.otherWays, '展开其他接入方式')
-  await win.waitForTimeout(500)
-  const customRow = win.locator('[data-model-home-action="custom-api"]').first()
+  const customRow = await revealModelConnection(win, win.locator('[data-model-home-action="custom-api"]').first(), { label: '展开其他接入方式' })
   await customRow.waitFor({ state: 'visible' })
   await customRow.click()
   await win.waitForTimeout(1100)
@@ -251,7 +250,6 @@ async function runTrack(track, hints) {
 await snap('zh-app-ready')
 await runTrack('zh', {
   modelAccess: [/连接模型/],
-  otherWays: [/本地运行时与即梦会员/],
   save: [/保存连接/],
 })
 
@@ -277,7 +275,6 @@ await win.waitForTimeout(800)
 
 await runTrack('en', {
   modelAccess: [/Connect Model/i],
-  otherWays: [/Local runtimes and Dreamina/i],
   save: [/Save connection/i],
 })
 

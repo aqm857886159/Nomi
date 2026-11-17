@@ -11,7 +11,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
-import { canvasFitViewButton, newProjectEntry, openModelSettings, switchWorkspace } from './_shell.mjs'
+import { canvasFitViewButton, newProjectEntry, openModelSettings, revealModelConnection, switchWorkspace } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -263,7 +263,7 @@ try {
   const modelPanel = win.locator('[data-settings-dialog]').first()
   await modelPanel.waitFor({ state: 'visible', timeout: 5000 })
   await win.waitForTimeout(900)
-  const batchMockRow = modelPanel.locator('button').filter({ hasText: 'Batch Mock' }).first()
+  const batchMockRow = await revealModelConnection(win, modelPanel.locator('button').filter({ hasText: 'Batch Mock' }).first(), { label: 'Batch Mock 连接行' })
   await batchMockRow.waitFor({ state: 'visible', timeout: 5000 })
   check(await batchMockRow.count() === 1, '种子供应商 Batch Mock 已在模型设置里可见')
   await snap(win, 'light-model-settings')

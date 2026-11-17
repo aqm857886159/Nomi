@@ -74,7 +74,7 @@ type Target = {
  * 取这家的探测目标；返回 null = **不该发请求**（无 key / 本地后端 / 没填地址）。
  * 这也是 derive 而非名单：本地后端（comfyui-local、codex-local）authType 恒为 none 且各有专属卡。
  */
-function resolveTarget(vendorKey: string): Target | null {
+export function resolveVendorReadTarget(vendorKey: string): Target | null {
   const state = readCatalog();
   const vendor = state.vendors.find((v) => v.key === vendorKey);
   if (!vendor) return null;
@@ -135,7 +135,7 @@ async function probe(vendorKey: string, target: Target): Promise<VendorHealth> {
       validator: entry?.fingerprint === target.fingerprint ? entry.validator : undefined,
     });
     // Re-read before writing: edits/removal during the request invalidate its evidence.
-    if (resolveTarget(vendorKey)?.fingerprint === target.fingerprint && res.ok && !res.partial) {
+    if (resolveVendorReadTarget(vendorKey)?.fingerprint === target.fingerprint && res.ok && !res.partial) {
       const current = cache.get(vendorKey);
       if (current?.fingerprint === target.fingerprint) current.validator = res.validator;
       const state = readCatalog();
@@ -170,7 +170,7 @@ async function probe(vendorKey: string, target: Target): Promise<VendorHealth> {
  * `force` = 用户点了「重新检查」，跳过缓存但仍与 in-flight 合流。
  */
 export async function checkVendorHealth(vendorKey: string, force = false): Promise<VendorHealth> {
-  const target = resolveTarget(vendorKey);
+  const target = resolveVendorReadTarget(vendorKey);
   const now = Date.now();
   if (!target) {
     // 没 key / 本地后端 / 没地址：不发请求，如实说「没法预检」。

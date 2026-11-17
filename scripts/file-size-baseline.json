@@ -41,8 +41,8 @@
     },
     "src/ui/onboarding/OnboardingDrawer.tsx": {
       "kind": "legacy",
-      "max": 847,
-      "reason": "Existing SettingsDialog shell now owns the durable integration handoff projection alongside the legacy model settings pages. Keep this reviewed baseline until the planned settings-surface extraction. (2026-08-29)；795（2026-09-21 合并 ① 按门岗提示拧紧，只减不增）",
+      "max": 839,
+      "reason": "Existing SettingsDialog shell now owns the durable integration handoff projection alongside the legacy model settings pages. Keep this reviewed baseline until the planned settings-surface extraction. (2026-08-29)；795（2026-09-21 合并 ① 按门岗提示拧紧，只减不增）；2026-11-09：外部 home/供应商导航和辅助接入请求投影归入既有 useModelPageRequest，847→839，行为不变。",
       "topDeclarations": [
         {
           "name": "OnboardingDrawer",

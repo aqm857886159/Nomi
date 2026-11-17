@@ -23,7 +23,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible, expect, screenshotSettled } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { newProjectEntry, revealModelConnection } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/baseurl-discoverability')
@@ -167,7 +167,7 @@ await step('切到「模型」页签', async () => {
 })
 
 // ① 首页那一行必须把「连不上」说出来（用户扫视的就是这一屏）。
-const homeRow = win.locator(`[data-model-home-connection="${vendorKey}"]`)
+const homeRow = await revealModelConnection(win, win.locator(`[data-model-home-connection="${vendorKey}"]`))
 await expectVisible(homeRow, '首页已连入行')
 await expect(homeRow, '① 401 的家在首页行要显示「连不上」，不能只报模型统计').toContainText('连不上')
 await expect(
@@ -249,7 +249,7 @@ console.log('  ✓ 改对地址后「连不上」已消失')
 await step('回到模型首页，进内置家 Higgsfield', async () => {
   await clickOrFail(win.locator('[data-model-settings-page] button[aria-label*="返回"], [data-model-settings-page] header button').first(), '返回')
   await expectVisible(win.locator('[data-model-settings-page="home"]'), '模型设置首页')
-  await clickOrFail(win.locator('[data-model-home-connection="higgsfield"]'), '已连接行「Higgsfield」')
+  await clickOrFail(await revealModelConnection(win, win.locator('[data-model-home-connection="higgsfield"]')), '已连接行「Higgsfield」')
   await expectVisible(win.locator('[data-model-connection-field="baseUrl"], [aria-label*="接入地址"]').first(), '内置家的地址字段')
   await snap(win, 'known-vendor-connection')
 })

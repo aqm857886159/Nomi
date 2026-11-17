@@ -91,6 +91,7 @@ export type NomiSelectProps = {
   className?: string
   /** Long/model-file enums use a searchable, wrapping list; short selectors keep their compact layout. */
   searchable?: boolean
+  emptySearchAction?: { label: string; onSelect: () => void }
   /** Nested floating panels own their portal so outside-click handling and scrolling stay correct. */
   portalTarget?: React.RefObject<HTMLElement | null>
   /**
@@ -162,6 +163,7 @@ export function NomiSelect({
   title,
   className,
   searchable = false,
+  emptySearchAction,
   portalTarget,
   dropdownAlign = 'start',
   footerAction,
@@ -314,7 +316,17 @@ export function NomiSelect({
             当缩放吃掉；没挂进画布时这两个 class 谁也不认，纯粹无操作。 */}
         {/* 带图 + 说明的行（模型菜单）每行 46px：240 只放得下 5 行，翻一屏才见「隐藏模型」——放到 8 行高；尾行钉在滚动区外、永远看得见。 */}
         <Combobox.Options ref={optionsRef} data-nomi-select-whole={showWhole ? '' : undefined} className={cn('nowheel nodrag overflow-auto', showWhole ? undefined : hasRichRows ? 'max-h-[380px]' : 'max-h-[240px]')}>
-          {visibleOptions.length === 0 ? <Combobox.Empty>{t('common.noMatchingOptions')}</Combobox.Empty> : null}
+          {visibleOptions.length === 0 ? (
+            <Combobox.Empty>
+              {t('common.noMatchingOptions')}
+              {query && emptySearchAction ? (
+                <button type="button" className="block w-full text-caption text-nomi-accent" onClick={() => {
+                  combobox.closeDropdown()
+                  emptySearchAction.onSelect()
+                }}>{emptySearchAction.label}</button>
+              ) : null}
+            </Combobox.Empty>
+          ) : null}
           {visibleOptions.map((option, index) => {
             const isSel = option.value === value
             return (
