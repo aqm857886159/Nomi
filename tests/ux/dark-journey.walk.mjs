@@ -189,6 +189,9 @@ try {
     await expectVisible(win.locator('.workbench-preview-player__image'), '预览播放器画面')
   })
 
+  // 导航阶段应各不相同；导出完成会回到同一预览，用真实 MP4 证明结果。
+  assertStagesAreDistinct()
+
   // ── J5 导出 ──
   // 进度出现后仍可能失败；必须等终态并解码本次隔离项目的真实文件。
   await stage(win, 'J5-export-complete', async () => {
@@ -205,7 +208,6 @@ try {
     fs.copyFileSync(file, path.join(shotsDir, 'export.mp4'))
   })
 
-  assertStagesAreDistinct()
   console.log(`\nDone. ${stages.length} 段 → ${path.relative(repoRoot, shotsDir)}`)
 } catch (error) {
   // 失败现场留一张图：报红时最想知道的就是「那一刻屏幕上到底是什么」。
