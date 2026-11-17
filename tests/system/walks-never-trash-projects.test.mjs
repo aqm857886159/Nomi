@@ -39,6 +39,7 @@ const FORBIDDEN = [
 const ASSET_DELETE_BUTTON = /tabler-icon-trash/
 const DIALOG_CONFIRM = /data-confirm-dialog-confirm|\[role=\\?["']?(?:alert)?dialog\\?["']?\][^\n]*?\bbutton\b/
 const DISPOSABLE_TRASH_WALKS = new Map([
+  ['tests/ux/asset-liveness-storyboard-ref.walk.mjs', '版本删除后再经素材库真删的闭环：macOS 项目放在一次性 APFS 映像卷，核对该卷自己的 .Trashes；退出时卸载；其它系统本机跳过'],
   ['tests/ux/asset-library-interactions.walk.mjs', 'macOS 上两个测试项目放在一次性磁盘映像卷上（它自己的废纸篓，⑤ 核对文件进了那里，收尾卸载）；CI 的 runner 用完即毁；其它系统本机跑跳过 ⑤⑥ 真删'],
 ])
 // 项目卡删除按钮的名字（中 / 英）。走查点它之后，紧接着碰的第一个确认框钩子必须是取消，不是确认。
