@@ -13,34 +13,14 @@ import { useTranslation } from 'react-i18next'
 import { CatalogPackageActions, CatalogStatusNotices } from './ModelCatalogNotices'
 import type { ModelCatalogReadOnlyDto } from '../../workbench/api/modelCatalogApi'
 
-import type { Mapping } from '../../../electron/catalog/types'
 import { DesignButton, DesignSearchInput, NomiLoadingMark, StatusBadge, VendorLogoImage } from '../../design'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { cn } from '../../utils/cn'
 import { AiAssistedOnboardingSection } from './AiAssistedOnboardingSection'
 import type { ChipModel } from './ModelChipGroups'
-import { useVendorHealth } from './useVendorHealth'
-import { vendorConnectionPill } from './vendorConnectionView'
-import {
-  resolveModelHomeStatus,
-  unverifiedUsableStatus,
-  summarizeModelHomeConnection,
-  type ModelHomeConnectionState,
-} from './modelSettingsHomeState'
-
-const CONNECTION_STATUS_TONE = {
-  working: 'bg-nomi-accent',
-  verified: 'bg-workbench-success',
-  attention: 'bg-nomi-warning',
-  disabled: 'bg-nomi-ink-20',
-} as const
-
-const CONNECTION_STATUS_TEXT_TONE = {
-  working: 'text-nomi-accent',
-  verified: 'text-nomi-ink-60',
-  attention: 'text-nomi-warning',
-  disabled: 'text-nomi-ink-40',
-} as const
+import { ModelStatusMark, useModelStatusLabel } from './ModelStatusMark'
+import { presentStatusCount } from '../../../electron/shared/modelStatusPresentation'
+import { connectionHomeStatus, countModelHomeStates } from './modelSettingsHomeState'
 
 export type ModelSettingsHomeConnection = {
   vendorKey: string
@@ -50,12 +30,8 @@ export type ModelSettingsHomeConnection = {
   auxiliaryCounts?: { tools: number; routes: number }
   logo?: string
   glyph?: string
-  /** 连接健康探测要的两个入参；缺省（本地/会员类连接）则这一行不探。 */
-  baseUrl?: string
-  hasApiKey?: boolean
-  credentialVerificationPending?: boolean
-  /** direct-script 那类家没有可预检的通用接口，别白探（与卡片侧同一套策略）。 */
-  skipHealthProbe?: boolean
+  /** 这家要 key 而没有（本地 / 会员 / 不需要 key 的家不给）——连接级「待接入」只认这一条事实。 */
+  keyMissing?: boolean
   onOpen: () => void
 }
 
@@ -176,8 +152,6 @@ function AvailableConnectionRow({
   end?: string
 }): JSX.Element {
   const displayName = translateModelDisplayText(connection.name)
-  const { t } = useTranslation()
-  const statusBadge = connection.credentialVerificationPending ? t('onboardingProviders.keyOnly.offlineTitle') : badge
   return (
     <button
       type="button"
@@ -189,9 +163,9 @@ function AvailableConnectionRow({
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2">
           <span className="text-caption font-semibold text-nomi-ink">{title ?? displayName}</span>
-          {statusBadge ? (
-            <StatusBadge className="normal-case" tone={connection.credentialVerificationPending ? 'warning' : 'info'} data-credential-state={connection.credentialVerificationPending ? 'offline' : undefined}>
-              {statusBadge}
+          {badge ? (
+            <StatusBadge className="normal-case" tone="info">
+              {badge}
             </StatusBadge>
           ) : null}
         </span>
@@ -204,58 +178,20 @@ function AvailableConnectionRow({
 }
 
 /**
- * 已连入的一行。**单独成组件是为了能调 useVendorHealth**（hook 不能在 map 回调里调）——
- * 复用卡片侧那个现成 hook，不另写一套探测（P1）；主进程自带新鲜期缓存与并发去重，
- * 同一家在首页行与详情卡之间共享同一份结果，不会探两遍。
- *
- * 为什么这一行非要显示连接健康（2026-08-18）：此前它只算 summarizeModelHomeConnection（模型能力，
- * 不看网络），于是一家 401 的中转站在**用户扫视的这一屏**上写着灰色「24 个可使用」——
- * 群里「翻了半天没找到改 api url 的地方」，一半原因是他压根不知道该点哪一行。
- * 连不上压倒模型统计（与 CustomVendorCard 的胶囊同一套语义）。
+ * 已连入的一行。行尾的状态只说本机事实（有 key、有请求格式、没手动关），和连接详情卡头取同一个投影
+ * （connectionHomeStatus）。这里曾经还探一次网络、把「连不上」压在模型统计上面——那套健康检查按
+ * D-1117-delete-verification 整个删了：错地址等第一次真生成在节点上报错。
  */
-function ConnectedRow({
-  connection,
-  mappings,
-}: {
-  connection: ModelSettingsHomeConnection
-  mappings: readonly Mapping[]
-}): JSX.Element {
+function ConnectedRow({ connection }: { connection: ModelSettingsHomeConnection }): JSX.Element {
   const { t } = useTranslation()
   const displayName = translateModelDisplayText(connection.name)
-  const { connection: health } = useVendorHealth(connection.vendorKey, {
-    hasApiKey: connection.hasApiKey ?? false,
-    baseUrl: connection.baseUrl ?? '',
-    disableProbe: connection.skipHealthProbe ?? false,
-  })
-  const summary = summarizeModelHomeConnection(connection.models, mappings)
-  const pill = health ? vendorConnectionPill(health) : null
-  const unreachable = pill?.status === 'error'
-
-  const state: ModelHomeConnectionState = summary.working > 0 ? 'working' : unreachable ? 'attention' : summary.state
-  const unverified = summary.working > 0 ? null : unverifiedUsableStatus({
-    credentialVerificationPending: connection.credentialVerificationPending,
-    models: connection.models,
-    unreachable,
-  })
-  const danger = unreachable && !unverified
-  const statusLabel = summary.working > 0
-    ? t('onboardingProviders.drawer.home.workingCount', { count: summary.working })
-    : unverified
-    ? t(unverified.labelKey)
-    : unreachable && pill
-    ? t(pill.labelKey)
-    : summary.state === 'attention'
-      ? t('onboardingProviders.drawer.home.needsSetupCount', { count: summary.needsSetup })
-      : summary.state === 'disabled'
-          ? t('onboardingProviders.drawer.home.disabledCount', { count: summary.disabled })
-          : t('onboardingProviders.drawer.home.readyCount', { count: summary.ready })
+  const status = connectionHomeStatus(connection)
 
   return (
     <button
       type="button"
       onClick={connection.onOpen}
       data-model-home-connection={connection.vendorKey}
-      data-model-home-unreachable={unreachable ? '' : undefined}
       className="group flex min-h-[52px] w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-nomi-ink-10"
     >
       <ConnectionMark connection={connection} />
@@ -267,16 +203,7 @@ function ConnectedRow({
             : t('onboardingProviders.drawer.home.connectionSummary', { count: connection.models.length })}
         </span>
       </span>
-      <span className={cn(
-        'inline-flex max-w-[48%] shrink-0 items-center gap-1.5 text-right text-micro',
-        danger ? 'text-workbench-danger' : CONNECTION_STATUS_TEXT_TONE[unverified ? 'verified' : state],
-      )}>
-        <span className={cn(
-          'size-1.5 rounded-full',
-          danger ? 'bg-workbench-danger' : CONNECTION_STATUS_TONE[unverified ? 'verified' : state],
-        )} />
-        {statusLabel}
-      </span>
+      <ModelStatusMark status={status} variant="row" />
       <IconChevronRight size={15} stroke={1.7} className="shrink-0 text-nomi-ink-30 group-hover:text-nomi-accent" aria-hidden="true" />
     </button>
   )
@@ -284,11 +211,9 @@ function ConnectedRow({
 
 function ConnectedRows({
   connections,
-  mappings,
   search,
 }: {
   connections: ModelSettingsHomeConnection[]
-  mappings: readonly Mapping[]
   search: string
 }): JSX.Element | null {
   const normalizedSearch = search.trim().toLocaleLowerCase()
@@ -303,11 +228,7 @@ function ConnectedRows({
   return (
     <RowGroup>
       {filtered.map((connection) => (
-        <ConnectedRow
-          key={connection.vendorKey}
-          connection={connection}
-          mappings={mappings}
-        />
+        <ConnectedRow key={connection.vendorKey} connection={connection} />
       ))}
     </RowGroup>
   )
@@ -334,7 +255,6 @@ function availableHint(connection: ModelSettingsHomeConnection, t: ReturnType<ty
 export function ModelSettingsHome({
   connections,
   availableConnections,
-  mappings,
   loaded,
   bridgeMissing,
   loadError,
@@ -353,7 +273,6 @@ export function ModelSettingsHome({
 }: {
   connections: ModelSettingsHomeConnection[]
   availableConnections: ModelSettingsHomeConnection[]
-  mappings: readonly Mapping[]
   loaded: boolean
   bridgeMissing: boolean
   /** 这一次读为什么失败；非空时列表里仍是上一份数据，不是空目录。 */
@@ -380,9 +299,10 @@ export function ModelSettingsHome({
   const [otherWaysOpen, setOtherWaysOpen] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const allModels = connections.flatMap((connection) => connection.models)
-  const statuses = allModels.map((model) => resolveModelHomeStatus(model, mappings))
-  const needsSetupCount = allModels.filter((model, index) => !model.availability?.usable && (statuses[index] === 'needsSetup' || statuses[index] === 'failed')).length
-  const readyCount = allModels.filter((model) => model.availability?.usable).length
+  const counts = countModelHomeStates(allModels)
+  const needsSetupCount = counts.needsSetup
+  const readyLabel = useModelStatusLabel(presentStatusCount('ready', counts.ready))
+  const needsSetupLabel = useModelStatusLabel(presentStatusCount('needsSetup', needsSetupCount))
   const hasConnections = connections.length > 0
   const showSearch = hasConnections && (connections.length >= 4 || allModels.length >= 8)
   const hasAttention = taskCount > 0 || needsSetupCount > 0
@@ -402,17 +322,10 @@ export function ModelSettingsHome({
     <section className="mt-5" data-model-home-connected>
       <SectionHeading
         title={t('onboardingProviders.drawer.home.connected')}
-        aside={(hasAttention
-          // 「可使用」的口径必须和每个连接行里那句一样（`summary.ready`）——同一个 i18n key
-          // 在页头算一份、在行里算另一份，就是同屏两个答案。
-          ? t('onboardingProviders.drawer.home.connectedAttention', { ready: readyCount, pending: needsSetupCount })
-          : t('onboardingProviders.drawer.home.readyCount', { count: readyCount }))}
+        // 页头计数和每行同一个投影、同一套词（countModelHomeStates → presentStatusCount），不另写一份「N 个可使用」。
+        aside={hasAttention ? `${readyLabel} · ${needsSetupLabel}` : readyLabel}
       />
-      <ConnectedRows
-        connections={connections}
-        mappings={mappings}
-        search={search}
-      />
+      <ConnectedRows connections={connections} search={search} />
     </section>
   ) : null
 

@@ -25,11 +25,14 @@ describe('adapter task visibility', () => {
     expect(visibleAdapterRuns([oldCompleted, active]).map((item) => item.id)).toEqual(['active'])
   })
 
-  it('retains unresolved failures regardless of their age', () => {
+  // D-1117-delete-verification：任务条只说正在跑的格式任务。结束了的（失败的也算）不再挂卡——
+  // 模型缺不缺请求格式它自己那一行写着「待设置」，结束了的任务从模型详情的「查看问题」打开。
+  it('keeps finished tasks off the strip, failed ones included', () => {
     const recent = run('recent', 'timed_out', '2026-08-15T11:00:00.000Z')
     const old = run('old', 'cancelled', '2026-08-12T00:00:00.000Z')
+    const failed = run('failed', 'failed', '2026-08-15T12:00:00.000Z')
 
-    expect(visibleAdapterRuns([old, recent]).map((item) => item.id)).toEqual(['recent', 'old'])
+    expect(visibleAdapterRuns([old, recent, failed])).toEqual([])
   })
 
   it('never hides active work behind the terminal history limit', () => {
@@ -73,75 +76,50 @@ function isAdapterRunTerminalForTest(stage: DesktopProviderAdapterRun['stage']):
 }
 
 
-describe('failures follow current model truth', () => {
+// 「这条失败已经过时了吗」只剩 AI 接入那一节在用（结束了的接入会话不再挂旧失败）；
+// 规则本身不变：同一条连接（含晋级后的新身份）上这个模型现在能用了，或之后又跑通了，失败就过时。
+describe('adapterFailureIsObsolete follows current model truth', () => {
  it('retires a failure after a newer success for the same model, including after manual disablement', () => {
-  const failure = run('failed', 'failed', '2026-08-15T10:00:00.000Z');
-  const success = run('succeeded', 'completed', '2026-08-15T11:00:00.000Z');
-  expect(visibleAdapterRuns([failure, success])).toEqual([]);
- });
+  const failure = run('failed', 'failed', '2026-08-15T10:00:00.000Z')
+  const success = run('succeeded', 'completed', '2026-08-15T11:00:00.000Z')
+  expect(adapterFailureIsObsolete(failure, [], [failure, success])).toBe(true)
+ })
  it('retires currently usable models, but never hides an unrelated model failure', () => {
-  const failure = run('failed', 'failed', '2026-08-15T10:00:00.000Z');
-  const model = {vendorKey: 'example', modelKey: 'model-1', enabled: true, kind: 'text', labelZh: 'Text', availability: {usable: true}} as const;
-  expect(visibleAdapterRuns([failure], [model])).toEqual([]);
-  expect(adapterFailureIsObsolete(failure, [{...model, modelKey: 'other'}])).toBe(false);
- });
-});
-
-
-it('retires only the recovered model inside a mixed failed batch', () => {
- const failure = {...run('mixed', 'failed', '2026-08-15T10:00:00.000Z'), selectedModelKeys:['model-1','model-2'], models:[
-  {modelKey:'model-1',labelZh:'One',kind:'image' as const,modes:[]},
-  {modelKey:'model-2',labelZh:'Two',kind:'image' as const,modes:[]},
- ]};
- const current = {vendorKey:'example',modelKey:'model-1',enabled:true,kind:'image',labelZh:'One',availability:{usable:true}} as const;
- const visible = visibleAdapterRuns([failure],[current]);
- expect(visible[0].selectedModelKeys).toEqual(['model-2']);
- expect(visible[0].models.map(model=>model.modelKey)).toEqual(['model-2']);
- expect(failure.selectedModelKeys).toEqual(['model-1','model-2']);
-});
-
-// Shape replayed from the real failed-candidate → successful-candidate window journey.
-it('retires a failed candidate after the same connection succeeds under a new candidate id', () => {
- const failed = {...run('old-candidate', 'failed', '2026-11-16T17:59:50Z'), vendorKey: 'relay--candidate-old', sourceVendorKey: 'relay'};
- const succeeded = {...run('new-candidate', 'completed', '2026-11-16T18:00:01Z'), vendorKey: 'relay--candidate-new', sourceVendorKey: 'relay'};
- expect(visibleAdapterRuns([failed, succeeded])).toEqual([]);
- const other = {...succeeded, sourceVendorKey: 'another-connection'};
- expect(visibleAdapterRuns([failed, other]).map(item => item.id)).toEqual(['old-candidate']);
-});
-it('uses current availability in the declared connection lineage without conflating unrelated connections', () => {
- const failed = {...run('failed', 'failed', '2026-11-16T17:59:50Z'), vendorKey: 'relay--candidate-old', sourceVendorKey: 'relay'};
- const usable = {vendorKey: 'relay', modelKey: 'model-1', availability: {usable: true}};
- expect(visibleAdapterRuns([failed], [usable] as never)).toEqual([]);
- expect(visibleAdapterRuns([failed], [{...usable, vendorKey:'another-connection'}] as never)).toEqual([failed]);
-});
-
-it('never conflates sibling connections sharing a builtin root or hides disabled verified models', () => {
- const failed = {...run('failed', 'failed', '2026-11-16T17:59:50Z'), vendorKey: 'apimart--mini', lineageRootVendorKey: 'apimart'};
- const success = {...run('succeeded', 'completed', '2026-11-16T18:00:01Z'), vendorKey: 'apimart--pro', lineageRootVendorKey: 'apimart'};
- expect(visibleAdapterRuns([failed, success])).toEqual([failed]);
- expect(visibleAdapterRuns([failed], [{vendorKey:failed.vendorKey, modelKey:'model-1', adapterState:'verified', enabled:false, availability:{usable:false}}] as never)).toEqual([failed]);
-});
-
-// 半批成功：同一批里一个模型验证通过、另一个没过；之后创作者手动停用通过的那个。
-// 停用是创作者自己的选择，不是新的失败——它在那一批里的「失败」不该因为停用又冒出来。
-describe('a model that verified inside a partial batch stays retired after manual disablement', () => {
- const verified = { taskKind: 'image', state: 'verified' as const, attempts: 1 }
- const failedMode = { taskKind: 'image', state: 'failed' as const, attempts: 1 }
- const partial = {...run('partial', 'partial', '2026-11-17T10:00:00.000Z'), selectedModelKeys: ['model-1', 'model-2'], models: [
-  {modelKey: 'model-1', labelZh: 'One', kind: 'image', modes: [verified]},
-  {modelKey: 'model-2', labelZh: 'Two', kind: 'image', modes: [failedMode]},
- ]}
- const disabledOne = {vendorKey: 'example', modelKey: 'model-1', enabled: false, kind: 'image', labelZh: 'One', availability: {usable: false, reason: 'model_disabled'}}
- it('the partial batch keeps showing only the model that failed', () => {
-  const visible = visibleAdapterRuns([partial], [disabledOne] as never)
-  expect(visible.map((item) => item.selectedModelKeys)).toEqual([['model-2']])
+  const failure = run('failed', 'failed', '2026-08-15T10:00:00.000Z')
+  const model = {vendorKey: 'example', modelKey: 'model-1', enabled: true, kind: 'text', labelZh: 'Text', availability: {usable: true}} as const
+  expect(adapterFailureIsObsolete(failure, [model])).toBe(true)
+  expect(adapterFailureIsObsolete(failure, [{...model, modelKey: 'other'}])).toBe(false)
  })
- it('an older failure of that model stays retired by the newer in-batch success', () => {
+ // Shape replayed from the real failed-candidate → successful-candidate window journey.
+ it('retires a failed candidate after the same connection succeeds under a new candidate id', () => {
+  const failed = {...run('old-candidate', 'failed', '2026-11-16T17:59:50Z'), vendorKey: 'relay--candidate-old', sourceVendorKey: 'relay'}
+  const succeeded = {...run('new-candidate', 'completed', '2026-11-16T18:00:01Z'), vendorKey: 'relay--candidate-new', sourceVendorKey: 'relay'}
+  expect(adapterFailureIsObsolete(failed, [], [failed, succeeded])).toBe(true)
+  const other = {...succeeded, sourceVendorKey: 'another-connection'}
+  expect(adapterFailureIsObsolete(failed, [], [failed, other])).toBe(false)
+ })
+ it('uses current availability in the declared connection lineage without conflating unrelated connections', () => {
+  const failed = {...run('failed', 'failed', '2026-11-16T17:59:50Z'), vendorKey: 'relay--candidate-old', sourceVendorKey: 'relay'}
+  const usable = {vendorKey: 'relay', modelKey: 'model-1', availability: {usable: true}}
+  expect(adapterFailureIsObsolete(failed, [usable] as never, [failed])).toBe(true)
+  expect(adapterFailureIsObsolete(failed, [{...usable, vendorKey: 'another-connection'}] as never, [failed])).toBe(false)
+ })
+ it('never conflates sibling connections sharing a builtin root', () => {
+  const failed = {...run('failed', 'failed', '2026-11-16T17:59:50Z'), vendorKey: 'apimart--mini', lineageRootVendorKey: 'apimart'}
+  const success = {...run('succeeded', 'completed', '2026-11-16T18:00:01Z'), vendorKey: 'apimart--pro', lineageRootVendorKey: 'apimart'}
+  expect(adapterFailureIsObsolete(failed, [], [failed, success])).toBe(false)
+ })
+ // 半批成功：同一批里一个模型跑通、另一个没跑通；之后创作者手动停用跑通的那个——停用不是新的失败。
+ it('a model that passed inside a partial batch retires its older failure even after manual disablement', () => {
+  const verified = { taskKind: 'image', state: 'verified' as const, attempts: 1 }
+  const failedMode = { taskKind: 'image', state: 'failed' as const, attempts: 1 }
+  const partial = {...run('partial', 'partial', '2026-11-17T10:00:00.000Z'), selectedModelKeys: ['model-1', 'model-2'], models: [
+   {modelKey: 'model-1', labelZh: 'One', kind: 'image', modes: [verified]},
+   {modelKey: 'model-2', labelZh: 'Two', kind: 'image', modes: [failedMode]},
+  ]} as never as DesktopProviderAdapterRun
   const older = {...run('older', 'failed', '2026-11-17T09:00:00.000Z'), selectedModelKeys: ['model-1']}
-  expect(visibleAdapterRuns([older, partial], [disabledOne] as never).map((item) => [item.id, item.selectedModelKeys])).toEqual([['partial', ['model-2']]])
- })
- it('a model with one verified and one failed mode keeps its failure', () => {
-  const mixed = {...partial, models: [{modelKey: 'model-1', labelZh: 'One', kind: 'image', modes: [verified, failedMode]}, partial.models[1]]}
-  expect(visibleAdapterRuns([mixed], [disabledOne] as never).map((item) => item.selectedModelKeys)).toEqual([['model-1', 'model-2']])
+  const olderTwo = {...run('older-two', 'failed', '2026-11-17T09:00:00.000Z'), selectedModelKeys: ['model-2']}
+  expect(adapterFailureIsObsolete(older, [], [older, partial])).toBe(true)
+  expect(adapterFailureIsObsolete(olderTwo, [], [olderTwo, partial])).toBe(false)
  })
 })

@@ -199,7 +199,6 @@ function dependencies(catalog: ReturnType<typeof fakeCatalog>): ProviderAdapterS
     }),
     resolveLanguageModels: () => [{} as CompilerLanguageModel],
     compile: async () => ({ draft: draft(), failures: [] }),
-    probeCredential: async () => ({ ok: true as const, modelIds: [], listed: false }),
     verify: async ({ mode }) => ({ ok: true, taskKind: mode.taskKind }),
     now: () => now,
     id: () => "run-test",
@@ -651,7 +650,7 @@ describe("ProviderAdapterService", () => {
     const deps = dependencies(catalog);
     deps.verify = async ({ mode }) =>
       mode.taskKind === "image_edit"
-        ? { ok: false, taskKind: mode.taskKind, stage: "credential", selfCheckReason: "credential_rejected", error: "HTTP 400 image field" }
+        ? { ok: false, taskKind: mode.taskKind, stage: "contract", selfCheckReason: "no_channel", error: "HTTP 400 image field" }
         : { ok: true, taskKind: mode.taskKind };
     const service = new ProviderAdapterService(store(), deps);
     const started = await service.start(startInput);
@@ -671,7 +670,7 @@ describe("ProviderAdapterService", () => {
     const catalog = fakeCatalog();
     const deps = dependencies(catalog);
     deps.compile = async () => ({ draft: { ...draft(), models: [draft().models[1]] }, failures: [] });
-    deps.verify = async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "credential", selfCheckReason: "credential_rejected", error: "HTTP 500" });
+    deps.verify = async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "contract", selfCheckReason: "no_channel", error: "HTTP 500" });
     const service = new ProviderAdapterService(store(), deps);
     const started = await service.start({ ...startInput, models: [startInput.models[1]] });
 
@@ -686,7 +685,7 @@ describe("ProviderAdapterService", () => {
     const catalog = fakeCatalog();
     const deps = dependencies(catalog);
     deps.compile = async () => ({ draft: { ...draft(), models: [draft().models[1]] }, failures: [] });
-    deps.verify = async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "credential", selfCheckReason: "credential_rejected", error: "HTTP 500" });
+    deps.verify = async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "contract", selfCheckReason: "no_channel", error: "HTTP 500" });
     catalog.fail = () => {
       throw new Error("catalog cleanup failed");
     };
@@ -812,7 +811,7 @@ describe("ProviderAdapterService", () => {
     deps.verify = async ({ mode }) => ({
       ok: false,
       taskKind: mode.taskKind,
-      stage: "credential", selfCheckReason: "credential_rejected",
+      stage: "contract", selfCheckReason: "no_channel",
       error: "HTTP 404",
     });
     const service = new ProviderAdapterService(store(), deps);

@@ -257,7 +257,6 @@ export type Vendor = {
   hasApiKey?: boolean;
   /** Persisted key material exists; this is display metadata, not an execution/readiness signal. */
   credentialMaterialSaved?: boolean;
-  credentialVerificationPending?: boolean;
   baseUrlHint?: string | null;
   authType?: VendorAuthType;
   authHeader?: string | null;

@@ -425,7 +425,8 @@ describe.each([
   ...[...scriptSaveCells(), ...processCells()].map((cell) => ({ ...cell, pending: true })),
 ])("没项目（凭据待复验=$pending）：$name 零生成请求 / 进程、一分钱不扣", (cell) => {
   beforeEach(() => {
-    if (cell.pending) catalog().apiKeysByVendor[cell.vendorKey].verificationPending = true;
+    // 旧版写下的「待复验」标记（D-1117-delete-verification 后没人再读）：有它也不许多出任何请求。
+    if (cell.pending) (catalog().apiKeysByVendor[cell.vendorKey] as Record<string, unknown>).verificationPending = true;
   });
 
   function expectNoGeneration(tryModelEntry = false) {

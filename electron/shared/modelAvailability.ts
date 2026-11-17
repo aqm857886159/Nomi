@@ -81,8 +81,13 @@ export type ModelAvailabilityInput = {
 /**
  * 纯函数：一条模型 + 它的供应商 + 这家钥匙的健康度 → 能不能用（不能就说清是哪一档）。
  *
- * 顺序是**用户该先修哪个**的顺序，不是代码顺手的顺序：供应商没了/停了 → 模型停了 →
- * 没发布 → 钥匙。反过来（先报「没钥匙」）会把人送去填一把根本不缺的 key。
+ * 顺序是**用户该先修哪个**的顺序，不是代码顺手的顺序：供应商没了/停了 → 声明缺字段 →
+ * 就算打开也没有请求格式 → 模型停了 → 钥匙。反过来（先报「没钥匙」）会把人送去填一把根本不缺的 key。
+ *
+ * 「缺格式」排在「模型被关」前面（D-1117-delete-verification，协调 2026-11-18 批）：`enabled:false`
+ * 有三个写口是系统写的（没格式时强制关、非文本登记时先关、格式没编出来保持关），不是创作者关的。
+ * 先判被关，缺格式的模型就被说成「已关闭」。按打开后的样子算发布资格——纯计算，不存新标记。
+ * 边角明着接受：创作者手动关了一个本来就缺格式的模型，这里说「没请求格式」，不说「已关闭」。
  */
 export function deriveModelAvailability(input: ModelAvailabilityInput): ModelAvailability {
   const { model, vendor, credentialStatus, evidence } = input;
@@ -90,10 +95,11 @@ export function deriveModelAvailability(input: ModelAvailabilityInput): ModelAva
   if (!vendor.enabled) return { usable: false, reason: "vendor_disabled" };
   const missingFields = missingDeclaredCapabilityFields(model?.meta);
   if (missingFields.length) return { usable: false, reason: "capability_incomplete", missingFields };
-  if (!model?.enabled) return { usable: false, reason: "model_disabled" };
-  if (!derivePublishedExecution(model, evidence).published) {
+  if (!model) return { usable: false, reason: "model_disabled" };
+  if (!derivePublishedExecution({ ...model, enabled: true }, evidence).published) {
     return { usable: false, reason: "model_unpublished" };
   }
+  if (!model.enabled) return { usable: false, reason: "model_disabled" };
   if (vendor.authType === "none") return USABLE;
   switch (credentialStatus()) {
     case "ok":

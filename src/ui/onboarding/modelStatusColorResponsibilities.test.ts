@@ -7,10 +7,15 @@ const dir = path.dirname(fileURLToPath(import.meta.url))
 const read = (file: string): string => fs.readFileSync(path.join(dir, file), 'utf8')
 
 describe('模型设置颜色职责', () => {
-  it('能力与启用态使用 Nomi accent，不把可用性冒充验证成功', () => {
+  // D-1117-delete-verification：没有「验证成功」这一档了，「可使用」在每个出口都是同一个绿点；
+  // 点色只有 ModelStatusMark 一个出处，设置首页不再自带一张色表。能力与启用态仍用 Nomi accent。
+  it('状态点色只有一个出处（可使用 = 成功绿），能力与启用态使用 Nomi accent', () => {
     const home = read('ModelSettingsHome.tsx')
-    expect(home).toContain("working: 'bg-nomi-accent'")
-    expect(home).toContain("verified: 'bg-workbench-success'")
+    const mark = read('ModelStatusMark.tsx')
+    expect(mark).toContain("success: 'bg-workbench-success'")
+    expect(mark).toContain("active: 'bg-nomi-accent'")
+    expect(home).not.toContain("verified: 'bg-workbench-success'")
+    expect(home).not.toContain("working: 'bg-nomi-accent'")
     expect(read('ModelChipGroups.tsx')).toContain("connected && m.enabled ? 'bg-nomi-accent'")
     expect(read('ModelChipGroups.tsx')).toContain('border-transparent bg-nomi-accent-soft')
     expect(read('CodexLocalImageCard.tsx')).toContain('bg-nomi-accent-soft')
@@ -33,9 +38,8 @@ describe('模型设置颜色职责', () => {
     }
   })
 
-  it('真实测试与文件就绪结果继续使用 success green', () => {
-    expect(read('OnboardingWizard.tsx')).toContain('testState === \'ok\'')
-    expect(read('OnboardingWizard.tsx')).toContain('c="var(--workbench-success)"')
+  it('文件就绪结果继续使用 success green（「测试连接」随 D-1117-delete-verification 删了）', () => {
+    expect(read('OnboardingWizard.tsx')).not.toContain('testState')
     expect(read('ComfyuiPresetSection.tsx')).toContain('text-workbench-success bg-[var(--workbench-success-soft)]')
     expect(read('ComfyuiPresetSection.tsx')).toContain('text-workbench-success shrink-0')
   })

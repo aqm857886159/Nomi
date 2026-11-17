@@ -22,9 +22,11 @@ import { canvasAddBar, newProjectEntry } from '../_shell.mjs'
 //   - `[data-model-home-action="direct-script"]` → advanced "I already have a script"
 //
 // The relay wizard is a *page inside the models tab* (not a separate dialog), and
-// its real flow is: fill → 保存连接 → 获取模型列表 → inline picker → 验证 N 个模型
-// → verification page (完成). The old driver looked for 添加一个 AI 模型 / 拉取模型 /
-// 选择模型 / 接入并验证 which no longer exist on this path.
+// its real flow is: fill → 保存连接 → 获取模型列表 → inline picker → 添加 N 个
+// → adaptation page (完成). The old driver looked for 添加一个 AI 模型 / 拉取模型 /
+// 选择模型 / 接入并验证 which no longer exist on this path. The wizard has no
+// 测试连接 button any more (D-1117-delete-verification, 2026-11-18): nothing probes
+// before 保存连接, and a wrong address shows up as the model-list failure.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const WALK_LOCALE = process.env.NOMI_WALK_LOCALE === 'en' ? 'en' : 'zh-CN'
@@ -40,23 +42,23 @@ const WALK_COPY = WALK_LOCALE === 'en'
       settings: copyText('settings.title'), models: copyText('settings.tab.models'), vendorNamePlaceholder: copyText('modelSetup.vendorNamePlaceholder'),
       baseUrlPlaceholder: copyText('modelSetup.openAiUrlPlaceholder'), apiKeyPlaceholder: copyText('modelSetup.apiKeyPlaceholder'),
       advanced: copyText('modelSetup.advanced'), manualProtocol: copyText('modelSetup.manualProtocol'),
-      testConnection: copyText('modelSetup.testConnection'), saveConnection: copyText('modelSetup.saveConnection'),
+      saveConnection: copyText('modelSetup.saveConnection'),
       fetchModels: new RegExp([copyText('onboardingProviders.modelControls.fetch'), copyText('modelSetup.fetchModels'), copyText('onboardingProviders.modelControls.refetch')].map(escapeRegExp).join('|')),
       addModels: copyPattern('onboardingProviders.modelControls.addModels', { '{{count}}': '\\d+' }),
       done: copyText('modelSetup.done'), back: copyText('common.back'), manualSetup: copyText('onboardingProviders.adapterVerification.action.manualSetup'),
       requestMethod: copyPattern('onboardingProviders.workspace.capability.openRequest', { '{{name}}': '.*' }),
-      generate: copyText('generationCommon.composer.generate'), probeSuccess: new RegExp([copyText('modelSetup.connectedReachabilityOnlyNoModels'), copyText('modelSetup.connectedReachabilityOnlyNoModelsNoApiKey'), copyText('modelSetup.connected')].map(escapeRegExp).join('|')),
+      generate: copyText('generationCommon.composer.generate'),
     }
   : {
       settings: copyText('settings.title'), models: copyText('settings.tab.models'), vendorNamePlaceholder: copyText('modelSetup.vendorNamePlaceholder'),
       baseUrlPlaceholder: copyText('modelSetup.openAiUrlPlaceholder'), apiKeyPlaceholder: copyText('modelSetup.apiKeyPlaceholder'),
       advanced: copyText('modelSetup.advanced'), manualProtocol: copyText('modelSetup.manualProtocol'),
-      testConnection: copyText('modelSetup.testConnection'), saveConnection: copyText('modelSetup.saveConnection'),
+      saveConnection: copyText('modelSetup.saveConnection'),
       fetchModels: new RegExp([copyText('onboardingProviders.modelControls.fetch'), copyText('modelSetup.fetchModels'), copyText('onboardingProviders.modelControls.refetch')].map(escapeRegExp).join('|')),
       addModels: copyPattern('onboardingProviders.modelControls.addModels', { '{{count}}': '\\d+' }),
       done: copyText('modelSetup.done'), back: copyText('common.back'), manualSetup: copyText('onboardingProviders.adapterVerification.action.manualSetup'),
       requestMethod: copyPattern('onboardingProviders.workspace.capability.openRequest', { '{{name}}': '.*' }),
-      generate: copyText('generationCommon.composer.generate'), probeSuccess: new RegExp([copyText('modelSetup.connectedReachabilityOnlyNoModels'), copyText('modelSetup.connectedReachabilityOnlyNoModelsNoApiKey'), copyText('modelSetup.connected')].map(escapeRegExp).join('|')),
+      generate: copyText('generationCommon.composer.generate'),
     }
 
 export async function launchJourneyUi({ journey, recorder }) {
@@ -142,29 +144,6 @@ export async function launchJourneyUi({ journey, recorder }) {
     await win.getByText(WALK_COPY.manualProtocol, { exact: true }).first().click()
   }
 
-  // 测试连接 lives inside a SEPARATE "连接诊断（可选）" <details> disclosure
-  // (data-model-connection-diagnostics), collapsed by default — not under 高级设置
-  // (probed 2026-09-01). Open that <details> via its summary before the button
-  // has any layout box.
-  async function openConnectionDiagnostics() {
-    const details = win.locator('[data-model-connection-diagnostics]')
-    if ((await details.getAttribute('open')) !== null) return
-    await details.locator('summary').first().click()
-    await win.waitForTimeout(300)
-  }
-
-  // The 测试连接 button is a Mantine DesignButton whose accessible name is not
-  // exposed to getByRole (probed 2026-09-01: getByRole button "测试连接" = 0 while
-  // the real <button> exists). Anchor on the button element + its text inside the
-  // diagnostics disclosure, scrolling it into view since it sits below the fold.
-  async function clickTestConnection() {
-    await openConnectionDiagnostics()
-    const button = win.locator('[data-model-connection-diagnostics] button', { hasText: WALK_COPY.testConnection }).first()
-    await button.waitFor({ state: 'visible', timeout: stationTimeout() })
-    await button.scrollIntoViewIfNeeded()
-    await button.click()
-  }
-
   // Relay wizard flow: 保存连接 unlocks 获取模型列表, which reveals the inline model
   // picker. Idempotent: skips 保存连接 if it is already gone (already saved).
   async function fetchModels() {
@@ -175,7 +154,7 @@ export async function launchJourneyUi({ journey, recorder }) {
     const fetch = win.getByRole('button', { name: WALK_COPY.fetchModels }).first()
     await fetch.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) })
     await fetch.click()
-    // Picker is inline on the same page: model rows + a "验证 N 个模型" confirm.
+    // Picker is inline on the same page: model rows + a "添加 N 个" confirm.
     await win.getByRole('button', { name: WALK_COPY.addModels }).first().waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) })
   }
 
@@ -185,7 +164,7 @@ export async function launchJourneyUi({ journey, recorder }) {
       await label.waitFor({ state: 'visible', timeout: 5000 })
       await label.click()
     }
-    // Confirm reads "验证 N 个模型"; N reflects the current selection count.
+    // Confirm reads "添加 N 个"; N reflects the current selection count.
     const confirm = win.getByRole('button', { name: WALK_COPY.addModels }).first()
     await confirm.waitFor({ state: 'visible', timeout: stationTimeout() })
     await confirm.click()
@@ -349,8 +328,6 @@ export async function launchJourneyUi({ journey, recorder }) {
     openRelayWizard,
     openRelayProtocols,
     showManualProtocol,
-    openConnectionDiagnostics,
-    clickTestConnection,
     fillRelay,
     fetchModels,
     chooseModels,

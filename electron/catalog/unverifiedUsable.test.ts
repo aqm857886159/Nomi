@@ -4,14 +4,13 @@ import { buildDefaultModelOptions } from "../../src/workbench/settings/defaultGe
 import { catalogPath } from "./catalogFileAccess";
 import { migrateCatalogForward } from "./catalogMigrations";
 import { findExecutableModel } from "./executableModel";
-import { recordModelExecutionResult } from "./modelExecutionVerification";
 import { upsertRendererCatalogModel, upsertRendererCatalogVendorApiKey } from "./rendererCatalogMutation";
 import { CURRENT_CATALOG_VERSION } from "./types";
 import { repairUnverifiedUsable } from "./unverifiedUsableMigration";
-import { revalidatePendingCredential } from "./validateCandidateCredential";
 import fs from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchModelList } from "../ai/onboarding/modelListProbe";
 import { derivePublishedExecution, rowServesMode } from "../shared/modelPublication";
 import { deriveModelAvailability } from "../shared/modelAvailability";
 const { readCatalog, upsertModelCatalogVendor } = store;
@@ -23,7 +22,7 @@ const t = "2026-11-17T00:00:00.000Z";
 const model = {vendorKey: "relay", modelKey: "gpt-image-2", kind: "image", enabled: true, meta: {adapter: {state: "failed", activeRevision: "old-revision", publicationModes: [], modes: [{taskKind: "text_to_image", state: "failed"}]}}, createdAt: t, updatedAt: t};
 const mapping = {vendorKey: "relay", modelKey: "gpt-image-2", taskKind: "text_to_image", enabled: true};
 beforeEach(() => { fixture.root = fs.mkdtempSync(path.join(process.env.TMPDIR || "/tmp", "unverified-usable-")); });
-afterEach(() => { fs.rmSync(fixture.root, {recursive: true, force: true}); });
+afterEach(() => { fs.rmSync(fixture.root, {recursive: true, force: true}); vi.mocked(fetchModelList).mockClear(); });
 describe("verification is diagnostic", () => {
  it("publishes an existing request format despite failed revision diagnostics", () => {
   expect(derivePublishedExecution(model, {mappings: [mapping]})).toEqual({published: true, publishedModes: ["text_to_image"]});
@@ -32,16 +31,43 @@ describe("verification is diagnostic", () => {
  it("still refuses a video model without any executable request format", () => {
   expect(deriveModelAvailability({model: {...model, kind: "video"}, vendor: {enabled: true}, credentialStatus: () => "ok"})).toMatchObject({usable: false, reason: "model_unpublished"});
  });
- it("saves an offline credential enabled and leaves pending as a hint", async () => {
+ // D-1117-delete-verification：保存只写 key，不写任何「待验证」标记；之后第一次用之前不再探。
+ it("saves an offline credential enabled with no pending mark, and first use probes nothing", async () => {
   store.upsertModelCatalogVendor({key: "relay", name: "Relay", enabled: true, baseUrlHint: "http://127.0.0.1:54331/v1"});
+  store.upsertModelCatalogModel({...model, kind: "text"});
   await upsertRendererCatalogVendorApiKey("relay", {apiKey: "fixture-key"});
-  expect(store.readCatalog().apiKeysByVendor.relay).toMatchObject({enabled: true, verificationPending: true});
+  const record = store.readCatalog().apiKeysByVendor.relay as Record<string, unknown>;
+  expect(record).toMatchObject({enabled: true});
+  expect(record).not.toHaveProperty("verificationPending");
+  const probesAtSave = vi.mocked(fetchModelList).mock.calls.length;
+  expect(probesAtSave).toBe(1);
+  const row = store.listModelCatalogModels().find((candidate) => candidate.vendorKey === "relay")!;
+  expect(row.availability).toEqual({usable: true});
+  expect(findExecutableModel("relay", row.modelKey).apiKey).toBe("fixture-key");
+  expect(vi.mocked(fetchModelList).mock.calls.length).toBe(probesAtSave);
  });
- it("does not block first use when a pending probe fails", async () => {
+});
+
+// F1：保存那一刻上游明确说 key 不对（401 / 403）→ 新 key 不存，旧 key 照用。其余一律照存。
+describe("save gate refuses only an explicit rejection", () => {
+ it.each([401, 403])("a %s from the model list keeps the old key and stores nothing new", async (status) => {
   store.upsertModelCatalogVendor({key: "relay", name: "Relay", enabled: true, baseUrlHint: "http://127.0.0.1:54331/v1"});
-  store.upsertModelCatalogVendorApiKey("relay", {apiKey: "fixture-key", enabled: true, verificationPending: true});
-  await expect(revalidatePendingCredential("relay")).resolves.toBeUndefined();
-  expect(store.readCatalog().apiKeysByVendor.relay.verificationPending).toBe(true);
+  store.upsertModelCatalogVendorApiKey("relay", {apiKey: "old-good-key", enabled: true});
+  vi.mocked(fetchModelList).mockResolvedValueOnce({ok: false, failureKind: "auth", status, statuses: [status], error: "invalid api key"} as never);
+  await expect(upsertRendererCatalogVendorApiKey("relay", {apiKey: "new-bad-key"})).rejects.toThrow();
+  store.upsertModelCatalogModel({...model, kind: "text"});
+  expect(findExecutableModel("relay", model.modelKey).apiKey).toBe("old-good-key");
+ });
+ it.each([
+  ["404 (no list endpoint)", {ok: false, failureKind: "unsupported", status: 404, statuses: [404], error: "not found"}],
+  ["a web page", {ok: false, failureKind: "invalid_response", status: 200, statuses: [200], error: "html"}],
+  ["offline", {ok: false, failureKind: "network", statuses: [], error: "offline"}],
+ ])("%s still stores the key", async (_name, result) => {
+  store.upsertModelCatalogVendor({key: "relay", name: "Relay", enabled: true, baseUrlHint: "http://127.0.0.1:54331/v1"});
+  vi.mocked(fetchModelList).mockResolvedValueOnce(result as never);
+  await upsertRendererCatalogVendorApiKey("relay", {apiKey: "fixture-key"});
+  store.upsertModelCatalogModel({...model, kind: "text"});
+  expect(findExecutableModel("relay", model.modelKey).apiKey).toBe("fixture-key");
  });
 });
 
@@ -98,47 +124,15 @@ describe("one-time legacy recovery", () => {
   const migrated = repairUnverifiedUsable(state as never);
   expect(migrated.apiKeysByVendor.relay.enabled).toBe(true);
   expect(migrated.models.map((row) => row.enabled)).toEqual([true, false]);
-  expect(migrated.models[0].meta).toMatchObject({adapter:{state:"unverified",activeRevision:"previous-key"}});
+  // 不再给模型写任何诊断状态：界面已经没有「未验证」这一档，旧记录原样留着没人读。
+  expect(migrated.models[0].meta).toEqual({adapter:{state:"verified",activeRevision:"previous-key"}});
  });
 });
-
-describe("real execution evidence", () => {
- async function setup(authType = "bearer") {
-  store.upsertModelCatalogVendor({key: "relay", name: "Relay", enabled: true, authType, baseUrlHint: "http://127.0.0.1:54331/v1"});
-  store.upsertModelCatalogVendorApiKey("relay", {apiKey: "fixture-key", enabled: true, verificationPending: true});
-  store.upsertModelCatalogModel(model);
-  const state = store.readCatalog();
-  const input = {vendor: state.vendors.find(row => row.key === "relay")!, model: state.models.find(row => row.modelKey === model.modelKey)!, apiKey: "fixture-key"};
-  return {store, input, recordModelExecutionResult};
- }
- it("clears pending and model diagnostics on success, retaining both on 401 or queued", async () => {
-  const {store, input, recordModelExecutionResult} = await setup();
-  for (const status of ["failed", "queued"]) {
-   recordModelExecutionResult(input, {status, kind: "text_to_image", assets: []});
-   expect(store.readCatalog().apiKeysByVendor.relay.verificationPending).toBe(true);
-  }
-  recordModelExecutionResult(input, {status: "succeeded", kind: "text_to_image", assets: []});
-  expect(store.readCatalog().apiKeysByVendor.relay.verificationPending).toBe(true);
-  recordModelExecutionResult(input, {status: "succeeded", kind: "text_to_image", assets: [{url: "fixture"}]});
-  expect(store.readCatalog().apiKeysByVendor.relay.verificationPending).toBeUndefined();
-  expect(store.readCatalog().models.find(row => row.modelKey === model.modelKey)?.meta).toMatchObject({adapter: {state: "verified"}});
- });
- it.each(["bearer", "none"])("does not let an old successful %s request clear a replacement key", async (authType) => {
-  const {store, input, recordModelExecutionResult} = await setup(authType);
-  store.upsertModelCatalogModel({...input.model, meta:{adapter:{state:"unverified"}}});
-  const snapshot = {...input, model:store.readCatalog().models.find(row=>row.vendorKey==="relay")!};
-  store.upsertModelCatalogVendorApiKey("relay", {apiKey: "replacement", enabled: true, verificationPending: true});
-  expect(store.readCatalog().models.find(row=>row.vendorKey==="relay")?.updatedAt).toBe(snapshot.model.updatedAt);
-  recordModelExecutionResult(snapshot, {status: "succeeded", kind: "text_to_image", assets: [{url: "fixture"}]});
-  expect(store.readCatalog().apiKeysByVendor.relay.verificationPending).toBe(true);
- });
-});
-
 
 describe("selectors agree with executable resolution", () => {
- it("offers pending and failed configured models on every applicable surface and resolves each ready row", async () => {
+ it("offers configured models with old failed records on every applicable surface and resolves each ready row", async () => {
   store.upsertModelCatalogVendor({key: "relay", name: "Relay", enabled: true, baseUrlHint: "http://127.0.0.1:54331/v1"});
-  store.upsertModelCatalogVendorApiKey("relay", {apiKey: "fixture-key", enabled: true, verificationPending: true});
+  store.upsertModelCatalogVendorApiKey("relay", {apiKey: "fixture-key", enabled: true});
   for (const kind of ["image", "text", "video"]) store.upsertModelCatalogModel({...model, modelKey: kind, kind});
   store.upsertModelCatalogMapping({...mapping, modelKey: "image", create: {method: "POST", path: "/images/generations"}});
   const rows = store.listModelCatalogModels();
@@ -158,7 +152,7 @@ it("replacing a credential retires old model verification without disabling its 
  store.upsertModelCatalogVendor({key: "relay", name: "Relay", enabled: true, baseUrlHint: "http://127.0.0.1:54331/v1"});
  store.upsertModelCatalogVendorApiKey("relay", {apiKey: "first", enabled: true});
  store.upsertModelCatalogModel({...model, kind: "text", meta: {adapter: {state: "verified", activeRevision: "old"}}});
- store.upsertModelCatalogVendorApiKey("relay", {apiKey: "replacement", enabled: true, verificationPending: true});
+ store.upsertModelCatalogVendorApiKey("relay", {apiKey: "replacement", enabled: true});
  const row = store.listModelCatalogModels().find(row => row.vendorKey === "relay")!;
  expect(row.meta).toMatchObject({adapter: {state: "unverified", activeRevision: "old"}});
  expect(row.availability.usable).toBe(true);

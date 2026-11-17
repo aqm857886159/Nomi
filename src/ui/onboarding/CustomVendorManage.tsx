@@ -21,10 +21,8 @@ import { getDesktopBridge } from '../../desktop/bridge'
 import { confirmDialog, DecisionBar } from '../../design'
 import { confirmAndDeleteVendor } from './vendorDeleteAction'
 import { VendorBaseUrlField } from './VendorBaseUrlField'
-import { VendorConnectionNotice } from './VendorConnectionNotice'
 import { VendorFieldLossNotice } from './VendorFieldLossNotice'
 import { withoutVendorFieldLossNotice } from '../../../electron/shared/vendorFieldLossNotice'
-import type { VendorConnection } from './useVendorHealth'
 import type { ModelSettingsConnectionFocus } from './modelSettingsNavigation'
 
 type CustomVendorManageProps = {
@@ -33,13 +31,10 @@ type CustomVendorManageProps = {
   baseUrl: string
   hasApiKey: boolean
   modelCount: number
-  /** 连接健康（由 CustomVendorCard 持有，与卡片胶囊同一份，不各自探）。 */
-  connection: VendorConnection | null
   /** v12→v13 迁移盖的「这家的声明我补不了」标记时间戳；空 = 没盖过。 */
   fieldLossNoticeAt?: string | null
   /** 这家 vendor 记录当前的 meta（关掉提示时要把它原样写回、只去掉那一个键）。 */
   vendorMetaRaw?: unknown
-  onRecheck: () => void
   /** 变更后刷新外层目录。 */
   onChanged: () => void
   focus?: ModelSettingsConnectionFocus
@@ -51,10 +46,8 @@ export function CustomVendorManage({
   baseUrl,
   hasApiKey,
   modelCount,
-  connection,
   fieldLossNoticeAt,
   vendorMetaRaw,
-  onRecheck,
   onChanged,
   focus,
 }: CustomVendorManageProps): JSX.Element {
@@ -98,14 +91,12 @@ export function CustomVendorManage({
       setKeyDraft('')
       setKeyEditing(false)
       onChanged()
-      // 换 key 不改地址（健康检查的 fingerprint 不变），所以显式重探一次。
-      onRecheck()
     } catch (e) {
       setError(t('onboardingProviders.vendorCard.saveFailed', { message: e instanceof Error ? e.message : String(e) }))
     } finally {
       setBusy(false)
     }
-  }, [keyDraft, vendorKey, onChanged, onRecheck, t])
+  }, [keyDraft, vendorKey, onChanged, t])
 
   const handleDisconnect = React.useCallback(async () => {
     const bridge = getDesktopBridge()
@@ -159,8 +150,6 @@ export function CustomVendorManage({
 
   return (
     <section className="flex flex-col gap-2" data-vendor-connection-group>
-      {/* 连接失败最先说：它是用户点进这一页的理由，且治它的地址/凭证就在紧接着的两行里。 */}
-      <VendorConnectionNotice connection={connection} onRecheck={onRecheck} disabled={busy} />
       <VendorFieldLossNotice noticeAt={fieldLossNoticeAt} onDismiss={handleDismissFieldLoss} disabled={busy} />
 
       <h3 className="text-caption font-semibold text-nomi-ink-60">

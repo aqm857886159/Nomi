@@ -50,7 +50,7 @@ export function ModelEnableEditor({ models, onToggle, onDelete, onCustomCall, on
   const selectedRows = React.useMemo(() => selectedModelRows(models, selected), [models, selected])
 
   const bulk = React.useCallback((enable: boolean) => {
-    const targets = bulkToggleTargets(visible, enable).filter(model => !isAdapterModelLocked(model.meta))
+    const targets = bulkToggleTargets(visible, enable).filter(model => !isAdapterModelLocked(model))
     if (targets.length > 0) onToggle(targets, enable)
   }, [visible, onToggle])
 
@@ -168,7 +168,7 @@ export function ModelEnableEditor({ models, onToggle, onDelete, onCustomCall, on
               </div>
               {g.models.map((m) => {
                 const key = modelRowKey(m)
-                const adapterLocked = isAdapterModelLocked(m.meta)
+                const adapterLocked = isAdapterModelLocked(m)
                 if (selectMode) {
                   const isSelected = selected.has(key)
                   return (

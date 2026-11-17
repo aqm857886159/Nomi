@@ -195,13 +195,13 @@ describe("B4 candidate credentials", () => {
     await upsertRendererCatalogVendorApiKey("relay", { apiKey: "candidate-test" });
     expect(fetchModelList).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), expect.anything(), expect.anything(), expect.objectContaining({ proxyUrl: "http://127.0.0.1:7897" }));
   });
-  it("network failure saves the candidate with an unverified marker", async () => {
+  it("network failure still saves the candidate, with no pending marker", async () => {
     const catalog = state();
     catalog.vendors[0].baseUrlHint = "https://relay.test/v1";
     vi.mocked(store.readCatalog).mockReturnValue(catalog);
     vi.mocked(fetchModelList).mockResolvedValue({ ok: false, statuses: [], failureKind: "network", error: "offline" });
     await upsertRendererCatalogVendorApiKey("relay", { apiKey: "candidate-test" });
-    expect(store.upsertModelCatalogVendorApiKey).toHaveBeenCalledWith("relay", { apiKey: "candidate-test", enabled: true, verificationPending: true });
+    expect(store.upsertModelCatalogVendorApiKey).toHaveBeenCalledWith("relay", { apiKey: "candidate-test", enabled: true });
   });
   /**
    * T-QA-13 的门岗（2026-09-18）。走查夹具「注入 key → hasApiKey」这条路整条死掉过，
@@ -229,13 +229,14 @@ describe("B4 candidate credentials", () => {
     vi.mocked(store.readCatalog).mockReturnValue(catalog);
     await expect(upsertRendererCatalogVendorApiKey("relay", { apiKey: "fixture-key" })).resolves.toBeDefined();
   });
-  it.each([401, 403])("%i on a diagnostic probe still saves the user-selected key as pending", async (status) => {
+  // F1（D-1117-delete-verification 第一轮验收）：上一轮把这条改成「照存、标待验证」，丢了主分支的拒收闸。
+  it.each([401, 403])("%i never overwrites the previous credential or disables its vendor", async (status) => {
     const catalog = state();
     catalog.vendors[0] = { ...catalog.vendors[0], enabled: true, baseUrlHint: "https://relay.test/v1" };
     vi.mocked(store.readCatalog).mockReturnValue(catalog);
     vi.mocked(fetchModelList).mockResolvedValue({ ok: false, status, statuses: [status], failureKind: "auth", error: `HTTP ${status}` });
-    await expect(upsertRendererCatalogVendorApiKey("relay", { apiKey: "invalid-test-key" })).resolves.toBeDefined();
-    expect(store.upsertModelCatalogVendorApiKey).toHaveBeenCalledWith("relay", {apiKey: "invalid-test-key", enabled: true, verificationPending: true});
+    await expect(Promise.resolve().then(() => upsertRendererCatalogVendorApiKey("relay", { apiKey: "invalid-test-key" }))).rejects.toThrow();
+    expect(store.upsertModelCatalogVendorApiKey).not.toHaveBeenCalled();
     expect(store.upsertModelCatalogVendor).not.toHaveBeenCalled();
   });
 });

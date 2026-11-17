@@ -50,6 +50,7 @@ import {
 } from './onboardingDrawerDerivations'
 import {
   backModelSettingsPage,
+  finishAdapterRunNavigation,
   closeModelSettingsDialog,
   createModelSettingsNavigation,
   currentModelSettingsPage,
@@ -192,7 +193,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     recordRun: recordAdapterRun,
     cancelRun: cancelAdapterRun,
     retryRun: retryAdapterRun,
-  } = useProviderAdapterTasks(models)
+  } = useProviderAdapterTasks()
   const previousAdapterRunsRef = React.useRef(adapterRuns)
   const [adaptStartingModel, setAdaptStartingModel] = React.useState<string | null>(null)
   const connectionRecoveryRequestRef = React.useRef(0)
@@ -415,7 +416,6 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
         name={group.name}
         models={group.models}
         vendorMeta={meta}
-        skipHealthProbe={Boolean(meta?.customCallOnly) && group.models.every((model) => model.hasCustomCall || model.customCallDraft)}
         onToggle={handleSetEnabled}
         onDelete={handleDelete}
         onCustomCall={(row) => openCustomCall(row.vendorKey, row.modelKey)}
@@ -454,11 +454,10 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
         vendorName={translateModelDisplayText(card.meta.name)} baseUrl={card.meta.baseUrl}
         // 数量与发布提示都读主进程 availability（#765）；列表与数量同源＝传过滤后的数组，不另立 modelCount（#788）。
         models={card.vendorModels.filter((model) => model.availability?.usable === true)}
-        hasApiKey={card.meta.hasApiKey} credentialMaterialSaved={card.meta.credentialMaterialSaved} credentialVerificationPending={card.meta.credentialVerificationPending}
+        hasApiKey={card.meta.hasApiKey} credentialMaterialSaved={card.meta.credentialMaterialSaved}
         curatedModelsPublished={card.vendorModels.some((model) => model.availability?.usable === true)}
         onBack={goBack}
         onSaved={refresh}
-        onContinueVerification={() => openWizard(undefined, card.directory.vendorKey)}
       />
     )
   }
@@ -583,6 +582,9 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       <AdapterTaskWorkspace
         run={run}
         onBack={goBack}
+        onDone={() => setNavigation((current) => run
+          ? finishAdapterRunNavigation(current, run, (vendorKey) => vendorMeta.has(vendorKey))
+          : backModelSettingsPage(current))}
         onCancel={() => {
           if (run) void cancelAdapterRun(run)
         }}
@@ -750,7 +752,6 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     <ModelSettingsHome
       connections={homeConnections}
       availableConnections={availableHomeConnections}
-      mappings={mappings}
       loaded={loaded}
       bridgeMissing={bridgeMissing}
       loadError={loadError} readOnly={readOnly} onImported={refresh}

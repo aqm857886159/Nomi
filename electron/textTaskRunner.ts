@@ -1,5 +1,3 @@
-import { recordModelExecutionResult } from "./catalog/modelExecutionVerification";
-import { revalidatePendingCredential } from './catalog/validateCandidateCredential';
 // 文本任务执行引擎（从 runtime.ts 抽出——规则 12 巨壳门岗）。2026-10-21 起走 pi-ai 单次调用的唯一核心
 // （electron/agentLane/laneModelCall.mts，经 ai/modelCallBridge 过 CJS→ESM 桥），与 Agent 的一次性提问、接入说明卡编译器同一台发动机。
 // 过去这里走的是 ai@4（streamTextTask），判活只数正文，思考型模型 30 秒就被掐（docs/audit/2026-10-21-text-stream-first-token-gate.md）。
@@ -82,7 +80,7 @@ export async function executeTextTask(input: {
   const maxRetries = typeof maxRetriesRaw === "number" && Number.isInteger(maxRetriesRaw) && maxRetriesRaw >= 0 && maxRetriesRaw <= 2
     ? maxRetriesRaw : DEFAULT_TEXT_TASK_RETRIES;
   const signal = input.abortSignal;
-  const succeeded = (text: string, finishReason?: string): TaskResult => recordModelExecutionResult(input, {
+  const succeeded = (text: string, finishReason?: string): TaskResult => ({
     id: input.taskId, kind: input.kind, status: "succeeded", assets: [],
     // raw 合成成 OpenAI choices 形状：渲染层既有的 extractTextFromChatRaw 零改动继续可用。
     raw: { choices: [{ message: { role: "assistant", content: text } }] },
@@ -147,7 +145,6 @@ export async function runTextTaskStream(
   const wantedKind = billingKindForTaskKind(kind);
   if (wantedKind !== "text") throw new Error(`runTextTaskStream 只处理文本任务，收到 kind=${kind}`);
   const modelKey = firstString(request.extras?.modelKey, request.extras?.modelAlias);
-  await revalidatePendingCredential(vendorKey);
   const { vendor, model, apiKey } = findExecutableModelForTask(vendorKey, modelKey, wantedKind);
   const taskId = `task-${crypto.randomUUID()}`;
   return executeTextTask({

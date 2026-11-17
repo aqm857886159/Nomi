@@ -6,6 +6,7 @@ import { DesignButton, DesignSwitch, IconActionButton, NomiSelect } from '../../
 import type { ChipModel } from './ModelChipGroups'
 import { ModelCapabilitySummary } from './ModelCapabilitySummary'
 import { ModelAdapterStatusSection } from './ModelAdapterStatusSection'
+import { formatMissing } from './modelAdapterDetailState'
 import { MODEL_CHIP_KINDS } from './modelChipGrouping'
 import { projectModelCapability } from './modelCapabilityProjection'
 
@@ -231,9 +232,9 @@ export function ModelWorkspacePage({
   }
   const capability = projectModelCapability({ model, mappings })
   const capabilityKnown = model.kind === 'text' || capability.inputContract === 'known'
-  const transportAvailable = model.kind === 'text' || capability.customCall.enabled || capability.transport.mappings.length > 0
-  const readyForCanvas = model.availability?.usable === true || (capabilityKnown && transportAvailable)
-  const switchLocked = connection?.enabledLocked ?? Boolean(enabledLocked || !readyForCanvas)
+  // 缺不缺请求格式只读可用性主人（formatMissing），不在这里拿映射再算一遍。
+  const missingFormat = formatMissing(model.availability)
+  const switchLocked = connection?.enabledLocked ?? Boolean(enabledLocked || missingFormat)
   return (
     <div className="flex h-full min-h-0 flex-col" data-model-settings-page="model" data-model-settings-model={modelKey}>
       <ModelSettingsPageHeader
@@ -252,7 +253,6 @@ export function ModelWorkspacePage({
               hasActiveRun={hasActiveRun}
               hasTask={hasTask}
               capabilityKnown={capabilityKnown}
-              transportAvailable={transportAvailable}
               starting={adaptStarting}
               onStartAdapt={onStartAdapt}
               onOpenTask={onOpenTask}
@@ -266,7 +266,7 @@ export function ModelWorkspacePage({
                   <div className="min-w-0">
                     <div className="text-body-sm font-medium text-nomi-ink">{t('onboardingProviders.workspace.enabled')}</div>
                     <div className="mt-0.5 text-caption text-nomi-ink-40">
-                      {connection?.enabledHint ?? t(!readyForCanvas
+                      {connection?.enabledHint ?? t(missingFormat
                         ? 'onboardingProviders.workspace.adapter.notReadyEnabledHint'
                         : enabledLocked
                         ? hasActiveRun

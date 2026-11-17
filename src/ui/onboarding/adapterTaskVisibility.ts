@@ -26,7 +26,7 @@ export function adapterRunsRequiringCatalogRefresh<T extends DesktopProviderAdap
 type FailureRef = { vendorKey: string; sourceVendorKey?: string; selectedModelKeys: readonly string[]; updatedAt: string }
 
 /**
- * 这个模型在这一次任务里验证通过了吗：整批完成，或它自己的每个模式都是 verified（半批成功的那一档）。
+ * 这个模型在这一次任务里格式跑通了吗：整批完成，或它自己的每个模式都是 verified（半批成功的那一档）。
  * 只看任务自己的记录——之后创作者手动停用它，不会把这次的成功改写成失败。
  */
 function modelVerifiedIn(run: DesktopProviderAdapterRun, modelKey: string): boolean {
@@ -64,16 +64,15 @@ export function adapterFailureIsObsolete(
   return failureIsObsolete(failure, usableModelIndex(models), runs)
 }
 
-export function visibleAdapterRuns<T extends DesktopProviderAdapterRun>(runs: T[], models: readonly ChipModel[] = []): T[] {
-  const usable = usableModelIndex(models)
-  return runs.flatMap((run): T[] => {
-    if (!isAdapterRunTerminal(run.stage)) return [run]
-    if (run.stage === 'completed') return []
-    if (!run.selectedModelKeys.length) return [run]
-    const unresolved = run.selectedModelKeys.filter((key) => !modelVerifiedIn(run, key)
-      && !failureIsObsolete({ ...run, selectedModelKeys: [key] }, usable, runs))
-    if (!unresolved.length) return []
-    if (unresolved.length === run.selectedModelKeys.length) return [run]
-    return [{ ...run, selectedModelKeys: unresolved, models: run.models.filter((model) => unresolved.includes(model.modelKey)) }]
-  }).sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
+/**
+ * 设置首页的任务条只说**正在跑**的格式任务（D-1117-delete-verification）。
+ *
+ * 这里曾经把结束了却「没解决」的失败任务也挂着，当成要处理的事——可模型缺不缺请求格式，
+ * 它自己那一行已经写着「待设置」；任务条再挂一张失败卡，就是同一件事两处说、两处的口径还要互相对账。
+ * 结束了的任务仍能从模型详情的「查看任务」打开，不丢。
+ */
+export function visibleAdapterRuns<T extends DesktopProviderAdapterRun>(runs: T[]): T[] {
+  return runs
+    .filter((run) => !isAdapterRunTerminal(run.stage))
+    .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
 }

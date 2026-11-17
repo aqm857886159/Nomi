@@ -152,67 +152,32 @@ describe("认证 promote 一族行为不变（构造上不触发，无需逃生�
 });
 
 
+// D-1117-delete-verification：保存只写 key；没有「待验证」标记，第一次用之前也没有任何预检。
 describe("B4 offline credential lifecycle", () => {
-  it("persists unverified state, then clears it after a successful pre-call probe", async () => {
-    const store = await import("./catalogStore");
-    const probe = await import("./validateCandidateCredential");
-    store.upsertModelCatalogVendor({ key: "relay", name: "Relay", network: { proxyUrl: "http://user:pass@127.0.0.1:7897", proxyEnabled: true } });
-    store.upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-offline", enabled: false, verificationPending: true });
-    expect(store.readCatalog().apiKeysByVendor.relay).toMatchObject({ verificationPending: true });
-    expect(store.readCatalog().vendors.find(v => v.key === "relay")?.network?.proxyUrl).toBe("http://user:pass@127.0.0.1:7897");
-    expect(store.listModelCatalogVendors().find(v => v.key === "relay")).toMatchObject({ credentialVerificationPending: true });
-    const fetch = vi.spyOn(await import("../ai/onboarding/modelListProbe"), "fetchModelList").mockResolvedValue({ ok: true, models: [], statuses: [200] });
-    await probe.revalidatePendingCredential("relay");
-    expect(store.readCatalog().apiKeysByVendor.relay.verificationPending).toBeUndefined();
-    expect(store.readCatalog().apiKeysByVendor.relay.enabled).toBe(false);
-    await probe.revalidatePendingCredential("relay");
-    expect(fetch).toHaveBeenCalledTimes(1);
-    fetch.mockRestore();
-  });
-});
-
-
-describe("B4 pending probe isolation", () => {
   afterEach(() => vi.restoreAllMocks());
-  it("keeps an unreachable credential pending and never enables it", async () => {
+  it("saving a key keeps the connection's proxy and writes no pending mark", async () => {
     const store = await import("./catalogStore");
-    const { revalidatePendingCredential } = await import("./validateCandidateCredential");
-    store.upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-offline", enabled: false, verificationPending: true });
-    vi.spyOn(await import("../ai/onboarding/modelListProbe"), "fetchModelList").mockResolvedValue({ ok: false, failureKind: "network", statuses: [], error: "offline" });
-    await expect(revalidatePendingCredential("relay")).resolves.toBeUndefined();
-    expect(store.readCatalog().apiKeysByVendor.relay).toMatchObject({ verificationPending: true, enabled: false });
-  });
-  it("shares concurrent probes and refuses to clear a replacement key with stale evidence", async () => {
-    const store = await import("./catalogStore");
-    const { revalidatePendingCredential } = await import("./validateCandidateCredential");
-    store.upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-first", enabled: false, verificationPending: true });
-    const { fetchModelList } = await import("../ai/onboarding/modelListProbe");
-    let finish!: (value: Awaited<ReturnType<typeof fetchModelList>>) => void;
-    const fetch = vi.spyOn(await import("../ai/onboarding/modelListProbe"), "fetchModelList").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
-    const first = revalidatePendingCredential("relay");
-    const second = revalidatePendingCredential("relay");
-    const result = Promise.allSettled([first, second]);
-    store.upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-second", enabled: false, verificationPending: true });
-    finish({ ok: true, models: [], statuses: [200] });
-    expect((await result).map(value => value.status)).toEqual(["fulfilled", "fulfilled"]);
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(store.readCatalog().apiKeysByVendor.relay.verificationPending).toBe(true);
+    store.upsertModelCatalogVendor({ key: "relay", name: "Relay", network: { proxyUrl: "http://user:pass@127.0.0.1:7897", proxyEnabled: true } });
+    store.upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-offline", enabled: false });
+    expect(store.readCatalog().apiKeysByVendor.relay).not.toHaveProperty("verificationPending");
+    expect(store.readCatalog().vendors.find(v => v.key === "relay")?.network?.proxyUrl).toBe("http://user:pass@127.0.0.1:7897");
+    expect(store.listModelCatalogVendors().find(v => v.key === "relay")).not.toHaveProperty("credentialVerificationPending");
   });
 });
 
 
-it("keeps the pending marker when certification stages the saved credential", async () => {
+it("certification loads a saved credential without any pre-call probe", async () => {
   const store = await import("./catalogStore");
-  store.upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-offline", enabled: false, verificationPending: true });
+  store.upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-offline", enabled: false });
   const { defaultCatalog } = await import("../providerAdapter/serviceCatalog");
   const staged = defaultCatalog.stage({
     vendorKey: "relay", runId: "offline-run", vendorName: "Relay", baseUrl: "https://relay.test",
     apiKey: "sk-offline", authType: "bearer", providerKind: "openai-compatible",
     models: [{ modelKey: "offline-model", labelZh: "Offline model", kind: "text" }],
   });
-  expect(store.readCatalog().apiKeysByVendor[staged.vendor.key].verificationPending).toBe(true);
   expect(store.readCatalog().vendors.find(v => v.key === staged.vendor.key)?.enabled).toBe(true);
   const fetch = vi.spyOn(await import("../ai/onboarding/modelListProbe"), "fetchModelList").mockResolvedValue({ ok: false, failureKind: "network", statuses: [], error: "offline" });
   await expect(defaultCatalog.load(staged.vendor.key, ["offline-model"])).resolves.toBeDefined();
+  expect(fetch).not.toHaveBeenCalled();
   fetch.mockRestore();
 });

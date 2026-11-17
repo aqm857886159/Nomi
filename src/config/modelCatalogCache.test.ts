@@ -296,12 +296,12 @@ describe('模式级候选：下拉与主进程同一条判据', () => {
 })
 
 
-describe('unverified configured rows remain selectable', () => {
- it('uses the real canvas projection for both pending and failed diagnostics', async () => {
+describe('old adapter diagnostics never hide a usable row', () => {
+ it('uses the real canvas projection: a row whose last format run is unverified or failed stays selectable when availability says usable', async () => {
   notifyModelOptionsRefresh();
   mocks.listVendors.mockResolvedValue([{key: 'relay', name: 'Relay', enabled: true}]);
   mocks.listModels.mockResolvedValue([
-   {...row('pending', ['text_to_image'], {adapter: {state: 'unverified'}}), credentialVerificationPending: true},
+   row('pending', ['text_to_image'], {adapter: {state: 'unverified'}}),
    row('failed', ['text_to_image'], {adapter: {state: 'failed'}})
   ]);
   expect((await preloadModelOptions('image', 'text_to_image')).map(item => item.value)).toEqual(['pending', 'failed']);

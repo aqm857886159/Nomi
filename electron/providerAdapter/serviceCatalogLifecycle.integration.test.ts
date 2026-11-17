@@ -189,8 +189,8 @@ function serviceDependencies(
     verify: async ({ mode }) => ({
       ok: false,
       taskKind: mode.taskKind,
-      stage: "credential" as const,
-      selfCheckReason: "credential_rejected" as const,
+      stage: "contract" as const,
+      selfCheckReason: "no_channel" as const,
       error: "provider rejected candidate",
     }),
     now: () => now,
@@ -306,7 +306,7 @@ describe("ProviderAdapterService real catalog candidate lifecycle", () => {
       new ProviderAdapterStore(path.join(userDataRoot, "provider-adapters.json")),
       serviceDependencies({
         id: () => "run-real-text-failed",
-        verify: async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "credential" as const, selfCheckReason: "credential_rejected" as const, error: "provider rejected" }),
+        verify: async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "contract" as const, selfCheckReason: "no_channel" as const, error: "provider rejected" }),
       }),
     );
 
@@ -380,8 +380,8 @@ describe("ProviderAdapterService real catalog candidate lifecycle", () => {
         verify: (async ({ mode }) => ({
           ok: ++verification > 1,
           taskKind: mode.taskKind,
-          stage: "credential",
-          selfCheckReason: "credential_rejected",
+          stage: "contract",
+          selfCheckReason: "no_channel",
           ...(verification > 1
             ? { artifactUrl: "https://result.example.test/image.png" }
             : { error: "first revision failed" }),
@@ -559,7 +559,7 @@ describe("ProviderAdapterService real catalog candidate lifecycle", () => {
         verify: async ({ mode }) =>
           mode.taskKind === "text_to_image"
             ? { ok: true as const, taskKind: mode.taskKind }
-            : { ok: false as const, taskKind: mode.taskKind, stage: "credential" as const, selfCheckReason: "credential_rejected" as const, error: "edit rejected" },
+            : { ok: false as const, taskKind: mode.taskKind, stage: "contract" as const, selfCheckReason: "no_channel" as const, error: "edit rejected" },
       }),
     );
     const started = await startCandidate(service);

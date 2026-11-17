@@ -30,7 +30,7 @@ import type {
   ProviderAdapterRegistration,
   ProviderAdapterRun,
 } from "./types";
-import { probeAdapterCredential, verifyAdapterMode, type AdapterCredentialProbe, type AdapterVerificationResult } from "./verifier";
+import { verifyAdapterMode, type AdapterVerificationResult } from "./verifier";
 import { redactAdapterSecrets } from "./redaction";
 import { defaultCatalog, type LoadedConnection, type ProviderAdapterCatalogPort } from "./serviceCatalog";
 import {
@@ -92,17 +92,15 @@ export type ProviderAdapterServiceDependencies = {
     signal?: AbortSignal;
   }) => Promise<ProviderAdapterCompilation>;
   /**
-   * 一条连接探一次的免费凭据自检（鉴权 + 模型清单）。结论对这条连接下所有模型相同。
+   * 一条模式的格式完整性检查（零网络）。凭据自检随 D-1117-delete-verification 删了。
    * 2026-09-11：**自动修复（repair）整族删了**——它存在的唯一理由是「付费验证失败了再花钱试一次」，
    * 而付费验证本身已经不在了。修不动的说明卡如实回报，由驱动 Agent 拿真实错误重新 propose。
    */
-  probeCredential: (input: { vendor: Vendor; apiKey: string; signal?: AbortSignal }) => Promise<AdapterCredentialProbe>;
   verify: (input: {
     vendor: Vendor;
     model: Model;
     apiKey: string;
     mode: ProviderAdapterDraft["models"][number]["modes"][number];
-    credential: AdapterCredentialProbe;
     signal?: AbortSignal;
   }) => Promise<AdapterVerificationResult>;
   operationLedger?: OperationLedger;
@@ -126,7 +124,6 @@ const defaultDependencies: ProviderAdapterServiceDependencies = {
   discover: (input) => resolveProviderDocs(input),
   resolveLanguageModels: defaultResolveLanguageModels,
   compile: (input) => compileProviderAdapter(input),
-  probeCredential: (input) => probeAdapterCredential(input),
   verify: (input) => verifyAdapterMode(input),
   now: () => new Date().toISOString(),
   id: () => `adapter-run-${crypto.randomUUID()}`,
@@ -446,11 +443,6 @@ export class ProviderAdapterService {
     }));
     const results = initial.results;
     let deadlineError: string | undefined;
-    // 凭据自检**一条连接只打一次**：结论对这条连接下每个模型每个模式都一样，按模式各打一次
-    // 纯属白打（也会毫无必要地给上游刷 N 次 /models）。
-    const credential = await this.awaitStep(id, "Credential self-check", this.dependencies.verifyTimeoutMs ?? 30_000, (signal) =>
-      this.dependencies.probeCredential({ vendor: connection.vendor, apiKey: connection.apiKey, signal }),
-    );
     for (const candidateModel of draft.models) {
       const model = connection.models.find((item) => item.modelKey === candidateModel.modelKey);
       if (!model) throw new Error(`Selected model disappeared during verification: ${candidateModel.modelKey}`);
@@ -494,7 +486,7 @@ export class ProviderAdapterService {
               }
             },
             execute: () => this.awaitStep(id, "Model self-check", this.dependencies.verifyTimeoutMs ?? 30_000, (signal) =>
-              this.dependencies.verify({ vendor: connection.vendor, model, apiKey: connection.apiKey, mode, credential, signal }),
+              this.dependencies.verify({ vendor: connection.vendor, model, apiKey: connection.apiKey, mode, signal }),
             ),
             reuse: (operation) => {
               const persisted = this.store.getRun(id)?.models
@@ -504,9 +496,7 @@ export class ProviderAdapterService {
                 ? {
                     ok: false as const,
                     taskKind: mode.taskKind,
-                    stage: persisted?.stage === "contract" || operation.settledResult?.stage === "contract"
-                      ? ("contract" as const)
-                      : ("credential" as const),
+                    stage: "contract" as const,
                     error: persisted?.error || "Provider self-check failed",
                     errorCategory: persisted?.errorCategory || operation.settledResult?.errorCategory,
                     httpStatus: persisted?.httpStatus,
@@ -533,7 +523,7 @@ export class ProviderAdapterService {
           verified = {
             ok: false,
             taskKind: mode.taskKind,
-            stage: "credential",
+            stage: "contract",
             error: error.message,
             errorCategory: "network",
             selfCheckReason: "endpoint_unreachable",

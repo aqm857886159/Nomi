@@ -15,8 +15,6 @@ export type ApiKeyRecord = {
   /** v2+: how the apiKey above is encoded. Absent = legacy plaintext (v1). */
   enc?: "safeStorage" | "plain";
   enabled: boolean;
-  /** Verification is pending; this diagnostic never disables the credential. */
-  verificationPending?: true;
   createdAt: string;
   updatedAt: string;
   /**
@@ -149,7 +147,7 @@ export function decryptApiKeyRecord(rec: ApiKeyRecord | undefined): string {
 
 /**
  * Raw read that skips the enabled gate. Only for work that must touch a record that is not (yet) usable —
- * re-validating a pending save, certifying a saved key, copying key material. The closed list of callers is
+ * certifying a saved key, copying key material. The closed list of callers is
  * pinned by storedApiKeyReaders.test.ts; everything that sends a request goes through decryptApiKeyRecord.
  */
 export function decryptStoredApiKeyRecord(rec: ApiKeyRecord | undefined): string {

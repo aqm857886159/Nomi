@@ -13,7 +13,6 @@ import os from "node:os";
 import path from "node:path";
 import { app } from "electron";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-vi.mock("../catalog/validateCandidateCredential", () => ({ revalidatePendingCredential: async () => undefined }));
 import type { Entry } from "@earendil-works/pi-agent-core";
 import { executeTextTask } from "../textTaskRunner";
 import { runTaskIpcGuard } from "../tasks/taskIpcGuard";

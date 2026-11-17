@@ -16,7 +16,9 @@ afterEach(() => {
 });
 
 describe("vendor HTTP exact redaction reaches adapter persistence", () => {
-  it("keeps an opaque upstream credential out of verifier result, run DTO, store snapshot, and persisted JSON", async () => {
+  // D-1117-delete-verification：格式检查不再发任何请求，所以「上游把 key 回显进错误、再漏进落盘 JSON」这条入口
+  // 在结构上没了。这里钉住两件事：① 带着 key 跑格式检查，出站零次；② key 不进结果、run DTO、快照、落盘 JSON。
+  it("keeps the credential out of verifier result, run DTO, store snapshot, and persisted JSON — and sends nothing", async () => {
     const secret = "opaqueCredentialValue987654";
     const vendor: Vendor = {
       key: "candidate",
@@ -36,12 +38,12 @@ describe("vendor HTTP exact redaction reaches adapter persistence", () => {
       createdAt: now,
       updatedAt: now,
     };
-    // 自检唯一会打的那次请求是免费的 GET /models。上游把 key 原样回显在错误里是真实见过的行为，
-    // 这条钉的是「它不许从这条路漏进结果 / run DTO / 落盘 JSON」。
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(
+    // 上游把 key 原样回显在错误里是真实见过的行为；假如有人再给格式检查接上网络，这个桩会把 key 回显回来。
+    const fetchSpy = vi.fn(async () => new Response(
       JSON.stringify({ error: { message: `upstream echoed ${secret}` } }),
       { status: 401, headers: { "content-type": "application/json" } },
-    )));
+    ));
+    vi.stubGlobal("fetch", fetchSpy);
 
     const result = await verifyAdapterMode({
       vendor,
@@ -55,9 +57,10 @@ describe("vendor HTTP exact redaction reaches adapter persistence", () => {
       },
     });
 
-    expect(result.ok).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
     expect(JSON.stringify(result)).not.toContain(secret);
-    if (result.ok) throw new Error("expected verification failure");
+    if (!result.ok) throw new Error("expected the request format to be complete");
 
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-adapter-redaction-"));
     dirs.push(dir);
@@ -70,7 +73,7 @@ describe("vendor HTTP exact redaction reaches adapter persistence", () => {
       vendorName: vendor.name,
       connectionFingerprint: "non-secret-fingerprint",
       selectedModelKeys: [model.modelKey],
-      stage: "failed",
+      stage: "completed",
       completedCount: 1,
       totalCount: 1,
       repairAttempt: 0,
@@ -80,16 +83,12 @@ describe("vendor HTTP exact redaction reaches adapter persistence", () => {
         kind: model.kind,
         modes: [{
           taskKind: result.taskKind,
-          state: "failed",
+          state: "verified",
           attempts: 1,
-          stage: result.stage,
-          error: result.error,
-          ...(result.errorCategory ? { errorCategory: result.errorCategory } : {}),
-          ...(result.httpStatus ? { httpStatus: result.httpStatus } : {}),
+          verifiedAt: now,
         }],
       }],
       sourceUrls: [],
-      error: result.error,
       createdAt: now,
       updatedAt: now,
     };

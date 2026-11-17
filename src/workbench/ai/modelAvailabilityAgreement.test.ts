@@ -18,7 +18,7 @@ import type { CatalogState, Mapping, Model, Vendor } from "../../../electron/cat
 import type { ModelCatalogModelDto } from "../api/modelCatalogApi";
 import { filterUsableAssistantTextModels } from "./assistantModelIdentity";
 import { keepUsableModelRows } from "../../config/modelCatalogCache";
-import { summarizeModelHomeConnection } from "../../ui/onboarding/modelSettingsHomeState";
+import { countModelHomeStates } from "../../ui/onboarding/modelSettingsHomeState";
 import { projectModelSettingsCatalog } from "../../ui/onboarding/modelSettingsCatalogProjection";
 
 import { readCatalog } from "../../../electron/catalog/catalogStore";
@@ -93,7 +93,7 @@ function askEverySurface(state: CatalogState): {
     // 创作助手下拉：`chatModelChoices(data.models)`，data.models 来自这道门。
     agentDropdown: filterUsableAssistantTextModels(rows).length > 0,
     // 设置 → 模型：每个连接行上那句「N 个可使用」。
-    settingsReadyCount: summarizeModelHomeConnection(chipModels, state.mappings).ready,
+    settingsReadyCount: countModelHomeStates(chipModels).ready,
     // 画布 / 分镜选择器：进入渲染层第一处那道闸。
     canvasRows: keepUsableModelRows(rows).length,
   };
@@ -153,7 +153,7 @@ describe("同一份目录 · 三个界面一个答案（P0-10 类级回归）", 
     vi.mocked(readCatalog).mockReturnValue(state);
     const rows = projectRows(state);
     const chipModels = projectModelSettingsCatalog(rows as unknown as Array<Record<string, unknown>>).models;
-    const summary = summarizeModelHomeConnection(chipModels, state.mappings);
+    const summary = countModelHomeStates(chipModels);
     expect(summary).toMatchObject({ ready: 0, disabled: 1, needsSetup: 0 });
     expect(askEverySurface(state).agentDropdown).toBe(false);
   });

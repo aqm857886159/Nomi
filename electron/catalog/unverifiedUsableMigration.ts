@@ -2,19 +2,27 @@ import { modelHasPublishedExecution } from "../shared/modelPublication";
 import { isJsonRecord } from "../jsonUtils";
 import type { CatalogState } from "./types";
 
-/** One-time data repair, without a format bump so released v13 writers remain compatible. */
+/**
+ * 一次性修正，不升目录版本号（已发的 v13 写入方照样读得懂）。D-1117-delete-verification：
+ * 「验证」这一步删了，旧版因为「没验过 / 没验成」关掉的东西要还给创作者——
+ *  · 旧版写过「待验证」标记的那家：连接和 key 打开（标记本身留在文件里，没人再读）；
+ *  · 自动验证失败被关掉、而请求格式完整的模型：打开一次；
+ *  · 没有失败记录的关闭（创作者手动关的）：不动。
+ * 不再给模型写任何诊断状态——界面已经没有「未验证」这一档。
+ */
 export function repairUnverifiedUsable(state: CatalogState): CatalogState {
   if (state.unverifiedUsableRecovered) return state;
-  const pending = new Set(Object.entries(state.apiKeysByVendor).filter(([, key]) => key.verificationPending).map(([key]) => key));
+  // 旧标记按原始字段读：类型里已经没有它了，界面和执行端都拿不到。
+  const pending = new Set(Object.entries(state.apiKeysByVendor)
+    .filter(([, key]) => (key as { verificationPending?: unknown }).verificationPending === true)
+    .map(([key]) => key));
   const recovered = new Set<string>();
   const models = state.models.map((model) => {
     const meta = isJsonRecord(model.meta) ? model.meta : {};
     const adapter = isJsonRecord(meta.adapter) ? meta.adapter : undefined;
-    const diagnostic = pending.has(model.vendorKey) && adapter?.state !== "failed"
-      ? { ...model, meta: { ...meta, adapter: { ...adapter, state: "unverified" } } } : model;
-    if (model.enabled || adapter?.state !== "failed") return diagnostic;
-    const enabled = { ...diagnostic, enabled: true };
-    if (!modelHasPublishedExecution(enabled, { mappings: state.mappings })) return diagnostic;
+    if (model.enabled || adapter?.state !== "failed") return model;
+    const enabled = { ...model, enabled: true };
+    if (!modelHasPublishedExecution(enabled, { mappings: state.mappings })) return model;
     recovered.add(model.vendorKey);
     return enabled;
   });

@@ -101,8 +101,9 @@ export type ModelCatalogModelDto = {
    * 全部读它；谁都不许在渲染层再拼一份 `vendor.enabled && hasApiKey && published`，
    * 那正是 2026-09-12 真实验收里「三个地方给两个答案」的来源（P0-10）。
    */
-  credentialVerificationPending?: boolean
   availability: ModelAvailability
+  /** 这个模型的格式任务正在跑（主进程从任务生命周期算出；渲染层拿不到任务状态原料）。 */
+  formatInProgress?: boolean
   /**
    * 这一行发出的型号名由档案提供（'archetype'）还是就是这一行自己的 key（'row'）——主进程按这家的映射算好随行下发
    * （electron/catalog/modelNameSource.ts，唯一计算处）。渲染层的档案解析据它收窄档案，自己不再判断。

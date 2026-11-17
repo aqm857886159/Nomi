@@ -1,4 +1,3 @@
-import type { ChipModel } from './ModelChipGroups'
 import React from 'react'
 import type { DesktopHttpCertificationRun } from '../../desktop/onboardingBridgeTypes'
 import { getDesktopBridge } from '../../desktop/bridge'
@@ -7,7 +6,7 @@ import { mergeAdapterRuns, visibleAdapterRuns } from './adapterTaskVisibility'
 import { CertificationIntentKey } from './certificationIntentKey'
 import { CertificationUiError } from './certificationFailureMessage'
 
-export function useProviderAdapterTasks(models: readonly ChipModel[] = []): {
+export function useProviderAdapterTasks(): {
   runs: DesktopHttpCertificationRun[]
   visibleRuns: DesktopHttpCertificationRun[]
   recordRun: (run: DesktopHttpCertificationRun) => void
@@ -65,7 +64,7 @@ export function useProviderAdapterTasks(models: readonly ChipModel[] = []): {
 
   return {
     runs,
-    visibleRuns: visibleAdapterRuns(runs, models),
+    visibleRuns: visibleAdapterRuns(runs),
     recordRun,
     cancelRun,
     retryRun,

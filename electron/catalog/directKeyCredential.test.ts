@@ -83,10 +83,10 @@ function probeResponse(status: number, body?: unknown): Response {
 }
 
 describe("direct-key credential validation (apimart liveness probe)", () => {
-  it("probe 200 + remain_balance → verified (not pending), no /v1/models call", async () => {
+  it("probe 200 + remain_balance → saved, no /v1/models call", async () => {
     const state = seedApimartCatalog();
     mockAppFetch.mockResolvedValue(probeResponse(200));
-    await expect(validateCandidateCredential(apimartVendor(state), "sk-test")).resolves.toBe(false);
+    await expect(validateCandidateCredential(apimartVendor(state), "sk-test")).resolves.toBeUndefined();
   });
 
   it.each([401, 403])("probe %i → key is invalid (throws, candidate never published)", async (status) => {
@@ -95,30 +95,31 @@ describe("direct-key credential validation (apimart liveness probe)", () => {
     await expect(validateCandidateCredential(apimartVendor(state), "sk-bad")).rejects.toThrow();
   });
 
-  it("network failure → pending (honest: not faked as available, not misreported as bad key)", async () => {
+  it("network failure → saved (not misreported as a bad key; nothing to re-check later)", async () => {
     const state = seedApimartCatalog();
     mockAppFetch.mockRejectedValue(new TypeError("offline"));
-    await expect(validateCandidateCredential(apimartVendor(state), "sk-test")).resolves.toBe(true);
+    await expect(validateCandidateCredential(apimartVendor(state), "sk-test")).resolves.toBeUndefined();
   });
 });
 
 describe("direct-key credential publish path", () => {
-  it("verified key publishes credential AND vendor in the same write", async () => {
+  it("an accepted key publishes credential AND vendor in the same write", async () => {
     seedApimartCatalog();
     mockAppFetch.mockResolvedValue(probeResponse(200));
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-live", enabled: false });
     const state = readCatalog();
     expect(state.apiKeysByVendor.apimart).toMatchObject({ enabled: true });
-    expect(state.apiKeysByVendor.apimart.verificationPending).toBeUndefined();
+    expect(state.apiKeysByVendor.apimart).not.toHaveProperty("verificationPending");
     expect(state.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(true);
   });
 
-  it("pending key publishes configured models while retaining the diagnostic", async () => {
+  it("a key saved while offline publishes configured models with no pending mark", async () => {
     seedApimartCatalog();
     mockAppFetch.mockRejectedValue(new TypeError("offline"));
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-live", enabled: false });
     const state = readCatalog();
-    expect(state.apiKeysByVendor.apimart).toMatchObject({ enabled: true, verificationPending: true });
+    expect(state.apiKeysByVendor.apimart).toMatchObject({ enabled: true });
+    expect(state.apiKeysByVendor.apimart).not.toHaveProperty("verificationPending");
     expect(state.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(true);
   });
 

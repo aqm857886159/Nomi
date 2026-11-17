@@ -32,8 +32,9 @@ try {
     } catch (e) {
       out.exportStart = String(e?.message || e);
     }
-    // 3) onboarding IPC：test-connection 空 baseUrl → registerOnboardingIpc + catalogStore.normalizeProviderKind
-    out.onboardTest = await d.onboarding.testConnection({});
+    // 3) onboarding IPC：list-models 空 baseUrl → registerOnboardingIpc + catalogStore.normalizeProviderKind
+    //    （原来冒烟的是 test-connection，那条 IPC 随 D-1117-delete-verification 删了；list-models 是同一个注册函数里剩下的那条带 key 出站口）
+    out.onboardList = await d.onboarding.listModels({});
     // 4) onboarding canonical facade：configure 空连接 → providerAdapter IPC 稳定业务错误
     out.onboardConfigure = await d.onboarding.httpConnectionConfigure({});
     // 5) catalog 读 IPC（catalogStore）：health + 列表
@@ -49,7 +50,7 @@ try {
   assert(/not found/i.test(r.exportStatus), "nomi:exports:status 路由到 exportJobs.getExportJobStatus（未知 job 报 not found）");
   assert(/no handler/i.test(r.exportStatus) === false, "exports:status 非「handler 未注册」");
   assert(/projectId is required/i.test(r.exportStart), "nomi:exports:start-job 路由到 exportJobs.startExportJob（缺 projectId 报错）");
-  assert(r.onboardTest && r.onboardTest.ok === false && /http/i.test(r.onboardTest.error || ""), "nomi:onboarding:test-connection 路由到 onboardingIpc（空地址返回业务错）");
+  assert(r.onboardList && r.onboardList.ok === false && /http/i.test(r.onboardList.error || ""), "nomi:onboarding:list-models 路由到 onboardingIpc（空地址返回业务错）");
   assert(r.onboardConfigure && r.onboardConfigure.ok === false && r.onboardConfigure.code === "START_FAILED", "canonical http:configure 路由到 providerAdapter（空入参稳定失败）");
   assert(r.vendorCount >= 1, "catalog 读 IPC 经 catalogStore 返回内置 vendor");
 

@@ -134,26 +134,24 @@ function followSavedAddressWithCredential(vendorKey: string): void {
   mutateCatalog((_tx, state) => bindCredentialDestination(state.vendors.find((item) => item.key === vendorKey), new Date().toISOString()))
 }
 
-/** Saving credentials publishes configured routes; verification is a diagnostic only. */
+/**
+ * 保存 key 就是接入（D-1117-delete-verification）：存下、发布已有请求格式的模型，没有「待验证」这一档。
+ * 保存前只有一道拒收闸——明确的 401 / 403 不存，旧 key 照用（F1）；其余结果一律照存。
+ */
 export async function upsertRendererCatalogVendorApiKey(vendorKey: string, payload: unknown) {
   const candidate = sanitizeRendererVendorApiKeyMutation(payload)
   const vendor = readCatalog().vendors.find((item) => item.key === vendorKey)
   if (!vendor) throw new Error(desktopT('credential.validationUnavailable'))
   const snapshot = candidateCredentialSnapshot(vendorKey)
-  const verificationPending = await validateCandidateCredential(vendor, String(candidate.apiKey || '').trim())
+  await validateCandidateCredential(vendor, String(candidate.apiKey || '').trim())
   if (snapshot !== candidateCredentialSnapshot(vendorKey)) throw new Error(desktopT('credential.changed'))
-  const result = upsertModelCatalogVendorApiKey(vendorKey, {
-    ...candidate,
-    ...(verificationPending ? { verificationPending: true } : {}),
-    enabled: true,
-  })
+  const result = upsertModelCatalogVendorApiKey(vendorKey, { ...candidate, enabled: true })
   publishConfiguredVendor(vendorKey)
   return result
 }
 
 export function sanitizeRendererVendorApiKeyMutation(payload: unknown): Json {
-  const { verificationPending: _ignored, ...candidate } = record(payload)
-  return { ...candidate, enabled: false }
+  return { ...record(payload), enabled: false }
 }
 
 export function upsertRendererCatalogModel(payload: unknown) {

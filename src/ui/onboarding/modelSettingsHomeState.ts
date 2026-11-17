@@ -1,95 +1,38 @@
-import type { Mapping } from '../../../electron/catalog/types'
+import {
+  presentConnectionStatus,
+  presentModelStatus,
+  type ConnectionStatusPresentation,
+  type ModelStatusPresentation,
+  type ModelStatusState,
+} from '../../../electron/shared/modelStatusPresentation'
 import type { ChipModel } from './ModelChipGroups'
 
-export type ModelHomeStatus = 'working' | 'verified' | 'ready' | 'needsSetup' | 'failed' | 'disabled'
-export type ModelHomeConnectionState = 'working' | 'verified' | 'attention' | 'disabled'
+type StatusRow = Pick<ChipModel, 'availability' | 'formatInProgress'>
 
 /**
- * 一行模型在设置页上的状态。
+ * 设置页上一行模型 / 一条连接显示成什么——只转交展示投影，不在这里另判（D-1117-delete-verification）。
  *
- * 2026-09-12 真实验收 P0-10 的根因就在这里：这个函数从来**没问过**「它现在能不能用」——
- * 只看适配器跑没跑、能力投影认不认得、`enabled` 开没开。于是 MCP 接进来的两个 DeepSeek 文本模型
- * （启用着、钥匙也在，但认证没走完 → 发布资格不成立）在这一页被算成「2 个可使用」，
- * 而首页横幅说「尚未连接模型」、助手下拉说「目录里没有可用的」——同一时刻三个地方两个答案。
- *
- * 现在「能不能用」只认主进程那一个答案（`model.availability`）；本函数剩下的职责是把
- * **不可用的原因**翻译成这一页的四档：正在跑 / 要你去弄 / 被你关掉了 / 可用。
+ * 这里以前自己把「能不能用」和「验证过没有」揉成六档，再由列表行、详情卡各挑一份词——
+ * 同一条连接在列表写绿「未验证」、详情写红「连不上」（2026-11-17 第一轮验收）。现在词和点色只有一个出处。
  */
-export function resolveModelHomeStatus(model: ChipModel, _mappings: readonly Mapping[]): ModelHomeStatus {
-  if (model.adapterState === 'testing') return 'working'
-  const availability = model.availability
-  if (availability?.usable) {
-    if (model.adapterState === 'failed') return 'failed'
-    return model.adapterState === 'verified' ? 'verified' : 'ready'
-  }
-  if (!availability) return model.enabled ? 'needsSetup' : 'disabled'
-  return availability.reason === 'model_disabled' || availability.reason === 'vendor_disabled' ? 'disabled' : 'needsSetup'
-
+export function modelHomeStatus(model: StatusRow): ModelStatusPresentation {
+  return presentModelStatus({ availability: model.availability, formatInProgress: model.formatInProgress })
 }
 
-export function summarizeModelHomeConnection(
-  models: readonly ChipModel[],
-  mappings: readonly Mapping[],
-): {
-  state: ModelHomeConnectionState
-  ready: number
-  working: number
-  needsSetup: number
-  disabled: number
-} {
-  const statuses = models.map((model) => resolveModelHomeStatus(model, mappings))
-  // 自检诊断与可用性是不同维度：失败/进行中的自检不会下架已有模型。
-  const ready = models.filter((model) => model.availability?.usable === true).length
-  const working = statuses.filter((status) => status === 'working').length
-  const needsSetup = models.filter((model, index) => !model.availability?.usable && (statuses[index] === 'needsSetup' || statuses[index] === 'failed')).length
-  const disabled = statuses.filter((status) => status === 'disabled').length
-  const state: ModelHomeConnectionState = needsSetup > 0
-    ? 'attention'
-    : working > 0
-      ? 'working'
-      : ready > 0
-        ? 'verified'
-        : 'disabled'
-  return { state, ready, working, needsSetup, disabled }
-}
-
-/**
- * 「没验证、或这次没验成，但能用」——设置里连接列表行和连接详情徽标**只从这里**取词和点色（协调 2026-11-17）。
- * 401/403 已在保存时拒收，剩下的「没验成」只有断网 / 超时 / 供应商出错，对创作者和「还没验证」是一回事，所以只有一个词。
- * 返回 null = 不是这个状态，由各自原有的档位接着判。
- */
-export function unverifiedUsableStatus(input: {
-  credentialVerificationPending?: boolean
-  models: readonly Pick<ChipModel, 'availability' | 'adapterState' | 'customCallDraft'>[]
-  unreachable: boolean
-}): { labelKey: 'onboardingProviders.keyOnly.offlineTitle'; tone: 'ok' } | null {
-  const usable = input.models.filter((model) => model.availability?.usable === true)
-  const notVerifiedYet = usable.length > 0 && (input.unreachable || usable.some((model) => model.adapterState === 'failed'))
-  const neverVerified = input.credentialVerificationPending === true || (!input.models.some((model) => model.adapterState === 'verified')
-    && usable.some((model) => model.adapterState === 'unverified' || model.customCallDraft))
-  return notVerifiedYet || neverVerified ? { labelKey: 'onboardingProviders.keyOnly.offlineTitle', tone: 'ok' } : null
-}
-
-export function modelsVisibleOnHome({
-  models,
-  mappings,
-  search,
-  connectionName,
-}: {
-  models: readonly ChipModel[]
-  mappings: readonly Mapping[]
-  search: string
-  connectionName: string
-}): ChipModel[] {
-  const normalized = search.trim().toLocaleLowerCase()
-  if (normalized) {
-    if (connectionName.toLocaleLowerCase().includes(normalized)) return [...models]
-    return models.filter((model) => (
-      `${model.labelZh} ${model.modelKey}`.toLocaleLowerCase().includes(normalized)
-    ))
-  }
-  return models.filter((model) => {
-    const status = resolveModelHomeStatus(model, mappings)
-    return status === 'working' || status === 'needsSetup' || status === 'failed'
+/** 一条连接：列表行和连接详情卡头同取这里。`keyMissing` 只有调用方确知「这家要 key 而没有」时才给。 */
+export function connectionHomeStatus(connection: {
+  keyMissing?: boolean
+  models: readonly StatusRow[]
+}): ConnectionStatusPresentation {
+  return presentConnectionStatus({
+    keyMissing: connection.keyMissing,
+    models: connection.models.map((model) => ({ availability: model.availability, formatInProgress: model.formatInProgress })),
   })
+}
+
+/** 页头「N 个可使用 · M 个待设置」用：逐档计数，口径与每行同一个投影。 */
+export function countModelHomeStates(models: readonly StatusRow[]): Record<ModelStatusState, number> {
+  const counts: Record<ModelStatusState, number> = { ready: 0, configuring: 0, needsSetup: 0, disabled: 0, notConnected: 0 }
+  for (const model of models) counts[modelHomeStatus(model).state] += 1
+  return counts
 }

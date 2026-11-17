@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, powerMonitor, protocol, session, s
 import MIN_WINDOW_SIZE from "./shared/mainWindowSize.json";
 import { mainWindowWebPreferences } from "./mainWindowWebPreferences";
 import { mainWindowChromeOptions, registerMainWindowChromeIpc } from "./mainWindowChrome";
-import { startCatalogReconciliation } from "./ai/onboarding/vendorHealth";
+import { startCatalogReconciliation } from "./ai/onboarding/catalogReconciliation";
 import type { Rectangle, WebContents } from "electron";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -19,7 +19,7 @@ import {
   exportModelCatalogPackage,
   getModelCatalogHealth,
   listModelCatalogMappings,
-  listModelCatalogModels,
+  listRendererCatalogModels,
   listModelCatalogVendors,
 } from "./catalog/catalogStore";
 import { importRendererCatalogPackage, upsertRendererCatalogMapping, upsertRendererCatalogModel, upsertRendererCatalogVendor } from "./catalog/rendererCatalogMutation";
@@ -409,7 +409,7 @@ function registerIpc(): void {
   // 读目录的 IPC 是**纯读**：种子对账（写盘）只在启动期跑一次。挂在读上时，盘上版本比应用新就会
   // 让每次读都抛 → 设置页全空零报错（判据住 electron/catalogReadChannelsPureRead.test.ts）。
   ipcMain.handle("nomi:model-catalog:vendors:list", (event) => { assertTrustedSender(event); return listModelCatalogVendors(); }); // 目录读一律异步：sendSync 会卡住整个渲染进程
-  ipcMain.handle("nomi:model-catalog:models:list", (event, params) => { assertTrustedSender(event); return listModelCatalogModels(params); });
+  ipcMain.handle("nomi:model-catalog:models:list", (event, params) => { assertTrustedSender(event); return listRendererCatalogModels(params); });
   ipcMain.handle("nomi:model-catalog:mappings:list", (event, params) => { assertTrustedSender(event); return listModelCatalogMappings(params); });
   ipcMain.handle("nomi:model-catalog:health", (event) => { assertTrustedSender(event); return getModelCatalogHealth(); });
   registerSyncIpc("nomi:model-catalog:vendor:upsert", upsertRendererCatalogVendor);

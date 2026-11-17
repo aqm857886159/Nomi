@@ -1,5 +1,5 @@
 // 协调 2026-11-17 裁定：种子声明的凭据端点明确回 401/403 =「验证了，不对」——拒绝、不保存、原密钥保留；
-// 离线 / 超时 / 5xx 不是这一类，照存、标未验证、可用。
+// 离线 / 超时 / 5xx 不是这一类，照存、可用；不标任何「未验证」（D-1117-delete-verification 删了这一档）。
 import fs from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -34,7 +34,7 @@ describe("provider explicitly rejects the new key (401/403)", () => {
       fixture.respond = () => Promise.resolve(new Response(JSON.stringify({ error: { message: "invalid API key" } }), { status }));
       await expect(upsertRendererCatalogVendorApiKey("apimart", { apiKey: "new-rejected-key" })).rejects.toThrow();
       expect(savedKey()).toBe("old-good-key");
-      expect(store.readCatalog().apiKeysByVendor.apimart.verificationPending).toBeUndefined();
+      expect(store.readCatalog().apiKeysByVendor.apimart).not.toHaveProperty("verificationPending");
     });
   }
   it("401 on a first connection: no key stored, connection not published", async () => {
@@ -46,7 +46,7 @@ describe("provider explicitly rejects the new key (401/403)", () => {
   });
 });
 
-describe("could not verify (offline / timeout / 5xx): saved, enabled, marked not verified", () => {
+describe("not an explicit rejection (offline / timeout / 5xx): saved and enabled, no pending mark", () => {
   const cases: Array<[string, () => Promise<Response>]> = [
     ["offline", () => Promise.reject(new TypeError("fetch failed"))],
     ["timeout", () => Promise.reject(new DOMException("The operation was aborted due to timeout", "TimeoutError"))],
@@ -58,7 +58,8 @@ describe("could not verify (offline / timeout / 5xx): saved, enabled, marked not
       fixture.respond = respond;
       await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "new-unverified-key" });
       expect(savedKey()).toBe("new-unverified-key");
-      expect(store.readCatalog().apiKeysByVendor.apimart).toMatchObject({ enabled: true, verificationPending: true });
+      expect(store.readCatalog().apiKeysByVendor.apimart).toMatchObject({ enabled: true });
+      expect(store.readCatalog().apiKeysByVendor.apimart).not.toHaveProperty("verificationPending");
       expect(vendorEnabled()).toBe(true);
     });
   }

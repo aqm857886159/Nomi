@@ -86,7 +86,6 @@ vi.mock("electron", () => ({
 
 // 主进程：目录只有一条启用着的文本模型，指向本机假上游；其余（准入、钱闸、执行器、错误编码）全是真的。
 vi.mock("../../events/vendorCallTrace", () => ({ traceVendorCompleted: () => undefined, traceVendorRequested: () => undefined }));
-vi.mock("../../catalog/validateCandidateCredential", () => ({ revalidatePendingCredential: async () => undefined }));
 vi.mock("../../catalog/executableModel", () => {
   // 不论问的是正名还是别名，都解到同一行（runtime 与报价都经它：报价身份 = 执行身份）。
   const selection = () => ({

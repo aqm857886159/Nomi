@@ -1,6 +1,4 @@
-import { recordModelExecutionResult } from "./catalog/modelExecutionVerification";
 import { profileMediaResponseHandler, profileMediaTaskResult, profileResponseReceipt } from "./capabilityCore/generationOutputMaterializer";
-import { revalidatePendingCredential } from './catalog/validateCandidateCredential';
 import crypto from "node:crypto";
 import { assertLocalAssetTransportReady } from "./catalog/assetLocalization";
 import { assertNoReferencesOutsideSubmit, stageSubmitsReferences } from "./catalog/referenceStage";
@@ -244,9 +242,7 @@ export async function buildProfileTaskResult(input: {
 }): Promise<{ result: TaskResult; providerMeta: JsonRecord; unrecognizedStatus: string; actualCost?: ProviderCostActual }> {
   const materialized = profileMediaTaskResult(input);
   if (materialized) {
-    const normalized = await materialized;
-    if (input.vendor && input.model && input.apiKey !== undefined) recordModelExecutionResult({ vendor: input.vendor, model: input.model, apiKey: input.apiKey }, normalized.result);
-    return normalized;
+    return materialized;
   }
   const { response, taskId, providerMeta, responseMapping } = profileResponseReceipt(input);
   const type: "image" | "video" | "audio" | "model3d" =
@@ -259,7 +255,6 @@ export async function buildProfileTaskResult(input: {
       ? localizeTaskAsset(input.projectId, url, type, input.nodeId, input.vendor, certification.evidence[index])
       : Promise.resolve(unlocalizedTaskAsset(type, url)) });
   const actualCost = extractProviderCostActual(input.vendor?.key || "", input.response);
-  if (status === "succeeded" && assets.length && input.vendor && input.model && input.apiKey !== undefined) recordModelExecutionResult({ vendor: input.vendor, model: input.model, apiKey: input.apiKey }, { status, kind: input.request.kind, assets });
   return {
     providerMeta,
     unrecognizedStatus,
@@ -288,7 +283,6 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   const modelKey = firstString(request.extras?.modelKey, request.extras?.modelAlias);
   const archetypeMeta = request.extras?.archetype;
   const modeId = archetypeMeta && typeof archetypeMeta === "object" ? firstString((archetypeMeta as JsonRecord).modeId) : firstString(request.extras?.modeId);
-  await revalidatePendingCredential(vendorKey);
   const stagedCandidate = resolveComfyCandidateExecution(request);
   const { vendor, model, apiKey, customConfig } = stagedCandidate || findExecutableModel(vendorKey, modelKey, wantedKind);
   const projectId = trim(request.extras?.projectId), nodeId = trim(request.extras?.nodeId), grantId = trim(request.extras?.grantId);
@@ -312,7 +306,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, operation: mapping?.create, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, spendGate: admission.spendGate });
   if (usesSynchronousAudioRunner(wantedKind, mapping)) {
     await admission.spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
-    return recordModelExecutionResult({ vendor, model, apiKey }, await runAudioTask({ vendor, model, apiKey, request, kind, taskId, projectId, nodeId, mapping }));
+    return runAudioTask({ vendor, model, apiKey, request, kind, taskId, projectId, nodeId, mapping });
   }
   if (mapping) {
     await validateProfileRequestBeforeSpend({ vendor, model, apiKey, request, operation: mapping.create });
@@ -444,7 +438,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     provenance,
   };
   rememberTaskResult(projectId, fallbackFingerprint, finalResult);
-  return recordModelExecutionResult({ vendor, model, apiKey }, finalResult);
+  return finalResult;
 }
 
 export { fetchTaskResult } from "./tasks/taskResultQuery";
