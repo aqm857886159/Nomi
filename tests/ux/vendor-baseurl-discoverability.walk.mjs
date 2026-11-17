@@ -170,6 +170,7 @@ await step('切到「模型」页签', async () => {
 // ① 首页那一行必须把「连不上」说出来（用户扫视的就是这一屏）。
 const homeRow = win.locator(`[data-model-home-connection="${vendorKey}"]`)
 await expectVisible(homeRow, '首页已连入行')
+// board:ModelConnectionStatus/list.row-status
 await expect(homeRow, '① 列表接口 401 只作诊断，已有格式的模型照样能用，行上只说「未验证」').toContainText(uiText('zh-CN', 'onboardingProviders.keyOnly.offlineTitle'))
 await expect(
   win.locator(`[data-model-home-unreachable][data-model-home-connection="${vendorKey}"]`),
@@ -182,6 +183,12 @@ await step('点进那家中转站', async () => {
   await expectVisible(win.locator('[data-vendor-connection-group]'), '连接详情页的「连接」组')
   await snap(win, 'connection-page-top')
 })
+
+// board:ModelConnectionStatus/detail.badge — 详情卡头（详情模式下那颗不可点的头部按钮）的徽标和首页行同一个词。
+await expect(
+  win.locator('[data-model-access-entry] > div > button[disabled]'),
+  '① 详情卡头徽标和首页行说同一个词「未验证」',
+).toContainText(uiText('zh-CN', 'onboardingProviders.keyOnly.offlineTitle'))
 
 // ── ② 核心：落地首屏「修改」地址就得可见可点（不许靠滚）─────────────────────
 const editAddress = win.locator('[aria-label*="接入地址"]').first()
