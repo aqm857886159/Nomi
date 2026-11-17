@@ -195,7 +195,6 @@ try {
   for (const action of [...new Set(toolbarHosts)]) {
     nodeHosts.push(await measure('node.toolbar', `toolbar · ${action}`, `${toolbar} [data-toolbar-action="${action}"] > svg:first-child, ${toolbar} [data-toolbar-action-menu="${action}"] > svg:first-child:not(:last-child)`, 'bar'))
   }
-  await measure('node.toolbar', 'lock badge (NodeLockBadge, outside F1 code scope)', `${toolbar} [data-node-lock] > svg`, null)
   await measure('node.toolbar', 'split menu ▾ (ToolbarActionMenu, outside F1 code scope)', `${toolbar} [data-toolbar-action-menu] > svg:last-child`, null)
   await shot('node-toolbar', [toolbar, article('result-image')])
   await put(SCENES.videoPlayer, 'result-video')

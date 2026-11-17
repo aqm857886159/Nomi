@@ -118,7 +118,6 @@ export function projectCanvasForAgent(result: CanvasReadResult): CanvasAgentProj
     const storyboardDesignId = (node as unknown as { meta?: { storyboardDesignId?: unknown } }).meta?.storyboardDesignId;
     const flags = [
       selectedIds.has(node.id) ? "选中" : null,
-      node.locked ? "已锁定" : null,
       node.hasResult ? "已有结果" : null,
       node.status !== "idle" && node.status !== "success" ? node.status : null,
     ].filter(Boolean);

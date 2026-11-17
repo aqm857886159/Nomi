@@ -65,7 +65,7 @@ function renderTable(count: number): { rows: number; editors: number } {
   const html = renderToStaticMarkup(React.createElement(MantineProvider, null, React.createElement(StoryboardShotTable, {
     plan, rows, anchorCards: [], imageModelOptions: [], videoModelOptions: VIDEO_MODELS,
     emptyPromptShots: new Set<number>(), onChange: NOOP,
-    onGenerateRow: NOOP, onRegenerateRow: NOOP, onToggleLockRow: NOOP, onOpenPreviewRow: NOOP, onRerunFreshRefsRow: NOOP,
+    onGenerateRow: NOOP, onRegenerateRow: NOOP, onToggleFrozenRow: NOOP, onOpenPreviewRow: NOOP, onRerunFreshRefsRow: NOOP,
     onDeleteSelected: NOOP,
   })))
   return {

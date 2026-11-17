@@ -351,7 +351,7 @@ tests/ux/shots/node-composer-placement/06-video-param-panel.png  ← 点摘要 p
 | `generationCommon.parameters.generationParameters` / `.parameters`（现役 · 摘要 pill 的名字与空态） | `生成参数` / `参数` | `Generation parameters` / `Parameters` |
 | `generationCommon.optimizer.aria`（复用） | 优化提示词 | — 现役 |
 | `generationCommon.cameraMove.title`（复用） | 运镜 | — 现役 |
-| `generationCommon.node.lock.lockHint`（复用） | 锁定提示 | — 现役 |
+| ~~`generationCommon.node.lock.lockHint`（复用）~~ 已撤掉：节点锁整体删除 | 锁定提示 | — 现役 |
 
 ---
 
@@ -365,7 +365,7 @@ tests/ux/shots/node-composer-placement/06-video-param-panel.png  ← 点摘要 p
 | 实验室第六格 | 同一个 `InlineParameterBar` 多传一个 `parameterLayout="chips"`，控件走 `resolveRenderedControls`（生产同一个函数）从 Seedance 2 真实档案 derive。`coverage: component-only` + `mirrors: 'none'`——付费确认卡在另一条分支上，本分支没有生产调用点，不假装它有家 |
 | 真机两张 | 打包 Electron 里用真实鼠标建节点、选节点截的，不灌 store、不注入夹具 |
 | 底栏三段 | 生产实现：第一段 `NodeParameterControls section="parameters"` → `InlineParameterBar`；中段 `NodePromptToolCluster` 包着现役的 `NodeCameraMoveControl` / `useNodeEffectChips().more` / `NodePromptOptimizer` 三个**触发器换了外观、弹层与逻辑一行没动**的控件；第三段 `NomiSelect` + `GENERATE_BUTTON_CLASS` |
-| 锁 | `FloatingToolbarShell` 里的 `NodeLockBadge`，六条浮条共用同一份（`lockNodeId` 必填，让编译器逼每条浮条答一次） |
+| 锁（已撤掉：节点锁整体删除，浮条上不再有锁）| `FloatingToolbarShell` 里的 `NodeLockBadge`，六条浮条共用同一份（`lockNodeId` 必填，让编译器逼每条浮条答一次） |
 
 ---
 
@@ -376,7 +376,7 @@ tests/ux/shots/node-composer-placement/06-video-param-panel.png  ← 点摘要 p
 | 参数 chip 只报两个值（**画布节点现役**） | `nodes/composerHeadlineSummary.ts`（按控件 key 挑，值从档案 derive）→ `NodeParameterControls` 走 `InlineParameterBar` 已有的 `summaryOverride` 缝 | 没有新造第二条摘要通路；导入工作流那支的口径优先，原样保留 |
 | **（B · 02:10 拍板 → 04:30 收窄到付费卡）** 每个主参数一颗下拉 chip、长尾进 ⚙ | `InlineParameterBar` 的 `parameterLayout='chips'`（默认 `'summary'`，画布节点不传）+ `nodes/primaryParameterChips.ts`（判据从档案 derive）（2026-10-08 起放不下换行，不再量宽退位）；角色表 `parameterControlRole` 挂在既有的别名/binding 唯一出处上 | 无（02:10 那版误删的摘要 pill 通路已按 04:30 的纠正整条恢复） |
 | B 簇 = 缩小一号的纯 icon | 新 `nodes/NodePromptToolCluster.tsx`（只放外观与分组：`WorkbenchIconButton size="sm"` + Radix `Tooltip` + 激活点），三个控件各自的触发器改用它 | `NodeCameraMoveControl` 带文字的芯片（连同 `cameraMove.hint` 词条）· `NodePromptOptimizer` 带文字的按钮与它的 `ml-auto`（连同 `optimizer.optimize`）· `NodeEffectChips` 的「更多 ▾」（连同 `libraries.gallery.more`） |
-| 锁回节点浮条 | `FloatingToolbarShell` 里，`lockNodeId` 是**必填**参数：六条浮条每条都得答一次「你挂的是不是一个可锁的节点」，写成可选就是下一条浮条静默少一把锁（R28 让编译器拦） | `NodeGenerationComposer` 底栏那份 `NodeLockBadge` 与「锁移到底栏」那段注释；`NodeLockBadge` 的 `locked` / `selected` 两个 prop（锁态自己从 store 读，不把同一个事实抄两份） |
+| 锁回节点浮条（已撤掉：节点锁整体删除，`lockNodeId` 已改名 `nodeId`、只管尾部时间轴钮）| `FloatingToolbarShell` 里，`lockNodeId` 是**必填**参数：六条浮条每条都得答一次「你挂的是不是一个可锁的节点」，写成可选就是下一条浮条静默少一把锁（R28 让编译器拦） | `NodeGenerationComposer` 底栏那份 `NodeLockBadge` 与「锁移到底栏」那段注释；`NodeLockBadge` 的 `locked` / `selected` 两个 prop（锁态自己从 store 读，不把同一个事实抄两份） |
 | 底栏一行三段 | `NodeGenerationComposer` 底栏：`data-bar-segment` 四段 + 两根现役 `ToolbarDivider`；一件工具都没有（锁住的节点）时整段连分隔线一起不渲染 | — |
 
 还没做的一件：**录基线**。等用户看过真机截图点头，再删 `calibration.json` 里

@@ -57,15 +57,44 @@ describe("projectMemory — S9 零 LLM 提炼器", () => {
     expect(memory.facts[0].text).toContain("黑色长发");
   });
 
-  it("锁卡 → constraint 事实(title 自含);解锁 → 移除", () => {
-    appendEvents("p1", [evt("canvas.node.locked", { nodeId: "c1", title: "女主角定妆" })]);
-    let memory = getProjectMemory("p1");
-    expect(memory.facts.find((fact) => fact.id === "lock:c1")?.kind).toBe("constraint");
-    expect(memory.facts[0].text).toContain("女主角定妆");
+  it("节点锁已撤掉:旧事件日志里的 canvas.node.locked/unlocked 重放时静默跳过,不再产出约束", () => {
+    appendEvents("p1", [
+      evt("canvas.node.locked", { nodeId: "c1", title: "女主角定妆" }),
+      evt("canvas.node.unlocked", { nodeId: "c1", title: "女主角定妆" }),
+      evt("canvas.node.locked", { nodeId: "c1", title: "女主角定妆" }),
+    ]);
+    expect(getProjectMemory("p1").facts).toHaveLength(0);
+  });
 
-    appendEvents("p1", [evt("canvas.node.unlocked", { nodeId: "c1", title: "女主角定妆" })]);
-    memory = getProjectMemory("p1");
-    expect(memory.facts).toHaveLength(0);
+  const writeMemoryFile = (facts: MemoryFact[], tombstones: Record<string, number> = {}) => {
+    fs.mkdirSync(path.join(tmpRoot, "p1", ".nomi"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpRoot, "p1", ".nomi", "memory.json"),
+      JSON.stringify({ facts, lastDistilledSeq: 0, tombstones }),
+      "utf8",
+    );
+  };
+
+  it("旧版系统生成的「已被用户锁定」约束(文字与模板逐字相同)读盘时清掉,墓碑一并清", () => {
+    writeMemoryFile(
+      [
+        fact("lock:c1", "「女主角定妆」已被用户锁定：不要提议修改/删除/接入它，引用它当参考可以", { kind: "constraint" }),
+        fact("node:c2", "角色「男主」：黑发"),
+      ],
+      { "lock:c1": 3, "node:c9": 4 },
+    );
+    const memory = getProjectMemory("p1");
+    expect(memory.facts.map((f) => f.id)).toEqual(["node:c2"]);
+    expect(memory.tombstones).toEqual({ "node:c9": 4 });
+  });
+
+  it("用户手改过文字的旧锁约束不删:去掉和锁的挂钩,留成一条普通约束", () => {
+    writeMemoryFile([
+      fact("lock:c1", "女主角永远穿白裙，别动她的设定", { kind: "constraint", origin: "user" }),
+    ]);
+    const memory = getProjectMemory("p1");
+    expect(memory.facts).toHaveLength(1);
+    expect(memory.facts[0]).toMatchObject({ id: "note:c1", text: "女主角永远穿白裙，别动她的设定", kind: "constraint", origin: "user" });
   });
 
   it("overridesDelta → preference 事实(反复命中只更新溯源不重复)", () => {
@@ -94,7 +123,7 @@ describe("projectMemory — S9 零 LLM 提炼器", () => {
   it("memory.json 删掉可全量重建,结果等价", () => {
     appendEvents("p1", [
       characterAdded("c1", "女主角", "黑发"),
-      evt("canvas.node.locked", { nodeId: "c1", title: "女主角" }),
+      evt("canvas.node.prompt-changed", { nodeId: "c1", prompt: "黑发,白裙" }),
     ]);
     const before = getProjectMemory("p1");
     fs.rmSync(path.join(tmpRoot, "p1", ".nomi", "memory.json"));
@@ -119,21 +148,21 @@ describe("projectMemory — S9 零 LLM 提炼器", () => {
     expect(rebuilt.facts[0].origin).toBe("user");
   });
 
-  it("墓碑:删除点之前的事件不再重提炼;之后重新上锁可再记住", () => {
-    appendEvents("p1", [evt("canvas.node.locked", { nodeId: "c1", title: "定妆" })]);
+  it("墓碑:删除点之前的事件不再重提炼;之后的新事件可再记住", () => {
+    appendEvents("p1", [characterAdded("c1", "女主角", "黑发")]);
     getProjectMemory("p1");
-    removeMemoryFact("p1", "lock:c1");
+    removeMemoryFact("p1", "node:c1");
     // 缓存删除后全量重建也不能复活(墓碑生效)
     fs.rmSync(path.join(tmpRoot, "p1", ".nomi", "memory.json"));
     let memory = getProjectMemory("p1");
-    expect(memory.facts.filter((fact) => fact.id === "lock:c1")).toHaveLength(0);
-    // 用户重新上锁(新事件在墓碑之后)→ 重新记住
-    appendEvents("p1", [evt("canvas.node.locked", { nodeId: "c1", title: "定妆" })]);
+    expect(memory.facts.filter((fact) => fact.id === "node:c1")).toHaveLength(0);
+    // 删除之后的新事件 → 重新记住
+    appendEvents("p1", [characterAdded("c1", "女主角", "黑发")]);
     memory = getProjectMemory("p1");
-    expect(memory.facts.filter((fact) => fact.id === "lock:c1")).toHaveLength(1);
+    expect(memory.facts.filter((fact) => fact.id === "node:c1")).toHaveLength(1);
   });
 
-  it("节点删除 → 实体/锁事实一并移除;pin 持久", () => {
+  it("节点删除 → 实体事实一并移除;pin 持久", () => {
     appendEvents("p1", [characterAdded("c1", "女主角", "黑发")]);
     getProjectMemory("p1");
     updateMemoryFact("p1", "node:c1", { pinned: true });

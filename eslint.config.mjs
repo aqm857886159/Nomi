@@ -142,6 +142,13 @@ const walkDialogLocatorSelectors = [
   { selector: 'Literal[value=/fixed[.]inset-0/]', message: WALK_DIALOG_LOCATOR_MESSAGE },
   { selector: 'TemplateElement[value.raw=/fixed[.]inset-0/]', message: WALK_DIALOG_LOCATOR_MESSAGE },
 ]
+const nodeLockRemovedPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const NODE_LOCK_REMOVED_MESSAGE = '节点锁已整个删除（2026-11-17）：不要再加锁节点的按钮、字段、事件或「node_locked」拒绝。助手该碰哪个节点由它自己读画布判断，不靠创作者去锁。'
+const nodeLockRemovedSelectors = [
+  { selector: "Identifier[name=/^(setNodeLocked|NodeLockBadge)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
+  { selector: "Literal[value=/^(canvas[.]node[.](un)?locked|node_locked)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
+  { selector: "TemplateElement[value.raw=/^(canvas[.]node[.](un)?locked|node_locked)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
+]
 const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const mainSyncWaitSelectors = [{
   selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
@@ -600,6 +607,16 @@ export default tseslint.config(
     ignores: ['electron/**/*.{test,spec}.{ts,tsx,mts,cts,js,mjs,cjs,jsx}', 'electron/**/__tests__/**'],
     plugins: { 'main-sync-wait': mainSyncWaitPlugin },
     rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
+  },
+  {
+    // 节点锁（2026-11-17 整个删掉）不许回来：创作者不该为防助手乱动而多学一个概念。
+    // 拦得住：再把 setNodeLocked / NodeLockBadge / canvas.node.(un)locked 事件 / node_locked 拒绝码写进产品源码。
+    // 拦不住：换个名字重做一把锁——那条靠 GenerationCanvasNode 类型里已经没有 locked 字段（node.locked 编译不过）和评审。
+    // 旧版事件日志里的 canvas.node.locked 由重放的 default 分支静默跳过，那条在测试里（测试文件不受此限）。
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx,mts}'],
+    ignores: ['**/*.{test,spec}.{ts,tsx,mts}', '**/__tests__/**'],
+    plugins: { 'node-lock-removed': nodeLockRemovedPlugin },
+    rules: { 'node-lock-removed/no-restricted-syntax': ['error', ...nodeLockRemovedSelectors] },
   },
   {
     // 走查 / 脚本 / 测试里不按版面类名找弹窗。

@@ -38,7 +38,6 @@ export const canvasWriteRawEvidenceSchema = z
         prompt: z.string().max(CANVAS_WRITE_MAX_PROMPT_CHARS),
         /** 文本节点正文的指纹（只有文本节点带）：取证之后用户又改了正文，这次写就是过期的。 */
         bodyHash: z.string().max(128).optional(),
-        locked: z.boolean(),
         categoryId: optionalCanonicalIdSchema,
         groupId: optionalCanonicalIdSchema,
         model: canvasWriteModelEvidenceSchema,
@@ -68,7 +67,6 @@ const canvasWriteBatchNodeEvidenceSchema = z
     kind: z.string().trim().min(1).max(128),
     title: z.string().max(4_096),
     prompt: z.string().max(CANVAS_WRITE_MAX_PROMPT_CHARS),
-    locked: z.boolean(),
     categoryId: optionalCanonicalIdSchema,
     groupId: optionalCanonicalIdSchema,
     position: canvasWritePositionEvidenceSchema,
@@ -190,7 +188,6 @@ export function buildCanvasWriteAdmission(value: unknown): CanvasWriteAdmission 
   const parsed = canvasWriteRawEvidenceSchema.safeParse(value);
   if (!parsed.success) throw new CanvasWriteEvidenceError("capability_input_invalid");
   const evidence = parsed.data;
-  if (evidence.node.locked) stale();
   assertUnique(evidence.groups.map((group) => group.id));
   for (const group of evidence.groups) assertUnique(group.nodeIds);
 
@@ -216,7 +213,6 @@ export function buildCanvasWriteAdmission(value: unknown): CanvasWriteAdmission 
     title: evidence.node.title,
     prompt: evidence.node.prompt,
     ...(evidence.node.bodyHash ? { bodyHash: evidence.node.bodyHash } : {}),
-    locked: evidence.node.locked,
     model: evidence.node.model,
     currentResult: evidence.node.currentResult,
     membership,
@@ -298,21 +294,6 @@ function buildBatchCanvasWriteAdmission(
           .filter((node) => (node.categoryId ?? "shots") === (input.categoryId ?? "shots"))
           .map((node) => node.id)
       : Array.from(new Set(inputReferenceIds.map((id) => resolved.get(id)).filter((id): id is string => Boolean(id))));
-  const targetIdSet = new Set(targetNodeIds);
-  if (input.operation === "tidy_canvas" && evidence.nodes.some((node) => targetIdSet.has(node.id) && node.locked))
-    stale();
-  if (
-    input.operation === "connect_canvas_edges" ||
-    input.operation === "create_canvas_nodes" ||
-    input.operation === "arrange_storyboard_to_timeline" ||
-    input.operation === "create_staging_reference" ||
-    input.operation === "create_camera_move"
-  ) {
-    const lockedTargets = new Set(
-      inputReferenceIds.map((id) => resolved.get(id)).filter((id): id is string => Boolean(id)),
-    );
-    if (evidence.nodes.some((node) => lockedTargets.has(node.id) && node.locked)) stale();
-  }
   const target = Object.freeze({ kind: "canvas" as const, nodeIds: Object.freeze(targetNodeIds) });
   const preconditions: PreconditionSet = Object.freeze({
     edges: Object.freeze([Object.freeze({ relationHash })]),
@@ -342,7 +323,7 @@ export function assertCanvasWriteAdmissionMatches(
 }
 
 /**
- * `director.write` 的准入：它点名的那一个节点（目标镜头或要改的 3D-BOX 节点）必须在快照里、没上锁；
+ * `director.write` 的准入：它点名的那一个节点（目标镜头或要改的 3D-BOX 节点）必须在快照里；
  * 前置条件 = 整张画布的关系哈希（与画布写批量分支同一份）。修订号的比对在渲染端执行时做（计划正文住节点 meta）。
  */
 export function buildDirectorWriteAdmission(value: unknown, referenceIds: readonly string[]): CanvasWriteAdmission {
@@ -350,7 +331,6 @@ export function buildDirectorWriteAdmission(value: unknown, referenceIds: readon
   const targetNodeIds = Array.from(new Set(referenceIds.map((id) => resolved.get(id))));
   if (targetNodeIds.some((id) => !id)) stale();
   const targets = new Set(targetNodeIds as string[]);
-  if (evidence.nodes.some((node) => targets.has(node.id) && node.locked)) stale();
   const target = Object.freeze({ kind: "canvas" as const, nodeIds: Object.freeze(targetNodeIds as string[]) });
   const preconditions: PreconditionSet = Object.freeze({ edges: Object.freeze([Object.freeze({ relationHash })]) });
   return Object.freeze({ target, preconditions });

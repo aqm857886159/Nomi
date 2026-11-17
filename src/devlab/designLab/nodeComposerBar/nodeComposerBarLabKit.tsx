@@ -140,14 +140,13 @@ export function installCatalogBridge(): void {
 // ── 节点夹具 ─────────────────────────────────────────────────────────────────
 // meta 里的参数值就是**现役参数控件读的那些键**（controlInitialValue 直接读 meta[control.key]），
 // 所以三颗 chip 上的「16:9」「5s」「1080p」是从这份夹具 derive 的，不是写死的一句文案。
-export function makeBarNode(kind: BarKind, options: { cameraPicked?: boolean; locked?: boolean } = {}): GenerationCanvasNode {
+export function makeBarNode(kind: BarKind, options: { cameraPicked?: boolean } = {}): GenerationCanvasNode {
   const shared = {
     id: `composer-bar-${kind}`,
     categoryId: 'shots',
     position: { x: 0, y: 0 },
     size: { width: NODE_WIDTH, height: NODE_HEIGHT },
     status: 'idle' as const,
-    locked: options.locked ?? false,
   }
   if (kind === 'video') {
     return {

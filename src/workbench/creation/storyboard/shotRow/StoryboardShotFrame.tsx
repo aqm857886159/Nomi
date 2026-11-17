@@ -138,7 +138,7 @@ export default function StoryboardShotFrame({
         {durationBadge}
         {locked ? (
           <span className="absolute top-1 right-1 z-[2] px-1 py-0.5 rounded-pill bg-nomi-overlay-chip-strong text-nomi-media-ink inline-flex items-center gap-0.5">
-            <IconLock size={10} stroke={2} aria-label={t('storyboardEditor.frame.lockedBadge')} />
+            <IconLock size={10} stroke={2} aria-label={t('storyboardEditor.frame.frozenBadge')} />
           </span>
         ) : exec.changedRefs.length > 0 ? (
           <span

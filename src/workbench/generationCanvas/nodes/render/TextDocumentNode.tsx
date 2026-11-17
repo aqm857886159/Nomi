@@ -129,7 +129,7 @@ function TextDocumentNodeImpl({ node, onEditingChange }: Props): JSX.Element {
     <div className="relative h-full w-full">
       {/* 浮动格式条：编辑时浮在节点上方（不占节点高度），走节点浮条的共享外壳。 */}
       {editor && isFocused ? (
-        <FloatingToolbarShell ariaLabel={t('generationCommon.textDocument.formattingAria')} lockNodeId={null}>
+        <FloatingToolbarShell ariaLabel={t('generationCommon.textDocument.formattingAria')} nodeId={null}>
           <TooltipProvider delayDuration={250} disableHoverableContent>
             {actions.map((action) => (
               <RichTextActionButton key={action.id} action={action} side="top" className="size-8 [&>svg]:size-4" />
@@ -189,7 +189,7 @@ function TextDocumentNodeImpl({ node, onEditingChange }: Props): JSX.Element {
                         <button
                           type="button"
                           data-preset={id}
-                          disabled={node.locked || Boolean(presetBlocks[id])}
+                          disabled={Boolean(presetBlocks[id])}
                           title={presetBlocks[id] ? presetBlockHint(presetBlocks[id]!) : undefined}
                           className="inline-flex h-6 items-center whitespace-nowrap rounded-nomi-sm px-1.5 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05 disabled:cursor-not-allowed disabled:text-nomi-ink-30"
                           onPointerDown={(event) => event.stopPropagation()}

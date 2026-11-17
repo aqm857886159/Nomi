@@ -691,12 +691,6 @@ export const zhGenerationCommon = {
     },
     panoramaScreenshotTitle: '全景截图',
     panoramaScreenshotPrompt: '全景视口截图',
-    lock: {
-      unlockAria: '解锁节点（AI 将恢复可修改）',
-      lockAria: '锁定节点（AI 不能修改，仍可作为参考）',
-      unlockHint: '已锁定：AI 不能修改此节点 — 点击解锁',
-      lockHint: '锁定：AI 不能修改此节点（提示词、删除、接线），仍可作为参考',
-    },
     extractFrame: {
       first: '首帧',
       last: '尾帧',
@@ -2464,13 +2458,6 @@ export const enGenerationCommon = {
     },
     panoramaScreenshotTitle: 'Panorama screenshot',
     panoramaScreenshotPrompt: 'Panorama viewport screenshot',
-    lock: {
-      unlockAria: 'Unlock node (AI can edit it again)',
-      lockAria: 'Lock node (AI cannot edit it, but it can still be used as a reference)',
-      unlockHint: 'Locked: AI cannot edit this node — click to unlock',
-      lockHint:
-        'Lock: AI cannot edit this node (prompt, deletion, or connections), but it remains available as a reference',
-    },
     extractFrame: {
       first: 'first frame',
       last: 'last frame',

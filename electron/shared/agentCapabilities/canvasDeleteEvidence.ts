@@ -53,7 +53,7 @@ export function buildCanvasDeleteAdmission(value: unknown, input: CanvasDeleteIn
   const nodeById = new Map(evidence.nodes.map((node) => [node.id, node]));
   const resolved = new Map(evidence.resolvedReferences.map((reference) => [reference.requestedId, reference.nodeId]));
   const targetNodes = input.nodeIds.map((requestedId) => nodeById.get(resolved.get(requestedId) ?? ""));
-  if (targetNodes.some((node) => !node || node.locked)) stale();
+  if (targetNodes.some((node) => !node)) stale();
   const nodes = targetNodes as CanvasWriteBatchRawEvidence["nodes"];
   assertUnique(nodes.map((node) => node.id));
 

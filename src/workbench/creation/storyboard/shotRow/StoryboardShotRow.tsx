@@ -83,7 +83,7 @@ type Props = {
   onRegenerate?: (() => void) | undefined
   /** 可找回态的**免费**续查（`recoverNodeResult`）；与 onGenerate/onRegenerate 那两条付费路径分开。 */
   onRecover?: (() => void) | undefined
-  onToggleLock?: (() => void) | undefined
+  onToggleFrozen?: (() => void) | undefined
   /** 设计返工 §2.7：剧本来源只展示设计，不在本轮接真实文稿读写链。 */
   sourceSegment?: { id: string; edited: boolean; onClick?: (() => void) | undefined }
   onInsertBelow?: (() => void) | undefined
@@ -162,7 +162,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   const {
     shot, modelOptions, exec, aspect, frameBox, onChangeAspect,
     variants = [], adoptedVariantId, onAdoptVariant, onDeleteVariant, outputTag,
-    onGenerate, onOpenPreview, onRegenerate, onRecover, onToggleLock,
+    onGenerate, onOpenPreview, onRegenerate, onRecover, onToggleFrozen,
     onInsertBelow,
     onRerunFreshRefs, onUpdate, onRemove, promptInvalid, durationWarning,
     mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile, sourceSegment,
@@ -224,7 +224,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
    * ——这一行的正解是画面格下方那枚**免费**的「重新拉取结果」，所以这里只留标签、不留付费按钮。
    */
   const statusTag = exec?.status === 'locked'
-    ? t('storyboardEditor.composerBar.lockedTag')
+    ? t('storyboardEditor.composerBar.frozenTag')
     : exec?.status === 'done'
       ? t('storyboardEditor.composerBar.doneTag')
       : exec?.status === 'recoverable'
@@ -303,7 +303,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             />
           ) : null}
           {/* 画幅不再住这里：参数面板里「比例」那一组就是它的家（选回整片默认 = 收回覆盖）。 */}
-          {onToggleLock ? <MenuItem icon={<IconLock size={13} stroke={1.8} />} label={t('storyboardEditor.frame.lock')} onClick={() => { onToggleLock(); closeMenus() }} /> : null}
+          {onToggleFrozen ? <MenuItem icon={<IconLock size={13} stroke={1.8} />} label={t('storyboardEditor.frame.freeze')} onClick={() => { onToggleFrozen(); closeMenus() }} /> : null}
           <span className="my-0.5 h-px bg-nomi-line-soft" aria-hidden />
           <MenuItem icon={<IconTrash size={13} stroke={1.8} />} label={t('storyboardEditor.rowMenu.deleteUndoable')} danger onClick={() => { onRemove(); closeMenus() }} />
         </div>

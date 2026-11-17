@@ -44,7 +44,7 @@ const { composeLaneSystemPrompt } = await import('../../electron/agentLane/laneP
 // ── 夹具世界：一个有 6 镜 + 1 张角色卡 + 2 个空节点的项目。形状按契约的结果 schema 走（启动时先 parse，夹具不合法就不许开跑）。
 const { canvasReadResultSchema } = await import('../../electron/shared/agentCapabilities/canvasRead.ts')
 const { timelineReadResultSchema } = await import('../../electron/shared/agentCapabilities/timelineRead.ts')
-const node = (id, kind, title, prompt, status, x, y, extra = {}) => ({ id, kind, title, prompt, status, position: { x, y }, locked: false, hasResult: status === 'success', ...extra })
+const node = (id, kind, title, prompt, status, x, y, extra = {}) => ({ id, kind, title, prompt, status, position: { x, y }, hasResult: status === 'success', ...extra })
 const shots = [1, 2, 3, 4, 5, 6].map((i) => node(`shot-${i}`, i <= 3 ? 'keyframe' : 'video', `镜头 ${i}`, `第 ${i} 镜：海边小镇的清晨`, i === 4 ? 'running' : 'idle', i * 320, 0, { shotIndex: i }))
 const canvas = canvasReadResultSchema.parse({
   nodes: [...shots, node('node-char', 'character', '林夏', '17 岁女生，短发校服', 'success', 0, 400), node('node-empty-1', 'image', '空节点 A', '', 'idle', 0, 800), node('node-empty-2', 'image', '空节点 B', '', 'idle', 320, 800)],

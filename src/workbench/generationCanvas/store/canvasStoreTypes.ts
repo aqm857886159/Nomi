@@ -67,8 +67,6 @@ export type CanvasNodeActions = {
   setNodeResultStackOpen: (nodeId: string, open: boolean, side?: 'left' | 'right') => void
   /** 用户把某一版设为主图：一个撤销步；meta 是这一版的媒体尺寸（调用方读素材侧车算好，可省）。 */
   setNodeMainResult: (nodeId: string, resultIdentity: string, meta?: Record<string, unknown>) => void
-  /** S6-4 节点锁(N11):用户一键锁/解锁;AI 改它由 gate deny,事件 source 恒 user。 */
-  setNodeLocked: (nodeId: string, locked: boolean) => void
   /**
    * 文本节点正文落到 contentJson 的唯一写口：编辑器手改（persist:false，编辑器自己有撤销栈）与 Agent 写入（setNodeText，
    * undoPoint:true 先打画布撤销点）都经它。不许再有第二处直接写 contentJson。
