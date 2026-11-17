@@ -550,7 +550,10 @@ function reportFor(
   upstream: string | undefined,
   params?: Record<string, string>,
 ): GenerationErrorReport {
-  const { reason, hint } = narrateGenerationError(kind, params)
+  const { reason, hint: defaultHint } = narrateGenerationError(kind, params)
+  const hint = (kind === 'asset-upload-failed' || kind === 'asset-too-large') && matchNomiErrorCode(raw) && raw.includes('\n')
+    ? stripNomiErrorCode(withoutIpcInvokeWrapper(raw.split('\n')[0]))
+    : defaultHint
   const providerMessage = pickProviderMessage(upstream, reason)
   // 存进技术详情的 raw 也把 NOMI_ERR:: 码标记剥掉——那是给分类器读的机器标记,不是给人看的。
   // 「是不是服务商那一侧的事」只有类别表一个出处（narrate.VENDOR_SIDE_BY_KIND，穷举 Record）：

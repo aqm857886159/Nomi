@@ -1,3 +1,5 @@
+import { matchNomiErrorCode } from "../../shared/nomiErrorCodes";
+import { desktopT } from "../../desktopStrings";
 /** Model trials claim the shared durable Run submission before minting any spend authorization. */
 import { readCatalog } from "../../catalog/catalogStore";
 import { selectTaskMapping, type ProfileKind } from "../../catalog/types";
@@ -228,6 +230,9 @@ export async function tryModel(
         nextAction: "Open Nomi and confirm the generation card before requesting this trial again. The provider's own console can confirm nothing arrived." }, current);
     }
     if (current.accepted !== "not_sent") return withSubmission(submissionUnknown(redactAdapterSecrets(String(submitted.error), 300), current.attemptId), current);
+    if (matchNomiErrorCode(String(submitted.error)) === "asset-upload-failed") {
+      return withSubmission({ ok: false, code: "provider_failed", message: desktopT("assetUpload.hostingDisabled"), nextAction: desktopT("assetUpload.retryAfterSettings") }, current);
+    }
     return withSubmission({ ok: false, code: "provider_failed", message: `Nothing was sent or the provider explicitly rejected the submission: ${redactAdapterSecrets(String(submitted.error), 512)}`,
       nextAction: `${current.allowedActions.includes("retry") ? "It is safe to retry once; fix the named problem first." : `The retry budget is exhausted. Ask the user before passing newAttemptOf=${current.attemptId}.`} The provider's own console can confirm nothing arrived.` }, current);
   }

@@ -59,7 +59,7 @@ import {
   type PhaseWaitGuard,
 } from './generationPhaseDeadline'
 import { parseVendorErrorFromMessage } from './vendorErrorIpc'
-import { collectLocalAssetUrls } from '../../../../electron/catalog/assetLocalization'
+import { collectLocalAssetUrls } from './referenceUrl'
 import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
 import { GENERIC_REFERENCE_KEYS } from '../../../../electron/shared/modelArchetypes/referenceKeys'
 import { effectiveModeParams } from '../../../../electron/shared/modelArchetypes/modeParams'
@@ -383,7 +383,6 @@ export function buildCatalogTaskRequest(
     modelAlias: asTrimmedString(meta.modelAlias) || modelKey,
     nodeId: node.id,
     nodeKind: node.kind,
-    ...(options.anonymousAssetHostingConsent ? { anonymousAssetHostingConsent: options.anonymousAssetHostingConsent } : {}),
     // 提交幂等键：随 extras 下到主进程 runTask，同键提交内核 at-most-once（堵「丢回执→重试→二次下单」）。
     ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
     // S8 缓存语义:节点血统里已出过图(result 或 history,含「基于此重生成」副本)→

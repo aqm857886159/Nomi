@@ -8,7 +8,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { findIdentityComparators } from './concept-owners-scan.mjs'
+import { findIdentityComparators, findShotJobSelections } from './concept-owners-scan.mjs'
 import { trustDomainOfPath } from './concept-owners-lib.mjs'
 import { CONCEPT_OWNERS_DIR, conceptFileName } from './concept-registry-lib.mjs'
 import { META_FILE, formatEntryJson, parseCatFileBatch } from './lib/entryDirectory.mjs'
@@ -904,4 +904,40 @@ test('未登记的合同边界冻结成存量债棘轮：冻结的放行；新�
   } finally {
     cleanup(repo)
   }
+})
+
+
+test('当前任务：真实旧阶段与单镜旁路、改名、内联、别名均红，专用查询不误伤', () => {
+  const snippets = [
+    // 原阶段 latestJob：只比创建时间、相等取后。
+    'function latestJob(jobs: readonly ProductionJob[]) { return jobs.reduce((latest, job) => Date.parse(job.createdAt) >= Date.parse(latest.createdAt) ? job : latest) }',
+    // 原单镜交接：整本账按 attempt 排后取第一条。
+    'function settleFromRun(run: ProductionRun) { return [...run.jobs].sort((left, right) => right.attempt - left.attempt)[0] }',
+    'function renamed(r: ProductionRun, shotId: string) { const ledger = r.jobs; const scoped = ledger.filter(j => j.metadata?.shotId === shotId); const ordered = scoped.sort((a,b) => b.attempt-a.attempt); return ordered.at(0) }',
+    'export const inline = (r: ProductionRun) => r.jobs.at(-1)',
+    'function alias(r: ProductionRun) { const { jobs: ledger } = r; const copied = [...ledger]; return copied[copied.length - 1] }',
+    'function viaOwner(r: ProductionRun) { return jobsForShot(r,"s").sort((a,b) => b.attempt-a.attempt)[0] }',
+    'import {jobsForShot as ofShot} from "./shared/productionShotJobs"; function imported(r: ProductionRun) { const tasks=ofShot(r,"s"); return tasks.at(-1) }',
+    'import * as owner from "./shared/productionShotJobs"; const named = (r: ProductionRun) => owner.jobsForShot(r,"s").sort((a,b) => b.attempt-a.attempt)[0]',
+    'function functionAlias(r: ProductionRun) { const first = jobsForShot; const second = first; return second(r,"s").at(0) }',
+    'function maxJob(r: ProductionRun) { return r.jobs.reduce((a,b) => a.attempt === Math.max(a.attempt,b.attempt) ? a : b) }',
+    'function destructure(r: ProductionRun) { const ordered = Array.from(r.jobs).sort((a,b) => b.attempt-a.attempt); const [current] = ordered; return current }',
+    'function bracket(r: ProductionRun) { const ledger = r["jobs"]; return ledger.at(-1) }',
+    'function node(r: ProductionRun, nodeId: string) { return r.jobs.find(j => j.nodeId === nodeId) }',
+    'function inline(r: ProductionRun) { return r.jobs.filter(j => j.metadata?.shotId === "s").sort((a,b) => b.createdAt.localeCompare(a.createdAt))[0] }',
+  ]
+  for (const snippet of snippets) {
+    const files = ['electron/new-home.ts']
+    assert.ok(findShotJobSelections({ files, read: () => snippet }).length, snippet)
+    assert.deepEqual(findShotJobSelections({ files, read: () => 'export const current = latestJobForShot(run, shotId)' }), [])
+  }
+  const negative = {
+    'electron/productionRun/prepareProductionGenerationAuthorization.ts': 'function nextGenerationAttempt(run) { return 1 + run.jobs.filter(job => job.metadata?.shotId === shotId).reduce((latest,job) => Math.max(latest,job.attempt),0) }',
+    'electron/productionRun/batchScheduleDerivation.ts': 'function jobForShot(run, shot, jobId) { return jobsForShot(run, shot.shotId).find(candidate => candidate.jobId === jobId) }',
+    'electron/productionRun/productionGenerationHistory.ts': 'function findGenerationExecutionJob(run, input) { const matches = run.jobs.filter(job => job.metadata?.shotId === input.shotId && job.attempt === input.attempt); return matches.length === 1 ? matches[0] : undefined }',
+    'electron/capabilityCore/safe.ts': 'function blockingReason(run) { return run.jobs.some(job => job.status === "submission_unknown") }',
+    'src/workbench/production/productionRunView.ts': 'function latestJob(run: ProductionRun) { return [...run.jobs].sort((a,b) => b.updatedAt.localeCompare(a.updatedAt))[0] }',
+  }
+  // 精确身份查询不是「最新」；仅在其原有专用范围内允许。
+  assert.deepEqual(findShotJobSelections({ files: Object.keys(negative), read: (file) => negative[file] }), [])
 })

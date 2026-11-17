@@ -25,8 +25,6 @@ export type GenerationNodeExecutorContext = {
   canvasRun?: { runRecordId: string; acknowledgedOpenRuns?: string[] }
   /** 提交幂等键（= node run.id）：透传到 extras.idempotencyKey，让同一次意图提交在 electron 侧 at-most-once。 */
   idempotencyKey?: string
-  /** Renderer consent for a disclosed anonymous temporary-host fallback. */
-  anonymousAssetHostingConsent?: 'allow'
   onMediaDimensions?: (dimensions: MediaDimensions) => void
 }
 
@@ -45,7 +43,6 @@ export const generationNodeExecutor: GenerationNodeExecutor = async (node, conte
     projectTarget,
     ...(context.canvasRun ? { canvasRun: context.canvasRun } : {}),
     ...(context.idempotencyKey ? { idempotencyKey: context.idempotencyKey } : {}),
-    ...(context.anonymousAssetHostingConsent ? { anonymousAssetHostingConsent: context.anonymousAssetHostingConsent } : {}),
     ...(context.promptSuffix ? { promptSuffix: context.promptSuffix } : {}),
   }
   if (executionKind === 'image') {

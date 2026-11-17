@@ -80,7 +80,6 @@ export type AssetIngestion =
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "provider-private";
       ttlSeconds?: number;
-      requiresConsent?: false;
     }
   | {
       strategy: "upload-stream";
@@ -99,7 +98,6 @@ export type AssetIngestion =
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "provider-private";
       ttlSeconds?: number;
-      requiresConsent?: false;
     }
   | {
       strategy: "upload-url";
@@ -122,7 +120,6 @@ export type AssetIngestion =
       authType?: "bearer" | "key";
       visibility?: "provider-private";
       ttlSeconds?: number;
-      requiresConsent?: false;
     }
   | {
       strategy: "upload-multipart";
@@ -162,7 +159,6 @@ export type AssetIngestion =
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "provider-private" | "public-provider" | "public-anonymous";
       ttlSeconds?: number;
-      requiresConsent?: boolean;
     }
   | {
       /**
@@ -190,7 +186,6 @@ export type AssetIngestion =
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "provider-private" | "public-provider";
       ttlSeconds?: number;
-      requiresConsent?: false;
     }
   | {
       /**
@@ -210,7 +205,6 @@ export type AssetIngestion =
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "provider-private" | "public-provider";
       ttlSeconds?: number;
-      requiresConsent?: false;
     }
   | {
       /**
@@ -239,7 +233,6 @@ export type AssetIngestion =
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "public-anonymous";
       ttlSeconds?: number;
-      requiresConsent?: true;
     };
 
 /** 本地 ComfyUI **第一台**的固定 key（种子 + assetLocalization 识别它走自己的 /upload/image，单源防漂移）。 */

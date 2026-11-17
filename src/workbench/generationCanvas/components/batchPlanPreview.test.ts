@@ -101,7 +101,7 @@ describe('runPlanWithToasts concurrency', () => {
 
   it('F6: an admission refusal is an informational skip with no retry action', async () => {
     vi.mocked(runGenerationNodesByPlan).mockResolvedValueOnce({ totalCount: 1, skipped: [], successes: [], failures: [{ nodeId: 'a', error: new Error('node_generation_in_flight') }] })
-    await runPlanWithToasts(plan({ waves: [['a']] }), { assetUploadConsent: 'not-needed', project: openProject() })
+    await runPlanWithToasts(plan({ waves: [['a']] }), { project: openProject() })
     expect(mocks.toastPush).toHaveBeenCalledOnce()
     expect(mocks.toastPush.mock.calls[0][0]).toMatchObject({ type: 'info', message: '1 张上一次还没结束，这次跳过了。' })
     expect(mocks.toastPush.mock.calls[0][0].actionLabel).toBe('生成区')
@@ -122,7 +122,7 @@ describe('runPlanWithToasts concurrency', () => {
       failures: [],
     })
     const project = openProject()
-    await runPlanWithToasts(plan({ waves: [['frame', 'anchor']] }), { assetUploadConsent: 'not-needed', project })
+    await runPlanWithToasts(plan({ waves: [['frame', 'anchor']] }), { project })
     // 阳性对照：这一批确实跑了、有成功的镜头；在这个前提下审片一次都没被调。
     expect(runGenerationNodesByPlan).toHaveBeenCalledTimes(1)
     expect(verifyShotsAndReport).not.toHaveBeenCalled()
@@ -132,14 +132,13 @@ describe('runPlanWithToasts concurrency', () => {
     const dependencyPlan = plan({ waves: [['a']] })
 
     const canvasRunRecordIds = new Map([['a', 'run-a-1']])
-    await runPlanWithToasts(dependencyPlan, { canvasRunRecordIds, concurrency: 4, assetUploadConsent: 'allow', project: openProject() })
+    await runPlanWithToasts(dependencyPlan, { canvasRunRecordIds, concurrency: 4, project: openProject() })
 
     expect(runGenerationNodesByPlan).toHaveBeenCalledWith(dependencyPlan, {
       target: testProjectBinding('project-a'),
       canvasRunRecordIds,
       concurrency: 4,
       // 托管决定必须原样透传到波次运行器——中途丢了就等于让 runner 自己去问（F16b 第二张卡）。
-      assetUploadConsent: 'allow',
     })
   })
 
@@ -150,7 +149,7 @@ describe('runPlanWithToasts concurrency', () => {
       failures: [],
     })
 
-    await runPlanWithToasts(plan({ waves: [['a']] }), { assetUploadConsent: 'not-needed', project: openProject() })
+    await runPlanWithToasts(plan({ waves: [['a']] }), { project: openProject() })
 
     expect(mocks.toastPush).not.toHaveBeenCalled()
   })
@@ -159,7 +158,7 @@ describe('runPlanWithToasts concurrency', () => {
     vi.mocked(runGenerationNodesByPlan).mockResolvedValueOnce({
       totalCount: 1, skipped: [], successes: [], failures: [{ nodeId: 'a', error: new Error('failed') }],
     })
-    await runPlanWithToasts(plan({ waves: [['a']] }), { assetUploadConsent: 'not-needed', project: openProject() })
+    await runPlanWithToasts(plan({ waves: [['a']] }), { project: openProject() })
     await projectSession.open('project-b')
     const dispatchEvent = vi.fn((_event: Event) => true) // No application navigation handler accepted this request.
     vi.stubGlobal('window', { dispatchEvent })
@@ -171,9 +170,9 @@ describe('runPlanWithToasts concurrency', () => {
 
   it('does not replace another project recovery action when node IDs match and no grant is supplied', async () => {
     vi.mocked(runGenerationNodesByPlan).mockResolvedValue({ totalCount: 1, skipped: [], successes: [], failures: [{ nodeId: 'a', error: new Error('offline') }] })
-    await runPlanWithToasts(plan({ waves: [['a']] }), { assetUploadConsent: 'not-needed', project: openProject() })
+    await runPlanWithToasts(plan({ waves: [['a']] }), { project: openProject() })
     await projectSession.open('project-b')
-    await runPlanWithToasts(plan({ waves: [['a']] }), { assetUploadConsent: 'not-needed', project: openProject() })
+    await runPlanWithToasts(plan({ waves: [['a']] }), { project: openProject() })
     const [first, second] = mocks.toastPush.mock.calls.map(([notice]) => notice)
     expect(first.id).not.toBe(second.id)
     expect(first.id).toContain('project-a')
@@ -199,7 +198,7 @@ describe('runPlanWithToasts concurrency', () => {
       })
 
     const staleAuthorGuard = vi.fn(async () => { throw new Error('Storyboard target changed') })
-    await runPlanWithToasts(plan({ waves: [['a']] }), { concurrency: 4, assetUploadConsent: 'not-needed', project: openProject(), assertAuthorCurrent: staleAuthorGuard })
+    await runPlanWithToasts(plan({ waves: [['a']] }), { concurrency: 4, project: openProject(), assertAuthorCurrent: staleAuthorGuard })
     const failedToast = mocks.toastPush.mock.calls[0][0]
     expect(failedToast).toMatchObject({
       id: `${BATCH_RUN_TOAST_ID}:project-a:a`,
@@ -224,7 +223,6 @@ describe('runPlanWithToasts concurrency', () => {
       concurrency: 4,
       // 重试走 confirmAndRunPlan → 重新解析托管（不是把上一轮的决定翻出来复用）。
       // 本用例的节点没有本地素材，所以正确答案是 not-needed：压根不碰公共托管。
-      assetUploadConsent: 'not-needed',
     })
     expect(mocks.toastPush).toHaveBeenCalledTimes(1)
   })

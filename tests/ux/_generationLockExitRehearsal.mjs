@@ -49,7 +49,7 @@ export async function runLockExitRehearsal(locale = 'zh-CN', journey = generatio
     await page.evaluate(async ({ vendorKey, endpoint }) => {
       const catalog = window.nomiDesktop.modelCatalog
       const vendor = (await catalog.listVendors()).find(row => row.key === vendorKey)
-      await catalog.upsertVendor({ ...vendor, assetIngestion: { strategy: 'upload-multipart', endpoint, urlPath: 'url', accepts: ['image'], visibility: 'public-anonymous', ttlSeconds: 72 * 60 * 60 } })
+      await catalog.upsertVendor({ ...vendor, assetIngestion: { strategy: 'upload-multipart', endpoint, urlPath: 'url', accepts: ['image'], visibility: 'public-provider', ttlSeconds: 72 * 60 * 60 } })
     }, { vendorKey: FIXTURE_APIMART_VENDOR, endpoint: relay.env.NOMI_ASSET_RELAY_URL })
     await newProjectEntry(page).click()
     await expect(page.locator('.tiptap[contenteditable="true"]').first()).toBeVisible()

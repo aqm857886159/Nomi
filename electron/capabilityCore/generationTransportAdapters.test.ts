@@ -175,7 +175,7 @@ describe("resident semantic generation transport", () => {
     it("刹车不成立：策略把还没决定的镜交给画布（不开制作流程自己的门），全交到 → 回「已开始」", async () => {
       const { adapter, markPolicyDecisionFailed, requestGenerationGate, handOverToCanvas } = make(() => run([], ["s1", "s2"]), "direct", { accepted: ["s1"], pending: ["s2"], failed: [] });
       await expect(create(adapter)).resolves.toMatchObject({ ok: true, result: { spendDecision: { decidedBy: "policy:full_auto" }, started: { handedToCanvas: ["s1", "s2"] } } });
-      expect(handOverToCanvas.handOver).toHaveBeenCalledWith({ projectId: "project-1", runId: "op-1", shotIds: ["s1", "s2"], by: "policy", hostingAllowed: false });
+      expect(handOverToCanvas.handOver).toHaveBeenCalledWith({ projectId: "project-1", runId: "op-1", shotIds: ["s1", "s2"], by: "policy" });
       expect(requestGenerationGate).not.toHaveBeenCalled();
       expect(markPolicyDecisionFailed).not.toHaveBeenCalled();
     });

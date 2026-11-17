@@ -177,8 +177,12 @@
         "dark"
       ],
       "candidates": [],
-      "status": "implemented",
-      "assertion": "board:UnknownResultCard/confirm.hosting-disclosure"
+      "status": "dropped",
+      "userDecision": {
+        "quote": "删掉，用设置开关",
+        "date": "2026-11-17"
+      },
+      "note": "已由 2026-11-17 的决定撤掉：同意只由设置开关决定。"
     },
     {
       "id": "arrow.opens-card",
