@@ -320,10 +320,10 @@ export async function rerunShotRowWithFreshRefs(
 }
 
 /**
- * 节点锁定开关（B2 镜行 / B3 参考卡共用）：与画布定妆**同一把锁**（meta.frozen 同键同形，
- * anchorBibleKeys 单源）。锁 = 满意了别动它：不进批量、不被表内重跑。只有已生成的可锁。
+ * 定妆开关（B2 镜行 / B3 参考卡共用）：与画布定妆是同一个东西（meta.frozen 同键同形，
+ * anchorBibleKeys 单源）。定妆 = 满意了别动它：不进批量、不被表内重跑。只有已生成的可定妆。
  */
-export function toggleNodeLock(nodeId: string): void {
+export function toggleNodeFrozen(nodeId: string): void {
   const store = useGenerationCanvasStore.getState()
   const node = store.nodes.find((candidate) => candidate.id === nodeId)
   if (!node) return
