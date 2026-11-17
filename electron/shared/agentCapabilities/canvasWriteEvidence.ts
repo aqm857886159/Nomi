@@ -327,10 +327,9 @@ export function assertCanvasWriteAdmissionMatches(
  * 前置条件 = 整张画布的关系哈希（与画布写批量分支同一份）。修订号的比对在渲染端执行时做（计划正文住节点 meta）。
  */
 export function buildDirectorWriteAdmission(value: unknown, referenceIds: readonly string[]): CanvasWriteAdmission {
-  const { evidence, resolved, relationHash } = verifiedBatchEvidence(value);
+  const { resolved, relationHash } = verifiedBatchEvidence(value);
   const targetNodeIds = Array.from(new Set(referenceIds.map((id) => resolved.get(id))));
   if (targetNodeIds.some((id) => !id)) stale();
-  const targets = new Set(targetNodeIds as string[]);
   const target = Object.freeze({ kind: "canvas" as const, nodeIds: Object.freeze(targetNodeIds as string[]) });
   const preconditions: PreconditionSet = Object.freeze({ edges: Object.freeze([Object.freeze({ relationHash })]) });
   return Object.freeze({ target, preconditions });
