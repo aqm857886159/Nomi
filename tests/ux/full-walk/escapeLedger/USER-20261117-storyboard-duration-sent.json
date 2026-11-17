@@ -12,7 +12,7 @@
   "fullWalkJourneys": [],
   "status": "fixed",
   "manualReview": "reviewed",
-  "fixedInPr": 1566,
+  "fixedInPr": 1567,
   "evidence": [
     "docs/plan/2026-11-17-param-value-type.md",
     "docs/engineering/direction-checks/2026-11-17-param-value-type.md",
