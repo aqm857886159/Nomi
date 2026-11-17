@@ -221,7 +221,7 @@ try {
   check(playback.duration > 0 && playback.currentTime > 0 && playback.readyState >= 2, '预览 video 真实加载并播放推进', JSON.stringify(playback))
   await snap(win, 'preview-video-playing')
 
-  await win.locator('[data-export-busy]:visible').first().click({ timeout: 5000 })
+  await win.locator('[data-export-busy]:visible').first().click({ timeout: stationTimeout() })
   let exportPath = null
   for (let i = 0; i < 40 && !exportPath; i += 1) {
     await win.waitForTimeout(1000)
