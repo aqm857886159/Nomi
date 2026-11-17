@@ -17,8 +17,12 @@
   "budgetStatus": "proposed",
   "budgetBasis": "主指标 scopePlanMs = 一次 group 规划的平均耗时。点「生成整组」到确认卡出现要在 100ms 感知阈值内（docs/engineering/perf-scenarios.md），规划只是其中一步，设计卡给它 ≤5ms（p95 ≤10ms）；scopeNarrowMs 同一预算只打印；scopeToolbarMs 是浮条每次选区变化都要算的，设计卡给 ≤1ms，只打印。",
   "group": "生成范围",
-  "measurement": {
-    "state": "pending",
-    "reason": "实现线已在本机量过 5 次并把数字贴进 PR；基线待协调会话在安静窗口用 --update-baseline 写入（实现线不许写基线）"
+  "baseline": {
+    "median": 0,
+    "p95": 0,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-17",
+    "commit": "5f8628c00"
   }
 }
