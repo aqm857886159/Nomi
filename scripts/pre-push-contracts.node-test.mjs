@@ -16,6 +16,7 @@ import { killProcessTree, processTreeSpawnOptions } from './lib/processTree.mjs'
 import { touchesGateInputs } from './pre-push-gate-inputs.mjs'
 import { PRE_PUSH_GATES, SCAN_TESTS, TAG_IN_MAIN_NOTICE, runNode, runWithDeadline } from './pre-push-contracts.mjs'
 import { relatedTests } from './pre-push-related-tests.mjs'
+import { tscCommand } from './lib/tsc-run.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -425,7 +426,6 @@ test('探针：每份被 typecheck 实际编译的 tsconfig，取一个它展开
   const { spawn } = await import('node:child_process')
   const { programRootFiles } = await import('./lib/typecheckCoverage.mjs')
   const { TYPECHECK_PROJECTS } = await import('./lib/typecheckProjects.mjs')
-  const tscBin = path.join(repoRoot, 'node_modules/typescript/bin/tsc')
   const probes = Object.entries(TYPECHECK_PROJECTS).map(async ([label, config]) => {
     const roots = programRootFiles(config, repoRoot)
     assert.ok(roots.length > 0, `${config} 没有展开出任何根文件`)
@@ -433,7 +433,7 @@ test('探针：每份被 typecheck 实际编译的 tsconfig，取一个它展开
     assert.ok(touchesGateInputs('typecheck', [sample]), `${label}：${sample} 应选中 typecheck`)
     const listed = await new Promise((resolve) => {
       let out = ''
-      const child = spawn(process.execPath, [tscBin, '-p', config, '--listFilesOnly'], { cwd: repoRoot })
+      const child = spawn(...tscCommand(['-p', config, '--listFilesOnly']), { cwd: repoRoot })
       child.stdout.on('data', (chunk) => { out += chunk })
       child.on('close', () => resolve(out))
     })
