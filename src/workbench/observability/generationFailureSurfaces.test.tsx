@@ -5,7 +5,8 @@ import { MantineProvider } from '@mantine/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../i18n'
 import * as classifier from './classifyError'
-import { GENERATION_ERROR_KINDS, narrateErrorActionLabel, narrateGenerationError, narrateGenerationErrorActions } from './narrate'
+import { narrateErrorActionLabel, narrateGenerationError } from './narrate'
+import { GENERATION_ERROR_KINDS, actionsOfKind } from '../../../electron/shared/generationFailure'
 import { generationFailureActions } from './generationFailureActions'
 import { NodeFailureReport } from '../generationCanvas/nodes/NodeErrorReport'
 import { ListCardMedia } from '../generation/list/GenerationListParts'
@@ -29,7 +30,7 @@ afterEach(() => vi.restoreAllMocks())
 
 describe('published generation error-kind matrix × all five failure surfaces', () => {
   it.each(GENERATION_ERROR_KINDS)('%s has one reason/retry answer and no dead end', (kind) => {
-    const report = { kind, ...narrateGenerationError(kind), ...narrateGenerationErrorActions(kind), raw: 'Error invoking remote method: fixture', vendorSide: false }
+    const report = { kind, ...narrateGenerationError(kind), ...actionsOfKind(kind), raw: 'Error invoking remote method: fixture', vendorSide: false }
     vi.spyOn(classifier, 'classifyGenerationError').mockReturnValue(report)
     const node = { ...createGenerationNode({ id: 'surface-node', kind: 'image' }), status: 'error' as const, error: report.raw, meta: { storyboardDesignId: 'd', shotId: 's' }, runs: [{ id: 'canvas-record', status: 'error' as const, startedAt: 1, updatedAt: 1 }] }
     const anchor = { ...node, id: 'anchor-node', meta: { storyboardDesignId: 'd', anchorId: 'a' } }

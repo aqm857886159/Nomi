@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { makeTempDir } from "../../scripts/_test-temp.mjs";
 import { relayDeclaration } from "../../tests/ux/_relayVideoFixture.mjs";
-import { parseVendorErrorFromMessage } from "../../src/workbench/generationCanvas/runner/vendorErrorIpc";
+import { parseVendorErrorFromMessage } from "../shared/generationFailure";
 import { classifyGenerationError } from "../../src/workbench/observability/classifyError";
 import { mutateCatalog, readCatalog, upsertModelCatalogMapping, upsertModelCatalogModel, upsertModelCatalogVendor } from "../catalog/catalogStore";
 import { registerDeclaredProvider } from "../catalog/declaredProviderRegistration";

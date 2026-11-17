@@ -58,7 +58,7 @@ import { useProductionCanvasLandingStore } from '../../production/productionCanv
 import { useComposerGraph } from './composerGraphSnapshot'
 import { productionMetaOf } from '../model/productionMeta'
 import { decideShotClaim } from '../../../../electron/shared/decideShotClaim'
-import { shotClaimCopy } from '../../observability/shotClaimCopy'
+import { shotClaimCopy } from '../../../../electron/shared/generationFailure'
 import { useNodePromptFocusRequest } from './nodePromptFocus'
 import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
