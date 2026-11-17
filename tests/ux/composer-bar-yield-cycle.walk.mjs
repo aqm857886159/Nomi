@@ -15,8 +15,10 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp, seedSavedFixtureCredentials } from './_launchApp.mjs'
 import { clickOrFail, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { addCanvasNode, newProjectEntry, switchWorkspace } from './_shell.mjs'
+import { addCanvasNode, leaveProjectIfOpen, newProjectEntry, switchWorkspace } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
+import { installFeelObserver } from './_feel-observer.mjs'
 
 const output = path.resolve(process.env.SHOTS_DIR || '.tmp/composer-bar-yield/app')
 fs.mkdirSync(output, { recursive: true })
@@ -52,6 +54,30 @@ const readBar = (composer) => composer.locator('[data-node-composer-footer]').fi
   }
 })
 
+/** 在首挂载之前装记录器；记录每一帧，不等驱动动作的700ms稳定等待。 */
+const armFirstMountFrames = (win) => win.evaluate(() => {
+  window.__barFirstFrames = []
+  window.__barFirstFramesDone = false
+  const selector = '.workbench-storyboard [data-storyboard-row="1"] [data-node-composer-footer]'
+  const observer = new MutationObserver(start)
+  function start() {
+    const footer = document.querySelector(selector)
+    if (!footer) return
+    observer.disconnect()
+    function frame() {
+      const bar = footer.querySelector('[data-bar-segment="model-params"] > *')
+      const right = bar.getBoundingClientRect().right
+      const out = [...bar.querySelectorAll('[data-yield-item]')].filter(el => el.getBoundingClientRect().right > right + .5).map(el => el.textContent)
+      window.__barFirstFrames.push({ frame: window.__barFirstFrames.length, items: bar.querySelectorAll('[data-yield-item]').length, width: footer.getBoundingClientRect().width, level: footer.getAttribute('data-bar-yield-level'), out })
+      if (window.__barFirstFrames.length < 30) requestAnimationFrame(frame)
+      else window.__barFirstFramesDone = true
+    }
+    requestAnimationFrame(frame)
+  }
+  observer.observe(document.body, { childList: true, subtree: true })
+  start()
+})
+
 const results = []
 let failed = false
 try {
@@ -62,6 +88,7 @@ try {
     const options = {
       name: `composer-bar-yield-${locale}`, userDataDir: settingsDir, settingsDir, projectsDir: path.join(root, 'projects'),
       syntheticCredentialStorage: true,
+      observeWindow: async (page) => { installFeelObserver(page, { name: `composer-bar-yield-${locale}`, outputDir: path.join(output, `feel-${lang(locale)}`) }) },
       env: { NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: 'https://api.apimart.ai', to: origin }]) },
       initialLocalStorage: { 'nomi-color-scheme': 'light', 'nomi:locale:v1': locale, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen',
         'nomi-onboarding-checklist:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' },
@@ -166,6 +193,37 @@ try {
         await assertClear(`${locale} after ${cycle.label}`)
       }
       await shotComposer(`e-${lang(locale)}-after-three`)
+      const browserWindow = await app.browserWindow(win)
+      await browserWindow.evaluate(window => window.setContentSize(700, 720))
+      await win.setViewportSize({ width: 700, height: 720 })
+      await switchWorkspace(win, 'creation')
+      await openStoryboardEditor(win, { pick: 'first' }, '先把真实分镜行设为Seedance2.5')
+      const shotRow = win.locator('.workbench-storyboard [data-storyboard-row="1"]').first()
+      await clickOrFail(shotRow.getByRole('button', { name: uiText(locale, 'generationCommon.parameters.model'), exact: true }), '分镜行选模型')
+      const seedance25 = menu.getByRole('option').filter({ has: win.locator('[data-nomi-select-option-label]', { hasText: /^Seedance 2\.5$/ }) }).first()
+      const showMore = menu.getByRole('button', { name: uiText(locale, 'onboardingProviders.modelControls.more'), exact: true })
+      if (!(await seedance25.isVisible()) && await showMore.isVisible().catch(() => false)) await clickOrFail(showMore, '展开分镜模型')
+      await clickOrFail(seedance25, '选Seedance2.5后再做首挂载')
+      await leaveProjectIfOpen(win, '回库，让有真实参数的分镜行卸载')
+      await win.locator('.workbench-storyboard').waitFor({ state: 'detached', timeout: stationTimeout() })
+      await armFirstMountFrames(win)
+      await clickOrFail(win.locator('[data-project-card="true"]').first(), '挂载前记录器已就位，重开项目')
+      await switchWorkspace(win, 'creation')
+      await openStoryboardEditor(win, { pick: 'first' }, '首挂载逐帧')
+      await win.waitForFunction(() => window.__barFirstFramesDone, null, { timeout: stationTimeout() })
+      const frames = await win.evaluate(() => window.__barFirstFrames)
+      const final = frames.at(-1)
+      const settledAt = frames.findLastIndex(frame => Math.abs(frame.width - final.width) > .5) + 1
+      await screenshotSettled(win, { path: shot(`first-mount-${lang(locale)}`) })
+      await leaveProjectIfOpen(win, '回项目库卸载分镜表')
+      await win.locator('.workbench-storyboard').waitFor({ state: 'detached', timeout: stationTimeout() })
+      await clickOrFail(win.locator('[data-project-card="true"]').first(), '重开同一个隔离项目')
+      await switchWorkspace(win, 'creation')
+      await openStoryboardEditor(win, { pick: 'first' }, '同数据重开核让级')
+      const reopened = await readBar(win.locator('.workbench-storyboard [data-storyboard-row="1"]').first())
+      record.firstMount = { frames, settledAt, reopened }
+      if (frames.length !== 30 || frames.slice(settledAt).some(frame => frame.out.length || frame.items < 2) || final.level !== reopened.level) record.failures.push(`首挂载不变量: ${JSON.stringify(record.firstMount)}`)
+      await screenshotSettled(win, { path: shot(`first-mount-reopened-${lang(locale)}`) })
       record.passed = record.failures.length === 0
       if (!record.passed) { failed = true; for (const failure of record.failures) console.error(`✗ ${locale} · 关面板后出界或相压 · ${failure}`) }
     } catch (error) {

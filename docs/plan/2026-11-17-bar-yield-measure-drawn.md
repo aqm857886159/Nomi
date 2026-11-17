@@ -1,18 +1,25 @@
-# 生成底栏「窄了谁先让」：量的就是画的，任何一格变了尺寸就重量（短版设计卡）
+# 生成底栏「窄了谁先让」：所有候选自然宽直接定让级（短版设计卡）
 
-方向检查：`docs/engineering/direction-checks/2026-11-17-bar-yield.md`（第 6 节「删掉」那条路，照做、不加别的）。
+方向检查：`docs/engineering/direction-checks/2026-11-17-bar-yield.md`；第二轮按已定 D-1117-bar-yield-hide-value / D-1116-unwritable-first 执行，梯子与顺序不改。
 
-## 短版设计卡
+- ★1 修复什么：底栏每个可点控件中心可命中，摘要只显示当前整值；同一内容/语言/宽度的让级与到达路径无关。真实逃逸：485px、Seedance 2.5、列表详情，英文方式收图标后经设置切中文仍停第4级，重开才回第3级。量具：`tests/ux/composer-bar-yield-history.walk.mjs`（四生产宿主×中英×485/574/598/600/650，固定种子，逐步与同最终数据的新挂载比）、`composer-bar-yield-transitions.walk.mjs`、`composer-bar-yield-cycle.walk.mjs`（真 Electron、回环假服务、不花钱）。未验证：线上静止态165格对比，本机按任务书不运行。★1c 老用户：无存储改动。画布第①级空级（Boolean(footer.action)）只记录，不动。
+- ★2 谁说了算：`node scripts/door-map.mjs composerYieldLadder` 工具输出1扇写门：`src/workbench/generationCanvas/nodes/InlineParameterBar.tsx`，symbol `composerYieldLadder`；两跳调用为 NodeParameterControls（画布/列表）与 StoryboardComposerParams（镜头/参考）。其它组件只读 ComposerBarYieldContext。四宿主行宽由 ComposerAnchor/composerCanvasPlacement、列表卡宽、StoryboardRowsBox 的网格内容列给定，底栏 w-full/min-w-0，不随内容反撑。
+- ★3 为何这样改：症状是多让或压住；直接原因是仅观察已画出的格；类根因是让级依赖未画出的样子，而观察源依赖让级。复发类。补语言/参数清单会继续漏；纯CSS做不了已拍板的离散顺序；选甲：所有候选参数样子与发送钮用相同生产组件隐身排版，以实际间距/固定格自然宽直接求首个可容纳级。固定工具/数量读取原件，避免复制其浮层/ref/生命周期。观察行宽、量层候选和固定格，均不随让级改变；内容/字体/语言变化由尺寸变化驱动。删逐级试排、yieldWatchedElements、sizeSignature、seen比较及每提交重挂的旧effect，无并存兜底。组件内部量法之外的函数行为不改。
+- ★4 全状态：面板开着即显示当前值，放不下整值减少；方式、生成钮和末级模型省略仍按原梯子。静止态不增减元素/样式/文案；不改存储及生成请求路径；验证须回环假服务、不得访问用户资料（本轮首次窗口隔离失误另在交付报告披露）。量层 invisible/absolute/inert/aria-hidden，不占位、不点、不读屏，面板portal只存在于真实触发器。
+- 系统改进：最早漏在验收。第一轮T1/T2只验不出界，T3只看静置，无法发现「不出界但多让」。新增总测试每一步同时验命中/当前整值/等于重开；删一个量层观察对象应红。两条真实旧案为冻结旧值/关面板出界（main）和短语言多让（fe2d94857），反误伤样本为节点上方浮条自己的夹紧测量。门岗改为两目录默认禁尺寸读取，现有无关量法逐文件附理由豁免；data-yield-item 对全src生效，只许本组件。预测：所有720步0失败，六个静态改坏及一个观察改坏均红→还原绿；复查日2026-11-24，有新让位内容/入口合入时重跑该总测试，任一不成立重开。
+- ★7 性能：沿用 `canvas-select-composer-video-200`（100ms）与 `storyboard-plan-open`（1000ms）量具；不写基线，数字与预算收据随报告。标准夹具与回环配好模型的夹具分开报；后者在计时终点确认真实选中 Seedance 2.5、摘要含5s及量层候选已挂载。探针金丝雀只写 stderr，不能污染子进程的密文/版本 stdout 协议。超预算停。
 
-- ★1 修复什么：画布生成框 600 宽、英文，开参数面板把时长 5s 改 10s 再 Esc，摘要「16:9 · 720p · 10s」的箭头压住右边第一颗图标；连改几次参数又会让多（只剩「10s」）。真实任务：选 Seedance 2.0 Mini → 16:9 / 720p / 5s → 开面板改时长 / 清晰度 → Esc，连做三次，中英各一遍。量具：`tests/ux/composer-bar-yield-cycle.walk.mjs`（真 Electron、本机回环假服务、不花钱）+ `tests/ux/composer-bar-yield-transitions.walk.mjs`（设计实验室三条特征测试）。不做什么：梯子、让的顺序、四处共用都不动；画布第 ① 级是空级（`Boolean(footer.action)`）只记录不改。已知坑：内容只在更低一级上变窄、当前这一级画出来的每一格尺寸都没变时（例如停在「方式只剩图标」那级时切成方式名更短的语言），不重量，可能多让一级——这种情况没有专门测，记为未验证。★1c 老用户：不适用，不碰任何存储，只改量法。
-- ★2 谁说了算：让级只有 `InlineParameterBar` 量（`node scripts/door-map.mjs composerYieldLadder`：1 扇门）；底栏别的组件只从 `ComposerBarYieldContext` 读。新加 eslint 门岗：底栏文件表 + 任何引了 `composerBarYield` 的文件不许 `getBoundingClientRect` / `offsetWidth` 类 / `ResizeObserver`，`data-yield-item` 只许它打。
-- ★3 以前定过什么：冻结摘要是早期「开着面板钮宽不跳」的做法，但面板定位只算一次、之后不跟随，冻结已经不挣什么；重量时机原是手写清单 `fitKey`（梯子长度、摘要候选、模型值、方式值）。三条路（补清单 / 纯排版 / 删掉）里选删掉：①删冻结（`frozenSummary`、`setFrozenSummary`、`pillText` 分支）；②删 `fitKey`，ResizeObserver 看底栏那一行、参数条、行的每个直接子格（参数段、右边图标排、行尾、生成钮）和每个 `data-yield-item` 自己的尺寸，任一变了从第 0 级重量；保留「尺寸签名和观察器上一次看到的一样就不重量」，挡住量的过程自己触发自己。签名比的是「上一次看到的」，不是「量停那一刻的」：试过后者，分镜批量表里带字生成钮那行在宿主排版晚一拍定下来时多让了一级（设计实验室 3 格和 main 不同），换回前者后 0 格不同。成熟库对照见方向检查第 4 节（React Spectrum 量真画出的每一项）。
-- ★4 全状态：静止态任何宽度、中英、暗色不变；面板开着改值时摘要实时显示新值，放不下当场少一个值（如英文 600 宽「720p · 10s」）；关面板后按梯子停在该停的那级，不压、不出界；分镜行 598 / 650 只多了「开着实时变」；文案无增减。
-- ★9 验收与反例（实现线自验，验收线只核这张表）：
-  - 特征测试 T1「开着改值变长 → 关 → 无出界」：main 红（开着画「Auto · 720p · 5s」而真值 10s，关后出界），修后绿。
-  - 特征测试 T2「切语言摘要不变、方式名变宽 → 重量」：main 红（切英文后摘要出界、模型方式格压提示词工具），修后绿。
-  - 特征测试 T3「重量后签名不变 → 不再触发」+「面板开着连改三次让级不在两级间抖」：main 绿、修后绿（选错的信号：真抖就停，不加特例）。
-  - 走查：开面板 → 改值 → Esc 循环 3 次，中英各跑，每次关后查相邻控件不相压、参数条不出界：main 英文红（第 1、3 次压图标，第 2 次让多到只剩「10s」），中文绿；修后中英全绿。
-  - 门岗反例：在 `ComposerSendButton.tsx` 加 `getBoundingClientRect` / `offsetWidth` / `new ResizeObserver`、在 `NodeFloatingToolbar.tsx` 打 `data-yield-item` → eslint 4 条红；还原 → 绿。
-  - 设计实验室静止态：和同机 main 比，0 格变化（165 格）。
-  - 回滚：revert 这一个提交。
+## ★0 保护出口
+
+出口：不涉及：本轮没有新增挡人的保护、拦截或恢复流程；底栏放不下时按既定梯子整值减少，不禁用已有动作。
+
+## ★9 验收与反例（实现线自验）
+
+1. 总测试：四处宿主×中英×五档宽度，固定种子20261117；改值、开关参数面板、语言、模型/方式、宽度、生成中往返。每步所有可点控件中心 elementFromPoint 命中自身/子元素；摘要为当前整值、无截断；让级/摘要与同最终数据新挂载相等。fe2d94857必须抓短语言多让；main记录真实结果；修后全过。原有DOM走查以data-node-composer-footer为可操作底栏，inert量层不计第二颗按钮，数量与命中判据保留。
+2. T1「面板开着改长→关」不出界、不相压、当场新值；T2「摘要不变、方式名字变宽」重量；T3三次参数改动/关后静置让级零抖动。原三轮真窗走查中英各跑，摘要、滑杆/清晰度、Esc均真点。
+3. 真窗构造①：Seedance2.5、列表详情、停靠后拖到底栏485px，英文→设置中文，不回列表读/截；第一轮应4≠重开3，修后等于重开；两种语言都读回，截图亲眼查看。
+4. 真窗首挂载：在分镜行挂载前安装逐帧记录（代码在cycle.walk），连续30帧记录宽度/让级/出界；宿主定宽后的每帧均不出界，末帧级=同数据重开；中英截图查看。
+5. 原四门岗反例：ComposerSendButton 加 getBoundingClientRect / offsetWidth / new ResizeObserver，NodeFloatingToolbar 打 data-yield-item，分别红→字节还原绿。
+6. 三个卡外洞：NodeParameterControls 实挂观察且不引让位模块→红；ComposerSendButton 真按钮打标→红；原「删签名比较不红」路径随签名整段删除，不再有此比较可删。新的动态反例：删量层候选观察→总测试红，按字节还原→绿。
+7. 新反例三条为5/6之外的短语言多让（只看已画格）、宿主晚定宽（只取700ms后末态）、只看当前让级不与新挂载比；均由总测试或首挂载逐帧记录守。非误伤样本 NodeFloatingToolbar 的原有定位观察应保持绿。
+8. 静止态165格与主分支逐格相同由线上 check:design-lab 核；本机不写基线、不跑该项。回滚为revert本轮提交；无迁移。

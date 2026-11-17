@@ -181,14 +181,6 @@ function fallbackSummaryParts(controls: readonly DynamicModelControl[], meta: Re
   return texts.map((text, index) => ({ text, dropRank: texts.length - index }))
 }
 
-/**
- * 让法要看的格：底栏那一行、参数条、参数条里每个参与让的格（data-yield-item），以及那一行的每个直接子格
- * （参数段、右边的图标排、行尾、生成钮）。任何一格自己的尺寸变了，让级就可能不对了。
- */
-function yieldWatchedElements(row: HTMLElement, bar: HTMLElement): Element[] {
-  return [row, bar, ...Array.from(row.children), ...Array.from(bar.querySelectorAll('[data-yield-item]'))]
-}
-
 export default function InlineParameterBar({
   modelOptions,
   hideModel = false,
@@ -265,66 +257,50 @@ export default function InlineParameterBar({
   const fullSummaryText = parts.map((part) => part.text).join(' · ')
 
   // ── 底栏挤的时候谁先让（composerBarYield.ts，四处同一条）：只在这里量一次，经 context 发给生成钮。 ──
-  // 量法：从「什么都不让」起一级一级往上试，直到参数条里的东西不再超出参数条（布局前同步做完，不闪）。
-  // 量的就是屏上画的（摘要没有冻结的旧字）。何时重量不写清单：底栏里任何一格自己的尺寸变了（内容、语言、字体、
-  // 右边多一颗图标、整行变宽变窄）都由下面的 ResizeObserver 看到，从第 0 级重量。分镜最窄一档（wrap）整颗换行，不走这里。
+  // 所有候选都以自然宽隐身排版，直接算首个放得下的级；可见让级不参与测量或触发。
+  // 工具/数量读原件（不参与让）：不复制它们的浮层、ref 和生命周期。
   const fitCandidates = footer && !wrap && parts.length ? summaryFitCandidates(parts) : null
   const modeCollapsible = modeHasIcon(modeMenu?.options, modeMenu?.value)
   const ladder = footer && !wrap
     ? composerYieldLadder({ sendCollapsible: Boolean(footer.action), modeCollapsible, summaryCandidates: fitCandidates?.length ?? 1 })
     : [COMPOSER_YIELD_NONE]
   const yielding = ladder.length > 1
-  const barRef = React.useRef<HTMLDivElement | null>(null)
   const footerRowRef = React.useRef<HTMLDivElement | null>(null)
-  // 每次 set 都是新对象：观察器重置到第 0 级（哪怕本来就是 0）也会让量的那段再跑一遍。
-  const [fitState, setFitState] = React.useState<{ level: number }>({ level: 0 })
-  const level = Math.min(fitState.level, ladder.length - 1)
+  const measureRef = React.useRef<HTMLDivElement | null>(null)
+  const [fitLevel, setFitLevel] = React.useState(0)
+  const level = Math.min(fitLevel, ladder.length - 1)
   const yieldStep = ladder[level] ?? COMPOSER_YIELD_NONE
-  const sizeSignature = React.useCallback((): string => {
+  React.useLayoutEffect(() => {
     const row = footerRowRef.current
-    const bar = barRef.current
-    if (!row || !bar) return ''
-    return yieldWatchedElements(row, bar).map((el) => Math.round(el.getBoundingClientRect().width)).join(':')
-  }, [])
-  React.useLayoutEffect(() => {
-    if (!yielding) return
-    const bar = barRef.current
-    if (!bar || level >= ladder.length - 1) return
-    // 参数条里排着的东西（都不缩）超出参数条右沿 = 放不下，再让一级。
-    const right = bar.getBoundingClientRect().right
-    const overflow = Array.from(bar.querySelectorAll<HTMLElement>('[data-yield-item]')).some((el) => el.getBoundingClientRect().right > right + 0.5)
-    if (overflow) setFitState({ level: level + 1 })
-  }, [yielding, level, ladder.length, fitState])
-  const observerRef = React.useRef<{ observer: ResizeObserver; watched: Element[] } | null>(null)
-  React.useLayoutEffect(() => {
-    if (!yielding || typeof ResizeObserver === 'undefined') return
-    // 和上一次看到的尺寸签名比：一样就不重量（量的过程自己改了尺寸，重量完记下新签名，下一轮观察看到的就是它，不会来回触发）；
-    // 不一样就从第 0 级重量——包括挂上时那一帧的尺寸后来又变了（宿主自己的排版晚一拍定下来），照样重量。
-    let seen = sizeSignature()
-    const observer = new ResizeObserver(() => {
-      const next = sizeSignature()
-      if (next === seen) return
-      flushSync(() => setFitState({ level: 0 }))
-      seen = sizeSignature()
-    })
-    observerRef.current = { observer, watched: [] }
-    return () => {
-      observer.disconnect()
-      observerRef.current = null
+    const measures = measureRef.current
+    if (!yielding || !row || !measures || typeof ResizeObserver === 'undefined') return
+    const fixed = (): HTMLElement[] => Array.from(row.children).filter((el): el is HTMLElement => el instanceof HTMLElement && el.getAttribute('data-bar-segment') !== 'model-params')
+      .filter(el => !el.hasAttribute('data-yield-action'))
+    const fit = (): void => {
+      const candidates = Array.from(measures.children)
+      if (!candidates.length) return
+      const fixedItems = fixed()
+      const available = row.getBoundingClientRect().width
+      const style = getComputedStyle(row)
+      const scale = available / parseFloat(style.width)
+      const extra = fixedItems.reduce((width, el) => width + el.getBoundingClientRect().width, 0) + (parseFloat(style.columnGap) || 0) * scale * fixedItems.length
+      const first = candidates.findIndex(el => el.getBoundingClientRect().width + extra <= available + 0.5)
+      setFitLevel(first < 0 ? candidates.length - 1 : first)
     }
-  }, [yielding, sizeSignature])
-  // 看哪些格每次提交后对一遍（格子会进出：方式格、右边的图标排、生成钮）；只在成员变了才重挂。
-  React.useLayoutEffect(() => {
-    const watch = observerRef.current
-    const row = footerRowRef.current
-    const bar = barRef.current
-    if (!watch || !row || !bar) return
-    const next = yieldWatchedElements(row, bar)
-    if (next.length === watch.watched.length && next.every((el, index) => el === watch.watched[index])) return
-    watch.observer.disconnect()
-    for (const el of next) watch.observer.observe(el)
-    watch.watched = next
-  })
+    const observer = new ResizeObserver(() => flushSync(fit))
+    const observe = (): void => {
+      observer.disconnect()
+      observer.observe(row)
+      for (const el of [...Array.from(measures.children), ...fixed()]) observer.observe(el)
+    }
+    // 只追踪独立量层/固定格的成员进出；可见参数格的内部退让不会触发这条路径。
+    const members = new MutationObserver(() => { observe(); flushSync(fit) })
+    members.observe(measures, { childList: true })
+    members.observe(row, { childList: true })
+    observe()
+    fit()
+    return () => { observer.disconnect(); members.disconnect() }
+  }, [yielding, ladder.length])
   const fitCramped = yieldStep.modelEllipsis
   const summaryText = fitCandidates ? fitCandidates[Math.min(yieldStep.summaryIndex, fitCandidates.length - 1)] ?? fullSummaryText : fullSummaryText
   const yieldContext = React.useMemo(() => ({ sendIconOnly: yieldStep.sendIconOnly }), [yieldStep.sendIconOnly])
@@ -419,7 +395,7 @@ export default function InlineParameterBar({
   const controlWiring = { meta, onCatalogControlChange, onParameterControlChange }
 
   /** 有底栏就把参数格放进整条底栏（四处同一份排法）；没有就只交参数格。 */
-  const wrapFooter = (params: JSX.Element): JSX.Element => {
+  const wrapFooter = (params: JSX.Element, measuredParams: JSX.Element[] = []): JSX.Element => {
     if (!footer) return params
     const hasAdvanced = advancedControls.length > 0
     return (
@@ -436,8 +412,14 @@ export default function InlineParameterBar({
             </NodePromptToolCluster>
           ) : null}
           {footer.trailing}
-          <ComposerBarYieldContext.Provider value={yieldContext}>{footer.action}</ComposerBarYieldContext.Provider>
+          <span data-yield-action className="contents"><ComposerBarYieldContext.Provider value={yieldContext}>{footer.action}</ComposerBarYieldContext.Provider></span>
         </div>
+        {yielding ? <div ref={measureRef} aria-hidden="true" inert className="invisible pointer-events-none absolute left-0 top-0 flex w-max flex-col">
+          {measuredParams.map((params, index) => <div key={index} className="flex w-max items-center gap-2">
+            {params}
+            <ComposerBarYieldContext.Provider value={ladder[index]!}>{footer.action}</ComposerBarYieldContext.Provider>
+          </div>)}
+        </div> : null}
         {showAdvanced ? <AdvancedSettingsSection ref={advancedRef} controls={advancedControls} {...controlWiring} /> : null}
       </div>
     )
@@ -548,15 +530,15 @@ export default function InlineParameterBar({
   // 最后一级模型名才末尾省略（title 是全名）。变体是短枚举，从不缩（2026-09-21 走查：「Variant 5.0」被压成「Variant E」）。
   // 没有底栏的（实验室里只要参数格的地方）照旧：模型那枚让位、摘要最宽 240。
   const modelChipClass = wrap || (yielding && !fitCramped) ? 'shrink-0' : undefined
-  const identityRow = (
+  const identityRow = (step = yieldStep, measuring = false): JSX.Element => (
     // 判据：参数条一行里相邻两颗控件不许相压（`tests/ux/design-lab-ask-card-in-panel.walk.mjs` 的重叠断言，原样保留、照跑）。
-    <div data-yield-item className={cn('flex items-center gap-1.5', yielding && !fitCramped ? 'shrink-0' : 'min-w-0')}>
+    <div data-yield-item={measuring ? undefined : ''} className={cn('flex items-center gap-1.5', measuring || (yielding && !step.modelEllipsis) ? 'shrink-0' : 'min-w-0')}>
       {!hideModel ? (
         <NomiSelect
           ariaLabel={t('generationCommon.parameters.model')}
           placeholder={t('generationCommon.parameters.selectModel')}
           triggerMaxWidth={wrap ? 260 : 200}
-          className={modelChipClass}
+          className={measuring ? 'shrink-0' : modelChipClass}
           value={modelSelect.modelValue}
           options={leadingModelOption ? [{ value: '', ...leadingModelOption }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
           onChange={(id) => (id || !leadingModelOption ? modelSelect.onModelPick(id) : onModelChange(''))}
@@ -572,21 +554,21 @@ export default function InlineParameterBar({
           value={modeMenu.value}
           options={modeMenu.options}
           onChange={modeMenu.onChange}
-          triggerIconOnly={yieldStep.modeIconOnly}
+          triggerIconOnly={step.modeIconOnly}
         />
       ) : null}
     </div>
   )
 
   /** 触发器：一颗报当前配置的摘要 pill，点开是参数面板。 */
-  const summaryTrigger = hasPanel ? (
+  const summaryTrigger = (text = summaryText, measuring = false): JSX.Element | null => hasPanel ? (
     <button
-      ref={triggerRef}
+      ref={measuring ? undefined : triggerRef}
       type="button"
       // 走查锚点：断言得能拿到那串摘要本身，
       // 不能靠中文 aria-label 去找（换个语言就断了）。
-      data-parameter-summary={summaryText}
-      data-yield-item
+      data-parameter-summary={measuring ? undefined : text}
+      data-yield-item={measuring ? undefined : ''}
       aria-label={t('generationCommon.parameters.generationParameters')}
       aria-expanded={panelOpen}
       title={(fitCandidates ? fullSummaryText : summaryText) || t('generationCommon.parameters.generationParameters')}
@@ -603,7 +585,7 @@ export default function InlineParameterBar({
       style={fitCandidates || wrap || yielding ? undefined : { maxWidth: 240 }}
     >
       <span className="min-w-0 truncate" style={{ maxWidth: wrap || fitCandidates || yielding ? 'none' : 240 }}>
-        {summaryText || t('generationCommon.parameters.parameters')}
+        {text || t('generationCommon.parameters.parameters')}
       </span>
       <IconChevronDown
         size={ICON_TIERS.corner.size}
@@ -622,7 +604,6 @@ export default function InlineParameterBar({
 
   const bar = (
     <div
-      ref={barRef}
       className={cn(
         'generation-canvas-v2-node__params--parameters',
         'min-w-0',
@@ -632,22 +613,26 @@ export default function InlineParameterBar({
         yielding && 'flex-1',
       )}
     >
-      <div className="contents">{identityRow}</div>
-      {summaryTrigger && yielding ? (
+      <div className="contents">{identityRow()}</div>
+      {hasPanel && yielding ? (
         <div data-parameter-summary-slot="true" className={cn('relative flex items-center', fitCramped ? 'flex-none' : 'min-w-0 flex-1')}>
-          {summaryTrigger}
+          {summaryTrigger()}
           {panelPortal}
         </div>
-      ) : summaryTrigger ? (
+      ) : hasPanel ? (
         <div className="min-w-0 contents">
-          {summaryTrigger}
+          {summaryTrigger()}
           {panelPortal}
         </div>
       ) : null}
     </div>
   )
+  const measuredParams = yielding ? ladder.map(step => <div className="flex w-max items-center gap-1.5">
+    {identityRow(step, true)}
+    {summaryTrigger(fitCandidates?.[step.summaryIndex] ?? fullSummaryText, true)}
+  </div>) : []
   // 这一次读目录失败、但上一份清单还在屏上：说清楚「仍是旧的」和原因（只在这个状态多一行，平时 DOM 不变）。
-  if (modelCatalogStatus.status !== 'stale_kept') return wrapFooter(bar)
+  if (modelCatalogStatus.status !== 'stale_kept') return wrapFooter(bar, measuredParams)
   return wrapFooter(
     <div className="flex min-w-0 flex-col gap-1">
       {bar}
@@ -655,5 +640,6 @@ export default function InlineParameterBar({
         {modelCatalogStatus.message}
       </span>
     </div>,
+    measuredParams,
   )
 }

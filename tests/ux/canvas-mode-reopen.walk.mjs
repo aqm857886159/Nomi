@@ -173,14 +173,14 @@ try {
   await expectVisible(panel, '重开后的生成框参数面板出现')
   const composerProof = await proveProbe(composer, '重开后的生成框探针可用')
   await expectAbsent(composer.locator('[data-reference-row] img'), { provenBy: composerProof, message: '重开后的生成框错误显示首帧图片' })
-  await expect(composer.locator('[data-bar-segment="generate"]'), '重开后文生视频生成按钮不可点').toBeEnabled()
+  await expect(composer.locator('[data-node-composer-footer] [data-bar-segment="generate"]'), '重开后文生视频生成按钮不可点').toBeEnabled()
   await summary.click()
   // 只有一个节点时适应视图会放到 200% 以上，生成框被挤出窗口、截图证明不了它；缩回 110% 以内再拍，拍完核生成框整个在窗口里。
   for (let step = 0; step < 6 && (await canvasZoomPercent(win)) > 110; step += 1) await canvasZoomStep(win, 'out', '缩到节点和生成框同屏')
   const shot = path.join(shotsDir, '01-after-reopen-text-to-video.png')
   const framed = await win.evaluate(() => {
     const composer = document.querySelector('[data-node-id="legacy-video-target"] .generation-canvas-v2-node__composer')
-    const generate = composer?.querySelector('[data-bar-segment="generate"]')
+    const generate = composer?.querySelector('[data-node-composer-footer] [data-bar-segment="generate"]')
     const box = composer?.getBoundingClientRect()
     const button = generate?.getBoundingClientRect()
     const inside = (rect) => Boolean(rect) && rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight
