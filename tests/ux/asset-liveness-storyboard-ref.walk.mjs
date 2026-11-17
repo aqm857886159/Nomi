@@ -170,7 +170,7 @@ try {
     expect(binned(), 'Legacy request has no recycling authority').toEqual([])
     expect(await decodes(urlOf(2)), 'Legacy original decodes after upgrade').toBe(true)
     await openRailDrawer(win, 'assets', 'Old project: project assets')
-    await clickOrFail(win.getByRole('tab', { name: uiText(locale, 'assetLibrary.projectAssets'), exact: true }), 'Project assets')
+    await clickOrFail(win.getByRole('tab', { name: uiText(locale, 'assetLibrary.projectAssets'), exact: true }), 'Open the project asset tab')
     await expectVisible(win.getByRole('button', { name: /^liveness-v2/ }).first(), 'Legacy original appears in project assets')
     await shotPng('old-project-assets')
     await backToLibrary(win, { label: 'Save upgraded copy and close project' })
