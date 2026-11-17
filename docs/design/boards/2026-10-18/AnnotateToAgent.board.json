@@ -780,7 +780,7 @@
     },
     {
       "censusId": "NODEBAR-01",
-      "function": "图片节点浮条：锁定、复制、多机位九宫格▾、抠图、改图▾、宫格▾、画板、全屏、下载、信息、加到时间轴",
+      "function": "图片节点浮条（锁定已由 2026-11-17 的决定撤掉）：锁定、复制、多机位九宫格▾、抠图、改图▾、宫格▾、画板、全屏、下载、信息、加到时间轴",
       "before": "NodeFloatingToolbar（真截图 real-zh-light-02 / lab-zh-light-selected-node-quick-toolbar）",
       "after": "nodebar.comment-button",
       "disposition": "kept：浮条一颗不动，也不加「提意见」"

@@ -127,7 +127,8 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
         if (!id || !kind) return []
         const rawCategoryId = typeof node.categoryId === 'string' ? node.categoryId.trim() : undefined
         const categoryId = isCategoryId(rawCategoryId) ? rawCategoryId : undefined
-        const { categoryId: _discardedCategoryId, ...nodeWithoutCategoryId } = node
+        // `locked`：已撤掉的节点锁留在旧项目里的字段，读盘丢掉（旧锁住的节点就是普通节点）。
+        const { categoryId: _discardedCategoryId, locked: _discardedLegacyNodeLock, ...nodeWithoutCategoryId } = node
         const normalizedNode: Omit<GenerationCanvasNode, 'categoryId'> = {
           ...(nodeWithoutCategoryId as Omit<GenerationCanvasNode, 'categoryId'>),
           id,

@@ -198,6 +198,14 @@ describe('deriveShotRowExec（行状态机）', () => {
     expect(derive([readyAnchor, locked]).status).toBe('locked')
   })
 
+  it('旧版节点锁字段 locked:true 不影响分镜：行状态不是「已锁定」、照常是 done（已锁定=定妆 meta.frozen，是另一回事）', () => {
+    const base = { storyboardDesignId: DESIGN, shotId: 'shot-a' }
+    const done = nodeOf({ id: 'n1', result: { id: 'r9', type: 'video', url: 'nomi-local://v.mp4', createdAt: 1 }, meta: base })
+    const legacyLocked = { ...done, locked: true } as GenerationCanvasNode
+    expect(derive([readyAnchor, legacyLocked]).status).toBe('done')
+    expect(derive([readyAnchor, legacyLocked]).locked).toBe(false)
+  })
+
   /**
    * 钱闸（2026-09-06 验收现场）：`recoverable` 说的是「任务已提交、钱已扣、上游多半已出片，
    * 只是本地轮询没接住」。它曾被折进 `failed`，于是表上是红色「生成失败」+ 会重新扣费的重试

@@ -40,7 +40,7 @@ import {
   regenerateShotRow,
   rerunShotRowWithFreshRefs,
   runStoryboardBatch,
-  toggleNodeLock,
+  toggleNodeFrozen,
   type RowActionContext,
 } from './exec/storyboardRowActions'
 import { recoverNodeResult } from '../../generationCanvas/runner/recoverTaskActions'
@@ -428,8 +428,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     if (node) withProjectAction((project) => { void recoverNodeResult(node.id, project) })
   }
   // 锁定开关：同步写 meta（不花钱不确认）；状态经 derive 立刻回流行/组头/footer。
-  const onToggleLockRow = (runtime: StoryboardRowRuntime): void => {
-    if (runtime.exec.node) toggleNodeLock(runtime.exec.node.id)
+  const onToggleFrozenRow = (runtime: StoryboardRowRuntime): void => {
+    if (runtime.exec.node) toggleNodeFrozen(runtime.exec.node.id)
   }
   // 参考已变「用新图重跑」：一键补跑（花钱确认照过；首帧行按波次连跑），绝不自动跑。
   const onRerunFreshRefsRow = (runtime: StoryboardRowRuntime): void => {
@@ -448,8 +448,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     const node = runtime.node
     if (node) withProjectAction((project) => { void recoverNodeResult(node.id, project) })
   }
-  const onToggleLockAnchor = (runtime: AnchorCardRuntime): void => {
-    if (runtime.node) toggleNodeLock(runtime.node.id)
+  const onToggleFrozenAnchor = (runtime: AnchorCardRuntime): void => {
+    if (runtime.node) toggleNodeFrozen(runtime.node.id)
   }
   const onOpenPreviewRow = (runtime: StoryboardRowRuntime): void => {
     if (runtime.exec.node && runtime.exec.resultUrl) {
@@ -476,7 +476,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   if (batch.excluded.missingRequired > 0) excludedReasons.push(t('storyboardEditor.footer.reasonMissing', { count: batch.excluded.missingRequired }))
   if (batch.excluded.generating > 0) excludedReasons.push(t('storyboardEditor.footer.reasonGenerating', { count: batch.excluded.generating }))
   if (batch.excluded.recoverable > 0) excludedReasons.push(t('storyboardEditor.footer.reasonRecoverable', { count: batch.excluded.recoverable }))
-  if (batch.excluded.locked > 0) excludedReasons.push(t('storyboardEditor.footer.reasonLocked', { count: batch.excluded.locked }))
+  if (batch.excluded.locked > 0) excludedReasons.push(t('storyboardEditor.footer.reasonFrozen', { count: batch.excluded.locked }))
 
   return (
     <section
@@ -534,7 +534,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
           onGenerateAnchor={onGenerateAnchor}
           onRegenerateAnchor={onRegenerateAnchor}
           onRecoverAnchor={onRecoverAnchor}
-          onToggleLockAnchor={onToggleLockAnchor}
+          onToggleFrozenAnchor={onToggleFrozenAnchor}
           onOpenPreviewAnchor={onOpenPreviewAnchor}
           onFilterByAnchor={setFilterAnchorId}
           onAddAnchor={() => setStoryboardPlan(addAnchor(plan))}
@@ -587,7 +587,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               onGenerateRow={onGenerateRow}
               onRegenerateRow={onRegenerateRow}
               onRecoverRow={onRecoverRow}
-              onToggleLockRow={onToggleLockRow}
+              onToggleFrozenRow={onToggleFrozenRow}
               onOpenPreviewRow={onOpenPreviewRow}
               onLocateInCanvasRow={onLocateInCanvasRow}
               onRerunFreshRefsRow={onRerunFreshRefsRow}

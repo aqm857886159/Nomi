@@ -47,7 +47,7 @@ describe('published generation error-kind matrix × all five failure surfaces', 
         render(<GenerationListDetail card={model.sections[0].cards[0]} onBack={noop} />),
         render(<ListCardMedia node={node} kind="image" height={200} />),
         render(<><StoryboardShotFrame shot={plan.shots[0]} exec={exec} aspect="16:9" box={{ width: 136, height: 77 }} /><StoryboardFrameActions exec={exec} variants={[]} onGenerate={noop} /></>),
-        render(<StoryboardAnchorRow runtime={runtime} aspect="16:9" onUpdate={noop} onChangeKind={noop} onRemove={noop} onGenerate={noop} onRegenerate={noop} onToggleLock={noop} />),
+        render(<StoryboardAnchorRow runtime={runtime} aspect="16:9" onUpdate={noop} onChangeKind={noop} onRemove={noop} onGenerate={noop} onRegenerate={noop} onToggleFrozen={noop} />),
       ]
       const decision = generationFailureActions(report.raw, node.runs[0])
       const escapedReason = renderToStaticMarkup(<span>{decision.reason}</span>).slice(6, -7)
@@ -109,7 +109,7 @@ it('E7: an anchor with retained media still exposes free retrieval when the late
   const node = { ...createGenerationNode({ id: 'retained-anchor', kind: 'image' }), status: 'recoverable' as const,
     meta: { storyboardDesignId: 'd', anchorId: 'a' }, result: { id: 'old-image', type: 'image' as const, url: 'https://fixture.invalid/old.png', createdAt: 1 } }
   const runtime = deriveAnchorCardRuntimes({ plan, designId: 'd', nodes: [node] })[0]
-  const html = render(<StoryboardAnchorRow runtime={runtime} aspect="16:9" onUpdate={noop} onChangeKind={noop} onRemove={noop} onGenerate={noop} onRegenerate={noop} onToggleLock={noop} onRecover={noop} />)
+  const html = render(<StoryboardAnchorRow runtime={runtime} aspect="16:9" onUpdate={noop} onChangeKind={noop} onRemove={noop} onGenerate={noop} onRegenerate={noop} onToggleFrozen={noop} onRecover={noop} />)
   expect(html).toContain('data-anchor-face="recoverable"')
   expect(html).toContain(i18n.t('generationCommon.production.runAction.retry-retrieval'))
 })
@@ -136,7 +136,7 @@ it.each(['zh-CN','en'])('G3: %s slow storyboard offers free retrieval before pai
  await i18n.changeLanguage(locale)
  const node={...createGenerationNode({id:'waiting',kind:'image'}),status:'recoverable' as const,meta:{storyboardDesignId:'d',anchorId:'a'}}
  const runtime=deriveAnchorCardRuntimes({plan,designId:'d',nodes:[node]})[0]
- const html=render(<StoryboardAnchorRow runtime={runtime} aspect="9:16" onUpdate={noop} onChangeKind={noop} onRemove={noop} onGenerate={noop} onRegenerate={noop} onToggleLock={noop} onRecover={noop} />)
+ const html=render(<StoryboardAnchorRow runtime={runtime} aspect="9:16" onUpdate={noop} onChangeKind={noop} onRemove={noop} onGenerate={noop} onRegenerate={noop} onToggleFrozen={noop} onRecover={noop} />)
  const labels=Array.from(html.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g),match=>match[1].replace(/<[^>]*>/g,'').trim())
  const free=labels.indexOf(i18n.t('generationCommon.production.runAction.retry-retrieval')),paid=labels.indexOf(i18n.t('generationCommon.observability.action.releaseRegenerate.main')),view=labels.indexOf(i18n.t('generationCommon.observability.action.reconcile.main'))
  expect(free).toBeGreaterThan(-1);expect(paid).toBeGreaterThan(free);expect(view).toBeGreaterThan(paid);expect(html).toContain('bg-nomi-ink');expect(html).not.toContain('border-workbench-danger')

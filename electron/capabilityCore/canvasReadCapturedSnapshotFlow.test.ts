@@ -82,7 +82,6 @@ const SNAPSHOT_A = Object.freeze({
       prompt: "draw A",
       status: "idle" as const,
       position: Object.freeze({ x: 1, y: 2 }),
-      locked: false,
       hasResult: false,
     }),
   ],
