@@ -21,6 +21,9 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
+import ffprobe from '@ffprobe-installer/ffprobe'
 
 /** 时间轴帧率与「一张图占多久」。与 buildClipFromGenerationNode 的默认一致（图 3 秒）。 */
 const FPS = 30
@@ -116,10 +119,12 @@ export function seedFinishedJourneyProject({ projectsDir, projectId = 'dark-jour
   fs.mkdirSync(generatedDir, { recursive: true })
   fs.mkdirSync(path.join(projectRoot, 'exports'), { recursive: true })
 
+  const imagePath = fileURLToPath(new URL('./hires-detail-1024x1792.png', import.meta.url))
+  const imageGeometry = JSON.parse(execFileSync(ffprobe.path, ['-v', 'error', '-show_streams', '-of', 'json', imagePath], { encoding: 'utf8' })).streams.find((stream) => stream.codec_type === 'video')
   const now = Date.now()
   const nodes = SHOTS.map((shot, index) => {
     const fileName = `${shot.id}.png`
-    fs.copyFileSync(new URL('./hires-detail-1024x1792.png', import.meta.url), path.join(generatedDir, fileName))
+    fs.copyFileSync(imagePath, path.join(generatedDir, fileName))
     return {
       id: shot.id,
       kind: 'image',
@@ -136,7 +141,7 @@ export function seedFinishedJourneyProject({ projectsDir, projectId = 'dark-jour
         url: `nomi-local://asset/${encodeURIComponent(projectId)}/assets/generated/${fileName}`,
         createdAt: now,
       },
-      meta: { imageWidth: 1024, imageHeight: 1792 },
+      meta: { imageWidth: imageGeometry.width, imageHeight: imageGeometry.height },
     }
   })
 
