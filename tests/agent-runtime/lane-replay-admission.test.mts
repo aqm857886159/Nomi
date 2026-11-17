@@ -46,7 +46,7 @@ test('retry replays the original selection, unlike a recovered draft which sends
 async function seedContinueChain(f: LaneFixture) {
   const opened = await openLaneSession({ projectDir: f.projectDir }, context);
   const branch = await opened.session.createBranch('main', null, context);
-  const originalId = await branch.appendMessage({ role: 'nomi.input', content: 'ORIGINAL_TASK_ONLY_THREE_CHARACTERS', timestamp: 1, context: { approvalPolicy: policy, skillKey: 'original-skill' } }, context);
+  const originalId = await branch.appendMessage({ role: 'nomi.input', content: 'ORIGINAL_TASK_ONLY_THREE_CHARACTERS', timestamp: 1, context: { approvalPolicy: policy, skillKey: 'original-skill', target: { kind: 'timeline', clipIds: ['original-clip'] }, contextSnapshot: { version: 1, handles: [{ id: 'original-handle' }] } as never } }, context);
   const stopped1 = await branch.appendMessage(assistant('STOPPED_PROSE_ONE'), context);
   const continue1 = await branch.appendMessage({ role: 'nomi.input', content: 'Continue', timestamp: 2, context: { approvalPolicy: policy, skillKey: 'original-skill', retryFromEntryId: originalId, continueFromEntryId: stopped1 } }, context);
   const stopped2 = await branch.appendMessage(assistant('STOPPED_PROSE_TWO'), context);
@@ -58,14 +58,16 @@ for (const action of ['continue-again', 'retry-continue'] as const) {
   test(`${action} carries the root original task in the newly admitted provider input`, async t => {
     const f = await createLaneFixture(t, [{ type: 'text', text: 'done' }]);
     const ids = await seedContinueChain(f);
-    const captured = { approvalPolicy: policy, ...(action === 'continue-again' ? { continueFromEntryId: ids.stopped2 } : { retryFromEntryId: ids.continue1 }) };
-    const host = await f.openLane({ ...f.options, input: { capture: () => captured, activate: () => {}, providerContent: async (m) => m.content, rewritePayload: (p) => p } });
+    const captured = { approvalPolicy: policy, target: { kind: 'timeline' as const, clipIds: ['current-clip'] }, contextSnapshot: { version: 1, handles: [{ id: 'current-handle' }] } as never, ...(action === 'continue-again' ? { continueFromEntryId: ids.stopped2 } : { retryFromEntryId: ids.continue1 }) };
+    const host = await f.openLane({ ...f.options, input: { capture: () => captured, activate: () => {}, providerContent: async (m) => `${m.content}\n${JSON.stringify(m.context.contextSnapshot)}`, rewritePayload: (p) => p } });
     await host.execute({ kind: 'prompt', text: action === 'continue-again' ? 'Continue' : 'Retry' });
     const users = (f.http.requests.at(-1)!.body.messages as Array<{ role: string }>).filter(m => m.role === 'user');
     const lastUser = JSON.stringify(users.at(-1));
     t.diagnostic(JSON.stringify({ action, lastProviderUser: users.at(-1) }));
     assert.ok(lastUser.includes('ORIGINAL_TASK_ONLY_THREE_CHARACTERS'), 'new input must contain the root task even after previous inputs are compacted away');
     assert.ok(lastUser.includes(action === 'continue-again' ? 'STOPPED_PROSE_TWO' : 'STOPPED_PROSE_ONE'));
+    assert.ok(lastUser.includes('original-handle'), 'continue/retry retains the original selection in the last provider input');
+    assert.ok(!lastUser.includes('current-handle'), 'the current selection cannot replace a replay');
   });
 }
 

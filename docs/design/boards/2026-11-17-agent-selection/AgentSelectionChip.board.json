@@ -86,7 +86,7 @@
         "quote": "行，按推荐",
         "date": "2026-11-17"
       },
-      "note": "走查 tests/ux/agent-selection-one-home.walk.mjs（5 例，中英各一组）；单测 src/workbench/ai/resident/residentSelection.test.ts、tests/agent-runtime/lane-replay-admission.test.mts。"
+      "note": "走查 tests/ux/agent-selection-one-home.walk.mjs（5 例，中英各一组）；单测 src/workbench/ai/resident/residentSelection.test.ts、tests/agent-runtime/lane-replay-admission.test.mts。 × = 在时间轴 / 画布上取消选中这一项，素材不删。"
     },
     {
       "id": "chip.changed-suffix",

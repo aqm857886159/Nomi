@@ -5,6 +5,7 @@ import { TIMELINE_WRITE_CAPABILITY } from '../../../../electron/shared/agentCapa
 import type { TimelineState } from '../../timeline/timelineTypes'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { residentSelectionInput, resolveResidentSelectionMembers, type ResidentSelectionMember } from './residentContextSnapshot'
+import type { V4ComposerReference } from '../v4/agentPanelV4Types'
 import type { ResidentSurface } from './residentShellDisplay'
 import { TimelinePlanPreviewLayer } from '../../timeline/agent/TimelinePlanPreviewLayer'
 import { timelinePlanOperations, timelinePlanPreviewBands } from '../../timeline/agent/timelinePlanPreview'
@@ -102,4 +103,15 @@ export function useResidentTimelineMembers(surface: ResidentSurface): readonly R
     })).timelineMembers,
     [surface, timeline, selectedTimelineClipIds, selectedTextClipId],
   )
+}
+
+/** 选区身份、名字与取消动作在主人旁绑定，样式 kind 不参与写口路由。 */
+export function useResidentTimelineReferences(surface: ResidentSurface, isCurrent: () => boolean): readonly V4ComposerReference[] {
+  const members = useResidentTimelineMembers(surface)
+  const selectedTextClipId = useWorkbenchStore(state => state.selectedTextClipId)
+  const deselect = useWorkbenchStore(state => state.deselectTimelineItem)
+  return members.map(member => ({
+    id: member.id, kind: 'clip', label: member.title,
+    onRemove: () => deselect(member.id, member.id === selectedTextClipId ? 'text' : 'media', isCurrent),
+  }))
 }

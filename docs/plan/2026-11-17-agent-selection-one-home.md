@@ -1,6 +1,6 @@
 # 设计卡：「我选中了什么」发给助手时只算一遍
 
-状态：动手前写的，等协调确认后再改代码。一个提交，以删为主。
+状态：11-17 r2 按用户选「换」续做；保留合并提交，一个实现提交。
 类别：其他（改助手上下文的选区采集；芯片显示成员会变，但样子、位置、文案不动）。修复，不是新功能，不新增界面元素；★7 不适用（见 ★7 一句）。
 来历：同一份选择在三处各算：发送目标、冻结快照、聊天框里的芯片。三处对不上：预览里只选文字时芯片亮着、助手却收不到；选区里有重复或不存在的项时三处数出来不同；素材名是空白时一处回落成 ID、一处显示空白芯片。
 
@@ -51,8 +51,8 @@
 ## ★2 谁说了算
 
 - 概念：「助手这一轮的选区」（渲染层）。唯一主人：`src/workbench/ai/resident/residentContextSnapshot.ts` 的 `resolveResidentSelection`（输入原始选择与存在列表；输出：规范化成员 ID、目标、冻结快照、芯片成员含名字）。采集适配分两块：纯函数 `residentSelectionInput`（同在主人文件里，把两个 store 的状态按工作面收成输入，读原始选区字段的地方之一）；芯片用的订阅 hook `useResidentTimelineMembers`（在 `timelineAgentSurface.tsx` 里）（只订阅时间轴切片，读原始字段的地方之二）。
-- 消费者（实际落地：主人文件 `residentContextSnapshot.ts` + `timelineAgentSurface.tsx`（订阅 hook）两个文件可读原始字段，别处 ESLint 红）：发送（`useAgentPanelV4Actions.ts`）取目标与快照；芯片（`useAgentPanelV4Data.ts` 经 `timelineAgentSurface.tsx`）取成员与名字；都不读原始字段。
-- 门数（`node scripts/door-map.mjs` 开工重数，与准备报告一致）：`buildResidentContextSnapshot` 写 1 扇、`collectTimelineSelections` 读 1 扇、`useTimelineSelectionChips` 1 扇、`captureSendContext` 1 扇、`mergeResidentContextHandles` 1 扇（均在 Actions 文件）。算「选区成员与名字」的处数：现在 3（发送 target、快照、芯片），做完 1。其余有意差异（导演镜头、@ 引用附加句柄、分镜引用、实时 look_at_canvas）不是选区，不并。这一刀做完后「这一轮带上了哪些选中」在渲染层只算一处；原先相关的两处岔口（草稿带回旧选区、「· 已变更」）已在第二个提交收掉，见「已收」一节。
+- 消费者（实际落地：主人文件 `residentContextSnapshot.ts` + `timelineAgentSurface.tsx`（订阅 hook）两个文件可读原始字段，别处 ESLint 红）：发送（`useAgentPanelV4Actions.ts`）取目标与快照；芯片（`ResidentComposerContext.tsx` 经 `timelineAgentSurface.tsx`）取成员、名字和绑定动作；都不读原始字段。
+- 第一轮历史门数（`node scripts/door-map.mjs` 开工重数，与准备报告一致）：`buildResidentContextSnapshot` 写 1 扇、`collectTimelineSelections` 读 1 扇、`useTimelineSelectionChips` 1 扇、`captureSendContext` 1 扇、`mergeResidentContextHandles` 1 扇（均在 Actions 文件）。算「选区成员与名字」的处数：现在 3（发送 target、快照、芯片），做完 1。其余有意差异（导演镜头、@ 引用附加句柄、分镜引用、实时 look_at_canvas）不是选区，不并。这一刀做完后「这一轮带上了哪些选中」在渲染层只算一处；原先相关的两处岔口（草稿带回旧选区、「· 已变更」）已在第二个提交收掉，见「已收」一节。
 - 删掉的家：`useAgentPanelV4Actions.ts` 里 `selectedNodeIds`/`selectedClipIds` 自取与原样塞 target（约 :48–84、:207–224 的取选区部分）；`timelineAgentSurface.tsx` 的 `collectTimelineSelections`（:76–84）与 `useTimelineSelectionChips` 里另找片段（:136–153）；`useAgentPanelV4Data.ts` 里 `label || text || id` 另算名字（:318–325）和裸读 `selectedTimelineClipIds`/`selectedTextClipId`（:226–232）。
 - 「拖画布节点不让助手面板重渲染」：本环境无 DOM，量不了真实重渲染次数；测试盯结构（芯片 hook 与面板数据层都不订阅生成画布 store），写在 `residentSelection.test.ts`，如实标注。
 - 同提交加守卫：新增概念登记 `agent.resident-selection`；ESLint 独立规则：`src/workbench/ai/**`（除主人与采集适配两个文件与测试）里读 `selectedNodeIds`/`selectedTimelineClipIds`/`selectedTextClipId`（点号、方括号、解构、选择器）报红。
@@ -62,15 +62,20 @@
 1. 停止或撤回排队后草稿带回，发送时旧快照和旧目标盖过本次选区（`electron/agentLane/laneHost.mts` `inputMessage`，合并 `{...本次, ...restoredIntent}`）。已收：恢复回来的草稿只带回模板（`systemPrompt`），目标、上下文快照、文稿、文稿前提、分镜镜头目标都取这一轮自己的（后几项互相绑着，分镜目标的文稿版本要和文稿前提对得上，不能新旧混取），这一轮发出去的就是此刻芯片显示的选区。看得见的后果：分镜面上取消排队、草稿带回后，原先点选的镜头不再随这条发出，要重新点选（草稿带回时不恢复镜头芯片；「带回时一并恢复镜头芯片」是下一刀的选项）。入口数：`restoredIntent` 的读入口 3 扇（`laneDesktopInput.ts` 解析、`laneHost.mts` 合并、`laneSingleShot.mts` 拒绝），真正合并的只有 `laneHost.mts` 一处，修在这里；老版本信封里留下的 `target` / `contextSnapshot` 照常解析、在合并处丢弃，不迁移。「重试 / 继续」是另一条路（`resolveLaneReplay` → `replayLaneInput`，信封里不许带 `restoredIntent`），按原输入重放、带原选区，保持原样，两条路各钉一条测试（`tests/agent-runtime/lane-replay-admission.test.mts`）。
 2. 芯片上的「· 已变更」。已收：删掉文案键 `agentPanelV4.clipStale`、`timelineSelectionRevision` / `timelineClipRevision` / `useTimelineSelectionRevisions` / `useTimelineSelectionChips`（含按位置记起止帧的记忆）、`useAgentPanelV4Data.ts` 里的 `staleFor` 分支；芯片只剩名字，拖动片段后照常显示、照常发出。
 
-仍留着的（不在这一刀）：画布节点 / 文稿光标没有芯片，是已知缺口，新增要用户看图定；`ProjectAgentReference.contextHandle`（`workbenchStore.ts:90`）已无读写者，留给下一刀。
+仍留着的（不在这一刀）：画布节点 / 文稿光标没有芯片，是已知缺口，新增要用户看图定；`ProjectAgentReference.contextHandle` 的类型字段已在本分支先前提交删除；旧草稿残留键无人读取，原样加载，不做存盘迁移。
 
 创作者看得见的变化三条：① 选中字幕发送，助手真的收到这句字幕；② 停止后改选再发，发的是新选的；③ 芯片不再出现「· 已变更」。老用户：没有存储迁移，旧会话、旧草稿原样可用。
 
+- r2 的完整门表：用同一组状态/类型/组合点符号数修前与修后，见 `docs/fixes/2026-11-17-agent-chip-remove.root-cause.json` 的 doors/door_reduction；完整 target/contextSnapshot 配对在 `captureResidentSendContext`，当前可移除引用在 `useResidentComposerContext`，发送端/外壳只消费结果。
+
 ## ★3 一致与复用
 
-- 以前定过：一个东西一个家、聊天只放指向元素（`docs/design/nomi-design-system.md` §1.0，仍算数）；发给模型的投影已有唯一主人（`agent.context-snapshot-projection`，仍算数）；read_selection 暂缓（保留暂缓）。
-- 三条路：沿原方向修（在三处各补 D1–D3，已是第三次分叉修补，不选）；换做法（抽到 `electron/shared` 跨层，生产只一个渲染层调用，增加 DTO，不选）；**删掉第二、三处的自算，三处吃同一份结果（选）**。
-- 同提交删的死代码（方向复盘建议，协调要求）：`residentReferences.ts` 里 `buildResidentReference`、`buildResidentAssetReference`、`residentReferenceFromContextHandle`、`contextHandleForResidentReference`、`residentReferencePromptValue`、类型 `ResidentReferenceContext` 与只服务它们的私有函数；整个 `residentReferenceDisplay.ts` 与它的测试；`agentResident.referenceRole*` 六个只被它用的文案键（中英各 6 行）。删前逐个核零调用：`node scripts/door-map.mjs <符号>` 与 `git grep -w`，生产代码 0 处，只剩各自的测试与历史文档。留下的是 `buildStoryboardReference`、`isStoryboardReference`、`storyboardShotIdsForTarget`（有生产调用方）。`ProjectAgentReference.contextHandle` 字段（`workbenchStore.ts:90`）现在没有读写者，但属于共享类型，这一刀不动，记为下一刀。
+- 保住的结果：Shift 选两段视频，点一颗 × 只取消该段选中，剩余 DOM 芯片和新发送逐项一致；单字幕同理；不删除素材、不改变视频/字幕互斥规则。
+- 三条路：沿原方向修（保留外壳按 kind 猜动作，新增引用仍可能漏接，不选）；换（在主人旁组合当前引用，必填身份和动作，外壳只摆，发送拿完整 target/snapshot，用户 2026-11-17 选此项）；删（只删选区 ×，损失就地取消能力，不选）。
+- 不改存盘格式；历史 V4Chip 只读，旧快照只留历史/重放；当前可移除引用必须有 id/onRemove。取消媒体/字幕分别原子幂等，只改对应字段；绑定原项目订阅与原会话，旧按钮不写新会话。
+- 11-17 续跑更正：视频与字幕不能同时选中是既有行为，本刀不造混选；测试分两段视频（含同名）与单字幕。函数级构造跨字段状态仅验证移除动作不误清另一份，不冒充真实交互。
+
+- 同提交删的死代码（方向复盘建议，协调要求）：`residentReferences.ts` 里 `buildResidentReference`、`buildResidentAssetReference`、`residentReferenceFromContextHandle`、`contextHandleForResidentReference`、`residentReferencePromptValue`、类型 `ResidentReferenceContext` 与只服务它们的私有函数；整个 `residentReferenceDisplay.ts` 与它的测试；`agentResident.referenceRole*` 六个只被它用的文案键（中英各 6 行）。删前逐个核零调用：`node scripts/door-map.mjs <符号>` 与 `git grep -w`，生产代码 0 处，只剩各自的测试与历史文档。留下的是 `buildStoryboardReference`、`isStoryboardReference`、`storyboardShotIdsForTarget`（有生产调用方）。`ProjectAgentReference.contextHandle` 类型字段已在本分支先前提交删除（旧草稿残留键无人读取、照常加载）；本轮不改存盘格式。
 - 复用与删旧（协调 11-17 裁定）：`buildResidentContextSnapshot` 不留薄包装，调用方迁到 `resolveResidentSelection(...).snapshot`，同提交删旧函数。它不是对外合同：`git grep` 只在渲染层发送一处、四个测试 / 走查 / 证据脚本里被点名，主进程、外部助手、存盘格式都没有点名它（存盘与 IPC 里的是 `AgentContextSnapshot` 数据形状，没变）。规范化沿用原函数的逻辑，只多了对输入 ID 的 trim 与文字片段。
 - D1–D3 裁定：D1 选了文字就要进目标与快照（文字片段句柄用既有 `timelineClip` 种类，`subtitle: 'text'`，标题取文字内容回落 ID），放不下由既有省略账明说；D2 三处都「滤不存在、去重、保持选择顺序」；D3 名字空白一律回落到 ID，芯片不许出现空白名。保留：当前域限制（只收当前面的选区，文稿始终带）、发送冻结 vs 渲染实时、6000 字符压缩与省略账、导演 / @ 引用等附加句柄。
 - `check:self-written`：不新增自写能力（扩已有登记的选区快照模块）。
@@ -82,7 +87,7 @@
 - 成功：见 ★1 四条。
 - 失败：选择里有不存在的项 → 滤掉，不报错。
 - 取消中：发送在第一个 await 之前冻结，之后改选不影响这一轮。
-- 过期：没有这一格了（「已变更」已删，芯片只显示名字，发送时冻结）。
+- 过期：不显示「已变更」，芯片只显示名字，发送时冻结；旧项目/会话的按钮不写新主人同 ID 的选区。
 - 能力不可用：不适用。
 - 最大值：选 40 个节点 / 片段，目标 40，快照走已有预算与省略账（已有测试）。最长文字：片段文字标题由快照投影截到 160。
 
@@ -92,31 +97,31 @@
 
 ## ★9 验收与回滚
 
-验收清单（实现线按它自验，验收线只核它）：
-1. `residentSelection.test.ts` 对拍：creation / generation / preview / storyboard 四个工作面，同一份 store 选择，目标成员 = 快照成员 = 芯片成员（preview 面）；其余面芯片 0。
-2. D1：只选文字：目标含文字片段、快照含它、芯片含它；文字与媒体同选顺序：媒体在前文字在后。
-3. D2：选择 `[a, a, ghost]`：三处都是 `[a]`；`' a '` 带空白也规整。
-4. D3：素材名 `'   '`：快照标题与芯片名都是 ID。
-5. 40 个节点已有「全省略并给总数」的测试仍绿；`residentContextSnapshot.test.ts`、`timelineAgentSurface.test.ts`、`useAgentPanelV4Actions.test.ts` 绿。
-6. 真窗口（隔离资料目录）：四个工作面各「选中 → 看芯片 → 发送」；D1 修前 / 修后截图；zh / en 各看一眼。
-7. `check:design-lab` 只看「只在分支上红」的格，预期只有芯片成员涉及的格。
-8. 老会话：旧快照（只有媒体句柄）的恢复 / 重试照常读（既有测试 + 一条用旧形状快照的用例）。
+预测（来自方向复盘第 3 节，复查日 2026-12-01）：
+1. 给 clip 补一个外壳分支后，新增一种引用还会出现“显示支持、动作漏接”；同名片段可能无法区分。量具：同名双片段、单字幕、失效旧按钮交互夹具；核 stable ID、剩余选中和最后新输入快照。失败标准：任何有 × 无动作、按 label 找对象、又给外壳加业务分支。
+2. 主人纯函数全绿，显示适配仍能改字/加后缀。量具：重做 X1、X3 实际显示与请求比较；改坏红、还原绿。失败标准：大写或任意新后缀仍全绿，不能只换禁词。
+3. 草稿主人已修，发送端仍能重新借旧快照。量具：带旧 contextSnapshot 的旧形状草稿 A + 当前 B，经真实 send 到最终新输入；新发送 B，retry/continue A。失败标准：X2 仍全绿或重放被误改。
 
-故意改坏必须报红（实现线交「反例 → 改坏后哪条检查红 → 还原后绿 → 日志」表）：
-- A. 发送端自己读 `workbench.selectedTimelineClipIds` 并塞 target → ESLint 红。
-- B. 芯片端裸读 `selectedTextClipId` 另找片段（含改名、别名、解构、方括号）→ ESLint 红。
-- C. 主人里把文字选区从目标 / 快照摘掉 → D1 对拍红。
-- D. 主人去掉去重 / 存活过滤 → D2 红。
-- E. 芯片名改回 `label || text || id` → D3 红。
-- F. 第二处用另一个名字重写筛选（不读上述三个字段名，如自己 `.filter` 时间轴片段）→ 选区概念登记的定义禁令红；任意别名逃逸能否彻底封住不知道，这一条限同名字段与同名定义，不声称全封。
-- G. 正例必须绿：主人与采集适配读原始字段、普通消费者只用结果。
-- H. 第二个提交：`laneHost.mts` 合并处改回 `{...currentAdmission, ...restoredIntent}`（旧意图盖过当前选区）→ `lane-replay-admission` 的「恢复草稿发当前选区」红。
-- I. 第二个提交：把 `clipStale` 文案或 `staleFor` 放回芯片 → `residentSelection.test.ts` 的「已变更不会悄悄回来」红。
-- 第二个提交的真窗口两条：停止 → 改选 → 发送，读回请求里是新选的；拖动片段 → 芯片无「已变更」→ 发送带它的新位置（`agent-selection-one-home.walk.mjs` 情形 4、5）。
+验收合同（实现前写全）：
+4. 类型夹具缺 id、缺 onRemove 分别 tsc 红；合法当前引用、只读历史为绿。
+5. 生产 Composer + 真 store + 真实 Actions/假传输：两视频（含同名）及单字幕，DOM 的 ID/顺序/原始标题与最后新输入 timelineClip 子集逐项相同；点击 × 后同一断言，源片段仍存在，保留项仍选中。
+6. 取消动作重复调用不会重选，不清另一子型；旧项目/会话按钮不影响新项目/会话同 ID 选区；五种本地内容在助手未连接时仍可移除，组件卸载后的旧按钮不写新选区。
+7. 带旧 contextSnapshot 的草稿 A，改选 B 新发送只含 B；继续/重试保留原轮（lane replay admission）；导演焦点标签 onClear 与旧浮条 storyboardLaunchMessage 唯一动作表仍绿。
+8. 真窗口 zh-CN/en、light、隔离资料、本机回环：两视频 × 后再发；同名双视频只删其一再发；单字幕 × 后再发；点空白清空再发。读芯片、时间轴、最后新输入 ID/顺序/原始标题/startMs；每张截图亲眼打开看。
+9. 现有四工作面选择、文字/空白/不存在/去重、40节点预算保持既有定向测试绿；不把文稿 source、导演焦点或 @引用总数等同芯片数。
+10. 两板只补注记（label/change/status 不动），设计实验室相对同机主分支逐格无意外变化；相关 data-* 走查全部运行。
 
-这一类还会从哪里回来：新增一个工作面或一种可选中对象（如音频波形选区）时在消费者里另算一遍；由「读原始选区字段只准两个文件」的规则和对拍测试守。
+故意改坏反例表（日志入协调证据目录）：
+- X1：在新显示边界把标题转大写 → DOM/发送对拍红 → 还原绿。
+- X2：最终新输入优先旧 contextSnapshot → 带旧快照草稿对拍红 → 还原绿。
+- X3：在新显示边界拼任意新后缀 → DOM/发送对拍红 → 还原绿。
+- × 回到空路（不做取消） → 目标组件测试和真窗口目标断言均红 → 还原绿；PR 头 3ba25d8dd 原样也红。
+- 全部拦下：选区芯片不画 × 或发送全丢选区 → 同两条目标测试红 → 还原绿。
+- 外壳加回按 kind 通用分派 → 接口类型/接线约束红 → 还原绿。
+- 既有 A/B 原始选区旁路、C 摘掉字幕、D 去掉去重/存活过滤、E 空白标题、F 重建旧筛选、H 旧恢复盖当前、I 旧后缀等仍按上一轮反例量具核验；正例合法主人/订阅适配不误伤。
 
-真实场景复现：创作者在预览里只选一段字幕后给助手发话。修前：芯片亮着，助手那一轮快照 0 条；修后：快照 1 条。和创作者那次的差别：用测试夹具与隔离资料目录里的示例时间轴，不用用户真实项目。
+真实场景差异：使用隔离示例时间轴与回环假模型，不用用户项目、不连真供应商、不花钱。没有真实旧会话冷启/真实模型任务证明则明确未验证。
+执行结果：目标组件 14 例、中英真窗口四场景及原有五场景、X1/X2/X3、空路/不画 × 两种失败版本及还原、类型与旧案反例均已留收据；另用未连接时五种 × 先红、修后绿，以及去掉卸载保护后旧按钮误写红、还原绿，验证保护不依赖助手可用性。相关 data-* 读者 8 条已全跑，其中 reference-entry、editing-real-user-pass、agent-timeline-ops、node-prompt-presets 在固定版与原头 3ba25d8dd 同一停点失败，记 partial，其余 4 条通过；未改这些产品区域或走查来消红。
+回滚：git revert 本次实现提交；数据格式不变。到 2026-12-01 任一预测失败重开方向检查。
 
-回滚：`git revert` 该提交；不改数据格式。
-独立验收：另一条线按本格清单验，报告链接放 PR 正文。
+同批合并适配（一次性）：主分支新增的 projectLivenessContent.census.test.ts 仍把先前已删 contextHandle 的 projectAgentReferences 列作地址类型；移除过期的类型见证键，运行时字段归类与扫描不变；该测试和 check:test-types 核验。

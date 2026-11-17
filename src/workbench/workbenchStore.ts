@@ -219,6 +219,7 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   nudgeTimelineClip: (clipId: string, deltaFrame: number) => void
   /** additive(shift/⌘)：在集合中切换；否则替换为单选。 */
   selectTimelineClip: (clipId: string, options?: { additive?: boolean }) => void
+  deselectTimelineItem: (id: string, kind: 'media' | 'text', isCurrent: () => boolean) => void
   setTimelineSelection: (clipIds: string[]) => void
   setTimelinePlayhead: (frame: number) => void
   setTimelineZoom: (scale: number) => void
@@ -682,6 +683,12 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       return { selectedTimelineClipIds: [id], selectedTextClipId: '' }
     })
   },
+  deselectTimelineItem: (id, kind, isCurrent) => set(state => {
+    if (!isCurrent()) return state
+    if (kind === 'text') return state.selectedTextClipId === id ? { selectedTextClipId: '' } : state
+    return state.selectedTimelineClipIds.includes(id)
+      ? { selectedTimelineClipIds: state.selectedTimelineClipIds.filter(current => current !== id) } : state
+  }),
   setTimelineSelection: (clipIds) => {
     const ids = Array.from(new Set((clipIds || []).map((id) => String(id || '').trim()).filter(Boolean)))
     set({ selectedTimelineClipIds: ids, selectedTextClipId: '' })

@@ -41,7 +41,7 @@ import type {
   InterventionData,
   PermissionTier,
   QueueRowData,
-  V4Chip,
+  V4ComposerReference,
   V4FlowItem,
 } from './agentPanelV4Types'
 import { DEFAULT_PERMISSION_TIER } from './agentPanelV4Types'
@@ -114,7 +114,7 @@ export type AgentPanelV4PanelProps = {
   context: ContextUsage
   composer?: Omit<AgentPanelV4ComposerProps, 'panelHeight'> & {
     permission?: PermissionTier
-    chips?: readonly V4Chip[]
+    chips?: readonly V4ComposerReference[]
   }
   width?: number
   height?: number

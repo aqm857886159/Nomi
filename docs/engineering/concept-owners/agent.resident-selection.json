@@ -22,6 +22,18 @@
     {
       "path": "src/workbench/ai/resident/residentContextSnapshot.ts",
       "symbol": "residentSelectionInput"
+    },
+    {
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "deselectTimelineItem"
+    },
+    {
+      "path": "src/workbench/ai/resident/ResidentComposerContext.tsx",
+      "symbol": "captureResidentSendContext"
+    },
+    {
+      "path": "src/workbench/ai/resident/ResidentComposerContext.tsx",
+      "symbol": "useResidentComposerContext"
     }
   ],
   "forbidden_derivations": [
@@ -39,8 +51,9 @@
   "parity_test": "src/workbench/ai/resident/residentSelection.test.ts",
   "allowed_consumers": [
     "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
-    "src/workbench/ai/resident/timelineAgentSurface.tsx"
+    "src/workbench/ai/resident/timelineAgentSurface.tsx",
+    "src/workbench/ai/resident/ResidentComposerContext.tsx"
   ],
   "since": "2026-11-17",
-  "notes": "发给模型的投影另有唯一主人（agent.context-snapshot-projection），这里不动它，也不动 6000 字符压缩预算。渲染层读原始选区字段（selectedNodeIds / selectedTimelineClipIds / selectedTextClipId）只许选区主人和芯片订阅 hook 两个文件，ESLint 规则 resident-selection/no-restricted-syntax 守（scripts/resident-selection-owner.mjs）；这条规则只封同名字段的读取，换了名字重建筛选的写法靠上面的定义禁令，不声称全封。有意不同、不并：当前域限制（只收当前工作面的选区，文稿始终带）、发送时冻结 vs 渲染时实时读取、芯片只按位置报「已变更」、导演镜头与 @ 引用等附加句柄。今天只有预览面有选区芯片，画布 / 创作 / 分镜面没有，保持。"
+  "notes": "发给模型的投影另有唯一主人（agent.context-snapshot-projection），这里不动它，也不动 6000 字符压缩预算。渲染层读原始选区字段（selectedNodeIds / selectedTimelineClipIds / selectedTextClipId）只许选区主人和芯片订阅 hook 两个文件，ESLint 规则 resident-selection/no-restricted-syntax 守（scripts/resident-selection-owner.mjs）；这条规则只封同名字段的读取，换了名字重建筛选的写法靠上面的定义禁令，不声称全封。有意不同、不并：当前域限制（只收当前工作面的选区，文稿始终带）、发送时冻结 vs 渲染时实时读取、导演镜头与 @ 引用等附加句柄。今天只有预览面有选区芯片，画布 / 创作 / 分镜面没有，保持。"
 }
