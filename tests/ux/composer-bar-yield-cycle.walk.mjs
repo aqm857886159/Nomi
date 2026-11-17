@@ -64,15 +64,20 @@ const armFirstMountFrames = (win) => win.evaluate(() => {
     const footer = document.querySelector(selector)
     if (!footer) return
     observer.disconnect()
+    // 首次由尺寸回调启动，后续读数排在每帧的布局/RO 阶段之后。
+    const sizeObserver = new ResizeObserver(() => {
+      sizeObserver.disconnect()
+      setTimeout(frame, 0)
+    })
     function frame() {
       const bar = footer.querySelector('[data-bar-segment="model-params"] > *')
       const right = bar.getBoundingClientRect().right
       const out = [...bar.querySelectorAll('[data-yield-item]')].filter(el => el.getBoundingClientRect().right > right + .5).map(el => el.textContent)
-      window.__barFirstFrames.push({ frame: window.__barFirstFrames.length, items: bar.querySelectorAll('[data-yield-item]').length, width: footer.getBoundingClientRect().width, level: footer.getAttribute('data-bar-yield-level'), out })
-      if (window.__barFirstFrames.length < 30) requestAnimationFrame(frame)
+      window.__barFirstFrames.push({ phase: 'after-resize-observer', time: performance.now(), frame: window.__barFirstFrames.length, items: bar.querySelectorAll('[data-yield-item]').length, width: footer.getBoundingClientRect().width, level: footer.getAttribute('data-bar-yield-level'), out })
+      if (window.__barFirstFrames.length < 30) requestAnimationFrame(() => setTimeout(frame, 0))
       else window.__barFirstFramesDone = true
     }
-    requestAnimationFrame(frame)
+    sizeObserver.observe(footer)
   }
   observer.observe(document.body, { childList: true, subtree: true })
   start()
@@ -222,7 +227,7 @@ try {
       await openStoryboardEditor(win, { pick: 'first' }, '同数据重开核让级')
       const reopened = await readBar(win.locator('.workbench-storyboard [data-storyboard-row="1"]').first())
       record.firstMount = { frames, settledAt, reopened }
-      if (frames.length !== 30 || frames.slice(settledAt).some(frame => frame.out.length || frame.items < 2) || final.level !== reopened.level) record.failures.push(`首挂载不变量: ${JSON.stringify(record.firstMount)}`)
+      if (frames.length !== 30 || frames.slice(settledAt).some(frame => frame.out.length || frame.items < 2 || frame.level !== reopened.level) || final.level !== reopened.level) record.failures.push(`首挂载不变量: ${JSON.stringify(record.firstMount)}`)
       await screenshotSettled(win, { path: shot(`first-mount-reopened-${lang(locale)}`) })
       record.passed = record.failures.length === 0
       if (!record.passed) { failed = true; for (const failure of record.failures) console.error(`✗ ${locale} · 关面板后出界或相压 · ${failure}`) }

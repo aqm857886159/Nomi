@@ -14,8 +14,11 @@ const { openDesignLabScreen } = await import('./uiDriverLab.mjs')
 const out = path.resolve(process.env.SHOTS_DIR || '.tmp/bar-yield-history')
 fs.mkdirSync(out, { recursive: true })
 const surfaces = [{}, {}], results = [], failures = [], errors = []
-let seed = 20261117
-const random = n => { seed = (1664525 * seed + 1013904223) >>> 0; return seed % n }
+const initialSeed = Number(process.env.YIELD_HISTORY_SEED || 20261117) >>> 0
+let seed = initialSeed
+// 高位映射，避免 random(2) 只取线性同余数列交替的奇偶位。
+const random = n => { seed = (1664525 * seed + 1013904223) >>> 0; return Math.floor(seed / 0x100000000 * n) }
+const coverage = { lang: new Set(), busy: new Set(), resolution: new Set() }
 const settle = p => p.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve)))))
 async function open(surface) {
   await openDesignLabScreen(surface, { screen: 'node-composer-bar', state: 'cp-matrix', viewport: { width: 1600, height: 1100 }, theme: 'light' })
@@ -66,6 +69,7 @@ try {
         else await current.keyboard.press('Escape')
       } else { Object.assign(state, action); await current.evaluate(a => window.__yieldHistory.set(a), action); await settle(current) }
       const before = await facts(current)
+      if (step >= 13) for (const key of Object.keys(coverage)) if (key in action) coverage[key].add(action[key])
       await language(fresh, actualLang)
       await fresh.evaluate(s => { window.__yieldHistory.set(s); window.__yieldHistory.remount() }, state)
       await settle(fresh)
@@ -84,8 +88,10 @@ try {
   }
 } finally {
   for (const surface of surfaces) await surface.lab?.close()
-  fs.writeFileSync(path.join(out, 'history-report.json'), JSON.stringify({ seed: 20261117, steps: results.length, results, failures, errors }, null, 2))
+  fs.writeFileSync(path.join(out, 'history-report.json'), JSON.stringify({ seed: initialSeed, randomCoverage: Object.fromEntries(Object.entries(coverage).map(([key, values]) => [key, [...values]])), steps: results.length, results, failures, errors }, null, 2))
 }
+for (const key of ['lang', 'busy']) assert.equal(coverage[key].size, 2, `random ${key} must exercise both values`)
+for (const value of ['720p', '1080p', '1K', '2K']) assert.ok(coverage.resolution.has(value), `random resolution missing ${value}`)
 assert.equal(errors.length, 0, JSON.stringify(errors))
 assert.equal(failures.length, 0, `${failures.length} history invariant failures`)
 console.log(`PASS ${results.length} steps: all controls hittable, current whole values, same as fresh mount`)
