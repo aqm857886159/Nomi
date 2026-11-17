@@ -62,73 +62,143 @@ function resultShowsUrl(result: GenerationNodeResult, renderUrl: string): boolea
 // 被它们用着的文件在删掉原结果后进了回收站。现在不列位置：项目内容里任何一个字符串（含对象的键）只要指向这份文件，
 // 就算有人用。宁可多留，不可误删；新加的引用位置不用回这里登记。
 
-/** 项目内容里提到过的文件，两种粒度：带项目 id 的本地地址（精确），和没有项目 id 可核的路径（按路径段后缀，宁可多留）。 */
+/**
+ * 项目内容里提到过的文件，两种粒度：
+ * - `exact`：本地地址（nomi-local）解出的「项目 + 相对路径」，精确比（别的项目的同名文件不算）；
+ * - `text`：其余提到路径的文字（裸相对 / 绝对路径、file://、Windows 路径、夹在文字里的），规范化后拼成一段，
+ *   查询时找「整段相对路径出现在路径边界上」——没有项目 id 可核，宁可多留。
+ *
+ * 规范化对「地址写法 × 路径里的字符」整类成立，不按字符打补丁：写法（编码 / 二次编码 / 未编码、查询串和锚点、
+ * 反斜杠、盘符大小写）都在建索引时摊平成同一种样子；路径里的字符（空格、中文、组合字符、# % + & 括号）
+ * 不再被当作分隔符或截断点——串里有空白也照样扫。
+ */
 export type ProjectFileReferences = {
   readonly exact: ReadonlySet<string>
-  readonly suffixes: ReadonlySet<string>
+  readonly text: string
 }
 
-const LOCAL_URL_IN_TEXT = /nomi-local:\/\/[^\s"'<>()[\]{}`]+/gi
-const OTHER_SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i
-/** 比较前统一：分隔符、Unicode 组合形式、大小写（macOS / Windows 文件系统默认不区分大小写）。 */
+/** 文字里夹着的本地地址：到空白、引号、尖括号为止（括号、方括号是合法的地址字符，结尾多吃的标点下面逐个削掉试）。 */
+const LOCAL_URL_IN_TEXT = /nomi-local:\/\/[^\s"'<>`]+/gi
+const LOCAL_URL_PREFIX = /^nomi-local:\/\/(asset|production-preview)\//i
+/** 别的协议的地址（https、blob……）不是项目文件，先从文字里抠掉；file:// 留着。 */
+const OTHER_URL_IN_TEXT = /(?<![a-z0-9+.-])(?!file:)[a-z][a-z0-9+.-]*:\/\/[^\s"'<>`]*/gi
+const DATA_URI_IN_TEXT = /data:[a-z]+\/[^\s"'<>`]*/gi
+/** 夹在文字 / Markdown 里时地址尾巴可能带上的标点。 */
+const TRAILING_PUNCTUATION = /[)\]}([{.,;:!?，。、；：！？」』）】]$/
+const MAX_DECODE_ROUNDS = 3
+
+/** 宽松百分号解码一轮：整段能按 UTF-8 解的解掉；解不了的（文件名里本来就有的 %、半个多字节字符）只解 ASCII 那几个，其余原样留。 */
+function decodeOnce(value: string): string {
+  return value.replace(/(?:%[0-9a-f]{2})+/gi, (run) => {
+    try { return decodeURIComponent(run) } catch {
+      return run.replace(/%([0-7][0-9a-f])/gi, (_escape, hex: string) => String.fromCharCode(parseInt(hex, 16)))
+    }
+  })
+}
+
+/** 原样 + 每一轮解码的结果（二次编码解两轮），直到不再变化，最多三轮。每一种都算这份地址的一个写法。 */
+function decodeRounds(value: string): string[] {
+  const rounds = [value]
+  let current = value
+  for (let round = 0; round < MAX_DECODE_ROUNDS && current.includes('%'); round += 1) {
+    const next = decodeOnce(current)
+    if (next === current) break
+    rounds.push(next)
+    current = next
+  }
+  return rounds
+}
+
+/** 比较前统一：分隔符（反斜杠、重复斜杠）、Unicode 组合形式、大小写（macOS / Windows 文件系统默认不区分大小写，盘符也是）。 */
+function normalizePathText(value: string): string {
+  // 快路径（扫描里绝大多数地址）：纯 ASCII、没有反斜杠 / 重复斜杠 —— 只需小写。
+  if (!/[^\x20-\x7e]|\\|\/\//.test(value)) return value.toLowerCase()
+  return value.replace(/\\/g, '/').replace(/\/{2,}/g, '/').normalize('NFC').toLowerCase()
+}
+
 function normalizeRelativePath(value: string): string {
-  // 快路径（扫描里绝大多数地址）：纯 ASCII、没有反斜杠 / 重复斜杠 / 开头的 ./ —— 只需小写。
-  const plain = !/[^\x20-\x7e]|\\|\/\/|^\.\//.test(value)
-  if (plain) return value.toLowerCase()
-  return value.replace(/\\/g, '/').replace(/^\.\/+/, '').replace(/\/+/g, '/').normalize('NFC').toLowerCase()
+  return normalizePathText(value.trim()).replace(/^(?:\.\/|\/)+/, '')
 }
 
 function exactKey(projectId: string, relativePath: string): string {
   return `${projectId.trim()}\u0000${normalizeRelativePath(relativePath)}`
 }
 
-function decodeSegment(segment: string): string {
-  if (!segment.includes('%')) return segment
-  try { return decodeURIComponent(segment) } catch { return segment }
+/**
+ * 本地地址 nomi-local://asset/<项目>/<路径> 与 nomi-local://production-preview/<项目>/<run>/<artifact>/<路径>?preview=…：
+ * 带不带查询串 / 锚点（未编码的 # 也可能是文件名的一部分）× 每一轮解码，全部记成精确键。
+ */
+function addLocalUrl(url: string, exact: Set<string>): void {
+  const prefix = LOCAL_URL_PREFIX.exec(url)
+  if (!prefix) return
+  const preview = prefix[1].toLowerCase() === 'production-preview'
+  const remainder = url.slice(prefix[0].length)
+  const withoutQuery = remainder.split(/[?#]/, 1)[0]
+  for (const raw of withoutQuery === remainder ? [remainder] : [withoutQuery, remainder]) {
+    for (const decoded of decodeRounds(raw)) {
+      const segments = decoded.split('/').filter(Boolean)
+      const projectId = segments[0]?.trim()
+      const pathSegments = preview ? segments.slice(3) : segments.slice(1)
+      if (projectId && pathSegments.length > 0) exact.add(exactKey(projectId, pathSegments.join('/')))
+    }
+  }
 }
 
-/** nomi-local://asset/<项目>/<路径> 与 nomi-local://production-preview/<项目>/<run>/<artifact>/<路径>?preview=…。 */
-function localUrlTarget(url: string): ProjectFileTarget | null {
-  const match = /^nomi-local:\/\/(asset|production-preview)\/([^?#]*)/i.exec(url)
-  if (!match) return null
-  const segments = match[2].split('/').filter(Boolean).map(decodeSegment)
-  const preview = match[1].toLowerCase() === 'production-preview'
-  const projectId = segments[0]?.trim()
-  const pathSegments = preview ? segments.slice(3) : segments.slice(1)
-  return projectId && pathSegments.length > 0 ? { projectId, relativePath: pathSegments.join('/') } : null
+/** 文字里抠出来的本地地址：尾巴上的标点逐个削掉，每一种长度都试（文件名本身也可能以括号结尾）。 */
+function addLocalUrlFromText(found: string, exact: Set<string>): void {
+  // 两个地址首尾相接（中间没有空白）：按下一个地址的开头切开。
+  for (const piece of found.split(/(?=nomi-local:)/i)) {
+    let candidate = piece
+    addLocalUrl(candidate, exact)
+    while (TRAILING_PUNCTUATION.test(candidate)) {
+      candidate = candidate.slice(0, -1)
+      addLocalUrl(candidate, exact)
+    }
+  }
 }
 
-const MAX_BARE_PATH_LENGTH = 2048
+const ADDRESS_STOP = /[\s"'<>`]/
 
-function collectString(value: string, exact: Set<string>, suffixes: Set<string>): void {
+function collectString(value: string, exact: Set<string>, texts: string[]): void {
   // 指向文件的写法一定带路径分隔符：键名、短词、普通文案在这里就过去了。
   if (value.length < 3 || (value.indexOf('/') < 0 && value.indexOf('\\') < 0) || value.startsWith('data:')) return
-  // 快路径：整串就是一个地址（最常见），不必在串里再找。
-  if (value.startsWith('nomi-local://') && value.indexOf('nomi-local:', 1) < 0 && !/[\s"'<>()[\]{}`]/.test(value)) {
-    const target = localUrlTarget(value)
-    if (target) exact.add(exactKey(target.projectId, target.relativePath))
-    return
-  }
-  if (/nomi-local:/i.test(value)) {
-    // 整串是地址，或长文本（原稿、提示词、富文本 JSON）里夹着地址：逐个解析。
-    for (const found of value.matchAll(LOCAL_URL_IN_TEXT)) {
-      const target = localUrlTarget(found[0])
-      if (target) exact.add(exactKey(target.projectId, target.relativePath))
+  let rest = value
+  if (value.indexOf('nomi-local:') >= 0 || /nomi-local:/i.test(value)) {
+    const whole = value.trim()
+    const single = whole.startsWith('nomi-local://')
+      ? whole.indexOf('nomi-local:', 1) < 0
+      : LOCAL_URL_PREFIX.test(whole) && whole.toLowerCase().indexOf('nomi-local:', 1) < 0
+    if (single) {
+      // 整串当一个地址（最常见；未编码的空格、括号也算在地址里）。中间没有空白引号的，就只是一个地址。
+      addLocalUrl(whole, exact)
+      if (!ADDRESS_STOP.test(whole)) return
     }
-    return
+    // 长文本（原稿、提示词、富文本 JSON）里夹着地址：逐个解析，同时从文字里抠掉——本地地址只按项目精确比。
+    rest = value.replace(LOCAL_URL_IN_TEXT, (found) => { addLocalUrlFromText(found, exact); return ' ' })
   }
-  if (value.length > MAX_BARE_PATH_LENGTH || /\s/.test(value)) return
-  if (OTHER_SCHEME.test(value) && !/^file:\/\//i.test(value)) return
-  // 裸相对路径、时间轴片段来源 `asset:<素材 id>`（项目素材的 id 是 `<项目>:<路径>`）、file:// 或绝对路径指到项目目录里：
-  // 没有项目 id 可核，按路径段后缀记；段里带冒号的（`<项目>:<路径>`、`C:`）冒号前后两种切法都记。
-  const bare = value.split(/[?#]/, 1)[0].replace(/^file:\/\//i, '').replace(/^asset:/i, '')
-  if (!bare.includes('/') && !bare.includes('\\')) return
-  const segments = normalizeRelativePath(decodeSegment(bare)).split('/').filter(Boolean)
-  for (let index = 0; index < segments.length; index += 1) {
-    suffixes.add(segments.slice(index).join('/'))
-    const colon = segments[index].lastIndexOf(':')
-    if (colon >= 0 && colon < segments[index].length - 1) suffixes.add([segments[index].slice(colon + 1), ...segments.slice(index + 1)].join('/'))
+  if (rest.indexOf('://') >= 0) rest = rest.replace(OTHER_URL_IN_TEXT, ' ')
+  if (rest.indexOf('data:') >= 0) rest = rest.replace(DATA_URI_IN_TEXT, ' ')
+  if (rest.indexOf('/') < 0 && rest.indexOf('\\') < 0) return
+  for (const decoded of decodeRounds(rest)) texts.push(normalizePathText(decoded))
+}
+
+/** 相对路径前后必须是路径边界：前面是开头 / 分隔符 / 冒号（盘符、asset: 前缀）/ 空白 / 引号括号；后面不能接着同一个文件名。 */
+const ENTRY_SEPARATOR = '\u0000'
+const PATH_START_BOUNDARY = /[\s/:"'`([{<>=,;|]/
+function endsAtBoundary(text: string, end: number): boolean {
+  const next = text[end]
+  if (next === undefined || !/[a-z0-9_.-]/.test(next)) return true
+  // 「…a.png。」「…a.png.」是句末标点；「a.png.bak」「a.png2」是别的文件。
+  return next === '.' && !/[a-z0-9_-]/.test(text[end + 1] ?? '')
+}
+
+function textMentionsPath(text: string, path: string): boolean {
+  if (!path) return false
+  for (let at = text.indexOf(path); at >= 0; at = text.indexOf(path, at + 1)) {
+    const before = text[at - 1]
+    if ((at === 0 || before === ENTRY_SEPARATOR || PATH_START_BOUNDARY.test(before)) && endsAtBoundary(text, at + path.length)) return true
   }
+  return false
 }
 
 /**
@@ -144,12 +214,12 @@ function nodeLivenessView(node: GenerationCanvasNode): unknown {
 /** 把项目内容整份走一遍，收出它提到的全部文件。`nodes` 是摘完结果之后的画布节点，`rest` 是其余内容（任意形状）。 */
 export function collectProjectFileReferences(nodes: readonly GenerationCanvasNode[], rest: unknown): ProjectFileReferences {
   const exact = new Set<string>()
-  const suffixes = new Set<string>()
+  const texts: string[] = []
   const seen = new WeakSet<object>()
   const stack: unknown[] = [rest, ...nodes.map(nodeLivenessView)]
   while (stack.length > 0) {
     const value = stack.pop()
-    if (typeof value === 'string') { collectString(value, exact, suffixes); continue }
+    if (typeof value === 'string') { collectString(value, exact, texts); continue }
     if (!value || typeof value !== 'object') continue
     if (seen.has(value)) continue
     seen.add(value)
@@ -157,11 +227,11 @@ export function collectProjectFileReferences(nodes: readonly GenerationCanvasNod
     if (value instanceof Map) { for (const [key, item] of value) stack.push(key, item); continue }
     if (value instanceof Set) { for (const item of value) stack.push(item); continue }
     for (const key of Object.keys(value)) {
-      collectString(key, exact, suffixes)
+      collectString(key, exact, texts)
       stack.push((value as Record<string, unknown>)[key])
     }
   }
-  return { exact, suffixes }
+  return { exact, text: texts.join(ENTRY_SEPARATOR) }
 }
 
 /**
@@ -171,7 +241,7 @@ export function collectProjectFileReferences(nodes: readonly GenerationCanvasNod
 export function isProjectFileReferenced(target: ProjectFileTarget, references: ProjectFileReferences | null): boolean {
   if (!references) return true
   return references.exact.has(exactKey(target.projectId, target.relativePath))
-    || references.suffixes.has(normalizeRelativePath(target.relativePath))
+    || textMentionsPath(references.text, normalizeRelativePath(target.relativePath))
 }
 
 /** 从一张卡上依次摘掉几版；摘不掉的（不是媒体结果）跳过。一版都没摘掉 = null。 */

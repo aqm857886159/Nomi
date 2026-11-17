@@ -32,6 +32,45 @@ const P = 'project-1'
 const target = { projectId: P, relativePath: 'assets/generated/a.png' }
 const scan = (rest: unknown, nodes: GenerationCanvasNode[] = []) => isProjectFileReferenced(target, collectProjectFileReferences(nodes, rest))
 
+// ── 地址写法 × 路径里的字符：同一个真实文件的各种写法 ────────────────────────────────
+// 项目目录外的那段（默认位置就叫「Nomi Projects」，带空格）和文件名本身，都可能带空格、中文、# % + & 括号、组合字符；
+// 写法有裸绝对路径、Windows（反斜杠 / 正斜杠 / 大小写盘符）、file://（未编码 / 编码 / 二次编码）、nomi-local（编码 / 二次编码 / 未编码）、
+// 夹在文字里、Markdown 里、裸相对路径、时间轴 asset: 前缀。性质：任何一种都判「有人用」。
+const ROOT_DIRS = ['Nomi', 'Nomi Projects', '我的 项目', 'R&D (2026)', 'a#b', '100%', 'c++', 'Cafe\u0301 文件夹']
+const FILE_NAMES = ['a.png', 'a b.png', '镜头 1 参考.png', 'a#1.png', '50%.png', 'a+b.png', 'a&b.png', 'shot (2).png', 'e\u0301te\u0301.png']
+const encodeSegments = (segments: string[], rounds: number) => segments.map((segment) => {
+  let out = segment
+  for (let round = 0; round < rounds; round += 1) out = encodeURIComponent(out)
+  return out
+}).join('/')
+function spellings(projectId: string, relativePath: string, root: string): Array<[string, string]> {
+  const rel = relativePath.split('/')
+  const posix = ['Users', 'someone', root, projectId, ...rel]
+  const windows = ['Users', 'Creator', root, projectId, ...rel]
+  const local = (rounds: number) => `nomi-local://asset/${encodeSegments([projectId, ...rel], rounds)}`
+  return [
+    ['裸绝对路径', `/${posix.join('/')}`],
+    ['Windows 反斜杠', `C:\\${windows.join('\\')}`],
+    ['Windows 小写盘符', `c:\\${windows.join('\\')}`],
+    ['Windows 正斜杠', `D:/${windows.join('/')}`],
+    ['Windows 网络路径', `\\\\nas\\share\\${windows.join('\\')}`],
+    ['file:// 未编码', `file:///${posix.join('/')}`],
+    ['file:// 编码', `file:///${encodeSegments(posix, 1)}`],
+    ['file:// 二次编码', `file:///${encodeSegments(posix, 2)}`],
+    ['file:// Windows 编码', `file:///C:/${encodeSegments(windows, 1)}`],
+    ['file://localhost', `file://localhost/${encodeSegments(posix, 1)}`],
+    ['nomi-local 编码', local(1)],
+    ['nomi-local 二次编码', local(2)],
+    ['nomi-local 未编码', local(0)],
+    ['nomi-local 带查询串', `${local(1)}?v=3#crop`],
+    ['nomi-local 夹在文字里', `镜头 3 参考 ${local(1)} 的光线`],
+    ['nomi-local 在 Markdown 里', `![参考](${local(1)})。`],
+    ['绝对路径夹在文字里', `见 /${posix.join('/')} 这张`],
+    ['裸相对路径', relativePath],
+    ['时间轴 asset:<项目>:<路径>', `asset:${projectId}:${relativePath}`],
+  ]
+}
+
 beforeEach(() => {
   mocks.deleteFiles.mockReset()
   mocks.deleteFiles.mockImplementation(async ({ relativePaths }: { relativePaths: string[] }) => ({ deletedPaths: relativePaths, failed: [] }))
@@ -63,6 +102,17 @@ describe('地址的写法：指向这份文件的都算有人用', () => {
   ]
   for (const [label, value] of hits) it(label, () => expect(scan({ value })).toBe(true))
 
+  describe('写法 × 路径里的字符（项目目录外那段和文件名都换）', () => {
+    for (const root of ROOT_DIRS) for (const name of FILE_NAMES) {
+      const file = { projectId: P, relativePath: `assets/generated/${name}` }
+      for (const [form, value] of spellings(P, file.relativePath, root)) {
+        it(`${form} · 目录「${root}」· 文件「${name}」`, () => {
+          expect(isProjectFileReferenced(file, collectProjectFileReferences([], { value })), value).toBe(true)
+        })
+      }
+    }
+  })
+
   it('Unicode 组合形式不同（NFD 存、NFC 比）也算', () => {
     const nfc = { projectId: P, relativePath: 'assets/generated/é.png' }
     const refs = collectProjectFileReferences([], { s: 'nomi-local://asset/project-1/assets/generated/e\u0301.png' })
@@ -76,6 +126,9 @@ describe('地址的写法：指向这份文件的都算有人用', () => {
     ['只是同名不同目录', 'assets/other/a.png'],
     ['只有文件名', 'a.png'],
     ['类型串', 'image/png'],
+    ['别的项目的同名文件（编码 + 文件名带空格）', 'nomi-local://asset/project-2/assets/generated/a%20b.png'],
+    ['外网地址里带空格编码', 'https://cdn.example.invalid/x/assets/generated/a.png?name=a%20b'],
+    ['同名不同扩展', 'assets/generated/a.png2'],
   ]
   for (const [label, value] of misses) it(`不算：${label}`, () => expect(scan({ value })).toBe(false))
 
@@ -124,10 +177,14 @@ describe('经装配口：项目里各处挂着这份文件都算（真 store）'
     const rand = (n: number) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n }
     const live = readLoadedProjectLivenessContent(P, 'alive')!
     for (let round = 0; round < 300; round += 1) {
-      let leaf: unknown = forms[rand(forms.length)]
+      // 一半用上面的固定写法（对 a.png），一半随机挑「目录 × 文件名 × 写法」（对随机挑中的那份文件）。
+      const name = FILE_NAMES[rand(FILE_NAMES.length)]
+      const file = rand(2) ? target : { projectId: P, relativePath: `assets/generated/${name}` }
+      const generated = spellings(P, file.relativePath, ROOT_DIRS[rand(ROOT_DIRS.length)])
+      let leaf: unknown = file === target ? forms[rand(forms.length)] : generated[rand(generated.length)][1]
       for (let depth = rand(8); depth > 0; depth -= 1) leaf = rand(2) ? [leaf] : { [`k${rand(1000)}`]: leaf, other: rand(10) }
       const rest = { ...(live.rest as Record<string, unknown>), [`newField${round}`]: leaf }
-      expect(isProjectFileReferenced(target, collectProjectFileReferences(live.nodes, rest))).toBe(true)
+      expect(isProjectFileReferenced(file, collectProjectFileReferences(live.nodes, rest)), JSON.stringify(leaf)).toBe(true)
     }
   })
 })
