@@ -6,7 +6,8 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 import * as snapshotModule from '../../../electron/shared/agentContextSnapshot'
-import { buildResidentContextSnapshot } from '../../../src/workbench/ai/resident/residentContextSnapshot'
+import { resolveResidentSelection, type ResidentContextCaptureInput } from '../../../src/workbench/ai/resident/residentContextSnapshot'
+const snapshotOf = (input: ResidentContextCaptureInput) => resolveResidentSelection(input).snapshot
 
 const COUNTS = [1, 12, 16, 24, 40, 256]
 const arg = (name: string) => { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : undefined }
@@ -14,7 +15,7 @@ const arg = (name: string) => { const i = process.argv.indexOf(name); return i >
 const rows = COUNTS.map((count) => {
   const ids = Array.from({ length: count }, (_, i) => `gen-v2-image-lw9x${(i + 10).toString(36)}k-ab${(i + 10).toString(36)}z`)
   const titles = ids.map((_, i) => `镜头标题${i + 1}`)
-  const snapshot = buildResidentContextSnapshot({
+  const snapshot = snapshotOf({
     canvas: { revision: 8, nodes: ids.map((id, i) => ({ id, title: titles[i], kind: 'image' })), selectedNodeIds: ids },
   })
   const text = snapshotModule.formatAgentContextSnapshot(snapshot)
