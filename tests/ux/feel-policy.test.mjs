@@ -4,7 +4,25 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { collectNewFeelSurfaces, updateFeelLedger } from '../../scripts/feel-nightly.mjs'
-import { applyFeelExemptions, compareFeelBaseline, exemptionEvidenceGrowth, recordNewFeelSurfaces } from './_feel-observer.mjs'
+import { applyFeelExemptions, compareFeelBaseline, exemptionEvidenceGrowth, installFeelObserver, recordNewFeelSurfaces } from './_feel-observer.mjs'
+
+test('automatic feel evidence follows the run directory while explicit outputs keep their owner', async () => {
+  const dir = await makeTempDirAsync('feel-output-')
+  const previous = process.env.EVIDENCE_DIR
+  process.env.EVIDENCE_DIR = dir
+  const page = () => ({ screenshot() {}, waitForFunction() {}, waitForSelector() {}, waitForLoadState() {} })
+  try {
+    installFeelObserver(page(), { name: 'isolated-run', baseline: { entries: [] }, exemptions: { entries: [] } })
+    expect(await fs.readdir(dir)).toEqual([expect.stringMatching(/^isolated-run-/)])
+    const explicit = path.join(dir, 'explicit')
+    installFeelObserver(page(), { name: 'explicit', outputDir: explicit, baseline: { entries: [] }, exemptions: { entries: [] } })
+    expect((await fs.stat(explicit)).isDirectory()).toBe(true)
+  } finally {
+    if (previous === undefined) delete process.env.EVIDENCE_DIR
+    else process.env.EVIDENCE_DIR = previous
+    await fs.rm(dir, { recursive: true, force: true })
+  }
+})
 
 const finding = { rule: 'font-size', target: ['span'], text: ['Badge'], fontSizes: [11] }
 const exemptions = { entries: [{ label: 'state', rule: 'font-size', owner: 'typography', reason: 'Reviewed badge', findings: [finding] }] }
