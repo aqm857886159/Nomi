@@ -197,10 +197,13 @@ try {
   const box = await clipB.boundingBox()
   await win.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
   await win.mouse.down()
-  await win.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 6 })
-  await win.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2, { steps: 8 })
+  await win.mouse.move(box.x + box.width / 2 + 20, box.y + box.height / 2, { steps: 6 })
+  await win.mouse.move(box.x + box.width / 2 + 70, box.y + box.height / 2, { steps: 8 })
   await win.mouse.up()
   await win.waitForTimeout(500)
+  // 松手后时间轴会清空选区（既有行为）；重新点选这段，芯片和发送都应带它拖动后的位置。
+  await clipB.click()
+  await expect(chips.first(), 'chip for the clip after dragging').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const draggedChips = await chipTexts()
   const dragged = await sendAndRecord('case5-dragged', 'Case five: where is it now')
   const startAfter = startMsOf(dragged)[0]
