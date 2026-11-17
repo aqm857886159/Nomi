@@ -15,13 +15,12 @@
 // 这里只是把它和三份生产类型检查一起拉起来，所以它不再单列进 gates:contracts。
 import { spawn } from 'node:child_process'
 import path from 'node:path'
-import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { TYPECHECK_PROJECTS } from './lib/typecheckProjects.mjs'
+import { tscCommand } from './lib/tsc-run.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const require = createRequire(import.meta.url)
 
 /** 五份检查。顺序只影响输出顺序；少一份就是静默少查一块，scripts/typecheck.node-test.mjs 钉死名单。 */
 export const TYPECHECK_JOBS = Object.freeze([
@@ -41,7 +40,7 @@ export const INCREMENTAL_DIR = path.join(repoRoot, 'node_modules', '.cache', 'no
 function commandOf(job, incremental = false) {
   if (job.kind === 'tsc') {
     const extra = incremental ? ['--noEmit', '--incremental', '--tsBuildInfoFile', path.join(INCREMENTAL_DIR, `${job.name.replace(/[^A-Za-z0-9]+/g, '-')}.tsbuildinfo`)] : []
-    return [process.execPath, [require.resolve('typescript/bin/tsc'), ...job.args, ...extra]]
+    return tscCommand([...job.args, ...extra])
   }
   return [process.execPath, [path.join(repoRoot, job.script)]]
 }
