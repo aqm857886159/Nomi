@@ -64,7 +64,7 @@ export function LayoutRows({ plan, width, execs = {}, models: catalog }: { plan:
               variants={[]}
               onGenerate={NOOP}
               onRegenerate={NOOP}
-              onToggleLock={NOOP}
+              onToggleFrozen={NOOP}
               onOpenPreview={NOOP}
               onInsertBelow={NOOP}
               onCopy={NOOP}
@@ -102,7 +102,7 @@ export function LayoutAnchors({ cards, aspect, width, imageModels }: { cards: An
           onRemoveAnchor={NOOP}
           onGenerateAnchor={NOOP}
           onRegenerateAnchor={NOOP}
-          onToggleLockAnchor={NOOP}
+          onToggleFrozenAnchor={NOOP}
           onFilterByAnchor={NOOP}
           onAddAnchor={NOOP}
         />

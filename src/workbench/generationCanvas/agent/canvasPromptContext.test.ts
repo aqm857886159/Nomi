@@ -12,7 +12,6 @@ const node = (overrides: Partial<CanvasReadNode> = {}): CanvasReadNode => ({
   prompt: '',
   status: 'idle',
   position: { x: 0, y: 0 },
-  locked: false,
   hasResult: false,
   ...overrides,
 })
@@ -35,7 +34,7 @@ describe('formatCanvasForAgent — canonical canvas.read compact presentation', 
     const longPrompt = '清晨的京都小巷'.repeat(20)
     const text = formatCanvasForAgent(canvas({
       nodes: [
-        node({ id: 'a', title: '小巷', prompt: longPrompt, locked: true }),
+        node({ id: 'a', title: '小巷', prompt: longPrompt }),
         node({
           id: 'b', kind: 'video', title: '鸟居', hasResult: true,
           currentResultId: 'opaque-current', resultIds: ['opaque-current', 'opaque-history'],
@@ -44,7 +43,7 @@ describe('formatCanvasForAgent — canonical canvas.read compact presentation', 
       edges: [{ id: 'e1', source: 'a', target: 'b', mode: 'reference' }],
     }))
 
-    expect(text).toContain('a | image | 小巷 | 已锁定 | prompt: ')
+    expect(text).toContain('a | image | 小巷 | prompt: ')
     expect(text).toContain('b | video | 鸟居 | 已有结果')
     expect(text).toContain('currentResultId: opaque-current')
     expect(text).toContain('resultIds: opaque-current, opaque-history')

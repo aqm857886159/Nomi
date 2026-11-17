@@ -1,5 +1,5 @@
 import type { RunGenerationNodesBatchResult } from './generationRunOutcome'
-// 依赖波次的执行层：把 `DependencyWavePlan` 按波次交给既有的 `runGenerationNodesBatch`，
+// 依赖波次的执行层：把 `GenerationScopePlan`（共用主人给的规划）按波次交给既有的 `runGenerationNodesBatch`，
 // 上游失败就显式挡住下游（不裸跑、不死等）。
 //
 // 为什么单独一个文件：`generationRunController.ts` 是「一个节点怎么跑完」的 owner，
@@ -9,7 +9,7 @@ import { withdrawCanvasShots } from '../../api/taskApi'
 import { deliverRunOutcome, readRunGraph } from './runProjectDelivery'
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 import { useGenerationQueueStore } from './generationQueueStore'
-import type { DependencyWavePlan } from './dependencyWaves'
+import type { GenerationScopeBlockReason, GenerationScopePlan } from '../../../../electron/shared/agentCapabilities/generationShotScope'
 import {
   runGenerationNodesBatch,
   type RunGenerationNodesBatchOptions,
@@ -18,7 +18,7 @@ import {
 /** Execute dependency waves through the original batch runner; failed upstreams block downstreams.
  * @legacy-batch-frozen (P4 S7): fixes only; new batch capabilities belong to the semantic scheduler. */
 export async function runGenerationNodesByPlan(
-  plan: DependencyWavePlan,
+  plan: GenerationScopePlan,
   options: RunGenerationNodesBatchOptions,
 ): Promise<RunGenerationNodesBatchResult> {
   const successes: RunGenerationNodesBatchResult['successes'] = []
@@ -46,7 +46,7 @@ export async function runGenerationNodesByPlan(
       await deliverRunOutcome(options.target, nodeId, { kind: 'status', status: 'idle' })
       useGenerationQueueStore.getState().markSettled(batchId, nodeId, 'cancelled', { countsTowardBrake: false })
     }
-    const isWaitingReason = (reason: DependencyWavePlan['blocked'][number]['reason']): boolean =>
+    const isWaitingReason = (reason: GenerationScopeBlockReason): boolean =>
       reason === 'unfrozen-anchor' || reason === 'missing-upstream'
     for (const blocked of plan.blocked) {
       if (isWaitingReason(blocked.reason)) await waitNode(blocked.nodeId)

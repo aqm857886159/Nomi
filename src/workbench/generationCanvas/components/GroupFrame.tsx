@@ -175,6 +175,7 @@ export default function GroupFrame({
         description={box.group.description}
         storyboard={Boolean(box.group.materializationOperationId)}
         memberCount={box.memberCount}
+        memberNodeIds={box.group.nodeIds}
         previewCount={previewCount}
         readOnly={readOnly}
         connectable={connectable}

@@ -26,7 +26,7 @@ const binding = { projectId: 'desktop-fixture', immutableProjectUuid: '11111111-
 const documentTarget = { kind: 'document' as const, documentId: 'document-fixture', anchor: { kind: 'whole-document' as const } }
 const documentPreconditions = { document: { revision: 1, contentHash: 'fnv1a-before' } }
 const rawEvidence: CanvasWriteRawEvidence = {
-  node: { id: 'node-fixture', kind: 'image', title: 'Fixture shot', prompt: 'Original fixture prompt', locked: false,
+  node: { id: 'node-fixture', kind: 'image', title: 'Fixture shot', prompt: 'Original fixture prompt',
     categoryId: 'shots', groupId: null,
     model: { modelKey: 'fixture-model', vendorKey: 'fixture-vendor', archetypeId: null, modeId: null, variantId: null }, currentResult: null },
   groups: [],

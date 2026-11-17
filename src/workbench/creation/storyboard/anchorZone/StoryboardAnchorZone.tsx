@@ -37,7 +37,7 @@ type Props = {
   onRegenerateAnchor: (runtime: AnchorCardRuntime) => void
   /** 可找回锚卡的**免费**续查（`recoverNodeResult`）；缺省 = 不显示那枚按钮。 */
   onRecoverAnchor?: ((runtime: AnchorCardRuntime) => void) | undefined
-  onToggleLockAnchor: (runtime: AnchorCardRuntime) => void
+  onToggleFrozenAnchor: (runtime: AnchorCardRuntime) => void
   onOpenPreviewAnchor?: ((runtime: AnchorCardRuntime) => void) | undefined
   onFilterByAnchor?: ((anchorId: string) => void) | undefined
   onAddAnchor?: (() => void) | undefined
@@ -100,7 +100,7 @@ export default function StoryboardAnchorZone(props: Props): JSX.Element {
               onGenerate={() => props.onGenerateAnchor(runtime)}
               onRegenerate={() => props.onRegenerateAnchor(runtime)}
               onRecover={props.onRecoverAnchor ? () => props.onRecoverAnchor?.(runtime) : undefined}
-              onToggleLock={() => props.onToggleLockAnchor(runtime)}
+              onToggleFrozen={() => props.onToggleFrozenAnchor(runtime)}
               onOpenPreview={props.onOpenPreviewAnchor ? () => props.onOpenPreviewAnchor?.(runtime) : undefined}
               onFilterByAnchor={props.onFilterByAnchor ? () => props.onFilterByAnchor?.(runtime.anchor.id) : undefined}
             />

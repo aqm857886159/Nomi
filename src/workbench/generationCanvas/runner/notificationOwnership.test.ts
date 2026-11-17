@@ -8,6 +8,7 @@ import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
 import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
+import { planOfWaves } from './generationScopeTestPlans'
 
 const mocks = vi.hoisted(() => ({ reveal: vi.fn(async () => true), consent: vi.fn() }))
 vi.mock('../../api/taskApi', () => ({ consentCanvasShots: mocks.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
@@ -68,7 +69,7 @@ describe('background recovery owns the originating project and task', () => {
     mocks.consent.mockImplementation(async () => { await projectSession.open('other-project'); throw new Error('Authorization service unavailable') })
     for (let attempt = 0; attempt < 5; attempt++) {
       await projectSession.open('origin-project')
-      useBatchPlanPreviewStore.getState().open({ waves: [[node.id]], blocked: [], edgesUsed: [] })
+      useBatchPlanPreviewStore.getState().open(planOfWaves([[node.id]]))
       await useBatchPlanPreviewStore.getState().confirm()
     }
     expect(allNotices()).toHaveLength(1)

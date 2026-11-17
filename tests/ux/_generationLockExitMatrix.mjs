@@ -50,8 +50,8 @@ export async function matrixLockExitJourney(input) {
     await expect.poll(async () => (await nodes()).filter(n => n.status === 'recoverable').length, { timeout: stationTimeout({ turns: 1 }) }).toBe(5)
     for (const node of inFlight) {
       const originalRuns = JSON.stringify((await nodes()).find(n => n.id === node.id).runs)
-      await page.evaluate(id => { void window.__nomiConfirmAndRunPlan({ waves: [[id]], edgesUsed: [], blocked: [] }, { initiator: 'user' }) }, node.id)
-      await expect(page.getByText(t('generationCommon.batchPlan.openRunsSkipped').replace('{{count}}', '1'), { exact: true }).first()).toBeVisible()
+      // 「生成整组」的真入口：这一个还在路上（可找回），生成范围一个都不给勾 → 不开卡、不派发。
+      assert.equal(await page.evaluate(id => window.__nomiRunGroupGenerate([id]), node.id), 'empty')
       assert.equal((await nodes()).find(n => n.id === node.id).status, 'recoverable')
       assert.equal(JSON.stringify((await nodes()).find(n => n.id === node.id).runs), originalRuns)
       assert.equal(proxy.records.length, 5)

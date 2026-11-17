@@ -193,3 +193,19 @@ describe('重启收敛 — 被打断的本机处理（剪辑）', () => {
     expect(node?.status).toBe('error')
   })
 })
+
+// 节点锁已撤掉：旧版存下的项目里还有 `locked: true` 的节点，读盘规整丢掉这个字段，节点就是普通节点。
+// 形状取自旧版节点的真实字段（没有真实旧版项目文件，见设计卡 ★1c「未验证：没有真实旧数据」）。
+describe('normalizeStoreSnapshot — 旧版节点锁字段', () => {
+  it('旧项目里 locked:true / locked:false 的节点读盘后都没有 locked 字段，其余字段不动', () => {
+    const snap = normalizeStoreSnapshot({
+      nodes: [
+        { id: 'a', kind: 'image', title: '镜1', position: { x: 1, y: 2 }, prompt: 'p', locked: true },
+        { id: 'b', kind: 'video', title: '镜2', position: { x: 3, y: 4 }, locked: false },
+      ],
+    })
+    expect(snap.nodes).toHaveLength(2)
+    for (const node of snap.nodes) expect(node).not.toHaveProperty('locked')
+    expect(snap.nodes[0]).toMatchObject({ id: 'a', title: '镜1', prompt: 'p', position: { x: 1, y: 2 } })
+  })
+})

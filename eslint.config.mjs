@@ -142,6 +142,13 @@ const walkDialogLocatorSelectors = [
   { selector: 'Literal[value=/fixed[.]inset-0/]', message: WALK_DIALOG_LOCATOR_MESSAGE },
   { selector: 'TemplateElement[value.raw=/fixed[.]inset-0/]', message: WALK_DIALOG_LOCATOR_MESSAGE },
 ]
+const nodeLockRemovedPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const NODE_LOCK_REMOVED_MESSAGE = '节点锁已整个删除（2026-11-17）：不要再加锁节点的按钮、字段、事件或「node_locked」拒绝。助手该碰哪个节点由它自己读画布判断，不靠创作者去锁。'
+const nodeLockRemovedSelectors = [
+  { selector: "Identifier[name=/^(setNodeLocked|NodeLockBadge)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
+  { selector: "Literal[value=/^(canvas[.]node[.](un)?locked|node_locked)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
+  { selector: "TemplateElement[value.raw=/^(canvas[.]node[.](un)?locked|node_locked)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
+]
 // 生成底栏「窄了谁先让」只有一个量的人：InlineParameterBar（方向检查 docs/engineering/direction-checks/2026-11-17-bar-yield.md）。
 // 以前量的不是屏上画的、何时重量是手写清单；底栏里别的组件再自己量宽来定让级，就又多一处会量错的地方。
 // 底栏组件（下面的文件表 + 任何引了 composerBarYield 的文件）不许量宽 / 挂尺寸观察；让级只从 ComposerBarYieldContext 读。
@@ -625,6 +632,16 @@ export default tseslint.config(
     rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
   },
   {
+    // 节点锁（2026-11-17 整个删掉）不许回来：创作者不该为防助手乱动而多学一个概念。
+    // 拦得住：再把 setNodeLocked / NodeLockBadge / canvas.node.(un)locked 事件 / node_locked 拒绝码写进产品源码。
+    // 拦不住：换个名字重做一把锁——那条靠 GenerationCanvasNode 类型里已经没有 locked 字段（node.locked 编译不过）和评审。
+    // 旧版事件日志里的 canvas.node.locked 由重放的 default 分支静默跳过，那条在测试里（测试文件不受此限）。
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx,mts}'],
+    ignores: ['**/*.{test,spec}.{ts,tsx,mts}', '**/__tests__/**'],
+    plugins: { 'node-lock-removed': nodeLockRemovedPlugin },
+    rules: { 'node-lock-removed/no-restricted-syntax': ['error', ...nodeLockRemovedSelectors] },
+  },
+  {
     // 走查 / 脚本 / 测试里不按版面类名找弹窗。
     files: ['tests/**/*.{mjs,cjs,js,ts,tsx}', 'scripts/**/*.{mjs,cjs,js}'],
     plugins: { 'walk-dialog-locator': walkDialogLocatorPlugin },
@@ -909,6 +926,26 @@ export default tseslint.config(
         selector: "VariableDeclarator[id.name=/^(draftPlanAnchorSchema|storyboardDraftPlanSchema)$/] Property[key.name=/^(name|aspectRatio)$/] CallExpression[callee.property.name=/^(min|max|nonempty|length|regex|refine|superRefine|transform|trim)$/]",
         message: 'Draft content fields must remain editable strings; add content constraints only in the strict schema extension.',
       }),
+    },
+  },
+  {
+    // 「生成这一组」的范围只在一处算（2026-11-17）：成员、默认勾选、顺序与依赖分波只由 generationShotScope 的共用主人
+    // planGenerationScope / narrowGenerationScope 给。执行计划带品牌，主人之外 as / satisfies / 尖括号断言成它、
+    // 手拼带 waves + blocked 的对象，都是在长第二个家——当场红。测试也一样：要一份计划就经主人规划（generationScopeTestPlans）。
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: ['electron/shared/agentCapabilities/generationShotScope.ts'],
+    plugins: { 'generation-scope-one-home': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'generation-scope-one-home/no-restricted-syntax': ['error',
+        ...['TSAsExpression', 'TSSatisfiesExpression', 'TSTypeAssertion'].map((node) => ({
+          selector: `${node} > TSTypeReference.typeAnnotation[typeName.name='GenerationScopePlan']`,
+          message: '执行计划只能由共用主人造：改调 planGenerationScope / planCanvasGenerationScope（缩范围用 narrowGenerationScope），不要断言成 GenerationScopePlan。',
+        })),
+        {
+          selector: "ObjectExpression:has(> Property[key.name='waves']):has(> Property[key.name='blocked'])",
+          message: '手拼了一份带 waves + blocked 的执行计划：生成范围只在 generationShotScope 的共用主人里算，入口拿它的结论。',
+        },
+      ],
     },
   },
   prettier,

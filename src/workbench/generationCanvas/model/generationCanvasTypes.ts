@@ -187,11 +187,6 @@ export type GenerationCanvasNode = {
   categoryId?: CategoryId
   groupId?: string
   /**
-   * S6-4 节点锁(N11)：用户锁定的节点，AI 不能改 prompt/删除/接入边（gate deny），
-   * 出边引用照常（定妆用途）。对用户是软门：点锁标一次解锁。事件 source 恒 user。
-   */
-  locked?: boolean
-  /**
    * E.2C-15 语义收窄：**仅用于跨分类独立副本**。
    * 当一个节点从 A 分类拖到 B 分类时，B 中的新副本 derivedFrom = A 节点 id。
    * 这是只读元数据，不做双向同步。
