@@ -1,6 +1,6 @@
 import { createLaneInputAdmission } from './laneInputAdmission.mjs';
 import { originalLaneEntry, precedingLaneInput, resolveLaneReplay, laneOriginalText } from './laneOriginalInput.mjs';
-import { laneInputIntent } from './laneInputIntent.mjs';
+import { laneInputIntent, withRestoredTemplate } from './laneInputIntent.mjs';
 import { openLaneHistoryPage } from './laneHistoryPage.mjs';
 import { attachLaneTrace } from './laneTraceRecorder.mjs';
 import { logWarn } from '../logging/logger.js';
@@ -566,7 +566,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       // Whatever the envelope carried is destructured away first — a submitted value, and the
       // restored draft's historical one, are both discarded — and the key only reappears when
       // this admission actually holds a target. No target = no surface authority (fail-closed).
-      const { admissionSurface: _submitted, ...intent } = { ...currentAdmission, ...restoredIntent };
+      const { admissionSurface: _submitted, ...intent } = withRestoredTemplate(currentAdmission, restoredIntent);
       message = { role: 'nomi.input', content: text, timestamp: Date.now(),
         context: { ...intent, ...(captured.target ? { admissionSurface: captured.target.kind } : {}) } };
     }

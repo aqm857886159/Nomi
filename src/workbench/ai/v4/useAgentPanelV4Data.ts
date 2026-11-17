@@ -19,7 +19,7 @@ import { skillForKey, skillLabelForKey } from '../../skillLibrary/skillDisplay'
 import { onSkillLibraryChanged } from '../../skillLibrary/skillLibraryChanged'
 import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from '../assistantModelIdentity'
 import { getAssistantModelPref, setAssistantModelPref } from '../assistantModelPref'
-import { useTimelinePlanRows, useTimelineSelectionChips } from '../resident/timelineAgentSurface'
+import { useTimelinePlanRows } from '../resident/timelineAgentSurface'
 import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
 import {
   getGenerationModelDefaults,
@@ -30,11 +30,10 @@ import {
   type GenerationModelDefault,
   type GenerationModelDefaultMap,
 } from '../../generationCanvas/model/generationModelDefaults'
-import type { ResidentSurface } from '../resident/residentShellDisplay'
 import { collapseV4Flow } from './agentPanelV4Collapse'
 import { useV4Labels } from './agentPanelV4Labels'
 import { replaceEqualDeep } from './shareEqualDeep'
-import type { ContextUsage, InterventionData, QueueRowData, V4Chip, V4FlowItem } from './agentPanelV4Types'
+import type { ContextUsage, InterventionData, QueueRowData, V4FlowItem } from './agentPanelV4Types'
 
 type ToolDisplay = Readonly<{ label: string; summary: string | undefined }>
 
@@ -118,13 +117,11 @@ export type AgentPanelV4Data = Readonly<{
   skills: readonly SkillListItemDto[]
   /** 技能 key → 界面上的名字（`skillLabelForKey`）。气泡、composer、恢复草稿行都读它，谁都不另存名字。 */
   skillLabel: (key: string) => string
-  /** composer 上方的活 chip（还没发出去的那些）。 */
-  liveChips: readonly V4Chip[]
   reloadModels: () => void
   selectModel: (model: ModelCatalogModelDto) => void
 }>
 
-export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data {
+export function useAgentPanelV4Data(): AgentPanelV4Data {
   const { t, i18n } = useTranslation()
   const labels = useV4Labels()
   const toolDisplayCache = React.useMemo(() => createToolDisplayCache(t), [t])
@@ -224,13 +221,6 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     : t('agentPanelV4.modelUnset')
 
   const timeline = useWorkbenchStore((state) => state.timeline)
-  const selectedClipIds = useWorkbenchStore((state) => state.selectedTimelineClipIds)
-  const selectedTextClipId = useWorkbenchStore((state) => state.selectedTextClipId)
-  const activeSkill = useWorkbenchStore((state) => state.creationActiveSkill)
-  const selectedLibraryPrompt = useWorkbenchStore((state) => state.selectedLibraryPrompt)
-  const attachments = useWorkbenchStore((state) => state.projectAgentAttachments)
-  const timelineSelection = useTimelineSelectionChips(surface, timeline, selectedClipIds, selectedTextClipId)
-
   const view = React.useMemo(() => laneViewModel(snapshot.active, {
     toolLabel: toolDisplayCache.label,
     toolSummary: toolDisplayCache.summary,
@@ -308,26 +298,6 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
   }))
   const context = view.usage
 
-  const liveChips = React.useMemo(() => {
-    const chips: V4Chip[] = []
-    for (const attachment of attachments) chips.push({ id: attachment.id, kind: 'file', label: attachment.fileName, description: attachment.error })
-    if (activeSkill) {
-      const skill = skillForKey(skills, activeSkill.key)
-      chips.push({ kind: 'skill', label: skillLabel(activeSkill.key), cover: skill?.cover, preview: skill?.preview, description: skill?.description ?? undefined })
-    } else if (selectedLibraryPrompt) chips.push({ kind: 'skill', label: selectedLibraryPrompt.title, cover: selectedLibraryPrompt.mediaType === 'image' ? selectedLibraryPrompt.mediaUrl : undefined, preview: selectedLibraryPrompt.mediaUrl ? { url: selectedLibraryPrompt.mediaUrl, type: selectedLibraryPrompt.mediaType } : undefined, description: selectedLibraryPrompt.prompt })
-    for (const selection of timelineSelection.selections) {
-      // 时间轴片段的人话名字是 `label`；文本片段用它的正文。两者都可能是空串。
-      const clip = selection.clip as { id: string; label?: string; text?: string }
-      const label = clip.label || clip.text || clip.id
-      chips.push({
-        kind: 'clip',
-        // 选中的那一段已经变了位置/长度：chip 上直接说「已变更」，别让用户以为还指着原来那段。
-        label: timelineSelection.staleFor(clip.id) ? String(t('agentPanelV4.clipStale', { label })) : label,
-      })
-    }
-    return Object.freeze(chips)
-  }, [activeSkill, selectedLibraryPrompt, skills, skillLabel, attachments, t, timelineSelection])
-
   return {
     connectionFailure,
     snapshot,
@@ -359,7 +329,6 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     modelLabel,
     skills,
     skillLabel,
-    liveChips,
     reloadModels,
     selectModel: (model) => {
       const value = encodeModelIdentity(model)

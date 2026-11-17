@@ -55,3 +55,12 @@ export async function laneInputIntent(session: Session, lane: string, runId: str
     + quoted.join('\n') : '';
   return { quote, input: prepared.at(-1), catalogInput: prepared[0] };
 }
+
+/**
+ * 恢复回来的草稿只带回它的模板（`systemPrompt`）；目标、上下文快照、文稿前提、分镜镜头目标都取这一轮
+ * admission 自己的：聊天框芯片显示的是此刻的选中，发出去的必须就是它，而且这几项互相绑着，不能新旧混取。
+ * 信封里老版本留下的这些项照常解析、在这里丢弃，不迁移。「重试 / 继续」走 `resolveLaneReplay`，不经过这里。
+ */
+export function withRestoredTemplate<T extends object>(current: T, restored: { systemPrompt?: string } | undefined): T & { systemPrompt?: string } {
+  return restored?.systemPrompt !== undefined ? { ...current, systemPrompt: restored.systemPrompt } : current;
+}

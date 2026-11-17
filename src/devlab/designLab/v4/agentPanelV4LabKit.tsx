@@ -20,7 +20,7 @@ import type {
   QueueRowData,
   TaskCardData,
   ToolReceipt,
-  V4Chip,
+  V4ComposerReference,
 } from '../../../workbench/ai/v4/agentPanelV4Types'
 import type { V4FlowItem } from '../../../workbench/ai/v4/AgentPanelV4Panel'
 import type { V4CommandRow, V4ModelRow } from '../../../workbench/ai/v4/AgentPanelV4Composer'
@@ -124,7 +124,8 @@ export function labViewModelLabels(fx: ReturnType<typeof useV4Fixtures>, toolLab
 
 /** 夹具照定稿画布逐格抄：同一句话、同一个数字，才比得出实现有没有走样。 */
 function buildFixtures(t: TFunction) {
-  const chip = (kind: V4Chip['kind'], label: string): V4Chip => ({ kind, label })
+  // 静态取景保留外观，移除动作只为空实现。
+  const chip = (kind: V4ComposerReference['kind'], label: string): V4ComposerReference => ({ id: `${kind}:${label}`, kind, label, onRemove: () => undefined })
 
   const context: ContextUsage = {
     used: 62400,

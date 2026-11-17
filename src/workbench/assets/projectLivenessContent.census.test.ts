@@ -36,7 +36,7 @@ type AddressVerdicts<S> = Record<AddressFields<S>, true | string>
 
 const WORKBENCH_ADDRESS_FIELDS: AddressVerdicts<ReturnType<typeof useWorkbenchStore.getState>> = {
   timeline: true, storyboardDesignsByDocumentId: true, projectAgentDraftIntent: true, selectedLibraryPrompt: true,
-  projectAgentAttachments: true, projectAgentReferences: true,
+  projectAgentAttachments: true,
   timelineUndoStack: true, timelineRedoStack: true, detachedTimelineClips: true,
   projectAgentRecoveredDrafts: true, // 窗口寿命，不在归类表里；装配口单独读它（recoveredAgentDrafts）
 }
