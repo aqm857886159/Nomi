@@ -2,7 +2,7 @@ import { canvasWindowInput } from '../../../shortcutSurface'
 // 版本卡片接进节点（V2）：图片右上角的数字角标入口（10-07） + 原地铺开的宫格 + 悬停条的三个动作 + 预览。
 //
 // 数据只从唯一主人读写：版本列表 / 编号 / 主图 → model/nodeResultLifecycle.ts；铺开状态 → store.setNodeResultStackOpen；
-// 设主图 → store.setNodeMainResult（一个撤销步）；删一版 → assets/deleteAssetResult（文件延后真删）。
+// 设主图 → store.setNodeMainResult（一个撤销步）；删一版 → assets/removeAssetVersion（原文件保留）。
 // 提示条上的「撤销」只在这一步仍是撤销日志的头时给（canvasUndoJournal.getUndoHeadToken）：撤销是前缀重放，
 // 头变了（又有手势 / 有生成结果落地）再撤，会把那之后落地的结果也撤掉（已报协调会话的老问题），那时请用户走 ⌘Z。
 import React, { type JSX } from 'react'
@@ -10,8 +10,7 @@ import { useTranslation } from 'react-i18next'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { listNodeResultVersions, resultIdentity } from '../../model/nodeResultLifecycle'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
-import { canvasNodeToAssetRefs } from '../../../assets/assetTypes'
-import { deleteAssetResult } from '../../../assets/deleteAssetResult'
+import { removeAssetVersion } from '../../../assets/removeAssetVersion'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../../project/projectCanvasReadSurface'
 import { getDesktopBridge } from '../../../../desktop/bridge'
 import { logRendererError } from '../../../../desktop/rendererLog'
@@ -194,17 +193,11 @@ export function NodeVersionCardsHost({ node, readOnly, nodeSize, onFeedback, ent
     const loaded = withProjectAction((project) => project)
     if (!loaded || !await finishWhiteboard(node.id) || !isProjectExecutionContextCurrent(loaded)) return
     const latest = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
-    const asset = latest ? canvasNodeToAssetRefs(latest).find((candidate) => candidate.ownerResultId === entry.identity) : undefined
-    if (!asset) {
-      onFeedback(t('generationCommon.versionCards.assetUnavailable'))
-      return
-    }
     const wasPrimary = latest?.result ? resultIdentity(latest.result) === entry.identity : false
     try {
-      const outcome = await deleteAssetResult(asset, loaded)
+      const removedResultCount = await removeAssetVersion(node.id, entry.identity, loaded)
       if (!isProjectExecutionContextCurrent(loaded)) return
-      if (outcome.failedFileCount > 0) onFeedback(t('generationCommon.versionCards.deleteFileFailed'))
-      if (outcome.removedResultCount === 0) return
+      if (removedResultCount === 0) return
       const after = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
       const nextPrimary = after?.result?.versionNo
       notifyUndoable(

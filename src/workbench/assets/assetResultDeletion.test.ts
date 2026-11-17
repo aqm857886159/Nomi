@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
 import type { AssetRef } from './assetTypes'
-import { applyAssetResultDeletion, isProjectFileReferenced, planAssetDeletion } from './assetResultDeletion'
+import { applyAssetResultDeletion, collectProjectFileReferences, isProjectFileReferenced, planAssetDeletion } from './assetResultDeletion'
+
+const refs = (nodes: GenerationCanvasNode[]) => collectProjectFileReferences(nodes, {})
 
 const image = (id: string, url: string): GenerationNodeResult => ({ id, type: 'image', url, createdAt: 1 })
 
@@ -26,7 +28,7 @@ describe('asset result deletion', () => {
       result: a, history: [a, b], status: 'success',
     } as GenerationCanvasNode
     const asset = canvasAsset(node.id, 'b', b.url!)
-    const plan = planAssetDeletion(asset, { projectId: 'project-1', nodes: [node] })
+    const plan = planAssetDeletion(asset, { projectId: 'project-1', nodes: [node], rest: {} })
     expect(plan.matches).toHaveLength(1)
     expect(plan.file).toEqual({ target: { projectId: 'project-1', relativePath: 'assets/b.png' }, fate: 'trash' })
 
@@ -46,7 +48,7 @@ describe('asset result deletion', () => {
       renderUrl: result.url!, source: 'project',
       origin: { source: 'project', projectId: 'project-2', relativePath: 'assets/generated.png' },
     }
-    expect(planAssetDeletion(asset, { projectId: 'project-2', nodes: [node] }).matches[0]?.resultIds).toEqual(['generated'])
+    expect(planAssetDeletion(asset, { projectId: 'project-2', nodes: [node], rest: {} }).matches[0]?.resultIds).toEqual(['generated'])
   })
 })
 
@@ -59,18 +61,18 @@ describe('editable document asset references', () => {
     for (const partial of [{ meta: { whiteboardState: state }, result: image('other', 'nomi-local://other') },
       { result: edited }, { result: image('other', 'nomi-local://other'), history: [edited] }]) {
       const node = { id: 'node', kind: 'image', position: { x: 0, y: 0 }, ...partial } as GenerationCanvasNode
-      expect(isProjectFileReferenced(target, { nodes: [node] })).toBe(true)
+      expect(isProjectFileReferenced(target, refs([node]))).toBe(true)
     }
-    expect(isProjectFileReferenced(target, { nodes: [] })).toBe(false)
+    expect(isProjectFileReferenced(target, refs([]))).toBe(false)
   })
   it('deleting the original version cannot schedule deletion of an edited version’s source layers', () => {
     const node = { id: 'node', kind: 'image', position: { x: 0, y: 0 }, result: edited, history: [original, edited] } as GenerationCanvasNode
-    const plan = planAssetDeletion(canvasAsset(node.id, original.id!, original.url!), { projectId: 'project-1', nodes: [node] })
+    const plan = planAssetDeletion(canvasAsset(node.id, original.id!, original.url!), { projectId: 'project-1', nodes: [node], rest: {} })
     expect(plan.matches).toHaveLength(1)
     expect(plan.file).toEqual({ target, fate: 'keep' })
     const remaining = applyAssetResultDeletion([node], plan.matches)
-    const final = planAssetDeletion(canvasAsset(node.id, edited.id!, edited.url!), { projectId: 'project-1', nodes: remaining })
+    const final = planAssetDeletion(canvasAsset(node.id, edited.id!, edited.url!), { projectId: 'project-1', nodes: remaining, rest: {} })
     expect(final.file).toEqual({ target: { projectId: 'project-1', relativePath: 'assets/edited.png' }, fate: 'trash' })
-    expect(isProjectFileReferenced(target, { nodes: applyAssetResultDeletion(remaining, final.matches) })).toBe(false)
+    expect(isProjectFileReferenced(target, refs(applyAssetResultDeletion(remaining, final.matches)))).toBe(false)
   })
 })
