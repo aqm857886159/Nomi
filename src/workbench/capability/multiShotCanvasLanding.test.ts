@@ -10,7 +10,7 @@ import * as canvasTools from '../generationCanvas/agent/applyCanvasToolCall'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../project/projectSessionTestHarness'
 import { useWorkbenchStore } from '../workbenchStore'
 import { deriveNodeRowExec, deriveStoryboardBatch } from '../creation/storyboard/exec/storyboardRowStatus'
-import { eligibleGenerationNodeIds } from '../generationCanvas/components/canvasProductionScope'
+import { planCanvasGenerationScope } from '../generationCanvas/runner/generationScopeFacts'
 
 // P4 S5 — attach-shot-result 的运行时断言（result.url 必须 nomi-local://）+ 节点已删静默跳过。
 
@@ -438,7 +438,8 @@ describe('materializeShots writes each shot\'s run state into the node itself', 
     const batch = deriveStoryboardBatch([{ shot: { id: 'shot-1' } as never, exec }])
     expect(batch.runnable).toHaveLength(0)
     expect(batch.excluded.recoverable).toBe(1)
-    expect(eligibleGenerationNodeIds(useGenerationCanvasStore.getState().nodes, {}, {})).not.toContain(id)
+    const canvas = useGenerationCanvasStore.getState()
+    expect(planCanvasGenerationScope('group', canvas.nodes.map((candidate) => candidate.id), canvas, { runs: {} }).members).not.toContain(id)
 
     // 「重新取回」：主进程把这一镜放回轮询 → 跟随投影 running → 同一条记录翻回进行中，不另挂一条。
     await land({ generation: running }, true)

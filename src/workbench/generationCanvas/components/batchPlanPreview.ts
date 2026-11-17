@@ -14,12 +14,12 @@ import { confirmGenerationSpend, describeGenerationCost, generationCostContextFo
 import { canvasOpenRuns, consentCanvasShots, withdrawCanvasShots, type CanvasConsentShot } from '../../api/taskApi'
 import { selectedModelKey, selectedVendor } from '../runner/catalogTaskResolve'
 import { createRunId } from '../store/canvasIds'
-import { buildDependencyWaves, type DependencyWavePlan } from '../runner/dependencyWaves'
+import { narrowGenerationScope, type GenerationScopePlan } from '../../../../electron/shared/agentCapabilities/generationShotScope'
+import { planCanvasGenerationScope, scopeFactsOf, type ScopeGraph } from '../runner/generationScopeFacts'
 import type { GenerationRunOutcome } from '../runner/generationRunOutcome'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import i18n from '../../../i18n'
-import { isGenerationNodeBusy, normalizeCanvasBatchConcurrency } from './canvasProductionScope'
-import { useProductionCanvasLandingStore } from '../../production/productionCanvasLandingStore'
+import { normalizeCanvasBatchConcurrency } from './canvasProductionScope'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { PlanRow } from '../../shared/PlanRows'
 
@@ -30,13 +30,13 @@ export const BATCH_RUN_TOAST_ID = 'canvas-batch-run'
 
 export type DeferredStoryboardPlan = {
   draftNodes: readonly GenerationCanvasNode[]
-  materialize: () => Promise<DependencyWavePlan>
+  materialize: () => Promise<GenerationScopePlan>
 }
 
 type BatchPlanPreviewState = {
-  plan: DependencyWavePlan | null
+  plan: GenerationScopePlan | null
   running: boolean
-  open: (plan: DependencyWavePlan) => void
+  open: (plan: GenerationScopePlan) => void
   cancel: () => void
   confirm: () => Promise<void>
 }
@@ -73,7 +73,7 @@ export const useBatchPlanPreviewStore = create<BatchPlanPreviewState>()((set, ge
  * 被拦下的节点(上游参考没生成 / 循环) → 人话提示文案；无 blocked 返回 null。
  * 「缺啥提示啥」：不再把 blocked 算进总数静默丢，而是明确告诉用户哪些没跑、为什么、怎么办。
  */
-export function describeBlockedNotice(plan: DependencyWavePlan): string | null {
+export function describeBlockedNotice(plan: Pick<GenerationScopePlan, 'blocked'>): string | null {
   if (plan.blocked.length === 0) return null
   const cycle = plan.blocked.filter((b) => b.reason === 'cycle').length
   const unfrozen = plan.blocked.filter((b) => b.reason === 'unfrozen-anchor').length
@@ -114,7 +114,7 @@ async function consentPaidNodes(ids: readonly string[], projectId: string): Prom
  * `onConsented`：出价开好、开始跑的那一刻回调一次（Agent 对文稿方案的 `generate` 据此当场交回，不等整批跑完）。
  */
 export async function confirmAndRunPlan(
-  plan: DependencyWavePlan,
+  plan: GenerationScopePlan,
   options: { filterBeforeEnqueue?: (nodeIds: string[]) => string[]; concurrency?: number; onConsented?: (runIds: string[]) => void; /** A storyboard batch already showed its checklist before materialization. */ skipSpendConfirmation?: boolean; deferredMaterialization?: DeferredStoryboardPlan; /** 同一张付费确认里按项勾选（画布组框与列表分区头「生成全部」）。 */ itemized?: ItemizedBatch } & GenerationConfirmationGuards,
 ): Promise<GenerationRunOutcome> {
   // 点「生成」即动作起点：签发此刻打开的项目。提交前换了项目 = 取消（没花钱）；提交后整批归原项目。
@@ -123,10 +123,13 @@ export async function confirmAndRunPlan(
   const deferred = options.deferredMaterialization
   let executionPlan = plan
   const occupied = new Set((await canvasOpenRuns({ projectId: project.binding.projectId })).map(entry => entry.nodeId))
+  // 范围缩小一律再问共用主人（不从旧波次里直接删）：被剔掉的上游没结果，下游拦下「等上游」，不裸跑。
+  // 还没摆上画布的分镜草稿（确认之后才落地）按草稿问，和它的规划同一份事实。
+  const draftGraph = (): ScopeGraph => deferred ? { nodes: deferred.draftNodes, edges: [] } : useGenerationCanvasStore.getState()
   let skippedBeforeStart = 0
   if (occupied.size) {
     skippedBeforeStart = new Set([...plan.waves.flat(), ...(options.itemized?.rows.map(row => row.id).filter((id): id is string => Boolean(id)) ?? [])].filter(id => occupied.has(id))).size
-    executionPlan = { ...plan, waves: plan.waves.map(wave => wave.filter(id => !occupied.has(id))).filter(wave => wave.length), blocked: plan.blocked.filter(entry => !occupied.has(entry.nodeId)) }
+    if (plan.members.some(id => occupied.has(id))) executionPlan = narrowGenerationScope(plan, plan.members.filter(id => !occupied.has(id)), scopeFactsOf(draftGraph(), { occupied }))
   }
   const priceTargets = options.itemized && options.filterBeforeEnqueue ? new Set(options.filterBeforeEnqueue(options.itemized.rows.flatMap(row => row.id ? [row.id] : []))) : null
   const itemized = options.itemized ? { rows: options.itemized.rows.filter(row => !row.id || (!occupied.has(row.id) && (!priceTargets || priceTargets.has(row.id)))) } : undefined
@@ -171,15 +174,14 @@ export async function confirmAndRunPlan(
   if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
   if (itemized) {
     // 按用户在卡上勾的重建执行计划：取消的那一项不进计划、不开出价、不派发。派发前再读一次节点现状，打开卡之后在别处开始生成的不再派。
-    const live = useGenerationCanvasStore.getState()
-    const liveById = new Map(live.nodes.map((node) => [node.id, node]))
-    const chosen = selectableIds.filter((id) => checkedIds.has(id) && !isGenerationNodeBusy(liveById.get(id), useProductionCanvasLandingStore.getState().runs))
-    if (chosen.length === 0) {
+    // 再问共用主人（按此刻的事实：卡开着时在别处开始生成 / 变成可找回的不进；依赖重算）。
+    const chosen = selectableIds.filter((id) => checkedIds.has(id))
+    executionPlan = narrowGenerationScope(plan, chosen, scopeFactsOf(draftGraph(), { occupied }))
+    if (executionPlan.members.length === 0) {
       // 用户在卡上亲手去掉了全部 = 他的决定，不吵；没弹卡（不要确认的批）而默认一个都没勾 = 要说一句为什么没动静。
       if (!toggled) reportCanvasFeedback(i18n.t('generationCommon.canvas.group.generateEmpty'), 'warning', { projectId: project.binding.projectId, identity: `batch-plan:itemized-empty:${selectableIds.slice().sort().join(':')}`, reason: 'empty', nodeIds: selectableIds })
       return 'declined'
     }
-    executionPlan = buildDependencyWaves(chosen, { nodes: live.nodes, edges: live.edges })
     ids = executionPlan.waves.flat()
     if (ids.length === 0) {
       await runPlanWithToasts(executionPlan, { project })
@@ -202,11 +204,16 @@ export async function confirmAndRunPlan(
   // All asynchronous approval and consent work has completed. Nothing may await before enqueue.
   if (options.filterBeforeEnqueue) {
     const kept = new Set(options.filterBeforeEnqueue(ids))
-    const removed = [...canvasRunRecordIds].filter(([id]) => !kept.has(id))
-    if (removed.length) withdrawCanvasShots({ projectId: project.binding.projectId, runRecordIds: removed.map(([, record]) => record), by: 'stopped' })
-    for (const [id] of removed) canvasRunRecordIds.delete(id)
-    executionPlan = { ...executionPlan, waves: executionPlan.waves.map(wave => wave.filter(id => kept.has(id))).filter(wave => wave.length), blocked: executionPlan.blocked.filter(entry => kept.has(entry.nodeId)) }
-    ids = executionPlan.waves.flat()
+    if (ids.some(id => !kept.has(id))) {
+      // 出价已开：「生成中」只读节点自己的状态（这一批刚开的出价会把节点标成归制作流程，按全量读会把自己剔掉）。
+      executionPlan = narrowGenerationScope(executionPlan, executionPlan.members.filter(id => kept.has(id)), scopeFactsOf(useGenerationCanvasStore.getState(), { busy: 'status' }))
+      ids = executionPlan.waves.flat()
+      // 剔掉的、以及因此拦下「等上游」的，出价都收回。
+      const running = new Set(ids)
+      const removed = [...canvasRunRecordIds].filter(([id]) => !running.has(id))
+      if (removed.length) withdrawCanvasShots({ projectId: project.binding.projectId, runRecordIds: removed.map(([, record]) => record), by: 'stopped' })
+      for (const [id] of removed) canvasRunRecordIds.delete(id)
+    }
   }
   if (!ids.length) return 'nothing-to-run'
   options.onConsented?.(consented.runIds.filter((_, index) => ids.includes(consentNodeIds[index])))
@@ -223,7 +230,7 @@ export async function confirmAndRunPlan(
 /** 按计划真实生成 + 可行动的失败反馈。「全部生成」与 S6b agent 受理路径共用(单一执行口)。
  * canvasRunRecordIds：卡上点了确认后主进程为要花钱的节点开好的出价（节点 → 运行记录号），每个节点交的时候认它。 */
 export async function runPlanWithToasts(
-  plan: DependencyWavePlan,
+  plan: GenerationScopePlan,
   options: { skippedOpenRuns?: number; assertAuthorCurrent?: (graph: RunGraph, executingNodeId: string) => Promise<void>; assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void; canvasRunRecordIds?: ReadonlyMap<string, string>; concurrency?: number; project: ProjectExecutionContext },
 ): Promise<void> {
   // 运行属于发起它的项目：身份（target）在这里定死，之后用户切项目也照样落回原项目。
@@ -291,9 +298,8 @@ export async function runPlanWithToasts(
         onAction: async () => {
           if (!isProjectOpen(projectId) && !(await revealNotificationTarget({ projectId, workspaceMode: 'generation' }))) return
           if (!isProjectOpen(projectId)) return
-          const state = useGenerationCanvasStore.getState()
           void confirmAndRunPlan(
-            buildDependencyWaves(failureIds, { nodes: state.nodes, edges: state.edges }),
+            planCanvasGenerationScope('retry-failed', failureIds, useGenerationCanvasStore.getState()),
             // 通知里的「重试失败的」是人按的这一下，不继承原批次的发起方。
             { concurrency: options.concurrency, initiator: 'user' },
           )

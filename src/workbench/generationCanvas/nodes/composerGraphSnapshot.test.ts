@@ -13,7 +13,7 @@ import { composerDependencyKeys, createComposerGraphSelector } from './composerG
 import { requiredModeForGenerationNode } from '../adapters/modelOptionsAdapter'
 import { canRunGenerationNode, unmetReferenceDependencyForNode } from '../runner/generationRunController'
 import { directorPreviewSpendBlock } from './director/model/directorPreviewState'
-import { collectUngeneratedReferenceAncestors } from '../runner/referenceAncestors'
+import { collectUngeneratedReferenceAncestors } from '../runner/generationScopeFacts'
 import { currentReferenceMedia, currentReferenceUrls } from './mentionCandidates'
 import { projectConnectedTextInputs } from '../runner/connectedTextPrompt'
 import { resolveReferenceSlots } from '../runner/referenceSlots'

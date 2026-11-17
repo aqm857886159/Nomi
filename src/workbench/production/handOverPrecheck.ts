@@ -12,7 +12,7 @@ import { paidNodeLedger } from '../generationCanvas/spend/spendConfirm'
 //
 // 每一条都读画布那一侧已有的唯一判据：节点在跑 / 要核对（节点状态）、模型选了没有（`selectedVendor` / `selectedModelKey`）、
 // 走不走单镜 Run（`paidNodeLedger`）、预演（`directorPreviewSpendBlock`）、输入齐不齐（`generationNodeInputsReady`，
-// 生成钮置灰与提交咽喉同一个）、提示词要不要（`promptRequiredForNode`）、依赖波次（`buildDependencyWaves`，画布批量同一个）。
+// 生成钮置灰与提交咽喉同一个）、提示词要不要（`promptRequiredForNode`）、交谁、依赖波次（共用主人 `generationShotScope` 的 hand-over 意图，画布批量同一个主人）。
 // 这里只把它们的结论换成交接失败的语义码（卡据此选文案与「去改镜 N」/「再试一次」）。
 import type { GenerationHandOverFailure } from '../../desktop/productionRunBridgeTypes'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
@@ -20,7 +20,8 @@ import { selectedModelKey, selectedVendor } from '../generationCanvas/runner/cat
 import { generationNodeInputsReady, unmetReferenceDependencyForNode } from '../generationCanvas/runner/generationRunController'
 import { promptRequiredForNode } from '../generationCanvas/runner/promptRequirement'
 import { resolveGenerationReferences } from '../generationCanvas/runner/generationReferenceResolver'
-import { buildDependencyWaves, type DependencyWavePlan } from '../generationCanvas/runner/dependencyWaves'
+import { narrowGenerationScope, planGenerationScope, type GenerationScopeBlockReason, type ScopeRowReason } from '../../../electron/shared/agentCapabilities/generationShotScope'
+import { scopeFactsOf } from '../generationCanvas/runner/generationScopeFacts'
 import { directorPreviewSpendBlock } from '../generationCanvas/nodes/director/model/directorPreviewState'
 
 export type HandOverGraph = Readonly<{ nodes: readonly GenerationCanvasNode[]; edges: readonly GenerationCanvasEdge[] }>
@@ -29,10 +30,16 @@ const notSent = (code: string): GenerationHandOverFailure => ({ kind: 'not_sent'
 const rejected = (code: string): GenerationHandOverFailure => ({ kind: 'parameter_rejected', code })
 
 /** 依赖波次拦下的原因 → 语义码。三种都要先在画布上动一下（定妆 / 先生成上游 / 拆环），再按也没用，所以都走「去改镜 N」。 */
-const BLOCKED_CODE: Readonly<Record<DependencyWavePlan['blocked'][number]['reason'], string>> = {
+const BLOCKED_CODE: Readonly<Record<GenerationScopeBlockReason, string>> = {
   'unfrozen-anchor': 'anchor_not_frozen',
   'missing-upstream': 'upstream_not_ready',
   cycle: 'reference_cycle',
+}
+
+/** 共用主人灰掉的行 → 没发出去的语义码（同节点还有一笔在路上 / 结果没核对：再交一次就是重复花钱）。 */
+const DISABLED_CODE: Partial<Readonly<Record<ScopeRowReason, string>>> = {
+  generating: 'node_generation_in_flight',
+  recoverable: 'node_needs_reconcile',
 }
 
 /**
@@ -42,9 +49,6 @@ const BLOCKED_CODE: Readonly<Record<DependencyWavePlan['blocked'][number]['reaso
  */
 function nodeHandOverFailure(node: GenerationCanvasNode | undefined, graph: HandOverGraph, waveDecidesReferences: boolean): GenerationHandOverFailure | null {
   if (!node) return notSent('canvas_node_missing')
-  // 同节点还有一笔在路上 / 结果没核对：再交一次就是重复花钱（主进程派发时同样会拒，这里先不开同意）。
-  if (node.status === 'queued' || node.status === 'running') return notSent('node_generation_in_flight')
-  if (node.status === 'recoverable') return notSent('node_needs_reconcile')
   const vendor = selectedVendor(node)
   if (!vendor || !selectedModelKey(node)) return rejected('model_not_selected')
   // 本机模型（ComfyUI）不进单镜 Run，没有画布同意可绑：卡交不出去，去节点上自己点生成。
@@ -66,20 +70,25 @@ function nodeHandOverFailure(node: GenerationCanvasNode | undefined, graph: Hand
 export function handOverPrecheck(nodeIds: readonly string[], graph: HandOverGraph): ReadonlyMap<string, GenerationHandOverFailure> {
   const byId = new Map(graph.nodes.map((node) => [node.id, node]))
   const batch = new Set(nodeIds)
-  // 同批里谁吃谁的图、谁已经被波次拦下：画布批量排波次用的那一份（文字提示边、没定妆的参考卡的口径都在里面），不另判一遍。
-  const whole = buildDependencyWaves(nodeIds, graph)
+  // 这一批交谁、谁先谁后、谁被波次拦下：共用主人的 hand-over 意图（与画布批量同一个主人；文字提示边、没定妆的参考卡的口径都在里面），
+  // 不另判一遍。「生成中」只读节点自己的状态：交接这一下的同意还没开，归制作流程的标记就是这一批自己的。
+  const facts = scopeFactsOf(graph, { busy: 'status' })
+  const whole = planGenerationScope({ intent: 'hand-over', selection: nodeIds, facts })
+  const rowById = new Map(whole.rows.map((row) => [row.id, row]))
   const waveDecides = new Set([
     ...whole.edgesUsed.filter((edge) => batch.has(edge.source)).map((edge) => edge.target),
     ...whole.blocked.map((blocked) => blocked.nodeId),
   ])
   const failures = new Map<string, GenerationHandOverFailure>()
   for (const nodeId of nodeIds) {
-    const failure = nodeHandOverFailure(byId.get(nodeId), graph, waveDecides.has(nodeId))
+    const row = rowById.get(nodeId)
+    const disabledCode = row?.state === 'disabled' ? DISABLED_CODE[row.reason] : undefined
+    const failure = disabledCode ? notSent(disabledCode) : nodeHandOverFailure(byId.get(nodeId), graph, waveDecides.has(nodeId))
     if (failure) failures.set(nodeId, failure)
   }
   const passing = nodeIds.filter((nodeId) => !failures.has(nodeId))
   if (passing.length > 0) {
-    for (const blocked of buildDependencyWaves(passing, graph).blocked) failures.set(blocked.nodeId, rejected(BLOCKED_CODE[blocked.reason]))
+    for (const blocked of narrowGenerationScope(whole, passing, facts).blocked) failures.set(blocked.nodeId, rejected(BLOCKED_CODE[blocked.reason]))
   }
   return failures
 }
