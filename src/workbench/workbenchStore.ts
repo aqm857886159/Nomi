@@ -53,7 +53,6 @@ import {
   type ProjectCategory,
 } from './project/projectCategories'
 import { useGenerationCanvasStore } from './generationCanvas/store/generationCanvasStore'
-import type { AgentContextHandle } from '../../electron/shared/agentContextSnapshot'
 import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY, type ProjectAgentApprovalPolicy } from '../../electron/shared/agentCapabilities/capabilityApprovalPolicy';
 import { createEditingPanelLayoutSlice, type EditingPanelLayoutSlice } from './preview/editingPanelLayoutSlice'
 import { createTimelineClipWritesSlice, type TimelineClipWritesSlice } from './timeline/timelineClipWritesSlice'
@@ -86,8 +85,6 @@ export type ProjectAgentReference = Readonly<{
   kind: 'document' | 'canvas' | 'preview' | 'timeline' | 'browser' | 'asset'
   /** Stable domain identity captured at send time (never a UI-only label). */
   value?: string
-  /** Immutable selection handle captured when the user added this reference. */
-  contextHandle?: AgentContextHandle
 }>
 
 type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & TimelineClipWritesSlice & ProjectAgentDraftRecoveryState & {

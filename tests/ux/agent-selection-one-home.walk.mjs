@@ -11,6 +11,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //   3 素材和字幕同选（按住 Shift 追加）——都收得到。
 // 运行：pnpm run build && NOMI_WALK_LOCALE=zh-CN|en NOMI_WALK_OUT=<目录> node tests/ux/agent-selection-one-home.walk.mjs
 // 结果写进 <目录>/result.json（每个情形：芯片文字、请求里有没有字幕正文 / 素材名），截图 <目录>/*.png。
+// 拍板图断言：board:AgentSelectionChip/chip.selection（芯片显示什么助手就收到什么）
 // 这条走查不对「修前」的行为下断言（修前版本就是拿它量出 D1 的）：断言只在 NOMI_WALK_EXPECT=after 时开。
 import fs from 'node:fs'
 import path from 'node:path'
