@@ -10,6 +10,7 @@ import { useGenerationQueueStore } from './generationQueueStore'
 import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { createProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import { encodeStructuredErrorMessage } from '../../../../electron/vendor/vendorHttp'
+import { planOfWaves } from './generationScopeTestPlans'
 const calls = vi.hoisted(() => ({ poll: vi.fn(), open: vi.fn(), execute: vi.fn(), consent: vi.fn(), notify: vi.fn(), hosting: vi.fn() }))
 vi.mock('../../api/taskApi', () => ({ canvasOpenRuns: calls.open, pollCanvasShotRun: calls.poll, fetchWorkbenchTaskResultByVendor: vi.fn(), consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
@@ -56,9 +57,10 @@ it('F9: Agent acknowledgements do not bypass an open request', async () => {
  expect(calls.execute).not.toHaveBeenCalled();expect(store().nodes.find(node => node.id === id)?.runs).toEqual(runs)
 })
 it('F6: batch confirmation excludes every open target, including cost rows and consent', async () => {
- const id = add();const other = store().addNode({ kind: 'image', prompt: 'other' }).id
+ // 本地还当它空闲（可找回的本地态生成范围早就不给勾）、主进程那边它的出价还开着：这道兜底认主进程。
+ const id = store().addNode({ kind: 'image', prompt: 'same shot' }).id;const other = store().addNode({ kind: 'image', prompt: 'other' }).id
  calls.open.mockImplementation(async ({ nodeId }) => nodeId === other ? [] : [{ nodeId: id, runId: 'canvas-original', reason: 'in_flight', hasTaskId: false }])
- await confirmAndRunPlan({ waves: [[id, other]], edgesUsed: [], blocked: [] }, { initiator: 'user' })
+ await confirmAndRunPlan(planOfWaves([[id, other]]), { initiator: 'user' })
  expect(calls.consent.mock.calls[0][0].shots.map((shot: { nodeId: string }) => shot.nodeId)).toEqual([other])
  expect(calls.execute.mock.calls.map(([node]) => node.id)).toEqual([other])
  expect(calls.notify.mock.calls.some(([note]) => note.reason === 'generation-failed')).toBe(false)

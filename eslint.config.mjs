@@ -887,5 +887,25 @@ export default tseslint.config(
       }),
     },
   },
+  {
+    // 「生成这一组」的范围只在一处算（2026-11-17）：成员、默认勾选、顺序与依赖分波只由 generationShotScope 的共用主人
+    // planGenerationScope / narrowGenerationScope 给。执行计划带品牌，主人之外 as / satisfies / 尖括号断言成它、
+    // 手拼带 waves + blocked 的对象，都是在长第二个家——当场红。测试也一样：要一份计划就经主人规划（generationScopeTestPlans）。
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: ['electron/shared/agentCapabilities/generationShotScope.ts'],
+    plugins: { 'generation-scope-one-home': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'generation-scope-one-home/no-restricted-syntax': ['error',
+        ...['TSAsExpression', 'TSSatisfiesExpression', 'TSTypeAssertion'].map((node) => ({
+          selector: `${node} > TSTypeReference.typeAnnotation[typeName.name='GenerationScopePlan']`,
+          message: '执行计划只能由共用主人造：改调 planGenerationScope / planCanvasGenerationScope（缩范围用 narrowGenerationScope），不要断言成 GenerationScopePlan。',
+        })),
+        {
+          selector: "ObjectExpression:has(> Property[key.name='waves']):has(> Property[key.name='blocked'])",
+          message: '手拼了一份带 waves + blocked 的执行计划：生成范围只在 generationShotScope 的共用主人里算，入口拿它的结论。',
+        },
+      ],
+    },
+  },
   prettier,
 )

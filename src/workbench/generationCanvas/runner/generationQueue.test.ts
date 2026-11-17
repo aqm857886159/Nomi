@@ -15,8 +15,8 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
 import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
 import { resetModelHealthMemory } from './modelHealthMemory'
-import type { DependencyWavePlan } from './dependencyWaves'
-import type { GenerationNodeResult } from '../model/generationCanvasTypes'
+import { planCanvasGenerationScope } from './generationScopeFacts'
+import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import type { ProjectBinding } from '../../../../electron/shared/projectBinding'
 
@@ -34,8 +34,21 @@ function addImageNodes(count: number): string[] {
   return Array.from({ length: count }, (_, index) => store.addNode({ kind: 'image', prompt: `镜头 ${index + 1}` }).id)
 }
 
-function planOf(waves: string[][]): DependencyWavePlan {
-  return { waves, blocked: [], edgesUsed: [] } as unknown as DependencyWavePlan
+const dependsOn = (source: string, target: string): GenerationCanvasEdge =>
+  ({ id: `${source}->${target}`, source, target, mode: 'first_frame' }) as unknown as GenerationCanvasEdge
+
+/** 执行计划只能由共用主人造：给一张图（画布上的节点 + 额外的节点 / 边），按组生成意图规划。 */
+function planFor(selection: string[], extra: { nodes?: GenerationCanvasNode[]; edges?: GenerationCanvasEdge[] } = {}) {
+  const nodes = [...useGenerationCanvasStore.getState().nodes, ...(extra.nodes ?? [])]
+  return planCanvasGenerationScope('group', selection, { nodes, edges: extra.edges ?? [] })
+}
+
+/** 想要的波次：后一波的每个节点都依赖前一波的第一个节点。 */
+function planOf(waves: string[][]) {
+  const edges = waves.slice(1).flatMap((wave, index) => wave.map((target) => dependsOn(waves[index][0], target)))
+  const plan = planFor(waves.flat(), { edges })
+  expect(plan.waves).toEqual(waves)
+  return plan
 }
 
 let projectSession: ProjectSessionTestHarness
@@ -186,16 +199,11 @@ describe('生成队列外化', () => {
 
   // F15：等待态不许穿红衣——unfrozen-anchor / missing-upstream 是「在等前置」，不是失败。
   describe('blocked 分「等待」与「失败」两桶', () => {
-    function planWithBlocked(
-      waves: string[][],
-      blocked: DependencyWavePlan['blocked'],
-    ): DependencyWavePlan {
-      return { waves, blocked, edgesUsed: [] } as unknown as DependencyWavePlan
-    }
-
     it('unfrozen-anchor 被拦的镜头 → 留 idle（不画红错误卡）、不进 failures', async () => {
       const [shotId] = addImageNodes(1)
-      const plan = planWithBlocked([], [{ nodeId: shotId, reason: 'unfrozen-anchor', detail: '在等参考卡「便利店」定妆——在卡上点「定妆」' }])
+      const anchor = { id: 'anchor-store', kind: 'character', title: '便利店', position: { x: 0, y: 0 }, meta: { referenceSheet: true }, result: fakeResult('anchor') } as unknown as GenerationCanvasNode
+      const plan = planFor([shotId], { nodes: [anchor], edges: [dependsOn(anchor.id, shotId)] })
+      expect(plan.blocked).toMatchObject([{ nodeId: shotId, reason: 'unfrozen-anchor' }])
       const result = await runGenerationNodesByPlan(plan, { target: projectTarget, executor: async () => [fakeResult('x')] as const })
       const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === shotId)
       expect(node?.status ?? 'idle').toBe('idle') // 不是 'error'——等待态去红
@@ -205,7 +213,9 @@ describe('生成队列外化', () => {
 
     it('missing-upstream 同样走等待桶（留 idle，不进 failures）', async () => {
       const [shotId] = addImageNodes(1)
-      const plan = planWithBlocked([], [{ nodeId: shotId, reason: 'missing-upstream', detail: '上游「前置镜」还没有生成结果' }])
+      const upstream = { id: 'upstream', kind: 'image', title: '前置镜', position: { x: 0, y: 0 } } as unknown as GenerationCanvasNode
+      const plan = planFor([shotId], { nodes: [upstream], edges: [dependsOn(upstream.id, shotId)] })
+      expect(plan.blocked).toMatchObject([{ nodeId: shotId, reason: 'missing-upstream' }])
       const result = await runGenerationNodesByPlan(plan, { target: projectTarget, executor: async () => [fakeResult('x')] as const })
       const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === shotId)
       expect(node?.status ?? 'idle').toBe('idle')
@@ -214,7 +224,8 @@ describe('生成队列外化', () => {
 
     it('cycle（结构错误）仍走失败桶（红 error + 进 failures，可单独处理）', async () => {
       const [shotId] = addImageNodes(1)
-      const plan = planWithBlocked([], [{ nodeId: shotId, reason: 'cycle', detail: '与其他节点构成循环引用' }])
+      const plan = planFor([shotId], { edges: [dependsOn(shotId, shotId)] })
+      expect(plan.blocked).toMatchObject([{ nodeId: shotId, reason: 'cycle' }])
       const result = await runGenerationNodesByPlan(plan, { target: projectTarget, executor: async () => [fakeResult('x')] as const })
       const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === shotId)
       expect(node?.status).toBe('error')

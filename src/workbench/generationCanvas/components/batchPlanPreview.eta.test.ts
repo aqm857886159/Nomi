@@ -3,6 +3,7 @@
 // 设计卡 docs/plan/2026-11-12-gen-landing-stall-cut1.md ★9 第 5 条（批量卡那一半）。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { confirmAndRunPlan } from './batchPlanPreview'
+import { planOfWaves } from '../runner/generationScopeTestPlans'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
@@ -50,7 +51,7 @@ afterEach(() => harness.dispose())
 function twoImagePlan() {
   const add = () => useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '灯塔', meta: { modelVendor: 'relay', modelKey: 'eta-image' } })
   const ids = [add().id, add().id]
-  return { waves: [ids], blocked: [], edgesUsed: [] }
+  return planOfWaves([ids])
 }
 
 describe('batch spend card ETA over the async channel', () => {

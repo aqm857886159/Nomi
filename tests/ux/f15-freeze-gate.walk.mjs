@@ -7,7 +7,7 @@
 //
 // 这份走查把死锁旅程钉成回归门（零额度，不跑真 provider——门放行与否是纯依赖逻辑，出片是另一回事）：
 //   ① 种下死锁现场：scene 锚「便利店」（referenceSheet + 已出图）+ 镜头 1 引用它、未定妆。
-//   ② 断言此刻门确实拦着（proveProbe：buildDependencyWaves 把镜头 1 标 unfrozen-anchor）——阳性对照。
+//   ② 断言此刻门确实拦着（proveProbe：共用主人的生成范围规划把镜头 1 标 unfrozen-anchor）——阳性对照。
 //   ③ **用真实 UI**：选中锚卡 → 浮条最左点「定妆」→ meta.frozen 落。
 //   ④ 断言门放行（expectAbsent，provenBy ②）：镜头 1 不再 unfrozen-anchor，进 waves。
 //   ⑤ 顺带核确认条 F11 价格块存在（价格未知也要显，未知≠¥0）。
@@ -41,14 +41,14 @@ async function seedDeadlockCanvas(win) {
   })
 }
 
-// 读依赖计划里镜头 1 的 blocked reason（用页面内真实 buildDependencyWaves——显示的≡执行的）。
-// 生产构建源码路径不可 import，走 __nomiBuildDependencyWaves（ProductionCanvasLandingHost 在 __nomiE2E 挂出）。
+// 读依赖计划里镜头 1 的 blocked reason（用页面内真实的生成范围规划——显示的≡执行的）。
+// 生产构建源码路径不可 import，走 __nomiPlanGenerationScope（ProductionCanvasLandingHost 在 __nomiE2E 挂出）。
 async function shotBlockedReason(win, shotId) {
   return win.evaluate((id) => {
-    const build = window.__nomiBuildDependencyWaves
-    if (typeof build !== 'function') throw new Error('__nomiBuildDependencyWaves 未暴露')
+    const build = window.__nomiPlanGenerationScope
+    if (typeof build !== 'function') throw new Error('__nomiPlanGenerationScope 未暴露')
     const store = window.__nomiCanvasStore.getState()
-    const plan = build([id], { nodes: store.nodes, edges: store.edges })
+    const plan = build('group', [id], { nodes: store.nodes, edges: store.edges })
     const blocked = plan.blocked.find((b) => b.nodeId === id)
     return {
       reason: blocked?.reason ?? null,
