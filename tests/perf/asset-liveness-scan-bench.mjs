@@ -59,7 +59,8 @@ const content = worstContent()
 const listTargets = Array.from({ length: LIST }, (_u, i) => ({ projectId: P, relativePath: `assets/generated/n${i % NODES}-v${i % 6}.png` }))
 const load = () => os.loadavg()[1]
 const metrics = { scanMs: [], lookupMs: [], listFilterMs: [], referencedFiles: [] }
-let noisy = load() >= 10
+// 噪声判法同 tests/perf/ 其余 Node 量具：开始和结束各取一次 5 分钟负载，任一 ≥ 10 记有噪声（场景据此作废，不进基线）。
+const loads = [load()]
 let failure
 
 function once() {
@@ -86,7 +87,7 @@ try {
 } catch (error) {
   failure = error
 } finally {
-  noisy = noisy || load() >= 10
+  loads.push(load())
 }
 
 const report = {
@@ -94,12 +95,13 @@ const report = {
   date: new Date().toISOString(),
   machine: `${process.platform} ${process.arch} ${os.cpus()[0]?.model}`,
   node: process.version,
-  noisy,
+  noisy: loads.some((value) => value >= 10),
+  loads,
   runs,
   metrics,
   ...(failure ? { failure: failure.message } : {}),
 }
 fs.mkdirSync(path.dirname(path.resolve(output)), { recursive: true })
 fs.writeFileSync(output, JSON.stringify(report, null, 2))
-console.log(JSON.stringify({ ...metrics, noisy }))
+console.log(JSON.stringify({ ...metrics, noisy: report.noisy, loads }))
 if (failure) { console.error(failure.message); process.exit(1) }

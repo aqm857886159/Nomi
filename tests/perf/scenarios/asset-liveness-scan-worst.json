@@ -19,10 +19,10 @@
   "budgetBasis": "主指标 scanMs = 整份内容建一次引用索引。删除、关项目、列表过滤都是一次扫描；「操作到可见反馈 ≤100ms」里给扫描一半，剩下留给 store 更新和存盘。lookupMs（单次查表）预算 ≤0.01ms、listFilterMs（1000 项列表 = 一次扫描 + 1000 次查表）预算 ≤60ms，只打印；referencedFiles 是量具自检（应恒为 1000）。",
   "baseline": {
     "median": 27.7,
-    "p95": 29,
+    "p95": 30.7,
     "runs": 5,
     "machine": "darwin arm64 Apple M5 x10 / 24GB",
-    "date": "2026-11-16",
-    "commit": "ee1b289b3"
+    "date": "2026-11-17",
+    "commit": "991d9c542"
   }
 }
