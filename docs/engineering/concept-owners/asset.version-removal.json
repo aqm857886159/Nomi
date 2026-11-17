@@ -25,5 +25,5 @@
     "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx"
   ],
   "since": "2026-11-17",
-  "notes": "用户 2026-11-17 选 C：版本卡上删一版只把它从这张卡上拿掉（存盘 + 可撤销），不判「还有没有人用」、不登记待删、不进回收站；文件留在硬盘，出现在素材库「项目素材」，腾空间由创作者在素材库自己删（asset.library-deletion）。结构上做不出来：eslint asset-version-only 禁止 versionCards/**、removeAssetVersion.ts、assetResultMutation.ts 引入 deleteAssetResult / pendingAssetDeletions / assetFileDeletion 或点名任何回收入口。修前删版本走 deleteAssetResult，被别处（分镜参考、节点参考、助手输入）用着的文件被回收，重开裂图。"
+  "notes": "用户 2026-11-17 选 C：版本卡上删一版只把它从这张卡上拿掉（存盘 + 可撤销），不判「还有没有人用」、不登记待删、不进回收站；文件留在硬盘，出现在素材库「项目素材」，腾空间由创作者在素材库自己删（asset.library-deletion）。静态边界：asset-file-owner 将 deleteFiles / deleteAssets 的成员访问与属性解构限制在 assetFileDeletion.ts；asset-version-only 禁止 versionCards/**、removeAssetVersion.ts、assetResultMutation.ts 引入 deleteAssetResult / pendingAssetDeletions / assetFileDeletion / capabilityApplyHandler / useBrowserAssetActions 或点名回收入口；三种已发现绕法由 asset-file-owner.node-test.mjs 的 eslint 片段回归证明会红。修前删版本走 deleteAssetResult，被别处（分镜参考、节点参考、助手输入）用着的文件被回收，重开裂图。"
 }

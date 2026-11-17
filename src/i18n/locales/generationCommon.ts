@@ -880,8 +880,6 @@ export const zhGenerationCommon = {
     undo: '撤销',
     videoProgress: '视频进度',
     videoProgressValue: '{{current}} / {{duration}} 秒',
-    assetUnavailable: '这个历史结果已无法定位到本地素材',
-    deleteFileFailed: '记录已更新，但部分本地文件没能删除',
     deleteFailed: '删除失败',
   },
   textDocument: {
@@ -2632,8 +2630,6 @@ export const enGenerationCommon = {
     undo: 'Undo',
     videoProgress: 'Video progress',
     videoProgressValue: '{{current}} / {{duration}} seconds',
-    assetUnavailable: 'This historical result can no longer be located locally',
-    deleteFileFailed: 'History was updated, but some local files could not be deleted',
     deleteFailed: 'Delete failed',
   },
   textDocument: {
