@@ -2,9 +2,9 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13/R16 真页面走查：设置里的「素材上传通道」卡是否**如实**说出素材现在往哪传，
 // 以及「去配置 KIE」是否真把人送到 Key 输入框（而不是丢在模型列表页让人自己找）。零额度。
 //
-// 走查跑在全新临时 userDataDir 上 → 一个 key 都没有 → 图片和视频必然都落到匿名公共托管。
+// 走查跑在全新临时 userDataDir 上 → 一个 key 都没有 → 默认先走受限公共 Relay。
 // 这正是最该被如实说出来的一态，断言就按它锁死：卡片敢粉饰成「私有链接」就报红。
-import { clickOrFail, expectText, expectVisible, screenshotSettled } from './_assert.mjs'
+import { applyColorSchemeForShot, clickOrFail, expectText, expectVisible, screenshotSettled } from './_assert.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -12,7 +12,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/asset-transport-settings')
+const shotsDir = path.resolve(process.env.EVIDENCE_DIR || path.join(repoRoot, '.tmp/asset-transport-settings'))
 fs.mkdirSync(shotsDir, { recursive: true })
 const tempRoot = makeTempDir('nomi-asset-transport-settings-')
 const settingsDir = path.join(tempRoot, 'settings')
@@ -63,27 +63,27 @@ try {
   await upload.waitFor({ state: 'visible', timeout: 8000 })
   const text = await upload.innerText()
   check('设置页出现 KIE 上传说明', /KIE/.test(text), text)
-  check('明确说明上传免费', /免费|free/i.test(text), text)
   check('明确提示公共临时托管风险', /公共|public|隐私|privacy/i.test(text), text)
-  check('公共托管提醒开关默认打开', await upload.locator('input[type="checkbox"]').count() === 1 && await upload.locator('input[type="checkbox"]').isChecked(), text)
+  check('未授权的第三方托管默认关闭', await upload.locator('input[type="checkbox"]').count() === 1 && !(await upload.locator('input[type="checkbox"]').isChecked()), text)
 
   // 卡片必须逐类型说出现在走哪条——这是它存在的全部意义（用户此前看完仍不知道自己配没配）。
   const imageRow = upload.locator('[data-upload-channel="image"]')
   const videoRow = upload.locator('[data-upload-channel="video"]')
   await expectVisible(imageRow, '「图片」那条上传通道没显示：状态卡不说现状就退化回一句广告')
   await expectVisible(videoRow, '「视频」那条上传通道没显示')
-  // 没有任何 key 的现场，两条都只能是匿名公共图床。写成「私有链接」= 卡片在骗人，必须报红。
+  // d6472dac7 起，没有供应商 key 时先走公共 Relay；不能再把匿名图床说成当前通道。
   for (const [label, row] of [['图片', imageRow], ['视频', videoRow]]) {
     await expectText(
       row,
       /任何人可访问|Anyone can open it/,
       `未配任何 key 时「${label}」通道没如实标成公开可访问——用户会据此误判参考素材的隐私风险`,
     )
-    await expectText(row, /litterbox|tmpfiles/, `「${label}」通道没说出真正收文件的主机名`)
+    await expectText(row, /nomi-relay/, `「${label}」通道没说出当前默认 Relay`)
   }
+  await upload.scrollIntoViewIfNeeded()
   await screenshotSettled(dialog(), { path: path.join(shotsDir, '01-ai-upload-guidance-light.png') })
 
-  await getWin().evaluate(() => document.documentElement.setAttribute('data-mantine-color-scheme', 'dark'))
+  await applyColorSchemeForShot(getWin(), 'dark')
   await getWin().waitForTimeout(300)
   await screenshotSettled(dialog(), { path: path.join(shotsDir, '02-ai-upload-guidance-dark.png') })
 

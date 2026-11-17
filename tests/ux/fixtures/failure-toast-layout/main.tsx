@@ -13,7 +13,8 @@ import { notifications } from '@mantine/notifications'
 import { TOAST_MIN_BODY_WIDTH, useToastStore } from '../../../../src/ui/toast'
 import { providerFailedValues } from '../../../../src/workbench/generationCanvas/nodes/nodeRecoveryNotice'
 import { classifyGenerationError } from '../../../../src/workbench/observability/classifyError'
-import { GENERATION_ERROR_KINDS, narrateGenerationError, narrateIsVendorSideFailure } from '../../../../src/workbench/observability/narrate'
+import { narrateGenerationError } from '../../../../src/workbench/observability/narrate'
+import { GENERATION_ERROR_KINDS, isVendorSideKind } from '../../../../electron/shared/generationFailure'
 
 type ToastInput = Parameters<ReturnType<typeof useToastStore.getState>['push']>[0]
 
@@ -49,7 +50,7 @@ Object.assign(window, { __toastFixture: {
   showLongestCatalogMessage: () => {
     // Only the kinds that can actually reach this toast (the catalog says which ones are the vendor's side).
     const params = { model: 'model', registered: 'text', requested: 'image' }
-    const copies = GENERATION_ERROR_KINDS.filter((kind) => narrateIsVendorSideFailure(kind)).map((kind) => ({ kind, ...narrateGenerationError(kind, params) }))
+    const copies = GENERATION_ERROR_KINDS.filter((kind) => isVendorSideKind(kind)).map((kind) => ({ kind, ...narrateGenerationError(kind, params) }))
     const longest = copies.reduce((best, copy) => (copy.reason.length + copy.hint.length > best.reason.length + best.hint.length ? copy : best))
     useToastStore.getState().push({
       id: 'node-recovery:longest', reason: longest.kind, type: 'warning', ttl: false,
@@ -65,7 +66,7 @@ Object.assign(window, { __toastFixture: {
    */
   showOverlongMessage: () => {
     const params = { model: 'model', registered: 'text', requested: 'image' }
-    const copies = GENERATION_ERROR_KINDS.filter((kind) => narrateIsVendorSideFailure(kind)).map((kind) => ({ kind, ...narrateGenerationError(kind, params) }))
+    const copies = GENERATION_ERROR_KINDS.filter((kind) => isVendorSideKind(kind)).map((kind) => ({ kind, ...narrateGenerationError(kind, params) }))
     const longest = copies.reduce((best, copy) => (copy.reason.length + copy.hint.length > best.reason.length + best.hint.length ? copy : best))
     useToastStore.getState().push({
       id: 'node-recovery:overlong', reason: longest.kind, type: 'warning', ttl: false,

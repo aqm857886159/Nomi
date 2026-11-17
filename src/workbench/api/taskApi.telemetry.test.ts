@@ -1,7 +1,7 @@
 import { encodeStructuredErrorMessage } from '../../../electron/vendor/vendorHttp'
 // 生成结果上报：失败带类别码（不带原文），异步任务在终态才报一次，不再把「还在跑」记成取消。
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { GENERATION_ERROR_KINDS } from '../observability/narrate'
+import { GENERATION_ERROR_KINDS } from '../../../electron/shared/generationFailure'
 import { TELEMETRY_ERROR_TYPE_PATTERN } from '../../../electron/shared/contracts/telemetry'
 import { isTelemetryProps } from '../../../electron/telemetry/telemetryEvents'
 import { fetchWorkbenchTaskResultByVendor, runWorkbenchTaskByVendor } from './taskApi'

@@ -17,11 +17,12 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expectVisible, expectAbsent, proveProbe, scopedText, screenshotSettled } from './_assert.mjs'
 import { newProjectEntry } from './_shell.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempRoot = makeTempDir('nomi-stalled-draft-')
 const projectsDir = path.join(tempRoot, 'projects')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/production-stalled-draft')
+const shotsDir = path.resolve(process.env.EVIDENCE_DIR || path.join(repoRoot, '.tmp/production-stalled-draft'))
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 fs.mkdirSync(projectsDir, { recursive: true })
@@ -177,8 +178,8 @@ try {
   const title = await scopedText(win.locator('[data-production-status-title]'))
   record('③ 标题说清了推不动，不再说「草稿等待开始」', title.includes('这个制作无法继续'), `标题：「${title}」`)
   const cardText = await scopedText(card)
-  record('③ 说明里给了原因和出路，且明确没花钱',
-    cardText.includes('playbook') && cardText.includes('没有产生任何花费'), `卡片文案：「${cardText.slice(0, 120)}…」`)
+  record('③ 说明里给了未提交的原因和重新发起的出路',
+    cardText.includes('playbook') && cardText.includes(uiText('zh-CN', 'generationCommon.production.description.stalledDraft')), `卡片文案：「${cardText.slice(0, 120)}…」`)
   await expectVisible(win.locator('[data-production-tone="danger"]'), '色调应当是「需要处理」')
   await expectVisible(win.locator('[data-production-control="cancel"]'), '取消出口应当在')
 

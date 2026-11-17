@@ -203,11 +203,10 @@ function classifiedFailureText(raw: string, t: Translate, fallbackKey: 'agentRes
 }
 
 function classifiedFailure(raw: string, t: Translate, fallbackKey: 'agentResident.sendFailed' | 'agentResident.providerUnknownError', options?: { readonly transient?: boolean }): { text: string; unclassified: boolean } {
-  const first = classifyGenerationError(raw)
-  // pi 判过「瞬时」（断线 / 超时 / 限流 / 5xx）而我们的关键词表没认出来 → 归到网络类，不让它落进「认不出」。
-  const report = first.kind === 'unknown' && options?.transient ? classifyGenerationError('network error') : first
+  // pi 判过「瞬时」（断线 / 超时 / 限流 / 5xx）是**输入事实**：判定处遇到「认不出」时归到网络类，这里不再改判。
+  const report = classifyGenerationError(raw, { transient: options?.transient })
   const reason = stripClassificationMarkers(report.reason)
   if (report.kind === 'unknown' && !showableRaw(reason)) return { text: t(fallbackKey), unclassified: true }
-  const providerMessage = first.providerMessage ? stripClassificationMarkers(first.providerMessage) : ''
+  const providerMessage = report.providerMessage ? stripClassificationMarkers(report.providerMessage) : ''
   return { text: providerMessage && !leaksInternals(providerMessage) ? t('agentPanelV4.errorWithDetail', { reason, detail: providerMessage }) : reason, unclassified: false }
 }

@@ -1,0 +1,312 @@
+// 失败类别、动作表、「是不是服务商那一侧」、镜头占用文案：判定家族的词汇表（纯共享叶子）。
+// 判定入口在 generationFailure.ts 的 decideGenerationFailure；这里只放它读的表与类型。
+import type { ShotClaimReason } from './decideShotClaim'
+import type { GenerationFailureDecision } from './generationFailure'
+
+export type GenerationErrorKind =
+  | 'auth'
+  | 'balance'
+  | 'quota'
+  | 'poll-timeout'
+  | 'network'
+  | 'model-config'
+  // 「目录里登记的类型 ≠ 这次请求要的类型」。与 model-config 分开是因为它们的**真相不同**：
+  // model-config = 真没配好；这条 = 配好了、只是接入时按 id 关键词猜错了类别（guessModelKind
+  // 必然有猜错的）。压成同一类的话用户看到「模型未配置」，去那页只会看到一切正常——没有一个字
+  // 指向真实缺口，所以没人会去用那个改类型的控件。
+  | 'model-kind-mismatch'
+  | 'model-not-open'
+  | 'model-unavailable-upstream'
+  | 'model-retired'
+  | 'image-route-disabled'
+  | 'account-gate'
+  | 'content-policy'
+  | 'input-image-blocked'
+  | 'asset-upload-failed'
+  | 'asset-too-large'
+  // 参考素材本身有问题（上传前的本机检查没过）。与 asset-upload-failed 分开：那条是通道没通、
+  // 换网络或稍后重试可能就好；这条是**这个文件**不行，重试一万次都一样，得换素材。
+  | 'asset-invalid'
+  // 参考图走的是服务商的临时链接，**模型那一侧**去拉时拉不到（过期 / 防盗链 / 地区限制）。请求已经发出去了；
+  // 与 asset-upload-failed 分开（那条是我们这侧上传没成、服务商没被请求到），也与 input 分开（400 不是「参数不对」）。
+  // 下一步先「重试」：重试会尽量改用本机原图上传后再发（这条连接已被记下）；上传过模型还拒绝，就换个模型。判据与记账共用 electron/shared/assets/referenceFetchRefusal。
+  | 'reference-unfetchable'
+  // 主进程发送前的参考守在花钱之前拒了：请求里带着参考区没在用的图（有入口绕过了唯一推导）。
+  // 请求没离开本机；下一步是重新点生成，会按参考区重新组一次请求。不是服务商的事。
+  | 'reference-not-in-use'
+  // 用户明确选的画幅比例超出这条连接的尺寸范围（electron/catalog/paramTranslate.ts 的 ratioResToOpenAiSize 在构造请求时抛，
+  // 机器码 NOMI_ERR::aspect-ratio-unsupported::）。以前这种比例会被悄悄省略 size、让服务商按默认尺寸出图——选的画幅被换成别的。
+  // 请求没离开本机；下一步是在生成框里换一个比例再生成（或换一个支持该比例的模型）。不是服务商的事，也不是模型没配好。
+  | 'aspect-ratio-unsupported'
+  // 请求带着密钥，但目的地不是用户保存这把 key 时确认过的 origin。没有计费，
+  // 也没有网络要修——下一步是回接入页重新保存一次密钥（那一页是这条连接地址的唯一家）。
+  // （按目的地地址拒绝的 outbound-blocked / outbound-blocked-submit 两类已于 2026-11-13 删掉。）
+  | 'outbound-blocked-credential-origin'
+  // 带密钥的请求被服务商地址跳转了，Nomi 不跟随（防止自定义鉴权头 / POST 正文被带去另一个网站）。
+  // 请求已经到过用户配置的地址，所以不在 NEVER_SENT_KINDS——花没花钱 Nomi 不替它说。
+  | 'credential-redirect'
+  | 'server'
+  | 'input'
+  | 'output-truncated'
+  // 供应商**已经把结果发回来了**，但 Nomi 在本机没能把这个文件读出来（解码不出画面 / 认不出格式 /
+  // 是网页冒充的）。与 unknown 分开：unknown 的说法是「可能是服务商临时故障或额度问题，换一个模型」——
+  // 对一份已经送达的产物，那是把我们这一侧读文件失败栽给服务商，还劝用户换一家（2026-09-29 Seedream 5.0）。
+  // 机器码 NOMI_ERR::output-unreadable::（electron/assets/generatedMediaDecode.ts 抛），不靠英文句子认。
+  | 'output-unreadable'
+  // 付费提交发出后没拿到回复（连接被重置 / 响应超时 / 提交途中进程退出）：供应商**可能已经收下**。
+  // 与 network 分开：network 说「请求没发到」，对这一类是假话；而且重试 = 可能重复提交，所以不给重试按钮。
+  | 'submission-unknown'
+  // 付费提交**确定没离开本机**（主进程的出站证据：这次派发一个可能花钱的请求都没交给网络，结构化码 submission_not_sent /
+  // never_reached_network）。与 submission-unknown 恰好相反：服务商没收到，可以直接重试；与 network 分开：network 是
+  // 连不上服务商，这一条是在本机就停下了（出网策略、本机检查、密钥、网络设置……具体原因在技术详情里）。
+  | 'submission-not-sent'
+  // 已生成、取回失败（#975 A2，机器码 NOMI_ERR::output-retrieval-failed::）：结果在服务商那边，丢的只是下载。
+  // 这条覆盖整个确定性取回失败族，下一步只有「重新取回」。
+  | 'output-retrieval-failed'
+  // 已提交、这次没取回（机器码 NOMI_ERR::retrieval-query / -parse / -download / -timeout::，⑬ 用户 10-22 拍板）：任务已经交给服务商、
+  // 钱已经花了，是查结果 / 读结果 / 下载结果这一次没成，**不知道**服务商那边做完没有（所以不能说成 output-retrieval-failed 的「已经生成」）。
+  // 以前分类器不认这四个码，落进 unknown，给「可以重试一次」+ 主动作 retry——再生成、再扣一次。下一步只有「重新取回」。
+  | 'retrieval-incomplete'
+  // 本机处理失败（机器码 NOMI_ERR::local-processing::）：截帧 / 提取深度 / 本地素材复制——没有服务商参与，所以动作只有「重试」。
+  | 'local-processing'
+  | 'local-refusal'
+  | 'unknown'
+
+/** 目录（generationCommon.observability.error）里每一类失败的词条 key——单源；noChargeClaims.test 也读它。 */
+export const ERROR_KEY_BY_KIND: Record<GenerationErrorKind, string> = {
+  auth: 'auth',
+  balance: 'balance',
+  quota: 'quota',
+  'poll-timeout': 'pollTimeout',
+  network: 'network',
+  'model-config': 'modelConfig',
+  'model-kind-mismatch': 'modelKindMismatch',
+  'model-not-open': 'modelNotOpen',
+  'model-unavailable-upstream': 'modelUnavailableUpstream',
+  'model-retired': 'modelRetired',
+  'image-route-disabled': 'imageRouteDisabled',
+  'account-gate': 'accountGate',
+  'content-policy': 'contentPolicy',
+  'input-image-blocked': 'inputImageBlocked',
+  'asset-upload-failed': 'assetUploadFailed',
+  'asset-too-large': 'assetTooLarge',
+  'asset-invalid': 'assetInvalid',
+  'reference-unfetchable': 'referenceUnfetchable',
+  'reference-not-in-use': 'referenceNotInUse',
+  'aspect-ratio-unsupported': 'aspectRatioUnsupported',
+  'outbound-blocked-credential-origin': 'outboundBlockedCredentialOrigin',
+  'credential-redirect': 'credentialRedirect',
+  server: 'server',
+  input: 'input',
+  'output-truncated': 'outputTruncated',
+  'output-unreadable': 'outputUnreadable',
+  'submission-unknown': 'submissionUnknown',
+  'submission-not-sent': 'submissionNotSent',
+  'output-retrieval-failed': 'outputRetrievalFailed',
+  'retrieval-incomplete': 'retrievalIncomplete',
+  'local-processing': 'localProcessing',
+  'local-refusal': 'localRefusal',
+  unknown: 'unknown',
+}
+
+// fix-model-kind：**直接把缺口补上**（改类型 + 按新类型重建调用通道），不是又把用户送去某一页
+// 自己找。这是这次唯一新增的动作——因为它是唯一一类「我们确切知道哪里错、也确切知道怎么改对」的
+// 失败。其余类别我们只知道现象、改不动，所以只能给「去哪儿」或「换一个」。
+export type GenerationErrorAction = 'retry' | 'switch-model' | 'switch-same-capability' | 'open-model-access' | 'fix-model-kind' | 'reconcile' | 'view-task' | 'open-recoverable' | 'release-regenerate'
+
+// 每类的主动作 + 次动作都写在表里（2026-09-29 起）。次动作默认是「另一个最可能有用的」：主动作不是重试 →
+// 次给重试（想试还能试，不堵死用户）；主动作就是重试 → 次给换模型（等不及就换一家）。下面三个常量就是这条
+// 默认；不走默认的类（fix-model-kind、model-retired）在表里直接写出来，不在函数里另开例外。
+type GenerationErrorActions = Readonly<{ primary: GenerationErrorAction; secondary: GenerationErrorAction | null }>
+const RETRY_FIRST: GenerationErrorActions = { primary: 'retry', secondary: 'switch-model' }
+const SWITCH_FIRST: GenerationErrorActions = { primary: 'switch-model', secondary: 'retry' }
+const ACCESS_FIRST: GenerationErrorActions = { primary: 'open-model-access', secondary: 'retry' }
+
+const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
+  // 换模型才有救：上游/目录层面就没有这个模型，配置和重试都改不了它。
+  // 2026-10-06 用户拍板：主按钮直接写出「换成〈同能力里此刻可用的另一个〉」，点一下才换（不自动换、换完不自动跑）；
+  // 没有同能力的另一个时，失败卡退回「换个模型」（打开下拉，useSameCapabilityAlternative 返回 null）。
+  'model-unavailable-upstream': { primary: 'switch-same-capability', secondary: 'switch-model' },
+  // 已下线：目录里整条都没有了，重试必然再撞同一张卡（免费、不出门，但毫无意义）——不给次动作
+  // （2026-09-29 协调会话裁决：撤 Sora 2 以后这张卡会被更多人看到）。
+  'model-retired': { primary: 'switch-model', secondary: null },
+  // 参考图被内容安全挡下：同一张图 + 同一个模型 = 同一个判定，重试是确定性再撞（2026-07-31
+  // 用户真机：方舟 Seedance 拒写实人脸参考图）。用户真正的两条路是「换图」和「换模型」，
+  // 换图就在画布上（连着的那个节点，不需要按钮），所以按钮给「换个模型」——各家审核松紧不同。
+  'input-image-blocked': SWITCH_FIRST,
+  // 一键改对：我们知道它登记成了什么、也知道这里要什么，那就别让用户去猜去找（D1 effect-first）。
+  // 次动作给「换个模型」而不是「重试」：类型不符是确定性失败，不改就重试一万次都是同一堵墙。
+  'model-kind-mismatch': { primary: 'fix-model-kind', secondary: 'switch-model' },
+  // 去模型接入：密钥/开通/分组/档位/配置——都在那一页能解。
+  auth: ACCESS_FIRST,
+  balance: ACCESS_FIRST,
+  'model-config': ACCESS_FIRST,
+  'model-not-open': ACCESS_FIRST,
+  'image-route-disabled': ACCESS_FIRST,
+  'account-gate': ACCESS_FIRST,
+  // 重试是对的动作：偶发/限流/超时，等一等再来确实可能成。
+  // 免费匿名图床挂掉通常是偶发（下一分钟可能就好了），所以主动作仍是重试；
+  // 「一劳永逸」那条（接一个自带上传通道的服务商）写在 hint 里，不占按钮。
+  'asset-upload-failed': RETRY_FIRST,
+  // 素材超过所有通道的上限：**确定性**失败，同一个文件重试一万次都是同一堵墙（还每次都把整个
+  // 文件传上去再被拒）。用户真正的路是「换/压缩这个素材」——素材就在画布上连着，不需要按钮，
+  // 所以主动作给「换个模型」（换一家上限更高的通道也确实可能过），重试退到次动作。
+  'asset-too-large': SWITCH_FIRST,
+  // 参考素材本身不行：换素材的地方就在画布上（连着的那个节点，不需要按钮），换好后点重试。
+  // 同「改提示词后重试」那两类的理由——按钮只给 retry，改的动作在画布上。
+  'asset-invalid': RETRY_FIRST,
+  // 先重试：重试会尽量改用本机原图上传，不用换图。上传过模型还拒绝（比如这家拉不到上传通道的地址）时，再点重试只会再失败一次，
+  // 换模型是唯一的出口，所以留在次动作。
+  'reference-unfetchable': RETRY_FIRST,
+  // 请求没离开本机：重新点生成会按参考区重新组请求，主动作就是重试。
+  'reference-not-in-use': RETRY_FIRST,
+  // 比例超界：换比例的地方就在下方生成框（按钮只给 retry，改的动作在 composer）；该比例确实要用，就换一个支持它的模型。
+  'aspect-ratio-unsupported': RETRY_FIRST,
+  // 送去模型接入重新保存密钥（hint 里写清）。绝不给 retry 当主动作：
+  // 地址没改回来之前，重试一万次都是同一堵墙。
+  'outbound-blocked-credential-origin': ACCESS_FIRST,
+  // 地址得改（去模型接入改成跳转后的地址）；不改，重试一万次都是同一个跳转。
+  'credential-redirect': ACCESS_FIRST,
+  quota: RETRY_FIRST,
+  'poll-timeout': RETRY_FIRST,
+  network: RETRY_FIRST,
+  server: RETRY_FIRST,
+  // 改提示词/参数后重试（按钮只给 retry，改的地方就在下方 composer）。
+  'content-policy': RETRY_FIRST,
+  input: RETRY_FIRST,
+  'output-truncated': RETRY_FIRST,
+  // 只有重试：读不出来发生在我们这一侧，换供应商不是它的解法，更不能把它说成服务商的失败。
+  'output-unreadable': { primary: 'retry', secondary: null },
+  // 人确认可能再次扣费后发；机器仍然跳过。
+  'submission-unknown': { primary: 'release-regenerate', secondary: 'reconcile' },
+  // 没发出去：处理好原因后直接重试；等不及就换一个模型（换了也不会和上一次重复，上一次根本没到服务商）。
+  'submission-not-sent': RETRY_FIRST,
+  // 只指路去任务面板（那里有「重新取回」）。绝不给 retry：重试 = 再生成一份、再花一次钱，而这一份已经做好了。
+  'output-retrieval-failed': { primary: 'view-task', secondary: null },
+  // 同上：只指路去任务面板「重新取回」。绝不给 retry（= 再生成、再扣一次），也不给换模型（换了也是另一份新的）。
+  'retrieval-incomplete': { primary: 'view-task', secondary: null },
+  // 本机处理失败：换模型帮不上忙（没有模型参与），只留重试。
+  'local-processing': { primary: 'retry', secondary: null },
+  'local-refusal': { primary: 'view-task', secondary: null },
+  unknown: RETRY_FIRST,
+}
+
+/**
+ * 这一类失败是不是「服务商那一侧的事」。任何一句点名供应商说「它失败了」的话（切家提示：「某某家：原因。建议」）
+ * 都必须先过这一问——我们自己这一侧的失败（读不出产物 / 素材本身不行 / 我们的出站策略拦了 / 目录没配好 / 类型登记错 /
+ * 模型已下线 / 输出被截断）点名供应商就是栽赃，换一家也不是它的解法（2026-09-29 pb06：本机判失败之后提示劝换一家）。
+ * 穷举 Record：新增一类不回答这个问题 → typecheck 红（同上面的动作表）。
+ * `unknown` 例外由分类器按证据定（有供应商说的话才算）——这里只给它一个保守的 false。
+ */
+const VENDOR_SIDE_BY_KIND: Record<GenerationErrorKind, boolean> = {
+  auth: true,
+  balance: true,
+  quota: true,
+  'poll-timeout': true,
+  network: true,
+  'model-config': false,
+  'model-kind-mismatch': false,
+  'model-not-open': true,
+  'model-unavailable-upstream': true,
+  'model-retired': false,
+  'image-route-disabled': true,
+  'account-gate': true,
+  'content-policy': true,
+  'input-image-blocked': true,
+  'asset-upload-failed': false,
+  'asset-too-large': true,
+  'asset-invalid': false,
+  // 拉不到的是我们给的临时链接，修法在我们这一侧（改用上传）；不点名服务商「失败了」，也不触发「换一家」的切家提示。
+  'reference-unfetchable': false,
+  'reference-not-in-use': false,
+  'aspect-ratio-unsupported': false,
+  'outbound-blocked-credential-origin': false,
+  'credential-redirect': false,
+  server: true,
+  input: true,
+  'output-truncated': false,
+  'output-unreadable': false,
+  // 服务商是否收下 Nomi 并不知道，不替它定性（也不触发「换一家」的切家提示）。
+  'submission-unknown': false,
+  // 服务商根本没被请求到，不点名它。
+  'submission-not-sent': false,
+  // 失败在 Nomi 取回这一侧（策略 / 对方拒绝下载 / 返回的不是可用文件），不点名服务商「失败了」。
+  'output-retrieval-failed': false,
+  // 失败在取回这一侧；服务商原话（如 503「无可用渠道」）照旧由分类器单独给，这里不替服务商定性、不触发「换一家」。
+  'retrieval-incomplete': false,
+  // 全程在本机，没有服务商。
+  'local-processing': false,
+  'local-refusal': false,
+  unknown: false,
+}
+
+export function isVendorSideKind(kind: GenerationErrorKind): boolean {
+  return VENDOR_SIDE_BY_KIND[kind]
+}
+
+/** 全部失败类别——就是上面那张穷举表的键，不另抄一份（单测 / 走查要遍历「目录能说的每一句」时读它）。 */
+export const GENERATION_ERROR_KINDS = Object.keys(VENDOR_SIDE_BY_KIND) as readonly GenerationErrorKind[]
+
+/** 主动作 + 次动作（都出自上面那张表）。次动作 `null` = 不摆第二颗按钮。 */
+export function actionsOfKind(kind: GenerationErrorKind): {
+  primary: GenerationErrorAction
+  secondary: GenerationErrorAction | null
+} {
+  const { primary, secondary } = ACTION_BY_KIND[kind]
+  return { primary, secondary }
+}
+
+/**
+ * 没有可以再查的任务时（2026-10-28）：同步供应商把结果放在创建请求的那一次回答里，Nomi 本机没能把它落进项目——
+ * 节点上没有任务号，结果地址也只在那一次回答里，再取一次无从谈起。默认动作 / 说明会把人领去「重新取回」的那几类，
+ * 这里给不暗示能取回的那一版：动作按「有没有任务号」选（主动作重试 = 重新生成），说明换成 hintWithoutTask 词条。
+ * 不在表里的类照默认。守门：narrateWithoutTask.test 遍历全部类别。
+ */
+const WITHOUT_TASK_BY_KIND: Readonly<Partial<Record<GenerationErrorKind, GenerationErrorActions & { hintKey: string }>>> = {
+  'retrieval-incomplete': { primary: 'retry', secondary: null, hintKey: 'generationCommon.observability.error.retrievalIncomplete.hintWithoutTask' },
+  'output-retrieval-failed': { primary: 'retry', secondary: null, hintKey: 'generationCommon.observability.error.retrievalIncomplete.hintWithoutTask' },
+}
+
+/** 这一类失败在「没有可以再查的任务」时的说明键与动作；`null` = 照默认。 */
+export function withoutTaskOfKind(kind: GenerationErrorKind): { hintKey: string; primary: GenerationErrorAction; secondary: GenerationErrorAction | null } | null {
+  const entry = WITHOUT_TASK_BY_KIND[kind]
+  return entry ? { hintKey: entry.hintKey, primary: entry.primary, secondary: entry.secondary } : null
+}
+
+export type FailureRunFacts = Readonly<{ taskId?: string; productionRunId?: string; isProductionRecord: boolean }>
+
+/**
+ * 三个制作页面和任务中心读同一个「失败动作」判据：任务来源决定动作。
+ * 没有可再查的任务（无任务号、也不是制作记录）→ 用无任务那一版；有任务号且不是制作 Run → 把「去任务面板」换成「去重新取回」。
+ */
+export function failureActionsFor(
+  decision: Pick<GenerationFailureDecision, 'kind' | 'primary' | 'secondary'>,
+  run?: FailureRunFacts,
+): { primary: GenerationErrorAction; secondary: GenerationErrorAction | null; hintKey: string | null; canRetry: boolean } {
+  const hasTask = Boolean(run?.taskId?.trim())
+  const withoutTask = decision.primary !== 'release-regenerate' && !hasTask && !run?.isProductionRecord
+    ? withoutTaskOfKind(decision.kind) : null
+  const primary = withoutTask?.primary ?? decision.primary
+  const secondary = withoutTask ? withoutTask.secondary : decision.secondary
+  return {
+    primary: primary === 'view-task' && hasTask && !run?.productionRunId ? 'open-recoverable' : primary,
+    secondary,
+    hintKey: withoutTask?.hintKey ?? null,
+    canRetry: primary === 'retry' || secondary === 'retry',
+  }
+}
+
+/** 镜头被占用的原因 → 词条键 + 动作（原 shotClaimCopy）。 */
+export type ShotClaimCopy = {
+  key: 'queued' | 'awaitingConfirmation' | 'inFlight' | 'needsReconcile'
+  action: 'view-task' | 'reconcile'
+}
+const SHOT_CLAIM_COPY_BY_REASON: Partial<Record<ShotClaimReason, ShotClaimCopy>> = {
+  queued: { key: 'queued', action: 'view-task' },
+  awaiting_confirmation: { key: 'awaitingConfirmation', action: 'view-task' },
+  in_flight: { key: 'inFlight', action: 'view-task' },
+  needs_reconcile: { key: 'needsReconcile', action: 'reconcile' },
+}
+export function shotClaimCopy(reason: ShotClaimReason | undefined): ShotClaimCopy | undefined {
+  return reason ? SHOT_CLAIM_COPY_BY_REASON[reason] : undefined
+}

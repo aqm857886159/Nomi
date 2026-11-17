@@ -5,7 +5,7 @@ import { isTerminalTaskStatus, type TaskStatus } from '../../../electron/shared/
 import { classifyGenerationError } from '../observability/classifyError'
 import { describeOpaqueFailure } from '../observability/opaqueFailure'
 import { trackNodeSubmit } from '../generationCanvas/runner/nodeSubmitInFlight'
-import { stripVendorErrorMarker } from '../generationCanvas/runner/vendorErrorIpc'
+import { stripVendorErrorMarker } from '../../../electron/shared/generationFailure'
 
 export type TaskKind =
   | 'chat'
