@@ -780,6 +780,14 @@ export default tseslint.config(
     rules: { 'asset-command-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/assetFileDeletion'], importNames: ['trashProjectFiles'], message: 'UI must request the asset deletion command; physical trash is private to the deletion domain.' }] }] },
   },
   {
+    files: ['src/workbench/generationCanvas/nodes/versionCards/**/*.{ts,tsx}', 'src/workbench/assets/removeAssetVersion.ts', 'src/workbench/assets/assetResultMutation.ts'],
+    plugins: { 'asset-version-only': boundaryPlugin('no-restricted-syntax') },
+    rules: { 'asset-version-only/no-restricted-syntax': ['error',
+      { selector: ":matches(ImportDeclaration,ExportNamedDeclaration,ExportAllDeclaration,ImportExpression)[source.value=/(deleteAssetResult|pendingAssetDeletions|assetFileDeletion)$/]", message: 'Version removal retains the original file; file deletion belongs to asset-library intent.' },
+      { selector: "Identifier[name=/^(deferAssetFileDeletion|trashProjectFiles|deleteAssetResult|requestProjectAssetDeletion|sweepPersistedAssetDeletions|releaseLoadedProjectAssetDeletions|releaseEvictedAssetDeletions)$/]", message: 'Version removal cannot authorize file recycling.' },
+    ] },
+  },
+  {
     // 「这次按哪种方式发」只有一个主人：archetypeMeta.effectiveArchetypeMode（按输入现算）。modeTestHelpers 按存着的偏好取方式，
     // 只给「给定方式、请求体长什么样」的测试用；生产代码拿它会退回「存着什么就发什么」（2026-11-12 方式按输入现算）。
     files: ['src/**/*.{ts,tsx}', 'electron/**/*.ts'],

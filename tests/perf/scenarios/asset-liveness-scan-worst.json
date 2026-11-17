@@ -1,0 +1,28 @@
+{
+  "id": "asset-liveness-scan-worst",
+  "feature": "删结果时判断文件还有没有人用：整份项目内容扫一遍建引用索引，查表；素材库列表藏「已删待回收」时同一刻只扫一次",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/asset-liveness-scan-bench.mjs",
+    "--"
+  ],
+  "scale": "600 个节点 × 每个 20 版结果（10% 带 8 张白板图层）、每节点 4 张参考；分镜 20 份 × 50 镜 × 3 张参考；时间轴 500 片段；20 篇原稿 × 8000 字各夹 20 个地址；助手输入 20 附件；素材库列表 1000 项",
+  "metrics": [
+    "scanMs",
+    "lookupMs",
+    "listFilterMs",
+    "referencedFiles"
+  ],
+  "budget": 50,
+  "budgetStatus": "proposed",
+  "budgetBasis": "主指标 scanMs = 整份内容建一次引用索引。删除、关项目、列表过滤都是一次扫描；「操作到可见反馈 ≤100ms」里给扫描一半，剩下留给 store 更新和存盘。lookupMs（单次查表）预算 ≤0.01ms、listFilterMs（1000 项列表 = 一次扫描 + 1000 次查表）预算 ≤60ms，只打印；referencedFiles 是量具自检（应恒为 1000）。",
+  "baseline": {
+    "median": 27.7,
+    "p95": 30.7,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-17",
+    "commit": "991d9c542"
+  }
+}
