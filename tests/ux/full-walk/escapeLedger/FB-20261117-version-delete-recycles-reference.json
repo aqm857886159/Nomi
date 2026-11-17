@@ -13,19 +13,24 @@
     "明确清理文件只走素材库并保留引用挡板"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "origin/main 836e30a6c 真实隔离窗口复现：删第2版、关项目→映像卷回收站出现 liveness-v2.jpg；完全退出重开参考地址仍在但解不出像素。",
     "tests/ux/asset-liveness-storyboard-ref.walk.mjs",
     "src/workbench/assets/deleteAssetResult.realStore.test.ts",
     "src/workbench/assets/assetLivenessScan.test.ts",
-    "未合入，账本状态保持 reviewed，不冒称已解决。"
+    "三用法×中英：修前6/6原图进映像卷回收站，修后6/6原路径hash一致并可解码。",
+    "真实0.24.1载荷复制件打开、保存、正式0.24.1重开，旧请求无执行/写回，原字节保留。",
+    "本地已实现未推送；fixed 记录实现及类护栏，未推送、未合入、无 merge SHA 交付收据。"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "4a1329146c41112b8e5fabda01f3584afedf5adc"
+  ],
   "rootCauseContract": "docs/fixes/2026-11-17-asset-liveness-scan.root-cause.json",
   "classCheck": {
     "kind": "matrix",
     "file": "tests/ux/asset-liveness-storyboard-ref.walk.mjs"
-  }
+  },
+  "fixedInPr": 1559
 }

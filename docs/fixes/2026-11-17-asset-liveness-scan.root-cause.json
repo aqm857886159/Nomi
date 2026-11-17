@@ -77,7 +77,8 @@
   },
   "regression_tests": [
     "src/workbench/assets/deleteAssetResult.realStore.test.ts",
-    "src/workbench/assets/assetLivenessScan.test.ts"
+    "src/workbench/assets/assetLivenessScan.test.ts",
+    "tests/ux/asset-liveness-storyboard-ref.walk.mjs"
   ],
   "residual_risks": [
     "删版本不再释放磁盘空间，需去素材库主动删除。",
@@ -147,7 +148,8 @@
   },
   "class_regression_tests": [
     "src/workbench/assets/deleteAssetResult.realStore.test.ts",
-    "src/workbench/assets/assetLivenessScan.test.ts"
+    "src/workbench/assets/assetLivenessScan.test.ts",
+    "tests/ux/asset-liveness-storyboard-ref.walk.mjs"
   ],
   "legacy_paths": {
     "status": "removed",

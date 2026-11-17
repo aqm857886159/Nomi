@@ -27,7 +27,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
-import { canvasFitViewButton, openRailDrawer, switchWorkspace } from './_shell.mjs'
+import { backToLibrary, canvasFitViewButton, openRailDrawer, switchWorkspace } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 const require = createRequire(import.meta.url)
@@ -371,6 +371,10 @@ try {
   check('⑦ 文件还在盘上', fs.existsSync(importedFile(ON_CLIP)))
   await confirmDialogGone()
   await snap(win, '13-kept-in-use')
+  await backToLibrary(win, { label: 'End the library deletion undo window' })
+  await expect.poll(() => binned().includes('a-hero.png'), { timeout: stationTimeout() }).toBe(true)
+  check('⑥ 撤销窗口结束后素材库删除的原文件真进回收站', !fs.existsSync(importedFile('a-hero.png')) && binned().includes('a-hero.png'))
+  check('⑦ 关项目后时间轴在用原文件仍在', fs.existsSync(importedFile(ON_CLIP)))
 } catch (error) {
   console.log(`  FAIL walk crashed: ${error?.stack || error}`)
   results.push({ name: 'crash', ok: false })

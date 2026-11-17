@@ -121,7 +121,7 @@ function requeueFailed(entry: PendingAssetDeletion, requeue: boolean): void {
     logRendererError('pending-asset-deletion-gave-up', new Error(`${entry.relativePath} failed ${failedAttempts} times`))
     return
   }
-  if (requeue) pending.set(keyOf(entry), { ...entry, failedAttempts })
+  if (requeue) pending.set(keyOf(entry), { projectId: entry.projectId, relativePath: entry.relativePath, source: entry.source, failedAttempts })
 }
 
 /** 到点的逐条再判一次引用：没人用了才删；有人用（撤销回来了 / 别处在用 / 读不全）只销账。 */

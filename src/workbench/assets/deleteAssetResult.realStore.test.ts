@@ -160,7 +160,7 @@ describe('deleteAssetResult with the real canvas store', () => {
     setCanvas(b, [b])
     await sweepPersistedAssetDeletions('project-1', [
       { source: 'asset-library', relativePath: 'assets/generated/a.png' },
-      { relativePath: 'assets/generated/b.png' },
+      { source: 'asset-library', relativePath: 'assets/generated/b.png' },
       { relativePath: '' },
       'junk',
     ])
@@ -195,7 +195,9 @@ describe('deleteAssetResult with the real canvas store', () => {
 
     // 一次成功就销账。
     mocks.deleteFiles.mockResolvedValue({ deletedCount: 1, failedCount: 0 })
-    await sweepPersistedAssetDeletions('project-1', [{ relativePath: 'assets/generated/c.png', failedAttempts: 2 }], saved)
+    await sweepPersistedAssetDeletions('project-1', [{ source: 'asset-library', relativePath: 'assets/generated/c.png', failedAttempts: 2 }], saved)
+    expect(mocks.deleteFiles).toHaveBeenCalledTimes(4)
+    expect(mocks.deleteFiles).toHaveBeenLastCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/c.png'] })
     expect(listPersistedAssetDeletions()).toBeUndefined()
   })
 
@@ -215,6 +217,24 @@ describe('deleteAssetResult with the real canvas store', () => {
     expect(mocks.deleteFiles).toHaveBeenCalledTimes(2)
     expect(listPersistedAssetDeletions()).toBeUndefined()
   })
+
+  it('does not retry a failed library deletion on every later undo eviction', async () => {
+    const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
+    setCanvas(a, [a])
+    for (let index = 0; index < 80; index += 1) toggleGesture()
+    await deleteAssetResult(projectAsset('a'), loaded('project-1'))
+    mocks.deleteFiles.mockRejectedValueOnce(new Error('EBUSY'))
+    for (let index = 0; index < 80; index += 1) toggleGesture()
+    await waitForEvictionWork()
+    expect(mocks.deleteFiles).toHaveBeenCalledTimes(1)
+    toggleGesture()
+    await waitForEvictionWork()
+    expect(mocks.deleteFiles).toHaveBeenCalledTimes(1)
+    expect(listPersistedAssetDeletions()).toEqual([{ source: 'asset-library', relativePath: 'assets/generated/a.png', failedAttempts: 1 }])
+    await releaseLoadedProjectAssetDeletions()
+    expect(mocks.deleteFiles).toHaveBeenCalledTimes(2)
+  })
+
 })
 
 
