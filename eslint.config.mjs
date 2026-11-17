@@ -737,7 +737,7 @@ export default tseslint.config(
     // 别处要「这类失败说什么、能做什么」就调 decideGenerationFailure 或界面的 classifyGenerationError，不自己查表拼一份。
     // 配套的扫描（出口自己做子串 / 正则认码、覆盖类别 / 动作）在 check:concept-owners 的 failure-decision-bypass。
     files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
-    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/shared/generationFailure.ts', 'electron/shared/generationFailureCopy.ts', 'electron/capabilityCore/mcpToolErrorResults.ts'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/shared/generationFailure.ts', 'electron/shared/generationFailureKinds.ts', 'electron/shared/generationFailureWire.ts', 'electron/shared/generationFailureDetect.ts', 'electron/shared/generationFailureCopy.ts', 'electron/capabilityCore/mcpToolErrorResults.ts'],
     plugins: { 'failure-copy-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
     rules: {
       'failure-copy-owner/no-restricted-imports': ['error', { patterns: [{ group: moduleSources('generationFailureCopy'), message: FAILURE_COPY_MESSAGE }] }],
@@ -746,11 +746,11 @@ export default tseslint.config(
   },
   {
     files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
-    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/shared/generationFailure.ts', 'electron/shared/generationFailureCopy.ts', 'src/workbench/observability/narrate.ts', 'src/workbench/observability/classifyError.ts', 'src/workbench/observability/generationFailureActions.ts'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/shared/generationFailure.ts', 'electron/shared/generationFailureKinds.ts', 'electron/shared/generationFailureWire.ts', 'electron/shared/generationFailureDetect.ts', 'electron/shared/generationFailureCopy.ts', 'src/workbench/observability/narrate.ts', 'src/workbench/observability/classifyError.ts', 'src/workbench/observability/generationFailureActions.ts'],
     plugins: { 'failure-table-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
     rules: {
-      'failure-table-owner/no-restricted-imports': ['error', { patterns: [{ group: moduleSources('generationFailure'), importNames: FAILURE_TABLE_NAMES, message: FAILURE_TABLE_MESSAGE }] }],
-      'failure-table-owner/no-restricted-syntax': ['error', ...dynamicModuleSelectors('generationFailure', FAILURE_TABLE_NAMES, FAILURE_TABLE_MESSAGE)],
+      'failure-table-owner/no-restricted-imports': ['error', { patterns: [{ group: [...moduleSources('generationFailure'), ...moduleSources('generationFailureKinds')], importNames: FAILURE_TABLE_NAMES, message: FAILURE_TABLE_MESSAGE }] }],
+      'failure-table-owner/no-restricted-syntax': ['error', ...dynamicModuleSelectors('generationFailure', FAILURE_TABLE_NAMES, FAILURE_TABLE_MESSAGE), ...dynamicModuleSelectors('generationFailureKinds', FAILURE_TABLE_NAMES, FAILURE_TABLE_MESSAGE)],
     },
   },
   {

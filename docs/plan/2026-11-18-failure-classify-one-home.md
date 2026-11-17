@@ -3,6 +3,13 @@
 > 标准档（★1 / ★2 / ★3 / ★4 / ★9）。不新增界面元素、不改样子、不增删公开错误码、不改返回字段形状。
 > 状态：动手前稿，等协调回话；本卡里的行号以 `96182e162`（origin/main）为准。
 
+## ★0 先查别人（仓库内先例；没有对应的外部库能替我们做这套按镜头花钱语义的失败归因）
+
+- `electron/shared/vendorFailure.ts` · HTTP 状态到类别的查表已有共享主人 · 继续复用，不再抄一份。
+- `electron/shared/assets/referenceFetchRefusal.ts`、`electron/shared/agentCapabilities/admissionRejectionHints.ts` · 参考拉取拒绝判据与准入恢复指引已有共享主人 · 判定入口调用它们，不重写。
+- `docs/engineering/direction-checks/2026-11-18-failure-classify-one-home.md` · 近两个月四个判定文件 50 个 fix，说明各出口各判一遍是病根 · 决定收成一处。
+- 出口：不涉及：本改动不新增界面、不改任何「用户出不去 / 继续做下去」的路径，只把失败判定收成一处；各出口给用户的下一步动作与改动前逐项一致（五出口对拍表守）。
+
 ## ★1 用户怎么用
 
 当创作者的一次生成失败了，我想在画布、分镜、任务中心、内置助手、外部助手里看到同一个原因和同一组能做的动作（各自按语言和受众换说法），以便照着做下一步，而不是画布说「去模型接入」、外部助手拿到原样英文或一个不相干的码，越修越偏。
@@ -54,7 +61,8 @@
 - 三条路：沿原方向修（继续在三处各补）= 已被 50 个 fix 证伪，不选；换做法（抽共享叶子）= 选；删（外部助手只回码指回 Nomi）= 丢模型自纠与恢复指引，不选。
 - 复用：`electron/shared/nomiErrorCodes.ts`、`assets/referenceFetchRefusal.ts`、`contracts/ipcInvokeFailure.ts`、`vendorFailure.ts`、`generationProblem.ts`、`admissionRejectionHints.ts`、`productionShotPhase.ts` 原样复用，不重写；pi 适配 `laneProviderGuard.mts` 与 `recoverableCopy.ts` 保留为唯一主人，只消费。
 - 热点：`node scripts/fix-churn.mjs src/workbench/observability/classifyError.ts` 与 `src/workbench/ai/lane/laneCommandFailure.ts` 红（见下「待协调」）。
-- P0：共享叶子是把已有判据搬家，不新增自写能力，不登记 self-written（若门岗要求，再补）。
+- P0：共享叶子是把已有判据搬家，不新增自写能力；门岗扫描 failure-decision-bypass 属自写条目 gate-family，理由写在方向检查的补充一节。
+- 文件拆分：共享叶子按职责分四个文件（入口 generationFailure、词汇表 generationFailureKinds、原文读取 generationFailureWire、检测器 generationFailureDetect），判定入口仍只有 decideGenerationFailure；原因是文件体积门岗不许单文件超 800 行。
 
 ## ★4 全状态（界面逐态不变；下面是失败分类的出口）
 

@@ -942,10 +942,10 @@ test('当前任务：真实旧阶段与单镜旁路、改名、内联、别名�
   assert.deepEqual(findShotJobSelections({ files: Object.keys(negative), read: (file) => negative[file] }), [])
 })
 
-// 失败判定旁路：共享层（electron/shared/generationFailure*）读得到词表，出口自己判一遍就红；投影、只拼技术详情、测试夹具不红。
+// 失败判定旁路：共享层（electron/shared/generationFailure*）读得到词表（类别 / 动作取自 generationFailureKinds，公开码取自 generationFailureCopy），出口自己判一遍就红；投影、只拼技术详情、测试夹具不红。
 test('failure-decision-bypass 认出出口自己判类别 / 公开码 / 动作的写法，不拦投影', () => {
   const owner = {
-    'electron/shared/generationFailure.ts': "export type GenerationErrorKind = 'auth' | 'network' | 'model-config' | 'unknown'\nexport type GenerationErrorAction = 'retry' | 'open-model-access'\n",
+    'electron/shared/generationFailureKinds.ts': "export type GenerationErrorKind = 'auth' | 'network' | 'model-config' | 'unknown'\nexport type GenerationErrorAction = 'retry' | 'open-model-access'\n",
     'electron/shared/generationFailureCopy.ts': "export const TOOL_ERROR_HINT = { node_not_found: { zh: '', en: '', recover: [] }, unknown_model_identity: { zh: '', en: '', recover: [] } }\nexport const TOOL_USER_ACTION_HINT = { human_approval_required: { action: 'in_nomi', zh: '', en: '' } }\n",
   }
   const scan = (file, snippet) => findFailureDecisionBypass({

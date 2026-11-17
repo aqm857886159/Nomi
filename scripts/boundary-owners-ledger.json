@@ -686,7 +686,7 @@
       "path": "src/workbench/observability/narrate.ts",
       "symbol": "narrateIsVendorSideFailure",
       "anchor": {
-        "path": "electron/shared/generationFailure.ts",
+        "path": "electron/shared/generationFailureKinds.ts",
         "symbol": "isVendorSideKind"
       },
       "reason": "2026-11-18 失败判定收成一处（docs/engineering/direction-checks/2026-11-18-failure-classify-one-home.md）：「每一类声明它是不是服务商那一侧」的穷举表连同判据搬进共享叶子 electron/shared/generationFailure，界面层不再带这张表；不变量（点名供应商的界面只在 vendorSide 为 true 时才有资格）不变，仍由 classifyGenerationError.test.ts 与五出口对拍表守。"
@@ -696,7 +696,7 @@
       "path": "electron/capabilityCore/mcpToolErrorResults.ts",
       "symbol": "ERROR_HINT / POLICY_CODES / buildToolErrorOutcome",
       "anchor": {
-        "path": "electron/shared/generationFailure.ts",
+        "path": "electron/shared/generationFailureWire.ts",
         "symbol": "confirmPublicError"
       },
       "reason": "2026-11-18 失败判定收成一处（docs/engineering/direction-checks/2026-11-18-failure-classify-one-home.md）：外部助手的「哪些码算公开码（POLICY_CODES）」与人话表（原 ERROR_HINT，现 generationFailureCopy.TOOL_ERROR_HINT）搬进共享叶子，确证码只在 confirmPublicError 判一次；buildToolErrorOutcome 仍留在原处，只做外部助手受众的投影，签名与 outcome 形状不变。不变量（外部助手只认确证的码、未知码原样透传）仍由 mcpToolResults.test.ts 与五出口对拍表守。"

@@ -513,6 +513,9 @@ export function findShotJobSelections({ files, read }) {
 // shortcut: 仅识别已知 AST 形状；出现新旁路时升级为把判定入口收成唯一导出的读取接口。
 export const FAILURE_DECISION_OWNER_FILES = new Set([
   'electron/shared/generationFailure.ts',
+  'electron/shared/generationFailureKinds.ts',
+  'electron/shared/generationFailureWire.ts',
+  'electron/shared/generationFailureDetect.ts',
   'electron/shared/generationFailureCopy.ts',
 ])
 const FAILURE_FAMILY = new Set([
@@ -540,9 +543,9 @@ export function collectFailureVocabulary({ read }) {
   const kinds = new Set()
   const actions = new Set()
   const codes = new Set()
-  const owner = read('electron/shared/generationFailure.ts')
+  const owner = read('electron/shared/generationFailureKinds.ts')
   if (typeof owner === 'string') {
-    const source = parseSource('generationFailure.ts', owner)
+    const source = parseSource('generationFailureKinds.ts', owner)
     for (const statement of source.statements) {
       if (!ts.isTypeAliasDeclaration(statement)) continue
       if (statement.name.text === 'GenerationErrorKind') for (const value of stringLiteralsOfUnion(statement.type)) kinds.add(value)
