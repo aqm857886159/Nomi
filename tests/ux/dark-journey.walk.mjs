@@ -1,7 +1,7 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 暗色「完整用户旅途」R13 走查 —— J1-J5：项目库 → 创作 → 生成画布 → 预览时间轴 → 导出。
 // 用法: pnpm run build && node tests/ux/dark-journey.walk.mjs
-// 产出: tests/ux/shots/dark-journey/*.png（每段一张，人眼对账暗色下的层次/对比/可读性）。
+// 产出: EVIDENCE_DIR（默认 .tmp/dark-journey/）下的 PNG（每段一张，人眼对账暗色下的层次/对比/可读性）。
 //
 // ── 这份走查为什么被重写（2026-08-18）──
 //
@@ -38,13 +38,16 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
+import ffprobe from '@ffprobe-installer/ffprobe'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectVisible, expectCount, clickOrFail, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
 import { seedFinishedJourneyProject } from './fixtures/journey-project-fixture.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/dark-journey')
+const shotsDir = path.resolve(process.env.EVIDENCE_DIR || path.join(repoRoot, '.tmp/dark-journey'))
 
 // 每次跑清空产出目录：上一轮的 PNG 留在盘里，会被当成这一轮的产出去对账
 // （「截图有吗」问的是**这次**跑出来的截图）。
@@ -187,11 +190,20 @@ try {
   })
 
   // ── J5 导出 ──
-  // 只走到「导出真的启动了」为止：断言进度条浮出来就截图收工，不等它跑完
-  // （跑完会弹 Finder——真机走查不该在收尾时劫持用户桌面）。
-  await stage(win, 'J5-export-running', async () => {
-    await clickOrFail(win.locator('.workbench-preview-player__export-button'), '导出 MP4')
+  // 进度出现后仍可能失败；必须等终态并解码本次隔离项目的真实文件。
+  await stage(win, 'J5-export-complete', async () => {
+    await clickOrFail(win.locator('[data-export-busy]:visible'), '导出 MP4')
     await expectVisible(win.locator('.workbench-preview-player__export-progress'), '导出进度条')
+    await expect(win.locator('[data-export-busy]:visible')).toHaveAttribute('data-export-busy', 'false', { timeout: stationTimeout() })
+    await expect(win.locator('[data-preview-export-error]'), '导出终态不应有错误').toHaveCount(0)
+    const exportsDir = path.join(seeded.projectRoot, 'exports')
+    const files = fs.readdirSync(exportsDir).filter((name) => name.endsWith('.mp4'))
+    expect(files.length, '隔离项目应产生真实 MP4').toBe(1)
+    const file = path.join(exportsDir, files[0])
+    const probe = JSON.parse(execFileSync(ffprobe.path, ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file], { encoding: 'utf8' }))
+    expect(probe.streams.some((stream) => stream.codec_type === 'video')).toBe(true)
+    expect(Number(probe.format.duration)).toBeGreaterThan(0)
+    fs.copyFileSync(file, path.join(shotsDir, 'export.mp4'))
   })
 
   assertStagesAreDistinct()
