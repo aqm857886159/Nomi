@@ -1,6 +1,6 @@
 /**
  * 「一个已经做完的项目」夹具：创作区有文稿、生成画布有成片节点、预览时间轴有排好的 clip。
- * 零模型、零额度、零网络——图片是当场写盘的 SVG，走 nomi-local 协议。
+ * 零模型、零额度、零网络——图片是随仓 ffmpeg 当场生成的 PNG，预览和导出都能解码。
  *
  * 为什么需要它（2026-08-18）：`dark-journey.walk.mjs` 号称走 J1-J5，实际跑在一个**空**的
  * 隔离 profile 上——库里一个项目都没有。于是「打开示例项目」那一步的两个候选定位器都是 0，
@@ -21,6 +21,8 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
+import ffmpeg from '@ffmpeg-installer/ffmpeg'
 
 /** 时间轴帧率与「一张图占多久」。与 buildClipFromGenerationNode 的默认一致（图 3 秒）。 */
 const FPS = 30
@@ -49,16 +51,17 @@ const STORY_PARAGRAPHS = [
   '两个人爬上屋顶，并排坐着，看夕阳一点点沉下去。',
 ]
 
-function shotSvg(shot, index) {
-  // 纯几何，不依赖任何字体/外链——换机器、换平台渲染结果一致。
-  return [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">',
-    `<rect width="960" height="540" fill="${shot.sky}"/>`,
-    `<circle cx="${180 + index * 120}" cy="210" r="96" fill="${shot.glow}" opacity="0.85"/>`,
-    `<rect x="0" y="392" width="960" height="148" fill="#000" opacity="0.35"/>`,
-    `<rect x="48" y="440" width="${72 + index * 28}" height="14" rx="7" fill="${shot.glow}"/>`,
-    '</svg>',
-  ].join('')
+function shotPng(shot, index) {
+  // Chromium 能显示的 SVG 不等于随仓导出器能解码；夹具使用真实生成图片的栅格格式。
+  const filters = [
+    `drawbox=x=${84 + index * 120}:y=114:w=192:h=192:color=${shot.glow}@0.85:t=fill`,
+    'drawbox=x=0:y=392:w=960:h=148:color=black@0.35:t=fill',
+    `drawbox=x=48:y=440:w=${72 + index * 28}:h=14:color=${shot.glow}:t=fill`,
+  ]
+  return execFileSync(ffmpeg.path, [
+    '-v', 'error', '-f', 'lavfi', '-i', `color=c=${shot.sky}:s=960x540`,
+    '-vf', filters.join(','), '-frames:v', '1', '-threads', '1', '-f', 'image2pipe', '-vcodec', 'png', 'pipe:1',
+  ])
 }
 
 function buildDocument(title, updatedAt) {
@@ -131,8 +134,8 @@ export function seedFinishedJourneyProject({ projectsDir, projectId = 'dark-jour
 
   const now = Date.now()
   const nodes = SHOTS.map((shot, index) => {
-    const fileName = `${shot.id}.svg`
-    fs.writeFileSync(path.join(generatedDir, fileName), shotSvg(shot, index))
+    const fileName = `${shot.id}.png`
+    fs.writeFileSync(path.join(generatedDir, fileName), shotPng(shot, index))
     return {
       id: shot.id,
       kind: 'image',
