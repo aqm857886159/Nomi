@@ -1217,7 +1217,7 @@
       "contract": "docs/fixes/2026-09-10-apimart-direct-key-publish.root-cause.json",
       "path": "electron/catalog/directKeyCredential.ts",
       "symbol": "probeDirectKeyCredential + promoteDirectKeyVendor",
-      "note": "promoteDirectKeyVendor 已不在；同文件有 publishBuiltinCuratedVendor 疑为后继，未核实直连钥匙发布路径是否等价。probeDirectKeyCredential 仍在原位。"
+      "note": "promoteDirectKeyVendor 已不在；同文件的 publishConfiguredVendor 是后继（2026-11-17 起保存凭据后的连接发布对所有供应商生效），未核实直连钥匙发布路径是否逐项等价。probeDirectKeyCredential 仍在原位。"
     },
     {
       "contract": "docs/fixes/2026-09-11-ponytail-timeout-starvation.root-cause.json",
