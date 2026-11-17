@@ -12,6 +12,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect, screenshotSettled } from './_assert.mjs'
 import { newProjectEntry, switchWorkspace } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = process.cwd()
 const shotsDir = path.resolve(process.env.EVIDENCE_DIR || path.join(repoRoot, '.tmp/agent-runtime-video-export'))
@@ -186,15 +187,15 @@ try {
   check(clipMeta.width > 0, '生成视频通过可见入口进入视频时间轴', JSON.stringify(clipMeta))
   await snap(win, 'video-clip-on-timeline')
 
-  // M3 editing proof: use the visible blade tool and split the real clip at its
+  // M3 editing proof: select the real clip at its midpoint and split at the
   // midpoint. The clip count and persisted frame windows are the product truth;
   // no store mutation or fixed delay is used by the walk.
-  const splitButton = win.getByRole('button', { name: /剪刀模式/ }).first()
-  await splitButton.waitFor({ state: 'visible', timeout: 5000 })
-  await splitButton.click()
   const clipBox = await videoClip.boundingBox()
-  check(Boolean(clipBox && clipBox.width > 8), '剪刀模式下视频片段仍有可点击画面区域')
+  check(Boolean(clipBox && clipBox.width > 8), '视频片段有可点击的中点')
   await videoClip.click({ position: { x: Math.max(4, Math.floor((clipBox?.width || 20) / 2)), y: Math.max(4, Math.floor((clipBox?.height || 20) / 2)) } })
+  const splitButton = win.getByRole('button', { name: uiText('zh-CN', 'timelineEditor.context.split'), exact: true }).filter({ visible: true }).first()
+  await expect(splitButton).toBeEnabled()
+  await splitButton.click()
   const splitClips = win.locator('[data-track-type="video"] .workbench-timeline-clip')
   await win.waitForFunction(() => document.querySelectorAll('[data-track-type="video"] .workbench-timeline-clip').length === 2, undefined, { timeout: 10_000 })
   check(await splitClips.count() === 2, '真实剪辑操作把视频片段分成两段')
@@ -220,7 +221,7 @@ try {
   check(playback.duration > 0 && playback.currentTime > 0 && playback.readyState >= 2, '预览 video 真实加载并播放推进', JSON.stringify(playback))
   await snap(win, 'preview-video-playing')
 
-  await win.locator('[aria-label="导出 MP4"]').first().click({ timeout: 5000 })
+  await win.locator('[data-export-busy]:visible').first().click({ timeout: 5000 })
   let exportPath = null
   for (let i = 0; i < 40 && !exportPath; i += 1) {
     await win.waitForTimeout(1000)
@@ -241,6 +242,7 @@ try {
   const exportJson = JSON.parse(exportProbe)
   check(exportJson.streams?.some((stream) => stream.codec_type === 'video'), '导出 MP4 含视频流', exportPath)
   check(Number(exportJson.format?.duration) > 0 && fs.statSync(exportPath).size > 0, '导出 MP4 有正时长和非零字节', JSON.stringify({ bytes: fs.statSync(exportPath).size, duration: exportJson.format?.duration }))
+  fs.copyFileSync(exportPath, path.join(shotsDir, 'export.mp4'))
   await snap(win, 'export-complete')
 
   const beforeRestart = await win.evaluate((id) => window.nomiDesktop?.projects?.readAsync(id), projectId)
@@ -249,14 +251,16 @@ try {
   const beforeRevision = beforePayload?.revision || beforePayload?.meta?.revision || beforePayload?.project?.revision
   await app.close()
   ;({ app, win } = await launchNomiApp({ name: 'agent-runtime-video-export-restart', userDataDir, settingsDir, projectsDir, settleMs: 1200, env: { NOMI_RENDERER_URL: `file://${path.join(repoRoot, 'dist/index.html')}`, NODE_ENV: 'production' } }))
-  await win.waitForTimeout(1200)
+  await win.locator(`[data-project-card][data-project-id="${projectId}"]`).click()
+  await switchWorkspace(win, 'preview', '重启后重新打开项目的剪辑页')
+  await expect(win.locator('[data-track-type="video"] .workbench-timeline-clip:visible')).toHaveCount(persistedSplitClips.length)
   const afterRestart = await win.evaluate((id) => window.nomiDesktop?.projects?.readAsync(id), projectId)
   const afterPayload = afterRestart?.payload || afterRestart
   check(Boolean(afterPayload), '关闭并重启后仍可读回项目 payload')
   const restoredNode = afterPayload?.generationCanvas?.nodes?.find((candidate) => candidate.id === nodeId)
   const restoredClips = afterPayload?.timeline?.tracks?.flatMap((track) => track.clips || []).filter((clip) => clip.type === 'video') || []
   check(restoredNode?.result?.type === 'video' && restoredNode.result.url.startsWith('nomi-local://'), '重启恢复生成视频本地资产')
-  check(restoredClips.length > 0, '重启恢复视频时间轴 clip', `count=${restoredClips.length}`)
+  check(restoredClips.length === persistedSplitClips.length, '重启恢复全部视频时间轴 clip', `count=${restoredClips.length}`)
   const afterRevision = afterPayload?.revision || afterPayload?.meta?.revision || afterPayload?.project?.revision
   check(beforeRevision === undefined || afterRevision === beforeRevision, '重启前后 revision 保持一致', JSON.stringify({ beforeRevision, afterRevision }))
   await snap(win, 'restart-restored-video')
