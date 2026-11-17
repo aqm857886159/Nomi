@@ -29,10 +29,11 @@ export async function ensureCreationResourceTree(win, where = '') {
  */
 export async function openStoryboardEditor(win, target = { pick: 'first' }, where = '') {
   const label = where || '打开分镜编辑器'
-  await ensureCreationResourceTree(win, label).catch(() => false)
+  await ensureCreationResourceTree(win, label)
+  const tree = win.locator('[data-creation-resource-tree="true"]')
   const rows = typeof target === 'string'
-    ? win.locator(`[data-storyboard-row="${target}"]`)
-    : win.locator('[data-storyboard-row]')
+    ? tree.locator(`[data-storyboard-row="${target}"]`)
+    : tree.locator('[data-storyboard-row]')
   const row = typeof target === 'string' ? rows.first() : target.pick === 'last' ? rows.last() : rows.first()
   await expectVisible(row, `${label}：左栏里没有这份分镜方案`)
   // 点方案行里真正的按钮（行容器的正中间在悬停探头 / 更多操作按钮出现时可能落在别的东西上）。
