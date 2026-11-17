@@ -10,8 +10,9 @@
   ],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
+  "fixedInPr": 1566,
   "evidence": [
     "docs/plan/2026-11-17-param-value-type.md",
     "docs/engineering/direction-checks/2026-11-17-param-value-type.md",
@@ -20,12 +21,14 @@
     "electron/shared/videoCapabilities/paramValue.test.ts",
     "scripts/param-value-door-rule.test.mjs",
     "结构性预防：参数值只在 electron/shared/videoCapabilities/paramValue.ts 的门口规整一次（声明门、值门、读秒、面板输入门、出口编码），分镜两个时长字段只经 reconcileShotDuration 收拢；门里再自己转类型由 ESLint 规则 param-value-door/no-reparse 拦；类级对拍按目录结构认全部数字档下拉，存的 = 行上显示 = 约价 = 报文里档案原文的声明值。",
-    "实现提交已完成，独立验收待填写；当前分支尚无 PR，转 fixed 和 fixedInPr 待真实 PR 创建后由协调回填，不虚构编号。"
+    "fixed 记录实现及类护栏（提交 4ee3ca180）；已推送待合入，独立验收另行填写，无 merge SHA 交付收据前不算已解决。"
   ],
   "rootCauseContract": "docs/fixes/2026-11-17-param-value-type.root-cause.json",
   "classCheck": {
     "kind": "matrix",
     "file": "electron/parity/paramValueType.parity.test.ts"
   },
-  "completionCommits": []
+  "completionCommits": [
+    "4ee3ca180"
+  ]
 }

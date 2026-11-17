@@ -15,10 +15,14 @@
     "conflictShotSeconds"
   ],
   "budget": 15,
-  "budgetStatus": "proposed",
+  "budgetStatus": "approved",
   "budgetBasis": "主指标 sendDoor200Ms = 200 个节点各过一次发送口。最坏是「整批发送」一次过 200 个节点；「操作到可见反馈 ≤100ms」里给参数规整 15ms（p95 ≤30ms），其余留给确认卡与排队。planRead40Ms（40 镜方案读入含规整）预算 p95 ≤5ms，只打印；encodedStrings（应恒为 120）、conflictShotSeconds（应恒为 12）是量具自检。",
-  "measurement": {
-    "state": "pending",
-    "reason": "实现线已冒烟并量过 5 次（数字在 PR 正文），基线待协调或验收线在安静窗口写入"
+  "baseline": {
+    "median": 5.1,
+    "p95": 7,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-17",
+    "commit": "4ee3ca180"
   }
 }
