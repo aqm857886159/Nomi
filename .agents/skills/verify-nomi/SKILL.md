@@ -17,11 +17,17 @@ node tests/ux/ui.mjs up --data v0.24.0-library            # 带老用户数据�
 node tests/ux/ui.mjs up --out /某个仓库外目录               # 证据目录（默认系统临时目录下 nomi-verify/…，必须在仓库外）
 ```
 
-- 第一行打印 `PROFILE 隔离…` 或 `PROFILE 真实资料…`，看清再往下走。READY 那行带用时、语言、主题、尺寸、数据和证据目录。
+- 启动打印 `PROFILE 隔离…` 或 `PROFILE 真实资料…`，看清再往下走；带 `--vendor` 时第一行先标假供应商和端口。READY 那行带用时、语言、主题、尺寸、数据和证据目录。
 - 尺寸只有三档：`1280x800` / `1100x720` / `700x720`（窄窗 = 700）。
 - 窗口不抢前台，可以照常干别的；不用等窗口、不用看前台是谁。
 - 真实资料只在用户明确要时用：`NOMI_WALK_FOREGROUND_OK=1 node tests/ux/ui.mjs up --real-profile`（会抢前台、碰用户真数据；不设那个环境变量直接拒跑）。验收、复现一律隔离起。
 - 已经起了一只：`up` 退出码 3 并说 pid——直接接着用（先 `doctor`），或先 `down`。
+
+要走完生成，用 `--vendor fake-apimart` 起本次新建的隔离资料：复用 APIMart 夹具和加密假 key，所有供应商请求经现有网闸改投 `127.0.0.1`，不消耗额度；`up` / `doctor` 第一行显示端口，`down` / `quit` 关闭服务。可加 `--vendor-pending 2` 让每个任务先返回两次处理中；不能和 `--real-profile` 或 `NOMI_UI_USER_DATA` 同用。请求在证据目录 `vendor-requests.json`，网闸记录在 `network.jsonl`；不传参数保持原行为。夹具固定返回 16×16 PNG 和 64×64、1 秒 MP4，不提供文本模型响应，不用于验收模型效果或 Agent 对话。
+
+```bash
+node tests/ux/ui.mjs up --vendor fake-apimart --vendor-pending 2 --out /某个仓库外目录
+```
 
 ## Doctor
 
