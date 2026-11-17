@@ -142,6 +142,29 @@ const walkDialogLocatorSelectors = [
   { selector: 'Literal[value=/fixed[.]inset-0/]', message: WALK_DIALOG_LOCATOR_MESSAGE },
   { selector: 'TemplateElement[value.raw=/fixed[.]inset-0/]', message: WALK_DIALOG_LOCATOR_MESSAGE },
 ]
+// 生成底栏「窄了谁先让」只有一个量的人：InlineParameterBar（方向检查 docs/engineering/direction-checks/2026-11-17-bar-yield.md）。
+// 以前量的不是屏上画的、何时重量是手写清单；底栏里别的组件再自己量宽来定让级，就又多一处会量错的地方。
+// 底栏组件（下面的文件表 + 任何引了 composerBarYield 的文件）不许量宽 / 挂尺寸观察；让级只从 ComposerBarYieldContext 读。
+// 「这格参与让」的标记 data-yield-item 也只许 InlineParameterBar 打（它按这个标记量）。
+const composerBarMeasurePlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const COMPOSER_BAR_MEASURE_MESSAGE = '生成底栏只有 InlineParameterBar 量宽定让级：底栏组件不要自己 getBoundingClientRect / offsetWidth / ResizeObserver，从 ComposerBarYieldContext 读让级；要多一级让法就给 composerYieldLadder 声明一级。'
+const COMPOSER_BAR_MEASURE_PROPS = '/^(offsetWidth|clientWidth|scrollWidth|offsetHeight|clientHeight|scrollHeight)$/'
+const composerBarMeasureSelectors = (prefix = '') => [
+  { selector: `${prefix}CallExpression > MemberExpression.callee[property.name=/^(getBoundingClientRect|getClientRects)$/]`, message: COMPOSER_BAR_MEASURE_MESSAGE },
+  { selector: `${prefix}MemberExpression[property.name=${COMPOSER_BAR_MEASURE_PROPS}]`, message: COMPOSER_BAR_MEASURE_MESSAGE },
+  { selector: `${prefix}NewExpression[callee.name=/^(ResizeObserver|IntersectionObserver)$/]`, message: COMPOSER_BAR_MEASURE_MESSAGE },
+]
+const COMPOSER_BAR_YIELD_IMPORTER = 'Program:has(ImportDeclaration[source.value=/composerBarYield$/]) '
+export const COMPOSER_BAR_FILES = [
+  'src/workbench/generationCanvas/nodes/ComposerSendButton.tsx',
+  'src/workbench/generationCanvas/nodes/NodePromptToolCluster.tsx',
+  'src/workbench/generationCanvas/nodes/controls/AdvancedSettings.tsx',
+  'src/workbench/generationCanvas/nodes/composerBarYield.ts',
+  'src/workbench/generationCanvas/nodes/composerHeadlineSummary.ts',
+  'src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx',
+  'src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx',
+]
+const COMPOSER_BAR_MEASURER = 'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx'
 const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const mainSyncWaitSelectors = [{
   selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
@@ -606,6 +629,24 @@ export default tseslint.config(
     files: ['tests/**/*.{mjs,cjs,js,ts,tsx}', 'scripts/**/*.{mjs,cjs,js}'],
     plugins: { 'walk-dialog-locator': walkDialogLocatorPlugin },
     rules: { 'walk-dialog-locator/no-restricted-syntax': ['error', ...walkDialogLocatorSelectors] },
+  },
+  {
+    // 生成底栏只有 InlineParameterBar 量宽：底栏文件表里的组件一律不量。
+    files: COMPOSER_BAR_FILES,
+    plugins: { 'composer-bar-measure': composerBarMeasurePlugin },
+    rules: { 'composer-bar-measure/no-restricted-syntax': ['error', ...composerBarMeasureSelectors()] },
+  },
+  {
+    // 以后新加入让法的组件（引了 composerBarYield 的）同样不量；data-yield-item 只许量的人打。
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}', COMPOSER_BAR_MEASURER, ...COMPOSER_BAR_FILES],
+    plugins: { 'composer-bar-measure': composerBarMeasurePlugin },
+    rules: {
+      'composer-bar-measure/no-restricted-syntax': ['error',
+        ...composerBarMeasureSelectors(COMPOSER_BAR_YIELD_IMPORTER),
+        { selector: "JSXAttribute[name.name='data-yield-item']", message: COMPOSER_BAR_MEASURE_MESSAGE },
+      ],
+    },
   },
   {
     // 保存热路径不新增同步文件操作（存量批量压制，只减不增）。

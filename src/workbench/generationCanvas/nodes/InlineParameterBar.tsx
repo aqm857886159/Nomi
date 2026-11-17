@@ -181,6 +181,14 @@ function fallbackSummaryParts(controls: readonly DynamicModelControl[], meta: Re
   return texts.map((text, index) => ({ text, dropRank: texts.length - index }))
 }
 
+/**
+ * 让法要看的格：底栏那一行、参数条、参数条里每个参与让的格（data-yield-item），以及那一行的每个直接子格
+ * （参数段、右边的图标排、行尾、生成钮）。任何一格自己的尺寸变了，让级就可能不对了。
+ */
+function yieldWatchedElements(row: HTMLElement, bar: HTMLElement): Element[] {
+  return [row, bar, ...Array.from(row.children), ...Array.from(bar.querySelectorAll('[data-yield-item]'))]
+}
+
 export default function InlineParameterBar({
   modelOptions,
   hideModel = false,
@@ -258,19 +266,26 @@ export default function InlineParameterBar({
 
   // ── 底栏挤的时候谁先让（composerBarYield.ts，四处同一条）：只在这里量一次，经 context 发给生成钮。 ──
   // 量法：从「什么都不让」起一级一级往上试，直到参数条里的东西不再超出参数条（布局前同步做完，不闪）。
-  // 判据是底栏自己的宽（ResizeObserver 看底栏那一行），不读窗口宽。分镜最窄一档（wrap）整颗换行，不走这里。
+  // 量的就是屏上画的（摘要没有冻结的旧字）。何时重量不写清单：底栏里任何一格自己的尺寸变了（内容、语言、字体、
+  // 右边多一颗图标、整行变宽变窄）都由下面的 ResizeObserver 看到，从第 0 级重量。分镜最窄一档（wrap）整颗换行，不走这里。
   const fitCandidates = footer && !wrap && parts.length ? summaryFitCandidates(parts) : null
   const modeCollapsible = modeHasIcon(modeMenu?.options, modeMenu?.value)
   const ladder = footer && !wrap
     ? composerYieldLadder({ sendCollapsible: Boolean(footer.action), modeCollapsible, summaryCandidates: fitCandidates?.length ?? 1 })
     : [COMPOSER_YIELD_NONE]
   const yielding = ladder.length > 1
-  const fitKey = `${ladder.length}\n${fitCandidates ? fitCandidates.join('\n') : fullSummaryText}\n${selectedModelOption?.value ?? ''}\n${modeMenu?.value ?? ''}`
   const barRef = React.useRef<HTMLDivElement | null>(null)
   const footerRowRef = React.useRef<HTMLDivElement | null>(null)
-  const [fitState, setFitState] = React.useState<{ key: string; level: number }>({ key: fitKey, level: 0 })
-  const level = fitState.key === fitKey ? Math.min(fitState.level, ladder.length - 1) : 0
+  // 每次 set 都是新对象：观察器重置到第 0 级（哪怕本来就是 0）也会让量的那段再跑一遍。
+  const [fitState, setFitState] = React.useState<{ level: number }>({ level: 0 })
+  const level = Math.min(fitState.level, ladder.length - 1)
   const yieldStep = ladder[level] ?? COMPOSER_YIELD_NONE
+  const sizeSignature = React.useCallback((): string => {
+    const row = footerRowRef.current
+    const bar = barRef.current
+    if (!row || !bar) return ''
+    return yieldWatchedElements(row, bar).map((el) => Math.round(el.getBoundingClientRect().width)).join(':')
+  }, [])
   React.useLayoutEffect(() => {
     if (!yielding) return
     const bar = barRef.current
@@ -278,35 +293,45 @@ export default function InlineParameterBar({
     // 参数条里排着的东西（都不缩）超出参数条右沿 = 放不下，再让一级。
     const right = bar.getBoundingClientRect().right
     const overflow = Array.from(bar.querySelectorAll<HTMLElement>('[data-yield-item]')).some((el) => el.getBoundingClientRect().right > right + 0.5)
-    if (overflow) setFitState({ key: fitKey, level: level + 1 })
-    else if (fitState.key !== fitKey) setFitState({ key: fitKey, level })
-    // fitState 每次 set 都是新对象：ResizeObserver 重置到第 0 级（哪怕本来就是 0）也会再量一遍。
-  }, [yielding, level, ladder.length, fitKey, fitState])
+    if (overflow) setFitState({ level: level + 1 })
+  }, [yielding, level, ladder.length, fitState])
+  const observerRef = React.useRef<{ observer: ResizeObserver; watched: Element[] } | null>(null)
   React.useLayoutEffect(() => {
+    if (!yielding || typeof ResizeObserver === 'undefined') return
+    // 和上一次看到的尺寸签名比：一样就不重量（量的过程自己改了尺寸，重量完记下新签名，下一轮观察看到的就是它，不会来回触发）；
+    // 不一样就从第 0 级重量——包括挂上时那一帧的尺寸后来又变了（宿主自己的排版晚一拍定下来），照样重量。
+    let seen = sizeSignature()
+    const observer = new ResizeObserver(() => {
+      const next = sizeSignature()
+      if (next === seen) return
+      flushSync(() => setFitState({ level: 0 }))
+      seen = sizeSignature()
+    })
+    observerRef.current = { observer, watched: [] }
+    return () => {
+      observer.disconnect()
+      observerRef.current = null
+    }
+  }, [yielding, sizeSignature])
+  // 看哪些格每次提交后对一遍（格子会进出：方式格、右边的图标排、生成钮）；只在成员变了才重挂。
+  React.useLayoutEffect(() => {
+    const watch = observerRef.current
     const row = footerRowRef.current
     const bar = barRef.current
-    if (!yielding || !row || !bar || typeof ResizeObserver === 'undefined') return
-    // 底栏那一行变宽变窄（窗口、表格列），或参数条被右边的钮挤了（生成钮变成「生成中」）：从头再量，
-    // 变宽时让出去的要收回来。同步做完，画出来的已经是量好的那一级；量完宽度回到原样，不会自己再触发一轮。
-    const widths = (): string => `${Math.round(row.getBoundingClientRect().width)}:${Math.round(bar.getBoundingClientRect().width)}`
-    let seen = widths()
-    const observer = new ResizeObserver(() => {
-      const next = widths()
-      if (next === seen) return
-      flushSync(() => setFitState({ key: fitKey, level: 0 }))
-      seen = widths()
-    })
-    observer.observe(row)
-    observer.observe(bar)
-    return () => observer.disconnect()
-  }, [fitKey, yielding])
+    if (!watch || !row || !bar) return
+    const next = yieldWatchedElements(row, bar)
+    if (next.length === watch.watched.length && next.every((el, index) => el === watch.watched[index])) return
+    watch.observer.disconnect()
+    for (const el of next) watch.observer.observe(el)
+    watch.watched = next
+  })
   const fitCramped = yieldStep.modelEllipsis
   const summaryText = fitCandidates ? fitCandidates[Math.min(yieldStep.summaryIndex, fitCandidates.length - 1)] ?? fullSummaryText : fullSummaryText
   const yieldContext = React.useMemo(() => ({ sendIconOnly: yieldStep.sendIconOnly }), [yieldStep.sendIconOnly])
 
   // ── 参数浮层：静止定位（打开定位一次，绝不跟随）。 ──
   // 打开时以触发器（pill / ⚙）中心定位一次，之后绝不跟随；
-  // 比例变化通过节点原子锚定保证触发器本身不动。摘要文本也在打开期间冻结，宽度不跳。
+  // 比例变化通过节点原子锚定保证触发器本身不动。摘要开着时照常跟着值变（面板不跟随，钮变宽它也不跑）。
   const [panelOpen, setPanelOpen] = React.useState(false)
   const [panelInit, setPanelInit] = React.useState<{
     left: number
@@ -316,7 +341,6 @@ export default function InlineParameterBar({
     /** 打开那一下先不可见地画一次、量出内容的本来高度，再定开向和限高（之后不再动）。 */
     measured: boolean
   } | null>(null)
-  const [frozenSummary, setFrozenSummary] = React.useState('')
   // 触发器只有一个：那颗摘要 pill。
   const triggerRef = React.useRef<HTMLButtonElement | null>(null)
   const panelRef = React.useRef<HTMLDivElement | null>(null)
@@ -332,7 +356,6 @@ export default function InlineParameterBar({
     const centeredLeft = rect.left + rect.width / 2 - PANEL_W / 2
     const left = Math.min(Math.max(8, centeredLeft), Math.max(8, vw - PANEL_W - 8))
     setPanelInit({ left, top: 0, maxHeight: undefined, side: 'above', measured: false })
-    setFrozenSummary(summaryText)
     setPanelOpen(true)
   }
   // 开向和限高（2026-11-14 验收条件 2：Eleven v3 七项的面板顶到窗口顶、盖住顶栏、最后一项够不着）：
@@ -390,8 +413,6 @@ export default function InlineParameterBar({
     }
   }, [panelOpen, closePanel])
 
-  // 面板打开期间 pill 文本冻结（宽度稳定）；关闭后回到实时值。
-  const pillText = panelOpen ? frozenSummary : summaryText
 
   // 「改一个参数写到哪儿去」三件一组传下去：面板、高级设置、每个参数组共用同一份，
   // 谁也别再自己接一遍（P1）。
@@ -564,11 +585,11 @@ export default function InlineParameterBar({
       type="button"
       // 走查锚点：断言得能拿到那串摘要本身，
       // 不能靠中文 aria-label 去找（换个语言就断了）。
-      data-parameter-summary={pillText}
+      data-parameter-summary={summaryText}
       data-yield-item
       aria-label={t('generationCommon.parameters.generationParameters')}
       aria-expanded={panelOpen}
-      title={(fitCandidates ? fullSummaryText : pillText) || t('generationCommon.parameters.generationParameters')}
+      title={(fitCandidates ? fullSummaryText : summaryText) || t('generationCommon.parameters.generationParameters')}
       data-parameter-summary-cramped={fitCandidates && fitCramped ? 'true' : undefined}
       onClick={() => (panelOpen ? closePanel() : openPanel())}
       className={cn(
@@ -582,7 +603,7 @@ export default function InlineParameterBar({
       style={fitCandidates || wrap || yielding ? undefined : { maxWidth: 240 }}
     >
       <span className="min-w-0 truncate" style={{ maxWidth: wrap || fitCandidates || yielding ? 'none' : 240 }}>
-        {pillText || t('generationCommon.parameters.parameters')}
+        {summaryText || t('generationCommon.parameters.parameters')}
       </span>
       <IconChevronDown
         size={ICON_TIERS.corner.size}
