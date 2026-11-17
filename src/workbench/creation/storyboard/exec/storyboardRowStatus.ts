@@ -30,7 +30,7 @@ import { peekVendorPreferenceOrder } from '../../../common/useVendorPreference'
  *                    中性态，只给免费的「重新拉取结果」（query 不是 generate）；**绝不**进批量——
  *                    进了批量就是把一次已付费的生成再付一次钱（画布 NodeRecoverableReport 同一语义）；
  * - done             有可用结果（画面格 = 结果图 + 悬停浮条）；
- * - locked           已锁定（结果满意，不进批量不被重跑；同参考卡锁语义）。
+ * - locked           已定妆（结果满意，不进批量不被重跑；同画布定妆）。
  */
 export const SHOT_ROW_STATUSES = ['ready', 'anchor-ignored', 'missing-required', 'generating', 'failed', 'recoverable', 'done', 'locked'] as const
 export type ShotRowStatus = (typeof SHOT_ROW_STATUSES)[number]

@@ -10,7 +10,6 @@ function evidence(overrides: Record<string, unknown> = {}) {
         kind: "image",
         title: "Shot",
         prompt: "prompt",
-        locked: false,
         categoryId: "shots",
         groupId: "group-1",
         position: { x: 0, y: 0 },
@@ -22,7 +21,6 @@ function evidence(overrides: Record<string, unknown> = {}) {
         kind: "image",
         title: "Reference",
         prompt: "reference",
-        locked: false,
         categoryId: "shots",
         groupId: "group-1",
         position: { x: 100, y: 0 },
@@ -52,7 +50,7 @@ describe("canvas.delete exact admission", () => {
     expect(admission.preconditions.edges).toHaveLength(1);
   });
 
-  it("rejects missing, duplicate, locked, and inconsistent targets", () => {
+  it("rejects missing, duplicate, and inconsistent targets", () => {
     expect(() => buildCanvasDeleteAdmission(evidence({ resolvedReferences: [] }), input)).toThrow(
       /capability_target_stale/,
     );
@@ -62,9 +60,6 @@ describe("canvas.delete exact admission", () => {
         input,
       ),
     ).toThrow(/capability_target_stale/);
-    const locked = evidence();
-    (locked.nodes[0] as { locked: boolean }).locked = true;
-    expect(() => buildCanvasDeleteAdmission(locked, input)).toThrow(/capability_target_stale/);
     expect(() => buildCanvasDeleteAdmission(evidence({ groups: [] }), input)).toThrow(/capability_target_stale/);
   });
 });

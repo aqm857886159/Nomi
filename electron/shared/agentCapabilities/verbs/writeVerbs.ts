@@ -434,7 +434,7 @@ export function writeVerbs(): VerbDeclaration[] {
       does: "Delete exact nodes (shots, artifacts, director references) from the canvas.",
       useWhen: "The user names what to delete.",
       notWhen: "Never to clean up on your own initiative (arrange_canvas tidies without removing); never for nodes you did not read in look_at_canvas.",
-      params: "nodeIds are exact current ids from look_at_canvas; locked nodes and stale ids are rejected.",
+      params: "nodeIds are exact current ids from look_at_canvas; stale ids are rejected.",
     },
     // `canvas.delete` 的宿主面就定义成这份 pi schema `.extend({ operation })`——模型面与宿主面只有一份
     // 定义，宿主自补的那个值在 `verbProjections.ts` 的 `DELETE_FROM_CANVAS_HOST_FILL` 里显式声明。

@@ -23,7 +23,7 @@ export default function PanoramaNodeToolbar({ node, reportFeedback, fullscreenRe
   const { t } = useTranslation()
   const { downloading, download } = useResultDownload(node, reportFeedback)
   return (
-    <FloatingToolbarShell ariaLabel={t('generationCommon.node.panoramaActions')} lockNodeId={node.id}>
+    <FloatingToolbarShell ariaLabel={t('generationCommon.node.panoramaActions')} nodeId={node.id}>
       <ToolbarButton
         icon={<IconMaximize size={TBI.size} stroke={TBI.stroke} />}
         label={t('generationCommon.node.panoramaPreview')}

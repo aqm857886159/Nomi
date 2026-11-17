@@ -16,7 +16,6 @@ function evidence(patch: Partial<CanvasWriteRawEvidence["node"]> = {}): CanvasWr
       kind: "image",
       title: "Opening shot",
       prompt: "old prompt",
-      locked: false,
       categoryId: "shots",
       groupId: "group-a",
       model: {
@@ -43,8 +42,8 @@ describe("canvas.write raw evidence admission", () => {
   it("derives exact batch targets and one canvas relation precondition", () => {
     const raw = {
       nodes: [
-        { ...evidence().node, id: "node-a", locked: false, position: { x: 0, y: 0 } },
-        { ...evidence().node, id: "node-b", locked: false, position: { x: 100, y: 0 } },
+        { ...evidence().node, id: "node-a", position: { x: 0, y: 0 } },
+        { ...evidence().node, id: "node-b", position: { x: 100, y: 0 } },
       ],
       edges: [],
       groups: [],
@@ -61,29 +60,6 @@ describe("canvas.write raw evidence admission", () => {
     expect(admission.preconditions).toEqual({
       edges: [{ relationHash: expect.stringMatching(/^sha256-[a-f0-9]{64}$/) }],
     });
-  });
-
-  it("rejects locked batch targets before proposal persistence", () => {
-    expect(() =>
-      buildCanvasWriteAdmissionForOperation(
-        {
-          nodes: [{ ...evidence().node, id: "node-b", locked: true, position: { x: 0, y: 0 } }],
-          edges: [],
-          groups: [],
-          resolvedReferences: [{ requestedId: "alias-b", nodeId: "node-b" }],
-        },
-        {
-          operation: "connect_canvas_edges",
-          edges: [{ sourceClientId: "missing-source", targetClientId: "alias-b" }],
-        },
-      ),
-    ).toThrowError(expect.objectContaining({ code: "capability_target_stale" }));
-  });
-
-  it("rejects an initially locked node at canonical admission", () => {
-    expect(() => buildCanvasWriteAdmission(evidence({ locked: true }))).toThrowError(
-      expect.objectContaining({ code: "capability_target_stale" }),
-    );
   });
 
   it("derives canonical target and main-owned preconditions from raw evidence", () => {

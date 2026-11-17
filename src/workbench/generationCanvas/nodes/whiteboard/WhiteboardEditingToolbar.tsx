@@ -88,7 +88,7 @@ export function WhiteboardEditingToolbar(p: WhiteboardEditingToolbarProps): Reac
   )
   const icon = { size: 16, stroke: 1.6 }
   return <>
-    <FloatingToolbarShell ariaLabel={label('title')} lockNodeId={null} side="below" centerOnNode avoidBottomDocks toolbarRef={anchorRef}>
+    <FloatingToolbarShell ariaLabel={label('title')} nodeId={null} side="below" centerOnNode avoidBottomDocks toolbarRef={anchorRef}>
       {([
         ['select', <IconPointer {...icon} />], ['brush', <IconBrush {...icon} />], ['eraser', <IconEraser {...icon} />],
         ['text', <IconTypography {...icon} />],

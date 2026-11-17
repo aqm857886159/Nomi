@@ -24,7 +24,6 @@ const SNAPSHOT = Object.freeze({
     prompt: 'draw A',
     status: 'idle',
     position: Object.freeze({ x: 1, y: 2 }),
-    locked: false,
     hasResult: false,
   })],
   edges: Object.freeze([]),
