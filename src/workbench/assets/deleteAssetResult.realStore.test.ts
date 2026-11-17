@@ -18,6 +18,7 @@ vi.mock('../project/workbenchProjectSession', () => ({
 }))
 
 import { deleteAssetResult } from './deleteAssetResult'
+import { removeAssetVersion } from './removeAssetVersion'
 import { __resetPendingAssetDeletionsForTests, listPersistedAssetDeletions, MAX_DELETE_ATTEMPTS, releaseLoadedProjectAssetDeletions, sweepPersistedAssetDeletions } from './pendingAssetDeletions'
 
 function loaded(projectId: string): ProjectExecutionContext {
@@ -158,7 +159,7 @@ describe('deleteAssetResult with the real canvas store', () => {
     const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
     setCanvas(b, [b])
     await sweepPersistedAssetDeletions('project-1', [
-      { relativePath: 'assets/generated/a.png' },
+      { source: 'asset-library', relativePath: 'assets/generated/a.png' },
       { relativePath: 'assets/generated/b.png' },
       { relativePath: '' },
       'junk',
@@ -173,16 +174,16 @@ describe('deleteAssetResult with the real canvas store', () => {
     mocks.deleteFiles.mockResolvedValue({ deletedCount: 0, failedCount: 1 })
     const saved = vi.fn()
 
-    await sweepPersistedAssetDeletions('project-1', [{ relativePath: 'assets/generated/a.png' }], saved)
+    await sweepPersistedAssetDeletions('project-1', [{ source: 'asset-library', relativePath: 'assets/generated/a.png' }], saved)
     // 删失败：路径不从清单里消失，记一次失败，并请项目存盘（失败次数要落到项目文件里）。
-    expect(listPersistedAssetDeletions()).toEqual([{ relativePath: 'assets/generated/a.png', failedAttempts: 1 }])
+    expect(listPersistedAssetDeletions()).toEqual([{ source: 'asset-library', relativePath: 'assets/generated/a.png', failedAttempts: 1 }])
     expect(saved).toHaveBeenCalledOnce()
 
     // 下次打开：拿着项目文件里那份（带失败次数）再试。
     let persisted = listPersistedAssetDeletions()
     __resetPendingAssetDeletionsForTests()
     await sweepPersistedAssetDeletions('project-1', persisted, saved)
-    expect(listPersistedAssetDeletions()).toEqual([{ relativePath: 'assets/generated/a.png', failedAttempts: 2 }])
+    expect(listPersistedAssetDeletions()).toEqual([{ source: 'asset-library', relativePath: 'assets/generated/a.png', failedAttempts: 2 }])
 
     persisted = listPersistedAssetDeletions()
     __resetPendingAssetDeletionsForTests()
@@ -208,10 +209,52 @@ describe('deleteAssetResult with the real canvas store', () => {
     for (let index = 0; index < 80; index += 1) toggleGesture()
     await waitForEvictionWork()
     expect(mocks.deleteFiles).toHaveBeenCalledTimes(1)
-    expect(listPersistedAssetDeletions()).toEqual([{ relativePath: 'assets/generated/a.png', failedAttempts: 1 }])
+    expect(listPersistedAssetDeletions()).toEqual([{ source: 'asset-library', relativePath: 'assets/generated/a.png', failedAttempts: 1 }])
 
     await releaseLoadedProjectAssetDeletions()
     expect(mocks.deleteFiles).toHaveBeenCalledTimes(2)
     expect(listPersistedAssetDeletions()).toBeUndefined()
+  })
+})
+
+
+describe('version removal keeps the original file independently of references', () => {
+  beforeEach(() => {
+    const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
+    const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
+    __resetPendingAssetDeletionsForTests()
+    __resetCanvasUndoJournalForTests()
+    setCanvas(a, [a, b])
+    mocks.deleteFiles.mockReset()
+    mocks.persistNow.mockReset().mockResolvedValue({ id: 'project-1' })
+  })
+
+  const removeVersion = () => removeAssetVersion('node-1', 'a', loaded('project-1'))
+
+  it('removes only the version, supports real undo, and never authorizes file recycling', async () => {
+    await removeVersion()
+    expect(useGenerationCanvasStore.getState().nodes[0].history?.map(result => result.id)).not.toContain('a')
+    expect(listPersistedAssetDeletions()).toBeUndefined()
+    useGenerationCanvasStore.getState().undo()
+    expect(useGenerationCanvasStore.getState().nodes[0].result?.url).toBe('nomi-local://asset/project-1/assets/generated/a.png')
+    await releaseLoadedProjectAssetDeletions()
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+  })
+
+  it('keeps an unreferenced original after its undo step is evicted and the project closes', async () => {
+    await removeVersion()
+    for (let index = 0; index < 90; index += 1) toggleGesture()
+    await waitForEvictionWork()
+    await releaseLoadedProjectAssetDeletions()
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+    expect(listPersistedAssetDeletions()).toBeUndefined()
+  })
+
+  it('restores the version when saving fails', async () => {
+    mocks.persistNow.mockRejectedValueOnce(new Error('disk full'))
+    await expect(removeVersion()).rejects.toThrow('disk full')
+    expect(useGenerationCanvasStore.getState().nodes[0].result?.id).toBe('a')
+    expect(listPersistedAssetDeletions()).toBeUndefined()
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
   })
 })

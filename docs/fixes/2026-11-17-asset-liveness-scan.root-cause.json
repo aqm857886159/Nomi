@@ -1,11 +1,11 @@
 {
   "schema_version": 3,
   "id": "2026-11-17-asset-liveness-scan",
-  "problem_type": "存活判定靠逐项列举引用位置，列举之外的引用一律当作没人用",
+  "problem_type": "版本删除被赋予物理文件回收权限",
   "symptom": "创作者把一张生成图挂到分镜镜头参考、普通节点参考列表或助手输入框上，再删掉产出它的那一版；撤销窗口过去、关项目或重开清扫时，这份文件被移进系统废纸篓，分镜参考 / 节点参考 / 助手输入显示不出来。",
-  "direct_cause": "src/workbench/assets/assetResultDeletion.ts 的 isProjectFileReferenced（修前）只扫节点白板、节点当前 / 历史结果和时间轴片段四处；分镜方案 referenceBindings、节点 meta.referenceImageUrls、工作台 projectAgentAttachments 都不在名单里，删除计划判 trash、延后回收与重开清扫照判照删。",
-  "class_root": "「这份文件还有没有人用」是一个对整份项目内容的问题，却被写成一张手工维护的位置清单：每新增一种能挂文件的地方（分镜参考、节点参考、助手输入……）都要有人记得回来登记，忘一次就是不可逆的删文件；而且拿不到内容时没有「判保留」的默认。",
-  "migration": "删掉旧的逐项列举（resultReferencesFile、readWhiteboardAssetUrls、urlReferencesFile、ProjectFileReferenceScope），同提交换成整份内容扫描；存储格式不变。项目文件里已有的待删清单不迁移，释放前（撤销挤出 / 关项目 / 重开清扫）用新判定逐条重判，只会比以前留得多；已经进系统废纸篓的不管。",
+  "direct_cause": "版本卡与素材库共用 deleteAssetResult；版本删除给原文件登记待删，撤销挤出、关项目与重开根据不完整引用判定执行回收。",
+  "class_root": "删除一个版本的意图和主动删除文件的意图未在资产边界分离；普通版本操作能够获得物理删除授权。",
+  "migration": "旧无来源标记 pending 打开时整批失效、不执行、不写回；新 pending 只来自素材库，source=asset-library；不搬文件、不改原子写。",
   "affected_population": [
     "把生成结果选作分镜镜头参考图、再删掉原结果的创作者",
     "节点参考列表引用了别的节点结果、再删掉原结果的创作者",
@@ -14,173 +14,161 @@
   ],
   "scope_paths": [
     "src/workbench/assets/",
-    "src/workbench/project/workbenchProjectContent.ts",
-    "src/workbench/project/workbenchProjectSession.ts"
+    "src/workbench/project/projectRecordSchema.ts",
+    "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+    "eslint.config.mjs"
   ],
   "entry_points": [
-    "src/workbench/assets/deleteAssetResult.ts deleteAssetResultUnlocked → planAssetDeletion（已加载 / 关闭两条）",
-    "src/workbench/assets/pendingAssetDeletions.ts releaseEvictedAssetDeletions（撤销挤出）",
-    "src/workbench/assets/pendingAssetDeletions.ts releaseLoadedProjectAssetDeletions（关项目 / 换项目）",
-    "src/workbench/assets/pendingAssetDeletions.ts sweepPersistedAssetDeletions（重开清扫）",
-    "src/workbench/assets/pendingAssetDeletions.ts isAssetFileAwaitingTrash / withoutFilesAwaitingTrash（素材库列表）"
+    "NodeVersionCardsHost.remove → removeAssetVersion",
+    "AssetLibraryPanel / assets.delete-files → deleteAssetResult",
+    "pendingAssetDeletions → 挤出/关项目/重开/存盘列表只接素材库来源"
   ],
   "invariants": [
-    "项目内容（写盘那一份 + 会话里未发的输入 + 会话活着时的撤销材料）里任何一个字符串、任何深度、任何一种地址写法指向这份文件，判定都是「有人用」。",
-    "拿不到完整内容（画布未载入、载入的不是目标项目、装配抛错）一律判「有人用」，不删文件。",
-    "删除计划、延后回收、重开清扫、列表过滤只问 isProjectFileReferenced 一个判定，项目内容只从 readLoadedProjectLivenessContent / closedProjectLivenessContent 一个装配口来。",
-    "每个声明为「项目寿命」的 store 字段都在 PROJECT_SESSION_FIELD_ROLES 里归类。"
+    "版本删除只改节点结果、撤销和存盘，不能 import 或调用文件回收及待删登记。",
+    "只有显式素材库删除登记的条目有回收授权；无标记旧条目整批作废。",
+    "素材库主动删除仍查引用，时间轴使用的文件保留，无人用的文件照旧进回收站。"
   ],
   "doors": [
     {
-      "kind": "read",
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "symbol": "removeAssetVersion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "deleteAssetResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "deleteAssetResult"
+    },
+    {
+      "kind": "write",
       "path": "src/workbench/assets/deleteAssetResult.ts",
-      "symbol": "readLoadedProjectLivenessContent"
+      "symbol": "deferAssetFileDeletion"
     },
     {
-      "kind": "read",
-      "path": "src/workbench/assets/pendingAssetDeletions.ts",
-      "symbol": "readLoadedProjectLivenessContent"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/assets/projectLivenessContent.ts",
-      "symbol": "readCurrentWorkbenchProjectContent"
+      "kind": "write",
+      "path": "src/workbench/project/projectPersistenceService.ts",
+      "symbol": "sweepPersistedAssetDeletions"
     },
     {
       "kind": "read",
       "path": "src/workbench/project/workbenchProjectSession.ts",
-      "symbol": "readCurrentWorkbenchProjectContent"
+      "symbol": "listPersistedAssetDeletions"
     },
     {
       "kind": "write",
-      "path": "src/workbench/assets/assetResultDeletion.ts",
-      "symbol": "isProjectFileReferenced"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/assets/deleteAssetResult.ts",
-      "symbol": "planAssetDeletion"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/assets/deleteAssetResult.ts",
-      "symbol": "closedProjectLivenessContent"
+      "path": "src/workbench/project/releaseWorkbenchProjectSession.ts",
+      "symbol": "releaseLoadedProjectAssetDeletions"
     },
     {
       "kind": "write",
       "path": "src/workbench/assets/pendingAssetDeletions.ts",
-      "symbol": "isProjectFileReferenced"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/project/workbenchProjectContent.ts",
-      "symbol": "readCurrentWorkbenchProjectContent"
+      "symbol": "releaseEvictedAssetDeletions"
     }
   ],
   "door_reduction": {
-    "before": 4,
-    "after": 9,
-    "why_not": "修前「有没有人用」的判定散在四处各读一部分内容（删除计划读节点、延后回收读节点 + 时间轴、关闭项目读盘上节点、列表读节点 + 时间轴）；修后只剩一个判定 + 一个装配口，门表里的每一扇是同一判定 / 同一装配口在不同时刻的调用（当场删、到点删、列表、写盘投影），时刻不同不能合成一扇。"
+    "before": 9,
+    "after": 8,
+    "why_not": "版本卡改走独立版本删除口；素材库和内部命令仍共用显式文件删除口。存盘、重开、关项目、撤销挤出各时点保留同一素材库来源清单，各自负责不同生命周期，不能互相取代。"
   },
   "regression_tests": [
-    "src/workbench/assets/assetLiveness.realStore.test.ts",
-    "src/workbench/assets/assetLivenessScan.test.ts",
-    "src/workbench/assets/projectLivenessContent.census.test.ts",
-    "src/workbench/assets/assetResultDeletion.test.ts"
+    "src/workbench/assets/deleteAssetResult.realStore.test.ts",
+    "src/workbench/assets/assetLivenessScan.test.ts"
   ],
   "residual_risks": [
-    "主进程三份数据不扫（已发出的助手对话历史、制作运行台账、主进程排队的未发助手输入）：前两份记的是过去；排队输入在用户中止时才回到输入框，若原结果已删、文件已回收，发出去时附件不可用（已知限制，设计卡写明）。",
-    "没有项目 id 可核的写法（裸路径、asset: 前缀、file://、Windows 路径、夹在文字里的路径）按「相对路径出现在路径边界上」比，可能多留文件，不会误删。未编码、带空格的本地地址夹在一句话中间时只能认到空格前（应用自己写的本地地址都是编码过的）。",
-    "真窗口真手势的走查不在本提交的闭环里；本提交的闭环是真 store + 真删除入口 + 真写盘 + 真删除 IPC，系统废纸篓换成临时目录改名。"
+    "删版本不再释放磁盘空间，需去素材库主动删除。",
+    "素材身份证（B）未做；素材库主动删除仍用旧查法，未编码 ?/# 路径和晚到暂存归类缺口未在此刀解决。",
+    "助手未发送输入离项目清空是既有设计，本刀不增加跨重开草稿恢复。"
   ],
   "internal_only_reason": "引用位置、项目内容的装配与待删清单都是 Nomi 自己的项目格式与会话结构，没有外部 API 决定它们；同类产品的做法（Obsidian 删未用附件丢图、垃圾回收的可达性扫描）只作设计参考，记在设计卡 ★0。",
   "recurrence": {
     "classification": "recurring",
-    "reason": "引用位置会随功能继续增加（分镜参考、节点参考、助手输入都是后加的），手工清单每加一处就可能再漏一次；同一判定被四处消费，漏一处即在四个时刻删文件。",
+    "reason": "任意消费者和未来字段都可能不被扫描覆盖，普通版本删除不应拿到物理回收权限。",
     "same_class_scan": [
-      "node scripts/door-map.mjs isProjectFileReferenced：2 个文件 3 处（assetResultDeletion.ts fileFate、pendingAssetDeletions.ts release 与列表），全部改为查整份内容的索引。",
-      "node scripts/door-map.mjs trashProjectFiles：deleteAssetResult.ts 当场删与 pendingAssetDeletions.ts 到点删两扇，前面都经同一判定；主进程 electron/workspace/workspaceFileDelete.ts 只执行，不判定。",
-      "storeLifetimeRegistry 普查：全部项目寿命 store 字段逐个归类（content / pending / session-undo / 不装引用 + 理由），修前漏掉的 projectAgentAttachments、projectAgentReferences、generationAiDraft 现在都在扫描内。"
+      "任务书指定 rg 扫描10个调用文件：版本卡、素材库、内部命令、重开、关闭、存盘、bridge类型、三个实现。",
+      "scripts/door-map.mjs deleteAssetResult / deferAssetFileDeletion / sweepPersistedAssetDeletions / listPersistedAssetDeletions / releaseLoadedProjectAssetDeletions / releaseEvictedAssetDeletions，原始输出落证据目录。"
     ]
   },
-  "generality_proof": "判定不再列位置：对项目内容整棵树走一遍收集所有字符串（含键），写盘多一个字段扫描自动多一个字段；会话字段由普查强制归类；读不全返回 null 判保留。所以新加的引用位置不需要回来登记，也不会因为「没登记」被当作没人用。",
+  "generality_proof": "版本删除入口没有物理删除能力，因此不依赖引用位置、URL写法或会话归类；无论分镜、节点、助手、时间轴等是否可被扫描，版本操作均不会回收文件。旧无标记回收意图没有授权，统一拒绝重放。",
   "shared_boundaries": [
     {
-      "path": "src/workbench/assets/assetResultDeletion.ts",
-      "symbol": "collectProjectFileReferences / isProjectFileReferenced",
-      "responsibility": "整份内容建引用索引；唯一的「有没有人用」判定，null 判保留。"
+      "path": "src/workbench/assets/removeAssetVersion.ts",
+      "symbol": "removeAssetVersion",
+      "responsibility": "只移除节点版本并持久化撤销，不持有文件删除能力。"
     },
     {
-      "path": "src/workbench/assets/projectLivenessContent.ts",
-      "symbol": "readLoadedProjectLivenessContent / closedProjectLivenessContent",
-      "responsibility": "唯一的项目内容装配口；读不全返回 null。"
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "sweepPersistedAssetDeletions",
+      "responsibility": "只接受素材库来源回收授权，旧无标记条目无副作用失效。"
     },
     {
-      "path": "src/workbench/project/workbenchProjectContent.ts",
-      "symbol": "PROJECT_SESSION_FIELD_ROLES",
-      "responsibility": "会话字段归类表，和组成载荷的那段放在一起。"
+      "path": "eslint.config.mjs",
+      "symbol": "asset-version-only",
+      "responsibility": "版本删除路径禁止回收入口。"
     }
   ],
   "same_class_entry_points": [
     {
-      "path": "src/workbench/assets/deleteAssetResult.ts",
-      "entry_point": "deleteAssetResultUnlocked",
+      "path": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "entry_point": "remove",
       "disposition": "enforced",
-      "evidence": "已加载与关闭两条路都经 planAssetDeletion，scope.rest 来自装配口；assetLiveness.realStore.test.ts 三种情形删除当场 keptInUseCount=1。"
+      "evidence": "版本卡只调用 removeAssetVersion，三种用法新进程目标走查与 eslint 反例。"
     },
     {
       "path": "src/workbench/assets/pendingAssetDeletions.ts",
-      "entry_point": "release / isAssetFileAwaitingTrash",
+      "entry_point": "sweepPersistedAssetDeletions",
       "disposition": "enforced",
-      "evidence": "撤销挤出、关项目、重开清扫都在第一个 await 前按项目建一次索引再逐条判；列表按 store 状态记忆一次索引；assetLivenessScan.test.ts 覆盖读不全、ending、列表失效与 v0.24.1 旧清单重判。"
+      "evidence": "来源标记在重开边界过滤，旧无标记条目不执行也不请求写回；真实旧载荷复制件重放。"
     },
     {
-      "path": "electron/workspace/workspaceFileDelete.ts",
-      "entry_point": "nomi:workspace:delete-files",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "entry_point": "deleteAssetResult",
       "disposition": "not-affected",
-      "evidence": "主进程只执行渲染层已判定的删除（shell.trashItem），不做引用判定；已发版本里没有别的路径直接删项目素材文件。"
+      "evidence": "保留素材库主动删除及时间轴引用挡板，修前修后走查同结果。"
     }
   ],
   "prevention": {
-    "kind": "centralized-boundary",
-    "enforcement_path": "src/workbench/assets/assetResultDeletion.ts",
-    "invariant": "删素材文件前，整份项目内容里没有任何字符串指向它；拿不到完整内容就不删。",
-    "failure_mode": "装配读不全 → null → 判保留、只销账；新加项目寿命字段没归类 → projectLivenessContent.census.test.ts 红；项目文件加字段没归属 → 普查里的字段表编译不过。",
+    "kind": "static-gate",
+    "enforcement_path": "eslint.config.mjs",
+    "invariant": "版本删除只改节点结果、撤销和存盘，不能 import 或调用文件回收及待删登记。",
+    "failure_mode": "版本删除路径 import 或引用回收入口时 eslint 报错；无标记旧 pending 不获得删除授权。",
     "exception_policy": "none",
-    "strategy": "删掉位置清单，改成对整份项目内容的保守扫描；会话字段由普查强制归类。",
+    "strategy": "删除版本卡对通用文件删除口的依赖，改为只移除版本的入口；lint 禁止回收依赖。",
     "artifacts": [
-      "src/workbench/assets/assetResultDeletion.ts",
-      "src/workbench/assets/projectLivenessContent.ts",
+      "eslint.config.mjs",
+      "src/workbench/assets/removeAssetVersion.ts",
       "src/workbench/assets/pendingAssetDeletions.ts",
-      "src/workbench/project/workbenchProjectContent.ts",
-      "src/workbench/assets/projectLivenessContent.census.test.ts"
+      "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx"
     ]
   },
   "class_regression_tests": [
-    "src/workbench/assets/assetLivenessScan.test.ts",
-    "src/workbench/assets/projectLivenessContent.census.test.ts",
-    "src/workbench/assets/assetLiveness.realStore.test.ts"
+    "src/workbench/assets/deleteAssetResult.realStore.test.ts",
+    "src/workbench/assets/assetLivenessScan.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
     "removed_paths": [
-      "src/workbench/assets/assetResultDeletion.ts"
+      "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "src/workbench/assets/pendingAssetDeletions.ts"
     ],
-    "rationale": "assetResultDeletion.ts 里逐项列举的位置清单（resultReferencesFile、readWhiteboardAssetUrls、urlReferencesFile、ProjectFileReferenceScope）同提交删掉，换成整份内容扫描；无并行版、无兜底。文件本身保留（删除计划仍住在这里）。"
+    "rationale": "版本卡删一版不再进入文件删除口；重开无来源标记旧条目不执行。素材库显式删除口保留。"
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
     "rationale": "只动 Nomi 自己的渲染层代码，不涉及第三方依赖。",
     "exit_criteria": []
   },
-  "detected_by": "review",
-  "recurrence_check_on": "2026-12-17",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-24",
   "invariant_owner_layer": {
-    "layer": "src/workbench/assets/assetResultDeletion.ts",
+    "layer": "src/workbench/assets/removeAssetVersion.ts",
     "tests": [
-      "src/workbench/assets/assetLivenessScan.test.ts",
-      "src/workbench/assets/projectLivenessContent.census.test.ts",
-      "src/workbench/assets/assetLiveness.realStore.test.ts"
+      "src/workbench/assets/deleteAssetResult.realStore.test.ts",
+      "src/workbench/assets/assetLivenessScan.test.ts"
     ]
   }
 }

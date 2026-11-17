@@ -43,7 +43,7 @@ export const workbenchProjectSummarySchema = z.object({
 })
 
 /** 项目内容里「一项一项独立存」的那几类：某一项不合格只隔离那一项，不连累整份（`projectNormalize.normalizePayloadWithQuarantine`）。 */
-export const pendingAssetDeletionSchema = z.object({ relativePath: z.string().min(1), failedAttempts: z.number().int().positive().optional() })
+export const pendingAssetDeletionSchema = z.object({ source: z.literal('asset-library').optional(), relativePath: z.string().min(1), failedAttempts: z.number().int().positive().optional() })
 
 /**
  * 项目内容的**骨架**：结构不对（payload 不是对象、画布 nodes 不是数组、文档集合不是数组…）才整份拒。
@@ -140,8 +140,8 @@ export type WorkbenchProjectPayload = {
   storyboardDesignsByDocumentId?: Record<string, StoryboardDesign[]>
   /** Preview editing surface dimensions and visibility are project-local UI state. */
   editingPanelLayout?: EditingPanelLayout
-  /** 删掉的版本还没真删的文件（见 assets/pendingAssetDeletions.ts）。 */
-  pendingAssetDeletions?: Array<{ relativePath: string; failedAttempts?: number }>
+  /** 素材库显式删除的待回收文件；无来源标记的旧条目在打开时失效。 */
+  pendingAssetDeletions?: Array<{ relativePath: string; source?: 'asset-library'; failedAttempts?: number }>
 }
 
 export type WorkbenchProjectRecordV1 = WorkbenchProjectSummary & {

@@ -1,11 +1,10 @@
+import { rollbackAppliedPatches, serializeProjectDeletion } from './assetResultMutation'
 import { trashProjectFiles } from './assetFileDeletion'
 import { logRendererError } from '../../desktop/rendererLog'
 import { readLocalProjectAsync, saveLocalProject } from '../library/localProjectStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
 import { applyAssetResultDeletion, countRemovedResults, planAssetDeletion, type ProjectFileTarget, type AssetDeletionRequest } from './assetResultDeletion'
-import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
-import type { NodeResultLifecyclePatch } from '../generationCanvas/model/nodeResultLifecycle'
 import { isProjectExecutionContextCurrent, type ProjectExecutionContext } from '../project/projectCanvasReadSurface'
 import {
   dropUndoBarriersAfter,
@@ -28,39 +27,6 @@ export type DeleteAssetResultOutcome = {
   deferredFileCount: number
   /** 这张素材的文件项目里还有别处用着（分镜参考、节点参考、助手输入、时间轴、白板、别的结果……），留着没删。 */
   keptInUseCount: number
-}
-
-const deletionQueues = new Map<string, Promise<void>>()
-
-function serializeProjectDeletion<T>(projectId: string, operation: () => Promise<T>): Promise<T> {
-  const previous = deletionQueues.get(projectId) ?? Promise.resolve()
-  const result = previous.catch(() => undefined).then(operation)
-  const tail = result.then(() => undefined, () => undefined)
-  deletionQueues.set(projectId, tail)
-  void tail.finally(() => {
-    if (deletionQueues.get(projectId) === tail) deletionQueues.delete(projectId)
-  })
-  return result
-}
-
-function lifecycleFingerprint(value: Pick<GenerationCanvasNode, 'result' | 'history' | 'status' | 'error'>): string {
-  return JSON.stringify({
-    result: value.result,
-    history: value.history ?? [],
-    status: value.status,
-    error: value.error,
-  })
-}
-
-function rollbackAppliedPatches(
-  rollbacks: Array<{ nodeId: string; before: NodeResultLifecyclePatch; applied: NodeResultLifecyclePatch }>,
-): void {
-  const store = useGenerationCanvasStore.getState()
-  for (const rollback of rollbacks) {
-    const current = store.nodes.find((node) => node.id === rollback.nodeId)
-    if (!current || lifecycleFingerprint(current) !== lifecycleFingerprint(rollback.applied)) continue
-    store.updateNode(rollback.nodeId, rollback.before)
-  }
 }
 
 /** 文件当场进系统回收站（没有撤销步可挂的删除：关闭的项目，或画布上本来就没有要摘的结果）。 */
@@ -117,7 +83,7 @@ async function deleteAssetResultUnlocked(
     // 撤销点由上面那一下打（updateNode 只给提示词 / 标题 / meta 打点，结果字段不打）：一次删除 = 一个 ⌘Z。
     for (const match of plan.matches) store.updateNode(match.nodeId, match.patch)
     const deferred = plan.file?.fate === 'trash'
-      ? { ...plan.file.target, journalGeneration: getUndoJournalGeneration(), journalPosition: getLatestUndoBarrierAbsolutePosition() }
+      ? { ...plan.file.target, source: 'asset-library' as const, journalGeneration: getUndoJournalGeneration(), journalPosition: getLatestUndoBarrierAbsolutePosition() }
       : null
     if (deferred) deferAssetFileDeletion(deferred)
     outcome.removedResultCount = countRemovedResults(plan.matches)

@@ -1,6 +1,7 @@
 // 素材文件存活判定（整份项目内容扫描）的性质与边界：地址的各种写法、读不全一律保留、撤销材料何时算、
 // 列表记忆随 store 失效、旧版本存下的待删清单按新判定重判、真实落地的结果删掉后照旧回收。
 import fs from 'node:fs'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
@@ -206,7 +207,7 @@ describe('读不全一律保留', () => {
     } finally { spy.mockRestore() }
   })
   it('关项目释放时读不到（条目属于别的项目）：不删、只销账', async () => {
-    deferAssetFileDeletion({ projectId: 'project-2', relativePath: 'assets/generated/a.png', journalGeneration: 0, journalPosition: 0 })
+    deferAssetFileDeletion({ source: 'asset-library', projectId: 'project-2', relativePath: 'assets/generated/a.png', journalGeneration: 0, journalPosition: 0 })
     const outcome = await releaseLoadedProjectAssetDeletions()
     expect(outcome.keptReferencedCount).toBe(1)
     expect(mocks.deleteFiles).not.toHaveBeenCalled()
@@ -220,13 +221,13 @@ describe('会话撤销材料：会话活着算，关项目那一刻不算', () =
     const ending = readLoadedProjectLivenessContent(P, 'ending')!
     expect(isProjectFileReferenced(target, collectProjectFileReferences(alive.nodes, alive.rest))).toBe(true)
     expect(isProjectFileReferenced(target, collectProjectFileReferences(ending.nodes, ending.rest))).toBe(false)
-    deferAssetFileDeletion({ ...target, journalGeneration: 0, journalPosition: 0 })
+    deferAssetFileDeletion({ source: 'asset-library', ...target, journalGeneration: 0, journalPosition: 0 })
     await releaseLoadedProjectAssetDeletions()
     expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId: P, relativePaths: [target.relativePath] })
   })
   it('未发的助手输入关项目时照样算', async () => {
     useWorkbenchStore.getState().setProjectAgentAttachments([{ id: 'att', url: 'nomi-local://asset/project-1/assets/generated/a.png' }] as never)
-    deferAssetFileDeletion({ ...target, journalGeneration: 0, journalPosition: 0 })
+    deferAssetFileDeletion({ source: 'asset-library', ...target, journalGeneration: 0, journalPosition: 0 })
     const outcome = await releaseLoadedProjectAssetDeletions()
     expect(outcome.keptReferencedCount).toBe(1)
     expect(mocks.deleteFiles).not.toHaveBeenCalled()
@@ -237,7 +238,7 @@ describe('素材库列表：记忆跟着 store 变化失效', () => {
   it('删掉后列表不列；之后分镜挂上它，列表马上又列回来', () => {
     const fileAsset: AssetRef = { id: 'f', kind: 'image', name: 'a.png', renderUrl: 'nomi-local://asset/project-1/assets/generated/a.png', source: 'project',
       origin: { source: 'project', ...target } }
-    deferAssetFileDeletion({ ...target, journalGeneration: 0, journalPosition: 0 })
+    deferAssetFileDeletion({ source: 'asset-library', ...target, journalGeneration: 0, journalPosition: 0 })
     expect(isAssetFileAwaitingTrash(target)).toBe(true)
     expect(withoutFilesAwaitingTrash([fileAsset])).toHaveLength(0)
     useWorkbenchStore.setState({ storyboardDesignsByDocumentId: { d: [{ plan: { shots: [{ referenceBindings: { image_ref: [{ url: fileAsset.renderUrl }] } }] } }] } as never })
@@ -249,7 +250,7 @@ describe('素材库列表：记忆跟着 store 变化失效', () => {
     try {
       const assets = Array.from({ length: 50 }, (_, index): AssetRef => {
         const relativePath = `assets/generated/${index}.png`
-        deferAssetFileDeletion({ projectId: P, relativePath, journalGeneration: 0, journalPosition: 0 })
+        deferAssetFileDeletion({ source: 'asset-library', projectId: P, relativePath, journalGeneration: 0, journalPosition: 0 })
         return { id: String(index), kind: 'image', name: relativePath, renderUrl: '', source: 'project', origin: { source: 'project', projectId: P, relativePath } }
       })
       spy.mockClear()
@@ -259,8 +260,8 @@ describe('素材库列表：记忆跟着 store 变化失效', () => {
   })
 })
 
-describe('老用户：旧版本存下的待删清单按新判定重判（v0.24.1 真实项目文件）', () => {
-  it('分镜参考还在用的留下，真没人用的照旧回收', async () => {
+describe('老用户：无来源标记的旧待删条目全部失效', () => {
+  it('分镜参考和无人用的旧条目都不再回收', async () => {
     const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../tests/fixtures/old-user-data/projects/v0.24.1-storyboard/project/.nomi/project.json'), 'utf8'))
     const projectId: string = fixture.id
     // v0.24.1 写下的分镜参考绑定，换成指向本项目文件的地址（旧版本落盘的就是这种地址）。
@@ -268,9 +269,8 @@ describe('老用户：旧版本存下的待删清单按新判定重判（v0.24.1
     const payload = { ...JSON.parse(text), pendingAssetDeletions: [{ relativePath: 'assets/generated/bound.png' }, { relativePath: 'assets/generated/unused.png' }] } as WorkbenchProjectPayload
     restoreWorkbenchProjectPayload(payload, projectId)
     const outcome = await sweepPersistedAssetDeletions(projectId, payload.pendingAssetDeletions)
-    expect(outcome.keptReferencedCount).toBe(1)
-    expect(mocks.deleteFiles).toHaveBeenCalledTimes(1)
-    expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId, relativePaths: ['assets/generated/unused.png'] })
+    expect(outcome).toEqual({ deletedFileCount: 0, failedFileCount: 0, keptReferencedCount: 0 })
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
   })
 })
 
@@ -296,3 +296,41 @@ function image(id: string): GenerationNodeResult {
 function canvasAsset(nodeId: string, resultId: string): AssetRef {
   return { id: `${nodeId}:${resultId}`, kind: 'image', name: resultId, renderUrl: image(resultId).url!, ownerResultId: resultId, source: 'canvas', origin: { source: 'canvas', nodeId, resultId } }
 }
+
+
+describe('legacy pending entries have no file deletion authority', () => {
+  it('discards the byte-identical real 0.24.1 exit payload without requesting writeback', async () => {
+    const bytes = fs.readFileSync(path.join(__dirname, '../../../tests/fixtures/old-user-data/projects/v0.24.1-pending-asset/project/.nomi/project.json'))
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe('ec8a51d2886a8151332648aaaea7924de6ce50ad0f6fb88e132d0601726b8c5c')
+    const fixture = JSON.parse(bytes.toString('utf8'))
+    expect(fixture.payload.pendingAssetDeletions).toEqual([{ relativePath: 'assets/generated/liveness-v2.jpg' }])
+    restoreWorkbenchProjectPayload(fixture.payload, fixture.id)
+    const onChanged = vi.fn()
+    const outcome = await sweepPersistedAssetDeletions(fixture.id, fixture.payload.pendingAssetDeletions, onChanged)
+    expect(outcome).toEqual({ deletedFileCount: 0, failedFileCount: 0, keptReferencedCount: 0 })
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+    expect(onChanged).not.toHaveBeenCalled()
+  })
+
+  it('discards every unmarked entry without touching files or requesting a save', async () => {
+    const onChanged = vi.fn()
+    const outcome = await sweepPersistedAssetDeletions(P, [
+      { relativePath: 'assets/generated/unused.png' },
+      { relativePath: 'assets/generated/other.png', failedAttempts: 2 },
+      { relativePath: 'assets/generated/future.png', source: 'unknown' },
+    ], onChanged)
+    expect(outcome).toEqual({ deletedFileCount: 0, failedFileCount: 0, keptReferencedCount: 0 })
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+    expect(onChanged).not.toHaveBeenCalled()
+  })
+
+  it('only replays explicitly marked library requests from a mixed saved list', async () => {
+    const onChanged = vi.fn()
+    await sweepPersistedAssetDeletions(P, [
+      { relativePath: 'assets/generated/legacy.png' },
+      { relativePath: 'assets/generated/library.png', source: 'asset-library' },
+    ], onChanged)
+    expect(mocks.deleteFiles).toHaveBeenCalledExactlyOnceWith({ projectId: P, relativePaths: ['assets/generated/library.png'] })
+    expect(onChanged).toHaveBeenCalledOnce()
+  })
+})

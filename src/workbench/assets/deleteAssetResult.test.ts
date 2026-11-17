@@ -116,7 +116,7 @@ describe('deleteAssetResult durability', () => {
     expect(mocks.updateNode).toHaveBeenCalledOnce()
     expect(mocks.persistNow).toHaveBeenCalledOnce()
     // App 在这之后直接退出：项目文件里已经记着这一笔，下次打开清扫。
-    expect(pendingAtSave).toEqual([{ relativePath: 'assets/generated/a.png' }])
+    expect(pendingAtSave).toEqual([{ relativePath: 'assets/generated/a.png', source: 'asset-library' }])
     expect(outcome).toMatchObject({ removedResultCount: 1, deletedFileCount: 0, deferredFileCount: 1 })
     expect(mocks.deleteFiles).not.toHaveBeenCalled()
     await releaseLoadedProjectAssetDeletions()

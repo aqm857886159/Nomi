@@ -1,17 +1,5 @@
-// 被删掉的那一版，它的文件「什么时候真从盘上删」——唯一 owner。
-//
-// 删一版不弹确认框、给撤销（用户 2026-09-28 拍板），所以文件不能当场删：⌘Z 把版本找回来时文件得还在。
-// 规则：
-// 1. 删的时候只从版本列表里拿掉并存盘，文件记一笔「待删」，带上这一步在撤销日志里的位置；
-// 2. 撤销日志再也退不回这一步（被挤出 80 步）时，才真删；
-// 3. 换项目 / 关项目（撤销日志清零）时，这个项目的待删全部到点；
-// 4. 待删清单跟着项目一起存盘（payload.pendingAssetDeletions）：App 直接退出来不及删的，
-//    下次打开这个项目时清扫（那时撤销日志是空的，没有任何一步能退回去）。
-// 每次真删之前都用 `isProjectFileReferenced` 再判一次（整份项目内容扫描）：撤销回来的、分镜 / 节点参考 / 助手输入 / 时间轴还在用的、
-// 此刻读不全项目内容的，一律不删，只销账。项目文件里旧版本存下的待删清单也走这一判，升级后只会比以前留得多。
-// 真删失败（文件被占用、权限）不销账：留在清单里下次到点再试，连续失败 MAX_DELETE_ATTEMPTS 次才放弃并记日志。
-// 列表也问这里（`isAssetFileAwaitingTrash`）：已经删了、只等撤销窗口过去的文件，素材库两个页签都不再列它
-// （2026-10-24 之前列表按盘上文件把它列回来、换成文件名，删了像没删）。
+// Only explicit asset-library deletion owns deferred file recycling.
+// Version-card removal leaves originals in project assets; legacy unmarked requests have no authority.
 import { trashProjectFiles } from './assetFileDeletion'
 import { logRendererError } from '../../desktop/rendererLog'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
@@ -22,6 +10,7 @@ import { readLoadedProjectLivenessContent, type ProjectSessionMoment } from './p
 import type { AssetRef } from './assetTypes'
 
 export type PendingAssetDeletion = ProjectFileTarget & {
+  source: 'asset-library'
   /** 记账时的撤销日志代号；代号变了（换了画布）= 这一步已经不可能再撤回。没有 = 从盘上读回来的遗留。 */
   journalGeneration?: number
   /** 删除这一步在撤销日志里的绝对位置（撤到这里 = 删之前）。 */
@@ -31,7 +20,7 @@ export type PendingAssetDeletion = ProjectFileTarget & {
 }
 
 /** 存进项目文件的样子：项目自己知道自己是谁，只记相对路径（和失败过几次）。 */
-export type PersistedAssetDeletion = { relativePath: string; failedAttempts?: number }
+export type PersistedAssetDeletion = { relativePath: string; source: 'asset-library'; failedAttempts?: number }
 
 /** 同一份文件真删失败到第几次就放弃（文件留在盘上只占空间；不无限重试）。 */
 export const MAX_DELETE_ATTEMPTS = 3
@@ -97,6 +86,7 @@ export function withoutFilesAwaitingTrash<T extends AssetRef>(assets: readonly T
 }
 
 export function deferAssetFileDeletion(target: PendingAssetDeletion): void {
+  if (target.source !== 'asset-library') throw new Error('File deletion requires asset-library intent')
   pending.set(keyOf(target), target)
   changed()
 }
@@ -112,7 +102,7 @@ export function forgetDeferredAssetDeletion(target: ProjectFileTarget): void {
  */
 export function listPersistedAssetDeletions(): PersistedAssetDeletion[] | undefined {
   if (pending.size === 0) return undefined
-  return [...pending.values()].map((entry) => ({ relativePath: entry.relativePath, ...(entry.failedAttempts ? { failedAttempts: entry.failedAttempts } : {}) }))
+  return [...pending.values()].map((entry) => ({ relativePath: entry.relativePath, source: entry.source, ...(entry.failedAttempts ? { failedAttempts: entry.failedAttempts } : {}) }))
 }
 
 function take(predicate: (entry: PendingAssetDeletion) => boolean): PendingAssetDeletion[] {
@@ -131,7 +121,7 @@ function requeueFailed(entry: PendingAssetDeletion, requeue: boolean): void {
     logRendererError('pending-asset-deletion-gave-up', new Error(`${entry.relativePath} failed ${failedAttempts} times`))
     return
   }
-  if (requeue) pending.set(keyOf(entry), { projectId: entry.projectId, relativePath: entry.relativePath, failedAttempts })
+  if (requeue) pending.set(keyOf(entry), { ...entry, failedAttempts })
 }
 
 /** 到点的逐条再判一次引用：没人用了才删；有人用（撤销回来了 / 别处在用 / 读不全）只销账。 */
@@ -196,10 +186,10 @@ export function releaseLoadedProjectAssetDeletions(): Promise<AssetDeletionRelea
 export async function sweepPersistedAssetDeletions(projectId: string, persisted: unknown, onListChanged?: () => void): Promise<AssetDeletionRelease> {
   const entries = Array.isArray(persisted)
     ? persisted.flatMap((entry): PendingAssetDeletion[] => {
-        const raw = entry && typeof entry === 'object' ? entry as { relativePath?: unknown; failedAttempts?: unknown } : {}
+        const raw = entry && typeof entry === 'object' ? entry as { relativePath?: unknown; failedAttempts?: unknown; source?: unknown } : {}
         const failedAttempts = Number.isInteger(raw.failedAttempts) && (raw.failedAttempts as number) > 0 ? raw.failedAttempts as number : undefined
-        return typeof raw.relativePath === 'string' && raw.relativePath.trim()
-          ? [{ projectId, relativePath: raw.relativePath, ...(failedAttempts ? { failedAttempts } : {}) }]
+        return raw.source === 'asset-library' && typeof raw.relativePath === 'string' && raw.relativePath.trim()
+          ? [{ projectId, source: 'asset-library', relativePath: raw.relativePath, ...(failedAttempts ? { failedAttempts } : {}) }]
           : []
       })
     : []

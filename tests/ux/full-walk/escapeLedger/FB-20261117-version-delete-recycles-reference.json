@@ -1,0 +1,31 @@
+{
+  "id": "FB-20261117-version-delete-recycles-reference",
+  "since": "2026-11-17",
+  "source": "用户场景：分镜选了生成第2版当参考，版本卡删除第2版、关项目后重开裂图。任务书 L-asset-liveness-c，用户选择 D-1117-liveness-no-auto-recycle。",
+  "category": "interaction-semantics",
+  "problem": "删版本悄悄登记物理回收，撤销挤出、关项目或重开把其他地方还要用的原图挪进回收站。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "删版本只整理版本卡，仍使用的素材在重开后能读同一原文件",
+    "明确清理文件只走素材库并保留引用挡板"
+  ],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "origin/main 836e30a6c 真实隔离窗口复现：删第2版、关项目→映像卷回收站出现 liveness-v2.jpg；完全退出重开参考地址仍在但解不出像素。",
+    "tests/ux/asset-liveness-storyboard-ref.walk.mjs",
+    "src/workbench/assets/deleteAssetResult.realStore.test.ts",
+    "src/workbench/assets/assetLivenessScan.test.ts",
+    "未合入，账本状态保持 reviewed，不冒称已解决。"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-11-17-asset-liveness-scan.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/ux/asset-liveness-storyboard-ref.walk.mjs"
+  }
+}
