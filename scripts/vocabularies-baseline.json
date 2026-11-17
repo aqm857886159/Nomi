@@ -2191,6 +2191,29 @@
       ],
       "reason": "渲染层生成统计推导的内部参数：结局是在哪扇门上看到的（提交抛错 / 提交即终态 / 轮询终态），只用来推失败阶段，不出门、不进事件。和任务状态不是一回事（同一终态可以从两扇门到达）。",
       "site": "src/workbench/api/generationTelemetry.ts::type:GenerationOutcomeDoor/type-union"
+    },
+    {
+      "members": [
+        "checked",
+        "disabled",
+        "excluded",
+        "unchecked"
+      ],
+      "reason": "生成范围共用主人给每个候选行的结论：默认勾 / 默认不勾可勾 / 灰着勾不上 / 不上卡。是意图表每一格的取值，所有生成入口只读它；和分镜行状态、任务状态都不是一回事（同一个状态的节点在不同入口落到不同格），没有现成的词表可复用。",
+      "site": "electron/shared/agentCapabilities/generationShotScope.ts::type:ScopeRow/property:state/type-union"
+    },
+    {
+      "members": [
+        "done",
+        "failed",
+        "frozen",
+        "generating",
+        "missing-required",
+        "ready",
+        "recoverable"
+      ],
+      "reason": "生成范围共用主人给候选行的原因（卡上状态词由入口按它查现有文案）。不能复用分镜行状态 SHOT_ROW_STATUSES：那张表在渲染层（electron/shared 不能反向引用 src），且是分镜行的显示状态（有 anchor-ignored、用 locked 表示定妆），这里是范围判定的原因，只多一个 frozen（定妆）、没有 anchor-ignored；两者在 storyboardRowStatus 里按原因一一映射。",
+      "site": "electron/shared/agentCapabilities/generationShotScope.ts::type:ScopeRowReason/type-union"
     }
   ],
   "debt": [

@@ -20,8 +20,9 @@ import { productionRunApi } from './productionRunApi'
 import { changedOfferRuns, landingRunsToRefresh, pendingOfferSignatures, useProductionCanvasLandingStore } from './productionCanvasLandingStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
-import { buildDependencyWaves } from '../generationCanvas/runner/dependencyWaves'
+import { planCanvasGenerationScope } from '../generationCanvas/runner/generationScopeFacts'
 import { confirmAndRunPlan } from '../generationCanvas/components/batchPlanPreview'
+import { runGroupGenerate } from '../generationCanvas/components/groupGenerate'
 import { setCanvasBatchConcurrencyForE2E } from '../generationCanvas/components/canvasProductionScope'
 import { routeProductionCanvasSignal, subscribeProductionCanvasSignals } from './productionCanvasSignals'
 import { reportDetachedShotNodes } from './reportDetachedShotNodes'
@@ -72,18 +73,22 @@ export function ProductionCanvasLandingHost({ projectId }: { projectId: string |
         const w = window as unknown as {
           __nomiProductionLandingStore?: unknown
           __nomiCanvasStore?: unknown
-          __nomiBuildDependencyWaves?: unknown
+          __nomiPlanGenerationScope?: unknown
           __nomiConfirmAndRunPlan?: unknown
+          __nomiRunGroupGenerate?: unknown
           __nomiSetBatchConcurrency?: unknown
         }
         w.__nomiProductionLandingStore = useProductionCanvasLandingStore
         w.__nomiCanvasStore = useGenerationCanvasStore
-        // F15 走查读依赖门（显示的≡执行的）：生产构建里源码路径不可 import，故把纯函数挂出来供零额度走查读。
-        w.__nomiBuildDependencyWaves = buildDependencyWaves
+        // F15 走查读依赖门（显示的≡执行的）：生产构建里源码路径不可 import，故把生成范围的问法挂出来供零额度走查读、
+        // 也供走查造一份真规划交给 `__nomiConfirmAndRunPlan`（规划只能由共用主人造）。
+        w.__nomiPlanGenerationScope = planCanvasGenerationScope
         // F16b 走查驱动**真实确认漏斗**：批量生成的生产入口本尊（confirmAndRunPlan → 解析托管策略/KIE
         // → 合并花钱卡带披露块 → runPlanWithToasts）。挂的是那一个真函数，不是复制品——手写 requestConfirm
         // 参数的走查会绕过策略解析与 i18n 键，任何一处回归都还是绿的（F16b 前那条就栽在这）。
         w.__nomiConfirmAndRunPlan = confirmAndRunPlan
+        // 「生成整组」的真入口（组框工具条 / 右键菜单 / 列表分区头共用）：走查要「把这几个一起生成」时走它，不手拼执行计划。
+        w.__nomiRunGroupGenerate = runGroupGenerate
         // 走查造「排队中」：并发压到 1（产品界面没有并发选项，批量并发只由调度器默认值定）。
         w.__nomiSetBatchConcurrency = setCanvasBatchConcurrencyForE2E
       }

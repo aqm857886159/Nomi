@@ -69,7 +69,7 @@ export function ShotRow({ plan, shot, extra, models: modelsOverride }: { plan: S
       variants={[]}
       onGenerate={NOOP}
       onRegenerate={NOOP}
-      onToggleLock={NOOP}
+      onToggleFrozen={NOOP}
       onOpenPreview={NOOP}
       onInsertBelow={NOOP}
       onCopy={NOOP}
@@ -124,7 +124,7 @@ export function AnchorZone({ width, cards = reuseAnchorCards() }: { width: numbe
           onRemoveAnchor={NOOP}
           onGenerateAnchor={NOOP}
           onRegenerateAnchor={NOOP}
-          onToggleLockAnchor={NOOP}
+          onToggleFrozenAnchor={NOOP}
           onFilterByAnchor={NOOP}
           onAddAnchor={NOOP}
         />
@@ -149,7 +149,7 @@ export function AnchorThenShot({ plan, width }: { plan: StoryboardPlan; width: n
           onRemoveAnchor={NOOP}
           onGenerateAnchor={NOOP}
           onRegenerateAnchor={NOOP}
-          onToggleLockAnchor={NOOP}
+          onToggleFrozenAnchor={NOOP}
           onAddAnchor={NOOP}
         />
       </div>

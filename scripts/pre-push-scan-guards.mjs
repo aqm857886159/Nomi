@@ -55,6 +55,8 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/workbench/generationCanvas/agent/storyboardLauncher.test.ts', roots: ['src'] },
   // 2026-11-12：渲染层不许再写第二份「key → 技能」查找；遍历 src 找按 name 精确比的手写查找（<2 秒）。
   { file: 'src/workbench/skillLibrary/skillDisplay.test.ts', roots: ['src'] },
+  // 2026-11-17：素材文件存活判定的普查——遍历 src 找全部 store 寿命声明，每个「项目寿命」字段都要在存活判定的归类表里（<3 秒）。
+  { file: 'src/workbench/assets/projectLivenessContent.census.test.ts', roots: ['src'] },
   // 2026-11-17：新模型调用判断只有一个家——接入目录里不许手抄参考任务清单 / 任务→模型类型表、不许按名字前缀猜；遍历三个接入目录 + 声明登记文件（<1 秒）。
   { file: 'electron/providerAdapter/declarationOwnership.lint.test.ts', roots: ['electron/providerAdapter', 'electron/capabilityCore/modelOnboarding', 'electron/integrationCertification'], files: ['electron/catalog/declaredProviderRegistration.ts'] },
   // ── electron/ 全树（遍历 electron 找违规文件）──

@@ -34,6 +34,12 @@ import {
   WALK_FOCUS_BY_TAG_SELECTORS,
   WALK_FOCUS_FILES,
 } from './scripts/focus-by-tag-lookup.mjs'
+import {
+  RESIDENT_SELECTION_FILES,
+  RESIDENT_SELECTION_OWNER_FILES,
+  RESIDENT_SELECTION_SELECTORS,
+  RESIDENT_SELECTION_TEST_FILES,
+} from './scripts/resident-selection-owner.mjs'
 
 // 用例 / 钩子不许单独设比 vitest 全局更短的超时（全局值见 vitest.config.ts 的 testTimeout / hookTimeout，都是 30_000；
 // 两处同值由 scripts/vitest-timeout-floor.test.mjs 核对）。超时被放弃的用例仍在后台跑完，把任务或半初始化模块留给下一个用例
@@ -141,6 +147,13 @@ const WALK_DIALOG_LOCATOR_MESSAGE = '找弹窗用 [role=dialog] 或它自己的 
 const walkDialogLocatorSelectors = [
   { selector: 'Literal[value=/fixed[.]inset-0/]', message: WALK_DIALOG_LOCATOR_MESSAGE },
   { selector: 'TemplateElement[value.raw=/fixed[.]inset-0/]', message: WALK_DIALOG_LOCATOR_MESSAGE },
+]
+const nodeLockRemovedPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const NODE_LOCK_REMOVED_MESSAGE = '节点锁已整个删除（2026-11-17）：不要再加锁节点的按钮、字段、事件或「node_locked」拒绝。助手该碰哪个节点由它自己读画布判断，不靠创作者去锁。'
+const nodeLockRemovedSelectors = [
+  { selector: "Identifier[name=/^(setNodeLocked|NodeLockBadge)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
+  { selector: "Literal[value=/^(canvas[.]node[.](un)?locked|node_locked)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
+  { selector: "TemplateElement[value.raw=/^(canvas[.]node[.](un)?locked|node_locked)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
 ]
 const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const mainSyncWaitSelectors = [{
@@ -253,6 +266,9 @@ const uiMoneyPlugin = { rules: {
 // 走查也不按标签名判焦点、认输入框。选择器与现存名单住 scripts/focus-by-tag-lookup.mjs（名单只减不增，由
 // scripts/focus-by-tag-lookup.test.mjs 按同一组选择器普查全 src 卡死）。同 ② 的做法独立注册内置规则：只有下面两个块配置这个规则 id
 // （渲染层一块、走查一块，文件范围不重叠），别的块里同名规则的选项盖不到它。
+// ⑤b 助手面板里读原始选区字段只经选区主人（2026-11-17）：选择器与范围住 scripts/resident-selection-owner.mjs，测试在 scripts/resident-selection-owner.test.mjs。
+// 同 ② 的做法独立注册内置规则，只有下面一个块配置这个规则 id。
+const residentSelectionPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const focusOwnerPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 
 // ⑥ 渲染层直调主进程的任务口 `nomi:tasks:run` 只有一扇门（2026-10-28）：src/workbench/api/taskApi.ts 的 runWorkbenchTaskByVendor。
@@ -602,6 +618,16 @@ export default tseslint.config(
     rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
   },
   {
+    // 节点锁（2026-11-17 整个删掉）不许回来：创作者不该为防助手乱动而多学一个概念。
+    // 拦得住：再把 setNodeLocked / NodeLockBadge / canvas.node.(un)locked 事件 / node_locked 拒绝码写进产品源码。
+    // 拦不住：换个名字重做一把锁——那条靠 GenerationCanvasNode 类型里已经没有 locked 字段（node.locked 编译不过）和评审。
+    // 旧版事件日志里的 canvas.node.locked 由重放的 default 分支静默跳过，那条在测试里（测试文件不受此限）。
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx,mts}'],
+    ignores: ['**/*.{test,spec}.{ts,tsx,mts}', '**/__tests__/**'],
+    plugins: { 'node-lock-removed': nodeLockRemovedPlugin },
+    rules: { 'node-lock-removed/no-restricted-syntax': ['error', ...nodeLockRemovedSelectors] },
+  },
+  {
     // 走查 / 脚本 / 测试里不按版面类名找弹窗。
     files: ['tests/**/*.{mjs,cjs,js,ts,tsx}', 'scripts/**/*.{mjs,cjs,js}'],
     plugins: { 'walk-dialog-locator': walkDialogLocatorPlugin },
@@ -687,6 +713,14 @@ export default tseslint.config(
     rules: { 'asset-command-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/assetFileDeletion'], importNames: ['trashProjectFiles'], message: 'UI must request the asset deletion command; physical trash is private to the deletion domain.' }] }] },
   },
   {
+    files: ['src/workbench/generationCanvas/nodes/versionCards/**/*.{ts,tsx}', 'src/workbench/assets/removeAssetVersion.ts', 'src/workbench/assets/assetResultMutation.ts'],
+    plugins: { 'asset-version-only': boundaryPlugin('no-restricted-syntax') },
+    rules: { 'asset-version-only/no-restricted-syntax': ['error',
+      { selector: ":matches(ImportDeclaration,ExportNamedDeclaration,ExportAllDeclaration,ImportExpression)[source.value=/(deleteAssetResult|pendingAssetDeletions|assetFileDeletion)$/]", message: 'Version removal retains the original file; file deletion belongs to asset-library intent.' },
+      { selector: "Identifier[name=/^(deferAssetFileDeletion|trashProjectFiles|deleteAssetResult|requestProjectAssetDeletion|sweepPersistedAssetDeletions|releaseLoadedProjectAssetDeletions|releaseEvictedAssetDeletions)$/]", message: 'Version removal cannot authorize file recycling.' },
+    ] },
+  },
+  {
     // 「这次按哪种方式发」只有一个主人：archetypeMeta.effectiveArchetypeMode（按输入现算）。modeTestHelpers 按存着的偏好取方式，
     // 只给「给定方式、请求体长什么样」的测试用；生产代码拿它会退回「存着什么就发什么」（2026-11-12 方式按输入现算）。
     files: ['src/**/*.{ts,tsx}', 'electron/**/*.ts'],
@@ -734,6 +768,13 @@ export default tseslint.config(
     ignores: [...FOCUS_LOOKUP_TEST_FILES, ...Object.keys(FOCUS_BY_INPUT_IMPL_EXITS)],
     plugins: { 'focus-owner': focusOwnerPlugin },
     rules: { 'focus-owner/no-restricted-syntax': ['error', ...FOCUS_BY_INPUT_IMPL_SELECTORS] },
+  },
+  {
+    // 助手面板里读原始选区字段只经选区主人（见上面 ⑤b）。
+    files: RESIDENT_SELECTION_FILES,
+    ignores: [...RESIDENT_SELECTION_TEST_FILES, ...RESIDENT_SELECTION_OWNER_FILES],
+    plugins: { 'resident-selection': residentSelectionPlugin },
+    rules: { 'resident-selection/no-restricted-syntax': ['error', ...RESIDENT_SELECTION_SELECTORS] },
   },
   {
     // 走查判焦点、认输入框不按标签名（见上面 ⑤）：Agent 输入框经 expectComposerFocused()；名单里的处数由普查卡死。
@@ -868,6 +909,26 @@ export default tseslint.config(
         selector: "VariableDeclarator[id.name=/^(draftPlanAnchorSchema|storyboardDraftPlanSchema)$/] Property[key.name=/^(name|aspectRatio)$/] CallExpression[callee.property.name=/^(min|max|nonempty|length|regex|refine|superRefine|transform|trim)$/]",
         message: 'Draft content fields must remain editable strings; add content constraints only in the strict schema extension.',
       }),
+    },
+  },
+  {
+    // 「生成这一组」的范围只在一处算（2026-11-17）：成员、默认勾选、顺序与依赖分波只由 generationShotScope 的共用主人
+    // planGenerationScope / narrowGenerationScope 给。执行计划带品牌，主人之外 as / satisfies / 尖括号断言成它、
+    // 手拼带 waves + blocked 的对象，都是在长第二个家——当场红。测试也一样：要一份计划就经主人规划（generationScopeTestPlans）。
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: ['electron/shared/agentCapabilities/generationShotScope.ts'],
+    plugins: { 'generation-scope-one-home': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'generation-scope-one-home/no-restricted-syntax': ['error',
+        ...['TSAsExpression', 'TSSatisfiesExpression', 'TSTypeAssertion'].map((node) => ({
+          selector: `${node} > TSTypeReference.typeAnnotation[typeName.name='GenerationScopePlan']`,
+          message: '执行计划只能由共用主人造：改调 planGenerationScope / planCanvasGenerationScope（缩范围用 narrowGenerationScope），不要断言成 GenerationScopePlan。',
+        })),
+        {
+          selector: "ObjectExpression:has(> Property[key.name='waves']):has(> Property[key.name='blocked'])",
+          message: '手拼了一份带 waves + blocked 的执行计划：生成范围只在 generationShotScope 的共用主人里算，入口拿它的结论。',
+        },
+      ],
     },
   },
   prettier,

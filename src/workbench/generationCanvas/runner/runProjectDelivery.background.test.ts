@@ -18,6 +18,7 @@ import { buildTaskCenterView } from '../../taskCenter/taskCenterEntries'
 import { readLocalProjectAsync, saveLocalProject } from '../../library/localProjectStore'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness, testProjectBinding } from '../../project/projectSessionTestHarness'
 import { releaseCanvasShotRun, type TaskRequestDto } from '../../api/taskApi'
+import { planOfBlocked, planOfWaves } from './generationScopeTestPlans'
 
 const disk = vi.hoisted(() => new Map<string, unknown>())
 vi.mock('../../library/localProjectStore', () => ({
@@ -189,13 +190,14 @@ it.each([0, 1])('batch validates author target before every wave (allowed attemp
   const target = await session.open('project-a')
   const ids = [1, 2].map(index => useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: `shot ${index}` }).id)
   const executor = vi.fn(async (): Promise<GenerationNodeResults> => [{ id: 'result', type: 'image', url: 'nomi-local://asset/result.png', createdAt: 1 }])
-  const outcome = await runGenerationNodesByPlan({ waves: ids.map(id => [id]), blocked: [], edgesUsed: [] }, {
+  const outcome = await runGenerationNodesByPlan(planOfWaves(ids.map(id => [id])), {
     target, executor,
     assertAuthorCurrent: async (graph, executingNodeId) => { expect(graph.nodes.some(value => value.id === executingNodeId)).toBe(true); if (executor.mock.calls.length >= allowed) throw new Error('storyboard_content_conflict') },
   })
   expect(executor).toHaveBeenCalledTimes(allowed)
   expect(outcome.failures.map(item => item.nodeId)).toEqual(ids.slice(allowed))
-  expect(outcome.failures.every(item => item.error.message === 'storyboard_content_conflict')).toBe(true)
+  // 分波只由依赖来（共用主人规划）：第二波依赖第一波。核到哪一波拦下，那一波报内容冲突；它下游的不执行、按「上游失败」收。
+  expect(outcome.failures[0].error.message).toBe('storyboard_content_conflict')
 })
 
 
@@ -249,6 +251,8 @@ it('settles the original run when a replaced workspace rejects late progress wit
 it.each(['cycle', 'missing-upstream'] as const)('awaits blocked %s status delivery and settles the batch if the original workspace was replaced', async reason => {
   const target = await session.open('project-a')
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'blocked' })
+  // 规划在原项目还开着时做（被拦的这一份只能由共用主人规划出来）。
+  const plan = planOfBlocked(node.id, reason)
   persistOpenCanvasAs('project-a')
   ;(disk.get('project-a') as WorkbenchProjectRecordV1).projectGeneration = target.projectGeneration + 1
   await session.open('project-b')
@@ -257,7 +261,7 @@ it.each(['cycle', 'missing-upstream'] as const)('awaits blocked %s status delive
   const listener = (error: unknown) => unhandled.push(error)
   process.on('unhandledRejection', listener)
   try {
-    await expect(runGenerationNodesByPlan({ waves: [], edgesUsed: [], blocked: [{ nodeId: node.id, reason, detail: 'blocked' }] },
+    await expect(runGenerationNodesByPlan(plan,
       { target })).rejects.toThrow('project_binding_stale')
     await new Promise<void>(resolve => setImmediate(resolve))
     expect(unhandled).toEqual([])

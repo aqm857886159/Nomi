@@ -1,0 +1,225 @@
+{
+  "id": "old-pending-walk",
+  "name": "旧版待删清单",
+  "version": 2,
+  "createdAt": 1,
+  "updatedAt": 1794887751587,
+  "savedAt": 1794887751587,
+  "revision": 5,
+  "lastKnownRootPath": "/Volumes/NomiOldPending-8093/projects/old-pending-walk",
+  "payload": {
+    "workbenchDocuments": [
+      {
+        "id": "doc-1",
+        "version": 1,
+        "title": "旧版待删清单",
+        "contentJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "雨夜巷口"
+                }
+              ]
+            }
+          ]
+        },
+        "updatedAt": 10
+      }
+    ],
+    "activeDocumentId": "doc-1",
+    "timeline": {
+      "version": 1,
+      "fps": 30,
+      "scale": 1,
+      "playheadFrame": 0,
+      "tracks": [
+        {
+          "id": "imageTrack",
+          "type": "image",
+          "label": "图片轨",
+          "clips": []
+        },
+        {
+          "id": "videoTrack",
+          "type": "video",
+          "label": "视频轨",
+          "clips": []
+        },
+        {
+          "id": "audioTrack",
+          "type": "audio",
+          "label": "音频轨",
+          "clips": []
+        }
+      ],
+      "textClips": []
+    },
+    "generationCanvas": {
+      "nodes": [
+        {
+          "id": "liveness-node",
+          "kind": "image",
+          "title": "雨夜巷口",
+          "prompt": "雨夜巷口，霓虹倒影",
+          "references": [],
+          "runs": [],
+          "result": {
+            "id": "liveness-r1",
+            "type": "image",
+            "url": "nomi-local://asset/old-pending-walk/assets/generated/liveness-v1.jpg",
+            "thumbnailUrl": "nomi-local://asset/old-pending-walk/assets/generated/liveness-v1.jpg",
+            "previewState": "ready",
+            "versionNo": 1,
+            "createdAt": 1
+          },
+          "history": [
+            {
+              "id": "liveness-r1",
+              "type": "image",
+              "url": "nomi-local://asset/old-pending-walk/assets/generated/liveness-v1.jpg",
+              "thumbnailUrl": "nomi-local://asset/old-pending-walk/assets/generated/liveness-v1.jpg",
+              "previewState": "ready",
+              "versionNo": 1,
+              "createdAt": 1
+            }
+          ],
+          "status": "success",
+          "position": {
+            "x": 120,
+            "y": 120
+          },
+          "size": {
+            "width": 320,
+            "height": 180
+          },
+          "meta": {
+            "imageWidth": 720,
+            "imageHeight": 720,
+            "imageAspectRatio": 1
+          },
+          "renderKind": "shot-frame",
+          "shotIndex": 1,
+          "resultVersionMax": 2,
+          "categoryId": "shots",
+          "resultStackOpen": true,
+          "resultStackSide": "right"
+        }
+      ],
+      "edges": [],
+      "selectedNodeIds": [],
+      "groups": [],
+      "workflowTemplates": []
+    },
+    "categories": [
+      {
+        "id": "shots",
+        "name": "分镜",
+        "icon": "🎬",
+        "iconName": "IconLayoutRows",
+        "defaultNodeRenderKind": "shot-frame",
+        "order": 1,
+        "isBuiltin": true
+      },
+      {
+        "id": "cast",
+        "name": "角色",
+        "icon": "👥",
+        "iconName": "IconUser",
+        "defaultNodeRenderKind": "character-card",
+        "order": 2,
+        "isBuiltin": true
+      },
+      {
+        "id": "scene",
+        "name": "场景",
+        "icon": "🌍",
+        "iconName": "IconPhoto",
+        "defaultNodeRenderKind": "scene-card",
+        "order": 3,
+        "isBuiltin": true
+      },
+      {
+        "id": "prop",
+        "name": "道具",
+        "icon": "🧰",
+        "iconName": "IconBox",
+        "defaultNodeRenderKind": "prop-card",
+        "order": 4,
+        "isBuiltin": true
+      },
+      {
+        "id": "audio",
+        "name": "声音",
+        "icon": "🎵",
+        "iconName": "IconChartBar",
+        "defaultNodeRenderKind": "audio-strip",
+        "order": 5,
+        "isBuiltin": true
+      }
+    ],
+    "generationCanvasLastSeq": 4,
+    "editingPanelLayout": {
+      "sourceWidth": 300,
+      "inspectorWidth": 240,
+      "assistantWidth": 390,
+      "timelineHeight": 260,
+      "visibility": {
+        "source": true,
+        "inspector": true,
+        "assistant": false
+      },
+      "preset": "default"
+    },
+    "pendingAssetDeletions": [
+      {
+        "relativePath": "assets/generated/liveness-v2.jpg"
+      }
+    ],
+    "storyboardDesignsByDocumentId": {
+      "doc-1": [
+        {
+          "id": "sb-liveness",
+          "documentId": "doc-1",
+          "title": "旧版待删清单",
+          "plan": {
+            "title": "旧版待删清单",
+            "anchors": [],
+            "shots": [
+              {
+                "index": 1,
+                "shotId": "shot-1",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "referenceBindings": {
+                  "image_ref": [
+                    {
+                      "url": "nomi-local://asset/old-pending-walk/assets/generated/liveness-v2.jpg",
+                      "name": "雨夜巷口",
+                      "sourceNodeId": "liveness-node"
+                    }
+                  ]
+                },
+                "prompt": "雨夜巷口，镜头缓推",
+                "modelKey": "dreamina-seedance-2.0",
+                "modelVendor": "dreamina",
+                "modeId": "multimodal"
+              }
+            ]
+          },
+          "committed": false,
+          "status": "draft",
+          "sourceDocumentUpdatedAt": 10,
+          "createdAt": 11,
+          "updatedAt": 1794887749944
+        }
+      ]
+    }
+  },
+  "immutableProjectUuid": "40951d21-3cdd-4582-bd55-f8c0e77d3860",
+  "projectGeneration": 1
+}

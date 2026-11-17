@@ -680,6 +680,16 @@
         "symbol": "identityPatternsOf"
       },
       "reason": "2026-11-15 档案身份识别串不再生成表、提交进仓库，改成入口用时现算（docs/plan/2026-11-15-archetype-wire-defaults-runtime.md）：identityPatternsOf 从档案声明取 identifierPatterns + 各档 modelKey（去空去重保序），与原生成脚本同一条规则；匹配由 entry.ts 的 archetypeIdForModel 做，和 resolveModelArchetype 同一组三趟匹配函数。主干旧实现 vs 现算全目录 5817 组 0 差。不变量「每个识别串只属于一个档案」不变，由 electron/catalog/archetypeIdentity.test.ts 与 catalogFacts.test.ts 守。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-25-canvas-generate-ignores-production-shot.root-cause.json",
+      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "symbol": "eligibleGenerationNodeIds",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/runner/generationScopeFacts.ts",
+        "symbol": "planCanvasGenerationScope"
+      },
+      "reason": "2026-11-17 「生成这一组」的范围只在共用主人 electron/shared/agentCapabilities/generationShotScope.ts 里算（docs/plan/2026-11-17-generation-scope-one-home.md）：eligibleGenerationNodeIds 删除，画布入口改问 planCanvasGenerationScope——它把节点和生产运行翻成事实（isGenerationNodeBusy 读同一份 runs），主人对 busy 的行一律灰着不进成员。不变量「生产运行还占着的镜头，画布批量入口不再发一次」不变，由 src/workbench/production/productionShotOwnership.test.ts（运行中排除、已停保留）守。"
     }
   ],
   "retirements": [

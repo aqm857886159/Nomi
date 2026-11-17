@@ -76,7 +76,7 @@ it.each(['quota', 'local-refusal', 'server'])('A1/A2/A3: %s uses the correct bra
     if (paused) { observedPause = true; state.cancelBatchRemaining(paused.id) }
   })
   try {
-    await runGenerationNodesByPlan({ waves: [nodes.map(n => n.id)], edgesUsed: [], blocked: [] }, { target, concurrency: kind === 'server' ? 1 : 6, retry: { maxAttempts: 1 } })
+    await runGenerationNodesByPlan(planOfWaves([nodes.map(n => n.id)]), { target, concurrency: kind === 'server' ? 1 : 6, retry: { maxAttempts: 1 } })
     expect(observedPause).toBe(kind === 'server')
     if (kind !== 'server') expect(calls.execute).toHaveBeenCalledTimes(8)
     if (kind === 'local-refusal') expect(recordNodeModelFailure).not.toHaveBeenCalled()
@@ -137,7 +137,7 @@ it('B2: retrying a failed card while its batch is paused does not resubmit it wh
     const batch = Object.values(state.batches).find(value => value.paused)
     if (batch) paused(batch.id)
   })
-  const running = runGenerationNodesByPlan({ waves: [nodes.map(node => node.id)], edgesUsed: [], blocked: [] },
+  const running = runGenerationNodesByPlan(planOfWaves([nodes.map(node => node.id)]),
     { target, concurrency: 1, retry: { maxAttempts: 1 } })
   const batchId = await pause
   try {
@@ -157,6 +157,7 @@ it('B2: retrying a failed card while its batch is paused does not resubmit it wh
 })
 
 import { generationFailureActions } from '../../observability/generationFailureActions'
+import { planOfWaves } from './generationScopeTestPlans'
 it.each(['success', 'error', 'unknown'] as const)('in-flight refusal: the original late %s outcome clears or replaces the refusal card', async ending => {
   await session.open('project-a')
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'Original task' })

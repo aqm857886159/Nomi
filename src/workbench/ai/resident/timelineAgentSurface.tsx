@@ -2,8 +2,11 @@ import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { modelToolShowsReviewCard, resolveModelToolCapabilityId } from '../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
 import { TIMELINE_WRITE_CAPABILITY } from '../../../../electron/shared/agentCapabilities/timelineWrite'
-import { timelineRevision } from '../../timeline/kernel/timelineKernel'
 import type { TimelineState } from '../../timeline/timelineTypes'
+import { useWorkbenchStore } from '../../workbenchStore'
+import { residentSelectionInput, resolveResidentSelectionMembers, type ResidentSelectionMember } from './residentContextSnapshot'
+import type { V4ComposerReference } from '../v4/agentPanelV4Types'
+import type { ResidentSurface } from './residentShellDisplay'
 import { TimelinePlanPreviewLayer } from '../../timeline/agent/TimelinePlanPreviewLayer'
 import { timelinePlanOperations, timelinePlanPreviewBands } from '../../timeline/agent/timelinePlanPreview'
 import { timelinePlanLines, type TimelinePlanLine } from '../../timeline/agent/timelinePlanSummary'
@@ -17,71 +20,6 @@ import { timelinePlanLines, type TimelinePlanLine } from '../../timeline/agent/t
  */
 export function isTimelinePlanTool(toolName: string): boolean {
   return modelToolShowsReviewCard(toolName) && resolveModelToolCapabilityId(toolName) === TIMELINE_WRITE_CAPABILITY.id
-}
-
-export type TimelineSelectionProjection = {
-  clip: TimelineState['tracks'][number]['clips'][number] | TimelineState['textClips'][number]
-  trackId: string
-}
-
-/**
- * The chip's revision must move when the *content* moves, not when the user
- * scrubs or zooms. Playhead and scale are view state, so they are pinned before
- * hashing; otherwise every playback frame would mark the selection stale.
- */
-export function timelineSelectionRevision(timeline: TimelineState): string {
-  return timelineRevision({ ...timeline, playheadFrame: 0, scale: 1 })
-}
-
-/**
- * chip 指的那一段「还是不是我当初点的那一段」。
- *
- * 只认**存在与位置**：片段没了，或者它被移动 / 修剪到别处了。这正好是提示语要求的那件事
- * ——「已变更，请重新选择」。以前比的是**整条时间轴**的 revision：在别处加个转场、调一下
- * 配乐音量，甚至用户自己在属性面板把这一段的音量拧了 1dB，都会把 chip 标红逼人重选一个
- * 明明还在原地的东西。那是噪音，不是保护：Agent 动手前会自己 read_timeline 拿最新 revision，
- * chip 这条红线只服务于「你指的东西跑了」。
- */
-export function timelineClipRevision(timeline: TimelineState, clipId: string): string {
-  const clip = [
-    ...timeline.tracks.flatMap((track) => track.clips),
-    ...timeline.textClips,
-  ].find((candidate) => candidate.id === clipId)
-  return clip ? `${clip.startFrame}-${clip.endFrame}` : 'gone'
-}
-
-/**
- * Remembers the revision each selection was made at, so a chip can say "changed,
- * select again" instead of silently referring to a clip that no longer has the
- * shape the user pointed at. The map is only written in an effect, after the
- * render that observed the new revision, which is what makes the comparison
- * meaningful: the render that first sees a newer revision still reads the older
- * recorded one and therefore reports the selection as stale.
- */
-export function useTimelineSelectionRevisions(
-  selectionIds: readonly string[],
-  revisionOf: (id: string) => string,
-): ReadonlyMap<string, string> {
-  const revisions = React.useRef(new Map<string, string>())
-  const signature = selectionIds.map((id) => `${id}:${revisionOf(id)}`).join('|')
-  React.useEffect(() => {
-    for (const id of selectionIds) if (!revisions.current.has(id)) revisions.current.set(id, revisionOf(id))
-    for (const id of [...revisions.current.keys()]) if (!selectionIds.includes(id)) revisions.current.delete(id)
-    // revisionOf 每次渲染都是新函数；依赖钉在 signature 上，值没变就不重跑。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature])
-  return revisions.current
-}
-
-export function collectTimelineSelections(
-  timeline: TimelineState,
-  selectedClipIds: readonly string[],
-  selectedTextClipId: string,
-): TimelineSelectionProjection[] {
-  return [
-    ...selectedClipIds.flatMap((clipId) => timeline.tracks.flatMap((track) => track.clips.filter((clip) => clip.id === clipId).map((clip) => ({ clip, trackId: track.id })))),
-    ...(selectedTextClipId ? timeline.textClips.filter((clip) => clip.id === selectedTextClipId).map((clip) => ({ clip, trackId: 'textTrack' })) : []),
-  ]
 }
 
 /** The plan a pending call carries. `edit_timeline` takes its operations flat (`verbProjections.ts`). */
@@ -128,32 +66,6 @@ export function useTimelinePlanPreview(
 
 
 /**
- * Everything the composer needs to show what the user pointed at: the chips
- * themselves plus the revision each one was made at. Kept together because a
- * chip without its recorded revision cannot say "changed, select again", which
- * is the only reason the chip carries a revision at all.
- */
-export function useTimelineSelectionChips(
-  surface: string,
-  timeline: TimelineState,
-  selectedClipIds: readonly string[],
-  selectedTextClipId: string,
-): Readonly<{ selections: TimelineSelectionProjection[]; revisionFor: (id: string) => string; staleFor: (id: string) => boolean }> {
-  const ids = React.useMemo(() => [...selectedClipIds, ...(selectedTextClipId ? [selectedTextClipId] : [])], [selectedClipIds, selectedTextClipId])
-  const revisionOf = React.useCallback((id: string) => timelineClipRevision(timeline, id), [timeline])
-  const recorded = useTimelineSelectionRevisions(ids, revisionOf)
-  const selections = React.useMemo(
-    () => surface === 'preview' ? collectTimelineSelections(timeline, selectedClipIds, selectedTextClipId) : [],
-    [selectedClipIds, selectedTextClipId, surface, timeline],
-  )
-  return {
-    selections,
-    revisionFor: (id) => recorded.get(id) ?? revisionOf(id),
-    staleFor: (id) => (recorded.get(id) ?? revisionOf(id)) !== revisionOf(id),
-  }
-}
-
-/**
  * A timeline plan is the one proposal whose raw arguments are unreadable: the
  * operation list carries frames and clip ids, not what the edit does. One
  * checkable sentence per operation, with the exact JSON kept for the detail row
@@ -169,4 +81,37 @@ export function useTimelinePlanRows(
     () => toolName && isTimelinePlanTool(toolName) ? timelinePlanLines(timelinePlanOperationsForTool(toolName, args), timeline, t) : [],
     [args, t, timeline, toolName],
   )
+}
+
+const NO_CANVAS = Object.freeze({ persistRevision: '', nodes: Object.freeze([]), selectedNodeIds: Object.freeze([]) })
+
+/**
+ * Live view of what the composer chips point at. It subscribes to the timeline
+ * slice only (today only the preview surface shows selection chips); subscribing
+ * to the canvas nodes here would re-render the whole panel on every node drag.
+ * Members and names come from the same resolver the send path uses.
+ */
+export function useResidentTimelineMembers(surface: ResidentSurface): readonly ResidentSelectionMember[] {
+  const timeline = useWorkbenchStore((state) => state.timeline)
+  const selectedTimelineClipIds = useWorkbenchStore((state) => state.selectedTimelineClipIds)
+  const selectedTextClipId = useWorkbenchStore((state) => state.selectedTextClipId)
+  return React.useMemo(
+    () => resolveResidentSelectionMembers(residentSelectionInput(surface, {
+      workbench: { timeline, selectedTimelineClipIds, selectedTextClipId },
+      canvas: NO_CANVAS,
+      readTimelineRevision: () => '',
+    })).timelineMembers,
+    [surface, timeline, selectedTimelineClipIds, selectedTextClipId],
+  )
+}
+
+/** 选区身份、名字与取消动作在主人旁绑定，样式 kind 不参与写口路由。 */
+export function useResidentTimelineReferences(surface: ResidentSurface, isCurrent: () => boolean): readonly V4ComposerReference[] {
+  const members = useResidentTimelineMembers(surface)
+  const selectedTextClipId = useWorkbenchStore(state => state.selectedTextClipId)
+  const deselect = useWorkbenchStore(state => state.deselectTimelineItem)
+  return members.map(member => ({
+    id: member.id, kind: 'clip', label: member.title,
+    onRemove: () => deselect(member.id, member.id === selectedTextClipId ? 'text' : 'media', isCurrent),
+  }))
 }

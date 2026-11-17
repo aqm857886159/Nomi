@@ -273,6 +273,8 @@ export const zhGenerationCommon = {
       leavePreview: '松手后离开「{{name}}」，还剩 {{count}} 个',
       nestedNotSupported: '组里不能再套组——先解散外层',
       generateEmpty: '这个组里没有可生成的节点',
+      generateBlocked: '这组现在都生成不了：{{detail}}',
+      generateBlockedPart: '{{count}} 个{{status}}',
       timelineEmpty: '这个组里没有可进时间轴的视频或剪辑',
       timelineDoneWithSkips: '已排进 {{count}} 段；{{skipped}} 个跳过（不是画面，或还没生成）',
       toolbarAria: '组「{{name}}」工具条',
@@ -691,12 +693,6 @@ export const zhGenerationCommon = {
     },
     panoramaScreenshotTitle: '全景截图',
     panoramaScreenshotPrompt: '全景视口截图',
-    lock: {
-      unlockAria: '解锁节点（AI 将恢复可修改）',
-      lockAria: '锁定节点（AI 不能修改，仍可作为参考）',
-      unlockHint: '已锁定：AI 不能修改此节点 — 点击解锁',
-      lockHint: '锁定：AI 不能修改此节点（提示词、删除、接线），仍可作为参考',
-    },
     extractFrame: {
       first: '首帧',
       last: '尾帧',
@@ -2065,6 +2061,8 @@ export const enGenerationCommon = {
       leavePreview: 'Release to leave “{{name}}”, {{count}} remaining',
       nestedNotSupported: 'A group can’t hold another group — dissolve the outer one first',
       generateEmpty: 'Nothing in this group can be generated',
+      generateBlocked: 'Nothing here can be generated right now: {{detail}}',
+      generateBlockedPart: '{{status}} ({{count}})',
       timelineEmpty: 'No video or clip in this group can go to the timeline',
       timelineDoneWithSkips: 'Placed {{count}}; skipped {{skipped}} (not moving image, or not generated yet)',
       toolbarAria: 'Group “{{name}}” toolbar',
@@ -2464,13 +2462,6 @@ export const enGenerationCommon = {
     },
     panoramaScreenshotTitle: 'Panorama screenshot',
     panoramaScreenshotPrompt: 'Panorama viewport screenshot',
-    lock: {
-      unlockAria: 'Unlock node (AI can edit it again)',
-      lockAria: 'Lock node (AI cannot edit it, but it can still be used as a reference)',
-      unlockHint: 'Locked: AI cannot edit this node — click to unlock',
-      lockHint:
-        'Lock: AI cannot edit this node (prompt, deletion, or connections), but it remains available as a reference',
-    },
     extractFrame: {
       first: 'first frame',
       last: 'last frame',

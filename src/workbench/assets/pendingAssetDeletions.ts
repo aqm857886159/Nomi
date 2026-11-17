@@ -1,25 +1,16 @@
-// 被删掉的那一版，它的文件「什么时候真从盘上删」——唯一 owner。
-//
-// 删一版不弹确认框、给撤销（用户 2026-09-28 拍板），所以文件不能当场删：⌘Z 把版本找回来时文件得还在。
-// 规则：
-// 1. 删的时候只从版本列表里拿掉并存盘，文件记一笔「待删」，带上这一步在撤销日志里的位置；
-// 2. 撤销日志再也退不回这一步（被挤出 80 步）时，才真删；
-// 3. 换项目 / 关项目（撤销日志清零）时，这个项目的待删全部到点；
-// 4. 待删清单跟着项目一起存盘（payload.pendingAssetDeletions）：App 直接退出来不及删的，
-//    下次打开这个项目时清扫（那时撤销日志是空的，没有任何一步能退回去）。
-// 每次真删之前都用 `isProjectFileReferenced` 再判一次：撤销回来的、时间轴还在用的，一律不删，只销账。
-// 真删失败（文件被占用、权限）不销账：留在清单里下次到点再试，连续失败 MAX_DELETE_ATTEMPTS 次才放弃并记日志。
-// 列表也问这里（`isAssetFileAwaitingTrash`）：已经删了、只等撤销窗口过去的文件，素材库两个页签都不再列它
-// （2026-10-24 之前列表按盘上文件把它列回来、换成文件名，删了像没删）。
+// Only explicit asset-library deletion owns deferred file recycling.
+// Version-card removal leaves originals in project assets; legacy unmarked requests have no authority.
 import { trashProjectFiles } from './assetFileDeletion'
 import { logRendererError } from '../../desktop/rendererLog'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
 import { registerUndoHistoryEvictionHandler, type UndoHistoryEviction } from '../generationCanvas/events/canvasUndoJournal'
-import { isProjectFileReferenced, type ProjectFileTarget } from './assetResultDeletion'
+import { collectProjectFileReferences, isProjectFileReferenced, type ProjectFileReferences, type ProjectFileTarget } from './assetResultDeletion'
+import { readLoadedProjectLivenessContent, type ProjectSessionMoment } from './projectLivenessContent'
 import type { AssetRef } from './assetTypes'
 
 export type PendingAssetDeletion = ProjectFileTarget & {
+  source: 'asset-library'
   /** 记账时的撤销日志代号；代号变了（换了画布）= 这一步已经不可能再撤回。没有 = 从盘上读回来的遗留。 */
   journalGeneration?: number
   /** 删除这一步在撤销日志里的绝对位置（撤到这里 = 删之前）。 */
@@ -29,7 +20,7 @@ export type PendingAssetDeletion = ProjectFileTarget & {
 }
 
 /** 存进项目文件的样子：项目自己知道自己是谁，只记相对路径（和失败过几次）。 */
-export type PersistedAssetDeletion = { relativePath: string; failedAttempts?: number }
+export type PersistedAssetDeletion = { relativePath: string; source: 'asset-library'; failedAttempts?: number }
 
 /** 同一份文件真删失败到第几次就放弃（文件留在盘上只占空间；不无限重试）。 */
 export const MAX_DELETE_ATTEMPTS = 3
@@ -61,14 +52,31 @@ export function readPendingAssetDeletionsVersion(): number {
   return version
 }
 
+/** 此刻已加载项目的引用索引（读不全 = null，判定当「有人用」）。 */
+function loadedProjectReferences(projectId: string, moment: ProjectSessionMoment): ProjectFileReferences | null {
+  const content = readLoadedProjectLivenessContent(projectId, moment)
+  return content ? collectProjectFileReferences(content.nodes, content.rest) : null
+}
+
+// 列表用的索引按「画布 store + 工作台 store 的那一刻状态」记一份：store 一变（任何字段换了引用）就重扫，同一刻的整张列表只扫一次。
+let listMemo: { projectId: string; canvas: object; workbench: object; references: ProjectFileReferences | null } | null = null
+function listReferences(projectId: string): ProjectFileReferences | null {
+  const canvas = useGenerationCanvasStore.getState()
+  const workbench = useWorkbenchStore.getState()
+  if (listMemo && listMemo.projectId === projectId && listMemo.canvas === canvas && listMemo.workbench === workbench) return listMemo.references
+  const references = loadedProjectReferences(projectId, 'alive')
+  listMemo = { projectId, canvas, workbench, references }
+  return references
+}
+
 /**
- * 这份文件是不是「已经删了、只等进回收站」：记在待删清单里（或正在进回收站），而且此刻画布 / 时间轴
- * 没人用它。⌘Z 把那一版撤回来 = 又有人用了，就不算（列表照常列）。引用判定与真删前那一次是同一个函数。
+ * 这份文件是不是「已经删了、只等进回收站」：记在待删清单里（或正在进回收站），而且此刻项目里没人用它。
+ * ⌘Z 把那一版撤回来 = 又有人用了，就不算（列表照常列）。引用判定与真删前那一次是同一个函数。
  */
 export function isAssetFileAwaitingTrash(target: ProjectFileTarget): boolean {
   const key = keyOf(target)
   if (!pending.has(key) && !releasing.has(key)) return false
-  return !isProjectFileReferenced(target, { nodes: useGenerationCanvasStore.getState().nodes, timeline: useWorkbenchStore.getState().timeline })
+  return !isProjectFileReferenced(target, listReferences(target.projectId))
 }
 
 /** 列表用：去掉「已经删了、只等进回收站」的落盘文件。没有待删时原样返回（不新建数组，下游记忆不抖）。 */
@@ -78,6 +86,7 @@ export function withoutFilesAwaitingTrash<T extends AssetRef>(assets: readonly T
 }
 
 export function deferAssetFileDeletion(target: PendingAssetDeletion): void {
+  if (target.source !== 'asset-library') throw new Error('File deletion requires asset-library intent')
   pending.set(keyOf(target), target)
   changed()
 }
@@ -93,7 +102,7 @@ export function forgetDeferredAssetDeletion(target: ProjectFileTarget): void {
  */
 export function listPersistedAssetDeletions(): PersistedAssetDeletion[] | undefined {
   if (pending.size === 0) return undefined
-  return [...pending.values()].map((entry) => ({ relativePath: entry.relativePath, ...(entry.failedAttempts ? { failedAttempts: entry.failedAttempts } : {}) }))
+  return [...pending.values()].map((entry) => ({ relativePath: entry.relativePath, source: entry.source, ...(entry.failedAttempts ? { failedAttempts: entry.failedAttempts } : {}) }))
 }
 
 function take(predicate: (entry: PendingAssetDeletion) => boolean): PendingAssetDeletion[] {
@@ -112,19 +121,24 @@ function requeueFailed(entry: PendingAssetDeletion, requeue: boolean): void {
     logRendererError('pending-asset-deletion-gave-up', new Error(`${entry.relativePath} failed ${failedAttempts} times`))
     return
   }
-  if (requeue) pending.set(keyOf(entry), { projectId: entry.projectId, relativePath: entry.relativePath, failedAttempts })
+  if (requeue) pending.set(keyOf(entry), { projectId: entry.projectId, relativePath: entry.relativePath, source: entry.source, failedAttempts })
 }
 
-/** 到点的逐条再判一次引用：没人用了才删；有人用（撤销回来了 / 时间轴在用）只销账。 */
-async function release(due: readonly PendingAssetDeletion[], requeue: boolean): Promise<AssetDeletionRelease> {
+/** 到点的逐条再判一次引用：没人用了才删；有人用（撤销回来了 / 别处在用 / 读不全）只销账。 */
+async function release(due: readonly PendingAssetDeletion[], requeue: boolean, moment: ProjectSessionMoment): Promise<AssetDeletionRelease> {
   const outcome: AssetDeletionRelease = { deletedFileCount: 0, failedFileCount: 0, keptReferencedCount: 0 }
   if (due.length === 0) return outcome
   // 进回收站这一路上（deleteFiles 还没回来）列表照样不列它；回来以后由主进程的删除广播刷新列表。
   for (const entry of due) releasing.add(keyOf(entry))
   try {
-    // 引用判定读的是此刻已加载项目的画布与时间轴——调用方保证到点的都是这个项目的（见各入口）。
-    const scope = { nodes: useGenerationCanvasStore.getState().nodes, timeline: useWorkbenchStore.getState().timeline }
-    const unreferenced = due.filter((entry) => !isProjectFileReferenced(entry, scope))
+    // 引用判定读的是此刻已加载项目的整份内容，同步、在第一个 await 之前；条目不是此刻载入的项目的 → 读不到 → 保留。
+    // 同一批到点的按项目各扫一次（不随条目数线性变慢）。
+    const byProject = new Map<string, ProjectFileReferences | null>()
+    const referencesOf = (projectId: string) => {
+      if (!byProject.has(projectId)) byProject.set(projectId, loadedProjectReferences(projectId, moment))
+      return byProject.get(projectId) ?? null
+    }
+    const unreferenced = due.filter((entry) => !isProjectFileReferenced(entry, referencesOf(entry.projectId)))
     outcome.keptReferencedCount = due.length - unreferenced.length
     if (unreferenced.length === 0) return outcome
     for (const entry of unreferenced) {
@@ -152,7 +166,7 @@ export function releaseEvictedAssetDeletions(eviction: UndoHistoryEviction): Pro
     entry.journalGeneration === eviction.generation
     && entry.journalPosition !== undefined
     && entry.journalPosition < eviction.oldestReachablePosition
-  )), true)
+  )), true, 'alive')
 }
 
 /**
@@ -160,7 +174,8 @@ export function releaseEvictedAssetDeletions(eviction: UndoHistoryEviction): Pro
  * **之前**同步调用——引用判定读的是此刻的画布（`take` 和判定都在第一个 await 之前完成）。
  */
 export function releaseLoadedProjectAssetDeletions(): Promise<AssetDeletionRelease> {
-  return release(take(() => true), false)
+  // 撤销栈随后清零：会话撤销材料这一次不算「有人用」，不然文件永远删不掉。
+  return release(take(() => true), false, 'ending')
 }
 
 /**
@@ -171,14 +186,14 @@ export function releaseLoadedProjectAssetDeletions(): Promise<AssetDeletionRelea
 export async function sweepPersistedAssetDeletions(projectId: string, persisted: unknown, onListChanged?: () => void): Promise<AssetDeletionRelease> {
   const entries = Array.isArray(persisted)
     ? persisted.flatMap((entry): PendingAssetDeletion[] => {
-        const raw = entry && typeof entry === 'object' ? entry as { relativePath?: unknown; failedAttempts?: unknown } : {}
+        const raw = entry && typeof entry === 'object' ? entry as { relativePath?: unknown; failedAttempts?: unknown; source?: unknown } : {}
         const failedAttempts = Number.isInteger(raw.failedAttempts) && (raw.failedAttempts as number) > 0 ? raw.failedAttempts as number : undefined
-        return typeof raw.relativePath === 'string' && raw.relativePath.trim()
-          ? [{ projectId, relativePath: raw.relativePath, ...(failedAttempts ? { failedAttempts } : {}) }]
+        return raw.source === 'asset-library' && typeof raw.relativePath === 'string' && raw.relativePath.trim()
+          ? [{ projectId, source: 'asset-library', relativePath: raw.relativePath, ...(failedAttempts ? { failedAttempts } : {}) }]
           : []
       })
     : []
-  const outcome = await release(entries, true)
+  const outcome = await release(entries, true, 'alive')
   if (entries.length > 0) onListChanged?.()
   return outcome
 }
@@ -188,6 +203,7 @@ registerUndoHistoryEvictionHandler((eviction) => {
 })
 
 export function __resetPendingAssetDeletionsForTests(): void {
+  listMemo = null
   pending.clear()
   releasing.clear()
   listeners.clear()

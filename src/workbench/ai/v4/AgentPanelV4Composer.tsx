@@ -39,7 +39,7 @@ import {
   IconX,
 } from './AgentPanelV4Icons'
 import { approvalPolicyForTier, maxComposerHeight, rowsFromContentHeight, useComposerHeight, shouldSubmitComposer } from './agentPanelV4Logic'
-import type { ComposerMode, ComposerPopover, PermissionTier, V4Chip } from './agentPanelV4Types'
+import type { ComposerMode, ComposerPopover, PermissionTier, V4ComposerReference } from './agentPanelV4Types'
 import { DEFAULT_PERMISSION_TIER, PERMISSION_TIERS } from './agentPanelV4Types'
 
 import { SkillMedia } from '../../skillLibrary/SkillMedia'
@@ -51,7 +51,7 @@ function compactModelLabel(label: string): string {
   return label.replace(/\s+[·|]\s+[^·|]+$/, '')
 }
 
-function ComposerChip({ chip, removeLabel, onRemove }: { chip: V4Chip; removeLabel: string; onRemove?: () => void }): JSX.Element {
+function ComposerChip({ chip, removeLabel }: { chip: V4ComposerReference; removeLabel: string }): JSX.Element {
   const content = (
     <span
       className={cn(
@@ -61,6 +61,7 @@ function ComposerChip({ chip, removeLabel, onRemove }: { chip: V4Chip; removeLab
           : 'border-nomi-line text-nomi-ink-80',
       )}
       data-v4-chip={chip.kind}
+      data-v4-chip-id={chip.id}
     >
       {chip.kind === 'skill' ? (
         <SkillMedia cover={chip.cover} preview={chip.preview} iconSize={12} className="size-4 rounded-nomi-sm object-cover" />
@@ -71,7 +72,7 @@ function ComposerChip({ chip, removeLabel, onRemove }: { chip: V4Chip; removeLab
         />
       )}
       <span className="max-w-[150px] truncate">{chip.label}</span>
-      <button type="button" aria-label={`${removeLabel} ${chip.label}`} className="text-nomi-ink-40" onClick={onRemove}>
+      <button type="button" aria-label={`${removeLabel} ${chip.label}`} className="text-nomi-ink-40" onClick={chip.onRemove}>
         <IconX size={11} />
       </button>
     </span>
@@ -90,7 +91,7 @@ export type AgentPanelV4ComposerProps = {
   mode?: ComposerMode
   admitting?: boolean
   permission?: PermissionTier
-  chips?: readonly V4Chip[]
+  chips?: readonly V4ComposerReference[]
   /** 3D-BOX「正在改：镜头 N」标签（AgentPanelV4FocusTag）：排在 chip 行最前，不随发送清掉。 */
   focusTag?: React.ReactNode
   /** 受控文本。没有 `onValueChange` 时框是只读的展示件（设计实验室取景用）。 */
@@ -98,7 +99,6 @@ export type AgentPanelV4ComposerProps = {
   onValueChange?: (value: string, previous?: string) => void
   onSubmit?: (choice?: 'primary' | 'secondary') => void
   onStop?: () => void
-  onRemoveChip?: (chip: V4Chip, index: number) => void
   onAddFile?: () => void
   onAddReference?: () => void
   /** 模型钮上显示的文字。没选模型时由调用方给「去选模型」一类的实话，不写死型号。 */
@@ -138,7 +138,6 @@ export function AgentPanelV4Composer({
   onValueChange,
   onSubmit,
   onStop,
-  onRemoveChip,
   onAddFile,
   onAddReference,
   modelLabel,
@@ -218,12 +217,11 @@ export function AgentPanelV4Composer({
       {chips?.length || focusTag ? (
         <div className="flex shrink-0 flex-wrap gap-1.5 px-2.5 pt-2">
           {focusTag}
-          {(chips ?? []).map((chip, index) => (
+          {(chips ?? []).map((chip) => (
             <ComposerChip
-              key={`${chip.kind}-${chip.label}`}
+              key={`${chip.kind}:${chip.id}`}
               chip={chip}
               removeLabel={t('agentPanelV4.removeChip')}
-              onRemove={() => onRemoveChip?.(chip, index)}
             />
           ))}
         </div>

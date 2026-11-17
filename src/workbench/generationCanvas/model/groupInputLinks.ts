@@ -5,7 +5,7 @@
  * **以后新进组的成员自动补一根**。
  *
  * 为什么是「展开式」而不是让 edge.source/target 直接指向 group（拍板 2026-08-02）：
- * 后者会引入**平行的图语义**——`resolveReferenceSlots` / `buildDependencyWaves` /
+ * 后者会引入**平行的图语义**——`resolveReferenceSlots` / `planGenerationScope` /
  * `referenceEdgeCapability` / 持久化 schema 每一处读边的地方都要再认一种端点，漏一处就是静默 bug（违 P1）。
  * 展开式下图结构完全不变，组只是**输入手势的语法糖**，所有既有读边逻辑零改动。
  *

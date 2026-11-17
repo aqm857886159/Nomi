@@ -1,0 +1,277 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-17-agent-chip-remove",
+  "problem_type": "可交互引用丢失身份和主人动作，显示与新输入脱节",
+  "symptom": "时间轴片段/字幕芯片 × 点后仍选中且下次仍发",
+  "direct_cause": "显示仅留 kind/label，外壳只分派文件和技能，选区按钮空路",
+  "class_root": "接口允许可移除项没有身份和动作，未约束真实显示/点击/最终新输入一致",
+  "affected_population": [
+    "预览面时间轴媒体和字幕选区；同名片段；恢复草稿后的新发送"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+    "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+    "src/workbench/ai/v4/agentPanelV4Types.ts",
+    "src/workbench/ai/resident/ResidentComposerContext.tsx",
+    "src/workbench/ai/resident/timelineAgentSurface.tsx",
+    "src/workbench/workbenchStore.ts",
+    "src/devlab/designLab/v4/agentPanelV4LabKit.tsx"
+  ],
+  "entry_points": [
+    "两段媒体 Shift 选中、单字幕选中、同名片段芯片 ×",
+    "附件按 id 移除、技能/提示词原 setter",
+    "旧快照草稿新发送与继续/重试分路"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "已拍板内部职责修复；复用现有 React 受控组合、TypeScript 必填类型和 Zustand，无第三方机制缺陷；方向复盘第5节已查官方资料。",
+  "invariants": [
+    "当前可移除引用必须带 id 与主人的动作，历史 V4Chip 只读",
+    "外壳不接通用 onRemoveChip，不按 kind/label 猜写口",
+    "取消原子幂等，仅改指定子型；旧项目/会话的按钮不写新 owner；未连接仍能取消本地内容，卸载后的旧按钮无效",
+    "新输入目标/快照由主人返回完整配对；DOM 与最终输入的 timelineClip 子集逐项相同"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/editing/editingLabKit.tsx",
+      "symbol": "selectedTextClipId"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/agentPanelV4LabKit.tsx",
+      "symbol": "V4ComposerReference"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "symbol": "V4Chip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/resident/ResidentComposerContext.tsx",
+      "symbol": "V4ComposerReference"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/resident/residentContextSnapshot.ts",
+      "symbol": "selectedTextClipId"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/resident/residentContextSnapshot.ts",
+      "symbol": "selectedTimelineClipIds"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/resident/timelineAgentSurface.tsx",
+      "symbol": "selectedTimelineClipIds"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/resident/timelineAgentSurface.tsx",
+      "symbol": "selectedTextClipId"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/resident/timelineAgentSurface.tsx",
+      "symbol": "V4ComposerReference"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/resident/timelineAgentSurface.tsx",
+      "symbol": "deselectTimelineItem"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "symbol": "V4ComposerReference"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Message.tsx",
+      "symbol": "V4Chip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "V4ComposerReference"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelV4Types.ts",
+      "symbol": "V4Chip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/inspector/PreviewInspector.tsx",
+      "symbol": "selectedTimelineClipIds"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/inspector/PreviewInspector.tsx",
+      "symbol": "selectedTextClipId"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/TimelinePreview.tsx",
+      "symbol": "selectedTextClipId"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/TimelinePreview.tsx",
+      "symbol": "selectedTimelineClipIds"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineClip.tsx",
+      "symbol": "selectedTimelineClipIds"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "symbol": "selectedTimelineClipIds"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "symbol": "selectedTextClipId"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineTextTrack.tsx",
+      "symbol": "selectedTextClipId"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "selectedTimelineClipIds"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "selectedTextClipId"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "useResidentComposerContext"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/resident/timelineAgentSurface.tsx",
+      "symbol": "useResidentTimelineMembers"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+      "symbol": "captureResidentSendContext"
+    }
+  ],
+  "door_reduction": {
+    "before": 26,
+    "after": 27,
+    "why_not": "按同一组符号工具重数，包含状态读者及当前/历史表示的类型读者；取消动作与必填类型增加了明确的主人接线门，保留工作台、属性面板与历史只读的合法读者。删的是外壳按显示 kind/label 猜写口及 Data 重造当前芯片，不以类型引用数冒充业务写口数量。"
+  },
+  "generality_proof": "五种当前内容均从局部组合点输出必填身份/动作的引用；媒体/字幕回同一 store 原子动作。发送配对构造集中在 captureResidentSendContext，恢复值仅原样传恢复模板通路；生产 Composer/Actions/laneClient/真 store 浏览器对拍检验下游，覆盖同名、单字幕、过期按钮与旧快照。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/resident/ResidentComposerContext.tsx",
+      "symbol": "useResidentComposerContext",
+      "responsibility": "组合当前引用与 owner 动作；绑定原组件生命周期及会话身份，不依赖助手连接成功"
+    },
+    {
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "deselectTimelineItem",
+      "responsibility": "原子幂等取消指定子型，调用前校验 owner 有效性"
+    },
+    {
+      "path": "src/workbench/ai/resident/ResidentComposerContext.tsx",
+      "symbol": "captureResidentSendContext",
+      "responsibility": "只从当前主人构造 target/contextSnapshot 完整配对"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/resident/timelineAgentSurface.tsx",
+      "entry_point": "useResidentTimelineReferences",
+      "disposition": "enforced",
+      "evidence": "媒体和字幕在订阅适配里保留 ID，并绑定各自子型的取消动作"
+    },
+    {
+      "path": "src/workbench/ai/resident/ResidentComposerContext.tsx",
+      "entry_point": "useResidentComposerContext",
+      "disposition": "enforced",
+      "evidence": "文件复用附件 id 删除；技能/提示词复用原 setter；均有必填身份/动作"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Message.tsx",
+      "entry_point": "V4UserBubble",
+      "disposition": "not-affected",
+      "evidence": "历史只读 V4Chip，不加入取消选中副作用"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一种可交互表示可在媒体、字幕、同名对象或下一种引用中漏动作；纯主人测试漏了真实显示和接纳。",
+    "same_class_scan": [
+      "git grep -ln removeComposerChip\\|onRemoveChip\\|V4Chip -- src：原8文件逐一读取",
+      "door-map.mjs deselectTimelineItem useResidentTimelineMembers useResidentComposerContext captureResidentSendContext",
+      "核旧浮条 storyboardLaunchMessage 和导演焦点标签 onClear：动作应由主人单点定义"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/resident/ResidentComposerContext.tsx",
+    "invariant": "当前引用必须有身份/动作，发送只拿完整当前 target/snapshot",
+    "failure_mode": "缺字段类型拒绝；旧 owner 取消不写；实际 DOM 或最终新输入漂移对拍红",
+    "exception_policy": "none",
+    "strategy": "从接口结构删空动作表示和外壳业务分派；从生产 DOM 到最终命令比较，而非只禁旧名称",
+    "artifacts": [
+      "src/workbench/ai/v4/agentPanelV4Types.ts",
+      "src/workbench/ai/resident/ResidentComposerContext.tsx",
+      "src/workbench/ai/resident/timelineAgentSurface.tsx",
+      "src/workbench/workbenchStore.ts"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/agent-selection-composer.test.mjs",
+    "src/workbench/ai/resident/residentComposerSelection.test.ts",
+    "tests/ux/agent-selection-one-home.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/agent-selection-composer.test.mjs",
+    "src/workbench/ai/resident/residentComposerSelection.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "src/workbench/ai/v4/useAgentPanelV4Actions.ts"
+    ],
+    "rationale": "删外壳通用分派及文件名回落、Data 当前芯片重造、Composer kind/index 回调和名字 key、Actions 分开挑 target/snapshot。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "缺陷是内部表示与接线，不是依赖版本；保留现有 React/Zustand/TS，无新增依赖。",
+    "exit_criteria": []
+  },
+  "migration": "无持久格式变化；函数仅渲染期绑定。旧快照保留历史/重放，新发送取当前配对。",
+  "residual_risks": [
+    "画布/文稿无选区芯片是已知缺口；不扩混选；真实旧会话冷启和真实供应商未验。",
+    "8 条既有 data-* 读者均运行；reference-entry、editing-real-user-pass、agent-timeline-ops、node-prompt-presets 在固定版和原头同停点失败，记 partial；其余4条通过，未扩大生产范围消红。"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-01",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/ai/resident",
+    "tests": [
+      "tests/ux/agent-selection-composer.test.mjs",
+      "src/workbench/ai/resident/residentComposerSelection.test.ts"
+    ]
+  }
+}

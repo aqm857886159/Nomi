@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RowActionContext } from '../../creation/storyboard/exec/storyboardRowActions'
 import type { StoryboardPlan } from '../agent/storyboardPlan'
+import type { GenerationScopePlan } from '../../../../electron/shared/agentCapabilities/generationShotScope'
 
 /**
  * 付费来源（initiator）在整条链上**必填、没有缺省**（R17：让编译器拦）。
@@ -14,6 +15,8 @@ declare const confirmAndRunNode: typeof import('../runner/generationRunControlle
 declare const regenerateNodeInPlace: typeof import('../runner/generationRunController').regenerateNodeInPlace
 declare const confirmAndRunPlan: typeof import('../components/batchPlanPreview').confirmAndRunPlan
 declare const plan: StoryboardPlan
+/** 一份真规划（只有共用主人造得出来）：这样下面那条 @ts-expect-error 只能是因为少了 initiator。 */
+declare const scopePlan: GenerationScopePlan
 
 describe('initiator 在付费链上必填', () => {
   it('每一环省掉它都编译不过；分镜行动作要么带手势、要么显式写来源', () => {
@@ -27,7 +30,7 @@ describe('initiator 在付费链上必填', () => {
       // @ts-expect-error 第二个参数（含 initiator）必填
       void regenerateNodeInPlace('node')
       // @ts-expect-error 第二个参数（含 initiator）必填
-      void confirmAndRunPlan({ waves: [], edgesUsed: [], blocked: [] })
+      void confirmAndRunPlan(scopePlan)
 
       // @ts-expect-error 既没手势也没 initiator
       const noSource: RowActionContext = { documentId: 'doc', designId: 'design', plan }

@@ -5,6 +5,7 @@ import type {
 import { freezeAgentContextSnapshot } from '../../../../electron/shared/agentContextSnapshot'
 import type { DocumentAnchorRef } from '../../../../electron/shared/capabilityTargeting'
 import type { TimelineClipType } from '../../timeline/timelineTypes'
+import type { ResidentSurface } from './residentShellDisplay'
 
 export type ResidentDocumentSelection = Readonly<{
   id: string
@@ -32,6 +33,13 @@ export type ResidentTimelineClipSelection = Readonly<{
   thumbnailUrl?: string
 }>
 
+export type ResidentTimelineTextSelection = Readonly<{
+  id: string
+  text: string
+  startFrame: number
+  endFrame: number
+}>
+
 export type ResidentContextCaptureInput = Readonly<{
   document?: ResidentDocumentSelection | null
   canvas?: Readonly<{
@@ -44,7 +52,22 @@ export type ResidentContextCaptureInput = Readonly<{
     fps: number
     clips: readonly ResidentTimelineClipSelection[]
     selectedClipIds: readonly string[]
+    /** Text overlays are timeline clips the user can select too; they ride the same selection. */
+    textClips?: readonly ResidentTimelineTextSelection[]
+    selectedTextClipId?: string
   }> | null
+}>
+
+/** One selected object as the creator sees it: the chip, the target and the model handle all use this. */
+export type ResidentSelectionMember = Readonly<{ id: string; title: string }>
+
+export type ResidentSelection = Readonly<{
+  snapshot: AgentContextSnapshot
+  canvasNodeIds: readonly string[]
+  /** Media clips first, then the selected text clip; the order the creator sees. */
+  timelineClipIds: readonly string[]
+  canvasMembers: readonly ResidentSelectionMember[]
+  timelineMembers: readonly ResidentSelectionMember[]
 }>
 
 export type { AgentContextHandle, AgentContextSnapshot }
@@ -61,8 +84,10 @@ function revision(value: string | number): string {
 function uniqueExistingIds(ids: readonly string[], existing: ReadonlySet<string>): string[] {
   const seen = new Set<string>()
   const result: string[] = []
-  for (const id of ids) {
-    if (!nonEmpty(id) || seen.has(id) || !existing.has(id)) continue
+  for (const raw of ids) {
+    if (!nonEmpty(raw)) continue
+    const id = raw.trim()
+    if (seen.has(id) || !existing.has(id)) continue
     seen.add(id)
     result.push(id)
   }
@@ -77,19 +102,73 @@ function frameToMs(frame: number, fps: number): number {
   return Math.round((Number.isFinite(frame) ? frame : 0) / fps * 1000)
 }
 
-function clipKind(_type: TimelineClipType): AgentContextHandle['kind'] {
-  // A timeline clip is a domain object, not merely a media MIME kind.  Keep
-  // its media type in the display projection while using the dedicated wire
-  // kind so timeline references can be resolved after the surface changes.
-  return 'timelineClip'
+type CanvasInput = NonNullable<ResidentContextCaptureInput['canvas']>
+type TimelineInput = NonNullable<ResidentContextCaptureInput['timeline']>
+type TimelineMember = Readonly<{
+  id: string
+  title: string
+  subtitle: string
+  startFrame: number
+  endFrame: number
+  thumbnailUrl?: string
+}>
+
+/**
+ * The single place that decides which objects are selected: drop ids that no
+ * longer exist, drop duplicates, keep the creator's order, and name each one
+ * the same way (a blank name falls back to the id).
+ */
+function selectCanvas(canvas: CanvasInput | null | undefined): Array<{ id: string; node: ResidentCanvasNodeSelection }> {
+  if (!canvas) return []
+  const nodesById = new Map(canvas.nodes.filter((node) => nonEmpty(node.id)).map((node) => [node.id.trim(), node]))
+  return uniqueExistingIds(canvas.selectedNodeIds, new Set(nodesById.keys()))
+    .map((id) => ({ id, node: nodesById.get(id)! }))
+}
+
+function selectTimeline(timeline: TimelineInput | null | undefined): TimelineMember[] {
+  if (!timeline) return []
+  const clipsById = new Map(timeline.clips.filter((clip) => nonEmpty(clip.id)).map((clip) => [clip.id.trim(), clip]))
+  const media = uniqueExistingIds(timeline.selectedClipIds, new Set(clipsById.keys())).map((id): TimelineMember => {
+    const clip = clipsById.get(id)!
+    return {
+      id,
+      title: displayTitle(clip.label, id),
+      subtitle: clip.type,
+      startFrame: clip.startFrame,
+      endFrame: clip.endFrame,
+      ...(nonEmpty(clip.thumbnailUrl) ? { thumbnailUrl: clip.thumbnailUrl.trim() } : {}),
+    }
+  })
+  const textById = new Map((timeline.textClips ?? []).filter((clip) => nonEmpty(clip.id)).map((clip) => [clip.id.trim(), clip]))
+  const text = uniqueExistingIds(timeline.selectedTextClipId ? [timeline.selectedTextClipId] : [], new Set(textById.keys()))
+    .filter((id) => !clipsById.has(id))
+    .map((id): TimelineMember => {
+      const clip = textById.get(id)!
+      return { id, title: displayTitle(clip.text, id), subtitle: 'text', startFrame: clip.startFrame, endFrame: clip.endFrame }
+    })
+  return [...media, ...text]
 }
 
 /**
- * Build the current surface selection as a detached, revisioned snapshot.
- * Callers should pass only the surface's active selection; the function never
+ * Chip-side view of the selection: the same members and names as the send
+ * path, without building handles (no revision needed; cheap on every render).
+ */
+export function resolveResidentSelectionMembers(
+  input: ResidentContextCaptureInput,
+): Pick<ResidentSelection, 'canvasMembers' | 'timelineMembers'> {
+  return {
+    canvasMembers: selectCanvas(input.canvas).map(({ id, node }) => ({ id, title: displayTitle(node.title, id) })),
+    timelineMembers: selectTimeline(input.timeline).map(({ id, title }) => ({ id, title })),
+  }
+}
+
+/**
+ * Resolve the current surface selection once: a detached, revisioned snapshot
+ * plus the ids and members that the send target and the composer chips read.
+ * Callers pass only the surface's active selection; the function never
  * guesses a target from a label or from a stale manual @ reference.
  */
-export function buildResidentContextSnapshot(input: ResidentContextCaptureInput): AgentContextSnapshot {
+export function resolveResidentSelection(input: ResidentContextCaptureInput): ResidentSelection {
   const handles: AgentContextHandle[] = []
 
   const document = input.document
@@ -110,61 +189,104 @@ export function buildResidentContextSnapshot(input: ResidentContextCaptureInput)
     })
   }
 
-  const canvas = input.canvas
-  if (canvas) {
-    const nodesById = new Map(canvas.nodes.filter((node) => nonEmpty(node.id)).map((node) => [node.id.trim(), node]))
-    const selectedNodeIds = uniqueExistingIds(canvas.selectedNodeIds, new Set(nodesById.keys()))
-    for (const nodeId of selectedNodeIds) {
-      const node = nodesById.get(nodeId)
-      if (!node) continue
-      handles.push({
-        id: `canvas-node:${nodeId}`,
-        kind: 'canvasNode',
-        targetId: nodeId,
-        revision: revision(canvas.revision),
-        locator: { type: 'canvasSelection', nodeIds: selectedNodeIds },
-        display: {
-          title: displayTitle(node.title, nodeId),
-          ...(nonEmpty(node.subtitle) ? { subtitle: node.subtitle.trim() } : nonEmpty(node.kind) ? { subtitle: node.kind.trim() } : {}),
-          ...(nonEmpty(node.posterUrl) ? { posterUrl: node.posterUrl.trim() } : {}),
-        },
-        intentRole: 'subject',
-      })
-    }
+  const canvasSelected = selectCanvas(input.canvas)
+  const canvasNodeIds = canvasSelected.map(({ id }) => id)
+  for (const { id: nodeId, node } of canvasSelected) {
+    handles.push({
+      id: `canvas-node:${nodeId}`,
+      kind: 'canvasNode',
+      targetId: nodeId,
+      revision: revision(input.canvas!.revision),
+      locator: { type: 'canvasSelection', nodeIds: canvasNodeIds },
+      display: {
+        title: displayTitle(node.title, nodeId),
+        ...(nonEmpty(node.subtitle) ? { subtitle: node.subtitle.trim() } : nonEmpty(node.kind) ? { subtitle: node.kind.trim() } : {}),
+        ...(nonEmpty(node.posterUrl) ? { posterUrl: node.posterUrl.trim() } : {}),
+      },
+      intentRole: 'subject',
+    })
   }
 
   const timeline = input.timeline
+  const timelineSelected = selectTimeline(timeline)
   if (timeline) {
-    const clipsById = new Map(timeline.clips.filter((clip) => nonEmpty(clip.id)).map((clip) => [clip.id.trim(), clip]))
-    const selectedClipIds = uniqueExistingIds(timeline.selectedClipIds, new Set(clipsById.keys()))
     const fps = Number.isFinite(timeline.fps) && timeline.fps > 0 ? timeline.fps : 30
-    for (const clipId of selectedClipIds) {
-      const clip = clipsById.get(clipId)
-      if (!clip) continue
+    for (const member of timelineSelected) {
+      // A timeline clip is a domain object, not merely a media MIME kind: it uses
+      // the dedicated wire kind so references resolve after the surface changes;
+      // the media type (or `text`) stays in the display subtitle.
       handles.push({
-        id: `timeline-clip:${clipId}`,
-        kind: clipKind(clip.type),
-        targetId: clipId,
+        id: `timeline-clip:${member.id}`,
+        kind: 'timelineClip',
+        targetId: member.id,
         revision: revision(timeline.revision),
         locator: {
           type: 'timeRange',
-          startMs: frameToMs(clip.startFrame, fps),
-          endMs: frameToMs(clip.endFrame, fps),
+          startMs: frameToMs(member.startFrame, fps),
+          endMs: frameToMs(member.endFrame, fps),
         },
         display: {
-          title: displayTitle(clip.label, clipId),
-          subtitle: clip.type,
-          ...(nonEmpty(clip.thumbnailUrl) ? { posterUrl: clip.thumbnailUrl.trim() } : {}),
+          title: member.title,
+          subtitle: member.subtitle,
+          ...(member.thumbnailUrl ? { posterUrl: member.thumbnailUrl } : {}),
         },
         intentRole: 'target',
       })
     }
   }
 
-  return freezeAgentContextSnapshot({
-    version: 1,
-    handles,
+  return Object.freeze({
+    snapshot: freezeAgentContextSnapshot({ version: 1, handles }),
+    canvasNodeIds: Object.freeze(canvasNodeIds),
+    timelineClipIds: Object.freeze(timelineSelected.map(({ id }) => id)),
+    canvasMembers: Object.freeze(canvasSelected.map(({ id, node }) => Object.freeze({ id, title: displayTitle(node.title, id) }))),
+    timelineMembers: Object.freeze(timelineSelected.map(({ id, title }) => Object.freeze({ id, title }))),
   })
+}
+
+/** What the two stores hold, as plain data (the caller passes `getState()` or live slices). */
+export type ResidentSelectionSources = Readonly<{
+  document?: ResidentDocumentSelection | null
+  workbench: Readonly<{
+    timeline: Readonly<{
+      fps: number
+      tracks: ReadonlyArray<Readonly<{ clips: readonly ResidentTimelineClipSelection[] }>>
+      textClips: readonly ResidentTimelineTextSelection[]
+    }>
+    selectedTimelineClipIds: readonly string[]
+    selectedTextClipId: string
+  }>
+  canvas: Readonly<{
+    persistRevision: string | number
+    nodes: readonly ResidentCanvasNodeSelection[]
+    selectedNodeIds: readonly string[]
+  }>
+  /** Computed by the caller only when a snapshot is built (hashing the whole timeline is not per-render work). */
+  readTimelineRevision: () => string | number
+}>
+
+/**
+ * Surface → which domain's selection counts this turn. The raw selection
+ * fields of both stores are read here and nowhere else in the assistant panel.
+ */
+export function residentSelectionInput(surface: ResidentSurface, sources: ResidentSelectionSources): ResidentContextCaptureInput {
+  const { workbench, canvas } = sources
+  return {
+    document: sources.document ?? null,
+    canvas: surface === 'generation'
+      ? { revision: canvas.persistRevision, nodes: canvas.nodes, selectedNodeIds: canvas.selectedNodeIds }
+      : null,
+    timeline: surface === 'preview'
+      ? {
+          revision: sources.readTimelineRevision(),
+          fps: workbench.timeline.fps,
+          clips: workbench.timeline.tracks.flatMap((track) => track.clips),
+          selectedClipIds: workbench.selectedTimelineClipIds,
+          textClips: workbench.timeline.textClips,
+          selectedTextClipId: workbench.selectedTextClipId,
+        }
+      : null,
+  }
 }
 
 /** Alias used by callers that already hold a structurally complete snapshot. */

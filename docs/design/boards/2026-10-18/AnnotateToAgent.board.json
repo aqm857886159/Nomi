@@ -612,7 +612,7 @@
       "candidates": [],
       "status": "missing",
       "owner": "select-to-iterate 实现线（待派）",
-      "note": "error = 节点被删（黄色虚线「已删除」）；版本变了标「已变更」。选中即 chip 的交互 2026-09-06 V4 生成流程板已画，本元素只补新种类的长相。",
+      "note": "error = 节点被删（黄色虚线「已删除」）；D-1117-selection-chip-wins：芯片显示什么就发什么，不再标已变更。选中即 chip 的交互 2026-09-06 V4 生成流程板已画，本元素只补新种类的长相。 × = 在时间轴 / 画布上取消选中这一项，素材不删。",
       "states": [
         "empty",
         "selected",
@@ -780,7 +780,7 @@
     },
     {
       "censusId": "NODEBAR-01",
-      "function": "图片节点浮条：锁定、复制、多机位九宫格▾、抠图、改图▾、宫格▾、画板、全屏、下载、信息、加到时间轴",
+      "function": "图片节点浮条（锁定已由 2026-11-17 的决定撤掉）：锁定、复制、多机位九宫格▾、抠图、改图▾、宫格▾、画板、全屏、下载、信息、加到时间轴",
       "before": "NodeFloatingToolbar（真截图 real-zh-light-02 / lab-zh-light-selected-node-quick-toolbar）",
       "after": "nodebar.comment-button",
       "disposition": "kept：浮条一颗不动，也不加「提意见」"

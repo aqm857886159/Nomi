@@ -132,7 +132,7 @@ describe('final asynchronous Agent mutation boundary', () => {
     try {
       // This user edit cancels the pending proposal. The subscriber above runs
       // synchronously from its compensation write and attempts a new proposal.
-      useGenerationCanvasStore.getState().setNodeLocked('other', true)
+      useGenerationCanvasStore.getState().updateNodePrompt('other', 'user edit')
       await vi.waitFor(() => expect(replacement).toBeDefined())
       expect((await replacement)?.status).toBe('committed')
       releaseClip()
@@ -140,7 +140,7 @@ describe('final asynchronous Agent mutation boundary', () => {
 
       const state = useGenerationCanvasStore.getState()
       expect(state.nodes.find((item) => item.id === source.id)?.prompt).toBe('new approved edit')
-      expect(state.nodes.find((item) => item.id === 'other')?.locked).toBe(true)
+      expect(state.nodes.find((item) => item.id === 'other')?.prompt).toBe('user edit')
       expect(getHistoryFlags().canUndo).toBe(true)
       const promptEvents = captured
         .filter((event) => event.type === 'canvas.node.prompt-changed' && event.payload.nodeId === source.id)
@@ -149,7 +149,7 @@ describe('final asynchronous Agent mutation boundary', () => {
 
       useGenerationCanvasStore.getState().undo()
       expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === source.id)?.prompt).toBe('A')
-      expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === 'other')?.locked).toBe(true)
+      expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === 'other')?.prompt).toBe('user edit')
       useGenerationCanvasStore.getState().redo()
       expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === source.id)?.prompt).toBe('new approved edit')
     } finally {
@@ -203,7 +203,7 @@ describe('final asynchronous Agent mutation boundary', () => {
     })
 
     try {
-      useGenerationCanvasStore.getState().setNodeLocked('other', true)
+      useGenerationCanvasStore.getState().updateNodePrompt('other', 'user edit')
       await vi.waitFor(() => {
         expect(firstReplacement).toBeDefined()
         expect(secondReplacement).toBeDefined()
@@ -215,11 +215,11 @@ describe('final asynchronous Agent mutation boundary', () => {
       expect((await oldProposal).status).toBe('aborted')
 
       expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === source.id)?.prompt).toBe('second replacement')
-      expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === 'other')?.locked).toBe(true)
+      expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === 'other')?.prompt).toBe('user edit')
       expect(getHistoryFlags().canUndo).toBe(true)
       useGenerationCanvasStore.getState().undo()
       expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === source.id)?.prompt).toBe('A')
-      expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === 'other')?.locked).toBe(true)
+      expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === 'other')?.prompt).toBe('user edit')
       useGenerationCanvasStore.getState().redo()
       expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === source.id)?.prompt).toBe('second replacement')
     } finally {
@@ -266,7 +266,7 @@ describe('final asynchronous Agent mutation boundary', () => {
     })
 
     try {
-      useGenerationCanvasStore.getState().setNodeLocked('other', true)
+      useGenerationCanvasStore.getState().updateNodePrompt('other', 'user edit')
       await vi.waitFor(() => expect(replacement).toBeDefined())
       expect((await replacement)?.status).toBe('aborted')
       const abortedBeforeManual = captured.filter((event) => event.type === 'agent.txn.aborted').length

@@ -6,7 +6,7 @@ import type { GenerationCanvasNode, NodeGroup } from '../model/generationCanvasT
 import type { GroupArrangeMode } from '../model/groupArrange'
 import { useProductionCanvasLandingStore } from '../../production/productionCanvasLandingStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { hasGroupGenerateCandidates } from './groupGenerate'
+import { groupGenerateDisabledReason } from './groupGenerate'
 import { downloadGroupResults, groupDownloadTargets } from './groupDownload'
 import type { CanvasGroupToolbarModel } from './CanvasGroupToolbar'
 import type { FrameContextMenuAction } from './FrameContextMenu'
@@ -41,12 +41,14 @@ export function useCanvasGroupToolbar({
   const base = React.useMemo((): Omit<CanvasGroupToolbarModel, 'canvasOffsetX' | 'canvasOffsetY' | 'stageWidth' | 'stageHeight'> | undefined => {
     if (!selectedGroup || selectedGroup.collapsed || !selectedGroup.nodeIds.length || readOnly) return undefined
     const targets = groupDownloadTargets(allNodes, selectedGroup.nodeIds)
+    // 与点击后真正派发的集合同一份推导（共用主人的 group 意图）；置灰时原因也从主人的分行来。
+    const generateDisabledReason = groupGenerateDisabledReason(selectedGroup.nodeIds, allNodes, productionRuns)
     return {
       group: selectedGroup,
       canvasZoom,
       memberCount: selectedGroup.nodeIds.filter((nodeId) => visibleNodeIds.has(nodeId)).length,
-      // 与点击后真正派发的集合同一份推导（useCanvasFrameActions 的 generate）。
-      canGenerate: hasGroupGenerateCandidates(selectedGroup.nodeIds, allNodes, productionRuns),
+      canGenerate: generateDisabledReason === undefined,
+      generateDisabledReason,
       canSendToTimeline: frameHasTimelineUnits(selectedGroup.id),
       canDownload: targets.length > 0,
       onGenerate: () => runFrameAction(selectedGroup.id, 'generate'),

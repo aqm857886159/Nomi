@@ -6,7 +6,9 @@
 // ⑧ 实现类和设计类要答「调用方：」一行（不改已有函数的行为，或改哪个函数 + 数法 + 文件数 + 后果表）。
 // ⑨ 任务书点到的路径命中交接处表（docs/engineering/seams.json）里的某一处、且这一处 14 天内已经修过 ≥1 次（这一刀是第 2 次）：
 //    要有一行「交接处：<名字>，读了 <全图路径>」或「交接处：<名字>，不算同一处：<理由>」；表外路径照旧。
-// 另查范围内存在文件的热点（复用原计数器；文件热点缺方向文档拦，目录 / 概念只提示）和实现任务自验的反例红绿合同（明确纯测试 / 文档 / 配置任务可免）。
+// ⑩ 实现线和验收线的目标合同：做完只按「目标：」那句判，判据要能失败——写明目标测试在「什么都不做」「全部拦下」两个没做成的版本上都红
+//    （全部拦下确无意义可写「全部拦下不适用：<理由>」，什么都不做不许豁免）；实现线自验另要设计卡 ★9 反例红绿（明确纯测试 / 文档 / 配置任务只免这一项）。
+// 另查范围内存在文件的热点（复用原计数器；文件热点缺方向文档拦，目录 / 概念只提示）。
 // 界面任务还须引用设计系统。声明用关键词判，热点只读 Git，不调模型；退出码 1 = 缺项（派工前补齐）。
 import fs from 'node:fs'
 import path from 'node:path'
@@ -41,7 +43,12 @@ const WHOLE_REPO_DELETE = /(grep|全仓|整个仓库|搜到|所有出现)[^\n。
 
 // 豁免必须独占声明行，正文举例或「纯文档 + 代码」不算。
 const CHECK_ONLY = /^\s*(?:#{1,6}\s*)?(?:[-*]\s*)?(?:(?:任务类型|类别|声明|范围)\s*[：:]\s*)?(?:纯|只改)(?:测试|文档|配置)(?:\s*[/、+与和]\s*(?:纯)?(?:测试|文档|配置))*[。；\s]*$/m
-const COUNTEREXAMPLE_CONTRACT = [/设计卡/, /★\s*9/, /每条/, /反例/, /改坏[^。\n]*红/, /还原[^。\n]*绿/, /日志[^。\n]*报告/]
+// ⑩ 目标合同。没做成的版本和「红」要在同一句里（句号或换行断句）。
+const GOAL_LINE = /^[ \t]*[-*]?[ \t]*\**目标\**[ \t]*[：:][ \t]*\S/m
+const DO_NOTHING = /什么(?:都|也)不做|不做任何(?:改动|事)/
+const BLOCK_ALL = /全部(?:拦下|拦住|拒绝|挡住)|一律(?:拦|拒|挡)|全拦/
+const BLOCK_ALL_NA = /^[ \t]*[-*]?[ \t]*\**全部拦下不适用\**[ \t]*[：:][ \t]*(\S.*)$/m
+const COUNTEREXAMPLE = [/设计卡/, /★\s*9/, /每条/, /反例/, /改坏[^。\n]*红/, /还原[^。\n]*绿/, /日志[^。\n]*报告/]
 
 function briefSection(text, name) {
   const lines = text.split(/\r?\n/)
@@ -144,8 +151,28 @@ export function isImplementationBrief(text, file = '') {
   return /^I-/.test(path.basename(file)) || /实现线/.test(text.split('\n', 1)[0])
 }
 
+/** 验收线：文件名 V- 开头（协调派线命名），或正文第一行自称验收线。 */
+export function isAcceptanceBrief(text, file = '') {
+  return /^V-/.test(path.basename(file)) || /验收线/.test(text.split('\n', 1)[0])
+}
+
+/** ⑩ 目标合同的缺项说明（空数组 = 通过）。 */
+export function goalContractProblems(text, { implementation = false } = {}) {
+  const body = text.replace(/```[\s\S]*?```/g, '')
+  const saysRed = (version) => body.split(/[。\n]/).some((sentence) => version.test(sentence) && /红/.test(sentence))
+  const blockAllNa = BLOCK_ALL_NA.exec(body)?.[1].trim()
+  const missing = []
+  if (!GOAL_LINE.test(body)) missing.push('以「目标：」开头的一行（依赖结果的一方要做成什么、做成时看见什么）')
+  if (!saysRed(DO_NOTHING)) missing.push('「什么都不做」时目标测试必须红（这半句不能豁免）')
+  if (!saysRed(BLOCK_ALL) && !(blockAllNa && !PLACEHOLDER.test(blockAllNa))) missing.push('「全部拦下」时目标测试必须红（确实没有意义就写一行「全部拦下不适用：<理由>」）')
+  if (implementation && !CHECK_ONLY.test(text) && !COUNTEREXAMPLE.every((re) => re.test(briefSection(text, '自验')))) {
+    missing.push('自验里「设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告」（只有明确声明纯测试 / 纯文档 / 纯配置的任务免这一项）')
+  }
+  return missing.length ? [`缺目标合同（做完只按目标判，判据要能失败）：${missing.join('；')}`] : []
+}
+
 /** 返回缺项说明数组（空 = 通过）；热点只读 Git，提示写入 warnings。 */
-export function checkDispatchBrief(text, { implementation = false, design = false, root = REPO_ROOT, ref = 'origin/main', warnings = [], seamOptions = {} } = {}) {
+export function checkDispatchBrief(text, { implementation = false, design = false, acceptance = false, root = REPO_ROOT, ref = 'origin/main', warnings = [], seamOptions = {} } = {}) {
   const problems = []
   for (const c of CHECKS) if (!c.re.test(text)) problems.push(`缺${c.key}：${c.hint}`)
   const n = roundNumber(text)
@@ -153,10 +180,7 @@ export function checkDispatchBrief(text, { implementation = false, design = fals
   if (MODEL_FACING_TOOL_CHANGE.test(text) && !MODEL_FACING_TOOL_CHECKLIST.test(text)) problems.push('讲到模型可见工具改动：任务书必须引用 docs/engineering/model-facing-tool-checklist.md（先调研再动代码）')
   if (implementation && !DELETE_ANSWER.test(text)) problems.push('缺「删掉：」一行：先答这件事能不能直接删（选 / 不选，加一句理由），再写怎么修或怎么做（CLAUDE.md P5 三条路）')
   if (implementation || design) problems.push(...callerAnswerProblems(text))
-  const selfCheck = briefSection(text, '自验')
-  if (implementation && !CHECK_ONLY.test(text) && !COUNTEREXAMPLE_CONTRACT.every((re) => re.test(selfCheck))) {
-    problems.push('缺反例红绿：自验必须要求「设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告」；仅明确声明纯测试 / 纯文档 / 纯配置任务可豁免')
-  }
+  if (implementation || acceptance) problems.push(...goalContractProblems(text, { implementation }))
   const scope = briefSection(text, '范围|scope').split(/^\s*(?:不在范围|范围外)[：:]/m, 1)[0]
   // 流程批准不是界面拍板，明确排除的界面也不触发设计要求。
   const interfaceText = text.replace(/^\s*(?:不在范围|范围外)[：:][^\n]*/gm, '').replace(/[^。\n]*用户[^。\n]*拍板[^。\n]*/g, (sentence) => /界面|样张|拍板图/.test(sentence) ? sentence : '')
@@ -186,9 +210,9 @@ function main() {
   if (!file || !fs.existsSync(file)) { console.error('用法：node scripts/check-dispatch-brief.mjs <任务书.md>'); return 2 }
   const text = fs.readFileSync(file, 'utf8')
   const warnings = []
-  const problems = checkDispatchBrief(text, { implementation: isImplementationBrief(text, file), design: isDesignBrief(text, file), warnings })
+  const problems = checkDispatchBrief(text, { implementation: isImplementationBrief(text, file), design: isDesignBrief(text, file), acceptance: isAcceptanceBrief(text, file), warnings })
   for (const warning of warnings) console.warn(warning)
-  if (!problems.length) { console.log('派工书检查：范围、不碰清单、停点、删不删、调用方、删除范围齐全，第 3 轮复盘、模型可见工具清单、反例红绿、热点方向检查与设计系统引用检查通过。'); return 0 }
+  if (!problems.length) { console.log('派工书检查：范围、不碰清单、停点、删不删、调用方、删除范围齐全，第 3 轮复盘、模型可见工具清单、目标合同、热点方向检查与设计系统引用检查通过。'); return 0 }
   console.error(`派工书检查：${problems.length} 项缺失\n${problems.map((p) => `  · ${p}`).join('\n')}`)
   return 1
 }

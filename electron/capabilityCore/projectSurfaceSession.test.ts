@@ -205,7 +205,7 @@ describe('Project surface session identity', () => {
   })
 })
 
-const node = { id: 'node', kind: 'image', title: 'Shot', prompt: 'Before', locked: false, categoryId: 'shots', groupId: null,
+const node = { id: 'node', kind: 'image', title: 'Shot', prompt: 'Before', categoryId: 'shots', groupId: null,
   model: { modelKey: 'model', vendorKey: 'vendor', archetypeId: null, modeId: null, variantId: null }, currentResult: null }
 const context = { toolCallId: 'tool' }
 const cases = [
