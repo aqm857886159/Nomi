@@ -28,6 +28,8 @@ type FrameContextMenuProps = {
   frameName: string
   /** 框里一个可生成的节点都没有 → 禁用并说明为什么（§1.6 C1：可点即有效，否则禁用+解释）。 */
   canGenerate: boolean
+  /** 置灰时的具体原因（共用主人的分行：几个可找回 / 生成中）；不给就用通用那句。 */
+  generateDisabledReason?: string
   /** 框里一段可进时间轴的画面都没有 → 同上。 */
   canSendToTimeline: boolean
   onAction: (action: FrameContextMenuAction) => void
@@ -40,6 +42,7 @@ export default function FrameContextMenu({
   style,
   frameName,
   canGenerate,
+  generateDisabledReason,
   canSendToTimeline,
   onAction,
   onPointerDown,
@@ -60,7 +63,7 @@ export default function FrameContextMenu({
       label: t('generationCommon.canvas.group.menuGenerate'),
       icon: IconPlayerPlay,
       disabled: !canGenerate,
-      disabledReason: t('generationCommon.canvas.group.generateEmpty'),
+      disabledReason: generateDisabledReason ?? t('generationCommon.canvas.group.generateEmpty'),
     },
     {
       action: 'timeline',

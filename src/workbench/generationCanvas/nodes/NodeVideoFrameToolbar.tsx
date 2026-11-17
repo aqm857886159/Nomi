@@ -60,7 +60,7 @@ export default function NodeVideoFrameToolbar({ reportFeedback, node, downloadin
       />
     ) : null}
     {shotCutOpen ? <NodeShotCutPanel onFeedback={reportFeedback} node={node} onClose={() => setShotCutOpen(false)} /> : null}
-    <FloatingToolbarShell ariaLabel={t('generationCommon.videoToolbar.aria')} lockNodeId={node.id}>
+    <FloatingToolbarShell ariaLabel={t('generationCommon.videoToolbar.aria')} nodeId={node.id}>
       <ToolbarActionMenu
         id="capture-frame"
         icon={<IconPhoto size={I.size} stroke={I.stroke} />}

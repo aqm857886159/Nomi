@@ -1,11 +1,15 @@
-// 「生成全部」确认卡逐项勾选的行为（走真实 confirmAndRunPlan / buildDependencyWaves，只替换边界：付费卡、出价 IPC、真正派发）：
-//   未生成的默认勾、已生成的默认不勾、生成中的锁住；去掉的那一项不进执行计划、不开出价、不派发。
+// 「生成全部」确认卡逐项勾选的行为（走真实 confirmAndRunPlan / 共用主人 planGenerationScope，只替换边界：付费卡、出价 IPC、真正派发）：
+//   未生成的默认勾、已生成的默认不勾、生成中 / 可找回的置灰不能勾；去掉的那一项不进执行计划、不开出价、不派发。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { PlanRow } from '../../shared/PlanRows'
 import { runGenerationNodesByPlan } from '../runner/generationRunWaves'
 import { runGroupGenerate } from './groupGenerate'
+import { confirmAndRunPlan } from './batchPlanPreview'
+import { canvasOpenRuns } from '../../api/taskApi'
+import { planCanvasGenerationScope } from '../runner/generationScopeFacts'
+import i18n from '../../../i18n'
 
 const mocks = vi.hoisted(() => ({
   confirmGenerationSpend: vi.fn(),
@@ -34,6 +38,11 @@ vi.mock('../runner/generationRunWaves', () => ({ runGenerationNodesByPlan: vi.fn
 
 const node = (id: string, status: GenerationCanvasNode['status'], title = id): GenerationCanvasNode =>
   ({ id, kind: 'image', title, position: { x: 0, y: 0 }, status, categoryId: 'shots' }) as GenerationCanvasNode
+const withResult = (value: GenerationCanvasNode, meta: Record<string, unknown> = {}): GenerationCanvasNode =>
+  ({ ...value, result: { id: `r-${value.id}`, type: 'image', url: `https://fixture.invalid/${value.id}.png`, createdAt: 1 }, meta: { ...value.meta, ...meta } }) as GenerationCanvasNode
+const refEdge = (source: string, target: string): GenerationCanvasEdge => ({ id: `${source}->${target}`, source, target, mode: 'reference' } as GenerationCanvasEdge)
+/** 一份执行计划：只能由共用主人造。 */
+const planOf = (ids: string[]) => planCanvasGenerationScope('group', ids, { nodes: mocks.nodes, edges: mocks.edges })
 
 let harness: ProjectSessionTestHarness
 beforeEach(async () => {
@@ -135,4 +144,44 @@ describe('「生成全部」确认卡逐项勾选', () => {
     expect(runGroupGenerate(['busy'])).toBe('empty')
     expect(mocks.confirmGenerationSpend).not.toHaveBeenCalled()
   })
+
+  it('a recoverable row (already paid, result not caught) is greyed with the existing status word and never dispatched, even if toggled on', async () => {
+    mocks.nodes = [node('fresh', 'idle'), node('recoverable', 'recoverable')]
+    const user = userEdits([], ['recoverable'])
+    runGroupGenerate(allIds())
+    await vi.waitFor(() => expect(runGenerationNodesByPlan).toHaveBeenCalled())
+    const byId = new Map(user.seen().map((row) => [row.id, row]))
+    expect(byId.get('recoverable')).toMatchObject({ checked: false, disabled: true, aside: i18n.t('shotTable.status.recoverable') })
+    expect(dispatchedIds()).toEqual(['fresh'])
+    expect(consentedIds()).toEqual(['fresh'])
+  })
+  it('U1 cell: an idle node that already has a result is ticked by default (unchanged)', async () => {
+    mocks.nodes = [withResult(node('idle-with-result', 'idle'))]
+    const user = userEdits()
+    runGroupGenerate(allIds())
+    await vi.waitFor(() => expect(mocks.confirmGenerationSpend).toHaveBeenCalled())
+    expect(user.seen()[0]).toMatchObject({ id: 'idle-with-result', checked: true, disabled: false })
+  })
 })
+
+describe('确认后缩减范围：再问共用主人，依赖重算（不知道 2）', () => {
+  beforeEach(() => {
+    mocks.nodes = [node('A', 'idle'), node('B', 'idle')]
+    mocks.edges = [refEdge('A', 'B')]
+    mocks.confirmGenerationSpend.mockResolvedValue(true)
+  })
+
+  it('upstream A dropped before enqueue (no result) → B waits for its upstream instead of running without it', async () => {
+    await confirmAndRunPlan(planOf(['A', 'B']), { initiator: 'user', filterBeforeEnqueue: (ids) => ids.filter((id) => id !== 'A') })
+    expect(dispatchedIds()).not.toContain('B')
+    const plan = vi.mocked(runGenerationNodesByPlan).mock.calls[0]?.[0]
+    if (plan) expect(plan.blocked.map((entry) => [entry.nodeId, entry.reason])).toEqual([['B', 'missing-upstream']])
+  })
+
+  it('upstream A taken by another open run → B waits for its upstream instead of running without it', async () => {
+    vi.mocked(canvasOpenRuns).mockResolvedValueOnce([{ nodeId: 'A' }] as never)
+    await confirmAndRunPlan(planOf(['A', 'B']), { initiator: 'user' })
+    expect(dispatchedIds()).not.toContain('B')
+  })
+})
+

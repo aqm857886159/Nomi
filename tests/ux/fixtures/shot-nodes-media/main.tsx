@@ -38,7 +38,7 @@ createRoot(document.getElementById('root')!).render(
         modelOptions={LAB_VIDEO_MODELS} danglingIds={[]} aspect="16:9" frameBox={{ width: 136, height: 77 }}
         onChangeAspect={noop}
         onGenerate={() => retryCalls.push(node.id)} onUpdate={noop} onToggleAnchor={noop} onRemove={noop}
-        onOpenPreview={noop} onRegenerate={noop} onToggleLock={noop} />
+        onOpenPreview={noop} onRegenerate={noop} onToggleFrozen={noop} />
       </TableStage>
     </main>
   </NomiAppProviders></NomiColorSchemeProvider>,

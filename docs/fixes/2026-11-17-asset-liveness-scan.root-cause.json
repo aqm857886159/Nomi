@@ -1,0 +1,176 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-17-asset-liveness-scan",
+  "problem_type": "版本删除被赋予物理文件回收权限",
+  "symptom": "创作者把一张生成图挂到分镜镜头参考、普通节点参考列表或助手输入框上，再删掉产出它的那一版；撤销窗口过去、关项目或重开清扫时，这份文件被移进系统废纸篓，分镜参考 / 节点参考 / 助手输入显示不出来。",
+  "direct_cause": "版本卡与素材库共用 deleteAssetResult；版本删除给原文件登记待删，撤销挤出、关项目与重开根据不完整引用判定执行回收。",
+  "class_root": "删除一个版本的意图和主动删除文件的意图未在资产边界分离；普通版本操作能够获得物理删除授权。",
+  "migration": "旧无来源标记 pending 打开时整批失效、不执行、不写回；新 pending 只来自素材库，source=asset-library；不搬文件、不改原子写。",
+  "affected_population": [
+    "把生成结果选作分镜镜头参考图、再删掉原结果的创作者",
+    "节点参考列表引用了别的节点结果、再删掉原结果的创作者",
+    "助手输入框挂着某张结果、再删掉原结果的创作者",
+    "项目文件里留有旧版本写下的待删清单、且条目被上述位置引用的老用户"
+  ],
+  "scope_paths": [
+    "src/workbench/assets/",
+    "src/workbench/project/projectRecordSchema.ts",
+    "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+    "eslint.config.mjs"
+  ],
+  "entry_points": [
+    "NodeVersionCardsHost.remove → removeAssetVersion",
+    "AssetLibraryPanel / assets.delete-files → deleteAssetResult",
+    "pendingAssetDeletions → 挤出/关项目/重开/存盘列表只接素材库来源"
+  ],
+  "invariants": [
+    "版本删除只改节点结果、撤销和存盘，不能 import 或调用文件回收及待删登记。",
+    "只有显式素材库删除登记的条目有回收授权；无标记旧条目整批作废。",
+    "素材库主动删除仍查引用，时间轴使用的文件保留，无人用的文件照旧进回收站。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "symbol": "removeAssetVersion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "deleteAssetResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "deleteAssetResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "deferAssetFileDeletion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectPersistenceService.ts",
+      "symbol": "sweepPersistedAssetDeletions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "listPersistedAssetDeletions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/releaseWorkbenchProjectSession.ts",
+      "symbol": "releaseLoadedProjectAssetDeletions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "releaseEvictedAssetDeletions"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 8,
+    "why_not": "版本卡改走独立版本删除口；素材库和内部命令仍共用显式文件删除口。存盘、重开、关项目、撤销挤出各时点保留同一素材库来源清单，各自负责不同生命周期，不能互相取代。"
+  },
+  "regression_tests": [
+    "src/workbench/assets/deleteAssetResult.realStore.test.ts",
+    "src/workbench/assets/assetLivenessScan.test.ts",
+    "tests/ux/asset-liveness-storyboard-ref.walk.mjs"
+  ],
+  "residual_risks": [
+    "删版本不再释放磁盘空间，需去素材库主动删除。",
+    "素材身份证（B）未做；素材库主动删除仍用旧查法，未编码 ?/# 路径和晚到暂存归类缺口未在此刀解决。",
+    "助手未发送输入离项目清空是既有设计，本刀不增加跨重开草稿恢复。"
+  ],
+  "internal_only_reason": "引用位置、项目内容的装配与待删清单都是 Nomi 自己的项目格式与会话结构，没有外部 API 决定它们；同类产品的做法（Obsidian 删未用附件丢图、垃圾回收的可达性扫描）只作设计参考，记在设计卡 ★0。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任意消费者和未来字段都可能不被扫描覆盖，普通版本删除不应拿到物理回收权限。",
+    "same_class_scan": [
+      "任务书指定 rg 扫描10个调用文件：版本卡、素材库、内部命令、重开、关闭、存盘、bridge类型、三个实现。",
+      "scripts/door-map.mjs deleteAssetResult / deferAssetFileDeletion / sweepPersistedAssetDeletions / listPersistedAssetDeletions / releaseLoadedProjectAssetDeletions / releaseEvictedAssetDeletions，原始输出落证据目录。"
+    ]
+  },
+  "generality_proof": "版本删除入口没有物理删除能力，因此不依赖引用位置、URL写法或会话归类；无论分镜、节点、助手、时间轴等是否可被扫描，版本操作均不会回收文件。旧无标记回收意图没有授权，统一拒绝重放。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/assets/removeAssetVersion.ts",
+      "symbol": "removeAssetVersion",
+      "responsibility": "只移除节点版本并持久化撤销，不持有文件删除能力。"
+    },
+    {
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "sweepPersistedAssetDeletions",
+      "responsibility": "只接受素材库来源回收授权，旧无标记条目无副作用失效。"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "symbol": "asset-version-only",
+      "responsibility": "版本删除路径禁止回收入口。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "entry_point": "remove",
+      "disposition": "enforced",
+      "evidence": "版本卡只调用 removeAssetVersion，三种用法新进程目标走查与 eslint 反例。"
+    },
+    {
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "entry_point": "sweepPersistedAssetDeletions",
+      "disposition": "enforced",
+      "evidence": "来源标记在重开边界过滤，旧无标记条目不执行也不请求写回；真实旧载荷复制件重放。"
+    },
+    {
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "entry_point": "deleteAssetResult",
+      "disposition": "not-affected",
+      "evidence": "保留素材库主动删除及时间轴引用挡板，修前修后走查同结果。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "eslint.config.mjs",
+    "invariant": "版本删除只改节点结果、撤销和存盘，不能 import 或调用文件回收及待删登记。",
+    "failure_mode": "版本删除路径 import 或引用回收入口时 eslint 报错；无标记旧 pending 不获得删除授权。",
+    "exception_policy": "none",
+    "strategy": "删除版本卡对通用文件删除口的依赖，改为只移除版本的入口；lint 禁止回收依赖。",
+    "artifacts": [
+      "eslint.config.mjs",
+      "src/workbench/assets/removeAssetVersion.ts",
+      "src/workbench/assets/pendingAssetDeletions.ts",
+      "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/assets/deleteAssetResult.realStore.test.ts",
+    "src/workbench/assets/assetLivenessScan.test.ts",
+    "tests/ux/asset-liveness-storyboard-ref.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "src/workbench/assets/pendingAssetDeletions.ts"
+    ],
+    "rationale": "版本卡删一版不再进入文件删除口；重开无来源标记旧条目不执行。素材库显式删除口保留。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只动 Nomi 自己的渲染层代码，不涉及第三方依赖。",
+    "exit_criteria": []
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-24",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/assets/removeAssetVersion.ts",
+    "tests": [
+      "src/workbench/assets/deleteAssetResult.realStore.test.ts",
+      "src/workbench/assets/assetLivenessScan.test.ts"
+    ]
+  }
+}

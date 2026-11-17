@@ -13,7 +13,7 @@
 import { logRendererWarn } from '../../desktop/rendererLog'
 import type { GenerationHandOverFailure } from '../../desktop/productionRunBridgeTypes'
 import { consentCanvasShots, withdrawCanvasShots, type CanvasConsentShot } from '../api/taskApi'
-import { buildDependencyWaves } from '../generationCanvas/runner/dependencyWaves'
+import { planCanvasGenerationScope } from '../generationCanvas/runner/generationScopeFacts'
 import { selectedModelKey, selectedVendor } from '../generationCanvas/runner/catalogTaskResolve'
 import { captureApprovedGenerationInputs } from '../generationCanvas/runner/runProjectDelivery'
 import { runGenerationNodesByPlan } from '../generationCanvas/runner/generationRunWaves'
@@ -51,7 +51,8 @@ const notSent = (code: string): GenerationHandOverFailure => ({ kind: 'not_sent'
 function dispatchHandedOverShots(project: ProjectExecutionContext, recordIds: ReadonlyMap<string, string>, assertApprovedInputs: ReturnType<typeof captureApprovedGenerationInputs>): void {
   const { nodes, edges } = useGenerationCanvasStore.getState()
   const projectId = project.binding.projectId
-  const plan = buildDependencyWaves([...recordIds.keys()], { nodes, edges })
+  // 同意已开：这几镜此刻归这一次交接，「生成中」只读节点自己的状态，不把自己剔掉。
+  const plan = planCanvasGenerationScope('hand-over', [...recordIds.keys()], { nodes, edges }, { busy: 'status' })
   void runGenerationNodesByPlan(plan, {
     assertApprovedInputs,
     target: project.binding,

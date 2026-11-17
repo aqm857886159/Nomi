@@ -1051,18 +1051,7 @@ try {
   await expect(getWin().locator(OWN.node)).toHaveCount(nodeIds.length)
   await snap('04d-edge-disconnect-undone.png')
 
-  // 前面为点线放掉了选择；锁定徽标在选中的视频卡上，重新点选它。
-  await getWin().mouse.click(videoHit.x, videoHit.y)
-  await getWin().waitForTimeout(300)
-  const lockBadge = videoNode.locator('[data-node-lock]')
-  await expect(lockBadge).toHaveAttribute('data-node-lock', 'unlocked')
-  await lockBadge.click()
-  await expect(lockBadge).toHaveAttribute('data-node-lock', 'locked')
-  await getWin().keyboard.press(`${mod}+z`)
-  await expect(lockBadge).toHaveAttribute('data-node-lock', 'unlocked')
-  await expect.poll(async () => (await ownEdgeIds()).length).toBe(edgeCount)
-  await snap('04e-node-lock-undone.png')
-  console.log('  ✓ 断线、锁定各按一次 Cmd+Z 还原，前一笔节点/连线保留')
+  console.log('  ✓ 断线按一次 Cmd+Z 还原，前一笔节点/连线保留')
 
   // ── ④ 拖动节点：浮条 / 提示词面板隐身，松手回来 ─────────────────────────
   // 这一段的前提：被按下去的那张卡是整卡——它的提示词面板 / 浮条挂着、只是拖动期间被藏起来（visibility: hidden）。

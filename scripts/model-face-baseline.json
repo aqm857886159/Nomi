@@ -2488,7 +2488,7 @@
       "aliasBoundInput": null,
       "alsoCovers": null,
       "contractId": "canvas.delete",
-      "description": "Delete exact nodes (shots, artifacts, director references) from the canvas. The user names what to delete. Never to clean up on your own initiative (arrange_canvas tidies without removing); never for nodes you did not read in look_at_canvas. nodeIds are exact current ids from look_at_canvas; locked nodes and stale ids are rejected. The user always sees a confirmation card first, in every approval mode; once applied it cannot be undone by Nomi.",
+      "description": "Delete exact nodes (shots, artifacts, director references) from the canvas. The user names what to delete. Never to clean up on your own initiative (arrange_canvas tidies without removing); never for nodes you did not read in look_at_canvas. nodeIds are exact current ids from look_at_canvas; stale ids are rejected. The user always sees a confirmation card first, in every approval mode; once applied it cannot be undone by Nomi.",
       "effect": "irreversible",
       "effectGroups": null,
       "examples": [

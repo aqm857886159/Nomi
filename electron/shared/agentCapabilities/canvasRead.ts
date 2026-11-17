@@ -49,7 +49,6 @@ const canvasReadNodeSchema = z
     prompt: z.string(),
     status: generationNodeStatusSchema,
     position: canvasReadPositionSchema,
-    locked: z.boolean(),
     /**
      * 分镜镜头的名字（「镜 03」/「<分镜名> · 镜 03」，owner = canvas/storyboardShotLabel）。
      * 全局镜号（画布 shotIndex）只是内部排序键，读面一律不输出：没挂在分镜上的节点没有镜号，只有节点名。
@@ -342,7 +341,6 @@ function projectNode(value: unknown, seen: Set<string>): CanvasReadNode | undefi
     prompt: prompt.length > 8_192 ? `${prompt.slice(0, 8_191)}…` : prompt,
     status,
     position,
-    locked: node.locked === true,
     ...(body ? { text: textTruncated ? `${body.slice(0, MAX_CANVAS_TEXT_NODE_CHARACTERS - 1)}…` : body } : {}),
     ...(textTruncated ? { textTruncated: true as const } : {}),
     hasResult: asRecord(node.result) !== undefined,

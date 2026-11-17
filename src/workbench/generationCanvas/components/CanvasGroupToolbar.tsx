@@ -33,6 +33,8 @@ export type CanvasGroupToolbarProps = {
   horizontal: GroupToolbarHorizontal
   memberCount: number
   canGenerate: boolean
+  /** 「生成整组」置灰时说清为什么（C1 / C4）；可生成时不给。 */
+  generateDisabledReason?: string
   canSendToTimeline: boolean
   canDownload: boolean
   onGenerate: () => void
@@ -68,6 +70,7 @@ export function CanvasGroupToolbar({
   horizontal,
   memberCount,
   canGenerate,
+  generateDisabledReason,
   canSendToTimeline,
   canDownload,
   onGenerate,
@@ -186,13 +189,16 @@ export function CanvasGroupToolbar({
         items={arrangeItems}
       />
       <ToolbarDivider />
-      <ToolbarButton
-        icon={<IconPlayerPlay {...iconProps} />}
-        label={t('generationCommon.canvas.group.toolbarGenerate')}
-        accent
-        disabled={!canGenerate}
-        onClick={onGenerate}
-      />
+      {/* 禁用的 <button> 自己不触发 title（浏览器行为）→ 外层包一层承载原因（§1.6 C1）。 */}
+      <span title={canGenerate ? undefined : generateDisabledReason} className="contents" data-group-generate-reason={canGenerate ? undefined : 'true'}>
+        <ToolbarButton
+          icon={<IconPlayerPlay {...iconProps} />}
+          label={t('generationCommon.canvas.group.toolbarGenerate')}
+          accent
+          disabled={!canGenerate}
+          onClick={onGenerate}
+        />
+      </span>
       <ToolbarButton
         icon={<IconTimeline {...iconProps} />}
         label={t('generationCommon.canvas.group.toolbarTimeline')}

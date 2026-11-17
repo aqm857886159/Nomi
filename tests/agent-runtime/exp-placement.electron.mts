@@ -181,7 +181,7 @@ async function main() {
       let shots: Array<Record<string, unknown>> = [];
       const tools = [...createDocumentLaneTools(document), ...createCanvasLaneTools({
         read: async () => ({ nodes: shots.map((s, n) => ({ id: `node-shot-${n + 1}`, kind: 'video', title: `第 ${n + 1} 镜`,
-          prompt: String(s.prompt ?? ''), status: 'idle', position: { x: n * 300, y: 0 }, locked: false, hasResult: false })),
+          prompt: String(s.prompt ?? ''), status: 'idle', position: { x: n * 300, y: 0 }, hasResult: false })),
           edges: [], groups: [], selectedNodeIds: [] }),
         write: async args => { writes.push({ via: 'canvas', operation: args.operation }); return { applied: true,
           proposalId: 'exp-fixture', operation: args.operation, result: {}, reconciliation: { applied: [], skipped: [] } } as never; },

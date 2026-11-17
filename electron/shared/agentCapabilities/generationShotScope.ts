@@ -148,3 +148,296 @@ export function shotsOnOffer(operation: Readonly<{
   const planShotIds = operation.shots?.length ? operation.shots.map((shot) => shot.shotId) : [operation.candidate.candidateId];
   return planShotIds.filter((shotId) => card.has(shotId));
 }
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// 生成范围：这一次生成哪几个、默认勾哪些、谁先谁后、为什么没进（2026-11-17，设计卡 docs/plan/2026-11-17-generation-scope-one-home.md）。
+//
+// ── 它在解决哪个真实摩擦 ──
+//
+// 同一组节点（可找回的、已有结果的、生成中的），画布「生成这一组」、分镜批量、两种助手各算一份：组生成能勾上已经付过钱
+// 只是没接住的节点再付一次；分镜批量会把可找回的参考卡列进来再付一次；确认后剔掉上游，下游照样裸跑。
+// 现在入口只交「事实 + 稳定 ID + 动作意图」，成员、默认勾选、依赖先后只在这里算；入口按意图拿回一份规划，批量消费口只收这种规划
+// （`GenerationScopePlan` 带一个只有本文件能写的类型标记）。读节点状态翻成事实的只有渲染层的
+// `generationScopeFacts.ts` 一处，它只翻事实、不决定谁进。
+//
+// 依赖分波（Kahn 分层、W2 冻结门、上游缺果 / 成环拦下并传染）从渲染层原样搬来；单发补未生成上游同样原样搬来。
+// 主进程与渲染层共用，纯函数。
+
+/** 动作意图：入口显式传，不从「东西不见了 / 状态变了」去猜。 */
+export type GenerationScopeIntent =
+  /** 画布框组 / 列表分区头「生成全部」。 */
+  | "group"
+  /** 画布节点浮框 ↑：点的这一个 + 自动补上它还没出图的参考上游。 */
+  | "single"
+  /** 分镜表一行自己的「生成」/「用新图重跑」：这一行的首帧 + 镜头。 */
+  | "shot-row"
+  /** 分镜「生成未生成的 N 镜」。 */
+  | "storyboard-batch"
+  /** 分镜批量里先跑的那一波参考卡。 */
+  | "anchor-wave"
+  /** 任务中心 / 失败通知里的「重试失败的」。 */
+  | "retry-failed"
+  /** 助手的付费卡交给画布的那几镜。 */
+  | "hand-over";
+
+/** 一个候选的中立事实（画布节点、分镜行都翻成这个）。 */
+export type ScopeItemFacts = Readonly<{
+  id: string;
+  title?: string;
+  /** 有生成能力；没有的不成行。 */
+  generatable: boolean;
+  /** 有可用结果。 */
+  hasResult: boolean;
+  /** 点过「定妆」（`meta.frozen`）：参考卡的下游等它定妆（W2）；分镜里定了妆、有结果的 = 满意了别动它（意图格 frozenWithResult）。 */
+  frozen: boolean;
+  /** 已提交、钱已花、本地没接住结果——出路是免费找回，不是再生成。 */
+  recoverable: boolean;
+  /** 此刻在排队 / 生成，或被别处占着。 */
+  busy: boolean;
+  /** 上一次生成真的失败了。 */
+  failed: boolean;
+  /** 上一次生成成功收尾。 */
+  settled: boolean;
+  /** 分镜行：模型必填的参考没来源。 */
+  missingRequired?: boolean;
+  /** 视觉参考卡（角色 / 场景 / 道具）：没冻结时，引用它的下游等它定妆。 */
+  visualAnchor: boolean;
+}>;
+
+/** 一条参考边（文字提示边由适配器先去掉）：target 吃 source 的结果。 */
+export type ScopeEdgeFacts = Readonly<{ source: string; target: string }>;
+
+export type ScopeFacts = Readonly<{ items: readonly ScopeItemFacts[]; edges: readonly ScopeEdgeFacts[] }>;
+
+type ScopeCell = "checked" | "unchecked" | "excluded";
+
+/**
+ * 各入口有意不同的地方，一格一格写在这里；入口里不许再有分支。共同规则（生成中 / 可找回）不在表里，见 `scopeRowOf`。
+ *   · idleWithResult：已有结果、现在空闲（差异 1：这次不改任何入口的默认，只收成这一格）；
+ *   · settledWithResult：上一次成功收尾（C10：组生成默认不勾、可勾上重生成；分镜「生成未生成的」不算）；
+ *   · failedWithResult：上一次失败、但手里还留着一张能用的旧结果（参考卡：旧图镜头照样能用，不再花钱补；其余入口 = 失败重试）；
+ *   · expandUngeneratedUpstream：自动补上还没出图的参考上游（只有单发；批量只拦下「等上游」，不悄悄扩大）；
+ *   · frozenWithResult：定了妆、有结果的（分镜「锁定」= 满意了别动它：不进批量、不被表内重跑，卡开着时被定妆的确认后也不发；
+ *     画布各入口从来不看定妆 = follow，照其余规则）。
+ * 节点锁不在这里：用户 2026-11-17 定删节点锁，生成范围不再认锁；定妆（`meta.frozen`）不是节点锁，规则照旧。
+ */
+export const SCOPE_INTENT_TABLE: Readonly<Record<GenerationScopeIntent, Readonly<{
+  idleWithResult: ScopeCell;
+  settledWithResult: ScopeCell;
+  failedWithResult: ScopeCell;
+  frozenWithResult: "excluded" | "disabled" | "follow";
+  expandUngeneratedUpstream: boolean;
+}>>> = {
+  group: { idleWithResult: "checked", settledWithResult: "unchecked", failedWithResult: "checked", frozenWithResult: "follow", expandUngeneratedUpstream: false },
+  single: { idleWithResult: "checked", settledWithResult: "checked", failedWithResult: "checked", frozenWithResult: "follow", expandUngeneratedUpstream: true },
+  "shot-row": { idleWithResult: "checked", settledWithResult: "checked", failedWithResult: "checked", frozenWithResult: "disabled", expandUngeneratedUpstream: false },
+  "storyboard-batch": { idleWithResult: "excluded", settledWithResult: "excluded", failedWithResult: "checked", frozenWithResult: "excluded", expandUngeneratedUpstream: false },
+  "anchor-wave": { idleWithResult: "excluded", settledWithResult: "excluded", failedWithResult: "excluded", frozenWithResult: "excluded", expandUngeneratedUpstream: false },
+  "retry-failed": { idleWithResult: "excluded", settledWithResult: "excluded", failedWithResult: "checked", frozenWithResult: "follow", expandUngeneratedUpstream: false },
+  "hand-over": { idleWithResult: "checked", settledWithResult: "checked", failedWithResult: "checked", frozenWithResult: "follow", expandUngeneratedUpstream: false },
+};
+
+export type ScopeRowReason = "ready" | "failed" | "done" | "generating" | "recoverable" | "frozen" | "missing-required";
+
+/** 候选行：checked / unchecked 可勾；disabled 灰着带原因；excluded 不上卡（原因给计数）。 */
+export type ScopeRow = Readonly<{ id: string; state: "checked" | "unchecked" | "disabled" | "excluded"; reason: ScopeRowReason }>;
+
+function scopeRowOf(intent: GenerationScopeIntent, item: ScopeItemFacts): ScopeRow {
+  const cells = SCOPE_INTENT_TABLE[intent];
+  const row = (state: ScopeRow["state"], reason: ScopeRowReason): ScopeRow => ({ id: item.id, state, reason });
+  if (item.busy) return row("disabled", "generating");
+  if (item.recoverable) return row("disabled", "recoverable");
+  if (item.frozen && item.hasResult && cells.frozenWithResult !== "follow") return row(cells.frozenWithResult, "frozen");
+  if (item.failed) return row(item.hasResult ? cells.failedWithResult : "checked", "failed");
+  if (item.settled) return row(cells.settledWithResult, "done");
+  if (item.hasResult) return row(cells.idleWithResult, "done");
+  if (item.missingRequired) return row("excluded", "missing-required");
+  return row("checked", "ready");
+}
+
+/** 只分行、不排先后（分镜表脚注计数用）。没有生成能力的不成行；顺序 = 入口给的顺序。 */
+export function classifyGenerationScope(intent: GenerationScopeIntent, items: readonly ScopeItemFacts[]): ScopeRow[] {
+  return items.filter((item) => item.generatable).map((item) => scopeRowOf(intent, item));
+}
+
+/** 这批里有没有能勾的（按钮可用态：每次画布变化都算，必须便宜——遇到第一个就停）。 */
+export function hasSelectableScopeRow(intent: GenerationScopeIntent, items: readonly ScopeItemFacts[]): boolean {
+  return items.some((item) => {
+    if (!item.generatable) return false;
+    const state = scopeRowOf(intent, item).state;
+    return state === "checked" || state === "unchecked";
+  });
+}
+
+/**
+ * 一个都勾不上时，各行因为什么勾不上（按钮置灰的原因从这里来，入口只把它说出来、不另算）。
+ * 有能勾的 → null；没有能生成的节点 → 空数组。顺序 = 原因第一次出现的顺序。
+ */
+export function unselectableScopeReasons(intent: GenerationScopeIntent, items: readonly ScopeItemFacts[]): ReadonlyArray<Readonly<{ reason: ScopeRowReason; count: number }>> | null {
+  const counts = new Map<ScopeRowReason, number>();
+  for (const row of classifyGenerationScope(intent, items)) {
+    if (row.state === "checked" || row.state === "unchecked") return null;
+    counts.set(row.reason, (counts.get(row.reason) ?? 0) + 1);
+  }
+  return [...counts].map(([reason, count]) => ({ reason, count }));
+}
+
+export type GenerationScopeBlockReason = "cycle" | "missing-upstream" | "unfrozen-anchor";
+
+/** 进了范围、这一批却跑不了的（上游缺果 / 参考卡没定妆 / 成环）。 */
+export type GenerationScopeBlock = { nodeId: string; reason: GenerationScopeBlockReason; detail: string };
+
+declare const generationScopePlanBrand: unique symbol;
+
+/**
+ * 一份生成范围规划。只有本文件能造（类型标记不导出）；批量消费口（确认并跑、按波次派发、确认条）只收它。
+ * `rows` 给确认处画；`members` 是这一批要跑的；`waves` / `blocked` 是 members 的划分（显示的 ≡ 执行的）。
+ */
+export type GenerationScopePlan = Readonly<{
+  intent: GenerationScopeIntent;
+  /** 人亲手点的那几个（单发 = 点的那一个；批量 = 入口交进来的选择）。 */
+  explicit: readonly string[];
+  rows: readonly ScopeRow[];
+  members: readonly string[];
+  /** 执行波次：waves[0] 全部并行，waves[n] 等 waves[n-1] 完成。同一波内按入口给的顺序。 */
+  waves: string[][];
+  blocked: GenerationScopeBlock[];
+  /** 用到的参考边（target 在范围内、source 是它的生成输入）。 */
+  edgesUsed: ScopeEdgeFacts[];
+}> & { readonly [generationScopePlanBrand]: true };
+
+/**
+ * 单发「自动备齐参考」（对话 2026-06-14）：一个节点经参考边、尚未出图的全部上游（传递闭包）。
+ * 已出图的上游视为已满足——不纳入（不重复生成、不重复扣费）。
+ */
+export function ungeneratedReferenceUpstream(nodeId: string, facts: ScopeFacts): string[] {
+  const byId = new Map(facts.items.map((item) => [item.id, item]));
+  const collected = new Set<string>();
+  const stack = [nodeId];
+  const guard = facts.edges.length + facts.items.length + 1;
+  let steps = 0;
+  while (stack.length > 0 && steps < guard) {
+    steps += 1;
+    const current = stack.pop() as string;
+    for (const edge of facts.edges) {
+      if (edge.target !== current) continue;
+      const source = edge.source;
+      if (collected.has(source)) continue;
+      if (byId.get(source)?.hasResult) continue; // 已出图 = 已满足，不纳入
+      collected.add(source);
+      stack.push(source); // 该上游也没图 → 它自己的参考也要先备齐
+    }
+  }
+  collected.delete(nodeId);
+  return [...collected];
+}
+
+/**
+ * 按依赖边分波（harness S2b，源自 ViMax 论文 §2.3.1 依赖图调度）：
+ * - 只看指向范围内节点的参考边；source 也在范围内 → 它先跑；
+ * - source 在范围外：有结果 → 满足；没结果 → target 拦下（missing-upstream：跑了必裸跑，宁可拦下）；
+ * - W2 冻结门（优先于有没有结果）：source 是视觉参考卡但没冻结 → target 拦下（unfrozen-anchor）；
+ * - 依赖了被拦节点的也拦下（传染）；剩下互相依赖的 = 环（cycle）。
+ */
+function dependencyWaves(memberIds: readonly string[], facts: ScopeFacts): Pick<GenerationScopePlan, "waves" | "blocked" | "edgesUsed"> {
+  const selection = new Set(memberIds);
+  const byId = new Map(facts.items.map((item) => [item.id, item]));
+  const blocked: GenerationScopeBlock[] = [];
+  const blockedIds = new Set<string>();
+  const edgesUsed: ScopeEdgeFacts[] = [];
+  const internalDeps = new Map<string, Set<string>>();
+  for (const id of selection) internalDeps.set(id, new Set());
+  const block = (nodeId: string, reason: GenerationScopeBlockReason, detail: string) => {
+    if (blockedIds.has(nodeId)) return;
+    blockedIds.add(nodeId);
+    blocked.push({ nodeId, reason, detail });
+  };
+  for (const edge of facts.edges) {
+    if (!selection.has(edge.target)) continue;
+    const source = byId.get(edge.source);
+    const sourceTitle = source?.title || edge.source;
+    if (source?.visualAnchor && !source.frozen) {
+      block(edge.target, "unfrozen-anchor", `在等参考卡「${sourceTitle}」定妆——在卡上点「定妆」`);
+      continue;
+    }
+    if (selection.has(edge.source)) {
+      internalDeps.get(edge.target)?.add(edge.source);
+      edgesUsed.push(edge);
+      continue;
+    }
+    if (!source?.hasResult) block(edge.target, "missing-upstream", `上游「${sourceTitle}」还没有生成结果`);
+    else edgesUsed.push(edge);
+  }
+  const waves: string[][] = [];
+  const placed = new Set<string>(blockedIds);
+  let remaining = [...selection].filter((id) => !blockedIds.has(id));
+  let guard = remaining.length + 1;
+  while (remaining.length > 0 && guard > 0) {
+    guard -= 1;
+    const frontier = remaining.filter((id) => [...(internalDeps.get(id) ?? [])].every((dep) => !blockedIds.has(dep) && placed.has(dep)));
+    // 传染：依赖了被拦节点的，标拦下而不是死等
+    for (const id of remaining.filter((candidate) => [...(internalDeps.get(candidate) ?? [])].some((dep) => blockedIds.has(dep)))) {
+      if (blockedIds.has(id)) continue;
+      placed.add(id);
+      block(id, "missing-upstream", "依赖的节点本批被拦下");
+    }
+    const wave = frontier.filter((id) => !blockedIds.has(id));
+    if (wave.length === 0) {
+      for (const id of remaining.filter((candidate) => !blockedIds.has(candidate))) block(id, "cycle", "与其他节点构成循环引用");
+      break;
+    }
+    waves.push(wave);
+    for (const id of wave) placed.add(id);
+    remaining = remaining.filter((id) => !placed.has(id));
+  }
+  return { waves, blocked, edgesUsed };
+}
+
+function sealPlan(intent: GenerationScopeIntent, explicit: readonly string[], rows: readonly ScopeRow[], members: readonly string[], facts: ScopeFacts): GenerationScopePlan {
+  return { intent, explicit: [...explicit], rows: [...rows], members: [...members], ...dependencyWaves(members, facts) } as unknown as GenerationScopePlan;
+}
+
+/**
+ * 入口唯一的问法：意图 + 人选的那几个 + 事实 → 规划。成员 = 默认勾上的行；`rows` 里还有可勾没勾的、灰着的（带原因）。
+ * 单发：先补没出图的参考上游（它们在前，人点的那一个在后）。
+ */
+export function planGenerationScope(input: Readonly<{ intent: GenerationScopeIntent; selection: readonly string[]; facts: ScopeFacts }>): GenerationScopePlan {
+  const { intent, facts } = input;
+  const explicit = [...new Set(input.selection)];
+  const explicitSet = new Set(explicit);
+  const byId = new Map(facts.items.map((item) => [item.id, item]));
+  const expanded = SCOPE_INTENT_TABLE[intent].expandUngeneratedUpstream
+    ? [...new Set(explicit.flatMap((id) => ungeneratedReferenceUpstream(id, facts)))].filter((id) => !explicitSet.has(id))
+    : [];
+  const rows = [...expanded, ...explicit].flatMap((id) => {
+    const item = byId.get(id);
+    return item?.generatable ? [scopeRowOf(intent, item)] : [];
+  });
+  return sealPlan(intent, explicit, rows, rows.filter((row) => row.state === "checked").map((row) => row.id), facts);
+}
+
+/**
+ * 确认之后缩减范围（人在卡上勾的、被别处占用剔掉的、入队前被剔掉的）：**再问一次**，不从旧波次里直接删。
+ * 只认原规划里可勾的行（灰着的、不上卡的勾不进来）；按此刻的事实再判一次（卡开着时变可找回 / 开始生成的不进）；
+ * 依赖重算——剔掉的上游没结果，下游拦下「等上游」，不裸跑。
+ */
+export function narrowGenerationScope(plan: GenerationScopePlan, keep: readonly string[], facts: ScopeFacts): GenerationScopePlan {
+  const kept = new Set(keep);
+  const byId = new Map(facts.items.map((item) => [item.id, item]));
+  const rows = plan.rows.flatMap((row) => {
+    if (!kept.has(row.id) || (row.state !== "checked" && row.state !== "unchecked")) return [];
+    const item = byId.get(row.id);
+    return item ? [scopeRowOf(plan.intent, item)] : [];
+  });
+  const members = rows.filter((row) => row.state === "checked" || row.state === "unchecked").map((row) => row.id);
+  return sealPlan(plan.intent, plan.explicit.filter((id) => kept.has(id)), rows, members, facts);
+}
+
+/** 节点 → 波次序号（1 起）；被拦 / 不在计划内 → undefined。给确认条画徽标用。 */
+export function waveIndexByNode(plan: GenerationScopePlan): Map<string, number> {
+  const map = new Map<string, number>();
+  plan.waves.forEach((wave, index) => {
+    for (const id of wave) map.set(id, index + 1);
+  });
+  return map;
+}

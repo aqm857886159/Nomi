@@ -241,7 +241,7 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
     writeLastActiveProjectId(upgraded.id)
     guard.assertCurrent()
     // 上次删掉的版本、App 直接退出没来得及删的文件：现在撤销日志是空的，没有哪一步能退回去了。
-    // 不挡打开（清扫在后台走），判定读的是刚载入、含事件尾巴的画布与时间轴。
+    // 不挡打开（清扫在后台走），判定读的是刚载入、含事件尾巴的整份项目内容（读不全就全部保留）。
     if (upgraded.payload.pendingAssetDeletions?.length) {
       void sweepPersistedAssetDeletions(upgraded.id, upgraded.payload.pendingAssetDeletions, () => {
         // 还是这个项目开着才存（清扫期间换了项目就不碰下一个项目的盘；那一笔下次打开再扫）。

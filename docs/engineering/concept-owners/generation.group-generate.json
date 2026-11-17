@@ -19,8 +19,9 @@
   "forbidden_derivations": [],
   "allowed_consumers": [
     "src/workbench/generationCanvas/components/useCanvasFrameActions.ts",
-    "src/workbench/generation/list/GenerationListSectionHeader.tsx"
+    "src/workbench/generation/list/GenerationListSectionHeader.tsx",
+    "src/workbench/production/ProductionCanvasLandingHost.tsx"
   ],
   "since": "2026-10-08",
-  "notes": "一批节点按依赖分波交给同一张付费确认（confirmAndRunPlan）；每个节点用自己已选好的模型和参数。列表没有第二条批量路径；必红测试 groupGenerate.test.ts（含结构断言：列表组件不许自己调 confirmAndRunPlan / buildDependencyWaves）。"
+  "notes": "一批节点按依赖分波交给同一张付费确认（confirmAndRunPlan）；每个节点用自己已选好的模型和参数。列表没有第二条批量路径；必红测试 groupGenerate.test.ts（含结构断言：列表组件不许自己调 confirmAndRunPlan / planGenerationScope；成员、默认勾选与分波只由 generationShotScope 的共用主人算）。"
 }

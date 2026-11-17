@@ -1,7 +1,8 @@
 import { docToPlainText, generateText, type GenerateTextOptions } from './textActions'
 import { generationNodeRunRecordSchema } from '../model/generationCanvasSchema'
 import { textDocumentDigest } from './textGenerationDocument'
-import { buildDependencyWaves } from './dependencyWaves'
+import { planCanvasGenerationScope } from './generationScopeFacts'
+import { planOfWaves } from './generationScopeTestPlans'
 import { projectConnectedTextInputs } from './connectedTextPrompt'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { confirmAndRunNode } from './generationRunController'
@@ -61,7 +62,7 @@ afterEach(() => { session.dispose(); vi.restoreAllMocks() })
 
 // 一份确认里有多次提交，现在只剩批量卡（波次）这一条（「×N 一次生成几个」2026-10-06 删除）：后面的波次照样逐个核已批准的输入。
 function twoWavePlan(firstId: string, secondId: string) {
-  return { waves: [[firstId], [secondId]], edgesUsed: [], blocked: [] }
+  return planOfWaves([[firstId], [secondId]])
 }
 
 it.each(['prompt', 'references', 'model', 'parameter'] as const)('rejects a later-wave node whose approved %s changed after the first submission', async field => {
@@ -99,7 +100,7 @@ it.each(['first-frame-video', 'batch'] as const)('original plan confirmation con
     }
     return [{ id: `result-${node.id}`, type: node.kind, url: 'nomi-local://asset/a/result.png', createdAt: 1 }]
   })
-  await confirmAndRunPlan({ waves: [[first.id], [second.id]], edgesUsed: [], blocked: [] }, {
+  await confirmAndRunPlan(planOfWaves([[first.id], [second.id]]), {
     initiator: 'user' as const, assertCurrent: async () => interaction.assertCurrent(), assertAuthorCurrent: async () => {},
   })
   expect(calls.execute).toHaveBeenCalledTimes(2)
@@ -118,7 +119,7 @@ it('project switching during confirmation prevents the first submission', async 
   // 两镜才弹批量卡（用户自己点的单镜不弹卡，2026-09-25）：在卡上点确认的那一刻已经换了项目。
   const other = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'second shot' })
   calls.confirm.mockImplementation(async () => { await session.open('project-b'); return true })
-  await confirmAndRunPlan({ waves: [[node.id, other.id]], edgesUsed: [], blocked: [] }, { initiator: 'user' as const }).catch(() => undefined)
+  await confirmAndRunPlan(planOfWaves([[node.id, other.id]]), { initiator: 'user' as const }).catch(() => undefined)
   expect(calls.confirm).toHaveBeenCalledOnce()
   expect(calls.execute).not.toHaveBeenCalled()
   expect(calls.mint).not.toHaveBeenCalled()
@@ -134,7 +135,7 @@ it('project switching while the batch card opens its consents prevents the first
     await session.open('project-b')
     return input.shots.map((shot) => `canvas-${shot.runRecordId}`)
   })
-  await expect(confirmAndRunPlan({ waves: [[node.id, other.id]], edgesUsed: [], blocked: [] }, { initiator: 'user' as const })).resolves.toBe('unavailable')
+  await expect(confirmAndRunPlan(planOfWaves([[node.id, other.id]]), { initiator: 'user' as const })).resolves.toBe('unavailable')
   expect(calls.execute).not.toHaveBeenCalled()
   expect(calls.mint).not.toHaveBeenCalled()
 })
@@ -156,7 +157,7 @@ it.each(['author', 'node', 'prompt'] as const)('the original plan confirmation r
     else useGenerationCanvasStore.getState().deleteNode(node.id)
     return [{ id: 'first-result', type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }]
   })
-  await confirmAndRunPlan({ waves: [[first.id], [node.id, unrelated.id]], edgesUsed: [], blocked: [] }, { initiator: 'user' as const, assertCurrent: async () => {}, assertAuthorCurrent }).catch(() => undefined)
+  await confirmAndRunPlan(planOfWaves([[first.id], [node.id, unrelated.id]]), { initiator: 'user' as const, assertCurrent: async () => {}, assertAuthorCurrent }).catch(() => undefined)
   expect(calls.execute).toHaveBeenCalledTimes(2)
   expect(calls.execute.mock.calls.map(([running]) => running.id)).toEqual([first.id, unrelated.id])
   if (changed === 'prompt') expect(useGenerationCanvasStore.getState().nodes.find(value => value.id === node.id)?.error).toContain('generation_input_changed')
@@ -201,7 +202,7 @@ it('rejects a manual history selection on a first frame produced by the same app
   const assertAuthorCurrent = async () => {
     if (calls.execute.mock.calls.length === 1) useGenerationCanvasStore.getState().setNodeMainResult(first.id, 'old-frame')
   }
-  await confirmAndRunPlan({ waves: [[first.id], [second.id]], edgesUsed: [], blocked: [] }, {
+  await confirmAndRunPlan(planOfWaves([[first.id], [second.id]]), {
     initiator: 'user' as const, assertCurrent: async () => {}, assertAuthorCurrent,
   })
   expect(calls.execute).toHaveBeenCalledOnce()
@@ -217,7 +218,7 @@ it('a node edited while the batch card opens its consents must not execute the u
     return input.shots.map((shot) => `canvas-${shot.runRecordId}`)
   })
   calls.execute.mockImplementation(async (executed) => [{ id: 'generated-' + executed.id, type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }])
-  await confirmAndRunPlan({ waves: [[node.id, other.id]], edgesUsed: [], blocked: [] }, { initiator: 'user' as const })
+  await confirmAndRunPlan(planOfWaves([[node.id, other.id]]), { initiator: 'user' as const })
   expect(calls.execute.mock.calls.map(([executed]) => executed.prompt)).not.toContain('changed DURING consent')
 })
 it('planned text manual draft edit must not replace approved connected prompt', async () => {
@@ -232,7 +233,7 @@ it('planned text manual draft edit must not replace approved connected prompt', 
     if (calls.execute.mock.calls.length === 1) useGenerationCanvasStore.getState().updateNode(text.id, { contentJson: doc('MANUAL UNAPPROVED DRAFT') })
   }
   const graph = useGenerationCanvasStore.getState()
-  const plan = buildDependencyWaves([text.id, image.id], graph)
+  const plan = planCanvasGenerationScope('group', [text.id, image.id], graph)
   await confirmAndRunPlan(plan, { initiator: 'user' as const, concurrency: 1, assertCurrent: async () => {}, assertAuthorCurrent })
   const last = calls.execute.mock.calls.at(-1)
   expect(last && projectConnectedTextInputs(last[0], last[1]).map((input) => input.text)).not.toContain('MANUAL UNAPPROVED DRAFT')
@@ -265,7 +266,7 @@ it.each(['append', 'replace'] as const)('original generateText %s output is seal
     if (node.kind === 'text') return generateText(node, { projectTarget: context.projectTarget, runTask: async () => ({ id: 'text-task', kind: 'chat', status: 'succeeded', assets: [], raw: { choices: [{ message: { content: 'generated output' } }] } }) })
     return [{ id: 'new-' + node.id, type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }]
   })
-  await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), { initiator: 'user' as const, concurrency: 1 })
+  await confirmAndRunPlan(planCanvasGenerationScope('group', [text.id, image.id], useGenerationCanvasStore.getState()), { initiator: 'user' as const, concurrency: 1 })
   expect(calls.execute).toHaveBeenCalledTimes(2)
   const completed = useGenerationCanvasStore.getState().nodes.find(node => node.id === text.id)!
   expect(generationNodeRunRecordSchema.parse(completed.runs?.[0]).textDocumentDigest).toBe(textDocumentDigest(completed.contentJson))
@@ -288,7 +289,7 @@ it.each(['append', 'replace'] as const)('manual edits after original generateTex
   const assertAuthorCurrent = async () => {
     if (calls.execute.mock.calls.length === 1) useGenerationCanvasStore.getState().updateNode(text.id, { contentJson: doc('UNAPPROVED DRAFT') })
   }
-  await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), {
+  await confirmAndRunPlan(planCanvasGenerationScope('group', [text.id, image.id], useGenerationCanvasStore.getState()), {
     initiator: 'user' as const, concurrency: 1, assertCurrent: async () => {}, assertAuthorCurrent,
   })
   expect(calls.execute).toHaveBeenCalledOnce()
@@ -314,7 +315,7 @@ it('same-wave image admission during original text content delivery accepts legi
     return [{ id: 'new-' + node.id, type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }]
   })
   try {
-    await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), { initiator: 'user' as const, concurrency: 2, assertCurrent: async () => {}, assertAuthorCurrent })
+    await confirmAndRunPlan(planCanvasGenerationScope('group', [text.id, image.id], useGenerationCanvasStore.getState()), { initiator: 'user' as const, concurrency: 2, assertCurrent: async () => {}, assertAuthorCurrent })
     expect(calls.execute).toHaveBeenCalledTimes(2)
   } finally { unsubscribe() }
 })
@@ -345,7 +346,7 @@ it('same-wave downstream accepts the actual streaming body atomically sealed by 
     releaseImage()
     return [{ id: 'image-result', type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }]
   })
-  await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), {
+  await confirmAndRunPlan(planCanvasGenerationScope('group', [text.id, image.id], useGenerationCanvasStore.getState()), {
     initiator: 'user' as const, concurrency: 2, assertCurrent: async () => {}, assertAuthorCurrent,
   })
   expect(calls.execute).toHaveBeenCalledTimes(2)
