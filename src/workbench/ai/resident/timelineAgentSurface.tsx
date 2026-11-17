@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom'
 import { modelToolShowsReviewCard, resolveModelToolCapabilityId } from '../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
 import { TIMELINE_WRITE_CAPABILITY } from '../../../../electron/shared/agentCapabilities/timelineWrite'
 import type { TimelineState } from '../../timeline/timelineTypes'
+import { useWorkbenchStore } from '../../workbenchStore'
+import { residentSelectionInput, resolveResidentSelectionMembers, type ResidentSelectionMember } from './residentContextSnapshot'
+import type { ResidentSurface } from './residentShellDisplay'
 import { TimelinePlanPreviewLayer } from '../../timeline/agent/TimelinePlanPreviewLayer'
 import { timelinePlanOperations, timelinePlanPreviewBands } from '../../timeline/agent/timelinePlanPreview'
 import { timelinePlanLines, type TimelinePlanLine } from '../../timeline/agent/timelinePlanSummary'
@@ -76,5 +79,27 @@ export function useTimelinePlanRows(
   return React.useMemo(
     () => toolName && isTimelinePlanTool(toolName) ? timelinePlanLines(timelinePlanOperationsForTool(toolName, args), timeline, t) : [],
     [args, t, timeline, toolName],
+  )
+}
+
+const NO_CANVAS = Object.freeze({ persistRevision: '', nodes: Object.freeze([]), selectedNodeIds: Object.freeze([]) })
+
+/**
+ * Live view of what the composer chips point at. It subscribes to the timeline
+ * slice only (today only the preview surface shows selection chips); subscribing
+ * to the canvas nodes here would re-render the whole panel on every node drag.
+ * Members and names come from the same resolver the send path uses.
+ */
+export function useResidentTimelineMembers(surface: ResidentSurface): readonly ResidentSelectionMember[] {
+  const timeline = useWorkbenchStore((state) => state.timeline)
+  const selectedTimelineClipIds = useWorkbenchStore((state) => state.selectedTimelineClipIds)
+  const selectedTextClipId = useWorkbenchStore((state) => state.selectedTextClipId)
+  return React.useMemo(
+    () => resolveResidentSelectionMembers(residentSelectionInput(surface, {
+      workbench: { timeline, selectedTimelineClipIds, selectedTextClipId },
+      canvas: NO_CANVAS,
+      readTimelineRevision: () => '',
+    })).timelineMembers,
+    [surface, timeline, selectedTimelineClipIds, selectedTextClipId],
   )
 }

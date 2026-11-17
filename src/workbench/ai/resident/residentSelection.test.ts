@@ -125,7 +125,7 @@ describe('助手这一轮的选区只算一遍：目标、快照、芯片是同�
 describe('芯片只订阅时间轴切片：拖画布节点不会让助手面板重渲染', () => {
   // 这里没有 DOM 环境，量不了真实重渲染次数；改为盯住结构：芯片这一路不得订阅画布 store。
   it('芯片 hook 与助手面板数据层都不订阅生成画布 store', () => {
-    for (const file of ['useResidentSelectionMembers.ts', '../v4/useAgentPanelV4Data.ts']) {
+    for (const file of ['timelineAgentSurface.tsx', '../v4/useAgentPanelV4Data.ts']) {
       const source = readFileSync(new URL(file, import.meta.url), 'utf8')
       expect(source, file).not.toMatch(/useGenerationCanvasStore/)
     }

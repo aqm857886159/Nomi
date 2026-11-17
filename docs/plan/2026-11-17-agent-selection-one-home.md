@@ -50,8 +50,8 @@
 
 ## ★2 谁说了算
 
-- 概念：「助手这一轮的选区」（渲染层）。唯一主人：`src/workbench/ai/resident/residentContextSnapshot.ts` 的 `resolveResidentSelection`（输入原始选择与存在列表；输出：规范化成员 ID、目标、冻结快照、芯片成员含名字）。采集适配分两块：纯函数 `residentSelectionInput`（同在主人文件里，把两个 store 的状态按工作面收成输入，读原始选区字段的地方之一）；芯片用的订阅 hook `useResidentSelectionMembers.ts`（只订阅时间轴切片，读原始字段的地方之二）。
-- 消费者（实际落地：主人文件 `residentContextSnapshot.ts` + 订阅 hook `useResidentSelectionMembers.ts` 两个文件可读原始字段，别处 ESLint 红）：发送（`useAgentPanelV4Actions.ts`）取目标与快照；芯片（`useAgentPanelV4Data.ts` 经 `timelineAgentSurface.tsx`）取成员与名字；都不读原始字段。
+- 概念：「助手这一轮的选区」（渲染层）。唯一主人：`src/workbench/ai/resident/residentContextSnapshot.ts` 的 `resolveResidentSelection`（输入原始选择与存在列表；输出：规范化成员 ID、目标、冻结快照、芯片成员含名字）。采集适配分两块：纯函数 `residentSelectionInput`（同在主人文件里，把两个 store 的状态按工作面收成输入，读原始选区字段的地方之一）；芯片用的订阅 hook `useResidentTimelineMembers`（在 `timelineAgentSurface.tsx` 里）（只订阅时间轴切片，读原始字段的地方之二）。
+- 消费者（实际落地：主人文件 `residentContextSnapshot.ts` + `timelineAgentSurface.tsx`（订阅 hook）两个文件可读原始字段，别处 ESLint 红）：发送（`useAgentPanelV4Actions.ts`）取目标与快照；芯片（`useAgentPanelV4Data.ts` 经 `timelineAgentSurface.tsx`）取成员与名字；都不读原始字段。
 - 门数（`node scripts/door-map.mjs` 开工重数，与准备报告一致）：`buildResidentContextSnapshot` 写 1 扇、`collectTimelineSelections` 读 1 扇、`useTimelineSelectionChips` 1 扇、`captureSendContext` 1 扇、`mergeResidentContextHandles` 1 扇（均在 Actions 文件）。算「选区成员与名字」的处数：现在 3（发送 target、快照、芯片），做完 1。其余有意差异（导演镜头、@ 引用附加句柄、分镜引用、实时 look_at_canvas）不是选区，不并。这一刀做完后「这一轮带上了哪些选中」在渲染层只算一处；原先相关的两处岔口（草稿带回旧选区、「· 已变更」）已在第二个提交收掉，见「已收」一节。
 - 删掉的家：`useAgentPanelV4Actions.ts` 里 `selectedNodeIds`/`selectedClipIds` 自取与原样塞 target（约 :48–84、:207–224 的取选区部分）；`timelineAgentSurface.tsx` 的 `collectTimelineSelections`（:76–84）与 `useTimelineSelectionChips` 里另找片段（:136–153）；`useAgentPanelV4Data.ts` 里 `label || text || id` 另算名字（:318–325）和裸读 `selectedTimelineClipIds`/`selectedTextClipId`（:226–232）。
 - 「拖画布节点不让助手面板重渲染」：本环境无 DOM，量不了真实重渲染次数；测试盯结构（芯片 hook 与面板数据层都不订阅生成画布 store），写在 `residentSelection.test.ts`，如实标注。

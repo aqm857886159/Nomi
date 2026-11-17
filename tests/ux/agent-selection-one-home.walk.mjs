@@ -15,6 +15,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, expect, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
 import { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { COLLAPSED_DOCK, COMPOSER, COMPOSER_INPUT, COMPOSER_SEND, PREVIEW_PANEL, QUEUE_ROW, chooseAssistantModel, expectComposerText, recorded, waitForV4TurnIdle } from './agent-runtime-walk-support.mjs'
@@ -69,7 +70,7 @@ const launched = await launchNomiApp({
 })
 const { app } = launched
 let win = launched.win
-win.setDefaultTimeout(30_000)
+win.setDefaultTimeout(stationTimeout())
 
 async function resize(width, height) {
   const browserWindow = await app.browserWindow(win)
@@ -95,7 +96,7 @@ try {
   await expect.poll(() => app.windows().some((candidate) => /[?&]projectId=/.test(candidate.url())),
     { message: 'project window', timeout: DEFAULT_TIMEOUT_MS }).toBe(true)
   win = app.windows().find((candidate) => /[?&]projectId=/.test(candidate.url())) ?? win
-  win.setDefaultTimeout(30_000)
+  win.setDefaultTimeout(stationTimeout())
   await win.waitForLoadState('domcontentloaded')
   await resize(1440, 920)
   await clickOrFail(win.locator('nav.nomi-stepper [data-mode="preview"]').first(), 'enter preview')

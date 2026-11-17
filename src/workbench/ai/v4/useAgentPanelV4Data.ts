@@ -19,8 +19,7 @@ import { skillForKey, skillLabelForKey } from '../../skillLibrary/skillDisplay'
 import { onSkillLibraryChanged } from '../../skillLibrary/skillLibraryChanged'
 import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from '../assistantModelIdentity'
 import { getAssistantModelPref, setAssistantModelPref } from '../assistantModelPref'
-import { useTimelinePlanRows } from '../resident/timelineAgentSurface'
-import { useResidentTimelineMembers } from '../resident/useResidentSelectionMembers'
+import { useResidentTimelineMembers, useTimelinePlanRows } from '../resident/timelineAgentSurface'
 import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
 import {
   getGenerationModelDefaults,
@@ -317,7 +316,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     // 名字由选区解析给（素材名 / 文字正文，空白回落 ID），和发给助手的句柄同一份：芯片显示什么，助手这一轮就收到什么。
     for (const member of timelineMembers) chips.push({ kind: 'clip', label: member.title })
     return Object.freeze(chips)
-  }, [activeSkill, selectedLibraryPrompt, skills, skillLabel, attachments, t, timelineMembers])
+  }, [activeSkill, selectedLibraryPrompt, skills, skillLabel, attachments, timelineMembers])
 
   return {
     connectionFailure,

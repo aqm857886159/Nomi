@@ -15,7 +15,7 @@ const FIELDS = '/^(?:selectedNodeIds|selectedTimelineClipIds|selectedTextClipId)
 
 export const RESIDENT_SELECTION_OWNER_FILES = Object.freeze([
   'src/workbench/ai/resident/residentContextSnapshot.ts',
-  'src/workbench/ai/resident/useResidentSelectionMembers.ts',
+  'src/workbench/ai/resident/timelineAgentSurface.tsx',
 ])
 
 const MESSAGE = '助手面板里不要直接读原始选区字段（selectedNodeIds / selectedTimelineClipIds / selectedTextClipId）：'
