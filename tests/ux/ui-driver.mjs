@@ -53,8 +53,34 @@ const logErr = (kind, msg) => { try { fs.appendFileSync(ERRLOG, `[${new Date().t
 
 const startedAt = Date.now()
 const tempRoot = options.isolated ? makeTempDir('ui-driver-') : null
-const settingsDir = options.isolated ? seedDataFixture(options.data, tempRoot) : null
-const launched = await launchNomiApp(buildLaunchOptions(options, { tempRoot, settingsDir })).catch(exitIfWalkSkipped)
+let settingsDir = options.isolated ? seedDataFixture(options.data, tempRoot) : null
+let fakeVendor = null
+const saveVendorHits = () => {
+  if (fakeVendor) fs.writeFileSync(path.join(OUT, 'vendor-requests.json'), JSON.stringify(fakeVendor.hits, null, 2))
+}
+const launchOptions = buildLaunchOptions(options, { tempRoot, settingsDir })
+if (options.vendor) {
+  const { startFakeApimartServer, writeFakeApimartCatalog } = await import('./_mcpL2Fixture.mjs')
+  fakeVendor = await startFakeApimartServer({ pendingPolls: options.vendorPending })
+  settingsDir ??= path.join(tempRoot, 'settings')
+  const userDataDir = path.join(tempRoot, 'user-data')
+  for (const dir of [settingsDir, userDataDir]) fs.mkdirSync(dir, { recursive: true })
+  writeFakeApimartCatalog(settingsDir, userDataDir, fakeVendor.origin)
+  launchOptions.settingsDir = settingsDir
+  launchOptions.syntheticCredentialStorage = true
+  launchOptions.mainRequire = [path.join(repoRoot, 'scripts/walkthrough-network-guard.cjs')]
+  Object.assign(launchOptions.env, {
+    NOMI_TEST_NETWORK_GUARD: '1', NOMI_WALK_ALLOW_ORIGINS: '', NOMI_TEST_NETWORK_FIXTURE_ORIGINS: '',
+    NOMI_WALK_NET_LOG: path.join(OUT, 'network.jsonl'), NOMI_DISABLE_AUTO_UPDATE: '1',
+    NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: 'https://api.apimart.ai', to: fakeVendor.origin }]),
+    NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: fakeVendor.origin,
+  })
+}
+const launched = await launchNomiApp(launchOptions).catch(async (error) => {
+  saveVendorHits()
+  await fakeVendor?.close()
+  exitIfWalkSkipped(error)
+})
 const { app } = launched
 const appPid = app.process()?.pid ?? null
 
@@ -178,6 +204,7 @@ const state = {
   executable: options.executablePath ?? 'dev-build',
   startedAt: new Date(startedAt).toISOString(),
   readySec,
+  ...(fakeVendor ? { fakeVendor: { name: options.vendor, origin: fakeVendor.origin } } : {}),
 }
 fs.writeFileSync(path.join(DIR, 'state.json'), JSON.stringify(state, null, 2))
 fs.writeFileSync(path.join(DIR, 'ready'), String(process.pid))
@@ -227,6 +254,7 @@ function locate(w, spec) {
 
 // 自检：只读，回答「这个实例值不值得驱动」。
 async function doctor() {
+  saveVendorHits()
   const problems = []
   let build = 'packaged executable (not checked)'
   if (!options.executablePath) {
@@ -275,6 +303,7 @@ async function doctor() {
     labOpen: Boolean(surface.lab?.active),
     out: OUT,
     problems,
+    ...(fakeVendor ? { fakeVendor: state.fakeVendor } : {}),
   }
 }
 
@@ -366,6 +395,8 @@ while (running) {
 }
 await surface.lab?.close?.().catch(() => {})
 await launched.close().catch(() => {})
+saveVendorHits()
+await fakeVendor?.close()
 releaseLock()
 console.log(`DRIVER STOPPED（证据留在 ${OUT}）`)
 process.exit(0)

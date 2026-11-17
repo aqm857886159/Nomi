@@ -199,6 +199,13 @@ export function getOldestReachableUndoPosition(): number {
     : journalBasePosition + Math.min(...reachable)
 }
 
+/** 可达撤销/重做的节点投影，最近的位置先给；文件主人据此绑定保留期限，不把日志当当前活引用。 */
+export function* readReachableUndoNodes(): Generator<{ position: number; nodes: CanvasProjection['nodes'] }> {
+  for (const position of [...new Set([...undoBarriers, ...redoBarriers])].sort((a, b) => b - a)) {
+    yield { position: journalBasePosition + position, nodes: replayTo(position).nodes }
+  }
+}
+
 /** Loaded-canvas identity, not a content revision. A new chat does not change
  * the transaction's compensation target; replacing/clearing its canvas does. */
 export function getUndoJournalGeneration(): number {
