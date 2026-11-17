@@ -47,10 +47,10 @@ async function artifactCheck() {
 
 function build(root) {
   // `write-intake-config.mjs` 从 2026-09-17 起也是 build-electron 的一部分（出厂配置烤进产物，W-01）。
-  for (const name of ['_test-temp.mjs', 'build-electron.mjs', 'electron-build-artifacts.mjs', 'package-build-stamp.mjs', 'write-intake-config.mjs']) {
+  for (const name of ['_test-temp.mjs', 'build-electron.mjs', 'electron-build-artifacts.mjs', 'package-build-stamp.mjs', 'write-intake-config.mjs', 'lib/tsc-run.mjs']) {
     const file = path.join(repoRoot, 'scripts', name)
     expect(fs.existsSync(file), 'CJS and private NodeNext must share one build entry').toBe(true)
-    fs.mkdirSync(path.join(root, 'scripts'), { recursive: true })
+    fs.mkdirSync(path.dirname(path.join(root, 'scripts', name)), { recursive: true })
     fs.copyFileSync(file, path.join(root, 'scripts', name))
   }
   fs.symlinkSync(path.join(repoRoot, 'node_modules'), path.join(root, 'node_modules'), 'junction')
