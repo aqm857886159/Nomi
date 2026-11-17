@@ -352,14 +352,14 @@ try {
 
   // ══ 第 7 步：输入框 chip 说人话 ═══════════════════════════════════════════════════
   // 2026-09-06 v4：选中片段的 chip 由 composer 自己渲染（[data-v4-chip="clip"]），
-  // 「已变更」不再是一个 data-* 标记，而是直接写进 chip 文字里（agentPanelV4.clipStale）。
+  // 芯片不再有「已变更」后缀（2026-11-17 删）：显示什么、发出去的就是什么。
   const chip = win.locator(`${PREVIEW_PANEL} ${COMPOSER} [data-v4-chip="clip"]`).first()
   await expectVisible(chip, '选中片段后输入框没有出现 chip')
   const chipText = (await chip.innerText()).replace(/\s+/g, ' ').trim()
   check('输入框 chip 写片段名，不再是 clipId / 轨道 id / 帧号 / revision 一串',
     chipText.includes('推门近景') && !chipText.includes(clipB) && !chipText.includes('videoTrack'),
     chipText)
-  check('在别处改东西不会把这条没被碰过的选中片段误标成「已变更」',
+  check('芯片文字里没有「已变更」（片段被改动也不再加后缀）',
     !chipText.includes('已变更'), chipText)
   await snap('05-selection-chip')
   note('跟 Nomi 说话', 'chip 一眼能认出指的是哪一段，之前那串 id 完全看不出来。')

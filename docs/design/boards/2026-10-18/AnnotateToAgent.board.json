@@ -612,7 +612,7 @@
       "candidates": [],
       "status": "missing",
       "owner": "select-to-iterate 实现线（待派）",
-      "note": "error = 节点被删（黄色虚线「已删除」）；版本变了标「已变更」。选中即 chip 的交互 2026-09-06 V4 生成流程板已画，本元素只补新种类的长相。",
+      "note": "error = 节点被删（黄色虚线「已删除」）；D-1117-selection-chip-wins：芯片显示什么就发什么，不再标已变更。选中即 chip 的交互 2026-09-06 V4 生成流程板已画，本元素只补新种类的长相。 × = 在时间轴 / 画布上取消选中这一项，素材不删。",
       "states": [
         "empty",
         "selected",

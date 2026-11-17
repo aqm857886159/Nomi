@@ -1,6 +1,6 @@
 // Agent 选区投影的真模型量具（R13.3）：选中 N 个节点，让 Agent 逐个说出标题，数它说对几个。
 //
-// 走的是产品同一条链：renderer 的生产构造器 `buildResidentContextSnapshot` → 主进程 `createDesktopLaneInput`
+// 走的是产品同一条链：renderer 的生产构造器 `snapshotOf` → 主进程 `createDesktopLaneInput`
 // （内部调 `formatAgentContextSnapshot`）→ 真 `openLane`（pi 循环）→ 真实 OpenAI 兼容端点。
 // 不挂任何工具：量的是投影本身给了模型多少信息，而不是模型会不会自己去 look_at_canvas 补读。
 // 风格抄 evals/director/agentLoop/run.mts 的 record 模式（同一组环境变量与花钱确认开关）。
@@ -17,7 +17,8 @@ import { openLane } from '../../../electron/agentLane/laneHost.mjs'
 import { createDesktopLaneInput } from '../../../electron/agentLane/laneDesktopInput'
 import { formatAgentContextSnapshot } from '../../../electron/shared/agentContextSnapshot'
 import { buildLanguageRule, NOMI_AGENT_IDENTITY } from '../../../electron/harness/context/agentContext'
-import { buildResidentContextSnapshot } from '../../../src/workbench/ai/resident/residentContextSnapshot'
+import { resolveResidentSelection, type ResidentContextCaptureInput } from '../../../src/workbench/ai/resident/residentContextSnapshot'
+const snapshotOf = (input: ResidentContextCaptureInput) => resolveResidentSelection(input).snapshot
 import type { NomiModelConfig } from '../../../electron/agentLane/laneRuntimePort'
 import type { LaneComposerContext } from '../../../electron/shared/agentLane/laneDesktopContracts'
 
@@ -36,7 +37,7 @@ const need = (name: string) => { const v = process.env[name]?.trim(); if (!v) th
 async function once(count: number, model: NomiModelConfig) {
   const ids = Array.from({ length: count }, (_, i) => `gen-v2-image-lw9x${(i + 10).toString(36)}k-ab${(i + 10).toString(36)}z`)
   const titles = Array.from({ length: count }, (_, i) => TITLES[i % TITLES.length] + (i >= TITLES.length ? `${Math.floor(i / TITLES.length) + 1}` : ''))
-  const snapshot = buildResidentContextSnapshot({
+  const snapshot = snapshotOf({
     canvas: { revision: 8, nodes: ids.map((id, i) => ({ id, title: titles[i], kind: 'image' })), selectedNodeIds: ids },
   })
   const context: LaneComposerContext = { approvalPolicy: { mode: 'request' }, contextSnapshot: snapshot }
