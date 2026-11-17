@@ -156,7 +156,7 @@ try {
   if (await panel.isVisible().catch(() => false)) await summary.click()
   const connectedGeometry = await win.evaluate((label) => {
     const composer = document.querySelector('[data-node-id="video-target"] .generation-canvas-v2-node__composer')
-    const generate = composer?.querySelector('[data-node-composer-footer] [data-bar-segment="generate"]')
+    const generate = composer?.querySelector('[data-bar-segment="generate"]')
     const rect = (element) => element?.getBoundingClientRect()
     const composerRect = rect(composer)
     const generateRect = rect(generate)
@@ -185,11 +185,11 @@ try {
   check('断开最后首帧后回到档案的文生视频方式', disconnectedMode === textModeName && disconnectedState.edgeCount === 0, JSON.stringify({ mode: disconnectedMode, ...disconnectedState }))
   await win.waitForFunction(() => document.querySelector('[data-node-id="video-target"] [data-reference-row] img') === null, undefined, { timeout: stationTimeout() })
   await expectAbsent(composer.locator('[data-reference-row] img'), { provenBy: connectedImageProof, message: '断线后生成框仍显示首帧图片' })
-  await expect(composer.locator('[data-node-composer-footer] [data-bar-segment="generate"]'), '回到文生后生成按钮不可点').toBeEnabled()
+  await expect(composer.locator('[data-bar-segment="generate"]'), '回到文生后生成按钮不可点').toBeEnabled()
   if (await panel.isVisible().catch(() => false)) await summary.click()
   const disconnectedGeometry = await win.evaluate((label) => {
     const composer = document.querySelector('[data-node-id="video-target"] .generation-canvas-v2-node__composer')
-    const generate = composer?.querySelector('[data-node-composer-footer] [data-bar-segment="generate"]')
+    const generate = composer?.querySelector('[data-bar-segment="generate"]')
     const rect = (element) => element?.getBoundingClientRect()
     const composerRect = rect(composer)
     const generateRect = rect(generate)

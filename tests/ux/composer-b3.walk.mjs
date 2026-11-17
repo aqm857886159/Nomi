@@ -286,9 +286,9 @@ try {
   // ── B3j 模型菜单 / 换模型之后 ───────────────────────────────────
   {
     const { page, context } = await open(B3, 'b3j-model-menu')
-    const rows = await page.locator('[role="option"]:visible').evaluateAll(elements => elements.map((el) => ({ text: el.textContent?.trim() ?? '', h: Math.round(el.getBoundingClientRect().height) })))
+    const rows = await page.evaluate(() => [...document.querySelectorAll('[role="option"]')].map((el) => ({ text: el.textContent?.trim() ?? '', h: Math.round(el.getBoundingClientRect().height) })))
     check('board:ComposerB3/modelmenu.row', rows.length >= 3 && rows.every((r) => r.h <= 34 && r.text.length < 24), JSON.stringify(rows))
-    check('board:ComposerB3/modelmenu.footer-hide', /隐藏模型/.test((await page.locator('[role="listbox"]:visible').textContent()) ?? ''))
+    check('board:ComposerB3/modelmenu.footer-hide', /隐藏模型/.test(await page.evaluate(() => document.querySelector('[role="listbox"]')?.textContent ?? '')))
     check('board:ComposerB3/swap.before', (await count(page, '[data-asset-slot-label]')) === 2)
     await shot(page, B3, 'b3j-model-menu', 'B3j-menu-zh-light')
     await context.close()

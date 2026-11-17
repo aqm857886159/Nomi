@@ -96,9 +96,9 @@ const setFooterWidth = async (page, width) => {
 /** 二分找「第 0 级刚好放得下」的最小底栏宽：再窄 1 像素就要让。 */
 async function tightestLevelZero(page) {
   let low = 240
-  let high = Math.round((await readBar(page)).width)
+  let high = 1200
   await setFooterWidth(page, high)
-  if ((await readBar(page)).level !== '0') throw new Error(`原宽 ${high} 下就不在第 0 级，量不了`)
+  if ((await readBar(page)).level !== '0') throw new Error(`足够宽 ${high} 下就不在第 0 级，量不了`)
   while (high - low > 1) {
     const mid = Math.floor((low + high) / 2)
     await setFooterWidth(page, mid)

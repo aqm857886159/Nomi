@@ -97,10 +97,11 @@ describe('分镜行：对齐（预览框全表同一只、「生成」每行同�
   })
 
   // 2026-11-14 三处一套（协调裁决 A）：底栏那一行由画布同一只 InlineParameterBar 的 footer 画，
-  // 「生成」是它的 action 槽，住在那一行最右端；分镜这边只剩外框（分隔线 + 内边距）。
+  // 「生成」由 send 数据交给底栏画，住在最右端；分镜这边只剩外框（分隔线 + 内边距）。
   it('画面格里只有一颗「生成」的家——底栏右端（不再在框里放一颗重复的）', () => {
     expect(frame).not.toContain("t('storyboardEditor.frame.generate')")
-    expect(composerBar).toMatch(/footer=\{\{[\s\S]*action:[\s\S]*<ComposerSendButton/)
+    expect(composerBar).toMatch(/footer=\{\{[\s\S]*send:[\s\S]*onClick: onGenerate/)
+    expect(stripComments(read('src/workbench/generationCanvas/nodes/InlineParameterBar.tsx')).match(/<ComposerSendButton\b/g)).toHaveLength(1)
     expect(composerBar).toContain('data-storyboard-generate-state')
   })
 
@@ -118,7 +119,8 @@ describe('分镜行：对齐（预览框全表同一只、「生成」每行同�
       expect(source).not.toContain('ComposerBarRow')
       expect(source).not.toContain('ComposerGenerateButton')
       expect(source).toContain('<StoryboardComposerParams')
-      expect(source).toContain('<ComposerSendButton')
+      expect(source).not.toContain('<ComposerSendButton')
+      expect(source).toContain('send:')
     }
   })
 

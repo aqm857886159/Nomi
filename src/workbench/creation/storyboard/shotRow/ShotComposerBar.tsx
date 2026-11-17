@@ -6,7 +6,6 @@ import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import { DURATION_OPTIONS_SEC, planModelSelection, shotKindPatch, shotTypeOf, type PlanShotPatch } from '../../../generationCanvas/agent/storyboardPlanEdits'
 import StoryboardComposerParams from './StoryboardComposerParams'
-import { ComposerSendButton } from '../../../generationCanvas/nodes/ComposerSendButton'
 
 /**
  * 镜头行提示词框下方的底栏：**左边是画布节点同一套参数区，右边是「生成」**。
@@ -94,17 +93,16 @@ export default function ShotComposerBar({
         onExtraChange={(_key, value) => onUpdate({ durationSec: Number(value) })}
         footer={{
           attrs: { 'data-storyboard-composer-bar': 'true' },
-          action: statusTag ? (
+          trailing: statusTag ? (
             <span className="shrink-0 rounded-pill bg-nomi-ink-05 px-2 py-0.5 text-micro text-nomi-ink-60">{statusTag}</span>
-          ) : onGenerate ? (
-            <ComposerSendButton
-              label={t('storyboardEditor.frame.generate')}
-              busy={generating}
-              onClick={onGenerate}
-              ariaLabel={t('storyboardEditor.frame.generateAria', { index: shot.index })}
-              attrs={{ 'data-storyboard-generate-state': generating ? 'busy' : 'idle' }}
-            />
           ) : null,
+          send: !statusTag && onGenerate ? {
+            label: t('storyboardEditor.frame.generate'),
+            busy: generating,
+            onClick: onGenerate,
+            ariaLabel: t('storyboardEditor.frame.generateAria', { index: shot.index }),
+            attrs: { 'data-storyboard-generate-state': generating ? 'busy' : 'idle' },
+          } : undefined,
         }}
       />
     </div>

@@ -177,7 +177,7 @@ async function composerStates(scope) {
   // 全摊开的参数面板开在底栏上方、盖住提示词框（点不到），用 Esc 收起（面板自带的收法）。
   await win.keyboard.press('Escape')
   await win.waitForTimeout(300)
-  await root.locator('[data-node-composer-footer] button[aria-haspopup="listbox"]').click()
+  await root.locator('button[aria-haspopup="listbox"]').click()
   await win.waitForTimeout(500)
   const models = await grab()
   await root.locator('[data-node-composer-prompt]').click()
@@ -187,10 +187,10 @@ async function composerStates(scope) {
 // 换模型并生成：认假供应商那头收到的请求里 model 是不是跟着变。
 async function pickModelAndGenerate(scope, label, expectedModel, callsBefore) {
   const root = win.locator(scope).first()
-  await root.locator('[data-node-composer-footer] button[aria-haspopup="listbox"]').click()
+  await root.locator('button[aria-haspopup="listbox"]').click()
   await win.waitForTimeout(500)
   await clickOrFail(win.getByRole('option', { name: label }), '选模型 ' + label)
-  await clickOrFail(root.locator('[data-node-composer-footer] [data-bar-segment="generate"]'), '生成框的 ↑')
+  await clickOrFail(root.locator('[data-bar-segment="generate"]'), '生成框的 ↑')
   const deadline = Date.now() + 30000
   while (wireCalls.length <= callsBefore && Date.now() < deadline) await win.waitForTimeout(250)
   expect(wireCalls.length, '假供应商没收到请求').toBe(callsBefore + 1)

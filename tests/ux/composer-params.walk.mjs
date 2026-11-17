@@ -302,7 +302,7 @@ try {
       const facts = await page.evaluate(() => ({
         footers: document.querySelectorAll('[data-node-composer-footer]').length,
         sends: document.querySelectorAll('[data-node-composer-footer] [data-bar-segment="generate"]').length,
-        stray: document.querySelectorAll('[data-bar-segment="generate"]:not([data-node-composer-footer] *):not([inert] *)').length,
+        stray: document.querySelectorAll('[data-bar-segment="generate"]:not([data-node-composer-footer] *)').length,
       }))
       report.storyboard.push({ state, lang, ...facts })
       // 「没有」先证探针活着：共用底栏在这一屏找得到，再说底栏外没有第二颗生成钮（02 再加：底栏里也没有）。
@@ -312,7 +312,7 @@ try {
         const sendInFooter = page.locator('[data-node-composer-footer] [data-bar-segment="generate"]')
         if (expectSend) await proveProbe(sendInFooter, `${state} 的生成钮在共用底栏里`)
         else await expectAbsent(sendInFooter, { provenBy: footerProof, message: '参考卡都出过图：底栏里没有生成钮（走图下的「重新生成」）' })
-        await expectAbsent(page.locator('[data-bar-segment="generate"]:not([data-node-composer-footer] *):not([inert] *)'), { provenBy: footerProof, message: '底栏外没有第二颗生成钮' })
+        await expectAbsent(page.locator('[data-bar-segment="generate"]:not([data-node-composer-footer] *)'), { provenBy: footerProof, message: '底栏外没有第二颗生成钮' })
       } catch (error) {
         sameBar = false
         facts.error = String(error).split('\n')[0]
