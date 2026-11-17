@@ -32,7 +32,7 @@ const NAME = 'asset-liveness-storyboard-ref'
 const oldBytes = process.env.NOMI_WALK_OLD_SOURCE ? fs.readFileSync(process.env.NOMI_WALK_OLD_SOURCE) : null
 const oldProject = oldBytes ? JSON.parse(oldBytes) : null
 const usage = process.env.NOMI_WALK_USAGE || 'storyboard'
-if (!['storyboard', 'node', 'agent'].includes(usage)) throw new Error(`Unknown usage: ${usage}`)
+if (!['storyboard', 'node', 'agent', 'library'].includes(usage)) throw new Error(`Unknown usage: ${usage}`)
 const locale = process.env.NOMI_WALK_LANG === 'en' ? 'en' : 'zh-CN'
 const outDir = path.resolve(process.env.WALK_OUT_DIR || path.join(repoRoot, 'tests/ux/shots', NAME, locale))
 fs.rmSync(outDir, { recursive: true, force: true })
@@ -118,7 +118,7 @@ async function startApp(executablePath) {
     name: NAME, tempRoot, projectsDir, ...(executablePath ? { executablePath } : {}), settleMs: 0, viewportSize: { width: 1280, height: 800 },
     initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': 'light', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },
     mainRequire: [path.join(repoRoot, 'scripts/walkthrough-network-guard.cjs')],
-    env: { NOMI_WALK_ALLOW_ORIGINS: '', NOMI_WALK_NET_LOG: path.join(outDir, 'network.jsonl') },
+    env: { NOMI_TEST_NETWORK_GUARD: '1', NOMI_WALK_ALLOW_ORIGINS: '', NOMI_WALK_NET_LOG: path.join(outDir, 'network.jsonl') },
     args: ['--no-proxy-server'],
   })
   launches.push(launched)
@@ -155,6 +155,85 @@ const decodes = (url) => win.evaluate(async (src) => {
   }
 }, url)
 
+
+// NOMI_WALK_USAGE=library; NOMI_WALK_LIBRARY_UNDO=toast (default), keyboard, or none.
+async function finishLibraryDeletion() {
+  const undoVia = process.env.NOMI_WALK_LIBRARY_UNDO || 'toast'
+  const primaryPixels = () => win.locator('.generation-canvas-v2-node[data-node-id="liveness-node"] img[src*="liveness-v2"]').evaluateAll(imgs => imgs[0]?.complete ? imgs[0].naturalWidth : 0)
+  if (!['toast', 'keyboard', 'none'].includes(undoVia)) throw new Error(`Unknown undo gesture: ${undoVia}`)
+  observations.undoVia = undoVia
+  await openRailDrawer(win, 'assets', 'Open asset library')
+  await clickOrFail(win.getByRole('tab', { name: uiText(locale, 'assetLibrary.projectAssets'), exact: true }), uiText(locale, 'assetLibrary.projectAssets'))
+  const tile = () => win.getByRole('button', { name: 'liveness-v2.jpg', exact: true }).first()
+  await expectVisible(tile(), 'Removed version original remains in project assets')
+  await tile().hover()
+  const box = await tile().boundingBox()
+  await win.mouse.click(box.x + box.width - 16, box.y + 16)
+  await clickOrFail(win.locator('button', { has: win.locator('svg.tabler-icon-trash') }).filter({ hasText: /\d/ }).first(), 'Delete selected project asset')
+  const dialog = win.getByRole('dialog').filter({ has: win.locator('[data-confirm-dialog-confirm]') }).last()
+  await expectVisible(dialog, 'Library deletion confirmation')
+  observations.confirmText = await dialog.innerText()
+  await shotPng('library-01-confirm')
+  await clickOrFail(dialog.getByRole('button', { name: uiText(locale, 'assetLibrary.delete'), exact: true }), 'Confirm deletion')
+  await expect.poll(() => tile().isVisible().catch(() => false), { timeout: stationTimeout() }).toBe(false)
+  observations.fileAfterLibraryDelete = fs.existsSync(targetFile)
+  observations.trashAfterLibraryDelete = binned()
+  observations.pendingAfterLibraryDelete = readSaved().payload?.pendingAssetDeletions ?? []
+  await shotPng('library-02-hidden')
+  await win.keyboard.press('Escape')
+  if (undoVia !== 'none') {
+    if (undoVia === 'toast') {
+      await clickOrFail(win.getByRole('button', { name: uiText(locale, 'generationCommon.versionCards.undo'), exact: true }).last(), 'Undo version removal through toast')
+    } else {
+      await win.keyboard.press('Meta+z')
+    }
+    await expect.poll(() => readSaved().payload.generationCanvas.nodes[0].result?.url, { timeout: stationTimeout() }).toBe(urlOf(2))
+    observations.decodedAfterUndo = await decodes(urlOf(2))
+    await shotPng('library-03-undo')
+    observations.primaryPixelsAfterUndo = await primaryPixels()
+    await openRailDrawer(win, 'assets', 'Check restored file in project assets')
+    await clickOrFail(win.getByRole('tab', { name: uiText(locale, 'assetLibrary.projectAssets'), exact: true }), 'Project assets after undo')
+    // Restoring the canvas result replaces the file-only tile; its display name comes from the node.
+    observations.listedAfterUndo = await win.getByRole('button', { name: '雨夜巷口', exact: true })
+      .filter({ has: win.locator('img[src*="liveness-v2"]') }).first().isVisible().catch(() => false)
+    await shotPng('library-04-listed-after-undo')
+    await win.keyboard.press('Escape')
+  }
+  await backToLibrary(win, { label: 'Close project and release recycling' })
+  if (undoVia === 'none') await expect.poll(() => binned().includes('liveness-v2.jpg'), { timeout: stationTimeout() }).toBe(true)
+  observations.pendingAfterClose = readSaved().payload.pendingAssetDeletions ?? []
+  observations.existsAfterClose = fs.existsSync(targetFile)
+  observations.binnedAfterClose = binned()
+  const oldPid = launched.app.process().pid
+  await launched.app.close()
+  await startApp()
+  expect(launched.app.process().pid).not.toBe(oldPid)
+  await openProject()
+  await switchWorkspace(win, 'generation')
+  await switchGenerationView(win, 'canvas')
+  observations.decodedAfterRestart = await decodes(urlOf(2))
+  observations.hashAfterRestart = fileHash()
+  observations.savedPrimaryAfterRestart = readSaved().payload.generationCanvas.nodes[0].result?.url
+  await clickOrFail(canvasFitViewButton(win), 'Fit restored primary into viewport')
+  await shotPng('library-05-restarted')
+  observations.primaryPixelsAfterRestart = await primaryPixels()
+  if (undoVia === 'none') {
+    expect(fs.existsSync(targetFile), 'Library deletion still frees space once undo ends').toBe(false)
+    expect(binned().filter(name => name === 'liveness-v2.jpg'), 'Exactly one recycled original').toHaveLength(1)
+    expect(observations.decodedAfterRestart).toBe(false)
+  } else {
+    expect(observations.decodedAfterUndo, 'Undo restores a decodable primary').toBe(true)
+    expect(observations.primaryPixelsAfterUndo, 'Primary image displays pixels after undo').toBeGreaterThan(0)
+    expect(observations.primaryPixelsAfterRestart, 'Primary image displays pixels in a new process').toBeGreaterThan(0)
+    expect(observations.listedAfterUndo, 'Undo restores the project asset listing').toBe(true)
+    expect(observations.savedPrimaryAfterRestart).toBe(urlOf(2))
+    expect(observations.decodedAfterRestart, 'New process decodes restored primary').toBe(true)
+    expect(observations.hashAfterRestart).toBe(originalHash)
+    expect(binned()).toEqual([])
+  }
+  console.log('PASS library deletion with version undo lifecycle', JSON.stringify(observations))
+}
+
 try {
   await startApp()
   await openProject()
@@ -188,6 +267,12 @@ try {
     expect(observations.hashAfterCompatOpen).toBe(originalHash)
     expect(binned(), 'Older build does not replay removed legacy request').toEqual([])
     expect(await decodes(urlOf(2))).toBe(true)
+    await switchWorkspace(win, 'generation')
+    await openRailDrawer(win, 'assets', 'Reopened legacy project assets')
+    await clickOrFail(win.getByRole('tab', { name: uiText(locale, 'assetLibrary.projectAssets'), exact: true }), 'Reopened project asset tab')
+    const oldThumb = win.getByRole('button', { name: /^liveness-v2/ }).first().locator('img').first()
+    await expect.poll(() => oldThumb.evaluate(img => img.complete && img.naturalWidth).catch(() => 0), { timeout: stationTimeout() }).toBeGreaterThan(0)
+    observations.oldThumbPixelsAfterReopen = await oldThumb.evaluate(img => img.naturalWidth)
     await shotPng('old-compat-reopened')
     console.log('PASS legacy 0.24.1 copy → current save → compatibility reopen', JSON.stringify(observations))
   } else {
@@ -208,7 +293,7 @@ try {
   expect(observations.decodedAfterAttach, '挂上后这张参考图能解码出像素').toBe(true)
   await shotPng('01-after-attach')
 
-  } else {
+  } else if (usage !== 'library') {
     await switchWorkspace(win, 'generation')
     await switchGenerationView(win, 'canvas')
     await clickOrFail(canvasFitViewButton(win), 'Fit canvas')
@@ -248,6 +333,9 @@ try {
   await shotPng('02-version-deleted')
   observations.existsRightAfterDelete = fs.existsSync(targetFile)
   observations.pendingAfterVersionDelete = readSaved().payload?.pendingAssetDeletions ?? []
+  if (usage === 'library') {
+    await finishLibraryDeletion()
+  } else {
   if (process.env.NOMI_WALK_UNDO === '1') {
     await clickOrFail(win.getByRole('button', { name: uiText(locale, 'generationCommon.versionCards.undo'), exact: true }).last(), 'Undo version removal')
     await expectVisible(card, 'Undo restores version 2')
@@ -328,6 +416,7 @@ try {
   observations.failures = failures
   if (failures.length) throw new Error(failures.join('；'))
   console.log('PASS retained version original after close and new process', JSON.stringify(observations))
+  }
   }
 } catch (error) {
   observations.error = String(error?.stack || error)

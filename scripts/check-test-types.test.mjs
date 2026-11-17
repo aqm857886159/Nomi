@@ -23,7 +23,7 @@ function fixture() {
   const root = makeTempDir('nomi-test-types-')
   temporaryRoots.push(root)
   // 门岗连同它 import 的 tsconfig 正本一起拷进夹具（少拷一个就是「模块找不到」被当成门岗红）。
-  for (const file of ['scripts/check-test-types.mjs', 'scripts/lib/typecheckProjects.mjs']) {
+  for (const file of ['scripts/check-test-types.mjs', 'scripts/lib/typecheckProjects.mjs', 'scripts/lib/tsc-run.mjs']) {
     write(root, file, fs.readFileSync(path.join(repoRoot, file), 'utf8'))
   }
   write(root, 'scripts/test-types-baseline.json', { 'legacy.test.ts': 1 })
