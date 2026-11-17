@@ -28,7 +28,6 @@ const read = p => p.evaluate(() => {
   }
   const clipped = el => Boolean(el) && [el, ...el.querySelectorAll('*')].some(n => n.scrollWidth > n.clientWidth + .5)
   const counts = {
-    generate: count('[data-bar-segment="generate"]'),
     model: count(`[aria-label="${CSS.escape(model?.getAttribute('aria-label') || '')}"]`),
     storyboard: count('[data-storyboard-generate-state]'),
     summary: count('[data-parameter-summary]'),
@@ -57,6 +56,23 @@ try {
   const p = surface.lab.page
   p.on('pageerror', e => errors.push(String(e)))
   await p.context().addInitScript(() => performance.setResourceTimingBufferSize(20000))
+  await p.context().addInitScript(() => { window.__g4GenerationCalls = 0 })
+  // 截住生成边界，不改按钮；原生按钮复用同一回调也必须计入。
+  await p.context().route('**/*', async route => {
+    const url = new URL(route.request().url())
+    if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) return route.abort('blockedbyclient')
+    if (url.pathname.endsWith('/nodes/composerRun.ts')) {
+      return route.fulfill({ contentType: 'application/javascript', body: 'export async function startGenerationFromComposer() { window.__g4GenerationCalls++ }' })
+    }
+    if (/\/(yieldHistoryLab|storyboardLayoutLabKit)\.tsx$/.test(url.pathname)) {
+      const response = await route.fetch()
+      const body = await response.text()
+      const instrumented = body.replace(/\b(onGenerate(?:Anchor)?|onRegenerate(?:Anchor)?): NOOP\b/g, '$1: () => { window.__g4GenerationCalls++ }')
+      assert.notEqual(instrumented, body, `generation fixture callbacks missing: ${url.pathname}`)
+      return route.fulfill({ response, body: instrumented })
+    }
+    return route.continue()
+  })
   await p.goto(surface.lab.url + '&yield-history=1')
   await p.waitForFunction(() => window.__yieldHistory)
   await p.evaluate(() => document.fonts.ready)
@@ -108,13 +124,38 @@ try {
     })
     await check('G4', label, async () => {
       const f = await width(650)
+      const controls = p.locator('[data-yield-history] [data-node-composer-footer]').locator('button, [role="button"], a[href], input:not([type="hidden"])').filter({ visible: true })
+      const controlCount = await controls.count()
+      const clicks = []
+      await p.screenshot({ path: path.join(out, `G4-${label}-before.png`) })
+      for (let index = 0; index < controlCount; index++) {
+        await p.evaluate(() => { window.__yieldHistory.remount(); window.__g4GenerationCalls = 0 })
+        await settle(p)
+        const control = controls.nth(index)
+        const name = await control.evaluate(el => ({ tag: el.tagName, role: el.getAttribute('role'), label: el.getAttribute('aria-label'), text: el.textContent.trim() }))
+        assert.ok(await control.isEnabled(), `unclickable control: ${JSON.stringify(name)}`)
+        await control.click()
+        await settle(p)
+        const effect = await p.evaluate(() => ({
+          generationCalls: window.__g4GenerationCalls,
+          menus: [...document.querySelectorAll('[role="listbox"], [role="menu"]')].filter(el => el.getBoundingClientRect().height > 0).map(el => el.textContent.trim()),
+          parameterPanels: document.querySelectorAll('[data-agent-parameter-panel]').length,
+        }))
+        clicks.push({ index, ...name, ...effect })
+        await p.screenshot({ path: path.join(out, `G4-${label}-click-${index}.png`) })
+        await p.keyboard.press('Escape')
+        await settle(p)
+      }
+      fs.writeFileSync(path.join(out, `G4-${label}-clicks.json`), JSON.stringify(clicks, null, 2))
+      const generators = clicks.filter(click => click.generationCalls > 0)
+      assert.equal(generators.length, 1, `clicks triggering generation: ${JSON.stringify(clicks)}`)
       for (const [name, count] of Object.entries(f.counts)) {
         const expected = name === 'storyboard' && ['canvas', 'list'].includes(host) ? 0 : 1
         assert.equal(count.all, expected, `${name}: ${JSON.stringify(f)}`)
         assert.equal(count.visible, expected, `${name} visible: ${JSON.stringify(f)}`)
       }
       assert.equal(f.dropdowns, f.selects, `document dropdowns vs drawn selects: ${JSON.stringify(f)}`)
-      return f
+      return { ...f, clicks }
     })
   }
 } finally {
