@@ -31,6 +31,18 @@ test('text-array user entries exposed as Retry targets can actually be replayed'
   assert.equal(replayed.content, 'LEGACY_TEXT_ARRAY');
 });
 
+test('retry replays the original selection, unlike a recovered draft which sends the current one', async t => {
+  const session = await new MemorySessionRepo().create({}, context); t.after(() => session.close(context));
+  const branch = await session.createBranch('main', null, context);
+  const id = await branch.appendMessage({ role: 'nomi.input', content: 'ORIGINAL', timestamp: 1, context: { approvalPolicy: policy,
+    target: { kind: 'timeline', clipIds: ['original-clip'] }, contextSnapshot: { version: 1, handles: [{ id: 'original-handle' }] } as never } }, context);
+  const entry = await originalLaneEntry(branch, id, context);
+  const replayed = replayLaneInput(entry, { approvalPolicy: policy, retryFromEntryId: id,
+    target: { kind: 'timeline', clipIds: ['current-clip'] }, contextSnapshot: { version: 1, handles: [{ id: 'current-handle' }] } as never }, 'Retry');
+  assert.deepEqual(replayed.context.target, { kind: 'timeline', clipIds: ['original-clip'] });
+  assert.deepEqual(replayed.context.contextSnapshot, { version: 1, handles: [{ id: 'original-handle' }] });
+});
+
 async function seedContinueChain(f: LaneFixture) {
   const opened = await openLaneSession({ projectDir: f.projectDir }, context);
   const branch = await opened.session.createBranch('main', null, context);
@@ -78,7 +90,7 @@ test('replaying an old canvas target must not grant current document surface des
 });
 
 
-test('a recovered draft preserves its old target without borrowing its surface authority', async t => {
+test('a recovered draft sends the current selection, keeps its template, and never borrows its old surface authority', async t => {
   const f = await createLaneFixture(t, [
     { type: 'tool', calls: [{ id: 'delete-recovered', name: 'mutate_surface', arguments: {} }] },
     { type: 'text', text: 'done' },
@@ -88,7 +100,13 @@ test('a recovered draft preserves its old target without borrowing its surface a
   const captured: LaneComposerContext = { approvalPolicy: policy,
     target: { kind: 'document', documentId: 'current-doc', anchor: { kind: 'whole-document' } },
     systemPrompt: 'CURRENT_TEMPLATE',
-    restoredIntent: { target: { kind: 'canvas', nodeIds: ['old-node'] }, systemPrompt: 'ORIGINAL_TEMPLATE' },
+    contextSnapshot: { version: 1, handles: [{ id: 'current-handle' }] } as never,
+    documentId: 'current-doc',
+    preconditions: { document: { revision: 'current-rev', contentHash: 'current-hash' } } as never,
+    restoredIntent: { target: { kind: 'canvas', nodeIds: ['old-node'] }, systemPrompt: 'ORIGINAL_TEMPLATE',
+      contextSnapshot: { version: 1, handles: [{ id: 'old-handle' }] } as never,
+      documentId: 'old-doc', preconditions: { document: { revision: 'old-rev', contentHash: 'old-hash' } } as never,
+      storyboardTarget: { shotIds: ['old-shot'] } as never },
   };
   const host = await f.openLane({ ...f.options,
     input: { capture: () => captured, activate: () => {},
@@ -102,7 +120,14 @@ test('a recovered draft preserves its old target without borrowing its surface a
   assert.equal(executions, 0);
   assert.ok(admitted);
   assert.equal(admitted.admissionSurface, 'document');
-  assert.deepEqual(admitted.target, { kind: 'canvas', nodeIds: ['old-node'] });
+  // The chip shows the selection as it is now, so that is what goes out: the draft's old
+  // target / snapshot must not override this admission's own.
+  assert.deepEqual(admitted.target, { kind: 'document', documentId: 'current-doc', anchor: { kind: 'whole-document' } });
+  assert.deepEqual(admitted.contextSnapshot, { version: 1, handles: [{ id: 'current-handle' }] });
+  // The pieces that travel together (document, its precondition, the storyboard shots) are all current too.
+  assert.equal(admitted.documentId, 'current-doc');
+  assert.deepEqual(admitted.preconditions, { document: { revision: 'current-rev', contentHash: 'current-hash' } });
+  assert.equal(admitted.storyboardTarget, undefined);
   assert.equal(admitted.systemPrompt, 'ORIGINAL_TEMPLATE');
   assert.equal(admitted.restoredIntent, undefined, 'the transport envelope must not become nested historical intent');
 });

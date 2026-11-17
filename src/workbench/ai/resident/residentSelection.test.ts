@@ -131,3 +131,20 @@ describe('芯片只订阅时间轴切片：拖画布节点不会让助手面板�
     }
   })
 })
+
+describe('芯片显示什么，助手就收到什么：片段被拖走后照常显示、照常发出，不再有「已变更」', () => {
+  it('同一段片段换了位置：芯片名不变，快照带它新的位置，没有任何「已变更」的东西可显示', () => {
+    const before = sources({ selectedClips: ['a'] })
+    const moved = sources({ selectedClips: ['a'], tracks: [{ ...media('a', '片段A'), startFrame: 90, endFrame: 120 }, media('b', '片段B')] })
+    expect(chipMembers('preview', moved).timelineMembers).toEqual(chipMembers('preview', before).timelineMembers)
+    expect(resolve('preview', moved).snapshot.handles.find((h) => h.targetId === 'a')?.locator).toMatchObject({ type: 'timeRange', startMs: 3000 })
+  })
+
+  it('「已变更」的文案、记忆起止帧的 hook 都已删除，不会悄悄回来', () => {
+    const files = ['../v4/useAgentPanelV4Data.ts', './timelineAgentSurface.tsx', '../../../i18n/locales/agentPanelV4.ts']
+    for (const file of files) {
+      const source = readFileSync(new URL(file, import.meta.url), 'utf8')
+      expect(source, file).not.toMatch(/clipStale|staleFor|revisionFor|useTimelineSelectionRevisions|timelineClipRevision/)
+    }
+  })
+})

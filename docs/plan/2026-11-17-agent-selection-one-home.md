@@ -19,7 +19,7 @@
 步骤：① 在工作面里选东西（文稿、画布节点、时间轴片段或文字片段）→ ② 看聊天框芯片 → ③ 发送 → ④ 助手这一轮收到的快照与芯片同一批；放不下时它被告知「省略了几个」。
 
 不做：不改芯片的样子、位置、文案；不给画布 / 创作 / 分镜面新增选区芯片（协调 11-17 同意：今天只有预览面有芯片，其余面「今天没有芯片，保持」，新增要用户看图定）；不动发给模型的投影、6000 字符预算、read_selection；不改持久数据、IPC。
-已知坑：发送时冻结、渲染时实时读取，这个差别有意保留。另有两处还岔着、等用户定，见下面「还岔着、等用户定」，这一刀不改它们的行为。
+已知坑：发送时冻结、渲染时实时读取，这个差别有意保留。另两处原先还岔着（草稿带回旧选区、芯片「· 已变更」），用户 11-17 拍板「以芯片为准」，同分支第二个提交已收，见「已收」一节。
 
 真实模型的数字（选了文字 / 选了片段后助手有没有按选区做事）：未验证：真实模型核对由协调统一做；evals/ 里现有题目没有一道用到助手选区（`git grep` 选区快照字段与 contextSnapshot 在 evals/ 无命中，仅有 journeys 里点选画布节点的界面步骤）。
 
@@ -52,15 +52,19 @@
 
 - 概念：「助手这一轮的选区」（渲染层）。唯一主人：`src/workbench/ai/resident/residentContextSnapshot.ts` 的 `resolveResidentSelection`（输入原始选择与存在列表；输出：规范化成员 ID、目标、冻结快照、芯片成员含名字）。采集适配分两块：纯函数 `residentSelectionInput`（同在主人文件里，把两个 store 的状态按工作面收成输入，读原始选区字段的地方之一）；芯片用的订阅 hook `useResidentSelectionMembers.ts`（只订阅时间轴切片，读原始字段的地方之二）。
 - 消费者（实际落地：主人文件 `residentContextSnapshot.ts` + 订阅 hook `useResidentSelectionMembers.ts` 两个文件可读原始字段，别处 ESLint 红）：发送（`useAgentPanelV4Actions.ts`）取目标与快照；芯片（`useAgentPanelV4Data.ts` 经 `timelineAgentSurface.tsx`）取成员与名字；都不读原始字段。
-- 门数（`node scripts/door-map.mjs` 开工重数，与准备报告一致）：`buildResidentContextSnapshot` 写 1 扇、`collectTimelineSelections` 读 1 扇、`useTimelineSelectionChips` 1 扇、`captureSendContext` 1 扇、`mergeResidentContextHandles` 1 扇（均在 Actions 文件）。算「选区成员与名字」的处数：现在 3（发送 target、快照、芯片），做完 1。其余有意差异（导演镜头、@ 引用附加句柄、分镜引用、实时 look_at_canvas）不是选区，不并。这一刀做完后「这一轮带上了哪些选中」在渲染层只算一处；但还有两处和它相关的岔口没收，见下节，不得写成「做完只剩 1 处」。
+- 门数（`node scripts/door-map.mjs` 开工重数，与准备报告一致）：`buildResidentContextSnapshot` 写 1 扇、`collectTimelineSelections` 读 1 扇、`useTimelineSelectionChips` 1 扇、`captureSendContext` 1 扇、`mergeResidentContextHandles` 1 扇（均在 Actions 文件）。算「选区成员与名字」的处数：现在 3（发送 target、快照、芯片），做完 1。其余有意差异（导演镜头、@ 引用附加句柄、分镜引用、实时 look_at_canvas）不是选区，不并。这一刀做完后「这一轮带上了哪些选中」在渲染层只算一处；原先相关的两处岔口（草稿带回旧选区、「· 已变更」）已在第二个提交收掉，见「已收」一节。
 - 删掉的家：`useAgentPanelV4Actions.ts` 里 `selectedNodeIds`/`selectedClipIds` 自取与原样塞 target（约 :48–84、:207–224 的取选区部分）；`timelineAgentSurface.tsx` 的 `collectTimelineSelections`（:76–84）与 `useTimelineSelectionChips` 里另找片段（:136–153）；`useAgentPanelV4Data.ts` 里 `label || text || id` 另算名字（:318–325）和裸读 `selectedTimelineClipIds`/`selectedTextClipId`（:226–232）。
 - 「拖画布节点不让助手面板重渲染」：本环境无 DOM，量不了真实重渲染次数；测试盯结构（芯片 hook 与面板数据层都不订阅生成画布 store），写在 `residentSelection.test.ts`，如实标注。
 - 同提交加守卫：新增概念登记 `agent.resident-selection`；ESLint 独立规则：`src/workbench/ai/**`（除主人与采集适配两个文件与测试）里读 `selectedNodeIds`/`selectedTimelineClipIds`/`selectedTextClipId`（点号、方括号、解构、选择器）报红。
 
-## 还岔着、等用户定（这一刀不改行为）
+## 原先还岔着的两处：已收（用户 11-17 拍板：芯片显示什么助手就收到什么，不一致的一律以芯片为准）
 
-1. 拖动后芯片标「· 已变更」，但发送照常带上它新的位置。芯片在说「请重选」，发出去的却没受影响。方向复盘的看法：芯片指的是实时选中、发送时才冻结，这条提示没有保护对象，可以删；删了芯片少一个后缀，看得见，交用户定。
-2. 停止或撤回排队后草稿带回，发送时 `electron/agentLane/laneHost.mts:569` 的 `{...本次, ...restoredIntent}` 让旧快照和旧目标盖过本次选区：芯片显示当前选中，发出去的是旧的。这是「恢复草稿」，不是「重试」，两条路各自独立；之前写成「重试保留旧意图、有意」不对。复盘推荐发送时用当前选中，另一种做法是保留旧意图并让芯片显示旧选中。两种都会改今天的结果，交用户选。
+1. 停止或撤回排队后草稿带回，发送时旧快照和旧目标盖过本次选区（`electron/agentLane/laneHost.mts` `inputMessage`，合并 `{...本次, ...restoredIntent}`）。已收：恢复回来的草稿只带回模板（`systemPrompt`），目标、上下文快照、文稿、文稿前提、分镜镜头目标都取这一轮自己的（后几项互相绑着，分镜目标的文稿版本要和文稿前提对得上，不能新旧混取），这一轮发出去的就是此刻芯片显示的选区。看得见的后果：分镜面上取消排队、草稿带回后，原先点选的镜头不再随这条发出，要重新点选（草稿带回时不恢复镜头芯片；「带回时一并恢复镜头芯片」是下一刀的选项）。入口数：`restoredIntent` 的读入口 3 扇（`laneDesktopInput.ts` 解析、`laneHost.mts` 合并、`laneSingleShot.mts` 拒绝），真正合并的只有 `laneHost.mts` 一处，修在这里；老版本信封里留下的 `target` / `contextSnapshot` 照常解析、在合并处丢弃，不迁移。「重试 / 继续」是另一条路（`resolveLaneReplay` → `replayLaneInput`，信封里不许带 `restoredIntent`），按原输入重放、带原选区，保持原样，两条路各钉一条测试（`tests/agent-runtime/lane-replay-admission.test.mts`）。
+2. 芯片上的「· 已变更」。已收：删掉文案键 `agentPanelV4.clipStale`、`timelineSelectionRevision` / `timelineClipRevision` / `useTimelineSelectionRevisions` / `useTimelineSelectionChips`（含按位置记起止帧的记忆）、`useAgentPanelV4Data.ts` 里的 `staleFor` 分支；芯片只剩名字，拖动片段后照常显示、照常发出。
+
+仍留着的（不在这一刀）：画布节点 / 文稿光标没有芯片，是已知缺口，新增要用户看图定；`ProjectAgentReference.contextHandle`（`workbenchStore.ts:90`）已无读写者，留给下一刀。
+
+创作者看得见的变化三条：① 选中字幕发送，助手真的收到这句字幕；② 停止后改选再发，发的是新选的；③ 芯片不再出现「· 已变更」。老用户：没有存储迁移，旧会话、旧草稿原样可用。
 
 ## ★3 一致与复用
 
@@ -78,7 +82,7 @@
 - 成功：见 ★1 四条。
 - 失败：选择里有不存在的项 → 滤掉，不报错。
 - 取消中：发送在第一个 await 之前冻结，之后改选不影响这一轮。
-- 过期：芯片按位置报「已变更」（不变，但见「还岔着」第 1 条）。
+- 过期：没有这一格了（「已变更」已删，芯片只显示名字，发送时冻结）。
 - 能力不可用：不适用。
 - 最大值：选 40 个节点 / 片段，目标 40，快照走已有预算与省略账（已有测试）。最长文字：片段文字标题由快照投影截到 160。
 
@@ -106,6 +110,9 @@
 - E. 芯片名改回 `label || text || id` → D3 红。
 - F. 第二处用另一个名字重写筛选（不读上述三个字段名，如自己 `.filter` 时间轴片段）→ 选区概念登记的定义禁令红；任意别名逃逸能否彻底封住不知道，这一条限同名字段与同名定义，不声称全封。
 - G. 正例必须绿：主人与采集适配读原始字段、普通消费者只用结果。
+- H. 第二个提交：`laneHost.mts` 合并处改回 `{...currentAdmission, ...restoredIntent}`（旧意图盖过当前选区）→ `lane-replay-admission` 的「恢复草稿发当前选区」红。
+- I. 第二个提交：把 `clipStale` 文案或 `staleFor` 放回芯片 → `residentSelection.test.ts` 的「已变更不会悄悄回来」红。
+- 第二个提交的真窗口两条：停止 → 改选 → 发送，读回请求里是新选的；拖动片段 → 芯片无「已变更」→ 发送带它的新位置（`agent-selection-one-home.walk.mjs` 情形 4、5）。
 
 这一类还会从哪里回来：新增一个工作面或一种可选中对象（如音频波形选区）时在消费者里另算一遍；由「读原始选区字段只准两个文件」的规则和对拍测试守。
 

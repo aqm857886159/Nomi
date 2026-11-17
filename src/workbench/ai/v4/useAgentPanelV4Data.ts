@@ -19,7 +19,8 @@ import { skillForKey, skillLabelForKey } from '../../skillLibrary/skillDisplay'
 import { onSkillLibraryChanged } from '../../skillLibrary/skillLibraryChanged'
 import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from '../assistantModelIdentity'
 import { getAssistantModelPref, setAssistantModelPref } from '../assistantModelPref'
-import { useTimelinePlanRows, useTimelineSelectionChips } from '../resident/timelineAgentSurface'
+import { useTimelinePlanRows } from '../resident/timelineAgentSurface'
+import { useResidentTimelineMembers } from '../resident/useResidentSelectionMembers'
 import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
 import {
   getGenerationModelDefaults,
@@ -227,7 +228,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
   const activeSkill = useWorkbenchStore((state) => state.creationActiveSkill)
   const selectedLibraryPrompt = useWorkbenchStore((state) => state.selectedLibraryPrompt)
   const attachments = useWorkbenchStore((state) => state.projectAgentAttachments)
-  const timelineSelection = useTimelineSelectionChips(surface)
+  const timelineMembers = useResidentTimelineMembers(surface)
 
   const view = React.useMemo(() => laneViewModel(snapshot.active, {
     toolLabel: toolDisplayCache.label,
@@ -313,16 +314,10 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
       const skill = skillForKey(skills, activeSkill.key)
       chips.push({ kind: 'skill', label: skillLabel(activeSkill.key), cover: skill?.cover, preview: skill?.preview, description: skill?.description ?? undefined })
     } else if (selectedLibraryPrompt) chips.push({ kind: 'skill', label: selectedLibraryPrompt.title, cover: selectedLibraryPrompt.mediaType === 'image' ? selectedLibraryPrompt.mediaUrl : undefined, preview: selectedLibraryPrompt.mediaUrl ? { url: selectedLibraryPrompt.mediaUrl, type: selectedLibraryPrompt.mediaType } : undefined, description: selectedLibraryPrompt.prompt })
-    for (const member of timelineSelection.members) {
-      // 名字由选区解析给（素材名 / 文字正文，空白回落 ID），和发给助手的句柄同一份。
-      chips.push({
-        kind: 'clip',
-        // 选中的那一段已经变了位置/长度：chip 上直接说「已变更」，别让用户以为还指着原来那段。
-        label: timelineSelection.staleFor(member.id) ? String(t('agentPanelV4.clipStale', { label: member.title })) : member.title,
-      })
-    }
+    // 名字由选区解析给（素材名 / 文字正文，空白回落 ID），和发给助手的句柄同一份：芯片显示什么，助手这一轮就收到什么。
+    for (const member of timelineMembers) chips.push({ kind: 'clip', label: member.title })
     return Object.freeze(chips)
-  }, [activeSkill, selectedLibraryPrompt, skills, skillLabel, attachments, t, timelineSelection])
+  }, [activeSkill, selectedLibraryPrompt, skills, skillLabel, attachments, t, timelineMembers])
 
   return {
     connectionFailure,

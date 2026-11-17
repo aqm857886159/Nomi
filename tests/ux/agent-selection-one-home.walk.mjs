@@ -6,6 +6,8 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 三个情形（每个情形：真点选 → 看芯片 → 真点发送 → 读假模型收到的那一轮请求）：
 //   1 只选一段字幕（没选素材）——修前：芯片亮着、助手收不到这段文字；修后：收得到。
 //   2 只选一段素材——前后都收得到。
+//   4 停止后改选再发：草稿带回旧选区，改选另一段后发送，请求里是新选的
+//   5 拖动片段：芯片不带「已变更」，发送带它拖动后的新位置
 //   3 素材和字幕同选（按住 Shift 追加）——都收得到。
 // 运行：pnpm run build && NOMI_WALK_LOCALE=zh-CN|en NOMI_WALK_OUT=<目录> node tests/ux/agent-selection-one-home.walk.mjs
 // 结果写进 <目录>/result.json（每个情形：芯片文字、请求里有没有字幕正文 / 素材名），截图 <目录>/*.png。
@@ -15,7 +17,7 @@ import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
 import { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
-import { COLLAPSED_DOCK, COMPOSER, COMPOSER_INPUT, COMPOSER_SEND, PREVIEW_PANEL, chooseAssistantModel, recorded } from './agent-runtime-walk-support.mjs'
+import { COLLAPSED_DOCK, COMPOSER, COMPOSER_INPUT, COMPOSER_SEND, PREVIEW_PANEL, QUEUE_ROW, chooseAssistantModel, expectComposerText, recorded, waitForV4TurnIdle } from './agent-runtime-walk-support.mjs'
 
 const locale = process.env.NOMI_WALK_LOCALE === 'en' ? 'en' : 'zh-CN'
 const out = process.env.NOMI_WALK_OUT ?? path.join(repoRoot, 'tests/ux/shots/agent-selection-one-home', locale)
@@ -112,6 +114,11 @@ try {
   await expect(caption, 'caption clip rendered').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const chips = agent.locator(`${COMPOSER} [data-v4-chip="clip"]`)
 
+  function lastUserText(wire) {
+    const lastUser = [...(wire.body.messages ?? [])].reverse().find((message) => message.role === 'user')
+    return flattenRequestText({ ...wire.body, messages: lastUser ? [lastUser] : [], tools: undefined })
+  }
+  const startMsOf = (text) => [...text.matchAll(/"startMs":\s*(\d+)/g)].map((match) => Number(match[1]))
   async function sendAndRecord(name, prompt) {
     const call = fixture.expectText({
       label: `${name}: the model round`,
@@ -123,8 +130,7 @@ try {
     await screenshotSettled(win, { path: path.join(out, `${name}-1-chip-before-send.png`) })
     await clickOrFail(win.locator(`${PREVIEW_PANEL} ${COMPOSER_SEND}`), `send: ${prompt}`)
     const wire = await recorded(call.received, `${name} request`)
-    const lastUser = [...(wire.body.messages ?? [])].reverse().find((message) => message.role === "user")
-    const text = flattenRequestText({ ...wire.body, messages: lastUser ? [lastUser] : [], tools: undefined })
+    const text = lastUserText(wire)
     await win.waitForTimeout(600)
     await screenshotSettled(win, { path: path.join(out, `${name}-2-after-send.png`) })
     return text
@@ -152,12 +158,64 @@ try {
   const both = await sendAndRecord('case3-media-then-caption', 'Case three: what is selected')
   results.push({ case: 'media-then-caption', chips: await chipTexts(), requestHasCaption: both.includes(CAPTION_TEXT), requestHasClip: both.includes(CLIP_LABEL) })
 
+  // 情形 4：停止后改选再发——先发一句让这一轮卡住，再排一条带「Door push」选区的指令，取消它（草稿带回），改选「Reaction」后发送。
+  await clipA.click()
+  await expect(chips.first(), 'chip for the clip before the held turn').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  const input = win.locator(`${PREVIEW_PANEL} ${COMPOSER_INPUT}`)
+  const hold = fixture.expectText({ label: 'case four: held turn', match: (body) => flattenRequestText(body).includes('Case four hold'),
+    reply: { type: 'hold', text: 'Working on it.' } })
+  await input.fill('Case four hold')
+  await clickOrFail(win.locator(`${PREVIEW_PANEL} ${COMPOSER_SEND}`), 'send the held turn')
+  await recorded(hold.received, 'case four held request')
+  const reselectPrompt = 'Case four: send after reselect'
+  await input.fill(reselectPrompt)
+  await input.press('Enter')
+  const queued = agent.locator(QUEUE_ROW).filter({ hasText: reselectPrompt })
+  await expect(queued, 'queued instruction').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await clickOrFail(queued.getByRole('button', { name: /取消这条指令|Cancel this instruction/ }), 'cancel the queued instruction')
+  await expectComposerText(input, reselectPrompt, 'draft restored into the composer')
+  const clipB = timelinePanel.locator('[data-testid="timeline-clip"]').nth(1)
+  await clipB.click()
+  await expect.poll(async () => (await chipTexts()).join('|'), { message: 'chip follows the new selection', timeout: DEFAULT_TIMEOUT_MS }).toContain('Reaction')
+  const answer = fixture.expectText({ label: 'case four: send after reselect', match: (body) => flattenRequestText(body).includes(reselectPrompt),
+    reply: { type: 'text', text: 'WALK_case4_DONE' } })
+  await screenshotSettled(win, { path: path.join(out, 'case4-reselect-1-restored-draft-new-chip.png') })
+  hold.release({ type: 'text', text: 'WALK_case4_HOLD_DONE' })
+  await waitForV4TurnIdle(win, { panel: PREVIEW_PANEL, settledBy: agent.getByText(/WALK_case4_HOLD_DONE/).first() })
+  await input.press('Enter')
+  const case4Wire = await recorded(answer.received, 'case four request')
+  const case4Text = lastUserText(case4Wire)
+  await win.waitForTimeout(600)
+  await screenshotSettled(win, { path: path.join(out, 'case4-reselect-2-after-send.png') })
+  results.push({ case: 'stop-reselect-send', chips: await chipTexts(), requestHasNewSelection: case4Text.includes('Reaction'), requestHasOldSelection: case4Text.includes(CLIP_LABEL) })
+
+  // 情形 5：拖动片段——芯片照常显示（没有「已变更」），发送带它拖动后的新位置。
+  await win.waitForTimeout(800)
+  await clipB.click()
+  await expect(chips.first(), 'chip for the clip before dragging').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  const startBefore = startMsOf(case4Text)[0]
+  const box = await clipB.boundingBox()
+  await win.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await win.mouse.down()
+  await win.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 6 })
+  await win.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2, { steps: 8 })
+  await win.mouse.up()
+  await win.waitForTimeout(500)
+  const draggedChips = await chipTexts()
+  const dragged = await sendAndRecord('case5-dragged', 'Case five: where is it now')
+  const startAfter = startMsOf(dragged)[0]
+  results.push({ case: 'dragged-clip', chips: draggedChips, chipHasChangedMark: draggedChips.some((value) => /已变更|changed/i.test(value)),
+    requestHasClip: dragged.includes('Reaction'), startMsBefore: startBefore, startMsAfter: startAfter, startMsMoved: startAfter !== startBefore })
+
   fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify({ locale, commit: process.env.NOMI_WALK_COMMIT ?? '', results }, null, 2))
   console.log(JSON.stringify(results, null, 2))
   if (expectAfter) {
     expect(results[0].requestHasCaption, '只选字幕时，助手这一轮收得到字幕正文').toBe(true)
     expect(results[0].chips.length, '只选字幕时芯片 1 枚').toBe(1)
     expect(results[1].requestHasClip, '只选素材时，助手收得到素材名').toBe(true)
+    expect(results[3].requestHasNewSelection && !results[3].requestHasOldSelection, '停止后改选再发，发出去的是新选的').toBe(true)
+    expect(results[4].chipHasChangedMark, '拖动后芯片不带「已变更」').toBe(false)
+    expect(results[4].requestHasClip && results[4].startMsBefore !== undefined && results[4].startMsMoved, '拖动后发送带这段片段的新位置').toBe(true)
   }
 } catch (error) {
   failure = error

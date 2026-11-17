@@ -566,7 +566,14 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       // Whatever the envelope carried is destructured away first — a submitted value, and the
       // restored draft's historical one, are both discarded — and the key only reappears when
       // this admission actually holds a target. No target = no surface authority (fail-closed).
-      const { admissionSurface: _submitted, ...intent } = { ...currentAdmission, ...restoredIntent };
+      //
+      // 「选了什么」同理：恢复回来的草稿只带回它的模板（`systemPrompt`）。目标、上下文快照、文稿前提、
+      // 分镜镜头目标都取这一轮 admission 自己的——聊天框芯片显示的是此刻的选中，发出去的必须就是它；
+      // 这几项也互相绑着（分镜目标的文稿版本要和文稿前提对得上），不能新旧混着取。
+      // 信封里老版本留下的这些项照常解析、在这里丢弃，不迁移。
+      // 「重试 / 继续」是另一条路（上面 `resolveLaneReplay`），按原输入重放，不经过这里。
+      const restoredRest = restoredIntent?.systemPrompt !== undefined ? { systemPrompt: restoredIntent.systemPrompt } : {};
+      const { admissionSurface: _submitted, ...intent } = { ...currentAdmission, ...restoredRest };
       message = { role: 'nomi.input', content: text, timestamp: Date.now(),
         context: { ...intent, ...(captured.target ? { admissionSurface: captured.target.kind } : {}) } };
     }
