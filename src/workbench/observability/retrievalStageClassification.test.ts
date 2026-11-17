@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import i18n from '../../i18n'
 import { isRetrievalStageCode, NOMI_ERROR_ONLY_BEFORE_SUBMIT, tagNomiError, type NomiErrorCode } from '../../../electron/shared/nomiErrorCodes'
 import { classifyGenerationError } from './classifyError'
-import { narrateGenerationErrorActions, narrateIsVendorSideFailure } from './narrate'
+import { actionsOfKind, isVendorSideKind } from '../../../electron/shared/generationFailure'
 
 const RETRIEVAL_INCOMPLETE = { kind: 'retrieval-incomplete', primary: 'view-task', secondary: null } as const
 /**
@@ -80,7 +80,7 @@ describe('取回阶段码 → 「已提交、这次没取回」', () => {
   })
 
   it('动作表与「是不是服务商那一侧」表都有这一类的答案', () => {
-    expect(narrateGenerationErrorActions('retrieval-incomplete')).toEqual({ primary: 'view-task', secondary: null })
-    expect(narrateIsVendorSideFailure('retrieval-incomplete')).toBe(false)
+    expect(actionsOfKind('retrieval-incomplete')).toEqual({ primary: 'view-task', secondary: null })
+    expect(isVendorSideKind('retrieval-incomplete')).toBe(false)
   })
 })

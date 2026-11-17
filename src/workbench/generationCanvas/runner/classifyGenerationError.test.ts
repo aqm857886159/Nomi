@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { classifyGenerationError } from './generationRunController'
-import { parseVendorErrorFromMessage, stripVendorErrorMarker } from './vendorErrorIpc'
+import { parseVendorErrorFromMessage, stripVendorErrorMarker } from '../../../../electron/shared/generationFailure'
 import { desktopT } from '../../../../electron/i18n'
 import { ratioResToOpenAiSize } from '../../../../electron/catalog/paramTranslate'
 import { describeAgentError } from '../../../../electron/ai/agentError'
@@ -9,7 +9,8 @@ import { laneModelTimeoutMessage } from '../../../../electron/shared/agentLane/l
 import { tagNomiError, stripNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
 import { encodeStructuredErrorMessage } from '../../../../electron/vendor/vendorHttp'
 import i18n from '../../../i18n'
-import { narrateGenerationErrorActions, type GenerationErrorKind } from '../../observability/narrate'
+import type { GenerationErrorKind } from '../../observability/narrate'
+import { actionsOfKind } from '../../../../electron/shared/generationFailure'
 
 describe('classifyGenerationError — 已知分类', () => {
   it.each(['Nomi 中转暂时不可用。请重试、换小一点的文件，或去设置里允许第三方公共临时托管。', 'Nomi relay is temporarily unavailable. Retry, use a smaller file, or allow third-party public temporary hosting in Settings.'])('keeps the upload summary separate from IPC and technical details: %s', (summary) => {
@@ -625,7 +626,7 @@ describe('动作表：每类主 / 次动作都写在表里，改一类不许带�
 
   it('已下线、读不出来以外的每一类，次动作都和改表前的规则一样（主动作是重试 / 一键改对 → 换个模型；其余 → 重试）', () => {
     for (const kind of Object.keys(EVERY_KIND) as GenerationErrorKind[]) {
-      const { primary, secondary } = narrateGenerationErrorActions(kind)
+      const { primary, secondary } = actionsOfKind(kind)
       const before = primary === 'retry' || primary === 'fix-model-kind' || primary === 'switch-same-capability' ? 'switch-model' : 'retry'
       // 已下线、读不出来：这两类不给第二个动作（重试必再撞同一张卡 / 换供应商不是解法）；
       // 结果未知：不给重试（可能重复提交），只指路去核对。

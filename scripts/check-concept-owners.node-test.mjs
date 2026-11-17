@@ -8,7 +8,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { findIdentityComparators, findShotJobSelections } from './concept-owners-scan.mjs'
+import { findFailureDecisionBypass, findIdentityComparators, findShotJobSelections } from './concept-owners-scan.mjs'
 import { trustDomainOfPath } from './concept-owners-lib.mjs'
 import { CONCEPT_OWNERS_DIR, conceptFileName } from './concept-registry-lib.mjs'
 import { META_FILE, formatEntryJson, parseCatFileBatch } from './lib/entryDirectory.mjs'
@@ -940,4 +940,46 @@ test('当前任务：真实旧阶段与单镜旁路、改名、内联、别名�
   }
   // 精确身份查询不是「最新」；仅在其原有专用范围内允许。
   assert.deepEqual(findShotJobSelections({ files: Object.keys(negative), read: (file) => negative[file] }), [])
+})
+
+// 失败判定旁路：共享层（electron/shared/generationFailure*）读得到词表，出口自己判一遍就红；投影、只拼技术详情、测试夹具不红。
+test('failure-decision-bypass 认出出口自己判类别 / 公开码 / 动作的写法，不拦投影', () => {
+  const owner = {
+    'electron/shared/generationFailure.ts': "export type GenerationErrorKind = 'auth' | 'network' | 'model-config' | 'unknown'\nexport type GenerationErrorAction = 'retry' | 'open-model-access'\n",
+    'electron/shared/generationFailureCopy.ts': "export const TOOL_ERROR_HINT = { node_not_found: { zh: '', en: '', recover: [] }, unknown_model_identity: { zh: '', en: '', recover: [] } }\nexport const TOOL_USER_ACTION_HINT = { human_approval_required: { action: 'in_nomi', zh: '', en: '' } }\n",
+  }
+  const scan = (file, snippet) => findFailureDecisionBypass({
+    files: [...Object.keys(owner), file],
+    read: (name) => (name === file ? snippet : owner[name]),
+  })
+  const bad = [
+    // 子串认码（原样、改名、内联、别名、三目分支、正则）
+    ['electron/capabilityCore/exit.ts', "export const pick = (rawMessage: string) => rawMessage.includes('node_not_found') ? 1 : 0"],
+    ['electron/capabilityCore/exit.ts', "const KNOWN = 'unknown_model_identity'\nexport function f(message: string) { return message.includes(KNOWN) }"],
+    ['electron/capabilityCore/exit.ts', "export function f(text: string, flag: boolean) { return text.indexOf(flag ? 'node_not_found' : 'unknown_model_identity') >= 0 }"],
+    ['electron/capabilityCore/exit.ts', "export function f(error: Error) { return /(?:^|\\W)node_not_found(?:\\W|$)/.test(error.message) }"],
+    ['src/workbench/exit.ts', "export function f(raw: string) { return raw.match(/model-config|unknown_model_identity/) }"],
+    // 在出口构造或覆盖决定（需引用失败判定家族符号）
+    ['src/workbench/ai/lane/exit.ts', "import { classifyGenerationError } from '../../observability/classifyError'\nexport const f = (m: string) => { const r = classifyGenerationError(m); return r.kind === 'unknown' ? { ...r, kind: 'network' } : r }"],
+    ['src/workbench/ai/lane/exit.ts', "import { classifyGenerationError } from '../../observability/classifyError'\nconst NET = 'network'\nexport const f = (m: string) => ({ ...classifyGenerationError(m), kind: NET })"],
+    ['src/workbench/ai/lane/exit.ts', "import { classifyGenerationError } from '../../observability/classifyError'\nexport const f = (m: string, x: boolean) => ({ ...classifyGenerationError(m), primary: x ? 'retry' : 'open-model-access' })"],
+    ['electron/capabilityCore/exit.ts', "import { buildToolErrorOutcome } from './mcpToolErrorResults'\nexport const f = (e: Error) => ({ ...buildToolErrorOutcome('t', e).outcome, errorCode: 'node_not_found' })"],
+  ]
+  for (const [file, snippet] of bad) assert.ok(scan(file, snippet).length, snippet)
+  const good = [
+    // 投影：读决定的字段，不在出口写字面量
+    ['src/workbench/observability/classifyError.ts', "import { decideGenerationFailure } from '../../../electron/shared/generationFailure'\nexport const f = (m: string) => { const d = decideGenerationFailure({ message: m, locale: 'en' }); return { kind: d.kind, primary: d.primary } }"],
+    // 没引用家族符号的无关 kind / primary 字面量
+    ['src/workbench/other.ts', "export const f = () => ({ kind: 'retry', primary: 'network' })"],
+    // 只拼技术详情：不比对封闭词表
+    ['src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts', "import { classifyGenerationError } from '../../../observability/classifyError'\nexport const f = (message: string) => `${classifyGenerationError(message).reason} ${message.includes('HTTP 500') ? '(HTTP 500)' : ''}`"],
+    // 对不是原文的变量比对词表里的码（比如协议层自己的码字段）
+    ['electron/capabilityCore/protocol.ts', "export const f = (code: string) => code === 'node_not_found' || ['node_not_found'].includes(code)"],
+    // 测试夹具工具（按码给样本分桶）
+    ['electron/parity/generationParityTestUtils.ts', "export const f = (message: string) => /unknown_model_identity/.test(message)"],
+    // owner 自己
+  ]
+  for (const [file, snippet] of good) assert.deepEqual(scan(file, snippet), [], snippet)
+  // 反向控制：词表读不到（owner 文件缺失）时什么都不认——不会在没有词表的仓库里乱红
+  assert.deepEqual(findFailureDecisionBypass({ files: ['electron/capabilityCore/exit.ts'], read: () => "const m = ''; m.includes('node_not_found')" }), [])
 })

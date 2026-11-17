@@ -320,6 +320,9 @@ const dynamicModuleSelectors = (name, importNames, message) => {
 }
 const boundaryPlugin = (...ruleIds) => ({ rules: Object.fromEntries(ruleIds.map((id) => [id, builtinRules.get(id)])) })
 
+const FAILURE_COPY_MESSAGE = '外部助手公开码的人话表只给 mcpToolErrorResults 这一处投影读；别处要说失败，调 decideGenerationFailure（共享判定）或界面的 classifyGenerationError，不自己拼一份。'
+const FAILURE_TABLE_NAMES = ['actionsOfKind', 'withoutTaskOfKind', 'ERROR_KEY_BY_KIND', 'failureCopyOf', 'PUBLIC_ERROR_CODES']
+const FAILURE_TABLE_MESSAGE = '失败的动作表 / 词条键表 / 无任务表只许经界面投影（narrate / classifyError / generationFailureActions）读；要「这类失败说什么、能做什么」调 decideGenerationFailure 或 classifyGenerationError，不自己查表。'
 const RAW_VENDOR_SEND_NAMES = ['requestJson', 'requestMultipart', 'requestBinary']
 const RAW_VENDOR_SEND_MESSAGE = '原始出网（vendorHttp 的 requestJson / requestMultipart / requestBinary）只给装配与传输主人：生成请求经 catalog/profileHttpRequest.ts 渲染封存、用 sendProfileJson 发。新出网口要么走它，要么在 eslint.config.mjs 的 RAW_VENDOR_SEND_OWNERS 登记理由。'
 const RAW_VENDOR_SEND_OWNERS = {
@@ -727,6 +730,28 @@ export default tseslint.config(
     ignores: ['**/*.test.{ts,tsx}', '**/__tests__/**', 'src/workbench/generationCanvas/nodes/controls/modeTestHelpers.ts'],
     plugins: { 'mode-owner': { rules: { 'no-restricted-imports': builtinRules.get('no-restricted-imports') } } },
     rules: { 'mode-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/modeTestHelpers'], message: '这次按哪种方式发走 effectiveArchetypeMode（按输入现算）；modeTestHelpers 只给测试用。' }] }] },
+  },
+  {
+    // 失败怎么判只有一个家：electron/shared/generationFailure。外部助手公开码的人话表（generationFailureCopy）只给外部助手出口那一处投影读；
+    // 共享层的内部表（动作表 / 词条键表 / 无任务表 / 公开码清单）只许经界面投影（narrate / classifyError / generationFailureActions）读，
+    // 别处要「这类失败说什么、能做什么」就调 decideGenerationFailure 或界面的 classifyGenerationError，不自己查表拼一份。
+    // 配套的扫描（出口自己做子串 / 正则认码、覆盖类别 / 动作）在 check:concept-owners 的 failure-decision-bypass。
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/shared/generationFailure.ts', 'electron/shared/generationFailureCopy.ts', 'electron/capabilityCore/mcpToolErrorResults.ts'],
+    plugins: { 'failure-copy-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'failure-copy-owner/no-restricted-imports': ['error', { patterns: [{ group: moduleSources('generationFailureCopy'), message: FAILURE_COPY_MESSAGE }] }],
+      'failure-copy-owner/no-restricted-syntax': ['error', ...dynamicModuleSelectors('generationFailureCopy', ['TOOL_ERROR_HINT', 'TOOL_USER_ACTION_HINT', 'TASK_FAILED_FALLBACK'], FAILURE_COPY_MESSAGE)],
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/shared/generationFailure.ts', 'electron/shared/generationFailureCopy.ts', 'src/workbench/observability/narrate.ts', 'src/workbench/observability/classifyError.ts', 'src/workbench/observability/generationFailureActions.ts'],
+    plugins: { 'failure-table-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'failure-table-owner/no-restricted-imports': ['error', { patterns: [{ group: moduleSources('generationFailure'), importNames: FAILURE_TABLE_NAMES, message: FAILURE_TABLE_MESSAGE }] }],
+      'failure-table-owner/no-restricted-syntax': ['error', ...dynamicModuleSelectors('generationFailure', FAILURE_TABLE_NAMES, FAILURE_TABLE_MESSAGE)],
+    },
   },
   {
     // TipTap 编辑器只有一扇门：useNomiTiptapEditor（固定 React 19 下的生命周期选项）。
