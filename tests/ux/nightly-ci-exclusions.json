@@ -19,7 +19,7 @@
     { "path": "tests/ux/credential-redirect.walk.mjs", "category": "B", "reason": "requires the developer machine's real Nomi profile (copied catalog and credentials, fingerprint-checked); run by hand on a configured machine" },
     { "path": "tests/ux/custom-prompt-realtask.walk.mjs", "category": "B", "reason": "requires the developer machine's real model catalog and credentials" },
     { "path": "tests/ux/director-3dbox-3b-agent.walk.mjs", "category": "B", "reason": "requires a live DeepSeek API key" },
-    { "path": "tests/ux/director-3dbox-3c-agent.walk.mjs", "category": "B", "reason": "requires a local renderer dev server" },
+    { "path": "tests/ux/director-3dbox-3c-agent.walk.mjs", "category": "B", "reason": "requires a local renderer dev server, NOMI_WALK_AGENT_VENDOR, and live model credentials copied from the developer's real profile via seedRealModels" },
     { "path": "tests/ux/draft-loop.walk.mjs", "category": "B", "reason": "spends real image credits through the developer machine's real profile (NOMI_R16_GEN=1); otherwise it exits as a skip that nightly counted as a pass; run by hand in the paid lane" },
     { "path": "tests/ux/find-reference.walk.mjs", "category": "B", "reason": "requires a live TikHub API key and network; without it the walk exits as a skip that nightly counted as a pass; run by hand with TIKHUB_API_KEY" },
     { "path": "tests/ux/import-reveal.walk.mjs", "category": "B", "reason": "requires an external evidence directory with real media" },

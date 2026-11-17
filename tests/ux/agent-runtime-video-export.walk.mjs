@@ -6,13 +6,15 @@ import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
+import ffmpeg from '@ffmpeg-installer/ffmpeg'
+import ffprobe from '@ffprobe-installer/ffprobe'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, screenshotSettled } from './_assert.mjs'
 import { newProjectEntry, switchWorkspace } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = process.cwd()
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/agent-runtime-video-export')
+const shotsDir = path.resolve(process.env.EVIDENCE_DIR || path.join(repoRoot, '.tmp/agent-runtime-video-export'))
 fs.mkdirSync(shotsDir, { recursive: true })
 const tempRoot = makeTempDir('nomi-agent-video-export-')
 const userDataDir = path.join(tempRoot, 'user-data')
@@ -23,7 +25,7 @@ for (const dir of [userDataDir, settingsDir, projectsDir]) fs.mkdirSync(dir, { r
 
 // Deterministic, valid H.264 MP4 returned by the loopback endpoint. It is not a fake URL:
 // ffprobe and Chromium must both decode these bytes.
-execFileSync('/opt/homebrew/bin/ffmpeg', [
+execFileSync(ffmpeg.path, [
   '-y', '-f', 'lavfi', '-i', 'color=c=0x274060:s=640x360:r=24', '-t', '2',
   '-pix_fmt', 'yuv420p', '-movflags', '+faststart', fixtureVideo,
 ], { stdio: 'ignore' })
@@ -235,7 +237,7 @@ try {
     exportPath = candidates.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0] || null
   }
   check(Boolean(exportPath), '导出入口产生真实 MP4 文件')
-  const exportProbe = execFileSync('/opt/homebrew/bin/ffprobe', ['-v', 'error', '-show_streams', '-show_entries', 'format=duration', '-of', 'json', exportPath], { encoding: 'utf8' })
+  const exportProbe = execFileSync(ffprobe.path, ['-v', 'error', '-show_streams', '-show_entries', 'format=duration', '-of', 'json', exportPath], { encoding: 'utf8' })
   const exportJson = JSON.parse(exportProbe)
   check(exportJson.streams?.some((stream) => stream.codec_type === 'video'), '导出 MP4 含视频流', exportPath)
   check(Number(exportJson.format?.duration) > 0 && fs.statSync(exportPath).size > 0, '导出 MP4 有正时长和非零字节', JSON.stringify({ bytes: fs.statSync(exportPath).size, duration: exportJson.format?.duration }))
@@ -261,6 +263,7 @@ try {
   console.log(JSON.stringify({ result: 'passed', evidenceState: 'loopback', paidCalls: 0, projectId, nodeId, wireCalls, exportPath, screenshots: shotsDir }, null, 2))
 } catch (error) {
   console.error(`VIDEO EXPORT WALK FAILED: ${error.stack || error.message}`)
+  if (win && !win.isClosed()) await snap(win, 'failure').catch(() => {})
   process.exitCode = 1
 } finally {
   await app?.close().catch(() => {})
