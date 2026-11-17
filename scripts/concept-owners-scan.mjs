@@ -502,20 +502,10 @@ export function findShotJobSelections({ files, read }) {
   return found
 }
 
-// ─── 失败判定旁路（diagnostics.generation-failure-decision，2026-11-18）──────────────────────────
-// 「这次失败算哪一类、给什么公开码、说什么、能做什么」只在 electron/shared/generationFailure 判一次；出口只投影。
-// 这里认出共享层之外两种写法：
-//   ① 子串 / 正则认码：对「像原文的变量」（message / raw / text …）做 includes / indexOf / startsWith / match / test，
-//      比对的是封闭词表里的公开码或失败类别（含别名、模板字符串、正则字面量、内联）；
-//   ② 构造或覆盖：在引用了失败判定家族符号的文件里，对象字面量的 kind / errorCode / publicCode / primary / secondary
-//      取值是封闭词表里的字面量（含常量别名、三目 / ?? / || 的分支）。
-// 封闭词表不手抄：从 owner 文件读（类别 / 动作取自两个联合类型，公开码取自词条文件两张表的键），改词表即自动跟上。
-// shortcut: 仅识别已知 AST 形状；出现新旁路时升级为把判定入口收成唯一导出的读取接口。
+// ─── 失败判定旁路（diagnostics.generation-failure-decision）─────────────────────
 export const FAILURE_DECISION_OWNER_FILES = new Set([
-  'electron/shared/generationFailure.ts',
-  'electron/shared/generationFailureKinds.ts',
-  'electron/shared/generationFailureWire.ts',
-  'electron/shared/generationFailureDetect.ts',
+  'electron/shared/generationFailure.ts', 'electron/shared/generationFailureKinds.ts',
+  'electron/shared/generationFailureWire.ts', 'electron/shared/generationFailureDetect.ts',
   'electron/shared/generationFailureCopy.ts',
 ])
 const FAILURE_FAMILY = new Set([
@@ -523,150 +513,160 @@ const FAILURE_FAMILY = new Set([
   'decideGenerationFailure', 'GenerationFailureDecision', 'projectGenerationFailure', 'failureActionsFor',
   'narrateGenerationError', 'buildToolErrorOutcome', 'confirmPublicError', 'generationFailureActions',
 ])
-const FAILURE_FIELDS = new Set(['kind', 'errorCode', 'publicCode', 'primary', 'secondary'])
-const MESSAGE_LIKE = /(?:message|raw|msg|text|detail|reason|stderr|output|body)$/i
-const REGEX_METHODS = new Set(['test', 'match', 'matchAll', 'search'])
-const STRING_METHODS = new Set(['includes', 'indexOf', 'startsWith', 'endsWith'])
+const FAILURE_FIELDS = new Set(['kind', 'errorCode', 'publicCode', 'primary', 'secondary', 'vendorSide'])
+const FAILURE_COPY_FIELDS = new Set([...FAILURE_FIELDS, 'reason', 'hint', 'key', 'recoveryActions', 'nextActions'])
+const FAILURE_PRODUCERS = new Set(['decideGenerationFailure', 'classifyGenerationError', 'projectGenerationFailure', 'buildToolErrorOutcome', 'confirmPublicError', 'failureActionsFor', 'generationFailureActions'])
+const RAW_NAME = /(?:message|raw|msg|text|stderr)$/i
+const RAW_METHODS = new Set(['includes', 'indexOf', 'startsWith', 'endsWith', 'match', 'matchAll', 'test', 'search', 'exec'])
+const EQUALITY = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken])
 
-function stringLiteralsOfUnion(type) {
-  const out = new Set()
-  const visit = (node) => {
-    if (ts.isLiteralTypeNode(node) && ts.isStringLiteralLike(node.literal)) out.add(node.literal.text)
-    ts.forEachChild(node, visit)
-  }
-  visit(type)
-  return out
-}
-
-/** 封闭词表：类别、动作、公开码。读不到 owner 文件时返回空表（扫描随之什么都不认，由 registry 的 owner-unresolved 兜底）。 */
-export function collectFailureVocabulary({ read }) {
-  const kinds = new Set()
-  const actions = new Set()
-  const codes = new Set()
-  const owner = read('electron/shared/generationFailureKinds.ts')
-  if (typeof owner === 'string') {
-    const source = parseSource('generationFailureKinds.ts', owner)
-    for (const statement of source.statements) {
-      if (!ts.isTypeAliasDeclaration(statement)) continue
-      if (statement.name.text === 'GenerationErrorKind') for (const value of stringLiteralsOfUnion(statement.type)) kinds.add(value)
-      if (statement.name.text === 'GenerationErrorAction') for (const value of stringLiteralsOfUnion(statement.type)) actions.add(value)
-    }
-  }
-  const copy = read('electron/shared/generationFailureCopy.ts')
-  if (typeof copy === 'string') {
-    const source = parseSource('generationFailureCopy.ts', copy)
-    for (const statement of source.statements) {
-      if (!ts.isVariableStatement(statement)) continue
-      for (const declaration of statement.declarationList.declarations) {
-        if (!ts.isIdentifier(declaration.name) || !/^TOOL_(?:ERROR|USER_ACTION)_HINT$/.test(declaration.name.text)) continue
-        const init = declaration.initializer && unwrapExpression(declaration.initializer)
-        if (!init || !ts.isObjectLiteralExpression(init)) continue
-        for (const property of init.properties) {
-          if (ts.isPropertyAssignment(property) && (ts.isIdentifier(property.name) || ts.isStringLiteralLike(property.name))) codes.add(property.name.text)
-        }
-      }
-    }
-  }
-  return { kinds, actions, codes }
-}
-
-function stringsOf(expression, resolve, depth = 0) {
-  const node = unwrapExpression(expression)
-  if (!node || depth > 3) return []
-  if (ts.isStringLiteralLike(node)) return [node.text]
-  if (ts.isTemplateExpression(node)) return []
-  if (ts.isConditionalExpression(node)) return [...stringsOf(node.whenTrue, resolve, depth + 1), ...stringsOf(node.whenFalse, resolve, depth + 1)]
-  if (ts.isBinaryExpression(node) && [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken].includes(node.operatorToken.kind)) {
-    return [...stringsOf(node.left, resolve, depth + 1), ...stringsOf(node.right, resolve, depth + 1)]
-  }
-  if (ts.isIdentifier(node)) return stringsOf(resolve(node.text), resolve, depth + 1)
-  return []
-}
-
-function receiverName(expression) {
-  const node = unwrapExpression(expression)
-  if (!node) return ''
-  if (ts.isIdentifier(node)) return node.text
-  if (ts.isPropertyAccessExpression(node)) return node.name.text
-  if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) return receiverName(node.expression.expression)
-  return ''
-}
-
+/** 跟踪原文到判断、判断到判定字段；原文仅用于显示或传给主人不算第二次判定。 */
 export function findFailureDecisionBypass({ files, read }) {
-  const { kinds, actions, codes } = collectFailureVocabulary({ read })
-  if (!kinds.size && !codes.size) return []
   const found = []
   for (const file of files) {
     const rel = normalizePath(file)
-    // 测试夹具工具（*TestUtils.ts）住在 electron/ 下但不是出口：它按码给样本分桶，不是在替用户说失败。
-    if (!isScannableSource(rel) || !PRODUCTION_ROOTS.includes(rootOf(rel)) || FAILURE_DECISION_OWNER_FILES.has(rel) || /TestUtils\.[cm]?[jt]sx?$/.test(rel)) continue
+    if (!isScannableSource(rel) || !PRODUCTION_ROOTS.includes(rootOf(rel)) || FAILURE_DECISION_OWNER_FILES.has(rel)) continue
     const text = read(rel)
     if (typeof text !== 'string') continue
-    const inFamily = mentionsAny(text, FAILURE_FAMILY)
-    const mentionsCode = [...codes].some((code) => text.includes(code))
-    if (!inFamily && !mentionsCode) continue
+    if (!mentionsAny(text, FAILURE_FAMILY)) continue
     const source = parseSource(rel, text)
-    const constants = new Map()
-    const collect = (node) => {
-      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer
-        && ts.isVariableDeclarationList(node.parent) && (node.parent.flags & ts.NodeFlags.Const)) constants.set(node.name.text, node.initializer)
-      ts.forEachChild(node, collect)
+    // 用 TS 的词法绑定区分别名与同名局部变量；不加载依赖或类型库。
+    const host = { getSourceFile: (name) => name === rel ? source : undefined, getDefaultLibFileName: () => '',
+      writeFile() {}, getCurrentDirectory: () => '', getDirectories: () => [], fileExists: (name) => name === rel,
+      readFile: (name) => name === rel ? text : undefined, getCanonicalFileName: (name) => name,
+      useCaseSensitiveFileNames: () => true, getNewLine: () => '\n' }
+    const checker = ts.createProgram([rel], { noResolve: true, noLib: true }, host).getTypeChecker()
+    const producers = new Set(FAILURE_PRODUCERS)
+    const decisionTypes = new Set(['GenerationFailureDecision', 'GenerationErrorReport'])
+    let family = false
+    const findFamily = (node) => {
+      if (ts.isIdentifier(node) && FAILURE_FAMILY.has(node.text)) family = true
+      if (ts.isImportSpecifier(node)) {
+        const imported = (node.propertyName ?? node.name).text
+        if (FAILURE_PRODUCERS.has(imported)) producers.add(node.name.text)
+        if (decisionTypes.has(imported)) decisionTypes.add(node.name.text)
+      }
+      ts.forEachChild(node, findFamily)
     }
-    collect(source)
-    const resolve = (name) => constants.get(name)
-    const symbolOf = (node) => {
+    findFamily(source)
+    const writes = new Map()
+    const collectWrites = (node) => {
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(node.left)) {
+        const symbol = checker.getSymbolAtLocation(node.left)
+        if (!symbol) return
+        if (!writes.has(symbol)) writes.set(symbol, [])
+        writes.get(symbol).push(node)
+      }
+      ts.forEachChild(node, collectWrites)
+    }
+    collectWrites(source)
+    const member = (node) => ts.isPropertyAccessExpression(node) ? node.name.text
+      : ts.isElementAccessExpression(node) && node.argumentExpression && ts.isStringLiteralLike(node.argumentExpression) ? node.argumentExpression.text : ''
+    const callee = (node) => ts.isIdentifier(node) ? node.text : member(node)
+    const symbolOfIdentifier = (node) => ts.isShorthandPropertyAssignment(node.parent)
+      ? checker.getShorthandAssignmentValueSymbol(node.parent) : checker.getSymbolAtLocation(node)
+    const declarations = (node) => symbolOfIdentifier(node)?.declarations ?? []
+    const anyChild = (node, predicate, seen) => ts.forEachChild(node, (child) => predicate(child, new Set(seen)) || undefined) || false
+    const fromDeclaration = (node, predicate, seen) => declarations(node).map((declaration) => {
+      if (declaration.initializer) return predicate(declaration.initializer, new Set(seen))
+      if (ts.isBindingElement(declaration)) {
+        const binding = declaration.parent.parent
+        return binding.initializer && predicate(binding.initializer, new Set(seen))
+      }
+      return false
+    }).find(Boolean) || false
+    const raw = (expression, seen = new Set()) => {
+      const node = unwrapExpression(expression)
+      if (!node || seen.has(node)) return false
+      seen.add(node)
+      if (['raw', 'message'].includes(member(node))) return true
+      if (FAILURE_COPY_FIELDS.has(member(node)) && decision(node.expression)) return false
+      if (ts.isCallExpression(node) && producers.has(callee(node.expression))) return false
+      if (ts.isIdentifier(node)) {
+        if (declarations(node).some((d) => ts.isBindingElement(d) && ['raw', 'message'].includes((d.propertyName ?? d.name).getText(source)))) return true
+        if (fromDeclaration(node, raw, seen)) return true
+        return RAW_NAME.test(node.text) && declarations(node).some((d) => ts.isParameter(d))
+      }
+      if (ts.isCallExpression(node) && callee(node.expression) === 'String' && node.arguments.some((arg) => /^(?:e|err|error)$/i.test(arg.getText(source)))) return true
+      return anyChild(node, raw, seen)
+    }
+    const displayRaw = (expression, seen = new Set()) => {
+      const node = unwrapExpression(expression)
+      if (!node || seen.has(node)) return false
+      seen.add(node)
+      if (['raw', 'message'].includes(member(node))) return true
+      if (ts.isStringLiteralLike(node)) return node.text === ''
+      if (ts.isIdentifier(node)) return fromDeclaration(node, displayRaw, seen)
+        || (RAW_NAME.test(node.text) && declarations(node).some((d) => ts.isParameter(d)))
+      if (ts.isConditionalExpression(node)) return displayRaw(node.whenTrue, new Set(seen)) && displayRaw(node.whenFalse, new Set(seen))
+      if (ts.isCallExpression(node) && ['trim', 'slice', 'substring', 'replace', 'replaceAll'].includes(member(node.expression))) return displayRaw(node.expression.expression, seen)
+      return false
+    }
+    const judgment = (expression, seen = new Set()) => {
+      const node = unwrapExpression(expression)
+      if (!node || seen.has(node)) return false
+      seen.add(node)
+      if (ts.isConditionalExpression(node) && displayRaw(node)) return false
+      if (ts.isIdentifier(node)) return fromDeclaration(node, judgment, seen)
+        || (writes.get(symbolOfIdentifier(node)) ?? []).map((write) => !seen.has(write)
+          && (judgment(write.right, new Set([...seen, write])) || controlled(write, new Set([...seen, write])))).find(Boolean)
+      if (ts.isBinaryExpression(node) && EQUALITY.has(node.operatorToken.kind) && (raw(node.left) || raw(node.right))) return node
+      if (ts.isCallExpression(node) && RAW_METHODS.has(member(node.expression)) && raw(node)) return node
+      return anyChild(node, judgment, seen)
+    }
+    const decision = (expression, seen = new Set()) => {
+      const node = unwrapExpression(expression)
+      if (!node || seen.has(node)) return false
+      seen.add(node)
+      if (ts.isCallExpression(node) && producers.has(callee(node.expression))) return true
+      if (ts.isIdentifier(node)) {
+        if (declarations(node).some((d) => d.type && [...decisionTypes].some((name) => new RegExp(`\\b${name}\\b`).test(d.type.getText(source))))) return true
+        return fromDeclaration(node, decision, seen)
+      }
+      if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) return decision(node.expression, seen)
+      return ts.isObjectLiteralExpression(node) && node.properties.some((p) => ts.isSpreadAssignment(p) && decision(p.expression, seen))
+    }
+    const controlled = (node, seen = new Set()) => {
+      for (let at = node.parent; at && !ts.isFunctionLike(at); at = at.parent) {
+        if (ts.isIfStatement(at)) { const origin = judgment(at.expression, new Set(seen)); if (origin) return origin }
+        if (ts.isConditionalExpression(at) && at.condition !== node) { const origin = judgment(at.condition, new Set(seen)); if (origin) return origin }
+        if (ts.isCaseBlock(at) && raw(at.parent.expression)) return at.parent.expression
+      }
+      return false
+    }
+    const reported = new Set()
+    const report = (node, shape) => {
+      const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
+      const identity = `${line}:${shape}`
+      if (reported.has(identity)) return
+      reported.add(identity)
+      let symbol = '<module>'
       for (let at = node.parent; at; at = at.parent) {
         if (!ts.isFunctionLike(at)) continue
-        if (at.name && ts.isIdentifier(at.name)) return at.name.text
-        if (ts.isVariableDeclaration(at.parent) && ts.isIdentifier(at.parent.name)) return at.parent.name.text
+        symbol = at.name?.getText(source) ?? (ts.isVariableDeclaration(at.parent) ? at.parent.name.getText(source) : '<callback>')
+        break
       }
-      return '<module>'
+      found.push({ path: rel, line,
+        symbol, shape, value: node.getText(source).slice(0, 120) })
     }
-    const report = (node, shape, value) => found.push({
-      path: rel, symbol: symbolOf(node), shape, value,
-      line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
-    })
-    const isCodeOrKind = (value) => codes.has(value) || (kinds.has(value) && value.includes('-'))
-    const regexBody = (literal) => literal.text.slice(1, literal.text.lastIndexOf('/'))
     const visit = (node) => {
-      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
-        const method = node.expression.name.text
-        const target = node.expression.expression
-        // ① 正则认码：/…code…/.test(message)、message.match(/…code…/)
-        if (REGEX_METHODS.has(method)) {
-          const targetNode = unwrapExpression(target)
-          const argNode = node.arguments[0] && unwrapExpression(node.arguments[0])
-          const literal = targetNode && ts.isRegularExpressionLiteral(targetNode) ? targetNode
-            : argNode && ts.isRegularExpressionLiteral(argNode) ? argNode : null
-          const subject = literal === targetNode ? node.arguments[0] : target
-          if (literal && subject && MESSAGE_LIKE.test(receiverName(subject))) {
-            for (const code of codes) if (regexBody(literal).includes(code)) report(node, 'regex-code-match', code)
-          }
-        }
-        // ① 子串认码：message.includes('code')（含常量别名、三目分支）
-        if (STRING_METHODS.has(method) && MESSAGE_LIKE.test(receiverName(target))) {
-          for (const value of stringsOf(node.arguments[0], resolve)) if (isCodeOrKind(value)) report(node, 'substring-code-match', value)
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
+        && FAILURE_FIELDS.has(member(node.left)) && decision(node.left.expression)) report(node, 'decision-field-write')
+      if (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) {
+        const name = node.name && (ts.isIdentifier(node.name) || ts.isStringLiteralLike(node.name)) ? node.name.text : ''
+        const value = ts.isPropertyAssignment(node) ? node.initializer : node.name
+        const spreadDecision = ts.isObjectLiteralExpression(node.parent) && node.parent.properties.some((p) => ts.isSpreadAssignment(p) && decision(p.expression))
+        if (FAILURE_FIELDS.has(name) && spreadDecision && !(member(value) === name && decision(value.expression))) report(node, 'decision-field-override')
+        else if (family && FAILURE_COPY_FIELDS.has(name)) {
+          const origin = judgment(value) || controlled(node)
+          if (origin) report(origin, 'raw-judgment-to-decision')
         }
       }
-      // ② 出口自己编一句话再判一遍：把字面量塞进判定入口（还原「认不出就拿 'network error' 重新分类」这种二次改判）。
-      // 该传的是输入事实（语言、瞬时、任务来源），不是一句编出来的原文。
-      if (inFamily && ts.isCallExpression(node)) {
-        const callee = unwrapExpression(node.expression)
-        const name = callee && (ts.isIdentifier(callee) ? callee.text : ts.isPropertyAccessExpression(callee) ? callee.name.text : '')
-        if (name === 'classifyGenerationError' || name === 'decideGenerationFailure') {
-          const first = node.arguments[0] && unwrapExpression(node.arguments[0])
-          const message = first && ts.isObjectLiteralExpression(first)
-            ? first.properties.find((property) => ts.isPropertyAssignment(property) && property.name.getText(source) === 'message')?.initializer
-            : first
-          for (const value of stringsOf(message, resolve)) if (value.trim()) report(node, 'synthetic-rejudge', value)
-        }
-      }
-      // ② 构造或覆盖（只在引用了失败判定家族符号的文件里）
-      if (inFamily && ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteralLike(node.name))
-        && FAILURE_FIELDS.has(node.name.text) && ts.isObjectLiteralExpression(node.parent)) {
-        for (const value of stringsOf(node.initializer, resolve)) {
-          if (kinds.has(value) || actions.has(value) || codes.has(value)) report(node, 'decision-field-override', `${node.name.text}:${value}`)
-        }
+      if (family && ts.isCallExpression(node) && ['classifyGenerationError', 'decideGenerationFailure'].includes(callee(node.expression))) {
+        const first = node.arguments[0] && unwrapExpression(node.arguments[0])
+        const message = first && ts.isObjectLiteralExpression(first)
+          ? first.properties.find((p) => ts.isPropertyAssignment(p) && p.name.getText(source) === 'message')?.initializer : first
+        if (message && ts.isStringLiteralLike(message) && message.text.trim()) report(node, 'synthetic-rejudge')
       }
       ts.forEachChild(node, visit)
     }

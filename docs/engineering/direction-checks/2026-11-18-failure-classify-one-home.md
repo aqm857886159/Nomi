@@ -65,3 +65,13 @@
 ## 补：自写登记条目 gate-family
 
 这一刀给 `check:concept-owners` 加了 `failure-decision-bypass`，属于自写登记条目 gate-family（仓库门岗族）。为什么现在不接现成方案：现成的 eslint-plugin-boundaries / no-restricted-imports 只能管「谁能 import 谁」，管不了「在共享层之外读原文再子串认码、给对象字面量的类别字段赋封闭词表里的值、拿编出来的原文重判」这类基于词表内容的写法；而词表（类别、动作、公开码）要从主人文件里读才不会手抄漂移，这是本仓库独有的约束。能用现成方案的那一半已经用上：动作表和词条表只许经界面投影读，用 ESLint 的受限导入拦（`eslint.config.mjs` 的 failure-copy-owner / failure-table-owner）。哪天换：门岗族的保留 / 合并 / 降级清单拍板后，若 concept-owners 整体迁到通用的架构约束工具，这条扫描随之迁，词表读取方式不变；不新增特例分支，扫描只认已知 AST 形状，出现新旁路时升级为只暴露一个读取入口。
+
+## 第二轮
+
+独立验收 V-failure-classify 找到六份绕法：原样 / 改名 / 内联动态码表找原文子串，以及按 `decision.raw` 改词条、直接给 primary 赋值、覆盖 vendorSide。修前六份逐一写进真实文件，扫描测试 / 全仓扫描 / ESLint / 类型检查共 24 次全绿；旧扫描只认已知字面量和对象形状，漏掉的是最早应拦的实现 / 推送前扫描，不是五出口行为测试没写对。
+
+依赖结果的一方仍是创作者和读取五出口的 Agent：共享决定不能被出口改写，原文只能显示或原样交给主人。沿旧方向补六个匹配会继续漏；本轮改用现有 TypeScript 的词法绑定追原文 → 判断 → 判定字段，覆盖字符串 / 正则 / 相等 / switch 与别名；判定字段直接赋值或展开覆盖一并拦。普通字段投影、来自 failureActionsFor 的同名动作投影仍是读取主人的决定。共享人话整表不再导出，出口按确证码查询；共享码清单只给共享层和快照测试，ESLint 同时约束 src / electron（别名、命名空间、动态解构均测）。GenerationFailureDecision 定义在热点 generationFailure.ts，本轮不改它，字段写入由扫描拦。
+
+不算改判：分镜技术详情、pi 标记、showableRaw 的显示筛选、原样传给 confirmPublicError。新测试含六种绕法、cb2cced31 的 59401 子串误认 401 旧案及这些不误伤样本；旧规则上新测试红，「任何原文使用都报错」版正例红，还原绿。全仓扫描量具为 findFailureDecisionBypass；同一规则通过 SCAN_GUARDS 在推送前扫描真实源码，报告指向原文判断/字段写入所在行；目标零命中，复查日 2026-11-18（本轮交回独立验收）重放这六份 diff，漏检或误伤就重开升档。
+
+本轮只碰：concept-owners 扫描及 node-test、ESLint 这一段、generationFailureCopy / generationFailureWire、mcpToolErrorResults 的查询读法、SCAN_GUARDS 登记，以及设计卡 ★9.4 / ★9.5 和本节。不改交接登记、出口说法和动作、公开码集合、三个热点文件；不启动窗口、不调用供应商。外部依赖不变，无数据迁移。

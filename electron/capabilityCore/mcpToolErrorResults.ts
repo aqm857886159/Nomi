@@ -1,7 +1,7 @@
 import type { ResultLocale } from './mcpToolResults'
 import { confirmPublicError } from '../shared/generationFailure'
 import { GENERATION_INPUT_INVALID_CODE } from '../shared/agentCapabilities/admissionRejectionHints'
-import { TOOL_ERROR_HINT, TOOL_USER_ACTION_HINT } from '../shared/generationFailureCopy'
+import { toolErrorHint, toolUserActionHint } from '../shared/generationFailureCopy'
 
 type Ctx = { locale: ResultLocale }
 const L = (ctx: Ctx, zh: string, en: string): string => (ctx.locale === 'en' ? en : zh)
@@ -23,7 +23,7 @@ export function buildToolErrorOutcome(
   // 公开码「确证」只在共享判定处做：字段里的码（登记过的）或原文里的整词码；这里只做外部助手的受众投影。
   const confirmed = confirmPublicError(structuredCode ?? undefined, rawMessage)
   const code = confirmed.code
-  const hintForMessage = code ? TOOL_ERROR_HINT[code] : null
+  const hintForMessage = code ? toolErrorHint(code) : null
   const message = confirmed.codeOnly && structuredCode
     ? structuredCode
     // 有登记过 zh/en 人话时 `message` 也跟着 locale 走：否则 en 宿主拿到的是中文原句（R15）。
@@ -32,7 +32,7 @@ export function buildToolErrorOutcome(
     : hintForMessage && code !== GENERATION_INPUT_INVALID_CODE ? L(ctx, hintForMessage.zh, hintForMessage.en) : rawMessage
   const nextAction = typeof errorRecord.nextAction === 'string'
     ? errorRecord.nextAction
-    : structuredCode && TOOL_USER_ACTION_HINT[structuredCode]?.action === 'reselect_project'
+    : structuredCode && toolUserActionHint(structuredCode)?.action === 'reselect_project'
       ? OPEN_NEW_PROJECT_SESSION
       : undefined
   const policyDetails = confirmed.policy
@@ -47,8 +47,8 @@ export function buildToolErrorOutcome(
   const details = errorRecord.details && typeof errorRecord.details === 'object' && !Array.isArray(errorRecord.details)
     ? errorRecord.details as Record<string, string | number>
     : null
-  const hint = code ? TOOL_ERROR_HINT[code] : null
-  const userAction = code ? TOOL_USER_ACTION_HINT[code] : null
+  const hint = code ? toolErrorHint(code) : null
+  const userAction = code ? toolUserActionHint(code) : null
   const recover = hint ? hint.recover.map((r) => L(ctx, r.zh, r.en)) : []
   const text = [
     `✗ ${userAction ? L(ctx, userAction.zh, userAction.en) : hint && code !== GENERATION_INPUT_INVALID_CODE ? L(ctx, hint.zh, hint.en) : message}`,

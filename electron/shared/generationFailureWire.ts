@@ -4,7 +4,7 @@ import { VENDOR_ERROR_IPC_MARKER } from './vendorFailure'
 import { CAPABILITY_TRANSPORT_PUBLIC_ERROR_CODES } from './surfacePortBinding'
 import { INTEGRATION_ERROR_CODES } from './integrationContract'
 import { GENERATION_INPUT_INVALID_CODE } from './agentCapabilities/admissionRejectionHints'
-import { TASK_FAILED_FALLBACK, TOOL_ERROR_HINT, type FailureLocale } from './generationFailureCopy'
+import { TASK_FAILED_FALLBACK, TOOL_ERROR_CODES, toolErrorHint, type FailureLocale } from './generationFailureCopy'
 
 // ---------------------------------------------------------------------------
 // 穿 IPC 的结构化载荷 / 异步任务失败格式：唯一的产出、唯一的解析（原 vendorErrorIpc / taskFailureMessage）。
@@ -129,9 +129,9 @@ export type PublicError = {
 }
 
 /** 外部助手认得的全部公开码（字段里能被确证的码 ∪ 有词条的码）。快照测试钉住：增删公开码是显式决定，不是搬家的副产品。 */
-export const PUBLIC_ERROR_CODES: readonly string[] = [...new Set<string>([...POLICY_CODES, ...Object.keys(TOOL_ERROR_HINT)])].sort()
+export const PUBLIC_ERROR_CODES: readonly string[] = [...new Set<string>([...POLICY_CODES, ...TOOL_ERROR_CODES])].sort()
 
-const isHintedCode = (code: string): boolean => Object.prototype.hasOwnProperty.call(TOOL_ERROR_HINT, code)
+const isHintedCode = (code: string): boolean => Boolean(toolErrorHint(code))
 
 /**
  * 确证码：① 失败对象自带的 code 字段，在登记表（策略码 ∪ 有词条的码）里；② 否则原文里的**整词**码，取**最先出现**的那一个

@@ -12,7 +12,7 @@ export const TASK_FAILED_FALLBACK: Readonly<Record<FailureLocale, string>> = {
 };
 
 /** 外部助手（MCP）的公开错误码：已知错误码 → 人话原因 + 恢复动作（只登记确证的码，不编造；未知码原样透传）。 */
-export const TOOL_ERROR_HINT: Record<string, { zh: string; en: string; recover: ReadonlyArray<{ zh: string; en: string }> }> = {
+const TOOL_ERROR_HINT: Record<string, { zh: string; en: string; recover: ReadonlyArray<{ zh: string; en: string }> }> = {
   node_not_found: {
     zh: '目标画布节点已不存在或不在当前项目',
     en: 'The target canvas node is missing from the current project',
@@ -137,7 +137,7 @@ export const TOOL_ERROR_HINT: Record<string, { zh: string; en: string; recover: 
 }
 
 /** User projection deliberately has only four actions; protocol codes stay in structuredContent for machines. */
-export const TOOL_USER_ACTION_HINT: Record<string, { action: string; zh: string; en: string }> = {
+const TOOL_USER_ACTION_HINT: Record<string, { action: string; zh: string; en: string }> = {
   // 2026-09-21：这个码不止用在生成上（降档、闸决定都会抛它），原话「确认这次生成」会让助手
   // 去找一张根本不会出现的生成确认卡。改成中性的一句：要你本人在 Nomi 里确认一次。
   human_approval_required: { action: 'in_nomi', zh: '这一步要你本人在 Nomi 里确认一次。', en: 'This step needs you to confirm it once in Nomi.' },
@@ -149,4 +149,15 @@ export const TOOL_USER_ACTION_HINT: Record<string, { action: string; zh: string;
   project_binding_stale: { action: 'reselect_project', zh: '项目身份已变化，请重新选择当前项目。', en: 'The project identity changed; select the current project again.' },
   lease_expired: { action: 'reselect_project', zh: '项目连接已过期，请重新选择当前项目。', en: 'The project connection expired; select the current project again.' },
   lease_revoked: { action: 'reselect_project', zh: '项目连接已撤销，请重新选择当前项目。', en: 'The project connection was revoked; select the current project again.' },
+}
+
+// 码清单仅供共享判定和共享层快照测试；出口只能按确证码取投影。
+export const TOOL_ERROR_CODES: readonly string[] = Object.keys(TOOL_ERROR_HINT)
+
+export function toolErrorHint(code: string) {
+  return Object.prototype.hasOwnProperty.call(TOOL_ERROR_HINT, code) ? TOOL_ERROR_HINT[code] : undefined
+}
+
+export function toolUserActionHint(code: string) {
+  return Object.prototype.hasOwnProperty.call(TOOL_USER_ACTION_HINT, code) ? TOOL_USER_ACTION_HINT[code] : undefined
 }

@@ -86,8 +86,8 @@
 1. 五出口对拍表：准备报告 §2 的 I1a–I9 + U1–U3 全部输入，逐个比「类别 / 公开码 / 原因键 / 动作」，修前（主分支）与修后各录一份并 diff；界面出口（画布 / 分镜 / 任务中心 / 内置助手）修前修后逐项相同，外部助手只有 U1–U3 三行变。
 2. 「什么都不做」版（主分支，只带新测试）：U1、U2、U3 三条红。
 3. 「全部拦下」版（共享判定一律 `unknown`）：`401 Unauthorized` 在画布 / 内置助手必须仍是 `auth`+去模型接入 → 红；另一版「一律只给 retry」：`retrieval-incomplete` 的 view-task、`model-unavailable-upstream` 的 switch-same-capability 等 → 红。
-4. 反例：把子串认码放回外部助手出口（含改名、内联、别名）→ 扫描红；在内置助手出口自行 `kind` 覆盖（还原 `'network error'` 二次判定）→ 扫描红 + 对拍红；还原 `cb2cced31` 旧案（端口 `59401` 读成 401）→ `legacyEvidence` 用例红；`storyboardFailureCopy` 只拼技术详情、`laneProviderGuard` 只追加 pi marker → 保持绿（不该拦的不拦）。
-5. 锁（代码层写不出第二处）：扩现有 `check:concept-owners`（scan/lib + node-test，不新增检查命令，登记迁址不抬基线）认出共享层之外：读 raw / message / code 后自行匹配并构造或覆盖「失败类别 / 公开码 / 词条键 / 动作」（对象字面量里的 `kind` / `errorCode` / `primary` / `secondary` / `vendorSide` 取值是封闭词表里的字面量；对封闭词表字面量做 `includes` / 正则 / 相等判断后赋给上述字段；含别名与内联）；并配 ESLint 限制 import：共享层内部表（动作表 / 码表）只许经投影函数读。检查本身的反例（放回子串认码 / 在出口覆盖 kind）进 node-test；新扫描型测试登记进 `scripts/pre-push-scan-guards.mjs` 的 `SCAN_GUARDS`，提交前跑 `node scripts/check-scan-guard-census.mjs`。
+4. 原文判断反例：外部出口原样 / 改名 / 内联动态码表 `.find(key => rawMessage.includes(key))` 三份 diff，及出口按 `decision.raw` 改词条 / 改 primary / 改 vendorSide 三份 diff，各自扫描红；修前 HEAD 六种各跑扫描测试、全仓扫描、ESLint、类型检查均须绿。判断覆盖相等、不等、字符串/正则方法、switch，以及原文和判断的变量别名；不依赖已知码或词条字面量。真实旧案 `cb2cced31` 的 59401 子串认成 401 也须被同一规则拦下。
+5. 决定不可改：共享层之外给判定的 kind / errorCode / publicCode / primary / secondary / vendorSide 赋值或展开覆盖，扫描红；整张人话 / 动作表不再给外部出口，只给按码查询函数，内部码清单由 ESLint 限制在共享层。什么不算：`storyboardFailureCopy` 拼技术详情、`laneProviderGuard` 追加 pi 标记、`laneCommandFailure.showableRaw` 只决定原文是否印出、`confirmPublicError(…, rawMessage)` 原样传给主人，四类正例各绿，真实三处文件也绿；临时「任何原文使用都报错」须使正例红。验收的 `positive-controls-hits.json` 是空数组，仍逐项核对上述真实正例。扫描型测试登记 SCAN_GUARDS，提交前跑 census；全仓新规则命中目标为 0。
 6. 老用户：把 `runs/v0.24.0-canvas-interrupted/node.json` 的 `error` 喂对拍，修前修后同为「本机拒绝 / local-refusal」。
 7. 公开码集合与 `outcome` 字段形状不变：`mcpToolResults.test.ts` / `mcpRpcError.test.ts` 现有断言全过；码集合快照断言。
 8. 自查探针先装进程级 `globalThis.fetch` 拦截（非回环一律抛）并跑金丝雀。
