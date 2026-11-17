@@ -30,4 +30,7 @@
 
 ## ★9 验收与反例
 - 浮条上没有锁按钮（中英）；旧锁住节点提示词可编辑；助手改旧锁住节点不被拦；读画布结果无 `locked`；带 `locked:true` 的旧节点不显示成锁定、照常进分镜批量（反向测试），`meta.frozen` 的行为不变（一条测试）；导演台物体锁与白板图层锁照常。
-- 反例（改坏必红）：恢复按钮、恢复字段写入、恢复拦截、读出口再带 `locked`、词条回来——各一条结构检查或测试。再加一条 eslint 禁令（`node-lock-removed`）：产品源码里写 `setNodeLocked` / `NodeLockBadge` / `canvas.node.(un)locked` / `node_locked` 即红，已用探针文件验过会红。拦不住：换个名字重做一把锁，靠 `GenerationCanvasNode` 类型里没有 `locked` 字段（`node.locked` 编译不过）和评审。
+- 反例（改坏必红）：恢复按钮、恢复字段写入、恢复拦截、读出口再带 `locked`——各一条结构检查或测试。再加一条 eslint 禁令（`node-lock-removed`）：产品源码里写 `setNodeLocked` / `NodeLockBadge` / `canvas.node.(un)locked` / `node_locked` 即红，已用探针文件验过会红。
+- 拦不住（独立验收第一轮实测）：
+  - 换个名字重做一把锁：改名「保护节点」、写进 `meta` 里另一个键再挡提示词修改，eslint 和相关测试都绿。只靠 `GenerationCanvasNode` 类型里没有 `locked` 字段（`node.locked` 编译不过）和评审。
+  - 锁的词条单独加回来：没有检查拦（「没人引用的词条」检查已在 2026-10-02 门岗清理时删掉）。词条单独回来界面上不显示；要显示就得把按钮加回来，按钮那条会红。本卡原先写「词条回来必红」是错的，已更正。
