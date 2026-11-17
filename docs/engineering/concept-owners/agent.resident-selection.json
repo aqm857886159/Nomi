@@ -1,0 +1,46 @@
+{
+  "name": "助手这一轮的选区（渲染层）：选了哪些对象、叫什么名字；发送目标、冻结快照、聊天框芯片都拿同一个结果",
+  "subject": "agent.resident-selection",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/resident/residentContextSnapshot.ts",
+    "symbol": "resolveResidentSelection"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/resident/residentContextSnapshot.ts",
+      "symbol": "resolveResidentSelection"
+    },
+    {
+      "path": "src/workbench/ai/resident/residentContextSnapshot.ts",
+      "symbol": "resolveResidentSelectionMembers"
+    },
+    {
+      "path": "src/workbench/ai/resident/residentContextSnapshot.ts",
+      "symbol": "residentSelectionInput"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "buildResidentContextSnapshot",
+      "kind": "definition",
+      "why": "旧的只算快照的构造器（2026-11-17 删）：发送目标、快照、芯片三处各算一遍选区，预览里只选文字时芯片亮着、助手却收不到。选了什么只经 resolveResidentSelection。"
+    },
+    {
+      "symbol": "collectTimelineSelections",
+      "kind": "definition",
+      "why": "芯片端另找片段、另算名称的旧筛选（2026-11-17 删）：不去重、不滤不存在的项、空白名不回落。芯片成员只经 resolveResidentSelectionMembers。"
+    }
+  ],
+  "parity_test": "src/workbench/ai/resident/residentSelection.test.ts",
+  "allowed_consumers": [
+    "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+    "src/workbench/ai/resident/useResidentSelectionMembers.ts"
+  ],
+  "since": "2026-11-17",
+  "notes": "发给模型的投影另有唯一主人（agent.context-snapshot-projection），这里不动它，也不动 6000 字符压缩预算。渲染层读原始选区字段（selectedNodeIds / selectedTimelineClipIds / selectedTextClipId）只许选区主人和芯片订阅 hook 两个文件，ESLint 规则 resident-selection/no-restricted-syntax 守（scripts/resident-selection-owner.mjs）；这条规则只封同名字段的读取，换了名字重建筛选的写法靠上面的定义禁令，不声称全封。有意不同、不并：当前域限制（只收当前工作面的选区，文稿始终带）、发送时冻结 vs 渲染时实时读取、芯片只按位置报「已变更」、导演镜头与 @ 引用等附加句柄。今天只有预览面有选区芯片，画布 / 创作 / 分镜面没有，保持。"
+}

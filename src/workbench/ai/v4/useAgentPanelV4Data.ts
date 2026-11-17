@@ -224,12 +224,10 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     : t('agentPanelV4.modelUnset')
 
   const timeline = useWorkbenchStore((state) => state.timeline)
-  const selectedClipIds = useWorkbenchStore((state) => state.selectedTimelineClipIds)
-  const selectedTextClipId = useWorkbenchStore((state) => state.selectedTextClipId)
   const activeSkill = useWorkbenchStore((state) => state.creationActiveSkill)
   const selectedLibraryPrompt = useWorkbenchStore((state) => state.selectedLibraryPrompt)
   const attachments = useWorkbenchStore((state) => state.projectAgentAttachments)
-  const timelineSelection = useTimelineSelectionChips(surface, timeline, selectedClipIds, selectedTextClipId)
+  const timelineSelection = useTimelineSelectionChips(surface)
 
   const view = React.useMemo(() => laneViewModel(snapshot.active, {
     toolLabel: toolDisplayCache.label,
@@ -315,14 +313,12 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
       const skill = skillForKey(skills, activeSkill.key)
       chips.push({ kind: 'skill', label: skillLabel(activeSkill.key), cover: skill?.cover, preview: skill?.preview, description: skill?.description ?? undefined })
     } else if (selectedLibraryPrompt) chips.push({ kind: 'skill', label: selectedLibraryPrompt.title, cover: selectedLibraryPrompt.mediaType === 'image' ? selectedLibraryPrompt.mediaUrl : undefined, preview: selectedLibraryPrompt.mediaUrl ? { url: selectedLibraryPrompt.mediaUrl, type: selectedLibraryPrompt.mediaType } : undefined, description: selectedLibraryPrompt.prompt })
-    for (const selection of timelineSelection.selections) {
-      // 时间轴片段的人话名字是 `label`；文本片段用它的正文。两者都可能是空串。
-      const clip = selection.clip as { id: string; label?: string; text?: string }
-      const label = clip.label || clip.text || clip.id
+    for (const member of timelineSelection.members) {
+      // 名字由选区解析给（素材名 / 文字正文，空白回落 ID），和发给助手的句柄同一份。
       chips.push({
         kind: 'clip',
         // 选中的那一段已经变了位置/长度：chip 上直接说「已变更」，别让用户以为还指着原来那段。
-        label: timelineSelection.staleFor(clip.id) ? String(t('agentPanelV4.clipStale', { label })) : label,
+        label: timelineSelection.staleFor(member.id) ? String(t('agentPanelV4.clipStale', { label: member.title })) : member.title,
       })
     }
     return Object.freeze(chips)

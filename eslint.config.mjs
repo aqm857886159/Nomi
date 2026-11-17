@@ -34,6 +34,12 @@ import {
   WALK_FOCUS_BY_TAG_SELECTORS,
   WALK_FOCUS_FILES,
 } from './scripts/focus-by-tag-lookup.mjs'
+import {
+  RESIDENT_SELECTION_FILES,
+  RESIDENT_SELECTION_OWNER_FILES,
+  RESIDENT_SELECTION_SELECTORS,
+  RESIDENT_SELECTION_TEST_FILES,
+} from './scripts/resident-selection-owner.mjs'
 
 // 用例 / 钩子不许单独设比 vitest 全局更短的超时（全局值见 vitest.config.ts 的 testTimeout / hookTimeout，都是 30_000；
 // 两处同值由 scripts/vitest-timeout-floor.test.mjs 核对）。超时被放弃的用例仍在后台跑完，把任务或半初始化模块留给下一个用例
@@ -253,6 +259,9 @@ const uiMoneyPlugin = { rules: {
 // 走查也不按标签名判焦点、认输入框。选择器与现存名单住 scripts/focus-by-tag-lookup.mjs（名单只减不增，由
 // scripts/focus-by-tag-lookup.test.mjs 按同一组选择器普查全 src 卡死）。同 ② 的做法独立注册内置规则：只有下面两个块配置这个规则 id
 // （渲染层一块、走查一块，文件范围不重叠），别的块里同名规则的选项盖不到它。
+// ⑤b 助手面板里读原始选区字段只经选区主人（2026-11-17）：选择器与范围住 scripts/resident-selection-owner.mjs，测试在 scripts/resident-selection-owner.test.mjs。
+// 同 ② 的做法独立注册内置规则，只有下面一个块配置这个规则 id。
+const residentSelectionPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const focusOwnerPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 
 // ⑥ 渲染层直调主进程的任务口 `nomi:tasks:run` 只有一扇门（2026-10-28）：src/workbench/api/taskApi.ts 的 runWorkbenchTaskByVendor。
@@ -734,6 +743,13 @@ export default tseslint.config(
     ignores: [...FOCUS_LOOKUP_TEST_FILES, ...Object.keys(FOCUS_BY_INPUT_IMPL_EXITS)],
     plugins: { 'focus-owner': focusOwnerPlugin },
     rules: { 'focus-owner/no-restricted-syntax': ['error', ...FOCUS_BY_INPUT_IMPL_SELECTORS] },
+  },
+  {
+    // 助手面板里读原始选区字段只经选区主人（见上面 ⑤b）。
+    files: RESIDENT_SELECTION_FILES,
+    ignores: [...RESIDENT_SELECTION_TEST_FILES, ...RESIDENT_SELECTION_OWNER_FILES],
+    plugins: { 'resident-selection': residentSelectionPlugin },
+    rules: { 'resident-selection/no-restricted-syntax': ['error', ...RESIDENT_SELECTION_SELECTORS] },
   },
   {
     // 走查判焦点、认输入框不按标签名（见上面 ⑤）：Agent 输入框经 expectComposerFocused()；名单里的处数由普查卡死。

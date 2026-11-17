@@ -13,7 +13,7 @@ import { getDocumentSessionPort } from '../../project/documentSessionPort'
 import { agentReferenceContext } from '../resident/agentReferenceContext'
 import { projectAgentAttachmentClaims } from '../projectAgentAttachments'
 import { restoreProjectAgentInputs } from '../projectAgentDraftRecovery'
-import { buildResidentContextSnapshot, mergeResidentContextHandles, type AgentContextSnapshot } from '../resident/residentContextSnapshot'
+import { mergeResidentContextHandles, residentSelectionInput, resolveResidentSelection, type AgentContextSnapshot, type ResidentSelection } from '../resident/residentContextSnapshot'
 import i18n from '../../../i18n'
 import { readDirectorShotFocus } from '../../generationCanvas/nodes/director/directorSessionRegistry'
 import { directorShotContextHandles } from '../../generationCanvas/nodes/director/model/directorShotFocus'
@@ -34,16 +34,15 @@ import { laneConversationOf } from '../../../../electron/shared/agentLane/laneCo
 
 type ResidentSendContext = Readonly<{
   snapshot: AgentContextSnapshot
+  selection: ResidentSelection
   activeDocumentId: string
-  selectedNodeIds: readonly string[]
-  selectedClipIds: readonly string[]
   documentState: Readonly<{ revision: number; contentHash: string; anchor: DocumentAnchorRef }>
 }>
 
 /**
  * 在 enqueue **前的同一个同步回合里**把所有域选中读一遍。
  * composer 绝不能发一个「用户打字期间已经变了的」渲染期选中：这份快照由纯构造器冻结，
- * 随请求一起走。
+ * 随请求一起走。选了什么只由 `resolveResidentSelection` 算一次，目标和快照都拿它的结果。
  */
 function captureSendContext(surface: ResidentSurface, prompt:string, attachments:readonly import('../composer/composerAttachmentTypes').ComposerAttachment[]): ResidentSendContext {
   const workbench = useWorkbenchStore.getState()
@@ -53,9 +52,7 @@ function captureSendContext(surface: ResidentSurface, prompt:string, attachments
   // 文稿状态由项目会话层 owner 给，不看页面身份：画布/预览面上一样能读、能整篇追加。
   // 在创作页它带光标锚，在别的面是 whole-document——两种都是当下真实的、可验的前提。
   const documentState = getDocumentSessionPort().readState()
-  const selectedNodeIds = surface === 'generation' ? Object.freeze([...canvas.selectedNodeIds]) : Object.freeze([])
-  const selectedClipIds = surface === 'preview' ? Object.freeze([...workbench.selectedTimelineClipIds]) : Object.freeze([])
-  const selection = buildResidentContextSnapshot({
+  const selection = resolveResidentSelection(residentSelectionInput(surface, {
     document: document
       ? {
           id: document.id,
@@ -64,24 +61,16 @@ function captureSendContext(surface: ResidentSurface, prompt:string, attachments
           title: document.title,
         }
       : null,
-    canvas: surface === 'generation'
-      ? { revision: canvas.persistRevision, nodes: canvas.nodes, selectedNodeIds }
-      : null,
-    timeline: surface === 'preview'
-      ? {
-          revision: timelineRevision(workbench.timeline),
-          fps: workbench.timeline.fps,
-          clips: workbench.timeline.tracks.flatMap((track) => track.clips),
-          selectedClipIds,
-        }
-      : null,
-  })
+    workbench,
+    canvas,
+    readTimelineRevision: () => timelineRevision(workbench.timeline),
+  }))
   // 3D-BOX：导演台里选中的计划镜头随这一句一起走（「正在改：镜头 N」的数据；模型按镜头名补丁）
   const directorShots = surface === 'generation'
     ? directorShotContextHandles(readDirectorShotFocus(), (index) => i18n.t('director.agent.focusShot', { index }), i18n.t('director.agent.boxPreview'))
     : []
-  const snapshot = mergeResidentContextHandles(selection, [...directorShots, ...agentReferenceContext(attachments,prompt,canvas.nodes,canvas.persistRevision)])
-  return Object.freeze({ snapshot, activeDocumentId, selectedNodeIds, selectedClipIds, documentState })
+  const snapshot = mergeResidentContextHandles(selection.snapshot, [...directorShots, ...agentReferenceContext(attachments,prompt,canvas.nodes,canvas.persistRevision)])
+  return Object.freeze({ snapshot, selection, activeDocumentId, documentState })
 }
 
 export type AgentPanelV4Actions = Readonly<{
@@ -208,8 +197,8 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
       const preconditions: PreconditionSet = { document: {
         revision: captured.documentState.revision, contentHash: captured.documentState.contentHash,
       } }
-      const target: TargetRef = surface === 'preview' ? { kind: 'timeline', clipIds: captured.selectedClipIds }
-        : surface === 'generation' ? { kind: 'canvas', nodeIds: captured.selectedNodeIds }
+      const target: TargetRef = surface === 'preview' ? { kind: 'timeline', clipIds: captured.selection.timelineClipIds }
+        : surface === 'generation' ? { kind: 'canvas', nodeIds: captured.selection.canvasNodeIds }
           : { kind: 'document', documentId: captured.activeDocumentId, anchor: captured.documentState.anchor }
       const surfacePrompt = surface === 'generation' ? buildStaticAgentSystemPrompt('agent')
         : surface === 'preview' ? buildStaticAgentSystemPrompt('agent', 'timeline')

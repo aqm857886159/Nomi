@@ -7,6 +7,9 @@ import type { TimelineState } from '../../timeline/timelineTypes'
 import { TimelinePlanPreviewLayer } from '../../timeline/agent/TimelinePlanPreviewLayer'
 import { timelinePlanOperations, timelinePlanPreviewBands } from '../../timeline/agent/timelinePlanPreview'
 import { timelinePlanLines, type TimelinePlanLine } from '../../timeline/agent/timelinePlanSummary'
+import type { ResidentSelectionMember } from './residentContextSnapshot'
+import type { ResidentSurface } from './residentShellDisplay'
+import { useResidentTimelineMembers } from './useResidentSelectionMembers'
 
 /**
  * True when a pending tool call carries a timeline edit plan worth previewing.
@@ -17,11 +20,6 @@ import { timelinePlanLines, type TimelinePlanLine } from '../../timeline/agent/t
  */
 export function isTimelinePlanTool(toolName: string): boolean {
   return modelToolShowsReviewCard(toolName) && resolveModelToolCapabilityId(toolName) === TIMELINE_WRITE_CAPABILITY.id
-}
-
-export type TimelineSelectionProjection = {
-  clip: TimelineState['tracks'][number]['clips'][number] | TimelineState['textClips'][number]
-  trackId: string
 }
 
 /**
@@ -71,17 +69,6 @@ export function useTimelineSelectionRevisions(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature])
   return revisions.current
-}
-
-export function collectTimelineSelections(
-  timeline: TimelineState,
-  selectedClipIds: readonly string[],
-  selectedTextClipId: string,
-): TimelineSelectionProjection[] {
-  return [
-    ...selectedClipIds.flatMap((clipId) => timeline.tracks.flatMap((track) => track.clips.filter((clip) => clip.id === clipId).map((clip) => ({ clip, trackId: track.id })))),
-    ...(selectedTextClipId ? timeline.textClips.filter((clip) => clip.id === selectedTextClipId).map((clip) => ({ clip, trackId: 'textTrack' })) : []),
-  ]
 }
 
 /** The plan a pending call carries. `edit_timeline` takes its operations flat (`verbProjections.ts`). */
@@ -134,20 +121,14 @@ export function useTimelinePlanPreview(
  * is the only reason the chip carries a revision at all.
  */
 export function useTimelineSelectionChips(
-  surface: string,
-  timeline: TimelineState,
-  selectedClipIds: readonly string[],
-  selectedTextClipId: string,
-): Readonly<{ selections: TimelineSelectionProjection[]; revisionFor: (id: string) => string; staleFor: (id: string) => boolean }> {
-  const ids = React.useMemo(() => [...selectedClipIds, ...(selectedTextClipId ? [selectedTextClipId] : [])], [selectedClipIds, selectedTextClipId])
+  surface: ResidentSurface,
+): Readonly<{ members: readonly ResidentSelectionMember[]; revisionFor: (id: string) => string; staleFor: (id: string) => boolean }> {
+  const { timeline, members } = useResidentTimelineMembers(surface)
+  const ids = React.useMemo(() => members.map((member) => member.id), [members])
   const revisionOf = React.useCallback((id: string) => timelineClipRevision(timeline, id), [timeline])
   const recorded = useTimelineSelectionRevisions(ids, revisionOf)
-  const selections = React.useMemo(
-    () => surface === 'preview' ? collectTimelineSelections(timeline, selectedClipIds, selectedTextClipId) : [],
-    [selectedClipIds, selectedTextClipId, surface, timeline],
-  )
   return {
-    selections,
+    members,
     revisionFor: (id) => recorded.get(id) ?? revisionOf(id),
     staleFor: (id) => (recorded.get(id) ?? revisionOf(id)) !== revisionOf(id),
   }
