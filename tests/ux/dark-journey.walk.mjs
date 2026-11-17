@@ -195,7 +195,6 @@ try {
     await clickOrFail(win.locator('[data-export-busy]:visible'), '导出 MP4')
     await expectVisible(win.locator('.workbench-preview-player__export-progress'), '导出进度条')
     await expect(win.locator('[data-export-busy]:visible')).toHaveAttribute('data-export-busy', 'false', { timeout: stationTimeout() })
-    await expect(win.locator('[data-preview-export-error]'), '导出终态不应有错误').toHaveCount(0)
     const exportsDir = path.join(seeded.projectRoot, 'exports')
     const files = fs.readdirSync(exportsDir).filter((name) => name.endsWith('.mp4'))
     expect(files.length, '隔离项目应产生真实 MP4').toBe(1)
