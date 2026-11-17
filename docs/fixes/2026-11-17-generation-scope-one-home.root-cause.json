@@ -1,0 +1,258 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-17-generation-scope-one-home",
+  "problem_type": "Divergent generation scope across entries",
+  "symptom": "同一组节点事实，画布组生成、单发补上游、分镜批量、交给画布、重试失败各算一遍「这一次生成谁、默认勾谁、谁先谁后」：可找回（已付费、结果待取回）的节点在组生成卡上可勾、可找回的参考卡会被列进分镜批量卡再付一次；确认后从旧波次里删掉没结果的上游，下游照跑缺参考。由读代码发现，构造测试复现，真实用户发生率未查。",
+  "direct_cause": "分波算法 buildDependencyWaves 被 8 个入口各自调用，候选与默认勾选、可找回 / 生成中的排除、参考卡过滤、确认后缩减各写在入口里；批量消费口收任何带 waves 的对象。",
+  "class_root": "「生成范围」没有唯一的主人和不可伪造的结论类型：入口既读事实又做决定，消费口不区分「主人算的」和「手拼的」，扫描只认同名定义。",
+  "affected_population": [
+    "有可找回节点的旧项目",
+    "分镜批量带参考卡的项目",
+    "确认卡开着时有节点被别处占用的批量"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/generationShotScope.ts",
+    "src/workbench/generationCanvas/runner/generationScopeFacts.ts",
+    "src/workbench/generationCanvas/components/groupGenerate.ts",
+    "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+    "src/workbench/generationCanvas/nodes/composerRun.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+    "src/workbench/production/handOverPrecheck.ts",
+    "src/workbench/capability/productionHandOverShotsOp.ts",
+    "src/workbench/taskCenter/TaskCenterPanel.tsx",
+    "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+    "src/workbench/generationCanvas/runner/generationScopeTestPlans.ts"
+  ],
+  "entry_points": [
+    "画布生成整组",
+    "浮框单发（先补参考）",
+    "分镜批量生成",
+    "交给画布",
+    "任务中心重试失败",
+    "参考卡波次"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.gnu.org/software/make/manual/html_node/Options-Summary.html",
+      "checked_at": "2026-11-17",
+      "purpose": "-o / -k / -B：已满足的不重做、出错的目标和依赖它的做不了其余照做、「全部重做」只能显式选——对应可找回不进、上游拦下传染、已定稿默认不勾。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://raw.githubusercontent.com/comfyanonymous/ComfyUI/master/comfy_execution/graph.py",
+      "checked_at": "2026-11-17",
+      "purpose": "TopologicalSort 一处算执行集合与顺序、已缓存上游跳过、成环报错——对应主人唯一分波、单发只补没结果的上游。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html",
+      "checked_at": "2026-11-17",
+      "purpose": "upstream_failed：上游没成下游显式标出而不是悄悄跑——对应确认后缩减再问主人、下游拦下「等上游」。"
+    }
+  ],
+  "invariants": [
+    "成员、默认勾选、先后只由 generationShotScope 的 planGenerationScope / narrowGenerationScope 算；入口只交意图 + 选择 + 事实。",
+    "生成中、可找回在所有意图里都是灰行、勾不上；确认后缩减一律再问主人，剔掉的上游没结果则下游拦下。",
+    "执行计划带类型标记，只有主人造得出；批量消费口只收这种计划。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationScopeFacts.ts",
+      "symbol": "planGenerationScope"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/handOverPrecheck.ts",
+      "symbol": "planGenerationScope"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "planCanvasGenerationScope"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/productionHandOverShotsOp.ts",
+      "symbol": "planCanvasGenerationScope"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "planCanvasGenerationScope"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "planCanvasGenerationScope"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+      "symbol": "planCanvasGenerationScope"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/composerRun.ts",
+      "symbol": "planCanvasGenerationScope"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationScopeTestPlans.ts",
+      "symbol": "planCanvasGenerationScope"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "planCanvasGenerationScope"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "narrowGenerationScope"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationScopeTestPlans.ts",
+      "symbol": "narrowGenerationScope"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/handOverPrecheck.ts",
+      "symbol": "narrowGenerationScope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+      "symbol": "planGenerationScope"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "symbol": "classifyGenerationScope"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+      "symbol": "GenerationScopePlan"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 16,
+    "why_not": "修前 buildDependencyWaves 8 扇门各自分波，候选 / 默认勾 / 排除另散在入口里；修后分波与判定 0 扇在主人之外。剩下的门是入口改问主人（planCanvasGenerationScope 是唯一的事实适配，planGenerationScope 只剩适配器与交接预检两处直接调用，narrowGenerationScope 是确认后缩减与交接），每扇门只传意图和选择，不再自己决定谁进；generationScopeTestPlans.ts 只给测试造真实计划。另有三扇是 door-map 按符号数不到、手加进清单的：主人本身（generationShotScope.ts，唯一的判定处）、分镜行状态的分类（storyboardRowStatus 里按主人的行原因计数，只读结论）、执行层读计划的类型（generationRunWaves 只消费主人给的波次，不再自己排）——手加是为了让门数把读结论的地方也算进来，不是新增判定。入口本身是不同的用户动作，不能合并成一扇。"
+  },
+  "generality_proof": "七种意图一张表、共同规则一处；五入口对拍测试对同一组事实给同一结论。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+      "symbol": "planGenerationScope",
+      "responsibility": "意图 + 选择 + 事实 → 候选行、成员、分波、拦下原因。"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+      "symbol": "narrowGenerationScope",
+      "responsibility": "确认后按人勾的与此刻事实再问一次，依赖重算。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationScopeFacts.ts",
+      "symbol": "planCanvasGenerationScope",
+      "responsibility": "画布节点 / 边 / 占用翻成中立事实，只翻不判。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+      "entry_point": "runGroupGenerate",
+      "disposition": "enforced",
+      "evidence": "五入口对拍测试①；ESLint 禁手拼计划；check:batch-machines second-scope-home。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/composerRun.ts",
+      "entry_point": "startGenerationFromComposer",
+      "disposition": "enforced",
+      "evidence": "五入口对拍测试②。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "entry_point": "deriveStoryboardBatch",
+      "disposition": "enforced",
+      "evidence": "五入口对拍测试③；storyboardBatchScope.test.ts。"
+    },
+    {
+      "path": "src/workbench/production/handOverPrecheck.ts",
+      "entry_point": "handOverPrecheck",
+      "disposition": "enforced",
+      "evidence": "五入口对拍测试④。"
+    },
+    {
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "entry_point": "retry-failed",
+      "disposition": "enforced",
+      "evidence": "五入口对拍测试⑤。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一判断在十处各写一份，每加一个入口就多一份。",
+    "same_class_scan": [
+      "door-map 修前：buildDependencyWaves 8 扇、eligibleGenerationNodeIds 1 扇；修后 0。",
+      "check:batch-machines second-scope-home 扫主人之外重新定义旧判据名、自己往 waves 里推。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/agentCapabilities/generationShotScope.ts",
+    "invariant": "执行计划只有主人能造（类型标记）；入口只交事实。",
+    "failure_mode": "没有能勾的 → 入口返回 empty；上游没结果 / 未定妆 / 成环 → 计划里 blocked 带原因。",
+    "exception_policy": "none",
+    "strategy": "删掉 dependencyWaves.ts、referenceAncestors.ts 与入口内的判定；类型标记 + ESLint 逐文件禁 as / satisfies / 手拼 waves+blocked + 扫描规则 + 概念登记 + 五入口对拍。",
+    "artifacts": [
+      "electron/shared/agentCapabilities/generationShotScope.ts",
+      "eslint.config.mjs",
+      "scripts/check-batch-machines.mjs",
+      "docs/engineering/concept-owners/generation.scope-plan.json"
+    ]
+  },
+  "regression_tests": [
+    "electron/shared/agentCapabilities/generationScopePlan.test.ts",
+    "src/workbench/generationCanvas/runner/generationScopeEntries.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardBatchScope.test.ts",
+    "scripts/check-batch-machines.test.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/runner/generationScopeEntries.test.ts",
+    "scripts/check-batch-machines.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/runner/dependencyWaves.ts",
+      "src/workbench/generationCanvas/runner/referenceAncestors.ts",
+      "src/workbench/generationCanvas/runner/dependencyWaves.ts"
+    ],
+    "rationale": "分波与补上游搬进主人，不留转发；canvasProductionScope 里没有生产调用的旧筛选删掉。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "扩已有领域主人，不引第三方。",
+    "exit_criteria": []
+  },
+  "migration": "不改存储格式。旧项目里可找回的节点在组生成卡上从可勾变灰行（出路：节点上现有的免费找回）；可找回的参考卡不再进分镜批量卡；其余默认取值不变。",
+  "residual_risks": [
+    "构造测试与回环假服务，不代表真实供应商或真实用户旧数据。",
+    "用 any 绕过类型标记、动态属性名读状态，扫描和 ESLint 认不出。",
+    "已知问题：参考卡成员按 anchorIds 算，提示词没提名字的参考卡仍会被列进批量卡（测试钉住，另做）。"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-24",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/generationShotScope.ts",
+    "tests": [
+      "electron/shared/agentCapabilities/generationScopePlan.test.ts",
+      "src/workbench/generationCanvas/runner/generationScopeEntries.test.ts"
+    ]
+  }
+}

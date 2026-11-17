@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BATCH_RUN_TOAST_ID, describeBlockedNotice, runPlanWithToasts } from './batchPlanPreview'
-import type { DependencyWavePlan } from '../runner/dependencyWaves'
+import { planCanvasGenerationScope } from '../runner/generationScopeFacts'
 import { runGenerationNodesByPlan } from '../runner/generationRunWaves'
 import { withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
 import { createProjectSessionTestHarness, testProjectBinding, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
@@ -52,32 +52,30 @@ vi.mock('../runner/generationRunWaves', () => ({
   runGenerationNodesByPlan: vi.fn(async () => ({ totalCount: 1, skipped: [], successes: [], failures: [] })),
 }))
 
-function plan(over: Partial<DependencyWavePlan>): DependencyWavePlan {
-  return { waves: [], blocked: [], edgesUsed: [], ...over }
+/** 执行计划只能由共用主人造：按当前（假）画布，把这些节点规划成一批。 */
+function planOf(ids: string[]) {
+  return planCanvasGenerationScope('group', ids, { nodes: mocks.nodes, edges: mocks.edges })
 }
 
 describe('describeBlockedNotice — 批量「缺啥提示啥」', () => {
   it('无 blocked → null（不提示）', () => {
-    expect(describeBlockedNotice(plan({ waves: [['a', 'b']] }))).toBeNull()
+    expect(describeBlockedNotice({ blocked: [] })).toBeNull()
   })
 
   it('上游参考未生成被拦 → 提示「在等上游参考」', () => {
-    const p = plan({
-      waves: [['s1']],
-      blocked: [{ nodeId: 's2', reason: 'missing-upstream', detail: '上游「创作工位」还没有生成结果' }],
-    })
+    const p = { blocked: [{ nodeId: 's2', reason: 'missing-upstream' as const, detail: '上游「创作工位」还没有生成结果' }] }
     const msg = describeBlockedNotice(p)
     expect(msg).toContain('1 个在等上游参考')
     expect(msg).toContain('先把它们生成')
   })
 
   it('循环引用单独计数', () => {
-    const p = plan({
+    const p = {
       blocked: [
-        { nodeId: 'a', reason: 'cycle', detail: '与其他节点构成循环引用' },
-        { nodeId: 'b', reason: 'missing-upstream', detail: 'x' },
+        { nodeId: 'a', reason: 'cycle' as const, detail: '与其他节点构成循环引用' },
+        { nodeId: 'b', reason: 'missing-upstream' as const, detail: 'x' },
       ],
-    })
+    }
     const msg = describeBlockedNotice(p)!
     expect(msg).toContain('1 个在等上游参考')
     expect(msg).toContain('1 个存在循环引用')
@@ -101,7 +99,7 @@ describe('runPlanWithToasts concurrency', () => {
 
   it('F6: an admission refusal is an informational skip with no retry action', async () => {
     vi.mocked(runGenerationNodesByPlan).mockResolvedValueOnce({ totalCount: 1, skipped: [], successes: [], failures: [{ nodeId: 'a', error: new Error('node_generation_in_flight') }] })
-    await runPlanWithToasts(plan({ waves: [['a']] }), { project: openProject() })
+    await runPlanWithToasts(planOf(['a']), { project: openProject() })
     expect(mocks.toastPush).toHaveBeenCalledOnce()
     expect(mocks.toastPush.mock.calls[0][0]).toMatchObject({ type: 'info', message: '1 张上一次还没结束，这次跳过了。' })
     expect(mocks.toastPush.mock.calls[0][0].actionLabel).toBe('生成区')
@@ -122,14 +120,14 @@ describe('runPlanWithToasts concurrency', () => {
       failures: [],
     })
     const project = openProject()
-    await runPlanWithToasts(plan({ waves: [['frame', 'anchor']] }), { project })
+    await runPlanWithToasts(planOf(['frame', 'anchor']), { project })
     // 阳性对照：这一批确实跑了、有成功的镜头；在这个前提下审片一次都没被调。
     expect(runGenerationNodesByPlan).toHaveBeenCalledTimes(1)
     expect(verifyShotsAndReport).not.toHaveBeenCalled()
   })
 
   it('passes the chosen concurrency to the dependency-wave runner', async () => {
-    const dependencyPlan = plan({ waves: [['a']] })
+    const dependencyPlan = planOf(['a'])
 
     const canvasRunRecordIds = new Map([['a', 'run-a-1']])
     await runPlanWithToasts(dependencyPlan, { canvasRunRecordIds, concurrency: 4, project: openProject() })
@@ -149,7 +147,7 @@ describe('runPlanWithToasts concurrency', () => {
       failures: [],
     })
 
-    await runPlanWithToasts(plan({ waves: [['a']] }), { project: openProject() })
+    await runPlanWithToasts(planOf(['a']), { project: openProject() })
 
     expect(mocks.toastPush).not.toHaveBeenCalled()
   })
@@ -158,7 +156,7 @@ describe('runPlanWithToasts concurrency', () => {
     vi.mocked(runGenerationNodesByPlan).mockResolvedValueOnce({
       totalCount: 1, skipped: [], successes: [], failures: [{ nodeId: 'a', error: new Error('failed') }],
     })
-    await runPlanWithToasts(plan({ waves: [['a']] }), { project: openProject() })
+    await runPlanWithToasts(planOf(['a']), { project: openProject() })
     await projectSession.open('project-b')
     const dispatchEvent = vi.fn((_event: Event) => true) // No application navigation handler accepted this request.
     vi.stubGlobal('window', { dispatchEvent })
@@ -170,9 +168,9 @@ describe('runPlanWithToasts concurrency', () => {
 
   it('does not replace another project recovery action when node IDs match and no grant is supplied', async () => {
     vi.mocked(runGenerationNodesByPlan).mockResolvedValue({ totalCount: 1, skipped: [], successes: [], failures: [{ nodeId: 'a', error: new Error('offline') }] })
-    await runPlanWithToasts(plan({ waves: [['a']] }), { project: openProject() })
+    await runPlanWithToasts(planOf(['a']), { project: openProject() })
     await projectSession.open('project-b')
-    await runPlanWithToasts(plan({ waves: [['a']] }), { project: openProject() })
+    await runPlanWithToasts(planOf(['a']), { project: openProject() })
     const [first, second] = mocks.toastPush.mock.calls.map(([notice]) => notice)
     expect(first.id).not.toBe(second.id)
     expect(first.id).toContain('project-a')
@@ -198,7 +196,7 @@ describe('runPlanWithToasts concurrency', () => {
       })
 
     const staleAuthorGuard = vi.fn(async () => { throw new Error('Storyboard target changed') })
-    await runPlanWithToasts(plan({ waves: [['a']] }), { concurrency: 4, project: openProject(), assertAuthorCurrent: staleAuthorGuard })
+    await runPlanWithToasts(planOf(['a']), { concurrency: 4, project: openProject(), assertAuthorCurrent: staleAuthorGuard })
     const failedToast = mocks.toastPush.mock.calls[0][0]
     expect(failedToast).toMatchObject({
       id: `${BATCH_RUN_TOAST_ID}:project-a:a`,

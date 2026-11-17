@@ -1,6 +1,5 @@
 import { canvasOpenRuns } from '../../../api/taskApi'
 import { withProjectAction } from '../../../project/projectCanvasReadSurface'
-import { isGenerationNodeBusy } from '../../../generationCanvas/components/canvasProductionScope'
 import { groupGenerateRows } from '../../../generationCanvas/components/groupGenerate'
 import { preloadModelOptions } from '../../../../config/useModelOptions'
 import type { StoryboardActionGuard } from './storyboardActionGuard'
@@ -29,7 +28,8 @@ import {
 } from '../../../generationCanvas/agent/availableModels'
 import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
-import { buildDependencyWaves, hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
+import { hasSelectableCanvasScope, hasUsableResult, planCanvasGenerationScope, storyboardAnchorScopeItem } from '../../../generationCanvas/runner/generationScopeFacts'
+import { classifyGenerationScope } from '../../../../../electron/shared/agentCapabilities/generationShotScope'
 import { confirmAndRunNode, regenerateNodeInPlace, type GenerationApprovalGuards, type GenerationConfirmationGuards, type DeferredNodeMaterialization } from '../../../generationCanvas/runner/generationRunController'
 import { confirmAndRunPlan, reportOpenRunSkips } from '../../../generationCanvas/components/batchPlanPreview'
 import i18n from '../../../../i18n'
@@ -261,7 +261,7 @@ export async function generateShotRow(
     await confirmAndRunNode(shotDraft.id, { ...confirmationGuards(ctx), deferredMaterialization: deferred })
     return
   }
-  const draftPlan = buildDependencyWaves(draftNodes.map((node) => node.id), { nodes: draftNodes, edges: [] })
+  const draftPlan = planCanvasGenerationScope('shot-row', draftNodes.map((node) => node.id), { nodes: draftNodes, edges: [] })
   await ctx.assertCurrent?.()
   await confirmAndRunPlan(draftPlan, {
     ...confirmationGuards(ctx),
@@ -270,7 +270,8 @@ export async function generateShotRow(
       materialize: async () => {
         const materialized = await finishMaterializedShotRow(ctx, shot, prepared, false)
         const state = canvasState()
-        return buildDependencyWaves(
+        return planCanvasGenerationScope(
+          'shot-row',
           [materialized.keyframeNodeId ?? materialized.shotNodeId, materialized.shotNodeId],
           state,
         )
@@ -315,7 +316,7 @@ export async function rerunShotRowWithFreshRefs(
   await syncShotNodeWithRow(ctx, shot, exec.node, 'shot', mode)
   const { nodes, edges } = canvasState()
   await ctx.assertCurrent?.()
-  await confirmAndRunPlan(buildDependencyWaves([exec.keyframeNode.id, exec.node.id], { nodes, edges }), confirmationGuards(ctx))
+  await confirmAndRunPlan(planCanvasGenerationScope('shot-row', [exec.keyframeNode.id, exec.node.id], { nodes, edges }), confirmationGuards(ctx))
 }
 
 /**
@@ -420,9 +421,11 @@ type StoryboardBatchSelection = {
 function storyboardBatchRows(ctx: RowActionContext, rows: readonly StoryboardRowRuntime[], occupied = new Set<string>()): { planRows: PlanRow[]; selection: StoryboardBatchSelection } {
   const anchorCards = deriveAnchorCardRuntimes({ plan: ctx.plan, designId: ctx.designId, nodes: canvasState().nodes })
   const neededAnchorIds = new Set(rows.flatMap((row) => row.shot.anchorIds))
-  const anchors = anchorCards
-    .filter((card) => card.visual && neededAnchorIds.has(card.anchor.id) && !card.resultUrl && !isGenerationNodeBusy(card.node ?? undefined) && !card.locked && !occupied.has(card.node?.id ?? ''))
-    .map((card) => card.anchor)
+  // 哪几张参考卡先跑一波：共用主人的 anchor-wave 意图（已出图 / 生成中 / 被别处占着 / 可找回的都不进——可找回的已经付过钱）。
+  const candidates = anchorCards.filter((card) => card.visual && neededAnchorIds.has(card.anchor.id))
+  const picked = new Set(classifyGenerationScope('anchor-wave', candidates.map((card) => storyboardAnchorScopeItem(card.anchor.id, card.node, { occupied })))
+    .filter((row) => row.state === 'checked').map((row) => row.id))
+  const anchors = candidates.filter((card) => picked.has(card.anchor.id)).map((card) => card.anchor)
   const anchorRows: PlanRow[] = anchors.map((anchor) => ({
     id: `anchor:${anchor.id}`,
     label: anchor.name.trim() || anchor.id,
@@ -449,7 +452,8 @@ async function confirmStoryboardBatch(ctx: RowActionContext, rows: readonly Stor
     const targets = new Set([...rows.flatMap(row => [row.exec.node?.id, row.exec.keyframeNode?.id]), ...ctx.plan.anchors.filter(anchor => needed.has(anchor.id)).map(anchor => anchorNodeFor(ctx, canvasState().nodes, anchor)?.id)])
     skipped = [...occupied].filter(id => targets.has(id)).length
   }
-  rows = rows.filter(row => !occupied.has(row.exec.node?.id ?? '') && !occupied.has(row.exec.keyframeNode?.id ?? '') && !isGenerationNodeBusy(row.exec.node ?? undefined) && !isGenerationNodeBusy(row.exec.keyframeNode ?? undefined))
+  // 出卡前按主进程此刻占着的再问一次主人：首帧或镜头任一个不能勾（在生成 / 被占 / 可找回 / 定了妆），整镜不上卡。
+  rows = rows.filter(row => [row.exec.node, row.exec.keyframeNode].every(node => !node || hasSelectableCanvasScope('shot-row', [node.id], [node], { occupied })))
   const { planRows, selection } = storyboardBatchRows(ctx, rows, occupied)
   if (planRows.length === 0) return { rows: [], anchors: [], skipped }
   const checked = new Set(planRows.filter((row) => row.checked).map((row) => row.id))
@@ -493,7 +497,8 @@ type StoryboardShotRuns = readonly ({ id: string; runId: string | undefined } | 
 function storyboardNodeRunUnclaimed(node: GenerationCanvasNode | null | undefined, before: StoryboardShotRuns[number] | undefined): boolean {
   if (before === undefined) return false
   if (!node) return !before
-  if (isGenerationNodeBusy(node) || isAnchorFrozen(node) || node.status === 'recoverable') return false
+  // 卡开着时开始生成 / 变可找回 / 被定了妆的，确认后不发——由共用主人按此刻的事实再判一次（shot-row 意图：灰行 = 不归这次确认）。
+  if (!hasSelectableCanvasScope('shot-row', [node.id], [node])) return false
   if (!before || node.id !== before.id) return !node.runs?.length
   return node.runs?.[0]?.id === before.runId
 }
@@ -573,9 +578,8 @@ export async function runStoryboardBatch(
       if (nodeId) anchorRunIds.push(nodeId)
     }
     if (anchorRunIds.length > 0) {
-      const { nodes: anchorNodes, edges: anchorEdges } = canvasState()
       const anchorOutcome = await confirmAndRunPlan(
-        buildDependencyWaves(anchorRunIds, { nodes: anchorNodes, edges: anchorEdges }),
+        planCanvasGenerationScope('anchor-wave', anchorRunIds, canvasState()),
         { ...confirmationGuards(ctx), skipSpendConfirmation: true, filterBeforeEnqueue: ids => {
           const available = new Set(confirmed.anchors.filter(anchor => storyboardNodeRunUnclaimed(anchorNodeFor(ctx, canvasState().nodes, anchor), confirmedAnchorRuns.get(anchor.id)))
             .map(anchor => anchorNodeFor(ctx, canvasState().nodes, anchor)?.id))
@@ -630,6 +634,8 @@ export async function runStoryboardBatch(
   }
 
   // 结局要往回送：Agent 的 `generate` 对文稿方案就是经这条链问的用户（见 `generationRunOutcome.ts`）。
-  return confirmAndRunPlan(buildDependencyWaves(runIds, { nodes, edges }), { ...confirmationGuards(ctx), filterBeforeEnqueue, skipSpendConfirmation: !spendChanged,
-    ...(spendChanged ? { itemized: { rows: groupGenerateRows(runIds) } } : {}), ...(onConsented ? { onConsented } : {}) })
+  // 第一张卡上人已经勾过这几行（已出图的也可能被他勾上重跑）：按人勾的算（shot-row 意图：有结果的也进），不再按「默认进不进批」筛一遍。
+  const plan = planCanvasGenerationScope('shot-row', runIds, { nodes, edges })
+  return confirmAndRunPlan(plan, { ...confirmationGuards(ctx), filterBeforeEnqueue, skipSpendConfirmation: !spendChanged,
+    ...(spendChanged ? { itemized: { rows: groupGenerateRows(plan) } } : {}), ...(onConsented ? { onConsented } : {}) })
 }
