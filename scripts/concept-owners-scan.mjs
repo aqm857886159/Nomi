@@ -379,3 +379,125 @@ export function findIdentityComparators({ files, read }) {
   }
   return found.sort((left, right) => `${left.path}::${left.symbol}`.localeCompare(`${right.path}::${right.symbol}`))
 }
+
+// shortcut: 仅识别已知 AST 形状，出现新旁路时升级为不暴露账本的读取接口。
+export function findShotJobSelections({ files, read }) {
+  const found = []
+  for (const file of files) {
+    if (!isScannableSource(file) || !PRODUCTION_ROOTS.includes(rootOf(file))) continue
+    const text = read(file)
+    if (!text || !/\b(?:jobs|ProductionJob|jobsForShot)\b/.test(text)) continue
+    const rel = normalizePath(file)
+    if (rel === 'electron/shared/productionShotJobs.ts') continue
+    const source = parseSource(rel, text)
+    const producers = new Set(['jobsForShot'])
+    const scopes = new Map()
+    const scopeOf = (node) => {
+      for (let at = node; at; at = at.parent) {
+        if (ts.isSourceFile(at) || ts.isBlock(at) || ts.isFunctionLike(at)) return at
+      }
+    }
+    const bind = (node, name, value) => {
+      const scope = scopeOf(node.parent)
+      if (!scopes.has(scope)) scopes.set(scope, new Map())
+      scopes.get(scope).set(name, value)
+    }
+    const collect = (node) => {
+      if (ts.isImportSpecifier(node) && (node.propertyName ?? node.name).text === 'jobsForShot') producers.add(node.name.text)
+      if (ts.isVariableDeclaration(node) || ts.isParameter(node)) {
+        if (ts.isIdentifier(node.name)) bind(node, node.name.text, node)
+        else if (ts.isObjectBindingPattern(node.name)) {
+          for (const element of node.name.elements) {
+            if (ts.isIdentifier(element.name) && (element.propertyName ?? element.name).getText(source) === 'jobs') {
+              bind(node, element.name.text, { ledgerBinding: true })
+            }
+          }
+        }
+      }
+      ts.forEachChild(node, collect)
+    }
+    collect(source)
+    const declarationOf = (node) => {
+      for (let at = node.parent; at; at = at.parent) {
+        const declaration = scopes.get(at)?.get(node.text)
+        if (declaration) return declaration
+      }
+    }
+    const isJobListCall = (expression) => {
+      let callee = unwrapExpression(expression)
+      const seen = new Set()
+      while (callee && ts.isIdentifier(callee) && !seen.has(callee.text)) {
+        if (producers.has(callee.text)) return true
+        seen.add(callee.text)
+        callee = unwrapExpression(declarationOf(callee)?.initializer)
+      }
+      return Boolean(callee && ((ts.isPropertyAccessExpression(callee) && callee.name.text === 'jobsForShot')
+        || (ts.isElementAccessExpression(callee) && ts.isStringLiteralLike(callee.argumentExpression) && callee.argumentExpression.text === 'jobsForShot')))
+    }
+    const ledger = (expression, seen = new Set()) => {
+      const node = unwrapExpression(expression)
+      if (!node || seen.has(node)) return false
+      seen.add(node)
+      if (ts.isPropertyAccessExpression(node)) return node.name.text === 'jobs'
+      if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) return node.argumentExpression.text === 'jobs'
+      if (ts.isIdentifier(node)) {
+        const declaration = declarationOf(node)
+        return Boolean(declaration && (declaration.ledgerBinding
+          || (declaration.type && /(?:ProductionJob\s*\[|(?:ReadonlyArray|Array)\s*<\s*ProductionJob\b|ProductionRun\s*\[\s*['"]jobs['"])/.test(declaration.type.getText(source)))
+          || ledger(declaration.initializer, seen)))
+      }
+      if (ts.isArrayLiteralExpression(node)) return node.elements.some((item) => ts.isSpreadElement(item) && ledger(item.expression, seen))
+      if (ts.isBinaryExpression(node) && [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken].includes(node.operatorToken.kind)) {
+        return ledger(node.left, seen) || ledger(node.right, seen)
+      }
+      if (ts.isCallExpression(node) && isJobListCall(node.expression)) return true
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+        && node.expression.getText(source) === 'Array.from') return ledger(node.arguments[0], seen)
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+        && ['filter', 'slice', 'sort', 'toSorted', 'reverse', 'toReversed'].includes(node.expression.name.text)) {
+        return ledger(node.expression.expression, seen)
+      }
+      return false
+    }
+    const symbolOf = (node) => {
+      for (let at = node.parent; at; at = at.parent) {
+        if (!ts.isFunctionLike(at)) continue
+        if (at.name && ts.isIdentifier(at.name)) return at.name.text
+        if (ts.isVariableDeclaration(at.parent) && ts.isIdentifier(at.parent.name)) return at.parent.name.text
+      }
+      return '<inline>'
+    }
+    const visit = (node) => {
+      let selection = ts.isVariableDeclaration(node) && ts.isArrayBindingPattern(node.name) && ledger(node.initializer)
+      selection ||= ts.isElementAccessExpression(node) && ledger(node.expression)
+        && /^(?:0|-1)$|\.length\s*-\s*1$/.test(node.argumentExpression.getText(source))
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && ledger(node.expression.expression)) {
+        const method = node.expression.name.text
+        const predicate = node.arguments.map((arg) => arg.getText(source)).join(' ')
+        const callback = node.arguments[0]
+        const numericFold = node.arguments[1] && ts.isNumericLiteral(unwrapExpression(node.arguments[1]))
+          && callback && ts.isArrowFunction(callback) && ts.isCallExpression(callback.body)
+          && /^Math\.(?:max|min)$/.test(callback.body.expression.getText(source))
+        selection ||= ['at', 'pop', 'shift'].includes(method)
+          || (['find', 'findLast'].includes(method) && /\b(?:shotId|shotNodeId|nodeId)\b/.test(predicate) && !/\bjobId\b/.test(predicate))
+          || (method === 'reduce' && /\b(?:attempt|createdAt|updatedAt)\b/.test(predicate) && !numericFold)
+      }
+      if (selection) {
+        const symbol = symbolOf(node)
+        // 已登记的专用问题：冻结合同内重做、整个 Run 最近活动导航。它们不按镜/节点挑当前任务。
+        const specialized = (rel === 'electron/productionRun/prepareProductionGenerationAuthorization.ts' && symbol === 'latestJobFor')
+          || (rel === 'src/workbench/production/productionRunView.ts' && symbol === 'latestJob')
+          || (rel === 'src/workbench/production/useProductionStatus.ts' && symbol === 'useProductionStatus')
+          || (rel === 'electron/productionRun/productionGenerationHistory.ts' && symbol === 'findGenerationExecutionJob')
+          || (rel === 'electron/productionRun/productionGenerationAuthorizationState.ts' && symbol === 'deriveGenerationReauthorizationState')
+          || (rel === 'electron/productionRun/productionGenerationSeal.ts' && symbol === 'applyGenerationSeal')
+          || (rel === 'electron/productionRun/singleShotRunLifecycle.ts' && symbol === 'markSingleShotCompleted')
+          || (rel === 'electron/productionRun/submissionIntent.ts' && ['inspect', 'claim'].includes(symbol))
+        if (!specialized) found.push({ path: rel, symbol, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 })
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+  }
+  return found
+}

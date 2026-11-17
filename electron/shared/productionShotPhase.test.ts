@@ -128,8 +128,8 @@ describe('deriveProductionShotState', () => {
   })
 
   it('返工：同一镜多个 attempt 取最新那一次', () => {
-    const old = job('s1', 'needs_attention', { jobId: 'job-s1-a1', errorCode: 'provider_task_failed', createdAt: '2026-08-25T00:00:00.000Z' })
-    const fresh = job('s1', 'polling', { jobId: 'job-s1-a2', createdAt: '2026-08-25T00:10:00.000Z' })
+    const old = job('s1', 'needs_attention', { jobId: 'job-s1-a1', attempt: 1, errorCode: 'provider_task_failed', createdAt: '2026-08-25T00:00:00.000Z' })
+    const fresh = job('s1', 'polling', { jobId: 'job-s1-a2', attempt: 2, createdAt: '2026-08-24T00:00:00.000Z' })
     const state = deriveProductionShotState(run({ shots: [{ shotId: 's1' }], jobs: [old, fresh] }), 's1')
     expect(state?.phase).toBe('generating')
     expect(state?.job?.jobId).toBe('job-s1-a2')
