@@ -5,11 +5,12 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { selectStableCanvasNodes } from '../store/canvasNodeProjection'
 import { nodeSelectedModelAddress } from './controls/parameterControlModel'
 import { localGenerationMedian } from '../../observability/generationTiming'
+import { admitNumber } from '../../../../electron/shared/videoCapabilities/paramValue'
 
 export function GenerationTimingHint({ node }: { node: GenerationCanvasNode }): JSX.Element | null {
   const { t } = useTranslation()
   const nodes = useGenerationCanvasStore(selectStableCanvasNodes)
-  const median = React.useMemo(() => localGenerationMedian(nodes, nodeSelectedModelAddress(node.meta), Number(node.meta?.durationSeconds ?? node.meta?.videoDuration)), [nodes, node.meta])
+  const median = React.useMemo(() => localGenerationMedian(nodes, nodeSelectedModelAddress(node.meta), admitNumber(node.meta?.durationSeconds ?? node.meta?.videoDuration) ?? Number.NaN), [nodes, node.meta])
   if (median === undefined || median < 60000) return null
   // Round a measured median outward to minute bounds; no provider-wide guessed averages.
   const min = Math.max(1, Math.floor(median / 60000))

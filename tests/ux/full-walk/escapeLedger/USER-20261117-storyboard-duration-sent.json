@@ -1,0 +1,31 @@
+{
+  "id": "USER-20261117-storyboard-duration-sent",
+  "since": "2026-11-17",
+  "source": "用户 2026-11-17 报：分镜行给 RunningHub 的 Seedance 2.0 把时长从 5 点成 12，行上还是 5s，发出去也还是 5 秒；同日按方向复盘的推荐选了「进门统一、出口编码」。",
+  "category": "parameter-contract",
+  "problem": "分镜行里点了 12 秒，行上仍显示 5s、发给供应商的也是 5 秒；同一个参数值有数字和字符串两种写法，行上显示、约价、发送三处各转一遍、各读出一个数。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑩"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-17-param-value-type.md",
+    "docs/engineering/direction-checks/2026-11-17-param-value-type.md",
+    "electron/parity/paramValueType.parity.test.ts",
+    "docs/evidence/2026-11-17-param-value-type/README.md",
+    "electron/shared/videoCapabilities/paramValue.test.ts",
+    "scripts/param-value-door-rule.test.mjs",
+    "结构性预防：参数值只在 electron/shared/videoCapabilities/paramValue.ts 的门口规整一次（声明门、值门、读秒、面板输入门、出口编码），分镜两个时长字段只经 reconcileShotDuration 收拢；门里再自己转类型由 ESLint 规则 param-value-door/no-reparse 拦；类级对拍按目录结构认全部数字档下拉，存的 = 行上显示 = 约价 = 报文里档案原文的声明值。",
+    "实现提交已完成，独立验收待填写；当前分支尚无 PR，转 fixed 和 fixedInPr 待真实 PR 创建后由协调回填，不虚构编号。"
+  ],
+  "rootCauseContract": "docs/fixes/2026-11-17-param-value-type.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/parity/paramValueType.parity.test.ts"
+  },
+  "completionCommits": []
+}

@@ -1,0 +1,24 @@
+{
+  "id": "param-value-door-200",
+  "feature": "参数值只在门口规整一次：200 个视频节点各过一次发送口（值门 + 档案修值 + 按供应商声明的写法编码）；40 镜分镜方案读入时规整打架的两个时长字段",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/param-value-door-bench.mjs",
+    "--"
+  ],
+  "scale": "200 个视频节点，5 种档案（字符串时长档 3 种、数字时长档 2 种），一半节点存的写法和声明相反；分镜 40 镜，一半是「durationSec 0 + params.duration \"12\"」",
+  "metrics": [
+    "sendDoor200Ms",
+    "planRead40Ms",
+    "encodedStrings",
+    "conflictShotSeconds"
+  ],
+  "budget": 15,
+  "budgetStatus": "proposed",
+  "budgetBasis": "主指标 sendDoor200Ms = 200 个节点各过一次发送口。最坏是「整批发送」一次过 200 个节点；「操作到可见反馈 ≤100ms」里给参数规整 15ms（p95 ≤30ms），其余留给确认卡与排队。planRead40Ms（40 镜方案读入含规整）预算 p95 ≤5ms，只打印；encodedStrings（应恒为 120）、conflictShotSeconds（应恒为 12）是量具自检。",
+  "measurement": {
+    "state": "pending",
+    "reason": "实现线已冒烟并量过 5 次（数字在 PR 正文），基线待协调或验收线在安静窗口写入"
+  }
+}

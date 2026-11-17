@@ -17,15 +17,11 @@
  *       · `planResolver` 钳值并产出结构化 issue（审阅面要告诉用户「被改成了什么、为什么」）。
  *
  * 纯函数，无 Electron / React / i18n / 文件系统依赖：renderer 与主进程共用同一份判据。
+ *
+ * 值的**类型**不归这里：`5` 和 `"5"` 是不是同一档，由门口（paramValue.ts 的声明门 + 值门）先规整成一种，这里只判规整后的值。
  */
+import { declaredNumericOptions, isFiniteNumber } from "./paramValue";
 import type { ArchetypeMode, ModelParameterControl } from "./types";
-
-/** 控件枚举里的**数值**档位（非数值/非有限值不算档位）。 */
-export function numericOptionValues(control: ModelParameterControl): number[] {
-  return control.options
-    .map((option) => option.value)
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
-}
 
 /** 在一组档位里取离 `wanted` 最近的那个（档位非空时才有意义）。 */
 export function nearestNumber(wanted: number, values: readonly number[]): number {
@@ -38,7 +34,7 @@ export type ParamRange = { min: number; max: number; enum?: number[] };
 /** 读出某个数值参数的合法范围。读不到（无此参数 / 既无档位也无 min-max）= null。 */
 export function numericRangeOf(control: ModelParameterControl | undefined): ParamRange | null {
   if (!control) return null;
-  const options = numericOptionValues(control);
+  const options = declaredNumericOptions(control);
   if (options.length > 0) return { min: Math.min(...options), max: Math.max(...options), enum: options };
   if (typeof control.min === "number" && typeof control.max === "number") return { min: control.min, max: control.max };
   return null;
@@ -58,16 +54,14 @@ export function clampToRange(wanted: number, range: ParamRange): { value: number
 }
 
 /**
- * 唯一的「这个值合法吗」判据。
- *
- * 枚举比较**按字符串形**（`String(option.value) === String(value)`）是刻意的：参数从 agent 的
- * JSON、从 IPC 信封、从持久化 meta 三条路进来，同一档位可能是 `5` 也可能是 `"5"`。严格 `===`
- * 会把同一个合法档位在其中一条路上判成非法——这正是两份实现行为分叉的那处。
+ * 唯一的「这个值合法吗」判据。**值先过门**（`admitParamValue`）再问这里：同一档位从 agent 的 JSON、IPC 信封、持久化 meta
+ * 进来可能是 `5` 也可能是 `"5"`，门口已经规整成控件声明的那一种，所以这里按值严格比（`Object.is`）。
+ * 以前这里按字符串形比，等于在门里再写一个解析器：判「合法」的是 `"8"`，后面按 typeof 分流的地方却把它当成别的东西。
  */
 export function isParamValueAllowed(control: ModelParameterControl, value: string | number | boolean): boolean {
-  if (control.options.length > 0) return control.options.some((option) => String(option.value) === String(value));
+  if (control.options.length > 0) return control.options.some((option) => Object.is(option.value, value));
   if (control.type === "number") {
-    if (typeof value !== "number" || !Number.isFinite(value)) return false;
+    if (!isFiniteNumber(value)) return false;
     if (control.min !== undefined && value < control.min) return false;
     if (control.max !== undefined && value > control.max) return false;
     return true;
