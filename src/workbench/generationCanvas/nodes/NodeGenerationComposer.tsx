@@ -20,7 +20,6 @@ import { requestDirectorPreviewRender } from './director/agent/directorPreviewCa
 import type { UnmetReferenceDependency } from './controls/referenceDependency'
 import { collectUngeneratedReferenceAncestors } from '../runner/generationScopeFacts'
 import NodeParameterControls from './NodeParameterControls'
-import { ComposerSendButton } from './ComposerSendButton'
 import { NodePromptOptimizer } from './NodePromptOptimizer'
 import { NodePromptTranslator } from './NodePromptTranslator'
 import { useNodeAssetDrop } from './useNodeAssetDrop'
@@ -490,9 +489,9 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
               </>
             ) : undefined,
             // 数量：模型声明了数量才有（section="quantity" 自己判断，没有就不渲染），紧挨 ↑ 左边。
-            trailing: <NodeParameterControls node={node} section="quantity" graph={graph} modelOptionsState={modelOptionsState} readMappings={readMappings} />,
-            action: (
+            trailing: (
               <>
+                <NodeParameterControls node={node} section="quantity" graph={graph} modelOptionsState={modelOptionsState} readMappings={readMappings} />
                 {rerenderDirectorNodeId ? (
                   <WorkbenchIconButton
                     size="sm"
@@ -502,15 +501,15 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
                     onClick={() => requestDirectorPreviewRender(rerenderDirectorNodeId)}
                   />
                 ) : null}
-                <ComposerSendButton
-                  title={generateTitle}
-                  busy={isGenerating}
-                  ariaLabel={hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
-                  disabled={!canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null}
-                  onClick={handleGenerate}
-                />
               </>
             ),
+            send: {
+              title: generateTitle,
+              busy: isGenerating,
+              ariaLabel: hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset'),
+              disabled: !canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null,
+              onClick: handleGenerate,
+            },
           }}
         />
       )}

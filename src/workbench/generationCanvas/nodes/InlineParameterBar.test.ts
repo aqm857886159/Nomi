@@ -275,7 +275,7 @@ describe('InlineParameterBar 底栏的高级设置', () => {
       modelOptions, selectedModelOption: modelOptions[0], modelCatalogStatus: { message: '' },
       renderedControls, archetype: null, meta,
       onModelChange: vi.fn(), onCatalogControlChange: vi.fn(), onParameterControlChange: vi.fn(),
-      ...(withFooter ? { footer: { action: React.createElement('button', { 'data-test-send': 'true' }) } } : {}),
+      ...(withFooter ? { footer: { send: { ariaLabel: '生成', onClick: vi.fn(), attrs: { 'data-test-send': 'true' } } } } : {}),
     }))
   }
   beforeEach(() => { captured.selects = []; captured.iconButtons = [] })
