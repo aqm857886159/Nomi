@@ -136,6 +136,18 @@
     },
     {
       "members": [
+        "approved-unused",
+        "expired",
+        "pending",
+        "rejected",
+        "unknown",
+        "used"
+      ],
+      "reason": "一笔付费批准此刻对外的样子（等人 / 批了没用 / 用掉了 / 拒了 / 过期 / 不认识），是收据库按挑战状态和收据 consumedAt 投影出来的只读结论，给生成门主人判还问不问人、Run 边界拒用掉的降档收据；ChallengeRecord.status 是挑战库的内部生命周期（没有「用掉」和「不认识」），两者不同层，不合并。",
+      "site": "electron/capabilityCore/approvalReceiptDecision.ts::type:ApprovalDecisionRecord/property:state/type-union"
+    },
+    {
+      "members": [
         "accepted",
         "expired",
         "pending",

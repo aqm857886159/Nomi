@@ -35,6 +35,8 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  */
 export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/check-concept-owners.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-scan.mjs'] }, // 原文改判守门及真实显示正例。
+  // 2026-11-20：付费放行只在一个家判（spend.approval-decision）；遍历 src、electron 找签发口与「算批准」的第二个家（<1 秒）。
+  { file: 'scripts/concept-owners-approval.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-approval.mjs', 'scripts/concept-owners-scan.mjs'] },
   { file: 'scripts/asset-file-owner.node-test.mjs', roots: ['src/workbench/generationCanvas/nodes/versionCards'], files: ['eslint.config.mjs', 'src/workbench/assets/assetFileDeletion.ts', 'src/workbench/assets/removeAssetVersion.ts', 'src/workbench/assets/assetResultMutation.ts'] }, // 两种桥删除及版本面间接绕法片段必须报错，真实owner必须通过
   { file: 'scripts/typecheck.node-test.mjs', roots: ['scripts'], exts: '*' }, // tsc 启动只归统一入口；新增文件也必须检查（<1 秒）。
   { file: 'scripts/ci-external-download-cache.node-test.mjs', roots: ['.github/workflows', '.github/actions/cache-external-downloads'], exts: '*', files: ['package.json', 'pnpm-lock.yaml'] }, // node 批次：新增工作流也必须先恢复外部二进制缓存（<1 秒）。

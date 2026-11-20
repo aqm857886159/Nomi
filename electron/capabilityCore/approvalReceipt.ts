@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 
+import { decisionRecordOf, type ApprovalDecisionRef } from "./approvalReceiptDecision";
 import { writeJsonFileAtomic } from "../jsonFile";
 import type { ProductionRunLock } from "../productionRun/productionRunLock";
 import type { MultiShotGateProjection } from "../productionRun/shotPricing";
@@ -205,7 +206,7 @@ type ChallengeRecord = {
   receiptToken?: string;
 };
 
-type ApprovalReceiptState = {
+export type ApprovalReceiptState = {
   schemaVersion: 1;
   revision: number;
   keyId: string;
@@ -771,6 +772,8 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
 
   return {
     filePath: deps.filePath,
+    /** 只读：一张挑战 / 收据此刻落在哪一档，判法住 `approvalReceiptDecision.ts`；判还问不问人的是生成门主人。不写库。 */
+    readDecisionRecord: (ref: ApprovalDecisionRef) => decisionRecordOf(readState(), ref, Date.parse(now()), digest, signed),
     requestChallenge,
     verifyChallenge,
     resolveChallengeToken,

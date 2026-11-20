@@ -45,7 +45,8 @@ export function issueTrustGrantChallenge(
   // 收据只在它描述的那份项目文档还是当前版本时可用；这里先证一次，免得弹完框才发现签不出有效收据。
   assertCurrentProjectRevision(projectId, binding.projectRevision, ctx.projectRevisionResolver)
   const challenge = receipts.requestChallenge({
-    challengeKey: `${binding.costScope}:${binding.digest}`,
+    // 带上 Run 的版本：降档 → 调回 → 再降档，每一次都是新的一问；同一版本里重试仍拿回同一张（不多弹）。
+    challengeKey: `${binding.costScope}:${binding.digest}:${run.revision}`,
     immutableProjectUuid: binding.immutableProjectUuid,
     projectGeneration: binding.projectGeneration,
     projectId,
