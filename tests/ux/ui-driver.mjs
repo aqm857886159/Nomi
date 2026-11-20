@@ -61,7 +61,7 @@ const saveVendorHits = () => {
 const launchOptions = buildLaunchOptions(options, { tempRoot, settingsDir })
 if (options.vendor) {
   const { startFakeApimartServer, writeFakeApimartCatalog } = await import('./_mcpL2Fixture.mjs')
-  fakeVendor = await startFakeApimartServer({ pendingPolls: options.vendorPending })
+  fakeVendor = await startFakeApimartServer({ pendingPolls: options.vendorPending, dropSubmits: options.vendorDropSubmit, failTasks: options.vendorFailTask })
   settingsDir ??= path.join(tempRoot, 'settings')
   const userDataDir = path.join(tempRoot, 'user-data')
   for (const dir of [settingsDir, userDataDir]) fs.mkdirSync(dir, { recursive: true })

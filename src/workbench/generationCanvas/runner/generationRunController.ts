@@ -1,7 +1,7 @@
 import { productionMetaOf } from '../model/productionMeta'
 import { productionRunApi } from '../../production/productionRunApi'
 import { reportCanvasFeedback } from '../components/canvasFeedback'
-import { releaseUnknownSubmissionForNode, releaseUnknownCanvasSubmissionsForNode, synchronizeCanvasOpenRuns } from '../../production/releaseUnknownSubmission'
+import { releaseUnknownSubmission, synchronizeCanvasOpenRuns } from '../../production/releaseUnknownSubmission'
 import { normalizeCanvasBatchConcurrency } from '../components/canvasProductionScope'
 import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 import { getDesktopBridge } from '../../../desktop/bridge'
@@ -14,7 +14,8 @@ import { useProductionCanvasLandingStore } from '../../production/productionCanv
 import { isNodeGenerationOwnedByProduction } from '../../production/productionShotOwnership'
 import { directorPreviewSpendBlock, directorPreviewSpendBlockMessageKey } from '../nodes/director/model/directorPreviewState'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
-import { canvasOpenRuns, releaseCanvasShotRun, withdrawCanvasShots } from '../../api/taskApi'
+import { canvasOpenRuns, canvasResendDecide, releaseCanvasShotRun, withdrawCanvasShots } from '../../api/taskApi'
+import type { CanvasResendDecision } from '../../../../electron/shared/canvas/canvasResendDecide'
 import { confirmGenerationResend, confirmGenerationSpend, paidNodeLedger, spendCostKind, describeGenerationCost, generationCostContextForNode, withGenerationEtaStats, type SpendInitiator } from '../spend/spendConfirm'
 import { isRetryableGenerationError, normalizeRetryAttempts, normalizeBaseDelayMs, waitForRetry } from './generationRetryPolicy'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
@@ -91,7 +92,8 @@ export type RunGenerationNodeOptions = {
   /** 'run' = 单镜 Run 路：这一次运行的批准、派发、记账都在主进程的单镜 Run 里（paidNodeLedger 定）。缺省 = 不花钱的本地 / 文本路。 */
   ledger?: 'run'
   initiator?: SpendInitiator
-  acknowledgedOpenRuns?: string[]
+  /** 人在重发卡上点了确认：主进程发的决定号（只放行号里那几笔，主进程认）。 */
+  resendDecisionId?: string
   /** 批量卡上点确认时就定下的运行记录号（主进程已经为它开了出价）。缺省 = 这一次现起一个号（单节点 ↑）。 */
   runRecordId?: string
   /** One-shot correction appended to the provider prompt for a bounded QA retry. */
@@ -197,7 +199,7 @@ export async function runGenerationNode(
           nodes: state.nodes,
           edges: state.edges,
           projectTarget: target,
-          ...(options.ledger === 'run' ? { canvasRun: { runRecordId: run.id, ...(options.initiator === 'user' && options.acknowledgedOpenRuns ? { acknowledgedOpenRuns: options.acknowledgedOpenRuns } : {}) } } : {}),
+          ...(options.ledger === 'run' ? { canvasRun: { runRecordId: run.id, ...(options.initiator === 'user' && options.resendDecisionId ? { resendDecisionId: options.resendDecisionId } : {}) } } : {}),
           ...(options.promptSuffix || dialoguePromptSuffix
             ? { promptSuffix: [options.promptSuffix, dialoguePromptSuffix].filter(Boolean).join('\n\n') }
             : {}),
@@ -441,32 +443,42 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
     ? undefined
     : captureApprovedGenerationInputs([nodeId])
   const node = opts.deferredMaterialization?.draftNode ?? useGenerationCanvasStore.getState().nodes.find((n) => n.id === nodeId)
-  const open = !opts.rerun && paidNodeLedger(node) ? await canvasOpenRuns({ projectId, nodeId }) : []
-  if (open.length && opts.initiator !== 'user') throw Object.assign(new Error('node_generation_in_flight'), { code: 'node_generation_in_flight' })
-  if (opts.prepareDependencies?.()) return 'nothing-to-run'
-  let acknowledgedOpenRuns: string[] | undefined
-  const askToResend = async (entries: Awaited<ReturnType<typeof canvasOpenRuns>>): Promise<GenerationRunOutcome | null> => {
-    if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
-    synchronizeCanvasOpenRuns(entries)
+  const paid = !opts.rerun && paidNodeLedger(node)
+  // 要不要问、放行哪几笔只由主进程定（canvasResendDecide）；这里只报「我想再发一次」和身份，照它的判定弹现成那张卡。
+  const decideResend = (resend: boolean): Promise<CanvasResendDecision> => {
     const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
-    const unknown = entries.some(entry => entry.reason === 'needs_reconcile') || Boolean(current?.error && classifyGenerationError(current.error).primary === 'release-regenerate')
-    const confirmed = await confirmGenerationResend({ resultUnknown: unknown, kind: current ? spendCostKind(current.kind) : 'image' })
+    const productionRunId = productionMetaOf({ meta: current?.meta })?.runId
+    return canvasResendDecide({
+      projectId, nodeId, resend, initiator: opts.initiator ?? '',
+      resultUnknown: Boolean(current?.error && classifyGenerationError(current.error).primary === 'release-regenerate'),
+      ...(productionRunId ? { production: { runId: productionRunId } } : {}),
+    })
+  }
+  const first: CanvasResendDecision = paid || opts.resend ? await decideResend(Boolean(opts.resend)) : { action: 'send' }
+  if (first.action === 'refuse') throw Object.assign(new Error('node_generation_in_flight'), { code: 'node_generation_in_flight' })
+  if (opts.prepareDependencies?.()) return 'nothing-to-run'
+  let resendDecisionId: string | undefined
+  const askToResend = async (decision: Extract<CanvasResendDecision, { action: 'ask' }>): Promise<GenerationRunOutcome | null> => {
+    if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
+    synchronizeCanvasOpenRuns(decision.open)
+    const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
+    const confirmed = await confirmGenerationResend({ resultUnknown: decision.resultUnknown, kind: current ? spendCostKind(current.kind) : 'image' })
     if (!confirmed) return 'declined'
     if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
     try {
-      const productionRunId = productionMetaOf({ meta: current?.meta })?.runId
-      if (productionRunId) await releaseUnknownSubmissionForNode(projectId, productionRunId, nodeId, productionRunApi)
-      acknowledgedOpenRuns = await releaseUnknownCanvasSubmissionsForNode(projectId, nodeId, productionRunApi)
+      // 只放行主进程这一次列出的那几笔；卡开着时新冒出来的不在号里，主进程照旧拒。
+      for (const entry of decision.release) await releaseUnknownSubmission(projectId, entry.runId, entry.jobId, productionRunApi, decision.decisionId)
       project.assertCurrent()
     } catch {
       reportCanvasFeedback(i18n.t('generationCommon.observability.releaseConfirm.failed'), 'error', { identity: `node:${nodeId}`, reason: 'release-failed', projectId, nodeIds: [nodeId] })
       return 'unavailable'
     }
+    resendDecisionId = decision.decisionId
     return null
   }
-  const resending = opts.initiator === 'user' && (opts.resend || open.length > 0)
+  const resending = first.action === 'ask'
   if (resending) {
-    const outcome = await askToResend(open)
+    const outcome = await askToResend(first)
     if (outcome) return outcome
   }
   const ok = resending || await confirmGenerationSpend([node], {
@@ -497,7 +509,7 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
   }
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const work = runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...(paidNodeLedger(runNode) ? { ledger: 'run' as const } : {}), initiator: opts.initiator, acknowledgedOpenRuns, target: project.binding })
+      const work = runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...(paidNodeLedger(runNode) ? { ledger: 'run' as const } : {}), initiator: opts.initiator, resendDecisionId, target: project.binding })
       ready()
       const result = await work
       whenRunTargetLoaded(project.binding, () => {
@@ -507,7 +519,9 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
     } catch (error) {
       if (!isOpenGenerationRefusal(describeOpaqueFailure(error)) || opts.initiator !== 'user' || attempt > 0) break
       if (!ready(true)) return 'nothing-to-run'
-      const outcome = await askToResend(await canvasOpenRuns({ projectId, nodeId }))
+      const again = await decideResend(true)
+      if (again.action !== 'ask') break
+      const outcome = await askToResend(again)
       if (outcome) return outcome
     }
   }

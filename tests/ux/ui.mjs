@@ -1,6 +1,6 @@
 // 常驻驱动的命令行（各线验证界面就用它；技能：.agents/skills/verify-nomi/SKILL.md）。
 //
-//   node tests/ux/ui.mjs up [--locale zh|en] [--theme light|dark] [--size 1280x800|1100x720|700x720] [--data empty|v0.24.0-library|v0.20.0-library] [--out <证据目录>] [--vendor fake-apimart] [--vendor-pending <n>]
+//   node tests/ux/ui.mjs up [--locale zh|en] [--theme light|dark] [--size 1280x800|1100x720|700x720] [--data empty|v0.24.0-library|v0.20.0-library] [--out <证据目录>] [--vendor fake-apimart] [--vendor-pending <n>] [--vendor-drop-submit <n>] [--vendor-fail-task <n>]
 //                                            起一个隔离、安静的 Nomi，等到可驱动才返回（第一行打印「隔离 / 真实资料」）
 //   node tests/ux/ui.mjs doctor               只读自检：是不是这次起的、构建新不新、隔离没有、语言 / 尺寸、现在在哪
 //   node tests/ux/ui.mjs features             列出能 goto 的功能名

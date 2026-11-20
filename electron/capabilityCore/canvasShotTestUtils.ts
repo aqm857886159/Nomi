@@ -107,5 +107,11 @@ export function setupCanvasShots(options: {
   const withdraw = (runRecordIds: string[], by: "removed" | "user_closed" | "stopped") => runs.withdraw({ projectId: CANVAS_TEST_PROJECT, runRecordIds, by });
   /** 这一下点击来自哪个窗口（节点 ↑、批量卡、付费卡交给画布的那几镜都是同一个渲染层窗口）。 */
   const senderId = 7;
-  return { root, repository, service, runs, vendor, observed, settled, previewCalls, submit, consent, withdraw, receipts, gesture, senderId };
+  /** 人在节点上说「再发一次」：主进程判定要问，回决定号（号绑死这一刻这个节点没收尾的那几笔）。 */
+  const resendDecisionFor = (nodeId: string, fromSender = senderId): string => {
+    const decision = runs.resend.decideResend({ projectId: CANVAS_TEST_PROJECT, nodeId, resend: true, initiator: "user", senderId: fromSender });
+    if (decision.action !== "ask") throw new Error(`expected an ask decision, got ${decision.action}`);
+    return decision.decisionId;
+  };
+  return { root, repository, service, runs, vendor, observed, settled, previewCalls, submit, consent, withdraw, receipts, gesture, senderId, resendDecisionFor };
 }

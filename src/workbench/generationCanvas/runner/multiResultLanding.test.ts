@@ -27,7 +27,7 @@ vi.mock('../../library/localProjectStore', () => ({
 }))
 vi.mock('../../api/taskApi', async (original) => ({
   ...await original<typeof import('../../api/taskApi')>(),
-  canvasOpenRuns: vi.fn(async () => []),
+  canvasResendDecide: (input: Parameters<typeof import('../../api/canvasResendDecideTestUtils').canvasResendDecideLikeMain>[0]) => import('../../api/canvasResendDecideTestUtils').then(fake => fake.canvasResendDecideLikeMain(input)), canvasOpenRuns: vi.fn(async () => []),
   submitCanvasShotRun: (input: SubmitInput) => calls.submit(input),
   pollCanvasShotRun: async () => { throw new Error('sync fixture never polls') },
   releaseCanvasShotRun: vi.fn(async () => undefined),

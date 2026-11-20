@@ -26,10 +26,13 @@ function harness(options: Parameters<typeof setupCanvasShots>[0] = {}) {
     else if (result.nextAction === "attention") markSingleShotAttention(h.service.repository, PROJECT, runId);
     return result.nextAction;
   };
-  const resend = (runRecordId: string, acknowledged: string) => h.runs.submit({
-    projectId: PROJECT, nodeId: "node-a", runRecordId, vendor: "acme", request: canvasTestRequest("node-a"),
-    gesture: h.gesture, senderId: h.senderId, acknowledgedOpenRuns: [canvasRunIdFor(acknowledged)],
-  });
+  const resend = (runRecordId: string, acknowledged: string) => {
+    expect(h.runs.canvasOpenRuns({ projectId: PROJECT, nodeId: "node-a" }).map(entry => entry.runId)).toContain(canvasRunIdFor(acknowledged));
+    return h.runs.submit({
+      projectId: PROJECT, nodeId: "node-a", runRecordId, vendor: "acme", request: canvasTestRequest("node-a"),
+      gesture: h.gesture, senderId: h.senderId, resendDecisionId: h.resendDecisionFor("node-a"),
+    });
+  };
   return { ...h, observerFinishes, resend };
 }
 
