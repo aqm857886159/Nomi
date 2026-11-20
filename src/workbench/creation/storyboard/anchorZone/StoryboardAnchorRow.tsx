@@ -28,7 +28,6 @@ import { storyboardFailureCopy } from '../exec/storyboardFailureCopy'
 import StoryboardRowShell from '../shotRow/StoryboardRowShell'
 import ShotReferenceStrip from '../shotRow/ShotReferenceStrip'
 import StoryboardComposerParams from '../shotRow/StoryboardComposerParams'
-import { ComposerSendButton } from '../../../generationCanvas/nodes/ComposerSendButton'
 import { removeBinding } from '../shotRow/shotReferenceSlots'
 import { containedBox, densityBox, frameMediaBox, isPortraitBox, sameAspectAsBox, visualColumnWidth } from '../shotRow/shotFrameGeometry'
 import { useStoryboardRowNarrow } from '../shotRow/storyboardRowDensity'
@@ -277,15 +276,13 @@ export default function StoryboardAnchorRow({
                   }}
                   footer={{
                     attrs: { 'data-storyboard-composer-bar': 'anchor' },
-                    action: canGenerate ? (
-                      <ComposerSendButton
-                        label={t('storyboardEditor.frame.generate')}
-                        busy={actionBusy}
-                        onClick={onGenerate}
-                        ariaLabel={t('storyboardEditor.anchor.generateAria', { name: displayName })}
-                        attrs={{ 'data-storyboard-generate-state': actionBusy ? 'busy' : 'idle' }}
-                      />
-                    ) : null,
+                    send: canGenerate ? {
+                      label: t('storyboardEditor.frame.generate'),
+                      busy: actionBusy,
+                      onClick: onGenerate,
+                      ariaLabel: t('storyboardEditor.anchor.generateAria', { name: displayName }),
+                      attrs: { 'data-storyboard-generate-state': actionBusy ? 'busy' : 'idle' },
+                    } : undefined,
                   }}
                 />
               </div>

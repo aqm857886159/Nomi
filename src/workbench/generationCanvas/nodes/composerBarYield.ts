@@ -58,5 +58,5 @@ export function modeHasIcon(options: readonly { value?: string; glyph?: React.Re
   return Boolean(selected?.glyph || selected?.icon)
 }
 
-/** 发给底栏里别的组件（生成钮）的那一份：默认 = 没在让（不在这只底栏里的用法一个像素不变）。 */
+/** 发给底栏自己画的唯一生成钮的那一份：默认 = 没在让（不在这只底栏里的用法一个像素不变）。 */
 export const ComposerBarYieldContext = React.createContext<Pick<ComposerYieldStep, 'sendIconOnly'>>({ sendIconOnly: false })

@@ -7,6 +7,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { require as tsxRequire } from 'tsx/cjs/api'
+import ffprobe from '@ffprobe-installer/ffprobe'
 import { DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
 
 // 付费走查的大脑跟产品默认大脑走，以 electron/catalog/apimartTexts.ts 里写的「默认大脑」为准；
@@ -77,5 +78,5 @@ export async function probeLandedMedia(projectRoot, projectId, rawUrl) {
   const relative = path.relative(fs.realpathSync(projectRoot), filePath)
   if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) throw new Error(`结果文件逃出了项目根：${filePath}`)
   const { probeMediaMetadata } = tsxRequire('../../electron/export/mediaProbe.ts', import.meta.url)
-  return { filePath, bytes: fs.statSync(filePath).size, probe: await probeMediaMetadata(filePath) }
+  return { filePath, bytes: fs.statSync(filePath).size, probe: await probeMediaMetadata(filePath, { ffprobePath: ffprobe.path }) }
 }

@@ -1736,8 +1736,6 @@ export const zhGenerationCommon = {
     save: '保存',
   },
   error: {
-    /** 服务商既没在 profile 声明 error_message、响应里也扒不出任何原因时的兜底。 */
-    taskFailed: '模型任务执行失败',
     /** 任务报成功但产物是空的：按类型说清缺的是哪一样，别让用户对着「失败」猜。 */
     noText: '模型任务完成但没有返回文本内容',
     noVideoUrl: '模型任务完成但没有返回视频地址',
@@ -3483,7 +3481,6 @@ export const enGenerationCommon = {
     save: 'Save',
   },
   error: {
-    taskFailed: 'The model task failed',
     noText: 'The model task finished but returned no text content',
     noVideoUrl: 'The model task finished but returned no video URL',
     noAudio: 'Voiceover generation finished but returned no audio',

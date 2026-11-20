@@ -6,7 +6,7 @@
 // 这里把三条通道放在同一张表上：新增字段而某条通道没带，这一条红。
 import assert from "node:assert/strict";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseVendorErrorFromMessage } from "../../src/workbench/generationCanvas/runner/vendorErrorIpc";
+import { parseVendorErrorFromMessage } from "../shared/generationFailure";
 import { modelCallFailure } from "../ai/runtimeVendorError";
 import { callModelOnce } from "../agentLane/laneModelCall.mjs";
 import { laneVendorFailureText } from "../shared/agentLane/laneAssistantFault";

@@ -1,3 +1,4 @@
+import { URL } from 'node:url'
 // ESLint flat config —— 宽松起步策略：
 //   真能抓 bug 的规则设 error（红牌，阻断 CI）；风格 / any / 未用变量等存量问题
 //   设 warn（黄牌，只提示不阻断）。目标是「挡住新增的脏东西」，存量债逐步还，
@@ -155,6 +156,61 @@ const nodeLockRemovedSelectors = [
   { selector: "Identifier[name=/^(setNodeLocked|NodeLockBadge)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
   { selector: "Literal[value=/^(canvas[.]node[.](un)?locked|node_locked)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
   { selector: "TemplateElement[value.raw=/^(canvas[.]node[.](un)?locked|node_locked)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
+]
+// 生成底栏「窄了谁先让」只有一个量的人：InlineParameterBar（方向检查 docs/engineering/direction-checks/2026-11-17-bar-yield.md）。
+// 以前量的不是屏上画的、何时重量是手写清单；底栏里别的组件再自己量宽来定让级，就又多一处会量错的地方。
+// 两目录内的尺寸读取默认禁止；与底栏无关的存量量法逐个列明用途，只豁免这些文件。
+const composerBarMeasurePlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const COMPOSER_BAR_MEASURE_MESSAGE = '生成底栏只有 InlineParameterBar 量宽定让级：底栏组件不要自己 getBoundingClientRect / offsetWidth / ResizeObserver，从 ComposerBarYieldContext 读让级；要多一级让法就给 composerYieldLadder 声明一级。'
+const COMPOSER_BAR_MEASURE_PROPS = '/^(offsetWidth|clientWidth|scrollWidth|offsetHeight|clientHeight|scrollHeight)$/'
+const composerBarMeasureSelectors = (prefix = '') => [
+  { selector: `${prefix}CallExpression > MemberExpression.callee[property.name=/^(getBoundingClientRect|getClientRects)$/]`, message: COMPOSER_BAR_MEASURE_MESSAGE },
+  { selector: `${prefix}MemberExpression[property.name=${COMPOSER_BAR_MEASURE_PROPS}]`, message: COMPOSER_BAR_MEASURE_MESSAGE },
+  { selector: `${prefix}NewExpression[callee.name=/^(ResizeObserver|IntersectionObserver)$/]`, message: COMPOSER_BAR_MEASURE_MESSAGE },
+]
+const COMPOSER_BAR_YIELD_IMPORTER = 'Program:has(ImportDeclaration[source.value=/composerBarYield$/]) '
+const COMPOSER_BAR_MEASURER = 'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx'
+const COMPOSER_BAR_DIRECTORIES = ['src/workbench/generationCanvas/nodes/**/*.{ts,tsx}', 'src/workbench/creation/storyboard/shotRow/**/*.{ts,tsx}']
+const NON_COMPOSER_MEASUREMENTS = [
+  'src/workbench/generationCanvas/nodes/NodeEffectRecommendations.tsx', // 提示词推荐只留完整的前几枚，和底栏让级无关
+  'src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx', // 节点上方工具条的屏幕夹紧定位
+  'src/workbench/generationCanvas/nodes/clipNodeEdgeScroll.ts', // 拖剪辑到滚动区边缘时滚动
+  'src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx', // 剪辑时间尺和拖动坐标
+  'src/workbench/generationCanvas/nodes/useNodeDragResize.ts', // 节点拖拽跨时间轴的落点坐标
+  'src/workbench/generationCanvas/nodes/ProgressRevealCanvas.tsx', // 结果揭幕画布的像素尺寸
+  'src/workbench/generationCanvas/nodes/TextNodeComposer.tsx', // 文本框点按光标和滚动定位
+  'src/workbench/generationCanvas/nodes/ClipNode.tsx', // 剪辑节点指针坐标
+  'src/workbench/generationCanvas/nodes/useComposerPromptExpand.ts', // 提示词区是否需要展开
+  'src/workbench/generationCanvas/nodes/VideoTrimFilmstrip.tsx', // 裁剪胶片抽帧密度和指针位置
+  'src/workbench/generationCanvas/nodes/PanoramaViewer.tsx', // 全景预览的鼠标/触摸坐标
+  'src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx', // 节点上方工具菜单的锚定
+  'src/workbench/generationCanvas/nodes/useNodeMediaMeasurement.ts', // 媒体节点的显示/固有尺寸
+  'src/workbench/generationCanvas/nodes/whiteboard/WhiteboardEditingToolbar.tsx', // 白板编辑浮条定位
+  'src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardBoxSelection.ts', // 白板框选坐标
+  'src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardSelectionActions.ts', // 白板选择操作坐标
+  'src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardDrawing.ts', // 白板笔画坐标
+  'src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardFrameSize.ts', // 白板画框尺寸
+  'src/workbench/generationCanvas/nodes/whiteboard/WhiteboardLeaferCanvas.tsx', // 白板坐标转换
+  'src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardCanvasDocument.ts', // 白板文档坐标转换
+  'src/workbench/generationCanvas/nodes/render/ImageCropGridOverlay.tsx', // 裁剪格覆盖媒体框的位置
+  'src/workbench/generationCanvas/nodes/render/AudioStripNode.tsx', // 音频条指针位置
+  'src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx', // 结果版本卡和节点对齐
+  'src/workbench/generationCanvas/nodes/versionCards/NodeVersionCards.tsx', // 版本视频寻址
+  'src/workbench/generationCanvas/nodes/director/panels/EditorSplit.tsx', // 导演编辑器分栏拖动
+  'src/workbench/generationCanvas/nodes/director/panels/Popover.tsx', // 导演编辑器弹层定位
+  'src/workbench/generationCanvas/nodes/director/scene/useViewportPicking.ts', // 3D 场景选取坐标
+  'src/workbench/generationCanvas/nodes/director/scene/E2EBridge.tsx', // 3D 视口截图几何
+  'src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx', // 相机操控和视口坐标
+  'src/workbench/generationCanvas/nodes/director/timeline/TimelineRuler.tsx', // 导演时间尺寻址
+  'src/workbench/generationCanvas/nodes/director/timeline/TrackLanes.tsx', // 导演轨道指针坐标
+  'src/workbench/generationCanvas/nodes/director/timeline/useTimelineViewport.ts', // 导演时间轴可视范围
+  'src/workbench/generationCanvas/nodes/director/timeline/TrackList.tsx', // 导演轨道菜单定位
+  'src/workbench/generationCanvas/nodes/director/timeline/TimelineContextMenu.tsx', // 导演时间轴菜单定位
+  'src/workbench/generationCanvas/nodes/director/timeline/ClipBar.tsx', // 导演剪辑条菜单定位
+  'src/workbench/generationCanvas/nodes/director/panels/viewport/AspectGuide.tsx', // 相机画幅辅助线尺寸
+  'src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx', // 画中画视口尺寸和坐标
+  'src/workbench/creation/storyboard/shotRow/PromptSkeletonSegments.tsx', // 提示词骨架插入菜单定位
+  'src/workbench/creation/storyboard/shotRow/useElementWidth.ts', // 表级密度由宿主宽决定，底栏只读表级档位
 ]
 const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const mainSyncWaitSelectors = [{
@@ -321,6 +377,10 @@ const dynamicModuleSelectors = (name, importNames, message) => {
 }
 const boundaryPlugin = (...ruleIds) => ({ rules: Object.fromEntries(ruleIds.map((id) => [id, builtinRules.get(id)])) })
 
+const FAILURE_COPY_MESSAGE = '失败人话整表和公开码清单只留在共享层；出口只按确证码调用 toolErrorHint / toolUserActionHint，不遍历原文重判。'
+const FAILURE_COPY_NAMES = ['TOOL_ERROR_HINT', 'TOOL_USER_ACTION_HINT', 'TASK_FAILED_FALLBACK', 'PUBLIC_ERROR_CODES', 'TOOL_ERROR_CODES']
+const FAILURE_TABLE_NAMES = ['actionsOfKind', 'withoutTaskOfKind', 'ERROR_KEY_BY_KIND', 'failureCopyOf']
+const FAILURE_TABLE_MESSAGE = '失败的动作表 / 词条键表 / 无任务表只许经界面投影（narrate / classifyError / generationFailureActions）读；要「这类失败说什么、能做什么」调 decideGenerationFailure 或 classifyGenerationError，不自己查表。'
 const RAW_VENDOR_SEND_NAMES = ['requestJson', 'requestMultipart', 'requestBinary']
 const RAW_VENDOR_SEND_MESSAGE = '原始出网（vendorHttp 的 requestJson / requestMultipart / requestBinary）只给装配与传输主人：生成请求经 catalog/profileHttpRequest.ts 渲染封存、用 sendProfileJson 发。新出网口要么走它，要么在 eslint.config.mjs 的 RAW_VENDOR_SEND_OWNERS 登记理由。'
 const RAW_VENDOR_SEND_OWNERS = {
@@ -635,6 +695,26 @@ export default tseslint.config(
     rules: { 'walk-dialog-locator/no-restricted-syntax': ['error', ...walkDialogLocatorSelectors] },
   },
   {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: [COMPOSER_BAR_MEASURER],
+    plugins: { 'composer-bar-marker': composerBarMeasurePlugin },
+    rules: { 'composer-bar-marker/no-restricted-syntax': ['error',
+      { selector: "JSXAttribute[name.name='data-yield-item']", message: COMPOSER_BAR_MEASURE_MESSAGE },
+    ] },
+  },
+  {
+    // 目录外加入让法的组件也不得产生第二个测量点（保留原来的 importer 防线）。
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}', COMPOSER_BAR_MEASURER],
+    plugins: { 'composer-bar-measure': composerBarMeasurePlugin },
+    rules: { 'composer-bar-measure/no-restricted-syntax': ['error', ...composerBarMeasureSelectors(COMPOSER_BAR_YIELD_IMPORTER)] },
+  },
+  {
+    files: COMPOSER_BAR_DIRECTORIES,
+    ignores: ['src/**/*.test.{ts,tsx}', COMPOSER_BAR_MEASURER, ...NON_COMPOSER_MEASUREMENTS],
+    rules: { 'composer-bar-measure/no-restricted-syntax': ['error', ...composerBarMeasureSelectors()] },
+  },
+  {
     // 保存热路径不新增同步文件操作（存量批量压制，只减不增）。
     files: ['electron/workspace/**/*.ts', 'electron/projects/**/*.ts', 'electron/productionRun/**/*.ts', 'electron/jsonFile.ts', 'electron/catalog/**/*.ts', 'electron/events/**/*.ts', 'electron/assets/**/*.ts', 'electron/export/**/*.ts', 'electron/capabilityCore/documentSurface.ts', 'electron/capabilityCore/gateway.ts', 'electron/configFileStore.ts', 'electron/durability.ts'],
     ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**'],
@@ -728,6 +808,28 @@ export default tseslint.config(
     ignores: ['**/*.test.{ts,tsx}', '**/__tests__/**', 'src/workbench/generationCanvas/nodes/controls/modeTestHelpers.ts'],
     plugins: { 'mode-owner': { rules: { 'no-restricted-imports': builtinRules.get('no-restricted-imports') } } },
     rules: { 'mode-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/modeTestHelpers'], message: '这次按哪种方式发走 effectiveArchetypeMode（按输入现算）；modeTestHelpers 只给测试用。' }] }] },
+  },
+  {
+    // 失败怎么判只有一个家：electron/shared/generationFailure。人话整表 / 公开码清单只留共享层，出口只按确证码查询；
+    // 共享层的内部表（动作表 / 词条键表 / 无任务表 / 公开码清单）只许经界面投影（narrate / classifyError / generationFailureActions）读，
+    // 别处要「这类失败说什么、能做什么」就调 decideGenerationFailure 或界面的 classifyGenerationError，不自己查表拼一份。
+    // 配套的扫描（出口自己做子串 / 正则认码、覆盖类别 / 动作）在 check:concept-owners 的 failure-decision-bypass。
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/shared/generationFailure.ts', 'electron/shared/generationFailureKinds.ts', 'electron/shared/generationFailureWire.ts', 'electron/shared/generationFailureDetect.ts', 'electron/shared/generationFailureCopy.ts'],
+    plugins: { 'failure-copy-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'failure-copy-owner/no-restricted-imports': ['error', { patterns: [{ group: [...moduleSources('generationFailureCopy'), ...moduleSources('generationFailureWire'), ...moduleSources('generationFailure')], importNames: FAILURE_COPY_NAMES, message: FAILURE_COPY_MESSAGE }] }],
+      'failure-copy-owner/no-restricted-syntax': ['error', ...['generationFailureCopy', 'generationFailureWire', 'generationFailure'].flatMap((name) => dynamicModuleSelectors(name, FAILURE_COPY_NAMES, FAILURE_COPY_MESSAGE))],
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/shared/generationFailure.ts', 'electron/shared/generationFailureKinds.ts', 'electron/shared/generationFailureWire.ts', 'electron/shared/generationFailureDetect.ts', 'electron/shared/generationFailureCopy.ts', 'src/workbench/observability/narrate.ts', 'src/workbench/observability/classifyError.ts', 'src/workbench/observability/generationFailureActions.ts'],
+    plugins: { 'failure-table-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'failure-table-owner/no-restricted-imports': ['error', { patterns: [{ group: [...moduleSources('generationFailure'), ...moduleSources('generationFailureKinds')], importNames: FAILURE_TABLE_NAMES, message: FAILURE_TABLE_MESSAGE }] }],
+      'failure-table-owner/no-restricted-syntax': ['error', ...dynamicModuleSelectors('generationFailure', FAILURE_TABLE_NAMES, FAILURE_TABLE_MESSAGE), ...dynamicModuleSelectors('generationFailureKinds', FAILURE_TABLE_NAMES, FAILURE_TABLE_MESSAGE)],
+    },
   },
   {
     // TipTap 编辑器只有一扇门：useNomiTiptapEditor（固定 React 19 下的生命周期选项）。

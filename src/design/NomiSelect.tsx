@@ -146,6 +146,11 @@ function toneClass(tone: NomiSelectTone | undefined, kind: 'badge' | 'trailing')
   return 'text-nomi-ink-40'
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- 量宽必须复用绘制组件的定义，校准测试防止两者漂移。
+export function nomiSelectTriggerText(selected: NomiSelectOption | undefined, value: string, fallback: string): string {
+  return selected?.label ?? (value || fallback)
+}
+
 export function NomiSelect({
   value,
   options,
@@ -188,7 +193,7 @@ export function NomiSelect({
     wasOpen.current = combobox.dropdownOpened
   }, [combobox.dropdownOpened, combobox.targetRef, searchable])
   const selected = options.find((option) => option.value === value)
-  const triggerText = selected?.label ?? (value || placeholder || t('common.select'))
+  const triggerText = nomiSelectTriggerText(selected, value, placeholder || t('common.select'))
   const hasRichRows = options.some((option) => option.icon && option.description)
   const heightClass = size === 'xs' ? 'h-6' : 'h-7'
   const query = search.trim().toLocaleLowerCase()

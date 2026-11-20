@@ -267,11 +267,14 @@ function useLabLocale(locale: B3Scenario['locale']): boolean {
   const override = new URL(window.location.href).searchParams.get('lang')
   const want = override === 'en' ? 'en' : locale ?? 'zh-CN'
   const [applied, setApplied] = React.useState(i18n.language === want)
+  // 只在格子立起来时定一次语言：之后走查在页面里切语言（底栏「切语言要重量」那条特征测试）不被拉回去。
+  const settled = React.useRef(false)
   React.useLayoutEffect(() => {
-    if (i18n.language === want) { setApplied(true); return undefined }
+    if (settled.current) return undefined
+    if (i18n.language === want) { settled.current = true; setApplied(true); return undefined }
     setApplied(false)
     const release = holdDesignLabReady(`b3:locale:${want}`)
-    void i18n.changeLanguage(want).then(() => { setApplied(true); release() })
+    void i18n.changeLanguage(want).then(() => { settled.current = true; setApplied(true); release() })
     return release
   }, [i18n, want])
   return applied
