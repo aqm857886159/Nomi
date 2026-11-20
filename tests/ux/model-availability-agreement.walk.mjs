@@ -175,16 +175,9 @@ async function openSettings() {
 
 const connectionRow = () => getWin().locator(`[data-model-home-connection="${VENDOR_KEY}"]`)
 
-/**
- * ③ 设置 → 模型那一页上，用户真正读到的那句「N 个可使用」——事故报告里被引用的就是这一句。
- *
- * 读「已接入」区的区头，不读某一行：区头在两种口径下都写着这个数
- * （全可用时 `readyCount`「N 个可使用」；有行待设置时 `connectedAttention`「N 个可使用 · M 个待设置」），
- * 而连接行在后一种情况下只写「M 个待设置」。整页只连了这一家，所以区头的数就是这家的数。
- * 读的是 DOM 文本，不是渲染层内存——用户读到的就是这一句。
- */
+/** ③ 只读这一家连接行；首页汇总还包括内置离线转写，不能冒充这家的数量。 */
 async function readSettingsCounts() {
-  const section = getWin().locator('[data-model-home-connected]')
+  const section = connectionRow()
   if (await section.count() === 0) return { usable: 0, pending: 0 }
   const text = await section.first().innerText()
   return {
@@ -329,7 +322,7 @@ try {
 
   // ── 状态三：用户在设置卡里粘了一次 key（真人路径，不是往 bridge 里灌）──────────
   // 这一步就是那张对不上的表原本出现的地方：钥匙到位、那一行也「启用着」，
-  // 验证只提醒，三处都必须将标准格式的文本模型计入可使用。
+  // 旧验证记录不参与判断，三处都必须将有标准格式的文本模型计入可使用。
   await pasteKeyLikeAHuman()
   const connected = await assertAgreement('填了钥匙', {
     usable: seededRows + 1, reasons: ['usable'], brainReady: true,

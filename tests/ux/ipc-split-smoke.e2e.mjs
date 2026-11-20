@@ -3,6 +3,7 @@
 // 仍路由到新模块（exportJobs / exportJobIpc / onboardingIpc / catalogStore /
 // providerAdapter canonical facade）。只验「接线通」；不发真实网络、不写真目录。
 import { launchNomiApp } from "./_launchApp.mjs";
+import { createBlankProject } from "./_shell.mjs";
 
 let passed = 0;
 function assert(cond, label) {
@@ -11,9 +12,10 @@ function assert(cond, label) {
   console.log(`  ✓ ${label}`);
 }
 
-const { app, win } = await launchNomiApp({ name: "ipc-split-smoke", env: { NOMI_E2E_SMOKE: "1" } });
+const { app, win } = await launchNomiApp({ name: "ipc-split-smoke", initialLocalStorage: { "nomi:splash:v1": "seen", "nomi:journey-tour:v1": "seen" }, env: { NOMI_E2E_SMOKE: "1" } });
 
 try {
+  await createBlankProject(win, "bind a real project before checking export IPC");
 
   const r = await win.evaluate(async () => {
     const d = window.nomiDesktop;
@@ -38,8 +40,8 @@ try {
     // 4) onboarding canonical facade：configure 空连接 → providerAdapter IPC 稳定业务错误
     out.onboardConfigure = await d.onboarding.httpConnectionConfigure({});
     // 5) catalog 读 IPC（catalogStore）：health + 列表
-    out.health = d.modelCatalog?.health?.() ?? d.modelCatalog?.getHealth?.() ?? null;
-    out.vendorCount = (d.modelCatalog?.listVendors?.() ?? []).length;
+    out.health = await (d.modelCatalog?.health?.() ?? d.modelCatalog?.getHealth?.() ?? null);
+    out.vendorCount = (await (d.modelCatalog?.listVendors?.() ?? [])).length;
     return out;
   });
 

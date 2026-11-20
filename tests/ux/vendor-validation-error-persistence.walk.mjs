@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, expectHidden, expectVisible, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expect, expectHidden, expectVisible, screenshotSettled } from './_assert.mjs'
 import { modelSettingsEntry, openModelSettings } from './_shell.mjs'
 import { encryptFixtureKey } from './_mcpL2Fixture.mjs'
 
@@ -43,7 +43,7 @@ async function openModels(win) {
   await expectVisible(settingsEntry, '顶栏应提供设置入口')
   // 齿轮在开屏背后也可见，不能拿它和开屏竞速决定要不要点「跳过」。
   if (await splash.isVisible()) {
-    await splash.locator('[data-splash-skip]').click({ timeout: 5000 })
+    await clickOrFail(splash.locator('[data-splash-skip]'), '跳过开屏介绍')
     await expectHidden(splash, '开屏介绍应已关闭')
   }
   await openModelSettings(win, { label: 'open model settings', timeout: 5000 })

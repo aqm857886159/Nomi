@@ -98,8 +98,7 @@ export async function generateOnce(win, t, { model = /GPT Image 2(?!\.)/, prompt
   // 新节点的提示词框挂在画布浮框里，出现前 contenteditable 的最后一个是创作区那块（不可见）。
   await win.locator('[data-node-id]').first().waitFor()
   await win.waitForTimeout(1200)
-  await win.locator('div[contenteditable="true"]').last().click()
-  await win.keyboard.type(prompt, { delay: 8 })
+  await win.locator('[data-prompt-box] .ProseMirror').first().fill(prompt)
   await win.locator(`[aria-label="${t.model}"]`).first().click()
   await win.getByRole('option', { name: model }).first().click()
   await win.locator(`[aria-label="${t.generateAsset}"]`).first().click()

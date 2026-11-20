@@ -565,7 +565,7 @@ async function threeTextProtocols(journey, ui, fixture, recorder) {
     } catch (error) {
       await ui.screenshot('model-detail-unreachable')
       const pages = await ui.win.evaluate(() => [...document.querySelectorAll('[data-model-settings-page]')].map((element) => element.getAttribute('data-model-settings-page')))
-      throw new JourneyFailure('model-detail-unreachable', '从模型首页点不进刚存下的模型的详情页', { pages, detail: String(error?.message || error).split('\n')[0] })
+      throw new JourneyFailure('model-detail-unreachable', '点完成后没有落到刚存下模型的详情页', { pages, detail: String(error?.message || error).split('\n')[0] })
     }
     const section = detail.locator('[data-model-adapter-state]').first()
     await requireVisible(section, 'model-detail-status-missing', '模型详情页没有状态块', stationTimeout())
@@ -820,6 +820,7 @@ async function errorRecovery(journey, ui, fixture, recorder) {
     return { recoveredInPlace: true, vendorKey: recoveryVendorKey }
   })
   await recorder.step('observed', '恢复后从可见按钮拉取上游模型列表', async () => {
+    await ui.win.getByRole('button', { name: uiText(ui.locale, 'onboardingProviders.workspace.addOtherModels'), exact: true }).click()
     await ui.fetchModels()
     const listRequests = fixture.requests.filter((request) => request.method === 'GET' && request.path.endsWith('/models'))
     if (listRequests.length === 0) throw new JourneyFailure('model-list-not-observed', '恢复后拉取模型，但 fixture 没收到 GET /models')

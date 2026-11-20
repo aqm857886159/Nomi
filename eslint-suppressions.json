@@ -1062,11 +1062,6 @@
       "count": 2
     }
   },
-  "scripts/relay-model-fetch-walkthrough.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    }
-  },
   "scripts/relay-native-wire-walkthrough.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 2

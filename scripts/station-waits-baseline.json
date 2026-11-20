@@ -780,9 +780,6 @@
     "e627e9cc870da128f59801e9e85df45c279ace287289ff2e334cbb86bb3a75be": 1,
     "062d113ac840266d3e0633f0009d879537021ca5f271f01febd533a3891ee32d": 1
   },
-  "tests/ux/vendor-validation-error-persistence.walk.mjs": {
-    "87384efd401960765a79b1e0f41ea273f806cc7e94d0686310536a5d12c1268e": 1
-  },
   "tests/ux/verify-composer-fixes.mjs": {
     "2a88a2f9d6505873eba23834d14945f683b6dfc3af2eb1d9167f481e9200d7fe": 1
   },

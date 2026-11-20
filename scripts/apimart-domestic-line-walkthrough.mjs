@@ -85,9 +85,14 @@ async function launch(p, { locale = 'zh-CN', blocked = 'api.apimart.ai', mocked 
     projectsDir: p.projectsDir,
     userDataDir: p.userDataDir,
     ...(PACKAGED ? { executablePath: PACKAGED } : {}),
-    mainRequire: [NETSIM],
+    mainRequire: [path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs'), NETSIM],
     initialLocalStorage: { 'nomi:locale:v1': locale },
     env: {
+      NOMI_TEST_NETWORK_GUARD: '1',
+      // These origins are intercepted by NETSIM; the earlier socket/Chromium guard still forbids real egress.
+      NOMI_TEST_NETWORK_FIXTURE_ORIGINS: 'https://api.apimart.ai,https://api.apib.ai,https://apib.ai',
+      NOMI_WALK_ALLOW_ORIGINS: '', NOMI_WALK_NET_LOG: path.join(p.out, 'network-guard.jsonl'),
+      NOMI_NETSIM_RECORD_ONLY: '0',
       NOMI_NETSIM_LOG: p.netLog,
       NOMI_NETSIM_IMAGE: IMAGE,
       NOMI_NETSIM_BLOCKED: blocked,
@@ -327,16 +332,25 @@ async function selfCheckTrap() {
     await manual.fill('gpt-image-1')
     await manual.press('Enter')
     await win.getByRole('button', { name: /添加 1 个/ }).click()
-    await win.getByText('自动适配没有完成').first().waitFor({ timeout: 30_000 })
-    const marked = readCatalogFromDisk(p.settingsDir).models.some((model) => model.vendorKey === 'apimart' && model.meta && 'adapter' in model.meta)
-    for (let i = 0; i < 4 && await win.locator('[data-model-home-connection="apimart"]').count() === 0; i += 1) {
-      await win.getByRole('button', { name: t.back }).first().click()
-    }
+    const done = win.getByRole('button', { name: '完成', exact: true })
+    await done.waitFor({ timeout: 30_000 })
+    const formatShot = await shot(win, p, '00-request-format-result.png')
+    const readyTargets = await win.evaluate(async () => (await window.nomiDesktop.modelCatalog.listModels({}))
+      .filter(model => model.modelKey === 'gpt-image-1' && model.availability?.usable === true))
+    record('trap-zh/格式就绪后可使用且没有试生成', readyTargets.length === 1
+      && !hostsHit(p).some(entry => entry.method === 'POST' && /generations/.test(entry.url)),
+    `当前可用身份 ${readyTargets.map(model => `${model.vendorKey}:${model.modelKey}`).join(', ')}`, [formatShot])
+    if (readyTargets.length !== 1) throw new Error('new request format has no unique usable identity')
+    const configuredTarget = readyTargets[0]
+    const marked = readCatalogFromDisk(p.settingsDir).models.some((model) => model.modelKey === 'gpt-image-1' && model.meta && 'adapter' in model.meta)
+    await done.click()
+    await closeSettings(win)
+    await openModels(win, t)
     await win.locator('[data-model-home-connection="apimart"]').click()
     const error = await saveAddress(win, t, DOMESTIC)
     const trapShot = await shot(win, p, '01-self-checked-connection-address-saved.png')
-    record('trap-zh/自检过的连接也能改地址', marked && !error && apimartRow(p.settingsDir).baseUrlHint === DOMESTIC,
-      `连接带着自检标记（修之前这里报 Certification-owned…）；现在保存成功：${apimartRow(p.settingsDir).baseUrlHint}`, [trapShot])
+    record('trap-zh/编过请求格式的连接也能改地址', marked && !error && apimartRow(p.settingsDir).baseUrlHint === DOMESTIC,
+      `连接带着格式任务记录（修之前这里报 Certification-owned…）；现在保存成功：${apimartRow(p.settingsDir).baseUrlHint}`, [trapShot])
 
     // 改完地址之后，这位用户真正要做的两件事：画布上生成一张、让 Agent 生成一张。
     await closeSettings(win)
@@ -367,13 +381,13 @@ async function selfCheckTrap() {
     const pendingCard = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
     if (await pendingCard.isVisible().catch(() => false)) await closeSpendCard(pendingCard)
     await openModels(win, t)
-    await win.locator('[data-model-home-connection="apimart"]').click()
-    await win.getByRole('button', { name: 'gpt-image-1', exact: true }).click()
+    await win.locator(`[data-model-home-connection="${configuredTarget.vendorKey}"]`).click()
+    await win.getByRole('button', { name: configuredTarget.modelKey, exact: true }).click()
     await win.getByText('更多操作', { exact: true }).click()
     await win.getByRole('button', { name: '删除模型', exact: true }).click()
     const confirmDelete = win.getByRole('dialog').getByRole('button', { name: '删除', exact: true })
     if (await confirmDelete.count()) await confirmDelete.last().click()
-    const unmarked = await until(win, async () => !readCatalogFromDisk(p.settingsDir).models.some((model) => model.vendorKey === 'apimart' && model.meta && 'adapter' in model.meta), 15_000)
+    const unmarked = await until(win, async () => !readCatalogFromDisk(p.settingsDir).models.some((model) => model.vendorKey === configuredTarget.vendorKey && model.modelKey === configuredTarget.modelKey), 15_000)
     const deletedShot = await shot(win, p, '04-self-check-model-deleted.png')
     await closeSettings(win)
     const again = await agentGenerateOnce(win, p, '05')

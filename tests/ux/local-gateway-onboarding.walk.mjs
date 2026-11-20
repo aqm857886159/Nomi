@@ -136,20 +136,6 @@ for (let i = 0; i < 5; i += 1) {
 }
 await snap(win, 'app-ready')
 
-async function clickFirst(patterns, label) {
-  for (const pattern of patterns) {
-    const target = win.locator('button, [role="button"], a, div[role="menuitem"]', { hasText: pattern }).first()
-    if (await target.count()) {
-      await target.click({ timeout: 3000 }).catch(() => {})
-      await win.waitForTimeout(900)
-      console.log(`  → 点了「${label}」(${pattern})`)
-      return true
-    }
-  }
-  console.log(`  ! 没找到「${label}」`)
-  return false
-}
-
 async function dumpClickables(label) {
   const texts = await win.evaluate(() => {
     const nodes = document.querySelectorAll('button, [role="button"], a, summary, [role="menuitem"]')
@@ -172,39 +158,16 @@ await openCustomApiWizard(win, { label: 'custom API wizard' })
 await snap(win, 'add-model-dialog')
 await dumpClickables('对话框')
 
-// 3. 填地址 + key —— 复刻用户填本地网关的操作
-const baseInput = win.locator('input').filter({ hasNot: win.locator('[type="password"]') })
-const inputs = win.locator('input')
-const count = await inputs.count()
-console.log(`  · 对话框里有 ${count} 个输入框`)
-for (let i = 0; i < count; i += 1) {
-  const box = inputs.nth(i)
-  const placeholder = (await box.getAttribute('placeholder')) || ''
-  const type = (await box.getAttribute('type')) || ''
-  if (/搜索/.test(placeholder)) continue // 项目库搜索框，不是接入表单
-  if (/http|地址|url|base/i.test(placeholder)) {
-    await box.fill(gatewayBase).catch(() => {})
-    console.log(`  → 输入框#${i} 填地址 ${gatewayBase} (placeholder="${placeholder}")`)
-  } else if (type === 'password' || /key|密钥/i.test(placeholder)) {
-    await box.fill('sk-local-probe').catch(() => {})
-    console.log(`  → 输入框#${i} 填 key (placeholder="${placeholder}")`)
-  }
-}
-void baseInput
-await win.waitForTimeout(500)
+// 3. 先填完整连接并保存，再从真实按钮拉模型。
+await win.getByPlaceholder(/如：TOAPI|Example: TOAPI/).fill('Loopback local gateway')
+await win.getByPlaceholder('https://api.openai.com/v1').fill(gatewayBase)
+await win.getByPlaceholder('sk-...').fill('sk-local-probe')
 await snap(win, 'filled-base-url')
-
-// 4. 拉取模型
-await dumpClickables('填完表单')
-await clickFirst([/拉取可用模型/, /拉取模型/, /重新拉取/, /拉取/], '拉取模型')
-await win.waitForTimeout(2500)
-await snap(win, 'fetched-models')
-
-// 5. 进选择模型屏 → 全选 → 添加
-await clickFirst([/选择模型/, /还没选/], '选择模型')
-await win.waitForTimeout(1200)
+await win.getByRole('button', { name: /保存连接|Save connection/i, exact: true }).click()
+await win.locator('[data-model-connection-saved]').waitFor()
+await win.getByRole('button', { name: /获取模型|Get Models/i, exact: true }).click()
+await win.getByRole('button', { name: /添加 [1-9] 个/ }).waitFor()
 await snap(win, 'pick-models')
-await dumpClickables('选择模型屏')
 const groupAll = win.locator('button', { hasText: /全选本组/ })
 const initialGroups = await groupAll.count()
 console.log(`  · 有 ${initialGroups} 个「全选本组」`)
@@ -217,7 +180,7 @@ const remainingGroups = await groupAll.count()
 if (remainingGroups !== 0) throw new Error(`仍有 ${remainingGroups} 个模型分组没有选中`)
 await win.waitForTimeout(600)
 await snap(win, 'picked-all')
-await clickFirst([/添加 [1-9]/, /添加/], '添加')
+await win.getByRole('button', { name: /添加 [1-9] 个/ }).click()
 await win.waitForTimeout(8000)
 await snap(win, 'verify-result')
 await win.waitForTimeout(12000)
@@ -252,7 +215,7 @@ fs.writeFileSync(path.join(shotsDir, 'catalog.json'), JSON.stringify(catalog, nu
 const failedImage = catalog.models.find((model) => model.modelKey === 'gpt-image-2')
 const laterVideo = catalog.models.find((model) => model.modelKey === 'kling-v2-master')
 const checks = {
-  resultCopyMatchesUnlockedBehavior: bodyText.includes('所选模型都已开启，也会出现在画布的模型列表里'),
+  resultCopyMatchesUnlockedBehavior: bodyText.includes('请求格式都已就绪，可以在画布里使用。'),
   allFourModelsCommitted: MODELS.every((id) => catalog.models.some((model) => model.modelKey === id)),
   failedImageEnabled: failedImage?.enabled === true,
   imageVerificationMetadataWithheld: failedImage?.meta?.adapter?.state === undefined,

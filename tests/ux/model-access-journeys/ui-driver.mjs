@@ -228,21 +228,12 @@ export async function launchJourneyUi({ journey, recorder }) {
     }
   }
 
-  // 设置页里某个模型的详情页（data-model-settings-page="model"）：模型首页 → 连接行 → 连接页上的模型名 → 模型详情。
-  // 刚接完模型时停在验证结果页，点「完成」会落回接入向导那一页（空表单），所以先一路「返回」到模型首页再往里走。
+  // 单模型格式任务点「完成」必须直接落到当前身份；再绕回首页会掩盖完成导航回旧行的回归。
   async function openModelDetail({ vendorKey, modelKey }) {
-    const home = win.locator('[data-model-settings-page="home"]')
     const done = win.getByRole('button', { name: WALK_COPY.done, exact: true })
-    if (await done.isVisible().catch(() => false)) await done.click()
-    for (let step = 0; step < 4 && !(await home.isVisible().catch(() => false)); step += 1) {
-      await win.locator('[data-model-settings-back]:visible').first().click()
-      await win.waitForTimeout(250)
-    }
-    await home.waitFor({ state: 'visible', timeout: stationTimeout() })
-    await win.locator(`[data-model-home-connection="${vendorKey}"]`).first().click()
-    const connection = win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendorKey}"]`)
-    await connection.waitFor({ state: 'visible', timeout: stationTimeout() })
-    await connection.locator('button', { hasText: modelKey }).first().click()
+    await done.waitFor({ state: 'visible', timeout: stationTimeout() })
+    await done.click()
+    await win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendorKey}"]`).waitFor({ state: 'visible', timeout: stationTimeout() })
     const detail = win.locator(`[data-model-settings-page="model"][data-model-settings-model="${modelKey}"]`)
     await detail.waitFor({ state: 'visible', timeout: stationTimeout() })
     return detail

@@ -255,10 +255,7 @@ async function certificationRuns(win) {
 
 async function openConnectionFromHome(win) {
   await win.locator('[data-settings-section="models"]').waitFor({ state: 'visible' })
-  const connectionButton = win.getByRole('button')
-    .filter({ hasText: vendorName })
-    .filter({ hasText: '个模型已启用' })
-    .first()
+  const connectionButton = win.locator(`[data-model-home-connection="${vendorKey}"]`)
   await connectionButton.waitFor({ state: 'visible' })
   await connectionButton.click()
   await win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendorKey}"]`).waitFor({ state: 'visible' })
