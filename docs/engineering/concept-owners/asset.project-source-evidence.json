@@ -1,0 +1,43 @@
+{
+  "name": "素材进项目时的来源与复用判定（来源记成什么、同字节复用哪条）",
+  "subject": "asset.project-source-evidence",
+  "lifecycle": "materialized-artifact",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/assets/assetSourceEvidence.ts",
+    "symbol": "finalizeAssetMeta"
+  },
+  "write_api": [
+    {
+      "path": "electron/assets/assetSourceEvidence.ts",
+      "symbol": "finalizeAssetMeta"
+    },
+    {
+      "path": "electron/assets/assetSourceEvidence.ts",
+      "symbol": "reconcileReuse"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "sanitizeSourceEvidence",
+      "kind": "definition",
+      "why": "来源清洗原来从 projectAssetStore.ts 导出、浏览器入口自己调，等于入口能自己定落盘来源；2026-11-21 起只在 assetSourceEvidence.ts 里私有、由 finalizeAssetMeta 唯一调用。别处再定义一份就是第二个来源结论。"
+    },
+    {
+      "symbol": "sanitizeAssetMetaForKind",
+      "kind": "definition",
+      "why": "捕获族 originalUrl 置空原来是 assetPaths.ts 里的另一份 meta 清洗；2026-11-21 并进 finalizeAssetMeta，写 sidecar 前只有这一处定稿。"
+    }
+  ],
+  "parity_test": "electron/assets/assetSourceExits.parity.test.ts",
+  "allowed_consumers": [
+    "electron/assets/projectAssetStore.ts",
+    "electron/assets/uploadContentStore.ts",
+    "electron/assets/generatedAssetStaging.ts"
+  ],
+  "since": "2026-11-21",
+  "notes": "设计卡 docs/plan/2026-11-20-asset-source-one-home.md，复盘 docs/engineering/direction-checks/2026-11-21-asset-source-one-home.md。各入口（本机导入、浏览器捕获、连接器、跨项目复制、外部助手导入）只交来源事实（AssetSourceFact）；落盘的来源只由 finalizeAssetMeta 出（每次写 sidecar 前都过它：捕获族 originalUrl 置空、来源按白名单重洗、按来源类别定 usageStatus、已有时间原样保留），同字节已在项目里时能不能复用、要不要补来源只由 reconcileReuse 定（来源不同就另起一条，补来源抬不高旧记录的 usageStatus）。渲染层 IPC 载荷里自称的来源一律不读，连接器来源只收主进程调用方经 importRemoteAsset 第二个参数给的。主人之外写 .meta、拿 sidecar 写函数或来源清洗、覆盖回执结论字段、拼混合回执，由 check:concept-owners 的 asset-source-bypass 扫描拦（scripts/concept-owners-asset-source.mjs，推送前扫全仓真实源码）；登记过理由的例外两处：electron/assets/assetPreview.ts 写预览图自己的 sidecar（只有尺寸与派生关系，不含来源），electron/workspace/buildArtifactMigration.ts 迁移构建产物时原样搬已有 sidecar（不新定来源）。"
+}

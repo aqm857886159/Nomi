@@ -6,7 +6,7 @@ import { readCatalog, upsertModelCatalogVendorApiKey, clearModelCatalogVendorApi
 import { apiKeyDecryptStatus, decryptApiKeyRecord, type ApiKeyDecryptStatus } from "../catalog/secrets";
 import { importRemoteAsset } from "../assets/projectAssetStore";
 import { nowIso, trim, type JsonRecord } from "../jsonUtils";
-import type { AssetSourceEvidence } from "./connectorDefinition";
+import type { AssetSourceFact } from "../assets/assetSourceEvidence";
 import {
   TIKHUB_CONNECTOR_ID,
   TikhubConnectorError,
@@ -99,7 +99,7 @@ export async function importTikhubShareUrl(payload: unknown): Promise<TikhubImpo
   if (!shareText) throw new TikhubConnectorError("unsupported-platform", "请粘贴分享链接。");
 
   const resolved = await resolveShareVideo(shareText, readTikhubApiKey());
-  const evidence: AssetSourceEvidence = {
+  const evidence: AssetSourceFact = {
     source: "connector",
     connectorId: TIKHUB_CONNECTOR_ID,
     originalUrl: shareText,
@@ -114,8 +114,7 @@ export async function importTikhubShareUrl(payload: unknown): Promise<TikhubImpo
     kind: "reference",
     expectedKind: null,
     fileName: resolved.videoId ? `${resolved.platform}-${resolved.videoId}.mp4` : `${resolved.platform}-video.mp4`,
-    sourceEvidence: evidence,
-  });
+  }, { sourceEvidence: evidence });
   return { asset, resolved };
 }
 
@@ -186,7 +185,7 @@ export async function importTikhubReference(payload: unknown): Promise<Reference
     );
   }
 
-  const evidence: AssetSourceEvidence = {
+  const evidence: AssetSourceFact = {
     source: "connector",
     connectorId: TIKHUB_CONNECTOR_ID,
     originalUrl: mediaUrl,
@@ -201,7 +200,6 @@ export async function importTikhubReference(payload: unknown): Promise<Reference
     kind: "reference",
     expectedKind: null,
     fileName: `${platform}-ref-${itemId}.mp4`,
-    sourceEvidence: evidence,
-  });
+  }, { sourceEvidence: evidence });
   return { asset, platform, itemId };
 }

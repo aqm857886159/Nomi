@@ -105,11 +105,12 @@ export async function importProjectAsset(input: {
     // 标题不带扩展名时补上真实扩展名（落盘/回读都靠它认类型）。
     return base.toLowerCase().endsWith(verdict.extension) ? base : `${base}${verdict.extension}`
   })()
+  // 只是交给素材库的入参提示；回执里的类型以落库结果为准（见下）。
   const contentType = contentTypeForExtension(verdict.extension)
   // 落盘走**唯一那条路**（嗅探 + 准入闸 + 视频归一化都在 importLocalFile 里）；meta 在调用方
   // 这一侧收窄成 owner 认的形状，不放宽 owner 的入参去迁就调用者。被准入闸挡下不是「导入失败」：
   // 那一支独有的数字要讲给模型听，否则它会原地重试同一个文件。
-  let record: { id?: string; name?: string; data?: { url?: string; size?: number; contentHash?: string } }
+  let record: { id?: string; name?: string; data?: { url?: string; size?: number; contentType?: string; contentHash?: string } }
   try {
     record = (await importLocalFile(
       { projectId: input.projectId, sourcePath: verdict.realPath, fileName, contentType, kind: 'imported' },
@@ -122,11 +123,15 @@ export async function importProjectAsset(input: {
   const data = record.data
   const url = data?.url
   if (!url || !record.id || !data?.contentHash) throw new Error('素材已复制但没拿到完整的可引用身份，请重试。')
+  // 回执只投影素材库落库后的那一份（视频可能被归一化成别的格式 / 大小），不拿入参猜的类型和源文件大小混拼。
+  if (typeof data.contentType !== 'string' || !data.contentType || typeof data.size !== 'number') {
+    throw new Error('素材已复制但没拿到落库后的类型和大小，请重试。')
+  }
   return {
     url,
     name: record.name || fileName,
-    contentType,
-    sizeBytes: data.size ?? sizeBytes ?? 0,
+    contentType: data.contentType,
+    sizeBytes: data.size,
     assetId: record.id,
     contentHash: data.contentHash,
     version: 1,

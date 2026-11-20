@@ -6,7 +6,8 @@
 // 复制通道早就在：主进程 `copyProjectAsset` 校验源项目、真实路径与媒体类型后复制进目标项目，
 // 渲染层从不经手原生路径（工作流库跨项目复制也走它）。所以这里只做一件事——
 // 当前项目 / 当前画布的素材原样放行；别的项目的素材先复制进来，再换成复制品的引用。
-// 落点（画布、时间轴）都先过这里，不各自判「属不属于本项目」。
+// 落点（画布、时间轴、工作流库插入）都先过这里，不各自判「属不属于本项目」：逐文件的判定只有
+// materializeProjectFile 一处（本项目原样、别的项目复制、缺复制通道或复制品不对算失败）。
 import { getDesktopBridge, type DesktopAssetDto } from '../../desktop/bridge'
 import type { ProjectExecutionContext } from '../project/projectCanvasReadSurface'
 import type { AssetLibraryDragPayload } from './assetLibraryDrag'
@@ -14,6 +15,29 @@ import { assetBelongsToProject, assetToDragPayload } from './assetLibraryUsage'
 import { assetRefFromDesktopAsset } from './useAllProjectAssets'
 
 export type CopyProjectAsset = (payload: { sourceProjectId: string; targetProjectId: string; relativePath: string }) => Promise<DesktopAssetDto>
+
+/** 一个项目文件对目标项目的落法：本项目原样用；别的项目复制进来（只认落在目标项目、带地址的复制品）；其余算失败。 */
+export type MaterializedProjectFile =
+  | { kind: 'same-project' }
+  | { kind: 'copied'; asset: DesktopAssetDto; url: string }
+  | { kind: 'failed' }
+
+export async function materializeProjectFile(
+  source: { projectId: string; relativePath: string },
+  targetProjectId: string,
+  copy: CopyProjectAsset | null = getDesktopBridge()?.assets?.copyProjectAsset ?? null,
+): Promise<MaterializedProjectFile> {
+  if (source.projectId === targetProjectId) return { kind: 'same-project' }
+  if (!copy) return { kind: 'failed' }
+  try {
+    const copied = await copy({ sourceProjectId: source.projectId, targetProjectId, relativePath: source.relativePath })
+    const url = typeof copied?.data?.url === 'string' ? copied.data.url.trim() : ''
+    if (copied?.projectId !== targetProjectId || !url) return { kind: 'failed' }
+    return { kind: 'copied', asset: copied, url }
+  } catch {
+    return { kind: 'failed' }
+  }
+}
 
 export type MaterializedLibraryItems = {
   items: AssetLibraryDragPayload[]
@@ -40,18 +64,21 @@ export async function materializeAssetLibraryItems(
       continue
     }
     // 画布来源恒属于当前画布（assetBelongsToProject 已放行），能走到这里的只剩别的项目的文件。
-    if (item.origin.source !== 'project' || !copy) {
+    if (item.origin.source !== 'project') {
       failed += 1
       continue
     }
-    try {
-      const copied = await copy({ sourceProjectId: item.origin.projectId, targetProjectId, relativePath: item.origin.relativePath })
-      const ref = assetRefFromDesktopAsset(copied)
-      if (!ref || !assetBelongsToProject(ref, targetProjectId)) throw new Error('copied asset is not in the target project')
-      resolved.push(assetToDragPayload(ref, item.dragAnchor))
-    } catch {
-      failed += 1
+    const placed = await materializeProjectFile(item.origin, targetProjectId, copy)
+    if (placed.kind === 'same-project') {
+      resolved.push(item)
+      continue
     }
+    const ref = placed.kind === 'copied' ? assetRefFromDesktopAsset(placed.asset) : null
+    if (!ref || !assetBelongsToProject(ref, targetProjectId)) {
+      failed += 1
+      continue
+    }
+    resolved.push(assetToDragPayload(ref, item.dragAnchor))
   }
   return { items: resolved, failed }
 }

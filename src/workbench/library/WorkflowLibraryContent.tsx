@@ -4,10 +4,10 @@ import { IconPencil, IconRoute, IconStar, IconStarFilled, IconX } from '@tabler/
 import { cn } from '../../utils/cn'
 import { DecisionBar, DesignEmptyState, DesignModal, DesignSearchInput, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../design'
 import { notify } from '../../ui/notificationPolicy'
-import { getDesktopBridge } from '../../desktop/bridge'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { rewriteCanvasWorkflowTemplateAssetUrls, type CanvasWorkflowTemplate } from '../generationCanvas/plugins/canvasWorkflowTemplates'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../project/projectCanvasReadSurface'
+import { materializeProjectFile } from '../assets/assetLibraryMaterialize'
 import {
   deleteWorkflowLibraryEntry,
   markWorkflowLibraryEntryUsed,
@@ -36,28 +36,23 @@ function insertionPosition(): { x: number; y: number } {
   return { x: Math.round(right + 80), y: Math.max(80, Math.round(top)) }
 }
 
+/**
+ * 工作流模板里的素材落进目标项目：逐文件走素材库材料化的同一个判定（本项目原样、别的项目复制、
+ * 缺复制通道或复制品不对算失败），这里只把复制品地址换进模板。
+ */
 async function materializeWorkflowAssets(
   template: CanvasWorkflowTemplate,
   targetProjectId: string,
 ): Promise<{ template: CanvasWorkflowTemplate; failed: number }> {
   const assets = template.assets || []
-  const copyProjectAsset = getDesktopBridge()?.assets?.copyProjectAsset
-  if (!assets.length || !copyProjectAsset) return { template, failed: 0 }
+  if (!assets.length) return { template, failed: 0 }
   const urlBySource = new Map<string, string>()
   let failed = 0
+  // 串行：同名文件并发复制会在目标桶里抢同一个去重文件名。
   for (const asset of assets) {
-    try {
-      const copied = await copyProjectAsset({
-        sourceProjectId: asset.sourceProjectId,
-        targetProjectId,
-        relativePath: asset.relativePath,
-      })
-      const targetUrl = typeof copied?.data?.url === 'string' ? copied.data.url.trim() : ''
-      if (!targetUrl) throw new Error('copied asset url missing')
-      urlBySource.set(asset.sourceUrl, targetUrl)
-    } catch {
-      failed += 1
-    }
+    const placed = await materializeProjectFile({ projectId: asset.sourceProjectId, relativePath: asset.relativePath }, targetProjectId)
+    if (placed.kind === 'copied') urlBySource.set(asset.sourceUrl, placed.url)
+    else if (placed.kind === 'failed') failed += 1
   }
   return { template: rewriteCanvasWorkflowTemplateAssetUrls(template, urlBySource), failed }
 }

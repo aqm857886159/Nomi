@@ -1,50 +1,23 @@
-import { describe, expect, it, vi } from "vitest";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { describe, expect, it } from "vitest";
+import { finalizeAssetMeta, reconcileReuse } from "./assetSourceEvidence";
 
-// sanitizeSourceEvidence —— P0-1 来源取证归一化的单一 choke point。
+// 素材来源的唯一判定（assetSourceEvidence.ts）：finalizeAssetMeta 是写 sidecar 前的唯一一道，
+// sanitizeSourceEvidence 是它私有的来源清洗；这里经 finalizeAssetMeta 测清洗结果。
 //
 // 类级不变量（这些测试是这些不变量的机器可验证记录）：
-//   1. connector 来源：usageStatus 只接受白名单值，旧 rightsStatus:"unknown" 迁移为 rights_unknown。
+//   1. connector 来源：usageStatus 只接受白名单值，缺省 rights_unknown。
 //   2. browser 来源：usageStatus 强制为 reference_only，绝不升级（诚实默认）。
 //   3. user 来源：usageStatus 强制为 reference_only。
 //   4. 白名单外的字段被丢弃（untrusted payload 塞不进任意 metadata）。
-//   5. 未知 source → undefined（不给假署名）。
+//   5. 未知 source → 不落 sourceEvidence（不给假署名）。
 //   6. 可选扩展字段（creator / licenseId / licenseUrl / attribution / licenseSnapshot / intendedRoles）通过白名单验证。
+//   7. 幂等：已经清洗过的 meta 再过一遍结果不变（复制 / 移动时不重盖时间、不漂移）。
 //
-// 词表真相源（2026-09-03）：
-//   VALID_USAGE_STATUSES 和 VALID_INTENDED_ROLES 白名单现从 connectorDefinition.ts 的
-//   ASSET_PROVENANCE_ALLOWED_USAGES / ASSET_PROVENANCE_ALLOWED_ROLES 导入，消除了本文件与
-//   connectorDefinition.ts 之间的成员重复（双真相源风险）。
-//   不变量 1、3、4、6 的成员集由 connectorDefinition.ts 的类型联合单一决定。
-const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-src-evidence-"));
-// sanitizeName 用真的（见 projectAssetStore.test.ts 顶部）。
-vi.mock("../projects/repository", async (importOriginal) => ({
-  ...await importOriginal<typeof import("../projects/repository")>(),
-  projectDirById: () => projectRoot,
-}));
-
-const { sanitizeSourceEvidence } = await import("./projectAssetStore");
+// 词表真相源：白名单从 connectorDefinition.ts 的 ASSET_PROVENANCE_ALLOWED_USAGES / ASSET_PROVENANCE_ALLOWED_ROLES 导入。
+const sanitizeSourceEvidence = (raw: unknown): Record<string, unknown> | undefined =>
+  finalizeAssetMeta({ kind: "upload", sourceEvidence: raw as never }).sourceEvidence as Record<string, unknown> | undefined;
 
 describe("sanitizeSourceEvidence — connector 来源", () => {
-  it("合法 connector 取证，rightsStatus 迁移为 usageStatus:rights_unknown", () => {
-    const out = sanitizeSourceEvidence({
-      source: "connector",
-      connectorId: "tikhub",
-      originalUrl: "https://v.douyin.com/abc/",
-      resolvedUrl: "https://aweme.snssdk.com/x.mp4",
-      platform: "douyin",
-      rightsStatus: "unknown", // 旧字段，触发迁移
-      fetchedAt: "2026-09-01T00:00:00.000Z",
-    });
-    expect(out?.source).toBe("connector");
-    expect(out?.connectorId).toBe("tikhub");
-    expect(out?.usageStatus).toBe("rights_unknown"); // 迁移后
-    // 旧 rightsStatus 字段不出现在输出（只走迁移通道，不双写）
-    expect(out && "rightsStatus" in out).toBe(false);
-  });
-
   it("connector 来源带合法 usageStatus → 通过", () => {
     const out = sanitizeSourceEvidence({
       source: "connector",
@@ -58,20 +31,22 @@ describe("sanitizeSourceEvidence — connector 来源", () => {
     expect(out?.usageStatus).toBe("requires_attribution");
   });
 
-  it("caller 谎报 usageStatus:'cleared' 被拒——connector 来源不允许 cleared（无实据）", () => {
-    // connector 来源传 cleared 时：不在合法值集合里被认为是"无效值"→ 降为 rights_unknown
-    // 注：cleared 只许 Pixabay API 等明确授权的来源设置，不是 connector 通用来源可以声明的
+  it("connector 来源的 cleared 原样落盘：能交 connector 来源的只有主进程调用方（渲染层载荷不读）", () => {
     const out = sanitizeSourceEvidence({
       source: "connector",
       connectorId: "tikhub",
       originalUrl: "https://v.douyin.com/abc/",
       resolvedUrl: "https://x/y.mp4",
       platform: "douyin",
-      usageStatus: "cleared", // 合法枚举值，此 connector 未被专属允许，但 sanitize 此处按值传入
+      usageStatus: "cleared",
       fetchedAt: "2026-09-01T00:00:00.000Z",
     });
-    // cleared 是合法枚举值，sanitize 本身不拦（业务层拦；connector 场景的真实入口 tikhubConnectorService 不传 cleared）
-    expect(["rights_unknown", "cleared"]).toContain(out?.usageStatus);
+    expect(out?.usageStatus).toBe("cleared");
+  });
+
+  it("connector 来源 usageStatus 不在白名单 → rights_unknown", () => {
+    const out = sanitizeSourceEvidence({ source: "connector", connectorId: "tikhub", usageStatus: "public_domain_trust_me" });
+    expect(out?.usageStatus).toBe("rights_unknown");
   });
 
   it("白名单外的字段被丢弃（untrusted payload 塞不进任意 metadata）", () => {
@@ -81,7 +56,6 @@ describe("sanitizeSourceEvidence — connector 来源", () => {
       originalUrl: "https://v.douyin.com/abc/",
       resolvedUrl: "https://x/y.mp4",
       platform: "douyin",
-      rightsStatus: "unknown",
       fetchedAt: "2026-09-01T00:00:00.000Z",
       certificationEvidence: { sha256: "forged" },
       kind: "generated",
@@ -227,7 +201,8 @@ describe("sanitizeSourceEvidence — user 来源（本地文件）", () => {
 });
 
 describe("sanitizeSourceEvidence — 未知来源", () => {
-  it("非白名单 source → undefined（不给假署名）", () => {
+  it("非白名单 source → 不落 sourceEvidence（不给假署名）", () => {
+    expect(finalizeAssetMeta({ kind: "upload", sourceEvidence: { source: "unknown_source" } })).toEqual({ kind: "upload" });
     expect(sanitizeSourceEvidence({ source: "unknown_source" })).toBeUndefined();
     expect(sanitizeSourceEvidence(null)).toBeUndefined();
     expect(sanitizeSourceEvidence("not-an-object")).toBeUndefined();
@@ -239,46 +214,9 @@ describe("sanitizeSourceEvidence — 未知来源", () => {
   });
 });
 
-describe("sanitizeSourceEvidence — 惰性迁移语义", () => {
-  it("旧 sidecar：connector + rightsStatus:unknown → usageStatus:rights_unknown，不含 rightsStatus", () => {
-    // 这是存量老数据的迁移路径：老 sidecar 只有 rightsStatus:"unknown"，没有 usageStatus
-    const out = sanitizeSourceEvidence({
-      source: "connector",
-      connectorId: "tikhub",
-      originalUrl: "https://v.douyin.com/old/",
-      resolvedUrl: "https://aweme.snssdk.com/old.mp4",
-      platform: "douyin",
-      rightsStatus: "unknown", // 老字段
-      fetchedAt: "2026-01-01T00:00:00.000Z",
-      // 注意：没有 usageStatus
-    });
-    expect(out?.usageStatus).toBe("rights_unknown");
-    expect(out && "rightsStatus" in out).toBe(false); // 不回写旧字段
-  });
-
-  it("迁移幂等：已迁移 sidecar 再次经 sanitize → 结果不变（稳定不漂移）", () => {
-    // 场景：老 sidecar 已被读取并迁移，结果作为新 raw 再次经 sanitize（重放场景）。
-    // 幂等要求：二次经过 sanitizeSourceEvidence 后值不变，不会无限漂移。
-    const firstPass = sanitizeSourceEvidence({
-      source: "connector",
-      connectorId: "tikhub",
-      originalUrl: "https://v.douyin.com/old/",
-      resolvedUrl: "https://aweme.snssdk.com/old.mp4",
-      platform: "douyin",
-      rightsStatus: "unknown",
-      fetchedAt: "2026-01-01T00:00:00.000Z",
-    });
-    // 把第一次迁移结果作为输入再跑一次
-    const secondPass = sanitizeSourceEvidence(firstPass);
-    expect(secondPass?.usageStatus).toBe("rights_unknown");
-    expect(secondPass && "rightsStatus" in secondPass).toBe(false);
-    // 关键不变量：二次输出与一次输出完全相同（内容稳定，不引入新字段）
-    expect(secondPass?.connectorId).toBe(firstPass?.connectorId);
-    expect(secondPass?.originalUrl).toBe(firstPass?.originalUrl);
-  });
-
-  it("fail-closed：connector 来源缺 usageStatus 且无旧字段 → 安全降级为 rights_unknown（不假装合规）", () => {
-    // 场景：既没有 usageStatus 也没有旧 rightsStatus 的 connector 条目（最坏情况）。
+describe("sanitizeSourceEvidence — 缺省与降级", () => {
+  it("fail-closed：connector 来源缺 usageStatus → 安全降级为 rights_unknown（不假装合规）", () => {
+    // 场景：没有 usageStatus 的 connector 条目（最坏情况）。
     // fail-closed 要求：降级到最保守的默认值，不假装有许可、不推断为 reference_only（那是 browser 语义）。
     const out = sanitizeSourceEvidence({
       source: "connector",
@@ -287,7 +225,7 @@ describe("sanitizeSourceEvidence — 惰性迁移语义", () => {
       resolvedUrl: "https://cdn.example.com/video.mp4",
       platform: "unknown",
       fetchedAt: "2026-09-03T00:00:00.000Z",
-      // 没有 usageStatus，没有 rightsStatus
+      // 没有 usageStatus
     });
     expect(out?.usageStatus).toBe("rights_unknown"); // fail-closed，不是 undefined，不是 cleared
     expect(out?.source).toBe("connector");
@@ -305,5 +243,66 @@ describe("sanitizeSourceEvidence — 惰性迁移语义", () => {
       });
       expect(out?.usageStatus).toBe("reference_only");
     }
+  });
+});
+
+describe("finalizeAssetMeta — 写 sidecar 前的唯一一道", () => {
+  // 隐私不变量（M0 捕捞评审定案）：capture 族 sidecar 的 originalUrl 恒 null——
+  // 否则 48h 信任窗会把用户浏览的网页 URL 当参考发给生成商。
+  it("nulls originalUrl for browser-capture family regardless of input", () => {
+    expect(finalizeAssetMeta({ kind: "browser-capture", originalUrl: "https://evil.example/x.png" })).toEqual({
+      kind: "browser-capture",
+      originalUrl: null,
+    });
+    expect(finalizeAssetMeta({ kind: "browser-upload", originalUrl: "https://a/b.png", pageUrl: "https://a" })).toEqual({
+      kind: "browser-upload",
+      originalUrl: null,
+      pageUrl: "https://a",
+    });
+  });
+
+  it("leaves provider/generated meta untouched (trust-window by design)", () => {
+    const meta = { kind: "generated", originalUrl: "https://vendor.example/tmp.png" };
+    expect(finalizeAssetMeta(meta)).toBe(meta);
+  });
+
+  it("入口只交事实：浏览器 {source, pageUrl} 落成带时间、恒 reference_only 的来源", () => {
+    const out = finalizeAssetMeta({ kind: "browser-capture", originalUrl: "https://cdn/x.png", sourceEvidence: { source: "browser", pageUrl: "https://page/" } });
+    expect(out).toMatchObject({ kind: "browser-capture", originalUrl: null, sourceEvidence: { source: "browser", pageUrl: "https://page/", usageStatus: "reference_only" } });
+    expect(String((out.sourceEvidence as Record<string, unknown>).capturedAt)).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("幂等：已清洗的 meta 再过一遍结果完全相同（复制 / 移动不重盖时间、不漂移）", () => {
+    for (const raw of [
+      { kind: "upload", sourceEvidence: { source: "user" } },
+      { kind: "browser-capture", originalUrl: "https://cdn/x.png", sourceEvidence: { source: "browser", pageUrl: "https://page/", usageStatus: "cleared" } },
+      { kind: "reference", sourceEvidence: { source: "connector", connectorId: "tikhub", originalUrl: "https://share/", platform: "douyin", intendedRoles: ["music", "nope"] } },
+      { kind: "upload", sourceEvidence: { source: "nope" } },
+    ]) {
+      const once = finalizeAssetMeta(raw);
+      expect(finalizeAssetMeta(once)).toEqual(once);
+    }
+  });
+});
+
+describe("reconcileReuse — 同一份字节再进来时能不能复用旧记录", () => {
+  const user = { source: "user", capturedAt: "2026-11-01T00:00:00.000Z", usageStatus: "reference_only" };
+  const connector = { source: "connector", connectorId: "tikhub", originalUrl: "https://share/", resolvedUrl: "", platform: "douyin", usageStatus: "cleared", fetchedAt: "2026-11-01T00:00:00.000Z" };
+
+  it("这次没带来源 → 原样复用，不改旧记录", () => {
+    expect(reconcileReuse({ kind: "upload", sourceEvidence: user }, { kind: "upload" })).toEqual({ reuse: true });
+  });
+
+  it("同一个来源（只差时间）→ 原样复用，不重盖时间", () => {
+    expect(reconcileReuse({ kind: "upload", sourceEvidence: user }, { kind: "upload", sourceEvidence: { ...user, capturedAt: "2026-11-20T00:00:00.000Z" } })).toEqual({ reuse: true });
+  });
+
+  it("旧记录没有来源（老版本导入）→ 复用并补上这次的来源", () => {
+    expect(reconcileReuse({ kind: "upload" }, { kind: "upload", sourceEvidence: user })).toEqual({ reuse: true, fill: user });
+  });
+
+  it("来源不同 → 不复用：补来源抬不高旧记录的 usageStatus", () => {
+    expect(reconcileReuse({ kind: "upload", sourceEvidence: user }, { kind: "upload", sourceEvidence: connector })).toEqual({ reuse: false });
+    expect(reconcileReuse({ kind: "upload", sourceEvidence: connector }, { kind: "upload", sourceEvidence: user })).toEqual({ reuse: false });
   });
 });
