@@ -303,6 +303,8 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
     }
     const videoOptions = scenario.catalog ? realVideoCatalog(scenario.catalog) : [withArchetype(MODELS.seedance), withArchetype(scenario.model === 'seedance25Apimart' ? MODELS.seedance25Apimart : MODELS.seedance25), withArchetype(MODELS.kling4), withArchetype(MODELS.wan), ...EXTRA_VIDEO_OPTIONS, ...(scenario.secondChannel || scenario.channelGap === 'switch' ? [SECOND_CHANNEL] : [])]
     if (new URLSearchParams(window.location.search).get('models') === '200') {
+      const unique = new Map(videoOptions.map(option => [`${option.vendor}:${option.modelKey}`, option] as const))
+      videoOptions.splice(0, videoOptions.length, ...unique.values())
       while (videoOptions.length < 200) {
         const index = videoOptions.length
         videoOptions.push({ ...withArchetype(MODELS.seedance25), value: `bench-video-${index}`, modelKey: `bench-video-${index}`, label: `Bench video ${index}` })

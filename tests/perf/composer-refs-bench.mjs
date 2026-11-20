@@ -59,8 +59,11 @@ try {
     await page.waitForFunction(() => window.__designLabReady === true, null, { timeout: 90000 })
     await page.waitForFunction((count) => document.querySelectorAll('[data-composer-host] [data-reference-row] [data-asset-tile]').length >= count, REF_COUNT, { timeout: 30000 })
     if (MODEL_COUNT) {
-      const count = await page.evaluate(async () => (await import('/src/config/modelCatalogCache.ts')).peekCatalogModelOptions('video', 'text_to_video')?.length)
-      if (count !== MODEL_COUNT) throw new Error(`Expected ${MODEL_COUNT} catalog rows, got ${count}`)
+      const measured = await page.evaluate(async () => {
+        const rows = (await import('/src/config/modelCatalogCache.ts')).peekCatalogModelOptions('video', 'text_to_video') ?? []
+        return { count: rows.length, unique: new Set(rows.map(row => `${row.vendor}:${row.modelKey}`)).size }
+      })
+      if (measured.count !== MODEL_COUNT || measured.unique !== MODEL_COUNT) throw new Error(`Expected ${MODEL_COUNT} distinct catalog rows, got ${JSON.stringify(measured)}`)
     }
     let sample
     if (OP === 'open-params-flat') {
