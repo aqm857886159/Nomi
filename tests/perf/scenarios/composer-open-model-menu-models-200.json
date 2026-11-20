@@ -17,8 +17,12 @@
   "group": "② 生成框里的操作",
   "budgetStatus": "proposed",
   "budgetBasis": "同现有模型菜单场景，沿用默认首反馈100ms / p95 150ms；200条是目录规模，不把折叠后首屏谎报成200行同时可见。",
-  "measurement": {
-    "state": "pending",
-    "reason": "本轮同机主分支与任务分支各测5次，原始结果保留在docs/evidence；预算待协调确认。"
+  "baseline": {
+    "median": 40.9,
+    "p95": 41.6,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-20",
+    "commit": "4643d8e13"
   }
 }
