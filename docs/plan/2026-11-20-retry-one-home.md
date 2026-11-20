@@ -308,7 +308,7 @@ U1 混合（第一次下单不回话 = 结果未知，第一个建好的任务�
 - `05-resend-done`：确认后那张出图，供应商下单从 2 次变 3 次。
 - `06-first-generate`、`07-first-generate-done`：新节点第一次生成，没有重发卡（单张按现有规则也不弹花钱卡），出图，下单从 3 次变 4 次。
 
-任务中心那颗「再发一次」（第一次下单不回话，另一张成功）：
+任务中心那颗「再发一次」（第一次下单不回话，另一张成功；这一笔有画布节点，走的是节点那条路，没有节点的那条分支真窗没走到，由 `useProductionStatus.test.ts` 的三条覆盖，改回旧形状时三条都红）：
 - `01-tc-panel`：通知按钮「任务」打开任务中心，「等你处理 1」里是「提交结果不明，Nomi 已停止自动重试」和「再发一次」（英文「Waiting on you 1」「Submission result is unknown; Nomi stopped automatic retries」「Send again」）。
 - `02-tc-resend-card`：点面板里的「再发一次」，弹的是和节点上同一张卡（「再发一次这张图片？」取消 / 再发一次；英文「Send this image again?」Cancel / Send again）。
 - `03-tc-after-cancel`：点「取消」，卡关上、节点原样还是「上一次没等到结果」；供应商下单仍是 2 次（面板随外部点击收起是现有行为）。
