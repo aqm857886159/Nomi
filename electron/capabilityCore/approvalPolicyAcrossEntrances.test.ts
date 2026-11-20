@@ -18,6 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { bindApprovalReceiptIssuer } from "./runOwnedGenerationGateAuthority";
 import { dispatchSemanticGeneration } from "./generationDispatcher";
 import type { DispatchContext } from "./dispatcher";
 import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
@@ -60,6 +61,7 @@ function receiptAuthority(): { authority: NonNullable<DispatchContext["approvalR
     resolveReceiptToken: () => undefined,
     consumeReceipt: () => undefined,
   } as unknown as NonNullable<DispatchContext["approvalReceiptAuthority"]>;
+  bindApprovalReceiptIssuer(authority, authority as unknown as Parameters<typeof bindApprovalReceiptIssuer>[1]);
   return { authority, minted };
 }
 

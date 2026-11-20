@@ -1,4 +1,4 @@
-// 付费放行只在一个家判（spend.approval-decision）：签发口与结论各五种绕法都要报，正常写法与主人本身不报，真源码零命中。
+// 结论扫描只防误导；签发能力隔离由生产装配的运行时测试验证。
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
@@ -10,24 +10,6 @@ import { workingTreeSource } from './concept-owners-scan.mjs'
 const probe = 'electron/capabilityCore/approvalBypassProbe.ts'
 const scan = (snippet, file = probe) => findApprovalDecisionBypass({ files: [file], read: () => snippet })
 const kinds = (snippet, file) => scan(snippet, file).map((hit) => hit.kind)
-
-const issuerBypasses = [
-  // ① 改名
-  'export function f(receipts: R, t: string, a: unknown) { const sign = receipts.mintReceipt; return sign(t, a) }',
-  // ② 内联
-  'export function f(receipts: R, t: string, a: unknown) { return receipts.mintReceipt(t, a) }',
-  // ③ 解构别名
-  'export function f(receipts: R, t: string, a: unknown) { const { mintReceipt: m } = receipts; return m(t, a) }',
-  // ④ 属性赋值 / 字符串键 / Reflect
-  "export function f(receipts: R, holder: any) { holder.sign = receipts['mintReceipt'] }",
-  "export function f(receipts: R, t: string) { return Reflect.get(receipts, 'createClientElicitationAttestation')(t, 'codex') }",
-  // ⑤ 展开 / Object.assign 覆盖
-  'export function f(receipts: R, facade: any, i: unknown, d: unknown) { return Object.assign(facade, receipts).issueDecisionReceipt(i, d) }',
-  'export function f(receipts: R, t: string, a: unknown) { return ({ ...receipts }).mintReceipt(t, a) }',
-  // 另外两种签证造法同样是签发口
-  'export function f(receipts: R, t: string) { return receipts.createPolicyDecisionAttestation(t, { policyMode: "project", policySurface: "x" }) }',
-  'export function f(receipts: R, t: string, g: any) { return receipts.createMainProcessGestureAttestation(t, g) }',
-]
 
 const verdictBypasses = [
   // ① 改名常量
@@ -45,12 +27,6 @@ const verdictBypasses = [
   // 改名的常量本身就叫 confirmed（简写属性）
   'export function f(challengeId: string) { const confirmed = true; return { confirmed, challengeId } }',
 ]
-
-for (const code of issuerBypasses) {
-  test(`签发口绕法要报：${code}`, () => {
-    assert.ok(kinds(code).includes('issuer'), JSON.stringify(scan(code)))
-  })
-}
 
 for (const code of verdictBypasses) {
   test(`结论绕法要报：${code}`, () => {
@@ -80,7 +56,6 @@ test('主人与收据权威本身不报；把主人的真文件换个路径就�
   }
   const owner = fs.readFileSync(new URL('../electron/capabilityCore/runOwnedGenerationGateAuthority.ts', import.meta.url), 'utf8')
   const moved = scan(owner)
-  assert.ok(moved.some((hit) => hit.kind === 'issuer'), '主人搬到别处，签发口要报')
   assert.ok(moved.some((hit) => hit.kind === 'verdict'), '主人搬到别处，「算批准」要报')
 })
 

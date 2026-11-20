@@ -4,10 +4,21 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
+
+const renderer = vi.hoisted(() => ({ asks: [] as Array<(value: unknown) => void>, authority: null as unknown }))
+vi.mock('electron', () => ({ app: { getPath: () => os.tmpdir(), getAppPath: () => process.cwd() } }))
+vi.mock('./approvalReceiptRuntime', () => ({ getApprovalReceiptAuthority: () => renderer.authority, currentProjectRevision: () => 2 }))
+vi.mock('./rendererBridge', () => ({
+  requestRendererDecision: () => new Promise((resolve) => { renderer.asks.push(resolve) }),
+  rendererTargetIdentity: () => ({ webContentsId: 7, frameId: 1, origin: 'app://nomi' }),
+}))
+vi.mock('./projectSessionRuntime', () => ({ createProductionProjectSessionRuntime: () => ({ authority: undefined }) }))
+vi.mock('./canvasReadSurfaceRuntime', () => ({ canvasReadSurfaceRuntime: { getCommittedProjectSelection: () => null } }))
+import { createDefaultAuthorities } from './appIntegrationAuthorities'
 
 import { createApprovalReceiptAuthority } from './approvalReceipt'
-import { approveGateByPolicy, createGenerationGateAnswers, readApprovalDecision } from './runOwnedGenerationGateAuthority'
+import { approveGateByPolicy, readApprovalDecision } from './runOwnedGenerationGateAuthority'
 
 const roots: string[] = []
 afterAll(() => {
@@ -105,46 +116,43 @@ describe('readApprovalDecision · 一笔批准此刻在哪一档', () => {
   })
 })
 
-describe('createGenerationGateAnswers · 问人这件事只在主人这里', () => {
+describe('createDefaultAuthorities · 旧入口问答合同', () => {
   it('问着的时候请求被取消：当场答「没批」，晚到的「是」不签收据，挑战仍是等人', async () => {
     const { authority } = receiptsWithClock()
     const pending = challengeOf(authority, 'generation_submit:op-1:abort', 600_000)
-    const asks: Array<(value: unknown) => void> = []
-    const answers = createGenerationGateAnswers({
-      receipts: authority,
-      requestRendererDecision: () => new Promise((resolve) => { asks.push(resolve) }),
-      rendererTargetIdentity: () => ({ webContentsId: 7, frameId: 1, origin: 'app://nomi' }),
-    })
+    renderer.authority = authority
+    renderer.asks.length = 0
+    const asks = renderer.asks
+    const answers = createDefaultAuthorities()
     const controller = new AbortController()
-    const settled = answers.confirmInNomi({ challengeToken: pending.token }, { signal: controller.signal })
+    const confirm = answers.confirmGenerationInNomi as (input: { challengeToken: string }, options: { signal: AbortSignal }) => Promise<unknown>
+    const settled = confirm({ challengeToken: pending.token }, { signal: controller.signal })
     await new Promise((resolve) => setTimeout(resolve, 10))
     expect(asks).toHaveLength(1)
 
     controller.abort(new Error('client went away'))
-    await expect(settled).resolves.toEqual({ confirmed: false, challengeId: pending.challenge.challengeId })
-    asks[0]!({ confirmed: true })
     await new Promise((resolve) => setTimeout(resolve, 10))
-    expect(readApprovalDecision(authority, { challengeToken: pending.token })).toEqual({ state: 'pending' })
+    asks[0]!({ confirmed: true })
+    await expect(settled).resolves.toEqual({ confirmed: false, challengeId: pending.challenge.challengeId })
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(Object.keys(JSON.parse(fs.readFileSync(authority.filePath, 'utf8')).receipts)).toHaveLength(0)
   })
 
-  it('外部客户端：只有 accept + confirm=true 才签；签过、花掉之后再答「是」不再放行', () => {
+  it('外部客户端：只有 accept + confirm=true 才签；签过、花掉之后再答「是」不再放行', async () => {
     const { authority } = receiptsWithClock()
     const pending = challengeOf(authority, 'generation_submit:op-1:client', 600_000)
-    const answers = createGenerationGateAnswers({
-      receipts: authority,
-      requestRendererDecision: async () => ({ confirmed: false }),
-      rendererTargetIdentity: () => null,
-    })
+    renderer.authority = authority
+    const answers = createDefaultAuthorities()
     const yes = { action: 'accept', confirm: true }
-    expect(answers.answerFromClient({ challengeToken: pending.token, client: 'codex', answer: { action: 'accept', confirm: 'true' } }))
+    expect(await answers.verifyClientGenerationGateInMain!({ challengeToken: pending.token, authenticatedClient: 'codex', answer: { action: 'accept', confirm: 'true' } }))
       .toEqual({ confirmed: false })
-    expect(answers.answerFromClient({ challengeToken: pending.token, client: '', answer: yes })).toEqual({ confirmed: false })
+    expect(await answers.verifyClientGenerationGateInMain!({ challengeToken: pending.token, authenticatedClient: '', answer: yes })).toEqual({ confirmed: false })
 
-    const first = answers.answerFromClient({ challengeToken: pending.token, client: 'codex', answer: yes })
+    const first = await answers.verifyClientGenerationGateInMain!({ challengeToken: pending.token, authenticatedClient: 'codex', answer: yes })
     expect(first).toMatchObject({ confirmed: true })
-    expect(readApprovalDecision(authority, { challengeToken: pending.token })).toMatchObject({ state: 'approved-unused', decidedBy: 'human:elicitation' })
+    expect(authority.verifyReceipt((first as { receiptToken: string }).receiptToken).decidedBy).toBe('human:elicitation')
 
     authority.consumeReceipt((first as { receiptToken: string }).receiptToken)
-    expect(answers.answerFromClient({ challengeToken: pending.token, client: 'codex', answer: yes })).toEqual({ confirmed: false })
+    expect(await answers.verifyClientGenerationGateInMain!({ challengeToken: pending.token, authenticatedClient: 'codex', answer: yes })).toEqual({ confirmed: false })
   })
 })

@@ -2,7 +2,7 @@
 //
 // 这份测试只走主分支和改后都存在的入口（rpcServer 的两个回环方法、createDefaultAuthorities、
 // 客户端确认工厂、回环这一跳、降档挑战、Run 边界的降档核对），所以改前红必须是断言失败、不是缺符号。
-// 每条目标行都有正反两半：「什么都不做」让反半边红（该拒的放了、该等的结束了），
+// 每条目标行都有正反两半：「什么都不做」按真实差异红（到时替答否也让正半边红），
 // 「全部拦下」让正半边红（人答了是，照样签不出）。不变行钉的是同一输入同一结论、同一句话。
 import fs from 'node:fs'
 import os from 'node:os'
@@ -41,6 +41,11 @@ vi.mock('./canvasReadSurfaceRuntime', () => ({
 }))
 
 import { createApprovalReceiptAuthority, type ApprovalReceiptAuthority, type HumanApprovalChallengeInput } from './approvalReceipt'
+import { spendDecisionByPolicy } from '../shared/agentCapabilities/directGenerationBrakes'
+import { handleSemanticGenerationGate } from './mcpSemanticGenerationFlow'
+import { handleTrustDowngrade } from './mcpTrustDowngrade'
+import { assembleToolResultContent } from './mcpResultPayload'
+import { buildToolErrorOutcome } from './mcpToolErrorResults'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createElicitationClient } from './mcpElicitation'
 import { createGenerationGateConfirmation, type GenerationGateChallengeProjection } from './mcpGateConfirmation'
@@ -126,13 +131,13 @@ async function until(condition: () => boolean, label: string): Promise<void> {
 
 /** 真实的 elicitation 客户端，假的是线另一头：它照 SDK 那样按 timeoutMs 自己计时。 */
 function elicitationHarness() {
-  const asks: Array<{ timeoutMs?: number; answer: (response: unknown) => void; fail: (error: unknown) => void }> = []
+  const asks: Array<{ params: unknown; timeoutMs?: number; answer: (response: unknown) => void; fail: (error: unknown) => void }> = []
   const client = createElicitationClient({
     sendServerRequest: (_method, _params, timeoutMs, signal) => new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('Request timed out')), timeoutMs ?? 60_000)
       signal?.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason ?? new Error('aborted')) }, { once: true })
       asks.push({
-        timeoutMs,
+        params: _params, timeoutMs,
         answer: (response) => { clearTimeout(timer); resolve(response) },
         fail: (error) => { clearTimeout(timer); reject(error) },
       })
@@ -225,6 +230,42 @@ function nomiOnlyGate(loopback: ReturnType<typeof launcherLoopback>) {
 
 const ACCEPT = { action: 'accept', content: { confirm: true } }
 
+/** 走真正的工具结果投影；只归一化随机凭据，保留全部外部原句（中英）。 */
+async function externalReceipt(result: unknown, trust = false): Promise<string[]> {
+  const texts: string[] = []
+  const challenge = { challengeId: 'wire-challenge', model: 'm-x', costScope: 'generation_submit', maximumCost: 3, currency: 'CNY', expiresAt: '2099-01-01T00:00:00.000Z' }
+  for (const locale of ['zh-CN', 'en'] as const) {
+    let reply: unknown
+    const build = (name: string, args: Record<string, unknown>, value: unknown) => assembleToolResultContent(name, args, value, locale)
+    const value = result as Record<string, unknown>
+    const confirmation = { challengeId: 'wire-challenge', surface: 'client', nextAction: 'in_client', ...value } as never
+    try {
+      if (trust) {
+        await handleTrustDowngrade({ id: 1, toolName: 'nomi_run_control', args: { action: 'set_trust', trustLevel: 'budget_only' }, built: { projectId: 'project-1', runId: 'run-1' }, routedMethod: 'production.control' }, {
+          invokeForRequest: async (method) => method === 'production.trust-challenge' ? challenge : { runId: 'run-1' },
+          requestGenerationConfirmation: async () => confirmation, reply: (_id, sent) => { reply = sent },
+          buildToolResultPayload: build, locale: () => locale,
+        })
+      } else {
+        await handleSemanticGenerationGate(1, 'nomi_operation_gate', { phase: 'request' }, { operationId: 'op-1' }, {
+          invoke: async (method) => method === 'nomi_request_generation_gate' ? challenge : { operationId: 'op-1', state: method === 'nomi_start_generation' ? 'running' : 'authorized' },
+          requestConfirmation: async () => confirmation, buildResult: build, reply: (_id, sent) => { reply = sent }, locale: () => locale,
+        })
+      }
+    } catch (error) { reply = { content: [{ text: buildToolErrorOutcome('nomi_operation_gate', error, locale).text }] } }
+    let text = String((reply as { content: Array<{ text: string }> }).content[0]!.text)
+    for (const key of ['challengeId', 'receiptId', 'receiptToken'] as const) {
+      if (typeof value[key] === 'string' && value[key]) text = text.split(value[key] as string).join(`<${key}>`)
+    }
+    texts.push(text)
+  }
+  return texts
+}
+
+function externalError(error: unknown): string[] {
+  return (['zh-CN', 'en'] as const).map((locale) => buildToolErrorOutcome('nomi_operation_gate', error, locale).text)
+}
+
 // ───────────────────────────── 目标行 ─────────────────────────────
 
 describe('D3 客户端来要收据：要有人的答复，身份取请求头', () => {
@@ -233,6 +274,12 @@ describe('D3 客户端来要收据：要有人的答复，身份取请求头', (
     const challenge = gateChallenge()
     const result = await (authorities.verifyClientGenerationGateInMain as unknown as AnyFn)({ challengeToken: challenge.token, authenticatedClient: 'codex' }) as Record<string, unknown>
     expect(result.confirmed).not.toBe(true)
+    expect(await externalReceipt(result)).toMatchInlineSnapshot(`
+      [
+        "未开始：请在当前客户端确认这次生成，或在唯一的 Nomi 兜底卡中确认。",
+        "Not started: confirm this generation in the current client or in the single Nomi fallback card.",
+      ]
+    `)
     expect(result.receiptToken).toBeUndefined()
     expect(receiptCount()).toBe(0)
   })
@@ -244,6 +291,62 @@ describe('D3 客户端来要收据：要有人的答复，身份取请求头', (
       challengeToken: challenge.token, authenticatedClient: 'codex', answer: { action: 'accept', confirm: true },
     }) as Record<string, unknown>
     expect(result.confirmed).toBe(true)
+    expect(await externalReceipt(result)).toMatchInlineSnapshot(`
+      [
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "wire-challenge",
+          "surface": "client",
+          "nextAction": "in_client",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "wire-challenge",
+          "surface": "client",
+          "nextAction": "in_client",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+      ]
+    `)
     expect(authority.verifyReceipt(String(result.receiptToken)).decidedBy).toBe('human:elicitation')
   })
 
@@ -265,6 +368,62 @@ describe('D3 客户端来要收据：要有人的答复，身份取请求头', (
         params: { challengeToken: challenge.token, authenticatedClient: 'claude', answer: { action: 'accept', confirm: true } },
       }) as Record<string, unknown>
       expect(result.confirmed).toBe(true)
+    expect(await externalReceipt(result)).toMatchInlineSnapshot(`
+      [
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "wire-challenge",
+          "surface": "client",
+          "nextAction": "in_client",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "wire-challenge",
+          "surface": "client",
+          "nextAction": "in_client",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+      ]
+    `)
       expect(authority.verifyReceipt(String(result.receiptToken)).humanActor).toBe('mcp_client:codex')
       const bare = await callMcpLoopbackRpc({
         instance: { port: server.port, token: ensureToken() },
@@ -294,6 +453,62 @@ describe('U1-1 客户端在问，人隔了 301 秒才答', () => {
     await vi.advanceTimersByTimeAsync(0)
     const result = await pending
     expect(result).toMatchObject({ confirmed: true, surface: 'client' })
+    expect(await externalReceipt(result, false)).toMatchInlineSnapshot(`
+      [
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "<challengeId>",
+          "surface": "client",
+          "nextAction": "in_client",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "<challengeId>",
+          "surface": "client",
+          "nextAction": "in_client",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+      ]
+    `)
     expect(authority.verifyReceipt(String(result.receiptToken)).decidedBy).toBe('human:elicitation')
   })
 
@@ -308,6 +523,12 @@ describe('U1-1 客户端在问，人隔了 301 秒才答', () => {
     await vi.advanceTimersByTimeAsync(0)
     const result = await pending
     expect(result).toMatchObject({ confirmed: false, denial: 'declined' })
+    expect(await externalReceipt(result)).toMatchInlineSnapshot(`
+      [
+        "未开始：用户拒绝了这次请求，没有花费。请结束这次生成，等用户的新指令；不要再次发起确认。",
+        "Not started: the user declined this request. Nothing was spent. Stop this generation and wait for new instructions from the user; do not ask for confirmation again.",
+      ]
+    `)
     expect(receiptCount()).toBe(0)
   })
 })
@@ -328,12 +549,74 @@ describe('U1-2 落 Nomi 兜底卡，人隔了 361 秒（越过回环 360 秒）�
   it('正半边：第 361 秒点「生成」→ 签出收据', async () => {
     const settled = await fallbackAfter361({ confirmed: true })
     expect('value' in settled ? settled.value : settled.error).toMatchObject({ confirmed: true, surface: 'nomi' })
+    expect(await externalReceipt('value' in settled ? settled.value : {})).toMatchInlineSnapshot(`
+      [
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "<challengeId>",
+          "surface": "nomi",
+          "nextAction": "in_nomi",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "<challengeId>",
+          "surface": "nomi",
+          "nextAction": "in_nomi",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+      ]
+    `)
     expect(receiptCount()).toBe(1)
   })
 
   it('反半边：第 361 秒点「忽略」→ 不签', async () => {
     const settled = await fallbackAfter361({ confirmed: false })
     expect('value' in settled ? settled.value : settled.error).toMatchObject({ confirmed: false, surface: 'nomi' })
+    expect(await externalReceipt('value' in settled ? settled.value : {})).toMatchInlineSnapshot(`
+      [
+        "未开始：请在当前客户端确认这次生成，或在唯一的 Nomi 兜底卡中确认。",
+        "Not started: confirm this generation in the current client or in the single Nomi fallback card.",
+      ]
+    `)
     expect(receiptCount()).toBe(0)
   })
 })
@@ -370,6 +653,12 @@ describe('U1-3 等待中客户端取消了这次调用（真回环）', () => {
       expect(ended).not.toBe('still-waiting')
       const outcome = await settled
       expect('value' in outcome ? outcome.value.confirmed : false).toBe(false)
+      expect('error' in outcome ? externalError(outcome.error) : await externalReceipt(outcome.value)).toMatchInlineSnapshot(`
+        [
+          "✗ client cancelled the tool call",
+          "✗ client cancelled the tool call",
+        ]
+      `)
     })
   })
 
@@ -381,6 +670,62 @@ describe('U1-3 等待中客户端取消了这次调用（真回环）', () => {
       renderer.asks[0]!.answer({ confirmed: true })
       const result = await pending
       expect(result).toMatchObject({ confirmed: true, surface: 'nomi' })
+      expect(await externalReceipt(result)).toMatchInlineSnapshot(`
+        [
+          "{
+          "challenge": {
+            "challengeId": "wire-challenge",
+            "model": "m-x",
+            "costScope": "generation_submit",
+            "maximumCost": 3,
+            "currency": "CNY",
+            "expiresAt": "2099-01-01T00:00:00.000Z"
+          },
+          "confirmation": {
+            "challengeId": "<challengeId>",
+            "surface": "nomi",
+            "nextAction": "in_nomi",
+            "confirmed": true,
+            "receiptId": "<receiptId>",
+            "receiptToken": "<receiptToken>"
+          },
+          "approved": {
+            "operationId": "op-1",
+            "state": "authorized"
+          },
+          "started": {
+            "operationId": "op-1",
+            "state": "running"
+          }
+        }",
+          "{
+          "challenge": {
+            "challengeId": "wire-challenge",
+            "model": "m-x",
+            "costScope": "generation_submit",
+            "maximumCost": 3,
+            "currency": "CNY",
+            "expiresAt": "2099-01-01T00:00:00.000Z"
+          },
+          "confirmation": {
+            "challengeId": "<challengeId>",
+            "surface": "nomi",
+            "nextAction": "in_nomi",
+            "confirmed": true,
+            "receiptId": "<receiptId>",
+            "receiptToken": "<receiptToken>"
+          },
+          "approved": {
+            "operationId": "op-1",
+            "state": "authorized"
+          },
+          "started": {
+            "operationId": "op-1",
+            "state": "running"
+          }
+        }",
+        ]
+      `)
       expect(receiptCount()).toBe(1)
     })
   })
@@ -401,6 +746,12 @@ describe('U2-1 批准已被用掉，再拿同一张挑战来确认', () => {
     renderer.asks[1]?.answer({ confirmed: true })
     const result = await again
     expect(result.confirmed).not.toBe(true)
+    expect(await externalReceipt(result)).toMatchInlineSnapshot(`
+      [
+        "未开始：请在当前客户端确认这次生成，或在唯一的 Nomi 兜底卡中确认。",
+        "Not started: confirm this generation in the current client or in the single Nomi fallback card.",
+      ]
+    `)
     expect(result.receiptToken).toBeUndefined()
   })
 
@@ -419,22 +770,85 @@ describe('U2-1 批准已被用掉，再拿同一张挑战来确认', () => {
     elicit.asks[1]?.answer(ACCEPT)
     const result = await again
     expect(result.confirmed).toBe(false)
+    expect(await externalReceipt(result)).toMatchInlineSnapshot(`
+      [
+        "未开始：请在当前客户端确认这次生成，或在唯一的 Nomi 兜底卡中确认。",
+        "Not started: confirm this generation in the current client or in the single Nomi fallback card.",
+      ]
+    `)
     expect(result.receiptToken).toBeUndefined()
   })
 
   it('正半边：同一个 Run 下一次的新挑战照常问、答是就签', async () => {
     const authorities = createDefaultAuthorities()
+    const gate = nomiOnlyGate(launcherLoopback(fakeRpcFetch(authorities)))
     const used = gateChallenge()
-    const first = authorities.confirmGenerationInNomi!({ challengeToken: used.token })
+    const first = gate.requestGenerationConfirmation(projectionOf(used))
     await until(() => renderer.asks.length === 1, '第一次卡')
     renderer.asks[0]!.answer({ confirmed: true })
-    authority.consumeReceipt(String((await first as Record<string, unknown>).receiptToken))
+    authority.consumeReceipt(String((await first).receiptToken))
     const next = gateChallenge('generation_submit:op-1:digest-2', { contractHash: 'digest-2', targetHash: 'digest-2', pricingSnapshotHash: 'digest-2', gateId: 'gate-2' })
-    const second = authorities.confirmGenerationInNomi!({ challengeToken: next.token })
+    const second = gate.requestGenerationConfirmation(projectionOf(next))
     await until(() => renderer.asks.length === 2, '新挑战的卡')
     renderer.asks[1]!.answer({ confirmed: true })
-    const result = await second as Record<string, unknown>
+    const result = await second
     expect(result.confirmed).toBe(true)
+    expect(await externalReceipt(result)).toMatchInlineSnapshot(`
+      [
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "<challengeId>",
+          "surface": "nomi",
+          "nextAction": "in_nomi",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "<challengeId>",
+          "surface": "nomi",
+          "nextAction": "in_nomi",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+      ]
+    `)
     expect(authority.verifyReceipt(String(result.receiptToken)).challengeId).toBe(next.challenge.challengeId)
   })
 })
@@ -497,12 +911,26 @@ describe('U2-2 降档 → 调回 → 几分钟内再降档', () => {
     const { asks, second } = await lowerTwice({ action: 'decline' })
     expect(asks).toBe(2)
     expect(second.confirmed).toBe(false)
+    expect(await externalReceipt(second, true)).toMatchInlineSnapshot(`
+      [
+        "未开始：用户拒绝了这次请求，没有花费。请结束这次生成，等用户的新指令；不要再次发起确认。",
+        "Not started: the user declined this request. Nothing was spent. Stop this generation and wait for new instructions from the user; do not ask for confirmation again.",
+      ]
+    `)
   })
 
   it('正半边：第二次答是 → 一张新的收据', async () => {
     const { asks, first, second } = await lowerTwice(ACCEPT)
     expect(asks).toBe(2)
     expect(second.confirmed).toBe(true)
+    expect(await externalReceipt(second, true)).toMatchInlineSnapshot(`
+      [
+        "✓ 信任档位已改为：只管钱（跳过创意与样片门） · run-1
+      接下来的创意方向门与样片门会自动通过；预算门仍会请示，不会偷偷花钱。",
+        "✓ Trust level set to：budget only (skips creative + sample gates) · run-1
+      Creative direction and sample gates will auto-approve from here; the budget gate still asks — nothing is spent silently.",
+      ]
+    `)
     expect(second.receiptId).not.toBe(first.receiptId)
   })
 })
@@ -522,6 +950,14 @@ describe('降档晚到（预期变化第 9 行）：人第 301 秒才在客户�
     await vi.advanceTimersByTimeAsync(0)
     const result = await pending
     expect(result).toMatchObject({ confirmed: true, surface: 'client' })
+    expect(await externalReceipt(result, true)).toMatchInlineSnapshot(`
+      [
+        "✓ 信任档位已改为：只管钱（跳过创意与样片门） · run-1
+      接下来的创意方向门与样片门会自动通过；预算门仍会请示，不会偷偷花钱。",
+        "✓ Trust level set to：budget only (skips creative + sample gates) · run-1
+      Creative direction and sample gates will auto-approve from here; the budget gate still asks — nothing is spent silently.",
+      ]
+    `)
     expect(authority.verifyReceipt(String(result.receiptToken)).decidedBy).toBe('human:elicitation')
   })
 
@@ -539,6 +975,12 @@ describe('降档晚到（预期变化第 9 行）：人第 301 秒才在客户�
     const settled = await pending
     // 和今天 Nomi 兜底卡晚点时同一句报错（收据权威的过期错误），不是「批准了」。
     expect(settled).toEqual({ error: expect.objectContaining({ message: 'Human approval challenge or receipt has expired' }) })
+    expect(externalError('error' in settled ? settled.error : undefined)).toMatchInlineSnapshot(`
+      [
+        "✗ Human approval challenge or receipt has expired",
+        "✗ Human approval challenge or receipt has expired",
+      ]
+    `)
     expect(receiptCount()).toBe(0)
   })
 })
@@ -558,14 +1000,29 @@ describe('U2-4 Run 边界：用掉的降档收据不能再让降档生效', () =
     const token = await mintTrustReceipt(5)
     const accepted = owner.verifyTrustGrant('project-1', 'run-1', trustRun(5), setTrust(token))
     owner.consume(accepted)
-    expect(() => owner.verifyTrustGrant('project-1', 'run-1', trustRun(9), setTrust(token)))
-      .toThrowError(expect.objectContaining({ code: 'human_approval_required' }))
+    let rejected: unknown
+    try { owner.verifyTrustGrant('project-1', 'run-1', trustRun(9), setTrust(token)) } catch (error) { rejected = error }
+    expect(rejected).toMatchObject({ code: 'human_approval_required' })
+    expect(externalError(rejected)).toMatchInlineSnapshot(`
+      [
+        "✗ 这一步要你本人在 Nomi 里确认一次。",
+        "✗ This step needs you to confirm it once in Nomi.",
+      ]
+    `)
   })
 
   it('正半边：新签的降档收据 → 生效', async () => {
     const owner = createGateApprovalOwner(authority, () => 2)
     const token = await mintTrustReceipt(5)
     expect(owner.verifyTrustGrant('project-1', 'run-1', trustRun(5), setTrust(token))?.receipt.decidedBy).toBe('human:elicitation')
+    expect(await externalReceipt({ confirmed: true, receiptToken: token }, true)).toMatchInlineSnapshot(`
+      [
+        "✓ 信任档位已改为：只管钱（跳过创意与样片门） · run-1
+      接下来的创意方向门与样片门会自动通过；预算门仍会请示，不会偷偷花钱。",
+        "✓ Trust level set to：budget only (skips creative + sample gates) · run-1
+      Creative direction and sample gates will auto-approve from here; the budget gate still asks — nothing is spent silently.",
+      ]
+    `)
   })
 })
 
@@ -601,6 +1058,62 @@ describe('D11 裸同意：没有主进程收据的「是」不算批准', () => 
     elicit.asks[0]!.answer(ACCEPT)
     const result = await pending
     expect(result.confirmed).toBe(true)
+    expect(await externalReceipt(result)).toMatchInlineSnapshot(`
+      [
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "<challengeId>",
+          "surface": "client",
+          "nextAction": "in_client",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "<challengeId>",
+          "surface": "client",
+          "nextAction": "in_client",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+      ]
+    `)
     expect(authority.verifyReceipt(String(result.receiptToken)).decidedBy).toBe('human:elicitation')
   })
 })
@@ -616,12 +1129,91 @@ describe('U2-3 客户端路（预期变化）：已批未用再确认，再问�
     elicit.asks[0]!.answer(ACCEPT)
     const approved = await first
     const again = gate.requestGenerationConfirmation(projectionOf(challenge))
-    await until(() => elicit.asks.length === 2, '第二次再问人')
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(elicit.asks).toHaveLength(2)
     elicit.asks[1]!.answer(ACCEPT)
     const result = await again
     expect(result.receiptId).toBe(approved.receiptId)
+    expect(await externalReceipt(result)).toMatchInlineSnapshot(`
+      [
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "<challengeId>",
+          "surface": "client",
+          "nextAction": "in_client",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+        "{
+        "challenge": {
+          "challengeId": "wire-challenge",
+          "model": "m-x",
+          "costScope": "generation_submit",
+          "maximumCost": 3,
+          "currency": "CNY",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        },
+        "confirmation": {
+          "challengeId": "<challengeId>",
+          "surface": "client",
+          "nextAction": "in_client",
+          "confirmed": true,
+          "receiptId": "<receiptId>",
+          "receiptToken": "<receiptToken>"
+        },
+        "approved": {
+          "operationId": "op-1",
+          "state": "authorized"
+        },
+        "started": {
+          "operationId": "op-1",
+          "state": "running"
+        }
+      }",
+      ]
+    `)
     expect(receiptCount()).toBe(1)
   })
+})
+
+it('U2-3 客户端反半边：已批未用，再问时答否就不放行', async () => {
+  const authorities = createDefaultAuthorities()
+  const elicit = elicitationHarness()
+  const gate = clientGate(launcherLoopback(fakeRpcFetch(authorities)), elicit.client)
+  const challenge = projectionOf(gateChallenge())
+  const first = gate.requestGenerationConfirmation(challenge)
+  await until(() => elicit.asks.length === 1, '第一次')
+  elicit.asks[0]!.answer(ACCEPT)
+  await first
+  const second = gate.requestGenerationConfirmation(challenge)
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  elicit.asks[1]?.answer({ action: 'decline' })
+  const answer = await second
+  expect(answer.confirmed).toBe(false)
+  expect(await externalReceipt(answer)).toMatchInlineSnapshot(`
+    [
+      "未开始：用户拒绝了这次请求，没有花费。请结束这次生成，等用户的新指令；不要再次发起确认。",
+      "Not started: the user declined this request. Nothing was spent. Stop this generation and wait for new instructions from the user; do not ask for confirmation again.",
+    ]
+  `)
 })
 
 // ───────────────────────────── 不变行（对拍） ─────────────────────────────
@@ -839,5 +1431,129 @@ describe('不变行：返工确认、面板卡、画布', () => {
     expect(retry.commandId).toBe(gesture.commandId)
     const policy = mainProcessGateApproval({ ...base, authorization: reworkAuthorization('gate-p2', 'digest-p2'), decision: { kind: 'policy', policyMode: 'project', policySurface: 'canvas' } })
     expect(policy.payload.status).toBe('approved')
+  })
+})
+
+
+describe('对拍 D1/D2/D4/D9：基线与本提交逐字同回执', () => {
+  it('对拍 D1：直接生成策略签发；外部照样问真人，答否原句不变', async () => {
+    const run = {
+      status: 'running', gates: [],
+      generationPlan: { shots: [{ shotId: 'shot-1', included: true }] },
+      jobs: [{ jobId: 'job-1', stageId: 'generate', status: 'failed', attempt: 1, createdAt: '2026-11-21T00:00:00.000Z', metadata: { shotId: 'shot-1' } }],
+    } as unknown as ProductionRun
+    expect(spendDecisionByPolicy({ mode: 'direct' }, run).decided).toBe(true)
+    const policy = mainProcessGateApproval({
+      receipts: authority, lease: { immutableProjectUuid: 'uuid-1', projectGeneration: 1, revocationEpoch: 0 } as never,
+      operationId: 'op-r', authorization: reworkAuthorization('d1-gate', 'd1-digest'), display: { model: 'm-x' },
+      commandPrefix: 'd1', issuedAt: new Date().toISOString(), decision: { kind: 'policy', policyMode: 'project', policySurface: 'canvas' },
+    })
+    expect(policy.payload.status).toBe('approved')
+    const elicit = elicitationHarness()
+    const gate = clientGate(launcherLoopback(fakeRpcFetch(createDefaultAuthorities())), elicit.client)
+    const pending = gate.requestGenerationConfirmation(projectionOf(gateChallenge('d1-external')))
+    await until(() => elicit.asks.length === 1, '外部仍问人')
+    elicit.asks[0]!.answer({ action: 'decline' })
+    expect(await externalReceipt(await pending)).toMatchInlineSnapshot(`
+      [
+        "未开始：用户拒绝了这次请求，没有花费。请结束这次生成，等用户的新指令；不要再次发起确认。",
+        "Not started: the user declined this request. Nothing was spent. Stop this generation and wait for new instructions from the user; do not ask for confirmation again.",
+      ]
+    `)
+  })
+
+  it('对拍 D2：Nomi 未开、客户端能问，拒绝回执不说已开始', async () => {
+    const elicit = elicitationHarness()
+    const gate = clientGate(launcherLoopback(fakeRpcFetch(createDefaultAuthorities())), elicit.client, false)
+    const pending = gate.requestGenerationConfirmation(projectionOf(gateChallenge('d2')))
+    await until(() => elicit.asks.length === 1, '客户端确认')
+    elicit.asks[0]!.answer({ action: 'decline' })
+    expect(renderer.asks).toHaveLength(0)
+    expect(await externalReceipt(await pending)).toMatchInlineSnapshot(`
+      [
+        "未开始：用户拒绝了这次请求，没有花费。请结束这次生成，等用户的新指令；不要再次发起确认。",
+        "Not started: the user declined this request. Nothing was spent. Stop this generation and wait for new instructions from the user; do not ask for confirmation again.",
+      ]
+    `)
+  })
+
+  it('对拍 D4：普通生成只有当次确认；非正数降档不弹、回执逐字不变', async () => {
+    const elicit = elicitationHarness()
+    const gate = clientGate(launcherLoopback(fakeRpcFetch(createDefaultAuthorities())), elicit.client)
+    const challenge = { ...projectionOf(gateChallenge('d4')), expiresAt: '2099-01-01T00:00:00.000Z' }
+    const pending = gate.requestGenerationConfirmation(challenge)
+    await until(() => elicit.asks.length === 1, '只有当次确认')
+    expect(elicit.asks[0]!.params).toMatchInlineSnapshot(`
+      {
+        "message": "允许 Nomi 在当前项目使用模型 m-x，生成这一镜：
+      · m-x
+      合计最多 CNY3。",
+        "requestedSchema": {
+          "properties": {
+            "confirm": {
+              "description": "有效期至 2099-01-01T00:00:00.000Z",
+              "title": "确认这次生成",
+              "type": "boolean",
+            },
+          },
+          "required": [
+            "confirm",
+          ],
+          "type": "object",
+        },
+      }
+    `)
+    elicit.asks[0]!.answer({ action: 'decline' })
+    expect(await externalReceipt(await pending)).toMatchInlineSnapshot(`
+      [
+        "未开始：用户拒绝了这次请求，没有花费。请结束这次生成，等用户的新指令；不要再次发起确认。",
+        "Not started: the user declined this request. Nothing was spent. Stop this generation and wait for new instructions from the user; do not ask for confirmation again.",
+      ]
+    `)
+    for (const maximum of [0, -1]) {
+      const result = await gate.requestGenerationConfirmation({ ...challenge, challengeId: `d4-${maximum}`, trustGrant: { currency: 'CNY', maximum } })
+      expect(result.confirmed).toBe(false)
+      expect(await externalReceipt(result, true)).toMatchInlineSnapshot(`
+        [
+          "未生效：你的 AI 客户端和 Nomi 窗口都没能向你征求这次花费授权的确认。",
+          "Not applied: neither your AI client nor an open Nomi window could ask you to confirm this spending change.",
+        ]
+      `)
+    }
+    expect(elicit.asks).toHaveLength(1)
+  })
+
+  it('对拍 D9：全部未知价仍问、原句说事后才知道，拒绝回执不变', async () => {
+    const elicit = elicitationHarness()
+    const gate = clientGate(launcherLoopback(fakeRpcFetch(createDefaultAuthorities())), elicit.client)
+    const pending = gate.requestGenerationConfirmation({ ...projectionOf(gateChallenge('d9')), maximumCost: null, unknownShotCount: 1, expiresAt: '2099-01-01T00:00:00.000Z' })
+    await until(() => elicit.asks.length === 1, '未知价确认')
+    expect(elicit.asks[0]!.params).toMatchInlineSnapshot(`
+      {
+        "message": "允许 Nomi 在当前项目使用模型 m-x，生成这一镜：
+      · m-x
+      这批镜头目录里都没有标价，花多少事后才知道。要继续就得接受「花多少事后才知道」。",
+        "requestedSchema": {
+          "properties": {
+            "confirm": {
+              "description": "有效期至 2099-01-01T00:00:00.000Z",
+              "title": "确认这次生成",
+              "type": "boolean",
+            },
+          },
+          "required": [
+            "confirm",
+          ],
+          "type": "object",
+        },
+      }
+    `)
+    elicit.asks[0]!.answer({ action: 'decline' })
+    expect(await externalReceipt(await pending)).toMatchInlineSnapshot(`
+      [
+        "未开始：用户拒绝了这次请求，没有花费。请结束这次生成，等用户的新指令；不要再次发起确认。",
+        "Not started: the user declined this request. Nothing was spent. Stop this generation and wait for new instructions from the user; do not ask for confirmation again.",
+      ]
+    `)
   })
 })

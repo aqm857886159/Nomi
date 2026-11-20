@@ -556,10 +556,7 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
    * 于是「悄悄把某一档当成全自动」在这一层就走不通。签名同样由主进程的 macKey 出，
    * 调用方（渲染层、MCP 客户端）永远拿不到这把钥匙。
    */
-  function createPolicyDecisionAttestation(token: string, input: {
-    policyMode: "project";
-    policySurface: string;
-  }): PolicyDecisionAttestationV1 {
+  function createPolicyDecisionAttestation(token: string, input: Parameters<typeof policyAttestation>[1]): PolicyDecisionAttestationV1 {
     return policyAttestation(verifyChallenge(token), input, now());
   }
 
@@ -770,22 +767,25 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
     });
   }
 
-  return {
+  const reader = {
     filePath: deps.filePath,
-    /** 只读：一张挑战 / 收据此刻落在哪一档，判法住 `approvalReceiptDecision.ts`；判还问不问人的是生成门主人。不写库。 */
     readDecisionRecord: (ref: ApprovalDecisionRef) => decisionRecordOf(readState(), ref, Date.parse(now()), digest, signed),
     requestChallenge,
     verifyChallenge,
     resolveChallengeToken,
+    verifyReceipt,
+    resolveReceiptToken,
+    consumeReceipt,
+  };
+  const issuer = {
     createMainProcessGestureAttestation,
     createClientElicitationAttestation,
     createPolicyDecisionAttestation,
     mintReceipt,
     issueDecisionReceipt,
-    verifyReceipt,
-    resolveReceiptToken,
-    consumeReceipt,
   };
+  // 完整对象留给既有测试装配；生产装配只交 reader，签发能力另交给主人。
+  return { ...reader, ...issuer, reader };
 }
 
-export type ApprovalReceiptAuthority = ReturnType<typeof createApprovalReceiptAuthority>;
+export type ApprovalReceiptAuthority = ReturnType<typeof createApprovalReceiptAuthority>["reader"];

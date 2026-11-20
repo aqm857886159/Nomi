@@ -10,6 +10,7 @@ import { spendAuthorizationGates, waitingAuthorizationGates } from "../shared/pr
 import type { ApprovalDecisionRecord, ApprovalDecisionRef } from "./approvalReceiptDecision";
 import type {
   ApprovalReceiptAuthority,
+  createApprovalReceiptAuthority,
   HumanApprovalDisplay,
   HumanApprovalReceiptV1,
   MainProcessDecision,
@@ -17,6 +18,25 @@ import type {
 import type { DispatchContext } from "./dispatcher";
 import type { GenerationOperationStore } from "./mcpGenerationTools";
 import type { ProjectLeaseV2 } from "./projectLease";
+
+type ApprovalReceiptIssuer = Omit<ReturnType<typeof createApprovalReceiptAuthority>, keyof ApprovalReceiptAuthority | "reader">;
+
+const receiptIssuers = new WeakMap<ApprovalReceiptAuthority, ApprovalReceiptIssuer>();
+
+/** 生产装配只向主人交签发引用；读面无法取回它，也不能重新绑定。 */
+export function bindApprovalReceiptIssuer(receipts: ApprovalReceiptAuthority, issuer: ApprovalReceiptIssuer): void {
+  if (receiptIssuers.has(receipts)) throw new Error("Approval receipt issuer is already bound");
+  receiptIssuers.set(receipts, issuer);
+}
+
+function issuerFor(receipts: ApprovalReceiptAuthority | ReturnType<typeof createApprovalReceiptAuthority>): ApprovalReceiptIssuer {
+  // 既有测试装配传完整工厂对象；生产 reader 只从装配时绑定的私有表取签发能力。
+  const issuer = "reader" in receipts
+    ? receipts
+    : receiptIssuers.get(receipts);
+  if (!issuer) throw new Error("Approval receipt issuer is unavailable");
+  return issuer;
+}
 
 type RunOwner = Pick<ProductionRunService, "readFull" | "command">;
 
@@ -122,7 +142,7 @@ export function createGenerationGateAnswers(deps: Readonly<{
       };
     }
     if (spent(challengeToken)) return notConfirmed;
-    const receipt = receipts.mintReceipt(challengeToken, receipts.createMainProcessGestureAttestation(challengeToken, {
+    const receipt = issuerFor(receipts).mintReceipt(challengeToken, issuerFor(receipts).createMainProcessGestureAttestation(challengeToken, {
       ...target,
       decision: "accept",
     }));
@@ -139,7 +159,7 @@ export function createGenerationGateAnswers(deps: Readonly<{
     const client = typeof input.client === "string" ? input.client.trim() : "";
     if (!client || input.answer?.action !== "accept" || input.answer.confirm !== true) return notConfirmed;
     if (spent(input.challengeToken)) return notConfirmed;
-    const receipt = receipts.mintReceipt(input.challengeToken, receipts.createClientElicitationAttestation(input.challengeToken, client));
+    const receipt = issuerFor(receipts).mintReceipt(input.challengeToken, issuerFor(receipts).createClientElicitationAttestation(input.challengeToken, client));
     return { confirmed: true, receiptId: receipt.receipt.receiptId, receiptToken: receipt.token };
   }
 
@@ -155,7 +175,7 @@ export function approveGateByPolicy(
   challengeToken: string,
   policy: { policyMode: "project"; policySurface: string },
 ): { token: string; receipt: HumanApprovalReceiptV1 } {
-  return receipts.mintReceipt(challengeToken, receipts.createPolicyDecisionAttestation(challengeToken, policy));
+  return issuerFor(receipts).mintReceipt(challengeToken, issuerFor(receipts).createPolicyDecisionAttestation(challengeToken, policy));
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {
@@ -388,7 +408,7 @@ export function mainProcessGateApproval(input: Readonly<{
 }>): Omit<RunCommand, "expectedRevision"> {
   const { envelope } = input.authorization;
   const digest = input.authorization.authorizationDigest;
-  const receipt = input.receipts.issueDecisionReceipt(gateChallengeInput(input.authorization, input.lease, input.display), input.decision);
+  const receipt = issuerFor(input.receipts).issueDecisionReceipt(gateChallengeInput(input.authorization, input.lease, input.display), input.decision);
   assertReceiptMatchesAuthorization(receipt, input.lease, input.operationId, envelope, digest, envelope.gateId);
   return {
     commandId: `${input.commandPrefix}-decide:${envelope.gateId}:${receipt.receiptId}`,

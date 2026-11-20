@@ -32,7 +32,7 @@
 4. 应用内面板卡、画布 ↑、「直接生成」档、返工确认：结局与今天逐项相同。
 
 指标与量具：
-- 能签付费收据的生产文件数：今天 3，目标 1 · 量具：`node scripts/door-map.mjs mintReceipt` + 新扫描 `findApprovalDecisionBypass` 真源码零命中。
+- 能签付费收据的生产文件数：今天 3，目标 1 · 量具：`node scripts/door-map.mjs mintReceipt` + `approvalReceiptRuntime.test.ts` 生产对象运行时反例。
 - 判「问过了没有」的位置：今天 6（客户端出口的裸同意分支、成功缓存、兜底卡签发、客户端签发、旧无 Run 路的策略签发、生成门本身），目标 1 · 量具：同上。
 - 同一份已用掉的批准被第二次领出的次数：目标 0 · 量具：目标行 U2-1、U2-2、U2-4。
 - 外部等人时在挑战过期前被时钟替答「否」的次数：目标 0 · 量具：新合同测试 U1 两行（假时钟）+ 一次真回环 301 秒实测。
@@ -203,13 +203,7 @@
 - 老数据：0.24.0 两份真实旧 Run（结果未知的画布镜、中途打断的画布镜）各重放一次，人在 Nomi 批准仍成功。
 - 界面出口（Nomi 兜底卡、面板卡、画布）同一输入的说法和动作：全部相同；有一处不同就停。
 
-反例（新扫描 `scripts/concept-owners-approval.mjs` 的 `findApprovalDecisionBypass`，主人文件与收据权威文件之外的生产代码）——签发口与结论各五种绕法，每条都要报：
-- 签发口：①改名 `const sign = receipts.mintReceipt` ②内联 `receipts.mintReceipt(t, a)` ③解构别名 `const { mintReceipt: m } = receipts` ④属性赋值 / 字符串键 `holder.sign = receipts['mintReceipt']`、`Reflect.get(receipts, 'createClientElicitationAttestation')` ⑤展开 / `Object.assign` 覆盖 `Object.assign(facade, receipts).issueDecisionReceipt(...)`、`({ ...receipts }).mintReceipt`。
-- 结论：①改名 `const ok = true; return { confirmed: ok, receiptId }` ②内联 `return { confirmed: true, receiptToken }` ③别名展开 `const yes = { confirmed: true }; return { ...yes, challengeId }` ④属性赋值 `verdict.confirmed = true` ⑤`Object.assign(verdict, { confirmed: true })`、`{ ...verdict, confirmed: true }`。
-- 不得误报：客户端答复解析（`confirmed: res.action === 'accept' && …`）、回环转话（`confirmed: typed.confirmed === true`）、渲染层卡片（`Boolean(ok)`）、拆解批量令牌、关窗确认、主人文件本身。
-- 每条反例：改坏 → 红，复原 → 绿，日志存证据目录。
-- 换门岗后补的两条（协调 2026-11-21）：在 `mcpGateConfirmation.ts` 写回旧门岗原本拦的裸同意（`confirmed: true` 不带收据），以及带收据的字面 `confirmed: true`——新扫描都必须红。
-- 概念登记：在登记外的文件引用任一签发方法，`check:concept-owners` 必须红。
+反例（R2 替换签发形状扫描）：生产 runtime 拿到的 reader 不含五个签发方法；把独立验收的拆字符串签发 probe 放到主人之外的生产文件，运行时调用失败；同一 reader 经主人答是仍签发成功。把 helper `confirmed: yes()` probe 放入生产文件，伪 token 在真实 Run 决门前拒绝，供应商 0 次。签发扫描删除；结论扫描保留已有八种反例，只防误导性的回执，不再给它加绕法形状，不再称它是防花钱的边界。
 
 回滚：revert 这一个提交。存储格式没变，回滚不需要迁移。
 独立验收：待派（四类必须另一条线）。
@@ -230,3 +224,32 @@
 9. **两个布尔分支一起删**：`mcpGateConfirmation.ts` 里客户端验证器 / Nomi 兜底只回 `true` 也算批准的两个分支（生产走不到），不是对象就一律算没批准；4 处测试替身改成带收据的对象。
 10. **预期变化第 9 行（降档晚到）**：见 ★4「过期」与 ★9；不改降档挑战有效期，待办「降档挑战有效期是否跟随等人不设期限」由协调记。
 11. **旧门岗换新扫描（代批 A）**：删两个布尔分支以后旧门岗 `check:spend-receipt` 无物可扫、必红；同一提交删它和基线，由新扫描接手。条件：推送前不变松（`SCAN_GUARDS` 的触发面是旧门岗 3 个固定文件的超集，选择器探针证据在证据目录）、两条写回反例必须红、方向检查文档 `docs/engineering/direction-checks/2026-11-21-spend-receipt-gate-replaced.md`、根因合同改指新扫描、提交带 `Direction-Check:` trailer。协调代批，事后报用户。
+
+
+## R2 动手前修订（2026-11-21）
+
+- ★0：本仓收据工厂的闭包保护密钥、Run 的 `verifyReceipt` 保护花钱边界、原验收两个动态绕法证明语法扫描不能证明能力隔离；分别确认闭包持有签发、保留签验与核销、删除签发形状扫描。出口：不新增用户阻挡，正常答复仍由主人签发，不改变取消/重试路径。
+- ★1：目标按任务书：生产持有者动态拿不到签发方法；正常答是仍签；伪造 confirmed 花不出钱。量具：生产装配返回对象的运行时反例、真实 Run 仓库+假供应商计数、九行逐字外部回执与 D1/D2/D4/D9 对拍。
+- ★2：工厂分出不含签发的 `reader`，五个签发方法只交给主人模块的私有 WeakMap；完整工厂对象仅供原测试装配，兼容旧测试。生产 runtime 只返回 reader；不改热点持有者文件，共享 `ApprovalReceiptAuthority` 类型统一收窄。
+- ★3：沿原方向补扫描不能覆盖动态取成员；改为签发闭包隔离；删除签发扫描，保留结论扫描仅防回执误导，不宣称它防花钱。
+- ★4：不改交互、文字、存储或签名；同一读写函数共享锁和库，读面无回到完整对象的属性。私有表未登记则主人拒签，既不偷花也不伪称批准。
+- 5/6：范围为工厂→生产装配→主人→已有签验/核销→Run→提交；持有者只靠共享类型收窄，不改热点文件和测试装配。收据字段与错误处理保留。
+- ★7：无新功能/依赖，无新增 I/O，WeakMap 查询为常数时间。
+- 8：不起窗口、不花钱；UI 按任务书交独立验收，本轮只隔离目录+本机回环+假供应商。
+- ★9：先跑能力反例红，再实现；什么都不做使用基线产品代码与本轮测试，全部拦下改主人签发出口，均保存 patch/log。九行正反断言真实回复文本；D1/D2/D4/D9 同输入逐字对拍。原「只有反半边红」不成立：U1 的正半边在旧版到时被替答否，U2-2 正半边旧版拿缓存不重问，同样应红。主人只读结论新增入口旧版不存在，不让缺符号 TypeError 冒充目标红；其可迁移的问答测试经旧有 createDefaultAuthorities 入口验证。
+- 预测/复查：本轮生产 reader 五个签发键全部不存在；动态取签发失败，主人答是成功；裸 confirmed+伪 token 的 Run 不批准、供应商 0 次；下一轮独立验收复查，不满足即重开。
+
+
+### R2 兼容边界与反事实口径
+
+生产装配在 `approvalReceiptRuntime.ts` 把完整工厂的签发面单向绑定到主人的私有表，并只交出 reader；工厂不反向 import 主人（避免扩大前端类型编译依赖）。原测试装配仍传完整对象，主人接受这一显式完整输入；生产 reader 没有回到完整对象的 `reader` 属性。不是生产失败后的第二条路，签发函数仍是原来的同一组。
+五条 `readApprovalDecision` 合同验证新增的只读状态投影，旧版既没有该出口也没有等价的只读状态出口，因此从「什么都不做」目标集中排除并单列；两条能迁移的问答合同已改从旧版也有的 `createDefaultAuthorities` 进入，取消后晚到、客户端严格答复与用掉重发都以断言失败呈现，不再以缺符号 TypeError 或等待超时充数。
+D1/D2/D4/D9 的同输入中英回执和请求正文分别固化；生成成功的 JSON 回执仅归一化随机挑战/收据 ID 和令牌，其余逐字断言。生成/降档工具投影均调用生产的 reply/assemble 实现，供应商启动另由真实 Run + 假供应商测试守住。
+
+
+### R2 自验收据（2026-11-21）
+
+固定主分支快照 `76518c7271d97136d7caa2998d8ea49b7eb16ec8` 的全部差异生产文件替入本工作树，与本轮测试运行：20 红 / 23 绿 / 5 条新增只读合同排除；20 条全是断言失败，无缺符号 TypeError、无等待超时。D1/D2/D4/D9 四项对拍均绿（两轨逐字快照），不是把未跑算不变。U1-1、U1-2 正反均红；U2-2 正反均红；其余红的具体项见 `noop-r2.json`。两条已迁移的旧入口合同都因业务断言红。
+「全部拦下」在主人统一 `issuerFor` 处拿掉签发：24 红 / 24 绿，九行正半边、返工、面板/画布/策略与生产装配正常确认均红；否决/无人答和只读夹具可继续绿。反例脚本强制替换必须改变字节，避免签名变动造成空替换冒充反事实。
+两个独立验收原始 probe 分别临时放入 `mcpGateConfirmation.ts`：拆字符串签发在生产 reader 上抛 TypeError（不存在方法），正常主人签发仍绿；helper 恒真+伪 token 在真实 Run 中不批准，提交边界拒绝，供应商 0 次。两项 1/1 通过，全部临时文件逐字还原。源码扫描剩 18/18（结论与不误报），不增加新的 helper 恒真形状。
+证据根目录 `/Users/aoqimin/Nomi-coord/tmp/L-home-approval-r2/`；最终计数以报告及最后定向测试日志为准。窗口、真实 301 秒签发生成、真客户端与真付费仍未验，交下一轮独立验收。

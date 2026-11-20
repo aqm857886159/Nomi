@@ -35,7 +35,7 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  */
 export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/check-concept-owners.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-scan.mjs'] }, // 原文改判守门及真实显示正例。
-  // 2026-11-20：付费放行只在一个家判（spend.approval-decision）；遍历 src、electron 找签发口与「算批准」的第二个家（<1 秒）。
+  // 2026-11-20：付费放行只在一个家判（spend.approval-decision）；遍历 src、electron 找误导性的恒真「算批准」回执（<1 秒）。
   { file: 'scripts/concept-owners-approval.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-approval.mjs', 'scripts/concept-owners-scan.mjs'] },
   { file: 'scripts/asset-file-owner.node-test.mjs', roots: ['src/workbench/generationCanvas/nodes/versionCards'], files: ['eslint.config.mjs', 'src/workbench/assets/assetFileDeletion.ts', 'src/workbench/assets/removeAssetVersion.ts', 'src/workbench/assets/assetResultMutation.ts'] }, // 两种桥删除及版本面间接绕法片段必须报错，真实owner必须通过
   { file: 'scripts/typecheck.node-test.mjs', roots: ['scripts'], exts: '*' }, // tsc 启动只归统一入口；新增文件也必须检查（<1 秒）。
