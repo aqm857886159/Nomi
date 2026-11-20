@@ -26,6 +26,9 @@ export const THEMES = Object.freeze(['light', 'dark'])
  */
 export const DATA_FIXTURES = Object.freeze({
   empty: null,
+  'v0.24.1-saved-pending': 'tests/fixtures/old-user-data/unverified-usable/v0.24.1/saved-pending',
+  'v0.24.1-failed-disabled': 'tests/fixtures/old-user-data/unverified-usable/v0.24.1/failed-disabled',
+  'v0.24.1-manual-disabled': 'tests/fixtures/old-user-data/unverified-usable/v0.24.1/manual-disabled',
   'v0.24.0-library': 'tests/fixtures/old-user-data/projects/v0.24.0-library',
   'v0.20.0-library': 'tests/fixtures/old-user-data/projects/v0.20.0-library',
 })
@@ -160,7 +163,7 @@ export function seedDataFixture(name, tempRoot, root = repoRoot) {
     }
   }
   copy(path.join(root, source), target)
-  return path.join(target, 'userData')
+  return fs.existsSync(path.join(target, 'model-catalog.json')) ? target : path.join(target, 'userData')
 }
 
 /**

@@ -65,7 +65,19 @@ if (options.vendor) {
   settingsDir ??= path.join(tempRoot, 'settings')
   const userDataDir = path.join(tempRoot, 'user-data')
   for (const dir of [settingsDir, userDataDir]) fs.mkdirSync(dir, { recursive: true })
-  writeFakeApimartCatalog(settingsDir, userDataDir, fakeVendor.origin)
+  const oldCatalog = options.data.startsWith('v0.24.1-') ? JSON.parse(fs.readFileSync(path.join(settingsDir, 'model-catalog.json'), 'utf8')) : null
+  const seeded = writeFakeApimartCatalog(settingsDir, userDataDir, fakeVendor.origin)
+  if (oldCatalog) {
+    // Keep shipped business fields; only rewrap synthetic keys and move loopback endpoints to this run.
+    for (const vendor of oldCatalog.vendors) {
+      if (vendor.baseUrlHint && new URL(vendor.baseUrlHint).hostname === '127.0.0.1') {
+        vendor.baseUrlHint = `${fakeVendor.origin}/v1`
+        if (vendor.credentialBinding) vendor.credentialBinding.origin = fakeVendor.origin
+      }
+    }
+    for (const key of Object.values(oldCatalog.apiKeysByVendor)) key.apiKey = seeded.apiKeysByVendor.apimart.apiKey
+    fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify(oldCatalog))
+  }
   launchOptions.settingsDir = settingsDir
   launchOptions.syntheticCredentialStorage = true
   launchOptions.mainRequire = [path.join(repoRoot, 'scripts/walkthrough-network-guard.cjs')]
