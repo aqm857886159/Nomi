@@ -1,8 +1,8 @@
 // check:concept-owners 的一条形状探测：素材「算不算进项目、原件是哪份、来源记成什么」只由主进程素材库定（2026-11-20）。
 //
 // 主人之外认两类写法（整类，不认具体名字以外的写法就漏）：
-//   ① sidecar-write：往 `.meta` 写（fs 写族 / 事务写，目标经字面量、模板、拼接、变量都算；写函数经别名、解构、
-//      导入改名都算），或以任何形式拿到 sidecar 写函数 / meta 定稿 / 来源清洗（导入、改名、命名空间成员、动态导入解构、重导出）。
+//   ① sidecar-literal：字符串 / 模板里的 `.meta` 后缀只许主人和登记的读删方持有（注释不算）；
+//      sidecar-write：以任何形式拿到 sidecar 写函数 / meta 定稿 / 来源清洗（导入、改名、命名空间成员、动态导入解构、重导出）。
 //   ② receipt-override：对主人回执（产回执调用的返回值、sidecar 读取）里的结论字段做属性赋值、Object.assign、展开后覆盖；
 //      或一个对象字面量从回执取了身份（assetId / contentHash），却给别的结论字段填了不是只出自回执的值（混合回执）。
 // 只扫生产代码（src、electron），测试与夹具不扫。
@@ -19,14 +19,18 @@ export const ASSET_SOURCE_OWNER_FILES = new Set([
 ])
 
 /** 登记过理由的例外：文件 → 允许的形状。理由写在概念登记 asset.project-source-evidence.json。 */
+// shortcut: 读删文件内部数据流按登记用途复核，出现写入需求时收回字面豁免、改走主人写口。
 export const ASSET_SOURCE_EXCEPTIONS = new Map([
-  ['electron/assets/assetPreview.ts', new Set(['sidecar-write'])],
-  ['electron/workspace/buildArtifactMigration.ts', new Set(['sidecar-write'])],
+  ['electron/assets/assetPreview.ts', new Set(['sidecar-write', 'sidecar-literal'])],
+  ['electron/workspace/buildArtifactMigration.ts', new Set(['sidecar-write', 'sidecar-literal'])],
+  ['electron/workspace/workspaceFileIndex.ts', new Set(['sidecar-literal'])],
+  ['electron/workspace/workspaceFileDelete.ts', new Set(['sidecar-literal'])],
+  ['electron/assets/localAssetFile.ts', new Set(['sidecar-literal'])],
+  ['src/ui/browser/popover/browserAssetPopoverUtils.ts', new Set(['sidecar-literal'])],
+  ['src/workbench/assets/useAllProjectAssets.ts', new Set(['sidecar-literal'])],
 ])
 
 const SIDECAR_WRITERS = new Set(['writeAssetSidecarMeta', 'mergeAssetSidecarMeta', 'finalizeAssetMeta', 'sanitizeSourceEvidence', 'sanitizeAssetMetaForKind'])
-const FS_WRITES = new Set(['writeFile', 'writeFileSync', 'appendFile', 'appendFileSync', 'rename', 'renameSync', 'copyFile', 'copyFileSync',
-  'link', 'linkSync', 'symlink', 'symlinkSync', 'cp', 'cpSync', 'createWriteStream', 'open', 'openSync'])
 /** 产回执的调用（主进程素材库的写口 + 渲染层桥与登记的两个包装）和 sidecar 读取。 */
 export const ASSET_RECEIPT_PRODUCERS = new Set(['importLocalFile', 'importRemoteAsset', 'writeAsset', 'writeGeneratedAsset', 'copyAssetFile',
   'copyProjectAsset', 'moveAssetFile', 'storeAssetBytes', 'persistUploadBytes', 'persistUploadFile', 'publishVerifiedGeneratedAsset',
@@ -175,8 +179,9 @@ export function findAssetSourceBypass({ files, read }) {
       if ((ts.isImportSpecifier(node) || ts.isExportSpecifier(node)) && SIDECAR_WRITERS.has((node.propertyName ?? node.name).text)) report(node, 'sidecar-write')
       if (ts.isBindingElement(node) && SIDECAR_WRITERS.has((node.propertyName ?? node.name).getText(source))) report(node, 'sidecar-write')
       if ((ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) && SIDECAR_WRITERS.has(member(node))) report(node, 'sidecar-write')
-      // ① 往 .meta 写。
-      if (ts.isCallExpression(node) && FS_WRITES.has(calleeName(node.expression)) && node.arguments.slice(0, 2).some((argument) => metaPath(argument))) report(node, 'sidecar-write')
+      // 后缀在 helper / 常量里也归同一个主人；不再追写调用的形状。
+      if ((ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node))
+        && /\.meta$/.test(node.text)) report(node, 'sidecar-literal')
       // ② 属性赋值 / 复合赋值覆盖回执里的结论字段。
       if (ts.isBinaryExpression(node) && node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
         && RECEIPT_FIELDS.has(member(node.left)) && receipt(node.left.expression)) report(node, 'receipt-override')

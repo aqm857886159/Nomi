@@ -1,0 +1,144 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-21-asset-sidecar-literal-ownership",
+  "problem_type": "Sidecar 路径经 helper 返回时扫描漏拦",
+  "symptom": "独立验收 own1-async.ts 及同步变体在主人外写 .meta，扫描仍绿",
+  "direct_cause": "旧扫描只追写实参的表达式来源，不跨本地函数返回值",
+  "class_root": "后缀字面未受归属约束，写调用形状决定是否被查到",
+  "affected_population": [
+    "electron/src 的生产 sidecar 路径构造"
+  ],
+  "scope_paths": [
+    "scripts/concept-owners-asset-source.mjs",
+    "electron/assets/assetSidecar.ts"
+  ],
+  "entry_points": [
+    "check-concept-owners.mjs 的 findAssetSourceBypass",
+    "pre-push-scan-guards.mjs SCAN_GUARDS 的全仓扫描测试"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Nomi 内部素材归属合同，复用已安装 TypeScript AST。",
+  "invariants": [
+    "sidecar 后缀字面只在主人或具理由的读删/写例外文件存在",
+    "读删登记不放行写函数与回执篡改"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/assets/assetPreview.ts",
+      "symbol": "readAssetSidecarMeta"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/assetSidecar.ts",
+      "symbol": "readAssetSidecarMeta"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "readAssetSidecarMeta"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "readAssetSidecarMeta"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetPreview.ts",
+      "symbol": "mergeAssetSidecarMeta"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetSidecar.ts",
+      "symbol": "writeAssetSidecarMeta"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "writeAssetSidecarMeta"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "预览的读写、assetSidecar 内部读写、localFileImport 自愈读来源、projectAssetStore 素材读写各有现存职责；本轮只补静态门岗，不改生产入口。"
+  },
+  "generality_proof": "直接查字符串/模板后缀归属，与同步异步、helper/常量中转及写函数形状无关。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/concept-owners-asset-source.mjs",
+      "symbol": "findAssetSourceBypass",
+      "responsibility": "概念扫描和推送前共用同一后缀归属判据"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-concept-owners.node-test.mjs",
+      "entry_point": "async helper / sync helper",
+      "disposition": "enforced",
+      "evidence": "独立验收样本 A 与同步变体；do-nothing.log 断言红"
+    },
+    {
+      "path": "scripts/check-concept-owners.node-test.mjs",
+      "entry_point": "template helper",
+      "disposition": "enforced",
+      "evidence": "同一目标测试中的模板返回值变体；do-nothing.log 断言红"
+    },
+    {
+      "path": "electron/assets/uploadContentStore.ts",
+      "entry_point": "listFiles 跳过 sidecar",
+      "disposition": "not-affected",
+      "evidence": "主人文件及只读跳过正例；block-all.log 证明误伤会红"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任意 helper 返回后缀的新写入口均能重复漏拦",
+    "same_class_scan": [
+      "door-map.mjs assetSidecar.ts 生成 7 门；findAssetSourceBypass 输出 0（只扫生产根），rg 核实两个脚本调用面",
+      "生产字面扫描核对五处读删及两处旧写例外，协调裁决见 L-home-assets-r2 任务书"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/concept-owners-asset-source.mjs",
+    "invariant": "sidecar 后缀字符串/模板节点必须具有登记的文件归属",
+    "failure_mode": "未登记生产字面出现即 asset-source-bypass 红并报告路径",
+    "exception_policy": "none",
+    "strategy": "用后缀归属取代写调用形状扫描，读删用途与允许写分开登记",
+    "artifacts": [
+      "scripts/concept-owners-asset-source.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-concept-owners.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-concept-owners.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/concept-owners-asset-source.mjs"
+    ],
+    "rationale": "删除 FS_WRITES 集合与写调用 metaPath 判断；metaPath 仅保留给 sidecar 读取回执识别。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不引入或升级依赖，使用现有 TypeScript AST。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移；assetSidecar 中两处等值常量替换，不改读写行为。",
+  "residual_risks": [
+    "登记的读删文件内部数据流仍按用途理由复核；不追拆分字面与运行时构造后缀。"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-28",
+  "invariant_owner_layer": {
+    "layer": "scripts/concept-owners-asset-source.mjs",
+    "tests": [
+      "scripts/check-concept-owners.node-test.mjs"
+    ]
+  }
+}
