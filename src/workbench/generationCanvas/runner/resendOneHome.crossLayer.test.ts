@@ -44,6 +44,7 @@ import { registerProductionRunIpc } from '../../../../electron/productionRun/pro
 import { setMainWindow } from '../../../../electron/appWindowRegistry'
 import { runtimeBridge } from '../../../../electron/preload/runtimeBridge'
 import { canvasRunIdFor } from '../../../../electron/productionRun/canvasShotRunIndex'
+import type { RunCommand } from '../../../../electron/productionRun/productionRunTypes'
 import { confirmAndRunNode } from './generationRunController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useGenerationQueueStore } from './generationQueueStore'
@@ -165,7 +166,7 @@ it('D3：不是人发起的遇到还在跑的 → 主进程拒，渲染层自报
   expect(h.vendor.executes).toHaveLength(1)
 })
 
-it('放行只认决定号里列出的那一笔：渲染层多报一笔（别的节点那笔结果不明）、不带号、号用错，主进程都拒', async () => {
+it('放行只认清单：确认 X 后渲染层夹带 Y、不带号、编造号都不放行 Y；X 真发出，Y 仍须再问', async () => {
   const x = addImageNode()
   const y = addImageNode()
   h.vendor.answer = async () => { throw new Error('acme create failed: socket hang up') }
@@ -173,21 +174,35 @@ it('放行只认决定号里列出的那一笔：渲染层多报一笔（别的�
   await h.submit(y, 'run-y').catch(() => undefined)
   const jobOf = (runRecordId: string) => h.repository.read(PROJECT, canvasRunIdFor(runRecordId))!.jobs[0]
   expect([jobOf('run-x').status, jobOf('run-y').status]).toEqual(['submission_unknown', 'submission_unknown'])
-  const decide = (runtimeBridge.tasks as { canvasResendDecide?: (payload: unknown) => Promise<{ action: string; decisionId?: string; release?: unknown }> }).canvasResendDecide
-  const decision = await decide!({ projectId: PROJECT, nodeId: x, resend: true, initiator: 'user' })
-  expect(decision).toMatchObject({ action: 'ask', release: [{ runId: canvasRunIdFor('run-x'), jobId: jobOf('run-x').jobId }] })
-  const release = (runRecordId: string, resendDecisionId?: string) => runtimeBridge.productionRuns.command(PROJECT, canvasRunIdFor(runRecordId), {
-    commandId: `release-${runRecordId}-${resendDecisionId ?? 'none'}`, expectedRevision: h.repository.read(PROJECT, canvasRunIdFor(runRecordId))!.revision,
-    type: 'job.reconcile', payload: { jobId: jobOf(runRecordId).jobId, outcome: 'user_checked_abandon', ...(resendDecisionId ? { resendDecisionId } : {}) },
-    issuedAt: new Date().toISOString(),
-  } as never)
+  // 只改渲染层送出的负载：夹带命令和原命令都继续经过真桥、真 IPC、真服务。
+  const command = runtimeBridge.productionRuns.command
+  const outsideStatuses: string[] = []
+  vi.spyOn(runtimeBridge.productionRuns, 'command').mockImplementationOnce(async (projectId, runId, raw) => {
+    const release = raw as RunCommand
+    for (const resendDecisionId of [release.payload.resendDecisionId, undefined, 'made-up']) {
+      await command(PROJECT, canvasRunIdFor('run-y'), {
+        ...release, commandId: globalThis.crypto.randomUUID(),
+        expectedRevision: h.repository.read(PROJECT, canvasRunIdFor('run-y'))!.revision,
+        payload: { ...release.payload, jobId: jobOf('run-y').jobId, resendDecisionId },
+      }).catch(() => undefined)
+      outsideStatuses.push(jobOf('run-y').status)
+    }
+    return command(projectId, runId, raw)
+  })
+  h.vendor.answer = async call => ({ id: `sync-${call}`, kind: 'text_to_image', status: 'succeeded', assets: [{ type: 'image', url: `nomi-local://asset/${PROJECT}/assets/out.png` }], raw: {} })
 
-  await expect(release('run-y', decision.decisionId)).rejects.toThrow(/not covered by a resend decision/)
-  await expect(release('run-x')).rejects.toThrow(/not covered by a resend decision/)
-  await expect(release('run-x', 'made-up')).rejects.toThrow(/not covered by a resend decision/)
-  await release('run-x', decision.decisionId)
+  await expect(confirmAndRunNode(x, { initiator: 'user', resend: true })).resolves.toBe('started')
 
+  expect(outsideStatuses).toEqual(['submission_unknown', 'submission_unknown', 'submission_unknown'])
   expect(jobOf('run-x').status).toBe('needs_attention')
   expect(jobOf('run-y').status).toBe('submission_unknown')
-  expect(h.vendor.executes).toHaveLength(2)
+  expect(h.vendor.executes).toHaveLength(3)
+  expect(useGenerationCanvasStore.getState().nodes.find(node => node.id === x)?.status).toBe('success')
+  expect(resendCards()).toHaveLength(1)
+
+  confirm.mockImplementationOnce(async () => false)
+  await expect(confirmAndRunNode(y, { initiator: 'user' })).resolves.toBe('declined')
+  expect(resendCards()).toHaveLength(2)
+  expect(jobOf('run-y').status).toBe('submission_unknown')
+  expect(h.vendor.executes).toHaveLength(3)
 })
