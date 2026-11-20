@@ -10,6 +10,7 @@ const lint = new ESLint({ cwd: root })
 const list = 'src/ui/onboarding/ModelSettingsHome.tsx'
 const detail = 'src/ui/onboarding/CustomVendorCard.tsx'
 const red = [
+  ['src/ui/onboarding/VendorOnboardCard.tsx', 'const subtitle = t("onboardingProviders.vendorCard.modelsAvailable", {count: models.filter(m => m.enabled).length})'],
   ['src/desktop/onboardingBridgeTypes.ts', 'type Bridge = { testConnection: () => Promise<void> }'],
   [list, `const color = model.availability.usable ? 'text-workbench-success' : 'text-workbench-danger'`],
   ['electron/main.ts', 'const rows = listModelCatalogModels(params)'],

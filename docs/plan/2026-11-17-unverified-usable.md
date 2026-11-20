@@ -261,10 +261,12 @@ Windows：unverified。英文界面：走查中英各一遍。最小窗口：状
 
 接手补验：新增退役入口和原料 AST 检查（含 bracket/条件变体），真实 ESLint 路径反例；完成导航覆盖晋级、批量、失败、取消、未落目录与同身份。上游错误卡、参数值和生成底栏不改。
 
-目录投影剥原料的纯函数搬入现有 catalogModelAvailability 边界绑定，catalogStore 只 map；未增加第二套投影或状态。完成导航的缺 run 返回也归导航主人，页面不再自写分支。
+目录投影剥原料的纯函数搬入现有 catalogModelAvailability 边界绑定，electron/main.ts 跨 IPC 前只 map；未增加第二套投影或状态。完成导航的缺 run 返回也归导航主人，页面不再自写分支。
 
 出口：src/ui/onboarding/ModelAdapterStatusSection.tsx:85 · 缺格式时沿用手动设置输入方式与请求方式的出口 · 删除验证不删除手动补齐配置的路径。
 
 性能补验口径：原25.7ms登记场景实际为30张参考、约7行菜单，并非200模型。本轮另登记composer-open-model-menu-models-200（200条不同视频模型，复用现役组件、既有计时器与100ms预算），两版本均用相同夹具和5次采样；只量菜单首反馈，不能代替目录IPC或真实模型效果。
 
 正式包兼容量具：常驻驱动的既有 --data 白名单加入仓库已有的三份v0.24.1目录夹具，--vendor fake-apimart 只把其中非秘密测试key重包并把回环端口指向本次夹具，其余业务字段原样保留；仍拒绝任意路径和已有/真实资料。用同一驱动冷启动正式包和本构建，避免另写窗口驱动或用函数绿灯替代兼容收据。
+
+补齐内置详情的旧副标题：VendorOnboardCard唯一一处vendorCard.modelsAvailable把启用数叫可用数；沿用自接卡已有drawer.modelsEnabled描述启用配置数量，状态徽标仍只读connectionHomeStatus。沿原方向改可用计数会留下第二处结论；删副标题会改板结构；复用既有启用数量文案保留结构与事实，不新增状态或词。删除旧中英modelsAvailable词条并加入同一AST门岗，反例为把enabled数重新写成可用数；混合可用/缺格式仍由既有折叠测试判1个可使用。

@@ -84,7 +84,7 @@ export function VendorOnboardCard({
     })
   }, [focus])
 
-  const total = models.filter((model) => model.enabled).length
+  const enabledN = models.filter((model) => model.enabled).length
 
   // 凭证字段：档案声明了 credentialFields 就按声明渲染多框；否则退化成单框（沿用 credentialPlaceholder）。
   const fields = React.useMemo(
@@ -174,7 +174,7 @@ export function VendorOnboardCard({
       }
       glyphTone={directory.logo ? 'logo' : 'ink'}
       name={vendorName}
-      subtitle={hasApiKey ? t('onboardingProviders.vendorCard.modelsAvailable', { count: total }) : directory.tagline}
+      subtitle={hasApiKey ? t('onboardingProviders.drawer.modelsEnabled', { enabled: enabledN, total: models.length }) : directory.tagline}
       modelStatus={status}
       badge={
         !hasApiKey && directory.recommended ? (

@@ -58,6 +58,7 @@ describe('the retired verification status words stay deleted (zero allowlist)', 
 
   it('the retired keys themselves are gone, not just reworded', () => {
     for (const copy of [zhOnboardingProviders, enOnboardingProviders]) {
+      expect(copy.vendorCard).not.toHaveProperty('modelsAvailable')
       expect(copy.drawer.home).not.toHaveProperty('verificationFailedUsable')
       expect(copy.drawer.home).not.toHaveProperty('verificationFailedUsableHint')
       expect(copy.drawer.home).not.toHaveProperty('unreachableCount')

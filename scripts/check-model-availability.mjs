@@ -161,7 +161,7 @@ export function scanAvailabilityBypasses(relative, text) {
       if ((renderer || execution) && ['credentialVerificationPending', 'adapterState', 'verificationPending'].includes(value)) report(node, '界面和发送入口不读验证原料')
       if (['nomi:onboarding:test-connection', 'modelSetup.testConnection', 'testConnection'].includes(value)) report(node, '测试连接入口已删除')
       if (renderer && relative !== 'src/ui/onboarding/ModelStatusMark.tsx' && !relative.startsWith('src/i18n/')
-        && /^onboardingProviders\.(modelStatus\.|adapterVerification\.(cardStatus|modelState)\.|workspace\.adapter\.title\.|drawer\.home\.(verificationFailedUsable|unreachableCount)|keyOnly\.(pendingTitle|recheckedTitle|offlineTitle))/.test(value)) report(node, '状态词只经 ModelStatusMark 渲染')
+        && /^onboardingProviders\.(modelStatus\.|adapterVerification\.(cardStatus|modelState)\.|workspace\.adapter\.title\.|vendorCard\.modelsAvailable|drawer\.home\.(verificationFailedUsable|unreachableCount)|keyOnly\.(pendingTitle|recheckedTitle|offlineTitle))/.test(value)) report(node, '状态词只经 ModelStatusMark 渲染')
       if (renderer && /^(generationCommon\.)?parameters\.untried$/.test(value)) report(node, '模型框不再显示未试跑')
     }
     if (execution && ts.isCallExpression(node) && /^(probeDirectKeyCredential|validateCandidateCredential|fetchModelList)$/.test(property(node.expression) ?? node.expression.getText(source))) report(node, '保存时的拒收闸不能接在发送入口')
