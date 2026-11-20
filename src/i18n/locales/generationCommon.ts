@@ -877,8 +877,6 @@ export const zhGenerationCommon = {
     undo: '撤销',
     videoProgress: '视频进度',
     videoProgressValue: '{{current}} / {{duration}} 秒',
-    assetUnavailable: '这个历史结果已无法定位到本地素材',
-    deleteFileFailed: '记录已更新，但部分本地文件没能删除',
     deleteFailed: '删除失败',
   },
   textDocument: {
@@ -1735,8 +1733,6 @@ export const zhGenerationCommon = {
     save: '保存',
   },
   error: {
-    /** 服务商既没在 profile 声明 error_message、响应里也扒不出任何原因时的兜底。 */
-    taskFailed: '模型任务执行失败',
     /** 任务报成功但产物是空的：按类型说清缺的是哪一样，别让用户对着「失败」猜。 */
     noText: '模型任务完成但没有返回文本内容',
     noVideoUrl: '模型任务完成但没有返回视频地址',
@@ -2630,8 +2626,6 @@ export const enGenerationCommon = {
     undo: 'Undo',
     videoProgress: 'Video progress',
     videoProgressValue: '{{current}} / {{duration}} seconds',
-    assetUnavailable: 'This historical result can no longer be located locally',
-    deleteFileFailed: 'History was updated, but some local files could not be deleted',
     deleteFailed: 'Delete failed',
   },
   textDocument: {
@@ -3483,7 +3477,6 @@ export const enGenerationCommon = {
     save: 'Save',
   },
   error: {
-    taskFailed: 'The model task failed',
     noText: 'The model task finished but returned no text content',
     noVideoUrl: 'The model task finished but returned no video URL',
     noAudio: 'Voiceover generation finished but returned no audio',

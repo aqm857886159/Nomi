@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
 import type { AssetRef } from './assetTypes'
 import type { ProjectExecutionContext } from '../project/projectCanvasReadSurface'
@@ -19,7 +19,18 @@ vi.mock('../project/workbenchProjectSession', () => ({
 
 import { deleteAssetResult } from './deleteAssetResult'
 import { removeAssetVersion } from './removeAssetVersion'
-import { __resetPendingAssetDeletionsForTests, listPersistedAssetDeletions, MAX_DELETE_ATTEMPTS, releaseLoadedProjectAssetDeletions, sweepPersistedAssetDeletions } from './pendingAssetDeletions'
+import { __resetPendingAssetDeletionsForTests, listPersistedAssetDeletions, MAX_DELETE_ATTEMPTS, isAssetFileAwaitingTrash, releaseLoadedProjectAssetDeletions, sweepPersistedAssetDeletions } from './pendingAssetDeletions'
+
+const realFetch = globalThis.fetch
+beforeAll(async () => {
+  vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : String(input))
+    if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return Promise.reject(new Error('non-loopback fetch blocked'))
+    return realFetch(input, init)
+  })
+  await expect(fetch('https://asset-undo-canary.invalid/')).rejects.toThrow('non-loopback fetch blocked')
+})
+afterAll(() => vi.unstubAllGlobals())
 
 function loaded(projectId: string): ProjectExecutionContext {
   return { binding: { projectId, immutableProjectUuid: `uuid-${projectId}`, projectGeneration: 1 }, signal: new AbortController().signal, assertCurrent: () => undefined }
@@ -276,5 +287,70 @@ describe('version removal keeps the original file independently of references', 
     expect(useGenerationCanvasStore.getState().nodes[0].result?.id).toBe('a')
     expect(listPersistedAssetDeletions()).toBeUndefined()
     expect(mocks.deleteFiles).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('library deletion preserves a version while undo can restore it', () => {
+  beforeEach(() => {
+    __resetPendingAssetDeletionsForTests()
+    __resetCanvasUndoJournalForTests()
+    const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
+    const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
+    setCanvas(a, [a, b])
+    mocks.deleteFiles.mockReset().mockResolvedValue({ deletedCount: 1, failedCount: 0 })
+    mocks.persistNow.mockReset().mockResolvedValue({ id: 'project-1' })
+  })
+  const target = { projectId: 'project-1', relativePath: 'assets/generated/a.png' }
+  const removeThenDelete = async () => {
+    await removeAssetVersion('node-1', 'a', loaded('project-1'))
+    return deleteAssetResult(projectAsset('a'), loaded('project-1'))
+  }
+
+  it('hides and persists the library request, then undo restores a readable listed original', async () => {
+    const outcome = await removeThenDelete()
+    expect(outcome).toMatchObject({ deferredFileCount: 1, keptInUseCount: 0, removedResultCount: 0, deletedFileCount: 0 })
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+    expect(listPersistedAssetDeletions()).toEqual([{ source: 'asset-library', relativePath: target.relativePath }])
+    expect(isAssetFileAwaitingTrash(target)).toBe(true)
+    useGenerationCanvasStore.getState().undo()
+    expect(useGenerationCanvasStore.getState().nodes[0].result?.url).toBe(projectAsset('a').renderUrl)
+    expect(isAssetFileAwaitingTrash(target)).toBe(false)
+    await releaseLoadedProjectAssetDeletions()
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+  })
+
+  it('still immediately recycles a spare file absent from all reachable history', async () => {
+    await removeAssetVersion('node-1', 'a', loaded('project-1'))
+    const outcome = await deleteAssetResult(projectAsset('spare'), loaded('project-1'))
+    expect(outcome).toMatchObject({ deletedFileCount: 1, deferredFileCount: 0 })
+    expect(listPersistedAssetDeletions()).toBeUndefined()
+  })
+
+  it('recycles once at close when the creator does not undo', async () => {
+    await removeThenDelete()
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+    await releaseLoadedProjectAssetDeletions()
+    expect(mocks.deleteFiles).toHaveBeenCalledExactlyOnceWith({ projectId: target.projectId, relativePaths: [target.relativePath] })
+    expect(listPersistedAssetDeletions()).toBeUndefined()
+  })
+
+  it('recycles once when the retaining step is evicted', async () => {
+    await removeThenDelete()
+    for (let index = 0; index < 90; index += 1) toggleGesture()
+    await waitForEvictionWork()
+    expect(mocks.deleteFiles).toHaveBeenCalledExactlyOnceWith({ projectId: target.projectId, relativePaths: [target.relativePath] })
+    await releaseLoadedProjectAssetDeletions()
+    expect(mocks.deleteFiles).toHaveBeenCalledTimes(1)
+  })
+
+  it('rolls back a library-only pending request if saving fails, preserving version undo', async () => {
+    await removeAssetVersion('node-1', 'a', loaded('project-1'))
+    mocks.persistNow.mockRejectedValueOnce(new Error('disk full'))
+    await expect(deleteAssetResult(projectAsset('a'), loaded('project-1'))).rejects.toThrow('disk full')
+    expect(listPersistedAssetDeletions()).toBeUndefined()
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+    useGenerationCanvasStore.getState().undo()
+    expect(useGenerationCanvasStore.getState().nodes[0].result?.url).toBe(projectAsset('a').renderUrl)
   })
 })

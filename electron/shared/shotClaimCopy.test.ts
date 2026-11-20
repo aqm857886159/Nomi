@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { shotClaimCopy } from './shotClaimCopy'
+import { shotClaimCopy } from './generationFailure'
 
 describe('shotClaimCopy', () => {
   it('covers every production-owned reason emitted by decideShotClaim', () => {

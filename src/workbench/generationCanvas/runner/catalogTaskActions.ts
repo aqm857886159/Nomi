@@ -58,7 +58,7 @@ import {
   type PhaseClock,
   type PhaseWaitGuard,
 } from './generationPhaseDeadline'
-import { parseVendorErrorFromMessage } from './vendorErrorIpc'
+import { parseVendorErrorFromMessage } from '../../../../electron/shared/generationFailure'
 import { collectLocalAssetUrls } from './referenceUrl'
 import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
 import { GENERIC_REFERENCE_KEYS } from '../../../../electron/shared/modelArchetypes/referenceKeys'
@@ -144,7 +144,7 @@ export function resolvePollBudget(kind: TaskKind, vendor: string): { softMs: num
  * 拉长立刻被察觉成「慢了」。对所有 vendor 生效——礼貌轮询不是给某一家开的小灶。
  *
  * 无头/MCP 那条循环在主进程（electron/capabilityCore/core.ts），跨进程边界 import 不到这里，
- * 那边是**配对常量、改一处必改另一处**（同 vendorErrorIpc 的 MARKER 约定）。
+ * 那边是**配对常量、改一处必改另一处**（同 vendorFailure 的 MARKER 约定）。
  */
 export function resolvePollIntervalMs(kind: TaskKind, vendor: string): number {
   return isSlowLaneBackend(kind, vendor) ? 3000 : 1500

@@ -19,6 +19,21 @@ const inside = (dir) => {
 }
 
 describe('ui-driver defaults', () => {
+  it('fake APIMart is opt-in, accepts pending polls and refuses real or supplied profiles', () => {
+    expect(parseDriverArgs(['--vendor', 'fake-apimart', '--vendor-pending=2'], {})).toMatchObject({ vendor: 'fake-apimart', vendorPending: 2, isolated: true })
+    expect(() => parseDriverArgs(['--vendor', 'other'], {})).toThrow(/供应商/)
+    expect(() => parseDriverArgs(['--vendor-pending', '1'], {})).toThrow(/--vendor/)
+    for (const value of ['-1', '1.5', 'NaN', 'Infinity', '9007199254740992']) {
+      expect(() => parseDriverArgs(['--vendor', 'fake-apimart', '--vendor-pending', value], {})).toThrow(/非负整数/)
+    }
+    for (const argv of [['--vendor', 'fake-apimart', '--real-profile'], ['--real-profile', '--vendor=fake-apimart']]) {
+      expect(() => parseDriverArgs(argv, {})).toThrow(/假供应商只能.*隔离/)
+    }
+    for (const key of ['NOMI_UI_USER_DATA', 'NOMI_UI_USERDATA']) {
+      expect(() => parseDriverArgs(['--vendor', 'fake-apimart'], { [key]: '/tmp/existing-profile' })).toThrow(/假供应商只能.*隔离/)
+    }
+  })
+
   it('bare `up` is isolated, quiet, zh-CN light 1280x800 empty data', () => {
     const options = parseDriverArgs([], {})
     expect(options).toMatchObject({ isolated: true, realProfile: false, locale: 'zh-CN', theme: 'light', sizeName: '1280x800', data: 'empty' })

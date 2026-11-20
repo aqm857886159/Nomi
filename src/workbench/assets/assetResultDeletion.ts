@@ -21,6 +21,7 @@ export type AssetDeletionScope = {
   projectId: string
   nodes: readonly GenerationCanvasNode[]
   rest: unknown
+  undo?: Iterable<{ position: number; nodes: readonly GenerationCanvasNode[] }>
 }
 
 export type AssetResultDeletionMatch = {
@@ -31,11 +32,13 @@ export type AssetResultDeletionMatch = {
 }
 
 /**
- * 素材库里一张素材「删了会怎样」——唯一判定。项目素材多选删除、全部素材单张删除、版本卡片删一版，都只经它。
+ * 素材库里一张素材「删了会怎样」——唯一判定。项目素材、全部素材、外部删文件命令都只经它。
  *
  * - `matches`：要从画布卡上摘掉的结果（卡本身保留）。
  * - `file`：这张素材自己那份落盘文件（只认本项目的）和它的去向：`trash` = 摘完以后没人用了，进回收站；
  *   `keep` = 项目里还有别的内容提到它（分镜参考、节点参考、助手输入、时间轴、白板、别的结果……），留着，并且要告诉用户为什么没删。
+ *
+ * - `defer`：此刻只有可达撤销/重做材料引用文件，沿用该步期限延后回收，不增加在用阻挡。
  *
  * 列表里出现的每一种素材都落在 matches × file 的某个组合上，执行口对每个组合都有确定的结果。
  * 2026-10-24 之前判定是隐式的 `{ matches, fileTarget }`，已加载 / 关闭两条执行路径各自解读：
@@ -43,7 +46,7 @@ export type AssetResultDeletionMatch = {
  */
 export type AssetDeletionPlan = {
   matches: AssetResultDeletionMatch[]
-  file: { target: ProjectFileTarget; fate: 'trash' | 'keep' } | null
+  file: ({ target: ProjectFileTarget } & ({ fate: 'trash' | 'keep' } | { fate: 'defer'; journalPosition: number })) | null
 }
 
 function comparableUrl(value: string | undefined): string {
@@ -276,7 +279,14 @@ function fileFate(target: ProjectFileTarget, matches: readonly AssetResultDeleti
   // 再用唯一的引用判定把摘完以后的整份项目内容扫一遍。
   const remaining = applyAssetResultDeletion(scope.nodes, matches)
   const references = scope.rest === null ? null : collectProjectFileReferences(remaining, scope.rest)
-  return { target, fate: isProjectFileReferenced(target, references) ? 'keep' : 'trash' }
+  if (isProjectFileReferenced(target, references)) return { target, fate: 'keep' }
+  // 摘结果会新建自己的撤销步；只有纯文件删除才需要找此前仍能恢复它的那一步。
+  if (matches.length === 0) for (const snapshot of scope.undo ?? []) {
+    if (isProjectFileReferenced(target, collectProjectFileReferences(snapshot.nodes, {}))) {
+      return { target, fate: 'defer', journalPosition: snapshot.position }
+    }
+  }
+  return { target, fate: 'trash' }
 }
 
 /** 画布上的一张结果（版本卡片的一版、项目素材里画布那一格）：只摘这一张，别的结果都保留。 */

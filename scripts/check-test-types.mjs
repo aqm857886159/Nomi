@@ -23,16 +23,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
-import { createRequire } from 'node:module'
 
 import { TYPECHECK_PROJECTS } from './lib/typecheckProjects.mjs'
+import { tscCommand } from './lib/tsc-run.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/test-types-baseline.json')
 const PROJECT = TYPECHECK_PROJECTS.test
 const NATIVE_PROJECT = TYPECHECK_PROJECTS.nativeTest
-const require = createRequire(import.meta.url)
-const tscBin = require.resolve('typescript/bin/tsc')
 
 /**
  * 异步跑一份 tsc。两份工程（agent-runtime 原生测试 / 全部测试文件）互不依赖，并发跑——
@@ -49,7 +47,7 @@ function incrementalArgs(project) {
 
 function runTypecheck(project) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [tscBin, '-p', project, '--noEmit', '--pretty', 'false', ...incrementalArgs(project)], { cwd: repoRoot })
+    const child = spawn(...tscCommand(['-p', project, '--noEmit', '--pretty', 'false', ...incrementalArgs(project)]), { cwd: repoRoot })
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', (chunk) => { stdout += chunk })

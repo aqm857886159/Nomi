@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readdir } from 'node:fs/promises';
 import { runLaneSingleShot } from '../../electron/agentLane/laneSingleShot.mjs';
 import { createLaneFixture } from './laneFixture.mjs';
-import { parseVendorErrorFromMessage } from '../../src/workbench/generationCanvas/runner/vendorErrorIpc.js';
+import { parseVendorErrorFromMessage } from '../../electron/shared/generationFailure.js';
 
 for (const kind of ['openai-compatible', 'openai-responses', 'anthropic'] as const) {
   test(`single-shot ${kind}: isolated request, no tools or disk transcript`, async (t) => {
