@@ -346,7 +346,7 @@ try {
 
   await win.waitForTimeout(300)
   if (requests.length !== requestsBeforePicker) throw new Error(`Opening the existing-connection picker made a hidden request: ${JSON.stringify(requests.slice(requestsBeforePicker))}`)
-  await addPage.getByRole('button', { name: '重新获取列表', exact: true }).click()
+  await addPage.getByRole('button', { name: '获取可用模型', exact: true }).click()
 
   await pollUntil(
     () => Promise.resolve(requests.slice(requestsBeforePicker)),
@@ -398,7 +398,7 @@ try {
   await openConnectionFromHome(win)
   await win.getByRole('button', { name: '添加其他', exact: true }).click()
   await addPage.waitFor({ state: 'visible' })
-  await addPage.getByRole('button', { name: '重新获取列表', exact: true }).click()
+  await addPage.getByRole('button', { name: '获取可用模型', exact: true }).click()
   await win.getByText(/没自动拉到模型：/).waitFor({ state: 'visible', timeout: 12_000 })
   await assertRendererHasNoCredential(win, 'failed model-list fallback')
   await assertSettingsSurface(win, 'failed model-list fallback')

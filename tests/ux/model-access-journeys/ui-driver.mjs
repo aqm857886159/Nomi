@@ -203,10 +203,13 @@ export async function launchJourneyUi({ journey, recorder }) {
   // After 验证 N 个模型 the workspace shows the verification result page (返回 /
   // 重试 / 完成). Return to the model home so the settings tab can close.
   async function closeAccessModal() {
+    const modelDialog = win.locator('[data-model-settings-dialog]')
+    if (await modelDialog.isVisible()) await closeModelDetail()
     const done = win.getByRole('button', { name: WALK_COPY.done, exact: true })
     if (await done.isVisible().catch(() => false)) {
       await done.click()
       await win.waitForTimeout(300)
+      if (await modelDialog.isVisible()) await closeModelDetail()
       return
     }
     // Not on the verification page: walk back out of any wizard page via 返回.

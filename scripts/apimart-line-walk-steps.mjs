@@ -16,12 +16,12 @@ export const UI = {
   'zh-CN': {
     settings: '设置', models: '模型', back: '返回', keyOnly: { save: uiText('zh-CN', 'onboardingProviders.keyOnly.save') }, addOtherModels: uiText('zh-CN', 'onboardingProviders.workspace.addOtherModels'), editAddress: '编辑 APIMart 接入地址',
     invalidAddress: '接入地址需以 http(s):// 开头。',
-    newBlank: '新建空白项目', workspace: '工作区切换', generateTab: '生成', addImageNode: '添加图片节点', model: '模型', generateAsset: '生成素材', confirm: '生成',
+    newBlank: '新建空白项目', workspace: '工作区切换', generateTab: '生成', addImageNode: '添加图片节点', model: '模型', generateAsset: '生成素材', confirm: '生成', moreModels: uiText('zh-CN', 'onboardingProviders.modelControls.more'),
   },
   en: {
     settings: 'Settings', models: 'Models', back: 'Back', keyOnly: { save: uiText('en', 'onboardingProviders.keyOnly.save') }, addOtherModels: uiText('en', 'onboardingProviders.workspace.addOtherModels'), editAddress: 'Edit APIMart connection address',
     invalidAddress: 'The connection address must start with http(s)://.',
-    newBlank: 'New blank project', workspace: 'Switch workspace', generateTab: 'Generate', addImageNode: 'Add Image node', model: 'Model', generateAsset: 'Generate asset', confirm: 'Generate',
+    newBlank: 'New blank project', workspace: 'Switch workspace', generateTab: 'Generate', addImageNode: 'Add Image node', model: 'Model', generateAsset: 'Generate asset', confirm: 'Generate', moreModels: uiText('en', 'onboardingProviders.modelControls.more'),
   },
 }
 
@@ -100,6 +100,10 @@ export async function generateOnce(win, t, { model = /GPT Image 2(?!\.)/, prompt
   await win.waitForTimeout(1200)
   await win.locator('[data-prompt-box] .ProseMirror').first().fill(prompt)
   await win.locator(`[aria-label="${t.model}"]`).first().click()
+  // GPT Image 2 在现役菜单的「更多」里，先像创作者一样展开；不换成另一款模型绕过原判据。
+  if (!(await win.getByRole('option', { name: model }).count())) {
+    await win.locator('[data-nomi-select-dropdown]').getByRole('button', { name: t.moreModels, exact: true }).click()
+  }
   await win.getByRole('option', { name: model }).first().click()
   await win.locator(`[aria-label="${t.generateAsset}"]`).first().click()
   const confirm = win.locator('[data-spend-confirm-dialog]').last().getByRole('button', { name: t.confirm, exact: true })

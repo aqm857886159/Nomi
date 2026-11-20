@@ -93,12 +93,14 @@ async function backHome() {
 async function savedKeys(vendorKey) {
   return win.evaluate(async key => (await window.nomiDesktop.modelCatalog.listModels()).filter(m => m.vendorKey === key).map(m => m.modelKey), vendorKey)
 }
-async function completeModelSelfCheck() {
+async function completeRequestFormat() {
   const done = win.getByRole('button', { name: '\u5b8c\u6210', exact: true }).last()
   await expect(done).toBeVisible({ timeout: stationTimeout({ operations: 3 }) })
-  await clickOrFail(done, 'complete model self-check')
-  const cancel = picker().getByRole('button', { name: '\u53d6\u6d88', exact: true })
-  if (await cancel.count()) await clickOrFail(cancel, 'close model picker after self-check')
+  await clickOrFail(done, 'complete request format')
+  const dialog = win.locator('[data-model-settings-dialog]')
+  await expect(dialog).toBeVisible()
+  await clickOrFail(dialog.locator('[data-model-settings-back]'), 'close current model detail')
+  await expect(dialog).toBeHidden()
 }
 
 try {
@@ -154,13 +156,11 @@ try {
   await manual.fill('manual-discovery-model')
   await manual.press('Enter')
   await expect(row('manual-discovery-model')).toBeEnabled()
-  const saveManual = picker().getByRole('button', { name: '\u81ea\u68c0 1 \u4e2a', exact: true })
+  const saveManual = picker().getByRole('button', { name: '添加 1 个', exact: true })
   await saveManual.scrollIntoViewIfNeeded()
   await expect(saveManual).toBeVisible()
   await snap('01b-kie-manual-ready-to-save')
-  await clickOrFail(saveManual, 'manual model self-check')
-  await clickOrFail(win.getByRole('button', { name: '\u5b8c\u6210', exact: true }), 'complete manual model self-check')
-  await clickOrFail(picker().getByRole('button', { name: '\u53d6\u6d88', exact: true }), 'close manual model picker')
+  await clickOrFail(saveManual, 'save manual text model without verification')
   await expect(win.locator('[data-model-settings-vendor="kie"]')).toBeVisible()
   expect(await savedKeys('kie')).toContain('manual-discovery-model')
   await snap('02-kie-manual-saved')
@@ -177,7 +177,7 @@ try {
     await clickOrFail(refetch(), `重试 ${mode}`)
     await expect(status()).toContainText(text, { timeout: 20_000 })
     await expect(row('flux-discovery-image')).toBeEnabled()
-    await expect(picker().getByRole('button', { name: '\u81ea\u68c0 1 \u4e2a', exact: true })).toBeEnabled()
+    await expect(picker().getByRole('button', { name: '添加 1 个', exact: true })).toBeEnabled()
     if (mode === 'network') {
       await expect(status()).toContainText('当前未启用代理')
     }
@@ -189,7 +189,7 @@ try {
   expect(proxy.status.activeUrl).toContain(base)
   await clickOrFail(refetch(), '核对代理地址错误提示')
   await expect(status()).toContainText(`（当前代理：${base}（来源：应用内设置））`)
-  await expect(picker().getByRole('button', { name: '\u81ea\u68c0 1 \u4e2a', exact: true })).toBeEnabled()
+  await expect(picker().getByRole('button', { name: '添加 1 个', exact: true })).toBeEnabled()
   await snap('03b-relay-network-proxy-selection-retained')
   await win.evaluate(() => window.nomiDesktop.proxy.set({ mode: 'off', customUrl: '' }))
   relayMode = 'changed'
@@ -197,8 +197,8 @@ try {
   await expect(refetch()).toBeEnabled()
   await expect(row('gpt-discovery-text')).toBeEnabled()
   await expect(row('flux-discovery-image')).toBeEnabled()
-  await clickOrFail(picker().getByRole('button', { name: '\u81ea\u68c0 1 \u4e2a', exact: true }), 'run model self-check')
-  await completeModelSelfCheck()
+  await clickOrFail(picker().getByRole('button', { name: '添加 1 个', exact: true }), 'add model and prepare request format')
+  await completeRequestFormat()
   await expect(win.locator(`[data-model-settings-vendor="${relayVendorKey}"]`)).toBeVisible()
   expect(await savedKeys(relayVendorKey)).toEqual(expect.arrayContaining(['already-connected', 'flux-discovery-image']))
   await clickOrFail(win.locator('[data-model-settings-back]').first(), '返回首页')
@@ -222,8 +222,8 @@ try {
   expect(requests.filter(r => r.path === '/replicate/v1/models' && r.query.includes('page-2')).length).toBeGreaterThan(0)
   await snap('04-replicate-two-pages-no-stale-result')
   await clickOrFail(row('owner/flux-discovery'), '选择分页模型')
-  await clickOrFail(picker().getByRole('button', { name: '\u81ea\u68c0 1 \u4e2a', exact: true }), 'run model self-check')
-  await completeModelSelfCheck()
+  await clickOrFail(picker().getByRole('button', { name: '添加 1 个', exact: true }), 'add model and prepare request format')
+  await completeRequestFormat()
   await expect(win.locator(`[data-model-settings-vendor="${replicateVendorKey}"]`)).toBeVisible()
 
   // J3: new connection uses the same failure handling, not just the existing-connection picker.
@@ -245,7 +245,7 @@ try {
   relayMode = 'auth'
   await clickOrFail(refetch(), '新连接鉴权失败')
   await expect(status()).toContainText('未通过鉴权')
-  await expect(picker().getByRole('button', { name: '\u81ea\u68c0 1 \u4e2a', exact: true })).toBeEnabled()
+  await expect(picker().getByRole('button', { name: '添加 1 个', exact: true })).toBeEnabled()
   await snap('05-new-connection-keeps-selection')
   relayMode = 'success'
   await clickOrFail(refetch(), '新连接恢复')
@@ -262,9 +262,8 @@ try {
   relayMode = 'success'
   await clickOrFail(win.getByRole('button', { name: '获取模型', exact: true }), '用户主动返回列表')
   await clickOrFail(row('gpt-discovery-text'), '重新选择新连接文本模型')
-  await clickOrFail(picker().getByRole('button', { name: '\u81ea\u68c0 1 \u4e2a', exact: true }), 'run model self-check')
-  await completeModelSelfCheck()
-  await expect(win.locator('[data-model-settings-page="add"]')).toBeVisible()
+  await clickOrFail(picker().getByRole('button', { name: '添加 1 个', exact: true }), 'add model and prepare request format')
+  await expect(win.locator('[data-model-settings-page="connection"]')).toBeVisible()
   const newConnectionKey = await win.evaluate(async () => (await window.nomiDesktop.modelCatalog.listVendors()).find(v => v.name === 'Discovery New Connection')?.key)
   expect(newConnectionKey).toBeTruthy()
   expect(await savedKeys(newConnectionKey)).toContain('gpt-discovery-text')
