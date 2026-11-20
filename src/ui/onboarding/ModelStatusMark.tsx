@@ -9,16 +9,16 @@
  * 同一个模型在列表、内置详情、自接详情里能说三句话。
  *
  * 出口里不许自己 `t('onboardingProviders.modelStatus.*')`：ESLint 规则 `nomi/model-status-one-home` 拦，
- * 词条键只在这个文件里出现。
+ * 词条键由展示投影给出，标签翻译只复用 modelSettingsHomeState 的同一份 hook。
  */
 import type { JSX } from 'react'
-import { useTranslation } from 'react-i18next'
 import type {
   ConnectionStatusPresentation,
   ModelStatusPresentation,
   ModelStatusTone,
 } from '../../../electron/shared/modelStatusPresentation'
 import { cn } from '../../utils/cn'
+import { useModelStatusLabel } from './modelSettingsHomeState'
 
 const DOT_CLASS: Record<ModelStatusTone, string> = {
   success: 'bg-workbench-success',
@@ -36,13 +36,6 @@ const ROW_TEXT_CLASS: Record<ModelStatusTone, string> = {
 }
 
 type Status = ModelStatusPresentation | ConnectionStatusPresentation
-
-export function useModelStatusLabel(status: Status): string {
-  const { t } = useTranslation()
-  return 'count' in status && typeof status.count === 'number'
-    ? t(status.labelKey, { count: status.count })
-    : t(status.labelKey)
-}
 
 export function ModelStatusMark({
   status,

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import {
   presentConnectionStatus,
   presentModelStatus,
@@ -8,6 +9,14 @@ import {
 import type { ChipModel } from './ModelChipGroups'
 
 type StatusRow = Pick<ChipModel, 'availability' | 'formatInProgress'>
+
+/** 标签翻译仍只此一份；组件模块只导出组件，以保留 Fast Refresh 边界。 */
+export function useModelStatusLabel(status: ModelStatusPresentation | ConnectionStatusPresentation): string {
+  const { t } = useTranslation()
+  return 'count' in status && typeof status.count === 'number'
+    ? t(status.labelKey, { count: status.count })
+    : t(status.labelKey)
+}
 
 /**
  * 设置页上一行模型 / 一条连接显示成什么——只转交展示投影，不在这里另判（D-1117-delete-verification）。

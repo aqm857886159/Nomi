@@ -18,9 +18,9 @@ import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { cn } from '../../utils/cn'
 import { AiAssistedOnboardingSection } from './AiAssistedOnboardingSection'
 import type { ChipModel } from './ModelChipGroups'
-import { ModelStatusMark, useModelStatusLabel } from './ModelStatusMark'
+import { ModelStatusMark } from './ModelStatusMark'
 import { presentStatusCount } from '../../../electron/shared/modelStatusPresentation'
-import { connectionHomeStatus, countModelHomeStates } from './modelSettingsHomeState'
+import { connectionHomeStatus, countModelHomeStates, useModelStatusLabel } from './modelSettingsHomeState'
 
 export type ModelSettingsHomeConnection = {
   vendorKey: string

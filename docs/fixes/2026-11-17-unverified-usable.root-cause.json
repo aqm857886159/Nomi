@@ -66,7 +66,8 @@
     "electron/providerAdapter/verifier.ts",
     "electron/catalog/catalogModelAvailability.ts",
     "electron/main.ts",
-    "src/ui/onboarding/VendorOnboardCard.tsx"
+    "src/ui/onboarding/VendorOnboardCard.tsx",
+    "src/devlab/designLab/primitivesSurfaces/states/04-dialogs.tsx"
   ],
   "entry_points": [
     "默认模型选择",
