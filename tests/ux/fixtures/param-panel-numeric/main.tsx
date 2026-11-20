@@ -16,7 +16,7 @@ import i18n from '../../../../src/i18n'
 import type { ModelOption } from '../../../../src/config/models'
 import type { ModelParameterControl } from '../../../../src/config/modelCatalogMeta'
 import InlineParameterBar from '../../../../src/workbench/generationCanvas/nodes/InlineParameterBar'
-import { parseControlInput } from '../../../../src/workbench/generationCanvas/nodes/controls/parameterControlModel'
+import { parseControlInput } from '../../../../electron/shared/videoCapabilities/paramValue'
 
 const workflowOption: ModelOption = {
   value: 'comfyui-imported-workflow',

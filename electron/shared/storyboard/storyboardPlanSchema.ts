@@ -1,6 +1,7 @@
 import { z } from 'zod'
-import { LEGACY_OMITTED_SHOT_KIND, type StoryboardPlan } from './storyboardPlan'
+import { LEGACY_OMITTED_SHOT_KIND, type PlanShot, type StoryboardPlan } from './storyboardPlan'
 import { jsonTolerantArray } from '../agentCapabilities/jsonArgTolerance'
+import { admitNumber } from '../videoCapabilities/paramValue'
 
 const referenceBindingsSchema = z.record(z.array(z.object({
   url: z.string().min(1), name: z.string().optional(), sourceNodeId: z.string().min(1).optional(),
@@ -118,5 +119,33 @@ type _KeyframeKeys = AssertNoMissingKeys<MissingSchemaKeys<NonNullable<Storyboar
 type _PlanKeys = AssertNoMissingKeys<MissingSchemaKeys<StoryboardPlan, z.infer<typeof storyboardDraftPlanSchema>>>
 
 export function parseStoryboardPlan(raw: unknown): StoryboardPlan {
-  return storyboardPlanSchema.parse(raw)
+  return reconcilePlanShotDurations(storyboardPlanSchema.parse(raw))
+}
+
+/**
+ * 视频镜头的时长只有一个家：`durationSec`（行上显示、合计、落画布写进节点的都是它）。方案进门时把 `params.duration` 收掉——
+ * 外来方案（`parseStoryboardPlan`）与 store 的写入口、载入（`workbenchDocumentSlice`）各调一次：
+ *  · `durationSec` 大于 0：以它为准，丢掉 `params.duration`。创作者行上一直看到的、片子按的都是它（用户 2026-11-17 定，不提示）；
+ *  · `durationSec` 不大于 0、`params.duration` 过得了值门且大于 0：收进 `durationSec`。助手在字符串时长档案上起草的镜头就是这个形状，
+ *    0 是旧适配器没认出 `"12"` 留下的，助手写的就是 12（协调 2026-11-17 定）；
+ *  · 读不出秒数：原样留着，不当 0、不当默认。
+ * 图片镜头不动。纯函数，没变就返回原对象（渲染层靠引用相等省重算）。
+ */
+export function reconcileShotDuration<T extends Pick<PlanShot, 'shotKind' | 'durationSec' | 'params'>>(shot: T): T {
+  if ((shot.shotKind ?? LEGACY_OMITTED_SHOT_KIND) !== 'video' || !shot.params || !('duration' in shot.params)) return shot
+  const { duration, ...params } = shot.params
+  if (shot.durationSec > 0) return { ...shot, params }
+  const seconds = admitNumber(duration)
+  return seconds !== undefined && seconds > 0 ? { ...shot, durationSec: seconds, params } : shot
+}
+
+/** 整份方案逐镜过 `reconcileShotDuration`；一镜都没变就返回原方案。 */
+export function reconcilePlanShotDurations<T extends { shots: readonly PlanShot[] }>(plan: T): T {
+  let changed = false
+  const shots = plan.shots.map((shot) => {
+    const next = reconcileShotDuration(shot)
+    if (next !== shot) changed = true
+    return next
+  })
+  return changed ? { ...plan, shots } : plan
 }

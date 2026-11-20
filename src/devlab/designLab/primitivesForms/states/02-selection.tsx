@@ -204,7 +204,6 @@ export const SELECTION_STATES: readonly LabState[] = [
     source: SOURCE_SELECT,
     mirrors: [
       'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:468',
-      'src/workbench/creation/storyboard/ShotParamControls.tsx:48',
       'src/ui/onboarding/CustomCallScopeSelector.tsx:44',
     ],
     coverage: 'shell',

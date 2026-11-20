@@ -1,0 +1,50 @@
+{
+  "name": "参数值的内部类型（门口规整一次，里面只用这一种，发送时才按供应商编码）",
+  "subject": "generation.param-value-type",
+  "lifecycle": "author",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/videoCapabilities/paramValue.ts",
+    "symbol": "admitParamValue"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/videoCapabilities/paramValue.ts",
+      "symbol": "admitParamValue"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/paramValue.ts",
+      "symbol": "normalizeDeclaredControls"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/paramValue.ts",
+      "symbol": "paramSeconds"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/paramValue.ts",
+      "symbol": "parseControlInput"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/paramValue.ts",
+      "symbol": "encodeParamsForWire"
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+      "symbol": "reconcileShotDuration"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "numericOptionValues",
+      "kind": "definition",
+      "why": "参数约价 / 规整那边自己把下拉选项转成数字的旧函数（2026-11-17 并入 paramValue.ts 的 declaredNumericOptions）：每处各转一次，\"8\" 和 8 在不同地方判法不一样，正是分镜行选 12 秒却发出别的值那一类的类根因。"
+    }
+  ],
+  "parity_test": "electron/parity/paramValueType.parity.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-17",
+  "notes": "设计卡 docs/plan/2026-11-17-param-value-type.md，合同 docs/fixes/2026-11-17-param-value-type.root-cause.json。规则：模型声明在 normalizeDeclaredControls 规整一次（数字型选项一律存数字）；外部来的值（界面输入、Agent、旧项目、无界面请求）只在 admitParamValue 按声明收一次，非法值原样拒、不当 0 / 默认；里面读时长只问 paramSeconds；下拉选中的显示串换回声明值只走 parseControlInput / declaredOptionValue；发出前 encodeParamsForWire 按声明把内部值编回供应商要的形状（声明是字符串就发字符串），供应商出口编码与外部输入校验都不删。分镜镜头的 durationSec 和 parameters.duration 只经 reconcileShotDuration 对齐（durationSec 0 + \"12\" 落 12，两条路都发 \"12\"）。门内再写一份 Number() / String() 转参数值由 eslint 规则 param-value-door/no-reparse 拦（scripts/param-value-door-rule.mjs）。取代 2026-10-18 null 参数那次的范围限制。不管：换模型后值怎么重落（generation.model-switch-params）、方式发哪些键（generation.mode-params）、键名翻译成供应商字段（catalog.parameter-wire-translation）。"
+}

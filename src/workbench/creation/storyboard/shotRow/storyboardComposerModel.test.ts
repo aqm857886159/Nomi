@@ -53,6 +53,13 @@ describe('storyboardComposerChange：控件 → 分镜字段', () => {
     expect(storyboardComposerChange(control('duration'), '8', controls)).toEqual({ kind: 'duration', value: 8 })
   })
 
+  // 没过声明门、选项还是数字串的时长控件（用户目录 / 旧目录配置自带的控件）：值门认出秒数照样进 durationSec，
+  // 不按 typeof 分流进 params（2026-11-17 以前：选 12 落进 params、发送时被 durationSec 的 5 盖掉）。
+  it('选项是数字串的时长控件，点 12 → durationSec 12，不进 params', () => {
+    const stringDuration = { key: 'duration', type: 'select', options: [{ value: '5', label: '5s' }, { value: '12', label: '12s' }] } as Parameters<typeof storyboardComposerChange>[0]
+    expect(storyboardComposerChange(stringDuration, '12', controls)).toEqual({ kind: 'duration', value: 12 })
+  })
+
   it('其余参数 → params，按声明类型（开关是布尔）', () => {
     expect(storyboardComposerChange(control('resolution'), '480p', controls)).toEqual({ kind: 'param', key: 'resolution', value: '480p' })
     expect(storyboardComposerChange(control('generate_audio'), 'false', controls)).toEqual({ kind: 'param', key: 'generate_audio', value: false })

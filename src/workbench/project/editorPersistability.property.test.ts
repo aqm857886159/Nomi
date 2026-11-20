@@ -75,7 +75,8 @@ describe('editor persistability matrix and export coverage ratchet', () => {
   })
   it('JSON loopback catches nonfinite opaque parameter values', () => {
     const plan = createEmptyStoryboardPlan()
-    plan.shots[0].params = { duration: Infinity }
+    // 不用 duration：视频镜头的 params.duration 进门就收进 durationSec（reconcileShotDuration），测不到「不透明参数」。
+    plan.shots[0].params = { seed: Infinity }
     useWorkbenchStore.getState().setStoryboardPlan(plan)
     expect(assertPersistable).toThrow()
   })

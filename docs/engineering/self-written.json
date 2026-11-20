@@ -2464,6 +2464,30 @@
       "revisitWhen": "菜单变体行的判断并进档案本身（档案直接声明每家渠道的变体轴）时，删掉这个 hook"
     },
     {
+      "id": "param-value-door-eslint-rule",
+      "capability": "ESLint 小规则 param-value-door/no-reparse：画布、分镜、助手与发送这几块目录里，不许再对参数袋里的时长或控件档位值自己写一份 typeof / Number / parseFloat / 一元 + / 字符串化比较，规整只走 electron/shared/videoCapabilities/paramValue.ts 的门",
+      "status": "justified",
+      "paths": [
+        "scripts/param-value-door-rule.mjs"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "typescript-eslint no-unnecessary-type-conversion：只拦「值已经是目标类型还去转」，要类型化 lint（仓库没开）；参数袋读出来是 unknown，它不认为转换多余，拦不住",
+          "source": "https://typescript-eslint.io/rules/no-unnecessary-type-conversion/"
+        },
+        {
+          "name": "ESLint 内置 no-restricted-syntax 加选择器（仓库现有的守都是这种）：选择器只认语法形状，认不出「这个变量来自参数袋」，要么全仓误伤、要么漏掉换个变量名的写法",
+          "source": "https://eslint.org/docs/latest/rules/no-restricted-syntax"
+        },
+        {
+          "name": "Zod coerce：解析本身已经交给它（paramValue.ts 的门里用），但它管不了「门外别处又自己转一次」",
+          "source": "https://zod.dev/api?id=coercion"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：要判的是「这个变量是不是从模型参数袋（parameters / params / meta 等袋上读时长、按控件键下标读）或控件档位里来的原值」，这是我们参数袋的领域形状，通用规则没有这个概念；规则本体用 ESLint 标准的 create(context) 接口写，只做这一个判断。",
+      "revisitWhen": "仓库开了类型化 lint 且参数袋改成品牌类型（门外拿不到 unknown 原值）时，删掉这条规则改用类型系统守"
+    },
+    {
       "id": "composer-bar-yield-measurement",
       "capability": "生成底栏文字尺子与逐级宽度求解",
       "status": "justified",

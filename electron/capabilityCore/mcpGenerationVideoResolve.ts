@@ -22,6 +22,7 @@ import { modeForInputs, modesInTask, statedMode } from "../shared/modelArchetype
 import { referenceDemandsForCandidate } from "../shared/canvas/edgeAdmission";
 import { projectSemanticAspectRatio } from "./semanticAspectRatio";
 import { admitAuthoredDuration } from "./generationAuthoredDuration";
+import { paramSeconds } from "../shared/videoCapabilities/paramValue";
 
 const CAMERA_INTENTS = new Set<NonNullable<VideoGenerationRecommendationInput["cameraIntent"]>>([
   "locked", "pan", "tilt", "dolly", "orbit", "handheld", "path",
@@ -35,9 +36,7 @@ const CAMERA_INTENTS = new Set<NonNullable<VideoGenerationRecommendationInput["c
 export function videoRecommendationInput(candidate: PlanCandidate): VideoGenerationRecommendationInput | null {
   if (candidate.references.some((reference) => !reference.kind)) return null;
   const parameters = candidate.parameters;
-  const durationSeconds = typeof parameters.duration === "number"
-    ? parameters.duration
-    : typeof parameters.durationSeconds === "number" ? parameters.durationSeconds : undefined;
+  const durationSeconds = paramSeconds(parameters);
   // `aspectRatio` 是语义载体键（写入口翻译之前，定模式那一步读得到它），之后读到的就是真实键。
   const aspectRatio = typeof parameters.aspectRatio === "string"
     ? parameters.aspectRatio
@@ -75,10 +74,8 @@ export const normalizedModelIdentity = (value: string): string => value.trim().t
  * recommendation input reads (duration / durationSeconds), so the estimate matches the sealed request.
  */
 export function shotDurationSeconds(candidate: Pick<PlanCandidate, "parameters">): number | undefined {
-  const parameters = candidate.parameters ?? {};
-  if (typeof parameters.duration === "number" && Number.isFinite(parameters.duration) && parameters.duration >= 0) return parameters.duration;
-  if (typeof parameters.durationSeconds === "number" && Number.isFinite(parameters.durationSeconds) && parameters.durationSeconds >= 0) return parameters.durationSeconds;
-  return undefined;
+  const seconds = paramSeconds(candidate.parameters);
+  return seconds !== undefined && seconds >= 0 ? seconds : undefined;
 }
 
 /**
