@@ -310,7 +310,7 @@ async function addExistingModelManually(win, modelId) {
   await manualInput.fill(modelId)
   await addPage.getByRole('button', { name: '添加', exact: true }).click()
   await addPage.getByRole('button', { name: modelId, exact: true }).waitFor({ state: 'visible' })
-  await addPage.getByRole('button', { name: '添加 1 个模型', exact: true }).click()
+  await addPage.getByRole('button', { name: '添加 1 个', exact: true }).click()
   await addPage.waitFor({ state: 'detached' })
 }
 
@@ -419,7 +419,7 @@ try {
   // Opening a saved connection and its picker must remain local until explicit fetch.
   await win.waitForTimeout(800)
   const requestsBeforeExistingConnection = requests.length
-  await win.getByRole('button', { name: '添加其他模型', exact: true }).click()
+  await win.getByRole('button', { name: '添加其他', exact: true }).click()
   await addPage.waitFor({ state: 'visible' })
   assert(await addPage.getByPlaceholder('sk-...', { exact: true }).count() === 0, 'Recovered saved connection asked for its API key again')
   assert(requests.length === requestsBeforeExistingConnection, `Opening the saved connection picker contacted the upstream: ${JSON.stringify(requests)}`)
@@ -440,7 +440,7 @@ try {
   await screenshot(win, '02-desktop-three-kinds-selected.png')
   journeyPhase = 'save-selected-models'
   const requestsBeforeSave = requests.length
-  await addPage.getByRole('button', { name: '添加 3 个模型', exact: true }).click()
+  await addPage.getByRole('button', { name: '添加 3 个', exact: true }).click()
   const connectionPage = win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendor.key}"]`)
   await connectionPage.waitFor({ state: 'visible' })
   assert(requests.length === requestsBeforeSave, 'Adding models started a hidden provider request')
@@ -455,7 +455,7 @@ try {
   await modelDialog.getByRole('button', { name: '关闭', exact: true }).click()
   await modelDialog.waitFor({ state: 'detached' })
   const requestsBeforeExistingPicker = requests.length
-  await win.getByRole('button', { name: '添加其他模型', exact: true }).click()
+  await win.getByRole('button', { name: '添加其他', exact: true }).click()
   const existingAddPage = win.locator('[data-model-settings-page="add"]')
   await existingAddPage.waitFor({ state: 'visible' })
   await win.waitForTimeout(500)
@@ -480,7 +480,7 @@ try {
   await modelDialog.waitFor({ state: 'detached' })
   await win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendor.key}"]`).waitFor({ state: 'visible' })
 
-  await win.getByRole('button', { name: '添加其他模型', exact: true }).click()
+  await win.getByRole('button', { name: '添加其他', exact: true }).click()
   await existingAddPage.waitFor({ state: 'visible' })
   await win.waitForTimeout(350)
   assert(requests.length === requestsBeforeExistingPicker, 'Reopening the existing picker contacted the upstream')

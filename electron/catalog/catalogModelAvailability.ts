@@ -62,7 +62,7 @@ export function catalogModelIsUsable(state: CatalogState, model: Model): boolean
 }
 
 /** Renderer boundary: retain format/lineage metadata, withhold historic verification inputs. */
-export function projectRendererCatalogModel<T extends Model>(row: T): T {
+export function projectRendererCatalogModel<T extends Model>(row: T): Omit<T, "meta"> & Pick<Model, "meta"> {
   const meta = isJsonRecord(row.meta) ? row.meta : undefined;
   const adapter = meta && isJsonRecord(meta.adapter) ? meta.adapter : undefined;
   if (!meta || !adapter) return row;

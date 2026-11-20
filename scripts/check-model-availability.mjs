@@ -151,7 +151,7 @@ export function scanAvailabilityBypasses(relative, text) {
       && (ts.isStringLiteralLike(node.whenTrue) || ts.isStringLiteralLike(node.whenFalse))
       && /(?:text|bg|border)-(?:workbench-success|workbench-danger|nomi-warning)/.test(`${node.whenTrue.getText(source)} ${node.whenFalse.getText(source)}`)) report(node, '状态颜色只读展示投影，不按可用性另挑色')
     if (ts.isIdentifier(node)) {
-      if (['revalidatePendingCredential', 'probeAdapterCredential', 'recordModelExecutionResult'].includes(node.text)) report(node, '退役的模型预检不能回到生产入口')
+      if (['revalidatePendingCredential', 'probeAdapterCredential', 'recordModelExecutionResult', 'testConnection'].includes(node.text)) report(node, '退役的模型预检不能回到生产入口')
       if ((renderer || execution) && ['credentialVerificationPending', 'adapterState'].includes(node.text)) report(node, '只读 availability 与 formatInProgress，不读验证原料')
       if ((execution || renderer && !relative.endsWith('/ComfyuiWorkflowSettingsPage.tsx')) && node.text === 'verificationPending') report(node, '首用与展示不读旧待验证标记')
     }

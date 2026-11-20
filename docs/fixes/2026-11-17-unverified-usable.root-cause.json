@@ -413,11 +413,21 @@
       "kind": "read",
       "path": "electron/main.ts",
       "symbol": "projectRendererCatalogModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "modelFormatInProgress"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/formatProgress.ts",
+      "symbol": "modelFormatInProgress"
     }
   ],
   "door_reduction": {
     "before": 43,
-    "after": 66,
+    "after": 68,
     "why_not": "原合同只覆盖发布读取和成功回执；本轮扩入展示、状态出口、格式任务与导航的全图。保留列表、详情、选择器、三发送与配置写入入口各自职责，独立可用性裁决和词色决定收为两个主人；门数不是独立判据数。删除的首用复验、健康检查、验证回执另以零调用数核对。"
   },
   "generality_proof": "内置与自接共用目录可用性与展示投影，三个发送入口删除预探；新入口重读旧字段或状态词会被同一 AST 检查拦下。角色和模式过滤保留，不把全部拦下当通过。",

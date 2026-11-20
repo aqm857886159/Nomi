@@ -177,6 +177,9 @@ it("explicitly enabling a configured model publishes its saved connection indepe
 
 it("withholds verification inputs while preserving the format and run identity for the renderer", async () => {
  const row = {...model, labelZh: "Image", kind: "image" as const, meta: {note: "keep", adapter: {state: "failed", evidence: "self-check", runId: "run", publicationModes: ["text_to_image"]}}};
- expect(projectRendererCatalogModel(row).meta).toEqual({note: "keep", adapter: {runId: "run", publicationModes: ["text_to_image"]}});
+ const projected = projectRendererCatalogModel(row);
+ expect(projected.meta).toEqual({note: "keep", adapter: {runId: "run", publicationModes: ["text_to_image"]}});
+ // @ts-expect-error renderer metadata does not expose verification inputs.
+ const _verificationState = projected.meta.adapter.state;
  expect(row.meta.adapter.state).toBe("failed");
 });

@@ -8,7 +8,7 @@ import { expect, expectHidden, expectVisible, screenshotSettled } from './_asser
 import { modelSettingsEntry, openModelSettings } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const root = path.join(repoRoot, '.tmp', 'vendor-validation-error-persist')
+const root = process.env.NOMI_WALK_OUT ? path.join(path.resolve(process.env.NOMI_WALK_OUT), 'profile') : path.join(repoRoot, '.tmp', 'vendor-validation-error-persist')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const shotsDir = path.join(root, 'shots')

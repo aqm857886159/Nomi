@@ -340,7 +340,7 @@ try {
   await shot(win, '01-saved-connection.png')
 
   const requestsBeforePicker = requests.length
-  await win.getByRole('button', { name: '添加其他模型', exact: true }).click()
+  await win.getByRole('button', { name: '添加其他', exact: true }).click()
   const addPage = win.locator('[data-model-settings-page="add"]')
   await addPage.waitFor({ state: 'visible' })
   await win.getByText('选择要添加的模型', { exact: true }).waitFor({ state: 'visible' })
@@ -372,7 +372,7 @@ try {
   await shot(win, '02-existing-disabled-new-selected.png')
 
   const requestsBeforeSave = requests.length
-  await win.getByRole('button', { name: '添加 1 个模型', exact: true }).click()
+  await win.getByRole('button', { name: '添加 1 个', exact: true }).click()
   const connectionPage = win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendorKey}"]`)
   await connectionPage.waitFor({ state: 'visible' })
   if (requests.length !== requestsBeforeSave) throw new Error('Saving an appended model started a hidden provider request')
@@ -399,7 +399,7 @@ try {
   // must be redacted and leave manual model entry enabled.
   modelListMode = 'failure'
   await openConnectionFromHome(win)
-  await win.getByRole('button', { name: '添加其他模型', exact: true }).click()
+  await win.getByRole('button', { name: '添加其他', exact: true }).click()
   await addPage.waitFor({ state: 'visible' })
   await addPage.getByRole('button', { name: '重新获取列表', exact: true }).click()
   await win.getByText(/没自动拉到模型：/).waitFor({ state: 'visible', timeout: 12_000 })
@@ -421,7 +421,7 @@ try {
   await shot(win, '08-model-list-failed-manual-id-ready.png')
 
   const requestsBeforeManualSave = requests.length
-  await win.getByRole('button', { name: '添加 1 个模型', exact: true }).click()
+  await win.getByRole('button', { name: '添加 1 个', exact: true }).click()
   await addPage.waitFor({ state: 'detached' })
   await connectionPage.waitFor({ state: 'visible' })
   await connectionPage.getByRole('button', { name: manualModel, exact: true }).waitFor({ state: 'visible' })

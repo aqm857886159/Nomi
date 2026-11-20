@@ -10,6 +10,7 @@ const lint = new ESLint({ cwd: root })
 const list = 'src/ui/onboarding/ModelSettingsHome.tsx'
 const detail = 'src/ui/onboarding/CustomVendorCard.tsx'
 const red = [
+  ['src/desktop/onboardingBridgeTypes.ts', 'type Bridge = { testConnection: () => Promise<void> }'],
   [list, `const color = model.availability.usable ? 'text-workbench-success' : 'text-workbench-danger'`],
   ['electron/main.ts', 'const rows = listModelCatalogModels(params)'],
   ['electron/runtime.ts', 'if (credential.verificationPending) await probeDirectKeyCredential(input)'],
