@@ -20,7 +20,7 @@ vi.mock('../../library/localProjectStore', () => ({
     return record
   },
 }))
-vi.mock('../../api/taskApi', () => ({ canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
+vi.mock('../../api/taskApi', () => ({ canvasResendDecide: (input: Parameters<typeof import('../../api/canvasResendDecideTestUtils').canvasResendDecideLikeMain>[0]) => import('../../api/canvasResendDecideTestUtils').then(fake => fake.canvasResendDecideLikeMain(input)), canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
 
 let session: ProjectSessionTestHarness
@@ -97,7 +97,8 @@ it.each([false, true])('B3: a single generation takes the node out of another qu
 })
 
 
-import { releaseUnknownCanvasSubmissionsForNode } from '../../production/releaseUnknownSubmission'
+import { releaseUnknownSubmission } from '../../production/releaseUnknownSubmission'
+import { canvasResendDecide } from '../../api/taskApi'
 
 it('C2: a refused second click is withdrawn without hiding the original Run while the host-selected original Run is released and regenerated', async () => {
   await session.open('project-a')
@@ -112,11 +113,16 @@ it('C2: a refused second click is withdrawn without hiding the original Run whil
   expect(history[0].id).toBe(original)
   calls.unknown.mockResolvedValue([{ runId: 'canvas-' + original, jobId: 'original-job', nodeId: node.id, reason: 'needs_reconcile', hasTaskId: false }])
   const command = vi.fn(async () => ({ run: { runId: 'canvas-' + original, projectId: 'project-a', revision: 2, jobs: [] }, events: [] }))
-  await releaseUnknownCanvasSubmissionsForNode('project-a', node.id, {
+  // 放哪一笔由主进程的判定列出（号里只有这一笔），渲染层照号放。
+  const decision = await canvasResendDecide({ projectId: 'project-a', nodeId: node.id, resend: true, initiator: 'user' })
+  if (decision.action !== 'ask') throw new Error('expected an ask decision')
+  expect(decision.release).toEqual([{ runId: 'canvas-' + original, jobId: 'original-job' }])
+  const api = {
     read: async (_project: string, runId: string) => runId === 'canvas-' + original ? { runId, projectId: 'project-a', revision: 1, jobs: [] } : null,
     command,
-  } as never)
-  expect(command.mock.calls[0]).toMatchObject(['project-a', 'canvas-' + original, { payload: { jobId: 'original-job', outcome: 'user_checked_abandon' } }])
+  } as never
+  for (const entry of decision.release) await releaseUnknownSubmission('project-a', entry.runId, entry.jobId, api, decision.decisionId)
+  expect(command.mock.calls[0]).toMatchObject(['project-a', 'canvas-' + original, { payload: { jobId: 'original-job', outcome: 'user_checked_abandon', resendDecisionId: decision.decisionId } }])
   expect(useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!.runs).toEqual(history)
   calls.unknown.mockResolvedValue([])
   calls.execute.mockImplementation(async n => imageRun(n.id))

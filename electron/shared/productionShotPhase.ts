@@ -17,6 +17,8 @@ import { runStopReason } from "./productionRunStop";
 import { tagNomiError } from "./nomiErrorCodes";
 export { decideShotClaim } from "./decideShotClaim";
 export { productionShotIdForNode } from "./productionShotJobs";
+export { productionJobOpenAs, type ProductionJobOpenAs } from "./productionJobOpenAs";
+import { productionJobOpenAs } from "./productionJobOpenAs";
 import { currentShotAttempt, latestJobForShot, shotCountsTowardBatch, shotIncluded } from "./productionShotJobs";
 import { handingOverShotIds, removedShotIds, undecidedShotIds } from "./productionGenerationPresentation";
 
@@ -202,7 +204,7 @@ export function deriveProductionShotState(run: ProductionRun | null | undefined,
   if (job?.status === "detached") return null;
   // 提交结果未知（连接被重置 / 超时 / 提交途中重启）：供应商可能已经收下。这一镜**不是**「还没开拍」也不是「已停」，
   // 画成失败并带上机器码，节点按「结果没法确认」说话（与单镜生成同一句话），不给一键重试。
-  if (job && (job.status === "submission_unknown" || job.status === "reconciling")) {
+  if (job && productionJobOpenAs(job.status) === "needs_reconcile") {
     return { phase: "failed", job, failureMessage: tagNomiError("submission-unknown", "The provider did not confirm this submission") };
   }
   const jobPhase = job ? productionJobPhase(job.status) : null;
@@ -245,6 +247,6 @@ export function deriveProductionShotState(run: ProductionRun | null | undefined,
 /** 这个 Run 里提交结果未知的镜（供应商可能已经收下）：镜 id（没有就用任务 id）。常驻 Agent 读任务状态时据此被告知别再 generate。 */
 export function unknownSubmissionShotLabels(run: Pick<ProductionRun, "jobs"> | null | undefined): string[] {
   return (run?.jobs ?? [])
-    .filter((job) => job.status === "submission_unknown" || job.status === "reconciling")
+    .filter((job) => productionJobOpenAs(job.status) === "needs_reconcile")
     .map((job) => (typeof job.metadata?.shotId === "string" && job.metadata.shotId ? job.metadata.shotId : job.jobId));
 }

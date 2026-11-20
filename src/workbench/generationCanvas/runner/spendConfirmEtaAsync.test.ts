@@ -19,7 +19,7 @@ vi.mock('../../../desktop/bridge', async (importOriginal) => ({
 vi.mock('../../api/taskApi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../api/taskApi')>()),
   mintSpendGrant: vi.fn(async () => `grant-${Math.random().toString(36).slice(2)}`),
-  canvasOpenRuns: vi.fn(async () => []),
+  canvasResendDecide: (input: Parameters<typeof import('../../api/canvasResendDecideTestUtils').canvasResendDecideLikeMain>[0]) => import('../../api/canvasResendDecideTestUtils').then(fake => fake.canvasResendDecideLikeMain(input)), canvasOpenRuns: vi.fn(async () => []),
 }))
 
 const HISTORY = [{ key: 'relay|eta-image|image', vendorKey: 'relay', modelKey: 'eta-image', kind: 'image', sampleCount: 6, p50Seconds: 300, p90Seconds: 600 }]
