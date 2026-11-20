@@ -13,7 +13,7 @@ import { makeTempDir } from './_test-temp.mjs'
 //   trap-zh       新装机·中文：走过「添加模型 → 编请求格式」的连接（报错用户的真实状态）→ 改地址能存 → 画布生成
 //                 → Agent 生成（结构修复后应直接通过）→ 对照：只删掉自检加的那个模型，Agent 再生成
 //   old-zh        老装机升级·中文：APIMart 早已接好（官方默认地址 + 占位 key）→ 改地址 → 重开还在 → 生成发往国内域
-//   new-en        新装机·英文界面：同 new-zh 的地址/验证/生成几步，外加「A APIMart key」那句语法（旧问题）
+//   new-en        新装机·英文界面：同 new-zh 的地址/保存/生成几步，外加「A APIMart key」那句语法（旧问题）
 //   old-en        老装机升级·英文界面：同 old-zh，外加写错提示②（域名拼错）
 //
 // 用法：pnpm build 后  node scripts/apimart-domestic-line-walkthrough.mjs [--packaged <Nomi.exe>] [场景…]
@@ -214,11 +214,16 @@ async function newInstall(locale, name) {
     record(`${name}/改成国内地址保存`, !error && apimartRow(p.settingsDir).baseUrlHint === DOMESTIC && !OLD_ERROR.test(error),
       `地址行显示 ${DOMESTIC}，没有报错`, [savedShot])
 
+    const saveMark = netLog(p.netLog).length
     await saveKeyOnConnectPage(win, t)
     const keyShot = await shot(win, p, '04-key-saved-published.png')
-    const probe = hostsHit(p).find((entry) => entry.url.endsWith('/v1/balance'))
-    record(`${name}/保存走国内线路`, probe?.url === `${DOMESTIC}/v1/balance` && apimartRow(p.settingsDir).enabled === true,
-      `验证请求 → ${probe?.url ?? '（没有）'}；APIMart 已接入`, [keyShot])
+    const saved = readCatalogFromDisk(p.settingsDir)
+    const saveTraffic = hostsHit(p, saveMark)
+    record(`${name}/保存后国内连接可用`, apimartRow(p.settingsDir).enabled === true
+      && saved.apiKeysByVendor.apimart?.enabled === true
+      && apimartRow(p.settingsDir).baseUrlHint === DOMESTIC
+      && saveTraffic.every((entry) => entry.url.startsWith(DOMESTIC)),
+      `密钥已保存并启用；保存阶段 ${saveTraffic.length} 次请求均未走主域，真实生成的线路在下一步核对`, [keyShot])
     if (locale === 'en') {
       const connectText = await win.locator('[data-key-only-vendor="apimart"]').innerText()
       record(`${name}/英文句子「A APIMart key」`, !connectText.includes('A APIMart key'),
@@ -246,7 +251,7 @@ async function newInstall(locale, name) {
       `提交 → ${submit?.url ?? '（没有）'}；轮询/取图 ${traffic.filter((e) => e.url.startsWith(DOMESTIC)).length} 次都在国内域；主域 0 次`, [generated])
     fs.writeFileSync(path.join(p.out, '06-network.json'), JSON.stringify(traffic, null, 2))
     if (locale === 'zh-CN') {
-      // 对照组：没点过「自检」的正常连接，Agent 用 APIMart 生成一次应当走得通（与 trap-zh 那一条对比）。
+      // 对照组：没有额外配置步骤的正常连接，Agent 用 APIMart 生成一次应当走得通（与 trap-zh 那一条对比）。
       const agent = await agentGenerateOnce(win, p, '08')
       record(`${name}/Agent用APIMart生成一次（对照）`, agent.confirmed && agent.submit === `${DOMESTIC}/v1/images/generations` && !agent.primaryTouched && agent.imageLanded,
         `报价卡${agent.confirmed ? '出现并点了生成' : '没出现'}；提交 → ${agent.submit ?? '（没有）'}；图${agent.imageLanded ? '落到了节点上' : '没落到节点上'}；主域 ${agent.primaryTouched ? '被碰了' : '0 次'}`, agent.shots)

@@ -39,12 +39,10 @@ async function openModels(win) {
   // 首屏可能还压着开屏介绍：先关掉，再经 _shell.mjs 走「顶栏齿轮 → 设置 → 模型页签」。
   const splash = win.getByRole('dialog', { name: /开屏介绍/ }).first()
   const settingsEntry = modelSettingsEntry(win)
-  const firstScreen = await Promise.race([
-    expectVisible(settingsEntry, '顶栏应提供设置入口').then(() => 'ready'),
-    expectVisible(splash, '开屏介绍应可关闭').then(() => 'splash'),
-  ])
-  if (firstScreen === 'splash') {
-    await splash.locator('button').last().click({ timeout: 5000, force: true })
+  await expectVisible(settingsEntry, '顶栏应提供设置入口')
+  // 齿轮在开屏背后也可见，不能拿它和开屏竞速决定要不要点「跳过」。
+  if (await splash.isVisible()) {
+    await splash.locator('[data-splash-skip]').click({ timeout: 5000 })
     await expectHidden(splash, '开屏介绍应已关闭')
   }
   await openModelSettings(win, { label: 'open model settings', timeout: 5000 })

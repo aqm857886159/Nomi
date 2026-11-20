@@ -39,6 +39,7 @@ try {
   await capture('filled')
   await win.getByRole('button', { name: /保存连接|Save connection/i, exact: true }).click()
   await win.locator('[data-model-connection-saved]').waitFor({ timeout: stationTimeout() })
+  await win.getByRole('button', { name: /获取模型|Get Models/i, exact: true }).click()
   await expect.poll(async () => relay.hits.filter((h) => h.path.endsWith('/models')).length, { timeout: stationTimeout() }).toBeGreaterThan(0)
   await capture('connection-saved')
   report.postsBeforeAgentDeclaration = relay.hits.filter((h) => h.method === 'POST').length
