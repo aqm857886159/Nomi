@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectHidden, expectVisible, screenshotSettled } from './_assert.mjs'
 import { modelSettingsEntry, openModelSettings } from './_shell.mjs'
+import { encryptFixtureKey } from './_mcpL2Fixture.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const root = process.env.NOMI_WALK_OUT ? path.join(path.resolve(process.env.NOMI_WALK_OUT), 'profile') : path.join(repoRoot, '.tmp', 'vendor-validation-error-persist')
@@ -22,7 +23,7 @@ fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
   vendors: [{ key: vendorKey, name: 'Loopback Validation', enabled: true, baseUrlHint: 'http://127.0.0.1:43123/v1', authType: 'bearer', providerKind: 'openai-compatible', createdAt: now, updatedAt: now }],
   models: [{ vendorKey, modelKey: 'loopback-image', labelZh: 'Loopback Image', kind: 'image', enabled: false, meta: { adapter: { state: 'failed', runId: 'failed-run', modes: [{ taskKind: 'text_to_image', state: 'failed', error: 'loopback validation failed' }], updatedAt: now } }, createdAt: now, updatedAt: now }],
   mappings: [],
-  apiKeysByVendor: { [vendorKey]: { vendorKey, apiKey: Buffer.from('loopback-key').toString('base64'), enc: 'safeStorage', enabled: true, createdAt: now, updatedAt: now } },
+  apiKeysByVendor: { [vendorKey]: { vendorKey, apiKey: encryptFixtureKey(root), enc: 'safeStorage', enabled: true, createdAt: now, updatedAt: now } },
 }), 'utf8')
 fs.writeFileSync(path.join(settingsDir, 'provider-adapters.json'), JSON.stringify({
   version: 1, revision: 1,
