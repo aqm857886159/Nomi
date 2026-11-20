@@ -81,12 +81,20 @@ describe("起草就判参数：坏参数不产生草稿（Agent 的 draft_shots�
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("多镜：第二镜 seed 写成 \"4\" → 整份被拒，第一镜也不留草稿", async () => {
+  it("多镜：第二镜 seed 写成 \"4s\" → 整份被拒，第一镜也不留草稿", async () => {
     const { create, draftShots } = harness();
-    const decision = await draftShots({ shots: [shotWith({ resolution: "480p" }, "镜1"), shotWith({ seed: "4" }, "镜2")] });
+    const decision = await draftShots({ shots: [shotWith({ resolution: "480p" }, "镜1"), shotWith({ seed: "4s" }, "镜2")] });
     expect(decision).toMatchObject({ ok: false });
     expect(JSON.stringify(decision)).toContain("parameters.seed");
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it("值门：seed 写成规范数字串 \"4\" 与 4 是同一个值 → 过，草稿建出来了", async () => {
+    // 2026-11-17 参数值内部类型：外来值先过值门（paramValue.ts），"4" 对要数字的字段就是 4；"4s"、"05" 门不认，照旧拒（上一条）。
+    const { create, draftShots } = harness();
+    const decision = await draftShots({ shots: [shotWith({ resolution: "480p" }, "镜1"), shotWith({ seed: "4" }, "镜2")] });
+    expect(decision).toMatchObject({ ok: true });
+    expect(create).toHaveBeenCalledTimes(1);
   });
 
   it("多镜：布尔写成字符串 \"false\" → 拒", async () => {

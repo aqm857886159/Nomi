@@ -702,6 +702,16 @@
       "reason": "2026-11-18 健康探测整段删除（D-1117-delete-verification，协调 Q5），文件只剩后台拉模型清单那一半，改名 catalogReconciliation.ts，resolveTarget 原样在位。不变量「不拿已禁用的凭据发请求」不变、而且更硬：它改用启用门控的 decryptApiKeyRecord，已禁用的凭据读不出明文；由 catalogReconciliation.test.ts「不该发的不发」一组守。"
     },
     {
+      "contract": "docs/fixes/2026-09-24-comfyui-combo-wire-type.root-cause.json",
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "declaredOptionValue",
+      "anchor": {
+        "path": "electron/shared/videoCapabilities/paramValue.ts",
+        "symbol": "declaredOptionValue"
+      },
+      "reason": "2026-11-17 参数值只在门口规整一次（docs/plan/2026-11-17-param-value-type.md）：「下拉选中的字符串换回选项声明的值」这条规则连同 parseControlInput 一起搬进参数值的唯一住处 paramValue.ts，判法不变（选项都是标量，逐个转成显示串和选中的串比）；画布控件和 ComfyUI 导入预览都改从这里引。不变量「选中 '8' 发回声明的 8，声明是字符串就发字符串」不变，由 electron/shared/videoCapabilities/paramValue.test.ts 与 src/ui/onboarding/comfyuiCanvasPreview.test.ts 守。"
+    },
+    {
       "contract": "docs/fixes/2026-09-29-failure-reason-from-upstream-evidence.root-cause.json",
       "path": "src/workbench/observability/narrate.ts",
       "symbol": "narrateIsVendorSideFailure",

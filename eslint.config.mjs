@@ -36,6 +36,7 @@ import {
   WALK_FOCUS_BY_TAG_SELECTORS,
   WALK_FOCUS_FILES,
 } from './scripts/focus-by-tag-lookup.mjs'
+import { PARAM_VALUE_DOOR_FILES, PARAM_VALUE_DOOR_IGNORES, paramValueDoorPlugin } from './scripts/param-value-door-rule.mjs'
 import {
   RESIDENT_SELECTION_FILES,
   RESIDENT_SELECTION_OWNER_FILES,
@@ -1038,6 +1039,13 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    // 参数值只在门口规整一次（2026-11-17）：判据、管辖目录与名单都住 scripts/param-value-door-rule.mjs（自写规则，只在这一块配置）。
+    files: [...PARAM_VALUE_DOOR_FILES],
+    ignores: [...PARAM_VALUE_DOOR_IGNORES],
+    plugins: { 'param-value-door': paramValueDoorPlugin },
+    rules: { 'param-value-door/no-reparse': 'error' },
   },
   prettier,
 )

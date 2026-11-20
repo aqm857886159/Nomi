@@ -24,6 +24,7 @@ import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from "
 import { declarationForMode } from "../shared/generationLowering/declarationForMode";
 import { SLOT_ACCEPTS } from "../shared/modelArchetypes/anchorPolicy";
 import { modeInputRefusal } from "./modeInputRefusal";
+import { encodeParamsForWire } from "../shared/videoCapabilities/paramValue";
 export { ModeInputMissingError } from "./modeInputRefusal";
 import { carriedReferenceUrlsByFamily, firstReferenceImage, referenceUrlsByFamily } from "./taskParamsReferences";
 
@@ -158,7 +159,13 @@ export function applyHeadlessParamDefaults(
     ? (() => { const { size: _dropped, ...rest } = extras; return rest; })()
     : extras;
   const owned = modeSelection ? effectiveModeParams({ ...modeSelection, stored: guarded ?? {} }).params : guarded;
-  const withDefaults = applyWireDefaults(owned, mappingDefaults);
+  // 出口编码：门里的参数值是内部类型（RunningHub 时长 12），这里按档案声明的报文写法编回去（"12"）。放在补供应商操作默认值
+  // 之前——那些默认本来就是报文写法，一个字节都不动。认档案与声明门同一个入口（按模型名也认）；方式不知道就看全部方式。
+  const wireArchetype = archetype ?? resolveModelArchetype({
+    modelKey: selected.modelKey, modelAlias: selected.modelAlias, vendorKey, meta: selected.modelMeta,
+  }, { variant });
+  const encoded = encodeParamsForWire(mode ? mode.params : wireArchetype?.modes.flatMap((candidate) => candidate.params) ?? [], owned);
+  const withDefaults = applyWireDefaults(encoded, mappingDefaults);
   // ③ 参考键形态投影（既有值优先 → 渲染层已填 archetypeInput 时 no-op）。在缺参兜底之后做，看到的是合并后的 extras。
   if (typeof createBody === "undefined") return withDefaults;
   const projected = headlessReferenceLowering(withDefaults, createBody, selected);
