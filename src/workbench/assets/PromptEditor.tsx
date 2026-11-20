@@ -12,6 +12,7 @@ import { createAssetMentionSuggestion, type MentionSelection } from './AssetMent
 import type { MentionSuggestionItem, MentionUploadControls } from './AssetMentionSuggestionList'
 import { promptToContent, contentToPrompt } from './promptEditorContent'
 import { createControlledEditorSync } from '../common/controlledEditorSync'
+import { hydrateIfStale, useEditorRebuildSync } from '../common/useEditorRebuildSync'
 import { useNomiTiptapEditor } from '../common/useNomiRichTextEditor'
 import { promptRangeToDocRanges, promptRunsFromDocument, type PromptEditorSegment } from './promptEditorSkeleton'
 
@@ -137,7 +138,9 @@ export default function PromptEditor({ value, onChange, placeholder, ariaLabel, 
 
   // 传给 useEditor 的选项必须引用稳定：tiptap 按引用比较 extensions 的每一项以及 content / editorProps，
   // 变了就 setOptions + view.updateState——原来每次渲染（每敲一个字）都白做一遍（2026-09-25 画布跟手）。
-  // content 只在创建时生效；之后外部 value 由下面的同步 effect 写入，所以这里只取第一次的值。
+  // 不传 content：编辑器每次被造出来（首次挂载、Activity 放出、deps 变化重建）文档都从 owner 当前的 value 灌入
+  // （useEditorRebuildSync），不再拿「首次挂载那一刻冻住的内容」——那份在提示词还是空的时候冻成了空，
+  // 重建出来的新编辑器就一直空着。
   const extensions = React.useMemo(() => [
     StarterKit.configure({ heading: false, bulletList: false, orderedList: false, blockquote: false, codeBlock: false, horizontalRule: false }),
     Placeholder.configure({ placeholder: () => placeholderRef.current }),
@@ -145,8 +148,6 @@ export default function PromptEditor({ value, onChange, placeholder, ariaLabel, 
     suggestionExt,
     promptSkeletonExt,
   ], [suggestionExt, promptSkeletonExt])
-  const initialContentRef = React.useRef<ReturnType<typeof promptToContent> | null>(null)
-  if (!initialContentRef.current) initialContentRef.current = promptToContent(value, mentionReferences ?? mentionCandidates)
   const editorProps = React.useMemo(
     () => ({ attributes: { class: 'generation-canvas-v2-node__prompt-input outline-0', ...(ariaLabel ? { 'aria-label': ariaLabel } : {}), ...inputAttributes } }),
     [ariaLabel, inputAttributes],
@@ -154,7 +155,6 @@ export default function PromptEditor({ value, onChange, placeholder, ariaLabel, 
 
   const editor = useNomiTiptapEditor({
     extensions,
-    content: initialContentRef.current,
     editable: editable !== false,
     editorProps,
     // 仅真正改变 prompt 字符串的文档事务向 owner 回写；胶囊编号事务（串不变）不回写，不覆盖外部 plan 编辑。
@@ -162,6 +162,16 @@ export default function PromptEditor({ value, onChange, placeholder, ariaLabel, 
       if (!transaction.docChanged) return
       const next = contentToPrompt(current.getJSON())
       if (sync.emit(next)) onChangeRef.current(next, contentToPrompt(transaction.before.toJSON()))
+    },
+  })
+
+  const valueRef = React.useRef(value)
+  valueRef.current = value
+  useEditorRebuildSync(editor, sync, {
+    serialize: (current) => contentToPrompt(current.getJSON()),
+    // 新实例的文档 = owner 当前的值；不进撤销历史、不发 update（这是灌入，不是用户又改了一次）。
+    hydrate: (current) => {
+      hydrateIfStale(current, { text: valueRef.current, doc: () => promptToContent(valueRef.current, mentionReferences ?? orderedUrlsRef.current) }, contentToPrompt)
     },
   })
 

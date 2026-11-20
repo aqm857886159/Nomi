@@ -10,6 +10,7 @@ import { markdownToTiptapContent } from '../creation/markdownToTiptap'
 import { sanitizePastedHtml } from './sanitizePastedHtml'
 import { PersistentSelectionExtension } from './persistentSelection'
 import { createControlledEditorSync } from './controlledEditorSync'
+import { useEditorRebuildSync } from './useEditorRebuildSync'
 import { AiRewriteExtension } from '../creation/aiRewrite/rewriteSession'
 
 // ==高亮== 输入/粘贴规则：Tiptap 默认规则要求 `==` 前是行首或空白，中文「这是==重点==」
@@ -176,10 +177,9 @@ export function useNomiRichTextEditor(options: {
     [placeholder],
   )
 
-  // placeholder 变化会重建编辑器实例，新实例的文档就是它创建时拿到的那份 content：账从它重开。
-  React.useEffect(() => {
-    if (isEditorReady(editor)) sync.reset(JSON.stringify(editor.getJSON()))
-  }, [editor, sync])
+  // 实例重建（placeholder 变化、Activity 放出）：新实例的文档就是它创建时拿到的那份 content，账从它重开——
+  // 与 PromptEditor 同一处生命周期（useEditorRebuildSync）。
+  useEditorRebuildSync(editor, sync, { serialize: (current) => JSON.stringify(current.getJSON()) })
 
   // Sync controlled content in (e.g. AI wrote into the doc, or node switched).
   React.useEffect(() => {
