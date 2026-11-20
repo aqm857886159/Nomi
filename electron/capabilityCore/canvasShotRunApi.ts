@@ -9,12 +9,15 @@ import type { AutomationPolicy, ProductionArtifact } from "../productionRun/prod
 import { queuedHandOversOfClosedPresentations } from "../shared/productionGenerationPresentation";
 import type { ProductionRun } from "../productionRun/productionRunTypes";
 import type { CanvasConsentShot, CanvasShotRuns, CanvasShotSubmitInput, CanvasShotRequest } from "./appIntegrationCanvasShot";
+import { installResendDecisions, type CanvasResendDecideInput } from "./canvasResendDecision";
+import type { CanvasResendDecision } from "../shared/canvas/canvasResendDecide";
 
 let active: CanvasShotRuns | null = null;
 
 /** 能力核起停时装上 / 卸下（stop 传 null）。 */
 export function installCanvasShotRuns(runs: CanvasShotRuns | null): void {
   active = runs;
+  installResendDecisions(runs ? runs.resend : null);
 }
 
 function activeRuns(): CanvasShotRuns {
@@ -83,6 +86,11 @@ export function releaseCanvasShotSender(senderId: number): void {
 
 export function canvasOpenRuns(input: { projectId: string; nodeId?: string }): ReturnType<CanvasShotRuns["canvasOpenRuns"]> {
   return activeRuns().canvasOpenRuns(input);
+}
+
+/** 「我想再发一次」：要不要问、放行哪几笔由主进程定（受信 IPC 进来）。 */
+export function decideCanvasResend(input: CanvasResendDecideInput): CanvasResendDecision {
+  return activeRuns().resend.decideResend(input);
 }
 
 /** 回执现读现算哈希的次数（只有没带哈希的旧调用方会走到；测试看它涨没涨，按 fd 读的 fs spy 会恒空）。 */

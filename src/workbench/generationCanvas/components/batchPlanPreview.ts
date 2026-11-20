@@ -1,5 +1,6 @@
 import { paidNodeLedger, spendCostKind, spendCostKindForNodes } from '../spend/spendConfirm'
 import { classifyGenerationError } from '../../observability/classifyError'
+import { generationFailureActions } from '../../observability/generationFailureActions'
 import { declareStoreLifetime } from '../../project/storeLifetime'
 // 批量执行计划预览态(harness S2b,样张方案 A:画布原位确认)。
 // 语义铁律:进入预览 ≠ 开始生成——确认前零 vendor 调用零扣费;取消即散,画布零变化。
@@ -283,7 +284,9 @@ export async function runPlanWithToasts(
       // 失败汇总挂「重试失败的 N 个」一键动作（样张拍板 2026-07-29）：只对失败节点重建依赖波次
       // → 重新轻确认（新的一张卡、新开的出价，不绕付费闸）→ 并发重跑；成功的不重付。上游仍缺果的会再次被
       // 人话拦下（describeBlockedNotice），不静默。ttl 放宽到 12s 给动作留点击窗口。
-      const failureIds = failures.map((failure) => failure.nodeId)
+      // 能不能一键重跑只读共享失败判定：结果不明（可能已扣钱）的那几张不在「重试」里，它们各自的节点上有「再发一次」那张卡。
+      // 正文仍数全部失败；一张能直接重试的都没有时，动作换成去任务中心看。
+      const failureIds = failures.filter((failure) => generationFailureActions(failure.error.message).canRetry).map((failure) => failure.nodeId)
       const message =
         okCount === 0
           ? i18n.t('generationCommon.batchPlan.failed', { count: failCount, tail })
@@ -294,16 +297,21 @@ export async function runPlanWithToasts(
         level: 'background',
         message,
         type: okCount === 0 ? 'error' : 'warning',
-        actionLabel: i18n.t('generationCommon.batchPlan.retryFailed', { count: failCount }),
-        onAction: async () => {
-          if (!isProjectOpen(projectId) && !(await revealNotificationTarget({ projectId, workspaceMode: 'generation' }))) return
-          if (!isProjectOpen(projectId)) return
-          void confirmAndRunPlan(
-            planCanvasGenerationScope('retry-failed', failureIds, useGenerationCanvasStore.getState()),
-            // 通知里的「重试失败的」是人按的这一下，不继承原批次的发起方。
-            { concurrency: options.concurrency, initiator: 'user' },
-          )
-        },
+        ...(failureIds.length === 0 ? {
+          actionLabel: i18n.t('taskCenter.title'),
+          onAction: () => { void revealNotificationTarget({ projectId, taskCenter: true }) },
+        } : {
+          actionLabel: i18n.t('generationCommon.batchPlan.retryFailed', { count: failureIds.length }),
+          onAction: async () => {
+            if (!isProjectOpen(projectId) && !(await revealNotificationTarget({ projectId, workspaceMode: 'generation' }))) return
+            if (!isProjectOpen(projectId)) return
+            void confirmAndRunPlan(
+              planCanvasGenerationScope('retry-failed', failureIds, useGenerationCanvasStore.getState()),
+              // 通知里的「重试失败的」是人按的这一下，不继承原批次的发起方。
+              { concurrency: options.concurrency, initiator: 'user' },
+            )
+          },
+        }),
       })
     }
     // 用户点「生成全部」只花生成的钱：跑完不再自动调文本模型审片（2026-09-26 用户拍板，TODO T-QA-36）。

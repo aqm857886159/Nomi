@@ -9,6 +9,7 @@ import type { CreateProductionRunInput, RunCommand } from "./productionRunTypes"
 
 import { assertTrustedSender } from "../ipcSenderGuard";
 import { isProductionRunIdentifier } from "../shared/productionRunCommandId";
+import { resendDecisionCovers } from "../capabilityCore/canvasResendDecision";
 const RENDERER_COMMAND_TYPES = new Set(["run.status", "run.control", "gate.decide", "artifact.adopt", "artifact.review", "plan.attach", "policy.refresh", "job.reconcile", "job.retry_retrieval", "plan.detach-shot-nodes", "generation.present"]);
 
 /** 标识形状只认中立层那一份（渲染层造命令号用的也是它）：两边各写一份就会各自漂，漂了的命令在这里被拒。 */
@@ -237,6 +238,14 @@ export function registerProductionRunIpc(
     assertTrustedSender(event);
     const { projectId, runId, raw } = projectRunPayload(payload);
     const command = rendererCommand(raw.command);
+    // 放行一笔结果未知的作业（可能再扣一次钱）：只认主进程这一次重发判定列出的那一笔，渲染层多报一笔就拒。
+    if (command.type === "job.reconcile" && command.payload.outcome === "user_checked_abandon") {
+      const commandPayload = objectValue(objectValue(raw.command, "production command").payload, "production command payload");
+      const decisionId = typeof commandPayload.resendDecisionId === "string" ? commandPayload.resendDecisionId : undefined;
+      if (!resendDecisionCovers(decisionId, { projectId, senderId: event.sender.id, runId, jobId: String(command.payload.jobId) })) {
+        throw new Error("Release is not covered by a resend decision");
+      }
+    }
     if (command.type === "generation.present") {
       const current = read(projectId, runId);
       const source = current?.origin.sourceDocument;

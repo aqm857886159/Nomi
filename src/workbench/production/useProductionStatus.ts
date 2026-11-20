@@ -10,6 +10,7 @@ import { buildAnchorCheckpointCard } from '../generationCanvas/spend/anchorCheck
 import { useWorkbenchStore } from '../workbenchStore'
 import { productionRunApi } from './productionRunApi'
 import { nodeIdOfJob, releaseUnknownSubmission } from './releaseUnknownSubmission'
+import { canvasResendDecide } from '../api/taskApi'
 import { executeProductionRunCommand, isNothingToResume } from './productionRunCommands'
 import { buildProductionPolicySettingsTarget, isProductionPolicyError } from './productionPolicyRecovery'
 import { useProductionRunStore } from './productionRunStore'
@@ -184,9 +185,11 @@ export function useProductionStatus(options: { enabled?: boolean } = {}) {
             const { confirmAndRunNode } = await import('../generationCanvas/runner/generationRunController')
             await confirmAndRunNode(node.id, { initiator: 'user', resend: true })
           } else {
-            if (!await confirmGenerationResend({ resultUnknown: true, kind: 'other' })) return
+            // 没有节点：一样只报「我想再发一次」和那一笔是谁，问不问、放哪几笔由主进程定。
             try {
-              await releaseUnknownSubmission(run.projectId, run.runId, targetJob.jobId, productionRunApi)
+              const decision = await canvasResendDecide({ projectId: run.projectId, resend: true, initiator: 'user', resultUnknown: true, production: { runId: run.runId, jobId: targetJob.jobId } })
+              if (decision.action !== 'ask' || !await confirmGenerationResend({ resultUnknown: decision.resultUnknown, kind: 'other' })) return
+              for (const entry of decision.release) await releaseUnknownSubmission(run.projectId, entry.runId, entry.jobId, productionRunApi, decision.decisionId)
               await useProductionRunStore.getState().loadRun(run.projectId, run.runId)
             } catch (error) { reportFailure(error, 'generationCommon.observability.releaseConfirm.failed') }
           }

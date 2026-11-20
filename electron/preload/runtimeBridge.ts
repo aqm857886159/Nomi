@@ -41,6 +41,7 @@ export const runtimeBridge = {
     canvasSubmit: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:canvas-submit", payload),
     canvasPoll: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:canvas-poll", payload),
     canvasOpenRuns: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:canvas-open-runs", payload),
+    canvasResendDecide: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:canvas-resend-decide", payload),
     canvasRelease: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:canvas-release", payload),
     canvasConsent: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:canvas-consent", payload) as Promise<{ runIds: string[] }>,
     canvasWithdraw: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:canvas-withdraw", payload),

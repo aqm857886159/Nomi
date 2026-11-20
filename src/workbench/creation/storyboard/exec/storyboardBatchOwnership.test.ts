@@ -20,7 +20,7 @@ vi.mock('../../../library/localProjectStore', () => ({
   readLocalProjectAsync: async (id: string) => structuredClone(calls.disk.get(id) ?? null),
   saveLocalProject: async (id: string, payload: unknown, name: string) => ({ id, name, version: 1, payload }),
 }))
-vi.mock('../../../api/taskApi', () => ({ canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
+vi.mock('../../../api/taskApi', () => ({ canvasResendDecide: (input: Parameters<typeof import('../../../api/canvasResendDecideTestUtils').canvasResendDecideLikeMain>[0]) => import('../../../api/canvasResendDecideTestUtils').then(fake => fake.canvasResendDecideLikeMain(input)), canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('../../../generationCanvas/runner/generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
 vi.mock('../../../generationCanvas/runner/nodeModelHealth', () => ({ recordNodeModelFailure: vi.fn(), recordNodeModelSuccess: vi.fn() }))
 vi.mock('../../../../config/useModelOptions', () => ({ preloadModelOptions: async () => [] }))
