@@ -1,6 +1,6 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
-// 保存未验证凭据与认证成功两态，都必须与共享可执行解析得到同一个答案。
-// 只有明确停用的凭据才下架；保存后的探测失败只提示，不影响已有请求格式。
+// 保存凭据与带旧认证记录两态，都必须与共享可执行解析得到同一个答案。
+// 只有明确停用的凭据才下架；网络失败不影响已有请求格式。
 import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
@@ -9,7 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/credential-connect-honesty')
+const shotsDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, 'tests/ux/shots/credential-connect-honesty')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 const API_KEY = process.env.APIMART_API_KEY || 'sk-walkthrough-not-a-real-key-000'
@@ -106,9 +106,9 @@ try {
     await screenshotSettled(dialog, { path: path.join(shotsDir, '01-bare-credential-home.png') })
     console.log(`  ① 裸凭据: vendor.enabled=${r.vendorEnabled} hasApiKey=${r.hasApiKey} resolver可用=${r.usable} UI已接入段=${inConnected}`)
     // 硬断言：保存后可用；界面与共享解析一致。
-    expect(r.vendorEnabled, '保存凭据后连接应启用，验证仅作提示').toBe(true)
+    expect(r.vendorEnabled, '保存凭据后连接应启用').toBe(true)
     expect(r.usable, '已有文本请求格式和凭据应可执行').toBe(true)
-    expect(inConnected, '保存未验证凭据后应列入已接入').toBe(true)
+    expect(inConnected, '保存凭据后应列入已接入').toBe(true)
     expect(inConnected, '态①名实不符：UI已接入 ≠ resolver可用').toBe(r.usable)
     await app.close().catch(() => {})
   }

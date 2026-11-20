@@ -429,11 +429,9 @@ describe.each([
     if (cell.pending) (catalog().apiKeysByVendor[cell.vendorKey] as Record<string, unknown>).verificationPending = true;
   });
 
-  function expectNoGeneration(tryModelEntry = false) {
-    // 只豁免模型列表的 GET；生成 GET、其他 HTTP 方法和重试都不能混进来。
-    expect(wire.filter((row) => !(cell.pending && row.method === "GET" && row.url === "/models"))).toEqual([]);
-    expect(wire.length).toBeLessThanOrEqual(cell.pending && !tryModelEntry ? 1 : 0);
-    if (cell.pending && !tryModelEntry && cell.vendorKey === "script-relay") expect(wire).toHaveLength(1);
+  function expectNoGeneration(_tryModelEntry = false) {
+    // Pending is legacy data: neither a preflight GET nor generation may start without a project.
+    expect(wire).toEqual([]);
     expect(processRuns).toEqual([]);
     expect(cards).toEqual([]);
   }

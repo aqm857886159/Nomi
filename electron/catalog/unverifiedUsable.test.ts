@@ -1,4 +1,5 @@
 import * as store from "./catalogStore";
+import { projectRendererCatalogModel } from "./catalogModelAvailability";
 import { filterUsableAssistantTextModels } from "../../src/workbench/ai/assistantModelIdentity";
 import { buildDefaultModelOptions } from "../../src/workbench/settings/defaultGenerationModelOptions";
 import { catalogPath } from "./catalogFileAccess";
@@ -172,4 +173,10 @@ it("explicitly enabling a configured model publishes its saved connection indepe
  store.upsertModelCatalogModel({...model,enabled:false,customCall:{script:"return [];"}});
  upsertRendererCatalogModel({vendorKey:"relay",modelKey:model.modelKey,enabled:true});
  expect(store.listModelCatalogModels().find(row=>row.vendorKey==="relay")?.availability.usable).toBe(true);
+});
+
+it("withholds verification inputs while preserving the format and run identity for the renderer", async () => {
+ const row = {...model, labelZh: "Image", kind: "image" as const, meta: {note: "keep", adapter: {state: "failed", evidence: "self-check", runId: "run", publicationModes: ["text_to_image"]}}};
+ expect(projectRendererCatalogModel(row).meta).toEqual({note: "keep", adapter: {runId: "run", publicationModes: ["text_to_image"]}});
+ expect(row.meta.adapter.state).toBe("failed");
 });

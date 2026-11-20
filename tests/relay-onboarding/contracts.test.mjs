@@ -111,11 +111,11 @@ describe('relay onboarding reproducible gaps', () => {
 
   it('control: renderer-saved credentials remain usable before certification', async () => {
     const { row, card } = await register()
-    // Exercise the real renderer save boundary, including its diagnostic-only probe.
+    // Exercise the real renderer save boundary, including its explicit-rejection save gate.
     await upsertRendererCatalogVendorApiKey(row.vendorKey, { apiKey: FAKE_RELAY_KEY, enabled: true })
     const reply = await submitDeclaration({ vendorKey: row.vendorKey, declaration: JSON.stringify(card) })
     expect(reply.ok, JSON.stringify(reply)).toBe(true)
-    expect(reply.state.selfCheck.credential).toMatchObject({ checked: true, ok: true })
+    expect(reply.state.selfCheck).toEqual({ contract: 'passed' })
     const state = readCatalog()
     const saved = state.models.find((m) => m.vendorKey === row.vendorKey && m.modelKey === row.modelKey)
     const usable = catalogModelAvailability(state, saved).usable
@@ -129,7 +129,7 @@ describe('relay onboarding reproducible gaps', () => {
       authType: 'bearer', providerKind: 'openai-compatible', apiKey: FAKE_RELAY_KEY, models: [], savedAt: new Date().toISOString() })
     const reply = await submitDeclaration({ vendorKey: configured.vendor.key, declaration: JSON.stringify(relayDeclaration(relay.baseUrl)) })
     expect(reply.ok, JSON.stringify(reply)).toBe(true)
-    expect(reply.state.selfCheck.credential).toMatchObject({ checked: true, ok: true })
+    expect(reply.state.selfCheck).toEqual({ contract: 'passed' })
     const state = readCatalog()
     const row = state.models.find((m) => m.vendorKey === configured.vendor.key && m.modelKey === 'opaque-gamma')
     expect(catalogModelAvailability(state, row)).toEqual({ usable: true })

@@ -130,6 +130,59 @@ export function scanSource(relative, text) {
   return found
 }
 
+/** 退役的预检原料和状态出口不准重生；同一份 AST 检查同时供 ESLint 与门岗使用。 */
+export function scanAvailabilityBypasses(relative, text) {
+  if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(relative) || relative.includes('/devlab/')) return []
+  const renderer = relative.startsWith('src/')
+  const execution = ['electron/runtime.ts', 'electron/textTaskRunner.ts', 'electron/providerAdapter/serviceCatalog.ts'].includes(relative)
+  const source = ts.createSourceFile(relative, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const found = []
+  const report = (node, message) => found.push({ file: relative, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1, message })
+  const property = (node) => ts.isPropertyAccessExpression(node) ? node.name.text
+    : ts.isElementAccessExpression(node) && node.argumentExpression && ts.isStringLiteralLike(node.argumentExpression) ? node.argumentExpression.text : null
+  const visit = (node) => {
+    if (relative === 'electron/main.ts' && ts.isCallExpression(node) && node.expression.getText(source) === 'listModelCatalogModels') {
+      const map = node.parent
+      if (!ts.isPropertyAccessExpression(map) || map.name.text !== 'map' || !ts.isCallExpression(map.parent)
+        || map.parent.arguments[0]?.getText(source) !== 'projectRendererCatalogModel') report(node, '目录跨 IPC 只交剥掉验证原料的投影')
+    }
+    if (renderer && relative !== 'src/ui/onboarding/ModelStatusMark.tsx' && ts.isConditionalExpression(node)
+      && /availability|modelStatus|status\.state/.test(node.condition.getText(source))
+      && (ts.isStringLiteralLike(node.whenTrue) || ts.isStringLiteralLike(node.whenFalse))
+      && /(?:text|bg|border)-(?:workbench-success|workbench-danger|nomi-warning)/.test(`${node.whenTrue.getText(source)} ${node.whenFalse.getText(source)}`)) report(node, '状态颜色只读展示投影，不按可用性另挑色')
+    if (ts.isIdentifier(node)) {
+      if (['revalidatePendingCredential', 'probeAdapterCredential', 'recordModelExecutionResult'].includes(node.text)) report(node, '退役的模型预检不能回到生产入口')
+      if ((renderer || execution) && ['credentialVerificationPending', 'adapterState'].includes(node.text)) report(node, '只读 availability 与 formatInProgress，不读验证原料')
+      if ((execution || renderer && !relative.endsWith('/ComfyuiWorkflowSettingsPage.tsx')) && node.text === 'verificationPending') report(node, '首用与展示不读旧待验证标记')
+    }
+    if (renderer && ['state', 'evidence'].includes(property(node)) && /adapter/i.test(node.expression.getText(source))) report(node, '渲染层不读原始 adapter 验证结果；当前状态读投影')
+    if (ts.isStringLiteralLike(node)) {
+      const value = node.text
+      if ((renderer || execution) && ['credentialVerificationPending', 'adapterState', 'verificationPending'].includes(value)) report(node, '界面和发送入口不读验证原料')
+      if (['nomi:onboarding:test-connection', 'modelSetup.testConnection', 'testConnection'].includes(value)) report(node, '测试连接入口已删除')
+      if (renderer && relative !== 'src/ui/onboarding/ModelStatusMark.tsx' && !relative.startsWith('src/i18n/')
+        && /^onboardingProviders\.(modelStatus\.|adapterVerification\.(cardStatus|modelState)\.|workspace\.adapter\.title\.|drawer\.home\.(verificationFailedUsable|unreachableCount)|keyOnly\.(pendingTitle|recheckedTitle|offlineTitle))/.test(value)) report(node, '状态词只经 ModelStatusMark 渲染')
+      if (renderer && /^(generationCommon\.)?parameters\.untried$/.test(value)) report(node, '模型框不再显示未试跑')
+    }
+    if (execution && ts.isCallExpression(node) && /^(probeDirectKeyCredential|validateCandidateCredential|fetchModelList)$/.test(property(node.expression) ?? node.expression.getText(source))) report(node, '保存时的拒收闸不能接在发送入口')
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  return found
+}
+
+export const modelStatusOneHomeRule = {
+  meta: { type: 'problem', schema: [], messages: { bypass: '{{message}}' } },
+  create(context) {
+    return { Program() {
+      const relative = path.relative(ROOT, context.filename).split(path.sep).join('/')
+      for (const finding of scanAvailabilityBypasses(relative, context.sourceCode.text)) {
+        context.report({ loc: { line: finding.line, column: 0 }, messageId: 'bypass', data: { message: finding.message } })
+      }
+    } }
+  },
+}
+
 function scanPredicates(relative) {
   return scanSource(relative, fs.readFileSync(path.join(ROOT, relative), 'utf8'))
 }
@@ -166,6 +219,11 @@ function main() {
           '    要么把它接回 owner，要么它已经不回答这个问题了——那就从 READERS 里删掉并说明。',
         ].join('\n'))
       }
+    }
+  }
+  for (const relative of listFiles()) {
+    for (const finding of scanAvailabilityBypasses(relative, fs.readFileSync(path.join(ROOT, relative), 'utf8'))) {
+      problems.push(`  · ${relative}:${finding.line} — ${finding.message}`)
     }
   }
   if (problems.length > 0) fail(problems)

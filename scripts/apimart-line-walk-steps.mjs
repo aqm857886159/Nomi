@@ -1,6 +1,7 @@
 // APIMart 线路走查的「用户动作」唯一一份：零额度走查（apimart-domestic-line-walkthrough.mjs）和真实付费核对
 // （apimart-domestic-line-paid.mjs）点的是同一套按钮，所以动作只写在这里，两边各自只管自己的判据与护栏。
 import fs from 'node:fs'
+import { uiText } from '../tests/ux/full-walk/invariants.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -13,13 +14,13 @@ export const DOMESTIC = 'https://api.apib.ai'
 /** 界面文案（两种语言只在这一处）。 */
 export const UI = {
   'zh-CN': {
-    settings: '设置', models: '模型', back: '返回', saveVerify: '保存验证', editAddress: '编辑 APIMart 接入地址',
-    invalidAddress: '接入地址需以 http(s):// 开头。', unreachable: '连不上这个地址：', nextStep: '下一步：',
+    settings: '设置', models: '模型', back: '返回', keyOnly: { save: uiText('zh-CN', 'onboardingProviders.keyOnly.save') }, addOtherModels: uiText('zh-CN', 'onboardingProviders.workspace.addOtherModels'), editAddress: '编辑 APIMart 接入地址',
+    invalidAddress: '接入地址需以 http(s):// 开头。',
     newBlank: '新建空白项目', workspace: '工作区切换', generateTab: '生成', addImageNode: '添加图片节点', model: '模型', generateAsset: '生成素材', confirm: '生成',
   },
   en: {
-    settings: 'Settings', models: 'Models', back: 'Back', saveVerify: 'Save Verify', editAddress: 'Edit APIMart connection address',
-    invalidAddress: 'The connection address must start with http(s)://.', unreachable: "Can't reach this address:", nextStep: 'Next:',
+    settings: 'Settings', models: 'Models', back: 'Back', keyOnly: { save: uiText('en', 'onboardingProviders.keyOnly.save') }, addOtherModels: uiText('en', 'onboardingProviders.workspace.addOtherModels'), editAddress: 'Edit APIMart connection address',
+    invalidAddress: 'The connection address must start with http(s)://.',
     newBlank: 'New blank project', workspace: 'Switch workspace', generateTab: 'Generate', addImageNode: 'Add Image node', model: 'Model', generateAsset: 'Generate asset', confirm: 'Generate',
   },
 }
@@ -84,17 +85,6 @@ export async function closeSettings(win) {
 
 export async function modelsSectionText(win) {
   return win.locator('[data-settings-section="models"]').innerText()
-}
-
-/** 连接卡右上角的体检结论（ModelConnection 的四态；「检查中…」之外的三态才算落定）。 */
-export const HEALTH_BADGE = { checking: /检查中…|Checking…/, settled: /已连通|连不上|已保存|Connected|Unreachable|Saved/ }
-
-/** 等连接卡上的体检结论落定（体检是打开卡片后才发的一次异步请求）；落定了返回 true。 */
-export async function healthSettled(win, timeout = 15_000) {
-  return Boolean(await until(win, async () => {
-    const text = await modelsSectionText(win)
-    return !HEALTH_BADGE.checking.test(text) && HEALTH_BADGE.settled.test(text)
-  }, timeout))
 }
 
 /**

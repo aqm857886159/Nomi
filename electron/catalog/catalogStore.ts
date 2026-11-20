@@ -231,21 +231,6 @@ export function listModelCatalogModels(params?: unknown): Array<Model & {
   })) as Array<Model & { published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability; formatInProgress: boolean; modelNameSource: ModelNameSource }>;
 }
 
-/**
- * 给渲染层的那一份：去掉 `meta.adapter.state` / `meta.adapter.evidence`。界面只认 `availability` +
- * `formatInProgress`，拿不到原料就没法自己再判一遍「验没验过」（D-1117-delete-verification）。
- * 写回时 `rendererCatalogMutation.ts::preserveCertificationMeta` 以主进程那份 adapter 为准，剥掉不丢数据。
- */
-export function listRendererCatalogModels(params?: unknown): ReturnType<typeof listModelCatalogModels> {
-  return listModelCatalogModels(params).map((row) => {
-    const meta = isJsonRecord(row.meta) ? row.meta : undefined;
-    const adapter = meta && isJsonRecord(meta.adapter) ? meta.adapter : undefined;
-    if (!meta || !adapter) return row;
-    const { state: _state, evidence: _evidence, ...rest } = adapter;
-    return { ...row, meta: { ...meta, adapter: rest } };
-  });
-}
-
 // 型号名来源表（./modelNameSource，同一份冻结状态只算一次）：用最近一次读出的那份，不每问一次就读盘。主进程的档案解析问它。
 const currentModelNameSources = () => modelNameSourceTable(catalogReadCache && catalogReadCache.path === catalogPath() ? catalogReadCache.state : readCatalogShared());
 installModelNameSourceLookup((vendorKey, modelKey) => currentModelNameSources().get(modelNameSourceKey(vendorKey, modelKey)));

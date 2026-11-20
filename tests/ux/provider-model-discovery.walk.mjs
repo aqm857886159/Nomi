@@ -11,7 +11,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { modelSettingsEntry, openModelSettings } from './_shell.mjs'
 
 const tempRoot = makeTempDir('nomi-model-discovery-')
-const shots = path.join(tempRoot, 'shots')
+const shots = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(tempRoot, 'shots')
 fs.mkdirSync(shots)
 const requests = []
 let relayMode = 'success'
@@ -141,9 +141,9 @@ try {
   expect(originalKieKeys.length).toBeGreaterThanOrEqual(9)
   await win.reload()
   await home()
-  // Saved credentials and custom headers must behave identically across health and list IPC.
-  const savedHealth = await win.evaluate((vendorKey) => window.nomiDesktop.onboarding.vendorHealth({ vendorKey, force: true }), relayVendorKey)
-  expect(savedHealth.state).toBe('reachable')
+  // Saved credentials and custom headers must behave identically through the saved-connection list IPC.
+  const savedHealth = await win.evaluate(vendorKey => window.nomiDesktop.onboarding.httpConnectionListModels({ vendorKey }), relayVendorKey)
+  expect(savedHealth.ok).toBe(true)
 
   // J1: original Kie-style response -> usable retained catalog -> manual ID persisted.
   await openPicker('kie')
@@ -268,8 +268,8 @@ try {
   const newConnectionKey = await win.evaluate(async () => (await window.nomiDesktop.modelCatalog.listVendors()).find(v => v.name === 'Discovery New Connection')?.key)
   expect(newConnectionKey).toBeTruthy()
   expect(await savedKeys(newConnectionKey)).toContain('gpt-discovery-text')
-  const newHealth = await win.evaluate(vendorKey => window.nomiDesktop.onboarding.vendorHealth({ vendorKey, force: true }), newConnectionKey)
-  expect(newHealth.state).toBe('reachable')
+  const newHealth = await win.evaluate(vendorKey => window.nomiDesktop.onboarding.httpConnectionListModels({ vendorKey }), newConnectionKey)
+  expect(newHealth.ok).toBe(true)
 
   // Cold start proves persistence; final light/en screenshot checks both locale and theme branches.
   await win.evaluate(() => { localStorage.setItem('nomi-color-scheme', 'light'); localStorage.setItem('nomi:locale:v1', 'en') })
@@ -285,8 +285,8 @@ try {
   expect(await savedKeys('kie')).toContain('manual-discovery-model')
   expect(await savedKeys(replicateVendorKey)).toEqual(expect.arrayContaining(['owner/flux-discovery']))
   expect(await savedKeys(newConnectionKey)).toContain('gpt-discovery-text')
-  const coldHealth = await win.evaluate(vendorKey => window.nomiDesktop.onboarding.vendorHealth({ vendorKey, force: true }), newConnectionKey)
-  expect(coldHealth.state).toBe('reachable')
+  const coldHealth = await win.evaluate(vendorKey => window.nomiDesktop.onboarding.httpConnectionListModels({ vendorKey }), newConnectionKey)
+  expect(coldHealth.ok).toBe(true)
   await home()
   await openPicker('kie')
   await clickOrFail(refetch(), 'Cold-start catalog discovery')

@@ -51,13 +51,17 @@
   "appearsIn": [
     {
       "place": "设置 → 模型首页「已接入」的连接行",
-      "files": ["src/ui/onboarding/OnboardingDrawer.tsx"],
+      "files": [
+        "src/ui/onboarding/OnboardingDrawer.tsx"
+      ],
       "board": "ModelConnectionStatus",
       "element": "list.row-status"
     },
     {
       "place": "设置 → 模型 → 点进某个连接的详情页，卡头右侧徽标",
-      "files": ["src/ui/onboarding/OnboardingDrawer.tsx"],
+      "files": [
+        "src/ui/onboarding/OnboardingDrawer.tsx"
+      ],
       "board": "ModelConnectionStatus",
       "element": "detail.badge"
     }
@@ -84,39 +88,50 @@
   "elements": [
     {
       "id": "list.row-status",
-      "label": "连接行右侧的状态字 + 点（ModelSettingsHome.tsx ConnectedRow，[data-model-home-connection]）。代码里的全部取值：有在配置的 →「N 个配置中」；没验证成功但能用 →「未验证」/ \"Not verified\" + 绿点（unverifiedUsableStatus，连不上也走这一档，不再标红）；连不上且没有能用的 → 健康检查的字 + 红点；有待设置的 →「N 个待设置」；全关了 →「N 个已关闭」；其余 →「N 个可使用」+ 绿点（没验证但能用的模型算进 N）。这次拍板看的是「未验证」那一档。",
+      "label": "连接当前状态取自同一展示投影：有 key + 有请求格式 + 未手动关闭 → N 个可使用 / N ready to use，绿点；没 key 待接入；全部关闭 N 个已关闭；没有可用且格式在编 N 个配置中；其余 N 个待设置。",
       "change": "restyle",
-      "states": ["zh-en", "narrow"],
+      "states": [
+        "zh-en",
+        "narrow"
+      ],
       "candidates": [],
       "status": "implemented",
       "assertion": "board:ModelConnectionStatus/list.row-status",
-      "note": "走查 tests/ux/vendor-baseurl-discoverability.walk.mjs（列表接口 401 的中转站，行上只说「未验证」）；单测 src/ui/onboarding/modelSettingsHome.test.ts「one word」、src/ui/onboarding/unverifiedUsableCopy.test.ts。"
+      "note": "D-1117-delete-verification 取代未验证状态；删除健康检查说法。结构与位置不变，ModelStatusMark 取词取色。"
     },
     {
       "id": "detail.badge",
-      "label": "连接详情页卡头右侧徽标（CustomVendorCard.tsx → FoldableModelCard 的 status / statusLabel）：没验证成功但能用时写「未验证」/ \"Not verified\" + 绿点，和列表行取自同一个函数 unverifiedUsableStatus。其余照旧：已配置 / 已验证 → 绿点；连不上且没有能用的 → 健康检查的字 + 红点。",
+      "label": "连接当前状态取自同一展示投影：有 key + 有请求格式 + 未手动关闭 → N 个可使用 / N ready to use，绿点；没 key 待接入；全部关闭 N 个已关闭；没有可用且格式在编 N 个配置中；其余 N 个待设置。",
       "change": "restyle",
-      "states": ["zh-en", "narrow"],
+      "states": [
+        "zh-en",
+        "narrow"
+      ],
       "candidates": [],
       "status": "implemented",
       "assertion": "board:ModelConnectionStatus/detail.badge",
-      "note": "走查 tests/ux/vendor-baseurl-discoverability.walk.mjs 点进连接后读卡头；单测 src/ui/onboarding/modelSettingsHome.test.ts「one word」。"
+      "note": "D-1117-delete-verification 取代未验证状态；删除健康检查说法。结构与位置不变，ModelStatusMark 取词取色。"
     },
     {
       "id": "detail.badge.all-failed",
-      "label": "连接下的模型全部自检失败、而且一个都不能用时，详情徽标写「N 个待设置」/ \"N need setup\"（N = 不能用的模型数），和列表行一致。代码已这么写，但用户没看到这一档的图。",
+      "label": "所有模型缺请求格式时，连接显示 N 个待设置 / N need setup；不按历史验证失败判断。",
       "change": "restyle",
-      "states": ["zh-en"],
+      "states": [
+        "zh-en"
+      ],
       "candidates": [],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "协调会话：未拍板，等用户看这一档的真截图",
-      "note": "实现线自己定的默认，没拍图，不在本 PR 认领里。"
+      "note": "D-1117-delete-verification：T2 候选 A 已定；与列表取同一展示投影。",
+      "assertion": "board:ModelConnectionStatus/detail.badge"
     },
     {
       "id": "legacy.failed-words",
       "label": "旧的三个字：列表行「验证没通过，仍可使用」/ \"Verification failed; still usable\"、详情徽标「未通过」/ \"Failed\"。",
       "change": "remove",
-      "states": ["empty"],
+      "states": [
+        "empty"
+      ],
       "candidates": [],
       "status": "dropped",
       "userDecision": {
@@ -124,6 +139,21 @@
         "date": "2026-11-17"
       },
       "note": "同 PR 删词条（drawer.home.verificationFailedUsable、adapterVerification.cardStatus.failed），unverifiedUsableCopy.test.ts 守它们不回来。自检运行屏上的 modelState.failed 不是这一处，保留。"
+    },
+    {
+      "id": "legacy.verification-state",
+      "label": "删除未验证 / Not verified、上次检查连不上、上次自检未通过和验证状态色。",
+      "change": "remove",
+      "states": [
+        "empty"
+      ],
+      "candidates": [],
+      "status": "dropped",
+      "userDecision": {
+        "quote": "可以（D-1117-delete-verification：验证这一步整段删掉）",
+        "date": "2026-11-17"
+      },
+      "note": "D-1117-delete-verification：合入可使用绿点，不保留独立档位。"
     }
   ],
   "decor": [],
@@ -133,7 +163,7 @@
       "function": "列表行告诉人这家能不能用",
       "before": "验证没成功时写「验证没通过，仍可使用」，连不上时红点",
       "after": "list.row-status",
-      "afterNote": "能用就绿点「未验证」",
+      "afterNote": "有 key、有格式、未关闭就是可使用绿点；D-1117-delete-verification。",
       "placement": "direct",
       "ifRemoved": "人扫一眼分不出哪家能用、哪家要去修，会把能用的连接删掉重接"
     },

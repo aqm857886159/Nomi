@@ -58,6 +58,11 @@ describe("deriveModelAvailability — 全 App 唯一那条「现在能不能用�
       .toEqual({ usable: false, reason: "model_unpublished" });
   });
 
+  it("手动关 + 缺格式 = 待设置，先告诉创作者要补什么", () => {
+    expect(deriveModelAvailability(input({ model: { ...unconfiguredMediaModel(), enabled: false } })))
+      .toEqual({ usable: false, reason: "model_unpublished" });
+  });
+
   it("免鉴权供应商（本地 ComfyUI 等）不看钥匙", () => {
     expect(deriveModelAvailability(input({ vendor: { enabled: true, authType: "none" }, credentialStatus: () => "missing" })))
       .toEqual({ usable: true });

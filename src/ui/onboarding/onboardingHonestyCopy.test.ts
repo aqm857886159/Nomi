@@ -19,8 +19,8 @@ describe('format-run copy says format readiness, never verification or generatio
       verification.stage.completed,
     ].join(' ')
     expect(claims).not.toMatch(/已验证|已测试|真实测试|自检|实际调用|verified|tested|real test|self-check|actual request/i)
-    expect(verification.modelState.verified).toMatch(/请求格式已就绪|Request format ready/)
-    expect(verification.modelState.failed).toMatch(/还缺请求格式|Request format missing/)
+    expect(verification.modelState.verified).toMatch(/请求格式|request format/i)
+    expect(verification.modelState.failed).toBe(verification.failedBadge)
     expect(copy.modelStatus.ready).toMatch(/^(可使用|Ready to use)$/)
   })
 })

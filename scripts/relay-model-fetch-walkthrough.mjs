@@ -21,7 +21,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const outDir = path.join(repoRoot, '.relay-fetch-walk')
+const outDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, '.relay-fetch-walk')
 mkdirSync(outDir, { recursive: true })
 const settingsDir = makeTempDir('relay-fetch-walk-')
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }

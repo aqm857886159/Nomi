@@ -285,7 +285,7 @@ export const DIALOG_STATES: readonly LabState[] = [
     id: 'ps-31-onboarding-dialog',
     name: 'onboarding · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/ui/onboarding/OnboardingWizard.tsx:772'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/onboarding/OnboardingWizard.tsx:694'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="onboarding" />,
   },
   {
@@ -404,7 +404,7 @@ export const DIALOG_STATES: readonly LabState[] = [
     id: 'ps-48-onboarding-expanded-dialog',
     name: '接入向导 · 连接诊断展开',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 最小窗反向追查',
-    mirrors: ['src/ui/onboarding/OnboardingWizard.tsx:772'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/onboarding/OnboardingWizard.tsx:694'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="onboarding-expanded" />,
   },
 ]

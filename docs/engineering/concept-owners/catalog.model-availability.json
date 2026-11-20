@@ -18,6 +18,10 @@
     {
       "path": "electron/shared/modelPublication.ts",
       "symbol": "derivePublishedExecution"
+    },
+    {
+      "path": "electron/catalog/catalogModelAvailability.ts",
+      "symbol": "projectRendererCatalogModel"
     }
   ],
   "forbidden_derivations": [],
@@ -30,5 +34,5 @@
     "src/ui/onboarding/modelSettingsHomeState.ts"
   ],
   "since": "2026-11-17",
-  "notes": "补登记既有共享判据：发布模式来自已存请求格式，可用性再核对启用状态和凭据；验证诊断不参与拒绝。catalog.mode-serving 消费该投影，在可用模型中问某个任务模式，不能替代这一层基础事实。合同 docs/fixes/2026-11-17-unverified-usable.root-cause.json，三个选择器和执行解析同目录对账。"
+  "notes": "现有共享判据：已存请求格式、启用和可解密凭据决定可用性。目录交给渲染层前剥掉历史验证原料；展示词色归 catalog.model-status，角色过滤仍消费可用结论。"
 }

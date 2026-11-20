@@ -456,7 +456,7 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
   // 显式给出、并原样交给启动器：付费走查要在起 App 之前往这里放凭据钥匙（Windows 的 Local State，
   // 见 _realProfile.mjs），它必须和 App 真正用的 userData 是同一个目录，不能靠两边各自猜默认值。
   const userDataDir = path.join(tempRoot, 'user-data')
-  const outputDir = path.join(repoRoot, '.tmp', `pi-${name}-${mode}-${Date.now()}`)
+  const outputDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, '.tmp', `pi-${name}-${mode}-${Date.now()}`)
   fs.mkdirSync(outputDir, { recursive: true })
   // safeStorage 的加密身份 = app 名。开发态跑的是仓库目录（package.json 的 `nomi`），
   // `--packaged` 跑的是打包后的 `Nomi`。给错只会解出 `locked`，模型照样显示为不可用。

@@ -1,3 +1,4 @@
+import { stationTimeout } from './_station-budget.mjs'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查 —— 「我接入的中转站地址填错了，想改」的真实用户旅程（2026-08-18）。
 //
@@ -21,16 +22,15 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //   ③ 删除整家的入口恰好 1 个——此前卡头垃圾桶 + 底部按钮两处
 import fs from 'node:fs'
 import http from 'node:http'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { uiText, uiTextWith } from './full-walk/invariants.mjs'
+import { uiTextWith } from './full-walk/invariants.mjs'
 import { clickOrFail, expectVisible, expect, screenshotSettled } from './_assert.mjs'
 import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/baseurl-discoverability')
+const shotsDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, 'tests/ux/shots/baseurl-discoverability')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
@@ -259,7 +259,7 @@ await step('就地把地址改对', async () => {
 // 地址存下的是用户改的那一串（读目录事实，不读界面）；存地址不探连接（健康检查已删），状态词照旧。
 await expect.poll(
   () => win.evaluate(async (key) => (await window.nomiDesktop.modelCatalog.listVendors()).find((v) => v.key === key)?.baseUrlHint ?? null, vendorKey),
-  { message: 'R16：改对的地址要真的写进目录', timeout: 10_000 },
+  { message: 'R16：改对的地址要真的写进目录', timeout: stationTimeout({ operations: 2 }) },
 ).toBe(OK_URL)
 await expect(detailMark, 'R16：存地址后状态词照旧').toHaveText(readyWord)
 expect(seen, 'R16：存地址不探连接').toEqual([])

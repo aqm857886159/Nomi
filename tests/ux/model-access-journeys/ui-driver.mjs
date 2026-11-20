@@ -201,7 +201,7 @@ export async function launchJourneyUi({ journey, recorder }) {
   }
 
   // After 验证 N 个模型 the workspace shows the verification result page (返回 /
-  // 全部重新验证 / 完成). Return to the model home so the settings tab can close.
+  // 重试 / 完成). Return to the model home so the settings tab can close.
   async function closeAccessModal() {
     const done = win.getByRole('button', { name: WALK_COPY.done, exact: true })
     if (await done.isVisible().catch(() => false)) {
@@ -262,7 +262,7 @@ export async function launchJourneyUi({ journey, recorder }) {
   // run is terminal* (stage failed/partial/needs_ai — a per-mode "没通过自检" badge
   // alone is NOT terminal, the run keeps testing the other models). The repair CTA
   // is category-driven by adapterFailureAdvice: a 5xx maps to category "server" →
-  // primary "重新验证" plus the universal escape hatch "继续手动配置" (onSelfConnect).
+  // primary "重试" plus the universal escape hatch "继续手动配置" (onSelfConnect).
   // There is NO "自己接入 / 自定义调用" button on this screen — that anchor never
   // existed here; "自定义调用" is the CustomCallEditor reached one step deeper. This
   // helper waits for the terminal repair action and returns its text.

@@ -34,6 +34,7 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  * 测试自己和它的相对 import 闭包被改，也会选中它（pre-push-contracts.mjs 的 touchesImplementation，不用在这里写）。
  */
 export const SCAN_GUARDS = Object.freeze([
+  { file: 'scripts/model-status-one-home.test.mjs', roots: ['src', 'electron'], files: ['eslint.config.mjs', 'scripts/check-model-availability.mjs'] }, // 退役验证入口和状态词出口扫描；与 ESLint 共用 AST 判据
   { file: 'scripts/check-concept-owners.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-scan.mjs'] }, // 原文改判守门及真实显示正例。
   { file: 'scripts/asset-file-owner.node-test.mjs', roots: ['src/workbench/generationCanvas/nodes/versionCards'], files: ['eslint.config.mjs', 'src/workbench/assets/assetFileDeletion.ts', 'src/workbench/assets/removeAssetVersion.ts', 'src/workbench/assets/assetResultMutation.ts'] }, // 两种桥删除及版本面间接绕法片段必须报错，真实owner必须通过
   { file: 'scripts/typecheck.node-test.mjs', roots: ['scripts'], exts: '*' }, // tsc 启动只归统一入口；新增文件也必须检查（<1 秒）。

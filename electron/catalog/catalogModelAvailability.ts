@@ -6,6 +6,7 @@
 //   ② 每次批量派生只为每家探一次钥匙，且**同一份 memo** 同时供「可用性」和「钥匙三态」两个问题用——
 //      两份 memo 就是两次往返、两行重复的解密失败日志（这正是 PR #— 之前修过的那个坑）。
 // 判据本身一个字都不在这儿——要改「什么叫可用」，改 shared/modelAvailability.ts。
+import { isJsonRecord } from "../jsonUtils";
 import { apiKeyDecryptStatus, credentialRecordCounts, type ApiKeyDecryptStatus, type KeyStatusProbe } from "./secrets";
 import type { CatalogState, Model, Vendor } from "./types";
 import { deriveModelAvailability, type ModelAvailability } from "../shared/modelAvailability";
@@ -58,4 +59,13 @@ export function catalogModelAvailability(state: CatalogState, model: Model): Mod
 /** 这个模型现在能不能用（只要布尔的调用点用这个，别再各自解读 reason）。 */
 export function catalogModelIsUsable(state: CatalogState, model: Model): boolean {
   return catalogModelAvailability(state, model).usable;
+}
+
+/** Renderer boundary: retain format/lineage metadata, withhold historic verification inputs. */
+export function projectRendererCatalogModel<T extends Model>(row: T): T {
+  const meta = isJsonRecord(row.meta) ? row.meta : undefined;
+  const adapter = meta && isJsonRecord(meta.adapter) ? meta.adapter : undefined;
+  if (!meta || !adapter) return row;
+  const { state: _state, evidence: _evidence, ...rest } = adapter;
+  return { ...row, meta: { ...meta, adapter: rest } };
 }

@@ -184,9 +184,10 @@ export function openModelSettingsDialogPage(
  */
 export function finishAdapterRunNavigation(
   navigation: ModelSettingsNavigation,
-  run: { vendorKey: string; stage: string; selectedModelKeys: readonly string[] },
+  run: { vendorKey: string; stage: string; selectedModelKeys: readonly string[] } | undefined,
   connectionExists: (vendorKey: string) => boolean,
 ): ModelSettingsNavigation {
+  if (!run) return backModelSettingsPage(navigation)
   const promoted = (run.stage === 'completed' || run.stage === 'partial') && connectionExists(run.vendorKey)
   if (!promoted) return backModelSettingsPage(navigation)
   // 从这个模型自己的详情打开的任务：退一层就回到它，已经是那条连接上的身份。

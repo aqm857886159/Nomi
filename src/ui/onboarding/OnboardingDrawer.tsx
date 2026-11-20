@@ -582,9 +582,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       <AdapterTaskWorkspace
         run={run}
         onBack={goBack}
-        onDone={() => setNavigation((current) => run
-          ? finishAdapterRunNavigation(current, run, (vendorKey) => vendorMeta.has(vendorKey))
-          : backModelSettingsPage(current))}
+        onDone={() => setNavigation((current) => finishAdapterRunNavigation(current, run, (vendorKey) => vendorMeta.has(vendorKey)))}
         onCancel={() => {
           if (run) void cancelAdapterRun(run)
         }}

@@ -3,6 +3,7 @@ import { URL } from 'node:url'
 //   真能抓 bug 的规则设 error（红牌，阻断 CI）；风格 / any / 未用变量等存量问题
 //   设 warn（黄牌，只提示不阻断）。目标是「挡住新增的脏东西」，存量债逐步还，
 //   而不是一上来一片红把人吓退。详见 docs/audit/2026-06-04-full-codebase-review-6role.md。
+import { modelStatusOneHomeRule } from './scripts/check-model-availability.mjs'
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
@@ -634,6 +635,12 @@ export default tseslint.config(
       'prefer-const': 'warn',
       'no-restricted-syntax': restrictedSyntax(...windowsPathSelectors, ...storeSelectorSerializeSelectors),
     },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    plugins: { nomi: { rules: { 'model-status-one-home': modelStatusOneHomeRule } } },
+    rules: { 'nomi/model-status-one-home': 'error' },
   },
   {
     // 走查夹具（tests/ux/**/*.tsx）是一次性挂载的测试页，不是热更新的产品组件，这条只对产品有意义（放在 TS 块之后才压得住它的 warn）。

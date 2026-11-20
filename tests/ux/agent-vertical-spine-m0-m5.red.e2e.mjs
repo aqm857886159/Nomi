@@ -1,3 +1,4 @@
+import { stationTimeout } from './_station-budget.mjs'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // M0-M5 red-stage vertical spine.
 //
@@ -41,7 +42,8 @@ const packagedApp = packagedInput
   ? path.resolve(packagedInput.endsWith('.app') ? path.join(packagedInput, 'Contents', 'MacOS', 'Nomi') : packagedInput)
   : null
 const requestedPhase = process.argv.includes('--packaged') ? 'packaged' : 'development'
-const evidenceRoot = makeTempDir('nomi-agent-vertical-spine-red-')
+const evidenceRoot = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : makeTempDir('nomi-agent-vertical-spine-red-')
+fs.mkdirSync(evidenceRoot, { recursive: true })
 
 const gaps = {
   H: { status: 'not-reached', reason: 'later user-visible actions are blocked by the first failed seam', next: 'make the real storyboard surface and row selection reachable after project creation' },
@@ -354,7 +356,7 @@ async function runPhase(phase, executablePath = undefined) {
     await expect.poll(() => win.evaluate(async () => {
       const models = (await window.nomiDesktop?.modelCatalog?.listModels?.({})) || []
       return models.find((candidate) => candidate.vendorKey === 'apimart' && candidate.modelKey === 'deepseek-v4-pro')?.availability?.usable === true
-    }), { timeout: 20_000 }).toBe(true)
+    }), { timeout: stationTimeout({ operations: 2 }) }).toBe(true)
     const publication = await win.evaluate(async () => {
       const model = ((await window.nomiDesktop?.modelCatalog?.listModels?.({})) || []).find((candidate) => candidate.vendorKey === 'apimart' && candidate.modelKey === 'deepseek-v4-pro')
       return model ? { enabled: model.enabled, published: model.published, usable: model.availability?.usable === true } : null

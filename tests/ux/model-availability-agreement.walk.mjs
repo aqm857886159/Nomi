@@ -47,7 +47,7 @@ import { fileURLToPath } from 'node:url'
 import { backToLibrary, ensureAgentPanelOpen, newProjectEntry, openModelSettings } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/model-availability-agreement')
+const shotsDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, 'tests/ux/shots/model-availability-agreement')
 const tempRoot = makeTempDir('nomi-availability-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
@@ -211,7 +211,7 @@ const askMainProcess = () => getWin().evaluate(async ({ vendorKey }) => {
   }
 }, { vendorKey: VENDOR_KEY })
 
-/** 真人路径：设置 → 更多已适配平台 → 魔搭社区 → 粘贴 key → 保存验证。 */
+/** 真人路径：设置 → 更多已适配平台 → 魔搭社区 → 粘贴 key → 保存。 */
 async function pasteKeyLikeAHuman() {
   await openSettings()
   await clickOrFail(getWin().locator('[data-model-home-action="more-adapted"]').first(), '「更多已适配平台」查看全部')
@@ -224,7 +224,7 @@ async function pasteKeyLikeAHuman() {
   const input = card.locator(`input#key-only-${VENDOR_KEY}`)
   await expectVisible(input, 'API Key 输入框')
   await input.fill(FAKE_KEY)
-  await clickOrFail(card.locator('button', { hasText: '保存验证' }).first(), '保存验证')
+  await clickOrFail(card.locator('button', { hasText: '保存' }).first(), '保存')
   await expectVisible(card.locator('button', { hasText: '更换密钥' }).first(), '存完 key 后卡片进入「已接入」')
   passed += 1
   await closeSettings()

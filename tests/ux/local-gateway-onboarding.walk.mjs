@@ -14,7 +14,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { openModelSettings, openCustomApiWizard } from './_shell.mjs'
 import { screenshotSettled } from './_assert.mjs'
 
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/local-gateway')
+const shotsDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, 'tests/ux/shots/local-gateway')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 const userData = path.join(repoRoot, '.tmp', 'nomi-local-gateway-userdata')
@@ -22,7 +22,7 @@ fs.rmSync(userData, { recursive: true, force: true })
 fs.mkdirSync(userData, { recursive: true })
 
 // ── 假网关：模仿 sub2api / new-api 这类自建网关的 OpenAI 兼容口 ──
-// 覆盖到「接入验证真的能通过」所需的全部线缆：模型列表、SSE 流式文本、同步出图、
+// 覆盖到「请求格式真的能编好」所需的全部线缆：模型列表、SSE 流式文本、同步出图、
 // chat 多模态图生图、视频异步 create + 轮询、以及产物字节本身（验证会去下载产物）。
 const MODELS = ['gpt-5.2', 'gpt-5.4-mini', 'gpt-image-2', 'kling-v2-master']
 // 1x1 PNG / 极小 mp4 头：产物验证要能真的下载到字节。
@@ -200,7 +200,7 @@ await clickFirst([/拉取可用模型/, /拉取模型/, /重新拉取/, /拉取/
 await win.waitForTimeout(2500)
 await snap(win, 'fetched-models')
 
-// 5. 进选择模型屏 → 全选 → 接入并验证
+// 5. 进选择模型屏 → 全选 → 添加
 await clickFirst([/选择模型/, /还没选/], '选择模型')
 await win.waitForTimeout(1200)
 await snap(win, 'pick-models')
@@ -217,7 +217,7 @@ const remainingGroups = await groupAll.count()
 if (remainingGroups !== 0) throw new Error(`仍有 ${remainingGroups} 个模型分组没有选中`)
 await win.waitForTimeout(600)
 await snap(win, 'picked-all')
-await clickFirst([/接入并验证 [1-9]/, /接入并验证/], '接入并验证')
+await clickFirst([/添加 [1-9]/, /添加/], '添加')
 await win.waitForTimeout(8000)
 await snap(win, 'verify-result')
 await win.waitForTimeout(12000)
@@ -233,7 +233,7 @@ const docsHostLeak = /docs\.\d/.test(bodyText)
 console.log(`  屏幕含 "docs.<数字>" 畸形域名: ${docsHostLeak}`)
 
 // 失败不能再是准入闸：故意失败的图片模型仍需启用、出现在 kind=image 列表；
-// 同时，排在它后面的视频模型必须完成验证并落下可执行 mapping。
+// 同时，排在它后面的视频模型必须有请求格式并落下可执行 mapping。
 const catalog = await win.evaluate(async (baseUrl) => {
   const bridge = window.nomiDesktop.modelCatalog
   const vendor = ((await bridge.listVendors()) || []).find((item) => item.baseUrlHint === baseUrl)
@@ -255,9 +255,9 @@ const checks = {
   resultCopyMatchesUnlockedBehavior: bodyText.includes('所选模型都已开启，也会出现在画布的模型列表里'),
   allFourModelsCommitted: MODELS.every((id) => catalog.models.some((model) => model.modelKey === id)),
   failedImageEnabled: failedImage?.enabled === true,
-  failedImageMarkedFailed: failedImage?.meta?.adapter?.state === 'failed',
+  imageVerificationMetadataWithheld: failedImage?.meta?.adapter?.state === undefined,
   failedImageVisibleByKind: catalog.imageModels.some((model) => model.modelKey === 'gpt-image-2'),
-  laterVideoVerified: laterVideo?.meta?.adapter?.state === 'verified',
+  laterVideoReady: laterVideo?.availability?.usable === true,
   laterVideoVisibleByKind: catalog.videoModels.some((model) => model.modelKey === 'kling-v2-master'),
   laterVideoHasMapping: catalog.mappings.some((mapping) =>
     mapping.modelKey === 'kling-v2-master' && mapping.taskKind === 'text_to_video'),
@@ -268,7 +268,7 @@ await app.close()
 await new Promise((resolve) => gateway.close(resolve))
 
 if (hasInvalidUrl || docsHostLeak || Object.values(checks).some((passed) => !passed)) {
-  console.error('\nWALK FAIL: 本地网关接入或失败后继续验证回归')
+  console.error('\nWALK FAIL: 本地网关接入或失败后继续编请求格式回归')
   process.exit(1)
 }
-console.log('\nWALK DONE：HTTP 本地网关、失败后继续验证、失败模型仍可选均通过。')
+console.log('\nWALK DONE：HTTP 本地网关、失败后继续编请求格式、失败模型仍可选均通过。')

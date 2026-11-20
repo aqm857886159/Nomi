@@ -20,7 +20,7 @@ const text = (key) => uiText(locale, key)
 const pattern = (key) => new RegExp(uiTextPattern(text(key)))
 // 退役的说法（和 src/ui/onboarding/unverifiedUsableCopy.test.ts 同一组意思）：存 key 之后界面一个都不许出现。
 const RETIRED = locale === 'en' ? /not (yet )?verified|unverified|verification|re-?check/i : /未验证|待验证|验证中|复验|验证/
-const shots = path.join(root, 'tests/ux/shots/credential-offline', locale === 'en' ? 'en' : 'zh')
+const shots = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(root, 'tests/ux/shots/credential-offline', locale === 'en' ? 'en' : 'zh')
 fs.mkdirSync(shots, { recursive: true })
 const seen = []
 const server = http.createServer((req, res) => {
