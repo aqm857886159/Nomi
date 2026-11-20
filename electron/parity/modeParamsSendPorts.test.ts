@@ -106,8 +106,14 @@ function undeclaredGovernedKeys(extras: Record<string, unknown>, archetype: Arch
   return Object.keys(extras).filter((key) => governed.has(key) && !own.has(key)).sort();
 }
 
-const governedProjection = (extras: Record<string, unknown> | undefined, governed: Set<string>) =>
-  JSON.stringify(Object.entries(extras ?? {}).filter(([key]) => governed.has(key)).sort(([a], [b]) => (a < b ? -1 : 1)));
+/**
+ * 管辖键的值投影。`wireStringKeys`（声明门把 `"4"` 档规整成数字的键）按值比：渲染层冻结的是内部数字 4，
+ * 主进程这一步按声明编回报文写法 `"4"`（出口编码，paramValue.ts `encodeParamsForWire`）——同一个值，不算漂移。
+ */
+const governedProjection = (extras: Record<string, unknown> | undefined, governed: Set<string>, wireStringKeys: ReadonlySet<string> = new Set()) =>
+  JSON.stringify(Object.entries(extras ?? {}).filter(([key]) => governed.has(key))
+    .map(([key, value]): [string, unknown] => [key, wireStringKeys.has(key) && typeof value === "number" ? String(value) : value])
+    .sort(([a], [b]) => (a < b ? -1 : 1)));
 
 function multiModeRows(): Array<{ row: Row; archetype: Archetype }> {
   return seeded.models
@@ -123,6 +129,7 @@ describe("方式参数 owner：渲染层与主进程是同一份答案", () => {
     let checked = 0;
     for (const { row, archetype } of multiModeRows()) {
       const governed = governedKeysOf(archetype);
+      const wireStringKeys = new Set(archetype.modes.flatMap((mode) => mode.params.filter((control) => control.wireEncoding === "numeric-string").map((control) => control.key)));
       const stored = storedOf(archetype.modes);
       for (const mode of archetype.modes) {
         const request = canvasRequest(row, archetype, mode.id, stored, imageRefCountFor(mode, archetype, row.vendorKey));
@@ -138,8 +145,12 @@ describe("方式参数 owner：渲染层与主进程是同一份答案", () => {
           if (/capabilit|声明/i.test((error as Error).message)) continue;
           throw error;
         }
-        if (governedProjection(extras, governed) !== governedProjection(main, governed)) {
+        if (governedProjection(extras, governed, wireStringKeys) !== governedProjection(main, governed, wireStringKeys)) {
           diffs.push(`${where}: 渲染层 ${governedProjection(extras, governed)} ≠ 主进程 ${governedProjection(main, governed)}`);
+        }
+        // 出口编码就在这一步：数字串声明的键，主进程出来的一定是报文写法（字符串）。
+        for (const key of wireStringKeys) {
+          if (main && key in main && typeof main[key] !== "string") diffs.push(`${where}: ${key} 出主进程仍是 ${typeof main[key]}，没按声明编回字符串`);
         }
         archetypes.add(archetype.id);
         checked++;
@@ -207,6 +218,7 @@ describe("变体：渲染层和主进程按同一个变体特化", () => {
       const archetype = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
       if (!archetype?.variants?.some((variant) => variant.paramOverrides)) continue;
       const governed = governedKeysOf(archetype);
+      const wireStringKeys = new Set(archetype.modes.flatMap((mode) => mode.params.filter((control) => control.wireEncoding === "numeric-string").map((control) => control.key)));
       const stored = storedOf(archetype.modes);
       for (const variant of archetype.variants) {
         for (const mode of archetype.modes) {
@@ -222,8 +234,8 @@ describe("变体：渲染层和主进程按同一个变体特化", () => {
             if (/capabilit|声明/i.test((error as Error).message)) continue;
             throw error;
           }
-          if (governedProjection(extras, governed) !== governedProjection(main, governed)) {
-            diffs.push(`${where}: 渲染层 ${governedProjection(extras, governed)} ≠ 主进程 ${governedProjection(main, governed)}`);
+          if (governedProjection(extras, governed, wireStringKeys) !== governedProjection(main, governed, wireStringKeys)) {
+            diffs.push(`${where}: 渲染层 ${governedProjection(extras, governed, wireStringKeys)} ≠ 主进程 ${governedProjection(main, governed, wireStringKeys)}`);
           }
           checked++;
         }

@@ -22,6 +22,8 @@ export const agentModelEntrySchema: z.ZodType<AgentModelEntry> = z.object({
       }).strict()).max(1024).optional(),
       defaultValue: value.optional(), min: z.number().finite().optional(), max: z.number().finite().optional(),
       step: z.number().finite().optional(), placeholder: text.optional(),
+      // 报文写法只由声明门写（paramValue.ts），渲染层投影的控件原样带过来。
+      wireEncoding: z.literal('numeric-string').optional(),
     }).strict()).max(128),
     slots: z.array(z.object({ kind: z.enum(ARCHETYPE_REFERENCE_SLOT_KINDS), label: text,
       max: z.number().finite().optional(), characterIndexed: z.boolean().optional(),

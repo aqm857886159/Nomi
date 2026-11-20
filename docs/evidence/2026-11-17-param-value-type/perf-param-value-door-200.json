@@ -1,0 +1,71 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "4ee3ca180",
+  "head": "4ee3ca18056304dc0875eb4b21f5b9e457137607",
+  "dirty": false,
+  "sourceTree": "47944e393afd6a860cda24255ae942bd58763bd8",
+  "date": "2026-11-17",
+  "runs": 5,
+  "results": [
+    {
+      "id": "param-value-door-200",
+      "metrics": {
+        "sendDoor200Ms": {
+          "runs": 5,
+          "median": 5.1,
+          "p95": 7
+        },
+        "planRead40Ms": {
+          "runs": 5,
+          "median": 0.2,
+          "p95": 0.2
+        },
+        "encodedStrings": {
+          "runs": 5,
+          "median": 120,
+          "p95": 120
+        },
+        "conflictShotSeconds": {
+          "runs": 5,
+          "median": 12,
+          "p95": 12
+        }
+      },
+      "samples": {
+        "sendDoor200Ms": [
+          5.27270899999985,
+          5.123125000000073,
+          7.4362500000002,
+          3.743083000000297,
+          3.6976250000002437
+        ],
+        "planRead40Ms": [
+          0.21004199999970297,
+          0.17954099999997197,
+          0.15183299999989686,
+          0.1570000000001528,
+          0.1230000000000473
+        ],
+        "encodedStrings": [
+          120,
+          120,
+          120,
+          120,
+          120
+        ],
+        "conflictShotSeconds": [
+          12,
+          12,
+          12,
+          12,
+          12
+        ]
+      },
+      "budget": 15,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

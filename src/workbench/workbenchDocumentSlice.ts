@@ -9,7 +9,17 @@ import {
   type WorkbenchDocument,
 } from './workbenchTypes'
 import { storyboardDesignIssues } from './creation/storyboard/storyboardDesignSchema'
+import { reconcilePlanShotDurations } from '../../electron/shared/storyboard/storyboardPlanSchema'
 import { logRendererWarn } from '../desktop/rendererLog'
+
+/**
+ * 方案进 store 的每一扇门（新建、整份替换、撤销放回、载入）都先把视频镜头的时长收回 `durationSec` 一个家
+ * （`reconcileShotDuration`）。载入时只改内存、不标脏：没编辑就关，磁盘上还是旧样子。
+ */
+function withReconciledDurations(design: StoryboardDesign): StoryboardDesign {
+  const plan = reconcilePlanShotDurations(design.plan)
+  return plan === design.plan ? design : { ...design, plan }
+}
 
 /**
  * 存不下的方案**进不了 store**：写入口自己用草稿面（`storyboardDesignSchema`）校验，不过就不写、状态不变、返回 null。
@@ -255,7 +265,7 @@ export const createWorkbenchDocumentSlice = (
     const document = state.workbenchDocuments.find((item) => item.id === target)
     if (!document) return null
     if (identity && findDesign(state, identity.id, target)) return null
-    const plan = source ?? createEmptyStoryboardPlan()
+    const plan = source ? reconcilePlanShotDurations(source) : createEmptyStoryboardPlan()
     const existing = state.storyboardDesignsByDocumentId[target] ?? []
     const fallback = i18n.t('storyboardEditor.planCard.defaultTitle')
     // 模型给了名字就用模型的（2026-09-21 拍板：Agent 方案标题 = 模型给的）；
@@ -320,7 +330,8 @@ export const createWorkbenchDocumentSlice = (
       }
     })
   },
-  restoreStoryboardDesign: (design, documentId, index) => {
+  restoreStoryboardDesign: (restored, documentId, index) => {
+    const design = withReconciledDurations(restored)
     if (!designWritable(design, 'restoreStoryboardDesign')) return
     set((state) => {
       const designs = state.storyboardDesignsByDocumentId[documentId] ?? []
@@ -334,9 +345,10 @@ export const createWorkbenchDocumentSlice = (
       }
     })
   },
-  setStoryboardPlan: (storyboardPlan, documentId, storyboardId, syncSource = false, createNew: false | StoryboardInitiator = false) => {
+  setStoryboardPlan: (incoming, documentId, storyboardId, syncSource = false, createNew: false | StoryboardInitiator = false) => {
     // P0-6:方案是 per-project 持久化产物 → bump persistRevision 触发防抖落盘(否则用户手改的方案不保存)。
     // 写/改方案一律置草稿态(被编辑即与画布上旧节点不一致)。P4:按 documentId 索引（缺省回退激活文档）。
+    const storyboardPlan = incoming && reconcilePlanShotDurations(incoming)
     const target = resolveTargetDocumentId(documentId, get)
     if (!target) return null
     let appliedDesign: StoryboardDesign | null = null
@@ -429,7 +441,7 @@ export const createWorkbenchDocumentSlice = (
   hydrateStoryboardDesigns: (entries) => {
     const safeEntries: Record<string, StoryboardDesign[]> = {}
     for (const [documentId, designs] of Object.entries(entries)) {
-      const safe = designs.filter((design) => design && design.documentId === documentId && design.plan)
+      const safe = designs.filter((design) => design && design.documentId === documentId && design.plan).map(withReconciledDurations)
       if (!safe.length) continue
       safeEntries[documentId] = safe
     }

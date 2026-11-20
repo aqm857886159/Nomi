@@ -40,11 +40,11 @@ import {
   isParameterControl,
   nodeSelectedModelAddress,
   parameterControlRole,
-  parseControlInput,
   readMeta,
   resultPreviewUrl,
   shouldUseVideoFrameSlotFallback,
 } from './controls/parameterControlModel'
+import { parseControlInput } from '../../../../electron/shared/videoCapabilities/paramValue'
 import { createSlotFileUploads } from './controls/slotFileUploads'
 import { addAssetUrlToNode } from './nodeAssetWrite'
 import { addableReferenceKinds, type AssetDropKind } from '../model/nodeAssetDrop'
