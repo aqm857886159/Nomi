@@ -7,7 +7,12 @@
 > 2026-11-22。拍板：用户「全部收进顶栏」（D-1122-agent-ball-to-topbar）、「放顶栏」（D-1122-nomi-entry-in-topbar）、「照这版拍板」（D-1122-topbar-entry-approved，画布 v14：一、入口长相；二、让位顺序 ①–④，③ 先于 ④）；同日补定「C 不出胶囊」（D-1122-topbar-open-pending-c）、「放在顶栏入口的脸上」（D-1122-entry-blink-on-face），画布改到 v16。
 > 拍板图清单：`docs/design/boards/2026-11-22-nomi-entry-topbar/NomiEntryTopbar.board.json`；逐态对照表（实现合同）：`docs/design/boards/2026-11-22-nomi-entry-topbar/NomiEntryTopbar.mapping.md`（下文「对照表 X」= 那张表的格号）。
 > 四类里碰「新界面」→ 9 格全填；新增功能 → ★0、★7 也填。合并前要另一条线独立验收。
-> 调用方：不改已有函数的行为。新逻辑都在新文件里，旧函数要么整个删掉（见「删除清单」），要么只换调用方式、自己的行为不变。逐个列在「调用方表」。格子：08-ui。
+> 调用方：已有函数大多不改行为，有三处例外：
+>   - `UpdatePillView` 不再自己按 `max-[899px]` 藏字，只认传进来的 `compact`；
+>   - 居民活动投影 `setResidentDockBadge` 多带一个「脸状态」，面板开着也投影；
+>   - 形态字面量 `'ball'` 改名 `'collapsed'`，只换名字。
+>
+> 其余旧函数要么整个删掉（见「删除清单」），要么只换调用方式、自己的行为不变。每个函数和它的全部调用处都在「调用方表」。格子：08-ui。
 
 ## ★0 先查别人
 
@@ -77,13 +82,26 @@
   - §6 登记 `IconLayoutSidebarRightCollapse`：Agent 形态「收起」，面板头三选一第一个，`AgentPanelV4Panel.tsx:418–419` 已在用；
   - `:487`「Agent 输入坞的还原是顶栏角标展开面板」和这次一致，不改。
 - 概念登记 `docs/engineering/concept-owners/shell.recall-entry.json`：notes 里「顶栏不再放 Agent 角标」「收起 = 内容区右下的小球」改成「收起 = 顶栏最右的入口」；`allowed_consumers` 删 `AgentBallFace.tsx`，加 `ShellNomiEntry.tsx`。
-- 旧拍板板上指着小球的元素，实现时同一次提交改成 dropped，`userDecision` 写「全部收进顶栏」，日期 2026-11-22。不改的话它们的断言字串会随走查一起消失，`check:board-parity` R4 会红：
-  - 2026-10-08：Chrome / Main / List / ListDetail 的 `agent.orb`；Creation / CreationDoc 的 `agent.dock.form`（只改「小球」这一项的说法，浮窗 / 停靠照旧）。
-  - 2026-10-23：NodePointer 的 `pointer.narrow.collapse`、SpendCardQ1 的 `dock.pending-count`（改指本板的 `nomi-entry.pending-badge`）。
-  - 2026-10-27：AgentPersona 的 `persona.size`、`ball.behaviors`。
-  - 2026-10-29：DirectorInPage 的 `agent.ball-above`。
-  - 2026-11-07：WindowNarrow 的 `agent.ball-narrow`、`agent.pill-confirm`、`agent.float-narrow`、`agent.ball-hover-tip`、`agent.collapse-motion`。
-  - 依据：上面这几块板的 elements，按 `ball|orb|小球` 查得。
+- 旧拍板板上和小球有关的元素，实现线在同一次提交里处理。
+  - 不处理的后果：走查删掉小球后，这些元素的断言字串会一起消失，`check:board-parity` R4 会红。
+  - 依据：把全部旧清单的 elements 按 `ball|orb|小球` 查一遍，再逐条读说明分组；`states.media-expired` 是「Volleyball」误中，已排除。
+  - 分三组：
+  - **改 dropped**：`userDecision` 写「全部收进顶栏」，日期 2026-11-22。这一组讲的是小球本身，新设计里没有了，共 12 个：
+    - 2026-10-08：Chrome / Main / List / ListDetail 的 `agent.orb`（4 个）。
+    - 2026-10-27：AgentPersona 的 `persona.size`（44px 球）、`persona.eyes`（眼睛跟鼠标，本次删）、`ball.behaviors`（拖动 / 点 / 右键）。
+    - 2026-10-29：DirectorInPage 的 `agent.ball-above`。
+    - 2026-11-07：WindowNarrow 的 `agent.ball-narrow`、`agent.pill-confirm`（窄窗胶囊，现在窄窗出角标）、`agent.ball-hover-tip`、`agent.collapse-motion`。
+  - **保留 implemented，断言改到入口上**：这一组的意思新设计照样成立，只是落点从小球换到顶栏入口，走查跟着改，共 14 个：
+    - AgentPersona 的 `persona.body`、`persona.tooltip`、`persona.on-dark`、`motion.morph-token`、`state.idle` / `state.running` / `state.needs-confirm` / `state.done` / `state.failed`、`variant.unread`。断言今天都在 `tests/ux/_agentPersonaWalk.mjs`；`state.needs-confirm` 改指入口的胶囊 / 角标，`state.needs-confirm` 和 `variant.unread` 在 `agent-form-switch-state.walk.mjs` 里还各有一处。
+    - NodePointer 的 `pointer.narrow.collapse`：机器让开时收起面板，以前收成小球，现在收到入口。
+    - SpendCardQ1 的 `dock.pending-count`：收着时看得到待确认数，现在是入口的胶囊 / 角标。
+    - DirectorInPage 的 `layer.fills-cell`：9 种组合里「小球」那一列换成「收起」。
+    - WindowNarrow 的 `agent.float-narrow`：窄窗点入口打开浮窗。
+  - **仍是 missing，说明里的落点改成入口**，共 6 个：
+    - AgentPersona 的 `variant.long-task`、`variant.setup`；
+    - Onboarding 的 `entry.persona-setup`；
+    - 2026-10-08 Creation / CreationDoc 的 `agent.dock.form`、CanvasAgent 的 `agent.float.form`（形态切换第一项改成「收起」）。
+    - 这几个是还没做的功能。本板不画也不做，但它们也不是用户否掉的，所以不改 dropped。
 
 ### ★1c 老用户
 
@@ -296,7 +314,8 @@
 | :341 | `agentBallIsPill` | 删 |
 | :345 | `AgentBallLook` | 删 |
 | :352 | `agentBallLook` | 删 |
-| :40、:105、:160–168、:234、:257–269 | 形态名 `'ball'` | 建议同一次提交改名 `'collapsed'`，只换名字，不改行为 |
+| :40、:160–168、:234、:257–269 | 形态名 `'ball'`（内存里的形态、机器让开的参数，不落盘） | 定：同一次提交改名 `'collapsed'`，只换名字，不改行为（★9 K1 要求界面和代码里都没有 ball 这一态）。连带 `ShellAgentHost.tsx:287`、`:317`、`:321`，`revealNodeFromChat.ts:52–53`、`:70` 的字面量 |
+| :105 | v1 存档里的 `form === 'ball'` | **不改**：这是老用户磁盘上真实存着的值，读的时候要认它（★1c）。改了老数据会退回默认摆法 |
 | :67 | `EDGE_GAP` | 浮窗还在用（:275–277），保留 |
 | :70 | `NARROW_MOTION_CLEAR_MS` | 停靠的滑入还在用，保留，注释里删掉 gather |
 
@@ -361,35 +380,46 @@
 
 ## 调用方表
 
-调用方：不改已有函数的行为。下表是这次碰到的每个函数和它的全部生产调用处（`node scripts/door-map.mjs <符号>`，不含测试）：
+调用方：已有函数大多不改行为，例外三处，表里「行为」一列标了 **变**。下表是这次碰到的每个函数和它的全部生产调用处，由 `node scripts/door-map.mjs <符号>` 数出来（2026-11-22，扫 src 和 electron，不含测试）。设计实验室的调用也算，一起列。
 
-| 函数 | 调用处 | 这次怎么动 | 行为 |
+| 函数 | 全部调用处 | 这次怎么动 | 行为 |
 |---|---|---|---|
 | `clampBall` | `ShellAgentHost.tsx:158` | 删 | 随小球一起删，没有别的调用方 |
-| `agentBallLook` / `agentBallIsPill` | `AgentBallFace.tsx:29` | 删，由 `nomiEntryLook` 取代 | 新函数：脸按「不算待确认」求，待确认单独出角标 |
+| `agentBallLook` | `AgentBallFace.tsx:29` | 删，由 `nomiEntryLook` 取代 | 新函数：脸按「不算待确认」求，待确认单独出胶囊 / 角标 |
+| `agentBallIsPill` | `ShellAgentHost.tsx:153`、`agentFormStore.ts:353`（`agentBallLook` 里） | 删，由 `nomiEntryLook` 取代 | 新规则：胶囊 = 有待确认 && 放得下 && 面板没开（D5） |
 | `useExportCompact` | `ShellTopBar.tsx:255` | 搬进 `topbarYield`（成为 ①） | ① 的判据和回差不变 |
-| `resolveDockStatus` / `useV4DockStatus` | `ProjectAgentResidentShell.tsx:352` | 不改函数 | 入口求脸时传 `pendingCount: 0`（多一次调用），待确认数照旧单独投影；函数自己的优先级和测试（`agentPanelV4DockStatus.test.ts:22`、`:26`）一字不动 |
-| `setResidentDockBadge` | `ProjectAgentResidentShell.tsx:382`、`:384` | 不改函数 | 调用方从「收起才报」改成「一直报」，另加一个脸状态字段；读它的只有今天的 `ShellAgentHost.tsx:142–144`（随小球删）和新入口 |
-| `collapseAgent` | `ShellAgentHost.tsx:109`、`:322`、`:348` | 不改 | 收起后形态叫 collapsed，入口出现在顶栏 |
-| `openAgent` | 入口点击（新）、`revealNodeFromChat.ts:95`、叫回 `ShellAgentHost.tsx:287` | 不改 | — |
-| `machineHold` | `revealNodeFromChat.ts:70`（`'ball'` 让开）、`ProjectAgentResidentShell.tsx:284`（`'open'`） | 不改 | 让开就是收起面板，以前收成小球，以后收到顶栏入口；`'ball'` 建议改名 `'collapsed'` |
+| `useV4DockStatus` | `ProjectAgentResidentShell.tsx:352` | 不改函数，多调一次 | 原来这次照旧给出合并状态，悬停提示的中段要用它；新加一次传 `pendingCount: 0`，给出脸的状态。两次各自掐「刚做完」2.4 秒的表 |
+| `resolveDockStatus` | `agentPanelV4DockStatus.ts:105`（只在 `useV4DockStatus` 里） | 不改 | 优先级和测试（`agentPanelV4DockStatus.test.ts:22`、`:26`）一字不动 |
+| `dockStatusLabel` | `ShellAgentHost.tsx:163`（小球提示，搬到入口）、设计实验室 `01-vocabulary.tsx:264`、`03-flow.tsx:93` | 不改 | 入口提示中段 = `dockStatusLabel(合并状态, 待确认数)`，和今天小球一样。所以「在做 + 等确认 2」的提示是「打开 Nomi（⌘J）· 等你确认 2 条」（画布候选 634） |
+| `setResidentDockBadge` | `ProjectAgentResidentShell.tsx:382`（经 `:380` 取出的 `publishDockBadge`）、`:384`（卸载清零） | 多带一个「脸状态」参数；`:382` 从「收起才报」改成「一直报」 | **变**：投影的形状多一个字段。读它的只有今天的 `ShellAgentHost.tsx:142–144`（随小球删）和新入口 |
+| `collapseAgent` | `ShellAgentHost.tsx:109`（形态切换）、`:322`（⌘\）、`:338`（E2E 桥）、`:348`（「⋯」菜单） | 不改 | 收起后形态叫 collapsed，入口在顶栏 |
+| `openAgent` | `ShellAgentHost.tsx:160`（点小球，搬到入口）、`:287`（叫回）、`:317`（⌘J）、`:321`（⌘\）、`:338`（E2E 桥）、`revealNodeFromChat.ts:95` | 不改 | — |
+| `shownForm` | `agentFormStore.ts:258`、`ShellAgentHost.tsx:287`、`:314`、`:338`、`revealNodeFromChat.ts:52` | 不改 | 只随改名换字面量（`'ball'` → `'collapsed'`） |
+| `useShownForm` | `ShellAgentHost.tsx:266`、`WorkbenchShell.tsx:234` | 不改 | 入口用它判断按下底色：形态不是 collapsed，就是面板开着 |
+| `machineHold` | `revealNodeFromChat.ts:70`（让开）、`ProjectAgentResidentShell.tsx:284`（`'open'`） | 不改 | 让开就是收起面板，以前收成小球，以后收到顶栏入口；参数随改名换成 `'collapsed'` |
 | `useMachineGaveWay` | `NodePointerReturnDock.tsx:20` | 不改 | 「回到对话」那一枚照旧按让位算 |
-| `shownForm` / `useShownForm` | `revealNodeFromChat.ts:52–53`（`=== 'ball'`）、`WorkbenchShell.tsx:234`、`ShellAgentHost.tsx:287` | 不改 | 只随改名改字面量 |
-| `UpdatePill` | `ShellTopBar.tsx:352`（唯一的生产调用；设计实验室 `updateReminderLabKit.tsx:210`、`:243` 直接用 `UpdatePillView` 且已传 `compact`） | 加可选 `compact` 往下传 | 不传 = 带字，和今天宽窗一样；但 `UpdatePillView` 里 `max-[899px]:hidden` 删掉后，窄于 900 是否收字只看 `compact`，实验室那两处不受影响 |
-| `NomiStepper` | `ShellTopBar.tsx`、`03-structure.tsx` | 加可选的「藏数字」开关，默认不藏 | 不传就和今天一样 |
-| `ShellTopBar` | `WorkbenchShell.tsx:332`、`ProjectLibraryPage.tsx:684`、`updateReminderLabKit.tsx` | 加入口槽（只有工作台传） | 项目库不传，所以没有入口 |
+| `UpdatePill` | `ShellTopBar.tsx:352` | 加可选 `compact` 往下传 | 不传 = 带字 |
+| `UpdatePillView` | `UpdatePill.tsx:75`、设计实验室 `updateReminderLabKit.tsx:210`、`:243`（都已显式传 `compact`） | 删掉自己的 `max-[899px]:hidden`（:59、:61） | **变**：窄于 900 收不收字只看 `compact`。生产里由 `topbarYield` 第 ④ 步给；实验室两处本来就传，不受影响 |
+| `NomiStepper` | `ShellTopBar.tsx:301`、设计实验室 `03-structure.tsx:83` | 加可选的「藏数字」开关，默认不藏 | 不传就和今天一样 |
+| `ShellTopBar` | `WorkbenchShell.tsx:332`、`ProjectLibraryPage.tsx:684`、设计实验室 `updateReminderLabKit.tsx:232` | 加入口槽，只有工作台传 | 项目库和实验室不传，所以没有入口 |
+| 形态字面量 `'ball'` | 见删除清单那一行 | 改名 `'collapsed'` | **变**（只是名字）：v1 存档里的 `form === 'ball'` 照旧认 |
 
 ## 实现线备注
 
 - ①↔② 回差：判断要不要收，看「现在的空当 <12」；判断能不能放回，按「放回以后的宽度」算出的空当仍 ≥12 才放。和 `ShellTopBar.tsx:88–93` 的 `fullWidth` 同一个写法，四步每一步都这么做。② 挪了分段以后，① 的量要在同一次回调里重算，不能等下一次 resize。
 - ③ 的数字来自 `useStepperMeta`（`WorkbenchShell.tsx:165` 定义、`:238` 调用），藏的只是显示，`title` 照旧带数字。
 - ④ `UpdatePillView` 已有 `compact`（`UpdatePill.tsx:29`、`:36`），今天 `UpdatePill`（`:67`）没往下传，`ShellTopBar.tsx:352` 也没传。
+- 「等你确认」胶囊在 Mac 所有画过的格子里都不用收，只有窄于 900 才换角标。Windows 900 没画，推算要走到第 ④ 步。
+- Windows 700 英文全开时，四步走完还差约 28px（对照表 E6，推迟）。等 Windows 真机量了窗口钮宽度再定，这次不另想第 ⑤ 步。
 - 今天就有的毛病，这次顺带修好：
-  - 900 宽英文「Last install failed · Click to retry」，导出收成图标以后分段仍压上 88px（对照表 Bar900「今天 · 英文 · 没装上」量得离右 −88）；
+  - 900 宽英文「Last install failed · Click to retry」：导出收成图标以后，分段仍压上 88px（对照表 Bar900「今天 · 英文 · 没装上」量得离右 −88）。中文同一格正好贴边，差 0.1px。
   - Windows 700 中文预览压上 52px（推算）。
+- 量具：协调量画布用的是 `/Users/aoqimin/Nomi-coord/tmp/coord-topbar/measure.mjs`，量的是分段连「画布 / 列表」钮离左右两簇的距离，不取整。走查的「分段离两簇 ≥12」照同一口径量。
 - 设计系统 §6 登记 `IconLayoutSidebarRightCollapse`（Agent 形态「收起」，`AgentPanelV4Panel.tsx:418–419` 已在用）。
 - 角标右沿收在按钮里（right 0、top −4），不探进右边 8px 留白。
 - 悬停文案照今天 `ShellAgentHost.tsx:163–169` 的拼法 `[动作, 状态, 未读].join(' · ')`：
-  - 胶囊时动作 =「等你确认 N」；
-  - 面板开着时动作 =「收起面板（⌘\）」，借 `agentPanelV4.collapsePanel`，这是它唯一的新用法。
+  - 胶囊时动作 =「等你确认 N」（今天的 `ballPending`，改名 `entryPending`）；
+  - 面板开着时动作 =「收起面板（⌘\）」，借 `agentPanelV4.collapsePanel`，这是它唯一的新用法；
+  - 中段「状态」用合并状态（待确认压过在做 / 失败，和今天一样）。脸用的是不算待确认的状态。所以入口要拿两样：合并状态给提示，脸状态给脸。见调用方表 `useV4DockStatus` 一行。
+  - 画布便签 638 写「在做看悬停提示」，但画出来的提示（候选 634、706）是「打开 Nomi（⌘J）· 等你确认 2 条」，没有「在做」。清单和对照表 B5 按画出来的提示写，因为画布组件的拼法就是这样，而且在做已经由转圈的脸表达了。这处不一致已报协调。
 - 眨眼只在入口这张脸上，只在空闲 / 有新消息时眨（D-1122-entry-blink-on-face）；面板身份行（`NomiIdentityRow`）仍是静态脸。
