@@ -14,7 +14,7 @@ import { V4ToolReceipt } from './AgentPanelV4Receipt'
 import { AgentPanelV4Panel, V4FlowRow } from './AgentPanelV4Panel'
 import ReconcileDeviationCard from '../../generationCanvas/components/ReconcileDeviationCard'
 import { AgentPanelV4Composer } from './AgentPanelV4Composer'
-import { fixedEditorOwner } from '../../common/useNomiRichTextEditor'
+import { fixedEditorOwner } from '../../../devlab/designLab/fixedEditorOwner'
 import type { InterventionData, TaskCardData, ToolReceipt, V4InterventionKind, V4TaskStatus, V4ToolStatus } from './agentPanelV4Types'
 
 // 介入槽的写口在生产里是必填（R28）。测试里显式给一份空壳，表示「这一格不验行为」。

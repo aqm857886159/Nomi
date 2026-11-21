@@ -8,7 +8,7 @@ import type { PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/s
 import { SEEDANCE_2_APIMART_ARCHETYPE } from '../../../../../electron/shared/videoCapabilities/seedanceApimart'
 import { deriveShotRowExec } from '../exec/storyboardRowStatus'
 import StoryboardShotRow from './StoryboardShotRow'
-import { fixedEditorOwner } from '../../../common/useNomiRichTextEditor'
+import { fixedEditorOwner } from '../../../../devlab/designLab/fixedEditorOwner'
 
 vi.mock('react-i18next', async (importOriginal) => ({
   ...await importOriginal<typeof import('react-i18next')>(),

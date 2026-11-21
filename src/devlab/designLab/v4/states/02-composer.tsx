@@ -11,7 +11,7 @@ import {
   V4PermissionPopover,
   V4SkillPopover,
 } from '../../../../workbench/ai/v4/AgentPanelV4Composer'
-import { fixedEditorOwner } from '../../../../workbench/common/useNomiRichTextEditor'
+import { fixedEditorOwner } from '../../fixedEditorOwner'
 import type { ComposerMode, PermissionTier } from '../../../../workbench/ai/v4/agentPanelV4Types'
 import { Piece, useV4Fixtures } from '../agentPanelV4LabKit'
 import { useGenerationCanvasStore } from '../../../../workbench/generationCanvas/store/generationCanvasStore'

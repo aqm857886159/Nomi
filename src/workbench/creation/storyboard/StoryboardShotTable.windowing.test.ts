@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ModelOption } from '../../../config/models'
 import type { PlanShot, StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import { deriveStoryboardRowRuntimes } from './exec/storyboardRowStatus'
-import { fixedEditorOwner } from '../../common/useNomiRichTextEditor'
+import { fixedEditorOwner } from '../../../devlab/designLab/fixedEditorOwner'
 
 /**
  * 打开一份分镜方案时，挂多少东西——用**数得清的计数**钉住，不靠毫秒（性能波次 10-16 的打法）。

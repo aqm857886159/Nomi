@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { LabLocaleGate } from '../labLocaleGate'
 import StoryboardShotRow from '../../../workbench/creation/storyboard/shotRow/StoryboardShotRow'
-import { fixedEditorOwner } from '../../../workbench/common/useNomiRichTextEditor'
+import { fixedEditorOwner } from '../fixedEditorOwner'
 import { StoryboardRowsBox } from '../../../workbench/creation/storyboard/shotRow/storyboardRowDensity'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../../workbench/assets/AssetPreviewDialog'
 import type { AssetRef } from '../../../workbench/assets/assetTypes'

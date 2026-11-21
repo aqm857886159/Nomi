@@ -77,16 +77,6 @@ export type NomiEditorCodec<V> = {
 }
 
 /**
- * 只读展示用的 owner：值是调用方明着写死的一份（设计实验室取景、只读回放），编辑不写回任何地方。
- * 不是给真宿主用的——真宿主交自己 store 的 subscribe / getSnapshot。
- */
-export function fixedEditorOwner<V>(value: V): NomiEditorOwner<V> {
-  return { subscribe: NO_SUBSCRIPTION, getSnapshot: () => value, write: NOOP_WRITE }
-}
-const NO_SUBSCRIPTION = (): (() => void) => () => undefined
-const NOOP_WRITE = (): void => undefined
-
-/**
  * 入口只收这几样：owner 绑定 + 编解码 + 扩展与视图选项（白名单）。没有 `content`、没有 `value`、没有 `onUpdate`，
  * 也没有 `onBeforeCreate` / `onCreate` / `onTransaction` 这些能在实例出生时塞进旧值的口。
  */

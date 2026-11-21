@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
 import StoryboardShotRow from '../../../workbench/creation/storyboard/shotRow/StoryboardShotRow'
-import { fixedEditorOwner } from '../../../workbench/common/useNomiRichTextEditor'
+import { fixedEditorOwner } from '../fixedEditorOwner'
 import { StoryboardRowsBox } from '../../../workbench/creation/storyboard/shotRow/storyboardRowDensity'
 import StoryboardAnchorZone from '../../../workbench/creation/storyboard/anchorZone/StoryboardAnchorZone'
 import type { AnchorCardRuntime, ShotRowExec } from '../../../workbench/creation/storyboard/exec/storyboardRowStatus'
