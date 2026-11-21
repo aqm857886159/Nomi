@@ -307,3 +307,42 @@ describe('old adapter diagnostics never hide a usable row', () => {
   expect((await preloadModelOptions('image', 'text_to_image')).map(item => item.value)).toEqual(['pending', 'failed']);
  });
 });
+
+it('真实 APIMart Lite/Ext 不按名字消失，文生图与改图仍只给支持的模式，失败回读不丢候选', async () => {
+  const { APIMART_IMAGE_MODELS } = await import('../../electron/catalog/apimartImages')
+  const rows = APIMART_IMAGE_MODELS.map(seed => ({
+    ...row(seed.modelKey), vendorKey: 'apimart', labelZh: seed.labelZh,
+    meta: { archetypeId: seed.archetypeId },
+    ...derivePublishedExecution({ vendorKey: 'apimart', modelKey: seed.modelKey, kind: 'image', enabled: true }, {
+      mappings: seed.mappings.map(mapping => ({ ...mapping, vendorKey: 'apimart', modelKey: seed.modelKey, enabled: true })),
+    }),
+  }))
+  notifyModelOptionsRefresh()
+  mocks.listVendors.mockResolvedValue([{ key: 'apimart', name: 'APIMart' }])
+  mocks.listModels.mockResolvedValue(rows)
+  for (const mode of ['text_to_image', 'image_edit'] as const) {
+    const options = await preloadModelOptions('image', mode)
+    expect(options.map(option => option.value)).toEqual(rows.filter(item => item.publishedModes.includes(mode)).map(item => item.modelKey))
+    expect(options.map(option => option.value)).toEqual(expect.arrayContaining(['gemini-3.1-flash-lite-image', 'gemini-3.1-flash-lite-image-ext']))
+    expect(peekCatalogModelOptions('image', mode)).toBe(options)
+    expect(peekLastGoodModelOptions('image', mode)).toBe(options)
+  }
+  const textOnly = rows.find(item => !item.publishedModes.includes('image_edit'))!
+  expect(textOnly).toBeDefined()
+  expect((await preloadModelOptions('imageEdit')).map(option => option.value)).not.toContain(textOnly.modelKey)
+})
+
+it('同模型原始 ID 和别名由现有身份归并收成一行，保留两条调用身份', async () => {
+  const { dedupeModelOptions } = await import('./modelIdentity')
+  notifyModelOptionsRefresh()
+  mocks.listVendors.mockResolvedValue([{ key: 'relay', name: 'Relay' }])
+  mocks.listModels.mockResolvedValue([
+    { ...row('gemini-2.5-flash-image'), labelZh: 'Nano Banana', modelAlias: null },
+    { ...row('nano-banana'), labelZh: 'Nano Banana', modelAlias: 'gemini-2.5-flash-image' },
+  ])
+  const options = await preloadModelOptions('image')
+  const deduped = dedupeModelOptions(options)
+  expect(options).toHaveLength(2)
+  expect(deduped).toHaveLength(1)
+  expect(deduped[0]!.providers.map(provider => provider.option.value)).toEqual(['gemini-2.5-flash-image', 'nano-banana'])
+})

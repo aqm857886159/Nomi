@@ -2,9 +2,9 @@
   "schema_version": 3,
   "id": "2026-11-17-unverified-usable",
   "problem_type": "Verification diagnostic incorrectly controls local execution eligibility",
-  "symptom": "保存了 key、有请求格式的模型，连接列表、内置详情、自接详情状态词色不一致；完成任务返回旧模型，首用还会复验。",
+  "symptom": "保存了 key、有请求格式的模型，连接列表、内置详情、自接详情状态词色不一致；完成任务返回旧模型，首用还会复验。 第三轮：设置、默认和助手的26个APIMart图片模型在画布只剩25个，缺Nano Banana Lite。",
   "direct_cause": "当前配置、历史验证结果与格式任务身份散落在多个消费端；门岗只查引用和禁词，条件式首用与已有词条变体可绕过。",
-  "class_root": "当前可用结论与展示投影没有独占的边界；消费端仍持有验证原料和自行选词权限。",
+  "class_root": "当前可用结论与展示投影没有独占的边界；消费端仍持有验证原料和自行选词权限。 画布在共享投影之后又按名字隐藏候选，旧一致性测试只数中间行，没量最终菜单身份。",
   "affected_population": [
     "自定义兼容连接",
     "内置供应商待验证凭据",
@@ -67,7 +67,9 @@
     "electron/catalog/catalogModelAvailability.ts",
     "electron/main.ts",
     "src/ui/onboarding/VendorOnboardCard.tsx",
-    "src/devlab/designLab/primitivesSurfaces/states/04-dialogs.tsx"
+    "src/devlab/designLab/primitivesSurfaces/states/04-dialogs.tsx",
+    "src/config/modelCatalogCache.ts",
+    "src/config/useModelOptions.ts"
   ],
   "entry_points": [
     "默认模型选择",
@@ -83,7 +85,8 @@
     "没有格式、缺钥匙、手动停用和密钥解不开仍不可选；三个首用入口不预探。",
     "保存时明确 401/403 拒收新钥并保留旧钥；404、HTML、网络错误仍保存。",
     "一次性恢复有格式且被验证失败停用的旧行，手动关闭有证据的旧行保持关闭；不升目录版本，保留原始快照。",
-    "格式任务完成后按晋级后的 vendor/model 身份导航，不返回历史前身。"
+    "格式任务完成后按晋级后的 vendor/model 身份导航，不返回历史前身。",
+    "同一配置、可用且支持相同模式的图片模型，在设置、默认、助手与画布菜单（含更多）逐身份一致。"
   ],
   "doors": [
     {
@@ -440,14 +443,49 @@
       "kind": "write",
       "path": "src/ui/onboarding/VendorOnboardCard.tsx",
       "symbol": "connectionHomeStatus"
+    },
+    {
+      "kind": "write",
+      "path": "src/config/modelCatalogCache.ts",
+      "symbol": "preloadModelOptions"
+    },
+    {
+      "kind": "write",
+      "path": "src/config/useModelOptions.ts",
+      "symbol": "preloadModelOptions"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/nodePointer/nodePointerLabKit.tsx",
+      "symbol": "preloadModelOptions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "symbol": "preloadModelOptions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "preloadModelOptions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/availableModels.ts",
+      "symbol": "preloadModelOptions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useBatchPlanCost.ts",
+      "symbol": "preloadModelOptions"
     }
   ],
   "door_reduction": {
     "before": 43,
-    "after": 71,
-    "why_not": "原合同只覆盖发布读取和成功回执；本轮扩入展示、状态出口、格式任务与导航的全图。保留列表、详情、选择器、三发送与配置写入入口各自职责，独立可用性裁决和词色决定收为两个主人；门数不是独立判据数。删除的首用复验、健康检查、验证回执另以零调用数核对。"
+    "after": 78,
+    "why_not": "原合同只覆盖发布读取和成功回执；本轮扩入展示、状态出口、格式任务与导航的全图。保留列表、详情、选择器、三发送与配置写入入口各自职责，独立可用性裁决和词色决定收为两个主人；门数不是独立判据数。删除的首用复验、健康检查、验证回执另以零调用数核对。 第三轮纳入preloadModelOptions工具生成的7个读者：画布/分镜、Agent清单、成本预估、实验室仍需各自读取目录，但共享候选不再另藏名字。"
   },
-  "generality_proof": "内置与自接共用目录可用性与展示投影，三个发送入口删除预探；新入口重读旧字段或状态词会被同一 AST 检查拦下。角色和模式过滤保留，不把全部拦下当通过。",
+  "generality_proof": "目录投影和执行准入收为共享边界；删除画布按名字隐藏候选的二次判断，按可用性/模式选项后只做身份归并和用户偏好。真实APIMart图片种子逐身份核设置、默认、助手与最终画布菜单；列表/详情渲染词色对账。扫描与ESLint只拦已列源码形状，不保证任意JSX或强转均不可绕。",
   "shared_boundaries": [
     {
       "path": "electron/shared/modelPublication.ts",
@@ -494,7 +532,8 @@
     "reason": "同一验证写入状态通过三个选择器与三个发送入口传播。",
     "same_class_scan": [
       "door-map：可用性、展示、完成导航的现存调用 22 门；完整 scope 入口从同一 AST 输出按职责去重。",
-      "check-model-availability：18 个可用性读者；旧验收四类反例进入 model-status-one-home 测试。"
+      "check-model-availability：18 个可用性读者；旧验收四类反例进入 model-status-one-home 测试。",
+      "第三轮 door-map filterHiddenOptionsByKind：同文件2处；preloadModelOptions：7门。旧P0-10三份准入与本次画布名字过滤同属消费端另判。"
     ]
   },
   "prevention": {
@@ -503,7 +542,7 @@
     "invariant": "三件本机事实决定可用性；当前展示只读同一投影，验证整段退役。",
     "failure_mode": "没有执行声明时不发布。",
     "exception_policy": "none",
-    "strategy": "删除首用复验、健康检查和验证入口；目录给界面的投影去掉验证原料；AST 门岗与 ESLint 同一检查拦退役字段、首用探测和直接状态词。",
+    "strategy": "删除首用复验、健康检查和验证入口；目录给界面的投影去掉验证原料；AST 门岗与 ESLint 同一检查拦退役字段、首用探测和直接状态词。 第三轮删除名字过滤和仅供该过滤的快照缓存；候选末端逐身份对账，扫描只作已知形状绊线。",
     "artifacts": [
       "electron/shared/modelAvailability.ts",
       "electron/shared/modelStatusPresentation.ts",
@@ -511,7 +550,8 @@
       "electron/catalog/catalogStore.ts",
       "electron/catalog/unverifiedUsableMigration.ts",
       "scripts/check-model-availability.mjs",
-      "eslint.config.mjs"
+      "eslint.config.mjs",
+      "src/config/modelCatalogCache.ts"
     ]
   },
   "regression_tests": [

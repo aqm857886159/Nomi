@@ -17,7 +17,7 @@ import { selectTextModelCandidates } from "../../../electron/ai/textBrainResolve
 import type { CatalogState, Mapping, Model, Vendor } from "../../../electron/catalog/types";
 import type { ModelCatalogModelDto } from "../api/modelCatalogApi";
 import { filterUsableAssistantTextModels } from "./assistantModelIdentity";
-import { keepUsableModelRows } from "../../config/modelCatalogCache";
+import { notifyModelOptionsRefresh, preloadModelOptions, keepUsableModelRows } from "../../config/modelCatalogCache";
 import { countModelHomeStates } from "../../ui/onboarding/modelSettingsHomeState";
 import { projectModelSettingsCatalog } from "../../ui/onboarding/modelSettingsCatalogProjection";
 
@@ -170,3 +170,111 @@ describe("同一份目录 · 三个界面一个答案（P0-10 类级回归）", 
     expect(selectTextModelCandidates(state)).toHaveLength(0);
   });
 });
+
+
+// 从真实目录到各处最终候选，不能只在 keepUsableModelRows 中间层数行。
+const pickerApi = vi.hoisted(() => ({ models: vi.fn(), vendors: vi.fn() }));
+vi.mock("../api/modelCatalogApi", () => ({
+  listWorkbenchModelCatalogModels: pickerApi.models,
+  listWorkbenchModelCatalogVendors: pickerApi.vendors,
+}));
+
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { MantineProvider } from "@mantine/core";
+import { APIMART_IMAGE_MODELS } from "../../../electron/catalog/apimartImages";
+import { buildDefaultModelOptions } from "../settings/defaultGenerationModelOptions";
+import { buildV4ModelRows } from "./v4/agentPanelV4ModelRows";
+import { buildModelMenu } from "../common/useDedupedModelSelect";
+import { dedupeModelOptions } from "../../config/modelIdentity";
+import { ModelSettingsHome } from "../../ui/onboarding/ModelSettingsHome";
+import { CustomVendorCard } from "../../ui/onboarding/CustomVendorCard";
+import { VendorOnboardCard } from "../../ui/onboarding/VendorOnboardCard";
+import { getKnownVendor } from "../../config/knownVendors";
+import i18n from "../../i18n";
+
+function apimartImages(): CatalogState {
+  const models = APIMART_IMAGE_MODELS.map(seed => model({
+    vendorKey: "apimart", modelKey: seed.modelKey, labelZh: seed.labelZh, kind: "image",
+    meta: { archetypeId: seed.archetypeId },
+  }));
+  const mappings = APIMART_IMAGE_MODELS.flatMap(seed => seed.mappings.map(mapping => ({
+    ...mapping, vendorKey: "apimart", modelKey: seed.modelKey, enabled: true,
+  }))) as Mapping[];
+  const state = catalog(models, "missing", mappings, [vendor({ key: "apimart", name: "APIMart" })]);
+  state.apiKeysByVendor = { apimart: { ...KEY_RECORDS.ok!, vendorKey: "apimart" } };
+  return state;
+}
+
+it("真实 APIMart 图片逐身份对账：设置、默认、助手、画布菜单一个都不能少", async () => {
+  const rows = projectRows(apimartImages());
+  const settings = projectModelSettingsCatalog(rows as unknown as Array<Record<string, unknown>>).models;
+  const identity = (row: { vendorKey: string; modelKey: string }) => `${row.vendorKey}/${row.modelKey}`;
+  const expected = settings.filter(row => row.availability?.usable).map(identity).sort();
+  expect(expected).toHaveLength(APIMART_IMAGE_MODELS.length);
+  expect(expected).toContain("apimart/gemini-3.1-flash-lite-image");
+  const defaults = buildDefaultModelOptions(rows, key => key, "auto");
+  const defaultIds = defaults.optionsByKind.text_to_image.filter(option => option.value).map(option => identity(defaults.decode(option.value)!)).sort();
+  const selected: string[] = [];
+  const agent = buildV4ModelRows({
+    models: [], generationModels: rows, vendors: { apimart: "APIMart" }, orderedVendorKeys: [],
+    selectedModel: undefined, modelLabel: "", selectModel: () => {}, generationDefaults: {},
+    setGenerationDefault: (_kind, value) => { if (value) selected.push(identity(value)); },
+  }, key => key).find(row => row.slot === "agentPanelV4.imageDefault")!;
+  for (const option of agent.options ?? []) if (option.value) agent.onChange!(option.value);
+  pickerApi.models.mockResolvedValue(rows);
+  pickerApi.vendors.mockResolvedValue([{ key: "apimart", name: "APIMart" }]);
+  notifyModelOptionsRefresh();
+  const options = await preloadModelOptions("image");
+  const menu = buildModelMenu(dedupeModelOptions(options), () => false);
+  // 从实际选项（含「更多」）寻址；只数内部 rows 会漏掉菜单末端再次过滤。
+  const canvasIds = [...new Set(menu.options.flatMap(option => menu.rows.get(option.value)?.model.providers.map(provider =>
+    identity({ vendorKey: provider.vendor!, modelKey: provider.option.value }),
+  ) ?? []))].sort();
+  expect(defaultIds, "默认模型身份").toEqual(expected);
+  expect(selected.sort(), "助手模型身份").toEqual(expected);
+  expect(canvasIds, "画布菜单候选身份（含更多）").toEqual(expected);
+});
+
+const statusCases = [
+  { state: "ready", enabled: true, formats: true, tone: "success", dot: "bg-workbench-success", zh: "1 个可使用", en: "1 ready to use" },
+  { state: "disabled", enabled: false, formats: true, tone: "neutral", dot: "bg-nomi-ink-30", zh: "1 个已关闭", en: "1 disabled" },
+  { state: "needsSetup", enabled: true, formats: false, tone: "warning", dot: "bg-nomi-warning", zh: "1 个待设置", en: "1 needs setup" },
+] as const;
+for (const language of ["zh-CN", "en"]) {
+  for (const sample of statusCases) {
+    it(`${language} 列表/内置/自接详情末端同词同色：${sample.state}`, async () => {
+      await i18n.changeLanguage(language);
+      const state = apimartImages();
+      state.models = [state.models[0]!];
+      state.models[0] = { ...state.models[0]!, enabled: sample.enabled };
+      if (!sample.formats) state.mappings = [];
+      const chips = projectModelSettingsCatalog(projectRows(state) as unknown as Array<Record<string, unknown>>).models;
+      const noop = () => {};
+      const render = (element: React.ReactElement) => renderToStaticMarkup(React.createElement(MantineProvider, { children: element }));
+      const home = render(React.createElement(ModelSettingsHome, {
+        connections: [{ vendorKey: "apimart", name: "APIMart", kind: "api", models: chips, onOpen: noop }],
+        availableConnections: [], loaded: true, bridgeMissing: false, loadError: null, readOnly: null,
+        taskCount: 0, onReload: noop, onCustomApi: noop, onDirectScript: noop, onImported: noop,
+      }));
+      const detail = render(React.createElement(VendorOnboardCard, {
+        directory: getKnownVendor("apimart")!, vendorName: "APIMart", baseUrl: "https://api.apimart.ai",
+        hasApiKey: true, models: chips, onChanged: noop, detailMode: true,
+      }));
+      const label = sample[language === "en" ? "en" : "zh"];
+      const customDetail = render(React.createElement(CustomVendorCard, {
+        vendorKey: "apimart", name: "APIMart", models: chips, detailMode: true,
+        onToggle: noop, onDelete: noop, onCustomCall: noop, onRetype: noop, onChanged: noop,
+      }));
+      for (const html of [home, detail, customDetail]) {
+        const badge = html.match(/<span data-model-status="[^"]+" data-model-status-tone="[^"]+"[^>]*><span[^>]*><\/span>(.*?)<\/span>/)?.[0];
+        expect(badge).toBeDefined();
+        expect(badge).toContain(`data-model-status="${sample.state}"`);
+        expect(badge).toContain(`data-model-status-tone="${sample.tone}"`);
+        expect(badge).toContain(sample.dot);
+        expect(badge).toContain(label);
+      }
+      await i18n.changeLanguage("zh-CN");
+    });
+  }
+}
