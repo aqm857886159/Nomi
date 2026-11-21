@@ -710,6 +710,36 @@
         "symbol": "confirmPublicError"
       },
       "reason": "2026-11-18 失败判定收成一处（docs/engineering/direction-checks/2026-11-18-failure-classify-one-home.md）：外部助手的「哪些码算公开码（POLICY_CODES）」与人话表（原 ERROR_HINT，现 generationFailureCopy.TOOL_ERROR_HINT）搬进共享叶子，确证码只在 confirmPublicError 判一次；buildToolErrorOutcome 仍留在原处，只做外部助手受众的投影，签名与 outcome 形状不变。不变量（外部助手只认确证的码、未知码原样透传）仍由 mcpToolResults.test.ts 与五出口对拍表守。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-01-tikhub-connector-ingest-boundary.root-cause.json",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "sanitizeSourceEvidence",
+      "anchor": {
+        "path": "electron/assets/assetSourceEvidence.ts",
+        "symbol": "finalizeAssetMeta"
+      },
+      "reason": "2026-11-21 素材来源收成主进程素材库一处判定：来源清洗原样搬进 electron/assets/assetSourceEvidence.ts，成为 finalizeAssetMeta 的私有步骤；finalizeAssetMeta 是每次写 sidecar 前的唯一一道（writeAsset / storeAssetBytes / copyAssetFileByMeta / moveAssetFile / 生成两步发布都过它）。「来源只经一处清洗、白名单字段、按来源类别定 usageStatus、清洗不出就不落」的不变量不变，由 electron/assets/assetSourceEvidence.test.ts 与入口对拍表 electron/assets/assetSourceExits.parity.test.ts 守；渲染层载荷里的来源一律不读（R7）。rightsStatus 迁移分支删掉：没有任何发布版本写过这个字段。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-03-asset-source-evidence-v2.root-cause.json",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "sanitizeSourceEvidence",
+      "anchor": {
+        "path": "electron/assets/assetSourceEvidence.ts",
+        "symbol": "finalizeAssetMeta"
+      },
+      "reason": "2026-11-21 素材来源收成主进程素材库一处判定：来源清洗原样搬进 electron/assets/assetSourceEvidence.ts，成为 finalizeAssetMeta 的私有步骤；finalizeAssetMeta 是每次写 sidecar 前的唯一一道（writeAsset / storeAssetBytes / copyAssetFileByMeta / moveAssetFile / 生成两步发布都过它）。「来源只经一处清洗、白名单字段、按来源类别定 usageStatus、清洗不出就不落」的不变量不变，由 electron/assets/assetSourceEvidence.test.ts 与入口对拍表 electron/assets/assetSourceExits.parity.test.ts 守；渲染层载荷里的来源一律不读（R7）。rightsStatus 迁移分支删掉：没有任何发布版本写过这个字段。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-03-asset-store-vocab-single-source.root-cause.json",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "sanitizeSourceEvidence",
+      "anchor": {
+        "path": "electron/assets/assetSourceEvidence.ts",
+        "symbol": "finalizeAssetMeta"
+      },
+      "reason": "2026-11-21 素材来源收成主进程素材库一处判定：来源清洗原样搬进 electron/assets/assetSourceEvidence.ts，成为 finalizeAssetMeta 的私有步骤；finalizeAssetMeta 是每次写 sidecar 前的唯一一道（writeAsset / storeAssetBytes / copyAssetFileByMeta / moveAssetFile / 生成两步发布都过它）。「来源只经一处清洗、白名单字段、按来源类别定 usageStatus、清洗不出就不落」的不变量不变，由 electron/assets/assetSourceEvidence.test.ts 与入口对拍表 electron/assets/assetSourceExits.parity.test.ts 守；渲染层载荷里的来源一律不读（R7）。rightsStatus 迁移分支删掉：没有任何发布版本写过这个字段。"
     }
   ],
   "retirements": [

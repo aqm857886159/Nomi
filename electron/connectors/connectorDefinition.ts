@@ -108,7 +108,7 @@ export type IntendedRole =
   | "other";
 
 /**
- * 运行时白名单：UsageStatus 合法值 Set（sanitizeSourceEvidence 使用）。
+ * 运行时白名单：UsageStatus 合法值 Set（素材库清洗来源时使用，electron/assets/assetSourceEvidence.ts）。
  * 唯一真相源在上方的 UsageStatus 类型联合——此 Set 是类型的运行时投影，
  * 变量名避免使用语义 owner token（status/state/phase 等），防止词表门岗误扫为独立词表。
  */
@@ -121,7 +121,7 @@ export const ASSET_PROVENANCE_ALLOWED_USAGES: ReadonlySet<UsageStatus> = new Set
 ]);
 
 /**
- * 运行时白名单：IntendedRole 合法值 Set（sanitizeSourceEvidence 使用）。
+ * 运行时白名单：IntendedRole 合法值 Set（素材库清洗来源时使用，electron/assets/assetSourceEvidence.ts）。
  * 唯一真相源在上方的 IntendedRole 类型联合。
  */
 export const ASSET_PROVENANCE_ALLOWED_ROLES: ReadonlySet<IntendedRole> = new Set<IntendedRole>([
@@ -167,9 +167,6 @@ export type LicenseSnapshot = {
  *   · usageStatus  → content trust level
  *   · licenseId    → taint policy 证据
  *   · fetchedAt/capturedAt → provenance 时间戳
- *
- * 旧字段 rightsStatus 已被 usageStatus 取代；sanitizeSourceEvidence 在老 sidecar 里读到
- * rightsStatus:"unknown" 时会迁移成 usageStatus:"rights_unknown"，反向不兼容（不回写 rightsStatus）。
  */
 export type AssetSourceEvidence = {
   /** 来源类型：connector 摄取 / 浏览器人工导入 / 本地文件导入。 */
@@ -221,10 +218,4 @@ export type AssetSourceEvidence = {
    * 驱动 P0-3 按用途筛选；空数组表示「未指定」，不影响导入。
    */
   intendedRoles?: IntendedRole[];
-
-  /**
-   * @deprecated 旧版字段，由 sanitizeSourceEvidence 迁移成 usageStatus。
-   * 新写入路径不得写此字段；消费点用 usageStatus 代替。
-   */
-  rightsStatus?: "unknown";
 };
