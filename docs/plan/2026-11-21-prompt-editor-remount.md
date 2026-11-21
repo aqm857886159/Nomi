@@ -66,7 +66,7 @@
 | Agent 输入框草稿（`ProjectAgentResidentShell`） | `workbenchStore.projectAgentDraft` | 提及控件的 `onChange` |
 | 创作文稿（`WorkbenchEditor`） | `workbenchStore` 当前文稿（`activeDocumentOf`，渲染和 owner 共用） | `handleChange` |
 | 画布文字节点（`TextDocumentNode`） | `generationCanvasStore` 里这个节点的 `contentJson` | `handleChange` |
-| 设计实验室 | 写死的一份（`src/devlab/designLab/fixedEditorOwner.ts`）；选区浮条舞台用 zustand `createStore` | 不写回 |
+| 设计实验室 | 写死的一份（`src/devlab/designLab/fixedEditorOwner.ts`，各屏共用，含选区浮条舞台） | 不写回 |
 
 全部家（`node scripts/door-map.mjs`，`/Users/aoqimin/Nomi-coord/tmp/L-editor-owner-door/door-map.txt`）：TipTap `useEditor` 1 扇（入口里）；`useNomiTiptapEditor` 2 扇（`PromptEditor`、`useNomiRichTextEditor`）；`useNomiRichTextEditor` 3 扇（文稿、文字节点、选区浮条舞台）；`PromptEditor` 3 处（Agent 输入框、分镜提示词、节点提示词）。「选当前方案」原来分镜页两处各写一份，收成 `activeStoryboardDesign.ts` 一份。
 

@@ -1,8 +1,8 @@
 import React, { type JSX } from 'react'
 import { EditorContent, type JSONContent } from '@tiptap/react'
-import { createStore } from 'zustand/vanilla'
 import SelectionGeneratePopover from '../../../workbench/creation/SelectionGeneratePopover'
-import { useNomiRichTextEditor, type NomiEditorOwner } from '../../../workbench/common/useNomiRichTextEditor'
+import { useNomiRichTextEditor } from '../../../workbench/common/useNomiRichTextEditor'
+import { fixedEditorOwner } from '../fixedEditorOwner'
 import { holdDesignLabReady } from '../labReadyHold'
 import { useLabLocale } from '../hostConfig/useLabLocale'
 
@@ -25,14 +25,11 @@ const NOOP = (): void => undefined
 export function SelectionActionsStage({ scene, locale }: { scene: SelectionActionsScene; locale: 'zh-CN' | 'en' }): JSX.Element {
   const ready = useLabLocale(locale, `selection-actions:${scene}`)
   const sentence = SENTENCE[locale]
-  // 正文的 owner：这一屏自己的小 store（zustand createStore），换语言就换一份。
-  const owner = React.useMemo<NomiEditorOwner<JSONContent>>(() => {
-    const store = createStore<JSONContent>(() => ({
-      type: 'doc',
-      content: [{ type: 'paragraph', content: [{ type: 'text', text: sentence }] }],
-    }))
-    return { subscribe: store.subscribe, getSnapshot: store.getState, write: (next) => store.setState(next, true) }
-  }, [sentence])
+  // 正文的 owner：写死这一句、不写回（这一屏只取选区），换语言就换一份。
+  const owner = React.useMemo(() => fixedEditorOwner<JSONContent>({
+    type: 'doc',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text: sentence }] }],
+  }), [sentence])
   const [selection, setSelection] = React.useState({ text: '', version: 0 })
   const onSelectionChange = React.useCallback((text: string) => {
     setSelection((current) => ({ text, version: current.version + 1 }))
