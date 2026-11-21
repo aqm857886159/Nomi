@@ -14,6 +14,14 @@
     "catalogRebuildMs"
   ],
   "budget": 5,
-  "budgetStatus": "proposed",
-  "budgetBasis": "主指标 perGateCatalogReadMs = 目录没变时门问一次目录的单次毫秒（缓存按目录文件字节认身份，命中只是读一次文件 + 比一次身份）。门之后是一次真生成（秒级到分钟级）和创作者的确认，5ms 在其中可以忽略；超过说明缓存没命中、每次都在重算整张表（实测重算一次约 100ms）。gatePassMs（40 镜预览 + 过门总耗时）和 catalogRebuildMs（目录刚变后第一次重算）只打印。"
+  "budgetStatus": "approved",
+  "budgetBasis": "主指标 perGateCatalogReadMs = 目录没变时门问一次目录的单次毫秒（缓存按目录文件字节认身份，命中只是读一次文件 + 比一次身份）。门之后是一次真生成（秒级到分钟级）和创作者的确认，5ms 在其中可以忽略；超过说明缓存没命中、每次都在重算整张表（实测重算一次约 100ms）。gatePassMs（40 镜预览 + 过门总耗时）和 catalogRebuildMs（目录刚变后第一次重算）只打印。",
+  "baseline": {
+    "median": 0.6,
+    "p95": 0.6,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-21",
+    "commit": "c8fafeb9d"
+  }
 }
