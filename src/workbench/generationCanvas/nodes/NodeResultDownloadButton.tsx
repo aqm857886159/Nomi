@@ -30,7 +30,7 @@ export default function NodeResultDownloadButton({ reportFeedback, node, selecte
   }
 
   return (
-    <FloatingToolbarShell ariaLabel={t('generationCommon.resultDownload.actions')} lockNodeId={node.id}>
+    <FloatingToolbarShell ariaLabel={t('generationCommon.resultDownload.actions')} nodeId={node.id}>
 
       <ToolbarButton
         icon={<IconDownload size={I.size} stroke={I.stroke} />}

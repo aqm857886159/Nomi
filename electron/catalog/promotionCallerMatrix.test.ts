@@ -15,7 +15,7 @@ import { analyzeComfyWorkflowText, importComfyWorkflowToCatalog, updateComfyWork
 import { resolveComfyStagedCandidate, promoteCertifiedComfyCandidate, materializeCertifiedComfyAssets } from './comfyuiCandidateLifecycle';
 import { registerDeclaredProvider } from './declaredProviderRegistration';
 import { defaultCatalog, type LoadedConnection } from '../providerAdapter/serviceCatalog';
-import { buildOpenAiCompatibleDraft, builtinDraftForUndocumentedEndpoint } from '../providerAdapter/builtinOpenAiCompatibleDraft';
+import { buildOpenAiCompatibleDraft } from '../providerAdapter/builtinOpenAiCompatibleDraft';
 import { genericCompilation } from '../providerAdapter/serviceFallback';
 import { referenceKeyDeclarationFor } from '../shared/modelArchetypes/referenceKeys';
 import { EVERY_VARIANT, resolveModelArchetype } from '../shared/modelArchetypes';
@@ -46,7 +46,6 @@ const standardInput = (rows: readonly StandardRow[]) => ({ baseUrl: STANDARD_BAS
 const standardProducers: Record<string, (rows: readonly StandardRow[]) => ProviderAdapterDraft | null> = {
   'parity-probe': (rows) => { const input = standardInput(rows); return buildOpenAiCompatibleDraft(input); },
   'standard-fallback': (rows) => genericCompilation({ vendor: standardVendor(), models: standardModels(rows), apiKey: '' } as LoadedConnection, standardModels(rows)).draft,
-  'standard-undocumented': (rows) => builtinDraftForUndocumentedEndpoint({ vendor: standardVendor(), models: standardModels(rows) }),
 };
 const standardCases: StandardRow[] = [
   { modelKey: 'opaque-video', labelZh: 'Opaque video', kind: 'video' },
@@ -72,9 +71,9 @@ it('the caller inventory equals the shared promotion property census and its wra
 });
 it('the standard draft producers equal their door census', () => {
   const doorPaths = (symbol: string) => [...new Set(doorsForTargets([symbol]).map((d: { path: string }) => d.path))].sort();
-  expect(doorPaths('buildOpenAiCompatibleDraft')).toEqual(['electron/parity/generationParityTestUtils.ts', 'electron/providerAdapter/builtinOpenAiCompatibleDraft.ts', 'electron/providerAdapter/serviceFallback.ts']);
-  expect(doorPaths('builtinDraftForUndocumentedEndpoint')).toEqual(['electron/providerAdapter/service.ts']);
-  expect(doorPaths('genericCompilation')).toEqual(['electron/providerAdapter/service.ts', 'electron/providerAdapter/serviceCompilation.ts']);
+  expect(doorPaths('buildOpenAiCompatibleDraft')).toEqual(['electron/parity/generationParityTestUtils.ts', 'electron/providerAdapter/serviceFallback.ts']);
+  // 私网主机的内置模板与编译失败的兜底是同一个生产者（genericCompilation），选哪张卡只在 serviceCompilation 里决定。
+  expect(doorPaths('genericCompilation')).toEqual(['electron/providerAdapter/serviceCompilation.ts']);
   expect(callers.filter(c => c.input === 'standard-draft').map(c => c.id).sort()).toEqual(Object.keys(standardProducers).sort());
 });
 describe.each(callers.filter(c => c.input !== 'standard-draft'))('$id capability input lifecycle matrix', (caller) => {

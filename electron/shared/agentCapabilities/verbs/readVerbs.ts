@@ -154,20 +154,38 @@ export function readVerbs(): VerbDeclaration[] {
     semanticInputOf: (args) => assetReadInputOf(args) as unknown as Record<string, unknown>,
   };
   // `models` 组由原生装配层绑定执行（`laneModelRead.mts`），按组延迟披露。
+  // 真实返回（`laneModelRead.mts`）：薄名单 `{models: 行[]}`，或单模型 `{model: 详情 | null, …拒收出路}`。
+  // 行 = `modelSpecRow(entry, "lane")`：身份头是完整名字 `model`，不是条目的 modelId + vendor 两半。
+  // 条目里本来就有的事实（label / kind / modes …）取条目 schema 的同一份，不另抄。来源核对（verbFieldProvenance）按这份认。
+  const entry = (agentModelEntrySchema as unknown as z.AnyZodObject).shape;
+  const laneModelRow = z.object({
+    model: z.string(), label: entry.label!, kind: entry.kind!, modeIds: z.array(z.string()), variantIds: z.array(z.string()).optional(),
+    accepts: z.object({ image: z.boolean(), video: z.boolean(), audio: z.boolean(), multiImage: z.boolean() }).strict(),
+    keyStatus: z.string().optional(), usable: z.boolean().optional(), statusReason: z.string().optional(),
+  }).strict();
+  const laneModelDetail = laneModelRow.extend({
+    archetypeId: entry.archetypeId!, modelAlias: entry.modelAlias!, defaultModeId: entry.defaultModeId!, defaultVariantId: entry.defaultVariantId!,
+    modes: entry.modes!, variants: z.array(z.object({ id: z.string(), label: z.string(),
+      parameterOverridesByMode: z.record(z.record(z.unknown())).optional() }).strict()).optional(),
+  });
   const listModels: VerbDeclaration = {
-    outputSchema: z.object({ models: z.array(agentModelEntrySchema) }).strict(),
+    outputSchema: z.union([
+      z.object({ models: z.array(laneModelRow) }).strict(),
+      z.object({ model: laneModelDetail.nullable(), resolvedFrom: z.string().optional(), errorCode: z.string().optional(),
+        error: z.string().optional(), candidates: z.array(z.string()).optional(), recoveryActions: z.array(z.string()).optional() }).strict(),
+    ]),
     name: "list_models", profiles: ["internal"], profileReason: "mcpHandwrittenTransport", contractId: "generation.context.read", effect: "read", nextAction: "none", internalGroup: "models",
     describe: {
       does: "Read the models the user has connected: each model's modes, parameters with allowed values, and reference slots.",
-      useWhen: "Before choosing a modelId or any parameter in draft_shots, and when the user asks which models can do something.",
-      notWhen: "It cannot connect a model or take an API key (start_model_setup). Never invent a modelId — use the exact strings returned here.",
-      params: "kind (image, video or audio) narrows the catalog; modelId returns one model in full; vendor picks which provider when two of them carry the same modelId.",
+      useWhen: "Before choosing a model or any parameter in draft_shots, and when the user asks which models can do something.",
+      notWhen: "It cannot connect a model or take an API key (start_model_setup). Never invent a model name — copy the exact full name returned here.",
+      params: "kind (image, video or audio) narrows the catalog; model (a full name from the list) returns that one model in full.",
     },
     promptGuidelines: READ_GUIDELINES,
     schema: z.object({
       kind: z.enum(["image", "video", "audio"]).optional().describe("Only models that produce this kind of media."),
-      modelId: z.string().trim().min(1).optional().describe("Catalog id of one model to read in full — the same modelId this verb returns and draft_shots takes."),
-      vendor: z.string().trim().min(1).optional().describe("Provider of that model. Required when the thin list shows the same modelId under two providers — they are two different models with different modes and parameters."),
+      // 2026-11-15：入参与 draft_shots 同一个名字（完整名字 `模型id@供应商`），不再是 modelId + vendor 两半。
+      model: z.string().trim().min(1).optional().describe("Full name of one model to read in full — the same name this verb returns and draft_shots takes."),
     }).strict(),
     examples: [{ when: "Which models can make video:", arguments: { kind: "video" } }],
     prepareArguments: modelArgumentTolerance({}),

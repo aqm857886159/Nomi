@@ -116,7 +116,7 @@ export function RowStage(overrides: RowOverrides & { clip?: boolean; width?: num
         outputTag={overrides.outputTag}
         onGenerate={NOOP}
         onRegenerate={NOOP}
-        onToggleLock={NOOP}
+        onToggleFrozen={NOOP}
         onOpenPreview={NOOP}
         sourceSegment={overrides.sourceSegment}
         onInsertBelow={NOOP}

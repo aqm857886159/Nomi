@@ -453,7 +453,7 @@ export function createPiGenerationTransportAdapter(
     const run = deps.readRun(projectId, runId);
     const shotIds = run ? undecidedShotIds(run) : [];
     if (shotIds.length === 0) return undefined;
-    await abortable(handOver.handOver({ projectId, runId, shotIds, by: "policy", hostingAllowed: false }), signal);
+    await abortable(handOver.handOver({ projectId, runId, shotIds, by: "policy" }), signal);
     const settled = await handOver.waitForSettlement(projectId, runId, shotIds, POLICY_SETTLEMENT_TIMEOUT_MS, signal);
     if (signal.aborted) throw abortError();
     if (settled.failed.length > 0) return undefined;

@@ -3,6 +3,7 @@
 import { anchorsConsumedBy } from './anchorPolicy';
 import { modelNameSourceFor, scopeArchetypeModelNames, type ModelNameSource } from "./modelNameSource";
 import type { ModelParameterControl } from "../videoCapabilities/types";
+import { normalizeDeclaredControls } from "../videoCapabilities/paramValue";
 import type { ModelArchetype, ModelArchetypeVariant } from "./types";
 // 档案表本身不从这里导出：生产代码拿档案只走 resolveModelArchetype（结构测试 archetypeSingleEntry.structure.test.ts 守）。
 import { getArchetypeById, MODEL_ARCHETYPES } from "./builtInCatalog";
@@ -112,6 +113,23 @@ const scopedCache = new WeakMap<ModelArchetype, Map<string, ModelArchetype>>();
 const narrowedCache = new WeakMap<ModelArchetype, Map<string, { overrides: ModelArchetypeVariant["paramOverrides"]; value: ModelArchetype }>>();
 /** 收窄结果 → 它的全部档版本（换档 / 并集问题从这里回到同一份全集，不在收窄过的上面再收一遍）。 */
 const everyVariantOf = new WeakMap<ModelArchetype, ModelArchetype>();
+/**
+ * 过了声明门的全集 → 门前那份（档的 paramOverrides 按档案原文写，比如按 `"5"` 挑档，所以叠在门前那份上、叠完再过门）。
+ * 不是入口给的档案（自写合同之外的手搓档案）查不到，就按它自己就是门前那份处理。
+ */
+const declaredRawOf = new WeakMap<ModelArchetype, ModelArchetype>();
+
+/** 声明门（paramValue.ts）：各方式的控件过一遍；没有要换的方式原样留（引用不变）。 */
+function admitDeclaredModes(archetype: ModelArchetype): ModelArchetype {
+  let changed = false;
+  const modes = archetype.modes.map((mode) => {
+    const params = normalizeDeclaredControls(mode.params);
+    if (params === mode.params) return mode;
+    changed = true;
+    return { ...mode, params: [...params] };
+  });
+  return changed ? { ...archetype, modes } : archetype;
+}
 
 function scopedArchetype(base: ModelArchetype, model: ArchetypeModelLike): ModelArchetype {
   const source = modelNameSourceFor(model);
@@ -121,16 +139,20 @@ function scopedArchetype(base: ModelArchetype, model: ArchetypeModelLike): Model
   if (hit) return hit;
   // 型号名按供应商作用域解析：这家这一行不接受档案的型号名 → 档案只给参数（modelNameSource.ts，唯一一处）。
   const resolved = scopeArchetypeModelNames(specializeArchetypeForVendor(base, model.vendorKey), source);
-  const value: ModelArchetype = { ...resolved, modes: resolved.modes.map((mode) => ({ ...mode, consumesAnchors: anchorsConsumedBy(mode) })) };
+  const raw: ModelArchetype = { ...resolved, modes: resolved.modes.map((mode) => ({ ...mode, consumesAnchors: anchorsConsumedBy(mode) })) };
+  // 声明门放在最后：供应商特化、型号名作用域都按档案原文做完，门里拿到的只有内部类型。
+  const value = admitDeclaredModes(raw);
   if (!byKey) scopedCache.set(base, (byKey = new Map()));
   byKey.set(key, value);
   everyVariantOf.set(value, value);
+  declaredRawOf.set(value, raw);
   return value;
 }
 
 /**
  * 按档收窄——**唯一一份写法**：各方式的 params 叠上这一档的 paramOverrides（如 Seedance fast 的清晰度只 480/720）。
  * 身份 / 方式 / 参考槽不变（这一刀只收参数；「这一档能用哪些方式」是下一刀）。没有档、这一档没有改写 → 原样返回全集那个对象。
+ * 改写按档案原文写，所以叠在声明门之前那份上，叠完的方式再过声明门；没改写的方式沿用全集里已过门的那个。
  */
 function narrowToVariant(every: ModelArchetype, pick: ArchetypeVariantPick): ModelArchetype {
   if (pick === EVERY_VARIANT) return every;
@@ -141,11 +163,15 @@ function narrowToVariant(every: ModelArchetype, pick: ArchetypeVariantPick): Mod
   let byVariant = narrowedCache.get(every);
   const hit = byVariant?.get(variant.id);
   if (hit && hit.overrides === overrides) return hit.value;
+  const raw = declaredRawOf.get(every) ?? every;
   const value: ModelArchetype = {
     ...every,
-    modes: every.modes.map((mode) => {
+    modes: every.modes.map((mode, index) => {
       const fn = overrides[mode.id];
-      return fn ? { ...mode, params: fn(mode.params) } : mode;
+      if (!fn) return mode;
+      const rawMode = raw.modes[index]?.id === mode.id ? raw.modes[index] : mode;
+      const params = normalizeDeclaredControls(fn(rawMode.params));
+      return { ...mode, params: [...params] };
     }),
   };
   if (!byVariant) narrowedCache.set(every, (byVariant = new Map()));

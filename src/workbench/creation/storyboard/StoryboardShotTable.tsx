@@ -145,7 +145,7 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ pendingActions, plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onDeleteSelected, filterAnchorId, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant, scrollRef }: Props): JSX.Element {
+export default function StoryboardShotTable({ pendingActions, plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleFrozenRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onDeleteSelected, filterAnchorId, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant, scrollRef }: Props): JSX.Element {
   const { t } = useTranslation()
   const shotModelOptions = React.useMemo(() => [...imageModelOptions, ...videoModelOptions], [imageModelOptions, videoModelOptions])
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
@@ -433,7 +433,7 @@ export default function StoryboardShotTable({ pendingActions, plan, projectId, r
             <span className="text-workbench-success">{t('storyboardEditor.sceneGroup.doneCount', { count: doneCount })}</span>
           ) : null}
           {lockedCount > 0 ? (
-            <span>{t('storyboardEditor.sceneGroup.lockedCount', { count: lockedCount })}</span>
+            <span>{t('storyboardEditor.sceneGroup.frozenCount', { count: lockedCount })}</span>
           ) : null}
           {missingCount > 0 ? (
             <span className="text-workbench-danger">{t('storyboardEditor.sceneGroup.missingRequired', { count: missingCount })}</span>
@@ -471,7 +471,7 @@ export default function StoryboardShotTable({ pendingActions, plan, projectId, r
       onGenerate: runtime ? () => onGenerateRow(runtime) : undefined,
       onRegenerate: runtime ? () => onRegenerateRow(runtime) : undefined,
       onRecover: runtime && onRecoverRow ? () => onRecoverRow(runtime) : undefined,
-      onToggleLock: runtime ? () => onToggleLockRow(runtime) : undefined,
+      onToggleFrozen: runtime ? () => onToggleFrozenRow(runtime) : undefined,
       // 画幅（v6 §2.4.1）：生效值与"是不是覆盖"都从 storyboardShotScope 单源读，
       // 行自己不判"读哪一个"。
       aspect: effectiveShotAspect(plan, shot),

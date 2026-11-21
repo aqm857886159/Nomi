@@ -2,7 +2,7 @@
 // 关键一条：首帧/尾帧要**节点 + 输入键成对**才算绑上——与画布 buildComfyWorkflowImageUrlSlots 同判据。
 import { describe, expect, it } from 'vitest'
 import { parseModelParameterControls } from '../../config/modelCatalogMeta'
-import { parseControlInput } from '../../workbench/generationCanvas/nodes/controls/parameterControlModel'
+import { parseControlInput } from '../../../electron/shared/videoCapabilities/paramValue'
 import { buildCanvasPreview, previewValuesToExtras } from './comfyuiCanvasPreview'
 import type { WorkflowBinding } from './comfyuiWorkflowBinding'
 

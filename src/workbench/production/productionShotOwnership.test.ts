@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { ProductionJob, ProductionJobStatus, ProductionRun, ProductionRunStatus } from '../../../electron/productionRun/productionRunTypes'
 import { createGenerationNode } from '../generationCanvas/model/graphOps'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
-import { eligibleGenerationNodeIds } from '../generationCanvas/components/canvasProductionScope'
+import { planCanvasGenerationScope } from '../generationCanvas/runner/generationScopeFacts'
 import { canRunGenerationNode } from '../generationCanvas/runner/generationRunController'
 import { useProductionCanvasLandingStore } from './productionCanvasLandingStore'
 import { isNodeGenerationOwnedByProduction } from './productionShotOwnership'
@@ -65,8 +65,8 @@ describe('isNodeGenerationOwnedByProduction — 报价卡等确认 / 排队 / �
 describe('画布的两个生成入口都认这一个判据', () => {
   it('「生成全部」不算排队中的制作镜头，已停的照常算', () => {
     const nodes = [shotNode()]
-    expect(eligibleGenerationNodeIds(nodes, {}, { 'run-1': singleShotRun('running') })).toEqual([])
-    expect(eligibleGenerationNodeIds(nodes, {}, { 'run-1': singleShotRun('paused') })).toEqual([NODE_ID])
+    expect(planCanvasGenerationScope('group', nodes.map((node) => node.id), { nodes, edges: [] }, { runs: { 'run-1': singleShotRun('running') } }).members).toEqual([])
+    expect(planCanvasGenerationScope('group', nodes.map((node) => node.id), { nodes, edges: [] }, { runs: { 'run-1': singleShotRun('paused') } }).members).toEqual([NODE_ID])
   })
 
   it('单节点生成：制作流程在跑这一镜时不可生成', () => {

@@ -379,3 +379,418 @@ export function findIdentityComparators({ files, read }) {
   }
   return found.sort((left, right) => `${left.path}::${left.symbol}`.localeCompare(`${right.path}::${right.symbol}`))
 }
+
+// shortcut: 仅识别已知 AST 形状，出现新旁路时升级为不暴露账本的读取接口。
+export function findShotJobSelections({ files, read }) {
+  const found = []
+  for (const file of files) {
+    if (!isScannableSource(file) || !PRODUCTION_ROOTS.includes(rootOf(file))) continue
+    const text = read(file)
+    if (!text || !/\b(?:jobs|ProductionJob|jobsForShot)\b/.test(text)) continue
+    const rel = normalizePath(file)
+    if (rel === 'electron/shared/productionShotJobs.ts') continue
+    const source = parseSource(rel, text)
+    const producers = new Set(['jobsForShot'])
+    const scopes = new Map()
+    const scopeOf = (node) => {
+      for (let at = node; at; at = at.parent) {
+        if (ts.isSourceFile(at) || ts.isBlock(at) || ts.isFunctionLike(at)) return at
+      }
+    }
+    const bind = (node, name, value) => {
+      const scope = scopeOf(node.parent)
+      if (!scopes.has(scope)) scopes.set(scope, new Map())
+      scopes.get(scope).set(name, value)
+    }
+    const collect = (node) => {
+      if (ts.isImportSpecifier(node) && (node.propertyName ?? node.name).text === 'jobsForShot') producers.add(node.name.text)
+      if (ts.isVariableDeclaration(node) || ts.isParameter(node)) {
+        if (ts.isIdentifier(node.name)) bind(node, node.name.text, node)
+        else if (ts.isObjectBindingPattern(node.name)) {
+          for (const element of node.name.elements) {
+            if (ts.isIdentifier(element.name) && (element.propertyName ?? element.name).getText(source) === 'jobs') {
+              bind(node, element.name.text, { ledgerBinding: true })
+            }
+          }
+        }
+      }
+      ts.forEachChild(node, collect)
+    }
+    collect(source)
+    const declarationOf = (node) => {
+      for (let at = node.parent; at; at = at.parent) {
+        const declaration = scopes.get(at)?.get(node.text)
+        if (declaration) return declaration
+      }
+    }
+    const isJobListCall = (expression) => {
+      let callee = unwrapExpression(expression)
+      const seen = new Set()
+      while (callee && ts.isIdentifier(callee) && !seen.has(callee.text)) {
+        if (producers.has(callee.text)) return true
+        seen.add(callee.text)
+        callee = unwrapExpression(declarationOf(callee)?.initializer)
+      }
+      return Boolean(callee && ((ts.isPropertyAccessExpression(callee) && callee.name.text === 'jobsForShot')
+        || (ts.isElementAccessExpression(callee) && ts.isStringLiteralLike(callee.argumentExpression) && callee.argumentExpression.text === 'jobsForShot')))
+    }
+    const ledger = (expression, seen = new Set()) => {
+      const node = unwrapExpression(expression)
+      if (!node || seen.has(node)) return false
+      seen.add(node)
+      if (ts.isPropertyAccessExpression(node)) return node.name.text === 'jobs'
+      if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) return node.argumentExpression.text === 'jobs'
+      if (ts.isIdentifier(node)) {
+        const declaration = declarationOf(node)
+        return Boolean(declaration && (declaration.ledgerBinding
+          || (declaration.type && /(?:ProductionJob\s*\[|(?:ReadonlyArray|Array)\s*<\s*ProductionJob\b|ProductionRun\s*\[\s*['"]jobs['"])/.test(declaration.type.getText(source)))
+          || ledger(declaration.initializer, seen)))
+      }
+      if (ts.isArrayLiteralExpression(node)) return node.elements.some((item) => ts.isSpreadElement(item) && ledger(item.expression, seen))
+      if (ts.isBinaryExpression(node) && [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken].includes(node.operatorToken.kind)) {
+        return ledger(node.left, seen) || ledger(node.right, seen)
+      }
+      if (ts.isCallExpression(node) && isJobListCall(node.expression)) return true
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+        && node.expression.getText(source) === 'Array.from') return ledger(node.arguments[0], seen)
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+        && ['filter', 'slice', 'sort', 'toSorted', 'reverse', 'toReversed'].includes(node.expression.name.text)) {
+        return ledger(node.expression.expression, seen)
+      }
+      return false
+    }
+    const symbolOf = (node) => {
+      for (let at = node.parent; at; at = at.parent) {
+        if (!ts.isFunctionLike(at)) continue
+        if (at.name && ts.isIdentifier(at.name)) return at.name.text
+        if (ts.isVariableDeclaration(at.parent) && ts.isIdentifier(at.parent.name)) return at.parent.name.text
+      }
+      return '<inline>'
+    }
+    const visit = (node) => {
+      let selection = ts.isVariableDeclaration(node) && ts.isArrayBindingPattern(node.name) && ledger(node.initializer)
+      selection ||= ts.isElementAccessExpression(node) && ledger(node.expression)
+        && /^(?:0|-1)$|\.length\s*-\s*1$/.test(node.argumentExpression.getText(source))
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && ledger(node.expression.expression)) {
+        const method = node.expression.name.text
+        const predicate = node.arguments.map((arg) => arg.getText(source)).join(' ')
+        const callback = node.arguments[0]
+        const numericFold = node.arguments[1] && ts.isNumericLiteral(unwrapExpression(node.arguments[1]))
+          && callback && ts.isArrowFunction(callback) && ts.isCallExpression(callback.body)
+          && /^Math\.(?:max|min)$/.test(callback.body.expression.getText(source))
+        selection ||= ['at', 'pop', 'shift'].includes(method)
+          || (['find', 'findLast'].includes(method) && /\b(?:shotId|shotNodeId|nodeId)\b/.test(predicate) && !/\bjobId\b/.test(predicate))
+          || (method === 'reduce' && /\b(?:attempt|createdAt|updatedAt)\b/.test(predicate) && !numericFold)
+      }
+      if (selection) {
+        const symbol = symbolOf(node)
+        // 已登记的专用问题：冻结合同内重做、整个 Run 最近活动导航。它们不按镜/节点挑当前任务。
+        const specialized = (rel === 'electron/productionRun/prepareProductionGenerationAuthorization.ts' && symbol === 'latestJobFor')
+          || (rel === 'src/workbench/production/productionRunView.ts' && symbol === 'latestJob')
+          || (rel === 'src/workbench/production/useProductionStatus.ts' && symbol === 'useProductionStatus')
+          || (rel === 'electron/productionRun/productionGenerationHistory.ts' && symbol === 'findGenerationExecutionJob')
+          || (rel === 'electron/productionRun/productionGenerationAuthorizationState.ts' && symbol === 'deriveGenerationReauthorizationState')
+          || (rel === 'electron/productionRun/productionGenerationSeal.ts' && symbol === 'applyGenerationSeal')
+          || (rel === 'electron/productionRun/singleShotRunLifecycle.ts' && symbol === 'markSingleShotCompleted')
+          || (rel === 'electron/productionRun/submissionIntent.ts' && ['inspect', 'claim'].includes(symbol))
+        if (!specialized) found.push({ path: rel, symbol, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 })
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+  }
+  return found
+}
+
+// ─── 失败判定旁路（diagnostics.generation-failure-decision）─────────────────────
+export const FAILURE_DECISION_OWNER_FILES = new Set([
+  'electron/shared/generationFailure.ts', 'electron/shared/generationFailureKinds.ts',
+  'electron/shared/generationFailureWire.ts', 'electron/shared/generationFailureDetect.ts',
+  'electron/shared/generationFailureCopy.ts',
+])
+const FAILURE_FAMILY = new Set([
+  'classifyGenerationError', 'GenerationErrorReport', 'GenerationErrorKind', 'GenerationErrorAction',
+  'decideGenerationFailure', 'GenerationFailureDecision', 'projectGenerationFailure', 'failureActionsFor',
+  'narrateGenerationError', 'buildToolErrorOutcome', 'confirmPublicError', 'generationFailureActions',
+])
+const FAILURE_FIELDS = new Set(['kind', 'errorCode', 'publicCode', 'primary', 'secondary', 'vendorSide'])
+const FAILURE_COPY_FIELDS = new Set([...FAILURE_FIELDS, 'reason', 'hint', 'key', 'recoveryActions', 'nextActions'])
+const FAILURE_PRODUCERS = new Set(['decideGenerationFailure', 'classifyGenerationError', 'projectGenerationFailure', 'buildToolErrorOutcome', 'confirmPublicError', 'failureActionsFor', 'generationFailureActions'])
+const RAW_NAME = /(?:message|raw|msg|text|stderr)$/i
+const RAW_METHODS = new Set(['includes', 'indexOf', 'startsWith', 'endsWith', 'match', 'matchAll', 'test', 'search', 'exec'])
+const EQUALITY = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken])
+
+/** 跟踪原文到判断、判断到判定字段；原文仅用于显示或传给主人不算第二次判定。 */
+export function findFailureDecisionBypass({ files, read }) {
+  const found = []
+  for (const file of files) {
+    const rel = normalizePath(file)
+    if (!isScannableSource(rel) || !PRODUCTION_ROOTS.includes(rootOf(rel)) || FAILURE_DECISION_OWNER_FILES.has(rel)) continue
+    const text = read(rel)
+    if (typeof text !== 'string') continue
+    if (!mentionsAny(text, FAILURE_FAMILY)) continue
+    const source = parseSource(rel, text)
+    // 用 TS 的词法绑定区分别名与同名局部变量；不加载依赖或类型库。
+    const host = { getSourceFile: (name) => name === rel ? source : undefined, getDefaultLibFileName: () => '',
+      writeFile() {}, getCurrentDirectory: () => '', getDirectories: () => [], fileExists: (name) => name === rel,
+      readFile: (name) => name === rel ? text : undefined, getCanonicalFileName: (name) => name,
+      useCaseSensitiveFileNames: () => true, getNewLine: () => '\n' }
+    const checker = ts.createProgram([rel], { noResolve: true, noLib: true }, host).getTypeChecker()
+    const producers = new Set(FAILURE_PRODUCERS)
+    const decisionTypes = new Set(['GenerationFailureDecision', 'GenerationErrorReport'])
+    let family = false
+    const findFamily = (node) => {
+      if (ts.isIdentifier(node) && FAILURE_FAMILY.has(node.text)) family = true
+      if (ts.isImportSpecifier(node)) {
+        const imported = (node.propertyName ?? node.name).text
+        if (FAILURE_PRODUCERS.has(imported)) producers.add(node.name.text)
+        if (decisionTypes.has(imported)) decisionTypes.add(node.name.text)
+      }
+      ts.forEachChild(node, findFamily)
+    }
+    findFamily(source)
+    const writes = new Map()
+    const collectWrites = (node) => {
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(node.left)) {
+        const symbol = checker.getSymbolAtLocation(node.left)
+        if (!symbol) return
+        if (!writes.has(symbol)) writes.set(symbol, [])
+        writes.get(symbol).push(node)
+      }
+      ts.forEachChild(node, collectWrites)
+    }
+    collectWrites(source)
+    const member = (node) => ts.isPropertyAccessExpression(node) ? node.name.text
+      : ts.isElementAccessExpression(node) && node.argumentExpression && ts.isStringLiteralLike(node.argumentExpression) ? node.argumentExpression.text : ''
+    const callee = (node) => ts.isIdentifier(node) ? node.text : member(node)
+    const symbolOfIdentifier = (node) => ts.isShorthandPropertyAssignment(node.parent)
+      ? checker.getShorthandAssignmentValueSymbol(node.parent) : checker.getSymbolAtLocation(node)
+    const declarations = (node) => symbolOfIdentifier(node)?.declarations ?? []
+    const anyChild = (node, predicate, seen) => ts.forEachChild(node, (child) => predicate(child, new Set(seen)) || undefined) || false
+    const fromDeclaration = (node, predicate, seen) => declarations(node).map((declaration) => {
+      if (declaration.initializer) return predicate(declaration.initializer, new Set(seen))
+      if (ts.isBindingElement(declaration)) {
+        const binding = declaration.parent.parent
+        return binding.initializer && predicate(binding.initializer, new Set(seen))
+      }
+      return false
+    }).find(Boolean) || false
+    const raw = (expression, seen = new Set()) => {
+      const node = unwrapExpression(expression)
+      if (!node || seen.has(node)) return false
+      seen.add(node)
+      if (['raw', 'message'].includes(member(node))) return true
+      if (FAILURE_COPY_FIELDS.has(member(node)) && decision(node.expression)) return false
+      if (ts.isCallExpression(node) && producers.has(callee(node.expression))) return false
+      if (ts.isIdentifier(node)) {
+        if (declarations(node).some((d) => ts.isBindingElement(d) && ['raw', 'message'].includes((d.propertyName ?? d.name).getText(source)))) return true
+        if (fromDeclaration(node, raw, seen)) return true
+        return RAW_NAME.test(node.text) && declarations(node).some((d) => ts.isParameter(d))
+      }
+      if (ts.isCallExpression(node) && callee(node.expression) === 'String' && node.arguments.some((arg) => /^(?:e|err|error)$/i.test(arg.getText(source)))) return true
+      return anyChild(node, raw, seen)
+    }
+    const displayRaw = (expression, seen = new Set()) => {
+      const node = unwrapExpression(expression)
+      if (!node || seen.has(node)) return false
+      seen.add(node)
+      if (['raw', 'message'].includes(member(node))) return true
+      if (ts.isStringLiteralLike(node)) return node.text === ''
+      if (ts.isIdentifier(node)) return fromDeclaration(node, displayRaw, seen)
+        || (RAW_NAME.test(node.text) && declarations(node).some((d) => ts.isParameter(d)))
+      if (ts.isConditionalExpression(node)) return displayRaw(node.whenTrue, new Set(seen)) && displayRaw(node.whenFalse, new Set(seen))
+      if (ts.isCallExpression(node) && ['trim', 'slice', 'substring', 'replace', 'replaceAll'].includes(member(node.expression))) return displayRaw(node.expression.expression, seen)
+      return false
+    }
+    const judgment = (expression, seen = new Set()) => {
+      const node = unwrapExpression(expression)
+      if (!node || seen.has(node)) return false
+      seen.add(node)
+      if (ts.isConditionalExpression(node) && displayRaw(node)) return false
+      if (ts.isIdentifier(node)) return fromDeclaration(node, judgment, seen)
+        || (writes.get(symbolOfIdentifier(node)) ?? []).map((write) => !seen.has(write)
+          && (judgment(write.right, new Set([...seen, write])) || controlled(write, new Set([...seen, write])))).find(Boolean)
+      if (ts.isBinaryExpression(node) && EQUALITY.has(node.operatorToken.kind) && (raw(node.left) || raw(node.right))) return node
+      if (ts.isCallExpression(node) && RAW_METHODS.has(member(node.expression)) && raw(node)) return node
+      return anyChild(node, judgment, seen)
+    }
+    const decision = (expression, seen = new Set()) => {
+      const node = unwrapExpression(expression)
+      if (!node || seen.has(node)) return false
+      seen.add(node)
+      if (ts.isCallExpression(node) && producers.has(callee(node.expression))) return true
+      if (ts.isIdentifier(node)) {
+        if (declarations(node).some((d) => d.type && [...decisionTypes].some((name) => new RegExp(`\\b${name}\\b`).test(d.type.getText(source))))) return true
+        return fromDeclaration(node, decision, seen)
+      }
+      if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) return decision(node.expression, seen)
+      return ts.isObjectLiteralExpression(node) && node.properties.some((p) => ts.isSpreadAssignment(p) && decision(p.expression, seen))
+    }
+    const controlled = (node, seen = new Set()) => {
+      for (let at = node.parent; at && !ts.isFunctionLike(at); at = at.parent) {
+        if (ts.isIfStatement(at)) { const origin = judgment(at.expression, new Set(seen)); if (origin) return origin }
+        if (ts.isConditionalExpression(at) && at.condition !== node) { const origin = judgment(at.condition, new Set(seen)); if (origin) return origin }
+        if (ts.isCaseBlock(at) && raw(at.parent.expression)) return at.parent.expression
+      }
+      return false
+    }
+    const reported = new Set()
+    const report = (node, shape) => {
+      const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
+      const identity = `${line}:${shape}`
+      if (reported.has(identity)) return
+      reported.add(identity)
+      let symbol = '<module>'
+      for (let at = node.parent; at; at = at.parent) {
+        if (!ts.isFunctionLike(at)) continue
+        symbol = at.name?.getText(source) ?? (ts.isVariableDeclaration(at.parent) ? at.parent.name.getText(source) : '<callback>')
+        break
+      }
+      found.push({ path: rel, line,
+        symbol, shape, value: node.getText(source).slice(0, 120) })
+    }
+    const visit = (node) => {
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
+        && FAILURE_FIELDS.has(member(node.left)) && decision(node.left.expression)) report(node, 'decision-field-write')
+      if (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) {
+        const name = node.name && (ts.isIdentifier(node.name) || ts.isStringLiteralLike(node.name)) ? node.name.text : ''
+        const value = ts.isPropertyAssignment(node) ? node.initializer : node.name
+        const spreadDecision = ts.isObjectLiteralExpression(node.parent) && node.parent.properties.some((p) => ts.isSpreadAssignment(p) && decision(p.expression))
+        if (FAILURE_FIELDS.has(name) && spreadDecision && !(member(value) === name && decision(value.expression))) report(node, 'decision-field-override')
+        else if (family && FAILURE_COPY_FIELDS.has(name)) {
+          const origin = judgment(value) || controlled(node)
+          if (origin) report(origin, 'raw-judgment-to-decision')
+        }
+      }
+      if (family && ts.isCallExpression(node) && ['classifyGenerationError', 'decideGenerationFailure'].includes(callee(node.expression))) {
+        const first = node.arguments[0] && unwrapExpression(node.arguments[0])
+        const message = first && ts.isObjectLiteralExpression(first)
+          ? first.properties.find((p) => ts.isPropertyAssignment(p) && p.name.getText(source) === 'message')?.initializer : first
+        if (message && ts.isStringLiteralLike(message) && message.text.trim()) report(node, 'synthetic-rejudge')
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+  }
+  return found.sort((left, right) => `${left.path}:${left.line}`.localeCompare(`${right.path}:${right.line}`))
+}
+
+// ─── 重发放行旁路（canvas.shot-run：失败后再发一次只由主进程一处定）──────────────
+/** 「结果未知」这张状态表的唯一住处；别处按状态自列这两个就是第二份清单。 */
+export const OPEN_AS_OWNER_FILE = 'electron/shared/productionJobOpenAs.ts'
+const RESULT_UNKNOWN_STATES = ['submission_unknown', 'reconciling']
+/**
+ * 标「已收尾」（放掉节点占用）只许在这几处：自己收尾、撤回还没交的出价、交给观察者、找回后摇铃——
+ * 以及唯一一处替别的 Run 放：重发主人的准入（`assertNodeIdle`，只放决定号里那几笔）。
+ */
+export const OCCUPANCY_RELEASE_OWNERS = new Map([
+  ['electron/capabilityCore/appIntegrationCanvasShot.ts', new Set(['settle', 'withdrawConsent', 'assertNodeIdle', 'handOff'])],
+  ['electron/capabilityCore/canvasShotSettledBell.ts', null],
+  ['electron/productionRun/canvasShotRunIndex.ts', null],
+])
+const OCCUPANCY_RELEASE = 'markCanvasRunSettled'
+const OCCUPANCY_MODULE = /(?:^|\/)canvasShotRunIndex(?:\.[cm]?[jt]s)?$/
+const LIST_BUILDERS = ['assign', 'concat', 'of', 'from']
+
+/**
+ * 两个落点，都锚在落点不锚名字：
+ * - `result-unknown-list`：主人表之外，一个字面量清单（数组 / Set / `||` 比较链 / 展开 / Object.assign / concat）里的状态恰好是
+ *   「结果未知」那两个——改名、内联、常量别名、属性赋值、展开拼接都会把同一组字面量带进来；
+ * - `occupancy-release`：主人之外拿到「标已收尾」这个写口（具名 / 改名 / 整模块 / 动态 import），或主人文件里在登记的函数之外碰它。
+ */
+export function findResendOwnerBypass({ files, read }) {
+  const found = []
+  for (const file of files) {
+    const rel = normalizePath(file)
+    if (!isScannableSource(rel) || !PRODUCTION_ROOTS.includes(rootOf(rel))) continue
+    const text = read(rel)
+    if (typeof text !== 'string') continue
+    const listCandidate = rel !== OPEN_AS_OWNER_FILE && RESULT_UNKNOWN_STATES.every((state) => text.includes(state))
+    const owners = OCCUPANCY_RELEASE_OWNERS.get(rel)
+    const releaseCandidate = owners !== null && (text.includes(OCCUPANCY_RELEASE) || text.includes('canvasShotRunIndex'))
+    if (!listCandidate && !releaseCandidate) continue
+    const source = parseSource(rel, text)
+    const report = (node, shape) => {
+      const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
+      if (found.some((item) => item.path === rel && item.line === line && item.shape === shape)) return
+      found.push({ path: rel, line, symbol: enclosing(node), shape, value: node.getText(source).slice(0, 120) })
+    }
+    const enclosing = (node) => {
+      for (let at = node.parent; at; at = at.parent) {
+        if (ts.isFunctionDeclaration(at) && at.name) return at.name.text
+        if ((ts.isArrowFunction(at) || ts.isFunctionExpression(at)) && ts.isVariableDeclaration(at.parent) && ts.isIdentifier(at.parent.name)) return at.parent.name.text
+        if (ts.isMethodDeclaration(at) && at.name && ts.isIdentifier(at.name)) return at.name.text
+      }
+      return '<module>'
+    }
+    // 同一文件里的常量：名字 → 初值（别名、展开、拼接都顺着它解）。
+    const constants = new Map()
+    const collect = (node) => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) constants.set(node.name.text, node.initializer)
+      ts.forEachChild(node, collect)
+    }
+    collect(source)
+    const members = (expression, seen = new Set()) => {
+      const node = unwrapExpression(expression)
+      const out = new Set()
+      if (!node || seen.has(node)) return out
+      seen.add(node)
+      const add = (child) => { for (const value of members(child, seen)) out.add(value) }
+      if (ts.isStringLiteralLike(node)) out.add(node.text)
+      else if (ts.isIdentifier(node) && constants.has(node.text)) add(constants.get(node.text))
+      else if (ts.isArrayLiteralExpression(node)) node.elements.forEach((element) => add(ts.isSpreadElement(element) ? element.expression : element))
+      else if (ts.isNewExpression(node) && node.arguments?.length) add(node.arguments[0])
+      else if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && LIST_BUILDERS.includes(node.expression.name.text)) {
+        if (node.expression.name.text === 'concat') add(node.expression.expression)
+        node.arguments.forEach(add)
+      } else if (ts.isBinaryExpression(node) && ([ts.SyntaxKind.BarBarToken, ts.SyntaxKind.AmpersandAmpersandToken].includes(node.operatorToken.kind) || EQUALITY.has(node.operatorToken.kind))) {
+        add(node.left); add(node.right)
+      }
+      return out
+    }
+    const isResultUnknownList = (node) => {
+      const values = members(node)
+      return RESULT_UNKNOWN_STATES.every((state) => values.has(state)) && [...values].every((value) => RESULT_UNKNOWN_STATES.includes(value))
+    }
+    const orChainTop = (node) => ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.BarBarToken
+      && !(ts.isBinaryExpression(node.parent) && node.parent.operatorToken.kind === ts.SyntaxKind.BarBarToken)
+    const listShape = (node) => ts.isArrayLiteralExpression(node) || ts.isNewExpression(node) || orChainTop(node)
+      || (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && LIST_BUILDERS.includes(node.expression.name.text))
+    // 数组里套着的、被展开 / 拼接的子清单不重复报：只报最外层那一个。
+    const insideReportedList = (node) => {
+      for (let at = node.parent; at; at = at.parent) if (listShape(at) && isResultUnknownList(at)) return true
+      return false
+    }
+    const releaseAllowed = (node) => owners !== undefined && owners.has(enclosing(node))
+    const localNames = new Set([OCCUPANCY_RELEASE])
+    const visit = (node) => {
+      if (listCandidate && listShape(node) && isResultUnknownList(node) && !insideReportedList(node)) report(node, 'result-unknown-list')
+      if (releaseCandidate) {
+        if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier) && OCCUPANCY_MODULE.test(node.moduleSpecifier.text)) {
+          const bindings = node.importClause?.namedBindings
+          if (bindings && ts.isNamespaceImport(bindings) && owners === undefined) report(node, 'occupancy-release')
+          if (bindings && ts.isNamedImports(bindings)) {
+            for (const element of bindings.elements) {
+              if ((element.propertyName ?? element.name).text !== OCCUPANCY_RELEASE) continue
+              localNames.add(element.name.text)
+              if (owners === undefined) report(element, 'occupancy-release')
+            }
+          }
+        } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
+          && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0]) && OCCUPANCY_MODULE.test(node.arguments[0].text) && owners === undefined) {
+          report(node, 'occupancy-release')
+        } else if (ts.isIdentifier(node) && localNames.has(node.text) && !ts.isImportSpecifier(node.parent)
+          && !(ts.isPropertyAccessExpression(node.parent) && node.parent.name === node) && !releaseAllowed(node)) {
+          report(node, 'occupancy-release')
+        } else if (((ts.isPropertyAccessExpression(node) && node.name.text === OCCUPANCY_RELEASE)
+          || (ts.isElementAccessExpression(node) && node.argumentExpression && ts.isStringLiteralLike(node.argumentExpression) && node.argumentExpression.text === OCCUPANCY_RELEASE))
+          && !releaseAllowed(node)) {
+          report(node, 'occupancy-release')
+        }
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+  }
+  return found.sort((left, right) => `${left.path}:${left.line}`.localeCompare(`${right.path}:${right.line}`))
+}

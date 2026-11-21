@@ -11,6 +11,7 @@ import { type McpGenerationCapability } from './mcpGenerationPolicy'
  */
 const OPEN_PROJECT_SESSION_NEXT_ACTION = 'Open a new project session and retry'
 import { reservationMaximumForDisplay, type HumanApprovalReceiptV1 } from './approvalReceipt'
+import { approveGateByPolicy } from './runOwnedGenerationGateAuthority'
 import type { ProjectLeaseV2 } from './projectLease'
 import { spendDecisionByPolicy } from '../shared/agentCapabilities/directGenerationBrakes'
 import type { DispatchContext } from './dispatcher'
@@ -274,13 +275,10 @@ async function dispatchSemanticStub(
       // （两个宿主——应用内与 MCP stdio——都递了 requestGenerationGate，不走这里；带 Run 的路在 generationTransportAdapters）。
       const policyDecided = spendDecisionByPolicy(ctx.approvalPolicy?.(), undefined).decided
       const policyReceipt = policyDecided
-        ? authority.mintReceipt(
-            challenge.token,
-            authority.createPolicyDecisionAttestation(challenge.token, {
-              policyMode: 'project',
-              policySurface: ctx.origin?.host ? `mcp:${ctx.origin.host}` : 'mcp',
-            }),
-          )
+        ? approveGateByPolicy(authority, challenge.token, {
+            policyMode: 'project',
+            policySurface: ctx.origin?.host ? `mcp:${ctx.origin.host}` : 'mcp',
+          })
         : undefined
       return {
         ...value,

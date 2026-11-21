@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { buildVideoModelCandidates } from "../shared/videoCapabilities";
 import type { GenerationProblem } from "../shared/generationProblem";
 import { admitPlanCandidate, ContractCompilationError, type PlanCandidate } from "./executionContract";
-import { normalizeAuthoredCandidate, videoModeForPlan } from "./mcpGenerationVideoResolve";
+import { normalizeAuthoredCandidate, normalizeVideoCandidate } from "./mcpGenerationVideoResolve";
 import { createModuleRegistry } from "./moduleRegistry";
 import { admitShotIdentity, semanticCandidateFromParams, shotTaskKind } from "./semanticGenerationCandidate";
 import { GenerationRefusal } from "./transportFailure";
@@ -65,6 +65,8 @@ describe("unknown_model：点了名的模型不在目录里", () => {
     }));
     expect(problem).toMatchObject({ code: "unknown_model", field: "candidate.modelId", nearest: "apimart/doubao-seedream-5-0-pro", next: "use_nearest_model" });
     expect(message).toContain("volcengine/doubao-seedream-5-0-pro is not in the model catalog");
+    expect(message).toContain(problem!.nearest!);
+    expect(message).not.toMatch(/providerId|modelId/);
     expect(message).not.toMatch(/没有配置可用|has no default/);
   });
 
@@ -129,7 +131,7 @@ describe("mode_not_in_model：这个模型没有要的这种", () => {
 
   it("视频模式 id 这个模型没有（modeId: t2i）→ mode_not_in_model，列出它的模式", () => {
     const [video] = buildVideoModelCandidates([{ provider: "apimart", modelKey: "doubao-seedance-2.0", label: "Seedance 2.0" }]);
-    const { problem } = refusal(() => videoModeForPlan(candidate("apimart", "doubao-seedance-2.0", "text_to_video", {}, { modeId: "t2i" }), video!));
+    const { problem } = refusal(() => normalizeVideoCandidate(candidate("apimart", "doubao-seedance-2.0", "text_to_video", {}, { modeId: "t2i" }), [video!]));
     expect(problem?.code).toBe("mode_not_in_model");
     expect(problem?.field).toBe("modeId");
     expect(problem?.allowed?.length).toBeGreaterThan(0);

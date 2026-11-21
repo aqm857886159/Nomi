@@ -299,11 +299,11 @@ describe("节点号不是任务号", () => {
     const before = world.run();
     const adapter = world.transport("request");
     for (const toolName of ["check_job", "cancel_job"]) {
-      const wrong = verbToTransportCall({ toolCallId: toolName, toolName, args: { domain: "generation", jobId: nodeId } })!;
+      const wrong = verbToTransportCall({ toolCallId: toolName, toolName, args: { domain: "generation", jobId: nodeId } }, [])!;
       expect(await adapter.tryExecute(wrong.call, new AbortController().signal)).toMatchObject({ ok: false, code: "generation_operation_not_found" });
       expect(world.run()).toEqual(before);
     }
-    const correct = verbToTransportCall({ toolCallId: "correct", toolName: "check_job", args: { domain: "generation", jobId: OPERATION_ID } })!;
+    const correct = verbToTransportCall({ toolCallId: "correct", toolName: "check_job", args: { domain: "generation", jobId: OPERATION_ID } }, [])!;
     expect(await adapter.tryExecute(correct.call, new AbortController().signal)).toMatchObject({
       ok: true, result: { executionState: "not_started", taskRef: { domain: "generation", jobId: OPERATION_ID }, operation: { operationId: OPERATION_ID, state: "draft" } },
     });

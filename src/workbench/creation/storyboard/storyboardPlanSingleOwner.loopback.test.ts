@@ -64,7 +64,7 @@ function lane() {
     return async (args: Record<string, unknown>) => {
       // 模型面：动词自己的容忍 + schema（pi 的 ajv 在真 lane 上跑的是同一份）。
       const admitted = draftShotsVerb.schema.parse(draftShotsVerb.prepareArguments ? draftShotsVerb.prepareArguments(args) : args)
-      const translated = verbToTransportCall({ toolCallId: `call-${++seq}`, toolName: 'draft_shots', args: admitted })!
+      const translated = verbToTransportCall({ toolCallId: `call-${++seq}`, toolName: 'draft_shots', args: admitted }, MODELS)!
       return adapter.tryExecute(translated.call, new AbortController().signal, {
         storyboardTarget: target, sourceDocument: { documentId: 'doc', revision: 1, contentHash: 'hash' },
       }) as Promise<{ ok: boolean; result?: Record<string, unknown>; message?: string; code?: string }>
@@ -79,7 +79,8 @@ beforeEach(() => {
   store.hydrateStoryboardDesigns({})
 })
 
-const img = { providerId: 'apimart', modelId: 'gpt-image-2' }
+const MODELS = [{ vendor: 'apimart', modelId: 'gpt-image-2' }]
+const img = 'gpt-image-2@apimart'
 const LANGS = [
   { lang: 'zh-CN', t: (zh: string, _en: string) => zh },
   { lang: 'en', t: (_zh: string, en: string) => en },
@@ -87,8 +88,8 @@ const LANGS = [
 
 for (const { lang, t } of LANGS) {
   const anchor = (title: string, prompt: string, kind: 'character' | 'scene') =>
-    ({ role: 'anchor', title, prompt, taskKind: 'text_to_image', candidate: img, storyboard: { kind, carrier: 'visual', scope: 'selective' } })
-  const shot = (title: string, prompt: string) => ({ title, prompt, taskKind: 'text_to_image', candidate: img })
+    ({ role: 'anchor', title, prompt, taskKind: 'text_to_image', model: img, storyboard: { kind, carrier: 'visual', scope: 'selective' } })
+  const shot = (title: string, prompt: string) => ({ title, prompt, taskKind: 'text_to_image', model: img })
 
   describe(`[${lang}] 一份请求一份方案；镜号只数镜头；改第 N 镜只落到镜头`, () => {
     it('AUD1：2 张参考卡 + 2 镜的方案，镜头行号是 1、2，参考卡不占号', async () => {
@@ -206,35 +207,35 @@ type Entrance = { id: string; build: (lang: (typeof LANGS)[number]) => Promise<s
 const ENTRANCES: Entrance[] = [
   { id: 'agent-one-call', build: async ({ t }) => {
     await lane().request('m-1')({ shots: [
-      { role: 'anchor', title: t('甲', 'A'), prompt: t('角色甲', 'Character A'), taskKind: 'text_to_image', candidate: img, storyboard: { kind: 'character', carrier: 'visual' } },
-      { role: 'anchor', title: t('乙', 'B'), prompt: t('场景乙', 'Scene B'), taskKind: 'text_to_image', candidate: img, storyboard: { kind: 'scene', carrier: 'visual' } },
-      { title: t('一', 'One'), prompt: t('第一镜', 'First shot'), taskKind: 'text_to_image', candidate: img },
-      { title: t('二', 'Two'), prompt: t('第二镜', 'Second shot'), taskKind: 'text_to_image', candidate: img },
+      { role: 'anchor', title: t('甲', 'A'), prompt: t('角色甲', 'Character A'), taskKind: 'text_to_image', model: img, storyboard: { kind: 'character', carrier: 'visual' } },
+      { role: 'anchor', title: t('乙', 'B'), prompt: t('场景乙', 'Scene B'), taskKind: 'text_to_image', model: img, storyboard: { kind: 'scene', carrier: 'visual' } },
+      { title: t('一', 'One'), prompt: t('第一镜', 'First shot'), taskKind: 'text_to_image', model: img },
+      { title: t('二', 'Two'), prompt: t('第二镜', 'Second shot'), taskKind: 'text_to_image', model: img },
     ] })
     return designs()[0].id
   } },
   { id: 'agent-same-request-two-calls', build: async ({ t }) => {
     const turn = lane().request('m-2')
     await turn({ shots: [
-      { role: 'anchor', title: t('甲', 'A'), prompt: t('角色甲', 'Character A'), taskKind: 'text_to_image', candidate: img, storyboard: { kind: 'character', carrier: 'visual' } },
-      { role: 'anchor', title: t('乙', 'B'), prompt: t('场景乙', 'Scene B'), taskKind: 'text_to_image', candidate: img, storyboard: { kind: 'scene', carrier: 'visual' } },
+      { role: 'anchor', title: t('甲', 'A'), prompt: t('角色甲', 'Character A'), taskKind: 'text_to_image', model: img, storyboard: { kind: 'character', carrier: 'visual' } },
+      { role: 'anchor', title: t('乙', 'B'), prompt: t('场景乙', 'Scene B'), taskKind: 'text_to_image', model: img, storyboard: { kind: 'scene', carrier: 'visual' } },
     ] })
     await turn({ shots: [
-      { title: t('一', 'One'), prompt: t('第一镜', 'First shot'), taskKind: 'text_to_image', candidate: img },
-      { title: t('二', 'Two'), prompt: t('第二镜', 'Second shot'), taskKind: 'text_to_image', candidate: img },
+      { title: t('一', 'One'), prompt: t('第一镜', 'First shot'), taskKind: 'text_to_image', model: img },
+      { title: t('二', 'Two'), prompt: t('第二镜', 'Second shot'), taskKind: 'text_to_image', model: img },
     ] })
     return designs()[0].id
   } },
   { id: 'agent-next-request-append', build: async ({ t }) => {
     const { request } = lane()
     await request('m-3')({ shots: [
-      { role: 'anchor', title: t('甲', 'A'), prompt: t('角色甲', 'Character A'), taskKind: 'text_to_image', candidate: img, storyboard: { kind: 'character', carrier: 'visual' } },
-      { role: 'anchor', title: t('乙', 'B'), prompt: t('场景乙', 'Scene B'), taskKind: 'text_to_image', candidate: img, storyboard: { kind: 'scene', carrier: 'visual' } },
+      { role: 'anchor', title: t('甲', 'A'), prompt: t('角色甲', 'Character A'), taskKind: 'text_to_image', model: img, storyboard: { kind: 'character', carrier: 'visual' } },
+      { role: 'anchor', title: t('乙', 'B'), prompt: t('场景乙', 'Scene B'), taskKind: 'text_to_image', model: img, storyboard: { kind: 'scene', carrier: 'visual' } },
     ] })
     const designId = designs()[0].id
     await request('m-4')({ operationId: designId, shots: [
-      { title: t('一', 'One'), prompt: t('第一镜', 'First shot'), taskKind: 'text_to_image', candidate: img },
-      { title: t('二', 'Two'), prompt: t('第二镜', 'Second shot'), taskKind: 'text_to_image', candidate: img },
+      { title: t('一', 'One'), prompt: t('第一镜', 'First shot'), taskKind: 'text_to_image', model: img },
+      { title: t('二', 'Two'), prompt: t('第二镜', 'Second shot'), taskKind: 'text_to_image', model: img },
     ] })
     return designId
   } },

@@ -13,7 +13,6 @@ export type HandOverShotsRequest = Readonly<{
   runId: string;
   shots: ReadonlyArray<Readonly<{ shotId: string; nodeId: string }>>;
   /** 卡上摆过托管披露、用户点的就是「生成」（手势）。策略那一档恒 false：托管要问人，策略不代答。 */
-  hostingAllowed: boolean;
 }>;
 
 /** 渲染层的回话：哪几镜没开出同意、为什么（Nomi 自己的语义码）。没提到的、也没绑上的，主进程按「没开出同意」收尾。 */

@@ -161,12 +161,12 @@ describe('一台机器一天一次：缓存摘要放仓库外，后开的会话�
         run: async (_r, radar) => (radar.key === 'intake' ? { status: 0, stdout: 'A' } : { status: 1, stdout: '', stderr: 'down' }) })
       const calls = []
       const retry = await runSession({ root: '/b', env, now: () => LATER, run: async (_r, radar) => { calls.push(radar.key); return { status: 0, stdout: 'B' } } })
-      assert.deepEqual(calls, ['models'])
+      assert.deepEqual(calls.sort(), ['docs', 'models'])
       assert.match(retry, /今天 09:05 已在本机跑过/)
 
       const nextDay = [];
       await runSession({ root: '/c', env, now: () => new Date(2026, 9, 3, 8, 0), run: async (_r, radar) => { nextDay.push(radar.key); return { status: 0, stdout: 'C' } } })
-      assert.deepEqual(nextDay.sort(), ['intake', 'models'])
+      assert.deepEqual(nextDay.sort(), ['docs', 'intake', 'models'])
     } finally { cleanup(cache) }
   })
 
@@ -437,6 +437,28 @@ describe('待分诊：每次开会话现读，新反馈从哪条分支都漏不�
       assert.match(summary, /2026-10-31T115200Z\.md/)
       assert.match(summary, /继续放量/)
     }
+  })
+})
+
+describe('模型文档漂移（第三个雷达）', () => {
+  test('进开工提示，且比别的雷达多给超时与摘要行数；hook 路径只读（不带 --accept）', async () => {
+    const docs = RADARS.find((radar) => radar.key === 'docs')
+    assert.ok(docs)
+    assert.ok(docs.timeoutMs > 60_000)
+    assert.ok(!docs.argv.includes('--accept'))
+    const { text, state } = await runDailyRadar({ root: '/x', now: NOW, run: okRun({ docs: '文档漂移：来源地址 183 个 · 没变 170 · ⚠️ 变了 1' }), hasSkill: allSkills })
+    assert.match(text, /【模型文档漂移】已跑/)
+    assert.match(text, /⚠️ 变了 1/)
+    assert.equal(state.docs.ok, true)
+  })
+
+  test('跑败 = 明说今天没查成（不是没有变化），且不影响别的雷达', async () => {
+    const run = async (_root, radar) => (radar.key === 'docs' ? { status: 2, stdout: '', stderr: 'fetch failed' } : { status: 0, stdout: 'ok', stderr: '' })
+    const { text, state } = await runDailyRadar({ root: '/x', now: NOW, run, hasSkill: allSkills })
+    assert.match(text, /【模型文档漂移】今天没查成/)
+    assert.match(text, /【用户反馈雷达】已跑/)
+    assert.equal(state.docs.ok, false)
+    assert.equal(state.models.ok, true)
   })
 })
 

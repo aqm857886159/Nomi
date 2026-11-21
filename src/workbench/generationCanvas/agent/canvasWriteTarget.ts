@@ -128,7 +128,6 @@ export function captureCanvasWriteBatchRawEvidence(
       kind: node.kind,
       title: node.title,
       prompt: node.prompt ?? '',
-      locked: Boolean(node.locked),
       categoryId: typeof node.categoryId === 'string' && node.categoryId.trim() ? node.categoryId.trim() : null,
       groupId: typeof node.groupId === 'string' && node.groupId.trim() ? node.groupId.trim() : null,
       position: {
@@ -225,7 +224,6 @@ export function captureCanvasWriteRawEvidence(
       title: node.title,
       prompt: node.prompt ?? '',
       ...(node.kind === 'text' ? { bodyHash: textDocumentDigest(node.contentJson) } : {}),
-      locked: Boolean(node.locked),
       categoryId: trimmedString(node.categoryId),
       groupId: trimmedString(node.groupId),
       model: {

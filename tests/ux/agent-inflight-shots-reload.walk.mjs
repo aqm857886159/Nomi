@@ -175,8 +175,8 @@ try {
     match: (body) => flattenRequestText(body).includes('S_INFLIGHT_ASK'),
     reply: { type: 'tool', id: PLAN_CALL, name: 'draft_shots', args: {
       shots: [
-        { title: '渔港', prompt: '清晨的渔港，几只小船轻轻晃', taskKind: 'text_to_video', candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: VIDEO_MODEL } },
-        { title: '码头猫', prompt: '码头上一只橘猫在晒太阳', taskKind: 'text_to_video', candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: VIDEO_MODEL } },
+        { title: '渔港', prompt: '清晨的渔港，几只小船轻轻晃', taskKind: 'text_to_video', model: `${VIDEO_MODEL}@${FIXTURE_APIMART_VENDOR}` },
+        { title: '码头猫', prompt: '码头上一只橘猫在晒太阳', taskKind: 'text_to_video', model: `${VIDEO_MODEL}@${FIXTURE_APIMART_VENDOR}` },
       ],
     } },
   })

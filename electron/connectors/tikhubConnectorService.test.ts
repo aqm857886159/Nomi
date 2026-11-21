@@ -59,11 +59,14 @@ describe("importTikhubShareUrl — 解析后带 source evidence 落成项目素�
     const result = await importTikhubShareUrl({ projectId: "project-fixture", shareUrl: "抖音 https://v.douyin.com/fixture/" });
 
     expect(result).toEqual({ asset: { id: "asset-fixture" }, resolved: expect.objectContaining({ playUrl: "http://127.0.0.1:43210/fixture.mp4" }) });
+    // 来源事实走主进程参数（素材库只认这里），载荷里不再带——渲染层载荷里的来源一律不读。
     expect(importRemoteAsset).toHaveBeenCalledWith(expect.objectContaining({
       projectId: "project-fixture",
       url: "http://127.0.0.1:43210/fixture.mp4",
+    }), {
       sourceEvidence: expect.objectContaining({ connectorId: "tikhub", originalUrl: "抖音 https://v.douyin.com/fixture/", resolvedUrl: "http://127.0.0.1:43210/fixture.mp4" }),
-    }));
+    });
+    expect(importRemoteAsset.mock.calls[0]?.[0]).not.toHaveProperty("sourceEvidence");
   });
 });
 

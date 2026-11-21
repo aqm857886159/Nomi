@@ -120,7 +120,7 @@ describe('③ 锚行模型框：两家同名模型是两个可区分的选项，
         errorMessage: null, progressPercent: null, locked: false, referencedByCount: 0,
       },
       aspect: '16:9', modelOptions: OPTIONS, onUpdate,
-      onChangeKind: () => {}, onRemove: () => {}, onGenerate: () => {}, onRegenerate: () => {}, onToggleLock: () => {},
+      onChangeKind: () => {}, onRemove: () => {}, onGenerate: () => {}, onRegenerate: () => {}, onToggleFrozen: () => {},
     }))
     return { onUpdate, select: findSelect(i18n.t('generationCommon.parameters.model')) }
   }

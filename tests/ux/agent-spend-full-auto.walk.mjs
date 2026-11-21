@@ -31,7 +31,7 @@ const FAILURES = `${CANVAS_PANEL} [data-v4-block="errorbar"], ${CANVAS_PANEL} [d
 const present = createPresenter('S_AUTO')
 const oneImage = (angle) => (tag) => [{
   title: `${tag} 六棱柱`, prompt: `${tag} 一个悬浮的六棱柱，${angle}，柔和的演播室灯光`, taskKind: 'text_to_image',
-  candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }, parameters: { aspect_ratio: '1:1' },
+  model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`, parameters: { aspect_ratio: '1:1' },
 }]
 
 /** 记下此刻起付费卡有没有出现过（哪怕只闪一帧）：轮询会错过一闪而过的卡，挂观察者。 */

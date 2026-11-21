@@ -20,7 +20,7 @@ import {
 } from './agent-runtime-walk-support.mjs'
 import { backToLibrary } from './_shell.mjs'
 
-const IMAGE = { providerId: 'apimart', modelId: 'gpt-image-2' }
+const IMAGE = 'gpt-image-2@apimart'
 
 /** @param {Awaited<ReturnType<typeof createRuntimeWalk>>} walk */
 export async function checkSpendScopeJourney(walk, win) {
@@ -85,7 +85,7 @@ export async function checkSpendScopeJourney(walk, win) {
   }
   const makeShot = (index, role = 'shot') => ({ role, title: `CJ1 ${role} ${index}`, prompt: `CJ1_${role}_${index} 原始画面`,
     ...(role === 'anchor' ? { storyboard: { kind: 'character', carrier: 'visual' } } : {}),
-    taskKind: 'text_to_image', candidate: IMAGE })
+    taskKind: 'text_to_image', model: IMAGE })
   const nodeOf = (graphNodes, operationId, shotId) => graphNodes.find((node) => node.meta?.productionRunId === operationId && node.meta?.productionShotId === shotId)
 
   const baselineGraph = await graph()

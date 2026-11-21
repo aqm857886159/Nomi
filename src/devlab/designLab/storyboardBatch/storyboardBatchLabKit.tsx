@@ -35,7 +35,7 @@ const VARIANTS = [
 
 function rowExtra(flag: RowFlag): NonNullable<Parameters<typeof ShotRow>[0]['extra']> {
   const base = { onToggleSelect: NOOP, selected: flag === 'selected' }
-  const menu = { onLocateInCanvas: NOOP, onToggleLock: NOOP, scenes: [{ id: 'scene-a', title: 'Scene A' }], onMoveToScene: NOOP }
+  const menu = { onLocateInCanvas: NOOP, onToggleFrozen: NOOP, scenes: [{ id: 'scene-a', title: 'Scene A' }], onMoveToScene: NOOP }
   if (flag === 'done') return { ...base, ...menu, exec: labExec({ status: 'done', resultUrl: STILL_NEON }), variants: VARIANTS, outputTag: '镜01' }
   return { ...base, ...menu }
 }

@@ -28,7 +28,7 @@
       "id": "agent-writes-params",
       "name": "档案 → Agent 写参数",
       "owner": "未定（方向待用户定：模型只有一个把手，Agent 只说意图，宿主用面板同一组档案函数落参数）",
-      "map": "无",
+      "map": "docs/plan/2026-11-16-agent-writes-params-seam.md",
       "checked": true,
       "prefixes": [
         "electron/agentLane/",
@@ -92,6 +92,21 @@
         "electron/jsonFile",
         "electron/workspace/workspaceRepository",
         "src/workbench/project/"
+      ]
+    },
+    {
+      "id": "composer-bar-yield",
+      "name": "生成底栏让位",
+      "owner": "InlineParameterBar 唯一定让级并画生成钮；宿主只交 footer.send 数据",
+      "map": "docs/engineering/direction-checks/2026-11-17-bar-yield-r2.md",
+      "checked": true,
+      "prefixes": [
+        "src/workbench/generationCanvas/nodes/InlineParameterBar",
+        "src/workbench/generationCanvas/nodes/ComposerSendButton",
+        "src/workbench/generationCanvas/nodes/composerBarYield",
+        "src/workbench/generationCanvas/nodes/NodeGenerationComposer",
+        "src/workbench/creation/storyboard/shotRow/ShotComposerBar",
+        "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow"
       ]
     }
   ]

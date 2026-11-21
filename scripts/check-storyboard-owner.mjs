@@ -112,7 +112,7 @@ const designMapWriteAllowed = new Set([
   'src/workbench/workbenchDocumentSlice.ts',        // store 写入口（setStoryboardPlan / addStoryboardDesign / restoreStoryboardDesign…）
   'src/workbench/workbenchStore.ts',                // store 初值
   'src/workbench/workbenchStoreLifetime.ts',        // 换项目时的生命周期重置
-  'src/workbench/project/workbenchProjectSession.ts', // 存盘时读出 store 内容
+  'src/workbench/project/workbenchProjectContent.ts', // 存盘 / 存活判定时读出 store 内容（组成载荷的唯一一处，字段归类表也在这里）
   'src/workbench/project/projectRepository.ts',     // 模板 / 新建项目的初始内容
   'src/workbench/project/projectNormalize.ts',      // 存盘 / 读盘逐项判
   'src/workbench/project/projectRecordSchema.ts',   // 载荷类型与骨架

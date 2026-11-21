@@ -40,7 +40,7 @@
     "electron/productionRun/batchScheduleDerivation.ts",
     "electron/shared/productionShotPhase.ts",
     "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
-    "src/workbench/observability/shotClaimCopy.ts",
+    "electron/shared/generationFailureKinds.ts",
     "src/workbench/generationCanvas/nodes/useProductionNodeRetry.ts",
     "electron/capabilityCore/canvasShotHandover.ts",
     "electron/productionRun/productionRunHandoverReducer.ts"

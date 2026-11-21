@@ -82,7 +82,6 @@ const SCANNER_READS = {
   'check:canvas-edge-writers': ['src/workbench/generationCanvas/store/x.ts', 'src/workbench/project/y.tsx', 'electron/capabilityCore/z.ts', 'electron/shared/canvas/w.ts', 'scripts/check-canvas-edge-writers.mjs'],
   'check:storyboard-owner': ['src/workbench/a.ts', 'src/workbench/creation/b.tsx', 'scripts/check-storyboard-owner.mjs', 'scripts/lib/repoPaths.mjs'],
   'check:transport-assembly': ['electron/capabilityCore/mcpProtocol.ts', 'electron/capabilityCore/mcpNodeLauncher.ts', 'electron/capabilityCore/mcpStdioServer.ts', 'electron/capabilityCore/mcpHttpServer.ts', 'scripts/check-transport-assembly.mjs', 'scripts/lib/repoPaths.mjs'],
-  'check:spend-receipt': ['electron/capabilityCore/mcpGateConfirmation.ts', 'electron/capabilityCore/mcpSemanticGenerationFlow.ts', 'electron/capabilityCore/generationDispatcher.ts', 'scripts/spend-confirmation-receipt-baseline.json', 'scripts/check-spend-confirmation-receipt.mjs'],
   'check:dangling-tokens': ['src/theme/nomi-tokens.css', 'src/a.tsx', 'tailwind.config.ts', 'scripts/check-dangling-tokens.mjs'],
   'check:dangling-tailwind': ['src/a.css', 'src/b.tsx', 'tailwind.config.ts', 'scripts/dangling-tailwind-baseline.json'],
   'check:design-lab-mirrors': ['src/devlab/designLab/a.tsx', 'src/workbench/x/Y.tsx', 'tests/ux/design-lab/baselines/a.png', 'scripts/check-design-lab.mjs'],

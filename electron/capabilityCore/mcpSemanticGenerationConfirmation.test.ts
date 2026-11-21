@@ -213,8 +213,9 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
     invoke: vi.fn((method, params) => dispatch(method, params, context as never)),
     isAppOpen: () => surface === "nomi",
     getAuthenticatedClient: () => "codex",
-    verifyClientGenerationConfirmation: vi.fn(async (challenge: { handoff?: Record<string, unknown> }, attestation: unknown) => {
-      expect(attestation).toBe("signed-client-attestation");
+    verifyClientGenerationConfirmation: vi.fn(async (challenge: { handoff?: Record<string, unknown> }, answer: unknown) => {
+      // 交给主进程的是人的原话；客户端自带的 attestation 字段不往下传。
+      expect(answer).toEqual({ action: "accept", confirm: true });
       return humanConfirms(challenge, "mcp://codex");
     }),
     confirmGenerationInNomi: vi.fn(async (challenge: { handoff?: Record<string, unknown> }) => humanConfirms(challenge, "app://nomi")),

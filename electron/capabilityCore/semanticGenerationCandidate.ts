@@ -1,8 +1,8 @@
-import { transportTaskKindForModeId } from "../shared/videoCapabilities";
-import { resolveShotTaskKind, type ShotTaskKindRefusal } from "../shared/generationShotKind";
+import { resolveShotTaskKind, statedShotTaskKind, type ShotTaskKindRefusal } from "../shared/generationShotKind";
 import { modelKindForTaskKind } from "../shared/capabilityModeManifest";
 import { refuseArgument, refuseGeneration } from "./transportFailure";
-import { closestKey } from "../shared/agentLane/toolInputIssues";
+import { modelHandleOf, resolveModelForTask, resolvedModelNameOf, type ModelHandleRow, type ResolvedModelName } from "../shared/agentCapabilities/modelHandle";
+import { catalogRowFor } from "./modelAdmissionSchema";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import type { PlanCandidate } from "./executionContract";
 import { ModuleRegistryError, type ModuleResolveInput } from "./moduleRegistry";
@@ -23,8 +23,6 @@ export type SemanticGenerationDefault = Readonly<{
   providerId: string;
   modelId: string;
   mode: string;
-  modeId?: string;
-  variantId?: string;
 }>;
 
 export type SemanticGenerationCandidateDeps = Readonly<{
@@ -47,6 +45,16 @@ export type SemanticGenerationCandidateDeps = Readonly<{
    * 拿到人话拒绝，而不是候选 schema 的 `Required`。
    */
   resolveAssetReferenceIdentity?: ResolveAssetReferenceIdentity;
+  /**
+   * 点名的模型不是一字不差落下的（大小写 / 别名 / 近似写法 / 同名多家按默认落）——合成器每认一次就递一条，
+   * 调用方把它们放进回执（`modelNamesResolved`），与 lane `draft_shots` 的回执同一个形状、同一个判据。
+   */
+  noteResolvedModelName?: (entry: ResolvedModelName) => void;
+  /**
+   * 这一镜自己没写种类时，调用方按镜头角色 / 有没有参考定下的那一种（剧本拟镜用：锚是文生图，带参考的镜头是图生视频）。
+   * 镜头自己写了（`taskKind` / 任务名的 `mode` / 能推出种类的 `modeId`）就以镜头为准。
+   */
+  taskKindWhenUnstated?: GenerationDefaultTaskKind;
 }>;
 
 /** 一份素材的可引用身份。真解析器住 `electron/assets/projectAssetStore.ts`（全仓唯一算它的地方）。 */
@@ -168,96 +176,75 @@ function references(value: unknown, resolve?: ResolveAssetReferenceIdentity): un
 }
 
 /**
- * 这一镜**明写**的种类：`taskKind`，或者一个本身就是任务名的 `mode`，或者能推出任务名的 `modeId`。
- * 三种写法说的是同一件事实，归成一个；一个都没写 = undefined（不往下猜）。
+ * 这一镜**明写**的种类（`statedShotTaskKind`：`taskKind` / 任务名的 `mode` / 能推出种类的 `modeId`），
+ * 都没写时退到调用方按镜头角色定下的那一种（`taskKindWhenUnstated`）。`taskKind` 写了却不是四种之一 → 拒。
  */
-function explicitTaskKind(params: SemanticGenerationCandidateParams): GenerationDefaultTaskKind | undefined {
-  const explicit = params.taskKind;
-  if (explicit !== undefined) {
-    if (!isTaskKind(explicit)) refuseArgument("taskKind must be text_to_image, image_edit, text_to_video or image_to_video");
-    return explicit;
+function explicitTaskKind(deps: Pick<SemanticGenerationCandidateDeps, "params" | "taskKindWhenUnstated">): GenerationDefaultTaskKind | undefined {
+  if (deps.params.taskKind !== undefined && !isTaskKind(deps.params.taskKind)) {
+    refuseArgument("taskKind must be text_to_image, image_edit, text_to_video or image_to_video");
   }
-  const mode = normalized(params.mode);
-  if (isTaskKind(mode)) return mode;
-  // 模型明说了模式，就别再去猜种类——模式定了，种类就定了（`transportTaskKindForModeId` 从档案扫出来，
-  // 不手抄）。2026-09-22 之前模型写了 `modeId: "i2v"`，我们按提示词猜了 `text_to_video`，再把冲突算在它头上。
-  const declaredByModeId = transportTaskKindForModeId(text(params.modeId));
-  return declaredByModeId && isTaskKind(declaredByModeId) ? declaredByModeId : undefined;
+  return statedShotTaskKind(deps.params) ?? deps.taskKindWhenUnstated;
 }
 
-/** 点名的模型在目录里声明了哪些模式。没点名、没有目录、或目录里没有它 = undefined。给了 providerId 就只在那家里找。 */
+/**
+ * 已认出的那一行（供应商 + 模型，一字不差）在目录里声明了哪些模式。纯投影：不认名字（名字只在名字主人认），
+ * 两段缺一段或目录里没有这一行 = undefined。
+ */
 function namedModelModes(registry: SemanticGenerationCandidateDeps["registry"], modelId: string, providerId: string): readonly string[] | undefined {
-  if (!modelId) return undefined;
-  let found: string[] | undefined;
-  for (const manifest of registry?.snapshot?.() ?? []) {
-    const providers = manifest && typeof manifest === "object" ? (manifest as { providers?: unknown }).providers : undefined;
-    if (!Array.isArray(providers)) continue;
-    for (const provider of providers) {
-      if (!provider || typeof provider !== "object") continue;
-      const candidateProviderId = text((provider as { providerId?: unknown }).providerId);
-      if (!candidateProviderId || (providerId && candidateProviderId !== providerId)) continue;
-      const models = (provider as { models?: unknown }).models;
-      if (!Array.isArray(models)) continue;
-      const model = models.find((candidate) => candidate && typeof candidate === "object" && text((candidate as { modelId?: unknown }).modelId) === modelId) as { modes?: unknown } | undefined;
-      if (!model || !Array.isArray(model.modes)) continue;
-      found = [...(found ?? []), ...model.modes.filter((mode): mode is string => typeof mode === "string")];
-    }
-  }
-  return found;
+  if (!modelId || !providerId) return undefined;
+  return catalogModelRows(registry).find((row) => row.vendor === providerId && row.modelId === modelId)?.modes;
 }
 
 const TASK_KINDS_TEXT = "text_to_image, image_edit, text_to_video or image_to_video";
 
+/** 目录快照里的一行模型：名字主人要的两段身份 + 别名，外加它在哪个模块、声明了哪些模式。 */
+type CatalogModelRow = ModelHandleRow & Readonly<{ vendor: string; moduleId: string; modes: readonly string[] }>;
+
 /**
- * 点名的模型不在目录里时，目录里**最接近**的那一个（`provider/model`）。判据是全仓唯一的近似键 owner
- * （`toolInputIssues.closestKey`：大小写 / 分隔符折叠后相等、前后缀包含、编辑距离），不另写一份。
- * 先在点名的那一家里找，再在全目录里找；做得了这一种任务的优先。够不上「接近」就不给——不凑一个。
- *
- * 2026-11-08 真实轨迹：`volcengine` + `doubao-seedream-5-0-pro`（用户没接火山，apimart 有同名模型）、
- * `apimart` + `doubao-seedream-4-5-251128`（apimart 上叫 `doubao-seedream-4.5`）。
+ * 宿主这一刻的目录行（快照里的模块 → 供应商 → 模型）。快照本来就是可用性那道闸筛过的（这里不再判一遍「能不能用」）。
+ * 别名从装配期已装好的目录行查（`catalogRowFor`），不另读盘。同一个（供应商, 模型）在两个模块里出现只算一行。
  */
-export function nearestCatalogModel(
-  registry: SemanticGenerationCandidateDeps["registry"],
-  modelId: string,
-  providerId: string,
-  taskKind?: string,
-): string | undefined {
-  if (!modelId) return undefined;
-  const rows: { providerId: string; modelId: string; modes: readonly string[] }[] = [];
+function catalogModelRows(registry: SemanticGenerationCandidateDeps["registry"]): CatalogModelRow[] {
+  const rows: CatalogModelRow[] = [];
+  const seen = new Set<string>();
   for (const manifest of registry?.snapshot?.() ?? []) {
-    const providers = manifest && typeof manifest === "object" ? (manifest as { providers?: unknown }).providers : undefined;
-    if (!Array.isArray(providers)) continue;
+    if (!manifest || typeof manifest !== "object") continue;
+    const moduleId = text((manifest as { moduleId?: unknown }).moduleId);
+    const providers = (manifest as { providers?: unknown }).providers;
+    if (!moduleId || !Array.isArray(providers)) continue;
     for (const provider of providers) {
       if (!provider || typeof provider !== "object") continue;
-      const rowProvider = text((provider as { providerId?: unknown }).providerId);
+      const vendor = text((provider as { providerId?: unknown }).providerId);
       const models = (provider as { models?: unknown }).models;
-      if (!rowProvider || !Array.isArray(models)) continue;
+      if (!vendor || !Array.isArray(models)) continue;
       for (const model of models) {
         if (!model || typeof model !== "object") continue;
-        const rowModel = text((model as { modelId?: unknown }).modelId);
+        const modelId = text((model as { modelId?: unknown }).modelId);
+        const key = modelHandleOf({ vendor, modelId });
+        if (!modelId || seen.has(key)) continue;
+        seen.add(key);
         const modes = (model as { modes?: unknown }).modes;
-        if (rowModel) rows.push({ providerId: rowProvider, modelId: rowModel, modes: Array.isArray(modes) ? modes.filter((mode): mode is string => typeof mode === "string") : [] });
+        rows.push({ vendor, modelId, moduleId, modelAlias: catalogRowFor(vendor, modelId)?.modelAlias ?? null,
+          modes: Array.isArray(modes) ? modes.filter((mode): mode is string => typeof mode === "string") : [] });
       }
     }
   }
-  const capable = taskKind ? rows.filter((row) => row.modes.some((mode) => normalized(mode) === normalized(taskKind))) : rows;
-  for (const pool of [capable.filter((row) => row.providerId === providerId), capable, rows]) {
-    const hit = closestKey(modelId, pool.map((row) => row.modelId));
-    const row = hit ? pool.find((candidate) => candidate.modelId === hit) : undefined;
-    if (row) return `${row.providerId}/${row.modelId}`;
-  }
-  return undefined;
+  return rows;
 }
 
 const modelLabel = (providerId: string, modelId: string): string => (providerId ? `${providerId}/${modelId}` : modelId);
 
-/** 「这个模型不在目录里」——定种类时、核目录时、合成候选时三处说同一句话（码 `unknown_model`）。 */
-function refuseUnknownModel(registry: SemanticGenerationCandidateDeps["registry"], modelId: string, providerId: string, taskKind?: string): never {
+/** 「这个模型不在目录里」——定种类时、核目录时、合成候选时三处说同一句话（码 `unknown_model`）。最像的那一个由名字主人给。 */
+function refuseUnknownModel(registry: SemanticGenerationCandidateDeps["registry"], modelId: string, providerId: string): never {
   // 用户整家删掉的内置连接：说清是他删的、怎么回来，不往别家「最接近的」上引（2026-11-16）。
   if (providerId && builtinVendorDeletedUntilKeySaved(providerId)) {
     return refuseGeneration({ code: "unknown_model", field: "candidate.modelId", model: modelLabel(providerId, modelId), deletedProvider: providerId });
   }
-  const nearest = nearestCatalogModel(registry, modelId, providerId, taskKind);
+  const rows = catalogModelRows(registry);
+  const hit = resolveModelForTask(rows, { modelId, vendor: providerId }, { taskKindOf: () => undefined });
+  const nearestHandle = !hit.ok && hit.reason === "unknown" ? hit.nearest[0] : undefined;
+  const nearestRow = nearestHandle ? rows.find((row) => modelHandleOf(row) === nearestHandle) : undefined;
+  const nearest = nearestRow ? modelLabel(nearestRow.vendor, nearestRow.modelId) : undefined;
   return refuseGeneration({ code: "unknown_model", field: "candidate.modelId", model: modelLabel(providerId, modelId), ...(nearest ? { nearest } : {}) });
 }
 
@@ -269,13 +256,13 @@ function refuseCannotDo(model: string, requested: string, supported: readonly st
 /**
  * 种类定不下来时给调用方（多半是 Agent，外部 MCP 宿主也是）的那句话：说清是哪一种情形、下一步怎么写。
  * 写给模型看，和这一层其余的拒绝一样用英文（它照着改参数，不转述原话）。
+ * `providerId` / `modelId` 是名字主人认出的那一行（认不出时是原写法）。
  */
-function refuseShotTaskKind(refusal: ShotTaskKindRefusal, deps: Pick<SemanticGenerationCandidateDeps, "params" | "registry">, modelId: string): never {
-  const providerId = text(deps.params.providerId);
+function refuseShotTaskKind(refusal: ShotTaskKindRefusal, registry: SemanticGenerationCandidateDeps["registry"], providerId: string, modelId: string): never {
   switch (refusal.reason) {
     case "kind_unspecified":
       // 点了名却定不出种类 = 目录里没有这个模型（有的话它的模式就定了种类）。
-      if (modelId) return refuseUnknownModel(deps.registry, modelId, providerId);
+      if (modelId) return refuseUnknownModel(registry, modelId, providerId);
       return refuseArgument(`Say what this shot makes: set taskKind (${TASK_KINDS_TEXT}), or name a model from list_models. Nomi does not guess it from the prompt.`, { field: "taskKind" });
     case "model_cannot_do":
       return refuseCannotDo(modelLabel(providerId, modelId), refusal.requested ?? "images or videos", refusal.declared);
@@ -285,20 +272,91 @@ function refuseShotTaskKind(refusal: ShotTaskKindRefusal, deps: Pick<SemanticGen
   }
 }
 
+/** 点名的模型认成的那一行；不是一字不差落下的，带回执那一条。 */
+type NamedCatalogModel = Readonly<{ row: CatalogModelRow; resolved?: ResolvedModelName }>;
+
+const hasReferencesIn = (params: SemanticGenerationCandidateParams): boolean => Array.isArray(params.references) && params.references.length > 0;
+
+/**
+ * 点名的模型 → 目录里那一行。**名字只在名字主人认**（`resolveModelForTask`：整串 / 大小写 / 别名 / 近似写法，
+ * 说了供应商就只在那一家里认）。同名多家又没说哪家：只有用户给「这一种任务」设的默认恰好是其中一家才落它（U1），
+ * 否则拒并列出全部家——绝不取遍历到的第一家（2026-09-22「同名跨家在本仓是两个模型」）。
+ * 没点名 = undefined；没有目录快照（隔离夹具）= undefined，身份原样交给后面的准入那一道判。
+ */
+function namedCatalogModel(
+  deps: Pick<SemanticGenerationCandidateDeps, "params" | "registry" | "defaultModelForTaskKind">,
+  explicit: GenerationDefaultTaskKind | undefined,
+): NamedCatalogModel | undefined {
+  const modelId = text(deps.params.modelId);
+  if (!modelId) return undefined;
+  const rows = catalogModelRows(deps.registry);
+  if (rows.length === 0) return undefined;
+  const providerId = text(deps.params.providerId);
+  const written = { modelId, vendor: providerId };
+  const defaultFor = deps.defaultModelForTaskKind;
+  const hit = resolveModelForTask(rows, written, {
+    taskKindOf: (matches) => {
+      const verdict = resolveShotTaskKind({ ...(explicit ? { explicit } : {}), modelModes: matches.flatMap((row) => row.modes), hasReferences: hasReferencesIn(deps.params) });
+      return verdict.ok ? verdict.taskKind : undefined;
+    },
+    ...(defaultFor ? { defaultFor: (taskKind: GenerationDefaultTaskKind) => {
+      const declared = defaultFor(taskKind);
+      return declared ? { vendor: declared.providerId, modelId: declared.modelId } : undefined;
+    } } : {}),
+  });
+  if (hit.ok) {
+    const resolved = resolvedModelNameOf(written, hit);
+    return { row: hit.row, ...(resolved ? { resolved } : {}) };
+  }
+  if (hit.reason === "ambiguous") {
+    const vendors = [...new Set(hit.rows.map((row) => row.vendor))];
+    return refuseArgument(`Model ${modelId} is carried by several providers (${hit.handles.join(", ")}) and none of them is the user's default for this kind of task. Set providerId to one of: ${vendors.join(", ")}.`,
+      { field: "providerId", allowed: vendors });
+  }
+  return refuseUnknownModel(deps.registry, modelId, providerId);
+}
+
+/**
+ * 改计划换模型时写下的（供应商, 模型）→ 目录里那一行。与起草同一个名字主人、同一套拒收（`unknown_model` 带最像的、
+ * 多家同名按 U1）：`clip-x` 认成 `Clip-X`，别名认成原行。没有目录快照（隔离夹具）= 原样返回，交给后面的准入判。
+ * 只换模型、没写供应商（`currentProviderId` 是这一镜现在那家）：现在那家认得出就留在这家（今天「同家换个模型」照旧能用）；
+ * 这家认不出才当没说供应商、在全部家里认——和起草一样，同名多家按 U1，不悄悄落到别家。
+ */
+export function resolvePatchedModel(
+  deps: Pick<SemanticGenerationCandidateDeps, "registry" | "defaultModelForTaskKind">,
+  written: Readonly<{ providerId?: string; modelId: string }>,
+  taskKind: string,
+  currentProviderId?: string,
+): Readonly<{ providerId: string; modelId: string; resolved?: ResolvedModelName }> {
+  const kind = normalized(taskKind);
+  const stated = text(written.providerId);
+  const current = text(currentProviderId);
+  const staysWithCurrent = !stated && Boolean(current)
+    && resolveModelForTask(catalogModelRows(deps.registry), { modelId: written.modelId, vendor: current }, { taskKindOf: () => undefined }).ok;
+  const providerId = stated || (staysWithCurrent ? current : "");
+  const named = namedCatalogModel({ ...deps, params: { modelId: written.modelId, providerId } }, isTaskKind(kind) ? kind : undefined);
+  if (!named) return { providerId: stated || current, modelId: written.modelId };
+  return { providerId: named.row.vendor, modelId: named.row.modelId, ...(named.resolved ? { resolved: named.resolved } : {}) };
+}
+
 /**
  * 这一镜要哪一种生成任务——**只从「点名的模型 + 明写的种类」来**（2026-09-30 付费卡① 第 9 条）。
  * 以前这里按提示词关键词猜（「镜头」「视频」→ 视频），于是点名的图片模型被配上了视频模式，
  * 卡标题、卡体、画布节点、派发各说各的。判据住在 `generationShotKind.resolveShotTaskKind`；这里只负责拒绝时说人话。
+ * 点名的模型先经名字主人认出那一行，种类读那一行的模式——大小写 / 别名写法不再被当成「没有这个模型」。
  */
-export function shotTaskKind(deps: Pick<SemanticGenerationCandidateDeps, "params" | "registry">): GenerationDefaultTaskKind {
+export function shotTaskKind(
+  deps: Pick<SemanticGenerationCandidateDeps, "params" | "registry" | "defaultModelForTaskKind" | "taskKindWhenUnstated">,
+  named: NamedCatalogModel | undefined = namedCatalogModel(deps, explicitTaskKind(deps)),
+): GenerationDefaultTaskKind {
   const modelId = text(deps.params.modelId);
-  const explicit = explicitTaskKind(deps.params);
+  const explicit = explicitTaskKind(deps);
   const verdict = resolveShotTaskKind({
     ...(explicit ? { explicit } : {}),
-    ...(modelId ? { modelModes: namedModelModes(deps.registry, modelId, text(deps.params.providerId)) } : {}),
-    hasReferences: Array.isArray(deps.params.references) && deps.params.references.length > 0,
+    ...(modelId ? { modelModes: named?.row.modes } : {}),
+    hasReferences: hasReferencesIn(deps.params),
   });
-  if (!verdict.ok) return refuseShotTaskKind(verdict.refusal, deps, modelId);
+  if (!verdict.ok) return refuseShotTaskKind(verdict.refusal, deps.registry, named?.row.vendor ?? text(deps.params.providerId), named?.row.modelId ?? modelId);
   return verdict.taskKind;
 }
 
@@ -334,7 +392,7 @@ export function admitShotIdentity(
   } catch (error) {
     if (!(error instanceof ModuleRegistryError)) throw error;
     const declared = namedModelModes(registry, candidate.modelId, candidate.providerId) ?? [];
-    if (declared.length === 0) refuseUnknownModel(registry, candidate.modelId, candidate.providerId, candidate.mode);
+    if (declared.length === 0) refuseUnknownModel(registry, candidate.modelId, candidate.providerId);
     if (!declared.some((mode) => normalized(mode) === normalized(candidate.mode))) {
       refuseCannotDo(`${candidate.providerId}/${candidate.modelId}`, candidate.mode, declared);
     }
@@ -398,43 +456,6 @@ function fallbackFromSnapshot(
 }
 
 /**
- * 显式点名的模型在目录里属于谁。Agent 照 `list_models` 给出 `modelKey`（宿主面 `modelId`）时，providerId/moduleId
- * 本来就是目录里那一行的事实，不该要求用户另外「保存过默认模型」才能带出来（2026-09-18 金路径真机红：
- * 三镜都指名了图片模型，宿主仍答「没有配置可用的图片模型」）。只认目录里真有的行：查不到就返回
- * undefined，让下面那条拒绝照旧成立——绝不替它编一个供应商。给了 providerId 就只在那家里找。
- */
-function identityForNamedModel(
-  deps: SemanticGenerationCandidateDeps,
-  modelId: string,
-  providerId: string,
-  taskKind: GenerationDefaultTaskKind,
-): SemanticGenerationDefault | undefined {
-  let loose: SemanticGenerationDefault | undefined;
-  for (const manifest of deps.registry?.snapshot?.() ?? []) {
-    if (!manifest || typeof manifest !== "object") continue;
-    const moduleId = text((manifest as { moduleId?: unknown }).moduleId);
-    const providers = (manifest as { providers?: unknown }).providers;
-    if (!moduleId || !Array.isArray(providers)) continue;
-    for (const provider of providers) {
-      if (!provider || typeof provider !== "object") continue;
-      const candidateProviderId = text((provider as { providerId?: unknown }).providerId);
-      if (!candidateProviderId || (providerId && candidateProviderId !== providerId)) continue;
-      const models = (provider as { models?: unknown }).models;
-      if (!Array.isArray(models)) continue;
-      const model = models.find((candidate) => candidate && typeof candidate === "object" && text((candidate as { modelId?: unknown }).modelId) === modelId) as { modes?: unknown } | undefined;
-      if (!model) continue;
-      const modes = Array.isArray(model.modes) ? model.modes.filter((candidate): candidate is string => typeof candidate === "string") : [];
-      const mode = modes.find((candidate) => normalized(candidate) === normalized(taskKind));
-      const identity = { moduleId, providerId: candidateProviderId, modelId, mode: mode ?? modes[0] ?? taskKind };
-      // 声明了这个任务模式的那一行优先；同名模型别家只声明了别的模式时才退到它（仍是目录事实）。
-      if (mode) return identity;
-      loose ??= identity;
-    }
-  }
-  return loose;
-}
-
-/**
  * Build the canonical candidate for a short semantic create request.  An
  * explicit `candidate` is still authoritative and is parsed unchanged; the
  * short path only fills omitted identity fields from saved Workbench defaults
@@ -451,44 +472,37 @@ export function semanticCandidateFromParams(deps: SemanticGenerationCandidateDep
   const prompt = text(deps.params.prompt);
   if (!prompt) refuseArgument("prompt is required when candidate is omitted");
 
-  const taskKind = shotTaskKind(deps);
+  const named = namedCatalogModel(deps, explicitTaskKind(deps));
+  const taskKind = shotTaskKind(deps, named);
+  if (named?.resolved) deps.noteResolvedModelName?.(named.resolved);
   const configured = deps.defaultModelForTaskKind?.(taskKind);
   // A production semantic request must never infer a spend-bearing model from
   // catalog row order. The only implicit identity is the saved Workbench
   // default; registry fallback is opt-in for no-provider unit fixtures only.
   const fallback = configured ?? (deps.allowRegistryFallback ? fallbackFromSnapshot(deps, taskKind) : undefined);
-  // 显式点名的模型：它的供应商/模块是目录事实，从目录里取；只有没点名时才落到保存的默认。
+  // 显式点名的模型：身份是名字主人认出的那一行（目录事实）；只有没点名时才落到保存的默认。
+  // 点了名却认不出（没有目录快照的隔离夹具）时只用写下的两段，绝不把默认的供应商拼到点名的 id 上。
   const namedModelId = text(deps.params.modelId);
-  const named = namedModelId && (!text(deps.params.providerId) || !text(deps.params.moduleId))
-    ? identityForNamedModel(deps, namedModelId, text(deps.params.providerId), taskKind)
-    : undefined;
-  const moduleId = text(deps.params.moduleId) || named?.moduleId || fallback?.moduleId;
-  const providerId = text(deps.params.providerId) || named?.providerId || fallback?.providerId;
-  const modelId = namedModelId || fallback?.modelId;
+  const moduleId = text(deps.params.moduleId) || named?.row.moduleId || fallback?.moduleId;
+  const providerId = named?.row.vendor || text(deps.params.providerId) || (namedModelId ? undefined : fallback?.providerId);
+  const modelId = named?.row.modelId || namedModelId || fallback?.modelId;
   if (!moduleId || !providerId || !modelId) {
     // 两种情形，两个码（2026-11-08）：**点了名却在目录里找不到** = `unknown_model`（带最接近的那一个）；
     // 没点名也没有默认 = `no_default_model`。以前两者是同一句「没有配置可用的图片模型」——39 题轨迹里
     // 9 次模型点名的 id 只是拼错 / 供应商写错，却被告知去设置里配默认模型。
     // 后一句有两个读者（2026-09-18 真机实测）：用户能去设置里选，**而 Agent 不能**，所以正文同时说「这次调用里直接点名」。
-    if (namedModelId) refuseUnknownModel(deps.registry, namedModelId, text(deps.params.providerId), taskKind);
+    if (namedModelId) refuseUnknownModel(deps.registry, namedModelId, text(deps.params.providerId));
     refuseGeneration({ code: "no_default_model", field: "candidate.modelId", media: taskKind.includes("video") ? "video" : "image" });
   }
-  // A saved mode/variant belongs to the saved provider+model identity.  If the
-  // user explicitly chooses another model, carrying those fields across can
-  // silently select an incompatible transport variant (or fail much later at
-  // provider execution).  Only inherit the fallback's mode metadata when the
-  // effective identity is still the fallback identity.
-  const fallbackIdentityMatches = Boolean(fallback)
-    && providerId === fallback?.providerId
-    && modelId === fallback?.modelId;
-  const selectedMode = text(deps.params.mode) || (fallbackIdentityMatches ? fallback?.mode : undefined) || taskKind;
-  const selectedModeId = text(deps.params.modeId) || (fallbackIdentityMatches ? fallback?.modeId : undefined);
-  const selectedVariantId = text(deps.params.variantId) || (fallbackIdentityMatches ? fallback?.variantId : undefined);
-  const selected: SemanticGenerationDefault = {
+  // 方式不从默认继承（2026-11-17 U4）：默认只答「哪个模型」，方式由归一按这个模型的档案 + 这次真放进来的参考现算
+  // （`mcpGenerationVideoResolve.normalizeVideoCandidate` → `modeForInputs`）。说明白的 `modeId` / `variantId` 照收。
+  const selectedModeId = text(deps.params.modeId);
+  const selectedVariantId = text(deps.params.variantId);
+  const selected = {
     moduleId,
     providerId,
     modelId,
-    mode: selectedMode,
+    mode: text(deps.params.mode) || taskKind,
     ...(selectedModeId ? { modeId: selectedModeId } : {}),
     ...(selectedVariantId ? { variantId: selectedVariantId } : {}),
   };
@@ -532,7 +546,7 @@ export function declaredDefaultDeviations(
   names: Readonly<Record<string, string>> = {},
 ): DeclaredDefaultDeviation[] {
   if (!defaultFor) return [];
-  return items.flatMap(({ shotId, params, candidate }): DeclaredDefaultDeviation[] => {
+  return items.flatMap(({ shotId, candidate }): DeclaredDefaultDeviation[] => {
     // 种类读建好的候选（它在建镜头那一刻已经和点名的模型对过账），不再按提示词另猜一遍。
     const taskKind = normalized(candidate.mode);
     if (!isTaskKind(taskKind)) return [];

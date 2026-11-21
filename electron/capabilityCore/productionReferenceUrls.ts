@@ -1,3 +1,5 @@
+import { matchNomiErrorCode, tagNomiError } from '../shared/nomiErrorCodes';
+import { desktopT } from '../desktopStrings';
 import { readCatalog } from '../catalog/catalogStore';
 import type { ReferenceLinkPolicy } from '../catalog/assetLocalization';
 import { assetIngestionResolver, assetLocalizationOptions, localizeForSend, referenceLinkPolicy } from '../catalog/assetTransportRuntime';
@@ -13,7 +15,11 @@ async function localize(providerId: string, urls: readonly string[]): Promise<re
   if (!vendor) throw new Error('generation_reference_provider_unavailable');
   const result = await localizeForSend({ urls }, assetIngestionResolver(vendor, catalog),
     readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload,
-    assetLocalizationOptions(vendor, undefined), putBinaryForAssetUpload);
+    assetLocalizationOptions(vendor, undefined), putBinaryForAssetUpload).catch((error: unknown) => {
+      const code = matchNomiErrorCode(String(error));
+      if (code === 'asset-upload-failed' || code === 'asset-too-large') throw new Error(tagNomiError(code, desktopT('assetUpload.hostingDisabled')));
+      throw error;
+    });
   const values = (result.value as { urls?: unknown }).urls;
   if (!Array.isArray(values) || values.length !== urls.length || values.some(value => typeof value !== 'string' || !/^https?:\/\//.test(value))) {
     throw new Error('generation_reference_url_unavailable');

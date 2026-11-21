@@ -57,9 +57,12 @@ describe("一镜把同一件事写了两遍", () => {
     expect(() => prepare({ shots: [{ prompt: "镜4", durationSec: 5, parameters: { duration: 5 } }] })).not.toThrow();
   });
 
-  it("modelId 与 candidate.modelId 打架 → 照旧拒（这条本来就在，合并之后一个字没丢）", () => {
-    expect(() => prepare({ shots: [{ prompt: "镜4", modelId: "a", candidate: { providerId: "p", modelId: "b" } }] }))
-      .toThrow(/two different models/);
+  it("模型身份只有一个家（2026-11-15）：旧的 modelId / candidate 在形状上就写不进来，「两处打架」无从发生", () => {
+    const spec = VERB_DECLARATIONS.find((declaration) => declaration.name === "draft_shots")!;
+    expect(spec.schema.safeParse({ shots: [{ prompt: "镜4", model: "image-1@apimart" }] }).success).toBe(true);
+    expect(spec.schema.safeParse({ shots: [{ prompt: "镜4", modelId: "a" }] }).success).toBe(false);
+    expect(spec.schema.safeParse({ shots: [{ prompt: "镜4", candidate: { providerId: "p", modelId: "b" } }] }).success).toBe(false);
+    expect(spec.schema.safeParse({ candidate: { providerId: "p", modelId: "b" }, shots: [{ prompt: "镜4" }] }).success).toBe(false);
   });
 
   it("说明书自己也只承认一个家——否则模型读到的和宿主执行的不是一回事", () => {

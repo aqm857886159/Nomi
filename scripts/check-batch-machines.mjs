@@ -67,6 +67,12 @@ const FROZEN_JUDGMENT_HOMES = new Set([
   'src/workbench/generationCanvas/model/anchorBibleKeys.ts', // 渲染层纯镜像（equivalence.test.ts 钉死等价）
 ])
 
+// 「生成这一组」的范围（成员 / 默认勾选 / 顺序 / 依赖分波）只在一处算（2026-11-17）：共用主人 generationShotScope。
+// 入口只翻事实、只读结论；ESLint 拦「造执行计划」（断言成品牌类型、手拼 waves + blocked），这里拦「再写一份算法」。
+const SCOPE_PLAN_HOME = 'electron/shared/agentCapabilities/generationShotScope.ts'
+// 已删的第二份实现的名字：谁再定义它们，就是把旧家搬回来。
+const RETIRED_SCOPE_DEFINITIONS = ['buildDependencyWaves', 'eligibleGenerationNodeIds', 'groupEligibleNodeIds', 'nodesInCanvasProductionScope', 'dependencyWaves']
+
 // legacy MCP 路判据集：这六条必须恒在 LEGACY_GENERATION_ROUTES 里（挪走一条 → 语义 binding
 // 可能从旧路穿透双写项目事实，runtime plan §7 铁律）。
 const REQUIRED_LEGACY_ROUTES = ['generate', 'nomi_generate', 'production.start', 'production.control', 'production.decide-gate', 'nomi_start_playbook']
@@ -150,11 +156,30 @@ const RULES = [
       return hits
     },
   },
+  {
+    id: 'second-scope-home',
+    label: '共用主人之外又算了一遍「生成这一组」的范围（重新定义已删的判据，或自己按波次往里推）',
+    hint: '成员、默认勾选、顺序与依赖分波只由 electron/shared/agentCapabilities/generationShotScope.ts 的 '
+      + 'planGenerationScope / narrowGenerationScope 给（画布入口经 generationScopeFacts.planCanvasGenerationScope 问）。'
+      + '入口只把画布 / 分镜行翻成事实，拿主人的结论；要新入口就在主人的意图表里加一行。',
+    scan(code, file) {
+      if (rel(file) === SCOPE_PLAN_HOME) return []
+      const retired = new RegExp(`(function\\s+|(const|let|var)\\s+)(${RETIRED_SCOPE_DEFINITIONS.join('|')})\\b`)
+      const hits = []
+      code.split(/\n/).forEach((line, i) => {
+        // 只认两种签名：① 重新定义已删的名字；② Kahn 式分波的落波一行 `waves.push(`（排先后的算法本体）。
+        if (retired.test(line) || /(^|[^.\w])waves\.push\s*\(/.test(line)) {
+          hits.push({ line: i + 1, text: line.trim().slice(0, 120), file })
+        }
+      })
+      return hits
+    },
+  },
 ]
 
 // RULES / stripComments 导出供 check-batch-machines.test.mjs 直接单测每条规则的 scan（锁死「会红」
 // 行为，防门岗悄悄烂成橡皮图章——dead-selector 教训：失效的门岗比没门岗更坏）。
-export { RULES, stripComments, rel, REQUIRED_LEGACY_ROUTES }
+export { RULES, stripComments, rel, REQUIRED_LEGACY_ROUTES, SCOPE_PLAN_HOME }
 
 function main() {
   const files = collect()

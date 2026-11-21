@@ -9,6 +9,7 @@
 // 纯净：零 electron/IPC 依赖（副作用点——发 IPC、写事件——留在 driver ops 里），本文件只做数据塑形。
 
 import type { ProductionRun } from './productionRunTypes'
+import { latestJobForShot } from '../shared/productionShotJobs'
 
 /** A retry is deliberately one durable job per failing shot, never a batch replay. */
 export type QaRetryPlan = {
@@ -68,12 +69,6 @@ export function adoptedGenerationShotNodeIds(run: ProductionRun): string[] {
   return out
 }
 
-function latestJobForShot(run: ProductionRun, shotNodeId: string): ProductionRun['jobs'][number] | undefined {
-  return run.jobs
-    .filter((job) => job.stageId === 'generate' && job.nodeId === shotNodeId)
-    .sort((left, right) => (right.attempt - left.attempt) || right.updatedAt.localeCompare(left.updatedAt))[0]
-}
-
 function retryDirective(flags: NonNullable<QaShotVerdict['flagged']>): string {
   const dimensions = new Set(flags.map((flag) => (flag.dimensionName || flag.dimension || '').trim()).filter(Boolean))
   const fixes = Array.from(dimensions)
@@ -100,7 +95,7 @@ export function buildQaRetryPlans(run: ProductionRun, verdicts: readonly QaShotV
     // A score of 0 means “not assessable”, not a low score; do not burn a retry on it.
     const lowFlags = verdict.flagged.filter((flag) => typeof flag.score !== 'number' || (flag.score > 0 && flag.score < 3))
     if (lowFlags.length === 0) continue
-    const parent = latestJobForShot(run, shotNodeId)
+    const parent = latestJobForShot(run, { nodeId: shotNodeId })
     if (!parent) continue
     const previousRetryCount = Math.max(0, Math.floor(Number(parent.retryCount ?? parent.metadata?.retryCount) || 0))
     const retryCount = previousRetryCount + 1

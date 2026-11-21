@@ -166,7 +166,7 @@
     },
     "electron/capabilityCore/mcpGenerationTools.ts": {
       "kind": "frozen",
-      "max": 1020,
+      "max": 976,
       "reason": "新口径落地时已超线，冻结，按职责逐步拆",
       "topDeclarations": [
         {
@@ -318,16 +318,12 @@
     },
     "electron/assets/projectAssetStore.ts": {
       "kind": "frozen",
-      "max": 886,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆；910 → 886（2026-11-07 配音落盘修复那一轮：落盘文件的类型与位置——effectiveContentType / contentTypeFromStoredFile / storedAssetFileParts / uniqueAssetPath——拆到 assets/storedAssetFile.ts，删别名 stableStoredAssetId）",
+      "max": 794,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆；910 → 886（2026-11-07 配音落盘修复那一轮：落盘文件的类型与位置——effectiveContentType / contentTypeFromStoredFile / storedAssetFileParts / uniqueAssetPath——拆到 assets/storedAssetFile.ts，删别名 stableStoredAssetId）；886 → 794（2026-11-21 素材来源收成一处：来源清洗与 meta 定稿拆到 assets/assetSourceEvidence.ts，删 rightsStatus 迁移分支）",
       "topDeclarations": [
         {
           "name": "importRemoteAssetToStore",
           "lines": 92
-        },
-        {
-          "name": "sanitizeSourceEvidence",
-          "lines": 90
         },
         {
           "name": "publishVerifiedGeneratedAsset",
@@ -432,7 +428,7 @@
     },
     "electron/capabilityCore/mcpGenerationMultiShot.ts": {
       "kind": "frozen",
-      "max": 830,
+      "max": 794,
       "reason": "新口径落地时已超线，冻结，按职责逐步拆",
       "topDeclarations": [
         {

@@ -34,6 +34,11 @@ export type ModelParameterControl = {
   max?: number;
   step?: number;
   placeholder?: string;
+  /**
+   * 报文写法，只由声明门（paramValue.ts 的 normalizeDeclaredControls）写：供应商文档要字符串数字（`"5"`）的下拉，门里用数字档，
+   * 出口（taskParams 的 encodeParamsForWire）按它编回字符串。没有 = 报文就是内部类型本身。档案里不手写。
+   */
+  wireEncoding?: "numeric-string";
 };
 
 export type ArchetypeReferenceSlotKind =

@@ -45,10 +45,13 @@ const lease = {
 /** deepseek-v4-pro 在 2026-10-18 真走查里写的那一份（逐键）。 */
 const WRITTEN_BY_BRAIN = { resolution: "480p", size: "16:9", generate_audio: false, seed: null };
 
+/** 这条消息带上来的可用模型清单（`draft_shots` 的完整名字在 lane 这一侧按它查）。 */
+const LANE_MODELS = [{ vendor: "apimart", modelId: "doubao-seedance-2.0", modelAlias: null }];
+
 const shotWith = (parameters: Record<string, unknown>, title?: string) => ({
   ...(title ? { title } : {}),
   prompt: "一只纸船在雨后的水洼里慢慢漂，清晨的光", taskKind: "text_to_video",
-  candidate: { providerId: "apimart", modelId: "doubao-seedance-2.0" },
+  model: "doubao-seedance-2.0@apimart",
   parameters,
 });
 
@@ -60,7 +63,7 @@ function harness() {
   } as never);
   const adapter = createPiGenerationTransportAdapter(binding, { planning: handler as never, leaseFor: () => lease });
   const draftShots = async (args: Record<string, unknown>) => {
-    const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args })!;
+    const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args }, LANE_MODELS)!;
     return adapter.tryExecute(translated.call, new AbortController().signal);
   };
   const direct = (capability: string, params: Record<string, unknown>) => handler({
@@ -78,12 +81,20 @@ describe("起草就判参数：坏参数不产生草稿（Agent 的 draft_shots�
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("多镜：第二镜 seed 写成 \"4\" → 整份被拒，第一镜也不留草稿", async () => {
+  it("多镜：第二镜 seed 写成 \"4s\" → 整份被拒，第一镜也不留草稿", async () => {
     const { create, draftShots } = harness();
-    const decision = await draftShots({ shots: [shotWith({ resolution: "480p" }, "镜1"), shotWith({ seed: "4" }, "镜2")] });
+    const decision = await draftShots({ shots: [shotWith({ resolution: "480p" }, "镜1"), shotWith({ seed: "4s" }, "镜2")] });
     expect(decision).toMatchObject({ ok: false });
     expect(JSON.stringify(decision)).toContain("parameters.seed");
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it("值门：seed 写成规范数字串 \"4\" 与 4 是同一个值 → 过，草稿建出来了", async () => {
+    // 2026-11-17 参数值内部类型：外来值先过值门（paramValue.ts），"4" 对要数字的字段就是 4；"4s"、"05" 门不认，照旧拒（上一条）。
+    const { create, draftShots } = harness();
+    const decision = await draftShots({ shots: [shotWith({ resolution: "480p" }, "镜1"), shotWith({ seed: "4" }, "镜2")] });
+    expect(decision).toMatchObject({ ok: true });
+    expect(create).toHaveBeenCalledTimes(1);
   });
 
   it("多镜：布尔写成字符串 \"false\" → 拒", async () => {
@@ -136,7 +147,7 @@ describe("起草就判参数：对外 MCP 的各个入口", () => {
     // 对外 MCP 的多镜 shots 与 Agent 的 draft_shots 落在同一份宿主 create 载荷上（`draftShotToPlanShot`）。
     const { operation: _operation, ...args } = verbToTransportCall({
       toolCallId: "call-mcp", toolName: "draft_shots", args: { shots: [shotWith({ seed: "abc" }, "镜1"), shotWith({}, "镜2")] },
-    })!.call.args as Record<string, unknown>;
+    }, LANE_MODELS)!.call.args as Record<string, unknown>;
     await expect(direct("create", args)).rejects.toBeInstanceOf(ContractCompilationError);
     expect(create).not.toHaveBeenCalled();
   });

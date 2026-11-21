@@ -73,17 +73,6 @@ export function applyCanvasEvent(projection: CanvasProjection, event: Replayable
       })
       return { ...projection, nodes, edges: 'meta' in patch ? normalizeParameterEdges(nodes, projection.edges) : projection.edges }
     }
-    case 'canvas.node.locked':
-    case 'canvas.node.unlocked': {
-      // S6-4 节点锁:幂等置位/复位(重复重放同帧等价)。
-      const lockTargetId = String(payload.nodeId || '')
-      if (!lockTargetId) return projection
-      const locked = event.type === 'canvas.node.locked'
-      return {
-        ...projection,
-        nodes: projection.nodes.map((node) => (node.id === lockTargetId ? { ...node, locked } : node)),
-      }
-    }
     case 'canvas.node.ungrouped': {
       const nodeId = String(payload.nodeId || '')
       if (!nodeId) return projection

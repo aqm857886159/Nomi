@@ -68,7 +68,7 @@ interface TaskResult {
 function canvasPort(shots: number): CanvasLanePort {
   const nodes = Array.from({ length: shots }, (_, index) => ({
     id: `node-shot-${index + 1}`, kind: 'keyframe', title: `镜 ${index + 1}`, prompt: `Shot ${index + 1} of the rooftop scene.`,
-    status: 'idle', position: { x: index * 320, y: 0 }, locked: false, shotIndex: index + 1, hasResult: false,
+    status: 'idle', position: { x: index * 320, y: 0 }, shotIndex: index + 1, hasResult: false,
   }));
   return {
     read: async () => ({ nodes, edges: [], groups: [], selectedNodeIds: [] }),

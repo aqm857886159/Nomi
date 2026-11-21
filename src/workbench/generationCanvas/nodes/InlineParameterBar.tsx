@@ -21,6 +21,8 @@ import {
 } from './controls/parameterControlModel'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
 import { summaryFitCandidates } from './composerHeadlineSummary'
+import { nomiSelectTriggerText } from '../../../design/NomiSelect'
+import { ComposerSendButton, COMPOSER_SEND_FRAME } from './ComposerSendButton'
 import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldLadder, modeHasIcon } from './composerBarYield'
 import { useDedupedModelSelect, type ModelVariantMenu } from '../../common/useDedupedModelSelect'
 import { localizeAutoOption } from './parameterOptionPresentation'
@@ -105,8 +107,8 @@ export type ComposerFooterSlots = {
   tools?: React.ReactNode
   /** 数量这类紧挨「走」钮左边的东西。 */
   trailing?: React.ReactNode
-  /** 最右：「走」钮或一枚状态标签。 */
-  action?: React.ReactNode
+  /** 最右的生成钮只交数据，唯一实例由底栏画。状态标签放 trailing。 */
+  send?: React.ComponentProps<typeof ComposerSendButton>
   /** 只放流式布局放不下就整颗换行（分镜行最窄一档）；画布一行不换。 */
   wrap?: boolean
   /** 宿主的走查锚点（`data-storyboard-composer-bar` 等）。 */
@@ -257,56 +259,87 @@ export default function InlineParameterBar({
   const fullSummaryText = parts.map((part) => part.text).join(' · ')
 
   // ── 底栏挤的时候谁先让（composerBarYield.ts，四处同一条）：只在这里量一次，经 context 发给生成钮。 ──
-  // 量法：从「什么都不让」起一级一级往上试，直到参数条里的东西不再超出参数条（布局前同步做完，不闪）。
-  // 判据是底栏自己的宽（ResizeObserver 看底栏那一行），不读窗口宽。分镜最窄一档（wrap）整颗换行，不走这里。
+  // 候选宽由原件加减纯文字与外框推得；关闭的影子根不承载控件身份。
   const fitCandidates = footer && !wrap && parts.length ? summaryFitCandidates(parts) : null
   const modeCollapsible = modeHasIcon(modeMenu?.options, modeMenu?.value)
   const ladder = footer && !wrap
-    ? composerYieldLadder({ sendCollapsible: Boolean(footer.action), modeCollapsible, summaryCandidates: fitCandidates?.length ?? 1 })
+    ? composerYieldLadder({ sendCollapsible: Boolean(footer.send?.label), modeCollapsible, summaryCandidates: fitCandidates?.length ?? 1 })
     : [COMPOSER_YIELD_NONE]
   const yielding = ladder.length > 1
-  const fitKey = `${ladder.length}\n${fitCandidates ? fitCandidates.join('\n') : fullSummaryText}\n${selectedModelOption?.value ?? ''}\n${modeMenu?.value ?? ''}`
-  const barRef = React.useRef<HTMLDivElement | null>(null)
   const footerRowRef = React.useRef<HTMLDivElement | null>(null)
-  const [fitState, setFitState] = React.useState<{ key: string; level: number }>({ key: fitKey, level: 0 })
-  const level = fitState.key === fitKey ? Math.min(fitState.level, ladder.length - 1) : 0
+  const rulerRef = React.useRef<HTMLDivElement | null>(null)
+  const rulerRoot = React.useRef<ShadowRoot | null>(null)
+  const [fitLevel, setFitLevel] = React.useState(0)
+  const level = Math.min(fitLevel, ladder.length - 1)
   const yieldStep = ladder[level] ?? COMPOSER_YIELD_NONE
   React.useLayoutEffect(() => {
-    if (!yielding) return
-    const bar = barRef.current
-    if (!bar || level >= ladder.length - 1) return
-    // 参数条里排着的东西（都不缩）超出参数条右沿 = 放不下，再让一级。
-    const right = bar.getBoundingClientRect().right
-    const overflow = Array.from(bar.querySelectorAll<HTMLElement>('[data-yield-item]')).some((el) => el.getBoundingClientRect().right > right + 0.5)
-    if (overflow) setFitState({ key: fitKey, level: level + 1 })
-    else if (fitState.key !== fitKey) setFitState({ key: fitKey, level })
-    // fitState 每次 set 都是新对象：ResizeObserver 重置到第 0 级（哪怕本来就是 0）也会再量一遍。
-  }, [yielding, level, ladder.length, fitKey, fitState])
-  React.useLayoutEffect(() => {
     const row = footerRowRef.current
-    const bar = barRef.current
-    if (!yielding || !row || !bar || typeof ResizeObserver === 'undefined') return
-    // 底栏那一行变宽变窄（窗口、表格列），或参数条被右边的钮挤了（生成钮变成「生成中」）：从头再量，
-    // 变宽时让出去的要收回来。同步做完，画出来的已经是量好的那一级；量完宽度回到原样，不会自己再触发一轮。
-    const widths = (): string => `${Math.round(row.getBoundingClientRect().width)}:${Math.round(bar.getBoundingClientRect().width)}`
-    let seen = widths()
-    const observer = new ResizeObserver(() => {
-      const next = widths()
-      if (next === seen) return
-      flushSync(() => setFitState({ key: fitKey, level: 0 }))
-      seen = widths()
+    const host = rulerRef.current
+    if (!yielding || !row || !host) return
+    const identity = row.querySelector<HTMLElement>('[data-yield-item]')
+    const summary = row.querySelector<HTMLElement>('[data-parameter-summary]')
+    if (!identity) return
+    const selects = identity.querySelectorAll<HTMLElement>('button[aria-haspopup="listbox"]')
+    const model = hideModel ? null : selects[0]
+    const mode = modeMenu ? selects[hideModel ? 0 : 1] : null
+    const send = row.querySelector<HTMLElement>('[data-bar-segment="generate"]')
+    const fixed = Array.from(row.children).filter((el): el is HTMLElement => el instanceof HTMLElement
+      && el.getAttribute('data-bar-segment') !== 'model-params' && !el.hasAttribute('data-yield-action'))
+    if (rulerRoot.current?.host !== host) rulerRoot.current = host.attachShadow({ mode: 'closed' })
+    const root = rulerRoot.current
+    const texts = [
+      ...(fitCandidates ?? [fullSummaryText]).map(text => text || t('generationCommon.parameters.parameters')),
+      modeMenu ? nomiSelectTriggerText(modeMenu.options.find(option => option.value === modeMenu.value), modeMenu.value, t('common.select')) : '',
+      footer?.send?.label ? footer.send.busy ? t('storyboardEditor.frame.generating') : footer.send.label : '',
+    ]
+    const spans = texts.map((text, index) => {
+      const span = document.createElement('span')
+      span.textContent = text
+      span.style.display = 'block'
+      span.style.width = 'max-content'
+      span.style.whiteSpace = 'pre'
+      span.style.fontWeight = index === texts.length - 1 ? 'inherit' : getComputedStyle(summary ?? identity).fontWeight
+      return span
     })
-    observer.observe(row)
-    observer.observe(bar)
+    root.replaceChildren(...spans)
+    const fit = (): void => {
+      const style = getComputedStyle(row)
+      const available = parseFloat(style.width)
+      const scale = row.getBoundingClientRect().width / available
+      if (!scale) return
+      const width = (el: Element | null | undefined): number => el ? el.getBoundingClientRect().width / scale : 0
+      const gap = (el: Element): number => parseFloat(getComputedStyle(el).columnGap) || 0
+      const modelText = model?.querySelector<HTMLElement>('span.truncate')
+      // 只还原末级挤掉的文字；保留模型控件本来的 maxWidth。
+      const hiddenModel = modelText && yieldStep.modelEllipsis
+        ? Math.min(modelText.scrollWidth, parseFloat(getComputedStyle(modelText).maxWidth) || Infinity) - modelText.clientWidth
+        : 0
+      const modeDelta = mode ? width(spans[texts.length - 2]) + gap(mode) : 0
+      const fullIdentity = width(identity) + hiddenModel + (yieldStep.modeIconOnly ? modeDelta : 0)
+      const summaryFrame = summary ? width(summary) - width(spans[yieldStep.summaryIndex]) : 0
+      const extra = fixed.reduce((sum, el) => sum + width(el), 0) + gap(row) * (fixed.length + (send ? 1 : 0))
+      const paramGap = summary ? gap(identity.parentElement!.parentElement!) : 0
+      const first = ladder.findIndex(step => {
+        const candidate = fullIdentity - (step.modeIconOnly ? modeDelta : 0)
+          + (summary ? summaryFrame + width(spans[step.summaryIndex]) + paramGap : 0)
+          + (footer?.send?.label ? step.sendIconOnly ? COMPOSER_SEND_FRAME.icon : width(spans[texts.length - 1]) + COMPOSER_SEND_FRAME.label : width(send))
+          + extra
+        return candidate <= available + 0.5
+      })
+      setFitLevel(first < 0 ? ladder.length - 1 : first)
+    }
+    fit()
+    const observer = new ResizeObserver(() => flushSync(fit))
+    for (const el of [row, identity, model, mode, summary, send, ...fixed, ...spans]) if (el) observer.observe(el)
     return () => observer.disconnect()
-  }, [fitKey, yielding])
+  })
   const fitCramped = yieldStep.modelEllipsis
   const summaryText = fitCandidates ? fitCandidates[Math.min(yieldStep.summaryIndex, fitCandidates.length - 1)] ?? fullSummaryText : fullSummaryText
   const yieldContext = React.useMemo(() => ({ sendIconOnly: yieldStep.sendIconOnly }), [yieldStep.sendIconOnly])
 
   // ── 参数浮层：静止定位（打开定位一次，绝不跟随）。 ──
   // 打开时以触发器（pill / ⚙）中心定位一次，之后绝不跟随；
-  // 比例变化通过节点原子锚定保证触发器本身不动。摘要文本也在打开期间冻结，宽度不跳。
+  // 比例变化通过节点原子锚定保证触发器本身不动。摘要开着时照常跟着值变（面板不跟随，钮变宽它也不跑）。
   const [panelOpen, setPanelOpen] = React.useState(false)
   const [panelInit, setPanelInit] = React.useState<{
     left: number
@@ -316,7 +349,6 @@ export default function InlineParameterBar({
     /** 打开那一下先不可见地画一次、量出内容的本来高度，再定开向和限高（之后不再动）。 */
     measured: boolean
   } | null>(null)
-  const [frozenSummary, setFrozenSummary] = React.useState('')
   // 触发器只有一个：那颗摘要 pill。
   const triggerRef = React.useRef<HTMLButtonElement | null>(null)
   const panelRef = React.useRef<HTMLDivElement | null>(null)
@@ -332,7 +364,6 @@ export default function InlineParameterBar({
     const centeredLeft = rect.left + rect.width / 2 - PANEL_W / 2
     const left = Math.min(Math.max(8, centeredLeft), Math.max(8, vw - PANEL_W - 8))
     setPanelInit({ left, top: 0, maxHeight: undefined, side: 'above', measured: false })
-    setFrozenSummary(summaryText)
     setPanelOpen(true)
   }
   // 开向和限高（2026-11-14 验收条件 2：Eleven v3 七项的面板顶到窗口顶、盖住顶栏、最后一项够不着）：
@@ -390,8 +421,6 @@ export default function InlineParameterBar({
     }
   }, [panelOpen, closePanel])
 
-  // 面板打开期间 pill 文本冻结（宽度稳定）；关闭后回到实时值。
-  const pillText = panelOpen ? frozenSummary : summaryText
 
   // 「改一个参数写到哪儿去」三件一组传下去：面板、高级设置、每个参数组共用同一份，
   // 谁也别再自己接一遍（P1）。
@@ -415,8 +444,9 @@ export default function InlineParameterBar({
             </NodePromptToolCluster>
           ) : null}
           {footer.trailing}
-          <ComposerBarYieldContext.Provider value={yieldContext}>{footer.action}</ComposerBarYieldContext.Provider>
+          <span data-yield-action className="contents"><ComposerBarYieldContext.Provider value={yieldContext}>{footer.send ? <ComposerSendButton {...footer.send} /> : null}</ComposerBarYieldContext.Provider></span>
         </div>
+        {yielding ? <div ref={rulerRef} aria-hidden="true" className="invisible pointer-events-none absolute left-0 top-0 text-caption font-medium" /> : null}
         {showAdvanced ? <AdvancedSettingsSection ref={advancedRef} controls={advancedControls} {...controlWiring} /> : null}
       </div>
     )
@@ -527,9 +557,9 @@ export default function InlineParameterBar({
   // 最后一级模型名才末尾省略（title 是全名）。变体是短枚举，从不缩（2026-09-21 走查：「Variant 5.0」被压成「Variant E」）。
   // 没有底栏的（实验室里只要参数格的地方）照旧：模型那枚让位、摘要最宽 240。
   const modelChipClass = wrap || (yielding && !fitCramped) ? 'shrink-0' : undefined
-  const identityRow = (
+  const identityRow = (): JSX.Element => (
     // 判据：参数条一行里相邻两颗控件不许相压（`tests/ux/design-lab-ask-card-in-panel.walk.mjs` 的重叠断言，原样保留、照跑）。
-    <div data-yield-item className={cn('flex items-center gap-1.5', yielding && !fitCramped ? 'shrink-0' : 'min-w-0')}>
+    <div data-yield-item="" className={cn('flex items-center gap-1.5', (yielding && !yieldStep.modelEllipsis) ? 'shrink-0' : 'min-w-0')}>
       {!hideModel ? (
         <NomiSelect
           ariaLabel={t('generationCommon.parameters.model')}
@@ -558,17 +588,17 @@ export default function InlineParameterBar({
   )
 
   /** 触发器：一颗报当前配置的摘要 pill，点开是参数面板。 */
-  const summaryTrigger = hasPanel ? (
+  const summaryTrigger = (text = summaryText): JSX.Element | null => hasPanel ? (
     <button
       ref={triggerRef}
       type="button"
       // 走查锚点：断言得能拿到那串摘要本身，
       // 不能靠中文 aria-label 去找（换个语言就断了）。
-      data-parameter-summary={pillText}
-      data-yield-item
+      data-parameter-summary={text}
+      data-yield-item=""
       aria-label={t('generationCommon.parameters.generationParameters')}
       aria-expanded={panelOpen}
-      title={(fitCandidates ? fullSummaryText : pillText) || t('generationCommon.parameters.generationParameters')}
+      title={(fitCandidates ? fullSummaryText : summaryText) || t('generationCommon.parameters.generationParameters')}
       data-parameter-summary-cramped={fitCandidates && fitCramped ? 'true' : undefined}
       onClick={() => (panelOpen ? closePanel() : openPanel())}
       className={cn(
@@ -582,7 +612,7 @@ export default function InlineParameterBar({
       style={fitCandidates || wrap || yielding ? undefined : { maxWidth: 240 }}
     >
       <span className="min-w-0 truncate" style={{ maxWidth: wrap || fitCandidates || yielding ? 'none' : 240 }}>
-        {pillText || t('generationCommon.parameters.parameters')}
+        {text || t('generationCommon.parameters.parameters')}
       </span>
       <IconChevronDown
         size={ICON_TIERS.corner.size}
@@ -601,7 +631,6 @@ export default function InlineParameterBar({
 
   const bar = (
     <div
-      ref={barRef}
       className={cn(
         'generation-canvas-v2-node__params--parameters',
         'min-w-0',
@@ -611,15 +640,15 @@ export default function InlineParameterBar({
         yielding && 'flex-1',
       )}
     >
-      <div className="contents">{identityRow}</div>
-      {summaryTrigger && yielding ? (
+      <div className="contents">{identityRow()}</div>
+      {hasPanel && yielding ? (
         <div data-parameter-summary-slot="true" className={cn('relative flex items-center', fitCramped ? 'flex-none' : 'min-w-0 flex-1')}>
-          {summaryTrigger}
+          {summaryTrigger()}
           {panelPortal}
         </div>
-      ) : summaryTrigger ? (
+      ) : hasPanel ? (
         <div className="min-w-0 contents">
-          {summaryTrigger}
+          {summaryTrigger()}
           {panelPortal}
         </div>
       ) : null}

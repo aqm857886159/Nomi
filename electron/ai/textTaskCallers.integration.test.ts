@@ -13,7 +13,7 @@
 import { existsSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { reply } from "../../tests/fixtures/textTasks/textUpstream";
-import { parseVendorErrorFromMessage } from "../../src/workbench/generationCanvas/runner/vendorErrorIpc";
+import { parseVendorErrorFromMessage } from "../shared/generationFailure";
 import { textTaskFailureText } from "../../src/workbench/api/taskApi";
 import { desktopT } from "../i18n";
 

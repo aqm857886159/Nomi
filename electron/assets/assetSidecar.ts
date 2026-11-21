@@ -3,9 +3,11 @@ import { isJsonRecord, type JsonRecord } from "../jsonUtils";
 
 // 落盘素材的 sidecar（`<file>.meta`）读写。单一实现：projectAssetStore（写入者）与 assetPreview（预览回填）共用。
 
+const ASSET_SIDECAR_SUFFIX = ".meta";
+
 export function readAssetSidecarMeta(absolutePath: string): JsonRecord {
   try {
-    const parsed = JSON.parse(fs.readFileSync(`${absolutePath}.meta`, "utf8"));
+    const parsed = JSON.parse(fs.readFileSync(`${absolutePath}${ASSET_SIDECAR_SUFFIX}`, "utf8"));
     return isJsonRecord(parsed) ? parsed : {};
   } catch {
     return {};
@@ -19,7 +21,7 @@ export function writeAssetSidecarMeta(absolutePath: string, meta: JsonRecord): v
   }
   if (Object.keys(sidecar).length === 0) return;
   try {
-    fs.writeFileSync(`${absolutePath}.meta`, JSON.stringify(sidecar));
+    fs.writeFileSync(`${absolutePath}${ASSET_SIDECAR_SUFFIX}`, JSON.stringify(sidecar));
   } catch {
     /* non-fatal */
   }

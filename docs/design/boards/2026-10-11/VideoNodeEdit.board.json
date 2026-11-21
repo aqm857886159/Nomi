@@ -412,7 +412,7 @@
       "after": "output.undo"
     },
     {
-      "function": "shot table/depth/duplicate/lock/fullscreen/download/provenance",
+      "function": "shot table/depth/duplicate/lock/fullscreen/download/provenance（其中「锁」已由 2026-11-17 的决定撤掉：节点锁整个删除）",
       "before": "见 docs/plan/2026-10-11-clip-reference.md 独立功能普查",
       "after": "toolbar.retained"
     }

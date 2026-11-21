@@ -13,7 +13,8 @@ import { agentModelEntriesFromCatalog } from "../catalog/agentModelEntriesFromCa
 import { EVERY_VARIANT, resolveModelArchetype, resolveArchetypeVariant, rescopeArchetypeVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
 import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { createLaneModelRead } from "../agentLane/laneModelRead.mjs";
-import { findModelEntry, modelSpecDetail, modelSpecRow, vendorsCarrying, type ModelSpecDetail } from "../shared/agentCapabilities/modelSpecProjection";
+import { modelSpecRow, type ModelSpecDetail } from "../shared/agentCapabilities/modelSpecProjection";
+import { modelHandleOf } from "../shared/agentCapabilities/modelHandle";
 import { catalogAvailabilityFor, requireModelSpecDetail } from "./modelSpecRead";
 
 const state = applyBuiltinSeeds(
@@ -36,15 +37,30 @@ const laneTool = createLaneModelRead(
   // 生产里 state 缺省读真实目录；测试喂同一份种子状态，接线逐字相同。
   (entry) => catalogAvailabilityFor(entry.vendor, entry.modelId, state),
 );
-const laneCall = async (args: { kind?: string; modelId?: string; vendor?: string }) =>
+const laneCall = async (args: { kind?: string; model?: string }) =>
   (await laneTool.execute("call-1", args)).details as Record<string, unknown>;
 
 /** 外部 MCP 那一面：与 `dispatcher` 的 `models.list` / `models.read` 用的是同一对函数。 */
-const mcpThin = () => entries.map((entry) => modelSpecRow(entry, availabilityOf(entry)));
-const mcpDetail = (modelId: string, vendor?: string | null) => {
-  const entry = findModelEntry(entries, modelId, vendor);
-  return entry ? modelSpecDetail(entry, availabilityOf(entry)) : null;
+const mcpThin = () => entries.map((entry) => modelSpecRow(entry, "mcp", availabilityOf(entry)));
+// 读详情只经名字主人认（`requireModelSpecDetail` → `resolveModelIdentity`），这里走的就是外部面的那一个函数。
+const mcpDetail = (modelId: string, vendor?: string | null): ModelSpecDetail | null => {
+  try { return requireModelSpecDetail(modelId, vendor ?? undefined, state); } catch { return null; }
 };
+const vendorsCarrying = (list: typeof entries, modelId: string) => list.filter((entry) => entry.modelId === modelId).map((entry) => entry.vendor);
+
+/**
+ * 一份事实、两个身份头（2026-11-15）：应用内那一面的身份是一个完整名字 `model`，对外 MCP 那一面是 `modelId` + `vendor`。
+ * 对等比的是**身份头以外的全部事实**——身份头各自另验。
+ */
+const factsOf = (spec: unknown): Record<string, unknown> | null => {
+  if (!spec || typeof spec !== "object") return null;
+  const { model: _lane, modelId: _mcpId, vendor: _mcpVendor, ...facts } = spec as Record<string, unknown>;
+  if (Array.isArray(facts.variants)) {
+    facts.variants = facts.variants.map(({ modelKey: _variantIdentity, ...variant }) => variant);
+  }
+  return facts;
+};
+const handleOf = (modelId: string, vendor: string | null | undefined) => modelHandleOf({ modelId, vendor: vendor ?? null });
 
 /** **全量**：156 个模型逐个比，不抽样。抽 2 个挡不住「5/156 不一致」那种缺陷。 */
 const allIdentities = entries.map((entry) => [entry.modelId, entry.vendor] as const);
@@ -67,8 +83,10 @@ describe("model spec parity across the two model faces", () => {
   it("every one of the catalog's models reads field-for-field identical through both faces", async () => {
     const mismatches: string[] = [];
     for (const [modelId, vendor] of allIdentities) {
-      const lane = (await laneCall({ modelId, vendor: vendor ?? undefined })).model;
-      if (JSON.stringify(lane) !== JSON.stringify(mcpDetail(modelId, vendor))) mismatches.push(`${vendor}/${modelId}`);
+      const lane = (await laneCall({ model: handleOf(modelId, vendor) })).model as Record<string, unknown> | null;
+      const mcp = mcpDetail(modelId, vendor);
+      if (JSON.stringify(factsOf(lane)) !== JSON.stringify(factsOf(mcp))) mismatches.push(`${vendor}/${modelId}`);
+      if (lane?.model !== handleOf(modelId, vendor) || mcp?.modelId !== modelId) mismatches.push(`${vendor}/${modelId} identity head`);
     }
     expect(mismatches, `${mismatches.length}/${allIdentities.length} models differ between the two faces`).toEqual([]);
     expect(allIdentities.length).toBeGreaterThan(150);
@@ -85,7 +103,7 @@ describe("model spec parity across the two model faces", () => {
     expect(shared.length, "the seeded catalog no longer has a same-name cross-vendor model — premise gone").toBeGreaterThan(0);
     for (const [modelId, vendors] of shared) {
       const details = await Promise.all([...new Set(vendors)].map(async (vendor) =>
-        JSON.stringify((await laneCall({ modelId, vendor })).model)));
+        JSON.stringify((await laneCall({ model: handleOf(modelId, vendor) })).model)));
       // 各家取各家：两份详情必须不同 vendor 字段，且不能全都等于第一家。
       expect(new Set(details).size, `${modelId}: every vendor returned the same detail`).toBeGreaterThan(1);
     }
@@ -99,11 +117,12 @@ describe("model spec parity across the two model faces", () => {
     const [modelId, vendors] = shared[0]!;
 
     // 应用内面
-    const lane = await laneCall({ modelId });
+    const lane = await laneCall({ model: modelId });
     expect(lane.model).toBeNull();
     expect(String(lane.errorCode)).toBe("ambiguous_model_vendor");
-    expect(lane.vendorsForModelId).toEqual(expect.arrayContaining([...vendors]));
-    expect(String(lane.recoveryActions)).toMatch(/vendor/i);
+    // 出路是那几个完整名字（照抄就能用），不是让它再去拼 vendor。
+    expect(lane.candidates).toEqual(expect.arrayContaining([...vendors].map((vendor) => handleOf(modelId, vendor))));
+    expect(String(lane.recoveryActions)).toContain(handleOf(modelId, [...vendors][0]));
 
     // MCP 面：同一条出路
     let mcpError: { code?: string; details?: Record<string, unknown> } | undefined;
@@ -115,15 +134,19 @@ describe("model spec parity across the two model faces", () => {
   it("still answers straight away when only one provider carries that modelId", async () => {
     const soloId = allIdentities.find(([modelId]) => vendorsCarrying(entries, modelId).length === 1)?.[0];
     expect(soloId, "every model is multi-vendor — premise gone").toBeTruthy();
-    expect((await laneCall({ modelId: soloId! })).model).toBeTruthy();
+    const solo = await laneCall({ model: soloId! });
+    expect(solo.model).toBeTruthy();
+    // 只写 id 而目录里只有一家：放行，并告诉它这次写的不是完整名字。
+    expect(solo.resolvedFrom).toBe(soloId);
     expect(requireModelSpecDetail(soloId!, undefined, state)).toBeTruthy();
   });
 
   it("refuses instead of silently falling back when the named vendor does not carry the model", async () => {
     const [modelId] = allIdentities[0]!;
-    const payload = await laneCall({ modelId, vendor: "no-such-vendor" });
+    const payload = await laneCall({ model: `${modelId}@no-such-vendor` });
     expect(payload.model).toBeNull();
-    expect(payload.vendorsForModelId).toBeTruthy();
+    expect(payload.errorCode).toBe("unknown_model_identity");
+    expect(Array.isArray(payload.candidates) && payload.candidates.length).toBeTruthy();
   });
 
   it("the detail really carries this model's declared parameters (not an empty shell)", async () => {
@@ -135,7 +158,7 @@ describe("model spec parity across the two model faces", () => {
       if (!base) continue;
       // 参数是**按供应商特化**的（同一档案在不同家参数枚举不同），所以比之前先特化一次。
       const archetype = specializeArchetypeForVendor(base, entry.vendor);
-      const detail = (await laneCall({ modelId: entry.modelId, vendor: entry.vendor ?? undefined })).model as
+      const detail = (await laneCall({ model: modelHandleOf(entry) })).model as
         { modes: Array<{ modeId: string; params: Array<{ key: string }> }> };
       for (const mode of archetype.modes) {
         const declared = mode.params.map((p) => p.key).sort();
@@ -148,8 +171,18 @@ describe("model spec parity across the two model faces", () => {
     expect(checked, "no model/mode pair carried declared parameters — the assertion would be vacuous").toBeGreaterThan(100);
   });
 
-  it("the thin list is identical through both faces", async () => {
-    expect((await laneCall({})).models).toEqual(mcpThin());
+  it("the thin list carries the same facts through both faces; only the identity head differs", async () => {
+    const lane = (await laneCall({})).models as Array<Record<string, unknown>>;
+    const mcp = mcpThin();
+    expect(lane.map(factsOf)).toEqual(mcp.map(factsOf));
+    expect(lane.map((row) => row.model)).toEqual(mcp.map((row) => handleOf(row.modelId, row.vendor)));
+    // 应用内的行没有两半名字；对外的行没有完整名字。
+    for (const row of lane) { expect(row).not.toHaveProperty("modelId"); expect(row).not.toHaveProperty("vendor"); }
+    for (const row of mcp) expect(row).not.toHaveProperty("model");
+    // 对外 MCP 面逐字节不变（2026-11-15 前后导出逐字节比过一次，0 差异）：身份头仍是最前面的 modelId、vendor，
+    // 外部调用方按键序读 JSON 文本的也不受影响。
+    for (const row of mcp.slice(0, 20)) expect(Object.keys(row).slice(0, 3)).toEqual(["modelId", "vendor", "label"]);
+    for (const row of lane.slice(0, 20)) expect(Object.keys(row).slice(0, 2)).toEqual(["model", "label"]);
   });
 
   it("the thin tier really is thin — no params, no slots, no mode prose", async () => {
@@ -162,8 +195,8 @@ describe("model spec parity across the two model faces", () => {
   });
 
   it("the detail tier carries what the thin tier withheld", async () => {
-    const modelId = allIdentities[0]![0];
-    const detail = (await laneCall({ modelId })).model as Record<string, unknown>;
+    const [modelId, vendor] = allIdentities[0]!;
+    const detail = (await laneCall({ model: handleOf(modelId, vendor) })).model as Record<string, unknown>;
     expect(Array.isArray(detail.modes)).toBe(true);
     expect((detail.modes as unknown[]).length).toBeGreaterThan(0);
   });
@@ -180,14 +213,17 @@ describe("model spec parity across the two model faces", () => {
     // 「可被拒、不可发现」是 2026-09-22 验收点名的新不对称。
     const withVariants = entries.find((entry) => (entry.variants?.length ?? 0) > 0);
     expect(withVariants, "the seeded catalog has no model with variants — premise gone").toBeTruthy();
-    const detail = (await laneCall({ modelId: withVariants!.modelId })).model as Record<string, unknown>;
+    const detail = (await laneCall({ model: modelHandleOf(withVariants!) })).model as Record<string, unknown>;
     expect((detail.variants as unknown[]).length).toBeGreaterThan(0);
+    for (const variant of detail.variants as object[]) expect(variant).not.toHaveProperty("modelKey");
+    const mcp = mcpDetail(withVariants!.modelId, withVariants!.vendor);
+    expect(mcp?.variants).toEqual(expect.arrayContaining([expect.objectContaining({ modelKey: expect.any(String) })]));
     const thin = mcpThin().find((row) => row.modelId === withVariants!.modelId);
     expect(thin?.variantIds?.length).toBeGreaterThan(0);
   });
 
   it("reports Seedance Fast limits in the same detail the model uses to draft", async () => {
-    const response = await laneCall({ modelId: "doubao-seedance-2.0", vendor: "apimart" });
+    const response = await laneCall({ model: "doubao-seedance-2.0@apimart" });
     const detail = response.model as ModelSpecDetail;
     expect(detail.defaultVariantId).toBe("fast");
     const baseResolution = detail.modes.find((mode) => mode.modeId === "t2v")?.params.find((param) => param.key === "resolution");
@@ -230,7 +266,7 @@ describe("model spec parity across the two model faces", () => {
   });
 
   it("refuses an unknown modelId with a way forward, on the lane face too", async () => {
-    const payload = await laneCall({ modelId: "no-such-model-anywhere" });
+    const payload = await laneCall({ model: "no-such-model-anywhere" });
     expect(payload.model).toBeNull();
     expect(String(payload.recoveryActions)).toContain("list_models");
   });

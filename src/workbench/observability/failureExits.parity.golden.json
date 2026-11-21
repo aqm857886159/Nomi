@@ -1,0 +1,662 @@
+{
+  "I1a 401 Unauthorized（外部助手只认确证码：有意） [zh-CN]": {
+    "canvas": {
+      "kind": "auth",
+      "primary": "open-model-access",
+      "secondary": "retry",
+      "vendorSide": true,
+      "reason": "API Key 无效",
+      "hint": "请在「设置 → 模型」检查这个模型的 API Key。"
+    },
+    "taskCenter": {
+      "kind": "auth",
+      "primary": "open-model-access",
+      "secondary": "retry",
+      "canRetry": true,
+      "hint": "请在「设置 → 模型」检查这个模型的 API Key。"
+    },
+    "storyboard": {
+      "reason": "API Key 无效",
+      "hint": "请在「设置 → 模型」检查这个模型的 API Key。\n\n技术详情：401 Unauthorized",
+      "canRetry": true
+    },
+    "builtinAssistant": "API Key 无效",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "401 Unauthorized",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "I1b asset-too-large 码 [zh-CN]": {
+    "canvas": {
+      "kind": "asset-too-large",
+      "primary": "switch-model",
+      "secondary": "retry",
+      "vendorSide": true,
+      "reason": "这个素材太大，传不上去",
+      "hint": "请压缩或裁短素材，或去设置里允许第三方公共临时托管。"
+    },
+    "taskCenter": {
+      "kind": "asset-too-large",
+      "primary": "switch-model",
+      "secondary": "retry",
+      "canRetry": true,
+      "hint": "请压缩或裁短素材，或去设置里允许第三方公共临时托管。"
+    },
+    "storyboard": {
+      "reason": "这个素材太大，传不上去",
+      "hint": "请压缩或裁短素材，或去设置里允许第三方公共临时托管。\n\n技术详情：HTTP 413",
+      "canRetry": true
+    },
+    "builtinAssistant": "这个素材太大，传不上去",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "NOMI_ERR::asset-too-large:: HTTP 413",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "I1c 取回失败（阶段码优先，有任务号） [zh-CN]": {
+    "canvas": {
+      "kind": "retrieval-incomplete",
+      "primary": "view-task",
+      "secondary": null,
+      "vendorSide": false,
+      "reason": "任务已提交，这次没能取回结果",
+      "hint": "这一镜已经交给服务商了，是 Nomi 这一次查结果、读结果或下载结果没成（常见原因：本机网络或代理一时不通、服务商的查询接口报错）。不要重新生成，那会另做一份新的。点「重新取回」，Nomi 只会再查一次、再下载一次。具体原因见下方技术详情。"
+    },
+    "taskCenter": {
+      "kind": "retrieval-incomplete",
+      "primary": "open-recoverable",
+      "secondary": null,
+      "canRetry": false,
+      "hint": "这一镜已经交给服务商了，是 Nomi 这一次查结果、读结果或下载结果没成（常见原因：本机网络或代理一时不通、服务商的查询接口报错）。不要重新生成，那会另做一份新的。点「重新取回」，Nomi 只会再查一次、再下载一次。具体原因见下方技术详情。"
+    },
+    "storyboard": {
+      "reason": "任务已提交，这次没能取回结果",
+      "hint": "这一镜已经交给服务商了，是 Nomi 这一次查结果、读结果或下载结果没成（常见原因：本机网络或代理一时不通、服务商的查询接口报错）。不要重新生成，那会另做一份新的。点「重新取回」，Nomi 只会再查一次、再下载一次。具体原因见下方技术详情。\n\n技术详情：fetch failed",
+      "canRetry": false
+    },
+    "builtinAssistant": "任务已提交，这次没能取回结果",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "NOMI_ERR::retrieval-download:: fetch failed",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "I7 同一取回失败，无任务号 [zh-CN]": {
+    "canvas": {
+      "kind": "retrieval-incomplete",
+      "primary": "view-task",
+      "secondary": null,
+      "vendorSide": false,
+      "reason": "任务已提交，这次没能取回结果",
+      "hint": "这一镜已经交给服务商了，是 Nomi 这一次查结果、读结果或下载结果没成（常见原因：本机网络或代理一时不通、服务商的查询接口报错）。不要重新生成，那会另做一份新的。点「重新取回」，Nomi 只会再查一次、再下载一次。具体原因见下方技术详情。"
+    },
+    "taskCenter": {
+      "kind": "retrieval-incomplete",
+      "primary": "retry",
+      "secondary": null,
+      "canRetry": true,
+      "hint": "服务商这次把结果直接放在了回答里，是 Nomi 把它下载回项目这一步没成（常见原因：结果地址过期或不让访问、本机网络或代理一时不通、返回的不是能用的文件）。这一次没有可以再查的任务，没法再下载一次；重试会重新生成一次。具体原因见下方技术详情。"
+    },
+    "storyboard": {
+      "reason": "任务已提交，这次没能取回结果",
+      "hint": "服务商这次把结果直接放在了回答里，是 Nomi 把它下载回项目这一步没成（常见原因：结果地址过期或不让访问、本机网络或代理一时不通、返回的不是能用的文件）。这一次没有可以再查的任务，没法再下载一次；重试会重新生成一次。具体原因见下方技术详情。\n\n技术详情：fetch failed",
+      "canRetry": true
+    },
+    "builtinAssistant": "任务已提交，这次没能取回结果",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "NOMI_ERR::retrieval-download:: fetch failed",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "I2 供应商信封 model_not_found [zh-CN]": {
+    "canvas": {
+      "kind": "model-unavailable-upstream",
+      "primary": "switch-same-capability",
+      "secondary": "switch-model",
+      "vendorSide": true,
+      "reason": "这个模型服务商这边取不到",
+      "hint": "服务商回复说这个模型现在用不了（已下线或不存在）。重试没用，换个模型就能继续。"
+    },
+    "taskCenter": {
+      "kind": "model-unavailable-upstream",
+      "primary": "switch-same-capability",
+      "secondary": "switch-model",
+      "canRetry": false,
+      "hint": "服务商回复说这个模型现在用不了（已下线或不存在）。重试没用，换个模型就能继续。"
+    },
+    "storyboard": {
+      "reason": "这个模型服务商这边取不到",
+      "hint": "服务商回复说这个模型现在用不了（已下线或不存在）。重试没用，换个模型就能继续。\n\n技术详情：Provider request failed (HTTP 400)",
+      "canRetry": false
+    },
+    "builtinAssistant": "这个模型服务商这边取不到：The model x does not exist",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "NOMI_VENDOR_ERR_B64::eyJ2ZW5kb3JLZXkiOiJyZWxheSIsIm1ldGhvZCI6IlBPU1QiLCJ1cmwiOiJodHRwczovL3JlbGF5LmV4YW1wbGUuY29tL3YxL2ltYWdlcyIsImh0dHBTdGF0dXMiOjQwMCwidXBzdHJlYW1Nc2ciOiJUaGUgbW9kZWwgeCBkb2VzIG5vdCBleGlzdCIsInVwc3RyZWFtQ29kZSI6Im1vZGVsX25vdF9mb3VuZCIsImNhdGVnb3J5IjoiaW5wdXQiLCJyZXRyeWFibGUiOmZhbHNlfQ==:: Provider request failed (HTTP 400)",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "I3 Mundane malfunction [zh-CN]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "Mundane malfunction",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "storyboard": {
+      "reason": "Mundane malfunction",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：Mundane malfunction",
+      "canRetry": true
+    },
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "Mundane malfunction",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "I4 unknown + pi 瞬时 [zh-CN]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "upstream hiccup 7731",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "storyboard": {
+      "reason": "upstream hiccup 7731",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：upstream hiccup 7731",
+      "canRetry": true
+    },
+    "builtinAssistant": "连不上服务商",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "upstream hiccup 7731",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "I5 隐私码 node_not_found（cause 不外露） [zh-CN]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "private cause",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "storyboard": {
+      "reason": "private cause",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：private cause",
+      "canRetry": true
+    },
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
+    "externalAssistant": {
+      "errorCode": "node_not_found",
+      "message": "node_not_found",
+      "recoveryActions": [
+        "先调用 canvas_read 刷新节点 id，再重试"
+      ],
+      "nextActions": null
+    }
+  },
+  "I6 human_approval_required [zh-CN]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "A main-process receipt is required",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "storyboard": {
+      "reason": "A main-process receipt is required",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：A main-process receipt is required",
+      "canRetry": true
+    },
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
+    "externalAssistant": {
+      "errorCode": "human_approval_required",
+      "message": "A main-process receipt is required",
+      "recoveryActions": [
+        "这一步要你本人在 Nomi 里确认一次。"
+      ],
+      "nextActions": [
+        "in_nomi"
+      ]
+    }
+  },
+  "I8 余额不足中文 [zh-CN]": {
+    "canvas": {
+      "kind": "balance",
+      "primary": "open-model-access",
+      "secondary": "retry",
+      "vendorSide": true,
+      "reason": "余额不足",
+      "hint": "服务商返回：账户余额不足。请到服务商充值后重试，或在「设置 → 模型」换一个模型。"
+    },
+    "taskCenter": {
+      "kind": "balance",
+      "primary": "open-model-access",
+      "secondary": "retry",
+      "canRetry": true,
+      "hint": "服务商返回：账户余额不足。请到服务商充值后重试，或在「设置 → 模型」换一个模型。"
+    },
+    "storyboard": {
+      "reason": "余额不足",
+      "hint": "服务商返回：账户余额不足。请到服务商充值后重试，或在「设置 → 模型」换一个模型。\n\n技术详情：您的账户余额不足，请充值。",
+      "canRetry": true
+    },
+    "builtinAssistant": "余额不足",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "您的账户余额不足，请充值。",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "I9 unknown_model_identity [zh-CN]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "unknown_model_identity",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "storyboard": {
+      "reason": "unknown_model_identity",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：unknown_model_identity",
+      "canRetry": true
+    },
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
+    "externalAssistant": {
+      "errorCode": "unknown_model_identity",
+      "message": "目录里没有这个模型，或它的类型挂不到这个节点上",
+      "recoveryActions": [
+        "先用 nomi_read{target:\"models\"} 取薄名单，再用 target:\"model\" 查那一个的详情"
+      ],
+      "nextActions": null
+    }
+  },
+  "U1 码是别的词的一部分 [zh-CN]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "not_node_not_found_extra",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "storyboard": {
+      "reason": "not_node_not_found_extra",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：not_node_not_found_extra",
+      "canRetry": true
+    },
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "not_node_not_found_extra",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "U2 两个码并存（模型码在前） [zh-CN]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "unknown_model_identity node_not_found",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "storyboard": {
+      "reason": "unknown_model_identity node_not_found",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：unknown_model_identity node_not_found",
+      "canRetry": true
+    },
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
+    "externalAssistant": {
+      "errorCode": "unknown_model_identity",
+      "message": "目录里没有这个模型，或它的类型挂不到这个节点上",
+      "recoveryActions": [
+        "先用 nomi_read{target:\"models\"} 取薄名单，再用 target:\"model\" 查那一个的详情"
+      ],
+      "nextActions": null
+    }
+  },
+  "U3a 确证码在字段里、正文是别的话 [zh-CN]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "still pending",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "storyboard": {
+      "reason": "still pending",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：still pending",
+      "canRetry": true
+    },
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
+    "externalAssistant": {
+      "errorCode": "asset_not_localized",
+      "message": "参考素材还没落到本地，生成端拿不到它",
+      "recoveryActions": [
+        "在 Nomi 里打开该节点让素材完成本地化后重试"
+      ],
+      "nextActions": null
+    }
+  },
+  "U3b 同一个码塞回正文 [zh-CN]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "asset_not_localized",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "storyboard": {
+      "reason": "asset_not_localized",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：asset_not_localized",
+      "canRetry": true
+    },
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
+    "externalAssistant": {
+      "errorCode": "asset_not_localized",
+      "message": "参考素材还没落到本地，生成端拿不到它",
+      "recoveryActions": [
+        "在 Nomi 里打开该节点让素材完成本地化后重试"
+      ],
+      "nextActions": null
+    }
+  },
+  "X1 正文里嵌入的整词码 [zh-CN]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "generate failed: renderer_or_provider_unknown",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "storyboard": {
+      "reason": "generate failed: renderer_or_provider_unknown",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：generate failed: renderer_or_provider_unknown",
+      "canRetry": true
+    },
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
+    "externalAssistant": {
+      "errorCode": "renderer_or_provider_unknown",
+      "message": "找不到能执行这次生成的渲染器或供应商配置",
+      "recoveryActions": [
+        "用 nomi_read（target=models）核对可用模型后换一个",
+        "在 Nomi 设置里补齐该供应商的接入"
+      ],
+      "nextActions": null
+    }
+  },
+  "X2 本机网络话 [zh-CN]": {
+    "canvas": {
+      "kind": "network",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": true,
+      "reason": "连不上服务商",
+      "hint": "请求没发到服务商——多半是本机网络或代理没覆盖到它（海外接口尤其常见）。先检查网络和代理，再重试。"
+    },
+    "taskCenter": {
+      "kind": "network",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "请求没发到服务商——多半是本机网络或代理没覆盖到它（海外接口尤其常见）。先检查网络和代理，再重试。"
+    },
+    "storyboard": {
+      "reason": "连不上服务商",
+      "hint": "请求没发到服务商——多半是本机网络或代理没覆盖到它（海外接口尤其常见）。先检查网络和代理，再重试。\n\n技术详情：ECONNRESET boom",
+      "canRetry": true
+    },
+    "builtinAssistant": "连不上服务商",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "ECONNRESET boom",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "X3 端口里的 401（旧案） [zh-CN]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "POST http://127.0.0.1:59401/v1/tasks failed: 418 something odd",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。"
+    },
+    "storyboard": {
+      "reason": "POST http://127.0.0.1:59401/v1/tasks failed: 418 something odd",
+      "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：POST http://127.0.0.1:59401/v1/tasks failed: 418 something odd",
+      "canRetry": true
+    },
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "POST http://127.0.0.1:59401/v1/tasks failed: 418 something odd",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "X4 旧项目落盘的本机拒绝串 [zh-CN]": {
+    "canvas": {
+      "kind": "local-refusal",
+      "primary": "release-regenerate",
+      "secondary": "reconcile",
+      "vendorSide": false,
+      "reason": "上一次没等到结果，可能已经扣费",
+      "hint": ""
+    },
+    "taskCenter": {
+      "kind": "local-refusal",
+      "primary": "release-regenerate",
+      "secondary": "reconcile",
+      "canRetry": false,
+      "hint": ""
+    },
+    "storyboard": {
+      "reason": "上一次没等到结果，可能已经扣费",
+      "hint": "\n\n技术详情：node_generation_in_flight: gen-v2-image-mvysub98-2ht3",
+      "canRetry": false
+    },
+    "builtinAssistant": "上一次没等到结果，可能已经扣费",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "node_generation_in_flight: gen-v2-image-mvysub98-2ht3",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "I9 unknown_model_identity [en]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "unknown_model_identity",
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model."
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model."
+    },
+    "storyboard": {
+      "reason": "unknown_model_identity",
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model.\n\nTechnical details: unknown_model_identity",
+      "canRetry": true
+    },
+    "builtinAssistant": "The provider returned an error we do not recognize. Try once more, or switch to another model in Model settings; the details are kept in the log.",
+    "externalAssistant": {
+      "errorCode": "unknown_model_identity",
+      "message": "The catalog has no such model, or its kind does not fit this node",
+      "recoveryActions": [
+        "Call nomi_read{target:\"models\"} for the thin list, then target:\"model\" for that one's detail"
+      ],
+      "nextActions": null
+    }
+  },
+  "I3 Mundane malfunction [en]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "Mundane malfunction",
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model."
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model."
+    },
+    "storyboard": {
+      "reason": "Mundane malfunction",
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model.\n\nTechnical details: Mundane malfunction",
+      "canRetry": true
+    },
+    "builtinAssistant": "The provider returned an error we do not recognize. Try once more, or switch to another model in Model settings; the details are kept in the log.",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "Mundane malfunction",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "X1 正文里嵌入的整词码 [en]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "generate failed: renderer_or_provider_unknown",
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model."
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model."
+    },
+    "storyboard": {
+      "reason": "generate failed: renderer_or_provider_unknown",
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model.\n\nTechnical details: generate failed: renderer_or_provider_unknown",
+      "canRetry": true
+    },
+    "builtinAssistant": "The provider returned an error we do not recognize. Try once more, or switch to another model in Model settings; the details are kept in the log.",
+    "externalAssistant": {
+      "errorCode": "renderer_or_provider_unknown",
+      "message": "No renderer or provider configuration can execute this generation",
+      "recoveryActions": [
+        "Check available models with nomi_read (target=models) and switch",
+        "Complete the provider setup in Nomi settings"
+      ],
+      "nextActions": null
+    }
+  }
+}

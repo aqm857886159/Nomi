@@ -7,7 +7,7 @@
 // 这里只回答一件事：批过的这一镜，现在交到哪一步了。读的是耐久 Run（唯一真相），不另记状态。
 import type { ProductionRun } from "./productionRunTypes";
 import { isStoppedRunStatus } from "../shared/productionRunStop";
-import { isUnsubmittedJobStatus, latestJobForShot } from "../shared/productionShotJobs";
+import { hasUnresolvedShotSubmission, isUnsubmittedJobStatus, latestJobForShot } from "../shared/productionShotJobs";
 
 export type ShotHandover =
   /** 供应商受理了（拿到了任务号）：可以批下一张。 */
@@ -24,7 +24,8 @@ type Phase = "waiting_dispatch" | "submitting" | Exclude<ShotHandover, "timed_ou
 /** 这一镜此刻交到哪一步（只读耐久 Run）。 */
 export function shotHandoverPhase(run: ProductionRun | null, shotId: string | undefined): Phase {
   if (!run) return "not_dispatched";
-  const job = shotId ? latestJobForShot(run, shotId) : run.jobs.at(-1);
+  const job = latestJobForShot(run, shotId);
+  if (!job && hasUnresolvedShotSubmission(run, shotId)) return "settled_without_acceptance";
   if (!job || isUnsubmittedJobStatus(job.status)) {
     // 还没开始交：Run 停着就不会再派了（派生对停着的 Run 不派新活）。
     return isStoppedRunStatus(run.status) ? "not_dispatched" : "waiting_dispatch";

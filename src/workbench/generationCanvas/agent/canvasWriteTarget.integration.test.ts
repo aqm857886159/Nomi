@@ -200,20 +200,21 @@ describe('canvas.write real renderer execution', () => {
     )
   })
 
-  it('rejects a target locked after approval without preparing or mutating', async () => {
-    const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', title: 'Shot', prompt: 'old' })
-    const input: CanvasWriteInput = { operation: 'set_node_prompt', nodeId: node.id, prompt: 'approved prompt' }
-    const request = buildRequest(input)
-    useGenerationCanvasStore.getState().setNodeLocked(node.id, true)
-
-    await expect(executeCanvasWriteTarget(request, readGenerationCanvasSnapshot)).rejects.toMatchObject({
-      code: 'capability_target_stale',
-    } satisfies Partial<SurfacePortWireError>)
-    expect(receiptHarness.prepares).toEqual([])
-    expect(useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)).toMatchObject({
-      prompt: 'old',
-      locked: true,
+  it('an old project node saved with locked:true is an ordinary node: the Agent edit goes through the same approval path', async () => {
+    // 旧版（有节点锁时）存下的项目文件：读盘规整丢掉 locked，之后助手改它不再被拦。
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [{ id: 'legacy-locked', kind: 'image', title: 'Shot', position: { x: 0, y: 0 }, prompt: 'old', locked: true }],
+      edges: [],
+      groups: [],
+      selectedNodeIds: [],
     })
+    expect(useGenerationCanvasStore.getState().nodes[0]).not.toHaveProperty('locked')
+    const input: CanvasWriteInput = { operation: 'set_node_prompt', nodeId: 'legacy-locked', prompt: 'approved prompt' }
+
+    await executeCanvasWriteTarget(buildRequest(input), readGenerationCanvasSnapshot)
+
+    expect(receiptHarness.commits).toHaveLength(1)
+    expect(useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === 'legacy-locked')?.prompt).toBe('approved prompt')
   })
 
   it('correlates the Host proposal, approval, and action hash through receipt commit', async () => {

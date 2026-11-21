@@ -8,9 +8,12 @@
 //               还没有样本时给 `—`。要拿旧复盘的基线可传 --fixes <fixes.csv>（第 7 列「发现者」），口径同原型。
 //   · 30 天复发 = docs/fixes/*.root-cause.json 里「30 天内与更早某份合同共享 ≥2 个非枢纽非测试文件、且重叠不少于较小集合一半」的合同占比
 //               （代理口径，偏粗，以后改用合同里的类字段）。
-//   · 门岗误报 = Quality Gate 近 60 天失败的 run 里，「同一个 head SHA 后来又有成功的 run」的占比（重跑就绿 = 红得没道理）。
+//   · 门岗误报 = Quality Gate 最近取到的运行里，「红过、没改代码又绿了」的占比。两种都算：①重跑变绿——`gh run rerun` 沿用同一个运行号，
+//               结论被最后一次覆盖，所以按 attempt > 1 且现在成功来认（2026-11-21 之前只认②，协调一直用重跑，这个数恒为 0%）；
+//               ②同一个 head SHA 另起了一次运行并成功。分母是红过的运行 = 现在仍失败的 + ①。
+//               只取最近 300 次运行，实际覆盖几天随提交量变，所以括号里印「近 N 天」，不冒充 60 天。
 //               gh 数据每天缓存一次（.claude/eng-metrics-cache.json，gitignore 里），不在每次开场都打 API；
-//               gh 不可用 / 没登录 → 这一项写「—（今天没查成）」，不写成 0%。注意这是代理口径（只认「同 SHA 重跑就绿」），清点线的完整分类要高得多。
+//               gh 不可用 / 没登录 → 这一项写「—（今天没查成）」，不写成 0%。仍是代理口径：被取消的运行、没人重跑的假红都没算，真实值只会更高。
 //   · 到期合同 = recurrence_check_on（缺省为合同文件日期 + 30 天）已到的合同数；括号里是其中「到期前后 30 天内又有后来的同类合同」的份数。
 //               只数 2026-10-02 之后的合同或显式写了 recurrence_check_on 的合同（老合同不追溯）。
 import fs from 'node:fs'
@@ -22,6 +25,8 @@ import { execGhReadSync } from './lib/transientRetry.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const DUE_TRACKING_SINCE = '2026-10-02'
 const DAY = 86_400_000
+/** 缓存里每条运行带哪些字段；加字段就换名，旧缓存当天作废重取（否则今天剩下的时间都拿缺字段的旧数据算）。 */
+const RUN_CACHE_SHAPE = 'sha,conclusion,createdAt,attempt'
 
 const toDate = (text) => new Date(`${text}T00:00:00Z`)
 const dayDiff = (later, earlier) => Math.round((later - earlier) / DAY)
@@ -109,17 +114,24 @@ export function computeDue(contracts, today) {
   return { due, recurredAfter }
 }
 
-/** runs: [{ sha, conclusion, createdAt }]（Quality Gate）。误报 = 失败 run 的 head SHA 后来又有成功。 */
+/**
+ * runs: [{ sha, conclusion, createdAt, attempt }]（Quality Gate）。红过又绿 = 重跑变绿（attempt > 1 且现在成功）+ 失败 run 的 head SHA 后来另有成功 run。
+ * failed 是红过的运行数（现在仍失败的 + 重跑变绿的）；coveredDays 是取到的运行实际覆盖的天数（不超过窗口）。
+ */
 export function computeFalsePositive(runs, today, windowDays = 60) {
+  const end = toDate(today).getTime() + DAY
   const since = toDate(today).getTime() - windowDays * DAY
   const inWindow = runs.filter((run) => new Date(run.createdAt).getTime() >= since)
   const failed = inWindow.filter((run) => run.conclusion === 'failure')
-  let rerunGreen = 0
+  const rerunSucceeded = inWindow.filter((run) => run.conclusion === 'success' && Number(run.attempt) > 1).length
+  let sameShaGreen = 0
   for (const run of failed) {
     const later = inWindow.some((other) => other.sha === run.sha && other.conclusion === 'success' && new Date(other.createdAt) > new Date(run.createdAt))
-    if (later) rerunGreen += 1
+    if (later) sameShaGreen += 1
   }
-  return { rerunGreen, failed: failed.length }
+  const oldest = inWindow.reduce((min, run) => Math.min(min, new Date(run.createdAt).getTime()), end)
+  const coveredDays = Math.min(windowDays, Math.max(1, Math.ceil((end - oldest) / DAY)))
+  return { rerunGreen: rerunSucceeded + sameShaGreen, failed: failed.length + rerunSucceeded, coveredDays }
 }
 
 export function formatLine({ escape, recurrence, falsePositive, due }) {
@@ -127,7 +139,7 @@ export function formatLine({ escape, recurrence, falsePositive, due }) {
   const rec = recurrence.total > 0 ? `${pct(recurrence.recurred, recurrence.total)}（${recurrence.recurred}/${recurrence.total}）` : '—'
   const fp = falsePositive.error
     ? `—（${falsePositive.error}）`
-    : falsePositive.failed > 0 ? `${pct(falsePositive.rerunGreen, falsePositive.failed)}（${falsePositive.rerunGreen}/${falsePositive.failed}）` : '—（窗口内没有失败 run）'
+    : falsePositive.failed > 0 ? `${pct(falsePositive.rerunGreen, falsePositive.failed)}（${falsePositive.rerunGreen}/${falsePositive.failed}，近 ${falsePositive.coveredDays} 天）` : '—（窗口内没有失败 run）'
   return `逃逸率 ${esc} · 30 天复发 ${rec} · 门岗误报 ${fp} · 到期合同 ${due.due} 份（同类复发 ${due.recurredAfter} 份）`
 }
 
@@ -178,7 +190,7 @@ function localToday(now = new Date()) {
 function loadCache(file, today) {
   try {
     const cache = JSON.parse(fs.readFileSync(file, 'utf8'))
-    return cache.date === today ? cache : null
+    return cache.date === today && cache.shape === RUN_CACHE_SHAPE ? cache : null
   } catch {
     return null
   }
@@ -189,11 +201,11 @@ export function fetchRuns({ today, cacheFile, refresh = false, ghRun = defaultGh
   const cached = refresh ? null : loadCache(cacheFile, today)
   if (cached?.runs) return { runs: cached.runs }
   try {
-    const raw = ghRun(['run', 'list', '--workflow', 'Quality Gate', '--limit', '300', '--json', 'headSha,conclusion,createdAt'])
-    const runs = JSON.parse(raw).map((run) => ({ sha: run.headSha, conclusion: run.conclusion, createdAt: run.createdAt }))
+    const raw = ghRun(['run', 'list', '--workflow', 'Quality Gate', '--limit', '300', '--json', 'headSha,conclusion,createdAt,attempt'])
+    const runs = JSON.parse(raw).map((run) => ({ sha: run.headSha, conclusion: run.conclusion, createdAt: run.createdAt, attempt: run.attempt ?? 1 }))
     try {
       fs.mkdirSync(path.dirname(cacheFile), { recursive: true })
-      fs.writeFileSync(cacheFile, JSON.stringify({ date: today, runs }))
+      fs.writeFileSync(cacheFile, JSON.stringify({ date: today, shape: RUN_CACHE_SHAPE, runs }))
     } catch {
       /* 缓存写不进去不影响本次输出 */
     }

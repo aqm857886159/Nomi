@@ -74,7 +74,7 @@ export interface GenerationProblem {
   readonly field?: string;
   /** 合法值（模式 id / 比例 / 时长档 / 参考用途）。 */
   readonly allowed?: readonly string[];
-  /** 目录里最接近的那一个（`provider/model`），只在真的接近时才有。 */
+  /** 目录里最接近的那一个，只在真的接近时才有。对外 MCP 那一面是 `provider/model`；应用内 Agent 那一面是完整名字 `modelId@vendor`（`modelHandle.ts`）。 */
   readonly nearest?: string;
   readonly min?: number;
   readonly max?: number;
@@ -162,9 +162,7 @@ export function generationProblemModelText(input: GenerationProblemInput): strin
       }
       return `${input.model ? `Model ${input.model}` : "The named model"} is not in the model catalog`
         + (input.nearest ? `; the closest one is ${input.nearest}.` : ".")
-        + " Name a providerId/modelId exactly as list_models gives it"
-        + (input.nearest ? ` (likely ${input.nearest})` : "")
-        + ", or ask the user which model they mean. A default model is not the problem here.";
+        + " Name a model exactly as list_models gives it, or ask the user which model they mean. A default model is not the problem here.";
     case "no_default_model": {
       const kind = input.media === "video" ? "video" : "image";
       return `No ${kind} model was named and the user has no default ${kind} model. `
@@ -201,7 +199,7 @@ export function generationProblemModelText(input: GenerationProblemInput): strin
   }
 }
 
-const PICK_MODEL_ACTION_EN = "Call list_models, choose an available model, explicitly name its modelId (and providerId as listed) in the draft, and retry the same tool. Tell the user which model you chose using its display name from the catalog, not its ids.";
+const PICK_MODEL_ACTION_EN = "Call list_models, choose an available model, and retry the same tool. Tell the user which model you chose using its display name from the catalog, not its ids.";
 
 /** 给模型读的 `Next:`，按动作词表出。`fix_field` 不在这里——它沿用准入层按字段码给的那句。 */
 export const GENERATION_PROBLEM_NEXT_ACTION_EN: Readonly<Record<Exclude<GenerationProblemNext, "fix_field">, string>> = {

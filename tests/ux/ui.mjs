@@ -1,6 +1,6 @@
 // 常驻驱动的命令行（各线验证界面就用它；技能：.agents/skills/verify-nomi/SKILL.md）。
 //
-//   node tests/ux/ui.mjs up [--locale zh|en] [--theme light|dark] [--size 1280x800|1100x720|700x720] [--data empty|v0.24.0-library|v0.20.0-library] [--out <证据目录>]
+//   node tests/ux/ui.mjs up [--locale zh|en] [--theme light|dark] [--size 1280x800|1100x720|700x720] [--data empty|v0.24.0-library|v0.20.0-library] [--out <证据目录>] [--vendor fake-apimart] [--vendor-pending <n>] [--vendor-drop-submit <n>] [--vendor-fail-task <n>]
 //                                            起一个隔离、安静的 Nomi，等到可驱动才返回（第一行打印「隔离 / 真实资料」）
 //   node tests/ux/ui.mjs doctor               只读自检：是不是这次起的、构建新不新、隔离没有、语言 / 尺寸、现在在哪
 //   node tests/ux/ui.mjs features             列出能 goto 的功能名
@@ -49,12 +49,13 @@ async function up() {
     console.error(`这个工作树已经起了一个驱动实例（pid ${holder}）。先 node tests/ux/ui.mjs down，或直接接着用它（node tests/ux/ui.mjs doctor）`)
     process.exit(3)
   }
-  console.log(profileBanner(options))
+  if (!options.vendor) console.log(profileBanner(options))
   fs.mkdirSync(options.out, { recursive: true })
   const logPath = path.join(options.out, 'driver.log')
   const log = fs.openSync(logPath, 'a')
   const args = [DRIVER, ...rest.filter((arg, index) => !(arg === '--out' || rest[index - 1] === '--out' || arg.startsWith('--out='))), '--out', options.out]
-  const child = spawn(process.execPath, args, { detached: true, stdio: ['ignore', log, log], env: { ...process.env, NO_PROXY: '127.0.0.1,localhost' } })
+  // 现有体感观察器按 cwd 落证据；假供应商的自动取证也留在 --out。
+  const child = spawn(process.execPath, args, { cwd: options.vendor ? options.out : undefined, detached: true, stdio: ['ignore', log, log], env: { ...process.env, NO_PROXY: '127.0.0.1,localhost' } })
   child.unref()
   let exited = null
   child.once('exit', (code) => { exited = code ?? 1 })
@@ -71,6 +72,10 @@ async function up() {
     await sleep(200)
   }
   const state = JSON.parse(fs.readFileSync(path.join(DIR, 'state.json'), 'utf8'))
+  if (state.fakeVendor) {
+    console.log(`假供应商：${state.fakeVendor.name} @ ${new URL(state.fakeVendor.origin).host}`)
+    console.log(profileBanner(options))
+  }
   console.log(`READY in ${state.readySec}s · ${state.isolated ? 'isolated' : 'REAL PROFILE'} · ${state.locale} · ${state.theme} · ${state.size} · data=${state.data}`)
   console.log(`证据目录 ${state.out}（截图 / commands.jsonl / errors.log / driver.log）`)
   process.exit(0)
@@ -130,6 +135,7 @@ else {
   else if (action === 'probe-latency') { cmd.target = rest[0]; cmd.name = rest[1]; cmd.wait = Number(rest[2] || 1800) }
   else if (action === 'contrast') cmd.sel = rest.join(' ')
   const { text, res } = await send(cmd, action === 'goto' ? 180_000 : 60_000)
+  if (action === 'doctor' && res.doctor?.fakeVendor) console.log(`假供应商：${res.doctor.fakeVendor.name} @ ${new URL(res.doctor.fakeVendor.origin).host}`)
   console.log(action === 'doctor' || action === 'features' ? JSON.stringify(res, null, 2) : text)
   if (res.error || (action === 'doctor' && res.doctor && !res.doctor.ok)) process.exit(1)
 }

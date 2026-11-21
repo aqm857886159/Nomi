@@ -62,7 +62,7 @@ export function presetBlockHint(reason: PresetBlockReason): string {
 export function runTextPreset(nodeId: string, id: TextProcessPresetId, present: (message: string) => void): void {
   const state = useGenerationCanvasStore.getState()
   const node = state.nodes.find((candidate) => candidate.id === nodeId)
-  if (!node || node.locked) return
+  if (!node) return
   const say = (message: string) => notify({ identity: `text-process:${nodeId}`, reason: 'interaction', level: 'inline', message, present })
   const blocked = presetBlockReason(node, state, id)
   if (blocked) return say(i18n.t(blocked === 'needImage' ? 'generationCommon.textProcess.needImage' : 'generationCommon.textProcess.needText'))

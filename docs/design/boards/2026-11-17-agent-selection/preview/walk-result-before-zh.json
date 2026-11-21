@@ -1,0 +1,49 @@
+{
+  "locale": "zh-CN",
+  "commit": "r2-before",
+  "results": [
+    {
+      "case": "text-only",
+      "chips": [
+        "Soup arrives first"
+      ],
+      "requestHasCaption": false,
+      "requestHasClip": false
+    },
+    {
+      "case": "media-only",
+      "chips": [
+        "Door push"
+      ],
+      "requestHasCaption": false,
+      "requestHasClip": true
+    },
+    {
+      "case": "media-then-caption",
+      "chips": [
+        "Soup arrives first"
+      ],
+      "requestHasCaption": false,
+      "requestHasClip": false
+    },
+    {
+      "case": "stop-reselect-send",
+      "chips": [
+        "Reaction"
+      ],
+      "requestHasNewSelection": false,
+      "requestHasOldSelection": true
+    },
+    {
+      "case": "dragged-clip",
+      "chips": [
+        "Reaction"
+      ],
+      "chipHasChangedMark": false,
+      "requestHasClip": true,
+      "startMsBefore": 0,
+      "startMsAfter": 5067,
+      "startMsMoved": true
+    }
+  ]
+}

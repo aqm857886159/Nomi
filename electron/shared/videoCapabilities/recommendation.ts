@@ -1,5 +1,6 @@
 import type { ArchetypeMode, ArchetypeReferenceSlot, ModelArchetype, ModelParameterControl, ModelParameterControlOption } from "./types";
-import { nearestNumber, numericOptionValues } from "./paramConstraints";
+import { nearestNumber } from "./paramConstraints";
+import { declaredNumericOptions } from "./paramValue";
 import { resolveArchetypeVariant } from "../modelArchetypes/variantResolution";
 import { rescopeArchetypeVariant } from "../modelArchetypes/entry";
 
@@ -120,7 +121,7 @@ export const effectiveVideoModes = (candidate: VideoModelCandidate): ArchetypeMo
 const chooseParamValue = (control: ModelParameterControl, input: VideoGenerationRecommendationInput): Scalar | undefined => {
   const requestedDuration = input.goals?.durationSeconds;
   if (control.key === "duration" && typeof requestedDuration === "number" && Number.isFinite(requestedDuration)) {
-    const options = numericOptionValues(control);
+    const options = declaredNumericOptions(control);
     if (options.length > 0) return nearestNumber(requestedDuration, options);
     const min = typeof control.min === "number" ? control.min : requestedDuration;
     const max = typeof control.max === "number" ? control.max : requestedDuration;
@@ -142,7 +143,7 @@ const chooseParamValue = (control: ModelParameterControl, input: VideoGeneration
 const durationSupport = (mode: ArchetypeMode, target: number): { supported: boolean; description: string } | null => {
   const control = mode.params.find((item) => item.key === "duration");
   if (!control) return null;
-  const options = numericOptionValues(control);
+  const options = declaredNumericOptions(control);
   if (options.length > 0) {
     const supported = options.includes(target);
     return { supported, description: supported ? `${target} 秒` : `${options.join("/ ")} 秒` };

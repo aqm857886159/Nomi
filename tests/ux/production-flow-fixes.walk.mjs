@@ -34,8 +34,8 @@ const SCENARIO = process.env.NOMI_PFF_SCENARIO || 'checkpoint'
 const SCENARIOS = new Set(['checkpoint', 'anchor-fail', 'pause-settle', 'pause-resume-early', 'upgrade-open', 'consent-late-release', 'consent-late-resume'])
 if (!SCENARIOS.has(SCENARIO)) throw new Error(`NOMI_PFF_SCENARIO 只认 ${[...SCENARIOS].join(' / ')}`)
 
-const IMAGE = { providerId: 'apimart', modelId: 'gpt-image-2' }
-const VIDEO = { providerId: 'apimart', modelId: 'doubao-seedance-2.0' }
+const IMAGE = 'gpt-image-2@apimart'
+const VIDEO = 'doubao-seedance-2.0@apimart'
 const TASK_TRIGGER = '[data-task-center-trigger="true"]'
 const TASK_CARD = '[data-production-task-card]'
 /** 今天没有价格：这几句在任何路径上都不该出现（有价格的那条路另说）。 */
@@ -454,9 +454,9 @@ try {
     if (await consent.isVisible().catch(() => false)) await consent.click()
 
     if (SCENARIO === 'consent-late-release') {
-      const videoShot = (n, prompt) => ({ title: `镜${n}`, prompt, taskKind: 'text_to_video', candidate: VIDEO, durationSec: 4, parameters: { resolution: '480p', generate_audio: false } })
+      const videoShot = (n, prompt) => ({ title: `镜${n}`, prompt, taskKind: 'text_to_video', model: VIDEO, durationSec: 4, parameters: { resolution: '480p', generate_audio: false } })
       const shots = [
-        { title: '渔港参考', role: 'anchor', storyboard: { kind: 'scene', carrier: 'visual' }, prompt: '清晨的渔港全景，薄雾', taskKind: 'text_to_image', candidate: IMAGE },
+        { title: '渔港参考', role: 'anchor', storyboard: { kind: 'scene', carrier: 'visual' }, prompt: '清晨的渔港全景，薄雾', taskKind: 'text_to_image', model: IMAGE },
         videoShot(1, '清晨渔港，小船轻晃'), videoShot(2, '码头上一只猫晒太阳'),
       ]
       const { operationId, planShots, goDone } = await draftAndRelease(win, projectRoot, { tag: 'PCL', shots })
@@ -497,7 +497,7 @@ try {
       await shot('C3', 'en-landed')
       await zoomShot(win, 'C3', 'en-landed', [video1.nodeId, video2.nodeId])
     } else if (SCENARIO === 'consent-late-resume') {
-      const imageShot = (n, prompt) => ({ title: `镜${n}`, prompt, taskKind: 'text_to_image', candidate: IMAGE })
+      const imageShot = (n, prompt) => ({ title: `镜${n}`, prompt, taskKind: 'text_to_image', model: IMAGE })
       const shots = [imageShot(1, '清晨渔港'), imageShot(2, '码头的猫'), imageShot(3, '海鸥')]
       const { operationId, planShots, goDone } = await draftAndRelease(win, projectRoot, { tag: 'PCR', shots, beforeGenerate: () => walk.fixture.holdSubmits(true) })
       walk.report.seed.operationId = operationId
@@ -533,9 +533,9 @@ try {
       await shot('C5', 'en-after-resume')
       await zoomShot(win, 'C5', 'en-after-resume', nodeIds)
     } else if (SCENARIO === 'checkpoint' || SCENARIO === 'anchor-fail') {
-      const videoShot = (n, prompt) => ({ title: `镜${n}`, prompt, taskKind: 'text_to_video', candidate: VIDEO, durationSec: 4, parameters: { resolution: '480p', generate_audio: false } })
+      const videoShot = (n, prompt) => ({ title: `镜${n}`, prompt, taskKind: 'text_to_video', model: VIDEO, durationSec: 4, parameters: { resolution: '480p', generate_audio: false } })
       const shots = [
-        { title: '渔港参考', role: 'anchor', storyboard: { kind: 'scene', carrier: 'visual' }, prompt: '清晨的渔港全景，薄雾', taskKind: 'text_to_image', candidate: IMAGE },
+        { title: '渔港参考', role: 'anchor', storyboard: { kind: 'scene', carrier: 'visual' }, prompt: '清晨的渔港全景，薄雾', taskKind: 'text_to_image', model: IMAGE },
         videoShot(1, '清晨渔港，小船轻晃'), videoShot(2, '码头上一只猫晒太阳'),
       ]
       const { operationId, planShots, goDone } = await draftAndRelease(win, projectRoot, {
@@ -658,7 +658,7 @@ try {
       }
     } else {
       // ── 三镜图片：第 1 镜的提交压在夹具里时按急停 ──
-      const imageShot = (n, prompt) => ({ title: `镜${n}`, prompt, taskKind: 'text_to_image', candidate: IMAGE })
+      const imageShot = (n, prompt) => ({ title: `镜${n}`, prompt, taskKind: 'text_to_image', model: IMAGE })
       const shots = [imageShot(1, '清晨渔港'), imageShot(2, '码头的猫'), imageShot(3, '海鸥')]
       const { operationId, planShots, goDone } = await draftAndRelease(win, projectRoot, {
         tag: SCENARIO === 'pause-settle' ? 'PFP' : 'PFE', shots,

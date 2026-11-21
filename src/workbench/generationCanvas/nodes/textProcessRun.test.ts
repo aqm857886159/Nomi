@@ -56,13 +56,6 @@ describe('点加工预设：先看有没有东西可加工，再走和 ↑ 同�
     expect(started.calls).toEqual([{ id: node.id, preset: 'describe' }])
   })
 
-  it('锁定的节点：什么都不做', () => {
-    const node = addText('有字')
-    store().setNodeLocked(node.id, true)
-    runTextPreset(node.id, 'translate', present)
-    expect(started.calls).toEqual([])
-    expect(messages).toEqual([])
-  })
 })
 
 describe('预设被什么挡着：不可点 + 说明原因（和生成钮缺参考时同一种做法）', () => {

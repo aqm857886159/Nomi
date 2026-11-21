@@ -27,7 +27,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
-import { canvasFitViewButton, openRailDrawer, switchWorkspace } from './_shell.mjs'
+import { backToLibrary, canvasFitViewButton, openRailDrawer, switchWorkspace } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 const require = createRequire(import.meta.url)
@@ -41,9 +41,10 @@ const ALL_TAB = uiText(locale, 'assetLibrary.allAssets')
 const scheme = process.argv.includes('--scheme') ? process.argv[process.argv.indexOf('--scheme') + 1] : 'light'
 if (scheme !== 'light' && scheme !== 'dark') throw new Error(`--scheme 只认 light / dark，收到 ${scheme}`)
 const runName = `asset-library-interactions-${locale}${scheme === 'dark' ? '-dark' : ''}`
-const shotsDir = path.join(repoRoot, `tests/ux/shots/${runName}`)
+const shotsDir = process.env.WALK_OUT_DIR || path.join(repoRoot, `tests/ux/shots/${runName}`)
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
+if (process.env.WALK_OUT_DIR) process.chdir(shotsDir)
 
 const tempRoot = makeTempDir('nomi-asset-interactions-')
 const run = (command, args) => execFileSync(command, args, { encoding: 'utf8', stdio: 'pipe' })
@@ -211,6 +212,15 @@ try {
     return { x: Math.round(box.width * dx), y: Math.round(box.height * dy) }
   }
 
+  const clickTick = async (name) => {
+    const box = await tile(name).boundingBox()
+    await win.mouse.click(box.x + box.width - 16, box.y + 16)
+  }
+  const selectedCount = () => win.locator('[aria-selected="true"][role="button"]').count()
+  const VIDEO = 'walk-asset-a-shot.mp4'
+  const deleteButton = win.locator('button', { has: win.locator('svg.tabler-icon-trash') }).filter({ hasText: /\d/ }).first()
+  const selectedTile = (name) => win.locator(`[aria-selected="true"][role="button"][aria-label="${name}"]`)
+  if (!process.env.NOMI_WALK_DELETE_ONLY) {
   // ① 全部素材：当前项目的图 → 画布
   const before1 = await canvasNodeCount(win)
   await tile('a-street.png').dragTo(stage, { targetPosition: await dropPoint(0.55, 0.3) })
@@ -236,23 +246,14 @@ try {
   await win.waitForTimeout(1000)
   await snap(win, '04-project-tab')
   // 对勾在卡片右上角：像用户一样点那个位置（改前它只是装饰，改后它是开关）。
-  const clickTick = async (name) => {
-    const box = await tile(name).boundingBox()
-    await win.mouse.click(box.x + box.width - 16, box.y + 16)
-  }
-  const selectedCount = () => win.locator('[aria-selected="true"][role="button"]').count()
-  // 项目素材按地址去重、画布上的名字优先：a-hero.png 在这里叫「画布上的卡」，a-street.png 被①拖上画布后叫 a-street。
-  const VIDEO = 'walk-asset-a-shot.mp4'
   await tile('a-night.png').hover()
   await clickTick('a-night.png')
   await tile(VIDEO).hover()
   await clickTick(VIDEO)
   await win.waitForTimeout(300)
   check('③ 点两张卡的对勾：两张都选中', (await selectedCount()) === 2, `selected=${await selectedCount()}`)
-  const deleteButton = win.locator('button', { has: win.locator('svg.tabler-icon-trash') }).filter({ hasText: /\d/ }).first()
   check('③ 删除钮计数 2', ((await deleteButton.textContent()) ?? '').trim() === '2', `text=${(await deleteButton.textContent())?.trim()}`)
   await snap(win, '05-project-tab-two-selected')
-  const selectedTile = (name) => win.locator(`[aria-selected="true"][role="button"][aria-label="${name}"]`)
   // 基线：同一个「已选中」探针此刻找得到这张视频卡，后面「它不在已选中里」才不是空话。
   const videoSelectedProof = await proveProbe(selectedTile(VIDEO), '点过对勾的视频卡处于已选中')
   await clickTick(VIDEO)
@@ -273,6 +274,8 @@ try {
   const folderText = (await folder.textContent()) ?? ''
   check('④ 项目素材：拖到文件夹归类', /1\s*$/.test(folderText.trim()), `folder=${folderText.trim()}`)
   await snap(win, '08-project-tab-drag-to-folder')
+
+  }
 
   const confirmDelete = () => win.locator('[role="dialog"] button, [role="alertdialog"] button', { hasText: locale === 'en' ? 'Delete' : '删除' }).last().click()
   // 确认框关掉的过场里内容已经清空：等它整个退场再拍「删完以后」，截图里留的是稳定的结果。
@@ -368,6 +371,10 @@ try {
   check('⑦ 文件还在盘上', fs.existsSync(importedFile(ON_CLIP)))
   await confirmDialogGone()
   await snap(win, '13-kept-in-use')
+  await backToLibrary(win, { label: 'End the library deletion undo window' })
+  await expect.poll(() => binned().includes('a-hero.png'), { timeout: stationTimeout() }).toBe(true)
+  check('⑥ 撤销窗口结束后素材库删除的原文件真进回收站', !fs.existsSync(importedFile('a-hero.png')) && binned().includes('a-hero.png'))
+  check('⑦ 关项目后时间轴在用原文件仍在', fs.existsSync(importedFile(ON_CLIP)))
 } catch (error) {
   console.log(`  FAIL walk crashed: ${error?.stack || error}`)
   results.push({ name: 'crash', ok: false })

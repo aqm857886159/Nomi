@@ -1,0 +1,80 @@
+// 在 0.24.1 的源码导出里跑（README「素材」一节）：用那个版本**自己的真实连接器编排** importTikhubShareUrl
+// 落一份连接器导入的参考视频和它的 .meta（带 sourceEvidence：source=connector、usageStatus、fetchedAt），
+// 输出目录由 V_OUT 给，导出所在的提交由 V_COMMIT 给（写进 manifest.json）。放到导出里的 electron/connectors/zzConnectorSidecarGen.test.ts，去掉 .txt。
+// 这里存成 .ts.txt，是为了不被本仓的测试和类型检查收进去。
+//
+// 假的只有出网和钥匙：TikHub 分享链接解析（resolveShareVideo，本来要打 TikHub 接口）换成固定结果，
+// 钥匙解密换成一个假字符串（从不出站），媒体取回（hardenedFetch）换成吐一段真 MP4，再加 electron 的目录和素材广播。
+// 证据的组装、importRemoteAsset 的落盘、清洗、sidecar 都是 0.24.1 的真函数。没有网络、没有真 Key。
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { createProject } from "../runtime";
+import { importTikhubShareUrl } from "./tikhubConnectorService";
+
+vi.mock("../review/reviewTrace", () => ({ scheduleTechnicalReview: vi.fn() }));
+vi.mock("../assets/assetEvents", () => ({ broadcastAssetsUpdated: vi.fn(), broadcastAssetLocalizationStarted: vi.fn(async () => {}) }));
+const hardenedFetchMock = vi.hoisted(() => vi.fn());
+vi.mock("../hardenedFetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../hardenedFetch")>()),
+  hardenedFetch: hardenedFetchMock,
+}));
+vi.mock("../catalog/secrets", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../catalog/secrets")>()),
+  decryptApiKeyRecord: () => "fixture-key-never-sent",
+}));
+const PLAY_URL = "http://127.0.0.1:39018/play/7300000000000000001.mp4";
+vi.mock("./tikhubConnector", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./tikhubConnector")>()),
+  resolveShareVideo: vi.fn(async () => ({ platform: "douyin", playUrl: PLAY_URL, videoId: "7300000000000000001" })),
+}));
+
+const roots: string[] = [];
+const documents = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-connector-gen-documents-"));
+const userData = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-connector-gen-user-data-"));
+roots.push(documents, userData);
+vi.mock("electron", () => ({
+  app: { getPath: (name: string) => (name === "documents" ? documents : userData), getAppPath: () => process.cwd() },
+}));
+
+afterAll(() => {
+  for (const root of roots) fs.rmSync(root, { recursive: true, force: true });
+});
+
+const OUT = String(process.env.V_OUT || "").trim();
+const MP4 = fs.readFileSync(path.join(__dirname, "..", "providerAdapter", "__fixtures__", "certification-media", "valid.mp4"));
+const SHARE_TEXT = "https://v.douyin.com/fixture01/";
+
+type Stored = { data: { relativePath: string; absolutePath: string; contentType: string; contentHash?: string } };
+
+describe("zzConnectorSidecarGen", () => {
+  it("lands a connector reference video and its .meta with the release's real importTikhubShareUrl", async () => {
+    expect(OUT, "V_OUT must name the output directory").not.toBe("");
+    const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-connector-gen-project-"));
+    roots.push(rootPath);
+    const project = createProject({ rootPath, name: "Old User Connector", payload: {} });
+    hardenedFetchMock.mockResolvedValue({ bytes: MP4, contentType: "video/mp4", status: 200, finalUrl: PLAY_URL, truncated: false });
+
+    const result = await importTikhubShareUrl({ projectId: project.id, shareUrl: SHARE_TEXT });
+    const asset = result.asset as Stored;
+    const sidecar = `${asset.data.absolutePath}.meta`;
+    expect(fs.existsSync(sidecar)).toBe(true);
+    const meta = JSON.parse(fs.readFileSync(sidecar, "utf8")) as { sourceEvidence?: Record<string, unknown>; thumbnailRelativePath?: string };
+    expect(meta.sourceEvidence?.source).toBe("connector");
+
+    const target = path.join(OUT, path.dirname(asset.data.relativePath));
+    fs.mkdirSync(target, { recursive: true });
+    fs.copyFileSync(asset.data.absolutePath, path.join(OUT, asset.data.relativePath));
+    fs.copyFileSync(sidecar, path.join(OUT, `${asset.data.relativePath}.meta`));
+    // .meta 里点名的预览图一起带上，夹具读回时它指向的文件是在的。
+    if (meta.thumbnailRelativePath) {
+      fs.copyFileSync(path.join(rootPath, meta.thumbnailRelativePath), path.join(OUT, meta.thumbnailRelativePath));
+    }
+    fs.writeFileSync(path.join(OUT, "manifest.json"), `${JSON.stringify({
+      release: "v0.24.1",
+      sourceCommit: String(process.env.V_COMMIT || "").trim() || null,
+      assets: [{ how: "connector-share-url", relativePath: asset.data.relativePath, contentType: asset.data.contentType, contentHash: asset.data.contentHash ?? null }],
+    }, null, 2)}\n`);
+  });
+});

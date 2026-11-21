@@ -92,7 +92,9 @@ for (const locale of ['zh-CN', 'en']) test(`keyframe toggle preserves authored v
     await expect(page.locator('[data-storyboard-row="1"]')).toBeVisible()
     const before = await shot()
     expect(before.modelKey).toBe('pf-video')
-    expect(before.params).toEqual({ duration: 5, resolution: '720p' })
+    // 夹具写的是 durationSec 5 加 params.duration 5：视频镜头的时长只住 durationSec，方案进 store 时收掉 params 里那份（2026-11-17）。
+    expect(before.durationSec).toBe(5)
+    expect(before.params).toEqual({ resolution: '720p' })
     await page.locator('[data-storyboard-row-menu-trigger="1"]').click()
     await page.getByRole('switch', { name: uiText(locale, 'storyboardEditor.keyframeFirst') }).check()
     await page.keyboard.press('Escape')
@@ -102,6 +104,7 @@ for (const locale of ['zh-CN', 'en']) test(`keyframe toggle preserves authored v
     const after = await shot()
     expect(after.modelKey).toBe(before.modelKey)
     expect(after.modelVendor).toBe(before.modelVendor)
+    expect(after.durationSec).toBe(before.durationSec)
     expect(after.params).toEqual(before.params)
     expect(after.keyframe).toMatchObject({ enabled: false, prompt: 'authored keyframe' })
   } finally { await page.close() }

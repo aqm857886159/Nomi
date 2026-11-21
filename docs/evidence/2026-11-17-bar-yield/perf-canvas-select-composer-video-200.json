@@ -1,0 +1,65 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "fe2d94857",
+  "head": "fe2d94857eb628f524ae226c5872d45c049d3bad",
+  "dirty": true,
+  "sourceTree": "cfa0aa162760ebacef0ca18d9102844038328016",
+  "date": "2026-11-17",
+  "runs": 5,
+  "results": [
+    {
+      "id": "canvas-select-composer-video-200",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 53.6,
+          "p95": 56.9
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          22.6,
+          22,
+          21.2,
+          15.2,
+          22
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [
+          55.3,
+          53.6,
+          57.3,
+          48.7,
+          53.5
+        ],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 100,
+      "baseline": {
+        "median": 46.7,
+        "p95": 49.8,
+        "runs": 5,
+        "machine": "win32 x64 13th Gen Intel(R) Core(TM) i9-13900H x20 / 64GB",
+        "date": "2026-10-16",
+        "commit": "94724f860"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

@@ -5,7 +5,6 @@ const calls = vi.hoisted(() => ({ confirm: vi.fn(), mint: vi.fn(), current: true
 vi.mock('../../project/projectCanvasReadSurface', () => ({ withProjectAction: (fn: (value: unknown) => unknown) => fn({ binding: { projectId: 'p' }, assertCurrent() {} }), isProjectExecutionContextCurrent: () => true }))
 vi.mock('../../api/taskApi', () => ({ mintSpendGrant: calls.mint }))
 vi.mock('../spend/spendConfirm', async original => ({ ...await original<typeof import('../spend/spendConfirm')>(), confirmGenerationSpend: calls.confirm }))
-vi.mock('./assetUploadConsent', async original => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({allowed:true, needsConfirmation:false}) }))
 beforeEach(() => {
   calls.current = true; calls.mint.mockReset().mockResolvedValue('grant'); calls.confirm.mockReset().mockImplementation(async () => { calls.current=false; return true })
   // 确认之后、交之前要再核一次作者那一侧（分镜方案）还是不是他确认的那一份。画布再也不铸令牌（发动机收敛第一刀），

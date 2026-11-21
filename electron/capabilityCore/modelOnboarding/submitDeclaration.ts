@@ -54,7 +54,12 @@ function cardSourceUrl(card: unknown): string | undefined {
  */
 export function rejectionsFromError(error: unknown, card: unknown): OnboardingRejection[] {
   const message = error instanceof Error ? error.message : String(error);
-  const path = /\b([A-Za-z0-9_.-]+)\.(text_to_image|image_edit|text_to_video|image_to_video|text_to_audio|image_to_audio|transcribe|text_to_3d|image_to_3d|chat|prompt_refine|image_to_prompt)\.(create|query|result)\b/.exec(message);
+  const operation = /\b([A-Za-z0-9_.-]+)\.(text_to_image|image_edit|text_to_video|image_to_video|text_to_audio|image_to_audio|transcribe|text_to_3d|image_to_3d|chat|prompt_refine|image_to_prompt)\.(create|query|result)\b/.exec(message);
+  // 校验器自己写出来的字段路径：`models.<模型>.<字段>: …`（参数键、参考槽）与顶层 `assetIngestion`。
+  const field = /^(models\.[A-Za-z0-9_.-]+?\.(?:parameters|modes)\.[A-Za-z0-9_.-]+?):/.exec(message);
+  const path = operation
+    ? `${operation[1]}.${operation[2]}.${operation[3]}`
+    : field ? field[1] : /^upload_strategy_unsupported: assetIngestion\b/.test(message) ? "assetIngestion" : undefined;
   const code: OnboardingRejection["code"] =
     /same origin/i.test(message) ? "same_origin"
       : /requires referenceParam|referenceShape/i.test(message) ? "reference_slot_missing"
@@ -63,7 +68,7 @@ export function rejectionsFromError(error: unknown, card: unknown): OnboardingRe
             : /assetIngestion|upload/i.test(message) ? "upload_strategy_unsupported"
               : "schema";
   return [{
-    path: path ? `${path[1]}.${path[2]}.${path[3]}` : "declaration",
+    path: path || "declaration",
     code,
     message: message.slice(0, 600),
     ...(cardSourceUrl(card) ? { sourceUrl: cardSourceUrl(card) as string } : {}),

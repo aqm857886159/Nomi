@@ -58,6 +58,10 @@ export class DeclaredOriginRewriteError extends Error {
   }
 }
 
+import { projectDeclaredModel, assertDeclaredReplacementOwnership, capabilityFactDigest } from "../providerAdapter/promotionMeta";
+import { builtinVendorSeed, type VendorSeed } from "./builtinVendorSeeds";
+import { builtinCatalogModelKeys } from "./seedBuiltins";
+
 /**
  * 卡挂在**内置连接**上（APIMart 这类有代码种子的家），而卡上「key 发往哪里、怎么放」的某一格
  * 和这条连接现在的不一样。内置连接的地址和鉴权由种子和设置页说了算，卡只能复述，不能改。
@@ -117,9 +121,6 @@ function builtinConnectionMismatches(card: ProviderAdapterDraft, seed: VendorSee
   return fields;
 }
 
-import { projectDeclaredModel, assertDeclaredReplacementOwnership, assertNeutralDeclarationParameters, capabilityFactDigest } from "../providerAdapter/promotionMeta";
-import { builtinVendorSeed, type VendorSeed } from "./builtinVendorSeeds";
-import { builtinCatalogModelKeys } from "./seedBuiltins";
 export { mappingRowFromDeclaredMode, DeclaredRouteConflictError, type DeclaredRouteConflict } from "../providerAdapter/promotionMeta";
 
 const originOf = (url: string): string => new URL(url).origin;
@@ -150,7 +151,8 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
   }
 
   // Compile every model before entering the write transaction (all-or-nothing).
-  const projections = card.models.map((model) => { assertNeutralDeclarationParameters(model); return projectDeclaredModel(model, vendorKey); });
+  // 参数键是不是中性键由收件口（validateProviderAdapterDraft）判，这里只投影。
+  const projections = card.models.map((model) => projectDeclaredModel(model, vendorKey));
   return mutateCatalog((tx, state) => {
     const existing = state.vendors.find((vendor) => vendor.key === vendorKey);
     const binding = readCredentialBinding(existing as Vendor | undefined);

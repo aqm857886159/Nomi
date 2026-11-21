@@ -79,7 +79,8 @@ import { useGenerationCanvasStore } from "../../src/workbench/generationCanvas/s
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from "../../src/workbench/project/projectSessionTestHarness";
 import { resolveRenderedControls } from "../../src/workbench/generationCanvas/nodes/nodeModelArchetype";
 import { parameterChipOptions, parameterChipValue } from "../../src/workbench/generationCanvas/nodes/primaryParameterChips";
-import { isParameterControl, parseControlInput, type DynamicModelControl } from "../../src/workbench/generationCanvas/nodes/controls/parameterControlModel";
+import { isParameterControl, type DynamicModelControl } from "../../src/workbench/generationCanvas/nodes/controls/parameterControlModel";
+import { parseControlInput } from "../shared/videoCapabilities/paramValue";
 import { applyArchetypeVariantSwitch, currentArchetypeVariant } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
 import { modeWrittenInMeta } from "../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers";
 import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/runner/catalogTaskActions";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { buildVideoModelCandidates } from "../shared/videoCapabilities";
+import { buildVideoModelCandidates, effectiveVideoModes } from "../shared/videoCapabilities";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
-import { normalizeVideoCandidate, videoModeForPlan } from "./mcpGenerationVideoResolve";
+import { normalizeVideoCandidate } from "./mcpGenerationVideoResolve";
 import type { PlanCandidate } from "./executionContract";
 
 // 历史拒收逐条锁住形状；原报告未给完整请求，模型使用声明相同模式的现役档案。
@@ -27,7 +27,7 @@ describe("模式决定种类", () => {
     const candidates = buildVideoModelCandidates([{ provider, modelKey, label: modelKey }]);
     expect(candidates).toHaveLength(1);
     const candidate = plan(provider, modelKey, taskKind, modeId);
-    const selected = videoModeForPlan(candidate, candidates[0]!);
+    const selected = effectiveVideoModes(candidates[0]!).find((item) => item.id === modeId)!;
     expect(selected.id).toBe(modeId);
     expect(normalizeVideoCandidate(candidate, candidates)).toMatchObject({ modeId,
       mode: modeTransportFor(selected, candidates[0]!.archetype, provider) });
@@ -37,6 +37,6 @@ describe("模式决定种类", () => {
     const candidates = buildVideoModelCandidates([{ provider: "apimart", modelKey: "doubao-seedance-2.0", label: "Seedance" }]);
     expect(normalizeVideoCandidate(plan("apimart", "doubao-seedance-2.0", "text_to_video"), candidates))
       .toMatchObject({ mode: "text_to_video", modeId: "t2v" });
-    expect(() => videoModeForPlan(plan("apimart", "doubao-seedance-2.0", "text_to_video", "missing"), candidates[0]!)).toThrow();
+    expect(() => normalizeVideoCandidate(plan("apimart", "doubao-seedance-2.0", "text_to_video", "missing"), candidates)).toThrow();
   });
 });

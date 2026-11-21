@@ -9,7 +9,9 @@ import * as checker from './check-dispatch-brief.mjs'
 import { checkDispatchBrief, roundNumber, seamProblems } from './check-dispatch-brief.mjs'
 import { loadSeams, seamUnits } from './fix-churn-units.mjs'
 
-const SELF_CHECK = '\n## 自验\n设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告。'
+const GOAL = '\n目标：创作者点生成后在节点上看到这一次的新图；目标测试在什么都不做、全部拦下两个版本上都必须红。'
+const STAR9 = '\n## 自验\n设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告。'
+const SELF_CHECK = GOAL + STAR9
 
 const GOOD = '范围：只改 src/a。不碰：%APPDATA%。停点：完成就停。'
 
@@ -106,10 +108,10 @@ function runHook(prompt) {
     timeout: 1000,
   })
 }
-function writeBrief(text) {
+function writeBrief(text, name = 'I-a.md') {
   const dir = path.join(makeTempDir('dispatch-brief'), 'briefs', 'x')
   fs.mkdirSync(dir, { recursive: true })
-  const file = path.join(dir, 'I-a.md')
+  const file = path.join(dir, name)
   fs.writeFileSync(file, text)
   return file
 }
@@ -127,6 +129,14 @@ describe('Claude 派线执行点', () => {
     const result = runHook(`读任务书 ${writeBrief(`${GOOD}\n删掉：不选，保留必要能力。\n调用方：不改已有函数的行为${SELF_CHECK}`)}`)
     assert.equal(result.error, undefined)
     assert.equal(result.status, 0)
+  })
+  test('V- 开头的验收任务书经钩子也查目标合同', () => {
+    const file = writeBrief(GOOD, 'V-a.md')
+    const result = runHook(`读任务书 ${file}`)
+    assert.equal(result.status, 2)
+    assert.match(result.stderr, /缺目标合同/)
+    fs.writeFileSync(file, `${GOOD}${GOAL}`)
+    assert.equal(runHook(`读任务书 ${file}`).status, 0)
   })
   test('未引用任务书路径时放行', () => {
     assert.equal(runHook('请分析这个问题').status, 0)
@@ -191,31 +201,77 @@ const IMPLEMENTATION = { implementation: true }
 const CALLER_NONE = '调用方：不改已有函数的行为'
 const IMPLEMENTATION_GOOD = `${GOOD}\n删掉：不选，保留必要能力。\n${CALLER_NONE}`
 
-describe('反例红绿前移', () => {
-  test('实现任务缺自验要求时拦截并解释补法', () => {
-    assert.match(checkDispatchBrief(IMPLEMENTATION_GOOD, IMPLEMENTATION).join(), /自验.*设计卡.*★9.*每条反例.*改坏.*红.*还原.*绿.*日志.*报告/)
+describe('目标合同：做完只按目标判，判据要能失败', () => {
+  const ACCEPTANCE = { acceptance: true }
+  const contract = (text, opts = IMPLEMENTATION) => checkDispatchBrief(text, opts).join()
+  test('实现任务缺目标一行、两种没做成的版本、★9 反例时逐项点名补法', () => {
+    const out = contract(IMPLEMENTATION_GOOD)
+    assert.match(out, /缺目标合同/)
+    for (const part of [/「目标：」开头的一行/, /「什么都不做」时目标测试必须红/, /「全部拦下」时目标测试必须红.*全部拦下不适用/, /自验.*设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告/]) assert.match(out, part)
   })
-  test('要求齐全时通过；非实现任务不强制红绿合同', () => {
+  test('齐全时通过；调研 / 只读复盘类不要求', () => {
     assert.deepEqual(checkDispatchBrief(IMPLEMENTATION_GOOD + SELF_CHECK, IMPLEMENTATION), [])
     assert.deepEqual(checkDispatchBrief(GOOD), [])
   })
+  test('只有「修前红」、没写两种没做成的版本 → 红（今天 L-bar-yield-r2 的形状）', () => {
+    const before = '\n目标：底栏上每个按钮都点得到。\n先在第一轮头上跑：构造①那类必须红；修后全绿。'
+    assert.match(contract(IMPLEMENTATION_GOOD + before + STAR9), /「什么都不做」.*「全部拦下」/)
+  })
+  test('有两种版本、没有目标一行 → 红；有目标一行、两种版本缺一 → 红', () => {
+    assert.match(contract(IMPLEMENTATION_GOOD + SELF_CHECK.replace('目标：', '说明：')), /「目标：」开头的一行/)
+    assert.match(contract(IMPLEMENTATION_GOOD + SELF_CHECK.replace('目标：', '目标：\n')), /「目标：」开头的一行/)
+    assert.match(contract(IMPLEMENTATION_GOOD + SELF_CHECK.replace('、全部拦下', '')), /「全部拦下」时目标测试必须红/)
+    assert.match(contract(IMPLEMENTATION_GOOD + SELF_CHECK.replace('什么都不做、', '')), /「什么都不做」时目标测试必须红/)
+  })
+  test('版本和「红」要在同一句；代码块里的示例不算', () => {
+    assert.match(contract(`${IMPLEMENTATION_GOOD}\n目标：看到新图。\n要试什么都不做和全部拦下。\n测试要红。${STAR9}`), /「什么都不做」.*「全部拦下」/)
+    assert.match(contract(`${IMPLEMENTATION_GOOD}\n\`\`\`\n目标：看到新图；什么都不做、全部拦下时都红\n\`\`\`${STAR9}`), /「目标：」开头的一行/)
+  })
+  test('近义写法也认：什么也不做 / 一律拒', () => {
+    assert.deepEqual(contract(`${IMPLEMENTATION_GOOD}\n目标：看到新图；什么也不做、一律拒的两个版本上目标走查都应当红。${STAR9}`), '')
+  })
+  test('「全部拦下不适用：<理由>」一行可代替那半句，理由为空或是占位符不算', () => {
+    const goalNoBlock = '\n目标：仓库里不再有这批死代码；什么都不做时目标测试红。'
+    assert.deepEqual(contract(`${IMPLEMENTATION_GOOD}${goalNoBlock}\n全部拦下不适用：纯删死代码，没有可拦的入口。${STAR9}`), '')
+    for (const line of ['全部拦下不适用：', '全部拦下不适用：<理由>']) {
+      assert.match(contract(`${IMPLEMENTATION_GOOD}${goalNoBlock}\n${line}${STAR9}`), /「全部拦下」时目标测试必须红/, line)
+    }
+  })
+  test('「什么都不做」那半句不能豁免', () => {
+    const goalNoNothing = '\n目标：看到新图；全部拦下时目标测试红。\n什么都不做不适用：本来就有图。\n全部拦下不适用：没有入口。'
+    assert.match(contract(`${IMPLEMENTATION_GOOD}${goalNoNothing}${STAR9}`), /「什么都不做」时目标测试必须红/)
+  })
+  test('验收线要目标和两种版本，不要 ★9、删掉、调用方', () => {
+    assert.deepEqual(contract(`${GOOD}${GOAL}`, ACCEPTANCE), '')
+    assert.match(contract(GOOD, ACCEPTANCE), /缺目标合同/)
+    assert.doesNotMatch(contract(GOOD, ACCEPTANCE), /★ ?9|删掉|调用方/)
+  })
+  for (const [file, text, expected] of [
+    ['V-a.md', '# 普通任务', true],
+    ['x.md', '# a（Mac，Codex 独立验收线，未参与实现）：只验不修', true],
+    ['R-a.md', '# a（Mac，Codex 只读事实线）：查事实', false],
+    ['I-a.md', '# a（Mac，实现线）', false],
+  ]) {
+    test(`验收类分类：${file} ${text}`, () => assert.equal(checker.isAcceptanceBrief(text, file), expected))
+  }
   for (const missing of ['★9', '每条', '反例', '改坏', '红', '还原', '绿', '日志', '报告']) {
     test(`自验缺 ${missing} 时不通过`, () => {
-      assert.match(checkDispatchBrief(IMPLEMENTATION_GOOD + SELF_CHECK.replace(missing, ''), IMPLEMENTATION).join(), /缺反例红绿/)
+      assert.match(contract(IMPLEMENTATION_GOOD + GOAL + STAR9.replace(missing, '')), /自验里「设计卡 ★9/)
     })
   }
   test('自验外写同样要求不算自验合同', () => {
-    assert.match(checkDispatchBrief(IMPLEMENTATION_GOOD + SELF_CHECK.replace('## 自验', '## 说明'), IMPLEMENTATION).join(), /缺反例红绿/)
-    assert.match(checkDispatchBrief(IMPLEMENTATION_GOOD + '\n## 自验\n跑测试\n## 报告' + SELF_CHECK.split('\n').slice(2).join('\n'), IMPLEMENTATION).join(), /缺反例红绿/)
+    assert.match(contract(IMPLEMENTATION_GOOD + GOAL + STAR9.replace('## 自验', '## 说明')), /自验里「设计卡 ★9/)
+    assert.match(contract(IMPLEMENTATION_GOOD + GOAL + '\n## 自验\n跑测试\n## 报告' + STAR9.split('\n').slice(2).join('\n')), /自验里「设计卡 ★9/)
   })
   for (const declaration of ['纯测试', '纯文档', '纯配置', '任务类型：纯测试 / 文档 / 配置', '范围：只改测试、文档']) {
-    test(`明确声明可以豁免：${declaration}`, () => {
-      assert.deepEqual(checkDispatchBrief(`${IMPLEMENTATION_GOOD}\n${declaration}`, IMPLEMENTATION), [])
+    test(`明确声明只豁免 ★9 那一项：${declaration}`, () => {
+      assert.deepEqual(checkDispatchBrief(`${IMPLEMENTATION_GOOD}${GOAL}\n${declaration}`, IMPLEMENTATION), [])
+      assert.match(contract(`${IMPLEMENTATION_GOOD}\n${declaration}`), /「目标：」开头的一行/)
     })
   }
   test('提到纯文档或混合代码任务不能冒充豁免', () => {
     for (const declaration of ['参考纯文档任务的写法', '纯文档 + 代码', '范围：只改 src/a.ts，另补纯测试']) {
-      assert.match(checkDispatchBrief(`${IMPLEMENTATION_GOOD}\n${declaration}`, IMPLEMENTATION).join(), /缺反例红绿/)
+      assert.match(contract(`${IMPLEMENTATION_GOOD}${GOAL}\n${declaration}`), /自验里「设计卡 ★9/)
     }
   })
 })
@@ -309,15 +365,15 @@ describe('界面先对设计系统', () => {
     assert.deepEqual(checkDispatchBrief(`${GOOD}\n用户拍板：删掉无用目录。\n不在范围：界面文案。`), [])
     assert.match(checkDispatchBrief(`${GOOD} 用户拍板界面样张。`).join(), /缺设计系统引用/)
   })
-  test('CLI 和 Claude 钩子都拦实现任务缺反例红绿与设计引用', () => {
+  test('CLI 和 Claude 钩子都拦实现任务缺目标合同与设计引用', () => {
     const file = writeBrief(`${IMPLEMENTATION_GOOD}\n调整界面。`)
     const result = spawnSync(process.execPath, [fileURLToPath(new URL('./check-dispatch-brief.mjs', import.meta.url)), file], { encoding: 'utf8' })
     assert.equal(result.status, 1)
-    assert.match(result.stderr, /缺反例红绿/)
+    assert.match(result.stderr, /缺目标合同/)
     assert.match(result.stderr, /缺设计系统引用/)
     const hooked = runHook(`读任务书 ${file}`)
     assert.equal(hooked.status, 2)
-    assert.match(hooked.stderr, /缺反例红绿/)
+    assert.match(hooked.stderr, /缺目标合同/)
     assert.match(hooked.stderr, /缺设计系统引用/)
     fs.writeFileSync(file, `${IMPLEMENTATION_GOOD}\n调整界面。${SELF_CHECK}${DESIGN_REF}`)
     assert.equal(runHook(`读任务书 ${file}`).status, 0)
@@ -389,6 +445,9 @@ describe('交接处：任务书点到的路径命中交接处且这一处两周�
     const out = seamProblems(scopeBrief(['electron/agentLane/y.ts']), { seams, history: [fixAt(2, ['electron/agentLane/x.ts'])], now: SEAM_NOW })
     assert.equal(out.length, 1)
     assert.match(out[0], /档案 → Agent 写参数/)
-    assert.match(out[0], /还没有，先画/)
+    // 「全图」那一句的期望从表里现读：登记了全图就该印出那个路径，没登记才是「还没有，先画」。
+    const seam = seams.find((unit) => unit.name === '档案 → Agent 写参数')
+    if (seam?.map) assert.ok(out[0].includes(`全图：${seam.map}`), `应印出表里登记的全图 ${seam.map}`)
+    else assert.match(out[0], /还没有，先画/)
   })
 })

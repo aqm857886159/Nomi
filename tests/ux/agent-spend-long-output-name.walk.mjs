@@ -136,7 +136,7 @@ try {
     label: 'the agent drafts one video shot',
     match: (body) => flattenRequestText(body).includes('S_LONG_NAME'),
     reply: { type: 'tool', id: PLAN_CALL, name: 'draft_shots', args: {
-      shots: [{ title: '镜头 1', prompt: '夜雨里的霓虹街角，积水倒影', taskKind: 'text_to_video', candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: VIDEO_MODEL } }],
+      shots: [{ title: '镜头 1', prompt: '夜雨里的霓虹街角，积水倒影', taskKind: 'text_to_video', model: `${VIDEO_MODEL}@${FIXTURE_APIMART_VENDOR}` }],
     } },
   })
   let operationId

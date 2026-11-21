@@ -42,6 +42,19 @@
 
 用法：`electron/capabilityCore/externalAgentGateReachConfirm.test.ts`（前三份：升级后连接就绪、内置模型与卡模型过门都到确认）、`electron/capabilityCore/builtinWholeDeletionReconnect.test.ts`（最后一份：升级后仍是删掉的，存一次密钥整家回来）。
 
+## 素材来源（`asset-sources/`）
+
+升级前落在项目里的**上传 / 连接器素材**的 `.meta`（来源字段长什么样），同样用旧版本自己的真实函数落盘。单放一个根，不放进 `assets/`：`assets/` 下的每个目录都被参考链接矩阵当成「带临时链接的生成图」遍历，形状不同。
+
+| 目录 | 谁落的 | 怎么落的 | 里面有什么 |
+|---|---|---|---|
+| `asset-sources/v0.24.1-uploads` | 0.24.1（提交见 manifest.json） | 在 0.24.1 的导出里跑 `generators/zzUploadSidecarGen.ts.txt`：真实的 `importLocalFile` 走字节（画布 / 素材库拖入）和原生路径（访达复制粘贴 / 外部助手导入）两条路各落一份 | `manifest.json`（两份的相对路径、类型、内容哈希）、`assets/imported/sha256/<hash>/` 下一张 PNG 一张 JPG 和各自的 `.meta`（`kind: upload`，**没有来源字段**——0.24.1 本机导入不记来源，升级后它们就是「来源不知道」的老上传） |
+| `asset-sources/v0.24.1-connector` | 0.24.1（提交见 manifest.json） | 在 0.24.1 的导出里跑 `generators/zzConnectorSidecarGen.ts.txt`：真实的连接器编排 `importTikhubShareUrl` 落一份分享链接导入的参考视频；只换掉出网（TikHub 链接解析、媒体取回）和钥匙解密，证据组装、落盘、清洗都是那一版的真函数 | `manifest.json`、`assets/reference/<日期>/` 下一段 MP4、它的预览图和 `.meta`（`sourceEvidence`：`source: connector`、`connectorId`、两条地址、`platform`、`usageStatus: rights_unknown`、`fetchedAt`；地址都指向本机回环或占位分享链接，没有真 Key） |
+
+用法：`electron/assets/assetSourceExits.parity.test.ts`。`v0.24.1-uploads`：拷进一个真项目后再把同一份字节带着已知来源导入，核对老记录补上来源、不另起一条，且原有字段一个不少。`v0.24.1-connector`：拷进一个真项目后跨项目复制，读回副本落盘的 `.meta`，来源字段逐个等于源。
+
+这两份的重生成同下面画布那段（导出 v0.24.1 到临时目录、链接依赖），生成器去掉 `.txt` 后分别放进导出里的 `electron/assets/zzUploadSidecarGen.test.ts`、`electron/connectors/zzConnectorSidecarGen.test.ts`，再跑 `V_COMMIT=$(git rev-parse v0.24.1) V_OUT=<目录> pnpm exec vitest run <那个文件>`。
+
 ## 项目库（`projects/`）
 
 一个老用户的**项目库**：设置目录里的项目登记（`recent-workspaces.json`）、默认位置设置（`project-location.json`），加三个项目文件夹，同样用旧版本自己的真实函数落盘（项目的 `createProject`，含它当时的登记写入，和设置的 `writeProjectsRoot`），不是手写的形状。这里没有 Key、没有地址，只有项目清单和登记。

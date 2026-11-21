@@ -11,11 +11,10 @@ import type { GenerationNodeResults } from './catalogTaskResultParse'
 
 const calls = vi.hoisted(() => ({ execute: vi.fn(), open: vi.fn(), confirm: vi.fn(), poll: vi.fn() }))
 vi.mock('../../api/taskApi', () => ({
-  canvasOpenRuns: calls.open, releaseCanvasShotRun: vi.fn(async () => undefined), withdrawCanvasShots: vi.fn(),
+  canvasResendDecide: (input: Parameters<typeof import('../../api/canvasResendDecideTestUtils').canvasResendDecideLikeMain>[0]) => import('../../api/canvasResendDecideTestUtils').then(fake => fake.canvasResendDecideLikeMain(input)), canvasOpenRuns: calls.open, releaseCanvasShotRun: vi.fn(async () => undefined), withdrawCanvasShots: vi.fn(),
   pollCanvasShotRun: calls.poll, consentCanvasShots: vi.fn(), mintSpendGrant: vi.fn(), fetchWorkbenchTaskResultByVendor: vi.fn(),
 }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
-vi.mock('./assetUploadConsent', async (original) => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
 vi.mock('./nodeModelHealth', () => ({ recordNodeModelFailure: vi.fn(), recordNodeModelSuccess: vi.fn() }))
 vi.mock('../../library/localProjectStore', () => ({ readLocalProjectAsync: vi.fn(async () => null), saveLocalProject: vi.fn(async () => null) }))
 

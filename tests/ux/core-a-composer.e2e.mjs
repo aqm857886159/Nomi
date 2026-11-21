@@ -216,17 +216,10 @@ try {
   await win.mouse.click(blank.x, blank.y)
   await selectNode(win,edited[0].id)
   await expect((await checkEditor(win)).input).toHaveText(edited[0].prompt)
-  // Original lock makes the prompt read-only while parameter controls remain available.
   const imageItem = edited[0]
   const imageNode = win.locator(`.generation-canvas-v2-node[data-node-id="${imageItem.id}"]`)
-  await imageNode.locator('[data-node-lock="unlocked"]').click()
-  await expect(imageNode.locator('[data-node-lock="locked"]')).toBeVisible()
-  await expect.poll(() => win.evaluate(id => window.__nomiCanvasStore.getState().nodes.find(node => node.id === id)?.locked, imageItem.id)).toBe(true)
-  await expect(win.locator(composerSelector).locator('[contenteditable="false"]')).toBeVisible()
-  await expect(win.locator(composerSelector).locator('[contenteditable="false"]')).toHaveText(imageItem.prompt)
-  await editParameter(win, imageItem)
-  await imageNode.locator('[data-node-lock="locked"]').click()
-  await expect(imageNode.locator('[data-node-lock="unlocked"]')).toBeVisible()
+  // 节点锁已撤掉：浮条上没有锁，节点没有 locked 字段。
+  await expect(imageNode.locator('[data-node-lock]')).toHaveCount(0)
   await editParameter(win, imageItem)
   // Original Dreamina Seedance labels its single-first-frame mode 图生视频 (i2v).
   // Select the real mode, whose required slot is first_frame; no metadata injection.

@@ -8,7 +8,7 @@ import { clickOrFail, expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { waitForCanvasViewportSettled, findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
-import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
+import { FIXTURE_IMAGE_HANDLE, FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { CANVAS_PANEL, COMPOSER_INPUT, COMPOSER_SEND, DOCUMENT, hasToolResult, openCanvas, readProject, recorded } from './agent-runtime-walk-support.mjs'
 import { canvasFitViewButton } from './_shell.mjs'
 const { createProductionRunRepository } = tsxRequire('../../electron/productionRun/productionRunRepository.ts', import.meta.url)
@@ -18,7 +18,7 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
   const plan = walk.fixture.expectText({ label: 'Original document selection creates a saved storyboard',
     match: body => flattenRequestText(body).includes('GOLDEN_SCRIPT') && !hasToolResult(body, planCall),
     reply: { type: 'tool', id: planCall, name: 'draft_shots', args: {
-      shots: prompts.map((prompt, index) => ({ title: titles[index], taskKind: 'text_to_image', modelId: FIXTURE_IMAGE_MODEL,
+      shots: prompts.map((prompt, index) => ({ title: titles[index], taskKind: 'text_to_image', model: FIXTURE_IMAGE_HANDLE,
         modeId: 't2i', parameters: { size: '1024x1024' }, prompt })),
     } } })
   const done = walk.fixture.expectText({ label: 'Original storyboard save returns through the same Agent turn',

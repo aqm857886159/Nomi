@@ -34,7 +34,7 @@ export type StoryboardShotTableProps = {
    */
   onRecoverRow?: ((runtime: StoryboardRowRuntime) => void) | undefined
   /** 行 ⋯ 菜单里的「锁定 / 解锁」镜级开关。 */
-  onToggleLockRow: (runtime: StoryboardRowRuntime) => void
+  onToggleFrozenRow: (runtime: StoryboardRowRuntime) => void
   /** 结果态双击打开预览。 */
   onOpenPreviewRow: (runtime: StoryboardRowRuntime) => void
   onLocateInCanvasRow?: ((runtime: StoryboardRowRuntime) => void) | undefined

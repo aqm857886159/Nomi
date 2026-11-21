@@ -10,7 +10,7 @@
 // 收回来的东西一律过 validateProviderAdapterDraft，再走同一条真实认证。不放宽任何一格。
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { PROVIDER_ADAPTER_SYSTEM_PROMPT } from "./compiler";
-import { adapterSuppliedContractSchema, validateProviderAdapterDraft, type AdapterSuppliedContract } from "./validator";
+import { adapterSuppliedContractSchema, assertDeclaresAssetIngestion, validateProviderAdapterDraft, type AdapterSuppliedContract } from "./validator";
 import type { ProviderAdapterDraft } from "./types";
 
 /** 交件规则与内置编译器用的是同一份提示词——两份必然漂移成「我们要求的」和「我们检查的」不一样。 */
@@ -36,6 +36,8 @@ export function adapterContractJsonSchema(): Record<string, unknown> {
 
 export function parseAdapterSuppliedContract(raw: unknown): AdapterSuppliedContract {
   const decoded = typeof raw === "string" ? JSON.parse(raw) : raw;
+  // 缺 assetIngestion 时给和另外两条入口同一句（码 + 字段路径 + 合法取值），不是 zod 的「Required」。
+  assertDeclaresAssetIngestion(decoded);
   return adapterSuppliedContractSchema.parse(decoded);
 }
 

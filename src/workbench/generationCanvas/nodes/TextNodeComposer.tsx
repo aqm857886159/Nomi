@@ -130,7 +130,6 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
   const inputRef = React.useRef<HTMLTextAreaElement>(null)
   const nodeId = node.id
   const meta = (node.meta || {}) as Record<string, unknown>
-  const locked = Boolean(node.locked) || readOnly
   const status = node.status || 'idle'
   const running = status === 'queued' || status === 'running'
   const explicitMode: TextGenMode | null = meta.textGenMode === 'append' || meta.textGenMode === 'rewrite' || meta.textGenMode === 'replace'
@@ -142,10 +141,10 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
   const blocks = useTextPresetBlocks(nodeId)
 
   const setMeta = React.useCallback((patch: Record<string, unknown>, remove: readonly string[] = []) => {
-    if (locked) return
+    if (readOnly) return
     const latest = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
     useGenerationCanvasStore.getState().updateNode(nodeId, { meta: { ...withoutKeys((latest?.meta || {}) as Record<string, unknown>, remove), ...patch } })
-  }, [locked, nodeId])
+  }, [readOnly, nodeId])
 
   const start = React.useCallback(async () => {
     const latest = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
@@ -159,19 +158,19 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
   }, [nodeId, onFeedback])
 
   const runPreset = React.useCallback((id: TextProcessPresetId) => {
-    if (locked || running) return
+    if (readOnly || running) return
     runTextPreset(nodeId, id, onFeedback)
-  }, [locked, nodeId, onFeedback, running])
+  }, [readOnly, nodeId, onFeedback, running])
 
   const runInstruction = React.useCallback(() => {
-    if (locked || running) return
+    if (readOnly || running) return
     // 没点过「续写 / 改写」的人按「要怎么改」就是要按这句话改整篇——明确落成「重写」，不替他悄悄续写。
     setMeta(explicitMode ? {} : { textGenMode: 'replace' }, ['textGenPreset'])
     void start()
-  }, [explicitMode, locked, running, setMeta, start])
+  }, [explicitMode, readOnly, running, setMeta, start])
 
   const instruction = node.prompt || ''
-  const canSend = !locked && !running && (explicitMode !== null || instruction.trim().length > 0)
+  const canSend = !readOnly && !running && (explicitMode !== null || instruction.trim().length > 0)
 
   // ── 下拉：续写 / 改写 / 重写（原有三种写法）与文本模型 ────────────────────────────────────────
   const modeItems: WorkbenchMenuNode[] = [
@@ -233,7 +232,7 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
           'flex flex-col rounded-nomi-lg bg-nomi-paper px-3 pb-2.5 pt-2.5 shadow-nomi-md ring-1 ring-inset ring-nomi-line-soft',
         )}
       >
-        <div className="mb-2"><NodeInputReferenceEntry nodeId={nodeId} disabled={locked || running} /></div>
+        <div className="mb-2"><NodeInputReferenceEntry nodeId={nodeId} disabled={readOnly || running} /></div>
         <div className="-ml-1.5 flex min-w-0 flex-nowrap items-center gap-0.5 overflow-hidden whitespace-nowrap" data-text-process-presets>
           {TEXT_PROCESS_PRESET_IDS.map((id) => {
             const block = blocks[id]
@@ -244,7 +243,7 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
                   className={TEXT_ACTION_CLASS}
                   data-preset={id}
                   data-active={activePreset === id && running ? 'true' : 'false'}
-                  disabled={locked || running || Boolean(block)}
+                  disabled={readOnly || running || Boolean(block)}
                   title={block ? presetBlockHint(block) : undefined}
                   onClick={(event) => { event.stopPropagation(); runPreset(id) }}
                 >
@@ -259,7 +258,7 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
             ariaLabel={t('generationCommon.textProcess.modeMenuAria')}
             items={modeItems}
             className={TEXT_ACTION_CLASS}
-            disabled={locked || running}
+            disabled={readOnly || running}
             active={explicitMode !== null}
             testId="mode-menu"
           />
@@ -268,7 +267,7 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
           ref={inputRef}
           rows={2}
           value={instruction}
-          disabled={locked}
+          disabled={readOnly}
           placeholder={explicitMode ? t(MODE_PLACEHOLDER_KEY[explicitMode]) : t('generationCommon.textProcess.placeholder')}
           aria-label={t('generationCommon.textProcess.placeholder')}
           data-text-composer="instruction"
@@ -293,7 +292,7 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
             ariaLabel={t('generationCommon.textProcess.modelMenuAria')}
             items={modelItems}
             className={cn(TEXT_ACTION_CLASS, '-ml-2 h-7 justify-self-start px-2')}
-            disabled={locked || running}
+            disabled={readOnly || running}
             testId="model-menu"
           />
           <button
