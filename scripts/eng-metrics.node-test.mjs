@@ -77,7 +77,35 @@ test('门岗误报代理：失败 run 的同一 head SHA 后来又成功 = 重�
     { sha: 'b', conclusion: 'failure', createdAt: '2026-10-01T00:00:00Z' },
     { sha: 'c', conclusion: 'failure', createdAt: '2025-01-01T00:00:00Z' },
   ]
-  assert.deepEqual(computeFalsePositive(runs, '2026-10-02'), { rerunGreen: 1, failed: 2 })
+  assert.deepEqual(computeFalsePositive(runs, '2026-10-02'), { rerunGreen: 1, failed: 2, coveredDays: 2 })
+})
+
+test('门岗误报：重跑沿用同一个运行号、结论被覆盖成成功——按 attempt > 1 认出来，不再算成 0', () => {
+  // 形状取自 2026-11-21 的真实列表：重跑过的运行只剩一条，结论是最后一次的。
+  const runs = [
+    { sha: 'a', conclusion: 'success', createdAt: '2026-11-20T02:00:00Z', attempt: 2 },
+    { sha: 'b', conclusion: 'failure', createdAt: '2026-11-20T03:00:00Z', attempt: 1 },
+    { sha: 'c', conclusion: 'failure', createdAt: '2026-11-20T04:00:00Z', attempt: 2 },
+    { sha: 'd', conclusion: 'success', createdAt: '2026-11-20T05:00:00Z', attempt: 1 },
+    { sha: 'e', conclusion: 'cancelled', createdAt: '2026-11-13T05:00:00Z', attempt: 1 },
+  ]
+  // 红过的 3 次（a 重跑变绿、b、c 仍红），其中没改代码又绿的 1 次；一次就绿的 d 和被取消的 e 不进分母。
+  assert.deepEqual(computeFalsePositive(runs, '2026-11-21'), { rerunGreen: 1, failed: 3, coveredDays: 9 })
+  // 改坏对照：把 attempt 抹掉（= 旧口径），同一份数据就回到「0 次误报」。
+  const blind = computeFalsePositive(runs.map((run) => ({ sha: run.sha, conclusion: run.conclusion, createdAt: run.createdAt })), '2026-11-21')
+  assert.equal(blind.rerunGreen, 0)
+})
+
+test('门岗误报那一段印出实际覆盖的天数；缺 attempt 的旧缓存当天作废重取', () => {
+  const line = formatLine({ escape: { escaped: 0, total: 0 }, recurrence: { recurred: 0, total: 0 }, falsePositive: { rerunGreen: 8, failed: 39, coveredDays: 9 }, due: { due: 0, recurredAfter: 0 } })
+  assert.match(line, /门岗误报 21%（8\/39，近 9 天）/)
+  const repo = repoWith({})
+  const cacheFile = path.join(repo, '.claude', 'eng-metrics-cache.json')
+  fs.mkdirSync(path.dirname(cacheFile), { recursive: true })
+  fs.writeFileSync(cacheFile, JSON.stringify({ date: '2026-11-21', runs: [{ sha: 'old', conclusion: 'failure', createdAt: '2026-11-20T00:00:00Z' }] }))
+  const ghRun = () => JSON.stringify([{ headSha: 'a', conclusion: 'success', createdAt: '2026-11-20T02:00:00Z', attempt: 2 }])
+  assert.deepEqual(fetchRuns({ today: '2026-11-21', cacheFile, ghRun }).runs, [{ sha: 'a', conclusion: 'success', createdAt: '2026-11-20T02:00:00Z', attempt: 2 }])
+  fs.rmSync(repo, { recursive: true, force: true })
 })
 
 test('CI 数据每天只打一次 API：同一天第二次读缓存；gh 不可用时明说没查成，不用旧缓存冒充', () => {
