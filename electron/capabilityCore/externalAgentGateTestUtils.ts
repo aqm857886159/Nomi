@@ -54,7 +54,7 @@ export async function rawDispatch(method: string, params: Record<string, unknown
 // 这个文件会跟着主进程一起编译进 dist-electron（只排除 *.test.ts），所以不 import vitest：
 // 资料目录自己换、自己还原，测试在 afterEach 里调 `restoreSettingsDir()`。
 let settingsDirBefore: { value: string | undefined } | null = null;
-function useSettingsDir(dir: string): void {
+function pointSettingsDirAt(dir: string): void {
   if (!settingsDirBefore) settingsDirBefore = { value: process.env.NOMI_SETTINGS_DIR };
   process.env.NOMI_SETTINGS_DIR = dir;
 }
@@ -70,7 +70,7 @@ export function restoreSettingsDir(): void {
 /** 一个干净的资料目录，并「打开一次应用」（启动种子）。 */
 export function freshSettingsDir(tag: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-gate-${tag}-`));
-  useSettingsDir(dir);
+  pointSettingsDirAt(dir);
   ensureBuiltinModelSeeds();
   return dir;
 }
@@ -79,7 +79,7 @@ export function freshSettingsDir(tag: string): string {
 export function openOldUserDir(fixtureDir: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-gate-old-"));
   fs.cpSync(fixtureDir, dir, { recursive: true });
-  useSettingsDir(dir);
+  pointSettingsDirAt(dir);
   return dir;
 }
 
