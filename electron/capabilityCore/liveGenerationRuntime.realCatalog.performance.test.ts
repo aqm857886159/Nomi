@@ -44,9 +44,9 @@ function realCatalogCandidates(): ResolveRequest[] {
 }
 
 function resolveBatch(candidates: readonly ResolveRequest[], freshRegistry: boolean) {
-  const scopedRegistry = freshRegistry ? undefined : createProbeRuntime().registry;
+  const scopedRegistry = freshRegistry ? undefined : createProbeRuntime().current().registry;
   const resolved = candidates.map((candidate) => {
-    const registry = freshRegistry ? createProbeRuntime().registry : scopedRegistry;
+    const registry = freshRegistry ? createProbeRuntime().current().registry : scopedRegistry;
     if (!registry) throw new Error("scoped registry missing");
     return registry.resolve(candidate);
   });

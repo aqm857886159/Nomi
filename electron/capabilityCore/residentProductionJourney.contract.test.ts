@@ -16,7 +16,7 @@ import { createModuleRegistry } from "./moduleRegistry";
 import { createPiTimelineWriteTransportAdapter } from "./timelineTransportAdapters";
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
 import type { ProductionGenerationShot } from "../productionRun/productionRunTypes";
-import { createPiGenerationTransportAdapter } from './generationTransportAdapters';
+import { createPiGenerationTransportAdapterForTest as createPiGenerationTransportAdapter } from './generationPlanning.testkit';
 import { GENERATION_METHODS } from '../shared/agentCapabilities/generation';
 import type { ProjectLeaseV2 } from './projectLease';
 import { bindLaneProjectSession } from '../agentLane/laneProjectSession';

@@ -35,6 +35,7 @@ import { sendArchetypeMode } from "../../src/workbench/generationCanvas/nodes/co
 import { GENERATION_DEFAULT_TASK_KINDS, type GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import { createGenerationDefaultModelResolver } from "./generationDefaultModelResolver";
 import type { CatalogState } from "../catalog/types";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const PROJECT_ID = "project-1";
 const MODULE_ID = "generation.single-shot";
@@ -123,7 +124,7 @@ const firstCandidate = (created: Created): PlanCandidate | undefined => created.
 
 function host(defaultFor: DefaultFor) {
   const operations = createInMemoryGenerationOperationStore();
-  return createGenerationPlanningHandler({
+  return createGenerationPlanningHandler(withFixedCatalog({
     registry,
     operations,
     now: () => "2026-11-17T00:00:00.000Z",
@@ -135,7 +136,7 @@ function host(defaultFor: DefaultFor) {
     },
     resolveAssetReferenceIdentity: (_projectId, assetId) => ({ contentHash: assetId.padEnd(64, "0"), version: 1, kind: "image" as const }),
     planStoryboard: () => ({ shots: [{ prompt: "镜头一：海浪推近", durationSeconds: 5 }] }),
-  });
+  }));
 }
 
 /** 一种写法：应用内助手写一个完整名字字符串；其余入口写两段（供应商可省）。 */

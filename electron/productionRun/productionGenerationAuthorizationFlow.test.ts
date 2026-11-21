@@ -1,3 +1,4 @@
+import { issueGenerationPlanningForTest } from "../capabilityCore/generationPlanningIssue";
 import { deriveGenerationReauthorizationState } from "./productionGenerationAuthorizationState";
 import fs from "node:fs";
 import os from "node:os";
@@ -275,7 +276,7 @@ describe("Run-owned paid generation authorization", () => {
     const generationAuthority = createRunOwnedGenerationGateAuthority({
       owner: owner as never,
       operations: { read: vi.fn(async () => undefined) } as never,
-      planning: planning as never,
+      planning: issueGenerationPlanningForTest(planning) as never,
       receipts,
       now: () => NOW,
     });
@@ -306,7 +307,7 @@ describe("Run-owned paid generation authorization", () => {
     const generationAuthority = createRunOwnedGenerationGateAuthority({
       owner: owner as never,
       operations: { read: vi.fn(async () => undefined) } as never,
-      planning: planning as never,
+      planning: issueGenerationPlanningForTest(planning) as never,
       receipts,
       now: () => NOW,
     });
@@ -335,7 +336,7 @@ describe("Run-owned paid generation authorization", () => {
     const generationAuthority = createRunOwnedGenerationGateAuthority({
       owner: owner as never,
       operations: { read: vi.fn(async () => undefined) } as never,
-      planning: planning as never,
+      planning: issueGenerationPlanningForTest(planning) as never,
       receipts,
       now: () => "2026-08-24T00:00:00.000Z",
     });
@@ -389,7 +390,7 @@ describe("Run-owned paid generation authorization", () => {
     const generationAuthority = createRunOwnedGenerationGateAuthority({
       owner: owner as never,
       operations: { read: vi.fn(async () => undefined) } as never,
-      planning: vi.fn() as never,
+      planning: issueGenerationPlanningForTest(vi.fn()) as never,
       receipts,
       now: () => NOW,
     });
@@ -447,7 +448,7 @@ describe("Run-owned paid generation authorization", () => {
         command,
       } as never,
       operations: { read: operationsRead } as never,
-      planning: vi.fn() as never,
+      planning: issueGenerationPlanningForTest(vi.fn()) as never,
       receipts,
       now: () => NOW,
     });

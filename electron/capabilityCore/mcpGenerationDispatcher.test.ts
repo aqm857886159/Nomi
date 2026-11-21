@@ -1,3 +1,4 @@
+import { issueGenerationPlanningForTest } from './generationPlanningIssue'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -246,7 +247,7 @@ describe('generation.single-shot dispatcher policy boundary', () => {
     }))
     const { ctx } = context({
       projectSession: makeProjectSession(leaseAuthority),
-      generationPlanning,
+      generationPlanning: issueGenerationPlanningForTest(generationPlanning),
     })
 
     await expect(dispatch('nomi_preview_execution', {
@@ -275,7 +276,7 @@ describe('generation.single-shot dispatcher policy boundary', () => {
     }))
     const { ctx } = context({
       projectSession: makeProjectSession(leaseAuthority),
-      generationPlanning,
+      generationPlanning: issueGenerationPlanningForTest(generationPlanning),
     })
 
     await expect(dispatch('nomi_get_generation_context', { projectId: 'project-1', leaseHandle }, ctx as never))

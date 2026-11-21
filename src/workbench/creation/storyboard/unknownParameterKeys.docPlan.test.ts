@@ -15,7 +15,7 @@ import { useWorkbenchStore } from '../../workbenchStore'
 import { extendAgentStoryboardDesign, patchAgentStoryboardDesign, upsertAgentStoryboardDesign } from './agentStoryboardDesign'
 import { createModuleRegistry } from '../../../../electron/capabilityCore/moduleRegistry'
 import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore } from '../../../../electron/capabilityCore/mcpGenerationTools'
-import { createPiGenerationTransportAdapter } from '../../../../electron/capabilityCore/generationTransportAdapters'
+import { createPiGenerationTransportAdapterForTest as createPiGenerationTransportAdapter } from '../../../../electron/capabilityCore/generationPlanning.testkit'
 import { verbToTransportCall } from '../../../../electron/agentLane/laneVerbTransport'
 import { writeVerbs } from '../../../../electron/shared/agentCapabilities/verbs/writeVerbs'
 import type { StoryboardRequestTarget } from '../../../../electron/shared/agentCapabilities/generationInvocationContext'
@@ -23,6 +23,7 @@ import type { ProjectLeaseV2 } from '../../../../electron/capabilityCore/project
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import { buildAgentModelEntries } from '../../generationCanvas/agent/availableModels'
 import { buildModelEntryIndex, buildPlannedNodeMeta } from '../../generationCanvas/agent/plannedNodeMeta'
+import { withFixedCatalog } from '../../../../electron/capabilityCore/generationFixedCatalog.testkit'
 
 vi.mock('../../project/projectCanvasReadSurface', () => ({
   withProjectAction: (action: (value: unknown) => unknown) => action({
@@ -62,7 +63,7 @@ type Reply = { ok: boolean; result?: Record<string, unknown>; message?: string; 
 
 function lane() {
   const operations = createInMemoryGenerationOperationStore()
-  const handler = createGenerationPlanningHandler({ registry, operations, requestRenderer: renderer, now: () => '2026-10-27T00:00:00.000Z' })
+  const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, requestRenderer: renderer, now: () => '2026-10-27T00:00:00.000Z' }))
   const adapter = createPiGenerationTransportAdapter(binding, { planning: handler, leaseFor: () => lease })
   let seq = 0
   return (requestId: string) => {

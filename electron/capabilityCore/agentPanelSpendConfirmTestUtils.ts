@@ -1,3 +1,11 @@
+/**
+ * 花钱确认卡的测试世界（真 Run 服务 + 真落画布 + 假渲染层 + 静态模型表）。
+ *
+ * 这**不是**宿主装配：它自己拿一张静态模型表和随手给的价格搭规划逻辑，所以它的规划只能经测试发放口
+ * 进到用到规划的位置（`generationPlanning.testkit.ts`），生产里交不进去。它和生成装配工厂
+ * （`generationDomain.ts`）的接线仍是两份——工厂改了它不会自动跟，漏接只影响这些测试、不影响用户。
+ * 把它搬到真盘夹具上、改成调工厂，另记了待办（2026-11-21）。
+ */
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -10,7 +18,7 @@ import { createGenerationReferenceScopeGuard } from "./generationReferenceScope"
 import { resolveProductionReferenceUrls } from "./productionReferenceUrls";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { createPendingSpendActions } from "./appIntegrationSpendConfirm";
-import { createPiGenerationTransportAdapter } from "./generationTransportAdapters";
+import { createPiGenerationTransportAdapterForTest as createPiGenerationTransportAdapter } from "./generationPlanning.testkit";
 import { residentRunFacts } from "./residentGenerationAdapterFactory";
 import { installCanvasShotRuns, withdrawQueuedHandOvers, type CanvasConsentShot } from "./appIntegrationCanvasShot";
 import { createCanvasHandOver } from "./canvasHandOver";
@@ -31,6 +39,7 @@ import { watchSpendCardClose } from "../agentLane/laneSpendCardClose";
 import type { ModelPricing } from "../productionRun/shotPricing";
 import type { PlanCandidate } from "./executionContract";
 import { resolveIndexedReferencePreview, type SpendReferenceAssets } from "./pendingSpendReferences";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 // Agent 面板付费卡的端到端夹具（D2 第③步：卡 = 指向元素 + 一行只读摘要 + 主按钮；一台发动机）。
 //
@@ -120,7 +129,7 @@ export type SpendWorldOptions = Readonly<{
   holdDispatch?: boolean;
   /** 起草路要的目录（缺省 = 本文件那份 acme 目录）与视频档案候选。 */
   registry?: ReturnType<typeof createModuleRegistry>;
-  videoModelCandidates?: Parameters<typeof createGenerationPlanningHandler>[0]["videoModelCandidates"];
+  videoModelCandidates?: Parameters<typeof withFixedCatalog>[0]["videoModelCandidates"];
   /**
    * 项目素材库（缺省 = 没有：起草钉住的参考一条都不过线）。给了就走生产同一组解析口：起草时钉住参考的身份
    * （计划处理器的 `resolveAssetReferenceIdentity`，生产里与它同一个 `resolveProjectAssetReferenceIdentity`）+ 落地时的地址
@@ -324,7 +333,7 @@ export function spendWorld(options: SpendWorldOptions = {}) {
     handOver: handOver.handOver,
     now,
   });
-  const handler = createGenerationPlanningHandler({
+  const handler = createGenerationPlanningHandler(withFixedCatalog({
     registry: options.registry ?? registry,
     operations,
     ...(options.videoModelCandidates ? { videoModelCandidates: options.videoModelCandidates } : {}),
@@ -360,7 +369,7 @@ export function spendWorld(options: SpendWorldOptions = {}) {
         assertCurrent,
       }, resolveReferences);
     },
-  });
+  }));
   const runFacts = residentRunFacts(owner);
   /** 模型那一侧真正用的传输（和常驻工厂同一份依赖：读写 Run 的三件来自 `residentRunFacts`，代答交给同一台画布交接）。 */
   const transport = (mode?: ProjectAgentApprovalPolicy["mode"]) => createPiGenerationTransportAdapter(
