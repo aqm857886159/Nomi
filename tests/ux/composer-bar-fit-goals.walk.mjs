@@ -20,6 +20,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
+import { stationTimeout } from './_station-budget.mjs'
 import { openDesignLabScreen } from './uiDriverLab.mjs'
 
 const out = path.resolve(process.env.SHOTS_DIR || '.tmp/bar-fit-goals')
@@ -125,7 +126,7 @@ try {
     await p.evaluate(width => window.__yieldHistory.set({ width }), value)
     await settle(p)
     // 约价那一遍：等价回来（防抖 100ms 之后）硬币和数字长出来，宽才是带胶囊的宽。
-    if (priced) await p.waitForFunction(() => document.querySelector('[data-yield-history] [data-send-cost="credits"]'), null, { timeout: 5000 })
+    if (priced) await p.waitForFunction(() => document.querySelector('[data-yield-history] [data-send-cost="credits"]'), null, { timeout: stationTimeout() })
     return read(p)
   }
   for (const host of HOSTS) for (const lang of ['en', 'zh-CN']) for (const withPrice of host === 'canvas' || host === 'list' ? [false, true] : [false]) {
