@@ -66,6 +66,7 @@
 ### ★1b 连带界面
 
 - 面板头形态切换（`ShellAgentHost.tsx:80–137` FormSwitch）：第一个图标从「一个点」改成「收起」，用 `IconLayoutSidebarRightCollapse`；文案「缩成小球 / Shrink to a bubble」（`src/i18n/locales/appShell.ts:40`、`:107`）改成「收起 / Collapse」。「⋯」菜单（`ShellAgentHost.tsx:348`）跟着改。
+- 小球右键菜单（「改成浮窗 / 改成停靠」，`ShellAgentHost.tsx:170–175`）不搬到入口上。入口点开就回到这一页上次的摆法，要换摆法在面板头三选一里换。画布没画入口的右键，这是清单线按「一个功能一个家」定的默认，协调可以改。
 - 窄窗提示：「窗口窄，Nomi 先收在这里」（`ballNarrow`，`appShell.ts:49`、`:116`）删掉。窄窗时停靠钮灰掉的提示 `dockNarrow`（`:48`、`:115`）保留，并进面板头。
 - 节点指路「回到对话」（`NodePointerReturnDock`）：行为不变。设计系统 `docs/design/nomi-design-system.md:1065` 里「对话先收成小球」改成「对话先收起（入口在顶栏）」。
 - 任务中心「定位」和 Agent 自己的 layout.write「叫回」（`agentRecallNonce`，`ShellAgentHost.tsx:286–288`）：行为不变，叫回就是打开到上次的摆法。
@@ -137,7 +138,7 @@
 | `NomiAgentFace`（live） | `src/design/identity.tsx` | 复用；眨眼 `useAgentBlink` 在 `:225`，只在空闲 / 有新消息时眨（`:252`），符合 D-1122-entry-blink-on-face |
 | `DotMark` | — | 复用 |
 | `BarTooltip` | `ShellTopBar.tsx` | 复用 |
-| `BAR_ICON_BUTTON` | `src/ui/app-shell/shell/barIconButton.ts` | 复用；静止、悬停、按下、焦点四态和旁边图标钮一致 |
+| `BAR_ICON_BUTTON` | `ShellTopBar.tsx:43`（真在用的那份，带 `ICON_TIER_CLASSES.bar`） | 复用；静止、悬停、按下、焦点四态和旁边图标钮一致。`src/ui/app-shell/shell/barIconButton.ts` 是一份没人引用的副本（`git grep barIconButton` 在 src 里 0 处引用），还少了图标档位。入口拆在自己的文件里，要引这份样式，所以同一次提交把 `ShellTopBar.tsx:43` 那份连同图标档位搬进 `barIconButton.ts`，`ShellTopBar` 和入口都从这里引，原处删掉，只留一个家 |
 | `UpdatePillView` 的 `compact` 入参 | `UpdatePill.tsx:29`、`:36` | 已有；`UpdatePill`（`:67`）今天没往下传，改成传 |
 | 胶囊长相 | `AgentBallFace` | 照搬后删原件 |
 | `NomiStepper` | `identity.tsx:372` | 加「藏数字」开关，`title`（`:405`）照旧带数字 |
@@ -323,6 +324,7 @@
 | 同上 | :40、:107 | `toBall` | 改成「收起 / Collapse」 |
 | 同上 | :43–45、:110–112 | `ballOpen` / `ballPending` / `ballUnread` | 改名为 `entry*`，文字不变 |
 | `src/ui/app-shell/shell/ShellTopBar.tsx` | :68–104 | `useExportCompact` | 搬进 `topbarYield.ts`，原处删 |
+| 同上 | :43 | 本地的 `BAR_ICON_BUTTON` | 搬进 `barIconButton.ts`（覆盖那份没人引用的旧副本），原处删 |
 | 同上 | :296–300 | 分段死居中的绝对定位 | 改成按让位走 |
 | 同上 | :352 | `<UpdatePill host="appbar" />` | 改成传 `compact` |
 | `src/ui/app-shell/UpdatePill.tsx` | :59、:61 | 自己按 `max-[899px]` 藏字 | 删，只认 `compact` |
