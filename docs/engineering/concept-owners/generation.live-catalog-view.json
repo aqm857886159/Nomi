@@ -1,0 +1,29 @@
+{
+  "name": "生成工具读的那一份模型表和就绪判定（调用之外读现在的目录，一次调用之内钉一版）",
+  "subject": "generation.live-catalog-view",
+  "lifecycle": "catalog",
+  "authority_kind": "projection",
+  "trust_domain": "main",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/liveGenerationRuntime.ts",
+    "symbol": "createLiveGenerationRuntime"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/liveGenerationRuntime.ts",
+      "symbol": "createLiveGenerationRuntime"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/liveGenerationRuntime.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "tests/perf/gate-live-catalog-bench.mjs"
+  ],
+  "since": "2026-11-21",
+  "notes": "PR #1584（合同 docs/fixes/2026-11-16-external-agent-gate-reach-confirm.root-cause.json）：两个宿主以前在启动时各拍一份模型表交给预览和过门，起草读的是现拍的，新接的模型预览回 Unknown model。现在生成工具只有这一个目录来源。类型只保证「只有一个来源」；「这一个是活的那份」类型不拦（pinForCall 可选），靠真窗口走查 tests/ux/mcp-declared-model-gate.e2e.mjs 守——两个宿主和测试辅助仍各手写一遍装配，收成一处另记了待办。"
+}
