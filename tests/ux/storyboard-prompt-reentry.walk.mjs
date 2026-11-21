@@ -11,11 +11,13 @@
 //   ④ 项目文件逐字节不变（出生填入既不进撤销历史、也不回写）；
 //   ⑤ 敲一个字 → 切走再回来：框里是刚敲的字，另一镜没被串；
 //   ⑥ 反例（量具不是永远绿）：敲一个字，项目文件就该变。
+// 分镜空框（storyboard-empty）：#1573 用户那次的样子——这一镜打开时提示词是空的（框里是占位字），敲一句，
+//   ⑦ 去生成画布再回创作：框里是这句、不是占位字，另一镜没被串，落盘里也有这句。同一份旧项目，只把第 2 镜提示词清空。
 // 创作文稿（creation）：在文稿里敲一句 → 去生成画布再回创作 → 回项目库再开：字在，落盘的项目文件里也有这句。
 // 画布文字节点（canvas-text）：画布上加一个文字节点、敲一句 → 去创作再回画布 → 回项目库再开：字在，落盘里也有。
 //
-// 用法：pnpm run build && node tests/ux/storyboard-prompt-reentry.walk.mjs [--locale en] [--leg storyboard|creation|canvas-text]… [--out <截图目录>]
-// 不给 --leg 三条都跑；--out 给了就在每条「回来以后」那一步存截图。隔离资料、关网，一笔都不花。
+// 用法：pnpm run build && node tests/ux/storyboard-prompt-reentry.walk.mjs [--locale en] [--leg storyboard|storyboard-empty|creation|canvas-text]… [--out <截图目录>]
+// 不给 --leg 四条都跑；--out 给了就在每条「回来以后」那一步存截图。隔离资料、关网，一笔都不花。
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -38,12 +40,14 @@ const TEXT_NODE_EDITOR = '.generation-canvas-v2-node[data-kind="text"] .ProseMir
 
 const argValues = (flag) => process.argv.flatMap((arg, index) => (arg === flag ? [process.argv[index + 1]] : []))
 const locale = argValues('--locale')[0] === 'en' ? 'en' : 'zh-CN'
-const LEGS = ['storyboard', 'creation', 'canvas-text']
+const LEGS = ['storyboard', 'storyboard-empty', 'creation', 'canvas-text']
 const legs = argValues('--leg').length > 0 ? argValues('--leg') : LEGS
 for (const leg of legs) if (!LEGS.includes(leg)) throw new Error(`未知 --leg「${leg}」，可选：${LEGS.join(' / ')}`)
 const outDir = argValues('--out')[0] ? path.resolve(argValues('--out')[0]) : null
 if (outDir) fs.mkdirSync(outDir, { recursive: true })
-const TYPED = locale === 'en' ? { doc: 'Walk draft line stays after leaving', node: 'Canvas note stays after leaving' } : { doc: '走查文稿：离开再回来字在', node: '画布便签：离开再回来字在' }
+const TYPED = locale === 'en'
+  ? { doc: 'Walk draft line stays after leaving', node: 'Canvas note stays after leaving', shot: 'Rainy corner, she turns back' }
+  : { doc: '走查文稿：离开再回来字在', node: '画布便签：离开再回来字在', shot: '雨夜街口，她回头' }
 
 const root = makeTempDir('storyboard-prompt-reentry-')
 const sha = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')
@@ -161,6 +165,33 @@ async function storyboardLeg() {
   console.log('✓ 分镜⑥反例：敲一个字，项目文件变了')
 }
 
+async function storyboardEmptyLeg() {
+  const machine = prepare('empty')
+  for (const file of [machine.projectFile, path.join(path.dirname(machine.projectFile), 'project.backup.json')]) {
+    const project = JSON.parse(fs.readFileSync(file, 'utf8'))
+    Object.values(project.payload.storyboardDesignsByDocumentId).flat()[0].plan.shots[1].prompt = ''
+    fs.writeFileSync(file, JSON.stringify(project, null, 2))
+  }
+  const { app, win } = await launch(machine)
+  await openCard(win, machine)
+  await enterStoryboard(win, machine)
+  const box = (index) => win.locator(BOX(index)).first()
+  await expect(box(2), '第 2 镜打开时框是空的（占位字）').toHaveText('')
+  await clickOrFail(box(2), '点进第 2 镜提示词框')
+  await win.keyboard.type(TYPED.shot)
+  await expect(box(2), '敲完框里是这句').toHaveText(TYPED.shot)
+
+  await switchWorkspace(win, 'generation', '去生成画布')
+  await enterStoryboard(win, machine)
+  await shot(win, 'storyboard-empty-after-return')
+  await expect(box(2), '分镜⑦空框敲字 → 切走再回来：框里是这句，不是占位字').toHaveText(TYPED.shot)
+  await expect(box(1), '分镜⑦另一镜没被串').toHaveText(machine.prompts[0])
+  console.log(`✓ 分镜⑦空框敲字 → 切走再回来：镜1=「${machine.prompts[0]}」 镜2=「${TYPED.shot}」`)
+  await win.waitForTimeout(SAVE_SETTLE_MS)
+  await closeNomiApp(app)
+  expectSaved(machine, TYPED.shot, '分镜⑦')
+}
+
 async function creationLeg() {
   const machine = prepare('creation')
   const { app, win } = await launch(machine)
@@ -218,7 +249,7 @@ async function canvasTextLeg() {
   expectSaved(machine, TYPED.node, '文字节点③')
 }
 
-const RUN = { storyboard: storyboardLeg, creation: creationLeg, 'canvas-text': canvasTextLeg }
+const RUN = { storyboard: storyboardLeg, 'storyboard-empty': storyboardEmptyLeg, creation: creationLeg, 'canvas-text': canvasTextLeg }
 
 try {
   console.log(`走查语言 ${locale}；跑 ${legs.join(' / ')}`)
