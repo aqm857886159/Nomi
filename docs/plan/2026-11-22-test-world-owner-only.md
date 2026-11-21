@@ -49,7 +49,7 @@
 
 ### ★1c 老用户
 - **创作者**：不适用，产品行为不变。preload 暴露的对象不变（`electron/preload.ts:21`），5 处直读改走 `getDesktopBridge()` 后拿到的还是同一个对象。
-- **在路上的分支（这件事里真正的「老用户」）**：锁上线那一刻，新写的手抄测试会在 CI 红，报错点名新入口。冻结名单只收锁上线那一刻已在 main 上的文件，不收分支上新写的，在路上的分支要按新入口改。已知一份：`feat/cost-step1-estimate` 上新建的 `composerBridgeTestUtils.ts`，是第二个假桥的家，已报协调。
+- **在路上的分支（这件事里真正的「老用户」）**：锁上线那一刻，新写的手抄测试会在 CI 红，报错点名新入口。冻结名单只收锁上线那一刻已在 main 上的文件，不收分支上新写的，在路上的分支要按新入口改。已知一份：`feat/cost-step1-estimate` 上新建的 `composerBridgeTestUtils.ts`，是第二个假桥的家。协调 11-22 定：照常合入，批 3 在 `desktopBridgeForTest` 的同一个提交里删掉。
 - **已有、还没迁的测试**：进「还没迁」冻结名单（见下），照常跑。名单只许减，由记录模式自动生成，不手写。最后一批同提交删掉名单。
 - **旧版真实数据**：`tests/fixtures/old-user-data/` 不动，成为唯一的「测老版本迁移」出口。手写的旧数据名册（`tests/ux/uiDriverOptions.mjs:25`）删掉，改由目录派生。这份名册今天盘上 4 份只登记了 2 份（R:37），正是手抄名册的病。
 - **退回上一版**：每批是一个 PR，锁是 `tests/setup/world/` 下的独立文件，revert 就退。
@@ -147,7 +147,7 @@
 ### B 假桥：`window.nomiDesktop` 和 `desktop/bridge` 模块
 | 项 | 内容 |
 |---|---|
-| 删什么 | 换掉桥模块的 66 份；装假 `window.nomiDesktop` 的 13 份，加上探针漏掉的 8 份；产品里 5 处直读（`ShellFrame.tsx:30`、`shellGeometry.ts:19`、`startupDiagnostics.ts:50`、`useCanvasShortcuts.ts:419`、`extractVideoFrameToNode.ts`）；未合并的 `composerBridgeTestUtils.ts`（`origin/feat/cost-step1-estimate`，按字符串键回答，不受 `DesktopBridge` 类型约束） |
+| 删什么 | 换掉桥模块的 66 份；装假 `window.nomiDesktop` 的 13 份，加上探针漏掉的 8 份；产品里 5 处直读（`ShellFrame.tsx:30`、`shellGeometry.ts:19`、`startupDiagnostics.ts:50`、`useCanvasShortcuts.ts:419`、`extractVideoFrameToNode.ts`）；`src/workbench/generationCanvas/nodes/composerBridgeTestUtils.ts`（今天还在 `origin/feat/cost-step1-estimate` 上，按字符串键回答，不受 `DesktopBridge` 类型约束）。它今天被 3 份测试引用，共 6 处（`git grep -c composerBridgeTestUtils origin/feat/cost-step1-estimate`：`composerKeepsAspect`、`composerMountBudget`、`composerOriginNeedsVideo`），合入前可能还会变多，批 3 开工时重数一次 |
 | 谁顶替 | `tests/world/bridge.ts` 的 `desktopBridgeForTest(world, overrides)`，用 `satisfies DesktopBridge` 写出，再配一份对真 preload 对象的一致性测试；设计实验室也用它 |
 | 机制 | **只认主人**：`getDesktopBridge()` 每次被调都核对象是否在「已发证」WeakSet 里。preload 暴露时登记，测试只有 setup 开了发证口才能拿到，照 #1590 的 claim-once。**去料**：`Window` 的全局声明里删掉 `nomiDesktop`（`src/desktop/bridge.ts:419`），产品代码类型上读不到它，只剩 `getDesktopBridge` 一扇门。模块 mock 由 C' 的 mock 锁拦 |
 | 证明档 | 只认主人 + 去料 |
@@ -210,7 +210,7 @@
 | 删什么 | `startFakeApimartServer` 手写的回答（`tests/ux/_mcpL2Fixture.mjs`，如 `{ url: … }`）；单测 stub `fetch` 的 54 份 |
 | 谁顶替 | 回放服务和 `networkTransport` 替身只按录制 id 回答：`tests/fixtures/vendor-official/<vendor>/responses/*.json`，每份带原文、出处、`fetchedAt`、重录期 |
 | 机制 | 替身的 API 只收录制 id、不收回答体，类型上写不出手写回答，算**只认主人**。`vi.stubGlobal('fetch')` 在 setup 里拒（同探针包 `stubGlobal` 的办法）；`vi.mock` 的 appFetch 由 C' 拦。到期重录，按出口对拍 |
-| 证明档 | **还没做到**：回答侧录制 0 份。来源要定：文档示例（免费，常不全）还是真调一次录下（花钱），归协调和用户 |
+| 证明档 | **还没做到**：回答侧录制 0 份。协调 11-22 定了来源：①先用官方文档示例，免费，每份带原文和出处；②文档没给回答外壳的模型再真调录制，一次只录一个原型，先报真实花费，再批量。按出口对拍算 |
 | 反例 | 测试自起 `createServer` 冒充供应商、把 baseUrl 经主人 API 指过去 → 不拦。自建 http 有 146 份，多数是正当用途（素材下载、本机服务），分不开 |
 | 不误伤样本 | 我们自己的服务（反馈 worker）在进程内跑真处理器 |
 | 合法出口 | 录制回答；中转和自定义供应商按通用 OpenAI 协议官方文档示例 |
@@ -257,11 +257,11 @@
 | 0 丙 | `scripts/nightly-walk-{selection,summary}.mjs`、`.github/workflows/nightly-walkthroughs.yml`、`tests/ux/nightly-known-red.json`（新）、`nightly-ci-exclusions.json`、被删的测试文件 | 到期或无人认领的红；哪里都不跑又不挂的 | 作业红 = 超上限 / 过期 / 名单里变绿；选择表单测 | 反例三条各让作业红；108 份「哪里都不跑」降到 0 | 1 天 | 与 1 并行（被删的走查不进批 1 清单） |
 | 1 地基 + 目录走查 | `tests/world/*`（新）、`tests/setup/world.ts`（新，用 `import.meta.glob` 收 `tests/setup/world/*.ts`，之后各批只加文件不改它）、`vitest.config.ts` 一行、`tests/ux/_launchApp.mjs`、`ui-driver.mjs`、`uiDriverOptions.mjs`、`_mcpL2Fixture.mjs`；走查：`bd40dc0b5` 那 13 份 + #1560 那 9 份 + 其余手写目录的 tests/ux 文件（catalog-writers：hand-only 31） | A 的走查侧目录部分；启动器目录参数；手写旧数据名册 | A 锁（单测 + 走查）+ 两份冻结名单 + 出口 (a)(b) | **回放**：在分支上把目录版本升一档，照 `bd40dc0b5`；再按 #1560 前后的规则各跑一遍。预测：0 份翻红、0 份要改。**基线**：升版要改 13 份；#1560 同形状 9 份 8 红（R:33）。**判据同时要求**这 22 份文件仍在、仍被夜跑选中（`node scripts/nightly-walk-selection.mjs` 列得出），删测试换来的 0 红不算 | 2–3 天 | 与 0 并行 |
 | 2 走查流 | tests/ux 走查侧其余文件，按清单分 2–3 片，片间文件不交 | A 走查剩余、E 字面定位、F 走查侧回答、G 走查 `mainRequire` 和 ipc 换手 | E 的 Proxy（第 1 片先做部分匹配探针）、`mainRequire` 登记表、`faultAt` | 每片：冻结名单相应条目删掉；E 反例表逐条有结果 | 每片 2 天 | 片与片可并行；与 3、4、5 并行 |
-| 3 假桥 + mock 锁 | `src/desktop/bridge.ts`、`electron/preload.ts`、5 个直读产品文件、`tests/world/bridge.ts`、`tests/setup/world/mockLock.ts`、桥 mock 66 + 假 window 21 份 | B 全部；`composerBridgeTestUtils`（若已合入） | B + C'（含 `vi.spyOn`） | 反例表 B、C' 全红；对照 32 + 28 份 0 误认 | 2 天 | 与 2、4、5 并行（和 4 重叠 1 份，和 5 重叠 7 份，归 3） |
+| 3 假桥 + mock 锁 | `src/desktop/bridge.ts`、`electron/preload.ts`、5 个直读产品文件、`tests/world/bridge.ts`、`tests/setup/world/mockLock.ts`、桥 mock 66 + 假 window 21 份 | B 全部；`composerBridgeTestUtils.ts` 和引用它的测试（今天 3 份、6 处，开工时重数），在 `desktopBridgeForTest` 的同一个提交里删掉 | B + C'（含 `vi.spyOn`） | 反例表 B、C' 全红；对照 32 + 28 份 0 误认 | 2 天 | 与 2、4、5 并行（和 4 重叠 1 份，和 5 重叠 7 份，归 3） |
 | 4 存盘单测侧 | 写盘锁拦下的 81 份 + 目录、项目、设置的 mock 67 份 | A 单测侧；单测冻结名单 | A 已在批 1 开 | 冻结名单删光 | 2–3 天 | 与 2、3、5 并行 |
 | 5 静态模型表 | 109 张表所在文件 + 目录读口 mock 12 份 | C 能去的部分 | `worldRows` + 品牌类型 | 经读口的表全部改成 `worldRows`；纯函数层按用户定的档 | 2 天 | 与 2、3、4 并行 |
 | 6 宿主 + 注入 | 8 个 TestUtils + 102 份引用 + G 宿主层 19 份（和 D 重叠 12 份，所以同一条线做） | D、G 宿主层 | 第 2 刀 | **改坏工厂，CI 上的测试会红** | 依第 2 刀 | 等 #1590 合入和第 2 刀；与 2–5 文件不交的部分可并行 |
-| 7 假供应商 | `networkTransport` 替身、回放服务、54 份 stub fetch、`vendor-official/*/responses/` | F | 录制 id + 重录期 + 拒 `stubGlobal('fetch')` | 回答全部带出处；到期重录有作业 | 依录制来源 | 等来源拍板 |
+| 7 假供应商 | `networkTransport` 替身、回放服务、54 份 stub fetch、`vendor-official/*/responses/` | F | 录制 id + 重录期 + 拒 `stubGlobal('fetch')` | 回答全部带出处；到期重录有作业；真调录制的每个原型先报真实花费 | 先用文档示例，缺的逐个原型真调 | 放最后，不挡批 0–6 |
 
 并行上限：同一时刻最多 4 条写的线。批 2、3、4、5 同时跑，正好 4 条（记忆「≤4 写线」）。批 0、1 两条先跑。总共 8 批。
 
