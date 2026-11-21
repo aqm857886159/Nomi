@@ -26,7 +26,7 @@ const TooltipContent = React.forwardRef<React.ElementRef<typeof TooltipPrimitive
         ref={ref}
         sideOffset={sideOffset}
         className="z-popover w-max break-words rounded-nomi-sm border border-nomi-ink-20 bg-nomi-ink px-2 py-0.5 text-caption leading-4 text-nomi-paper shadow-nomi-md select-none"
-        style={{ maxWidth: 'var(--radix-tooltip-content-available-width)' }}
+        style={{ maxWidth: 'var(--radix-tooltip-content-available-width, 100vw)' }}
         {...props}
       >
         {tooltipLines(children).map((line, index) => <span key={index} className="block">{line}</span>)}
