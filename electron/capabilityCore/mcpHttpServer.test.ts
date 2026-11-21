@@ -117,19 +117,20 @@ describe('本机 HTTP 直连 · HTTP 这一层的边界', () => {
 })
 
 // 设计卡中途表「宿主断线但没发 DELETE」那一行的自动化证据：规范规定断线不等于取消，所以正在等确认的调用
-// 不会因断线立刻收尾；它要靠确认请求的 5 分钟超时结束，而超时必须按「未确认」处理——不派发、不铸收据、不扣钱。
-describe('宿主断线不发 DELETE：等确认的调用 5 分钟超时按未确认收尾', () => {
+// 不会因断线立刻收尾。文稿 / 删除这类确认靠 5 分钟超时结束；付费门那一问在等人、不设期限（2026-11-20，
+// 和 Nomi 里的卡同一条），会话被清掉（挤出 / 关服务）时才收尾。两种收尾都按「未确认」处理——不派发、不铸收据、不扣钱。
+describe('宿主断线不发 DELETE：等确认的调用按未确认收尾', () => {
   const challenge = {
     challengeId: 'challenge-dropped', model: 'fixture-model', costScope: 'single-shot', maximumCost: 1, currency: 'CNY',
     expiresAt: '2099-01-01T00:00:00.000Z', handoff: { challengeToken: 'challenge-token', contractHash: 'contract-hash' },
   }
   const cases = [
-    { label: '付费门', name: 'nomi_operation_gate', args: { leaseHandle: 'lease-1', operationId: 'operation-1', phase: 'request' }, before: ['nomi_request_generation_gate'] },
-    { label: '删除节点', name: 'nomi_canvas_maintenance', args: { leaseHandle: 'lease-1', operation: 'delete_canvas_nodes', nodeIds: ['a'], reason: 'tidy' }, before: [] },
-    { label: '文稿改写', name: 'nomi_document_edit', args: { leaseHandle: 'lease-1', content: '新的一段。', where: 'end' }, before: [] },
+    { label: '付费门', name: 'nomi_operation_gate', args: { leaseHandle: 'lease-1', operationId: 'operation-1', phase: 'request' }, before: ['nomi_request_generation_gate'], waitsForPerson: true },
+    { label: '删除节点', name: 'nomi_canvas_maintenance', args: { leaseHandle: 'lease-1', operation: 'delete_canvas_nodes', nodeIds: ['a'], reason: 'tidy' }, before: [], waitsForPerson: false },
+    { label: '文稿改写', name: 'nomi_document_edit', args: { leaseHandle: 'lease-1', content: '新的一段。', where: 'end' }, before: [], waitsForPerson: false },
   ] as const
 
-  it.each(cases)('$label：断线后推进到超时，领域派发 0 次、没有收据、调用以「未确认」结束', async ({ name, args, before }) => {
+  it.each(cases)('$label：断线后推进过 5 分钟，领域派发 0 次、没有收据，调用以「未确认」结束', async ({ name, args, before, waitsForPerson }) => {
     // 只假 setTimeout：确认请求的 5 分钟计时器在这之后才挂上；shouldAdvanceTime 让 HTTP 本身照常随真实时间走。
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true })
     const invoked: string[] = []
@@ -190,8 +191,9 @@ describe('宿主断线不发 DELETE：等确认的调用 5 分钟超时按未确
       await dropped.close()
       vi.useRealTimers()
     }
-    // 关服务时这条会话里已经没有在途调用：调用确实在超时时收尾了（以未确认的工具错误结束），不是还挂着。
-    expect(inFlightAtClose).toBe(0)
+    // 文稿 / 删除：关服务时已经没有在途调用，确实在超时时收尾了（以未确认的工具错误结束）。
+    // 付费门：过了 5 分钟仍在等人，由关会话收尾；上面已断言它从头到尾没派发、没铸收据、没换 Nomi 卡放行。
+    expect(inFlightAtClose).toBe(waitsForPerson ? 1 : 0)
   })
 })
 

@@ -9,6 +9,7 @@
 import type { AuthenticatedMcpClient } from './security'
 import type { MultiShotGateProjection } from '../productionRun/shotPricing'
 import { createConfirmationBinding } from './mcpConfirmationBinding'
+import { HUMAN_DECISION_TIMEOUT_MS } from './mcpElicitation'
 
 export type GenerationGateChallengeProjection = {
   challengeId: string
@@ -57,18 +58,36 @@ export type GenerationGateConfirmationDependencies = {
   transport: {
     isAppOpen(): boolean
     getAuthenticatedClient?(): AuthenticatedMcpClient | null
-    verifyClientGenerationConfirmation?(challenge: GenerationGateChallengeProjection, attestation: unknown): Promise<boolean | GenerationGateVerificationResult>
-    confirmGenerationInNomi?(challenge: GenerationGateChallengeProjection): Promise<boolean | GenerationGateVerificationResult>
+    /**
+     * 把人在客户端里答的原话交给主进程；主进程判成「是」才签收据（结果见 GenerationGateVerificationResult）。
+     * 返回别的形状（不是对象、没有 confirmed: true）一律算没批准。
+     */
+    verifyClientGenerationConfirmation?(challenge: GenerationGateChallengeProjection, answer: unknown): Promise<unknown>
+    /** 落 Nomi 兜底卡。`signal`：这次调用被取消时主进程不再等卡、晚到的点击不签。 */
+    confirmGenerationInNomi?(challenge: GenerationGateChallengeProjection, signal?: AbortSignal): Promise<unknown>
   }
   /** 客户端 initialize 时声明过 elicitation 没——随握手改变，所以是 getter 不是快照。 */
   clientSupportsElicitation: () => boolean
-  /** 协议层的 elicitation/create 弹框（boolean 确认 + 可选 attestation）。 */
-  elicitBooleanConfirm: (input: { message: string; title: string; description: string }, signal?: AbortSignal) => Promise<{
+  /** 协议层的 elicitation/create 弹框（boolean 确认 + 人的原话）。 */
+  elicitBooleanConfirm: (input: { message: string; title: string; description: string; timeoutMs?: number }, signal?: AbortSignal) => Promise<{
     supported: boolean
     confirmed?: boolean
     action?: 'accept' | 'decline' | 'cancel' | 'timeout'
-    attestation?: unknown
+    answer?: { action: string; confirm?: unknown }
   }>
+}
+
+/** 主进程回来的结论只读不判：不是对象就当没批准。 */
+function verdictOf(value: unknown): GenerationGateVerificationResult {
+  if (!value || typeof value !== 'object') return { confirmed: false }
+  const typed = value as Record<string, unknown>
+  return {
+    confirmed: typed.confirmed === true,
+    ...(typeof typed.receiptId === 'string' && typed.receiptId ? { receiptId: typed.receiptId } : {}),
+    ...(typeof typed.receiptToken === 'string' && typed.receiptToken ? { receiptToken: typed.receiptToken } : {}),
+    ...(typed.trialFirst === true ? { trialFirst: true } : {}),
+    ...(typed.declined === true ? { declined: true } : {}),
+  }
 }
 
 /** 一镜一行：镜号 · 模型 · 价格。价格算不出就如实写「价格未知」，绝不写 ¥0（shotPricing.ts 的同一条诚实规则）。 */
@@ -113,9 +132,7 @@ export function spendConfirmationMessage(challenge: GenerationGateChallengeProje
 export function createGenerationGateConfirmation({ transport, clientSupportsElicitation, elicitBooleanConfirm }: GenerationGateConfirmationDependencies) {
   // 同 challengeId 的并发确认共享一个 in-flight promise（客户端超时/重连铸不出第二张提示或 nonce）。
   // 实现住 mcpConfirmationBinding.ts，确认去重与生成门保持单一语义。
-  const confirmationBinding = createConfirmationBinding<GenerationGateConfirmation>({
-    isConfirmed: (result) => result.confirmed,
-  })
+  const confirmationBinding = createConfirmationBinding<GenerationGateConfirmation>()
 
   /**
    * Answer one server-owned generation challenge on exactly one surface. The
@@ -152,6 +169,8 @@ export function createGenerationGateConfirmation({ transport, clientSupportsElic
           challenge.referenceCount === undefined ? '' : `参考图 ${challenge.referenceCount} 张`,
           `有效期至 ${challenge.expiresAt}`,
         ].filter(Boolean).join(' · '),
+        // 花钱这一问在等人，不替人答「否」（和 Nomi 里的卡同一条：2026-09-11 拍板没有墙钟期限）。
+        timeoutMs: HUMAN_DECISION_TIMEOUT_MS,
       }, signal)
       if (!elicited.confirmed) {
         return {
@@ -162,55 +181,35 @@ export function createGenerationGateConfirmation({ transport, clientSupportsElic
           denial: elicited.action === 'timeout' ? 'timeout' : 'declined',
         }
       }
-      // 客户端明确点了「是」。**但光有「是」不够——花钱必须有主进程铸的收据**，这不是本文件的规矩，
-      // 是下游两处硬约束：
-      //   · mcpSemanticGenerationFlow.ts:22 —— 没有 receiptId/receiptToken 即回 human_approval_required；
-      //   · generationDispatcher.ts:156 —— 原话「Approval booleans cannot replace a Nomi human approval receipt」。
-      // 所以「本函数返回 confirmed」和「这次生成真能开始」是两件事。
-      //
-      // ⚠️ 2026-09-03 来回记录（防再犯）：先把 clientAttestation 读成「要求没人能提供的凭证 = 半成品开关」
-      // 删掉它——真机走查（打包版 + 真 Codex）证明净效果更糟：用户点了同意，gate 返回 human_approval_required，
-      // 比改动前（多点一次但能跑完）更差。那面旗是**对的要求**，真正缺的是铸收据那一环。
-      // 本次修法：verifyClientGenerationConfirmation 两个生产装配点接通，让主进程铸 client_elicitation 收据，
-      // 不是放宽这里的判据。两条出口：
-      // 1. verifyClientGenerationConfirmation 存在（已接通） → 让主进程铸 client_elicitation 收据，就地算数。
-      // 2. 不存在 + handoff.clientAttestation !== true → 非语义门，bare accept 就地算数（无收据，见基线登记）。
+      // 客户端明确点了「是」。**但光有「是」不够——花钱必须有主进程铸的收据**：人的原话交给主进程，
+      // 由生成门主人判、由它签（mcpSemanticGenerationFlow / generationDispatcher 都只认收据）。
+      // 没有验证器、或主进程没签，就落 Nomi 兜底卡或回「没有确认面」，不在这里就地算数。
       if (typeof transport.verifyClientGenerationConfirmation === 'function') {
-        const verified = await transport.verifyClientGenerationConfirmation(challenge, elicited.attestation)
-        const result = typeof verified === 'boolean' ? { confirmed: verified } : verified
-        if (result.confirmed === true) {
+        const result = verdictOf(await transport.verifyClientGenerationConfirmation(challenge, elicited.answer))
+        if (result.confirmed) {
           return {
             challengeId: challenge.challengeId,
-            confirmed: true,
+            confirmed: result.confirmed,
             surface: 'client',
             nextAction: 'in_client',
             ...(result.receiptId ? { receiptId: result.receiptId } : {}),
             ...(result.receiptToken ? { receiptToken: result.receiptToken } : {}),
           }
         }
-      } else if (challenge.handoff?.clientAttestation !== true) {
-        return {
-          challengeId: challenge.challengeId,
-          confirmed: true,
-          surface: 'client',
-          nextAction: 'in_client',
-        }
       }
     }
     if (typeof transport.confirmGenerationInNomi === 'function' && transport.isAppOpen()) {
-      const fallback = await transport.confirmGenerationInNomi(challenge)
-      const confirmed = typeof fallback === 'boolean' ? fallback : fallback.confirmed === true
+      const fallback = verdictOf(await transport.confirmGenerationInNomi(challenge, signal))
+      const { confirmed } = fallback
       return {
         challengeId: challenge.challengeId,
         confirmed,
         surface: 'nomi',
         nextAction: confirmed ? 'in_nomi' : 'wait_for_reconciliation',
-        ...(!confirmed && typeof fallback === 'object' && fallback.declined === true ? { denial: 'declined' as const } : {}),
-        ...(typeof fallback === 'object' ? {
-          ...(fallback.receiptId ? { receiptId: fallback.receiptId } : {}),
-          ...(fallback.receiptToken ? { receiptToken: fallback.receiptToken } : {}),
-          ...(fallback.trialFirst === true ? { trialFirst: true } : {}), // P4 S4: carry trial-first so the caller shrinks the plan + re-gates
-        } : {}),
+        ...(!confirmed && fallback.declined === true ? { denial: 'declined' as const } : {}),
+        ...(fallback.receiptId ? { receiptId: fallback.receiptId } : {}),
+        ...(fallback.receiptToken ? { receiptToken: fallback.receiptToken } : {}),
+        ...(fallback.trialFirst === true ? { trialFirst: true } : {}), // P4 S4: carry trial-first so the caller shrinks the plan + re-gates
       }
     }
     return {

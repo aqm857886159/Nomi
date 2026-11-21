@@ -63,8 +63,8 @@ export const GATE_INPUTS = Object.freeze({
   'check:storyboard-owner': { roots: ['src/workbench'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-storyboard-owner.mjs'] },
   // check-transport-assembly.mjs：受检接口与它的生产装配点，固定四个 electron/capabilityCore 文件
   'check:transport-assembly': { roots: [], exts: [], files: ['electron/capabilityCore/mcpProtocol.ts','electron/capabilityCore/mcpNodeLauncher.ts','electron/capabilityCore/mcpStdioServer.ts','electron/capabilityCore/mcpHttpServer.ts'], entries: ['scripts/check-transport-assembly.mjs'] },
-  // check-spend-confirmation-receipt.mjs：花钱确认收据的受检文件 + 存量基线
-  'check:spend-receipt': { roots: [], exts: [], files: ['electron/capabilityCore/mcpGateConfirmation.ts','electron/capabilityCore/mcpSemanticGenerationFlow.ts','electron/capabilityCore/generationDispatcher.ts','scripts/spend-confirmation-receipt-baseline.json'], entries: ['scripts/check-spend-confirmation-receipt.mjs'] },
+  // 原 check:spend-receipt（只认 mcpGateConfirmation.ts 里字面的 confirmed: true）2026-11-21 删，由付费批准一个家的扫描接手：
+  // scripts/concept-owners-approval.node-test.mjs 登记在 pre-push-scan-guards.mjs 的 SCAN_GUARDS，src / electron 任何改动都触发（原来只认三个固定文件）。
   // check-dangling-tokens.mjs：src 的 css token 定义与 ts / tsx 里的引用
   'check:dangling-tokens': { roots: ['src'], exts: ['css','ts','tsx'], files: ['tailwind.config.ts'], entries: ['scripts/check-dangling-tokens.mjs'] },
   // check-dangling-tailwind.mjs：tailwind.config.ts 的键 vs src 里的类名
