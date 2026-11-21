@@ -28,7 +28,9 @@ function mediaFixture() {
   return { image, video: fs.readFileSync(videoPath), poster, referencePath, root }
 }
 
-export async function startFakeApimartServer({ pendingPolls = 0 } = {}) {
+export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0, failTasks = 0 } = {}) {
+  let dropsLeft = dropSubmits
+  let failsLeft = failTasks
   const media = mediaFixture()
   const tasks = new Map()
   const hits = []
@@ -58,9 +60,18 @@ export async function startFakeApimartServer({ pendingPolls = 0 } = {}) {
         return
       }
       const create = /^\/v1\/(images|videos)\/generations$/.exec(req.url || '')
+      if (create && dropsLeft > 0) {
+        // 收下了请求、不回话就断开：调用方分不清供应商收没收下（结果未知）。
+        dropsLeft -= 1
+        req.socket.destroy()
+        return
+      }
       if (create) {
         const taskId = `mcp-l2-${++sequence}`
-        tasks.set(taskId, { kind: create[1] === 'videos' ? 'video' : 'image', remaining: pendingPolls, body })
+        // 前 failTasks 个建好的任务：查询时报供应商一侧的普通失败（可重试），用来和「结果未知」并排。
+        const failed = failsLeft > 0
+        if (failed) failsLeft -= 1
+        tasks.set(taskId, { kind: create[1] === 'videos' ? 'video' : 'image', remaining: pendingPolls, body, failed })
         json({ code: 200, data: [{ status: 'submitted', task_id: taskId }] }); return
       }
       const query = /^\/v1\/tasks\/([^/]+)$/.exec(req.url || '')
@@ -68,6 +79,7 @@ export async function startFakeApimartServer({ pendingPolls = 0 } = {}) {
         const task = tasks.get(query[1])
         if (!task) { json({ code: 404, data: { status: 'failed', error: { message: 'unknown task' } } }, 404); return }
         if (task.remaining > 0) { task.remaining -= 1; json({ code: 200, data: { id: query[1], status: 'processing' } }); return }
+        if (task.failed) { json({ code: 200, data: { id: query[1], status: 'failed', error: { message: 'generation failed upstream' } } }); return }
         const entry = task.kind === 'video'
           ? { id: query[1], url: [`${origin}/fixture/video.mp4`], thumbnail_url: `${origin}/fixture/poster.png`, filename: 'fixture.mp4' }
           : { id: query[1], url: [`${origin}/fixture/image.png`], filename: 'fixture.png' }

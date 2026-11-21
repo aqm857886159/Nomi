@@ -5,13 +5,16 @@ import { useProductionStatus } from './useProductionStatus'
 
 const mocks = vi.hoisted(() => ({
   command: vi.fn(), notify: vi.fn(), confirm: vi.fn(), loadRun: vi.fn(), read: vi.fn(), selectNode: vi.fn(), workspace: vi.fn(), runNode: vi.fn(),
+  decide: vi.fn(), release: vi.fn(), resendConfirm: vi.fn(),
   run: { projectId: 'project-1', runId: 'run-1', revision: 1, jobs: [], gates: [] },
 }))
 vi.mock('react-i18next', async original => ({ ...await original<typeof import('react-i18next')>(), useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('../../design', () => ({ confirmDialog: mocks.confirm, alertDialog: vi.fn() }))
 vi.mock('../../ui/notificationPolicy', () => ({ notify: mocks.notify }))
 vi.mock('../generationCanvas/store/generationCanvasStore', () => ({ useGenerationCanvasStore: { getState: () => ({ selectNode: mocks.selectNode, nodes: [{id:'canvas-origin-node',kind:'image'}] }) } }))
-vi.mock('../generationCanvas/spend/spendConfirm', () => ({ useSpendConfirmStore: {} }))
+vi.mock('../generationCanvas/spend/spendConfirm', () => ({ useSpendConfirmStore: {}, confirmGenerationResend: mocks.resendConfirm }))
+vi.mock('../api/taskApi', () => ({ canvasResendDecide: mocks.decide }))
+vi.mock('./releaseUnknownSubmission', async (importOriginal) => ({ ...(await importOriginal<typeof import('./releaseUnknownSubmission')>()), releaseUnknownSubmission: mocks.release }))
 vi.mock('../generationCanvas/spend/productionContractView', () => ({ buildProductionContractView: vi.fn() }))
 vi.mock('../generationCanvas/spend/anchorCheckpointView', () => ({ buildAnchorCheckpointCard: vi.fn() }))
 vi.mock('../workbenchStore', () => ({ useWorkbenchStore: { getState: () => ({ setWorkspaceMode: mocks.workspace }) } }))
@@ -79,4 +82,36 @@ it('C4: task-center release delegates its node to the same resend-confirmation r
   expect(mocks.workspace).toHaveBeenCalledWith('generation')
   expect(mocks.confirm).not.toHaveBeenCalled()
   expect(mocks.command).not.toHaveBeenCalled() // The shared single-node route owns confirmation before release.
+})
+
+// 任务中心那一笔没有节点：入口只报「我想再发一次」和那一笔是谁；问不问、放哪几笔只听主进程，卡只问「是否再花一次」。
+describe('task-center release without a canvas node', () => {
+  async function releaseWith(decision: unknown, confirmed: boolean) {
+    vi.clearAllMocks()
+    Object.assign(mocks.run, { origin: { host: 'canvas', nodeId: 'node-gone' }, jobs: [{ jobId: 'unknown-job', status: 'submission_unknown', updatedAt: '2026-11-02T00:00:00.000Z' }] })
+    mocks.decide.mockResolvedValue(decision)
+    mocks.resendConfirm.mockResolvedValue(confirmed)
+    mocks.release.mockResolvedValue(undefined)
+    await mount().onPrimaryAction('release-unknown')
+  }
+  const ask = { action: 'ask', decisionId: 'decision-1', resultUnknown: true, release: [{ runId: 'run-1', jobId: 'unknown-job' }], open: [] }
+
+  it('asks main, shows the card once, and releases only what the decision lists', async () => {
+    await releaseWith(ask, true)
+    expect(mocks.decide).toHaveBeenCalledWith({ projectId: 'project-1', resend: true, initiator: 'user', resultUnknown: true, production: { runId: 'run-1', jobId: 'unknown-job' } })
+    expect(mocks.resendConfirm).toHaveBeenCalledTimes(1)
+    expect(mocks.resendConfirm).toHaveBeenCalledWith({ resultUnknown: true, kind: 'other' })
+    expect(mocks.release.mock.calls).toEqual([['project-1', 'run-1', 'unknown-job', expect.anything(), 'decision-1']])
+    expect(mocks.runNode).not.toHaveBeenCalled()
+  })
+  it('cancel on the card releases nothing', async () => {
+    await releaseWith(ask, false)
+    expect(mocks.resendConfirm).toHaveBeenCalledTimes(1)
+    expect(mocks.release).not.toHaveBeenCalled()
+  })
+  it.each([{ action: 'send' }, { action: 'refuse', reason: 'not-user' }])('main says $action: no card, no release', async (decision) => {
+    await releaseWith(decision, true)
+    expect(mocks.resendConfirm).not.toHaveBeenCalled()
+    expect(mocks.release).not.toHaveBeenCalled()
+  })
 })

@@ -23,6 +23,12 @@ describe('ui-driver defaults', () => {
     expect(parseDriverArgs(['--vendor', 'fake-apimart', '--vendor-pending=2'], {})).toMatchObject({ vendor: 'fake-apimart', vendorPending: 2, isolated: true })
     expect(() => parseDriverArgs(['--vendor', 'other'], {})).toThrow(/供应商/)
     expect(() => parseDriverArgs(['--vendor-pending', '1'], {})).toThrow(/--vendor/)
+    expect(parseDriverArgs(['--vendor', 'fake-apimart', '--vendor-drop-submit', '1'], {})).toMatchObject({ vendorDropSubmit: 1 })
+    expect(() => parseDriverArgs(['--vendor-drop-submit', '1'], {})).toThrow(/--vendor/)
+    expect(() => parseDriverArgs(['--vendor', 'fake-apimart', '--vendor-drop-submit', '-1'], {})).toThrow(/非负整数/)
+    expect(parseDriverArgs(['--vendor', 'fake-apimart', '--vendor-fail-task', '1'], {})).toMatchObject({ vendorFailTask: 1 })
+    expect(() => parseDriverArgs(['--vendor-fail-task', '1'], {})).toThrow(/--vendor/)
+    expect(() => parseDriverArgs(['--vendor', 'fake-apimart', '--vendor-fail-task', '1.5'], {})).toThrow(/非负整数/)
     for (const value of ['-1', '1.5', 'NaN', 'Infinity', '9007199254740992']) {
       expect(() => parseDriverArgs(['--vendor', 'fake-apimart', '--vendor-pending', value], {})).toThrow(/非负整数/)
     }
