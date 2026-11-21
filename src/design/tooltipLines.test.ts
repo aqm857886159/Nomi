@@ -1,14 +1,14 @@
-import type React from 'react'
+import { isValidElement, type ComponentType, type ForwardRefExoticComponent, type ReactElement, type ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
 import { badBreaks } from '../../tests/ux/_sentenceBreaks.mjs'
 import { enGenerationCommon, zhGenerationCommon } from '../i18n/locales/generationCommon'
-import type { TooltipContent } from './tooltip'
+import { TooltipContent } from './tooltip'
 import type { HoverCardContent } from './hoverCard'
 import { tooltipLines } from './tooltipLines'
 
 // 类型上「写不出来」（D-1121-tooltip-multiline-shared）：墨色提示和悬停卡都不收调用方的类名和样式，
 // 墨色提示只收字。谁把这几样加回类型里，这几行的类型检查（check:test-types）就红。
-type Props<C> = C extends React.ComponentType<infer P> ? P : C extends React.ForwardRefExoticComponent<infer P> ? P : never
+type Props<C> = C extends ComponentType<infer P> ? P : C extends ForwardRefExoticComponent<infer P> ? P : never
 type Banned = 'className' | 'style' | 'asChild'
 const tooltipTakesNoClass: Extract<keyof Props<typeof TooltipContent>, Banned> extends never ? true : false = true
 const hoverCardTakesNoClass: Extract<keyof Props<typeof HoverCardContent>, Banned> extends never ? true : false = true
@@ -44,6 +44,23 @@ describe('tooltipLines 按句分行', () => {
     const lines = tooltipLines(`Generating…\n${estimate('en')}`)
     expect(lines[0]).toBe('Generating…\n')
     expect(lines.slice(1).join('')).toBe(estimate('en'))
+  })
+
+  it('提示组件把每一句画成单独一块（改回整段一行就红；真窗口 G7 只判换行点，窗口够宽时判不出整段一行）', () => {
+    const text = estimate('en')
+    const render = (TooltipContent as unknown as { render: (props: { children: string }, ref: null) => ReactElement }).render
+    const blocks: { className?: string; text: string }[] = []
+    const walk = (node: ReactNode): void => {
+      if (Array.isArray(node)) { node.forEach(walk); return }
+      if (!isValidElement(node)) return
+      const props = node.props as { className?: string; children?: ReactNode }
+      if (node.type === 'span') { blocks.push({ className: props.className, text: String(props.children) }); return }
+      walk(props.children)
+    }
+    walk(render({ children: text }, null))
+    expect(blocks.map((block) => block.text)).toEqual(tooltipLines(text))
+    expect(blocks.length).toBe(2)
+    expect(blocks.every((block) => (block.className ?? '').split(/\s+/).includes('block'))).toBe(true)
   })
 
   it('「全部塞一行」和「每个字一行」都过不了判卷', () => {

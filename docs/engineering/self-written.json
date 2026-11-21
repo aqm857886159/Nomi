@@ -2355,6 +2355,35 @@
       "revisitWhen": "设计系统出了通用的「带提示的开关图标钮」原语时，改用它并删掉本文件"
     },
     {
+      "id": "hover-overlays-skin",
+      "capability": "悬停出现的两种东西在设计系统里的那一份：墨色提示按句分行（每句一行、句子里不折；切句交给 Intl.Segmenter，自写的只有一条「句末标点后跟空白、或中文句末标点才算说完」的过滤）；纸色悬停卡（Radix HoverCard 换肤，样子写死、调用方传不进类名）",
+      "status": "justified",
+      "paths": [
+        "src/design/tooltipLines.ts",
+        "src/design/hoverCard.tsx"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Intl.Segmenter（granularity: sentence）：已直接用来切句；ICU 会把「take3.Final.mp4」这类紧贴字母的点也当句末，所以只在后面跟着空白的边界换行",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter"
+        },
+        {
+          "name": "Radix Tooltip：开合、定位、碰边、读屏都用它（src/design/tooltip.tsx），最宽到窗口可用宽用它给的 --radix-tooltip-content-available-width",
+          "source": "https://www.radix-ui.com/primitives/docs/components/tooltip"
+        },
+        {
+          "name": "Radix HoverCard：带画面、能滚的预览直接用它（openDelay / closeDelay / side / 碰边翻面 / 鼠标移进卡里不收），不在读屏里放隐藏副本",
+          "source": "https://www.radix-ui.com/primitives/docs/components/hover-card"
+        },
+        {
+          "name": "CSS text-wrap: balance / pretty：只调每行长短，不认句子边界，做不出「一句一行」",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/CSS/text-wrap"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：通用部分（开合、定位、碰边、读屏、切句）都接现成能力；自写的只剩 Nomi 设计系统的样子（token-only，「一句一行」是 D-1121-tooltip-multiline-shared 的拍板）和一条去掉 ICU 误判句末的过滤，约价提示里的「$0.195」「take3.Final.mp4」要靠它不断开。",
+      "revisitWhen": "CSS 出了按句子换行的能力、或 Intl.Segmenter 不再把紧贴字母的点当句末时，删掉 tooltipLines.ts 的过滤；悬停浮层整体换库时 hoverCard.tsx 跟着换"
+    },
+    {
       "id": "test-temp-owner-reclaim",
       "capability": "测试 / 走查 / 门岗的系统临时目录按「创建者进程号」归属并回收：目录名 nomi-<前缀>-p<进程号>-<随机>，创建者被 SIGKILL 后由下一个进程第一次分配、或杀它的 runner（等整棵进程树没了）按进程是否存活回收。脚本侧（scripts/_test-temp.mjs 管系统临时目录里的测试 / 走查目录，scripts/pre-push-contracts.mjs 的 terminateAndReclaim 是杀后回收的唯一口子）与产品侧（electron/assets/scratchCleanup.ts 管用户项目根下的上传暂存）各一份——登记为什么是两份、各管哪边",
       "status": "justified",
