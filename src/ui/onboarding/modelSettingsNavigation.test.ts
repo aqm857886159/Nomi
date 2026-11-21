@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   backModelSettingsPage,
+  finishAdapterRunNavigation,
   closeModelSettingsDialog,
   createModelSettingsNavigation,
   currentModelSettingsPage,
@@ -352,5 +353,29 @@ describe('model-scoped third-level navigation', () => {
     )
     expect(reopened.stack.filter((page) => page.type === 'model')).toHaveLength(1)
     expect(reopened.stack.at(-1)).toEqual({ type: 'capability', vendorKey: 'relay', modelKey: 'video-v2' })
+  })
+})
+
+describe('finish format task at its promoted identity', () => {
+  const old = openModelSettingsPage(
+    openModelSettingsDialog(createModelSettingsNavigation(), { vendorKey: 'old', modelKey: 'image' }),
+    { type: 'verification', runId: 'run' },
+  )
+  it.each(['completed', 'partial'])('%s reaches the new vendor and model', stage => {
+    const result = finishAdapterRunNavigation(old, { stage, vendorKey: 'promoted', selectedModelKeys: ['image'] }, () => true)
+    expect(currentModelSettingsPage(result)).toEqual({ type: 'model', vendorKey: 'promoted', modelKey: 'image' })
+    expect(result.stack).toEqual([{ type: 'home' }, { type: 'connection', vendorKey: 'promoted' }, { type: 'model', vendorKey: 'promoted', modelKey: 'image' }])
+  })
+  it('a batch lands at the promoted connection', () => {
+    expect(currentModelSettingsPage(finishAdapterRunNavigation(old, { stage: 'completed', vendorKey: 'promoted', selectedModelKeys: ['image', 'video'] }, () => true)))
+      .toEqual({ type: 'connection', vendorKey: 'promoted' })
+  })
+  it.each(['failed', 'cancelled', 'adapting'])('%s returns without claiming promotion', stage => {
+    expect(finishAdapterRunNavigation(old, { stage, vendorKey: 'promoted', selectedModelKeys: ['image'] }, () => true)).toEqual(backModelSettingsPage(old))
+  })
+  it('a missing promoted connection, absent run and unchanged identity return safely', () => {
+    expect(finishAdapterRunNavigation(old, undefined, () => false)).toEqual(backModelSettingsPage(old))
+    expect(finishAdapterRunNavigation(old, { stage: 'completed', vendorKey: 'promoted', selectedModelKeys: ['image'] }, () => false)).toEqual(backModelSettingsPage(old))
+    expect(finishAdapterRunNavigation(old, { stage: 'completed', vendorKey: 'old', selectedModelKeys: ['image'] }, () => true)).toEqual(backModelSettingsPage(old))
   })
 })

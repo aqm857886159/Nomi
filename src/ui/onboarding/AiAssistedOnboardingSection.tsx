@@ -1,3 +1,6 @@
+import { adapterFailureIsObsolete } from './adapterTaskVisibility'
+import type { ModelSettingsHomeConnection } from './ModelSettingsHome'
+import type { DesktopHttpCertificationRun } from '../../desktop/onboardingBridgeTypes'
 /**
  * 「用 AI 帮我接入」卡在模型页上的接线层。
  *
@@ -26,6 +29,7 @@ type SessionSnapshot = {
   stage: IntegrationStage
   name: string
   reasonCode: string | null
+  runId: string
 }
 
 const TERMINAL: readonly IntegrationStage[] = ['completed', 'failed', 'partial', 'cancelled']
@@ -39,12 +43,13 @@ function readSnapshot(value: unknown): SessionSnapshot | null {
   const blocking = (record.blockingReason ?? null) as Record<string, unknown> | null
   return {
     stage: stage as IntegrationStage,
+    runId: typeof (record.childRunRef as Record<string, unknown> | undefined)?.runId === 'string' ? String((record.childRunRef as Record<string, unknown>).runId) : '',
     name: typeof config.name === 'string' && config.name.trim() ? config.name : '',
     reasonCode: blocking && typeof blocking.code === 'string' ? blocking.code : null,
   }
 }
 
-export function AiAssistedOnboardingSection(): JSX.Element | null {
+export function AiAssistedOnboardingSection({ connections = [], runs = [] }: { connections?: readonly ModelSettingsHomeConnection[]; runs?: readonly DesktopHttpCertificationRun[] }): JSX.Element | null {
   const [info, setInfo] = React.useState<McpInfo | null>(null)
   const [session, setSession] = React.useState<LiveSession | null>(null)
   const [snapshot, setSnapshot] = React.useState<SessionSnapshot | null>(null)
@@ -141,6 +146,8 @@ export function AiAssistedOnboardingSection(): JSX.Element | null {
 
   const progress = React.useMemo(() => {
     if (!snapshot) return null
+    const run = runs.find((item) => item.id === snapshot.runId || item.childRunRef?.runId === snapshot.runId)
+    if (TERMINAL.includes(snapshot.stage) && run && adapterFailureIsObsolete(run, connections.flatMap((connection) => connection.models), runs)) return null
     const view: AssistedProgressView = projectAssistedProgress({
       stage: snapshot.stage,
       lastLiveStage: lastLiveStage.current,
@@ -153,7 +160,7 @@ export function AiAssistedOnboardingSection(): JSX.Element | null {
       hostLabel: session && session.host !== 'external' ? ASSISTANT_CLIENT_LABEL[session.host] : null,
       reasonCode: snapshot.reasonCode,
     }
-  }, [session, snapshot])
+  }, [connections, runs, session, snapshot])
 
   const openAssistantConnections = React.useCallback(() => {
     window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'automation' } }))

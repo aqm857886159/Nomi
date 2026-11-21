@@ -35,6 +35,7 @@ function model(modelKey: string, kind: Model["kind"] = "text"): Model {
     labelZh: modelKey,
     kind,
     enabled: true,
+    customCall: { script: "return { assets: [] }", updatedAt: "2026-08-15T00:00:00.000Z" },
     meta: { adapter: { state: "verified", activeRevision: "rev-1", modes: [{ taskKind: kind === "image" ? "text_to_image" : "chat", state: "verified" }] } },
     createdAt: "2026-08-15T00:00:00.000Z",
     updatedAt: "2026-08-15T00:00:00.000Z",

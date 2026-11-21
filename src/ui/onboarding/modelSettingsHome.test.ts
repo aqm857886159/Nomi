@@ -1,10 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import type { Mapping } from '../../../electron/catalog/types'
 import type { ChipModel } from './ModelChipGroups'
-import { modelsVisibleOnHome, resolveModelHomeStatus, summarizeModelHomeConnection } from './modelSettingsHomeState'
+import { connectionHomeStatus, countModelHomeStates, modelHomeStatus } from './modelSettingsHomeState'
 
+// D-1117-delete-verification：设置页上一行 / 一条连接显示成什么，只转交展示投影。
+// 这里钉「转交」本身：同一份 availability，行、连接、页头计数说同一句话；没有验证档位可挑。
 const model = (patch: Partial<ChipModel> = {}): ChipModel => ({
   vendorKey: 'future-api',
   modelKey: 'future-video-v1',
@@ -14,69 +15,45 @@ const model = (patch: Partial<ChipModel> = {}): ChipModel => ({
   ...patch,
 })
 
+describe('model settings home status', () => {
+  it('a saved media model without a request format is 待设置, never 可使用', () => {
+    expect(modelHomeStatus(model({ availability: { usable: false, reason: 'model_unpublished' } })).state).toBe('needsSetup')
+    expect(modelHomeStatus(model({ customCallDraft: true })).state).toBe('needsSetup')
+  })
+
+  it('usable is 可使用 with a green dot, whatever the old verification records said', () => {
+    const ready = model({ availability: { usable: true }, meta: { adapter: { state: 'failed' } } })
+    expect(modelHomeStatus(ready)).toEqual({ state: 'ready', tone: 'success', labelKey: 'onboardingProviders.modelStatus.ready' })
+    expect(connectionHomeStatus({ models: [ready] })).toMatchObject({ state: 'ready', count: 1 })
+  })
+
+  it('a running format task shows 配置中 only while the model cannot be used yet', () => {
+    const configuring = model({ availability: { usable: false, reason: 'model_unpublished' }, formatInProgress: true })
+    expect(modelHomeStatus(configuring).state).toBe('configuring')
+    expect(modelHomeStatus({ ...configuring, availability: { usable: true } }).state).toBe('ready')
+    expect(connectionHomeStatus({ models: [configuring] })).toMatchObject({ state: 'configuring', count: 1 })
+  })
+
+  it('a connection without a key is 待接入 without a count', () => {
+    expect(connectionHomeStatus({ keyMissing: true, models: [model({ availability: { usable: true } })] }))
+      .toEqual({ state: 'notConnected', tone: 'neutral', labelKey: 'onboardingProviders.modelStatus.notConnected' })
+  })
+
+  it('header counts use the same projection as each row', () => {
+    const models = [
+      model({ modelKey: 'a', availability: { usable: true } }),
+      model({ modelKey: 'b', availability: { usable: true } }),
+      model({ modelKey: 'c', availability: { usable: false, reason: 'model_unpublished' } }),
+      model({ modelKey: 'd', availability: { usable: false, reason: 'model_disabled' } }),
+      model({ modelKey: 'e', availability: { usable: false, reason: 'model_unpublished' }, formatInProgress: true }),
+    ]
+    const counts = countModelHomeStates(models)
+    expect(counts).toEqual({ ready: 2, configuring: 1, needsSetup: 1, disabled: 1, notConnected: 0 })
+    for (const row of models) expect(counts[modelHomeStatus(row).state]).toBeGreaterThan(0)
+  })
+})
+
 describe('model settings home', () => {
-  it('does not call a merely saved media model usable', () => {
-    expect(resolveModelHomeStatus(model(), [])).toBe('needsSetup')
-    expect(resolveModelHomeStatus(model({ customCallDraft: true }), [])).toBe('needsSetup')
-  })
-
-  it('shows configured, verified, disabled, working and failed states from real contracts', () => {
-    const mapping = [{
-      id: 'future-video',
-      vendorKey: 'future-api',
-      modelKey: 'future-video-v1',
-      taskKind: 'text_to_video',
-      enabled: true,
-      request: { method: 'POST', path: '/generate' },
-      response: { type: 'url', path: 'data.url' },
-    }] as unknown as Mapping[]
-    const configured = model({
-      availability: { usable: true },
-      meta: {
-        customCapabilityContract: {
-          version: 1,
-          kind: 'video',
-          defaultModeId: 'prompt',
-          transportTaskKind: 'text_to_video',
-          modes: [{
-            id: 'prompt',
-            vendorTerm: 'Prompt',
-            hint: '',
-            intent: 'text',
-            promptRequired: true,
-            slots: [],
-            params: [],
-          }],
-        },
-      },
-    })
-    expect(resolveModelHomeStatus(configured, mapping)).toBe('ready')
-    expect(resolveModelHomeStatus({ ...configured, adapterState: 'verified' }, mapping)).toBe('verified')
-    const disabled = { ...configured, enabled: false, availability: { usable: false, reason: 'model_disabled' } } as ChipModel
-    expect(resolveModelHomeStatus(disabled, mapping)).toBe('disabled')
-    expect(resolveModelHomeStatus({ ...configured, adapterState: 'testing' }, mapping)).toBe('working')
-    expect(resolveModelHomeStatus({ ...configured, adapterState: 'failed' }, mapping)).toBe('failed')
-
-    expect(summarizeModelHomeConnection([{ ...configured, adapterState: 'testing' }], mapping)).toMatchObject({
-      state: 'working',
-      ready: 1,
-      working: 1,
-    })
-    expect(summarizeModelHomeConnection([disabled], mapping)).toMatchObject({
-      state: 'disabled',
-      ready: 0,
-      disabled: 1,
-    })
-    expect(summarizeModelHomeConnection([{ ...configured, adapterState: 'verified' }], mapping)).toMatchObject({
-      state: 'verified',
-      ready: 1,
-    })
-    expect(summarizeModelHomeConnection([{ ...configured, adapterState: 'failed' }], mapping))
-      .toMatchObject({ state: 'attention', ready: 1, needsSetup: 1 })
-    expect(resolveModelHomeStatus({ ...configured, availability: undefined }, mapping)).toBe('needsSetup')
-    expect(summarizeModelHomeConnection([{ ...configured, availability: undefined }], mapping).ready).toBe(0)
-  })
-
   it('uses the Nomi primitives and keeps the direct-script action inside the advanced section', () => {
     const home = fs.readFileSync(path.join(process.cwd(), 'src/ui/onboarding/ModelSettingsHome.tsx'), 'utf8')
     const wizard = fs.readFileSync(path.join(process.cwd(), 'src/ui/onboarding/OnboardingWizard.tsx'), 'utf8')
@@ -108,18 +85,5 @@ describe('model settings home', () => {
     expect(home).toContain('data-model-home-task-strip')
     expect(home).not.toContain("kind: 'api' | 'local' | 'account' | 'assistant'")
   })
-
-  it('shows only work needing attention until the user searches or opens the connection', () => {
-    const needsSetup = model({ modelKey: 'future-video-v1', labelZh: 'Future Video' })
-    const working = model({ modelKey: 'future-video-v2', labelZh: 'Future Video 2', adapterState: 'testing' })
-    const readyText = model({ modelKey: 'future-chat', labelZh: 'Future Chat', kind: 'text', availability: { usable: true } })
-    const models = [needsSetup, working, readyText]
-
-    expect(modelsVisibleOnHome({ models, mappings: [], search: '', connectionName: 'Future API' }))
-      .toEqual([needsSetup, working])
-    expect(modelsVisibleOnHome({ models, mappings: [], search: 'chat', connectionName: 'Future API' }))
-      .toEqual([readyText])
-    expect(modelsVisibleOnHome({ models, mappings: [], search: 'future api', connectionName: 'Future API' }))
-      .toEqual(models)
-  })
 })
+

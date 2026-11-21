@@ -55,24 +55,25 @@ export type ModelListingEntry = {
  * 时，旧实现照样答「已接入且可用」——外部助手据此转述给用户，而 Nomi 自己的下拉里一个都选不到
  * （真实验收 P0-10）。所以先问 owner，钥匙三态只负责在「不可用」时说清是不是钥匙那一档。
  */
-function statusReasonFor(keyStatus: ApiKeyDecryptStatus, vendorName: string, availability: ModelAvailability): string {
-  if (!availability.usable && availability.reason === "model_unpublished") {
-    return `${vendorName} 的这个模型还没走完接入认证，暂时不能调用；请在 Nomi 应用的模型接入里完成它的自检`;
-  }
-  if (!availability.usable && (availability.reason === "vendor_disabled" || availability.reason === "vendor_missing")) {
-    return `${vendorName} 这个连接当前未启用；请在 Nomi 应用的模型接入里重新启用`;
-  }
-  if (!availability.usable && availability.reason === "model_disabled") {
-    return `这个模型在 ${vendorName} 下被停用了；请在 Nomi 应用的模型接入里启用它`;
-  }
-  switch (keyStatus) {
-    case "ok":
-      return "已接入且可用";
-    case "locked":
+function statusReasonFor(vendorName: string, availability: ModelAvailability): string {
+  // 只翻译主人的结论，不另读钥匙再判一遍（D-1117-delete-verification）：旧版先看钥匙 ok 就答「可用」，
+  // 声明缺字段的模型因此在这里被说成可用、在 Nomi 里却选不到。
+  if (availability.usable) return "已接入且可用";
+  switch (availability.reason) {
+    case "model_unpublished":
+      return `${vendorName} 的这个模型还没有请求格式，暂时不能调用；请在 Nomi 应用的模型接入里补上它的请求格式`;
+    case "capability_incomplete":
+      return `${vendorName} 的这个模型声明还缺 ${(availability.missingFields || []).join("、") || "字段"}，暂时不能调用；请在 Nomi 应用的模型接入里补全`;
+    case "vendor_disabled":
+    case "vendor_missing":
+      return `${vendorName} 这个连接当前未启用；请在 Nomi 应用的模型接入里重新启用`;
+    case "model_disabled":
+      return `这个模型在 ${vendorName} 下被停用了；请在 Nomi 应用的模型接入里启用它`;
+    case "credential_locked":
       return `${vendorName} 的 API Key 已保存但当前宿主身份解不开（多见于 MCP/命令行宿主与 Nomi 主程序加密身份不一致）；请在 Nomi 应用里重新保存该 Key，或让宿主以正确身份运行`;
-    case "needs_resave":
+    case "credential_needs_resave":
       return `${vendorName} 的 API Key 来自旧版明文存储；请在 Nomi 应用里重新保存后再使用`;
-    case "missing":
+    case "credential_missing":
     default:
       return `未配置 ${vendorName} 的 API Key；请先在 Nomi 应用的模型接入里填入`;
   }
@@ -193,7 +194,7 @@ export function deriveModelListing(
         label: model.labelZh || model.modelKey,
         keyStatus,
         usable: modelAvailability.usable,
-        statusReason: statusReasonFor(keyStatus, vendorName, modelAvailability),
+        statusReason: statusReasonFor(vendorName, modelAvailability),
         references: referenceSupportForModel(modelMappings, modelReferenceSelection(model.vendorKey, model)),
       };
     });

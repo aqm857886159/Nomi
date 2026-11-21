@@ -19,7 +19,6 @@ vi.mock('../logging/logger', () => ({
 
 import { apiKeyDecryptStatus, credentialMaterialSaved, credentialRecordCounts } from './secrets'
 import { createCatalogAvailability } from './catalogModelAvailability'
-import { resolveCredentialCopy } from '../../src/ui/onboarding/credentialPresentation'
 
 const b64 = (value: string) => Buffer.from(value, 'utf8').toString('base64')
 const vendor = (over: Partial<Vendor> = {}): Vendor => ({
@@ -38,31 +37,31 @@ const CONSUMERS = [
   'connectors.tikhubConnectorService',
   'catalog.catalogHealth',
   'catalogModelAvailability.createCatalogAvailability',
-  'ai.onboarding.vendorHealth',
+  'ai.onboarding.catalogReconciliation',
 ] as const
 
-describe('credential lifecycle matrix: material, readiness, enablement, and copy stay separate', () => {
+describe('credential lifecycle matrix: material, readiness, and enablement stay separate', () => {
   it.each([
     {
       name: 'no material', record: undefined, vendor: { enabled: true }, material: false, counted: false, hasApiKey: false, status: 'missing', usable: false,
-      copy: 'savedTitle', consumers: CONSUMERS,
+      consumers: CONSUMERS,
     },
     {
-      name: 'offline pending and disabled', record: { vendorKey: 'relay', apiKey: b64('pending'), enc: 'safeStorage', enabled: false, verificationPending: true, createdAt: 't', updatedAt: 't' },
+      name: 'legacy pending mark and disabled', record: { vendorKey: 'relay', apiKey: b64('pending'), enc: 'safeStorage', enabled: false, verificationPending: true, createdAt: 't', updatedAt: 't' },
       vendor: { enabled: false }, material: true, counted: false, hasApiKey: false, status: 'missing', usable: false,
-      copy: 'offlineTitle', consumers: CONSUMERS,
+      consumers: CONSUMERS,
     },
     {
       name: 'verified and enabled', record: { vendorKey: 'relay', apiKey: b64('verified'), enc: 'safeStorage', enabled: true, createdAt: 't', updatedAt: 't' },
       vendor: { enabled: true }, material: true, counted: true, hasApiKey: true, status: 'ok', usable: true,
-      copy: 'publishedTitle', consumers: CONSUMERS,
+      consumers: CONSUMERS,
     },
     {
       name: 'material exists but cannot decrypt', record: { vendorKey: 'relay', apiKey: b64('FAIL'), enc: 'safeStorage', enabled: true, createdAt: 't', updatedAt: 't' },
       vendor: { enabled: true }, material: true, counted: true, hasApiKey: false, status: 'locked', usable: false,
-      copy: 'pendingTitle', consumers: CONSUMERS,
+      consumers: CONSUMERS,
     },
-  ] as const)('$name', ({ record, vendor: vendorPatch, material, counted, hasApiKey, status, usable, copy, consumers }) => {
+  ] as const)('$name', ({ record, vendor: vendorPatch, material, counted, hasApiKey, status, usable, consumers }) => {
     expect(credentialMaterialSaved(record)).toBe(material)
     expect(credentialRecordCounts(record)).toBe(counted)
     expect(apiKeyDecryptStatus(record)).toBe(status)
@@ -70,9 +69,6 @@ describe('credential lifecycle matrix: material, readiness, enablement, and copy
     const projectedHasApiKey = apiKeyDecryptStatus(record) === 'ok'
     expect(projectedHasApiKey).toBe(hasApiKey)
     expect(createCatalogAvailability(current).of(current.models[0]!)).toEqual(usable ? { usable: true } : expect.objectContaining({ usable: false }))
-    expect(resolveCredentialCopy({ credentialMaterialSaved: material, verificationPending: record?.verificationPending === true, curatedModelsPublished: usable })).toMatchObject({
-      titleKey: `onboardingProviders.keyOnly.${copy}`,
-    })
     expect(consumers).toEqual(CONSUMERS)
   })
 })

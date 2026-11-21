@@ -364,9 +364,9 @@ export function writeAdapterTerminalFailure(input: {
     : existing.stage === "compiling"
       ? "compile"
       : existing.stage === "testing"
-        // 自检失败停在「凭据」那一段。`verify_asset` 从 2026-09-11 起只留给本地 ComfyUI 候选
-        // 那条免费的真实产物校验（types.ts:160）——HTTP 供应商这条路已经不发真实生成了。
-        ? "credential"
+        // 停在格式检查那一段（凭据自检随 D-1117-delete-verification 删了）。`verify_asset` 从 2026-09-11
+        // 起只留给本地 ComfyUI 候选那条免费的真实产物校验——HTTP 供应商这条路已经不发真实生成了。
+        ? "contract"
         : "promote";
   const run = input.buildRun({
     existing,

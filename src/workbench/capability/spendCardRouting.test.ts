@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../i18n'
 import { enRuntime, zhRuntime } from '../../i18n/locales/runtime'
@@ -6,12 +6,12 @@ import { encodePromptExtractionSubject } from '../../../electron/shared/contract
 import { UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT } from '../../../electron/shared/contracts/modelTrialSpend'
 import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
 import { handleCapabilityApply } from './capabilityApplyHandler'
+import { dedicatedSpendCardFor } from './spendCardByIntent'
 
 // 付费确认卡按 intent 分流（2026-10-27，docs/plan/2026-10-27-browser-extract-grant.md §3.4）：
-// · 凭据验证（credential-probe）走自己的卡模块 credentialProbeSpendCard.ts：用户自己点的、不挂节点；
+// · 凭据验证（credential-probe）那张卡随 D-1117-delete-verification 删了：保存 key 不再发验证请求，表里没有这一格；
 // · 浏览器「提取提示词」（prompt-extraction）走 promptExtractionSpendCard.ts：写清来源页、哪张图、哪个读图模型；
 // · 分流是查表（spendCardByIntent.ts），热点文件 capabilityApplyHandler.ts 不再按 intent 长分支（最后一格钉住）。
-// 第一格写于改分流之前（特征测试），改成查表之后一字未改仍绿 = 凭据验证的行为没变。
 // 第二格修前钉的是「提取落进通用卡：AI 助手想生成一个素材、挂在新节点上」，提取专用卡落地时翻成现在这样。
 // 文案一律按词典键取值，不抄字面（check:test-copy-literals）。
 
@@ -20,23 +20,11 @@ const t = (key: string, values?: Record<string, string>) => i18n.t(`runtime.capa
 beforeEach(() => { vi.restoreAllMocks() })
 
 describe('付费确认卡按 intent 分流', () => {
-  it('凭据验证：走自己的卡（用户发起、一行模型一行次数），不印节点行', async () => {
-    const confirm = vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockResolvedValue(true)
-    await expect(handleCapabilityApply('spend.confirm', {
-      intent: 'credential-probe', vendor: 'apimart', modelKey: 'gpt-image-2', callCount: 1,
-    })).resolves.toEqual({ confirmed: true })
-    expect(confirm).toHaveBeenCalledTimes(1)
-    const card = confirm.mock.calls[0][0]
-    expect(card).toMatchObject({
-      kind: 'generation',
-      source: 'user',
-      title: t('credentialProbeTitle', { vendor: 'apimart' }),
-      confirmLabel: t('confirmCredentialProbe'),
-    })
-    expect(card.details).toEqual([
-      { label: t('model'), value: 'apimart · gpt-image-2' },
-      { label: t('callCount'), value: '1' },
-    ])
+  it('凭据验证的专用卡已删：表里没有 credential-probe 这一格，卡模块和词条也不在了', () => {
+    expect(dedicatedSpendCardFor('credential-probe')).toBeUndefined()
+    expect(existsSync(new URL('./credentialProbeSpendCard.ts', import.meta.url))).toBe(false)
+    expect(zhRuntime.capability).not.toHaveProperty('credentialProbeTitle')
+    expect(enRuntime.capability).not.toHaveProperty('confirmCredentialProbe')
   })
 
   it('浏览器提取：走自己的卡（用户发起），写清来源页、哪张图、哪个读图模型；没有节点行、没有产物行', async () => {

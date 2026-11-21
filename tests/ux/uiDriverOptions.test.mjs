@@ -111,6 +111,18 @@ describe('ui-driver defaults', () => {
     }
   })
 
+  it.each(['saved-pending', 'failed-disabled', 'manual-disabled'])('copies the shipped v0.24.1 %s catalog bytes into a fresh isolated profile', (state) => {
+    const name = `v0.24.1-${state}`
+    const tempRoot = makeTempDir('nomi-ui-driver-old-catalog-')
+    try {
+      const options = parseDriverArgs(['--data', name, '--vendor', 'fake-apimart'], {})
+      expect(options.isolated).toBe(true)
+      const settings = seedDataFixture(name, tempRoot)
+      expect(fs.readFileSync(path.join(settings, 'model-catalog.json')))
+        .toEqual(fs.readFileSync(path.join(repoRoot, DATA_FIXTURES[name], 'model-catalog.json')))
+    } finally { cleanupTestTemp(tempRoot) }
+  })
+
   it('one instance per worktree: a live holder makes the second start fail loudly', () => {
     const dir = makeTempDir('nomi-ui-driver-lock-')
     try {

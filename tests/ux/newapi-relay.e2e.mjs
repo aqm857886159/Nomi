@@ -1,5 +1,5 @@
 // 真实端到端（verify-first，Issue #8）：对着忠实 mock new-api 验证生产接入边界：
-//   ① 保存连接只产生 unverified/disabled 模型，不能绕过认证直接执行；
+//   ① 保存连接后，没有请求格式的媒体模型仍待设置，不能执行；
 //   ② 手动入口走 httpCertificationStartExisting canonical facade；
 //   ③ 同一次逻辑确认重传同一 idempotency key，只形成一个 canonical run。
 // 模型真正发布与传输执行由 certification lifecycle integration 覆盖；本脚本不再保留 raw catalog commit 旁路。
@@ -33,8 +33,8 @@ try {
   const listed = await win.evaluate(async (base) => window.nomiDesktop.onboarding.listModels({ baseUrl: base, apiKey: "sk-mock", providerKind: "openai-compatible" }), MOCK_BASE);
   check("裸地址拉到模型", !!listed?.ok && (listed.models || []).length === 7, `ok=${listed?.ok} n=${(listed?.models || []).length}`);
 
-  // ① 保存连接：模型必须保持未验证，不能被 raw enable。
-  console.log("\n▶ ① 保存未验证 new-api 连接（mock）");
+  // ① 保存连接：没有格式的模型不能启用。
+  console.log("\n▶ ① 保存缺格式的 new-api 连接（mock）");
   const configured = await win.evaluate(async (base) => {
     return await window.nomiDesktop.onboarding.httpConnectionConfigure({
       vendorName: "Mock NewAPI", baseUrl: base, apiKey: "sk-mock", providerKind: "openai-compatible",
@@ -49,7 +49,7 @@ try {
   })), vendorKey);
   check("图片模型 kind=image", models.some((m) => m.k === "dall-e-3" && m.kind === "image"));
   check("视频模型 kind=video", models.some((m) => m.k === "kling-v1" && m.kind === "video"));
-  check("未认证模型不可发布", models.length === 2 && models.every((m) => m.enabled === false && m.published !== true));
+  check("缺格式模型不可使用", models.length === 2 && models.every((m) => m.enabled === false && m.published !== true));
 
   // ②/③ 真实手动入口 + 不确定响应重传：同 key 必须返回同一个 canonical run。
   console.log("\n▶ ② 启动 canonical certification，并模拟同 key 重传");

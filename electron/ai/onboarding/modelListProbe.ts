@@ -1,10 +1,9 @@
 /**
  * 「拉模型列表」探测原语（领域层，不含 IPC）。
  *
- * 三处共用同一条实现（P1 不各写一份）：
+ * 两处共用同一条实现（P1 不各写一份；接入向导「测试连接」的可达性探测随 D-1117-delete-verification 删了）：
  *  - 接入向导的 list-models（用户手填地址+key 后拉清单）
- *  - 接入向导「测试连接」的可达性探测（probe: 'reachability'）
- *  - 供应商连接健康自动检查（vendorHealth，主进程按 vendorKey 自取凭证）
+ *  - 后台对账模型清单（catalogReconciliation，主进程按 vendorKey 自取凭证）
  *
  * 从 onboardingIpc.ts 移出——那份是 IPC 面，这份是领域原语（R9 分层）。
  */

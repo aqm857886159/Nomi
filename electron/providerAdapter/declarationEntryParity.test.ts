@@ -111,9 +111,8 @@ function service(catalog: ReturnType<typeof fakeCatalog>): { service: ProviderAd
     discover: async () => ({ sources: [], corpus: "" }),
     resolveLanguageModels: () => [],
     compile: async () => { throw new Error("parity runs never compile"); },
-    probeCredential: async () => ({ ok: true as const, modelIds: [], listed: false }),
     // 真实的自检（形状判据），只把凭据探测换成免费假答复。
-    verify: (input) => verifyAdapterMode({ ...input, credential: { ok: true, modelIds: [], listed: false } }),
+    verify: (input) => verifyAdapterMode(input),
     now: () => now,
     id: () => `run-${Math.random().toString(36).slice(2)}`,
   };

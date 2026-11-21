@@ -102,7 +102,7 @@ describe("catalog read cache", () => {
     expect(store.readCatalog().vendors[0]?.hasApiKey).toBe(true);
   });
 
-  it("projects persisted pending material as a saved key even while disabled", async () => {
+  it("projects persisted material as a saved key even while disabled; a legacy pending mark is not projected", async () => {
     const store = await seededStore();
     const onDisk = JSON.parse(fs.readFileSync(catalogFile(), "utf8"));
     onDisk.vendors[0].enabled = false;
@@ -114,7 +114,7 @@ describe("catalog read cache", () => {
       enabled: false,
       hasApiKey: false,
       credentialMaterialSaved: true,
-      credentialVerificationPending: true,
     });
+    expect(store.readCatalog().vendors[0]).not.toHaveProperty("credentialVerificationPending");
   });
 });

@@ -34,6 +34,7 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  * 测试自己和它的相对 import 闭包被改，也会选中它（pre-push-contracts.mjs 的 touchesImplementation，不用在这里写）。
  */
 export const SCAN_GUARDS = Object.freeze([
+  { file: 'scripts/model-status-one-home.test.mjs', roots: ['src', 'electron'], files: ['eslint.config.mjs', 'scripts/check-model-availability.mjs'] }, // 退役验证入口和状态词出口扫描；与 ESLint 共用 AST 判据
   { file: 'scripts/check-concept-owners.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-scan.mjs'] }, // 原文改判守门及真实显示正例；重发判定只一处（「结果未知」清单 / 替别的 Run 放占用）。
   // 2026-11-20：付费放行只在一个家判（spend.approval-decision）；遍历 src、electron 找误导性的恒真「算批准」回执（<1 秒）。
   { file: 'scripts/concept-owners-approval.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-approval.mjs', 'scripts/concept-owners-scan.mjs'] },

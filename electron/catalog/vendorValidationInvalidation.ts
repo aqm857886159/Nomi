@@ -29,9 +29,9 @@ export function invalidateVendorValidation(state: CatalogState, vendorKey: strin
     if (model.vendorKey !== vendorKey) return model;
     const meta = record(model.meta);
     const adapter = record(meta.adapter);
-    if (!["failed", "testing", "repairing", "partial"].includes(String(adapter.state))) return model;
+    if (!["verified", "failed", "testing", "repairing", "partial"].includes(String(adapter.state))) return model;
     const activeRevision = typeof adapter.activeRevision === "string" && adapter.activeRevision.trim();
-    const nextAdapter: Record<string, unknown> = { ...adapter, state: activeRevision ? "verified" : "unverified", updatedAt: now };
+    const nextAdapter: Record<string, unknown> = { ...adapter, state: "unverified", updatedAt: now };
     delete nextAdapter.runId;
     if (!activeRevision) delete nextAdapter.modes;
     return { ...model, meta: { ...meta, adapter: nextAdapter }, updatedAt: now };

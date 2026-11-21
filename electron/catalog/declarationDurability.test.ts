@@ -20,9 +20,10 @@ it('stores the original per-model card atomically and without mutable input alia
   draft.models[0].parameters![0].default = 99;
   expect(model.meta).toMatchObject({ declarationSource: { version: 1, card: { sources: draft.sources, omitted: draft.omitted, models: [expect.objectContaining({ parameters: expect.arrayContaining([expect.objectContaining({ key: 'duration', default: 1 })]) })] } } });
 });
-it('records declaration-only evidence as untried without inventing generated media', () => {
+it('records a declaration as declared, with no tried / untried evidence and no invented generated media', () => {
   registerDeclaredProvider({ card: card(), vendorKey: 'relay' });
-  expect(readCatalog().models.find(m => m.vendorKey === 'relay')?.meta).toMatchObject({ adapter: { state: 'declared', evidence: 'self-check' } });
+  expect(readCatalog().models.find(m => m.vendorKey === 'relay')?.meta).toMatchObject({ adapter: { state: 'declared' } });
+  expect((readCatalog().models.find(m => m.vendorKey === 'relay')?.meta as { adapter?: object } | undefined)?.adapter).not.toHaveProperty('evidence');
   expect(JSON.stringify(readCatalog().models.find(m => m.vendorKey === 'relay')?.meta)).not.toContain('mediaEvidence');
 });
 // 参数键是不是中性键在收件口判（validateProviderAdapterDraft），三条入口同一处；这里从整卡提交那条真实入口进。

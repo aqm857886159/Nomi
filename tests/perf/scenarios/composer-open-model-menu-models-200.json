@@ -1,0 +1,28 @@
+{
+  "id": "composer-open-model-menu-models-200",
+  "feature": "200 个模型目录下点开现役生成框的模型菜单，比较共享可用性改动前后首反馈",
+  "script": "tests/perf/composer-refs-bench.mjs",
+  "args": [
+    "--op",
+    "open-model-menu",
+    "--models",
+    "200"
+  ],
+  "scale": "200 个不同视频模型，30 张参考图；菜单沿用生产的折叠与首屏行为",
+  "metrics": [
+    "response",
+    "longTasks"
+  ],
+  "budget": 100,
+  "group": "② 生成框里的操作",
+  "budgetStatus": "proposed",
+  "budgetBasis": "同现有模型菜单场景，沿用默认首反馈100ms / p95 150ms；200条是目录规模，不把折叠后首屏谎报成200行同时可见。",
+  "baseline": {
+    "median": 40.9,
+    "p95": 41.6,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-20",
+    "commit": "4643d8e13"
+  }
+}

@@ -71,7 +71,7 @@ describe("provider adapter registration catalog", () => {
     expect(upsertModel).not.toHaveBeenCalled();
   });
 
-  it("keeps every newly registered model disabled and marks it unverified", () => {
+  it("enables standard text without verification and keeps formatless media disabled", () => {
     const kinds = ["text", "image", "video", "audio", "model3d"] as const;
     const models = Array.from({ length: 20 }, (_, index) => ({
       modelKey: `model-${index + 1}`,
@@ -92,7 +92,7 @@ describe("provider adapter registration catalog", () => {
 
     expect(upsertVendor).toHaveBeenCalledWith(expect.objectContaining({
       key: "generic-gateway",
-      enabled: false,
+      enabled: true,
     }));
     expect(upsertApiKey).toHaveBeenCalledWith("generic-gateway", {
       apiKey: "sk-encrypt-me",
@@ -101,7 +101,7 @@ describe("provider adapter registration catalog", () => {
     expect(upsertModel).toHaveBeenCalledTimes(20);
     for (const [written] of upsertModel.mock.calls) {
       expect(written).toMatchObject({
-        enabled: false,
+        enabled: written.kind === "text",
         onboarding: { addedVia: "manual", addedAt: now, fields: [] },
         meta: {
           adapter: {
@@ -162,6 +162,17 @@ describe("provider adapter registration catalog", () => {
         adapter: expect.objectContaining({ state: "unverified" }),
       }),
     }));
+  });
+
+  it("does not re-enable a manually disabled model when verification is requested again", () => {
+    state = {
+      ...emptyState(),
+      vendors: [{ key: "manual", name: "Manual", enabled: true, authType: "none", baseUrlHint: "https://gateway.example.test/v1", providerKind: "openai-compatible", createdAt: now, updatedAt: now }],
+      models: [{ vendorKey: "manual", modelKey: "manual-text", labelZh: "Manual text", kind: "text", enabled: false, meta: { adapter: { state: "failed" } }, createdAt: now, updatedAt: now }],
+    };
+    const input = { catalogVendorKey: "manual", vendorKey: "manual", vendorName: "Manual", baseUrl: "https://gateway.example.test/v1", apiKey: "", authType: "none" as const, providerKind: "openai-compatible" as const, models: [{ modelKey: "manual-text", kind: "text" as const }], savedAt: now };
+    defaultCatalog.register(input);
+    expect(upsertModel).toHaveBeenLastCalledWith(expect.objectContaining({ modelKey: "manual-text", enabled: false }));
   });
 
   it("rejects preserving a legacy plaintext credential and never echoes it", () => {

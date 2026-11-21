@@ -337,7 +337,7 @@ describe("custom-call custom config secure persistence", () => {
 
   it("encrypts an explicitly supplied vendor meta.customConfig and extraHeaders instead of persisting plaintext", async () => {
     const signingKey = "direct-vendor-write-secret";
-    writeCatalog({ version: CURRENT_CATALOG_VERSION, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
+    writeCatalog({ version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
     const store = await import("./catalogStore");
     const secrets = await import("./secrets");
     const network = await import("./networkConfigStore");
@@ -542,7 +542,7 @@ describe("custom-call custom config secure persistence", () => {
   });
 
   it("stores new values as ciphertext and returns only masked names to the renderer", async () => {
-    writeCatalog({ version: CURRENT_CATALOG_VERSION, vendors: [vendor()], models: [], mappings: [], apiKeysByVendor: {} });
+    writeCatalog({ version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true, vendors: [vendor()], models: [], mappings: [], apiKeysByVendor: {} });
     const store = await import("./catalogStore");
     const secrets = await import("./secrets");
 
@@ -666,7 +666,7 @@ describe("custom-call custom config secure persistence", () => {
 
   it("fails closed when safeStorage is unavailable and leaves the catalog unchanged", async () => {
     safeStorageState.available = false;
-    writeCatalog({ version: CURRENT_CATALOG_VERSION, vendors: [vendor()], models: [], mappings: [], apiKeysByVendor: {} });
+    writeCatalog({ version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true, vendors: [vendor()], models: [], mappings: [], apiKeysByVendor: {} });
     const before = fs.readFileSync(catalogFile(), "utf8");
     const store = await import("./catalogStore");
 

@@ -60,7 +60,6 @@ vi.mock("electron", async () => {
 const fixture = vi.hoisted(() => ({ baseURL: "" }));
 vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: () => undefined }));
 vi.mock("../events/vendorCallTrace", () => ({ traceVendorCompleted: () => undefined, traceVendorRequested: () => undefined }));
-vi.mock("../catalog/validateCandidateCredential", () => ({ revalidatePendingCredential: async () => undefined }));
 // 目录：一条启用着的文本模型，key 已解开。别的都走真的（准入、执行器、错误编码）。
 vi.mock("../catalog/executableModel", () => {
   const selection = () => ({
