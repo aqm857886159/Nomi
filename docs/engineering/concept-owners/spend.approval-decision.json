@@ -53,15 +53,10 @@
       "symbol": "createPolicyDecisionAttestation",
       "kind": "reference",
       "why": "全自动档的策略签证只经主人的 approveGateByPolicy"
-    },
-    {
-      "symbol": "createApprovalReceiptAuthority",
-      "kind": "reference",
-      "why": "收据库工厂返回的完整对象带签发能力：生产里只许装配处 approvalReceiptRuntime.ts 造一份，并把签发单向交给主人；别处再造一份就又多了一个能签批准的家。这是绊线，不是隔离：同一进程里拿共享签名钥匙另造实例不在运行时隔离之内（2026-11-21 协调定的边界）"
     }
   ],
   "parity_test": "electron/capabilityCore/approvalOneHome.test.ts",
-  "allowed_consumers": ["electron/capabilityCore/approvalReceiptRuntime.ts", "electron/capabilityCore/canvasShotTestUtils.ts"],
+  "allowed_consumers": [],
   "since": "2026-11-20",
   "notes": "以前这件事散在 6 处：客户端出口的裸同意分支、出口里永不释放的「确认成功」缓存、兜底卡自己判自己签、主进程见客户端名字就签、旧无 Run 路派发器自己签策略收据、生成门本身。外部「没人答」按 300 秒传输期限结束、应用内没有期限；用过的批准同一条连接上可以不再问人又领一次。现在都只在主人判：应用内与外部同一条结束规则（答复 / 取消 / 问人的面没了，2026-09-11 拍板的「等人没有墙钟期限」外部也照办）；客户端收据要人的原话（accept 且 confirm 严格为真）和请求头里验过的身份；已用掉的批准不再问、不再签；降档挑战键带 Run 版本，Run 边界拒用掉的降档收据。readApprovalDecision 是给重发等只读调用方的接口（不盖章、不写库）；今天主进程不写「拒绝」档（人点「不」后挑战仍是等人，再来一次会再问），rejected 只认旧数据。面板卡交接与画布交接经 mainProcessGateApproval（同文件、出生即用掉），不在本概念的签发口之外另算。机器判据：scripts/concept-owners-approval.mjs#findApprovalDecisionBypass（挂在 check:concept-owners，SCAN_GUARDS 推送前跑），2026-11-21 接替只扫一个文件字面写法的 check:spend-receipt。设计卡 docs/plan/2026-11-20-approval-one-home.md。"
 }
