@@ -13,7 +13,7 @@
 //   6. 只看价格：假服务收到的非 GET 0 次，花钱授权（审批流水 / 收据）0 条。
 // 最后真点一次发送：停在花钱确认就取消；没有确认直接发出也只发给假服务（扣 5 秒再回 405，留出「生成中」那一帧），这一笔单独记账。
 // 各状态的截图（对照表 cost.send-pill / cost.hover 每行一张，<语言>-<状态>[-dark].png）：loading（第一次读价目被假服务扣 6 秒）、
-//   priced、hover、longest（1080P 15 秒 = 14.63 积分，最长的数）、narrow（同一帧、窗口收到 700 宽）、unknown、unknown-hover、
+//   priced、hover、longest（Seedance 2.0 标准版 1080P 15 秒 = 14.63 积分，最长的数）、narrow（同一帧、窗口收到 700 宽）、unknown、unknown-hover、
 //   error-500、error-timeout、generating（发出去、假服务还没回）。「禁用 + 有价」真窗口造不出（能禁用发送的条件都带参考输入或制作流程，
 //   带参考的这一单真价目判估不出），由实验室格 sc-i-disabled-priced 和 ComposerSendButton 单测守。
 //
@@ -52,8 +52,11 @@ const LOCALES = onlyLocale ? [onlyLocale] : perfFile ? ['zh-CN'] : ['zh-CN', 'en
 /** 取证：把发送键往左撑宽 N 像素（主分支没有约价胶囊，用它模拟胶囊占的宽，复现同一个让法漏量）。 */
 const WIDEN_PX = Number(process.env.NOMI_SEND_COST_WIDEN_PX) || 0
 
-/** 假价目（美元 / 秒，照 APIMart 公开价目的字段形状）。最贵规格 = 1080P：15 秒 1.4625 美元 = 14.63 积分。 */
-const VIDEO_RATES = { 'seedance-2.0-mini': { '480P': 0.02, '720P': 0.039, '1080P': 0.0975 } }
+/** 假价目（美元 / 秒，照 APIMart 公开价目的字段形状）。最贵规格 = 标准版 1080P：15 秒 1.4625 美元 = 14.63 积分。 */
+const VIDEO_RATES = {
+  'seedance-2.0-mini': { '480P': 0.02, '720P': 0.039 },
+  'seedance-2.0': { '480P': 0.02, '720P': 0.039, '1080P': 0.0975 },
+}
 /** 演出错（500）/ 演超时（一直不回）的型号；其余没列的型号回 success:false（价目里没有）。 */
 const FAILING = new Map()
 /** 演「算价中」：下一次读这个型号的价目扣多少毫秒再回（只扣一次）。 */
@@ -327,31 +330,6 @@ try {
         record[`task2-${key}`] = { before, after: credits(usd), frames: values }
       }
 
-      // 最长的数：假价目最贵的规格（1080P）× 最长时长（15 秒）= 14.63 积分；数字一行、不出浮框，摘要不压工具（setParam 里核）。
-      await setParam('resolution', '1080p')
-      await setParam('duration', 15)
-      await expect(pill, 'board:ModelSurfaces/cost.send-pill').toHaveText(credits(0.0975 * 15), { timeout: stationTimeout() })
-      const fits = async (label) => {
-        const [box, pillBox, sendBox, lastTool] = [await composer.boundingBox(), await pill.boundingBox(), await send.boundingBox(),
-          await composer.locator('[data-prompt-tool]').last().boundingBox()]
-        assert(pillBox && pillBox.height < 24, `${label}: the number stays on one line (${pillBox?.height})`)
-        assert(box && sendBox && sendBox.x + sendBox.width <= box.x + box.width + 0.5, `${label}: the send key stays inside the composer`)
-        assert(lastTool && sendBox && lastTool.x + lastTool.width <= sendBox.x + 0.5, `${label}: the prompt tools end before the send key`)
-        return box
-      }
-      const wideBox = await fits('longest')
-      await frame('longest')
-      // 最窄：生成浮框宽恒为 NODE_COMPOSER_WIDTH，不随节点和窗口变；窗口收到 700 宽再核一遍同一帧。
-      await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(700, 720))
-      await expect.poll(() => win.evaluate(() => window.innerWidth), { timeout: stationTimeout() }).toBeLessThan(720)
-      await summaryClearOfTools('narrow window')
-      const narrowBox = await fits('narrow')
-      assert(Math.abs(narrowBox.width - wideBox.width) < 1, `composer keeps its width in a narrow window: ${wideBox.width} → ${narrowBox.width}`)
-      await frame('narrow')
-      record.longest = { pill: await pill.innerText(), composerWidth: wideBox.width, narrowComposerWidth: narrowBox.width }
-      await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1220, 840))
-      await expect.poll(() => win.evaluate(() => window.innerWidth), { timeout: stationTimeout() }).toBeGreaterThan(1000)
-
       // 任务 4：价目里没有的型号 → 只剩箭头、悬停「暂时估不出这次用量」。
       await pick(/^Wan 2\.7$|^Wan/, 'a model the price list lacks')
       await expect(send, 'board:ModelSurfaces/cost.send-pill').toHaveAttribute('aria-description', uiText(locale, 'generationCommon.composer.sendCost.priceUnknown'), { timeout: stationTimeout() })
@@ -377,6 +355,33 @@ try {
         await frame(mode === 'hang' ? 'error-timeout' : 'error-500')
         record[`task5-${mode}`] = { model, unknown: true }
       }
+
+      // 最长的数：Seedance 2.0（标准版，Mini / Fast 只到 720P）最贵的规格 1080P × 最长时长 15 秒 = 14.63 积分；
+      // 数字一行、不出浮框，摘要不压工具（setParam 里核）。接着任务 5 的超时：那次读空已把缓存删掉，撤掉故障后改参数就重新读价。
+      FAILING.delete('seedance-2.0')
+      await setParam('resolution', '1080p')
+      await setParam('duration', 15)
+      await expect(pill, 'board:ModelSurfaces/cost.send-pill').toHaveText(credits(0.0975 * 15), { timeout: stationTimeout() })
+      const fits = async (label) => {
+        const [box, pillBox, sendBox, lastTool] = [await composer.boundingBox(), await pill.boundingBox(), await send.boundingBox(),
+          await composer.locator('[data-prompt-tool]').last().boundingBox()]
+        assert(pillBox && pillBox.height < 24, `${label}: the number stays on one line (${pillBox?.height})`)
+        assert(box && sendBox && sendBox.x + sendBox.width <= box.x + box.width + 0.5, `${label}: the send key stays inside the composer`)
+        assert(lastTool && sendBox && lastTool.x + lastTool.width <= sendBox.x + 0.5, `${label}: the prompt tools end before the send key`)
+        return box
+      }
+      const wideBox = await fits('longest')
+      await frame('longest')
+      // 最窄：生成浮框宽恒为 NODE_COMPOSER_WIDTH，不随节点和窗口变；窗口收到 700 宽再核一遍同一帧。
+      await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(700, 720))
+      await expect.poll(() => win.evaluate(() => window.innerWidth), { timeout: stationTimeout() }).toBeLessThan(720)
+      await summaryClearOfTools('narrow window')
+      const narrowBox = await fits('narrow')
+      assert(Math.abs(narrowBox.width - wideBox.width) < 1, `composer keeps its width in a narrow window: ${wideBox.width} → ${narrowBox.width}`)
+      await frame('narrow')
+      record.longest = { pill: await pill.innerText(), composerWidth: wideBox.width, narrowComposerWidth: narrowBox.width }
+      await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1220, 840))
+      await expect.poll(() => win.evaluate(() => window.innerWidth), { timeout: stationTimeout() }).toBeGreaterThan(1000)
 
       // 任务 6：只看价格 → 假服务非 GET 0 次、授权 0 条。
       assert.equal(nonGet(), explicitSends, 'viewing prices sent no generation request')
