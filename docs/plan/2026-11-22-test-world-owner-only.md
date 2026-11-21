@@ -41,14 +41,14 @@
 | 质量：已知红名单长度 / 过期条数 | 没有名单 | ≤8 / 0 | 夜跑作业：超上限或有过期就红 |
 | 质量：30 天内夜跑全绿的晚数 | 0/31（R:41） | 未验证：缺量具（名单落地前定不出可信目标） | `gh run list` 夜跑作业结论 |
 | 护栏：哪里都不跑的测试 | 走查 36 + e2e 68 + probe 4 = 108（E/runs-nowhere.out；e2e 拆开是没人提 20 + 只在名册和基线里 46 + 本机工具点名 2，见 E/e2e-mentions.out） | 0 | 选择表单测（照 `OTHER_LANES`） |
-| 护栏：锁误拦只经主人写的测试 | 写盘 0/49（测试驱动产品代码、由产品自己去写的）；假桥对照 0/32；mock 锁对照 0/28（另 2 份是静态正则漏掉的真 mock）；spyOn 锁对照 0/5 | 0 | 探针（E/world-probe2.out、E/bridge-probe.out、E/mock-probe/record.out、E/mock-probe/spy.out） |
+| 护栏：锁误拦只经主人写的测试 | 写盘 0/49（测试驱动产品代码、由产品自己去写的）；假桥对照 0/32；mock 锁对照 0/28（另 2 份是静态正则漏掉的真 mock）；spyOn 锁对照 0/5；冻结主人命名空间：碰桥的 32 份 686 条、`electron/catalog` 186 份 4498 条，0 红 | 0 | 探针（E/world-probe2.out、E/bridge-probe.out、E/mock-probe/record.out、E/mock-probe/spy.out、E/mock-probe/freeze-on-*.log） |
 | 护栏：锁带来的单测墙钟开销 | 未验证：缺量具（探针跑过 248 份 178 秒，但没有同批不加锁的对照） | ≤5% | 批 1 用同一批文件加锁 / 不加锁各跑 3 次 |
 
 ### ★1b 连带界面
-不适用：只改测试和测试设施，碰到的产品代码只有两处：4 处直接读 `window.nomiDesktop` 的地方改走 `getDesktopBridge()`；渲染端入口认领一次桥对象。拿到的还是同一个对象，没有可见差异。
+不适用：没有可见差异。碰到的产品代码：①4 处直接读 `window.nomiDesktop` 的地方改走 `getDesktopBridge()`；②渲染端入口认领一次桥对象；③`src/desktop/bridge.ts:425` 的 `getDesktopBridge` 改成只返回认领过的对象，不再每次现读 window；④`Window` 全局声明删掉 `nomiDesktop`（只是类型）；⑤每个主人模块加一个标记导出，声明「我是主人」（设计，没探：探针认主人用的是手写导出名单）。冻结主人命名空间由测试时的转换插件注入，不进产品构建。
 
 ### ★1c 老用户
-- **创作者**：不适用，产品行为不变。preload 暴露的对象不变（`electron/preload.ts:21`），4 处直读改走 `getDesktopBridge()` 后拿到的还是同一个对象；没有桥的环境照旧拿到空。
+- **创作者**：不适用，产品行为不变。preload 暴露的对象不变（`electron/preload.ts:21`），4 处直读改走 `getDesktopBridge()` 后拿到的还是同一个对象；没有桥的环境照旧拿到空。上面 ③ 让桥在页面启动时就定下来，页面运行中途才出现的桥不再被认（Electron 里 preload 先于页面脚本跑，今天没有这种情况）。
 - **在路上的分支（这件事里真正的「老用户」）**：锁上线那一刻，新写的手抄测试会在 CI 红，报错点名新入口。冻结名单只收锁上线那一刻已在 main 上的文件，不收分支上新写的，在路上的分支要按新入口改。已知一份：`feat/cost-step1-estimate` 上新建的 `composerBridgeTestUtils.ts`，是第二个假桥的家。协调 11-22 定：照常合入，批 3 在 `desktopBridgeForTest` 的同一个提交里删掉。
 - **已有、还没迁的测试**：进「还没迁」冻结名单（见下），照常跑。名单只许减，由记录模式自动生成，不手写。最后一批同提交删掉名单。
 - **旧版真实数据**：`tests/fixtures/old-user-data/` 不动，成为唯一的「测老版本迁移」出口。手写的旧数据名册（`tests/ux/uiDriverOptions.mjs:25`）删掉，改由目录派生。这份名册今天盘上 4 份只登记了 2 份（R:37），正是手抄名册的病。
@@ -73,8 +73,8 @@
 | 家 | 今天几份 | 「1」靠什么保持 |
 |---|---|---|
 | 测试手写主人存盘文件 | 单测 84 份；走查侧 217 份（提示级） | 只认主人：写的那一刻核调用栈 |
-| 假桥 | 换模块 66 份；装假 `window.nomiDesktop` 13 份，且探针漏 8 份；设计实验室 14 份；产品直读 4 处；另有约价线的一份共享假桥 | 只认主人：`getDesktopBridge` 用的那一刻核，前提是 C' 堵住换掉主人导出 |
-| 换掉主人导出（mock / spyOn / 直接改命名空间） | vi.mock 132 份是静态下限（E/vimock-owner.out）；vi.spyOn 5 份（E/spyon-owner.out）；直接 `Object.defineProperty` 改命名空间 0 份已知，但探针证实能绕 | 运行时拦三扇门已验；第四扇的堵法未验证 |
+| 假桥 | 换模块 66 份；装假 `window.nomiDesktop` 13 份，且探针漏 8 份；设计实验室 14 份；产品直读 4 处；另有约价线的一份共享假桥 | 只认主人：`getDesktopBridge` 用的那一刻核；换掉桥模块这条路归 C' |
+| 换掉主人导出（mock / spyOn / 直接改命名空间） | vi.mock 132 份是静态下限（E/vimock-owner.out）；vi.spyOn 5 份（E/spyon-owner.out）；直接 `Object.defineProperty` 改命名空间 0 份已知，但探针证实能绕 | spyOn 和直接改命名空间：结构上做不出来（冻结主人命名空间，探针验过）；`vi.mock` / `vi.doMock`：只剩一扇门，运行时拦（探针验过） |
 | 静态模型表 | 109 张、217 份文件写了手写行 | 做不到，见下 |
 | 测试专用宿主 | 8 个 TestUtils、102 份引用 | 只认主人，靠 #1590 的发证登记（装配第 2 刀） |
 | 注入自己的读写函数 | 26 个产品端口、123 份文件、279 处；宿主和走查层 19 份；走查换 ipc 3 份；`mainRequire` 预载 20 份 | 走查和宿主层只认主人；单测层做不到 |
@@ -138,7 +138,7 @@
 | 删什么 | 单测里 84 份自己写主人文件的手写世界：第一帧就是测试的 81 份（model-catalog 38、project 31、provider-adapters 6、project-location 3……，E/world-probe.out），加上直接拿存盘原语写的 3 份（`electron/durability.test.ts`、`electron/runtimePaths.test.ts`、`electron/parity/modelListingParity.test.ts`，E/world-probe2.out）；走查侧 217 份里的手写 JSON（目录 83、项目 158，提示级）；`_mcpL2Fixture.mjs` 自己落盘那一步；`launchNomiApp` 的 `settingsDir`、`projectsDir` 参数（`tests/ux/_launchApp.mjs:668`）；`uiDriverOptions.mjs:25` 手写的旧数据名册 |
 | 谁顶替 | `tests/world/buildWorld(spec)`：调主人函数造世界，返回世界句柄；`launchNomiApp({ world })` 只收句柄 |
 | 机制 | **只认主人**：单测 setup 和走查启动器都给 `node:fs` 的写 API 打补丁，并调 `syncBuiltinESMExports`，覆盖 write、append、copy、cp、rename、promises 各型。写到主人文件名时核调用栈，看的是「谁调进了产品」（直接调用者规则）：从写的那一帧往外走，先是一段连续的产品帧，再往外那一帧就是调用者。拦三种情况：①第一帧就是测试代码（测试自己写）；②调用者是测试，产品段最外层是存盘原语 `jsonFile.ts` 或 `configFileStore.ts`（测试拿原语写手写内容）；③调用者是测试，产品段最外层是这个文件的主人写口，而测试既不在 `tests/world/` 也不在主人自己目录（越过造世界入口直调主人）。另外放行旧数据和坏数据两个出口。测试驱动 IPC、服务、迁移这类产品代码、由产品自己去写的，一律放行。每个文件名的主人写口不手写，由记录模式算：哪个产品模块调了原语写它。探针里 `project.json` 由 `electron/workspace/workspaceManifestTransaction.ts` 写，`model-catalog.json` 还有 `electron/settings/sideBySideInstallSeed.ts` 这第二个产品写入者（E/world-probe2.out 那次统计）。**去料**：启动器不再收目录参数，测试拿不到「自己指一个手写好的目录」的原料。启动和重启时还核一份哈希清单，造完世界后到启动前有人改过文件，就拒绝启动 |
-| 证明档 | 只认主人 + 去料，前提是 C' 把「换掉主人导出」堵死：mock 掉 `readCatalog` 的测试根本走不到写盘锁 |
+| 证明档 | 手造文件这条路：只认主人 + 去料。换掉主人导出这条路归 C'（mock 掉 `readCatalog` 的测试根本走不到写盘锁）：spyOn、改命名空间结构上做不出来，`vi.mock` / `vi.doMock` 是运行时拦。按开头的分档，整类只差 `vi.mock` 这一扇门，不算完整的写不出来 |
 | 反例 | `fs.writeFileSync(.../model-catalog.json)` → 拦；`writeJsonFileAtomic` 直调 → 拦；`cpSync` 一个含 `project.json` 的目录 → 拦（cp 补丁递归核目的树）；非主人目录的测试调 `mutateCatalog` → 拦（最近的测试侧帧不合格） |
 | 不误伤样本 | 按直接调用者规则离线重判 248 份：放行 49 份，例 `electron/catalog/catalogPackagePortability.test.ts`、`electron/settings/assetRelaySettings.test.ts`（E/world-probe2.out）。上一版只看第一帧时放行 52 份，多出的 3 份就是上面直接拿原语写的。初稿规则要求「最近的测试帧必须在主人目录」，会误拦主人目录外驱动产品代码的集成测试，已弃 |
 | 合法出口 | (a) `seedOldUserData(id)`：只读 `tests/fixtures/old-user-data/<id>`，那里的数据是旧版真函数生成的（README 和 generators 为证）；仓库里旧数据目录以外提交的主人文件名 JSON 是 0 份（`git ls-files` 核过）。(b) `damageWorldFile(world, file, kind)`：只收主人已经产出的文件，坏法只能从具名清单挑（截断、坏 JSON、删字段、改类型、空文件、BOM），不收内容参数。两个出口都由锁按函数帧认，在别处调没用：锁只认这两个帧。会被拦的 84 份里，提到旧数据或迁移的 11 份是出口候选，逐份核，只有真读旧数据的才走 (a) |
@@ -151,22 +151,22 @@
 | 谁顶替 | `tests/world/bridge.ts` 的 `desktopBridgeForTest(world, overrides)`，用 `satisfies DesktopBridge` 写出，再配一份对真 preload 对象的一致性测试；设计实验室也用它 |
 | 机制 | **只认主人**：`getDesktopBridge()` 每次被调都核对象是否在「已发证」WeakSet 里。登记不能放在 preload：`exposeInMainWorld` 交给页面的是隔离世界复制过来的对象，preload 的 WeakSet 页面看不见。所以照 #1590 在渲染端入口 claim-once：入口第一行把 `window.nomiDesktop` 认领为唯一发证对象，之后 `getDesktopBridge` 只返回认领过的对象，不再现读 window。同一对象每次读是否同一引用：未验证，批 3 在真窗口核一次。测试 setup 先占住发证口，产品入口就认领不了，测试只能经 `desktopBridgeForTest` 拿桥。**去料**：`Window` 的全局声明里删掉 `nomiDesktop`（`src/desktop/bridge.ts:419`），产品代码类型上读不到它，只剩 `getDesktopBridge` 一扇门。模块 mock 由 C' 的 mock 锁拦 |
 | 证明档 | 只认主人 + 去料 |
-| 反例 | 测试直接 `window.nomiDesktop = {…}` → 第一次用时抛 `desktop_bridge_not_issued`；`vi.mock('@/desktop/bridge')` → 登记那一刻抛错（探针 3/3）；`vi.spyOn(bridge, 'getDesktopBridge')`（今天 `src/workbench/taskCenter/taskCenterSettings.test.ts:13` 就这么写）→ 抛错（探针 2/2）；`Object.defineProperty(bridge, 'getDesktopBridge', …)` → 今天能绕，消费方拿到假的（E/mock-probe/ns-define.json），归 C'；产品新写 `window.nomiDesktop.x` → tsc 红 |
+| 反例 | 测试直接 `window.nomiDesktop = {…}` → 第一次用时抛 `desktop_bridge_not_issued`；`vi.mock('@/desktop/bridge')` → 登记那一刻抛错（探针 3/3）；`vi.spyOn(bridge, 'getDesktopBridge')`（今天 `src/workbench/taskCenter/taskCenterSettings.test.ts:13` 就这么写）→ 抛错（探针 2/2）；`Object.defineProperty(bridge, 'getDesktopBridge', …)` → 冻结前能绕、消费方拿到假的，冻结 `bridge.ts` 命名空间后抛错、消费方仍拿真的（E/mock-probe/freeze-off.json、freeze-on.json），归 C'；产品新写 `window.nomiDesktop.x` → tsc 红 |
 | 不误伤样本 | 只 stub window、不碰桥的 32 份，0 误认（E/bridge-probe.out） |
 | 合法出口 | 只有 `desktopBridgeForTest`。故障注入走 `overrides` 里具名的 `fault(kind)`，不收任意函数 |
-| 做不到 | 本类自身无。探针漏的 8 份正说明「看装没装」不行，必须「用的那一刻核」。但整类依赖 C'：直接改主人命名空间那扇门堵上之前，算不上写不出来 |
+| 做不到 | 本类自身无。探针漏的 8 份正说明「看装没装」不行，必须「用的那一刻核」。整类和 A 一样只差 `vi.mock('@/desktop/bridge')` 这一扇门是运行时拦（归 C'） |
 
 ### C' 换掉主人导出：`vi.mock`、`vi.doMock`、`vi.spyOn`、直接改命名空间
 | 项 | 内容 |
 |---|---|
 | 删什么 | `vi.spyOn` 打主人命名空间的 5 份（E/spyon-owner.out）；目标是主人模块的 mock：静态数 132 份是下限（桥 66、目录 28、项目 27、目录读口 12、设置 10、存盘原语 2，E/vimock-owner.out）。运行时探针在 30 份对照里又认出 2 份静态正则漏掉的相对路径 `./catalogStore`（E/mock-probe/record.out），所以真数更多，以批 1 记录模式为准 |
 | 谁顶替 | 同 A、B：世界由 `buildWorld` 造，桥由 `desktopBridgeForTest` 给 |
-| 机制 | **运行时拦，四扇门**：①②setup 里包住 `__vitest_mocker__.queueMock`，`vi.mock` 和 `vi.doMock` 都经这里（vitest 4.1.8 `node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:3569`、`:3578`），按 importer 解析路径，目标是主人模块就抛 `owner_module_mock_refused`。探针：认出 30/30，抛错后 3/3 文件红，对照 0 误认。③包住 `vi.spyOn`，目标是主人模块命名空间就抛。探针：5/5 份 spyOn 主人的认出并红，对照 5 份 0 误认（E/mock-probe/spy.out）。主人模块用自己导出的标记常量声明身份，名单不手写。④直接 `Object.defineProperty(命名空间, …)`：探针证实今天能绕，消费方拿到的是假的（E/mock-probe/ns-define.json）。堵法候选是让主人模块在测试运行时冻结自己的命名空间（vitest 转换插件，或模块自引用后 freeze），**未验证**，批 1 第一步先探 |
-| 证明档 | 运行时拦，靠的是 vitest 内部接口。升级 vitest 时由一份元测试兜底：固定夹具 mock 桥，必须红，不红就是门换了 |
-| 反例 | `vi.mock('./catalogStore')` → 拦；`vi.doMock` → 拦；`vi.spyOn(projectRepository, 'saveProject')` → 拦（探针）；`Object.defineProperty(bridge, 'getDesktopBridge', …)` → 今天不拦 |
-| 不误伤样本 | 只 mock 非主人模块的 28 份对照、只 spyOn 非主人命名空间的 5 份对照，0 误认 |
+| 机制 | **四扇门，两扇运行时拦、两扇结构上做不出来**：①②setup 里包住 `__vitest_mocker__.queueMock`，`vi.mock` 和 `vi.doMock` 都经这里（vitest 4.1.8 `node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:3569`、`:3578`），按 importer 解析路径，目标是主人模块就抛 `owner_module_mock_refused`。探针：认出 30/30，抛错后 3/3 文件红，对照 0 误认。③包住 `vi.spyOn`，目标是主人模块命名空间就抛。探针：5/5 份 spyOn 主人的认出并红，对照 5 份 0 误认（E/mock-probe/spy.out）。主人模块用自己导出的标记常量声明身份，名单不手写（设计，没探：探针认主人用的是手写导出名单）。④直接 `Object.defineProperty(命名空间, …)`：今天能绕，消费方拿到的是假的（E/mock-probe/ns-define.json、freeze-off.json）。**堵法：主人模块在测试时冻结自己的命名空间**（模块末尾自引用后 `Object.freeze`）。探针在 `bridge.ts` 末尾手加这两行（E/mock-probe/freeze-on.json）：`defineProperty` 抛 `Cannot redefine property`，消费方仍拿真的；`vi.spyOn` 抛 `Module namespace is not configurable`；`vi.resetModules` 之后新对象仍冻结；同文件 spyOn、mock 非主人模块照常。冻结后 ③④ 两扇门都是结构上做不出来，③ 的 spyOn 包装可以不要。正式做法由 vitest 转换插件给带标记导出的主人模块末尾注入这两行，只在测试时注入，不进产品构建；插件本身没探，批 1 第一步做 |
+| 证明档 | ③④ 结构上做不出来（冻结）。①② 运行时拦，单门，靠的是 vitest 内部接口。升级 vitest 时由一份元测试兜底：固定夹具 mock 桥、改桥命名空间，必须红，不红就是门换了 |
+| 反例 | `vi.mock('./catalogStore')` → 拦；`vi.doMock` → 拦；`vi.spyOn(projectRepository, 'saveProject')` → 拦（探针）；`Object.defineProperty(bridge, 'getDesktopBridge', …)` → 冻结前能绕，冻结后抛错（探针） |
+| 不误伤样本 | 只 mock 非主人模块的 28 份对照、只 spyOn 非主人命名空间的 5 份对照，0 误认。冻结 `bridge.ts` 后碰桥、不换桥的 32 份 686 条全绿；冻结 `catalogStore.ts` 后 `electron/catalog` 186 份 4498 条全绿（E/mock-probe/freeze-on-wide.log、freeze-on-catalog.log） |
 | 合法出口 | 无（主人模块不许假） |
-| 做不到 | 第④扇门的堵法验证之前，本类不算写不出来；A、B、D 的「只认主人」都靠它兜底。今天已知用第④扇门的测试 0 份，只是门开着 |
+| 做不到 | `vi.mock` / `vi.doMock` 换掉主人模块：只能在登记那一刻抛错（运行时拦，单门），找不到结构上的办法，因为 mock 换的是模块登记表里的整个模块，消费方拿到的就是假的，主人自己的核对也一起被换掉。A、B、D 都只差这一扇门。要协调定：单门、登记即抛、由元测试守住门没换，这一档算不算写不出来 |
 
 ### C 静态模型表：手写模型行，喂给纯函数
 | 项 | 内容 |
@@ -190,7 +190,7 @@
 | 反例 | **把工厂改坏成永远「没就绪」，CI 上的测试必须红**。今天不红：`externalAgentGateTestUtils` 和 `agentPanelSpendConfirmTestUtils` 绕开了工厂（协调 11-21 实测）。新写一个 TestUtils 手接宿主 → 用的那一刻没证，抛 `generation_planning_not_issued` |
 | 不误伤样本 | 走工厂的 vitest 测试（第 2 刀定） |
 | 合法出口 | `issueGenerationPlanningForTest`，只在 setup 里开 |
-| 做不到 | 本类自身无，前提是 #1590 合入、第 2 刀做完；同样依赖 C' 堵住换掉 `generationDomain` 导出 |
+| 做不到 | 本类自身无，前提是 #1590 合入、第 2 刀做完；和 A、B 一样只差 `vi.mock` 换掉 `generationDomain` 这一扇门是运行时拦（归 C'） |
 
 ### G 注入自己的读写函数
 | 项 | 内容 |
@@ -250,12 +250,12 @@
 
 走查侧 A × E 共有 140 份文件（E/overlap.out），所以走查侧是**一条流**：每份文件 A、E、F、G 一次迁完，按文件清单分片。单测侧按批算（含各批要迁的 mock 文件，E/batch-overlap.out）：批 3 × 批 4 重叠 4 份，3 × 5 重叠 12 份，4 × 5 重叠 15 份。共享文件归编号小的批，由它把这份文件里各类一次迁完，另外两批不碰它，所以 3、4、5 能并行。批 6、7 要等前提（第 2 刀、录制），和它们共享的文件（3 × 6 有 11 份、4 × 6 有 8 份、5 × 6 有 12 份）由前面的批只迁自己那类，6、7 开工时前面已合入，再动同一份文件不冲突。
 
-「还没迁」名单是冻结名单，每把锁各带一份（写盘、mock / spyOn、桥），都在批 1 随锁一起上线。不然批 3 先开桥锁，会把批 4、5 里还没迁的文件一下打红。名单放在 `tests/world/not-yet-migrated/<锁>.json`，由锁的记录模式生成，CI 核它和记录结果一致。只减不增，新文件进不去，所以新测试从锁上线第一天就写不出来。每类最后一批同提交删掉该类的名单。
+「还没迁」名单是冻结名单，跟它的锁同批上线。写盘锁和换导出锁在批 1 上线，各带一份名单：换导出锁一开就碰到批 3–6 的 mock（含 D 装配的 mock），不带名单会把这些还没迁的文件一下打红。桥锁在批 3 上线，和桥共享的文件都归批 3、一个 PR 迁完，所以不带名单；批 1 到批 3 之间新写的装假 window 测试没人拦，批 3 开工时重数一并迁。名单放在 `tests/world/not-yet-migrated/<锁>.json`，由锁的记录模式生成，CI 核它和记录结果一致。只减不增，新文件进不去，所以新测试从锁上线第一天就写不出来。每类最后一批同提交删掉该类的名单。
 
 | 批 | 碰的文件 | 删除清单 | 机制 | 验收判据 | 规模 | 能否并行 |
 |---|---|---|---|---|---|---|
 | 0 丙 | `scripts/nightly-walk-{selection,summary}.mjs`、`.github/workflows/nightly-walkthroughs.yml`、`tests/ux/nightly-known-red.json`（新）、`nightly-ci-exclusions.json`、被删的测试文件 | 到期或无人认领的红；哪里都不跑又不挂的 | 作业红 = 名单外新红 / 超上限 / 过期 / 名单里变绿；选择表单测；名单格式单测拒空 owner | 反例四条各让作业红；108 份「哪里都不跑」降到 0 | 1 天 | 与 1 并行（被删的走查不进批 1 清单） |
-| 1 地基 + 目录走查 | `tests/world/*`（新）、`tests/setup/world.ts`（新，用 `import.meta.glob` 收 `tests/setup/world/*.ts`，之后各批只加文件不改它）、`tests/setup/world/{fsLock,exportLock}.ts`（新，写盘锁和换导出锁）、`vitest.config.ts` 一行、`tests/ux/_launchApp.mjs`、`ui-driver.mjs`、`uiDriverOptions.mjs`、`_mcpL2Fixture.mjs`；走查：`bd40dc0b5` 那 13 份 + #1560 那 9 份 + 其余手写目录的 tests/ux 文件（catalog-writers：hand-only 31） | A 的走查侧目录部分；启动器目录参数；手写旧数据名册 | A 写盘锁（单测 + 走查）+ C' 换导出锁（四扇门，第④扇先探堵法）+ 各锁冻结名单 + 出口 (a)(b) | **回放**：在分支上把目录版本升一档，照 `bd40dc0b5`；再按 #1560 前后的规则各跑一遍。预测：0 份翻红、0 份要改。**基线**：升版要改 13 份；#1560 同形状 9 份 8 红（R:33）。**判据同时要求**这 22 份文件仍在、仍被夜跑选中（`node scripts/nightly-walk-selection.mjs` 列得出），删测试换来的 0 红不算 | 2–3 天 | 与 0 并行 |
+| 1 地基 + 目录走查 | `tests/world/*`（新）、`tests/setup/world.ts`（新，用 `import.meta.glob` 收 `tests/setup/world/*.ts`，之后各批只加文件不改它）、`tests/setup/world/{fsLock,exportLock}.ts`（新，写盘锁和换导出锁）、`vitest.config.ts` 一行、`tests/ux/_launchApp.mjs`、`ui-driver.mjs`、`uiDriverOptions.mjs`、`_mcpL2Fixture.mjs`；走查：`bd40dc0b5` 那 13 份 + #1560 那 9 份 + 其余手写目录的 tests/ux 文件（catalog-writers：hand-only 31） | A 的走查侧目录部分；启动器目录参数；手写旧数据名册 | A 写盘锁（单测 + 走查）+ C' 换导出锁（`queueMock` 单门 + 冻结主人命名空间的转换插件）+ 两份冻结名单 + 出口 (a)(b) | **回放**：在分支上把目录版本升一档，照 `bd40dc0b5`；再按 #1560 前后的规则各跑一遍。预测：0 份翻红、0 份要改。**基线**：升版要改 13 份；#1560 同形状 9 份 8 红（R:33）。**判据同时要求**这 22 份文件仍在、仍被夜跑选中（`node scripts/nightly-walk-selection.mjs` 列得出），删测试换来的 0 红不算 | 2–3 天 | 与 0 并行 |
 | 2 走查流 | tests/ux 走查侧其余文件，按清单分 2–3 片，片间文件不交 | A 走查剩余、E 字面定位、F 走查侧回答、G 走查 `mainRequire` 和 ipc 换手 | E 的 Proxy（第 1 片先做部分匹配探针）、`mainRequire` 登记表、`faultAt` | 每片：冻结名单相应条目删掉；E 反例表逐条有结果 | 每片 2 天 | 片与片可并行；与 3、4、5 并行 |
 | 3 假桥 | `src/desktop/bridge.ts`、渲染端入口、4 个直读产品文件、`tests/world/bridge.ts`、设计实验室 14 份、桥 mock 66 + 假 window 21 份 + spyOn 桥 1 份 | B 全部；`composerBridgeTestUtils.ts` 和引用它的测试（今天 3 份、6 处，开工时重数），在 `desktopBridgeForTest` 的同一个提交里删掉 | B（发证认领 + 删全局声明） | 反例表 B 全红；对照 32 份 0 误认 | 2 天 | 与 2、4、5 并行（和 4 共享 4 份、和 5 共享 12 份，都归 3） |
 | 4 存盘单测侧 | 写盘锁拦下的 84 份 + 目录、项目、设置、原语的 mock 67 份 + spyOn 主人 3 份 | A 单测侧；写盘和换导出两份冻结名单里本批的条目 | A、C' 的锁已在批 1 开 | 冻结名单删光 | 2–3 天 | 与 2、3、5 并行 |
@@ -292,13 +292,13 @@
 - `python3 -I E/vimock-owner.py <repo> E`：mock 主人模块。
 - `python3 -I E/walk-world-writers.py <repo> E`：走查侧写盘。
 - `python3 -I E/overlap.py E`：批次间的文件重叠。
-- 探针分析：`python3 -I E/world-probe-analyze.py <repo> E`、`python3 -I E/world-probe2-analyze.py <repo> E`（三种规则对比）、`python3 -I E/bridge-probe-analyze.py <repo> E`、`python3 -I E/mock-probe/analyze.py <repo> E/mock-probe record.jsonl`。探针本体跑完已删。批 1 把写盘和 mock 两个探针做成锁的记录模式进仓库，这些数以后由仓库里的命令重跑。
+- 探针分析：`python3 -I E/world-probe-analyze.py <repo> E`、`python3 -I E/world-probe2-analyze.py <repo> E`（三种规则对比）、`python3 -I E/bridge-probe-analyze.py <repo> E`、`python3 -I E/mock-probe/analyze.py <repo> E/mock-probe record.jsonl`、`python3 -I E/mock-probe/spy-analyze.py <repo> E/mock-probe spy.jsonl`（重出 spy.out）。探针本体跑完已删。批 1 把写盘和 mock 两个探针做成锁的记录模式进仓库，这些数以后由仓库里的命令重跑。
 
 ## ★9 验收清单与反例（实现线按它自验，验收线只核它）
 - 每类的反例行逐条要有「反例 → 结果 → 证据」。判据是「用的那一步信不信」，不是「这种写法被认出来没有」。
 - 「什么都不做」必须通不过：锁关掉时，各类反例要能写进去、测试照绿。验收线先关锁跑一遍，确认反例真能绕过，再开锁。
 - 「全部拦下」也必须通不过：A 的 49 份、B 的 32 份、C' 的 28 + 5 份不误伤样本必须绿；只读旧数据的迁移测试必须绿；主人目录外驱动产品代码的集成测试必须绿。
-- 部分匹配、直接 `Object.defineProperty` 改主人命名空间、子进程写这三处，要么交出验证结果，要么明写「未验证」，不许默认算拦住了。A、B、D 报「写不出来」之前，先交第④扇门的结果。
+- 部分匹配、子进程写、冻结命名空间的转换插件（探针是手改模块末尾，不是插件）这三处，要么交出验证结果，要么明写「未验证」，不许默认算拦住了。A、B、D 报的时候照实写「只差 `vi.mock` 一扇门是运行时拦」，协调没定之前不报「写不出来」。
 - 批 1 回放的基线和预测照上表；被删、被排除的测试不算进 0 红。
 - 批 6：改坏工厂，CI 红。
 - 丙：作业红的四种情况（名单外新红、超上限、过期、名单里变绿）各造一次；空 owner 的名单条目让格式单测红；新 e2e 不登记 runner 时选择表单测红。
