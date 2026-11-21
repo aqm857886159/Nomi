@@ -76,17 +76,21 @@ describe("external Agent: declared model reaches the confirm step", () => {
 
   it("a card that names a different address for the built-in connection is refused and says which field", async () => {
     freshSettingsDir("other-origin");
-    expect((await callTool("nomi_model_setup", { action: "set_key", vendorKey: "apimart", apiKey: FAKE_KEY })).ok).toBe(true);
+    const foreignCard = { action: "submit_declaration", vendorKey: "apimart", declaration: videoCard("https://relay.example.test", "relay-video") };
+    const withoutUpdatedAt = ({ updatedAt: _ignored, ...row }: ReturnType<typeof apimartRow>) => row;
+
+    // 还没存密钥：主分支上没有任何东西拦这张卡，连接行会被照卡改写（2026-11-21 回放那张卡就是这个形状）。
     const before = apimartRow();
-    const readyBefore = readinessOf("apimart");
-    expect(readyBefore?.providerReady).toBe(true);
-    const submitted = await callTool("nomi_model_setup", { action: "submit_declaration", vendorKey: "apimart", declaration: videoCard("https://relay.example.test", "relay-video") });
+    const submitted = await callTool("nomi_model_setup", foreignCard);
     expect(submitted.ok).toBe(false);
     expect(JSON.stringify(submitted)).toContain("provider.baseUrl");
-    const { updatedAt: _a, ...rowBefore } = before;
-    const { updatedAt: _b, ...rowAfter } = apimartRow();
-    expect(rowAfter).toEqual(rowBefore);
-    // 2026-11-21 回放那张卡就是这个形状（挂在 apimart 上、地址写成别处）：先存好密钥、这家是就绪的，被拒之后仍然就绪。
+    expect(withoutUpdatedAt(apimartRow())).toEqual(withoutUpdatedAt(before));
+
+    // 存了密钥、这家是就绪的：被拒之后仍然就绪（这一半主分支靠「密钥绑定的地址」也拦得住）。
+    expect((await callTool("nomi_model_setup", { action: "set_key", vendorKey: "apimart", apiKey: FAKE_KEY })).ok).toBe(true);
+    const readyBefore = readinessOf("apimart");
+    expect(readyBefore?.providerReady).toBe(true);
+    expect((await callTool("nomi_model_setup", foreignCard)).ok).toBe(false);
     expect(readinessOf("apimart")).toEqual(readyBefore);
   });
 
