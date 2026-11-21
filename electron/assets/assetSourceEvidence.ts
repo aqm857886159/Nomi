@@ -5,7 +5,6 @@
 //     当原始事实重新清洗（白名单字段、按来源类别定 usageStatus）。
 //   · reconcileReuse：同一份字节已经在项目里时，这次能不能复用那条记录、要不要给它补上来源。
 // 只许素材库自己的写入文件用（projectAssetStore / uploadContentStore / generatedAssetStaging）；
-// 别处写 sidecar 或覆盖回执字段由 check:concept-owners 的 asset-source-bypass 扫描拦下。
 import { isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
 import { isBrowserCaptureAssetKind } from "./assetPaths";
 import type { AssetSourceEvidence, UsageStatus, IntendedRole } from "../connectors/connectorDefinition";

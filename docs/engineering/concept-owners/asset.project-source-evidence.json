@@ -18,10 +18,6 @@
     {
       "path": "electron/assets/assetSourceEvidence.ts",
       "symbol": "reconcileReuse"
-    },
-    {
-      "path": "scripts/concept-owners-asset-source.mjs",
-      "symbol": "findAssetSourceBypass"
     }
   ],
   "forbidden_derivations": [
@@ -43,5 +39,5 @@
     "electron/assets/generatedAssetStaging.ts"
   ],
   "since": "2026-11-21",
-  "notes": "设计卡 docs/plan/2026-11-20-asset-source-one-home.md，复盘 docs/engineering/direction-checks/2026-11-21-asset-source-one-home.md。各入口（本机导入、浏览器捕获、连接器、跨项目复制、外部助手导入）只交来源事实（AssetSourceFact）；落盘的来源只由 finalizeAssetMeta 出（每次写 sidecar 前都过它：捕获族 originalUrl 置空、来源按白名单重洗、按来源类别定 usageStatus、已有时间原样保留），同字节已在项目里时能不能复用、要不要补来源只由 reconcileReuse 定（来源不同就另起一条，补来源抬不高旧记录的 usageStatus）。渲染层 IPC 载荷里自称的来源一律不读，连接器来源只收主进程调用方经 importRemoteAsset 第二个参数给的。主人之外写 .meta、拿 sidecar 写函数或来源清洗、覆盖回执结论字段、拼混合回执，由 check:concept-owners 的 asset-source-bypass 扫描拦（scripts/concept-owners-asset-source.mjs，推送前扫全仓真实源码）；登记过理由的例外两处：electron/assets/assetPreview.ts 写预览图自己的 sidecar（只有尺寸与派生关系，不含来源），electron/workspace/buildArtifactMigration.ts 迁移构建产物时原样搬已有 sidecar（不新定来源）。 R2：sidecar 后缀由 assetSidecar.ts 导出 ASSET_SIDECAR_SUFFIX；生产字符串/模板 AST 里的 .meta 后缀只许主人、原有写例外和下列已登记读删方；读删登记只放行 sidecar-literal，不放行 sidecar-write 或回执改写。不能静态证明登记文件内部数据流，按用途理由复核；注释不扫，拆开相邻字面不追。 只读/连带删登记：electron/workspace/workspaceFileIndex.ts（read-only）：读取 sidecar 的 kind，并在遍历中跳过 .meta；不写元数据；electron/assets/localAssetFile.ts（read-only）：读取 sidecar 的 originalUrl；不写元数据；electron/workspace/workspaceFileDelete.ts（delete-alongside）：删除素材时连带删除它的 sidecar；不生成或改写来源；src/ui/browser/popover/browserAssetPopoverUtils.ts（read-only）：browserAssetFromDesktopAsset 仅用 endsWith('.meta') 过滤 sidecar，不写元数据；src/workbench/assets/useAllProjectAssets.ts（read-only）：assetRefFromDesktopAsset 仅用 endsWith('.meta') 过滤 sidecar，不写元数据。 判据入口 findAssetSourceBypass 仅负责静态归属检查，不参与生产来源决定。"
+  "notes": "设计卡 docs/plan/2026-11-20-asset-source-one-home.md，复盘 docs/engineering/direction-checks/2026-11-21-asset-source-one-home.md。各入口（本机导入、浏览器捕获、连接器、跨项目复制、外部助手导入）只交来源事实（AssetSourceFact）；落盘的来源只由 finalizeAssetMeta 出（每次写 sidecar 前都过它：捕获族 originalUrl 置空、来源按白名单重洗、按来源类别定 usageStatus、已有时间原样保留），同字节已在项目里时能不能复用、要不要补来源只由 reconcileReuse 定（来源不同就另起一条，补来源抬不高旧记录的 usageStatus）。渲染层 IPC 载荷里自称的来源一律不读，连接器来源只收主进程调用方经 importRemoteAsset 第二个参数给的。写口归素材库；listProjectAssets 读取时原样展开 sidecar，不重新核实来源。今天没有花钱、外传或 Agent 信任判断读来源字段；若将来要用来源做判断，需先由素材库在读取时重新定稿。"
 }

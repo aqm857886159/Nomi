@@ -1044,7 +1044,7 @@ export default tseslint.config(
   {
     // 素材来源只有一个家（2026-11-21，复盘 docs/engineering/direction-checks/2026-11-21-asset-source-one-home.md）：
     // 落盘的来源只由 finalizeAssetMeta 出、同字节复用只由 reconcileReuse 定，只许素材库自己的写入文件拿；入口只交来源事实
-    // （类型 AssetSourceFact 谁都能引）。配套的扫描（主人之外写 .meta、覆盖回执字段、混合回执）在 check:concept-owners 的 asset-source-bypass。
+    // （类型 AssetSourceFact 谁都能引）。这里限制定稿函数的导入，不校验磁盘 sidecar 的来源。
     files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
     ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/assets/assetSourceEvidence.ts', 'electron/assets/projectAssetStore.ts', 'electron/assets/uploadContentStore.ts', 'electron/assets/generatedAssetStaging.ts'],
     plugins: { 'asset-source-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },

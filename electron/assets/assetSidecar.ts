@@ -3,7 +3,7 @@ import { isJsonRecord, type JsonRecord } from "../jsonUtils";
 
 // 落盘素材的 sidecar（`<file>.meta`）读写。单一实现：projectAssetStore（写入者）与 assetPreview（预览回填）共用。
 
-export const ASSET_SIDECAR_SUFFIX = ".meta";
+const ASSET_SIDECAR_SUFFIX = ".meta";
 
 export function readAssetSidecarMeta(absolutePath: string): JsonRecord {
   try {

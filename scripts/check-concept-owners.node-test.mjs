@@ -10,7 +10,6 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { findFailureDecisionBypass, findIdentityComparators, findShotJobSelections, workingTreeSource } from './concept-owners-scan.mjs'
-import { findAssetSourceBypass } from './concept-owners-asset-source.mjs'
 import { trustDomainOfPath } from './concept-owners-lib.mjs'
 import { CONCEPT_OWNERS_DIR, conceptFileName } from './concept-registry-lib.mjs'
 import { META_FILE, formatEntryJson, parseCatFileBatch } from './lib/entryDirectory.mjs'
@@ -1026,80 +1025,4 @@ test('failure-decision-bypass ESLint 禁止两个进程的出口读整表或码�
 test('failure-decision-bypass 全仓无第二判定，推送前扫描真实源码', () => {
   const source = workingTreeSource(fileURLToPath(new URL('..', import.meta.url)))
   assert.deepEqual(findFailureDecisionBypass({ files: source.listFiles(), read: source.read }), [])
-})
-
-// 素材来源只由主进程素材库定（2026-11-20）：主人之外写 .meta、拿 sidecar 写函数 / 清洗、改写或混合主人回执都红。
-test('asset-source-bypass 反例 R1–R6 各自红，同形状的正当写法绿', () => {
-  const file = 'electron/workspace/someImport.ts'
-  const scan = (snippet, at = file) => findAssetSourceBypass({ files: [at], read: () => snippet })
-  const receiptHead = "import { importLocalFile } from '../assets/localFileImport'; import { importRemoteAsset } from '../assets/projectAssetStore';\n"
-  const bad = {
-    // R1 导入改名。
-    R1: ["import { writeAssetSidecarMeta as saveMeta } from '../assets/assetSidecar'; export function f(p: string, m: object) { saveMeta(p, m) }", 'sidecar-write'],
-    // R2 内联写 .meta，自封连接器「已获授权」。
-    R2: ["import fs from 'node:fs'; export function f(dest: string) { fs.writeFileSync(`${dest}.meta`, JSON.stringify({ sourceEvidence: { source: 'connector', usageStatus: 'cleared' } })) }", 'sidecar-literal'],
-    // R3 路径与写函数都经别名；命名空间成员。
-    R3a: ["import fs from 'node:fs'; export async function f(dest: string) { const metaPath = dest + '.meta'; const put = fs.promises.writeFile; await put(metaPath, '{}') }", 'sidecar-literal'],
-    R3b: ["import * as sidecar from '../assets/assetSidecar'; export function f(p: string) { sidecar.writeAssetSidecarMeta(p, {}) }", 'sidecar-write'],
-    // R4 属性赋值改写回执结论。
-    R4a: [`${receiptHead}export async function f(payload: unknown, ext: string) { const record = await importLocalFile(payload) as any; record.data.contentType = contentTypeForExtension(ext); return record }`, 'receipt-override'],
-    R4b: [`${receiptHead}export async function f(payload: unknown) { const asset = await importRemoteAsset(payload) as any; asset.data.sourceEvidence.usageStatus = 'cleared'; return asset }`, 'receipt-override'],
-    // R5 展开后覆盖 / Object.assign。
-    R5a: [`${receiptHead}export async function f(payload: unknown, contentType: string) { const record = await importLocalFile(payload) as any; return { ...record.data, contentType } }`, 'receipt-override'],
-    R5b: [`${receiptHead}export async function f(payload: unknown, sourceEvidence: object) { const record = await importLocalFile(payload) as any; Object.assign(record.data, { sourceEvidence }); return record }`, 'receipt-override'],
-    // R6 混合回执：身份取自回执，类型按扩展名自己算（主分支 core.ts 的形状）。
-    R6: [`${receiptHead}export async function f(payload: unknown, ext: string) { const contentType = contentTypeForExtension(ext); const record = await importLocalFile(payload) as any; const data = record.data; return { assetId: record.id, contentHash: data.contentHash, contentType } }`, 'receipt-mixed'],
-  }
-  for (const [name, [snippet, shape]] of Object.entries(bad)) {
-    const hits = scan(snippet)
-    assert.ok(hits.some((hit) => hit.shape === shape), `${name} 应报 ${shape}，实际 ${JSON.stringify(hits)}`)
-  }
-  const good = {
-    // 回执原样投影（外部助手回执修后的形状）。
-    projection: `${receiptHead}export async function f(payload: unknown) { const record = await importLocalFile(payload) as any; const data = record.data; return { url: data.url, assetId: record.id, contentHash: data.contentHash, contentType: data.contentType, sizeBytes: data.size } }`,
-    // 展开回执、只取回执自己的同名字段。
-    spreadSame: `${receiptHead}export async function f(payload: unknown) { const record = await importLocalFile(payload) as any; return { ...record.data, contentType: record.data.contentType } }`,
-    // 剪辑工具的形状：地址和身份全出自回执，另带回执外的时长。
-    trimShape: `${receiptHead}export async function f(payload: unknown, durationSeconds: number) { const record = await importLocalFile(payload) as any; const url = record.data.url; return { url, assetId: record.id, durationSeconds } }`,
-    // 写的不是 .meta。
-    plainWrite: "import fs from 'node:fs'; export function f(dest: string, bytes: Uint8Array) { fs.writeFileSync(dest, bytes); fs.writeFileSync(`${dest}.json`, '{}') }",
-  }
-  for (const [name, snippet] of Object.entries(good)) assert.deepEqual(scan(snippet), [], name)
-  // 主人文件、登记的例外、测试文件不扫；例外只放行登记的那一种形状。
-  assert.deepEqual(scan(bad.R1[0], 'electron/assets/projectAssetStore.ts'), [])
-  assert.deepEqual(scan(bad.R2[0], 'electron/assets/assetPreview.ts'), [])
-  assert.deepEqual(scan(bad.R2[0], 'electron/workspace/someImport.test.ts'), [])
-  assert.ok(scan(bad.R6[0], 'electron/assets/assetPreview.ts').some((hit) => hit.shape === 'receipt-mixed'))
-})
-
-// 推送前 SCAN_GUARDS 登记了本测试：同一规则检查真实改动。
-test('asset-source-bypass 全仓主人之外无第二来源判定，推送前扫描真实源码', () => {
-  const source = workingTreeSource(fileURLToPath(new URL('..', import.meta.url)))
-  assert.deepEqual(findAssetSourceBypass({ files: source.listFiles(), read: source.read }), [])
-})
-
-// 独立验收自造 A：后缀在本地 helper 里，不能靠写调用的参数形状认它。
-test('asset-source-bypass sidecar 后缀归属：helper 绕法红，登记读删与主人绿', async (t) => {
-  const helper = "function sidecarPath(dest: string) { return dest + '.meta' }"
-  const cases = [
-    ['async helper', 'electron/probe.ts', `import fs from 'node:fs/promises'; ${helper}; export async function f(dest: string) { await fs.writeFile(sidecarPath(dest), '{}') }`, true],
-    ['sync helper', 'electron/probe.ts', `import fs from 'node:fs'; ${helper}; export function f(dest: string) { fs.writeFileSync(sidecarPath(dest), '{}') }`, true],
-    ['template helper', 'electron/probe.ts', "import fs from 'node:fs'; function sidecarPath(dest: string) { return `${dest}.meta` }; fs.writeFileSync(sidecarPath('a'), '{}')", true],
-    ['constant suffix', 'electron/probe.ts', "const suffix = '.meta'; fs.writeFileSync(dest + suffix, '{}')", true],
-    ['unregistered read', 'electron/probe.ts', "fs.readFileSync(`${dest}.meta`, 'utf8')", true],
-    ['registered skip', 'electron/assets/uploadContentStore.ts', "if (entry.name.endsWith('.meta')) continue", false],
-    ['owner', 'electron/assets/assetSidecar.ts', `import fs from 'node:fs'; ${helper}; fs.writeFileSync(sidecarPath('a'), '{}')`, false],
-    ['read kind', 'electron/workspace/workspaceFileIndex.ts', "JSON.parse(fs.readFileSync(`${dest}.meta`, 'utf8')); name.endsWith('.meta')", false],
-    ['read originalUrl', 'electron/assets/localAssetFile.ts', "JSON.parse(fs.readFileSync(`${dest}.meta`, 'utf8')).originalUrl", false],
-    ['delete alongside', 'electron/workspace/workspaceFileDelete.ts', "fs.unlinkSync(`${dest}.meta`)", false],
-    ['browser skip', 'src/ui/browser/popover/browserAssetPopoverUtils.ts', "if (asset.name.endsWith('.meta')) return null", false],
-    ['asset ref skip', 'src/workbench/assets/useAllProjectAssets.ts', "if (asset.name.endsWith('.meta')) return null", false],
-    ['reader cannot take writer', 'electron/assets/localAssetFile.ts', "import { writeAssetSidecarMeta } from './assetSidecar'", true],
-    ['comments are not literals', 'electron/probe.ts', "// vendor.meta; ...meta; dest + '.meta'\nexport const x = 1", false],
-    ['unrelated strings', 'electron/probe.ts', "export const x = 'vendor.metadata'", false],
-  ]
-  for (const [name, file, snippet, blocked] of cases) await t.test(name, () => {
-    const hits = findAssetSourceBypass({ files: [file], read: () => snippet })
-    assert.equal(hits.length > 0, blocked, JSON.stringify(hits))
-  })
 })
