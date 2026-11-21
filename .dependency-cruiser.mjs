@@ -115,6 +115,21 @@ export default {
       to: { path: '^scripts/' },
     },
 
+    // R-B7 产品代码不许引设计实验室（当前 0，硬零，无 baseline）。
+    //
+    // 2026-11-21 #1573：编辑器入口只认 owner 的 getSnapshot，出生时读 store 里此刻的值。设计实验室取景用的
+    // 「写死一份值的 owner」（src/devlab/designLab/fixedEditorOwner.ts）要是能被产品代码引进来，
+    // 一行 owner={fixedEditorOwner(渲染时的值)} 就又是一个拿着旧副本的编辑器。实验室的夹具与便捷件只给
+    // 实验室自己和组件测试用（测试本来就在 options.exclude 里，这里再写一遍是让规则自己说清楚）。
+    {
+      name: 'src-no-import-devlab',
+      comment:
+        '产品代码（src/，除 src/devlab/ 自己）禁止 import 设计实验室（src/devlab/）：实验室的夹具与便捷件（如写死一份值的编辑器 owner）只给实验室和组件测试用。当前零违规，硬零。',
+      severity: 'error',
+      from: { path: '^src/', pathNot: ['^src/devlab/', '\\.test\\.', 'TestUtils\\.'] },
+      to: { path: '^src/devlab/' },
+    },
+
     // R-B6 聊天卡片不许引用节点编辑器（当前 0，硬零，无 baseline；设计系统 §1.0「卡上一个可改的东西都没有」）。
     //
     // 2026-09-10 到 2026-10-24 之间，Agent 付费卡里装着一整件画布生成框（`NodeGenerationComposer host="panel"`）：
