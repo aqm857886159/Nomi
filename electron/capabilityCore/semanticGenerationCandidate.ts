@@ -6,6 +6,7 @@ import { catalogRowFor } from "./modelAdmissionSchema";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import type { PlanCandidate } from "./executionContract";
 import { ModuleRegistryError, type ModuleResolveInput } from "./moduleRegistry";
+import { builtinVendorDeletedUntilKeySaved } from "../catalog/catalogStore";
 
 /**
  * The model-facing create tool intentionally accepts a short, natural request
@@ -235,6 +236,10 @@ const modelLabel = (providerId: string, modelId: string): string => (providerId 
 
 /** 「这个模型不在目录里」——定种类时、核目录时、合成候选时三处说同一句话（码 `unknown_model`）。最像的那一个由名字主人给。 */
 function refuseUnknownModel(registry: SemanticGenerationCandidateDeps["registry"], modelId: string, providerId: string): never {
+  // 用户整家删掉的内置连接：说清是他删的、怎么回来，不往别家「最接近的」上引（2026-11-16）。
+  if (providerId && builtinVendorDeletedUntilKeySaved(providerId)) {
+    return refuseGeneration({ code: "unknown_model", field: "candidate.modelId", model: modelLabel(providerId, modelId), deletedProvider: providerId });
+  }
   const rows = catalogModelRows(registry);
   const hit = resolveModelForTask(rows, { modelId, vendor: providerId }, { taskKindOf: () => undefined });
   const nearestHandle = !hit.ok && hit.reason === "unknown" ? hit.nearest[0] : undefined;

@@ -19,7 +19,7 @@ import { validateProviderAdapterDraft } from "../../providerAdapter/validator";
 import { readCatalog } from "../../catalog/catalogStore";
 import { readCredentialBinding } from "../../catalog/credentialBinding";
 import { resolveConnectionVendorKey } from "../../catalog/connectionVendorKey";
-import { DeclaredOriginRewriteError, DeclaredRouteConflictError, registerDeclaredProvider } from "../../catalog/declaredProviderRegistration";
+import { DeclaredBuiltinConnectionMismatchError, DeclaredBuiltinModelError, DeclaredOriginRewriteError, DeclaredRouteConflictError, registerDeclaredProvider } from "../../catalog/declaredProviderRegistration";
 import type { Model } from "../../catalog/types";
 import { isJsonRecord } from "../../jsonUtils";
 import { changeIdFor } from "./fingerprint";
@@ -203,6 +203,21 @@ export async function submitDeclaration(
         ok: false, code: "credential_origin_mismatch",
         message: error.message,
         nextAction: `Declare provider.baseUrl on ${error.boundOrigin}, or call connect_provider with vendorKey=${vendorKey} and reissueKey=true so the user can rebind the key on Nomi's own page.`,
+      };
+    }
+    if (error instanceof DeclaredBuiltinConnectionMismatchError) {
+      return {
+        ok: false, code: "credential_origin_mismatch",
+        message: error.message,
+        rejections: error.fields.map((row) => ({ path: row.field, code: "schema" as const, message: `card: ${row.declared}; connection: ${row.connection}` })),
+        nextAction: `Nothing was written. Copy these fields from the ${error.vendorKey} connection as it is now and send the whole card again; on a built-in connection the card only adds models, and its assetIngestion is not used (the connection keeps Nomi's own upload method). To send to another address, submit the card under a new connection name instead.`,
+      };
+    }
+    if (error instanceof DeclaredBuiltinModelError) {
+      return {
+        ok: false, code: "route_conflict",
+        message: error.message,
+        nextAction: `Nothing was written and ${error.vendorKey} keeps working. Drop ${error.modelKeys.join(", ")} from the card (Nomi already runs ${error.modelKeys.length === 1 ? "it" : "them"} from the built-in profile; read nomi_read target=models to see its modes) and send the rest of the card again.`,
       };
     }
     if (error instanceof DeclaredRouteConflictError) return routeConflictFailure(error);

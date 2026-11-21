@@ -10,7 +10,8 @@ import {
 import { MCP_GENERATION_TOOL_CATALOG } from "./mcpGenerationToolCatalog";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { buildVideoModelCandidates, recommendVideoGeneration, SEEDANCE_2_5_APIMART_ARCHETYPE } from "../shared/videoCapabilities";
-import type { LiveGenerationRuntimeScope } from "./liveGenerationRuntime";
+import { createLiveGenerationRuntime } from "./liveGenerationRuntime";
+import type { CatalogState } from "../catalog/types";
 
 const videoModelCandidates = buildVideoModelCandidates([
   { provider: "apimart", modelKey: "doubao-seedance-2.0", label: "Seedance 2.0" },
@@ -791,7 +792,7 @@ describe("semantic MCP generation tools", () => {
       return { shotId, ...(role ? { role } : {}), candidate: candidate({ candidateId: `cand-${shotId}`, prompt }) };
     }
 
-    it("captures the draft scope once and passes its registry to every shot resolve", async () => {
+    it("one tool call reads one catalog version for every shot, even when the catalog changes mid-call", async () => {
       const scopedRegistry = createModuleRegistry([{
         moduleId: "generation.single-shot", version: "scoped", inputKinds: ["text"], outputKinds: ["image"], modes: ["text-to-image"],
         parameterSchema: {}, assetInputSchema: { references: { kind: "asset" } },
@@ -800,16 +801,29 @@ describe("semantic MCP generation tools", () => {
           capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
         }] }],
       }]);
-      const scope: LiveGenerationRuntimeScope = {
-        readBootstrap: () => ({ providers: [], readinessByProvider: {} }),
-        registry: scopedRegistry,
-      };
-      const createDraftScope = vi.fn(() => scope);
+      // 第一版目录认得 scoped-model；第一次 resolve 时目录被改成第二版（认不得）——同一次调用里后面的镜头仍读第一版。
+      const versions = [{ marker: "v1" }, { marker: "v2" }];
+      let current = versions[0]!;
+      const buildRegistry = vi.fn((state: CatalogState) => {
+        const version = state as unknown as { marker: string };
+        return {
+          resolve: (input: Parameters<typeof scopedRegistry.resolve>[0]) => {
+            if (version.marker !== "v1") return registry.resolve(input);
+            current = versions[1]!;
+            return scopedRegistry.resolve(input);
+          },
+          snapshot: () => (version.marker === "v1" ? scopedRegistry.snapshot() : registry.snapshot()),
+        };
+      });
+      const runtime = createLiveGenerationRuntime({
+        catalogReader: () => current as unknown as CatalogState,
+        catalogRevision: () => current,
+        bootstrap: () => ({ providers: [], readinessByProvider: {} }),
+        registry: buildRegistry,
+      });
       const operations = createInMemoryGenerationOperationStore();
       const handler = createGenerationPlanningHandler({
-        // The long-lived registry intentionally cannot resolve the scoped model.
-        registry,
-        createDraftScope,
+        registry: runtime.registry,
         operations,
         now: () => "2026-08-23T00:00:00.000Z",
       });
@@ -822,11 +836,15 @@ describe("semantic MCP generation tools", () => {
         ],
       }, lease }) as { operation: { shots?: Array<{ candidate: { providerId: string; modelId: string } }> } };
 
-      expect(createDraftScope).toHaveBeenCalledTimes(1);
+      expect(buildRegistry).toHaveBeenCalledTimes(1);
       expect(created.operation.shots?.map((shot) => [shot.candidate.providerId, shot.candidate.modelId])).toEqual([
         ["scoped-provider", "scoped-model"],
         ["scoped-provider", "scoped-model"],
       ]);
+      // 调用结束：下一次调用读第二版
+      expect(current).toBe(versions[1]);
+      expect(() => runtime.registry.resolve({ moduleId: "generation.single-shot", providerId: "scoped-provider", modelId: "scoped-model", mode: "text-to-image" })).toThrow();
+      expect(buildRegistry).toHaveBeenCalledTimes(2);
     });
 
     it("create({shots}) persists draft shots and gate_request seals a real multi-shot bundle (sub-contracts + planHash)", async () => {

@@ -733,6 +733,11 @@ export type CatalogState = {
   unverifiedUsableRecovered?: true;
   /** User-deleted builtin identities must not be inserted by subsequent seeding. */
   suppressedBuiltinModels?: Array<{ vendorKey: string; modelKey: string }>;
+  /**
+   * 用户整家删掉的内置连接（2026-11-16，和上面「单删的模型」分开记）。启动时不把这家的内置模型种回来；
+   * 这家再存一次密钥（设置页或 set_key，都走 applyApiKeyUpsert）就摘掉这条，内置模型跟着回来——单删的那几个照旧不回。
+   */
+  suppressedBuiltinVendors?: string[];
   version: CatalogVersion;
   vendors: Vendor[];
   models: Model[];

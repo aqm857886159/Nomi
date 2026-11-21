@@ -14,6 +14,9 @@ export { modelCatalogReadOnlyStatus, type ModelCatalogReadOnlyStatus } from "./c
 import { apiKeyDecryptStatus, credentialMaterialSaved, decryptApiKeyRecord, makeApiKeyRecordFromPlain } from "./secrets";
 import { humanizeModelKey } from "./modelLabel";
 import { applyBuiltinSeeds } from "./seedBuiltins";
+import { liftWholeVendorDeletion, vendorDeletedUntilKeySaved } from "./builtinOwnedFields";
+import { extractVendorExtraHeaders } from "./vendorExtraHeaders";
+export { extractVendorExtraHeaders };
 import { migrateCatalogForward } from "./catalogMigrations";
 import type { AiSdkProviderKind, BillingModelKind, CatalogState, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./types";
 import { CURRENT_CATALOG_VERSION } from "./types";
@@ -83,6 +86,15 @@ let catalogReadCache: { path: string; bytes: string; state: CatalogState } | nul
 
 export function readCatalog(): CatalogState {
   return structuredClone(readCatalogShared());
+}
+
+/**
+ * 目录「这一版」的身份：盘上字节没变就是同一个对象（读缓存命中），变了、或有密钥解不开（不缓存）就是新的。
+ * 给「按现在的目录现算、但算一次要几十毫秒」的派生物当缓存键（生成工具的模型表，`liveGenerationRuntime`）。
+ * 只许比身份，不许读里面的字段——要读目录走 readCatalog。
+ */
+export function catalogRevisionToken(): object {
+  return readCatalogShared();
 }
 
 function readCatalogShared(): Readonly<CatalogState> {
@@ -421,7 +433,15 @@ function applyApiKeyUpsert(state: CatalogState, vendorKey: string, payload: unkn
   bindCredentialDestination(state.vendors.find((vendor) => vendor.key === key), t);
   if (!enabled || (existing && decryptApiKeyRecord(existing) !== apiKey)) invalidateVendorValidation(state, key);
   if (!enabled) depublishVendorForDisabledCredential(state, key, t);
+  // 整家删过的内置连接：再存一次这家的密钥 = 要它回来。摘掉整家删除记录，内置模型当场种回（单删的那几个照旧不回）。
+  if (liftWholeVendorDeletion(state, key)) Object.assign(state, applyBuiltinSeeds(state, t).state);
 }
+/**
+ * 这条内置连接是不是用户整家删掉的、且存一次密钥就回来（还没存）。不要密钥的内置家（本地 ComfyUI 等）
+ * 没有「存密钥」这一步，不在此列——删了照旧不回，不能告诉人「存密钥就回来」。
+ * 目录读不了就当不是——这只用来把拒绝说清楚。
+ */
+export const builtinVendorDeletedUntilKeySaved = (vendorKey: string): boolean => vendorDeletedUntilKeySaved(vendorKey, readCatalogShared);
 export function upsertModelCatalogVendorApiKey(vendorKey: string, payload: unknown): unknown {
   const state = readCatalog();
   applyApiKeyUpsert(state, vendorKey, payload);
@@ -777,23 +797,4 @@ export function mutateCatalog<T>(fn: (tx: CatalogMutation, state: Readonly<Catal
   writeCatalog(state);
   invalidateProviderAdapterRunsForVendors(invalidatedVendors);
   return result;
-}
-
-/**
- * Read user-supplied custom request headers off a vendor. Stored under
- * `vendor.meta.extraHeaders` (a string→string map) by the manual-entry form so
- * relay/proxy gateways that need an extra auth header work without us hardcoding
- * per-provider knowledge. Returns undefined when none are set.
- */
-export function extractVendorExtraHeaders(vendor: Vendor): Record<string, string> | undefined {
-  const meta = vendor.meta as JsonRecord | undefined;
-  const raw = meta?.extraHeaders;
-  if (!raw || typeof raw !== "object") return undefined;
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    const k = String(key || "").trim();
-    const v = String(value ?? "").trim();
-    if (k && v) out[k] = v;
-  }
-  return Object.keys(out).length > 0 ? out : undefined;
 }
