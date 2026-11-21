@@ -1,0 +1,149 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-16-external-agent-gate-reach-confirm",
+  "problem_type": "两个宿主各存一份启动时的模型表；接入卡能改写内置连接",
+  "symptom": "创作者让外部助手给一个模型交了接入卡，试跑出了片，正式生成在预览说 Unknown model；重启后过门又说这家没接好（configured_provider），同一条内置 APIMart 连接上原有的内置模型也一起不能用，删掉那个模型也不恢复。",
+  "direct_cause": "应用内宿主和独立进程宿主在启动时各拍一份模型表交给预览和过门（修前 appIntegration.ts、mcpStdioServer.ts 里的 initialGenerationScope.registry），起草用的却是现拍的；交卡在 registerDeclaredProvider 里照卡 upsertVendor 改写整条连接行，内置连接的范围判据随即不认它。",
+  "class_root": "「现在有哪些模型」和「内置连接长什么样」都没有唯一的主人：两个宿主各装一遍生成这一套并各存一份模型表；内置连接行除了种子和设置页，交卡这条写路径也能写。生成工具的依赖类型还允许同时收两个目录来源（registry 加可选的 createDraftScope）。",
+  "migration": "生成工具的依赖只剩一个目录来源，createDraftScope 这个可选入口同提交删掉；两个宿主里的启动快照删掉。0.24.x 被卡改写过的内置连接在启动对账时还原素材上传方式、摘掉内置模型上卡写的适配器与路由，地址和认证字段不动；整家删过的内置连接记成家级记录，存密钥摘掉。",
+  "affected_population": [
+    "经外部助手（MCP，应用内直连或独立进程）给模型交接入卡后做正式生成的创作者",
+    "0.24.x 上往内置连接（APIMart 等）挂过接入卡的老用户：升级前整家生成门是关的",
+    "整家删过内置连接又想拿回来的用户"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/",
+    "electron/catalog/"
+  ],
+  "entry_points": [
+    "electron/capabilityCore/appIntegration.ts:338",
+    "electron/capabilityCore/mcpStdioServer.ts:288",
+    "electron/catalog/declaredProviderRegistration.ts:133"
+  ],
+  "invariants": [
+    "一次生成工具调用里，起草、预览、过门、读就绪用的是同一版目录；调用之外每次问都按现在的目录答",
+    "接入卡不能改写内置连接的地址、认证方式和素材上传方式；卡里也不能替换内置目录已有的模型",
+    "启动后内置连接的素材上传方式等于种子值；用户在设置页改过的地址保留"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "liveGenerationRuntime"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "liveGenerationRuntime"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "upsertVendor"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "两个宿主是两种真实的接入方式（应用内本机直连、独立进程），都必须保留；交卡登记是唯一的写入口。入口数没减，改的是每扇门后面拿到的东西：两个读门现在拿同一个活的目录来源，写门对内置连接不再有改写分支。两个宿主收成一处装配是后续另起的一段，不在这次范围。"
+  },
+  "regression_tests": [
+    "electron/capabilityCore/externalAgentGateReachConfirm.test.ts",
+    "electron/capabilityCore/builtinWholeDeletionReconnect.test.ts",
+    "electron/capabilityCore/liveGenerationRuntime.test.ts",
+    "electron/capabilityCore/mcpGenerationTools.test.ts",
+    "electron/capabilityCore/modelOnboarding/declaredProviderProduction.test.ts"
+  ],
+  "residual_risks": [
+    "两个宿主仍各手写一遍生成这一套的十几项依赖，测试辅助 externalAgentGateTestUtils.ts 又抄了一份接线；以后新增依赖只接一个宿主的问题没有被这次修掉。",
+    "同一会话「交卡 → 起草 → 预览 → 过门」的单测在修前代码上是加载失败而不是断言失败；这条路在修前会坏的证明是真窗口走查（docs/evidence/2026-11-21-external-agent-gate-rescue/）。",
+    "用户在设置页把内置连接地址改成代码不认识的中转域名时，连接仍不就绪（行为同修前）。",
+    "四份 0.24.0 旧盘只在单测里用真实旧文件重放，没有在真窗口里冷启动升级。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://kubernetes.io/docs/reference/using-api/server-side-apply/",
+      "checked_at": "2026-11-16",
+      "purpose": "字段按「谁管」记账、别人改时冲突并点名字段——据此定「内置连接的地址和认证归种子，卡只能复述」和拒绝时点名字段"
+    }
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-21",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「一个宿主接了、另一个没接」和「启动时拍一份、之后不更新」在这两个宿主上出过不止一次（appIntegration.ts 里 2026-09-22 的注释记着同一形状：一个宿主没把素材身份解析器递下去）；这次 11-16 修好没推送，11-21 外部助手回放又撞到。",
+    "same_class_scan": [
+      "electron/capabilityCore/appIntegration.ts:338（应用内宿主的生成工具装配）",
+      "electron/capabilityCore/mcpStdioServer.ts:288（独立进程宿主的生成工具装配）",
+      "electron/capabilityCore/externalAgentGateTestUtils.ts:109（测试辅助手抄的同一段接线）"
+    ]
+  },
+  "generality_proof": "生成工具的依赖类型只收一个目录来源，而且要求它带「入口钉一版」的能力：宿主手里一份启动时拍的普通模型表类型上递不进去，也没有第二个可选入口能让起草和过门各读一版。交卡登记对内置连接只剩「核对一致」这一条路，写路径上没有改写内置连接行的分支。",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/liveGenerationRuntime.ts",
+      "symbol": "createLiveGenerationRuntime",
+      "responsibility": "生成工具读模型表和就绪的唯一来源：调用之外读现在的目录，一次调用之内钉住一版"
+    },
+    {
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "registerDeclaredProvider",
+      "responsibility": "接入卡写进目录的唯一入口：内置连接的地址、认证、素材上传方式只核对不改写"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "createGenerationPlanningHandler",
+      "disposition": "enforced",
+      "evidence": "第 338 行只递 liveGenerationRuntime.registry；启动快照 initialGenerationScope.registry 已删"
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "createGenerationPlanningHandler",
+      "disposition": "enforced",
+      "evidence": "第 288 行只递 liveGenerationRuntime.registry；启动快照与可注入的 generationModuleRegistry 已删"
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "entry_point": "draft_shots",
+      "disposition": "enforced",
+      "evidence": "起草改用 deps.registry，不再有 deps.createDraftScope 这个第二来源（依赖类型里已删）"
+    }
+  ],
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/capabilityCore/liveGenerationRuntime.ts",
+    "invariant": "生成工具只有一个目录来源，且一次调用只读一版",
+    "failure_mode": "宿主递一份没有「入口钉一版」能力的模型表、或再递第二个目录来源，类型检查报错；externalAgentGateReachConfirm.test.ts 和真窗口走查 tests/ux/mcp-declared-model-gate.e2e.mjs 在「预览认得刚交卡的模型」这一步红",
+    "exception_policy": "none",
+    "strategy": "把第二个目录来源从依赖类型里删掉，宿主只能递活的那一份；交卡写路径上删掉改写内置连接的分支",
+    "artifacts": [
+      "electron/capabilityCore/liveGenerationRuntime.ts",
+      "electron/capabilityCore/mcpGenerationTools.ts",
+      "electron/catalog/declaredProviderRegistration.ts",
+      "electron/capabilityCore/externalAgentGateReachConfirm.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/capabilityCore/externalAgentGateReachConfirm.test.ts",
+    "electron/capabilityCore/liveGenerationRuntime.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "旧实现不是独立文件：删掉的是两个宿主里的启动快照变量、生成工具依赖里的 createDraftScope 可选项、交卡登记里改写内置连接的分支，都在原文件内同提交删除，没有整份文件可列。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方依赖的升级或保留。",
+    "exit_criteria": []
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/liveGenerationRuntime.ts",
+    "tests": [
+      "electron/capabilityCore/liveGenerationRuntime.test.ts"
+    ]
+  }
+}
