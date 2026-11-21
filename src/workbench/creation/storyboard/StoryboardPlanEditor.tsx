@@ -26,6 +26,8 @@ import StoryboardAnchorZone from './anchorZone/StoryboardAnchorZone'
 import StoryboardFilmAspect from './StoryboardFilmAspect'
 import { requestResidentComposerFocus } from '../../ai/residentComposerFocus'
 import StoryboardShotTable from './StoryboardShotTable'
+import { selectActiveStoryboardDesign } from './activeStoryboardDesign'
+import type { StoryboardPlanSource } from './storyboardShotTableTypes'
 import {
   deriveAnchorCardRuntimes,
   deriveStoryboardBatch,
@@ -110,12 +112,15 @@ export function StoryboardPlanEditorFooter({
   )
 }
 
+/** 镜头提示词框的 owner 从这里读：store 里此刻的方案（不是这次渲染拿到的 plan）。 */
+const ACTIVE_PLAN_SOURCE: StoryboardPlanSource = {
+  subscribe: useWorkbenchStore.subscribe,
+  getSnapshot: () => selectActiveStoryboardDesign(useWorkbenchStore.getState())?.plan ?? null,
+}
+
 export default function StoryboardPlanEditor({ projectId }: { projectId?: string | null }): JSX.Element | null {
   const { t } = useTranslation()
-  const activeDesign = useWorkbenchStore((s) => {
-    const designs = s.activeDocumentId ? s.storyboardDesignsByDocumentId[s.activeDocumentId] ?? [] : []
-    return designs.find((design) => design.id === s.activeStoryboardId) ?? designs[0] ?? null
-  })
+  const activeDesign = useWorkbenchStore(selectActiveStoryboardDesign)
   const plan = activeDesign?.plan ?? null
   const designId = activeDesign?.id ?? ''
   const legacySetStoryboardPlan = useWorkbenchStore((s) => s.setStoryboardPlan)
@@ -573,6 +578,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
           <div className="flex flex-col gap-2">
             <StoryboardShotTable
               plan={plan}
+              planSource={ACTIVE_PLAN_SOURCE}
               projectId={projectId}
               rows={rows}
               pendingActions={pendingActions}

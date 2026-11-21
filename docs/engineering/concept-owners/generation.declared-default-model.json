@@ -36,8 +36,7 @@
   "forbidden_derivations": [],
   "allowed_consumers": [
     "electron/agentLane/laneDesktopModelDefaults.ts",
-    "electron/capabilityCore/appIntegration.ts",
-    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/liveGenerationRuntime.ts",
     "src/workbench/generationCanvas/nodes/defaultNodeModelSelection.ts",
     "src/workbench/generationCanvas/agent/availableModels.ts",
     "src/workbench/generationCanvas/model/generationModelDefaults.ts",

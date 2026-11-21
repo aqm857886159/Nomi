@@ -1,3 +1,4 @@
+import { issueGenerationPlanningForTest } from "./generationPlanningIssue";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -18,6 +19,7 @@ import { createProductionRunService } from "../productionRun/productionRunServic
 import { APIMART_VIDEO_MODELS } from "../catalog/apimartVideos";
 import { applyBuiltinSeeds } from "../catalog/seedBuiltins";
 import { buildVideoModelCandidates, recommendVideoGeneration, videoArchetypeIdFromMeta } from "../shared/videoCapabilities";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const videoModelCandidates = buildVideoModelCandidates([
   { provider: "apimart", modelKey: "doubao-seedance-2.0", label: "Seedance 2.0" },
@@ -232,7 +234,7 @@ describe("MCP semantic generation planning journey", () => {
     const repository = createProductionRunRepository({ projectDirResolver: () => root, now: () => "2026-08-23T00:00:00.000Z" });
     const service = createProductionRunService({ repository, projectRootResolver: () => root, sleep: async () => {} });
     const operations = createProductionGenerationOperationStore(service);
-    const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" }));
     const authority = makeAuthority(root);
     const lease = (await makeLease(authority, ["context:read", "generation:create", "generation:plan", "generation:preview", "generation:read"])).token;
     const runTask = vi.fn(async () => { throw new Error("semantic planning must not call runTask"); });
@@ -242,7 +244,7 @@ describe("MCP semantic generation planning journey", () => {
       productionRuns: service,
       origin: { host: "codex" as const },
       projectSession: makeProjectSession(authority),
-      generationPlanning: handler,
+      generationPlanning: issueGenerationPlanningForTest(handler),
     };
     const harness = new McpJourneyHarness((method, params) => dispatch(method, params, context));
 
@@ -267,7 +269,7 @@ describe("MCP semantic generation planning journey", () => {
     const repository = createProductionRunRepository({ projectDirResolver: () => root, now: () => "2026-08-23T00:00:00.000Z" });
     const service = createProductionRunService({ repository, projectRootResolver: () => root, sleep: async () => {} });
     const operations = createProductionGenerationOperationStore(service);
-    const handler = createGenerationPlanningHandler({ registry: editableRegistry, operations, now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry: editableRegistry, operations, now: () => "2026-08-23T00:00:00.000Z" }));
     const authority = makeAuthority(root);
     const lease = (await makeLease(authority, ["context:read", "generation:create", "generation:plan", "generation:preview", "generation:read"])).token;
     const context = {
@@ -276,7 +278,7 @@ describe("MCP semantic generation planning journey", () => {
       productionRuns: service,
       origin: { host: "codex" as const },
       projectSession: makeProjectSession(authority),
-      generationPlanning: handler,
+      generationPlanning: issueGenerationPlanningForTest(handler),
     };
     const harness = new McpJourneyHarness((method, params) => dispatch(method, params, context));
     await harness.call(11, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex", version: "1" } });
@@ -309,13 +311,13 @@ describe("MCP semantic generation planning journey", () => {
     const service = createProductionRunService({ repository, projectRootResolver: () => root, sleep: async () => {} });
     const operations = createProductionGenerationOperationStore(service);
     const runTask = vi.fn(async () => { throw new Error("video planning must not call runTask"); });
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry: videoEditableRegistry,
       operations,
       videoModelCandidates,
       recommendVideoGeneration,
       now: () => "2026-08-23T00:00:00.000Z",
-    });
+    }));
     const authority = makeAuthority(root);
     const lease = (await makeLease(authority, ["context:read", "generation:create", "generation:plan", "generation:preview", "generation:read"])).token;
     const context = {
@@ -324,7 +326,7 @@ describe("MCP semantic generation planning journey", () => {
       productionRuns: service,
       origin: { host: "codex" as const },
       projectSession: makeProjectSession(authority),
-      generationPlanning: handler,
+      generationPlanning: issueGenerationPlanningForTest(handler),
     };
     const harness = new McpJourneyHarness((method, params) => dispatch(method, params, context));
     await harness.call(21, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex", version: "1" } });
@@ -414,13 +416,13 @@ describe("MCP semantic generation planning journey", () => {
     const service = createProductionRunService({ repository, projectRootResolver: () => root, sleep: async () => {} });
     const operations = createProductionGenerationOperationStore(service);
     const runTask = vi.fn(async () => { throw new Error("real catalog planning must not call runTask"); });
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry: realCatalogVideoRegistry,
       operations,
       videoModelCandidates: realCatalogVideoModelCandidates,
       recommendVideoGeneration,
       now: () => "2026-08-23T00:00:00.000Z",
-    });
+    }));
     const authority = makeAuthority(root);
     const lease = (await makeLease(authority, ["context:read", "generation:create", "generation:plan", "generation:preview", "generation:read"])).token;
     const verifiedLease = await authority.verifyLease(lease, { connection });
@@ -430,7 +432,7 @@ describe("MCP semantic generation planning journey", () => {
       productionRuns: service,
       origin: { host: "codex" as const },
       projectSession: makeProjectSession(authority),
-      generationPlanning: handler,
+      generationPlanning: issueGenerationPlanningForTest(handler),
     };
     const harness = new McpJourneyHarness((method, params) => dispatch(method, params, context));
     await harness.call(31, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex", version: "1" } });
@@ -575,14 +577,14 @@ describe("MCP semantic generation planning journey", () => {
     const repository = createProductionRunRepository({ projectDirResolver: () => root, now: () => "2026-08-23T00:00:00.000Z" });
     const service = createProductionRunService({ repository, projectRootResolver: () => root, sleep: async () => {} });
     const operations = createProductionGenerationOperationStore(service);
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry: degradedRegistry,
       operations,
       // Recovery capability is the subject of this test; a zero-cost catalog
       // row is still a known price and therefore may pass the paid gate.
       resolveModelPricing: () => ({ cost: 0, enabled: true, specCosts: [] }),
       now: () => "2026-08-23T00:00:00.000Z",
-    });
+    }));
     const authority = makeAuthority(root);
     const lease = (await makeLease(authority, ["generation:create", "generation:preview", "generation:gate"])).lease;
     const candidate = {

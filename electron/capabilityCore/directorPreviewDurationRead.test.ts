@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 import { createModuleRegistry } from "./moduleRegistry";
 import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore } from "./mcpGenerationTools";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
-import { createPiGenerationTransportAdapter } from "./generationTransportAdapters";
+import { createPiGenerationTransportAdapterForTest as createPiGenerationTransportAdapter } from "./generationPlanning.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 const registry = createModuleRegistry([{
   moduleId: "generation.single-shot",
   version: "1.0.0",
@@ -70,7 +71,7 @@ describe("readShotCandidateFacts: references and durations from one read of the 
     { planning: (async (input: { capability: string; params: Record<string, unknown> }) => handler({ ...input, lease } as never)) as never, leaseFor: () => lease },
   );
   it("a single-shot draft reports its duration under the no-shot key; no duration parameter = not declared", async () => {
-    const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" }));
     const withDuration = await handler({ capability: "create", params: { candidate: candidate({ parameters: { aspectRatio: "16:9", duration: 6 } }) }, lease }) as { operation: { operationId: string } };
     await expect(adapterFor(handler).readShotCandidateFacts!(withDuration.operation.operationId)).resolves.toEqual({ references: { "": [] }, durationSeconds: { "": 6 } });
     const without = await handler({ capability: "create", params: { candidate: candidate({ candidateId: "candidate-2" }) }, lease }) as { operation: { operationId: string } };

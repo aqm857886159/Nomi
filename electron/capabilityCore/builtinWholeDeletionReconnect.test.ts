@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { builtinVendorDeletedUntilKeySaved, deleteModelCatalogModels, ensureBuiltinModelSeeds, readCatalog } from "../catalog/catalogStore";
 import { builtinCatalogModelKeys } from "../catalog/seedBuiltins";
 import { createLiveGenerationRuntime } from "./liveGenerationRuntime";
-import { callTool, draftPreviewGate, FAKE_KEY, freshSettingsDir, hostWiredPlanning, openOldUserDir, restoreSettingsDir } from "./externalAgentGateTestUtils";
+import { callTool, draftPreviewGate, FAKE_KEY, freshSettingsDir, liveCatalogPlanning, openOldUserDir, restoreSettingsDir } from "./externalAgentGateTestUtils";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -36,7 +36,7 @@ const apimartModelKeys = () => new Set(readCatalog().models.filter((model) => mo
 const IMAGE_MODEL = [...builtinCatalogModelKeys("apimart")].find((modelKey) => modelKey.includes("seedream"))!;
 
 function imageTarget() {
-  for (const manifest of createLiveGenerationRuntime().registry.snapshot()) {
+  for (const manifest of createLiveGenerationRuntime().current().registry.snapshot()) {
     for (const provider of manifest.providers) {
       const model = provider.providerId === "apimart" ? provider.models.find((row) => row.modelId === IMAGE_MODEL) : undefined;
       if (model) return { providerId: "apimart", modelId: model.modelId, mode: model.modes[0]! };
@@ -64,7 +64,7 @@ describe("whole built-in provider deleted, then its key saved again", () => {
     expect(readCatalog().suppressedBuiltinVendors).toEqual(["apimart"]);
     expect(readCatalog().suppressedBuiltinModels ?? []).toEqual([]);
 
-    const planning = hostWiredPlanning();
+    const planning = liveCatalogPlanning();
     const { created, preview, gate } = await draftPreviewGate(planning, imageTarget());
     const said = JSON.stringify({ created, preview, gate });
     expect(said, said).toMatch(/deleted/i);
@@ -106,7 +106,7 @@ describe("whole built-in provider deleted, then its key saved again", () => {
     expect(apimartModelKeys().size).toBe(0);
     expect((await callTool("nomi_model_setup", { action: "set_key", vendorKey: "apimart", apiKey: FAKE_KEY })).ok).toBe(true);
     expect([...builtinCatalogModelKeys("apimart")].every((modelKey) => apimartModelKeys().has(modelKey))).toBe(true);
-    const planning = hostWiredPlanning();
+    const planning = liveCatalogPlanning();
     const gate = (await draftPreviewGate(planning, imageTarget())).gate;
     expect(gate?.nextAction, JSON.stringify(gate)).toBe("confirm");
   });

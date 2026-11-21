@@ -1,3 +1,4 @@
+import { issueGenerationPlanningForTest } from "./generationPlanningIssue";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -25,6 +26,7 @@ import { currentAnchorCheckpointGate } from "../productionRun/anchorCheckpoint";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import { verbToTransportCall } from "../agentLane/laneVerbTransport";
 import { landingThatBinds } from "../productionRun/landFirstTestUtils";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 // P4 S6.5 生产入口 — end-to-end over the REAL semantic create→seal→gate→start entrance (NOT test injection
 // into the reducer). This is the proof the review demanded: `nomi_operation_create` with a multi-shot
@@ -151,7 +153,7 @@ function harness(
   // The `start` dep mirrors appIntegration's multi-shot start branch: transition sealed→submitted, then
   // kick the durable scheduler. (This is exactly the branch S6.5 fixed — without the submit, batchActive
   // stays false and the scheduler no-ops.)
-  const handler = createGenerationPlanningHandler({
+  const handler = createGenerationPlanningHandler(withFixedCatalog({
     registry,
     operations,
     resolveModelPricing: () => ({ cost: 6, enabled: true, specCosts: [] }),
@@ -179,7 +181,7 @@ function harness(
       await buildScheduler().runToQuiescence();
       return { operationId: operation.operationId, nextAction: "observe" };
     },
-  });
+  }));
   let receiptSequence = 0;
   const receipts = createApprovalReceiptAuthority({
     filePath: path.join(root, "approval-receipts.json"),
@@ -189,7 +191,7 @@ function harness(
     now,
     randomId: () => `receipt-sequence-${++receiptSequence}`,
   });
-  const generationAuthority = createRunOwnedGenerationGateAuthority({ owner: owner as never, operations, planning: handler, receipts, now });
+  const generationAuthority = createRunOwnedGenerationGateAuthority({ owner: owner as never, operations, planning: issueGenerationPlanningForTest(handler), receipts, now });
   return { root, repository, handler, buildScheduler, generationAuthority, receipts };
 }
 

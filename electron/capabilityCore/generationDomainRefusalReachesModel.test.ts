@@ -12,12 +12,13 @@ import { describe, expect, it } from "vitest";
 
 import { createModuleRegistry } from "./moduleRegistry";
 import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore } from "./mcpGenerationTools";
-import { createPiGenerationTransportAdapter } from "./generationTransportAdapters";
+import { createPiGenerationTransportAdapterForTest as createPiGenerationTransportAdapter } from "./generationPlanning.testkit";
 import { buildVideoModelCandidates } from "../shared/videoCapabilities";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { verbToTransportCall } from "../agentLane/laneVerbTransport";
 import { laneFailureFromDecision } from "../shared/agentLane/laneFailureFromDecision";
 import type { ProjectBinding } from "../shared/projectBinding";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const videoModelCandidates = buildVideoModelCandidates([
   { provider: "apimart", modelKey: "doubao-seedance-2.5", label: "Seedance 2.5" },
@@ -61,10 +62,10 @@ const A3_SHOT = {
 };
 
 async function modelSees(shot: Record<string, unknown>) {
-  const handler = createGenerationPlanningHandler({
+  const handler = createGenerationPlanningHandler(withFixedCatalog({
     registry, operations: createInMemoryGenerationOperationStore(),
     videoModelCandidates, now: () => "2026-09-21T00:00:00.000Z",
-  } as never);
+  } as never));
   const adapter = createPiGenerationTransportAdapter(binding, {
     planning: handler as never, leaseFor: () => lease,
   });

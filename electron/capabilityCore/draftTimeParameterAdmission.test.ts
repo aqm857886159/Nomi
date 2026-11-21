@@ -8,12 +8,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRegistry } from "./moduleRegistry";
 import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore } from "./mcpGenerationTools";
-import { createPiGenerationTransportAdapter } from "./generationTransportAdapters";
+import { createPiGenerationTransportAdapterForTest as createPiGenerationTransportAdapter } from "./generationPlanning.testkit";
 import { ContractCompilationError } from "./executionContract";
 import { buildVideoModelCandidates } from "../shared/videoCapabilities";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { verbToTransportCall } from "../agentLane/laneVerbTransport";
 import type { ProjectBinding } from "../shared/projectBinding";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const videoModelCandidates = buildVideoModelCandidates([
   { provider: "apimart", modelKey: "doubao-seedance-2.0", label: "Seedance 2.0" },
@@ -58,9 +59,9 @@ const shotWith = (parameters: Record<string, unknown>, title?: string) => ({
 function harness() {
   const operations = createInMemoryGenerationOperationStore();
   const create = vi.spyOn(operations, "create");
-  const handler = createGenerationPlanningHandler({
+  const handler = createGenerationPlanningHandler(withFixedCatalog({
     registry, operations, videoModelCandidates, now: () => "2026-10-18T00:00:00.000Z",
-  } as never);
+  } as never));
   const adapter = createPiGenerationTransportAdapter(binding, { planning: handler as never, leaseFor: () => lease });
   const draftShots = async (args: Record<string, unknown>) => {
     const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args }, LANE_MODELS)!;

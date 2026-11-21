@@ -1,5 +1,6 @@
 // 能力核 · 方法路由（单一真相源）。
 // RPC 传输（rpcServer）与 headless host（host）共用这一份 method→core 映射，杜绝两份路由漂移（P1）。
+import type { IssuedByGenerationDomain } from './generationPlanningIssue'
 import crypto from 'node:crypto'
 import {
   addProjectNodes,
@@ -77,8 +78,9 @@ export type DispatchContext = {
   }>
   /** Optional read-only context seam. No semantic route may fall through to a legacy service. */
   generationContext?: (params: Record<string, unknown>) => unknown | Promise<unknown>
-  /** Shared semantic planning/editing seam. MCP and GUI must provide the same handler; no provider call here. */
-  generationPlanning?: (input: { capability: string; params: Record<string, unknown>; lease?: ProjectLeaseV2; origin?: { host: CapabilityOriginHost; actorId?: string; sourceDocument?: { documentId: string; revision: number; contentHash: string } }; storyboardTarget?: GenerationInvocationContext['storyboardTarget']; modelNames?: GenerationInvocationContext['modelNames'] }) => unknown | Promise<unknown>
+  /** Shared semantic planning/editing seam. MCP and GUI must provide the same handler; no provider call here.
+   *  只认生成装配工厂发的那一个（类型带记号；用到的那一刻再核名单）。 */
+  generationPlanning?: ((input: { capability: string; params: Record<string, unknown>; lease?: ProjectLeaseV2; origin?: { host: CapabilityOriginHost; actorId?: string; sourceDocument?: { documentId: string; revision: number; contentHash: string } }; storyboardTarget?: GenerationInvocationContext['storyboardTarget']; modelNames?: GenerationInvocationContext['modelNames'] }) => unknown | Promise<unknown>) & IssuedByGenerationDomain
   /** Main-process approval-receipt authority. Gate routes verify receipts here; the Run owner consumes them. */
   approvalReceiptAuthority?: ApprovalReceiptAuthority
   /** Run-owned challenge projection. It must recompute model/cost/contract from main-process state. */

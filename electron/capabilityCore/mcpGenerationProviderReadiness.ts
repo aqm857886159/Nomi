@@ -1,5 +1,5 @@
 import { classifyGenerationProviderCapabilities, type GenerationProviderCapabilityProfile } from "./generationProviderCapabilities";
-import type { GenerationPlanningHandlerDependencies } from "./mcpGenerationTools";
+import type { GenerationPlanningCallDependencies } from "./mcpGenerationTools";
 import type { PlanCandidate } from "./executionContract";
 
 const RECOVERY_CAPABILITIES = ["submitIdempotency", "query", "reconcile", "cancel"] as const;
@@ -19,7 +19,7 @@ function recoveryNotice(profile: GenerationProviderCapabilityProfile): string {
 }
 
 export function resolveProviderReadiness(
-  deps: Pick<GenerationPlanningHandlerDependencies, "registry" | "providerReadiness">,
+  deps: Pick<GenerationPlanningCallDependencies, "registry" | "providerReadiness">,
   candidate: PlanCandidate,
 ): ProviderReadiness {
   const resolved = deps.registry.resolve({ moduleId: candidate.moduleId, providerId: candidate.providerId, modelId: candidate.modelId, mode: candidate.mode });

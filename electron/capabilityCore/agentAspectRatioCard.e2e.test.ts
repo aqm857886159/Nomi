@@ -20,6 +20,7 @@ import { createProductionGenerationOperationStore } from "../productionRun/produ
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
 import { projectPendingSpendConfirm } from "../productionRun/productionPendingSpend";
 import { buildMaterializeShotsPayload } from "../productionRun/multiShotCanvasLanding";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const PROJECT_ID = "project-1";
 const roots: string[] = [];
@@ -66,7 +67,7 @@ function harness() {
   // 用户在设置里存过的默认模型（生产里一定有）：点名的模型目录里没有时，模块身份就从这里来——
   // 于是候选能一路走到「认不出模型」那一步，而不是更早被「没有配置模型」拦下。
   const defaultModelForTaskKind = () => ({ moduleId: "generation.single-shot", providerId: "apimart", modelId: "z-image-turbo", mode: "text_to_image" });
-  const handler = createGenerationPlanningHandler({ registry, operations, now, defaultModelForTaskKind });
+  const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, now, defaultModelForTaskKind }));
   const origin = { host: "nomi", actorId: "agent-panel" };
   /** 这份计划落到画布上时，每一镜节点上写的参数（卡上摘要与发出都读节点）。 */
   const landedParameters = (operationId: string) => buildMaterializeShotsPayload(repository.read(PROJECT_ID, operationId)!, { projectRoot: null })!

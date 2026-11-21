@@ -15,6 +15,7 @@ import { approveGateByPolicy } from './runOwnedGenerationGateAuthority'
 import type { ProjectLeaseV2 } from './projectLease'
 import { spendDecisionByPolicy } from '../shared/agentCapabilities/directGenerationBrakes'
 import type { DispatchContext } from './dispatcher'
+import { assertIssuedGenerationPlanning } from './generationPlanningIssue'
 import { RpcError, type RpcPolicyErrorCode, type RpcPolicyErrorDetails } from './rpcError'
 
 const SEMANTIC_GENERATION_ROUTES: Readonly<Record<string, Readonly<{
@@ -203,6 +204,8 @@ async function dispatchSemanticStub(
   params: Record<string, unknown>,
   ctx: DispatchContext,
 ): Promise<unknown> {
+  // 规划只认生成装配工厂发的：类型上的记号能被强转骗过，这里按名单再核一遍。
+  if (ctx.generationPlanning !== undefined) assertIssuedGenerationPlanning(ctx.generationPlanning, 'generation dispatch')
   // 这里曾经先问一句「这个面开了吗」（env flag + 三段式 rollout）。2026-09-21 整条删除：
   // 工具挂在 tools/list 上广告着、调用却被一个没有界面能开的环境变量打回去，那不是闸，是墙。
   if (route.contextRead && typeof ctx.generationContext !== 'function' && typeof ctx.generationPlanning !== 'function') {

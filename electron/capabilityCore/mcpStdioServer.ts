@@ -1,5 +1,3 @@
-import { resolveIndexedReferencePreview } from './pendingSpendReferences'
-import { createGenerationReferenceScopeGuard } from './generationReferenceScope'
 
 // 能力核 · MCP stdio server（app 自身二进制以 NOMI_MCP_STDIO 模式跑；见 docs/plan/2026-06-24-packaged-mcp-stdio-server.md）。
 //
@@ -22,7 +20,6 @@ import { appFetch } from '../appFetch'
 import { readProxyPrefs } from '../proxySettings'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { startArtifactPreviewHttpServer, withAssetPreview } from '../productionRun/artifactPreviewHttpServer'
-import { resolveProjectAssetReferenceIdentity } from '../assets/projectAssetStore'
 import { startCredentialElicitationServer } from '../integrationCertification/credentialElicitationServer'
 import { installIntegrationSessionRuntime } from '../integrationCertification/integrationSessionRuntimeInstall'
 import { readWorkspaceProject, resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
@@ -31,27 +28,13 @@ import { getProjectLocationState, getWorkspaceRepositoryDeps } from '../runtimeP
 import { dispatchAndEnrich } from './mcpResultEnrichLive'
 import {
   MCP_CLIENT_PROOF_ENV,
-  ensureCapabilitySigningKey,
 } from './security'
 import type { ApprovalReceiptAuthority } from './approvalReceipt'
 import type { DispatchContext } from './dispatcher'
-import { createGenerationPlanningHandler } from './mcpGenerationTools'
-import { planStoryboardFromScript } from './mcpStoryboardPlanner'
-import { createProductionGenerationOperationStore } from '../productionRun/productionGenerationOperationStore'
-import { createProductionGenerationSubmission } from '../productionRun/productionGenerationSubmission'
 import { requestQuit } from '../quitTeardown'
-import { createMultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
-import { prepareProductionGenerationAuthorizationWithReferences } from '../productionRun/prepareProductionGenerationAuthorization'
-import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
-import { createLiveGenerationRuntime } from './liveGenerationRuntime'
-import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
-import { productionFixtureBaseOriginFromEnv } from '../shared/productionRunE2eFixtureGate'
+import { createGenerationDomain } from './generationDomain'
 import { markSingleShotAttention, markSingleShotCompleted } from '../productionRun/singleShotRunLifecycle'
-import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
 import { readAgentApprovalPolicy } from '../settings/agentApprovalPolicySettings'
-import { readCatalog } from '../catalog/catalogStore'
-import { recommendVideoGeneration } from '../shared/videoCapabilities'
-import { deriveUsableVideoModelCandidates } from './usableVideoModelCandidates'
 import { installCatalogRowLookup } from './modelSpecRead'
 import type { McpConnectionContext } from './mcpConnectionContext'
 import { createMcpStdioProjectSessionRouter } from './mcpStdioProjectSessionRouter'
@@ -61,12 +44,8 @@ import { createHeadlessCanvasReadExecutionRuntime, type CanvasReadExecutionRunti
 import { createMcpCanvasReadTransportAdapter } from './canvasReadTransportAdapters'
 import type { VerifiedProjectSessionBinding } from './projectSessionRuntime'
 import { createRunOwnedGenerationGateAuthority } from './runOwnedGenerationGateAuthority'
-import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
 import { startSemanticMultiShotBatch } from './mcpSemanticBatchStart'
-import { desktopNoticeLocale, landBatchBeforeKick } from './appIntegrationLandFirst'
 import { refuseLandingWithoutRenderer } from '../productionRun/landingProjectAccess'
-import { startSingleShotProduction } from '../productionRun/singleShotProductionStart'
-import { hasGenerationOperationProviderReadiness } from './generationOperationProviderReadiness'
 import { recordDetectedMcpClient } from './mcpDetectedClients'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProjectAgentProposalReceiptService } from './projectAgentProposalReceiptStore'
@@ -83,7 +62,6 @@ export type McpStdioServerOptions = {
   requestGenerationGate?: DispatchContext['requestGenerationGate']
   authorizeGeneration?: DispatchContext['authorizeGeneration']
   generationContext?: (params: Record<string, unknown>) => unknown | Promise<unknown>
-  generationPlanning?: DispatchContext['generationPlanning']
   projectRevisionResolver?: (projectId: string) => number | undefined
   /** Main-owned receipt resolver for the headless stdio process. */
   proposalReceiptFor?: (projectId: string) => ReturnType<typeof createProjectAgentProposalReceiptService> | undefined | Promise<ReturnType<typeof createProjectAgentProposalReceiptService> | undefined>
@@ -268,176 +246,40 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     /* 取不到系统 locale → 保持 zh-CN 缺省 */
   }
 
-  const fixtureBaseUrlOverride = productionFixtureBaseOriginFromEnv(process.env)
-  const liveGenerationRuntime = createLiveGenerationRuntime({
-    bootstrap: (state, options) => createGenerationProviderBootstrap(state, {
-      ...options,
-      ...(fixtureBaseUrlOverride ? { fixtureBaseUrlOverride } : {}),
+  // 生成这一套的接线只有一处（generationDomain）。这里只交这个宿主真不一样的地方：没有窗口、没有画布。
+  const refuseProject = refuseLandingWithoutRenderer((projectId) => readWorkspaceProject(projectId, getWorkspaceRepositoryDeps())?.name)
+  const generation = createGenerationDomain({
+    runs: productionRuns,
+    // 这条进程内路没有渲染层：要渲染层的路在规划里如实拒。
+    renderer: null,
+    // 架构③ 先落节点、再发请求：这里落不了画布（10-09 拍板：拒，不派）。准入点照走——
+    // Run 停在 landing_failed，回给 Agent「需要在 Nomi 里打开项目「X」后再继续」（打开后点继续 = 重落再派）。
+    landShots: async (projectId) => { await refuseProject(projectId) },
+    onPlanChanged: () => undefined,
+    settleBeforeAuthorization: async () => undefined,
+    // A semantic multi-shot operation must enter the durable batch scheduler. Calling submission.start()
+    // without shotId would submit only the top-level contract while falsely reporting the whole plan as
+    // running (the old stdio-only gap). The helper persists the sealed→submitted transition before any
+    // per-shot provider call.
+    kickMultiShotBatch: ({ operation, readRun, submitPlan, createScheduler }) => startSemanticMultiShotBatch(operation, {
+      readRun,
+      submitPlan,
+      createScheduler: () => createScheduler(),
+      driveScheduler: (scheduler) => {
+        void scheduler.runToQuiescence().catch((error) => {
+          logWarn('production-run', 'stdio-semantic-batch-scheduler-failed', undefined, error)
+        })
+      },
     }),
+    // 没有回合外的观察者；这个宿主也发不出去（没有画布可落）。
+    observeSingleShot: () => undefined,
+    onReconciled: (event) => {
+      if (event.kind === 'materialized') markSingleShotCompleted(productionRuns.repository, event.projectId, event.runId, { jobId: event.jobId, artifactId: event.artifactId })
+      else markSingleShotAttention(productionRuns.repository, event.projectId, event.runId, event.jobId)
+    },
   })
-  const readProviderBootstrap = liveGenerationRuntime.readBootstrap
-  const outputMaterializer = createGenerationOutputMaterializer()
-  // P4 S2: derive real per-shot prices from the live catalog pricing (readCatalog reflects user edits;
-  // resolve lazily so a mid-session pricing change is picked up). Preview/gate use the model-pricing
-  // resolver; the submission seam uses the contract→ShotPrice resolver for its ledger amounts.
-  const resolveModelPricing = (providerId: string, modelId: string) => createCatalogModelPricingResolver(readCatalog().models)(providerId, modelId)
-  const resolveShotPrice = (contract: Parameters<ReturnType<typeof createCatalogShotPriceResolver>>[0]) => createCatalogShotPriceResolver(readCatalog().models)(contract)
-  const operationStore = createProductionGenerationOperationStore(productionRuns)
-  const generationPlanning = authorities.generationPlanning
-    ?? createGenerationPlanningHandler({
-      registry: liveGenerationRuntime.registry,
-      operations: operationStore,
-      get videoModelCandidates() { return deriveUsableVideoModelCandidates() },
-      defaultModelForTaskKind: (taskKind) => readGenerationDefaultModelResolver()(taskKind),
-      // 参考素材的身份（内容哈希 + 版本）归项目素材库管，模型只给 assetId。接线前 `draft_shots`
-      // 只要带一张参考图就 100% 被判 `generation_input_invalid`，而那两个字段模型根本拿不到。
-      resolveAssetReferenceIdentity: (projectId, assetId) => resolveProjectAssetReferenceIdentity(projectId, assetId),
-      // 今天走不到：stdio 的 origin 只有 `{ host: authenticatedClient }`，没有 `sourceDocument`，
-      // 而分镜正本那两条路都以它为闸。留着是因为它是一个**参数**不是第二份实现——外部 MCP 哪天带上
-      // 文稿来源，缺了它就是悄悄少一份预览 URL。核实日期 2026-09-21。
-      resolveStoryboardReferenceUrl: resolveIndexedReferencePreview,
-      planStoryboard: planStoryboardFromScript,
-      recommendVideoGeneration,
-      resolveModelPricing,
-      providerReadiness: ({ providerId }) => {
-        const providerBootstrap = readProviderBootstrap()
-        return providerBootstrap.readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ['configured_provider'] }
-      },
-      prepareAuthorization: ({ lease, operation, contract, multiShot }) => {
-        const providerBootstrap = readProviderBootstrap()
-        const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
-        if (!projectRecord || !Number.isInteger(projectRecord.revision)) throw new Error('Generation authorization requires the current project revision')
-        const authorizationRun = productionRuns.repository.read(lease.projectId, operation.operationId)
-        if (!authorizationRun) throw new Error('Generation authorization requires the current Run snapshot')
-        const assertCurrent = createGenerationReferenceScopeGuard({
-          lease,
-          operation,
-          contract,
-          ...(multiShot ? { multiShot } : {}),
-          initialRun: authorizationRun,
-          readProject: () => {
-            const current = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
-            return current ? { id: current.id, immutableProjectUuid: current.immutableProjectUuid, projectGeneration: current.projectGeneration } : null
-          },
-          readRun: () => productionRuns.repository.read(lease.projectId, operation.operationId),
-        })
-        return prepareProductionGenerationAuthorizationWithReferences({
-          lease,
-          assertCurrent,
-          projectRevision: projectRecord.revision,
-          operation,
-          contract,
-          ...(multiShot ? { multiShot } : {}),
-          providers: providerBootstrap.providers,
-          resolveShotPrice,
-            run: authorizationRun,
-          now: new Date().toISOString(),
-        })
-      },
-      start: async (operation, lease) => {
-        const providerBootstrap = readProviderBootstrap()
-        const projectRoot = resolveWorkspaceProjectDir(lease.projectId, getWorkspaceRepositoryDeps())
-        const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
-        // The first shot can be an image anchor while the actual video shots
-        // use a different provider.  Check the complete included plan before
-        // starting the scheduler so a missing video provider is never hidden
-        // by operation.contract.providerId.
-        if (!hasGenerationOperationProviderReadiness(operation, providerBootstrap.providers)
-          || !projectRoot || !operation.contract || !projectRecord || !Number.isInteger(projectRecord.revision)) {
-          return { operationId: operation.operationId, state: operation.state, nextAction: 'provider_not_configured' }
-        }
-        const submission = createProductionGenerationSubmission({
-          repository: productionRuns.repository,
-          projectRoot,
-          immutableProjectUuid: lease.immutableProjectUuid,
-          projectGeneration: lease.projectGeneration,
-          intentMacKey: ensureCapabilitySigningKey('generation-intent'),
-          providers: providerBootstrap.providers,
-          materializeOutput: ({ projectId, providerTaskId, output, job }) => outputMaterializer.materialize({ projectId, providerTaskId, output, providerId: job.provider }),
-        })
-        // A semantic multi-shot operation must enter the durable batch
-        // scheduler. Calling submission.start() without shotId would submit
-        // only the top-level contract while falsely reporting the whole plan
-        // as running (the old stdio-only gap). The helper persists the
-        // sealed→submitted transition before any per-shot provider call.
-        // 架构③ 先落节点、再发请求：这条进程内路没有渲染层，落不了画布（10-09 拍板：拒，不派）。准入点照走——
-        // Run 停在 landing_failed，回给 Agent「需要在 Nomi 里打开项目「X」后再继续」（打开后点继续 = 重落再派）。
-        const refuseProject = refuseLandingWithoutRenderer((projectId) => readWorkspaceProject(projectId, getWorkspaceRepositoryDeps())?.name)
-        const landShots = async (projectId: string): Promise<void> => { await refuseProject(projectId) }
-        if (operation.shots && operation.shots.length > 0) {
-          const landing = await landBatchBeforeKick({ repository: productionRuns.repository, landShots, projectId: lease.projectId, runId: operation.operationId })
-          const started = await startSemanticMultiShotBatch(operation, {
-            readRun: (projectId, runId) => productionRuns.repository.read(projectId, runId),
-            submitPlan: (run) => productionRuns.command(lease.projectId, operation.operationId, {
-              commandId: `generation.submit:${operation.operationId}:v${run.planVersion}`,
-              expectedRevision: run.revision,
-              type: 'generation.submit',
-              payload: {},
-              issuedAt: new Date().toISOString(),
-            }),
-            createScheduler: (run) => {
-              void run
-              return createMultiShotBatchScheduler({
-                repository: productionRuns.repository,
-                submission,
-                projectId: lease.projectId,
-                runId: operation.operationId,
-                landShots,
-                onBatchComplete: () => productionRuns.advanceSemanticProduction(lease.projectId, operation.operationId),
-              })
-            },
-            driveScheduler: (scheduler) => {
-              void scheduler.runToQuiescence().catch((error) => {
-                logWarn('production-run', 'stdio-semantic-batch-scheduler-failed', undefined, error)
-              })
-            },
-          })
-          return landing ? { ...started, nextAction: landing.allNotPlaced ? 'canvas_landing_failed' : 'observe', ...landing } : started
-        }
-        // 单镜与 GUI 同一个开拍口、同一个准入点（受理那一刻单镜 Run 已经记成进行中，提交出口同一处）。
-        return await startSingleShotProduction({
-          repository: productionRuns.repository, submission, landShots,
-          projectId: lease.projectId, runId: operation.operationId, now: () => new Date().toISOString(), locale: desktopNoticeLocale(),
-        })
-      },
-      reconcile: async (operation, outcome, lease) => {
-        const providerBootstrap = readProviderBootstrap()
-        if (outcome === 'not_found') return { operationId: operation.operationId, outcome, nextAction: 'manual_review' }
-        const provider = providerBootstrap.providers.find((candidate) => candidate.providerId === operation.contract?.providerId)
-        const projectRoot = resolveWorkspaceProjectDir(lease.projectId, getWorkspaceRepositoryDeps())
-        const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
-        if (!provider || !projectRoot || !operation.contract || !projectRecord || !Number.isInteger(projectRecord.revision)) return { operationId: operation.operationId, outcome, nextAction: 'manual_review' }
-        if (!provider.query || !provider.capabilities.query) return { operationId: operation.operationId, outcome, nextAction: 'manual_review', recoveryNotice: '该供应商没有可用的任务查询；请到供应商核对。' }
-        const submission = createProductionGenerationSubmission({
-          repository: productionRuns.repository,
-          projectRoot,
-          immutableProjectUuid: lease.immutableProjectUuid,
-          projectGeneration: lease.projectGeneration,
-          intentMacKey: ensureCapabilitySigningKey('generation-intent'),
-          providers: providerBootstrap.providers,
-          materializeOutput: ({ projectId, providerTaskId, output, job }) => outputMaterializer.materialize({ projectId, providerTaskId, output, providerId: job.provider }),
-        })
-        try {
-          const polled = await submission.poll({ projectId: lease.projectId, operationId: operation.operationId })
-          if (polled.nextAction === 'materialize') {
-            const materialized = await submission.materialize({ projectId: lease.projectId, operationId: operation.operationId })
-            markSingleShotCompleted(productionRuns.repository, lease.projectId, operation.operationId, {
-              jobId: materialized.jobId,
-              artifactId: materialized.artifactId,
-            })
-            return materialized
-          }
-          if (polled.nextAction === 'attention') {
-            markSingleShotAttention(productionRuns.repository, lease.projectId, operation.operationId, polled.jobId)
-          }
-          return polled
-        } catch (error) {
-          const code = (error as { code?: unknown })?.code
-          if (code === 'provider_materialization_unsupported' || code === 'materialization_failed') return { operationId: operation.operationId, outcome, nextAction: 'manual_review', recoveryNotice: '供应商任务已完成，但结果还没有安全落到 Nomi 项目；请到供应商核对或稍后重试。' }
-          throw error
-        }
-      },
-    })
+  const operationStore = generation.operations
+  const generationPlanning = generation.planning
   const runOwnedGenerationAuthority = approvalReceiptAuthority
     ? createRunOwnedGenerationGateAuthority({
         owner: productionRuns,

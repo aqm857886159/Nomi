@@ -18,6 +18,7 @@ import type {
 import type { DispatchContext } from "./dispatcher";
 import type { GenerationOperationStore } from "./mcpGenerationTools";
 import type { ProjectLeaseV2 } from "./projectLease";
+import { assertIssuedGenerationPlanning } from "./generationPlanningIssue";
 
 type ApprovalReceiptIssuer = Omit<ReturnType<typeof createApprovalReceiptAuthority>, keyof ApprovalReceiptAuthority | "reader">;
 
@@ -196,6 +197,8 @@ export function createRunOwnedGenerationGateAuthority(input: Readonly<{
   receipts: ApprovalReceiptAuthority;
   now?: () => string;
 }>) {
+  // 门只认生成装配工厂发的规划（强转骗得过类型，骗不过名单）。
+  assertIssuedGenerationPlanning(input.planning, "generation gate authority");
   const now = input.now ?? (() => new Date().toISOString());
 
   const requestGenerationGate: NonNullable<DispatchContext["requestGenerationGate"]> = async ({ params, lease }) => {

@@ -3,6 +3,7 @@ import type { LabState } from '../../labScreen'
 import StoryboardAnchorZone from '../../../../workbench/creation/storyboard/anchorZone/StoryboardAnchorZone'
 import StoryboardFilmAspect from '../../../../workbench/creation/storyboard/StoryboardFilmAspect'
 import StoryboardShotTable from '../../../../workbench/creation/storyboard/StoryboardShotTable'
+import { fixedEditorOwner } from '../../fixedEditorOwner'
 import { deriveStoryboardRowRuntimes } from '../../../../workbench/creation/storyboard/exec/storyboardRowStatus'
 import type { StoryboardPlan } from '../../../../workbench/generationCanvas/agent/storyboardPlan'
 import { AutoClick, AutoFocus, PlaybackStage, TableStage } from '../storyboardLabKit'
@@ -80,6 +81,7 @@ function TableStageWithPlan({ plan, clip = true }: { plan: StoryboardPlan; clip?
     <TableStage clip={clip}>
       <StoryboardShotTable
         plan={plan}
+        planSource={fixedEditorOwner<StoryboardPlan | null>(plan)}
         rows={rows}
         imageModelOptions={LAB_IMAGE_MODELS}
         videoModelOptions={LAB_VIDEO_MODELS}

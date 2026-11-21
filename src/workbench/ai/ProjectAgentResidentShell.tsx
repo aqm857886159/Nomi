@@ -16,6 +16,7 @@ import { machineHold } from '../../ui/app-shell/shell/agentFormStore'
 import { enterCanvasPickMode } from '../generationCanvas/store/canvasPickMode'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import React, { type JSX } from 'react'
+import type { NomiEditorOwner } from '../common/useNomiRichTextEditor'
 import { openFeedbackFor } from '../../ui/community/FeedbackButton'
 import { withProjectAction } from '../project/projectCanvasReadSurface'
 import { useTranslation } from 'react-i18next'
@@ -268,6 +269,13 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const attachmentApi = useComposerAttachments({ attachments, setAttachments, settleAttachment: settleProjectAgentAttachment, onError: setReferenceError })
   const mentions = useAgentReferenceMentions({ projectId: openProjectId,
     conversationKey: `${openProjectId}:${data.activeThreadId}`, attachments, api:attachmentApi, draft, setDraft, onError:setReferenceError })
+  // 输入框的 owner：store 里此刻的草稿（不是渲染时的 draft），编辑经 mentions.onChange 写回（它顺带删掉被删 @ 的附件）。
+  const mentionsOnChange = mentions.onChange
+  const draftOwner = React.useMemo<NomiEditorOwner<string>>(() => ({
+    subscribe: useWorkbenchStore.subscribe,
+    getSnapshot: () => useWorkbenchStore.getState().projectAgentDraft,
+    write: (next, previous) => mentionsOnChange(next, previous()),
+  }), [mentionsOnChange])
   const addInlineReference = mentions.addReference
   const pickReferenceOnCanvas = () => {
     setPopover(null)
@@ -607,8 +615,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           permission: actions.permission,
           chips: liveChips.filter(chip => !mentions.hiddenAttachmentIds.has(chip.id)),
           focusTag,
-          value: draft,
-          onValueChange: mentions.onChange,
+          draft: draftOwner,
           onEditorReady: mentions.onReady,
           mentionReferences: mentions.references,
           mentionSearch: mentions.mentionSearch,

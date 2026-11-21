@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createModuleRegistry } from "./moduleRegistry";
 import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore } from "./mcpGenerationTools";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
-import { createPiGenerationTransportAdapter } from "./generationTransportAdapters";
+import { createPiGenerationTransportAdapterForTest as createPiGenerationTransportAdapter } from "./generationPlanning.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 const registry = createModuleRegistry([{
   moduleId: "generation.single-shot",
   version: "1.0.0",
@@ -64,7 +65,7 @@ function candidate(overrides: Record<string, unknown> = {}) {
 
 describe("V-3b: preflight candidate read on a SINGLE-shot draft (what draft_shots with one plain shot creates)", () => {
   it("readShotCandidateFacts on a real single-shot operation", async () => {
-    const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" }));
     const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
     const operationId = (created as { operation: { operationId: string } }).operation.operationId;
     const read = await handler({ capability: "read", params: { operationId }, lease }) as { operation: Record<string, unknown> };
@@ -83,13 +84,13 @@ describe("single-shot draft: references are read from operation.candidate; a mis
     { planning: (async (input: { capability: string; params: Record<string, unknown> }) => handler({ ...input, lease } as never)) as never, leaseFor: () => lease },
   );
   it("a single-shot draft with a reference reports it under the no-shot key", async () => {
-    const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" }));
     const created = await handler({ capability: "create", params: { candidate: candidate({ references: [{ assetId: "asset-pre", contentHash: "a".repeat(64), version: 1, kind: "video" }] }) }, lease });
     const operationId = (created as { operation: { operationId: string } }).operation.operationId;
     await expect(adapterFor(handler).readShotCandidateFacts!(operationId)).resolves.toEqual({ references: { "": ["asset-pre"] }, durationSeconds: {} });
   });
   it("an operation that does not exist is not mistaken for the single-shot shape", async () => {
-    const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" }));
     await expect(adapterFor(handler).readShotCandidateFacts!("op-missing")).rejects.toThrow();
   });
 });

@@ -11,6 +11,7 @@ import i18n from '../../src/i18n/index.ts'
 import { renderParameters, renderRow } from './ui.mjs'
 import { planOf, shotOf, candidateFor, draftRegistry }  from './entrances.mjs'
 import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore } from '../../electron/capabilityCore/mcpGenerationTools.ts'
+import { withFixedCatalog } from '../../electron/capabilityCore/generationFixedCatalog.testkit.ts'
 
 export function visibleNotes(html) {
   const found = []
@@ -64,7 +65,7 @@ export async function openOperation(test) {
   let patches = 0
   const patch = operations.patch
   operations.patch = (...args) => { patches++; return patch(...args) }
-  const reader = createGenerationPlanningHandler({ registry: draftRegistry(test.target), operations, now: () => '2026-11-09T00:00:00Z' })
+  const reader = createGenerationPlanningHandler(withFixedCatalog({ registry: draftRegistry(test.target), operations, now: () => '2026-11-09T00:00:00Z' }))
   const reply = await reader({ capability: 'read', params: { operationId: 'ruler' }, lease: { projectId: 'ruler' }, origin: { host: 'codex' } })
   const notes = []
   function visit(value) {
