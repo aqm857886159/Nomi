@@ -14,6 +14,7 @@
  * 行为那半（gate 分支）证明「读得到档位时决策是对的」；结构那半证明「宿主真的把档位递了下去」。
  * 只有前者会漏掉真正的 bug——判据写得再对，没人把档位交给它，它照样答不出来。
  */
+import { issueGenerationPlanningForTest } from "./generationPlanningIssue";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -72,13 +73,13 @@ function contextFor(policy: ProjectAgentApprovalPolicy | undefined, withPolicy: 
       authority: { verifyLease: async () => LEASE },
       connection: {},
     },
-    generationPlanning: async () => ({
+    generationPlanning: issueGenerationPlanningForTest(async () => ({
       operationId: "op-1",
       contractHash: CONTRACT_HASH,
       maximumCost: 3,
       currency: "CNY",
       model: "fixture-model",
-    }),
+    })),
     approvalReceiptAuthority: receipts.authority,
     projectRevisionResolver: () => 1,
     ...(withPolicy ? { approvalPolicy: () => policy } : {}),

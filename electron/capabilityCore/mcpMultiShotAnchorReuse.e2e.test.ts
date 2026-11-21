@@ -1,3 +1,4 @@
+import { issueGenerationPlanningForTest } from "./generationPlanningIssue";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -205,7 +206,7 @@ function harness(vendorOrigin: string, submits: string[]) {
     now,
     randomId: () => `receipt-sequence-${++receiptSequence}`,
   });
-  const generationAuthority = createRunOwnedGenerationGateAuthority({ owner: owner as never, operations, planning: handler, receipts, now });
+  const generationAuthority = createRunOwnedGenerationGateAuthority({ owner: owner as never, operations, planning: issueGenerationPlanningForTest(handler), receipts, now });
   return { root, repository, handler, buildScheduler, generationAuthority, receipts };
 }
 

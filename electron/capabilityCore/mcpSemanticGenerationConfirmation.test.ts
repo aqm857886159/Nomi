@@ -1,3 +1,4 @@
+import { issueGenerationPlanningForTest } from "./generationPlanningIssue";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -163,7 +164,7 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
   const generationAuthority = createRunOwnedGenerationGateAuthority({
     owner: owner as never,
     operations,
-    planning,
+    planning: issueGenerationPlanningForTest(planning),
     receipts,
     now: () => "2026-08-23T00:00:00.000Z",
   });
@@ -173,7 +174,7 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
     makeGateway: vi.fn(() => { throw new Error("semantic confirmation must not create a gateway"); }),
     productionRuns: { createDraft: vi.fn(), readProjection: vi.fn(), readEvents: vi.fn(), readArtifactProjection: vi.fn(), readFull: vi.fn(), command: vi.fn() },
     origin: { host: "codex" as const },
-    generationPlanning: planning,
+    generationPlanning: issueGenerationPlanningForTest(planning),
     requestGenerationGate: generationAuthority.requestGenerationGate,
     authorizeGeneration: generationAuthority.authorizeGeneration,
     projectSession: {

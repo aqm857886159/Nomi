@@ -1,3 +1,4 @@
+import { assertIssuedGenerationPlanning, type IssuedByGenerationDomain } from "./generationPlanningIssue";
 import { ipcMain } from "electron";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
@@ -148,9 +149,11 @@ export function getInstalledGenerationPlanning(): GenerationPlanningHandler | nu
  *   由 appIntegration 注入（它已持有 canvasReadSurfaceRuntime）。卸载时传 null。
  */
 export function installGuiResolveNarrowIpc(
-  seam: GenerationPlanningHandler | null,
+  seam: (GenerationPlanningHandler & IssuedByGenerationDomain) | null,
   getCommittedProjectId?: () => string | null,
 ): void {
+  // 界面的窄通道和 Agent / MCP 用同一份规划，而且只认生成装配工厂发的。
+  if (seam !== null) assertIssuedGenerationPlanning(seam, "GUI resolve narrow IPC");
   installedPlanningSeam = seam;
   if (unregisterNarrowIpc) {
     unregisterNarrowIpc();

@@ -15,6 +15,7 @@ import { readAgentApprovalPolicy } from "../settings/agentApprovalPolicySettings
 import type { ProductionRunService } from "../productionRun/productionRunService";
 import { waitingAuthorizationGates } from "../shared/productionSpendAuthority";
 import { withHandedOverAttempts } from "../shared/agentCapabilities/directGenerationBrakes";
+import { assertIssuedGenerationPlanning } from "./generationPlanningIssue";
 
 type RunOwner = Pick<ProductionRunService, "readFull" | "command">;
 
@@ -99,6 +100,8 @@ export function installResidentGenerationAdapter(input: ResidentGenerationAdapte
 export function createResidentGenerationAdapterFactory(
   input: ResidentGenerationAdapterFactoryInput,
 ): ResidentGenerationAdapterFactory {
+  // 常驻生成面只认生成装配工厂发的规划。
+  assertIssuedGenerationPlanning(input.planning, "resident generation adapter");
   const connections = new Map<string, McpConnectionContext>();
   const leases = new Map<string, ProjectLeaseV2>();
   let disposed = false;

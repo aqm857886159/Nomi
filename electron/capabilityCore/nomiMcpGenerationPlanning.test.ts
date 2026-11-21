@@ -1,3 +1,4 @@
+import { issueGenerationPlanningForTest } from "./generationPlanningIssue";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -243,7 +244,7 @@ describe("MCP semantic generation planning journey", () => {
       productionRuns: service,
       origin: { host: "codex" as const },
       projectSession: makeProjectSession(authority),
-      generationPlanning: handler,
+      generationPlanning: issueGenerationPlanningForTest(handler),
     };
     const harness = new McpJourneyHarness((method, params) => dispatch(method, params, context));
 
@@ -277,7 +278,7 @@ describe("MCP semantic generation planning journey", () => {
       productionRuns: service,
       origin: { host: "codex" as const },
       projectSession: makeProjectSession(authority),
-      generationPlanning: handler,
+      generationPlanning: issueGenerationPlanningForTest(handler),
     };
     const harness = new McpJourneyHarness((method, params) => dispatch(method, params, context));
     await harness.call(11, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex", version: "1" } });
@@ -325,7 +326,7 @@ describe("MCP semantic generation planning journey", () => {
       productionRuns: service,
       origin: { host: "codex" as const },
       projectSession: makeProjectSession(authority),
-      generationPlanning: handler,
+      generationPlanning: issueGenerationPlanningForTest(handler),
     };
     const harness = new McpJourneyHarness((method, params) => dispatch(method, params, context));
     await harness.call(21, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex", version: "1" } });
@@ -431,7 +432,7 @@ describe("MCP semantic generation planning journey", () => {
       productionRuns: service,
       origin: { host: "codex" as const },
       projectSession: makeProjectSession(authority),
-      generationPlanning: handler,
+      generationPlanning: issueGenerationPlanningForTest(handler),
     };
     const harness = new McpJourneyHarness((method, params) => dispatch(method, params, context));
     await harness.call(31, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex", version: "1" } });

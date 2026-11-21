@@ -1,3 +1,11 @@
+/**
+ * 花钱确认卡的测试世界（真 Run 服务 + 真落画布 + 假渲染层 + 静态模型表）。
+ *
+ * 这**不是**宿主装配：它自己拿一张静态模型表和随手给的价格搭规划逻辑，所以它的规划只能经测试发放口
+ * 进到用到规划的位置（`generationPlanning.testkit.ts`），生产里交不进去。它和生成装配工厂
+ * （`generationDomain.ts`）的接线仍是两份——工厂改了它不会自动跟，漏接只影响这些测试、不影响用户。
+ * 把它搬到真盘夹具上、改成调工厂，另记了待办（2026-11-21）。
+ */
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -10,7 +18,7 @@ import { createGenerationReferenceScopeGuard } from "./generationReferenceScope"
 import { resolveProductionReferenceUrls } from "./productionReferenceUrls";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { createPendingSpendActions } from "./appIntegrationSpendConfirm";
-import { createPiGenerationTransportAdapter } from "./generationTransportAdapters";
+import { createPiGenerationTransportAdapterForTest as createPiGenerationTransportAdapter } from "./generationPlanning.testkit";
 import { residentRunFacts } from "./residentGenerationAdapterFactory";
 import { installCanvasShotRuns, withdrawQueuedHandOvers, type CanvasConsentShot } from "./appIntegrationCanvasShot";
 import { createCanvasHandOver } from "./canvasHandOver";

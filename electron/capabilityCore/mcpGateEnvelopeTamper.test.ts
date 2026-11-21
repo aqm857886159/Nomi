@@ -1,4 +1,5 @@
 // 外部 MCP 付费门放宽「比信封封好时的版本」之后的反向保护（V-1049 独立验收写的 12 条）：卡开着时撤回计划 / 放弃授权 → 确认一律被拒、start 与供应商 submit 都是 0 次；改提示词 / 模型 / 参数 / 参考图 → 改不动（已封的草稿拒改稿），确认的正是封好的那一份。两个确认面各一遍。
+import { issueGenerationPlanningForTest } from "./generationPlanningIssue";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -178,7 +179,7 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
   const generationAuthority = createRunOwnedGenerationGateAuthority({
     owner: owner as never,
     operations,
-    planning,
+    planning: issueGenerationPlanningForTest(planning),
     receipts,
     now: () => "2026-08-23T00:00:00.000Z",
   });
@@ -188,7 +189,7 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
     makeGateway: vi.fn(() => { throw new Error("semantic confirmation must not create a gateway"); }),
     productionRuns: { createDraft: vi.fn(), readProjection: vi.fn(), readEvents: vi.fn(), readArtifactProjection: vi.fn(), readFull: vi.fn(), command: vi.fn() },
     origin: { host: "codex" as const },
-    generationPlanning: planning,
+    generationPlanning: issueGenerationPlanningForTest(planning),
     requestGenerationGate: generationAuthority.requestGenerationGate,
     authorizeGeneration: generationAuthority.authorizeGeneration,
     projectSession: {

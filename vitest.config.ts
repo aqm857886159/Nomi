@@ -102,6 +102,8 @@ export default defineConfig({
     // 把 productionRun 的编排测试顶过 5000ms testTimeout（flake 根因）。见该文件顶部注释。
     setupFiles: [fileURLToPath(new URL("./tests/setup/durability.ts", import.meta.url)),
       fileURLToPath(new URL("./tests/setup/networkTransport.ts", import.meta.url)),
+      // 测派发和门的测试要往里递规划的桩：「可以发测试桩」只在这里打开，生产构建不含这个文件。
+      fileURLToPath(new URL("./tests/setup/generationPlanningTestIssue.ts", import.meta.url)),
       // 技能目录的 CJS→岛桥在源码上不存在（要编译产物）；单测里把 readSkillRecords 直接接到岛上（见文件头）。
       fileURLToPath(new URL("./tests/setup/skillCatalogBridge.ts", import.meta.url)),
       // 「调一次模型」的 CJS→岛桥同理（见文件头）。

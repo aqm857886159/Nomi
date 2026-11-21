@@ -987,15 +987,33 @@ export default tseslint.config(
     // 就是「点名别家仍继承默认的方式」那一类的第二个家。发送方式只由 modeForInputs 定。capabilityCore 里只有两处装配把它注入
     // mcpGenerationTools 的预览依赖；别的文件具名 / 动态 import 都当场红。独立注册规则 id，别的块盖不到。
     files: ['electron/capabilityCore/**/*.{ts,tsx,mts,cts}'],
-    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/capabilityCore/appIntegration.ts', 'electron/capabilityCore/mcpStdioServer.ts'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/capabilityCore/generationDomain.ts'],
     plugins: { 'recommendation-preview-only': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
     rules: {
       'recommendation-preview-only/no-restricted-imports': ['error', { patterns: [{
         group: [...moduleSources('videoCapabilities'), ...moduleSources('videoCapabilities/index'), ...moduleSources('videoCapabilities/recommendation'), ...moduleSources('modelArchetypes'), ...moduleSources('modelArchetypes/index')],
         importNames: ['recommendVideoGeneration'],
-        message: '视频推荐只进预览：执行路径的发送方式由 modeForInputs 定，不取推荐首项。预览经 mcpGenerationTools 的注入依赖拿它（装配在 appIntegration / mcpStdioServer）。',
+        message: '视频推荐只进预览：执行路径的发送方式由 modeForInputs 定，不取推荐首项。预览经 mcpGenerationTools 的注入依赖拿它（装配只在 generationDomain）。',
       }] }],
       'recommendation-preview-only/no-restricted-syntax': ['error', ...dynamicModuleSelectors('(videoCapabilities|modelArchetypes)(.index|.recommendation)?', ['recommendVideoGeneration'], '视频推荐只进预览：执行路径的发送方式由 modeForInputs 定。')],
+    },
+  },
+  {
+    // 生成规划的名单（2026-11-21）：用到规划的位置只认生成装配工厂发的那一个。往名单里记的能力只有工厂拿
+    // （`claimGenerationPlanningIssuer`）；测试发放口和两份测试辅助只给测试、`*.testkit.ts`、`*TestUtils.ts` 用。
+    // 这一条只算提示——真正拦的是类型上的记号和装上那一刻按名单核（generationPlanningIssue.ts）。独立注册规则 id，别的块盖不到。
+    files: ['electron/**/*.{ts,tsx,mts,cts}', 'src/**/*.{ts,tsx}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, '**/*.testkit.ts', '**/*TestUtils.ts', 'electron/capabilityCore/generationDomain.ts', 'electron/capabilityCore/generationPlanningIssue.ts'],
+    plugins: { 'generation-planning-issue': boundaryPlugin('no-restricted-imports') },
+    rules: {
+      'generation-planning-issue/no-restricted-imports': ['error', { patterns: [{
+        group: moduleSources('generationPlanningIssue'),
+        importNames: ['claimGenerationPlanningIssuer', 'openGenerationPlanningTestIssue', 'issueGenerationPlanningForTest'],
+        message: '往「工厂发的规划」名单里记只有 generationDomain.ts 能做；测试发放口只给测试用。生产代码要规划就从 createGenerationDomain() 拿。',
+      }, {
+        group: [...moduleSources('generationPlanning.testkit'), ...moduleSources('fixedGenerationCatalog.testkit')],
+        message: '这是测试辅助（静态模型表、测试桩的发放口）。生产代码的目录只从 createGenerationDomain() 来。',
+      }] }],
     },
   },
   {

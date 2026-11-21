@@ -1,3 +1,4 @@
+import { assertIssuedGenerationPlanning } from "./generationPlanningIssue";
 import { DRAFT_CANVAS_LANDING_KEY, type DraftCanvasLanding } from "../shared/agentLane/draftCanvasLanding";
 import { undecidedShotIds, type GeneratePresentationOutcome } from "../shared/productionGenerationPresentation";
 import { GenerationScopeRefusal, NO_CURRENT_OFFER, resolveUndecidedGenerationShotScope } from '../shared/agentCapabilities/generationShotScope';
@@ -373,6 +374,8 @@ export function createPiGenerationTransportAdapter(
   binding: ProjectBinding,
   deps: GenerationTransportAdapterDependencies,
 ): PiGenerationTransportAdapter {
+  // 模型那一侧的传输只认生成装配工厂发的规划（强转骗得过类型，骗不过名单）。
+  assertIssuedGenerationPlanning(deps.planning, "lane generation transport");
   let disposed = false;
 
   const lease = async (signal: AbortSignal): Promise<ProjectLeaseV2> => {
