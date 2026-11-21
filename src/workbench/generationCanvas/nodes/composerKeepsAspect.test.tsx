@@ -65,6 +65,7 @@ vi.mock('../../../design/tooltip', () => {
 })
 
 import NodeGenerationComposer from './NodeGenerationComposer'
+import { installComposerBridge, type BridgeAnswers } from './composerBridgeTestUtils'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { selectCanvasNodeById } from '../store/canvasNodeGenerationIndex'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -91,46 +92,16 @@ const HEALTH = { ok: true, counts: { vendors: 1, enabledVendors: 1, models: 2, e
 const PROJECTS = [{ id: 'project-a', name: 'A' }, { id: 'project-b', name: 'B' }, { id: 'project-c', name: 'C' }]
 
 /** 每个方法的应答；没登记的方法照样记账、回 undefined。 */
-const ANSWERS: Record<string, (...args: unknown[]) => unknown> = {
+/** 和本文件有关的数据；生成框挂上时都会读的那些口由共用假桥答（composerBridgeTestUtils）。 */
+const ANSWERS: BridgeAnswers = {
   'modelCatalog.listVendors': () => VENDORS,
   'modelCatalog.listModels': (params) => MODELS.filter((row) => !(params as { kind?: string } | undefined)?.kind || row.kind === (params as { kind: string }).kind),
-  'modelCatalog.listMappings': () => [],
   'modelCatalog.health': () => HEALTH,
   'projects.listAsync': async () => PROJECTS,
   'assets.list': async (payload) => ({
     items: [{ id: `${(payload as { projectId: string }).projectId}-a1`, projectId: (payload as { projectId: string }).projectId, name: 'a1.png', createdAt: '2026-10-01', updatedAt: '2026-10-01', data: { relativePath: 'assets/a1.png', mediaType: 'image' } }],
     cursor: null,
   }),
-  'settings.generationModelDefaults.get': async () => ({ schemaVersion: 1, byTaskKind: {} }),
-  'promptLibrary.list': async () => ({ ok: true, prompts: [] }),
-  'promptLibrary.userList': async () => ({ ok: true, prompts: [] }),
-}
-
-function recordingBridge(): unknown {
-  const make = (path: string[]): unknown => new Proxy(function bridgeMember() {}, {
-    get: (_target, key) => (typeof key === 'symbol' || key === 'then' ? undefined : make([...path, key])),
-    apply: (_target, _self, args: unknown[]) => {
-      const name = path.join('.')
-      if (/(^|\.)on[A-Z]/.test(name)) { probe.listeners.push(name); return () => undefined }
-      probe.io.push(name)
-      return ANSWERS[name]?.(...args)
-    },
-  })
-  return make([])
-}
-
-function installWindow(): void {
-  const listeners = new Map<string, Set<(event: Event) => void>>()
-  vi.stubGlobal('window', {
-    nomiDesktop: recordingBridge(),
-    addEventListener: (type: string, listener: (event: Event) => void) => {
-      if (!listeners.has(type)) listeners.set(type, new Set())
-      listeners.get(type)!.add(listener)
-    },
-    removeEventListener: (type: string, listener: (event: Event) => void) => listeners.get(type)?.delete(listener),
-    dispatchEvent: (event: Event) => { for (const listener of listeners.get(event.type) ?? []) listener(event); return true },
-    setTimeout, clearTimeout,
-  })
 }
 
 const ENTRIES = buildModelEntryIndex(buildAgentModelEntries(toCatalogModelOptions(MODELS as Parameters<typeof toCatalogModelOptions>[0])), ['apimart'])
@@ -181,7 +152,7 @@ describe('打开节点不改比例；新卡的比例默认值在自动选模型�
   let renderer: ReturnType<typeof createReactTestRenderer>
 
   beforeEach(() => {
-    installWindow()
+    installComposerBridge(ANSWERS, probe)
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', false)
     notifyModelOptionsRefresh('all')
     resetGenerationModelDefaultsForTest()

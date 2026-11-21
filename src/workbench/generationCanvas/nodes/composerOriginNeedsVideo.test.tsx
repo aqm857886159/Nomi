@@ -28,6 +28,7 @@ vi.mock('../../../design/tooltip', () => {
 })
 
 import NodeGenerationComposer from './NodeGenerationComposer'
+import { installComposerBridge, type BridgeAnswers } from './composerBridgeTestUtils'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { selectCanvasNodeById } from '../store/canvasNodeGenerationIndex'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -39,42 +40,11 @@ const MODELS = [
   { modelKey: 'kling-v4-flash', vendorKey: 'apimart', labelZh: '可灵 4.0 Flash', kind: 'video', enabled: true, published: true, publishedModes: ['text_to_video', 'image_to_video'], availability: { usable: true } },
 ]
 const HEALTH = { ok: true, counts: { vendors: 1, enabledVendors: 1, models: 1, enabledModels: 1, mappings: 0, enabledMappings: 0, enabledApiKeys: 1 }, byKind: [], issues: [] }
-const ANSWERS: Record<string, (...args: unknown[]) => unknown> = {
+/** 和本文件有关的数据；生成框挂上时都会读的那些口由共用假桥答（composerBridgeTestUtils）。 */
+const ANSWERS: BridgeAnswers = {
   'modelCatalog.listVendors': () => VENDORS,
   'modelCatalog.listModels': (params) => MODELS.filter((row) => !(params as { kind?: string } | undefined)?.kind || row.kind === (params as { kind: string }).kind),
-  'modelCatalog.listMappings': () => [],
   'modelCatalog.health': () => HEALTH,
-  'projects.listAsync': async () => [],
-  'assets.list': async () => ({ items: [], cursor: null }),
-  'settings.generationModelDefaults.get': async () => ({ schemaVersion: 1, byTaskKind: {} }),
-  'promptLibrary.list': async () => ({ ok: true, prompts: [] }),
-  'promptLibrary.userList': async () => ({ ok: true, prompts: [] }),
-}
-
-function recordingBridge(): unknown {
-  const make = (path: string[]): unknown => new Proxy(function bridgeMember() {}, {
-    get: (_target, key) => (typeof key === 'symbol' || key === 'then' ? undefined : make([...path, key])),
-    apply: (_target, _self, args: unknown[]) => {
-      const name = path.join('.')
-      if (/(^|\.)on[A-Z]/.test(name)) return () => undefined
-      return ANSWERS[name]?.(...args)
-    },
-  })
-  return make([])
-}
-
-function installWindow(): void {
-  const listeners = new Map<string, Set<(event: Event) => void>>()
-  vi.stubGlobal('window', {
-    nomiDesktop: recordingBridge(),
-    addEventListener: (type: string, listener: (event: Event) => void) => {
-      if (!listeners.has(type)) listeners.set(type, new Set())
-      listeners.get(type)!.add(listener)
-    },
-    removeEventListener: (type: string, listener: (event: Event) => void) => listeners.get(type)?.delete(listener),
-    dispatchEvent: (event: Event) => { for (const listener of listeners.get(event.type) ?? []) listener(event); return true },
-    setTimeout, clearTimeout,
-  })
 }
 
 const VISUAL_SIZE = { width: 340, height: 192 }
@@ -109,7 +79,7 @@ const clip: GenerationCanvasNode = { id: 'clip', kind: 'video', title: 'clip', p
 describe('可灵 4.0 Flash 全能参考：断开参考视频后「保留原声」回到 auto', () => {
   let renderer: ReturnType<typeof createReactTestRenderer>
   beforeEach(() => {
-    installWindow()
+    installComposerBridge(ANSWERS)
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', false)
     notifyModelOptionsRefresh('all')
     resetGenerationModelDefaultsForTest()
