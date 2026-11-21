@@ -378,9 +378,16 @@ try {
       await win.setViewportSize({ width: 700, height: 720 })
       await expect.poll(() => win.evaluate(() => window.innerWidth), { timeout: stationTimeout() }).toBeLessThan(720)
       // 视口收窄后浮框还在原处、右半截出了窗口；真人会把画布拖过来再看——照做（中键拖，同 panCanvasUntilInside），拖不进来也照实记。
-      const narrowPan = await panCanvasUntilInside(win, composer, { margin: { left: 8, right: 8, top: 8, bottom: 16 } })
+      // 左右只留 8（700 宽里舞台放不下 600 的浮框再加左缘 72）；下面照默认留 72，让开右下角常驻钮和缩放条，不然截出来发送键被常驻钮盖住。
+      const narrowPan = await panCanvasUntilInside(win, composer, { margin: { left: 8, right: 8, top: 8 } })
       await summaryClearOfTools('narrow window')
       const narrowBox = await fits('narrow')
+      const sendReachable = await send.first().evaluate((el) => {
+        const r = el.getBoundingClientRect()
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        return Boolean(hit && el.contains(hit))
+      })
+      assert(sendReachable, 'narrow: after panning the composer into view, nothing covers the send key')
       assert(Math.abs(narrowBox.width - wideBox.width) < 1, `composer keeps its width in a narrow window: ${wideBox.width} → ${narrowBox.width}`)
       await frame('narrow')
       record.longest = { pill: await pill.innerText(), composerWidth: wideBox.width, narrowComposerWidth: narrowBox.width, narrowPan: { ok: narrowPan.ok, reason: narrowPan.reason ?? null } }
