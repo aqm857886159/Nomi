@@ -1,6 +1,6 @@
 // 素材文件存活：真 store + 真删除入口 + 真写盘的项目文件 + 真删除 IPC（只把系统回收站换成临时目录里的改名）。
 // 创作者把一张结果挂到分镜参考 / 节点参考 / 助手输入上，再删掉产出它的那一版：
-// 删除当场、关项目释放、重开清扫，三个时刻文件都必须还在原路径；对照组「真没人用」的照旧回收。
+// 删除当场、关项目释放、重开清扫、撤销日志挤出到点，四个时刻文件都必须还在原路径；对照组「真没人用」的照旧回收。
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -76,18 +76,21 @@ function reopenProject() {
 
 type Case = 'storyboard-binding' | 'ordinary-node-reference' | 'assistant-input' | 'unused-control'
 
+/** 分镜第 1 镜的参考位挂上这份文件（走分镜自己的挂参考入口）。 */
+function arrangeStoryboardBinding() {
+  const shot = { index: 1, durationSec: 3, anchorIds: [], prompt: 'fixture' }
+  const added = appendShotBinding(shot, { kind: 'image_ref', label: 'reference', asArray: true, min: 0, max: 3 }, { url, name: 'a', sourceNodeId: 'producer' }, 'image')
+  if (added.status !== 'added') throw new Error('fixture binding failed')
+  useWorkbenchStore.setState({ storyboardDesignsByDocumentId: { 'doc-1': [{ id: 'design-1', documentId: 'doc-1', title: 'fixture', committed: false, status: 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1,
+    plan: { title: 'fixture', anchors: [], shots: [{ ...shot, ...added.patch }] } }] } as never })
+}
+
 function arrange(kind: Case) {
   const result = { id: 'a', type: 'image' as const, url, createdAt: 1 }
   const nodes: GenerationCanvasNode[] = [{ ...baseNode('producer'), status: 'success', result, history: [result] }]
   if (kind === 'ordinary-node-reference') nodes.push({ ...baseNode('consumer'), meta: referenceListPatch([url]) } as GenerationCanvasNode)
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes, edges: [], groups: [], selectedNodeIds: [] }, projectId)
-  if (kind === 'storyboard-binding') {
-    const shot = { index: 1, durationSec: 3, anchorIds: [], prompt: 'fixture' }
-    const added = appendShotBinding(shot, { kind: 'image_ref', label: 'reference', asArray: true, min: 0, max: 3 }, { url, name: 'a', sourceNodeId: 'producer' }, 'image')
-    if (added.status !== 'added') throw new Error('fixture binding failed')
-    useWorkbenchStore.setState({ storyboardDesignsByDocumentId: { 'doc-1': [{ id: 'design-1', documentId: 'doc-1', title: 'fixture', committed: false, status: 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1,
-      plan: { title: 'fixture', anchors: [], shots: [{ ...shot, ...added.patch }] } }] } as never })
-  }
+  if (kind === 'storyboard-binding') arrangeStoryboardBinding()
   if (kind === 'assistant-input') useWorkbenchStore.getState().setProjectAgentAttachments([{ id: 'att-1', fileName: 'a.png', kind: 'image', contentType: 'image/png', sizeBytes: bytes.length, status: 'ready', url, assetId: 'fixture-original', contentHash: 'fixture', version: 1,
     referenceNode: { nodeId: 'producer', resultId: 'a', originalUrl: url } }] as never)
 }
@@ -124,6 +127,8 @@ afterEach(() => {
   fs.rmSync(originalRoot, { recursive: true, force: true })
 })
 
+const UNDO_STEPS_TO_EVICT = 81 // 撤销日志上限 80 步：再多一步，删除那一步就退不回去了。
+
 describe('删掉原结果后，别处还在用的文件不进回收站（真文件）', () => {
   const cases: Case[] = ['storyboard-binding', 'ordinary-node-reference', 'assistant-input', 'unused-control']
   for (const kind of cases) it(kind, async () => {
@@ -156,5 +161,35 @@ describe('删掉原结果后，别处还在用的文件不进回收站（真文�
     expect(useGenerationCanvasStore.getState().nodes.find((n) => n.id === 'producer')?.history ?? []).toHaveLength(0)
     record(kind, 'reopen-sweep', { outcome: swept, fileAtOriginalPath: fs.existsSync(filePath()) })
     if (!expectKeep) expect(fs.readFileSync(io.trash[0])).toEqual(bytes)
+  })
+})
+
+// 撤销日志挤出到点：删的那一刻没人用（记待删），之后创作者把同一份文件挂进分镜 / 节点参考（例如撤销回来、挂上、再删那一版），
+// 再编辑 81 步把删除那一步挤出撤销日志——到点再判一次引用，挂上的那一处让文件留下；对照组没人挂，照旧进回收站。
+describe('撤销日志挤出到点：之后挂上的分镜参考 / 节点参考让文件留下（真文件）', () => {
+  const cases = ['storyboard-binding', 'ordinary-node-reference', 'unused-control'] as const
+  for (const kind of cases) it(kind, async () => {
+    const result = { id: 'a', type: 'image' as const, url, createdAt: 1 }
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [{ ...baseNode('producer'), status: 'success', result, history: [result] }, baseNode('consumer')], edges: [], groups: [], selectedNodeIds: [] }, projectId)
+    saveProject()
+
+    const deleted = await deleteAssetResult(asset, loaded)
+    expect(deleted).toMatchObject({ removedResultCount: 1, deferredFileCount: 1, keptInUseCount: 0 })
+    expect(listPersistedAssetDeletions()).toEqual([{ relativePath, source: 'asset-library' }])
+
+    if (kind === 'ordinary-node-reference') useGenerationCanvasStore.getState().updateNodes([{ nodeId: 'consumer', patch: { meta: referenceListPatch([url]) } }])
+    if (kind === 'storyboard-binding') arrangeStoryboardBinding()
+    const before = JSON.stringify(retainedReference(kind))
+
+    for (let step = 0; step < UNDO_STEPS_TO_EVICT; step += 1) useGenerationCanvasStore.getState().updateNodes([{ nodeId: 'producer', patch: { title: `edit ${step}` } }])
+    // 挤出时待删同步领走（领走即离开清单），删不删在异步的那一段里定。
+    expect(listPersistedAssetDeletions()).toBeUndefined()
+    if (kind === 'unused-control') await vi.waitFor(() => expect(fs.existsSync(filePath())).toBe(false))
+    else await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(fs.existsSync(filePath())).toBe(kind !== 'unused-control')
+    expect(JSON.stringify(retainedReference(kind))).toBe(before)
+    record(kind, 'undo-eviction-release', { fileAtOriginalPath: fs.existsSync(filePath()), trashed: io.trash.length })
+    if (kind === 'unused-control') expect(fs.readFileSync(io.trash[0])).toEqual(bytes)
   })
 })

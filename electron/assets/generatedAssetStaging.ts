@@ -19,7 +19,7 @@ import path from "node:path";
 import type { JsonRecord } from "../jsonUtils";
 import type { CertificationMediaEvidence } from "../providerAdapter/certificationMedia";
 import { copyFileWithProgress, type AssetCopyProgress } from "./assetImportProgress";
-import { sanitizeAssetMetaForKind } from "./assetPaths";
+import { finalizeAssetMeta } from "./assetSourceEvidence";
 import { captureAssetWriteContext, type AssetWriteContext } from "./assetWriteContext";
 import { generatedMediaKindMismatchError, generatedMediaValidationError, verifyGeneratedMediaDecodes } from "./generatedMediaDecode";
 import type { LocalizedAssetType } from "./localizedAsset";
@@ -208,7 +208,7 @@ export function prepareVerifiedGeneratedAsset(input: PrepareInput): Promise<Veri
 
 async function prepareOwned(input: PrepareInput, pinned: Buffer | undefined, entry: InflightPrepare): Promise<VerifiedStagedAsset> {
   const signal = entry.controller.signal;
-  const meta = sanitizeAssetMetaForKind(input.rawMeta);
+  const meta = finalizeAssetMeta(input.rawMeta);
   if (!isGeneratedAssetMeta(meta)) throw new Error("prepareVerifiedGeneratedAsset only stages generated outputs");
   const context = input.context ?? await captureAssetWriteContext(input.projectId);
   if (context.projectId !== input.projectId) throw Object.assign(new Error("project_binding_stale"), { code: "project_binding_stale" });

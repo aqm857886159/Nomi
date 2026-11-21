@@ -4,9 +4,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { desktopT } from "../../i18n";
-import { nowIso } from "../../jsonUtils";
-import { sanitizeSourceEvidence } from "../../assets/projectAssetStore";
 import { captureFileName } from "../captureNaming";
+import type { AssetSourceFact } from "../../assets/assetSourceEvidence";
 import type { WindowProjectIssuance } from "../../assets/windowProjectCapture";
 import { BROWSER_MEDIA_MAX_BYTES, detectAnimatedImage, mediaTypeFromContentType, resolveBrowserMediaContentType, streamBrowserMediaResponseToFile } from "./browserMediaValidation";
 import {
@@ -484,15 +483,6 @@ export async function importBrowserMedia(record: BrowserViewRecord, payload: Bro
     }
   }
 
-  // P0-1 来源取证：浏览器导入路径——usageStatus 强制为 reference_only（诚实默认）。
-  // 没核实过许可的网页素材，进项目后不能自动当成可商用内容。
-  const browserSourceEvidence = sanitizeSourceEvidence({
-    source: "browser",
-    pageUrl: safeHeaderUrl(pageUrl) || "",
-    capturedAt: nowIso(),
-    usageStatus: "reference_only",
-  });
-
   try {
     const { moveAssetFile } = await import("../../runtime");
     // 落盘前复验：下载期间父窗口换了项目 → 取消，不把素材写进任何项目。
@@ -510,7 +500,7 @@ export async function importBrowserMedia(record: BrowserViewRecord, payload: Bro
       {
         kind: "browser-capture",
         // M0 捕捞评审定案：网页 URL 绝不进 originalUrl（48h 信任窗会把它发给生成商）。
-        // projectAssetStore 的 sanitizeAssetMetaForKind 对 capture 族有兜底，这里显式写明意图。
+        // 素材库的 finalizeAssetMeta 对 capture 族有兜底，这里显式写明意图。
         originalUrl: null,
         pageUrl: safeHeaderUrl(pageUrl) || null,
         title: payload.title || null,
@@ -518,8 +508,8 @@ export async function importBrowserMedia(record: BrowserViewRecord, payload: Bro
         // 来源质量诚实标注（sidecar 持久化，素材卡显示「网页原图/页面截图/视频当前帧」）。
         ...(captureQuality !== "original" ? { captureQuality } : {}),
         ...(animatedImage ? { animated: true } : {}),
-        // P0-1 来源取证（带 usageStatus: reference_only，后续导出署名清单可读取）。
-        ...(browserSourceEvidence ? { sourceEvidence: browserSourceEvidence } : {}),
+        // P0-1 来源取证：只交事实「从这一页捕获」；usageStatus（恒 reference_only）与时间由素材库定。
+        sourceEvidence: { source: "browser", pageUrl: safeHeaderUrl(pageUrl) || "" } satisfies AssetSourceFact,
       },
     );
   } finally {
@@ -553,20 +543,14 @@ async function movePromptReferenceFile(input: {
   if (!input.project) return null;
   const { moveAssetFile } = await import("../../runtime");
   input.project.assertCurrent();
-  // P0-1 来源取证：浏览器提示词参考图来源——usageStatus 强制为 reference_only（诚实默认）。
-  const promptRefEvidence = sanitizeSourceEvidence({
-    source: "browser",
-    pageUrl: safeHeaderUrl(input.pageUrl || "") || "",
-    capturedAt: nowIso(),
-    usageStatus: "reference_only",
-  });
   return moveAssetFile(input.project.binding.projectId, input.absolutePath, input.fileName, input.contentType, {
     kind: "browser-prompt-reference",
     originalUrl: input.sourceUrl || null,
     pageUrl: safeHeaderUrl(input.pageUrl || "") || null,
     title: input.title || null,
     mediaType: "image",
-    ...(promptRefEvidence ? { sourceEvidence: promptRefEvidence } : {}),
+    // P0-1 来源取证：只交事实，落盘形状由素材库定（浏览器来源恒 reference_only）。
+    sourceEvidence: { source: "browser", pageUrl: safeHeaderUrl(input.pageUrl || "") || "" } satisfies AssetSourceFact,
   });
 }
 
