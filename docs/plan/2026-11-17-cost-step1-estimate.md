@@ -9,6 +9,7 @@
 
 - APIMart 公开价目（总价目 https://api.apimart.ai/api/pricing/models/all 、单型号 https://api.apimart.ai/api/pricing/model?model=… ；旧 PR 的实现线和验收线打开核过，协调没亲眼看）· 按型号、规格给公开折后价，单位美元；官方用量说明里 1 美元 = 10 积分 · **确认了**：数字只能来自「连接、最终型号、输出规格、份数都对得上」的公开价，对不上就是未知。
 - LibTV 画布（协调亲眼看过真界面）· 生成键上直接写这次要多少积分，点之前就看得到 · **确认了**：价格放在发送键上，不另起一行、不弹窗。
+- TapNow 文档（https://docs.tapnow.ai/zh/docs/new-canvas/generate-on-a-node 、https://docs.tapnow.ai/zh/docs/account/manage-tapies-and-plans ；收尾线 2026-11-21 打开读过原文，没看真界面）· 节点上「点击 生成。按钮上会显示预计消耗的 Tapies」；生成前「根据当前选择的模型和参数显示预计 Tapies 消耗」，「最终扣除数量以实际完成的生成和账单记录为准」；算不出时怎么显示文档没写 · **确认了**：价格印在发送键上、跟着型号和参数变、只说预计不说实扣（和 M4、11-15「可以印预估、不断言实扣」同向）；算不出时的样子仍没有先例，照本卡「只剩箭头、不印 0」。
 - 用户 2026-11-07 拍板的图 M4、2026-11-15「可以印预估、不断言实扣、算不出不写 0」· 发送键上硬币图标 + 积分数；悬停说明来源和口径 · **照做**。
 - 出口：用户 2026-11-15「可以印预估、不断言实扣、算不出不写 0」（docs/design/boards/2026-11-07-model-surfaces/ModelSurfaces.board.json:1418 `cost.send-pill`）· 算不出价不拦人：键上只剩箭头照常能发，悬停说「暂时估不出这次用量」，点发送后的花钱确认照原样走；LibTV 算不出价时怎么让人继续没查到，记未查 · 确认了「估价只是显示、不是许可」：约价链不碰发送流程。
 
@@ -157,7 +158,9 @@ Windows：unverified。英文界面：走查中英各一遍。最窄节点宽度
 - 走查：`tests/ux/send-cost-estimate.rehearsal.walk.mjs`。
   - 时长是连续滑杆（4–15 秒），走查在轨道上点一下改值，只提交一次。方向键每走一步都会提交一次。
   - 主分支 APIMart 的型号没有数量参数，真实任务 3（多份）在真窗口里做不了，记 unverified；「单价 × 份数」由单测守。
-- 性能场景：`tests/perf/scenarios/send-cost-param-update.json`。
+  - 收尾线补了对照表各状态的真窗口帧：算价中（假服务第一次读价目扣 6 秒）、最长数字、700 宽窗口、500 / 超时、生成中（假服务扣着非 GET 5 秒再回 405）。
+  - 「禁用 + 有价」真窗口造不出：能禁用发送的条件（参考输入缺、制作流程占着、3D 预演挡着）都带参考或制作流程，带参考的这一单真价目判估不出。这一态由实验室格 `sc-i-disabled-priced` 和 `ComposerSendButton` 单测守。
+- 性能场景：`tests/perf/scenarios/send-cost-param-update.json`（中文）、`send-cost-param-update-en.json`（英文，待测，基线由协调写）。
   - 主指标 `response`：在滑杆上按下 → 键上出现新数。
   - 走查另记 `paramUi`：在滑杆上按下 → 滑块到新值。它不进场景指标，只用来和主分支同机交替对照。
 - 悬停三句的原文只登记一处：`scripts/check-i18n-no-cost-claims.mjs` 的 `COST_LABEL_EXACT`。单测从词典取，不再抄一份。

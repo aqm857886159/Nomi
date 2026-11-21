@@ -1493,7 +1493,7 @@
       "status": "in-progress",
       "owner": "花费显示第一步：发送键上的约价（docs/plan/2026-11-17-cost-step1-estimate.md）",
       "assertion": "board:ModelSurfaces/cost.send-pill",
-      "note": "拍板图只有 M4（中文、浅色、有价）一个状态；其余状态（估不出、读不到、算价中、禁用 + 有价、生成中、最长数字、最窄宽度、英文、暗色）没有拍板图，以合并前给用户看过的真截图为准，看过之前保持 in-progress。"
+      "note": "拍板图只有 M4（中文、浅色、有价）一个状态；其余状态（估不出、读不到、算价中、禁用 + 有价、生成中、最长数字、最窄宽度、英文、暗色）没有拍板图，以合并前给用户看过的真截图为准，看过之前保持 in-progress。拍板图只有 M4 ① 一帧（有价 + 悬停），其余状态的真截图并排见 PR 与报告。"
     },
     {
       "id": "cost.hover",
@@ -1513,7 +1513,7 @@
       "status": "in-progress",
       "owner": "花费显示第一步：发送键上的约价（docs/plan/2026-11-17-cost-step1-estimate.md）",
       "assertion": "board:ModelSurfaces/cost.hover",
-      "note": "只取 M4 上那句话的文字；几何（离按钮距离、边框、高度、圆角）按共用提示组件，不照 M4 单做。",
+      "note": "只取 M4 上那句话的文字；几何（离按钮距离、边框、高度、圆角）按共用提示组件，不照 M4 单做。拍板图只有 M4 ① 一帧（有价 + 悬停），其余状态的真截图并排见 PR 与报告。",
       "userDecision": {
         "quote": "用统一样式",
         "date": "2026-11-17",
