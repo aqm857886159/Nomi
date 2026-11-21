@@ -77,15 +77,17 @@ export function createLiveGenerationRuntime(factories: LiveGenerationRuntimeFact
   const bootstrap = factories.bootstrap ?? ((state, options) => createGenerationProviderBootstrap(state, options));
   const registryFactory = factories.registry ?? ((state, readiness) => createCatalogModuleRegistry(state, { readinessByProvider: readiness }));
 
-  const buildCall = (): LiveGenerationCallCatalog => {
+  /** 目录某一版算出来的东西（可按目录版本缓存）。默认模型不在这里：它还取决于另一份设置文件。 */
+  type CatalogVersion = Omit<LiveGenerationCallCatalog, "defaultModelForTaskKind"> & Readonly<{ state: CatalogState }>;
+  const buildVersion = (): CatalogVersion => {
     const state = catalogReader();
     const capturedBootstrap = bootstrap(state, { catalogReader });
     const capturedRegistry = registryFactory(state, capturedBootstrap.readinessByProvider);
-    // 候选和默认模型不是每次调用都用得上，算一次要扫全目录：用到才算，算过就留在这一版上。
+    // 候选不是每次调用都用得上，算一次要扫全目录：用到才算，算过就留在这一版上。
     let candidates: ReturnType<typeof deriveUsableVideoModelCandidates> | undefined;
-    let defaults: ((taskKind: GenerationDefaultTaskKind) => GenerationStoryboardDefault | undefined) | undefined;
     const resolveModelPricing = createCatalogModelPricingResolver(state.models);
     return {
+      state,
       registry: {
         resolve: (input) => capturedRegistry.resolve(input),
         snapshot: () => capturedRegistry.snapshot?.() ?? [],
@@ -95,19 +97,33 @@ export function createLiveGenerationRuntime(factories: LiveGenerationRuntimeFact
       resolveModelPricing,
       resolveShotPrice: createCatalogShotPriceResolver(state.models),
       get videoModelCandidates() { return candidates ??= deriveUsableVideoModelCandidates(state); },
-      defaultModelForTaskKind: (taskKind) => (defaults ??= createGenerationDefaultModelResolver(state, readGenerationModelDefaults()))(taskKind),
     };
   };
   // 一次现算要几十到上百毫秒（全目录的就绪判定 + 模型表），一个 40 镜的 Run 每镜预览、过门都要问好几次：
   // 按目录这一版缓存，目录一变（交卡、存密钥、设置页改动）下一次问就重算。
   const revision = factories.catalogRevision ?? (factories.catalogReader ? undefined : catalogRevisionToken);
-  let cached: { token: object; call: LiveGenerationCallCatalog } | null = null;
-  const current = (): LiveGenerationCallCatalog => {
+  let cached: { token: object; version: CatalogVersion } | null = null;
+  const currentVersion = (): CatalogVersion => {
     const token = revision?.();
-    if (token && cached?.token === token) return cached.call;
-    const next = buildCall();
-    cached = token ? { token, call: next } : null;
+    if (token && cached?.token === token) return cached.version;
+    const next = buildVersion();
+    cached = token ? { token, version: next } : null;
     return next;
   };
-  return { openCall: current, current };
+  // 每问一次给一个新的值：目录那几样来自这一版（可能是缓存的），默认模型的设置在这次调用里第一次用到时读一遍、
+  // 这次调用之内不再变。设置页改了默认模型，下一次调用就读到（它存在另一份设置文件里，目录版本不会跟着变）。
+  const open = (): LiveGenerationCallCatalog => {
+    const version = currentVersion();
+    let defaults: ((taskKind: GenerationDefaultTaskKind) => GenerationStoryboardDefault | undefined) | undefined;
+    return {
+      registry: version.registry,
+      bootstrap: version.bootstrap,
+      providerReadiness: version.providerReadiness,
+      resolveModelPricing: version.resolveModelPricing,
+      resolveShotPrice: version.resolveShotPrice,
+      get videoModelCandidates() { return version.videoModelCandidates; },
+      defaultModelForTaskKind: (taskKind) => (defaults ??= createGenerationDefaultModelResolver(version.state, readGenerationModelDefaults()))(taskKind),
+    };
+  };
+  return { openCall: open, current: open };
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { GenerationProviderBootstrap } from "./generationProviderBootstrap";
 import type { CatalogState } from "../catalog/types";
@@ -25,7 +25,34 @@ function fakeBootstrap(state: CatalogState): GenerationProviderBootstrap {
   };
 }
 
+const settings = vi.hoisted(() => ({ reads: 0 }));
+vi.mock("../settings/generationModelDefaultsSettings", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  readGenerationModelDefaults: () => { settings.reads += 1; return {}; },
+}));
+
 describe("live generation runtime", () => {
+  it("默认模型的设置每次调用重读（它存在另一份设置文件里，目录版本不会跟着变）；一次调用之内只读一次", () => {
+    const state = catalog("empty");
+    const token = {};
+    const runtime = createLiveGenerationRuntime({
+      catalogReader: () => state,
+      catalogRevision: () => token, // 目录这一版没变
+      bootstrap: fakeBootstrap,
+      registry: () => ({ resolve: () => { throw new Error("not used"); }, snapshot: () => [] }),
+    });
+    settings.reads = 0;
+
+    const first = runtime.openCall();
+    first.defaultModelForTaskKind("text_to_image");
+    first.defaultModelForTaskKind("text_to_video");
+    expect(settings.reads).toBe(1);
+
+    // 创作者在设置页改了默认模型：目录文件没动。下一次调用必须重读设置。
+    runtime.openCall().defaultModelForTaskKind("text_to_image");
+    expect(settings.reads).toBe(2);
+  });
+
   it("captures readiness and registry together for each draft scope", () => {
     let current = catalog("empty");
     const runtime = createLiveGenerationRuntime({

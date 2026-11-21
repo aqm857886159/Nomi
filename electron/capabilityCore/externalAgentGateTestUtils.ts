@@ -103,8 +103,12 @@ export function videoCard(baseUrl: string, modelKey: string, extra: Record<strin
   });
 }
 
-/** 生成工具，和两个宿主同一种接线。 */
-export function hostWiredPlanning(runtime: LiveGenerationRuntime = createLiveGenerationRuntime()) {
+/**
+ * 规划逻辑接上**真目录**（盘上那一份，每次调用取一版），别的什么都不接：没有准备授权、没有开拍、没有落画布。
+ * 它测的是「目录里有什么，起草 / 预览 / 过门就认什么」，**不是**宿主的接线——宿主的接线只在生成装配工厂里
+ * （`generationDomain.ts`），由真窗口走查 `tests/ux/mcp-declared-model-gate.e2e.mjs` 在两个宿主上各走一遍来守。
+ */
+export function liveCatalogPlanning(runtime: LiveGenerationRuntime = createLiveGenerationRuntime()) {
   const handler = createGenerationPlanningHandler({
     catalog: runtime,
     operations: createInMemoryGenerationOperationStore(),
@@ -118,7 +122,7 @@ export function hostWiredPlanning(runtime: LiveGenerationRuntime = createLiveGen
 }
 
 /** 建草稿 → 预览 → 过门（request）。返回三步各自的回话。 */
-export async function draftPreviewGate(planning: ReturnType<typeof hostWiredPlanning>, input: { providerId: string; modelId: string; mode: string }) {
+export async function draftPreviewGate(planning: ReturnType<typeof liveCatalogPlanning>, input: { providerId: string; modelId: string; mode: string }) {
   const created = await planning.call("create", { candidate: { candidateId: "c1", revision: 1, moduleId: "generation.single-shot", providerId: input.providerId, modelId: input.modelId, mode: input.mode, prompt: "a red apple", parameters: {}, references: [] } });
   const operationId = (created.operation as { operationId?: string } | undefined)?.operationId;
   if (!operationId) return { created, preview: null, gate: null };

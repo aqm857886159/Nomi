@@ -13,7 +13,7 @@ import { ensureBuiltinModelSeeds, readCatalog, upsertModelCatalogVendor } from "
 import { builtinVendorSeed } from "../catalog/builtinVendorSeeds";
 import { codeDeclaredFallbackOrigins } from "../vendor/vendorBaseFallback";
 import { createLiveGenerationRuntime } from "./liveGenerationRuntime";
-import { callTool, draftPreviewGate, FAKE_KEY, freshSettingsDir, hostWiredPlanning, openOldUserDir, readinessOf, videoCard, restoreSettingsDir } from "./externalAgentGateTestUtils";
+import { callTool, draftPreviewGate, FAKE_KEY, freshSettingsDir, liveCatalogPlanning, openOldUserDir, readinessOf, videoCard, restoreSettingsDir } from "./externalAgentGateTestUtils";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -50,7 +50,7 @@ describe("external Agent: declared model reaches the confirm step", () => {
     freshSettingsDir("user-path");
     expect((await callTool("nomi_model_setup", { action: "set_key", vendorKey: "apimart", apiKey: FAKE_KEY })).ok).toBe(true);
     // 宿主在应用启动时就造好了生成工具：交卡发生在它之后。
-    const planning = hostWiredPlanning();
+    const planning = liveCatalogPlanning();
     const image = builtinImageModel(planning.runtime);
     const before = apimartRow();
 
@@ -136,7 +136,7 @@ describe("old users on the built-in APIMart connection heal at startup", () => {
     ensureBuiltinModelSeeds();
     expect(apimartRow().assetIngestion ?? null).toEqual(seedIngestion());
     expect(readinessOf("apimart")?.providerReady).toBe(true);
-    const planning = hostWiredPlanning();
+    const planning = liveCatalogPlanning();
     const builtin = await draftPreviewGate(planning, builtinImageModel(planning.runtime));
     expect(builtin.gate?.nextAction, JSON.stringify(builtin.gate)).toBe("confirm");
     if (cardModel) {
