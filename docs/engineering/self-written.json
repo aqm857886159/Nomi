@@ -2522,7 +2522,7 @@
     },
     {
       "id": "composer-bar-yield-measurement",
-      "capability": "生成底栏文字尺子与逐级宽度求解",
+      "capability": "生成底栏文字尺子与按重要性清单挑样子",
       "status": "justified",
       "paths": [
         "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
@@ -2533,9 +2533,13 @@
         {
           "name": "rc-overflow / React Spectrum ActionGroup / Primer UnderlineNav / pretext",
           "source": "docs/plan/2026-11-17-bar-yield-measure-drawn.md#先查别人"
+        },
+        {
+          "name": "Fluent UI @fluentui/priority-overflow",
+          "source": "docs/engineering/direction-checks/2026-11-21-bar-yield-r3.md#5-p0哪些是我们独有的现成方案有哪些"
         }
       ],
-      "whyNotIntegrated": "按领域裁决的固定让位顺序，多控件多样子；列表溢出组件不表达生成字、摘要整值、方式字、模型名的依次让位。只自写候选宽求解，字体排版与尺寸观察用浏览器。",
+      "whyNotIntegrated": "按领域裁决的重要性顺序，多控件多样子；列表溢出组件（Fluent priority-overflow、rc-overflow 等）展开到第一个放不下就停，不跳过放不下的去补放得下的，也不表达摘要整值、方式字、生成字。只自写约 10 行的清单挑法，字体排版与尺寸观察用浏览器。",
       "revisitWhen": "外框校准一个月改两次以上，或增加另一种让位形状时回到方向复盘。2026-11-24复查。"
     }
   ]

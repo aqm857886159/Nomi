@@ -329,7 +329,7 @@ try {
   }
 
   // ── ③b 边界：真实最窄的分镜行（窗口 700，行宽 598）× 名字最长的视频模型 × 最长方式名 ──
-  // 谁让、让到哪：生成钮 → 摘要整值地减 → 方式图标 → 模型名最后省略；底栏不溢出、不折行，摘要不截半个值。
+  // 谁留下按重要性清单（模型名 > 方式名 > 摘要的值 > 钮上的字，放不下的跳过）：这一格一定有东西在收；底栏不溢出、不折行，摘要不截半个值。
   for (const { lang, scheme } of RUNS) {
     const state = `sbl-yield-narrowest-longest-${lang}`
     const { page, context } = await open(state, { lang, scheme, screen: 'storyboard-reuse' })
@@ -339,17 +339,25 @@ try {
       const summary = footer.querySelector('[data-parameter-summary]')
       const shown = (summary?.getAttribute('data-parameter-summary') ?? '').split(' · ').filter(Boolean)
       const full = (summary?.getAttribute('title') ?? '').split(' · ').filter(Boolean)
+      const selects = footer.querySelectorAll('[data-bar-segment="model-params"] button[aria-haspopup="listbox"]')
+      const modelText = selects[0]?.querySelector('span.truncate')
+      // 屏上在收的件（从屏上读）：钮只剩 ↑、摘要少了值、方式格只剩图标、模型名被截。
+      const yielded = [
+        footer.querySelector('[data-icon-only]') && 'send',
+        shown.length < full.length && 'summary',
+        selects[1] && !selects[1].querySelector('span.truncate') && 'mode',
+        modelText && modelText.scrollWidth > modelText.clientWidth + 0.5 && 'model',
+      ].filter(Boolean)
       return {
-        level: footer.getAttribute('data-bar-yield-level'),
+        yielded,
         overflow: footer.scrollWidth > footer.clientWidth + 1,
         tall: Math.round(footer.getBoundingClientRect().height) > 32,
-        sendIconOnly: Boolean(footer.querySelector('[data-icon-only]')),
         midCut: shown.some((value) => !full.includes(value)),
         width: Math.round(footer.getBoundingClientRect().width),
       }
     })
     report.storyboard.push({ state, lang, ...facts })
-    check(`边界 · ${state}：底栏在让（生成钮先收成 ↑）、不溢出、不折行、摘要不截半个值`, Boolean(facts) && facts.level !== null && facts.sendIconOnly && !facts.overflow && !facts.tall && !facts.midCut, JSON.stringify(facts))
+    check(`边界 · ${state}：底栏在收（屏上至少一件按清单收了）、不溢出、不折行、摘要不截半个值`, Boolean(facts) && facts.yielded.length > 0 && !facts.overflow && !facts.tall && !facts.midCut, JSON.stringify(facts))
     await shot(page, `${state}-${scheme}`)
     await context.close()
   }

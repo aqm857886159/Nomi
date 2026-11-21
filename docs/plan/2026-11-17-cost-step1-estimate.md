@@ -111,6 +111,8 @@ Windows：unverified。英文界面：走查中英各一遍。最窄节点宽度
 6. 旧响应后到：最终显示的是当前参数的价。
 7. 性能数字在预算内，附同机对照。
 8. 账户、余额、充值、搜索相关的代码一行没带进来（`git diff` 里搜这几类符号为 0）。
+9. 底栏有空位就放回去（G6）：`tests/ux/composer-bar-fit-goals.walk.mjs` 和真窗口带价默认 600 中英两格（`tests/ux/composer-bar-send-hover.walk.mjs`）全绿；`tests/ux/composer-bar-yield-goals.walk.mjs` 的 G2–G4 照绿（2026-11-21 方向复盘 `docs/engineering/direction-checks/2026-11-21-bar-yield-r3.md`）。
+10. 悬停提示只在句子之间换行（G7）：`tests/ux/composer-bar-send-hover.walk.mjs`（判卷 `tests/ux/_sentenceBreaks.mjs`）中英全绿。
 
 故意改坏必须报红（实现线交「反例 → 改坏后哪条检查红 → 还原后绿」表；验收线只按这张表和上面八条核，不另立判据）：
 - 没有公开价时印 0 或印旧数。
@@ -123,6 +125,11 @@ Windows：unverified。英文界面：走查中英各一遍。最窄节点宽度
 - 把账户余额读取带了进来。
 - 禁用时把数字藏掉。
 - 价目请求不跟着备用地址走（应用已换到备用地址，价目还发主域名）。
+- 「全部拦下」：底栏整条不画摘要、提示组件 `open={false}` → G6、G7 红。
+- 重要性清单里调换一对顺序 → G2–G4 或 G6 红。
+- 放回时截半个值（不按整值）→ G6 红。
+- 调用方给提示组件又写宽度类（`max-w-*` / `w-*` / `whitespace-*`）→ 类型检查红。
+- 提示组件改回单行 → G7 红。
 
 这一类还会从哪里回来：以后给别的发送键加约价时另算一份；第二步加单位时在别处再格式化一遍；第三步接账户时把时效判断又写进显示钩子。由「价格只有一个读取处、格式化只有一处」的测试守。
 

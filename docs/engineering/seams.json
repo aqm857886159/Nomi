@@ -97,8 +97,8 @@
     {
       "id": "composer-bar-yield",
       "name": "生成底栏让位",
-      "owner": "InlineParameterBar 唯一定让级并画生成钮；宿主只交 footer.send 数据",
-      "map": "docs/engineering/direction-checks/2026-11-17-bar-yield-r2.md",
+      "owner": "InlineParameterBar 唯一按重要性清单挑样子并画生成钮；宿主只交 footer.send 数据",
+      "map": "docs/engineering/direction-checks/2026-11-21-bar-yield-r3.md",
       "checked": true,
       "prefixes": [
         "src/workbench/generationCanvas/nodes/InlineParameterBar",

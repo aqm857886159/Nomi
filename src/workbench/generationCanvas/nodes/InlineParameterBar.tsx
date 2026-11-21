@@ -23,7 +23,7 @@ import { resolveArchetypeForOption } from './nodeModelArchetype'
 import { summaryFitCandidates } from './composerHeadlineSummary'
 import { nomiSelectTriggerText } from '../../../design/NomiSelect'
 import { ComposerSendButton, COMPOSER_SEND_FRAME } from './ComposerSendButton'
-import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldLadder, modeHasIcon } from './composerBarYield'
+import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldPick, modeHasIcon, sameComposerYieldStep, type ComposerYieldStep } from './composerBarYield'
 import { useDedupedModelSelect, type ModelVariantMenu } from '../../common/useDedupedModelSelect'
 import { localizeAutoOption } from './parameterOptionPresentation'
 import {
@@ -258,20 +258,24 @@ export default function InlineParameterBar({
       : fallbackSummaryParts(panelControls, meta, autoLabel)
   const fullSummaryText = parts.map((part) => part.text).join(' · ')
 
-  // ── 底栏挤的时候谁先让（composerBarYield.ts，四处同一条）：只在这里量一次，经 context 发给生成钮。 ──
+  // ── 底栏挤的时候谁留下（composerBarYield.ts 的重要性清单，四处同一条）：只在这里量一次，经 context 发给生成钮。 ──
   // 候选宽由原件加减纯文字与外框推得；关闭的影子根不承载控件身份。
   const fitCandidates = footer && !wrap && parts.length ? summaryFitCandidates(parts) : null
   const modeCollapsible = modeHasIcon(modeMenu?.options, modeMenu?.value)
-  const ladder = footer && !wrap
-    ? composerYieldLadder({ sendCollapsible: Boolean(footer.send?.label), modeCollapsible, summaryCandidates: fitCandidates?.length ?? 1 })
-    : [COMPOSER_YIELD_NONE]
-  const yielding = ladder.length > 1
+  const sendCollapsible = Boolean(footer?.send?.label)
+  const summaryCandidates = fitCandidates?.length ?? 1
+  const yielding = Boolean(footer && !wrap)
   const footerRowRef = React.useRef<HTMLDivElement | null>(null)
   const rulerRef = React.useRef<HTMLDivElement | null>(null)
   const rulerRoot = React.useRef<ShadowRoot | null>(null)
-  const [fitLevel, setFitLevel] = React.useState(0)
-  const level = Math.min(fitLevel, ladder.length - 1)
-  const yieldStep = ladder[level] ?? COMPOSER_YIELD_NONE
+  const [fitStep, setFitStep] = React.useState<ComposerYieldStep>(COMPOSER_YIELD_NONE)
+  // 清单里没有的件（这只底栏的钮没字、方式没图标、摘要档数变少）不算让。
+  const yieldStep: ComposerYieldStep = yielding ? {
+    sendIconOnly: sendCollapsible && fitStep.sendIconOnly,
+    modeIconOnly: modeCollapsible && fitStep.modeIconOnly,
+    summaryIndex: Math.min(fitStep.summaryIndex, summaryCandidates - 1),
+    modelEllipsis: fitStep.modelEllipsis,
+  } : COMPOSER_YIELD_NONE
   React.useLayoutEffect(() => {
     const row = footerRowRef.current
     const host = rulerRef.current
@@ -308,6 +312,12 @@ export default function InlineParameterBar({
       const scale = row.getBoundingClientRect().width / available
       if (!scale) return
       const width = (el: Element | null | undefined): number => el ? el.getBoundingClientRect().width / scale : 0
+      // 排版占的宽 = 画出来的宽 + 左右外边距（约价胶囊 `-mr-0.5` 往右探出 2px，不占行宽）。
+      const occupied = (el: Element | null | undefined): number => {
+        if (!el) return 0
+        const style = getComputedStyle(el)
+        return width(el) + (parseFloat(style.marginLeft) || 0) + (parseFloat(style.marginRight) || 0)
+      }
       const gap = (el: Element): number => parseFloat(getComputedStyle(el).columnGap) || 0
       const modelText = model?.querySelector<HTMLElement>('span.truncate')
       // 只还原末级挤掉的文字；保留模型控件本来的 maxWidth。
@@ -317,16 +327,18 @@ export default function InlineParameterBar({
       const modeDelta = mode ? width(spans[texts.length - 2]) + gap(mode) : 0
       const fullIdentity = width(identity) + hiddenModel + (yieldStep.modeIconOnly ? modeDelta : 0)
       const summaryFrame = summary ? width(summary) - width(spans[yieldStep.summaryIndex]) : 0
-      const extra = fixed.reduce((sum, el) => sum + width(el), 0) + gap(row) * (fixed.length + (send ? 1 : 0))
+      const extra = fixed.reduce((sum, el) => sum + occupied(el), 0) + gap(row) * (fixed.length + (send ? 1 : 0))
       const paramGap = summary ? gap(identity.parentElement!.parentElement!) : 0
-      const first = ladder.findIndex(step => {
-        const candidate = fullIdentity - (step.modeIconOnly ? modeDelta : 0)
+      const next = composerYieldPick({
+        sendCollapsible,
+        modeCollapsible,
+        summaryCandidates,
+        fits: (step) => fullIdentity - (step.modeIconOnly ? modeDelta : 0)
           + (summary ? summaryFrame + width(spans[step.summaryIndex]) + paramGap : 0)
-          + (footer?.send?.label ? step.sendIconOnly ? COMPOSER_SEND_FRAME.icon : width(spans[texts.length - 1]) + COMPOSER_SEND_FRAME.label : width(send))
-          + extra
-        return candidate <= available + 0.5
+          + (sendCollapsible ? step.sendIconOnly ? COMPOSER_SEND_FRAME.icon : width(spans[texts.length - 1]) + COMPOSER_SEND_FRAME.label : occupied(send))
+          + extra <= available + 0.5,
       })
-      setFitLevel(first < 0 ? ladder.length - 1 : first)
+      setFitStep((previous) => (sameComposerYieldStep(previous, next) ? previous : next))
     }
     fit()
     const observer = new ResizeObserver(() => flushSync(fit))
@@ -432,7 +444,7 @@ export default function InlineParameterBar({
     const hasAdvanced = advancedControls.length > 0
     return (
       <div className={cn('flex w-full min-w-0 shrink-0 flex-col', footer.className)} {...footer.attrs}>
-        <div ref={footerRowRef} data-node-composer-footer data-bar-yield-level={yielding ? String(level) : undefined} className={cn('flex w-full min-w-0 items-center gap-2', footer.wrap ? 'flex-wrap' : 'flex-nowrap')}>
+        <div ref={footerRowRef} data-node-composer-footer className={cn('flex w-full min-w-0 items-center gap-2', footer.wrap ? 'flex-wrap' : 'flex-nowrap')}>
           <div data-bar-segment="model-params" className="flex min-w-0 flex-1 items-center">{params}</div>
           {/* 右边那排图标：提示词工具在前，高级设置在后（画板 T：图标之间隔 2、到「走」钮隔 8）。这个方式没有那五类 → 不出这颗。 */}
           {footer.tools || hasAdvanced ? (
@@ -553,8 +565,8 @@ export default function InlineParameterBar({
   }
 
   // 分镜行最窄一档（wrap）放不下就整颗换行，身份两枚不缩——模型是这一行的一等决策（§1.5.4）。
-  // 有底栏（四处）时谁让由让法那一级说了算（composerBarYield.ts）：让到最后一级之前模型、方式、摘要都不缩，
-  // 最后一级模型名才末尾省略（title 是全名）。变体是短枚举，从不缩（2026-09-21 走查：「Variant 5.0」被压成「Variant E」）。
+  // 有底栏（四处）时谁留下由重要性清单说了算（composerBarYield.ts）：模型名放得下就模型、方式、摘要都不缩，
+  // 模型名都放不下时才末尾省略（title 是全名）。变体是短枚举，从不缩（2026-09-21 走查：「Variant 5.0」被压成「Variant E」）。
   // 没有底栏的（实验室里只要参数格的地方）照旧：模型那枚让位、摘要最宽 240。
   const modelChipClass = wrap || (yielding && !fitCramped) ? 'shrink-0' : undefined
   const identityRow = (): JSX.Element => (

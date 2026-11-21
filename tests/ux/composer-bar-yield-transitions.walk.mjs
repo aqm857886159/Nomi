@@ -4,8 +4,9 @@
 // 静止态的宽度 × 最长名字由 composer-params.walk.mjs 和设计实验室基线守；这里守的是**内容变了、底栏总宽没变**的迁移：
 //   T1 面板开着把时长改长 → Esc 关面板 → 参数条里没有东西出界、摘要不压右边的图标；
 //   T2 切语言：摘要的字不变、方式名变宽 → 照样重量，不出界；
-//   T3 重量后尺寸不再变 → 不再触发（静置 600ms 里让级零变化）；面板开着连改三次值，每次静下来后让级不在两级之间来回抖。
-// 每条都先把底栏收窄到「第 0 级刚好放得下」的宽度（二分找最小宽），让几个像素的差也能分出对错。
+//   T3 重量后尺寸不再变 → 不再触发（静置 600ms 里屏上样子零变化）；面板开着连改三次值，每次静下来后样子不在两种之间来回抖。
+// 每条都先把底栏收窄到「什么都不收刚好放得下」的宽度（二分找最小宽），让几个像素的差也能分出对错。
+// 「屏上样子」= 模型名截没截、方式格的字、摘要、钮上的字（从屏上读，不读组件内部的级数）。
 // 另出一张证据图（d）：分镜行最窄一档（行宽 598）英文，面板开着改值的那一刻。
 //
 // 用法：node tests/ux/composer-bar-yield-transitions.walk.mjs   （SHOTS_DIR=<目录> 存证据图，缺省 .tmp/composer-bar-yield/lab）
@@ -76,8 +77,9 @@ const readBar = (page, footerSel = FOOTER) => page.evaluate((sel) => {
     .sort((a, b) => a.box.left - b.box.left)
   const pressed = row.slice(1).filter((cur, index) => row[index].box.right > cur.box.left + 0.5).map((cur, index) => `${row[index].name} ⟂ ${cur.name}`)
   const summary = footer.querySelector('[data-parameter-summary]')
+  const shapeOf = (footer) => { const selects = footer.querySelectorAll('[data-bar-segment="model-params"] button[aria-haspopup="listbox"]'), model = selects[0]?.querySelector('span.truncate'); return JSON.stringify([Boolean(model) && model.scrollWidth > model.clientWidth + .5, selects[1]?.querySelector('span.truncate')?.textContent ?? null, footer.querySelector('[data-parameter-summary]')?.textContent.trim() ?? null, footer.querySelector('[data-bar-segment="generate"]')?.textContent.trim() ?? null]) }
   return {
-    level: footer.getAttribute('data-bar-yield-level'),
+    shape: shapeOf(footer),
     summary: summary?.getAttribute('data-parameter-summary') ?? null,
     title: summary?.getAttribute('title') ?? null,
     drawn: summary?.textContent?.trim() ?? null,
@@ -93,31 +95,34 @@ const setFooterWidth = async (page, width) => {
   await settle(page)
 }
 
-/** 二分找「第 0 级刚好放得下」的最小底栏宽：再窄 1 像素就要让。 */
-async function tightestLevelZero(page) {
+/** 二分找「什么都不收刚好放得下」的最小底栏宽：再窄 1 像素就要收。 */
+async function tightestFull(page) {
   let low = 240
   let high = 1200
   await setFooterWidth(page, high)
-  if ((await readBar(page)).level !== '0') throw new Error(`足够宽 ${high} 下就不在第 0 级，量不了`)
+  const full = await readBar(page)
+  if (full.out.length || full.pressed.length) throw new Error(`足够宽 ${high} 下还出界或相压，量不了：${JSON.stringify(full)}`)
   while (high - low > 1) {
     const mid = Math.floor((low + high) / 2)
     await setFooterWidth(page, mid)
-    if ((await readBar(page)).level === '0') high = mid
+    if ((await readBar(page)).shape === full.shape) high = mid
     else low = mid
   }
   await setFooterWidth(page, high)
   return high
 }
 
-/** 记让级每一次变化（MutationObserver 记属性改写，同值改写也算一次重量）。 */
-const startLevelLog = (page) => page.evaluate((sel) => {
+/** 记屏上样子每一次变化（底栏里任何改写之后重读一次样子，变了就记「新<-旧」）。 */
+const startShapeLog = (page) => page.evaluate((sel) => {
   const footer = document.querySelector(sel)
-  window.__levelLog = []
-  const observer = new MutationObserver((records) => { for (const record of records) window.__levelLog.push(footer.getAttribute('data-bar-yield-level') + (record.oldValue === null ? '' : `<-${record.oldValue}`)) })
-  observer.observe(footer, { attributes: true, attributeFilter: ['data-bar-yield-level'], attributeOldValue: true })
-  window.__levelLogStop = () => observer.disconnect()
+  const shapeOf = (footer) => { const selects = footer.querySelectorAll('[data-bar-segment="model-params"] button[aria-haspopup="listbox"]'), model = selects[0]?.querySelector('span.truncate'); return JSON.stringify([Boolean(model) && model.scrollWidth > model.clientWidth + .5, selects[1]?.querySelector('span.truncate')?.textContent ?? null, footer.querySelector('[data-parameter-summary]')?.textContent.trim() ?? null, footer.querySelector('[data-bar-segment="generate"]')?.textContent.trim() ?? null]) }
+  let last = shapeOf(footer)
+  window.__shapeLog = []
+  const observer = new MutationObserver(() => { const now = shapeOf(footer); if (now !== last) window.__shapeLog.push(`${now}<-${last}`); last = now })
+  observer.observe(footer, { subtree: true, childList: true, characterData: true, attributes: true })
+  window.__shapeLogStop = () => observer.disconnect()
 }, FOOTER)
-const readLevelLog = (page) => page.evaluate(() => window.__levelLog.slice())
+const readShapeLog = (page) => page.evaluate(() => window.__shapeLog.slice())
 
 const openPanel = async (page) => {
   if (await page.locator(PANEL).count()) return
@@ -168,7 +173,7 @@ try {
       await openPanel(page)
       await setDuration(page, 5)
       await closePanel(page)
-      const width = await tightestLevelZero(page)
+      const width = await tightestFull(page)
       const before = await readBar(page)
       await openPanel(page)
       await setDuration(page, 10)
@@ -191,7 +196,7 @@ try {
       await openPanel(page)
       await page.locator(PANEL).getByRole('radio').filter({ hasText: '16:9' }).first().click()
       await closePanel(page)
-      const width = await tightestLevelZero(page)
+      const width = await tightestFull(page)
       const zh = await readBar(page)
       const modeZh = await page.evaluate((sel) => [...document.querySelectorAll(`${sel} [data-yield-item] button`)].map((el) => el.textContent?.trim()), FOOTER)
       // 切语言走 app 自己那份 i18next 实例：按页面实际加载的预打包地址取（地址差一个 ?v= 就是另一份实例，切了等于没切）。
@@ -220,25 +225,25 @@ try {
       await openPanel(page)
       await setDuration(page, 5)
       await closePanel(page)
-      await tightestLevelZero(page)
+      await tightestFull(page)
       const rounds = []
       await openPanel(page)
       for (const seconds of [10, 5, 15]) {
         await setDuration(page, seconds)
         await page.waitForTimeout(150)
-        await startLevelLog(page)
+        await startShapeLog(page)
         await page.waitForTimeout(600)
-        const log = await readLevelLog(page)
-        rounds.push({ seconds, level: (await readBar(page)).level, log })
-        await page.evaluate(() => window.__levelLogStop())
+        const log = await readShapeLog(page)
+        rounds.push({ seconds, shape: (await readBar(page)).shape, log })
+        await page.evaluate(() => window.__shapeLogStop())
       }
       await closePanel(page)
       await page.waitForTimeout(150)
-      await startLevelLog(page)
+      await startShapeLog(page)
       await page.waitForTimeout(600)
-      const closedLog = await readLevelLog(page)
+      const closedLog = await readShapeLog(page)
       report.t3 = { rounds, closedLog }
-      check('T3 面板开着连改三次：每次静下来后让级不再变（不在两级之间来回抖）', rounds.every((round) => round.log.length === 0), JSON.stringify(rounds))
+      check('T3 面板开着连改三次：每次静下来后屏上样子不再变（不在两种之间来回抖）', rounds.every((round) => round.log.length === 0), JSON.stringify(rounds))
       check('T3 关面板静下来后不再触发重量', closedLog.length === 0, JSON.stringify(closedLog))
     } finally { await context.close() }
   }

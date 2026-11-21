@@ -159,10 +159,10 @@ const nodeLockRemovedSelectors = [
   { selector: "TemplateElement[value.raw=/^(canvas[.]node[.](un)?locked|node_locked)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
 ]
 // 生成底栏「窄了谁先让」只有一个量的人：InlineParameterBar（方向检查 docs/engineering/direction-checks/2026-11-17-bar-yield.md）。
-// 以前量的不是屏上画的、何时重量是手写清单；底栏里别的组件再自己量宽来定让级，就又多一处会量错的地方。
+// 以前量的不是屏上画的、何时重量是手写清单；底栏里别的组件再自己量宽来挑样子，就又多一处会量错的地方。
 // 两目录内的尺寸读取默认禁止；与底栏无关的存量量法逐个列明用途，只豁免这些文件。
 const composerBarMeasurePlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
-const COMPOSER_BAR_MEASURE_MESSAGE = '生成底栏只有 InlineParameterBar 量宽定让级：底栏组件不要自己 getBoundingClientRect / offsetWidth / ResizeObserver，从 ComposerBarYieldContext 读让级；要多一级让法就给 composerYieldLadder 声明一级。'
+const COMPOSER_BAR_MEASURE_MESSAGE = '生成底栏只有 InlineParameterBar 量宽挑样子：底栏组件不要自己 getBoundingClientRect / offsetWidth / ResizeObserver，从 ComposerBarYieldContext 读让级；要多一级让法就给 composerYieldLadder 声明一级。'
 const COMPOSER_BAR_MEASURE_PROPS = '/^(offsetWidth|clientWidth|scrollWidth|offsetHeight|clientHeight|scrollHeight)$/'
 const composerBarMeasureSelectors = (prefix = '') => [
   { selector: `${prefix}CallExpression > MemberExpression.callee[property.name=/^(getBoundingClientRect|getClientRects)$/]`, message: COMPOSER_BAR_MEASURE_MESSAGE },
@@ -173,7 +173,7 @@ const COMPOSER_BAR_YIELD_IMPORTER = 'Program:has(ImportDeclaration[source.value=
 const COMPOSER_BAR_MEASURER = 'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx'
 const COMPOSER_BAR_DIRECTORIES = ['src/workbench/generationCanvas/nodes/**/*.{ts,tsx}', 'src/workbench/creation/storyboard/shotRow/**/*.{ts,tsx}']
 const NON_COMPOSER_MEASUREMENTS = [
-  'src/workbench/generationCanvas/nodes/NodeEffectRecommendations.tsx', // 提示词推荐只留完整的前几枚，和底栏让级无关
+  'src/workbench/generationCanvas/nodes/NodeEffectRecommendations.tsx', // 提示词推荐只留完整的前几枚，和底栏挑样子无关
   'src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx', // 节点上方工具条的屏幕夹紧定位
   'src/workbench/generationCanvas/nodes/clipNodeEdgeScroll.ts', // 拖剪辑到滚动区边缘时滚动
   'src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx', // 剪辑时间尺和拖动坐标

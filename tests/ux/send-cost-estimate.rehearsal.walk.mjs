@@ -189,7 +189,7 @@ try {
         await win.keyboard.press('Escape')
         await summaryClearOfTools(`after setting ${key}`)
       }
-      // 关面板后摘要不许压在提示词工具底下（底栏让级量的是屏上原件，主分支 86eed2e87 / 634448a01 起；中英两轨都核）。
+      // 关面板后摘要不许压在提示词工具底下（底栏量的是屏上原件，主分支 86eed2e87 / 634448a01 起；中英两轨都核）。
       // 约价胶囊让画布底栏开始挤，这一下最常见：开面板改参数 → 关面板。
       const summaryClearOfTools = async (label) => {
         const summary = composer.locator('[data-parameter-summary]').first()
