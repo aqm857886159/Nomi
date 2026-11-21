@@ -1,6 +1,7 @@
-import type { ProductionJob, ProductionJobStatus, ProductionRun } from "../productionRun/productionRunTypes";
+import type { ProductionJobStatus, ProductionRun } from "../productionRun/productionRunTypes";
 import { currentShotAttempt, jobEndedBeforeAcceptance, latestJobForShot, shotIncluded } from "./productionShotJobs";
 import { isStoppedRunStatus } from "./productionRunStop";
+import { productionJobOpenAs } from "./productionJobOpenAs";
 import { spendAuthorizationGates } from "./productionSpendAuthority";
 import { currentPresentation, draftCardHidden, IN_APP_AGENT_ORIGIN_HOST, latestHandOver, offerShots } from "./productionGenerationPresentation";
 
@@ -31,11 +32,6 @@ export type ShotClaimDecision = {
   reason: ShotClaimReason;
 };
 
-const IN_FLIGHT: ReadonlySet<ProductionJob["status"]> = new Set([
-  "submit_intent_persisted", "submitting", "provider_accepted", "polling", "retry_wait",
-  "downloading", "validating_technical", "validating_content",
-]);
-const NEEDS_RECONCILE: ReadonlySet<ProductionJob["status"]> = new Set(["submission_unknown", "reconciling"]);
 
 function terminalStatus(status: ProductionJobStatus): boolean {
   switch (status) {
@@ -121,8 +117,8 @@ export function decideShotClaim(
 
   // Money that may already be spent outranks every other signal, including a canvas claim record:
   // a detached or claimed shot may finish an already-paid attempt, but never starts a new one.
-  if (job && NEEDS_RECONCILE.has(job.status)) return decision("production", "needs_reconcile", requester);
-  if (job && IN_FLIGHT.has(job.status)) return decision("production", "in_flight", requester);
+  const openAs = job ? productionJobOpenAs(job.status) : null;
+  if (openAs) return decision("production", openAs, requester);
   // 最近一次尝试**确定**结束在被受理之前（证明过没离开本机 / 供应商当场明确拒绝）：没花钱、制作也不会再自己发它，
   // 这一镜立刻回到画布手里——不管计划有没有记成「已交」。以前这一条只在「已交」那一支里判，单镜 Run 在受理之前
   // 失败时计划还停在「已封」，于是落进下面的 awaiting_confirmation，画布永远认领不到（L-claim，2026-10-06）。

@@ -14,7 +14,7 @@ import type { WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema
 
 const calls = vi.hoisted(() => ({ execute: vi.fn(), open: vi.fn(), confirm: vi.fn(), poll: vi.fn(), disk: new Map<string, unknown>() }))
 vi.mock('../../api/taskApi', () => ({
-  canvasOpenRuns: calls.open, releaseCanvasShotRun: vi.fn(async () => undefined), withdrawCanvasShots: vi.fn(),
+  canvasResendDecide: (input: Parameters<typeof import('../../api/canvasResendDecideTestUtils').canvasResendDecideLikeMain>[0]) => import('../../api/canvasResendDecideTestUtils').then(fake => fake.canvasResendDecideLikeMain(input)), canvasOpenRuns: calls.open, releaseCanvasShotRun: vi.fn(async () => undefined), withdrawCanvasShots: vi.fn(),
   pollCanvasShotRun: calls.poll, consentCanvasShots: vi.fn(), mintSpendGrant: vi.fn(), fetchWorkbenchTaskResultByVendor: vi.fn(),
 }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))

@@ -674,3 +674,123 @@ export function findFailureDecisionBypass({ files, read }) {
   }
   return found.sort((left, right) => `${left.path}:${left.line}`.localeCompare(`${right.path}:${right.line}`))
 }
+
+// ─── 重发放行旁路（canvas.shot-run：失败后再发一次只由主进程一处定）──────────────
+/** 「结果未知」这张状态表的唯一住处；别处按状态自列这两个就是第二份清单。 */
+export const OPEN_AS_OWNER_FILE = 'electron/shared/productionJobOpenAs.ts'
+const RESULT_UNKNOWN_STATES = ['submission_unknown', 'reconciling']
+/**
+ * 标「已收尾」（放掉节点占用）只许在这几处：自己收尾、撤回还没交的出价、交给观察者、找回后摇铃——
+ * 以及唯一一处替别的 Run 放：重发主人的准入（`assertNodeIdle`，只放决定号里那几笔）。
+ */
+export const OCCUPANCY_RELEASE_OWNERS = new Map([
+  ['electron/capabilityCore/appIntegrationCanvasShot.ts', new Set(['settle', 'withdrawConsent', 'assertNodeIdle', 'handOff'])],
+  ['electron/capabilityCore/canvasShotSettledBell.ts', null],
+  ['electron/productionRun/canvasShotRunIndex.ts', null],
+])
+const OCCUPANCY_RELEASE = 'markCanvasRunSettled'
+const OCCUPANCY_MODULE = /(?:^|\/)canvasShotRunIndex(?:\.[cm]?[jt]s)?$/
+const LIST_BUILDERS = ['assign', 'concat', 'of', 'from']
+
+/**
+ * 两个落点，都锚在落点不锚名字：
+ * - `result-unknown-list`：主人表之外，一个字面量清单（数组 / Set / `||` 比较链 / 展开 / Object.assign / concat）里的状态恰好是
+ *   「结果未知」那两个——改名、内联、常量别名、属性赋值、展开拼接都会把同一组字面量带进来；
+ * - `occupancy-release`：主人之外拿到「标已收尾」这个写口（具名 / 改名 / 整模块 / 动态 import），或主人文件里在登记的函数之外碰它。
+ */
+export function findResendOwnerBypass({ files, read }) {
+  const found = []
+  for (const file of files) {
+    const rel = normalizePath(file)
+    if (!isScannableSource(rel) || !PRODUCTION_ROOTS.includes(rootOf(rel))) continue
+    const text = read(rel)
+    if (typeof text !== 'string') continue
+    const listCandidate = rel !== OPEN_AS_OWNER_FILE && RESULT_UNKNOWN_STATES.every((state) => text.includes(state))
+    const owners = OCCUPANCY_RELEASE_OWNERS.get(rel)
+    const releaseCandidate = owners !== null && (text.includes(OCCUPANCY_RELEASE) || text.includes('canvasShotRunIndex'))
+    if (!listCandidate && !releaseCandidate) continue
+    const source = parseSource(rel, text)
+    const report = (node, shape) => {
+      const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
+      if (found.some((item) => item.path === rel && item.line === line && item.shape === shape)) return
+      found.push({ path: rel, line, symbol: enclosing(node), shape, value: node.getText(source).slice(0, 120) })
+    }
+    const enclosing = (node) => {
+      for (let at = node.parent; at; at = at.parent) {
+        if (ts.isFunctionDeclaration(at) && at.name) return at.name.text
+        if ((ts.isArrowFunction(at) || ts.isFunctionExpression(at)) && ts.isVariableDeclaration(at.parent) && ts.isIdentifier(at.parent.name)) return at.parent.name.text
+        if (ts.isMethodDeclaration(at) && at.name && ts.isIdentifier(at.name)) return at.name.text
+      }
+      return '<module>'
+    }
+    // 同一文件里的常量：名字 → 初值（别名、展开、拼接都顺着它解）。
+    const constants = new Map()
+    const collect = (node) => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) constants.set(node.name.text, node.initializer)
+      ts.forEachChild(node, collect)
+    }
+    collect(source)
+    const members = (expression, seen = new Set()) => {
+      const node = unwrapExpression(expression)
+      const out = new Set()
+      if (!node || seen.has(node)) return out
+      seen.add(node)
+      const add = (child) => { for (const value of members(child, seen)) out.add(value) }
+      if (ts.isStringLiteralLike(node)) out.add(node.text)
+      else if (ts.isIdentifier(node) && constants.has(node.text)) add(constants.get(node.text))
+      else if (ts.isArrayLiteralExpression(node)) node.elements.forEach((element) => add(ts.isSpreadElement(element) ? element.expression : element))
+      else if (ts.isNewExpression(node) && node.arguments?.length) add(node.arguments[0])
+      else if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && LIST_BUILDERS.includes(node.expression.name.text)) {
+        if (node.expression.name.text === 'concat') add(node.expression.expression)
+        node.arguments.forEach(add)
+      } else if (ts.isBinaryExpression(node) && ([ts.SyntaxKind.BarBarToken, ts.SyntaxKind.AmpersandAmpersandToken].includes(node.operatorToken.kind) || EQUALITY.has(node.operatorToken.kind))) {
+        add(node.left); add(node.right)
+      }
+      return out
+    }
+    const isResultUnknownList = (node) => {
+      const values = members(node)
+      return RESULT_UNKNOWN_STATES.every((state) => values.has(state)) && [...values].every((value) => RESULT_UNKNOWN_STATES.includes(value))
+    }
+    const orChainTop = (node) => ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.BarBarToken
+      && !(ts.isBinaryExpression(node.parent) && node.parent.operatorToken.kind === ts.SyntaxKind.BarBarToken)
+    const listShape = (node) => ts.isArrayLiteralExpression(node) || ts.isNewExpression(node) || orChainTop(node)
+      || (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && LIST_BUILDERS.includes(node.expression.name.text))
+    // 数组里套着的、被展开 / 拼接的子清单不重复报：只报最外层那一个。
+    const insideReportedList = (node) => {
+      for (let at = node.parent; at; at = at.parent) if (listShape(at) && isResultUnknownList(at)) return true
+      return false
+    }
+    const releaseAllowed = (node) => owners !== undefined && owners.has(enclosing(node))
+    const localNames = new Set([OCCUPANCY_RELEASE])
+    const visit = (node) => {
+      if (listCandidate && listShape(node) && isResultUnknownList(node) && !insideReportedList(node)) report(node, 'result-unknown-list')
+      if (releaseCandidate) {
+        if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier) && OCCUPANCY_MODULE.test(node.moduleSpecifier.text)) {
+          const bindings = node.importClause?.namedBindings
+          if (bindings && ts.isNamespaceImport(bindings) && owners === undefined) report(node, 'occupancy-release')
+          if (bindings && ts.isNamedImports(bindings)) {
+            for (const element of bindings.elements) {
+              if ((element.propertyName ?? element.name).text !== OCCUPANCY_RELEASE) continue
+              localNames.add(element.name.text)
+              if (owners === undefined) report(element, 'occupancy-release')
+            }
+          }
+        } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
+          && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0]) && OCCUPANCY_MODULE.test(node.arguments[0].text) && owners === undefined) {
+          report(node, 'occupancy-release')
+        } else if (ts.isIdentifier(node) && localNames.has(node.text) && !ts.isImportSpecifier(node.parent)
+          && !(ts.isPropertyAccessExpression(node.parent) && node.parent.name === node) && !releaseAllowed(node)) {
+          report(node, 'occupancy-release')
+        } else if (((ts.isPropertyAccessExpression(node) && node.name.text === OCCUPANCY_RELEASE)
+          || (ts.isElementAccessExpression(node) && node.argumentExpression && ts.isStringLiteralLike(node.argumentExpression) && node.argumentExpression.text === OCCUPANCY_RELEASE))
+          && !releaseAllowed(node)) {
+          report(node, 'occupancy-release')
+        }
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+  }
+  return found.sort((left, right) => `${left.path}:${left.line}`.localeCompare(`${right.path}:${right.line}`))
+}
