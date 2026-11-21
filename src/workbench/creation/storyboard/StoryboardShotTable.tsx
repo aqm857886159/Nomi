@@ -145,7 +145,7 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ pendingActions, plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleFrozenRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onDeleteSelected, filterAnchorId, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant, scrollRef }: Props): JSX.Element {
+export default function StoryboardShotTable({ pendingActions, plan, planSource, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleFrozenRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onDeleteSelected, filterAnchorId, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant, scrollRef }: Props): JSX.Element {
   const { t } = useTranslation()
   const shotModelOptions = React.useMemo(() => [...imageModelOptions, ...videoModelOptions], [imageModelOptions, videoModelOptions])
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
@@ -462,6 +462,10 @@ export default function StoryboardShotTable({ pendingActions, plan, projectId, r
     const shotKey = stableShotId(shot)
     const commonRowProps = {
       shot,
+      promptSource: {
+        subscribe: planSource.subscribe,
+        getSnapshot: () => planSource.getSnapshot()?.shots.find((candidate) => stableShotId(candidate) === shotKey)?.prompt ?? '',
+      },
       actionBusy: pendingActions?.has(`shot:${shotKey}`),
       anchors: plan.anchors,
       modelOptions: shotModelOptions,

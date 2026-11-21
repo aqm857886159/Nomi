@@ -39,6 +39,7 @@ import { ReferenceNamesContext, clipReferenceName, dedupeChipNames } from '../..
 import { droppedMentionUrls } from '../../../assets/promptMentions'
 import ShotComposerBar from './ShotComposerBar'
 import PromptSkeletonSegments from './PromptSkeletonSegments'
+import type { NomiEditorSource } from '../../../common/useNomiRichTextEditor'
 import type { ShotVariant } from './shotVariants'
 import { usePromptHistoryCarry } from './promptHistoryCarry'
 
@@ -55,6 +56,8 @@ import { usePromptHistoryCarry } from './promptHistoryCarry'
 type Props = {
   actionBusy?: boolean
   shot: PlanShot
+  /** 这一镜提示词的 owner 读口（store 里此刻的值）：提示词框出生时按它读。设计实验室交 `fixedEditorOwner(提示词)`。 */
+  promptSource: NomiEditorSource<string>
   anchors: PlanAnchor[]
   modelOptions?: ModelOption[]
   exec?: ShotRowExec | undefined
@@ -160,7 +163,7 @@ const ENTER_BELONGS_TO_CONTROL =
 export default function StoryboardShotRow(props: Props): JSX.Element {
   const { t } = useTranslation()
   const {
-    shot, modelOptions, exec, aspect, frameBox, onChangeAspect,
+    shot, promptSource, modelOptions, exec, aspect, frameBox, onChangeAspect,
     variants = [], adoptedVariantId, onAdoptVariant, onDeleteVariant, outputTag,
     onGenerate, onOpenPreview, onRegenerate, onRecover, onToggleFrozen,
     onInsertBelow,
@@ -430,7 +433,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         />
         <ReferenceNamesContext.Provider value={referenceChipNames}>
         <PromptSkeletonSegments
-          prompt={shot.prompt}
+          promptSource={promptSource}
           profile={storyboardProfile}
           ranges={shot.promptSegments}
           onChange={({ prompt: nextPrompt, ranges }) => {

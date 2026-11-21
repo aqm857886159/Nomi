@@ -3,14 +3,16 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../../../utils/cn'
 import { AnchoredPopover } from '../../../../design'
 import PromptEditor from '../../../assets/PromptEditor'
+import type { NomiEditorSource } from '../../../common/useNomiRichTextEditor'
 import type { MentionSuggestionItem, MentionUploadControls } from '../../../assets/AssetMentionSuggestionList'
 import type { PromptSegmentRange, StoryboardProfile } from '../../../generationCanvas/agent/storyboardPlan'
 import { replacePromptSkeletonRange, validPromptSkeletonSegments, type PromptSkeletonViewSegment } from './promptSkeletonRangeUtils'
 
 export default function PromptSkeletonSegments({
-  prompt, profile, ranges, onChange, editorProps,
+  promptSource, profile, ranges, onChange, editorProps,
 }: {
-  prompt: string
+  /** 这一镜提示词的 owner 读口（store 里此刻的值）。框出生时按它读，不按渲染时的值。 */
+  promptSource: NomiEditorSource<string>
   profile?: StoryboardProfile
   ranges?: PromptSegmentRange[]
   onChange: (next: { prompt: string; ranges: PromptSegmentRange[] }) => void
@@ -28,6 +30,12 @@ export default function PromptSkeletonSegments({
   const { t } = useTranslation()
   const [open, setOpen] = React.useState<{ segment: PromptSkeletonViewSegment; rect: DOMRect } | null>(null)
   const shellRef = React.useRef<HTMLDivElement>(null)
+  const prompt = React.useSyncExternalStore(promptSource.subscribe, promptSource.getSnapshot, promptSource.getSnapshot)
+  const owner = React.useMemo(() => ({
+    subscribe: promptSource.subscribe,
+    getSnapshot: promptSource.getSnapshot,
+    write: (next: string) => onChange({ prompt: next, ranges: [] }),
+  }), [promptSource.subscribe, promptSource.getSnapshot, onChange])
   const menuAnchorRef = React.useRef<HTMLSpanElement>(null)
   const segments = validPromptSkeletonSegments(prompt, profile, ranges)
   // 装饰段是可点元素（role=button），必须带可访问名——返工把旧胶囊按钮的 aria-label 弄丢了，这里补回。
@@ -43,8 +51,7 @@ export default function PromptSkeletonSegments({
     <div ref={shellRef} className="relative" data-storyboard-prompt-skeleton={segments.length > 0 ? 'true' : undefined}>
       <PromptEditor
         {...editorProps}
-        value={prompt}
-        onChange={(next) => onChange({ prompt: next, ranges: [] })}
+        owner={owner}
         promptSegments={decoratedSegments}
         onPromptSegmentClick={(segment, rect) => {
           const found = segments.find((candidate) => candidate.key === segment.key && candidate.start === segment.start && candidate.end === segment.end)

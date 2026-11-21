@@ -29,14 +29,14 @@
  * 会被当成回声忽略；编辑器随后的下一次发出会把当前文档写回 owner，不会静默分叉。
  *
  * 值用字符串比较：提示词编辑器传 prompt 串，文档编辑器传 JSON 串——判据与载体无关。
- * 纯函数、无 React，两个编辑器内核（`PromptEditor`、`useNomiRichTextEditor`）共用这一份。
+ * 纯函数、无 React；只有编辑器唯一入口 `useNomiTiptapEditor` 用它（调用方只交读写口，碰不到这本账）。
  */
 export type ControlledEditorSync = {
   /** 编辑器自己产出了新一版：返回 true 表示要向 owner 回写（内容没变的事务不回写）。 */
   emit: (next: string) => boolean
   /** owner 的值到了：返回 true 表示这是外部改写，调用方要把它写进编辑器。 */
   receive: (value: string) => boolean
-  /** 编辑器实例被重建（它的文档就是 `value`）：账重新开。 */
+  /** 编辑器实例出生（它的文档就是 `value`）：账重新开。 */
   reset: (value: string) => void
 }
 

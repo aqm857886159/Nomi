@@ -1,7 +1,8 @@
 import React, { type JSX } from 'react'
-import { EditorContent } from '@tiptap/react'
+import { EditorContent, type JSONContent } from '@tiptap/react'
 import SelectionGeneratePopover from '../../../workbench/creation/SelectionGeneratePopover'
 import { useNomiRichTextEditor } from '../../../workbench/common/useNomiRichTextEditor'
+import { fixedEditorOwner } from '../fixedEditorOwner'
 import { holdDesignLabReady } from '../labReadyHold'
 import { useLabLocale } from '../hostConfig/useLabLocale'
 
@@ -24,7 +25,8 @@ const NOOP = (): void => undefined
 export function SelectionActionsStage({ scene, locale }: { scene: SelectionActionsScene; locale: 'zh-CN' | 'en' }): JSX.Element {
   const ready = useLabLocale(locale, `selection-actions:${scene}`)
   const sentence = SENTENCE[locale]
-  const content = React.useMemo(() => ({
+  // 正文的 owner：写死这一句、不写回（这一屏只取选区），换语言就换一份。
+  const owner = React.useMemo(() => fixedEditorOwner<JSONContent>({
     type: 'doc',
     content: [{ type: 'paragraph', content: [{ type: 'text', text: sentence }] }],
   }), [sentence])
@@ -32,7 +34,7 @@ export function SelectionActionsStage({ scene, locale }: { scene: SelectionActio
   const onSelectionChange = React.useCallback((text: string) => {
     setSelection((current) => ({ text, version: current.version + 1 }))
   }, [])
-  const { editor } = useNomiRichTextEditor({ content, onSelectionChange })
+  const { editor } = useNomiRichTextEditor({ owner, onSelectionChange })
 
   React.useEffect(() => {
     if (!ready || !editor) return undefined

@@ -2,6 +2,7 @@ import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Editor } from '@tiptap/react'
+import type { NomiEditorOwner } from '../../common/useNomiRichTextEditor'
 import { NomiLoadingMark, WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
 import type { LibraryPrompt } from '../../api/promptLibraryApi'
@@ -133,6 +134,13 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   const updateNode = React.useCallback((...args: Parameters<typeof writeNode>) => {
     if (!readOnlyRef.current) writeNode(...args)
   }, [writeNode])
+  // 提示词框的 owner：画布 store 里这个节点此刻的 prompt（不是渲染快照 prop），编辑写回这个节点。
+  const nodeId = node.id
+  const promptOwner = React.useMemo<NomiEditorOwner<string>>(() => ({
+    subscribe: useGenerationCanvasStore.subscribe,
+    getSnapshot: () => latestNode(nodeId)?.prompt || '',
+    write: (next) => updateNode(nodeId, { prompt: next }),
+  }), [latestNode, nodeId, updateNode])
   const writeAccess = React.useMemo(() => ({ updateNode, latestNode, canWrite: () => !readOnlyRef.current, ...(connectNodes ? { connectNodes: ((...args: Parameters<typeof connectNodes>) => { if (!readOnlyRef.current) return connectNodes(...args) }) as typeof connectNodes } : {}) }), [updateNode, latestNode, connectNodes])
   const status = node.status || 'idle'
   const isGenerating = status === 'queued' || status === 'running'
@@ -432,10 +440,9 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
           <ReferenceNamesContext.Provider value={referenceNames}>
           <PromptEditor
             className={cn('min-h-[72px]')}
-            value={node.prompt || ''}
+            owner={promptOwner}
             placeholder={appendMentionHint(getGenerationNodePromptPlaceholder(node.kind))}
             editable={!readOnly}
-            onChange={(next) => { if (!readOnly) updateNode(node.id, { prompt: next }) }}
             onBlur={() => { if (!readOnlyRef.current) void persistActiveWorkbenchProjectNow().catch(() => {}) }}
             onReady={setPromptEditor}
             mentionCandidates={mentionCandidates}

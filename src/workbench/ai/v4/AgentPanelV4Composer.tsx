@@ -20,6 +20,7 @@ import { V4Row } from './AgentPanelV4Row'
 // 按下去只是把框清空。受控之后「有东西可发」和「真的发出去了」是同一条路。
 import PromptEditor, { type PromptEditorProps } from '../../assets/PromptEditor'
 import type { Editor } from '@tiptap/react'
+import type { NomiEditorOwner } from '../../common/useNomiRichTextEditor'
 import { SuggestionPluginKey } from '@tiptap/suggestion'
 import AssetReferenceButton from '../../assets/AssetReferenceButton'
 import { ReferenceNamesContext } from '../../assets/referenceNames'
@@ -94,9 +95,12 @@ export type AgentPanelV4ComposerProps = {
   chips?: readonly V4ComposerReference[]
   /** 3D-BOX「正在改：镜头 N」标签（AgentPanelV4FocusTag）：排在 chip 行最前，不随发送清掉。 */
   focusTag?: React.ReactNode
-  /** 受控文本。没有 `onValueChange` 时框是只读的展示件（设计实验室取景用）。 */
-  value?: string
-  onValueChange?: (value: string, previous?: string) => void
+  /**
+   * 草稿的 owner（项目助手草稿 store 的 subscribe / getSnapshot + 写口）。框每次建出来都按它此刻的值，不收渲染时的值。
+   * 没给 = 空框。`draftReadOnly` 时框是只读的展示件（设计实验室取景用，交 `fixedEditorOwner(文字)`）。
+   */
+  draft?: NomiEditorOwner<string>
+  draftReadOnly?: boolean
   onSubmit?: (choice?: 'primary' | 'secondary') => void
   onStop?: () => void
   onAddFile?: () => void
@@ -127,6 +131,9 @@ export type AgentPanelV4ComposerProps = {
   onMentionSelect?: PromptEditorProps['onMentionSelect']
 }
 
+/** 没交草稿 owner：空框、只读（只从类型上引用入口模块，几份测试只替换了入口那一个导出）。 */
+const EMPTY_DRAFT: NomiEditorOwner<string> = { subscribe: () => () => undefined, getSnapshot: () => '', write: () => undefined }
+
 export function AgentPanelV4Composer({
   panelHeight = 620,
   mode = 'idle',
@@ -134,8 +141,8 @@ export function AgentPanelV4Composer({
   permission = DEFAULT_PERMISSION_TIER,
   chips,
   focusTag,
-  value = '',
-  onValueChange,
+  draft = EMPTY_DRAFT,
+  draftReadOnly = false,
   onSubmit,
   onStop,
   onAddFile,
@@ -151,6 +158,7 @@ export function AgentPanelV4Composer({
   onEditorReady, mentionReferences, mentionSearch, onMentionSelect,
 }: AgentPanelV4ComposerProps): JSX.Element {
   const { t } = useTranslation()
+  const value = React.useSyncExternalStore(draft.subscribe, draft.getSnapshot, draft.getSnapshot)
   const mentionUrls = React.useMemo(() => mentionUrlsInOrder(value), [value])
   const referenceNameSignature = useGenerationCanvasStore((state) => referenceNameKey(mentionUrls, state.nodes))
   const referenceNames = React.useMemo(() => referenceNamesFromKey(referenceNameSignature), [referenceNameSignature])
@@ -228,7 +236,7 @@ export function AgentPanelV4Composer({
       ) : null}
       <ReferenceNamesContext.Provider value={referenceNames}>
       <PromptEditor
-        value={value} onChange={onValueChange ?? (() => undefined)} editable={Boolean(onValueChange)}
+        owner={draft} editable={!draftReadOnly && draft !== EMPTY_DRAFT}
         onReady={handleEditorReady}
         inputAttributes={COMPOSER_INPUT_ATTRIBUTES}
         mentionReferences={mentionReferences} mentionSearch={mentionSearch} onMentionSelect={onMentionSelect}

@@ -8,6 +8,7 @@ import type { PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/s
 import { SEEDANCE_2_APIMART_ARCHETYPE } from '../../../../../electron/shared/videoCapabilities/seedanceApimart'
 import { deriveShotRowExec } from '../exec/storyboardRowStatus'
 import StoryboardShotRow from './StoryboardShotRow'
+import type { NomiEditorOwner } from '../../../common/useNomiRichTextEditor'
 
 vi.mock('react-i18next', async (importOriginal) => ({
   ...await importOriginal<typeof import('react-i18next')>(),
@@ -55,7 +56,7 @@ function renderRow(shot: PlanShot, nodes: GenerationCanvasNode[] = []): string {
   const plan: StoryboardPlan = { title: 'fixture', anchors: [], shots: [shot] }
   const exec = deriveShotRowExec({ plan, shot, designId: DESIGN, nodes, mode: I2V })
   return renderToStaticMarkup(React.createElement(MantineProvider, null, React.createElement(StoryboardShotRow, {
-    shot, anchors: [], modelOptions: OPTIONS, exec,
+    shot, promptSource: fixedEditorOwner(shot.prompt), anchors: [], modelOptions: OPTIONS, exec,
     aspect: '16:9', frameBox: { width: 240, height: 135 },
     onChangeAspect: () => {}, onUpdate: () => {}, onRemove: () => {},
   })))
@@ -69,6 +70,12 @@ function referenceStrip(html: string): string {
   return html.slice(start, end === -1 ? undefined : end)
 }
 const missingFrame = (html: string): boolean => html.includes('data-storyboard-frame="missing-required"')
+
+/** 组件测试用的固定 owner：值写死、编辑不写回。设计实验室那份（src/devlab/designLab/fixedEditorOwner.ts）只给实验室用，
+ *  src/ 里实验室以外的文件（含测试）引它会被 check:design-lab 拦，所以测试就地写一份。 */
+function fixedEditorOwner<V>(value: V): NomiEditorOwner<V> {
+  return { subscribe: () => () => undefined, getSnapshot: () => value, write: () => undefined }
+}
 
 describe('分镜行视觉列 × 计划首帧（APIMart Seedance 2.0 图生视频）', () => {
   it('生成前：不算缺（预览框不红），参考条最前面是「本镜首帧」占位', () => {
