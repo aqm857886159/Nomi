@@ -86,6 +86,8 @@ const ANSWERS: Record<string, (...args: unknown[]) => unknown> = {
   'settings.generationModelDefaults.get': async () => ({ schemaVersion: 1, byTaskKind: {} }),
   'promptLibrary.list': async () => ({ ok: true, prompts: [] }),
   'promptLibrary.userList': async () => ({ ok: true, prompts: [] }),
+  // 发送键约价：生成框挂上后防抖读一次公开价；这里答「算不出」，只为不让假桥回 undefined。
+  'onboarding.vendorPricePreview': async () => null,
 }
 
 function recordingBridge(): unknown {
