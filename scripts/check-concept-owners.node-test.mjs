@@ -2,6 +2,7 @@ import { makeTempDir } from './_test-temp.mjs'
 // check:concept-owners 的阳性对照（R17.0：加规则前先验它会红；有豁免的规则再补一发反向控制）。
 // 每条判据都在一个临时 git 仓库里先造一处违规看它红、再改回来看它绿；豁免条件（别名、另一个概念认领的同名定义、
 // 旧形状住在主人文件里）各有一条「把豁免条件拿掉就红」的反向控制。
+// 这里还放：原文改判守门及真实显示正例；重发判定只一处（「结果未知」清单 / 替别的 Run 放占用）。
 import assert from 'node:assert/strict'
 import { ESLint } from 'eslint'
 import { spawnSync } from 'node:child_process'
