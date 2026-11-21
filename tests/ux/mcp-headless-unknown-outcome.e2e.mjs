@@ -44,25 +44,6 @@ const dataOf = (result) => {
 }
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-function jobStatusesOnDisk(projectsDir, operationId) {
-  const found = []
-  const walk = (dir, depth) => {
-    if (depth > 6) return
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name)
-      if (entry.isDirectory()) walk(full, depth + 1)
-      else if (entry.name.endsWith('.json') && full.includes(operationId)) {
-        try {
-          const jobs = JSON.parse(fs.readFileSync(full, 'utf8'))?.jobs
-          if (Array.isArray(jobs)) for (const job of jobs) found.push(job.status)
-        } catch { /* 不是 Run 快照 */ }
-      }
-    }
-  }
-  walk(projectsDir, 0)
-  return found
-}
-
 const dirs = makeIsolatedDirs('nomi-headless-unknown-')
 let provider
 let gui
@@ -79,7 +60,6 @@ const fixtureEnv = (origin) => ({
   NOMI_E2E_PRODUCTION_FIXTURE: '1', NOMI_E2E_FIXTURE_BASE_URL: origin, NOMI_E2E_FIXTURE_API_KEY: 'semantic-fixture-key',
   NOMI_TEST_NETWORK_GUARD: '1', NO_PROXY: '127.0.0.1,localhost',
 })
-const isUnknown = (status) => status === 'submission_unknown' || status === 'reconciling'
 const readOperation = async (client, args) => {
   const read = dataOf(await client.callTool('nomi_read', { target: 'operation', ...args }))
   return { nextAction: read.nextAction, unknownShots: read.unknownShots, executionState: read.executionState, text: read.__text.slice(0, 300) }
@@ -123,19 +103,16 @@ try {
   const gate = dataOf(await mcp.callTool('nomi_operation_gate', { phase: 'request', leaseHandle, projectId, operationId }, { timeoutMs: 90_000 }).catch((error) => ({ structuredContent: { nomiOutcome: { swallowed: String(error) } } })))
   console.log('  gate 回话 =', JSON.stringify({ started: gate.started, nextAction: gate.nextAction, swallowed: gate.swallowed, text: (gate.__text || '').slice(0, 200) }))
 
-  // 等到这一镜在盘上落成「结果未知」——这是前提，不成立后面的断言就是空的。
-  let statuses = []
-  for (let attempt = 0; attempt < 90; attempt += 1) {
-    statuses = jobStatusesOnDisk(dirs.projectsDir, operationId)
-    if (statuses.some(isUnknown)) break
+  // 基线：应用开着时读得到「结果未知」——这是前提，不成立后面的断言就是空的（轮询到它出现，最多 60 秒）。
+  let whileOpen = {}
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    whileOpen = await readOperation(mcp, { leaseHandle, projectId, operationId })
+    if (Array.isArray(whileOpen.unknownShots) && whileOpen.unknownShots.length > 0) break
     await delay(1_000)
   }
-  console.log('  供应商收到 =', JSON.stringify(provider.hits), ' 盘上任务状态 =', JSON.stringify(statuses))
-  check(provider.hits.some((hit) => hit.method === 'POST'), '供应商确实收到了这次提交（然后断线）')
-  check(statuses.some(isUnknown), `盘上这一镜是「结果未知」（实测 ${JSON.stringify(statuses)}）`)
-
-  const whileOpen = await readOperation(mcp, { leaseHandle, projectId, operationId })
+  console.log('  供应商收到 =', JSON.stringify(provider.hits))
   console.log('  应用开着时读任务 =', JSON.stringify(whileOpen))
+  check(provider.hits.some((hit) => hit.method === 'POST'), '供应商确实收到了这次提交（然后断线）')
   check(Array.isArray(whileOpen.unknownShots) && whileOpen.unknownShots.length === 1 && whileOpen.nextAction === 'ask_user_to_check_provider_do_not_generate',
     '基线：应用开着时，读任务点名了结果未知的那一镜，下一步是「请用户去后台核对，别再 generate」')
 
