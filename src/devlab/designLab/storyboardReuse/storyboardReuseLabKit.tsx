@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import StoryboardShotRow from '../../../workbench/creation/storyboard/shotRow/StoryboardShotRow'
+import { fixedEditorOwner } from '../../../workbench/common/useNomiRichTextEditor'
 import { StoryboardRowsBox } from '../../../workbench/creation/storyboard/shotRow/storyboardRowDensity'
 import StoryboardAnchorZone from '../../../workbench/creation/storyboard/anchorZone/StoryboardAnchorZone'
 import type { AnchorCardRuntime } from '../../../workbench/creation/storyboard/exec/storyboardRowStatus'
@@ -85,6 +86,7 @@ export function ShotRow({ plan, shot, extra, models: modelsOverride }: { plan: S
       onUpdate={NOOP}
       onRemove={NOOP}
       {...extra}
+      promptSource={fixedEditorOwner(shot.prompt)}
     />
   )
 }

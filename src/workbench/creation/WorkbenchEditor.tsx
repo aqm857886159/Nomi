@@ -13,9 +13,9 @@ import { NomiOverflowRow, TooltipProvider, type NomiOverflowRowGroup, type NomiO
 import { TIPTAP_PLACEHOLDER_CLASSES } from '../assets/tiptapPlaceholderClasses'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
-import { normalizeWorkbenchContentJson } from '../workbenchTypes'
+import { normalizeWorkbenchContentJson, type WorkbenchDocument } from '../workbenchTypes'
 import { useTransientScrollingClass } from './useTransientScrollingClass'
-import { useNomiRichTextEditor, RICH_TEXT_FEATURE_EXTENSIONS } from '../common/useNomiRichTextEditor'
+import { useNomiRichTextEditor, RICH_TEXT_FEATURE_EXTENSIONS, type NomiEditorOwner } from '../common/useNomiRichTextEditor'
 import { useRichTextActions, type RichTextAction } from '../common/richTextActions'
 import { RichTextActionButton } from '../common/RichTextActionButton'
 import { SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
@@ -33,6 +33,9 @@ import { sameDocumentContent } from './sameDocumentContent'
 // 5 簇封顶（§1.5 硬规则），每个簇都是往已有语义里补成员，不新增平铺簇。
 // 窄时（2026-11-07 窄窗拍板 WindowNarrow / creation.toolbar-overflow）：格式簇放不下的按钮从右往左收进「⋯」，
 // 只按「量出来放不下」收，不按窗口宽写断点；撤销 / 重做不在可收的那一排里，永远钉在右端。
+const NOT_READ = Symbol('not-read')
+const EMPTY_DOCUMENT: JSONContent = { type: 'doc', content: [] }
+
 const TOOLBAR_LEFT_GROUPS: readonly (readonly string[])[] = [
   ['bold', 'italic', 'strike', 'code', 'highlight'],
   ['h1', 'h2', 'h3', 'blockquote', 'horizontal-rule'],
@@ -99,29 +102,25 @@ function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Elem
   )
 }
 
+type DocumentsState = Pick<ReturnType<typeof useWorkbenchStore.getState>, 'workbenchDocuments' | 'activeDocumentId'>
+
+/** 当前激活文档（多文档：编辑器内容跟随 activeDocumentId）。渲染和编辑器 owner 读的是同一个选择。 */
+function activeDocumentOf(state: DocumentsState): WorkbenchDocument {
+  return state.workbenchDocuments.find((d) => d.id === state.activeDocumentId) ?? state.workbenchDocuments[0]
+}
+
 export default function WorkbenchEditor(): JSX.Element {
   const { t } = useTranslation()
-  const workbenchDocuments = useWorkbenchStore((state) => state.workbenchDocuments)
-  const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
   const setWorkbenchDocument = useWorkbenchStore((state) => state.setWorkbenchDocument)
   const storyboardPlannerLauncher = useWorkbenchStore((state) => state.storyboardPlannerLauncher)
   const [selectionState, setSelectionState] = React.useState({ text: '', version: 0 })
   const scrollRef = useTransientScrollingClass<HTMLDivElement>('workbench-scrollbar-visible')
-  // 当前激活文档（多文档：编辑器内容跟随 activeDocumentId）。
-  const workbenchDocument = React.useMemo(
-    () => workbenchDocuments.find((d) => d.id === activeDocumentId) ?? workbenchDocuments[0],
-    [workbenchDocuments, activeDocumentId],
-  )
+  const workbenchDocument = useWorkbenchStore(activeDocumentOf)
   const workbenchDocumentRef = React.useRef(workbenchDocument)
 
   React.useEffect(() => {
     workbenchDocumentRef.current = workbenchDocument
   }, [workbenchDocument])
-
-  const editorContent = React.useMemo(
-    () => normalizeWorkbenchContentJson(workbenchDocument.contentJson) as JSONContent,
-    [workbenchDocument.contentJson],
-  )
 
   const handleChange = React.useCallback(
     (contentJson: JSONContent) => {
@@ -150,10 +149,28 @@ export default function WorkbenchEditor(): JSX.Element {
     setSelectionState((current) => ({ text: '', version: current.version + 1 }))
   }, [])
 
+  // 编辑器的 owner：store 里此刻激活的那篇文稿正文（不是这次渲染拿到的副本）。
+  // getSnapshot 按原始 contentJson 的引用记住规整结果，同一份正文每次读到同一个对象。
+  const editorOwner = React.useMemo<NomiEditorOwner<JSONContent>>(() => {
+    let lastRaw: unknown = NOT_READ
+    let lastContent = EMPTY_DOCUMENT
+    return {
+      subscribe: useWorkbenchStore.subscribe,
+      getSnapshot: () => {
+        const raw = activeDocumentOf(useWorkbenchStore.getState())?.contentJson
+        if (raw !== lastRaw) {
+          lastRaw = raw
+          lastContent = normalizeWorkbenchContentJson(raw) as JSONContent
+        }
+        return lastContent
+      },
+      write: (next) => handleChange(next),
+    }
+  }, [handleChange])
+
   const { editor, tools } = useNomiRichTextEditor({
-    value: editorContent,
+    owner: editorOwner,
     placeholder: t('creationAi.editor.placeholder'),
-    onChange: handleChange,
     onSelectionChange: handleSelectionChange,
     featureExtensions: RICH_TEXT_FEATURE_EXTENSIONS,
     sanitizePaste: true,

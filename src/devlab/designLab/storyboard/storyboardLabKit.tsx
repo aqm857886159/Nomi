@@ -1,6 +1,7 @@
 import React, { type JSX } from 'react'
 import { LabLocaleGate } from '../labLocaleGate'
 import StoryboardShotRow from '../../../workbench/creation/storyboard/shotRow/StoryboardShotRow'
+import { fixedEditorOwner } from '../../../workbench/common/useNomiRichTextEditor'
 import { StoryboardRowsBox } from '../../../workbench/creation/storyboard/shotRow/storyboardRowDensity'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../../workbench/assets/AssetPreviewDialog'
 import type { AssetRef } from '../../../workbench/assets/assetTypes'
@@ -105,6 +106,7 @@ export function RowStage(overrides: RowOverrides & { clip?: boolean; width?: num
     <TableStage clip={overrides.clip ?? true} width={overrides.width} height={overrides.height}>
       <StoryboardShotRow
         shot={shot}
+        promptSource={fixedEditorOwner(shot.prompt)}
         anchors={LAB_ANCHORS}
         modelOptions={shot.shotKind === 'image' ? LAB_IMAGE_MODELS : LAB_VIDEO_MODELS}
         exec={exec}

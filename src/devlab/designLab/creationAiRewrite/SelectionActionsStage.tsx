@@ -1,7 +1,8 @@
 import React, { type JSX } from 'react'
-import { EditorContent } from '@tiptap/react'
+import { EditorContent, type JSONContent } from '@tiptap/react'
+import { createStore } from 'zustand/vanilla'
 import SelectionGeneratePopover from '../../../workbench/creation/SelectionGeneratePopover'
-import { useNomiRichTextEditor } from '../../../workbench/common/useNomiRichTextEditor'
+import { useNomiRichTextEditor, type NomiEditorOwner } from '../../../workbench/common/useNomiRichTextEditor'
 import { holdDesignLabReady } from '../labReadyHold'
 import { useLabLocale } from '../hostConfig/useLabLocale'
 
@@ -24,15 +25,19 @@ const NOOP = (): void => undefined
 export function SelectionActionsStage({ scene, locale }: { scene: SelectionActionsScene; locale: 'zh-CN' | 'en' }): JSX.Element {
   const ready = useLabLocale(locale, `selection-actions:${scene}`)
   const sentence = SENTENCE[locale]
-  const content = React.useMemo(() => ({
-    type: 'doc',
-    content: [{ type: 'paragraph', content: [{ type: 'text', text: sentence }] }],
-  }), [sentence])
+  // 正文的 owner：这一屏自己的小 store（zustand createStore），换语言就换一份。
+  const owner = React.useMemo<NomiEditorOwner<JSONContent>>(() => {
+    const store = createStore<JSONContent>(() => ({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: sentence }] }],
+    }))
+    return { subscribe: store.subscribe, getSnapshot: store.getState, write: (next) => store.setState(next, true) }
+  }, [sentence])
   const [selection, setSelection] = React.useState({ text: '', version: 0 })
   const onSelectionChange = React.useCallback((text: string) => {
     setSelection((current) => ({ text, version: current.version + 1 }))
   }, [])
-  const { editor } = useNomiRichTextEditor({ value: content, onSelectionChange })
+  const { editor } = useNomiRichTextEditor({ owner, onSelectionChange })
 
   React.useEffect(() => {
     if (!ready || !editor) return undefined

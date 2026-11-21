@@ -11,6 +11,7 @@ import {
   V4PermissionPopover,
   V4SkillPopover,
 } from '../../../../workbench/ai/v4/AgentPanelV4Composer'
+import { fixedEditorOwner } from '../../../../workbench/common/useNomiRichTextEditor'
 import type { ComposerMode, PermissionTier } from '../../../../workbench/ai/v4/agentPanelV4Types'
 import { Piece, useV4Fixtures } from '../agentPanelV4LabKit'
 import { useGenerationCanvasStore } from '../../../../workbench/generationCanvas/store/generationCanvasStore'
@@ -49,7 +50,8 @@ function ComposerCell({
         skillSelected={skillSelected || withChips}
         awaitingAnswer={awaitingAnswer}
         chips={withChips ? [fx.chips.attachment, fx.chips.skill, fx.chips.clip] : undefined}
-        value={text ?? ''}
+        draft={fixedEditorOwner(text ?? '')}
+        draftReadOnly
       />
     </Piece>
   )
@@ -73,7 +75,7 @@ function ReferenceButtonCell(): JSX.Element {
   const text = `${mention('女主肖像')} 走进 ${mention('海边小镇')}，镜头缓慢推近。`
   return ready ? (
     <Piece>
-      <AgentPanelV4Composer panelHeight={620} mode="idle" permission="request" value={text} onAddReference={() => undefined} onAddFile={() => undefined} modelLabel="Claude" />
+      <AgentPanelV4Composer panelHeight={620} mode="idle" permission="request" draft={fixedEditorOwner(text)} draftReadOnly onAddReference={() => undefined} onAddFile={() => undefined} modelLabel="Claude" />
     </Piece>
   ) : <Piece><div /></Piece>
 }
@@ -240,7 +242,8 @@ export const V4_COMPOSER_STATES: readonly LabState[] = [
               dock
               mode="running"
               chips={[fx.chips.clip]}
-              value={fx.t('agentPanelV4.fixtureUserTrim')}
+              draft={fixedEditorOwner<string>(fx.t('agentPanelV4.fixtureUserTrim'))}
+              draftReadOnly
             />
           </Piece>
         )

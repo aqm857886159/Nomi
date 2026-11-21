@@ -8,6 +8,7 @@ import type { PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/s
 import { SEEDANCE_2_APIMART_ARCHETYPE } from '../../../../../electron/shared/videoCapabilities/seedanceApimart'
 import { deriveShotRowExec } from '../exec/storyboardRowStatus'
 import StoryboardShotRow from './StoryboardShotRow'
+import { fixedEditorOwner } from '../../../common/useNomiRichTextEditor'
 
 vi.mock('react-i18next', async (importOriginal) => ({
   ...await importOriginal<typeof import('react-i18next')>(),
@@ -55,7 +56,7 @@ function renderRow(shot: PlanShot, nodes: GenerationCanvasNode[] = []): string {
   const plan: StoryboardPlan = { title: 'fixture', anchors: [], shots: [shot] }
   const exec = deriveShotRowExec({ plan, shot, designId: DESIGN, nodes, mode: I2V })
   return renderToStaticMarkup(React.createElement(MantineProvider, null, React.createElement(StoryboardShotRow, {
-    shot, anchors: [], modelOptions: OPTIONS, exec,
+    shot, promptSource: fixedEditorOwner(shot.prompt), anchors: [], modelOptions: OPTIONS, exec,
     aspect: '16:9', frameBox: { width: 240, height: 135 },
     onChangeAspect: () => {}, onUpdate: () => {}, onRemove: () => {},
   })))

@@ -14,6 +14,7 @@ import { V4ToolReceipt } from './AgentPanelV4Receipt'
 import { AgentPanelV4Panel, V4FlowRow } from './AgentPanelV4Panel'
 import ReconcileDeviationCard from '../../generationCanvas/components/ReconcileDeviationCard'
 import { AgentPanelV4Composer } from './AgentPanelV4Composer'
+import { fixedEditorOwner } from '../../common/useNomiRichTextEditor'
 import type { InterventionData, TaskCardData, ToolReceipt, V4InterventionKind, V4TaskStatus, V4ToolStatus } from './agentPanelV4Types'
 
 // 介入槽的写口在生产里是必填（R28）。测试里显式给一份空壳，表示「这一格不验行为」。
@@ -642,14 +643,15 @@ describe('⑧ composer 底栏逐件', () => {
 
   it('高度写进 data-height，随面板高度和内容 derive', () => {
     expect(html(el(AgentPanelV4Composer, { panelHeight: 620 }))).toContain('data-height="86"')
-    expect(html(el(AgentPanelV4Composer, { panelHeight: 620, value: 'a\nb\nc\nd\ne\nf\ng\nh' }))).toContain('data-height="178"')
+    expect(html(el(AgentPanelV4Composer, { panelHeight: 620, draft: fixedEditorOwner('a\nb\nc\nd\ne\nf\ng\nh') }))).toContain('data-height="178"')
     // 同一段 8 行文本：620 高的面板封在 6 行（178），900 高的面板还没到 40% 上限，长满 218。
-    expect(html(el(AgentPanelV4Composer, { panelHeight: 900, value: 'a\nb\nc\nd\ne\nf\ng\nh' }))).toContain('data-height="218"')
+    expect(html(el(AgentPanelV4Composer, { panelHeight: 900, draft: fixedEditorOwner('a\nb\nc\nd\ne\nf\ng\nh') }))).toContain('data-height="218"')
   })
 
-  it('没有 onValueChange 时共享提示词编辑器只读——受控件不假装自己能编辑', () => {
-    expect(html(el(AgentPanelV4Composer, { value: '只读' }))).toContain('aria-readonly="true"')
-    expect(html(el(AgentPanelV4Composer, { value: '可编辑', onValueChange: () => undefined }))).toContain('aria-readonly="false"')
+  it('没有草稿 owner 或标了只读时共享提示词编辑器只读——受控件不假装自己能编辑', () => {
+    expect(html(el(AgentPanelV4Composer, {}))).toContain('aria-readonly="true"')
+    expect(html(el(AgentPanelV4Composer, { draft: fixedEditorOwner('只读'), draftReadOnly: true }))).toContain('aria-readonly="true"')
+    expect(html(el(AgentPanelV4Composer, { draft: fixedEditorOwner('可编辑') }))).toContain('aria-readonly="false"')
   })
 })
 

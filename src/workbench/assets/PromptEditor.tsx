@@ -11,7 +11,7 @@ import { AssetMention } from './AssetMentionNode'
 import { createAssetMentionSuggestion, type MentionSelection } from './AssetMentionSuggestion'
 import type { MentionSuggestionItem, MentionUploadControls } from './AssetMentionSuggestionList'
 import { promptToContent, contentToPrompt } from './promptEditorContent'
-import { useNomiTiptapEditor } from '../common/useNomiRichTextEditor'
+import { useNomiTiptapEditor, type NomiEditorOwner } from '../common/useNomiRichTextEditor'
 import { promptRangeToDocRanges, promptRunsFromDocument, type PromptEditorSegment } from './promptEditorSkeleton'
 
 // 生成节点的描述框(规范 §4):Tiptap 编辑器替换原 textarea —— 句中可放 18px 缩略图 chip(@ 内联媒体引用),
@@ -22,8 +22,11 @@ export type PromptEditorProps = {
   inputAttributes?: Record<string, string>
   onKeyDownCapture?: React.KeyboardEventHandler<HTMLDivElement>
   onFocus?: () => void
-  value: string
-  onChange: (next: string, previous?: string) => void
+  /**
+   * 提示词的 owner：分镜镜头 / 画布节点 / 助手草稿各自 store 的 subscribe / getSnapshot，加写口。
+   * 不收渲染时的值：编辑器每个实例出生时按 owner 此刻的值造文档（见 useNomiTiptapEditor）。
+   */
+  owner: NomiEditorOwner<string>
   placeholder?: string
   /** 可编辑区的可访问名（提示词框是主输入面，读屏必须报得出它属于哪一镜）。 */
   ariaLabel?: string
@@ -86,7 +89,7 @@ function createPromptSkeletonPlugin(options: {
   })
 }
 
-export default function PromptEditor({ value, onChange, placeholder, ariaLabel, className, onBlur, onReady, mentionCandidates, mentionReferences, mentionSearch, onMentionSelect, mentionUpload, editable, promptSegments, onPromptSegmentClick, inputAttributes, onKeyDownCapture, onFocus }: PromptEditorProps): JSX.Element {
+export default function PromptEditor({ owner, placeholder, ariaLabel, className, onBlur, onReady, mentionCandidates, mentionReferences, mentionSearch, onMentionSelect, mentionUpload, editable, promptSegments, onPromptSegmentClick, inputAttributes, onKeyDownCapture, onFocus }: PromptEditorProps): JSX.Element {
   // @ suggestion 的两个回调用 ref 喂(扩展只在 editor 创建时配一次,靠 ref 读最新实现)。
   const searchRef = React.useRef(mentionSearch)
   React.useEffect(() => { searchRef.current = mentionSearch }, [mentionSearch])
@@ -137,13 +140,12 @@ export default function PromptEditor({ value, onChange, placeholder, ariaLabel, 
     [ariaLabel, inputAttributes],
   )
 
-  // 提示词的值归 owner（分镜镜头 / 画布节点 / 助手草稿）：编辑器只拿读写口。首填、实例重建后再填、
+  // 提示词的值归 owner（分镜镜头 / 画布节点 / 助手草稿）：编辑器只拿 owner 绑定。首填、实例重建后再填、
   // 外部写入、防回写都在入口里——这里没有、也写不出「建时塞一份内容」。
   // 只有改变 prompt 字符串的文档事务才回写；胶囊编号事务（串不变）不回写，不覆盖外部 plan 编辑。
   const editor = useNomiTiptapEditor({
-    port: {
-      value,
-      onChange: (next, previous) => onChange(next, previous()),
+    owner,
+    codec: {
       toDoc: (prompt) => promptToContent(prompt, mentionReferences ?? mentionCandidates),
       fromDoc: contentToPrompt,
       keyOf: (prompt) => prompt,
