@@ -4,8 +4,13 @@
 // 不引 vitest（渲染层依赖清单会把它当成产品依赖）：这里只造窗口对象，由测试 vi.stubGlobal('window', …) 装上。
 
 export type BridgeAnswers = Record<string, (...args: unknown[]) => unknown>
-/** 想记账的测试传进来：每次桥调用记进 io，订阅类 on* 记进 listeners。 */
-export type BridgeProbe = { io?: string[]; listeners?: string[] }
+/**
+ * 想记账的测试传进来：每次桥调用记进 io，订阅类 on* 记进 listeners。
+ * 给了 pending 就记还没落定的事：排着的 window.setTimeout（约价的防抖读价、旧数暂留到期）和还没回来的桥调用——
+ * 要「挂上后什么都落定了再开始数」的测试按它等，不按毫秒猜（见 composerMountBudget.test 的 settleIdle）。
+ */
+export type PendingWork = { timers: Set<unknown>; calls: number }
+export type BridgeProbe = { io?: string[]; listeners?: string[]; pending?: PendingWork }
 
 const MOUNT_READS: BridgeAnswers = {
   'modelCatalog.listMappings': () => [],
@@ -25,7 +30,14 @@ function recordingBridge(answers: BridgeAnswers, probe: BridgeProbe): unknown {
       const name = path.join('.')
       if (/(^|\.)on[A-Z]/.test(name)) { probe.listeners?.push(name); return () => undefined }
       probe.io?.push(name)
-      return answers[name]?.(...args)
+      const answer = answers[name]?.(...args)
+      const pending = probe.pending
+      if (pending && typeof (answer as PromiseLike<unknown> | undefined)?.then === 'function') {
+        pending.calls += 1
+        const done = (): void => { pending.calls -= 1 }
+        ;(answer as PromiseLike<unknown>).then(done, done)
+      }
+      return answer
     },
   })
   return make([])
@@ -42,6 +54,17 @@ export function composerWindow(answers: BridgeAnswers, probe: BridgeProbe = {}):
     },
     removeEventListener: (type: string, listener: (event: Event) => void) => listeners.get(type)?.delete(listener),
     dispatchEvent: (event: Event) => { for (const listener of listeners.get(event.type) ?? []) listener(event); return true },
-    setTimeout, clearTimeout,
+    ...trackedTimers(probe.pending),
   }
+}
+
+function trackedTimers(pending: PendingWork | undefined): { setTimeout: typeof setTimeout; clearTimeout: typeof clearTimeout } {
+  if (!pending) return { setTimeout, clearTimeout }
+  const track = ((handler: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+    const id = setTimeout(() => { pending.timers.delete(id); handler(...args) }, ms)
+    pending.timers.add(id)
+    return id
+  }) as typeof setTimeout
+  const clear = ((id: Parameters<typeof clearTimeout>[0]) => { pending.timers.delete(id); clearTimeout(id) }) as typeof clearTimeout
+  return { setTimeout: track, clearTimeout: clear }
 }

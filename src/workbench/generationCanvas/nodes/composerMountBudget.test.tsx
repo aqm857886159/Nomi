@@ -1,7 +1,8 @@
 /**
  * 点一下卡、生成框挂出来的那一刻的**预算**（不是毫秒，是数得清的次数）：
  *
- * - 挂载时 0 次桌面桥 IO（同步 IPC、项目 / 素材扫描、模型目录、提示词库……一律不许）；
+ * - 挂载时 0 次桌面桥 IO（同步 IPC、项目 / 素材扫描、模型目录、提示词库……一律不许）；唯一例外是发送键约价：
+ *   挂上后防抖、异步读一次公开价，数得清（恰好 1 次）；
  * - 挂载时 0 次画布 store 写（已经落好默认值的卡）；新卡第一次挂最多 1 次（默认值一次写好，不级联）；
  * - 生成框开着时，别的卡的写入（生成进度、拖动）不让它重渲。
  *
@@ -20,6 +21,8 @@ const probe = vi.hoisted(() => ({
   /** 每一次桌面桥调用（订阅类 on* 不算 IO，单独记）。 */
   io: [] as string[],
   listeners: [] as string[],
+  /** 还没落定的事：排着的 window.setTimeout、还没回来的桥调用（共用假桥记，settleIdle 按它等）。 */
+  pending: { timers: new Set<unknown>(), calls: 0 },
   editorRenders: 0,
   editorCreates: 0,
   leafRenders: 0,
@@ -116,6 +119,8 @@ function seedCanvas(target: GenerationCanvasNode): void {
   })
 }
 
+/** 发送键约价：生成框挂上后防抖读一次公开价（只读、异步，不在挂载那一拍）。 */
+const PRICE_READ = 'onboarding.vendorPricePreview'
 const VISUAL_SIZE = { width: 340, height: 192 }
 const noFeedback = (): void => undefined
 const commits = { composer: 0 }
@@ -136,6 +141,17 @@ async function settle(renderer: ReturnType<typeof createReactTestRenderer>): Pro
     await new Promise((resolve) => setTimeout(resolve, 0))
     renderer.flushPassiveEffects()
   }
+}
+
+/**
+ * 挂上以后排着的事全落定再返回：约价的防抖读价（PRICE_DEBOUNCE_MS）、旧数暂留到期（PRICE_HOLD_MS）、还没回来的桥调用。
+ * 只按 settle 的几轮 0 毫秒等，读价落在哪一轮全看机器忙不忙——2026-11-21 负载 12 时读价落进「别的卡的进度」那 5 拍，
+ * 生成框重渲 1 次、红了一次。这里等的是真的「没有排着的定时器、没有在途的桥调用」，不是猜一个毫秒数。
+ */
+async function settleIdle(renderer: ReturnType<typeof createReactTestRenderer>): Promise<void> {
+  do await settle(renderer)
+  while (probe.pending.timers.size > 0 || probe.pending.calls > 0)
+  await settle(renderer)
 }
 
 function countStoreWrites(): { stop: () => number } {
@@ -169,7 +185,10 @@ describe('点卡出生成框：挂载预算', () => {
     vi.unstubAllGlobals()
   })
 
-  /** 先挂一次让各处「第一次用到时」该载入的都载入，卸掉，再挂第二次——第二次才是用户每次点卡的样子。 */
+  /**
+   * 先挂一次让各处「第一次用到时」该载入的都载入，卸掉，再挂第二次——第二次才是用户每次点卡的样子。
+   * 第二次挂上后等到什么都落定（含约价那一次防抖读价）才返回：挂载引起的 IO / store 写一次不漏地记进来，之后的计数也不会撞上它。
+   */
   async function mountTwice(target: GenerationCanvasNode): Promise<{ io: string[]; writes: number }> {
     seedCanvas(target)
     renderer.render(<Host nodeId={target.id} />)
@@ -179,15 +198,16 @@ describe('点卡出生成框：挂载预算', () => {
     resetProbe()
     const writes = countStoreWrites()
     renderer.render(<Host nodeId={target.id} />)
-    await settle(renderer)
+    await settleIdle(renderer)
     return { io: [...probe.io], writes: writes.stop() }
   }
 
   for (const { label, card } of LANDED_CARDS) {
-    it(`${label}：挂载时 0 次桌面桥 IO（没有同步 IPC、没有全项目素材扫描）`, async () => {
+    it(`${label}：挂载时 0 次桌面桥 IO（没有同步 IPC、没有全项目素材扫描）；约价防抖后只读一次公开价`, async () => {
       const { io } = await mountTwice(card)
       expect(commits.composer, '生成框真的挂上了（什么都没渲染不算过）').toBeGreaterThan(0)
-      expect(io).toEqual([])
+      expect(io.filter((name) => name !== PRICE_READ), '除约价外 0 次桥 IO').toEqual([])
+      expect(io.filter((name) => name === PRICE_READ), '约价：挂上后防抖读一次，不多读').toEqual([PRICE_READ])
     })
 
     it(`${label}：已落好默认值的卡，挂载时 0 次画布 store 写`, async () => {
