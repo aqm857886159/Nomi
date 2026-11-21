@@ -17,10 +17,9 @@ import {
 } from './modelCatalogCache'
 
 // 重导出：实现已拆到兄弟模块（resolvers / mappers / status / cache），
-// 但 useModelOptions.ts 对外公共导出面保持不变，外部 import 路径无需改动。
+// 现役调用方沿用 useModelOptions.ts 的 import 路径；退役的名字过滤不再导出。
 export {
   MODEL_REFRESH_EVENT,
-  filterHiddenOptionsByKind,
   notifyModelOptionsRefresh,
   preloadModelOptions,
   resolveExecutableImageModel,

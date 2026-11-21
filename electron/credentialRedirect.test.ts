@@ -18,7 +18,6 @@ vi.mock("./catalog/catalogStore", () => ({
   normalizeProviderKind: (value: string) => value === "anthropic" || value === "openai-responses" ? value : "openai-compatible",
   readCatalog: () => ({ version: 8, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }),
 }));
-vi.mock("./ai/onboarding/vendorHealth", () => ({ checkVendorHealth: vi.fn() }));
 vi.mock("./catalog/rendererCatalogMutation", () => ({ upsertRendererCatalogVendorApiKey: vi.fn() }));
 
 import { appFetch } from "./appFetch";
@@ -134,10 +133,11 @@ describe.each([302, 307, 308])("带密钥请求遇到 HTTP %s 跳转：第二个
     expect(seen).toEqual([]);
   });
 
-  it("门 4 接入向导协议探测：失败说人话，第二个网站收不到", async () => {
+  // 门 4 原是接入向导的「测试连接」，随 D-1117-delete-verification 删了；向导里还会带 key 出站的只剩拉模型列表这条 IPC。
+  it("门 4 接入向导拉模型列表（IPC）：失败说人话，第二个网站收不到", async () => {
     const { source, target, seen, sourceHits } = await redirectPair(status);
-    const result = await handlers.get("nomi:onboarding:test-connection")?.({}, {
-      baseUrl: source, providerKind: "openai-compatible", modelId: "m", apiKey: "redirect-api-key",
+    const result = await handlers.get("nomi:onboarding:list-models")?.({}, {
+      baseUrl: source, providerKind: "openai-compatible", apiKey: "redirect-api-key",
       headers: { "x-tenant-key": "redirect-tenant" },
     });
     expect(result).toMatchObject({ ok: false });

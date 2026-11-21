@@ -10,6 +10,8 @@ import { useTranslation } from 'react-i18next'
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import type { MODEL_ACCESS_ENTRY } from '../../../electron/shared/contracts/modelAccessCapabilities'
+import type { ConnectionStatusPresentation } from '../../../electron/shared/modelStatusPresentation'
+import { ModelStatusMark } from './ModelStatusMark'
 
 type ModelAccessEntryId = (typeof MODEL_ACCESS_ENTRY)[keyof typeof MODEL_ACCESS_ENTRY]
 
@@ -21,9 +23,14 @@ type FoldableModelCardProps = {
   name: string
   subtitle: string
   /** ok=绿点常态 / todo=灰点待办 / error=红底红字（需要用户行动的异常，值得跳出来）。 */
-  status: 'ok' | 'todo' | 'error'
+  status?: 'ok' | 'todo' | 'error'
   /** 状态胶囊文案；缺省按 status：ok→已连通 / todo→待接入。 */
   statusLabel?: string
+  /**
+   * 模型连接卡（内置家 / 自接家）用：胶囊的词和点色只从展示投影来（ModelStatusMark，和设置列表行同一处）。
+   * 给了它，status / statusLabel 不再看——其余卡（本地、会员、助手）仍按自己的 status 画。
+   */
+  modelStatus?: ConnectionStatusPresentation
   /** 名字右侧的软标（如「新手推荐」）；不传则不显。 */
   badge?: React.ReactNode
   /** header 最右侧动作槽（如删除图标）。独立于展开 toggle——渲染成 toggle button 的兄弟节点，
@@ -44,8 +51,9 @@ export function FoldableModelCard({
   glyphTone = 'ink',
   name,
   subtitle,
-  status,
+  status = 'todo',
   statusLabel,
+  modelStatus,
   badge,
   headerAction,
   defaultExpanded = false,
@@ -98,6 +106,7 @@ export function FoldableModelCard({
           <span className="block text-caption text-nomi-ink-40 line-clamp-2" title={subtitle}>{subtitle}</span>
         </span>
         {badge ? <span className="shrink-0">{badge}</span> : null}
+        {modelStatus ? <ModelStatusMark status={modelStatus} variant="pill" /> : (
         <span
           className={cn(
             'inline-flex items-center gap-1.5 px-2 py-[3px] rounded-full text-micro font-semibold shrink-0',
@@ -114,6 +123,7 @@ export function FoldableModelCard({
           />
           {statusLabel ?? (status === 'ok' ? t('onboardingProviders.modelControls.connected') : t('onboardingProviders.modelControls.pending'))}
         </span>
+        )}
         {onOpenDetails ? (
           <IconChevronRight size={16} stroke={1.8} className="shrink-0 text-nomi-ink-40" />
         ) : detailMode ? null : (

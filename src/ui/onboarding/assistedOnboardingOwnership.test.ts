@@ -68,3 +68,12 @@ describe('assisted onboarding entry ownership', () => {
     expect(read('src/ui/onboarding/AssistedIntegrationProgress.tsx')).not.toContain('useState')
   })
 })
+
+it('retires assistant failure by its real certification child run, never by a guessed connection name', () => {
+ const section = read('src/ui/onboarding/AiAssistedOnboardingSection.tsx');
+ expect(section).toContain('record.childRunRef');
+ expect(section).toContain('adapterFailureIsObsolete(run,');
+ expect(section).not.toContain('connection.name === snapshot.name');
+ expect(read('src/ui/onboarding/OnboardingDrawer.tsx')).toContain('adapterRuns={adapterRuns}');
+ expect(read('src/ui/onboarding/ModelSettingsHome.tsx')).toContain('runs={adapterRuns}');
+});

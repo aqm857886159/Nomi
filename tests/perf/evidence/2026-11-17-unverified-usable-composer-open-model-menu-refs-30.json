@@ -1,0 +1,55 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "4fc15b187",
+  "head": "4fc15b187914c23dde845dc7371c283b61844de3",
+  "dirty": true,
+  "sourceTree": "59426a304b17a21bb0a0181b18351d88cbb28d9b",
+  "date": "2026-11-16",
+  "runs": 5,
+  "results": [
+    {
+      "id": "composer-open-model-menu-refs-30",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 32.2,
+          "p95": 32.4
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "response": [
+          31.6,
+          32.4,
+          32.4,
+          30.6,
+          32.2
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "budget": 100,
+      "baseline": {
+        "median": 25.7,
+        "p95": 31.4,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "date": "2026-11-13",
+        "commit": "edae9ce31"
+      },
+      "verdict": {
+        "status": "regression",
+        "note": "中位数 32.2 比基线 25.7 差 25%"
+      }
+    }
+  ]
+}

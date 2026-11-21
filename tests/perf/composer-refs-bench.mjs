@@ -23,6 +23,8 @@ const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i
 const OP = arg('--op', 'open-params')
 const RUNS = Number(arg('--runs', '5'))
 const LABEL = arg('--label', OP)
+const MODEL_COUNT = Number(arg('--models', '0'))
+if (MODEL_COUNT !== 0 && (MODEL_COUNT !== 200 || OP !== 'open-model-menu')) throw new Error('200 models only applies to the model-menu scenario')
 if (!['open-params', 'hover-ref', 'open-mode-menu', 'open-model-menu', 'remove-ref', 'open-params-flat', 'open-advanced'].includes(OP)) throw new Error(`未知操作 ${OP}`)
 
 const ROLE = 'perf-composer-refs'
@@ -53,9 +55,16 @@ try {
     const page = await context.newPage()
     const errors = []
     page.on('pageerror', (error) => errors.push(String(error)))
-    await page.goto(`${BASE}/design-lab.html?screen=node-composer-bar&frame=1&state=${STATE}`, { timeout: 180000 })
+    await page.goto(`${BASE}/design-lab.html?screen=node-composer-bar&frame=1&state=${STATE}${MODEL_COUNT ? `&models=${MODEL_COUNT}` : ''}`, { timeout: 180000 })
     await page.waitForFunction(() => window.__designLabReady === true, null, { timeout: 90000 })
     await page.waitForFunction((count) => document.querySelectorAll('[data-composer-host] [data-reference-row] [data-asset-tile]').length >= count, REF_COUNT, { timeout: 30000 })
+    if (MODEL_COUNT) {
+      const measured = await page.evaluate(async () => {
+        const rows = (await import('/src/config/modelCatalogCache.ts')).peekCatalogModelOptions('video', 'text_to_video') ?? []
+        return { count: rows.length, unique: new Set(rows.map(row => `${row.vendor}:${row.modelKey}`)).size }
+      })
+      if (measured.count !== MODEL_COUNT || measured.unique !== MODEL_COUNT) throw new Error(`Expected ${MODEL_COUNT} distinct catalog rows, got ${JSON.stringify(measured)}`)
+    }
     let sample
     if (OP === 'open-params-flat') {
       await armResponse(page, { predicate: 'paramPanelRows', arg: LARGE_CANVAS.rows })
@@ -113,6 +122,6 @@ try {
 }
 const out = path.join(REPO_ROOT, `tests/perf/results/composer-refs-${LABEL}.json`)
 fs.mkdirSync(path.dirname(out), { recursive: true })
-fs.writeFileSync(out, `${JSON.stringify({ op: OP, refs: REF_COUNT, ...(LARGE_CANVAS ? { canvasNodes: 200, rows: LARGE_CANVAS.rows } : {}), samples }, null, 2)}\n`)
+fs.writeFileSync(out, `${JSON.stringify({ op: OP, refs: REF_COUNT, ...(LARGE_CANVAS ? { canvasNodes: 200, rows: LARGE_CANVAS.rows } : {}), ...(MODEL_COUNT ? { catalogModels: MODEL_COUNT } : {}), samples }, null, 2)}\n`)
 const sorted = samples.map((s) => s.responseMs).sort((a, b) => a - b)
 console.log(`${OP}（${REF_COUNT} 张参考）：中位 ${sorted[Math.floor(sorted.length / 2)]}ms / 最慢 ${sorted[sorted.length - 1]}ms / 长任务 ${samples.reduce((n, s) => n + s.longTasks, 0)} 个；结果 ${out}`)

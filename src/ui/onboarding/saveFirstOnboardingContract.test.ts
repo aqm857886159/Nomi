@@ -52,12 +52,13 @@ describe('save-first gateway onboarding contract', () => {
     expect(wizard).not.toContain('resolvePrecheckGateAction')
   })
 
-  it('keeps connection testing optional and gives each setup state one primary action', () => {
+  // D-1117-delete-verification（协调 2026-11-18 Q7）：「测试连接」整个删了——存下的连接只剩两条路：手填 / 拉列表。
+  it('has no connection test and gives the saved connection one primary action', () => {
     const wizard = source('OnboardingWizard.tsx')
 
-    expect(wizard).toContain('data-model-connection-diagnostics')
-    expect(wizard).toContain("t('modelSetup.diagnostics')")
-    expect(wizard).toMatch(/variant="light"\s+onClick=\{handleTestConnection\}/)
+    expect(wizard).not.toContain('data-model-connection-diagnostics')
+    expect(wizard).not.toContain('handleTestConnection')
+    expect(wizard).not.toContain("t('modelSetup.diagnostics')")
     expect(wizard).toMatch(/variant="light"\s+onClick=\{\(\) => setScreen\('select'\)\}/)
     expect(wizard).toMatch(/variant="filled"\s+onClick=\{handleFetchModels\}/)
   })

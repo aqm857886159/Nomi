@@ -11,7 +11,7 @@ const userData = process.env.NOMI_ADAPTER_UI_USERDATA
 if (!userData || !fs.existsSync(path.join(userData, 'provider-adapters.json'))) {
   throw new Error('Set NOMI_ADAPTER_UI_USERDATA to a completed live adapter harness directory')
 }
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/provider-adapter-doctor')
+const shotsDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, 'tests/ux/shots/provider-adapter-doctor')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 const failures = []
@@ -53,7 +53,7 @@ try {
   const providerCard = panel.locator('button', { hasText: 'AGNES Blind Auto' }).first()
   check('自动接入供应商复用现有模型卡', (await providerCard.count()) > 0)
   const panelText = await panel.innerText()
-  check('卡片显示部分可用', panelText.includes('部分可用'), panelText.match(/部分可用/)?.[0] || '')
+  check('卡片显示可使用模型数', /2 个可使用/.test(panelText), panelText)
   check('卡片显示真实启用数 2 / 3', /2\s*\/\s*3\s*个模型已启用/.test(panelText))
   await screenshotSettled(panel, { path: path.join(shotsDir, '01-light-partial-card.png') })
 
@@ -64,7 +64,7 @@ try {
     check(`展开卡可见 ${label}`, expandedText.includes(label))
   }
   const failedToggle = panel.getByRole('checkbox', { name: /启用 AGNES Video V2\.0|启用 agnes-video-v2\.0/i }).first()
-  check('未验证视频模型开关被锁定', (await failedToggle.count()) > 0 && await failedToggle.isDisabled())
+  check('缺请求格式的视频模型开关被锁定', (await failedToggle.count()) > 0 && await failedToggle.isDisabled())
   await failedToggle.scrollIntoViewIfNeeded()
   await win.waitForTimeout(250)
   await screenshotSettled(panel, { path: path.join(shotsDir, '02-light-expanded-models.png') })

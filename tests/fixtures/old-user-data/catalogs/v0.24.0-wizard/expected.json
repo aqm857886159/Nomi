@@ -1,7 +1,7 @@
 {
   "recordedFrom": "03c4c8fb3957b7033c2d3caf00a741c747a21913",
   "diskVersionAfterRead": 13,
-  "backupFiles": [],
+  "backupFiles": ["model-catalog.v13.bak.json"],
   "models": {
     "gpt-image-2": {
       "kind": "image",

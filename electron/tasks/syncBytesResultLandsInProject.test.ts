@@ -425,14 +425,13 @@ describe.each([
   ...[...scriptSaveCells(), ...processCells()].map((cell) => ({ ...cell, pending: true })),
 ])("没项目（凭据待复验=$pending）：$name 零生成请求 / 进程、一分钱不扣", (cell) => {
   beforeEach(() => {
-    if (cell.pending) catalog().apiKeysByVendor[cell.vendorKey].verificationPending = true;
+    // 旧版写下的「待复验」标记（D-1117-delete-verification 后没人再读）：有它也不许多出任何请求。
+    if (cell.pending) (catalog().apiKeysByVendor[cell.vendorKey] as Record<string, unknown>).verificationPending = true;
   });
 
-  function expectNoGeneration(tryModelEntry = false) {
-    // 只豁免模型列表的 GET；生成 GET、其他 HTTP 方法和重试都不能混进来。
-    expect(wire.filter((row) => !(cell.pending && row.method === "GET" && row.url === "/models"))).toEqual([]);
-    expect(wire.length).toBeLessThanOrEqual(cell.pending && !tryModelEntry ? 1 : 0);
-    if (cell.pending && !tryModelEntry && cell.vendorKey === "script-relay") expect(wire).toHaveLength(1);
+  function expectNoGeneration(_tryModelEntry = false) {
+    // Pending is legacy data: neither a preflight GET nor generation may start without a project.
+    expect(wire).toEqual([]);
     expect(processRuns).toEqual([]);
     expect(cards).toEqual([]);
   }

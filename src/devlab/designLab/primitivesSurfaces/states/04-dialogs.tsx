@@ -150,7 +150,8 @@ function DialogStage({ kind }: { kind: string }): JSX.Element {
   if (['confirm', 'feedback', 'spend'].includes(kind)) return <HostStage kind={kind} />
   if (kind === 'custom') return <CustomCallEditor target={{ vendorKey: 'census', modelKey: 'census', label: 'Census', script: '' }} onClose={noop} onSaved={noop} />
   if (kind === 'model') return CATALOG_LIVENESS_STATES[0].render()
-  if (kind === 'onboarding-expanded') return <OpenSequence selectors={['[role="dialog"] details > summary']}><OnboardingWizard opened onClose={noop} initialPreset="newapi" /></OpenSequence>
+  // 连接诊断已随验证删除；保留旧取景 id 对照删除结果，不再等待不存在的展开入口，也不改基线。
+  if (kind === 'onboarding-expanded') return <OnboardingWizard opened onClose={noop} initialPreset="newapi" />
   if (kind === 'onboarding') return <OnboardingWizard opened onClose={noop} initialPreset="newapi" />
   if (kind === 'agent') return <OpenSequence selectors={agentOpen}><ShellStage snapshot={emptyAgentSnapshot} /></OpenSequence>
   if (kind === 'action') return <ActionSelectModal open onClose={noop} onPick={noop} />
@@ -285,7 +286,7 @@ export const DIALOG_STATES: readonly LabState[] = [
     id: 'ps-31-onboarding-dialog',
     name: 'onboarding · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/ui/onboarding/OnboardingWizard.tsx:772'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/onboarding/OnboardingWizard.tsx:694'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="onboarding" />,
   },
   {
@@ -402,9 +403,9 @@ export const DIALOG_STATES: readonly LabState[] = [
   },
   {
     id: 'ps-48-onboarding-expanded-dialog',
-    name: '接入向导 · 连接诊断展开',
+    name: '接入向导 · 连接诊断已删除',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 最小窗反向追查',
-    mirrors: ['src/ui/onboarding/OnboardingWizard.tsx:772'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/onboarding/OnboardingWizard.tsx:694'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="onboarding-expanded" />,
   },
 ]

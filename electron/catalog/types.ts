@@ -257,7 +257,6 @@ export type Vendor = {
   hasApiKey?: boolean;
   /** Persisted key material exists; this is display metadata, not an execution/readiness signal. */
   credentialMaterialSaved?: boolean;
-  credentialVerificationPending?: boolean;
   baseUrlHint?: string | null;
   authType?: VendorAuthType;
   authHeader?: string | null;
@@ -730,6 +729,8 @@ export type CatalogVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 
 export const CURRENT_CATALOG_VERSION: CatalogVersion = catalogVersion.current as CatalogVersion;
 
 export type CatalogState = {
+  /** Monotonic data-repair receipt; no file-format change. */
+  unverifiedUsableRecovered?: true;
   /** User-deleted builtin identities must not be inserted by subsequent seeding. */
   suppressedBuiltinModels?: Array<{ vendorKey: string; modelKey: string }>;
   /**

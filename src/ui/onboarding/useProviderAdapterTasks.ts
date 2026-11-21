@@ -24,7 +24,7 @@ export function useProviderAdapterTasks(): {
     const list = getDesktopBridge()?.onboarding?.certificationList
     if (!list) return
     // Active work must never disappear behind newer history. The store caps this
-    // query at 200; visibleAdapterRuns applies the small limit only to terminal rows.
+    // query at 200; terminal failures follow current model truth.
     const result = await list({ limit: 200 }).catch(() => null)
     if (result?.ok && result.runs) setRuns((current) => mergeAdapterRuns(current, result.runs ?? []))
   }, [])

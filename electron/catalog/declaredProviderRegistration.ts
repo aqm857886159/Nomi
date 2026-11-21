@@ -205,9 +205,9 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
         meta: {
           ...meta,
           declarationSource: { version: 1, vendorKey, digest: capabilityFactDigest(sourceCard), card: sourceCard },
-          // 「登记了」与「跑通了」是两件事，盘上分得开：`declared` = 卡收下了、静态校验过了；
-          // 只有一次真实试跑（try_model）能把它推到 verified。不写 verified = 不替模型说话。
-          adapter: { state: "declared", evidence: "self-check", source: "declaration-card", publicationModes: projection.taskKinds, updatedAt: now() },
+          // `declared` = 卡收下了、静态校验过了。能不能用只看可用性主人（有 key、有请求格式、没手动关），
+          // 不再记「试没试跑」（D-1117-delete-verification）。
+          adapter: { state: "declared", source: "declaration-card", publicationModes: projection.taskKinds, updatedAt: now() },
         },
       });
       // Remove owned old routes and removed operations before upsert can inherit them.

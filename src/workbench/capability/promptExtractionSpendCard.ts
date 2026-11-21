@@ -10,7 +10,7 @@
 import i18n from '../../i18n'
 import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
 import { decodePromptExtractionSubject } from '../../../electron/shared/contracts/browserPromptExtraction'
-import { spendModelLine } from './credentialProbeSpendCard'
+import { spendModelLine } from './spendCardModelLine'
 
 export type PromptExtractionSpendPayload = {
   /** 读图模型（主进程已解成执行身份：报价与真实调用是同一行）。 */

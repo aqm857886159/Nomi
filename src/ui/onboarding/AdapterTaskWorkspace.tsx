@@ -87,6 +87,7 @@ export function AdapterTaskList({
 export function AdapterTaskWorkspace({
   run,
   onBack,
+  onDone,
   onCancel,
   onRetry,
   onSelfConnect,
@@ -94,6 +95,8 @@ export function AdapterTaskWorkspace({
 }: {
   run?: DesktopHttpCertificationRun
   onBack: () => void
+  /** 底部「完成 / 后台运行」：任务成功后带人去模型落脚的那条连接（finishAdapterRunNavigation）；页头返回仍是退一层。 */
+  onDone: () => void
   onCancel: () => void
   onRetry: (modelKey?: string) => void
   onSelfConnect: (modelKey: string) => void
@@ -112,7 +115,7 @@ export function AdapterTaskWorkspace({
         {run ? (
           <AdapterVerificationScreen
             run={run}
-            onClose={onBack}
+            onClose={onDone}
             onCancel={onCancel}
             onRetry={onRetry}
             onSelfConnect={(modelKey) => onSelfConnect(modelKey)}
