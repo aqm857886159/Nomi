@@ -15,7 +15,7 @@
 // 各状态的截图（对照表 cost.send-pill / cost.hover 每行一张，<语言>-<状态>[-dark].png）：loading（第一次读价目被假服务扣 6 秒）、
 //   priced、hover、longest（Seedance 2.0 标准版 1080P 15 秒 = 14.63 积分，最长的数）、narrow（同一帧、窗口收到 700 宽）、unknown、unknown-hover、
 //   error-500、error-timeout、generating（发出去、假服务还没回）。「禁用 + 有价」真窗口造不出（能禁用发送的条件都带参考输入或制作流程，
-//   带参考的这一单真价目判估不出），由实验室格 sc-i-disabled-priced 和 ComposerSendButton 单测守。
+//   带参考的这一单真价目判估不出），由 ComposerSendButton 单测守；实验室格 sc-i-disabled-priced 只出图（该屏待拍板，门岗不比像素）。
 //
 // 用法：先 pnpm run build；node tests/ux/send-cost-estimate.rehearsal.walk.mjs
 //   NOMI_SURFACE_SCHEME=dark 整轮按暗色起；NOMI_SEND_COST_EVIDENCE=<目录> 截图与收据目录（缺省 .tmp/send-cost-estimate）。
