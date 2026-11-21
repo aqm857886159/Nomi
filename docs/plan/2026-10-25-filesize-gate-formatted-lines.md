@@ -1,5 +1,7 @@
 # 设计卡：格式化代码行文件体积门岗
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：`check:filesize` 改为 Prettier 归一化代码行 + 650/800 门槛与冻结棘轮
 线/负责人：Codex / chore-filesize-gate-formatted-lines
 类别：门岗、规则、测试、数据格式

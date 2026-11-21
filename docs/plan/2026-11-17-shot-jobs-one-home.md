@@ -1,5 +1,7 @@
 # 设计卡：「这个镜头现在算哪一个任务」只在一处选
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：2026-11-17 动手前批准；一个提交。代码锚点：productionShotJobs.ts:51、productionShotPhase.ts:157、productionQaVerdict.ts:71、canvasShotResult.ts:7、canvasShotHandover.ts:189、shotLandingAdmission.ts:200、shotProviderHandover.ts:27（修改前）。
 类别：不是四类（不改界面、不改花钱流程、不改数据）。行为会变，★ 五格写全。
 来历：同一个判断几个入口各做一份。只读准备查到 7 处各自在挑「这个镜头当前的任务」，7 类差异找不到依据（静态推演，未在真实数据里复现）。

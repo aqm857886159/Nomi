@@ -1,5 +1,7 @@
 # 自定义中转出图「没有可用通道」：线上模型名只由连接契约决定（2026-10-16；2026-10-24 判据合一）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 线：F-relay（2026-10-16，P0，花钱路径）→ I-relay-1207（2026-10-24，救 #1207 + 判据合一）。
 > 根因合同：发送层 [2026-10-16-custom-relay-wire-model.root-cause.json](../fixes/2026-10-16-custom-relay-wire-model.root-cause.json)；目录行层 [2026-10-23-vendor-scoped-model-id.root-cause.json](../fixes/2026-10-23-vendor-scoped-model-id.root-cause.json)（判据按 10-24 合一重写）。
 > 方向检查：[direction-checks/2026-10-24-custom-relay-wire-model.md](../engineering/direction-checks/2026-10-24-custom-relay-wire-model.md)（取代 [10-16 那份](../engineering/direction-check-2026-10-16-custom-relay-wire-model.md)，那份早于 #1297）。

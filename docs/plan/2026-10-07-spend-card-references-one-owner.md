@@ -1,5 +1,7 @@
 # 付费卡参考图一个主人：卡上看到的 = 发出去的 = 画布节点上摆着的
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：已实现未推送（2026-10-07，分支 `fix/spend-card-references-one-owner`）。④ 只交了回写规划（纯函数 `planReferenceProjection` + 单测）：落地链文件因画布写边界重构（方案 A）冻结，接线放到方案 A 之后（协调会话 2026-10-07 拍板）。根因合同：`docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json`。
 
 ```

@@ -1,5 +1,7 @@
 # 生成底栏让位：宿主交数据，主人只量文字
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 方向已定：D-1118-bar-yield-route-yi（按乙重做）；复盘：[方向检查](../engineering/direction-checks/2026-11-17-bar-yield-r2.md)。梯子顺序、样子、文案和行为不改。
 
 ## 先查别人

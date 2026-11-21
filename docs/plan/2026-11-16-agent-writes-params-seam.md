@@ -1,5 +1,7 @@
 # 全图：档案 → Agent 写参数（交接处 `agent-writes-params`）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 2026-11-16，只画图，不改任何代码、文字、测试。登记在 `docs/engineering/seams.json`。
 > 基准：`origin/main` 4218cd7fb。行号以这个提交为准。
 > 这张图回答的问题：Agent 被拒时读到的那句话是谁写的、写给谁、字段名从哪来。

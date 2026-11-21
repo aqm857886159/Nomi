@@ -1,5 +1,7 @@
 # 方向检查：3D-BOX 3c 真实测试 ④ 第五轮（C5 / C6 / ⑩）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`node scripts/fix-churn.mjs` 命中——`laneExtendedTools.ts`（第 4 个 fix）、`laneCanvasTools.ts` / `applyDirectorWrite.ts` / `AgentPanelV4Receipt.tsx`（第 3 个）、`AgentPanelV4Panel.tsx` / `agentPanelV4Types.ts` / `verbs/writeVerbs.ts`（第 5 个）、`ProjectAgentResidentShell.tsx`（第 7 个）、概念「Agent 面板流条目的身份」（第 10 个）。
 > 来源：协调会话 10-06 真实测试 ④（apimart / deepseek-v3.2，分支合 main 于 4e5073223）C1–C4、C8 过，C5、C6、C7 红；另有一条「说的≠摆的」（⑩）。
 

@@ -1,5 +1,7 @@
 # 导入转码不抢电脑、可见进度设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：导入视频可播放归一化收进有界进程门
 线/负责人：fix/import-transcode-honest / 第 1 轮 Codex（I-import-transcode），第 2 轮 Claude（I-import-transcode-r2），第 3 轮 Claude（I-import-transcode-r3：并成一份在途请求登记）
 类别：[长跑][可打断][数据格式]

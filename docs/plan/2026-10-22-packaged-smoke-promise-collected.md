@@ -1,5 +1,7 @@
 # 打包冒烟「Execution context was destroyed」——主进程 evaluate 的结果被 GC 收掉（R-mac-smoke-flake）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：Playwright 主进程 evaluate 结果保活 + 打包冒烟每夜跑　　线：R-mac-smoke-flake　　类别：[其他]（测试基础设施 / CI）
 
 ## 根因（证据在前）

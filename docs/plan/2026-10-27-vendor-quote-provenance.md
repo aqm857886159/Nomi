@@ -1,5 +1,7 @@
 # 失败卡只把有来源证据的话标成「服务商原话」（设计卡）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：服务商原话只认有来源证据的话  线/负责人：I-vendor-quote-provenance  类别：[其他]（纯 bug 修复：不增删界面元素、不改文案）
 
 > 复盘：`docs/engineering/direction-checks/2026-10-27-vendor-quote-provenance.md`（用户 10-27 拍板：照推荐修——只认有来源的原话，删 raw 回退）。根因合同：`docs/fixes/2026-10-27-vendor-quote-provenance.root-cause.json`（随实现提交）。
