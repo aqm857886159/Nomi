@@ -29,10 +29,11 @@ import path from 'node:path'
 import { once } from 'node:events'
 import { expect } from '@playwright/test'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
-import { launchNomiApp, seedSavedFixtureCredentials } from './_launchApp.mjs'
+import { ACCEPTANCE_VIEWPORT, launchNomiApp, seedSavedFixtureCredentials } from './_launchApp.mjs'
 import { clickOrFail, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { addCanvasNode, newProjectEntry, switchWorkspace } from './_shell.mjs'
+import { panCanvasUntilInside } from './_canvasHit.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 
 const output = path.resolve(process.env.NOMI_SEND_COST_EVIDENCE || '.tmp/send-cost-estimate')
@@ -372,15 +373,18 @@ try {
       }
       const wideBox = await fits('longest')
       await frame('longest')
-      // 最窄：生成浮框宽恒为 NODE_COMPOSER_WIDTH，不随节点和窗口变；窗口收到 700 宽再核一遍同一帧。
-      await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(700, 720))
+      // 最窄：生成浮框宽恒为 NODE_COMPOSER_WIDTH，不随节点和窗口变；页面收到 700 宽再核一遍同一帧。
+      // 启动器把内容区钉在 ACCEPTANCE_VIEWPORT（Playwright 视口），改原生窗口大小不动 innerWidth，要改视口本身。
+      await win.setViewportSize({ width: 700, height: 720 })
       await expect.poll(() => win.evaluate(() => window.innerWidth), { timeout: stationTimeout() }).toBeLessThan(720)
+      // 视口收窄后浮框还在原处、右半截出了窗口；真人会把画布拖过来再看——照做（中键拖，同 panCanvasUntilInside），拖不进来也照实记。
+      const narrowPan = await panCanvasUntilInside(win, composer, { margin: { left: 8, right: 8, top: 8, bottom: 16 } })
       await summaryClearOfTools('narrow window')
       const narrowBox = await fits('narrow')
       assert(Math.abs(narrowBox.width - wideBox.width) < 1, `composer keeps its width in a narrow window: ${wideBox.width} → ${narrowBox.width}`)
       await frame('narrow')
-      record.longest = { pill: await pill.innerText(), composerWidth: wideBox.width, narrowComposerWidth: narrowBox.width }
-      await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1220, 840))
+      record.longest = { pill: await pill.innerText(), composerWidth: wideBox.width, narrowComposerWidth: narrowBox.width, narrowPan: { ok: narrowPan.ok, reason: narrowPan.reason ?? null } }
+      await win.setViewportSize(ACCEPTANCE_VIEWPORT)
       await expect.poll(() => win.evaluate(() => window.innerWidth), { timeout: stationTimeout() }).toBeGreaterThan(1000)
 
       // 任务 6：只看价格 → 假服务非 GET 0 次、授权 0 条。
