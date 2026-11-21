@@ -89,6 +89,7 @@ grep -rn "generationPlanning[:,]" electron src --include='*.ts' --include='*.tsx
 | Mastra `packages/server/src/server/mcp/route.ts`（raw.githubusercontent.com/mastra-ai/mastra/main/…） | 每个请求在 handler 里现算工具清单（`buildBuiltinMCPTools`），不留启动快照；只有 Apps 包按进程缓存一次。没读它调用的 `./catalogue` | **确认了**「每次调用入口取一版」这个粒度 |
 | King《Parse, don't validate》https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/ | 检查完把结果丢掉的校验，删掉也不报类型错，所以脆；改成返回更窄的类型，后面的代码拿不到非法值，证明推到入口去做 | **改了**「没钉住的调用怎么做不出来」：不做成「调用时查一下有没有钉」，而是规划逻辑只收「这次调用的目录」这个值，没有它函数签名就满足不了（★2） |
 | Node.js `AsyncLocalStorage` 文档 https://nodejs.org/api/async_context.html | `run(store, cb)` 里和它起的异步操作看得到 store，外面 `getStore()` 是 `undefined`；标 Stable；**文档写明上下文会丢**（回调式接口、自定义 thenable 要另外处理） | **改了**钉一版的做法：现在 `liveGenerationRuntime.ts:83–:91` 靠它传「这次调用的那一版」，丢了就**不出声地改读现在的目录**（:90、:91 的 `??`）。这正是「没钉住的调用」的口子 → 改成显式传值，把它删掉 |
+| Vitest 文档 `docs/config/index.md`、`docs/guide/migration/jest.md`（2026-11-21 经 context7 读 `/vitest-dev/vitest`） | 运行器只给环境变量：`process.env.VITEST`、没设时把 `NODE_ENV` 设成 `test`、`VITEST_POOL_ID` / `VITEST_WORKER_ID`。环境变量谁都能设，文档没有给「这段代码确实在测试里跑」的别的凭据；`setupFiles` 是运行器在每个测试文件前加载的文件 | **不拿环境变量当边界**。测试发放口只在测试 setup 文件里注册（`vitest.config.ts` 的 `setupFiles`，生产构建不含这个文件）；没注册时一调就抛错 |
 | 仓库里的旧案 `electron/capabilityCore/generationHostsWireAssetIdentity.test.ts:1–:17`、`scripts/check-transport-assembly.mjs:1–:22` | 9-22 一个宿主漏接素材身份解析器、9-03 打包态漏接确认通道，两次都是「两处手工各组一遍」；两次的补法都是加一份扫源码写法的检查 | **改了**预防的层级：这两份检查是按写法守的，只算提示（#1581 定的口径）；这一刀让漏接在类型上写不出来，并删掉其中只为两份装配存在的那一份 |
 
 没引的：MCP TypeScript SDK 的 README 没有回答「每个请求一个 server、两种传输共用登记函数」；Kubernetes 的 Server-Side Apply 页这次只读到导航，没读到正文。方向检查 `docs/engineering/direction-checks/2026-11-16-external-agent-host.md` §5 引的 SDK v2.4.0 文档是另一条线 11-16 读的，我没重读，不作为本卡依据。
@@ -155,8 +156,8 @@ grep -rn "generationPlanning[:,]" electron src --include='*.ts' --include='*.tsx
 **「只认工厂发的」分三层，每层拦什么**：
 
 1. **类型**：四个消费位置收的「规划」是带记号的类型，记号只有工厂模块里造得出来。手写一份 `createGenerationPlanningHandler(...)` 的返回值放不进去——拦的是**不小心**再写一份（9-22、9-03、11-16 三次都是不小心，不是有意绕）。写 `as` 强转能骗过这一层。
-2. **运行时**：工厂把自己发出去的每一个记进模块私有的名单；门的权威和派发入口在装上的那一刻核一遍「这个在不在名单里」，不在就抛错。强转骗得过类型，骗不过这一步——宿主一启动就崩，两个宿主的走查在握手那一步红。
-3. **测试怎么过**：今天有 14 行测试往派发上下文递桩、10 处测试自己建门的权威（见调用方表），它们测的是派发和门，不是装配，是正当的。给它们一个测试专用的发放口（放在 `*.testkit.ts` 里），它把桩记进同一份名单；**它在测试运行器之外一调就抛错**（核运行器给的环境标记）。生产代码引它：ESLint 的限制导入会红（这一条只算提示），真跑起来也过不了。
+2. **运行时**：工厂把自己发出去的每一个记进模块私有的名单（`WeakSet`，不留强引用，规划没人用了就能回收）；门的权威和派发入口在装上的那一刻核一遍「这个在不在名单里」，不在就抛错。强转骗得过类型，骗不过这一步——宿主一启动就崩，两个宿主的走查在握手那一步红。
+3. **测试怎么过**：今天有 14 行测试往派发上下文递桩、10 处测试自己建门的权威（见调用方表），它们测的是派发和门，不是装配，是正当的。给它们一个测试专用的发放口（放在 `*.testkit.ts` 里），它把桩记进同一份名单；**发放的能力只在测试 setup 文件里注册**（`vitest.config.ts` 的 `setupFiles` 里加一个文件，它调工厂模块的注册口把「可以发测试桩」打开；生产构建不含这个文件），没注册时一调就抛错。不核环境变量——Vitest 文档里运行器给的只有环境变量，谁都能设（见 ★0）。生产代码引它：ESLint 的限制导入会红（这一条只算提示），真跑起来没人注册过，也过不了。
 
 所以 R1「新写一份手写装配」红在哪要分开说：直接写 → 类型检查红；强转 → 启动抛错、走查红；特意去引测试发放口 → 启动抛错（lint 也红，只算提示）。**没有一层是只靠数调用处的。**
 
@@ -204,7 +205,7 @@ grep -rn "generationPlanning[:,]" electron src --include='*.ts' --include='*.tsx
 |---|---|---|
 | 沿原方向 | 留着这三处 `if` | 下一种「归代码管的连接」（比如另一家内置）要再补分支 |
 | 换（推荐，第 3 刀；和「不写按供应商的分支」同向：交卡路径不再认识「内置」这个词） | 「这条连接的地址、认证、素材上传方式归谁」变成连接自己的一项事实，由连接的主人回答（内置 = 归种子，卡只能核对；自接 = 归卡）。交卡路径只问「这一格我能不能写」，不再认识「内置」这个词 | 分支不会消失，是从交卡路径里挪进一张「这条连接归谁」的表；启动对账 `restoreBuiltinOwnedFields` 读同一张表，两处判据变一处 |
-| 删 | 不许往内置连接上挂卡；要加模型就另建一条连接 | **要用户定**。以前定过的都指向不删：用户 11-06 / 11-07 定下一版核心是只维护 APIMart 这一家内置、把它的模型接多接深，APIMart 的模型仍走通用的接入卡那条路、不写按供应商的分支；用户 10-30 定中转模型由 AI 交卡接入，不走手填。11-16 用户走的正是「在内置 APIMart 上让助手接一个新模型」。删掉这条路，他得另建一条连接、再存一次密钥。我的判断是不删 |
+| 删 | 不许往内置连接上挂卡；要加模型就另建一条连接 | **已定：留**（协调按用户以前定过的两条定，不再问用户）：下一版核心是只维护 APIMart 这一家内置、把它的模型接多接深，APIMart 的模型仍走通用的接入卡那条路、不写按供应商的分支；中转模型由 AI 交卡接入，不走手填。11-16 用户走的正是「在内置 APIMart 上让助手接一个新模型」。去掉交卡路径里的内置特例放第 3 刀，这一刀不碰 |
 
 **地基第 2、3、4 组和装配是不是同一个主人**（能不能一刀收）：
 
@@ -257,7 +258,7 @@ grep -rn "generationPlanning[:,]" electron src --include='*.ts' --include='*.tsx
 |---|---|
 | 真窗口、两个宿主 | 跑（真实任务 1） |
 | 0.24.0 旧资料冷启动 | 跑四份（真实任务 2）；「不重填密钥」未验证：旧资料是假加密 |
-| 打包态（裸 Node 启动器那条路） | **未验证，且是这一刀最大的风险**：9-03、8-18 两次事故都是开发态全绿、打包态才坏。工厂文件不能把只在 Electron 里有的模块带进裸 Node 的闭包。实现线要跑打包态冒烟；跑不了就在 PR 里明写 |
+| 打包态（裸 Node 启动器那条路） | **必须跑，不许只写「未验证」**（协调 11-21 定）。9-03、8-18 两次事故都是开发态全绿、打包态才坏。已查：`mcpNodeLauncher.ts` 的加载闭包里没有 `mcpStdioServer`、没有生成规划，`mcpLauncherClosure.test.ts` 静态守「启动器闭包里没有 electron 的值导入」——工厂文件不在裸 Node 那条路上。仍然跑一次真的：`pnpm run dist:mac:dir`（打包后起包里的启动器走 `tests/ux/packaged-mcp-smoke.e2e.mjs`）。本机跑不了就停下报协调 |
 | 英文界面 | 不新增文字；如果统一了 `unknownShotsOf`，那一句走英文走一遍 |
 | Windows | unverified |
 | 真付费 | 不跑：门停在确认之前；合并后由协调并进它那一次核对 |
@@ -293,7 +294,7 @@ grep -rn "generationPlanning[:,]" electron src --include='*.ts' --include='*.tsx
 7. 两边多镜调度的驱动：对读后给结论（相同 → 进工厂；不同 → 端口），结论写进 PR。
 8. `mcpWireContract.test.ts`、`externalAgentGateReachConfirm.test.ts`、`builtinWholeDeletionReconnect.test.ts`、`mcpGenerationTools.test.ts`、花钱确认那一组测试全绿；测试辅助不再手抄接线（第 1 条的数里包含它们）。
 9. 性能场景 `gate-live-catalog-40-shots`：`perGateCatalogReadMs` ≤ 5ms，和基线同档。
-10. 打包态冒烟过；没跑成就在 PR 的「未验证」里写原因。
+10. 打包态冒烟过（`pnpm run dist:mac:dir`）。本机跑不了就停下报协调，不许跳过。
 11. 概念登记同提交更新，`pnpm run check:concept-owners` 绿。
 12. 独立验收（花钱类，另一条线）：先跑下面两种「没做成的版本」，都红才往下核。
 
@@ -334,7 +335,7 @@ grep -rn "generationPlanning[:,]" electron src --include='*.ts' --include='*.tsx
 
 ## 风险和不知道的
 
-1. **打包态**：工厂会被裸 Node 启动器那条路间接加载到吗？不知道。9-03、8-18 都栽在这里。实现第一步先查 `mcpNodeLauncher` 的加载闭包。
+1. **打包态**：已查，工厂不在裸 Node 启动器的加载闭包里（见上面功能分类那一行）；9-03、8-18 都栽在这里，所以冒烟仍然必跑。
 2. **两边多镜调度驱动**是不是同一行为：不知道，只对读了写法。
 3. **`unknownShotsOf` 是不是漏接**：疑似，没复现。
 4. **嵌套工具调用**有没有真实路径：没数。
@@ -343,5 +344,5 @@ grep -rn "generationPlanning[:,]" electron src --include='*.ts' --include='*.tsx
 7. **`check-transport-assembly.mjs` 的登记表**有没有点到生成接线：没逐行读。
 8. **工作量**：两个宿主各删约 140 行、新文件预计 200–250 行、65 处测试各改一行。`appIntegration.ts` 今天 706 行，过了 650 的黄牌线，这一刀之后会降下来；没算过新文件会不会顶到线。
 9. **花钱确认那份测试辅助迁不迁得动**：没估。迁不动就不是 4 → 1。
-10. **测试发放口靠运行器的环境标记**：标记叫什么、靠不靠得住没查文档；实现时查 vitest 官方文档再定，查不到就改成「发放口只在测试运行器的 setup 文件里注册」。
+10. **测试发放口**：已查 Vitest 文档，运行器给的只有环境变量，靠不住；定为「只在测试 setup 文件里注册」（见 ★0）。剩下的风险：有人在生产代码里手调注册口——注册口和发放口同在 `*.testkit.ts`，受同一条限制导入管，只算提示。
 11. **这张卡没让「给工厂加一个可选端口」写不出来**——只能靠「端口一律必填」这条约定和评审。这是剩下的口子，照实写在这里。
