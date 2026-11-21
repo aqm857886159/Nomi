@@ -1327,22 +1327,6 @@ export const zhGenerationCommon = {
     cancel: '取消',
     confirmUndo: '仍要撤销',
   },
-  memory: {
-    kinds: {
-      character: '设定',
-      style: '风格',
-      brand: '品牌',
-      preference: '偏好',
-      constraint: '约束',
-    },
-    aria: '项目记忆',
-    count: 'AI 记得 {{count}} 条',
-    editHint: '双击修改（修改后 AI 不再自动覆盖这条）',
-    unpin: '取消置顶',
-    pin: '置顶（优先注入）',
-    delete: '删除这条记忆',
-    changeFailed: '记忆没改动成，请再试一次',
-  },
   reconcile: {
     fields: {
       referenceEdge: '引用边',
@@ -3069,22 +3053,6 @@ export const enGenerationCommon = {
     lostEdits: 'Undoing will also discard changes you made after applying this proposal:',
     cancel: 'Cancel',
     confirmUndo: 'Undo anyway',
-  },
-  memory: {
-    kinds: {
-      character: 'Canon',
-      style: 'Style',
-      brand: 'Brand',
-      preference: 'Preference',
-      constraint: 'Constraint',
-    },
-    aria: 'Project memory',
-    count: 'AI Remembers {{count}}',
-    editHint: 'Double-click to edit (AI will no longer overwrite this item automatically)',
-    unpin: 'Unpin',
-    pin: 'Pin for priority context',
-    delete: 'Delete this memory',
-    changeFailed: 'The memory was not changed. Try again.',
   },
   reconcile: {
     fields: {

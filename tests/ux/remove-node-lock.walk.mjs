@@ -122,14 +122,6 @@ async function legacy() {
   }
   relocate(path.join(tempRoot, 'settings'))
   const projectRoot = path.join(tempRoot, 'projects', fs.readdirSync(path.join(tempRoot, 'projects'))[0])
-  const memoryPath = path.join(projectRoot, '.nomi/memory.json')
-  const memory = JSON.parse(fs.readFileSync(memoryPath, 'utf8'))
-  const manualText = 'L_USER_MEMORY：保留用户手改的约束'
-  if (phase !== 'rollback') {
-    memory.facts[1].text = manualText
-    memory.facts[1].origin = 'user'
-    fs.writeFileSync(memoryPath, JSON.stringify(memory))
-  }
   fs.renameSync(path.join(tempRoot, 'settings/model-catalog.json'), path.join(tempRoot, 'settings/model-catalog.before.json'))
   if (phase === 'storyboard') {
     const file = path.join(projectRoot, '.nomi/project.json')
@@ -284,11 +276,6 @@ async function legacy() {
     assert(nodes(await save()).filter(n => ids.includes(n.id)).every(n => !Object.hasOwn(n, 'locked')))
     result.checks.legacyEditable = true
     result.checks.legacyTopLevelLockRemoved = true
-    const liveMemory = await win.evaluate(id => window.nomiDesktop.memory.get(id), projectId)
-    write('memory-after.json', liveMemory)
-    assert(!liveMemory.facts.some(f => f.id.startsWith('lock:')))
-    assert(liveMemory.facts.some(f => f.id.startsWith('note:') && f.text === manualText))
-    result.checks.memory = true
     await replayOldJournal(backup)
     }
     await shell.ensureAgentPanelOpen(win)

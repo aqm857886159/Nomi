@@ -346,10 +346,6 @@
       "reason": "项目库：目录、最近项目与项目身份"
     },
     {
-      "path": "electron/memory/",
-      "reason": "项目记忆：创作事实的沉淀"
-    },
-    {
       "path": "electron/promptLibrary/",
       "reason": "创作提示词库：用户沉淀的提示词与模板"
     },
