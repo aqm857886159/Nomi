@@ -11,11 +11,16 @@
 //   4. 价目里没有的型号：键上只剩 ↑，不印数、不印 0；悬停「暂时估不出这次用量」。
 //   5. 假价目回 500 / 一直不回（8 秒超时）：同 4，发送照常可点。
 //   6. 只看价格：假服务收到的非 GET 0 次，花钱授权（审批流水 / 收据）0 条。
-// 最后真点一次发送：停在花钱确认就取消；没有确认直接发出也只发给假服务（405），这一笔单独记账。
+// 最后真点一次发送：停在花钱确认就取消；没有确认直接发出也只发给假服务（扣 5 秒再回 405，留出「生成中」那一帧），这一笔单独记账。
+// 各状态的截图（对照表 cost.send-pill / cost.hover 每行一张，<语言>-<状态>[-dark].png）：loading（第一次读价目被假服务扣 6 秒）、
+//   priced、hover、longest（1080P 15 秒 = 14.63 积分，最长的数）、narrow（同一帧、窗口收到 700 宽）、unknown、unknown-hover、
+//   error-500、error-timeout、generating（发出去、假服务还没回）。「禁用 + 有价」真窗口造不出（能禁用发送的条件都带参考输入或制作流程，
+//   带参考的这一单真价目判估不出），由实验室格 sc-i-disabled-priced 和 ComposerSendButton 单测守。
 //
 // 用法：先 pnpm run build；node tests/ux/send-cost-estimate.rehearsal.walk.mjs
 //   NOMI_SURFACE_SCHEME=dark 整轮按暗色起；NOMI_SEND_COST_EVIDENCE=<目录> 截图与收据目录（缺省 .tmp/send-cost-estimate）。
-//   --out <文件> [--runs 5]（性能量具 tests/perf/node-json-bench.mjs 传入）：只跑中文一轮，量「改一个参数 → 键上出现新数」的耗时（性能场景 send-cost-param-update）。
+//   --out <文件> [--runs 5]（性能量具 tests/perf/node-json-bench.mjs 传入）：量「改一个参数 → 键上出现新数」的耗时；
+//   缺省只跑中文一轮（性能场景 send-cost-param-update），--locale en 只跑英文一轮（send-cost-param-update-en）。
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import http from 'node:http'
@@ -39,10 +44,11 @@ const runs = Number(process.argv[process.argv.indexOf('--runs') + 1]) || 5
 /** 主分支对照：主分支没有约价，只量 paramUi（NOMI_SEND_COST_BASELINE=1，只在 --out 性能模式下用）。 */
 const BASELINE = process.env.NOMI_SEND_COST_BASELINE === '1' && Boolean(perfFile)
 /**
- * 性能模式只跑中文。性能循环每次关面板后也核「摘要不压图标」（已知红、等底栏修复 PR）：
- * 本分支中文在这一步就红，所以底栏修好前出不了基线。NOMI_SEND_COST_LOCALE 只给取证改语言（主分支复现用 en）。
+ * 只跑一种语言：--locale（性能场景按语言各登记一个）或 NOMI_SEND_COST_LOCALE（取证）；性能模式缺省中文，走查缺省中英各一轮。
+ * 性能循环每次关面板后也核「摘要不压提示词工具」。
  */
-const LOCALES = process.env.NOMI_SEND_COST_LOCALE ? [process.env.NOMI_SEND_COST_LOCALE] : perfFile ? ['zh-CN'] : ['zh-CN', 'en']
+const onlyLocale = process.argv.includes('--locale') ? process.argv[process.argv.indexOf('--locale') + 1] : process.env.NOMI_SEND_COST_LOCALE
+const LOCALES = onlyLocale ? [onlyLocale] : perfFile ? ['zh-CN'] : ['zh-CN', 'en']
 /** 取证：把发送键往左撑宽 N 像素（主分支没有约价胶囊，用它模拟胶囊占的宽，复现同一个让法漏量）。 */
 const WIDEN_PX = Number(process.env.NOMI_SEND_COST_WIDEN_PX) || 0
 
@@ -50,22 +56,30 @@ const WIDEN_PX = Number(process.env.NOMI_SEND_COST_WIDEN_PX) || 0
 const VIDEO_RATES = { 'seedance-2.0-mini': { '480P': 0.02, '720P': 0.039, '1080P': 0.0975 } }
 /** 演出错（500）/ 演超时（一直不回）的型号；其余没列的型号回 success:false（价目里没有）。 */
 const FAILING = new Map()
+/** 演「算价中」：下一次读这个型号的价目扣多少毫秒再回（只扣一次）。 */
+const SLOW_ONCE = new Map()
+/** 非 GET 扣这么久再回 405：发出去以后节点处在「生成中」，够截一帧。 */
+const NON_GET_HOLD_MS = 5000
 const calls = []
 const server = http.createServer((req, res) => {
   const target = new URL(req.url, 'http://127.0.0.1')
   const model = target.searchParams.get('model')
   calls.push({ method: req.method, path: target.pathname, model, at: Date.now() })
-  if (req.method !== 'GET') { res.statusCode = 405; res.end('{"success":false}'); return }
+  if (req.method !== 'GET') { setTimeout(() => { res.statusCode = 405; res.end('{"success":false}') }, NON_GET_HOLD_MS); return }
   if (target.pathname === '/api/pricing/model' && FAILING.get(model) === 'hang') return
-  let payload = { success: false }
-  if (target.pathname === '/api/pricing/model' && FAILING.get(model) === '500') res.statusCode = 500
-  else if (target.pathname === '/api/pricing/model' && VIDEO_RATES[model]) {
-    payload = { success: true, data: { model_name: model, billing_type: 'per_second', membership: { category: 'video' },
-      resolution_enabled: true, resolution_paid_prices: VIDEO_RATES[model] } }
-  } else if (target.pathname === '/v1/models') { res.statusCode = 401; payload = { error: { type: 'apimart_error' } } }
-  else if (target.pathname !== '/api/pricing/model') res.statusCode = 404
-  res.setHeader('Content-Type', 'application/json')
-  res.end(JSON.stringify(payload))
+  const delay = target.pathname === '/api/pricing/model' ? SLOW_ONCE.get(model) ?? 0 : 0
+  SLOW_ONCE.delete(model)
+  setTimeout(() => {
+    let payload = { success: false }
+    if (target.pathname === '/api/pricing/model' && FAILING.get(model) === '500') res.statusCode = 500
+    else if (target.pathname === '/api/pricing/model' && VIDEO_RATES[model]) {
+      payload = { success: true, data: { model_name: model, billing_type: 'per_second', membership: { category: 'video' },
+        resolution_enabled: true, resolution_paid_prices: VIDEO_RATES[model] } }
+    } else if (target.pathname === '/v1/models') { res.statusCode = 401; payload = { error: { type: 'apimart_error' } } }
+    else if (target.pathname !== '/api/pricing/model') res.statusCode = 404
+    res.setHeader('Content-Type', 'application/json')
+    res.end(JSON.stringify(payload))
+  }, delay)
 })
 server.listen(0, '127.0.0.1')
 await once(server, 'listening')
@@ -171,8 +185,7 @@ try {
         await win.keyboard.press('Escape')
         await summaryClearOfTools(`after setting ${key}`)
       }
-      // 已知红、等底栏修复 PR：关面板后摘要不许压在提示词工具底下（面板开着时摘要文字冻结，让法量的是冻结的短字；
-      // 关面板换回整串后没有东西触发重量）。不为变绿绕开它。
+      // 关面板后摘要不许压在提示词工具底下（底栏让级量的是屏上原件，主分支 86eed2e87 / 634448a01 起；中英两轨都核）。
       // 约价胶囊让画布底栏开始挤，这一下最常见：开面板改参数 → 关面板。
       const summaryClearOfTools = async (label) => {
         const summary = composer.locator('[data-parameter-summary]').first()
@@ -219,8 +232,27 @@ try {
         await expectAbsent(win.locator('[data-send-cost-hover]'), { provenBy: hoverShown, message: 'hover sentence goes away after the pointer leaves' }, stationTimeout())
       }
 
-      // 任务 1：Seedance 2.0 Mini · 5 秒 720P。
+      /** 一帧证据：整屏截图 + 生成浮框的框（并排图按它裁）。 */
+      const frame = async (name) => {
+        record.boxes = { ...record.boxes, [name]: { ...await composer.boundingBox(), viewportWidth: await win.evaluate(() => window.innerWidth) } }
+        await screenshotSettled(win, { path: shot(locale, name) })
+      }
+
+      // 任务 1：Seedance 2.0 Mini · 5 秒 720P。提示词先写上（拍板图 M4 ① 那一帧是写了字、能发的样子）。
+      if (!perfFile) await composer.locator('[data-prompt-box] .ProseMirror').first().fill(locale === 'en' ? 'A heron at a dawn pier' : '清晨的码头，一只白鹭')
+      // 算价中：第一次读这个型号的价目被假服务扣 6 秒——键上只剩 ↑（不转圈、不印 0、也还不说「估不出」）。
+      const miniReads = () => calls.filter((call) => call.model === 'seedance-2.0-mini').length
+      const miniReadsBefore = miniReads()
+      if (!perfFile) SLOW_ONCE.set('seedance-2.0-mini', 6000)
       await pick(/^Seedance 2\.0 Mini$/, 'Seedance 2.0 Mini')
+      if (!perfFile) {
+        await expect.poll(miniReads, { message: 'price read for Seedance 2.0 Mini reached the fake list', timeout: stationTimeout() }).toBeGreaterThan(miniReadsBefore)
+        await expect(send, 'board:ModelSurfaces/cost.send-pill').not.toHaveAttribute('aria-description', /.+/)
+        await expect(pill).toHaveCount(0)
+        await expect(send).toHaveText('')
+        await frame('loading')
+        assert.equal(await pill.count(), 0, 'still calculating when the loading frame was taken')
+      }
       await setParam('duration', 5)
       await setParam('resolution', '720p')
       const fiveUsd = 0.039 * 5
@@ -275,9 +307,9 @@ try {
       const hovered = await hoverText()
       assert.equal(hovered.text, estimate, 'hover sentence equals the registered wording exactly')
       record.task1 = { pill: await pill.innerText(), hover: hovered.text }
-      await screenshotSettled(win, { path: shot(locale, 'hover') })
+      await frame('hover')
       await leave()
-      await screenshotSettled(win, { path: shot(locale, 'priced') })
+      await frame('priced')
 
       // 任务 2：改时长，再改清晰度；记下键上每一次变化。
       for (const [key, value, usd] of [['duration', 10, 0.039 * 10], ['resolution', '480p', 0.02 * 10]]) {
@@ -295,6 +327,31 @@ try {
         record[`task2-${key}`] = { before, after: credits(usd), frames: values }
       }
 
+      // 最长的数：假价目最贵的规格（1080P）× 最长时长（15 秒）= 14.63 积分；数字一行、不出浮框，摘要不压工具（setParam 里核）。
+      await setParam('resolution', '1080p')
+      await setParam('duration', 15)
+      await expect(pill, 'board:ModelSurfaces/cost.send-pill').toHaveText(credits(0.0975 * 15), { timeout: stationTimeout() })
+      const fits = async (label) => {
+        const [box, pillBox, sendBox, lastTool] = [await composer.boundingBox(), await pill.boundingBox(), await send.boundingBox(),
+          await composer.locator('[data-prompt-tool]').last().boundingBox()]
+        assert(pillBox && pillBox.height < 24, `${label}: the number stays on one line (${pillBox?.height})`)
+        assert(box && sendBox && sendBox.x + sendBox.width <= box.x + box.width + 0.5, `${label}: the send key stays inside the composer`)
+        assert(lastTool && sendBox && lastTool.x + lastTool.width <= sendBox.x + 0.5, `${label}: the prompt tools end before the send key`)
+        return box
+      }
+      const wideBox = await fits('longest')
+      await frame('longest')
+      // 最窄：生成浮框宽恒为 NODE_COMPOSER_WIDTH，不随节点和窗口变；窗口收到 700 宽再核一遍同一帧。
+      await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(700, 720))
+      await expect.poll(() => win.evaluate(() => window.innerWidth), { timeout: stationTimeout() }).toBeLessThan(720)
+      await summaryClearOfTools('narrow window')
+      const narrowBox = await fits('narrow')
+      assert(Math.abs(narrowBox.width - wideBox.width) < 1, `composer keeps its width in a narrow window: ${wideBox.width} → ${narrowBox.width}`)
+      await frame('narrow')
+      record.longest = { pill: await pill.innerText(), composerWidth: wideBox.width, narrowComposerWidth: narrowBox.width }
+      await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1220, 840))
+      await expect.poll(() => win.evaluate(() => window.innerWidth), { timeout: stationTimeout() }).toBeGreaterThan(1000)
+
       // 任务 4：价目里没有的型号 → 只剩箭头、悬停「暂时估不出这次用量」。
       await pick(/^Wan 2\.7$|^Wan/, 'a model the price list lacks')
       await expect(send, 'board:ModelSurfaces/cost.send-pill').toHaveAttribute('aria-description', uiText(locale, 'generationCommon.composer.sendCost.priceUnknown'), { timeout: stationTimeout() })
@@ -302,9 +359,9 @@ try {
       await expect(send).toHaveText('')
       const unknownHover = await hoverText()
       assert.equal(unknownHover.text, uiText(locale, 'generationCommon.composer.sendCost.priceUnknown'))
-      await screenshotSettled(win, { path: shot(locale, 'unknown-hover') })
+      await frame('unknown-hover')
       await leave()
-      await screenshotSettled(win, { path: shot(locale, 'unknown') })
+      await frame('unknown')
       record.task4 = { asked: calls.filter((call) => call.path === '/api/pricing/model').map((call) => call.model) }
 
       // 任务 5：价目回 500 / 一直不回（主进程 8 秒超时）→ 同未知；发送照常可点。
@@ -316,17 +373,20 @@ try {
         await expect(send, 'board:ModelSurfaces/cost.send-pill').toHaveAttribute('aria-description', uiText(locale, 'generationCommon.composer.sendCost.priceUnknown'), { timeout: stationTimeout() })
         await expectAbsent(pill, { provenBy: pillShown, message: 'no number on the send key when the price read fails' })
         await expect(send).toHaveText('')
+        await expect(send).toBeEnabled()
+        await frame(mode === 'hang' ? 'error-timeout' : 'error-500')
         record[`task5-${mode}`] = { model, unknown: true }
       }
-      await composer.locator('[data-prompt-box] .ProseMirror').first().fill(locale === 'en' ? 'A heron at a dawn pier' : '清晨的码头，一只白鹭')
-      await expect(send).toBeEnabled()
 
       // 任务 6：只看价格 → 假服务非 GET 0 次、授权 0 条。
       assert.equal(nonGet(), explicitSends, 'viewing prices sent no generation request')
       assert.equal(spendApprovals(root), 0, 'viewing prices created no spend approval')
       record.task6 = { nonGet: nonGet() - explicitSends, approvals: spendApprovals(root) }
 
-      // 真点一次发送：停在确认就取消。
+      // 真点一次发送：换回有价的型号，停在确认就取消；没有确认直接发出 → 假服务扣着不回的这几秒就是「生成中」。
+      await pick(/^Seedance 2\.0 Mini$/, 'Seedance 2.0 Mini (send)')
+      await expect(pill, 'board:ModelSurfaces/cost.send-pill').toBeVisible({ timeout: stationTimeout() })
+      await expect(send).toBeEnabled()
       const postsBefore = nonGet()
       await clickOrFail(send, 'click send once')
       const dialog = win.locator('[data-spend-confirm-dialog]').first()
@@ -336,7 +396,13 @@ try {
         await clickOrFail(dialog.locator('[data-spend-confirm-action="cancel"]'), 'cancel spend confirmation')
         record.send = 'confirm-cancelled'
       } else {
-        await win.waitForTimeout(1500)
+        // 生成中：键照主干忙态画，不印约价。
+        await expect(send, 'board:ModelSurfaces/cost.send-pill').toHaveAttribute('aria-busy', 'true', { timeout: stationTimeout() })
+        await expectAbsent(pill, { provenBy: pillShown, message: 'no estimate on the send key while generating' })
+        await frame('generating')
+        assert.equal(await send.getAttribute('aria-busy'), 'true', 'still generating when the frame was taken')
+        record.generating = { text: await send.innerText(), busy: await send.getAttribute('aria-busy') }
+        await expect(send).not.toHaveAttribute('aria-busy', 'true', { timeout: stationTimeout() })
         await screenshotSettled(win, { path: shot(locale, 'send-fake-upstream') })
         record.send = 'sent-to-fake-upstream'
       }

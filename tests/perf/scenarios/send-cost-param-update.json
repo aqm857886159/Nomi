@@ -7,7 +7,7 @@
     "tests/ux/send-cost-estimate.rehearsal.walk.mjs",
     "--"
   ],
-  "scale": "真 Electron（先 pnpm run build），隔离资料、中文界面（英文那条等底栏让法修复后再量）、内置 APIMart 目录、Seedance 2.0 Mini；价目由本机回环假服务回。画布上同一时刻只有选中节点开着生成浮框，所以每次改参数只有一个约价在算；预热 1 次后交替改时长（在滑杆轨道上点一下，只提交一次）。起点是页面里 pointerdown 的事件时间戳，终点由 MutationObserver 记，不含 Playwright 往返。",
+  "scale": "真 Electron（先 pnpm run build），隔离资料、中文界面（英文另登记 send-cost-param-update-en）、内置 APIMart 目录、Seedance 2.0 Mini；价目由本机回环假服务回。画布上同一时刻只有选中节点开着生成浮框，所以每次改参数只有一个约价在算；预热 1 次后交替改时长（在滑杆轨道上点一下，只提交一次）。起点是页面里 pointerdown 的事件时间戳，终点由 MutationObserver 记，不含 Playwright 往返。",
   "metrics": [
     "response"
   ],
