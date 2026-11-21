@@ -6,7 +6,9 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
-import { loadNightlyExclusions, nightlyWalkInventory, selectNightlyWalks } from './nightly-walk-selection.mjs'
+import { load } from 'js-yaml'
+import { loadNightlyExclusions, NIGHTLY_WALK_BATCH_COUNT, nightlyWalkBatchIds, nightlyWalkInventory, selectNightlyWalks, walksForBatch } from './nightly-walk-selection.mjs'
+import { expectedBatches } from './nightly-walk-summary.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -142,4 +144,43 @@ test('夜跑清单里的走查碰真实资料就红；登记进排除表（写�
   write('tests/ux/spend.paid.mjs', realDataWalk)
   write('tests/ux/nightly-ci-exclusions.json', JSON.stringify({ version: 1, exclusions: [{ path: 'tests/ux/registered.walk.mjs', category: 'B', reason: 'requires the real profile; run by hand' }] }))
   assert.deepEqual(nightlyRealDataViolations(root), ['tests/ux/real.walk.mjs:2 seedRealCredentials()'])
+})
+
+// ── 夜跑分批：批次数只有一处，而且要跑得完 ──
+// 2026-11-21 之前批次数写死 4，分散在工作流的列表、工作流里的取模、汇总脚本的取模三处。
+// 11-20 那晚（run 44730628678）：四批各 103 条，实测单条平均 50–89 秒，作业上限 90 分钟——
+// 两批只跑到 59 条就被取消，应跑 414 条里 91 条当晚没有结果，这样已连续多晚。
+const nightlyWorkflow = () => load(fs.readFileSync(path.join(repoRoot, '.github/workflows/nightly-walkthroughs.yml'), 'utf8'))
+
+test('每条走查恰好落在一批里；不是批号的输入当场报错，不悄悄给空清单', () => {
+  const inventory = nightlyWalkInventory()
+  const batches = nightlyWalkBatchIds().map((batch) => walksForBatch(inventory, batch))
+  assert.deepEqual(batches.flat().sort(), [...inventory].sort())
+  assert.equal(new Set(batches.flat()).size, inventory.length)
+  for (const bad of [String(NIGHTLY_WALK_BATCH_COUNT), '-1', 'packaged-mac', '', '1.5']) assert.throws(() => walksForBatch(inventory, bad), /夜跑批号只有/, bad)
+})
+
+test('工作流的批次列表、它跑的清单、汇总脚本的应跑清单，都出自同一处', () => {
+  const walks = nightlyWorkflow().jobs.walks
+  assert.deepEqual(walks.strategy.matrix.batch.map(String), nightlyWalkBatchIds(), '工作流的批次列表要和 NIGHTLY_WALK_BATCH_COUNT 一致')
+  const run = walks.steps.find((step) => step.name === 'Run non-paid walkthrough batch').run
+  assert.match(run, /nightly-walk-selection\.mjs tests\/ux --batch "\$BATCH"/)
+  assert.doesNotMatch(run, /%\s*\d/, '工作流里不许再自己取模分批')
+  const inventory = nightlyWalkInventory()
+  const expected = expectedBatches().filter((entry) => entry.batch !== 'packaged-mac')
+  assert.deepEqual(expected.map((entry) => entry.batch), nightlyWalkBatchIds())
+  for (const entry of expected) assert.deepEqual(entry.walks, walksForBatch(inventory, entry.batch))
+})
+
+test('按 11-20 实测的速度，最大的一批在作业上限内跑得完（留余量）；走查多到跑不完时，这里先红', () => {
+  // 实测：最慢的两批单条平均 85、89 秒；装依赖 + 装浏览器 + 构建约 6 分钟。
+  const SLOWEST_AVERAGE_SECONDS = 89
+  const SETUP_MINUTES = 6
+  const minutesFor = (count) => SETUP_MINUTES + (count * SLOWEST_AVERAGE_SECONDS) / 60
+  const limit = nightlyWorkflow().jobs.walks['timeout-minutes']
+  const inventory = nightlyWalkInventory()
+  const largest = Math.max(...nightlyWalkBatchIds().map((batch) => walksForBatch(inventory, batch).length))
+  assert.ok(minutesFor(largest) <= limit * 0.85, `最大一批 ${largest} 条约 ${Math.round(minutesFor(largest))} 分钟，超过上限 ${limit} 分钟的 85%：调大 NIGHTLY_WALK_BATCH_COUNT`)
+  // 旧案对照：改之前每批 104 条，同一把尺子量出来是跑不完的。
+  assert.ok(minutesFor(Math.ceil(inventory.length / 4)) > limit, '4 批的旧分法按同一口径应当超时（这条不成立说明尺子量不出旧问题）')
 })
