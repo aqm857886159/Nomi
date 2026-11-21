@@ -791,6 +791,7 @@ export function CustomCallEditor({
       centered
       size={640}
       title={title}
+      accessibleName={[t('onboardingProviders.customCall.title'), target?.label].filter(Boolean).join(' ')}
       classNames={{ content: 'workbench-shell' }}
       closeButtonProps={{ 'aria-label': t('onboardingProviders.customCall.closeAria') }}
     >
