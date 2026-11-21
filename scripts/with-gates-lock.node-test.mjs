@@ -482,6 +482,77 @@ print(json.dumps(sorted(unreachable_on_windows)))`), [], 'os.kill(pid, 0) is a c
 
 // Entry-point coverage is behavioral admission's companion: a new walkthrough
 // must not silently bypass the machine owner while its peers queue.
+// 2026-11-21：一条线用 `with-gates-lock.py -- bash --noprofile --norc -i` 开了一个持锁的交互 shell 来批量跑构建和走查，
+// 空闲时也不放锁；另一组的门岗等 30 分钟超时、再排 59 分钟。锁的约定是「一条命令一次」，入口却接受「没有命令的 shell」这种形状。
+async function refusedWithoutTakingLock(t, args) {
+  const { root, lock } = fixture(t)
+  const child = spawn(python, [wrapper, ...args], { cwd: root, env: { ...process.env, ...childEnv, NOMI_GATES_LOCK_PATH: lock, NOMI_GATES_LOCK_TOKEN: '' }, stdio: ['pipe', 'pipe', 'pipe'] })
+  let stderr = ''
+  child.stderr.on('data', (chunk) => { stderr += chunk })
+  const timer = setTimeout(() => child.kill('SIGKILL'), 5000)
+  const [code] = await once(child, 'close')
+  clearTimeout(timer)
+  return { code, stderr, lockTouched: fs.existsSync(lock) }
+}
+
+test('a shell with nothing to run is refused before the lock is touched', { timeout: 20000 }, async (t) => {
+  const shapes = [
+    ['--', 'bash', '--noprofile', '--norc', '-i'], // 11-21 的原样
+    ['--', 'bash'],
+    ['--', '/bin/zsh', '-i'],
+    ['--', 'sh', '-l'],
+    ['--command', 'bash -i'],
+    ['--', 'cmd.exe', '/k', 'echo hi'],
+    ['--', 'pwsh', '-NoExit', '-Command', 'echo hi'],
+  ]
+  for (const args of shapes) {
+    const result = await refusedWithoutTakingLock(t, args)
+    assert.notEqual(result.code, 0, args.join(' '))
+    assert.notEqual(result.code, null, `${args.join(' ')}：没有被拒，一直开着直到被测试杀掉`)
+    assert.match(result.stderr, /门岗锁按命令拿，不按会话拿/, args.join(' '))
+    assert.equal(result.lockTouched, false, `${args.join(' ')}：拒绝之前不该碰锁文件`)
+  }
+})
+
+test('shells that are given something to run still take the lock and run it', { timeout: 30000, skip: process.platform === 'win32' && 'POSIX shell forms' }, async (t) => {
+  const { root, lock } = fixture(t)
+  const script = path.join(root, 'job.sh')
+  fs.writeFileSync(script, 'echo RAN_SCRIPT\n')
+  const forms = [
+    [['--', 'bash', '-c', 'echo RAN_C'], /RAN_C/],
+    [['--', 'bash', '-lc', 'echo RAN_LC'], /RAN_LC/],
+    [['--', 'sh', script], /RAN_SCRIPT/],
+    [['--command', 'echo RAN_COMMAND && true'], /RAN_COMMAND/],
+  ]
+  for (const [args, expected] of forms) {
+    const child = spawn(python, [wrapper, ...args], { cwd: root, env: { ...process.env, ...childEnv, NOMI_GATES_LOCK_PATH: lock, NOMI_GATES_LOCK_TOKEN: '' }, stdio: ['ignore', 'pipe', 'pipe'] })
+    let out = ''
+    for (const stream of [child.stdout, child.stderr]) stream.on('data', (chunk) => { out += chunk })
+    const [code] = await once(child, 'close')
+    assert.equal(code, 0, `${args.join(' ')}\n${out}`)
+    assert.match(out, expected, args.join(' '))
+  }
+})
+
+test('no real package.json entrypoint that takes the lock is refused as a held-open shell', { timeout: 15000 }, async () => {
+  const scripts = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')).scripts
+  const locked = Object.entries(scripts).filter(([, command]) => command.includes('with-gates-lock.py'))
+  assert.ok(locked.length > 20, `只找到 ${locked.length} 条带锁的入口，量具可能没数到`)
+  const verdicts = await probe(`${loadWrapper}import shlex
+entries = json.loads(${JSON.stringify(JSON.stringify(locked))})
+refused = []
+for name, command in entries:
+    argv = shlex.split(command)
+    at = next(i for i, part in enumerate(argv) if part.endswith('with-gates-lock.py'))
+    rest = argv[at + 1:]
+    inner = lock.simple_argv(rest[1]) if rest[0] == '--command' else rest[1:]
+    if lock.held_open_shell(inner):
+        refused.append(name)
+print(json.dumps(refused))
+`)
+  assert.deepEqual(verdicts, [])
+})
+
 test('heavy npm entrypoints all use the shared machine lock', () => {
   const { scripts } = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   for (const [name, command] of Object.entries(scripts)) {

@@ -328,6 +328,54 @@ def execute(command, shell, file, token, owner=None):
     return code if code >= 0 else 128 - code
 
 
+POSIX_SHELLS = {'sh', 'bash', 'zsh', 'dash', 'ksh', 'fish'}
+POWERSHELLS = {'pwsh', 'powershell'}
+
+
+def held_open_shell(argv):
+    """True when argv starts a shell that has nothing to run and so waits on its
+    terminal: `bash`, `bash -i`, `zsh --no-rcs`, `cmd`, `cmd /k ...`, `pwsh -NoExit`.
+
+    The lock is taken per command. A shell with no command holds it for as long
+    as the session stays open, idle or not, and every other worktree queues
+    behind it (2026-11-21: one such shell cost another line a 30-minute timeout
+    and a further 59-minute wait). `bash -c "..."`, `bash script.sh` and
+    `bash -lc "..."` run something and exit, so they are fine.
+    """
+    if not argv:
+        return False
+    name = os.path.basename(argv[0]).lower()
+    if name.endswith('.exe'):
+        name = name[:-4]
+    rest = argv[1:]
+    if name in POSIX_SHELLS:
+        for arg in rest:
+            if not arg.startswith('-'):
+                return False  # a script path
+            if not arg.startswith('--') and 'c' in arg[1:]:
+                return False  # -c, -lc, -ic: runs the given command and exits
+        return True
+    if name == 'cmd':
+        lowered = [arg.lower() for arg in rest]
+        return '/c' not in lowered
+    if name in POWERSHELLS:
+        lowered = [arg.lower() for arg in rest]
+        if '-noexit' in lowered:
+            return True
+        return not any(arg in ('-c', '-command', '-f', '-file', '-encodedcommand') or not arg.startswith('-') for arg in lowered)
+    return False
+
+
+def simple_argv(command):
+    """argv of a `--command` string when it is one plain command, else None."""
+    if any(mark in command for mark in ';|&<>\n`$('):
+        return None
+    try:
+        return shlex.split(command, posix=os.name != 'nt')
+    except ValueError:
+        return None
+
+
 def main():
     args = sys.argv[1:]
     if len(args) >= 2 and args[0] == '--command':
@@ -337,6 +385,11 @@ def main():
         command, shell = args[1:], False
     else:
         raise SystemExit('Usage: with-gates-lock.py -- <command> [args] | --command <shell command>')
+    if held_open_shell(simple_argv(command) if shell else command):
+        raise SystemExit(
+            '门岗锁按命令拿，不按会话拿：这条命令是一个没有要跑的东西的 shell，会一直占着锁。'
+            '要跑几条重命令，就每条各包一次（with-gates-lock.py -- <命令>）。'
+        )
     default = os.path.join(tempfile.gettempdir() if os.name == 'nt' else '/tmp', 'nomi-gates.lock')
     lock_path = os.environ.get('NOMI_GATES_LOCK_PATH', default)
     # O_NOFOLLOW prevents accidentally opening a symlink in the shared tmp dir.
