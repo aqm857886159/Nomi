@@ -84,8 +84,10 @@ describe('读 vitest 报告', () => {
 })
 
 describe('命令行', () => {
-  it('-- 后面全是文件；--changed 和 --report-only 是开关', () => {
+  it('-- 后面全是文件；--changed 和 --report-only 是开关；超时默认十分钟、可调', () => {
     expect(parseArgs(['--base', 'abc', '--report-only', '--', 'a.test.ts', 'b.test.ts'])).toMatchObject({ base: 'abc', head: 'HEAD', reportOnly: true, changed: false, files: ['a.test.ts', 'b.test.ts'] })
     expect(parseArgs(['--changed', '--head', 'def'])).toMatchObject({ changed: true, head: 'def', files: [] })
+    expect(parseArgs(['--timeout-ms', '20000', '--', 'a.test.ts']).timeoutMs).toBe(20000)
+    expect(parseArgs(['--', 'a.test.ts']).timeoutMs).toBe(600000)
   })
 })

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 目标测试在「什么都不做」的版本上红不红——真的跑一遍，不靠任务书里写没写这句话。
 //
-//   node scripts/goal-red-on-base.mjs [--base <提交>] [--head <提交>] [--report-only] -- <目标测试文件…>
+//   node scripts/goal-red-on-base.mjs [--base <提交>] [--head <提交>] [--report-only] [--timeout-ms <毫秒>] -- <目标测试文件…>
 //   node scripts/goal-red-on-base.mjs --changed            # 普查：这条分支改过的全部测试文件，只报不判
 //
 // 做法：在系统临时目录里摆出「修前的生产代码 + 这条分支的测试」——生产文件取合并基点的版本，
@@ -18,7 +18,7 @@
 //
 // 拦不住的（照实写）：造不出「全部拦下」的版本；看不出断言停在中间状态；只认 vitest 车道的测试文件。
 // 真实工作区一个字节都不碰；临时目录由仓库共用的 makeTempDir 发放和回收。
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -28,7 +28,10 @@ import { makeTempDir } from './_test-temp.mjs'
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 /** 不含会被测试 import 的代码的大目录：不拷，链到真实仓库（只读）。 */
 const LINKED_DIRS = ['docs', 'marketing', 'outputs', 'skills']
-const VITEST_FILE = /\.test\.(?:[cm]?ts|tsx|mjs)$/
+/** 一次跑的上限：目标测试是定向的几份文件，十分钟还没完就是挂住了。 */
+const DEFAULT_TIMEOUT_MS = 10 * 60_000
+/** 和 vitest.config.ts 的默认车道同一组后缀；.test.mts 等走别的跑法，这里明说未支持。 */
+const VITEST_FILE = /\.test\.(?:ts|tsx|mjs)$/
 const TEST_SIDE = [
   /\.(?:test|spec)\.[cm]?[jt]sx?$/,
   /\.node-test\.mjs$/,
@@ -133,17 +136,37 @@ function removeCopy({ root, links }) {
   fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
 }
 
-function runVitest(root, files) {
+/** 整组结束：vitest 的 worker 和测试自己起的浏览器都在同一个进程组里（Windows 用 taskkill /T）。 */
+function killTree(child) {
+  try {
+    if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'])
+    else process.kill(-child.pid, 'SIGKILL')
+  } catch { /* 已经退出 */ }
+}
+
+/** 在副本里跑 vitest；超过 timeoutMs 整组结束并返回 { timedOut: true }——挂住的测试不许把工具也挂住。 */
+function runVitest(root, files, timeoutMs) {
   const output = path.join(root, '.goal-red-result.json')
-  const run = spawnSync(process.execPath, [path.join(REPO_ROOT, 'node_modules', 'vitest', 'vitest.mjs'), 'run', ...files, '--reporter=json', `--outputFile=${output}`], {
-    cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env: { ...process.env, NO_PROXY: '127.0.0.1,localhost', CI: '1' },
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [path.join(REPO_ROOT, 'node_modules', 'vitest', 'vitest.mjs'), 'run', ...files, '--reporter=json', `--outputFile=${output}`], {
+      cwd: root, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, NO_PROXY: '127.0.0.1,localhost', CI: '1' },
+    })
+    let tail = ''
+    const keep = (chunk) => { tail = (tail + chunk).slice(-1500) }
+    child.stdout.on('data', keep)
+    child.stderr.on('data', keep)
+    const timer = setTimeout(() => { killTree(child); resolve({ timedOut: true }) }, timeoutMs)
+    child.on('error', (error) => { clearTimeout(timer); reject(error) })
+    child.on('exit', (code) => {
+      clearTimeout(timer)
+      if (fs.existsSync(output)) resolve({ report: JSON.parse(fs.readFileSync(output, 'utf8')) })
+      else reject(new Error(`vitest 没有产出报告（退出码 ${code}）：\n${tail}`))
+    })
   })
-  if (!fs.existsSync(output)) throw new Error(`vitest 没有产出报告（退出码 ${run.status}）：\n${(run.stderr || run.stdout || '').slice(-1500)}`)
-  return JSON.parse(fs.readFileSync(output, 'utf8'))
 }
 
 export function parseArgs(argv) {
-  const options = { base: '', head: 'HEAD', reportOnly: false, changed: false, files: [] }
+  const options = { base: '', head: 'HEAD', reportOnly: false, changed: false, timeoutMs: DEFAULT_TIMEOUT_MS, files: [] }
   const rest = [...argv]
   while (rest.length) {
     const arg = rest.shift()
@@ -152,13 +175,14 @@ export function parseArgs(argv) {
     else if (arg === '--head') options.head = rest.shift() ?? ''
     else if (arg === '--report-only') options.reportOnly = true
     else if (arg === '--changed') options.changed = true
+    else if (arg === '--timeout-ms') options.timeoutMs = Number(rest.shift()) || DEFAULT_TIMEOUT_MS
     else options.files.push(arg)
   }
   return options
 }
 
 /** 跑一遍并返回逐文件结论；不打印、不设退出码，回放和测试都用它。 */
-export function evaluate({ base, head = 'HEAD', files = [], changed = false }) {
+export async function evaluate({ base, head = 'HEAD', files = [], changed = false, timeoutMs = DEFAULT_TIMEOUT_MS }) {
   const resolvedBase = base ? gitText(['rev-parse', base]) : gitText(['merge-base', 'origin/main', head])
   const resolvedHead = gitText(['rev-parse', head])
   const copy = buildCopy({ base: resolvedBase, head: resolvedHead })
@@ -167,8 +191,10 @@ export function evaluate({ base, head = 'HEAD', files = [], changed = false }) {
     const unsupported = targets.filter((file) => !VITEST_FILE.test(file))
     const missing = targets.filter((file) => VITEST_FILE.test(file) && !fs.existsSync(path.join(copy.root, file)))
     const runnable = targets.filter((file) => !unsupported.includes(file) && !missing.includes(file))
-    const suites = runnable.length ? readVitestReport(runVitest(copy.root, runnable), copy.root) : []
+    const run = runnable.length ? await runVitest(copy.root, runnable, timeoutMs) : { report: { testResults: [] } }
+    const suites = run.timedOut ? [] : readVitestReport(run.report, copy.root)
     const results = runnable.map((file) => {
+      if (run.timedOut) return { file, ok: false, counts: null, tests: [], reason: `超过 ${Math.round(timeoutMs / 1000)} 秒没跑完，已结束：把会挂住的测试拿出去单独跑（--timeout-ms 可调）` }
       const suite = suites.find((entry) => entry.file === file) ?? { tests: [], suiteError: 'vitest 没有跑到这份文件（不在测试车道里，或被配置排除）' }
       return { file, ...fileVerdict(suite), tests: suite.tests }
     })
@@ -190,17 +216,17 @@ export function formatResults({ base, head, results, productionChanged }) {
   return lines.join('\n')
 }
 
-function main(argv = process.argv.slice(2)) {
+async function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv)
   if (!options.changed && options.files.length === 0) {
     console.error('用法：node scripts/goal-red-on-base.mjs [--base <提交>] [--head <提交>] [--report-only] -- <目标测试文件…>｜--changed')
     return 2
   }
-  const outcome = evaluate(options)
+  const outcome = await evaluate(options)
   console.log(formatResults(outcome))
   if (outcome.results.length === 0) console.log('（这条分支没有改到 vitest 车道的测试文件）')
   const failed = outcome.results.some((entry) => !entry.ok)
   return failed && !options.reportOnly && !options.changed ? 1 : 0
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = main()
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = await main()
