@@ -33,7 +33,7 @@
 ## ★2 谁说了算
 
 - 「现在有哪些模型」：唯一来源是盘上的模型目录；两个宿主（应用内 MCP、独立 stdio 进程）都只经 `createLiveGenerationRuntime().registry` 读，按 `catalogRevisionToken()`（目录文件内容不变就是同一个对象）缓存，版本变了就重建。宿主里不再存启动快照。
-- 「一次工具调用读哪一版」：生成工具入口 `registry.pinForCall` 取一版（`AsyncLocalStorage`），这次调用里起草 / 预览 / 过门的 resolve、snapshot 和宿主读就绪（`readBootstrap`）都读这一版；调用结束就放开，调用里起的后台活之后读现在的目录。生成工具的依赖只剩这一个目录来源（删了可选的 `createDraftScope`，类型上就做不出「起草一版、门另一版」）。方向检查 `docs/engineering/direction-checks/2026-11-16-external-agent-host.md` 第 1 段；生产调用方 2 处、不改盘上格式，所以并进本 PR。
+- 「一次工具调用读哪一版」：生成工具入口 `registry.pinForCall` 取一版（`AsyncLocalStorage`），这次调用里起草 / 预览 / 过门的 resolve、snapshot 和宿主读就绪（`readBootstrap`）都读这一版；调用结束就放开，调用里起的后台活之后读现在的目录。生成工具的依赖只剩这一个目录来源（删了可选的 `createDraftScope`，类型上就做不出「起草一版、门另一版」）。**这个 1 靠什么保持（2026-11-21 按今天主分支核过）**：「只有一个来源」靠类型；「这一个来源是活的」类型不保证——`pinForCall` 在依赖类型里是可选的，宿主递一份启动时拍的表仍然编得过，靠第 11 条真窗口走查和第 1 条单测在使用结果那一步守；第 7 条查宿主源码写法的测试只算提示，不算保证。方向检查 `docs/engineering/direction-checks/2026-11-16-external-agent-host.md` 第 1 段；生产调用方 2 处、不改盘上格式，所以并进本 PR。
 - 「内置连接的地址 / 认证 / 素材上传方式」：内置种子 + 设置页。交卡只能往内置连接上加非内置的模型（`declaredProviderRegistration.ts#builtinConnectionMismatches`）。
 - 「这家内置连接被用户整家删了」：目录里 `suppressedBuiltinVendors` 一条；只有存这家密钥（`applyApiKeyUpsert`，设置页和 `set_key` 共用）能摘掉。
 
@@ -96,7 +96,7 @@
 8. 确认卡 / 确认条 / 小卡没有任何文件改动。
 9. perf 场景 `perGateCatalogReadMs` ≤5ms。
 10. 一次工具调用只读一版目录：调用中途目录变了，调用里的模型表和就绪不变、多镜每镜同一版；下一次调用读新版；调用里起的后台活过后读现在的。
-11. 真 Electron 两个宿主（应用内 HTTP、stdio）都先起来再交卡，不重启：起草 → 预览认得 → 过门在窗口弹确认卡，点取消，不发生成请求（`tests/ux/mcp-declared-model-gate.e2e.mjs`）。
+11. （第 7 条只算提示：它查的是源码里有没有那一行，不是结果。）真 Electron 两个宿主（应用内 HTTP、stdio）都先起来再交卡，不重启：起草 → 预览认得 → 过门在窗口弹确认卡，点取消，不发生成请求（`tests/ux/mcp-declared-model-gate.e2e.mjs`）。
 
 反例（改坏 → 红，还原 → 绿，日志进报告）：
 
@@ -109,3 +109,11 @@
 - R7 生成工具入口不包 `pinForCall` → 多镜中途换目录测试红。
 
 回滚：整个 PR revert。盘上新增的 `suppressedBuiltinVendors` 字段旧代码不认、会被忽略——回滚后整家删过的内置连接会在下次启动被种子重新种回来（等于 0.24.0 之前的行为），不丢用户数据。
+
+## 2026-11-21 救回时补记
+
+- 分支 11-16 写完没推送，11-21 并上主分支（落后 167 个提交，两次 merge）后重验。
+- 真窗口两遍（`docs/evidence/2026-11-21-external-agent-gate-rescue/`）：主分支构建退出 1，交卡、起草成功，预览回 `Unknown model: muse-video-x`，中间没有重启；本分支构建退出 0，两个宿主 17 条全过，都走到确认卡。
+- 第二件事（挂在内置连接上、地址写成别处的卡）：今天的主分支仍会照卡改写连接；本分支拒绝并点名 `provider.baseUrl`，连接行和就绪状态都不变（`externalAgentGateReachConfirm.test.ts`「a card that names a different address…」）。它没有单独的真窗口修前画面——修前那遍走查停在第一处。
+- 未验证：四份 0.24.0 旧盘只在单测里用真实旧文件重放，没有在真窗口冷启动升级（交验收线）；英文界面没走真窗口；真付费、Windows 没做。
+- 已知缺口：单测辅助 `externalAgentGateTestUtils.ts` 手抄了一份宿主接线，所以「交卡 → 起草 → 预览 → 过门」那条单测在主分支代码上是加载红不是断言红；要改成走宿主真入口，得先把两个宿主的装配收成一处（连同把 `pinForCall` 改成必填），另记待办。

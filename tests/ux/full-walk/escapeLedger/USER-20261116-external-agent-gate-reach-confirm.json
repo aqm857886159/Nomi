@@ -19,8 +19,8 @@
     "2026-11-21 复核：主分支构建上真窗口走查在「预览」回 Unknown model（修前），本分支两个宿主 17 条全过（修后）；独立验收在 PR 上进行。"
   ],
   "completionCommits": [
-    "7edc48c68",
-    "2f7dfc6ed"
+    "7edc48c6895c29a11369c285b62bdf897b7ce969",
+    "2f7dfc6ede633e0825ca4e0db8a9944231131a37"
   ],
   "fixedInPr": 1584,
   "rootCauseContract": "docs/fixes/2026-11-16-external-agent-gate-reach-confirm.root-cause.json",

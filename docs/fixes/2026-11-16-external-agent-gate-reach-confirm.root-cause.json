@@ -55,6 +55,7 @@
     "electron/capabilityCore/modelOnboarding/declaredProviderProduction.test.ts"
   ],
   "residual_risks": [
+    "依赖类型里「入口钉一版」是可选的，宿主递一份启动时拍的表类型上拦不住；把它改成必填要动 56 条用静态表的生成工具测试，和「两个宿主共用一个装配入口」是同一件事，另记待办。",
     "两个宿主仍各手写一遍生成这一套的十几项依赖，测试辅助 externalAgentGateTestUtils.ts 又抄了一份接线；以后新增依赖只接一个宿主的问题没有被这次修掉。",
     "同一会话「交卡 → 起草 → 预览 → 过门」的单测在修前代码上是加载失败而不是断言失败；这条路在修前会坏的证明是真窗口走查（docs/evidence/2026-11-21-external-agent-gate-rescue/）。",
     "用户在设置页把内置连接地址改成代码不认识的中转域名时，连接仍不就绪（行为同修前）。",
@@ -79,7 +80,7 @@
       "electron/capabilityCore/externalAgentGateTestUtils.ts:109（测试辅助手抄的同一段接线）"
     ]
   },
-  "generality_proof": "生成工具的依赖类型只收一个目录来源，而且要求它带「入口钉一版」的能力：宿主手里一份启动时拍的普通模型表类型上递不进去，也没有第二个可选入口能让起草和过门各读一版。交卡登记对内置连接只剩「核对一致」这一条路，写路径上没有改写内置连接行的分支。",
+  "generality_proof": "生成工具的依赖类型只收一个目录来源，没有第二个可选入口能让起草和过门各读一版——这一条由类型保证。「递进来的是活的那一份、不是启动时拍的」类型不保证：依赖类型里「入口钉一版」是可选的（测试里的静态表没有它），宿主递一份启动时拍的表仍然编得过；这一条靠真窗口走查（先起宿主、再交卡、不重启）和同一路径的单测守，liveGenerationRuntime.test.ts 里查两个宿主源码写法的那条只算提示。交卡登记对内置连接只剩「核对一致」这一条路，写路径上没有改写内置连接行的分支。",
   "shared_boundaries": [
     {
       "path": "electron/capabilityCore/liveGenerationRuntime.ts",
@@ -97,13 +98,13 @@
       "path": "electron/capabilityCore/appIntegration.ts",
       "entry_point": "createGenerationPlanningHandler",
       "disposition": "enforced",
-      "evidence": "第 338 行只递 liveGenerationRuntime.registry；启动快照 initialGenerationScope.registry 已删"
+      "evidence": "第 338 行只递 liveGenerationRuntime.registry；启动快照 initialGenerationScope.registry 已删；保持靠真窗口走查，类型不拦"
     },
     {
       "path": "electron/capabilityCore/mcpStdioServer.ts",
       "entry_point": "createGenerationPlanningHandler",
       "disposition": "enforced",
-      "evidence": "第 288 行只递 liveGenerationRuntime.registry；启动快照与可注入的 generationModuleRegistry 已删"
+      "evidence": "第 288 行只递 liveGenerationRuntime.registry；启动快照与可注入的 generationModuleRegistry 已删；保持靠真窗口走查，类型不拦"
     },
     {
       "path": "electron/capabilityCore/mcpGenerationTools.ts",
@@ -115,10 +116,10 @@
   "prevention": {
     "kind": "type-system",
     "enforcement_path": "electron/capabilityCore/liveGenerationRuntime.ts",
-    "invariant": "生成工具只有一个目录来源，且一次调用只读一版",
-    "failure_mode": "宿主递一份没有「入口钉一版」能力的模型表、或再递第二个目录来源，类型检查报错；externalAgentGateReachConfirm.test.ts 和真窗口走查 tests/ux/mcp-declared-model-gate.e2e.mjs 在「预览认得刚交卡的模型」这一步红",
+    "invariant": "生成工具只有一个目录来源（类型保证）；这一个来源是活的、一次调用只读一版（走查和测试守）",
+    "failure_mode": "再给生成工具递第二个目录来源，类型检查报错。宿主把这一个来源换回启动时拍的表，类型不报错；红的是真窗口走查 tests/ux/mcp-declared-model-gate.e2e.mjs「预览认得刚交卡的模型」这一步（2026-11-21 在主分支构建上实跑就是这样红的）和 liveGenerationRuntime.test.ts 里查宿主源码的那条。",
     "exception_policy": "none",
-    "strategy": "把第二个目录来源从依赖类型里删掉，宿主只能递活的那一份；交卡写路径上删掉改写内置连接的分支",
+    "strategy": "把第二个目录来源从依赖类型里删掉；宿主里的启动快照变量删掉；交卡写路径上删掉改写内置连接的分支",
     "artifacts": [
       "electron/capabilityCore/liveGenerationRuntime.ts",
       "electron/capabilityCore/mcpGenerationTools.ts",

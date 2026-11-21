@@ -77,12 +77,15 @@ describe("external Agent: declared model reaches the confirm step", () => {
   it("a card that names a different address for the built-in connection is refused and says which field", async () => {
     freshSettingsDir("other-origin");
     const before = apimartRow();
+    const readyBefore = readinessOf("apimart");
     const submitted = await callTool("nomi_model_setup", { action: "submit_declaration", vendorKey: "apimart", declaration: videoCard("https://relay.example.test", "relay-video") });
     expect(submitted.ok).toBe(false);
     expect(JSON.stringify(submitted)).toContain("provider.baseUrl");
     const { updatedAt: _a, ...rowBefore } = before;
     const { updatedAt: _b, ...rowAfter } = apimartRow();
     expect(rowAfter).toEqual(rowBefore);
+    // 2026-11-21 回放那张卡就是这个形状（挂在 apimart 上、地址写成别处）：被拒之后这家的就绪状态一点不变。
+    expect(readinessOf("apimart")).toEqual(readyBefore);
   });
 
   it("same address but a different way to carry the key is refused too, naming the field; the row is untouched", async () => {
