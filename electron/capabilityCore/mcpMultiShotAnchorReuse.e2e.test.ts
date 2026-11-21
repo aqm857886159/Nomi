@@ -23,7 +23,7 @@ import { createProductionRunRepository } from "../productionRun/productionRunRep
 import { createMultiShotBatchScheduler } from "../productionRun/multiShotBatchScheduler";
 import { currentAnchorCheckpointGate } from "../productionRun/anchorCheckpoint";
 import { landingThatBinds } from "../productionRun/landFirstTestUtils";
-import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 // P4 验收门 §5.1 变体 4「用已有锚开新计划」(跨集同脸) — end-to-end over the REAL semantic create entrance +
 // the REAL durable scheduler (NOT test injection). The reused anchor is NOT a role:"anchor" shot (there is

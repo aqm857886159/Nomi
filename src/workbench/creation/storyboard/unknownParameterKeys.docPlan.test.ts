@@ -23,7 +23,7 @@ import type { ProjectLeaseV2 } from '../../../../electron/capabilityCore/project
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import { buildAgentModelEntries } from '../../generationCanvas/agent/availableModels'
 import { buildModelEntryIndex, buildPlannedNodeMeta } from '../../generationCanvas/agent/plannedNodeMeta'
-import { withFixedCatalog } from '../../../../electron/capabilityCore/fixedGenerationCatalog.testkit'
+import { withFixedCatalog } from '../../../../electron/capabilityCore/generationFixedCatalog.testkit'
 
 vi.mock('../../project/projectCanvasReadSurface', () => ({
   withProjectAction: (action: (value: unknown) => unknown) => action({

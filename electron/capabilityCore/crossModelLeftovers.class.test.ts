@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import { createModuleRegistry } from "./moduleRegistry";
 import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore } from "./mcpGenerationTools";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
-import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const registry = createModuleRegistry([{
   moduleId: "generation.single-shot",

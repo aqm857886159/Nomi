@@ -9,7 +9,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { dispatch } from "./dispatcher";
-import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 import { createGenerationDomain, type GenerationHostPorts, type IssuedGenerationPlanning } from "./generationDomain";
 import { issueGenerationPlanningForTest } from "./generationPlanningIssue";
 import { installGuiResolveNarrowIpc } from "./generationResolveIpc";

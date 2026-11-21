@@ -18,7 +18,7 @@ import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION,
 import { verbToTransportCall } from "../agentLane/laneVerbTransport";
 import { laneFailureFromDecision } from "../shared/agentLane/laneFailureFromDecision";
 import type { ProjectBinding } from "../shared/projectBinding";
-import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const videoModelCandidates = buildVideoModelCandidates([
   { provider: "apimart", modelKey: "doubao-seedance-2.5", label: "Seedance 2.5" },

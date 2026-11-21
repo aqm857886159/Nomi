@@ -11,7 +11,7 @@ import i18n from '../../src/i18n/index.ts'
 import { renderParameters, renderRow } from './ui.mjs'
 import { planOf, shotOf, candidateFor, draftRegistry }  from './entrances.mjs'
 import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore } from '../../electron/capabilityCore/mcpGenerationTools.ts'
-import { withFixedCatalog } from '../../electron/capabilityCore/fixedGenerationCatalog.testkit.ts'
+import { withFixedCatalog } from '../../electron/capabilityCore/generationFixedCatalog.testkit.ts'
 
 export function visibleNotes(html) {
   const found = []

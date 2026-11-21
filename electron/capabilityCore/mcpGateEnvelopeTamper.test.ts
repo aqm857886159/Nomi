@@ -19,7 +19,7 @@ import type { GenerationProvider } from "./generationRuntimeAdapter";
 import { createProductionGenerationOperationStore } from "../productionRun/productionGenerationOperationStore";
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
 import { prepareProductionGenerationAuthorization } from "../productionRun/prepareProductionGenerationAuthorization";
-import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const roots: string[] = [];
 const connection: McpConnectionContext = Object.freeze({

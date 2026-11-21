@@ -35,7 +35,7 @@ import { sendArchetypeMode } from "../../src/workbench/generationCanvas/nodes/co
 import { GENERATION_DEFAULT_TASK_KINDS, type GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import { createGenerationDefaultModelResolver } from "./generationDefaultModelResolver";
 import type { CatalogState } from "../catalog/types";
-import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const PROJECT_ID = "project-1";
 const MODULE_ID = "generation.single-shot";

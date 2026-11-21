@@ -18,7 +18,7 @@ import type { ProjectLeaseV2 } from '../../../../electron/capabilityCore/project
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import { addAnchor, addShot, updateShotPrompt } from '../../generationCanvas/agent/storyboardPlanEdits'
 import { patchStoryboardSubject } from '../../../../electron/shared/storyboard/storyboardSubjectAdapter'
-import { withFixedCatalog } from '../../../../electron/capabilityCore/fixedGenerationCatalog.testkit'
+import { withFixedCatalog } from '../../../../electron/capabilityCore/generationFixedCatalog.testkit'
 
 vi.mock('../../project/projectCanvasReadSurface', () => ({
   withProjectAction: (action: (value: unknown) => unknown) => action({

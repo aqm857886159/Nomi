@@ -8,7 +8,7 @@ import { SEEDANCE_2_APIMART_ARCHETYPE } from "../../../../electron/shared/videoC
 import type { ModelArchetype } from "../../../../electron/shared/modelArchetypes/types";
 import type { GenerationResolvePlanEnvelope } from "../../../../electron/shared/videoCapabilities/planResolutionContracts";
 import { fetchStoryboardResolve, resolveGeneratableGate, type StoryboardResolveClient } from "./strategyGate";
-import { withFixedCatalog } from "../../../../electron/capabilityCore/fixedGenerationCatalog.testkit";
+import { withFixedCatalog } from "../../../../electron/capabilityCore/generationFixedCatalog.testkit";
 
 /**
  * 分镜编辑器 ↔ 主进程执行计划检查的**真实对接**（不是假 client）。

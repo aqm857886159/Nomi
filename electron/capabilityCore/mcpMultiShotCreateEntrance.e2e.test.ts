@@ -26,7 +26,7 @@ import { currentAnchorCheckpointGate } from "../productionRun/anchorCheckpoint";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import { verbToTransportCall } from "../agentLane/laneVerbTransport";
 import { landingThatBinds } from "../productionRun/landFirstTestUtils";
-import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 // P4 S6.5 生产入口 — end-to-end over the REAL semantic create→seal→gate→start entrance (NOT test injection
 // into the reducer). This is the proof the review demanded: `nomi_operation_create` with a multi-shot

@@ -12,7 +12,7 @@ import {
   resolveGenerationPlanForProject,
   toResolveEnvelopeError,
 } from "./generationResolveIpc";
-import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const candidate = { provider: "apimart", modelKey: "doubao-seedance-2.5", label: "Seedance 2.5", archetype: SEEDANCE_2_5_APIMART_ARCHETYPE };
 

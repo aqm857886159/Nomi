@@ -19,7 +19,7 @@ import { createProductionRunService } from "../productionRun/productionRunServic
 import { APIMART_VIDEO_MODELS } from "../catalog/apimartVideos";
 import { applyBuiltinSeeds } from "../catalog/seedBuiltins";
 import { buildVideoModelCandidates, recommendVideoGeneration, videoArchetypeIdFromMeta } from "../shared/videoCapabilities";
-import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const videoModelCandidates = buildVideoModelCandidates([
   { provider: "apimart", modelKey: "doubao-seedance-2.0", label: "Seedance 2.0" },

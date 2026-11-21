@@ -39,7 +39,7 @@ import { watchSpendCardClose } from "../agentLane/laneSpendCardClose";
 import type { ModelPricing } from "../productionRun/shotPricing";
 import type { PlanCandidate } from "./executionContract";
 import { resolveIndexedReferencePreview, type SpendReferenceAssets } from "./pendingSpendReferences";
-import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 // Agent 面板付费卡的端到端夹具（D2 第③步：卡 = 指向元素 + 一行只读摘要 + 主按钮；一台发动机）。
 //

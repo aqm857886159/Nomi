@@ -16,6 +16,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 
 import { launchNomiApp } from './_launchApp.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { makeIsolatedDirs, parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { writeFakeApimartCatalog } from './_mcpL2Fixture.mjs'
 import { newProjectEntry } from './_shell.mjs'
@@ -77,7 +78,7 @@ try {
     args: ['--disable-gpu', '--disable-software-rasterizer'], settleMs: 0, syntheticCredentialStorage: true,
   })
   await newProjectEntry(gui.win).click()
-  await gui.win.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 10_000 })
+  await gui.win.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: stationTimeout() })
   await gui.win.waitForTimeout(1_000)
   const token = fs.readFileSync(path.join(dirs.capabilityDir, 'token'), 'utf8').trim()
   const clientEnv = { ...fixtureEnv(provider.origin), NOMI_MCP_CLIENT: 'codex', NOMI_MCP_CLIENT_PROOF: proofFor(token, 'codex') }

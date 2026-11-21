@@ -20,7 +20,7 @@ import { createProductionGenerationOperationStore } from "../productionRun/produ
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
 import { projectPendingSpendConfirm } from "../productionRun/productionPendingSpend";
 import { buildMaterializeShotsPayload } from "../productionRun/multiShotCanvasLanding";
-import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const PROJECT_ID = "project-1";
 const roots: string[] = [];

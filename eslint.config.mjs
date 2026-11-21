@@ -1011,7 +1011,7 @@ export default tseslint.config(
         importNames: ['claimGenerationPlanningIssuer', 'openGenerationPlanningTestIssue', 'issueGenerationPlanningForTest'],
         message: '往「工厂发的规划」名单里记只有 generationDomain.ts 能做；测试发放口只给测试用。生产代码要规划就从 createGenerationDomain() 拿。',
       }, {
-        group: [...moduleSources('generationPlanning.testkit'), ...moduleSources('fixedGenerationCatalog.testkit')],
+        group: [...moduleSources('generationPlanning.testkit'), ...moduleSources('generationFixedCatalog.testkit')],
         message: '这是测试辅助（静态模型表、测试桩的发放口）。生产代码的目录只从 createGenerationDomain() 来。',
       }] }],
     },
