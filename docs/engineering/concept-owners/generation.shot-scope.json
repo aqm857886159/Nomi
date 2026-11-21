@@ -1,0 +1,39 @@
+{
+  "name": "生成范围",
+  "subject": "generation.shot-scope",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+    "symbol": "resolveUndecidedGenerationShotScope"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+      "symbol": "resolveNamedGenerationShots"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+      "symbol": "resolveUndecidedGenerationShotScope"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+      "symbol": "shotsOnOffer"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/capabilityCore/generationTransportAdapters.ts",
+    "electron/capabilityCore/mcpGenerationMultiShot.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/productionRun/productionGenerationPresentationEdits.ts",
+    "electron/productionRun/productionGenerationSeal.ts",
+    "src/workbench/capability/storyboardPresent.ts"
+  ],
+  "parity_test": "electron/shared/agentCapabilities/generationShotScope.parity.test.ts",
+  "since": "2026-11-21",
+  "notes": "D-1121-six-groups-by-shape：主人保有判据，各出口在最终返回、卡片数据、派发列表或交接写回处对拍。原始账本仍可被消费者读取，登记不声称结构上不可绕过；无新增写法扫描。 画布/分镜意图规划另有 generation.scope-plan，本条只登记出价点名/不点名及回执镜头范围；同一测试另对拍它们共同源文件中的现有画布与分镜出口。"
+}
