@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { makeTempDir, cleanupTestTemp } from './_test-temp.mjs'
 import { BUILD_GATE_STATUS, BUILD_GATE_WALK } from './nightly-build-gate.mjs'
-import { nightlyWalkInventory } from './nightly-walk-selection.mjs'
+import { nightlyWalkBatchIds, nightlyWalkInventory, walksForBatch } from './nightly-walk-selection.mjs'
 import { execGhReadSync, execGhWriteSync } from './lib/transientRetry.mjs'
 
 export const WAKE_FAIL_RATE = 0.2
@@ -17,7 +17,7 @@ const END = '<!-- nightly-state:end -->'
 const REPORT_START = '<!-- nightly-report:start -->'
 const REPORT_END = '<!-- nightly-report:end -->'
 const PACKAGED = 'tests/ux/packaged-mcp-smoke.e2e.mjs'
-const BATCHES = ['0', '1', '2', '3', 'packaged-mac']
+const BATCHES = [...nightlyWalkBatchIds(), 'packaged-mac']
 const titles = { gate: '构建 / 门岗', env: '环境', unknown: '未定' }
 const cell = (value) => String(value ?? 'unknown').replaceAll('@', '＠').replaceAll('|', '∣').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replace(/[\r\n]/g, ' ')
 
@@ -63,7 +63,7 @@ function currentReceipt(env = process.env) {
 
 export function expectedBatches() {
   const walks = nightlyWalkInventory()
-  return BATCHES.map((batch) => ({ batch, walks: batch === 'packaged-mac' ? [PACKAGED] : walks.filter((_, i) => i % 4 === Number(batch)) }))
+  return BATCHES.map((batch) => ({ batch, walks: batch === 'packaged-mac' ? [PACKAGED] : walksForBatch(walks, batch) }))
 }
 
 function readJson(file) {
