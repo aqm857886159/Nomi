@@ -7,7 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { BOARD_NAME, BOARD_STATES, checkBoardManifest, checkBoundarySheet, checkPriorArt, checkPrBoardClaims, checkSourceHash, compareBoardManifests, findDatedBoards, loadManifests, makeReferrerScanner, parsePrBoardClaims, runBoardParity } from './check-board-parity.mjs'
+import { BOARD_NAME, BOARD_STATES, PEER_REGISTRY_REQUIRED_FROM, checkBoardManifest, checkBoundarySheet, checkPeerRegistry, checkPeerRegistryFile, checkPriorArt, checkPrBoardClaims, checkSourceHash, compareBoardManifests, findDatedBoards, loadManifests, loadPeerRegistry, makeReferrerScanner, parsePrBoardClaims, runBoardParity } from './check-board-parity.mjs'
 import { makeTempDir } from './_test-temp.mjs'
 import { BOARD_NAMES } from './board-extract.mjs'
 import { hashBoardSourceFiles } from './board-source-hash.mjs'
@@ -649,5 +649,93 @@ describe('板名：磁盘上每一张板都能被 ## 拍板图 认领（2026-10-
   })
   it('反例：带数字的板名照样认得出', () => {
     assert.deepEqual(parsePrBoardClaims('## 拍板图\n- IconsF1: node.toolbar, topbar'), [{ board: 'IconsF1', ids: ['node.toolbar', 'topbar'] }])
+  })
+})
+
+describe('R16 同类产品登记表：先例按 Nomi 的定位选，不按好不好打开选（2026-11-21 用户要求修底层）', () => {
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+  const registry = { ...loadPeerRegistry(repoRoot), approval: { quote: '测试用', date: '2026-11-21' } }
+  const realBoard = (dir, name) => JSON.parse(fs.readFileSync(path.join(repoRoot, 'docs/design/boards', dir, `${name}.board.json`), 'utf8'))
+  const peerCheck = (manifest, date = PEER_REGISTRY_REQUIRED_FROM) => checkPeerRegistry({ board: 'Main', manifest, date, registry })
+  // 这一例：2026-11-21 设置页调研按「免登录能打开」挑的三家
+  const thisCase = () => ({
+    priorArt: [
+      { kind: 'same-surface', product: 'Chatbox', screenshotSha256: 'a'.repeat(64), seenOn: '2026-11-21', differences: [{ what: '三栏', why: '少一层' }] },
+      { url: 'https://www.typingmind.com/', takeaway: 'TypingMind：模型不放在设置里', decisionImpact: '模型从选择器直达' },
+      { url: 'https://vscode.dev/', takeaway: 'VS Code：长页就地改 + 搜索', decisionImpact: '不分页' },
+    ],
+  })
+
+  it('反例（这一例）：第一项不是登记的同类、另两项是「不算同类」——三条都红', () => {
+    const errors = peerCheck(thisCase()).join('\n')
+    assert.match(errors, /priorArt\[0\] 的「Chatbox」不在同类产品登记表/)
+    assert.match(errors, /priorArt\[0\] 用了 Chatbox/)
+    assert.match(errors, /priorArt\[1\] 用了 TypingMind/)
+    assert.match(errors, /priorArt\[2\] 用了 VS Code/)
+  })
+  it('反例（真实旧案）：2026-11-17 连接状态板第一项写 LibTV「没有这东西」，真正对照的是 Cherry Studio / Open WebUI / LibreChat——按新规则必须红', () => {
+    const errors = peerCheck(realBoard('2026-11-17-model-connection-status', 'ModelConnectionStatus')).join('\n')
+    assert.doesNotMatch(errors, /priorArt\[0\]/, 'LibTV 是登记的同类，第一项本身不该红')
+    for (const product of ['Cherry Studio', 'Open WebUI', 'LibreChat']) assert.match(errors, new RegExp(`用了 ${product}`))
+  })
+  it('反例（真实旧案）：2026-11-07 引导板里借了 Cherry Studio、LobeChat——按新规则必须红', () => {
+    const errors = peerCheck(realBoard('2026-11-07-onboarding', 'Onboarding')).join('\n')
+    assert.match(errors, /用了 Cherry Studio/)
+    assert.match(errors, /用了 LobeChat/)
+  })
+  it('正例（真实样本，不误伤）：定位一致的三块板——模式条、生成框参数、Agent 选择芯片——一条都不红', () => {
+    assert.deepEqual(peerCheck(realBoard('2026-11-12-mode-bar', 'ModeBar')), [])
+    assert.deepEqual(peerCheck(realBoard('2026-11-14-composer-params', 'ComposerParams')), [])
+    assert.deepEqual(peerCheck(realBoard('2026-11-17-agent-selection', 'AgentSelectionChip')), [])
+  })
+  it('正例：可用性研究、平台规范这类中立来源不在登记表里，也不红（它们只是不能当第一项）', () => {
+    const manifest = { priorArt: [
+      { kind: 'same-surface', product: '可灵', absent: '查了 kling.ai/quickstart' },
+      { url: 'https://www.nngroup.com/articles/empty-state-interface-design/', takeaway: 'NN/g：空状态要给直达关键任务的路', decisionImpact: '确认了' },
+      { url: 'https://developer.apple.com/design/human-interface-guidelines/settings', takeaway: 'Apple：设置分组', decisionImpact: '确认了' },
+    ] }
+    assert.deepEqual(peerCheck(manifest), [])
+  })
+  it('别名也认：只写了链接（github.com/CherryHQ）、没写产品名，照样认出', () => {
+    const manifest = { priorArt: [{ kind: 'same-surface', product: 'LibTV', absent: '查了更新日志' }, { url: 'https://github.com/CherryHQ/cherry-studio/blob/main/x.tsx', takeaway: '每家中转站一个登录按钮', decisionImpact: '改了' }] }
+    assert.match(peerCheck(manifest).join('\n'), /用了 Cherry Studio/)
+  })
+  it('用户亲口同意的例外：这一项带 userApproved { quote, date } 就放行', () => {
+    const manifest = thisCase()
+    for (const item of manifest.priorArt) item.userApproved = { quote: '这次可以参考它的搜索', date: '2026-11-22' }
+    assert.deepEqual(peerCheck(manifest), [])
+  })
+  it('只有原话没有日期、或只有日期没有原话，不算用户同意', () => {
+    const manifest = thisCase()
+    manifest.priorArt[0].userApproved = { quote: '可以' }
+    manifest.priorArt[1].userApproved = { date: '2026-11-22' }
+    const errors = peerCheck(manifest).join('\n')
+    assert.match(errors, /priorArt\[0\]/)
+    assert.match(errors, /priorArt\[1\]/)
+  })
+  it('更早的板不追溯：同样的内容放在登记表生效前一天，不查', () => {
+    assert.deepEqual(peerCheck(thisCase(), '2026-11-21'), [])
+  })
+  it('读不到登记表就红，不默默放过', () => {
+    assert.match(checkPeerRegistry({ board: 'Main', manifest: thisCase(), date: PEER_REGISTRY_REQUIRED_FROM, registry: null }).join('\n'), /读不到同类产品登记表/)
+  })
+  it('登记表本身：用户没拍板（approval 缺原话或日期）就红', () => {
+    assert.match(checkPeerRegistryFile({ ...registry, approval: null }).join('\n'), /approval 要写用户拍板的原话和日期/)
+    assert.deepEqual(checkPeerRegistryFile(registry), [])
+  })
+  it('登记表本身：同一家不能既是同类又不算同类；每家要写为什么、对照哪几块、怎么看得到', () => {
+    const broken = structuredClone(registry)
+    broken.notPeers[0].members.push({ product: 'LibTV', aliases: [] })
+    broken.peers[0].surfaces = ['不存在的面']
+    delete broken.peers[1].access
+    const errors = checkPeerRegistryFile(broken).join('\n')
+    assert.match(errors, /「libtv」同时在 peers 和 notPeers 里/)
+    assert.match(errors, /不在 surfaces 词表里/)
+    assert.match(errors, /peers\[1\] 缺 access/)
+  })
+  it('接进整张板的校验：checkBoardManifest 带上登记表才会查 R16', () => {
+    const manifest = { ...base(), ...thisCase() }
+    const errors = checkBoardManifest({ board: 'Main', manifest, candidates, assertionCorpus: CORPUS, date: PEER_REGISTRY_REQUIRED_FROM, peerRegistry: registry })
+    assert.ok(errors.some((line) => /用了 TypingMind/.test(line)))
   })
 })
