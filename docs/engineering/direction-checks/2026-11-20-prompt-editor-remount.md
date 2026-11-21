@@ -30,7 +30,7 @@
 | 预测 | 怎么验证 |
 |---|---|
 | 画布节点提示词框、Agent 输入框（都是 `PromptEditor`）被藏起再放出、或 deps 变化重建后，同样是旧副本 | 入口单测 `useNomiTiptapEditor.browser.test.ts` 的 `promptEditorActivity` / `promptEditorBehindMemo`（框开着、藏放、memo 后面三种）；真窗口这两处没走，记 `unverified` |
-| 再加一个编辑器宿主，传一份渲染时的值进来 | 现在编不过：入口类型没有 `content` / `value`（`useNomiTiptapEditor.types.test.ts`）；设计实验室那个「写死一份值的 owner」产品代码引不进来（`check:boundaries` 的 `src-no-import-devlab`） |
+| 再加一个编辑器宿主，传一份渲染时的值进来 | 现在编不过：入口类型没有 `content` / `value`（`useNomiTiptapEditor.types.test.ts`）；设计实验室那个「写死一份值的 owner」产品代码引不进来（已有门岗 `check:design-lab` 的「生产代码 import 了 devlab」；动态 `import()` 认不出，算故意绕） |
 
 ### 4. 靶子独立性检查
 
@@ -61,5 +61,5 @@
 
 - `src/workbench/common/useNomiTiptapEditor.types.test.ts`：入口再收 `content` / `value` / `onUpdate` / `onBeforeCreate` / `onCreate`、不给 owner 都编不过（`check:test-types`）。
 - `src/workbench/common/useNomiTiptapEditor.browser.test.ts`：首挂、deps 重建、`<Activity>` 藏起期间 store 变了（含 memo 后面）、敲过字再藏放、文稿非规范写法、分镜提示词框——文档 = store 当前值，`write` 0 次，不可撤销；框开着时外部写入跟上。
-- `scripts/check-boundaries.devlab.test.mjs`：产品代码引设计实验室的固定 owner 被拦，实验室自己 / 组件测试不拦。
+- `scripts/check-design-lab.mjs`（已有，不改）：`src/` 里实验室以外的文件（含测试）静态 import `devlab/` 就红；本次临时在 `PromptEditor.tsx` 引固定 owner 验过会红、还原后不报。
 - `tests/ux/storyboard-prompt-reentry.walk.mjs`：真窗口四条腿（分镜已有字、分镜空框、创作文稿、画布文字节点），中英两轨；修前在主分支上分镜两条腿红。

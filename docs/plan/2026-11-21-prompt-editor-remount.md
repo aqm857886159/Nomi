@@ -71,7 +71,7 @@
 全部家（`node scripts/door-map.mjs`，`/Users/aoqimin/Nomi-coord/tmp/L-editor-owner-door/door-map.txt`）：TipTap `useEditor` 1 扇（入口里）；`useNomiTiptapEditor` 2 扇（`PromptEditor`、`useNomiRichTextEditor`）；`useNomiRichTextEditor` 3 扇（文稿、文字节点、选区浮条舞台）；`PromptEditor` 3 处（Agent 输入框、分镜提示词、节点提示词）。「选当前方案」原来分镜页两处各写一份，收成 `activeStoryboardDesign.ts` 一份。
 
 「1」靠什么保持：
-- 别处拿不到原料：入口类型收不进初始内容（类型测试，`@ts-expect-error` 多余即红）；TipTap `useEditor` 只有入口能用（eslint `no-restricted-imports`，2026-09-28 起）；写死一份值的 owner 只住设计实验室，产品代码引它被 `check:boundaries` 的 `src-no-import-devlab` 拦。
+- 别处拿不到原料：入口类型收不进初始内容（类型测试，`@ts-expect-error` 多余即红）；TipTap `useEditor` 只有入口能用（eslint `no-restricted-imports`，2026-09-28 起）；写死一份值的 owner 只住设计实验室，产品代码引它被 `check:design-lab`（`scripts/check-design-lab.mjs` 的「生产代码 import 了 devlab」，2026-09-06 起，扫 `src/` 里实验室以外的 `.ts` / `.tsx`，含测试） 拦；组件测试也在扫描范围里，所以 3 个组件测试各自就地写一份 3 行的固定 owner。
 - 各出口对拍：离开再回来，各屏读回的字和盘上一致（走查）。
 - 不靠「东西不见了」猜意图：外部写入走 store 订阅，不靠实例消失 / 出现去推断。
 
@@ -86,7 +86,7 @@
 
 复用：TipTap 官方 `onBeforeCreate` + `setOptions`、React `useSyncExternalStore`、zustand 的 `subscribe` / `getState`，不自写订阅机制。两个内核原来不一样的三处，统一成：比较相等就不写（少一条等价撤销记录）、`docChanged` 才回写（少一次没改字的回写）；聚焦时外部写入保不保留光标做成显式选项 `keepSelectionOnExternalWrite`（文稿开、提示词框不开，两处保持原来的行为）。
 
-残余：宿主故意写一个返回旧值的 `getSnapshot`。现成的「拿一份值当 owner」只在设计实验室，产品代码引不进来（`src-no-import-devlab`）。
+残余：宿主故意写一个返回旧值的 `getSnapshot`。现成的「拿一份值当 owner」只在设计实验室，产品代码静态引它 `check:design-lab` 就红；扫描只认 `from '…devlab/…'`，认不出动态 `import()`，用动态引入绕过去也算「故意绕」，归这一条残余。门岗只此一份：分支中途在 `.dependency-cruiser.mjs` 加过一条同义规则，发现重复后撤掉，`scripts/check-design-lab.mjs` 不改。
 
 ## ★4 全状态
 
@@ -108,7 +108,7 @@
 3. 文稿、画布文字节点：敲一句 → 切走再回 → 回项目库再开，字在、落盘有（中英）。
 4. 入口单测：首挂、deps 重建、Activity 藏起期间 store 变了（含编辑器在 memo 后面）、敲过字再藏放、文稿非规范写法、分镜提示词框——文档都等于 store 当前值，出生 / 重建 / 外部写入后 `write` 0 次，`can().undo()` 为假。
 5. 入口类型：再收 `content` / `value` / `onUpdate` / `onBeforeCreate` / `onCreate`、不给 owner 都编不过。
-6. 产品代码引设计实验室：`check:boundaries` 红。
+6. 产品代码引设计实验室：`check:design-lab` 红。
 
 反例（改坏 → 红，还原 → 绿；改坏脚本 `/Users/aoqimin/Nomi-coord/tmp/L-editor-owner-door/scripts/mutate.py`，日志同目录）：
 
@@ -120,9 +120,9 @@
 | ④ 再填改成建好后 `setContent`（不发 update） | 单测「不进撤销历史」红 | `mut-m4-unit.log` |
 | ⑤ 什么都不做（换回主分支生产代码） | 空框腿退出 1，框里是占位字；已有字腿 ⑤ 退出 1（「Old shot 1」，敲的字丢了）；文稿 / 文字节点腿绿（主分支本来就对）；入口单测 `goal-red-on-base`：断言红 5、绿 1（主分支入口不认 owner 时抛错，算断言红，不算症状复现） | `walk-base-empty-zh.log`、`walk-base-storyboard.log`、`walk-base-creation-canvas.log`、`goal-red-on-base.log` |
 | ⑥ 全部拦下（入口永远填空） | 单测 3 条红；走查三条腿都红（框里是空） | `mut-m6-unit.log`、`walk-m6-*.log` |
-| ⑦ 产品文件引 `fixedEditorOwner` | `check:boundaries` 退出 1：`[src-no-import-devlab] src/workbench/assets/PromptEditor.tsx -> src/devlab/designLab/fixedEditorOwner.ts` | `boundaries-red-probe.log`；单测 `scripts/check-boundaries.devlab.test.mjs` |
+| ⑦ 产品文件引 `fixedEditorOwner` | `check:design-lab` 退出 1：「生产代码 import 了 devlab：src/workbench/assets/PromptEditor.tsx」 | `design-lab-red-probe.log` |
 
-还原后：单测、类型测试、`check:boundaries` 全绿；走查中英两轨四条腿退出 0（`walk-head-zh-final.log`、`walk-head-en-final.log`）。
+还原后：单测、类型测试全绿，`check:design-lab` 退出 0：不报 import，比了 165 格、0 格相对主分支变了（`design-lab-restored.log`）；走查中英两轨四条腿退出 0（`walk-head-zh-final.log`、`walk-head-en-final.log`）。
 
 同类入口：Agent 输入框草稿、画布生成节点提示词框真窗口没走，记 `unverified`。
 
