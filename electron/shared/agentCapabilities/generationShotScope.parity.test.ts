@@ -5,6 +5,7 @@ import { presentGenerationPlan } from '../../productionRun/productionGenerationP
 import { sealScopeOf } from '../../productionRun/productionGenerationSeal'
 import { presentStoryboardAuthoring, resolveGateScope } from '../../capabilityCore/mcpGenerationMultiShot'
 import { createPiGenerationTransportAdapter } from '../../capabilityCore/generationTransportAdapters'
+import { issueGenerationPlanningForTest } from '../../capabilityCore/generationPlanning.testkit'
 import { GENERATION_METHODS } from './generation'
 import { OPERATION_ID, PROJECT_ID, callTool, lease, now, resetSpendFixture, shotsDraft, spendWorld, type SpendWorld } from '../../capabilityCore/agentPanelSpendConfirmTestUtils'
 import { scopeFactsOf, planCanvasGenerationScope, storyboardRowScopeItem } from '../../../src/workbench/generationCanvas/runner/generationScopeFacts'
@@ -39,7 +40,7 @@ describe('selected storyboard · lane, renderer and external Agent receipt', () 
     const selected = answer(() => resolveUndecidedGenerationShotScope({ door: 'present', planShotIds: ['shot-1', 'shot-3'],
       requested, currentOffer: NO_CURRENT_OFFER, offerable: ['shot-1', 'shot-3'] }))
     const planning = vi.fn(async ({ params }: { params: Record<string, unknown> }) => ({ shots: params.shotIds }))
-    const adapter = createPiGenerationTransportAdapter({ projectId: PROJECT_ID, immutableProjectUuid: 'uuid-1', projectGeneration: 1 }, { planning, leaseFor: () => lease })
+    const adapter = createPiGenerationTransportAdapter({ projectId: PROJECT_ID, immutableProjectUuid: 'uuid-1', projectGeneration: 1 }, { planning: issueGenerationPlanningForTest(planning), leaseFor: () => lease })
     try {
       const result = await adapter.tryExecute({ toolCallId: 'scope-parity', toolName: GENERATION_METHODS.plan,
         args: { operation: 'present', operationId: 'design', ...(requested === undefined ? {} : { shotIds: requested }) } }, new AbortController().signal,
