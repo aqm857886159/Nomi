@@ -7,6 +7,7 @@ import 'react-router-dom';
 import 'diff';
 import '@floating-ui/dom';
 import '@fluentui/priority-overflow';
+import '@radix-ui/react-hover-card';
 import '@mantine/core';
 import '@mantine/modals';
 import '@mantine/notifications';

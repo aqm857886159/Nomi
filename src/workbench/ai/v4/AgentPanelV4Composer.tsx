@@ -29,7 +29,7 @@ import { mentionUrlsInOrder } from '../../assets/promptMentions'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, NomiSelect, type NomiSelectOption } from '../../../design'
+import { HoverCard, HoverCardContent, HoverCardTrigger, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, NomiSelect, type NomiSelectOption } from '../../../design'
 import {
   IconArrowUp,
   IconChevronDown,
@@ -78,12 +78,12 @@ function ComposerChip({ chip, removeLabel }: { chip: V4ComposerReference; remove
     </span>
   )
   if (chip.kind !== 'skill') return content
-  return <TooltipProvider delayDuration={180}><Tooltip><TooltipTrigger asChild>{content}</TooltipTrigger>
-    <TooltipContent side="top" className="z-popover w-80 whitespace-normal bg-nomi-paper p-3 text-nomi-ink">
+  return <HoverCard><HoverCardTrigger asChild>{content}</HoverCardTrigger>
+    <HoverCardContent side="top">
       <SkillMedia cover={chip.cover} preview={chip.preview} play className="mb-2 max-h-60 w-full object-contain" />
       <strong>{chip.label}</strong><p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-caption leading-relaxed">{chip.description}</p>
-    </TooltipContent>
-  </Tooltip></TooltipProvider>
+    </HoverCardContent>
+  </HoverCard>
 }
 
 export type AgentPanelV4ComposerProps = {
@@ -309,7 +309,7 @@ export function AgentPanelV4Composer({
                 </V4Row>
               </span>
             </TooltipTrigger>
-            <TooltipContent side="top" className="z-popover" data-v4-skill-hint>{t('agentPanelV4.skill')}</TooltipContent>
+            <TooltipContent side="top" data-v4-skill-hint>{t('agentPanelV4.skill')}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
 

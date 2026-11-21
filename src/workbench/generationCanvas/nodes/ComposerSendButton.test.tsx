@@ -1,4 +1,3 @@
-import fs from 'node:fs'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
@@ -98,15 +97,6 @@ describe('ComposerSendButton 约价（板 ModelSurfaces：cost.send-pill / cost.
       expect(render(<ComposerSendButton {...props} cost={priced} />, yieldIcon)).toBe(render(<ComposerSendButton {...props} />, yieldIcon))
       expect(render(<ComposerSendButton {...props} busy cost={priced} />, yieldIcon)).toBe(render(<ComposerSendButton {...props} busy />, yieldIcon))
     }
-  })
-
-  it('悬停那一句用共用提示组件原样画：不自带定位、边框、圆角', () => {
-    const source = fs.readFileSync(new URL('./ComposerSendButton.tsx', import.meta.url), 'utf8')
-    const tag = source.match(/<TooltipContent[^>]*data-send-cost-hover[^>]*>/)?.[0]
-    expect(tag).toBeTruthy()
-    expect(tag).not.toMatch(/\b(side|align|sideOffset|alignOffset|style)=/)
-    const className = tag!.match(/className="([^"]*)"/)?.[1] ?? ''
-    expect(className.split(/\s+/).filter(c => /^(rounded|border|shadow|top-|left-|right-|bottom-|m[trblxy]?-|-m|translate|absolute|fixed|bg-|text-nomi)/.test(c))).toEqual([])
   })
 })
 

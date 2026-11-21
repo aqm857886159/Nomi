@@ -139,8 +139,8 @@ export function ComposerSendButton({
             )}
           </span>
         </TooltipTrigger>
-        <TooltipContent data-send-cost-hover="" className="max-w-56 whitespace-normal leading-snug">
-          {disabled && title ? <>{title}<br /></> : null}{cost.description}
+        <TooltipContent data-send-cost-hover="">
+          {disabled && title ? `${title}\n${cost.description}` : cost.description}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

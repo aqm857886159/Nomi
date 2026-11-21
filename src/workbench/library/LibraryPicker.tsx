@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
 import { cn } from '../../utils/cn'
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../../design'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '../../design'
 import { SkillMedia } from '../skillLibrary/SkillMedia'
 import { LibraryGroup } from './LibraryGroup'
 import { groupLibraryItems, type LibraryCategory } from './libraryGroups'
@@ -58,8 +58,8 @@ export function LibraryPicker({ rows, categories, activeCategory, query, onQuery
       {visibleRows.length === 0 ? empty : null}
       {groupLibraryItems(visibleRows, row => row.group ? { ...row.group, id: `${row.section}:${row.group.id}` } : undefined).map(group => (
         <LibraryGroup key={`${group.id}:${Boolean(query?.trim())}`} group={query?.trim() ? { ...group, collapsed: false } : group}>
-          {group.items.map(row => <TooltipProvider key={row.id} delayDuration={180}><Tooltip>
-            <TooltipTrigger asChild><button type="button" onClick={() => onSelect?.(row)}
+          {group.items.map(row => <HoverCard key={row.id}>
+            <HoverCardTrigger asChild><button type="button" onClick={() => onSelect?.(row)}
               data-library-option={row.id} {...rowAttributes?.(row)}
               className={cn('flex w-full items-start gap-2.5 px-2.5 py-2 text-left hover:bg-nomi-ink-05 focus-visible:bg-nomi-ink-05', row.selected && 'bg-nomi-ink-05')}>
               <SkillMedia cover={row.cover} preview={row.preview} fallback={mediaFallback} className="h-9 w-14 shrink-0 rounded-nomi-sm object-cover" />
@@ -69,15 +69,15 @@ export function LibraryPicker({ rows, categories, activeCategory, query, onQuery
                 </span>
                 <span className="block truncate text-micro text-nomi-ink-60">{row.desc}</span>
               </span>
-            </button></TooltipTrigger>
-            <TooltipContent side="right" className="z-popover whitespace-normal w-80 max-w-[80vw] bg-nomi-paper p-3 text-nomi-ink shadow-nomi-lg">
+            </button></HoverCardTrigger>
+            <HoverCardContent side="right">
               <div {...previewAttributes?.(row)} className="max-h-[60vh] overflow-y-auto">
                 <SkillMedia cover={row.cover} preview={row.preview} fallback={mediaFallback} play className="mb-3 max-h-60 w-full rounded-nomi-sm object-contain" />
                 <strong className="text-title">{row.name}</strong>
                 <p className="mt-2 whitespace-pre-wrap text-caption leading-relaxed text-nomi-ink-60">{row.desc}</p>
               </div>
-            </TooltipContent>
-          </Tooltip></TooltipProvider>)}
+            </HoverCardContent>
+          </HoverCard>)}
         </LibraryGroup>
       ))}
     </div>

@@ -367,7 +367,7 @@ function RowActionHint({ hint, children }: { hint?: string; children: React.Reac
     <TooltipProvider delayDuration={250} disableHoverableContent>
       <Tooltip>
         <TooltipTrigger asChild>{children}</TooltipTrigger>
-        <TooltipContent side="left" className="z-popover" data-task-action-hint>{hint}</TooltipContent>
+        <TooltipContent side="left" data-task-action-hint>{hint}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )
