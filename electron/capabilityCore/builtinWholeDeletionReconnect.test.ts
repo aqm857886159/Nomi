@@ -36,7 +36,7 @@ const apimartModelKeys = () => new Set(readCatalog().models.filter((model) => mo
 const IMAGE_MODEL = [...builtinCatalogModelKeys("apimart")].find((modelKey) => modelKey.includes("seedream"))!;
 
 function imageTarget() {
-  for (const manifest of createLiveGenerationRuntime().registry.snapshot()) {
+  for (const manifest of createLiveGenerationRuntime().current().registry.snapshot()) {
     for (const provider of manifest.providers) {
       const model = provider.providerId === "apimart" ? provider.models.find((row) => row.modelId === IMAGE_MODEL) : undefined;
       if (model) return { providerId: "apimart", modelId: model.modelId, mode: model.modes[0]! };

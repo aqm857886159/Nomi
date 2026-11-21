@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import { createModuleRegistry } from "./moduleRegistry";
 import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore } from "./mcpGenerationTools";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
+import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
 
 const registry = createModuleRegistry([{
   moduleId: "generation.single-shot",
@@ -64,7 +65,7 @@ function candidate(parameters: Record<string, unknown>) {
 
 async function draft(parameters: Record<string, unknown>) {
   const operations = createInMemoryGenerationOperationStore();
-  const handler = createGenerationPlanningHandler({ registry, operations, resolveModelPricing: () => ({ cost: 0, enabled: true, specCosts: [] }), now: () => "2026-09-22T00:00:00.000Z" });
+  const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, resolveModelPricing: () => ({ cost: 0, enabled: true, specCosts: [] }), now: () => "2026-09-22T00:00:00.000Z" }));
   const created = await handler({ capability: "create", params: { candidate: candidate(parameters) }, lease }) as { operation: { operationId: string } };
   return { handler, operationId: created.operation.operationId, operations };
 }
@@ -75,7 +76,7 @@ async function draft(parameters: Record<string, unknown>) {
  */
 async function legacyDraft(parameters: Record<string, unknown>) {
   const operations = createInMemoryGenerationOperationStore();
-  const handler = createGenerationPlanningHandler({ registry, operations, resolveModelPricing: () => ({ cost: 0, enabled: true, specCosts: [] }), now: () => "2026-09-22T00:00:00.000Z" });
+  const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, resolveModelPricing: () => ({ cost: 0, enabled: true, specCosts: [] }), now: () => "2026-09-22T00:00:00.000Z" }));
   const created = await operations.create({ operationId: "op-legacy", projectId: "project-1", candidate: candidate(parameters), now: "2026-09-22T00:00:00.000Z" });
   return { handler, operationId: created.operationId, operations };
 }

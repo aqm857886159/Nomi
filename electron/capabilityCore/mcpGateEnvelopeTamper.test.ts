@@ -18,6 +18,7 @@ import type { GenerationProvider } from "./generationRuntimeAdapter";
 import { createProductionGenerationOperationStore } from "../productionRun/productionGenerationOperationStore";
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
 import { prepareProductionGenerationAuthorization } from "../productionRun/prepareProductionGenerationAuthorization";
+import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
 
 const roots: string[] = [];
 const connection: McpConnectionContext = Object.freeze({
@@ -155,7 +156,7 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
     buildRequest: (input) => structuredClone(input),
     submit: vi.fn(async () => ({ providerTaskId: "fixture-task-1" })),
   };
-  const planning = createGenerationPlanningHandler({
+  const planning = createGenerationPlanningHandler(withFixedCatalog({
     registry,
     operations,
     start,
@@ -173,7 +174,7 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
       resolveShotPrice: () => ({ known: true, amount: 0 }),
       now: "2026-08-23T00:00:00.000Z",
     }),
-  });
+  }));
   const generationAuthority = createRunOwnedGenerationGateAuthority({
     owner: owner as never,
     operations,

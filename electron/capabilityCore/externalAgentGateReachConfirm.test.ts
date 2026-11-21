@@ -34,7 +34,7 @@ const apimartRow = () => readCatalog().vendors.find((vendor) => vendor.key === "
 
 /** 内置目录里一个 APIMart 图片模型（任选一个可发布的），用来证明「其它内置模型不受影响」。 */
 function builtinImageModel(runtime = createLiveGenerationRuntime()) {
-  for (const manifest of runtime.registry.snapshot()) {
+  for (const manifest of runtime.current().registry.snapshot()) {
     if (!manifest.outputKinds.includes("image")) continue;
     for (const provider of manifest.providers) {
       if (provider.providerId !== "apimart") continue;

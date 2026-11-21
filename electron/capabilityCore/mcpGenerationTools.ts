@@ -38,7 +38,7 @@ import {
   videoCompileOptions,
   videoRecommendationInput,
 } from "./mcpGenerationVideoResolve";
-import type { GenerationCatalogRegistry } from "./liveGenerationRuntime";
+import type { GenerationCallCatalog, GenerationCatalogSource, LiveGenerationRegistry } from "./liveGenerationRuntime";
 import type { ProjectLeaseV2 } from "./projectLease";
 import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 import { GenerationProviderCapabilityError } from "./generationRuntimeAdapter";
@@ -91,13 +91,10 @@ export type { GenerationOperationState, GenerationOperationShot, GenerationOpera
 import type { GenerationAuthorizationPreparation, GenerationOperation, GenerationOperationStore } from "./generationOperationTypes";
 
 
-export type GenerationPlanningHandlerDependencies = {
-  /**
-   * 目录的唯一来源（2026-11-16）。宿主交 `createLiveGenerationRuntime().registry`：每次工具调用在入口
-   * 由它的 `pinForCall` 钉住一版，起草 / 预览 / 过门（含宿主在调用里读的就绪）都读这一版。
-   * 以前这里另收一个可选的 `createDraftScope`，类型上就允许「起草读一版、门读另一版」，已删。
-   */
-  registry: GenerationCatalogRegistry;
+/** 规划逻辑在**一次调用之内**用的全部依赖：目录那几样已经是这次调用入口取的那一版。 */
+export type GenerationPlanningCallDependencies = {
+  /** 这次调用的模型表（`GenerationCallCatalog.registry`）。起草 / 预览 / 过门读的都是这一份。 */
+  registry: LiveGenerationRegistry;
   operations: GenerationOperationStore;
   now?: () => string;
   resolveStoryboardReferenceUrl?: (projectId: string, reference: PlanCandidate["references"][number]) => string;
@@ -176,6 +173,22 @@ export type GenerationPlanningHandlerDependencies = {
   unknownShotsOf?: (operation: GenerationOperation, lease: ProjectLeaseV2) => readonly string[];
 };
 
+/** 目录给的那几样：宿主不许自己递，只能经 `catalog.openCall()` 一起来，保证同一版。 */
+type CatalogOwned = "registry" | "providerReadiness" | "videoModelCandidates" | "defaultModelForTaskKind" | "resolveModelPricing";
+
+/**
+ * 装配规划逻辑要交的东西。目录只有一个入口 `catalog`：每次工具调用在入口 `openCall()` 取一版，
+ * 规划读它，宿主在调用里做的三件事（准备授权 / 开拍 / 核对）也在最后一个参数上收到同一版——
+ * 没有「不带这一版也能调」的写法，所以不存在调用里悄悄读到另一版目录的路。
+ */
+export type GenerationPlanningHandlerDependencies<Call extends GenerationCallCatalog = GenerationCallCatalog> =
+  Omit<GenerationPlanningCallDependencies, CatalogOwned | "prepareAuthorization" | "start" | "reconcile"> & {
+    catalog: GenerationCatalogSource<Call>;
+    prepareAuthorization?: (input: Parameters<NonNullable<GenerationPlanningCallDependencies["prepareAuthorization"]>>[0], catalog: Call) => GenerationAuthorizationPreparation | Promise<GenerationAuthorizationPreparation>;
+    start?: (operation: GenerationOperation, lease: ProjectLeaseV2, catalog: Call) => unknown | Promise<unknown>;
+    reconcile?: (operation: GenerationOperation, outcome: "found" | "not_found", lease: ProjectLeaseV2, catalog: Call) => unknown | Promise<unknown>;
+  };
+
 function record(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) refuseArgument(`${label} must be an object.`);
   return value as Record<string, unknown>;
@@ -216,7 +229,11 @@ function pinReference(
   return pinAssetReference(value, resolve ? (assetId: string) => resolve(projectId, assetId) : undefined);
 }
 
-export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerDependencies) {
+/**
+ * 一次调用的规划逻辑。这里面不许放跨调用要记住的状态——每次调用都重新绑一遍；
+ * 要记的（同一请求起草出的方案）由外面建好传进来。
+ */
+function planningForCall(deps: GenerationPlanningCallDependencies, documentPlans: ReturnType<typeof createDocumentPlanAuthoring>) {
   const now = deps.now ?? (() => new Date().toISOString());
   // P4 S2: derive a candidate's real per-shot price from the catalog pricing. Unknown (never a
   // fabricated 0) when there is no resolver, no pricing row, disabled pricing, or no base cost.
@@ -273,10 +290,6 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
   };
 
   /** 文稿方案的落地、补镜头与「一次请求一份方案」（`generationDocumentPlan.ts`）。 */
-  const documentPlans = createDocumentPlanAuthoring({
-    ...(deps.requestRenderer ? { requestRenderer: deps.requestRenderer } : {}),
-    ...(deps.resolveStoryboardReferenceUrl ? { resolveStoryboardReferenceUrl: deps.resolveStoryboardReferenceUrl } : {}),
-  });
 
   /** 补进一份文稿方案后的回执：草稿还是那份（id 不变），补上的行与它们的 id 在 `storyboardExtended` 里。 */
   const extendedReceipt = async (operation: GenerationOperation, shots: readonly GenerationOperationDraftShot[], names: { modelNamesResolved?: readonly ResolvedModelName[] }, note?: string) => {
@@ -429,7 +442,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     }
     const operationId = typeof params.operationId === "string" && params.operationId.trim() ? params.operationId.trim() : `op-${crypto.randomUUID()}`;
     if (input.capability === "create") {
-      // 这一次调用的目录在入口已经钉住（`pinForCall`），所有镜头都按这一版解析。
+      // 这一次调用的目录在入口已经取定（`catalog.openCall()`），所有镜头都按这一版解析。
       const draftRegistry = deps.registry;
       // 点名的模型不是一字不差落下的（大小写 / 别名 / 同名多家按默认落）：每认一次记一条，回执里原样交给助手——
       // 与 lane draft_shots 的 modelNamesResolved 同一个形状，由同一个名字主人给（resolvedModelNameOf）。
@@ -714,9 +727,33 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     if (input.capability === "read" || input.capability === "events" || input.capability === "steer") return { operation: current, taskRef: generationTaskReference(operationId), executionState: current.state === "draft" ? "not_started" : current.state, nextAction: current.state === "draft" ? "preview" : "observe" };
     throw new Error(`Unsupported semantic generation capability: ${input.capability}`);
   };
-  // 每次工具调用在入口钉一版目录（静态表没有 pinForCall，本来就只有一版）。
-  const pin = deps.registry.pinForCall;
-  return (input: Parameters<GenerationPlanningHandler>[0]): Promise<unknown> => (pin ? pin(() => handle(input)) : handle(input));
+  return handle;
+}
+
+export function createGenerationPlanningHandler<Call extends GenerationCallCatalog>(deps: GenerationPlanningHandlerDependencies<Call>) {
+  const { catalog, prepareAuthorization, start, reconcile, ...shared } = deps;
+  // 跨调用要记住的只有这一样（同一请求先后两次起草，补在同一份方案上）。
+  const documentPlans = createDocumentPlanAuthoring({
+    ...(shared.requestRenderer ? { requestRenderer: shared.requestRenderer } : {}),
+    ...(shared.resolveStoryboardReferenceUrl ? { resolveStoryboardReferenceUrl: shared.resolveStoryboardReferenceUrl } : {}),
+  });
+  return (input: Parameters<GenerationPlanningHandler>[0]): Promise<unknown> => {
+    // 这次调用的那一版目录：只在这里取一次，往下全是传值。
+    const call = catalog.openCall();
+    const inCall: Pick<GenerationPlanningCallDependencies, "prepareAuthorization" | "start" | "reconcile"> = {};
+    if (prepareAuthorization) inCall.prepareAuthorization = (prepare) => prepareAuthorization(prepare, call);
+    if (start) inCall.start = (operation, lease) => start(operation, lease, call);
+    if (reconcile) inCall.reconcile = (operation, outcome, lease) => reconcile(operation, outcome, lease, call);
+    return planningForCall({
+      ...shared,
+      registry: call.registry,
+      providerReadiness: call.providerReadiness,
+      resolveModelPricing: call.resolveModelPricing,
+      defaultModelForTaskKind: call.defaultModelForTaskKind,
+      get videoModelCandidates() { return call.videoModelCandidates; },
+      ...inCall,
+    }, documentPlans)(input);
+  };
 }
 
 /** 已装配的 planning seam 可调用面（agent/MCP 与 GUI 窄 IPC 共用同一实例 → 候选集/决策天然同源）。

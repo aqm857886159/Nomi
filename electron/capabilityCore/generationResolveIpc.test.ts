@@ -12,6 +12,7 @@ import {
   resolveGenerationPlanForProject,
   toResolveEnvelopeError,
 } from "./generationResolveIpc";
+import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
 
 const candidate = { provider: "apimart", modelKey: "doubao-seedance-2.5", label: "Seedance 2.5", archetype: SEEDANCE_2_5_APIMART_ARCHETYPE };
 
@@ -59,12 +60,12 @@ const lease: ProjectLeaseV2 = {
 };
 
 function planningHandler() {
-  return createGenerationPlanningHandler({
+  return createGenerationPlanningHandler(withFixedCatalog({
     registry: videoRegistry,
     operations: createInMemoryGenerationOperationStore(),
     videoModelCandidates: [candidate],
     now: () => "2026-08-23T00:00:00.000Z",
-  });
+  }));
 }
 
 function depsFor(overrides: Partial<Parameters<typeof resolveGenerationPlanForProject>[0]> = {}) {

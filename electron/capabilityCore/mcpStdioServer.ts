@@ -42,7 +42,6 @@ import { createProductionGenerationSubmission } from '../productionRun/productio
 import { requestQuit } from '../quitTeardown'
 import { createMultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
 import { prepareProductionGenerationAuthorizationWithReferences } from '../productionRun/prepareProductionGenerationAuthorization'
-import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
 import { createLiveGenerationRuntime } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
 import { productionFixtureBaseOriginFromEnv } from '../shared/productionRunE2eFixtureGate'
@@ -51,7 +50,6 @@ import { createGenerationOutputMaterializer } from './generationOutputMaterializ
 import { readAgentApprovalPolicy } from '../settings/agentApprovalPolicySettings'
 import { readCatalog } from '../catalog/catalogStore'
 import { recommendVideoGeneration } from '../shared/videoCapabilities'
-import { deriveUsableVideoModelCandidates } from './usableVideoModelCandidates'
 import { installCatalogRowLookup } from './modelSpecRead'
 import type { McpConnectionContext } from './mcpConnectionContext'
 import { createMcpStdioProjectSessionRouter } from './mcpStdioProjectSessionRouter'
@@ -61,7 +59,6 @@ import { createHeadlessCanvasReadExecutionRuntime, type CanvasReadExecutionRunti
 import { createMcpCanvasReadTransportAdapter } from './canvasReadTransportAdapters'
 import type { VerifiedProjectSessionBinding } from './projectSessionRuntime'
 import { createRunOwnedGenerationGateAuthority } from './runOwnedGenerationGateAuthority'
-import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
 import { startSemanticMultiShotBatch } from './mcpSemanticBatchStart'
 import { desktopNoticeLocale, landBatchBeforeKick } from './appIntegrationLandFirst'
 import { refuseLandingWithoutRenderer } from '../productionRun/landingProjectAccess'
@@ -275,20 +272,16 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
       ...(fixtureBaseUrlOverride ? { fixtureBaseUrlOverride } : {}),
     }),
   })
-  const readProviderBootstrap = liveGenerationRuntime.readBootstrap
+  const readProviderBootstrap = () => liveGenerationRuntime.current().bootstrap
   const outputMaterializer = createGenerationOutputMaterializer()
   // P4 S2: derive real per-shot prices from the live catalog pricing (readCatalog reflects user edits;
   // resolve lazily so a mid-session pricing change is picked up). Preview/gate use the model-pricing
   // resolver; the submission seam uses the contract→ShotPrice resolver for its ledger amounts.
-  const resolveModelPricing = (providerId: string, modelId: string) => createCatalogModelPricingResolver(readCatalog().models)(providerId, modelId)
-  const resolveShotPrice = (contract: Parameters<ReturnType<typeof createCatalogShotPriceResolver>>[0]) => createCatalogShotPriceResolver(readCatalog().models)(contract)
   const operationStore = createProductionGenerationOperationStore(productionRuns)
   const generationPlanning = authorities.generationPlanning
     ?? createGenerationPlanningHandler({
-      registry: liveGenerationRuntime.registry,
+      catalog: liveGenerationRuntime,
       operations: operationStore,
-      get videoModelCandidates() { return deriveUsableVideoModelCandidates() },
-      defaultModelForTaskKind: (taskKind) => readGenerationDefaultModelResolver()(taskKind),
       // 参考素材的身份（内容哈希 + 版本）归项目素材库管，模型只给 assetId。接线前 `draft_shots`
       // 只要带一张参考图就 100% 被判 `generation_input_invalid`，而那两个字段模型根本拿不到。
       resolveAssetReferenceIdentity: (projectId, assetId) => resolveProjectAssetReferenceIdentity(projectId, assetId),
@@ -298,13 +291,8 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
       resolveStoryboardReferenceUrl: resolveIndexedReferencePreview,
       planStoryboard: planStoryboardFromScript,
       recommendVideoGeneration,
-      resolveModelPricing,
-      providerReadiness: ({ providerId }) => {
-        const providerBootstrap = readProviderBootstrap()
-        return providerBootstrap.readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ['configured_provider'] }
-      },
-      prepareAuthorization: ({ lease, operation, contract, multiShot }) => {
-        const providerBootstrap = readProviderBootstrap()
+      prepareAuthorization: ({ lease, operation, contract, multiShot }, catalog) => {
+        const providerBootstrap = catalog.bootstrap
         const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
         if (!projectRecord || !Number.isInteger(projectRecord.revision)) throw new Error('Generation authorization requires the current project revision')
         const authorizationRun = productionRuns.repository.read(lease.projectId, operation.operationId)
@@ -329,13 +317,13 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
           contract,
           ...(multiShot ? { multiShot } : {}),
           providers: providerBootstrap.providers,
-          resolveShotPrice,
+          resolveShotPrice: catalog.resolveShotPrice,
             run: authorizationRun,
           now: new Date().toISOString(),
         })
       },
-      start: async (operation, lease) => {
-        const providerBootstrap = readProviderBootstrap()
+      start: async (operation, lease, catalog) => {
+        const providerBootstrap = catalog.bootstrap
         const projectRoot = resolveWorkspaceProjectDir(lease.projectId, getWorkspaceRepositoryDeps())
         const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
         // The first shot can be an image anchor while the actual video shots
@@ -400,8 +388,8 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
           projectId: lease.projectId, runId: operation.operationId, now: () => new Date().toISOString(), locale: desktopNoticeLocale(),
         })
       },
-      reconcile: async (operation, outcome, lease) => {
-        const providerBootstrap = readProviderBootstrap()
+      reconcile: async (operation, outcome, lease, catalog) => {
+        const providerBootstrap = catalog.bootstrap
         if (outcome === 'not_found') return { operationId: operation.operationId, outcome, nextAction: 'manual_review' }
         const provider = providerBootstrap.providers.find((candidate) => candidate.providerId === operation.contract?.providerId)
         const projectRoot = resolveWorkspaceProjectDir(lease.projectId, getWorkspaceRepositoryDeps())

@@ -60,14 +60,13 @@ const projectLease = {
 
 const runtime = createLiveGenerationRuntime()
 const handler = createGenerationPlanningHandler({
-  registry: runtime.registry,
+  catalog: runtime,
   operations: createInMemoryGenerationOperationStore(),
   now: () => '2026-11-16T00:00:00.000Z',
-  providerReadiness: ({ providerId }) => runtime.readBootstrap().readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ['configured_provider'] },
 })
 const call = (capability, params) => handler({ capability, params, lease: projectLease })
 
-const target = runtime.registry.snapshot().flatMap((manifest) => manifest.providers.filter((p) => p.providerId === 'apimart')
+const target = runtime.current().registry.snapshot().flatMap((manifest) => manifest.providers.filter((p) => p.providerId === 'apimart')
   .flatMap((p) => p.models.map((model) => ({ moduleId: manifest.moduleId, providerId: 'apimart', modelId: model.modelId, mode: model.modes[0] }))))
   .find((row) => row.modelId.includes('seedream'))
 if (!target) throw new Error('no built-in APIMart image model')
@@ -93,7 +92,7 @@ async function onePass() {
   const ids = await draftOperations()
   touchCatalog()
   const rebuildStarted = performance.now()
-  runtime.registry.snapshot()
+  runtime.current().registry.snapshot()
   const catalogRebuildMs = performance.now() - rebuildStarted
   const started = performance.now()
   for (const operationId of ids) {
@@ -104,7 +103,7 @@ async function onePass() {
   const gatePassMs = performance.now() - started
   // 门每问一次目录（目录没变，命中缓存）的单次毫秒：读一次文件字节 + 比一次身份。
   const readStarted = performance.now()
-  for (let index = 0; index < SHOTS; index += 1) runtime.registry.snapshot()
+  for (let index = 0; index < SHOTS; index += 1) runtime.current().registry.snapshot()
   const perGateCatalogReadMs = (performance.now() - readStarted) / SHOTS
   return { gatePassMs, catalogRebuildMs, perGateCatalogReadMs }
 }

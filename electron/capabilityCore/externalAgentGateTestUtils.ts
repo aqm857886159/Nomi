@@ -106,10 +106,9 @@ export function videoCard(baseUrl: string, modelKey: string, extra: Record<strin
 /** 生成工具，和两个宿主同一种接线。 */
 export function hostWiredPlanning(runtime: LiveGenerationRuntime = createLiveGenerationRuntime()) {
   const handler = createGenerationPlanningHandler({
-    registry: runtime.registry,
+    catalog: runtime,
     operations: createInMemoryGenerationOperationStore(),
     now: () => "2026-11-16T00:00:00.000Z",
-    providerReadiness: ({ providerId }) => runtime.readBootstrap().readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ["configured_provider"] },
   });
   const call = async (capability: string, params: Record<string, unknown>): Promise<Reply> => {
     try { return await handler({ capability, params, lease } as never) as Reply; }
@@ -129,5 +128,5 @@ export async function draftPreviewGate(planning: ReturnType<typeof hostWiredPlan
 }
 
 export function readinessOf(vendorKey: string) {
-  return createLiveGenerationRuntime().readBootstrap().readinessByProvider[vendorKey];
+  return createLiveGenerationRuntime().current().bootstrap.readinessByProvider[vendorKey];
 }

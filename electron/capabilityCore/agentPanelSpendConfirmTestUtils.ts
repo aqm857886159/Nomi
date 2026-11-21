@@ -31,6 +31,7 @@ import { watchSpendCardClose } from "../agentLane/laneSpendCardClose";
 import type { ModelPricing } from "../productionRun/shotPricing";
 import type { PlanCandidate } from "./executionContract";
 import { resolveIndexedReferencePreview, type SpendReferenceAssets } from "./pendingSpendReferences";
+import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
 
 // Agent 面板付费卡的端到端夹具（D2 第③步：卡 = 指向元素 + 一行只读摘要 + 主按钮；一台发动机）。
 //
@@ -120,7 +121,7 @@ export type SpendWorldOptions = Readonly<{
   holdDispatch?: boolean;
   /** 起草路要的目录（缺省 = 本文件那份 acme 目录）与视频档案候选。 */
   registry?: ReturnType<typeof createModuleRegistry>;
-  videoModelCandidates?: Parameters<typeof createGenerationPlanningHandler>[0]["videoModelCandidates"];
+  videoModelCandidates?: Parameters<typeof withFixedCatalog>[0]["videoModelCandidates"];
   /**
    * 项目素材库（缺省 = 没有：起草钉住的参考一条都不过线）。给了就走生产同一组解析口：起草时钉住参考的身份
    * （计划处理器的 `resolveAssetReferenceIdentity`，生产里与它同一个 `resolveProjectAssetReferenceIdentity`）+ 落地时的地址
@@ -324,7 +325,7 @@ export function spendWorld(options: SpendWorldOptions = {}) {
     handOver: handOver.handOver,
     now,
   });
-  const handler = createGenerationPlanningHandler({
+  const handler = createGenerationPlanningHandler(withFixedCatalog({
     registry: options.registry ?? registry,
     operations,
     ...(options.videoModelCandidates ? { videoModelCandidates: options.videoModelCandidates } : {}),
@@ -360,7 +361,7 @@ export function spendWorld(options: SpendWorldOptions = {}) {
         assertCurrent,
       }, resolveReferences);
     },
-  });
+  }));
   const runFacts = residentRunFacts(owner);
   /** 模型那一侧真正用的传输（和常驻工厂同一份依赖：读写 Run 的三件来自 `residentRunFacts`，代答交给同一台画布交接）。 */
   const transport = (mode?: ProjectAgentApprovalPolicy["mode"]) => createPiGenerationTransportAdapter(

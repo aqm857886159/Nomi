@@ -12,6 +12,7 @@ import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION,
 import { buildVideoModelCandidates, recommendVideoGeneration, SEEDANCE_2_5_APIMART_ARCHETYPE } from "../shared/videoCapabilities";
 import { createLiveGenerationRuntime } from "./liveGenerationRuntime";
 import type { CatalogState } from "../catalog/types";
+import { withFixedCatalog } from "./fixedGenerationCatalog.testkit";
 
 const videoModelCandidates = buildVideoModelCandidates([
   { provider: "apimart", modelKey: "doubao-seedance-2.0", label: "Seedance 2.0" },
@@ -113,7 +114,7 @@ function candidate(overrides: Record<string, unknown> = {}) {
 
 describe("semantic MCP generation tools", () => {
   it("returns the current catalog context without calling a provider", async () => {
-    const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" }));
     await expect(handler({ capability: "context", params: {}, lease })).resolves.toMatchObject({
       projectId: "project-1",
       immutableProjectUuid: "project-uuid-1",
@@ -124,7 +125,7 @@ describe("semantic MCP generation tools", () => {
   it("resident agent read (check_job): an unknown-outcome shot is named and nextAction is not observe", async () => {
     const operations = createInMemoryGenerationOperationStore();
     const unknown: string[] = [];
-    const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-08-23T00:00:00.000Z", unknownShotsOf: () => unknown });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, now: () => "2026-08-23T00:00:00.000Z", unknownShotsOf: () => unknown }));
     const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
     const operationId = (created as { operation: { operationId: string } }).operation.operationId;
 
@@ -153,7 +154,7 @@ describe("semantic MCP generation tools", () => {
 
   it("keeps editing provider-neutral and does not call a provider", async () => {
     const operations = createInMemoryGenerationOperationStore();
-    const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" }));
     const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
     const operationId = (created as { operation: { operationId: string } }).operation.operationId;
 
@@ -176,7 +177,7 @@ describe("semantic MCP generation tools", () => {
       modelId: "fixture-model",
       mode: taskKind === "image_edit" ? "image-to-image" : "text-to-image",
     }));
-    const handler = createGenerationPlanningHandler({ registry, operations, defaultModelForTaskKind, now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, defaultModelForTaskKind, now: () => "2026-08-23T00:00:00.000Z" }));
 
     const created = await handler({ capability: "create", params: { operationId: "op-natural-cat", prompt: "帮我生成一个小猫头像", taskKind: "text_to_image" }, lease }) as {
       operation: GenerationOperation;
@@ -199,7 +200,7 @@ describe("semantic MCP generation tools", () => {
     const operations = createInMemoryGenerationOperationStore();
     const start = vi.fn();
     const prepareAuthorization = vi.fn();
-    const handler = createGenerationPlanningHandler({ registry, operations, start, prepareAuthorization, defaultModelForTaskKind: () => undefined });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, start, prepareAuthorization, defaultModelForTaskKind: () => undefined }));
     await expect(handler({ capability: "create", params: { operationId: "op-auto", prompt: "雪夜木屋", taskKind: "text_to_image" }, lease }))
       .rejects.toMatchObject({ problem: { code: "no_default_model", charged: false, next: "pick_from_list_models" } });
     expect(await operations.read(lease.projectId, "op-auto")).toBeNull();
@@ -218,7 +219,7 @@ describe("semantic MCP generation tools", () => {
     }]);
     const declared = () => ({ moduleId: "generation.single-shot", providerId: "fixture-provider", modelId: "model-default", mode: "text-to-image" });
     const create = (params: Record<string, unknown>, defaultModelForTaskKind: () => ReturnType<typeof declared> | undefined = declared) =>
-      createGenerationPlanningHandler({ registry: twoModels, operations: createInMemoryGenerationOperationStore(), defaultModelForTaskKind, now: () => "2026-09-30T00:00:00.000Z" })
+      createGenerationPlanningHandler(withFixedCatalog({ registry: twoModels, operations: createInMemoryGenerationOperationStore(), defaultModelForTaskKind, now: () => "2026-09-30T00:00:00.000Z" }))
         ({ capability: "create", params, lease }) as Promise<Record<string, unknown>>;
 
     it("a draft that follows the user's default carries no deviation", async () => {
@@ -232,7 +233,7 @@ describe("semantic MCP generation tools", () => {
     });
 
     it("the deviation fact carries the names the user sees; without a name it falls back to the id, never invents one", async () => {
-      const handler = createGenerationPlanningHandler({ registry: twoModels, operations: createInMemoryGenerationOperationStore(), defaultModelForTaskKind: declared, now: () => "2026-10-01T00:00:00.000Z" });
+      const handler = createGenerationPlanningHandler(withFixedCatalog({ registry: twoModels, operations: createInMemoryGenerationOperationStore(), defaultModelForTaskKind: declared, now: () => "2026-10-01T00:00:00.000Z" }));
       const named = await handler({ capability: "create", params: { prompt: "红色纸船", modelId: "model-other" }, lease,
         modelNames: { "fixture-provider/model-default": "Default Display", "fixture-provider/model-other": "Other Display" } }) as Record<string, unknown>;
       expect(named.modelDeviatesFromUserDefault).toEqual([expect.objectContaining({ userDefaultName: "Default Display", usedName: "Other Display" })]);
@@ -262,7 +263,7 @@ describe("semantic MCP generation tools", () => {
       modelId: "video-model",
       mode: taskKind === "image_to_video" ? "image-to-video" : "text-to-video",
     }));
-    const handler = createGenerationPlanningHandler({ registry: videoRegistry, operations, defaultModelForTaskKind, now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry: videoRegistry, operations, defaultModelForTaskKind, now: () => "2026-08-23T00:00:00.000Z" }));
 
     const created = await handler({ capability: "create", params: {
       operationId: "op-natural-video",
@@ -292,13 +293,13 @@ describe("semantic MCP generation tools", () => {
       modelId: "video-model",
       mode: taskKind === "image_to_video" ? "image-to-video" : "text-to-video",
     }));
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry: videoRegistry,
       operations,
       planStoryboard,
       defaultModelForTaskKind,
       now: () => "2026-08-23T00:00:00.000Z",
-    });
+    }));
 
     const created = await handler({
       capability: "create",
@@ -332,7 +333,7 @@ describe("semantic MCP generation tools", () => {
         { shotId: "shot-2", role: "shot" as const, prompt: "收束" },
       ],
     }));
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry: videoRegistry,
       operations,
       planStoryboard,
@@ -343,7 +344,7 @@ describe("semantic MCP generation tools", () => {
         mode: "text-to-video",
       }),
       now: () => "2026-08-23T00:00:00.000Z",
-    });
+    }));
 
     await expect(handler({
       capability: "create",
@@ -355,7 +356,7 @@ describe("semantic MCP generation tools", () => {
 
   it("keeps reference kind and role when an MCP draft is created", async () => {
     const operations = createInMemoryGenerationOperationStore();
-    const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" }));
     const created = await handler({
       capability: "create",
       params: {
@@ -388,14 +389,14 @@ describe("semantic MCP generation tools", () => {
       }],
     }));
     const start = vi.fn(async () => { throw new Error("video preview must not start a provider"); });
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry: videoRegistry,
       operations,
       videoModelCandidates: [{ provider: "apimart", modelKey: "doubao-seedance-2.5", label: "Seedance 2.5", archetype: SEEDANCE_2_5_APIMART_ARCHETYPE }],
       recommendVideoGeneration,
       start,
       now: () => "2026-08-23T00:00:00.000Z",
-    });
+    }));
     const created = await handler({
       capability: "create",
       params: {
@@ -426,12 +427,12 @@ describe("semantic MCP generation tools", () => {
 
   it("resolve runs a stateless plan pass: clamps out-of-range durations and never touches the operation store", async () => {
     const operations = createInMemoryGenerationOperationStore();
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry: videoRegistry,
       operations,
       videoModelCandidates: [{ provider: "apimart", modelKey: "doubao-seedance-2.5", label: "Seedance 2.5", archetype: SEEDANCE_2_5_APIMART_ARCHETYPE }],
       now: () => "2026-08-23T00:00:00.000Z",
-    });
+    }));
 
     const resolution = await handler({
       capability: "resolve",
@@ -465,12 +466,12 @@ describe("semantic MCP generation tools", () => {
 
   it("resolve is lease-free (GUI narrow IPC path): same advisory output with no lease, while other capabilities still fail-closed", async () => {
     const operations = createInMemoryGenerationOperationStore();
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry: videoRegistry,
       operations,
       videoModelCandidates: [{ provider: "apimart", modelKey: "doubao-seedance-2.5", label: "Seedance 2.5", archetype: SEEDANCE_2_5_APIMART_ARCHETYPE }],
       now: () => "2026-08-23T00:00:00.000Z",
-    });
+    }));
 
     // resolve 不传 lease（stateless advisory，无项目侧写）也走通。
     const leaseFree = await handler({
@@ -486,12 +487,12 @@ describe("semantic MCP generation tools", () => {
   });
 
   it("resolve 的输入解析走能力契约的 zod（单一生成点）：未知字段/空数组 fail-closed", async () => {
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry: videoRegistry,
       operations: createInMemoryGenerationOperationStore(),
       videoModelCandidates: [{ provider: "apimart", modelKey: "doubao-seedance-2.5", label: "Seedance 2.5", archetype: SEEDANCE_2_5_APIMART_ARCHETYPE }],
       now: () => "2026-08-23T00:00:00.000Z",
-    });
+    }));
     // .strict()：模型编出来的字段不会被默默吞掉
     await expect(handler({ capability: "resolve", params: { shots: [{ id: "s1", durationSec: 5, madeUpKey: 1 }] } }))
       .rejects.toThrow(/resolve input is invalid/);
@@ -502,14 +503,14 @@ describe("semantic MCP generation tools", () => {
   it("uses the shared source-backed registry for a real preview path without starting a provider", async () => {
     const operations = createInMemoryGenerationOperationStore();
     const start = vi.fn(async () => { throw new Error("shared preview must not start a provider"); });
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry: videoRegistry,
       operations,
       videoModelCandidates,
       recommendVideoGeneration,
       start,
       now: () => "2026-08-23T00:00:00.000Z",
-    });
+    }));
     const created = await handler({
       capability: "create",
       params: {
@@ -543,7 +544,7 @@ describe("semantic MCP generation tools", () => {
 
   it("returns a new-draft error instead of mutating a sealed plan", async () => {
     const operations = createInMemoryGenerationOperationStore();
-    const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" }));
     const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
     const operation = (created as { operation: { operationId: string; candidate: typeof candidate } }).operation;
     const preview = await handler({ capability: "preview", params: { operationId: operation.operationId }, lease });
@@ -574,7 +575,7 @@ describe("semantic MCP generation tools", () => {
       state: "sealed",
       nextAction: "provider_not_configured",
     });
-    const handler = createGenerationPlanningHandler({ registry, operations, start, now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, start, now: () => "2026-08-23T00:00:00.000Z" }));
     const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
     const operationId = (created as { operation: { operationId: string } }).operation.operationId;
     const preview = await handler({ capability: "preview", params: { operationId }, lease });
@@ -588,12 +589,12 @@ describe("semantic MCP generation tools", () => {
     // `@[asset:nomi-local%3A%2F%2F…]`。投影必须发生在**合同编译**这一刻——卡上给用户看的、
     // 密封进授权信封的、最后发给供应商的，是同一句话。
     const url = "nomi-local://project-1/assets/hero.png";
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry,
       operations: createInMemoryGenerationOperationStore(),
       now: () => "2026-08-23T00:00:00.000Z",
       resolveStoryboardReferenceUrl: () => url,
-    });
+    }));
     const created = await handler({ capability: "create", params: { candidate: candidate({
       mode: "image-to-image",
       prompt: `画面里 @[asset:${encodeURIComponent(url)}] 走过来`,
@@ -605,11 +606,11 @@ describe("semantic MCP generation tools", () => {
 
   it("refuses to seal a mention it cannot project instead of leaking the marker", async () => {
     const url = "nomi-local://project-1/assets/hero.png";
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry,
       operations: createInMemoryGenerationOperationStore(),
       now: () => "2026-08-23T00:00:00.000Z",
-    });
+    }));
     const created = await handler({ capability: "create", params: { candidate: candidate({
       mode: "image-to-image",
       prompt: `画面里 @[asset:${encodeURIComponent(url)}] 走过来`,
@@ -621,12 +622,12 @@ describe("semantic MCP generation tools", () => {
 
   it("allows a submit-only provider while making recovery limits explicit", async () => {
     const operations = createInMemoryGenerationOperationStore();
-    const handler = createGenerationPlanningHandler({
+    const handler = createGenerationPlanningHandler(withFixedCatalog({
       registry: blockedRegistry,
       operations,
       resolveModelPricing: () => ({ cost: 0, enabled: true, specCosts: [] }),
       now: () => "2026-08-23T00:00:00.000Z",
-    });
+    }));
     const created = await handler({ capability: "create", params: { candidate: candidate({ providerId: "blocked-provider", modelId: "blocked-model" }) }, lease });
     const operationId = (created as { operation: { operationId: string } }).operation.operationId;
     await expect(handler({ capability: "preview", params: { operationId }, lease })).resolves.toMatchObject({ providerReady: true, providerCapabilityProfile: "submit_only", nextAction: "request_gate", providerCapabilitiesMissing: expect.arrayContaining(["query", "reconcile"]) });
@@ -644,7 +645,7 @@ describe("semantic MCP generation tools", () => {
 
     it("projects a known per-shot price + total on preview without any provider call", async () => {
       const operations = createInMemoryGenerationOperationStore();
-      const handler = createGenerationPlanningHandler({ registry, operations, resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" });
+      const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" }));
       const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
       const operationId = (created as { operation: { operationId: string } }).operation.operationId;
       const preview = await handler({ capability: "preview", params: { operationId }, lease }) as {
@@ -659,7 +660,7 @@ describe("semantic MCP generation tools", () => {
 
     it("reports the price as unknown on preview when no pricing resolver is wired", async () => {
       const operations = createInMemoryGenerationOperationStore();
-      const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" });
+      const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" }));
       const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
       const operationId = (created as { operation: { operationId: string } }).operation.operationId;
       const preview = await handler({ capability: "preview", params: { operationId }, lease }) as {
@@ -671,12 +672,12 @@ describe("semantic MCP generation tools", () => {
 
     it("projects every included video shot in a multi-shot preview before the gate", async () => {
       const operations = createInMemoryGenerationOperationStore();
-      const handler = createGenerationPlanningHandler({
+      const handler = createGenerationPlanningHandler(withFixedCatalog({
         registry,
         operations,
         resolveModelPricing,
         now: () => "2026-08-23T00:00:00.000Z",
-      });
+      }));
       await handler({
         capability: "create",
         params: {
@@ -702,7 +703,7 @@ describe("semantic MCP generation tools", () => {
 
     it("puts the derived price into the receipt's maximumCost (no longer ¥0) with costKnown=true", async () => {
       const operations = createInMemoryGenerationOperationStore();
-      const handler = createGenerationPlanningHandler({ registry, operations, resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" });
+      const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" }));
       const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
       const operationId = (created as { operation: { operationId: string } }).operation.operationId;
       await expect(handler({ capability: "gate_request", params: { operationId }, lease }))
@@ -713,7 +714,7 @@ describe("semantic MCP generation tools", () => {
     // 这条从前钉的是 `rejects generation_pricing_unknown`；今天钉的是「门照开、价照实说」。
     it("opens the gate for an unpriced model and reports the cost as unknown, never ¥0", async () => {
       const operations = createInMemoryGenerationOperationStore();
-      const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" });
+      const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" }));
       const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
       const operationId = (created as { operation: { operationId: string } }).operation.operationId;
       const gate = await handler({ capability: "gate_request", params: { operationId }, lease }) as
@@ -760,7 +761,7 @@ describe("semantic MCP generation tools", () => {
     }
 
     it("returns a serializable display.shots with per-shot rows + anchor chips + plan-level cost", async () => {
-      const handler = createGenerationPlanningHandler({ registry, operations: multiShotStore(), resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" });
+      const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations: multiShotStore(), resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" }));
       const result = await handler({ capability: "gate_request", params: { operationId: "op-multi" }, lease }) as {
         shots?: { shots: Array<{ shotId: string; index: number; price: unknown }>; anchorChips?: unknown[]; planHash?: string; hardLimit?: number; specs?: { shotCount: number; durationSeconds?: number } };
         maximumCost: number;
@@ -802,7 +803,7 @@ describe("semantic MCP generation tools", () => {
         }] }],
       }]);
       // 第一版目录认得 scoped-model；第一次 resolve 时目录被改成第二版（认不得）——同一次调用里后面的镜头仍读第一版。
-      const versions = [{ marker: "v1" }, { marker: "v2" }];
+      const versions = [{ marker: "v1", models: [], vendors: [] }, { marker: "v2", models: [], vendors: [] }];
       let current = versions[0]!;
       const buildRegistry = vi.fn((state: CatalogState) => {
         const version = state as unknown as { marker: string };
@@ -823,7 +824,7 @@ describe("semantic MCP generation tools", () => {
       });
       const operations = createInMemoryGenerationOperationStore();
       const handler = createGenerationPlanningHandler({
-        registry: runtime.registry,
+        catalog: runtime,
         operations,
         now: () => "2026-08-23T00:00:00.000Z",
       });
@@ -843,13 +844,13 @@ describe("semantic MCP generation tools", () => {
       ]);
       // 调用结束：下一次调用读第二版
       expect(current).toBe(versions[1]);
-      expect(() => runtime.registry.resolve({ moduleId: "generation.single-shot", providerId: "scoped-provider", modelId: "scoped-model", mode: "text-to-image" })).toThrow();
+      expect(() => runtime.current().registry.resolve({ moduleId: "generation.single-shot", providerId: "scoped-provider", modelId: "scoped-model", mode: "text-to-image" })).toThrow();
       expect(buildRegistry).toHaveBeenCalledTimes(2);
     });
 
     it("create({shots}) persists draft shots and gate_request seals a real multi-shot bundle (sub-contracts + planHash)", async () => {
       const operations = createInMemoryGenerationOperationStore();
-      const handler = createGenerationPlanningHandler({ registry, operations, resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" });
+      const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" }));
       const created = await handler({ capability: "create", params: { operationId: "op-e", shots: [
         shotFrom("anchor-1", "主角 阿雨 定妆", "anchor"),
         shotFrom("shot-a", "雨夜推门", "shot"),
@@ -881,7 +882,7 @@ describe("semantic MCP generation tools", () => {
 
     it("an excluded shot carries no sub-contract and drops off the card (试拍/分批)", async () => {
       const operations = createInMemoryGenerationOperationStore();
-      const handler = createGenerationPlanningHandler({ registry, operations, resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" });
+      const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" }));
       await handler({ capability: "create", params: { operationId: "op-x", shots: [
         shotFrom("shot-a", "雨夜推门", "shot"),
         { ...shotFrom("shot-b", "货架对视", "shot"), included: false },
@@ -905,13 +906,13 @@ describe("semantic MCP generation tools", () => {
         modelId: "video-model",
         mode: taskKind === "image_to_video" ? "image-to-video" : "text-to-video",
       }));
-      const handler = createGenerationPlanningHandler({
+      const handler = createGenerationPlanningHandler(withFixedCatalog({
         registry: videoRegistry,
         operations,
         planStoryboard,
         defaultModelForTaskKind,
         now: () => "2026-08-23T00:00:00.000Z",
-      });
+      }));
       const created = await handler({ capability: "create", params: { operationId: "op-default", scriptText: "一个短镜头" }, lease }) as {
         operation: { shots: Array<{ candidate: { providerId: string; modelId: string; mode: string } }> };
       };
@@ -928,7 +929,7 @@ describe("semantic MCP generation tools", () => {
         { role: "shot" as const, prompt: "推门", ...image },
         { role: "shot" as const, prompt: "对视", ...image },
       ] }));
-      const handler = createGenerationPlanningHandler({ registry, operations, planStoryboard, now: () => "2026-10-05T00:00:00.000Z" });
+      const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, planStoryboard, now: () => "2026-10-05T00:00:00.000Z" }));
       const created = await handler({ capability: "create", params: { operationId: "op-script", scriptText: "两镜" }, lease }) as {
         operation: { shots: Array<{ shotId: string }> };
       };
@@ -936,7 +937,7 @@ describe("semantic MCP generation tools", () => {
     });
 
     it("调用方自带的 id 不许跨号段：锚叫 shot-1 当场拒给模型", async () => {
-      const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-10-05T00:00:00.000Z" });
+      const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-10-05T00:00:00.000Z" }));
       await expect(handler({ capability: "create", params: { shots: [shotFrom("shot-1", "主角 定妆", "anchor"), shotFrom("shot-2", "推门", "shot")] }, lease }))
         .rejects.toThrow(/shot-N ids are shot numbers/);
     });
@@ -961,7 +962,7 @@ describe("semantic MCP generation tools", () => {
     }]);
     const planning = () => {
       const operations = createInMemoryGenerationOperationStore();
-      return { operations, handler: createGenerationPlanningHandler({ registry: mixed, operations, now: () => "2026-10-01T00:00:00.000Z" }) };
+      return { operations, handler: createGenerationPlanningHandler(withFixedCatalog({ registry: mixed, operations, now: () => "2026-10-01T00:00:00.000Z" })) };
     };
     const explicit = (shotId: string, modelId: string, mode: string) => ({
       candidateId: `cand-${shotId}`, revision: 1, moduleId: "generation.single-shot", providerId: "fixture-provider",
@@ -1045,7 +1046,7 @@ describe("semantic MCP generation tools", () => {
           },
         ],
       }]);
-      const handler = createGenerationPlanningHandler({ registry: registry2, operations, now: () => "2026-09-03T00:00:00.000Z" });
+      const handler = createGenerationPlanningHandler(withFixedCatalog({ registry: registry2, operations, now: () => "2026-09-03T00:00:00.000Z" }));
       // Create with model-a (may have variantId later)
       await handler({ capability: "create", params: { operationId: "op-j05", prompt: "test prompt", providerId: "fixture-provider", modelId: "model-a", mode: "text-to-image", moduleId: "generation.single-shot" }, lease });
       // Patch to model-b (different model → should emit changeset)
@@ -1064,7 +1065,7 @@ describe("semantic MCP generation tools", () => {
 
     it("returns no changeset when only the prompt changes (no model switch)", async () => {
       const operations = createInMemoryGenerationOperationStore();
-      const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-09-03T00:00:00.000Z" });
+      const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, now: () => "2026-09-03T00:00:00.000Z" }));
       await handler({ capability: "create", params: { operationId: "op-j05-noop", prompt: "first", providerId: "fixture-provider", modelId: "fixture-model", mode: "text-to-image", moduleId: "generation.single-shot" }, lease });
       const patched = await handler({ capability: "plan", params: { operationId: "op-j05-noop", patch: { prompt: "changed prompt" } }, lease }) as {
         changeset?: unknown;
@@ -1128,7 +1129,7 @@ describe("plan patch addressed to one shot of a multi-shot draft", () => {
 
   it("changes only that shot's candidate and reports the changeset against that shot", async () => {
     const operations = createInMemoryGenerationOperationStore();
-    const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-09-18T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, now: () => "2026-09-18T00:00:00.000Z" }));
     await handler({ capability: "create", params: { operationId: "op-shot", shots: [shotFrom("shot-1", "一", "开场"), shotFrom("shot-2", "二", "转折"), shotFrom("shot-3", "三")] }, lease });
     const result = await handler({ capability: "plan", params: { operationId: "op-shot", shotId: "shot-2", patch: { prompt: "逆光侧脸" } }, lease }) as { operation: GenerationOperation; changeset?: unknown };
     expect(result.changeset).toBeUndefined();
@@ -1140,7 +1141,7 @@ describe("plan patch addressed to one shot of a multi-shot draft", () => {
 
   it("rejects an unknown shotId instead of silently patching the top-level candidate", async () => {
     const operations = createInMemoryGenerationOperationStore();
-    const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-09-18T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, now: () => "2026-09-18T00:00:00.000Z" }));
     await handler({ capability: "create", params: { operationId: "op-shot", shots: [shotFrom("shot-1", "一"), shotFrom("shot-2", "二")] }, lease });
     await expect(handler({ capability: "plan", params: { operationId: "op-shot", shotId: "shot-9", patch: { prompt: "x" } }, lease })).rejects.toThrow(/shot-9/);
     const after = await operations.read("project-1", "op-shot");
@@ -1152,7 +1153,7 @@ it('a document-admitted draft saves its author body into that document\'s plan, 
   const operations=createInMemoryGenerationOperationStore()
   const saved:Array<{op:string;payload:Record<string,unknown>}>=[]
   const requestRenderer=async(op:string,payload:unknown)=>{saved.push({op,payload:payload as Record<string,unknown>});return {status:'saved',designId:(payload as {designId:string}).designId}}
-  const handler=createGenerationPlanningHandler({registry,operations,requestRenderer})
+  const handler=createGenerationPlanningHandler(withFixedCatalog({registry,operations,requestRenderer}))
   const authored={anchorIds:[]}
   const input={candidate:{candidateId:'execution-id',revision:1,moduleId:'generation.single-shot',providerId:'fixture-provider',modelId:'fixture-model',mode:'text-to-image',prompt:'Original',parameters:{},references:[]},storyboard:authored}
   for(const multi of [false,true]){
@@ -1186,7 +1187,7 @@ it('a document-admitted draft saves its author body into that document\'s plan, 
 
 it('refuses a document-admitted draft when the renderer that owns plans is unreachable', async () => {
   const operations=createInMemoryGenerationOperationStore()
-  const handler=createGenerationPlanningHandler({registry,operations})
+  const handler=createGenerationPlanningHandler(withFixedCatalog({registry,operations}))
   await expect(handler({capability:'create',lease,origin:{host:'nomi',sourceDocument:{documentId:'doc',revision:1,contentHash:'hash'}},
     params:{operation:'create',candidate:{candidateId:'c',revision:1,moduleId:'generation.single-shot',providerId:'fixture-provider',modelId:'fixture-model',mode:'text-to-image',prompt:'Original',parameters:{},references:[]}}}))
     .rejects.toThrow('storyboard_renderer_required')

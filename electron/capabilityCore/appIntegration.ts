@@ -44,14 +44,11 @@ import type { ProductionRun, ProductionShotActionResult } from '../productionRun
 import { createCanvasLandingHost } from '../productionRun/canvasLandingHost'
 import { createGuiLandingProjectAccess, desktopNoticeLocale, landBatchBeforeKick } from './appIntegrationLandFirst'
 import { startSingleShotProduction } from '../productionRun/singleShotProductionStart'
-import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
 import { createRunObservationDrivers } from './appIntegrationRunObservation'
 import { hasWorkToWatch, runWantsDriver } from '../productionRun/productionRunLifecycle'
-import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
 import { readCatalog } from '../catalog/catalogStore'
 import { recommendVideoGeneration } from '../shared/videoCapabilities'
-import { deriveUsableVideoModelCandidates } from './usableVideoModelCandidates'
 import { installCatalogRowLookup } from './modelSpecRead'
 import { canvasReadSurfaceRuntime } from './canvasReadSurfaceRuntime'
 import type { CanvasReadExecutionRuntime } from './canvasReadExecutionRuntime'
@@ -63,7 +60,7 @@ import {
   hasGenerationOperationProviderReadiness,
   type GenerationOperationProviderShape,
 } from './generationOperationProviderReadiness'
-import { createLiveGenerationRuntime } from './liveGenerationRuntime'
+import { createLiveGenerationRuntime, type LiveGenerationCallCatalog } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProductionActionHooks } from './appIntegrationProductionActions'
@@ -203,15 +200,16 @@ export async function startCapabilityCore(
         ...(fixtureBaseUrlOverride ? { fixtureBaseUrlOverride } : {}),
       }),
     })
-    const readProviderBootstrap = liveGenerationRuntime.readBootstrap
+    // 调用之外（后台活、调用结束之后才问的地方）读现在的目录；调用之内用入口收到的那一版。
+    const readProviderBootstrap = () => liveGenerationRuntime.current().bootstrap
     // 提交出口认得的执行器：目录执行器 + 画布那台的传输（按家各一个 `canvas:<key>`，发动机收敛第一刀）。
     const canvasTransport = lazyCanvasTransport()
     const submissionProviders = () => [...readProviderBootstrap().providers, ...canvasTransportProviders(readCatalog().vendors.map((vendor) => vendor.key), canvasTransport)]
     // The fetch policy (timeout / size / provider route) is the shared owner's (fetchProviderMedia).
     const outputMaterializer = createGenerationOutputMaterializer()
     // P4 S2: real per-shot pricing from the live catalog (resolve lazily so pricing edits apply).
-    const resolveModelPricing = (providerId: string, modelId: string) => createCatalogModelPricingResolver(readCatalog().models)(providerId, modelId)
-    const resolveShotPrice = (contract: Parameters<ReturnType<typeof createCatalogShotPriceResolver>>[0]) => createCatalogShotPriceResolver(readCatalog().models)(contract)
+    // 调用之外按现在的目录算价（返工 / 续拍从这里走）；规划调用里用入口那一版的 `catalog.resolveShotPrice`。
+    const resolveShotPrice: LiveGenerationCallCatalog['resolveShotPrice'] = (contract) => liveGenerationRuntime.current().resolveShotPrice(contract)
     // P4 S5：只认 main-issued Surface 的完整 committed identity；renderer scalar 不是 authority。
     const isProjectOpen = (id: string) => canvasReadSurfaceRuntime.getCommittedProjectSelection()?.projectId === id
     // P4 S5 / 架构③：建/改草稿即投影 · 派发前落地（不再 best-effort，准入点判能不能派）· 打开项目补齐 共用一条链。
@@ -335,7 +333,7 @@ export async function startCapabilityCore(
     registerBatchSchedulerKicker(kickSchedulerForRun)
     const generationPlanning = authorities.generationPlanning
       ?? createGenerationPlanningHandler({
-        registry: liveGenerationRuntime.registry,
+        catalog: liveGenerationRuntime,
         operations: operationStore,
         requestRendererDecision,
         requestRenderer,
@@ -347,22 +345,14 @@ export async function startCapabilityCore(
         // 两个工具对「素材身份」的答案不一样，而不一样的原因是**其中一个宿主没把解析器递下去**
         // （与 report-B 项 4 同一形状：判据写对了，没人把状态交给它，而且没有任何东西会红）。
         resolveAssetReferenceIdentity: (projectId, assetId) => resolveProjectAssetReferenceIdentity(projectId, assetId),
-        get videoModelCandidates() { return deriveUsableVideoModelCandidates() },
-        // ScriptText uses the Workbench defaults lazily (single preference source).
-        defaultModelForTaskKind: (taskKind) => readGenerationDefaultModelResolver()(taskKind),
         planStoryboard: planStoryboardFromScript,
         recommendVideoGeneration,
-        resolveModelPricing,
-        providerReadiness: ({ providerId }) => {
-          const providerBootstrap = readProviderBootstrap()
-          return providerBootstrap.readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ['configured_provider'] }
-        },
-        prepareAuthorization: async ({ lease, operation, contract, multiShot }) => {
+        prepareAuthorization: async ({ lease, operation, contract, multiShot }, catalog) => {
           // 封信封前先等 Nomi 自己在飞的画布落地落完（草稿投影是 fire-and-forget，它会让
           // project.revision 前进）。不等的话信封盖的是旧 revision，用户点确认时收据已被自家的写作废，
           // 报「此确认已失效」——付费闸对**用户**改项目才该 fail-closed，对我们自己的投影不该。
           await canvasLanding.settleCanvasLanding(lease.projectId)
-          const providerBootstrap = readProviderBootstrap()
+          const providerBootstrap = catalog.bootstrap
           const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
           if (!projectRecord || !Number.isInteger(projectRecord.revision)) throw new Error('Generation authorization requires the current project revision')
           const authorizationRun = generationService.repository.read(lease.projectId, operation.operationId)
@@ -389,16 +379,16 @@ export async function startCapabilityCore(
             contract,
             ...(multiShot ? { multiShot } : {}),
             providers: providerBootstrap.providers,
-            resolveShotPrice,
+            resolveShotPrice: catalog.resolveShotPrice,
             run: authorizationRun,
             now: new Date().toISOString(),
           })
         },
-        start: async (operation, lease) => {
+        start: async (operation, lease, catalog) => {
           // Settings can save APIMart while this process is already running.
           // Read the executable provider set at this operation boundary rather
           // than using the startup snapshot.
-          const providerBootstrap = readProviderBootstrap()
+          const providerBootstrap = catalog.bootstrap
           const projectRoot = resolveWorkspaceProjectDir(lease.projectId, getWorkspaceRepositoryDeps())
           const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
           // A multi-shot plan may put an image anchor in the top-level
@@ -457,8 +447,8 @@ export async function startCapabilityCore(
           return started
         },
         unknownShotsOf: (operation, lease) => unknownSubmissionShotLabels(generationService.repository.read(lease.projectId, operation.operationId)),
-        reconcile: async (operation, outcome, lease) => {
-          const providerBootstrap = readProviderBootstrap()
+        reconcile: async (operation, outcome, lease, catalog) => {
+          const providerBootstrap = catalog.bootstrap
           if (outcome === 'not_found') return { operationId: operation.operationId, outcome, nextAction: 'manual_review' }
           const provider = providerBootstrap.providers.find((candidate) => candidate.providerId === operation.contract?.providerId)
           const projectRoot = resolveWorkspaceProjectDir(lease.projectId, getWorkspaceRepositoryDeps())

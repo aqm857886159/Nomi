@@ -18,6 +18,7 @@ import type { ProjectLeaseV2 } from '../../../../electron/capabilityCore/project
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import { addAnchor, addShot, updateShotPrompt } from '../../generationCanvas/agent/storyboardPlanEdits'
 import { patchStoryboardSubject } from '../../../../electron/shared/storyboard/storyboardSubjectAdapter'
+import { withFixedCatalog } from '../../../../electron/capabilityCore/fixedGenerationCatalog.testkit'
 
 vi.mock('../../project/projectCanvasReadSurface', () => ({
   withProjectAction: (action: (value: unknown) => unknown) => action({
@@ -53,7 +54,7 @@ const planOf = (id: string): StoryboardPlan => designs().find(design => design.i
 
 function lane() {
   const operations = createInMemoryGenerationOperationStore()
-  const handler = createGenerationPlanningHandler({ registry, operations, requestRenderer: renderer, now: () => '2026-10-05T00:00:00.000Z' })
+  const handler = createGenerationPlanningHandler(withFixedCatalog({ registry, operations, requestRenderer: renderer, now: () => '2026-10-05T00:00:00.000Z' }))
   const adapter = createPiGenerationTransportAdapter(binding, { planning: handler, leaseFor: () => lease })
   let seq = 0
   /** 一轮用户请求：同一个 requestId 下模型可以调好几次 `draft_shots`。 */
