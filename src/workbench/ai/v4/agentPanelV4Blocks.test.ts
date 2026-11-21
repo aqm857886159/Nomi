@@ -14,7 +14,7 @@ import { V4ToolReceipt } from './AgentPanelV4Receipt'
 import { AgentPanelV4Panel, V4FlowRow } from './AgentPanelV4Panel'
 import ReconcileDeviationCard from '../../generationCanvas/components/ReconcileDeviationCard'
 import { AgentPanelV4Composer } from './AgentPanelV4Composer'
-import { fixedEditorOwner } from '../../../devlab/designLab/fixedEditorOwner'
+import type { NomiEditorOwner } from '../../common/useNomiRichTextEditor'
 import type { InterventionData, TaskCardData, ToolReceipt, V4InterventionKind, V4TaskStatus, V4ToolStatus } from './agentPanelV4Types'
 
 // 介入槽的写口在生产里是必填（R28）。测试里显式给一份空壳，表示「这一格不验行为」。
@@ -60,6 +60,12 @@ beforeAll(async () => {
   Reflect.set(globalThis, 'document', { documentElement: { lang: '' } })
   await import('../../../i18n/index')
 })
+
+/** 组件测试用的固定 owner：值写死、编辑不写回。设计实验室那份（src/devlab/designLab/fixedEditorOwner.ts）只给实验室用，
+ *  src/ 里实验室以外的文件（含测试）引它会被 check:design-lab 拦，所以测试就地写一份。 */
+function fixedEditorOwner<V>(value: V): NomiEditorOwner<V> {
+  return { subscribe: () => () => undefined, getSnapshot: () => value, write: () => undefined }
+}
 
 describe('① 用户气泡', () => {
   it('附件 chip 在气泡内，不是气泡外另起一行', () => {

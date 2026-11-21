@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ModelOption } from '../../../config/models'
 import type { PlanShot, StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import { deriveStoryboardRowRuntimes } from './exec/storyboardRowStatus'
-import { fixedEditorOwner } from '../../../devlab/designLab/fixedEditorOwner'
+import type { NomiEditorOwner } from '../../common/useNomiRichTextEditor'
 
 /**
  * 打开一份分镜方案时，挂多少东西——用**数得清的计数**钉住，不靠毫秒（性能波次 10-16 的打法）。
@@ -79,6 +79,12 @@ beforeEach(() => {
   counters.widthMeasures = 0
   counters.assetPools = 0
 })
+
+/** 组件测试用的固定 owner：值写死、编辑不写回。设计实验室那份（src/devlab/designLab/fixedEditorOwner.ts）只给实验室用，
+ *  src/ 里实验室以外的文件（含测试）引它会被 check:design-lab 拦，所以测试就地写一份。 */
+function fixedEditorOwner<V>(value: V): NomiEditorOwner<V> {
+  return { subscribe: () => () => undefined, getSnapshot: () => value, write: () => undefined }
+}
 
 describe('打开分镜方案：挂载量只随视口，不随镜头总数', () => {
   it('320 镜：只挂首屏 + 缓冲的行与编辑器', () => {
