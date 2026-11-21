@@ -37,16 +37,18 @@ server.listen(0, '127.0.0.1')
 await once(server, 'listening')
 const origin = `http://127.0.0.1:${server.address().port}`
 
-/** 底栏一行的事实：参数条里出界的格、相邻控件相压的对、让级、摘要（一次读完）。 */
+/** 底栏一行的事实：参数条里出界的格、相邻控件相压的对、屏上的样子、摘要（一次读完）。 */
 const readBar = (composer) => composer.locator('[data-node-composer-footer]').first().evaluate((footer) => {
   const bar = footer.querySelector('[data-bar-segment="model-params"] > *')
   const right = bar.getBoundingClientRect().right
   const items = [...bar.querySelectorAll('[data-yield-item]')]
+  // 屏上的样子本身：模型名截没截、方式格的字、摘要、钮上的字。
+  const shapeOf = (footer) => { const selects = footer.querySelectorAll('[data-bar-segment="model-params"] button[aria-haspopup="listbox"]'), model = selects[0]?.querySelector('span.truncate'); return JSON.stringify([Boolean(model) && model.scrollWidth > model.clientWidth + .5, selects[1]?.querySelector('span.truncate')?.textContent ?? null, footer.querySelector('[data-parameter-summary]')?.textContent.trim() ?? null, footer.querySelector('[data-bar-segment="generate"]')?.textContent.trim() ?? null]) }
   const named = (el) => el.getAttribute('data-bar-segment') ?? el.getAttribute('data-parameter-summary') ?? 'model+mode'
   const row = [...items, footer.querySelector('[data-bar-segment="prompt-tools"]'), footer.querySelector('[data-bar-segment="generate"]')].filter(Boolean)
     .map((el) => ({ name: named(el), box: el.getBoundingClientRect() })).sort((a, b) => a.box.left - b.box.left)
   return {
-    level: footer.getAttribute('data-bar-yield-level'),
+    shape: shapeOf(footer),
     summary: footer.querySelector('[data-parameter-summary]')?.getAttribute('data-parameter-summary') ?? null,
     out: items.filter((el) => el.getBoundingClientRect().right > right + 0.5).map(named),
     pressed: row.slice(1).filter((cur, index) => row[index].box.right > cur.box.left + 0.5).map((cur, index) => `${row[index].name} ⟂ ${cur.name}`),
@@ -69,11 +71,12 @@ const armFirstMountFrames = (win) => win.evaluate(() => {
       sizeObserver.disconnect()
       setTimeout(frame, 0)
     })
+    const shapeOf = (footer) => { const selects = footer.querySelectorAll('[data-bar-segment="model-params"] button[aria-haspopup="listbox"]'), model = selects[0]?.querySelector('span.truncate'); return JSON.stringify([Boolean(model) && model.scrollWidth > model.clientWidth + .5, selects[1]?.querySelector('span.truncate')?.textContent ?? null, footer.querySelector('[data-parameter-summary]')?.textContent.trim() ?? null, footer.querySelector('[data-bar-segment="generate"]')?.textContent.trim() ?? null]) }
     function frame() {
       const bar = footer.querySelector('[data-bar-segment="model-params"] > *')
       const right = bar.getBoundingClientRect().right
       const out = [...bar.querySelectorAll('[data-yield-item]')].filter(el => el.getBoundingClientRect().right > right + .5).map(el => el.textContent)
-      window.__barFirstFrames.push({ phase: 'after-resize-observer', time: performance.now(), frame: window.__barFirstFrames.length, items: bar.querySelectorAll('[data-yield-item]').length, width: footer.getBoundingClientRect().width, level: footer.getAttribute('data-bar-yield-level'), out })
+      window.__barFirstFrames.push({ phase: 'after-resize-observer', time: performance.now(), frame: window.__barFirstFrames.length, items: bar.querySelectorAll('[data-yield-item]').length, width: footer.getBoundingClientRect().width, shape: shapeOf(footer), out })
       if (window.__barFirstFrames.length < 30) requestAnimationFrame(() => setTimeout(frame, 0))
       else window.__barFirstFramesDone = true
     }
@@ -224,10 +227,10 @@ try {
       await win.locator('.workbench-storyboard').waitFor({ state: 'detached', timeout: stationTimeout() })
       await clickOrFail(win.locator('[data-project-card="true"]').first(), '重开同一个隔离项目')
       await switchWorkspace(win, 'creation')
-      await openStoryboardEditor(win, { pick: 'first' }, '同数据重开核让级')
+      await openStoryboardEditor(win, { pick: 'first' }, '同数据重开核屏上样子')
       const reopened = await readBar(win.locator('.workbench-storyboard [data-storyboard-row="1"]').first())
       record.firstMount = { frames, settledAt, reopened }
-      if (frames.length !== 30 || frames.slice(settledAt).some(frame => frame.out.length || frame.items < 2 || frame.level !== reopened.level) || final.level !== reopened.level) record.failures.push(`首挂载不变量: ${JSON.stringify(record.firstMount)}`)
+      if (frames.length !== 30 || frames.slice(settledAt).some(frame => frame.out.length || frame.items < 2 || frame.shape !== reopened.shape) || final.shape !== reopened.shape) record.failures.push(`首挂载不变量: ${JSON.stringify(record.firstMount)}`)
       await screenshotSettled(win, { path: shot(`first-mount-reopened-${lang(locale)}`) })
       record.passed = record.failures.length === 0
       if (!record.passed) { failed = true; for (const failure of record.failures) console.error(`✗ ${locale} · 关面板后出界或相压 · ${failure}`) }

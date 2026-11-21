@@ -1,7 +1,8 @@
 /**
  * 点一下卡、生成框挂出来的那一刻的**预算**（不是毫秒，是数得清的次数）：
  *
- * - 挂载时 0 次桌面桥 IO（同步 IPC、项目 / 素材扫描、模型目录、提示词库……一律不许）；
+ * - 挂载时 0 次桌面桥 IO（同步 IPC、项目 / 素材扫描、模型目录、提示词库……一律不许）；唯一例外是发送键约价：
+ *   挂上后防抖、异步读一次公开价，数得清（恰好 1 次）；
  * - 挂载时 0 次画布 store 写（已经落好默认值的卡）；新卡第一次挂最多 1 次（默认值一次写好，不级联）；
  * - 生成框开着时，别的卡的写入（生成进度、拖动）不让它重渲。
  *
@@ -20,6 +21,8 @@ const probe = vi.hoisted(() => ({
   /** 每一次桌面桥调用（订阅类 on* 不算 IO，单独记）。 */
   io: [] as string[],
   listeners: [] as string[],
+  /** 还没落定的事：排着的 window.setTimeout、还没回来的桥调用（共用假桥记，settleIdle 按它等）。 */
+  pending: { timers: new Set<unknown>(), calls: 0 },
   editorRenders: 0,
   editorCreates: 0,
   leafRenders: 0,
@@ -57,11 +60,15 @@ vi.mock('../../../design/tooltip', () => {
 })
 
 import NodeGenerationComposer from './NodeGenerationComposer'
+import { composerWindow, type BridgeAnswers } from './composerBridgeTestUtils'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { selectCanvasNodeById } from '../store/canvasNodeGenerationIndex'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { notifyModelOptionsRefresh } from '../../../config/modelCatalogCache'
 import { resetGenerationModelDefaultsForTest } from '../model/generationModelDefaults'
+import { toCatalogModelOptions } from '../../../config/modelOptionMappers'
+import { buildAgentModelEntries } from '../agent/availableModels'
+import { buildModelEntryIndex, buildPlannedNodeMeta } from '../agent/plannedNodeMeta'
 
 const VENDORS = [{ key: 'apimart', name: 'APIMart', enabled: true, hasApiKey: true, authType: 'bearer' }]
 const usable = { usable: true }
@@ -72,54 +79,34 @@ const MODELS = [
 const HEALTH = { ok: true, counts: { vendors: 1, enabledVendors: 1, models: 2, enabledModels: 2, mappings: 0, enabledMappings: 0, enabledApiKeys: 1 }, byKind: [], issues: [] }
 const PROJECTS = [{ id: 'project-a', name: 'A' }, { id: 'project-b', name: 'B' }, { id: 'project-c', name: 'C' }]
 
-/** 每个方法的应答；没登记的方法照样记账、回 undefined。 */
-const ANSWERS: Record<string, (...args: unknown[]) => unknown> = {
+/** 和本文件有关的数据；生成框挂上时都会读的那些口由共用假桥答（composerBridgeTestUtils）。 */
+const ANSWERS: BridgeAnswers = {
   'modelCatalog.listVendors': () => VENDORS,
   'modelCatalog.listModels': (params) => MODELS.filter((row) => !(params as { kind?: string } | undefined)?.kind || row.kind === (params as { kind: string }).kind),
-  'modelCatalog.listMappings': () => [],
   'modelCatalog.health': () => HEALTH,
   'projects.listAsync': async () => PROJECTS,
   'assets.list': async (payload) => ({
     items: [{ id: `${(payload as { projectId: string }).projectId}-a1`, projectId: (payload as { projectId: string }).projectId, name: 'a1.png', createdAt: '2026-10-01', updatedAt: '2026-10-01', data: { relativePath: 'assets/a1.png', mediaType: 'image' } }],
     cursor: null,
   }),
-  'settings.generationModelDefaults.get': async () => ({ schemaVersion: 1, byTaskKind: {} }),
-  'promptLibrary.list': async () => ({ ok: true, prompts: [] }),
-  'promptLibrary.userList': async () => ({ ok: true, prompts: [] }),
-}
-
-function recordingBridge(): unknown {
-  const make = (path: string[]): unknown => new Proxy(function bridgeMember() {}, {
-    get: (_target, key) => (typeof key === 'symbol' || key === 'then' ? undefined : make([...path, key])),
-    apply: (_target, _self, args: unknown[]) => {
-      const name = path.join('.')
-      if (/(^|\.)on[A-Z]/.test(name)) { probe.listeners.push(name); return () => undefined }
-      probe.io.push(name)
-      return ANSWERS[name]?.(...args)
-    },
-  })
-  return make([])
-}
-
-function installWindow(): void {
-  const listeners = new Map<string, Set<(event: Event) => void>>()
-  vi.stubGlobal('window', {
-    nomiDesktop: recordingBridge(),
-    addEventListener: (type: string, listener: (event: Event) => void) => {
-      if (!listeners.has(type)) listeners.set(type, new Set())
-      listeners.get(type)!.add(listener)
-    },
-    removeEventListener: (type: string, listener: (event: Event) => void) => listeners.get(type)?.delete(listener),
-    dispatchEvent: (event: Event) => { for (const listener of listeners.get(event.type) ?? []) listener(event); return true },
-    setTimeout, clearTimeout,
-  })
 }
 
 const SHOT_META = { modelKey: 'gpt-image-2', modelAlias: 'gpt-image-2', modelVendor: 'apimart', vendor: 'apimart', imageModel: 'gpt-image-2', imageModelVendor: 'apimart' }
 
-function shot(meta: Record<string, unknown> = SHOT_META): GenerationCanvasNode {
-  return { id: 'shot', kind: 'image', title: 'shot', position: { x: 0, y: 0 }, prompt: 'a quiet street', meta: { ...meta } }
+function shot(meta: Record<string, unknown> = SHOT_META, kind: GenerationCanvasNode['kind'] = 'image'): GenerationCanvasNode {
+  return { id: 'shot', kind, title: 'shot', position: { x: 0, y: 0 }, prompt: 'a quiet street', meta: { ...meta } }
 }
+
+const ENTRIES = buildModelEntryIndex(buildAgentModelEntries(toCatalogModelOptions(MODELS as Parameters<typeof toCatalogModelOptions>[0])), ['apimart'])
+/**
+ * 目录里每个已发布模型各一张「已落好默认值」的卡（与落地线同一个构造器 buildPlannedNodeMeta）：
+ * 挂载预算对每一类卡都要成立，不只手写的那张图片卡。目录多一个模型，这里自动多一行。
+ */
+const LANDED_CARDS = MODELS.filter((row) => row.published).map((row) => {
+  const meta = buildPlannedNodeMeta({ modelKey: row.modelKey, vendor: row.vendorKey, params: {} }, ENTRIES)
+  if (!meta) throw new Error(`fixture model ${row.modelKey} is not in the entry index`)
+  return { label: `${row.kind} · ${row.labelZh}`, card: shot(meta, row.kind as GenerationCanvasNode['kind']) }
+})
 const upstream: GenerationCanvasNode = { id: 'ref', kind: 'image', title: 'ref', position: { x: -400, y: 0 }, result: { id: 'r1', type: 'image', url: 'nomi-local://asset/project-a/assets/ref.png', createdAt: 1 } }
 const elsewhere: GenerationCanvasNode = { id: 'other', kind: 'video', title: 'other', position: { x: 900, y: 0 }, status: 'running' }
 
@@ -132,6 +119,8 @@ function seedCanvas(target: GenerationCanvasNode): void {
   })
 }
 
+/** 发送键约价：生成框挂上后防抖读一次公开价（只读、异步，不在挂载那一拍）。 */
+const PRICE_READ = 'onboarding.vendorPricePreview'
 const VISUAL_SIZE = { width: 340, height: 192 }
 const noFeedback = (): void => undefined
 const commits = { composer: 0 }
@@ -154,6 +143,17 @@ async function settle(renderer: ReturnType<typeof createReactTestRenderer>): Pro
   }
 }
 
+/**
+ * 挂上以后排着的事全落定再返回：约价的防抖读价（PRICE_DEBOUNCE_MS）、旧数暂留到期（PRICE_HOLD_MS）、还没回来的桥调用。
+ * 只按 settle 的几轮 0 毫秒等，读价落在哪一轮全看机器忙不忙——2026-11-21 负载 12 时读价落进「别的卡的进度」那 5 拍，
+ * 生成框重渲 1 次、红了一次。这里等的是真的「没有排着的定时器、没有在途的桥调用」，不是猜一个毫秒数。
+ */
+async function settleIdle(renderer: ReturnType<typeof createReactTestRenderer>): Promise<void> {
+  do await settle(renderer)
+  while (probe.pending.timers.size > 0 || probe.pending.calls > 0)
+  await settle(renderer)
+}
+
 function countStoreWrites(): { stop: () => number } {
   let writes = 0
   const unsubscribe = useGenerationCanvasStore.subscribe(() => { writes += 1 })
@@ -172,7 +172,7 @@ describe('点卡出生成框：挂载预算', () => {
   let renderer: ReturnType<typeof createReactTestRenderer>
 
   beforeEach(() => {
-    installWindow()
+    vi.stubGlobal('window', composerWindow(ANSWERS, probe))
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', false)
     notifyModelOptionsRefresh('all')
     resetGenerationModelDefaultsForTest()
@@ -185,7 +185,10 @@ describe('点卡出生成框：挂载预算', () => {
     vi.unstubAllGlobals()
   })
 
-  /** 先挂一次让各处「第一次用到时」该载入的都载入，卸掉，再挂第二次——第二次才是用户每次点卡的样子。 */
+  /**
+   * 先挂一次让各处「第一次用到时」该载入的都载入，卸掉，再挂第二次——第二次才是用户每次点卡的样子。
+   * 第二次挂上后等到什么都落定（含约价那一次防抖读价）才返回：挂载引起的 IO / store 写一次不漏地记进来，之后的计数也不会撞上它。
+   */
   async function mountTwice(target: GenerationCanvasNode): Promise<{ io: string[]; writes: number }> {
     seedCanvas(target)
     renderer.render(<Host nodeId={target.id} />)
@@ -195,19 +198,23 @@ describe('点卡出生成框：挂载预算', () => {
     resetProbe()
     const writes = countStoreWrites()
     renderer.render(<Host nodeId={target.id} />)
-    await settle(renderer)
+    await settleIdle(renderer)
     return { io: [...probe.io], writes: writes.stop() }
   }
 
-  it('挂载时 0 次桌面桥 IO（没有同步 IPC、没有全项目素材扫描）', async () => {
-    const { io } = await mountTwice(shot())
-    expect(io).toEqual([])
-  })
+  for (const { label, card } of LANDED_CARDS) {
+    it(`${label}：挂载时 0 次桌面桥 IO（没有同步 IPC、没有全项目素材扫描）；约价防抖后只读一次公开价`, async () => {
+      const { io } = await mountTwice(card)
+      expect(commits.composer, '生成框真的挂上了（什么都没渲染不算过）').toBeGreaterThan(0)
+      expect(io.filter((name) => name !== PRICE_READ), '除约价外 0 次桥 IO').toEqual([])
+      expect(io.filter((name) => name === PRICE_READ), '约价：挂上后防抖读一次，不多读').toEqual([PRICE_READ])
+    })
 
-  it('已落好默认值的卡，挂载时 0 次画布 store 写', async () => {
-    const { writes } = await mountTwice(shot())
-    expect(writes).toBe(0)
-  })
+    it(`${label}：已落好默认值的卡，挂载时 0 次画布 store 写`, async () => {
+      const { writes } = await mountTwice(card)
+      expect(writes).toBe(0)
+    })
+  }
 
   it('生成框开着时，别的卡的生成进度不让它重渲（参数控件和编辑器都不动）', async () => {
     await mountTwice(shot())

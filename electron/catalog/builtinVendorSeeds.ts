@@ -76,6 +76,8 @@ export type VendorSeed = {
    *   · `cost: 'paid'`（也是**缺省**）—— 它会花钱，发之前必须先经确认面问一句。
    */
   credentialProbe?: ProbeDeclaration & { cost?: "free" | "paid" };
+  /** 公开价目端点（不带凭据的只读 GET）；只对官方服务 origin（主域 + 代码声明的官方备用域）生效。 */
+  publicPricing?: { listPath: string; modelPath: string };
   /**
    * 该家的 key 该拿什么当判据（**种子声明，不是按路由猜**）。
    *

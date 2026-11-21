@@ -374,7 +374,7 @@
         "384-svg"
       ],
       "status": "missing",
-      "owner": "S1 设置账户卡"
+      "owner": "花费显示第三步：设置里看账户（未开工）"
     },
     {
       "id": "settings.account-menu",
@@ -399,7 +399,7 @@
         "325-svg"
       ],
       "status": "missing",
-      "owner": "S1 设置账户卡"
+      "owner": "花费显示第三步：设置里看账户（未开工）"
     },
     {
       "id": "settings.frame-height",
@@ -804,7 +804,7 @@
         "1169-span-搜模型"
       ],
       "status": "missing",
-      "owner": "S2 画布模型选择器"
+      "owner": "花费显示第四步：搜型号（未开工）"
     },
     {
       "id": "picker.row",
@@ -1352,8 +1352,13 @@
         "1614-span-111K1image",
         "1615-svg"
       ],
-      "status": "missing",
-      "owner": "S2b 画布参数芯片"
+      "status": "dropped",
+      "owner": "S2b 画布参数芯片",
+      "userDecision": {
+        "quote": "有些地方我们现在已经去做了重新修改了。比如说我们的那个确认卡，包括参数那个条，但是其他你要可以看一下，跟原来的一致。",
+        "date": "2026-11-16",
+        "supersededBy": "docs/design/boards/2026-11-14-composer-params（bar.params + params.panel）"
+      }
     },
     {
       "id": "picker.vendor-switch-hint",
@@ -1418,10 +1423,14 @@
         "hover",
         "loading",
         "disabled",
+        "empty",
+        "error",
+        "long-text",
+        "narrow",
         "dark",
         "zh-en"
       ],
-      "component": "新件：NodeGenerationComposer（src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx） 发送键 + 花费胶囊（IconCoin 13）；理由：现有发送键没有价位",
+      "component": "共用发送键 ComposerSendButton（src/workbench/generationCanvas/nodes/ComposerSendButton.tsx）的可选约价属性 cost；宿主 NodeGenerationComposer；数字来自 src/workbench/generationCanvas/spend/sendCostFormat.ts",
       "candidates": [
         "679-svg",
         "680-svg",
@@ -1481,24 +1490,35 @@
         "1621-svg",
         "1622-svg"
       ],
-      "status": "missing",
-      "owner": "S3 生成前估价与费用回执"
+      "status": "in-progress",
+      "owner": "协调：合并前给用户看其余状态真截图",
+      "assertion": "board:ModelSurfaces/cost.send-pill",
+      "note": "有价默认态和悬停，用户 11-22 已看过；估不出 / 算价中 / 禁用+有价 / 生成中 / 最长数字 / 最窄这几态的真截图，由独立验收在 PR 头上拍，协调给用户看过再翻。"
     },
     {
       "id": "cost.hover",
       "artboard": "M4-cost",
-      "label": "悬停：约 N 积分（$x）· 按 APIMart 公开价估、出完按 APIMart 实际扣费记",
+      "label": "悬停：这次约 N 积分（$x）。按 APIMart 公开价估，出完按 APIMart 实际扣费记。估不出时「暂时估不出这次用量」；只估了输出的型号明说只估输出。",
       "change": "added",
       "states": [
         "hover",
+        "empty",
+        "dark",
         "zh-en"
       ],
-      "component": "Tooltip（src/design）",
+      "component": "共用提示组件 Tooltip（src/design/tooltip.tsx）原样使用，不自带定位、边框、圆角",
       "candidates": [
         "1249-div-这次约035积分0035"
       ],
-      "status": "missing",
-      "owner": "S3 生成前估价与费用回执"
+      "status": "implemented",
+      "owner": "花费显示第一步：发送键上的约价（docs/plan/2026-11-17-cost-step1-estimate.md）",
+      "assertion": "board:ModelSurfaces/cost.hover",
+      "note": "只取 M4 上那句话的文字；几何（离按钮距离、边框、高度、圆角）按共用提示组件，不照 M4 单做。2026-11-22 用户看过改前 / 改后并排图（提示改成按句分行：「这次约 N 积分（$x）。」一行、「按 APIMart 公开价估，出完按 APIMart 实际扣费记。」一行，不再在「公开价｜估」中间折行），原话「都照这样」；M4 上的断行位置不算合同。拍板图只有 M4 ① 一帧（有价 + 悬停）。",
+      "userDecision": {
+        "quote": "用统一样式",
+        "date": "2026-11-17",
+        "supersedes": "M4 上悬停说明的三处几何（离按钮约 38 像素、无边框高 48、圆角 8）不再是合同；验收按共用提示组件的样子核，文字仍逐字按登记的那一句"
+      }
     },
     {
       "id": "cost.low-balance",
@@ -1519,7 +1539,7 @@
         "1266-svg"
       ],
       "status": "missing",
-      "owner": "S3 生成前估价与费用回执"
+      "owner": "花费显示第三步：余额不够去充值（未开工）"
     },
     {
       "id": "cost.batch-card",
@@ -1549,8 +1569,13 @@
         "1299-span-取消",
         "1300-span-生成3段"
       ],
-      "status": "missing",
-      "owner": "S3 生成前估价与费用回执"
+      "status": "dropped",
+      "owner": "S3 生成前估价与费用回执",
+      "userDecision": {
+        "quote": "有些地方我们现在已经去做了重新修改了。比如说我们的那个确认卡，包括参数那个条，但是其他你要可以看一下，跟原来的一致。",
+        "date": "2026-11-16",
+        "supersededBy": "11-15 付费确认拆开（批量 / Agent 付费确认另一刀）"
+      }
     },
     {
       "id": "cost.provenance",
