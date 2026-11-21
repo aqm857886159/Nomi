@@ -1,0 +1,18 @@
+  ✓ 隔离的 Nomi 窗口打开了一个新项目
+  ✓ 应用内宿主（本机 HTTP）握手成功
+  ✓ stdio 宿主握手成功（与应用内宿主同时开着）
+  ✓ 老用户 v0.24.0-builtin-plain: 拿到当前项目句柄
+  ✓ 老用户 v0.24.0-builtin-plain: 冷启动后连接地址没动
+  ✓ 老用户 v0.24.0-builtin-plain: 存一次 APIMart 密钥（旧资料里的假密文真窗口解不开）
+  ✓ 老用户 v0.24.0-builtin-plain · 内置图片模型: 起草成功（不重启）
+  ✓ 老用户 v0.24.0-builtin-plain · 内置图片模型: 预览认得刚交卡的模型（修前这里是「Unknown model」）
+  ✓ 老用户 v0.24.0-builtin-plain · 内置图片模型: 过门走到确认卡，卡上写着 doubao-seedream-4.5（修前这里说「没就绪 · configured_provider」）
+  ✓ 老用户 v0.24.0-builtin-plain · 内置图片模型: 点取消后门如实收尾，没有回到「没就绪」
+  ✓ stdio 宿主: 拿到当前项目句柄
+  ✓ stdio 宿主: 存 APIMart 密钥
+  ✓ stdio 宿主: 在内置 APIMart 上交卡登记 muse-video-y
+  ✓ stdio 宿主: 起草成功（不重启）
+  ✓ stdio 宿主: 预览认得刚交卡的模型（修前这里是「Unknown model」）
+  ✓ stdio 宿主: 过门走到确认卡，卡上写着 muse-video-y（修前这里说「没就绪 · configured_provider」）
+  ✓ stdio 宿主: 点取消后门如实收尾，没有回到「没就绪」
+DECLARED MODEL GATE PASS: 17 条断言；两个宿主都不重启走到确认卡，都点了取消，生成请求 0。

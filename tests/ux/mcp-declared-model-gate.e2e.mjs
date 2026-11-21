@@ -7,6 +7,10 @@
 //   A 应用内宿主（appIntegration，本机 HTTP 直连）：存密钥 → 交卡 → 起草 → 预览 → 过门 → Nomi 窗口弹确认卡；
 //   B stdio 宿主（mcpStdioServer，和 A 同时开着）：再交一张卡 → 起草 → 预览 → 过门 → 同一个窗口弹确认卡。
 // 两张确认卡都由脚本点「取消」，不点确认：不发任何生成请求。假密钥只在隔离目录里，测试网闸开着，出不了这台机器。
+//
+// 老用户那一段（NOMI_WALK_OLD_USER_FIXTURE=<tests/fixtures/old-user-data/builtin-connection/ 下的目录名>）：
+// 先把 0.24.0 落的那份旧资料拷进隔离资料目录，再冷启动。应用内宿主先核「升级后被卡改写的连接行对回去了，内置模型、旧卡模型都走到确认卡」
+// （整家删过的那份：先核门说是你删的，存一次密钥后回来），再由 stdio 宿主照常接一个新模型走到确认卡。
 // 前置：pnpm run build。
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -24,6 +28,16 @@ const shotsDir = process.env.NOMI_WALK_EVIDENCE_DIR || path.join(repoRoot, 'test
 fs.mkdirSync(shotsDir, { recursive: true })
 const FAKE_KEY = 'sk-walk-fake-key-not-real-0000'
 const SOURCE = 'https://docs.example.test/api'
+const OLD_FIXTURE = process.env.NOMI_WALK_OLD_USER_FIXTURE || ''
+const OLD_FIXTURE_DIR = OLD_FIXTURE ? path.join(repoRoot, 'tests/fixtures/old-user-data/builtin-connection', OLD_FIXTURE) : ''
+const BUILTIN_IMAGE = { modelId: 'doubao-seedream-4.5', mode: 'text_to_image' }
+/** 旧资料里卡登记过的那个模型（没有卡的两份是 null）。 */
+const OLD_CARD_MODEL = { 'v0.24.0-builtin-card': 'muse-video-x', 'v0.24.0-builtin-card-later-builtin': 'flux-3-video' }[OLD_FIXTURE] || null
+const apimartOnDisk = () => JSON.parse(fs.readFileSync(path.join(dirs.settingsDir, 'model-catalog.json'), 'utf8')).vendors.find((vendor) => vendor.key === 'apimart')
+if (OLD_FIXTURE) {
+  if (!fs.existsSync(path.join(OLD_FIXTURE_DIR, 'model-catalog.json'))) throw new Error(`没有这份旧资料：${OLD_FIXTURE_DIR}`)
+  fs.cpSync(OLD_FIXTURE_DIR, dirs.settingsDir, { recursive: true })
+}
 
 function videoCard(modelKey) {
   return JSON.stringify({
@@ -61,17 +75,28 @@ const check = (condition, message, detail) => {
   console.log(`  ✓ ${message}`)
 }
 
-/** 一个宿主的整条路：存密钥 → 交卡 → 起草 → 预览 → 过门 → 窗口弹确认卡 → 点取消。 */
-async function walkHost(label, call, window, projectId, modelKey, shot) {
+async function openLease(label, call) {
   const opened = await call('nomi_session_open', { bootstrap: { mode: 'current_project' } })
   const leaseHandle = opened.json?.leaseHandle || opened.outcome?.leaseHandle
   check(typeof leaseHandle === 'string', `${label}: 拿到当前项目句柄`, opened.text.slice(0, 600))
+  return leaseHandle
+}
+
+/** 一个宿主的整条路：存密钥 → 交卡 → 起草 → 预览 → 过门 → 窗口弹确认卡 → 点取消。 */
+async function walkHost(label, call, window, projectId, modelKey, shot) {
+  const leaseHandle = await openLease(label, call)
   const keyed = await call('nomi_model_setup', { action: 'set_key', vendorKey: 'apimart', apiKey: FAKE_KEY })
   check(!keyed.isError, `${label}: 存 APIMart 密钥`, keyed.text.slice(0, 300))
   const submitted = await call('nomi_model_setup', { action: 'submit_declaration', vendorKey: 'apimart', declaration: videoCard(modelKey) })
   check(!submitted.isError, `${label}: 在内置 APIMart 上交卡登记 ${modelKey}`, submitted.text.slice(0, 400))
 
-  const candidate = { candidateId: `declared-${label}`, revision: 1, moduleId: 'generation.single-shot', providerId: 'apimart', modelId: modelKey, mode: 'text_to_video', prompt: '一只纸船在湖面上，晨光', parameters: {}, references: [] }
+
+  return reachConfirm(label, call, window, projectId, leaseHandle, { modelId: modelKey, mode: 'text_to_video' }, shot)
+}
+
+/** 起草 → 预览 → 过门 → 窗口弹确认卡 → 点取消。 */
+async function reachConfirm(label, call, window, projectId, leaseHandle, { modelId: modelKey, mode }, shot) {
+  const candidate = { candidateId: `declared-${shot}`, revision: 1, moduleId: 'generation.single-shot', providerId: 'apimart', modelId: modelKey, mode, prompt: '一只纸船在湖面上，晨光', parameters: {}, references: [] }
   const created = await call('nomi_operation_plan', { leaseHandle, projectId, candidate })
   const operationId = created.json?.operation?.operationId || created.outcome?.operation?.operationId
   check(typeof operationId === 'string', `${label}: 起草成功（不重启）`, created.text.slice(0, 400))
@@ -94,12 +119,37 @@ async function walkHost(label, call, window, projectId, modelKey, shot) {
   return { gate: gate.text.slice(0, 400) }
 }
 
+/** 老用户冷启动升级：被卡改写的连接行启动时对回去；内置模型和旧卡模型都走到确认卡。 */
+async function walkOldUser(call, window, projectId, before) {
+  const label = `老用户 ${OLD_FIXTURE}`
+  const leaseHandle = await openLease(label, call)
+  if (OLD_FIXTURE === 'v0.24.0-builtin-whole-deleted') {
+    const candidate = { candidateId: 'old-deleted', revision: 1, moduleId: 'generation.single-shot', providerId: 'apimart', ...BUILTIN_IMAGE, prompt: '一只纸船在湖面上，晨光', parameters: {}, references: [] }
+    const refused = await call('nomi_operation_plan', { leaseHandle, projectId, candidate })
+    summary.deletedSays = refused.text.slice(0, 600)
+    check(!(refused.json?.operation?.operationId || refused.outcome?.operation?.operationId), `${label}: 升级后这家仍是删掉的，起草不成`, summary.deletedSays)
+    check(/apimart/i.test(refused.text) && /key|密钥/i.test(refused.text), `${label}: 回话说了是哪家、存密钥就回来`, summary.deletedSays)
+  }
+  // 连接行对没对回去，在存密钥之前就看盘：对回去是启动那一刻做的，不靠后面这次存密钥。
+  const after = apimartOnDisk()
+  summary.connection = { before: { baseUrlHint: before?.baseUrlHint, assetIngestion: before?.assetIngestion ?? null }, after: { baseUrlHint: after?.baseUrlHint, assetIngestion: after?.assetIngestion ?? null } }
+  check(after?.baseUrlHint === before?.baseUrlHint, `${label}: 冷启动后连接地址没动`, summary.connection)
+  if (OLD_CARD_MODEL) check(before?.assetIngestion?.strategy === 'none' && after?.assetIngestion?.strategy !== 'none', `${label}: 冷启动后被卡改写的素材上传方式对回去了（还没存密钥）`, summary.connection)
+  // 和真老用户的差别：旧资料里的密钥是生成器用假加密落的，真窗口的系统钥匙串解不开（真密文绑机器，进不了仓库），
+  // 所以这里重存一次同一把假密钥。「升级后不用重存密钥」只在单测里（同一种假加密）证过。整家删过的那份本来就要存。
+  const keyed = await call('nomi_model_setup', { action: 'set_key', vendorKey: 'apimart', apiKey: FAKE_KEY })
+  check(!keyed.isError, `${label}: 存一次 APIMart 密钥（旧资料里的假密文真窗口解不开）`, keyed.text.slice(0, 300))
+  await reachConfirm(`${label} · 内置图片模型`, call, window, projectId, leaseHandle, BUILTIN_IMAGE, '00-old-builtin-image')
+  if (OLD_CARD_MODEL) await reachConfirm(`${label} · 旧卡模型`, call, window, projectId, leaseHandle, { modelId: OLD_CARD_MODEL, mode: 'text_to_video' }, '00-old-card-model')
+}
+
 let gui
 let stdio
 let http
 let exitCode = 0
 const summary = {}
 try {
+  const connectionBefore = OLD_FIXTURE ? apimartOnDisk() : null
   gui = await launchNomiApp({
     name: 'mcp-declared-model-gate',
     userDataDir: dirs.userDataDir,
@@ -136,7 +186,8 @@ try {
 
   const callHttp = async (name, args, { timeoutMs = 60_000 } = {}) => parseToolResult(await http.callTool({ name, arguments: args }, undefined, { timeout: timeoutMs }))
   const callStdio = async (name, args, opts) => parseToolResult(await stdio.callTool(name, args, opts))
-  summary.inApp = await walkHost('应用内宿主', callHttp, window, projectId, 'muse-video-x', '01-inapp')
+  if (OLD_FIXTURE) await walkOldUser(callHttp, window, projectId, connectionBefore)
+  else summary.inApp = await walkHost('应用内宿主', callHttp, window, projectId, 'muse-video-x', '01-inapp')
   summary.stdio = await walkHost('stdio 宿主', callStdio, window, projectId, 'muse-video-y', '02-stdio')
   console.log(`\nDECLARED MODEL GATE PASS: ${passed} 条断言；两个宿主都不重启走到确认卡，都点了取消，生成请求 0。`)
 } catch (error) {
