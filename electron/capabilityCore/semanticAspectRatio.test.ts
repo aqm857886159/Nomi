@@ -83,8 +83,9 @@ describe("语义比例 → 所选模式的真实键", () => {
   });
 
   it("真实键本来就叫 aspectRatio 的（RunningHub 可灵）：照样过选项校验，落同名键", () => {
+    // 时长在门里是数字 5（声明门把可灵的 "5" 档规整成 5）；发出去时出口按声明编回 "5"（paramValue.ts encodeParamsForWire）。
     expect(translate("runninghub", "kling-v3.0-pro", "text_to_video", { aspectRatio: "9:16", duration: "5" }))
-      .toEqual({ aspectRatio: "9:16", duration: "5" });
+      .toEqual({ aspectRatio: "9:16", duration: 5 });
     expect(rejection(() => translate("runninghub", "kling-v3.0-pro", "text_to_video", { aspectRatio: "4:3" })).code)
       .toBe("parameter_not_in_enum");
   });

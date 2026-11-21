@@ -6,7 +6,8 @@ import type { ModelOption } from '../../../../config/models'
 import { type PlanAnchor, type PlanShot, type StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
 import { isVisualAnchor } from '../../../generationCanvas/agent/storyboardPromptCompiler'
 import { isAnchorFrozen } from '../../../generationCanvas/model/anchorBibleKeys'
-import { hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
+import { hasUsableResult, storyboardRowScopeItem } from '../../../generationCanvas/runner/generationScopeFacts'
+import { classifyGenerationScope } from '../../../../../electron/shared/agentCapabilities/generationShotScope'
 import { effectiveShotValue, missingRequiredSlots, plannedFirstFrameSlot, referencedVisualAnchors, resolveShotArchetypeMode, shotBindsAnchor } from '../shotRow/shotRowModel'
 import { findAnchorNode, findShotKeyframeNode, findShotNode } from './storyboardNodeBinding'
 import { findModelOptionByIdentifier } from '../../../../config/modelOptionResolvers'
@@ -30,7 +31,7 @@ import { peekVendorPreferenceOrder } from '../../../common/useVendorPreference'
  *                    中性态，只给免费的「重新拉取结果」（query 不是 generate）；**绝不**进批量——
  *                    进了批量就是把一次已付费的生成再付一次钱（画布 NodeRecoverableReport 同一语义）；
  * - done             有可用结果（画面格 = 结果图 + 悬停浮条）；
- * - locked           已锁定（结果满意，不进批量不被重跑；同参考卡锁语义）。
+ * - locked           已定妆（结果满意，不进批量不被重跑；同画布定妆）。
  */
 export const SHOT_ROW_STATUSES = ['ready', 'anchor-ignored', 'missing-required', 'generating', 'failed', 'recoverable', 'done', 'locked'] as const
 export type ShotRowStatus = (typeof SHOT_ROW_STATUSES)[number]
@@ -357,31 +358,31 @@ export function deriveStoryboardBatch<T extends StoryboardRowWithExec>(
     doneCount: 0,
     countByStatus,
   }
-  for (const row of rows) {
+  // 谁进批次由共用主人的 storyboard-batch 意图定（可找回的已付费、不进；生成中 / 缺必填参考 / 已出图 / 定了妆的不进）；这里只按原因分桶计数。
+  const scope = classifyGenerationScope('storyboard-batch', rows.map((row, index) => storyboardRowScopeItem(String(index), row.exec.status)))
+  rows.forEach((row, index) => {
     countByStatus[row.exec.status] += 1
-    switch (row.exec.status) {
-      case 'done':
-        view.doneCount += 1
-        break
-      case 'locked':
-        view.excluded.locked += 1
-        break
+    const decided = scope[index]
+    if (decided.state === 'checked') {
+      view.runnable.push(row)
+      return
+    }
+    switch (decided.reason) {
       case 'generating':
         view.excluded.generating += 1
         break
       case 'recoverable':
-        // 已付费、待找回：不进批量（免费找回是行内动作，不是批量生成）。
         view.excluded.recoverable += 1
         break
       case 'missing-required':
         view.excluded.missingRequired += 1
         break
-      case 'anchor-ignored':
-      case 'ready':
-      case 'failed':
-        view.runnable.push(row)
+      case 'frozen':
+        view.excluded.locked += 1
         break
+      default:
+        view.doneCount += 1
     }
-  }
+  })
   return view
 }

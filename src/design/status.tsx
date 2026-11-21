@@ -19,8 +19,8 @@ export type StatusBadgeProps = Omit<BadgeProps, 'color'> & {
 
 /**
  * 采纳现状：凭据状态（「已保存 · 未验证」「已复验 · 模型未验证」）已走它（2 个文件，见 README）。
- * 其余迁移对象（2026-09-07 实测，仍待迁）：画布侧另有 5 份手写徽章
- * （`nodes/NodeQueuedBadge.tsx` / `NodeLockBadge.tsx` / `NodeDeconstructionBadge.tsx` /
+ * 其余迁移对象（2026-09-07 实测，仍待迁）：画布侧另有 4 份手写徽章（节点锁徽标已随节点锁撤掉）
+ * （`nodes/NodeQueuedBadge.tsx` / `NodeDeconstructionBadge.tsx` /
  * `TechnicalReviewBadge.tsx` / `render/ShotMountBadges.tsx`）——「状态徽章」这件事一直在
  * 做，只是没走这个组件。
  * 与 `NomiSkeleton` 同一类情形（那件本轮已被项目库 loading 态接走）。

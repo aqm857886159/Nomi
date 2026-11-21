@@ -151,10 +151,17 @@ describe("只放宽 null：其余照旧拒", () => {
     expect(error.message).toContain("null");
   });
 
-  it("字符串 \"4\" 冒充数字 → 仍然拒", () => {
-    const error = rejectionOf(() => compileExecutionContract(candidate({ duration: 5, seed: "4" }), registry, { parameterSchema: schema }));
-    expect(error.rejection?.code).toBe("parameter_type_mismatch");
-    expect(error.rejection?.path).toBe("parameters.seed");
+  it("非规范数字串 \"05\"、\"4s\" 写在数字参数上 → 仍然拒", () => {
+    for (const seed of ["05", "4s"]) {
+      const error = rejectionOf(() => compileExecutionContract(candidate({ duration: 5, seed }), registry, { parameterSchema: schema }));
+      expect(error.rejection?.code).toBe("parameter_type_mismatch");
+      expect(error.rejection?.path).toBe("parameters.seed");
+    }
+  });
+
+  it("规范数字串 \"4\" 先过值门：对要数字的字段就是 4，按数字进合同（2026-11-17 参数值内部类型）", () => {
+    const contract = compileExecutionContract(candidate({ duration: "5", seed: "4" }), registry, { parameterSchema: schema });
+    expect(contract.parameters).toEqual({ duration: 5, seed: 4 });
   });
 
   it("字符串 \"abc\" 写在数字参数上 → 仍然拒", () => {

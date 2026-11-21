@@ -23,7 +23,6 @@ describe('direct custom-call onboarding entry', () => {
     const wizard = source('OnboardingWizard.tsx')
     const drawer = source('OnboardingDrawer.tsx')
     const home = source('ModelSettingsHome.tsx')
-    const health = source('useVendorHealth.ts')
 
     expect(home).toContain('data-model-home-direct-script')
     expect(drawer).toContain("onDirectScript={() => openWizard(undefined, undefined, 'scriptDraft')}")
@@ -35,9 +34,9 @@ describe('direct custom-call onboarding entry', () => {
     expect(drawer).toContain("{ type: 'script', vendorKey: identity.vendorKey, modelKey: identity.modelKey }")
     expect(drawer).toContain('draft: true')
     expect(drawer).not.toContain('directScriptModal')
-    expect(drawer).toContain('skipHealthProbe={Boolean(meta?.customCallOnly)')
-    expect(health).toContain('skipImplicit: skipImplicitProbe')
-    expect(health).toContain('if (!hasApiKey) return')
+    // 打开面板探一次的「连接健康」整个删了（D-1117-delete-verification），草稿脚本连接也就没有要跳过的探测。
+    expect(drawer).not.toContain('skipHealthProbe')
+    expect(fs.existsSync(path.join(process.cwd(), 'src/ui/onboarding/useVendorHealth.ts'))).toBe(false)
   })
 
   it('keeps a draft disabled on cancel and delegates save-and-enable to main', () => {

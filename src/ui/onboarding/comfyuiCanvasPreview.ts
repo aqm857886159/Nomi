@@ -12,7 +12,7 @@
 //    comfyuiWorkflowImport.ts buildImportedWorkflow），画布节点底栏按 parameters 渲染控件。
 //  - 提示词 ⟵ 绑了提示词节点才有输入框；没绑就是「这条工作流不吃提示词」，画布上也确实没有。
 // 改画布那边的口径，这里要同步（两处都指向对方，别只改一处）。
-import { declaredOptionValue } from '../../workbench/generationCanvas/nodes/controls/parameterControlModel'
+import { declaredOptionValue } from '../../../electron/shared/videoCapabilities/paramValue'
 import { workflowMediaBindings, type WorkflowBinding, type WorkflowParamType } from './comfyuiWorkflowBinding'
 
 /** 画布上一个可填控件的类型。media 槽 = 拖图/拖视频/拖音频的方框，不是输入框。 */

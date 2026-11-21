@@ -1,0 +1,58 @@
+{
+  "name": "「生成这一组」的范围：成员、默认勾选、顺序与依赖分波只在一处算",
+  "subject": "generation.scope-plan",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+    "symbol": "planGenerationScope"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+      "symbol": "planGenerationScope"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+      "symbol": "narrowGenerationScope"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+      "symbol": "classifyGenerationScope"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationScopeFacts.ts",
+      "symbol": "planCanvasGenerationScope"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "buildDependencyWaves",
+      "kind": "definition",
+      "why": "旧的依赖分波第二份实现：分波只由共用主人算，入口拿 GenerationScopePlan。"
+    },
+    {
+      "symbol": "eligibleGenerationNodeIds",
+      "kind": "definition",
+      "why": "旧的「哪些节点能进批量」第二份判据：成员与默认勾选由意图表定。"
+    },
+    {
+      "symbol": "groupEligibleNodeIds",
+      "kind": "definition",
+      "why": "旧的组生成成员判据，已并进 group 意图。"
+    },
+    {
+      "symbol": "nodesInCanvasProductionScope",
+      "kind": "definition",
+      "why": "旧的画布批量范围判据，已并进共用主人。"
+    }
+  ],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/runner/generationScopeFacts.ts"
+  ],
+  "since": "2026-11-17",
+  "notes": "画布组生成、单发补齐参考、分镜单行 / 批量 / 参考卡一波、重试失败、交接制作都按意图问 planGenerationScope；缩范围（卡上勾掉、确认后有人占了）一律 narrowGenerationScope 重算，不从旧波次里直接删。执行计划类型带品牌，只有主人能造。事实由 generationScopeFacts.ts 从画布 / 分镜行翻译。节点锁不在这里：用户 2026-11-17 定删节点锁，生成范围不再认锁；定妆（meta.frozen）仍是参考卡的下游门。"
+}

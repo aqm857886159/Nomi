@@ -743,6 +743,10 @@
     {
       "path": "src/devlab/",
       "reason": "设计实验室：Nomi 界面的样张与状态集，不进产物"
+    },
+    {
+      "path": "electron/ai/onboarding/catalogReconciliation.ts",
+      "reason": "已有健康探测中保留的 Nomi 目录对账：把供应商清单与本地加密凭据、连接开关及模型生命期对齐，不再判断健康或可用性；沿用 modelListProbe 拉清单，非另造网络框架。查证见 docs/plan/2026-11-17-unverified-usable.md 的先查别人。"
     }
   ],
   "genericZones": [
@@ -1518,7 +1522,13 @@
       "capability": "仓库门岗族：一百多个 check:* 脚本（棘轮、登记表、合同、文档记账）",
       "status": "under-review",
       "reviewBy": "2026-11-30",
-      "renewed": [{ "on": "2026-10-31", "from": "2026-10-31", "reason": "门岗账本已出（docs/audit/2026-10-01-gate-ledger.md），保留 / 合并 / 降级 / 删除清单还没交用户逐项拍板，排在当前发版之后；拍板前下不了结论。只能续这一次，到期前必须出结论。" }],
+      "renewed": [
+        {
+          "on": "2026-10-31",
+          "from": "2026-10-31",
+          "reason": "门岗账本已出（docs/audit/2026-10-01-gate-ledger.md），保留 / 合并 / 降级 / 删除清单还没交用户逐项拍板，排在当前发版之后；拍板前下不了结论。只能续这一次，到期前必须出结论。"
+        }
+      ],
       "paths": [
         "scripts/check-*.mjs",
         "scripts/run-gates-contracts.mjs"
@@ -1751,7 +1761,13 @@
       "capability": "画布撤销日志（会话日志前缀重放）与写边界（动作分层、整写统一提交口、提议写入的接管）",
       "status": "under-review",
       "reviewBy": "2026-12-06",
-      "renewed": [{ "on": "2026-11-07", "from": "2026-11-06", "reason": "镜头结果归属那次改动只在写边界的动作分层表里把删掉的 withdrawNodeRun 换成 applyRunOutcome，没碰撤销日志与整写提交口的设计；撤销栈改 Immer 反向补丁的评估（方向检查 §6 接入 B）还没有线去做，下不了结论。只能续这一次，到期前必须出结论。" }],
+      "renewed": [
+        {
+          "on": "2026-11-07",
+          "from": "2026-11-06",
+          "reason": "镜头结果归属那次改动只在写边界的动作分层表里把删掉的 withdrawNodeRun 换成 applyRunOutcome，没碰撤销日志与整写提交口的设计；撤销栈改 Immer 反向补丁的评估（方向检查 §6 接入 B）还没有线去做，下不了结论。只能续这一次，到期前必须出结论。"
+        }
+      ],
       "paths": [
         "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
         "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
@@ -2479,6 +2495,48 @@
       ],
       "whyNotIntegrated": "领域约束：只有 Nomi 的节点、参考关系、变体映射和最终出站请求能决定这次镜头的公开价是否可估（带参考、自定义模板、价目没写附加费时必须判未知）。网络、HTTP 模板、React 生命周期和货币格式化都复用现有实现；这几个模块只把这些领域事实接起来，不拥有第二份目录、凭据或付费授权。",
       "revisitWhen": "既有请求构造器直接提供同形的只读报价投影，或公开价读取迁入统一的模型连接领域 owner 时，合并这些适配并删掉重复入口；任何时候都不得用估价结果替代生成授权。"
+    },
+    {
+      "id": "param-value-door-eslint-rule",
+      "capability": "ESLint 小规则 param-value-door/no-reparse：画布、分镜、助手与发送这几块目录里，不许再对参数袋里的时长或控件档位值自己写一份 typeof / Number / parseFloat / 一元 + / 字符串化比较，规整只走 electron/shared/videoCapabilities/paramValue.ts 的门",
+      "status": "justified",
+      "paths": [
+        "scripts/param-value-door-rule.mjs"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "typescript-eslint no-unnecessary-type-conversion：只拦「值已经是目标类型还去转」，要类型化 lint（仓库没开）；参数袋读出来是 unknown，它不认为转换多余，拦不住",
+          "source": "https://typescript-eslint.io/rules/no-unnecessary-type-conversion/"
+        },
+        {
+          "name": "ESLint 内置 no-restricted-syntax 加选择器（仓库现有的守都是这种）：选择器只认语法形状，认不出「这个变量来自参数袋」，要么全仓误伤、要么漏掉换个变量名的写法",
+          "source": "https://eslint.org/docs/latest/rules/no-restricted-syntax"
+        },
+        {
+          "name": "Zod coerce：解析本身已经交给它（paramValue.ts 的门里用），但它管不了「门外别处又自己转一次」",
+          "source": "https://zod.dev/api?id=coercion"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：要判的是「这个变量是不是从模型参数袋（parameters / params / meta 等袋上读时长、按控件键下标读）或控件档位里来的原值」，这是我们参数袋的领域形状，通用规则没有这个概念；规则本体用 ESLint 标准的 create(context) 接口写，只做这一个判断。",
+      "revisitWhen": "仓库开了类型化 lint 且参数袋改成品牌类型（门外拿不到 unknown 原值）时，删掉这条规则改用类型系统守"
+    },
+    {
+      "id": "composer-bar-yield-measurement",
+      "capability": "生成底栏文字尺子与逐级宽度求解",
+      "status": "justified",
+      "paths": [
+        "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+        "src/workbench/generationCanvas/nodes/composerBarYield.ts",
+        "src/workbench/generationCanvas/nodes/ComposerSendButton.tsx"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "rc-overflow / React Spectrum ActionGroup / Primer UnderlineNav / pretext",
+          "source": "docs/plan/2026-11-17-bar-yield-measure-drawn.md#先查别人"
+        }
+      ],
+      "whyNotIntegrated": "按领域裁决的固定让位顺序，多控件多样子；列表溢出组件不表达生成字、摘要整值、方式字、模型名的依次让位。只自写候选宽求解，字体排版与尺寸观察用浏览器。",
+      "revisitWhen": "外框校准一个月改两次以上，或增加另一种让位形状时回到方向复盘。2026-11-24复查。"
     }
   ]
 }

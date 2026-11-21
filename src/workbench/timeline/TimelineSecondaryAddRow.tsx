@@ -12,6 +12,9 @@ import AssetPickerPopover from '../assets/AssetPickerPopover'
 import { useOpenProjectId } from '../project/useOpenProjectId'
 import { withProjectAction } from '../project/projectCanvasReadSurface'
 import { logRendererError } from '../../desktop/rendererLog'
+import { getDesktopBridge } from '../../desktop/bridge'
+import { assetRefFromDesktopAsset } from '../assets/useAllProjectAssets'
+import { filePathsFromDrop, importLocalPathsToLibrary } from '../assets/assetLibraryLocalImport'
 
 /**
  * 叠加层收起条（方案 B 的空态 + 方案 A 的视觉，用户拍板）。
@@ -62,6 +65,12 @@ export function TimelineSecondaryAddRow({
   }
   const acceptsAudio = (types: readonly string[]) => showAudio && types.includes(ASSET_LIBRARY_DRAG_MIME)
 
+  const musicPlacement = () => {
+    const timeline = useWorkbenchStore.getState().timeline
+    const audioTrackEmpty = timeline.tracks.every((track) => track.type !== 'audio' || track.clips.length === 0)
+    return { fps: timeline.fps, startFrame: audioTrackEmpty ? 0 : timeline.playheadFrame }
+  }
+
   // 「＋配乐」：与「＋字幕」对称的点击入口。此前配乐只有拖放一条路，而全 App 拖不出音频素材
   // （素材库网格过滤掉了音频）→ 那行「拖音频到此」等于无源。落 clip 走与拖放同一条实现。
   const musicBtn = showAudio ? (
@@ -87,8 +96,6 @@ export function TimelineSecondaryAddRow({
               // 配乐从 7.5 秒起，导出就变成 22.5 秒），而用户完全不知道那一截哪来的。
               // 想放在某个点上的第二段/音效仍按播放头走——那时位置就是意图了。想改第一段的位置，
               // 拖它或拖素材过来，两条路都在。
-              const state = useWorkbenchStore.getState()
-              const audioTrackEmpty = state.timeline.tracks.every((track) => track.type !== 'audio' || track.clips.length === 0)
               // 加不进去时它**成功地返回 null**（时长探不出来、素材类型落不了轨），此前整个
               // Promise 被裸 `void` 丢掉：用户挑了首曲子，弹窗关了，轴上什么都没多，一个字的
               // 解释也没有（设计系统 §4.1 C1）。这不是拒绝、是「静悄悄地没做成」，所以要看返回值，
@@ -96,7 +103,7 @@ export function TimelineSecondaryAddRow({
               // 「轴保持原样」是真的：失败都发生在写轴之前。
               const project = withProjectAction((issued) => issued)
               if (!project) return
-              void addAssetToTimeline(asset, { fps, startFrame: audioTrackEmpty ? 0 : state.timeline.playheadFrame }, project)
+              void addAssetToTimeline(asset, musicPlacement(), project)
                 .then((clip) => {
                   if (!clip) presentFeedback(t('timelineEditor.adoption.failedRecovered'))
                 })
@@ -106,7 +113,31 @@ export function TimelineSecondaryAddRow({
                 })
               setMusicPickerOpen(false)
             }}
-            onUpload={() => {}}
+            onUpload={(file) => {
+              setFeedback('')
+              const project = withProjectAction((issued) => issued)
+              const paths = filePathsFromDrop([file], getDesktopBridge()?.clipboard?.getPathForFile)
+              if (!project || paths.length !== 1) {
+                presentFeedback(t('timelineEditor.adoption.failedRecovered'))
+                return
+              }
+              const placement = musicPlacement()
+              void importLocalPathsToLibrary(project.binding.projectId, paths)
+                .then(async ({ created }) => {
+                  const asset = created[0] && assetRefFromDesktopAsset(created[0])
+                  if (!asset || asset.kind !== 'audio') {
+                    presentFeedback(t('timelineEditor.adoption.failedRecovered'))
+                    return
+                  }
+                  const clip = await addAssetToTimeline(asset, placement, project)
+                  if (!clip) presentFeedback(t('timelineEditor.adoption.failedRecovered'))
+                  else setMusicPickerOpen(false)
+                })
+                .catch((error: unknown) => {
+                  logRendererError('timeline-upload-music-failed', error)
+                  presentFeedback(t('timelineEditor.adoption.failedRecovered'))
+                })
+            }}
           />
         </AssetPickerPopover>
       ) : null}

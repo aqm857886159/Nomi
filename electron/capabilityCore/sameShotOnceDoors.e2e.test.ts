@@ -288,7 +288,7 @@ describe("「再来一版」：复制成变体节点再按 ↑（canvasNodeActio
 
 describe("渲染层入口读到的归属（节点生成钮 / 框菜单 / 组工具条 / 列表「生成全部」）× 三个时刻", () => {
   // 节点生成钮：`NodeGenerationComposer` 的 `productionClaimBlocked`（decideShotClaim 'canvas'）+ `canRunGenerationNode`；
-  // 框菜单 / 组工具条 / 列表：`isGenerationNodeBusy` / `eligibleGenerationNodeIds`。两者都只读 `isNodeGenerationOwnedByProduction`
+  // 框菜单 / 组工具条 / 列表：`isGenerationNodeBusy` / 生成范围共用主人（经 `scopeFactsOf` 读同一个 busy）。两者都只读 `isNodeGenerationOwnedByProduction`
   // 背后的同一个 `decideShotClaim`，所以这里钉它在每一刻对 shot-1 说什么；另一半（节点自己的 queued / running）是渲染层状态。
   const ownership = (world: SpendWorld) => {
     const claim = decideShotClaim(world.run(), "shot-1", "canvas");

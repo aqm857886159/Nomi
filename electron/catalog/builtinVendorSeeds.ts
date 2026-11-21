@@ -88,13 +88,7 @@ export type VendorSeed = {
    * 却连最小生成 canary 都跑不通（认证账本 blocker 原文）。详见
    * docs/research/2026-09-10-vendor-key-publish-class/prior-art.md 第 ④ 节。
    *
-   *  · `model-list`    ：上游确有 OpenAI 兼容模型列表端点，且它对合法 key 会放行。
-   *                      ⚠️ 现役无人声明这一档。第一个声明它的人请连带补上
-   *                      `electron/ai/onboarding/vendorHealth.ts` 的清标记分支：那里探测成功后
-   *                      只 `delete verificationPending`，不发布 vendor，于是这一档的 pending 凭据
-   *                      转正后会卡在「验证过了但模型还是不出现」的半截状态。今天它不可达
-   *                      （唯一会 pending 的内置家是 apimart，而它的 /v1/models 恒 401、res.ok 永假），
-   *                      所以刻意不预先写那段代码（P1：不留投机路径），把提醒留在声明处。
+   *  · `model-list`    ：上游确有 OpenAI 兼容模型列表端点，且它对合法 key 会放行（保存时只拿它做 401 / 403 拒收闸）。
    *  · `first-use`     ：没有便宜且可信的预检——最小真实请求 = 一次付费生成，不能替用户花钱。
    *                      存 key 即发布 + 标「待首次使用验证」，首次生成的鉴权失败走现有诚实报错。
    *

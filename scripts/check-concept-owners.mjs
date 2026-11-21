@@ -48,7 +48,10 @@ import {
 import {
   collectDefinitions,
   collectDoors,
+  findFailureDecisionBypass,
   findIdentityComparators,
+  findResendOwnerBypass,
+  findShotJobSelections,
   gitRefSource,
   isScannableSource,
   normalizePath,
@@ -70,6 +73,8 @@ const RULE_TEXT = {
   'pending-new-write-door': ['pending 概念的旧路新增了生产写入口', '主人定下来之前，旧路上不许再长写口：改走暂定主人的接口，或者先把这个概念收口（看它的 migration_strategy）。'],
   'pending-unlisted-consumer': ['pending 概念多了一个例外账之外的入口', 'pending 概念的消费者只许是 allowed_consumers 那本例外账：改走已有消费者；确需新增，由协调会话批准后写进 allowed_consumers。'],
   'forbidden-reference': ['碰了列为禁止引用的旧形状', '改走主人；确需引用，写进这个概念的 allowed_consumers 并说明理由。'],
+  'shot-job-selection': ['主人之外自行选择当前生成任务', '只传镜号或节点地址给 productionShotJobs，不在消费者筛选、排序或取账本首末项。'],
+  'failure-decision-bypass': ['主人之外自己判失败（类别 / 公开码 / 动作）', '失败怎么判只归 electron/shared/generationFailure：改成调 decideGenerationFailure（或界面投影 classifyGenerationError），出口只做语言 / 受众的呈现；语言、pi 瞬时、任务来源作为输入事实传进去，不在出口对原文做子串 / 正则认码，也不在出口覆盖类别 / 公开码 / 动作。'],
   'identity-comparator': ['登记表之外又长出一份身份比对（原 check:identity-compare）', '改成 import 主人那一份比对函数；确实是另一种身份，就登记一个身份概念并写明 identity_fields。'],
   'identity-drift': ['身份维度漂了', '维度变了就是身份变了：改回去，或者更新登记的 identity_fields 并说明为什么。'],
   'unregistered-boundary': ['合同里冒出了没登记的主人', 'R33.4：改动碰到还没登记的概念，同一个 commit 当场登记——把这个边界写进一个概念的 write_api（新概念就新建一条）；边界在边界主人台账改过锚的，登记的是台账里的新锚；主人确实没了、那条不变量不再适用的，记进边界主人台账 retirements 并写清理由——退役只认参照提交上已经声明过、主人当时在位的边界，今天才冒出来的边界（新合同、合同里新加的一条）没有「退役」这回事，要登记。'],
@@ -273,6 +278,32 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
     const result = evaluateDoorPolicy({ concept, doors })
     findings.push(...result.findings)
     pendingWriteDoors.push(...result.writeDoors)
+  }
+
+  const shotJobs = selected.find((concept) => concept.subject === 'production.shot-jobs')
+  if (shotJobs) {
+    for (const item of findShotJobSelections({ files, read: source.read })) {
+      findings.push({ rule: 'shot-job-selection', concept: shotJobs.name, ...item,
+        message: '当前任务的选择只归 productionShotJobs；专用合同查询与 Run 级导航保持各自范围。' })
+    }
+  }
+
+  const failureDecision = selected.find((concept) => concept.subject === 'diagnostics.generation-error-copy')
+  if (failureDecision) {
+    for (const item of findFailureDecisionBypass({ files, read: source.read })) {
+      findings.push({ rule: 'failure-decision-bypass', concept: failureDecision.name, ...item,
+        message: `失败判定只归 electron/shared/generationFailure；这里（${item.shape}：${item.value}）在出口自己判了一遍。` })
+    }
+  }
+
+  const shotRun = selected.find((concept) => concept.subject === 'canvas.shot-run')
+  if (shotRun) {
+    for (const item of findResendOwnerBypass({ files, read: source.read })) {
+      findings.push({ rule: 'resend-owner-bypass', concept: shotRun.name, ...item,
+        message: item.shape === 'result-unknown-list'
+          ? `「结果未知」那两个状态只归 electron/shared/productionJobOpenAs 那张表；这里（${item.value}）又自列了一份。`
+          : `替别的 Run 放掉节点占用只归画布单镜主人的收尾 / 重发准入 / 交给观察者；这里（${item.symbol}）自己放了。` })
+    }
   }
 
   // ⑤ 身份比对（原 check:identity-compare）

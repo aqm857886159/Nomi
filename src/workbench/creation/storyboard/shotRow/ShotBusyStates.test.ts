@@ -24,9 +24,9 @@ describe('行内「生成」有忙态，而且忙态就是闸', () => {
 
   // 2026-11-14 三处一套：分镜行的「生成」是和画布同一颗发送钮（带字那一型），四件齐由那颗钮自己保证。
   it('忙态 = disabled + aria-busy + 转圈 + 换字，四件齐', () => {
-    expect(composer).toContain('<ComposerSendButton')
-    expect(composer).toContain('busy={generating}')
-    expect(composer).toContain("label={t('storyboardEditor.frame.generate')}")
+    expect(composer).toContain('send:')
+    expect(composer).toContain('busy: generating')
+    expect(composer).toContain("label: t('storyboardEditor.frame.generate')")
     expect(composer).toContain("'data-storyboard-generate-state': generating ? 'busy' : 'idle'")
     expect(sendButton).toContain('disabled={busy || disabled}')
     expect(sendButton).toContain('aria-busy={busy}')

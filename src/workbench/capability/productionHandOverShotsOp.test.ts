@@ -31,7 +31,6 @@ vi.mock('../api/taskApi', () => ({
 }))
 
 vi.mock('../generationCanvas/components/batchPlanPreview', () => ({
-  resolveBatchHostingNodes: async () => world.hosting,
 }))
 
 vi.mock('../generationCanvas/runner/generationRunWaves', () => ({
@@ -53,8 +52,8 @@ function shot(id: string, extra: Partial<GenerationCanvasNode> = {}): Generation
   } as GenerationCanvasNode
 }
 
-const request = (shots: Array<[string, string]>, hostingAllowed = false) => ({
-  projectId: 'p1', runId: 'run-1', hostingAllowed, shots: shots.map(([shotId, nodeId]) => ({ shotId, nodeId })),
+const request = (shots: Array<[string, string]>, ) => ({
+  projectId: 'p1', runId: 'run-1', shots: shots.map(([shotId, nodeId]) => ({ shotId, nodeId })),
 })
 
 beforeEach(() => {
@@ -91,7 +90,6 @@ describe('handOverShotsOp', () => {
     const { waves, options } = world.dispatches[0]!
     expect(waves).toEqual([['n1', 'n2']])
     expect(options.claimAdmittedByHost).toBe(true)
-    expect(options.assetUploadConsent).toBe('not-needed')
     const recordIds = options.canvasRunRecordIds as Map<string, string>
     expect([...recordIds.keys()]).toEqual(['n1', 'n2'])
     expect([...recordIds.values()]).toEqual(world.consents[0]!.shots.map((consent) => consent.runRecordId))
@@ -113,17 +111,6 @@ describe('handOverShotsOp', () => {
     const reply = await handOverShotsOp(request([['s1', 'n1'], ['s2', 'n2']]))
     expect(reply.skipped.map((entry) => entry.failure.code)).toEqual(['project_not_open', 'project_not_open'])
     expect(world.consents).toHaveLength(0)
-  })
-
-  it('素材托管：策略不许 → asset_hosting_denied；要问人而卡上没摆过披露 → asset_hosting_consent_required；摆过且是人点的 → 开同意、按「允许」派发', async () => {
-    world.hosting = null
-    expect((await handOverShotsOp(request([['s1', 'n1']]))).skipped).toEqual([{ shotId: 's1', failure: { kind: 'not_sent', code: 'asset_hosting_denied' } }])
-    world.hosting = { allowed: [], needsConfirmation: true, remember: false }
-    expect((await handOverShotsOp(request([['s1', 'n1']]))).skipped).toEqual([{ shotId: 's1', failure: { kind: 'not_sent', code: 'asset_hosting_consent_required' } }])
-    expect(world.consents).toHaveLength(0)
-    expect((await handOverShotsOp(request([['s1', 'n1']], true))).skipped).toEqual([])
-    await Promise.resolve()
-    expect(world.dispatches[0]!.options.assetUploadConsent).toBe('allow')
   })
 
   it('开同意被主进程拒（出价在两步之间关了）→ 整批没发出去（canvas_consent_failed），不派发', async () => {

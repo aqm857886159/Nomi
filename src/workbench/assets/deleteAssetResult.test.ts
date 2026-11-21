@@ -16,7 +16,11 @@ vi.mock('../../desktop/bridge', () => ({
 }))
 vi.mock('../generationCanvas/store/generationCanvasStore', () => ({
   useGenerationCanvasStore: {
-    getState: () => ({ nodes: mocks.nodes, updateNode: mocks.updateNode }),
+    // 已加载的是 project-1 的画布（存活判定只认此刻载入的那个项目，读不到就保留文件）。
+    getState: () => ({
+      nodes: mocks.nodes, updateNode: mocks.updateNode, isReady: true, projectId: 'project-1',
+      readDocumentSnapshot: () => ({ nodes: mocks.nodes, edges: [], groups: [] }),
+    }),
   },
 }))
 vi.mock('../project/workbenchProjectSession', () => ({
@@ -112,7 +116,7 @@ describe('deleteAssetResult durability', () => {
     expect(mocks.updateNode).toHaveBeenCalledOnce()
     expect(mocks.persistNow).toHaveBeenCalledOnce()
     // App 在这之后直接退出：项目文件里已经记着这一笔，下次打开清扫。
-    expect(pendingAtSave).toEqual([{ relativePath: 'assets/generated/a.png' }])
+    expect(pendingAtSave).toEqual([{ relativePath: 'assets/generated/a.png', source: 'asset-library' }])
     expect(outcome).toMatchObject({ removedResultCount: 1, deletedFileCount: 0, deferredFileCount: 1 })
     expect(mocks.deleteFiles).not.toHaveBeenCalled()
     await releaseLoadedProjectAssetDeletions()

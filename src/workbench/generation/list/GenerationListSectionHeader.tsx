@@ -8,7 +8,7 @@ import { WorkbenchButton, WorkbenchIconButton } from '../../../design'
 import { WorkbenchMenu, type WorkbenchMenuAnchorRect, type WorkbenchMenuNode } from '../../../design/menu'
 import { cn } from '../../../utils/cn'
 import { resolveLightweightNodePreview } from '../../generationCanvas/components/canvasNodeLevelOfDetail'
-import { hasGroupGenerateCandidates, runGroupGenerate } from '../../generationCanvas/components/groupGenerate'
+import { runGroupGenerate, useGroupGenerateDisabledReason } from '../../generationCanvas/components/groupGenerate'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import type { GenerationListAnchor, GenerationListSection } from './generationListModel'
@@ -52,9 +52,11 @@ export function GenerationListSectionHeader({
   const { t } = useTranslation()
   const setActiveStoryboardId = useWorkbenchStore((state) => state.setActiveStoryboardId)
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
-  // 可用态与点击后真正派发的集合同一份推导（groupGenerate.eligibleGroupGenerateIds）。
-  // 订阅画布 store 的任何变化（选择器读的是 store 现状），节点状态一变这颗钮的可用态跟着变。
-  const canGenerate = useGenerationCanvasStore(() => section.kind !== 'ungrouped' && hasGroupGenerateCandidates(sectionGenerateNodeIds(section)))
+  // 可用态与点击后真正派发的集合同一份推导（共用主人的 group 意图，见 groupGenerate）。
+  // 订阅画布节点和在跑的生产任务，状态一变这颗钮的可用态跟着变。
+  // 置灰时的原因也从主人的分行来（几个可找回 / 生成中），和画布组工具条、框头、框右键同一句。
+  const generateDisabledReason = useGroupGenerateDisabledReason(section.kind === 'ungrouped' ? undefined : sectionGenerateNodeIds(section))
+  const canGenerate = section.kind !== 'ungrouped' && generateDisabledReason === undefined
   const count = section.cards.length
   const done = section.cards.filter((card) => card.status === 'done' || card.status === 'locked').length
   const title = section.kind === 'storyboard'
@@ -88,16 +90,18 @@ export function GenerationListSectionHeader({
         {section.anchors.map((anchor) => <AnchorChip key={anchor.key} anchor={anchor} onOpen={onOpenAnchor} />)}
       </span>
       {section.kind !== 'ungrouped' ? (
-        <WorkbenchButton
-          size="sm"
-          variant="default"
-          disabled={!canGenerate}
-          data-section-generate={section.key}
-          title={canGenerate ? undefined : t('generationList.generateAllEmpty')}
-          onClick={() => { runGroupGenerate(sectionGenerateNodeIds(section)) }}
-        >
-          <IconPlayerPlay size={13} stroke={1.8} aria-hidden /> {t('generationList.generateAll')}
-        </WorkbenchButton>
+        // 禁用的 <button> 自己不触发 title（浏览器行为）→ 外层包一层承载原因（§1.6 C1）。
+        <span title={generateDisabledReason} className="contents">
+          <WorkbenchButton
+            size="sm"
+            variant="default"
+            disabled={!canGenerate}
+            data-section-generate={section.key}
+            onClick={() => { runGroupGenerate(sectionGenerateNodeIds(section)) }}
+          >
+            <IconPlayerPlay size={13} stroke={1.8} aria-hidden /> {t('generationList.generateAll')}
+          </WorkbenchButton>
+        </span>
       ) : null}
       {storyboard ? (
         <span ref={triggerRef} className="inline-flex">

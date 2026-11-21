@@ -18,10 +18,10 @@
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [
-    "electron/ai/onboarding/vendorHealth.ts",
+    "electron/ai/onboarding/catalogReconciliation.ts",
     "electron/catalog/assetLocalization.ts",
     "electron/catalog/assetIngestionRegistry.ts"
   ],
   "since": "2026-10-03",
-  "notes": "用户连接的 base 地址与夹具回环覆盖由唯一回答者统一提供；上传与健康探测只消费该判据。"
+  "notes": "用户连接的 base 地址与夹具回环覆盖由唯一回答者统一提供；上传与后台拉模型清单只消费该判据（健康探测随 D-1117-delete-verification 删除，2026-11-18）。"
 }

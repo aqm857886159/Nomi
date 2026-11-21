@@ -1,4 +1,5 @@
-import { NO_CURRENT_OFFER, resolveUndecidedGenerationShotScope } from '../../../electron/shared/agentCapabilities/generationShotScope'
+import { classifyGenerationScope, NO_CURRENT_OFFER, resolveUndecidedGenerationShotScope } from '../../../electron/shared/agentCapabilities/generationShotScope'
+import { storyboardAnchorScopeItem } from '../generationCanvas/runner/generationScopeFacts'
 import { createStoryboardActionGuard } from '../creation/storyboard/exec/storyboardActionGuard'
 import { isRunTargetLoaded, readRunProjectRecord } from '../generationCanvas/runner/runProjectDelivery'
 import { preloadModelOptions } from '../../config/useModelOptions'
@@ -65,8 +66,12 @@ export async function presentStoryboard(data: Record<string, unknown>): Promise<
     const anchors = deriveAnchorCardRuntimes({ plan, designId, nodes: canvas.nodes })
     // 每一次问都可能被他拒掉，所以逐次收结局，最后合成一个（规则见 `mergeRunOutcomes`）。
     const outcomes: GenerationRunOutcome[] = []
-    for (const entry of anchors.filter(value => scope.includes(value.anchor.id))) {
-      if (!entry.visual || entry.locked || entry.resultUrl || entry.generating || entry.recoverable) continue
+    // 哪几张参考卡要先生成：共用主人的 anchor-wave 意图（与表上「生成未生成的」同一个判据）。
+    const visualAnchors = anchors.filter(value => scope.includes(value.anchor.id) && value.visual)
+    const toGenerate = new Set(classifyGenerationScope('anchor-wave', visualAnchors.map(entry => storyboardAnchorScopeItem(entry.anchor.id, entry.node)))
+      .filter(row => row.state === 'checked').map(row => row.id))
+    for (const entry of visualAnchors) {
+      if (!toGenerate.has(entry.anchor.id)) continue
       const anchorContext = { ...context, assertCurrent: () => assertCurrent([entry.anchor.id]) }
       await anchorContext.assertCurrent()
       outcomes.push(await generateAnchorCard(anchorContext, entry.anchor))

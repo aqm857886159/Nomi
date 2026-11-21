@@ -7,6 +7,10 @@ import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
 import { ComposerBarYieldContext } from './composerBarYield'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../design/tooltip'
 
+// 带字框 = 左右内边距 + 图标 + 间距；校准走查对照实际绘制，不能用它们反过来画 CSS。
+// eslint-disable-next-line react-refresh/only-export-components -- 量宽必须复用绘制组件的定义，校准测试防止两者漂移。
+export const COMPOSER_SEND_FRAME = { label: 36, icon: 28 } as const
+
 /**
  * 生成底栏最右的「走」钮——画布节点、画布列表详情、分镜行、分镜参考卡四处同一颗。
  *

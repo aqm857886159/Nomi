@@ -1,0 +1,22 @@
+{
+  "passed": 22,
+  "exitCode": 0,
+  "summary": {
+    "connection": {
+      "before": {
+        "baseUrlHint": "https://api.apimart.ai",
+        "assetIngestion": {
+          "strategy": "none",
+          "sourceUrl": "https://docs.apimart.ai/en/api-reference/videos/example"
+        }
+      },
+      "after": {
+        "baseUrlHint": "https://api.apimart.ai",
+        "assetIngestion": null
+      }
+    },
+    "stdio": {
+      "gate": "未开始：请在当前客户端确认这次生成，或在唯一的 Nomi 兜底卡中确认。"
+    }
+  }
+}

@@ -14,7 +14,7 @@ import type { GenerationHandOverFailure, PendingSpendConfirm, PendingSpendShot }
 import type { ShotPrice } from '../../../../electron/shared/contracts/shotPricingRule'
 import type { InterventionData } from './agentPanelV4Types'
 import { formatSeconds } from '../../generation/list/generationListMediaFacts'
-import { failureNeedsHostingConsent, handOverFailureCopy } from './spendCardFailure'
+import { handOverFailureCopy } from './spendCardFailure'
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
@@ -43,7 +43,6 @@ export type SpendCardView = Readonly<{
   /** 点了「取消」、宿主还没停稳。 */
   stopping: boolean
   /** 要交的这几镜得先把本机参考图传到公共临时托管：卡上摆一行披露，按「生成」就是同意这一次（画布批量确认框同一句）。 */
-  hostingDisclosure: boolean
 }>
 
 export type SpendCardPointer = Readonly<{
@@ -67,8 +66,8 @@ export type SpendCardNotice = Readonly<{ tone: 'danger' | 'neutral'; text: strin
 
 /** 主按钮那一下做什么（宿主照它接线；卡上那颗按钮的字也是它定的）。 */
 export type SpendCardPrimary =
-  | Readonly<{ kind: 'generate'; shotIds: readonly string[]; hostingAllowed: boolean }>
-  | Readonly<{ kind: 'retry'; shotIds: readonly string[]; hostingAllowed: boolean }>
+  | Readonly<{ kind: 'generate'; shotIds: readonly string[] }>
+  | Readonly<{ kind: 'retry'; shotIds: readonly string[] }>
   | Readonly<{ kind: 'locate'; nodeId: string; label: string }>
   | Readonly<{ kind: 'none' }>
 
@@ -209,11 +208,10 @@ function attentionView(attention: Entry, entries: readonly Entry[], view: SpendC
   // 没发出去（没花钱）：「再试一次」只重发没发出去的那几镜（不连带还没决定的）。要问托管同意的那一种，卡上的原因行就是披露原文，
   // 这一下点的「再试一次」就是同意这一次。
   const retry = entries.filter((entry) => entry.role === 'notSent' && entry.shot.failure?.kind !== 'parameter_rejected')
-  const hostingAllowed = view.hostingDisclosure || retry.some((entry) => failureNeedsHostingConsent(entry.shot.failure))
   return {
     title: t('agentPanelV4.spendCard.failedTitle.notSent', { shot }),
     reason,
-    primary: { kind: 'retry', shotIds: retry.map((entry) => entry.shot.shotId), hostingAllowed },
+    primary: { kind: 'retry', shotIds: retry.map((entry) => entry.shot.shotId) },
     confirmLabel: t('agentPanelV4.spendCard.retry'),
   }
 }
@@ -293,8 +291,6 @@ export function projectSpendCard(
   if (attention) {
     const shown = attentionView(attention, entries, view, t)
     const retryEmpty = shown.primary.kind === 'retry' && shown.primary.shotIds.length === 0
-    // 「再试一次」带着托管同意交：同意只能来自卡上摆着的那一句原文——原因行就是它（要问同意的那一种），或者另摆一行披露。
-    const disclose = shown.primary.kind === 'retry' && view.hostingDisclosure && shown.reason !== t('generationCommon.spendHostingDisclosure.message')
     return {
       slot: Object.freeze({
         kind: 'spend' as const,
@@ -309,7 +305,6 @@ export function projectSpendCard(
       pointers, single,
       notices: [
         { tone: 'danger', text: shown.reason },
-        ...(disclose ? [{ tone: 'neutral' as const, text: t('generationCommon.spendHostingDisclosure.message') }] : []),
       ],
       primary: shown.primary,
     }
@@ -337,7 +332,6 @@ export function projectSpendCard(
   for (const entry of pick('blocked')) {
     notices.push({ tone: 'danger', text: t('agentPanelV4.spendCard.blockedNotice', { shot: entry.facts.shotRef, reason: t(handOverFailureCopy(entry.facts.blocked!)) }) })
   }
-  if (view.hostingDisclosure && count > 0) notices.push({ tone: 'neutral', text: t('generationCommon.spendHostingDisclosure.message') })
   const summary = single ? undefined : spendCardSummary(sendable.map((entry) => entry.facts), t, pickedByNomi)
   return {
     slot: Object.freeze({
@@ -359,6 +353,6 @@ export function projectSpendCard(
       ...(view.busy || count === 0 ? { actionsDisabled: true as const } : {}),
     }),
     pointers, single, ...(summary ? { summary } : {}), notices,
-    primary: { kind: 'generate', shotIds: sendable.map((entry) => entry.shot.shotId), hostingAllowed: view.hostingDisclosure },
+    primary: { kind: 'generate', shotIds: sendable.map((entry) => entry.shot.shotId) },
   }
 }

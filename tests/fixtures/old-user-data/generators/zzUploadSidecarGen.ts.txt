@@ -1,0 +1,64 @@
+// 在 0.24.1 的源码导出里跑（README「素材」一节）：用那个版本**自己的真实函数** importLocalFile
+// 落两份本机导入的上传素材和它们的 .meta——字节那条路（画布 / 素材库拖入）和原生路径那条路（访达复制粘贴 / 外部助手导入），
+// 输出目录由 V_OUT 给，导出所在的提交由 V_COMMIT 给（写进 manifest.json）。放到导出里的 electron/assets/zzUploadSidecarGen.test.ts，去掉 .txt。
+// 这里存成 .ts.txt，是为了不被本仓的测试和类型检查收进去。
+//
+// 假的只有两样：electron 的目录、素材广播。落盘、内容寻址目录、sidecar、预览都是 0.24.1 的真函数。没有网络、没有 Key。
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { createProject } from "../runtime";
+import { importLocalFile } from "./localFileImport";
+
+vi.mock("../review/reviewTrace", () => ({ scheduleTechnicalReview: vi.fn() }));
+vi.mock("./assetEvents", () => ({ broadcastAssetsUpdated: vi.fn(), broadcastAssetLocalizationStarted: vi.fn(async () => {}) }));
+
+const roots: string[] = [];
+const documents = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-upload-gen-documents-"));
+const userData = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-upload-gen-user-data-"));
+roots.push(documents, userData);
+vi.mock("electron", () => ({
+  app: { getPath: (name: string) => (name === "documents" ? documents : userData), getAppPath: () => process.cwd() },
+}));
+
+afterAll(() => {
+  for (const root of roots) fs.rmSync(root, { recursive: true, force: true });
+});
+
+const OUT = String(process.env.V_OUT || "").trim();
+const MEDIA = path.join(__dirname, "..", "providerAdapter", "__fixtures__", "certification-media");
+
+type Stored = { data: { relativePath: string; absolutePath: string; contentType: string; contentHash?: string } };
+
+function keep(asset: Stored, entries: Array<Record<string, unknown>>, how: string) {
+  const sidecar = `${asset.data.absolutePath}.meta`;
+  expect(fs.existsSync(sidecar)).toBe(true);
+  const target = path.join(OUT, path.dirname(asset.data.relativePath));
+  fs.mkdirSync(target, { recursive: true });
+  fs.copyFileSync(asset.data.absolutePath, path.join(OUT, asset.data.relativePath));
+  fs.copyFileSync(sidecar, path.join(OUT, `${asset.data.relativePath}.meta`));
+  entries.push({ how, relativePath: asset.data.relativePath, contentType: asset.data.contentType, contentHash: asset.data.contentHash ?? null });
+}
+
+describe("zzUploadSidecarGen", () => {
+  it("lands local uploads and their .meta with the release's real importLocalFile", async () => {
+    expect(OUT, "V_OUT must name the output directory").not.toBe("");
+    const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-upload-gen-project-"));
+    roots.push(rootPath);
+    const project = createProject({ rootPath, name: "Old User Uploads", payload: {} });
+    const entries: Array<Record<string, unknown>> = [];
+
+    const png = fs.readFileSync(path.join(MEDIA, "valid.png"));
+    const bytes = await importLocalFile({ projectId: project.id, bytes: png, fileName: "drop.png", contentType: "image/png" }) as Stored;
+    keep(bytes, entries, "bytes");
+
+    const nativeSource = path.join(rootPath, "..", `nomi-upload-gen-source-${process.pid}.jpg`);
+    fs.copyFileSync(path.join(MEDIA, "valid.jpg"), nativeSource);
+    roots.push(nativeSource);
+    const native = await importLocalFile({ projectId: project.id, sourcePath: nativeSource, fileName: "finder.jpg", contentType: "image/jpeg" }, { allowSourcePath: true }) as Stored;
+    keep(native, entries, "native");
+
+    fs.writeFileSync(path.join(OUT, "manifest.json"), `${JSON.stringify({ release: "v0.24.1", sourceCommit: String(process.env.V_COMMIT || "").trim() || null, assets: entries }, null, 2)}\n`);
+  });
+});

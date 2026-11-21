@@ -52,7 +52,7 @@ export type DesktopConnectorBridge = {
       setRoute: (payload: { mode: TikhubRouteMode }) => Promise<TikhubRouteStatus>
       /** 只解析（不落盘）——用于在落素材/拆解前展示费用确认。失败按三段式（含风控波动诚实提示）。 */
       resolveShareUrl: (payload: { shareUrl: string }) => Promise<TikhubResolvedShareVideo>
-      /** 解析 + 落成项目视频素材（带 AssetSourceEvidence，rightsStatus:'unknown'）。 */
+      /** 解析 + 落成项目视频素材（带 AssetSourceEvidence，usageStatus:'rights_unknown'）。 */
       importToProject: (payload: { projectId: string; shareUrl: string }) => Promise<TikhubImportResult>
       /**
        * 找参考：按平台检索正在跑的素材。**返回里没有媒体直链**——那是平台侧短时签名 URL，

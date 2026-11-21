@@ -145,7 +145,7 @@ describe("deriveModelListing — keyStatus 三态（ok / missing / locked）", (
     expect(deriveModelListing(hidden).map((entry) => entry.modelKey)).toEqual(["staged", "failed"]);
   });
 
-  it("keeps only legacy text fallback plus a failed repair with a preserved active revision visible", () => {
+  it("requires an actual request format even when an old verified revision is recorded", () => {
     const visible = state({
       vendors: [vendor({ key: "relay", authType: "none" })],
       models: [
@@ -162,7 +162,7 @@ describe("deriveModelListing — keyStatus 三态（ok / missing / locked）", (
       ],
     });
 
-    expect(deriveModelListing(visible).map((entry) => entry.modelKey)).toEqual(["legacy-text", "active"]);
+    expect(deriveModelListing(visible).map((entry) => entry.modelKey)).toEqual(["legacy-text"]);
   });
 
   it("lets a raw custom-call script keep an adapter model listed when its self-check has not certified a revision", () => {

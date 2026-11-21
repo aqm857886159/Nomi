@@ -13,7 +13,7 @@ vi.mock("./laneProviderGuard.mjs", async (importOriginal) => {
 import { callModelOnce, ModelCallCeilingError } from "./laneModelCall.mjs";
 import { nomiModelConfigFor } from "../ai/vendorModelConnection";
 import { LANE_VENDOR_FAILURE_DIAGNOSTIC, laneVendorFailureText } from "../shared/agentLane/laneAssistantFault";
-import { parseVendorErrorFromMessage } from "../../src/workbench/generationCanvas/runner/vendorErrorIpc";
+import { parseVendorErrorFromMessage } from "../shared/generationFailure";
 import { classifyGenerationError } from "../../src/workbench/observability/classifyError";
 import { reply, startTextUpstream, type UpstreamProtocol, type UpstreamReply } from "../../tests/fixtures/textTasks/textUpstream";
 

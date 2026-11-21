@@ -7,7 +7,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../i18n'
 import { classifyGenerationError } from './classifyError'
-import { formatTaskFailureMessage } from '../generationCanvas/runner/taskFailureMessage'
+import { formatTaskFailureMessage } from '../../../electron/shared/generationFailure'
 import { encodeVendorErrorMessage, requestJson, VendorRequestError } from '../../../electron/vendor/vendorHttp'
 import { describeAgentError } from '../../../electron/ai/agentError'
 import { modelCallFailure } from '../../../electron/ai/runtimeVendorError'
@@ -126,7 +126,7 @@ describe('服务商回了话：原话照旧进「服务商原话」（反例，�
     })],
     ['异步任务失败格式（只由我们产出，前半句是服务商的话）', async () => {
       const said = 'The render farm returned an unrecognised state after the third checkpoint.'
-      return { message: formatTaskFailureMessage(said, { taskId: 'task_01ABC', kind: 'text_to_image' }), said }
+      return { message: formatTaskFailureMessage(said, { taskId: 'task_01ABC', kind: 'text_to_image' }, 'zh-CN'), said }
     }],
   ]
 

@@ -2,7 +2,7 @@
 // 数据流:EventLog →(零 LLM 规则提炼器,增量 lastDistilledSeq 游标)→ memory.json(缓存)
 // → 注入 system prompt(渲染层裁预算)。memory.json 可删:下次 get 从 seq 0 全量重建,结果等价。
 // 不变量:用户纠正过的事实(origin:user)自动提炼永不静默覆盖;用户删除留墓碑
-// (删除点之前的旧事件不再重提炼同一事实,之后的新事件可以——重新上锁理应重新记住)。
+// (删除点之前的旧事件不再重提炼同一事实,之后的新事件可以)。
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -48,16 +48,33 @@ function memoryFilePath(projectId: string): string | null {
   return path.join(root, ".nomi", "memory.json");
 }
 
+// 旧版（节点锁还在时）为每个被锁节点自动写过一条 `lock:<节点id>` 约束，文字是固定模板。节点锁已撤掉，
+// 读盘时：文字和模板逐字相同的（系统生成的）清掉；存储里分不出「用户手改过」，所以改过文字的留下，
+// 只是换成不挂锁的 id，成为一条普通约束——那是用户自己的话。
+const LEGACY_NODE_LOCK_TEXT = /^「[\s\S]*」已被用户锁定：不要提议修改\/删除\/接入它，引用它当参考可以$/u;
+const LEGACY_NODE_LOCK_ID = "lock:";
+
+function dropLegacyNodeLockFacts(memory: ProjectMemory): ProjectMemory {
+  if (!memory.facts.some((fact) => fact.id.startsWith(LEGACY_NODE_LOCK_ID)) && !Object.keys(memory.tombstones).some((id) => id.startsWith(LEGACY_NODE_LOCK_ID))) return memory;
+  const facts = memory.facts.flatMap((fact): MemoryFact[] => {
+    if (!fact.id.startsWith(LEGACY_NODE_LOCK_ID)) return [fact];
+    if (LEGACY_NODE_LOCK_TEXT.test(fact.text)) return [];
+    return [{ ...fact, id: `note:${fact.id.slice(LEGACY_NODE_LOCK_ID.length)}` }];
+  });
+  const tombstones = Object.fromEntries(Object.entries(memory.tombstones).filter(([id]) => !id.startsWith(LEGACY_NODE_LOCK_ID)));
+  return { ...memory, facts, tombstones };
+}
+
 function loadMemory(projectId: string): ProjectMemory {
   const file = memoryFilePath(projectId);
   if (!file || !fs.existsSync(file)) return emptyMemory();
   try {
     const raw = JSON.parse(fs.readFileSync(file, "utf8")) as Partial<ProjectMemory>;
-    return {
+    return dropLegacyNodeLockFacts({
       facts: Array.isArray(raw.facts) ? (raw.facts as MemoryFact[]) : [],
       lastDistilledSeq: Number(raw.lastDistilledSeq) || 0,
       tombstones: raw.tombstones && typeof raw.tombstones === "object" ? (raw.tombstones as Record<string, number>) : {},
-    };
+    });
   } catch {
     return emptyMemory(); // 缓存损坏即弃,可全量重建
   }
@@ -81,7 +98,7 @@ const headOf = (text: string, max = 80): string => {
 /** 规则命中产物(纯数据,upsert 在外层统一做)。 */
 type RuleHit = { id: string; text: string; kind: MemoryFactKind } | { removeId: string };
 
-/** 零 LLM 提炼规则(v1,总方案 §C 层2 拍板):定妆实体 / 锁约束 / overridesDelta 偏好。 */
+/** 零 LLM 提炼规则(v1,总方案 §C 层2 拍板):定妆实体 / overridesDelta 偏好。 */
 function distillEvent(event: NomiEvent): RuleHit[] {
   const payload = event.payload || {};
   if (event.type === "experience.candidate.created") {
@@ -118,21 +135,7 @@ function distillEvent(event: NomiEvent): RuleHit[] {
   }
   if (event.type === "canvas.node.removed") {
     const nodeId = String(payload.nodeId || "");
-    return nodeId ? [{ removeId: `node:${nodeId}` }, { removeId: `lock:${nodeId}` }] : [];
-  }
-  if (event.type === "canvas.node.locked") {
-    const nodeId = String(payload.nodeId || "");
-    if (!nodeId) return [];
-    const title = String(payload.title || "").trim();
-    return [{
-      id: `lock:${nodeId}`,
-      text: `「${title || nodeId}」已被用户锁定：不要提议修改/删除/接入它，引用它当参考可以`,
-      kind: "constraint",
-    }];
-  }
-  if (event.type === "canvas.node.unlocked") {
-    const nodeId = String(payload.nodeId || "");
-    return nodeId ? [{ removeId: `lock:${nodeId}` }] : [];
+    return nodeId ? [{ removeId: `node:${nodeId}` }] : [];
   }
   if (event.type === "agent.proposal.approved") {
     const delta = asRecord(payload.overridesDelta);
@@ -210,7 +213,7 @@ export function getProjectMemory(projectId: string): ProjectMemory {
         }
         continue;
       }
-      // 墓碑:删除点之前的旧事件不再重提炼;之后的新事件正常(重新上锁理应重新记住)。
+      // 墓碑:删除点之前的旧事件不再重提炼;之后的新事件正常。
       if ((tombstones[hit.id] ?? -1) >= event.seq) continue;
       const existing = factById.get(hit.id);
       const isUpdate = hit.text.startsWith("__UPDATE_PROMPT__");

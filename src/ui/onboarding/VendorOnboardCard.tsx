@@ -19,9 +19,7 @@ import type { KnownVendor } from '../../config/knownVendors'
 import { FoldableModelCard } from './FoldableModelCard'
 import { ModelChipGroups, type ChipModel } from './ModelChipGroups'
 import { VendorBaseUrlField } from './VendorBaseUrlField'
-import { useVendorHealth } from './useVendorHealth'
-import { vendorConnectionPill } from './vendorConnectionView'
-import { VendorConnectionNotice } from './VendorConnectionNotice'
+import { connectionHomeStatus } from './modelSettingsHomeState'
 import type { ModelSettingsConnectionFocus } from './modelSettingsNavigation'
 
 type VendorOnboardCardProps = {
@@ -68,9 +66,6 @@ export function VendorOnboardCard({
   const [error, setError] = React.useState('')
   const credentialInputRef = React.useRef<HTMLInputElement>(null)
   const handledFocusRequestRef = React.useRef<number | null>(null)
-  // 连接状态的唯一来源（主进程自取凭证探测）。地址一改 fingerprint 就变，effect 自动重探；
-  // 换 key 不改地址，所以解锁后要显式 recheck()。
-  const { connection, recheck } = useVendorHealth(directory.vendorKey, { hasApiKey, baseUrl })
 
   React.useEffect(() => {
     setEditing(!hasApiKey)
@@ -89,7 +84,7 @@ export function VendorOnboardCard({
     })
   }, [focus])
 
-  const total = models.filter((model) => model.enabled).length
+  const enabledN = models.filter((model) => model.enabled).length
 
   // 凭证字段：档案声明了 credentialFields 就按声明渲染多框；否则退化成单框（沿用 credentialPlaceholder）。
   const fields = React.useMemo(
@@ -131,8 +126,6 @@ export function VendorOnboardCard({
       setDrafts({})
       setEditing(false)
       onChanged()
-      // 换 key 不改地址（fingerprint 不变），所以这里显式重探一次。
-      recheck()
     } catch (e) {
       setError(
         t('onboardingProviders.vendorCard.unlockFailed', { message: e instanceof Error ? e.message : String(e) }),
@@ -140,7 +133,7 @@ export function VendorOnboardCard({
     } finally {
       setBusy(false)
     }
-  }, [fields, drafts, isMulti, directory.vendorKey, directory.credentialJoin, onChanged, recheck, t])
+  }, [fields, drafts, isMulti, directory.vendorKey, directory.credentialJoin, onChanged, t])
 
   const handleDisconnect = React.useCallback(async () => {
     const bridge = getDesktopBridge()
@@ -170,7 +163,8 @@ export function VendorOnboardCard({
     if (directory.promo) window.open(directory.promo.url, '_blank', 'noopener')
   }, [directory.promo])
 
-  const pill = connection ? vendorConnectionPill(connection) : null
+  // 胶囊和设置列表那一行同取一个投影：只说本机事实（有 key、有请求格式、没手动关）。
+  const status = connectionHomeStatus({ keyMissing: !hasApiKey, models })
 
   return (
     <FoldableModelCard
@@ -180,9 +174,8 @@ export function VendorOnboardCard({
       }
       glyphTone={directory.logo ? 'logo' : 'ink'}
       name={vendorName}
-      subtitle={hasApiKey ? t('onboardingProviders.vendorCard.modelsAvailable', { count: total }) : directory.tagline}
-      status={pill?.status ?? 'todo'}
-      statusLabel={pill ? t(pill.labelKey) : undefined}
+      subtitle={hasApiKey ? t('onboardingProviders.drawer.modelsEnabled', { enabled: enabledN, total: models.length }) : directory.tagline}
+      modelStatus={status}
       badge={
         !hasApiKey && directory.recommended ? (
           <span className="text-micro font-semibold text-nomi-accent bg-nomi-accent-soft rounded-full px-2 py-[2px] whitespace-nowrap">
@@ -303,9 +296,6 @@ export function VendorOnboardCard({
       )}
 
       {error ? <div className="text-caption text-workbench-danger">{error}</div> : null}
-
-      {/* 连接状态说明：紧挨地址行，用户看完原因就能就地改地址。 */}
-      <VendorConnectionNotice connection={connection} onRecheck={recheck} disabled={busy} />
 
       {/* 地址行与自定义中转家卡共用同一份实现（P1：此前两边各写了一份一模一样的）。 */}
       <VendorBaseUrlField

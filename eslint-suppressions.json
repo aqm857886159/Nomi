@@ -1062,11 +1062,6 @@
       "count": 2
     }
   },
-  "scripts/relay-model-fetch-walkthrough.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    }
-  },
   "scripts/relay-native-wire-walkthrough.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 2
@@ -1141,14 +1136,6 @@
   "scripts/settings-keyless-gateway-walkthrough.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 2
-    }
-  },
-  "scripts/settings-model-access-save-first-walkthrough.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    },
-    "no-undef": {
-      "count": 3
     }
   },
   "scripts/settings-models-tab-walkthrough.mjs": {
@@ -1931,11 +1918,6 @@
       "count": 1
     }
   },
-  "tests/ux/f3-f16b.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 4
-    }
-  },
   "tests/ux/feel-policy.test.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -2554,14 +2536,6 @@
   },
   "tests/ux/update-reminder-host.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/vendor-baseurl-discoverability.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-useless-assignment": {
       "count": 1
     }
   },

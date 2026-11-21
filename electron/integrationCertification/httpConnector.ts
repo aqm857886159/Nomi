@@ -224,6 +224,10 @@ export class HttpProviderConnector {
     return this.primitives.listRuns(options);
   }
 
+  sourceVendorKey(runId: string): string | undefined {
+    return this.primitives.certificationSourceVendorKey(runId);
+  }
+
   childRunRef(runId: string): CertificationChildRunRef | undefined {
     return this.primitives.certificationChildRunRef(runId);
   }

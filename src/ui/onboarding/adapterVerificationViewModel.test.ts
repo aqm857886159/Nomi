@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import type { DesktopProviderAdapterRun } from '../../desktop/bridge'
 import {
   adapterModelProgressState,
-  adapterProviderState,
   adapterRunElapsedSeconds,
   adapterRunProgress,
   adapterRunTerminalReasonKey,
@@ -95,24 +94,6 @@ describe('adapterRunElapsedSeconds', () => {
   })
 })
 
-describe('adapterProviderState', () => {
-  it('keeps the current card language while deriving verification state from model metadata', () => {
-    const state = adapterProviderState([
-      { enabled: false, meta: { adapter: { state: 'testing' } } },
-      { enabled: true, meta: { adapter: { state: 'verified' } } },
-    ])
-
-    expect(state).toEqual({ state: 'testing', enabled: 1, total: 2 })
-  })
-
-  it('returns partial when any staged model has only some working modes', () => {
-    expect(adapterProviderState([
-      { enabled: true, meta: { adapter: { state: 'verified' } } },
-      { enabled: true, meta: { adapter: { state: 'partial' } } },
-    ])).toEqual({ state: 'partial', enabled: 2, total: 2 })
-  })
-})
-
 describe('isAdapterRunTerminal', () => {
   it('recognizes every terminal state', () => {
     expect(['completed', 'partial', 'failed', 'needs_ai', 'cancelled', 'timed_out', 'stale'].every(stage =>
@@ -147,17 +128,18 @@ describe('shouldShowAdapterModelRecovery', () => {
 })
 
 describe('isAdapterModelLocked', () => {
-  it('locks while verification is in flight or a direct-call draft has no saved script', () => {
-    expect(isAdapterModelLocked({ adapter: { state: 'testing' } })).toBe(true)
-    expect(isAdapterModelLocked({ customCallDraft: { createdAt: '2026-08-15T00:00:00.000Z' } })).toBe(true)
-    expect(isAdapterModelLocked({ adapter: { state: 'partial' } })).toBe(false)
-    expect(isAdapterModelLocked(undefined)).toBe(false)
+  // 「在跑」只读主进程算好的 formatInProgress——渲染层拿不到任务状态原料（D-1117-delete-verification）。
+  it('locks while a format task is running or a direct-call draft has no saved script', () => {
+    expect(isAdapterModelLocked({ formatInProgress: true })).toBe(true)
+    expect(isAdapterModelLocked({ meta: { customCallDraft: { createdAt: '2026-08-15T00:00:00.000Z' } } })).toBe(true)
+    expect(isAdapterModelLocked({ formatInProgress: false, meta: {} })).toBe(false)
+    expect(isAdapterModelLocked({})).toBe(false)
   })
 
-  // 「接不进来」的最后一道墙（2026-08-11 用户接 DeepSeek 踩到）：验证没过就锁住勾选框，
-  // 用户改了地址也没法自己启用，只能删掉整个供应商重来——而失败若是我们探测的 bug，
-  // 重来多少遍都一样。判死权不归探测。
-  it('never locks a model just because verification failed', () => {
-    expect(isAdapterModelLocked({ adapter: { state: 'failed' } })).toBe(false)
+  // 「接不进来」的最后一道墙（2026-08-11 用户接 DeepSeek 踩到）：任务没过就锁住勾选框，
+  // 用户改了地址也没法自己启用，只能删掉整个供应商重来。失败不锁：开关归创作者。
+  it('never locks a model because of an old task record — the renderer cannot even see one', () => {
+    expect(isAdapterModelLocked({ meta: { adapter: { state: 'failed' } } })).toBe(false)
+    expect(isAdapterModelLocked({ meta: { adapter: { state: 'testing' } } })).toBe(false)
   })
 })

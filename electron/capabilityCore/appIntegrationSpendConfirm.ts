@@ -110,7 +110,7 @@ export function readInstalledPendingSpend(projectId: string): Extract<PendingSpe
 }
 
 /** 卡上「生成」/「全部生成（N）」/「生成剩下 N 段」/「再试一次」：把这几镜交给画布。 */
-export async function handOverPendingSpendShots(input: SpendCardActionInput & { shotIds: readonly string[]; hostingAllowed?: boolean }): Promise<ProductionActionResult> {
+export async function handOverPendingSpendShots(input: SpendCardActionInput & { shotIds: readonly string[] }): Promise<ProductionActionResult> {
   if (!actions) return { ok: false, code: "unavailable" };
   return actions.handOverShots(input);
 }
@@ -177,7 +177,7 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
     return run ? projectPendingSpendConfirm(run, (runId) => deps.runs.read(projectId, runId)) : undefined;
   };
 
-  const handOverShots = async (input: SpendCardActionInput & { shotIds: readonly string[]; hostingAllowed?: boolean }): Promise<ProductionActionResult> => {
+  const handOverShots = async (input: SpendCardActionInput & { shotIds: readonly string[] }): Promise<ProductionActionResult> => {
     if (!deps.isProjectOpen(input.projectId)) return { ok: false, code: "run_not_open" };
     const pending = pendingFor(input.projectId, input.operationId);
     if (!pending) return { ok: false, code: "failed", message: "no pending generation to hand over" };
@@ -190,7 +190,7 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
     // 只交还在等卡上决定的镜（还没决定 / 确定没发出去）；结果未知的不许再交一次（钱可能已经花了）。
     if (requested.some((shotId) => onCard.get(shotId)!.offer !== "undecided" && onCard.get(shotId)!.offer !== "not_sent")) return quoteChanged();
     try {
-      await deps.handOver({ projectId: input.projectId, runId: input.operationId, shotIds: requested, by: "gesture", hostingAllowed: input.hostingAllowed === true });
+      await deps.handOver({ projectId: input.projectId, runId: input.operationId, shotIds: requested, by: "gesture" });
       return { ok: true, code: "handed_over" };
     } catch (error) {
       return failed(error);

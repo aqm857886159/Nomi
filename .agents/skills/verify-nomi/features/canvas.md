@@ -29,4 +29,4 @@ node tests/ux/ui.mjs read "document.querySelector('[data-prompt-box] .ProseMirro
 - 「适应视图」会把节点放大到占满高度，生成框反而更靠下——别拿它当「让底栏露出来」。
 - 点节点正中可能点到「参考图生图」这类入口；选中节点点左上角（出口就这么点）。
 - 生成框只有选中的那个节点有；点画布空白处会取消选中、生成框消失。
-- 不要点「生成」：隔离实例没钥匙，验证不花钱。
+- 默认隔离实例没钥匙；要验证生成，按 README 用 `--vendor fake-apimart` 起窗口后再点。

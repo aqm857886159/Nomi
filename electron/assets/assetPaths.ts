@@ -92,12 +92,3 @@ export function assetBucketFromMeta(meta: JsonRecord): AssetBucket {
     ? "imported"
     : "generated";
 }
-
-// 隐私不变量（M0 捕捞窗评审定案，收敛后对浏览器面同样生效）：网页捕捞类素材的
-// originalUrl 恒 null——否则 48h 信任窗会把用户浏览的网页 URL 当参考发给生成商
-// （泄露浏览记录 + 防盗链 URL 在厂商侧必挂）。generated/provider 素材不受影响，
-// 它们的 originalUrl=厂商临时链正是信任窗的设计本意。pageUrl 仅本地溯源、无读取方。
-export function sanitizeAssetMetaForKind(meta: JsonRecord): JsonRecord {
-  if (!isBrowserCaptureAssetKind(meta.kind)) return meta;
-  return { ...meta, originalUrl: null };
-}

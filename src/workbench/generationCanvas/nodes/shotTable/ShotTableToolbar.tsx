@@ -37,7 +37,7 @@ export function ShotTableToolbar({ nodeId, table }: { nodeId: string; table: Dec
     },
   })), [nodeId, t, table.columns])
   return (
-    <FloatingToolbarShell ariaLabel={t('shotTable.node.toolbar')} lockNodeId={nodeId}>
+    <FloatingToolbarShell ariaLabel={t('shotTable.node.toolbar')} nodeId={nodeId}>
       <ToolbarActionMenu
         id="shot-table-columns"
         icon={<IconColumns3 size={16} stroke={1.6} />}

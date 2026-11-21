@@ -95,7 +95,9 @@ const CENSUS: ReadonlyArray<readonly [string, () => void]> = [
   }],
   ['F19 「生成全部」是新入口，走同一执行口，不另开口', () => {
       expect(header).toContain('data-frame-generate-all="true"')
-      expect(header).toContain('disabled={memberCount === 0}')
+      // 空框置灰照旧；一个都勾不上时也置灰并说原因，和另外三扇门同一句（四门对拍见 groupGenerateDoors.parity.test.tsx）。
+      expect(header).toContain('disabled={memberCount === 0 || generateDisabledReason !== undefined}')
+      expect(header).toContain('useGroupGenerateDisabledReason(')
       expect(wiring).toContain("runFrameAction(groupId, 'generate')")
   }],
 ]

@@ -26,6 +26,9 @@ export const THEMES = Object.freeze(['light', 'dark'])
  */
 export const DATA_FIXTURES = Object.freeze({
   empty: null,
+  'v0.24.1-saved-pending': 'tests/fixtures/old-user-data/unverified-usable/v0.24.1/saved-pending',
+  'v0.24.1-failed-disabled': 'tests/fixtures/old-user-data/unverified-usable/v0.24.1/failed-disabled',
+  'v0.24.1-manual-disabled': 'tests/fixtures/old-user-data/unverified-usable/v0.24.1/manual-disabled',
   'v0.24.0-library': 'tests/fixtures/old-user-data/projects/v0.24.0-library',
   'v0.20.0-library': 'tests/fixtures/old-user-data/projects/v0.20.0-library',
 })
@@ -34,6 +37,7 @@ const OLD_USER_ROOT = '__OLD_USER_ROOT__'
 export const USAGE = [
   '用法：node tests/ux/ui.mjs up [--locale zh|en] [--theme light|dark] [--size 1280x800|1100x720|700x720]',
   `                              [--data ${Object.keys(DATA_FIXTURES).join('|')}] [--out <证据目录>]`,
+  '                              [--vendor fake-apimart] [--vendor-pending <非负整数>] [--vendor-drop-submit <非负整数>] [--vendor-fail-task <非负整数>]',
   '      显式要真实资料：NOMI_WALK_FOREGROUND_OK=1 node tests/ux/ui.mjs up --real-profile',
 ].join('\n')
 
@@ -68,6 +72,10 @@ export function parseDriverArgs(argv = [], env = process.env, { root = repoRoot,
     size: SIZE_PRESETS[DEFAULT_SIZE],
     data: 'empty',
     realProfile: false,
+    vendor: null,
+    vendorPending: 0,
+    vendorDropSubmit: 0,
+    vendorFailTask: 0,
     out: null,
     userDataDir: env.NOMI_UI_USER_DATA || env.NOMI_UI_USERDATA || null,
     executablePath: env.NOMI_UI_EXECUTABLE || null,
@@ -101,9 +109,30 @@ export function parseDriverArgs(argv = [], env = process.env, { root = repoRoot,
       options.out = path.resolve(value())
     } else if (flag === '--real-profile') {
       options.realProfile = true
+    } else if (flag === '--vendor') {
+      options.vendor = value()
+      if (options.vendor !== 'fake-apimart') throw fail(`不认识的假供应商 ${options.vendor}（可选 fake-apimart）`)
+    } else if (flag === '--vendor-pending') {
+      const raw = value()
+      options.vendorPending = Number(raw)
+      if (!/^\d+$/.test(raw) || !Number.isSafeInteger(options.vendorPending)) throw fail('--vendor-pending 要非负整数')
+    } else if (flag === '--vendor-drop-submit') {
+      // 前 n 次下单：收完请求体就断开连接、不回话——Nomi 那侧是「发出去了、没等到回话」，即结果未知。
+      const raw = value()
+      options.vendorDropSubmit = Number(raw)
+      if (!/^\d+$/.test(raw) || !Number.isSafeInteger(options.vendorDropSubmit)) throw fail('--vendor-drop-submit 要非负整数')
+    } else if (flag === '--vendor-fail-task') {
+      // 前 n 个建好的任务：查询时供应商说「生成失败」——Nomi 那侧是一镜普通失败，可以重试。
+      const raw = value()
+      options.vendorFailTask = Number(raw)
+      if (!/^\d+$/.test(raw) || !Number.isSafeInteger(options.vendorFailTask)) throw fail('--vendor-fail-task 要非负整数')
     } else {
       throw fail(`不认识的参数 ${arg}`)
     }
+  }
+  if (options.vendor && (options.realProfile || options.userDataDir)) throw fail('假供应商只能用本次新建的隔离资料；不能和 --real-profile / NOMI_UI_USER_DATA 同用，避免改写已有凭据')
+  for (const flag of ['--vendor-pending', '--vendor-drop-submit', '--vendor-fail-task']) {
+    if (argv.some((arg) => arg.split('=')[0] === flag) && !options.vendor) throw fail(`${flag} 必须和 --vendor fake-apimart 同用`)
   }
   if (options.realProfile && options.data !== 'empty') throw fail('--real-profile 和 --data 不能同时用（真实资料就是起始数据）')
   if (options.realProfile && options.userDataDir) throw fail('--real-profile 和 NOMI_UI_USER_DATA 不能同时用')
@@ -148,7 +177,7 @@ export function seedDataFixture(name, tempRoot, root = repoRoot) {
     }
   }
   copy(path.join(root, source), target)
-  return path.join(target, 'userData')
+  return fs.existsSync(path.join(target, 'model-catalog.json')) ? target : path.join(target, 'userData')
 }
 
 /**

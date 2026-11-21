@@ -1,0 +1,70 @@
+// 旧版本副本里跑（放成导出里的 electron/catalog/zzBuiltinCardGen.test.ts）：内置 APIMart 连接上的三种老用户目录。
+// 全是真函数：启动种子 ensureBuiltinModelSeeds、设置页存密钥 upsertModelCatalogVendorApiKey、AI 交卡登记 registerDeclaredProvider。
+// 密钥是假的；地址是 APIMart 内置地址本身（这几份目录要证明的正是「内置连接」的样子），升级测试不发任何请求。
+import fs from "node:fs";
+import path from "node:path";
+import { describe, it, vi } from "vitest";
+const outRoot = process.env.V_OUT as string;
+let current = "";
+vi.mock("electron", () => ({
+  app: { getPath: () => current, getAppPath: () => process.cwd(), isPackaged: false },
+  safeStorage: { isEncryptionAvailable: () => true, encryptString: (v: string) => Buffer.from(v), decryptString: (v: Buffer) => v.toString() },
+}));
+import { ensureBuiltinModelSeeds, readCatalog, upsertModelCatalogVendorApiKey } from "./catalogStore";
+import { registerDeclaredProvider } from "./declaredProviderRegistration";
+import { currentCatalogFingerprint, removeProvider } from "../capabilityCore/modelOnboarding/dispatch";
+
+const AUTH = { Authorization: "Bearer {{user_api_key}}" };
+const SOURCE = "https://docs.apimart.ai/en/api-reference/videos/example";
+function card(modelKey: string) {
+  return {
+    provider: { baseUrl: "https://api.apimart.ai", authType: "bearer", authHeader: "Authorization" },
+    sources: [{ url: SOURCE, evidence: "POST /v1/videos/generations -> data[0].task_id" }],
+    assetIngestion: { strategy: "none", sourceUrl: SOURCE },
+    models: [{ modelKey, labelZh: modelKey, kind: "video",
+      modes: [{ taskKind: "text_to_video", delivery: "asynchronous",
+        create: { method: "POST", path: "/v1/videos/generations", headers: AUTH, body: { model: "{{model.modelKey}}", prompt: "{{request.prompt}}" }, response_mapping: { task_id: "data.0.task_id" }, provider_meta_mapping: { task_id: "data.0.task_id" } },
+        query: { method: "GET", path: "/v1/tasks/{{providerMeta.task_id}}", headers: AUTH, response_mapping: { status: "data.status", video_url: "data.result.videos.0.url.0" } },
+        statusMapping: { queued: ["submitted", "pending"], running: ["processing"], succeeded: ["completed"], failed: ["failed", "cancelled"] }, sourceUrls: [SOURCE] }] }],
+  };
+}
+
+function shape(name: string, cardModelKey?: string, wholeDelete = false) {
+  current = path.join(outRoot, name);
+  fs.rmSync(current, { recursive: true, force: true });
+  fs.mkdirSync(current, { recursive: true });
+  vi.stubEnv("NOMI_SETTINGS_DIR", current);
+  ensureBuiltinModelSeeds(); // 打开应用
+  upsertModelCatalogVendorApiKey("apimart", { apiKey: "sk-apimart-fake", enabled: true }); // 设置页存密钥
+  if (cardModelKey) {
+    const c = card(cardModelKey);
+    registerDeclaredProvider({ card: c as never, vendorKey: "apimart" }); // Agent 把卡挂到内置连接
+    fs.writeFileSync(path.join(current, "card.json"), JSON.stringify(c));
+  }
+  if (wholeDelete) {
+    // Agent 经 nomi_remove_provider 整家删（0.24.0 逐模型记进 suppressedBuiltinModels），然后重启一次。
+    const reply = removeProvider({ vendorKey: "apimart", ifUnchanged: currentCatalogFingerprint() });
+    if (!(reply as { ok?: boolean }).ok) throw new Error(JSON.stringify(reply));
+    ensureBuiltinModelSeeds();
+  }
+  const state = readCatalog();
+  const vendor = state.vendors.find((row) => row.key === "apimart") as Record<string, unknown>;
+  console.log("SHAPE", name, "version", state.version, "apimart models", state.models.filter((m) => m.vendorKey === "apimart").length, "assetIngestion", JSON.stringify(vendor.assetIngestion ?? null));
+  // 只留 APIMart 这一家的行（盘上原样，一个字节不改）：别家的行和这几份目录要证明的事无关，整份目录 560KB。
+  // 升级时种子会把别的内置家重新种上，和一个只连了 APIMart 的老用户一样。备份文件不带。
+  const file = path.join(current, "model-catalog.json");
+  const disk = JSON.parse(fs.readFileSync(file, "utf8"));
+  const own = (row: { vendorKey?: string; key?: string }) => (row.vendorKey ?? row.key) === "apimart";
+  fs.writeFileSync(file, `${JSON.stringify({ ...disk, vendors: disk.vendors.filter(own), models: disk.models.filter(own), mappings: disk.mappings.filter(own), apiKeysByVendor: disk.apiKeysByVendor.apimart ? { apimart: disk.apiKeysByVendor.apimart } : {} }, null, 1)}\n`);
+  for (const extra of fs.readdirSync(current)) if (extra.endsWith(".bak.json")) fs.rmSync(path.join(current, extra));
+}
+
+describe("builtin connection", () => {
+  it("writes three shapes", () => {
+    shape("v0.24.0-builtin-plain");
+    shape("v0.24.0-builtin-card", "muse-video-x");
+    // flux-3-video：0.24.0 的内置目录里没有，之后的版本收进了内置目录。
+    shape("v0.24.0-builtin-card-later-builtin", "flux-3-video");
+    shape("v0.24.0-builtin-whole-deleted", undefined, true);
+  });
+});

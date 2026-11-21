@@ -27,7 +27,7 @@ vi.mock('../../library/localProjectStore', () => ({
 }))
 vi.mock('../../api/taskApi', async (original) => ({
   ...await original<typeof import('../../api/taskApi')>(),
-  canvasOpenRuns: vi.fn(async () => []),
+  canvasResendDecide: (input: Parameters<typeof import('../../api/canvasResendDecideTestUtils').canvasResendDecideLikeMain>[0]) => import('../../api/canvasResendDecideTestUtils').then(fake => fake.canvasResendDecideLikeMain(input)), canvasOpenRuns: vi.fn(async () => []),
   submitCanvasShotRun: (input: SubmitInput) => calls.submit(input),
   pollCanvasShotRun: async () => { throw new Error('sync fixture never polls') },
   releaseCanvasShotRun: vi.fn(async () => undefined),
@@ -35,10 +35,6 @@ vi.mock('../../api/taskApi', async (original) => ({
 vi.mock('../../api/modelCatalogApi', async (original) => ({
   ...await original<typeof import('../../api/modelCatalogApi')>(),
   listWorkbenchModelCatalogVendors: async () => { throw new Error('no catalog bridge in tests') },
-}))
-vi.mock('./assetUploadConsent', async (original) => ({
-  ...await original<typeof import('./assetUploadConsent')>(),
-  resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }),
 }))
 
 /** 主进程（单镜 Run）交回：这一单 N 份已落进项目的产物（与 runtime.runTask 逐张落地后的形状一样）。 */
@@ -150,7 +146,7 @@ describe('画布 ↑ 一次出 N 张', () => {
     const id = addImageNode()
     const provider = ledgerWithLostAnswer(count, 'task-replay')
 
-    await runGenerationNode(id, { target, ledger: 'run', assetUploadConsent: 'allow', retry: { maxAttempts: 2, baseDelayMs: 0 } })
+    await runGenerationNode(id, { target, ledger: 'run', retry: { maxAttempts: 2, baseDelayMs: 0 } })
 
     const submissions = calls.submit.mock.calls.map(([input]) => (input as SubmitInput).runRecordId)
     expect(submissions).toHaveLength(2)
@@ -179,7 +175,7 @@ async function runThrough(entry: typeof ENTRIES[number], id: string): Promise<vo
     await confirmAndRunNode(id, { initiator: 'user' })
     return
   }
-  await runGenerationNodesBatch([id], { target, assetUploadConsent: 'allow', retry: { maxAttempts: 1 }, canvasRunRecordIds: new Map([[id, `batch-${id}`]]) })
+  await runGenerationNodesBatch([id], { target, retry: { maxAttempts: 1 }, canvasRunRecordIds: new Map([[id, `batch-${id}`]]) })
 }
 
 describe('画布 ↑ 张数 × 媒体种类 × 入口', () => {

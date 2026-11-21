@@ -9,10 +9,14 @@ vi.mock('../../../desktop/bridge', () => ({ getDesktopBridge: () => ({ tasks: { 
 
 import { runWorkbenchTaskByVendor } from '../../api/taskApi'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { eligibleGenerationNodeIds } from '../components/canvasProductionScope'
+import { planCanvasGenerationScope } from './generationScopeFacts'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { classifyGenerationError } from '../../observability/classifyError'
 import i18n from '../../../i18n'
+
+/** 「生成全部」默认会派的那几个（共用主人 group 意图）。 */
+const groupMembers = (nodes: readonly GenerationCanvasNode[]) =>
+  planCanvasGenerationScope('group', nodes.map((node) => node.id), { nodes, edges: [] }, { runs: {} }).members
 
 const persistedMidFlight = (id: string): GenerationCanvasNode => ({
   id, kind: 'image', title: id, position: { x: 0, y: 0 }, categoryId: 'shots', prompt: '渔港清晨',
@@ -32,7 +36,7 @@ describe('a canvas submit still in flight survives a project switch', () => {
     const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === 'node-a')!
     expect(node.status).toBe('running')
     expect(node.runs?.[0]?.status).toBe('running')
-    expect(eligibleGenerationNodeIds(useGenerationCanvasStore.getState().nodes)).toEqual([])
+    expect(groupMembers(useGenerationCanvasStore.getState().nodes)).toEqual([])
 
     answer({ id: 'task-1', status: 'succeeded', assets: [] })
     await request
@@ -42,7 +46,7 @@ describe('a canvas submit still in flight survives a project switch', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [persistedMidFlight('node-b')], edges: [], groups: [] })
     const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === 'node-b')!
     expect(node.status).toBe('idle')
-    expect(eligibleGenerationNodeIds(useGenerationCanvasStore.getState().nodes)).toEqual(['node-b'])
+    expect(groupMembers(useGenerationCanvasStore.getState().nodes)).toEqual(['node-b'])
   })
 })
 

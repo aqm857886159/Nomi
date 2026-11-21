@@ -1,3 +1,4 @@
+import { stationTimeout } from './_station-budget.mjs'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // M0-M5 red-stage vertical spine.
 //
@@ -41,7 +42,8 @@ const packagedApp = packagedInput
   ? path.resolve(packagedInput.endsWith('.app') ? path.join(packagedInput, 'Contents', 'MacOS', 'Nomi') : packagedInput)
   : null
 const requestedPhase = process.argv.includes('--packaged') ? 'packaged' : 'development'
-const evidenceRoot = makeTempDir('nomi-agent-vertical-spine-red-')
+const evidenceRoot = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : makeTempDir('nomi-agent-vertical-spine-red-')
+fs.mkdirSync(evidenceRoot, { recursive: true })
 
 const gaps = {
   H: { status: 'not-reached', reason: 'later user-visible actions are blocked by the first failed seam', next: 'make the real storyboard surface and row selection reachable after project creation' },
@@ -333,9 +335,8 @@ async function runPhase(phase, executablePath = undefined) {
       })
       return { phase, status: 'blocked', reasonCode: 'BLOCKED_ENVIRONMENT', steps, firstFailure: null, gaps, evidenceRoot, dirs }
     }
-    // Credential edits must follow the visible onboarding boundary.  The renderer
-    // sanitizer deliberately keeps a saved key disabled until certification promotes
-    // the selected model; direct catalog upserts are forbidden test injection.
+    // Credential edits must follow the visible onboarding boundary; direct catalog
+    // upserts are forbidden test injection.
     await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-model-catalog')))
     const modelSettings = win.locator('[data-model-settings-page="home"]').first()
     await modelSettings.waitFor({ state: 'visible', timeout: 10_000 })
@@ -350,50 +351,18 @@ async function runPhase(phase, executablePath = undefined) {
       await apimartKeyPage.getByRole('button', { name: /保存|Save/i }).first().click()
     }
     await apimartKeyPage.locator('[data-key-only-success]').waitFor({ state: 'visible', timeout: 10_000 })
-    await apimartKeyPage.getByRole('button', { name: /继续验证|Continue verification/i }).first().click()
-
-    // Stay on the canonical visible picker: fetch the provider model list, select
-    // deepseek-v4-pro, then let the wizard invoke httpCertificationStartExisting.
-    const addPage = win.locator('[data-model-settings-page="add"]').first()
-    await addPage.waitFor({ state: 'visible', timeout: 10_000 })
-    await addPage.getByRole('button', { name: /获取可用模型|Get available models/i }).first().click()
-    const modelRow = addPage.getByRole('button', { name: 'deepseek-v4-pro', exact: true }).first()
-    await modelRow.waitFor({ state: 'visible', timeout: 30_000 })
-    if (await modelRow.isDisabled().catch(() => true)) throw new Error('M3 APIMart deepseek-v4-pro is already configured and cannot be selected in the visible picker')
-    await modelRow.click()
-    const confirm = addPage.getByRole('button', { name: /验证\s*1\s*个模型|Verify\s*1\s*model/i }).first()
-    await confirm.waitFor({ state: 'visible', timeout: 5_000 })
-    await confirm.click()
-    const verification = win.locator('[data-model-settings-page="verification"]').first()
-    await verification.waitFor({ state: 'visible', timeout: 10_000 })
-    const runId = await verification.getAttribute('data-adapter-run-id')
-    if (!runId) throw new Error('M3 APIMart verification page did not expose a canonical run id')
-    let latest = null
-    const terminal = new Set(['completed', 'partial', 'failed', 'cancelled', 'timed_out', 'stale'])
-    for (let attempt = 0; attempt < 90; attempt += 1) {
-      const polled = await win.evaluate(async (id) => window.nomiDesktop?.onboarding?.certificationGet?.({ runId: id }), runId)
-      if (polled?.ok && polled.run) {
-        latest = polled.run
-        if (terminal.has(latest.stage)) break
-      }
-      await win.waitForTimeout(1_000)
-    }
-    if (!latest || latest.stage !== 'completed') throw new Error(`M3 APIMart certification ${latest?.stage || 'unknown'} for deepseek-v4-pro`)
-    // Promotion is asynchronous with respect to the verification surface. Read the
-    // complete public DTO and wait for the exact promoted row before refreshing the
-    // resident projection; filtered listModels calls hide whether enabled or
-    // publication metadata is the lagging field.
-    await win.waitForFunction(() => {
-      const models = window.nomiDesktop?.modelCatalog?.listModels?.() || []
-      const model = models.find((candidate) => candidate.vendorKey === 'apimart' && candidate.modelKey === 'deepseek-v4-pro')
-      return Boolean(model?.enabled === true && model?.published === true && model?.meta?.adapter?.state === 'verified')
-    }, undefined, { timeout: 20_000 })
-    const publication = await win.evaluate(() => {
-      const model = (window.nomiDesktop?.modelCatalog?.listModels?.() || []).find((candidate) => candidate.vendorKey === 'apimart' && candidate.modelKey === 'deepseek-v4-pro')
-      return model ? { enabled: model.enabled, published: model.published, adapterState: model.meta?.adapter?.state } : null
+    // D-1117-delete-verification：保存只存 key；预置的 deepseek-v4-pro 有请求格式，存下即可用，没有「继续验证 → 认证」那一步。
+    // 问主进程那份唯一的可用性投影（listModels 是异步 IPC，用 expect.poll 真正等它），落地后再刷新常驻投影。
+    await expect.poll(() => win.evaluate(async () => {
+      const models = (await window.nomiDesktop?.modelCatalog?.listModels?.({})) || []
+      return models.find((candidate) => candidate.vendorKey === 'apimart' && candidate.modelKey === 'deepseek-v4-pro')?.availability?.usable === true
+    }), { timeout: stationTimeout({ operations: 2 }) }).toBe(true)
+    const publication = await win.evaluate(async () => {
+      const model = ((await window.nomiDesktop?.modelCatalog?.listModels?.({})) || []).find((candidate) => candidate.vendorKey === 'apimart' && candidate.modelKey === 'deepseek-v4-pro')
+      return model ? { enabled: model.enabled, published: model.published, usable: model.availability?.usable === true } : null
     })
     await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-model-catalog-changed')))
-    steps.push({ id: 'M3.configure-apimart-text-model', status: 'passed', evidence: { configured: true, vendorKey: 'apimart', modelKey: 'deepseek-v4-pro', certification: { runId, stage: latest.stage }, publication, catalogRefresh: 'observed' } })
+    steps.push({ id: 'M3.configure-apimart-text-model', status: 'passed', evidence: { configured: true, vendorKey: 'apimart', modelKey: 'deepseek-v4-pro', publication, catalogRefresh: 'observed' } })
     currentStep = 'M3.close-model-settings'
     await closeSettingsOverlayThroughVisibleUi(win)
     steps.push({

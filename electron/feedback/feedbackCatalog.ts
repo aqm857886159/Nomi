@@ -24,7 +24,7 @@ import { codeDeclaredFallbackOrigins } from '../vendor/vendorBaseFallback'
 const CUSTOM_ADDRESS = '<custom-address>'
 const URL_IN_TEXT = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]*/gi
 const BUILTIN_VENDOR_FIELDS = ['enabled', 'authType', 'authHeader', 'authScheme', 'authQueryParam', 'providerKind', 'network', 'assetIngestion', 'createdAt', 'updatedAt'] as const
-const CREDENTIAL_FIELDS = ['enc', 'enabled', 'verificationPending', 'createdAt', 'updatedAt'] as const
+const CREDENTIAL_FIELDS = ['enc', 'enabled', 'createdAt', 'updatedAt'] as const
 const MODEL_FIELDS = ['vendorKey', 'modelKey', 'modelAlias', 'labelZh', 'kind', 'enabled', 'unlisted', 'free', 'pricing', 'tokenPricing', 'createdAt', 'updatedAt'] as const
 const MODEL_META_FIELDS = ['archetypeId', 'wireProfile', 'canonicalModelId', 'catalogLifecycle', 'supportsImageInput', 'promptRefineOnly'] as const
 const MODEL_ADAPTER_FIELDS = ['state', 'evidence', 'updatedAt'] as const

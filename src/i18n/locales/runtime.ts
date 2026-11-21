@@ -124,10 +124,6 @@ export const zhRuntime = {
     spendMessageWithPrompt: '提示词：「{{prompt}}」。确认后将生成。',
     // 授权范围必须写在卡上：用户以为批的是「这一张」，实际还批掉了一段免问期（D4 缺口明着标）。
     confirmGenerate: '确认生成',
-    // 凭据验证：卡上说明这是一次验证请求，并保留用户确认或保存为未验证的选择。
-    credentialProbeTitle: '验证 {{vendor}} 的密钥',
-    credentialProbeMessage: '确认后 Nomi 会用你刚填的密钥发一次最小的真实请求来验它是否可用。不确认也能保存密钥，只是标为「未验证」，首次真正调用时再见分晓。',
-    confirmCredentialProbe: '确认并验证',
     // 浏览器「提取提示词」：用户自己点的那一下，卡上写清来源页、哪张图、哪个读图模型，不用「AI 助手想…」的口气。
     promptExtractionTitle: '把这张图写成提示词？',
     promptExtractionMessage: '读图模型会看一次这张图，写好的提示词存进提示词库。',
@@ -321,9 +317,6 @@ export const enRuntime = {
     spendMessage: 'Confirm to start generation.',
     spendMessageWithPrompt: 'Prompt: “{{prompt}}”. Confirm to start generation.',
     confirmGenerate: 'Confirm generation',
-    credentialProbeTitle: 'Verify the {{vendor}} key',
-    credentialProbeMessage: 'Confirm and Nomi sends one minimal real request with the key you just entered to check that it works. You can also decline and still save the key — it is then marked unverified, and the first real call is the judge.',
-    confirmCredentialProbe: 'Confirm and verify',
     promptExtractionTitle: 'Turn this image into a prompt?',
     promptExtractionMessage: 'A vision model reads this image once and saves the prompt to your library.',
     promptExtractionPage: 'Page',

@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { enOnboardingProviders, zhOnboardingProviders } from '../../i18n/locales/onboardingProviders'
 
-describe('adapter verification user-facing copy', () => {
+describe('adapter request-format user-facing copy', () => {
   it.each([
     ['zh-CN', zhOnboardingProviders],
     ['en', enOnboardingProviders],
   ])('%s reports real terminal outcomes instead of pretending every run just saved models', (_locale, translations) => {
     const copy = translations.adapterVerification
-    expect(copy.stage.completed).toContain(localeWord(_locale, 'completed'))
-    expect(copy.stage.cancelled).toContain(localeWord(_locale, 'cancelled'))
-    expect(copy.stage.timed_out).toContain(localeWord(_locale, 'timedOut'))
+    expect(copy.stage.completed.toLocaleLowerCase()).toContain(localeWord(_locale, 'completed'))
+    expect(copy.stage.cancelled.toLocaleLowerCase()).toContain(localeWord(_locale, 'cancelled'))
+    expect(copy.stage.timed_out.toLocaleLowerCase()).toContain(localeWord(_locale, 'timedOut'))
     expect(copy.addedSomeFailed).not.toContain(localeWord(_locale, 'stillUsable'))
     expect(copy.noContract).toContain(localeWord(_locale, 'manualSetup'))
   })

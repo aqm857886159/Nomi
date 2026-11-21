@@ -18,9 +18,8 @@ import { startGenerationFromComposer } from './composerRun'
 import { directorPreviewSpendBlock, directorPreviewSpendBlockMessageKey } from './director/model/directorPreviewState'
 import { requestDirectorPreviewRender } from './director/agent/directorPreviewCapture'
 import type { UnmetReferenceDependency } from './controls/referenceDependency'
-import { collectUngeneratedReferenceAncestors } from '../runner/referenceAncestors'
+import { collectUngeneratedReferenceAncestors } from '../runner/generationScopeFacts'
 import NodeParameterControls from './NodeParameterControls'
-import { ComposerSendButton } from './ComposerSendButton'
 import { NodePromptOptimizer } from './NodePromptOptimizer'
 import { NodePromptTranslator } from './NodePromptTranslator'
 import { useNodeAssetDrop } from './useNodeAssetDrop'
@@ -59,7 +58,7 @@ import { useProductionCanvasLandingStore } from '../../production/productionCanv
 import { useComposerGraph } from './composerGraphSnapshot'
 import { productionMetaOf } from '../model/productionMeta'
 import { decideShotClaim } from '../../../../electron/shared/decideShotClaim'
-import { shotClaimCopy } from '../../observability/shotClaimCopy'
+import { shotClaimCopy } from '../../../../electron/shared/generationFailure'
 import { useNodePromptFocusRequest } from './nodePromptFocus'
 import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -270,7 +269,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
 
   const applyPromptPickerItem = React.useCallback(
     (item: LibraryPrompt): void => {
-      if (node.locked || readOnlyRef.current) return
+      if (readOnlyRef.current) return
       const before = node.prompt || ''
       const next = [before, item.prompt].filter(Boolean).join('\n')
       if (promptEditor && !promptEditor.isDestroyed) {
@@ -290,7 +289,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
       }
       void persistActiveWorkbenchProjectNow().catch(() => {})
     },
-    [mentionCandidates, node.id, node.locked, node.prompt, promptEditor, reportFeedback, t, updateNode, writeAccess],
+    [mentionCandidates, node.id, node.prompt, promptEditor, reportFeedback, t, updateNode, writeAccess],
   )
 
   const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -312,14 +311,14 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   const maxHeight = composerMaxHeight(node.kind) + advancedHeight
   const promptExpand = useComposerPromptExpand()
 
-  const effects = useNodeEffectChips({ enabled: hasPromptPickerButton, empty: !node.prompt?.trim(), kind: nodeExecutionKind ?? node.kind, disabled: node.locked, onSelect: applyPromptPickerItem })
+  const effects = useNodeEffectChips({ enabled: hasPromptPickerButton, empty: !node.prompt?.trim(), kind: nodeExecutionKind ?? node.kind, onSelect: applyPromptPickerItem })
 
   // B 簇（帮我写提示词）：效果 → 翻译 → 优化（翻译与优化同一出现条件，2026-09-21 拍板）。运镜控件已从视频/图片节点移除：用户直接在 prompt
   // 里写运镜，避免节点控件和提示词重复表达。
-  // 一件都没有（锁住的节点、不吃提示词的工作流）就整段不渲染——空的分组连同两根分隔线
+  // 一件都没有（不吃提示词的工作流）就整段不渲染——空的分组连同两根分隔线
   // 留在那里只会在底栏里留一段没人看得懂的空白。
   const showPromptPicker = hasPromptPickerButton
-  const showOptimizer = acceptsPrompt && (nodeExecutionKind === 'image' || nodeExecutionKind === 'video') && !node.locked
+  const showOptimizer = acceptsPrompt && (nodeExecutionKind === 'image' || nodeExecutionKind === 'video')
   const hasPromptTools = showPromptPicker || showOptimizer
 
   // 卡宽恒定（NODE_COMPOSER_WIDTH）；推荐项让位，输入内滚、底栏固定。
@@ -431,14 +430,14 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
             promptExpand.expanded ? 'max-h-[360px]' : 'flex-1',
             promptExpand.canToggle && 'pr-7',
           )}
-          style={{ cursor: node.locked ? 'default' : 'text', userSelect: node.locked ? 'auto' : 'text' }}
+          style={{ cursor: 'text', userSelect: 'text' }}
         >
           <ReferenceNamesContext.Provider value={referenceNames}>
           <PromptEditor
             className={cn('min-h-[72px]')}
             value={node.prompt || ''}
             placeholder={appendMentionHint(getGenerationNodePromptPlaceholder(node.kind))}
-            editable={!node.locked && !readOnly}
+            editable={!readOnly}
             onChange={(next) => { if (!readOnly) updateNode(node.id, { prompt: next }) }}
             onBlur={() => { if (!readOnlyRef.current) void persistActiveWorkbenchProjectNow().catch(() => {}) }}
             onReady={setPromptEditor}
@@ -493,9 +492,9 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
               </>
             ) : undefined,
             // 数量：模型声明了数量才有（section="quantity" 自己判断，没有就不渲染），紧挨 ↑ 左边。
-            trailing: <NodeParameterControls node={node} section="quantity" graph={graph} modelOptionsState={modelOptionsState} readMappings={readMappings} />,
-            action: (
+            trailing: (
               <>
+                <NodeParameterControls node={node} section="quantity" graph={graph} modelOptionsState={modelOptionsState} readMappings={readMappings} />
                 {rerenderDirectorNodeId ? (
                   <WorkbenchIconButton
                     size="sm"
@@ -505,17 +504,17 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
                     onClick={() => requestDirectorPreviewRender(rerenderDirectorNodeId)}
                   />
                 ) : null}
-                <ComposerSendButton
-                  title={generateTitle}
-                  busy={isGenerating}
-                  ariaLabel={hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
-                  cost={sendCost.description ? { credits: sendCost.credits, description: sendCost.description } : undefined}
-                  attrs={sendCost.source ? { 'data-price-source': sendCost.source } : undefined}
-                  disabled={!canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null}
-                  onClick={handleGenerate}
-                />
               </>
             ),
+            send: {
+              title: generateTitle,
+              busy: isGenerating,
+              ariaLabel: hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset'),
+              cost: sendCost.description ? { credits: sendCost.credits, description: sendCost.description } : undefined,
+              attrs: sendCost.source ? { 'data-price-source': sendCost.source } : undefined,
+              disabled: !canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null,
+              onClick: handleGenerate,
+            },
           }}
         />
       )}

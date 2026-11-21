@@ -1,3 +1,4 @@
+import { useResidentComposerContext } from './resident/ResidentComposerContext'
 import { libraryGroup } from '../library/libraryGroups'
 // 常驻 Agent 面板的容器。
 //
@@ -58,7 +59,7 @@ import { skillDisplayTitle } from '../skillLibrary/skillDisplay'
 import { useUserPrompts } from '../promptLibrary/useUserPrompts'
 import { promptDisplayTitle } from '../promptLibrary/promptDisplay'
 import { filterPrompts } from '../api/promptLibraryApi'
-import type { ComposerPopover, QueueRowData, V4Chip } from './v4/agentPanelV4Types'
+import type { ComposerPopover, QueueRowData } from './v4/agentPanelV4Types'
 import { buildV4ModelRows } from './v4/agentPanelV4ModelRows'
 import { useAgentTraceDirectory } from '../../desktop/useAgentTraceDirectory'
 
@@ -114,7 +115,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const setStoryboardPlannerLauncher = useWorkbenchStore((state) => state.setStoryboardPlannerLauncher)
   const timeline = useWorkbenchStore((state) => state.timeline)
 
-  const data = useAgentPanelV4Data(surface)
+  const data = useAgentPanelV4Data()
   const actions = useAgentPanelV4Actions(surface, data)
   const connectionFailure = data.connectionFailure
   const connectionError = connectionFailure && !connectionFailure.ok
@@ -502,13 +503,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         ? <V4PermissionPopover permission={actions.permission} onSelect={(tier) => { autoMode.request(tier); setPopover(null) }} onEditSystemPrompt={() => { setPopover(null); setSystemPromptOpen(true) }} />
         : undefined
 
-  const removeComposerChip = (chip: V4Chip) => {
-    if (chip.kind === 'skill') setActiveSkill(null)
-    else if (chip.kind === 'file') {
-      const match = attachments.find(item => chip.id ? item.id === chip.id : item.fileName === chip.label)
-      if (match) attachmentApi.removeAttachment(match.id)
-    }
-  }
+  const liveChips = useResidentComposerContext(surface, data.skills, data.skillLabel, attachmentApi.removeAttachment)
   const attachmentInput = <input ref={attachmentApi.inputRef} type="file" multiple accept={COMPOSER_ATTACHMENT_ACCEPT}
     className="hidden" tabIndex={-1} aria-hidden="true" onChange={attachmentApi.onInputChange} />
   // 收起 = 外壳把 Agent 收成内容区右下的小球（10-08 外壳重设计：小球 / 浮窗 / 停靠三形态，src/ui/app-shell/shell/ShellAgentHost.tsx）。
@@ -608,9 +603,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         queueHandlers={queueHandlers}
         composer={{
           admitting,
-          mode: data.running ? 'running' : data.liveChips.length ? 'reference' : 'idle',
+          mode: data.running ? 'running' : liveChips.length ? 'reference' : 'idle',
           permission: actions.permission,
-          chips: data.liveChips.filter(chip => !chip.id || !mentions.hiddenAttachmentIds.has(chip.id)),
+          chips: liveChips.filter(chip => !mentions.hiddenAttachmentIds.has(chip.id)),
           focusTag,
           value: draft,
           onValueChange: mentions.onChange,
@@ -622,7 +617,6 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           onStop: actions.stop,
           onAddFile: () => attachmentApi.inputRef.current?.click(),
           onAddReference: pickReferenceOnCanvas,
-          onRemoveChip: removeComposerChip,
           modelLabel: data.modelLabel,
           skillSelected: Boolean(activeSkill || actions.selectedLibraryPrompt),
           // 上面那张卡是在**问**用户（不是在求批准）时，composer 降一档（2026-09-21 拍板）。

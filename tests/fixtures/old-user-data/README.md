@@ -13,6 +13,7 @@
 | `catalogs/v0.24.0-native-wire` | 0.24.0 | 先 `zzRelGen` 接 6 个模型，再在它的输出上跑 `generators/zzRelNative.ts.txt`（开机体检 `upgradeRelayModelsToNativeWire` 把其中一个视频行切到原生报文） | 上一份的 5 个，加一个带档案和原生报文的视频行 |
 | `catalogs/v0.24.0-declared-card` | 0.24.0 | 在 0.24.0 的导出里跑 `generators/zzRelDeclared.ts.txt`：用真实的 `registerDeclaredProvider` 登记一张 AI 交的声明卡 | 视频 1，`card.json` 是登记它的那张卡（升级后重交卡用） |
 | `catalogs/v0.24.0-wizard-audio` | 0.24.0 | `zzRelGen`，模型表换成音频 2 + 文本 1（`V_MODELS` 环境变量） | 音频 2、文本 1；带认证日志文件（`integration-certification/`）和备份，都是旧版本真实落下来的，原样保留 |
+| `unverified-usable/v0.24.1/{saved-pending,failed-disabled,manual-disabled}`（不放在 `catalogs/` 下：那里每份都要逐模型录请求的 `expected.json`，这三份只证一次性修正） | 0.24.1（目录格式 13） | 已发的 0.24.1 真窗口（隔离资料 + 本机回环假中转）各走一遍：保存密钥时假服务不在线；验证时假服务回 401；验证通过后在设置里手动停用一个模型。只留下这一个连接的 `model-catalog.json`，别的连接裁掉，密钥换成假的 | 分别是「密钥待验证、连接被停用」「两个模型因自检失败被停用（一个有请求方式、一个没有）」「验证过、被手动停用」；`electron/catalog/unverifiedUsableOldUser.test.ts` 读它们 |
 | `catalogs/v0.24.1-wizard` | 0.24.1（目录格式 13） | 在 0.24.1 的导出里跑 `zzRelGen`（`V_MODELS` 给的模型表与 v0.24.0-wizard 一致） | 图片 2 已接通，一个图片模型的图生图是 multipart 上传；视频 3 没接通——0.24.1 起连接向导不再替没声明协议的视频模型猜路由，这就是 0.24.1 用户这样接出来的真实样子，原样保留禁用与失败状态；带认证日志和备份，原样保留 |
 
 每份目录的 `expected.json` 是**从主线录的**，不是手写的：里面写着它录自哪个主线提交（`recordedFrom`）、读完目录后盘上的目录版本和留下的备份文件（`diskVersionAfterRead`、`backupFiles`），以及每个模型的 `listed`、`published`，和每个已发布模式发出的那一个请求（`modes.<taskKind>.request`，地址换成 `{{origin}}`，multipart 的边界去掉）。`v0.24.0-wizard/expected.hand-written-half-contract.json` 是同一份目录加「手写了半份能力合同」（只写文生，路由还有图生）那一格。
@@ -28,6 +29,32 @@
 | `assets/v0.24.0-generated` | 0.24.0 | 在 0.24.0 的导出里跑 `generators/zzRefLinkGen.ts.txt`：真实的 `importRemoteAsset` 落一张生成图和它的 `.meta` | `manifest.json`（落盘后的相对路径与存下来的地址）、一张 PNG、它的 `.meta`（`originalUrl` 指向本机回环 `127.0.0.1:39017`，测试把它换成随机端口的假服务） |
 
 用法：`electron/catalog/referenceLinkDelivery.matrix.test.ts` 的「老用户升级后」一组把它拷进一个真项目，走活着、失效、超过 48 小时三种链接状态。升级本身不迁移任何东西（目录版本不变），所以这份夹具只证明：升级后的决定点读得懂旧 `.meta`，且请求和升级前一字不差。
+
+## 内置连接（`builtin-connection/`）
+
+内置 APIMart 连接上的老用户目录，全部在 0.24.0 的导出里跑 `generators/zzBuiltinCardGen.ts.txt` 落下（真实的启动种子、设置页存密钥、AI 交卡登记、删整家）。密钥是假的，升级测试不发任何请求。
+
+| 目录 | 谁落的 | 怎么落的 | 里面有什么 |
+|---|---|---|---|
+| `builtin-connection/v0.24.0-builtin-plain` | 0.24.0 | 打开应用 + 设置页存 APIMart 密钥 | 只有内置连接和内置模型，作对照 |
+| `builtin-connection/v0.24.0-builtin-card` | 0.24.0 | 同上，再让 AI 交一张挂在内置地址上的卡（一个非内置视频模型） | 卡改写过的连接行（素材上传方式被卡覆盖）+ 卡模型；`card.json` 是那张卡 |
+| `builtin-connection/v0.24.0-builtin-card-later-builtin` | 0.24.0 | 同上，卡里的模型是后来进了内置目录的那个 | 卡改写过的连接行 + 带卡认证标记的模型行；`card.json` 是那张卡 |
+| `builtin-connection/v0.24.0-builtin-whole-deleted` | 0.24.0 | 存密钥后用 0.24.0 的删整家（`removeProvider`），再打开一次应用 | 连接行在、0 个模型、逐模型的删除记录、没有密钥 |
+
+用法：`electron/capabilityCore/externalAgentGateReachConfirm.test.ts`（前三份：升级后连接就绪、内置模型与卡模型过门都到确认）、`electron/capabilityCore/builtinWholeDeletionReconnect.test.ts`（最后一份：升级后仍是删掉的，存一次密钥整家回来）。
+
+## 素材来源（`asset-sources/`）
+
+升级前落在项目里的**上传 / 连接器素材**的 `.meta`（来源字段长什么样），同样用旧版本自己的真实函数落盘。单放一个根，不放进 `assets/`：`assets/` 下的每个目录都被参考链接矩阵当成「带临时链接的生成图」遍历，形状不同。
+
+| 目录 | 谁落的 | 怎么落的 | 里面有什么 |
+|---|---|---|---|
+| `asset-sources/v0.24.1-uploads` | 0.24.1（提交见 manifest.json） | 在 0.24.1 的导出里跑 `generators/zzUploadSidecarGen.ts.txt`：真实的 `importLocalFile` 走字节（画布 / 素材库拖入）和原生路径（访达复制粘贴 / 外部助手导入）两条路各落一份 | `manifest.json`（两份的相对路径、类型、内容哈希）、`assets/imported/sha256/<hash>/` 下一张 PNG 一张 JPG 和各自的 `.meta`（`kind: upload`，**没有来源字段**——0.24.1 本机导入不记来源，升级后它们就是「来源不知道」的老上传） |
+| `asset-sources/v0.24.1-connector` | 0.24.1（提交见 manifest.json） | 在 0.24.1 的导出里跑 `generators/zzConnectorSidecarGen.ts.txt`：真实的连接器编排 `importTikhubShareUrl` 落一份分享链接导入的参考视频；只换掉出网（TikHub 链接解析、媒体取回）和钥匙解密，证据组装、落盘、清洗都是那一版的真函数 | `manifest.json`、`assets/reference/<日期>/` 下一段 MP4、它的预览图和 `.meta`（`sourceEvidence`：`source: connector`、`connectorId`、两条地址、`platform`、`usageStatus: rights_unknown`、`fetchedAt`；地址都指向本机回环或占位分享链接，没有真 Key） |
+
+用法：`electron/assets/assetSourceExits.parity.test.ts`。`v0.24.1-uploads`：拷进一个真项目后再把同一份字节带着已知来源导入，核对老记录补上来源、不另起一条，且原有字段一个不少。`v0.24.1-connector`：拷进一个真项目后跨项目复制，读回副本落盘的 `.meta`，来源字段逐个等于源。
+
+这两份的重生成同下面画布那段（导出 v0.24.1 到临时目录、链接依赖），生成器去掉 `.txt` 后分别放进导出里的 `electron/assets/zzUploadSidecarGen.test.ts`、`electron/connectors/zzConnectorSidecarGen.test.ts`，再跑 `V_COMMIT=$(git rev-parse v0.24.1) V_OUT=<目录> pnpm exec vitest run <那个文件>`。
 
 ## 项目库（`projects/`）
 

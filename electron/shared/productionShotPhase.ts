@@ -16,7 +16,10 @@ import { OUTPUT_RETRIEVAL_FAILED, type ProductionJob, type ProductionJobStatus, 
 import { runStopReason } from "./productionRunStop";
 import { tagNomiError } from "./nomiErrorCodes";
 export { decideShotClaim } from "./decideShotClaim";
-import { currentShotAttempt, shotCountsTowardBatch, shotIncluded } from "./productionShotJobs";
+export { productionShotIdForNode } from "./productionShotJobs";
+export { productionJobOpenAs, type ProductionJobOpenAs } from "./productionJobOpenAs";
+import { productionJobOpenAs } from "./productionJobOpenAs";
+import { currentShotAttempt, latestJobForShot, shotCountsTowardBatch, shotIncluded } from "./productionShotJobs";
 import { handingOverShotIds, removedShotIds, undecidedShotIds } from "./productionGenerationPresentation";
 
 /** 画布认领了这一镜的当前这一次尝试（付费卡交出去的 / 用户在节点上点的）：制作流程不再拥有它。 */
@@ -150,22 +153,6 @@ function queueShotsOf(run: ProductionRun): { shotId: string }[] {
   return (videoShots.length > 0 ? videoShots : anchors).map((shot) => ({ shotId: shot.shotId }));
 }
 
-/**
- * 这一镜的全部任务（含返工 attempt）。多镜按 `job.metadata.shotId` 认；单镜计划没有 shots[]，
- * 它唯一那一镜的身份就是候选 id（与落地投影 `buildMaterializeShotsPayload` 同一个约定），生成段的每个 job 都属于它。
- */
-function jobsForShot(run: ProductionRun, shotId: string): ProductionJob[] {
-  if (isSingleShotPlan(run)) {
-    return shotId === run.generationPlan?.candidate.candidateId ? run.jobs.filter((job) => job.stageId === "generate") : [];
-  }
-  return run.jobs.filter((job) => typeof job.metadata?.shotId === "string" && job.metadata.shotId === shotId);
-}
-
-function latestJob(jobs: readonly ProductionJob[]): ProductionJob | undefined {
-  if (jobs.length === 0) return undefined;
-  return jobs.reduce((latest, job) => (Date.parse(job.createdAt) >= Date.parse(latest.createdAt) ? job : latest));
-}
-
 const PRODUCTION_RUN_RECORD_PREFIX = "production-";
 
 /** 制作投影写进画布节点的那条运行记录的身份：这一镜那次任务（同一任务反复投影幂等，返工 = 新任务 = 新记录）。 */
@@ -180,17 +167,6 @@ export function productionRunRecordId(jobId: string): string {
  */
 export function isProductionRunRecord(record: Readonly<{ id?: unknown }> | null | undefined): boolean {
   return typeof record?.id === "string" && record.id.startsWith(PRODUCTION_RUN_RECORD_PREFIX);
-}
-
-/**
- * 画布节点 ↔ 镜的对应：单镜计划看 `generationPlan.nodeId`，多镜看 `shots[].nodeId`（「shot ↔ 画布节点」的单一真相）。
- * 返工要拿到 shotId 也走这里。
- */
-export function productionShotIdForNode(run: ProductionRun, nodeId: string): string | undefined {
-  const plan = run.generationPlan;
-  if (!plan || !nodeId) return undefined;
-  if (isSingleShotPlan(run)) return plan.nodeId === nodeId ? plan.candidate.candidateId : undefined;
-  return plan.shots?.find((shot) => shot.nodeId === nodeId)?.shotId;
 }
 
 /** 镜 → 画布节点（上面那个的反向，同一份对应）。付费卡上每一镜指着哪个节点、对话里收据下那一组指向元素都读它。 */
@@ -220,7 +196,7 @@ export function deriveProductionShotState(run: ProductionRun | null | undefined,
   const shot = single ? undefined : run.generationPlan.shots?.find((candidate) => candidate.shotId === shotId);
   if (!single && !shot) return null;
   if (single && shotId !== run.generationPlan.candidate.candidateId) return null;
-  const job = latestJob(jobsForShot(run, shotId));
+  const job = latestJobForShot(run, shotId);
   // 最新那次任务还停在人工门前（报价卡 / 返工·续拍待授权）：在等用户点头，供应商那边什么都还没发生。
   if (job && jobAwaitsHuman(job.status)) return { phase: "awaiting_confirmation", job };
   // 最新那次任务已脱离制作（画布认领了这一镜、计划被拒 / 脱离画布）：制作不会再派它，
@@ -228,7 +204,7 @@ export function deriveProductionShotState(run: ProductionRun | null | undefined,
   if (job?.status === "detached") return null;
   // 提交结果未知（连接被重置 / 超时 / 提交途中重启）：供应商可能已经收下。这一镜**不是**「还没开拍」也不是「已停」，
   // 画成失败并带上机器码，节点按「结果没法确认」说话（与单镜生成同一句话），不给一键重试。
-  if (job && (job.status === "submission_unknown" || job.status === "reconciling")) {
+  if (job && productionJobOpenAs(job.status) === "needs_reconcile") {
     return { phase: "failed", job, failureMessage: tagNomiError("submission-unknown", "The provider did not confirm this submission") };
   }
   const jobPhase = job ? productionJobPhase(job.status) : null;
@@ -271,6 +247,6 @@ export function deriveProductionShotState(run: ProductionRun | null | undefined,
 /** 这个 Run 里提交结果未知的镜（供应商可能已经收下）：镜 id（没有就用任务 id）。常驻 Agent 读任务状态时据此被告知别再 generate。 */
 export function unknownSubmissionShotLabels(run: Pick<ProductionRun, "jobs"> | null | undefined): string[] {
   return (run?.jobs ?? [])
-    .filter((job) => job.status === "submission_unknown" || job.status === "reconciling")
+    .filter((job) => productionJobOpenAs(job.status) === "needs_reconcile")
     .map((job) => (typeof job.metadata?.shotId === "string" && job.metadata.shotId ? job.metadata.shotId : job.jobId));
 }

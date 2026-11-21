@@ -512,7 +512,7 @@
     {
       "id": "settings.other-ways.relay",
       "artboard": "Main",
-      "label": "「其他接入方式 › 中转站 / 自定义 API」：向导、模型挑选、接入验证、自定义调用编辑器、自定义供应商卡原样搬入",
+      "label": "中转站 / 自定义 API：保留连接、拉模型、添加模型、编请求格式和脚本编辑；删除测试连接与模型验证（D-1117-delete-verification）。",
       "change": "unchanged",
       "states": [
         "dark",
@@ -1165,7 +1165,7 @@
     {
       "id": "picker.row-flags",
       "artboard": "M2-video-dark",
-      "label": "行尾可靠度标签「最近多次失败 / 未试跑 / 暂未列出」保留，排在能力芯片后",
+      "label": "行尾保留最近多次失败 / 暂未列出；删除未试跑（D-1117-delete-verification，用户 11-18 追认）；排在能力芯片后。",
       "change": "unchanged",
       "states": [
         "dark"
@@ -1404,7 +1404,7 @@
     {
       "id": "settings.adapter-tasks",
       "artboard": "M1-old-user",
-      "label": "任务条「需要继续处理」：只留给别家接入（AI 帮接 / 中转站）没做完的验证，APIMart 连接不再进这里；已完成的不挂（缺少声明的运行时模型 另起）（未单独出图）",
+      "label": "只显示正在编请求格式的任务，删除挂着的验证失败卡；D-1117-delete-verification。",
       "change": "unchanged",
       "states": [
         "empty"
@@ -2108,6 +2108,36 @@
       ],
       "status": "missing",
       "owner": "S1 设置账户卡"
+    },
+    {
+      "id": "picker.drop.untried",
+      "label": "删除模型行未试跑标签。",
+      "change": "remove",
+      "states": [
+        "empty"
+      ],
+      "candidates": [],
+      "status": "dropped",
+      "userDecision": {
+        "quote": "可以（D-1117-delete-verification：验证这一步整段删掉）",
+        "date": "2026-11-17"
+      },
+      "note": "D-1117-delete-verification，用户 2026-11-18 追认；最近多次失败与暂未列出照旧。"
+    },
+    {
+      "id": "settings.drop.test-connection",
+      "label": "删除测试连接按钮、健康检查和继续验证入口。",
+      "change": "remove",
+      "states": [
+        "empty"
+      ],
+      "candidates": [],
+      "status": "dropped",
+      "userDecision": {
+        "quote": "可以（D-1117-delete-verification：验证这一步整段删掉）",
+        "date": "2026-11-17"
+      },
+      "note": "D-1117-delete-verification；拉模型与保存时明确 401/403 拒收保留。"
     }
   ],
   "decor": [
@@ -2620,7 +2650,7 @@
       "function": "跳回没做完的接入验证",
       "before": "任务条「需要继续处理 / 任务 N」（ModelSettingsHome.tsx）",
       "after": "settings.adapter-tasks",
-      "afterNote": "只留给别家接入（AI 帮接 / 中转站）没做完的验证；APIMart 连接不再进这里"
+      "afterNote": "只留正在编请求格式的任务；D-1117-delete-verification。"
     },
     {
       "censusId": "MS-6",
@@ -2795,21 +2825,21 @@
       "function": "保存后拉模型",
       "before": "「获取模型 / 手动输入」「测试连接」「保存连接」「连接诊断（可选）」「连接已安全保存，尚未验证」（OnboardingWizard.tsx:447-676）",
       "after": "settings.other-ways.relay",
-      "afterNote": "原样搬入"
+      "afterNote": "保留保存后拉模型；删除测试连接与验证状态，D-1117-delete-verification。"
     },
     {
       "censusId": "MS-35",
       "function": "从拉到的清单里挑",
       "before": "选择要添加的模型：搜索 id、全选本组、类型猜测提示、3D 无通道提示、「自检 N 个」（ModelPickerScreen.tsx）",
       "after": "settings.other-ways.relay",
-      "afterNote": "原样搬入"
+      "afterNote": "添加模型 / 编请求格式，不验证密钥或真实生成；D-1117-delete-verification。"
     },
     {
       "censusId": "MS-36",
       "function": "自检新接的模型",
       "before": "验证页「正在接入并验证」「第 N 次自动修复」「看原始报错」「转后台」「停止验证」「手动配置」（AdapterVerificationScreen.tsx）",
       "after": "settings.other-ways.relay",
-      "afterNote": "APIMart 不走（预置通道）；别家照旧"
+      "afterNote": "添加模型 / 编请求格式，不验证密钥或真实生成；D-1117-delete-verification。"
     },
     {
       "censusId": "MS-37",

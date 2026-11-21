@@ -1016,13 +1016,8 @@ export async function closeNomiApp(app) {
 
 /**
  * 给隔离 profile 备好「这几家各有一把可用的测试 key」：先起一次 App，经产品自己的保存口把占位 key 存成密文，
- * 关掉后在盘上把这几家的凭据和供应商翻成已启用，调用方再用同一组 options 正式起 App。
- *
- * 为什么不在正式那次里直接调 upsertVendorApiKey：保存即验证（credentialProbePolicy，APIMart / Runway 有免费探测）。
- * 开着网，占位 key 真发给供应商、401（夜跑 run 40035294026）；假凭据默认关网（见 buildNomiLaunchEnv），验证打不出去，
- * 产品照语义存成「未验证、停用」，这家的模型进不了下拉。也不能在盘上直接种明文 key：自 019d80f1d 起明文不算可用凭据。
- * 这里只翻「验证通过」会翻的标志（凭据 enabled、去掉 verificationPending；供应商 enabled），密文由产品自己写——
- * 和 credential-connect-honesty 态②同一个做法。只给隔离目录里的非秘密测试 key 用。
+ * 调用方再用同一组 options 正式起 App；断网保存也启用，不再手工修改保存口的结果。
+ * 只给隔离目录里的非秘密测试 key 用，密文由产品自己写。
  */
 export async function seedSavedFixtureCredentials(options, vendorKeys, apiKey = 'nomi-e2e-placeholder') {
   // 两次起 App 必须同一组目录：密文由 userDataDir 里的加密身份解（Windows 的 DPAPI 密钥只在它的 Local State 里）。
@@ -1042,10 +1037,7 @@ export async function seedSavedFixtureCredentials(options, vendorKeys, apiKey = 
   for (const vendorKey of vendorKeys) {
     const record = catalog.apiKeysByVendor?.[vendorKey]
     if (!record?.apiKey || record.enc !== 'safeStorage') throw new Error(`${vendorKey} 的测试 key 没以密文落盘（保存口没写下它）`)
-    record.enabled = true
-    delete record.verificationPending
     const vendor = catalog.vendors?.find((item) => item.key === vendorKey)
-    if (vendor) vendor.enabled = true
+    if (!record.enabled || !vendor?.enabled) throw new Error(`${vendorKey} 保存后没有启用`)
   }
-  fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 2))
 }

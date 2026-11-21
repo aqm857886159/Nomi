@@ -15,7 +15,7 @@ import type { Model, Vendor } from "../catalog/types";
 import { executeTextTask } from "../textTaskRunner";
 import { describeAgentError } from "./agentError";
 import { startTextUpstream, reply, type UpstreamProtocol, type UpstreamReply, type UpstreamRequest } from "../../tests/fixtures/textTasks/textUpstream";
-import { parseVendorErrorFromMessage } from "../../src/workbench/generationCanvas/runner/vendorErrorIpc";
+import { parseVendorErrorFromMessage } from "../shared/generationFailure";
 import { classifyGenerationError } from "../../src/workbench/observability/classifyError";
 import { textTaskFailureText } from "../../src/workbench/api/taskApi";
 

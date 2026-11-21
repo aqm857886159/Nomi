@@ -1,0 +1,30 @@
+{
+  "locale": "en",
+  "commit": "bd819e18c",
+  "results": [
+    {
+      "case": "text-only",
+      "chips": [
+        "Soup arrives first"
+      ],
+      "requestHasCaption": false,
+      "requestHasClip": false
+    },
+    {
+      "case": "media-only",
+      "chips": [
+        "Door push"
+      ],
+      "requestHasCaption": false,
+      "requestHasClip": true
+    },
+    {
+      "case": "media-then-caption",
+      "chips": [
+        "Soup arrives first"
+      ],
+      "requestHasCaption": false,
+      "requestHasClip": false
+    }
+  ]
+}

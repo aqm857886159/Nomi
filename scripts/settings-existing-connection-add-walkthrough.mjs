@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const outDir = path.join(repoRoot, '.settings-existing-connection-add-walk')
+const outDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, '.settings-existing-connection-add-walk')
 const rendererUrl = process.env.NOMI_WALK_RENDERER_URL || `file://${path.join(repoRoot, 'dist', 'index.html')}`
 const settingsDir = makeTempDir('settings-existing-connection-add-set-')
 const projectsDir = makeTempDir('settings-existing-connection-add-proj-')
@@ -22,7 +22,6 @@ const existingModel = 'existing-text-v1'
 const listedModel = 'new-text-v2'
 const manualModel = 'manual-text-v3'
 const secretKey = 'sk-existing-connection-e2e-secret'
-const terminalStages = new Set(['completed', 'partial', 'failed', 'needs_ai', 'cancelled', 'timed_out', 'stale'])
 
 let modelListMode = 'success'
 let listedVerificationAttempts = 0
@@ -256,10 +255,7 @@ async function certificationRuns(win) {
 
 async function openConnectionFromHome(win) {
   await win.locator('[data-settings-section="models"]').waitFor({ state: 'visible' })
-  const connectionButton = win.getByRole('button')
-    .filter({ hasText: vendorName })
-    .filter({ hasText: '个模型已启用' })
-    .first()
+  const connectionButton = win.locator(`[data-model-home-connection="${vendorKey}"]`)
   await connectionButton.waitFor({ state: 'visible' })
   await connectionButton.click()
   await win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendorKey}"]`).waitFor({ state: 'visible' })
@@ -341,7 +337,7 @@ try {
   await shot(win, '01-saved-connection.png')
 
   const requestsBeforePicker = requests.length
-  await win.getByRole('button', { name: '添加其他模型', exact: true }).click()
+  await win.getByRole('button', { name: '添加其他', exact: true }).click()
   const addPage = win.locator('[data-model-settings-page="add"]')
   await addPage.waitFor({ state: 'visible' })
   await win.getByText('选择要添加的模型', { exact: true }).waitFor({ state: 'visible' })
@@ -350,7 +346,7 @@ try {
 
   await win.waitForTimeout(300)
   if (requests.length !== requestsBeforePicker) throw new Error(`Opening the existing-connection picker made a hidden request: ${JSON.stringify(requests.slice(requestsBeforePicker))}`)
-  await addPage.getByRole('button', { name: '重新获取列表', exact: true }).click()
+  await addPage.getByRole('button', { name: '获取可用模型', exact: true }).click()
 
   await pollUntil(
     () => Promise.resolve(requests.slice(requestsBeforePicker)),
@@ -373,7 +369,7 @@ try {
   await shot(win, '02-existing-disabled-new-selected.png')
 
   const requestsBeforeSave = requests.length
-  await win.getByRole('button', { name: '验证 1 个模型', exact: true }).click()
+  await win.getByRole('button', { name: '添加 1 个', exact: true }).click()
   const connectionPage = win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendorKey}"]`)
   await connectionPage.waitFor({ state: 'visible' })
   if (requests.length !== requestsBeforeSave) throw new Error('Saving an appended model started a hidden provider request')
@@ -387,165 +383,22 @@ try {
   const modelPage = win.locator(`[data-model-settings-page="model"][data-model-settings-model="${listedModel}"]`)
   await modelDialog.waitFor({ state: 'visible' })
   await modelPage.waitFor({ state: 'visible' })
-  await win.locator('[data-model-adapter-state="readyUntested"]').waitFor({ state: 'visible' })
-  await modelPage.getByText('更多操作', { exact: true }).click()
-  await modelPage.getByRole('button', { name: '让 Nomi 自动配置', exact: true }).click()
-  const consent = win.getByRole('dialog', { name: '开始后台自动适配？', exact: true })
-  await consent.waitFor({ state: 'visible' })
-  if (requests.length !== requestsBeforeSave) throw new Error('Opening adaptation consent contacted the provider')
-  await consent.locator('[data-confirm-dialog-confirm="true"]').click()
-  await consent.waitFor({ state: 'hidden' })
-  await win.locator('[data-confirm-dialog] [role="dialog"]').waitFor({ state: 'hidden' })
-  await win.waitForTimeout(250)
-  await win.getByText('正在接入并验证', { exact: true }).waitFor({ timeout: 12_000 })
-  const activeList = await pollUntil(
-    () => certificationRuns(win),
-    (result) => result.ok && result.runs?.some((run) => run.selectedModelKeys?.includes(listedModel) && !terminalStages.has(run.stage)),
-    'first adapter run to enter a non-terminal state',
-  )
-  const firstRun = activeList.runs.find((run) => run.selectedModelKeys?.includes(listedModel))
-  if (!firstRun) throw new Error('Could not identify the first append-model run')
-  returnedObjects.push(firstRun)
-  await pollUntil(
-    () => Promise.resolve(requests),
-    (items) => items.some((item) => item.method === 'POST' && item.url === '/v1/chat/completions' && item.model === listedModel && item.authMatchesSavedCredential),
-    'slow authenticated model verification request',
-  )
-  await assertModelDialogSurface(win, 'running verification page')
-  await assertRendererHasNoCredential(win, 'running verification page')
-  await shot(win, '03-running-verification.png')
-
-  await win.getByRole('button', { name: '转到后台', exact: true }).click()
-  await modelPage.waitFor({ state: 'visible' })
-  await modelDialog.getByRole('button', { name: '关闭', exact: true }).click()
-  await modelDialog.waitFor({ state: 'detached' })
-  await connectionPage.waitFor({ state: 'visible' })
-  await connectionPage.locator('[data-model-settings-back]').click()
-  await win.locator('[data-settings-section="models"]').waitFor({ state: 'visible' })
-  const taskButton = win.getByRole('button', { name: `查看 ${vendorName} 的接入任务`, exact: true })
-  await taskButton.waitFor({ state: 'visible' })
-  await shot(win, '04-background-task-on-model-home.png')
-
-  await taskButton.click()
-  const restoredTask = win.locator(`[data-model-settings-page="verification"][data-adapter-run-id="${firstRun.id}"]`)
-  await restoredTask.waitFor({ state: 'visible' })
-  const restoredSnapshot = await certificationRuns(win)
-  const restoredRun = restoredSnapshot.runs?.find((run) => run.id === firstRun.id)
-  if (!restoredRun || terminalStages.has(restoredRun.stage)) throw new Error('Background task did not reopen while the real request was still running')
-  await assertSettingsSurface(win, 'restored background task')
-  await assertRendererHasNoCredential(win, 'restored background task')
-  await shot(win, '05-restored-background-task.png')
-
-  // Escape and the visible back button both navigate the model page stack without
-  // closing Settings. Reopen the same persisted task after each route transition.
-  await win.keyboard.press('Escape')
-  await win.locator('[data-settings-section="models"]').waitFor({ state: 'visible' })
-  if (!(await settings.isVisible())) throw new Error('Escape closed Settings instead of returning from the task page')
-  await taskButton.click()
-  await restoredTask.waitFor({ state: 'visible' })
-  await restoredTask.locator('[data-model-settings-back]').click()
-  await win.locator('[data-settings-section="models"]').waitFor({ state: 'visible' })
-  await taskButton.click()
-  await restoredTask.waitFor({ state: 'visible' })
-
-  const firstVerificationRequest = requests.find((request) =>
-    request.method === 'POST' &&
-    request.url === '/v1/chat/completions' &&
-    request.model === listedModel &&
-    request.verificationAttempt === 1,
-  )
-  if (!firstVerificationRequest || firstVerificationRequest.responseFinished) {
-    throw new Error('The first verification request was not observably pending before cancellation')
-  }
-
-  await restoredTask.getByRole('button', { name: '停止验证', exact: true }).click()
-  const cancelledSnapshot = await pollUntil(
-    () => certificationRuns(win),
-    (result) => result.ok && result.runs?.some((run) => run.id === firstRun.id && run.stage === 'cancelled'),
-    'cancelled adapter run to persist its terminal state',
-  )
-  const cancelledRun = cancelledSnapshot.runs.find((run) => run.id === firstRun.id)
-  returnedObjects.push(cancelledRun)
-  await pollUntil(
-    () => Promise.resolve(firstVerificationRequest),
-    (request) => request.requestAborted || request.responseClosedBeforeEnd,
-    'cancelled verification to abort or close the underlying mock request',
-  )
-  if (firstVerificationRequest.responseFinished) {
-    throw new Error('The cancelled slow verification still completed its HTTP response')
-  }
-  await pollUntil(
-    () => Promise.resolve(delayedResponses.size),
-    (size) => size === 0,
-    'cancelled verification to clear its delayed mock response',
-  )
-  await assertRendererHasNoCredential(win, 'cancelled verification')
-  await shot(win, '06-cancelled-verification.png')
-
-  const retryButton = restoredTask.getByRole('button', { name: '全部重新验证', exact: true })
-  await retryButton.waitFor({ state: 'visible' })
-  await retryButton.click()
-  const retrySnapshot = await pollUntil(
-    () => certificationRuns(win),
-    (result) => result.ok && result.runs?.some((run) =>
-      run.id !== firstRun.id && run.selectedModelKeys?.includes(listedModel),
-    ),
-    'persisted run-id retry to create a distinct adapter run',
-  )
-  const retryRun = retrySnapshot.runs.find((run) =>
-    run.id !== firstRun.id && run.selectedModelKeys?.includes(listedModel),
-  )
-  if (!retryRun || retryRun.id === firstRun.id) throw new Error('Retry reused the cancelled run id')
-  returnedObjects.push(retryRun)
-  const retryTask = win.locator(`[data-model-settings-page="verification"][data-adapter-run-id="${retryRun.id}"]`)
-  await retryTask.waitFor({ state: 'visible' })
-
-  const secondVerificationRequest = await pollUntil(
-    () => Promise.resolve(requests.find((request) =>
-      request.method === 'POST' &&
-      request.url === '/v1/chat/completions' &&
-      request.model === listedModel &&
-      request.verificationAttempt === 2,
-    )),
-    (request) => Boolean(request),
-    'retried verification to reach the mock API',
-  )
-  if (!secondVerificationRequest.authMatchesSavedCredential) {
-    throw new Error('Persisted retry did not reuse the saved main-process credential')
-  }
-  const completedRetrySnapshot = await pollUntil(
-    () => certificationRuns(win),
-    (result) => result.ok && result.runs?.some((run) => run.id === retryRun.id && run.stage === 'completed'),
-    'retried verification to complete successfully',
-  )
-  if (completedRetrySnapshot.runs.find((run) => run.id === firstRun.id)?.stage !== 'cancelled') {
-    throw new Error('The old cancelled task changed state while its retry completed')
-  }
-  await new Promise((resolve) => setTimeout(resolve, 1_100))
-  const stableRuns = await certificationRuns(win)
-  if (stableRuns.runs?.find((run) => run.id === firstRun.id)?.stage !== 'cancelled') {
-    throw new Error('A late provider response resurrected the cancelled task')
-  }
-  if (stableRuns.runs?.find((run) => run.id === retryRun.id)?.stage !== 'completed') {
-    throw new Error('The successful retried task did not retain its terminal state')
-  }
-  if (!secondVerificationRequest.responseFinished || secondVerificationRequest.responseClosedBeforeEnd) {
-    throw new Error('The retried verification did not finish its mock HTTP response normally')
-  }
-  await assertSettingsSurface(win, 'successful persisted retry')
-  await assertRendererHasNoCredential(win, 'successful persisted retry')
-  await shot(win, '07-retry-completed-new-run.png')
-
-  await win.keyboard.press('Escape')
-  await win.locator('[data-settings-section="models"]').waitFor({ state: 'visible' })
+  await win.locator('[data-model-status="ready"]').waitFor({ state: 'visible' })
+  await assertModelDialogSurface(win, 'ready model detail without verification');
+  await assertRendererHasNoCredential(win, 'ready model detail');
+  await shot(win, '03-ready-without-verification.png');
+  await modelDialog.getByRole('button', { name: '关闭', exact: true }).click();
+  await modelDialog.waitFor({ state: 'detached' });
+  await connectionPage.locator('[data-model-settings-back]').click();
+  await win.locator('[data-settings-section="models"]').waitFor({ state: 'visible' });
 
   // Degraded path: listing is optional. Even a failure that contains the secret
   // must be redacted and leave manual model entry enabled.
   modelListMode = 'failure'
   await openConnectionFromHome(win)
-  await win.getByRole('button', { name: '添加其他模型', exact: true }).click()
+  await win.getByRole('button', { name: '添加其他', exact: true }).click()
   await addPage.waitFor({ state: 'visible' })
-  await addPage.getByRole('button', { name: '重新获取列表', exact: true }).click()
+  await addPage.getByRole('button', { name: '获取可用模型', exact: true }).click()
   await win.getByText(/没自动拉到模型：/).waitFor({ state: 'visible', timeout: 12_000 })
   await assertRendererHasNoCredential(win, 'failed model-list fallback')
   await assertSettingsSurface(win, 'failed model-list fallback')
@@ -565,7 +418,7 @@ try {
   await shot(win, '08-model-list-failed-manual-id-ready.png')
 
   const requestsBeforeManualSave = requests.length
-  await win.getByRole('button', { name: '验证 1 个模型', exact: true }).click()
+  await win.getByRole('button', { name: '添加 1 个', exact: true }).click()
   await addPage.waitFor({ state: 'detached' })
   await connectionPage.waitFor({ state: 'visible' })
   await connectionPage.getByRole('button', { name: manualModel, exact: true }).waitFor({ state: 'visible' })
@@ -580,12 +433,6 @@ try {
 
   const finalRuns = await certificationRuns(win)
   returnedObjects.push(finalRuns)
-  if (finalRuns.runs?.find((run) => run.id === firstRun.id)?.stage !== 'cancelled') {
-    throw new Error('The original run no longer has its cancelled terminal state at journey end')
-  }
-  if (finalRuns.runs?.find((run) => run.id === retryRun.id)?.stage !== 'completed') {
-    throw new Error('The persisted retry no longer has its successful terminal state at journey end')
-  }
   for (const [index, value] of returnedObjects.entries()) assertNoPlainCredential(value, `renderer return object ${index + 1}`)
 
   const finalCatalog = JSON.parse(readFileSync(path.join(settingsDir, 'model-catalog.json'), 'utf8'))
@@ -611,7 +458,7 @@ try {
   if (consoleErrors.length > 0) throw new Error(`Renderer console/page errors:\n${consoleErrors.join('\n')}`)
 
   console.log(`  authenticated main-process requests: ${protectedRequests.length}`)
-  console.log('  encrypted credential reuse, cancellation, persisted retry, background recovery, duplicate prevention, and manual-ID fallback: ok')
+  console.log('  encrypted credential reuse, ready without verification, duplicate prevention, and manual-ID fallback: ok')
 } catch (error) {
   console.error('  walkthrough failed:', error)
   if (consoleErrors.length > 0) console.error(`  renderer errors:\n${consoleErrors.join('\n')}`)

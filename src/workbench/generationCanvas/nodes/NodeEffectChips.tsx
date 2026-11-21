@@ -14,8 +14,8 @@ import { compatibleNodePresets } from './nodePromptPresets'
 
 const STARTER_EFFECTS = ['effect-character-three-view', 'effect-scene-three-view', 'effect-natural-texture', 'effect-fill-outpaint']
 
-export function useNodeEffectChips({ enabled, empty, kind, disabled, onSelect }: {
-  enabled: boolean; empty: boolean; kind: string; disabled?: boolean; onSelect: (item: LibraryPrompt) => void
+export function useNodeEffectChips({ enabled, empty, kind, onSelect }: {
+  enabled: boolean; empty: boolean; kind: string; onSelect: (item: LibraryPrompt) => void
 }): { recommendations: JSX.Element | null; more: JSX.Element } {
   const { t, i18n } = useTranslation()
   const library = usePromptLibrary(enabled)
@@ -39,19 +39,18 @@ export function useNodeEffectChips({ enabled, empty, kind, disabled, onSelect }:
   const recommendations = empty ? <NodeEffectRecommendations>
     {STARTER_EFFECTS.flatMap(id => {
       const item = effects.find(p => p.id === id)
-      return item ? [<button key={id} type="button" disabled={disabled} onClick={() => onSelect(item)} data-effect-chip={id}
-        className="shrink-0 whitespace-nowrap rounded-pill bg-nomi-ink-05 px-2 py-1 text-caption leading-4 text-nomi-ink-80 hover:text-nomi-accent disabled:opacity-40">{promptDisplayTitle(item)}</button>] : []
+      return item ? [<button key={id} type="button" onClick={() => onSelect(item)} data-effect-chip={id}
+        className="shrink-0 whitespace-nowrap rounded-pill bg-nomi-ink-05 px-2 py-1 text-caption leading-4 text-nomi-ink-80 hover:text-nomi-accent">{promptDisplayTitle(item)}</button>] : []
     })}
   </NodeEffectRecommendations> : null
   const more = <>
     <NodePromptToolIconButton ref={anchorRef} toolId="effects" icon={<IconFileText size={16} stroke={2} />}
-      label={t('generationCommon.composerBarV1.effects')} disabled={disabled}
-      disabledReason={t('generationCommon.node.lock.unlockHint')} aria-expanded={open} aria-haspopup="dialog" data-effect-more
+      label={t('generationCommon.composerBarV1.effects')} aria-expanded={open} aria-haspopup="dialog" data-effect-more
       onClick={() => {
         if (open) { close(); return }
         setQuery(''); user.reload(); setOpen(true)
       }} />
-    {open && enabled && !disabled ? <AnchoredPopover anchorRef={anchorRef} onClose={close}>
+    {open && enabled ? <AnchoredPopover anchorRef={anchorRef} onClose={close}>
       <div role="dialog" aria-label={t('generationCommon.composerBarV1.effects')} data-testid="node-effect-menu">
         <div data-testid="node-prompt-presets">
         <LibraryPicker rows={rows} categories={categories} query={query} onQueryChange={setQuery} autoFocus

@@ -14,18 +14,15 @@ import type {
   VideoGenerationRecommendationInput,
   VideoModelCandidate,
 } from "../shared/videoCapabilities/recommendation";
-import { effectiveVideoModes, recommendVideoGeneration, videoVariantIdsOf } from "../shared/videoCapabilities/recommendation";
+import { effectiveVideoModes, videoVariantIdsOf } from "../shared/videoCapabilities/recommendation";
 import { canonicalArchetypeVariantId, resolveArchetypeVariant } from "../shared/modelArchetypes/variantResolution";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import type { ArchetypeMode } from "../shared/videoCapabilities/types";
+import { modeForInputs, modesInTask, statedMode } from "../shared/modelArchetypes/modeForInputs";
+import { referenceDemandsForCandidate } from "../shared/canvas/edgeAdmission";
 import { projectSemanticAspectRatio } from "./semanticAspectRatio";
 import { admitAuthoredDuration } from "./generationAuthoredDuration";
-
-// Keep mode/task comparisons tolerant of the wire's kebab/snake aliases.  This
-// local normalizer is intentionally dependency-free so candidate resolution
-// cannot accidentally call a provider-specific helper (or an undefined symbol).
-const normalizedMode = (value: unknown): string =>
-  typeof value === "string" ? value.trim().toLowerCase().replace(/-/g, "_") : "";
+import { paramSeconds } from "../shared/videoCapabilities/paramValue";
 
 const CAMERA_INTENTS = new Set<NonNullable<VideoGenerationRecommendationInput["cameraIntent"]>>([
   "locked", "pan", "tilt", "dolly", "orbit", "handheld", "path",
@@ -39,9 +36,7 @@ const CAMERA_INTENTS = new Set<NonNullable<VideoGenerationRecommendationInput["c
 export function videoRecommendationInput(candidate: PlanCandidate): VideoGenerationRecommendationInput | null {
   if (candidate.references.some((reference) => !reference.kind)) return null;
   const parameters = candidate.parameters;
-  const durationSeconds = typeof parameters.duration === "number"
-    ? parameters.duration
-    : typeof parameters.durationSeconds === "number" ? parameters.durationSeconds : undefined;
+  const durationSeconds = paramSeconds(parameters);
   // `aspectRatio` 是语义载体键（写入口翻译之前，定模式那一步读得到它），之后读到的就是真实键。
   const aspectRatio = typeof parameters.aspectRatio === "string"
     ? parameters.aspectRatio
@@ -79,10 +74,8 @@ export const normalizedModelIdentity = (value: string): string => value.trim().t
  * recommendation input reads (duration / durationSeconds), so the estimate matches the sealed request.
  */
 export function shotDurationSeconds(candidate: Pick<PlanCandidate, "parameters">): number | undefined {
-  const parameters = candidate.parameters ?? {};
-  if (typeof parameters.duration === "number" && Number.isFinite(parameters.duration) && parameters.duration >= 0) return parameters.duration;
-  if (typeof parameters.durationSeconds === "number" && Number.isFinite(parameters.durationSeconds) && parameters.durationSeconds >= 0) return parameters.durationSeconds;
-  return undefined;
+  const seconds = paramSeconds(candidate.parameters);
+  return seconds !== undefined && seconds >= 0 ? seconds : undefined;
 }
 
 /**
@@ -173,58 +166,48 @@ export function videoCandidateForPlan(candidate: PlanCandidate, candidates: read
   };
 }
 
-const normalizedTaskKind = (value: unknown): string => normalizedMode(value);
-
 /**
- * Resolve the source-archetype mode without guessing a provider wire mode.
- * Several real models (Seedance, Wan, H3) expose multiple modes through the
- * same catalog task kind. A persisted `modeId` is authoritative; when older
- * drafts only carry the task kind, references/recommendation facts select a
- * mode. If the facts are insufficient we fail closed and ask for modeId.
+ * 这一份候选按哪种方式发——**问方式主人**（`modeForInputs`），这里不另判（2026-11-17 删掉了按桶筛、取推荐首项、退档案默认的那一份）。
+ *  · 说明白了 `modeId`：只查表（`statedMode`），不是这个模型的方式 → `mode_not_in_model`；不看参考、不重选（铁律「说了 = 放上去的」）；
+ *  · `mode` 本身就是这个档案的某个方式 id（老草稿的写法）：同样当说明白的；
+ *  · 否则 `mode` 是任务桶：在这一桶里按这次真放进来的参考选（`modeForInputs` + `task`，桶由 `modeTransportFor` 三级判）。
+ *    桶里一个方式都没有 → `mode_not_in_model`；放了参考却没有方式收得下（`inputsNotAccepted`）→ 拒并列出这一桶的方式——不偷偷按文生发；
+ *    缺必需输入（`needsInput`，比如说了图生却没给图）→ 收下这个方式，缺的由发送前的检查拒（与画布同一个状态）。
  */
-export function videoModeForPlan(candidate: PlanCandidate, videoCandidate: VideoModelCandidate): ArchetypeMode {
-  const modes = effectiveVideoModes(videoCandidate);
+function videoModeForCandidate(candidate: PlanCandidate, videoCandidate: VideoModelCandidate): ArchetypeMode {
+  const archetype = { ...videoCandidate.archetype, modes: effectiveVideoModes(videoCandidate) };
+  const model = `${candidate.providerId}/${candidate.modelId}`;
   const requestedModeId = typeof candidate.modeId === "string" ? candidate.modeId.trim() : "";
   if (requestedModeId) {
-    const mode = modes.find((item) => normalizedMode(item.id) === normalizedMode(requestedModeId));
-    if (!mode) {
-      refuseGeneration({ code: "mode_not_in_model", field: "modeId", model: `${candidate.providerId}/${candidate.modelId}`,
-        value: requestedModeId, allowed: modes.map((item) => item.id) });
+    const stated = statedMode(archetype, requestedModeId);
+    if (!stated) {
+      refuseGeneration({ code: "mode_not_in_model", field: "modeId", model, value: requestedModeId, allowed: archetype.modes.map((item) => item.id) });
     }
-    return mode;
+    return stated;
   }
-
-  const byId = modes.find((item) => normalizedMode(item.id) === normalizedMode(candidate.mode));
+  const byId = statedMode(archetype, candidate.mode);
   if (byId) return byId;
-  const byTask = modes.filter((item) => normalizedTaskKind(item.transportTaskKind) === normalizedTaskKind(candidate.mode));
-  if (byTask.length === 1) return byTask[0]!;
-  if (byTask.length === 0) {
-    refuseGeneration({ code: "mode_not_in_model", field: "taskKind", model: `${candidate.providerId}/${candidate.modelId}`,
-      value: candidate.mode, allowed: modes.map((item) => (item.transportTaskKind ? `${item.id} (${item.transportTaskKind})` : item.id)) });
+  const task = { kind: candidate.mode, vendor: videoCandidate.provider };
+  const bucket = modesInTask(archetype, task);
+  if (bucket.length === 0) {
+    refuseGeneration({ code: "mode_not_in_model", field: "taskKind", model, value: candidate.mode,
+      allowed: archetype.modes.map((item) => {
+        const transport = modeTransportFor(item, archetype, videoCandidate.provider);
+        return transport ? `${item.id} (${transport})` : item.id;
+      }) });
   }
-
-  // Legacy drafts may not have modeId. Use the same recommendation facts as
-  // preview, but only among modes that actually share this transport task.
-  const recommendationInput = videoRecommendationInput(candidate);
-  if (recommendationInput) {
-    const recommended = recommendVideoGeneration(recommendationInput, [videoCandidate]).recommendations;
-    const selected = recommended.find((item) => byTask.some((mode) => normalizedMode(mode.id) === normalizedMode(item.modeId)));
-    if (selected) return byTask.find((mode) => normalizedMode(mode.id) === normalizedMode(selected.modeId))!;
+  const choice = modeForInputs(archetype, referenceDemandsForCandidate(candidate.references), null, { task });
+  if (choice.status === "inputsNotAccepted") {
+    refuseArgument(`No ${candidate.mode} mode on ${model} takes these references; its ${candidate.mode} modes are: ${bucket.map((item) => item.id).join(", ")}. Set modeId to one of them with references it takes, or drop the references.`,
+      { field: "references", allowed: bucket.map((item) => item.id) });
   }
-
-  // A mode with no reference requirements is a safe default only when the
-  // archetype explicitly declares it as the default for this task kind.
-  const declaredDefault = modes.find((mode) => normalizedMode(mode.id) === normalizedMode(videoCandidate.archetype.defaultModeId)
-    && byTask.includes(mode));
-  if (declaredDefault) return declaredDefault;
-  refuseArgument(`${candidate.mode} has several modes on this model; set modeId to one of: ${byTask.map((item) => item.id).join(", ")}.`,
-    { field: "modeId", allowed: byTask.map((item) => item.id) });
+  return choice.mode;
 }
 
 export function normalizeVideoCandidate(candidate: PlanCandidate, candidates: readonly VideoModelCandidate[] | undefined): PlanCandidate {
   const selected = candidates ? videoCandidateForPlan(candidate, candidates) : null;
   if (!selected) return candidate;
-  const mode = videoModeForPlan(selected.candidate, selected.videoCandidate);
+  const mode = videoModeForCandidate(selected.candidate, selected.videoCandidate);
   return {
     ...selected.candidate,
     // Transport bucket comes from the one helper (vendor specialization > mode > archetype):
@@ -252,7 +235,7 @@ export function videoCompileOptions(
   if (!selected) return archetypeCompileOptions(candidate, catalogRowFor(candidate.providerId, candidate.modelId));
   return {
     parameterSchema: Object.fromEntries(
-      videoModeForPlan(selected.candidate, selected.videoCandidate).params
+      videoModeForCandidate(selected.candidate, selected.videoCandidate).params
         .map((control) => [control.key, parameterFieldForControl(control)]),
     ),
     allowedVariantIds: videoVariantIdsOf(selected.videoCandidate.archetype),

@@ -175,18 +175,9 @@ await walkDesignLabScreen({
     if (card !== 1) { record(`${state.id} 现役 composer 卡应有 1 张，实际 ${card} —— 这一格没渲染出真身`); return }
     await assertSingleRow(page, record, state.id)
     await assertClusterIsSmaller(page, record, state.id)
-    // 锁：先证「浮条上确实有一把锁」，再断言「浮框里一把都没有」。
-    // 没有前一句，后一句在锁根本没渲染时也照样绿——那正是 expectAbsent 在签名上逼你补的基线。
-    const lockOnToolbar = await page.locator('[data-node-floating-toolbar="true"] [data-node-lock]').count()
-    if (lockOnToolbar !== 1) record(`${state.id} 锁应回到节点浮条，实际在浮条上找到 ${lockOnToolbar} 个`)
-    const lockProof = await proveProbe(
-      page.locator('[data-node-floating-toolbar="true"] [data-node-lock]'),
-      `${state.id} 的锁已经在节点浮条上`,
-    )
-    await expectAbsent(
-      page.locator('.generation-canvas-v2-node__composer-card [data-node-lock]'),
-      { provenBy: lockProof, message: `${state.id} 浮框里不该再有锁（它已归位到浮条）` },
-    )
+    // 节点锁已撤掉：浮条和浮框里都不该有 data-node-lock。
+    const lockAnywhere = await page.locator('[data-node-lock]').count()
+    if (lockAnywhere !== 0) record(`${state.id} 节点锁已撤掉，页面上却找到 ${lockAnywhere} 个 data-node-lock`)
     // B 簇在**底栏里**，提示词区右端一件控件都没有。
     // 先证「底栏里确实有簇」，再断言「提示词区一颗都没有」——没有前一句，簇整个没渲染时后一句照样绿。
     const clusterInBar = await page.locator('[data-node-composer-footer] [data-prompt-tool-cluster="true"]').count()

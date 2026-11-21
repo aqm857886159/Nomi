@@ -5,6 +5,7 @@ import type { AdapterModelDraft, AdapterModeDraft, AdapterModeResult } from './t
 import type { Mapping, ProfileKind } from '../catalog/types';
 import { normalizeCustomCapabilityContract, parseCustomCapabilityContract, type CustomCapabilityContractV1 } from '../shared/customCapabilityContract';
 import { modelKindForTaskKind } from '../shared/capabilityModeManifest';
+import { PROFILE_KIND_REFERENCE_CHANNEL } from '../shared/contracts/modelAccessCapabilities';
 import { consumedCanonicalKeys, wireReferencedParamKeys } from '../catalog/paramTranslate';
 import { everyBuiltInArchetype } from '../shared/modelArchetypes';
 import { DERIVED_REFERENCE_CARRIER_KEYS, referenceKeyDeclarationFor } from '../shared/modelArchetypes/referenceKeys';
@@ -33,6 +34,9 @@ const TASK_LABELS: Partial<Record<ProfileKind, string>> = { text_to_video: '文�
 // Stable model vocabulary already localized by the renderer's model-display boundary.
 const REFERENCE_LABELS = { first_frame: '首帧', image_ref: '参考图', video_ref: '参考视频', audio_ref: '参考音频' } as const;
 const TASK_MODE_IDS: Partial<Record<ProfileKind, string>> = { text_to_video: 't2v', image_to_video: 'i2v', text_to_image: 'generate', image_edit: 'edit', text_to_audio: 'generate', transcribe: 'transcribe', text_to_3d: 'generate', image_to_3d: 'image' };
+
+/** 哪些 taskKind 的参考媒体由卡声明：问 PROFILE_KINDS 旁边那份完全划分，不在这里抄一份清单。 */
+const declaresReference = (taskKind: ProfileKind): boolean => PROFILE_KIND_REFERENCE_CHANNEL[taskKind] === 'declared';
 
 function fieldError(candidate: AdapterModelDraft, field: string, reason: string): never {
   throw new Error(`models.${candidate.modelKey}.${field}: ${reason}`);
@@ -67,7 +71,7 @@ export type CapabilityModelDraft = Omit<AdapterModelDraft, 'modes'> & { modes: A
 function normalizeControlReferences(mode: CapabilityModelDraft['modes'][number], candidate: AdapterModelDraft): CapabilityModelDraft['modes'][number] {
   const media = (mode.controls || []).filter((p) => p.type === 'image-url');
   if (!media.length) return mode;
-  const referenceTask = ['image_to_video', 'image_edit', 'image_to_3d'].includes(mode.taskKind);
+  const referenceTask = declaresReference(mode.taskKind);
   if (referenceTask && (!mode.referenceParam || !mode.referenceShape)) fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'required image input must be named with its shape');
   if (referenceTask && !media.some((p) => p.key === mode.referenceParam && (p.mediaKind || 'image') === 'image')) fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'required image binding is absent from controls');
   const slots: ArchetypeReferenceSlot[] = [];
@@ -165,7 +169,7 @@ export function projectDeclaredModel(candidate: CapabilityModelDraft, vendorKey:
   const capabilityModes = candidate.kind === 'text' ? [] : modes.map((mode) => {
     if (modelKindForTaskKind(mode.taskKind) !== candidate.kind) fieldError(candidate, `modes.${mode.taskKind}.taskKind`, 'Nomi cannot project this taskKind for the declared kind');
     const wire = JSON.stringify(mode.create);
-    const reference = ['image_to_video', 'image_edit', 'image_to_3d'].includes(mode.taskKind);
+    const reference = declaresReference(mode.taskKind);
     const slots: ArchetypeReferenceSlot[] = mode.referenceSlots ? structuredClone(mode.referenceSlots) : [];
     if (reference) {
       if (!mode.referenceParam) fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'required image input must be named');
@@ -301,6 +305,5 @@ export function adapterModelMetadataForPromotion(input: {
   const next = { ...input.oldMeta, ...projection.meta };
   return { ...next,
     adapter: { state: failedModes.length ? 'partial' : 'verified', runId: input.runId, activeRevision: input.revisionId,
-      // A free self-check proves shape/credential only; generation remains untried.
-      evidence: 'self-check', modes: input.modeResults, publicationModes: projection.taskKinds, updatedAt: input.updatedAt } };
+      modes: input.modeResults, publicationModes: projection.taskKinds, updatedAt: input.updatedAt } };
 }

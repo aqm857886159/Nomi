@@ -96,14 +96,13 @@ try {
 
   // This protocol fixture does not certify a real provider key. Persist its
   // synthetic key inside the same GUI process that owns safeStorage, using the
-  // catalog writer used by Settings after credential validation.
+  // catalog writer used by Settings. An unverified key is usable as-is, so there
+  // is no separate publish step.
   await gui.app.evaluate(async (_electron, root) => {
     // app.evaluate 里 require 与动态 import() 都不可用，只有 mainModule 上挂着的那一份能用。
     const require = process.mainModule.require.bind(process.mainModule)
     const { upsertModelCatalogVendorApiKey } = require(`${root}/dist-electron/catalog/catalogStore.js`)
-    const { publishBuiltinCuratedVendor } = require(`${root}/dist-electron/catalog/directKeyCredential.js`)
     upsertModelCatalogVendorApiKey('apimart', { apiKey: 'mcp-l2-loopback-key', enabled: true })
-    publishBuiltinCuratedVendor('apimart')
   }, process.cwd())
 
   mcp = spawnMcpStdioClient({

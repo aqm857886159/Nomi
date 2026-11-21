@@ -169,15 +169,6 @@ function unlistedByModel(model: DedupedModel): boolean {
   return model.providers.length > 0 && model.providers.every((provider) => provider.option.unlisted === true)
 }
 
-function untriedByModel(model: DedupedModel): boolean {
-  return model.providers.some((provider) => {
-    const meta = provider.option.meta
-    if (!meta || typeof meta !== 'object') return false
-    const adapter = (meta as { adapter?: unknown }).adapter
-    return Boolean(adapter && typeof adapter === 'object' && (adapter as { evidence?: unknown }).evidence === 'self-check')
-  })
-}
-
 /**
  * 变体行的**声明**：调用方（画布节点 / 画布列表）说「我存得了变体」，菜单里这类模型就把每个变体展成自己的一行。
  * 不声明（分镜行——它没有存变体的字段）→ 菜单里每个模型只一行，请求体与存档一个字节不变。
@@ -319,14 +310,12 @@ export function buildModelMenu(
       return { ...common, trailing: i18n.t('generationCommon.parameters.recentlyFailing'), trailingTone: 'danger', dimmed: true }
     }
     if (multiVendor) return { ...common, chips }
-    // 单家：厂商名只在「看得出区别」时才出现；「未试跑」「暂未列出」两句实话照旧附在后面，
-    // 不另起新元素（2026-09-06 拍板：别把模型名挤没）。
+    // 单家：厂商名只在「看得出区别」时才出现；「暂未列出」这句实话照旧附在后面，
+    // 不另起新元素（2026-09-06 拍板：别把模型名挤没）。这里曾经还附「未试跑」——没有验证这回事，
+    // 就没有「没试跑」这一档（D-1117-delete-verification，用户 2026-11-18 追认）。
     const provider = providers[0]
     const vendorName = showVendorName && provider && (provider.vendor || '').toLowerCase() !== defaultVendor.toLowerCase() ? [modelProviderLabel(provider)] : []
-    const notes = [
-      ...(untriedByModel(m) ? [i18n.t('generationCommon.parameters.untried')] : []),
-      ...(unlistedByModel(m) ? [i18n.t('generationCommon.parameters.unlisted')] : []),
-    ]
+    const notes = unlistedByModel(m) ? [i18n.t('generationCommon.parameters.unlisted')] : []
     const trailing = [...vendorName, ...notes].join(' · ')
     return { ...common, ...(trailing ? { trailing } : {}) }
   }

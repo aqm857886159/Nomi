@@ -275,11 +275,14 @@ function useLabLocale(locale: B3Scenario['locale']): boolean {
   const override = new URL(window.location.href).searchParams.get('lang')
   const want = override === 'en' ? 'en' : locale ?? 'zh-CN'
   const [applied, setApplied] = React.useState(i18n.language === want)
+  // 只在格子立起来时定一次语言：之后走查在页面里切语言（底栏「切语言要重量」那条特征测试）不被拉回去。
+  const settled = React.useRef(false)
   React.useLayoutEffect(() => {
-    if (i18n.language === want) { setApplied(true); return undefined }
+    if (settled.current) return undefined
+    if (i18n.language === want) { settled.current = true; setApplied(true); return undefined }
     setApplied(false)
     const release = holdDesignLabReady(`b3:locale:${want}`)
-    void i18n.changeLanguage(want).then(() => { setApplied(true); release() })
+    void i18n.changeLanguage(want).then(() => { settled.current = true; setApplied(true); release() })
     return release
   }, [i18n, want])
   return applied
@@ -307,6 +310,14 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
       return
     }
     const videoOptions = scenario.catalog ? realVideoCatalog(scenario.catalog) : [withArchetype(MODELS.seedance), withArchetype(scenario.model === 'seedance25Apimart' ? MODELS.seedance25Apimart : MODELS.seedance25), withArchetype(MODELS.kling4), withArchetype(MODELS.wan), ...EXTRA_VIDEO_OPTIONS, ...(scenario.secondChannel || scenario.channelGap === 'switch' ? [SECOND_CHANNEL] : [])]
+    if (new URLSearchParams(window.location.search).get('models') === '200') {
+      const unique = new Map(videoOptions.map(option => [`${option.vendor}:${option.modelKey}`, option] as const))
+      videoOptions.splice(0, videoOptions.length, ...unique.values())
+      while (videoOptions.length < 200) {
+        const index = videoOptions.length
+        videoOptions.push({ ...withArchetype(MODELS.seedance25), value: `bench-video-${index}`, modelKey: `bench-video-${index}`, label: `Bench video ${index}` })
+      }
+    }
     const imageOptions = [withArchetype(MODELS.imagen), withArchetype(MODELS['gpt-image']), withArchetype(MODELS.soul)]
     seedModelCatalogForTests(HEALTH, [
       { kind: 'video', requiredMode: 'text_to_video', options: videoOptions },

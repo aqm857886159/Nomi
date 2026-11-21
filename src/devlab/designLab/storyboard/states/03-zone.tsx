@@ -87,7 +87,7 @@ function TableStageWithPlan({ plan, clip = true }: { plan: StoryboardPlan; clip?
         onChange={NOOP}
         onGenerateRow={NOOP}
         onRegenerateRow={NOOP}
-        onToggleLockRow={NOOP}
+        onToggleFrozenRow={NOOP}
         onOpenPreviewRow={NOOP}
         onRerunFreshRefsRow={NOOP}
         onDeleteSelected={NOOP}
@@ -131,7 +131,7 @@ function AnchorZoneStage({ cards, expanded }: { cards: typeof ANCHOR_RUNTIMES; e
           onRemoveAnchor={NOOP}
           onGenerateAnchor={NOOP}
           onRegenerateAnchor={NOOP}
-          onToggleLockAnchor={NOOP}
+          onToggleFrozenAnchor={NOOP}
           onFilterByAnchor={NOOP}
           onAddAnchor={NOOP}
         />
@@ -229,7 +229,7 @@ export const ZONE_STATES: readonly LabState[] = [
               onRemoveAnchor={NOOP}
               onGenerateAnchor={NOOP}
               onRegenerateAnchor={NOOP}
-              onToggleLockAnchor={NOOP}
+              onToggleFrozenAnchor={NOOP}
               onFilterByAnchor={NOOP}
               onAddAnchor={NOOP}
             />

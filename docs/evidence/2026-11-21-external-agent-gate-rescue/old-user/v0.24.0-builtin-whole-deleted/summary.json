@@ -1,0 +1,20 @@
+{
+  "passed": 19,
+  "exitCode": 0,
+  "summary": {
+    "deletedSays": "✗ Model apimart/doubao-seedream-4.5 is not in the model catalog because the user deleted the apimart provider in Nomi. Saving the apimart key again (Nomi's Settings page, or nomi_model_setup action=set_key) brings the provider back with its built-in models.\n诊断 generation_input_invalid\n1. 按上面那句话点名的字段改\n2. 什么都没提交，也没扣钱；按上面的说明改掉这些参数，再调一次同一个工具",
+    "connection": {
+      "before": {
+        "baseUrlHint": "https://api.apimart.ai",
+        "assetIngestion": null
+      },
+      "after": {
+        "baseUrlHint": "https://api.apimart.ai",
+        "assetIngestion": null
+      }
+    },
+    "stdio": {
+      "gate": "未开始：请在当前客户端确认这次生成，或在唯一的 Nomi 兜底卡中确认。"
+    }
+  }
+}

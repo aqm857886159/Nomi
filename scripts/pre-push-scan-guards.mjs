@@ -34,6 +34,13 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  * 测试自己和它的相对 import 闭包被改，也会选中它（pre-push-contracts.mjs 的 touchesImplementation，不用在这里写）。
  */
 export const SCAN_GUARDS = Object.freeze([
+  { file: 'scripts/model-status-one-home.test.mjs', roots: ['src', 'electron'], files: ['eslint.config.mjs', 'scripts/check-model-availability.mjs'] }, // 退役验证入口和状态词出口扫描；与 ESLint 共用 AST 判据
+  // 多个概念共用的阳性对照：各概念管什么写在这份测试自己里，这一行不带说明（并行 PR 各往行尾加一句，并主分支就冲突）。
+  { file: 'scripts/check-concept-owners.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-scan.mjs'] },
+  // 2026-11-20：付费放行只在一个家判（spend.approval-decision）；遍历 src、electron 找误导性的恒真「算批准」回执（<1 秒）。
+  { file: 'scripts/concept-owners-approval.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-approval.mjs', 'scripts/concept-owners-scan.mjs'] },
+  { file: 'scripts/asset-file-owner.node-test.mjs', roots: ['src/workbench/generationCanvas/nodes/versionCards'], files: ['eslint.config.mjs', 'src/workbench/assets/assetFileDeletion.ts', 'src/workbench/assets/removeAssetVersion.ts', 'src/workbench/assets/assetResultMutation.ts'] }, // 两种桥删除及版本面间接绕法片段必须报错，真实owner必须通过
+  { file: 'scripts/typecheck.node-test.mjs', roots: ['scripts'], exts: '*' }, // tsc 启动只归统一入口；新增文件也必须检查（<1 秒）。
   { file: 'scripts/ci-external-download-cache.node-test.mjs', roots: ['.github/workflows', '.github/actions/cache-external-downloads'], exts: '*', files: ['package.json', 'pnpm-lock.yaml'] }, // node 批次：新增工作流也必须先恢复外部二进制缓存（<1 秒）。
   // 2026-11-12：模型能力表（docs/models/capabilities/*.md）与档案双向对账；新增一张表或改任一档案都要推送前就跑（<1 秒）。
   { file: 'electron/shared/modelArchetypes/capabilityTables.contract.test.ts', roots: ['docs/models/capabilities', 'electron/shared/modelArchetypes', 'electron/shared/videoCapabilities'], exts: ['md', 'ts'] },
@@ -57,6 +64,10 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/workbench/generationCanvas/agent/storyboardLauncher.test.ts', roots: ['src'] },
   // 2026-11-12：渲染层不许再写第二份「key → 技能」查找；遍历 src 找按 name 精确比的手写查找（<2 秒）。
   { file: 'src/workbench/skillLibrary/skillDisplay.test.ts', roots: ['src'] },
+  // 2026-11-17：素材文件存活判定的普查——遍历 src 找全部 store 寿命声明，每个「项目寿命」字段都要在存活判定的归类表里（<3 秒）。
+  { file: 'src/workbench/assets/projectLivenessContent.census.test.ts', roots: ['src'] },
+  // 2026-11-17：新模型调用判断只有一个家——接入目录里不许手抄参考任务清单 / 任务→模型类型表、不许按名字前缀猜；遍历三个接入目录 + 声明登记文件（<1 秒）。
+  { file: 'electron/providerAdapter/declarationOwnership.lint.test.ts', roots: ['electron/providerAdapter', 'electron/capabilityCore/modelOnboarding', 'electron/integrationCertification'], files: ['electron/catalog/declaredProviderRegistration.ts'] },
   // ── electron/ 全树（遍历 electron 找违规文件）──
   { file: 'scripts/lib/buildInputRefScan.test.mjs', roots: ['src', 'electron'], files: ['vite.config.ts', 'tailwind.config.ts', 'postcss.config.js', 'scripts/build-tailwind.mjs', 'scripts/build-electron.mjs', 'scripts/write-intake-config.mjs', 'scripts/electron-build-artifacts.mjs', 'scripts/package-build-stamp.mjs'] }, // 构建源码不许引用构建戳排除的路径（NON_INPUTS）；遍历 src + electron（<1 秒）
   { file: 'tests/system/async-signature-migration.test.mjs', roots: ['tests', 'electron', 'src', 'scripts'] }, // V-plibrary F3：同步改异步的函数，调用方（含 tests / 脚本）都要 await；遍历四个目录的源码（<1 秒）
@@ -85,7 +96,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/productionRun/landFirstOneAdmission.test.ts', roots: ELECTRON }, // 6 秒
   { file: 'electron/settings/sideBySideInstallSeed.test.ts', roots: ELECTRON }, // 3 秒
   { file: 'electron/shared/agentCapabilities/directGenerationBrakes.boundaries.test.ts', roots: ELECTRON }, // 代答付费只剩一个入口：遍历 electron 找直接调 spendDecidedByPolicy 的生产文件（3 秒）
-  { file: 'electron/shared/agentCapabilities/modelHandle.structure.test.ts', roots: ['electron', 'src'] }, // 模型完整名字只在 modelHandle.ts 拼和切：遍历 electron + src 的生产代码（2 秒）
+  { file: 'electron/shared/agentCapabilities/modelHandle.structure.test.ts', roots: ['electron', 'src'] }, // 模型完整名字只在 modelHandle.ts 拼和切、写下的名字只在那里认、发送方式只在 modeForInputs 挑：遍历 electron + src 的生产代码（2 秒）
   { file: 'electron/update/installGate.structure.test.ts', roots: ELECTRON }, // 2 秒
   { file: 'electron/durability.test.ts', roots: ['electron', 'src', 'scripts', 'tests'] }, // 只有测试 harness 能翻成 ephemeral：四个根目录都扫（9 秒）
   { file: 'electron/providerAdapter/architecture.test.ts', roots: ['electron/providerAdapter'] }, // 2 秒
@@ -118,7 +129,6 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/workbench/generationCanvas/model/derivedOutput.test.ts', roots: SRC }, // 12 秒
   { file: 'src/workbench/generationCanvas/nodes/ToolbarActionMenu.structure.test.ts', roots: SRC },
   { file: 'src/workbench/generationCanvas/nodes/mediaPlaceholderShimmer.test.ts', roots: SRC },
-  { file: 'src/workbench/generationCanvas/runner/assetUploadConsentRouting.test.ts', roots: SRC }, // 5 秒
   { file: 'scripts/viteOptimizeDeps.test.mjs', roots: SRC }, // 4 秒
   { file: 'scripts/build-tailwind.test.ts', roots: SRC, exts: [...CODE_EXTS, 'css', 'html'], files: ['tailwind.config.ts'] }, // 跑一次 tailwind content 扫描（12 秒）
   { file: 'scripts/canvas-store-subscriptions.test.mjs', roots: SRC, files: ['eslint.config.mjs'] }, // 画布 nodes / edges 整表订阅存量冻结：遍历 src 按语法树数处数（11 秒）
@@ -183,6 +193,7 @@ export const SCAN_GUARD_COVERED_BY_GATE = Object.freeze({
  * 识别器认成「扫描型」、其实不是对仓库源码做全集断言的测试：{ 测试文件: 理由 }。每条必须真被识别器认到（否则是陈旧项，结构测试红）。
  */
 export const NOT_SOURCE_SCANS = Object.freeze({
+  'tests/ux/design-lab/localRelative.test.mjs': '测同机比较工具：导入闭包的 readdirSync 只枚举工作树外快照缓存，不遍历仓库源码做全集断言',
   'scripts/eng-metrics.node-test.mjs': '测指标脚本：readContracts 喂的是测试自建的临时 docs/fixes 夹具（运行时实测没有遍历仓库目录）',
   'scripts/check-site-attribution.node-test.mjs': '测站点扫描函数：喂测试自建的夹具目录（运行时实测没有遍历仓库目录）；站点整体检查是 CI_ONLY 的 check:site',
   'scripts/check-site-descriptions.node-test.mjs': '同 check-site-attribution：站点扫描函数的夹具单测',

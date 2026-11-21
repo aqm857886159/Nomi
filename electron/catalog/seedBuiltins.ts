@@ -62,6 +62,7 @@ import { MODELSCOPE_IMAGE_MODELS, MODELSCOPE_IMAGE_QUERY, MODELSCOPE_IMAGE_STATU
 import { MODELSCOPE_TEXT_MODELS } from "./modelscopeTexts";
 import { VOLCENGINE_VENDOR_SEED, VOLCENGINE_SPEECH_VENDOR_SEED } from "./volcengineVendor";
 import { BUILTIN_VENDOR_SEEDS, builtinVendorSeed, type VendorSeed } from "./builtinVendorSeeds";
+import { pruneRetiredMappings, pruneRetiredModels, restoreBuiltinOwnedFields, wholeVendorDeletions } from "./builtinOwnedFields";
 import { DREAMINA_VENDOR_SEED } from "./dreaminaVendor";
 import { DREAMINA_CURATED_MODELS, DREAMINA_CURATED_MAPPINGS } from "./dreaminaVideos";
 import { DREAMINA_IMAGE_CURATED_MODELS, DREAMINA_IMAGE_CURATED_MAPPINGS } from "./dreaminaImages";
@@ -438,30 +439,6 @@ const RETIRED_APIMART_VIDEO_MAPPING_IDS: readonly string[] = [
   "seed-apimart-seedance-2-apimart-fast-face-image_to_video",
 ];
 
-/** 删退役 curated 模型（按 vendorKey+modelKey 精确命中我们种的行）。返回是否变更。 */
-function pruneRetiredModels(models: Model[], vendorKey: string, retiredKeys: readonly string[]): boolean {
-  let changed = false;
-  for (let i = models.length - 1; i >= 0; i -= 1) {
-    if (models[i].vendorKey === vendorKey && retiredKeys.includes(models[i].modelKey)) {
-      models.splice(i, 1);
-      changed = true;
-    }
-  }
-  return changed;
-}
-
-/** 删退役 curated mapping（按稳定 seed id 精确命中；用户自建 mapping id 不在表里，不受影响）。返回是否变更。 */
-function pruneRetiredMappings(mappings: Mapping[], retiredIds: readonly string[]): boolean {
-  let changed = false;
-  for (let i = mappings.length - 1; i >= 0; i -= 1) {
-    if (retiredIds.includes(mappings[i].id)) {
-      mappings.splice(i, 1);
-      changed = true;
-    }
-  }
-  return changed;
-}
-
 /** 供应商种子（裸 baseUrl + bearer）。存在即跳过（用户配置不覆盖）；仅对账代码声明的旧官方 host。
  *  多数种子默认 enabled:true；无鉴权本地后端（ComfyUI）带 `enabled:false` → 默认关、用户显式启用（污染防护）。 */
 function seedVendor(vendors: Vendor[], seed: VendorSeed, now: string): boolean {
@@ -620,9 +597,17 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (pruneRetiredModels(models, RUNNINGHUB_VENDOR_SEED.key, RETIRED_RUNNINGHUB_VIDEO_MODEL_KEYS)) changed = true;
   if (pruneRetiredMappings(mappings, RETIRED_RUNNINGHUB_VIDEO_MAPPING_IDS)) changed = true;
 
+  if (restoreBuiltinOwnedFields(vendors, models, mappings, now, CURATED_VENDOR_CONTRACTS)) changed = true;
+
+  // 整家删除（用户按的那一下，Q12）：这家的内置模型和路由都不种回来，连接行照种（设置页那张卡还在，存密钥就回来）。
+  const deletions = wholeVendorDeletions(state, CURATED_VENDOR_CONTRACTS);
+  if (deletions.changed) changed = true;
+  const deletedVendors = new Set(deletions.vendors);
+
   // 模型 insert + 对账（两家各跑同一套逻辑）。
   for (const contract of CURATED_VENDOR_CONTRACTS) {
-    if (reconcileModels(models, contract.vendorKey, contract.models, now, state.suppressedBuiltinModels)) changed = true;
+    if (deletedVendors.has(contract.vendorKey)) continue;
+    if (reconcileModels(models, contract.vendorKey, contract.models, now, deletions.models)) changed = true;
   }
 
   // kie 历史包袱 repair：把视频形状的坏 (kie, text_to_image) 替换成正确的 GPT Image 2 文生图契约
@@ -643,12 +628,13 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
 
   // mapping insert + 对账（两家各跑同一套逻辑）。
   for (const contract of CURATED_VENDOR_CONTRACTS) {
+    if (deletedVendors.has(contract.vendorKey)) continue;
     if (reconcileMappings(mappings, contract.vendorKey, contract.mappings, now)) changed = true;
   }
   if (certifySiblingCuratedMappings(mappings, now)) changed = true;
 
   if (!changed) return { state, changed: false };
-  return { state: { ...state, vendors, models, mappings }, changed: true };
+  return { state: { ...state, ...deletions.suppression, vendors, models, mappings }, changed: true };
 }
 
 /**

@@ -1,7 +1,7 @@
 {
   "recordedFrom": "45bf882e47ef32edcabe5ee98e1a1740e08aa5c8",
   "diskVersionAfterRead": 13,
-  "backupFiles": [],
+  "backupFiles": ["model-catalog.v13.bak.json"],
   "models": {
     "veo3.1-fast": {
       "kind": "video",

@@ -14,13 +14,13 @@ import { cn } from '../../../utils/cn'
 import { IconListCheck } from '@tabler/icons-react'
 import { DecisionBar } from '../../../design'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { waveIndexByNode, type DependencyWavePlan } from '../runner/dependencyWaves'
+import { waveIndexByNode, type GenerationScopeBlockReason } from '../../../../electron/shared/agentCapabilities/generationShotScope'
 import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 import { useBatchPlanPreviewStore } from './batchPlanPreview'
 import { useBatchPlanCost } from './useBatchPlanCost'
 
 /** 等待类 blocked（在等一个还没做的前置，非失败）→ 中性/accent-soft 徽标；结构错误（环）→ danger。 */
-function isWaitingReason(reason: DependencyWavePlan['blocked'][number]['reason']): boolean {
+function isWaitingReason(reason: GenerationScopeBlockReason): boolean {
   return reason === 'unfrozen-anchor' || reason === 'missing-upstream'
 }
 
@@ -61,7 +61,7 @@ export function BatchPlanOverlay() {
 
   // 点被拦徽标 → 聚焦「要处理的那张卡」：等定妆 → 选中并居中那张锚卡；其余 → 选中被拦镜头本身。
   // 走 FOCUS_GENERATION_NODE_EVENT（GenerationCanvas 监听：选中 + 居中，与副本角标「跳到源节点」同一机制）。
-  const focusForBlocked = (blockedNodeId: string, reason: DependencyWavePlan['blocked'][number]['reason']): void => {
+  const focusForBlocked = (blockedNodeId: string, reason: GenerationScopeBlockReason): void => {
     const target =
       reason === 'unfrozen-anchor'
         ? anchorToFreezeForBlocked(blockedNodeId, edges, nodes) ?? blockedNodeId

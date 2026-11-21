@@ -46,8 +46,9 @@ function resolveShots(count: number) {
     catalogReader: () => state,
     bootstrap: () => ({ providers: [], readinessByProvider: readiness }),
     registry: buildRegistry,
+    catalogRevision: () => state, // 目录这一版不变
   });
-  const registry = runtime.createDraftScope().registry;
+  const registry = runtime.registry;
   const resolved = Array.from({ length: count }, (_, index) => registry.resolve({
     moduleId: "generation.single-shot",
     providerId: "provider-a",
