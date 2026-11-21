@@ -28,7 +28,7 @@ vi.mock('../../../design/tooltip', () => {
 })
 
 import NodeGenerationComposer from './NodeGenerationComposer'
-import { installComposerBridge, type BridgeAnswers } from './composerBridgeTestUtils'
+import { composerWindow, type BridgeAnswers } from './composerBridgeTestUtils'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { selectCanvasNodeById } from '../store/canvasNodeGenerationIndex'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -79,7 +79,7 @@ const clip: GenerationCanvasNode = { id: 'clip', kind: 'video', title: 'clip', p
 describe('可灵 4.0 Flash 全能参考：断开参考视频后「保留原声」回到 auto', () => {
   let renderer: ReturnType<typeof createReactTestRenderer>
   beforeEach(() => {
-    installComposerBridge(ANSWERS)
+    vi.stubGlobal('window', composerWindow(ANSWERS))
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', false)
     notifyModelOptionsRefresh('all')
     resetGenerationModelDefaultsForTest()

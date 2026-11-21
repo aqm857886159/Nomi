@@ -57,12 +57,15 @@ vi.mock('../../../design/tooltip', () => {
 })
 
 import NodeGenerationComposer from './NodeGenerationComposer'
-import { installComposerBridge, type BridgeAnswers } from './composerBridgeTestUtils'
+import { composerWindow, type BridgeAnswers } from './composerBridgeTestUtils'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { selectCanvasNodeById } from '../store/canvasNodeGenerationIndex'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { notifyModelOptionsRefresh } from '../../../config/modelCatalogCache'
 import { resetGenerationModelDefaultsForTest } from '../model/generationModelDefaults'
+import { toCatalogModelOptions } from '../../../config/modelOptionMappers'
+import { buildAgentModelEntries } from '../agent/availableModels'
+import { buildModelEntryIndex, buildPlannedNodeMeta } from '../agent/plannedNodeMeta'
 
 const VENDORS = [{ key: 'apimart', name: 'APIMart', enabled: true, hasApiKey: true, authType: 'bearer' }]
 const usable = { usable: true }
@@ -73,7 +76,6 @@ const MODELS = [
 const HEALTH = { ok: true, counts: { vendors: 1, enabledVendors: 1, models: 2, enabledModels: 2, mappings: 0, enabledMappings: 0, enabledApiKeys: 1 }, byKind: [], issues: [] }
 const PROJECTS = [{ id: 'project-a', name: 'A' }, { id: 'project-b', name: 'B' }, { id: 'project-c', name: 'C' }]
 
-/** 每个方法的应答；没登记的方法照样记账、回 undefined。 */
 /** 和本文件有关的数据；生成框挂上时都会读的那些口由共用假桥答（composerBridgeTestUtils）。 */
 const ANSWERS: BridgeAnswers = {
   'modelCatalog.listVendors': () => VENDORS,
@@ -88,9 +90,20 @@ const ANSWERS: BridgeAnswers = {
 
 const SHOT_META = { modelKey: 'gpt-image-2', modelAlias: 'gpt-image-2', modelVendor: 'apimart', vendor: 'apimart', imageModel: 'gpt-image-2', imageModelVendor: 'apimart' }
 
-function shot(meta: Record<string, unknown> = SHOT_META): GenerationCanvasNode {
-  return { id: 'shot', kind: 'image', title: 'shot', position: { x: 0, y: 0 }, prompt: 'a quiet street', meta: { ...meta } }
+function shot(meta: Record<string, unknown> = SHOT_META, kind: GenerationCanvasNode['kind'] = 'image'): GenerationCanvasNode {
+  return { id: 'shot', kind, title: 'shot', position: { x: 0, y: 0 }, prompt: 'a quiet street', meta: { ...meta } }
 }
+
+const ENTRIES = buildModelEntryIndex(buildAgentModelEntries(toCatalogModelOptions(MODELS as Parameters<typeof toCatalogModelOptions>[0])), ['apimart'])
+/**
+ * 目录里每个已发布模型各一张「已落好默认值」的卡（与落地线同一个构造器 buildPlannedNodeMeta）：
+ * 挂载预算对每一类卡都要成立，不只手写的那张图片卡。目录多一个模型，这里自动多一行。
+ */
+const LANDED_CARDS = MODELS.filter((row) => row.published).map((row) => {
+  const meta = buildPlannedNodeMeta({ modelKey: row.modelKey, vendor: row.vendorKey, params: {} }, ENTRIES)
+  if (!meta) throw new Error(`fixture model ${row.modelKey} is not in the entry index`)
+  return { label: `${row.kind} · ${row.labelZh}`, card: shot(meta, row.kind as GenerationCanvasNode['kind']) }
+})
 const upstream: GenerationCanvasNode = { id: 'ref', kind: 'image', title: 'ref', position: { x: -400, y: 0 }, result: { id: 'r1', type: 'image', url: 'nomi-local://asset/project-a/assets/ref.png', createdAt: 1 } }
 const elsewhere: GenerationCanvasNode = { id: 'other', kind: 'video', title: 'other', position: { x: 900, y: 0 }, status: 'running' }
 
@@ -143,7 +156,7 @@ describe('点卡出生成框：挂载预算', () => {
   let renderer: ReturnType<typeof createReactTestRenderer>
 
   beforeEach(() => {
-    installComposerBridge(ANSWERS, probe)
+    vi.stubGlobal('window', composerWindow(ANSWERS, probe))
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', false)
     notifyModelOptionsRefresh('all')
     resetGenerationModelDefaultsForTest()
@@ -170,15 +183,18 @@ describe('点卡出生成框：挂载预算', () => {
     return { io: [...probe.io], writes: writes.stop() }
   }
 
-  it('挂载时 0 次桌面桥 IO（没有同步 IPC、没有全项目素材扫描）', async () => {
-    const { io } = await mountTwice(shot())
-    expect(io).toEqual([])
-  })
+  for (const { label, card } of LANDED_CARDS) {
+    it(`${label}：挂载时 0 次桌面桥 IO（没有同步 IPC、没有全项目素材扫描）`, async () => {
+      const { io } = await mountTwice(card)
+      expect(commits.composer, '生成框真的挂上了（什么都没渲染不算过）').toBeGreaterThan(0)
+      expect(io).toEqual([])
+    })
 
-  it('已落好默认值的卡，挂载时 0 次画布 store 写', async () => {
-    const { writes } = await mountTwice(shot())
-    expect(writes).toBe(0)
-  })
+    it(`${label}：已落好默认值的卡，挂载时 0 次画布 store 写`, async () => {
+      const { writes } = await mountTwice(card)
+      expect(writes).toBe(0)
+    })
+  }
 
   it('生成框开着时，别的卡的生成进度不让它重渲（参数控件和编辑器都不动）', async () => {
     await mountTwice(shot())

@@ -65,7 +65,7 @@ vi.mock('../../../design/tooltip', () => {
 })
 
 import NodeGenerationComposer from './NodeGenerationComposer'
-import { installComposerBridge, type BridgeAnswers } from './composerBridgeTestUtils'
+import { composerWindow, type BridgeAnswers } from './composerBridgeTestUtils'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { selectCanvasNodeById } from '../store/canvasNodeGenerationIndex'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -91,7 +91,6 @@ const MODELS = [
 const HEALTH = { ok: true, counts: { vendors: 1, enabledVendors: 1, models: 2, enabledModels: 2, mappings: 0, enabledMappings: 0, enabledApiKeys: 1 }, byKind: [], issues: [] }
 const PROJECTS = [{ id: 'project-a', name: 'A' }, { id: 'project-b', name: 'B' }, { id: 'project-c', name: 'C' }]
 
-/** 每个方法的应答；没登记的方法照样记账、回 undefined。 */
 /** 和本文件有关的数据；生成框挂上时都会读的那些口由共用假桥答（composerBridgeTestUtils）。 */
 const ANSWERS: BridgeAnswers = {
   'modelCatalog.listVendors': () => VENDORS,
@@ -152,7 +151,7 @@ describe('打开节点不改比例；新卡的比例默认值在自动选模型�
   let renderer: ReturnType<typeof createReactTestRenderer>
 
   beforeEach(() => {
-    installComposerBridge(ANSWERS, probe)
+    vi.stubGlobal('window', composerWindow(ANSWERS, probe))
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', false)
     notifyModelOptionsRefresh('all')
     resetGenerationModelDefaultsForTest()
