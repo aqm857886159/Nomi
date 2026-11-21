@@ -11,8 +11,6 @@ import { AssetMention } from './AssetMentionNode'
 import { createAssetMentionSuggestion, type MentionSelection } from './AssetMentionSuggestion'
 import type { MentionSuggestionItem, MentionUploadControls } from './AssetMentionSuggestionList'
 import { promptToContent, contentToPrompt } from './promptEditorContent'
-import { createControlledEditorSync } from '../common/controlledEditorSync'
-import { hydrateIfStale, useEditorRebuildSync } from '../common/useEditorRebuildSync'
 import { useNomiTiptapEditor } from '../common/useNomiRichTextEditor'
 import { promptRangeToDocRanges, promptRunsFromDocument, type PromptEditorSegment } from './promptEditorSkeleton'
 
@@ -89,11 +87,6 @@ function createPromptSkeletonPlugin(options: {
 }
 
 export default function PromptEditor({ value, onChange, placeholder, ariaLabel, className, onBlur, onReady, mentionCandidates, mentionReferences, mentionSearch, onMentionSelect, mentionUpload, editable, promptSegments, onPromptSegmentClick, inputAttributes, onKeyDownCapture, onFocus }: PromptEditorProps): JSX.Element {
-  const onChangeRef = React.useRef(onChange)
-  React.useEffect(() => { onChangeRef.current = onChange }, [onChange])
-  // 有序参考 url 也留一份 ref：外部 value 变化时 setContent 要用它给 chip 编号（那个 effect 不该依赖它重跑）。
-  const orderedUrlsRef = React.useRef<string[]>(mentionCandidates || [])
-  React.useEffect(() => { orderedUrlsRef.current = mentionCandidates || [] }, [mentionCandidates])
   // @ suggestion 的两个回调用 ref 喂(扩展只在 editor 创建时配一次,靠 ref 读最新实现)。
   const searchRef = React.useRef(mentionSearch)
   React.useEffect(() => { searchRef.current = mentionSearch }, [mentionSearch])
@@ -130,17 +123,8 @@ export default function PromptEditor({ value, onChange, placeholder, ariaLabel, 
     }),
     [],
   )
-  // 编辑器是自己文本的唯一 owner：外部 value 只有「真正来自外部」时才写进来，
-  // 自己发出去又从 store → props 回流的旧值一律不覆盖文档（裁决见 controlledEditorSync.ts）。
-  const syncRef = React.useRef<ReturnType<typeof createControlledEditorSync> | null>(null)
-  if (!syncRef.current) syncRef.current = createControlledEditorSync(value)
-  const sync = syncRef.current
-
-  // 传给 useEditor 的选项必须引用稳定：tiptap 按引用比较 extensions 的每一项以及 content / editorProps，
+  // 传给 useEditor 的选项必须引用稳定：tiptap 按引用比较 extensions 的每一项以及 editorProps，
   // 变了就 setOptions + view.updateState——原来每次渲染（每敲一个字）都白做一遍（2026-09-25 画布跟手）。
-  // 不传 content：编辑器每次被造出来（首次挂载、Activity 放出、deps 变化重建）文档都从 owner 当前的 value 灌入
-  // （useEditorRebuildSync），不再拿「首次挂载那一刻冻住的内容」——那份在提示词还是空的时候冻成了空，
-  // 重建出来的新编辑器就一直空着。
   const extensions = React.useMemo(() => [
     StarterKit.configure({ heading: false, bulletList: false, orderedList: false, blockquote: false, codeBlock: false, horizontalRule: false }),
     Placeholder.configure({ placeholder: () => placeholderRef.current }),
@@ -153,26 +137,20 @@ export default function PromptEditor({ value, onChange, placeholder, ariaLabel, 
     [ariaLabel, inputAttributes],
   )
 
+  // 提示词的值归 owner（分镜镜头 / 画布节点 / 助手草稿）：编辑器只拿读写口。首填、实例重建后再填、
+  // 外部写入、防回写都在入口里——这里没有、也写不出「建时塞一份内容」。
+  // 只有改变 prompt 字符串的文档事务才回写；胶囊编号事务（串不变）不回写，不覆盖外部 plan 编辑。
   const editor = useNomiTiptapEditor({
+    port: {
+      value,
+      onChange: (next, previous) => onChange(next, previous()),
+      toDoc: (prompt) => promptToContent(prompt, mentionReferences ?? mentionCandidates),
+      fromDoc: contentToPrompt,
+      keyOf: (prompt) => prompt,
+    },
     extensions,
     editable: editable !== false,
     editorProps,
-    // 仅真正改变 prompt 字符串的文档事务向 owner 回写；胶囊编号事务（串不变）不回写，不覆盖外部 plan 编辑。
-    onUpdate: ({ editor: current, transaction }) => {
-      if (!transaction.docChanged) return
-      const next = contentToPrompt(current.getJSON())
-      if (sync.emit(next)) onChangeRef.current(next, contentToPrompt(transaction.before.toJSON()))
-    },
-  })
-
-  const valueRef = React.useRef(value)
-  valueRef.current = value
-  useEditorRebuildSync(editor, sync, {
-    serialize: (current) => contentToPrompt(current.getJSON()),
-    // 新实例的文档 = owner 当前的值；不进撤销历史、不发 update（这是灌入，不是用户又改了一次）。
-    hydrate: (current) => {
-      hydrateIfStale(current, { text: valueRef.current, doc: () => promptToContent(valueRef.current, mentionReferences ?? orderedUrlsRef.current) }, contentToPrompt)
-    },
   })
 
   React.useEffect(() => {
@@ -203,13 +181,6 @@ export default function PromptEditor({ value, onChange, placeholder, ariaLabel, 
     const next = editable !== false
     if (editor.isEditable !== next) editor.setEditable(next, false)
   }, [editor, editable])
-
-  // 外部 value 变化(切节点 / AI 写入 / 撤销)→ 写进编辑器；自己发出去的回声不写。
-  React.useEffect(() => {
-    if (!editor || editor.isDestroyed) return
-    if (!sync.receive(value)) return
-    editor.commands.setContent(promptToContent(value, mentionReferences ?? orderedUrlsRef.current), { emitUpdate: false })
-  }, [editor, mentionReferences, sync, value])
 
   // 参考拖拽重排后，prompt 字符串仍是同一批 url，但 chip 的媒体编号必须按最新列表立即刷新。
   // 只改易失的 index 属性，不改持久化内容、不重建编辑器，也不打断当前光标。

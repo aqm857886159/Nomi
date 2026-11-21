@@ -32,7 +32,7 @@ export function SelectionActionsStage({ scene, locale }: { scene: SelectionActio
   const onSelectionChange = React.useCallback((text: string) => {
     setSelection((current) => ({ text, version: current.version + 1 }))
   }, [])
-  const { editor } = useNomiRichTextEditor({ content, onSelectionChange })
+  const { editor } = useNomiRichTextEditor({ value: content, onSelectionChange })
 
   React.useEffect(() => {
     if (!ready || !editor) return undefined

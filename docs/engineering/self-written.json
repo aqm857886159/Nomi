@@ -2508,30 +2508,6 @@
       ],
       "whyNotIntegrated": "按领域裁决的固定让位顺序，多控件多样子；列表溢出组件不表达生成字、摘要整值、方式字、模型名的依次让位。只自写候选宽求解，字体排版与尺寸观察用浏览器。",
       "revisitWhen": "外框校准一个月改两次以上，或增加另一种让位形状时回到方向复盘。2026-11-24复查。"
-    },
-    {
-      "id": "editor-rebuild-sync",
-      "capability": "受控富文本编辑器实例重建后的灌入：创作区被 React Activity 藏起再放出（或 deps 变化）时 TipTap 重建编辑器，新实例要等于 owner 当前的提示词 / 正文，不进撤销历史、不回写，再重开同步账",
-      "status": "justified",
-      "paths": [
-        "src/workbench/common/useEditorRebuildSync.ts"
-      ],
-      "alternativesChecked": [
-        {
-          "name": "TipTap useEditor：content 选项只在创建那一刻读，deps 变化 = 销毁重建，没有「重建后按外部值灌入」的钩子",
-          "source": "node_modules/@tiptap/react/src/useEditor.ts:218-237"
-        },
-        {
-          "name": "TipTap setContent：可用 emitUpdate:false 不回写，但命令本身不带 addToHistory:false，灌入会进撤销栈",
-          "source": "node_modules/@tiptap/core/src/commands/setContent.ts:50-69"
-        },
-        {
-          "name": "TipTap 官方文档的做法是 useEffect + 对比 getHTML() 再 setContent（生命周期仍要自己挂）",
-          "source": "https://www.mintlify.com/ueberdosis/tiptap/api/react/use-editor"
-        }
-      ],
-      "whyNotIntegrated": "提示词框的值归分镜 / 节点 / Agent 的 owner（落盘的那一份），编辑器只在值真来自外部时才被写入；重建后新文档要等于这一份，既不能进撤销历史（否则撤销会回到空）也不能回写 owner。TipTap 只提供 setContent 单步命令，没有绑定重建生命周期的钩子，所以只自写这一层薄胶（实例一换：灌入 + 重开账），灌入用的仍是 ProseMirror 事务与 TipTap 同款的 replaceWith。",
-      "revisitWhen": "TipTap 的 useEditor 支持按外部值重建后初始化，或 setContent 提供不进历史的选项时，换成现成的并删掉这个钩子。2026-12-21复查。"
     }
   ]
 }

@@ -151,7 +151,7 @@ export default function WorkbenchEditor(): JSX.Element {
   }, [])
 
   const { editor, tools } = useNomiRichTextEditor({
-    content: editorContent,
+    value: editorContent,
     placeholder: t('creationAi.editor.placeholder'),
     onChange: handleChange,
     onSelectionChange: handleSelectionChange,

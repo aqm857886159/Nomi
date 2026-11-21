@@ -75,7 +75,7 @@ function TextDocumentNodeImpl({ node, onEditingChange }: Props): JSX.Element {
   )
 
   const { editor, tools } = useNomiRichTextEditor({
-    content,
+    value: content,
     placeholder: '',
     onChange: handleChange,
     onSelectionChange: handleSelectionChange,
