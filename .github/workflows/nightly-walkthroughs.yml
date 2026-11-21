@@ -21,7 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        batch: [0, 1, 2, 3]
+        # 批次数只在 scripts/nightly-walk-selection.mjs 定（NIGHTLY_WALK_BATCH_COUNT）；这里的列表由结构测试核对与它一致。
+        batch: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -55,11 +56,11 @@ jobs:
           set -o pipefail
           mkdir -p nightly-walks
           : > "nightly-walks/results-${BATCH}.tsv"
-          mapfile -t walks < <(node scripts/nightly-walk-selection.mjs tests/ux)
+          # 先落文件再读：选择脚本出错时这一步当场失败，不会拿到空清单当成「这一批没有走查」。
+          node scripts/nightly-walk-selection.mjs tests/ux --batch "$BATCH" > "$RUNNER_TEMP/nightly-walks-${BATCH}.txt"
+          mapfile -t walks < "$RUNNER_TEMP/nightly-walks-${BATCH}.txt"
           failed=0
-          for index in "${!walks[@]}"; do
-            [ "$((index % 4))" = "$BATCH" ] || continue
-            walk="${walks[$index]}"
+          for walk in "${walks[@]}"; do
             name=$(basename "$walk")
             log="nightly-walks/${name}.log"
             started=$(date +%s)
