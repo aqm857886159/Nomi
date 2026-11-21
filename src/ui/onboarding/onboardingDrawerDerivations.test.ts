@@ -16,7 +16,6 @@ const model = (vendorKey: string, modelKey: string, kind: ChipModel['kind'] = 'i
   enabled: true,
   published: true,
   availability: { usable: true },
-  adapterState: 'verified',
   canRetype: true,
 })
 
@@ -100,8 +99,9 @@ describe('onboarding drawer derivations', () => {
   it('does not mark disabled or unpublished seed rows as already added in the certification picker', () => {
     const models = [
       model('apimart', 'published-model'),
-      { ...model('apimart', 'disabled-model'), enabled: false, published: true },
-      { ...model('apimart', 'unpublished-model'), enabled: true, published: false },
+      // 可用性由主进程主人算好随行带来；这里照真实投影写：关掉的 / 没发布的，usable 都是 false。
+      { ...model('apimart', 'disabled-model'), enabled: false, published: true, availability: { usable: false, reason: 'model_disabled' } as const },
+      { ...model('apimart', 'unpublished-model'), enabled: true, published: false, availability: { usable: false, reason: 'model_unpublished' } as const },
     ]
     const meta = new Map([['apimart', vendor({ name: 'APIMart' })]])
 

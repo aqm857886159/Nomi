@@ -122,15 +122,15 @@ export type OnboardingFailure = {
 const REASON: Record<UnverifiedClaim, { reason: string; evidenceWouldBe: string }> = {
   endpoint_reachable: {
     reason: "Nomi has not reached this base URL yet.",
-    evidenceWouldBe: "a self-check that got an answer from the provider",
+    evidenceWouldBe: "a real request (nomi_try_model or a generation) that got an answer from the provider",
   },
   credential_accepted: {
     reason: "The provider has not accepted this key on any request yet.",
-    evidenceWouldBe: "a self-check where the provider answered without an auth error",
+    evidenceWouldBe: "a real request (nomi_try_model or a generation) the provider answered without an auth error",
   },
   model_id_exists: {
     reason: "Nomi has not seen this model id in the provider's own model list.",
-    evidenceWouldBe: "the model id appearing in the provider's model list during a self-check",
+    evidenceWouldBe: "the model id appearing in the provider's model list when Nomi pulls it",
   },
   declaration_valid: {
     reason: "No declaration card has passed validation for this provider yet.",

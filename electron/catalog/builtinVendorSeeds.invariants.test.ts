@@ -23,7 +23,6 @@ import { applyBuiltinSeeds, hasBuiltinCuratedExecution } from "./seedBuiltins";
 
 import { upsertRendererCatalogVendorApiKey } from "./rendererCatalogMutation";
 import { readCatalog, listModelCatalogVendors, listModelCatalogModels, mutateCatalog } from "./catalogStore";
-import { revalidatePendingCredential } from "./validateCandidateCredential";
 
 let mockedUserDataRoot = "";
 const tempRoots: string[] = [];
@@ -192,14 +191,14 @@ describe("每一类各自的正路（用户反馈里被点名的四种情形）"
     // 「能用」= vendor.enabled && hasApiKey（usableVendorModel 的判据），两者都要真。
     expect(dto).toMatchObject({ enabled: true, hasApiKey: true });
     expect(listModelCatalogModels().filter((model) => model.vendorKey === "kie" && model.enabled).length).toBeGreaterThan(0);
-    // 不挂 verificationPending：那个标记承诺「之后还会再验」，对这一类做不到（见 validateCandidateCredential）。
-    expect(readCatalog().apiKeysByVendor.kie.verificationPending).toBeUndefined();
+    // 不挂任何「待验证」标记（D-1117-delete-verification：这一档整个删了）。
+    expect(readCatalog().apiKeysByVendor.kie).not.toHaveProperty("verificationPending");
 
-    // 存量装机里遗留的 pending 记录也不得在执行前把调用挡下来（否则等于填了 key 也用不了）。
-    mutateCatalog((_tx, current) => { current.apiKeysByVendor.kie.verificationPending = true; });
+    // 存量装机里遗留的 pending 记录不再有人读：模型照样可用，执行前不打任何预检。
+    mutateCatalog((_tx, current) => { (current.apiKeysByVendor.kie as Record<string, unknown>).verificationPending = true; });
     const modelListProbe = await import("../ai/onboarding/modelListProbe");
     const probe = vi.spyOn(modelListProbe, "fetchModelList");
-    await expect(revalidatePendingCredential("kie")).resolves.toBeUndefined();
+    expect(listModelCatalogModels().filter((model) => model.vendorKey === "kie" && model.availability.usable).length).toBeGreaterThan(0);
     expect(probe).not.toHaveBeenCalled();
     probe.mockRestore();
   });
@@ -225,7 +224,7 @@ describe("每一类各自的正路（用户反馈里被点名的四种情形）"
     expect(readCatalog().vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(false);
   });
 
-  it("自定义/中转供应商（无内置种子）发布策略不变：仍由认证晋升决定", async () => {
+  it("自定义中转保存 key 后连接启用，模型仍需请求格式", async () => {
     const seeded = seededCatalog();
     seeded.vendors.push({
       key: "my-relay", name: "自建中转", enabled: false, baseUrlHint: "https://relay.example",
@@ -235,6 +234,6 @@ describe("每一类各自的正路（用户反馈里被点名的四种情形）"
     const modelListProbe = await import("../ai/onboarding/modelListProbe");
     vi.spyOn(modelListProbe, "fetchModelList").mockResolvedValue({ ok: true, models: [], statuses: [200] });
     await upsertRendererCatalogVendorApiKey("my-relay", { apiKey: "sk-relay" });
-    expect(readCatalog().vendors.find((vendor) => vendor.key === "my-relay")?.enabled).toBe(false);
+    expect(readCatalog().vendors.find((vendor) => vendor.key === "my-relay")?.enabled).toBe(true);
   });
 });

@@ -1,8 +1,8 @@
 // 走查专用的主进程网络闸：只放行本机（loopback / file / data / nomi-local），其余一律拦下并记账。
 //
 // 为什么要它：走查要证明「零供应商调用」，而 App 启动时自己就会出门——catalogReconcile 会对每个
-// 有钥匙、有文本模型的供应商做一次健康探测（vendorHealth.startCatalogReconciliation）。夹具里的钥匙
-// 是占位串，探测本身免费，但「免费」不等于「没有调用」。所以不靠推理，而是在进程入口把门关上：
+// 有钥匙、有文本模型的供应商拉一次模型清单（catalogReconciliation.startCatalogReconciliation）。夹具里的钥匙
+// 是占位串，拉清单本身免费，但「免费」不等于「没有调用」。所以不靠推理，而是在进程入口把门关上：
 // 本文件由启动器的 mainRequire 作为 `-r` 放在 App 入口之前加载，在 App 代码加载之前把门换掉，
 // 并把每一次被拦下的尝试写进 NOMI_WALK_NET_LOG，走查结束时逐条列出。
 //

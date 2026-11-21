@@ -50,6 +50,7 @@ import {
   collectDoors,
   findFailureDecisionBypass,
   findIdentityComparators,
+  findResendOwnerBypass,
   findShotJobSelections,
   gitRefSource,
   isScannableSource,
@@ -292,6 +293,16 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
     for (const item of findFailureDecisionBypass({ files, read: source.read })) {
       findings.push({ rule: 'failure-decision-bypass', concept: failureDecision.name, ...item,
         message: `失败判定只归 electron/shared/generationFailure；这里（${item.shape}：${item.value}）在出口自己判了一遍。` })
+    }
+  }
+
+  const shotRun = selected.find((concept) => concept.subject === 'canvas.shot-run')
+  if (shotRun) {
+    for (const item of findResendOwnerBypass({ files, read: source.read })) {
+      findings.push({ rule: 'resend-owner-bypass', concept: shotRun.name, ...item,
+        message: item.shape === 'result-unknown-list'
+          ? `「结果未知」那两个状态只归 electron/shared/productionJobOpenAs 那张表；这里（${item.value}）又自列了一份。`
+          : `替别的 Run 放掉节点占用只归画布单镜主人的收尾 / 重发准入 / 交给观察者；这里（${item.symbol}）自己放了。` })
     }
   }
 

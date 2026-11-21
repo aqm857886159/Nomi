@@ -14,14 +14,19 @@
     {
       "path": "src/workbench/assets/assetLibraryMaterialize.ts",
       "symbol": "materializeAssetLibraryItems"
+    },
+    {
+      "path": "src/workbench/assets/assetLibraryMaterialize.ts",
+      "symbol": "materializeProjectFile"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [
     "src/workbench/generationCanvas/components/canvasStageDrop.ts",
     "src/workbench/timeline/addAssetToTimeline.ts",
-    "src/workbench/assets/AssetLibraryPanel.tsx"
+    "src/workbench/assets/AssetLibraryPanel.tsx",
+    "src/workbench/library/WorkflowLibraryContent.tsx"
   ],
   "since": "2026-09-25",
-  "notes": "画布 / 时间轴只写当前项目自己的素材引用：本项目 / 本画布的原样放行，别的项目的先经主进程 copyProjectAsset 复制。落点不许再各自判 assetBelongsToProject 决定拒收（2026-08-31 四处各写一份拒收，别的项目的素材从此拖不出来）。合同 docs/fixes/2026-09-25-asset-library-drop-materialize.root-cause.json。"
+  "notes": "画布 / 时间轴只写当前项目自己的素材引用：本项目 / 本画布的原样放行，别的项目的先经主进程 copyProjectAsset 复制。落点不许再各自判 assetBelongsToProject 决定拒收（2026-08-31 四处各写一份拒收，别的项目的素材从此拖不出来）。合同 docs/fixes/2026-09-25-asset-library-drop-materialize.root-cause.json。2026-11-21：逐文件的判定抽成 materializeProjectFile（本项目原样、别的项目复制、缺复制通道或复制品不在目标项目 / 没有地址算失败），工作流库插入也走它，删掉了它自带的那份复制循环——同项目的工作流插入不再多复制一份（用户拍板「改，不再多一张」）。"
 }

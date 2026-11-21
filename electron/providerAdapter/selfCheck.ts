@@ -1,37 +1,30 @@
 /**
- * 接一个模型时的**免费自检**：鉴权 + 拉模型列表 + 说明卡形状对不对。
+ * 格式任务里的**格式完整性检查**：说明卡自己站不站得住。纯函数，零网络、零成本。
  *
- * 2026-09-11 用户拍板：接模型只留两条路（已适配供应商填 key、AI/MCP 接入），并且
- * **删掉所有会花用户钱的自动逻辑**。在这之前，一个模型能不能在画布上用，唯一的凭证是
- * 「一次成功的付费真实生成」——一个图片模型一轮验证 2 次付费出图，自动修复 2 轮 × 全量回归
- * 最坏 6 次，失败了钱照扣、模型还会从画布上消失（见 docs/plan/2026-09-11-model-onboarding-flow.md）。
+ * 2026-09-11 用户拍板删掉所有会花钱的自动验证；2026-11-17 又拍板把「验证」整段删掉
+ * （D-1117-delete-verification）：这里曾经还有一步「凭据自检」（`GET /models` 判 key 认不认、
+ * 模型在不在清单里），它唯一的产出是「这把 key 行不行」的判断——和已删的验证同一种东西，一并删了。
+ * key 被拒只在保存那一刻挡（F1：明确 401 / 403 不存新 key），之后第一次真实生成就是第一次碰供应商。
  *
- * 现在的判据分成两句能各自说清的话：
- *  - **鉴权 + 存在**：`GET /models`（或 `/v1/models`）。零成本、是 OpenAI 兼容面的事实标准。
- *    它证明的是「地址对、key 对」，**不是**「这个模型点了一定能出片」——apimart 对合法 key 恒 401、
- *    minimax 回 200 却连最小生成都跑不通，两个方向的反例都在 validateCandidateCredential 的注释里。
- *    所以 401/403 才判死；404/405（这家根本没有列表端点）**不判死**，如实记「这家没法自检」。
- *  - **形状**：说明卡自己内部一致吗（有没有 create、声明异步却没有 query、改图模式却没声明参考图槽）。
- *    这一类缺陷是**我们这边的**，不是上游拒绝了用户，必须与「上游拒绝」分成两个维度回报，
- *    否则就会像 09-11 群反馈那样，把 Nomi 的能力缺口甩成一串英文 + 「你自己接」。
- *
- * 真正的试跑是**第一次真实生成**（钱的闸已经在提交处看报价确认）。自检通过的模型进模型框、标「未试跑」。
+ * 留下的这一步说的是**我们这边**缺什么（有没有可执行通道、声明异步却没给 query、改图模式没声明
+ * 参考图槽），必须与「上游拒绝」分成两个维度回报，否则就会像 09-11 群反馈那样，把 Nomi 的能力缺口
+ * 甩成一串英文 + 「你自己接」。结论只说「请求格式已就绪 / 还缺请求格式」。
  */
-import type { AiSdkProviderKind, Model, Vendor } from "../catalog/types";
-import { authHeaders, authQueryParams } from "../ai/requestPipeline";
-import { vendorAuthSpec } from "../catalog/vendorAuthSpec";
-import { fetchModelList, readExtraHeaders } from "../ai/onboarding/modelListProbe";
-import { isJsonRecord, mergeHeadersCaseInsensitive } from "../jsonUtils";
-import { providerProxyUrl } from "../providerNetwork";
-import { redactAdapterSecrets } from "./redaction";
+import type { Model } from "../catalog/types";
 import { adapterModeDefect } from "./validator";
 import type { AdapterModeDraft } from "./types";
 
-/** 自检拿不下结论时的结构化原因。**这是「我们这边」的维度**，与上游 errorCategory 正交。 */
+/**
+ * 格式检查拿不下结论时的结构化原因。**这是「我们这边」的维度**，与上游 errorCategory 正交。
+ *
+ * `credential_rejected` / `endpoint_unreachable` 是已删的凭据自检留下的值：旧任务记录里还存着，
+ * 渲染层（adapterFailureAdvice）照旧能把它们说成人话；新任务只在「检查这一步没在时限内做完」时
+ * 写 `endpoint_unreachable`（service.verifyDraft 的超时兜底），不再有代码写 `credential_rejected`。
+ */
 export type AdapterSelfCheckReason =
-  /** 上游明确拒绝了这把 key（401/403）。 */
+  /** 旧任务记录：上游明确拒绝了这把 key（401/403）。 */
   | "credential_rejected"
-  /** 连不上这个地址（DNS/超时/代理）。 */
+  /** 旧任务记录 / 检查超时兜底：没拿到结论。 */
   | "endpoint_unreachable"
   /** 这条模式根本没有可执行的调用通道（如中转上的 3D）。 */
   | "no_channel"
@@ -39,74 +32,6 @@ export type AdapterSelfCheckReason =
   | "async_without_query"
   /** 改图 / 图生视频这类模式没声明参考图槽，探针与生产都不知道参考图往哪塞。 */
   | "reference_slot_missing";
-
-export type AdapterCredentialProbe =
-  | {
-      ok: true;
-      /** 上游列出的模型 id；空数组 = 这家没有可用的列表端点（`listed` 为 false）。 */
-      modelIds: readonly string[];
-      listed: boolean;
-    }
-  | { ok: false; reason: Extract<AdapterSelfCheckReason, "credential_rejected" | "endpoint_unreachable">; error: string; httpStatus?: number };
-
-export type AdapterSelfCheckDependencies = {
-  fetchModelList?: typeof fetchModelList;
-};
-
-/**
- * 一次自检一次探测：结论对同一条连接下的所有模型都一样，调用方（service.verifyDraft）
- * 只跑一次再把结果分发给每个模式，别按模式各打一次。
- */
-export async function probeAdapterCredential(
-  input: { vendor: Vendor; apiKey: string; signal?: AbortSignal },
-  dependencies: AdapterSelfCheckDependencies = {},
-): Promise<AdapterCredentialProbe> {
-  const probe = dependencies.fetchModelList || fetchModelList;
-  const vendor = input.vendor;
-  const baseUrl = String(vendor.baseUrlHint || "").trim();
-  const providerKind = (vendor.providerKind || "openai-compatible") as AiSdkProviderKind;
-  const authType = vendor.authType || (providerKind === "anthropic" ? "x-api-key" : "bearer");
-  // authType "none"（火山语音那类三头鉴权）没有可打的列表端点，也没有 key 可判——
-  // 如实放行，把结论留给第一次真实生成的诚实报错。
-  if (!baseUrl || authType === "none") return { ok: true, modelIds: [], listed: false };
-  const headers = mergeHeadersCaseInsensitive(
-    providerKind === "anthropic" ? { "anthropic-version": "2023-06-01" } : {},
-    readExtraHeaders(isJsonRecord(vendor.meta) ? vendor.meta.extraHeaders : undefined),
-    authHeaders({ ...vendorAuthSpec(vendor), authType }, input.apiKey),
-  );
-  let result;
-  try {
-    result = await probe(providerKind, baseUrl, headers, input.signal || AbortSignal.timeout(15_000), {
-      query: authQueryParams({ ...vendorAuthSpec(vendor), authType }, input.apiKey),
-      ...(providerProxyUrl(vendor) ? { proxyUrl: providerProxyUrl(vendor) as string } : {}),
-    });
-  } catch (error) {
-    return {
-      ok: false,
-      reason: "endpoint_unreachable",
-      error: redactAdapterSecrets(error instanceof Error ? error.message : String(error)),
-    };
-  }
-  if (result.ok) return { ok: true, modelIds: result.models, listed: true };
-  if (result.failureKind === "auth") {
-    return {
-      ok: false,
-      reason: "credential_rejected",
-      error: redactAdapterSecrets(result.error || "The provider rejected this API key"),
-      ...(result.status ? { httpStatus: result.status } : {}),
-    };
-  }
-  if (result.failureKind === "network") {
-    return {
-      ok: false,
-      reason: "endpoint_unreachable",
-      error: redactAdapterSecrets(result.error || "Could not reach the provider"),
-    };
-  }
-  // unsupported / invalid_response / upstream / rate_limit：这家没有（或这一刻给不出）可信的列表端点。
-  // 这**不是**「这把 key 不对」，判死会误杀一整类上游（Open WebUI 官方文档也明写验证失败 ≠ 不可用）。
-  return { ok: true, modelIds: [], listed: false };
-}
 
 export type AdapterContractCheck =
   | { ok: true }

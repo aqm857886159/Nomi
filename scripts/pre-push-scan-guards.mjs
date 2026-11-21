@@ -34,7 +34,11 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  * 测试自己和它的相对 import 闭包被改，也会选中它（pre-push-contracts.mjs 的 touchesImplementation，不用在这里写）。
  */
 export const SCAN_GUARDS = Object.freeze([
-  { file: 'scripts/check-concept-owners.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-scan.mjs'] }, // 原文改判守门及真实显示正例。
+  { file: 'scripts/model-status-one-home.test.mjs', roots: ['src', 'electron'], files: ['eslint.config.mjs', 'scripts/check-model-availability.mjs'] }, // 退役验证入口和状态词出口扫描；与 ESLint 共用 AST 判据
+  // 多个概念共用的阳性对照：各概念管什么写在这份测试自己里，这一行不带说明（并行 PR 各往行尾加一句，并主分支就冲突）。
+  { file: 'scripts/check-concept-owners.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-scan.mjs'] },
+  // 2026-11-20：付费放行只在一个家判（spend.approval-decision）；遍历 src、electron 找误导性的恒真「算批准」回执（<1 秒）。
+  { file: 'scripts/concept-owners-approval.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-approval.mjs', 'scripts/concept-owners-scan.mjs'] },
   { file: 'scripts/asset-file-owner.node-test.mjs', roots: ['src/workbench/generationCanvas/nodes/versionCards'], files: ['eslint.config.mjs', 'src/workbench/assets/assetFileDeletion.ts', 'src/workbench/assets/removeAssetVersion.ts', 'src/workbench/assets/assetResultMutation.ts'] }, // 两种桥删除及版本面间接绕法片段必须报错，真实owner必须通过
   { file: 'scripts/typecheck.node-test.mjs', roots: ['scripts'], exts: '*' }, // tsc 启动只归统一入口；新增文件也必须检查（<1 秒）。
   { file: 'scripts/ci-external-download-cache.node-test.mjs', roots: ['.github/workflows', '.github/actions/cache-external-downloads'], exts: '*', files: ['package.json', 'pnpm-lock.yaml'] }, // node 批次：新增工作流也必须先恢复外部二进制缓存（<1 秒）。

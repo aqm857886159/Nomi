@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { fsyncIfDurable } from "../durability";
+import { productionJobOpenAs } from "../shared/productionJobOpenAs";
 import { writeJsonFileAtomic } from "../jsonFile";
 import { getWorkspaceRepositoryDeps } from "../runtimePaths";
 import { resolveWorkspaceProjectDir } from "../workspace/workspaceRepository";
@@ -732,9 +733,8 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
       .filter((run): run is ProductionRun => run !== null);
     // 画布单镜 Run 里**等人核对**的那几笔（结果未知）要进任务中心「要你处理」：节点上指去核对，核对 / 放行的入口在那里。
     // 只看还挂着「没收尾」标记的（通常 0–几个），不打开别的画布 Run。
-    for (const open of openCanvasRuns(dir)) {
-      const run = read(projectId, open.runId);
-      if (run?.jobs.some((job) => job.status === "submission_unknown" || job.status === "reconciling")) runs.push(run);
+    for (const run of openCanvasRuns(dir).map((open) => read(projectId, open.runId))) {
+      if (run?.jobs.some((job) => productionJobOpenAs(job.status) === "needs_reconcile")) runs.push(run);
     }
     return runs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }

@@ -1,13 +1,12 @@
 /**
- * 凭据验证/自检的**付费边界**（T-MO-10，用户 2026-09-22 拍板）。
+ * 保存 key 那一刻的**付费边界**（用户 2026-09-22 拍板「存 key 不花钱」；D-1117-delete-verification 收窄）。
  *
  * 这条边界为什么存在、09-11 群反馈撞上的是什么，写在 owner 那里
- * （`electron/catalog/credentialProbePolicy.ts` 文件头）。本文件钉住拍板后的三条：
+ * （`electron/catalog/credentialProbePolicy.ts` 文件头）。本文件钉住现在的两条：
  *
- *   ① 有免费端点的供应商（apimart：`GET /v1/balance`，零成本、坏 key 回 401）→ 保存验证
- *      **一次生成请求都不发**；
- *   ② 没有免费端点的供应商 → **不经确认一个可能计费的请求都不发**；
- *   ③ 用户在确认面点了同意 → 才发，且**只发一次**。
+ *   ① 有免费端点的供应商（apimart：`GET /v1/balance`，零成本、坏 key 回 401）→ 保存时
+ *      **一次生成请求都不发**，明确 401 才拒收；
+ *   ② 没有免费端点的供应商 → **一个请求都不发**，照存（没有付费确认卡这回事了，第一次真实生成才碰供应商）。
  *
  * 外加 09-21 拍板的不回退钉：整份供应商配置在**没有 key** 的情况下也写得完、校验得了，
  * key 只在真试跑前才需要——本次改动不许把它倒退成「先给 key 才能存配置」。
@@ -180,12 +179,12 @@ function jsonResponse(status: number, body: unknown): Response {
   return { ok: status >= 200 && status < 300, status, headers: new Headers(), json: async () => body, text: async () => JSON.stringify(body) } as Response;
 }
 
-describe("T-MO-10 ① 有免费端点的供应商：保存验证不发生成请求", () => {
-  it("apimart 保存验证只打免费的余额端点，一次 chat/completions 都没有", async () => {
+describe("存 key 不花钱 ① 有免费端点的供应商：保存时不发生成请求", () => {
+  it("apimart 保存时只打免费的余额端点，一次 chat/completions 都没有", async () => {
     const state = seedApimartCatalog();
     mockAppFetch.mockResolvedValue(jsonResponse(200, { success: true, remain_balance: 10.5, remain_credits: 105 }));
     const { validateCandidateCredential } = await import("./validateCandidateCredential");
-    await expect(validateCandidateCredential(vendorRow(state, "apimart"), "sk-test")).resolves.toBe(false);
+    await expect(validateCandidateCredential(vendorRow(state, "apimart"), "sk-test")).resolves.toBeUndefined();
     const calls = outboundCalls();
     expect(calls.length).toBe(1);
     expect(calls[0].method).toBe("GET");
@@ -202,62 +201,22 @@ describe("T-MO-10 ① 有免费端点的供应商：保存验证不发生成请�
   });
 });
 
-describe("T-MO-10 ② 没有免费端点：不经确认一个计费请求都不发", () => {
-  it("用户没确认 → 出站零次，凭据落成「已保存·未验证」而不是失败", async () => {
+describe("存 key 不花钱 ② 没有免费端点：一个请求都不发，照存", () => {
+  it("声明了会花钱的探测 → 拒收闸直接放行，出站零次", async () => {
     const state = seedLoopbackFixtureCatalog();
     const { probeDirectKeyCredential } = await import("./directKeyCredential");
-    const confirmSpend = vi.fn(async () => false);
-    await expect(probeDirectKeyCredential(vendorRow(state, LOOPBACK_FIXTURE_KEY), "sk-test", { confirmSpend }))
-      .resolves.toBe("declined");
-    expect(confirmSpend).toHaveBeenCalledTimes(1);
-    expect(outboundCalls()).toEqual([]);
-  });
-
-  it("没有可问的人（缺省确认函数 + 没有窗口）→ 同样零出站，不静默替用户花钱", async () => {
-    const state = seedLoopbackFixtureCatalog();
-    const { probeDirectKeyCredential } = await import("./directKeyCredential");
-    // 刻意不注入 confirmSpend：走缺省的 confirmCredentialProbeSpend → requestRendererDecision，
-    // 而这里没有注册过渲染层目标，所以它会抛 RendererUnavailableError。「问不到人」的正确
-    // 行为是**不发**（fail-closed），不是「没人反对就发」。
-    await expect(probeDirectKeyCredential(vendorRow(state, LOOPBACK_FIXTURE_KEY), "sk-test"))
-      .resolves.toBe("declined");
-    expect(outboundCalls()).toEqual([]);
-  });
-
-  it("首用前的复验绝不为付费探测弹卡、也绝不偷发（付费探测只由显式的保存验证发起）", async () => {
-    const state = seedLoopbackFixtureCatalog();
-    state.apiKeysByVendor[LOOPBACK_FIXTURE_KEY] = {
-      apiKey: Buffer.from("sk-test").toString("base64"),
-      enabled: false,
-      verificationPending: true,
-      updatedAt: NOW,
-    } as unknown as CatalogState["apiKeysByVendor"][string];
-    writeCatalog(state);
-    const { revalidatePendingCredential } = await import("./validateCandidateCredential");
-    await expect(revalidatePendingCredential(LOOPBACK_FIXTURE_KEY)).resolves.toBeUndefined();
+    await expect(probeDirectKeyCredential(vendorRow(state, LOOPBACK_FIXTURE_KEY), "sk-test")).resolves.toBe("saved");
+    const { validateCandidateCredential } = await import("./validateCandidateCredential");
+    await expect(validateCandidateCredential(vendorRow(state, LOOPBACK_FIXTURE_KEY), "sk-test")).resolves.toBeUndefined();
     expect(outboundCalls()).toEqual([]);
   });
 });
 
-describe("T-MO-10 ③ 用户同意之后才发，且只发一次", () => {
-  it("确认 → 恰好一次出站，且金额如实来自同一份报价", async () => {
-    const state = seedLoopbackFixtureCatalog();
-    mockAppFetch.mockResolvedValue(jsonResponse(200, { choices: [{ message: { role: "assistant", content: "Hi" } }] }));
-    const { probeDirectKeyCredential } = await import("./directKeyCredential");
-    const confirmSpend = vi.fn(async () => true);
-    await expect(probeDirectKeyCredential(vendorRow(state, LOOPBACK_FIXTURE_KEY), "sk-test", { confirmSpend }))
-      .resolves.toBe("verified");
-    expect(confirmSpend).toHaveBeenCalledTimes(1);
-    expect(outboundCalls().length).toBe(1);
-    expect(outboundCalls()[0].method).toBe("POST");
-  });
-});
-
-describe("探测策略：单一 owner（免费优先 → 无免费则先问）", () => {
-  it("apimart = 免费档；夹具（缺省 cost）= 先问档；没有种子的自定义家 = 免费的模型列表档", async () => {
+describe("探测策略：单一 owner（免费才发 → 否则照首次使用）", () => {
+  it("apimart = 免费档；夹具（缺省 cost）= 首次使用档（不发）；没有种子的自定义家 = 免费的模型列表档", async () => {
     const { credentialProbePlan } = await import("./credentialProbePolicy");
     expect(credentialProbePlan("apimart")).toMatchObject({ kind: "seed-probe", cost: "free" });
-    expect(credentialProbePlan(LOOPBACK_FIXTURE_KEY)).toMatchObject({ kind: "seed-probe", cost: "paid" });
+    expect(credentialProbePlan(LOOPBACK_FIXTURE_KEY)).toMatchObject({ kind: "first-use", cost: "free" });
     expect(credentialProbePlan("some-custom-relay")).toMatchObject({ kind: "model-list", cost: "free" });
   });
 

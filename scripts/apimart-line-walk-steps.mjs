@@ -1,6 +1,7 @@
 // APIMart 线路走查的「用户动作」唯一一份：零额度走查（apimart-domestic-line-walkthrough.mjs）和真实付费核对
 // （apimart-domestic-line-paid.mjs）点的是同一套按钮，所以动作只写在这里，两边各自只管自己的判据与护栏。
 import fs from 'node:fs'
+import { uiText } from '../tests/ux/full-walk/invariants.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -13,14 +14,14 @@ export const DOMESTIC = 'https://api.apib.ai'
 /** 界面文案（两种语言只在这一处）。 */
 export const UI = {
   'zh-CN': {
-    settings: '设置', models: '模型', back: '返回', saveVerify: '保存验证', editAddress: '编辑 APIMart 接入地址',
-    invalidAddress: '接入地址需以 http(s):// 开头。', unreachable: '连不上这个地址：', nextStep: '下一步：',
-    newBlank: '新建空白项目', workspace: '工作区切换', generateTab: '生成', addImageNode: '添加图片节点', model: '模型', generateAsset: '生成素材', confirm: '生成',
+    settings: '设置', models: '模型', back: '返回', keyOnly: { save: uiText('zh-CN', 'onboardingProviders.keyOnly.save') }, addOtherModels: uiText('zh-CN', 'onboardingProviders.workspace.addOtherModels'), editAddress: '编辑 APIMart 接入地址',
+    invalidAddress: '接入地址需以 http(s):// 开头。',
+    newBlank: '新建空白项目', workspace: '工作区切换', generateTab: '生成', addImageNode: '添加图片节点', model: '模型', generateAsset: '生成素材', confirm: '生成', moreModels: uiText('zh-CN', 'onboardingProviders.modelControls.more'),
   },
   en: {
-    settings: 'Settings', models: 'Models', back: 'Back', saveVerify: 'Save Verify', editAddress: 'Edit APIMart connection address',
-    invalidAddress: 'The connection address must start with http(s)://.', unreachable: "Can't reach this address:", nextStep: 'Next:',
-    newBlank: 'New blank project', workspace: 'Switch workspace', generateTab: 'Generate', addImageNode: 'Add Image node', model: 'Model', generateAsset: 'Generate asset', confirm: 'Generate',
+    settings: 'Settings', models: 'Models', back: 'Back', keyOnly: { save: uiText('en', 'onboardingProviders.keyOnly.save') }, addOtherModels: uiText('en', 'onboardingProviders.workspace.addOtherModels'), editAddress: 'Edit APIMart connection address',
+    invalidAddress: 'The connection address must start with http(s)://.',
+    newBlank: 'New blank project', workspace: 'Switch workspace', generateTab: 'Generate', addImageNode: 'Add Image node', model: 'Model', generateAsset: 'Generate asset', confirm: 'Generate', moreModels: uiText('en', 'onboardingProviders.modelControls.more'),
   },
 }
 
@@ -86,17 +87,6 @@ export async function modelsSectionText(win) {
   return win.locator('[data-settings-section="models"]').innerText()
 }
 
-/** 连接卡右上角的体检结论（ModelConnection 的四态；「检查中…」之外的三态才算落定）。 */
-export const HEALTH_BADGE = { checking: /检查中…|Checking…/, settled: /已连通|连不上|已保存|Connected|Unreachable|Saved/ }
-
-/** 等连接卡上的体检结论落定（体检是打开卡片后才发的一次异步请求）；落定了返回 true。 */
-export async function healthSettled(win, timeout = 15_000) {
-  return Boolean(await until(win, async () => {
-    const text = await modelsSectionText(win)
-    return !HEALTH_BADGE.checking.test(text) && HEALTH_BADGE.settled.test(text)
-  }, timeout))
-}
-
 /**
  * 画布上生成一张：新建空白项目 → 生成 → 加图片节点 → 写提示词 → 选模型 → 生成素材（弹确认就点「生成」），
  * 一直等到节点里那张图真的解码出来（不是占位）——截图要拍得到结果。
@@ -108,9 +98,12 @@ export async function generateOnce(win, t, { model = /GPT Image 2(?!\.)/, prompt
   // 新节点的提示词框挂在画布浮框里，出现前 contenteditable 的最后一个是创作区那块（不可见）。
   await win.locator('[data-node-id]').first().waitFor()
   await win.waitForTimeout(1200)
-  await win.locator('div[contenteditable="true"]').last().click()
-  await win.keyboard.type(prompt, { delay: 8 })
+  await win.locator('[data-prompt-box] .ProseMirror').first().fill(prompt)
   await win.locator(`[aria-label="${t.model}"]`).first().click()
+  // GPT Image 2 在现役菜单的「更多」里，先像创作者一样展开；不换成另一款模型绕过原判据。
+  if (!(await win.getByRole('option', { name: model }).count())) {
+    await win.locator('[data-nomi-select-dropdown]').getByRole('button', { name: t.moreModels, exact: true }).click()
+  }
   await win.getByRole('option', { name: model }).first().click()
   await win.locator(`[aria-label="${t.generateAsset}"]`).first().click()
   const confirm = win.locator('[data-spend-confirm-dialog]').last().getByRole('button', { name: t.confirm, exact: true })

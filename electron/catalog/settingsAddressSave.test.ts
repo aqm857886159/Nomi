@@ -95,15 +95,16 @@ describe("设置页亲手改接口地址", () => {
     freshInstall();
     blockedPrimaryNetwork();
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-fixture", enabled: false });
-    expect(readCatalog().apiKeysByVendor.apimart).toMatchObject({ enabled: false, verificationPending: true });
-    expect(apimart().enabled).toBe(false);
+    expect(readCatalog().apiKeysByVendor.apimart).toMatchObject({ enabled: true });
+    expect(readCatalog().apiKeysByVendor.apimart).not.toHaveProperty("verificationPending");
+    expect(apimart().enabled).toBe(true);
 
     upsertRendererCatalogVendor({ key: "apimart", baseUrlHint: "https://api.apib.ai" });
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-fixture", enabled: false });
 
     expect(String(mockAppFetch.mock.calls.at(-1)?.[0])).toBe("https://api.apib.ai/v1/balance");
     expect(readCatalog().apiKeysByVendor.apimart).toMatchObject({ enabled: true });
-    expect(readCatalog().apiKeysByVendor.apimart.verificationPending).toBeUndefined();
+    expect(readCatalog().apiKeysByVendor.apimart).not.toHaveProperty("verificationPending");
     // 官方国内线路仍是同一条内置连接：凭据发布把整家重新发布（改回「只认主域」就停在 false）。
     expect(apimart().enabled).toBe(true);
     await expect(keyedRequest("https://api.apib.ai/v1/images/generations")).resolves.toBeNull();

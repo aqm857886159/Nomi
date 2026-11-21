@@ -2,6 +2,7 @@ import { makeTempDir } from './_test-temp.mjs'
 // check:concept-owners 的阳性对照（R17.0：加规则前先验它会红；有豁免的规则再补一发反向控制）。
 // 每条判据都在一个临时 git 仓库里先造一处违规看它红、再改回来看它绿；豁免条件（别名、另一个概念认领的同名定义、
 // 旧形状住在主人文件里）各有一条「把豁免条件拿掉就红」的反向控制。
+// 这里还放：原文改判守门及真实显示正例；重发判定只一处（「结果未知」清单 / 替别的 Run 放占用）。
 import assert from 'node:assert/strict'
 import { ESLint } from 'eslint'
 import { spawnSync } from 'node:child_process'
@@ -9,7 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { findFailureDecisionBypass, findIdentityComparators, findShotJobSelections, workingTreeSource } from './concept-owners-scan.mjs'
+import { OPEN_AS_OWNER_FILE, findFailureDecisionBypass, findIdentityComparators, findResendOwnerBypass, findShotJobSelections, workingTreeSource } from './concept-owners-scan.mjs'
 import { trustDomainOfPath } from './concept-owners-lib.mjs'
 import { CONCEPT_OWNERS_DIR, conceptFileName } from './concept-registry-lib.mjs'
 import { META_FILE, formatEntryJson, parseCatFileBatch } from './lib/entryDirectory.mjs'
@@ -1025,4 +1026,67 @@ test('failure-decision-bypass ESLint 禁止两个进程的出口读整表或码�
 test('failure-decision-bypass 全仓无第二判定，推送前扫描真实源码', () => {
   const source = workingTreeSource(fileURLToPath(new URL('..', import.meta.url)))
   assert.deepEqual(findFailureDecisionBypass({ files: source.listFiles(), read: source.read }), [])
+})
+
+// 「失败后再发一次」只由画布单镜主人一处定：结果未知那张表一处住、替别的 Run 放占用只在重发准入里。
+// 两个落点都锚在落点（字面量清单 / 那个写口），不锚名字：改名、内联、别名、属性赋值、展开 / Object.assign 都要拦。
+test('resend-owner-bypass 拦第二份「结果未知」清单：改名、内联、别名、属性赋值、展开 / 拼接', () => {
+  const file = 'electron/shared/elsewhere.ts'
+  const scan = (snippet) => findResendOwnerBypass({ files: [file], read: () => snippet })
+  const bad = {
+    rename: "const PENDING_CHECK = new Set(['submission_unknown', 'reconciling']); export const f = (s: string) => PENDING_CHECK.has(s)",
+    inline: "export function f(job: { status: string }) { return job.status === 'submission_unknown' || job.status === 'reconciling' }",
+    alias: "const A = 'submission_unknown'; const B = 'reconciling'; const list = [A, B]; export const f = (s: string) => list.includes(s)",
+    property: "const table: Record<string, string[]> = {}; table.unknown = ['reconciling', 'submission_unknown']; export const f = (s: string) => table.unknown.includes(s)",
+    spread: "const a = ['submission_unknown']; const b = ['reconciling']; export const f = (s: string) => [...a, ...b].includes(s)",
+    assign: "const a = ['submission_unknown']; export const list = Object.assign([], a, ['reconciling'])",
+    concat: "const a = ['submission_unknown']; export const list = a.concat(['reconciling'])",
+  }
+  for (const [kind, snippet] of Object.entries(bad)) {
+    const hits = scan(snippet)
+    assert.ok(hits.length >= 1 && hits.every((hit) => hit.shape === 'result-unknown-list'), `${kind}: ${snippet}`)
+  }
+  // 只报最外层那一份，不在同一行把子清单再报一次。
+  assert.equal(scan(bad.spread).length, 1)
+  // 不是这一组的清单不算：多一个状态、只有一个、主人表自己、单测。
+  assert.deepEqual(scan("export const TERMINAL = ['submission_unknown', 'reconciling', 'needs_attention']"), [])
+  assert.deepEqual(scan("export const f = (s: string) => s === 'submission_unknown'"), [])
+  assert.deepEqual(findResendOwnerBypass({ files: [OPEN_AS_OWNER_FILE], read: () => bad.rename }), [])
+  assert.deepEqual(findResendOwnerBypass({ files: ['electron/shared/elsewhere.test.ts'], read: () => bad.rename }), [])
+})
+
+test('resend-owner-bypass 拦主人之外替别的 Run 放节点占用：改名、动态 import、别名、整模块 / 属性、展开 / Object.assign', () => {
+  const file = 'electron/capabilityCore/elsewhere.ts'
+  const scan = (snippet, at = file) => findResendOwnerBypass({ files: [at], read: () => snippet })
+  const from = "'../productionRun/canvasShotRunIndex'"
+  const bad = {
+    rename: `import { markCanvasRunSettled as settleRun } from ${from}; export function f(root: string, id: string) { settleRun(root, id) }`,
+    inline: `export async function f(root: string, id: string) { (await import(${from})).markCanvasRunSettled(root, id) }`,
+    alias: `import { markCanvasRunSettled } from ${from}; const alias = markCanvasRunSettled; export function f(root: string, id: string) { alias(root, id) }`,
+    property: `import * as index from ${from}; export function f(root: string, id: string) { index['markCanvasRunSettled'](root, id) }`,
+    spread: `import * as index from ${from}; const api = { ...index }; export function f(root: string, id: string) { api.markCanvasRunSettled(root, id) }`,
+    assign: `const api = Object.assign({}, globalThis.runIndex); export function f(root: string, id: string) { api.markCanvasRunSettled(root, id) }`,
+  }
+  for (const [kind, snippet] of Object.entries(bad)) {
+    const hits = scan(snippet)
+    assert.ok(hits.length >= 1 && hits.every((hit) => hit.shape === 'occupancy-release'), `${kind}: ${snippet}`)
+  }
+  // 渲染层也一样拿不到这个写口。
+  assert.ok(scan(bad.rename, 'src/workbench/production/elsewhere.ts').length)
+  // 主人文件里：登记的函数之外（例如重发判定本身）碰它也拦；模块级起别名也拦。
+  const owner = 'electron/capabilityCore/appIntegrationCanvasShot.ts'
+  const ownerImport = `import { markCanvasRunSettled } from ${from};\n`
+  assert.ok(scan(`${ownerImport}function decideResend(root: string, id: string) { markCanvasRunSettled(root, id) }`, owner).length)
+  assert.ok(scan(`${ownerImport}const settleLater = markCanvasRunSettled; function settle() {}`, owner).length)
+  // 正例：登记的那几个函数里、摇铃 / 索引本身、只读这个模块的其它东西。
+  assert.deepEqual(scan(`${ownerImport}function settle(root: string, id: string) { markCanvasRunSettled(root, id) } function assertNodeIdle(root: string, id: string) { markCanvasRunSettled(root, id) }`, owner), [])
+  assert.deepEqual(scan(bad.rename, 'electron/capabilityCore/canvasShotSettledBell.ts'), [])
+  assert.deepEqual(scan("export function markCanvasRunSettled(dir: string, id: string) {} export function g() { markCanvasRunSettled('d', 'i') }", 'electron/productionRun/canvasShotRunIndex.ts'), [])
+  assert.deepEqual(scan(`import { canvasRunIdFor } from ${from}; export const f = (id: string) => canvasRunIdFor(id)`), [])
+})
+
+// 本测试登记进推送前 SCAN_GUARDS：真实源码里两个落点都是零。
+test('resend-owner-bypass 全仓无第二份清单、无第二个放占用的口，推送前扫描真实源码', () => {
+  const source = workingTreeSource(fileURLToPath(new URL('..', import.meta.url)))
+  assert.deepEqual(findResendOwnerBypass({ files: source.listFiles(), read: source.read }), [])
 })

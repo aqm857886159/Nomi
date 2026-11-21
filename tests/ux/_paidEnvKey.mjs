@@ -4,7 +4,7 @@
 // 有些会话（协调线、云端、没有真实资料的机器）按纪律不碰真实资料，却手里有一把专给验收用的 APIMart key。
 // 这条路让它也能跑付费走查，而不绕过产品：
 //   · 不读、不拷、不指纹真实资料目录（所以也不要求「用户的 Nomi 没开着」）；
-//   · key 只经**可见的接入页**进被测 App（模型设置 → APIMart 只填 key 的页 → 保存 → 继续验证 → 验证大脑模型），
+//   · key 只经**可见的接入页**进被测 App（模型设置 → APIMart 只填 key 的页 → 保存；存下即可用，没有验证那一步），
 //     与真人第一次接入走的是同一条界面路径；不直接改目录、不往 store 里灌（接入页的净化器就是为拦这种注入而写的）；
 //   · 之后照现有护栏把花钱面收窄到被授权的模型（lockSpendToModels），跑完整个隔离副本删除。
 //
@@ -119,15 +119,12 @@ export const APIMART_TEXT_MODEL_KEYS = Object.freeze(APIMART_TEXT_MODELS.filter(
 
 /** 界面一步的安全网（公共预算 owner：tests/ux/_station-budget.mjs）；只是上限，不是完成条件。 */
 const STEP_MS = stationTimeout({ operations: 1 })
-const SLOW_STEP_MS = stationTimeout({ operations: 2 })
-
-const TERMINAL_STAGES = new Set(['completed', 'partial', 'failed', 'cancelled', 'timed_out', 'stale'])
 
 /**
- * 走可见的接入页把 APIMart key 装进被测 App，并验证一个文本模型（Agent 的大脑）。
+ * 走可见的接入页把 APIMart key 装进被测 App，并确认被授权的模型和 Agent 的大脑都已可用。
  * 写法照 tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs 的 M3 段：点顶栏齿轮 → 设置里的「模型」页 → 点 APIMart →
- * 只填 key 的页（保存）→ 继续验证 → 获取可用模型 → 选大脑 → 验证 → 等认证走完 → 关设置。
- * 保存之后被授权的模型要是已经能用（接入页：「预置模型可用」），就跳过验证那一半。
+ * 只填 key 的页（保存）→ 问主进程这些模型能不能用 → 关设置。
+ * D-1117-delete-verification 之后没有「继续验证 → 认证」那一半：有请求格式的预置模型存下即可用。
  * 之后图片模型能不能用，由调用方的 lockSpendToModels 问主进程（不能用就在花钱前红）。
  *
  * 前提：无。项目库页和工作区里都行——入口是顶栏齿轮（`openModelSettings`，会等它出现），不是往 window 上派事件：
@@ -136,7 +133,7 @@ const TERMINAL_STAGES = new Set(['completed', 'partial', 'failed', 'cancelled', 
  *
  * 返回只含事实、不含 key 的小对象，给报告用。`stopAfterSave`：只做到「保存」为止（演练用）。
  */
-export async function connectApimartThroughVisibleUi(win, { apiKey, textModelKey, requiredModels = [], certificationSeconds = 90, stopAfterSave = false }) {
+export async function connectApimartThroughVisibleUi(win, { apiKey, textModelKey, requiredModels = [], stopAfterSave = false }) {
   assertUsableEnvKey(apiKey)
   const secrets = [apiKey]
   try {
@@ -154,59 +151,21 @@ export async function connectApimartThroughVisibleUi(win, { apiKey, textModelKey
       await keyPage.getByRole('button', { name: /保存|Save/i }).first().click()
     }
     await keyPage.locator('[data-key-only-success]').waitFor({ state: 'visible', timeout: STEP_MS })
-    // 只演练「填 key → 保存」这一半（loopback 夹具没有认证那一整套）：key 已存住就停，验证那一半只在真 key 上跑。
-    if (stopAfterSave) return { vendorKey: ENV_KEY_VENDOR, keySaved: true, certifiedTextModel: null, viaVisibleOnboarding: true }
-    // 接入页保存之后会说「APIMart 已接入，预置模型可用」（演练截图实测）：要是被授权的模型这一刻都已经能用，
-    // 就不必再跑「继续验证」（它还会花几个 token，而且预置的模型在选择页里是灰的、选不了）。问被测 App 自己，不猜。
-    if (requiredModels.length) {
-      // listModels 是异步 IPC（返回 Promise）：用 expect.poll 真正等它，不然 `.find` 落在 Promise 上、永远判成「不可用」。
-      const presetUsable = await expect.poll(() => win.evaluate(async (want) => {
-        const rows = (await window.nomiDesktop?.modelCatalog?.listModels?.({})) || []
-        return want.every((item) => rows.find((row) => row.vendorKey === item.vendorKey && row.modelKey === item.modelKey)?.availability?.usable === true)
-      }, requiredModels), { timeout: STEP_MS }).toBe(true).then(() => true, () => false)
-      if (presetUsable) {
-        await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-model-catalog-changed')))
-        await win.locator('[data-settings-close]').first().click()
-        return { vendorKey: ENV_KEY_VENDOR, keySaved: true, certifiedTextModel: null, verification: 'skipped：保存后被授权的模型已可用', viaVisibleOnboarding: true }
-      }
-    }
-    await keyPage.getByRole('button', { name: /继续验证|Continue verification/i }).first().click()
-
-    const addPage = win.locator('[data-model-settings-page="add"]').first()
-    await addPage.waitFor({ state: 'visible', timeout: STEP_MS })
-    await addPage.getByRole('button', { name: /获取可用模型|Get available models/i }).first().click()
-    const modelRow = addPage.getByRole('button', { name: textModelKey, exact: true }).first()
-    await modelRow.waitFor({ state: 'visible', timeout: SLOW_STEP_MS })
-    if (await modelRow.isDisabled().catch(() => true)) throw new Error(`接入页里 ${ENV_KEY_VENDOR}/${textModelKey} 已经配置过、选不了——隔离副本应该是干净的，不该出现这种情况`)
-    await modelRow.click()
-    const confirm = addPage.getByRole('button', { name: /(?:验证|自检)\s*1\s*个(?:模型)?|(?:Verify|Self-check)\s*1\s*model/i }).first()
-    await confirm.waitFor({ state: 'visible', timeout: STEP_MS })
-    await confirm.click()
-    const verification = win.locator('[data-model-settings-page="verification"]').first()
-    await verification.waitFor({ state: 'visible', timeout: STEP_MS })
-    const runId = await verification.getAttribute('data-adapter-run-id')
-    if (!runId) throw new Error('接入页的验证页没有给出认证运行号')
-    let latest = null
-    for (let attempt = 0; attempt < certificationSeconds; attempt += 1) {
-      const polled = await win.evaluate(async (id) => window.nomiDesktop?.onboarding?.certificationGet?.({ runId: id }), runId)
-      if (polled?.ok && polled.run) {
-        latest = polled.run
-        if (TERMINAL_STAGES.has(latest.stage)) break
-      }
-      await win.waitForTimeout(1_000)
-    }
-    if (!latest || latest.stage !== 'completed') throw new Error(`${ENV_KEY_VENDOR}/${textModelKey} 的认证没有走完：${latest?.stage ?? 'unknown'}`)
-    // 晋升与验证页是异步的：等这一行真的 enabled + published + verified，再通知界面刷新。
-    await expect.poll(() => win.evaluate(async ({ vendorKey, modelKey }) => {
-      const model = ((await window.nomiDesktop?.modelCatalog?.listModels?.({})) || []).find((row) => row.vendorKey === vendorKey && row.modelKey === modelKey)
-      return Boolean(model?.enabled === true && model?.published === true && model?.meta?.adapter?.state === 'verified')
-    }, { vendorKey: ENV_KEY_VENDOR, modelKey: textModelKey }), { timeout: SLOW_STEP_MS }).toBe(true)
+    // 只演练「填 key → 保存」：key 已存住就停。
+    if (stopAfterSave) return { vendorKey: ENV_KEY_VENDOR, keySaved: true, viaVisibleOnboarding: true }
+    // D-1117-delete-verification：保存只存 key，有请求格式的预置模型存下即可用，没有「继续验证 → 认证」那一半可补。
+    // 被授权的模型和大脑这一刻就该都能用；不能用就在花钱前红（一分钱没花）。问被测 App 自己那份可用性投影，不猜。
+    const brain = textModelKey ? [{ vendorKey: ENV_KEY_VENDOR, modelKey: textModelKey }] : []
+    const want = [...requiredModels, ...brain.filter((item) => !requiredModels.some((model) => model.vendorKey === item.vendorKey && model.modelKey === item.modelKey))]
+    // listModels 是异步 IPC（返回 Promise）：用 expect.poll 真正等它，不然 `.find` 落在 Promise 上、永远判成「不可用」。
+    const usable = await expect.poll(() => win.evaluate(async (items) => {
+      const rows = (await window.nomiDesktop?.modelCatalog?.listModels?.({})) || []
+      return items.every((item) => rows.find((row) => row.vendorKey === item.vendorKey && row.modelKey === item.modelKey)?.availability?.usable === true)
+    }, want), { timeout: STEP_MS }).toBe(true).then(() => true, () => false)
+    if (!usable) throw new Error(`保存 key 之后这些模型没有全部可用：${want.map((item) => `${item.vendorKey}/${item.modelKey}`).join('、')}（没有验证这一步可补；一分钱没花）`)
     await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-model-catalog-changed')))
-    const overlay = win.locator('[data-settings-overlay]').first()
-    await overlay.waitFor({ state: 'visible', timeout: STEP_MS })
     await win.locator('[data-settings-close]').first().click()
-    await overlay.waitFor({ state: 'hidden', timeout: STEP_MS })
-    return { vendorKey: ENV_KEY_VENDOR, certifiedTextModel: textModelKey, certificationStage: latest.stage, viaVisibleOnboarding: true }
+    return { vendorKey: ENV_KEY_VENDOR, keySaved: true, usableModels: want.map((item) => item.modelKey), viaVisibleOnboarding: true }
   } catch (error) {
     throw redactedError(error, secrets)
   }

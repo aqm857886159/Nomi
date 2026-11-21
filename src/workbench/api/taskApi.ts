@@ -6,6 +6,7 @@ import { classifyGenerationError } from '../observability/classifyError'
 import { describeOpaqueFailure } from '../observability/opaqueFailure'
 import { trackNodeSubmit } from '../generationCanvas/runner/nodeSubmitInFlight'
 import { stripVendorErrorMarker } from '../../../electron/shared/generationFailure'
+import type { CanvasResendDecidePayload, CanvasResendDecision } from '../../../electron/shared/canvas/canvasResendDecide'
 
 export type TaskKind =
   | 'chat'
@@ -246,7 +247,7 @@ export async function submitCanvasShotRun(input: {
   runRecordId: string
   vendor: string
   request: TaskRequestDto
-  acknowledgedOpenRuns?: string[]
+  resendDecisionId?: string
 }): Promise<TaskResultDto> {
   const desktop = requireDesktopRuntime('canvas generation')
   if (!desktop.tasks.canvasSubmit) throw new Error('canvas generation requires a newer desktop runtime')
@@ -257,7 +258,7 @@ export async function submitCanvasShotRun(input: {
       projectId: input.projectId,
       nodeId: input.nodeId,
       runRecordId: input.runRecordId,
-      ...(input.acknowledgedOpenRuns ? { acknowledgedOpenRuns: input.acknowledgedOpenRuns } : {}),
+      ...(input.resendDecisionId ? { resendDecisionId: input.resendDecisionId } : {}),
       vendor: String(input.vendor || '').trim(),
       request: withTaskProjectIdentity(input.request, input.projectId),
     }) as TaskResultDto
@@ -426,4 +427,11 @@ export async function canvasOpenRuns(input: { projectId: string; nodeId?: string
   const query = requireDesktopRuntime('canvas reconciliation').tasks.canvasOpenRuns
   if (!query) throw new Error('Canvas reconciliation is unavailable')
   return query(input)
+}
+
+/** 「我想再发一次」：只报意图和身份，主进程回问 / 拒 / 照常发；问的话带决定号和人确认后可以放行的那几笔。 */
+export async function canvasResendDecide(input: CanvasResendDecidePayload): Promise<CanvasResendDecision> {
+  const decide = requireDesktopRuntime('canvas resend').tasks.canvasResendDecide
+  if (!decide) throw new Error('Canvas resend is unavailable')
+  return decide(input)
 }

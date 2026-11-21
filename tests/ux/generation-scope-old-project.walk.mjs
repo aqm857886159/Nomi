@@ -98,7 +98,7 @@ async function configureProvider() {
   await ui('goto', 'model-settings')
   await click(locale === 'en' ? 'text:Connect APIMart' : 'text:接入 APIMart')
   await ui('fill', 'css:[data-settings-dialog] input[placeholder]', 'agent-runtime-apimart-fixture')
-  await click(locale === 'en' ? 'text:Save Verify' : 'text:保存验证')
+  await click(locale === 'en' ? 'text:Save' : 'text:保存')
   await click('css:[data-settings-close]')
 }
 async function oldProject() {

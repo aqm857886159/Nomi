@@ -3,15 +3,14 @@ import { IconCheck, IconExternalLink } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 
 import type { KnownVendor } from '../../config/knownVendors'
-import { DesignButton, StatusBadge, VendorLogoImage } from '../../design'
+import { DesignButton, VendorLogoImage } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { cn } from '../../utils/cn'
-import { useVendorHealth } from './useVendorHealth'
 import { ModelChipGroups, type ChipModel } from './ModelChipGroups'
 import { groupModelsByKind } from './modelChipGrouping'
 import { ModelSettingsPageSurface } from './ModelSettingsPageSurface'
 import { VendorBaseUrlField } from './VendorBaseUrlField'
-import { resolveCredentialCopy, resolveCredentialStored } from './credentialPresentation'
+import { resolveCredentialStored } from './credentialPresentation'
 
 export function KnownVendorKeyConnectPage({
   directory,
@@ -20,11 +19,9 @@ export function KnownVendorKeyConnectPage({
   models,
   hasApiKey = false,
   credentialMaterialSaved = false,
-  credentialVerificationPending = false,
   curatedModelsPublished = false,
   onBack,
   onSaved,
-  onContinueVerification,
 }: {
   directory: KnownVendor
   vendorName: string
@@ -37,24 +34,21 @@ export function KnownVendorKeyConnectPage({
    */
   models: readonly ChipModel[]
   /**
-   * 该供应商已有保存的 key（存了但尚未验证晋级）。
-   * 传 true 时跳过 key 录入步骤，直接进入「已保存·继续验证」状态——
+   * 该供应商已有保存的 key。传 true 时跳过 key 录入步骤，直接显示「已保存」——
    * 避免用户在 availableKnown 点击卡片后看到一个要他重填 key 的表单。
    */
   hasApiKey?: boolean
   /** Persisted material for display; unlike hasApiKey this does not imply usable or enabled. */
   credentialMaterialSaved?: boolean
-  credentialVerificationPending?: boolean
   /**
    * 该供应商的预置模型**此刻**已经在可用列表里（凭据 enabled → vendor 未被 de-publish，
    * 见 electron/catalog/credentialPublication.ts：凭据停用必然连带 vendor 停用，
    * 故「vendor.enabled && hasApiKey」就是「模型已发布」的同一个判据，不是第二份真相）。
-   * direct-key 供应商（apimart）填完 key 即到这个状态；certification 供应商要走完认证才到。
+   * 有 key、有请求格式、没手动关就到这个状态（D-1117-delete-verification：没有「验证」这一步）。
    */
   curatedModelsPublished?: boolean
   onBack: () => void
   onSaved: () => void
-  onContinueVerification: () => void
 }): JSX.Element {
   const { t } = useTranslation()
   // 数字和列表同源：都从这一份 models 派生，不再各传各的（数字真、列表空正是老 bug 的形状）。
@@ -74,30 +68,13 @@ export function KnownVendorKeyConnectPage({
   const stored = resolveCredentialStored({ credentialMaterialSaved, hasApiKey, savedHere })
   const saved = stored && !replacing
   const [error, setError] = React.useState('')
-  const [verificationPending, setVerificationPending] = React.useState(credentialVerificationPending)
-  React.useEffect(() => setVerificationPending(credentialVerificationPending), [credentialVerificationPending])
-  // pending → cleared means the automatic re-check confirmed the key; the card must say so (models stay unverified).
-  const [keyRechecked, setKeyRechecked] = React.useState(false)
-  const wasPending = React.useRef(verificationPending)
-  React.useEffect(() => {
-    if (wasPending.current && !verificationPending) setKeyRechecked(true)
-    wasPending.current = verificationPending
-  }, [verificationPending])
-  /**
-   * 「点这个按钮会不会花钱」——**问主进程那份唯一的探测策略**，不在这里第二次判
-   * （T-MO-10，用户 2026-09-22 拍板）。此前这页只写「保存验证」，而 apimart 那一下是一次
-   * 真实请求的动作和确认点由主进程策略决定。页面只说明请求会做什么，并保留保存为未验证的路径。
-   */
   const inputRef = React.useRef<HTMLInputElement>(null)
   const errorId = React.useId()
-  const { connection } = useVendorHealth(directory.vendorKey, {
-    hasApiKey: hasApiKey || verificationPending, skipImplicitProbe: true,
-  })
-  // The copy resolver owns the pendingTitle/pendingHint branch so saved keys never fall back to “no key”.
-  const credentialCopy = resolveCredentialCopy({ credentialMaterialSaved: stored, verificationPending, curatedModelsPublished, keyRechecked })
-  React.useEffect(() => {
-    if (connection?.state === 'reachable') setVerificationPending(false)
-  }, [connection?.state])
+  // 保存只做一件事：存 key。明确 401 / 403 的 key 主进程不存、旧 key 留着（错误从 catch 出来）；
+  // 其余一律存下，模型有请求格式就能用（D-1117-delete-verification）。
+  const savedCopy = curatedModelsPublished
+    ? { titleKey: 'onboardingProviders.keyOnly.publishedTitle', hintKey: 'onboardingProviders.keyOnly.publishedHint' } as const
+    : { titleKey: 'onboardingProviders.keyOnly.savedTitle', hintKey: 'onboardingProviders.keyOnly.savedHint' } as const
 
   const save = React.useCallback(async () => {
     const cleanKey = apiKey.trim()
@@ -114,8 +91,7 @@ export function KnownVendorKeyConnectPage({
     setBusy(true)
     setError('')
     try {
-      const result = await catalog.upsertVendorApiKey(directory.vendorKey, { apiKey: cleanKey, enabled: false }) as { verificationPending?: boolean }
-      setVerificationPending(result.verificationPending === true)
+      await catalog.upsertVendorApiKey(directory.vendorKey, { apiKey: cleanKey, enabled: false })
       setSavedHere(true)
       setReplacing(false)
       setApiKey('')
@@ -241,11 +217,7 @@ export function KnownVendorKeyConnectPage({
           ) : null}
           {!saved ? (
             <div className="mt-5">
-              {/* 按钮上方说明这一下会发什么，以及用户还能选择保存为未验证。 */}
-              <p className="text-caption leading-relaxed text-nomi-ink-40" data-credential-probe-request>
-                {t('onboardingProviders.keyOnly.probeRequest')}
-              </p>
-              <div className="mt-3 flex flex-wrap justify-end gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
                 <DesignButton variant="light" onClick={onBack}>{t('common.back')}</DesignButton>
                 <DesignButton variant="filled" loading={busy} onClick={save}>
                   {t('onboardingProviders.keyOnly.save')}
@@ -262,17 +234,11 @@ export function KnownVendorKeyConnectPage({
                 <IconCheck size={16} stroke={2} aria-hidden="true" />
               </span>
               <div className="min-w-0 flex-1">
-                {credentialCopy.badgeTone ? (
-                  <StatusBadge className="normal-case" tone={credentialCopy.badgeTone} data-credential-state={credentialCopy.titleKey}>
-                    {t(credentialCopy.titleKey, { name: vendorName })}
-                  </StatusBadge>
-                ) : (
-                  <div className="text-body-sm font-semibold text-nomi-ink">
-                    {t(credentialCopy.titleKey, { name: vendorName })}
-                  </div>
-                )}
+                <div className="text-body-sm font-semibold text-nomi-ink">
+                  {t(savedCopy.titleKey, { name: vendorName })}
+                </div>
                 <p className="mt-1 text-caption leading-relaxed text-nomi-ink-60">
-                  {t(credentialCopy.hintKey, { count: modelCount })}
+                  {t(savedCopy.hintKey, { count: modelCount })}
                 </p>
               </div>
             </div>
@@ -287,9 +253,6 @@ export function KnownVendorKeyConnectPage({
                   {t('onboardingProviders.keyOnly.replaceKey')}
                 </button>
               ) : <span />}
-              <DesignButton variant="filled" onClick={onContinueVerification}>
-                {t('onboardingProviders.keyOnly.continueVerification')}
-              </DesignButton>
             </div>
           </div>
         ) : null}

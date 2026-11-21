@@ -13,10 +13,10 @@ describe('releaseUnknownSubmission', () => {
     const command = vi.fn(async () => ({ run: released, events: [] }))
     const read = vi.fn(async () => run(3, 'submission_unknown'))
 
-    await releaseUnknownSubmission('p1', 'run-1', 'job-1', { read, command } as never)
+    await releaseUnknownSubmission('p1', 'run-1', 'job-1', { read, command } as never, 'decision-1')
 
     expect(command).toHaveBeenCalledTimes(1)
-    expect(command.mock.calls[0]).toMatchObject(['p1', 'run-1', { type: 'job.reconcile', expectedRevision: 3, payload: { jobId: 'job-1', outcome: 'user_checked_abandon' } }])
+    expect(command.mock.calls[0]).toMatchObject(['p1', 'run-1', { type: 'job.reconcile', expectedRevision: 3, payload: { jobId: 'job-1', outcome: 'user_checked_abandon', resendDecisionId: 'decision-1' } }])
     // 组合框与紧接着的重新生成读的缓存：必须立刻是放行后的版本，不然会一直灰着 / 被旧缓存拦下。
     expect(useProductionCanvasLandingStore.getState().runs['run-1']).toBe(released)
   })

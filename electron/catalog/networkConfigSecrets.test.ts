@@ -158,7 +158,7 @@ describe("credential-bearing network config secure persistence", () => {
   });
 
   it("encrypts a freshly supplied proxy and headers on save and never writes them as plaintext", async () => {
-    writeCatalog({ version: CURRENT_CATALOG_VERSION, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
+    writeCatalog({ version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
     const store = await import("./catalogStore");
     const network = await import("./networkConfigStore");
 
@@ -178,7 +178,7 @@ describe("credential-bearing network config secure persistence", () => {
 
   it("clears the encrypted proxy when a save supplies an empty proxy", async () => {
     writeCatalog({
-      version: CURRENT_CATALOG_VERSION,
+      version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true,
       vendors: [],
       models: [],
       mappings: [],
@@ -197,7 +197,7 @@ describe("credential-bearing network config secure persistence", () => {
   });
 
   it("preserves an already-encrypted proxy on an unrelated re-save without re-encrypting", async () => {
-    writeCatalog({ version: CURRENT_CATALOG_VERSION, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
+    writeCatalog({ version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
     const store = await import("./catalogStore");
     const network = await import("./networkConfigStore");
 
@@ -211,7 +211,7 @@ describe("credential-bearing network config secure persistence", () => {
   });
 
   it("never surfaces proxy or headers through the renderer vendor DTO", async () => {
-    writeCatalog({ version: CURRENT_CATALOG_VERSION, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
+    writeCatalog({ version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
     const store = await import("./catalogStore");
 
     store.upsertModelCatalogVendor({
@@ -231,7 +231,7 @@ describe("credential-bearing network config secure persistence", () => {
   });
 
   it("never includes plaintext proxy/headers in renderer-facing catalog exports without keys", async () => {
-    writeCatalog({ version: CURRENT_CATALOG_VERSION, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
+    writeCatalog({ version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
     const store = await import("./catalogStore");
     store.upsertModelCatalogVendor({
       ...vendor(),
@@ -254,7 +254,7 @@ describe("credential-bearing network config secure persistence", () => {
     const importRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-network-config-import-"));
     tempRoots.push(importRoot);
     mockedUserDataRoot = importRoot;
-    writeCatalog({ version: CURRENT_CATALOG_VERSION, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
+    writeCatalog({ version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
     vi.resetModules();
     const store2 = await import("./catalogStore");
     const network2 = await import("./networkConfigStore");
@@ -304,7 +304,7 @@ describe("credential-bearing network config secure persistence", () => {
 
   it("fails closed when a fresh proxy save hits unavailable safeStorage and writes nothing", async () => {
     safeStorageState.available = false;
-    writeCatalog({ version: CURRENT_CATALOG_VERSION, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
+    writeCatalog({ version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
     const before = fs.readFileSync(catalogFile(), "utf8");
     const store = await import("./catalogStore");
 

@@ -1,0 +1,12 @@
+{
+  "release": "v0.24.1",
+  "sourceCommit": "8faadf762bff087cebec0036f5a169ad0fe6fb54",
+  "assets": [
+    {
+      "how": "connector-share-url",
+      "relativePath": "assets/reference/2026-11-20/douyin-7300000000000000001.mp4",
+      "contentType": "video/mp4",
+      "contentHash": "ed6a236025aeaa7b71874360ba14a98e9866f4b2c8f96b74531c57d5ee6571ed"
+    }
+  ]
+}

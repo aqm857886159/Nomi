@@ -7,8 +7,6 @@ import { describe, expect, it } from "vitest";
 // Adding a consumer here must be a deliberate act, not a copy of the nearest decrypt call.
 const ALLOWED_RAW_READERS: Record<string, string> = {
   "catalog/secrets.ts": "defines it; apiKeyDecryptStatus checks credentialRecordCounts first, then reads",
-  "ai/onboarding/vendorHealth.ts": "re-validating a pending save is the one intentional probe of an unusable record",
-  "catalog/validateCandidateCredential.ts": "revalidatePendingCredential exists to validate a record that is not yet usable",
   "providerAdapter/serviceCatalog.ts": "copies key material into an isolated candidate record; nothing is sent",
   "integrationCertification/integrationSession.ts": "the user's explicit 继续验证 certifies a saved key before it is enabled",
 };

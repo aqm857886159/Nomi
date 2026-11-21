@@ -305,6 +305,5 @@ export function adapterModelMetadataForPromotion(input: {
   const next = { ...input.oldMeta, ...projection.meta };
   return { ...next,
     adapter: { state: failedModes.length ? 'partial' : 'verified', runId: input.runId, activeRevision: input.revisionId,
-      // A free self-check proves shape/credential only; generation remains untried.
-      evidence: 'self-check', modes: input.modeResults, publicationModes: projection.taskKinds, updatedAt: input.updatedAt } };
+      modes: input.modeResults, publicationModes: projection.taskKinds, updatedAt: input.updatedAt } };
 }

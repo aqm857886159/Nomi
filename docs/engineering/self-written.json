@@ -743,6 +743,10 @@
     {
       "path": "src/devlab/",
       "reason": "设计实验室：Nomi 界面的样张与状态集，不进产物"
+    },
+    {
+      "path": "electron/ai/onboarding/catalogReconciliation.ts",
+      "reason": "已有健康探测中保留的 Nomi 目录对账：把供应商清单与本地加密凭据、连接开关及模型生命期对齐，不再判断健康或可用性；沿用 modelListProbe 拉清单，非另造网络框架。查证见 docs/plan/2026-11-17-unverified-usable.md 的先查别人。"
     }
   ],
   "genericZones": [

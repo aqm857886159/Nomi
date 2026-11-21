@@ -39,11 +39,6 @@ test('cross-process exact copies stay debt until a neutral runtime contract exis
   const debtBySite = new Map(baseline.debt.map((entry) => [entry.site, entry]))
   const crossProcessGroups = [
     [
-      'electron/ai/onboarding/vendorHealth.ts::type:VendorHealthState/type-union',
-      'electron/preload.ts::property:onboarding/property:vendorHealth/property:state/type-union',
-      'src/desktop/onboardingBridgeTypes.ts::type:VendorHealthState/type-union',
-    ],
-    [
       'electron/browser/core/browserViewTypes.ts::type:BrowserPromptScreenshotSelectionResult/property:reason/type-union',
       'src/desktop/bridge.ts::type:DesktopBrowserPromptScreenshotSelection/property:reason/type-union',
     ],
@@ -63,11 +58,7 @@ test('cross-process exact copies stay debt until a neutral runtime contract exis
       'electron/providerAdapter/types.ts::type:AdapterModeState/type-union',
       'src/desktop/onboardingBridgeTypes.ts::type:DesktopAdapterModeResult/property:state/type-union',
     ],
-    [
-      'electron/providerAdapter/types.ts::type:AdapterModelMeta/property:state/type-union',
-      'src/ui/onboarding/ModelChipGroups.tsx::type:ChipModel/property:adapterState/type-union',
-      'src/ui/onboarding/modelSettingsCatalogProjection.ts::variable:ADAPTER_STATES/set',
-    ],
+    ['electron/providerAdapter/types.ts::type:AdapterModelMeta/property:state/type-union'],
     [
       'electron/workspace/workspaceRepository.ts::type:WorkspaceProjectDiagnosticStatus/type-union',
       'src/desktop/bridge.ts::type:DesktopBridge/property:projects/property:diagnose/property:status/type-union',
@@ -113,6 +104,25 @@ test('cross-process exact copies stay debt until a neutral runtime contract exis
   ]) {
     assert.equal(debtBySite.has(retired), false, `${retired} must stay retired, not re-listed as debt`)
   }
+  // 2026-11-18 D-1117-delete-verification：连接健康探测整段删除，三份跨进程的 VendorHealthState 副本
+  // 一起没了（不是搬家）；模型 / 连接「显示成什么」只剩 electron/shared/modelStatusPresentation.ts 的
+  // MODEL_STATUS_STATES 一份。渲染层另抄的 ChipModel.adapterState / ADAPTER_STATES 也随「未试跑」标记删除。
+  // 它们必须同时不在 registered、也不在 debt 里；再冒出来就是有人又开了第二个状态词表。
+  for (const retired of [
+    'electron/ai/onboarding/vendorHealth.ts::type:VendorHealthState/type-union',
+    'electron/preload.ts::property:onboarding/property:vendorHealth/property:state/type-union',
+    'src/desktop/onboardingBridgeTypes.ts::type:VendorHealthState/type-union',
+    'src/ui/onboarding/ModelChipGroups.tsx::type:ChipModel/property:adapterState/type-union',
+    'src/ui/onboarding/modelSettingsCatalogProjection.ts::variable:ADAPTER_STATES/set',
+  ]) {
+    assert.equal(registeredSites.has(retired), false, `${retired} must stay retired`)
+    assert.equal(debtBySite.has(retired), false, `${retired} must stay retired, not re-listed as debt`)
+  }
+  assert.equal(
+    registeredSites.has('electron/shared/modelStatusPresentation.ts::variable:MODEL_STATUS_STATES/as-const'),
+    true,
+    'model / connection status words have one owner in the neutral shared module',
+  )
 })
 
 test('repository exact-set owners are upstream and every local projection stays in debt', () => {
@@ -218,6 +228,7 @@ test('repository helper subsets and incomplete projections remain debt', () => {
     'src/workbench/production/shotPlaceholderState.ts::variable:FAILED_STATUSES/set',
     'src/workbench/production/shotPlaceholderState.ts::variable:GENERATING_STATUSES/set',
   ]
+  // 2026-11-18：useVendorHealth 的不完整投影随健康探测整段删除（D-1117-delete-verification），同样必须两边都不在。
   const vendorProjection = 'src/ui/onboarding/useVendorHealth.ts::type:VendorConnection/property:state/type-union'
   const incompleteAssetOutcome =
     'src/workbench/generationCanvas/nodes/nodeAssetWrite.ts::type:AddAssetOutcome/property:status/type-union'
@@ -238,7 +249,7 @@ test('repository helper subsets and incomplete projections remain debt', () => {
     /合法.*view model.*ProductionJobStatus.*穷尽 mapper/i,
   )
   assert.equal(registeredSites.has(vendorProjection), false)
-  assert.match(debtBySite.get(vendorProjection)?.reason ?? '', /VendorHealthState.*checking/i)
+  assert.equal(debtBySite.has(vendorProjection), false)
   assert.equal(registeredSites.has(incompleteAssetOutcome), false)
   assert.match(debtBySite.get(incompleteAssetOutcome)?.reason ?? '', /AddAssetStatus.*full/i)
   assert.equal(baseline.debtCap, baseline.debt.length)

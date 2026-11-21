@@ -171,7 +171,7 @@ export function mergeHeadersCaseInsensitive(...layers: Record<string, string>[])
 
 /**
  * 把「头里有非法字符」翻成人话（单一措辞，三处共用防漂移）：
- * 发送闸 vendorHttp.requestJson + onboarding 的 test-connection / list-models 两条裸 fetch。
+ * 发送闸 vendorHttp.requestJson + onboarding 的 list-models 裸 fetch（test-connection 随 D-1117-delete-verification 删了）。
  * 鉴权类头（密钥）→ 指向「重新粘贴密钥」（最常见 = 误粘中文/全角）；其余头 → 标位置即可。
  */
 export function describeIllegalHeader(problem: {

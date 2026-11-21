@@ -3,9 +3,8 @@ import type { CatalogState, Model } from './types'
 import { derivePublishedExecution, modelHasPublishedExecution } from '../shared/modelPublication'
 
 import { validateCandidateCredential, candidateCredentialSnapshot } from './validateCandidateCredential'
-import { hasBuiltinCredentialJudgement } from './builtinVendorSeeds'
 import { carriesCertificationMark, isCertificationOwnedConnection } from './certificationOwnership'
-import { publishBuiltinCuratedVendor } from './directKeyCredential'
+import { publishConfiguredVendor } from './directKeyCredential'
 import { bindCredentialDestination, judgeCredentialDestination, readCredentialBinding } from './credentialBinding'
 import { codeDeclaredFallbackOrigins } from '../vendor/vendorBaseFallback'
 import { desktopT } from '../i18n'
@@ -135,52 +134,30 @@ function followSavedAddressWithCredential(vendorKey: string): void {
   mutateCatalog((_tx, state) => bindCredentialDestination(state.vendors.find((item) => item.key === vendorKey), new Date().toISOString()))
 }
 
-/** Renderer credential writes are configuration only.  For certification vendors a key
- * can never promote the vendor — certification owns the later enabled transition.  The
- * paired vendor de-publish is inherited from the store, not done here — see
- * `credentialPublication.ts`.  direct-key vendors (apimart) are the designed exception:
- * the code-owned contract *is* the certification, so a verified key publishes the
- * credential and the vendor in the same step (see `directKeyCredential.ts`). */
+/**
+ * 保存 key 就是接入（D-1117-delete-verification）：存下、发布已有请求格式的模型，没有「待验证」这一档。
+ * 保存前只有一道拒收闸——明确的 401 / 403 不存，旧 key 照用（F1）；其余结果一律照存。
+ */
 export async function upsertRendererCatalogVendorApiKey(vendorKey: string, payload: unknown) {
   const candidate = sanitizeRendererVendorApiKeyMutation(payload)
   const vendor = readCatalog().vendors.find((item) => item.key === vendorKey)
   if (!vendor) throw new Error(desktopT('credential.validationUnavailable'))
   const snapshot = candidateCredentialSnapshot(vendorKey)
-  const verificationPending = await validateCandidateCredential(vendor, String(candidate.apiKey || '').trim())
+  await validateCandidateCredential(vendor, String(candidate.apiKey || '').trim())
   if (snapshot !== candidateCredentialSnapshot(vendorKey)) throw new Error(desktopT('credential.changed'))
-  // 内置家：验证通过 → 凭据 enabled:true + vendor 重新发布；探测型的 pending（网络/上游抖动）
-  // → 诚实保持停用 + verificationPending，首用前 revalidatePendingCredential 再转正。
-  // `first-use` 那一类没有可信的预检可跑，validateCandidateCredential 直接判「不 pending」，照常发布。
-  // 自定义 / 中转供应商（无内置种子）行为完全不变：仍由认证晋升决定发布。
-  // 渲染层传来的 enabled 永远不算数（恒 false，manualCertificationBoundary.test.ts 锁着），
-  // 启用与否只由这里的主进程验证结果决定。
-  const strategy = hasBuiltinCredentialJudgement(vendorKey)
-  // `authType: 'none'`（本地 ComfyUI / Ollama 这类免鉴权的家）没有「验过没验过」这个状态：
-  // 它压根不发鉴权头。以前这里把它和「自定义家等认证晋升」并作一档，凭据落成 enabled:false，
-  // 而 `credentialRecordCounts` 读 `enabled !== false` —— 于是**存进去的 key 恒不算数**，
-  // `hasApiKey` 恒 false，vendor 还被 `depublishVendorForDisabledCredential` 顺手下架。
-  //
-  // 这是 2026-09-10「verificationPending 不等于已停用」那条裁决（见 credentialPublication.ts）
-  // 的同一形状：`ApiKeyRecord.enabled` 同时被当成「用户停用了」和「还没验过」两个意思用。
-  // 免鉴权这一档没有第二种意思可讲，先归位；剩下的自定义家仍由认证晋升决定发布（不变）。
-  const nothingToVerify = vendor.authType === 'none'
-  const publishNow = (strategy || nothingToVerify) && !verificationPending
-  const result = upsertModelCatalogVendorApiKey(vendorKey, {
-    ...candidate,
-    ...(verificationPending ? { verificationPending: true } : {}),
-    ...(publishNow ? { enabled: true } : {}),
-  })
-  if (publishNow) publishBuiltinCuratedVendor(vendorKey)
+  const result = upsertModelCatalogVendorApiKey(vendorKey, { ...candidate, enabled: true })
+  publishConfiguredVendor(vendorKey)
   return result
 }
 
 export function sanitizeRendererVendorApiKeyMutation(payload: unknown): Json {
-  const { verificationPending: _ignored, ...candidate } = record(payload)
-  return { ...candidate, enabled: false }
+  return { ...record(payload), enabled: false }
 }
 
 export function upsertRendererCatalogModel(payload: unknown) {
-  return upsertModelCatalogModel(sanitizeRendererModelMutation(payload, readCatalog()))
+  const saved = upsertModelCatalogModel(sanitizeRendererModelMutation(payload, readCatalog()))
+  if (record(payload).enabled === true && saved.enabled) publishConfiguredVendor(saved.vendorKey)
+  return saved
 }
 
 export function upsertRendererCatalogMapping(payload: unknown) {

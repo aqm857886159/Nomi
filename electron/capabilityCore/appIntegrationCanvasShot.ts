@@ -59,7 +59,8 @@ import { markInterruptedSingleShotUnknown, isObservationContention, markSingleSh
 import type { ShotPrice } from "../shared/contracts/shotPricingRule";
 import { admitShotsForDispatch } from "../productionRun/shotLandingAdmission";
 import { presentationIsOpen, undecidedShotIds } from "../shared/productionGenerationPresentation";
-import { jobAwaitsRetrieval, productionJobPhase } from "../shared/productionShotPhase";
+import { jobAwaitsRetrieval, productionJobOpenAs, productionJobPhase } from "../shared/productionShotPhase";
+import { createCanvasShotResend, type CanvasOpenRunEntry } from "./canvasResendDecision";
 import { isTerminalTaskStatus } from "../shared/taskStatus";
 import type { WorkspaceProjectRecordV2 } from "../workspace/workspaceTypes";
 
@@ -81,7 +82,8 @@ export type CanvasShotSubmitInput = {
   request: CanvasShotRequest;
   gesture: CanvasShotGesture;
   senderId: number;
-  acknowledgedOpenRuns?: string[];
+  /** 人在重发卡上点了确认：主进程 `resend.decideResend` 发的号（只放行号里那几笔仍在路上的）。 */
+  resendDecisionId?: string;
 };
 
 /** 交给画布的那一镜来自哪个制作 Run 的哪一镜（Agent 那一次出价：卡上点了「生成」/「直接生成」档的策略）。 */
@@ -179,6 +181,8 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
   const leases = new Map<string, { projectId: string; senderId: number; touchedAt: number }>();
   /** 批量卡上同意了、还没交的那几镜是哪个窗口点的：窗口没了，它们的出价跟着收回（不留给下一次启动去猜）。 */
   const consents = new Map<string, { projectId: string; senderId: number }>();
+  /** 「再发一次」要不要问、放行哪几笔：只在这里判（决定号只在这里铸、只在这里认）。 */
+  const resend = createCanvasShotResend(readCanvasOpenRuns, () => repository());
 
   const repository = () => deps.service.repository;
 
@@ -232,7 +236,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
    */
   function readCanvasOpenRuns(input: { projectId: string; nodeId?: string }) {
     const { projectRoot } = identity(input.projectId);
-    const entries = new Map<string, { runId: string; jobId?: string; reason: "in_flight" | "needs_reconcile"; hasTaskId: boolean; nodeId: string }>();
+    const entries = new Map<string, CanvasOpenRunEntry>();
     for (const open of openCanvasRuns(projectRoot, input.nodeId)) {
       const run = repository().read(input.projectId, open.runId);
       const reason = consentedDraft(run) ? null : blockingReason(run);
@@ -254,9 +258,8 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
 
   function assertNodeIdle(input: CanvasShotSubmitInput, projectRoot: string, ownRunId: string, consented: ProductionRun | null, link: CanvasHandOverLink | undefined): void {
     const open = readCanvasOpenRuns({ projectId: input.projectId, nodeId: input.nodeId }).filter(entry => entry.runId !== ownRunId);
-    // The very same host-minted gesture is used by decisionFor; batch/Agent consent never acknowledges prior work.
-    const acknowledged = input.gesture && !consented && !link ? new Set(input.acknowledgedOpenRuns ?? []) : new Set<string>();
-    const blocked = open.find(entry => !acknowledged.has(entry.runId) || entry.reason === "needs_reconcile");
+    // 只有受信窗口里人点的单镜提交认决定号；批量卡上的同意、交给画布的那一镜永远不放行别人的在途。
+    const blocked = resend.firstBlocked(open, input, Boolean(input.gesture && !consented && !link));
     if (blocked) {
       if (blocked.reason === "needs_reconcile") throw coded("production_shot_claimed: needs_reconcile", "production_shot_claimed", "needs_reconcile");
       throw coded(`node_generation_in_flight: ${input.nodeId}`, "node_generation_in_flight", "in_flight");
@@ -534,7 +537,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       throw coded(`canvas_generation_withdrawn: ${run.runId}`, "canvas_generation_withdrawn", "withdrawn");
     const job = latestJob(run);
     if (!job) throw coded(`node_generation_in_flight: ${run.runId}`, "node_generation_in_flight", "in_flight");
-    if (job.status === "submission_unknown" || job.status === "reconciling")
+    if (productionJobOpenAs(job.status) === "needs_reconcile")
       throw new Error(tagNomiError("submission-unknown", job.errorMessage || "The previous request got no result"));
     const [artifact, ...more] = readyArtifacts(run, job);
     if (artifact) return resultFromArtifacts(run, job, [artifact, ...more], kind);
@@ -792,6 +795,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     },
     /** 发起的窗口没了：它在等的每一笔都交给观察者；它在批量卡上同意了、还没交的收回出价。 */
     releaseSender(senderId: number): void {
+      resend.dropSender(senderId);
       for (const [runId, lease] of [...leases.entries()]) {
         if (lease.senderId !== senderId) continue;
         leases.delete(runId);
@@ -804,6 +808,8 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     /** 打开项目：只看还挂着「没收尾」标记的画布 Run；没人在等的交给观察者，没人会再交的同意收回，收尾了的删标记。 */
     /** Read the same occupancy as admission; rejected renderer records are not Run identities. */
     canvasOpenRuns: readCanvasOpenRuns,
+    /** 「我想再发一次」的判定（`decideResend`）和放行结果未知那一笔前的核对（`covers`）。 */
+    resend,
     /** 仓库每一次耐久变化（appIntegration 的事件旁路）：交给观察者的那一笔收尾了就摇渲染层。 */
     followRunChange: bell.followRunChange,
     recoverOrphans(projectId: string): void {
@@ -823,6 +829,7 @@ export type CanvasShotRuns = ReturnType<typeof createCanvasShotRuns>;
 export {
   consentCanvasShots,
   canvasOpenRuns,
+  decideCanvasResend,
   followCanvasShotChange,
   installCanvasShotRuns,
   pollCanvasShot,

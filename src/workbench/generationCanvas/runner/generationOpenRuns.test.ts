@@ -11,8 +11,9 @@ import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { createProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import { encodeStructuredErrorMessage } from '../../../../electron/vendor/vendorHttp'
 import { planOfWaves } from './generationScopeTestPlans'
+import { productionRunApi } from '../../production/productionRunApi'
 const calls = vi.hoisted(() => ({ poll: vi.fn(), open: vi.fn(), execute: vi.fn(), consent: vi.fn(), notify: vi.fn(), hosting: vi.fn() }))
-vi.mock('../../api/taskApi', () => ({ canvasOpenRuns: calls.open, pollCanvasShotRun: calls.poll, fetchWorkbenchTaskResultByVendor: vi.fn(), consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
+vi.mock('../../api/taskApi', () => ({ canvasResendDecide: (input: Parameters<typeof import('../../api/canvasResendDecideTestUtils').canvasResendDecideLikeMain>[0]) => import('../../api/canvasResendDecideTestUtils').then(fake => fake.canvasResendDecideLikeMain(input)), canvasOpenRuns: calls.open, pollCanvasShotRun: calls.poll, fetchWorkbenchTaskResultByVendor: vi.fn(), consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
 vi.mock('./nodeModelHealth', () => ({ recordNodeModelFailure: vi.fn(), recordNodeModelSuccess: vi.fn() }))
 vi.mock('../../../desktop/bridge', () => ({ getDesktopBridge: () => ({ projects: {} }) }))
@@ -70,6 +71,7 @@ it('F8: two clicks while preflight is still pending produce one new intent', asy
  const id = add(); let release!: (value: never[]) => void
  calls.open.mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
  const first = confirmAndRunNode(id, { initiator: 'user' });const second = confirmAndRunNode(id, { initiator: 'user' })
+ await vi.waitFor(() => expect(release).toBeTypeOf('function'))
  release([]);await Promise.all([first, second]);expect(calls.execute).toHaveBeenCalledOnce()
 })
 it('F12: a host admission race withdraws the refused record and restores recovery before asking', async () => {
@@ -145,11 +147,17 @@ it('G1/G8: the existing spend card owns the entire pending click and one confirm
 })
 it('G7: release failure is visible and preserves the card for a later retry', async () => {
  const id=add();const before=structuredClone(store().nodes.find(node=>node.id===id))
- calls.open.mockResolvedValueOnce([{nodeId:id,runId:'old',reason:'in_flight',hasTaskId:false}]).mockRejectedValueOnce(new Error('cannot release'))
+ calls.open.mockResolvedValue([{nodeId:id,runId:'old',jobId:'old-job',reason:'needs_reconcile',hasTaskId:false}])
+ const read = vi.spyOn(productionRunApi, 'read').mockResolvedValue({ runId: 'old', revision: 3 } as never)
+ const command = vi.spyOn(productionRunApi, 'command').mockRejectedValueOnce(new Error('cannot release')).mockResolvedValue({ run: { runId: 'old', revision: 4 }, events: [] } as never)
  await confirmAndRunNode(id,{initiator:'user',resend:true})
- expect(calls.execute).not.toHaveBeenCalled();expect(store().nodes.find(node=>node.id===id)).toEqual(before)
+ expect(calls.execute).not.toHaveBeenCalled();expect(store().nodes.find(node=>node.id===id)?.runs).toEqual(before?.runs)
  expect(calls.notify).toHaveBeenCalledWith(expect.objectContaining({message:i18n.t('generationCommon.observability.releaseConfirm.failed')}))
+ // 只放行主进程判定里列出的那一笔，带着它的号。
+ expect(command.mock.calls[0]?.[2]).toMatchObject({ type: 'job.reconcile', payload: { jobId: 'old-job', outcome: 'user_checked_abandon', resendDecisionId: expect.stringMatching(/^test-decision-/) } })
+ calls.open.mockResolvedValue([])
  await confirmAndRunNode(id,{initiator:'user',resend:true});expect(calls.execute).toHaveBeenCalledOnce()
+ expect(read).toHaveBeenCalled()
 })
 it('G9: admission races may ask once more but never loop or turn a machine refusal into a card', async () => {
  const id=add();calls.open.mockResolvedValue([{nodeId:id,runId:'old',reason:'in_flight',hasTaskId:false}])

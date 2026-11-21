@@ -3,6 +3,7 @@ import { URL } from 'node:url'
 //   真能抓 bug 的规则设 error（红牌，阻断 CI）；风格 / any / 未用变量等存量问题
 //   设 warn（黄牌，只提示不阻断）。目标是「挡住新增的脏东西」，存量债逐步还，
 //   而不是一上来一片红把人吓退。详见 docs/audit/2026-06-04-full-codebase-review-6role.md。
+import { modelStatusOneHomeRule } from './scripts/check-model-availability.mjs'
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
@@ -637,6 +638,12 @@ export default tseslint.config(
     },
   },
   {
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    plugins: { nomi: { rules: { 'model-status-one-home': modelStatusOneHomeRule } } },
+    rules: { 'nomi/model-status-one-home': 'error' },
+  },
+  {
     // 走查夹具（tests/ux/**/*.tsx）是一次性挂载的测试页，不是热更新的产品组件，这条只对产品有意义（放在 TS 块之后才压得住它的 warn）。
     files: ['tests/ux/**/*.{ts,tsx}'],
     rules: { 'react-refresh/only-export-components': 'off' },
@@ -746,7 +753,7 @@ export default tseslint.config(
     // `src/workbench/generationCanvas/spend/spendConfirm.ts`（概念 spend.confirmation-requirement）。
     // 2026-10-16 真付费验收：分镜方案整批生成直接调了 requestConfirm，绕过 owner，「直接生成」档对它完全不起作用，
     // 而且没有任何东西会红。下面这几处是允许的调用者——它们只**展示主进程已经做出的决定**，自己不判问不问：
-    //   capabilityApplyHandler.ts + generationGateConfirm.ts（MCP 生成闸 / 计划门）、credentialProbeSpendCard.ts（接入页凭据试跑）、
+    //   capabilityApplyHandler.ts + generationGateConfirm.ts（MCP 生成闸 / 计划门）、
     //   promptExtractionSpendCard.ts（浏览器提取提示词：主进程每次经 confirmSpendAndMintGrant 问人，卡只展示）、
     //   uncertainPriorTrialSpendCard.ts（试跑开新单而上一笔结果不确定：同样由主进程经 confirmSpendAndMintGrant 问人，卡只展示）、
     //   useProductionStatus.ts（制作流程门）；SpendConfirmDialog.tsx / NomiStudioApp.tsx 是 E2E 驱动桥。
@@ -759,7 +766,6 @@ export default tseslint.config(
       'src/workbench/NomiStudioApp.tsx',
       'src/workbench/capability/capabilityApplyHandler.ts',
       'src/workbench/capability/generationGateConfirm.ts', // 从 capabilityApplyHandler.ts 拆出的 MCP 生成确认卡：只展示主进程决定的挑战
-      'src/workbench/capability/credentialProbeSpendCard.ts',
       'src/workbench/capability/promptExtractionSpendCard.ts',
       'src/workbench/capability/uncertainPriorTrialSpendCard.ts',
       'src/workbench/production/useProductionStatus.ts',
@@ -1040,6 +1046,18 @@ export default tseslint.config(
     ignores: [...PARAM_VALUE_DOOR_IGNORES],
     plugins: { 'param-value-door': paramValueDoorPlugin },
     rules: { 'param-value-door/no-reparse': 'error' },
+  },
+  {
+    // 素材来源只有一个家（2026-11-21，复盘 docs/engineering/direction-checks/2026-11-21-asset-source-one-home.md）：
+    // 落盘的来源只由 finalizeAssetMeta 出、同字节复用只由 reconcileReuse 定，只许素材库自己的写入文件拿；入口只交来源事实
+    // （类型 AssetSourceFact 谁都能引）。这里限制定稿函数的导入，不校验磁盘 sidecar 的来源。
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/assets/assetSourceEvidence.ts', 'electron/assets/projectAssetStore.ts', 'electron/assets/uploadContentStore.ts', 'electron/assets/generatedAssetStaging.ts'],
+    plugins: { 'asset-source-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'asset-source-owner/no-restricted-imports': ['error', { patterns: [{ group: moduleSources('assetSourceEvidence'), importNames: ['finalizeAssetMeta', 'reconcileReuse'], message: '素材来源只由主进程素材库定：入口只交来源事实（AssetSourceFact），经 writeAsset / importLocalFile / importRemoteAsset 的参数给，不自己定稿 meta。' }] }],
+      'asset-source-owner/no-restricted-syntax': ['error', ...dynamicModuleSelectors('assetSourceEvidence', ['finalizeAssetMeta', 'reconcileReuse'], '素材来源只由主进程素材库定：入口只交来源事实（AssetSourceFact），不自己定稿 meta。')],
+    },
   },
   prettier,
 )
