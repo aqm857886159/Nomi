@@ -94,7 +94,7 @@ grep -rn "generationPlanning[:,]" electron src --include='*.ts' --include='*.tsx
 
 没引的：MCP TypeScript SDK 的 README 没有回答「每个请求一个 server、两种传输共用登记函数」；Kubernetes 的 Server-Side Apply 页这次只读到导航，没读到正文。方向检查 `docs/engineering/direction-checks/2026-11-16-external-agent-host.md` §5 引的 SDK v2.4.0 文档是另一条线 11-16 读的，我没重读，不作为本卡依据。
 
-出口：这一刀不新增用户可见出口；模型表这份事实的出口是起草、预览、过门、读模型清单四处，对拍见 ★9。
+出口：不涉及：这一刀不新增用户可见出口；模型表这份事实的出口是起草、预览、过门、读模型清单四处，对拍见 ★9。
 
 ---
 
