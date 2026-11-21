@@ -1,0 +1,12 @@
+  ✓ 隔离的 Nomi 窗口打开了一个新项目
+  ✓ 应用内宿主（本机 HTTP）握手成功
+  ✓ stdio 宿主握手成功（与应用内宿主同时开着）
+  ✓ 应用内宿主: 拿到当前项目句柄
+  ✓ 应用内宿主: 存 APIMart 密钥
+  ✓ 应用内宿主: 在内置 APIMart 上交卡登记 muse-video-x
+  ✓ 应用内宿主: 起草成功（不重启）
+✗ Error: DECLARED MODEL GATE FAIL: 应用内宿主: 预览认得刚交卡的模型（修前这里是「Unknown model」） — ✗ Unknown model: muse-video-x
+    at check (file://tests/ux/mcp-declared-model-gate.e2e.mjs:59:25)
+    at walkHost (file://tests/ux/mcp-declared-model-gate.e2e.mjs:79:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file://tests/ux/mcp-declared-model-gate.e2e.mjs:139:19
