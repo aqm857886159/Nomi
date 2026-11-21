@@ -45,6 +45,27 @@ export function isTestSide(file) {
   return TEST_SIDE.some((re) => re.test(posix))
 }
 
+/**
+ * 名字看不出来的测试辅助（…TestUtils、…TestHelpers、.testkit、以后的新叫法）：不猜名字，看谁在用它。
+ * 改动文件里，有人引用、且引用它的全是测试一侧的文件（或同样只被测试用的辅助），就算测试一侧。
+ * importersOf(file) 返回引用它的文件；没人引用的不算（配置、入口文件照旧算生产）。
+ */
+export function testOnlyHelpers(changedFiles, importersOf) {
+  const helpers = new Set()
+  const candidates = changedFiles.filter((file) => !isTestSide(file) && /\.[cm]?[jt]sx?$/.test(file))
+  const importers = new Map(candidates.map((file) => [file, importersOf(file).filter((other) => other !== file)]))
+  for (let grew = true; grew;) {
+    grew = false
+    for (const file of candidates) {
+      const users = importers.get(file)
+      if (helpers.has(file) || !users.length || !users.every((user) => isTestSide(user) || helpers.has(user))) continue
+      helpers.add(file)
+      grew = true
+    }
+  }
+  return helpers
+}
+
 const ASSERTION = /^(?:AssertionError\b|TestingLibraryElementError\b|Error: expect\()|\bERR_ASSERTION\b/
 const MODULE_MISSING = /Failed to resolve import|Cannot find module|ERR_MODULE_NOT_FOUND|does not provide an export named|Failed to load url/
 const MISSING_SYMBOL = /^(?:TypeError|ReferenceError)\b/
@@ -106,6 +127,19 @@ export function readVitestReport(report, root) {
 const git = (args, options = {}) => execFileSync('git', args, { cwd: REPO_ROOT, maxBuffer: 256 * 1024 * 1024, ...options })
 const gitText = (args) => git(args, { encoding: 'utf8' }).trim()
 
+/** 分支上哪些代码文件引用了这份文件（按「引用路径以它的文件名结尾」找；同名文件会算在一起，只会让结果偏向「算生产」）。 */
+function importersAt(head, file) {
+  const stem = path.posix.basename(file).replace(/\.[cm]?[jt]sx?$/, '')
+  const escaped = stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  try {
+    return gitText(['grep', '-l', '-E', `(from|import|require\\()[[:space:]]*\\(?['"][^'"]*/${escaped}(\\.[cm]?[jt]sx?)?['"]`, head, '--', '*.ts', '*.tsx', '*.mjs', '*.js', '*.mts', '*.cts'])
+      .split('\n').filter(Boolean).map((line) => line.slice(line.indexOf(':') + 1))
+  } catch (error) {
+    if (error.status === 1) return [] // git grep 没找到任何引用
+    throw error
+  }
+}
+
 /** 修前生产代码 + 分支测试的副本。返回 { root, links }；links 要先拆再删目录。 */
 function buildCopy({ base, head }) {
   const root = makeTempDir('nomi-goal-red-')
@@ -122,13 +156,15 @@ function buildCopy({ base, head }) {
     links.push(path.join(root, name))
   }
   const changed = gitText(['diff', '--name-only', '--diff-filter=AMR', base, head]).split('\n').filter(Boolean)
-  const overlaid = changed.filter((file) => isTestSide(file) && !LINKED_DIRS.includes(file.split('/')[0]))
+  const helpers = testOnlyHelpers(changed, (file) => importersAt(head, file))
+  const testSide = (file) => isTestSide(file) || helpers.has(file)
+  const overlaid = changed.filter((file) => testSide(file) && !LINKED_DIRS.includes(file.split('/')[0]))
   for (const file of overlaid) {
     const target = path.join(root, file)
     fs.mkdirSync(path.dirname(target), { recursive: true })
     fs.writeFileSync(target, git(['show', `${head}:${file}`]))
   }
-  return { root, links, changed, overlaid }
+  return { root, links, changed, overlaid, productionChanged: changed.filter((file) => !testSide(file)).length }
 }
 
 function removeCopy({ root, links }) {
@@ -200,7 +236,7 @@ export async function evaluate({ base, head = 'HEAD', files = [], changed = fals
     })
     for (const file of unsupported) results.push({ file, ok: false, counts: null, tests: [], reason: '未支持：只认 vitest 车道的测试文件（node:test 的文件请另附修前红的输出）' })
     for (const file of missing) results.push({ file, ok: false, counts: null, tests: [], reason: '这份文件在分支上不存在' })
-    return { base: resolvedBase, head: resolvedHead, results, productionChanged: copy.changed.filter((file) => !isTestSide(file)).length }
+    return { base: resolvedBase, head: resolvedHead, results, productionChanged: copy.productionChanged }
   } finally {
     removeCopy(copy)
   }

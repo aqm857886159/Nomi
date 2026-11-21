@@ -2,7 +2,7 @@
 // （重发一处定、批准一处判、分镜回访三个 PR 的第一轮），不是手编的形状。
 import { describe, expect, it } from 'vitest'
 
-import { classifyFailure, fileVerdict, isTestSide, parseArgs, readVitestReport, topFrameFile } from './goal-red-on-base.mjs'
+import { classifyFailure, fileVerdict, isTestSide, testOnlyHelpers, parseArgs, readVitestReport, topFrameFile } from './goal-red-on-base.mjs'
 
 const ROOT = '/tmp/nomi-goal-red-p1-AbCdEf'
 
@@ -63,6 +63,26 @@ describe('哪些文件取分支版本', () => {
   it('测试、夹具、测试支撑算测试一侧；生产文件不算', () => {
     for (const file of ['src/a/b.test.ts', 'electron/x.test.tsx', 'scripts/y.node-test.mjs', 'tests/ux/walk.mjs', 'electron/testSupport/fake.ts', 'tests/fixtures/old-user-data/p/manifest.json']) expect(isTestSide(file), file).toBe(true)
     for (const file of ['src/a/b.ts', 'electron/latestRelease.ts', 'scripts/goal-red-on-base.mjs', 'package.json']) expect(isTestSide(file), file).toBe(false)
+  })
+})
+
+describe('名字看不出来的测试辅助：看谁在用', () => {
+  const users = {
+    'electron/a/gateTestUtils.ts': ['electron/a/gate.test.ts'],
+    'src/b/shape.testkit.ts': ['src/b/extraHarness.ts'],
+    'src/b/extraHarness.ts': ['src/b/shape.test.tsx'],
+    'electron/a/gate.ts': ['electron/a/gate.test.ts', 'electron/main.ts'],
+    'electron/a/unused.ts': [],
+    'electron/a/self.ts': ['electron/a/self.ts'],
+  }
+  const helpers = testOnlyHelpers([...Object.keys(users), 'package.json'], (file) => users[file] ?? [])
+
+  it('只被测试引用的算测试一侧，隔一层辅助也算，叫什么名字都行', () => {
+    expect([...helpers].sort()).toEqual(['electron/a/gateTestUtils.ts', 'src/b/extraHarness.ts', 'src/b/shape.testkit.ts'])
+  })
+
+  it('生产也在用的、没人引用的、只引用自己的：照旧算生产', () => {
+    for (const file of ['electron/a/gate.ts', 'electron/a/unused.ts', 'electron/a/self.ts', 'package.json']) expect(helpers.has(file), file).toBe(false)
   })
 })
 
