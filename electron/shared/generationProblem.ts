@@ -54,6 +54,8 @@ export function isGenerationProblemCode(value: unknown): value is GenerationProb
 export const GENERATION_PROBLEM_NEXT_LIST = [
   "use_nearest_model",
   "pick_from_list_models",
+  /** 点名的模型属于用户整家删掉的内置连接：告诉用户，重新存这家的密钥就回来（2026-11-16）。 */
+  "save_provider_key_again",
   "set_default_model", // 旧转录仍可读；新拒收一律指向目录点名。
   "use_allowed_value",
   "drop_field",
@@ -91,6 +93,8 @@ export interface GenerationProblemModelFacts {
   readonly model?: string;
   /** 调用里要的值（比例、时长、模式 id）。 */
   readonly value?: string | number;
+  /** `unknown_model`：点名的模型属于用户整家删掉的那条内置连接（连接 id）。 */
+  readonly deletedProvider?: string;
   /** RFC 9457 `detail`：这一次的具体说明。只有 `parameter_not_allowed` 收——其余七个码的正文由事实生成。 */
   readonly detail?: string;
 }
@@ -102,7 +106,7 @@ type Facts = Omit<GenerationProblem, "code" | "retryable" | "charged" | "next">;
  * 其余七个码写不进散文，正文只能由事实生成，于是「原因」不会再被一句手写的话盖掉。
  */
 export type GenerationProblemInput =
-  | ({ code: "unknown_model" } & Pick<Facts, "field" | "nearest"> & Pick<GenerationProblemModelFacts, "model">)
+  | ({ code: "unknown_model" } & Pick<Facts, "field" | "nearest"> & Pick<GenerationProblemModelFacts, "model" | "deletedProvider">)
   | ({ code: "no_default_model" } & Required<Pick<Facts, "media">> & Pick<Facts, "field">)
   | ({ code: "mode_not_in_model" } & Pick<Facts, "field" | "allowed"> & Pick<GenerationProblemModelFacts, "model" | "value">)
   | ({ code: "ratio_not_in_mode" } & Pick<Facts, "field" | "allowed"> & Pick<GenerationProblemModelFacts, "model" | "value">)
@@ -114,7 +118,7 @@ export type GenerationProblemInput =
 /** 按码与事实定下一步。同一个码，事实不同，下一步不同。 */
 function nextFor(input: GenerationProblemInput): GenerationProblemNext {
   switch (input.code) {
-    case "unknown_model": return input.nearest ? "use_nearest_model" : "pick_from_list_models";
+    case "unknown_model": return input.deletedProvider ? "save_provider_key_again" : input.nearest ? "use_nearest_model" : "pick_from_list_models";
     case "no_default_model": return "pick_from_list_models";
     case "mode_not_in_model": return input.allowed?.length ? "use_allowed_value" : "pick_from_list_models";
     case "ratio_not_in_mode": return input.allowed?.length ? "use_allowed_value" : "drop_field";
@@ -152,6 +156,10 @@ const list = (values: readonly string[] | undefined): string => (values ?? []).j
 export function generationProblemModelText(input: GenerationProblemInput): string {
   switch (input.code) {
     case "unknown_model":
+      if (input.deletedProvider) {
+        return `${input.model ? `Model ${input.model}` : "The named model"} is not in the model catalog because the user deleted the ${input.deletedProvider} provider in Nomi.`
+          + ` Saving the ${input.deletedProvider} key again (Nomi's Settings page, or nomi_model_setup action=set_key) brings the provider back with its built-in models.`;
+      }
       return `${input.model ? `Model ${input.model}` : "The named model"} is not in the model catalog`
         + (input.nearest ? `; the closest one is ${input.nearest}.` : ".")
         + " Name a model exactly as list_models gives it, or ask the user which model they mean. A default model is not the problem here.";
@@ -197,6 +205,7 @@ const PICK_MODEL_ACTION_EN = "Call list_models, choose an available model, and r
 export const GENERATION_PROBLEM_NEXT_ACTION_EN: Readonly<Record<Exclude<GenerationProblemNext, "fix_field">, string>> = {
   use_nearest_model: "Call the same tool again with the closest model named above, if it is what the user meant; otherwise ask the user.",
   pick_from_list_models: PICK_MODEL_ACTION_EN,
+  save_provider_key_again: "Tell the user they deleted this provider and that saving its key again brings it back; do not switch to another provider's model without asking them.",
   set_default_model: PICK_MODEL_ACTION_EN,
   use_allowed_value: "Use one of the allowed values listed above and call the same tool again.",
   drop_field: "Leave that field out and call the same tool again.",

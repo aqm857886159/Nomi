@@ -38,8 +38,7 @@ import {
   videoCompileOptions,
   videoRecommendationInput,
 } from "./mcpGenerationVideoResolve";
-import type { ModuleRegistry } from "./moduleRegistry";
-import type { LiveGenerationRuntimeScope } from "./liveGenerationRuntime";
+import type { GenerationCatalogRegistry } from "./liveGenerationRuntime";
 import type { ProjectLeaseV2 } from "./projectLease";
 import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 import { GenerationProviderCapabilityError } from "./generationRuntimeAdapter";
@@ -93,9 +92,12 @@ import type { GenerationAuthorizationPreparation, GenerationOperation, Generatio
 
 
 export type GenerationPlanningHandlerDependencies = {
-  registry: Pick<ModuleRegistry, "resolve"> & Partial<Pick<ModuleRegistry, "snapshot">>;
-  /** Capture one immutable catalog registry at the start of a draft_shots call. */
-  createDraftScope?: () => LiveGenerationRuntimeScope;
+  /**
+   * 目录的唯一来源（2026-11-16）。宿主交 `createLiveGenerationRuntime().registry`：每次工具调用在入口
+   * 由它的 `pinForCall` 钉住一版，起草 / 预览 / 过门（含宿主在调用里读的就绪）都读这一版。
+   * 以前这里另收一个可选的 `createDraftScope`，类型上就允许「起草读一版、门读另一版」，已删。
+   */
+  registry: GenerationCatalogRegistry;
   operations: GenerationOperationStore;
   now?: () => string;
   resolveStoryboardReferenceUrl?: (projectId: string, reference: PlanCandidate["references"][number]) => string;
@@ -380,7 +382,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     };
   };
 
-  return async (input: Parameters<GenerationPlanningHandler>[0]): Promise<unknown> => {
+  const handle = async (input: Parameters<GenerationPlanningHandler>[0]): Promise<unknown> => {
     const params = input.params;
     // resolve = stateless advisory pass（generation strategy resolver）：纯计算、不落 durable
     // operation、不触生成，本就不需要项目租赁凭证（GUI 窄 IPC 也是无 lease 进来）→ 提前返回。
@@ -427,11 +429,8 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     }
     const operationId = typeof params.operationId === "string" && params.operationId.trim() ? params.operationId.trim() : `op-${crypto.randomUUID()}`;
     if (input.capability === "create") {
-      // draft_shots is the lifecycle boundary for a multi-shot draft. Capture
-      // the catalog once here and thread this registry explicitly through all
-      // shot resolves; a later draft call creates a new scope and sees catalog
-      // edits without an implicit microtask cache.
-      const draftRegistry = deps.createDraftScope?.().registry ?? deps.registry;
+      // 这一次调用的目录在入口已经钉住（`pinForCall`），所有镜头都按这一版解析。
+      const draftRegistry = deps.registry;
       // 点名的模型不是一字不差落下的（大小写 / 别名 / 同名多家按默认落）：每认一次记一条，回执里原样交给助手——
       // 与 lane draft_shots 的 modelNamesResolved 同一个形状，由同一个名字主人给（resolvedModelNameOf）。
       const resolvedNames: ResolvedModelName[] = [];
@@ -494,7 +493,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       // 在一份已有的文稿方案后面补镜头 / 参考卡（「再加两镜」）。只有文稿方案有「补」：画布草稿改一镜带 shotId，另起一份不带 operationId。
       if (!current.sourceDocumentId) refuseArgument("Adding shots works on a storyboard plan saved on a document. This is a canvas draft: change one of its shots with its shotId, or start a new draft without operationId.");
       const resolvedNames: ResolvedModelName[] = [];
-      const shots = await admitDraftShots(capturedProjectId, { shots: params.shots }, deps.createDraftScope?.().registry ?? deps.registry, (entry) => { resolvedNames.push(entry); });
+      const shots = await admitDraftShots(capturedProjectId, { shots: params.shots }, deps.registry, (entry) => { resolvedNames.push(entry); });
       if (!shots) refuseArgument("Adding to a plan needs the new shots.");
       return extendedReceipt(current, shots, resolvedNames.length ? { modelNamesResolved: resolvedNames } : {});
     }
@@ -715,6 +714,9 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     if (input.capability === "read" || input.capability === "events" || input.capability === "steer") return { operation: current, taskRef: generationTaskReference(operationId), executionState: current.state === "draft" ? "not_started" : current.state, nextAction: current.state === "draft" ? "preview" : "observe" };
     throw new Error(`Unsupported semantic generation capability: ${input.capability}`);
   };
+  // 每次工具调用在入口钉一版目录（静态表没有 pinForCall，本来就只有一版）。
+  const pin = deps.registry.pinForCall;
+  return (input: Parameters<GenerationPlanningHandler>[0]): Promise<unknown> => (pin ? pin(() => handle(input)) : handle(input));
 }
 
 /** 已装配的 planning seam 可调用面（agent/MCP 与 GUI 窄 IPC 共用同一实例 → 候选集/决策天然同源）。

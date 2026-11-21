@@ -20,6 +20,7 @@ const createProbeRuntime = vi.fn(() => {
     catalogReader: () => state,
     bootstrap: () => ({ providers: [], readinessByProvider: readiness }),
     registry: (current, currentReadiness) => createCatalogModuleRegistry(current, { readinessByProvider: currentReadiness }),
+    catalogRevision: () => state, // 目录这一版不变
   });
 });
 
@@ -43,9 +44,9 @@ function realCatalogCandidates(): ResolveRequest[] {
 }
 
 function resolveBatch(candidates: readonly ResolveRequest[], freshRegistry: boolean) {
-  const scopedRegistry = freshRegistry ? undefined : createProbeRuntime().createDraftScope().registry;
+  const scopedRegistry = freshRegistry ? undefined : createProbeRuntime().registry;
   const resolved = candidates.map((candidate) => {
-    const registry = freshRegistry ? createProbeRuntime().createDraftScope().registry : scopedRegistry;
+    const registry = freshRegistry ? createProbeRuntime().registry : scopedRegistry;
     if (!registry) throw new Error("scoped registry missing");
     return registry.resolve(candidate);
   });

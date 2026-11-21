@@ -25,6 +25,7 @@ import {
   mutateCatalog,
 } from "../../catalog/catalogStore";
 import { readCredentialBinding } from "../../catalog/credentialBinding";
+import { builtinVendorSeed } from "../../catalog/builtinVendorSeeds";
 import { isJsonRecord } from "../../jsonUtils";
 import type { CapabilityOriginHost } from "../security";
 import { getIntegrationSessionService, type IntegrationSessionService } from "../../integrationCertification/integrationSession";
@@ -367,20 +368,17 @@ export function removeProvider(args: Record<string, unknown>): OnboardingResult 
     };
   }
   // 整家删：**用户显式删的家不许下次启动再种回来**（Q12）。升级/重装不走这条路，所以它只对
-  // 「他自己按的那一下」生效。
-  const builtinModels = catalog.models.filter((model) =>
-    model.vendorKey === vendorKey && isJsonRecord(model.meta) && typeof model.meta.catalogLifecycle === "string");
+  // 「他自己按的那一下」生效。2026-11-16：内置家记一条整家删除（不再逐模型记）——这家再存一次密钥
+  // 就整家回来，单删过的模型照旧不回；连接行启动时照种，设置页那张卡还在、存得了密钥。
   const deletedCount = catalog.models.filter((model) => model.vendorKey === vendorKey).length;
-  if (builtinModels.length > 0) {
+  const seed = builtinVendorSeed(vendorKey);
+  const builtin = Boolean(seed);
+  /** 不要密钥的内置家（本地 ComfyUI 等）没有「再存一次密钥」这一步：照旧删了不回，回复也不许这样许诺。 */
+  const backWithKey = builtin && seed?.authType !== "none";
+  if (builtin) {
     mutateCatalog((_tx, state) => {
-      const mutable = state as unknown as { suppressedBuiltinModels?: Array<{ vendorKey: string; modelKey: string }> };
-      const suppressed = [...(mutable.suppressedBuiltinModels || [])];
-      for (const model of builtinModels) {
-        if (!suppressed.some((row) => row.vendorKey === vendorKey && row.modelKey === model.modelKey)) {
-          suppressed.push({ vendorKey, modelKey: model.modelKey });
-        }
-      }
-      mutable.suppressedBuiltinModels = suppressed;
+      const mutable = state as { suppressedBuiltinVendors?: string[] };
+      if (!mutable.suppressedBuiltinVendors?.includes(vendorKey)) mutable.suppressedBuiltinVendors = [...(mutable.suppressedBuiltinVendors ?? []), vendorKey];
     });
   }
   deleteModelCatalogVendor(vendorKey);
@@ -391,7 +389,9 @@ export function removeProvider(args: Record<string, unknown>): OnboardingResult 
     blastRadius: { ...noBlast(), modelsDisappearing: deletedCount, recordsDeleted: deletedCount + 1 },
     nextAction: {
       kind: "user_sees_confirm_card",
-      userSees: `${vendorKey} is gone for good, including the saved key. Nomi will not seed it back on the next start.`,
+      userSees: backWithKey
+        ? `${vendorKey} is deleted, including the saved key, and stays deleted across restarts. Saving this provider's key again (Settings or set_key) brings the connection back with its built-in models.`
+        : `${vendorKey} is gone for good, including the saved key. Nomi will not seed it back on the next start.`,
     },
   };
 }
