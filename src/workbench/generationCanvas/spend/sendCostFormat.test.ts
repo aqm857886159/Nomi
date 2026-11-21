@@ -49,7 +49,8 @@ describe('约价链：一个读取处、一处格式化、链上不发生成也�
   const walk = (dir: string): string[] => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap(entry => {
     const rel = path.join(dir, entry.name)
     if (entry.isDirectory()) return entry.name === 'node_modules' ? [] : walk(rel)
-    return /\.(ts|tsx|mjs)$/.test(entry.name) && !/\.test\.|\.node-test\./.test(entry.name) ? [rel] : []
+    // 只看产品代码：*.test.* 和 *TestUtils.ts（仓库约定的测试专用件，eslint 同样按此排除）都不算。
+    return /\.(ts|tsx|mjs)$/.test(entry.name) && !/\.test\.|\.node-test\.|TestUtils\./.test(entry.name) ? [rel] : []
   })
   const production = [...walk('src'), ...walk('electron')]
   const users = (pattern: RegExp) => production.filter(file => pattern.test(fs.readFileSync(path.join(root, file), 'utf8'))).sort()
