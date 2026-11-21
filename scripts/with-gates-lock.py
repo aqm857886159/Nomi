@@ -296,7 +296,11 @@ def inherited_owner(owner, token):
 
 def execute(command, shell, file, token, owner=None):
     env = {**os.environ, 'NOMI_GATES_LOCK_TOKEN': token}
-    options = {'shell': shell, 'env': env}
+    # The lock is held for one command, never for a session. A locked command
+    # gets no input, so anything that would sit waiting on its terminal or on a
+    # pipe someone keeps open (a shell, a REPL, a prompt, however it is spelled)
+    # reads end-of-file and exits instead of holding the lock while idle.
+    options = {'shell': shell, 'env': env, 'stdin': subprocess.DEVNULL}
     if os.name != 'nt':
         options.update(pass_fds=(file.fileno(),), start_new_session=owner is not None)
     child = None
@@ -333,8 +337,13 @@ POWERSHELLS = {'pwsh', 'powershell'}
 
 
 def held_open_shell(argv):
-    """True when argv starts a shell that has nothing to run and so waits on its
-    terminal: `bash`, `bash -i`, `zsh --no-rcs`, `cmd`, `cmd /k ...`, `pwsh -NoExit`.
+    """True when argv is a common spelling of a shell with nothing to run:
+    `bash`, `bash -i`, `zsh --no-rcs`, `cmd`, `cmd /k ...`, `pwsh -NoExit`.
+
+    This only decides whether to print an explanation instead of exiting
+    silently; it recognises spellings and is easy to get around. What keeps an
+    idle shell from holding the lock is that execute() gives the command no
+    input.
 
     The lock is taken per command. A shell with no command holds it for as long
     as the session stays open, idle or not, and every other worktree queues
