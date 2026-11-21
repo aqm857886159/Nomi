@@ -48,7 +48,7 @@
 |---|---|---|---|---|---|
 | 沿原方向修 | 在 `PromptEditor` 里再加一个 effect | 小 | 两个内核继续各写一份 | 会：下一个内核再漏 | 否 |
 | 换一种做法 A（第一版，11-20） | 重建生命周期收成共享钩子 `useEditorRebuildSync`：实例一换先灌 owner 当前值、再重开账；扫描守卫查「用同步账的内核都调了它」 | 中 | 灌入是建好后的一次写入：编辑器在 memo 后面时渲染值本身就旧，补灌进撤销历史 | 会：入口仍收值，新编辑器忘了调钩子照样编得过，扫描只查写没写。两轨独立验收没过，已删 | 否 |
-| **换一种做法 B（现方向，11-21）** | 入口只认 owner（`subscribe` / `getSnapshot` / `write`）+ 编解码；每个实例出生时入口自己读 `getSnapshot()`，之后经 `useSyncExternalStore` 跟 store；类型上收不进 `content` / `value` / `onUpdate` / `onBeforeCreate` / `onCreate`；5 个宿主各交自己 store 的读口，设计实验室交写死的 owner 且产品代码引不进来 | 中（本次做完；src 下非测试文件 23 个 +331 / −158 行：产品 15 个 +291 / −147，设计实验室 8 个 +40 / −11；其中注释 +86 / −28） | 宿主故意写一个返回旧值的 `getSnapshot` | 不会从入口来：拿旧副本建编辑器在类型上写不出来；剩的只有宿主自己写错读口 | **是** |
+| **换一种做法 B（现方向，11-21）** | 入口只认 owner（`subscribe` / `getSnapshot` / `write`）+ 编解码；每个实例出生时入口自己读 `getSnapshot()`，之后经 `useSyncExternalStore` 跟 store；类型上收不进 `content` / `value` / `onUpdate` / `onBeforeCreate` / `onCreate`；5 个宿主各交自己 store 的读口，设计实验室交写死的 owner 且产品代码引不进来 | 中（本次做完；src 下非测试文件 23 个 +324 / −154 行：产品 15 个 +291 / −147，设计实验室 8 个 +33 / −7；其中注释 +86 / −28） | 宿主故意写一个返回旧值的 `getSnapshot` | 不会从入口来：拿旧副本建编辑器在类型上写不出来；剩的只有宿主自己写错读口 | **是** |
 | 删掉 | 不适用（要保住创作者写的字） | | | | 否 |
 
 老用户怎么过：不改存储格式，不升项目版本；旧项目落盘的提示词打开后照样显示，只看不敲项目文件逐字节不变（走查用 `tests/fixtures/old-user-data/projects/v0.24.1-storyboard` 夹具核对）。
