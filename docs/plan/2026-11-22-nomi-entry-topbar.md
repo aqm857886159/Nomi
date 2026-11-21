@@ -51,7 +51,7 @@
 | 指标 | 目标 | 量具 | 基线（今天） |
 |---|---|---|---|
 | 主：内容区里的球 | 每个宽度 × 每一页，`[data-agent-ball]` 个数 = 0 | `tests/ux/nomi-entry-topbar.walk.mjs`，断言 `board:NomiEntryTopbar/shell.content-uncovered`；700 / 900 / 1100 / 1440 × 创作 / 生成 / 预览 / 项目库 | 收起时每页 1 个 |
-| 主：被压住的格子 | 内容区每个可点控件，取中心点做 `elementFromPoint`，落回它自己；落不回的个数 = 0 | 同上走查 | 生成页「生成 / 剩余」被球压住（画布 Wide1100 候选 1263） |
+| 主：被压住的格子 | 内容区每个可点控件，取中心点做 `elementFromPoint`，落回它自己；落不回的个数 = 0 | 同上走查 | 今天收起时，生成页「生成 / 剩余」被球压住（改后不被压的那颗是画布 Wide1100 候选 1246，对照表 I1） |
 | 质量：分段离两簇 | 每一行分段离左、离右都 ≥12px，取最小值 | 同上走查（`board:NomiEntryTopbar/topbar.yield-order`）；板上量值在对照表「分段离两簇」一节 | 900 英文装失败那一格压上 88px（对照表里 Bar900「今天 · 英文 · 没装上」量得离右 −88）；Windows 700 中文预览压上 52px（推算） |
 | 护栏：让位顺序 | 每种「几件事全开」走到第几步，和对照表 E 组一致；①↔② 来回拖窗，每个阈值只翻一次 | `src/ui/app-shell/shell/topbarYield.test.ts`（700→1440→700 每 1px 一步）；走查里读 `data-shell-yield-step` | 今天只有 ①，没有回差测试覆盖 ② |
 | 护栏：整窗鼠标监听 | 入口和顶栏新增的 window 级 `pointermove` 监听 = 0 | perf 场景 `topbar-yield-resize` 的结构断言；外加 `src/ui/app-shell/shell/nomiEntryLook.test.ts` 旁边的结构测试，用 `git grep` 断言 `pointermove` 不出现在入口文件里 | 1 个（`useAgentBallEyeFollow.ts:80`） |
