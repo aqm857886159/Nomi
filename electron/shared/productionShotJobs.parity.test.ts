@@ -73,7 +73,23 @@ describe('shot job parity at consumer outputs (canvas, storyboard, Agent and gen
     if (shape === 'no-plan') {
       expect(deriveProductionShotState(r, 's')).toBeNull()
       expect(shotLandingFacts(r)).toEqual({ sent: [], notPlaced: [], removed: [] })
+      expect(shotStopFacts(r)).toEqual({ sent: [], notSent: [] })
       expect(shotsAwaitingDispatch(r)).toEqual([])
+      // QA still has a node address; shot-facing exits cannot invent that missing plan correspondence.
+      const addressed = latestJobForShot(r, 's')
+      expect(addressed).toBeUndefined()
+      const unresolved = hasUnresolvedShotSubmission(r, 's')
+      expect(shotHandoverPhase(r, 's')).toBe(unresolved ? 'settled_without_acceptance' : 'waiting_dispatch')
+      const writeBack = vi.fn()
+      settleFromRun({ projectId: 'p', link: { runId: 'parent', shotId: 's' }, canvasRunId: 'r', shotId: 's',
+        error: new Error('failed'), readRun: () => r, writeBack, now: () => t3 })
+      expect(writeBack).toHaveBeenCalledOnce()
+      expect(writeBack.mock.calls[0][0].settlement.outcome).toBe(unresolved ? 'unknown' : 'not_sent')
+      for (const requester of ['canvas', 'production'] as const) {
+        expect(decideShotClaim(r, 's', requester)).toEqual(decideShotClaim({ ...r, jobs: [] }, 's', requester))
+      }
+      expect(lastShotEngine(r, 's')).toBe(addressed ? 'production' : 'canvas')
+      expect(resumeOutlook(r)).toEqual({ kind: 'proceed', dispatching: [], notPlaced: [] })
     } else {
       const canonical = { ...r, jobs: r.jobs.filter(entry => entry.stageId !== 'generate')
         .concat((shape === 'single' ? ['s'] : ['s', 'other']).flatMap(id => {
