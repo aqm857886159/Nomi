@@ -27,5 +27,5 @@
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-10-24",
-  "notes": "根因合同 docs/fixes/2026-10-24-gates-lock-fifo.root-cause.json：本机所有受锁保护的命令（gates、test:e2e 等）谁先跑只由 main 决定——直接拿锁、嵌套继承、排号、报「前面还有几个」、取消时清掉自己的号、按号交接；死号只在持有 guard 时由 cleanup_dead_tickets 清，判据只认「票锁拿得到 = 主人已死」，不看时间戳。主锁文件的 inode 永不删除（删了会出现两个 inode 上的两个持有者）。execute 管被准入命令的子进程：先装 SIGTERM / SIGINT 处理再 Popen，起子进程前收到的信号先记下、Popen 返回后立刻按原有的分平台分支补发，退出码照旧 128 + 信号号（根因合同 docs/fixes/2026-10-24-gates-lock-signal-race.root-cause.json）。"
+  "notes": "根因合同 docs/fixes/2026-10-24-gates-lock-fifo.root-cause.json：本机所有受锁保护的命令（gates、test:e2e 等）谁先跑只由 main 决定——直接拿锁、嵌套继承、排号、报「前面还有几个」、取消时清掉自己的号、按号交接；死号只在持有 guard 时由 cleanup_dead_tickets 清，判据只认「票锁拿得到 = 主人已死」，不看时间戳。主锁文件的 inode 永不删除（删了会出现两个 inode 上的两个持有者）。execute 管被准入命令的子进程：先装 SIGTERM / SIGINT 处理再 Popen，起子进程前收到的信号先记下、Popen 返回后立刻按原有的分平台分支补发，退出码照旧 128 + 信号号（根因合同 docs/fixes/2026-10-24-gates-lock-signal-race.root-cause.json）。锁按一条命令拿、不按会话拿：execute 不给被准入的命令任何输入，等输入的 shell / 交互环境读到结束就退出；main 对常见的空 shell 写法先给一句说明（只是说明，不是保证）。"
 }

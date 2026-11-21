@@ -45,6 +45,10 @@ function launch(t, lock, cwd, source, env = {}) {
   })
   return child
 }
+// A locked command gets no input, so a test holder waits for a file instead.
+const releaseFile = (lock) => `${lock}.release`
+const heldUntilReleased = (lock) => `import time; [time.sleep(0.02) for _ in iter(lambda: os.path.exists(${JSON.stringify(releaseFile(lock))}), True)]`
+const release = (lock) => fs.writeFileSync(releaseFile(lock), '')
 async function output(child, pattern) {
   while (!pattern.test(child.lines.join(''))) {
     assert.equal(child.exitCode, null, child.lines.join(''))
@@ -74,13 +78,13 @@ test('two worktree directories serialize and the waiter reports owner then takes
   const firstDir = path.join(root, 'worktree-a')
   const secondDir = path.join(root, 'worktree-b')
   fs.mkdirSync(firstDir); fs.mkdirSync(secondDir)
-  const first = launch(t, lock, firstDir, "print('FIRST', flush=True); input()")
+  const first = launch(t, lock, firstDir, `print('FIRST', flush=True); ${heldUntilReleased(lock)}`)
   await output(first, /FIRST/)
   const second = launch(t, lock, secondDir, "print('SECOND', flush=True)")
   await output(second, /前面还有/)
   assert.match(second.lines.join(''), /前面还有 0 个（正在跑：pid=.*worktree-a.*已跑/)
   assert.doesNotMatch(second.lines.join(''), /SECOND/)
-  first.stdin.end('\n')
+  release(lock)
   assert.equal((await first.done)[0], 0)
   assert.equal((await second.done)[0], 0)
   assert.match(second.lines.join(''), /SECOND/)
@@ -89,7 +93,7 @@ test('two worktree directories serialize and the waiter reports owner then takes
 test('five queued workers acquire the lock in ticket order and report queue depth', { timeout: 30000 }, async (t) => {
   const { root, lock } = fixture(t)
   const orderPath = path.join(root, 'acquisition-order.txt')
-  const holder = launch(t, lock, root, "print('HOLDER', flush=True); input()")
+  const holder = launch(t, lock, root, `print('HOLDER', flush=True); ${heldUntilReleased(lock)}`)
   await output(holder, /HOLDER/)
   const workers = []
   for (let index = 0; index < 5; index += 1) {
@@ -97,7 +101,7 @@ test('five queued workers acquire the lock in ticket order and report queue dept
     workers.push(launch(t, lock, root, `import time; open(${JSON.stringify(orderPath)}, 'a').write('FIFO_${index}\\n'); print('FIFO_${index}', flush=True); time.sleep(0.2)`))
   }
   await Promise.all(workers.map((worker) => output(worker, /排队等待/)))
-  holder.stdin.end('\n')
+  release(lock)
   assert.equal((await holder.done)[0], 0)
   assert.deepEqual((await Promise.all(workers.map((worker) => worker.done))).map(([code]) => code), [0, 0, 0, 0, 0])
   const order = fs.readFileSync(orderPath, 'utf8').trim().split(/\r?\n/)
@@ -111,7 +115,7 @@ test('five queued workers acquire the lock in ticket order and report queue dept
 
 test('a SIGKILLed middle ticket is reclaimed by the kernel and cannot block later tickets', { timeout: 20000 }, async (t) => {
   const { root, lock } = fixture(t)
-  const holder = launch(t, lock, root, "print('HOLDER', flush=True); input()")
+  const holder = launch(t, lock, root, `print('HOLDER', flush=True); ${heldUntilReleased(lock)}`)
   await output(holder, /HOLDER/)
   const first = launch(t, lock, root, "import time; print('FIRST_TICKET', flush=True); time.sleep(0.2)")
   await output(first, /排队等待/)
@@ -121,7 +125,7 @@ test('a SIGKILLed middle ticket is reclaimed by the kernel and cannot block late
   await output(last, /排队等待/)
   middle.kill('SIGKILL')
   assert.notEqual((await middle.done)[0], 0)
-  holder.stdin.end('\n')
+  release(lock)
   assert.equal((await holder.done)[0], 0)
   assert.equal((await first.done)[0], 0)
   assert.equal((await last.done)[0], 0)
@@ -133,7 +137,7 @@ test('the next admission removes a SIGKILLed ticket file under the queue guard',
   if (process.platform === 'win32') return t.skip('POSIX SIGKILL and unlink evidence')
   const { root, lock } = fixture(t)
   const queue = `${lock}.queue`
-  const holder = launch(t, lock, root, "print('HOLDER', flush=True); input()")
+  const holder = launch(t, lock, root, `print('HOLDER', flush=True); ${heldUntilReleased(lock)}`)
   await output(holder, /HOLDER/)
   const first = launch(t, lock, root, "print('FIRST_CLEANUP', flush=True)")
   await output(first, /排队等待/)
@@ -145,7 +149,7 @@ test('the next admission removes a SIGKILLed ticket file under the queue guard',
   const admission = launch(t, lock, root, "print('ADMISSION_CLEANUP', flush=True)")
   await output(admission, /排队等待/)
   assert.equal(fs.existsSync(path.join(queue, 'ticket-00000000000000000001.lock')), false)
-  holder.stdin.end('\n')
+  release(lock)
   assert.equal((await holder.done)[0], 0)
   assert.equal((await first.done)[0], 0)
   assert.equal((await admission.done)[0], 0)
@@ -155,7 +159,7 @@ test('the next admission removes a SIGKILLed ticket file under the queue guard',
 test('a queued SIGINT exits non-zero without disturbing the remaining ticket order', { timeout: 20000 }, async (t) => {
   if (process.platform === 'win32') return t.skip('POSIX signal delivery in the queue test')
   const { root, lock } = fixture(t)
-  const holder = launch(t, lock, root, "print('HOLDER', flush=True); input()")
+  const holder = launch(t, lock, root, `print('HOLDER', flush=True); ${heldUntilReleased(lock)}`)
   await output(holder, /HOLDER/)
   const first = launch(t, lock, root, "print('FIRST_CANCEL', flush=True)")
   await output(first, /排队等待/)
@@ -165,7 +169,7 @@ test('a queued SIGINT exits non-zero without disturbing the remaining ticket ord
   await output(last, /排队等待/)
   cancelled.kill('SIGINT')
   assert.notEqual((await cancelled.done)[0], 0)
-  holder.stdin.end('\n')
+  release(lock)
   assert.equal((await holder.done)[0], 0)
   assert.equal((await first.done)[0], 0)
   assert.equal((await last.done)[0], 0)
@@ -275,7 +279,7 @@ test('shell command forwards extra arguments without interpreting quotes or meta
 test('termination reaches the foreground process group and releases the lock', { timeout: 10000 }, async (t) => {
   if (process.platform === 'win32') return t.skip('POSIX signal exit status')
   const { root, lock } = fixture(t)
-  const first = launch(t, lock, root, "print('RUNNING', flush=True); input()")
+  const first = launch(t, lock, root, `print('RUNNING', flush=True); ${heldUntilReleased(lock)}`)
   await output(first, /RUNNING/)
   first.kill('SIGTERM')
   assert.equal((await first.done)[0], 143)
@@ -482,6 +486,102 @@ print(json.dumps(sorted(unreachable_on_windows)))`), [], 'os.kill(pid, 0) is a c
 
 // Entry-point coverage is behavioral admission's companion: a new walkthrough
 // must not silently bypass the machine owner while its peers queue.
+// 2026-11-21：一条线用 `with-gates-lock.py -- bash --noprofile --norc -i` 开了一个持锁的交互 shell 来批量跑构建和走查，
+// 空闲时也不放锁；另一组的门岗等 30 分钟超时、再排 59 分钟。锁的约定是「一条命令一次」，入口却接受「没有命令的 shell」这种形状。
+async function refusedWithoutTakingLock(t, args) {
+  const { root, lock } = fixture(t)
+  const child = spawn(python, [wrapper, ...args], { cwd: root, env: { ...process.env, ...childEnv, NOMI_GATES_LOCK_PATH: lock, NOMI_GATES_LOCK_TOKEN: '' }, stdio: ['pipe', 'pipe', 'pipe'] })
+  let stderr = ''
+  child.stderr.on('data', (chunk) => { stderr += chunk })
+  const timer = setTimeout(() => child.kill('SIGKILL'), 5000)
+  const [code] = await once(child, 'close')
+  clearTimeout(timer)
+  return { code, stderr, lockTouched: fs.existsSync(lock) }
+}
+
+test('a shell with nothing to run is refused before the lock is touched', { timeout: 20000 }, async (t) => {
+  const shapes = [
+    ['--', 'bash', '--noprofile', '--norc', '-i'], // 11-21 的原样
+    ['--', 'bash'],
+    ['--', '/bin/zsh', '-i'],
+    ['--', 'sh', '-l'],
+    ['--command', 'bash -i'],
+    ['--', 'cmd.exe', '/k', 'echo hi'],
+    ['--', 'pwsh', '-NoExit', '-Command', 'echo hi'],
+  ]
+  for (const args of shapes) {
+    const result = await refusedWithoutTakingLock(t, args)
+    assert.notEqual(result.code, 0, args.join(' '))
+    assert.notEqual(result.code, null, `${args.join(' ')}：没有被拒，一直开着直到被测试杀掉`)
+    assert.match(result.stderr, /门岗锁按命令拿，不按会话拿/, args.join(' '))
+    assert.equal(result.lockTouched, false, `${args.join(' ')}：拒绝之前不该碰锁文件`)
+  }
+})
+
+test('shells that are given something to run still take the lock and run it', { timeout: 30000, skip: process.platform === 'win32' && 'POSIX shell forms' }, async (t) => {
+  const { root, lock } = fixture(t)
+  const script = path.join(root, 'job.sh')
+  fs.writeFileSync(script, 'echo RAN_SCRIPT\n')
+  const forms = [
+    [['--', 'bash', '-c', 'echo RAN_C'], /RAN_C/],
+    [['--', 'bash', '-lc', 'echo RAN_LC'], /RAN_LC/],
+    [['--', 'sh', script], /RAN_SCRIPT/],
+    [['--command', 'echo RAN_COMMAND && true'], /RAN_COMMAND/],
+  ]
+  for (const [args, expected] of forms) {
+    const child = spawn(python, [wrapper, ...args], { cwd: root, env: { ...process.env, ...childEnv, NOMI_GATES_LOCK_PATH: lock, NOMI_GATES_LOCK_TOKEN: '' }, stdio: ['ignore', 'pipe', 'pipe'] })
+    let out = ''
+    for (const stream of [child.stdout, child.stderr]) stream.on('data', (chunk) => { out += chunk })
+    const [code] = await once(child, 'close')
+    assert.equal(code, 0, `${args.join(' ')}\n${out}`)
+    assert.match(out, expected, args.join(' '))
+  }
+})
+
+test('a locked command gets no input, so nothing can idle on it while holding the lock', { timeout: 30000 }, async (t) => {
+  if (process.platform === 'win32') return t.skip('uses POSIX shells and env')
+  const { root, lock } = fixture(t)
+  // Spellings the explanation above does not recognise. Each would wait on its
+  // input for as long as the caller keeps it open; the test never closes it.
+  const shapes = [
+    ['--', 'env', 'bash', '-i'],
+    ['--', 'bash', '--rcfile', '/dev/null', '-i'],
+    ['--', 'bash', '-o', 'vi'],
+    ['--', python],
+    ['--', 'cat'],
+    ['--command', 'true && bash -i'],
+  ]
+  for (const args of shapes) {
+    const child = spawn(python, [wrapper, ...args], {
+      cwd: root, env: { ...process.env, ...childEnv, NOMI_GATES_LOCK_PATH: lock, NOMI_GATES_LOCK_TOKEN: '' },
+      stdio: ['pipe', 'ignore', 'ignore'],
+    })
+    const timer = setTimeout(() => child.kill('SIGKILL'), 4000)
+    const [, signal] = await once(child, 'exit')
+    clearTimeout(timer)
+    assert.equal(signal, null, `${args.join(' ')}：拿着锁一直等输入，直到被测试杀掉`)
+  }
+})
+
+test('no real package.json entrypoint that takes the lock is refused as a held-open shell', { timeout: 15000 }, async () => {
+  const scripts = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')).scripts
+  const locked = Object.entries(scripts).filter(([, command]) => command.includes('with-gates-lock.py'))
+  assert.ok(locked.length > 20, `只找到 ${locked.length} 条带锁的入口，量具可能没数到`)
+  const verdicts = await probe(`${loadWrapper}import shlex
+entries = json.loads(${JSON.stringify(JSON.stringify(locked))})
+refused = []
+for name, command in entries:
+    argv = shlex.split(command)
+    at = next(i for i, part in enumerate(argv) if part.endswith('with-gates-lock.py'))
+    rest = argv[at + 1:]
+    inner = lock.simple_argv(rest[1]) if rest[0] == '--command' else rest[1:]
+    if lock.held_open_shell(inner):
+        refused.append(name)
+print(json.dumps(refused))
+`)
+  assert.deepEqual(verdicts, [])
+})
+
 test('heavy npm entrypoints all use the shared machine lock', () => {
   const { scripts } = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   for (const [name, command] of Object.entries(scripts)) {
