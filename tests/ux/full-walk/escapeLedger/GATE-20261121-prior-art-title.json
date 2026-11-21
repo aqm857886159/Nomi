@@ -1,0 +1,20 @@
+{
+  "id": "GATE-20261121-prior-art-title",
+  "since": "2026-11-21",
+  "source": "推送前快检（发送键约价线提交按模板写的设计卡时发现）；detected_by: ci，不算用户逃逸",
+  "category": "claims-and-outcomes",
+  "problem": "先查别人门岗认不出模板的「★0 先查别人」标题：PR 误报缺节，计划侧静默漏核同类卡的来源。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-21-gate-judgement-gaps.md",
+    "scripts/check-prior-art.node-test.mjs：模板标题／旧标题、来源、PR 自带与引卡入口、未改旧卡的变更集边界",
+    "主分支 24b1ad04d 的 52 份卡补核：45 合格、7 出处不足；仅披露，不修改历史卡",
+    "实现分支和本地通过不等于合入验证，保持 reviewed，不结账 fixed"
+  ],
+  "completionCommits": []
+}

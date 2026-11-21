@@ -22,8 +22,13 @@
 // 判据住在 lib 里是为了能被 node-test 喂假仓库：门岗自己的测试如果只能跑真实文档，
 // 它就只测得到「今天的存量」，测不到「明天新增一份没查就写的方案会不会红」（R17）。
 
-/** 「先查别人」节的标题。允许 ## / ### 两级，允许标题后跟补充文字。 */
-const SECTION_HEADING = /^(#{2,3})\s*先查别人.*$/
+import fs from 'node:fs'
+
+/** 标题由设计卡模板声明，旧卡允许省掉格号；模板改名会同步改变抽节入口。 */
+const sectionTitle = fs.readFileSync(new URL('../docs/engineering/design-card.md', import.meta.url), 'utf8')
+  .match(/^\| (★0 [^（|]+)（/m)?.[1].trim()
+if (!sectionTitle) throw new Error('设计卡模板缺少 ★0 格名')
+const SECTION_HEADING = new RegExp(`^(#{2,3})\\s*(?:★0\\s*)?${sectionTitle.replace(/^★0\s*/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*$`)
 /**
  * 出处认三种，前两种是文本判据，第三种要真去看文件在不在：
  *   ① http(s) 链接；② file:line（带行号的仓库路径）；

@@ -2,6 +2,7 @@
 // 喂的是假仓库（Map<路径, 正文>），不依赖今天的真实文档——门岗的测试只测存量，
 // 就永远测不到「明天新增一份没查就写的方案会不会红」。
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import test from 'node:test'
 import {
   PRIOR_ART_THRESHOLD_DATE,
@@ -26,6 +27,52 @@ const GOOD_SECTION = `# 方案
 
 ## 范围
 `
+
+test('目标：模板 ★0 标题和旧标题核同一节，出处不足不能静默跳过', () => {
+  const template = fs.readFileSync(new URL('../docs/engineering/design-card.md', import.meta.url), 'utf8')
+  const heading = template.match(/^\| (★0 [^（|]+)（/m)?.[1].trim()
+  assert.ok(heading, '模板必须声明 ★0 格名')
+  for (const title of [heading, `${heading}（补充说明）`, '先查别人', '先查别人（补充说明）']) {
+    for (const level of ['##', '###']) {
+      const markdown = GOOD_SECTION.replace('## 先查别人', `${level} ${title}`)
+      assert.equal(extractPriorArtSection(markdown).found, true)
+      assert.deepEqual(evaluatePlans({ plans: new Map([['docs/plan/2026-11-21-good.md', markdown]]) }), [])
+      assert.equal(evaluatePlans({ plans: new Map([['docs/plan/2026-11-21-bad.md', `${level} ${title}\n- 查过了`]]) }).length, 1)
+      assert.deepEqual(evaluatePullRequest({ body: markdown, registryChanged: true }), [])
+    }
+  }
+})
+
+test('目标真样本：删项目卡的 ★0 来源节应通过 PR 引卡入口', () => {
+  const file = 'docs/plan/2026-10-23-project-delete-to-trash.md'
+  const markdown = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+  assert.equal(extractPriorArtSection(markdown).found, true)
+  assert.deepEqual(evaluatePullRequest({ body: file, registryChanged: true, plans: new Map([[file, markdown]]) }), [])
+})
+
+test('目标真旧案：★0 卡出处不足被核，没动旧卡不追溯；变更集未知不冒充通过', () => {
+  const file = 'docs/plan/2026-10-21-select-to-iterate.md'
+  // 冻结 24b1ad04d 的相关表格行，后续补齐原卡不会让反例失效。
+  const markdown = [
+    '### ★0 先查别人',
+    '| 出处 | 它怎么做 | 对哪个决定的影响 |',
+    '|---|---|---|',
+    '| Figma Make 论坛（2026-02，协调会话转述，无链接） | 发送时选中高亮消失，用户不知道对象带没带上 | **确认** Δ1：发出的气泡里保留 chip |',
+    '| 仓库内：时间轴片段 chip（`timelineAgentSurface.tsx:136-154`） | 选中片段即成 chip，变了标「已变更」 | **确认** Δ1 照抄投影做法 |',
+  ].join('\n')
+  const plans = new Map([[file, markdown], ['docs/plan/2026-11-21-good.md', GOOD_SECTION]])
+  const fileExists = (rel) => fs.existsSync(new URL(`../${rel}`, import.meta.url))
+  assert.deepEqual(evaluatePlans({ plans: scopePlansToChanged(plans, new Set()), fileExists }), [])
+  assert.deepEqual(evaluatePlans({ plans: scopePlansToChanged(plans, new Set(['docs/plan/2026-11-21-good.md'])), fileExists }), [])
+  for (const changed of [new Set([file]), null]) {
+    const errors = evaluatePlans({ plans: scopePlansToChanged(plans, changed), fileExists })
+    assert.equal(errors.length, 1)
+    assert.match(errors[0], /只有 1 条带出处/)
+  }
+  const errors = evaluatePullRequest({ body: file, registryChanged: true, plans, fileExists })
+  assert.equal(errors.length, 1)
+  assert.match(errors[0], /只有 1 条带出处/)
+})
 
 // 2026-10-01（P0「只写我们独有的」）：方案不再被强制写「先查别人」——领域工作（分镜、制作流程、画布……）
 // 没有现成的可查，逼人写一节只会写出「查过了，没有」。这一节只在**引入通用能力**时才有人要（见下面
