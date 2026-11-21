@@ -12,6 +12,7 @@ import { laneClient, EMPTY_LANE_WORKSPACE } from '../../../src/workbench/ai/lane
 import type { LaneWorkspaceProjection } from '../../../electron/shared/agentLane/laneContracts'
 import type { LaneDesktopCommand } from '../../../electron/shared/agentLane/laneDesktopContracts'
 import { restoreProjectAgentInputs } from '../../../src/workbench/ai/projectAgentDraftRecovery'
+import type { NomiEditorOwner } from '../../../src/workbench/common/useNomiRichTextEditor'
 
 // 浏览器夹具只替掉桌面目录 IO 与 lane 传输；组件、store、恢复、send 及命令组装均为生产代码。
 Object.assign(window, { nomiDesktop: { modelCatalog: { listModels: async () => [], listVendors: async () => [] } } })
@@ -40,13 +41,19 @@ let saved: readonly V4ComposerReference[] = []
 const root = createRoot(document.getElementById('root')!)
 const label = (key: string) => key
 const removeFile = (id: string) => useWorkbenchStore.getState().setProjectAgentAttachments(items => items.filter(item => item.id !== id))
+// 输入框的 owner：和生产 ProjectAgentResidentShell 读写同一份 store 草稿。
+const draftOwner: NomiEditorOwner<string> = {
+  subscribe: useWorkbenchStore.subscribe,
+  getSnapshot: () => useWorkbenchStore.getState().projectAgentDraft,
+  write: next => useWorkbenchStore.getState().setProjectAgentDraft(next),
+}
 function Harness() {
   references = useResidentComposerContext('preview', [], label, removeFile)
   const snapshot = React.useSyncExternalStore(laneClient.subscribe, laneClient.workspace, laneClient.workspace)
   const actions = useAgentPanelV4Actions('preview', { snapshot } as AgentPanelV4Data)
   const draft = useWorkbenchStore(state => state.projectAgentDraft)
-  return <div data-selection-ready="true" data-selection-owner={laneClient.context() ? 'connected' : 'disconnected'}><AgentPanelV4Composer chips={references} value={draft}
-    onValueChange={value => useWorkbenchStore.getState().setProjectAgentDraft(value)} onSubmit={() => { void actions.send(draft) }} />
+  return <div data-selection-ready="true" data-selection-owner={laneClient.context() ? 'connected' : 'disconnected'}><AgentPanelV4Composer chips={references} draft={draftOwner}
+    onSubmit={() => { void actions.send(draft) }} />
     <output data-send-error="true">{actions.error}</output></div>
 }
 function seed(kind: 'videos' | 'same-name' | 'caption', oldDraft = false) {

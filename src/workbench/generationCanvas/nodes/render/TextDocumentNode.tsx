@@ -20,7 +20,7 @@ import { EditorContent, useEditorState, type JSONContent } from '@tiptap/react'
 import { cn } from '../../../../utils/cn'
 import type { GenerationCanvasNode, TiptapDocJson } from '../../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
-import { useNomiRichTextEditor } from '../../../common/useNomiRichTextEditor'
+import { useNomiRichTextEditor, type NomiEditorOwner } from '../../../common/useNomiRichTextEditor'
 import { NODE_SCROLL_REGION_CLASS_NAME } from '../nodeScrollRegionClassName'
 import { useRichTextActions } from '../../../common/richTextActions'
 import { RichTextActionButton } from '../../../common/RichTextActionButton'
@@ -54,8 +54,6 @@ function TextDocumentNodeImpl({ node, onEditingChange }: Props): JSX.Element {
   const writeNodeBody = useGenerationCanvasStore((state) => state.writeNodeBody)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
 
-  const content = React.useMemo<JSONContent>(() => (node.contentJson ?? EMPTY_DOC) as JSONContent, [node.contentJson])
-
   const handleChange = React.useCallback(
     (json: JSONContent) => {
       writeNodeBody(node.id, json as unknown as TiptapDocJson, { persist: false })
@@ -74,10 +72,16 @@ function TextDocumentNodeImpl({ node, onEditingChange }: Props): JSX.Element {
     [node.id],
   )
 
+  // 正文的 owner：画布 store 里这个节点此刻的 contentJson（不是这次渲染拿到的 node 副本）。
+  const bodyOwner = React.useMemo<NomiEditorOwner<JSONContent>>(() => ({
+    subscribe: useGenerationCanvasStore.subscribe,
+    getSnapshot: () => (useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)?.contentJson ?? EMPTY_DOC) as JSONContent,
+    write: handleChange,
+  }), [node.id, handleChange])
+
   const { editor, tools } = useNomiRichTextEditor({
-    content,
+    owner: bodyOwner,
     placeholder: '',
-    onChange: handleChange,
     onSelectionChange: handleSelectionChange,
   })
 

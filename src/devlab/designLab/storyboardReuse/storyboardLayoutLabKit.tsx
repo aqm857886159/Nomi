@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import StoryboardShotRow from '../../../workbench/creation/storyboard/shotRow/StoryboardShotRow'
+import { fixedEditorOwner } from '../fixedEditorOwner'
 import { StoryboardRowsBox } from '../../../workbench/creation/storyboard/shotRow/storyboardRowDensity'
 import StoryboardAnchorZone from '../../../workbench/creation/storyboard/anchorZone/StoryboardAnchorZone'
 import type { AnchorCardRuntime, ShotRowExec } from '../../../workbench/creation/storyboard/exec/storyboardRowStatus'
@@ -55,6 +56,7 @@ export function LayoutRows({ plan, width, execs = {}, models: catalog }: { plan:
             <StoryboardShotRow
               key={shot.index}
               shot={shot}
+              promptSource={fixedEditorOwner(shot.prompt)}
               anchors={plan.anchors}
               modelOptions={models}
               exec={exec}
