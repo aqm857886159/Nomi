@@ -124,8 +124,7 @@ describe("接到一半的旧会话恢复：缺 assetIngestion 的卡给一句能
       discover: async () => ({ sources: [], corpus: "" }),
       resolveLanguageModels: () => [],
       compile: async () => { throw new Error("never compiles"); },
-      probeCredential: async () => ({ ok: true as const, modelIds: [], listed: false }),
-      verify: (input) => verifyAdapterMode({ ...input, credential: { ok: true, modelIds: [], listed: false } }),
+      verify: (input) => verifyAdapterMode(input),
       now: () => new Date().toISOString(),
       id: () => "run-half",
     });

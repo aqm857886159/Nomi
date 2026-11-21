@@ -82,7 +82,7 @@ export function modelCatalogReadOnlyStatus(): ModelCatalogReadOnlyStatus | null 
  */
 export function snapshotBeforeMigration(parsed: CatalogState): CatalogState {
   const version = typeof parsed.version === "number" ? parsed.version : null;
-  if (version != null && version >= 1 && version < CURRENT_CATALOG_VERSION) {
+  if (version != null && version >= 1 && (version < CURRENT_CATALOG_VERSION || (version === CURRENT_CATALOG_VERSION && !parsed.unverifiedUsableRecovered))) {
     snapshotConfigVersion(catalogPath(), version);
   }
   return parsed;

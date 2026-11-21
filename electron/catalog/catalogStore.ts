@@ -50,6 +50,7 @@ import {
 } from "./networkConfigStore";
 import { buildCatalogPackage, CATALOG_PACKAGE_VERSION, catalogPackageImportSchema, type CatalogPackage } from "./catalogPackageFormat";
 import { invalidateProviderAdapterRunsForVendors } from "../providerAdapter/store";
+import { modelFormatInProgress } from "../providerAdapter/formatProgress";
 import { invalidateVendorValidation, normalizedConnectionScope } from "./vendorValidationInvalidation";
 import { assertNoCredentialBindingRewrite, bindCredentialDestination } from "./credentialBinding"; // §6.1
 export type { CustomCallConfigPatchEntry, CustomCallConfigPublicEntry } from "./customConfigStore";
@@ -63,6 +64,7 @@ function defaultCatalog(): CatalogState {
   // No more phantom seed entries (chatfire/sora/gpt-4o-mini) that have no keys.
   return {
     version: CURRENT_CATALOG_VERSION,
+    unverifiedUsableRecovered: true,
     vendors: [],
     models: [],
     mappings: [],
@@ -112,7 +114,10 @@ function readCatalogShared(): Readonly<CatalogState> {
   let everyKeyReadable = true;
   const state: CatalogState = {
     ...migrated,
-    vendors: migrated.vendors.map((vendor) => {
+    vendors: migrated.vendors.map((stored) => {
+      // 0.24.1 把派生的「待验证」也落了盘（D-1117-delete-verification 后没有这一档）：在唯一读口丢掉，
+      // 任何 DTO / 导出都拿不到它，下一次写盘就从文件里消失。
+      const { credentialVerificationPending: _legacyPending, ...vendor } = stored as Vendor & { credentialVerificationPending?: unknown };
       const keyStatus = apiKeyDecryptStatus(apiKeysByVendor[vendor.key]);
       if (keyStatus === "locked") everyKeyReadable = false;
       const base: Vendor = {
@@ -120,7 +125,6 @@ function readCatalogShared(): Readonly<CatalogState> {
         providerKind: normalizeProviderKind(vendor.providerKind),
         hasApiKey: keyStatus === "ok",
         credentialMaterialSaved: credentialMaterialSaved(apiKeysByVendor[vendor.key]),
-        credentialVerificationPending: apiKeysByVendor[vendor.key]?.verificationPending === true,
       };
       // Overlay the DECRYPTED proxy/header credentials onto the INTERNAL vendor at
       // this single read choke point so every outbound consumer keeps reading them
@@ -211,7 +215,7 @@ export function listModelCatalogVendors(): Vendor[] {
 /** 目录模型的对外投影。`availability` 见 shared/modelAvailability.ts：那是「能不能用」的唯一答案，
  * 在这里随行下发，渲染层一律读它、谁都不许再拼一份（P0-10 根因）。 */
 export function listModelCatalogModels(params?: unknown): Array<Model & {
-  published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability; modelNameSource: ModelNameSource;
+  published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability; formatInProgress: boolean; modelNameSource: ModelNameSource;
 }> {
   const state = readCatalog();
   const availability = createCatalogAvailability(state);
@@ -220,9 +224,11 @@ export function listModelCatalogModels(params?: unknown): Array<Model & {
     ...model,
     ...derivePublishedExecution(model, { mappings: state.mappings }),
     availability: availability.of(model),
+    // 「格式任务正在跑」只从任务生命周期的主人那里取一个布尔；界面拿不到任务状态本身（D-1117-delete-verification）。
+    formatInProgress: modelFormatInProgress(model.meta),
     // 型号名由档案提供还是就是这一行的 key（唯一计算处 ./modelNameSource）；渲染层的档案解析据它收窄档案。
     modelNameSource: nameSources.get(modelNameSourceKey(model.vendorKey, model.modelKey)) ?? "row",
-  })) as Array<Model & { published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability; modelNameSource: ModelNameSource }>;
+  })) as Array<Model & { published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability; formatInProgress: boolean; modelNameSource: ModelNameSource }>;
 }
 
 // 型号名来源表（./modelNameSource，同一份冻结状态只算一次）：用最近一次读出的那份，不每问一次就读盘。主进程的档案解析问它。
@@ -345,8 +351,6 @@ function applyVendorUpsert(state: CatalogState, payload: unknown): Vendor {
     enabled: normalizeEnabled(raw.enabled, existing?.enabled ?? true),
     hasApiKey: existing?.hasApiKey ?? false,
     credentialMaterialSaved: undefined,
-    // readCatalog 每次从 apiKeysByVendor[].verificationPending 现算并覆盖，落盘的值没有意义。
-    credentialVerificationPending: undefined,
     baseUrlHint: typeof raw.baseUrlHint === "string" ? raw.baseUrlHint.trim() || null : (existing?.baseUrlHint ?? null),
     authType: (raw.authType as Vendor["authType"]) || existing?.authType || "bearer",
     authHeader: typeof raw.authHeader === "string" ? raw.authHeader.trim() || null : (existing?.authHeader ?? null),
@@ -410,13 +414,13 @@ function applyApiKeyUpsert(state: CatalogState, vendorKey: string, payload: unkn
   const enabled = normalizeEnabled((payload as JsonRecord)?.enabled, true);
   state.apiKeysByVendor[key] = {
     ...makeApiKeyRecordFromPlain(apiKey, key, enabled, existing?.createdAt || t, t),
-    ...((payload as JsonRecord)?.verificationPending === true ? { verificationPending: true as const } : {}),
     ...(existing?.networkConfig ? { networkConfig: existing.networkConfig } : {}),
     ...(existing?.customConfig ? { customConfig: existing.customConfig } : {}),
   };
   // 凭据绑定（§6.1）：全仓唯一的 key 写门，绑定不可能有第二个写入口。判据住 credentialBinding.ts。
   bindCredentialDestination(state.vendors.find((vendor) => vendor.key === key), t);
-  if (!enabled) { invalidateVendorValidation(state, key); depublishVendorForDisabledCredential(state, key, t); }
+  if (!enabled || (existing && decryptApiKeyRecord(existing) !== apiKey)) invalidateVendorValidation(state, key);
+  if (!enabled) depublishVendorForDisabledCredential(state, key, t);
 }
 export function upsertModelCatalogVendorApiKey(vendorKey: string, payload: unknown): unknown {
   const state = readCatalog();
@@ -425,7 +429,7 @@ export function upsertModelCatalogVendorApiKey(vendorKey: string, payload: unkno
   const key = String(vendorKey || "").trim();
   const rec = state.apiKeysByVendor[key];
   if (rec?.enabled === false) invalidateProviderAdapterRunsForVendors(new Set([key]));
-  return { vendorKey: key, hasApiKey: true, verificationPending: rec.verificationPending === true, enabled: rec.enabled, createdAt: rec.createdAt, updatedAt: rec.updatedAt };
+  return { vendorKey: key, hasApiKey: true, enabled: rec.enabled, createdAt: rec.createdAt, updatedAt: rec.updatedAt };
 }
 export function clearModelCatalogVendorApiKey(vendorKey: string): unknown {
   const state = readCatalog();

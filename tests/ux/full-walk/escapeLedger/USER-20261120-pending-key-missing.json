@@ -1,0 +1,28 @@
+{
+  "id": "USER-20261120-pending-key-missing",
+  "since": "2026-11-20",
+  "source": "GitHub #1572（创作者报，0.24.1）；协调在 Mac 主分支真窗口用回环假 APIMart 复现同一句",
+  "category": "claims-and-outcomes",
+  "problem": "保存页把新密钥以待验证（停用）落盘，执行边界把停用的凭据当成没有密钥，取模型列表时提示「已保存的密钥不见了」，拿不到模型。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "fixedInPr": 1560,
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-17-unverified-usable.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/catalog/unverifiedUsable.test.ts"
+  },
+  "evidence": [
+    "electron/catalog/unverifiedUsable.test.ts",
+    "electron/catalog/unverifiedUsableOldUser.test.ts",
+    "tests/fixtures/old-user-data/unverified-usable/v0.24.1/"
+  ],
+  "completionCommits": [
+    "12de5a880",
+    "4fb7792da"
+  ]
+}

@@ -172,9 +172,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     readFilePaths: () => ipcRenderer.invoke("nomi:clipboard:read-file-paths") as Promise<string[]>,
     getPathForFile: (file: File) => webUtils.getPathForFile(file),
   },
-  // 这两支**故意**留在组装层，不随各族桥面搬家：它们里的 `vendorHealth.state` 与
-  // `textBrain.status` 两个字面量联合是 check:vocabularies 在册的 debt site，而 debt 的身份
-  // 含文件路径——搬一次家就被读成「新开一处 debt」，而真正的收敛（中立合同）是另一件事。
+  // `promptLibrary` 这一支**故意**留在组装层，不随各族桥面搬家：它里面的 `textBrain.status`
+  // 字面量联合是 check:vocabularies 在册的 debt site，而 debt 的身份含文件路径——搬一次家就被读成
+  // 「新开一处 debt」，而真正的收敛（中立合同）是另一件事。
   onboarding: {
     integrationHandoffList: () => ipcRenderer.invoke("nomi:integration-handoff:list"),
     integrationHandoffAck: (requestId: string) => ipcRenderer.invoke("nomi:integration-handoff:ack", requestId),
@@ -216,25 +216,12 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:onboarding:guess-kinds", payload) as Promise<{
         kinds: Record<string, "text" | "image" | "video" | "audio">;
       }>,
-    testConnection: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:onboarding:test-connection", payload) as Promise<{
-        ok: boolean;
-        status?: number;
-        error?: string;
-      }>,
     listModels: (payload: unknown) =>
       ipcRenderer.invoke("nomi:onboarding:list-models", payload) as Promise<{
         ok: boolean;
         models?: string[];
         status?: number;
         error?: string;
-      }>,
-    vendorHealth: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:onboarding:vendor-health", payload) as Promise<{
-        vendorKey: string;
-        state: "reachable" | "unreachable" | "unsupported";
-        reason?: string;
-        checkedAt: number;
       }>,
   },
   promptLibrary: {

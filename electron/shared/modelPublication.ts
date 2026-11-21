@@ -122,40 +122,11 @@ export function derivePublishedExecution(
   if (!model?.enabled || missingDeclaredCapabilityFields(model.meta).length) return { published: false, publishedModes: [] };
   const supported = EXECUTABLE_TASKS_BY_KIND[model.kind as BillingModelKind] || [];
   const modes = new Set<ProfileKind>();
-  const adapter = record(record(model.meta)?.adapter);
-  const publicationMask = adapterPublicationModeMask(model.meta);
-  const activeRevision = typeof adapter?.activeRevision === "string" && Boolean(adapter.activeRevision.trim());
-
-  // A certified active revision is the strongest evidence: it names exactly which
-  // modes were proven. Without one the row still publishes whatever its enabled
-  // mappings and scripts declare.
-  //
-  // 这一条是 2026-09-11 拍板的不变量：**自检失败不下架**。此前 `meta.adapter` 一存在就改判
-  // 「只认 activeRevision」，而一次失败的自检恰好只写 `adapter.state="failed"`、不写
-  // activeRevision —— 于是一个手动配好、本来能在画布模型框里选到的模型，按一次「验证」按钮
-  // 就永久消失，且没有回头路（单向门）。自检只增不减：它能把一行从「未试跑」升格为「已验证」，
-  // 永远不能把它降到比没自检过更差。回归钉子见 modelPublication.test.ts。
-  if (activeRevision) {
-    if (Array.isArray(adapter?.modes)) {
-      for (const rawMode of adapter.modes) {
-        const mode = record(rawMode);
-        const taskKind = mode?.taskKind as ProfileKind;
-        if (mode?.state === "verified" && typeof mode.taskKind === "string" && supported.includes(taskKind)) {
-          modes.add(taskKind);
-        }
-      }
-    }
-  } else {
-    for (const mapping of evidence.mappings || []) {
-      if (
-        mapping.enabled === true &&
-        mapping.vendorKey === model.vendorKey &&
-        supported.includes(mapping.taskKind as ProfileKind) &&
-        (!mapping.modelKey || mapping.modelKey.trim() === model.modelKey)
-      ) {
-        modes.add(mapping.taskKind as ProfileKind);
-      }
-    }
+  // Publication follows executable declarations; verification diagnostics never remove a route.
+  for (const mapping of evidence.mappings || []) {
+    if (mapping.enabled === true && mapping.vendorKey === model.vendorKey
+      && supported.includes(mapping.taskKind as ProfileKind)
+      && (!mapping.modelKey || mapping.modelKey.trim() === model.modelKey)) modes.add(mapping.taskKind as ProfileKind);
   }
   for (const taskKind of customCallModes(model, supported)) modes.add(taskKind);
   if (model.kind === "text") modes.add("chat");
@@ -165,8 +136,7 @@ export function derivePublishedExecution(
   // it describes the controls, not which routes to withhold, so such a row publishes what its routes and evidence prove, as before.
   const contract = record(record(model.meta)?.declarationProjection) ? parseCustomCapabilityContract(model.meta) : null;
   const declaredTasks = contract ? new Set(contract.modes.map((mode) => mode.transportTaskKind || contract.transportTaskKind)) : null;
-  const allowed = publicationMask.present ? new Set(publicationMask.modes) : null;
-  const publishedModes = supported.filter((taskKind) => modes.has(taskKind) && (!allowed || allowed.has(taskKind)) && (!declaredTasks || declaredTasks.has(taskKind as never)));
+  const publishedModes = supported.filter((taskKind) => modes.has(taskKind) && (!declaredTasks || declaredTasks.has(taskKind as never)));
   return {
     published: publishedModes.length > 0,
     publishedModes,

@@ -76,6 +76,7 @@ async function seedRelayImageVendor(withEditMapping: boolean): Promise<void> {
     baseUrlHint: "https://relay.example.com",
   });
   store.upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-relay" });
+  store.upsertModelCatalogMapping({ vendorKey: "relay", taskKind: "text_to_image", name: "Only text-to-image configured", create: { method: "POST", path: "/images/generations" } });
   store.upsertModelCatalogModel({
     vendorKey: "relay", modelKey: "some-image-model", kind: "image", enabled: true,
     meta: { adapter: { state: "verified", activeRevision: "image-certified", modes: [{ taskKind: "text_to_image", state: "verified" }] } },
@@ -125,6 +126,7 @@ describe("runTask L3 护栏 — 图生图/图生视频绝不静默退化", () =>
       vendorKey: "relay", modelKey: "some-video-model", kind: "video", enabled: true,
       meta: { adapter: { state: "verified", activeRevision: "video-certified", modes: [{ taskKind: "text_to_video", state: "verified" }] } },
     });
+    store.upsertModelCatalogMapping({ vendorKey: "relay", taskKind: "text_to_video", name: "Only text-to-video configured", create: { method: "POST", path: "/videos/generations" } });
     const fetchFn = stubFetch(() => new Response("{}", { status: 200 }));
     const { runTask } = await import("./runtime");
     const { mintSpendGrant } = await import("./spendGrant");

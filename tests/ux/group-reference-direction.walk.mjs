@@ -38,7 +38,15 @@ fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
       },
     },
   }],
-  mappings: [],
+  mappings: ['text_to_image', 'image_edit'].map(taskKind => ({
+    id: `ux-nano-banana-${taskKind}`, vendorKey: 'ux-local', modelKey: 'nano-banana', taskKind, enabled: true,
+    name: `UX ${taskKind}`, createdAt: catalogNow, updatedAt: catalogNow,
+    create: {
+      method: 'POST', path: '/v1/images/generations',
+      body: { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', image_urls: '{{request.params.image_urls}}' },
+      response_mapping: { image_url: 'data.0.url' },
+    },
+  })),
   apiKeysByVendor: {},
 }, null, 2))
 
@@ -132,7 +140,7 @@ try {
         image('source-b', '参考 B', 520, bUrl),
         {
           id: 'target', kind: 'image', title: '目标生成图', position: { x: 780, y: 300 }, prompt: '融合两张参考图', categoryId: 'shots',
-          meta: { modelKey: 'nano-banana', archetype: { id: 'nano-banana', modeId: 't2i' } },
+          meta: { modelKey: 'nano-banana', modelVendor: 'ux-local', archetype: { id: 'nano-banana', modeId: 't2i' } },
         },
       ],
       edges: [],
@@ -215,6 +223,8 @@ try {
   // 是参考行：两张连线图都落在参考槽里（在用的小图），没有淡显「未用到」；还停在文生图时没有参考槽，参考行根本不出现。
   // 按正面数：行里的小图 = 槽里的小图 = 2，就没有一张是「未用到」（不写「未用到 = 0」这种没有基线的不存在断言）。
   const referenceRow = targetNode.locator('[data-reference-row]')
+  // 生成框懒加载；顶部缩略图可见不代表异步挂载的参考槽已出现。
+  await referenceRow.locator('[data-asset-tile]').nth(1).waitFor({ state: 'visible', timeout: stationTimeout() })
   const rowTiles = await referenceRow.locator('[data-asset-tile]').count()
   const slottedTiles = await referenceRow.locator('[data-asset-slot-group="array"] [data-asset-tile], [data-asset-slot] [data-asset-tile]').count()
   check('界面上两张参考都在用（方式已随输入切到改图）', rowTiles === 2 && slottedTiles === 2, `参考行小图 ${rowTiles} · 落在槽里 ${slottedTiles}`)

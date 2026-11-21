@@ -1,5 +1,5 @@
 {
-  "debtCap": 53,
+  "debtCap": 46,
   "converged": [
     {
       "reason": "阶段 4 前置 ③：observeStream.mts 搬成 electron/agentLane/laneStreamObserver.mts 时，把两处手抄的 [first-response | idle] 改成 NonNullable<RuntimeErrorFacts['timeoutPhase']> 派生——正是这两条 debt 自己写的收敛办法。canonical owner 同批从 harness/runtime/runtimePort.ts 搬到 electron/shared/agentCapabilities/transportContracts.ts（它的消费者全都活过阶段 4 的切换），所以 survivingOwner 记的是新住址。",
@@ -312,10 +312,8 @@
     },
     {
       "members": [
-        "verified",
         "invalid-key",
-        "pending",
-        "declined"
+        "saved"
       ],
       "reason": "direct-key 凭据探测的四态结论：verified=代码拥有的 credentialProbe 探测成功、invalid-key=上游 401/403 明确拒绝、pending=网络/上游抖动不可判、declined=这次探测会花钱而用户在报价卡上没同意（2026-09-22 T-MO-10 新增，与 pending 刻意分开：pending 是「我们没问出结论」，declined 是「用户不让我们去问上游」——前者会自动复验，后者只会在用户再次显式点「保存验证」时重来）。与 adapter certification 状态族（testing/verified/failed）不同域：这是存 key 一次性的验证结论，不落 adapter meta，也不参与 vendor enabled 晋升之外的生命周期。",
       "site": "electron/catalog/directKeyCredential.ts::type:DirectKeyProbeOutcome/type-union"
@@ -640,14 +638,6 @@
       ],
       "reason": "AdapterModeResult.stage 记录单个模型模式失败或停留的具体接入步骤。2026-09-11 用户拍板删掉流程内的付费验证后，中转自检只剩 credential（鉴权/可达）与 contract（说明卡形状）两段，原来的 localize_reference / create / poll / result 随那条真实生成路径一起删除（P1）；verify_asset 留给本地 ComfyUI 候选那条免费的真实产物校验，docs / compile / promote 仍属编译与提升阶段。边界不同于整次 AdapterRunStage。",
       "site": "electron/providerAdapter/types.ts::type:AdapterModeResult/property:stage/type-union"
-    },
-    {
-      "members": [
-        "contract",
-        "credential"
-      ],
-      "reason": "AdapterVerificationResult.stage 是**免费自检**的失败步骤合同（2026-09-11 起不再发任何生成请求）：credential = 鉴权与可达，contract = 说明卡形状。它是 AdapterModeResult.stage 的真子集——自检只可能停在这两段，而 AdapterModeResult 还要装得下编译/提升与本地 ComfyUI 的 verify_asset。",
-      "site": "electron/providerAdapter/verifier.ts::type:AdapterVerificationResult/property:stage/type-union"
     },
     {
       "members": [
@@ -1329,17 +1319,6 @@
     },
     {
       "members": [
-        "configured",
-        "failed",
-        "partial",
-        "testing",
-        "verified"
-      ],
-      "reason": "模型适配与接入验证域的状态（configured / failed / partial / testing / verified），包含接入专属阶段/结论，不等同于生成任务生命周期。",
-      "site": "src/ui/onboarding/adapterVerificationViewModel.ts::type:AdapterProviderCardState/type-union"
-    },
-    {
-      "members": [
         "cancelling",
         "checking",
         "testing"
@@ -1398,48 +1377,12 @@
     {
       "members": [
         "adapting",
-        "failed",
         "needsCapability",
         "needsTransport",
-        "partial",
-        "readyUntested",
-        "readyVerified"
+        "status"
       ],
       "reason": "模型适配与接入验证域的状态（adapting / failed / needsCapability / needsTransport / partial / readyUntested / readyVerified），包含接入专属阶段/结论，不等同于生成任务生命周期。",
       "site": "src/ui/onboarding/modelAdapterDetailState.ts::type:ModelAdapterDetailState/property:state/type-union"
-    },
-    {
-      "members": [
-        "active",
-        "danger",
-        "neutral",
-        "success",
-        "warning"
-      ],
-      "reason": "**视觉语气**枚举（决定用哪组颜色），不是状态——同一状态在不同场景可映射到不同语气。",
-      "site": "src/ui/onboarding/modelAdapterDetailState.ts::type:ModelAdapterDetailState/property:tone/type-union"
-    },
-    {
-      "members": [
-        "attention",
-        "disabled",
-        "verified",
-        "working"
-      ],
-      "reason": "模型接入 UI 的视图状态/语气（attention / disabled / verified / working），用于表达配置或检测结论，不直接承载任务事实。",
-      "site": "src/ui/onboarding/modelSettingsHomeState.ts::type:ModelHomeConnectionState/type-union"
-    },
-    {
-      "members": [
-        "disabled",
-        "failed",
-        "needsSetup",
-        "ready",
-        "verified",
-        "working"
-      ],
-      "reason": "**模型设置首页**的卡片态，needsSetup/disabled 是配置维度，与运行时任务无关。",
-      "site": "src/ui/onboarding/modelSettingsHomeState.ts::type:ModelHomeStatus/type-union"
     },
     {
       "members": [
@@ -1461,17 +1404,6 @@
       ],
       "reason": "**接入向导**步骤态，input 表示「等用户填表」，非后台任务。",
       "site": "src/ui/onboarding/OnboardingWizard.tsx::type:Phase/type-union"
-    },
-    {
-      "members": [
-        "fail",
-        "idle",
-        "ok",
-        "testing",
-        "unsupported"
-      ],
-      "reason": "模型接入 UI 的连接测试视图状态/语气（fail / idle / ok / testing / unsupported），用于表达配置或检测结论，不直接承载任务事实。2026-09-01 从 OnboardingWizard 内联块抽取为 useOnboardingConnectionTest hook（P1），语义 owner 随之搬到具名 ConnectionTestState 类型。",
-      "site": "src/ui/onboarding/useOnboardingConnectionTest.ts::type:ConnectionTestState/type-union"
     },
     {
       "members": [
@@ -2226,6 +2158,27 @@
       ],
       "reason": "生成范围共用主人给候选行的原因（卡上状态词由入口按它查现有文案）。不能复用分镜行状态 SHOT_ROW_STATUSES：那张表在渲染层（electron/shared 不能反向引用 src），且是分镜行的显示状态（有 anchor-ignored、用 locked 表示定妆），这里是范围判定的原因，只多一个 frozen（定妆）、没有 anchor-ignored；两者在 storyboardRowStatus 里按原因一一映射。",
       "site": "electron/shared/agentCapabilities/generationShotScope.ts::type:ScopeRowReason/type-union"
+    },
+    {
+      "members": [
+        "active",
+        "neutral",
+        "success",
+        "warning"
+      ],
+      "reason": "模型 / 连接状态点的四种语义色（可使用 = 成功绿、配置中 = accent、待设置 = warning、已关闭 / 待接入 = 中性），是状态主人 modelStatusPresentation 输出的一部分；放在 electron/shared 是为了主进程和渲染层读同一张表。src/design/status.tsx 的 StatusBadgeTone 是渲染层设计组件的徽标色：主进程不能导入渲染层，它也没有「进行中 = accent」这一档（D-1117-delete-verification 把配置中定成和能力 / 启用态同色的 accent），复用会丢掉这一档、带进用不到的 danger / info。渲染层只在 ModelStatusMark 一处把这四档映射到设计 token。",
+      "site": "electron/shared/modelStatusPresentation.ts::type:ModelStatusTone/type-union"
+    },
+    {
+      "members": [
+        "configuring",
+        "disabled",
+        "needsSetup",
+        "notConnected",
+        "ready"
+      ],
+      "reason": "模型 / 连接「显示成什么」的唯一五档（可使用 / 配置中 / 待设置 / 已关闭 / 待接入，D-1117-delete-verification，协调 2026-11-18 Q1 Q2 Q8）。它是可用性主人 deriveModelAvailability 结论的展示投影，不是第二个可用性判断：MODEL_UNUSABLE_REASONS 回答「为什么不能用」（十几个原因码），这里回答「对创作者说哪一个词」，多个原因折成同一档。词条键、点色、i18n 动态前缀成员都从这一个 as const 派生；原来各出口各自的状态词表（ModelHomeStatus、ModelHomeConnectionState、VendorPill.status、AdapterProviderCardState、ChipModel.adapterState 等）同提交删除，收成这一份。",
+      "site": "electron/shared/modelStatusPresentation.ts::variable:MODEL_STATUS_STATES/as-const"
     }
   ],
   "debt": [
@@ -2236,15 +2189,6 @@
       ],
       "reason": "Exact duplicate of electron/ai/antigravityProtocol.ts::type:AntigravityToolStep/property:state/type-union; converge by importing or deriving the canonical members instead of maintaining this local literal set.",
       "site": "electron/ai/antigravityProtocol.ts::class:AntigravityProtocol/method:acceptTool/property:state/type-union"
-    },
-    {
-      "members": [
-        "reachable",
-        "unreachable",
-        "unsupported"
-      ],
-      "reason": "VendorHealthState 供应商探测合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 VENDOR_HEALTH_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。",
-      "site": "electron/ai/onboarding/vendorHealth.ts::type:VendorHealthState/type-union"
     },
     {
       "members": [
@@ -2351,15 +2295,6 @@
       ],
       "reason": "AgentChatStatus 是 RuntimeTurnResult['status'] 原样穿过 IPC 的 wire 投影；应改为 RuntimeTurnResult['status'] 或共享 named alias，并删除 finished、cancelled、error 的第二份字面量。",
       "site": "electron/harness/agentChatContracts.ts::type:AgentChatStatus/type-union"
-    },
-    {
-      "members": [
-        "reachable",
-        "unreachable",
-        "unsupported"
-      ],
-      "reason": "VendorHealthState 供应商探测合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 VENDOR_HEALTH_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。",
-      "site": "electron/preload.ts::property:onboarding/property:vendorHealth/property:state/type-union"
     },
     {
       "members": [
@@ -2582,15 +2517,6 @@
     },
     {
       "members": [
-        "reachable",
-        "unreachable",
-        "unsupported"
-      ],
-      "reason": "VendorHealthState 供应商探测合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 VENDOR_HEALTH_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。",
-      "site": "src/desktop/onboardingBridgeTypes.ts::type:VendorHealthState/type-union"
-    },
-    {
-      "members": [
         "ok",
         "todo"
       ],
@@ -2613,17 +2539,6 @@
       ],
       "reason": "DreaminaMemberCard.cardStatus 只是 FoldableModelCard.status 的无 error 子集，并直接传入共享卡片；它不是独立领域合同。应改为 Exclude<Parameters<typeof FoldableModelCard>[0]['status'], 'error'> 后删除本地字面量。",
       "site": "src/ui/onboarding/DreaminaMemberCard.tsx::function:DreaminaMemberCard/variable:cardStatus/type-union"
-    },
-    {
-      "members": [
-        "failed",
-        "partial",
-        "testing",
-        "unverified",
-        "verified"
-      ],
-      "reason": "AdapterModelMeta.state 模型适配结果合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODEL_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。",
-      "site": "src/ui/onboarding/ModelChipGroups.tsx::type:ChipModel/property:adapterState/type-union"
     },
     {
       "members": [
@@ -2658,41 +2573,11 @@
     },
     {
       "members": [
-        "failed",
-        "partial",
-        "testing",
-        "unverified",
-        "verified"
-      ],
-      "reason": "AdapterModelMeta.state 模型适配结果合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODEL_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。",
-      "site": "src/ui/onboarding/modelSettingsCatalogProjection.ts::variable:ADAPTER_STATES/set"
-    },
-    {
-      "members": [
         "cancelling",
         "running"
       ],
       "reason": "useCustomCallTestRun.phase 只是 future neutral CustomCallTestRunState 的 running、cancelling 活动态子集；应改为 Extract<CustomCallTestRunState, 'running' | 'cancelling'>，保留 hook 的 UI 数据但删除本地字面量。",
       "site": "src/ui/onboarding/useCustomCallTestRun.ts::type:CustomCallTestRunState/property:phase/type-union"
-    },
-    {
-      "members": [
-        "checking",
-        "reachable",
-        "unreachable",
-        "unsupported"
-      ],
-      "reason": "VendorConnection.state 是主进程 VendorHealthState 与 renderer 瞬时 checking 的组合投影，却再次抄写 reachable、unreachable、unsupported。应改为 'checking' | VendorHealthState 并删除本地三态副本。",
-      "site": "src/ui/onboarding/useVendorHealth.ts::type:VendorConnection/property:state/type-union"
-    },
-    {
-      "members": [
-        "error",
-        "ok",
-        "todo"
-      ],
-      "reason": "与 src/ui/onboarding/FoldableModelCard.tsx::type:FoldableModelCardProps/property:status/type-union 的成员完全相同，当前为重复 owner；后续改为导入或 derive 唯一真相源。",
-      "site": "src/ui/onboarding/vendorConnectionView.ts::type:VendorPill/property:status/type-union"
     },
     {
       "members": [

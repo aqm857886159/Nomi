@@ -8,7 +8,7 @@
  * 要求 ≥24），颜色取 ink-30（全系统最弱的一档），旁边还是同样弱的灰色地址文本，整行读起来像
  * 一条只读的 metadata，不像可操作的控件。见 docs/plan/2026-08-18-vendor-connection-discoverability.md。
  *
- * 保存成功不在这里重探连接：地址一改，useVendorHealth 的 fingerprint 就变，effect 自动重探。
+ * 保存成功不探连接：连接健康探测随 D-1117-delete-verification（2026-11-18）删了，新地址在下一次拉模型列表或生成时生效。
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'

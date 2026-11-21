@@ -109,9 +109,6 @@ export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatu
       models: card.vendorModels,
       logo: card.directory.logo,
       glyph: card.directory.glyph,
-      baseUrl: card.meta.baseUrl,
-      hasApiKey: card.meta.hasApiKey,
-      credentialVerificationPending: card.meta.credentialVerificationPending,
     })),
     ...otherVendorGroups.map((group) => {
       const meta = vendorMeta.get(group.vendorKey)
@@ -120,12 +117,8 @@ export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatu
         name: group.name,
         kind: 'api',
         models: group.models,
-        baseUrl: meta?.baseUrl ?? '',
-        hasApiKey: meta?.hasApiKey ?? true,
-        credentialVerificationPending: meta?.credentialVerificationPending,
-        // 与 renderCustomVendorCard 同一判据：direct-script 那类没有可预检的通用接口。
-        skipHealthProbe: Boolean(meta?.customCallOnly)
-          && group.models.every((model) => model.hasCustomCall || model.customCallDraft),
+        // 与可用性主人同一条：要 key（authType 不是 none）而没有，才算「待接入」。
+        keyMissing: meta ? !meta.hasApiKey && meta.authType !== 'none' : false,
       })
     }),
     ...comfyuiConnected.map((instance) => homeConnection({
@@ -164,7 +157,6 @@ export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatu
       kind: 'local',
       models: groupAntigravityCatalogModels(antigravityModels.filter((model) => model.modelKey !== 'auto' && model.modelKey !== ANTIGRAVITY_IMAGE_MODEL_KEY)).map((group) => group.model),
       auxiliaryCounts: { tools: antigravityModels.filter((model) => model.modelKey === ANTIGRAVITY_IMAGE_MODEL_KEY).length, routes: antigravityModels.filter((model) => model.modelKey === 'auto').length },
-      skipHealthProbe: true,
       glyph: 'AG',
     })] : []),
   ]
@@ -180,9 +172,7 @@ export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatu
       models: card.vendorModels,
       logo: card.directory.logo,
       glyph: card.directory.glyph,
-      hasApiKey: card.meta.hasApiKey,
-      credentialVerificationPending: card.meta.credentialVerificationPending,
-    // usesPlatformConnect 缺省 true（档案未声明 = 支持）→ 路由到 platformConnect（key 填入 + 继续验证）。
+    // usesPlatformConnect 缺省 true（档案未声明 = 支持）→ 路由到 platformConnect（填 key 保存）。
     // 硬编码 vendorKey 白名单已移除（P1 加新删旧）：由档案字段 derive，不写死。
     }, card.directory.usesPlatformConnect !== false
       ? () => openPage({ type: 'platformConnect', vendorKey: card.directory.vendorKey })

@@ -1,0 +1,28 @@
+{
+  "id": "USER-20261117-unverified-usable",
+  "since": "2026-11-17",
+  "source": "协调转述11-16两位创作者群反馈；用户11-13授权未验证也可用",
+  "category": "claims-and-outcomes",
+  "problem": "自接中转未验证或验证失败后已有请求格式的模型不可选，旧失败不随当前可用性退役。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "fixedInPr": 1560,
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-17-unverified-usable.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/catalog/unverifiedUsable.test.ts"
+  },
+  "evidence": [
+    "docs/plan/2026-11-17-unverified-usable.md",
+    "docs/engineering/direction-checks/2026-11-17-unverified-usable.md",
+    "electron/catalog/unverifiedUsableOldUser.test.ts"
+  ],
+  "completionCommits": [
+    "12de5a880",
+    "9528a1dab"
+  ]
+}

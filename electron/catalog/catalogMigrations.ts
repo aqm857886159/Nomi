@@ -4,6 +4,7 @@ import { migrateRelayVideoImageToVideo } from "./relayVideoI2vMigration";
 import { migrateComfyWorkflowOutputs } from "./comfyuiWorkflowOutputMigration";
 import { migrateCatalogMediaContracts } from "./catalogMediaContractMigration";
 import { migrateRelayImageEditCapability, migrateRelayParamMaps } from "./relayLegacyMigrations";
+import { repairUnverifiedUsable } from "./unverifiedUsableMigration";
 import { migrateVendorFieldLossV13 } from "./vendorFieldLossRepair";
 import { normalizeLegacyMappings } from "./legacyMappingMigration";
 import { hasLegacyCustomConfigField } from "./customConfigStore";
@@ -138,5 +139,9 @@ export function migrateCatalogForward(
     return s;
   }
 
-  return s;
+  // Deferred secret/media migrations must keep their original bytes until explicit repair.
+  if (s.version !== CURRENT_CATALOG_VERSION) return s;
+  const repaired = repairUnverifiedUsable(s);
+  if (repaired !== s) writeCatalog(repaired);
+  return repaired;
 }

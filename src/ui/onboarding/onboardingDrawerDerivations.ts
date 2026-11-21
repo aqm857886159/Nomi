@@ -84,12 +84,8 @@ export function buildExistingConnectionSummary(
     vendorName,
     baseUrl: vendorMeta.get(vendorKey)?.baseUrl ?? '',
     existingModels: models
-      .filter((model) => (
-        model.vendorKey === vendorKey
-        && model.enabled
-        && model.published === true
-        && model.adapterState === 'verified'
-      ))
+      // 「这条连接上已经能用的模型」= 可用性主人说能用的那些（启用 + 有请求格式 + 有 key），不再看任务状态。
+      .filter((model) => model.vendorKey === vendorKey && model.availability?.usable === true)
       .map((model) => ({ modelKey: model.modelKey, labelZh: model.labelZh, kind: model.kind })),
   }
 }
