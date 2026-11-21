@@ -114,6 +114,6 @@
 
 - 分支 11-16 写完没推送，11-21 并上主分支（落后 167 个提交，两次 merge）后重验。
 - 真窗口两遍（`docs/evidence/2026-11-21-external-agent-gate-rescue/`）：主分支构建退出 1，交卡、起草成功，预览回 `Unknown model: muse-video-x`，中间没有重启；本分支构建退出 0，两个宿主 17 条全过，都走到确认卡。
-- 第二件事（挂在内置连接上、地址写成别处的卡）：今天的主分支仍会照卡改写连接；本分支拒绝并点名 `provider.baseUrl`，连接行和就绪状态都不变（`externalAgentGateReachConfirm.test.ts`「a card that names a different address…」）。它没有单独的真窗口修前画面——修前那遍走查停在第一处。
+- 第二件事（挂在内置连接上、地址写成别处的卡）：今天的主分支分两种——这家已经存过密钥时，主分支靠「密钥绑定的地址」已经会拒；还没存密钥时没有东西拦，连接行照卡改写。同地址换认证方式的卡、已经被改写的老资料，主分支都不管。本分支三种都拒 / 对回去，并点名 `provider.baseUrl`，连接行和就绪状态都不变（`externalAgentGateReachConfirm.test.ts`「a card that names a different address…」）。它没有单独的真窗口修前画面——修前那遍走查停在第一处。
 - 未验证：四份 0.24.0 旧盘只在单测里用真实旧文件重放，没有在真窗口冷启动升级（交验收线）；英文界面没走真窗口；真付费、Windows 没做。
 - 已知缺口：单测辅助 `externalAgentGateTestUtils.ts` 手抄了一份宿主接线，所以「交卡 → 起草 → 预览 → 过门」那条单测在主分支代码上是加载红不是断言红；要改成走宿主真入口，得先把两个宿主的装配收成一处（连同把 `pinForCall` 改成必填），另记待办。
