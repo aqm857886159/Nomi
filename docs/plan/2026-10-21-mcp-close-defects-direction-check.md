@@ -1,5 +1,7 @@
 # 方向检查：MCP 连接卡与 canvas.write 说明「说的和做的对不上」（D2 + D4）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`node scripts/fix-churn.mjs` 命中——`src/ui/onboarding/ConnectAssistantCard.tsx` 14 天已有 4 个 fix（这是第 5 个）；
 > `electron/shared/agentCapabilities/canvasWrite.ts` 14 天已有 2 个 fix（这是第 3 个）。
 > 本文档由实现线出，结构性结论交协调会话 / 用户拍板；下面两个提交先本地挂着，未推送。

@@ -1,5 +1,7 @@
 # 方向检查：付费提交「发没发出去」与镜头认领（L-claim）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 触发：`electron/productionRun/productionGenerationSubmission.ts` 14 天内 9 个 fix、`src/workbench/observability/classifyError.ts` 14 个、`electron/capabilityCore/apimartGenerationProvider.ts` 5 个、`submissionOutbox.ts` / `outboundDispatchEvidence.ts` 各 3 个（`fix-churn` 热点）。设计卡：`docs/plan/2026-10-06-claim-release-unsent-attempt.md`。
 
 ### 0. 一句话根因

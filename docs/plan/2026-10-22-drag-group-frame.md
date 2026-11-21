@@ -1,5 +1,7 @@
 # 设计卡：拖组框跟手（P-dragframe）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：拖组框预览不再每帧做全局 DOM 查询　线/负责人：P-dragframe（nomi-worker）　类别：[其他]（性能；碰画布拖动，非花钱 / 长跑 / 新界面）
 方向检查：`docs/engineering/direction-check-2026-10-22-drag-group-frame.md`（用户 10-22 放行，按「换」做）
 

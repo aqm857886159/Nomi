@@ -1,5 +1,7 @@
 # 方向检查：Agent 工具入参失败（类根因复盘）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`fix-churn` 命中 `electron/agentLane/laneExtendedDesktopPorts.ts`（文件 14 天 4 个 fix）、`electron/shared/agentLane/laneProjection.ts`（文件 2 个 fix）与目录 `electron/shared/agentLane/`（2 个 fix）。
 > 设计卡：`docs/plan/2026-11-07-agent-tool-failure-boundary.md`。写这页的线没参与过下表任何一个 fix。
 

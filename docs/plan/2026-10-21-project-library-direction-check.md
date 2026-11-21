@@ -1,5 +1,7 @@
 # 方向检查：项目库「回库」慢（P-library，RW）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > **用户 10-21 放行**：按本页推荐的「接入现成」方案做结构改动（列表摘要收成唯一异步读面、主进程内部异步限并发、渲染层统一异步、状态检查批量限并发、同一 PR 删同步通道与 `desktop.projects.list`、给 `invokeSync` 登记门岗）。
 > 触发：`node scripts/fix-churn.mjs` 对 `electron/projects/projectsIpc.ts`、`electron/preload.ts`、`src/workbench/library/localProjectStore.ts` 命中（目录 / 概念 14 天内已有 3 个 fix，这一刀是第 3–4 个）。按规矩停手，本页交协调拍板，未改任何实现代码。
 

@@ -1,5 +1,7 @@
 # Current basic image and video declarations
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 本次实际范围与旧代规则（用户 2026-11-07：「Seedance 2.0 肯定要接，最新代和旧一代的都可以接」）
 
 - 规则：每个家族的最新代与上一代都对新节点可用（不是 legacy），只有更老的代才 legacy。表：`tests/fixtures/apimart/model-generations-media.json`，测试 `electron/catalog/apimartLatestMediaContracts.test.ts`。

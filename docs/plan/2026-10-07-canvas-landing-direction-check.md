@@ -1,5 +1,7 @@
 # 方向检查：画布落地链（L-landingreview，类根因复盘）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 读的是 origin/main `4e55c1ad3`（只读 worktree `D:/Nomi-rules-direction`），外加在途分支 #1072 `fix/external-write-keeps-landed`、#1073 `fix/deleted-node-keeps-arriving-outcome`、#1074 `fix/agent-receipts-from-landing`，以及协调会话转来的 V-1072 验收发现。只读，没改代码。
 
 触发：`node scripts/fix-churn.mjs src/workbench/capability/multiShotCanvasLanding.ts`：这个文件 14 天内 8 个 fix（下一刀是第 9 个），`src/workbench/capability/` 目录 15 个，概念「制作镜头的节点还在不在画布上」11 个。`electron/productionRun/canvasLandingHost.ts`：14 天内 4 个。落地链 13 个核心文件合计：30 天 52 个 fix 提交，14 天 31 个。

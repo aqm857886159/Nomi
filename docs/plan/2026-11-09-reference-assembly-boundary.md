@@ -1,5 +1,7 @@
 # 设计卡：生成请求的装配与发送资格（S3 防回潮，替掉静态写键扫描）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 实现线 I-s3-reference-assembly-boundary，叠在 PR #1452（`fix/gen-chain-reference-lowering`，`1f8cb99a2`）上。
 > 方向来自独立复盘 R-s3-guard-direction（未参与 #1452 实现 / 验收的线写的），整理见
 > `docs/engineering/direction-checks/2026-11-09-reference-assembly-boundary.md`。四类：花钱（生成请求出网）。

@@ -1,5 +1,7 @@
 # 常驻交互驱动升级成各线验证的默认工具（短版设计卡）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 实现线写，2026-11-15。只改测试仪器（`tests/ux/ui-driver.mjs`、`tests/ux/ui.mjs`、`tests/ux/uiDir.mjs`、`tests/ux/_shell.mjs` 补出口）、加一份验证技能和功能地图（`.agents/skills/verify-nomi/`）、一个量用量的脚本；产品代码一个字不改。
 
 ## 先查别人（★0）

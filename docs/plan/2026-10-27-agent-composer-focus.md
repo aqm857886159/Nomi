@@ -1,5 +1,7 @@
 # 设计卡：⌘J / 点开小球后光标进 Agent 输入框——聚焦只经输入框的主人
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：Agent 输入框的聚焦改由主人提供 + 「按输入框的实现找它再聚焦」门岗
 线/负责人：I-agent-composer-focus（Mac，Claude）· 分支 `fix/agent-composer-focus`
 类别：[其他]（路径推出「新界面」：改了 `src/design/searchInput.tsx`，只给搜索框加 ref 转发，样子与元素不变）

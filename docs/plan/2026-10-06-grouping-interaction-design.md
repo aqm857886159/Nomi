@@ -1,5 +1,7 @@
 # 编组交互与生产组件设计
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 这份设计把用户给的同类画布参考里可验证的交互顺序，与 Nomi 现有节点浮条的视觉语法合在一起。实现合同是生产 React 组件，不是手写 HTML mock：`CanvasGroupToolbar` 复用 `FloatingToolbarShell` 的 token、按钮和菜单原子，`GroupFrame` / `GroupFrameHeader` 负责组框和框外标题，React Flow 只负责节点手势投影。旧的 store 级 `selectNodesInRect` 已删除，选择只保留 React Flow 这一条运行时 owner，避免自定义框选与内核选择各维护一份状态。
 
 ## 先查别人

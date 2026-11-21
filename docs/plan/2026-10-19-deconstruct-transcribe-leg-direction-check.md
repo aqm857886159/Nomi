@@ -1,5 +1,7 @@
 # 方向检查：拆解两条腿的模型解析与结果形状（2026-10-19）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 触发（2026-10-25 复核）：`fix-churn` 命中 `electron/video/deconstructVideo.ts`（14 天第 6 个，`electron/video/` 目录第 9 个）、`electron/audioTaskRunner.ts`（第 3 个）、`src/config/modelCatalogCache.ts`（第 3 个，`src/config/` 目录第 8 个）、`electron/catalog/executableModel.ts` 的目录可执行判据概念（第 3 个）、`electron/desktopStrings.ts#deconstruct`（第 4 个；词典文件 `#tasks` 第 8 个）。本轮不再增加特例分支，而是把模式资格和转写出口收回共享边界。
 
 ### 0. 一句话根因

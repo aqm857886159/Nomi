@@ -1,5 +1,7 @@
 # 实施方案：生成请求链收口成「一份声明、一个降级函数、一个问题形状」
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 - 方向检查：`docs/engineering/direction-checks/2026-11-08-generation-request-chain.md`。入库时放 `docs/engineering/direction-checks/2026-11-08-generation-request-chain.md`，跟 S0 的 PR 一起进。后面每片碰热点的提交都带 `Direction-Check: docs/engineering/direction-checks/2026-11-08-generation-request-chain.md`。
 - 基线：main `745b3c5b4`，2026-11-08。
 
