@@ -76,15 +76,17 @@ describe("external Agent: declared model reaches the confirm step", () => {
 
   it("a card that names a different address for the built-in connection is refused and says which field", async () => {
     freshSettingsDir("other-origin");
+    expect((await callTool("nomi_model_setup", { action: "set_key", vendorKey: "apimart", apiKey: FAKE_KEY })).ok).toBe(true);
     const before = apimartRow();
     const readyBefore = readinessOf("apimart");
+    expect(readyBefore?.providerReady).toBe(true);
     const submitted = await callTool("nomi_model_setup", { action: "submit_declaration", vendorKey: "apimart", declaration: videoCard("https://relay.example.test", "relay-video") });
     expect(submitted.ok).toBe(false);
     expect(JSON.stringify(submitted)).toContain("provider.baseUrl");
     const { updatedAt: _a, ...rowBefore } = before;
     const { updatedAt: _b, ...rowAfter } = apimartRow();
     expect(rowAfter).toEqual(rowBefore);
-    // 2026-11-21 回放那张卡就是这个形状（挂在 apimart 上、地址写成别处）：被拒之后这家的就绪状态一点不变。
+    // 2026-11-21 回放那张卡就是这个形状（挂在 apimart 上、地址写成别处）：先存好密钥、这家是就绪的，被拒之后仍然就绪。
     expect(readinessOf("apimart")).toEqual(readyBefore);
   });
 
