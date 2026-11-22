@@ -1,7 +1,7 @@
 // 面板头部右端那组按钮的「外壳插口」（10-08 外壳重设计：Agent 三形态）。
 //
 // 头部长相仍归本面板（品牌 · Context 环 …… 历史 · 形态切换）；但「收起之后变成什么」是外壳的事——
-// 停靠、浮窗、小球三种形态由外壳那一个 owner 管（src/ui/app-shell/shell/agentFormStore.ts）。
+// 停靠、浮窗、收起（入口在顶栏）三种形态由外壳那一个 owner 管（src/ui/app-shell/shell/agentFormStore.ts）。
 // 外壳给了这个插口，头部就用外壳的形态切换代替那颗「收起」；没给（设计实验室、单测）照旧。
 // 面板窄（浮窗被拖小）时，历史和形态切换一起收进头部一颗「⋯」，菜单项由 menuItems 给。
 import React from 'react'

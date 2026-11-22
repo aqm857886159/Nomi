@@ -4,7 +4,7 @@ import type { JSX } from 'react'
 import { NomiAgentFace, NomiWordmark } from '../../design'
 import { cn } from '../../utils/cn'
 
-/** 一行轻身份：Agent 形象的静态脸（与右下小球同一个角色、同一套几何；不动、不眨眼、不带状态）+ 「Nomi」名。
+/** 一行轻身份：Agent 形象的静态脸（与顶栏 Nomi 入口同一个角色、同一套几何；不动、不眨眼、不带状态）+ 「Nomi」名。
  *  拍板 docs/design/boards/2026-10-27-agent-persona/AgentIdentityRow.board.json。
  *  export 供恢复卡等同样「以 Nomi 身份发言」的组件复用（统一脸+文字规则，单一真相源 P1）。 */
 export function NomiIdentityRow(): JSX.Element {

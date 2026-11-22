@@ -1,8 +1,8 @@
 // 守卫（I-persona-guards）：加载标不换形象脸。
 // 形象拍板 docs/design/boards/2026-10-27-agent-persona/AgentPersona.board.json 的 Q10：
-// 「App 图标、营销字标、全仓加载标（NomiLoadingMark）不换；只换右下小球和聊天身份行。」
+// 「App 图标、营销字标、全仓加载标（NomiLoadingMark）不换；只换右下小球和聊天身份行。」（小球 2026-11-22 收进顶栏 Nomi 入口，NomiEntryTopbar 板）
 // 验收时发现这条边界没有任何东西拦：把 NomiLoadingMark 换成 NomiAgentFace，全仓全绿。
-// 两道结构判据：① NomiLoadingMark 的实现不引用形象脸；② 形象脸只被「右下小球」和「聊天身份行」两个文件画出来（普查）。
+// 两道结构判据：① NomiLoadingMark 的实现不引用形象脸；② 形象脸只被「顶栏 Nomi 入口」和「聊天身份行」两个文件画出来（普查）。
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -28,12 +28,12 @@ describe('加载标不换形象脸（Q10）', () => {
     expect(body).not.toMatch(/NomiAgentFace|AgentFace|NOMI_AGENT_POSES/)
   })
 
-  it('形象脸只被右下小球和聊天身份行画出来（别处当加载标 / 装饰用就红）', () => {
+  it('形象脸只被顶栏 Nomi 入口和聊天身份行画出来（别处当加载标 / 装饰用就红）', () => {
     const users = walk(path.join(process.cwd(), 'src'))
       .filter((file) => !file.includes(`${path.sep}devlab${path.sep}`))
       .filter((file) => /<NomiAgentFace\b/.test(stripComments(fs.readFileSync(file, 'utf8'))))
       .map((file) => path.relative(process.cwd(), file).split(path.sep).join('/'))
       .sort()
-    expect(users).toEqual(['src/ui/app-shell/shell/AgentBallFace.tsx', 'src/workbench/ai/NomiIdentityRow.tsx'])
+    expect(users).toEqual(['src/ui/app-shell/shell/ShellNomiEntry.tsx', 'src/workbench/ai/NomiIdentityRow.tsx'])
   })
 })

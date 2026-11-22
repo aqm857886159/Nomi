@@ -300,7 +300,8 @@
         "769-span-先连一个模型"
       ],
       "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "owner": "S7a 入口指路（入口）",
+      "note": "落点改成顶栏 Nomi 入口（2026-11-22 NomiEntryTopbar 板起没有右下小球）；仍未做。"
     },
     {
       "id": "entry.library-banner",

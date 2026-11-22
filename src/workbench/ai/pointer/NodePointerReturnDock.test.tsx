@@ -99,10 +99,10 @@ const placedBottom = (): unknown => {
 
 const target = (overrides: Partial<NodePointerReturn> = {}): NodePointerReturn => ({ surface: 'generation', nodeId: 'n2', label: '镜 02', ...overrides })
 
-/** 'ball' = 指向节点时机器让开（对话收成小球）；'float' = 人点开（回到人选的浮窗）。 */
-const yieldToBall = (): void => machineHold('generation', 'ball')
-const showChat = (form: 'ball' | 'float'): void => {
-  if (form === 'ball') yieldToBall()
+/** 'collapsed' = 指向节点时机器让开（对话收起，叫回在顶栏 Nomi 入口）；'float' = 人点开（回到人选的浮窗）。 */
+const yieldToCollapse = (): void => machineHold('generation', 'collapsed')
+const showChat = (form: 'collapsed' | 'float'): void => {
+  if (form === 'collapsed') yieldToCollapse()
   else openAgent('generation')
   renderer?.flushPassiveEffects()
 }
@@ -127,42 +127,42 @@ afterEach(() => {
 })
 
 describe('NodePointerReturnDock · on the real canvas only while a pointer click collapsed the chat (NodePointer pointer.narrow.back)', () => {
-  it('nothing to go back to: draws nothing, even when the chat is the ball', () => {
-    yieldToBall()
+  it('nothing to go back to: draws nothing, even when the chat is collapsed', () => {
+    yieldToCollapse()
     mount()
     expect(dockHost()).toBeUndefined()
     expect(buttonShown()).toBe(false)
   })
 
-  it('a pointer click collapsed the chat to the ball: the button is there, bottom centre', () => {
+  it('a pointer click collapsed the chat: the button is there, bottom centre', () => {
     useNodePointerStore.getState().setReturnTo(target())
-    yieldToBall()
+    yieldToCollapse()
     mount()
     expect(dockHost()).toBeDefined()
     expect(buttonShown()).toBe(true)
     expect(placedBottom()).toBe(RETURN_DOCK_EDGE_GAP)
   })
 
-  it('mid-collapse (return remembered, chat not yet the ball): nothing yet, and the return is NOT thrown away', () => {
+  it('mid-collapse (return remembered, chat not yet collapsed): nothing yet, and the return is NOT thrown away', () => {
     mount()
     useNodePointerStore.getState().setReturnTo(target())
     renderer?.flushPassiveEffects()
     expect(dockHost()).toBeUndefined()
     expect(useNodePointerStore.getState().returnTo).not.toBeNull()
-    showChat('ball')
+    showChat('collapsed')
     expect(buttonShown()).toBe(true)
     expect(useNodePointerStore.getState().returnTo).not.toBeNull()
   })
 
-  it('the user brought the chat back some other way (the ball): the hold ends, so the button goes — no second record to clear', () => {
+  it('the user brought the chat back some other way (the top-bar entry): the hold ends, so the button goes — no second record to clear', () => {
     useNodePointerStore.getState().setReturnTo(target())
-    yieldToBall()
+    yieldToCollapse()
     mount()
     expect(buttonShown()).toBe(true)
     created = []
     showChat('float')
     expect(dockHost()).toBeUndefined()
-    // 人自己收成小球（不是机器让位）：那一枚不回来。
+    // 人自己收起（不是机器让位）：那一枚不回来。
     collapseAgent('generation')
     renderer?.flushPassiveEffects()
     expect(dockHost()).toBeUndefined()
@@ -170,7 +170,7 @@ describe('NodePointerReturnDock · on the real canvas only while a pointer click
 
   it('the window crosses the narrow threshold while the chat has given way: the hold ends, the button goes with it', () => {
     useNodePointerStore.getState().setReturnTo(target())
-    yieldToBall()
+    yieldToCollapse()
     mount()
     expect(buttonShown()).toBe(true)
     created = []
@@ -181,7 +181,7 @@ describe('NodePointerReturnDock · on the real canvas only while a pointer click
 
   it('a return remembered for another page is not this canvas’s business', () => {
     useNodePointerStore.getState().setReturnTo(target({ surface: 'storyboard' }))
-    yieldToBall()
+    yieldToCollapse()
     mount()
     expect(dockHost()).toBeUndefined()
     showChat('float')
@@ -191,7 +191,7 @@ describe('NodePointerReturnDock · on the real canvas only while a pointer click
   it('measures the live bottom docks: with the add-node bar under it, it sits above the bar', () => {
     dockRects = [TOOLBAR, ZOOM]
     useNodePointerStore.getState().setReturnTo(target())
-    yieldToBall()
+    yieldToCollapse()
     mount()
     expect(placedBottom()).toBe(HOST.height - (TOOLBAR.top - RETURN_DOCK_CLEARANCE))
   })

@@ -1,0 +1,31 @@
+{
+  "id": "topbar-yield-resize",
+  "feature": "预览页（导出 MP4 + 布局 + 进度数字都在，顶栏最挤的一页）拖窗口边 1440 ↔ 700 来回两次（一帧 20px），顶栏按顺序让位（导出收图标 → 分段左挪 → 藏进度数字 → 新版本收点）；拖动期间的帧间隔和长任务，另数让位步数翻了几次（同宽两向一致，每个阈值每单程只翻一次）",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "M",
+    "--scenarios",
+    "topbar-yield-resize",
+    "--warmup",
+    "1"
+  ],
+  "scale": "项目里 96 节点；窗口宽 1440 ↔ 700 来回两次（148 步）",
+  "metrics": [
+    "frameGapP95",
+    "longTasks"
+  ],
+  "budget": 33,
+  "group": "⑪ 拖窗口边过窄窗档",
+  "budgetStatus": "proposed",
+  "budgetBasis": "拖窗口边是连续手势、要跟手：60Hz 下 p95 帧间隔不超过 2 帧（33ms），仓库默认预算同此；同组 window-narrow-drag 基线中位 10.4ms（11-14，M5）。让位只在 ResizeObserver 回调里量一次、调一次纯函数，不开 rAF 循环，不该比过窄窗档更重；>50ms 的长任务预算 0 个（设计卡 ★7）",
+  "baseline": {
+    "median": 16.5,
+    "p95": 17.3,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-22",
+    "commit": "2b88c7d4f",
+    "noisy": true
+  }
+}

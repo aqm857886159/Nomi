@@ -35,8 +35,8 @@ type GenerationWorkspaceProps = {
   aiCollapsed?: boolean
   agentDockRef?: React.Ref<HTMLDivElement>
   /**
-   * Agent 小球 / 浮窗的坐标系（10-08 外壳重设计）：画布那一格、不含底边时间轴窄条——
-   * 小球、浮窗、加节点条、缩放条都在这一格里，天然给时间轴让位，不靠偏移量兜底。
+   * Agent 浮窗的坐标系（10-08 外壳重设计）：画布那一格、不含底边时间轴窄条——
+   * 浮窗、加节点条、缩放条都在这一格里，天然给时间轴让位，不靠偏移量兜底。
    */
   agentLayerRef?: React.Ref<HTMLDivElement>
 }
@@ -52,7 +52,7 @@ const ASSISTANT_LAYOUT_SPRING = {
  * 生成页（10-08 外壳拍板稿 Main / CanvasAgent）：被外壳底色包住的圆角工作面。
  *
  *   ┌ 画布工作面 ───────────────────────┐┌ Agent（停靠时）┐
- *   │ 画布（加节点条 / 缩放 / 小球 / 浮窗都在这一格）││               │
+ *   │ 画布（加节点条 / 缩放 / 浮窗都在这一格）       ││               │
  *   │ 时间轴窄条（收起时：段数 · 时长 · 缩略图 · ^）  ││               │
  *   └──────────────────────────────┘└───────────────┘
  *   ┌ 时间轴面板（展开时横贯整个工作区，Agent 被它顶上去：09-14 用户拍板）┐
@@ -150,9 +150,9 @@ export default function GenerationWorkspace({
           ) : null}
           {/* 时间轴展开时的迷你画面窗：跟播放头，治画布上盲剪（收起态自持久化）。 */}
           {timelineCollapsed ? null : <TimelineMiniPreview />}
-          {/* Agent 小球 / 浮窗住这一层（外壳的 ShellAgentHost portal 进来）。 */}
+          {/* Agent 浮窗住这一层（外壳的 ShellAgentHost portal 进来；收起时入口在顶栏，这里什么都不挂）。 */}
           <div ref={agentLayerRef} className="pointer-events-none absolute inset-0 z-[60]" data-generation-agent-layer />
-          {/* 窄窗口里点了聊天里的指向元素、对话收成小球之后：底部正中「回到对话」（NodePointer 板 pointer.narrow.back）。 */}
+          {/* 窄窗口里点了聊天里的指向元素、对话收起之后：底部正中「回到对话」（NodePointer 板 pointer.narrow.back）。 */}
           <NodePointerReturnDock surface="generation" />
         </div>
         {/* 时间轴收起 = 贴工作面底边的窄条（段数 · 时长 · 每段小缩略图 · ^ 展开），不再是一颗浮在画布上的胶囊。 */}
@@ -166,7 +166,7 @@ export default function GenerationWorkspace({
           />
         ) : null}
       </div>
-      {/* 面板的落位由外壳给，两态都写明（停靠 = 内容行第 2 列；收起 = 内容行横跨两列的空壳，小球 / 浮窗不住这里）。 */}
+      {/* 面板的落位由外壳给，两态都写明（停靠 = 内容行第 2 列；收起 = 内容行横跨两列的空壳，浮窗不住这里）。 */}
       {hasAssistant ? (
         <AssistantPane
           dockRef={agentDockRef}

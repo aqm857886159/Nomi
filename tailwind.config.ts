@@ -896,12 +896,8 @@ export default {
           '0%, 100%': { opacity: '0.5' },
           '50%': { opacity: '0.8' },
         },
-        // 窗口拉窄跨过窄窗阈值（WindowNarrow 板 agent.collapse-motion）：停靠的 Nomi 收拢成右下角的小球 /
-        // 拉宽回来展回停靠栏。每次跨阈值**只播一次**，减弱动效时由调用处的 motion-safe: 直接换掉。
-        'nomi-agent-gather': {
-          '0%': { transform: 'translateX(-24px) scale(0.6)', opacity: '0' },
-          '100%': { transform: 'none', opacity: '1' },
-        },
+        // 窗口拉宽跨回窄窗阈值（WindowNarrow 板 agent.collapse-motion）：面板从右侧展回停靠栏（拉窄时收进顶栏入口，不播动画）。
+        // 每次跨阈值**只播一次**，减弱动效时由调用处的 motion-safe: 直接换掉。
         'nomi-agent-dock-in': {
           '0%': { transform: 'translateX(24px)', opacity: '0' },
           '100%': { transform: 'none', opacity: '1' },
@@ -928,7 +924,6 @@ export default {
         'nomi-badge-settle': 'nomi-badge-settle 420ms ease-out 1',
         'remove-bg-pulse': 'remove-bg-pulse 1.2s ease-in-out infinite',
         'remove-bg-pulse-slow': 'remove-bg-pulse 1.5s ease-in-out infinite',
-        'nomi-agent-gather': 'nomi-agent-gather 260ms var(--nomi-ease-fast) 1',
         'nomi-agent-dock-in': 'nomi-agent-dock-in 260ms var(--nomi-ease-fast) 1',
         'nomi-agent-scan': 'nomi-agent-scan 1.4s ease-in-out infinite alternate',
         'nomi-agent-hop': 'nomi-agent-hop 700ms var(--nomi-ease-morph) 1',

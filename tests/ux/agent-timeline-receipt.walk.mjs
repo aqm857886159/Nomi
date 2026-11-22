@@ -137,9 +137,9 @@ try {
   const timelinePanel = win.locator('.workbench-preview .workbench-timeline').first()
   await expect(timelinePanel, '预览时间轴未出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const agent = win.locator(PREVIEW_PANEL)
-  // 收起态叫回 Nomi 的唯一入口是内容区右下的小球（10-08 外壳重设计）。
-  const ball = win.locator('[data-agent-ball]')
-  if (await ball.count()) await clickOrFail(ball.first(), '点小球展开 Nomi')
+  // 收起态叫回 Nomi 的唯一入口是顶栏最右那颗 Nomi 入口（NomiEntryTopbar 板，2026-11-22 取代内容区右下的小球）。
+  const ball = win.locator('[data-shell-topbar] [data-shell-nomi-entry][aria-pressed="false"]')
+  if (await ball.count()) await clickOrFail(ball.first(), '点顶栏 Nomi 入口展开 Nomi')
   await expect(agent, '剪辑面常驻 Agent 未挂载').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL, PREVIEW_PANEL)
 

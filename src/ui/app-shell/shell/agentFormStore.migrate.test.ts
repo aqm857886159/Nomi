@@ -1,6 +1,7 @@
 // 老用户升级（设计卡 docs/plan/2026-11-14-agent-form-restructure.md ★1c）：0.24.1 存下的每页三值 `form`
 // → 摆法 + 收没收起。夹具是 0.24.1 自己的 store 落出来的那一串（tests/fixtures/old-user-data/agent-form/）。
-// 量的是创作者升级后那一刻：每页看到的和升级前一样；之后点开回到哪；浮窗位置大小、小球位置一个不丢；迁完再存再读逐字相等。
+// 量的是创作者升级后那一刻：每页看到的和升级前一样（旧小球 = 收起，叫回在顶栏 Nomi 入口，NomiEntryTopbar 板 ★1c）；之后点开回到哪；
+// 浮窗位置大小一个不丢；小球位置随小球删掉、不再读（多出来的键忽略）；迁完再存再读逐字相等。
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -57,12 +58,14 @@ describe('0.24.1 的 Nomi 形态升级：3 种旧值 × 4 页 = 12 格', () => {
       it(`${name} · ${surface}（旧 ${form}）：升级后看到的一样，摆法 / 收起对，位置大小原样`, async () => {
         await launchWith(blob)
         const prefs = useAgentFormStore.getState().bySurface[surface]
-        expect(shownForm(surface)).toBe(form)
+        // 旧小球 → 收起（面板收进顶栏入口）；旧浮窗 / 停靠 → 原样开着。
+        expect(shownForm(surface)).toBe(form === 'ball' ? 'collapsed' : form)
         expect(prefs.collapsed).toBe(form === 'ball')
         // 旧小球：再点开去旧版点开会去的地方（这一页的默认摆法）；旧浮窗 / 停靠：就是那个摆法。
         expect(prefs.placement).toBe(form === 'ball' ? AGENT_FORM_DEFAULTS[surface].placement : form)
         expect(prefs.float).toEqual(old[surface].float)
-        expect(prefs.ball).toEqual(old[surface].ball)
+        // 小球位置不再读：新的一份里没有这个键。
+        expect(prefs).not.toHaveProperty('ball')
         openAgent(surface)
         expect(shownForm(surface)).toBe(form === 'ball' ? AGENT_FORM_DEFAULTS[surface].placement : form)
       })
@@ -74,7 +77,7 @@ describe('0.24.1 的 Nomi 形态升级：3 种旧值 × 4 页 = 12 格', () => {
     const old = oldEntries(blob)
     await launchWith(blob)
     for (const surface of SURFACES) {
-      expect(shownForm(surface), surface).toBe(old[surface].form)
+      expect(shownForm(surface), surface).toBe(old[surface].form === 'ball' ? 'collapsed' : old[surface].form)
       expect(useAgentFormStore.getState().bySurface[surface].float, surface).toEqual(old[surface].float)
     }
   })
@@ -85,7 +88,7 @@ describe('0.24.1 的 Nomi 形态升级：3 种旧值 × 4 页 = 12 格', () => {
       const migrated = disk.get(AGENT_FORM_STORAGE_KEY)!
       const parsed = JSON.parse(migrated) as { version: number; state: { bySurface: Record<string, Record<string, unknown>> } }
       expect(parsed.version).toBe(AGENT_FORM_STORAGE_VERSION)
-      for (const surface of SURFACES) expect(Object.keys(parsed.state.bySurface[surface]).sort()).toEqual(['ball', 'collapsed', 'float', 'placement'])
+      for (const surface of SURFACES) expect(Object.keys(parsed.state.bySurface[surface]).sort()).toEqual(['collapsed', 'float', 'placement'])
       const stateAfterFirst = useAgentFormStore.getState().bySurface
       await launchWith(migrated)
       expect(useAgentFormStore.getState().bySurface).toEqual(stateAfterFirst)
@@ -102,9 +105,9 @@ describe('0.24.1 的 Nomi 形态升级：3 种旧值 × 4 页 = 12 格', () => {
 
   it('认不出的旧值、缺页：按这一页的默认，位置照留', () => {
     const migrated = normalizeStoredAgentForm({ bySurface: { creation: { form: 'sidebar', float: { x: 1, y: 2, width: 330, height: 370 }, ball: null } } }, 1)
-    expect(migrated.bySurface.creation).toEqual({ ...AGENT_FORM_DEFAULTS.creation, float: { x: 1, y: 2, width: 330, height: 370 }, ball: null })
-    expect(migrated.bySurface.generation).toEqual({ ...AGENT_FORM_DEFAULTS.generation, float: null, ball: null })
-    expect(normalizeStoredAgentForm(null, 1).bySurface.preview).toEqual({ ...AGENT_FORM_DEFAULTS.preview, float: null, ball: null })
+    expect(migrated.bySurface.creation).toEqual({ ...AGENT_FORM_DEFAULTS.creation, float: { x: 1, y: 2, width: 330, height: 370 } })
+    expect(migrated.bySurface.generation).toEqual({ ...AGENT_FORM_DEFAULTS.generation, float: null })
+    expect(normalizeStoredAgentForm(null, 1).bySurface.preview).toEqual({ ...AGENT_FORM_DEFAULTS.preview, float: null })
   })
 })
 
@@ -112,19 +115,26 @@ describe('0.24.1 的 Nomi 形态升级：3 种旧值 × 4 页 = 12 格', () => {
 type Kind = 'missing-page' | 'unknown-values' | 'non-number-geometry' | 'not-an-object'
 const KINDS: Kind[] = ['missing-page', 'unknown-values', 'non-number-geometry', 'not-an-object']
 /** 好的那一份：每页都和默认不同（创作浮窗收着、分镜浮窗开着、生成停靠开着、预览停靠收着），保没保住一眼看得出。 */
-const GOOD: Record<AgentFormSurface, { placement: 'float' | 'dock'; collapsed: boolean; float: unknown; ball: unknown }> = {
-  creation: { placement: 'float', collapsed: true, float: { x: 10, y: 20, width: 330, height: 370 }, ball: { x: 5, y: 6 } },
-  storyboard: { placement: 'float', collapsed: false, float: null, ball: null },
-  generation: { placement: 'dock', collapsed: false, float: null, ball: { x: 7, y: 8 } },
-  preview: { placement: 'dock', collapsed: true, float: null, ball: null },
+const GOOD: Record<AgentFormSurface, { placement: 'float' | 'dock'; collapsed: boolean; float: unknown }> = {
+  creation: { placement: 'float', collapsed: true, float: { x: 10, y: 20, width: 330, height: 370 } },
+  storyboard: { placement: 'float', collapsed: false, float: null },
+  generation: { placement: 'dock', collapsed: false, float: null },
+  preview: { placement: 'dock', collapsed: true, float: null },
+}
+/** 磁盘上那一份：小球删掉前的新格式每页还带小球位置 `ball`（真实老用户就是这样存的），读的时候忽略。 */
+const GOOD_DISK: Record<AgentFormSurface, Record<string, unknown>> = {
+  creation: { ...GOOD.creation, ball: { x: 5, y: 6 } },
+  storyboard: { ...GOOD.storyboard, ball: null },
+  generation: { ...GOOD.generation, ball: { x: 7, y: 8 } },
+  preview: { ...GOOD.preview, ball: null },
 }
 
 function badV2Blob(kind: Kind, bad: AgentFormSurface): string {
   if (kind === 'not-an-object') return JSON.stringify({ state: { bySurface: 'broken' }, version: AGENT_FORM_STORAGE_VERSION })
-  const bySurface: Record<string, unknown> = { ...GOOD }
+  const bySurface: Record<string, unknown> = { ...GOOD_DISK }
   if (kind === 'missing-page') delete bySurface[bad]
-  if (kind === 'unknown-values') bySurface[bad] = { ...GOOD[bad], placement: 'sidebar', collapsed: 'yes' }
-  if (kind === 'non-number-geometry') bySurface[bad] = { ...GOOD[bad], float: { x: 'a', y: 1, width: 300, height: null }, ball: { x: '3', y: 4 } }
+  if (kind === 'unknown-values') bySurface[bad] = { ...GOOD_DISK[bad], placement: 'sidebar', collapsed: 'yes' }
+  if (kind === 'non-number-geometry') bySurface[bad] = { ...GOOD_DISK[bad], float: { x: 'a', y: 1, width: 300, height: null }, ball: { x: '3', y: 4 } }
   return JSON.stringify({ state: { bySurface }, version: AGENT_FORM_STORAGE_VERSION })
 }
 
@@ -140,15 +150,15 @@ describe('新格式存档坏了：四种坏法 × 四页 = 16 格，每页合法
           expect(['float', 'dock'], `${surface} 摆法`).toContain(prefs.placement)
           expect(typeof prefs.collapsed, `${surface} 收没收起`).toBe('boolean')
           expect(prefs.float === null || [prefs.float.x, prefs.float.y, prefs.float.width, prefs.float.height].every(Number.isFinite), `${surface} 浮窗`).toBe(true)
-          expect(prefs.ball === null || [prefs.ball.x, prefs.ball.y].every(Number.isFinite), `${surface} 小球`).toBe(true)
-          expect(['ball', 'float', 'dock']).toContain(shownForm(surface))
+          expect(prefs, `${surface} 没有小球位置`).not.toHaveProperty('ball')
+          expect(['collapsed', 'float', 'dock']).toContain(shownForm(surface))
           const whole = kind === 'not-an-object'
           if (whole || (surface === bad && kind === 'missing-page')) {
-            expect(prefs, `${surface} 回到这一页的默认`).toEqual({ ...AGENT_FORM_DEFAULTS[surface], float: null, ball: null })
+            expect(prefs, `${surface} 回到这一页的默认`).toEqual({ ...AGENT_FORM_DEFAULTS[surface], float: null })
           } else if (surface === bad && kind === 'unknown-values') {
-            expect(prefs, `${surface} 认不出的值回到默认、位置保住`).toEqual({ ...AGENT_FORM_DEFAULTS[surface], float: GOOD[surface].float, ball: GOOD[surface].ball })
+            expect(prefs, `${surface} 认不出的值回到默认、位置保住`).toEqual({ ...AGENT_FORM_DEFAULTS[surface], float: GOOD[surface].float })
           } else if (surface === bad) {
-            expect(prefs, `${surface} 摆法保住、坏的位置丢掉`).toEqual({ placement: GOOD[surface].placement, collapsed: GOOD[surface].collapsed, float: null, ball: null })
+            expect(prefs, `${surface} 摆法保住、坏的位置丢掉`).toEqual({ placement: GOOD[surface].placement, collapsed: GOOD[surface].collapsed, float: null })
           } else {
             expect(prefs, `${surface} 好的那页原样`).toEqual(GOOD[surface])
           }
@@ -162,7 +172,7 @@ describe('新格式存档坏了：四种坏法 × 四页 = 16 格，每页合法
   it('整段读不出来（不是 JSON / 不是对象 / 是 null）：各页默认，不写回', async () => {
     for (const blob of ['{not json', '5', JSON.stringify({ state: 7, version: AGENT_FORM_STORAGE_VERSION }), JSON.stringify({ state: { bySurface: null }, version: AGENT_FORM_STORAGE_VERSION })]) {
       await launchWith(blob)
-      for (const surface of SURFACES) expect(useAgentFormStore.getState().bySurface[surface], `${blob} · ${surface}`).toEqual({ ...AGENT_FORM_DEFAULTS[surface], float: null, ball: null })
+      for (const surface of SURFACES) expect(useAgentFormStore.getState().bySurface[surface], `${blob} · ${surface}`).toEqual({ ...AGENT_FORM_DEFAULTS[surface], float: null })
       expect(disk.get(AGENT_FORM_STORAGE_KEY)).toBe(blob)
     }
   })
