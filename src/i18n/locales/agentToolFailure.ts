@@ -45,8 +45,8 @@ export const zhAgentToolFailure = {
   undo_conflict: '这项改动之后同一对象又被改过，不能安全撤销。',
   // ── lane 工具自有 ──
   tool_arguments_invalid: '它这次的参数没填对，这一步没有执行。',
-  // 入参边界拦下（同一处连错 3 次）：这一轮不再重试，转去问用户。
-  tool_retry_stopped: '同一处连着填错了 3 次，这一轮不再重试，它会直接问你。',
+  // 同一个工具连败 3 次后模型又发了它：这一次没执行，这一轮到此结束（不会再「问你」——这一轮没有下一次请求了）。
+  tool_retry_stopped: '同一步连着失败 3 次后它还在重试，这一轮先停在这里，这一步没有执行。你回一句话，它就能接着做。',
   tool_execution_failed: '这一步没做成。看一眼当前状态，再让它重试。',
   tool_timed_out: '这一步等太久被停掉了。看一眼当前状态再决定要不要重来。',
   wrong_verb: '它用错了方式，这一步没有执行——它会换一种再来。',
@@ -122,7 +122,7 @@ export const enAgentToolFailure = {
   capability_timeout: 'That step took too long and was stopped; it may be half-done. Check the current state before retrying.',
   undo_conflict: 'The same object changed after this action, so it was not safely undone.',
   tool_arguments_invalid: 'It passed the wrong arguments, so the step did not run.',
-  tool_retry_stopped: 'It got the same field wrong 3 times, so it stopped retrying this turn and will ask you instead.',
+  tool_retry_stopped: 'It kept retrying a step that had failed 3 times in a row, so this turn stopped here and the step did not run. Reply and it can carry on.',
   tool_execution_failed: 'That step did not go through. Check the current state, then ask it to retry.',
   tool_timed_out: 'That step took too long and was stopped. Check the current state before retrying.',
   wrong_verb: 'It used the wrong action, so nothing ran — it will try a different one.',
