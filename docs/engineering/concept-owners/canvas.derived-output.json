@@ -16,8 +16,8 @@
       "symbol": "DERIVED_OUTPUT_RULES"
     },
     {
-      "path": "src/workbench/generationCanvas/store/canvasDerivedActions.ts",
-      "symbol": "createCanvasDerivedActions"
+      "path": "src/workbench/generationCanvas/store/canvasGraphActions.ts",
+      "symbol": "createCanvasGraphActions"
     },
     {
       "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",

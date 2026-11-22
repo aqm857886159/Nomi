@@ -31,6 +31,10 @@ vi.mock('../nodes/DeferredNodeMedia', () => ({
   DeferredNodeVideo: () => null,
 }))
 
+vi.mock('../nodes/NodeVideoPlaybackGuard', () => ({
+  NodeVideoPlaybackGuard: () => null,
+}))
+
 vi.mock('../nodes/NodeFloatingToolbar', async () => ({
   ...(await vi.importActual<typeof import('../nodes/NodeFloatingToolbar')>('../nodes/NodeFloatingToolbar')),
   FloatingToolbarShell: ({ children }: { children?: unknown }) => children ?? null,
