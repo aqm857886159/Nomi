@@ -20,8 +20,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
+import { buildWorld } from './_world.mjs'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { AGENT_PANEL, COLLAPSED_SHELL, backToLibrary, switchWorkspace } from './_shell.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
@@ -106,18 +106,16 @@ function storyboardPayload() {
   return { workbenchDocuments, activeDocumentId, storyboardDesignsByDocumentId }
 }
 
-function writeProject(projectsDir, projectId, name) {
-  const root = path.join(projectsDir, projectId)
-  fs.mkdirSync(path.join(root, '.nomi'), { recursive: true })
-  const now = Date.now()
+/** 这一轮的项目：交给测试世界（buildWorld → 主人的 createProject）落盘，走查不手写项目目录。 */
+function projectSpec(projectId, name) {
   const nodes = NODE_IDS.map((id, index) => ({
     id, kind: 'image', title: `shot ${index + 1}`, prompt: '', categoryId: 'shots', references: [], runs: [],
     status: 'idle', position: { x: 120 + index * 360, y: 160 }, size: { width: 320, height: 180 },
   }))
-  fs.writeFileSync(path.join(root, '.nomi', 'project.json'), JSON.stringify({
-    id: projectId, name, version: 2, createdAt: now, updatedAt: now, savedAt: now, revision: 1, lastKnownRootPath: path.resolve(root),
+  return {
+    id: projectId, name,
     payload: { ...storyboardPayload(), timeline: TIMELINE, generationCanvas: { nodes, edges: [], groups: [], selectedNodeIds: [] } },
-  }))
+  }
 }
 
 /**
@@ -259,10 +257,8 @@ const gaps = (bar) => ({
 
 async function runRound({ locale, scheme, tag, projectName }) {
   console.log(`\n── ${tag} ──`)
-  const tempRoot = makeTempDir('nomi-entry-topbar-')
-  const projectsDir = path.join(tempRoot, 'projects')
-  const projectId = `walk-entry-topbar-${tag}`
-  writeProject(projectsDir, projectId, projectName)
+  const world = buildWorld({ projects: [projectSpec(`walk-entry-topbar-${tag}`, projectName)] })
+  const projectId = world.projects[0].id
   // 词典里没有这条（改前的代码）就给一个认得出的占位，让每条检查各自红，不在中途抛错。
   const t = (key, values) => {
     try { return values ? uiTextWith(locale, key, values) : uiText(locale, key) } catch { return `«${key}»` }
@@ -284,7 +280,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
   let app
   try {
     const launched = await launchNomiApp({
-      name: `nomi-entry-topbar-${tag}`, tempRoot, projectsDir, settleMs: 0, timeout: 300_000,
+      name: `nomi-entry-topbar-${tag}`, world, settleMs: 0, timeout: 300_000,
       ...(executablePath ? { executablePath } : {}),
       viewportSize: { width: 1440, height: HEIGHT },
       mainRequire: [path.join(repoRoot, 'scripts/walkthrough-network-guard.cjs')],
