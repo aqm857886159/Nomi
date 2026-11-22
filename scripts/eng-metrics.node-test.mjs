@@ -148,6 +148,25 @@ test('到期合同：声明与旧合同估算分开统计，排除 structural，
       files: ['electron/y.ts'],
       recurrence_of: '2026-10-05-declared-due',
     }),
+    // 显式声明 recurrence_of: null 的后继合同即使共享边界符号，也不得被兜底估算覆盖为前任复发
+    '2026-10-10-legacy-clean.root-cause.json': contractWith({
+      files: ['electron/clean.ts'],
+      boundaries: [['electron/clean.ts', 'guardClean']],
+    }),
+    '2026-10-18-declared-not-recurrence.root-cause.json': contractWith({
+      files: ['electron/clean.ts'],
+      boundaries: [['electron/clean.ts', 'guardClean']],
+      recurrence_of: null,
+    }),
+    // 同日显式指认（后继 slug 字母序排在前任之前）也必须计入前任到期复发
+    '2026-10-06-zzz-first.root-cause.json': contractWith({
+      files: ['electron/same-day.ts'],
+      recurrence_of: null,
+    }),
+    '2026-10-06-aaa-second.root-cause.json': contractWith({
+      files: ['electron/same-day.ts'],
+      recurrence_of: '2026-10-06-zzz-first',
+    }),
     // 显式 recurrence_check_on 在未来
     '2026-12-01-explicit.root-cause.json': contractWith({
       files: ['electron/k.ts'],
@@ -157,16 +176,20 @@ test('到期合同：声明与旧合同估算分开统计，排除 structural，
   })
   const contracts = readContracts(repo)
   assert.deepEqual(computeDue(contracts, '2026-11-15'), {
-    declared: { due: 1, recurredAfter: 1 },
-    estimated: { due: 1, recurredAfter: 1 },
+    declared: { due: 3, recurredAfter: 2 },
+    estimated: { due: 2, recurredAfter: 1 },
+  })
+  assert.deepEqual(computeDue(contracts, '2026-11-20'), {
+    declared: { due: 4, recurredAfter: 2 },
+    estimated: { due: 3, recurredAfter: 1 },
   })
   assert.deepEqual(computeDue(contracts, '2026-10-05'), {
     declared: { due: 0, recurredAfter: 0 },
     estimated: { due: 0, recurredAfter: 0 },
   })
   assert.deepEqual(computeDue(contracts, '2027-01-02'), {
-    declared: { due: 3, recurredAfter: 1 },
-    estimated: { due: 2, recurredAfter: 1 },
+    declared: { due: 6, recurredAfter: 2 },
+    estimated: { due: 3, recurredAfter: 1 },
   })
   fs.rmSync(repo, { recursive: true, force: true })
 })

@@ -201,8 +201,12 @@ export function computeDue(contracts, today) {
       : new Date(toDate(contract.date).getTime() + 30 * DAY)
     if (checkOn > todayDate) return
 
-    const laterExplicit = list.slice(index + 1).some((candidate) =>
-      candidate.change_kind !== 'structural' && (candidate.recurrence_of ?? []).includes(contract.slug),
+    const laterExplicit = list.some((candidate) =>
+      candidate.slug !== contract.slug
+      && candidate.change_kind !== 'structural'
+      && toDate(candidate.date) >= toDate(contract.date)
+      && toDate(candidate.date) <= todayDate
+      && (candidate.recurrence_of ?? []).includes(contract.slug),
     )
     if (contract.recurrence_of_declared) {
       declared.due += 1
@@ -211,7 +215,7 @@ export function computeDue(contracts, today) {
     }
     estimated.due += 1
     const laterFallback = laterExplicit || list.slice(index + 1).some((candidate) => {
-      if (candidate.change_kind === 'structural') return false
+      if (candidate.change_kind === 'structural' || candidate.recurrence_of_declared) return false
       const gap = dayDiff(toDate(candidate.date), toDate(contract.date))
       return gap > 0 && gap <= 30 && sameClassFallback(candidate, contract)
     })
