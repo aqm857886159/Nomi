@@ -52,7 +52,8 @@ const CORPUS: readonly Row[] = [
   { id: "6", source: "APIMart 文本接口 402 文档：type payment_required、无 code",
     status: 402, body: { error: { message: "Insufficient balance, please top up your account", type: "payment_required" } }, category: "balance", retryable: false },
   { id: "7", source: "APIMart 上传文档 402：标识在 type（uploads_images.md:198-206）",
-    status: 402, body: { error: { message: "Insufficient balance", type: "insufficient_user_quota" } }, category: "balance", retryable: false },
+    // 只留判定读的 type；文档里那句 message 和界面词典同字，不参与判定，略去
+    status: 402, body: { error: { type: "insufficient_user_quota" } }, category: "balance", retryable: false },
   { id: "8", source: "Anthropic 错误表：402 billing_error",
     status: 402, body: { type: "error", error: { type: "billing_error", message: "Your credit balance is too low to access the API." } }, category: "balance", retryable: false },
   { id: "9", source: "方案反例 1：402 空响应体",
@@ -146,7 +147,7 @@ describe("S4 语料表 · 三扇门同一张归类表", () => {
   it("单独的取码：error.type 读得到，非标识形状（中文 / null / 数字）不收", () => {
     expect(pickUpstreamType({ error: { type: "payment_required" } })).toBe("payment_required");
     expect(pickUpstreamType({ error: { type: null } })).toBe("");
-    expect(pickUpstreamType({ error: { type: "余额不足" } })).toBe("");
+    expect(pickUpstreamType({ error: { type: "账户余额不够" } })).toBe("");
     expect(pickUpstreamType({ type: "error", error: { type: "billing_error" } })).toBe("billing_error");
     expect(pickUpstreamCode({ error: { code: "403" } })).toBe("");
   });
