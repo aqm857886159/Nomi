@@ -601,7 +601,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
     } else {
       console.error(`[pre-push] PR 正文取自 ${pr.source}`)
       for (const name of bodyGates) {
-        const script = name === 'check:prior-art' ? 'scripts/check-prior-art.mjs' : 'scripts/check-pr-judgement.mjs'
+        const script = 'scripts/check-pr-judgement.mjs'
         // 推送这一步：独立验收的报告链接还不可能有，pr-judgement 只提醒；合并档由 GitHub 上的「PR Body」检查判（.github/workflows/pr-body.yml），见 resolveJudgementStage。
         tasks.push(async () => ({ name, ...(await runNode([path.join(repoRoot, script), '--pr'], { NOMI_PR_BODY: pr.body, NOMI_PR_JUDGEMENT_STAGE: 'push' }, { name })) }))
       }

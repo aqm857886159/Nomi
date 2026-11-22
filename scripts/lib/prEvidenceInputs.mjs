@@ -64,9 +64,6 @@ export function localEvidenceInputs({ root = process.env.PR_JUDGEMENT_REPO_ROOT 
     // 拍板清单：PR head 上的内容；base 上的内容用来判「哪些板 / 元素是 PR 新增的」（新增的要协调确认，CI 只提示）
     boards: () => manifestsAt(headSha),
     baseBoards: () => manifestsAt(baseSha()),
-    // 源码 base/head 读口：短档 AST 界面核实（detectUiSurfaceDiff）用，不靠人工手填「无界面差异」
-    readBaseFile: (ref) => showAt(baseSha(), ref),
-    readHeadFile: (ref) => showAtHead(ref),
     // ESLint 批量抑制：冻结数上涨要协调确认（CI 只提示）；文件不存在 = {}，取不到提交 = null
     suppressions: () => suppressionsAt({ git, sha: headSha }),
     baseSuppressions: () => suppressionsAt({ git, sha: baseSha() }),

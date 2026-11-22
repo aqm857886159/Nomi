@@ -158,26 +158,28 @@ test('规则生效前开的 PR 不适用短档；候选档位「严」只是声�
   assert.match(text(claimsStrict), /只是声明/)
 })
 
-test('界面清单对账 fail-closed：改了产品代码就必须拿到两边的清单', () => {
+test('界面清单对账 fail-closed：缺改动文件清单一律 known=false；普通非界面产品代码仍需拿到两边的拍板图清单', () => {
+  assert.equal(deriveUiVerification({ files: [] }).known, false, '空改动文件清单不得放行短档')
+  assert.equal(deriveUiVerification({ files: null }).known, false, '缺失改动文件清单不得放行短档')
+  assert.equal(deriveUiVerification({}).known, false, '未传改动文件清单不得放行短档')
   assert.deepEqual(deriveUiVerification({ files: [M('docs/plan/a.md')] }), { known: true, changed: false, reason: '改动没有界面候选文件' })
-  assert.equal(deriveUiVerification({ files: [M('src/ui/a.tsx')], baseBoards: {}, headBoards: {} }).known, false)
-  assert.equal(deriveUiVerification({ files: [M('src/ui/a.tsx')], baseBoards: null, headBoards: { A: { board: 'A' } } }).known, false)
-  assert.equal(deriveUiVerification({ files: [M('src/ui/a.tsx')], baseBoards: { A: { board: 'A' } }, headBoards: { A: { board: 'A' } } }).changed, false)
-  assert.equal(deriveUiVerification({ files: [M('src/ui/a.tsx')], baseBoards: { A: { board: 'A' } }, headBoards: { A: { board: 'A', stage: 'built' } } }).changed, true)
+  // 非 UI 候选的产品 .ts 文件走 base/head 拍板图清单核对
+  assert.equal(deriveUiVerification({ files: [M('src/ui/onboarding/focus.ts')], baseBoards: {}, headBoards: {} }).known, false)
+  assert.equal(deriveUiVerification({ files: [M('src/ui/onboarding/focus.ts')], baseBoards: null, headBoards: { A: { board: 'A' } } }).known, false)
+  assert.equal(deriveUiVerification({ files: [M('src/ui/onboarding/focus.ts')], baseBoards: { A: { board: 'A' } }, headBoards: { A: { board: 'A' } } }).changed, false)
+  assert.equal(deriveUiVerification({ files: [M('src/ui/onboarding/focus.ts')], baseBoards: { A: { board: 'A' } }, headBoards: { A: { board: 'A', stage: 'built' } } }).changed, true)
 })
 
-test('T-8 第 1 类：自报短档但改了 .tsx / .css / i18n / 档案默认参数 → AST 算有界面差异并拒绝短档；纯注释 / devlab / 测试零误报放行', () => {
+test('T-8 第 1 类：命中界面候选路径（无论增删改或纯注释）一律判有界面差异落标准档；缺改动文件源一律 known=false 落标准档；devlab / 测试零误报', () => {
   const SAME_BOARDS = { A: { board: 'A' } }
-  // 坏例 1（回放 #1611）：改了 .tsx JSX / useEffect，board.json 没动
+  // 坏例 1（回放 #1611）：改了 .tsx（即使 board.json 没动，哪怕只是注释，也直接判碰了界面落标准档）
   const badTsx = deriveUiVerification({
     files: [M('src/workbench/creation/aiRewrite/AiRewriteBar.tsx')],
     baseBoards: SAME_BOARDS,
     headBoards: SAME_BOARDS,
-    readBaseFile: () => 'export function Bar() { return <div className="a" /> }',
-    readHeadFile: () => 'export function Bar() { return <div ref={barRef} className="a" /> }',
   })
   assert.equal(badTsx.known, true)
-  assert.equal(badTsx.changed, true, '坏例 .tsx JSX 变更必须判有界面差异')
+  assert.equal(badTsx.changed, true, '命中 .tsx 界面候选路径必须判有界面差异')
   const badTsxTier = tierOf([M('src/workbench/creation/aiRewrite/AiRewriteBar.tsx')], { body: INTENT(), uiVerification: badTsx })
   assert.equal(badTsxTier.tier, PROCESS_TIERS.STANDARD)
 
@@ -186,65 +188,72 @@ test('T-8 第 1 类：自报短档但改了 .tsx / .css / i18n / 档案默认参
     files: [M('src/i18n/locales/generationCommon.ts')],
     baseBoards: SAME_BOARDS,
     headBoards: SAME_BOARDS,
-    readBaseFile: () => 'export const zh = { deleteFailed: "删除失败", oldKey: "旧文案" }',
-    readHeadFile: () => 'export const zh = { deleteFailed: "删除失败" }',
   })
-  assert.equal(badI18n.changed, true, '坏例 i18n 字典变更必须判有界面差异')
+  assert.equal(badI18n.changed, true, '命中 src/i18n/ 必须判有界面差异')
 
   // 坏例 3（回放 #1616）：改了 .css 样式
   const badCss = deriveUiVerification({
     files: [M('src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css')],
     baseBoards: SAME_BOARDS,
     headBoards: SAME_BOARDS,
-    readBaseFile: () => '.handle-hit { width: 140px; }',
-    readHeadFile: () => '.handle-hit { width: 112px; }',
   })
-  assert.equal(badCss.changed, true, '坏例 CSS 变更必须判有界面差异')
+  assert.equal(badCss.changed, true, '命中 .css 必须判有界面差异')
 
   // 坏例 4（回放 #1621 同类）：改了模型档案展示默认参数
   const badArchetype = deriveUiVerification({
     files: [M('electron/shared/modelArchetypes/kling.ts')],
     baseBoards: SAME_BOARDS,
     headBoards: SAME_BOARDS,
-    readBaseFile: () => 'export const P = { key: "aspect_ratio", defaultValue: "16:9" }',
-    readHeadFile: () => 'export const P = { key: "aspect_ratio", defaultValue: "auto" }',
   })
-  assert.equal(badArchetype.changed, true, '坏例模型档案默认参数变更必须判有界面差异')
+  assert.equal(badArchetype.changed, true, '命中模型档案目录必须判有界面差异')
 
-  // 坏例 5（词法安全护栏）：字符串/模板字面量内含 // 或 /*（如 URL）被改 → 绝不能当注释剥掉，必判有界面差异
-  const badUrlString = deriveUiVerification({
-    files: [M('src/i18n/locales/helpLinks.ts')],
-    baseBoards: SAME_BOARDS,
-    headBoards: SAME_BOARDS,
-    readBaseFile: () => 'export const DOC = "https://example.com/*v1*/" + `https://nomi.app/${/* ok */ id}`',
-    readHeadFile: () => 'export const DOC = "https://example.com/*v2*/" + `https://nomi.app/${/* ok */ id}`',
-  })
-  assert.equal(badUrlString.changed, true, '字符串内含 // 或 /* 的 URL 变更必须判有界面差异')
-
-  // 好例 1（回放 #1547）：仅改 .tsx JSDoc 注释，AST token 逐项一致 → 放行短档
-  const goodComment = deriveUiVerification({
+  // 坏例 5（口子二：删手写词法器后，.tsx 即使只改注释也统一判碰了界面落标准档，不升严）
+  const commentOnlyTsx = deriveUiVerification({
     files: [M('src/workbench/generationCanvas/nodes/ComposerSendButton.tsx')],
     baseBoards: SAME_BOARDS,
     headBoards: SAME_BOARDS,
-    readBaseFile: () => '/** 旧注释 */\nexport function Btn() { return <button /> }',
-    readHeadFile: () => '/** 新注释：说明两处闸的区别 */\nexport function Btn() { return <button /> }',
   })
-  assert.equal(goodComment.known, true)
-  assert.equal(goodComment.changed, false, '好例纯注释 .tsx 改动不误报')
-  assert.equal(tierOf([M('src/workbench/generationCanvas/nodes/ComposerSendButton.tsx')], { body: INTENT(), uiVerification: goodComment }).tier, PROCESS_TIERS.SHORT)
+  assert.equal(commentOnlyTsx.known, true)
+  assert.equal(commentOnlyTsx.changed, true)
+  assert.equal(tierOf([M('src/workbench/generationCanvas/nodes/ComposerSendButton.tsx')], { body: INTENT(), uiVerification: commentOnlyTsx }).tier, PROCESS_TIERS.STANDARD)
 
-  // 好例 2（回放 #1529）：仅改 src/devlab/ 设计实验室
+  // 坏例 6（口子一：四个入口共用 evaluatePrBody / deriveUiVerification；缺少改动文件源时一律 known=false 落标准档，绝不进短档）
+  for (const emptyFiles of [[], undefined]) {
+    const res = evaluatePrBody({
+      body: `${INTENT()}\n${SHORT_CARD}`,
+      files: emptyFiles ?? [],
+      createdAt: AFTER_RULE,
+      evidence: { baseBoards: SAME_BOARDS, boards: SAME_BOARDS },
+    })
+    assert.equal(res.processTier.tier, PROCESS_TIERS.STANDARD, '缺少改动文件清单时绝不能进短档')
+    assert.equal(res.processTier.uiVerification?.known, false)
+  }
+
+  // 好例 1（回放 #1529）：仅改 src/devlab/ 设计实验室
   const goodDevlab = deriveUiVerification({
     files: [M('src/devlab/designLab.tsx')],
     baseBoards: SAME_BOARDS,
     headBoards: SAME_BOARDS,
-    readBaseFile: () => 'export const X = 1',
-    readHeadFile: () => 'export const X = 2',
   })
   assert.equal(goodDevlab.changed, false, '好例 src/devlab/ 不误报')
 
-  // 好例 3（回放 #1620）：纯测试文件
+  // 好例 2（回放 #1620）：纯测试文件
   assert.equal(tierOf([M('tests/ux/gpt-image-2-edit-no-size.paid.mjs')]).tier, PROCESS_TIERS.SHORT)
+})
+
+test('四入口接线契约：推送前 / CI check:pr-judgement / PR Body 工作流 / merge-preflight 全传 prChanges 真实文件列表', () => {
+  const root = path.resolve(here, '..')
+  const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8')
+  // ① 推送前入口 → check-pr-judgement.mjs；② CI check:pr-judgement → check-pr-judgement.mjs --stage=push；③ PR Body 工作流 → check-pr-judgement.mjs --stage=merge
+  assert.match(read('scripts/pre-push-contracts.mjs'), /check-pr-judgement\.mjs/)
+  assert.match(read('.github/workflows/pr-body.yml'), /check-pr-judgement\.mjs --stage=merge/)
+  const judgeCli = read('scripts/check-pr-judgement.mjs')
+  assert.match(judgeCli, /prChanges\s*\(/)
+  assert.match(judgeCli, /evaluatePrBody\s*\(\{[^}]*\bfiles\b/)
+  // ④ 合并前扫描 → merge-preflight.mjs
+  const preflight = read('scripts/merge-preflight.mjs')
+  assert.match(preflight, /prChanges\s*\(/)
+  assert.match(preflight, /evaluatePrBody\s*\(\{[^}]*\bfiles\b/)
 })
 
 // ── 总入口（evaluatePrBody）：每档交什么 ──────────────────────────────────────────────────────────────────────

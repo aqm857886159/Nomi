@@ -530,12 +530,12 @@ describe('派工通用规则（原协调本机检查）', () => {
     assert.match(run(`${quiet}\n修完起窗口截图对一遍。`), /没提 verify-nomi/)
     assert.match(run(`${quiet}\n改界面的按钮顺序。`), /缺设计系统引用/)
   })
-  test('8 新增通用能力要提「先查别人」和 check-prior-art；声明不登记自写放行', () => {
-    const add = `${IMPL_OK}\n新增通用能力。`
+  test('8 新增通用能力要提「先查别人」和 check-pr-judgement；声明不登记自写放行', () => {
+    const add = `${IMPL_OK.replace(/check-pr-judgement/g, '正文核对')}\n新增通用能力。`
     assert.match(run(add), /没提 先查别人/)
-    assert.match(run(add), /没提 check-prior-art/)
+    assert.match(run(add), /没提 check-pr-judgement/)
     assert.doesNotMatch(run(`${add}\n声明：不登记自写`), /没提 先查别人/)
-    assert.doesNotMatch(run(`${add}\n设计卡写「## 先查别人」，跑 check-prior-art.mjs。`), /没提/)
+    assert.doesNotMatch(run(`${add}\n设计卡写「## 先查别人」，跑 check-pr-judgement.mjs。`), /没提/)
   })
   test('10 照拍板图做界面要「对照表：」和并排图', () => {
     const board = `${IMPL_OK}\n照板做这一块。`

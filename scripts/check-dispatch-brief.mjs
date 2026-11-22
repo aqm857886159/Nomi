@@ -274,9 +274,9 @@ export function orchestrationProblems(text, { name = '', hotspot = false } = {})
   }
   // 8 登记自写 / 新增通用能力的任务书，必须要求把查证写成设计卡里的「## 先查别人」一节，并在交回前带正文跑那道门岗。
   if (isBuildLine && /登记[^\n]{0,12}自写|自写[^\n]{0,12}登记|self-written\.json|新增功能|新增通用/.test(text) && !/^声明：不登记自写/m.test(text)) {
-    for (const need of ['先查别人', 'check-prior-art']) {
+    for (const need of ['先查别人', 'check-pr-judgement']) {
       if (!text.includes(need)) {
-        problems.push(`这份任务书涉及自写 / 新增能力，却没提 ${need}：要求线在设计卡里写「## 先查别人」一节（≥3 条带 URL 或 file:line 的出处，只写真打开看过的），交回前跑 NOMI_PR_BODY="$(cat .tmp-pr-body.md)" node scripts/check-prior-art.mjs --pr；不登记自写就写一行「声明：不登记自写」`)
+        problems.push(`这份任务书涉及自写 / 新增能力，却没提 ${need}：要求线在设计卡里写「## 先查别人」一节（≥3 条带 URL 或 file:line 的出处，只写真打开看过的），交回前跑 NOMI_PR_BODY="$(cat .tmp-pr-body.md)" node scripts/check-pr-judgement.mjs --pr；不登记自写就写一行「声明：不登记自写」`)
       }
     }
   }

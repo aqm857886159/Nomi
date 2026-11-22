@@ -17,7 +17,7 @@
         "gate:check:self-written(新增未认领模块 + 评估到期真拦 + 已替换要删登记)",
         "gate:scripts/check-direction-trailer.mjs(自写登记连修第 2 次要带点名该登记的复盘)",
         "coordinator-tool:scripts/self-written-review.mjs(排版本计划时跑，到期清单给用户看)",
-        "gate:check:prior-art",
+        "gate:check:pr-judgement(先查别人：新增或改动自写登记表必查 ≥3 条出处)",
         "hook:self-check(先查别人块)"
       ],
       "evidence": "CI 里 check:self-written / prior-art 有红记录；用户纠正过「先接入再自写」",
@@ -129,7 +129,7 @@
         "gate:check:pr-judgement(设计卡「功能分类」按路径推出的类别下限勾选 + `## 验收证据` 逐项对账，路由表 docs/engineering/test-routing.json；短档由门岗从改动本身算出没碰用户可见界面，不以 PR 自报为准；CI Contracts + push 前)",
         "gate:check:perf-scenarios(性能场景登记表结构：id 唯一、script 存在且是现有量具、budget / baseline 齐全且是数字)",
         "gate:check:pr-judgement(「新增功能 / 性能」类必交 perf-scenario 证据：格式、id 在登记表、未验证红)",
-        "gate:check:renderer-sync-ipc(渲染进程同步 IPC 冻结清单只减不增，新增 sendSync 通道即红；2026-10-16 卡顿波)",
+        "gate:lint:ci(eslint renderer-sync-ipc/no-restricted-syntax：渲染进程同步 IPC 存量冻结在 eslint-suppressions.json 只减不增，新增 sendSync / invokeSync 即红；2026-10-16 卡顿波)",
         "gate:lint:ci(eslint no-restricted-syntax：store 选择器里禁 JSON.stringify：选择器每次 store 写都跑；2026-10-16 卡顿波)",
         "template:docs/engineering/design-card.md(★7 性能，新功能必填)",
         "coordinator-tool:scripts/merge-preflight.mjs(同一份判据 + 规则与门岗改动范围)",
@@ -331,7 +331,7 @@
       "enforcement": [
         "hook:self-check(先查别人块)",
         "hook:self-check(调研时刻行)",
-        "gate:check:prior-art",
+        "gate:check:pr-judgement(先查别人)",
         "gate:check:board-parity",
         "coordinator-tool:scripts/check-dispatch-brief.mjs(模型可见工具必读)"
       ],

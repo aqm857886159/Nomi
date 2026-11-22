@@ -15,10 +15,6 @@
 /** gates:contracts 的项 → 完整覆盖它的推送前门岗名（部分覆盖的不在这里，见 PARTIAL_LOCAL）。 */
 export const PRE_PUSH_ALIASES = Object.freeze({
   'check:test-temp-static': { by: 'test:temp-helper', note: '走查 / 测试必须用共享临时目录助手，那条 node test 本身' },
-  'check:main-console': { by: 'lint:changed', note: '已迁入 eslint.config.mjs（main-console/no-restricted-syntax），推送前由 lint:changed 覆盖' },
-  'check:renderer-sync-ipc': { by: 'lint:changed', note: '已迁入 eslint.config.mjs（renderer-sync-ipc/no-restricted-syntax + eslint-suppressions.json），推送前由 lint:changed 覆盖' },
-  'check:builtin-vendor-literals': { by: 'lint:changed', note: '已迁入 eslint.config.mjs（builtin-vendor-literals / builtin-host-step），推送前由 lint:changed 覆盖' },
-  'check:prior-art': { by: 'check:pr-judgement', note: '已并入 check-pr-judgement.mjs（checkPriorArtAlongside），同一次正文与 base diff 核对一并执行' },
 })
 
 /**
