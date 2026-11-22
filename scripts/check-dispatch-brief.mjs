@@ -18,6 +18,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { buildCapabilityIndex, loadRegistries } from './build-capability-index.mjs'
 import { directionMessage, findHotspots, loadHistory, seamFixCommits } from './fix-churn.mjs'
 import { loadSeams, SEAM_WINDOW_DAYS } from './fix-churn-units.mjs'
 
@@ -347,6 +348,23 @@ export function checkDispatchBrief(text, { name = '', implementation = false, de
   return problems
 }
 
+/**
+ * T-8 自动发现触点 2：派工书校验时，按任务书提到的 src/ / electron/ 路径自动输出「已有主人与现成库」速查
+ * （不依赖 Claude Code PreToolUse hook，覆盖蜂群 worker / Antigravity / Codex 等所有宿主，严格 ≤ 2500 字节）。
+ */
+export function briefCapabilityHints(text, { root = REPO_ROOT, registries = null } = {}) {
+  const paths = briefPaths(text).filter((p) => /^(?:src|electron)\//.test(p) && !/\.(?:test|spec|e2e)\.[^.]+$/.test(p))
+  if (paths.length === 0) return ''
+  let loaded = registries
+  if (!loaded) {
+    try { loaded = loadRegistries(root) } catch { return '' }
+  }
+  const primary = paths[0]
+  const index = buildCapabilityIndex({ ...loaded, targetRel: primary, maxBytes: 2200 })
+  if (!index.text) return ''
+  return `【动手前自动发现 · 已有主人与现成库（按任务范围 ${primary}${paths.length > 1 ? ` 等 ${paths.length} 处` : ''}）】\n${index.text}`
+}
+
 function main() {
   const file = process.argv[2]
   if (!file || !fs.existsSync(file)) { console.error('用法：node scripts/check-dispatch-brief.mjs <任务书.md>'); return 2 }
@@ -354,6 +372,8 @@ function main() {
   const warnings = []
   const problems = checkDispatchBrief(text, { name: path.basename(file), implementation: isImplementationBrief(text, file), design: isDesignBrief(text, file), acceptance: isAcceptanceBrief(text, file), warnings })
   for (const warning of warnings) console.warn(warning)
+  const hints = briefCapabilityHints(text)
+  if (hints) console.log(hints)
   if (!problems.length) { console.log('派工书检查：范围、不碰清单、停点、删不删、调用方、删除范围齐全，第 3 轮复盘、模型可见工具清单、目标合同、热点方向检查与设计系统引用检查通过。'); return 0 }
   console.error(`派工书检查：${problems.length} 项缺失\n${problems.map((p) => `  · ${p}`).join('\n')}`)
   return 1

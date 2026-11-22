@@ -62,8 +62,8 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:test-waits', when: (files) => files.some((file) => CODE_FILE.test(file)) },
   { name: 'check:mjs-parse', when: (files) => files.some((file) => SCRIPT_FILE.test(file)) },
   { name: 'check:ipc-sender-binding', when: (files) => files.some((file) => file.startsWith('electron/')) },
-  { name: 'check:renderer-sync-ipc', when: (files) => files.some((file) => file.startsWith('electron/') || file.startsWith('src/')) },
   // 2026-10-09 加：10-09 上午 #1133 / #1135 / #1128 / #1137 推送前全绿、CI Contracts 各红好几处，全是下面这几道（本机 Windows 实测 7–13 秒）
+  // 2026-11-23 T-8 收口：check:renderer-sync-ipc / check:builtin-vendor-literals / check:main-console 已迁入 eslint.config.mjs，推送前由 lint:changed 覆盖（见 PRE_PUSH_ALIASES）。
   { name: 'check:tokens', when: (files) => touchesGateInputs('check:tokens', files) },
   { name: 'check:vocabularies', when: (files) => touchesGateInputs('check:vocabularies', files) },
   { name: 'check:controls', when: (files) => touchesGateInputs('check:controls', files) },
@@ -71,12 +71,10 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:icon-semantics', when: (files) => touchesGateInputs('check:icon-semantics', files) },
   { name: 'check:error-surface', when: (files) => touchesGateInputs('check:error-surface', files) },
   { name: 'check:heavy-path', when: (files) => touchesGateInputs('check:heavy-path', files) },
-  { name: 'check:builtin-vendor-literals', when: (files) => touchesGateInputs('check:builtin-vendor-literals', files) },
   { name: 'check:read-path-writes', when: (files) => touchesGateInputs('check:read-path-writes', files) },
   { name: 'check:batch-machines', when: (files) => touchesGateInputs('check:batch-machines', files) },
   { name: 'check:capability-lifecycle', when: (files) => touchesGateInputs('check:capability-lifecycle', files) },
   { name: 'check:no-default-overwrite', when: (files) => touchesGateInputs('check:no-default-overwrite', files) },
-  { name: 'check:main-console', when: (files) => touchesGateInputs('check:main-console', files) },
   { name: 'check:asset-evidence', when: (files) => touchesGateInputs('check:asset-evidence', files) },
   { name: 'check:media-import-owner', when: (files) => touchesGateInputs('check:media-import-owner', files) },
   { name: 'check:storyboard-owner', when: (files) => touchesGateInputs('check:storyboard-owner', files) },
@@ -223,7 +221,7 @@ export const SCAN_TESTS = Object.freeze([
 ])
 
 /** 正文类（需要 PR 正文）：prior-art 与 pr-judgement，正文取不到时只说「今天没查成」（CI 侧仍然 fail-closed）。 */
-export const BODY_GATES = Object.freeze(['check:prior-art', 'check:pr-judgement'])
+export const BODY_GATES = Object.freeze(['check:pr-judgement'])
 
 /** 改动文件的 eslint 子集（警告数不得比 base 多、错误一律拦、批量抑制只减不增）；脚本是 scripts/lint-changed.mjs，不在 package.json 里。 */
 export const LINT_GATE = Object.freeze({ name: 'lint:changed', script: 'scripts/lint-changed.mjs', when: (files) => files.some((file) => /\.(?:tsx?|jsx?|[cm]js)$/.test(file) || file === 'eslint-suppressions.json') })

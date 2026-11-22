@@ -35,6 +35,13 @@ export function newFileMessage(rel, indexText) {
   ].filter(Boolean).join('\n')
 }
 
+export function existingFileMessage(rel, indexText) {
+  return [
+    `【已有主人与现成库 · 首次编辑已有文件】你正在改 ${rel}。别在已有文件里再手写一份通用机制或第二层判断：`,
+    indexText,
+  ].filter(Boolean).join('\n')
+}
+
 const RULE_FILES = new Set(['CLAUDE.md', 'docs/engineering/rules.json'])
 
 export const RULE_CHANGE_MESSAGE = '【改规则】五步走了吗（docs/engineering-rules.md「改规则」）：先管眼前 → 写成一句话，不带这一次的名词 → 找家、能删哪句、谁来判 → 放回真实案例试跑 → 用户看过再定。用户定过的字不自己改。只改路径、错字的不用走。（只是提醒，不拦你。）'
@@ -57,6 +64,11 @@ export function decideEditTimeReminder(payload, env) {
   }
   const entry = env.churn(rel)
   if (entry?.hot) return { kind: 'repeat-fix', rel, count: entry.file.fixes, message: directionMessage([entry]) }
+  // 首次 Edit 已有受控源码也给精简「已有主人 + 现成库」速查（补齐 T-8 盲区 1：此前只在新建文件时触发，改已有文件 0 提示）。
+  if (tool === 'Edit') {
+    const index = buildCapabilityIndex({ ...env.registries(), targetRel: rel, maxBytes: 1800 })
+    if (index.text) return { kind: 'existing-file', rel, message: existingFileMessage(rel, index.text), indexBytes: index.bytes }
+  }
   return null
 }
 

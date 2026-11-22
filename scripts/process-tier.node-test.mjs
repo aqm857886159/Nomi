@@ -162,6 +162,77 @@ test('界面清单对账 fail-closed：改了产品代码就必须拿到两边�
   assert.equal(deriveUiVerification({ files: [M('src/ui/a.tsx')], baseBoards: { A: { board: 'A' } }, headBoards: { A: { board: 'A', stage: 'built' } } }).changed, true)
 })
 
+test('T-8 第 1 类：自报短档但改了 .tsx / .css / i18n / 档案默认参数 → AST 算有界面差异并拒绝短档；纯注释 / devlab / 测试零误报放行', () => {
+  const SAME_BOARDS = { A: { board: 'A' } }
+  // 坏例 1（回放 #1611）：改了 .tsx JSX / useEffect，board.json 没动
+  const badTsx = deriveUiVerification({
+    files: [M('src/workbench/creation/aiRewrite/AiRewriteBar.tsx')],
+    baseBoards: SAME_BOARDS,
+    headBoards: SAME_BOARDS,
+    readBaseFile: () => 'export function Bar() { return <div className="a" /> }',
+    readHeadFile: () => 'export function Bar() { return <div ref={barRef} className="a" /> }',
+  })
+  assert.equal(badTsx.known, true)
+  assert.equal(badTsx.changed, true, '坏例 .tsx JSX 变更必须判有界面差异')
+  const badTsxTier = tierOf([M('src/workbench/creation/aiRewrite/AiRewriteBar.tsx')], { body: INTENT(), uiVerification: badTsx })
+  assert.equal(badTsxTier.tier, PROCESS_TIERS.STANDARD)
+
+  // 坏例 2（回放 #1568）：改了 src/i18n/ 文案字典
+  const badI18n = deriveUiVerification({
+    files: [M('src/i18n/locales/generationCommon.ts')],
+    baseBoards: SAME_BOARDS,
+    headBoards: SAME_BOARDS,
+    readBaseFile: () => 'export const zh = { deleteFailed: "删除失败", oldKey: "旧文案" }',
+    readHeadFile: () => 'export const zh = { deleteFailed: "删除失败" }',
+  })
+  assert.equal(badI18n.changed, true, '坏例 i18n 字典变更必须判有界面差异')
+
+  // 坏例 3（回放 #1616）：改了 .css 样式
+  const badCss = deriveUiVerification({
+    files: [M('src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css')],
+    baseBoards: SAME_BOARDS,
+    headBoards: SAME_BOARDS,
+    readBaseFile: () => '.handle-hit { width: 140px; }',
+    readHeadFile: () => '.handle-hit { width: 112px; }',
+  })
+  assert.equal(badCss.changed, true, '坏例 CSS 变更必须判有界面差异')
+
+  // 坏例 4（回放 #1621 同类）：改了模型档案展示默认参数
+  const badArchetype = deriveUiVerification({
+    files: [M('electron/shared/modelArchetypes/kling.ts')],
+    baseBoards: SAME_BOARDS,
+    headBoards: SAME_BOARDS,
+    readBaseFile: () => 'export const P = { key: "aspect_ratio", defaultValue: "16:9" }',
+    readHeadFile: () => 'export const P = { key: "aspect_ratio", defaultValue: "auto" }',
+  })
+  assert.equal(badArchetype.changed, true, '坏例模型档案默认参数变更必须判有界面差异')
+
+  // 好例 1（回放 #1547）：仅改 .tsx JSDoc 注释，AST token 逐项一致 → 放行短档
+  const goodComment = deriveUiVerification({
+    files: [M('src/workbench/generationCanvas/nodes/ComposerSendButton.tsx')],
+    baseBoards: SAME_BOARDS,
+    headBoards: SAME_BOARDS,
+    readBaseFile: () => '/** 旧注释 */\nexport function Btn() { return <button /> }',
+    readHeadFile: () => '/** 新注释：说明两处闸的区别 */\nexport function Btn() { return <button /> }',
+  })
+  assert.equal(goodComment.known, true)
+  assert.equal(goodComment.changed, false, '好例纯注释 .tsx 改动不误报')
+  assert.equal(tierOf([M('src/workbench/generationCanvas/nodes/ComposerSendButton.tsx')], { body: INTENT(), uiVerification: goodComment }).tier, PROCESS_TIERS.SHORT)
+
+  // 好例 2（回放 #1529）：仅改 src/devlab/ 设计实验室
+  const goodDevlab = deriveUiVerification({
+    files: [M('src/devlab/designLab.tsx')],
+    baseBoards: SAME_BOARDS,
+    headBoards: SAME_BOARDS,
+    readBaseFile: () => 'export const X = 1',
+    readHeadFile: () => 'export const X = 2',
+  })
+  assert.equal(goodDevlab.changed, false, '好例 src/devlab/ 不误报')
+
+  // 好例 3（回放 #1620）：纯测试文件
+  assert.equal(tierOf([M('tests/ux/gpt-image-2-edit-no-size.paid.mjs')]).tier, PROCESS_TIERS.SHORT)
+})
+
 // ── 总入口（evaluatePrBody）：每档交什么 ──────────────────────────────────────────────────────────────────────
 
 const AFTER_RULE = '2026-10-28T00:00:00Z'

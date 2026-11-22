@@ -565,3 +565,13 @@ describe('派工通用规则（原协调本机检查）', () => {
     assert.doesNotMatch(run(IMPL_OK), /独立工作树里做（派时/)
   })
 })
+
+describe('T-8 自动发现触点 2：派工书范围路径自动输出已有主人与现成库', () => {
+  test('含 electron/ 路径的任务书吐出通用能力现成库与同目录 owner（≤ 2500 字节）；无源码路径返回空串', () => {
+    const hints = checker.briefCapabilityHints('## 范围\n只改 `electron/agentLane/laneSkillCatalog.mts`。')
+    assert.match(hints, /【动手前自动发现 · 已有主人与现成库/)
+    assert.match(hints, /通用能力现成库/)
+    assert.ok(Buffer.byteLength(hints, 'utf8') <= 2500)
+    assert.equal(checker.briefCapabilityHints('## 范围\n只改 `docs/plan/demo.md`。'), '')
+  })
+})

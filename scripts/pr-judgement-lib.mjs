@@ -9,6 +9,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 
 import { knownScenarios, loadScenarios, parsePerfEvidence } from './perf-scenarios-lib.mjs'
 import { compareBoardManifests } from './check-board-parity.mjs'
@@ -44,8 +45,74 @@ const SHORT_WORD = /^(?:短|short|s)$/i
 const STANDARD_WORD = /^(?:标准|standard|normal|中)$/i
 const STRICT_WORD = /^(?:严|严格|strict|full)$/i
 const UI_SOURCE = /^(?:src\/.*\.(?:tsx|ts|css|scss)|electron\/.*\.(?:tsx|ts|css|scss))$/i
+const UI_SURFACE_AST = /^(?:src\/(?!devlab\/).*\.(?:tsx|css|scss)|src\/i18n\/.+\.(?:ts|tsx|json)|src\/design\/.+\.(?:ts|tsx|css|scss)|electron\/shared\/(?:modelArchetypes|videoCapabilities|imageCapabilities|audioCapabilities)\/.+\.(?:ts|tsx))$/i
 const UI_MANIFEST = /^docs\/design\/boards\//i
 const NON_PRODUCT = /^(?:docs\/.*|tests?\/.*|evals\/.*|\.github\/.*|scripts\/.*|fixtures\/.*|(?:[^/]+\.(?:md|json|ya?ml|toml|lock|txt))|.*\.(?:test|spec|e2e)\.[^.]+)$/i
+
+/**
+ * 剥离注释与空白，抽取稳定的语法 token 序列（TypeScript 官方 createScanner）。
+ * 目的：区分「仅改 JSDoc / 注释 / 排版（如 #1547 ComposerSendButton.tsx）」与「真实改动 JSX / 样式 / 文案 / 默认参数（如 #1611 / #1583 / #1568 / #1616）」。
+ */
+export function semanticTokensOf(filePath, content) {
+  const text = String(content ?? '')
+  const p = norm(filePath)
+  if (/\.(?:css|scss)$/i.test(p)) {
+    return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ').trim()
+  }
+  const variant = p.endsWith('.tsx') || p.endsWith('.jsx') ? ts.LanguageVariant.JSX : ts.LanguageVariant.Standard
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, variant, text)
+  const tokens = []
+  for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
+    tokens.push(`${kind}:${scanner.getTokenText()}`)
+  }
+  return tokens.join('\u0001')
+}
+
+/**
+ * 从真实 diff/AST 计算「用户可见界面 / 文案 / 设计 token / 模型展示默认参数是否发生非注释改动」。
+ * 不依赖 PR 正文手填的「无界面差异」自评，也不因 docs/design/boards/*.board.json 未变而放行（T-8 第 1 类）。
+ * 未注入文件内容读取器（readBaseFile / readHeadFile）时返回 null，由调用方退回拍板图清单对比。
+ */
+export function detectUiSurfaceDiff({ files = [], readBaseFile = null, readHeadFile = null } = {}) {
+  const candidates = files
+    .map((file) => ({ path: norm(file.path), status: file.status || 'M' }))
+    .filter((file) => !NON_PRODUCT.test(file.path) && UI_SURFACE_AST.test(file.path))
+  if (candidates.length === 0) return { known: true, changed: false, files: [], reason: 'AST 未检出渲染/文案/设计/默认参数文件改动' }
+  if (typeof readBaseFile !== 'function' || typeof readHeadFile !== 'function') return null
+
+  const changedFiles = []
+  for (const file of candidates) {
+    if (file.status === 'A') {
+      const headText = readHeadFile(file.path)
+      if (headText === null || headText === undefined) return { known: false, changed: null, files: [file.path], reason: `读不到界面候选文件 HEAD 内容（${file.path}），无法核实无界面差异` }
+      if (semanticTokensOf(file.path, headText).length > 0) changedFiles.push(file.path)
+      continue
+    }
+    if (file.status === 'D') {
+      const baseText = readBaseFile(file.path)
+      if (baseText === null || baseText === undefined) return { known: false, changed: null, files: [file.path], reason: `读不到界面候选文件 base 内容（${file.path}），无法核实无界面差异` }
+      if (semanticTokensOf(file.path, baseText).length > 0) changedFiles.push(file.path)
+      continue
+    }
+    const baseText = readBaseFile(file.path)
+    const headText = readHeadFile(file.path)
+    if (baseText === null || baseText === undefined || headText === null || headText === undefined) {
+      return { known: false, changed: null, files: [file.path], reason: `读不到界面候选文件 base/head 内容（${file.path}），无法核实无界面差异` }
+    }
+    if (semanticTokensOf(file.path, baseText) !== semanticTokensOf(file.path, headText)) {
+      changedFiles.push(file.path)
+    }
+  }
+  if (changedFiles.length > 0) {
+    return {
+      known: true,
+      changed: true,
+      files: changedFiles,
+      reason: `AST 检出用户可见界面 / 文案 / 展示默认参数非注释改动：${changedFiles.slice(0, 5).join('、')}${changedFiles.length > 5 ? ' …' : ''}`,
+    }
+  }
+  return { known: true, changed: false, files: [], reason: `界面候选文件仅改动注释或排版（AST 去注释 token 一致：${candidates.slice(0, 3).map((f) => f.path).join('、')}）` }
+}
 
 function normalizeTier(value) {
   const text = String(value ?? '').trim()
@@ -84,17 +151,20 @@ export function parseChangeIntent(body) {
  * 界面候选文件的保守判定。只要产品源文件变了，必须拿到 base/head 清单；
  * 文档、测试、配置和门岗自身不需要假装有 UI 证据。
  */
-export function deriveUiVerification({ files = [], baseBoards = null, headBoards = null, explicit = null } = {}) {
+export function deriveUiVerification({ files = [], baseBoards = null, headBoards = null, explicit = null, readBaseFile = null, readHeadFile = null } = {}) {
   if (explicit && typeof explicit === 'object') return explicit
   const normalized = files.map((file) => norm(file.path))
   const uiFiles = normalized.filter((file) => UI_SOURCE.test(file) || UI_MANIFEST.test(file))
   const productUiFiles = uiFiles.filter((file) => !NON_PRODUCT.test(file))
   if (!productUiFiles.length) return { known: true, changed: false, reason: '改动没有界面候选文件' }
+  const astDiff = detectUiSurfaceDiff({ files, readBaseFile, readHeadFile })
+  if (astDiff && (astDiff.known !== true || astDiff.changed === true)) return astDiff
   const base = typeof baseBoards === 'function' ? baseBoards() : baseBoards
   const head = typeof headBoards === 'function' ? headBoards() : headBoards
   const compared = compareBoardManifests(base, head)
   if (!compared.known) return { known: false, changed: null, reason: `${compared.reason}；界面候选文件有改动` }
-  return { ...compared, reason: `${compared.reason}；界面候选文件：${productUiFiles.slice(0, 5).join('、')}${productUiFiles.length > 5 ? ' …' : ''}` }
+  const astNote = astDiff?.reason ? `；${astDiff.reason}` : ''
+  return { ...compared, reason: `${compared.reason}${astNote}；界面候选文件：${productUiFiles.slice(0, 5).join('、')}${productUiFiles.length > 5 ? ' …' : ''}` }
 }
 
 const NO_UI_DIFF = /无(?:界面|UI)差异|no\s+ui\s+diff/i

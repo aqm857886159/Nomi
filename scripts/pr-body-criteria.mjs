@@ -548,7 +548,7 @@ export function evaluatePrBody({ body, files, addedLines = '', addedByFile = nul
     files: normalized,
     inferred: classification,
     ledgerTransitions: ledger.transitions ?? [],
-    uiVerification: () => uiVerification ?? deriveUiVerification({ files: normalized, baseBoards: inputs.baseBoards, headBoards: inputs.boards }),
+    uiVerification: () => uiVerification ?? deriveUiVerification({ files: normalized, baseBoards: inputs.baseBoards, headBoards: inputs.boards, readBaseFile: inputs.readBaseFile, readHeadFile: inputs.readHeadFile }),
     shortAllowed: processTieringEnforced(createdAt, enforce),
   })
   const short = processTier.tier === PROCESS_TIERS.SHORT

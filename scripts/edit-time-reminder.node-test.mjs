@@ -48,8 +48,13 @@ describe('(a) 新建文件', () => {
     assert.ok(result.indexBytes <= 2500)
   })
 
-  test('文件已存在 → 不当新建', () => {
+  test('文件已存在且走 Write → 不当新建；首次 Edit 已有受控文件 → 吐已有主人与现成库速查', () => {
     assert.equal(decideEditTimeReminder(write('electron/agentLane/laneHost.mts'), env({ exists: () => true })), null)
+    const onEdit = decideEditTimeReminder(write('electron/agentLane/laneSkillCatalog.mts', 'Edit'), env({ exists: () => true }))
+    assert.equal(onEdit.kind, 'existing-file')
+    assert.match(onEdit.message, /【已有主人与现成库 · 首次编辑已有文件】/)
+    assert.match(onEdit.message, /通用能力现成库/)
+    assert.ok(onEdit.indexBytes <= 1800)
   })
 
   test('不归它管的路径、别的工具、路径在仓库外 → 不提醒', () => {
@@ -69,7 +74,8 @@ describe('(b) 同一文件反复修', () => {
     assert.match(hit.message, /方向检查/)
     assert.match(hit.message, /类根因复盘/)
     assert.match(hit.message, new RegExp(`第 ${FIX_THRESHOLD + 1} 个`))
-    assert.equal(decideEditTimeReminder(write(file, 'Edit'), env({ exists: () => true, churn: () => ({ hot: false }) })), null)
+    const nonHot = decideEditTimeReminder(write(file, 'Edit'), env({ exists: () => true, churn: () => ({ hot: false }) }))
+    assert.equal(nonHot?.kind, 'existing-file')
     assert.equal(FIX_THRESHOLD, 2)
   })
 
