@@ -102,7 +102,7 @@ const SAFE_CANVAS_READ_CODES: ReadonlySet<string> = new Set<string>([
 /** 准入层拒绝码（`ParameterRejectionCode` + 画布模型身份）。 */
 const ADMISSION_CODES = [
   'unknown_parameter', 'parameter_type_mismatch', 'parameter_not_in_enum',
-  'parameter_out_of_range', 'missing_required_parameter', 'unknown_variant',
+  'parameter_out_of_range', 'missing_required_parameter', 'unknown_variant', 'mode_input_missing',
   'contract_invalid', 'unknown_model_identity', 'ambiguous_model_vendor', GENERATION_INPUT_INVALID_CODE,
 ] as const
 

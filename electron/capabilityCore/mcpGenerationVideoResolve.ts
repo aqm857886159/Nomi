@@ -18,8 +18,12 @@ import { effectiveVideoModes, videoVariantIdsOf } from "../shared/videoCapabilit
 import { canonicalArchetypeVariantId, resolveArchetypeVariant } from "../shared/modelArchetypes/variantResolution";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import type { ArchetypeMode } from "../shared/videoCapabilities/types";
-import { modeForInputs, modesInTask, statedMode } from "../shared/modelArchetypes/modeForInputs";
-import { referenceDemandsForCandidate } from "../shared/canvas/edgeAdmission";
+import { validateModeConstraints } from "../shared/videoCapabilities/crossFieldConstraints";
+import { modeForInputs, modesInTask, slotCountsForMode, statedMode } from "../shared/modelArchetypes/modeForInputs";
+import { effectiveModeParams } from "../shared/modelArchetypes/modeParams";
+import { resolveModelArchetype, type ModelArchetype } from "../shared/modelArchetypes";
+import { referenceDemandsForCandidate, type ReferenceDemand } from "../shared/canvas/edgeAdmission";
+import { modeInputRefusal } from "../catalog/modeInputRefusal";
 import { projectSemanticAspectRatio } from "./semanticAspectRatio";
 import { admitAuthoredDuration } from "./generationAuthoredDuration";
 import { paramSeconds } from "../shared/videoCapabilities/paramValue";
@@ -168,11 +172,13 @@ export function videoCandidateForPlan(candidate: PlanCandidate, candidates: read
 
 /**
  * 这一份候选按哪种方式发——**问方式主人**（`modeForInputs`），这里不另判（2026-11-17 删掉了按桶筛、取推荐首项、退档案默认的那一份）。
- *  · 说明白了 `modeId`：只查表（`statedMode`），不是这个模型的方式 → `mode_not_in_model`；不看参考、不重选（铁律「说了 = 放上去的」）；
- *  · `mode` 本身就是这个档案的某个方式 id（老草稿的写法）：同样当说明白的；
- *  · 否则 `mode` 是任务桶：在这一桶里按这次真放进来的参考选（`modeForInputs` + `task`，桶由 `modeTransportFor` 三级判）。
+ *  · 说明白了 `modeId`：查表（`statedMode`），不是这个模型的方式 → `mode_not_in_model`；起草写入口紧接着在
+ *    `normalizeAuthoredCandidate` 里经唯一判据 `validateModeConstraints` 核必填参考槽，喂不饱当场以 `mode_input_missing` 拒收
+ *    （铁律 ⑩「说的 = 摆的」：画布 0 输入会把多模模型退化成文生视频，不再假装「缺图照收与画布同一状态」）；
+ *  · `mode` 本身就是这个档案的某个方式 id（老草稿的写法）：同样查表；
+ *  · 否则 `mode` 是任务桶（未显式写 `modeId`）：在这一桶里按这次真放进来的参考选（`modeForInputs` + `task`，桶由 `modeTransportFor` 三级判）。
  *    桶里一个方式都没有 → `mode_not_in_model`；放了参考却没有方式收得下（`inputsNotAccepted`）→ 拒并列出这一桶的方式——不偷偷按文生发；
- *    缺必需输入（`needsInput`，比如说了图生却没给图）→ 收下这个方式，缺的由发送前的检查拒（与画布同一个状态）。
+ *    纯图生空占位（`needsInput`，未显式写 `modeId`）照实留位，由草稿回执首行显式标出缺口并在发送前由 `taskParams.ts` 兜底。
  */
 function videoModeForCandidate(candidate: PlanCandidate, videoCandidate: VideoModelCandidate): ArchetypeMode {
   const archetype = { ...videoCandidate.archetype, modes: effectiveVideoModes(videoCandidate) };
@@ -265,6 +271,72 @@ export function acceptedParameterSchema(
   }
 }
 
+export type AuthoredCandidateAdmissionOptions = {
+  /** 同批次分镜通过 `storyboard.anchorIds` 传入的锚点产出需求（非 text 锚点才计入参考输入）。 */
+  extraReferenceDemands?: readonly ReferenceDemand[];
+  /** 是否在本次归一中校验显式 `modeId` 的必填参考槽；默认按入参候选是否显式写了 `modeId` 判定。 */
+  enforceExplicitModeInputs?: boolean;
+};
+
+/** 认出候选此刻的档案与显式方式（视频走视频候选特化，其余图像/音频/3D 走通用档案入口）。 */
+function archetypeAndExplicitModeFor(
+  candidate: PlanCandidate,
+  candidates: readonly VideoModelCandidate[] | undefined,
+): { archetype: ModelArchetype; mode: ArchetypeMode } | null {
+  const modeId = typeof candidate.modeId === "string" ? candidate.modeId.trim() : "";
+  if (!modeId) return null;
+  const selected = candidates ? videoCandidateForPlan(candidate, candidates) : null;
+  if (selected) {
+    const archetype: ModelArchetype = { ...selected.videoCandidate.archetype, modes: effectiveVideoModes(selected.videoCandidate) };
+    const mode = statedMode(archetype, modeId);
+    return mode ? { archetype, mode } : null;
+  }
+  const row = catalogRowFor(candidate.providerId, candidate.modelId);
+  const archetype = resolveModelArchetype({
+    modelKey: candidate.modelId,
+    modelAlias: row?.modelAlias ?? null,
+    vendorKey: candidate.providerId,
+    meta: row?.meta,
+  }, { variant: { variantId: candidate.variantId, modelId: candidate.modelId } });
+  const mode = archetype ? statedMode(archetype, modeId) : undefined;
+  return archetype && mode ? { archetype, mode } : null;
+}
+
+/**
+ * 显式写了吃图/吃参考 `modeId` 的起草准入：唯一判据只问 `validateModeConstraints`（与发送口同一套规则，不另写第二份）。
+ * 喂不饱必填参考槽时当场以 `mode_input_missing` 拒收，不落脏草稿、不放空壳到画布。
+ */
+export function admitExplicitModeInputs(
+  candidate: PlanCandidate,
+  candidates: readonly VideoModelCandidate[] | undefined,
+  extraReferenceDemands: readonly ReferenceDemand[] = [],
+): void {
+  const resolved = archetypeAndExplicitModeFor(candidate, candidates);
+  if (!resolved) return;
+  const { archetype, mode } = resolved;
+  const demands = [...referenceDemandsForCandidate(candidate.references), ...extraReferenceDemands];
+  const counts = slotCountsForMode(mode, demands);
+  const { params: effective } = effectiveModeParams({
+    archetype,
+    variantId: candidate.variantId,
+    modeId: mode.id,
+    stored: candidate.parameters,
+  });
+  const violation = validateModeConstraints(mode, effective, counts);
+  if (!violation || (violation.kind !== "slotMissing" && violation.kind !== "companionMissing" && violation.kind !== "optionNeedsSlot")) {
+    return;
+  }
+  const refusal = modeInputRefusal(archetype, mode, counts, violation);
+  const slot = mode.slots.find((item) => item.kind === violation.slot);
+  const slotLabel = slot?.label ? `${slot.label} (${violation.slot})` : violation.slot;
+  const detail = `${refusal.message} [mode_input_missing: mode "${mode.id}" requires ${slotLabel}, got ${candidate.references.length} reference(s). Call look_at_media (or look_at_canvas) to get the asset ids and pass them in shots[].references, or omit modeId for text generation.]`;
+  throw new ContractCompilationError(
+    detail,
+    { code: "mode_input_missing", path: "references", ...(slot && slot.min > 0 ? { min: slot.min } : {}) },
+    { code: "parameter_not_allowed", field: "references", detail },
+  );
+}
+
 /**
  * **调用方写下的候选**落盘前的那一道归一（多镜 create / 单镜 create / 改草稿三扇写入口共用）：
  * 先按目录定模式（`normalizeVideoCandidate`），再按这个模式的参数表把语义比例翻成真实键
@@ -273,6 +345,7 @@ export function acceptedParameterSchema(
  * 落盘的候选里只剩真实键，付费卡、画布落地、派发读到的就是同一个值。
  * 时长同一处核（`admitAuthoredDuration`）：这个模式不收时长、或不在它的档里，当场拒并说出合法值——
  * 不留到封印那一刻，也不让画布节点自己回落到档案默认（铁律 ⑩ 首跑的两类静默）。
+ * 显式 `modeId` 的必填参考槽也在同一处经 `validateModeConstraints` 核（`admitExplicitModeInputs`）。
  */
 export function normalizeAuthoredCandidate(
   candidate: PlanCandidate,
@@ -280,12 +353,18 @@ export function normalizeAuthoredCandidate(
   candidates: readonly VideoModelCandidate[] | undefined,
   /** 改草稿时这一镜原有的参数（只用来判像素档的「同一档」，见 `projectSemanticAspectRatio`）。 */
   tierReference?: Readonly<Record<string, unknown>>,
+  options?: AuthoredCandidateAdmissionOptions,
 ): PlanCandidate {
+  const explicitModeId = typeof candidate.modeId === "string" && candidate.modeId.trim() !== "";
   const normalized = normalizeVideoCandidate(candidate, candidates);
   const accepted = acceptedParameterSchema(normalized, registry, candidates);
   // 目录里认不出这个模型 / 模式：这里不替它编一句「没有比例」——紧接着的身份准入（`admitShotIdentity` /
   // `admitPlanCandidate`）会说出真正的原因；语义键原样留着，到不了线缆（编合同时是未知参数，当场拒）。
-  return accepted ? admitAuthoredDuration(projectSemanticAspectRatio(normalized, accepted, tierReference), accepted) : normalized;
+  const authored = accepted ? admitAuthoredDuration(projectSemanticAspectRatio(normalized, accepted, tierReference), accepted) : normalized;
+  if (options?.enforceExplicitModeInputs ?? explicitModeId) {
+    admitExplicitModeInputs(authored, candidates, options?.extraReferenceDemands);
+  }
+  return authored;
 }
 
 /**

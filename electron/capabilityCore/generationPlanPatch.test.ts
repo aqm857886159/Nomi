@@ -27,6 +27,10 @@ const registry = createModuleRegistry([{
   }],
 }]);
 
+const IMG_REF: PlanCandidate["references"] = [
+  { assetId: "asset-img-1", contentHash: "a".repeat(64), version: 1, kind: "image" },
+];
+
 function base(overrides: Partial<PlanCandidate> = {}): PlanCandidate {
   return {
     candidateId: "cand-1", revision: 1, moduleId: "generation.single-shot", providerId: "apimart", modelId: "gpt-image-2",
@@ -35,25 +39,30 @@ function base(overrides: Partial<PlanCandidate> = {}): PlanCandidate {
 }
 
 describe("resolvePlanPatch · 种类跟着生成方式走", () => {
-  it("只换成图生图（modeId i2i）：种类跟成目录里这个模型的「改图」拼法", () => {
-    const { normalizedPatch, changeset } = resolvePlanPatch({ baseCandidate: base(), userPatch: { modeId: "i2i" }, registry });
+  it("只换成图生图（modeId i2i，带参考图）：种类跟成目录里这个模型的「改图」拼法", () => {
+    const { normalizedPatch, changeset } = resolvePlanPatch({ baseCandidate: base({ references: IMG_REF }), userPatch: { modeId: "i2i" }, registry });
     expect(normalizedPatch).toMatchObject({ modeId: "i2i", mode: "image-edit" });
     expect(changeset).toMatchObject({ modeChanged: true, modelChanged: false });
   });
 
+  it("显式切到图生图（modeId i2i）却没有参考图：当场按 mode_input_missing 拒收", () => {
+    expect(() => resolvePlanPatch({ baseCandidate: base(), userPatch: { modeId: "i2i" }, registry }))
+      .toThrow(/mode_input_missing/);
+  });
+
   it("切回文生图（modeId t2i）：种类跟回文生图", () => {
-    const { normalizedPatch } = resolvePlanPatch({ baseCandidate: base({ mode: "image-edit", modeId: "i2i" }), userPatch: { modeId: "t2i" }, registry });
+    const { normalizedPatch } = resolvePlanPatch({ baseCandidate: base({ mode: "image-edit", modeId: "i2i", references: IMG_REF }), userPatch: { modeId: "t2i" }, registry });
     expect(normalizedPatch).toMatchObject({ modeId: "t2i", mode: "text-to-image" });
   });
 
-  it("modeId 没变（同一个生成方式再发一次）：种类不动、不算换了方式", () => {
-    const { normalizedPatch, changeset } = resolvePlanPatch({ baseCandidate: base({ mode: "image-edit", modeId: "i2i" }), userPatch: { modeId: "i2i", prompt: "换一句" }, registry });
+  it("modeId 没变（同一个生成方式再发一次，带参考图）：种类不动、不算换了方式", () => {
+    const { normalizedPatch, changeset } = resolvePlanPatch({ baseCandidate: base({ mode: "image-edit", modeId: "i2i", references: IMG_REF }), userPatch: { modeId: "i2i", prompt: "换一句" }, registry });
     expect(normalizedPatch).not.toHaveProperty("mode");
     expect(changeset).toBeUndefined();
   });
 
   it("这个模型在目录里做不了那一种：当场拒，说清它能做什么（和建镜头同一道账）", () => {
-    expect(() => resolvePlanPatch({ baseCandidate: base({ modelId: "gpt-image-2-text-to-image" }), userPatch: { modeId: "i2i" }, registry }))
+    expect(() => resolvePlanPatch({ baseCandidate: base({ modelId: "gpt-image-2-text-to-image", references: IMG_REF }), userPatch: { modeId: "i2i" }, registry }))
       .toThrow(/text-to-image/);
   });
 
@@ -63,7 +72,7 @@ describe("resolvePlanPatch · 种类跟着生成方式走", () => {
   });
 
   it("明写了种类就按明写的（不拿 modeId 覆盖调用方这一次点名的）", () => {
-    const { normalizedPatch } = resolvePlanPatch({ baseCandidate: base(), userPatch: { modeId: "i2i", mode: "image-edit" }, registry });
+    const { normalizedPatch } = resolvePlanPatch({ baseCandidate: base({ references: IMG_REF }), userPatch: { modeId: "i2i", mode: "image-edit" }, registry });
     expect(normalizedPatch).toMatchObject({ mode: "image-edit", modeId: "i2i" });
   });
 });

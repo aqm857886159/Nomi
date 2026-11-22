@@ -6,7 +6,16 @@
 // （节点明明建好了，却说「画布上还没有节点」）。现在回执只渲染这一格——落没落、落成哪几个节点，
 // 都来自落地之后读到的那份 Run 账本，不是回执自己猜。
 //
-// 本文件没有运行时依赖：主进程的适配器写它，回执渲染读它。
+// 本文件放 `draft_shots` 回执的两块共享纯投影：
+//   · `draftCanvasLandingOf` / `describeDraftCanvasLanding`：宿主写、回执读的画布落地状态；
+//   · `summarizeDraftedShotsForModel`：回执第 1 行置顶的「实际落成摘要」，直接问方式主人（`modeForInputs`）
+//     与参数主人（`effectiveModeParams`），暴露显式值、档案默认补上的值（如 `generate_audio: true`）与未填缺口。
+import { resolveModelArchetype, type ArchetypeMode } from "../modelArchetypes";
+import { modeForInputs, slotCountsForMode } from "../modelArchetypes/modeForInputs";
+import { effectiveModeParams } from "../modelArchetypes/modeParams";
+import { referenceDemandForRole, referenceDemandsForCandidate, type ReferenceDemand } from "../canvas/edgeAdmission";
+import { validateModeConstraints } from "../videoCapabilities/crossFieldConstraints";
+import { modelHandleOf } from "../agentCapabilities/modelHandle";
 
 export const DRAFT_CANVAS_LANDING_KEY = "canvasLanding";
 
@@ -55,4 +64,174 @@ export function describeDraftCanvasLanding(landing: DraftCanvasLanding | undefin
     return "The draft is saved in the project but the project is not open right now, so it is NOT on the canvas yet; it appears when the user opens the project. Nothing was generated and nothing was spent. Do not say canvas nodes exist for it.";
   }
   return "The draft is saved in the project, but placing it on the canvas did not complete, so you cannot say the nodes exist. Nothing was generated and nothing was spent. Check with look_at_canvas before telling the user what is on the canvas.";
+}
+
+type DraftCandidateLike = Readonly<{
+  candidateId?: string;
+  providerId: string;
+  modelId: string;
+  variantId?: string;
+  modeId?: string;
+  mode?: string;
+  prompt?: string;
+  parameters?: Record<string, unknown>;
+  references?: ReadonlyArray<Readonly<{ kind?: "image" | "video" | "audio"; role?: string }>>;
+}>;
+
+type DraftShotLike = Readonly<{
+  shotId: string;
+  title?: string;
+  role?: string;
+  candidate: DraftCandidateLike;
+  storyboard?: Readonly<{ carrier?: string; anchorIds?: readonly string[] }>;
+}>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function asDraftCandidate(value: unknown): DraftCandidateLike | undefined {
+  if (!isRecord(value)) return undefined;
+  const providerId = typeof value.providerId === "string" ? value.providerId.trim() : "";
+  const modelId = typeof value.modelId === "string" ? value.modelId.trim() : "";
+  if (!providerId || !modelId) return undefined;
+  return {
+    ...(typeof value.candidateId === "string" ? { candidateId: value.candidateId } : {}),
+    providerId,
+    modelId,
+    ...(typeof value.variantId === "string" && value.variantId.trim() ? { variantId: value.variantId.trim() } : {}),
+    ...(typeof value.modeId === "string" && value.modeId.trim() ? { modeId: value.modeId.trim() } : {}),
+    ...(typeof value.mode === "string" && value.mode.trim() ? { mode: value.mode.trim() } : {}),
+    ...(typeof value.prompt === "string" ? { prompt: value.prompt } : {}),
+    ...(isRecord(value.parameters) ? { parameters: value.parameters } : {}),
+    ...(Array.isArray(value.references) ? { references: value.references as DraftCandidateLike["references"] } : {}),
+  };
+}
+
+function draftShotsFromResult(result: unknown): DraftShotLike[] {
+  const record = isRecord(result) ? result : undefined;
+  const container = record && isRecord(record.drafted) ? record.drafted : record;
+  const operation = container && isRecord(container.operation) ? container.operation : undefined;
+  if (!operation) return [];
+  if (Array.isArray(operation.shots) && operation.shots.length > 0) {
+    const out: DraftShotLike[] = [];
+    for (const [index, entry] of operation.shots.entries()) {
+      if (!isRecord(entry)) continue;
+      const candidate = asDraftCandidate(entry.candidate);
+      if (!candidate) continue;
+      const shotId = typeof entry.shotId === "string" && entry.shotId.trim() ? entry.shotId.trim() : `shot-${index + 1}`;
+      out.push({
+        shotId,
+        ...(typeof entry.title === "string" && entry.title.trim() ? { title: entry.title.trim() } : {}),
+        ...(typeof entry.role === "string" ? { role: entry.role } : {}),
+        candidate,
+        ...(isRecord(entry.storyboard) ? { storyboard: entry.storyboard as DraftShotLike["storyboard"] } : {}),
+      });
+    }
+    return out;
+  }
+  const single = asDraftCandidate(operation.candidate);
+  return single ? [{ shotId: single.candidateId ?? "shot-1", candidate: single }] : [];
+}
+
+function formatParamPairs(entries: ReadonlyArray<readonly [string, unknown]>): string {
+  return entries.map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join(", ");
+}
+
+function shortQuote(shot: DraftShotLike): string {
+  const raw = (shot.title || shot.candidate.prompt || "").replace(/\s+/g, " ").trim();
+  if (!raw) return "";
+  const clipped = raw.length > 36 ? `${raw.slice(0, 35)}…` : raw;
+  return ` "${clipped}"`;
+}
+
+function missingSlotText(mode: ArchetypeMode, effective: Record<string, unknown>, counts: ReturnType<typeof slotCountsForMode>): string {
+  const violation = validateModeConstraints(mode, effective, counts);
+  if (violation && (violation.kind === "slotMissing" || violation.kind === "companionMissing" || violation.kind === "optionNeedsSlot")) {
+    const slot = mode.slots.find((item) => item.kind === violation.slot);
+    return slot?.label ? `${slot.label} (${violation.slot})` : violation.slot;
+  }
+  const required = mode.slots.filter((slot) => slot.min > 0).map((slot) => (slot.label ? `${slot.label} (${slot.kind})` : slot.kind));
+  return required.length ? required.join(", ") : "required reference input";
+}
+
+function anchorDemandsForDraftShot(shot: DraftShotLike, allShots: readonly DraftShotLike[]): ReferenceDemand[] {
+  const anchorIds = shot.storyboard?.anchorIds;
+  if (!Array.isArray(anchorIds) || anchorIds.length === 0) return [];
+  const anchors = new Map(allShots.filter((item) => item.role === "anchor").map((item) => [item.shotId, item] as const));
+  const demands: ReferenceDemand[] = [];
+  for (const id of anchorIds) {
+    const anchor = anchors.get(id);
+    if (!anchor || anchor.storyboard?.carrier === "text") continue;
+    const mode = (anchor.candidate.mode ?? "").toLowerCase();
+    const asset = mode.includes("audio") ? "audio" : mode.includes("video") ? "video" : "image";
+    demands.push(referenceDemandForRole(undefined, asset));
+  }
+  return demands;
+}
+
+/**
+ * 给模型看的 `draft_shots` 回执置顶第 1 段：逐镜写出画布上实际生效的样子（方式、参考件数/槽位、
+ * 显式传的值、档案补上的默认值、以及纯图生空卡的 `NEEDS_INPUT` 缺口）。
+ * 严格复用 `modeForInputs` + `slotCountsForMode` + `effectiveModeParams` + `validateModeConstraints`，不另算一份。
+ */
+export function summarizeDraftedShotsForModel(result: unknown): string | undefined {
+  const shots = draftShotsFromResult(result);
+  if (shots.length === 0) return undefined;
+  const landing = draftCanvasLandingOf(result);
+  const nodeByShot = new Map(landing?.state === "placed" ? landing.nodes.map((node) => [node.shotId, node.nodeId] as const) : []);
+  const lines = shots.map((shot, index) => {
+    const { candidate } = shot;
+    const label = shot.role === "anchor" ? `Anchor ${index + 1}` : `Shot ${index + 1}`;
+    const targetId = nodeByShot.get(shot.shotId) ?? shot.shotId;
+    const handle = modelHandleOf({ vendor: candidate.providerId, modelId: candidate.modelId });
+    const modelHandle = candidate.variantId ? `${handle} (variant=${candidate.variantId})` : handle;
+    const stored = candidate.parameters ?? {};
+    const refs = candidate.references ?? [];
+    const anchorDemands = anchorDemandsForDraftShot(shot, shots);
+    const demands = [...referenceDemandsForCandidate(refs), ...anchorDemands];
+    const archetype = resolveModelArchetype(
+      { modelKey: candidate.modelId, vendorKey: candidate.providerId },
+      { variant: { variantId: candidate.variantId, modelId: candidate.modelId } },
+    );
+    if (!archetype) {
+      const explicitEntries = Object.entries(stored).filter(([, value]) => value !== undefined);
+      const refText = refs.length === 0 ? "references=0 (none attached)" : `references=${refs.length}`;
+      return `- ${label}${shortQuote(shot)} (${targetId}): model=${modelHandle}, mode=${candidate.modeId ?? candidate.mode ?? "unknown"}, ${refText}, explicitParams={${formatParamPairs(explicitEntries)}}`;
+    }
+    const modeResult = modeForInputs(
+      archetype,
+      demands,
+      candidate.modeId ? { modeId: candidate.modeId, chosenBy: "unknown" } : null,
+    );
+    const effectiveMode = modeResult.mode;
+    const counts = slotCountsForMode(effectiveMode, demands);
+    const { params: effectiveParams } = effectiveModeParams({
+      archetype,
+      variantId: candidate.variantId,
+      modeId: effectiveMode.id,
+      stored,
+    });
+    const explicitEntries: Array<readonly [string, unknown]> = [];
+    const defaultedEntries: Array<readonly [string, unknown]> = [];
+    for (const [key, value] of Object.entries(effectiveParams)) {
+      if (stored[key] !== undefined) explicitEntries.push([key, value]);
+      else defaultedEntries.push([key, value]);
+    }
+    const slotBreakdown = Object.entries(counts)
+      .filter(([, count]) => typeof count === "number" && count > 0)
+      .map(([kind, count]) => `${kind}:${count}`)
+      .join(", ");
+    const totalRefs = refs.length + anchorDemands.length;
+    const refText = totalRefs === 0
+      ? "references=0 (none attached)"
+      : slotBreakdown
+        ? `references=${totalRefs} (${slotBreakdown})`
+        : `references=${totalRefs}`;
+    const needsInput = modeResult.status === "needsInput"
+      ? `, NEEDS_INPUT: missing required ${missingSlotText(effectiveMode, effectiveParams, counts)} before generation`
+      : "";
+    return `- ${label}${shortQuote(shot)} (${targetId}): model=${modelHandle}, effectiveMode=${effectiveMode.id} (${effectiveMode.vendorTerm}), ${refText}, explicitParams={${formatParamPairs(explicitEntries)}}, defaultedParams={${formatParamPairs(defaultedEntries)}}${needsInput}`;
+  });
+  return ["Landed draft summary (effective values on canvas):", ...lines].join("\n");
 }

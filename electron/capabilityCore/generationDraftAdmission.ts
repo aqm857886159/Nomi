@@ -14,6 +14,28 @@ import { admitShotIdentity, semanticCandidateFromParams, type AssetReferenceIden
 import type { ResolvedModelName } from "../shared/agentCapabilities/modelHandle";
 import type { VideoModelCandidate } from "../shared/videoCapabilities/recommendation";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
+import { referenceDemandForRole, type ReferenceDemand } from "../shared/canvas/edgeAdmission";
+
+/** 同计划里 `storyboard.anchorIds` 引用的非文本锚点折算成参考输入需求（供显式 `modeId` 准入与改稿共用）。 */
+export function anchorReferenceDemandsForShot(
+  shot: Pick<GenerationOperationDraftShot, "storyboard"> | undefined,
+  planShots: readonly GenerationOperationDraftShot[],
+): ReferenceDemand[] {
+  const anchorIds = shot?.storyboard?.anchorIds;
+  if (!anchorIds?.length) return [];
+  const anchorsById = new Map(
+    planShots.filter((item) => item.role === "anchor").map((item) => [item.shotId, item] as const),
+  );
+  const demands: ReferenceDemand[] = [];
+  for (const anchorId of anchorIds) {
+    const anchor = anchorsById.get(anchorId);
+    if (!anchor || anchor.storyboard?.carrier === "text") continue;
+    const mode = anchor.candidate.mode.toLowerCase();
+    const asset = mode.includes("audio") ? "audio" : mode.includes("video") ? "video" : "image";
+    demands.push(referenceDemandForRole(undefined, asset));
+  }
+  return demands;
+}
 
 type DraftRegistry = Pick<ModuleRegistry, "resolve"> & Partial<Pick<ModuleRegistry, "snapshot">>;
 type NoteResolvedModelName = (entry: ResolvedModelName) => void;
@@ -50,10 +72,17 @@ export function createDraftAdmission(deps: DraftAdmissionDependencies) {
     params: Record<string, unknown>,
     registry: DraftRegistry = deps.registry,
     noteResolvedModelName?: NoteResolvedModelName,
+    existingShots: readonly GenerationOperationDraftShot[] = [],
   ): Promise<GenerationOperationDraftShot[] | undefined> => {
     const draftShots = await deps.resolveCreateShots(projectId, params, registry, noteResolvedModelName);
     if (!draftShots) return undefined;
-    const normalizedShots = draftShots.map((shot) => ({ ...shot, candidate: normalizeAuthoredCandidate(shot.candidate, registry, deps.videoModelCandidates) }));
+    const allShots = existingShots.length ? [...existingShots, ...draftShots] : draftShots;
+    const normalizedShots = draftShots.map((shot) => ({
+      ...shot,
+      candidate: normalizeAuthoredCandidate(shot.candidate, registry, deps.videoModelCandidates, undefined, {
+        extraReferenceDemands: anchorReferenceDemandsForShot(shot, allShots),
+      }),
+    }));
     // 每一镜的「模型 + 模式」落盘前就对过账：矛盾的镜头当场拒绝，不留到付费卡上点下去才发现（第 9 条）。
     for (const shot of normalizedShots) {
       admitShotIdentity(shot.candidate, registry, shot.role);
