@@ -522,6 +522,14 @@ describe('派工通用规则（原协调本机检查）', () => {
     assert.doesNotMatch(run(`${win}\n用 verify-nomi 技能，报告交 verify-line-meter。`), /没提 verify/)
     assert.doesNotMatch(run(`${win}\n声明：不起窗口`), /没提 verify/)
   })
+  test('否定说法不算提到：不碰清单里的「不起窗口」「不截图」不触发 7，「不改界面」不触发设计系统要求', () => {
+    const quiet = `${IMPL_OK}\n不碰清单：不起窗口、不截图、不改界面、别碰拍板图。`
+    assert.doesNotMatch(run(quiet), /没提 verify/)
+    assert.doesNotMatch(run(quiet), /缺设计系统引用/)
+    // 反例：真要起窗、真改界面的照样要求
+    assert.match(run(`${quiet}\n修完起窗口截图对一遍。`), /没提 verify-nomi/)
+    assert.match(run(`${quiet}\n改界面的按钮顺序。`), /缺设计系统引用/)
+  })
   test('8 新增通用能力要提「先查别人」和 check-prior-art；声明不登记自写放行', () => {
     const add = `${IMPL_OK}\n新增通用能力。`
     assert.match(run(add), /没提 先查别人/)

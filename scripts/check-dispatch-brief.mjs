@@ -185,6 +185,13 @@ const NOT_LOCAL = /CI|不跑|不要跑|别跑|不在本机|不用跑/
 const LOCAL_FULL_LINE = /^本机全量：\S/m
 // 原第 4 条（要实现线本机先跑 gates:contracts / 设计实验室 / 全量测试）已删：要保住的是「别让验收白做」，现在推送后 CI 和独立验收并行，CI 红了修完只复验增量。这里不再要求任何东西。
 
+// 否定说法不算提到：「不起窗口」「不改界面」「不截图」「别碰拍板图」这类写在不碰清单 / 声明里的句子，
+// 正说明这份任务书不做那件事，不该触发「要起真窗 / 要引设计系统」这类要求。
+// 来由：11-22 协调派只读线时，「不起窗口」「不改界面」各触发一次误报，只能改措辞绕开；搬进仓库后每条线都会撞上。
+export function withoutNegatedMentions(text) {
+  return String(text).replace(/(?:不|别|无需|不用|不必|没有|不要)(?:要|去|会)?(?:改|碰|动|起|开|拍|出|做|跑)?(?:真窗|真\s?App|起窗口?|窗口|界面|样张|拍板图?|截图|真点)/g, '')
+}
+
 /**
  * 派工通用规则：返回缺项说明（空数组 = 通过）。
  * name = 任务书文件名（I- / L- 开头算建造线、V- 开头算验收线）；hotspot = 范围内命中了文件热点（要方向检查的地方）。
@@ -249,11 +256,11 @@ export function orchestrationProblems(text, { name = '', hotspot = false } = {})
     }
   }
   // 6 界面验收任务书，必须要求每个控件真点一次并写下点完之后创作者看见什么。
-  if (isAcceptance && /界面|真窗|拍板/.test(text) && !/各点一次|真点一次|每个控件.*点/.test(text)) {
+  if (isAcceptance && /界面|真窗|拍板/.test(withoutNegatedMentions(text)) && !/各点一次|真点一次|每个控件.*点/.test(text)) {
     problems.push('界面验收任务书要写明「每个控件真点一次，并写下点完之后创作者看见什么」')
   }
   // 7 要起真窗验证的任务书，必须指向共用的验证驱动和技能（来由：2026-11-15 量过 83 条线，36 条各自现写驱动脚本，用常驻驱动的 0 条）。
-  if (/真窗|真 App|真点|每个控件真点一次|起窗|截图/.test(text) && !/^声明：不起窗口/m.test(text)) {
+  if (/真窗|真 App|真点|每个控件真点一次|起窗|截图/.test(withoutNegatedMentions(text)) && !/^声明：不起窗口/m.test(text)) {
     for (const need of ['verify-nomi', 'verify-line-meter']) {
       if (!text.includes(need)) {
         problems.push(`这份任务书要起真窗验证，却没提 ${need}：验证一节写「用 verify-nomi 技能（node tests/ux/ui.mjs up … → goto <功能名>）」，点名从哪个 goto 名出发、读回哪个标记或文案，并要求报告交 node scripts/verify-line-meter.mjs <证据目录> 那一行；确实不起窗口就写一行「声明：不起窗口」`)
@@ -317,7 +324,7 @@ export function checkDispatchBrief(text, { name = '', implementation = false, de
   if (implementation || acceptance) problems.push(...goalContractProblems(text, { implementation }))
   const scope = briefSection(text, '范围|scope').split(/^\s*(?:不在范围|范围外)[：:]/m, 1)[0]
   // 流程批准不是界面拍板，明确排除的界面也不触发设计要求。
-  const interfaceText = text.replace(/^\s*(?:不在范围|范围外)[：:][^\n]*/gm, '').replace(/[^。\n]*用户[^。\n]*拍板[^。\n]*/g, (sentence) => /界面|样张|拍板图/.test(sentence) ? sentence : '')
+  const interfaceText = withoutNegatedMentions(text).replace(/^\s*(?:不在范围|范围外)[：:][^\n]*/gm, '').replace(/[^。\n]*用户[^。\n]*拍板[^。\n]*/g, (sentence) => /界面|样张|拍板图/.test(sentence) ? sentence : '')
   const scopedPaths = [...new Set([...scope.matchAll(/`([^`\n]+)`/g)].map((m) => m[1]))]
   if ((/界面|样张|拍板/.test(interfaceText) || scopedPaths.some((file) => /^src\/.+\.tsx$/.test(file) && !/\.(test|spec)\.tsx$/.test(file))) && !/docs\/design\/nomi-design-system\.md(?:#[^\s`)]*)?/.test(text)) {
     problems.push('缺设计系统引用：范围含 src/ 下 .tsx 界面文件或正文提到界面 / 样张 / 拍板时，必须引用 docs/design/nomi-design-system.md（可带章节）')
