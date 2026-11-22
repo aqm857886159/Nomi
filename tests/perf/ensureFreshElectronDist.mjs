@@ -1,78 +1,51 @@
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { sourceIdentity } from '../../scripts/package-build-stamp.mjs'
 
-const DEFAULT_SOURCE_ROOTS = ['electron']
-const DEFAULT_SOURCE_FILES = [
-  'scripts/build-electron.mjs',
-  'scripts/electron-build-artifacts.mjs',
-  'scripts/write-intake-config.mjs',
-]
-const TEST_FILE_RE = /\.(test|spec)\.[cm]?[jt]sx?$/
+const DEFAULT_STAMP_REL = path.join('dist-electron', '.source-tree')
 
-/** 递归找出目录树里最新源码文件的 mtimeMs（跳过隐藏目录、node_modules 与测试文件）。 */
-export function newestSourceMtimeMs(repoRoot, sourceRoots = DEFAULT_SOURCE_ROOTS, sourceFiles = DEFAULT_SOURCE_FILES) {
-  let newest = 0
-  const visitFile = (filePath) => {
-    try {
-      const { mtimeMs } = fs.statSync(filePath)
-      if (mtimeMs > newest) newest = mtimeMs
-    } catch {
-      // 文件不存在时忽略
-    }
+function resolvePath(repoRoot, filePath) {
+  return path.isAbsolute(filePath) ? filePath : path.join(repoRoot, filePath)
+}
+
+function readRecordedTree(stampPath) {
+  try {
+    return fs.readFileSync(stampPath, 'utf8').trim()
+  } catch {
+    return null
   }
-  const walk = (dir) => {
-    let entries
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const entry of entries) {
-      if (entry.name.startsWith('.') || entry.name === 'node_modules') continue
-      const full = path.join(dir, entry.name)
-      if (entry.isDirectory()) {
-        walk(full)
-      } else if (entry.isFile() && !TEST_FILE_RE.test(entry.name)) {
-        visitFile(full)
-      }
-    }
-  }
-  for (const root of sourceRoots) walk(path.join(repoRoot, root))
-  for (const file of sourceFiles) visitFile(path.join(repoRoot, file))
-  return newest
+}
+
+function artifactsExist(repoRoot, requiredArtifacts) {
+  return requiredArtifacts.every((rel) => fs.existsSync(resolvePath(repoRoot, rel)))
 }
 
 /**
- * 判断 dist-electron 产物是否缺失或比任一源码旧。
- * 只要任一必需产物缺失、或源码最新 mtimeMs 严格大于最旧必需产物的 mtimeMs，就返回 true。
+ * 复用仓库唯一的源码指纹主人 `package-build-stamp.mjs#sourceIdentity` 判断 dist-electron 是否过期：
+ * 任一必需产物缺失、未写戳、或记录的源码 tree 哈希与当前工作区不一致，即判定过期。
  */
 export function isElectronDistStale({
   repoRoot,
   requiredArtifacts,
-  sourceRoots = DEFAULT_SOURCE_ROOTS,
-  sourceFiles = DEFAULT_SOURCE_FILES,
+  stampFile = DEFAULT_STAMP_REL,
+  computeTree = (dir) => sourceIdentity(dir).tree,
 }) {
-  let oldestArtifact = Infinity
-  for (const rel of requiredArtifacts) {
-    const full = path.isAbsolute(rel) ? rel : path.join(repoRoot, rel)
-    try {
-      const { mtimeMs } = fs.statSync(full)
-      if (mtimeMs < oldestArtifact) oldestArtifact = mtimeMs
-    } catch {
-      return true
-    }
-  }
-  if (!Number.isFinite(oldestArtifact)) return true
-  return newestSourceMtimeMs(repoRoot, sourceRoots, sourceFiles) > oldestArtifact
+  if (!artifactsExist(repoRoot, requiredArtifacts)) return true
+  const recorded = readRecordedTree(resolvePath(repoRoot, stampFile))
+  if (!recorded) return true
+  return recorded !== computeTree(repoRoot)
 }
 
-/** 产物缺失或过期时自动跑 scripts/build-electron.mjs 重建，避免性能量具静默读到旧代码。 */
+/**
+ * 产物缺失或源码 tree 变化时自动跑 `scripts/build-electron.mjs` 重建并写下最新 tree 戳，
+ * 避免性能量具静默读到过期 `dist-electron` 产物。
+ */
 export function ensureFreshElectronDist({
   repoRoot,
   requiredArtifacts,
-  sourceRoots = DEFAULT_SOURCE_ROOTS,
-  sourceFiles = DEFAULT_SOURCE_FILES,
+  stampFile = DEFAULT_STAMP_REL,
+  computeTree = (dir) => sourceIdentity(dir).tree,
   rebuild = () => {
     execFileSync(process.execPath, [path.join(repoRoot, 'scripts/build-electron.mjs')], {
       cwd: repoRoot,
@@ -80,7 +53,13 @@ export function ensureFreshElectronDist({
     })
   },
 }) {
-  if (!isElectronDistStale({ repoRoot, requiredArtifacts, sourceRoots, sourceFiles })) return false
+  const stampPath = resolvePath(repoRoot, stampFile)
+  const currentTree = computeTree(repoRoot)
+  if (artifactsExist(repoRoot, requiredArtifacts) && readRecordedTree(stampPath) === currentTree) {
+    return false
+  }
   rebuild()
+  fs.mkdirSync(path.dirname(stampPath), { recursive: true })
+  fs.writeFileSync(stampPath, `${currentTree}\n`, 'utf8')
   return true
 }
