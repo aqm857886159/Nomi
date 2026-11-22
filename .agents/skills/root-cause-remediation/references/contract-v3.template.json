@@ -58,6 +58,7 @@
       "evidence": "Explain why this equivalent-looking entry is outside the failure class."
     }
   ],
+  "recurrence_of": null,
   "recurrence": {
     "classification": "recurring",
     "reason": "Explain why the same mechanism can affect another user, input, entry point, machine, or future run.",
