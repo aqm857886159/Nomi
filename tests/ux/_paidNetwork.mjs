@@ -18,6 +18,13 @@ import { require as tsxRequire } from 'tsx/cjs/api'
 const { listsHost, parseAllowlist } = createRequire(import.meta.url)('../../electron/shared/walkAllowlist.cjs')
 // 请求体脱敏与闸同一份（不记请求头；Key 形状的串、签名查询串打码）。
 const { scrubText: scrubUrlText } = createRequire(import.meta.url)('../../scripts/walkthrough-url-shape.cjs')
+// 上游错误归类的唯一主人（electron/shared/generationFailure.ts）：付费总闸直接调它，不另写第二份认字规则。
+const { decideGenerationFailure, formatTaskFailureMessage } = tsxRequire('../../electron/shared/generationFailure.ts', import.meta.url)
+const { categorizeVendorFailure, encodeStructuredErrorMessage } = tsxRequire('../../electron/shared/vendorFailure.ts', import.meta.url)
+const { modelCallFailure } = tsxRequire('../../electron/ai/runtimeVendorError.ts', import.meta.url)
+const { describeAgentError } = tsxRequire('../../electron/ai/agentError.ts', import.meta.url)
+const { looksLikeLogicalError } = tsxRequire('../../electron/ai/requestPipeline.ts', import.meta.url)
+const { isJsonRecord, pickUpstreamCode, pickUpstreamMessage } = tsxRequire('../../electron/jsonUtils.ts', import.meta.url)
 
 /** 供应商 key → 它的成品下载域名。写法同闸：精确 origin，或 `*.域名`（含子域）。只放域名。 */
 export const VENDOR_RESULT_DOMAINS = Object.freeze({
@@ -286,6 +293,167 @@ export function rehearsalShouldStop(entries, { lockedAtEntry = null, judgedAllow
 export function rehearsalLedgerRequests(entries) {
   return entries.filter((entry) => entry?.kind === 'blocked' && entry.via === 'rehearsal-vendor')
     .map(({ method, url, host, body, at }) => ({ kind: 'allowed-request', via: 'rehearsal-vendor', method, url, host, body: body ?? null, at }))
+}
+
+/** 真付费走查因上游余额 / 额度耗尽记为「未验证」时的退出码（与 agent-gpt6-responses-real.paid.mjs 的 partial 一致：既不是 0 通过，也不是 1 产品不过）。 */
+export const PAID_UNVERIFIED_EXIT_CODE = 3
+
+/** 产品上游错误类别（GenerationErrorKind）里属于「服务商余额 / 额度」的两类 → 付费总闸结论词。 */
+const UPSTREAM_UNVERIFIED_VERDICTS = Object.freeze({
+  balance: '未验证：服务商余额不足',
+  quota: '未验证：服务商额度不足',
+})
+
+function entryHost(entry) {
+  if (typeof entry?.host === 'string' && entry.host) return entry.host
+  try { return new URL(String(entry?.url ?? '')).hostname } catch { return '' }
+}
+
+function responseSummaryOf(entry) {
+  let pathname = null
+  try { pathname = new URL(String(entry?.url ?? '')).pathname || null } catch { /* ignore */ }
+  return {
+    via: entry?.via ?? 'fetch',
+    method: entry?.method ? String(entry.method).toUpperCase() : null,
+    host: entryHost(entry),
+    path: pathname,
+    status: typeof entry?.status === 'number' ? entry.status : null,
+  }
+}
+
+function parseSseErrorPayload(rawText) {
+  for (const line of String(rawText ?? '').split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed.startsWith('data:')) continue
+    const jsonPart = trimmed.slice(5).trim()
+    if (!jsonPart || jsonPart === '[DONE]') continue
+    try {
+      const parsed = JSON.parse(jsonPart)
+      if (!isJsonRecord(parsed)) continue
+      if (isJsonRecord(parsed.response) && isJsonRecord(parsed.response.error)) return { error: parsed.response.error }
+      if (parsed.type === 'error' || isJsonRecord(parsed.error) || typeof parsed.error === 'string') return parsed
+    } catch { /* ignore non-JSON frame */ }
+  }
+  return null
+}
+
+/**
+ * 单条供应商出网响应行 → 产品唯一错误分类器（decideGenerationFailure）的类别；正常成功响应返回 null。
+ *   · HTTP ≥400：走文本 / Agent 调用同一套 modelCallFailure → describeAgentError → decideGenerationFailure；
+ *   · HTTP 2xx 业务错误信封（{ code: 402/1620/429, msg }）：走 vendorHttp 同一套 looksLikeLogicalError → categorizeVendorFailure → decideGenerationFailure；
+ *   · HTTP 2xx 异步任务轮询失败（{ data: { status: 'failed', error } }）：走 formatTaskFailureMessage → decideGenerationFailure；
+ *   · HTTP 2xx SSE 流内错误帧（event: error / response.failed）：提取上游错误对象后走结构化载荷 → decideGenerationFailure。
+ */
+export function classifyAllowedVendorResponse(entry) {
+  const status = typeof entry?.status === 'number' ? entry.status : null
+  const rawText = typeof entry?.text === 'string' ? entry.text : typeof entry?.body?.text === 'string' ? entry.body.text : ''
+  const url = typeof entry?.url === 'string' ? entry.url : ''
+  const vendorKey = String(entry?.vendorKey || entryHost(entry) || 'vendor')
+  const method = entry?.method ? String(entry.method).toUpperCase() : 'POST'
+  if (status !== null && status >= 400) {
+    const wire = describeAgentError(modelCallFailure({ vendorKey, attempt: { kind: 'http', status, url, body: rawText } }))
+    const decision = decideGenerationFailure({ message: wire, locale: 'zh-CN' })
+    return { kind: decision.kind, vendorSide: decision.vendorSide, providerMessage: decision.providerMessage ?? null }
+  }
+  if (status !== null && status >= 200 && status < 400 && rawText.trim()) {
+    let parsed
+    try { parsed = JSON.parse(rawText.trim()) } catch { parsed = null }
+    if (isJsonRecord(parsed)) {
+      const logicalCode = looksLikeLogicalError(parsed)
+      if (logicalCode != null) {
+        const detail = pickUpstreamMessage(parsed, String) || '(no detail from provider)'
+        const upstreamCode = pickUpstreamCode(parsed)
+        const wire = encodeStructuredErrorMessage({
+          vendorKey, method, url, logicalCode, upstreamMsg: detail.slice(0, 256),
+          ...(upstreamCode ? { upstreamCode } : {}),
+          ...categorizeVendorFailure(undefined, logicalCode),
+        }, `Provider request failed (code ${logicalCode}) at ${vendorKey} ${method} ${url}: ${detail}`)
+        const decision = decideGenerationFailure({ message: wire, locale: 'zh-CN' })
+        return { kind: decision.kind, vendorSide: decision.vendorSide, providerMessage: decision.providerMessage ?? null }
+      }
+      if (isJsonRecord(parsed.data) && (parsed.data.status === 'failed' || parsed.data.status === 'error')) {
+        const detail = pickUpstreamMessage(parsed.data, String) || pickUpstreamMessage(parsed, String)
+        if (detail) {
+          const taskId = typeof parsed.data.id === 'string' && parsed.data.id ? parsed.data.id : 'task'
+          const wire = formatTaskFailureMessage(detail, { taskId }, 'zh-CN')
+          const decision = decideGenerationFailure({ message: wire, locale: 'zh-CN' })
+          return { kind: decision.kind, vendorSide: decision.vendorSide, providerMessage: decision.providerMessage ?? null }
+        }
+      }
+      return null
+    }
+    const sseError = parseSseErrorPayload(rawText)
+    if (sseError) {
+      const detail = pickUpstreamMessage(sseError, String)
+      const upstreamCode = pickUpstreamCode(sseError)
+      if (detail || upstreamCode) {
+        const text = detail || upstreamCode
+        const wire = encodeStructuredErrorMessage({
+          vendorKey, method, url, logicalCode: upstreamCode || 'stream_error',
+          upstreamMsg: text.slice(0, 256),
+          ...(upstreamCode ? { upstreamCode } : {}),
+          category: 'unknown', retryable: false,
+        }, text)
+        const decision = decideGenerationFailure({ message: wire, locale: 'zh-CN' })
+        return { kind: decision.kind, vendorSide: decision.vendorSide, providerMessage: decision.providerMessage ?? null }
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * 真付费走查的总闸判据（纯函数）：
+ *   · 出网有 blocked 行 → '不过'（未授权出网被拦）；
+ *   · 收窄花钱面之后的授权供应商响应里若有非 balance/quota 的错误（如 400 参数或回放被拒、404 模型不存在、401 密钥错、500 服务端错）且脚本失败 → '不过'；
+ *   · 授权供应商响应里全是 balance/quota（且后面没有重试恢复成功并让整场无错跑通）→ 按产品归类判「未验证：服务商余额不足」或「未验证：服务商额度不足」；
+ *   · 其余有脚本错误 → '不过'；无错 → '通过'。
+ */
+export function paidRunVerdict({ entries = [], lockedAtEntry = 0, allow = [], vendorAllow = null, scriptError = null } = {}) {
+  const said = scriptErrorText(scriptError)
+  const blocked = blockedError(entries, allow)
+  if (blocked) {
+    return {
+      status: 'failed', passed: false, verdict: '不过', reason: scriptErrorText(blocked),
+      upstreamErrorKind: null, request: blockedRequestOf(blockedEntries(entries)[0]), scriptError: said,
+    }
+  }
+  const vendorMatcher = vendorAllow === null ? null : parseAllowlist(vendorAllow.join(','))
+  const after = entries.slice(lockedAtEntry ?? 0).filter((entry) => entry?.kind === 'allowed-response'
+    && (vendorMatcher === null || listsHost(vendorMatcher, entryHost(entry))))
+  const evaluated = after.map((entry, index) => ({ entry, index, classified: classifyAllowedVendorResponse(entry) }))
+  const otherVendorError = evaluated.find(({ classified }) => classified && !Object.hasOwn(UPSTREAM_UNVERIFIED_VERDICTS, classified.kind))
+  const quotaErrors = evaluated.filter(({ classified }) => classified && Object.hasOwn(UPSTREAM_UNVERIFIED_VERDICTS, classified.kind))
+  if (otherVendorError && said !== null) {
+    return {
+      status: 'failed', passed: false, verdict: '不过', reason: said,
+      upstreamErrorKind: null, request: responseSummaryOf(otherVendorError.entry), scriptError: said,
+    }
+  }
+  if (quotaErrors.length > 0 && !otherVendorError) {
+    const lastQuotaIndex = quotaErrors.at(-1).index
+    const recoveredLater = said === null && evaluated.slice(lastQuotaIndex + 1).some(({ classified }) => classified === null)
+    if (!recoveredLater) {
+      const chosen = quotaErrors.find(({ classified }) => classified.kind === 'balance') ?? quotaErrors[0]
+      const kind = chosen.classified.kind
+      const verdict = UPSTREAM_UNVERIFIED_VERDICTS[kind]
+      const request = responseSummaryOf(chosen.entry)
+      const where = [
+        `${request.method ?? 'POST'} ${request.host}${request.path ?? ''}`,
+        request.status !== null ? `HTTP ${request.status}` : null,
+      ].filter(Boolean).join(' → ')
+      const detail = [where, chosen.classified.providerMessage].filter(Boolean).join('：')
+      return {
+        status: 'unverified', passed: false, verdict,
+        reason: detail ? `${verdict}（${detail}）` : verdict,
+        upstreamErrorKind: kind, request, scriptError: said,
+      }
+    }
+  }
+  if (said !== null) {
+    return { status: 'failed', passed: false, verdict: '不过', reason: said, upstreamErrorKind: null, request: null, scriptError: said }
+  }
+  return { status: 'passed', passed: true, verdict: '通过', reason: '通过', upstreamErrorKind: null, request: null, scriptError: null }
 }
 
 function nestedAnswer(fieldPath, value) {
