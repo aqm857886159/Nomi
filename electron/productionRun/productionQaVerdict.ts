@@ -11,6 +11,7 @@
 
 import type {
   ProductionRun,
+  ProductionStage,
   QaShotUnverifiedReason,
   QaShotVerdictStatus,
   QaStageReport,
@@ -253,5 +254,19 @@ export function buildQaStageOutcome(response: QaVerifyResponse | null | undefine
       ...(flaggedDimList.length ? { flaggedDimensions: flaggedDimList } : {}),
       ...(unverifiedReasonList.length ? { unverifiedReasons: unverifiedReasonList } : {}),
     },
+  }
+}
+
+export function buildQaStagePatch(
+  outcome: QaStageOutcome,
+  retryPlans: readonly QaRetryPlan[],
+  nowIso = new Date().toISOString(),
+): Pick<ProductionStage, 'status' | 'completedAt' | 'qaSummary' | 'qaReport'> {
+  const retryCount = retryPlans.filter((plan) => plan.eligible).length
+  return {
+    status: retryCount > 0 ? 'running' : 'completed',
+    ...(retryCount > 0 ? {} : { completedAt: nowIso }),
+    qaSummary: retryCount > 0 ? `${outcome.stageSummary}；已安排 ${retryCount} 镜定向重滚` : outcome.stageSummary,
+    qaReport: outcome.qaReport,
   }
 }

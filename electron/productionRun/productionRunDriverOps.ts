@@ -8,7 +8,7 @@
 import crypto from 'node:crypto'
 
 import { desktopT } from '../i18n'
-import { adoptedGenerationShotNodeIds, buildQaRetryPlans, buildQaStageOutcome, type QaVerifyResponse } from './productionQaVerdict'
+import { adoptedGenerationShotNodeIds, buildQaRetryPlans, buildQaStageOutcome, buildQaStagePatch, type QaVerifyResponse } from './productionQaVerdict'
 import type { ProductionRunRepository } from './productionRunRepository'
 import type { ProductionRun } from './productionRunTypes'
 import { loadPlaybookStageEvidence } from '../skills/skillExecutionEvidence'
@@ -210,17 +210,8 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
       }
       current = executeInternal(projectId, runId, current, 'qa.retry.schedule', { job: retryJob }, `driver-${runId}-qa-retry-${retry.shotNodeId}-${retry.retryCount}`).run
     }
-    const retrySummary = retryPlans.filter((plan) => plan.eligible).length
-    const stageSummary = retrySummary > 0
-      ? `${outcome.stageSummary}；已安排 ${retrySummary} 镜定向重滚`
-      : outcome.stageSummary
     return executeInternal(projectId, runId, current, 'stage.upsert', {
-      stage: stageValue(current, 'qa', {
-        status: retrySummary > 0 ? 'running' : 'completed',
-        ...(retrySummary > 0 ? {} : { completedAt: new Date().toISOString() }),
-        qaSummary: stageSummary,
-        qaReport: outcome.qaReport,
-      }),
+      stage: stageValue(current, 'qa', buildQaStagePatch(outcome, retryPlans)),
     }, `driver-${runId}-stage-qa-${current.revision}`).run
   }
 

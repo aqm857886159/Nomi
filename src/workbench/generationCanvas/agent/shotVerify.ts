@@ -8,7 +8,7 @@
 // 比吐模糊小数稳。低于阈值的轴 → 一条「画面偏差」,喂进现有对账卡(ReconcileDeviationCard)。
 // 客观项(连线结构/数量/参数)仍归 reconcile.ts 结构对账,不在这里重复判。
 
-import type { QaShotUnverifiedReason } from '../../../../electron/productionRun/productionRunTypes'
+import type { QaShotUnverifiedReason, QaShotVerdictStatus } from '../../../../electron/productionRun/productionRunTypes'
 import type { ReconcileDeviation } from './reconcile'
 
 export type ShotVerifyDimensionKey = 'identity' | 'composition' | 'continuity'
@@ -259,4 +259,56 @@ export function formatQaUnverifiedReason(
     case 'invalid_verdict_json':
       return t('generationCommon.reconcile.unverifiedReasons.invalid_verdict_json')
   }
+}
+
+/** 从 content 偏差的 `actual`（人话「第 N 档」）抠回 1-5 档分数；抠不出给 undefined。 */
+function scoreFromDeviationActual(actual: unknown): number | undefined {
+  const match = typeof actual === 'string' ? actual.match(/(\d+)/) : null
+  if (!match) return undefined
+  const n = Number(match[1])
+  return Number.isFinite(n) ? Math.max(1, Math.min(5, n)) : undefined
+}
+
+export type ShotVerifyOutcomeLike =
+  | { shotNodeId: string; status: 'passed' }
+  | { shotNodeId: string; status: 'flagged'; deviations: readonly ReconcileDeviation[] }
+  | { shotNodeId: string; status: 'unverified'; reason: QaShotUnverifiedReason }
+
+export type ProductionShotVerdictPayload = {
+  shotNodeId: string
+  shotTitle?: string
+  status: QaShotVerdictStatus
+  passed: boolean
+  unverifiedReason?: QaShotUnverifiedReason
+  flagged?: Array<{ dimensionName?: string; score?: number; reason?: string }>
+}
+
+/** 将三态审片报告原样映射为 production.verify-shots 跨进程回传结构（严禁由空偏差推导 passed: true）。 */
+export function mapShotVerifyReportToProductionVerdicts(
+  reviewedShotIds: readonly string[],
+  shotOutcomes: readonly ShotVerifyOutcomeLike[],
+  titleByShotId: ReadonlyMap<string, string>,
+): ProductionShotVerdictPayload[] {
+  const outcomeByShot = new Map(shotOutcomes.map((outcome) => [outcome.shotNodeId, outcome]))
+  return reviewedShotIds.map((shotNodeId) => {
+    const title = (titleByShotId.get(shotNodeId) || '').trim()
+    const outcome = outcomeByShot.get(shotNodeId)
+    if (!outcome) {
+      return { shotNodeId, ...(title ? { shotTitle: title } : {}), status: 'unverified', passed: false, unverifiedReason: 'missing_frame_source' }
+    }
+    if (outcome.status === 'unverified') {
+      return { shotNodeId, ...(title ? { shotTitle: title } : {}), status: 'unverified', passed: false, unverifiedReason: outcome.reason }
+    }
+    if (outcome.status === 'flagged') {
+      const flagged = outcome.deviations
+        .filter((d) => d.kind === 'content')
+        .map((d) => ({
+          dimensionName: typeof d.field === 'string' ? d.field : undefined,
+          score: scoreFromDeviationActual(d.actual),
+          reason: typeof d.reason === 'string' ? d.reason : undefined,
+        }))
+      return { shotNodeId, ...(title ? { shotTitle: title } : {}), status: 'flagged', passed: false, ...(flagged.length ? { flagged } : {}) }
+    }
+    return { shotNodeId, ...(title ? { shotTitle: title } : {}), status: 'passed', passed: true }
+  })
 }

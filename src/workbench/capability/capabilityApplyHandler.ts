@@ -20,6 +20,7 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStoryboardToTimeline'
 import { createTimelineExportManifest } from '../export/exportApi'
 import { exportTimelineToWebm } from '../export/timelineWebmExport'
+import { mapShotVerifyReportToProductionVerdicts } from '../generationCanvas/agent/shotVerify'
 import { verifyShotsAndReport, isShotVerifyEnabled } from '../generationCanvas/agent/shotVerifyStore'
 import { assertDraftFilmReady, draftFilmTimelineFromState } from '../preview/timelineSubtitleTransitionContract'
 import { storyboardPlanToCreateNodesArgs } from '../generationCanvas/agent/storyboardPlan'
@@ -237,77 +238,17 @@ async function confirmPlanForAgent(info: PlanConfirmPayload): Promise<{ confirme
   return { confirmed: Boolean(ok) }
 }
 
-/** 从 content 偏差的 `actual`（人话「第 N 档」）抠回 1-5 档分数；抠不出给 undefined。 */
-function scoreFromDeviationActual(actual: unknown): number | undefined {
-  const match = typeof actual === 'string' ? actual.match(/(\d+)/) : null
-  if (!match) return undefined
-  const n = Number(match[1])
-  return Number.isFinite(n) ? Math.max(1, Math.min(5, n)) : undefined
-}
-
-/**
- * W1.5 路径②审片：production run 的 qa 阶段让渲染层对本次生成镜头判分。
- * 复用**现成的** verifyShotsAndReport（判分+对账卡+回灌闭环），
- * 这里只做参数适配（run 的镜头节点 id → 它的入参）+ 将三态审片报告原样映射回传：
- * passed（真审过且无偏差）/ flagged（真审过且有偏差）/ unverified（未能完成审片，绝不冒充通过）。
- * verify 关闭 / 无镜头 → skipped（driver 据此落「审片跳过」）。
- */
+/** W1.5 路径②审片：复用 verifyShotsAndReport 并将三态报告原样回传（passed / flagged / unverified）。 */
 async function verifyShotsForProduction(shotNodeIds: readonly string[], loaded: ProjectExecutionContext | null): Promise<unknown> {
   if (!isShotVerifyEnabled()) return { skipped: true, skipReason: '画面审片已在设置中关闭' }
   if (!loaded) return { skipped: true, skipReason: '当前项目里找不到本次生成的镜头节点' }
-  const knownNodeIds = new Set(useGenerationCanvasStore.getState().nodes.map((node) => node.id))
+  const nodes = useGenerationCanvasStore.getState().nodes
+  const knownNodeIds = new Set(nodes.map((node) => node.id))
   const reviewedShotIds = shotNodeIds.filter((id) => knownNodeIds.has(id))
   if (reviewedShotIds.length === 0) return { skipped: true, skipReason: '当前项目里找不到本次生成的镜头节点' }
-  // 现成闭环：内部 gather → 判分 → 写 shotVerify store。直接使用「本次」三态报告，不能在 await
-  // 后读全局 store——同项目另一轮审片可能已经后发先至，读到的会是另一次结果。
   const report = await verifyShotsAndReport(reviewedShotIds, loaded)
-  const outcomeByShot = new Map(report.shotOutcomes.map((outcome) => [outcome.shotNodeId, outcome]))
-  const nodesById = new Map(useGenerationCanvasStore.getState().nodes.map((node) => [node.id, node]))
-  const verdicts = reviewedShotIds.map((shotNodeId) => {
-    const title = (nodesById.get(shotNodeId)?.title || '').trim()
-    const outcome = outcomeByShot.get(shotNodeId)
-    if (!outcome) {
-      return {
-        shotNodeId,
-        ...(title ? { shotTitle: title } : {}),
-        status: 'unverified' as const,
-        passed: false,
-        unverifiedReason: 'missing_frame_source' as const,
-      }
-    }
-    if (outcome.status === 'unverified') {
-      return {
-        shotNodeId,
-        ...(title ? { shotTitle: title } : {}),
-        status: 'unverified' as const,
-        passed: false,
-        unverifiedReason: outcome.reason,
-      }
-    }
-    if (outcome.status === 'flagged') {
-      const flagged = outcome.deviations
-        .filter((deviation) => deviation.kind === 'content')
-        .map((deviation) => ({
-          dimensionName: typeof deviation.field === 'string' ? deviation.field : undefined,
-          score: scoreFromDeviationActual(deviation.actual),
-          reason: typeof deviation.reason === 'string' ? deviation.reason : undefined,
-        }))
-      return {
-        shotNodeId,
-        ...(title ? { shotTitle: title } : {}),
-        status: 'flagged' as const,
-        passed: false,
-        ...(flagged.length ? { flagged } : {}),
-      }
-    }
-    return {
-      shotNodeId,
-      ...(title ? { shotTitle: title } : {}),
-      status: 'passed' as const,
-      passed: true,
-    }
-  })
-  return { reviewedShotIds, verdicts }
+  const titleByShotId = new Map(useGenerationCanvasStore.getState().nodes.map((node) => [node.id, node.title || '']))
+  return { reviewedShotIds, verdicts: mapShotVerifyReportToProductionVerdicts(reviewedShotIds, report.shotOutcomes, titleByShotId) }
 }
 
 /** 处理一条主进程转发来的能力操作。未知操作抛错（主进程会把错误透传给 agent）。 */
