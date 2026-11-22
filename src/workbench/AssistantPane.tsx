@@ -5,11 +5,11 @@ import { ASSISTANT_PANE_GUTTER, ASSISTANT_WIDTH_MIN, assistantWidthMaxFor, clamp
 import { useWorkbenchStore } from './workbenchStore'
 
 /**
- * Agent 停靠栏（10-08 外壳重设计：停靠是三形态之一，另两种是小球 / 浮窗，见 ShellAgentHost）。
+ * Agent 停靠栏（10-08 外壳重设计：停靠是三形态之一，另两种是收起（入口在顶栏）/ 浮窗，见 ShellAgentHost）。
  * 所有工作区给同一个无框落点；可见的那圈框归 AgentPanelV4Panel 自己画。
  *
  * 停靠栏左边是工作面之间那条 8px 缝，宽度把手就画在缝里（拍板稿 .wgrip：4×36 的竖条）。
- * 小球 / 浮窗时（collapsed）这一格让出来、什么都不挂——面板摆到哪由外壳决定。
+ * 收起 / 浮窗时（collapsed）这一格让出来、什么都不挂——面板摆到哪由外壳决定。
  *
  * `className` 是**外壳给的落位**，不是装饰：落在哪一格网格由宿主写明（见 GenerationWorkspace 的注释）。
  *

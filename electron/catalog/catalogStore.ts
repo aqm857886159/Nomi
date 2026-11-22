@@ -18,7 +18,7 @@ import { liftWholeVendorDeletion, vendorDeletedUntilKeySaved } from "./builtinOw
 import { extractVendorExtraHeaders } from "./vendorExtraHeaders";
 export { extractVendorExtraHeaders };
 import { migrateCatalogForward } from "./catalogMigrations";
-import { withModelDeclarationDefaults } from "./modelDeclarationDefaults";
+import { metaForUpsert, withModelDeclarationDefaults } from "./modelDeclarationDefaults";
 import type { AiSdkProviderKind, BillingModelKind, CatalogState, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./types";
 import { CURRENT_CATALOG_VERSION } from "./types";
 import { normalizeCustomCall } from "./customCallMode";
@@ -523,7 +523,7 @@ function applyModelUpsert(state: CatalogState, payload: unknown): Model {
     unlisted: typeof raw.unlisted === "boolean" ? raw.unlisted : existing?.unlisted,
     tokenPricing: existing?.tokenPricing, free: existing?.free,
     // 文本行的能力声明初值在这一处算：所有 upsert 共用这一个漏斗（规则见 modelDeclarationDefaults.ts）。
-    meta: withModelDeclarationDefaults({ kind, modelKey, modelAlias, meta: raw.meta ?? existing?.meta }),
+    meta: withModelDeclarationDefaults({ kind, modelKey, modelAlias, meta: metaForUpsert(raw.meta, existing?.meta) }),
     pricing: (raw.pricing as Model["pricing"]) || existing?.pricing,
     onboarding: (raw.onboarding as Model["onboarding"]) ?? existing?.onboarding,
     customCall: customCall || undefined,

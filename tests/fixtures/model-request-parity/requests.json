@@ -880,44 +880,44 @@
    "lane": [
     {
      "method": "POST",
-     "path": "/v1/chat/completions",
-     "headers": "65d4f7499dcd",
-     "contentLength": "3727",
-     "body": "e102d6ab8353"
+     "path": "/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3697",
+     "body": "ac8a7d9037b9"
     },
     {
      "method": "POST",
-     "path": "/v1/chat/completions",
-     "headers": "65d4f7499dcd",
-     "contentLength": "3966",
-     "body": "68abaa942801"
+     "path": "/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3916",
+     "body": "6d835c1a1095"
     }
    ],
    "one-shot": [
     {
      "method": "POST",
-     "path": "/v1/chat/completions",
+     "path": "/v1/responses",
      "headers": "65d4f7499dcd",
      "contentLength": "702",
-     "body": "423583cfc4fa"
+     "body": "5e7f86ab6dd0"
     }
    ],
    "stream": [
     {
      "method": "POST",
-     "path": "/v1/chat/completions",
+     "path": "/v1/responses",
      "headers": "65d4f7499dcd",
      "contentLength": "703",
-     "body": "3da6b29e459d"
+     "body": "8b335e83c61d"
     }
    ],
    "pdf": [
     {
      "method": "POST",
-     "path": "/v1/chat/completions",
+     "path": "/v1/responses",
      "headers": "65d4f7499dcd",
-     "contentLength": "331",
-     "body": "be9907a18c9c"
+     "contentLength": "319",
+     "body": "74dca6593d13"
     }
    ]
   },
@@ -972,44 +972,44 @@
    "lane": [
     {
      "method": "POST",
-     "path": "/v1/chat/completions",
-     "headers": "65d4f7499dcd",
-     "contentLength": "3727",
-     "body": "e102d6ab8353"
+     "path": "/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3697",
+     "body": "ac8a7d9037b9"
     },
     {
      "method": "POST",
-     "path": "/v1/chat/completions",
-     "headers": "65d4f7499dcd",
-     "contentLength": "3966",
-     "body": "68abaa942801"
+     "path": "/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3916",
+     "body": "6d835c1a1095"
     }
    ],
    "one-shot": [
     {
      "method": "POST",
-     "path": "/v1/chat/completions",
+     "path": "/v1/responses",
      "headers": "65d4f7499dcd",
      "contentLength": "702",
-     "body": "423583cfc4fa"
+     "body": "5e7f86ab6dd0"
     }
    ],
    "stream": [
     {
      "method": "POST",
-     "path": "/v1/chat/completions",
+     "path": "/v1/responses",
      "headers": "65d4f7499dcd",
      "contentLength": "703",
-     "body": "3da6b29e459d"
+     "body": "8b335e83c61d"
     }
    ],
    "pdf": [
     {
      "method": "POST",
-     "path": "/v1/chat/completions",
+     "path": "/v1/responses",
      "headers": "65d4f7499dcd",
-     "contentLength": "331",
-     "body": "be9907a18c9c"
+     "contentLength": "319",
+     "body": "74dca6593d13"
     }
    ]
   },
@@ -3864,6 +3864,12 @@
      "body": "c4d27df06c25"
     }
    ]
+  }
+ },
+ "reRecorded": {
+  "rows": {
+   "builtin/apimart/gpt-6-astra": "2026-11-22 GPT-6 两行改走 Responses：只重录这两行（网址 /v1/chat/completions 改为 /v1/responses，请求体换成 Responses 形状）；其余行与主线金样逐字节一致",
+   "builtin/apimart/gpt-6.1-sol": "2026-11-22 GPT-6 两行改走 Responses：只重录这两行（网址 /v1/chat/completions 改为 /v1/responses，请求体换成 Responses 形状）；其余行与主线金样逐字节一致"
   }
  }
 }

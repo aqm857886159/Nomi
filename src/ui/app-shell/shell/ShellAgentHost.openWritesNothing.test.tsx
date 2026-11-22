@@ -1,8 +1,8 @@
 // 打开项目什么都不点：挂上外壳不许让项目落盘（复盘 docs/engineering/direction-checks/2026-11-13-open-writes-project.md）。
 //
 // 旧的「打开不写」测试只跑服务层、从没挂过外壳，挂载期的 effect 看不见——这条就是挂真的 ShellAgentHost，
-// 让它按本机形态（生成页默认小球）把显示态同步过去，再断言 persistRevision 没动、落盘那份的 Nomi 栏开合还是项目里的原值。
-// 外壳只挂它自己：面板门户、浮窗 / 小球的拖动库换成空壳（这条测的是那条同步 effect，不是摆放）。
+// 让它按本机形态（生成页默认收起）把显示态同步过去，再断言 persistRevision 没动、落盘那份的 Nomi 栏开合还是项目里的原值。
+// 外壳只挂它自己：面板门户、浮窗的拖动库换成空壳（这条测的是那条同步 effect，不是摆放）。
 import React, { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -94,22 +94,22 @@ describe('挂上外壳不让项目落盘（打开项目什么都不点）', () =
   })
 
   for (const surface of SURFACES) {
-    for (const form of ['ball', 'dock'] as const) {
+    for (const form of ['collapsed', 'dock'] as const) {
       it(`${surface} · 本机形态=${form}：persistRevision 不变，显示态跟本机形态，落盘那份的开合还是项目原值`, async () => {
-        // 本机这一页存的样子：收着（小球）/ 开着停靠——用人的动作摆出来，和真用户存下的同一份。
-        if (form === 'ball') collapseAgent(surface)
+        // 本机这一页存的样子：收着（顶栏入口）/ 开着停靠——用人的动作摆出来，和真用户存下的同一份。
+        if (form === 'collapsed') collapseAgent(surface)
         else chooseAgentPlacement(surface, 'dock')
         const before = useWorkbenchStore.getState().persistRevision
         await act(async () => root.render(<ShellAgentHost surface={surface} dockTarget={null} agent={null} />))
         const after = useWorkbenchStore.getState()
-        expect(after.projectAgentDockCollapsed).toBe(form === 'ball')
+        expect(after.projectAgentDockCollapsed).toBe(form === 'collapsed')
         expect(after.persistRevision).toBe(before)
         expect(after.editingPanelLayout.visibility.assistant).toBe(true)
       })
     }
   }
 
-  it('挂着时用户按 ⌘\\ 收成小球：显示态跟着收，项目照样不落盘', async () => {
+  it('挂着时用户按 ⌘\\ 收起：显示态跟着收，项目照样不落盘', async () => {
     chooseAgentPlacement('preview', 'dock')
     await act(async () => root.render(<ShellAgentHost surface="preview" dockTarget={null} agent={null} />))
     const before = useWorkbenchStore.getState().persistRevision

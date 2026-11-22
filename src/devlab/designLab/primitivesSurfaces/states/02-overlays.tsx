@@ -218,7 +218,7 @@ export const OVERLAY_STATES: readonly LabState[] = [
     source: SOURCE_OVERLAYS,
     mirrors: [
       'src/workbench/generationCanvas/components/CanvasNavigationTooltipButton.tsx:32',
-      'src/ui/app-shell/shell/ShellTopBar.tsx:257',
+      'src/ui/app-shell/shell/ShellTopBar.tsx:57',
       'src/workbench/promptLibrary/PromptCard.tsx:83',
     ],
     coverage: 'shell',

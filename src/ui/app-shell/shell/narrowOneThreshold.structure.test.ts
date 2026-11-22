@@ -11,7 +11,6 @@ import { describe, expect, it } from 'vitest'
 const SRC = fileURLToPath(new URL('../../../', import.meta.url))
 
 const EXISTING_VIEWPORT_BREAKPOINTS = new Set([
-  'src/ui/app-shell/UpdatePill.tsx max-[899px]:',
   'src/ui/browser/popover/BrowserAssetPopoverView.tsx max-[760px]:',
   'src/workbench/library/ProjectLibraryPage.tsx min-[1200px]:',
   'src/workbench/onboarding/HandbookPanel.tsx max-[560px]:',

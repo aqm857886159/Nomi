@@ -416,19 +416,19 @@ try {
   await win.waitForTimeout(250)
   check('缩放键 ＋ / 0 真的绑上了（tooltip 上写了十几天的键位不再是假的）', zoomed.length > 0, `scaleBefore=${scaleBefore} width=${zoomed}`)
 
-  // ⌘\ 归 Nomi：收起 / 展开 Nomi（开着收成小球，收着打开到上次选的摆法），而吸附**不该**跟着一起翻
+  // ⌘\ 归 Nomi：收起 / 展开 Nomi（开着收进顶栏入口，收着打开到上次选的摆法），而吸附**不该**跟着一起翻
   const snapBeforeMeta = (await snapButton.getAttribute('class') ?? '').includes('accent-soft')
   await win.keyboard.press('Meta+\\')
   await win.waitForTimeout(500)
-  const topbarEntry = win.locator('[data-agent-ball]')
-  await expectVisible(topbarEntry, '⌘\\ 没有把 Nomi 收成小球')
+  const topbarEntry = win.locator('[data-shell-topbar] [data-shell-nomi-entry][aria-pressed="false"]')
+  await expectVisible(topbarEntry, '⌘\\ 没有把 Nomi 收起（顶栏入口没回到收着）')
   check('⌘\\ 收起 Nomi 时不再顺手把吸附也翻掉（两个功能不再抢同一个键）',
     ((await snapButton.getAttribute('class') ?? '').includes('accent-soft')) === snapBeforeMeta)
-  check('收起后叫回 Nomi 的入口只有小球一个，且带运行状态',
-    await expect(topbarEntry).toHaveCount(1).then(() => true, () => false) && Boolean(await topbarEntry.getAttribute('data-agent-dock-status')))
-  const recallEntries = await win.evaluate(() => [...document.querySelectorAll('[data-agent-ball]')]
+  check('收起后叫回 Nomi 的入口只有顶栏那一颗，且带运行状态',
+    await expect(topbarEntry).toHaveCount(1).then(() => true, () => false) && Boolean(await topbarEntry.getAttribute('data-status')))
+  const recallEntries = await win.evaluate(() => [...document.querySelectorAll('[data-shell-nomi-entry]')]
     .filter((node) => node.getBoundingClientRect().width > 0).length)
-  check('全屏上只有一个「叫回 Nomi」入口（小球；顶栏角标、浮动胶囊与右侧竖条都已删）', recallEntries === 1, `count=${recallEntries}`)
+  check('全屏上只有一个「叫回 Nomi」入口（顶栏 Nomi 入口；内容区小球、浮动胶囊与右侧竖条都已删）', recallEntries === 1, `count=${recallEntries}`)
   await snap('07-collapsed-single-entry')
   await win.keyboard.press('Meta+\\')
   await win.waitForTimeout(500)

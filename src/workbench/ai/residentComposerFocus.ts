@@ -4,14 +4,14 @@ import { logRendererWarn } from '../../desktop/rendererLog'
 import { declareStoreLifetime } from '../project/storeLifetime'
 
 /**
- * 「把光标放进常驻 Agent 的输入框」的一次请求。Mod+J、点开小球、小球右键「浮窗 / 停靠」、面板头部三选一、
+ * 「把光标放进常驻 Agent 的输入框」的一次请求。Mod+J、点开顶栏 Nomi 入口、面板头部三选一、
  * 空态起手句都走这一扇门。
  *
  * 输入框只有它的主人（ProjectAgentResidentShell，手里有编辑器实例）聚焦得了，请求方不认识输入框长什么样。
  * 之前外壳在页面里按标签名找 `#project-agent-resident textarea`：10-12 输入框换成 TipTap 之后页里没有 textarea，
  * 找不到就什么也不做，Mod+J 打开 Agent 后焦点一直留在 BODY（docs/fixes/2026-10-27-agent-composer-focus.root-cause.json）。
  *
- * 为什么是一份小状态而不是直接调：小球形态下面板挂在看不见的容器里，形态切过去要等下一次提交才挪到可见处，
+ * 为什么是一份小状态而不是直接调：收起时面板挂在看不见的容器里，形态切过去要等下一次提交才挪到可见处，
  * 按下那一帧聚焦必然落空。请求留着，主人每帧试一次，焦点真的进了编辑器才算数；试满 COMPOSER_FOCUS_FRAME_BUDGET
  * 帧还不行就丢掉并记一条日志——不在用户已经去点别处之后再把焦点抢回来。
  */

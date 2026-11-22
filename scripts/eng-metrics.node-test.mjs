@@ -1,23 +1,26 @@
 import { makeTempDir } from './_test-temp.mjs'
-// scripts/eng-metrics.mjs 的行为测试：三个数的口径、缓存、拿不到就明说「—」、永远 exit 0。
+// scripts/eng-metrics.mjs 的行为测试：先声明 recurrence_of、后 Simple S-sym 兜底估算、两数严格分报、--candidates 候选推荐、永远 exit 0。
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import {
+import * as engMetrics from './eng-metrics.mjs'
+
+const {
   buildReport,
   computeDue,
   computeEscape,
   computeFalsePositive,
   computeRecurrence,
   fetchRuns,
+  findRecurrenceCandidates,
+  formatCandidates,
   formatLine,
   parseCsv,
   readContracts,
-} from './eng-metrics.mjs'
+} = engMetrics
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -29,17 +32,77 @@ function repoWith(contracts) {
   return repo
 }
 
-const scope = (...files) => ({ scope_paths: files })
+const contractWith = ({
+  files = ['electron/a.ts'],
+  boundaries = [],
+  change_kind,
+  recurrence_of,
+  detected_by,
+  recurrence_check_on,
+  problem_type,
+} = {}) => {
+  const doc = { scope_paths: files }
+  if (boundaries.length > 0) {
+    doc.shared_boundaries = boundaries.map(([p, symbol]) => ({ path: p, symbol, responsibility: 'guard' }))
+  }
+  if (change_kind !== undefined) doc.change_kind = change_kind
+  if (recurrence_of !== undefined) doc.recurrence_of = recurrence_of
+  if (detected_by !== undefined) doc.detected_by = detected_by
+  if (recurrence_check_on !== undefined) doc.recurrence_check_on = recurrence_check_on
+  if (problem_type !== undefined) doc.problem_type = problem_type
+  return doc
+}
 
-test('30 天复发：30 天内与更早合同共享 ≥2 个文件且重叠过半才算；超过 30 天或只共享 1 个不算', () => {
+test('30 天复发：声明复发（recurrence_of）与旧合同兜底估算（Simple S-sym）严格拆成两个数，排除 structural', () => {
   const repo = repoWith({
-    '2026-10-01-a.root-cause.json': scope('electron/a.ts', 'electron/b.ts', 'electron/c.ts'),
-    '2026-10-10-b.root-cause.json': scope('electron/a.ts', 'electron/b.ts'),
-    '2026-10-12-c.root-cause.json': scope('electron/a.ts', 'electron/zzz.ts'),
-    '2026-12-01-d.root-cause.json': scope('electron/a.ts', 'electron/b.ts', 'electron/c.ts'),
+    // 旧合同（未填 recurrence_of）
+    '2026-10-01-legacy-a.root-cause.json': contractWith({
+      files: ['electron/a.ts', 'electron/b.ts'],
+      boundaries: [['electron/a.ts', 'guardA']],
+    }),
+    // 同非枢纽边界符号且 ≤30 天 -> 旧合同兜底命中
+    '2026-10-10-legacy-b.root-cause.json': contractWith({
+      files: ['electron/a.ts', 'electron/c.ts'],
+      boundaries: [['electron/a.ts', 'guardA']],
+    }),
+    // 仅共享文件/同路径不同符号 -> Simple S-sym 不误报
+    '2026-10-12-legacy-c.root-cause.json': contractWith({
+      files: ['electron/a.ts', 'electron/b.ts'],
+      boundaries: [['electron/a.ts', 'otherSymbol']],
+    }),
+    // 超过 30 天 -> 不算 30 天复发
+    '2026-12-01-legacy-d.root-cause.json': contractWith({
+      files: ['electron/a.ts'],
+      boundaries: [['electron/a.ts', 'guardA']],
+    }),
+    // structural 合同 -> 排除出复发分母与命中
+    '2026-10-08-struct.root-cause.json': contractWith({
+      files: ['electron/a.ts'],
+      boundaries: [['electron/a.ts', 'guardA']],
+      change_kind: 'structural',
+    }),
+    // 新合同：显式声明 recurrence_of: null（不复发）
+    '2026-10-15-declared-null.root-cause.json': contractWith({
+      files: ['electron/a.ts'],
+      boundaries: [['electron/a.ts', 'guardA']],
+      recurrence_of: null,
+    }),
+    // 新合同：显式声明 recurrence_of 指向 30 天内旧合同（声明复发）
+    '2026-10-20-declared-hit.root-cause.json': contractWith({
+      files: ['electron/z.ts'],
+      recurrence_of: '2026-10-01-legacy-a',
+    }),
+    // 新合同：显式声明 recurrence_of 指向超过 30 天的旧合同（不算 30 天内复发）
+    '2026-11-25-declared-old.root-cause.json': contractWith({
+      files: ['electron/z.ts'],
+      recurrence_of: ['2026-10-01-legacy-a.root-cause.json'],
+    }),
   })
   const result = computeRecurrence(readContracts(repo))
-  assert.deepEqual(result, { recurred: 1, total: 4 })
+  assert.deepEqual(result, {
+    declared: { recurred: 1, total: 3 },
+    estimated: { recurred: 1, total: 4 },
+  })
   fs.rmSync(repo, { recursive: true, force: true })
 })
 
@@ -47,26 +110,138 @@ test('逃逸率：只数带 detected_by 的合同；没有样本时 formatLine �
   assert.deepEqual(computeEscape([{ detected_by: 'user' }, { detected_by: 'ci' }, { detected_by: 'post-release' }, {}]), { escaped: 2, total: 3 })
   const line = formatLine({
     escape: computeEscape([]),
-    recurrence: { recurred: 0, total: 0 },
+    recurrence: { declared: { recurred: 0, total: 0 }, estimated: { recurred: 0, total: 0 } },
     falsePositive: { error: '今天没查成：gh 不可用或没登录' },
-    due: { due: 0, recurredAfter: 0 },
+    due: { declared: { due: 0, recurredAfter: 0 }, estimated: { due: 0, recurredAfter: 0 } },
   })
   assert.match(line, /逃逸率 —（合同还没带 detected_by）/)
+  assert.match(line, /30 天复发 声明 —（0\/0） \/ 旧合同估算 —（0\/0）/)
   assert.match(line, /门岗误报 —（今天没查成/)
+  assert.match(line, /到期合同 声明 0 份（复发 0 份） \/ 旧合同估算 0 份（复发 0 份）/)
   assert.doesNotMatch(line, /0%/)
 })
 
-test('到期合同：recurrence_check_on（缺省文件日期 + 30 天）已到才算，老合同不追溯；到期后又有同类的计入括号', () => {
+test('到期合同：声明与旧合同估算分开统计，排除 structural，老合同不追溯', () => {
   const repo = repoWith({
-    '2026-09-01-old.root-cause.json': scope('electron/a.ts', 'electron/b.ts'),
-    '2026-10-03-new.root-cause.json': scope('electron/a.ts', 'electron/b.ts'),
-    '2026-10-20-again.root-cause.json': scope('electron/a.ts', 'electron/b.ts'),
-    '2026-12-01-explicit.root-cause.json': { ...scope('electron/x.ts', 'electron/y.ts'), recurrence_check_on: '2026-12-31' },
+    '2026-09-01-old.root-cause.json': contractWith({
+      files: ['electron/a.ts'],
+      boundaries: [['electron/a.ts', 'guardA']],
+    }),
+    // 旧合同到期（2026-11-02），17 天后被同边界符号旧合同命中
+    '2026-10-03-legacy-due.root-cause.json': contractWith({
+      files: ['electron/a.ts'],
+      boundaries: [['electron/a.ts', 'guardA']],
+    }),
+    '2026-10-20-legacy-again.root-cause.json': contractWith({
+      files: ['electron/a.ts'],
+      boundaries: [['electron/a.ts', 'guardA']],
+    }),
+    // structural 到期不计入
+    '2026-10-04-struct-due.root-cause.json': contractWith({
+      files: ['electron/a.ts'],
+      change_kind: 'structural',
+    }),
+    // 声明合同到期（2026-11-04），被后继合同显式 recurrence_of 指认
+    '2026-10-05-declared-due.root-cause.json': contractWith({
+      files: ['electron/x.ts'],
+      recurrence_of: null,
+    }),
+    '2026-10-25-declared-followup.root-cause.json': contractWith({
+      files: ['electron/y.ts'],
+      recurrence_of: '2026-10-05-declared-due',
+    }),
+    // 显式声明 recurrence_of: null 的后继合同即使共享边界符号，也不得被兜底估算覆盖为前任复发
+    '2026-10-10-legacy-clean.root-cause.json': contractWith({
+      files: ['electron/clean.ts'],
+      boundaries: [['electron/clean.ts', 'guardClean']],
+    }),
+    '2026-10-18-declared-not-recurrence.root-cause.json': contractWith({
+      files: ['electron/clean.ts'],
+      boundaries: [['electron/clean.ts', 'guardClean']],
+      recurrence_of: null,
+    }),
+    // 同日显式指认（后继 slug 字母序排在前任之前）也必须计入前任到期复发
+    '2026-10-06-zzz-first.root-cause.json': contractWith({
+      files: ['electron/same-day.ts'],
+      recurrence_of: null,
+    }),
+    '2026-10-06-aaa-second.root-cause.json': contractWith({
+      files: ['electron/same-day.ts'],
+      recurrence_of: '2026-10-06-zzz-first',
+    }),
+    // 显式 recurrence_check_on 在未来
+    '2026-12-01-explicit.root-cause.json': contractWith({
+      files: ['electron/k.ts'],
+      recurrence_of: null,
+      recurrence_check_on: '2026-12-31',
+    }),
   })
   const contracts = readContracts(repo)
-  assert.deepEqual(computeDue(contracts, '2026-11-15'), { due: 1, recurredAfter: 1 })
-  assert.deepEqual(computeDue(contracts, '2026-10-05'), { due: 0, recurredAfter: 0 })
-  assert.deepEqual(computeDue(contracts, '2027-01-02'), { due: 3, recurredAfter: 1 })
+  assert.deepEqual(computeDue(contracts, '2026-11-15'), {
+    declared: { due: 3, recurredAfter: 2 },
+    estimated: { due: 2, recurredAfter: 1 },
+  })
+  assert.deepEqual(computeDue(contracts, '2026-11-20'), {
+    declared: { due: 4, recurredAfter: 2 },
+    estimated: { due: 3, recurredAfter: 1 },
+  })
+  assert.deepEqual(computeDue(contracts, '2026-10-05'), {
+    declared: { due: 0, recurredAfter: 0 },
+    estimated: { due: 0, recurredAfter: 0 },
+  })
+  assert.deepEqual(computeDue(contracts, '2027-01-02'), {
+    declared: { due: 6, recurredAfter: 2 },
+    estimated: { due: 3, recurredAfter: 1 },
+  })
+  fs.rmSync(repo, { recursive: true, force: true })
+})
+
+test('--candidates 候选推荐：优先共享非枢纽边界符号，其次边界路径与文件交集，排除自身与 structural', () => {
+  const repo = repoWith({
+    '2026-10-01-exact-sym.root-cause.json': contractWith({
+      files: ['electron/pay.ts', 'electron/outbox.ts'],
+      boundaries: [['electron/pay.ts', 'submitOnce']],
+      problem_type: 'paid submit blind resend',
+    }),
+    '2026-10-05-same-path.root-cause.json': contractWith({
+      files: ['electron/pay.ts', 'electron/other.ts'],
+      boundaries: [['electron/pay.ts', 'otherHelper']],
+      problem_type: 'same boundary file different symbol',
+    }),
+    '2026-10-08-file-only.root-cause.json': contractWith({
+      files: ['electron/outbox.ts', 'electron/unrelated.ts'],
+      boundaries: [['electron/unrelated.ts', 'noop']],
+      problem_type: 'only scope file overlap',
+    }),
+    '2026-10-09-struct.root-cause.json': contractWith({
+      files: ['electron/pay.ts'],
+      boundaries: [['electron/pay.ts', 'submitOnce']],
+      change_kind: 'structural',
+      problem_type: 'structural refactor',
+    }),
+    '2026-10-10-draft.root-cause.json': contractWith({
+      files: ['electron/pay.ts', 'electron/outbox.ts'],
+      boundaries: [['electron/pay.ts', 'submitOnce']],
+      problem_type: 'new draft contract',
+    }),
+  })
+  const contracts = readContracts(repo)
+  const target = contracts.find((c) => c.slug === '2026-10-10-draft')
+  const candidates = findRecurrenceCandidates(target, contracts)
+  assert.deepEqual(
+    candidates.map((c) => c.slug),
+    ['2026-10-01-exact-sym', '2026-10-05-same-path', '2026-10-08-file-only'],
+  )
+  assert.deepEqual(candidates[0].sharedBoundarySymbols, ['electron/pay.ts::submitOnce'])
+  const text = formatCandidates(candidates, target.slug)
+  assert.match(text, /2026-10-01-exact-sym/)
+  assert.match(text, /electron\/pay\.ts::submitOnce/)
+
+  const draftPath = path.join(repo, 'docs', 'fixes', '2026-10-10-draft.root-cause.json')
+  const cli = spawnSync(process.execPath, [path.join(here, 'eng-metrics.mjs'), '--candidates', draftPath, '--repo', repo], { encoding: 'utf8' })
+  assert.equal(cli.status, 0)
+  assert.match(cli.stdout, /2026-10-01-exact-sym/)
+  assert.doesNotMatch(cli.stdout, /2026-10-09-struct/)
   fs.rmSync(repo, { recursive: true, force: true })
 })
 
@@ -81,7 +256,6 @@ test('门岗误报代理：失败 run 的同一 head SHA 后来又成功 = 重�
 })
 
 test('门岗误报：重跑沿用同一个运行号、结论被覆盖成成功——按 attempt > 1 认出来，不再算成 0', () => {
-  // 形状取自 2026-11-21 的真实列表：重跑过的运行只剩一条，结论是最后一次的。
   const runs = [
     { sha: 'a', conclusion: 'success', createdAt: '2026-11-20T02:00:00Z', attempt: 2 },
     { sha: 'b', conclusion: 'failure', createdAt: '2026-11-20T03:00:00Z', attempt: 1 },
@@ -89,15 +263,18 @@ test('门岗误报：重跑沿用同一个运行号、结论被覆盖成成功�
     { sha: 'd', conclusion: 'success', createdAt: '2026-11-20T05:00:00Z', attempt: 1 },
     { sha: 'e', conclusion: 'cancelled', createdAt: '2026-11-13T05:00:00Z', attempt: 1 },
   ]
-  // 红过的 3 次（a 重跑变绿、b、c 仍红），其中没改代码又绿的 1 次；一次就绿的 d 和被取消的 e 不进分母。
   assert.deepEqual(computeFalsePositive(runs, '2026-11-21'), { rerunGreen: 1, failed: 3, coveredDays: 9 })
-  // 改坏对照：把 attempt 抹掉（= 旧口径），同一份数据就回到「0 次误报」。
   const blind = computeFalsePositive(runs.map((run) => ({ sha: run.sha, conclusion: run.conclusion, createdAt: run.createdAt })), '2026-11-21')
   assert.equal(blind.rerunGreen, 0)
 })
 
 test('门岗误报那一段印出实际覆盖的天数；缺 attempt 的旧缓存当天作废重取', () => {
-  const line = formatLine({ escape: { escaped: 0, total: 0 }, recurrence: { recurred: 0, total: 0 }, falsePositive: { rerunGreen: 8, failed: 39, coveredDays: 9 }, due: { due: 0, recurredAfter: 0 } })
+  const line = formatLine({
+    escape: { escaped: 0, total: 0 },
+    recurrence: { declared: { recurred: 0, total: 0 }, estimated: { recurred: 0, total: 0 } },
+    falsePositive: { rerunGreen: 8, failed: 39, coveredDays: 9 },
+    due: { declared: { due: 0, recurredAfter: 0 }, estimated: { due: 0, recurredAfter: 0 } },
+  })
   assert.match(line, /门岗误报 21%（8\/39，近 9 天）/)
   const repo = repoWith({})
   const cacheFile = path.join(repo, '.claude', 'eng-metrics-cache.json')
@@ -126,10 +303,19 @@ test('CI 数据每天只打一次 API：同一天第二次读缓存；gh 不可�
   fs.rmSync(repo, { recursive: true, force: true })
 })
 
-test('buildReport 把四项拼成一行；parseCsv 认带引号的逗号', () => {
-  const repo = repoWith({ '2026-10-03-new.root-cause.json': { ...scope('electron/a.ts', 'electron/b.ts'), detected_by: 'user' } })
+test('buildReport 把四项拼成一行且复发两数分报；parseCsv 认带引号的逗号', () => {
+  const repo = repoWith({
+    '2026-10-03-new.root-cause.json': contractWith({
+      files: ['electron/a.ts', 'electron/b.ts'],
+      detected_by: 'user',
+      recurrence_of: null,
+    }),
+  })
   const line = buildReport({ repo, today: '2026-11-20', noCi: true })
-  assert.match(line, /^逃逸率 100%（1\/1） · 30 天复发 0%（0\/1） · 门岗误报 —（本次没查 CI） · 到期合同 1 份（同类复发 0 份）$/)
+  assert.match(
+    line,
+    /^逃逸率 100%（1\/1） · 30 天复发 声明 0%（0\/1） \/ 旧合同估算 —（0\/0） · 门岗误报 —（本次没查 CI） · 到期合同 声明 1 份（复发 0 份） \/ 旧合同估算 0 份（复发 0 份）$/,
+  )
   assert.deepEqual(parseCsv('a,"b,c",d\n1,2,3\n'), [['a', 'b,c', 'd'], ['1', '2', '3']])
   fs.rmSync(repo, { recursive: true, force: true })
 })
@@ -138,5 +324,8 @@ test('命令行永远 exit 0，且只打印一行', () => {
   const result = spawnSync(process.execPath, [path.join(here, 'eng-metrics.mjs'), '--no-ci'], { encoding: 'utf8' })
   assert.equal(result.status, 0)
   assert.equal(result.stdout.trim().split('\n').length, 1)
-  assert.match(result.stdout, /逃逸率 .* · 30 天复发 .* · 门岗误报 .* · 到期合同 \d+ 份（同类复发 \d+ 份）/)
+  assert.match(
+    result.stdout,
+    /逃逸率 .* · 30 天复发 声明 .* \/ 旧合同估算 .* · 门岗误报 .* · 到期合同 声明 \d+ 份（复发 \d+ 份） \/ 旧合同估算 \d+ 份（复发 \d+ 份）/,
+  )
 })

@@ -1,5 +1,5 @@
 import { isJsonRecord, type JsonRecord } from "../jsonUtils";
-import type { ModelRequestBodyOverrides } from "./modelDeclaration";
+import { MODEL_DECLARATION_KEYS, type ModelRequestBodyOverrides } from "./modelDeclaration";
 import type { CatalogState, Model } from "./types";
 
 /**
@@ -24,6 +24,20 @@ const REQUEST_BODY_RULES: ReadonlyArray<{ match: RegExp; overrides: ModelRequest
 const PDF_INPUT_NAMES = /claude-3-5|claude-3-7|claude-opus-4|claude-sonnet-4|claude-haiku-4|gpt-4o|gpt-4\.1|o1|o3|o4-mini|gemini/i;
 
 type DeclarationRow = Pick<Model, "kind" | "modelKey" | "modelAlias" | "meta">;
+
+/**
+ * upsert 漏斗里「这一次写入的 meta」：写入方带了 meta 就用它，但行上原有的**声明键**（`MODEL_DECLARATION_KEYS`）里写入方没带的，
+ * 按键保留；写入方带了的照写。其余的键（`adapter`、`supportsImageInput`、`catalogLifecycle`…）仍整份归写入方，和以前一样。
+ * 为什么：声明是代码 / 创作者另行写下的事实（比如内置行的 `textProtocol`），而设置页、导入包、接入向导这些写入方各自
+ * 手搭 meta，谁漏带一个键整行的声明就被冲掉——不能靠「每个写入方必须带全」这条没人守得住的约定。
+ * 没带 meta（`null` / `undefined`）= 整份沿用行上原来的。
+ */
+export function metaForUpsert(incoming: unknown, existing: unknown): unknown {
+  if (incoming === undefined || incoming === null) return existing;
+  if (!isJsonRecord(incoming) || !isJsonRecord(existing)) return incoming;
+  const kept = MODEL_DECLARATION_KEYS.filter((key) => key in existing && !(key in incoming));
+  return kept.length === 0 ? incoming : { ...incoming, ...Object.fromEntries(kept.map((key) => [key, existing[key]])) };
+}
 
 /** 写入口算一次初值，返回这一行该落盘的 `meta`。不是文本行、或没什么要补，原样返回同一个对象。 */
 export function withModelDeclarationDefaults(row: DeclarationRow): unknown {

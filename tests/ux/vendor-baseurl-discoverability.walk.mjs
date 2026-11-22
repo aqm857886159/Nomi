@@ -159,7 +159,7 @@ const tabs = await win.evaluate(() => {
   const el = document.querySelector('[data-settings-dialog]')
   if (!el) return null
   return {
-    active: el.querySelector('[data-settings-tab]')?.getAttribute('data-settings-tab') ?? null,
+    active: el.querySelector('[data-settings-tab-id][aria-current="page"]')?.getAttribute('data-settings-tab-id') ?? null,
     ids: [...el.querySelectorAll('[data-settings-tab-id]')].map((b) => ({
       id: b.getAttribute('data-settings-tab-id'),
       label: b.textContent.trim(),

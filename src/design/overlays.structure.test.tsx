@@ -27,16 +27,25 @@ describe('DesignModal 外壳：高度与滚动归属（§3.5）', () => {
     expect(html.indexOf('data-probe-primary')).toBeGreaterThan(html.indexOf('data-design-modal-actions'))
   })
 
-  it('标题里除了名字还有别的东西时，读屏名字只念 accessibleName：挂在对话框 aria-labelledby 指到的那个标题元素上', () => {
-    const html = render({ title: <div>技能名<p>一长段简介</p><button type="button">关闭</button></div>, accessibleName: '技能名' })
-    // 静态渲染时 Mantine 还没把 aria-labelledby 挂到对话框上（挂载后才挂，指向的就是这个标题元素），这里直接核标题元素。
-    const titleTag = html.match(/<[a-z0-9]+[^>]*mantine-Modal-title[^>]*>/)?.[0] ?? ''
-    expect(titleTag, '找不到标题元素').not.toBe('')
-    expect(titleTag).toContain('aria-label="技能名"')
+  // 名字归外壳（2026-11-22）：title 只收一句文字，外壳把它放进 Modal.Title（Mantine 的 aria-labelledby 固定指向它）；
+  // 名字之外的东西（图标、副标、封面、链接）走 header 插槽，摆在名字旁边、不进名字元素。挂载后的真名字由 dialogName.browser.test.ts 核。
+  const titleElement = (html: string): string => html.match(/<h2[^>]*mantine-Modal-title[^>]*>([\s\S]*?)<\/h2>/)?.[0] ?? ''
+
+  it('名字元素里只有 title 那一句：不带 aria-label、里面没有别的元素', () => {
+    const element = titleElement(render({ title: '技能名' }))
+    expect(element, '找不到标题元素').not.toBe('')
+    expect(element).not.toMatch(/aria-label=/)
+    expect(element.replace(/^<h2[^>]*>/, '').replace(/<\/h2>$/, '')).toBe('技能名')
   })
 
-  it('不传 accessibleName 时标题元素不带 aria-label（名字照旧是标题文字）', () => {
-    expect(render()).not.toMatch(/mantine-Modal-title[^>]*aria-label=/)
+  it('header 插槽：插槽内容在标题栏里、名字元素外，名字元素被插槽原样摆进去', () => {
+    const html = render({ title: '技能名', header: (title) => <div data-probe-slot="">{title}<p data-probe-subtitle="">一长段简介</p></div> })
+    const element = titleElement(html)
+    expect(element.replace(/^<h2[^>]*>/, '').replace(/<\/h2>$/, '')).toBe('技能名')
+    expect(element).not.toContain('data-probe-subtitle')
+    const header = html.match(/<header[^>]*mantine-Modal-header[\s\S]*?<\/header>/)?.[0] ?? ''
+    expect(header, '找不到标题栏').not.toBe('')
+    expect(header).toMatch(/data-probe-slot=""><h2[^>]*mantine-Modal-title[^>]*>技能名<\/h2><p data-probe-subtitle="">/)
   })
 
   it('不传决定栏就没有决定栏那一行', () => {

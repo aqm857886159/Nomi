@@ -124,13 +124,13 @@ try {
   await pointerAway(win)
   await expect.poll(() => canvasHighlightOf(win, nodesA[0].nodeId), { message: `${A.highlight}：鼠标移开，画布上那个节点不再亮`, timeout: stationTimeout() }).toBe(null)
 
-  // 收成小球：「等你确认」的数也数上这张卡（Q5）。
-  await clickOrFail(win.locator(`${CANVAS_PANEL} ${COLLAPSE_BUTTON}`), '面板收成小球')
+  // 收起（收进顶栏 Nomi 入口）：「等你确认」的数也数上这张卡（Q5）。
+  await clickOrFail(win.locator(`${CANVAS_PANEL} ${COLLAPSE_BUTTON}`), '面板收起')
   const ball = win.locator(COLLAPSED_DOCK).first()
-  await expect(ball, `${A.dock}：收起后小球说有一件在等你确认`).toHaveAttribute('data-agent-ball', 'pending', { timeout: stationTimeout() })
-  await expect(ball, `${A.dock}：等你确认的数里有这张付费卡`).toHaveAttribute('data-agent-dock-count', '1')
-  await walk.snap('task-a-collapsed-ball-counts-the-card')
-  await clickOrFail(ball, '点小球把面板叫回来')
+  await expect(ball, `${A.dock}：收起后顶栏入口说有一件在等你确认`).not.toHaveAttribute('data-pending', '0', { timeout: stationTimeout() })
+  await expect(ball, `${A.dock}：等你确认的数里有这张付费卡`).toHaveAttribute('data-pending', '1')
+  await walk.snap('task-a-collapsed-entry-counts-the-card')
+  await clickOrFail(ball, '点顶栏 Nomi 入口把面板叫回来')
   await expect(cardA, '面板回来，卡还在原处等着').toBeVisible({ timeout: stationTimeout() })
 
   // 点第 2 个指向元素：画布滑过去、节点闪一下、生成框为它打开。
