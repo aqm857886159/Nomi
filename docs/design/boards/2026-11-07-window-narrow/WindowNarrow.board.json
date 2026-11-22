@@ -180,10 +180,14 @@
     "1555-span-窄窗档停靠的Nomi临时",
     "1603-svg"
    ],
-   "status": "implemented",
+   "status": "dropped",
    "owner": "I-window-narrow-shell",
    "stateNotes": "zh-en / dark / pending / idle",
-   "assertion": "board:WindowNarrow/agent.ball-narrow"
+   "userDecision": {
+    "quote": "全部收进顶栏",
+    "date": "2026-11-22"
+   },
+   "note": "改 dropped：2026-11-22 NomiEntryTopbar 板（docs/design/boards/2026-11-22-nomi-entry-topbar/）用户拍板「全部收进顶栏」，内容区右下的小球整个删掉。窄窗档停靠的 Nomi 临时收起，入口在顶栏（存的形态照旧不改）。"
   },
   {
    "id": "agent.pill-confirm",
@@ -216,10 +220,14 @@
     "1195-svg",
     "1196-span-等你确认1"
    ],
-   "status": "implemented",
+   "status": "dropped",
    "owner": "I-window-narrow-shell",
    "stateNotes": "zh-en / dark",
-   "assertion": "board:WindowNarrow/agent.pill-confirm"
+   "userDecision": {
+    "quote": "全部收进顶栏",
+    "date": "2026-11-22"
+   },
+   "note": "改 dropped：2026-11-22 NomiEntryTopbar 板（docs/design/boards/2026-11-22-nomi-entry-topbar/）用户拍板「全部收进顶栏」，内容区右下的小球整个删掉。窄窗（<900）时入口是脸加角标，不出胶囊（NomiEntryTopbar 的 nomi-entry.pending-badge）。"
   },
   {
    "id": "agent.float-narrow",
@@ -348,7 +356,8 @@
    "status": "implemented",
    "owner": "I-window-narrow-shell",
    "stateNotes": "zh-en / dark",
-   "assertion": "board:WindowNarrow/agent.float-narrow"
+   "assertion": "board:WindowNarrow/agent.float-narrow",
+   "note": "2026-11-22 起窄窗点顶栏 Nomi 入口打开浮窗（NomiEntryTopbar 板）。"
   },
   {
    "id": "agent.form-switch-dock-disabled",
@@ -526,10 +535,14 @@
    "candidates": [
     "1604-div-窗口窄Nomi先收在这里"
    ],
-   "status": "implemented",
+   "status": "dropped",
    "owner": "I-window-narrow-shell",
    "stateNotes": "zh-en / hover",
-   "assertion": "board:WindowNarrow/agent.ball-hover-tip"
+   "userDecision": {
+    "quote": "全部收进顶栏",
+    "date": "2026-11-22"
+   },
+   "note": "改 dropped：2026-11-22 NomiEntryTopbar 板（docs/design/boards/2026-11-22-nomi-entry-topbar/）用户拍板「全部收进顶栏」，内容区右下的小球整个删掉。「窗口窄，Nomi 先收在这里」这句删掉（ballNarrow），并进面板头「停靠」灰掉时的提示（dockNarrow）。"
   },
   {
    "id": "agent.collapse-motion",
@@ -549,10 +562,14 @@
     "1695-svg",
     "1696-span-拉宽"
    ],
-   "status": "implemented",
+   "status": "dropped",
    "owner": "I-window-narrow-shell",
    "stateNotes": "reduced-motion",
-   "assertion": "board:WindowNarrow/agent.collapse-motion"
+   "userDecision": {
+    "quote": "全部收进顶栏",
+    "date": "2026-11-22"
+   },
+   "note": "改 dropped：2026-11-22 NomiEntryTopbar 板（docs/design/boards/2026-11-22-nomi-entry-topbar/）用户拍板「全部收进顶栏」，内容区右下的小球整个删掉。停靠 ↔ 收起跨阈值时不再有收拢成球的动效；停靠栏进出的动效照旧。"
   },
   {
    "id": "shell.panel-width-no-writeback",

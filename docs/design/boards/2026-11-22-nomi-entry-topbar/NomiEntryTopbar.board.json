@@ -182,11 +182,11 @@
     "src/ui/app-shell/shell/ShellTopBar.tsx",
     "src/ui/app-shell/UpdatePill.tsx",
     "src/ui/app-shell/shell/ShellAgentHost.tsx",
-    "src/ui/app-shell/shell/AgentBallFace.tsx",
+    "src/ui/app-shell/shell/ShellNomiEntry.tsx",
     "src/design/identity.tsx",
     "src/ui/app-shell/shell/DotMark.tsx",
     "src/ui/app-shell/shell/agentFormStore.ts",
-    "src/ui/app-shell/shell/useAgentBallEyeFollow.ts",
+    "src/ui/app-shell/shell/useNomiEntry.ts",
     "src/ui/app-shell/shell/barIconButton.ts"
   ],
   "appearsIn": [

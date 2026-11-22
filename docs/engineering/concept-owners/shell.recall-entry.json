@@ -20,8 +20,9 @@
   "allowed_consumers": [
     "src/ui/app-shell/shell/ShellAgentHost.tsx",
     "src/workbench/WorkbenchShell.tsx",
-    "src/ui/app-shell/shell/AgentBallFace.tsx"
+    "src/ui/app-shell/shell/ShellNomiEntry.tsx",
+    "src/ui/app-shell/shell/useNomiEntry.ts"
   ],
   "since": "2026-10-08",
-  "notes": "10-08 外壳重设计：收起 Nomi = 内容区右下的小球（等你确认 N / 处理中 / 出错四态，都不自己弹开）；顶栏不再放 Agent 角标，原来横在页面上的输入坞删除。形态（小球 / 浮窗 / 停靠）只由 agentFormStore 一个 owner 写；Mod+J 打开并聚焦；Mod+\\ 收起 / 展开 Nomi（开着收成小球，收着打开到上次选的摆法，和点小球同一个动作；选停靠 / 浮窗只在形态切换和菜单里，2026-11-15 改）。页面不许再各放一个叫回按钮。"
+  "notes": "2026-11-22 NomiEntryTopbar 板（用户「全部收进顶栏」）：收起 = 顶栏最右的 Nomi 入口（ShellNomiEntry，五种脸 + 等你确认胶囊 / 角标 / 未读点 / 出错点，都不自己弹开）；内容区右下的小球删掉。10-08 外壳重设计起原来横在页面上的输入坞已删。形态（收起 / 浮窗 / 停靠）只由 agentFormStore 一个 owner 写；Mod+J 打开并聚焦；Mod+\\ 收起 / 展开 Nomi（开着收起，收着打开到上次选的摆法，和点顶栏入口同一个动作；选停靠 / 浮窗只在面板头三选一里）。页面不许再各放一个叫回按钮。"
 }

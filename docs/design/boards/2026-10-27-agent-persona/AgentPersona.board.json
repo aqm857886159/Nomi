@@ -109,7 +109,8 @@
       ],
       "status": "implemented",
       "component": "新品牌组件 NomiAgentFace（src/design/identity.tsx，§3.9 第七个品牌组件），AgentBallFace（src/ui/app-shell/shell/AgentBallFace.tsx）用它替换现在的 NomiLogoMark",
-      "assertion": "board:AgentPersona/persona.body"
+      "assertion": "board:AgentPersona/persona.body",
+      "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
       "id": "persona.size",
@@ -122,9 +123,13 @@
       "candidates": [
         "006-span-实际尺寸44px浅色画布"
       ],
-      "status": "implemented",
+      "status": "dropped",
       "component": "agentFormStore.ts 的 BALL_SIZE 与 ShellAgentHost 的 PILL_WIDTH，原值不动",
-      "assertion": "board:AgentPersona/persona.size"
+      "userDecision": {
+        "quote": "全部收进顶栏",
+        "date": "2026-11-22"
+      },
+      "note": "改 dropped：2026-11-22 NomiEntryTopbar 板（docs/design/boards/2026-11-22-nomi-entry-topbar/）用户拍板「全部收进顶栏」，内容区右下的小球整个删掉。尺寸按新板重定：顶栏 28px 按钮、26px 脸、胶囊高 28（nomi-entry.face / nomi-entry.pending-capsule）。"
     },
     {
       "id": "persona.eyes",
@@ -140,9 +145,13 @@
         "050-span-鼠标在左上方时眼睛往左上",
         "078-p-眼睛宽为边长的15高30"
       ],
-      "status": "implemented",
+      "status": "dropped",
       "component": "NomiAgentFace 内部；跟鼠标的监听挂在 AgentBallFace，只在 160px 半径内生效",
-      "assertion": "board:AgentPersona/persona.eyes"
+      "userDecision": {
+        "quote": "全部收进顶栏",
+        "date": "2026-11-22"
+      },
+      "note": "改 dropped：2026-11-22 NomiEntryTopbar 板（docs/design/boards/2026-11-22-nomi-entry-topbar/）用户拍板「全部收进顶栏」，内容区右下的小球整个删掉。眼睛跟鼠标随小球删掉（新板 agent.ball.eye-follow，「不做」）；空闲约 20 秒眨一下照旧，放在顶栏入口的脸上。"
     },
     {
       "id": "state.idle",
@@ -159,7 +168,8 @@
       ],
       "status": "implemented",
       "component": "AgentBallFace，status = idle（V4DockStatus）",
-      "assertion": "board:AgentPersona/state.idle"
+      "assertion": "board:AgentPersona/state.idle",
+      "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
       "id": "state.running",
@@ -176,7 +186,8 @@
       ],
       "status": "implemented",
       "component": "AgentBallFace running 分支（保留 data-agent-ball-progress）",
-      "assertion": "board:AgentPersona/state.running"
+      "assertion": "board:AgentPersona/state.running",
+      "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
       "id": "state.needs-confirm",
@@ -198,7 +209,8 @@
       ],
       "status": "implemented",
       "component": "AgentBallFace pill 分支（agentBallIsPill；ShellAgentHost 的 PILL_WIDTH 与右缘锚点照旧），文案沿用 appShell.agent.ballPending",
-      "assertion": "board:AgentPersona/state.needs-confirm"
+      "assertion": "board:AgentPersona/state.needs-confirm",
+      "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。「等你确认 N」改由入口自己画：放得下（≥900、面板没开）是胶囊，否则脸加角标（nomi-entry.pending-capsule / nomi-entry.pending-badge）。"
     },
     {
       "id": "state.done",
@@ -214,7 +226,8 @@
       ],
       "status": "implemented",
       "component": "AgentBallFace，status = done",
-      "assertion": "board:AgentPersona/state.done"
+      "assertion": "board:AgentPersona/state.done",
+      "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
       "id": "state.failed",
@@ -231,7 +244,8 @@
       ],
       "status": "implemented",
       "component": "AgentBallFace failed 分支（danger 点与 aria-label 照旧）",
-      "assertion": "board:AgentPersona/state.failed"
+      "assertion": "board:AgentPersona/state.failed",
+      "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
       "id": "variant.unread",
@@ -247,7 +261,8 @@
       ],
       "status": "implemented",
       "component": "AgentBallFace 未读分支：DotMark + ShellAgentHost 里 useResidentActivityStore 的 dockUnreadCount（扣掉等你确认的条数，现有算法不变）",
-      "assertion": "board:AgentPersona/variant.unread"
+      "assertion": "board:AgentPersona/variant.unread",
+      "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
       "id": "variant.long-task",
@@ -274,7 +289,7 @@
       "status": "missing",
       "owner": "I-agent-closeout-a",
       "component": "AgentBallFace 新分支；数据要 Run 状态接进小球（收尾 A），现在 running 只看回合（useAgentPanelV4Data）",
-      "note": "本轮不做（协调 2026-11-07 取舍第 2 条）：小球现在只知道「有回合在跑」，拿不到「第几镜 / 共几镜」，硬画进度条就是造假进度；等 Run 状态接进小球（收尾 A）再做。"
+      "note": "本轮不做（协调 2026-11-07 取舍第 2 条）：小球现在只知道「有回合在跑」，拿不到「第几镜 / 共几镜」，硬画进度条就是造假进度；等 Run 状态接进小球（收尾 A）再做。 落点改成顶栏 Nomi 入口的脸（2026-11-22 NomiEntryTopbar 板起没有右下小球）；仍未做。"
     },
     {
       "id": "variant.setup",
@@ -298,7 +313,7 @@
       "status": "missing",
       "owner": "D2-1",
       "component": "AgentBallFace pill 分支的新文案（zh / en 进 i18n）；状态来源是 NomiStudioApp 已有的 useHasTextModel().hasTextModel === false（与「还没连文本模型」恢复卡同一个判定，不另写一份）；点开面板后由现有恢复卡给下一步",
-      "note": "随 D2-1 接入引导实现（协调 2026-11-07 取舍第 1 条）：「先连模型」从哪一刻起出现、点开后去哪，跟接入引导一起定；本轮小球不出这句。"
+      "note": "随 D2-1 接入引导实现（协调 2026-11-07 取舍第 1 条）：「先连模型」从哪一刻起出现、点开后去哪，跟接入引导一起定；本轮小球不出这句。 落点改成顶栏 Nomi 入口（2026-11-22 NomiEntryTopbar 板起没有右下小球）；仍未做。"
     },
     {
       "id": "persona.tooltip",
@@ -335,7 +350,8 @@
       ],
       "status": "implemented",
       "component": "ShellAgentHost 组 title（appShell.agent.ballOpen / ballPending / ballUnread 与 dockStatusLabel），不照抄小样字面",
-      "assertion": "board:AgentPersona/persona.tooltip"
+      "assertion": "board:AgentPersona/persona.tooltip",
+      "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
       "id": "motion.morph-token",
@@ -351,7 +367,8 @@
       ],
       "status": "implemented",
       "component": "tailwind.config.ts 新增 --nomi-duration-morph / --nomi-ease-morph 与对应类名，docs/design/nomi-design-system.md §2.7 同步",
-      "assertion": "board:AgentPersona/motion.morph-token"
+      "assertion": "board:AgentPersona/motion.morph-token",
+      "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
       "id": "persona.on-dark",
@@ -367,7 +384,8 @@
       ],
       "status": "implemented",
       "component": "NomiAgentFace 的描边，走 token，不写死 hex",
-      "assertion": "board:AgentPersona/persona.on-dark"
+      "assertion": "board:AgentPersona/persona.on-dark",
+      "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
       "id": "ball.behaviors",
@@ -380,9 +398,13 @@
       "candidates": [
         "081-p-只换脸不换行为点一下打开"
       ],
-      "status": "implemented",
+      "status": "dropped",
       "component": "ShellAgentHost（Rnd 拖动、onContextMenu → WorkbenchMenu、open → setForm + requestResidentComposerFocus，2026-11-13 并 main 后换成主线的聚焦入口）与 AgentBallFace 的 data 属性，原样保留",
-      "assertion": "board:AgentPersona/ball.behaviors"
+      "userDecision": {
+        "quote": "全部收进顶栏",
+        "date": "2026-11-22"
+      },
+      "note": "改 dropped：2026-11-22 NomiEntryTopbar 板（docs/design/boards/2026-11-22-nomi-entry-topbar/）用户拍板「全部收进顶栏」，内容区右下的小球整个删掉。拖动 / 记位置 / 右键菜单随小球删掉（新板 agent.ball.drag-position）；点击打开并聚焦、⌘J、不自己弹开、焦点描边改由顶栏入口承担（nomi-entry）。"
     }
   ],
   "decor": [

@@ -1,7 +1,7 @@
 // 外壳（顶栏 / 左栏 / Agent 宿主）在走查里的**唯一**定位出口。
 //
 // 为什么要它（2026-10-09，#1136 外壳重设计的 CI 全红）：外壳一换，「返回项目库」从顶栏上一颗直达钮变成项目名菜单里的一项，
-// 「Agent 面板开着」从默认状态变成要点一下小球——而这些位置在十几份走查里各写了一份（`getByRole('button', { name: '返回项目库' })`
+// 「Agent 面板开着」从默认状态变成要点一下收起入口——而这些位置在十几份走查里各写了一份（`getByRole('button', { name: '返回项目库' })`
 // 抄了 15 处，用过的项目夹具自己又抄了一份面板选择器），改外壳的人没法一次改全，剩下的全部悬空成假红。
 // 现在走查找这几处外壳位置，一律经这里：下次外壳再变，只改这一个文件。
 //
@@ -10,8 +10,9 @@
 //
 // 当前外壳（10-08 重设计）：
 //   · 回项目库 = 顶栏项目名（`data-shell-project-menu`）打开的菜单里的「回项目库」一项。
-//   · Agent 三形态：小球（`data-agent-ball`）/ 浮窗 / 停靠；面板头部的三选一钮是 `data-agent-form-to="ball|float|dock"`。
-//     生成页默认是小球，创作 / 分镜 / 预览默认停靠。面板在小球形态下仍挂着，但在 hidden 容器里——「在不在」用 attached、
+//   · Agent 三形态：收起 / 浮窗 / 停靠；面板头部的三选一钮是 `data-agent-form-to="collapse|float|dock"`。
+//     收起后叫回在顶栏最右那颗 Nomi 入口（`data-shell-nomi-entry`，NomiEntryTopbar 板 2026-11-22；内容区里不再有小球）。
+//     生成页默认收起，创作 / 分镜 / 预览默认停靠。面板收起时仍挂着，但在 hidden 容器里——「在不在」用 attached、
 //     「看得见」用 visible，别混。
 //   · 设置 = 顶栏齿轮（`data-shell-settings`）→ 设置弹窗（`data-settings-dialog`，页签 `data-settings-tab-id=file|models|ai|automation|general|about`，关闭钮 `data-settings-close`）。
 //     模型设置 = 其中的「模型」页签（项目库右上那颗直达模型页的钮没有了）；语言 = 「通用」页签里的 `data-settings-locale=zh-CN|en` 分段（顶栏没有语言控件了）。
@@ -36,14 +37,20 @@ const alternatives = (keys) => keys.flatMap(bothLocales).map(escapeRegExp).join(
 /** 展开态（停靠或浮窗）的常驻 Agent 面板（外壳发的两枚身份属性）。 */
 export const AGENT_PANEL = '[data-agent-resident="true"][data-agent-panel="true"]'
 /**
- * 收起态（小球形态）：面板仍挂着（回执效果、计划预览、角标投影都还在），但挂在 `hidden` 容器里——
+ * 收起态：面板仍挂着（回执效果、计划预览、角标投影都还在），但挂在 `hidden` 容器里——
  * 判「在」用 `toBeAttached`，**不用** `toBeVisible`。
  */
 export const COLLAPSED_SHELL = '[data-agent-resident="true"][data-agent-collapsed="true"]'
-/** 收起后叫回 Nomi 的唯一入口 = 内容区右下的 Agent 小球（`data-agent-ball` = idle / running / done / failed / pending）。 */
-export const AGENT_BALL = '[data-agent-ball]'
-/** 面板头部「收起」= 形态三选一里的「小球」。 */
-export const COLLAPSE_BUTTON = '[data-agent-form-to="ball"]'
+/**
+ * 顶栏最右那颗 Nomi 入口（NomiEntryTopbar 板 nomi-entry）：开 / 收都点它，面板开着时它按下（`aria-pressed="true"`）。
+ * 走查锚：`data-status` = idle / unread / running / done / failed（脸）；`data-shape` = face / capsule（「等你确认 N」胶囊）；
+ * `data-pending` = 待确认条数；角标 `[data-nomi-entry-badge]`、点 `[data-nomi-entry-dot="unread|failed"]`。
+ */
+export const NOMI_ENTRY = '[data-shell-topbar] [data-shell-nomi-entry]'
+/** 收起后叫回 Nomi 的唯一入口 = 收着时的顶栏 Nomi 入口（没按下）。面板开着时这一条不匹配（入口还在，只是按下）。 */
+export const NOMI_ENTRY_COLLAPSED = `${NOMI_ENTRY}[aria-pressed="false"]`
+/** 面板头部「收起」= 形态三选一里的第一项。 */
+export const COLLAPSE_BUTTON = '[data-agent-form-to="collapse"]'
 const TO_DOCK = '[data-agent-form-to="dock"]'
 const DOCK_LAYER = '[data-shell-agent-layer][data-agent-form="dock"]'
 
@@ -80,22 +87,22 @@ export async function leaveProjectIfOpen(win, label = 'back to library') {
 }
 
 /**
- * 叫出常驻面板。已经展开就什么也不做；小球着就点小球（先出浮窗）。
+ * 叫出常驻面板。已经展开就什么也不做；收着就点顶栏 Nomi 入口（回到这一页上次的摆法）。
  * `form`：'any'（默认，面板在就行）/ 'dock'（要停靠右栏——夹具的版面前提「画布剩多宽」按停靠算）。
  *
- * 先等「面板或小球」其中一个出现，再判是哪一个（2026-10-28，短片走查冷重启后 15 秒红）：外壳挂常驻面板有个过程
- * （冷启动、切工作区、重开项目之后都有），在它挂上之前一次性采样 `isVisible()`，会把「还没挂」当成「是小球」，
- * 去等一颗永远不会出现的小球——而面板其实已经按落盘的形态好好地展开着。这是**只多等不少判**的改法：面板已在 / 小球已在
- * 时一样走原路；只有「还没挂上」这一种原本会红的情形变绿；两个都不出现，原来红、现在还是红（信息更准）。
+ * 先等「面板或收着的入口」其中一个出现，再判是哪一个（2026-10-28，短片走查冷重启后 15 秒红）：外壳挂常驻面板有个过程
+ * （冷启动、切工作区、重开项目之后都有），在它挂上之前一次性采样 `isVisible()`，会把「还没挂」当成「收着」，
+ * 去点一颗不该点的钮——而面板其实已经按落盘的形态好好地展开着。入口一直在顶栏，所以只认「没按下」的那颗（`NOMI_ENTRY_COLLAPSED`）：
+ * 形态开着时它从第一帧起就是按下的，不会被误判。面板已在 / 入口收着时一样走原路；两个都不出现，照样红（信息更准）。
  * 几十份走查经 `expandResidentPanel` / `openCanvas` / 直接调用走到这里，所以修在这一处，不在各走查里各绕一遍。
  */
 export async function ensureAgentPanelOpen(win, label = '展开常驻 Agent 面板', { timeout, form = 'any' } = {}) {
   const budget = timeout === undefined ? {} : { timeout }
   const panel = win.locator(AGENT_PANEL).first()
-  const ball = win.locator(AGENT_BALL).first()
-  await expect(panel.or(ball).first(), `${label}：面板和小球都没出现（外壳没把常驻 Agent 挂上来？）`).toBeVisible({ timeout: timeout ?? DEFAULT_TIMEOUT_MS })
+  const entry = win.locator(NOMI_ENTRY_COLLAPSED).first()
+  await expect(panel.or(entry).first(), `${label}：面板和收着的顶栏 Nomi 入口都没出现（外壳没把常驻 Agent 挂上来？）`).toBeVisible({ timeout: timeout ?? DEFAULT_TIMEOUT_MS })
   if (!(await panel.isVisible().catch(() => false))) {
-    await clickOrFail(ball, `${label}（点 Agent 小球）`, budget)
+    await clickOrFail(entry, `${label}（点顶栏 Nomi 入口）`, budget)
   }
   await expect(panel, `${label}：点完面板仍没有展开`).toBeVisible(budget)
   if (form === 'dock' && (await win.locator(DOCK_LAYER).count()) < 1) {
@@ -104,11 +111,11 @@ export async function ensureAgentPanelOpen(win, label = '展开常驻 Agent 面�
   }
 }
 
-/** 收起常驻面板（变小球），把画布整块还给用户（走查接下来要点画布上的东西时用）。已经是小球就什么也不做。 */
+/** 收起常驻面板（收进顶栏 Nomi 入口），把画布整块还给用户（走查接下来要点画布上的东西时用）。已经收着就什么也不做。 */
 export async function collapseAgentPanel(win, label = '收起常驻 Agent 面板') {
   if (!(await win.locator(AGENT_PANEL).first().isVisible().catch(() => false))) return
   await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), label)
-  await expect(win.locator(AGENT_BALL).first(), `${label}：点完没变成小球`).toBeVisible()
+  await expect(win.locator(NOMI_ENTRY_COLLAPSED).first(), `${label}：点完顶栏入口没回到收着`).toBeVisible()
 }
 
 /**
@@ -528,7 +535,7 @@ export async function openNodeParams(win, label = 'open node params') {
  * 只读外壳发的身份属性，不点任何东西。
  */
 export async function describeShellLocation(win) {
-  return win.evaluate(({ projectMenu, stage, settings, panel, ball }) => {
+  return win.evaluate(({ projectMenu, stage, settings, panel, collapsedEntry }) => {
     const visible = (el) => Boolean(el && el.getBoundingClientRect().width > 0)
     const parts = []
     const inProject = visible(document.querySelector(projectMenu))
@@ -545,9 +552,9 @@ export async function describeShellLocation(win) {
     const dialog = document.querySelector(settings)
     if (visible(dialog)) parts.push(`settings:${dialog.getAttribute('data-settings-tab')}`)
     if (visible(document.querySelector(panel))) parts.push('agent:panel')
-    else if (visible(document.querySelector(ball))) parts.push('agent:ball')
+    else if (visible(document.querySelector(collapsedEntry))) parts.push('agent:collapsed')
     return parts.join(' · ')
-  }, { projectMenu: PROJECT_MENU, stage: STAGE_CENTER, settings: SETTINGS_DIALOG, panel: AGENT_PANEL, ball: AGENT_BALL })
+  }, { projectMenu: PROJECT_MENU, stage: STAGE_CENTER, settings: SETTINGS_DIALOG, panel: AGENT_PANEL, collapsedEntry: NOMI_ENTRY_COLLAPSED })
 }
 
 /**

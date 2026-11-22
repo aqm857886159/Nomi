@@ -50,7 +50,7 @@ export function pendingSpendOfRead(read: PendingSpendRead | undefined): PendingS
 }
 
 export type AgentPanelSpendCard = Readonly<{
-  /** 此刻卡上那一笔（介入槽的优先序、收起后小球的待确认计数都读它）。 */
+  /** 此刻卡上那一笔（介入槽的优先序、收起后顶栏入口的待确认计数都读它）。 */
   pending: PendingSpendConfirm | undefined
   slot: InterventionData | undefined
   /** 卡体（指向元素 + 摘要 + 说明行）；缺卡 / 没有卡时缺席。 */

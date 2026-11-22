@@ -12,9 +12,12 @@ import { probeKeyListeners, probeStorage, setProbeNarrow } from './agentFormProb
 import { AGENT_FORM_STORAGE_KEY, useAgentFormStore, type AgentFormSurface } from './agentFormStore'
 import { useAgentFormViewStore } from './agentFormViewStore'
 import { ShellAgentHost } from './ShellAgentHost'
+import { NomiEntryButton } from './ShellNomiEntry'
+import { useNomiEntry } from './useNomiEntry'
 
 export type OldForm = 'ball' | 'float' | 'dock'
-export type Shown = 'ball' | 'float' | 'dock'
+/** 外壳此刻画出来的形态（收起 = 面板收进顶栏 Nomi 入口）。旧存档里的 'ball' 只在 OldForm 里出现。 */
+export type Shown = 'collapsed' | 'float' | 'dock'
 export const PROBE_SURFACES: AgentFormSurface[] = ['creation', 'storyboard', 'generation', 'preview']
 
 type ProbeNode = TestHostNode & {
@@ -39,6 +42,14 @@ function AgentProbePanel(): React.JSX.Element | null {
     ...(slot.menuItems ?? []).map((item) => React.createElement('button', {
       key: item.id, type: 'button', 'data-probe-more-item': item.id, disabled: item.disabled, onClick: item.onSelect,
     })))
+}
+
+/** 顶栏最右那颗 Nomi 入口：真 hook（useNomiEntry）+ 真按钮，和顶栏里挂的是同一对（ShellTopBar 的 NomiEntrySlot 只多包一层悬停提示）。 */
+function ProbeNomiEntry({ surface }: { surface: AgentFormSurface }): React.JSX.Element {
+  const entry = useNomiEntry(surface, true)
+  return React.createElement(NomiEntryButton, {
+    look: entry.look, pendingCount: entry.pendingCount, capsuleText: entry.capsuleText, open: entry.open, label: entry.label, onClick: entry.toggle,
+  })
 }
 
 /** 旧版（0.24.x 到改结构之前）落盘的样子：每页 { form, float, ball }，persist version 1。 */
@@ -66,7 +77,7 @@ export type Probe = Awaited<ReturnType<typeof bootProbe>>
 
 /**
  * 起一个外壳：磁盘上是 `forms` 那份旧存档，窗口 `narrow`，停在 `page`。
- * 返回的每个动作都走真实入口：小球的 onClick、形态切换的按钮、「⋯」菜单项、小球右键菜单、window 上的 keydown、matchMedia 的 change。
+ * 返回的每个动作都走真实入口：顶栏 Nomi 入口的 onClick、形态切换的按钮、「⋯」菜单项、window 上的 keydown、matchMedia 的 change。
  */
 export async function bootProbe(input: {
   forms?: Partial<Record<AgentFormSurface, OldForm>>
@@ -99,12 +110,13 @@ export async function bootProbe(input: {
   })
   const render = () => {
     renderer.render(React.createElement(React.Fragment, null,
+      React.createElement(ProbeNomiEntry, { surface: page }),
       React.createElement(ShellAgentHost, { surface: page, dockTarget: null, agent: React.createElement(AgentProbePanel) }),
       input.alongside?.(page) ?? null))
     renderer.flushPassiveEffects()
   }
   render()
-  // 小球 / 浮窗要量到内容区才画：第一次渲染量到大小之后再来一拍。
+  // 浮窗要量到内容区才画：第一次渲染量到大小之后再来一拍。
   render()
 
   const latest = (match: (props: Record<string, unknown>) => boolean): ProbeNode | undefined => created.filter((node) => match(node.props)).at(-1)
@@ -128,32 +140,19 @@ export async function bootProbe(input: {
       render()
       render()
     },
-    /** 点小球（小球在才点得到；不在返回 false）。 */
-    clickBall(): boolean {
-      if (shown() !== 'ball') return false
-      click(latest((props) => 'data-agent-ball' in props), '小球')
-      return true
+    /** 点顶栏 Nomi 入口（一直在）：收着 = 打开到这一页上次的摆法，开着 = 收起。 */
+    clickEntry(): void {
+      click(latest((props) => 'data-shell-nomi-entry' in props), '顶栏 Nomi 入口')
     },
-    /** 小球右键菜单里点一项（'float' | 'dock'）；小球不在返回 false。 */
-    ballMenu(id: 'float' | 'dock'): boolean {
-      if (shown() !== 'ball') return false
-      const ball = latest((props) => 'data-agent-ball' in props)
-      const onContextMenu = ball?.props.onContextMenu as ((event: unknown) => void) | undefined
-      if (!onContextMenu) throw new Error('探针：小球没有右键菜单')
-      onContextMenu({ preventDefault: () => undefined, clientX: 10, clientY: 10 })
-      render()
-      click(latest((props) => props['data-probe-menu-item'] === id), `小球菜单「${id}」`)
-      return true
-    },
-    /** 面板头部形态切换里点一项；面板不在（此刻是小球）返回 false。 */
-    choose(form: OldForm): boolean {
-      if (shown() === 'ball') return false
-      click(latest((props) => props['data-agent-form-to'] === form), `形态切换「${form}」`)
+    /** 面板头部形态切换里点一项（收起 / 浮窗 / 停靠）；面板不在（此刻收着）返回 false。 */
+    choose(to: 'collapse' | 'float' | 'dock'): boolean {
+      if (shown() === 'collapsed') return false
+      click(latest((props) => props['data-agent-form-to'] === to), `形态切换「${to}」`)
       return true
     },
     /** 头部窄时「⋯」菜单里的形态项。 */
-    more(form: OldForm): boolean {
-      if (shown() === 'ball') return false
+    more(form: 'collapse' | 'float' | 'dock'): boolean {
+      if (shown() === 'collapsed') return false
       click(latest((props) => props['data-probe-more-item'] === `form-${form}`), `「⋯」里的「${form}」`)
       return true
     },

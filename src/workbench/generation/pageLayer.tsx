@@ -7,7 +7,7 @@
  *            层里不许再读 Agent 形态或自己算偏移；
  *          · 可见性归 GenerationWorkspace 算出的 `active`（生成页是不是当前页 && 画布视图，见 pageLayerContext.ts）——藏着时层 display:none，
  *            层里藏着时该停的事（全局键盘监听、3D 渲染循环、暗色锁）读 useGenerationPageLayerActive，不读 workspaceMode；
- *          · 层级 z-[40]：在画布内浮件（≤30）之上、Agent 小球 / 浮窗层（z-[60]）之下，所以 Agent 不管停靠、浮窗还是小球都不被盖。
+ *          · 层级 z-[40]：在画布内浮件（≤30）之上、Agent 浮窗层（z-[60]）之下，所以 Agent 不管停靠还是浮窗都不被盖（收起时入口在顶栏）。
  *        灯箱类三处旧例（NodeMediaPreviewDialog / NodeShotCutPanel / ScreenshotCropOverlay）按 class 名找同一个格子、行为是盖住 Agent 的模态，
  *        不走这里；pageLayerCensus.test.ts 把它们登记为「存量只减不增」，body 上的全屏层则必须登记归属。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -1,7 +1,7 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 收起创作助手后，入口（Agent 小球）必须在编辑器右侧独立占位，不能覆盖撤销/重做。
 import { launchNomiApp } from './_launchApp.mjs'
-import { switchWorkspace, collapseAgentPanel, AGENT_BALL } from './_shell.mjs'
+import { switchWorkspace, collapseAgentPanel, NOMI_ENTRY_COLLAPSED } from './_shell.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -99,7 +99,7 @@ async function verifyViewport(width, height) {
   await win.setViewportSize({ width, height })
   await win.waitForTimeout(350)
 
-  const pill = win.locator(AGENT_BALL).first()
+  const pill = win.locator(NOMI_ENTRY_COLLAPSED).first()
   const undo = win.getByRole('button', { name: '撤销', exact: true })
   const redo = win.getByRole('button', { name: '重做', exact: true })
   const [pillBox, undoBox, redoBox] = await Promise.all([pill.boundingBox(), undo.boundingBox(), redo.boundingBox()])

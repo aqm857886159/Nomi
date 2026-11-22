@@ -5,10 +5,10 @@
 // 零额度、不调任何模型、不碰用户真实项目：隔离资料目录 + 新建空白项目；导演台工程是现役编译器编出来的 S1 oracle 计划（同 director-3dbox-shell）。
 //
 // 用户症状（2026-10-29）：① 打开导演台后画布右侧还有漏出（Agent 是浮窗时白留 assistantWidth+8）；
-// ② 点顶栏「创作」「预览」出不去（导演层挂 body、不跟页面走，左栏还被盖住）；③ 小球形态下 Agent 被导演层盖住。
+// ② 点顶栏「创作」「预览」出不去（导演层挂 body、不跟页面走，左栏还被盖住）；③ 收起形态下叫回 Agent 的入口被导演层盖住（当时是右下小球；2026-11-22 起入口在顶栏，NomiEntryTopbar 板）。
 // 改后这里钉的是：导演层就是生成页那一格——
 //   · 主指标：导演层矩形 = 页格矩形（3 种 Agent 形态 × 多种窗口尺寸）；
-//   · 页格外没有可点的画布、停靠栏不重叠、小球 / 浮窗在导演层之上；
+//   · 页格外没有可点的画布、停靠栏不重叠、浮窗在导演层之上、收起时顶栏 Nomi 入口点得到；
 //   · 点创作 / 预览导演层不可见，回生成还在、选中的镜头不变；左栏点得到；
 //   · 隐藏时：Esc / 导演台快捷键不被吞、3D 渲染循环停、暗色锁释放；列表视图同理；
 //   · 退出路径、回项目库卸载；全景查看器同一挂法。
@@ -42,7 +42,7 @@ const SIZES = (option('sizes') ?? '1440x900,1920x1080,1280x720').split(',').map(
   if (!Number.isInteger(width) || !Number.isInteger(height)) throw new Error(`坏的 --sizes：${text}`)
   return { width, height, label: text }
 })
-const FORMS = ['float', 'dock', 'ball']
+const FORMS = ['float', 'dock', 'collapsed']
 const outDir = path.resolve(option('out') ?? path.join(repoRoot, 'tests/ux/shots/director-layer-in-page', locale))
 fs.rmSync(outDir, { recursive: true, force: true })
 fs.mkdirSync(outDir, { recursive: true })
@@ -56,7 +56,6 @@ const E = {
   noLeak: 'board:DirectorInPage/layer.no-canvas-leak',
   dockBeside: 'board:DirectorInPage/agent.dock-beside',
   floatAbove: 'board:DirectorInPage/agent.float-above',
-  ballAbove: 'board:DirectorInPage/agent.ball-above',
   rail: 'board:DirectorInPage/chrome.rail',
   topbar: 'board:DirectorInPage/chrome.topbar',
   awayHides: 'board:DirectorInPage/nav.away-hides',
@@ -116,7 +115,7 @@ const timeout = stationTimeout({ operations: 2 })
 const REGION_SOURCE = `
   const regionOf = (el) => {
     if (!el) return 'none'
-    if (el.closest('[data-agent-ball]')) return 'agent-ball'
+    if (el.closest('[data-shell-nomi-entry]')) return 'nomi-entry'
     if (el.closest('[data-agent-float]')) return 'agent-float'
     if (el.closest('[data-assistant-pane]')) return 'agent-dock'
     if (el.closest('[data-testid="director-editor"]')) return 'director'
@@ -144,7 +143,7 @@ const measure = () => win.evaluate(`(() => {
   // 创作 / 分镜 / 预览三页的槽位里也各挂着一份停靠栏（被藏着，没有 client rect）：只认看得见的那份
   const dock = [...document.querySelectorAll('[data-assistant-pane]')].find(shown) ?? null
   const float = document.querySelector('[data-agent-float]')
-  const ball = document.querySelector('[data-agent-ball]')
+  const entry = document.querySelector('[data-shell-topbar] [data-shell-nomi-entry]')
   const cellBox = box(cell)
   const editorBox = shown(editor) ? box(editor) : null
   const hit = (x, y) => regionOf(document.elementFromPoint(x, y))
@@ -171,7 +170,7 @@ const measure = () => win.evaluate(`(() => {
     modeButtons[mode] = b ? { hit: hit(c.x, c.y) } : null
   }
   const floatBox = shown(float) ? box(float) : null
-  const ballBox = shown(ball) ? box(ball) : null
+  const entryBox = shown(entry) ? box(entry) : null
   return {
     viewport: { w: window.innerWidth, h: window.innerHeight },
     workspaceMode: document.querySelector('[data-workspace-mode]')?.getAttribute('data-workspace-mode') ?? null,
@@ -181,9 +180,9 @@ const measure = () => win.evaluate(`(() => {
     layerInDom: document.querySelectorAll('[data-generation-page-layer]').length,
     dock: shown(dock) ? box(dock) : null,
     float: floatBox,
-    ball: ballBox,
+    entry: entryBox,
     floatCenterHit: floatBox ? hit(center(floatBox).x, center(floatBox).y) : null,
-    ballCenterHit: ballBox ? hit(center(ballBox).x, center(ballBox).y) : null,
+    entryCenterHit: entryBox ? hit(center(entryBox).x, center(entryBox).y) : null,
     leaks,
     railHits,
     modeButtons,
@@ -222,8 +221,8 @@ const resizeTo = async (size) => {
 }
 
 const setAgentForm = async (form) => {
-  // 走真动作摆形态（ball = 收起；float / dock = 选那个摆法），读法只认外壳那一层的 data-agent-form。
-  await win.evaluate((next) => (next === 'ball' ? window.__nomiAgentForm.collapseAgent('generation') : window.__nomiAgentForm.chooseAgentPlacement('generation', next)), form)
+  // 走真动作摆形态（collapsed = 收起；float / dock = 选那个摆法），读法只认外壳那一层的 data-agent-form。
+  await win.evaluate((next) => (next === 'collapsed' ? window.__nomiAgentForm.collapseAgent('generation') : window.__nomiAgentForm.chooseAgentPlacement('generation', next)), form)
   await win.waitForFunction((next) => document.querySelector('[data-shell-agent-layer]')?.getAttribute('data-agent-form') === next, form, { timeout })
   await settleLayout()
 }
@@ -341,15 +340,15 @@ const closeDirectorIfOpen = async () => {
   await expectDirectorGone('退出确认后导演层卸载', proof)
 }
 
-// 对照：没开导演台时点 Agent 小球，输入框拿没拿到焦点（外壳自己的行为；开了导演台以后点小球必须和它一致，不能更差）
+// 对照：没开导演台时点顶栏 Nomi 入口，输入框拿没拿到焦点（外壳自己的行为；开了导演台以后点入口必须和它一致，不能更差）
 let composerFocusControl = null
 await section('0-control', async () => {
-  await setAgentForm('ball')
-  await win.locator('[data-agent-ball]').first().click({ timeout })
+  await setAgentForm('collapsed')
+  await win.locator('[data-shell-topbar] [data-shell-nomi-entry]').first().click({ timeout })
   await win.waitForFunction(() => document.querySelector('[data-shell-agent-layer]')?.getAttribute('data-agent-form') === 'float', null, { timeout })
   composerFocusControl = await win.waitForFunction(() => Boolean(document.activeElement?.closest?.('#project-agent-resident')), null, { timeout: 2500 }).then(() => true, () => false)
-  note('对照：没开导演台时点小球，输入框拿到焦点', { composerFocusControl })
-  await setAgentForm('ball')
+  note('对照：没开导演台时点顶栏 Nomi 入口，输入框拿到焦点', { composerFocusControl })
+  await setAgentForm('collapsed')
 })
 
 let opened = false
@@ -385,7 +384,7 @@ await section('1-geometry', async () => {
       check(`1.${tag}.leak`, `${tag}：导演层外没有可点的画布（命中测试）`, m.leaks.length === 0, m.leaks.length ? `${m.leaks.length} 个点落在画布上，例 ${JSON.stringify(m.leaks[0])}` : '', E.noLeak)
       if (form === 'dock') check(`1.${tag}.dock`, `${tag}：停靠栏与导演层不重叠`, Boolean(m.dock && m.editor) && m.editor.right <= m.dock.x + 1.5, `editor.right=${m.editor?.right} dock.x=${m.dock?.x}`, E.dockBeside)
       if (form === 'float') check(`1.${tag}.float`, `${tag}：浮窗在导演层之上、点得到`, m.floatCenterHit === 'agent-float', String(m.floatCenterHit), E.floatAbove)
-      if (form === 'ball') check(`1.${tag}.ball`, `${tag}：小球在导演层之上、点得到`, m.ballCenterHit === 'agent-ball', String(m.ballCenterHit), E.ballAbove)
+      if (form === 'collapsed') check(`1.${tag}.entry`, `${tag}：收起时顶栏 Nomi 入口点得到（导演层不盖顶栏）`, m.entryCenterHit === 'nomi-entry', String(m.entryCenterHit), E.topbar)
       check(`1.${tag}.rail`, `${tag}：左栏「文稿」「素材」命中落在按钮上`, m.railHits.docs?.hit === 'rail:docs' && m.railHits.assets?.hit === 'rail:assets', `docs=${m.railHits.docs?.hit} assets=${m.railHits.assets?.hit}`, E.rail)
       check(`1.${tag}.topbar`, `${tag}：顶栏「创作」「生成」「预览」命中落在顶栏上`, ['creation', 'generation', 'preview'].every((mode) => m.modeButtons[mode]?.hit === 'topbar'), JSON.stringify(m.modeButtons), E.topbar)
       await shot(`${size.label}-${form}-open`)
@@ -393,19 +392,19 @@ await section('1-geometry', async () => {
   }
 })
 
-// ═══ 小节 2：Agent 交互（小球叫出 / 浮窗拖到导演层上面 / 停靠栏拖宽）══════════════════════
+// ═══ 小节 2：Agent 交互（顶栏入口叫出 / 浮窗拖到导演层上面 / 停靠栏拖宽）══════════════════════
 await section('2-agent', async () => {
   await resizeTo(SIZES[0])
   // 收起再点开回到上次选的摆法（用户 2026-11-14 拍板）：几何矩阵最后选的是停靠，这里先选回浮窗再收起。
   await setAgentForm('float')
-  await setAgentForm('ball')
-  const ballClicked = await win.locator('[data-agent-ball]').first().click({ timeout: 4000 }).then(() => true, () => false)
-  if (ballClicked) await win.waitForFunction(() => document.querySelector('[data-shell-agent-layer]')?.getAttribute('data-agent-form') === 'float', null, { timeout: 4000 }).catch(() => undefined)
-  const afterBall = await measure()
-  check('2.ball-click', '真点小球 → 变浮窗，浮窗在导演层之上', ballClicked && afterBall.floatCenterHit === 'agent-float' && sameRect(afterBall.editor, afterBall.cell), ballClicked ? String(afterBall.floatCenterHit) : '小球点不到（被导演层盖住）', E.ballAbove)
-  if (ballClicked) {
+  await setAgentForm('collapsed')
+  const entryClicked = await win.locator('[data-shell-topbar] [data-shell-nomi-entry]').first().click({ timeout: 4000 }).then(() => true, () => false)
+  if (entryClicked) await win.waitForFunction(() => document.querySelector('[data-shell-agent-layer]')?.getAttribute('data-agent-form') === 'float', null, { timeout: 4000 }).catch(() => undefined)
+  const afterEntry = await measure()
+  check('2.entry-click', '真点顶栏 Nomi 入口 → 变浮窗，浮窗在导演层之上', entryClicked && afterEntry.floatCenterHit === 'agent-float' && sameRect(afterEntry.editor, afterEntry.cell), entryClicked ? String(afterEntry.floatCenterHit) : '顶栏入口点不到', E.floatAbove)
+  if (entryClicked) {
     const focused = await win.waitForFunction(() => Boolean(document.activeElement?.closest?.('#project-agent-resident')), null, { timeout: 2500 }).then(() => true, () => false)
-    check('2.composer-focus', '点开后 Agent 面板里的输入拿到焦点——和没开导演台时点小球一致', focused === composerFocusControl, `开了导演台：${focused}；没开导演台（对照）：${composerFocusControl}`, E.ballAbove)
+    check('2.composer-focus', '点开后 Agent 面板里的输入拿到焦点——和没开导演台时点入口一致', focused === composerFocusControl, `开了导演台：${focused}；没开导演台（对照）：${composerFocusControl}`, E.floatAbove)
     // 浮窗里的输入框：中心点命中在 Agent 面板里（没被导演层盖住）、而且能聚焦
     // 找的是**看得见的那个浮窗**里的输入（创作 / 分镜 / 预览三页的槽位里也各挂着一份 Agent 面板，被藏着；按 id 取第一个会取到藏着的那份）
     const composer = await win.evaluate(() => {
@@ -417,9 +416,9 @@ await section('2-agent', async () => {
       input.focus()
       return { found: true, hitInside: Boolean(hit && root.contains(hit)), focusable: Boolean(document.activeElement && root.contains(document.activeElement)) }
     })
-    check('2.composer-usable', '浮窗里的输入框点得到（命中在 Agent 面板里）且能聚焦', composer.found && composer.hitInside && composer.focusable, JSON.stringify(composer), E.ballAbove)
+    check('2.composer-usable', '浮窗里的输入框点得到（命中在 Agent 面板里）且能聚焦', composer.found && composer.hitInside && composer.focusable, JSON.stringify(composer), E.floatAbove)
   } else {
-    check('2.composer-focus', '点开后 Agent 面板里的输入拿到焦点——和没开导演台时点小球一致', false, '小球没点开', E.ballAbove)
+    check('2.composer-focus', '点开后 Agent 面板里的输入拿到焦点——和没开导演台时点入口一致', false, '顶栏入口没点开', E.floatAbove)
     await setAgentForm('float')
   }
   await settleLayout()
@@ -683,8 +682,8 @@ await section('6-exit', async () => {
   await expectDirectorGone('再退出后导演层卸载', exitProof)
   // 第二个导演台节点先后打开
   // 经加节点条建第二个导演台节点（应用把它放进视口、渲染并量过尺寸；直接 addNode 到视口外的位置它不会渲染，「适应视图」也会漏掉它），再把同一份工程写进去
-  // 前面把 Agent 浮窗拖到了画布中间，正好盖住底部的加节点条（浮窗在画布之上是对的）：收成小球，加节点条才点得到
-  await setAgentForm('ball')
+  // 前面把 Agent 浮窗拖到了画布中间，正好盖住底部的加节点条（浮窗在画布之上是对的）：收起，加节点条才点得到
+  await setAgentForm('collapsed')
   await addCanvasNode(win, 'director', { timeout })
   const secondId = await win.evaluate(({ directorProject, firstId }) => {
     const state = window.__nomiCanvasStore.getState()

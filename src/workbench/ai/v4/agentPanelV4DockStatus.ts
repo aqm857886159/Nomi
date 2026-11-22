@@ -11,8 +11,8 @@ import React from 'react'
 
 /**
  * 五档**注意力状态**。注意它们各自的注释说的是「宿主那边发生了什么」，**不是「角标长什么样」**：
- * 长相由小球（AgentBallFace → 品牌组件 NomiAgentFace）画，2026-10-27 形象拍板后五个词和五副长相一一对应
- * （agentFormStore 的 `agentBallLook` 是唯一映射，和胶囊判定 agentBallIsPill 放在一起）：idle = 空闲脸、running = 变圆转弧、needs-confirm（且有条数）= 胶囊、
+ * 长相由顶栏 Nomi 入口（ShellNomiEntry → 品牌组件 NomiAgentFace）画
+ * （src/ui/app-shell/shell/nomiEntryLook.ts 的 `nomiEntryLook` 是唯一映射，和胶囊 / 角标判定放在一起）：idle = 空闲脸、running = 变圆转弧、needs-confirm（且有条数）= 胶囊、
  * done = 轻跳眯眼笑、failed = 歪倒加 danger 点；未读是叠在上面的那颗点，不是第六个词。这五个词另进 tooltip 那句人话与
  * `data-agent-dock-status`。
  *

@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { closeNomiApp, launchNomiApp } from './_launchApp.mjs'
-import { AGENT_BALL, AGENT_PANEL, collapseAgentPanel, switchWorkspace } from './_shell.mjs'
+import { AGENT_PANEL, NOMI_ENTRY_COLLAPSED, collapseAgentPanel, switchWorkspace } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const FIXTURE = path.join(repoRoot, 'tests/fixtures/old-user-data/projects/v0.24.1-storyboard/project')
@@ -146,15 +146,15 @@ try {
     let { app, win } = await openProject(machine, { seed: null })
     await switchWorkspace(win, 'preview', '去预览页')
     const panelProbe = await proveProbe(win.locator(AGENT_PANEL), '预览页 Nomi 默认停靠展开（同一个探针重开后用来证「没展开」）')
-    await collapseAgentPanel(win, '点「小球」收起 Nomi')
+    await collapseAgentPanel(win, '点「收起」收起 Nomi')
     await close(app, win)
     record('点一次收起再关', before, sha(machine.projectFile), false)
     ;({ app, win } = await openProject(machine, { seed: null }))
     await switchWorkspace(win, 'preview', '重开后去预览页')
-    await expect(win.locator(AGENT_BALL).first(), '同一台机器重开：预览页 Nomi 还是小球').toBeVisible()
+    await expect(win.locator(NOMI_ENTRY_COLLAPSED).first(), '同一台机器重开：预览页 Nomi 还是收着（顶栏入口没按下）').toBeVisible()
     await expectAbsent(win.locator(AGENT_PANEL), { provenBy: panelProbe, message: '同一台机器重开：预览页 Nomi 没有展开' })
     results.push({ name: '重开后还记得收起', ok: true })
-    console.log('✓ 同一台机器重开项目：预览页 Nomi 还是小球')
+    console.log('✓ 同一台机器重开项目：预览页 Nomi 还是收着')
     await close(app, win)
     record('重开再关', before, sha(machine.projectFile), false)
   }

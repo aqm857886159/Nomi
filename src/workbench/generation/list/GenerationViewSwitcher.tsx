@@ -26,7 +26,8 @@ export function GenerationViewSwitcher(): JSX.Element {
           data-generation-view-switcher={view}
           onClick={() => setView(toList ? 'list' : 'canvas')}
         >
-          {toList ? <IconLayoutList size={18} stroke={1.5} aria-hidden="true" /> : <IconLayoutBoard size={18} stroke={1.5} aria-hidden="true" />}
+          {/* 图标档位由 BAR_ICON_BUTTON 定（条档 18 / 1.8，和顶栏右簇同一档），这里不传 size / stroke。 */}
+          {toList ? <IconLayoutList aria-hidden="true" /> : <IconLayoutBoard aria-hidden="true" />}
         </button>
       </TooltipTrigger>
       <TooltipContent side="bottom">{label}</TooltipContent>

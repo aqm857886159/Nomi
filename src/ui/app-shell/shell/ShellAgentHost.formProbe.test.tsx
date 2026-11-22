@@ -12,7 +12,6 @@ vi.mock('react-reverse-portal', () => ({
 }))
 // 门户落点（停靠栏 / 隐藏容器）和这张表无关：就地画出来，层上的 data-agent-form 照样是外壳此刻的形态。
 vi.mock('react-dom', async (importOriginal) => ({ ...(await importOriginal<typeof import('react-dom')>()), createPortal: (children: unknown) => children }))
-vi.mock('./useAgentBallEyeFollow', () => ({ useAgentBallEyeFollow: () => undefined }))
 vi.mock('../../../design', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
   const Pass = ({ children }: { children?: unknown }) => children ?? null
@@ -23,10 +22,6 @@ vi.mock('../../../design', async (importOriginal) => {
     TooltipContent: () => null,
     TooltipProvider: Pass,
     NomiAgentFace: () => null,
-    // 小球右键菜单：开着时把每一项摆成一颗按钮（点它 = 选这一项）。
-    WorkbenchMenu: ({ open, items }: { open: boolean; items: { id: string; disabled?: boolean; onSelect: () => void }[] }) => (open
-      ? React.createElement(React.Fragment, null, ...items.map((item) => React.createElement('button', { key: item.id, 'data-probe-menu-item': item.id, disabled: item.disabled, onClick: item.disabled ? undefined : item.onSelect })))
-      : null),
   }
 })
 
@@ -76,31 +71,32 @@ function pickReferenceOnCanvas(p: Probe): void {
 describe('没钉住的三条（方向检查第 3 节）：写成期望行为', () => {
   it('预测 1a · 窄窗里创作页点开，生成页没点不跟着开', async () => {
     probe = await bootProbe({ forms: { creation: 'ball', generation: 'ball' }, narrow: true, page: 'creation' })
-    expect(probe.clickBall()).toBe(true)
+    expect(probe.shown()).toBe('collapsed')
+    probe.clickEntry()
     expect(probe.shown()).toBe('float')
     probe.goto('generation')
-    expect(probe.shown()).toBe('ball')
+    expect(probe.shown()).toBe('collapsed')
   })
 
   it('预测 1b · 窄窗里生成页（存浮窗）收起，创作页（存浮窗）没点不跟着收', async () => {
     probe = await bootProbe({ forms: { creation: 'float', generation: 'float' }, narrow: true, page: 'generation' })
     expect(probe.shown()).toBe('float')
     probe.key('\\')
-    expect(probe.shown()).toBe('ball')
+    expect(probe.shown()).toBe('collapsed')
     probe.goto('creation')
     expect(probe.shown()).toBe('float')
   })
 
   for (const creation of ['dock', 'ball', 'float'] as const) {
-    it(`预测 2 · 窄窗里生成页被收成小球、从创作页（存${creation}）去挑参考图：生成页的 Nomi 叫得出来`, async () => {
+    it(`预测 2 · 窄窗里生成页被收起、从创作页（存${creation}）去挑参考图：生成页的 Nomi 叫得出来`, async () => {
       probe = await bootProbe({ forms: { creation, generation: 'float' }, narrow: true, page: 'generation' })
       probe.key('\\')
-      expect(probe.shown()).toBe('ball')
+      expect(probe.shown()).toBe('collapsed')
       probe.goto('creation')
-      probe.clickBall()
-      expect(probe.shown()).not.toBe('ball')
+      if (probe.shown() === 'collapsed') probe.clickEntry()
+      expect(probe.shown()).not.toBe('collapsed')
       pickReferenceOnCanvas(probe)
-      expect(probe.shown()).not.toBe('ball')
+      expect(probe.shown()).not.toBe('collapsed')
     })
   }
 
@@ -108,32 +104,32 @@ describe('没钉住的三条（方向检查第 3 节）：写成期望行为', (
     probe = await bootProbe({ forms: { creation: 'dock' }, narrow: false, page: 'creation' })
     expect(probe.choose('float')).toBe(true)
     expect(probe.shown()).toBe('float')
-    expect(probe.choose('ball')).toBe(true)
-    expect(probe.shown()).toBe('ball')
-    expect(probe.clickBall()).toBe(true)
+    expect(probe.choose('collapse')).toBe(true)
+    expect(probe.shown()).toBe('collapsed')
+    probe.clickEntry()
     expect(probe.shown()).toBe('float')
   })
 })
 
 describe('独立验收查出的三条（先钉现状）', () => {
-  it('① 窄窗点开 → 指向让开 → 拉宽：那一枚跟着消失、显示存的样子（存收着 = 小球），点小球打开到上次选的摆法', async () => {
+  it('① 窄窗点开 → 指向让开 → 拉宽：那一枚跟着消失、显示存的样子（存收着 = 收起），点顶栏入口打开到上次选的摆法', async () => {
     probe = await bootProbe({ forms: { generation: 'ball' }, narrow: true, page: 'generation', alongside: withReturnDock })
-    expect(probe.clickBall()).toBe(true)
+    probe.clickEntry()
     expect(probe.shown()).toBe('float')
     yieldChatToCanvas({ surface: 'generation', nodeId: 'n1', label: '镜 01' })
     probe.settle()
-    expect(probe.shown()).toBe('ball')
+    expect(probe.shown()).toBe('collapsed')
     expect(returnDockShown()).toBe(true)
     probe.resize(false)
-    expect(probe.shown(), '拉宽：显示存的样子').toBe('ball')
+    expect(probe.shown(), '拉宽：显示存的样子').toBe('collapsed')
     expect(returnDockShown(), '拉宽：让位结束，那一枚跟着消失').toBe(false)
-    expect(probe.clickBall()).toBe(true)
+    probe.clickEntry()
     expect(probe.shown()).toBe('float')
   })
 
   it('① 补格 · 让位还在时（没跨窗宽）点「回到对话」：对话回来、那一枚消失', async () => {
     probe = await bootProbe({ forms: { generation: 'ball' }, narrow: true, page: 'generation', alongside: withReturnDock })
-    probe.clickBall()
+    probe.clickEntry()
     yieldChatToCanvas({ surface: 'generation', nodeId: 'n1', label: '镜 01' })
     probe.settle()
     clickReturn(probe)
@@ -145,8 +141,8 @@ describe('独立验收查出的三条（先钉现状）', () => {
     it(`② 宽窗 · ${surface} 选浮窗 → 收起 → ⌘\\：是浮窗，存的摆法没变`, async () => {
       probe = await bootProbe({ forms: { [surface]: 'dock' }, narrow: false, page: surface })
       probe.choose('float')
-      probe.choose('ball')
-      expect(probe.shown()).toBe('ball')
+      probe.choose('collapse')
+      expect(probe.shown()).toBe('collapsed')
       const disk = probe.disk()
       probe.key('\\')
       expect(probe.shown()).toBe('float')
@@ -170,7 +166,7 @@ describe('③ 新格式存档坏了：外壳照样画得出来（四种坏法 ×
         probe = await bootProbe({ blob: make(bad), narrow: false, page: bad })
         for (const page of PROBE_SURFACES) {
           probe.goto(page)
-          expect(['ball', 'float', 'dock'], page).toContain(probe.shown())
+          expect(['collapsed', 'float', 'dock'], page).toContain(probe.shown())
         }
       })
     }
@@ -179,24 +175,25 @@ describe('③ 新格式存档坏了：外壳照样画得出来（四种坏法 ×
 
 // ── 探针表：窗宽 × 页 × 旧存档三值 × 人的手势，之后切页 / 跨阈值 / 重开 ────────────────────────────────
 // 期望逐格写死（不在测试里再算一遍）。'D' = 这一页的默认摆法：生成页浮窗、其余停靠（旧存档存小球的页迁成「收着 + 默认摆法」）。
-// ⌘\ 是「收起 / 展开 Nomi」（concept-owners/shell.recall-entry）：开着收成小球，收着打开到上次选的摆法（和点小球同一个动作）。
+// ⌘\ 是「收起 / 展开 Nomi」（concept-owners/shell.recall-entry）：开着收起，收着打开到上次选的摆法（和点顶栏入口同一个动作）。
+// 点顶栏入口（clickEntry）是开 / 收一颗钮：收着点 = 打开，开着点 = 收起（和头部选「收起」同一个动作）。
+// 旧小球的右键菜单（改成浮窗 / 改成停靠）随小球删掉，没搬到入口上（设计卡 ★1c：换摆法在面板头三选一里换）。
 
-type Gesture = 'clickBall' | 'ballMenuFloat' | 'modJ' | 'modBackslash' | 'openCollapse' | 'openChooseFloat' | 'openMoreBall' | 'openMoreFloat' | 'recall'
+type Gesture = 'clickEntry' | 'modJ' | 'modBackslash' | 'openCollapse' | 'openChooseFloat' | 'openMoreCollapse' | 'openMoreFloat' | 'recall'
 type Cell = Shown | 'D'
-const GESTURES: Gesture[] = ['clickBall', 'ballMenuFloat', 'modJ', 'modBackslash', 'openCollapse', 'openChooseFloat', 'openMoreBall', 'openMoreFloat', 'recall']
+const GESTURES: Gesture[] = ['clickEntry', 'modJ', 'modBackslash', 'openCollapse', 'openChooseFloat', 'openMoreCollapse', 'openMoreFloat', 'recall']
 /** 选了摆法的手势（窄窗档里只有它们写存档：写摆法）。 */
-const PLACEMENT_GESTURES = new Set<Gesture>(['ballMenuFloat', 'openChooseFloat', 'openMoreFloat'])
+const PLACEMENT_GESTURES = new Set<Gesture>(['openChooseFloat', 'openMoreFloat'])
 
 function play(p: Probe, gesture: Gesture): void {
-  const openFirst = () => { if (p.shown() === 'ball') p.clickBall() }
+  const openFirst = () => { if (p.shown() === 'collapsed') p.clickEntry() }
   switch (gesture) {
-    case 'clickBall': p.clickBall(); return
-    case 'ballMenuFloat': p.ballMenu('float'); return
+    case 'clickEntry': p.clickEntry(); return
     case 'modJ': p.key('j'); return
     case 'modBackslash': p.key('\\'); return
-    case 'openCollapse': openFirst(); p.choose('ball'); return
+    case 'openCollapse': openFirst(); p.choose('collapse'); return
     case 'openChooseFloat': openFirst(); p.choose('float'); return
-    case 'openMoreBall': openFirst(); p.more('ball'); return
+    case 'openMoreCollapse': openFirst(); p.more('collapse'); return
     case 'openMoreFloat': openFirst(); p.more('float'); return
     case 'recall': p.recall(); return
   }
@@ -205,36 +202,36 @@ function play(p: Probe, gesture: Gesture): void {
 /** 手势之后此刻显示的。 */
 const AFTER: Record<'wide' | 'narrow', Record<OldForm, Record<Gesture, Cell>>> = {
   wide: {
-    dock: { clickBall: 'dock', ballMenuFloat: 'dock', modJ: 'dock', modBackslash: 'ball', openCollapse: 'ball', openChooseFloat: 'float', openMoreBall: 'ball', openMoreFloat: 'float', recall: 'dock' },
-    ball: { clickBall: 'D', ballMenuFloat: 'float', modJ: 'D', modBackslash: 'D', openCollapse: 'ball', openChooseFloat: 'float', openMoreBall: 'ball', openMoreFloat: 'float', recall: 'D' },
-    float: { clickBall: 'float', ballMenuFloat: 'float', modJ: 'float', modBackslash: 'ball', openCollapse: 'ball', openChooseFloat: 'float', openMoreBall: 'ball', openMoreFloat: 'float', recall: 'float' },
+    dock: { clickEntry: 'collapsed', modJ: 'dock', modBackslash: 'collapsed', openCollapse: 'collapsed', openChooseFloat: 'float', openMoreCollapse: 'collapsed', openMoreFloat: 'float', recall: 'dock' },
+    ball: { clickEntry: 'D', modJ: 'D', modBackslash: 'D', openCollapse: 'collapsed', openChooseFloat: 'float', openMoreCollapse: 'collapsed', openMoreFloat: 'float', recall: 'D' },
+    float: { clickEntry: 'collapsed', modJ: 'float', modBackslash: 'collapsed', openCollapse: 'collapsed', openChooseFloat: 'float', openMoreCollapse: 'collapsed', openMoreFloat: 'float', recall: 'float' },
   },
   narrow: {
-    dock: { clickBall: 'float', ballMenuFloat: 'float', modJ: 'float', modBackslash: 'float', openCollapse: 'ball', openChooseFloat: 'float', openMoreBall: 'ball', openMoreFloat: 'float', recall: 'float' },
-    ball: { clickBall: 'float', ballMenuFloat: 'float', modJ: 'float', modBackslash: 'float', openCollapse: 'ball', openChooseFloat: 'float', openMoreBall: 'ball', openMoreFloat: 'float', recall: 'float' },
-    float: { clickBall: 'float', ballMenuFloat: 'float', modJ: 'float', modBackslash: 'ball', openCollapse: 'ball', openChooseFloat: 'float', openMoreBall: 'ball', openMoreFloat: 'float', recall: 'float' },
+    dock: { clickEntry: 'float', modJ: 'float', modBackslash: 'float', openCollapse: 'collapsed', openChooseFloat: 'float', openMoreCollapse: 'collapsed', openMoreFloat: 'float', recall: 'float' },
+    ball: { clickEntry: 'float', modJ: 'float', modBackslash: 'float', openCollapse: 'collapsed', openChooseFloat: 'float', openMoreCollapse: 'collapsed', openMoreFloat: 'float', recall: 'float' },
+    float: { clickEntry: 'collapsed', modJ: 'float', modBackslash: 'collapsed', openCollapse: 'collapsed', openChooseFloat: 'float', openMoreCollapse: 'collapsed', openMoreFloat: 'float', recall: 'float' },
   },
 }
 
 /** 窄窗里做完手势再拉宽：宽窗显示的是存下的那个（窄窗里只有选摆法写了摆法，开没开一律没写）。 */
 const NARROW_THEN_WIDE: Record<OldForm, Record<Gesture, Cell>> = {
-  dock: { clickBall: 'dock', ballMenuFloat: 'float', modJ: 'dock', modBackslash: 'dock', openCollapse: 'dock', openChooseFloat: 'float', openMoreBall: 'dock', openMoreFloat: 'float', recall: 'dock' },
-  ball: { clickBall: 'ball', ballMenuFloat: 'ball', modJ: 'ball', modBackslash: 'ball', openCollapse: 'ball', openChooseFloat: 'ball', openMoreBall: 'ball', openMoreFloat: 'ball', recall: 'ball' },
-  float: { clickBall: 'float', ballMenuFloat: 'float', modJ: 'float', modBackslash: 'float', openCollapse: 'float', openChooseFloat: 'float', openMoreBall: 'float', openMoreFloat: 'float', recall: 'float' },
+  dock: { clickEntry: 'dock', modJ: 'dock', modBackslash: 'dock', openCollapse: 'dock', openChooseFloat: 'float', openMoreCollapse: 'dock', openMoreFloat: 'float', recall: 'dock' },
+  ball: { clickEntry: 'collapsed', modJ: 'collapsed', modBackslash: 'collapsed', openCollapse: 'collapsed', openChooseFloat: 'collapsed', openMoreCollapse: 'collapsed', openMoreFloat: 'collapsed', recall: 'collapsed' },
+  float: { clickEntry: 'float', modJ: 'float', modBackslash: 'float', openCollapse: 'float', openChooseFloat: 'float', openMoreCollapse: 'float', openMoreFloat: 'float', recall: 'float' },
 }
 
 /** 窄窗里做完手势、关掉再开（还是窄窗）：只剩存下的那份。 */
 const NARROW_RELAUNCH: Record<OldForm, Record<Gesture, Cell>> = {
-  dock: { clickBall: 'ball', ballMenuFloat: 'float', modJ: 'ball', modBackslash: 'ball', openCollapse: 'ball', openChooseFloat: 'float', openMoreBall: 'ball', openMoreFloat: 'float', recall: 'ball' },
-  ball: { clickBall: 'ball', ballMenuFloat: 'ball', modJ: 'ball', modBackslash: 'ball', openCollapse: 'ball', openChooseFloat: 'ball', openMoreBall: 'ball', openMoreFloat: 'ball', recall: 'ball' },
-  float: { clickBall: 'float', ballMenuFloat: 'float', modJ: 'float', modBackslash: 'float', openCollapse: 'float', openChooseFloat: 'float', openMoreBall: 'float', openMoreFloat: 'float', recall: 'float' },
+  dock: { clickEntry: 'collapsed', modJ: 'collapsed', modBackslash: 'collapsed', openCollapse: 'collapsed', openChooseFloat: 'float', openMoreCollapse: 'collapsed', openMoreFloat: 'float', recall: 'collapsed' },
+  ball: { clickEntry: 'collapsed', modJ: 'collapsed', modBackslash: 'collapsed', openCollapse: 'collapsed', openChooseFloat: 'collapsed', openMoreCollapse: 'collapsed', openMoreFloat: 'collapsed', recall: 'collapsed' },
+  float: { clickEntry: 'float', modJ: 'float', modBackslash: 'float', openCollapse: 'float', openChooseFloat: 'float', openMoreCollapse: 'float', openMoreFloat: 'float', recall: 'float' },
 }
 
-/** 宽窗手势之后拉窄：停靠放不下 = 小球；浮窗、小球照旧。 */
-const narrowOf = (shown: Shown): Shown => (shown === 'dock' ? 'ball' : shown)
+/** 宽窗手势之后拉窄：停靠放不下 = 收起；浮窗、收起照旧。 */
+const narrowOf = (shown: Shown): Shown => (shown === 'dock' ? 'collapsed' : shown)
 const resolve = (cell: Cell, surface: AgentFormSurface): Shown => (cell === 'D' ? (surface === 'generation' ? 'float' : 'dock') : cell)
 
-/** 窄窗里哪几格写存档：只有选浮窗、且存下的摆法本来不是浮窗（存小球的生成页默认摆法就是浮窗，一个字节不写）。 */
+/** 窄窗里哪几格写存档：只有选浮窗、且存下的摆法本来不是浮窗（旧存档存小球的生成页默认摆法就是浮窗，一个字节不写）。 */
 function narrowWrites(stored: OldForm, gesture: Gesture, surface: AgentFormSurface): boolean {
   if (!PLACEMENT_GESTURES.has(gesture)) return false
   if (stored === 'float') return false
@@ -287,19 +284,20 @@ describe('常驻探针表（窗宽 × 页 × 旧存档 × 手势）', () => {
     }
   }
 
-  it('宽窗收起再点开回到上次选的摆法：每页 × 两种摆法 × 三种收法（形态切换、「⋯」、⌘\\）× 三种开法（点小球、⌘J、⌘\\）', async () => {
+  it('宽窗收起再点开回到上次选的摆法：每页 × 两种摆法 × 四种收法（形态切换、「⋯」、⌘\\、点顶栏入口）× 三种开法（点顶栏入口、⌘J、⌘\\）', async () => {
     for (const surface of PROBE_SURFACES) {
       for (const placement of ['float', 'dock'] as const) {
-        for (const collapse of ['switch', 'more', 'key'] as const) {
-          for (const open of ['ball', 'j', 'key'] as const) {
+        for (const collapse of ['switch', 'more', 'key', 'entry'] as const) {
+          for (const open of ['entry', 'j', 'key'] as const) {
             probe?.close()
             probe = await bootProbe({ forms: { [surface]: 'dock' }, narrow: false, page: surface })
             probe.choose(placement)
-            if (collapse === 'switch') probe.choose('ball')
-            if (collapse === 'more') probe.more('ball')
+            if (collapse === 'switch') probe.choose('collapse')
+            if (collapse === 'more') probe.more('collapse')
             if (collapse === 'key') probe.key('\\')
-            expect(probe.shown()).toBe('ball')
-            if (open === 'ball') probe.clickBall()
+            if (collapse === 'entry') probe.clickEntry()
+            expect(probe.shown()).toBe('collapsed')
+            if (open === 'entry') probe.clickEntry()
             if (open === 'j') probe.key('j')
             if (open === 'key') probe.key('\\')
             expect(probe.shown(), `${surface} ${placement} ${collapse} ${open}`).toBe(placement)
@@ -322,7 +320,7 @@ describe('机器的让位（挑参考图摆出来、指向节点让开 / 回来�
         probe.goto('creation')
         const disk = probe.disk()
         pickReferenceOnCanvas(probe)
-        expect(probe.shown()).not.toBe('ball')
+        expect(probe.shown()).not.toBe('collapsed')
         expect(probe.disk()).toBe(disk)
         await probe.relaunch()
         expect(probe.shown()).toBe(natural)
@@ -335,43 +333,43 @@ describe('机器的让位（挑参考图摆出来、指向节点让开 / 回来�
 // ── 让位期间环境变了（独立验收真问题 1：上一次这张表没有「让位期间跨窗宽」这一列）───────────────────────────
 // 两种机器让位（指向让开、挑参考图摆出来）× 让位期间发生的事 × 之后（点「回到对话」/ 不点），生成页，每格断言：
 // 此刻显示什么、存档变没变、「回到对话」那一枚在不在。期望逐格写死。
-// 让位期间发生的事：none 什么都没发生 · cross 跨窗宽（宽 → 窄 / 窄 → 宽）· page 切到分镜页再切回 · ball 人点小球 ·
-// close 人点关闭钮（面板头部收成小球）· relaunch 关掉重开。指向让开时对话是小球、没有关闭钮（close 不适用）；
-// 挑参考图时对话开着、没有小球（ball 不适用），所以两种让位各 5 件事。
+// 让位期间发生的事：none 什么都没发生 · cross 跨窗宽（宽 → 窄 / 窄 → 宽）· page 切到分镜页再切回 · entry 人点顶栏入口（收着 = 打开）·
+// close 人点关闭钮（面板头部收起）· relaunch 关掉重开。指向让开时对话收着、没有关闭钮（close 不适用）；
+// 挑参考图时对话开着，开着点入口和点关闭钮是同一个动作（collapseAgent，见探针表 clickEntry 列），这里只量关闭钮，所以两种让位各 5 件事。
 
 type Hold = 'pointer' | 'pickRef'
-type During = 'none' | 'cross' | 'page' | 'ball' | 'close' | 'relaunch'
-const DURING: Record<Hold, During[]> = { pointer: ['none', 'cross', 'page', 'ball', 'relaunch'], pickRef: ['none', 'cross', 'page', 'close', 'relaunch'] }
+type During = 'none' | 'cross' | 'page' | 'entry' | 'close' | 'relaunch'
+const DURING: Record<Hold, During[]> = { pointer: ['none', 'cross', 'page', 'entry', 'relaunch'], pickRef: ['none', 'cross', 'page', 'close', 'relaunch'] }
 type HoldCell = { shown: Shown; dock: boolean; diskChanged: boolean }
 const cell = (shown: Shown, dock = false, diskChanged = false): HoldCell => ({ shown, dock, diskChanged })
 
 /** 让位期间那件事之后。键：让位 · 窗宽 · 生成页旧存档 · 那件事。 */
 const HOLD_AFTER: Record<Hold, Record<'wide' | 'narrow', Record<OldForm, Partial<Record<During, HoldCell>>>>> = {
   pointer: {
-    // 宽窗：存小球的先点开（人的动作，记下「开着」，之后才量存档）。
+    // 宽窗：旧存档存小球（收着）的先点开（人的动作，记下「开着」，之后才量存档）。
     wide: {
-      dock: { none: cell('ball', true), cross: cell('ball'), page: cell('ball', true), ball: cell('dock'), relaunch: cell('dock') },
-      ball: { none: cell('ball', true), cross: cell('float'), page: cell('ball', true), ball: cell('float'), relaunch: cell('float') },
-      float: { none: cell('ball', true), cross: cell('float'), page: cell('ball', true), ball: cell('float'), relaunch: cell('float') },
+      dock: { none: cell('collapsed', true), cross: cell('collapsed'), page: cell('collapsed', true), entry: cell('dock'), relaunch: cell('dock') },
+      ball: { none: cell('collapsed', true), cross: cell('float'), page: cell('collapsed', true), entry: cell('float'), relaunch: cell('float') },
+      float: { none: cell('collapsed', true), cross: cell('float'), page: cell('collapsed', true), entry: cell('float'), relaunch: cell('float') },
     },
-    // 窄窗：存停靠 / 小球的先点开（窄窗里点开只改此刻）。拉宽 = 回到存的样子（存小球的就是小球）。
+    // 窄窗：存停靠 / 收着的先点开（窄窗里点开只改此刻）。拉宽 = 回到存的样子（存收着的就是收着）。
     narrow: {
-      dock: { none: cell('ball', true), cross: cell('dock'), page: cell('ball', true), ball: cell('float'), relaunch: cell('ball') },
-      ball: { none: cell('ball', true), cross: cell('ball'), page: cell('ball', true), ball: cell('float'), relaunch: cell('ball') },
-      float: { none: cell('ball', true), cross: cell('float'), page: cell('ball', true), ball: cell('float'), relaunch: cell('float') },
+      dock: { none: cell('collapsed', true), cross: cell('dock'), page: cell('collapsed', true), entry: cell('float'), relaunch: cell('collapsed') },
+      ball: { none: cell('collapsed', true), cross: cell('collapsed'), page: cell('collapsed', true), entry: cell('float'), relaunch: cell('collapsed') },
+      float: { none: cell('collapsed', true), cross: cell('float'), page: cell('collapsed', true), entry: cell('float'), relaunch: cell('float') },
     },
   },
   pickRef: {
     // 宽窗存停靠 / 浮窗：本来就开着，机器不留覆盖；人点关闭钮就是平常的收起（宽窗记下「收着」）。
     wide: {
-      dock: { none: cell('dock'), cross: cell('ball'), page: cell('dock'), close: cell('ball', false, true), relaunch: cell('dock') },
-      ball: { none: cell('float'), cross: cell('ball'), page: cell('float'), close: cell('ball'), relaunch: cell('ball') },
-      float: { none: cell('float'), cross: cell('float'), page: cell('float'), close: cell('ball', false, true), relaunch: cell('float') },
+      dock: { none: cell('dock'), cross: cell('collapsed'), page: cell('dock'), close: cell('collapsed', false, true), relaunch: cell('dock') },
+      ball: { none: cell('float'), cross: cell('collapsed'), page: cell('float'), close: cell('collapsed'), relaunch: cell('collapsed') },
+      float: { none: cell('float'), cross: cell('float'), page: cell('float'), close: cell('collapsed', false, true), relaunch: cell('float') },
     },
     narrow: {
-      dock: { none: cell('float'), cross: cell('dock'), page: cell('float'), close: cell('ball'), relaunch: cell('ball') },
-      ball: { none: cell('float'), cross: cell('ball'), page: cell('float'), close: cell('ball'), relaunch: cell('ball') },
-      float: { none: cell('float'), cross: cell('float'), page: cell('float'), close: cell('ball'), relaunch: cell('float') },
+      dock: { none: cell('float'), cross: cell('dock'), page: cell('float'), close: cell('collapsed'), relaunch: cell('collapsed') },
+      ball: { none: cell('float'), cross: cell('collapsed'), page: cell('float'), close: cell('collapsed'), relaunch: cell('collapsed') },
+      float: { none: cell('float'), cross: cell('float'), page: cell('float'), close: cell('collapsed'), relaunch: cell('float') },
     },
   },
 }
@@ -385,31 +383,31 @@ const POINTER_RETURN: Record<'wide' | 'narrow', Record<OldForm, Shown>> = {
 async function bootHold(hold: Hold, width: 'wide' | 'narrow', stored: OldForm): Promise<{ p: Probe; disk: string | null }> {
   const p = await bootProbe({ forms: { creation: 'dock', storyboard: 'dock', generation: stored }, narrow: width === 'narrow', page: hold === 'pointer' ? 'generation' : 'creation', alongside: withReturnDock })
   if (hold === 'pointer') {
-    p.clickBall()
-    expect(p.shown(), '指向之前对话开着').not.toBe('ball')
+    if (p.shown() === 'collapsed') p.clickEntry()
+    expect(p.shown(), '指向之前对话开着').not.toBe('collapsed')
     const disk = p.disk()
     yieldChatToCanvas({ surface: 'generation', nodeId: 'n1', label: '镜 01' })
     p.settle()
-    expect(p.shown(), '指向让开').toBe('ball')
+    expect(p.shown(), '指向让开').toBe('collapsed')
     expect(returnDockShown(), '让开时「回到对话」在').toBe(true)
     return { p, disk }
   }
   const disk = p.disk()
   pickReferenceOnCanvas(p)
-  expect(p.shown(), '挑参考图：生成页的 Nomi 开着').not.toBe('ball')
+  expect(p.shown(), '挑参考图：生成页的 Nomi 开着').not.toBe('collapsed')
   return { p, disk }
 }
 
 async function playDuring(p: Probe, during: During, width: 'wide' | 'narrow'): Promise<void> {
   if (during === 'cross') p.resize(width === 'wide')
   if (during === 'page') { p.goto('storyboard'); p.goto('generation') }
-  if (during === 'ball') expect(p.clickBall()).toBe(true)
-  if (during === 'close') expect(p.choose('ball')).toBe(true)
+  if (during === 'entry') { expect(p.shown(), '点入口之前收着').toBe('collapsed'); p.clickEntry() }
+  if (during === 'close') expect(p.choose('collapse')).toBe(true)
   if (during === 'relaunch') await p.relaunch()
 }
 
 // 两种让位叠起来：挑参考图把收着的对话摆出来，接着点聊天里的指向让开，再点「回到对话」。
-// 回到对话是人点开（openAgent）：对话回来；宽窗里存的是收着的那页记下「开着」（和人点小球一样）。只撤让位会回到小球——按了没反应那一类。
+// 回到对话是人点开（openAgent）：对话回来；宽窗里存的是收着的那页记下「开着」（和人点顶栏入口一样）。只撤让位会回到收着——按了没反应那一类。
 const STACKED_RETURN: Record<'wide' | 'narrow', Record<OldForm, { shown: Shown; diskChanged: boolean }>> = {
   wide: { ball: { shown: 'float', diskChanged: true }, dock: { shown: 'dock', diskChanged: false }, float: { shown: 'float', diskChanged: false } },
   narrow: { ball: { shown: 'float', diskChanged: false }, dock: { shown: 'float', diskChanged: false }, float: { shown: 'float', diskChanged: false } },
@@ -423,7 +421,7 @@ describe('挑参考图摆出来 → 指向让开 → 点「回到对话」', () 
         probe = p
         yieldChatToCanvas({ surface: 'generation', nodeId: 'n1', label: '镜 01' })
         p.settle()
-        expect(p.shown()).toBe('ball')
+        expect(p.shown()).toBe('collapsed')
         expect(returnDockShown()).toBe(true)
         clickReturn(p)
         expect(p.shown(), '回到对话 = 人点开').toBe(STACKED_RETURN[width][stored].shown)
@@ -455,7 +453,7 @@ describe('机器让位 × 让位期间发生的事 × 之后（点「回到对�
               probe = p
               await playDuring(p, during, width)
               if (!expected.dock) {
-                // 让位已经结束：那一枚不在，没有可点的（点小球照常打开，在「ball」那一列）。
+                // 让位已经结束：那一枚不在，没有可点的（点顶栏入口照常打开，在「entry」那一列）。
                 expect(returnDockShown()).toBe(false)
                 return
               }
