@@ -356,7 +356,7 @@
       "evidence": "Calls hasImageEditReferences in taskParamsReferences.ts before spend on Engine A and Engine B."
     }
   ],
-  "detected_by": "user",
+  "detected_by": "walkthrough",
   "recurrence_check_on": "2026-12-22",
   "recurrence_of": "2026-11-08-reference-mode-projection",
   "recurrence": {

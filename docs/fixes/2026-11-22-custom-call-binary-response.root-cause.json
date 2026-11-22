@@ -426,7 +426,7 @@
       "evidence": "Onboarding trial run IPC delegates to runCustomCallScript."
     }
   ],
-  "detected_by": "user",
+  "detected_by": "walkthrough",
   "recurrence_check_on": "2026-12-22",
   "recurrence_of": null,
   "recurrence": {
