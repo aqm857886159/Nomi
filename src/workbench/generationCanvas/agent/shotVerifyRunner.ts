@@ -78,7 +78,7 @@ export async function verifyGeneratedShots(
   shots: readonly ShotVerifyInput[],
   deps: ShotVerifyDeps,
 ): Promise<ShotVerifyReport> {
-  let visionReady = false
+  let visionReady: boolean
   try {
     visionReady = Boolean(await deps.visionAvailable())
   } catch {
