@@ -4,7 +4,7 @@
 //
 // 不另起真相源（R33）：清单每次现算，只读 4 份现有单一真相源——
 //   · docs/engineering/concept-owners/           —— 概念与唯一 owner + consumers/doors（经 loadConceptRegistry 读）；
-//   · scripts/boundary-owners-ledger.json        —— 边界主人台账（反查目标文件属于哪个边界）；
+//   · scripts/boundary-owners.mjs                —— 边界主人台账（经唯一读口 readLedger 读，反查目标文件属于哪个边界）；
 //   · docs/engineering/framework-boundaries.json —— 依赖框架已经提供的能力（按 scope 前缀匹配目标路径）；
 //   · package.json                               —— dependencies + 已打包进渲染层的前端生产库（@mantine/hooks、swr、@floating-ui/dom 等）。
 //
@@ -16,6 +16,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { readLedger } from './boundary-owners.mjs'
 import { CONCEPT_OWNERS_DIR, loadConceptRegistry } from './concept-registry-lib.mjs'
 
 export const DEFAULT_MAX_BYTES = 2500
@@ -232,8 +233,18 @@ export function loadRegistries(root) {
   const frontendDeps = FRONTEND_RUNTIME_PACKAGES.filter((name) => name in devDeps)
   let boundaries = []
   try {
-    const ledger = read('scripts/boundary-owners-ledger.json')
-    boundaries = Array.isArray(ledger?.boundaries) ? ledger.boundaries : Array.isArray(ledger?.entries) ? ledger.entries : []
+    const ledger = readLedger(root)
+    boundaries = [
+      ...(Array.isArray(ledger?.boundaries) ? ledger.boundaries : []),
+      ...(Array.isArray(ledger?.entries) ? ledger.entries : []),
+      ...(Array.isArray(ledger?.reanchored)
+        ? ledger.reanchored.map((row) => ({
+            id: row?.anchor?.symbol || row?.symbol,
+            owner: row?.anchor?.path || row?.path,
+            files: [row?.path, row?.anchor?.path].filter(Boolean),
+          }))
+        : []),
+    ]
   } catch { /* 可选台账 */ }
   return {
     concepts: requireConcepts(root),
