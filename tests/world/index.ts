@@ -10,9 +10,7 @@ import path from "node:path";
 import { ensureBuiltinModelSeeds, mutateCatalog, readCatalog } from "../../electron/catalog/catalogStore";
 import { createProject } from "../../electron/projects/repository";
 import { OWNER_FILE_NAMES } from "./ownerFiles";
-// @ts-expect-error 纯 JS 模块（名册、发世界登记），走查启动器也用
 import { copyOldUserData, resolveOldUserData } from "./oldUserData.mjs";
-// @ts-expect-error 纯 JS 模块
 import { isIssuedWorld as isIssued, markWorldIssued } from "./issued.mjs";
 
 type Payload = Record<string, unknown>;
@@ -203,15 +201,20 @@ export function damageWorldFile(world: World, file: string, kind: DamageKind): s
   return target;
 }
 
-/** 纯函数测试要「一张模型表」时：先 buildWorld，再经主人读口取行，不手写行。 */
-export function worldRows(spec: WorldSpec = {}): { vendors: unknown[]; models: unknown[]; mappings: unknown[] } {
-  const world = buildWorld({ ...spec, projects: spec.projects ?? [] });
+/**
+ * 纯函数测试要「一张模型表」时：先 buildWorld，再经主人读口取行，不手写行。
+ * 传已发的世界句柄（含 seedOldUserData 的旧版数据）时读那个世界、不删它——读旧版目录会跑主人的升级迁移，
+ * 迁移的写盘在这里（世界的帧）里发生，主人目录外的测试不必（也不许）自己去碰目录读口。
+ */
+export function worldRows(source: WorldSpec | World = {}): { vendors: unknown[]; models: unknown[]; mappings: unknown[] } {
+  const given = isIssuedWorld(source);
+  const world = given ? source : buildWorld({ ...source, projects: source.projects ?? [] });
   const restore = world.activate();
   try {
     const state = readCatalog();
     return { vendors: state.vendors, models: state.models, mappings: state.mappings };
   } finally {
     restore();
-    world.cleanup();
+    if (!given) world.cleanup();
   }
 }
