@@ -477,7 +477,12 @@ describe('正对照：做成的工作不被停', () => {
       description: 'Read a script section.',
       promptSnippet: 'read a script section.',
       nextAction: 'none',
-      describe: () => ({ verb: 'read', target: 'script' }),
+      describe: {
+        does: 'Read a script section.',
+        useWhen: 'When reading a section.',
+        notWhen: 'Not when drafting shots; use draft_shots.',
+        params: 'section is 1-based.',
+      },
       effect: 'read',
       execution: { timeoutMs: 10_000 },
       schema: z.object({ section: z.number() }).strict(),
