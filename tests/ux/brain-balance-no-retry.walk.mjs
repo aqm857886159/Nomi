@@ -15,6 +15,7 @@ import { flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   CREATION_PANEL, ERROR_BAR, chooseAssistantModel, createRuntimeWalk, recorded, sendCreation, waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
+import { switchAppLocale } from './_permissionTiersPaidSteps.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 const BRAIN_MODEL = 'deepseek-v4-flash'
@@ -78,6 +79,17 @@ try {
   expect(sent.length, '余额不足只发一次：不重试').toBe(1)
   expect(barText, '面板那一行说余额不足').toContain(uiText('zh-CN', 'generationCommon.observability.error.balance.reason'))
   expect(barText, '不说成 Key 无效').not.toContain(uiText('zh-CN', 'generationCommon.observability.error.auth.reason'))
+
+  // 英文同一态：从设置里切语言，像真人那样；同一行按英文词条重读，请求数不能因为切语言再涨。
+  await switchAppLocale(win, 'en')
+  const enBar = panel.locator(ERROR_BAR).last()
+  await expect(enBar, '英文：面板那一行说余额不足').toContainText(uiText('en', 'generationCommon.observability.error.balance.reason'))
+  const enText = (await enBar.innerText()).trim()
+  walk.report.row16.errorBarEn = enText
+  walk.report.row16.requestsAfterLocale = asked(ASK).length
+  await walk.snap('03-balance-answer-en')
+  expect(enText, '英文：不说成 Key 无效').not.toContain(uiText('en', 'generationCommon.observability.error.auth.reason'))
+  expect(asked(ASK).length, '切语言后仍只有 1 次').toBe(1)
 } catch (error) {
   failure = error
 }
