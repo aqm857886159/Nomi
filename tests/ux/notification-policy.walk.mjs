@@ -22,12 +22,11 @@ try {
     await win.getByRole('button', { name: '检查文件夹', exact: true }).click()
     await expect(win.locator('[data-project-location-check-feedback]')).toHaveAttribute('data-feedback-state', 'success')
   }
-  const count = await win.locator('.mantine-Notification-root').count()
   if (phase === 'after') {
     const folderProof = await proveProbe(win.locator('[data-project-location-check-feedback]'), '文件夹检查结果真实显示在按钮旁')
     await expectAbsent(win.locator('.mantine-Notification-root'), { provenBy: folderProof, message: '文件夹结果不重复弹全局提示' })
   }
-  else assert.ok(count > 0, 'baseline must reproduce duplicate global feedback')
+  else await expect(win.locator('.mantine-Notification-root').first(), 'baseline must reproduce duplicate global feedback').toBeVisible()
   await win.screenshot({ path: path.join(output, `${phase}-directory-check.png`) })
   await win.keyboard.press('Escape')
   await newProjectEntry(win).click()

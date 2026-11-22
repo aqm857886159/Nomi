@@ -53,13 +53,13 @@ try {
   await openCustomApiWizard(win, { label: '开接入向导' })
   check('找到「自定义 API / 中转站」入口', true)
   await win.waitForTimeout(700)
-  check('弹窗打开', (await win.locator('text=添加一个 AI 模型').count()) > 0)
+  check('弹窗打开', await win.locator('text=添加一个 AI 模型').first().waitFor({ state: 'visible' }).then(() => true, () => false))
 
   // 选 new-api 中转。
   await win.locator('button', { hasText: 'new-api 中转' }).first().click({ timeout: 3000 })
   await win.waitForTimeout(400)
   // 验证：动手前是「重新拉取」（P1 删旧：不再有「拉取可用模型」）。
-  check('按钮已是「重新拉取」', (await win.locator('text=重新拉取').count()) > 0)
+  check('按钮已是「重新拉取」', await win.locator('text=重新拉取').first().waitFor({ state: 'visible' }).then(() => true, () => false))
   check('旧「拉取可用模型」已删', (await win.locator('text=拉取可用模型').count()) === 0)
   await snap(win, 'wizard-newapi-empty')
 
@@ -79,7 +79,7 @@ try {
 
   // 全部加入（2026-06-27 拍板，反转「只导认得的」）：mock 的 7 个 id 即使 Nomi 不认得也全加入 → 不再有折叠。
   check('不再有「Nomi 暂不认识的」折叠（全加入）', (await win.locator('text=/Nomi 暂不认识的模型/').count()) === 0)
-  check('拉到的 id 直接成行（gpt-4o 已在列表）', (await win.locator('text=gpt-4o').count()) > 0)
+  check('拉到的 id 直接成行（gpt-4o 已在列表）', await win.locator('text=gpt-4o').first().waitFor({ state: 'visible' }).then(() => true, () => false))
   // 拉到即全加入 → 保存直接可点（无需任何手点）。
   const saveBtn = win.locator('button', { hasText: /^保存$|仍要保存|确认保存/ }).last()
   const saveDisabled = await saveBtn.isDisabled().catch(() => true)

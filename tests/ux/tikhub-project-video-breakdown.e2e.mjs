@@ -313,7 +313,7 @@ async function runColdReadback(tikhub, projectId, nodeId) {
     await launched.win.getByRole('button', { name: '拆解', exact: true }).first().click()
     const panel = launched.win.locator(`[data-deconstruct-panel="${nodeId}"]`)
     await panel.locator('[data-deconstruct-shots="true"]').waitFor({ state: 'visible', timeout: 15_000 })
-    check('cold restart 后真实分镜表 UI 回读可见', await panel.locator('[data-deconstruct-shot]').count() > 0)
+    check('cold restart 后真实分镜表 UI 回读可见', await panel.locator('[data-deconstruct-shot]').first().waitFor({ state: 'visible' }).then(() => true, () => false))
   } finally {
     await launched.app.close().catch(() => {})
   }

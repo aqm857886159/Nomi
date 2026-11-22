@@ -54,8 +54,8 @@ try {
   check('新建空白项目后落进主工作台', inWorkbench, `project=${path.basename(projectDir)}`)
   // 现场对照:切换前顶栏应是中文——用顶栏「创作」标签(中文原文)在不在做锚点,
   // 不读 document.body.innerText(那会把 seed 数据也算进来、且触 check:walkthroughs 全页文本规则)。
-  const zhTabCount = await win.getByRole('button', { name: '创作', exact: true }).count()
-  check('切换前主工作台是中文（顶栏「创作」在）', zhTabCount > 0, `创作 tab=${zhTabCount}`)
+  const zhTabVisible = await win.getByRole('button', { name: '创作', exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  check('切换前主工作台是中文（顶栏「创作」在）', zhTabVisible, `创作 tab=${zhTabVisible ? 1 : 0}`)
   await screenshotSettled(win, { path: path.join(shotsDir, '01-workbench-zh.png') })
 
   // ② 走真实用户路径切 en:开设置（通用）→ 点 English 分段钮 → 关设置。不 reload。
@@ -88,8 +88,8 @@ try {
   // 顶栏「创作」标签的英文原文是 Create——用 Playwright locator 断言它**在**(正向证据,不读全页 innerText)。
   // 有它即证明工作台 chrome(不只是设置面板)已翻英文:若切换没生效,顶栏仍是「创作」、Create 不会出现,此断言就红。
   // 无需再补「创作 不在」的缺席断言——正向命中已把「界面还没切」和「切了没漏译」两种绿分开(缺席断言另有棘轮成本)。
-  const enTabCount = await win.getByRole('button', { name: 'Create', exact: true }).count()
-  check('主工作台 chrome 已翻英文（顶栏 Create 在）', enTabCount > 0, `Create tab=${enTabCount}`)
+  const enTabVisible = await win.getByRole('button', { name: 'Create', exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  check('主工作台 chrome 已翻英文（顶栏 Create 在）', enTabVisible, `Create tab=${enTabVisible ? 1 : 0}`)
   await screenshotSettled(win, { path: path.join(shotsDir, '02-workbench-en.png') })
 
   // ④ EN-DOM 断言网:界面确已在 en,整页可见文本不该再有一个中文字(漏译当场报红)。

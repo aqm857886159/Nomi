@@ -271,7 +271,7 @@ async function walkTrack(track) {
     await expectVisible(farCard, '远档卡片')
     await expect(host.locator('[data-shot-table-row]')).toHaveCount(0)
     await expect(farCard).toContainText(new RegExp(uiTextPattern(uiText(track.locale, 'shotTable.count'))))
-    if (await farCard.locator('img, .h-5.w-9').count() === 0) throw new Error('远档卡片没有关键帧条')
+    await farCard.locator('img, .h-5.w-9').first().waitFor({ state: 'visible' }).catch(() => { throw new Error('远档卡片没有关键帧条') })
     await shot(page, dir, '07-far-card')
     console.log(`  ✓ ${track.id}`)
   } finally {

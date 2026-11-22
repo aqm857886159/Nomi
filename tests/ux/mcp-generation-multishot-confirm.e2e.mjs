@@ -14,6 +14,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { expect } from '@playwright/test'
+
 import { launchNomiApp } from './_launchApp.mjs'
 import { repoRoot } from './_mcpJourney.mjs'
 import { clickOrFail, expectAbsent, proveProbe } from './_assert.mjs'
@@ -93,7 +95,7 @@ try {
   await card.waitFor({ timeout: 15_000 })
   // 证探针活（卡真的会出现）→ 供确认后 expectAbsent 用作阳性基线。
   const cardProbe = await proveProbe(card, '多镜确认卡会浮出（标题「允许 Nomi 生成这一批镜头？」）', 15_000)
-  check(await card.count() === 1, '多镜确认卡弹出（标题「允许 Nomi 生成这一批镜头？」）')
+  check(await expect(card).toHaveCount(1).then(() => true, () => false), '多镜确认卡弹出（标题「允许 Nomi 生成这一批镜头？」）')
 
   // 卡宽 680（contract 形态）。
   const cardBox = await card.locator('> div').first().boundingBox()
@@ -128,7 +130,7 @@ try {
 
   // 固定 footer：费用块 + 冻结项 + 按钮区。
   const footer = card.locator('[data-production-footer]')
-  check(await footer.count() === 1, '固定 footer 存在')
+  check(await expect(footer).toHaveCount(1).then(() => true, () => false), '固定 footer 存在')
   const footerText = await footer.innerText()
   check(footerText.includes('预估合计 ¥10') && footerText.includes('1 镜价未知'), '费用块：预估合计 ¥10（已知镜合计）+ 明示 1 镜价未知')
   check(footerText.includes('单镜重拍只花该镜费用'), '费用块含单镜返工承诺句')
@@ -143,7 +145,7 @@ try {
   // 「条不渲染但计时器照跑，到点自己 resolve(false)」那种看不见的自动决定。
   check(await card.locator('[data-production-countdown]').count() === 0, '卡上没有倒计时条')
   await win.waitForTimeout(2000)
-  check(await card.count() === 1, '静置 2s 之后卡还在等人答（没有到点自动决定）')
+  check(await expect(card).toHaveCount(1).then(() => true, () => false), '静置 2s 之后卡还在等人答（没有到点自动决定）')
   check(!(await footer.innerText()).includes('自动'), 'footer 不说任何「自动」')
 
   // 光模式截图（卡整体 + footer 特写）。
