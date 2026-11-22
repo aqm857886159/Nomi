@@ -15,12 +15,13 @@
 //   · projectionRecomputeMs：面板投影对这 20 条拒收各重推一次信封（failureOf，宿主按 toolCallId 只算一次）的总耗时；
 //   · rejectedPerTurn：这一轮真被拒的次数（应为 20，量具本身的自检）。
 // 接口同 tests/perf/node-json-bench.mjs 的约定：--runs N --out 文件 → { runs, noisy, metrics: { 名字: number[] } }。
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
-import { register as registerCjs } from 'tsx/cjs/api'
-import { register } from 'tsx/esm/api'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i < 0 ? fallback : process.argv[i + 1] }
 const runs = Number(arg('--runs', 5))
@@ -33,13 +34,18 @@ const SHAPE_REJECTIONS = 12
 const PREPARE_REJECTIONS = 8
 const REJECTED = SHAPE_REJECTIONS + PREPARE_REJECTIONS
 
-// lane 的模块是 .mts（ESM）和无扩展名导入的 .ts（按 CommonJS 加载）混着用：两套加载器各注册一次。
-registerCjs()
-register()
-const { createLaneToolInputBoundary } = await import('../../electron/agentLane/laneToolInputBoundary.mts')
-const { createLaneRepeatedFailureTracker } = await import('../../electron/agentLane/laneRepeatedFailure.mts')
-const { createExtendedLaneTools } = await import('../../electron/agentLane/laneExtendedTools.ts')
-const { createLaneTools } = await import('../../electron/agentLane/laneTools.mts')
+// 量真实主进程编译产物（dist-electron）：tsx 的 CJS/ESM 双加载器会把 laneToolContract.ts 装成两份实例，
+// 导致 instanceof LaneDomainFailure 失真；dist-electron 与真 App 同一套模块图。
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const distLane = path.join(repoRoot, 'dist-electron', 'agentLane')
+if (!fs.existsSync(path.join(distLane, 'laneToolInputBoundary.mjs'))) {
+  execFileSync(process.execPath, [path.join(repoRoot, 'scripts/build-electron.mjs')], { cwd: repoRoot, stdio: 'inherit' })
+}
+const require = createRequire(import.meta.url)
+const { createLaneToolInputBoundary } = await import(pathToFileURL(path.join(distLane, 'laneToolInputBoundary.mjs')).href)
+const { createLaneRepeatedFailureTracker } = await import(pathToFileURL(path.join(distLane, 'laneRepeatedFailure.mjs')).href)
+const { createExtendedLaneTools } = require(path.join(distLane, 'laneExtendedTools.js'))
+const { createLaneTools } = await import(pathToFileURL(path.join(distLane, 'laneTools.mjs')).href)
 
 const shot = (index, extra = {}, parameters = {}) => ({
   title: `镜头 ${index + 1}`,
