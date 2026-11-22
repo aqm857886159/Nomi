@@ -37,7 +37,7 @@
 |---|---|---|---|---|
 | 这两行请求去 Responses | 请求层网址 / 请求体形状 | 去 `/v1/responses` 的请求 / 这两行的全部请求（Agent lane + 单发 + 流式 + PDF） | `electron/agentLane/gpt6Responses.test.ts` + 金样 `tests/fixtures/model-request-parity/requests.json` | 0%（主线全去 Chat）→ 100% |
 | 其余行不变 | 出网请求逐字节对拍 | 零差异的（调用方 × 行）/ 全部（82 行 × 4 路） | `electron/agentLane/modelRequestParity.test.ts` | 主线录 → 100%（只重录这两行） |
-| 回放不丢 | 多步里后一次请求带着前面返回的推理条目 | 返回过的推理条目中，在之后每次请求里原样出现的 / 返回过的 | 回放测试（上文）+ 付费冒烟 `tests/smoke/gpt6ResponsesSmoke.mts` | 本机假上游：未验证：缺量具（主线上没有 Responses 路）→ 本机 100%；真上游：未验证：等协调跑 |
+| 回放不丢 | 多步里后一次请求带着前面返回的推理条目 | 返回过的推理条目中，在之后每次请求里原样出现的 / 返回过的 | 回放测试（上文）+ 付费走查 `tests/ux/agent-gpt6-responses-real.paid.mjs` | 本机假上游：未验证：缺量具（主线上没有 Responses 路）→ 本机 100%；真上游：未验证：等协调跑 |
 | 声明不被冲 | 写入方少带声明键后行上声明 | 保留下来的声明键 / 行上原有声明键 | `electron/catalog/modelDeclarationFunnel.test.ts`、`gpt6Responses.test.ts` | 0%（主线整份替换）→ 100% |
 
 ### ★1b 连带界面
@@ -82,7 +82,7 @@
 - 「什么都不做」（本分支去掉 `RESPONSES_DECLARATION` 等价于主线）：5 条失败 / 2 条通过（7 条），日志 `tmp/I-gpt6-responses/logs/red-1-do-nothing.log`，**红**。
 - 「全部拦下」（Responses 请求一个都发不出去，反例 m5）：8 条失败，日志 `logs/m5-all-blocked.log`，**红**。
 - 保险（`electron/agentLane/modelRequestParity.test.ts`）：82 行 × 4 路逐字节对拍，只重录这两行（网址 `/v1/chat/completions` → `/v1/responses`、请求体换成 Responses 形状：`messages` → `input`、`image_url` → `input_image` 等）；其余 80 行与主线金样零差异（`logs/merge-golden.log`、`logs/parity-before-after.txt`）。
-- 付费冒烟（只写不跑真钱）：`tests/smoke/gpt6ResponsesSmoke.mts`。免费演练（本机回环 Responses 夹具）已跑通：3 次请求都去 `/v1/responses`、2 次工具调用都对、返回过的 2 条推理条目在后续请求里全部带回、整轮完成，判过（产物 `tmp/I-gpt6-responses/smoke/gpt6-responses-smoke-rehearsal-gpt-6.1-sol.json`，带修复标记 `textProtocol=openai-responses(declared-on-row)`）。真付费命令：`NOMI_SPEND_OK=1 APIMART_API_KEY=<key> npx tsx tests/smoke/gpt6ResponsesSmoke.mts --paid --model gpt-6.1-sol --out <目录>`；预计 3 次请求，每次输出上限 600 token；判过条件：全部去 `/v1/responses`、≥3 次请求、≥2 次工具调用且都不是错误、返回过的推理条目在之后每次请求里原样出现、无 4xx、最后一句话到了；上游一条推理条目都没返回时判「部分」不判过。**付费冒烟这一条：未验证：等协调跑。**
+- 付费走查（只写不跑真钱；取代要明文 Key 的旧冒烟脚本，已删）：`tests/ux/agent-gpt6-responses-real.paid.mjs`，经付费总闸 `_paidRun.mjs` 在真应用里跑，Key 由应用自己解密、脚本和人都不碰。免费演练命令：`NO_PROXY=127.0.0.1,localhost NOMI_TEST_NETWORK_GUARD=1 NOMI_PAID_REHEARSAL=no-key node tests/ux/agent-gpt6-responses-real.paid.mjs`。真付费命令：`NOMI_SPEND_OK=1 node tests/ux/agent-gpt6-responses-real.paid.mjs`（用本机真实资料里的 Key，不设 APIMART_API_KEY）；预计 3 次大脑请求。判据逐项打出（R1–R10）：请求都去 `/v1/responses`、恰好 3 次、两次响应各返回推理条目、第 2/3 次请求原样带回、都不带 `include`、中转站收了回放、两个工具结果都不是错误、最后一句话到了；上游一条推理条目都没返回时判「部分」、不算过。**付费走查这一条：未验证：等协调跑。**
 
 **反例（改坏 → 红、还原 → 绿；脚本 `tmp/I-gpt6-responses/mutations.py`，每次还原后核对文件哈希）**：
 
