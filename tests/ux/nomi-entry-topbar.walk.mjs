@@ -556,18 +556,46 @@ async function runRound({ locale, scheme, tag, projectName }) {
         const label = await win.locator(`[data-shell-topbar] ${ENTRY}`).first().getAttribute('aria-label').catch(() => null)
         check(`${BOARD.tooltip} G1 / D5 英文轨：入口提示和名字里没有中文字`, Boolean(tip?.text) && Boolean(label) && englishOnly(tip?.text) && englishOnly(label), `${tip?.text ?? '没出提示'} | ${label}`)
       }
-      // 悬停着整窗拍：提示浮在顶栏下面。先等整页安定、再重新悬停、等提示淡入走完才拍（11-22 终版走查：先悬停再等安定，
-      // 四轨拍出来的图里都没有提示）；截图前后各看一眼提示开着，图里有没有提示有据可查。
+      // 悬停着整窗拍：提示浮在顶栏下面。先等整页安定、再重新悬停、等提示淡入走完才拍；截图前后各看一眼提示开着，图里有没有提示有据可查。
+      // 11-22 终版走查四轨里三轨拍完提示已关、图里没有提示；装上事件记录再跑两轨都没复现，原因没查清。所以最多拍三次，
+      // 每次记下提示打开后到拍完之间：指针离开入口、窗口失焦、滚动、提示被摘掉；拍丢的那次把记录打进日志（[tooltip-capture]）。
       await waitForVisualQuiescence(win).catch(() => undefined)
-      const again = await hoverTooltip({ stay: true })
-      await win.waitForTimeout(250)
-      const tipNode = win.locator('[data-radix-popper-content-wrapper] > *').last()
-      const tipBefore = await tipNode.isVisible().catch(() => false)
-      const tipBox = await tipNode.boundingBox().catch(() => null)
-      await win.screenshot({ path: path.join(shotsDir, `${tag}-tooltip-longest.png`) }).catch(() => undefined)
-      const tipAfter = await tipNode.isVisible().catch(() => false)
-      const tipOnScreen = Boolean(tipBox) && tipBox.y >= 0 && tipBox.x >= 0 && tipBox.x + tipBox.width <= 1440 && tipBox.y + tipBox.height <= HEIGHT
-      check(`${BOARD.tooltip} D5 整窗截图那一刻最长提示开着、在窗口里（拍前、拍后都在）`, Boolean(again) && tipBefore && tipAfter && tipOnScreen, JSON.stringify({ again: again?.text ?? null, tipBefore, tipAfter, tipBox }))
+      const onScreen = (box) => Boolean(box) && box.y >= 0 && box.x >= 0 && box.x + box.width <= 1440 && box.y + box.height <= HEIGHT
+      const attempts = []
+      let captured = null
+      for (let attempt = 1; attempt <= 3 && !captured; attempt += 1) {
+        const again = await hoverTooltip({ stay: true })
+        await win.evaluate((entrySelector) => {
+          window.__nomiTipCapture = []
+          if (window.__nomiTipCaptureInstalled) return
+          window.__nomiTipCaptureInstalled = true
+          const note = (text) => window.__nomiTipCapture?.push(`${text}@${Math.round(performance.now())}`)
+          document.addEventListener('pointerleave', (event) => { if (event.target instanceof Element && event.target.matches(entrySelector)) note('pointerleave-entry') }, true)
+          document.addEventListener('focusout', (event) => note(`focusout:${event.target?.tagName ?? '?'}`), true)
+          window.addEventListener('blur', () => note('window-blur'))
+          window.addEventListener('scroll', (event) => note(`scroll:${event.target === document ? 'document' : event.target?.tagName ?? '?'}`), { capture: true })
+          new MutationObserver((list) => {
+            for (const change of list) for (const node of change.removedNodes) if (node instanceof Element && node.matches('[data-radix-popper-content-wrapper]')) note('tooltip-removed')
+          }).observe(document.body, { childList: true })
+        }, ENTRY)
+        await win.waitForTimeout(250)
+        const tipNode = win.locator('[data-radix-popper-content-wrapper] > *').last()
+        const tipBefore = await tipNode.isVisible().catch(() => false)
+        const tipBox = await tipNode.boundingBox().catch(() => null)
+        await win.screenshot({ path: path.join(shotsDir, `${tag}-tooltip-longest.png`) }).catch(() => undefined)
+        const tipAfter = await tipNode.isVisible().catch(() => false)
+        const events = await win.evaluate(() => [...(window.__nomiTipCapture ?? [])]).catch(() => [])
+        const record = { attempt, again: again?.text ?? null, tipBefore, tipAfter, tipBox, events }
+        attempts.push(record)
+        if (again && tipBefore && tipAfter && onScreen(tipBox)) captured = record
+        else {
+          console.log(`[tooltip-capture] ${tag} 第 ${attempt} 次拍丢：${JSON.stringify(record)}`)
+          await leaveEntry()
+        }
+      }
+      const lost = attempts.filter((item) => item !== captured).map(({ attempt, tipBefore, tipAfter, events }) => ({ attempt, tipBefore, tipAfter, events }))
+      check(`${BOARD.tooltip} D5 整窗截图那一刻最长提示开着、在窗口里（拍前、拍后都在，最多拍三次）`, Boolean(captured), JSON.stringify({ tries: attempts.length, tipBox: captured?.tipBox ?? null, lost }))
+      if (lost.length) unverified.push(`D5 最长提示整窗截图：拍了 ${attempts.length} 次，${lost.length} 次拍完提示已关（关前事件见 [tooltip-capture] 行），原因没查清`)
       await leaveEntry()
       unverified.push('D5 / G1 Windows「Ctrl+J」：这台是 Mac，真窗口量不到；快捷键前缀按平台写由 nomiEntryLook.test.ts 覆盖')
     }

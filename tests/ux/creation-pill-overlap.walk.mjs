@@ -1,5 +1,5 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
-// 收起创作助手后，入口（Agent 小球）必须在编辑器右侧独立占位，不能覆盖撤销/重做。
+// 收起创作助手后，入口（顶栏最右的 Nomi 入口）不能覆盖撤销/重做。
 import { launchNomiApp } from './_launchApp.mjs'
 import { switchWorkspace, collapseAgentPanel, NOMI_ENTRY_COLLAPSED } from './_shell.mjs'
 import fs from 'node:fs'
@@ -116,7 +116,7 @@ async function verifyViewport(width, height) {
   }
   await screenshotSettled(win, { path: path.join(shotsDir, `creation-pill-${width}x${height}.png`) })
   console.log(JSON.stringify(result))
-  // 旧判据 editorControlsEndBeforePill（「撤销/重做在 x 方向整体排在 pill 左边」）随外壳重设计退役：入口现在是内容区右下的 Agent 小球，
+  // 旧判据 editorControlsEndBeforePill（「撤销/重做在 x 方向整体排在 pill 左边」）随外壳重设计退役：入口现在在顶栏最右（2026-11-22 小球删了），
   // 撤销/重做在编辑器工具栏（顶部），两者上下分居、不在同一行，水平先后没有意义；这条走查要守的「入口不得覆盖撤销/重做」由前两项重叠判定直接守。
   // editorControlsEndBeforePill 仍留在上面的证据输出里，只是不再当判据。
   if (result.pillVsUndo || result.pillVsRedo) {

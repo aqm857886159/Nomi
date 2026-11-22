@@ -6,9 +6,9 @@
 // 复盘：docs/engineering/direction-checks/2026-11-13-open-writes-project.md（修前 84 次「打开 → 不点 → 关」78 次项目文件变了）。
 //
 // 夹具：tests/fixtures/old-user-data 里 v0.24.1 那份真实完整的旧版项目（payload 齐全，含 editingPanelLayout）。
-//   ① 零点击：4 页（创作 / 分镜 / 生成 / 预览）× 本机偏好 2 种（全新、全是小球）× 1440 宽，打开 → 去那一页 → 关，
+//   ① 零点击：4 页（创作 / 分镜 / 生成 / 预览）× 本机偏好 2 种（全新、老版本存的全是小球 form:'ball'，读成收起）× 1440 宽，打开 → 去那一页 → 关，
 //      断言 .nomi/project.json 逐字节不变；
-//   ② 打开后在预览页点一次收起（变小球）再关 → project.json 仍不变；同一台机器（同一份资料目录）重开项目，预览页 Nomi 还是小球；
+//   ② 打开后在预览页点一次收起再关 → project.json 仍不变；同一台机器（同一份资料目录）重开项目，预览页 Nomi 还是收着；
 //   ③ 反例（量具不是永远绿）：打开后在创作页敲一个字 → project.json 变了。
 // 夹具二：v0.20.0 那一代没有身份字段的老项目（tests/fixtures/old-user-data/projects/v0.20.0-library 的别处文件夹项目）。
 //   ④ 第一次打开 → 不点 → 关：只被补写一次身份（immutableProjectUuid、projectGeneration 两个字段，别的不动）；
