@@ -764,16 +764,6 @@
       "count": 1
     }
   },
-  "scripts/eng-metrics.mjs": {
-    "no-irregular-whitespace": {
-      "count": 1
-    }
-  },
-  "scripts/eng-metrics.node-test.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "scripts/entry-directory.node-test.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1

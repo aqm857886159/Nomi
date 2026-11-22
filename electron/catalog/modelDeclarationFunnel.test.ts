@@ -48,3 +48,48 @@ describe("upsert 漏斗写文本行的声明初值", () => {
     expect(metaOf("gemini-image")).toEqual({ supportsImageInput: true });
   });
 });
+
+// 声明键按键合并（设计卡 docs/plan/2026-11-22-gpt6-responses.md ★2）：写入方带了 meta 也不冲掉行上原有的声明键。
+describe("upsert 漏斗：声明键按键合并，写入方没带的键不被冲掉", () => {
+  const DECLARED = { textProtocol: "openai-responses", reasoning: true, thinkingLevelMap: { off: "none" }, compat: { sessionAffinityFormat: "openai-nosession" }, inputModalities: ["audio"] };
+
+  // 行上原有的声明由测试世界的正门种下（换一个带这行的世界），不经被测的 upsert 漏斗。
+  function seedDeclared(extra: Record<string, unknown> = {}) {
+    restoreEnv();
+    world.cleanup();
+    world = buildWorld({ builtinSeeds: false, projects: [], catalog: { vendors: [{ ...VENDOR }], models: [
+      { vendorKey: "relay", modelKey: "declared", labelZh: "Declared", kind: "text", enabled: true, meta: { ...DECLARED, supportsImageInput: true, ...extra } },
+    ] } });
+    restoreEnv = world.activate();
+    expect(metaOf("declared")).toEqual({ ...DECLARED, supportsImageInput: true, ...extra });
+  }
+
+  it("设置页 / 导入包这类写入方手搭一份不带声明的 meta：五个声明键全部留着，别的键归写入方", () => {
+    seedDeclared();
+    upsertModelCatalogModel({ vendorKey: "relay", modelKey: "declared", meta: { note: "edited in settings" } });
+    expect(metaOf("declared")).toEqual({ ...DECLARED, note: "edited in settings" });
+  });
+
+  it("写入方只带了其中一个声明键：带了的照写，没带的留着", () => {
+    seedDeclared();
+    upsertModelCatalogModel({ vendorKey: "relay", modelKey: "declared", meta: { textProtocol: "anthropic", inputModalities: [] } });
+    expect(metaOf("declared")).toEqual({ ...DECLARED, textProtocol: "anthropic", inputModalities: [] });
+  });
+
+  it("没带 meta：整份沿用（和以前一样）", () => {
+    seedDeclared();
+    upsertModelCatalogModel({ vendorKey: "relay", modelKey: "declared", labelZh: "Renamed" });
+    expect(metaOf("declared")).toMatchObject({ ...DECLARED, supportsImageInput: true });
+  });
+
+  it("全新的行带着自己的 meta：照写，没有可保留的", () => {
+    upsertModelCatalogModel({ vendorKey: "relay", modelKey: "fresh", labelZh: "Fresh", kind: "text", meta: { textProtocol: "openai-responses" } });
+    expect(metaOf("fresh")).toEqual({ textProtocol: "openai-responses" });
+  });
+
+  it("非声明键仍整份归写入方：supportsImageInput 没带就没了（只有声明键按键合并）", () => {
+    seedDeclared();
+    upsertModelCatalogModel({ vendorKey: "relay", modelKey: "declared", meta: { reasoning: false } });
+    expect(metaOf("declared")).toEqual({ ...DECLARED, reasoning: false });
+  });
+});

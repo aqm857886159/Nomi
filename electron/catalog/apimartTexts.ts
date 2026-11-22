@@ -13,6 +13,8 @@ import { APIMART_CREATE_TASK_ID_PATH, APIMART_STATUS_MAPPING } from "./apimartVe
 // 故文本模型**不需要 create/query mapping**：Agent 与文本任务都走 electron/ai/vendorModelConnection.ts 的
 // nomiModelConfigFor（apimart 默认 providerKind=openai-compatible → baseURL=/v1 → pi-ai 的 openai-completions
 // 自动补 /chat/completions）。catalog 只需一条 kind="text" 的 Model 记录，modelKey 即 chat model id。
+// 例外只有行声明 `meta.textProtocol: "openai-responses"` 的行（GPT-6 Astra / 6.1 Sol，官方文档写明工具调用必须走
+// Responses）：协议只写在这一格声明，运行时不按名字认，别处不许再判。
 //
 // 默认大脑 = deepseek-v4-pro：2026-08-21 用已配置 key 调 APIMart 官方
 // GET /v1/models?expand=category&category=chat 对账，并逐个以 chat + tool-call 探针确认。
@@ -68,6 +70,8 @@ export const APIMART_TEXT_PRICING_RULE = "rates × price_factor；分档取最�
 
 const PRICING_CHECKED_AT = "2026-11-07";
 const CHAT_PROTOCOL_DOC = "https://docs.apimart.ai/en/api-reference/texts/general/chat-completions";
+/** 走 Responses 的那几行发请求依据的协议页（同一个中转的 `POST /v1/responses`，Bearer，支持 function calling）。 */
+const RESPONSES_PROTOCOL_DOC = "https://docs.apimart.ai/en/api-reference/texts/openai/responses";
 export const apimartTextPricingApi = (modelKey: string) =>
   `https://api.apimart.ai/api/pricing/model?model=${encodeURIComponent(modelKey)}`;
 const pricingSource = (modelKey: string) => ({ url: apimartTextPricingApi(modelKey), checkedAt: PRICING_CHECKED_AT });
@@ -93,6 +97,13 @@ const SAW_IMAGE_20261108 = {
   checkedAt: "2026-11-08",
   record: "docs/plan/2026-11-07-catalog-audio-text.md「一问一个结果（2026-11-08）」：带暗号图问一次，完整回出暗号",
 } as const;
+/**
+ * 官方文档写明「工具调用必须走 Responses」的行（OpenAI 迁移指南 https://developers.openai.com/api/docs/guides/migrate-to-responses ：
+ * "GPT-6 Astra and GPT-6.1 Sol require the Responses API for tool calling"；推理条目要原样回放，`store: false` 下每条自带 `encrypted_content`）。
+ * 协议只写在这一格行声明（`meta.textProtocol`），运行时不按名字认。2026-11-08 那次一问一个走的是 Chat，不是这条协议，所以这条路还没真跑过（`liveCall: 未`）。
+ */
+const RESPONSES_DECLARATION = { textProtocol: "openai-responses" } as const;
+const unrunOnResponses = (modelKey: string): ApimartTextEvidence => ({ ...unrun(modelKey), protocolDoc: RESPONSES_PROTOCOL_DOC });
 /** 协议页 + 价目 + 2026-11-08 真调用通过；`sawImage` = 同一次带图也读出来了。 */
 const asked = (modelKey: string, modelDoc?: string, sawImage?: "sawImage"): ApimartTextEvidence => ({
   ...unrun(modelKey, modelDoc),
@@ -133,14 +144,14 @@ const asked = (modelKey: string, modelDoc?: string, sawImage?: "sawImage"): Apim
  */
 export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
   {
-    modelKey: "gpt-6-astra", labelZh: "GPT-6 Astra",
+    modelKey: "gpt-6-astra", labelZh: "GPT-6 Astra", meta: RESPONSES_DECLARATION,
     tokenPricing: { inputPerMTokUsd: 16.0, outputPerMTokUsd: 60.0, cacheReadPerMTokUsd: 1.6, cacheWritePerMTokUsd: 40.0, source: pricingSource("gpt-6-astra") },
-    evidence: asked("gpt-6-astra"),
+    evidence: unrunOnResponses("gpt-6-astra"),
   },
   {
-    modelKey: "gpt-6.1-sol", labelZh: "GPT-6.1 Sol",
+    modelKey: "gpt-6.1-sol", labelZh: "GPT-6.1 Sol", meta: RESPONSES_DECLARATION,
     tokenPricing: { inputPerMTokUsd: 3.2, outputPerMTokUsd: 12.0, cacheReadPerMTokUsd: 0.16, cacheWritePerMTokUsd: 8.0, source: pricingSource("gpt-6.1-sol") },
-    evidence: asked("gpt-6.1-sol"),
+    evidence: unrunOnResponses("gpt-6.1-sol"),
   },
   {
     modelKey: "gpt-6.1-terra", labelZh: "GPT-6.1 Terra",
