@@ -2,7 +2,7 @@
 // 只判断、不画：宿主（ShellNomiEntry）读 residentActivity 的角标投影传进来；同一件事只在这里判一次，设计实验室和走查读同一份。
 //
 // 两种「状态」分开用（设计卡调用方表）：
-//   · 脸用 face——不看待确认的那份（`useV4DockStatus` 传 pendingCount 0 求出来），在做 + 等你确认时脸照样转、角标盖右上（B5）；
+//   · 脸用 face——不看待确认的那份（`useV4DockStatus` 返回的 faceStatus，由 `resolveDockStatuses` 求），在做 + 等你确认时脸照样转、角标盖右上（B5）；
 //   · 悬停那句的中段用合并状态（`resolveDockStatus`，等你确认 > 失败 > 在做 > 刚做完 > 空闲），和面板头那句同一个说法。
 import type { NomiAgentPose } from '../../../design/identity'
 import type { V4DockStatus } from '../../../workbench/ai/v4/agentPanelV4DockStatus'

@@ -30,7 +30,7 @@ type ResidentActivityStore = {
 
   /** 合并状态（悬停那句的中段）；`null` = 没挂载（没开项目）。 */
   dockStatus: V4DockStatus | null
-  /** 脸的状态：不算待确认（`useV4DockStatus` 传 pendingCount 0）；`null` = 没挂载。 */
+  /** 脸的状态：不算待确认（`useV4DockStatus` 返回的 faceStatus）；`null` = 没挂载。 */
   dockFaceStatus: V4DockStatus | null
   /** 还在等用户裁决的介入条数（计入未读，并在 tooltip 里被点名）。 */
   dockPendingCount: number

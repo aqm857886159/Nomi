@@ -375,6 +375,28 @@ async function runRound({ locale, scheme, tag, projectName }) {
       await win.mouse.move(5, HEIGHT - 5)
       await win.waitForTimeout(120)
     }
+    // 每种长相真点一次（任务书「入口五种脸 × 胶囊 / 角标各真点一次」）：点 → 面板打开、入口按下；再用 store 收回去，
+    // 让下一格从收着量起（「再点入口收起」那一下由 D3 单独判，这里不重复）。
+    const clickEntryOpens = async (label) => {
+      const entry = win.locator(ENTRY).first()
+      if (!(await entry.isVisible().catch(() => false))) {
+        check(`${BOARD.entry} ${label}：点入口`, false, '顶栏没有入口')
+        return
+      }
+      try {
+        await entry.click({ timeout: 3000 })
+        await win.waitForTimeout(300)
+        const pressed = await entry.getAttribute('aria-pressed', { timeout: 2000 }).catch(() => null)
+        const opened = await win.locator(AGENT_PANEL).first().isVisible().catch(() => false)
+        check(`${BOARD.entry} ${label}：点入口 → 面板打开、入口按下`, opened && pressed === 'true', `面板 ${opened} / 按下 ${pressed}`)
+      } catch (error) {
+        check(`${BOARD.entry} ${label}：点入口 → 面板打开、入口按下`, false, `点不动：${String(error?.message ?? error).split('\n')[0]}`)
+      } finally {
+        await collapseAll().catch(() => undefined)
+        await leaveEntry().catch(() => undefined)
+        await win.waitForTimeout(200)
+      }
+    }
 
     // ── I1：收起后不压内容（4 宽 × 3 页） ──
     await collapseAll()
@@ -458,6 +480,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
         await shot(win, 'face-idle-hover', true)
         await leaveEntry()
       }
+      await clickEntryOpens(`${item.id} ${item.name} 脸`)
     }
     {
       await win.emulateMedia({ reducedMotion: 'reduce' })
@@ -478,6 +501,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
       const expected = [lead, status('dockNeedsConfirm', { count })].join(' · ')
       check(`${BOARD.tooltip} 700 等你确认 ${count}：提示写全数「${expected}」`, tip?.text === expected, tip?.text ?? '没出提示')
       await shot(win, `badge-${count}-700`, true)
+      await clickEntryOpens(`700 等你确认 ${count} 角标`)
     }
     {
       await setAgent({ face: 'running', pending: 2 })
@@ -518,6 +542,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
           check(`${BOARD.tooltip} 900 胶囊悬停「${expected}」`, tip?.text === expected, tip?.text ?? '没出提示')
           await shot(win, `capsule-${count}-900`, true)
         }
+        await clickEntryOpens(`${width} 胶囊 ${count}`)
       }
     }
     // 最长提示（D5）：新消息 120，一行不折。

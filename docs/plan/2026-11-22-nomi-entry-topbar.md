@@ -278,7 +278,7 @@
 | **什么都不做** | 留着今天的代码 | I1：`[data-agent-ball]` ≥1；1100 生成页小球压住「生成 / 剩余」，被压住的格子 ≥1；A–D 组全部红 | 顶栏没有 `[data-shell-nomi-entry]` |
 | **全部拦下** | 删掉小球，顶栏也不放入口，只剩 ⌘J | I1 会过（没有球、没压住），但 A1–A5、B1–B6、C1–C5、D1–D5、G1 全红；K1 点「收起」后找不到入口 | 入口个数 = 0；这一版正是用户否掉的「只剩快捷键」 |
 | 入口还浮在内容区（比如挪到右上角） | 入口 fixed 定位在内容区 | I1 被压住的格子 ≥1；D1「入口在顶栏里」红 | 入口不是 header 的子元素 |
-| 脸照旧用 `resolveDockStatus` | 不改求状态的方式 | B5 红 | 在做 + 待确认时脸变成 needs-confirm，不转 |
+| 脸照旧用 `resolveDockStatus` | 不改求状态的方式（`resolveDockStatuses` 的 faceStatus 照合并规则求） | B5 红：单测 `agentPanelV4DockStatus.test.ts`「在做 + 待确认 2 → 脸 running」（走查直接往 store 写脸的状态，量不到宿主怎么求） | 在做 + 待确认时脸变成 needs-confirm，不转 |
 | 面板开着仍出胶囊 | 不改形状规则 | C4 红 | `data-shape=capsule` 且 aria-pressed=true |
 | ④ 先于 ③ | 让位顺序写反 | E9 红 | 900 中文装失败那一格会提前收「新版本」 |
 | 让位只看当前宽度、不带回差 | 去掉回差 | E12 红 | 来回拖时同一宽度结果不一致，阈值翻不止一次 |
@@ -388,7 +388,7 @@
 | `agentBallLook` | `AgentBallFace.tsx:29` | 删，由 `nomiEntryLook` 取代 | 新函数：脸按「不算待确认」求，待确认单独出胶囊 / 角标 |
 | `agentBallIsPill` | `ShellAgentHost.tsx:153`、`agentFormStore.ts:353`（`agentBallLook` 里） | 删，由 `nomiEntryLook` 取代 | 新规则：胶囊 = 有待确认 && 放得下 && 面板没开（D5） |
 | `useExportCompact` | `ShellTopBar.tsx:255` | 搬进 `topbarYield`（成为 ①） | ① 的判据和回差不变 |
-| `useV4DockStatus` | `ProjectAgentResidentShell.tsx:352` | 不改函数，多调一次 | 原来这次照旧给出合并状态，悬停提示的中段要用它；新加一次传 `pendingCount: 0`，给出脸的状态。两次各自掐「刚做完」2.4 秒的表 |
+| `useV4DockStatus` | `ProjectAgentResidentShell.tsx:352` | **变**：返回 `{ status, faceStatus }` | 一次求两份（纯函数 `resolveDockStatuses`）：合并状态给悬停提示中段，脸的状态不算待确认；宿主只调这一次，同一个「刚做完」2.4 秒的表。原写法「同一个 hook 再调一次、传 `pendingCount: 0`」没人测、能悄悄改回去，协调 11-22 定合成一个（B5 反例因此能红） |
 | `resolveDockStatus` | `agentPanelV4DockStatus.ts:105`（只在 `useV4DockStatus` 里） | 不改 | 优先级和测试（`agentPanelV4DockStatus.test.ts:22`、`:26`）一字不动 |
 | `dockStatusLabel` | `ShellAgentHost.tsx:163`（小球提示，搬到入口）、设计实验室 `01-vocabulary.tsx:264`、`03-flow.tsx:93` | 不改 | 入口提示中段 = `dockStatusLabel(合并状态, 待确认数)`，和今天小球一样。所以「在做 + 等确认 2」的提示是「打开 Nomi（⌘J）· 等你确认 2 条」（画布候选 634） |
 | `setResidentDockBadge` | `ProjectAgentResidentShell.tsx:382`（经 `:380` 取出的 `publishDockBadge`）、`:384`（卸载清零） | 多带一个「脸状态」参数；`:382` 从「收起才报」改成「一直报」 | **变**：投影的形状多一个字段。读它的只有今天的 `ShellAgentHost.tsx:142–144`（随小球删）和新入口 |

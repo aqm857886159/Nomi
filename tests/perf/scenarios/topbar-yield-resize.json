@@ -18,5 +18,14 @@
   "budget": 33,
   "group": "⑪ 拖窗口边过窄窗档",
   "budgetStatus": "proposed",
-  "budgetBasis": "拖窗口边是连续手势、要跟手：60Hz 下 p95 帧间隔不超过 2 帧（33ms），仓库默认预算同此；同组 window-narrow-drag 基线中位 10.4ms（11-14，M5）。让位只在 ResizeObserver 回调里量一次、调一次纯函数，不开 rAF 循环，不该比过窄窗档更重；>50ms 的长任务预算 0 个（设计卡 ★7）"
+  "budgetBasis": "拖窗口边是连续手势、要跟手：60Hz 下 p95 帧间隔不超过 2 帧（33ms），仓库默认预算同此；同组 window-narrow-drag 基线中位 10.4ms（11-14，M5）。让位只在 ResizeObserver 回调里量一次、调一次纯函数，不开 rAF 循环，不该比过窄窗档更重；>50ms 的长任务预算 0 个（设计卡 ★7）",
+  "baseline": {
+    "median": 16.5,
+    "p95": 17.3,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-22",
+    "commit": "2b88c7d4f",
+    "noisy": true
+  }
 }

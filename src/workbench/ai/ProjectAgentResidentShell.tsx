@@ -350,16 +350,10 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   // 付费卡也算一条在等你的（Q5：顶栏入口的待确认计数读同一份 spend，不另开一条真相）。
   const dockPendingCount = (data.primaryPending?.pendingCount ?? 0) + (spend.pending ? 1 : 0)
   const dockFailed = Boolean(actions.error) || lastFlowFailed(data.flow)
-  const dockStatus = useV4DockStatus({
+  // 合并状态和脸的状态（脸不算待确认，NomiEntryTopbar 板 B5）由同一个 hook 一次求出，宿主只读这一处。
+  const { status: dockStatus, faceStatus: dockFaceStatus } = useV4DockStatus({
     running: data.running,
     pendingCount: dockPendingCount,
-    failed: dockFailed,
-  })
-  // 脸的状态不算待确认（NomiEntryTopbar 板 B5：在做 + 等你确认时脸照样转，待确认由角标 / 胶囊另说）。
-  // 同一个 hook 再调一次、只把待确认数换成 0：「刚做完」2.4 秒的表两边各自掐，口径仍只在 resolveDockStatus 一处。
-  const dockFaceStatus = useV4DockStatus({
-    running: data.running,
-    pendingCount: 0,
     failed: dockFailed,
   })
 
