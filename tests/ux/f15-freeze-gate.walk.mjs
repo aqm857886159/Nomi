@@ -117,7 +117,7 @@ try {
     message: '定妆后「定妆」按钮应消失（换成「已定妆」态）——没消失=点击没生效',
   })
   const doneBtn = win.getByRole('button', { name: '已定妆', exact: true })
-  if (!(await doneBtn.count().catch(() => 0))) throw new Error('定妆后浮条没出现「已定妆」态——UI 没反映冻结')
+  await doneBtn.first().waitFor({ state: 'visible' }).catch(() => { throw new Error('定妆后浮条没出现「已定妆」态——UI 没反映冻结') })
 
   // ④b 门放行：镜头 1 不再 unfrozen-anchor，进 waves（依赖逻辑真相源，显示的≡执行的）。
   const after = await shotBlockedReason(win, shotId)

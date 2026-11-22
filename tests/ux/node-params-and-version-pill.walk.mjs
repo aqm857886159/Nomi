@@ -261,7 +261,8 @@ try {
   const grid = win.locator('[data-version-grid="stack"]')
   await expect.poll(() => overlayVisible(grid), { timeout: 3_000 }).toBe(true).catch(() => undefined)
   check(await overlayVisible(grid), 'P3 点角标：版本在原地铺开（看得见）', {})
-  check(await grid.locator('[data-version-card]').count() === 2, 'P3 两版铺成两张卡', { cards: await grid.locator('[data-version-card]').count() })
+  const cardsReady = await expect(grid.locator('[data-version-card]')).toHaveCount(2).then(() => true, () => false)
+  check(cardsReady, 'P3 两版铺成两张卡', { cards: cardsReady ? 2 : await grid.locator('[data-version-card]').count() })
   await shot('02-version-cards')
   const card = (versionNo) => grid.locator(`[data-version-card="${versionNo}"]`)
   try {

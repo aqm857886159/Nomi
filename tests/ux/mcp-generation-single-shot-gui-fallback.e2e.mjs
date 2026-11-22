@@ -9,6 +9,8 @@ import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 
+import { expect } from '@playwright/test'
+
 import { launchNomiApp } from './_launchApp.mjs'
 import { makeIsolatedDirs, parseToolResult, repoRoot, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { writeIsolatedCatalog } from './_mcpJourney.mjs'
@@ -146,7 +148,7 @@ try {
   const gatePromise = mcp.callTool('nomi_operation_gate', { phase: 'request', leaseHandle, projectId, operationId }, { timeoutMs: 90_000 })
   const gateCard = window.locator('[data-spend-confirm-dialog]').filter({ hasText: '允许 Nomi 生成这一镜？' })
   await gateCard.waitFor({ timeout: 20_000 })
-  check(await gateCard.count() === 1, '不支持 elicitation 的客户端只看到一张 Nomi 语义确认卡')
+  check(await expect(gateCard).toHaveCount(1).then(() => true, () => false), '不支持 elicitation 的客户端只看到一张 Nomi 语义确认卡')
   const cardText = await gateCard.innerText()
   check(cardText.includes('apimart/gpt-image-2') && cardText.includes('一张纸船'), '确认卡写清模型和这一镜要做什么')
   await window.screenshot({ path: path.join(shotsDir, '01-semantic-gate.png') })

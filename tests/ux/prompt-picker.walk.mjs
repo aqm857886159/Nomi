@@ -13,6 +13,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { expect } from '@playwright/test'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempRoot = makeTempDir('nomi-prompt-picker-')
@@ -96,11 +97,11 @@ try {
       : '通用档下也没浮卡 —— ⑦ 的基线不成立，那条「没被劫走」不算数')
 
   // ① 位置：在 composer（footer）里，不在 header 里。
-  const count = await picker().count()
+  const hasOnePicker = await expect(picker()).toHaveCount(1).then(() => true, () => false)
   const inFooter = await picker().first().evaluate((el) => Boolean(el.closest('footer')))
   const inHeader = await picker().first().evaluate((el) => Boolean(el.closest('header')))
-  record('① 选择器在 composer、不在头部', count === 1 && inFooter && !inHeader,
-    `找到 ${count} 个选择器；在 footer=${inFooter}，在 header=${inHeader}（期望 1 / true / false）`)
+  record('① 选择器在 composer、不在头部', hasOnePicker && inFooter && !inHeader,
+    `恰好 1 个=${hasOnePicker}；在 footer=${inFooter}，在 header=${inHeader}（期望 true / true / false）`)
 
   // ② 7 个内置提示词全部在列 —— 这是用户报的「找不到调用的地方」的正面证明。
   await picker().first().click()

@@ -185,13 +185,15 @@ async function journey(locale) {
       const entry = second.win.locator('button, [role="button"]')
         .filter({ hasText: /遇到问题或想分享|Report a problem or share/i }).first()
       const report = second.win.locator('button, [role="button"]').filter({ hasText: /告诉我们一件事|Tell us one thing/i }).first()
-      if (!(await entry.count())) failures.push('设置 → 关于里应当有「反馈」那一行')
+      const entryPresent = await entry.waitFor({ state: 'visible' }).then(() => true, () => false)
+      if (!entryPresent) failures.push('设置 → 关于里应当有「反馈」那一行')
       else {
         await clickOrFail(entry, '点「反馈」那一行')
         // 等「告诉我们一件事」真的出现，而不是等一个固定秒数。
         await report.waitFor({ state: 'visible' }).catch(() => {})
       }
-      if (!(await report.count())) failures.push('设置 → 关于里应当有「告诉我们一件事」入口')
+      const reportPresent = await report.waitFor({ state: 'visible' }).then(() => true, () => false)
+      if (!reportPresent) failures.push('设置 → 关于里应当有「告诉我们一件事」入口')
       else {
         await clickOrFail(report, '点「告诉我们一件事」')
         await card.waitFor({ state: 'visible' }).catch(() => {})
@@ -278,7 +280,8 @@ async function journey(locale) {
       const rejectedFile = path.join(tempRoot, 'nomi-feedback-loop-rejected.txt')
       const rejectionLine = assetText.rejectedUnsupportedUnknown.replace('{{name}}', path.basename(rejectedFile))
       fs.writeFileSync(rejectedFile, '这不是图片也不是视频，导入策略必须拒收它。\n')
-      if (!(await fileInput.count())) failures.push('素材库里应当有真实的文件选择器')
+      const fileInputAttached = await fileInput.waitFor({ state: 'attached' }).then(() => true, () => false)
+      if (!fileInputAttached) failures.push('素材库里应当有真实的文件选择器')
       else await fileInput.setInputFiles(rejectedFile).catch((error) => failures.push(`喂文件失败：${error?.message}`))
       const rejectionRow = second.win.locator('[data-asset-library-feedback]').first()
       await rejectionRow.waitFor({ state: 'visible' }).catch(() => {})

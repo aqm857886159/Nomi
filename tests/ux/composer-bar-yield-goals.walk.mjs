@@ -125,6 +125,7 @@ try {
     await check('G4', label, async () => {
       const f = await width(650)
       const controls = p.locator('[data-yield-history] [data-node-composer-footer]').locator('button, [role="button"], a[href], input:not([type="hidden"])').filter({ visible: true })
+      await controls.first().waitFor({ state: 'visible' })
       const controlCount = await controls.count()
       const clicks = []
       await p.screenshot({ path: path.join(out, `G4-${label}-before.png`) })

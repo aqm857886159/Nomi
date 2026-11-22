@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { REPO_ROOT } from './design-lab/labStates.mjs'
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
+import { expect as pwExpect } from '@playwright/test'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
@@ -212,21 +213,22 @@ async function expectRewriteState(page, state, record) {
       return
     }
     const status = state.id.split('-')[1]
-    const has = (selector) => page.locator(selector).count()
-    if (status === 'selected') expect(record, await has('.workbench-selection-popover__tool--ai') === 1, `${state.id} 浮条上没有 AI 编辑`)
+    const present = (selector) => page.locator(selector).first().waitFor({ state: 'visible' }).then(() => true, () => false)
+    const hasCount = (selector, n) => pwExpect(page.locator(selector)).toHaveCount(n).then(() => true, () => false)
+    if (status === 'selected') expect(record, await hasCount('.workbench-selection-popover__tool--ai', 1), `${state.id} 浮条上没有 AI 编辑`)
     if (status === 'menu') {
-      expect(record, await has('.workbench-ai-rewrite-bar input') === 1, `${state.id} 没有输入框`)
-      expect(record, await has('.nomi-ai-rewrite-pending') > 0, `${state.id} 待改的字没有被标出来`)
-      expect(record, await has('.workbench-ai-rewrite-bar .nomi-logo-mark') > 0, `${state.id} 输入框前没有 Nomi 标记`)
+      expect(record, await hasCount('.workbench-ai-rewrite-bar input', 1), `${state.id} 没有输入框`)
+      expect(record, await present('.nomi-ai-rewrite-pending'), `${state.id} 待改的字没有被标出来`)
+      expect(record, await present('.workbench-ai-rewrite-bar .nomi-logo-mark'), `${state.id} 输入框前没有 Nomi 标记`)
       expect(record, (await page.locator('.workbench-ai-rewrite-bar input').getAttribute('placeholder') ?? '').length > 0, `${state.id} 输入框占位文字不对`)
-      expect(record, await has('.workbench-ai-rewrite-bar button[aria-label]') > 0, `${state.id} 菜单态没有发送钮`)
+      expect(record, await present('.workbench-ai-rewrite-bar button[aria-label]'), `${state.id} 菜单态没有发送钮`)
     }
     if (status === 'result') {
-      expect(record, await has('.nomi-ai-rewrite-del') > 0 && await has('[data-rewrite-add]') > 0, `${state.id} 结果态没有新旧对比`)
-      expect(record, await has('[data-rewrite-action]') === 2, `${state.id} 段尾应只有 ✓ ✕`)
+      expect(record, await present('.nomi-ai-rewrite-del') && await present('[data-rewrite-add]'), `${state.id} 结果态没有新旧对比`)
+      expect(record, await hasCount('[data-rewrite-action]', 2), `${state.id} 段尾应只有 ✓ ✕`)
     }
-    if (status === 'accepted' || status === 'discarded') expect(record, await has('.workbench-ai-rewrite-bar') === 0 && await has('[data-rewrite-action]') === 0, `${state.id} 会话没有关干净`)
-    if (status === 'failed') expect(record, await has('.workbench-ai-rewrite-bar [role="alert"]') === 1, `${state.id} 没有「没改成」提示`)
+    if (status === 'accepted' || status === 'discarded') expect(record, await hasCount('.workbench-ai-rewrite-bar', 0) && await hasCount('[data-rewrite-action]', 0), `${state.id} 会话没有关干净`)
+    if (status === 'failed') expect(record, await hasCount('.workbench-ai-rewrite-bar [role="alert"]', 1), `${state.id} 没有「没改成」提示`)
 }
 
 await walkDesignLabScreen({

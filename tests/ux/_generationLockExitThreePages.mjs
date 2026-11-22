@@ -202,7 +202,7 @@ export async function threePageLockExitJourney(input) {
     await shot('task-center-unknown')
     const taskCardProbe = await proveProbe(page.locator('[data-production-task-card]'), 'The host-owned unknown Run still exposes its checked-release action')
     const unknownRows = page.locator(`[data-task-node-id="${canvasNode.id}"]`)
-    assert.ok(await unknownRows.count())
+    await expect(unknownRows.first()).toBeVisible()
     await expectAbsent(unknownRows.locator('[data-task-action="retry_generation"]'), { provenBy: taskCardProbe })
     report.checks.taskCenterNoDeadRetry = true
     await page.locator('[data-production-task-card] [data-production-primary-action]').click()

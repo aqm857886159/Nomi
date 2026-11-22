@@ -37,6 +37,7 @@ await walkDesignLabScreen({
       record(`${state.id} 的下拉没展开——这一格拍到的是一个触发钮，不是要看的浮层`)
       return
     }
+    await rows.first().waitFor({ state: 'visible' }).catch(() => {})
     const count = await rows.count()
     const labels = await rows.allInnerTexts()
     if (state.id.includes('empty')) {

@@ -15,6 +15,7 @@ import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { expect } from '@playwright/test'
 import { launchNomiApp } from './_launchApp.mjs'
 import { DEFAULT_TIMEOUT_MS, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -197,7 +198,7 @@ try {
   await win.waitForTimeout(400)
   check(await section.locator('[data-model-box-row="model-box-gamma"]').count() === 0, '隐藏后这一行离开主列表')
   const hiddenGroup = section.locator('[data-model-box-hidden-group]')
-  check(await hiddenGroup.locator('[data-model-box-hidden-row="model-box-gamma"]').count() === 1, '隐藏的模型进了「已隐藏」组，能找回来（不是删除）')
+  check(await expect(hiddenGroup.locator('[data-model-box-hidden-row="model-box-gamma"]')).toHaveCount(1).then(() => true, () => false), '隐藏的模型进了「已隐藏」组，能找回来（不是删除）')
   // 截**整个设置弹窗**而不是这一块 section：section 比弹窗内容区高，按元素截会把弹窗外面的画布
   // 一起截进来，拍出一张「设置面板下面怎么是画布」的怪图（第一版就是那样）。
   await snap(win, 'after-settings-model-box.png', win.locator('[data-settings-dialog]'))
@@ -230,7 +231,8 @@ try {
   console.log('  ✓ 藏起来的模型在模型框里一行都不出现')
   // 2026-11-14：底部那行脚注并进了最后一行「隐藏模型 N」（点它去设置里的模型顺序页）。
   const footer = win.getByRole('button', { name: /隐藏模型\s*1/ }).last()
-  check(await footer.count() === 1, `模型框底部说清藏了几个：「${(await footer.innerText()).trim()}」`)
+  const footerReady = await expect(footer).toHaveCount(1).then(() => true, () => false)
+  check(footerReady, `模型框底部说清藏了几个：「${footerReady ? (await footer.innerText()).trim() : ''}」`)
   // 滚到这次真正在考的那两行再截：不滚的话截到的是列表顶上那几个内置模型，
   // 「Beta 排在 Alpha 前面」这件事在图里根本看不见。
   await win.getByRole('option').filter({ hasText: '模型框 Alpha' }).first().scrollIntoViewIfNeeded()
@@ -273,7 +275,7 @@ try {
   section = await openSettings(win)
   await section.locator('[data-model-box-hidden-row="model-box-gamma"]').getByRole('button', { name: /^显示$|^Show$/ }).click()
   await win.waitForTimeout(400)
-  check(await section.locator('[data-model-box-row="model-box-gamma"]').count() === 1, '在设置里一步就能把藏起来的模型找回来')
+  check(await expect(section.locator('[data-model-box-row="model-box-gamma"]')).toHaveCount(1).then(() => true, () => false), '在设置里一步就能把藏起来的模型找回来')
   await closeSettings(win)
   await openModelPicker(win)
   check((await optionLabels(win)).some((label) => label.includes('模型框 Gamma')), '找回之后它又回到了模型框里')

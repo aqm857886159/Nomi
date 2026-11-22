@@ -78,6 +78,9 @@ await walkDesignLabScreen({
 
     // ① 展开态。`keepMounted` 让收起的下拉也留在 DOM 里，所以只认**可见**的那一个。
     const dropdown = page.locator('[data-nomi-select-dropdown]:visible')
+    if (expected.dropdown === 'open') {
+      await dropdown.first().waitFor({ state: 'visible' }).catch(() => {})
+    }
     const openCount = await dropdown.count()
     if (expected.dropdown === 'open') {
       if (openCount !== 1) {
@@ -97,7 +100,9 @@ await walkDesignLabScreen({
         record(`${state.id} 展开后没有任何一行是选中态——受控 value 没接上，「选中长什么样」这一格就白截了`)
       }
       const search = dropdown.first().locator('input:not([type="hidden"])')
-      const hasSearch = (await search.count()) > 0 && await search.first().isVisible().catch(() => false)
+      const hasSearch = expected.search
+        ? await search.first().waitFor({ state: 'visible' }).then(() => true, () => false)
+        : await search.first().isVisible().catch(() => false)
       if (hasSearch !== expected.search) {
         record(`${state.id} 许诺搜索框 ${expected.search ? '有' : '没有'}，实际 ${hasSearch ? '有' : '没有'}——searchable 那条轴没生效`)
       } else if (hasSearch && await search.first().isDisabled().catch(() => true)) {

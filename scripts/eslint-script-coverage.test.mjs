@@ -110,6 +110,49 @@ describe('Playwright isVisible / isHidden 不许当值取出来（scripts / test
   })
 })
 
+describe('Playwright locator.count() 不等待：不能拿瞬时快照断言「元素该在」（tests/ux & tests/perf）', () => {
+  const COUNT_NO_WAIT = 'locator.count() is a one-shot snapshot'
+  const countHits = async (file, ...rows) => (await lint(file, [
+    'export async function walk(slider, card, folderTile, link, rows, dialog, del, note, x, items, skip, optional, store, check, record, assert, expect, failures, deadline) {',
+    ...rows,
+    '}',
+    '',
+  ].join('\n')))
+    .filter((message) => message.ruleId === 'playwright-wait/no-restricted-syntax' && message.message.startsWith(COUNT_NO_WAIT))
+    .map((message) => message.line)
+
+  it.each([
+    ['if (!(await slider.count())) throw', "  if (!(await slider.count())) throw new Error('missing')"],
+    ['if ((await card.count()) === 0) throw', "  if ((await card.count()) === 0) throw new Error('missing')"],
+    ['两句式 const n = await card.count(); if (n === 0) failures.push', "  const n = await card.count()\n  if (n === 0) failures.push('missing')"],
+    ['check(..., count() > 0)', "  check('exists', (await folderTile.count()) > 0)"],
+    ['record(..., count() > 0)', "  record('exists', (await link.count()) > 0, 'detail')"],
+    ['assert.ok(await rows.count())', '  assert.ok(await rows.count())'],
+    ['assert.equal(await dialog.count(), 1)', '  assert.equal(await dialog.count(), 1)'],
+    ['expect(await del.count(), msg).toBeGreaterThan(0)', "  expect(await del.count(), 'msg').toBeGreaterThan(0)"],
+    ['if ((await note.count()) !== 1) record', "  if ((await note.count()) !== 1) record('expected one')"],
+  ])('正例：%s → 在 tests/ux 与 tests/perf 下红', async (_name, row) => {
+    for (const file of ['tests/ux/sample.walk.mjs', 'tests/perf/sample.mjs']) {
+      expect((await countHits(file, row)).length, `${file}: ${row}`).toBeGreaterThan(0)
+    }
+  })
+
+  it.each([
+    ['类别 3：expect.poll 内', '  await expect.poll(async () => (await x.count()) > 0).toBe(true)'],
+    ['类别 3：while 轮询内', '  while (Date.' + 'now() < deadline) { if ((await x.count()) > 0) break }'],
+    ['类别 4：取数量当值 / 精确 N / 0', '  const before = await items.count(); expect(await items.count()).toBe(3); expect(await items.count()).toBe(0); return before'],
+    ['类别 2：可有可无（有就点 / 缺就早退）', '  if (await skip.count()) await skip.click(); if (!(await optional.count())) return null'],
+  ])('反例：%s → 0 报错', async (_name, row) => {
+    for (const file of ['tests/ux/sample.walk.mjs', 'tests/perf/sample.mjs']) {
+      expect(await countHits(file, row), `${file}: ${row}`).toEqual([])
+    }
+  })
+
+  it('作用域外（src/foo.ts）不报错', async () => {
+    expect(await countHits('src/foo.ts', "  if (!(await store.count())) throw new Error('empty')")).toEqual([])
+  })
+})
+
 // ⑤ 2026-10-24：vitest 车道的浏览器夹具测试起 vite 开发服务只经 tests/ux/_browserFixture.mjs（冷编译不进用例的操作预算）。
 describe('浏览器夹具测试不直接起 vite 开发服务（tests/**/*.test.*）', () => {
   const RULES = ['browser-fixture/no-restricted-imports', 'browser-fixture/no-restricted-syntax']

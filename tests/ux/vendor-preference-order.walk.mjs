@@ -10,6 +10,7 @@ import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { expect } from '@playwright/test'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import { newProjectEntry, switchWorkspace } from './_shell.mjs'
@@ -106,7 +107,7 @@ try {
   await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'ai' } })))
   await win.locator('[data-settings-page="ai"], [data-settings-section="ai-models"]').first().waitFor({ timeout: 8000 })
   const preference = win.locator('[data-vendor-preference-order]'); await preference.waitFor({ timeout: 8000 })
-  check(await win.locator('[data-settings-section="default-generation-models"]').count() === 1,
+  check(await expect(win.locator('[data-settings-section="default-generation-models"]')).toHaveCount(1).then(() => true, () => false),
     '优先供应商与「新建卡片默认模型」同屏（同一族策略住一起）')
   const rows = preference.locator('[data-vendor-preference-row]')
   // 「只列已配置的家」不等于「只列这次种进去的两家」：本机默认还带着免鉴权的本地通道
