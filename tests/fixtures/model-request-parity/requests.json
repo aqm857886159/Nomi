@@ -1,0 +1,3869 @@
+{
+ "recordedFrom": "3795eeab80db560df6e1fb6c7997451fb7e0a219",
+ "excludedHeaders": {
+  "host": "本机假上游的随机端口",
+  "x-stainless-os": "SDK 报的操作系统（Mac / Linux CI 不同）",
+  "x-stainless-arch": "SDK 报的 CPU 架构（arm64 / x64 不同）",
+  "x-stainless-runtime-version": "SDK 报的 Node 小版本（本机与 CI 不同）",
+  "user-agent": "pi 报的操作系统版本与 CPU 架构（本机与 CI 不同）"
+ },
+ "placeholders": {
+  "{{uuid-N}}": "每次开 lane 新起的会话号（请求头 session_id / x-client-request-id、请求体 prompt_cache_key）",
+  "{{projectDir}}": "每次新建的临时项目目录",
+  "{{model}}": "这一行发出去的模型名（行里 model 那一格）"
+ },
+ "headerSets": {
+  "65d4f7499dcd": {
+   "accept": "application/json",
+   "accept-encoding": "gzip, deflate",
+   "accept-language": "*",
+   "authorization": "Bearer sk-parity-fake",
+   "connection": "keep-alive",
+   "content-type": "application/json",
+   "sec-fetch-mode": "cors",
+   "x-stainless-lang": "js",
+   "x-stainless-package-version": "6.40.0",
+   "x-stainless-retry-count": "0",
+   "x-stainless-runtime": "node"
+  },
+  "af3dbdb6fff6": {
+   "accept": "application/json",
+   "accept-encoding": "gzip, deflate",
+   "accept-language": "*",
+   "anthropic-dangerous-direct-browser-access": "true",
+   "anthropic-version": "2023-06-01",
+   "connection": "keep-alive",
+   "content-type": "application/json",
+   "sec-fetch-mode": "cors",
+   "x-api-key": "sk-parity-fake",
+   "x-stainless-lang": "js",
+   "x-stainless-package-version": "0.123.0",
+   "x-stainless-retry-count": "0",
+   "x-stainless-runtime": "node",
+   "x-stainless-timeout": "600"
+  },
+  "eaa9102828f2": {
+   "accept": "application/json",
+   "accept-encoding": "gzip, deflate",
+   "accept-language": "*",
+   "authorization": "Bearer sk-parity-fake",
+   "connection": "keep-alive",
+   "content-type": "application/json",
+   "sec-fetch-mode": "cors",
+   "session_id": "{{uuid-1}}:main",
+   "x-client-request-id": "{{uuid-1}}:main",
+   "x-stainless-lang": "js",
+   "x-stainless-package-version": "6.40.0",
+   "x-stainless-retry-count": "0",
+   "x-stainless-runtime": "node"
+  }
+ },
+ "bodies": {
+  "e102d6ab8353": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false},\"strict\":false}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false},\"strict\":false}}]}",
+  "68abaa942801": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_parity_1\",\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"}}]},{\"role\":\"tool\",\"content\":\"The opening scene.\",\"tool_call_id\":\"call_parity_1\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false},\"strict\":false}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false},\"strict\":false}}]}",
+  "423583cfc4fa": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":0.2,\"max_tokens\":1200}",
+  "3da6b29e459d": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":0.35,\"max_tokens\":1600}",
+  "be9907a18c9c": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\"},{\"role\":\"user\",\"content\":\"Summarise the attached brief.\\n\\n（注：1 个 PDF 未发送——当前模型不支持 PDF 输入。可换 Claude / GPT-4o / Gemini 等模型。）\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false}",
+  "15168fb6707e": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"eager_input_streaming\":true,\"input_schema\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"required\":[]}},{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"eager_input_streaming\":true,\"input_schema\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"]},\"cache_control\":{\"type\":\"ephemeral\"}}],\"max_tokens\":4096}",
+  "df91456323a5": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"call_parity_1\",\"name\":\"read_script\",\"input\":{\"scope\":\"full\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"call_parity_1\",\"content\":\"The opening scene.\",\"is_error\":false,\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"eager_input_streaming\":true,\"input_schema\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"required\":[]}},{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"eager_input_streaming\":true,\"input_schema\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"]},\"cache_control\":{\"type\":\"ephemeral\"}}],\"max_tokens\":4096}",
+  "19d5eaafad45": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"stream\":true,\"temperature\":0.2,\"max_tokens\":1200}",
+  "a6b190a04848": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"stream\":true,\"temperature\":0.35,\"max_tokens\":1600}",
+  "76861c04e18c": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Summarise the attached brief.\"},{\"type\":\"document\",\"source\":{\"type\":\"base64\",\"media_type\":\"application/pdf\",\"data\":\"JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZz4+ZW5kb2JqCnRyYWlsZXI8PC9Sb290IDEgMCBSPj4KJSVFT0YK\"}}]}],\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"NOMI_PARITY_SYSTEM\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"max_tokens\":4096}",
+  "777848610166": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Summarise the attached brief.\\n\\n（注：1 个 PDF 未发送——当前模型不支持 PDF 输入。可换 Claude / GPT-4o / Gemini 等模型。）\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"NOMI_PARITY_SYSTEM\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"max_tokens\":4096}",
+  "9633328eabfb": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false},\"strict\":false}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false},\"strict\":false}}],\"temperature\":1,\"enable_thinking\":false}",
+  "5acc29f445ba": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_parity_1\",\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"}}]},{\"role\":\"tool\",\"content\":\"The opening scene.\",\"tool_call_id\":\"call_parity_1\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false},\"strict\":false}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false},\"strict\":false}}],\"temperature\":1,\"enable_thinking\":false}",
+  "60b4d8196d57": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":1,\"max_tokens\":1200,\"enable_thinking\":false}",
+  "73994fef1213": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":1,\"max_tokens\":1600,\"enable_thinking\":false}",
+  "f9dbc3f8017a": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\"},{\"role\":\"user\",\"content\":\"Summarise the attached brief.\\n\\n（注：1 个 PDF 未发送——当前模型不支持 PDF 输入。可换 Claude / GPT-4o / Gemini 等模型。）\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":1,\"enable_thinking\":false}",
+  "ec80d527c0a5": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false},\"strict\":false}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false},\"strict\":false}}],\"temperature\":1}",
+  "580333f5381b": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_parity_1\",\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"}}]},{\"role\":\"tool\",\"content\":\"The opening scene.\",\"tool_call_id\":\"call_parity_1\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false},\"strict\":false}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false},\"strict\":false}}],\"temperature\":1}",
+  "c7c88fa9764a": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":1,\"max_tokens\":1200}",
+  "c46de5fc4de4": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":1,\"max_tokens\":1600}",
+  "cf724dda2fbe": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\"},{\"role\":\"user\",\"content\":\"Summarise the attached brief.\\n\\n（注：1 个 PDF 未发送——当前模型不支持 PDF 输入。可换 Claude / GPT-4o / Gemini 等模型。）\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":1}",
+  "ac8a7d9037b9": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"prompt_cache_key\":\"{{uuid-1}}:main\",\"store\":false,\"tools\":[{\"type\":\"function\",\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}},{\"type\":\"function\",\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}]}",
+  "6d835c1a1095": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Read the script, then summarise it.\"}]},{\"type\":\"function_call\",\"id\":\"fc_call_parity_1\",\"call_id\":\"call_parity_1\",\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_parity_1\",\"output\":\"The opening scene.\"}],\"stream\":true,\"prompt_cache_key\":\"{{uuid-1}}:main\",\"store\":false,\"tools\":[{\"type\":\"function\",\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}},{\"type\":\"function\",\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}]}",
+  "5e7f86ab6dd0": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Describe these frames.\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}]}],\"stream\":true,\"store\":false,\"temperature\":0.2,\"max_output_tokens\":1200}",
+  "8b335e83c61d": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Describe these frames.\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}]}],\"stream\":true,\"store\":false,\"temperature\":0.35,\"max_output_tokens\":1600}",
+  "c4d27df06c25": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Summarise the attached brief.\"},{\"type\":\"input_file\",\"filename\":\"brief.pdf\",\"file_data\":\"data:application/pdf;base64,JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZz4+ZW5kb2JqCnRyYWlsZXI8PC9Sb290IDEgMCBSPj4KJSVFT0YK\"}]}],\"stream\":true,\"store\":false}",
+  "74dca6593d13": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Summarise the attached brief.\\n\\n（注：1 个 PDF 未发送——当前模型不支持 PDF 输入。可换 Claude / GPT-4o / Gemini 等模型。）\"}]}],\"stream\":true,\"store\":false}",
+  "ea0dfa55a32f": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"prompt_cache_key\":\"{{uuid-1}}:main\",\"store\":false,\"tools\":[{\"type\":\"function\",\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}},{\"type\":\"function\",\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}],\"temperature\":1}",
+  "05d4e3b92e17": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Read the script, then summarise it.\"}]},{\"type\":\"function_call\",\"id\":\"fc_call_parity_1\",\"call_id\":\"call_parity_1\",\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_parity_1\",\"output\":\"The opening scene.\"}],\"stream\":true,\"prompt_cache_key\":\"{{uuid-1}}:main\",\"store\":false,\"tools\":[{\"type\":\"function\",\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}},{\"type\":\"function\",\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}],\"temperature\":1}",
+  "402304e55a39": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Describe these frames.\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}]}],\"stream\":true,\"store\":false,\"temperature\":1,\"max_output_tokens\":1200}",
+  "ea9592f4c80b": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Describe these frames.\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}]}],\"stream\":true,\"store\":false,\"temperature\":1,\"max_output_tokens\":1600}",
+  "751d534e5d31": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Summarise the attached brief.\"},{\"type\":\"input_file\",\"filename\":\"brief.pdf\",\"file_data\":\"data:application/pdf;base64,JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZz4+ZW5kb2JqCnRyYWlsZXI8PC9Sb290IDEgMCBSPj4KJSVFT0YK\"}]}],\"stream\":true,\"store\":false,\"temperature\":1}"
+ },
+ "rows": {
+  "builtin/agnes/agnes-2.0-flash": {
+   "model": "agnes-2.0-flash",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3731",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3970",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "706",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "707",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "335",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/agnes/agnes-2.5-flash": {
+   "model": "agnes-2.5-flash",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3731",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3970",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "706",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "707",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "335",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/agnes/agnes-2.5-pro": {
+   "model": "agnes-2.5-pro",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3729",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3968",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "704",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "333",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/agnes/agnes-2.5-pro-alpha": {
+   "model": "agnes-2.5-pro-alpha",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3735",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3974",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "710",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "711",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "339",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/agnes/agnes-2.5-pro-beta": {
+   "model": "agnes-2.5-pro-beta",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3734",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3973",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "709",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "710",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "338",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/claude-fable-5.1": {
+   "model": "claude-fable-5.1",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3732",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3971",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "707",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "708",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "336",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/claude-haiku-5-5": {
+   "model": "claude-haiku-5-5",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3732",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3971",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "707",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "708",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "336",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/claude-opus-5-5": {
+   "model": "claude-opus-5-5",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3731",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3970",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "706",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "707",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "335",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/claude-sonnet-5-5": {
+   "model": "claude-sonnet-5-5",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3733",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3972",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "708",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "709",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "337",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/deepseek-v4-flash": {
+   "model": "deepseek-v4-flash",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3733",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3972",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "708",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "709",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "337",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/deepseek-v4-pro": {
+   "model": "deepseek-v4-pro",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3731",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3970",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "706",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "707",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "335",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/deepseek-v4.1-flash": {
+   "model": "deepseek-v4.1-flash",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3735",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3974",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "710",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "711",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "339",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/gemini-3.5-flash": {
+   "model": "gemini-3.5-flash",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3732",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3971",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "707",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "708",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "336",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/gemini-3.8-flash": {
+   "model": "gemini-3.8-flash",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3732",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3971",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "707",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "708",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "336",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/gemini-4-argon": {
+   "model": "gemini-4-argon",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3730",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3969",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "706",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "334",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/glm-5.3": {
+   "model": "glm-5.3",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3723",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3962",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "698",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "699",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "327",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/glm-5.3-flash": {
+   "model": "glm-5.3-flash",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3729",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3968",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "704",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "333",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/gpt-6-astra": {
+   "model": "gpt-6-astra",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3727",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3966",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "703",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "331",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/gpt-6-luna": {
+   "model": "gpt-6-luna",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3726",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3965",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "701",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "330",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/gpt-6.1-sol": {
+   "model": "gpt-6.1-sol",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3727",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3966",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "703",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "331",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/gpt-6.1-terra": {
+   "model": "gpt-6.1-terra",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3729",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3968",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "704",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "333",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/grok-4.7": {
+   "model": "grok-4.7",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3724",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3963",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "699",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "700",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "328",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/kimi-k3": {
+   "model": "kimi-k3",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3723",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3962",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "698",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "699",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "327",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/MiniMax-H3-Context-IR": {
+   "model": "MiniMax-H3-Context-IR",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3737",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3976",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "712",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "713",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "341",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/minimax-m3": {
+   "model": "minimax-m3",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3726",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3965",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "701",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "330",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/qwen3.8-2.4t-a95b": {
+   "model": "qwen3.8-2.4t-a95b",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3733",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3972",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "708",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "709",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "337",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/qwen3.8-27b": {
+   "model": "qwen3.8-27b",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3727",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3966",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "703",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "331",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/qwen3.8-flash": {
+   "model": "qwen3.8-flash",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3729",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3968",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "704",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "333",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/qwen3.8-max": {
+   "model": "qwen3.8-max",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3727",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3966",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "703",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "331",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/apimart/step-3.7-flash": {
+   "model": "step-3.7-flash",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3730",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3969",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "706",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "334",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/minimax/MiniMax-M3": {
+   "model": "MiniMax-M3",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3726",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3965",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "701",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "330",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/modelscope/Qwen/Qwen3-30B-A3B": {
+   "model": "Qwen/Qwen3-30B-A3B",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3734",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3973",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "709",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "710",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "338",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/modelscope/Qwen/Qwen3-8B": {
+   "model": "Qwen/Qwen3-8B",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3729",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3968",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "704",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "333",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "builtin/modelscope/Qwen/Qwen3-Next-80B-A3B-Instruct": {
+   "model": "Qwen/Qwen3-Next-80B-A3B-Instruct",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3748",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3987",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "723",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "724",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "352",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.0/anthropic/local-39017/claude-3-5-sonnet-20241022": {
+   "model": "claude-3-5-sonnet-20241022",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3749",
+     "body": "15168fb6707e"
+    },
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3998",
+     "body": "df91456323a5"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "739",
+     "body": "19d5eaafad45"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "740",
+     "body": "a6b190a04848"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "438",
+     "body": "76861c04e18c"
+    }
+   ]
+  },
+  "v0.24.0/anthropic/local-39017/claude-3-7-sonnet-20250219": {
+   "model": "claude-3-7-sonnet-20250219",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3749",
+     "body": "15168fb6707e"
+    },
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3998",
+     "body": "df91456323a5"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "739",
+     "body": "19d5eaafad45"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "740",
+     "body": "a6b190a04848"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "438",
+     "body": "76861c04e18c"
+    }
+   ]
+  },
+  "v0.24.0/anthropic/local-39017/claude-3-haiku-20240307": {
+   "model": "claude-3-haiku-20240307",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3746",
+     "body": "15168fb6707e"
+    },
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3995",
+     "body": "df91456323a5"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "736",
+     "body": "19d5eaafad45"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "737",
+     "body": "a6b190a04848"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "412",
+     "body": "777848610166"
+    }
+   ]
+  },
+  "v0.24.0/anthropic/local-39017/claude-haiku-4-5": {
+   "model": "claude-haiku-4-5",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3739",
+     "body": "15168fb6707e"
+    },
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3988",
+     "body": "df91456323a5"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "729",
+     "body": "19d5eaafad45"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "730",
+     "body": "a6b190a04848"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "428",
+     "body": "76861c04e18c"
+    }
+   ]
+  },
+  "v0.24.0/anthropic/local-39017/claude-opus-4-1": {
+   "model": "claude-opus-4-1",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3738",
+     "body": "15168fb6707e"
+    },
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3987",
+     "body": "df91456323a5"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "728",
+     "body": "19d5eaafad45"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "729",
+     "body": "a6b190a04848"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "427",
+     "body": "76861c04e18c"
+    }
+   ]
+  },
+  "v0.24.0/anthropic/local-39017/claude-sonnet-4-5": {
+   "model": "claude-sonnet-4-5",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3740",
+     "body": "15168fb6707e"
+    },
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3989",
+     "body": "df91456323a5"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "730",
+     "body": "19d5eaafad45"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "731",
+     "body": "a6b190a04848"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "429",
+     "body": "76861c04e18c"
+    }
+   ]
+  },
+  "v0.24.0/chat/local-39017/claude-3-5-haiku-20241022": {
+   "model": "claude-3-5-haiku-20241022",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3741",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3980",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "716",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "717",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "345",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.0/chat/local-39017/deepseek-chat": {
+   "model": "deepseek-chat",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3729",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3968",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "704",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "333",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.0/chat/local-39017/gemini-2.5-flash": {
+   "model": "gemini-2.5-flash",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3732",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3971",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "707",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "708",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "336",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.0/chat/local-39017/gpt-4o-mini": {
+   "model": "gpt-4o-mini",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3727",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3966",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "703",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "331",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.0/chat/local-39017/gpt-5-mini": {
+   "model": "gpt-5-mini",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3726",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3965",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "701",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "330",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.0/chat/local-39017/kimi-k2-0905-preview": {
+   "model": "kimi-k2-0905-preview",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3776",
+     "body": "9633328eabfb"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "4015",
+     "body": "5acc29f445ba"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "733",
+     "body": "60b4d8196d57"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "733",
+     "body": "73994fef1213"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "380",
+     "body": "f9dbc3f8017a"
+    }
+   ]
+  },
+  "v0.24.0/chat/local-39017/kimi-latest": {
+   "model": "kimi-latest",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3727",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3966",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "703",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "331",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.0/chat/local-39017/kimi-thinking-preview": {
+   "model": "kimi-thinking-preview",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3737",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3976",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "712",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "713",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "341",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.0/chat/local-39017/moonshot-v1-8k": {
+   "model": "moonshot-v1-8k",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3730",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3969",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "706",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "334",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.0/chat/local-39017/o1-mini": {
+   "model": "o1-mini",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3739",
+     "body": "ec80d527c0a5"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3978",
+     "body": "580333f5381b"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "696",
+     "body": "c7c88fa9764a"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "696",
+     "body": "c46de5fc4de4"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "343",
+     "body": "cf724dda2fbe"
+    }
+   ]
+  },
+  "v0.24.0/chat/local-39017/o3-mini": {
+   "model": "o3-mini",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3739",
+     "body": "ec80d527c0a5"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3978",
+     "body": "580333f5381b"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "696",
+     "body": "c7c88fa9764a"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "696",
+     "body": "c46de5fc4de4"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "343",
+     "body": "cf724dda2fbe"
+    }
+   ]
+  },
+  "v0.24.0/responses/local-39017/gemini-2.5-pro": {
+   "model": "gemini-2.5-pro",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3700",
+     "body": "ac8a7d9037b9"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3919",
+     "body": "6d835c1a1095"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "5e7f86ab6dd0"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "706",
+     "body": "8b335e83c61d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "382",
+     "body": "c4d27df06c25"
+    }
+   ]
+  },
+  "v0.24.0/responses/local-39017/gpt-4.1": {
+   "model": "gpt-4.1",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3693",
+     "body": "ac8a7d9037b9"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3912",
+     "body": "6d835c1a1095"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "698",
+     "body": "5e7f86ab6dd0"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "699",
+     "body": "8b335e83c61d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "375",
+     "body": "c4d27df06c25"
+    }
+   ]
+  },
+  "v0.24.0/responses/local-39017/gpt-4o": {
+   "model": "gpt-4o",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3692",
+     "body": "ac8a7d9037b9"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3911",
+     "body": "6d835c1a1095"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "697",
+     "body": "5e7f86ab6dd0"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "698",
+     "body": "8b335e83c61d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "374",
+     "body": "c4d27df06c25"
+    }
+   ]
+  },
+  "v0.24.0/responses/local-39017/gpt-5": {
+   "model": "gpt-5",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3691",
+     "body": "ac8a7d9037b9"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3910",
+     "body": "6d835c1a1095"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "696",
+     "body": "5e7f86ab6dd0"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "697",
+     "body": "8b335e83c61d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "313",
+     "body": "74dca6593d13"
+    }
+   ]
+  },
+  "v0.24.0/responses/local-39017/o1": {
+   "model": "o1",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3704",
+     "body": "ea0dfa55a32f"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3923",
+     "body": "05d4e3b92e17"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "691",
+     "body": "402304e55a39"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "691",
+     "body": "ea9592f4c80b"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "386",
+     "body": "751d534e5d31"
+    }
+   ]
+  },
+  "v0.24.0/responses/local-39017/o3": {
+   "model": "o3",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3704",
+     "body": "ea0dfa55a32f"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3923",
+     "body": "05d4e3b92e17"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "691",
+     "body": "402304e55a39"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "691",
+     "body": "ea9592f4c80b"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "386",
+     "body": "751d534e5d31"
+    }
+   ]
+  },
+  "v0.24.0/responses/local-39017/o4-mini": {
+   "model": "o4-mini",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3693",
+     "body": "ac8a7d9037b9"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3912",
+     "body": "6d835c1a1095"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "698",
+     "body": "5e7f86ab6dd0"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "699",
+     "body": "8b335e83c61d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "375",
+     "body": "c4d27df06c25"
+    }
+   ]
+  },
+  "v0.24.1/anthropic/local-39017/claude-3-5-sonnet-20241022": {
+   "model": "claude-3-5-sonnet-20241022",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3749",
+     "body": "15168fb6707e"
+    },
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3998",
+     "body": "df91456323a5"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "739",
+     "body": "19d5eaafad45"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "740",
+     "body": "a6b190a04848"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "438",
+     "body": "76861c04e18c"
+    }
+   ]
+  },
+  "v0.24.1/anthropic/local-39017/claude-3-7-sonnet-20250219": {
+   "model": "claude-3-7-sonnet-20250219",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3749",
+     "body": "15168fb6707e"
+    },
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3998",
+     "body": "df91456323a5"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "739",
+     "body": "19d5eaafad45"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "740",
+     "body": "a6b190a04848"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "438",
+     "body": "76861c04e18c"
+    }
+   ]
+  },
+  "v0.24.1/anthropic/local-39017/claude-3-haiku-20240307": {
+   "model": "claude-3-haiku-20240307",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3746",
+     "body": "15168fb6707e"
+    },
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3995",
+     "body": "df91456323a5"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "736",
+     "body": "19d5eaafad45"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "737",
+     "body": "a6b190a04848"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "412",
+     "body": "777848610166"
+    }
+   ]
+  },
+  "v0.24.1/anthropic/local-39017/claude-haiku-4-5": {
+   "model": "claude-haiku-4-5",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3739",
+     "body": "15168fb6707e"
+    },
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3988",
+     "body": "df91456323a5"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "729",
+     "body": "19d5eaafad45"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "730",
+     "body": "a6b190a04848"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "428",
+     "body": "76861c04e18c"
+    }
+   ]
+  },
+  "v0.24.1/anthropic/local-39017/claude-opus-4-1": {
+   "model": "claude-opus-4-1",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3738",
+     "body": "15168fb6707e"
+    },
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3987",
+     "body": "df91456323a5"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "728",
+     "body": "19d5eaafad45"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "729",
+     "body": "a6b190a04848"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "427",
+     "body": "76861c04e18c"
+    }
+   ]
+  },
+  "v0.24.1/anthropic/local-39017/claude-sonnet-4-5": {
+   "model": "claude-sonnet-4-5",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3740",
+     "body": "15168fb6707e"
+    },
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "3989",
+     "body": "df91456323a5"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "730",
+     "body": "19d5eaafad45"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "731",
+     "body": "a6b190a04848"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/claude/v1/messages?beta=true",
+     "headers": "af3dbdb6fff6",
+     "contentLength": "429",
+     "body": "76861c04e18c"
+    }
+   ]
+  },
+  "v0.24.1/chat/local-39017/claude-3-5-haiku-20241022": {
+   "model": "claude-3-5-haiku-20241022",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3741",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3980",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "716",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "717",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "345",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.1/chat/local-39017/deepseek-chat": {
+   "model": "deepseek-chat",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3729",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3968",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "704",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "333",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.1/chat/local-39017/gemini-2.5-flash": {
+   "model": "gemini-2.5-flash",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3732",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3971",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "707",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "708",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "336",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.1/chat/local-39017/gpt-4o-mini": {
+   "model": "gpt-4o-mini",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3727",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3966",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "703",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "331",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.1/chat/local-39017/gpt-5-mini": {
+   "model": "gpt-5-mini",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3726",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3965",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "701",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "330",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.1/chat/local-39017/kimi-k2-0905-preview": {
+   "model": "kimi-k2-0905-preview",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3776",
+     "body": "9633328eabfb"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "4015",
+     "body": "5acc29f445ba"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "733",
+     "body": "60b4d8196d57"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "733",
+     "body": "73994fef1213"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "380",
+     "body": "f9dbc3f8017a"
+    }
+   ]
+  },
+  "v0.24.1/chat/local-39017/kimi-latest": {
+   "model": "kimi-latest",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3727",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3966",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "702",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "703",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "331",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.1/chat/local-39017/kimi-thinking-preview": {
+   "model": "kimi-thinking-preview",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3737",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3976",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "712",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "713",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "341",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.1/chat/local-39017/moonshot-v1-8k": {
+   "model": "moonshot-v1-8k",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3730",
+     "body": "e102d6ab8353"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3969",
+     "body": "68abaa942801"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "423583cfc4fa"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "706",
+     "body": "3da6b29e459d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "334",
+     "body": "be9907a18c9c"
+    }
+   ]
+  },
+  "v0.24.1/chat/local-39017/o1-mini": {
+   "model": "o1-mini",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3739",
+     "body": "ec80d527c0a5"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3978",
+     "body": "580333f5381b"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "696",
+     "body": "c7c88fa9764a"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "696",
+     "body": "c46de5fc4de4"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "343",
+     "body": "cf724dda2fbe"
+    }
+   ]
+  },
+  "v0.24.1/chat/local-39017/o3-mini": {
+   "model": "o3-mini",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3739",
+     "body": "ec80d527c0a5"
+    },
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "3978",
+     "body": "580333f5381b"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "696",
+     "body": "c7c88fa9764a"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "696",
+     "body": "c46de5fc4de4"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/v1/chat/completions",
+     "headers": "65d4f7499dcd",
+     "contentLength": "343",
+     "body": "cf724dda2fbe"
+    }
+   ]
+  },
+  "v0.24.1/responses/local-39017/gemini-2.5-pro": {
+   "model": "gemini-2.5-pro",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3700",
+     "body": "ac8a7d9037b9"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3919",
+     "body": "6d835c1a1095"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "705",
+     "body": "5e7f86ab6dd0"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "706",
+     "body": "8b335e83c61d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "382",
+     "body": "c4d27df06c25"
+    }
+   ]
+  },
+  "v0.24.1/responses/local-39017/gpt-4.1": {
+   "model": "gpt-4.1",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3693",
+     "body": "ac8a7d9037b9"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3912",
+     "body": "6d835c1a1095"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "698",
+     "body": "5e7f86ab6dd0"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "699",
+     "body": "8b335e83c61d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "375",
+     "body": "c4d27df06c25"
+    }
+   ]
+  },
+  "v0.24.1/responses/local-39017/gpt-4o": {
+   "model": "gpt-4o",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3692",
+     "body": "ac8a7d9037b9"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3911",
+     "body": "6d835c1a1095"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "697",
+     "body": "5e7f86ab6dd0"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "698",
+     "body": "8b335e83c61d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "374",
+     "body": "c4d27df06c25"
+    }
+   ]
+  },
+  "v0.24.1/responses/local-39017/gpt-5": {
+   "model": "gpt-5",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3691",
+     "body": "ac8a7d9037b9"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3910",
+     "body": "6d835c1a1095"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "696",
+     "body": "5e7f86ab6dd0"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "697",
+     "body": "8b335e83c61d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "313",
+     "body": "74dca6593d13"
+    }
+   ]
+  },
+  "v0.24.1/responses/local-39017/o1": {
+   "model": "o1",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3704",
+     "body": "ea0dfa55a32f"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3923",
+     "body": "05d4e3b92e17"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "691",
+     "body": "402304e55a39"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "691",
+     "body": "ea9592f4c80b"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "386",
+     "body": "751d534e5d31"
+    }
+   ]
+  },
+  "v0.24.1/responses/local-39017/o3": {
+   "model": "o3",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3704",
+     "body": "ea0dfa55a32f"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3923",
+     "body": "05d4e3b92e17"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "691",
+     "body": "402304e55a39"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "691",
+     "body": "ea9592f4c80b"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "386",
+     "body": "751d534e5d31"
+    }
+   ]
+  },
+  "v0.24.1/responses/local-39017/o4-mini": {
+   "model": "o4-mini",
+   "lane": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3693",
+     "body": "ac8a7d9037b9"
+    },
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "eaa9102828f2",
+     "contentLength": "3912",
+     "body": "6d835c1a1095"
+    }
+   ],
+   "one-shot": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "698",
+     "body": "5e7f86ab6dd0"
+    }
+   ],
+   "stream": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "699",
+     "body": "8b335e83c61d"
+    }
+   ],
+   "pdf": [
+    {
+     "method": "POST",
+     "path": "/resp/v1/responses",
+     "headers": "65d4f7499dcd",
+     "contentLength": "375",
+     "body": "c4d27df06c25"
+    }
+   ]
+  }
+ }
+}

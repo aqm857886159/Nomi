@@ -4,7 +4,7 @@
 //   ① 暂停点①设计卡：PR 正文 `## 设计卡` 是否填全（四类 9 格，其余只查 ★ 格 1、2、3、4、9）；
 //   ② 暂停点②独立验收：四类的 PR 正文 `## 独立验收` 是否带报告链接，且验收线编号不同于实现线；
 //   ③ 本 PR 把逃逸账本条目转成 fixed 时，有没有带 detected_by 的根因合同（判据看账本状态转换，不看正文用词）；
-//   ④ 路径推出「花钱」类的 PR，`## 验收证据` 里有没有 `spend-paid-sample：<运行号 / 报告链接>` 或 `spend-paid-sample：协调豁免：<理由>`（不接受「未验证」）。
+//   ④ 路径推出「花钱」类的 PR，`## 验收证据` 里有没有 `spend-paid-sample：<运行号 / 报告链接>` 或 `spend-paid-sample：协调豁免：<理由>`（与 CI 共用唯一解析器，合并档不放行「未验证」并醒目打印豁免）。
 //   ⑤ 「PR Body」检查（.github/workflows/pr-body.yml，合并档正文判据，正文一改自动重判）在 PR 当前 head 上最新一次是绿的（2026-11-07）：
 //      它和上面①–④是同一份判据（evaluatePrBody）在 GitHub 上的结果；这里要求它绿，是让「GitHub 上显示可以合」和合并前扫描说的是一回事，
 //      没跑过（老 PR）、在跑、红、取消都拒合，读法在 scripts/lib/prBodyCheck.mjs。
@@ -209,7 +209,7 @@ function run(argv, exec, git, root) {
     createdAt: Number(prArg) === RULES_INTRODUCED_BY_PR ? null : view.createdAt,
     enforce: argv.includes('--enforce'), // --enforce：假设路由规则已生效，看这个 PR 会不会红（回放用）
     scenarios,
-    // 花钱类的真付费抽检只在这一道严格判：「未验证」与裸 PR 号都不放行（#1203 就是这样被合进来的）
+    // 花钱类的真付费抽检与 CI 共用唯一解析器；合并档（paidStrict: true）不放行「未验证」并醒目打印协调豁免（#1203 就是写「未验证」被合进来的）
     paidStrict: true,
     // 证据判「对不对」的输入（取数在这里，判据在 pr-body-criteria）：PR 当前 head、报告 / 原始结果怎么读、拍板图清单
     evidence: {

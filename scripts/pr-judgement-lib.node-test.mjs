@@ -22,6 +22,7 @@ import {
   isMissingTool,
   loadRoutingTable,
   paidSampleVerdict,
+  parsePaidSampleLine,
   requiredEvidence,
   routingEnforced,
   processTieringEnforced,
@@ -291,6 +292,163 @@ test('整体：花钱类 PR 过 evaluatePrJudgement：paidStrict 才把「未验
   // 补上运行号就过
   const fixed = body.replace('未验证：待协调', 'run 987654')
   assert.equal(evaluatePrJudgement({ body: fixed, files, createdAt: '2026-10-16T00:00:00Z', table, paidStrict: true }).blocked, false)
+})
+
+test('真付费抽检唯一解析器（CI 档与合并档同口径）：全部 5 种情形逐条核实', () => {
+  const rest = '- spend-walks：tests/ux/agent-spend-card.walk.mjs\n- spend-fault-injection：tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs\n'
+  const evidence = (paidLine) => `## 验收证据\n${rest}${paidLine}\n`
+  const files = [M('electron/capabilityCore/generationSpendDecision.ts')]
+  const prBody = (paidLine) => `## 设计卡\nx\n### 功能分类\n- [x] 花钱\n\n${evidence(paidLine)}`
+  const ciEvidence = (paidLine) => checkRoutingEvidence(evidence(paidLine), ['spend'], table)
+  const mergeEvidence = (paidLine) => checkRoutingEvidence(evidence(paidLine), ['spend'], table, null, null, { paidStrict: true })
+  const ciJudge = (paidLine) => evaluatePrJudgement({ body: prBody(paidLine), files, createdAt: '2026-10-16T00:00:00Z', table })
+  const mergeJudge = (paidLine) => evaluatePrJudgement({ body: prBody(paidLine), files, createdAt: '2026-10-16T00:00:00Z', table, paidStrict: true })
+
+  // 1) 只有纯文字协调豁免（无链接 / 路径）：CI 绿、合并绿、合并打 ⚠ 提示；加粗与正文含「未验证」字样仍判 waiver；1-2 字加尾随空格不得绕过 ≥3 字校验
+  for (const [waiverLine, expectedReason] of [
+    ['- spend-paid-sample：协调豁免：只改文案不碰供应商', '只改文案不碰供应商'],
+    ['- spend-paid-sample：**协调豁免**：只改文案不碰供应商', '只改文案不碰供应商'],
+    ['- spend-paid-sample：协调豁免：未验证，本次仅改文案', '未验证，本次仅改文案'],
+  ]) {
+    assert.deepEqual(parsePaidSampleLine(waiverLine), { kind: 'waiver', reason: expectedReason }, waiverLine)
+    assert.equal(paidSampleVerdict(waiverLine, { allowUnverified: true }).ok, true, waiverLine)
+    assert.equal(paidSampleVerdict(waiverLine, { allowUnverified: false }).ok, true, waiverLine)
+    assert.equal(paidSampleVerdict(waiverLine).waived, true, waiverLine)
+    assert.equal(ciEvidence(waiverLine).ok, true, `checkRoutingEvidence CI 档应接受纯文字协调豁免：${waiverLine}`)
+    const mergeWaived = mergeEvidence(waiverLine)
+    assert.equal(mergeWaived.ok, true, `checkRoutingEvidence 合并档应接受纯文字协调豁免：${waiverLine}`)
+    assert.match(mergeWaived.lines.join('\n'), new RegExp(`⚠ spend-paid-sample：协调豁免——${expectedReason}`))
+    assert.equal(ciJudge(waiverLine).blocked, false, `evaluatePrJudgement CI 档应接受纯文字协调豁免：${waiverLine}`)
+    const mergeJudgeWaived = mergeJudge(waiverLine)
+    assert.equal(mergeJudgeWaived.blocked, false, waiverLine)
+    assert.match(mergeJudgeWaived.routing.lines.join('\n'), new RegExp(`⚠ spend-paid-sample：协调豁免——${expectedReason}`))
+  }
+  for (const shortWaiver of ['- spend-paid-sample：协调豁免：无  ', '- spend-paid-sample：协调豁免：两个 ']) {
+    assert.equal(parsePaidSampleLine(shortWaiver).kind, 'invalid', shortWaiver)
+    assert.equal(paidSampleVerdict(shortWaiver, { allowUnverified: true }).ok, false, shortWaiver)
+    assert.equal(paidSampleVerdict(shortWaiver, { allowUnverified: false }).ok, false, shortWaiver)
+    assert.equal(ciEvidence(shortWaiver).ok, false, shortWaiver)
+    assert.equal(mergeEvidence(shortWaiver).ok, false, shortWaiver)
+    assert.equal(ciJudge(shortWaiver).blocked, true, shortWaiver)
+    assert.equal(mergeJudge(shortWaiver).blocked, true, shortWaiver)
+  }
+
+  // 2) 「未验证：<原因>」：CI 绿（且计数未验证正确）、合并红；未验证后附链接或「协调豁免：」字样仍判 unverified 而不是 proof/waiver；缺原因或 1 字原因两档都红
+  for (const unverifiedLine of [
+    '- spend-paid-sample：未验证：待协调真付费',
+    '- spend-paid-sample：未验证：真付费还没跑 https://example.com/x',
+    '- spend-paid-sample：未验证：待申请协调豁免：还没跑',
+  ]) {
+    assert.equal(parsePaidSampleLine(unverifiedLine).kind, 'unverified', unverifiedLine)
+    assert.equal(paidSampleVerdict(unverifiedLine, { allowUnverified: true }).ok, true, unverifiedLine)
+    assert.equal(paidSampleVerdict(unverifiedLine, { allowUnverified: true }).unverified, true, unverifiedLine)
+    assert.equal(paidSampleVerdict(unverifiedLine, { allowUnverified: false }).ok, false, unverifiedLine)
+    const ciRes = ciEvidence(unverifiedLine)
+    assert.equal(ciRes.ok, true, unverifiedLine)
+    assert.match(ciRes.lines.join('\n'), /实证 2，未验证 1/, unverifiedLine)
+    assert.equal(mergeEvidence(unverifiedLine).ok, false, unverifiedLine)
+    assert.equal(ciJudge(unverifiedLine).blocked, false, unverifiedLine)
+    assert.equal(mergeJudge(unverifiedLine).blocked, true, unverifiedLine)
+  }
+  for (const badUnverified of ['- spend-paid-sample：未验证：', '- spend-paid-sample：未验证：无']) {
+    assert.equal(parsePaidSampleLine(badUnverified).kind, 'unverified-incomplete', badUnverified)
+    assert.equal(paidSampleVerdict(badUnverified, { allowUnverified: true }).ok, false, badUnverified)
+    assert.equal(paidSampleVerdict(badUnverified, { allowUnverified: false }).ok, false, badUnverified)
+    assert.equal(ciEvidence(badUnverified).ok, false, badUnverified)
+    assert.equal(mergeEvidence(badUnverified).ok, false, badUnverified)
+    assert.equal(ciJudge(badUnverified).blocked, true, badUnverified)
+    assert.equal(mergeJudge(badUnverified).blocked, true, badUnverified)
+  }
+
+  // 3) 只有裸 PR 号：两档都红
+  const barePrLine = '- spend-paid-sample：#1203'
+  assert.equal(parsePaidSampleLine(barePrLine).kind, 'invalid')
+  assert.equal(paidSampleVerdict(barePrLine, { allowUnverified: true }).ok, false)
+  assert.equal(paidSampleVerdict(barePrLine, { allowUnverified: false }).ok, false)
+  assert.equal(ciEvidence(barePrLine).ok, false, 'checkRoutingEvidence CI 档应拒裸 PR 号')
+  assert.equal(mergeEvidence(barePrLine).ok, false, 'checkRoutingEvidence 合并档应拒裸 PR 号')
+  assert.equal(ciJudge(barePrLine).blocked, true, 'evaluatePrJudgement CI 档应拒裸 PR 号')
+  assert.equal(mergeJudge(barePrLine).blocked, true, 'evaluatePrJudgement 合并档应拒裸 PR 号')
+
+  // 4) 真运行链接 / 运行号 / 报告路径：两档都绿
+  for (const proofLine of [
+    '- spend-paid-sample：https://github.com/o/r/actions/runs/12345',
+    '- spend-paid-sample：run 987654',
+    '- spend-paid-sample：报告 reports/G-paidkey.md',
+  ]) {
+    assert.equal(parsePaidSampleLine(proofLine).kind, 'proof', proofLine)
+    assert.equal(paidSampleVerdict(proofLine, { allowUnverified: true }).ok, true, proofLine)
+    assert.equal(paidSampleVerdict(proofLine, { allowUnverified: false }).ok, true, proofLine)
+    assert.equal(ciEvidence(proofLine).ok, true, proofLine)
+    assert.equal(mergeEvidence(proofLine).ok, true, proofLine)
+    assert.equal(ciJudge(proofLine).blocked, false, proofLine)
+    assert.equal(mergeJudge(proofLine).blocked, false, proofLine)
+  }
+
+  // 5) 不以 spend-paid-sample：开头的别名行：两档都不认
+  for (const aliasLine of ['- 真付费：run 987654', '- paid：https://example.com/report']) {
+    assert.equal(parsePaidSampleLine(aliasLine).kind, 'not-paid-sample-line', aliasLine)
+    assert.equal(paidSampleVerdict(aliasLine, { allowUnverified: true }).ok, false, aliasLine)
+    assert.equal(paidSampleVerdict(aliasLine, { allowUnverified: false }).ok, false, aliasLine)
+    assert.equal(ciEvidence(aliasLine).ok, false, aliasLine)
+    assert.equal(mergeEvidence(aliasLine).ok, false, aliasLine)
+    assert.equal(ciJudge(aliasLine).blocked, true, aliasLine)
+    assert.equal(mergeJudge(aliasLine).blocked, true, aliasLine)
+  }
+})
+
+test('类级防复发：路由表全部证据项在 paidStrict false / true 下除 spend-paid-sample 的未验证外完全一致', () => {
+  const createdAt = '2026-10-25T00:00:00Z'
+  const validLineFor = (id) => {
+    if (id === 'perf-scenario') return '- perf-scenario：不适用：本次类级测试不涉及性能热路径'
+    if (id === 'upgrade-path') return '- upgrade-path：tests/fixtures/old-user-data/catalogs 跑过'
+    if (id === 'spend-paid-sample') return '- spend-paid-sample：run 987654'
+    return `- ${id}：https://example.com/evidence/${id}`
+  }
+
+  for (const [categoryId, def] of Object.entries(table.categories)) {
+    const items = def.evidence ?? []
+    for (const item of items) {
+      const others = items.filter((other) => other.id !== item.id).map((other) => validLineFor(other.id))
+      if (item.id === 'spend-paid-sample') {
+        // spend-paid-sample 两档共享同一格式口径，仅「未验证：<原因>」按档位区分
+        const runBoth = (line) => {
+          const body = `## 验收证据\n${[...others, line].join('\n')}\n`
+          return {
+            ci: checkRoutingEvidence(body, [categoryId], table, createdAt, null, { paidStrict: false }),
+            merge: checkRoutingEvidence(body, [categoryId], table, createdAt, null, { paidStrict: true }),
+          }
+        }
+        const waived = runBoth('- spend-paid-sample：协调豁免：只改文案不碰供应商')
+        assert.equal(waived.ci.ok, true)
+        assert.equal(waived.merge.ok, true)
+        const barePr = runBoth('- spend-paid-sample：#1203')
+        assert.equal(barePr.ci.ok, false)
+        assert.equal(barePr.merge.ok, false)
+        const link = runBoth('- spend-paid-sample：https://github.com/o/r/actions/runs/12345')
+        assert.equal(link.ci.ok, true)
+        assert.equal(link.merge.ok, true)
+        const unverified = runBoth('- spend-paid-sample：未验证：待协调真付费')
+        assert.equal(unverified.ci.ok, true)
+        assert.equal(unverified.merge.ok, false)
+        continue
+      }
+
+      // 其余所有证据项在 paidStrict: false 与 paidStrict: true 下结果完全一致
+      const samples = [
+        validLineFor(item.id),
+        `- ${item.id}：未验证：类级测试占位原因`,
+        `- ${item.id}：#1203`,
+        '',
+      ]
+      for (const sample of samples) {
+        const body = `## 验收证据\n${[...others, ...(sample ? [sample] : [])].join('\n')}\n`
+        const ci = checkRoutingEvidence(body, [categoryId], table, createdAt, null, { paidStrict: false })
+        const merge = checkRoutingEvidence(body, [categoryId], table, createdAt, null, { paidStrict: true })
+        assert.deepEqual(merge, ci, `${categoryId}/${item.id} 在 sample="${sample}" 下两档结果应完全一致`)
+      }
+    }
+  }
 })
 
 test('整体：路径推出的类别没勾 → 红；勾全且证据齐 → 绿；规则生效日之前开的 PR 路由只警告', () => {

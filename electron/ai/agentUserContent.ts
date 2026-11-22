@@ -4,7 +4,7 @@ import type { Model } from '../catalog/types'
 import { mentionUrlsInOrder, numberPromptReferences, projectPromptForSend } from '../shared/storyboard/promptMentions'
 // 把「文字 prompt + 待发附件」拼成 Vercel AI SDK 的 user message content。
 // 纯函数（字节读取由 resolveBytes 回调注入），便于单测。
-// 图片 → image part（只有「不能读图」才不发）；PDF → file part（按模型能力门控）；其它文档 → 计数提示（S4 抽文本接手）。
+// 图片 → image part（只有「不能读图」才不发）；PDF → file part（按这一行的 `inputModalities` 声明门控）；其它文档 → 计数提示（S4 抽文本接手）。
 
 export type AgentUserAttachment = {
   /** Main-resolved original identity; never accept renderer URLs as references. */
@@ -19,10 +19,6 @@ type TextPart = { type: 'text'; text: string }
 type ImagePart = { type: 'image'; image: Uint8Array; mimeType?: string }
 type FilePart = { type: 'file'; data: Uint8Array; mimeType: string; fileName: string }
 export type AgentUserContent = string | Array<TextPart | ImagePart | FilePart>
-
-// 已知支持原生 PDF file part 的模型族（Anthropic claude-3.5+ / OpenAI gpt-4o,4.1,o-系 / Google gemini）。
-const PDF_INPUT_MODEL_RE =
-  /claude-3-5|claude-3-7|claude-opus-4|claude-sonnet-4|claude-haiku-4|gpt-4o|gpt-4\.1|o1|o3|o4-mini|gemini/i
 
 function metaFlag(meta: unknown, key: string): boolean | undefined {
   if (meta && typeof meta === 'object') {
@@ -48,12 +44,6 @@ export function modelImageInputSupport(model: Pick<Model, 'vendorKey' | 'modelKe
   const declared = metaFlag(model.meta, 'supportsImageInput')
   if (declared !== undefined) return declared ? 'supported' : 'unsupported'
   return builtinCatalogModelKeys(model.vendorKey).has(model.modelKey) ? 'unsupported' : 'unknown'
-}
-
-export function modelSupportsPdfInput(modelKey: string, modelAlias: string | null | undefined, meta: unknown): boolean {
-  const declared = metaFlag(meta, 'supportsPdfInput')
-  if (typeof declared === 'boolean') return declared
-  return PDF_INPUT_MODEL_RE.test(`${modelKey || ''} ${modelAlias || ''}`.toLowerCase())
 }
 
 function isPdf(attachment: AgentUserAttachment): boolean {

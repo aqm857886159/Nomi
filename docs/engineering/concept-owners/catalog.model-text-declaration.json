@@ -1,0 +1,60 @@
+{
+  "name": "一行文本模型的能力声明（协议 / 推理 / 文本之外的输入 / 请求体覆盖，只从 model.meta 读）",
+  "subject": "catalog.model-text-declaration",
+  "lifecycle": "catalog",
+  "authority_kind": "schema",
+  "trust_domain": "main",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/modelDeclaration.ts",
+    "symbol": "readModelDeclaration"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/modelDeclaration.ts",
+      "symbol": "readModelDeclaration"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "getModelProfile",
+      "kind": "definition",
+      "why": "2026-11-22 之前 Agent 文本请求在运行时拿模型名撞一张写死的名字表（o1/o3 温度、kimi-k2 的 enable_thinking…），每接一个模型就要改运行时。已删：这几条只剩写入口算初值用，运行时只读声明"
+    },
+    {
+      "symbol": "applyProfileToRequestBody",
+      "kind": "definition",
+      "why": "名字表套请求体的旧入口；请求体覆盖改由 createNomiProvider 只读 requestBodyOverrides 声明"
+    },
+    {
+      "symbol": "PDF_INPUT_MODEL_RE",
+      "kind": "definition",
+      "why": "运行时按模型名撞的 PDF 名单：名字撞不上的新型号、用户自起名的中转模型就当不能收 PDF。已删，PDF 只认 inputModalities 声明（名单只留在初值模块里、不导出）"
+    },
+    {
+      "symbol": "modelSupportsPdfInput",
+      "kind": "definition",
+      "why": "旧的两态 PDF 判据（有 supportsPdfInput 用它，否则按名字猜）；laneDesktopInput 改读 readModelDeclaration(meta).inputModalities"
+    },
+    {
+      "symbol": "withModelDeclarationDefaults",
+      "kind": "reference",
+      "why": "初值函数里藏着按名字认模型的两张表；只许写入口调用（upsert 漏斗、种子对账），运行时调它 = 又回到按名字猜"
+    },
+    {
+      "symbol": "repairModelDeclarationDefaults",
+      "kind": "reference",
+      "why": "一次性数据修正，只挂在读目录的迁移尾巴上（收据 modelDeclarationDefaultsApplied），别处调它会把创作者 / 声明卡改过的声明改回初值"
+    }
+  ],
+  "parity_test": "electron/agentLane/modelRequestParity.test.ts",
+  "allowed_consumers": [
+    "electron/catalog/modelDeclarationDefaults.ts",
+    "electron/catalog/catalogStore.ts",
+    "electron/catalog/seedBuiltins.ts",
+    "electron/catalog/catalogMigrations.ts"
+  ],
+  "since": "2026-11-22",
+  "notes": "设计卡 docs/plan/2026-11-22-model-meta-declaration.md（决策 D-1122-model-meta-declaration，四刀里的第 1 刀）。声明的键：textProtocol（缺省 = 连接的 vendor.providerKind）、reasoning / thinkingLevelMap / compat（pi Model 上那三格的形状，原样递给 pi）、inputModalities（只收 pdf / audio / video；图片另由 supportsImageInput 管，见 catalog.model-image-input）、requestBodyOverrides（白名单：temperature、enable_thinking）。读者：nomiModelConfigFor / vendorModelConnection（协议、推理三格、覆盖）、laneDesktopInput（PDF）。写：只有写入口经 withModelDeclarationDefaults 算初值（applyModelUpsert 漏斗——设置页、导入包、接入向导、声明卡登记、AI 接入、改类型、Antigravity 同步全走它；seedBuiltins 种子对账），已有行由 repairModelDeclarationDefaults 在升级读目录时补一次（不升目录版本）。没选档时 createNomiProvider 在发请求那一步摘掉推理（声明了 reasoning 的行请求里也没有推理参数）。类检查：modelRequestParity.test.ts（出网字节对拍：34 行内置文本行 + v0.24.0 / v0.24.1 真实旧目录的怪癖行，三个调用方 + PDF 一组，金样在主线录）、laneModelDeclaration.test.ts（声明行的请求层 + 描述层）、modelDeclarationOldUser.test.ts（旧版目录修正后的声明值、收据、其余格子不变）。"
+}

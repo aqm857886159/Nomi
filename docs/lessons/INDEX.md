@@ -244,6 +244,7 @@
 - [重画界面前先查旧决定和真实代码](check-decisions-and-real-code-before-redesign.md) — 改现有界面、准备删控件或重画样张前；别把删过的控件画回来，也别误删用户已拍板的功能
 - [照着一次事情写的规则，只对那一次成立](rule-written-from-one-case-only-fits-that-case.md) — 用户当场纠正、想「写成规则」时；要改 `CLAUDE.md` 或 `rules.json` 时
 - [说「旧版改不了」前先查调用者](legacy-behavior-needs-callsite-proof.md) — 附定位路径、执行顺序、被调用行为原文；删除搬移事务的安装器案例
+- [修已有的东西前，先问这一整块归谁，不要只问眼前那一段](ask-who-owns-the-whole-block-before-patching.md) — 同一处反复被补、写类根因复盘、想写「同类产品：不适用」时读；复盘模板 §5 三项由 commit-msg 核对
 
 ## 🤖 自动收录（待人工归位）
 

@@ -133,6 +133,7 @@ describe('formatted TypeScript file-size gate', () => {
 
   test('frozen file growth is red and names its largest declaration', () => {
     const root = createFixture({
+      baselineMutator: (baseline) => { baseline.entries['electron/catalog/seedBuiltins.ts'].max = 940 },
       files: { 'electron/catalog/seedBuiltins.ts': fixtureContent(950, { name: 'KIE_CURATED_MAPPINGS' }) },
     })
     const result = run(root)
@@ -143,6 +144,7 @@ describe('formatted TypeScript file-size gate', () => {
 
   test('frozen file shrink is yellow and lowers the cap', () => {
     const root = createFixture({
+      baselineMutator: (baseline) => { baseline.entries['electron/catalog/seedBuiltins.ts'].max = 940 },
       files: { 'electron/catalog/seedBuiltins.ts': fixtureContent(930, { name: 'KIE_CURATED_MAPPINGS' }) },
     })
     const result = run(root)
