@@ -133,7 +133,8 @@ try {
   for (const item of INLINE) await formatLine(win, item.text, toolbarKey[item.id])
   await screenshotSettled(win, { path: path.join(shotsDir, '01-formatted.png') })
   const link = win.locator('.workbench-editor__content a').first()
-  record('A 链接·界面', (await link.count()) > 0, `编辑器里 anchor ${await link.count()} 个`)
+  const linkVisible = await link.waitFor({ state: 'visible' }).then(() => true, () => false)
+  record('A 链接·界面', linkVisible, `编辑器里 anchor ${await link.count()} 个`)
 
   for (const item of INLINE) {
     const marks = await pollUntil(() => {
@@ -151,7 +152,9 @@ try {
   await openCreation(win)
   for (const item of INLINE) {
     const tag = { bold: 'strong', italic: 'em', strike: 's', code: 'code', highlight: 'mark', link: 'a' }[item.id]
-    const count = await win.locator('.workbench-editor__content p', { hasText: item.text }).first().locator(tag).count()
+    const markEl = win.locator('.workbench-editor__content p', { hasText: item.text }).first().locator(tag)
+    await markEl.first().waitFor({ state: 'visible' }).catch(() => {})
+    const count = await markEl.count()
     record(`A 重开·${item.id}`, count > 0, `重开后 <${tag}> ${count} 个`)
   }
   await screenshotSettled(win, { path: path.join(shotsDir, '02-reopened.png') })

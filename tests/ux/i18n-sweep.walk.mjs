@@ -231,13 +231,13 @@ async function sweepLocale(locale) {
       const tikhubCard = win.locator('[data-settings-section="tikhub-connector"], [data-testid="tikhub-connector"]').first()
       // 有些布局把 section 锚点放在滚动容器上;兜底用 dialog 整体。
       const dialog = win.locator('[role="dialog"]').first()
-      const shotTarget = (await tikhubCard.count()) > 0 ? tikhubCard : dialog
+      const shotTarget = (await tikhubCard.waitFor({ state: 'visible' }).then(() => true, () => false)) ? tikhubCard : dialog
       await shotTarget.scrollIntoViewIfNeeded().catch(() => {})
       await waitForVisualQuiescence(win).catch(() => {})
       const dir = path.join(shotsRoot, locale)
       fs.mkdirSync(dir, { recursive: true })
       await screenshotSettled(dialog, { path: path.join(dir, '15-settings-tikhub-card.png') })
-      check(`[${locale}] TikHub 卡可达(models/tikhub-connector)`, (await dialog.count()) > 0)
+      check(`[${locale}] TikHub 卡可达(models/tikhub-connector)`, await dialog.waitFor({ state: 'visible' }).then(() => true, () => false))
       await assertSurfaceClean(win, locale, '设置·TikHub 卡')
     } catch (error) {
       check(`[${locale}] TikHub 卡`, false, String(error).split('\n')[0])

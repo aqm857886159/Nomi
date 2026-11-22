@@ -10,6 +10,7 @@
 //         用户按 Esc 关掉选择器（画布宿主只来得及在建卡前关；列表宿主建卡后也能关）→ 只留素材卡、不接、不还选中（10-09 语义）；
 //         途中自己点了别的卡 → 照样接上，选中留在用户点的那张。
 import { expect, test } from 'vitest'
+import { expect as pwExpect } from '@playwright/test'
 import { chromium } from 'playwright'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 import { useBrowserFixture } from './_browserFixture.mjs'
@@ -43,7 +44,7 @@ for (const cell of MATRIX) test(`${cell.host} host × ${cell.action} → ${cell.
     await picker.locator('input[type="file"]').setInputFiles({ name: 'reference.png', mimeType: 'image/png', buffer: PNG })
     // 导入已经开始、卡还没建：停在量磁盘余量那道闸上，选择器还开着。
     await expect.poll(() => harness('calls').then((calls) => calls.capacity), SETTLE).toBe(1)
-    expect(await picker.count()).toBe(1)
+    await pwExpect(picker).toHaveCount(1)
     if (cell.action === 'dismiss-before-card') {
       await page.keyboard.press('Escape')
       await expectAbsent(picker, { provenBy: pickerProof, message: 'Esc before the card exists closes the picker' })
@@ -61,7 +62,7 @@ for (const cell of MATRIX) test(`${cell.host} host × ${cell.action} → ${cell.
       // 这一类的前提真走到了：生成框随选中卸载（选择器跟着它一起没了）。
       await expectAbsent(composer, { provenBy: composerProof, message: 'the import selects the new card, so the canvas composer unmounts' })
     } else {
-      expect(await picker.count()).toBe(1)
+      await pwExpect(picker).toHaveCount(1)
     }
     if (cell.action === 'dismiss-after-card') {
       await page.keyboard.press('Escape')

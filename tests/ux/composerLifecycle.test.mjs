@@ -1,4 +1,5 @@
 import { beforeAll, expect, it } from 'vitest'
+import { expect as pwExpect } from '@playwright/test'
 import { chromium } from 'playwright'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 import { useBrowserFixture } from './_browserFixture.mjs'
@@ -30,7 +31,7 @@ it('degrades only its own region and reaches for the one recovery that can work:
   // 只解开两层缓存里的一层，所以恢复只能靠拿到全新 JS 上下文的整页重载。
   await page.locator('[role="alert"]').waitFor()
   await page.locator('#unpublished-draft').fill('still unpublished')
-  expect(await page.locator('#stage').count()).toBe(1)
+  await pwExpect(page.locator('#stage')).toHaveCount(1)
   await expect.poll(() => page.evaluate(() => window.composerFixture.snapshot().reloads)).toBe(1)
   await page.locator('[role="alert"] button').click()
   expect(await page.evaluate(() => window.composerFixture.snapshot().reloads)).toBe(2)
@@ -56,7 +57,7 @@ async function openEscapePopover() {
 async function expectPopoverClosedWithSelectedNode() {
   await expect.poll(() => page.locator('[data-escape-popover]').count()).toBe(0)
   expect(await page.locator('[data-escape-node]').getAttribute('data-selected')).toBe('true')
-  expect(await page.locator('[data-escape-composer]').count()).toBe(1)
+  await pwExpect(page.locator('[data-escape-composer]')).toHaveCount(1)
   expect(await page.locator('[data-host-escapes]').textContent()).toBe('0')
   expect(await page.evaluate(() => document.activeElement?.hasAttribute('data-escape-anchor'))).toBe(true)
 }
@@ -78,14 +79,14 @@ it('keeps child-prevented and composing Escape inside the open popover', async (
   await openEscapePopover()
   await page.locator('[data-escape-prevent]').focus()
   await page.keyboard.press('Escape')
-  expect(await page.locator('[data-escape-popover]').count()).toBe(1)
+  await pwExpect(page.locator('[data-escape-popover]')).toHaveCount(1)
   expect(await page.locator('[data-escape-node]').getAttribute('data-selected')).toBe('true')
   expect(await page.locator('[data-host-escapes]').textContent()).toBe('0')
   await page.locator('[data-escape-input]').evaluate((input) => {
     const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true, isComposing: true })
     input.dispatchEvent(event)
   })
-  expect(await page.locator('[data-escape-popover]').count()).toBe(1)
+  await pwExpect(page.locator('[data-escape-popover]')).toHaveCount(1)
   expect(await page.locator('[data-escape-node]').getAttribute('data-selected')).toBe('true')
   expect(await page.locator('[data-host-escapes]').textContent()).toBe('0')
 })
@@ -97,7 +98,7 @@ it('lets nested NomiSelect consume the first Escape and closes the parent on the
   await expect.poll(() => page.locator('[data-nomi-select-dropdown]:visible').count()).toBe(1)
   await page.keyboard.press('Escape')
   await expect.poll(() => page.locator('[data-nomi-select-dropdown]:visible').count()).toBe(0)
-  expect(await page.locator('[data-escape-popover]').count()).toBe(1)
+  await pwExpect(page.locator('[data-escape-popover]')).toHaveCount(1)
   expect(await page.locator('[data-escape-node]').getAttribute('data-selected')).toBe('true')
   await page.keyboard.press('Escape')
   await expectPopoverClosedWithSelectedNode()
@@ -110,7 +111,7 @@ it('lets a nested document-bubble owner consume Escape without reaching React Fl
   await page.locator('[data-escape-button]').focus()
   await page.keyboard.press('Escape')
   await expect.poll(() => page.locator('[data-document-child="menu"]').count()).toBe(0)
-  expect(await page.locator('[data-escape-popover]').count()).toBe(1)
+  await pwExpect(page.locator('[data-escape-popover]')).toHaveCount(1)
   expect(await page.locator('[data-escape-node]').getAttribute('data-selected')).toBe('true')
 })
 
@@ -121,7 +122,7 @@ it('yields focus-outside Escape to a higher dialog before closing the parent', a
   await page.locator('[data-escape-outside]').focus()
   await page.keyboard.press('Escape')
   await expect.poll(() => page.locator('[data-document-child="dialog"]').count()).toBe(0)
-  expect(await page.locator('[data-escape-popover]').count()).toBe(1)
+  await pwExpect(page.locator('[data-escape-popover]')).toHaveCount(1)
   expect(await page.locator('[data-escape-node]').getAttribute('data-selected')).toBe('true')
 })
 

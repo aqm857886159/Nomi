@@ -200,6 +200,66 @@ describe('walkthrough network guard', () => {
     expect(entries.filter((entry) => entry.kind === 'allowed-request')).toEqual([])
   })
 
+  it('records scrubbed allowed-response rows when an allowed vendor returns an HTTP error or 200 error envelope, even without NOMI_WALK_NET_BODIES, while keeping normal 200 responses silent', () => {
+    const dir = makeTempDir('nomi-net-guard-vendor-resp-')
+    temps.push(dir)
+    const log = path.join(dir, 'net.jsonl')
+    const stubFetch = path.join(dir, 'stub-fetch.cjs')
+    fs.writeFileSync(stubFetch, `
+      globalThis.fetch = async (input) => {
+        const pathname = new URL(typeof input === 'string' ? input : input.url).pathname
+        if (pathname === '/v1/responses') {
+          return new Response(JSON.stringify({
+            error: { message: '账户余额不足，请充值 Bearer sk-live-1234567890abcdef https://cdn.invalid/a.png?sig=SECRET', code: 'insufficient_balance' },
+          }), { status: 402, headers: { 'content-type': 'application/json' } })
+        }
+        if (pathname === '/v1/videos/generations') {
+          return new Response(JSON.stringify({ code: 402, msg: '账户余额不足，请充值' }), { status: 200, headers: { 'content-type': 'application/json' } })
+        }
+        if (pathname === '/v1/balance') {
+          return new Response(JSON.stringify({ remain_balance: 12.5 }), { status: 200, headers: { 'content-type': 'application/json' } })
+        }
+        return new Response(new Uint8Array(64), { status: 200, headers: { 'content-type': 'video/mp4' } })
+      }
+    `)
+    const result = spawnSync(process.execPath, ['-r', stubFetch, '-r', guard, '-e', `
+      ;(async () => {
+        await fetch('https://allowed.invalid/v1/balance', { method: 'GET' })
+        await fetch('https://allowed.invalid/v1/media.mp4', { method: 'GET' })
+        await fetch('https://allowed.invalid/v1/responses?token=URL_SECRET', { method: 'POST', body: '{"model":"gpt-6.1-sol"}' })
+        await fetch('https://allowed.invalid/v1/videos/generations', { method: 'POST', body: '{"model":"kling"}' })
+      })()
+    `], {
+      env: { ...process.env, NOMI_WALK_NET_LOG: log, NOMI_WALK_ALLOW_ORIGINS: 'https://allowed.invalid', CI: '' },
+      encoding: 'utf8',
+      timeout: CHILD_LIMIT_MS,
+    })
+    expect(result.status, result.stderr).toBe(0)
+    const rawLog = fs.readFileSync(log, 'utf8')
+    expect(rawLog).not.toMatch(/sk-live-1234567890abcdef|SECRET|URL_SECRET|12\.5/)
+    const entries = rawLog.split('\n').filter(Boolean).map((line) => JSON.parse(line))
+    expect(entries.filter((entry) => entry.kind === 'allowed-request')).toEqual([])
+    const responses = entries.filter((entry) => entry.kind === 'allowed-response')
+    expect(responses).toHaveLength(2)
+    expect(responses[0]).toMatchObject({
+      kind: 'allowed-response',
+      via: 'fetch',
+      method: 'POST',
+      host: 'allowed.invalid',
+      url: 'https://allowed.invalid/v1/responses',
+      status: 402,
+    })
+    expect(responses[0].text).toContain('账户余额不足，请充值')
+    expect(responses[1]).toMatchObject({
+      kind: 'allowed-response',
+      via: 'fetch',
+      method: 'POST',
+      host: 'allowed.invalid',
+      url: 'https://allowed.invalid/v1/videos/generations',
+      status: 200,
+    })
+  })
+
   it('NOMI_WALK_ALLOW_ORIGINS is ignored under CI (an inherited variable cannot open the public network there)', () => {
     const { entries } = runGuarded(`
       fetch('https://allowed.invalid/v1/chat/completions', { method: 'POST', body: '{}' }).catch(() => undefined)
