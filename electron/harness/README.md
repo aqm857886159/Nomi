@@ -60,7 +60,7 @@ renderer 已经执行的工具结果只回喂模型，主进程不能再执行�
 | 文稿编辑、画布 proposal/Apply/Undo、时间轴编辑 | 原编辑器及领域工具宿主 |
 | 花费授权、预算、异步生成、重复提交防护 | 原生成/ProductionRun 权威链 |
 | 对外 MCP 协议、外部客户端权限与确认 | `electron/capabilityCore`，不另造 pi 版本 |
-| Skill 内容与项目偏好 | 原 Skill/项目记忆系统，经 `agentContext` 注入 |
+| Skill 内容 | 原 Skill 系统，经 `agentContext` 注入 |
 | 非 Agent 的编译、文本任务与验证 | 原 `ai@4` 链；不因 Agent 换芯强制重写 |
 
 Skill 是做事方法，不是扩大工具权限的许可证。pi 不自动发现用户机器上的编码工具、扩展或配置；Nomi 明确提供自己的资源与工具。把一个请求改称 `chat` 或换一个 Skill 名字，不能绕过能力和付费审批。

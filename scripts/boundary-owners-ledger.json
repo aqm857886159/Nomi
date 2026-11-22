@@ -1266,6 +1266,12 @@
       "path": "electron/providerAdapter/selfCheck.ts",
       "symbol": "probeAdapterCredential",
       "reason": "D-1117-delete-verification（协调 2026-11-18 Q3）删掉格式任务里的凭据自检：格式检查只看说明卡形状、零网络，不再拿 key 去探鉴权。这份合同「自检永不降级已可用模型」的不变量由「根本没有自检请求」结构性满足，探测函数同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-02-experience-learning-loop.root-cause.json",
+      "path": "electron/memory/projectMemory.ts",
+      "symbol": "distillEvent",
+      "reason": "D-1122-project-memory-delete（用户 2026-11-22「删干净就好」）整份删掉项目记忆模块：看不见、删不掉的状态不再影响 Agent 回答。这份合同里「绿色事实进现有记忆投影」这一条不再适用——经验候选照旧由 experienceRepository 写进事件日志，只是不再有投影把它们拼进系统提示；其余不变量（显式信封、证据完整才可复用、幂等重放）的主人都在 electron/experience/ 下，不受影响。"
     }
   ],
   "unverified": [

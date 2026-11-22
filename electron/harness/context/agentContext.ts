@@ -105,6 +105,15 @@ export function buildLanguageRule(): string {
 }
 
 /**
+ * Agent 每个回合的系统提示（桌面工作区与单发路径共用）：语言规则 + Nomi 身份，仅此而已。
+ * 不带任何项目里的东西——创作者影响 AI 回答的一切都应该是看得见、改得了的
+ * （旧的项目记忆看不见也删不掉，2026-11-22 整份删除，所以这里没有项目号参数）。
+ */
+export function buildAgentSystemPrompt(): string {
+  return [buildLanguageRule(), NOMI_AGENT_IDENTITY].filter(Boolean).join("\n\n");
+}
+
+/**
  * 用户为这一轮点的那条技能。目录每次现扫（pi 的加载器，async）：他刚导入的技能这一轮就找得到。
  *
  * 它进提示词的那一段**不在这里拼**：唯一注入点是岛上的 `electron/agentLane/laneSkillPrompt.mts`

@@ -37,7 +37,6 @@ import { registerExportJobIpc } from "./export/exportJobIpc";
 import { registerTextStreamIpc } from "./ai/textStreamIpc";
 import { setEventLogSecretsProvider } from "./events/eventLogRepository";
 import { registerEventsIpc } from "./events/eventsIpc";
-import { registerMemoryIpc } from "./memory/memoryIpc";
 import { registerPromptLibraryIpc } from "./promptLibrary/promptLibraryIpc";
 import { registerBrowserViewIpc } from "./browser/core/browserViews";
 import { registerBrowserPromptExtractionIpc } from "./browser/prompt/browserPromptExtractionRun";
@@ -559,7 +558,6 @@ function registerIpc(): void {
   ipcMain.handle("nomi:capability:mcp-verify", (event, client: unknown) => (assertTrustedSender(event), verifyMcp(typeof client === "string" ? client : undefined)));
   registerTextStreamIpc();
   registerEventsIpc();
-  registerMemoryIpc();
   registerPromptLibraryIpc();
   registerBrowserPromptExtractionIpc(loadRuntimeModule);
   registerProxyIpc();
