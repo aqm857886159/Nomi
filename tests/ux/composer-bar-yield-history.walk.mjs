@@ -46,7 +46,11 @@ const facts = p => p.evaluate(() => {
   const truncated = summary && [...summary.querySelectorAll('span')].some(el => el.scrollWidth > el.clientWidth + 1)
   const bar = f.querySelector('[data-bar-segment="model-params"] > *')
   const out = [...bar.querySelectorAll('[data-yield-item]')].filter(el => el.getBoundingClientRect().right > bar.getBoundingClientRect().right + .5).map(el => el.textContent)
-  return { busy: f.querySelector('[data-bar-segment="generate"]')?.getAttribute('aria-busy') === 'true', level: f.getAttribute('data-bar-yield-level'), width: f.getBoundingClientRect().width, text, full, blocked, out, truncated: Boolean(truncated), wholeCurrent: tokens.every(token => current.includes(token)) && summary?.textContent.trim() === text, controls: controls.length }
+  // 屏上的样子本身：模型名（截没截）、方式格的字、摘要、钮上的字。
+  const selects = [...bar.querySelectorAll('button[aria-haspopup="listbox"]')]
+  const clipped = el => Boolean(el) && [el, ...el.querySelectorAll('*')].some(n => n.scrollWidth > n.clientWidth + .5)
+  const shape = JSON.stringify([selects[0]?.textContent.trim() ?? '', clipped(selects[0]), selects[1]?.textContent.trim() ?? '', summary?.textContent.trim() ?? '', f.querySelector('[data-bar-segment="generate"]')?.textContent.trim() ?? ''])
+  return { busy: f.querySelector('[data-bar-segment="generate"]')?.getAttribute('aria-busy') === 'true', shape, width: f.getBoundingClientRect().width, text, full, blocked, out, truncated: Boolean(truncated), wholeCurrent: tokens.every(token => current.includes(token)) && summary?.textContent.trim() === text, controls: controls.length }
 })
 try {
   const current = await open(surfaces[0]), fresh = await open(surfaces[1])
@@ -76,7 +80,7 @@ try {
       const reopened = await facts(fresh)
       const entry = { host, lang, width, step, action, before, reopened }
       results.push(entry)
-      const ok = before.blocked.length === 0 && before.out.length === 0 && !before.truncated && before.wholeCurrent && before.busy === state.busy && (host === 'anchor' || before.full.includes(`${state.duration}s`)) && before.controls > 0 && before.level === reopened.level && before.text === reopened.text && before.full === reopened.full && Math.abs(before.width - reopened.width) < .5
+      const ok = before.blocked.length === 0 && before.out.length === 0 && !before.truncated && before.wholeCurrent && before.busy === state.busy && (host === 'anchor' || before.full.includes(`${state.duration}s`)) && before.controls > 0 && before.shape === reopened.shape && before.text === reopened.text && before.full === reopened.full && Math.abs(before.width - reopened.width) < .5
       if (!ok) {
         failures.push(entry)
         console.error('FAIL', JSON.stringify(entry))

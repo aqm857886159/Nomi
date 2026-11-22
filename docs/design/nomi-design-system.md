@@ -825,6 +825,8 @@ className="transition-[background,color] duration-nomi-fast ease-nomi-fast"
 全仓实有四套（本组件 / Radix tooltip / Mantine Modal / **8 处手写 `getBoundingClientRect()+createPortal`**），
 详见 `src/design/AnchoredPopover.tsx` 顶部注释里的逐处清单与收口方向。
 
+**悬停出现的两种东西**（2026-11-21）：墨色提示（`src/design/tooltip.tsx`）= 短文字说明，一句一行、调用方只给字；悬停卡（`src/design/hoverCard.tsx`）= 带画面或可滚动的预览，纸色底、调用方只给卡里的内容。两者都不收调用方的类名和样式。
+
 **破坏性操作确认**（先分流，见 §1.9.2：可撤销的用撤销提示，不弹框）：不可逆 / 花钱的用 `confirmDialog / alertDialog / promptDialog`（promise 风格，`src/design/confirmDialog.tsx`，宿主 `ConfirmDialogHost` 已挂 App 根部）。**禁用原生 `window.confirm/alert/prompt`**——脱设计系统、E2E 驱动自动 dismiss 测不到、Electron/macOS 有焦点丢失史（2026-06-13 审计 A7）。危险动作传 `danger: true`。
 
 **付费生成确认**：语义单一收口在 `SpendConfirmRequest`（`spend/spendConfirm.ts`），但**宿主按「用户此刻人在哪」分两个**（2026-08-27 用户裁定，解 master plan §4.4 与本节旧文「全仓唯一弹窗」的冲突）：

@@ -976,6 +976,12 @@ export const zhGenerationCommon = {
     uploading: '上传中',
     uploadingEllipsis: '上传中…',
     dropToAddReference: '松手添加为参考',
+    // 发送键上的约价（悬停 / 读屏那一句）。可以印预估、不断言实扣、算不出不写 0（2026-11-15）；精确文案门岗逐字登记。
+    sendCost: {
+      estimate: '这次约 {{value}} 积分（{{usd}}）。按 APIMart 公开价估，出完按 APIMart 实际扣费记。',
+      outputEstimate: '仅输出约 {{value}} 积分（{{usd}}）· 实际按 token 结算',
+      priceUnknown: '暂时估不出这次用量',
+    },
   },
   whiteboard: {
     operationInProgress: '当前操作完成后即可保存',
@@ -1326,22 +1332,6 @@ export const zhGenerationCommon = {
     lostEdits: '撤销将一并丢失你应用后的修改：',
     cancel: '取消',
     confirmUndo: '仍要撤销',
-  },
-  memory: {
-    kinds: {
-      character: '设定',
-      style: '风格',
-      brand: '品牌',
-      preference: '偏好',
-      constraint: '约束',
-    },
-    aria: '项目记忆',
-    count: 'AI 记得 {{count}} 条',
-    editHint: '双击修改（修改后 AI 不再自动覆盖这条）',
-    unpin: '取消置顶',
-    pin: '置顶（优先注入）',
-    delete: '删除这条记忆',
-    changeFailed: '记忆没改动成，请再试一次',
   },
   reconcile: {
     fields: {
@@ -2722,6 +2712,11 @@ export const enGenerationCommon = {
     uploading: 'Uploading',
     uploadingEllipsis: 'Uploading…',
     dropToAddReference: 'Drop to add as a reference',
+    sendCost: {
+      estimate: 'About {{value}} credits ({{usd}}) this time. Estimated at the APIMart public rate; recorded at the actual APIMart charge once done.',
+      outputEstimate: 'Output estimate {{value}} credits ({{usd}}) · billed by actual tokens',
+      priceUnknown: 'No usage estimate yet',
+    },
   },
   whiteboard: {
     operationInProgress: 'Finish the current operation before saving',
@@ -3069,22 +3064,6 @@ export const enGenerationCommon = {
     lostEdits: 'Undoing will also discard changes you made after applying this proposal:',
     cancel: 'Cancel',
     confirmUndo: 'Undo anyway',
-  },
-  memory: {
-    kinds: {
-      character: 'Canon',
-      style: 'Style',
-      brand: 'Brand',
-      preference: 'Preference',
-      constraint: 'Constraint',
-    },
-    aria: 'Project memory',
-    count: 'AI Remembers {{count}}',
-    editHint: 'Double-click to edit (AI will no longer overwrite this item automatically)',
-    unpin: 'Unpin',
-    pin: 'Pin for priority context',
-    delete: 'Delete this memory',
-    changeFailed: 'The memory was not changed. Try again.',
   },
   reconcile: {
     fields: {

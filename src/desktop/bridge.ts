@@ -292,17 +292,6 @@ export type DesktopBridge = DesktopMediaBridge &
     read: (projectId: string, fromSeq: number) => Promise<{ ok: boolean; events: unknown[] }>
     generationEtaStats?: (projectId: string) => Promise<{ ok: boolean; stats: unknown[] }>
   }
-  /** S9 项目记忆卡:get=增量提炼+读;update=pin/纠正(text→origin:user);remove=删+墓碑。 */
-  memory?: {
-    get: (projectId: string) => Promise<{ ok: boolean; facts: unknown[] }>
-    update: (
-      projectId: string,
-      factId: string,
-      patch: { text?: string; pinned?: boolean },
-    ) => Promise<{ ok: boolean; facts: unknown[] }>
-    remove: (projectId: string, factId: string) => Promise<{ ok: boolean; facts: unknown[] }>
-    add: (projectId: string, text: string, kind?: string) => Promise<{ ok: boolean; facts: unknown[] }>
-  }
   /** 提示词库:主进程聚合公开仓库提示词(图/视频)+1h 缓存,renderer 取全量后本地过滤。
    *  textBrain=节点提示词优化用的文本大脑键(不含 apiKey,渲染层据此走现成文本流式)。 */
   promptLibrary?: {

@@ -1,4 +1,4 @@
-// 提示词库 IPC(仿 memory/memoryIpc.ts)。renderer 一次取全量(缓存),过滤/分页在渲染层做。
+// 提示词库 IPC。renderer 一次取全量(缓存),过滤/分页在渲染层做。
 // public 库只读;user(我的库)用户级 CRUD(跨项目)。
 import { ipcMain } from "electron";
 import { assertTrustedSender } from "../ipcSenderGuard";

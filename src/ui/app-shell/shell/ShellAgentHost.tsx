@@ -127,7 +127,7 @@ function FormSwitch({ surface, form }: { surface: AgentFormSurface; form: AgentF
           return (
             <Tooltip key={option.id}>
               <TooltipTrigger asChild>{button}</TooltipTrigger>
-              <TooltipContent side="top" className="z-popover" data-agent-form-blocked-hint>{narrowHint}</TooltipContent>
+              <TooltipContent side="top" data-agent-form-blocked-hint>{narrowHint}</TooltipContent>
             </Tooltip>
           )
         })}

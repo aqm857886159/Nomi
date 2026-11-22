@@ -42,6 +42,7 @@ import { ComposerAnchor } from './composerAnchor'
 import { ConnectedTextChips } from './ConnectedTextChips'
 import TextNodeComposer from './TextNodeComposer'
 import { IconArrowsDiagonal, IconArrowsDiagonalMinimize2, IconRefresh } from '@tabler/icons-react'
+import { useSendCost } from '../spend/useSendCost'
 import { ReferenceNamesContext, resolveReferenceInfos } from '../../assets/referenceNames'
 import { mentionUrlsInOrder } from '../../assets/promptMentions'
 import { peekAllProjectAssets } from '../../assets/useAllProjectAssets'
@@ -183,6 +184,8 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   // 有则「生成」不裸跑，转而排依赖波次（参考先生成→本节点后生成）走批量确认条。
   const pendingRefKey = React.useMemo(() => collectUngeneratedReferenceAncestors(node.id, graph).join(','), [node.id, graph])
   const hasPendingRefs = pendingRefKey.length > 0
+  // 发送键上的约价：忙着 / 要先备齐参考时不印数（那时钮的意思不是「花这么多发出去」）。
+  const sendCost = useSendCost(node, graph, { idle: !isGenerating && !hasPendingRefs })
   // 视频缺参考本会禁用「生成」；但若缺的是「连了线、只是还没生成」的上游 → 仍可点（去备齐），不禁用。
   const canGenerateNow = canGenerate || hasPendingRefs
   const productionBinding = productionMetaOf(node)
@@ -514,6 +517,8 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
               title: generateTitle,
               busy: isGenerating,
               ariaLabel: hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset'),
+              cost: sendCost.description ? { credits: sendCost.credits, description: sendCost.description } : undefined,
+              attrs: sendCost.source ? { 'data-price-source': sendCost.source } : undefined,
               disabled: !canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null,
               onClick: handleGenerate,
             },

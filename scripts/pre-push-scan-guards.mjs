@@ -44,6 +44,8 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/ci-external-download-cache.node-test.mjs', roots: ['.github/workflows', '.github/actions/cache-external-downloads'], exts: '*', files: ['package.json', 'pnpm-lock.yaml'] }, // node 批次：新增工作流也必须先恢复外部二进制缓存（<1 秒）。
   // 2026-11-12：模型能力表（docs/models/capabilities/*.md）与档案双向对账；新增一张表或改任一档案都要推送前就跑（<1 秒）。
   { file: 'electron/shared/modelArchetypes/capabilityTables.contract.test.ts', roots: ['docs/models/capabilities', 'electron/shared/modelArchetypes', 'electron/shared/videoCapabilities'], exts: ['md', 'ts'] },
+  // 2026-11-17：发送键约价「一个读取处、一处格式化、链上不发生成不授权」——遍历 src / electron 全集，新增第二个问价处 / 格式化处要推送前就红（约 3 秒）。
+  { file: 'src/workbench/generationCanvas/spend/sendCostFormat.test.ts', roots: [...SRC, ...ELECTRON] },
   // Reviewed response JSON is data, but changes must still run the status contract in the normal batch.
   { file: 'tests/relay-onboarding/profile-statuses.test.mjs', roots: ['tests/relay-onboarding/fixtures/relay-profile-responses'], exts: '*' },
   // Each release adds a real old catalog here; a new directory must run the upgrade matrix before the push, not first in CI (under 5 s).

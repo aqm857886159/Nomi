@@ -81,7 +81,6 @@ export function ParameterHelpMark({ name, text }: { name: string; text: string }
           data-parameter-help-text="true"
           onEscapeKeyDown={() => setPinned(false)}
           onPointerDownOutside={() => setPinned(false)}
-          className="z-popover max-w-[280px] whitespace-normal select-text border-nomi-line bg-nomi-paper p-2 leading-normal text-nomi-ink-80"
         >
           {text}
         </TooltipContent>

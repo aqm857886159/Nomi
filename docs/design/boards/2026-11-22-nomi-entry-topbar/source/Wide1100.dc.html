@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>顶栏 1100 面板开着</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Fraunces:opsz,wght@9..144,500&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1148px; height: 820px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 16px; background: oklch(1 0 0); color: oklch(0.22 0.01 80); font-family: Inter, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600">1100 宽 · 中文 · 浅色 · Nomi 面板停靠在右边</h1>
+<p style="margin: 0; font-size: 13px; line-height: 20px; color: oklch(0.50 0.01 80)">面板开着时入口是按下的底色（同任务面板开着）。点入口或按 ⌘\ 收起，面板回到顶栏入口；窗口窄于 1060 不停靠，点入口开浮窗，和今天一样。</p>
+</div>
+<div style="display: flex; flex-direction: column; width: 1100px; height: 560px; background: oklch(0.97 0.003 80); outline: 1px solid oklch(0.91 0.004 80); overflow: hidden">
+<dc-import name="TopBar" lang="zh" theme="light" page="create" width="1100" face="idle" entry-state="open" hint-size="1100px,40px"></dc-import>
+<div style="display: flex; flex: 1 1 auto; min-height: 0; padding: 0 8px 8px 0; gap: 8px; box-sizing: border-box">
+<nav aria-label="左栏" style="display: flex; flex-direction: column; align-items: center; gap: 22px; width: 60px; flex: none; padding-top: 16px; font-size: 11px; color: oklch(0.50 0.01 80)">
+<span>文稿</span>
+<span>目录</span>
+<span>素材</span>
+<span>流程</span>
+<span>Skill</span>
+<span>提示词</span>
+</nav>
+<main style="display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; background: oklch(1 0 0); border-radius: 10px; box-shadow: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03); overflow: hidden">
+<div style="display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 16px; border-bottom: 1px solid oklch(0.91 0.004 80)">
+<span style="font-size: 15px; font-weight: 500; color: oklch(0.68 0.01 80)">给方案起个名字</span>
+<span style="display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 1px solid oklch(0.91 0.004 80); border-radius: 6px; font-size: 12px; font-weight: 500">放入画布</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 16px; flex: 1 1 auto">
+<span style="font-size: 13px; font-weight: 600">分镜 · 2 镜</span>
+<div style="display: flex; gap: 12px; height: 150px; padding: 12px; border: 1px solid oklch(0.91 0.004 80); border-radius: 10px">
+<div style="width: 110px; border: 1px dashed oklch(0.88 0.005 80); border-radius: 6px; background: oklch(0.97 0.003 80); font-size: 11px; color: oklch(0.50 0.01 80); padding: 4px 6px; box-sizing: border-box">01</div>
+<div style="flex: 1 1 auto; border: 1px solid oklch(0.91 0.004 80); border-radius: 8px; padding: 12px; font-size: 13px; color: oklch(0.68 0.01 80)">这镜画什么：运镜 + 动作演进</div>
+</div>
+<div style="display: flex; gap: 12px; height: 150px; padding: 12px; border: 1px solid oklch(0.91 0.004 80); border-radius: 10px">
+<div style="width: 110px; border: 1px dashed oklch(0.88 0.005 80); border-radius: 6px; background: oklch(0.97 0.003 80); font-size: 11px; color: oklch(0.50 0.01 80); padding: 4px 6px; box-sizing: border-box">02</div>
+<div style="flex: 1 1 auto; border: 1px solid oklch(0.91 0.004 80); border-radius: 8px; padding: 12px; font-size: 13px; color: oklch(0.68 0.01 80)">这镜画什么：运镜 + 动作演进</div>
+</div>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 16px; border-top: 1px solid oklch(0.91 0.004 80)">
+<span style="font-size: 12px; color: oklch(0.50 0.01 80)">已生成 0/2 镜</span>
+<span style="display: inline-flex; align-items: center; height: 32px; padding: 0 14px; border-radius: 6px; background: oklch(0.22 0.01 80); color: oklch(1 0 0); font-size: 13px; font-weight: 500">生成剩余</span>
+</div>
+</main>
+<aside aria-label="Nomi 面板" style="display: flex; flex-direction: column; width: 390px; flex: none; background: oklch(1 0 0); border-radius: 10px; box-shadow: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03); overflow: hidden">
+<div style="display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 12px; border-bottom: 1px solid oklch(0.95 0.003 80)">
+<div style="display: flex; align-items: center; gap: 6px">
+<svg width="16" height="16" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="7" fill="oklch(0.22 0.01 80)"></rect><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="#ffffff"></rect><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="#ffffff"></rect><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="#ffffff"></polygon></svg>
+<span style="font-family: Fraunces, Georgia, serif; font-size: 15px; font-weight: 500">Nomi</span>
+</div>
+<div style="display: flex; align-items: center; gap: 6px">
+<div role="radiogroup" aria-label="Agent 形态" style="display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 2px; box-sizing: border-box; border-radius: 999px; background: oklch(0.97 0.003 80)">
+<button type="button" role="radio" aria-checked="false" aria-label="收起（⌘\）" title="收起（⌘\）" style="display: grid; place-items: center; width: 28px; height: 24px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: oklch(0.50 0.01 80); box-shadow: 0 0 0 1.5px oklch(0.55 0.13 250)">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" style="stroke-width: 1.5px; stroke-linecap: round; stroke-linejoin: round"><path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"></path><path d="M15 4v16"></path><path d="M9 10l2 2l-2 2"></path></svg>
+</button>
+<button type="button" role="radio" aria-checked="false" aria-label="浮窗：可拖动、可改大小" style="display: grid; place-items: center; width: 28px; height: 24px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: oklch(0.50 0.01 80)">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" style="stroke-width: 1.5px; stroke-linecap: round; stroke-linejoin: round"><path d="M11 19h-6a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v4"></path><path d="M14 15a1 1 0 0 1 1 -1h5a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1l0 -3"></path></svg>
+</button>
+<button type="button" role="radio" aria-checked="true" aria-label="停靠在右侧" style="display: grid; place-items: center; width: 28px; height: 24px; padding: 0; border: 0; border-radius: 999px; background: oklch(1 0 0); color: oklch(0.22 0.01 80); box-shadow: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03)">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" style="stroke-width: 1.5px; stroke-linecap: round; stroke-linejoin: round"><path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"></path><path d="M15 4l0 16"></path></svg>
+</button>
+</div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; flex: 1 1 auto; padding: 16px">
+<span style="font-size: 14px; font-weight: 500">Nomi 能读文稿、拆分镜、看每镜还缺什么</span>
+<div style="display: flex; gap: 8px">
+<span style="display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: 1px solid oklch(0.91 0.004 80); border-radius: 999px; font-size: 12px">读文稿</span>
+<span style="display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: 1px solid oklch(0.91 0.004 80); border-radius: 999px; font-size: 12px">拆分镜</span>
+<span style="display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: 1px solid oklch(0.91 0.004 80); border-radius: 999px; font-size: 12px">检查分镜</span>
+</div>
+</div>
+<div style="margin: 0 10px 10px; padding: 10px 12px; border: 1px solid oklch(0.91 0.004 80); border-radius: 10px; display: flex; flex-direction: column; gap: 16px">
+<span style="font-size: 13px; color: oklch(0.68 0.01 80)">继续告诉 Nomi 要改什么… @ 引用素材或技能</span>
+<span style="font-size: 12px; color: oklch(0.50 0.01 80)">选择模型 · Skill · 请求批准</span>
+</div>
+</aside>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">收起之后</b>　面板关上，内容区占满整宽；入口回到静止底色，Nomi 刚做完时照样眯眼笑。右下角不再有球压着「生成剩余」。</p>
+<div style="width: 1100px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="create" width="1100" face="done" hint-size="1100px,40px"></dc-import>
+</div>
+</div>
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)">面板头的形态切换（三个图标）：第一个原来是一个点（小球），改成「右栏收起」图标（面板单独显示时，头上的「收起面板」今天用的就是这一颗），名字「收起（⌘\）」（蓝圈标出）。它和顶栏入口都能收起：入口是开关，面板头这颗是三种形态里的一种，就近能关（设计系统要求浮层自己能关）。浮窗、停靠不变。</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1148,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

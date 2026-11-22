@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>入口各状态</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1160px; height: 1040px; box-sizing: border-box; display: flex; flex-direction: column; font-family: Inter, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif">
+<section style="display: flex; flex-direction: column; gap: 18px; padding: 24px; background: oklch(0.97 0.003 80); color: oklch(0.22 0.01 80)">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600">入口各状态 · 浅色（放大 3 倍，底色就是顶栏底色）</h1>
+<p style="margin: 0; font-size: 13px; line-height: 20px; color: oklch(0.50 0.01 80)">这一行是窄于 900 的样子（放得下时「等你确认」换成带字胶囊，见下）。脸用今天小球的同一套几何，在顶栏里画成 26px，和左上 N 标一样分量。第二行字是悬停时的提示：照今天小球的写法原样搬过来（「打开 Nomi · 状态 · 未读」），不改字。</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{poses}}" as="cell" hint-placeholder-count="10">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px">
+<div style="display: grid; place-items: center; width: 104px; height: 104px">
+<div style="zoom: 3; width: 28px; height: 28px">
+<dc-import name="NomiEntry" theme="light" lang="zh" face="{{cell.face}}" pending="{{cell.pending}}" state="rest" hint-size="28px,28px"></dc-import>
+</div>
+</div>
+<p style="margin: 0; font-size: 12px; line-height: 16px; font-weight: 600; text-align: center">{{cell.name}}</p>
+<p style="margin: 0; font-size: 11px; line-height: 15px; color: oklch(0.50 0.01 80); text-align: center">{{cell.tip}}</p>
+</div>
+</sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+<sc-for list="{{interactions}}" as="cell" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 12px">
+<div style="display: grid; place-items: center; width: 104px; height: 104px; flex: none">
+<div style="zoom: 3; width: 28px; height: 28px">
+<dc-import name="NomiEntry" theme="light" lang="zh" face="idle" pending="0" state="{{cell.state}}" hint-size="28px,28px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+<p style="margin: 0; font-size: 12px; line-height: 16px; font-weight: 600">{{cell.name}}</p>
+<p style="margin: 0; font-size: 11px; line-height: 15px; color: oklch(0.50 0.01 80)">{{cell.note}}</p>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; gap: 48px; align-items: flex-start">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 16px; font-weight: 600">原大 · 悬停出提示（中文，Mac）</p>
+<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; width: 260px">
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 2px; height: 40px; padding-right: 8px; background: oklch(0.97 0.003 80); outline: 1px solid oklch(0.91 0.004 80); width: 260px; box-sizing: border-box">
+<dc-import name="NomiEntry" theme="light" lang="zh" face="idle" pending="120" state="hover" hint-size="28px,28px"></dc-import>
+</div>
+<span style="display: inline-block; padding: 6px 8px; border-radius: 6px; background: oklch(0.22 0.01 80); color: oklch(1 0 0); font-size: 12px; line-height: 16px; white-space: nowrap">打开 Nomi（⌘J） · 等你确认 120 条</span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 16px; font-weight: 600">原大 · 悬停出提示（英文，Windows，最长一句）</p>
+<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; width: 340px">
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 2px; height: 40px; padding-right: 8px; background: oklch(0.97 0.003 80); outline: 1px solid oklch(0.91 0.004 80); width: 340px; box-sizing: border-box">
+<dc-import name="NomiEntry" theme="light" lang="en" face="unread" pending="0" unread="120" platform="win" state="hover" hint-size="28px,28px"></dc-import>
+</div>
+<span style="display: inline-block; padding: 6px 8px; border-radius: 6px; background: oklch(0.22 0.01 80); color: oklch(1 0 0); font-size: 12px; line-height: 16px; white-space: nowrap">Open Nomi (Ctrl+J) · Nomi is here · New messages: 120</span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<p style="margin: 0; font-size: 12px; line-height: 16px; font-weight: 600">等你确认：宽窗带字、窄窗角标（放大 2 倍）</p>
+<div style="display: flex; gap: 24px; align-items: center">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+<div style="display: grid; place-items: center; width: 260px; height: 72px"><div style="zoom: 2; height: 28px"><dc-import name="NomiEntry" theme="light" lang="zh" face="idle" pending="2" wide="true" hint-size="110px,28px"></dc-import></div></div>
+<p style="margin: 0; font-size: 11px; line-height: 15px; color: oklch(0.50 0.01 80)">放得下时：今天小球那颗浅橙胶囊，字照旧</p>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+<div style="display: grid; place-items: center; width: 90px; height: 72px"><div style="zoom: 2; width: 28px; height: 28px"><dc-import name="NomiEntry" theme="light" lang="zh" face="idle" pending="12" hint-size="28px,28px"></dc-import></div></div>
+<p style="margin: 0; font-size: 11px; line-height: 15px; color: oklch(0.50 0.01 80)">窄于 900 或放不下时：脸 + 同色角标，封顶 9+</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 18px; padding: 24px; flex: 1 1 auto; background: oklch(0.155 0.006 80); color: oklch(0.93 0.006 85)">
+<h2 style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600">深色（放大 3 倍）</h2>
+<div style="display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{poses}}" as="cell" hint-placeholder-count="10">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px">
+<div style="display: grid; place-items: center; width: 104px; height: 104px">
+<div style="zoom: 3; width: 28px; height: 28px">
+<dc-import name="NomiEntry" theme="dark" lang="zh" face="{{cell.face}}" pending="{{cell.pending}}" state="rest" hint-size="28px,28px"></dc-import>
+</div>
+</div>
+<p style="margin: 0; font-size: 12px; line-height: 16px; font-weight: 600; text-align: center">{{cell.name}}</p>
+</div>
+</sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+<sc-for list="{{interactions}}" as="cell" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 12px">
+<div style="display: grid; place-items: center; width: 104px; height: 104px; flex: none">
+<div style="zoom: 3; width: 28px; height: 28px">
+<dc-import name="NomiEntry" theme="dark" lang="zh" face="idle" pending="0" state="{{cell.state}}" hint-size="28px,28px"></dc-import>
+</div>
+</div>
+<p style="margin: 0; font-size: 12px; line-height: 16px; font-weight: 600">{{cell.name}}</p>
+</div>
+</sc-for>
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1160,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      poses: [
+        { face: 'idle', pending: 0, name: '空闲', tip: '打开 Nomi（⌘J） · Nomi 在这儿' },
+        { face: 'unread', pending: 0, name: '有新消息', tip: '打开 Nomi（⌘J） · Nomi 在这儿 · 3 条新消息' },
+        { face: 'running', pending: 0, name: '在做', tip: '打开 Nomi（⌘J） · Nomi 正在做' },
+        { face: 'done', pending: 0, name: '刚做完', tip: '打开 Nomi（⌘J） · 刚做完' },
+        { face: 'failed', pending: 0, name: '有一步没成', tip: '打开 Nomi（⌘J） · 有一步没成' },
+        { face: 'idle', pending: 1, name: '等你确认 1', tip: '打开 Nomi（⌘J） · 等你确认 1 条' },
+        { face: 'idle', pending: 9, name: '等你确认 9', tip: '打开 Nomi（⌘J） · 等你确认 9 条' },
+        { face: 'idle', pending: 12, name: '等你确认 12', tip: '角标封顶写 9+，提示写全数：…等你确认 12 条' },
+        { face: 'running', pending: 2, name: '在做 + 等确认 2', tip: '角标盖住转圈的右上角；在做看悬停提示' },
+        { face: 'failed', pending: 1, name: '没成 + 等确认 1', tip: '角标占角，红点不再叠' }
+      ],
+      interactions: [
+        { state: 'rest', name: '静止', note: '透明底，和旁边的图标钮一样' },
+        { state: 'hover', name: '悬停', note: '浅色下悬停底色（ink-05）和顶栏底色是同一个数值，按数值推，今天顶栏所有图标钮悬停都看不出；没在真软件里看过，另记一条，不在这次改' },
+        { state: 'open', name: '面板开着', note: '按下底色（同任务面板开着）；提示借用面板头收起钮今天的字「收起面板（⌘\\）」，这是唯一新用法' },
+        { state: 'focus', name: '键盘焦点', note: '2px 墨色描边，同顶栏其它钮' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
