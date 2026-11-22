@@ -70,8 +70,47 @@ async function compileInstallerTemplates(source) {
 // inside the full parallel vitest lane. The timeout only catches a hung compiler; the test never judges
 // speed (same rule as testTimeout in vitest.config.ts and the other heavy fixtures under tests/ux).
 const COMPILE_TIMEOUT_MS = 120_000
+const LOCAL_MAKENSIS_HANDOFF_NOTE = '本机跑不了，交给 CI（x86_64 makensis EBADARCH / -86）'
+
+/**
+ * Only hand off to CI when a non-CI host (e.g. Apple Silicon without Rosetta) cannot spawn
+ * electron-builder's x86_64 makensis binary (`EBADARCH` / `spawn Unknown system error -86`).
+ * In CI, always return `false` so missing compiler support fails loudly.
+ */
+export function isLocalMakensisBadArchError(error, env = process.env) {
+  const isCi = Boolean(env?.CI && env.CI !== '0' && env.CI !== 'false')
+  if (isCi) return false
+  const detail = String(error?.stack ?? error?.message ?? error ?? '')
+  return /makensis/i.test(detail) && /\bEBADARCH\b|spawn Unknown system error -86/i.test(detail)
+}
+
+function handoffLocalMakensisBadArch(ctx, error) {
+  if (!isLocalMakensisBadArchError(error)) return false
+  console.warn('[installer-compile] 本机跑不了，交给 CI：当前机器无法启动 x86_64 makensis（EBADARCH / -86）')
+  ctx.skip(LOCAL_MAKENSIS_HANDOFF_NOTE)
+  return true
+}
 
 export function registerInstallerCompileTests() {
+  it('isLocalMakensisBadArchError only skips local x86_64 makensis EBADARCH/-86 and never skips in CI', () => {
+    const minus86 = new Error('spawn /cache/nsis/mac/makensis Unknown system error -86 (spawn Unknown system error -86)')
+    const badArch = new Error('makensis failed: EBADARCH')
+    const syntaxErr = new Error('makensis exited with code 1: Invalid command: NomiInvalidInstruction')
+    const otherBin = new Error('spawn /usr/bin/other Unknown system error -86')
+
+    expect(isLocalMakensisBadArchError(minus86, {})).toBe(true)
+    expect(isLocalMakensisBadArchError(badArch, { CI: '' })).toBe(true)
+    expect(isLocalMakensisBadArchError(minus86, { CI: '0' })).toBe(true)
+    expect(isLocalMakensisBadArchError(minus86, { CI: 'false' })).toBe(true)
+
+    expect(isLocalMakensisBadArchError(minus86, { CI: 'true' })).toBe(false)
+    expect(isLocalMakensisBadArchError(minus86, { CI: '1' })).toBe(false)
+    expect(isLocalMakensisBadArchError(badArch, { CI: 'true' })).toBe(false)
+
+    expect(isLocalMakensisBadArchError(syntaxErr, {})).toBe(false)
+    expect(isLocalMakensisBadArchError(otherBin, {})).toBe(false)
+  })
+
   it('manifest include uses a path the Windows NSIS 3.04 splitter can resolve', () => {
     const match = /^!include "(\$\{PROJECT_DIR\}[^"\n]+installer-manifest[^"\n]+)"$/m.exec(include)
     expect(match, 'the production manifest include must remain present').not.toBeNull()
@@ -81,15 +120,29 @@ export function registerInstallerCompileTests() {
     expect(expanded.split(String.fromCharCode(92)).at(-1)).toBe('Nomi-x64.nsh')
   })
 
-  it('compiles the entire production installer and uninstaller with the generated manifest', async () => {
-    const artifacts = await compileInstallerTemplates(include)
+  it('compiles the entire production installer and uninstaller with the generated manifest', async (ctx) => {
+    let artifacts
+    try {
+      artifacts = await compileInstallerTemplates(include)
+    } catch (error) {
+      if (handoffLocalMakensisBadArch(ctx, error)) return
+      throw error
+    }
     const executables = artifacts.filter((file) => file.endsWith('.exe'))
     expect(executables).toHaveLength(2)
     for (const executable of executables) expect(fs.statSync(executable).size).toBeGreaterThan(0)
   }, COMPILE_TIMEOUT_MS)
 
-  it('counterexample: an invalid NSIS instruction is rejected by the real compiler', async () => {
-    await expect(compileInstallerTemplates(`${include}\nNomiInvalidInstruction\n`)).rejects.toThrow(/NomiInvalidInstruction|Invalid command/)
+  it('counterexample: an invalid NSIS instruction is rejected by the real compiler', async (ctx) => {
+    let caught = null
+    try {
+      await compileInstallerTemplates(`${include}\nNomiInvalidInstruction\n`)
+    } catch (error) {
+      if (handoffLocalMakensisBadArch(ctx, error)) return
+      caught = error
+    }
+    expect(caught, 'real makensis must reject an invalid NSIS instruction').toBeTruthy()
+    expect(String(caught?.message ?? caught)).toMatch(/NomiInvalidInstruction|Invalid command/)
   }, COMPILE_TIMEOUT_MS)
 
   it('pre-push selects real compilation for every installer input', () => {
