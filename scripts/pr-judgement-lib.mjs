@@ -288,17 +288,17 @@ export function evidenceLineVerdict(line) {
 }
 
 /**
- * 真付费抽检证据的严格判据（2026-10-16，合并前扫描专用）。
+ * 真付费抽检证据的唯一解析器（2026-10-16 起，CI 与合并前扫描共用同一份，不再按档位换解析器）。
  *
- * 为什么单拎：通用的 `evidenceLineVerdict` 对每个证据项都接受「未验证：原因」，也接受任何一个 PR 号 / 路径 / 链接。
- * 对别的证据那是合理的（工具没建、本次不适用），对「花钱类 PR 合并前要有真付费抽检」却等于没有门：
- * #1203（Agent 权限两档 + 两刹车，花钱类）写了一行「未验证」，合并前扫描绿、CI 绿、被合并循环合入，真付费验收被跳过。
- * 花钱类的真付费门槛只写在文字里（docs/engineering/delivery-and-review.md），没有门岗。
+ * 为什么单拎：通用的 `evidenceLineVerdict` 接受裸 PR 号、别名行，且不认纯文字「协调豁免：<理由>」。
+ * #1203（Agent 权限两档 + 两刹车，花钱类）写了一行「未验证」，合并前扫描绿、CI 绿、被合并循环合入，真付费验收被跳过；
+ * 后来又因两档走不同解析器，出现纯文字「协调豁免」合并档绿、CI 档红的口径分裂。
  *
- * 严格口径：这一行必须以 `spend-paid-sample：` 开头（别名不算），后面是
+ * 统一口径：这一行必须以 `spend-paid-sample：` 开头（别名不算），后面是
+ *   · `协调豁免：<理由>`（协调会话明示豁免，理由至少 3 个字；合并前扫描会把它醒目地打在报告里）；或
  *   · 运行号 / 报告链接 / 报告路径（真付费抽检跑过的凭据）；或
- *   · `协调豁免：<理由>`（协调会话明示豁免，理由至少 3 个字；扫描会把它醒目地打在报告里）。
- * 「未验证」不接受；裸 PR 号（`#1203`）不接受——PR 号证明不了谁跑过真付费。
+ *   · `未验证：<原因>`（至少 2 个字）——仅 CI 档（`allowUnverified: true`）放行，合并档（`allowUnverified: false`）不接受。
+ * 裸 PR 号（`#1203`）两档都不接受——PR 号证明不了谁跑过真付费。
  */
 export const PAID_SAMPLE_EVIDENCE_ID = 'spend-paid-sample'
 const PAID_SAMPLE_LINE = /^\s*(?:[-*]\s*)?(?:\*\*)?spend-paid-sample(?:\*\*)?\s*[:：]\s*(.*)$/i
@@ -309,15 +309,34 @@ const PAID_SAMPLE_PROOF = [
   /(?:run|运行号?|actions\/runs)\D{0,3}\d{5,}/i,
 ]
 export const isPaidSampleLine = (line) => PAID_SAMPLE_LINE.test(String(line))
-export function paidSampleVerdict(line) {
+export function parsePaidSampleLine(line) {
   const head = PAID_SAMPLE_LINE.exec(String(line))
-  if (!head) return { ok: false, reason: `要以「${PAID_SAMPLE_EVIDENCE_ID}：」开头一行（别名不算）` }
+  if (!head) return { kind: 'not-paid-sample-line', reason: `要以「${PAID_SAMPLE_EVIDENCE_ID}：」开头一行（别名不算）` }
   const rest = head[1]
   const waiver = PAID_SAMPLE_WAIVER.exec(rest)
-  if (waiver) return { ok: true, waived: true, reason: waiver[1].trim() }
-  if (/未验证/.test(rest)) return { ok: false, reason: '花钱类 PR 不接受「未验证」：要真付费抽检的运行号 / 报告链接，或「协调豁免：<理由>」' }
-  if (PAID_SAMPLE_PROOF.some((pattern) => pattern.test(rest))) return { ok: true }
-  return { ok: false, reason: '没有运行号 / 报告链接 / 报告路径（裸 PR 号不算），也不是「协调豁免：<理由>」' }
+  if (waiver) return { kind: 'waiver', reason: waiver[1].trim() }
+  const unverified = UNVERIFIED.exec(rest)
+  if (unverified && unverified[1].trim().length >= 2) return { kind: 'unverified', reason: unverified[1].trim() }
+  if (/未验证/.test(rest)) return { kind: 'unverified-incomplete', reason: '「未验证」后要写明原因（至少 2 个字）' }
+  if (PAID_SAMPLE_PROOF.some((pattern) => pattern.test(rest))) return { kind: 'proof' }
+  return { kind: 'invalid', reason: '没有运行号 / 报告链接 / 报告路径（裸 PR 号不算），也不是「协调豁免：<理由>」' }
+}
+const PAID_SAMPLE_UNVERIFIED_REJECT = '花钱类 PR 不接受「未验证」：要真付费抽检的运行号 / 报告链接，或「协调豁免：<理由>」'
+export function paidSampleVerdict(line, { allowUnverified = false } = {}) {
+  const parsed = parsePaidSampleLine(line)
+  if (parsed.kind === 'waiver') return { ok: true, waived: true, reason: parsed.reason }
+  if (parsed.kind === 'proof') return { ok: true }
+  if (parsed.kind === 'unverified') {
+    return allowUnverified
+      ? { ok: true, unverified: true, reason: parsed.reason }
+      : { ok: false, reason: PAID_SAMPLE_UNVERIFIED_REJECT }
+  }
+  if (parsed.kind === 'unverified-incomplete') {
+    return allowUnverified
+      ? { ok: false, reason: parsed.reason }
+      : { ok: false, reason: PAID_SAMPLE_UNVERIFIED_REJECT }
+  }
+  return { ok: false, reason: parsed.reason }
 }
 
 /**
@@ -397,6 +416,21 @@ function collectEvidence(categoryIds, table) {
   return [...seen.values()]
 }
 
+/** 按证据 id 单点分派行匹配器：同一 item.id 在 CI 档与合并档永远走同一个匹配器。 */
+function evidenceMatcherFor(item) {
+  if (item.id === PAID_SAMPLE_EVIDENCE_ID) return isPaidSampleLine
+  const tokens = [item.id, ...(item.aliases ?? [])]
+  return (line) => tokens.some((token) => line.toLowerCase().includes(token.toLowerCase()))
+}
+
+/** 按证据 id 单点分派解析器：同一 item.id 在 CI 档与合并档永远走同一份解析器，档位只传开关（paidStrict）。 */
+function evidenceVerdictFor(item, { paidStrict, known, perfOptions }) {
+  if (item.id === PAID_SAMPLE_EVIDENCE_ID) return (line) => paidSampleVerdict(line, { allowUnverified: !paidStrict })
+  if (item.id === PERF_EVIDENCE_ID) return perfVerdictFor(known, perfOptions)
+  if (item.id === UPGRADE_PATH_EVIDENCE_ID) return upgradePathVerdict
+  return evidenceLineVerdict
+}
+
 /** `## 验收证据`：逐项对账。返回 { ok, lines, gaps }；gaps = 被「未验证」带过、且工具还没建的缺口。 */
 export function checkRoutingEvidence(body, categoryIds, table = loadRoutingTable(), createdAt = null, scenarios = null, { paidStrict = false, readRaw = null } = {}) {
   // scenarios：调用方（CI / 合并前扫描）用 knownScenarios 算好的已知场景；不传 = 按当前检出（只给单测直接调用用）
@@ -419,26 +453,26 @@ export function checkRoutingEvidence(body, categoryIds, table = loadRoutingTable
   let provided = 0
   let unverifiedCount = 0
   for (const item of required) {
-    const tokens = [item.id, ...(item.aliases ?? [])]
-    const strictPaid = paidStrict && item.id === PAID_SAMPLE_EVIDENCE_ID
-    const mine = strictPaid
-      ? sectionLines.filter(isPaidSampleLine)
-      : sectionLines.filter((line) => tokens.some((token) => line.toLowerCase().includes(token.toLowerCase())))
+    const mine = sectionLines.filter(evidenceMatcherFor(item))
     if (!mine.length) {
       missing.push(item)
-      if (strictPaid) paidReasons.push('合并前扫描要求花钱类 PR 有一行 `spend-paid-sample：<运行号 / 报告链接>` 或 `spend-paid-sample：协调豁免：<理由>`（别名不算，未验证不算）')
+      if (item.id === PAID_SAMPLE_EVIDENCE_ID) {
+        paidReasons.push(paidStrict
+          ? '合并前扫描要求花钱类 PR 有一行 `spend-paid-sample：<运行号 / 报告链接>` 或 `spend-paid-sample：协调豁免：<理由>`（别名不算，未验证不算）'
+          : '花钱类 PR 需有一行 `spend-paid-sample：<运行号 / 报告链接>`、`spend-paid-sample：协调豁免：<理由>` 或 `spend-paid-sample：未验证：<原因>`（别名不算）')
+      }
       continue
     }
-    const verdicts = mine.map(strictPaid ? paidSampleVerdict : item.id === PERF_EVIDENCE_ID ? perfVerdictFor(known, perfOptions) : item.id === UPGRADE_PATH_EVIDENCE_ID ? upgradePathVerdict : evidenceLineVerdict)
+    const verdicts = mine.map(evidenceVerdictFor(item, { paidStrict, known, perfOptions }))
     const good = verdicts.find((verdict) => verdict.ok)
     if (!good) {
       bad.push(item)
       if (item.id === PERF_EVIDENCE_ID) perfReasons.push(...verdicts.map((verdict) => verdict.reason).filter(Boolean))
-      if (strictPaid) paidReasons.push(...verdicts.map((verdict) => verdict.reason).filter(Boolean))
+      if (item.id === PAID_SAMPLE_EVIDENCE_ID) paidReasons.push(...verdicts.map((verdict) => verdict.reason).filter(Boolean))
       if (item.id === UPGRADE_PATH_EVIDENCE_ID) upgradeReasons.push(...verdicts.map((verdict) => verdict.reason).filter(Boolean))
       continue
     }
-    if (strictPaid && good.waived) paidNotes.push(`⚠ ${PAID_SAMPLE_EVIDENCE_ID}：协调豁免——${good.reason}（没有真付费抽检；豁免理由请协调会话合并前再看一眼）`)
+    if (paidStrict && item.id === PAID_SAMPLE_EVIDENCE_ID && good.waived) paidNotes.push(`⚠ ${PAID_SAMPLE_EVIDENCE_ID}：协调豁免——${good.reason}（没有真付费抽检；豁免理由请协调会话合并前再看一眼）`)
     provided += 1
     if (good.unverified) {
       unverifiedCount += 1
