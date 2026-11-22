@@ -1,10 +1,10 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 /* global process */
 // 测试世界两把锁 + 冻结命名空间的元测试（D-test-world-owner-only 批 1）。
 // 做法：起一个子 vitest（tests/world/fixtures/vitest.meta.config.ts：同一套插件和 setup），跑固定夹具，
 // 期望「坏写法」夹具一份份红且报错码对、「好写法」夹具一份份绿。锁失效、或升 vitest 后门换了，这里就红。
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -20,7 +20,7 @@ describe('夹具：坏写法红、好写法绿', () => {
   const results = new Map()
 
   beforeAll(() => {
-    const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-world-meta-')), 'result.json')
+    const out = path.join(makeTempDir('nomi-world-meta-'), 'result.json')
     const env = { ...process.env, NO_COLOR: '1' }
     delete env.NOMI_WORLD_LOCK_RECORD
     const run = spawnSync(

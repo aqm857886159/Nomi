@@ -1,3 +1,4 @@
+import { makeTempDir } from "../../scripts/_test-temp.mjs";
 // 测试世界的三扇合法门（D-test-world-owner-only 批 1）：
 //   buildWorld(spec)                        声明「和默认世界哪里不同」，存盘文件由主人函数产出
 //   seedOldUserData(id)                     只读 tests/fixtures/old-user-data，旧版真函数生成的数据
@@ -5,7 +6,6 @@
 // 写盘锁（tests/setup/world/fsLock.ts）按调用帧认这个目录：这里的写放行，别处手写主人文件的在写的那一刻报错。
 // 走查（plain node）用 tsx 加载本文件，调同一份实现；不存在第二份。
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { ensureBuiltinModelSeeds, mutateCatalog, readCatalog } from "../../electron/catalog/catalogStore";
 import { createProject } from "../../electron/projects/repository";
@@ -125,7 +125,7 @@ function selectableMappings(model: Payload): Payload[] {
 }
 
 export function buildWorld(spec: WorldSpec = {}): World {
-  const rootDir = spec.rootDir ?? (spec.settingsDir ? path.dirname(spec.settingsDir) : fs.mkdtempSync(path.join(os.tmpdir(), "nomi-world-")));
+  const rootDir = spec.rootDir ?? (spec.settingsDir ? path.dirname(spec.settingsDir) : makeTempDir("nomi-world-"));
   const settingsDir = spec.settingsDir ?? path.join(rootDir, "settings");
   const projectsDir = spec.projectsDir ?? path.join(rootDir, "projects");
   prepareDirs(rootDir, { settingsDir, projectsDir });
@@ -160,7 +160,7 @@ export function buildWorld(spec: WorldSpec = {}): World {
 /** 把一份旧版真实数据当成这个世界的底：settings 类拷进设置根，projects 类是整份旧 profile。id / 短名见 listOldUserData。 */
 export function seedOldUserData(id: string, options: { rootDir?: string } = {}): World {
   const hit = resolveOldUserData(id) as { kind: "settings" | "projects"; dir: string };
-  const rootDir = options.rootDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "nomi-world-old-"));
+  const rootDir = options.rootDir ?? makeTempDir("nomi-world-old-");
   prepareDirs(rootDir);
   if (hit.kind === "settings") {
     copyOldUserData(hit.dir, path.join(rootDir, "settings"));

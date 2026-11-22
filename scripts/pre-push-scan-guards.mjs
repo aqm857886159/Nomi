@@ -40,6 +40,8 @@ export const SCAN_GUARDS = Object.freeze([
   // 2026-11-20：付费放行只在一个家判（spend.approval-decision）；遍历 src、electron 找误导性的恒真「算批准」回执（<1 秒）。
   { file: 'scripts/concept-owners-approval.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-approval.mjs', 'scripts/concept-owners-scan.mjs'] },
   { file: 'scripts/asset-file-owner.node-test.mjs', roots: ['src/workbench/generationCanvas/nodes/versionCards'], files: ['eslint.config.mjs', 'src/workbench/assets/assetFileDeletion.ts', 'src/workbench/assets/removeAssetVersion.ts', 'src/workbench/assets/assetResultMutation.ts'] }, // 两种桥删除及版本面间接绕法片段必须报错，真实owner必须通过
+  // 2026-11-22：走查启动器手传目录的冻结名单对账；遍历 tests / scripts / evals 找名单外手传目录的走查启动调用（<2 秒）。
+  { file: 'tests/ux/launcherDirs.test.mjs', roots: ['tests', 'scripts', 'evals'], files: ['tests/ux/not-yet-migrated/launcherDirs.json'] },
   { file: 'scripts/typecheck.node-test.mjs', roots: ['scripts'], exts: '*' }, // tsc 启动只归统一入口；新增文件也必须检查（<1 秒）。
   { file: 'scripts/ci-external-download-cache.node-test.mjs', roots: ['.github/workflows', '.github/actions/cache-external-downloads'], exts: '*', files: ['package.json', 'pnpm-lock.yaml'] }, // node 批次：新增工作流也必须先恢复外部二进制缓存（<1 秒）。
   // 2026-11-12：模型能力表（docs/models/capabilities/*.md）与档案双向对账；新增一张表或改任一档案都要推送前就跑（<1 秒）。
@@ -176,6 +178,10 @@ export const SCAN_GUARDS = Object.freeze([
  */
 export const SCAN_GUARD_CI_ONLY = Object.freeze([
   {
+    reason: '测试世界元测试：起一个子 vitest 跑 10 份固定夹具再对账，并核对 electron/settings 的写口名单；单跑远超 20 秒，推送前入口不跑，CI 的 vitest 车道里照跑',
+    files: ['tests/world/world.locks.test.mjs'],
+  },
+  {
     reason: '编译车道（test:agent-runtime：tsc -p tests/agent-runtime → .tmp → node --test）：推送前入口不做 tsc 编译，改用 tsx 直跑实测 lane-open-graph 8 条里 5 条红、skill-catalog-migration 24 条里 2 条红（路径按编译产物目录写死），跑了也只会假红',
     files: ['tests/agent-runtime/lane-open-graph.test.mts', 'tests/agent-runtime/skill-catalog-migration.test.mts'],
   },
@@ -193,6 +199,7 @@ export const SCAN_GUARD_COVERED_BY_GATE = Object.freeze({
  * 识别器认成「扫描型」、其实不是对仓库源码做全集断言的测试：{ 测试文件: 理由 }。每条必须真被识别器认到（否则是陈旧项，结构测试红）。
  */
 export const NOT_SOURCE_SCANS = Object.freeze({
+  'tests/world/fixtures/build-world.ok.node-test.ts': '测试世界的好写法夹具：readdirSync 在它 import 的旧用户数据名册里，只列 tests/fixtures/old-user-data，不遍历仓库源码做全集断言',
   'tests/ux/design-lab/localRelative.test.mjs': '测同机比较工具：导入闭包的 readdirSync 只枚举工作树外快照缓存，不遍历仓库源码做全集断言',
   'scripts/eng-metrics.node-test.mjs': '测指标脚本：readContracts 喂的是测试自建的临时 docs/fixes 夹具（运行时实测没有遍历仓库目录）',
   'scripts/check-site-attribution.node-test.mjs': '测站点扫描函数：喂测试自建的夹具目录（运行时实测没有遍历仓库目录）；站点整体检查是 CI_ONLY 的 check:site',
