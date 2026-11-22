@@ -32,6 +32,7 @@ import { REAL_CREDENTIAL_MARKER } from './_realProfile.mjs'
 import { assertElectronBuildArtifacts } from '../../scripts/electron-build-artifacts.mjs'
 import { assertFreshBuild } from '../../scripts/package-build-stamp.mjs'
 import { registerWalkProcess } from './_walkInstances.mjs'
+import { isIssuedWorld } from '../world/issued.mjs'
 
 const require = createRequire(import.meta.url)
 const catalogVersionManifest = require('../../electron/catalog/catalogVersion.json')
@@ -665,7 +666,55 @@ export function instrumentWalkWindow(page, name) {
   return installFeelObserver(page, { name })
 }
 
-export async function launchNomiApp(options = {}) {
+const LAUNCHER_DIRS_LIST = path.join(repoRoot, 'tests/ux/not-yet-migrated/launcherDirs.json')
+
+/**
+ * 隔离目录从哪来（D-test-world-owner-only）：
+ *  · `world`：tests/world 的 buildWorld / seedOldUserData 发的世界句柄，目录全由它给——新走查只走这一条；
+ *  · `settingsDir` / `projectsDir`：走查自己手建目录再往里塞存盘文件的老写法，已删。名单里「还没迁」的文件照旧能用
+ *    （tests/ux/not-yet-migrated/launcherDirs.json，只许减）；名单外的在起飞那一刻报 `launch_option_removed`。
+ */
+function resolveWorldOption(options) {
+  if (options.world !== undefined) {
+    if (!isIssuedWorld(options.world)) {
+      throw new Error('launch_world_not_issued: world 不是 buildWorld / seedOldUserData 发的句柄。用 tests/world 的 buildWorld(spec) 造。')
+    }
+    for (const key of ['tempRoot', 'userDataDir', 'settingsDir', 'projectsDir']) {
+      if (options[key] !== undefined) throw new Error(`launch_option_conflict: world 已经给出 ${key}，不要再传。`)
+    }
+    const { world, ...rest } = options
+    return { ...rest, tempRoot: world.rootDir, userDataDir: world.userDataDir, settingsDir: world.settingsDir, projectsDir: world.projectsDir }
+  }
+  if (options.settingsDir !== undefined || options.projectsDir !== undefined) {
+    const caller = firstCallerOutside(fileURLToPath(import.meta.url))
+    const listed = new Set(JSON.parse(fs.readFileSync(LAUNCHER_DIRS_LIST, 'utf8')).files)
+    // 认不出调用方（栈格式不同的平台）就放行：这是给新写走查的提醒，不是安全边界；静态扫描另有一道（tests/ux/launcherDirs.test.mjs）。
+    if (caller && !listed.has(caller)) {
+      throw new Error(`launch_option_removed: settingsDir / projectsDir 已删。传 world: await buildWorld(spec)。（调用方：${caller}）\n见 docs/plan/2026-11-22-test-world-owner-only.md「新测试入口」。`)
+    }
+  }
+  return options
+}
+
+/** 调用栈里第一个不在 selfFile 里的帧，取相对仓库根的路径；认不出返回 null。 */
+function firstCallerOutside(selfFile) {
+  const limit = Error.stackTraceLimit
+  Error.stackTraceLimit = 40
+  const stack = new Error().stack ?? ''
+  Error.stackTraceLimit = limit
+  for (const line of stack.split('\n').slice(1)) {
+    const match = /\(?((?:file:\/\/)?\/[^():]+?)(?::\d+:\d+)\)?$/.exec(line.trim().replace(/^at (?:async )?/, ''))
+    if (!match) continue
+    const file = match[1].startsWith('file://') ? fileURLToPath(match[1]) : match[1]
+    if (file === selfFile || file.includes('/node_modules/')) continue
+    const rel = path.relative(repoRoot, file)
+    if (!rel.startsWith('..')) return rel.split(path.sep).join('/')
+  }
+  return null
+}
+
+export async function launchNomiApp(rawOptions = {}) {
+  const options = resolveWorldOption(rawOptions)
   const {
     name = 'nomi-walk',
     env: extraEnv = {},
