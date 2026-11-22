@@ -17,7 +17,6 @@ import { deriveStoryboardBatch, type StoryboardRowWithExec } from '../../../src/
 import { presentStoryboard } from '../../../src/workbench/capability/storyboardPresent'
 import { useWorkbenchStore } from '../../../src/workbench/workbenchStore'
 import * as rowActions from '../../../src/workbench/creation/storyboard/exec/storyboardRowActions'
-import * as modelOptions from '../../../src/config/useModelOptions'
 import * as projectActions from '../../../src/workbench/project/projectCanvasReadSurface'
 import * as projectDelivery from '../../../src/workbench/generationCanvas/runner/runProjectDelivery'
 
@@ -26,6 +25,7 @@ vi.mock('../../../src/workbench/generationCanvas/components/batchPlanPreview', (
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
   resetSpendFixture()
   confirmation.mockClear()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
@@ -60,7 +60,8 @@ describe('selected storyboard · lane, renderer and external Agent receipt', () 
     store.hydrateStoryboardDesigns({})
     store.addStoryboardDesign({ initiator: 'agent', documentId: 'doc', identity: { id: 'design', title: 'Design' },
       source: { title: 'Design', anchors: [], shots: ids.map((shotId, index) => ({ index: index + 1, shotId, shotKind: 'image', durationSec: 2, anchorIds: [], prompt: 'A paper boat' })) } })
-    vi.spyOn(modelOptions, 'preloadModelOptions').mockResolvedValue([])
+    // 空目录世界：桥只在 window 上给一份空的目录读口（装假桥这一类归批 3 一起迁），不换掉主人模块。
+    vi.stubGlobal('window', { nomiDesktop: { modelCatalog: { listModels: async () => [], listMappings: async () => [], listVendors: async () => [] } } })
     vi.spyOn(projectDelivery, 'isRunTargetLoaded').mockReturnValue(true)
     vi.spyOn(projectActions, 'withProjectAction').mockImplementation((action: unknown) => (action as (value: unknown) => unknown)({
       binding: { projectId: PROJECT_ID }, signal: new AbortController().signal, assertCurrent: () => undefined,
