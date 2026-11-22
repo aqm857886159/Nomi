@@ -16,6 +16,7 @@ import {
   REHEARSAL_ENDPOINTS, REHEARSAL_RECEIPT_VERSION, rehearsalEndpointOf,
 } from './_paidRun.mjs'
 import { REHEARSAL_STATIONS } from './_paidNetwork.mjs'
+import { finalizeRuntimeWalk } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -628,5 +629,215 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
     const { deps, root } = fakeWalk()
     await expect(openPaidWalk('x.paid.mjs', 'x', MODELS, { ...deps, env: { ...noKeyEnv(root), NOMI_SPEND_OK: '1' } })).rejects.toThrow('说不清这一场要不要花钱')
     expect(deps.createWalk).not.toHaveBeenCalled()
+  })
+})
+
+describe('paid walk · 服务商余额 / 额度错误判「未验证」，产品错误仍判「不过」', () => {
+  const GPT6_MODEL = [{ vendorKey: 'apimart', modelKey: 'gpt-6.1-sol' }]
+  const TEST_SECRET = 'sk-test-paid-quota-secret-0123456789'
+
+  async function runRealPaidScenario({ entriesAfterLock = [], entriesBeforeLock = [], lock = true, scriptError = null, leakSecretInReport = false } = {}) {
+    const root = makeTempDir('nomi-paid-verdict-')
+    const tempRoot = path.join(root, 'isolated')
+    const outputDir = path.join(root, 'evidence')
+    const projectRoot = path.join(tempRoot, 'projects', 'p1')
+    fs.mkdirSync(path.join(tempRoot, 'settings'), { recursive: true })
+    fs.mkdirSync(path.join(tempRoot, 'user-data', 'logs'), { recursive: true })
+    fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
+    fs.mkdirSync(outputDir, { recursive: true })
+    fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify({ payload: { generationCanvas: { nodes: [] } } }))
+    let netLogFile = ''
+    const createWalk = async (name, options) => {
+      netLogFile = options.env.NOMI_WALK_NET_LOG
+      fs.writeFileSync(netLogFile, `${JSON.stringify({ kind: 'guard-loaded', layers: ['fetch', 'socket', 'chromium'] })}\n`)
+      for (const row of entriesBeforeLock) fs.appendFileSync(netLogFile, `${JSON.stringify(row)}\n`)
+      const report = { name, tempRoot, outputDir, projectRoot }
+      return {
+        report, outputDir, settingsDir: path.join(tempRoot, 'settings'), userDataDir: path.join(tempRoot, 'user-data'),
+        fixture: { close: async () => {}, unexpected: [] },
+        stopApp: async () => {},
+        start: async () => ({ win: { id: 'win' } }),
+        newProject: async () => ({ projectId: 'project-1', projectRoot }),
+        finish: async (error, options2 = {}) => finalizeRuntimeWalk(report, { error, ...options2, cleanup: [] }),
+      }
+    }
+    const spyLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const spyErr = vi.spyOn(console, 'error').mockImplementation(() => {})
+    process.exitCode = 0
+    try {
+      const paid = await openPaidWalk('agent-gpt6-responses-real.paid.mjs', 'agent-gpt6-responses-real', GPT6_MODEL, {
+        env: { NOMI_SPEND_OK: '1', CI: '', APIMART_API_KEY: TEST_SECRET, NOMI_REAL_PROFILE_USER_DATA: path.join(root, 'none') },
+        createWalk,
+        assertBuild: () => ({ tree: 'tree-1' }),
+        remindRehearsal: () => {},
+        argv: [],
+        entry: 'tests/ux/agent-gpt6-responses-real.paid.mjs',
+        connect: async () => ({ keySaved: true }),
+        readRows: async () => GPT6_MODEL.map((m) => ({ ...m, kind: 'text', labelZh: 'GPT-6.1 Sol' })),
+        lockSpendTo: async () => 0,
+      })
+      await paid.walk.start({ first: true })
+      if (lock) await paid.walk.newProject()
+      for (const row of entriesAfterLock) fs.appendFileSync(netLogFile, `${JSON.stringify(row)}\n`)
+      if (leakSecretInReport) paid.walk.report.leaked = TEST_SECRET
+      if (scriptError) process.exitCode = 1 // 真实 *.paid.mjs 在 catch 里先设 exitCode = 1，再进 finally 调 paid.finish(failure)
+      const returned = await paid.finish(scriptError ?? undefined)
+      const exitCode = process.exitCode
+      process.exitCode = 0
+      const savedReport = JSON.parse(fs.readFileSync(path.join(outputDir, 'report.json'), 'utf8'))
+      const verdictText = savedReport.paidVerdict?.verdict ?? (savedReport.result === 'failed' ? '不过' : savedReport.result === 'passed' ? '通过' : savedReport.result)
+      return { report: savedReport, returned, exitCode, verdictText, outputDir }
+    } finally {
+      process.exitCode = 0
+      spyLog.mockRestore()
+      spyErr.mockRestore()
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  }
+
+  const gpt6ScriptFailure = () => new Error('GPT-6.1 Sol Responses 检查不过：R2 实际 1 次 ｜ R3 回复里没有带 encrypted_content 的推理条目 ｜ R9 0 个工具结果，0 个是错误')
+  const apimartResponse = (status, body, pathname = '/v1/responses') => ({
+    kind: 'allowed-response', via: 'fetch', seq: 1, method: 'POST', host: 'api.apimart.ai',
+    url: `https://api.apimart.ai${pathname}`, status, text: typeof body === 'string' ? body : JSON.stringify(body),
+  })
+
+  it('GPT-6.1 Sol 真实链路与各家余额不足出网记录（HTTP 402 / 403 / 500 / 200 业务码信封 / 轮询失败）→ 判「未验证：服务商余额不足」，不判「不过」', async () => {
+    const cases = [
+      apimartResponse(402, { error: { message: 'Insufficient account balance for this request', code: 'insufficient_balance' } }),
+      apimartResponse(403, { error: { message: '账户余额不足，请充值', type: 'apimart_error' } }),
+      apimartResponse(500, { error: { message: '账户余额不足，请充值后重试' } }),
+      apimartResponse(200, { code: 402, msg: '账户余额不足，请充值' }, '/v1/videos/generations'),
+      apimartResponse(200, { errorCode: 1620, errorMessage: '当前钱包剩余金额仅为活动会员下发金额，该类型金额不支持 API 调用，请充值。' }, '/v1/images/generations'),
+      { ...apimartResponse(200, { code: 200, data: { id: 'task-1', status: 'failed', error: { message: 'insufficient balance, please recharge' } } }, '/v1/tasks/task-1'), method: 'GET' },
+    ]
+    for (const row of cases) {
+      const outcome = await runRealPaidScenario({
+        entriesAfterLock: [
+          { kind: 'allowed-request', via: 'fetch', seq: 1, method: row.method, host: 'api.apimart.ai', url: row.url, body: { text: '{"model":"gpt-6.1-sol","input":[]}' } },
+          row,
+        ],
+        scriptError: gpt6ScriptFailure(),
+      })
+      expect(outcome.verdictText).toBe('未验证：服务商余额不足')
+      expect(outcome.report.result).toBe('unverified')
+      expect(outcome.report.paidVerdict).toMatchObject({
+        status: 'unverified',
+        passed: false,
+        verdict: '未验证：服务商余额不足',
+        upstreamErrorKind: 'balance',
+      })
+      expect(outcome.returned).toMatchObject({ status: 'unverified', verdict: '未验证：服务商余额不足' })
+      expect(outcome.exitCode).toBe(3)
+    }
+  })
+
+  it('上游配额 / 额度耗尽出网记录（产品归 quota 类：HTTP 429 insufficient_quota / 200 code 429 / SSE error）→ 判「未验证：服务商额度不足」', async () => {
+    const cases = [
+      apimartResponse(429, { error: { code: 'insufficient_quota', message: 'You exceeded your current quota, please check your plan and billing details.' } }),
+      apimartResponse(200, { code: 429, msg: '请求过于频繁，请降低调用频率' }),
+      apimartResponse(200, 'event: error\ndata: {"type":"error","error":{"code":"insufficient_quota","message":"You exceeded your current quota"}}\n\n'),
+    ]
+    for (const row of cases) {
+      const outcome = await runRealPaidScenario({ entriesAfterLock: [row], scriptError: gpt6ScriptFailure() })
+      expect(outcome.verdictText).toBe('未验证：服务商额度不足')
+      expect(outcome.report.result).toBe('unverified')
+      expect(outcome.report.paidVerdict).toMatchObject({
+        status: 'unverified',
+        passed: false,
+        verdict: '未验证：服务商额度不足',
+        upstreamErrorKind: 'quota',
+      })
+      expect(outcome.exitCode).toBe(3)
+    }
+  })
+
+  it('产品错误照样判「不过」（HTTP 400 参数或回放被拒 / 404 模型不存在 / 401 鉴权 / 500 服务端 / 零上游响应的本机报错含 quota 字样）', async () => {
+    const productErrors = [
+      { rows: [apimartResponse(400, { error: { message: 'Invalid input: reasoning item replay rejected' } })], err: new Error('GPT-6.1 Sol Responses 检查不过：R8 回放被拒') },
+      { rows: [apimartResponse(400, { error: { message: 'invalid aspect_ratio: 21:9 not supported' } }, '/v1/videos/generations')], err: new Error('节点生成失败') },
+      { rows: [apimartResponse(404, { error: { code: 'model_not_found', message: 'The model gpt-6.1-sol does not exist' } })], err: gpt6ScriptFailure() },
+      { rows: [apimartResponse(401, { error: { message: 'invalid API key', type: 'apimart_error' } })], err: gpt6ScriptFailure() },
+      { rows: [apimartResponse(500, { error: { message: 'internal server error' } })], err: gpt6ScriptFailure() },
+      // 本机报错字面含 quota / 余额（如 localStorage 配额或断言文案），但没有任何服务商余额/额度响应 → 绝不许误判成未验证
+      { rows: [], err: new Error('Local storage quota exceeded while saving project; expected balance >= 0') },
+    ]
+    for (const { rows, err } of productErrors) {
+      const outcome = await runRealPaidScenario({ entriesAfterLock: rows, scriptError: err })
+      expect(outcome.verdictText).toBe('不过')
+      expect(outcome.report.result).toBe('failed')
+      expect(outcome.report.paidVerdict).toMatchObject({ status: 'failed', passed: false, verdict: '不过' })
+      expect(outcome.exitCode).toBe(1)
+    }
+  })
+
+  it('混合与恢复边界：同场已有产品 400 错误 / 出网被拦 / 收窄前失败 / 收尾泄漏密钥仍判「不过」；429 重试后 200 跑通判「通过」', async () => {
+    // 1) 混合：第 1 次请求因产品参数错回 400，第 2 次回 402 余额不足 → 产品错误不能被余额不足盖成未验证
+    const mixedProductAndBalance = await runRealPaidScenario({
+      entriesAfterLock: [
+        apimartResponse(400, { error: { message: 'Invalid input: include is not supported' } }),
+        { ...apimartResponse(402, { error: { message: 'Insufficient account balance for this request' } }), seq: 2 },
+      ],
+      scriptError: gpt6ScriptFailure(),
+    })
+    expect(mixedProductAndBalance.verdictText).toBe('不过')
+    expect(mixedProductAndBalance.report.result).toBe('failed')
+    expect(mixedProductAndBalance.exitCode).toBe(1)
+
+    // 2) 混合：出现未授权出网被拦（blocked）+ 402 余额不足 → 仍判不过
+    const mixedBlocked = await runRealPaidScenario({
+      entriesAfterLock: [
+        apimartResponse(402, { error: { message: 'Insufficient account balance for this request' } }),
+        { kind: 'blocked', via: 'fetch', host: 'telemetry.invalid', url: 'https://telemetry.invalid/x' },
+      ],
+      scriptError: gpt6ScriptFailure(),
+    })
+    expect(mixedBlocked.verdictText).toBe('不过')
+    expect(mixedBlocked.report.result).toBe('failed')
+    expect(mixedBlocked.exitCode).toBe(1)
+
+    // 3) 收窄花钱面之前就失败：仍判不过
+    const preLockFail = await runRealPaidScenario({
+      lock: false,
+      entriesBeforeLock: [apimartResponse(402, { error: { message: 'Insufficient account balance for this request' } })],
+      scriptError: new Error('接入页超时'),
+    })
+    expect(preLockFail.verdictText).toBe('不过')
+    expect(preLockFail.report.result).toBe('failed')
+    expect(preLockFail.exitCode).toBe(1)
+
+    // 4) 收尾阶段发现密钥漏进报告：哪怕上游回了 402，收尾安全红灯不能被吞成未验证
+    const leaked = await runRealPaidScenario({
+      entriesAfterLock: [apimartResponse(402, { error: { message: 'Insufficient account balance for this request' } })],
+      scriptError: gpt6ScriptFailure(),
+      leakSecretInReport: true,
+    })
+    expect(leaked.report.result).toBe('failed')
+    expect(leaked.verdictText).toBe('不过')
+
+    // 5) 瞬时 429 后重试 200 成功、整场检查无错通过 → 判「通过」（退出码 0）
+    const recovered = await runRealPaidScenario({
+      entriesAfterLock: [
+        apimartResponse(429, { error: { message: 'Too Many Requests' } }),
+        { ...apimartResponse(200, { id: 'resp_1', status: 'completed' }), seq: 2 },
+      ],
+      scriptError: null,
+    })
+    expect(recovered.verdictText).toBe('通过')
+    expect(recovered.report.result).toBe('passed')
+    expect(recovered.report.paidVerdict).toMatchObject({ status: 'passed', passed: true, verdict: '通过' })
+    expect(recovered.exitCode).toBe(0)
+  })
+
+  it('单源守卫：付费总闸与网闸不自写第二套余额/额度关键词表，统一调产品 decideGenerationFailure', () => {
+    const codeOnly = (source) => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    const netSource = codeOnly(read('tests/ux/_paidNetwork.mjs'))
+    const runSource = codeOnly(read('tests/ux/_paidRun.mjs'))
+    const guardSource = codeOnly(read('scripts/walkthrough-network-guard.cjs'))
+    expect(`${netSource}\n${runSource}`).toContain('decideGenerationFailure')
+    for (const duplicateToken of ['insufficient_quota', 'insufficient_balance', '请充值', '欠费']) {
+      expect(netSource).not.toContain(duplicateToken)
+      expect(runSource).not.toContain(duplicateToken)
+      expect(guardSource).not.toContain(duplicateToken)
+    }
   })
 })

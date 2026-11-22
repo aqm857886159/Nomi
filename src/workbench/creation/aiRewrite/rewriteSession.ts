@@ -11,7 +11,7 @@ import { diffRewrite } from './rewriteDiff'
  * 为什么是 ProseMirror 插件状态、不是 React state：区间要随文档编辑一起平移（`tr.mapping`），
  * 只有编辑器自己知道文档怎么变。结果只是「叠在原文上的画」（装饰），接受之前文档一个字没动；
  * 接受 = 一笔事务换掉区间，所以天然进编辑器的撤销栈（Ctrl+Z 一步回到改写前）。
- * 会话和任何一次模型调用的对应关系只靠 `id`：调用回来时会话已经不是它了（用户选了别处 / 关了 /
+ * 会话和任何一次模型调用的对应关系只靠 `id`：调用回来时会话已经不是它了（用户关了 /
  * 换了文档 / 原文被改过），结果就地丢弃，永远不会写到别处。
  */
 export type RewriteSkillRef = { key: string; title: string; body: string }
@@ -363,6 +363,26 @@ function selectionInside(state: EditorState, session: RewriteSession, upTo: numb
   return from >= session.from && to <= upTo
 }
 
+/**
+ * AI 编辑条何时把焦点收到输入框：
+ * - 刚打开菜单（`menu`）时一定收，方便直接输要求或按 Esc；
+ * - 后续状态变化（`running` → `result` / `failed`）时，只有焦点本就在改写条里（或落回 `body`），
+ *   或焦点在编辑器里且选区仍停在待改区间内，才把焦点放回输入框；
+ *   若用户等待期间已去别的段落打字，或点去了别处的输入控件，绝不抢走焦点。
+ */
+export function shouldAutoFocusRewriteInput(input: {
+  state: EditorState
+  session: RewriteSession
+  editorFocused: boolean
+  barContainsFocus: boolean
+  bodyOrNullFocused: boolean
+}): boolean {
+  if (input.session.status === 'menu') return true
+  if (input.barContainsFocus || input.bodyOrNullFocused) return true
+  if (input.editorFocused) return selectionInside(input.state, input.session, input.session.to)
+  return false
+}
+
 export function createRewritePlugin(): Plugin<RewritePluginState> {
   const initial: RewritePluginState = { documentId: null, session: null }
   return new Plugin<RewritePluginState>({
@@ -390,8 +410,8 @@ export function createRewritePlugin(): Plugin<RewritePluginState> {
           if (from >= to || rangeText(tr.doc, from, to) !== previous.original) return withSession(null)
           if (from !== previous.from || to !== previous.to) current = { ...previous, from, to }
         }
-        // 菜单 / 进行中 / 失败态：用户点去了别处 = 不改了。结果已出的不因为一次误点就丢。
-        if (tr.selectionSet && current.status !== 'result') {
+        // 菜单 / 失败态：还没开始改（或已报错），用户点去别处 = 收起条。进行中和结果已出都不因移开光标被掐断或丢掉。
+        if (tr.selectionSet && (current.status === 'menu' || current.status === 'failed')) {
           const { from, to } = next.selection
           if (from < current.from || to > current.to) return withSession(null)
         }
@@ -406,11 +426,11 @@ export function createRewritePlugin(): Plugin<RewritePluginState> {
       handleKeyDown(view, event) {
         const session = getRewriteSession(view.state)
         if (!session || event.isComposing) return false
-        if (!selectionInside(view.state, session, paragraphEnd(view.state.doc, session.to))) return false
         if (event.key === 'Escape') {
           view.dispatch(closeRewriteTransaction(view.state))
           return true
         }
+        if (!selectionInside(view.state, session, paragraphEnd(view.state.doc, session.to))) return false
         if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && session.status === 'result') {
           return acceptRewrite(view)
         }
