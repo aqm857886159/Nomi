@@ -526,6 +526,28 @@
         "quote": "可以删掉这里的AI草拟和全部镜头设置什么的东西吧 和画布的逻辑一致 全部镜头生成配置没用",
         "date": "2026-11-02"
       }
+    },
+    {
+      "id": "removed.insert-above",
+      "label": "分镜页行菜单「上方插入」",
+      "candidates": [],
+      "status": "dropped",
+      "states": [
+        "empty",
+        "loading",
+        "error",
+        "selected",
+        "disabled",
+        "hover",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "userDecision": {
+        "quote": "删掉上方插入",
+        "date": "2026-11-22"
+      }
     }
   ],
   "decor": [],

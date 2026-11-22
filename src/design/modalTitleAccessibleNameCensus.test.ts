@@ -125,12 +125,7 @@ function findings(sources: readonly Entry[]): Finding[] {
 }
 
 /** 今天主线上 title 不是纯文字、又没给 accessibleName 的弹窗（只许减少；补一处就从这里删一行）。文件 → 个数。 */
-const MISSING_ACCESSIBLE_NAME_BASELINE: Record<string, number> = {
-  'src/ui/app-shell/UpdateDialog.tsx': 1, // 图标 + 标题 + 副标（title 里除了名字还有副标文字）
-  'src/ui/onboarding/CustomCallEditor.tsx': 1, // 标题 + 目标名两段文字（title={title}，title 在同文件上方是 span 套 span）
-  'src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx': 1, // 图标 NomiLogoMark + 标题文字
-  'src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx': 1, // 图标 + 标题 + 代理人提示行（title={header}）
-}
+const MISSING_ACCESSIBLE_NAME_BASELINE: Record<string, number> = {}
 
 const SOURCES = productionSources(SRC, 'src')
 

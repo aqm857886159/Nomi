@@ -31,6 +31,7 @@ import {
 import { CustomCallScopeSelector } from './CustomCallScopeSelector'
 import { customCallPersistedStateSignature } from './customCallEditorDirty'
 import { CustomCallContractSidebar } from './CustomCallContractSidebar'
+import { CustomCallTitle } from './CustomCallTitle'
 import { ModelSettingsPageSurface } from './ModelSettingsPageSurface'
 import { useCustomCallTestRun } from './useCustomCallTestRun'
 
@@ -388,12 +389,7 @@ export function CustomCallEditor({
     })
     if (discard) onClose()
   }, [dirty, onClose, t])
-  const title = (
-    <span className="flex min-w-0 items-baseline gap-2">
-      <span className="shrink-0 whitespace-nowrap text-body font-semibold text-nomi-ink">{t('onboardingProviders.customCall.title')}</span>
-      <span className="min-w-0 truncate text-caption text-nomi-ink-60">{target?.label}</span>
-    </span>
-  )
+  const title = <CustomCallTitle label={target?.label} />
 
   const actionBar = target ? (
     // 决定栏走共享 `DecisionBar`（§1.9.1）：取消 → 次动作（保存草稿）→ 主动作；删除脚本放 leading（最左，与决定隔开）。
@@ -791,6 +787,7 @@ export function CustomCallEditor({
       centered
       size={640}
       title={title}
+      accessibleName={[t('onboardingProviders.customCall.title'), target?.label].filter(Boolean).join(' ')}
       classNames={{ content: 'workbench-shell' }}
       closeButtonProps={{ 'aria-label': t('onboardingProviders.customCall.closeAria') }}
     >
