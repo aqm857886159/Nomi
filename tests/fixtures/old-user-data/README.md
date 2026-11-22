@@ -20,6 +20,12 @@
 
 `via` 是这个请求怎么发的：`task` 是直接交一个任务；`canvas` 是图只能经档案的槽进请求的路由，用画布节点造的请求。写了 `unverified` 的模式不比对（要写明原因，并在 PR 里单列）；现在没有这样的模式。
 
+## 文本模型行（`text-quirks/`）
+
+| 目录 | 谁落的 | 怎么落的 | 里面有什么 |
+|---|---|---|---|
+| `text-quirks/{v0.24.0,v0.24.1}/{chat,anthropic,responses}` | 0.24.0、0.24.1（目录格式 13） | 在那一版的导出里跑 `generators/genTextQuirks.mjs.txt`（去掉 `.txt`）：它按 `text-quirks/connections.json` 每家起一个空设置目录，用 `zzRelGen` 的 `V_CONNECTIONS` 接一家中转（三家各走 Chat / Anthropic / Responses 一条协议），chat 那一份再用 `V_ANTIGRAVITY_MODELS` 经那一版真实的 Antigravity 同步落两行。只留下 `model-catalog.json`（认证日志、备份、适配器存档裁掉） | 每份中转文本行 6～11 行（加上内置的 34 行）：旧名字表里每一条怪癖（o1 / o3 温度、kimi-k2 温度 + `enable_thinking`、其余在请求里没效果的条目）、PDF 名单的每一族、对照行；chat 那一份另有 Antigravity 写下的文本行 3 行（两个模型 + `auto`，都带 `supportsPdfInput: false`）。`electron/catalog/modelDeclarationOldUser.test.ts`（修正后的声明）和 `electron/agentLane/modelRequestParity.test.ts`（出网字节对拍，金样 `tests/fixtures/model-request-parity/requests.json` 从主线录）读它们 |
+
 ## 素材（`assets/`）
 
 升级前落在项目里的**生成素材**（文件 + 它的 `.meta`）同样用旧版本自己的真实函数落盘，不是手写的形状。`.meta` 里的 `originalUrl` 是服务商的临时链接，升级后「发链接还是传文件」的决定点读的就是它。
@@ -112,6 +118,7 @@ cp tests/fixtures/old-user-data/generators/zzCanvasModeGen.ts.txt "$D/src/workbe
 ```
 pnpm exec vitest run src/workbench/generationCanvas/store/canvasModeOldUser
 pnpm exec vitest run electron/catalog/upgradeKeepsWorkingModels.test.ts
+pnpm exec vitest run electron/catalog/modelDeclarationOldUser.test.ts electron/agentLane/modelRequestParity.test.ts
 pnpm exec vitest run electron/projects/projectLocation.oldUser.test.ts
 ```
 

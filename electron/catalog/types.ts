@@ -731,6 +731,8 @@ export const CURRENT_CATALOG_VERSION: CatalogVersion = catalogVersion.current as
 export type CatalogState = {
   /** Monotonic data-repair receipt; no file-format change. */
   unverifiedUsableRecovered?: true;
+  /** 文本模型行能力声明的初值已补过（一次性数据修正的收据，不升版本；modelDeclarationDefaults.ts）。 */
+  modelDeclarationDefaultsApplied?: true;
   /** User-deleted builtin identities must not be inserted by subsequent seeding. */
   suppressedBuiltinModels?: Array<{ vendorKey: string; modelKey: string }>;
   /**

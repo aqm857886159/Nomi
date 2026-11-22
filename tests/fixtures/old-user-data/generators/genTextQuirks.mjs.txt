@@ -1,0 +1,24 @@
+// 落 `text-quirks/<版本>/{chat,anthropic,responses}`：在一份旧版导出里各起一个空设置目录、各接一家中转
+// （同一个回环地址下多家会并成一家，所以一家一份目录）。连接表是 `text-quirks/connections.json`。
+// 用法：node genTextQuirks.mjs <导出目录> <输出根> <connections.json>
+// 导出目录里要先放好 `electron/providerAdapter/zzRelGen.test.ts`（= generators/zzRelGen.ts.txt 去掉 .txt）。
+import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
+
+const [exportDir, outRoot, connectionsFile] = process.argv.slice(2).map((p) => path.resolve(p))
+const connections = JSON.parse(fs.readFileSync(connectionsFile, 'utf8'))
+const names = { 'openai-compatible': 'chat', anthropic: 'anthropic', 'openai-responses': 'responses' }
+for (const connection of connections) {
+  const out = path.join(outRoot, names[connection.providerKind])
+  fs.mkdirSync(out, { recursive: true })
+  const env = { ...process.env, V_REL_ROOT: out, V_CONNECTIONS: JSON.stringify([connection]), NO_PROXY: '127.0.0.1,localhost' }
+  // Antigravity 同步（旧版唯一显式写 supportsPdfInput 的写口）只落进 chat 那一份。
+  if (connection.providerKind === 'openai-compatible') {
+    env.V_ANTIGRAVITY_MODELS = JSON.stringify([{ id: 'gemini-3-pro', label: 'Gemini 3 Pro' }, { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' }])
+  } else delete env.V_ANTIGRAVITY_MODELS
+  const run = spawnSync(path.join(exportDir, 'node_modules/.bin/vitest'), ['run', 'electron/providerAdapter/zzRelGen.test.ts'],
+    { cwd: exportDir, env, encoding: 'utf8' })
+  console.log(names[connection.providerKind], 'exit', run.status)
+  if (run.status !== 0) { console.log(run.stdout, run.stderr); process.exit(1) }
+}

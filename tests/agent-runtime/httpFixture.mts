@@ -2,9 +2,12 @@ import { createServer, type IncomingHttpHeaders } from 'node:http';
 import { once } from 'node:events';
 
 export interface CapturedRequest {
+  method: string;
   path: string;
   headers: IncomingHttpHeaders;
   body: Record<string, unknown>;
+  /** 收到的请求体原字节（UTF-8）。逐字节对拍用：`body` 是解析过的，键序和空白都看不出来。 */
+  raw: string;
 }
 
 interface FixtureOutput {
@@ -67,8 +70,9 @@ export async function createHttpFixture(initialReplies: FixtureReply[] = []) {
   const server = createServer(async (request, response) => {
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
-    const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>;
-    requests.push({ path: request.url ?? '', headers: request.headers, body });
+    const raw = Buffer.concat(chunks).toString('utf8');
+    const body = JSON.parse(raw) as Record<string, unknown>;
+    requests.push({ method: request.method ?? '', path: request.url ?? '', headers: request.headers, body, raw });
     let reply = replies.shift();
     while (reply?.type === 'deferred') reply = await reply.beforeReply();
     if (!reply || reply.type === 'error') {

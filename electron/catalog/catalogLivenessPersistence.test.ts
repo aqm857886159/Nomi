@@ -23,7 +23,7 @@ beforeEach(() => {
   const model: Model = { vendorKey: 'apimart', modelKey: 'deepseek-v4-flash', labelZh: 'My label', kind: 'text', enabled: true,
     meta: { catalogLifecycle: 'value' }, createdAt: 'a', updatedAt: 'a', customCall: { script: 'return 1', updatedAt: 'a' },
     tokenPricing: { inputPerMTokUsd: 1, outputPerMTokUsd: 2, source: { url: 'https://example.test', checkedAt: '2026-09-08' } } }
-  memory.catalog = { version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true, vendors: [{ key: 'apimart', name: 'APIMart', authType: 'bearer', enabled: true, createdAt: 'a', updatedAt: 'a' }], models: [model], mappings: [], apiKeysByVendor: {} }
+  memory.catalog = { version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true, modelDeclarationDefaultsApplied: true, vendors: [{ key: 'apimart', name: 'APIMart', authType: 'bearer', enabled: true, createdAt: 'a', updatedAt: 'a' }], models: [model], mappings: [], apiKeysByVendor: {} }
   memory.writes = 0
 })
 describe('catalog persistence liveness owner', () => {
