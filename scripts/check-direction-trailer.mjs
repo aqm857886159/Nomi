@@ -2,6 +2,7 @@
 // git commit-msg 调用：fix 提交碰了「反复修的热点」（见 scripts/fix-churn.mjs）时，必须带
 // `Direction-Check: <复盘文档路径>`，且那份文档真实存在、不是空壳。Claude、Codex、人都会经过 git，所以执行点放这里。
 // 按内容判，不看任何环境变量（没有「设个变量就跳过」的口子）。
+// 文件名日期 ≥ 2026-11-23 的新复盘还要在 §5 写出「这一整块 / 归谁 / 我们哪里绕开了它」（老复盘不追溯）。
 // 放行：非 fix 提交（merge / revert 的标题本来就不是 fix，回滚不该被拦）；碰的不是 src/ electron/ 的源码；没命中热点。
 // 判不了（git 报错）一律放行——这道门拦的是方向，不是 git 故障。
 import { execFileSync } from 'node:child_process'
@@ -12,6 +13,9 @@ import { gitPaths } from './lib/gitPaths.mjs'
 import { directionMessage, findHotspots, isFixSubject, parseDirectionTrailer, stagedNamespaces, TRAILER_KEY } from './fix-churn.mjs'
 
 const MIN_DOC_BYTES = 400
+// 复盘模板 §5「这一整块归谁」：文件名日期 ≥ 这天的新复盘必须写全三项；更早的老复盘不追溯。
+const WHOLE_BLOCK_FROM = '2026-11-23'
+const WHOLE_BLOCK_REASON = '复盘模板 §5 三项要写全（这一整块 / 归谁 / 我们哪里绕开了它），「归谁：」要带出处（网址、Context7 路径或 file:line），且不能写「不适用」——写法见 docs/engineering/direction-check-template.md §5'
 
 export function subjectOf(message) {
   return String(message || '').split(/\r?\n/).find((l) => l.trim() && !l.startsWith('#'))?.trim() || ''
@@ -30,11 +34,34 @@ export function decideDirectionTrailer(message, deps) {
   const ids = hits.filter((h) => h.unit?.kind === 'self-written').map((h) => h.unit.id)
   const missing = deps.docMentions ? ids.filter((id) => !deps.docMentions(trailer, id)) : []
   if (missing.length) return { ok: false, hits, reason: `${TRAILER_KEY} 指向的复盘文档没有写到这些自写登记条目（id）：${missing.join('、')}——要写清为什么现在换不了现成方案、哪天换` }
+  if (needsWholeBlock(trailer) && !wholeBlockOk(deps.docText ? deps.docText(trailer) : '')) return { ok: false, hits, reason: `${TRAILER_KEY} 指向的复盘（${trailer}）：${WHOLE_BLOCK_REASON}` }
   return { ok: true, trailer }
+}
+
+/** 文件名开头是 YYYY-MM-DD 且 ≥ 2026-11-23 才要查 §5；没日期或更早的不追溯。 */
+export function needsWholeBlock(rel) {
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(path.posix.basename(String(rel).split('\\').join('/')))
+  return Boolean(m) && m[1] >= WHOLE_BLOCK_FROM
+}
+
+/** §5 三项都在行首，且「归谁：」带出处、不以「不适用」开头。 */
+export function wholeBlockOk(text) {
+  const line = (key) => new RegExp(`^[ \\t>*-]*${key}[：:][ \\t]*(.*)$`, 'm').exec(String(text || ''))
+  const whole = line('这一整块')
+  const owner = line('归谁')
+  const bypass = line('我们哪里绕开了它')
+  if (!whole?.[1].trim() || !owner?.[1].trim() || !bypass?.[1].trim()) return false
+  const o = owner[1].trim()
+  if (o.startsWith('不适用')) return false
+  return /https?:\/\/|\/[\w.-]+\/[\w.-]+|[\w./-]+\.\w+:\d+/.test(o)
 }
 
 export function docMentions(root, rel, id) {
   try { return fs.readFileSync(path.join(root, String(rel).split('\\').join('/')), 'utf8').includes(id) } catch { return false }
+}
+
+export function docText(root, rel) {
+  try { return fs.readFileSync(path.join(root, String(rel).split('\\').join('/')), 'utf8') } catch { return '' }
 }
 
 export function docLooksReal(root, rel) {
@@ -56,6 +83,7 @@ function main() {
     hotspots: (files) => findHotspots(root, files, { touched: stagedNamespaces(root, files) }),
     docOk: (rel) => docLooksReal(root, rel),
     docMentions: (rel, id) => docMentions(root, rel, id),
+    docText: (rel) => docText(root, rel),
   })
   if (result.ok) return 0
   console.error(`\n${directionMessage(result.hits)}\n\n拦下原因：${result.reason}\n`)

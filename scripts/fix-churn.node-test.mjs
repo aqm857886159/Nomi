@@ -274,7 +274,7 @@ describe('按概念计数：自写登记条目（30 天 / 第 2 个）与 concep
       assert.equal(hits.length, 1)
       assert.equal(hits[0].unit.id, 'mcp-like')
       assert.match(hits[0].reasons[0], /近 30 天已有 1 个 fix，这一刀是第 2 个/)
-      assert.match(hits[0].reasons[0], /先评估接入现成方案/)
+      assert.match(hits[0].reasons[0], /复盘先按模板 §5 写这一整块归谁/)
       assert.match(hits[0].reasons[0], /为什么现在换不了、哪天换/)
       assert.match(directionMessage(hits), /接入现成方案/)
     } finally { r.cleanup() }
@@ -478,5 +478,45 @@ describe('交接处表与计数', () => {
     const unit = units.find((u) => u.id === 'archetype-panel-request')
     assert.ok(unit.patterns.some((p) => 'electron/catalog/taskParams.ts'.startsWith(p)))
     assert.equal(seamFixCommits([{ sha: 'b'.repeat(40), ms: Date.now(), subject: 'fix: x', files: ['electron/catalog/taskParamsFoo.ts'] }], Date.now(), unit).length, 1)
+  })
+})
+
+describe('trailer 校验：复盘模板 §5「这一整块归谁」（2026-11-23 起的新复盘）', () => {
+  const hit = [{ path: 'src/a.ts', reasons: ['x'] }]
+  const full = '### 5. 这一整块归谁（P0）\n这一整块：分镜时间轴的排布\n归谁：@xyflow/react 12.x，https://reactflow.dev/api-reference\n我们哪里绕开了它：src/a.ts:10 自己算了布局\n'
+  const mk = (text, over = {}) => ({ stagedFiles: () => ['src/a.ts'], hotspots: () => hit, docOk: () => true, docText: () => text, ...over })
+  const NEW = 'Direction-Check: docs/engineering/direction-check/2026-11-23-x.md'
+  const OLD = 'Direction-Check: docs/engineering/direction-check/2026-11-22-x.md'
+  const run = (text, trailer = NEW, over = {}) => decideDirectionTrailer(`fix: a\n\n${trailer}`, mk(text, over))
+
+  test('①缺「归谁：」拒', () => {
+    const r = run(full.replace(/归谁：.*\n/, ''))
+    assert.equal(r.ok, false)
+    assert.match(r.reason, /复盘模板 §5/)
+  })
+  test('②「归谁：不适用」拒', () => {
+    assert.equal(run(full.replace(/归谁：.*\n/, '归谁：不适用 https://x.dev\n')).ok, false)
+  })
+  test('③「归谁：」没出处拒', () => {
+    assert.equal(run(full.replace(/归谁：.*\n/, '归谁：某个库\n')).ok, false)
+  })
+  test('缺「这一整块：」或「我们哪里绕开了它：」也拒', () => {
+    assert.equal(run(full.replace(/这一整块：.*\n/, '')).ok, false)
+    assert.equal(run(full.replace(/我们哪里绕开了它：.*\n/, '')).ok, false)
+  })
+  test('④三项写全带出处放行（网址 / Context7 路径 / file:line 任一）', () => {
+    assert.equal(run(full).ok, true)
+    assert.equal(run(full.replace(/归谁：.*\n/, '归谁：react-flow /xyflow/xyflow v12\n')).ok, true)
+    assert.equal(run(full.replace(/归谁：.*\n/, '归谁：我们唯一的主人 src/b.ts:42\n')).ok, true)
+  })
+  test('⑤11-22 以前的老复盘与没日期的文件名不追溯', () => {
+    assert.equal(run('随便什么都没有', OLD).ok, true)
+    assert.equal(run('随便什么都没有', 'Direction-Check: docs/x.md').ok, true)
+  })
+  test('⑥不碰热点的 fix 放行（连文档都不读）', () => {
+    assert.equal(run('', NEW, { hotspots: () => [], docText: () => { throw new Error('不该读') } }).ok, true)
+  })
+  test('⑦非 fix 提交放行', () => {
+    assert.equal(decideDirectionTrailer('feat: a', mk('', { hotspots: () => { throw new Error('不该查') } })).ok, true)
   })
 })
