@@ -3,11 +3,13 @@ import { builtinVendorSeed } from "../../catalog/builtinVendorSeeds";
 import { decryptApiKeyRecord, type ApiKeyRecord } from "../../catalog/secrets";
 import type { CatalogState } from "../../catalog/types";
 import { userVendorBaseUrl } from "../../catalog/userVendorBase";
+import { vendorAuthSpec } from "../../catalog/vendorAuthSpec";
 import { findIllegalHeader, isJsonRecord } from "../../jsonUtils";
 import { builtinVendorKeyOfKey } from "../../shared/builtinVendorIdentity";
 import type { VendorAccountBalance, VendorAccountBalanceRequest } from "../../shared/contracts/vendorAccountBalance";
 import { codeDeclaredFallbackOrigins, fetchVendorWithBaseFallback } from "../../vendor/vendorBaseFallback";
 import { authorizeSubmitDestination } from "../../vendor/vendorOutboundGuard";
+import { authHeaders } from "../requestPipeline";
 
 function finiteNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -87,7 +89,7 @@ export async function readVendorAccountBalance(
     return null;
   }
   const target = new URL(config.path, parsedBase.origin);
-  const headers = { Authorization: `Bearer ${apiKey}` };
+  const headers = authHeaders(vendorAuthSpec(vendor), apiKey);
   if (findIllegalHeader(headers)) return null;
   const refusal = await authorizeSubmitDestination({
     vendor,
