@@ -477,8 +477,8 @@
   ],
   "elements": [
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/nomi-entry",
       "id": "nomi-entry",
       "label": "顶栏最右的 Nomi 入口：28px 图标钮，点开 / 收起面板；⌘J、⌘\\、别处的「叫回」都落到它",
@@ -566,8 +566,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/nomi-entry.face",
       "id": "nomi-entry.face",
       "label": "入口里的 Nomi 脸：五种状态（空闲 / 有新消息 / 在做 / 刚做完 / 有一步没成），26px，和左上 N 标同一块底色",
@@ -651,8 +651,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/nomi-entry.pending-badge",
       "id": "nomi-entry.pending-badge",
       "label": "有待确认但不出胶囊时（窄于 900、放不下、或面板开着）：脸 + 同色角标，最多写 9+，悬停写全数",
@@ -703,8 +703,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/nomi-entry.pending-capsule",
       "id": "nomi-entry.pending-capsule",
       "label": "放得下时（≥900）：今天小球那颗浅橙胶囊「等你确认 N」，写全数",
@@ -748,8 +748,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/nomi-entry.dot",
       "id": "nomi-entry.dot",
       "label": "右上角的点：有新消息 = 蓝点，有一步没成 = 红点；有待确认时不画",
@@ -771,8 +771,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/nomi-entry.tooltip",
       "id": "nomi-entry.tooltip",
       "label": "悬停提示：照今天小球的拼法 [动作, 状态, 未读]；面板开着时借面板头「收起面板（⌘\\）」；Windows 写 Ctrl",
@@ -802,8 +802,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/topbar.bar",
       "id": "topbar.bar",
       "label": "顶栏本身：高 40、按钮 28、间距 2、右边留 8；Windows 右端让出系统窗口钮",
@@ -866,8 +866,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "in-progress",
+      "owner": "L-nomi-entry-topbar → 协调",
       "assertion": "board:NomiEntryTopbar/topbar.left-cluster",
       "id": "topbar.left-cluster",
       "label": "左簇：N 标 + 项目菜单（项目名放不下两个字就藏，第 ② 步跟着变短）",
@@ -985,11 +985,12 @@
         "1395-svg",
         "1396-button-项目菜单",
         "1397-svg"
-      ]
+      ],
+      "note": "协调：700 宽生产里项目名截短露出（照已有规则「左簇内容宽 ≤89 才藏」），画布上 700 那几行没画名字；记在 PR「已知偏离」，附 700 宽中英真截图，合并前给用户看过再翻。"
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/topbar.segment",
       "id": "topbar.segment",
       "label": "创作 / 生成 / 预览分段：宽时整窗居中，挤时往左让（第 ② 步）",
@@ -1232,8 +1233,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/topbar.segment-meta",
       "id": "topbar.segment-meta",
       "label": "分段上的进度数字（38/120、12:34）：第 ③ 步藏起，悬停分段看得到",
@@ -1257,8 +1258,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "in-progress",
+      "owner": "L-nomi-entry-topbar → 协调",
       "assertion": "board:NomiEntryTopbar/topbar.view-switcher",
       "id": "topbar.view-switcher",
       "label": "生成页「画布 / 列表」：跟着分段一起让",
@@ -1286,11 +1287,12 @@
         "821-svg",
         "1353-button-CanvasList",
         "1354-svg"
-      ]
+      ],
+      "note": "协调：「画布 / 列表」钮收进顶栏共用的 barIconButton，描边从 1.5 改成 1.8，是清单外看得见的样子变化；改前 / 改后并排图在实现线证据 pairs/outside-board/，合并前给用户看过再翻。"
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/topbar.export",
       "id": "topbar.export",
       "label": "「导出 MP4」：第 ① 步收成图标（已有规则，离分段不足 12px 才收）",
@@ -1345,8 +1347,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/topbar.update-pill",
       "id": "topbar.update-pill",
       "label": "「新版本」：≥900 带字；第 ④ 步收成小点（悬停看全句）；最长「上次没装上 · 点一下重试」",
@@ -1391,8 +1393,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/topbar.right-cluster",
       "id": "topbar.right-cluster",
       "label": "右簇：布局 / 导出 / 任务 / 浏览器 / 新版本 / 设置，入口在最右",
@@ -1696,8 +1698,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/topbar.yield-order",
       "id": "topbar.yield-order",
       "label": "挤的时候按顺序让：① 导出收图标 → ② 分段左挪、项目名变短再藏 → ③ 藏进度数字 → ④「新版本」收小点；分段离两簇都 ≥12px",
@@ -1732,8 +1734,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/library.topbar-no-entry",
       "id": "library.topbar-no-entry",
       "label": "项目库页顶栏：没进项目就没有 Nomi 入口（和今天一样）",
@@ -1787,8 +1789,8 @@
       ]
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "in-progress",
+      "owner": "L-nomi-entry-topbar → 协调",
       "assertion": "board:NomiEntryTopbar/panel.form-switch",
       "id": "panel.form-switch",
       "label": "面板头形态切换：第一个图标从「一个点（小球）」改成「收起」（IconLayoutSidebarRightCollapse），后两个浮窗 / 停靠不变",
@@ -1812,11 +1814,12 @@
         "1255-button-停靠在右侧",
         "1256-svg",
         "1286-p-面板头的形态切换三个图标"
-      ]
+      ],
+      "note": "协调：拍板图 Wide1100 画了面板头三个钮（停靠选中、收起圈出），实现线只交了「停靠选中」一态的并排图（pairs/form-switch-selected.png）；悬停「收起面板（⌘\\）」是原生 title，截不到；窄窗那一态没拍。交协调定怎么对账再翻。"
     },
     {
-      "status": "missing",
-      "owner": "L-nomi-entry-topbar",
+      "status": "implemented",
+      "owner": "Nomi 入口搬进顶栏（docs/plan/2026-11-22-nomi-entry-topbar.md）",
       "assertion": "board:NomiEntryTopbar/shell.content-uncovered",
       "id": "shell.content-uncovered",
       "label": "面板收起后内容区占满整宽，右下角不再有任何东西压着「生成 / 剩余」",

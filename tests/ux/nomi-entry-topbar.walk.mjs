@@ -355,7 +355,8 @@ async function runRound({ locale, scheme, tag, projectName }) {
       if (page === 'creation') await ensureStoryboard()
       await win.waitForTimeout(150)
     }
-    const hoverTooltip = async () => {
+    // stay：读完提示不挪开鼠标（要拍「悬停着」的样子时用；拍完调用方自己挪开）。
+    const hoverTooltip = async ({ stay = false } = {}) => {
       const entry = win.locator(ENTRY).first()
       if (!(await entry.isVisible().catch(() => false))) return null
       await win.mouse.move(5, HEIGHT - 5)
@@ -365,9 +366,14 @@ async function runRound({ locale, scheme, tag, projectName }) {
       const ok = await content.waitFor({ state: 'visible', timeout: 2500 }).then(() => true, () => false)
       if (!ok) return null
       const info = await content.evaluate((el) => ({ text: [...el.querySelectorAll(':scope > span.block')].map((s) => s.textContent).join(' · ') || el.textContent, height: el.getBoundingClientRect().height, lines: el.querySelectorAll(':scope > span.block').length, clipped: el.scrollWidth > el.clientWidth + 1 }))
+      if (stay) return info
       await win.mouse.move(5, HEIGHT - 5)
       await win.waitForTimeout(120)
       return info
+    }
+    const leaveEntry = async () => {
+      await win.mouse.move(5, HEIGHT - 5)
+      await win.waitForTimeout(120)
     }
 
     // ── I1：收起后不压内容（4 宽 × 3 页） ──
@@ -444,9 +450,14 @@ async function runRound({ locale, scheme, tag, projectName }) {
         check(`${BOARD.dot} ${item.id} 点在按钮内`, inside, JSON.stringify(bar.entry.dotRect))
       }
       if (item.name === 'running') check(`${BOARD.face} A3 在做时弧在转`, Boolean(bar.entry?.faceSpinning))
-      const tip = await hoverTooltip()
-      check(`${BOARD.tooltip} ${item.id} 悬停提示 = 「${item.tip.join(' · ')}」`, tip?.text === item.tip.join(' · '), tip?.text ?? '没出提示')
       await shot(win, `face-${item.name}`, true)
+      // 空闲脸另拍一张悬停着的（D2 悬停底色的并排图用），提示出在顶栏下面、不进这张顶栏图。
+      const tip = await hoverTooltip({ stay: item.name === 'idle' })
+      check(`${BOARD.tooltip} ${item.id} 悬停提示 = 「${item.tip.join(' · ')}」`, tip?.text === item.tip.join(' · '), tip?.text ?? '没出提示')
+      if (item.name === 'idle') {
+        await shot(win, 'face-idle-hover', true)
+        await leaveEntry()
+      }
     }
     {
       await win.emulateMedia({ reducedMotion: 'reduce' })
@@ -513,14 +524,16 @@ async function runRound({ locale, scheme, tag, projectName }) {
     {
       await resize(1440)
       await setAgent({ unread: 120 })
-      const tip = await hoverTooltip()
+      const tip = await hoverTooltip({ stay: true })
       const expected = [lead, status('dockIdle'), t('appShell.agent.entryUnread', { count: 120 })].join(' · ')
       check(`${BOARD.tooltip} D5 最长提示「${expected}」一行不截断`, tip?.text === expected && tip.lines === 1 && tip.height <= 23 && !tip.clipped, JSON.stringify(tip))
       if (locale === 'en') {
         const label = await win.locator(`[data-shell-topbar] ${ENTRY}`).first().getAttribute('aria-label').catch(() => null)
         check(`${BOARD.tooltip} G1 / D5 英文轨：入口提示和名字里没有中文字`, Boolean(tip?.text) && Boolean(label) && englishOnly(tip?.text) && englishOnly(label), `${tip?.text ?? '没出提示'} | ${label}`)
       }
+      // 悬停着整窗拍：提示浮在顶栏下面。
       await shot(win, 'tooltip-longest')
+      await leaveEntry()
       unverified.push('D5 / G1 Windows「Ctrl+J」：这台是 Mac，真窗口量不到；快捷键前缀按平台写由 nomiEntryLook.test.ts 覆盖')
     }
 
