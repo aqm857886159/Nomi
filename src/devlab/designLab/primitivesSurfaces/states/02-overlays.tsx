@@ -158,8 +158,7 @@ function TooltipSpecimen(): JSX.Element {
             </TooltipTrigger>
             <TooltipContent side="top">正在导出，结束后可再次点击</TooltipContent>
           </Tooltip>
-          {/* ③ 长文案：`TooltipContent` 自带 `whitespace-nowrap`，长句必须自己覆写，
-                否则会拉成一条跑出屏幕的单行（3 处真实调用点逐字复制这套类）。 */}
+          {/* ③ 长文案：多句提示一句一行、每句不折（共用组件自己出这个样子，调用方传不进宽度和折行）。 */}
           <Tooltip open>
             <TooltipTrigger asChild>
               <span className="inline-flex">
@@ -168,9 +167,7 @@ function TooltipSpecimen(): JSX.Element {
                 </WorkbenchButton>
               </span>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-56 whitespace-normal leading-snug">
-              黄昏的海边，少年逆光走向镜头。手持轻微晃动，暖色调，浅景深。
-            </TooltipContent>
+            <TooltipContent side="bottom">黄昏的海边，少年逆光走向镜头。手持轻微晃动，暖色调，浅景深。</TooltipContent>
           </Tooltip>
         </div>
       </TooltipProvider>
@@ -217,11 +214,11 @@ export const OVERLAY_STATES: readonly LabState[] = [
   },
   {
     id: 'ps-10-tooltip',
-    name: 'TooltipContent · 图标钮 / 禁用外包 span / 长文案覆写（三种真实形态）',
+    name: 'TooltipContent · 图标钮 / 禁用外包 span / 多句长文案（三种真实形态）',
     source: SOURCE_OVERLAYS,
     mirrors: [
       'src/workbench/generationCanvas/components/CanvasNavigationTooltipButton.tsx:32',
-      'src/ui/app-shell/shell/ShellTopBar.tsx:257',
+      'src/ui/app-shell/shell/ShellTopBar.tsx:57',
       'src/workbench/promptLibrary/PromptCard.tsx:83',
     ],
     coverage: 'shell',

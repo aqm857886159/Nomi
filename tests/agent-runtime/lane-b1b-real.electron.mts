@@ -85,7 +85,7 @@ async function main() {
   const tools = [...createDocumentLaneTools(document), ...createCanvasLaneTools({
     read: async () => ({ nodes: shots.map((shot, index) => ({ id: `node-shot-${index + 1}`, kind: 'video',
       title: `第 ${index + 1} 镜`, prompt: String(shot.prompt ?? ''), status: 'idle', position: { x: index * 300, y: 0 },
-      locked: false, hasResult: false })), edges: [], groups: [], selectedNodeIds: [] }),
+      hasResult: false })), edges: [], groups: [], selectedNodeIds: [] }),
     write: async args => {
       if (args.operation !== 'propose_storyboard_plan') throw new Error('B1B_ONLY_STORYBOARD_WRITES');
       shots = args.shots as Array<Record<string, unknown>>;

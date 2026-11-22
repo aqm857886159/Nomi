@@ -3,6 +3,7 @@ import type { LabState } from '../../labScreen'
 import StoryboardAnchorZone from '../../../../workbench/creation/storyboard/anchorZone/StoryboardAnchorZone'
 import StoryboardFilmAspect from '../../../../workbench/creation/storyboard/StoryboardFilmAspect'
 import StoryboardShotTable from '../../../../workbench/creation/storyboard/StoryboardShotTable'
+import { fixedEditorOwner } from '../../fixedEditorOwner'
 import { deriveStoryboardRowRuntimes } from '../../../../workbench/creation/storyboard/exec/storyboardRowStatus'
 import type { StoryboardPlan } from '../../../../workbench/generationCanvas/agent/storyboardPlan'
 import { AutoClick, AutoFocus, PlaybackStage, TableStage } from '../storyboardLabKit'
@@ -80,6 +81,7 @@ function TableStageWithPlan({ plan, clip = true }: { plan: StoryboardPlan; clip?
     <TableStage clip={clip}>
       <StoryboardShotTable
         plan={plan}
+        planSource={fixedEditorOwner<StoryboardPlan | null>(plan)}
         rows={rows}
         imageModelOptions={LAB_IMAGE_MODELS}
         videoModelOptions={LAB_VIDEO_MODELS}
@@ -87,7 +89,7 @@ function TableStageWithPlan({ plan, clip = true }: { plan: StoryboardPlan; clip?
         onChange={NOOP}
         onGenerateRow={NOOP}
         onRegenerateRow={NOOP}
-        onToggleLockRow={NOOP}
+        onToggleFrozenRow={NOOP}
         onOpenPreviewRow={NOOP}
         onRerunFreshRefsRow={NOOP}
         onDeleteSelected={NOOP}
@@ -131,7 +133,7 @@ function AnchorZoneStage({ cards, expanded }: { cards: typeof ANCHOR_RUNTIMES; e
           onRemoveAnchor={NOOP}
           onGenerateAnchor={NOOP}
           onRegenerateAnchor={NOOP}
-          onToggleLockAnchor={NOOP}
+          onToggleFrozenAnchor={NOOP}
           onFilterByAnchor={NOOP}
           onAddAnchor={NOOP}
         />
@@ -229,7 +231,7 @@ export const ZONE_STATES: readonly LabState[] = [
               onRemoveAnchor={NOOP}
               onGenerateAnchor={NOOP}
               onRegenerateAnchor={NOOP}
-              onToggleLockAnchor={NOOP}
+              onToggleFrozenAnchor={NOOP}
               onFilterByAnchor={NOOP}
               onAddAnchor={NOOP}
             />

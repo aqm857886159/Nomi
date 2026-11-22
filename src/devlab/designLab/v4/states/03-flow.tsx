@@ -9,9 +9,8 @@ import { IconBrowser, IconSettings } from '../../../../vendor/tablerIcons'
 import { AgentPanelV4Panel } from '../../../../workbench/ai/v4/AgentPanelV4Panel'
 import { AgentPanelV4Composer } from '../../../../workbench/ai/v4/AgentPanelV4Composer'
 import { V4Intervention } from '../../../../workbench/ai/v4/AgentPanelV4Cards'
-import { AgentBallFace } from '../../../../ui/app-shell/shell/AgentBallFace'
+import { NomiEntryPreview } from '../../../../ui/app-shell/shell/ShellNomiEntry'
 import { TooltipProvider } from '../../../../design'
-import { dockStatusLabel } from '../../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
 import { labViewModelLabels, useV4Fixtures, V4_LAB_SLOT_HANDLERS } from '../agentPanelV4LabKit'
 import { SpendCardPanel, SpendCardStage, type SpendLabScenario } from '../../spendCard/spendCardLabKit'
@@ -89,17 +88,14 @@ function DarkPanel(): JSX.Element {
  * 两处对不上，收起态就是在撒谎。
  */
 function CollapsedScene(): JSX.Element {
-  const labels = useV4Labels()
-  const tooltip = `${labels.dock.open} · ${dockStatusLabel('needs-confirm', 1, labels.dock)}`
-  // 10-08 外壳重设计：收起 = 内容区右下一颗小球；等用户确认花钱时变「等你确认 N」胶囊，不自己弹开。
+  // 2026-11-22 NomiEntryTopbar：收起 = 面板收进顶栏最右那颗 Nomi 入口（取代内容区右下的小球）；等用户确认花钱时入口长成「等你确认 N」胶囊，不自己弹开。
   // 原来横在页面上的那条输入坞已删（用户 10-08：「横在页面上……没法用，不解决问题」）。
   return (
-    <div className="relative bg-nomi-chrome p-2" style={{ width: 620, height: 360 }}>
-      <div className="relative size-full overflow-hidden rounded-panel bg-[var(--workbench-bg)] ring-1 ring-nomi-line-soft">
-        <div className="absolute bottom-4 right-4">
-          <AgentBallFace status="needs-confirm" pendingCount={1} label={labels.dock.needsConfirm(1)} title={tooltip} />
-        </div>
+    <div className="relative flex flex-col bg-nomi-chrome px-2 pb-2" style={{ width: 620, height: 360 }}>
+      <div className="flex h-10 shrink-0 items-center justify-end">
+        <NomiEntryPreview status="needs-confirm" face="idle" pendingCount={1} unread={0} open={false} roomy />
       </div>
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-panel bg-[var(--workbench-bg)] ring-1 ring-nomi-line-soft" />
     </div>
   )
 }

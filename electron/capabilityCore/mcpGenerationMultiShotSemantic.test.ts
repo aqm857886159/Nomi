@@ -48,7 +48,6 @@ function helpers(overrides: Partial<Parameters<typeof createMultiShotCreateHelpe
     // 不在测试里重写一份参数表/提示词投影，否则夹具就成了第二台发动机。
     compileContract: (candidate) => compileExecutionContract(candidate, registry),
     priceForCandidate: () => ({ known: true, amount: 0.3 } as never),
-    effectiveVideoModes: () => [],
     ...overrides,
   });
 }

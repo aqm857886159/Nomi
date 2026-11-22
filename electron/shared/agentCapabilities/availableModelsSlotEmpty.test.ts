@@ -19,6 +19,7 @@ import { applyBuiltinSeeds } from "../../catalog/seedBuiltins";
 import { agentModelEntriesFromCatalog } from "../../catalog/agentModelEntriesFromCatalog";
 import { parseLaneComposerContext } from "../../agentLane/laneDesktopInput";
 import { readVerbs } from "./verbs/readVerbs";
+import { modelSpecDetail, modelSpecRow } from "./modelSpecProjection";
 import { PROJECT_AGENT_APPROVAL_MODES } from "./capabilityApprovalPolicy";
 
 const state = applyBuiltinSeeds({ version: 11, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, "2026-11-14").state;
@@ -40,6 +41,8 @@ describe("Agent 模型清单带 slotEmpty 约束照常过边界校验", () => {
 
   it("list_models 输出校验通过整张清单", () => {
     const listModels = readVerbs().find((verb) => verb.name === "list_models")!;
-    expect(() => listModels.outputSchema!.parse({ models })).not.toThrow();
+    // 应用内这一面的真实返回：行由 `modelSpecRow(entry, "lane")` 投影（身份头是完整名字），不是条目本身。
+    expect(() => listModels.outputSchema!.parse({ models: models.map((entry) => modelSpecRow(entry, "lane")) })).not.toThrow();
+    expect(() => listModels.outputSchema!.parse({ model: modelSpecDetail(models.find((entry) => entry.modelId === "kling-v4-flash")!, "lane") })).not.toThrow();
   });
 });

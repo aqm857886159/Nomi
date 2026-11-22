@@ -150,7 +150,8 @@ async function assistantHeader(win, panel) {
   if ((await matches.count()) === 0) {
     matches = panel.locator('button').filter({ hasText: name })
   }
-  if ((await matches.count()) === 0) {
+  const matchVisible = await matches.first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  if (!matchVisible) {
     const buttons = await panel.locator('button').allInnerTexts()
     throw new Error(`MCP ACTIVATION WALK FAIL: assistant card is missing; buttons=${buttons.join(' | ')}`)
   }

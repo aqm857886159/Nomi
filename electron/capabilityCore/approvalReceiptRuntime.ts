@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { bindApprovalReceiptIssuer } from './runOwnedGenerationGateAuthority'
 
 import { createApprovalReceiptAuthority, type ApprovalReceiptAuthority } from './approvalReceipt'
 import { capabilityCoreDir, ensureCapabilitySigningKey } from './security'
@@ -22,7 +23,7 @@ let sharedAuthority: ApprovalReceiptAuthority | null = null
 export function getApprovalReceiptAuthority(): ApprovalReceiptAuthority {
   if (!sharedAuthority) {
     const authorityDir = capabilityCoreDir()
-    sharedAuthority = createApprovalReceiptAuthority({
+    const authority = createApprovalReceiptAuthority({
       filePath: path.join(authorityDir, 'approval-receipts.json'),
       macKey: ensureCapabilitySigningKey('approval-receipt'),
       storeMacKey: ensureCapabilitySigningKey('approval-receipt-store'),
@@ -33,6 +34,8 @@ export function getApprovalReceiptAuthority(): ApprovalReceiptAuthority {
         ownerId: `capability-core-${process.pid}`,
       }),
     })
+    bindApprovalReceiptIssuer(authority.reader, authority)
+    sharedAuthority = authority.reader
   }
   return sharedAuthority
 }

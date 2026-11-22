@@ -40,7 +40,6 @@ function normalizeRatio(value) {
  */
 export function draftShotFields(args, shot) {
   const taskKind = shot.taskKind ?? args.taskKind;
-  const candidate = shot.candidate ?? args.candidate;
   const parameters = shot.parameters && typeof shot.parameters === "object" ? shot.parameters : {};
   const aspect = normalizeRatio(shot.aspectRatio)
     ?? normalizeRatio(parameters.aspect_ratio)
@@ -50,7 +49,8 @@ export function draftShotFields(args, shot) {
     kind: VIDEO_TASKS.has(taskKind) ? "video" : IMAGE_TASKS.has(taskKind) ? "image" : undefined,
     durationSec: typeof shot.durationSec === "number" ? shot.durationSec : undefined,
     aspectRatio: aspect,
-    model: candidate?.modelId ?? shot.modelId,
+    // 判据量的是「模型 id」：完整名字 `modelId@vendor` 只取 @ 前那段，供应商名不参与匹配。
+    model: typeof shot.model === "string" ? shot.model.replace(/@[^@]*$/, "") : undefined,
     references: Array.isArray(shot.references) ? shot.references.length : 0,
   };
 }

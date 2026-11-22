@@ -135,6 +135,7 @@ try {
   // 锚点必须是 [data-node-id]（BaseGenerationNode.tsx:283 / ClipNode.tsx:475 / LightweightGenerationNode.tsx:41）。
   // 原来写的 .react-flow__node 在 src/ 里**零命中**——计数恒为 0，只是被 console.log 掉了没人看，
   // 于是「节点加上了没有」这件事从来没被验证过（2026-08-18 走查框架体检发现）。
+  await getWin().locator('[data-node-id]').first().waitFor({ state: 'visible' }).catch(() => {})
   const nodeCount = await getWin().locator('[data-node-id]').count()
   console.log('  画布节点数:', nodeCount, 'url:', getWin().url())
   check('画布上真的加出了节点', nodeCount > 0, `[data-node-id] 命中 ${nodeCount} 个`)
@@ -147,7 +148,7 @@ try {
     await getWin().waitForTimeout(600)
   }
   await composer.waitFor({ state: 'visible', timeout: 10000 })
-  check('图片节点 composer 浮出', (await composer.count()) > 0)
+  check('图片节点 composer 浮出', await composer.waitFor({ state: 'visible' }).then(() => true, () => false))
 
   // 把超长 prompt 输入真实 PromptEditor（点进 → 一次性 insertText）
   const editor = composer.locator('.ProseMirror').first()

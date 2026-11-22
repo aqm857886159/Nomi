@@ -15,6 +15,7 @@ import type { BillingModelKind } from "../catalog/types";
 import { modelKindForTaskKind } from "./capabilityModeManifest";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import { isGenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
+import { transportTaskKindForModeId } from "./videoCapabilities/registry";
 
 /** 一镜出来的是图片还是视频。 */
 export type GenerationShotKind = Extract<BillingModelKind, "image" | "video">;
@@ -80,4 +81,19 @@ export function resolveShotTaskKind(input: Readonly<{
   const withoutInput = supported.find((taskKind) => taskKind === "text_to_image" || taskKind === "text_to_video");
   const chosen = input.hasReferences ? withInput ?? withoutInput : withoutInput ?? withInput;
   return chosen ? { ok: true, taskKind: chosen } : { ok: false, refusal: { reason: "kind_unspecified" } };
+}
+
+/**
+ * 一镜**明写**的种类：`taskKind`，或者一个本身就是任务名的 `mode`，或者能推出任务名的 `modeId`。
+ * 三种写法说的是同一件事实，归成一个；一个都没写 = undefined（不往下猜）。宿主语义合成与 lane 认名字时定「这一种任务」都问它。
+ * 模型明说了模式，就别再去猜种类（`transportTaskKindForModeId` 从档案扫出来，不手抄）。2026-09-22 之前模型写了
+ * `modeId: "i2v"`，我们按提示词猜了 `text_to_video`，再把冲突算在它头上。`taskKind` 写错的拒收由调用方先做。
+ */
+export function statedShotTaskKind(written: Readonly<{ taskKind?: unknown; mode?: unknown; modeId?: unknown }>): GenerationDefaultTaskKind | undefined {
+  if (typeof written.taskKind === "string" && isGenerationDefaultTaskKind(written.taskKind)) return written.taskKind;
+  const mode = typeof written.mode === "string" ? canonical(written.mode) : "";
+  if (isGenerationDefaultTaskKind(mode)) return mode;
+  const modeId = typeof written.modeId === "string" ? written.modeId.trim() : "";
+  const byModeId = modeId ? transportTaskKindForModeId(modeId) : undefined;
+  return byModeId && isGenerationDefaultTaskKind(byModeId) ? byModeId : undefined;
 }

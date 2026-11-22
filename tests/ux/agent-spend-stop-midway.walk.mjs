@@ -24,13 +24,13 @@ import { CANVAS_PANEL, createRuntimeWalk, expandResidentPanel, openCanvas, recor
 import { backToLibrary, newProjectEntry } from './_shell.mjs'
 import { handOverCounts, quickShot, receiptDecision, singleStopRound, stopNoticeSaid, vendorShots, watchStopNotice } from './_spendStopRounds.mjs'
 
-const IMAGE = { providerId: 'apimart', modelId: 'gpt-image-2' }
+const IMAGE = 'gpt-image-2@apimart'
 const BATCH_CONCURRENCY = 6
 const A = { progress: 'board:SpendCardQ1/card.progress', stop: 'board:SpendCardQ1/card.progress.stop' }
 
 const present = createPresenter('S_STOP')
 const twelve = (tag) => Array.from({ length: 12 }, (_, index) => ({
-  title: `${tag} 第 ${index + 1} 张`, prompt: `${tag} 第 ${index + 1} 张：海边的灯塔，第 ${index + 1} 种天色`, taskKind: 'text_to_image', candidate: IMAGE,
+  title: `${tag} 第 ${index + 1} 张`, prompt: `${tag} 第 ${index + 1} 张：海边的灯塔，第 ${index + 1} 种天色`, taskKind: 'text_to_image', model: IMAGE,
 }))
 
 /** 供应商这一叠（从 `from` 起）收到了几笔、受理了几笔（回了任务号）。 */

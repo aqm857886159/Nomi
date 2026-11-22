@@ -25,7 +25,7 @@ const executionGuard = {
   assertCurrent: vi.fn(),
 };
 
-function writableSnapshot(prompt = "old prompt", locked = false): GenerationCanvasSnapshot {
+function writableSnapshot(prompt = "old prompt"): GenerationCanvasSnapshot {
   return {
     nodes: [{
       id: "node-real",
@@ -33,7 +33,6 @@ function writableSnapshot(prompt = "old prompt", locked = false): GenerationCanv
       title: "Shot",
       position: { x: 0, y: 0 },
       prompt,
-      locked,
     }],
     edges: [],
     selectedNodeIds: [],
@@ -56,7 +55,6 @@ describe("canvas.write renderer evidence capture", () => {
         position: { x: 10, y: 20 },
         size: { width: 300, height: 200 },
         prompt: "old prompt",
-        locked: true,
         categoryId: "shots",
         groupId: "group-a",
         status: "running",
@@ -99,7 +97,6 @@ describe("canvas.write renderer evidence capture", () => {
         kind: "video",
         title: "Shot",
         prompt: "old prompt",
-        locked: true,
         categoryId: "shots",
         groupId: "group-a",
         model: {
@@ -250,7 +247,6 @@ describe("canvas.write renderer evidence capture", () => {
 
   it.each([
     ["content", writableSnapshot("changed prompt")],
-    ["lock", writableSnapshot("old prompt", true)],
   ])("rejects %s drift at the final boundary", async (_kind, current) => {
     const captured = writableSnapshot();
     const admission = buildCanvasWriteAdmission(captureCanvasWriteRawEvidence(captured, "node-real"));

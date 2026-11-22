@@ -41,7 +41,7 @@ export function findExecutableModel(
   // 没发布也归 model-config（去模型接入）：重试一万次都一样。措辞要带「Model is not configured」，错误卡靠它分类。
   const availability = catalogModelAvailability(state, model);
   if (!availability.usable && availability.reason === "model_unpublished") {
-    throw new Error(`Model is not configured: ${modelKey} (not published: no verified route yet)`);
+    throw new Error(`Model is not configured: ${modelKey} (not published: no executable request format)`);
   }
   const keyRecord = state.apiKeysByVendor[vendorKey];
   const apiKey = decryptApiKeyRecord(keyRecord);

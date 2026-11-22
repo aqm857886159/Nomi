@@ -1,3 +1,4 @@
+import { assertIssuedGenerationPlanning } from "./generationPlanningIssue";
 import { DRAFT_CANVAS_LANDING_KEY, type DraftCanvasLanding } from "../shared/agentLane/draftCanvasLanding";
 import { undecidedShotIds, type GeneratePresentationOutcome } from "../shared/productionGenerationPresentation";
 import { GenerationScopeRefusal, NO_CURRENT_OFFER, resolveUndecidedGenerationShotScope } from '../shared/agentCapabilities/generationShotScope';
@@ -373,6 +374,8 @@ export function createPiGenerationTransportAdapter(
   binding: ProjectBinding,
   deps: GenerationTransportAdapterDependencies,
 ): PiGenerationTransportAdapter {
+  // 模型那一侧的传输只认生成装配工厂发的规划（强转骗得过类型，骗不过名单）。
+  assertIssuedGenerationPlanning(deps.planning, "lane generation transport");
   let disposed = false;
 
   const lease = async (signal: AbortSignal): Promise<ProjectLeaseV2> => {
@@ -453,7 +456,7 @@ export function createPiGenerationTransportAdapter(
     const run = deps.readRun(projectId, runId);
     const shotIds = run ? undecidedShotIds(run) : [];
     if (shotIds.length === 0) return undefined;
-    await abortable(handOver.handOver({ projectId, runId, shotIds, by: "policy", hostingAllowed: false }), signal);
+    await abortable(handOver.handOver({ projectId, runId, shotIds, by: "policy" }), signal);
     const settled = await handOver.waitForSettlement(projectId, runId, shotIds, POLICY_SETTLEMENT_TIMEOUT_MS, signal);
     if (signal.aborted) throw abortError();
     if (settled.failed.length > 0) return undefined;

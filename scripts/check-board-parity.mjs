@@ -26,6 +26,9 @@
 //      direct / menu 要 ifRemoved（删掉它创作者会做错什么）
 //  R14 以前定过什么：priorDecisions 数组 ≥1 行 {what, source, stillValid}，或 { notFound: 查了哪里 }
 //  R15 边界表覆盖：states 里有 max-count / long-text 的元素，必须被 boundarySheet 某一行的 element 指到；写 { none } 却有这样的元素 = 红
+//  R16 同类产品登记表（2026-11-22 起，2026-11-21 用户要求修底层）：同类是谁只在 docs/design/peers.json 定一次（用户拍板）；
+//      priorArt 第一项的 product 必须是登记表 peers 里的一家；任何一项命中 notPeers 就红；这一项带 userApproved { quote, date } 才放行。
+//      登记表本身也查：approval 有原话和日期，每家有 why / surfaces / access
 //  R8 PR 正文 `## 拍板图` 认领的元素：在 PR 头上必须是 implemented，或带 userDecision 的 deferred / dropped
 //     （认领可以指向任何日期目录里的板；发现到的每张新日期板都跑完整规则：抽取候选核哈希、人工普查须声明）
 //
@@ -194,6 +197,77 @@ export function checkSameSurfacePriorArt({ board, manifest, date }) {
   if (!Array.isArray(diffs) || diffs.length === 0) errors.push(tag('priorArt[0] 缺 differences：和它不一样的地方逐条写 { what: 哪里不一样, why: 为什么 }；完全照它做也写一条说明'))
   else diffs.forEach((diff, index) => {
     for (const field of ['what', 'why']) if (!isNonEmptyString(diff?.[field])) errors.push(tag(`priorArt[0].differences[${index}] 缺 ${field}`))
+  })
+  return errors
+}
+
+/**
+ * R16 同类产品登记表（2026-11-21 用户：「我觉得不应该看这几个 他和我们的产品定位不一致吧」「为什么你会看这些 修复底层系统」）。
+ * 起因：「最接近的成熟同类产品」只靠出图的人自己挑，R11 只查格式；挑的人按「好不好打开」选出了开发者聊天客户端
+ * （2026-11-21 设置页调研；更早 2026-11-17 连接状态板第一项写 LibTV「没有这东西」，真正对照的是 Cherry Studio / Open WebUI / LibreChat）。
+ * 改成：同类是谁只在 docs/design/peers.json 定一次（用户拍板），门岗对它查——
+ *   ① priorArt 第一项（same-surface）的 product 必须是登记表 peers 里的一家；
+ *   ② 任何一项命中登记表 notPeers（按 product / url / takeaway 里的名字或别名）就红。
+ * 两条都可以由这一项带 userApproved: { quote: 用户原话, date: YYYY-MM-DD } 放行（用户亲口同意的例外）。
+ * 日期 ≥ PEER_REGISTRY_REQUIRED_FROM 的板才查，更早的板不追溯。纯函数、可测。
+ */
+export const PEER_REGISTRY_REQUIRED_FROM = '2026-11-22'
+export const PEER_REGISTRY_FILE = 'docs/design/peers.json'
+
+export function loadPeerRegistry(root = REPO_ROOT) {
+  return JSON.parse(fs.readFileSync(path.join(root, PEER_REGISTRY_FILE), 'utf8'))
+}
+
+const lower = (value) => String(value ?? '').trim().toLowerCase()
+const namesOf = (entry) => [entry?.product, ...(Array.isArray(entry?.aliases) ? entry.aliases : [])].map(lower).filter(Boolean)
+const hasUserApproval = (item) => isNonEmptyString(item?.userApproved?.quote) && ISO_DAY.test(String(item?.userApproved?.date ?? ''))
+
+/** 登记表本身：用户拍过板（approval 有原话和日期），每家写清为什么算同类、对照哪几块、怎么看得到。 */
+export function checkPeerRegistryFile(registry) {
+  const tag = (msg) => `[${PEER_REGISTRY_FILE}] ${msg}`
+  if (!registry || typeof registry !== 'object') return [tag('读不到或不是对象')]
+  const errors = []
+  if (!isNonEmptyString(registry.approval?.quote) || !ISO_DAY.test(String(registry.approval?.date ?? ''))) {
+    errors.push(tag('approval 要写用户拍板的原话和日期 { quote, date }：同类是谁是产品判断，由用户定'))
+  }
+  const surfaces = new Set(Object.keys(registry.surfaces ?? {}))
+  if (!Array.isArray(registry.peers) || registry.peers.length === 0) errors.push(tag('peers 不能为空'))
+  for (const [index, peer] of (registry.peers ?? []).entries()) {
+    for (const field of ['product', 'why', 'access']) if (!isNonEmptyString(peer?.[field])) errors.push(tag(`peers[${index}] 缺 ${field}`))
+    if (!Array.isArray(peer?.surfaces) || peer.surfaces.length === 0) errors.push(tag(`peers[${index}] 缺 surfaces（按哪几块界面对照它）`))
+    else for (const surface of peer.surfaces) if (!surfaces.has(surface)) errors.push(tag(`peers[${index}].surfaces 里的「${surface}」不在 surfaces 词表里`))
+  }
+  for (const [index, group] of (registry.notPeers ?? []).entries()) {
+    if (!isNonEmptyString(group?.why)) errors.push(tag(`notPeers[${index}] 缺 why（为什么不算同类）`))
+    if (!Array.isArray(group?.members) || group.members.length === 0) errors.push(tag(`notPeers[${index}] 缺 members`))
+  }
+  const peerNames = new Set((registry.peers ?? []).flatMap(namesOf))
+  for (const member of (registry.notPeers ?? []).flatMap((group) => group?.members ?? [])) {
+    for (const name of namesOf(member)) if (peerNames.has(name)) errors.push(tag(`「${name}」同时在 peers 和 notPeers 里`))
+  }
+  return errors
+}
+
+export function checkPeerRegistry({ board, manifest, date, registry }) {
+  const day = boardDay(date, manifest)
+  if (!day || day < PEER_REGISTRY_REQUIRED_FROM) return []
+  const tag = (msg) => `[${board}] ${msg}`
+  if (!registry || !Array.isArray(registry.peers)) return [tag(`读不到同类产品登记表 ${PEER_REGISTRY_FILE}`)]
+  const items = Array.isArray(manifest?.priorArt) ? manifest.priorArt : []
+  const errors = []
+  const first = items[0]
+  if (first?.kind === 'same-surface' && !hasUserApproval(first)) {
+    const product = lower(first.product)
+    if (!registry.peers.some((peer) => namesOf(peer).includes(product))) {
+      errors.push(tag(`priorArt[0] 的「${first.product}」不在同类产品登记表（${PEER_REGISTRY_FILE} 的 peers）里：同类按 Nomi 的定位选，不按好不好打开选——先看登记表里同类的公开页面（官网、帮助中心、新手引导、更新日志）；要加一家先请用户拍板改登记表，或这一项带 userApproved: { quote: 用户原话, date }`))
+    }
+  }
+  const banned = (registry.notPeers ?? []).flatMap((group) => (group?.members ?? []).map((member) => ({ product: member.product, group: group.product, names: namesOf(member) })))
+  items.forEach((item, index) => {
+    if (hasUserApproval(item)) return
+    const text = lower([item?.product, item?.url, item?.takeaway].filter(Boolean).join(' '))
+    const hit = banned.find((entry) => entry.names.some((name) => text.includes(name)))
+    if (hit) errors.push(tag(`priorArt[${index}] 用了 ${hit.product}，登记表里它「不算同类」（${hit.group}）：换成登记表里同类的做法；确实要借它，这一项带 userApproved: { quote: 用户原话, date }`))
   })
   return errors
 }
@@ -409,7 +483,7 @@ export function makeReferrerScanner(root = REPO_ROOT, roots = ['src', 'electron'
  *   referrersOf = R12 用的引用方扫描（runBoardParity 传 makeReferrerScanner 的结果；不传时声明了 components 的新板会报「找不到」）
  * @returns {string[]} 错误列表（空 = 通过）
  */
-export function checkBoardManifest({ board, manifest, candidates, assertionCorpus, date, boardNames, referrersOf }) {
+export function checkBoardManifest({ board, manifest, candidates, assertionCorpus, date, boardNames, referrersOf, peerRegistry }) {
   const errors = []
   const tag = (msg) => `[${board}] ${msg}`
   if (!manifest || typeof manifest !== 'object') return [tag('清单缺失或不是对象')]
@@ -418,6 +492,7 @@ export function checkBoardManifest({ board, manifest, candidates, assertionCorpu
   errors.push(...checkPriorArt({ board, manifest, date }))
   errors.push(...checkBoundarySheet({ board, manifest, date, boardNames }))
   errors.push(...checkSameSurfacePriorArt({ board, manifest, date }))
+  errors.push(...checkPeerRegistry({ board, manifest, date, registry: peerRegistry }))
   errors.push(...checkAppearsIn({ board, manifest, date, boardNames, referrersOf }))
   errors.push(...checkCensusPlacement({ board, manifest, date }))
   errors.push(...checkPriorDecisions({ board, manifest, date }))
@@ -610,10 +685,20 @@ export function checkSourceHash({ board, candidatesDoc, currentHash }) {
  * 默认模式：只看哈希与清单，不起浏览器（CI 的 Contracts job 没有 Playwright 浏览器）。
  * reextract = true（显式 --reextract，只在本机或装了浏览器的环境）：再真抽一遍，比对候选文件全文。
  */
-export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir), reextract = false } = {}) {
+export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir), reextract = false, peerRegistry } = {}) {
   const errors = []
   const manifests = loadManifests(dir, root)
   const corpus = loadAssertionCorpus()
+  // R16：同类产品登记表只有一份（仓库根下 docs/design/peers.json），先查它本身，再交给每张板用。
+  if (peerRegistry === undefined) {
+    try {
+      peerRegistry = loadPeerRegistry()
+    } catch (error) {
+      peerRegistry = null
+      errors.push(`[${PEER_REGISTRY_FILE}] 读不到同类产品登记表：${error.message}`)
+    }
+  }
+  if (peerRegistry) errors.push(...checkPeerRegistryFile(peerRegistry))
   // R12 的引用方扫描要读全部源文件：第一次用到时才建，之后共用。
   let scanner = null
   const referrersOf = (file) => (scanner ??= makeReferrerScanner())(file)
@@ -632,7 +717,7 @@ export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir
     }
     // 读这张板自己目录里的清单，不按板名查表——同名板不能互相顶替（V-1203 复验 R1）。
     const manifest = JSON.parse(fs.readFileSync(path.join(boardDir, `${board}.board.json`), 'utf8'))
-    errors.push(...checkBoardManifest({ board, manifest, candidates, assertionCorpus: corpus, date: path.basename(boardDir), boardNames: boardNamesIn(boardDir), referrersOf }))
+    errors.push(...checkBoardManifest({ board, manifest, candidates, assertionCorpus: corpus, date: path.basename(boardDir), boardNames: boardNamesIn(boardDir), referrersOf, peerRegistry }))
   }
   // 重名本身就红：PR 正文按板名认领，重名就分不清认的是哪一张。
   const dated = findDatedBoards(root, dir)
@@ -654,7 +739,7 @@ export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir
       errors.push(`[${board}] 缺清单 ${board}.board.json`)
       continue
     }
-    errors.push(...checkBoardManifest({ board, manifest: manifests[board], candidates: doc.candidates, assertionCorpus: corpus, date: path.basename(dir), boardNames: boardNamesIn(dir), referrersOf }))
+    errors.push(...checkBoardManifest({ board, manifest: manifests[board], candidates: doc.candidates, assertionCorpus: corpus, date: path.basename(dir), boardNames: boardNamesIn(dir), referrersOf, peerRegistry }))
   }
   if (reextract) {
     // 显式开关：动态加载抽取（会起 Playwright 浏览器），逐字节比对候选文件。

@@ -9,6 +9,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createServer } from 'vite'
 import { launchNomiApp } from './_launchApp.mjs'
+import { buildWalkCatalog } from './_world.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasFitViewButton, newProjectEntry, switchWorkspace } from './_shell.mjs'
@@ -30,7 +31,7 @@ for (const dir of [tempRoot, settingsDir, shotsDir]) {
 }
 
 const catalogNow = '2026-10-25T00:00:00.000Z'
-fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
+buildWalkCatalog(settingsDir, {
   version: 8,
   vendors: [{
     key: 'ux-local', name: 'UX Local', enabled: true, authType: 'none', providerKind: 'openai-compatible',
@@ -49,7 +50,7 @@ fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
   }],
   mappings: [],
   apiKeysByVendor: {},
-}, null, 2))
+})
 
 const failures = []
 const check = (name, ok, detail = '') => {

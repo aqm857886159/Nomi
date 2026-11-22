@@ -1,7 +1,9 @@
+import { URL } from 'node:url'
 // ESLint flat config —— 宽松起步策略：
 //   真能抓 bug 的规则设 error（红牌，阻断 CI）；风格 / any / 未用变量等存量问题
 //   设 warn（黄牌，只提示不阻断）。目标是「挡住新增的脏东西」，存量债逐步还，
 //   而不是一上来一片红把人吓退。详见 docs/audit/2026-06-04-full-codebase-review-6role.md。
+import { modelStatusOneHomeRule } from './scripts/check-model-availability.mjs'
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
@@ -34,6 +36,13 @@ import {
   WALK_FOCUS_BY_TAG_SELECTORS,
   WALK_FOCUS_FILES,
 } from './scripts/focus-by-tag-lookup.mjs'
+import { PARAM_VALUE_DOOR_FILES, PARAM_VALUE_DOOR_IGNORES, paramValueDoorPlugin } from './scripts/param-value-door-rule.mjs'
+import {
+  RESIDENT_SELECTION_FILES,
+  RESIDENT_SELECTION_OWNER_FILES,
+  RESIDENT_SELECTION_SELECTORS,
+  RESIDENT_SELECTION_TEST_FILES,
+} from './scripts/resident-selection-owner.mjs'
 
 // 用例 / 钩子不许单独设比 vitest 全局更短的超时（全局值见 vitest.config.ts 的 testTimeout / hookTimeout，都是 30_000；
 // 两处同值由 scripts/vitest-timeout-floor.test.mjs 核对）。超时被放弃的用例仍在后台跑完，把任务或半初始化模块留给下一个用例
@@ -142,6 +151,68 @@ const walkDialogLocatorSelectors = [
   { selector: 'Literal[value=/fixed[.]inset-0/]', message: WALK_DIALOG_LOCATOR_MESSAGE },
   { selector: 'TemplateElement[value.raw=/fixed[.]inset-0/]', message: WALK_DIALOG_LOCATOR_MESSAGE },
 ]
+const nodeLockRemovedPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const NODE_LOCK_REMOVED_MESSAGE = '节点锁已整个删除（2026-11-17）：不要再加锁节点的按钮、字段、事件或「node_locked」拒绝。助手该碰哪个节点由它自己读画布判断，不靠创作者去锁。'
+const nodeLockRemovedSelectors = [
+  { selector: "Identifier[name=/^(setNodeLocked|NodeLockBadge)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
+  { selector: "Literal[value=/^(canvas[.]node[.](un)?locked|node_locked)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
+  { selector: "TemplateElement[value.raw=/^(canvas[.]node[.](un)?locked|node_locked)$/]", message: NODE_LOCK_REMOVED_MESSAGE },
+]
+// 生成底栏「窄了谁先让」只有一个量的人：InlineParameterBar（方向检查 docs/engineering/direction-checks/2026-11-17-bar-yield.md）。
+// 以前量的不是屏上画的、何时重量是手写清单；底栏里别的组件再自己量宽来挑样子，就又多一处会量错的地方。
+// 两目录内的尺寸读取默认禁止；与底栏无关的存量量法逐个列明用途，只豁免这些文件。
+const composerBarMeasurePlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const COMPOSER_BAR_MEASURE_MESSAGE = '生成底栏只有 InlineParameterBar 量宽挑样子：底栏组件不要自己 getBoundingClientRect / offsetWidth / ResizeObserver，从 ComposerBarYieldContext 读让级；要多一级让法就给 composerYieldLadder 声明一级。'
+const COMPOSER_BAR_MEASURE_PROPS = '/^(offsetWidth|clientWidth|scrollWidth|offsetHeight|clientHeight|scrollHeight)$/'
+const composerBarMeasureSelectors = (prefix = '') => [
+  { selector: `${prefix}CallExpression > MemberExpression.callee[property.name=/^(getBoundingClientRect|getClientRects)$/]`, message: COMPOSER_BAR_MEASURE_MESSAGE },
+  { selector: `${prefix}MemberExpression[property.name=${COMPOSER_BAR_MEASURE_PROPS}]`, message: COMPOSER_BAR_MEASURE_MESSAGE },
+  { selector: `${prefix}NewExpression[callee.name=/^(ResizeObserver|IntersectionObserver)$/]`, message: COMPOSER_BAR_MEASURE_MESSAGE },
+]
+const COMPOSER_BAR_YIELD_IMPORTER = 'Program:has(ImportDeclaration[source.value=/composerBarYield$/]) '
+const COMPOSER_BAR_MEASURER = 'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx'
+const COMPOSER_BAR_DIRECTORIES = ['src/workbench/generationCanvas/nodes/**/*.{ts,tsx}', 'src/workbench/creation/storyboard/shotRow/**/*.{ts,tsx}']
+const NON_COMPOSER_MEASUREMENTS = [
+  'src/workbench/generationCanvas/nodes/NodeEffectRecommendations.tsx', // 提示词推荐只留完整的前几枚，和底栏挑样子无关
+  'src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx', // 节点上方工具条的屏幕夹紧定位
+  'src/workbench/generationCanvas/nodes/clipNodeEdgeScroll.ts', // 拖剪辑到滚动区边缘时滚动
+  'src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx', // 剪辑时间尺和拖动坐标
+  'src/workbench/generationCanvas/nodes/useNodeDragResize.ts', // 节点拖拽跨时间轴的落点坐标
+  'src/workbench/generationCanvas/nodes/ProgressRevealCanvas.tsx', // 结果揭幕画布的像素尺寸
+  'src/workbench/generationCanvas/nodes/TextNodeComposer.tsx', // 文本框点按光标和滚动定位
+  'src/workbench/generationCanvas/nodes/ClipNode.tsx', // 剪辑节点指针坐标
+  'src/workbench/generationCanvas/nodes/useComposerPromptExpand.ts', // 提示词区是否需要展开
+  'src/workbench/generationCanvas/nodes/VideoTrimFilmstrip.tsx', // 裁剪胶片抽帧密度和指针位置
+  'src/workbench/generationCanvas/nodes/PanoramaViewer.tsx', // 全景预览的鼠标/触摸坐标
+  'src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx', // 节点上方工具菜单的锚定
+  'src/workbench/generationCanvas/nodes/useNodeMediaMeasurement.ts', // 媒体节点的显示/固有尺寸
+  'src/workbench/generationCanvas/nodes/whiteboard/WhiteboardEditingToolbar.tsx', // 白板编辑浮条定位
+  'src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardBoxSelection.ts', // 白板框选坐标
+  'src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardSelectionActions.ts', // 白板选择操作坐标
+  'src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardDrawing.ts', // 白板笔画坐标
+  'src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardFrameSize.ts', // 白板画框尺寸
+  'src/workbench/generationCanvas/nodes/whiteboard/WhiteboardLeaferCanvas.tsx', // 白板坐标转换
+  'src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardCanvasDocument.ts', // 白板文档坐标转换
+  'src/workbench/generationCanvas/nodes/render/ImageCropGridOverlay.tsx', // 裁剪格覆盖媒体框的位置
+  'src/workbench/generationCanvas/nodes/render/AudioStripNode.tsx', // 音频条指针位置
+  'src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx', // 结果版本卡和节点对齐
+  'src/workbench/generationCanvas/nodes/versionCards/NodeVersionCards.tsx', // 版本视频寻址
+  'src/workbench/generationCanvas/nodes/director/panels/EditorSplit.tsx', // 导演编辑器分栏拖动
+  'src/workbench/generationCanvas/nodes/director/panels/Popover.tsx', // 导演编辑器弹层定位
+  'src/workbench/generationCanvas/nodes/director/scene/useViewportPicking.ts', // 3D 场景选取坐标
+  'src/workbench/generationCanvas/nodes/director/scene/E2EBridge.tsx', // 3D 视口截图几何
+  'src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx', // 相机操控和视口坐标
+  'src/workbench/generationCanvas/nodes/director/timeline/TimelineRuler.tsx', // 导演时间尺寻址
+  'src/workbench/generationCanvas/nodes/director/timeline/TrackLanes.tsx', // 导演轨道指针坐标
+  'src/workbench/generationCanvas/nodes/director/timeline/useTimelineViewport.ts', // 导演时间轴可视范围
+  'src/workbench/generationCanvas/nodes/director/timeline/TrackList.tsx', // 导演轨道菜单定位
+  'src/workbench/generationCanvas/nodes/director/timeline/TimelineContextMenu.tsx', // 导演时间轴菜单定位
+  'src/workbench/generationCanvas/nodes/director/timeline/ClipBar.tsx', // 导演剪辑条菜单定位
+  'src/workbench/generationCanvas/nodes/director/panels/viewport/AspectGuide.tsx', // 相机画幅辅助线尺寸
+  'src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx', // 画中画视口尺寸和坐标
+  'src/workbench/creation/storyboard/shotRow/PromptSkeletonSegments.tsx', // 提示词骨架插入菜单定位
+  'src/workbench/creation/storyboard/shotRow/useElementWidth.ts', // 表级密度由宿主宽决定，底栏只读表级档位
+]
 const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const mainSyncWaitSelectors = [{
   selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
@@ -229,6 +300,45 @@ export const playwrightAliasSelectors = [
 // 只在三片目录开的选择器若混进 no-restricted-syntax，就得在每个能匹配到这三片的块里重拼一遍；独立 id 只有下面一个块配置它，不会被覆盖。
 const playwrightAliasPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 export const PLAYWRIGHT_ALIAS_FILES = ['scripts', 'tests', 'evals'].map((dir) => `${dir}/**/*.{js,mjs,cjs,ts,tsx,mts,cts}`)
+const PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE = "locator.count() is a one-shot snapshot and does not wait; asserting presence with count() flakes on late mount. Use expectVisible / locator.waitFor({ state: 'visible' }) / expect(loc).toBeVisible() (or state: 'attached' for hidden inputs)."
+const AWAIT_COUNT_EXPR = 'AwaitExpression:matches([argument.type="CallExpression"][argument.callee.property.name="count"], [argument.type="CallExpression"][argument.callee.property.name="catch"][argument.callee.object.type="CallExpression"][argument.callee.object.callee.property.name="count"])'
+const NOT_IN_EXPECT_POLL = ':not(CallExpression[callee.object.name="expect"][callee.property.name="poll"] *)'
+const COUNT_IF_FAIL = ':matches([consequent.type="ThrowStatement"], [consequent.type="ExpressionStatement"][consequent.expression.type="CallExpression"][consequent.expression.callee.name=/^(record|fail)$/], [consequent.type="ExpressionStatement"][consequent.expression.type="CallExpression"][consequent.expression.callee.type="MemberExpression"][consequent.expression.callee.object.name=/^(failures|errors|issues)$/][consequent.expression.callee.property.name="push"], :has(BlockStatement.consequent > ThrowStatement), :has(BlockStatement.consequent > ExpressionStatement[expression.type="CallExpression"][expression.callee.name=/^(record|fail)$/]), :has(BlockStatement.consequent > ExpressionStatement[expression.type="CallExpression"][expression.callee.type="MemberExpression"][expression.callee.object.name=/^(failures|errors|issues)$/][expression.callee.property.name="push"]))'
+export const playwrightCountNoWaitSelectors = [
+  {
+    selector: `IfStatement${NOT_IN_EXPECT_POLL}${COUNT_IF_FAIL} > UnaryExpression.test[operator="!"] > ${AWAIT_COUNT_EXPR}.argument`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `IfStatement${NOT_IN_EXPECT_POLL}${COUNT_IF_FAIL} > BinaryExpression.test:matches([operator=/^(===?|<=)$/][right.value=0], [operator="<"][right.value=1], [operator=/^!==?$/][right.value=1]) > ${AWAIT_COUNT_EXPR}.left`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `VariableDeclaration${NOT_IN_EXPECT_POLL}:has(VariableDeclarator[id.type="Identifier"] > ${AWAIT_COUNT_EXPR}.init) + IfStatement${COUNT_IF_FAIL}[test.type="BinaryExpression"][test.left.type="Identifier"][test.operator=/^(===?|<=)$/][test.right.value=0]`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `CallExpression${NOT_IN_EXPECT_POLL}[callee.name=/^(check|record)$/] > BinaryExpression:matches([operator=">"][right.value=0], [operator=">="][right.value=1], [operator=/^!==?$/][right.value=0]) > ${AWAIT_COUNT_EXPR}.left`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `CallExpression${NOT_IN_EXPECT_POLL}[callee.object.name="assert"][callee.property.name="ok"] > ${AWAIT_COUNT_EXPR}:first-child`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `CallExpression${NOT_IN_EXPECT_POLL}[callee.object.name="assert"][callee.property.name="ok"] > BinaryExpression:first-child:matches([operator=">"][right.value=0], [operator=">="][right.value=1], [operator=/^!==?$/][right.value=0]) > ${AWAIT_COUNT_EXPR}.left`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `CallExpression${NOT_IN_EXPECT_POLL}[callee.object.name="assert"][callee.property.name=/^(strict)?[Ee]qual$/][arguments.1.type="Literal"][arguments.1.value=1] > ${AWAIT_COUNT_EXPR}:first-child`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `CallExpression${NOT_IN_EXPECT_POLL}[callee.type="MemberExpression"][callee.object.type="CallExpression"][callee.object.callee.name="expect"]:matches([callee.property.name="toBeGreaterThan"][arguments.0.value=0], [callee.property.name="toBeGreaterThanOrEqual"][arguments.0.value=1]) > MemberExpression.callee > CallExpression.object > ${AWAIT_COUNT_EXPR}:first-child`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+]
+export const PLAYWRIGHT_COUNT_NO_WAIT_FILES = ['tests/ux', 'tests/perf'].map((dir) => `${dir}/**/*.{js,mjs,cjs,ts,tsx,mts,cts}`)
 
 // ③ vitest 车道的浏览器夹具测试起 vite 开发服务只经 tests/ux/_browserFixture.mjs 的 useBrowserFixture（2026-10-24）。
 // 直接 createServer 会让依赖扫描爬仓库里全部 *.html（596 个），并把夹具页一千多个模块的冷编译算进用例里一次 goto 的操作预算，
@@ -253,6 +363,9 @@ const uiMoneyPlugin = { rules: {
 // 走查也不按标签名判焦点、认输入框。选择器与现存名单住 scripts/focus-by-tag-lookup.mjs（名单只减不增，由
 // scripts/focus-by-tag-lookup.test.mjs 按同一组选择器普查全 src 卡死）。同 ② 的做法独立注册内置规则：只有下面两个块配置这个规则 id
 // （渲染层一块、走查一块，文件范围不重叠），别的块里同名规则的选项盖不到它。
+// ⑤b 助手面板里读原始选区字段只经选区主人（2026-11-17）：选择器与范围住 scripts/resident-selection-owner.mjs，测试在 scripts/resident-selection-owner.test.mjs。
+// 同 ② 的做法独立注册内置规则，只有下面一个块配置这个规则 id。
+const residentSelectionPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const focusOwnerPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 
 // ⑥ 渲染层直调主进程的任务口 `nomi:tasks:run` 只有一扇门（2026-10-28）：src/workbench/api/taskApi.ts 的 runWorkbenchTaskByVendor。
@@ -304,6 +417,10 @@ const dynamicModuleSelectors = (name, importNames, message) => {
 }
 const boundaryPlugin = (...ruleIds) => ({ rules: Object.fromEntries(ruleIds.map((id) => [id, builtinRules.get(id)])) })
 
+const FAILURE_COPY_MESSAGE = '失败人话整表和公开码清单只留在共享层；出口只按确证码调用 toolErrorHint / toolUserActionHint，不遍历原文重判。'
+const FAILURE_COPY_NAMES = ['TOOL_ERROR_HINT', 'TOOL_USER_ACTION_HINT', 'TASK_FAILED_FALLBACK', 'PUBLIC_ERROR_CODES', 'TOOL_ERROR_CODES']
+const FAILURE_TABLE_NAMES = ['actionsOfKind', 'withoutTaskOfKind', 'ERROR_KEY_BY_KIND', 'failureCopyOf']
+const FAILURE_TABLE_MESSAGE = '失败的动作表 / 词条键表 / 无任务表只许经界面投影（narrate / classifyError / generationFailureActions）读；要「这类失败说什么、能做什么」调 decideGenerationFailure 或 classifyGenerationError，不自己查表。'
 const RAW_VENDOR_SEND_NAMES = ['requestJson', 'requestMultipart', 'requestBinary']
 const RAW_VENDOR_SEND_MESSAGE = '原始出网（vendorHttp 的 requestJson / requestMultipart / requestBinary）只给装配与传输主人：生成请求经 catalog/profileHttpRequest.ts 渲染封存、用 sendProfileJson 发。新出网口要么走它，要么在 eslint.config.mjs 的 RAW_VENDOR_SEND_OWNERS 登记理由。'
 const RAW_VENDOR_SEND_OWNERS = {
@@ -345,6 +462,51 @@ const REFERENCE_MERGE_CALLERS = {
   'electron/shared/generationLowering/runReferences.ts': 'Run 路把产物并进合同参数',
   'electron/catalog/taskParams.ts': 'headless 默认参数里并入产物（applyHeadlessParamDefaults）',
 }
+// ⑧ 新模型「怎么调、对不对」只有一个家（2026-11-17，设计卡 docs/plan/2026-11-17-declaration-one-home.md）：三条接入路（设置向导 /
+// 接入会话 / 整卡提交）只消费结果。草稿从哪来、身份怎么锁只由 serviceCompilation 判；模式语义与中性参数键只由 validator 判
+// （外部卡唯一收件口 validateProviderAdapterDraft，编译器专用口 validateCompiledAdapterDraft）；selfCheck 只转述 validator 的结论。
+// 下面每组一个命名空间、名单逐文件写理由：名单外的新文件用具名 / 命名空间 / 再导出 / 动态 import / require 拿这些判断都当场红
+// （electron/providerAdapter/declarationOwnership.lint.test.ts）。测试文件不在范围内（要替身）。
+const DECLARATION_HOME_GROUPS = [
+  {
+    namespace: 'declaration-standard-draft', module: 'builtinOpenAiCompatibleDraft', names: ['buildOpenAiCompatibleDraft'],
+    owners: {
+      'electron/providerAdapter/serviceFallback.ts': '内置模板草稿的唯一产出口（genericCompilation），草稿来源由 serviceCompilation 选',
+      'electron/parity/generationParityTestUtils.ts': '生成一致性探针的测试工具（不进产品路径）',
+    },
+    message: '内置模板草稿只由 serviceFallback.genericCompilation 产出、由 serviceCompilation.prepareRunCompilation 选用；新入口交连接给 ProviderAdapterService，不自己拼草稿。确实要新产出口就在 eslint.config.mjs 的 DECLARATION_HOME_GROUPS 登记理由。',
+  },
+  {
+    namespace: 'declaration-generic-compilation', module: 'serviceFallback', names: ['genericCompilation'],
+    owners: { 'electron/providerAdapter/serviceCompilation.ts': '草稿来源的唯一判断（交来的卡 / 私有地址 / 编译 / 内置模板）' },
+    message: '草稿来源只由 serviceCompilation.prepareRunCompilation 判；新入口不自己选内置模板。确实要新口就在 eslint.config.mjs 的 DECLARATION_HOME_GROUPS 登记理由。',
+  },
+  {
+    namespace: 'declaration-compiled-intake', module: 'validator', names: ['validateCompiledAdapterDraft'],
+    owners: { 'electron/providerAdapter/compiler.ts': '内置编译器的卡走内置上传注册表，可省 assetIngestion（validator.ts 里写了理由）' },
+    message: '外部交来的卡只走 validateProviderAdapterDraft（assetIngestion 必填、中性键必查）；可省 assetIngestion 的专用口只给内置编译器。确实要新口就在 eslint.config.mjs 的 DECLARATION_HOME_GROUPS 登记理由。',
+  },
+  {
+    namespace: 'declaration-neutral-keys', module: 'promotionMeta', names: ['assertNeutralDeclarationParameters'],
+    owners: { 'electron/providerAdapter/validator.ts': '收件口：参数键是不是中性键只在这里判' },
+    message: '参数键是不是 Nomi 中性键只由收件口（validator.ts）判，登记 / 发布只投影；已登记的数据不重判（老用户的模型照旧能用）。',
+  },
+  {
+    namespace: 'declaration-mode-defect', module: 'validator', names: ['adapterModeDefect'],
+    owners: { 'electron/providerAdapter/selfCheck.ts': '自检只转述 validator 的模式结论' },
+    message: '模式语义（通道、任务与模型类型、参考槽、异步查询）只由 validator.adapterModeDefect 判；新入口调 validateProviderAdapterDraft 或交给 selfCheck，不自己判。',
+  },
+]
+const declarationHomeBlocks = DECLARATION_HOME_GROUPS.map(({ namespace, module, names, owners, message }) => ({
+  files: GENERATION_BOUNDARY_FILES,
+  ignores: [...GENERATION_BOUNDARY_TEST_FILES, `electron/providerAdapter/${module}.ts`, ...Object.keys(owners)],
+  plugins: { [namespace]: boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+  rules: {
+    [`${namespace}/no-restricted-imports`]: ['error', { patterns: [{ group: moduleSources(module), importNames: names, message }] }],
+    [`${namespace}/no-restricted-syntax`]: ['error', ...dynamicModuleSelectors(module, names, message)],
+  },
+}))
+
 const REFERENCE_LOWERING_NAMES = ['lowerGenerationIntent', 'withLoweredReferences']
 const referenceLoweringPlugin = { rules: { ...boundaryPlugin('no-restricted-imports', 'no-restricted-syntax').rules, 'narrow-imports': builtinRules.get('no-restricted-imports') } }
 const referenceLoweringOnly = (importName) => ({ 'reference-lowering-owner/narrow-imports': ['error', { patterns: [{ group: moduleSources('lowerGenerationIntent'), importNames: [importName], message: REFERENCE_LOWERING_MESSAGE }] }] })
@@ -515,6 +677,12 @@ export default tseslint.config(
     },
   },
   {
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    plugins: { nomi: { rules: { 'model-status-one-home': modelStatusOneHomeRule } } },
+    rules: { 'nomi/model-status-one-home': 'error' },
+  },
+  {
     // 走查夹具（tests/ux/**/*.tsx）是一次性挂载的测试页，不是热更新的产品组件，这条只对产品有意义（放在 TS 块之后才压得住它的 warn）。
     files: ['tests/ux/**/*.{ts,tsx}'],
     rules: { 'react-refresh/only-export-components': 'off' },
@@ -557,10 +725,40 @@ export default tseslint.config(
     rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
   },
   {
+    // 节点锁（2026-11-17 整个删掉）不许回来：创作者不该为防助手乱动而多学一个概念。
+    // 拦得住：再把 setNodeLocked / NodeLockBadge / canvas.node.(un)locked 事件 / node_locked 拒绝码写进产品源码。
+    // 拦不住：换个名字重做一把锁——那条靠 GenerationCanvasNode 类型里已经没有 locked 字段（node.locked 编译不过）和评审。
+    // 旧版事件日志里的 canvas.node.locked 由重放的 default 分支静默跳过，那条在测试里（测试文件不受此限）。
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx,mts}'],
+    ignores: ['**/*.{test,spec}.{ts,tsx,mts}', '**/__tests__/**'],
+    plugins: { 'node-lock-removed': nodeLockRemovedPlugin },
+    rules: { 'node-lock-removed/no-restricted-syntax': ['error', ...nodeLockRemovedSelectors] },
+  },
+  {
     // 走查 / 脚本 / 测试里不按版面类名找弹窗。
     files: ['tests/**/*.{mjs,cjs,js,ts,tsx}', 'scripts/**/*.{mjs,cjs,js}'],
     plugins: { 'walk-dialog-locator': walkDialogLocatorPlugin },
     rules: { 'walk-dialog-locator/no-restricted-syntax': ['error', ...walkDialogLocatorSelectors] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: [COMPOSER_BAR_MEASURER],
+    plugins: { 'composer-bar-marker': composerBarMeasurePlugin },
+    rules: { 'composer-bar-marker/no-restricted-syntax': ['error',
+      { selector: "JSXAttribute[name.name='data-yield-item']", message: COMPOSER_BAR_MEASURE_MESSAGE },
+    ] },
+  },
+  {
+    // 目录外加入让法的组件也不得产生第二个测量点（保留原来的 importer 防线）。
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}', COMPOSER_BAR_MEASURER],
+    plugins: { 'composer-bar-measure': composerBarMeasurePlugin },
+    rules: { 'composer-bar-measure/no-restricted-syntax': ['error', ...composerBarMeasureSelectors(COMPOSER_BAR_YIELD_IMPORTER)] },
+  },
+  {
+    files: COMPOSER_BAR_DIRECTORIES,
+    ignores: ['src/**/*.test.{ts,tsx}', COMPOSER_BAR_MEASURER, ...NON_COMPOSER_MEASUREMENTS],
+    rules: { 'composer-bar-measure/no-restricted-syntax': ['error', ...composerBarMeasureSelectors()] },
   },
   {
     // 保存热路径不新增同步文件操作（存量批量压制，只减不增）。
@@ -594,7 +792,7 @@ export default tseslint.config(
     // `src/workbench/generationCanvas/spend/spendConfirm.ts`（概念 spend.confirmation-requirement）。
     // 2026-10-16 真付费验收：分镜方案整批生成直接调了 requestConfirm，绕过 owner，「直接生成」档对它完全不起作用，
     // 而且没有任何东西会红。下面这几处是允许的调用者——它们只**展示主进程已经做出的决定**，自己不判问不问：
-    //   capabilityApplyHandler.ts + generationGateConfirm.ts（MCP 生成闸 / 计划门）、credentialProbeSpendCard.ts（接入页凭据试跑）、
+    //   capabilityApplyHandler.ts + generationGateConfirm.ts（MCP 生成闸 / 计划门）、
     //   promptExtractionSpendCard.ts（浏览器提取提示词：主进程每次经 confirmSpendAndMintGrant 问人，卡只展示）、
     //   uncertainPriorTrialSpendCard.ts（试跑开新单而上一笔结果不确定：同样由主进程经 confirmSpendAndMintGrant 问人，卡只展示）、
     //   useProductionStatus.ts（制作流程门）；SpendConfirmDialog.tsx / NomiStudioApp.tsx 是 E2E 驱动桥。
@@ -607,7 +805,6 @@ export default tseslint.config(
       'src/workbench/NomiStudioApp.tsx',
       'src/workbench/capability/capabilityApplyHandler.ts',
       'src/workbench/capability/generationGateConfirm.ts', // 从 capabilityApplyHandler.ts 拆出的 MCP 生成确认卡：只展示主进程决定的挑战
-      'src/workbench/capability/credentialProbeSpendCard.ts',
       'src/workbench/capability/promptExtractionSpendCard.ts',
       'src/workbench/capability/uncertainPriorTrialSpendCard.ts',
       'src/workbench/production/useProductionStatus.ts',
@@ -631,8 +828,8 @@ export default tseslint.config(
     ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', 'src/workbench/assets/assetFileDeletion.ts'],
     plugins: { 'asset-file-owner': { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } } },
     rules: { 'asset-file-owner/no-restricted-syntax': ['error',
-      { selector: "MemberExpression:matches([property.name='deleteFiles'], [property.value='deleteFiles'])", message: 'Physical file trash belongs to assets/assetFileDeletion.ts; UI must use the shared asset deletion command.' },
-      { selector: "Property:matches([key.name='deleteFiles'], [key.value='deleteFiles'])", message: 'Do not alias the physical file deletion bridge outside assets/assetFileDeletion.ts.' },
+      { selector: "MemberExpression:matches([property.name='deleteFiles'], [property.value='deleteFiles'], [property.name='deleteAssets'], [property.value='deleteAssets'])", message: 'Physical file trash belongs to assets/assetFileDeletion.ts; UI must use the shared asset deletion command.' },
+      { selector: "Property:matches([key.name='deleteFiles'], [key.value='deleteFiles'], [key.name='deleteAssets'], [key.value='deleteAssets'])", message: 'Do not alias the physical file deletion bridge outside assets/assetFileDeletion.ts.' },
     ] },
   },
   {
@@ -642,12 +839,42 @@ export default tseslint.config(
     rules: { 'asset-command-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/assetFileDeletion'], importNames: ['trashProjectFiles'], message: 'UI must request the asset deletion command; physical trash is private to the deletion domain.' }] }] },
   },
   {
+    files: ['src/workbench/generationCanvas/nodes/versionCards/**/*.{ts,tsx}', 'src/workbench/assets/removeAssetVersion.ts', 'src/workbench/assets/assetResultMutation.ts'],
+    plugins: { 'asset-version-only': boundaryPlugin('no-restricted-syntax') },
+    rules: { 'asset-version-only/no-restricted-syntax': ['error',
+      { selector: ":matches(ImportDeclaration,ExportNamedDeclaration,ExportAllDeclaration,ImportExpression)[source.value=/(deleteAssetResult|pendingAssetDeletions|assetFileDeletion|capabilityApplyHandler|useBrowserAssetActions)(\\.[cm]?[jt]sx?)?$/]", message: 'Version removal retains the original file; file deletion belongs to asset-library intent.' },
+      { selector: "Identifier[name=/^(deferAssetFileDeletion|trashProjectFiles|deleteAssetResult|requestProjectAssetDeletion|sweepPersistedAssetDeletions|releaseLoadedProjectAssetDeletions|releaseEvictedAssetDeletions)$/]", message: 'Version removal cannot authorize file recycling.' },
+    ] },
+  },
+  {
     // 「这次按哪种方式发」只有一个主人：archetypeMeta.effectiveArchetypeMode（按输入现算）。modeTestHelpers 按存着的偏好取方式，
     // 只给「给定方式、请求体长什么样」的测试用；生产代码拿它会退回「存着什么就发什么」（2026-11-12 方式按输入现算）。
     files: ['src/**/*.{ts,tsx}', 'electron/**/*.ts'],
     ignores: ['**/*.test.{ts,tsx}', '**/__tests__/**', 'src/workbench/generationCanvas/nodes/controls/modeTestHelpers.ts'],
     plugins: { 'mode-owner': { rules: { 'no-restricted-imports': builtinRules.get('no-restricted-imports') } } },
     rules: { 'mode-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/modeTestHelpers'], message: '这次按哪种方式发走 effectiveArchetypeMode（按输入现算）；modeTestHelpers 只给测试用。' }] }] },
+  },
+  {
+    // 失败怎么判只有一个家：electron/shared/generationFailure。人话整表 / 公开码清单只留共享层，出口只按确证码查询；
+    // 共享层的内部表（动作表 / 词条键表 / 无任务表 / 公开码清单）只许经界面投影（narrate / classifyError / generationFailureActions）读，
+    // 别处要「这类失败说什么、能做什么」就调 decideGenerationFailure 或界面的 classifyGenerationError，不自己查表拼一份。
+    // 配套的扫描（出口自己做子串 / 正则认码、覆盖类别 / 动作）在 check:concept-owners 的 failure-decision-bypass。
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/shared/generationFailure.ts', 'electron/shared/generationFailureKinds.ts', 'electron/shared/generationFailureWire.ts', 'electron/shared/generationFailureDetect.ts', 'electron/shared/generationFailureCopy.ts'],
+    plugins: { 'failure-copy-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'failure-copy-owner/no-restricted-imports': ['error', { patterns: [{ group: [...moduleSources('generationFailureCopy'), ...moduleSources('generationFailureWire'), ...moduleSources('generationFailure')], importNames: FAILURE_COPY_NAMES, message: FAILURE_COPY_MESSAGE }] }],
+      'failure-copy-owner/no-restricted-syntax': ['error', ...['generationFailureCopy', 'generationFailureWire', 'generationFailure'].flatMap((name) => dynamicModuleSelectors(name, FAILURE_COPY_NAMES, FAILURE_COPY_MESSAGE))],
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/shared/generationFailure.ts', 'electron/shared/generationFailureKinds.ts', 'electron/shared/generationFailureWire.ts', 'electron/shared/generationFailureDetect.ts', 'electron/shared/generationFailureCopy.ts', 'src/workbench/observability/narrate.ts', 'src/workbench/observability/classifyError.ts', 'src/workbench/observability/generationFailureActions.ts'],
+    plugins: { 'failure-table-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'failure-table-owner/no-restricted-imports': ['error', { patterns: [{ group: [...moduleSources('generationFailure'), ...moduleSources('generationFailureKinds')], importNames: FAILURE_TABLE_NAMES, message: FAILURE_TABLE_MESSAGE }] }],
+      'failure-table-owner/no-restricted-syntax': ['error', ...dynamicModuleSelectors('generationFailure', FAILURE_TABLE_NAMES, FAILURE_TABLE_MESSAGE), ...dynamicModuleSelectors('generationFailureKinds', FAILURE_TABLE_NAMES, FAILURE_TABLE_MESSAGE)],
+    },
   },
   {
     // TipTap 编辑器只有一扇门：useNomiTiptapEditor（固定 React 19 下的生命周期选项）。
@@ -691,6 +918,13 @@ export default tseslint.config(
     rules: { 'focus-owner/no-restricted-syntax': ['error', ...FOCUS_BY_INPUT_IMPL_SELECTORS] },
   },
   {
+    // 助手面板里读原始选区字段只经选区主人（见上面 ⑤b）。
+    files: RESIDENT_SELECTION_FILES,
+    ignores: [...RESIDENT_SELECTION_TEST_FILES, ...RESIDENT_SELECTION_OWNER_FILES],
+    plugins: { 'resident-selection': residentSelectionPlugin },
+    rules: { 'resident-selection/no-restricted-syntax': ['error', ...RESIDENT_SELECTION_SELECTORS] },
+  },
+  {
     // 走查判焦点、认输入框不按标签名（见上面 ⑤）：Agent 输入框经 expectComposerFocused()；名单里的处数由普查卡死。
     files: WALK_FOCUS_FILES,
     ignores: Object.keys(WALK_FOCUS_BY_TAG_EXITS),
@@ -698,10 +932,17 @@ export default tseslint.config(
     rules: { 'focus-owner/no-restricted-syntax': ['error', ...WALK_FOCUS_BY_TAG_SELECTORS] },
   },
   {
-    // Playwright isVisible / isHidden 不许当值取出来（见上面 playwrightAliasSelectors 的说明）；只有这一个块配置这个规则 id。
+    // Playwright isVisible / isHidden 不许当值取出来（见上面 playwrightAliasSelectors 的说明）。
     files: PLAYWRIGHT_ALIAS_FILES,
     plugins: { 'playwright-wait': playwrightAliasPlugin },
     rules: { 'playwright-wait/no-restricted-syntax': ['error', ...playwrightAliasSelectors] },
+  },
+  {
+    // Playwright locator.count() 是瞬时快照不等待：在 tests/ux 与 tests/perf 里不能拿它断言「元素该在」。
+    // flat config 同名规则会整条覆盖前面的块，因此必须一并带上 playwrightAliasSelectors。
+    files: PLAYWRIGHT_COUNT_NO_WAIT_FILES,
+    plugins: { 'playwright-wait': playwrightAliasPlugin },
+    rules: { 'playwright-wait/no-restricted-syntax': ['error', ...playwrightAliasSelectors, ...playwrightCountNoWaitSelectors] },
   },
   {
     // 原始出网只给装配与传输主人（见上面 ⑦）；只有下面两个块配置 raw-vendor-send/*，文件范围不重叠。
@@ -709,6 +950,33 @@ export default tseslint.config(
     ignores: [...GENERATION_BOUNDARY_TEST_FILES, ...Object.keys(RAW_VENDOR_SEND_OWNERS)],
     plugins: { 'raw-vendor-send': rawVendorSendPlugin },
     rules: rawVendorSendRules(RAW_VENDOR_SEND_NAMES),
+  },
+  {
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', '**/*TestUtils.ts', 'electron/catalog/assetLocalization.ts', 'electron/catalog/assetIngestionRegistry.ts'],
+    plugins: { 'hosting-channel-owner': boundaryPlugin('no-restricted-syntax') },
+    rules: { 'hosting-channel-owner/no-restricted-syntax': ['error',
+      { selector: 'Identifier[name=/^(ANON_UPLOAD_CHAIN|LITTERBOX_INGESTION|TMPFILES_INGESTION)$/]', message: 'Only the asset upload loop may reference third-party hosting channels.' },
+      { selector: 'Literal[value=/tmpfiles\\.org|litter(?:box)?\\.catbox\\.moe/]', message: 'Third-party hosting addresses belong to assetIngestionRegistry, used only by the upload loop.' },
+    ] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', 'src/workbench/settings/AiModelsSection.tsx'],
+    plugins: { 'hosting-setting-owner': boundaryPlugin('no-restricted-syntax') },
+    rules: { 'hosting-setting-owner/no-restricted-syntax': ['error',
+      { selector: 'Property:matches([key.name="anonymousAssetHosting"], [key.value="anonymousAssetHosting"])', message: 'Only the Settings switch may write anonymousAssetHosting.' },
+      { selector: 'AssignmentExpression > MemberExpression.left:matches([property.name="anonymousAssetHosting"], [property.value="anonymousAssetHosting"])', message: 'Only the Settings switch may write anonymousAssetHosting.' },
+    ] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', '**/*TestUtils.ts'],
+    plugins: { 'hosting-consent-retired': boundaryPlugin('no-restricted-syntax') },
+    rules: { 'hosting-consent-retired/no-restricted-syntax': ['error',
+      { selector: 'Identifier[name=/^(anonymousAssetHostingConsent|anonymousConsent|hostingAllowed|assetUploadConsent|hostingDisclosure|anonymousHostingDisclosure)$/]', message: 'Per-run hosting consent is retired; the upload loop reads the main-process setting.' },
+      { selector: 'JSXAttribute[name.name=/^data-hosting-(disclosure|remember)$/]', message: 'Per-run hosting disclosure is retired.' },
+    ] },
   },
   {
     // runtime.ts 只留 multipart 上传；它的 JSON 出网走 sendProfileJson。
@@ -758,6 +1026,42 @@ export default tseslint.config(
     plugins: { 'reference-lowering-owner': referenceLoweringPlugin },
     rules: referenceLoweringOnly('lowerGenerationIntent'),
   },
+  // 新模型调用判断的家（见上面 ⑧），每组一个命名空间，文件范围互不覆盖。
+  ...declarationHomeBlocks,
+  {
+    // 视频推荐只进预览（2026-11-17）：「推荐范围」答的是「还有哪些模型 / 方式可以考虑」，执行路径拿它的首项去定点名模型的方式，
+    // 就是「点名别家仍继承默认的方式」那一类的第二个家。发送方式只由 modeForInputs 定。capabilityCore 里只有两处装配把它注入
+    // mcpGenerationTools 的预览依赖；别的文件具名 / 动态 import 都当场红。独立注册规则 id，别的块盖不到。
+    files: ['electron/capabilityCore/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/capabilityCore/generationDomain.ts'],
+    plugins: { 'recommendation-preview-only': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'recommendation-preview-only/no-restricted-imports': ['error', { patterns: [{
+        group: [...moduleSources('videoCapabilities'), ...moduleSources('videoCapabilities/index'), ...moduleSources('videoCapabilities/recommendation'), ...moduleSources('modelArchetypes'), ...moduleSources('modelArchetypes/index')],
+        importNames: ['recommendVideoGeneration'],
+        message: '视频推荐只进预览：执行路径的发送方式由 modeForInputs 定，不取推荐首项。预览经 mcpGenerationTools 的注入依赖拿它（装配只在 generationDomain）。',
+      }] }],
+      'recommendation-preview-only/no-restricted-syntax': ['error', ...dynamicModuleSelectors('(videoCapabilities|modelArchetypes)(.index|.recommendation)?', ['recommendVideoGeneration'], '视频推荐只进预览：执行路径的发送方式由 modeForInputs 定。')],
+    },
+  },
+  {
+    // 生成规划的名单（2026-11-21）：用到规划的位置只认生成装配工厂发的那一个。往名单里记的能力只有工厂拿
+    // （`claimGenerationPlanningIssuer`）；测试发放口和两份测试辅助只给测试、`*.testkit.ts`、`*TestUtils.ts` 用。
+    // 这一条只算提示——真正拦的是类型上的记号和装上那一刻按名单核（generationPlanningIssue.ts）。独立注册规则 id，别的块盖不到。
+    files: ['electron/**/*.{ts,tsx,mts,cts}', 'src/**/*.{ts,tsx}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, '**/*.testkit.ts', '**/*TestUtils.ts', 'electron/capabilityCore/generationDomain.ts', 'electron/capabilityCore/generationPlanningIssue.ts'],
+    plugins: { 'generation-planning-issue': boundaryPlugin('no-restricted-imports') },
+    rules: {
+      'generation-planning-issue/no-restricted-imports': ['error', { patterns: [{
+        group: moduleSources('generationPlanningIssue'),
+        importNames: ['claimGenerationPlanningIssuer', 'openGenerationPlanningTestIssue', 'issueGenerationPlanningForTest'],
+        message: '往「工厂发的规划」名单里记只有 generationDomain.ts 能做；测试发放口只给测试用。生产代码要规划就从 createGenerationDomain() 拿。',
+      }, {
+        group: [...moduleSources('generationPlanning.testkit'), ...moduleSources('generationFixedCatalog.testkit')],
+        message: '这是测试辅助（静态模型表、测试桩的发放口）。生产代码的目录只从 createGenerationDomain() 来。',
+      }] }],
+    },
+  },
   {
     // 项目存读只认草稿；严格面属于模型/Agent 作者入参。测试可验证两面的区别。
     files: ['src/workbench/project/**/*.{ts,tsx}'],
@@ -778,6 +1082,45 @@ export default tseslint.config(
         selector: "VariableDeclarator[id.name=/^(draftPlanAnchorSchema|storyboardDraftPlanSchema)$/] Property[key.name=/^(name|aspectRatio)$/] CallExpression[callee.property.name=/^(min|max|nonempty|length|regex|refine|superRefine|transform|trim)$/]",
         message: 'Draft content fields must remain editable strings; add content constraints only in the strict schema extension.',
       }),
+    },
+  },
+  {
+    // 「生成这一组」的范围只在一处算（2026-11-17）：成员、默认勾选、顺序与依赖分波只由 generationShotScope 的共用主人
+    // planGenerationScope / narrowGenerationScope 给。执行计划带品牌，主人之外 as / satisfies / 尖括号断言成它、
+    // 手拼带 waves + blocked 的对象，都是在长第二个家——当场红。测试也一样：要一份计划就经主人规划（generationScopeTestPlans）。
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: ['electron/shared/agentCapabilities/generationShotScope.ts'],
+    plugins: { 'generation-scope-one-home': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'generation-scope-one-home/no-restricted-syntax': ['error',
+        ...['TSAsExpression', 'TSSatisfiesExpression', 'TSTypeAssertion'].map((node) => ({
+          selector: `${node} > TSTypeReference.typeAnnotation[typeName.name='GenerationScopePlan']`,
+          message: '执行计划只能由共用主人造：改调 planGenerationScope / planCanvasGenerationScope（缩范围用 narrowGenerationScope），不要断言成 GenerationScopePlan。',
+        })),
+        {
+          selector: "ObjectExpression:has(> Property[key.name='waves']):has(> Property[key.name='blocked'])",
+          message: '手拼了一份带 waves + blocked 的执行计划：生成范围只在 generationShotScope 的共用主人里算，入口拿它的结论。',
+        },
+      ],
+    },
+  },
+  {
+    // 参数值只在门口规整一次（2026-11-17）：判据、管辖目录与名单都住 scripts/param-value-door-rule.mjs（自写规则，只在这一块配置）。
+    files: [...PARAM_VALUE_DOOR_FILES],
+    ignores: [...PARAM_VALUE_DOOR_IGNORES],
+    plugins: { 'param-value-door': paramValueDoorPlugin },
+    rules: { 'param-value-door/no-reparse': 'error' },
+  },
+  {
+    // 素材来源只有一个家（2026-11-21，复盘 docs/engineering/direction-checks/2026-11-21-asset-source-one-home.md）：
+    // 落盘的来源只由 finalizeAssetMeta 出、同字节复用只由 reconcileReuse 定，只许素材库自己的写入文件拿；入口只交来源事实
+    // （类型 AssetSourceFact 谁都能引）。这里限制定稿函数的导入，不校验磁盘 sidecar 的来源。
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/assets/assetSourceEvidence.ts', 'electron/assets/projectAssetStore.ts', 'electron/assets/uploadContentStore.ts', 'electron/assets/generatedAssetStaging.ts'],
+    plugins: { 'asset-source-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'asset-source-owner/no-restricted-imports': ['error', { patterns: [{ group: moduleSources('assetSourceEvidence'), importNames: ['finalizeAssetMeta', 'reconcileReuse'], message: '素材来源只由主进程素材库定：入口只交来源事实（AssetSourceFact），经 writeAsset / importLocalFile / importRemoteAsset 的参数给，不自己定稿 meta。' }] }],
+      'asset-source-owner/no-restricted-syntax': ['error', ...dynamicModuleSelectors('assetSourceEvidence', ['finalizeAssetMeta', 'reconcileReuse'], '素材来源只由主进程素材库定：入口只交来源事实（AssetSourceFact），不自己定稿 meta。')],
     },
   },
   prettier,

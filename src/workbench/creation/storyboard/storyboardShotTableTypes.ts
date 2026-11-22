@@ -3,10 +3,16 @@ import type { ModelOption } from '../../../config/models'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import type { AnchorCardRuntime, StoryboardRowRuntime } from './exec/storyboardRowStatus'
 import type { ShotVariant } from './shotRow/shotVariants'
+import type { NomiEditorSource } from '../../common/useNomiRichTextEditor'
+
+/** 方案的 owner 读口（store 的 subscribe / getSnapshot）：每一行的提示词框从它读这一镜此刻的提示词。 */
+export type StoryboardPlanSource = NomiEditorSource<StoryboardPlan | null>
 
 export type StoryboardShotTableProps = {
   pendingActions?: ReadonlySet<string>
   plan: StoryboardPlan
+  /** 提示词框出生时读真值的地方。设计实验室交 `fixedEditorOwner(方案)`。 */
+  planSource: StoryboardPlanSource
   projectId?: string | null
   /** 行执行 runtime（与 plan.shots 同序；exec/storyboardRowStatus 单源 derive）。 */
   rows: StoryboardRowRuntime[]
@@ -34,7 +40,7 @@ export type StoryboardShotTableProps = {
    */
   onRecoverRow?: ((runtime: StoryboardRowRuntime) => void) | undefined
   /** 行 ⋯ 菜单里的「锁定 / 解锁」镜级开关。 */
-  onToggleLockRow: (runtime: StoryboardRowRuntime) => void
+  onToggleFrozenRow: (runtime: StoryboardRowRuntime) => void
   /** 结果态双击打开预览。 */
   onOpenPreviewRow: (runtime: StoryboardRowRuntime) => void
   onLocateInCanvasRow?: ((runtime: StoryboardRowRuntime) => void) | undefined

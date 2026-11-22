@@ -50,10 +50,10 @@ try {
   if (lockRefusal) expect(lockRefusal.message, '拒绝的理由里不能带 key').not.toContain(FAKE_KEY)
   walk.report.lockRefusal = lockRefusal ? String(lockRefusal.message).slice(0, 200) : null
 
-  // ① key 经接入页存住了，且被授权的模型已可用 → 跳过「继续验证」那一半（loopback 夹具没有认证那一整套，真 key 上才会走它）。
+  // ① key 经接入页存住了，被授权的模型和大脑存下即可用（D-1117-delete-verification：没有验证那一步）。
   await walk.newProject() // 接入完了再开项目：下面 Agent 说话那一步要在项目里
   expect(walk.report.envKeyConnect?.keySaved, '接入页保存成功').toBe(true)
-  expect(walk.report.envKeyConnect?.verification, '保存后预置模型已可用，跳过验证').toContain('skipped')
+  expect(walk.report.envKeyConnect?.usableModels, '保存后被授权的模型和大脑已可用').toEqual(expect.arrayContaining(MODELS.map((model) => model.modelKey)))
   expect(lockRefusal, '花钱面收窄通过（被授权的模型可用，其余生成模型已停）').toBeNull()
   await walk.snap('env-key-01-zh-after-connect')
   // ④ DOM 里没有这把 key。

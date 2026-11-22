@@ -18,7 +18,7 @@
 //
 // 放在 `electron/shared/` 而不是 `electron/catalog/`：渲染层要按同一个枚举读同一份结论
 // （DTO 带 `availability` 过 IPC），共享层是两侧都 import 得到的那一层。
-import { adapterPublicationModeMask, derivePublishedExecution, type PublishedExecutionEvidence, type PublishedExecutionModel } from "./modelPublication";
+import { derivePublishedExecution, type PublishedExecutionEvidence, type PublishedExecutionModel } from "./modelPublication";
 // 钥匙健康度不在这里另立词表：它的单一 owner 是中立契约 `contracts/apiKeyStatus.ts`（R14.1）。
 import { missingDeclaredCapabilityFields, parseCustomCapabilityContract } from "./customCapabilityContract";
 import type { ApiKeyDecryptStatus } from "./contracts/apiKeyStatus";
@@ -36,7 +36,7 @@ export const MODEL_UNUSABLE_REASONS = [
   /** 这一行模型自己被停用。 */
   "model_disabled",
   /**
-   * 目录发布资格不成立：适配器还没认证出 active revision，或没有任何可执行 mapping/脚本。
+   * 目录发布资格不成立：适配器没有任何可执行 mapping/脚本。
    * 这是 MCP 接入走到一半停下时**最常见**的一档——模型行在、启用着、钥匙也在，就是没发布。
    */
   "model_unpublished",
@@ -81,8 +81,13 @@ export type ModelAvailabilityInput = {
 /**
  * 纯函数：一条模型 + 它的供应商 + 这家钥匙的健康度 → 能不能用（不能就说清是哪一档）。
  *
- * 顺序是**用户该先修哪个**的顺序，不是代码顺手的顺序：供应商没了/停了 → 模型停了 →
- * 没发布 → 钥匙。反过来（先报「没钥匙」）会把人送去填一把根本不缺的 key。
+ * 顺序是**用户该先修哪个**的顺序，不是代码顺手的顺序：供应商没了/停了 → 声明缺字段 →
+ * 就算打开也没有请求格式 → 模型停了 → 钥匙。反过来（先报「没钥匙」）会把人送去填一把根本不缺的 key。
+ *
+ * 「缺格式」排在「模型被关」前面（D-1117-delete-verification，协调 2026-11-18 批）：`enabled:false`
+ * 有三个写口是系统写的（没格式时强制关、非文本登记时先关、格式没编出来保持关），不是创作者关的。
+ * 先判被关，缺格式的模型就被说成「已关闭」。按打开后的样子算发布资格——纯计算，不存新标记。
+ * 边角明着接受：创作者手动关了一个本来就缺格式的模型，这里说「没请求格式」，不说「已关闭」。
  */
 export function deriveModelAvailability(input: ModelAvailabilityInput): ModelAvailability {
   const { model, vendor, credentialStatus, evidence } = input;
@@ -90,10 +95,11 @@ export function deriveModelAvailability(input: ModelAvailabilityInput): ModelAva
   if (!vendor.enabled) return { usable: false, reason: "vendor_disabled" };
   const missingFields = missingDeclaredCapabilityFields(model?.meta);
   if (missingFields.length) return { usable: false, reason: "capability_incomplete", missingFields };
-  if (!model?.enabled) return { usable: false, reason: "model_disabled" };
-  if (!derivePublishedExecution(model, evidence).published) {
+  if (!model) return { usable: false, reason: "model_disabled" };
+  if (!derivePublishedExecution({ ...model, enabled: true }, evidence).published) {
     return { usable: false, reason: "model_unpublished" };
   }
+  if (!model.enabled) return { usable: false, reason: "model_disabled" };
   if (vendor.authType === "none") return USABLE;
   switch (credentialStatus()) {
     case "ok":
@@ -128,8 +134,7 @@ export function assertDeclaredCapabilityForTask(meta: unknown, taskKind: string)
   const projection = meta && typeof meta === "object" ? (meta as Record<string, unknown>).declarationProjection : undefined;
   if (!projection || typeof projection !== "object" || (projection as Record<string, unknown>).hasMediaContract !== true) return;
   const contract = parseCustomCapabilityContract(meta);
-  const mask = adapterPublicationModeMask(meta);
-  if (contract && (!contract.modes.some((mode) => (mode.transportTaskKind || contract.transportTaskKind) === taskKind) || (mask.present && !mask.modes.includes(taskKind as never)))) {
+  if (contract && (!contract.modes.some((mode) => (mode.transportTaskKind || contract.transportTaskKind) === taskKind))) {
     throw Object.assign(new Error(tagNomiError("model-config", `Declaration does not publish taskKind: ${taskKind}`)), { code: "capability_mode_unavailable" });
   }
 }

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>Nomi 入口</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<button type="button" aria-label="{{label}}" title="{{label}}" style="position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: none; width: {{btnW}}; height: 28px; padding: {{btnPad}}; box-sizing: border-box; border: 0; border-radius: {{btnRadius}}; background: {{bg}}; box-shadow: {{btnEdge}}; outline: {{outline}}; outline-offset: 0; color: {{ink}}; font-family: Inter, -apple-system, BlinkMacSystemFont, 'PingFang SC', system-ui, sans-serif; cursor: pointer">
+<sc-if value="{{isIdle}}" hint-placeholder-val="{{ true }}">
+<svg width="{{size}}" height="{{size}}" viewBox="0 1 28 28" fill="none" aria-hidden="true" style="display: block; flex: none; overflow: visible">
+<rect x="3" y="4" width="22" height="22" rx="5.5" fill="{{ground}}" stroke="{{ring}}" style="stroke-width: 1px"></rect>
+<rect x="9.2" y="10.6" width="3.4" height="6.6" rx="1.7" fill="#ffffff"></rect>
+<rect x="15.4" y="10.6" width="3.4" height="6.6" rx="1.7" fill="#ffffff"></rect>
+</svg>
+</sc-if>
+<sc-if value="{{isUnread}}" hint-placeholder-val="{{ false }}">
+<svg width="{{size}}" height="{{size}}" viewBox="0 1 28 28" fill="none" aria-hidden="true" style="display: block; flex: none; overflow: visible">
+<rect x="3" y="4" width="22" height="22" rx="5.5" fill="{{ground}}" stroke="{{ring}}" style="stroke-width: 1px"></rect>
+<rect x="8.4" y="9.8" width="3.4" height="6.6" rx="1.7" fill="#ffffff"></rect>
+<rect x="14.6" y="9.8" width="3.4" height="6.6" rx="1.7" fill="#ffffff"></rect>
+</svg>
+</sc-if>
+<sc-if value="{{isRunning}}" hint-placeholder-val="{{ false }}">
+<svg width="{{size}}" height="{{size}}" viewBox="0 1 28 28" fill="none" aria-hidden="true" style="display: block; flex: none; overflow: visible">
+<circle cx="14" cy="15" r="10" fill="{{ground}}" stroke="{{ring}}" style="stroke-width: 1px"></circle>
+<rect x="9.6" y="13" width="3.4" height="4.6" rx="1.7" fill="#ffffff"></rect>
+<rect x="15" y="13" width="3.4" height="4.6" rx="1.7" fill="#ffffff"></rect>
+<path d="M6.29 7.29 A10.9 10.9 0 0 1 21.71 7.29" stroke="{{accent}}" fill="none" style="stroke-width: 1.4px"></path>
+</svg>
+</sc-if>
+<sc-if value="{{isDone}}" hint-placeholder-val="{{ false }}">
+<svg width="{{size}}" height="{{size}}" viewBox="0 1 28 28" fill="none" aria-hidden="true" style="display: block; flex: none; overflow: visible">
+<rect x="2" y="8" width="24" height="18" rx="8" fill="{{ground}}" stroke="{{ring}}" style="stroke-width: 1px"></rect>
+<path d="M9.2 17.8 A1.7 1.7 0 0 1 12.6 17.8" stroke="#ffffff" fill="none" style="stroke-width: 1.6px"></path>
+<path d="M15.4 17.8 A1.7 1.7 0 0 1 18.8 17.8" stroke="#ffffff" fill="none" style="stroke-width: 1.6px"></path>
+</svg>
+</sc-if>
+<sc-if value="{{isFailed}}" hint-placeholder-val="{{ false }}">
+<svg width="{{size}}" height="{{size}}" viewBox="0 1 28 28" fill="none" aria-hidden="true" style="display: block; flex: none; overflow: visible">
+<g transform="rotate(-9 14 14.5)">
+<rect x="3" y="4" width="22" height="21" rx="5.5" fill="{{ground}}" stroke="{{ring}}" style="stroke-width: 1px"></rect>
+<rect x="9.2" y="14" width="3.4" height="1.7" rx="0.85" fill="#ffffff"></rect>
+<rect x="15.4" y="14" width="3.4" height="1.7" rx="0.85" fill="#ffffff"></rect>
+</g>
+</svg>
+</sc-if>
+<sc-if value="{{capsule}}" hint-placeholder-val="{{ false }}">
+<svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true" style="display: block; flex: none">
+<rect x="0" y="0" width="4.4" height="11" rx="2.2" fill="{{softInk}}"></rect>
+<rect x="6.6" y="0" width="4.4" height="11" rx="2.2" fill="{{softInk}}"></rect>
+</svg>
+<span style="font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: {{softInk}}">{{capsuleText}}</span>
+</sc-if>
+<sc-if value="{{showCorner}}" hint-placeholder-val="{{ false }}">
+<span aria-hidden="true" style="position: absolute; top: -4px; right: 0; height: 14px; min-width: 14px; padding: 0 4px; box-sizing: border-box; border-radius: 7px; background: {{soft}}; color: {{softInk}}; font-size: 11px; line-height: 14px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; box-shadow: inset 0 0 0 1px {{softEdge}}, 0 0 0 2px {{under}}; pointer-events: none">{{count}}</span>
+</sc-if>
+<sc-if value="{{showDot}}" hint-placeholder-val="{{ false }}">
+<span aria-hidden="true" style="position: absolute; top: 2px; right: 1px; width: 7px; height: 7px; border-radius: 50%; background: {{dotColor}}; box-shadow: 0 0 0 2px {{under}}; pointer-events: none"></span>
+</sc-if>
+</button>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"face":{"editor":"enum","options":["idle","unread","running","done","failed"],"default":"idle"},"pending":{"editor":"int","default":0,"min":0,"max":300},"state":{"editor":"enum","options":["rest","hover","open","focus"],"default":"rest"},"wide":{"editor":"boolean","default":false},"size":{"editor":"int","default":26,"min":18,"max":28},"lang":{"editor":"enum","options":["zh","en"],"default":"zh"},"platform":{"editor":"enum","options":["mac","win"],"default":"mac"},"unread":{"editor":"int","default":3,"min":0,"max":300},"$preview":{"width":40,"height":40}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var p = this.props;
+    var theme = p.theme === 'dark' ? 'dark' : 'light';
+    var face = p.face || 'idle';
+    var pending = Number(p.pending || 0);
+    var state = p.state || 'rest';
+    var wide = p.wide === true || p.wide === 'true';
+    var size = Number(p.size || 26);
+    var en = p.lang === 'en';
+    var C = theme === 'dark' ? {
+      chrome: 'oklch(0.155 0.006 80)', ink: 'oklch(0.93 0.006 85)', ink05: 'oklch(0.30 0.006 85)', ink10: 'oklch(0.34 0.006 85)',
+      ground: 'oklch(0.30 0.01 80)', ring: 'rgba(255,255,255,0.14)', accent: 'oklch(0.70 0.13 250)', danger: 'oklch(0.72 0.13 25)',
+      soft: 'oklch(0.295 0.04 72)', softEdge: 'oklch(0.395 0.058 72)', softInk: 'oklch(0.82 0.085 72)'
+    } : {
+      chrome: 'oklch(0.97 0.003 80)', ink: 'oklch(0.22 0.01 80)', ink05: 'oklch(0.97 0.003 80)', ink10: 'oklch(0.94 0.003 80)',
+      ground: 'oklch(0.22 0.01 80)', ring: 'none', accent: 'oklch(0.55 0.13 250)', danger: 'oklch(0.55 0.13 25)',
+      soft: 'oklch(0.968 0.024 72)', softEdge: 'oklch(0.905 0.07 72)', softInk: 'oklch(0.45 0.085 72)'
+    };
+    var hasPending = pending > 0;
+    var capsule = hasPending && wide && state !== 'open'; // 11-22 用户定 C：面板开着不出胶囊，按下的脸 + 角标
+    var bg = capsule ? C.soft : state === 'hover' ? C.ink05 : state === 'open' ? C.ink10 : 'transparent';
+    var under = state === 'hover' ? C.ink05 : state === 'open' ? C.ink10 : C.chrome;
+    var count = pending > 9 ? '9+' : String(pending);
+    var exact = String(pending);
+    var showDot = !hasPending && (face === 'failed' || face === 'unread');
+    var stateText = en
+      ? (hasPending ? exact + ' waiting for you' : face === 'running' ? 'Nomi is working' : face === 'done' ? 'Just finished' : face === 'failed' ? 'One step failed' : face === 'unread' ? 'New messages' : '')
+      : (hasPending ? '等你确认 ' + exact + ' 条' : face === 'running' ? 'Nomi 正在做' : face === 'done' ? '刚做完' : face === 'failed' ? '有一步没成' : face === 'unread' ? '有新消息' : '');
+    var mod = p.platform === 'win' ? 'Ctrl+' : '⌘';
+    // 悬停提示照今天 ShellAgentHost 的拼法：[动作, 状态, 未读].join(' · ')；只有「面板开着」借用面板头今天的「收起面板」
+    var status = hasPending ? stateText : face === 'running' || face === 'done' || face === 'failed' ? stateText : (en ? 'Nomi is here' : 'Nomi 在这儿');
+    var lead = capsule ? (en ? 'Confirm ' + exact : '等你确认 ' + exact)
+      : state === 'open' ? (en ? 'Collapse panel (' + mod + '\\)' : '收起面板（' + mod + '\\）')
+      : (en ? 'Open Nomi (' + mod + 'J)' : '打开 Nomi（' + mod + 'J）');
+    var unreadN = Number(p.unread === undefined ? 3 : p.unread);
+    var unreadText = !hasPending && face === 'unread' && unreadN > 0 ? (en ? 'New messages: ' + unreadN : unreadN + ' 条新消息') : '';
+    return {
+      size: size,
+      ground: C.ground, ring: C.ring, accent: C.accent, ink: C.ink,
+      soft: C.soft, softEdge: C.softEdge, softInk: C.softInk,
+      bg: bg, under: under, dotColor: face === 'failed' ? C.danger : C.accent,
+      btnEdge: capsule ? 'inset 0 0 0 1px ' + C.softEdge : 'none',
+      btnRadius: capsule ? '999px' : '6px',
+      outline: state === 'focus' ? '2px solid ' + C.ink : 'none',
+      btnW: capsule ? 'auto' : '28px',
+      btnPad: capsule ? '0 10px 0 8px' : '0',
+      isIdle: !capsule && face === 'idle', isUnread: !capsule && face === 'unread', isRunning: !capsule && face === 'running',
+      isDone: !capsule && face === 'done', isFailed: !capsule && face === 'failed',
+      capsule: capsule, capsuleText: en ? 'Confirm ' + exact : '等你确认 ' + exact,
+      showCorner: hasPending && !capsule,
+      showDot: showDot,
+      count: count,
+      label: [lead, status, unreadText].filter(Boolean).join(' · ')
+    };
+  }
+}
+</script>
+</body>
+</html>

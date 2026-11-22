@@ -12,7 +12,7 @@ walk.fixture.respond({
     const shotId = shotIds.find(id => !hasToolResult(body, `storyboard-bulk-edit-${id}`))
     return shotId ? { type: 'tool', id: `storyboard-bulk-edit-${shotId}`, name: 'draft_shots', args: {
       operationId: design.id,
-      shots: [{ shotId, taskKind: 'text_to_video', candidate: { providerId: 'apimart', modelId: 'doubao-seedance-2.0' }, aspectRatio: '9:16' }],
+      shots: [{ shotId, taskKind: 'text_to_video', model: 'doubao-seedance-2.0@apimart', aspectRatio: '9:16' }],
     } } : { type: 'text', text: '已修改选中的镜头，未请求生成。' }
   },
 })

@@ -1,0 +1,329 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-17-shot-job-selection",
+  "problem_type": "Divergent current generation job selection",
+  "symptom": "同一账本的阶段、返工父任务和单镜取回选择不同任务；构造输入复现，真实生产发生率未查。",
+  "direct_cause": "阶段不筛 generate 且只按创建时间；QA 按更新时间；单镜自行排序；发送事实拿末项。",
+  "class_root": "共享读取边界没有统一地址和固定任务次序，原同名定义扫描漏掉改名及内联选择。",
+  "affected_population": [
+    "多镜多次尝试",
+    "旧单镜 candidateId",
+    "旧 QA node-only"
+  ],
+  "scope_paths": [
+    "electron/shared/productionShotJobs.ts",
+    "electron/shared/productionShotPhase.ts",
+    "electron/productionRun/productionQaVerdict.ts",
+    "electron/capabilityCore/canvasShotResult.ts",
+    "electron/capabilityCore/canvasShotHandover.ts",
+    "electron/productionRun/shotLandingAdmission.ts",
+    "electron/productionRun/shotProviderHandover.ts"
+  ],
+  "entry_points": [
+    "画布阶段",
+    "QA返工",
+    "单镜结果",
+    "交接回写",
+    "逐镜发送事实",
+    "批内等待受理"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "内部 Run 账本对应与历史兼容规则，依赖不决定本次不变量。",
+  "invariants": [
+    "生成段 → attempt → createdAt → 原账本稳定次序；只在 productionShotJobs 选择。",
+    "旧单镜无可识别生成任务但有账本记录时不能判成未发送。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts",
+      "symbol": "productionShotId"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotHandover.ts",
+      "symbol": "productionShotId"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotHandover.ts",
+      "symbol": "currentShotAttempt"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotHandover.ts",
+      "symbol": "latestJobForShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotHandover.ts",
+      "symbol": "hasUnresolvedShotSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/batchScheduleDerivation.ts",
+      "symbol": "jobsForShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionQaVerdict.ts",
+      "symbol": "latestJobForShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunHandoverReducer.ts",
+      "symbol": "currentShotAttempt"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunHandoverReducer.ts",
+      "symbol": "jobsForShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/resumeOutlook.ts",
+      "symbol": "latestJobForShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/shotLandingAdmission.ts",
+      "symbol": "latestJobForShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/shotLandingAdmission.ts",
+      "symbol": "hasUnresolvedShotSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/shotLandingAdmission.ts",
+      "symbol": "currentShotAttempt"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/shotProviderHandover.ts",
+      "symbol": "latestJobForShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/shotProviderHandover.ts",
+      "symbol": "hasUnresolvedShotSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/directGenerationBrakes.ts",
+      "symbol": "jobsForShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/decideShotClaim.ts",
+      "symbol": "latestJobForShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/decideShotClaim.ts",
+      "symbol": "currentShotAttempt"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionGenerationPresentation.ts",
+      "symbol": "jobsForShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "productionShotIdForNode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "jobsForShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "productionShotId"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "latestJobForShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionShotPhase.ts",
+      "symbol": "currentShotAttempt"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionShotPhase.ts",
+      "symbol": "latestJobForShot"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/productionMeta.ts",
+      "symbol": "productionShotId"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/storyboardOverrides.ts",
+      "symbol": "productionShotId"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/productionShotCorner.ts",
+      "symbol": "productionShotIdForNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/useProductionNodeRetry.ts",
+      "symbol": "productionShotId"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/productionShotOwnership.ts",
+      "symbol": "productionShotIdForNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "productionShotIdForNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/reportReattachedShotNodes.ts",
+      "symbol": "productionShotId"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/retryProductionRetrieval.ts",
+      "symbol": "productionShotIdForNode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotResult.ts",
+      "symbol": "latestJobForShot"
+    }
+  ],
+  "door_reduction": {
+    "before": 28,
+    "after": 34,
+    "why_not": "门表按符号的消费入口计数，不是选择实现数；七处选择收成一处，入口保留业务职责：调度/续跑/预算统计读 jobsForShot；认领/接手读 currentShotAttempt；阶段、QA、单镜结果、交接、发送/等待读 latestJobForShot；旧形状无生成任务的安全判据读 hasUnresolvedShotSubmission；渲染绑定仍读 productionShotId。新增消费门是删除私有实现后改问主人，并未新增用户入口。 productionShotIdForNode 的既有读者继续从阶段模块重导出读取；新增主人内部节点地址归一，不增加用户入口。 door-map 排除导出绑定，另补 canvasShotResult 的原名重导出门一扇（共 34），它直接复用主人，不保留包装选择。"
+  },
+  "generality_proof": "三种地址共用筛选和固定排序，六个消费者删除自选；专用合同身份和整本在途安全检查保持。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "latestJobForShot",
+      "responsibility": "三种地址共用生成任务选择与固定次序。"
+    },
+    {
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "productionShotIdForNode",
+      "responsibility": "复用同一份计划节点→镜号映射，阶段重导出保留旧读口，生成任务无需补 nodeId。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/shared/productionShotPhase.ts",
+      "entry_point": "deriveProductionShotState",
+      "disposition": "enforced",
+      "evidence": "对拍测试同账本验证选择身份；概念扫描拒绝重新自选。"
+    },
+    {
+      "path": "electron/productionRun/productionQaVerdict.ts",
+      "entry_point": "buildQaRetryPlans",
+      "disposition": "enforced",
+      "evidence": "对拍测试同账本验证选择身份；概念扫描拒绝重新自选。"
+    },
+    {
+      "path": "electron/capabilityCore/canvasShotResult.ts",
+      "entry_point": "latestJob",
+      "disposition": "enforced",
+      "evidence": "对拍测试同账本验证选择身份；概念扫描拒绝重新自选。"
+    },
+    {
+      "path": "electron/capabilityCore/canvasShotHandover.ts",
+      "entry_point": "settleFromRun",
+      "disposition": "enforced",
+      "evidence": "对拍测试同账本验证选择身份；概念扫描拒绝重新自选。"
+    },
+    {
+      "path": "electron/productionRun/shotLandingAdmission.ts",
+      "entry_point": "shotLandingFacts",
+      "disposition": "enforced",
+      "evidence": "对拍测试同账本验证选择身份；概念扫描拒绝重新自选。"
+    },
+    {
+      "path": "electron/productionRun/shotProviderHandover.ts",
+      "entry_point": "shotHandoverPhase",
+      "disposition": "enforced",
+      "evidence": "对拍测试同账本验证选择身份；概念扫描拒绝重新自选。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "七处对相同账本存在多种次序，可影响多次尝试和旧数据。",
+    "same_class_scan": [
+      "door-map 六个主人符号：读门33，出现39；另核 canvasShotResult 直接重导出一门，合同共34。",
+      "rg run.jobs/filter/sort/at，独立核查七生产文件及专用合同查询。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/productionShotJobs.ts",
+    "invariant": "消费者只传地址给主人，不能自选排序；不确定旧单镜发送从严。",
+    "failure_mode": "无生成任务返回 undefined；旧单镜不确定发送不能当成未发送。",
+    "exception_policy": "none",
+    "strategy": "删除六处自选和兜底，扩既有概念扫描守改名、内联与别名形状。",
+    "artifacts": [
+      "electron/shared/productionShotJobs.ts",
+      "electron/shared/productionShotPhase.ts",
+      "electron/productionRun/productionQaVerdict.ts",
+      "electron/capabilityCore/canvasShotResult.ts",
+      "electron/capabilityCore/canvasShotHandover.ts",
+      "electron/productionRun/shotLandingAdmission.ts",
+      "electron/productionRun/shotProviderHandover.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/shared/productionShotJobSelection.test.ts",
+    "electron/shared/productionShotPhase.test.ts",
+    "scripts/check-concept-owners.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/shared/productionShotJobSelection.test.ts",
+    "scripts/check-concept-owners.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/productionShotPhase.ts",
+      "electron/productionRun/productionQaVerdict.ts",
+      "electron/capabilityCore/canvasShotResult.ts",
+      "electron/capabilityCore/canvasShotHandover.ts",
+      "electron/productionRun/shotLandingAdmission.ts",
+      "electron/productionRun/shotProviderHandover.ts"
+    ],
+    "rationale": "删除私有过滤、排序及整账本末项兜底，不删历史数据或专用执行查询。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "扩已有领域主人，无第三方运行时变更。",
+    "exit_criteria": []
+  },
+  "migration": "不改存储或 IPC；读旧 shotId、candidateId、nodeId 三种地址，未知发送从严。 旧单镜任务没有 job.nodeId 时以 generationPlan.nodeId → candidateId 认回；无计划的 QA 保留 job.nodeId 地址。 多镜也复用计划节点→镜号映射，任务缺 nodeId 时不漏查；原阶段模块只重导出原接口。",
+  "residual_risks": [
+    "构造 Run 账本测试，不代表真实供应商或真实用户数据复现。",
+    "扫描只覆盖已知语法，消费者仍持有完整账本。"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-24",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/productionShotJobs.ts",
+    "tests": [
+      "electron/shared/productionShotJobSelection.test.ts",
+      "electron/shared/productionShotJobs.test.ts"
+    ]
+  }
+}

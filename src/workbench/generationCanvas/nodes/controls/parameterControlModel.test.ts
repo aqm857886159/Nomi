@@ -5,12 +5,12 @@ import {
   buildModelControls,
   parameterControlRole,
   isImportedComfyWorkflowModel,
-  parseControlInput,
   shouldUseVideoFrameSlotFallback,
   videoAspectDefaultPatch,
   parameterControlChangePatch,
   type DynamicModelControl,
 } from './parameterControlModel'
+import { parseControlInput } from '../../../../../electron/shared/videoCapabilities/paramValue'
 import { buildImageUrlSlots } from '../../model/parameterReferenceSlots'
 
 // parseControlInput 按控件类型回类型。关键修复（2026-06-16）：select 按选中 option 的声明类型回类型——

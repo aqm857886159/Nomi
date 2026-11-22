@@ -8,7 +8,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import type { ProviderNetworkConfig } from "../providerNetwork";
 import { fetchProviderMedia } from "./providerMediaFetch";
-import { isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
+import { nowIso, type JsonRecord } from "../jsonUtils";
 import { projectDirById, sanitizeName } from "../projects/repository";
 import { ensureDir } from "../runtimePaths";
 import { broadcastAssetsUpdated } from "./assetEvents";
@@ -26,18 +26,15 @@ import {
   extensionFromMime,
   extensionFromUrl,
   localAssetUrl,
-  sanitizeAssetMetaForKind,
   stableAssetId,
 } from "./assetPaths";
+import { finalizeAssetMeta, type AssetSourceFact } from "./assetSourceEvidence";
 import { mediaKindFromContentType, resolveContentType } from "./mediaTypes";
 import { contentTypeFromStoredFile, effectiveContentType, storedAssetFileParts, uniqueAssetPath } from "./storedAssetFile";
 import { validateGlbStructure } from "./model3dValidation";
 import { isGeneratedAssetMeta, prepareVerifiedGeneratedAsset, type GeneratedAssetMeta, type NotGeneratedKind, type UserAssetMeta, type VerifiedStagedAsset } from "./generatedAssetStaging";
 import { localizedAssetTypeOf, type LocalizedAssetType } from "./localizedAsset";
 import type { CertificationMediaEvidence } from "../providerAdapter/certificationMedia";
-
-import type { UsageStatus, IntendedRole } from "../connectors/connectorDefinition";
-import { ASSET_PROVENANCE_ALLOWED_USAGES, ASSET_PROVENANCE_ALLOWED_ROLES } from "../connectors/connectorDefinition";
 
 type LocalAssetRecord = {
   id: string;
@@ -77,8 +74,8 @@ export function writeAsset(
   rawMeta: JsonRecord,
   context?: AssetWriteContext,
 ): unknown {
-  // 唯一 sidecar 写入者之一：capture 族 originalUrl 恒 null 的不变量在此收口（见 assetPaths）。
-  const meta = sanitizeAssetMetaForKind(rawMeta);
+  // 唯一 sidecar 写入者之一：落盘的 meta（含来源结论）只由 finalizeAssetMeta 出。
+  const meta = finalizeAssetMeta(rawMeta);
   assertNotUnverifiedGenerated(meta);
   const actualContentType = effectiveContentType(fileName, contentType, bytes);
   validateStructuredAsset(actualContentType, bytes);
@@ -149,7 +146,7 @@ async function storeAssetBytes(
   expectedKind: LocalizedAssetType | null,
   context?: AssetWriteContext,
 ): Promise<unknown> {
-  return isGeneratedAssetMeta(sanitizeAssetMetaForKind(rawMeta))
+  return isGeneratedAssetMeta(finalizeAssetMeta(rawMeta))
     ? writeGeneratedAsset(projectId, bytes, fileName, contentType, rawMeta, generatedExpectation(expectedKind), context)
     : writeAsset(projectId, bytes, fileName, contentType, rawMeta, context);
 }
@@ -260,7 +257,7 @@ async function copyAssetFileByMeta(
 ): Promise<unknown> {
   const context = captured ?? await captureAssetWriteContext(projectId);
   context.assertCurrent();
-  const meta = sanitizeAssetMetaForKind(rawMeta);
+  const meta = finalizeAssetMeta(rawMeta);
   // 文件头无条件读：声明对不对要靠字节验，只在 octet-stream 时读等于「只在声明已经认输时才查证」。
   const header = await (async () => {
     const handle = await fs.promises.open(sourcePath, "r");
@@ -361,8 +358,8 @@ export function moveAssetFile(
   contentType: string,
   rawMeta: JsonRecord,
 ): unknown {
-  // 唯一 sidecar 写入者之二：与 writeAsset 同一道 capture 族隐私收口。
-  const meta = sanitizeAssetMetaForKind(rawMeta);
+  // 唯一 sidecar 写入者之二：与 writeAsset 同一道收口（捕获族隐私 + 来源清洗）。
+  const meta = finalizeAssetMeta(rawMeta);
   assertNotUnverifiedGenerated(meta);
   // 同 copyAssetFile：无条件读文件头，否则撒谎的声明永远没人查证。
   const header = (() => {
@@ -415,6 +412,11 @@ type RemoteAssetImportOptions = {
   assertCurrent?: () => void;
   certificationEvidence?: CertificationMediaEvidence;
   /**
+   * 来源事实只收主进程调用方经这里给的（连接器）；渲染层 IPC 载荷里的 sourceEvidence 一律不读——
+   * 主进程核实不了渲染层的自称（Electron 安全清单：主进程不信渲染层载荷）。
+   */
+  sourceEvidence?: AssetSourceFact;
+  /**
    * 产出这条 URL 的那家 vendor 的自有线路配置（`Vendor.network`）。
    *
    * 不带它就是 2026-09-06 验收那个不对称的另一半：给某家供应商单独配了代理时，提交走那条代理、
@@ -424,103 +426,6 @@ type RemoteAssetImportOptions = {
    */
   providerNetwork?: ProviderNetworkConfig;
 };
-
-// 运行时白名单：从 connectorDefinition.ts 导入，单一真相源，不在此处重复成员列表。
-const VALID_USAGE_STATUSES = ASSET_PROVENANCE_ALLOWED_USAGES;
-const VALID_INTENDED_ROLES = ASSET_PROVENANCE_ALLOWED_ROLES;
-
-/**
- * Sanitize a caller-supplied source-evidence record into the provenance shape
- * (docs/plan/2026-09-03-creative-resource-chain-epic.md P0-1).
- *
- * 三类来源：
- *   · connector  : 经 ConnectorDefinition 摄取；必须有 connectorId；
- *                  旧 sidecar 的 rightsStatus:"unknown" 自动迁移成 usageStatus:"rights_unknown"。
- *   · browser    : 用户从浏览器手工导入；usageStatus 强制为 reference_only（诚实默认）。
- *   · user       : 用户从本地文件导入；usageStatus 强制为 reference_only。
- *
- * 只有白名单字段能穿越到 sidecar，防止 untrusted payload 污染。
- * 新写入路径必须带 usageStatus，缺失时按 source 类型降到最保守的默认值（fail-closed）。
- */
-export function sanitizeSourceEvidence(raw: unknown): JsonRecord | undefined {
-  if (!isJsonRecord(raw)) return undefined;
-  const source = String(raw.source || "").trim();
-
-  // ── connector 来源 ───────────────────────────────────────────────────────
-  if (source === "connector") {
-    const connectorId = String(raw.connectorId || "").trim();
-    if (!connectorId) return undefined;
-
-    // 旧 sidecar 迁移：rightsStatus:"unknown" → usageStatus:"rights_unknown"
-    let usageStatus: string = "rights_unknown";
-    if (raw.usageStatus && VALID_USAGE_STATUSES.has(raw.usageStatus as UsageStatus)) {
-      usageStatus = String(raw.usageStatus);
-    } else if (raw.rightsStatus === "unknown") {
-      usageStatus = "rights_unknown";
-    }
-
-    const result: JsonRecord = {
-      source: "connector",
-      connectorId,
-      originalUrl: String(raw.originalUrl || "").trim(),
-      resolvedUrl: String(raw.resolvedUrl || "").trim(),
-      platform: String(raw.platform || "").trim(),
-      usageStatus,
-      fetchedAt: String(raw.fetchedAt || "").trim() || nowIso(),
-    };
-    // 可选扩展字段（白名单）
-    if (raw.creator) result.creator = String(raw.creator).trim();
-    if (raw.licenseId) result.licenseId = String(raw.licenseId).trim();
-    if (raw.licenseUrl) result.licenseUrl = String(raw.licenseUrl).trim();
-    if (raw.attribution) result.attribution = String(raw.attribution).trim();
-    if (isJsonRecord(raw.licenseSnapshot)) {
-      const snap: JsonRecord = { termsUrl: String(raw.licenseSnapshot.termsUrl || "").trim(), checkedAt: String(raw.licenseSnapshot.checkedAt || "").trim() };
-      if (raw.licenseSnapshot.termsHash) snap.termsHash = String(raw.licenseSnapshot.termsHash).trim();
-      result.licenseSnapshot = snap;
-    }
-    if (Array.isArray(raw.intendedRoles)) {
-      result.intendedRoles = raw.intendedRoles.filter((r) => VALID_INTENDED_ROLES.has(r as IntendedRole));
-    }
-    return result;
-  }
-
-  // ── browser 来源 ─────────────────────────────────────────────────────────
-  if (source === "browser") {
-    const pageUrl = String(raw.pageUrl || "").trim();
-    const capturedAt = String(raw.capturedAt || "").trim() || nowIso();
-    // 浏览器导入：usageStatus 强制为 reference_only（诚实默认，没核实过许可不能当作可商用）
-    const result: JsonRecord = {
-      source: "browser",
-      pageUrl,
-      capturedAt,
-      usageStatus: "reference_only",
-    };
-    if (raw.creator) result.creator = String(raw.creator).trim();
-    if (raw.licenseId) result.licenseId = String(raw.licenseId).trim();
-    if (raw.licenseUrl) result.licenseUrl = String(raw.licenseUrl).trim();
-    if (Array.isArray(raw.intendedRoles)) {
-      result.intendedRoles = raw.intendedRoles.filter((r) => VALID_INTENDED_ROLES.has(r as IntendedRole));
-    }
-    return result;
-  }
-
-  // ── user（本地文件）来源 ─────────────────────────────────────────────────
-  if (source === "user") {
-    // 本地文件导入：usageStatus 强制为 reference_only（来源不明，不推断可商用）
-    const result: JsonRecord = {
-      source: "user",
-      capturedAt: String(raw.capturedAt || "").trim() || nowIso(),
-      usageStatus: "reference_only",
-    };
-    if (raw.creator) result.creator = String(raw.creator).trim();
-    if (Array.isArray(raw.intendedRoles)) {
-      result.intendedRoles = raw.intendedRoles.filter((r) => VALID_INTENDED_ROLES.has(r as IntendedRole));
-    }
-    return result;
-  }
-
-  return undefined;
-}
 
 /**
  * 远端（http / data: / nomi-local）导入的载荷。运行时 kind 不写时，http / data: 当生成产物，nomi-local 当 upload；
@@ -545,7 +450,7 @@ async function importRemoteAssetToStore(payload: unknown, options: RemoteAssetIm
   if (!projectId) throw new Error("projectId is required");
   if (!url) throw new Error("url is required");
   const context = await captureAssetWriteContext(projectId, raw.projectBinding as ProjectBinding | undefined, options.assertCurrent);
-  const sourceEvidence = sanitizeSourceEvidence(raw.sourceEvidence);
+  const sourceEvidence = options.sourceEvidence;
   // 生成产物应是哪一类，由调用方说（渲染层 / 主进程都一样）；没说或说不清，生成产物在关口被拒。
   const expectedKind = localizedAssetTypeOf(raw.expectedKind);
   if (url.startsWith("nomi-local://")) {

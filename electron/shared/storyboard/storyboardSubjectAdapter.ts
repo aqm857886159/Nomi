@@ -6,6 +6,7 @@ import { planAnchorSchema, planShotSchema } from './storyboardPlanSchema'
 import { foldRatioIntoSlot } from './storyboardShotScope'
 import { mergeNamedParameters } from '../generationParameterPatch'
 import { StoryboardSubjectNotFoundError, storyboardSubjectAt } from './storyboardSubjectIdentity'
+import { paramSeconds } from '../videoCapabilities/paramValue'
 
 /**
  * 一个 Agent 草稿镜头 ↔ 原编辑器契约（`StoryboardPlan`）之间的**纯适配层**。
@@ -52,7 +53,8 @@ export function storyboardSubjectFromCandidate(input: {shotId: string; role?: 'a
     return planAnchorSchema.parse({...authored,...common,id:input.shotId,kind:authored.kind,carrier:authored.carrier,name:input.title ?? candidate.prompt,description:candidate.prompt})
   }
   if (authored?.kind || authored?.carrier) throw new Error('storyboard_subject_role_mismatch')
-  return planShotSchema.parse({durationSec:typeof candidate.parameters.duration === 'number' ? candidate.parameters.duration : 0,anchorIds:[],prompt:candidate.prompt,...shotKindOf(candidate),...authored,...common,shotId:input.shotId,index:0})
+  // 时长经值门读（`paramSeconds`）：字符串时长档案上的 "12" 以前在这里落成 0。
+  return planShotSchema.parse({durationSec:paramSeconds(candidate.parameters) ?? 0,anchorIds:[],prompt:candidate.prompt,...shotKindOf(candidate),...authored,...common,shotId:input.shotId,index:0})
 
 }
 
@@ -62,12 +64,12 @@ export function patchStoryboardSubject(plan: StoryboardPlan, shotId: string, pat
   if (found.kind === 'missing') throw new StoryboardSubjectNotFoundError(shotId, found.shots, found.anchorHoldsShotNumber)
   const subject: PlanAnchor | PlanShot = found.kind === 'anchor' ? found.anchor : found.shot
   const authored=patch.storyboard as StoryboardAuthorFields | undefined
-  const duration = (patch.parameters as Record<string, unknown> | undefined)?.duration
+  const duration = paramSeconds(patch.parameters as Record<string, unknown> | undefined)
   const merged = {...subject,...authored,
     ...(!('description' in subject) && patch.prompt !== undefined && patch.prompt !== subject.prompt
       && authored?.promptSegments === undefined ? {promptSegments:undefined} : {}),
     // Match creation: an explicit author duration overrides the candidate parameter.
-    ...(!('description' in subject) && authored?.durationSec === undefined && typeof duration === 'number'
+    ...(!('description' in subject) && authored?.durationSec === undefined && duration !== undefined
       ? {durationSec:duration} : {}),
     ...(!('description' in subject) && authored?.keyframe ? {keyframe:{...subject.keyframe,...authored.keyframe,
       ...(authored.keyframe.params ? {params:{...subject.keyframe?.params,...authored.keyframe.params}} : {})}} : {}),

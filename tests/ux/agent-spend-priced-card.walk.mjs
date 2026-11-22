@@ -31,7 +31,7 @@ const BASE_PRICE = 0.3
 const present = createPresenter('S_PRICED')
 const teacups = (lines) => (tag) => lines.map((line, index) => ({
   title: `${tag} 茶杯 ${index + 1}`, prompt: `${tag} ${line}`, taskKind: 'text_to_image',
-  candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }, parameters: {},
+  model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`, parameters: {},
 }))
 
 /**

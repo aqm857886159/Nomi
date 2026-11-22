@@ -151,6 +151,7 @@ try {
   const undoToast = win.locator('[data-notification-reason="undo-operation"]')
   const undo = undoToast.getByRole('button', { name: '撤销', exact: false })
   await expectVisible(undoToast, '删完没有出现撤销——先做后撤的模型里，撤销条就是那条退路')
+  await undo.first().waitFor({ state: 'visible' }).catch(() => {})
   const undoCount = await undo.count()
   measured.push({ step: '撤销钮', count: undoCount })
   if (undoCount !== 1) failures.push(`撤销那条通知里有 ${undoCount} 颗「撤销」钮，期望 1 颗`)

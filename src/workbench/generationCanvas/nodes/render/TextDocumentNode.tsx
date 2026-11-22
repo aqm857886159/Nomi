@@ -20,7 +20,7 @@ import { EditorContent, useEditorState, type JSONContent } from '@tiptap/react'
 import { cn } from '../../../../utils/cn'
 import type { GenerationCanvasNode, TiptapDocJson } from '../../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
-import { useNomiRichTextEditor } from '../../../common/useNomiRichTextEditor'
+import { useNomiRichTextEditor, type NomiEditorOwner } from '../../../common/useNomiRichTextEditor'
 import { NODE_SCROLL_REGION_CLASS_NAME } from '../nodeScrollRegionClassName'
 import { useRichTextActions } from '../../../common/richTextActions'
 import { RichTextActionButton } from '../../../common/RichTextActionButton'
@@ -54,8 +54,6 @@ function TextDocumentNodeImpl({ node, onEditingChange }: Props): JSX.Element {
   const writeNodeBody = useGenerationCanvasStore((state) => state.writeNodeBody)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
 
-  const content = React.useMemo<JSONContent>(() => (node.contentJson ?? EMPTY_DOC) as JSONContent, [node.contentJson])
-
   const handleChange = React.useCallback(
     (json: JSONContent) => {
       writeNodeBody(node.id, json as unknown as TiptapDocJson, { persist: false })
@@ -74,10 +72,16 @@ function TextDocumentNodeImpl({ node, onEditingChange }: Props): JSX.Element {
     [node.id],
   )
 
+  // 正文的 owner：画布 store 里这个节点此刻的 contentJson（不是这次渲染拿到的 node 副本）。
+  const bodyOwner = React.useMemo<NomiEditorOwner<JSONContent>>(() => ({
+    subscribe: useGenerationCanvasStore.subscribe,
+    getSnapshot: () => (useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)?.contentJson ?? EMPTY_DOC) as JSONContent,
+    write: handleChange,
+  }), [node.id, handleChange])
+
   const { editor, tools } = useNomiRichTextEditor({
-    content,
+    owner: bodyOwner,
     placeholder: '',
-    onChange: handleChange,
     onSelectionChange: handleSelectionChange,
   })
 
@@ -129,7 +133,7 @@ function TextDocumentNodeImpl({ node, onEditingChange }: Props): JSX.Element {
     <div className="relative h-full w-full">
       {/* 浮动格式条：编辑时浮在节点上方（不占节点高度），走节点浮条的共享外壳。 */}
       {editor && isFocused ? (
-        <FloatingToolbarShell ariaLabel={t('generationCommon.textDocument.formattingAria')} lockNodeId={null}>
+        <FloatingToolbarShell ariaLabel={t('generationCommon.textDocument.formattingAria')} nodeId={null}>
           <TooltipProvider delayDuration={250} disableHoverableContent>
             {actions.map((action) => (
               <RichTextActionButton key={action.id} action={action} side="top" className="size-8 [&>svg]:size-4" />
@@ -189,7 +193,7 @@ function TextDocumentNodeImpl({ node, onEditingChange }: Props): JSX.Element {
                         <button
                           type="button"
                           data-preset={id}
-                          disabled={node.locked || Boolean(presetBlocks[id])}
+                          disabled={Boolean(presetBlocks[id])}
                           title={presetBlocks[id] ? presetBlockHint(presetBlocks[id]!) : undefined}
                           className="inline-flex h-6 items-center whitespace-nowrap rounded-nomi-sm px-1.5 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05 disabled:cursor-not-allowed disabled:text-nomi-ink-30"
                           onPointerDown={(event) => event.stopPropagation()}

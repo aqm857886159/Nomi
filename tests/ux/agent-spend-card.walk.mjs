@@ -36,8 +36,8 @@ import {
 } from './agent-runtime-walk-support.mjs'
 
 const LOCALE = 'zh-CN'
-const VIDEO = { providerId: 'apimart', modelId: 'doubao-seedance-2.0' }
-const IMAGE = { providerId: 'apimart', modelId: 'gpt-image-2' }
+const VIDEO = 'doubao-seedance-2.0@apimart'
+const IMAGE = 'gpt-image-2@apimart'
 const A = {
   highlight: 'board:SpendCardQ1/canvas.node.highlight',
   composer: 'board:SpendCardQ1/node.composer',
@@ -96,7 +96,7 @@ try {
   const taskA = await present(walk, win, {
     locale: LOCALE, kind: 'video',
     shots: (tag) => [1, 2, 3].map((index) => ({
-      title: `${tag} 纸船 ${index}`, prompt: `${tag} 纸船第 ${index} 镜：雨后清晨，纸船顺着水流漂`, taskKind: 'text_to_video', candidate: VIDEO,
+      title: `${tag} 纸船 ${index}`, prompt: `${tag} 纸船第 ${index} 镜：雨后清晨，纸船顺着水流漂`, taskKind: 'text_to_video', model: VIDEO,
     })),
   })
   const cardA = taskA.card
@@ -124,13 +124,13 @@ try {
   await pointerAway(win)
   await expect.poll(() => canvasHighlightOf(win, nodesA[0].nodeId), { message: `${A.highlight}：鼠标移开，画布上那个节点不再亮`, timeout: stationTimeout() }).toBe(null)
 
-  // 收成小球：「等你确认」的数也数上这张卡（Q5）。
-  await clickOrFail(win.locator(`${CANVAS_PANEL} ${COLLAPSE_BUTTON}`), '面板收成小球')
+  // 收起（收进顶栏 Nomi 入口）：「等你确认」的数也数上这张卡（Q5）。
+  await clickOrFail(win.locator(`${CANVAS_PANEL} ${COLLAPSE_BUTTON}`), '面板收起')
   const ball = win.locator(COLLAPSED_DOCK).first()
-  await expect(ball, `${A.dock}：收起后小球说有一件在等你确认`).toHaveAttribute('data-agent-ball', 'pending', { timeout: stationTimeout() })
-  await expect(ball, `${A.dock}：等你确认的数里有这张付费卡`).toHaveAttribute('data-agent-dock-count', '1')
-  await walk.snap('task-a-collapsed-ball-counts-the-card')
-  await clickOrFail(ball, '点小球把面板叫回来')
+  await expect(ball, `${A.dock}：收起后顶栏入口说有一件在等你确认`).not.toHaveAttribute('data-pending', '0', { timeout: stationTimeout() })
+  await expect(ball, `${A.dock}：等你确认的数里有这张付费卡`).toHaveAttribute('data-pending', '1')
+  await walk.snap('task-a-collapsed-entry-counts-the-card')
+  await clickOrFail(ball, '点顶栏 Nomi 入口把面板叫回来')
   await expect(cardA, '面板回来，卡还在原处等着').toBeVisible({ timeout: stationTimeout() })
 
   // 点第 2 个指向元素：画布滑过去、节点闪一下、生成框为它打开。
@@ -188,9 +188,9 @@ try {
   const taskB = await present(walk, win, {
     locale: LOCALE, kind: 'video',
     shots: (tag) => [
-      { title: `${tag} 竖版 1`, prompt: `${tag} 竖版第 1 镜：巷口的猫`, taskKind: 'text_to_video', candidate: VIDEO, aspectRatio: '9:16' },
-      { title: `${tag} 竖版 2`, prompt: `${tag} 竖版第 2 镜：猫跳上墙头`, taskKind: 'text_to_video', candidate: VIDEO, aspectRatio: '9:16' },
-      { title: `${tag} 横版 3`, prompt: `${tag} 横版第 3 镜：屋顶远景`, taskKind: 'text_to_video', candidate: VIDEO, aspectRatio: '16:9' },
+      { title: `${tag} 竖版 1`, prompt: `${tag} 竖版第 1 镜：巷口的猫`, taskKind: 'text_to_video', model: VIDEO, aspectRatio: '9:16' },
+      { title: `${tag} 竖版 2`, prompt: `${tag} 竖版第 2 镜：猫跳上墙头`, taskKind: 'text_to_video', model: VIDEO, aspectRatio: '9:16' },
+      { title: `${tag} 横版 3`, prompt: `${tag} 横版第 3 镜：屋顶远景`, taskKind: 'text_to_video', model: VIDEO, aspectRatio: '16:9' },
     ],
   })
   const cardB = taskB.card
@@ -229,7 +229,7 @@ try {
   // ── 「取消」只收回这一次出价：节点留着；冷启动不复活；同一份草稿再 generate，卡回来、读的是节点此刻的样子 ───────────
   const taskX = await present(walk, win, {
     locale: LOCALE, kind: 'image',
-    shots: (tag) => [{ title: `${tag} 六棱柱`, prompt: `${tag} 一个悬浮的六棱柱，柔和的演播室灯光`, taskKind: 'text_to_image', candidate: IMAGE }],
+    shots: (tag) => [{ title: `${tag} 六棱柱`, prompt: `${tag} 一个悬浮的六棱柱，柔和的演播室灯光`, taskKind: 'text_to_image', model: IMAGE }],
   })
   const cardX = taskX.card
   const xProof = await proveProbe(cardX, '单段卡摆出来了')

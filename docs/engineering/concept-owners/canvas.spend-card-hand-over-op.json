@@ -27,5 +27,5 @@
     "src/workbench/ai/v4/useAgentPanelSpendCard.ts"
   ],
   "since": "2026-10-24",
-  "notes": "D2 第③步「一台发动机」的渲染层那一半（主进程那一半是 production.spend-card-hand-over；合同 docs/fixes/2026-10-24-spend-card-one-engine.root-cause.json）。主进程问「这几镜交给画布」时只做画布批量本来就做的事、一镜一镜照节点此刻的样子发：①本机预检 handOverPrecheck（同节点在跑 / 要核对、模型没选、本机模型、3D-BOX 预演没就绪、缺必需的参考、空提示词、批外上游没出图 / 参考卡没定妆 / 成环——每一条都读画布那一侧已有的唯一判据；判得出必然发不出去的不开同意，回给主进程原因；卡在出卡前读同一个判据，那一镜按「参数被拒」那一格说、主按钮不算它——不先过一遍钱的闸再报错）②素材托管整批问一次（画布批量同一个解析口 resolveBatchHostingNodes）③开同意 consentCanvasShots 带 production 链接，开不成整批不交 ④回话（哪几镜没开出同意、为什么）⑤派发 runGenerationNodesByPlan（依赖波次 + 单节点提交，claimAdmittedByHost：认领由主进程按绑着的画布 Run 判），没轮到就停了的同意当场收回。成败由卡 / 回执 / 节点自己说，不再弹一遍批量提示。"
+  "notes": "D2 第③步「一台发动机」的渲染层那一半（主进程那一半是 production.spend-card-hand-over；合同 docs/fixes/2026-10-24-spend-card-one-engine.root-cause.json）。主进程问「这几镜交给画布」时只做画布批量本来就做的事、一镜一镜照节点此刻的样子发：①本机预检 handOverPrecheck（同节点在跑 / 要核对、模型没选、本机模型、3D-BOX 预演没就绪、缺必需的参考、空提示词、批外上游没出图 / 参考卡没定妆 / 成环——每一条都读画布那一侧已有的唯一判据；判得出必然发不出去的不开同意，回给主进程原因；卡在出卡前读同一个判据，那一镜按「参数被拒」那一格说、主按钮不算它——不先过一遍钱的闸再报错）②托管由主进程上传循环读取设置，交接不携带许可③开同意 consentCanvasShots 带 production 链接，开不成整批不交 ④回话（哪几镜没开出同意、为什么）⑤派发 runGenerationNodesByPlan（依赖波次 + 单节点提交，claimAdmittedByHost：认领由主进程按绑着的画布 Run 判），没轮到就停了的同意当场收回。成败由卡 / 回执 / 节点自己说，不再弹一遍批量提示。"
 }

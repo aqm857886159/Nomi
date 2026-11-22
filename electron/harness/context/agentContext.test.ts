@@ -4,7 +4,7 @@ import { findSkillRecord, readSkillRecords, type SkillRecord } from "../../skill
 import { SKILL_PACKAGE_VERSION } from "../../skills/skillPackage";
 import * as context from "./agentContext";
 
-const FORBIDDEN_OWNER_IMPORT = /(?:from|import\s*\()\s*["'](?:ai|@ai-sdk\/[^"']*|@mariozechner\/[^"']*|@earendil-works\/pi-[^"']*|[^"']*(?:agentChatV2|agentSession|projectMemory|catalogStore))['"]/;
+const FORBIDDEN_OWNER_IMPORT = /(?:from|import\s*\()\s*["'](?:ai|@ai-sdk\/[^"']*|@mariozechner\/[^"']*|@earendil-works\/pi-[^"']*|[^"']*(?:agentChatV2|agentSession|catalogStore))['"]/;
 
 // 目录是 async 的（pi 的加载器在岛上）：`resolveRequestedSkill` 每次都 `await readSkillRecords()` 再查。
 vi.mock("../../skills/skillStore", () => ({ findSkillRecord: vi.fn(), readSkillRecords: vi.fn(async () => []) }));

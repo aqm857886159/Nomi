@@ -1,6 +1,6 @@
 import { createLaneInputAdmission } from './laneInputAdmission.mjs';
 import { originalLaneEntry, precedingLaneInput, resolveLaneReplay, laneOriginalText } from './laneOriginalInput.mjs';
-import { laneInputIntent } from './laneInputIntent.mjs';
+import { laneInputIntent, withRestoredTemplate } from './laneInputIntent.mjs';
 import { openLaneHistoryPage } from './laneHistoryPage.mjs';
 import { attachLaneTrace } from './laneTraceRecorder.mjs';
 import { logWarn } from '../logging/logger.js';
@@ -11,6 +11,7 @@ import { LANE_CODING_TOOL_NAMES } from './laneCodingTools.mjs';
 import { LANE_LEGACY_NOTE, LANE_LEGACY_TOOLS_NOTE, laneLegacyFacts } from '../shared/agentLane/laneLegacyNote.js';
 import { findLaneReceiptAuthority } from './laneReceiptAuthority.mjs';
 import { createLaneRepeatedFailureTracker } from './laneRepeatedFailure.mjs';
+import { createLaneTurnBudget } from './laneTurnBudget.mjs';
 import { createLaneToolInputBoundary } from './laneToolInputBoundary.mjs';
 import { ASK_USER_VERB_NAME } from '../shared/agentCapabilities/askUser.js';
 // Agent lane · 主进程宿主（**薄**）
@@ -84,22 +85,22 @@ export const LANE_RETRY_POLICY = Object.freeze({ enabled: true, maxRetries: 3, b
  * 「累计次数不在这里算——『这个工具总在坏』是审计的活，**不是拦截的活**」。而 24 这个数干的正是那件事。
  *
  * 真正的危险各有各的守卫，一个都不靠这个数：
- *   · 模型卡在循环里重发同一个调用 → `laneRepeatedFailure`（同工具同错误连撞 3 次起拦，之后每次都是
- *     一次不执行的立即结果；用户再说一句话即清零）。它 3 次就拦住了，轮不到 24。
- *     拦不住的只剩一种：模型无视拦截话术、一直调同一个工具——每次都不执行、不花钱，但回合不会自己结束，
- *     只有宿主设了这个上限才会被截断（缺省不设；`laneToolInputBoundary.test.ts` 的反例把这条钉住）。
+ *   · 模型卡在循环里重发同一个调用 → `laneRepeatedFailure`（同一个工具自上次成功以来连败 3 次，第 3 次的正文
+ *     说「这一轮别再发」；用户再说一句话即清零）。模型无视它、又发这个工具 → 这一轮当场结束（2026-11-09，
+ *     下一次模型请求不再发出）。这**不是**次数上限：做成了的活一次都不数，只有「被明确叫停之后还发」才停。
  *   · 上下文撑爆 → `laneContextBudget` 的自动压缩（8 万 token 预算）。
  *   · 花钱失控 → 报价卡，每次提交由用户点头。
  * 所以 24 不保护任何具体的东西，它只在一种情况下生效：**活是真的多**——而那恰恰是不该拦的时候。
  * 单位也不对：24 次 `look_at_canvas` 一分钱不花，24 次生成是真金白银，而后者本来就被报价卡挡着。
  * 用「次数」当刹车，量的是干活的多少，不是危险的大小。
  *
- * 机制留着（`options.limits.maxModelRequests` 仍然生效，拦法与措辞一字未动）：
- * 评测要跑「撞上限会怎样」，宿主也可能有自己的理由设一个。缺省 = 不设。
+ * 机制留着（`options.limits.maxModelRequests`，评测要跑「撞上限会怎样」，宿主也可能有自己的理由设一个）。
+ * 2026-11-09 起它判在**请求入口**（`before_request`），不再判在 `before_tool`：立即结果不经过工具钩子，
+ * 判在那里设了 5 也照样发到 11 次。缺省 = 不设。
  */
 export const LANE_MAX_MODEL_REQUESTS: number | undefined = undefined;
 
-// 「同一个工具连着撞同一堵墙」的规则住 laneRepeatedFailure.mts（含用户新消息即清零）。
+// 「同一个工具自上次成功以来连着失败」的规则住 laneRepeatedFailure.mts（含用户新消息即清零）。
 export { LANE_REPEATED_FAILURE_BLOCK } from './laneRepeatedFailure.mjs';
 
 export interface LaneHandleWithObservations extends LaneHandle {
@@ -205,7 +206,9 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // 是浏览器也 import 的中立层，在那里 import 一个 pi 的函数就等于把整个 SDK 拖进渲染 bundle。
   // 连续撞同一堵墙的计数器，和入参边界共用一个：形状错（pi 的立即结果）、契约 parse 错、执行失败，同一处记数。
   const failures = createLaneRepeatedFailureTracker();
-  const toolInput = createLaneToolInputBoundary({ failures, specs: options.tools, onFailure: options.onToolFailure });
+  const turn = createLaneTurnBudget(failures, options.limits?.maxModelRequests ?? LANE_MAX_MODEL_REQUESTS);
+  const toolInput = createLaneToolInputBoundary({ failures, specs: options.tools, onFailure: options.onToolFailure,
+    turn });
   // 立即结果没有 `details`，面板的信封按入参重推（`laneToolInputBoundary.failureOf`，按 toolCallId 记一份）。
   const modelFacts: LaneModelFacts = { pricing: pricingBasis,
     supportedThinkingLevels: getSupportedThinkingLevels(model) as readonly LaneThinkingLevel[],
@@ -255,7 +258,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
    * **一条 lane 的系统提示词，每个回合整体重新求值一次；回合内不变。**
    *
    * 这是这一层唯一的「什么时候求值」规则，替掉了此前「哪个字段自己记得刷新」的逐字段约定：
-   *   · 回合内不变——正在跑的那一个回合不会中途改口（技能、界面语言、项目记忆一视同仁）。
+   *   · 回合内不变——正在跑的那一个回合不会中途改口（技能、界面语言一视同仁）。
    *     用户在模型说到一半时切了语言，这一轮说完再改，而不是一句中文一句英文。
    *   · 每个回合都变——会变的事实由**来源**提供（函数 / `LaneSkillIndexSource`），
    *     不是开 lane 那一刻的闭包常量；以后再加一个会变的段落，不必再发明一条刷新路径。
@@ -380,22 +383,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       })
     : undefined;
   const directlyApplied = new Set<string>();
-  const maxModelRequests = options.limits?.maxModelRequests ?? LANE_MAX_MODEL_REQUESTS;
-  // 缺省不设上限时这一支整条不参与：不计数、不拦截，逐字节等同于没有这个机制。
-  // 计数按 **run** 走，不按 lane 走：上限说的是「这一轮」，一条 lane 活一整天。
-  const requests = { runId: '', count: 0 };
-
-  if (maxModelRequests !== undefined) {
-    harness.hooks.on('before_request', (event) => {
-      if (event.step !== 'assistant') return undefined;
-      // 重试不消耗预算：`attempt` 在重试时递增，同一步会带着 2、3、4 再来一次。
-      // 把重试算进步数，等于让一次网络抖动吃掉用户的回合。
-      if (event.attempt !== 1) return undefined;
-      if (requests.runId !== event.runId) { requests.runId = event.runId; requests.count = 0; }
-      requests.count += 1;
-      return undefined;
-    });
-  }
+  turn.attach(harness, lane, registeredToolNames);
 
   harness.hooks.on('before_payload', (event) => options.input
     ? { payload: options.input.rewritePayload(event.payload, event.model.api) } : undefined);
@@ -419,13 +407,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   });
 
   harness.hooks.on('before_tool', async (event, hookContext) => {
-    // ① 回合上限。**模型看到的是一句人话，不是一个 `step-limit` 错误码**——它还有机会
-    // 用这一步把结论说出来，而错误码只会让这一轮以「失败」收场，尽管活已经干了大半。
-    if (maxModelRequests !== undefined && requests.count >= maxModelRequests) {
-      return { block: { terminate: true, reason:
-        `This turn has reached its ${maxModelRequests}-model-request limit, so no further tool call will run. `
-        + 'State your conclusion and what is still undone, in text, now.' } };
-    }
+    // 回合预算不在这里判（见 `before_request`）：工具钩子看不见立即结果，判在这里就有绕过它的路。
     // Destructive actions require their own surface, even with approval. Reversible
     // workflows may intentionally cross surfaces (e.g. planning a storyboard from a document).
     // Use the consumed input (also on replay), not capture(): that may be a queued draft.
@@ -443,7 +425,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     const rejected = await toolInput.prepare(event.toolName, event.args,
       () => options.toolLifecycle?.prepare(event, hookContext.abortSignal ?? new AbortController().signal));
     if (rejected !== undefined) return { block: { reason: rejected } };
-    // ② 闸。上限先判：到了上限就没有「问用户要不要放行」这回事了。
+    // ② 闸。
     if (gate) {
       // 撞满 3 次之后模型改去问用户：那张卡上要多一句**我们自己**说的话
       // （「试了 3 次还是不对，所以来问你」）。它只传一个码 + 一个数，文案在渲染层 i18n——
@@ -518,9 +500,9 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     // （见 `laneRepeatedFailure.mts` 的 `exhausted()`）。让模型自己回忆拒收信里写了哪几个值，
     // 是在赌它——而它已经连着错了三次的正是这件事。
     const failure = event.isError ? takeLaneToolFailure(event.toolCallId) : undefined;
-    // 墙按**语义码 + 出错字段**认，不按正文首行（正文里有 id、镜头数、字段值，同一堵墙每次都不一样）。
+    // 按**这个工具自上次成功以来的连败数**计，码和字段只留作诊断（换一个错字段不算进展）。
     // 和入参边界同一个熔断：正好撞满的这一次，「停」那句接在正文后面（模型第 3 次就读到「别再发、去问用户」）。
-    const { consecutive, stop } = toolInput.settle(event.toolName, event.isError, body, failure);
+    const { consecutive, stop } = toolInput.settle(event.toolName, event.isError, failure);
     // 工具失败要在**主进程日志**里留一行（2026-09-17）。此前整条失败链只有 lane 自己的会话 JSONL
     // 记得住：真机复现 `surface_port_stale` 那一轮，`read_script` 连挂 3 次、会话里 12 处命中，
     // 而 `logs/nomi-<date>.log` 一共 9 行、**一个字都没提这件事**。排查的人打开日志看到的是「什么都没发生」。
@@ -566,7 +548,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       // Whatever the envelope carried is destructured away first — a submitted value, and the
       // restored draft's historical one, are both discarded — and the key only reappears when
       // this admission actually holds a target. No target = no surface authority (fail-closed).
-      const { admissionSurface: _submitted, ...intent } = { ...currentAdmission, ...restoredIntent };
+      const { admissionSurface: _submitted, ...intent } = withRestoredTemplate(currentAdmission, restoredIntent);
       message = { role: 'nomi.input', content: text, timestamp: Date.now(),
         context: { ...intent, ...(captured.target ? { admissionSurface: captured.target.kind } : {}) } };
     }
@@ -650,13 +632,14 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         // The same accepted operation then drives to settlement for every caller, including tests.
         const request = typeof message === 'string'
           ? { kind: 'prompt' as const, prompt: message } : { kind: 'prompt' as const, prompt: message };
-        // 用户又开口了：连续撞墙的计数归零（用户动作即解除熔断）。
-        failures.reset();
+        // 连败清零不在这里做：这句话被 pi 写进这一轮的转录（`message_end`）时才算模型读到了（见上面的监听）。
         admission.abortSignal?.throwIfAborted();
         const accepted = await lane.accept(request, admission);
         if (!accepted.ok) throw new Error(accepted.error._tag);
         executionOptions?.onAccepted?.();
         const result = await lane.drive({ operationId: accepted.value.operationId, waitForRetry: true }, context);
+        // 这一轮若是被回合预算收掉的，pi 拿走的插话 / 排队话原样排回去（不丢用户的话）。
+        await turn.requeueUnconsumed(lane, context);
         await trace.flush();
         if (!result.ok) throw new Error(result.error._tag);
         return {};
@@ -691,7 +674,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         // 于是那条 follow-up 会安静地排在一张他以为已经答过的卡后面（裁决 E：绝不允许石沉大海）。
         // 所以只要有闸在等，两种手势同义——都是「先别做那件事，听我这句」。
         const steering = command.kind !== 'follow-up' || Boolean(gate?.pending());
-        failures.reset();
+        // 排队这一刻不清零：模型还没读到这句话。被这一轮吃进去时（`message_end`）才清。
         const message = await awaitWithContext(inputMessage(command.text), admission);
         admission.abortSignal?.throwIfAborted();
         const queued = steering

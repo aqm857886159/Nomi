@@ -1,0 +1,216 @@
+{
+  "version": 13,
+  "vendors": [
+    {
+      "key": "local-60634",
+      "name": "L 回环中转",
+      "enabled": true,
+      "hasApiKey": true,
+      "baseUrlHint": "http://127.0.0.1:60634/v1",
+      "authType": "bearer",
+      "authHeader": null,
+      "authQueryParam": null,
+      "providerKind": "openai-compatible",
+      "credentialBinding": {
+        "origin": "http://127.0.0.1:60634",
+        "authType": "bearer",
+        "confirmedAt": "2026-11-16T17:03:45.252Z"
+      },
+      "meta": {
+        "adapterCandidatePromotionPredecessors": {}
+      },
+      "createdAt": "2026-11-16T17:03:45.251Z",
+      "updatedAt": "2026-11-16T17:04:41.401Z",
+      "credentialMaterialSaved": true,
+      "credentialVerificationPending": false
+    }
+  ],
+  "models": [
+    {
+      "modelKey": "gpt-image-2",
+      "vendorKey": "local-60634",
+      "modelAlias": "gpt-image-2",
+      "labelZh": "gpt-image-2",
+      "kind": "image",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "adapter-run-ab55ec1b-3663-4af6-99d8-285ccad2d7d3",
+          "activeRevision": "adapter-revision-38230ec7086bcf605bf2",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "text_to_image",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-11-16T17:04:40.999Z"
+            },
+            {
+              "taskKind": "image_edit",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-11-16T17:04:41.142Z"
+            }
+          ],
+          "publicationModes": [
+            "text_to_image",
+            "image_edit"
+          ],
+          "updatedAt": "2026-11-16T17:04:41.293Z"
+        }
+      },
+      "createdAt": "2026-11-16T17:04:40.719Z",
+      "updatedAt": "2026-11-16T17:06:31.054Z"
+    },
+    {
+      "modelKey": "gpt-4o",
+      "vendorKey": "local-60634",
+      "modelAlias": "gpt-4o",
+      "labelZh": "gpt-4o",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "adapter-run-ab55ec1b-3663-4af6-99d8-285ccad2d7d3",
+          "activeRevision": "adapter-revision-38230ec7086bcf605bf2",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-11-16T17:04:41.281Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-11-16T17:04:41.293Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-16T17:04:40.719Z",
+      "updatedAt": "2026-11-16T17:04:41.401Z"
+    }
+  ],
+  "mappings": [
+    {
+      "id": "mapping-7d95edb2-2335-4f90-89ea-5d2989bf19b0",
+      "vendorKey": "local-60634",
+      "taskKind": "image_edit",
+      "modelKey": "gpt-image-2",
+      "name": "gpt-image-2 · image_edit",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/edits",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "multipart": {
+          "fields": {
+            "model": "{{request.params.model}}",
+            "prompt": "{{request.prompt}}",
+            "size": "{{request.params.size}}",
+            "quality": "{{request.params.quality}}",
+            "n": "{{request.params.n}}",
+            "response_format": "url"
+          },
+          "imageField": "image[]",
+          "imageSource": "{{request.params.reference_images}}",
+          "multiple": true
+        },
+        "response_mapping": {
+          "image_url": "data[*].url"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        },
+        "defaultParams": {
+          "aspect_ratio": "1:1",
+          "resolution": "1K",
+          "quality": "standard",
+          "n": 1
+        }
+      },
+      "delivery": "synchronous",
+      "createdAt": "2026-11-16T17:04:41.401Z",
+      "updatedAt": "2026-11-16T17:04:41.401Z"
+    },
+    {
+      "id": "mapping-a589db04-0663-4362-b5ad-ea553a40b59e",
+      "vendorKey": "local-60634",
+      "taskKind": "text_to_image",
+      "modelKey": "gpt-image-2",
+      "name": "gpt-image-2 · text_to_image",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "quality": "{{request.params.quality}}",
+          "n": "{{request.params.n}}",
+          "response_format": "url"
+        },
+        "response_mapping": {
+          "image_url": "data[*].url"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        },
+        "defaultParams": {
+          "aspect_ratio": "1:1",
+          "resolution": "1K",
+          "quality": "standard",
+          "n": 1
+        }
+      },
+      "delivery": "synchronous",
+      "createdAt": "2026-11-16T17:04:41.401Z",
+      "updatedAt": "2026-11-16T17:04:41.401Z"
+    }
+  ],
+  "apiKeysByVendor": {
+    "local-60634": {
+      "vendorKey": "local-60634",
+      "apiKey": "c2stZml4dHVyZS1ub3QtcmVhbA==",
+      "enc": "safeStorage",
+      "enabled": true,
+      "createdAt": "2026-11-16T17:03:45.252Z",
+      "updatedAt": "2026-11-16T17:04:40.718Z"
+    }
+  }
+}

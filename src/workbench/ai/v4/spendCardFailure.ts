@@ -47,8 +47,7 @@ export const HAND_OVER_FAILURE_COPY = {
   node_generation_in_flight: 'agentPanelV4.spendCard.failure.node_generation_in_flight',
   node_needs_reconcile: 'agentPanelV4.spendCard.failure.node_needs_reconcile',
   asset_hosting_denied: 'agentPanelV4.spendCard.failure.asset_hosting_denied',
-  // 要问人：卡上那一行就是素材托管的披露原文（画布批量确认框同一句），按「再试一次」就是带着这次同意再交一次。
-  asset_hosting_consent_required: 'generationCommon.spendHostingDisclosure.message',
+  asset_hosting_consent_required: 'generationCommon.hostingDisabled',
   renderer_unavailable: 'agentPanelV4.spendCard.failure.renderer_unavailable',
   canvas_landing_failed: 'agentPanelV4.spendCard.failure.canvas_landing_failed',
   canvas_consent_failed: 'agentPanelV4.spendCard.failure.canvas_consent_failed',
@@ -78,9 +77,4 @@ export function handOverFailureCopy(failure: GenerationHandOverFailure): HandOve
   const known = (HAND_OVER_FAILURE_COPY as Readonly<Record<string, HandOverFailureCopyKey | undefined>>)[failure.code]
   if (known) return known
   return failure.kind === 'parameter_rejected' ? 'agentPanelV4.spendCard.failure.rejectedFallback' : 'agentPanelV4.spendCard.failure.notSentFallback'
-}
-
-/** 带着「这次同意托管」再交一次就能过的那一种（卡上的「再试一次」据此带上托管同意）。 */
-export function failureNeedsHostingConsent(failure: GenerationHandOverFailure | undefined): boolean {
-  return failure?.code === 'asset_hosting_consent_required'
 }

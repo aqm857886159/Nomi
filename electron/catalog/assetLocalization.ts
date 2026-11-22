@@ -5,16 +5,15 @@
 // KIE 等具体供应商的端点/字段/响应路径只住在各自的声明里(单源),由 curatedAssetIngestion 提供。
 // 全部依赖注入(读本地字节 read / POST 上传 postJson),故可零网络零额度单测。
 
+import { readAutomationPolicySettings } from "../settings/automationPolicySettings";
 import { DOMParser } from "@xmldom/xmldom";
 import { isComfyuiVendor, type AssetIngestion, type AssetMediaKind } from "./types";
 import {
-  anonymousConsentFromUnknown,
-  canUseAnonymousAssetHosting,
   ingestionHasSufficientLease,
   ingestionVisibility,
-  type AnonymousAssetConsent,
 } from "./assetTransportPolicy";
 import {
+  collectLocalAssetUrls,
   classifyAssetValue,
   describeAssetValue,
   humanSize,
@@ -29,6 +28,8 @@ import {
   ingestionAccepts,
   resolveAssetIngestionForKind,
   ANON_UPLOAD_CHAIN,
+  LITTERBOX_INGESTION,
+  TMPFILES_INGESTION,
 } from "./assetIngestionRegistry";
 import { readAssetRelayRuntimeConfig, readDefaultAssetRelayRuntimeConfig } from "./assetRelayRuntimeConfig";
 import { isVendorOfBuiltin } from "../shared/builtinVendorIdentity";
@@ -39,10 +40,28 @@ export {
   ingestionAccepts,
   resolveAssetIngestion,
   resolveAssetIngestionForKind,
-  LITTERBOX_INGESTION,
-  TMPFILES_INGESTION,
-  ANON_UPLOAD_CHAIN,
 } from "./assetIngestionRegistry";
+
+export { collectLocalAssetUrls } from "./assetValueScheme";
+
+function anonymousHostingEnabled(): boolean {
+  return readAutomationPolicySettings().anonymousAssetHosting === "allow";
+}
+
+/** Connectivity probes get origins only; channel definitions stay with the upload loop. */
+export function anonymousAssetHostingOrigins(): string[] {
+  const origins: string[] = [];
+  for (const ingestion of [LITTERBOX_INGESTION, TMPFILES_INGESTION]) {
+    if (ingestion.strategy !== "upload-multipart") continue;
+    try {
+      const origin = new URL(ingestion.endpoint).origin;
+      if (!origins.includes(origin)) origins.push(origin);
+    } catch {
+      // A malformed channel must not break connectivity diagnostics.
+    }
+  }
+  return origins;
+}
 
 export type LocalAsset = {
   bytes: Buffer;
@@ -55,7 +74,7 @@ export type LocalAsset = {
 
 export class AnonymousAssetConsentRequiredError extends Error {
   constructor() {
-    super("参考素材需要上传到公共临时托管：素材会离开本机，链接短期有效，并存在隐私风险。可以在设置里换上传通道；继续前请确认。");
+    super(tagNomiError("asset-upload-failed", desktopT("assetUpload.hostingDisabled")));
     this.name = "AnonymousAssetConsentRequiredError";
   }
 }
@@ -109,14 +128,6 @@ export function isLocalAssetUrl(value: unknown): value is string {
 export function assetUploadChannelKind(contentType: string | undefined): AssetMediaKind {
   const kind = mediaKindFromContentType(contentType ?? "");
   return kind === "video" || kind === "audio" ? kind : "image";
-}
-
-/** 递归收集任意 JSON 结构里所有待本地化素材值(nomi-local:// / data:,去重)。标量/数组元素/对象值都认。 */
-export function collectLocalAssetUrls(value: unknown, out: Set<string> = new Set()): Set<string> {
-  if (isLocalAssetUrl(value)) out.add(value);
-  else if (Array.isArray(value)) for (const item of value) collectLocalAssetUrls(item, out);
-  else if (value && typeof value === "object") for (const item of Object.values(value)) collectLocalAssetUrls(item, out);
-  return out;
 }
 
 /** 递归收集所有「谁都够不着」的素材值(blob:/file:)——判定与理由见 assetValueScheme.classifyAssetValue。 */
@@ -187,11 +198,7 @@ export function replaceLocalAssetUrls<T>(value: T, urlMap: Map<string, string>):
   return value;
 }
 
-/**
- * 付费守卫前的纯本地/策略预检：不上传、不调用供应商，只确认本地字节可读、媒体类型明确，
- * 且至少存在一条能覆盖本次生成窗口的安全通道。这样项目迁移后丢文件、`.bin` 未知素材或
- * 未披露的公共 fallback 都不会先消耗 spend grant 再失败。
- */
+/** 付费守卫前拒绝无效本地素材或无可用通道，避免先消耗 spend grant。 */
 export function assertLocalAssetTransportReady(
   value: unknown,
   resolveIngestion: IngestionResolver,
@@ -217,8 +224,7 @@ export function assertLocalAssetTransportReady(
     const safe = candidates.some((candidate) => {
       if (!ingestionHasSufficientLease(candidate.ingestion, mediaKind)) return false;
       if (ingestionVisibility(candidate.ingestion) === "public-anonymous") {
-        const consent = anonymousConsentFromUnknown(options.anonymousConsent ?? "ask");
-        if (!canUseAnonymousAssetHosting(consent)) {
+        if (!anonymousHostingEnabled()) {
           consentRequired = true;
           return false;
         }
@@ -227,11 +233,7 @@ export function assertLocalAssetTransportReady(
     });
     if (safe) continue;
     if (consentRequired) throw new AnonymousAssetConsentRequiredError();
-    throw new Error(
-      mediaKind === "video"
-        ? "运镜参考视频需要支持视频上传的通道：请在「模型接入」配置 KIE key（免费）或部署 relay。"
-        : `没有可用的${mediaKind === "audio" ? "音频" : "图片"}上传通道：请配置一个支持该媒体类型的供应商通道。`,
-    );
+    throw allChannelsFailedError(asset, mediaKind, [], []);
   }
 }
 
@@ -266,7 +268,7 @@ function authorizationHeaders(ingestion: AssetIngestion, apiKey: string): Record
 }
 
 /** 把一个本地素材按 vendor 声明的策略解析成可达值(data:URI 或上传后的公网 URL)。 */
-export async function resolveLocalAsset(
+async function resolveLocalAsset(
   localUrl: string,
   ingestion: AssetIngestion,
   apiKey: string,
@@ -511,7 +513,6 @@ export type ReferenceLinkVerdict = "alive" | "dead" | "unknown";
 export type ReferenceLinkPolicy = { refused: boolean; probe(url: string): Promise<ReferenceLinkVerdict> };
 
 export type LocalizeAssetsOptions = {
-  anonymousConsent?: AnonymousAssetConsent;
   minimizeUploads?: boolean;
   activeAssetUrls?: ReadonlyArray<string>;
   linkPolicy?: ReferenceLinkPolicy;
@@ -519,35 +520,17 @@ export type LocalizeAssetsOptions = {
 
 const MEDIA_LABEL: Record<AssetMediaKind, string> = { image: "图片", video: "视频", audio: "音频" };
 
-/**
- * 所有候选通道都失败时的诚实错误。
- *
- * 两件事必须写进去，否则用户没法行动：**哪个素材、多大**，以及**每条通道各自为什么挂**。
- * 413 单独说成人话——那不是「服务商临时故障」（此前用户看到的正是这句，于是不停重试，而重试
- * 永远不可能成：每次都是把同一个超限文件完整传上去再被拒）。
- */
 /** 失败行里这条通道叫什么：借用别家的要点名是哪一家的账户（那一家的余额 / 密钥问题与这次选的模型无关）。 */
 function channelLabel(candidate: IngestionCandidate): string {
   const host = hostLabel(candidate.ingestion);
   return candidate.borrowed && candidate.vendorKey ? `借用 ${candidate.vendorKey} 的上传通道（${host}，用的是你在 ${candidate.vendorKey} 的账户）` : host;
 }
 
-function allChannelsFailedError(asset: LocalAsset | null, mediaKind: AssetMediaKind, failures: string[]): Error {
+function allChannelsFailedError(asset: LocalAsset | null, mediaKind: AssetMediaKind, failures: string[], summaries: string[]): Error {
   const what = asset ? `${asset.fileName}（${humanSize(asset.bytes.length)}）` : "这个素材";
-  const detail = failures.join("；") || "(无候选通道)";
-  // 码标记(NOMI_ERR::)让渲染层 classifyError 按**码**归类,而不是 include 这句中文人话——
-  // 人话将来 i18n 化/改词都不影响分类(root-cause,替换脆弱的按文案匹配)。
-  if (failures.some((line) => line.includes("HTTP 413"))) {
-    return new Error(
-      tagNomiError(
-        "asset-too-large",
-        `${MEDIA_LABEL[mediaKind]}「${what}」超过了所有可用上传通道的大小上限，传不上去。` +
-          `请把它压缩 / 裁短后再放进来，或在「模型接入」配置一个上传上限更高的通道。详情：${detail}`,
-      ),
-    );
-  }
-  // 服务商还没被请求到：这句与 #1047 的「没离开这台电脑」同口径——问题在上传这一跳，不在选的那家。
-  return new Error(tagNomiError("asset-upload-failed", `素材上传失败：${what} 的所有上传通道都没成功，所以还没请求这次选的服务商。详情：${detail}`));
+  const summary = desktopT("assetUpload.failed", { channels: summaries.join("; ") || desktopT("assetUpload.noChannel") });
+  return new Error(tagNomiError(failures.some((line) => line.includes("HTTP 413")) ? "asset-too-large" : "asset-upload-failed",
+    `${summary}\n${desktopT("assetUpload.notSubmitted")} ${MEDIA_LABEL[mediaKind]} ${what}: ${failures.join("; ")}`));
 }
 
 /** 一批窗内临时链接的结论。该连接拒绝过 → 一律当失效（不试探）；没有策略 → 当判断不了；试探本身出错也当判断不了。 */
@@ -609,44 +592,39 @@ export async function localizeAssetsForVendor(
       continue;
     }
     if (candidates.length === 0) {
-      throw new Error(
-        mediaKind === "video"
-          ? "运镜参考视频需要支持视频上传的通道：请在「模型接入」配置 KIE key（免费）或部署 relay。"
-          : `没有可用的${mediaKind === "audio" ? "音频" : "图片"}上传通道：请配置一个支持该媒体类型的供应商通道。`,
-      );
+      throw allChannelsFailedError(asset, mediaKind, [], []);
     }
     // 逐条候选试，谁先换出可达值就用谁。一条失败不等于这个素材没救——最常见的就是 HTTP 413
     // （这条 host 的 body 上限装不下），换一条收得下的就过了（2026-08-20 用户反馈修）。
     const failures: string[] = [];
+    const summaries: string[] = [];
     let consentRequired = false;
     let resolvedValue: string | null = null;
     for (const candidate of candidates) {
       const visibility = ingestionVisibility(candidate.ingestion);
-      const consent = anonymousConsentFromUnknown(options.anonymousConsent ?? "allow");
-      if (visibility === "public-anonymous" && !canUseAnonymousAssetHosting(consent)) {
+      if (visibility === "public-anonymous" && !anonymousHostingEnabled()) {
         consentRequired = true;
-        failures.push(`${hostLabel(candidate.ingestion)}: 需要先确认公共临时托管`);
         continue;
       }
       if (!ingestionHasSufficientLease(candidate.ingestion, mediaKind)) {
         failures.push(`${hostLabel(candidate.ingestion)}: URL 有效期不足以覆盖${MEDIA_LABEL[mediaKind]}生成`);
+        summaries.push(desktopT("assetUpload.channelLeaseTooShort", { channel: hostLabel(candidate.ingestion) }));
         continue;
       }
       try {
         resolvedValue = await resolveLocalAsset(url, candidate.ingestion, candidate.uploadApiKey, read, postJson, postMultipart, putBinary);
         break;
       } catch (error) {
-        failures.push(`${channelLabel(candidate)}: ${error instanceof Error ? error.message : String(error)}`);
+        const reason = error instanceof Error ? error.message : String(error);
+        failures.push(`${channelLabel(candidate)}: ${reason}`);
+        const channel = candidate.vendorKey === "nomi-relay" ? desktopT("assetUpload.relay") : candidate.vendorKey || hostLabel(candidate.ingestion);
+        const status = /HTTP[ (]+(4\d{2})/.exec(reason)?.[1];
+        summaries.push(desktopT(status === "413" ? "assetUpload.channelTooLarge" : status ? "assetUpload.channelRejected" : "assetUpload.channelUnavailable", { channel, status: status || "" }));
       }
     }
     if (resolvedValue === null) {
-      // Do not hide a failed provider-owned upload behind the anonymous-hosting
-      // consent prompt.  That turned a concrete Runway/KIE 4xx into a generic
-      // privacy dialog, leaving users unable to repair the actual contract.
-      const privateFailures = failures.filter((line) => !line.includes("需要先确认公共临时托管"));
-      if (consentRequired && privateFailures.length === 0) throw new AnonymousAssetConsentRequiredError();
-      if (consentRequired && privateFailures.length > 0) throw allChannelsFailedError(asset, mediaKind, privateFailures);
-      throw allChannelsFailedError(asset, mediaKind, failures);
+      if (consentRequired && failures.length === 0) throw new AnonymousAssetConsentRequiredError();
+      throw allChannelsFailedError(asset, mediaKind, failures, summaries);
     }
     urlMap.set(url, resolvedValue);
   }

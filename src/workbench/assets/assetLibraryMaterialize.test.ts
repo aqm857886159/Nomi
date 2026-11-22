@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { DesktopAssetDto } from '../../desktop/bridge'
 import type { ProjectExecutionContext } from '../project/projectCanvasReadSurface'
 import type { AssetLibraryDragPayload } from './assetLibraryDrag'
-import { materializeAssetLibraryItems, type CopyProjectAsset } from './assetLibraryMaterialize'
+import { materializeAssetLibraryItems, materializeProjectFile, type CopyProjectAsset } from './assetLibraryMaterialize'
 
 const project = {
   binding: { projectId: 'project-a', immutableProjectUuid: 'uuid-a', projectGeneration: 1 },
@@ -80,5 +80,33 @@ describe('materializeAssetLibraryItems — 素材库落点只写当前项目自�
     const wrongTarget = vi.fn<CopyProjectAsset>(async () => copiedDto('project-b', 'assets/imported/b.png'))
     const out = await materializeAssetLibraryItems([projectFile('project-b', 'assets/imported/b.png')], project, wrongTarget)
     expect(out).toEqual({ items: [], failed: 1 })
+  })
+})
+
+// 逐文件的判定只有一处（materializeProjectFile）：素材库拖入画布 / 时间轴、工作流库插入共用。
+// 差异⑥（2026-11-21 用户拍板「改，不再多一张」）：本项目的文件原样用，不再复制一份；别的项目的文件复制进来；
+// 缺复制通道、复制失败、复制品不在目标项目或没有地址，一律算失败（调用方据此给那句已有的提示）。
+describe('materializeProjectFile — 工作流插入与素材库拖入共用的逐文件判定', () => {
+  it('本项目的文件原样用，不调复制（工作流在同一个项目里插入不再多一张卡）', async () => {
+    const copy = vi.fn<CopyProjectAsset>()
+    await expect(materializeProjectFile({ projectId: 'project-a', relativePath: 'assets/a.png' }, 'project-a', copy)).resolves.toEqual({ kind: 'same-project' })
+    expect(copy).not.toHaveBeenCalled()
+  })
+
+  it('别的项目的文件复制进目标项目，用复制品的地址', async () => {
+    const copied = copiedDto('project-a', 'assets/imported/b-2.png')
+    const copy = vi.fn<CopyProjectAsset>(async () => copied)
+    await expect(materializeProjectFile({ projectId: 'project-b', relativePath: 'assets/imported/b.png' }, 'project-a', copy))
+      .resolves.toEqual({ kind: 'copied', asset: copied, url: 'nomi-local://asset/project-a/assets/imported/b-2.png' })
+    expect(copy).toHaveBeenCalledWith({ sourceProjectId: 'project-b', targetProjectId: 'project-a', relativePath: 'assets/imported/b.png' })
+  })
+
+  it('缺复制通道、复制抛错、复制品不在目标项目、复制品没有地址：都算失败', async () => {
+    const source = { projectId: 'project-b', relativePath: 'assets/imported/b.png' }
+    const noUrl = { ...copiedDto('project-a', 'assets/imported/b.png'), data: { url: '  ' } } as unknown as DesktopAssetDto
+    await expect(materializeProjectFile(source, 'project-a', null)).resolves.toEqual({ kind: 'failed' })
+    await expect(materializeProjectFile(source, 'project-a', async () => { throw new Error('denied') })).resolves.toEqual({ kind: 'failed' })
+    await expect(materializeProjectFile(source, 'project-a', async () => copiedDto('project-c', 'assets/imported/b.png'))).resolves.toEqual({ kind: 'failed' })
+    await expect(materializeProjectFile(source, 'project-a', async () => noUrl)).resolves.toEqual({ kind: 'failed' })
   })
 })

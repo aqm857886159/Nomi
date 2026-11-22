@@ -48,7 +48,8 @@ await win.getByRole('button', { name: '生成', exact: true }).click()
 
 const addImage = win.locator('[aria-label="添加图片节点"]').first()
 await expectVisible(addImage, '生成画布已可添加节点')
-if (!(await addImage.count())) { console.error('❌ 找不到「添加图片节点」'); await app.close(); process.exit(1) }
+const addImageVisible = await addImage.waitFor({ state: 'visible' }).then(() => true, () => false)
+if (!addImageVisible) { console.error('❌ 找不到「添加图片节点」'); await app.close(); process.exit(1) }
 // 连建四张（2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」之后的样子）：以前连建会触发「连续创建适应」
 // 把画布自己缩小到装下四张，首卡因此留在舞台里；现在画布一格不动，新卡落在当前可见区（空画布上首卡必然
 // 完整落在舞台里），后面几张被螺旋避让推向右 / 下，中心出了舞台的由边缘提示数着。每建一张都验：
@@ -96,7 +97,8 @@ await snapNear(win, 'selection-toolbar-real', toolbar, 24)
 
 // 编组 → 组框 + 标签胶囊的真实样子
 const groupBtn = win.locator('[aria-label^="创建分组"]').first()
-if (!(await groupBtn.count())) { console.error('❌ 找不到「创建分组」按钮'); await app.close(); process.exit(1) }
+const groupBtnVisible = await groupBtn.waitFor({ state: 'visible' }).then(() => true, () => false)
+if (!groupBtnVisible) { console.error('❌ 找不到「创建分组」按钮'); await app.close(); process.exit(1) }
 await groupBtn.click({ timeout: 4000 })
 await win.waitForTimeout(900)
 await snap(win, 'canvas-grouped')

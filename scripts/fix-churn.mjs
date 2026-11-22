@@ -16,10 +16,12 @@
 //   盲区：同一类错（例如「界面谈钱」）若散在不同功能键里，这里数不到一起——由 check:i18n 的文案扫描补。
 // 再加两种「按概念数」的单位（scripts/fix-churn-units.mjs 定义哪些单位、各含哪些文件）：
 //   · 自写登记条目（self-written.json 的一条 entry，paths 下的文件合起来）：status 为 under-review / to-replace，
-//     或 justified 但落在 genericZones 的通用能力——窗口 30 天，第 2 个 fix 就命中，提示「先评估接入现成方案」；
+//     或 justified 但落在 genericZones 的通用能力——窗口 30 天，第 2 个 fix 就命中，提示「复盘先按模板 §5 写这一整块归谁」；
 //   · 概念（docs/engineering/concept-owners/ 的一个 concept，owner + write_api 的文件合起来，≥2 个文件才单列）——14 天 / 第 3 个，
 //     同样有「概念大小」上限（fix 碰过的不同源码文件 ≤ CONCEPT_MAX_FILES）。
 //   原因：MCP 的修补一个月 14 次、散在 6 个文件，按文件 / 目录都凑不够 3 个。
+// 第四种单位「交接处」（docs/engineering/seams.json）：14 天内第 2 次修（已有 ≥1 个 fix）。它只在写任务书时数（check-dispatch-brief 调 seamFixCommits），
+//   不进 loadUnits，所以提交时的方向检查（trailer）不认它；数法（fix 判法、14 天窗口）和上面的单位同一套。
 // 另外三条触发（评测分数回滚、同线第 3 轮修补、第三个特例分支）没有 git 上的可算信号，靠派工书 / 复盘模板人工判。
 //
 // 用法：
@@ -31,7 +33,7 @@ import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gitPaths } from './lib/gitPaths.mjs'
-import { loadUnits, SELF_WRITTEN_WINDOW_DAYS, unitMatches } from './fix-churn-units.mjs'
+import { isSeamProduction, loadUnits, SELF_WRITTEN_WINDOW_DAYS, unitMatches } from './fix-churn-units.mjs'
 
 export const FIX_WINDOW_DAYS = 14
 /** 近 14 天已有的 fix 数达到它，这一刀就是第 3 个。 */
@@ -249,6 +251,15 @@ export function evaluate(history, afterIndex, nowMs, rel, nsCtx) {
   return { path: file, dir, file: f, dirCounts: d, hot: reasons.length > 0, reasons }
 }
 
+/** 一个提交里属于这个单位的文件（词典不算；交接处只认生产文件）。 */
+const unitFilesOf = (unit, c) => c.files.filter((f) => !isDictionaryFile(f) && unitMatches(unit, f) && (!unit.productionOnly || isSeamProduction(f)))
+
+/** 交接处在窗口内的 fix 提交（新→旧，{ sha, subject, ms }）：数法同 tallyUnit（同一套 fix 判法、同一个窗口取法）。写任务书时用，不进提交时的方向检查。 */
+export function seamFixCommits(history, nowMs, unit) {
+  const cutoff = nowMs - unit.windowDays * 86400000
+  return history.filter((c) => c.ms >= cutoff && isFixSubject(c.subject) && unitFilesOf(unit, c).length > 0).map(({ sha, subject, ms }) => ({ sha, subject, ms }))
+}
+
 /** 单位（登记条目 / 概念）在 history[afterIndex+1..] 里、自己的窗口内被 fix / revert-fix 碰了几次。 */
 export function tallyUnit(history, afterIndex, nowMs, unit) {
   const cutoff = nowMs - unit.windowDays * 86400000
@@ -259,7 +270,7 @@ export function tallyUnit(history, afterIndex, nowMs, unit) {
     const c = history[i]
     if (c.ms < cutoff) continue
     // 词典不进单位：只改词典的旧提交也不给单位记票（否则含词典的概念把每条新文案都算一刀）
-    const mine = c.files.filter((f) => !isDictionaryFile(f) && unitMatches(unit, f))
+    const mine = unitFilesOf(unit, c)
     if (!mine.length) continue
     if (isFixSubject(c.subject)) { fixes++; for (const f of mine) if (isUnitSource(f)) fixFiles.add(f) }
     else if (isRevertOfFix(c.subject)) reverts++
@@ -278,7 +289,7 @@ export function evaluateUnits(history, afterIndex, nowMs, files, units) {
     const reasons = []
     if (t.fixes >= unit.prior) {
       reasons.push(unit.kind === 'self-written'
-        ? `状态 ${unit.status}，近 ${unit.windowDays} 天已有 ${t.fixes} 个 fix，这一刀是第 ${t.fixes + 1} 个——先评估接入现成方案（P0）；要继续补，必须在复盘里写清为什么现在换不了、哪天换`
+        ? `状态 ${unit.status}，近 ${unit.windowDays} 天已有 ${t.fixes} 个 fix，这一刀是第 ${t.fixes + 1} 个——复盘先按模板 §5 写这一整块归谁（P0）；要继续补，必须在复盘里写清为什么现在换不了、哪天换`
         : `含 ${unit.patterns.length} 个文件，近 ${unit.windowDays} 天已有 ${t.fixes} 个 fix，这一刀是第 ${t.fixes + 1} 个`)
     }
     if (t.reverts >= 1) reasons.push(`近 ${unit.windowDays} 天出现过 ${t.reverts} 次 revert fix`)

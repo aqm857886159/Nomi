@@ -44,15 +44,13 @@ describe('跑完红不红：只看像素，不看版本号', () => {
     expect(visualVerdict({ mode: 'strict', pixelsPassed: false })).toEqual({ exitCode: 1, kind: 'mismatch' })
     expect(visualVerdict({ mode: 'strict', pixelsPassed: true })).toEqual({ exitCode: 0, kind: 'pass' })
   })
-  it('本机不符只报告', () => {
-    expect(visualVerdict({ mode: 'advisory', pixelsPassed: false })).toEqual({ exitCode: 0, kind: 'advisory-mismatch' })
-  })
   it('CI 上任何模式，像素不符都不会被放行', () => {
     for (const mode of ['strict', 'runner-drift']) expect(visualVerdict({ mode, pixelsPassed: false }).exitCode).toBe(1)
   })
-  it('本机 Mac 只报告不阻断——哪怕版本恰好相同，本机也不是基准机', () => {
-    expect(decideVisualMode({ identity: CI_MAC, calibrated: { ...CI_MAC, osVersion: '26.5' }, ci: false })).toBe('advisory')
-    expect(decideVisualMode({ identity: CI_MAC, calibrated: CI_MAC, ci: false })).toBe('advisory')
+  it('本机始终只比较同机主分支——即使与 CI 系统版本相同', () => {
+    expect(decideVisualMode({ identity: CI_MAC, calibrated: { ...CI_MAC, osVersion: '26.5' }, ci: false })).toBe('local-relative')
+    expect(decideVisualMode({ identity: CI_MAC, calibrated: CI_MAC, ci: false })).toBe('local-relative')
+    expect(decideVisualMode({ identity: { platform: 'linux', arch: 'x64' }, calibrated: CI_MAC, ci: false })).toBe('local-relative')
   })
 })
 

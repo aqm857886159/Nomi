@@ -54,7 +54,7 @@ import { HAND_OVER_SHOTS_OP } from '../../../electron/shared/contracts/canvasHan
 import { CANVAS_SHOT_SETTLED_OP, parseCanvasShotSettledNotice } from '../../../electron/shared/canvas/canvasShotSettled'
 import { landObservedCanvasRun } from '../generationCanvas/runner/recoverTaskActions'
 import { extendAgentStoryboardDesign, patchAgentStoryboardDesign, upsertAgentStoryboardDesign } from '../creation/storyboard/agentStoryboardDesign'
-import { spendModelLine } from './credentialProbeSpendCard'
+import { spendModelLine } from './spendCardModelLine'
 import { dedicatedSpendCardFor } from './spendCardByIntent'
 import { displayEditingPanelLayout, type EditingPanelLayoutPatch } from '../preview/editingPanelLayoutSlice'
 

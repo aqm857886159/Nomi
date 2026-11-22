@@ -182,19 +182,22 @@ try {
   // 按格式钮的动作 id 定位（RichTextActionButton 的 data-rich-text-action；名字走 Tooltip，不再挂原生 title）
   for (const action of ['highlight', 'strike', 'table', 'task-list']) {
     const btn = toolbar.locator(`[data-rich-text-action="${action}"]`)
-    const count = await btn.count()
-    record(`工具栏·${action}`, count > 0, `找到 ${count} 个`)
+    const btnVisible = await btn.first().waitFor({ state: 'visible' }).then(() => true, () => false)
+    record(`工具栏·${action}`, btnVisible, `可见=${btnVisible}`)
   }
 
   // B：新格式真实渲染
   const mark = win.locator('.workbench-editor__content mark')
-  record('高亮渲染', (await mark.count()) > 0, `mark 元素 ${await mark.count()} 个`)
+  const markVisible = await mark.first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  record('高亮渲染', markVisible, `mark 元素 ${markVisible ? await mark.count() : 0} 个`)
 
   const taskList = win.locator('.workbench-editor__content ul[data-type="taskList"]')
-  record('待办列表渲染', (await taskList.count()) > 0, `taskList ${await taskList.count()} 个`)
+  const taskListVisible = await taskList.first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  record('待办列表渲染', taskListVisible, `taskList ${taskListVisible ? await taskList.count() : 0} 个`)
 
   const table = win.locator('.workbench-editor__content table')
-  record('表格渲染', (await table.count()) > 0, `table ${await table.count()} 个`)
+  const tableVisible = await table.first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  record('表格渲染', tableVisible, `table ${tableVisible ? await table.count() : 0} 个`)
 
   // D：标题分隔线（h1/h2 有 border-bottom）
   const h1Border = await win.locator('.workbench-editor__content h1').first().evaluate((el) => getComputedStyle(el).borderBottomWidth)
@@ -209,7 +212,8 @@ try {
   // P2 多文档：原稿列表（10-08 外壳重设计后住在左栏「文稿」抽屉里，点一下左栏「文稿」才出来）
   await ensureCreationResourceTree(win, '原稿列表')
   const docList = win.locator('[data-creation-resource-tree="true"]').first()
-  record('原稿列表渲染', (await docList.count()) > 0, `count=${await docList.count()}`)
+  const docListVisible = await docList.waitFor({ state: 'visible' }).then(() => true, () => false)
+  record('原稿列表渲染', docListVisible, `count=${docListVisible ? await docList.count() : 0}`)
   const docItems = win.locator('[data-creation-resource-tree="true"] [data-document-id]')
   record('原稿列表 2 篇', (await docItems.count()) === 2, `count=${await docItems.count()}`)
 
@@ -232,8 +236,8 @@ try {
   // 有方案的项目 → 从文稿抽屉的方案行进分镜页，渲染方案编辑器（不是空态）
   await openProject('分镜独立页走查')
   await openStoryboardEditor(win, { pick: 'first' }, '有方案项目：打开分镜方案')
-  const shotCount = await win.getByText('分镜 · 2 镜').count()
-  record('分镜方案渲染', shotCount > 0 || (await win.getByText(/分镜方案/).count()) > 0, `分镜·2镜=${shotCount}`)
+  const shotLabelVisible = await win.getByText('分镜 · 2 镜').or(win.getByText(/分镜方案/)).first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  record('分镜方案渲染', shotLabelVisible, `分镜方案可见=${shotLabelVisible}`)
   await shot('04-storyboard-with-plan')
 
   // 关闭后报告

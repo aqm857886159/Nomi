@@ -9,6 +9,7 @@
 | `pnpm build` | Vite 构建 + electron tsc |
 | `pnpm run test` | Vitest 单测 |
 | `pnpm run gates` | 本机完整自检（按风险分档）：contracts 全部 + **改动相关**的测试 + build；碰测试基础设施/删改名/空 diff 自动升全量并打印原因。推送前不必跑（2026-10-24 起推送只过 git 钩子的快检，完整门岗以 CI 为准），想在推之前自己兜底时用 |
+| `pnpm run check:design-lab` | 本机用同机渲染的 `git merge-base HEAD origin/main` 比现有视觉道覆盖的格，变化/新增/删除/本机不稳定格写入 `outputs/design-lab/relative.json`；变化不阻断，基础设施失败非零。缓存位于用户缓存目录 `~/.cache/nomi/design-lab/`（机器/浏览器/视口/基准提交分键，保留最近 4 份），不覆盖拍板基线。CI 仍硬比已拍板基线，合并以 CI 为准；`-- --screen <屏>` 限定当前比较，基准仍全量生成 |
 | `pnpm run gates:full` | 本机完整自检的全量档（今天的全量测试）：测试基础设施改动、手动发布边界、想自己兜底时用 |
 | `pnpm run test:core-smoke -- --fixture <empty\|used\|profile-copy>` | 核心流程冒烟（空节点 composer / 「2 版」托盘 / 编组框删除+⌘Z / 平移手势）：非纯文档 PR 与 main push 必跑，CI 两遍（空项目 / 用过的项目）；`profile-copy` 只在本机、深拷贝真实资料跑完即删。清单唯一 owner `tests/ux/core-smoke/scenarios.mjs` |
 | `pnpm run test:system:focused` | 普通 PR 的 changed/sibling/related tests；仍须配合 contracts |
@@ -19,6 +20,7 @@
 | `pnpm run delivery:verify-merged -- --expected-sha <SHA>` | 在真实 merged-main 上记录 exact-SHA CI checks 收据，不本地重跑 |
 | `pnpm run test:e2e` | Playwright smoke（零额度，CI-ready） |
 | `NOMI_PAID_REHEARSAL=no-key node tests/ux/<x>.paid.mjs` | 付费走查的免费演练（先 `pnpm build`；不设 `NOMI_SPEND_OK`，和它同时设会被拒）：同一份脚本，放行名单为空、假钥匙走可见接入页、APIMart 的源和 App 的托管上传中转各改道到一个本机替身（只答免费探测和上传、上传回本机假地址，别的请求记下方法 / 路径 / 脱敏请求体、从不转发）；收据记走到了哪一站（点击之前 / 上传中转 / 供应商读请求 / 供应商创建请求），真付费入口只认走到这份脚本终点的收据（缺省创建请求；不发创建请求的在 `_paidRun.mjs#REHEARSAL_ENDPOINTS` 声明），脚本或本地辅助模块改过、构建变了也拒跑。读账本判请求体的脚本演练时照样判（`readAllowedRequests()` 返回替身记下的请求）。只授权非 APIMart 模型的脚本在本机用 `NOMI_PAID_REHEARSAL=real-key`（装真凭据、出不了网）。批量：`node tests/ux/_paidRehearsalBatch.mjs [--only a.paid.mjs,…] [--nightly]` 出过 / 不过 / 跳过清单（缺参数 / 缺环境的记「跳过：要什么」）；夜间走查第 0 批带 `--nightly` 跑，按 `tests/ux/_paidRehearsalList.mjs` 里只减不增的「今天不过」名单判。唯一 owner `tests/ux/_paidRun.mjs` |
+| `pnpm run radar:docs` | 已接入模型的官方文档有没有变（每日雷达第三段，开会话自动跑）：重抓档案 / 目录里全部来源地址 + APIMart 公开价目，和 `docs/research/model-radar/doc-fingerprints.json` 的指纹比；变了 / 没查成 / 新缺口都明着报，核对完 `-- --accept <verdicts.json>` 落表（只读公开文档，不用 Key）|
 | `pnpm run lint:ci` | Lint + max-warnings=95 棘轮（新增 1 个 warning 即红）；存量错误冻结在 `eslint-suppressions.json`（ESLint 批量抑制，只减不增：修掉存量后跑 `pnpm exec eslint --prune-suppressions` 收紧再提交；冻结数要涨须协调确认 `node scripts/coord-approve.mjs --suppressions`，见 delivery-and-review.md「协调确认记录」）|
 | `pnpm run typecheck` | TypeScript 双向类型检查 |
 | `pnpm run check:filesize` | 格式化代码行巨壳门岗（650 黄牌、800 红牌、冻结项只减不增） |
@@ -28,11 +30,12 @@
 | `pnpm run check:i18n` | 可见文字国际化门岗（禁止新增硬编码 UI 文案；遗留基线只减不增）|
 | `pnpm run check:framework-boundary` | 框架边界门岗（框架已提供的能力不许再长一份自研版本；债只减不增、绑方案、到期即红）|
 | `node scripts/door-map.mjs <符号或文件>` | 数门（列出一份状态的全部写/读入口，输出直接粘进根因合同 `doors`）|
+| `node scripts/goal-red-on-base.mjs -- <目标测试文件…>` / `--changed` | 目标测试在修前代码上红不红：生产文件退回合并基点、测试留分支版本，在临时副本里跑，逐条归「断言红 / 崩溃红 / 加载红 / 绿」；有加载红或全绿判不合格。实现线交回前跑，输出贴进交回报告 |
 | `pnpm run measure:host-config-commit-window -- [--n 300] [--size-kb 80] [--host-interval-s 5] [--out <收据.json>]` | 手动测量（不进任何门岗）：宿主配置写盘门提交时「挂链接 → 换名」那段测不到的窗口，直接调生产 `hostConfigWrite.atomicWrite` 的测量缝；输出原始样本、p50/p95/p99/最大、平台 / Node / 文件系统、按宿主写入频率假设算的撞击概率与公式。收据在 `docs/evidence/2026-10-10-host-config-commit-window/`；防烂测试 `scripts/measure-host-config-commit-window.test.mjs` |
 | `pnpm run check:real-media-fixture` | 真实素材门岗（画布性能/导入/导出/走查四类各至少一条真素材测试；合成夹具棘轮只减不增；缺素材硬红不许 skip，CI 未就位期只能记带到期日的债）|
 | `pnpm run check:rule-aliases` | 规则编号解析门岗（家规文件里任何 `R<数字>` 都要解析得到——合并规则不许留悬空引用）|
 | `node scripts/fix-churn.mjs <路径>` / `--staged` / `--range <base>..HEAD --warn` | 方向检查计数器：文件 / 概念目录 / concept-owners 概念 14 天内、自写登记条目 30 天内（第 2 个就命中）的 fix 与 revert-fix 数，命中就改派类根因复盘（RW，编排手册 §20） |
-| `node scripts/check-dispatch-brief.mjs <任务书.md>` | 派工书检查：有没有写范围、不碰清单、停点；第 3 轮修补必须引用复盘文档；模型可见工具改动必须引用 [`model-facing-tool-checklist.md`](model-facing-tool-checklist.md) |
+| `node scripts/check-dispatch-brief.mjs <任务书.md>` | 派工书检查：有没有写范围、不碰清单、停点；第 3 轮修补必须引用复盘文档；模型可见工具改动必须引用 [`model-facing-tool-checklist.md`](model-facing-tool-checklist.md)；任务书点到的路径命中 [`seams.json`](seams.json) 的某个交接处、且这一处 14 天内已修过 ≥1 次，必须有一行「交接处：」（读了全图 / 不算同一处：理由） |
 | `pnpm run check:self-written` | 自写登记门岗（P0：diff 里在 `src/`、`electron/` 新增、落在领域目录之外又没被登记表认领的代码文件就报；`enforceFrom` 之前警告、之后阻断；测试 / 类型声明 / 纯接线豁免）；另外：`under-review` 过了 `reviewBy` 且这次改动碰它的文件就红（改离 under-review 才算评估 / 替换），新登记 ≤30 天、最多续一次（`renewed` 记录），`to-replace` 的文件都没了就红「请删登记」|
 | `node scripts/self-written-review.mjs`（`pnpm run audit:self-written`） | **排版本计划时跑一遍，把到期清单（待替换 / 评估到期 / 复查日已到）给用户看**，结论改回 `self-written.json`，不只写在计划里 |
 | `pnpm run check:framework-surface` | 框架接触面门岗（登记框架公开的**每个字段**都要有一条裁决：派生/常量/不用/上游默认/带到期日的债；上游升级加字段即红）|

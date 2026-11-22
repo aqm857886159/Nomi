@@ -11,7 +11,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasAddBar, canvasAddMoreMenu, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -256,7 +256,7 @@ try {
   // 2026-10-08 Claude Design 拍板稿：「+」点开 = 「空间」一组（导演台 / 3D 模型 / 全景 / 白板），文字在常驻里，不再有「更多」那一段。
   for (const sectionLabel of ['空间']) {
     assert(
-      (await moreMenu.locator(`[role="group"][aria-label="${sectionLabel}"]`).count()) === 1,
+      await expect(moreMenu.locator(`[role="group"][aria-label="${sectionLabel}"]`)).toHaveCount(1).then(() => true, () => false),
       `「更多」菜单里有名为「${sectionLabel}」的一段`,
     )
   }
@@ -288,8 +288,8 @@ try {
   assert((await ratioGroup.getByRole('radio').count()) === 15, 'Nano Banana 2 的 15 档比例全部显式可见')
   const automatic = ratioGroup.getByRole('radio', { name: '自动', exact: true }).first()
   assert(await automatic.isVisible(), 'Auto 在中文界面显示为“自动”')
-  assert((await automatic.locator('svg').count()) === 1, '分段式自动比例项上方有自适应画幅图标')
-  assert((await ratioGroup.locator('[aria-hidden] span').count()) > 0, '比例分段保留可扫描的宽高形状')
+  assert(await expect(automatic.locator('svg')).toHaveCount(1).then(() => true, () => false), '分段式自动比例项上方有自适应画幅图标')
+  assert(await ratioGroup.locator('[aria-hidden] span').first().waitFor({ state: 'visible' }).then(() => true, () => false), '比例分段保留可扫描的宽高形状')
   const providerGroup = panel.getByRole('radiogroup', { name: '供应商', exact: true }).first()
   await expectVisible(providerGroup, '多供应商选择保持显式分段组')
   assert((await providerGroup.getByRole('radio').count()) >= 2, '同模型至少两家供应商并排可见')

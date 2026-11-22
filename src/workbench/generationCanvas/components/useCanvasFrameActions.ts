@@ -3,7 +3,7 @@ import { canvasWindowInput } from '../../shortcutSurface'
  * 框的四个动作 + 那份菜单的开合：改名/说明、生成整框、整框进时间轴、折叠、解散。
  *
  * 两条不许破的纪律：
- *  · **生成整框是画布上唯一的批量生成入口**（唯一执行口在 groupGenerate：eligibleGenerationNodeIds → buildDependencyWaves →
+ *  · **生成整框是画布上唯一的批量生成入口**（唯一执行口在 groupGenerate：共用主人 planGenerationScope（group 意图）→
  *    confirmAndRunPlan）；每个节点用它自己已选好的模型和参数。右键菜单与组工具条共用这一份。
  *  · **解散 = ungroup，边一根都不撤**（model/groupInputLinks 的既有语义：解散的是组织方式，
  *    不是节点关系）。顺手把边也撤了，用户失去的是接线，而他以为自己只是拆了个框。
@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { reportCanvasFeedback } from './canvasFeedback'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { frameHasTimelineUnits, sendFrameToTimeline } from '../agent/sendFrameToTimeline'
-import { hasGroupGenerateCandidates, runGroupGenerate } from './groupGenerate'
+import { groupGenerateDisabledReason, runGroupGenerate } from './groupGenerate'
 import type { FrameContextMenuAction } from './FrameContextMenu'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { listenOutsidePress } from '../../../design/outsidePress'
@@ -24,17 +24,19 @@ export type CanvasFrameMenuState = {
   stageX: number
   stageY: number
   canGenerate: boolean
+  generateDisabledReason?: string
   canSendToTimeline: boolean
+}
+
+/** 右键菜单「生成整组」的可用态与原因：同一份推导（共用主人的 group 意图），和点了之后卡上的候选一致。 */
+export function frameMenuGenerate(nodeIds: readonly string[]): Pick<CanvasFrameMenuState, 'canGenerate' | 'generateDisabledReason'> {
+  const generateDisabledReason = groupGenerateDisabledReason(nodeIds)
+  return { canGenerate: generateDisabledReason === undefined, generateDisabledReason }
 }
 
 const MENU_WIDTH = 212
 const MENU_HEIGHT = 250
 const MENU_EDGE_GAP = 8
-
-function frameEligibleIds(groupId: string): string[] {
-  const group = useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === groupId)
-  return hasGroupGenerateCandidates(group?.nodeIds ?? []) ? group!.nodeIds : []
-}
 
 export function useCanvasFrameActions({
   readOnly,
@@ -93,7 +95,7 @@ export function useCanvasFrameActions({
       // 贴边时夹回视口内：框可能画在画布最右下角，菜单原样弹出会被切掉一半。
       stageX: Math.max(MENU_EDGE_GAP, Math.min(point.x - rect.left, rect.width - MENU_WIDTH - MENU_EDGE_GAP)),
       stageY: Math.max(MENU_EDGE_GAP, Math.min(point.y - rect.top, rect.height - MENU_HEIGHT - MENU_EDGE_GAP)),
-      canGenerate: frameEligibleIds(groupId).length > 0,
+      ...frameMenuGenerate(group.nodeIds),
       canSendToTimeline: frameHasTimelineUnits(groupId),
     })
   }, [readOnly, stageRef])
@@ -125,7 +127,8 @@ export function useCanvasFrameActions({
     if (action === 'generate') {
       // 每个节点用它自己已选好的模型和参数；唯一执行口在 groupGenerate（列表分区头共用）。
       const group = state.groups.find((candidate) => candidate.id === groupId)
-      if (runGroupGenerate(group?.nodeIds ?? []) === 'empty') report(t('generationCommon.canvas.group.generateEmpty'))
+      // 四扇门勾不上时都已置灰；万一状态在点下去那一刻变了，说的也是同一句原因（主人的分行），不另写。
+      if (runGroupGenerate(group?.nodeIds ?? []) === 'empty') report(groupGenerateDisabledReason(group?.nodeIds ?? []) ?? t('generationCommon.canvas.group.generateEmpty'))
       return
     }
     void sendFrameToTimeline(groupId).then((result) => {

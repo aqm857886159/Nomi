@@ -5,7 +5,6 @@ import { cn } from '../../../utils/cn'
 import { toolbarButtonClass } from './toolbarButtonClass'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { selectCanvasNodeById } from '../store/canvasNodeGenerationIndex'
-import { NodeLockBadge } from './NodeLockBadge'
 import { nextFloatingToolbarPlacement, type FloatingToolbarPlacement } from './floatingToolbarClamp'
 import { useViewport } from '@xyflow/react'
 import { useCanvasBottomDockRects } from '../reactFlow/useCanvasBottomDockRects'
@@ -25,14 +24,13 @@ import { ICON_TIERS } from '../../../design'
 const ICON = ICON_TIERS.bar
 
 /**
- * 浮条外壳：定位 + 反向缩放 + token 合规容器，外加**锁的唯一家**。
+ * 浮条外壳：定位 + 反向缩放 + token 合规容器。
  *
- * `lockNodeId` 必填（不是可选）：浮条有五条（图片编辑 / 视频抽帧 / 全景 / 下载 / 空节点变体）
- * 加一条产物浮条，锁要「一功能一个家」就必须每条都答一次「你这条挂的是不是一个可锁的节点」。
- * 写成可选，下一条浮条忘了传就是静默少一把锁——让编译器拦（R28），别留给走查。
- * `null` 是合法的一档：手艺产物浮条挂的不是生成节点，它没有锁。
+ * `nodeId` 必填（不是可选）：它决定尾部那颗「加到时间轴」按钮挂在哪个节点上，每条浮条都得答一次，
+ * 写成可选，下一条浮条忘了传就是静默少一颗按钮——让编译器拦，别留给走查。
+ * `null` 是合法的一档：手艺产物浮条挂的不是生成节点，没有时间轴按钮。
  */
-type FloatingToolbarShellProps = { ariaLabel: string; lockNodeId: string | null; children: React.ReactNode; side?: 'above' | 'below'; centerOnNode?: boolean; avoidBottomDocks?: boolean; toolbarRef?: React.RefObject<HTMLDivElement | null> }
+type FloatingToolbarShellProps = { ariaLabel: string; nodeId: string | null; children: React.ReactNode; side?: 'above' | 'below'; centerOnNode?: boolean; avoidBottomDocks?: boolean; toolbarRef?: React.RefObject<HTMLDivElement | null> }
 
 export function FloatingToolbarShell(props: FloatingToolbarShellProps): JSX.Element {
   return (
@@ -68,7 +66,7 @@ class FloatingToolbarBoundary extends React.Component<{ label: string; children:
   }
 }
 
-function FloatingToolbarFrame({ ariaLabel, lockNodeId, children, side = 'above', centerOnNode, avoidBottomDocks = false, toolbarRef }: FloatingToolbarShellProps): JSX.Element {
+function FloatingToolbarFrame({ ariaLabel, nodeId, children, side = 'above', centerOnNode, avoidBottomDocks = false, toolbarRef }: FloatingToolbarShellProps): JSX.Element {
   // 反向缩放用的必须是**此刻贴在 DOM 上的那个缩放**——React Flow 的 transform（唯一真相，见 canvasViewportScale）。
   // 不许读 workbenchStore 里「记住的视角」：那份只在手势 / 动画结束时才写，打开项目摆全貌那一刻还停在 1，
   // 和屏幕上的 2.1 倍差出一倍多，下面的测量环就是被它带进无限更新的（React #185，整块画布崩）。
@@ -141,14 +139,8 @@ function FloatingToolbarFrame({ ariaLabel, lockNodeId, children, side = 'above',
       // 节点 onClick，把选中改回这个节点——「拆解 ▾ → 镜头表」刚选中新表，同一下点击又把视频选回来（2026-10-18 走查）。
       onClick={(event) => event.stopPropagation()}
     >
-      {lockNodeId ? (
-        <>
-          <NodeLockBadge nodeId={lockNodeId} />
-          <ToolbarDivider />
-        </>
-      ) : null}
       {children}
-      {lockNodeId ? <ToolbarTimelineButton nodeId={lockNodeId} /> : null}
+      {nodeId ? <ToolbarTimelineButton nodeId={nodeId} /> : null}
     </div>
   )
 }
@@ -328,7 +320,7 @@ export function EmptyNodeVariantToolbar({ nodeId, visible }: { nodeId: string; v
   const { t } = useTranslation()
   if (!visible) return null
   return (
-    <FloatingToolbarShell ariaLabel={t('generationCommon.node.duplicateVariant')} lockNodeId={nodeId}>
+    <FloatingToolbarShell ariaLabel={t('generationCommon.node.duplicateVariant')} nodeId={nodeId}>
       <ToolbarDuplicateVariantButton nodeId={nodeId} />
     </FloatingToolbarShell>
   )

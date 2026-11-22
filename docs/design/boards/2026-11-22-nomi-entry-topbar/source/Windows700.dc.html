@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>顶栏 Windows 700</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 748px; height: 760px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px; background: oklch(1 0 0); color: oklch(0.22 0.01 80); font-family: Inter, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600">Windows · 700 宽 · 中文（推算，未上真机）</h1>
+<p style="margin: 0; font-size: 13px; line-height: 20px; color: oklch(0.50 0.01 80)">左边没有红绿灯（左留 12），右边是系统的三个窗口钮，按常见 138px 画成虚线框。这个宽度今天就可能压上，要在 Windows 真机量过才算数。</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.55 0.13 25)">今天 · 预览</b>　导出已收成图标，右边的按钮还是压到分段上（红框）</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="preview" width="700" platform="win" entry="none" export-compact="true" overlap="true" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.55 0.13 25)">今天 · 生成</b>　分段右边的「画布 / 列表」和任务钮贴在一起</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="generate" width="700" platform="win" entry="none" overlap="true" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 创作</b>　加了入口，分段往左让 7px</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="create" width="700" platform="win" face="idle" seg-shift="-7" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 生成</b>　分段连同「画布 / 列表」一起往左让 43px</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="generate" width="700" platform="win" face="running" seg-shift="-43" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 预览</b>　等你确认 2 条；分段往左让 94px</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="preview" width="700" platform="win" face="idle" pending="2" export-compact="true" seg-shift="-94" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">最挤 · 预览</b>　有新版本 + 3 个任务 + 等你确认 12 + 分段带进度：先藏进度数字，再往左让 153px</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="preview" width="700" platform="win" face="running" pending="12" tasks="3" update="true" export-compact="true" meta-gen="38/120" meta-preview="12:34" hide-meta="true" seg-shift="-153" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.55 0.13 25)">最挤 · 预览 · 英文（推算）</b>　同样几件事全开：藏了进度数字、分段挪到离项目钮 12px，右边还压着约 16px（红框）；两边各留 12px 算，差约 28px</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="en" theme="light" page="preview" width="700" platform="win" face="running" pending="12" tasks="3" update="true" export-compact="true" meta-gen="38/120" meta-preview="12:34" hide-meta="true" seg-shift="-159" overlap="true" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+</div>
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)">中文最挤一格走到第 ③ 步（藏进度数字）就放得下。英文最挤一格走完能走的几步还差约 28px（最后一行红框）：这次不硬定办法，等 Windows 真机量过窗口钮的真实宽度再定。</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":748,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

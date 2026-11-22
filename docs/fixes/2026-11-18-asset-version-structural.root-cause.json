@@ -1,0 +1,159 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-18-asset-version-structural",
+  "problem_type": "撤销仍能恢复的素材被素材库提前物理回收；版本入口可绕过删除主人",
+  "symptom": "删版本→素材库删文件→撤销出现裂图，重启仍裂图；deleteAssets/能力/浏览器入口绕过eslint",
+  "direct_cause": "无当前结果的分支当场回收，画布撤销日志被排除在活引用扫描之外；静态规则只管deleteFiles和直接删除模块",
+  "class_root": "当前引用和撤销保留期限未在共享删除规划区分；物理回收边界缺少完整入口约束",
+  "affected_population": [
+    "已加载项目中刚删版本且仍可撤销的文件",
+    "所有经项目素材、能力调用、浏览器托盘发起的相同删除"
+  ],
+  "scope_paths": [
+    "src/workbench/assets/deleteAssetResult.ts",
+    "src/workbench/assets/assetResultDeletion.ts",
+    "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+    "eslint.config.mjs"
+  ],
+  "entry_points": [
+    "AssetLibraryPanel 项目素材/全部素材",
+    "assets.delete-files 能力",
+    "浏览器素材盒经父项目绑定转同一能力"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "内部撤销日志、删除意图及eslint边界契约；无依赖升级或外部接口变化。",
+  "invariants": [
+    "版本删除不授权物理回收",
+    "活引用保留且沿用原在用保护；仅撤销引用延后且列表隐藏",
+    "到期必须再判当前引用；无引用对照照常回收",
+    "deleteFiles/deleteAssets仅assetFileDeletion可访问"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "readReachableUndoNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "getOldestReachableUndoPosition"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "deleteAssetResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/assetResultDeletion.ts",
+      "symbol": "isProjectFileReferenced"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "planAssetDeletion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "isProjectFileReferenced"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "deleteAssetResult"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 7,
+    "why_not": "原有素材库与能力写门保留；planAssetDeletion是统一判定，pendingAssetDeletions负责到期和列表，journal提供可达投影及挤出位置；新增只读撤销投影门不增加删除入口。"
+  },
+  "generality_proof": "所有删除门收敛deleteAssetResult→planAssetDeletion；可达撤销投影由日志主人提供，引用只用isProjectFileReferenced，统一交已有延后删除期限。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/assets/assetResultDeletion.ts",
+      "symbol": "planAssetDeletion",
+      "responsibility": "区分活引用、可达撤销引用和无人用文件"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "symbol": "asset-file-owner",
+      "responsibility": "两种桥删除名仅放行唯一owner"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "entry_point": "deleteAssetResult",
+      "disposition": "enforced",
+      "evidence": "git grep两处直接调用共同领域命令"
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "assets.delete-files",
+      "disposition": "enforced",
+      "evidence": "能力与浏览器主进程转交都进deleteAssetResult"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一文件可经多个删除入口、任意用户版本和撤销期限重复触发",
+    "same_class_scan": [
+      "node scripts/door-map.mjs deleteAssetResult",
+      "git grep deleteAssetResult|deleteAssets|assets.delete-files|useBrowserAssetActions -- src electron",
+      "旧案FB-20261029-browser-asset-reference-delete及独立验收报告确认同类边界漏洞"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/assets/assetResultDeletion.ts",
+    "invariant": "只有无人用且撤销期限结束的文件才可回收",
+    "failure_mode": "读不全保留；未结束撤销期限登记延后；非法版本回收写法eslint报错",
+    "exception_policy": "none",
+    "strategy": "共享规划直接携带撤销期限，三扇门不重新推断，扩同一物理owner规则封住间接入口",
+    "artifacts": [
+      "src/workbench/assets/assetResultDeletion.ts",
+      "src/workbench/assets/deleteAssetResult.ts",
+      "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "eslint.config.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/assets/deleteAssetResult.realStore.test.ts",
+    "scripts/asset-file-owner.node-test.mjs",
+    "tests/ux/asset-liveness-storyboard-ref.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/assets/deleteAssetResult.realStore.test.ts",
+    "scripts/asset-file-owner.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/assets/deleteAssetResult.ts",
+      "eslint.config.mjs",
+      "src/i18n/locales/generationCommon.ts"
+    ],
+    "rationale": "删除无结果即无撤销期限的旧早退，扩现有规则不新建近义规则，删四条无引用翻译"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "内部项目和撤销生命周期，无第三方依赖控制此不变量",
+    "exit_criteria": []
+  },
+  "migration": "不改存盘格式，沿用source=asset-library的既有pending字段；0.24.1真实退出载荷复制件复开验证。",
+  "residual_risks": [
+    "撤销挤出真窗口未验证，只做函数级",
+    "素材身份图及任意URL字符串歧义不在本刀范围"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-25",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/assets",
+    "tests": [
+      "src/workbench/assets/deleteAssetResult.realStore.test.ts"
+    ]
+  }
+}

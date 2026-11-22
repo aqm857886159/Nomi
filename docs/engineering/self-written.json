@@ -346,10 +346,6 @@
       "reason": "项目库：目录、最近项目与项目身份"
     },
     {
-      "path": "electron/memory/",
-      "reason": "项目记忆：创作事实的沉淀"
-    },
-    {
       "path": "electron/promptLibrary/",
       "reason": "创作提示词库：用户沉淀的提示词与模板"
     },
@@ -743,6 +739,10 @@
     {
       "path": "src/devlab/",
       "reason": "设计实验室：Nomi 界面的样张与状态集，不进产物"
+    },
+    {
+      "path": "electron/ai/onboarding/catalogReconciliation.ts",
+      "reason": "已有健康探测中保留的 Nomi 目录对账：把供应商清单与本地加密凭据、连接开关及模型生命期对齐，不再判断健康或可用性；沿用 modelListProbe 拉清单，非另造网络框架。查证见 docs/plan/2026-11-17-unverified-usable.md 的先查别人。"
     }
   ],
   "genericZones": [
@@ -939,7 +939,8 @@
       "capability": "同一个工具连着撞同一堵墙的计数与止损",
       "status": "justified",
       "paths": [
-        "electron/agentLane/laneRepeatedFailure.mts"
+        "electron/agentLane/laneRepeatedFailure.mts",
+        "electron/agentLane/laneTurnBudget.mts"
       ],
       "alternativesChecked": [
         {
@@ -1518,7 +1519,13 @@
       "capability": "仓库门岗族：一百多个 check:* 脚本（棘轮、登记表、合同、文档记账）",
       "status": "under-review",
       "reviewBy": "2026-11-30",
-      "renewed": [{ "on": "2026-10-31", "from": "2026-10-31", "reason": "门岗账本已出（docs/audit/2026-10-01-gate-ledger.md），保留 / 合并 / 降级 / 删除清单还没交用户逐项拍板，排在当前发版之后；拍板前下不了结论。只能续这一次，到期前必须出结论。" }],
+      "renewed": [
+        {
+          "on": "2026-10-31",
+          "from": "2026-10-31",
+          "reason": "门岗账本已出（docs/audit/2026-10-01-gate-ledger.md），保留 / 合并 / 降级 / 删除清单还没交用户逐项拍板，排在当前发版之后；拍板前下不了结论。只能续这一次，到期前必须出结论。"
+        }
+      ],
       "paths": [
         "scripts/check-*.mjs",
         "scripts/run-gates-contracts.mjs"
@@ -1751,7 +1758,13 @@
       "capability": "画布撤销日志（会话日志前缀重放）与写边界（动作分层、整写统一提交口、提议写入的接管）",
       "status": "under-review",
       "reviewBy": "2026-12-06",
-      "renewed": [{ "on": "2026-11-07", "from": "2026-11-06", "reason": "镜头结果归属那次改动只在写边界的动作分层表里把删掉的 withdrawNodeRun 换成 applyRunOutcome，没碰撤销日志与整写提交口的设计；撤销栈改 Immer 反向补丁的评估（方向检查 §6 接入 B）还没有线去做，下不了结论。只能续这一次，到期前必须出结论。" }],
+      "renewed": [
+        {
+          "on": "2026-11-07",
+          "from": "2026-11-06",
+          "reason": "镜头结果归属那次改动只在写边界的动作分层表里把删掉的 withdrawNodeRun 换成 applyRunOutcome，没碰撤销日志与整写提交口的设计；撤销栈改 Immer 反向补丁的评估（方向检查 §6 接入 B）还没有线去做，下不了结论。只能续这一次，到期前必须出结论。"
+        }
+      ],
       "paths": [
         "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
         "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
@@ -2339,6 +2352,35 @@
       "revisitWhen": "设计系统出了通用的「带提示的开关图标钮」原语时，改用它并删掉本文件"
     },
     {
+      "id": "hover-overlays-skin",
+      "capability": "悬停出现的两种东西在设计系统里的那一份：墨色提示按句分行（每句一行、句子里不折；切句交给 Intl.Segmenter，自写的只有一条「句末标点后跟空白、或中文句末标点才算说完」的过滤）；纸色悬停卡（Radix HoverCard 换肤，样子写死、调用方传不进类名）",
+      "status": "justified",
+      "paths": [
+        "src/design/tooltipLines.ts",
+        "src/design/hoverCard.tsx"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Intl.Segmenter（granularity: sentence）：已直接用来切句；ICU 会把「take3.Final.mp4」这类紧贴字母的点也当句末，所以只在后面跟着空白的边界换行",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter"
+        },
+        {
+          "name": "Radix Tooltip：开合、定位、碰边、读屏都用它（src/design/tooltip.tsx），最宽到窗口可用宽用它给的 --radix-tooltip-content-available-width",
+          "source": "https://www.radix-ui.com/primitives/docs/components/tooltip"
+        },
+        {
+          "name": "Radix HoverCard：带画面、能滚的预览直接用它（openDelay / closeDelay / side / 碰边翻面 / 鼠标移进卡里不收），不在读屏里放隐藏副本",
+          "source": "https://www.radix-ui.com/primitives/docs/components/hover-card"
+        },
+        {
+          "name": "CSS text-wrap: balance / pretty：只调每行长短，不认句子边界，做不出「一句一行」",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/CSS/text-wrap"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：通用部分（开合、定位、碰边、读屏、切句）都接现成能力；自写的只剩 Nomi 设计系统的样子（token-only，「一句一行」是 D-1121-tooltip-multiline-shared 的拍板）和一条去掉 ICU 误判句末的过滤，约价提示里的「$0.195」「take3.Final.mp4」要靠它不断开。",
+      "revisitWhen": "CSS 出了按句子换行的能力、或 Intl.Segmenter 不再把紧贴字母的点当句末时，删掉 tooltipLines.ts 的过滤；悬停浮层整体换库时 hoverCard.tsx 跟着换"
+    },
+    {
       "id": "test-temp-owner-reclaim",
       "capability": "测试 / 走查 / 门岗的系统临时目录按「创建者进程号」归属并回收：目录名 nomi-<前缀>-p<进程号>-<随机>，创建者被 SIGKILL 后由下一个进程第一次分配、或杀它的 runner（等整棵进程树没了）按进程是否存活回收。脚本侧（scripts/_test-temp.mjs 管系统临时目录里的测试 / 走查目录，scripts/pre-push-contracts.mjs 的 terminateAndReclaim 是杀后回收的唯一口子）与产品侧（electron/assets/scratchCleanup.ts 管用户项目根下的上传暂存）各一份——登记为什么是两份、各管哪边",
       "status": "justified",
@@ -2404,32 +2446,28 @@
       "revisitWhen": "出现可直接接入的、带产品场景归因且只落本机的主进程卡顿记录方案时重新评估"
     },
     {
-      "id": "agent-ball-eye-follow",
-      "capability": "右下 Agent 小球的眼睛跟着鼠标看：指针在小球 160px 内时按方向偏眼、停在身上抬眼、离开 / 失焦归位；pointermove 只记坐标、rAF 合并，一帧最多算一次，只写宿主按钮上的两个 CSS 变量",
+      "id": "nomi-entry-view-hook",
+      "capability": "顶栏 Nomi 入口的数据那一层：常驻 Agent 的角标投影（合并状态、脸状态、待确认数、未读数）+ 这一页面板开没开 + 顶栏够不够宽 → 入口长相（脸 / 胶囊 / 角标 / 点）、胶囊那句、悬停与读屏那句，以及点一下开 / 收面板",
       "status": "justified",
       "paths": [
-        "src/ui/app-shell/shell/useAgentBallEyeFollow.ts"
+        "src/ui/app-shell/shell/useNomiEntry.ts"
       ],
       "alternativesChecked": [
         {
-          "name": "framer-motion useMotionValue（仓里已装 12.39）：值变了不走 React 渲染、在它自己的帧循环里写样式；但它不提供指针来源，pointermove 监听和方向换算照样要写，而且要把设计系统里纯 CSS 的 NomiAgentFace 眼睛层改成 motion 组件、跨组件边界传 MotionValue，形变 token 和减弱动效规则就得在两套机制里各守一遍",
-          "source": "node_modules/framer-motion/dist/index.d.ts:1033"
+          "name": "zustand 选择器：订阅直接用仓库已有的 useResidentActivityStore 与形态仓的 useShownForm，不另写订阅 / 比较机制",
+          "source": "src/workbench/ai/residentActivity.ts"
         },
         {
-          "name": "react-use useMouse（ahooks useMouse 同理）：把坐标放进 React state（useRafState），每次移动 setState 重渲染一次，正好违反设计卡 ★7「跟随不触发重渲染」",
-          "source": "https://github.com/streamich/react-use/blob/master/src/useMouse.ts"
+          "name": "react-i18next useTranslation：几句话按键从词典取、带插值，不自写文案拼接",
+          "source": "node_modules/react-i18next/index.d.ts"
         },
         {
-          "name": "Rive 状态机的指针 Listener（Duolingo 角色用它）：眼睛跟随在运行时里做；设计卡 ★0 ④ 已定不为这一处引入动画运行时",
-          "source": "https://rive.app/docs/editor/state-machine/listeners"
-        },
-        {
-          "name": "xeyes：从眼睛中心指向指针、按半径夹住的经典算法；方向换算照它写，不另发明",
-          "source": "https://en.wikipedia.org/wiki/Xeyes"
+          "name": "Radix Tooltip：悬停那句由顶栏外层 BarTooltip 照常显示，这里只给字，不自写悬停浮层",
+          "source": "src/design/tooltip.tsx"
         }
       ],
-      "whyNotIntegrated": "领域约束：这是 Nomi 的 Agent 形象（品牌组件）的一部分，规则全来自 10-27 拍板——160px 半径、胶囊往左长时按右缘那颗球的中心算、停在身上抬眼、减弱动效下不挂监听，而且 ★7 预算要求跟随零重渲染、空闲不请求帧。通用部分只有三行 addEventListener 和浏览器标准的 requestAnimationFrame，没有现成库能在不进 React state 的前提下把指针换成这两个 CSS 变量、比这 ~50 行的 effect 更短。",
-      "revisitWhen": "Nomi 里出现第二处要跟随指针的元素（那时抽成共用的指针跟随，或整体换到 framer-motion 的 MotionValue）；或 Agent 形象改用 Rive / Lottie 之类的动画运行时时"
+      "whyNotIntegrated": "领域约束：这里没有通用机制，只有 Nomi 的 Agent 入口规则——脸不算待确认、胶囊只在待确认且放得下且面板没开时出、未读不含待确认那几条、角标封顶 9+，全部来自 2026-11-22 NomiEntryTopbar 板拍板（docs/plan/2026-11-22-nomi-entry-topbar.md）；纯规则在 nomiEntryLook.ts，本文件只把现成的 zustand 仓与 i18n 接到这套规则上。顶栏、设计实验室、形态探针共用这一份，不各算各的。",
+      "revisitWhen": "顶栏出现第二个要按 Agent 状态变长相的入口（那时把入口数据层并成共用的一份），或常驻 Agent 的角标投影换成别的状态来源时"
     },
     {
       "id": "variant-axis-live-of-row-hook",
@@ -2450,6 +2488,81 @@
       ],
       "whyNotIntegrated": "领域约束：「变体轴是否起作用」取决于我们自己的模型档案和各供应商渠道的线缆（modeTransportFor / readModeChannelBody），这套判据只有 Nomi 有；hook 只是把同一把判据 archetypeVariantAxisIsLive 按菜单行逐个问，没有现成库懂这些线缆。",
       "revisitWhen": "菜单变体行的判断并进档案本身（档案直接声明每家渠道的变体轴）时，删掉这个 hook"
+    },
+    {
+      "id": "send-cost-public-estimate",
+      "capability": "画布节点发送键上的约价：把节点这次发送的最终请求投影成公开价询价、读 APIMart 公开价目、按格式化一处印成积分数和悬停那一句；算不出就不印数",
+      "status": "justified",
+      "plan": "docs/plan/2026-11-17-cost-step1-estimate.md",
+      "paths": [
+        "electron/ai/onboarding/vendorPricePreview.ts",
+        "electron/ai/onboarding/vendorPriceRequest.ts",
+        "src/workbench/generationCanvas/spend/useNodePricePreview.ts",
+        "src/workbench/generationCanvas/spend/useSendCost.ts",
+        "src/workbench/generationCanvas/spend/sendCostFormat.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "既有目录请求构造：priceQueryFromRequest 复用 selectTaskMapping、applyHeadlessParamDefaults、buildProfileHttpRequest，只从真实请求投影价格规格，不另建一份型号 / 参数目录",
+          "source": "electron/ai/onboarding/vendorPriceRequest.ts:1"
+        },
+        {
+          "name": "既有网络出口 appFetch：公开价 GET 走同一个出口（代理、重定向策略一致），不另写 HTTP 传输",
+          "source": "electron/appFetch.ts"
+        },
+        {
+          "name": "React 生命周期与现有货币格式化：防抖 / 失序用 React.useEffect；美元显示复用 formatMoney 的 Intl.NumberFormat，积分数用 Number.toLocaleString，不自建状态库或格式器",
+          "source": "src/workbench/ai/v4/formatMoney.ts:16"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：只有 Nomi 的节点、参考关系、变体映射和最终出站请求能决定这次镜头的公开价是否可估（带参考、自定义模板、价目没写附加费时必须判未知）。网络、HTTP 模板、React 生命周期和货币格式化都复用现有实现；这几个模块只把这些领域事实接起来，不拥有第二份目录、凭据或付费授权。",
+      "revisitWhen": "既有请求构造器直接提供同形的只读报价投影，或公开价读取迁入统一的模型连接领域 owner 时，合并这些适配并删掉重复入口；任何时候都不得用估价结果替代生成授权。"
+    },
+    {
+      "id": "param-value-door-eslint-rule",
+      "capability": "ESLint 小规则 param-value-door/no-reparse：画布、分镜、助手与发送这几块目录里，不许再对参数袋里的时长或控件档位值自己写一份 typeof / Number / parseFloat / 一元 + / 字符串化比较，规整只走 electron/shared/videoCapabilities/paramValue.ts 的门",
+      "status": "justified",
+      "paths": [
+        "scripts/param-value-door-rule.mjs"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "typescript-eslint no-unnecessary-type-conversion：只拦「值已经是目标类型还去转」，要类型化 lint（仓库没开）；参数袋读出来是 unknown，它不认为转换多余，拦不住",
+          "source": "https://typescript-eslint.io/rules/no-unnecessary-type-conversion/"
+        },
+        {
+          "name": "ESLint 内置 no-restricted-syntax 加选择器（仓库现有的守都是这种）：选择器只认语法形状，认不出「这个变量来自参数袋」，要么全仓误伤、要么漏掉换个变量名的写法",
+          "source": "https://eslint.org/docs/latest/rules/no-restricted-syntax"
+        },
+        {
+          "name": "Zod coerce：解析本身已经交给它（paramValue.ts 的门里用），但它管不了「门外别处又自己转一次」",
+          "source": "https://zod.dev/api?id=coercion"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：要判的是「这个变量是不是从模型参数袋（parameters / params / meta 等袋上读时长、按控件键下标读）或控件档位里来的原值」，这是我们参数袋的领域形状，通用规则没有这个概念；规则本体用 ESLint 标准的 create(context) 接口写，只做这一个判断。",
+      "revisitWhen": "仓库开了类型化 lint 且参数袋改成品牌类型（门外拿不到 unknown 原值）时，删掉这条规则改用类型系统守"
+    },
+    {
+      "id": "composer-bar-yield-measurement",
+      "capability": "生成底栏文字尺子与按重要性清单挑样子",
+      "status": "justified",
+      "paths": [
+        "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+        "src/workbench/generationCanvas/nodes/composerBarYield.ts",
+        "src/workbench/generationCanvas/nodes/ComposerSendButton.tsx"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "rc-overflow / React Spectrum ActionGroup / Primer UnderlineNav / pretext",
+          "source": "docs/plan/2026-11-17-bar-yield-measure-drawn.md#先查别人"
+        },
+        {
+          "name": "Fluent UI @fluentui/priority-overflow",
+          "source": "docs/engineering/direction-checks/2026-11-21-bar-yield-r3.md#5-p0哪些是我们独有的现成方案有哪些"
+        }
+      ],
+      "whyNotIntegrated": "按领域裁决的重要性顺序，多控件多样子；列表溢出组件（Fluent priority-overflow、rc-overflow 等）展开到第一个放不下就停，不跳过放不下的去补放得下的，也不表达摘要整值、方式字、生成字。只自写约 10 行的清单挑法，字体排版与尺寸观察用浏览器。",
+      "revisitWhen": "外框校准一个月改两次以上，或增加另一种让位形状时回到方向复盘。2026-11-24复查。"
     }
   ]
 }

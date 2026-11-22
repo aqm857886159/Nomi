@@ -431,6 +431,80 @@ export const DOOR_MAP_SINCE = "2026-09-11";
 export const RECURRENCE_FIELDS_SINCE = "2026-10-02";
 export const DETECTED_BY = ["user", "post-release", "walkthrough", "ci", "review"];
 
+const RECURRENCE_REF_SLUG = /^[A-Za-z0-9._-]+$/;
+
+/**
+ * 规范化 `recurrence_of` 的单条引用：接受 `docs/fixes/` 下的旧合同 slug 或带 `.root-cause.json` 后缀的文件名，
+ * 拒绝路径分隔符、`..`、空白或空词干。返回 `{ slug, file }` 或 `null`（非法格式）。
+ */
+export function resolveRecurrenceRef(value) {
+  if (!nonEmptyText(value)) return null;
+  const trimmed = value.trim();
+  if (trimmed.includes("/") || trimmed.includes("\\") || trimmed.includes("..")) return null;
+  const slug = trimmed.endsWith(".root-cause.json") ? trimmed.slice(0, -".root-cause.json".length) : trimmed;
+  if (!slug || !RECURRENCE_REF_SLUG.test(slug)) return null;
+  return { slug, file: `docs/fixes/${slug}.root-cause.json` };
+}
+
+/**
+ * `recurrence_of`（可选，v3）：显式声明本次修复是否是仓库里某份（或多份）旧根因合同的复发。
+ * 允许缺省（老合同）、`null`（明确声明不是旧合同复发）、或非空字符串 / 非空字符串数组；
+ * 一旦填写非空目标，fail-closed 校验格式、去重、禁止自指、且目标必须在 `docs/fixes/` 真实存在。
+ */
+function validateRecurrenceOf(contract, existingFiles, label) {
+  const errors = [];
+  const raw = contract?.recurrence_of;
+  if (raw === undefined || raw === null) return errors;
+
+  let items;
+  if (typeof raw === "string") {
+    if (!nonEmptyText(raw)) {
+      errors.push(`${label}: recurrence_of must be null, a non-empty string, or a non-empty string array (use null when not a recurrence)`);
+      return errors;
+    }
+    items = [raw];
+  } else if (Array.isArray(raw)) {
+    if (raw.length === 0) {
+      errors.push(`${label}: recurrence_of must be null, a non-empty string, or a non-empty string array (use null when not a recurrence)`);
+      return errors;
+    }
+    items = raw;
+  } else {
+    errors.push(`${label}: recurrence_of must be null, a non-empty string, or a non-empty string array`);
+    return errors;
+  }
+
+  const ownFile = nonEmptyText(contract?.__file) ? normalized(contract.__file) : null;
+  const ownSlug = ownFile ? path.posix.basename(ownFile).replace(/\.root-cause\.json$/, "") : null;
+  const ownId = nonEmptyText(contract?.id) ? contract.id.trim() : null;
+  const seen = new Set();
+
+  for (const entry of items) {
+    if (!nonEmptyText(entry)) {
+      errors.push(`${label}: recurrence_of entries must be non-empty strings`);
+      continue;
+    }
+    const resolved = resolveRecurrenceRef(entry);
+    if (!resolved) {
+      errors.push(`${label}: recurrence_of has invalid contract reference: ${entry} (expected a slug or <slug>.root-cause.json under docs/fixes/)`);
+      continue;
+    }
+    if (seen.has(resolved.file)) {
+      errors.push(`${label}: duplicate recurrence_of reference: ${entry}`);
+      continue;
+    }
+    seen.add(resolved.file);
+    if ((ownFile && resolved.file === ownFile) || (ownSlug && resolved.slug === ownSlug) || (ownId && resolved.slug === ownId)) {
+      errors.push(`${label}: recurrence_of cannot reference itself: ${entry}`);
+      continue;
+    }
+    if (!fileExists(resolved.file, existingFiles)) {
+      errors.push(`${label}: recurrence_of target does not exist in docs/fixes/: ${entry} (expected ${resolved.file})`);
+    }
+  }
+  return errors;
+}
+
 function validateDetectionFields(contract, changed, label) {
   const errors = [];
   const detected = contract?.detected_by;
@@ -464,6 +538,7 @@ const BLOCKING_PATTERNS = [
   /: (?:problem_type|symptom|direct_cause|class_root|migration) is required/,
   /must be a non-empty string array/,
   /recurrence requires/,
+  /recurrence_of/,
   /detected_by|recurrence_check_on/,
   /legacy/,
 ];
@@ -634,6 +709,7 @@ function validateContract(contract, changed, existingFiles, index, fileContents)
     errors.push(`${label}: change_kind must be corrective or structural`);
     return errors;
   }
+  errors.push(...validateRecurrenceOf(contract, existingFiles, label));
   if (changeKind === "structural") {
     if (!nonEmptyTextArray(contract?.scope_paths)) {
       errors.push(`${label}: scope_paths must be a non-empty string array`);

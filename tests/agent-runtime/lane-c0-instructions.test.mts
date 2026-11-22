@@ -54,7 +54,7 @@ test('C0 language: planner skill removes English mandate and retains authored ti
 });
 
 test('C0 settings: explicit catalog choices survive and unspecified settings stay optional', async (t) => {
-  const explicit = { shots: [{ ...shot, modelId: 'catalog-video', parameters: { resolution: '768P', aspect_ratio: '16:9' } }] };
+  const explicit = { shots: [{ ...shot, model: 'catalog-video@catalog', parameters: { resolution: '768P', aspect_ratio: '16:9' } }] };
   const result = await run(t, [explicit, plan], await skill());
   assert.deepEqual(result.writes, [explicit, plan]);
   const wire = JSON.stringify(result.bodies[0]);

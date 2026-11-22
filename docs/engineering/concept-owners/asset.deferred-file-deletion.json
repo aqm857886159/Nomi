@@ -22,6 +22,26 @@
     {
       "path": "src/workbench/assets/pendingAssetDeletions.ts",
       "symbol": "isAssetFileAwaitingTrash"
+    },
+    {
+      "path": "src/workbench/assets/assetResultDeletion.ts",
+      "symbol": "collectProjectFileReferences"
+    },
+    {
+      "path": "src/workbench/assets/projectLivenessContent.ts",
+      "symbol": "readLoadedProjectLivenessContent"
+    },
+    {
+      "path": "src/workbench/assets/projectLivenessContent.ts",
+      "symbol": "closedProjectLivenessContent"
+    },
+    {
+      "path": "src/workbench/project/workbenchProjectContent.ts",
+      "symbol": "PROJECT_SESSION_FIELD_ROLES"
+    },
+    {
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "sweepPersistedAssetDeletions"
     }
   ],
   "forbidden_derivations": [],
@@ -33,5 +53,5 @@
     "src/workbench/project/projectPersistenceService.ts"
   ],
   "since": "2026-10-06",
-  "notes": "删一版给撤销，所以文件延后删：撤销日志退不回那一步 / 换项目 / 下次打开项目时到点；到点前用 isProjectFileReferenced（画布 + 时间轴）再判一次。待删清单随项目存盘（payload.pendingAssetDeletions）。 2026-10-12：共享存活判据同时保护当前 whiteboardState 和每个 retained result.raw.whiteboardState 的 canvasAssets，删除原图版本不许删仍供新版编辑的图层文件。 2026-10-24：列表也问这里——isAssetFileAwaitingTrash / withoutFilesAwaitingTrash（只读）：记在待删里（或正在进回收站）且此刻没人用的文件，素材库两个页签都不列；⌘Z 撤回 = 又有人用，照常列。真删完由主进程 workspace.delete-files 的 assets.onUpdated 广播刷新列表。"
+  "notes": "删一版给撤销，所以文件延后删：撤销日志退不回那一步 / 换项目 / 下次打开项目时到点；到点前用 isProjectFileReferenced（画布 + 时间轴）再判一次。待删清单随项目存盘（payload.pendingAssetDeletions）。 2026-10-12：共享存活判据同时保护当前 whiteboardState 和每个 retained result.raw.whiteboardState 的 canvasAssets，删除原图版本不许删仍供新版编辑的图层文件。 2026-10-24：列表也问这里——isAssetFileAwaitingTrash / withoutFilesAwaitingTrash（只读）：记在待删里（或正在进回收站）且此刻没人用的文件，素材库两个页签都不列；⌘Z 撤回 = 又有人用，照常列。真删完由主进程 workspace.delete-files 的 assets.onUpdated 广播刷新列表。 2026-11-17：存活判定不再逐项列举位置（修前只认画布结果 / 白板 / 时间轴，分镜参考、节点参考、助手输入挂着的文件被回收），改为整份项目内容扫描：collectProjectFileReferences 建索引、isProjectFileReferenced 查表，内容只从 src/workbench/assets/projectLivenessContent.ts 一个装配口来（写盘投影 + 会话未发输入 + 会话活着时的撤销材料），读不全返回 null 判保留；关项目那一次释放不算会话撤销材料。PROJECT_SESSION_FIELD_ROLES（和组成载荷的代码同在 src/workbench/project/workbenchProjectContent.ts）给每个项目寿命 store 字段归类，普查 projectLivenessContent.census.test.ts 守。项目文件里旧的待删清单在释放前按新判定重判。 2026-11-17（用户选 C）：删版本不再登记待删（见 asset.version-removal），开头「删一版给撤销，所以文件延后删」只剩素材库来源：待删条目带素材库来源标记才会到点回收；sweepPersistedAssetDeletions 打开项目时把无标记的旧条目（0.24.x 删版本留下的）整批作废——不执行、不写回，文件留在原处。"
 }

@@ -235,6 +235,41 @@ describe("compileProviderAdapter", () => {
     expect(result.draft.models[0]?.modelKey).toBe("paint-v2");
   });
 
+  it("hands the intake's rejection of a wire-name parameter key back to the next attempt, which then passes", async () => {
+    const prompts: string[] = [];
+    let system = "";
+    const withParam = (key: string) => ({
+      parameters: [{ key, label: "Size", type: "select", options: [{ value: "1:1", label: "1:1" }, { value: "16:9", label: "16:9" }], default: "1:1" }],
+      modes: [{
+        taskKind: "text_to_image",
+        create: { method: "POST", path: "/images/generations", body: { model: "{{model.modelKey}}", prompt: "{{request.prompt}}", size: `{{request.params.${key}}}` }, response_mapping: { image_url: "data.0.url" } },
+        sourceUrls: ["https://docs.example.com/api"],
+      }],
+    });
+    const generate: StructuredGenerator = async (input) => {
+      prompts.push(input.prompt);
+      system = input.system ?? "";
+      return { object: withParam(prompts.length === 1 ? "size" : "aspect_ratio") };
+    };
+
+    const result = await compileProviderAdapter(
+      {
+        languageModels: [{ id: "only-compiler" } as unknown as CompilerLanguageModel],
+        providerBaseUrl: "https://api.example.com/v1",
+        authType: "bearer",
+        selectedModels: [{ modelKey: "paint-v2", label: "Paint V2", kind: "image" }],
+        docs: [{ url: "https://docs.example.com/api", text: "Paint V2 image API" }],
+      },
+      { generate },
+    );
+
+    expect(prompts).toHaveLength(2);
+    expect(prompts[0]).not.toContain("PREVIOUS ATTEMPT WAS REJECTED");
+    expect(system).toContain("never the provider's wire field name");
+    expect(prompts[1]).toMatch(/PREVIOUS ATTEMPT WAS REJECTED BY NOMI[\s\S]*models\.paint-v2\.parameters\.size: "size" is the wire name/);
+    expect(result.draft.models[0]?.parameters?.map((p) => p.key)).toEqual(["aspect_ratio"]);
+  });
+
   it("records one model compilation failure and continues the rest of the selected batch", async () => {
     const generate: StructuredGenerator = async (input) => {
       if (input.prompt.includes('"modelKey": "chat-v1"')) return { object: { modes: [] } };

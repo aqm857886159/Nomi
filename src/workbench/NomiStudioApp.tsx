@@ -67,7 +67,6 @@ import { openWorkspaceFromLibrary } from './library/openWorkspaceFlow'
 import { lazyWithChunkBoundary } from '../ui/chunkBoundary'
 import { releaseWorkbenchProjectRuntimeState } from './project/releaseWorkbenchProjectSession'
 import { readDocumentThroughSessionPort, writeDocumentThroughSessionPort } from './project/documentSessionPort'
-import { useSpendConfirmStore } from './generationCanvas/spend/spendConfirm'
 import { SpendConfirmHost } from './generationCanvas/spend/SpendConfirmDialog'
 import { runAssetSurfaceMigrations } from './assets/assetSurfaceMigration'
 import { ProductionCanvasLandingHost } from './production/ProductionCanvasLandingHost'
@@ -273,33 +272,11 @@ export default function NomiStudioApp(): JSX.Element {
   )
 
   // E2E 仅在 __nomiE2E=1 时暴露真实能力 handler；生产不置标志且没有并行实现。
-  // R13 由页面上下文用真实 payload 驱动同一条确认管线。
+  // R13 由页面上下文用真实 payload 驱动同一条确认管线（花钱确认的桥只在 SpendConfirmHost 一处挂）。
   React.useEffect(() => {
     try {
       if (typeof window !== 'undefined' && window.localStorage?.getItem('__nomiE2E') === '1') {
         ;(window as unknown as { __nomiCapabilityApply?: unknown }).__nomiCapabilityApply = handleCapabilityApply
-        ;(
-          window as unknown as { __nomiSpendConfirmE2E?: (request: Record<string, unknown>) => Promise<boolean> }
-        ).__nomiSpendConfirmE2E = async (request) => {
-          const rememberHosting = request.rememberHosting === true
-          const { rememberHosting: _rememberHosting, ...pendingRequest } = request
-          if (pendingRequest.hostingDisclosure && typeof pendingRequest.hostingDisclosure === 'object') {
-            const disclosure = pendingRequest.hostingDisclosure as Record<string, unknown>
-            pendingRequest.hostingDisclosure = {
-              ...disclosure,
-              onRemember: rememberHosting
-                ? async () => {
-                    const policy = getDesktopBridge()?.settings?.automationPolicy
-                    if (!policy) return
-                    const current = await policy.get()
-                    await policy.set({ ...current, anonymousAssetHosting: 'allow' })
-                    ;(window as unknown as { __nomiSpendRemembered?: boolean }).__nomiSpendRemembered = true
-                  }
-                : undefined,
-            }
-          }
-          return useSpendConfirmStore.getState().requestConfirm(pendingRequest as never)
-        }
       }
     } catch {
       // localStorage 不可用 → 跳过

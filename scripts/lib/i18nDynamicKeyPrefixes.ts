@@ -14,8 +14,8 @@
 //     此时 P 是半个词、不是子树,故改为枚举全部字面量后缀,逐个校验 `P+suffix` 是叶子。
 
 import { FEEDBACK_EXCLUSION_REASONS, FEEDBACK_MANIFEST_ITEMS } from '../../electron/shared/contracts/feedback'
-import { VENDOR_CONNECTION_PILL_LABEL_MEMBERS } from '../../src/ui/onboarding/vendorConnectionView'
 import { MISSING_CARD_REASONS } from '../../src/workbench/ai/v4/missingInterventionCard'
+import { MODEL_STATUS_STATES } from '../../electron/shared/modelStatusPresentation'
 import { REWRITE_PRESET_INSTRUCTIONS, REWRITE_TONE_INSTRUCTIONS, REWRITE_TRANSLATE_INSTRUCTIONS } from '../../src/workbench/creation/aiRewrite/rewritePrompt'
 
 export type DynamicPrefix =
@@ -83,13 +83,10 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'onboardingProviders.knownVendors', why: '动态: 供应商接入卡的界面文字按 vendorKey 取(tagline/promoText/promoCta/credential*/fields.*);枚举来源: src/config/knownVendors.ts 的 KNOWN_VENDORS(目录只放数据,文字全在这棵子树)' },
   { prefix: 'onboardingProviders.modelControls.kind', why: '动态: 模型 chip 类别;枚举来源: isKnownModelChipKind 判定的 kind 集(modelControls.kind.* 词条)' },
   { prefix: 'onboardingProviders.workspace.capability.editor.errors', why: '动态: 能力编辑器表单错误码;枚举来源: ModelCapabilityEditor 的 errors.form/errors.modes(editor.errors.* 词条)' },
-  { prefix: 'onboardingProviders.workspace.adapter.title', why: '动态: 适配器状态卡标题;枚举来源: ModelAdapterStatusSection 的 state.state 联合(adapter.title.* 词条)' },
-  { prefix: 'onboardingProviders.workspace.adapter.body', why: '动态: 适配器状态卡正文;枚举来源: ModelAdapterStatusSection 的 state.state 联合(adapter.body.* 词条)' },
-  {
-    prefix: 'onboardingProviders.vendorCard.connection',
-    members: VENDOR_CONNECTION_PILL_LABEL_MEMBERS,
-    why: '动态: 供应商连接胶囊文案;枚举来源: vendorConnectionView 的 VENDOR_CONNECTION_PILL_LABEL_MEMBERS（由 VendorConnection.state 四态映射，unsupported 复用 saved）',
-  },
+  // 模型 / 连接状态词的唯一出处（D-1117-delete-verification）：labelKey 由 modelStatusPresentation 拼出、
+  // ModelStatusMark 以变量 t(labelKey) 渲染——静态扫描看不见，所以成员直接取运行时常量，五个词中英都得有叶子。
+  { prefix: 'onboardingProviders.modelStatus', members: MODEL_STATUS_STATES, why: '动态：模型 / 连接状态词按档位取；枚举来源 electron/shared/modelStatusPresentation.ts 的 MODEL_STATUS_STATES。' },
+  { prefix: 'onboardingProviders.modelStatus.count', members: MODEL_STATUS_STATES.filter((state) => state !== 'notConnected'), why: '动态：连接级与页头的「N 个 X」按档位取（「待接入」不带数）；枚举来源 MODEL_STATUS_STATES 去掉 notConnected。' },
   { prefix: 'onboardingProviders.drawer.network', why: '动态: 网络抽屉 pill;枚举来源: NetworkSection 的 pill.key(drawer.network.* 词条)' },
   {
     prefix: 'onboardingProviders.drawer.network.mode',
@@ -100,7 +97,6 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'onboardingProviders.adapterVerification.mode', why: '动态: 适配器验证任务类型;枚举来源: mode.taskKind / MODE_LABEL_KEYS(adapterVerification.mode.* 词条)' },
   { prefix: 'onboardingProviders.adapterVerification.stage', why: '动态: 适配器验证阶段;枚举来源: run.stage 联合(adapterVerification.stage.* 词条)' },
   { prefix: 'onboardingProviders.adapterVerification.modelState', why: '动态: 适配器验证逐模型状态;枚举来源: model verification state(adapterVerification.modelState.* 词条)' },
-  { prefix: 'onboardingProviders.adapterVerification.cardStatus', why: '动态: 适配器卡状态;枚举来源: adapterCard.state 联合(adapterVerification.cardStatus.* 词条)' },
   { prefix: 'onboardingProviders.adapterVerification.action', why: '动态: 适配器验证建议动作;枚举来源: AdapterVerificationScreen 的 advice.action(adapterVerification.action.* 词条)' },
   { prefix: 'onboardingProviders.assistant.reason', why: '动态: 助手连接失败原因;枚举来源: REASON_I18N 映射值(assistant.reason.* 词条)' },
   { prefix: 'onboardingProviders.assistant.staleConfig', why: '动态: 已知过时的接入配置形状;枚举来源: STALE_CONFIG_I18N 映射值(McpConfigState 四种 Nomi 自己写过的历史形状 → assistant.staleConfig.* 词条)' },

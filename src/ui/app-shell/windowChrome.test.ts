@@ -84,7 +84,7 @@ describe('全屏浮层不盖住合一顶栏（它同时是窗口栏：导演台�
 
 // 页格内的层（2026-10-29，设计卡 ★9 第 10 条；归属与生命周期的普查在 src/workbench/pageLayerCensus.test.ts）：
 // 导演台 / 全景查看器是生成页里的一块，版面归 GenerationWorkspace 的网格。它们的源码里不许再有「自己算窗口怎么摆」的写法——
-// 整窗 fixed、顶偏移、第二份层级常量、读 Agent 宽度 / 小球旗子——这些正是「右边白留 608px、点创作出不去、小球被盖」的来路。
+// 整窗 fixed、顶偏移、第二份层级常量、读 Agent 宽度 / 收起旗子——这些正是「右边白留 608px、点创作出不去、（当时右下的）小球被盖」的来路。
 const PAGE_CELL_MOUNTS = [
   ['导演台（节点挂载处）', '../../workbench/generationCanvas/nodes/director/DirectorNode.tsx'],
   ['全景查看器', '../../workbench/generationCanvas/nodes/PanoramaViewer.tsx'],
@@ -108,7 +108,7 @@ describe('页格内的层：经 GenerationPageLayer 挂载，不再自己算窗�
     expect(read(file)).toContain('<GenerationPageLayer>')
   })
 
-  it.each(PAGE_CELL_CONTENT)('%s 的源码里没有整窗 fixed、顶偏移、第二份层级常量、Agent 宽度 / 小球旗子，也不挂 body', (_name, file) => {
+  it.each(PAGE_CELL_CONTENT)('%s 的源码里没有整窗 fixed、顶偏移、第二份层级常量、Agent 宽度 / 收起旗子，也不挂 body', (_name, file) => {
     const source = read(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
     expect(source).not.toMatch(/\bfixed\b\s+inset/)
     for (const token of WINDOW_LAYOUT_TOKENS) expect(source, `${file} 还在用 ${token}`).not.toContain(token)

@@ -30,23 +30,23 @@ const saved = vi.hoisted(() => {
 
 const persisted = (): string | null => saved.get(AGENT_FORM_STORAGE_KEY) ?? null
 
-type Stored = 'ball' | 'float' | 'dock'
+type Stored = 'collapsed' | 'float' | 'dock'
 
 /** 从宽窗起，人把这一页摆成某个样子（宽窗写人选的那份），再拉窄。 */
 function start(surface: AgentFormSurface, stored: Stored): string | null {
   useAgentFormViewStore.setState(useAgentFormViewStore.getInitialState(), true)
   useAgentFormStore.setState(useAgentFormStore.getInitialState(), true)
-  const prefs = stored === 'ball' ? { collapsed: true } : { placement: stored, collapsed: false }
+  const prefs = stored === 'collapsed' ? { collapsed: true } : { placement: stored, collapsed: false }
   useAgentFormStore.setState((state) => ({ bySurface: { ...state.bySurface, [surface]: { ...state.bySurface[surface], ...prefs } } }))
   setAgentWindowNarrow(true, { animate: false })
   return persisted()
 }
 
-const steps = ['open', 'collapse', 'machineBall', 'machineOpen', 'cross'] as const
+const steps = ['open', 'collapse', 'machineCollapse', 'machineOpen', 'cross'] as const
 function run(step: (typeof steps)[number], surface: AgentFormSurface): void {
   if (step === 'open') openAgent(surface)
   if (step === 'collapse') collapseAgent(surface)
-  if (step === 'machineBall') machineHold(surface, 'ball')
+  if (step === 'machineCollapse') machineHold(surface, 'collapsed')
   if (step === 'machineOpen') machineHold(surface, 'open')
   if (step === 'cross') { setAgentWindowNarrow(false); setAgentWindowNarrow(true) }
 }
@@ -55,7 +55,7 @@ beforeEach(() => saved.clear())
 
 describe('不变量：窄窗档里除了明确选摆法，存档逐字相等；拉宽回来是自己存的样子', () => {
   for (const surface of ['creation', 'generation'] as AgentFormSurface[]) {
-    for (const stored of ['ball', 'float', 'dock'] as Stored[]) {
+    for (const stored of ['collapsed', 'float', 'dock'] as Stored[]) {
       it(`${surface} 存着 ${stored}：5 种动作取 3 下的全部排列（125 条序列）`, () => {
         const wideShown: AgentForm = stored
         for (const a of steps) for (const b of steps) for (const c of steps) {
@@ -73,16 +73,16 @@ describe('不变量：窄窗档里除了明确选摆法，存档逐字相等；�
 describe('宽窗：机器让位只改此刻，让位结束（跨窗宽）后是人存的样子', () => {
   // 机器让位没有「机器自己撤」这一条路：结束只靠人的动作、跨窗宽、离开项目、关掉重开（人的动作那几格在探针表里）。
   const crossAndBack = (): void => { setAgentWindowNarrow(true); setAgentWindowNarrow(false) }
-  for (const stored of ['ball', 'float', 'dock'] as Stored[]) {
+  for (const stored of ['collapsed', 'float', 'dock'] as Stored[]) {
     it(`存着 ${stored}：让开 → 跨窗宽来回；摆出来 → 跨窗宽来回，存档逐字相等`, () => {
       const before = start('generation', stored)
       setAgentWindowNarrow(false, { animate: false })
-      machineHold('generation', 'ball')
-      expect(shownForm('generation')).toBe('ball')
+      machineHold('generation', 'collapsed')
+      expect(shownForm('generation')).toBe('collapsed')
       crossAndBack()
       expect(shownForm('generation')).toBe(stored)
       machineHold('generation', 'open')
-      expect(shownForm('generation')).toBe(stored === 'ball' ? 'float' : stored)
+      expect(shownForm('generation')).toBe(stored === 'collapsed' ? 'float' : stored)
       crossAndBack()
       expect(shownForm('generation')).toBe(stored)
       expect(persisted()).toBe(before)

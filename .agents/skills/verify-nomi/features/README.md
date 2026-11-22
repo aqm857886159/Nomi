@@ -10,7 +10,13 @@
 | 参数面板和高级设置 | [params.md](./params.md) | `params` |
 | 模型菜单和方式菜单 | [model-and-mode-menus.md](./model-and-mode-menus.md) | `model-menu` · `mode-menu` |
 | 模型设置页 | [model-settings.md](./model-settings.md) | `model-settings` |
-| Agent 面板（展开 / 收起 / 窄窗小球） | [agent-panel.md](./agent-panel.md) | `agent-panel` · `agent-ball` |
+| Agent 面板（展开 / 收起进顶栏入口 / 窄窗浮窗） | [agent-panel.md](./agent-panel.md) | `agent-panel` · `agent-collapsed` |
 | 设计实验室 | [design-lab.md](./design-lab.md) | `design-lab` |
 
 加一个功能：`verifyFeatures.mjs` 加一项（只调 `_shell.mjs` 等出口，缺出口补进 `_shell.mjs`）→ 这里加一份四节文件并登进上表 → 真跑一遍文件里写的每条命令再提交。
+
+需要在画布或分镜真正点生成时，先用假 APIMart 起隔离窗口（不能带真实或已有资料）：已接好的加密假 key 和本机服务随驱动创建，`--vendor-pending` 指定每个任务先回几次处理中；`up` / `doctor` 第一行标明回环端口，`down` / `quit` 一起收尾。不带参数时各地图原有的“没有钥匙”限制仍成立。目标走查 `tests/ux/ui-fake-vendor.walk.mjs` 覆盖画布图片、视频、分镜图片及退出端口；无需真实资源，按现有 `.walk.mjs` 清单自动进入夜跑。媒体是固定的小尺寸 PNG / 1 秒 MP4，不提供文本模型响应。
+
+```bash
+node tests/ux/ui.mjs up --vendor fake-apimart --vendor-pending 1
+```

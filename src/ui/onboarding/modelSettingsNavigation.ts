@@ -175,3 +175,25 @@ export function openModelSettingsDialogPage(
     ],
   }
 }
+
+/**
+ * 格式任务页上点「完成」去哪：任务成功（completed / partial）后，模型已经落在这次任务的那条连接上
+ * （自接的中转是一条新连接，晋级时旧来源下线）——「完成」带人去**那条连接**，只选了一个模型就直接
+ * 打开它，而不是退回发起页、对着已经不存在的旧来源（2026-11-17 第一轮验收发现）。
+ * 没晋级（失败 / 取消 / 还在跑）或那条连接还没进目录，就照常退一层。
+ */
+export function finishAdapterRunNavigation(
+  navigation: ModelSettingsNavigation,
+  run: { vendorKey: string; stage: string; selectedModelKeys: readonly string[] } | undefined,
+  connectionExists: (vendorKey: string) => boolean,
+): ModelSettingsNavigation {
+  if (!run) return backModelSettingsPage(navigation)
+  const promoted = (run.stage === 'completed' || run.stage === 'partial') && connectionExists(run.vendorKey)
+  if (!promoted) return backModelSettingsPage(navigation)
+  // 从这个模型自己的详情打开的任务：退一层就回到它，已经是那条连接上的身份。
+  if (modelSettingsDialogOwner(navigation)?.vendorKey === run.vendorKey) return backModelSettingsPage(navigation)
+  const connection = openModelSettingsConnectionPage(navigation, run.vendorKey)
+  return run.selectedModelKeys.length === 1
+    ? openModelSettingsDialog(connection, { vendorKey: run.vendorKey, modelKey: run.selectedModelKeys[0] })
+    : connection
+}

@@ -126,7 +126,7 @@ describe('positional-project-open：多项目下的位置式选择', () => {
 // dead-data-attr（2026-10-08 外壳重设计：删组件时 data 属性锚点在十几份走查里悬空，前两条规则都看不见）。
 describe('dead-data-attr：data 属性锚点存活', () => {
   const SRC_ATTRS = `
-    <button data-agent-ball={status} data-v4-control="history" />
+    <button data-shell-nomi-entry data-status={look.status} data-v4-control="history" />
     <div data-clip-id={clip.id} />
     el.dataset.timelineStrip = ''
   `
@@ -141,7 +141,7 @@ describe('dead-data-attr：data 属性锚点存活', () => {
   })
 
   it('活着的属性名 / 枚举值不报', () => {
-    assert.deepEqual(dead(`win.locator('[data-agent-ball]'); win.locator('[data-v4-control="history"]')`), [])
+    assert.deepEqual(dead(`win.locator('[data-shell-nomi-entry]'); win.locator('[data-v4-control="history"]')`), [])
   })
 
   it('数据驱动的值（src 里没写死过字面量值）不判值', () => {

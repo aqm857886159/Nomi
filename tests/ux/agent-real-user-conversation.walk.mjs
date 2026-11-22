@@ -17,7 +17,7 @@ import { stationTimeout } from './_station-budget.mjs'
 // Run: pnpm run build && node tests/ux/agent-real-user-conversation.walk.mjs
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
-import { FIXTURE_IMAGE_MODEL, FIXTURE_TEXT_MODEL_LABEL, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
+import { FIXTURE_IMAGE_HANDLE, FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
 import {
   APPROVAL_CARD, ASSISTANT_MESSAGE, CANVAS_PANEL, COMPOSER, COMPOSER_INPUT, COMPOSER_PERMISSION,
   COMPOSER_SEND, CREATION_PANEL, DOCUMENT, HISTORY_BUTTON, INTERVENTION_CONFIRM,
@@ -328,11 +328,10 @@ try {
       // 20 动词：只有 draft_shots 能在画布上造出会生成的镜头（草稿落画布、不出卡、不花钱）。
       // 点名模型：没设默认图片模型时宿主不替用户挑，回 generation_input_invalid（原因 no_default_model）。
       args: {
-        candidate: { providerId: FIXTURE_VENDOR, modelId: FIXTURE_IMAGE_MODEL },
         shots: [
-          { title: '招牌灯', prompt: '深夜街边招牌灯，暖光，中景', taskKind: 'text_to_image' },
-          { title: '舀汤', prompt: '热气糊镜头，牛骨汤舀进碗，特写', taskKind: 'text_to_image' },
-          { title: '多余的一个', prompt: '备用镜头，暂时用不上', taskKind: 'text_to_image' },
+          { title: '招牌灯', prompt: '深夜街边招牌灯，暖光，中景', taskKind: 'text_to_image', model: FIXTURE_IMAGE_HANDLE },
+          { title: '舀汤', prompt: '热气糊镜头，牛骨汤舀进碗，特写', taskKind: 'text_to_image', model: FIXTURE_IMAGE_HANDLE },
+          { title: '多余的一个', prompt: '备用镜头，暂时用不上', taskKind: 'text_to_image', model: FIXTURE_IMAGE_HANDLE },
         ],
       },
     },
@@ -433,8 +432,7 @@ try {
     reply: {
       type: 'tool', id: REFILL_CALL, name: 'draft_shots',
       args: {
-        candidate: { providerId: FIXTURE_VENDOR, modelId: FIXTURE_IMAGE_MODEL },
-        shots: [{ title: '第一口', prompt: '她吸溜第一口，暖光特写', taskKind: 'text_to_image' }],
+        shots: [{ title: '第一口', prompt: '她吸溜第一口，暖光特写', taskKind: 'text_to_image', model: FIXTURE_IMAGE_HANDLE }],
       },
     },
   })

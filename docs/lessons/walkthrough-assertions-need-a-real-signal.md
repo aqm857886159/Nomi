@@ -17,12 +17,19 @@
 
 全量扫过 143 个走查后确认这是**框架缺陷不是个人手滑**：
 
-- `eslint.config.js:28` 把 `tests/ux/**` 整个 ignore——所有门岗都看不见这片地；
+- 历史原因：最初 `eslint.config.js:28` 把 `tests/ux/**` 整个 ignore，所有 ESLint 门岗都看不见这片地（2026-10-22 起已纳入 `eslint.config.mjs`）；
 - 0/143 使用 Playwright 的自动重试断言。
 
 于是形成必然链条：一次性 `.count()` 有竞态 → 拿 `sleep` 去糊 → sleep 不够长读到 0 → **而 0 恰好让「不存在」断言通过**。假绿是这套写法的产物，不是意外。
 
 官方 `toBeHidden()` 只治竞态那一半；治不了「这个现场根本不可能出现坏东西」，那只能靠签名逼。
+
+## 另一半：拿 `.count()` 当「应该在场」= 晚几十毫秒就假红（2026-11-22）
+
+`locator.count()` 是**瞬时快照，不等待**。上面说的假绿是拿它断言「不存在」；另一半同样常见——拿它断言「应该在场」（`if (!(await el.count())) throw ...`、`if ((await el.count()) === 0) ...`、`check('...', (await el.count()) > 0)`、`assert.ok(await el.count())`、`expect(await el.count()).toBeGreaterThan(0)` 等）。只要元素因为异步渲染、切换浮层或动画晚几十毫秒挂载，`count()` 立刻返回 `0` 直接假红。
+
+- **凡是「以为元素该在」**：一律用自动等待接口——`expectVisible(locator, label)`、`await locator.waitFor({ state: 'visible' })` 或 `await expect(locator).toBeVisible()`；若是隐藏的 `<input type="file">` 等不要求可见的节点，用 `await locator.waitFor({ state: 'attached' })`。
+- **自动拦截**：`eslint.config.mjs` 的 `playwright-wait/no-restricted-syntax`（`playwrightCountNoWaitSelectors`，覆盖 `tests/ux/**` 与 `tests/perf/**`）已自动拦新增的瞬时 `.count()` 存在性断言，同时放行 `expect.poll` / 轮询循环、取数量当值、可有可无的早退分支。
 
 ## 怎么用
 

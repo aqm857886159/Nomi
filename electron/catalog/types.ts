@@ -80,7 +80,6 @@ export type AssetIngestion =
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "provider-private";
       ttlSeconds?: number;
-      requiresConsent?: false;
     }
   | {
       strategy: "upload-stream";
@@ -99,7 +98,6 @@ export type AssetIngestion =
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "provider-private";
       ttlSeconds?: number;
-      requiresConsent?: false;
     }
   | {
       strategy: "upload-url";
@@ -122,7 +120,6 @@ export type AssetIngestion =
       authType?: "bearer" | "key";
       visibility?: "provider-private";
       ttlSeconds?: number;
-      requiresConsent?: false;
     }
   | {
       strategy: "upload-multipart";
@@ -162,7 +159,6 @@ export type AssetIngestion =
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "provider-private" | "public-provider" | "public-anonymous";
       ttlSeconds?: number;
-      requiresConsent?: boolean;
     }
   | {
       /**
@@ -190,7 +186,6 @@ export type AssetIngestion =
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "provider-private" | "public-provider";
       ttlSeconds?: number;
-      requiresConsent?: false;
     }
   | {
       /**
@@ -210,7 +205,6 @@ export type AssetIngestion =
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "provider-private" | "public-provider";
       ttlSeconds?: number;
-      requiresConsent?: false;
     }
   | {
       /**
@@ -239,7 +233,6 @@ export type AssetIngestion =
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "public-anonymous";
       ttlSeconds?: number;
-      requiresConsent?: true;
     };
 
 /** 本地 ComfyUI **第一台**的固定 key（种子 + assetLocalization 识别它走自己的 /upload/image，单源防漂移）。 */
@@ -264,7 +257,6 @@ export type Vendor = {
   hasApiKey?: boolean;
   /** Persisted key material exists; this is display metadata, not an execution/readiness signal. */
   credentialMaterialSaved?: boolean;
-  credentialVerificationPending?: boolean;
   baseUrlHint?: string | null;
   authType?: VendorAuthType;
   authHeader?: string | null;
@@ -737,8 +729,17 @@ export type CatalogVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 
 export const CURRENT_CATALOG_VERSION: CatalogVersion = catalogVersion.current as CatalogVersion;
 
 export type CatalogState = {
+  /** Monotonic data-repair receipt; no file-format change. */
+  unverifiedUsableRecovered?: true;
+  /** 文本模型行能力声明的初值已补过（一次性数据修正的收据，不升版本；modelDeclarationDefaults.ts）。 */
+  modelDeclarationDefaultsApplied?: true;
   /** User-deleted builtin identities must not be inserted by subsequent seeding. */
   suppressedBuiltinModels?: Array<{ vendorKey: string; modelKey: string }>;
+  /**
+   * 用户整家删掉的内置连接（2026-11-16，和上面「单删的模型」分开记）。启动时不把这家的内置模型种回来；
+   * 这家再存一次密钥（设置页或 set_key，都走 applyApiKeyUpsert）就摘掉这条，内置模型跟着回来——单删的那几个照旧不回。
+   */
+  suppressedBuiltinVendors?: string[];
   version: CatalogVersion;
   vendors: Vendor[];
   models: Model[];

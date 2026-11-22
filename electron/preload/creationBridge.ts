@@ -1,5 +1,5 @@
 /**
- * 创作侧（导演台 / 提示词库 / 记忆 / 审片 / 生成策略 / 即梦）的 preload 桥面。
+ * 创作侧（导演台 / 提示词库 / 审片 / 生成策略 / 即梦）的 preload 桥面。
  *
  * 从 electron/preload.ts 抽出来（R9：preload.ts 顶着 800 行硬上限，每加一条桥都在撞线）。
  * 这里**只搬家、不改行为**：每个键、每条频道名、每句注释都逐字保留，preload.ts 用 `...creationBridge` 组装，暴露给渲染层的对象形状逐字节不变。
@@ -58,19 +58,6 @@ export const creationBridge = {
         }
       },
     },
-  },
-  memory: {
-    get: (projectId: string) =>
-      ipcRenderer.invoke("nomi:memory:get", { projectId }) as Promise<{ ok: boolean; facts: unknown[] }>,
-    update: (projectId: string, factId: string, patch: { text?: string; pinned?: boolean }) =>
-      ipcRenderer.invoke("nomi:memory:update", { projectId, factId, patch }) as Promise<{
-        ok: boolean;
-        facts: unknown[];
-      }>,
-    remove: (projectId: string, factId: string) =>
-      ipcRenderer.invoke("nomi:memory:remove", { projectId, factId }) as Promise<{ ok: boolean; facts: unknown[] }>,
-    add: (projectId: string, text: string, kind?: string) =>
-      ipcRenderer.invoke("nomi:memory:add", { projectId, text, kind }) as Promise<{ ok: boolean; facts: unknown[] }>,
   },
   review: {
     onEvent: (callback: (payload: unknown) => void) => {

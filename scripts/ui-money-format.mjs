@@ -74,6 +74,7 @@ export const FORMAT_MONEY_MODULE = 'src/workbench/ai/v4/formatMoney.ts'
  */
 export const FORMAT_MONEY_IMPORTERS = Object.freeze({
   'src/workbench/ai/v4/agentPanelSpendCard.ts': 'Agent 付费卡的逐镜价',
+  'src/workbench/generationCanvas/spend/sendCostFormat.ts': '发送键上的公开约价（悬停那一句里的美元约数）',
 })
 export const FORMAT_MONEY_IMPORT_PATTERN = Object.freeze({
   regex: '(?:^|/)formatMoney(?:\\.ts)?$',

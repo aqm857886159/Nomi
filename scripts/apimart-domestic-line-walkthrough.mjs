@@ -7,13 +7,13 @@ import { makeTempDir } from './_test-temp.mjs'
 // 每一次出站都记账，走查按账本核对「请求到底发去了哪台主机」。临时资料目录，从不碰用户真实的 %APPDATA%\Nomi。
 //
 // 六个场景（编号与测试表 D:\tmp\apimart-endpoint-test\测试表.md 一一对应）：
-//   new-zh        新装机·中文：接入页上改地址 → 保存验证 → 重开还在 → 画布生成发往国内域 → Agent 生成一次（对照组）
-//                 → 写错地址的两种提示；外加连接卡的体检结论（照真实 APIMart 应答，应是「已连通」）
-//   keyfirst-zh   新装机·中文：先填 key（主域被墙 → 已保存·未验证）→ 再改地址 → 重新保存验证 → 接上
-//   trap-zh       新装机·中文：点过「继续验证 → 自检」的连接（报错用户的真实状态）→ 改地址能存 → 画布生成
+//   new-zh        新装机·中文：接入页上改地址 → 保存 → 重开还在 → 画布生成发往国内域 → Agent 生成一次（对照组）
+//                 → 地址格式错误会提示；拼错主机仍保存，真实生成时才发现。
+//   keyfirst-zh   新装机·中文：先填 key（主域被墙也保存并启用）→ 再改地址 → 重开保留
+//   trap-zh       新装机·中文：走过「添加模型 → 编请求格式」的连接（报错用户的真实状态）→ 改地址能存 → 画布生成
 //                 → Agent 生成（结构修复后应直接通过）→ 对照：只删掉自检加的那个模型，Agent 再生成
 //   old-zh        老装机升级·中文：APIMart 早已接好（官方默认地址 + 占位 key）→ 改地址 → 重开还在 → 生成发往国内域
-//   new-en        新装机·英文界面：同 new-zh 的地址/验证/生成几步，外加「A APIMart key」那句语法（旧问题）
+//   new-en        新装机·英文界面：同 new-zh 的地址/保存/生成几步，外加「A APIMart key」那句语法（旧问题）
 //   old-en        老装机升级·英文界面：同 old-zh，外加写错提示②（域名拼错）
 //
 // 用法：pnpm build 后  node scripts/apimart-domestic-line-walkthrough.mjs [--packaged <Nomi.exe>] [场景…]
@@ -26,7 +26,7 @@ import path from 'node:path'
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
 import { APPROVAL_CARD, CANVAS_PANEL, INTERVENTION_CONFIRM, chooseAssistantModel, closeSpendCard, expandResidentPanel, sendCanvas } from '../tests/ux/agent-runtime-walk-support.mjs'
 import {
-  DOMESTIC, NETSIM, PRIMARY, UI, cancelAddressEdit, closeSettings, generateOnce, healthSettled, modelsSectionText, netLog, openModels,
+  DOMESTIC, NETSIM, PRIMARY, UI, cancelAddressEdit, closeSettings, generateOnce, modelsSectionText, netLog, openModels,
   repoRoot, saveAddress, takePackagedFlag, until,
 } from './apimart-line-walk-steps.mjs'
 
@@ -39,9 +39,6 @@ const IMAGE = path.join(repoRoot, 'tests', 'ux', 'fixtures', 'hires-detail-1024x
 const FIXTURE_KEY = 'sk-walkthrough-placeholder-not-a-real-key'
 /** Agent 那一步用的对话模型：APIMart 自己的文本模型（走同一条线路、同一把 key）。 */
 const AGENT_TEXT_MODEL = 'DeepSeek V4 Flash'
-/** 连接卡体检「没有清单接口」时的那句（真实 APIMart 两条线路都有清单接口，出现它就说明体检没走通）。 */
-const NO_PROBE_NOTICE = '这家没有可预检的接口，第一次生成时才知道通不通'
-
 const OLD_ERROR = /Certification-owned connection changes require a new integration session/
 
 const results = []
@@ -88,9 +85,14 @@ async function launch(p, { locale = 'zh-CN', blocked = 'api.apimart.ai', mocked 
     projectsDir: p.projectsDir,
     userDataDir: p.userDataDir,
     ...(PACKAGED ? { executablePath: PACKAGED } : {}),
-    mainRequire: [NETSIM],
+    mainRequire: [path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs'), NETSIM],
     initialLocalStorage: { 'nomi:locale:v1': locale },
     env: {
+      NOMI_TEST_NETWORK_GUARD: '1',
+      // These origins are intercepted by NETSIM; the earlier socket/Chromium guard still forbids real egress.
+      NOMI_TEST_NETWORK_FIXTURE_ORIGINS: 'https://api.apimart.ai,https://api.apib.ai,https://apib.ai',
+      NOMI_WALK_ALLOW_ORIGINS: '', NOMI_WALK_NET_LOG: path.join(p.out, 'network-guard.jsonl'),
+      NOMI_NETSIM_RECORD_ONLY: '0',
       NOMI_NETSIM_LOG: p.netLog,
       NOMI_NETSIM_IMAGE: IMAGE,
       NOMI_NETSIM_BLOCKED: blocked,
@@ -121,7 +123,7 @@ async function addressShown(win) {
 
 async function saveKeyOnConnectPage(win, t) {
   await win.locator('#key-only-apimart').fill(FIXTURE_KEY)
-  await win.getByRole('button', { name: t.saveVerify, exact: true }).click()
+  await win.getByRole('button', { name: t.keyOnly.save, exact: true }).click()
   await win.locator('[data-key-only-success]').waitFor({ timeout: 30_000 })
 }
 
@@ -217,11 +219,16 @@ async function newInstall(locale, name) {
     record(`${name}/改成国内地址保存`, !error && apimartRow(p.settingsDir).baseUrlHint === DOMESTIC && !OLD_ERROR.test(error),
       `地址行显示 ${DOMESTIC}，没有报错`, [savedShot])
 
+    const saveMark = netLog(p.netLog).length
     await saveKeyOnConnectPage(win, t)
     const keyShot = await shot(win, p, '04-key-saved-published.png')
-    const probe = hostsHit(p).find((entry) => entry.url.endsWith('/v1/balance'))
-    record(`${name}/保存验证走国内线路`, probe?.url === `${DOMESTIC}/v1/balance` && apimartRow(p.settingsDir).enabled === true,
-      `验证请求 → ${probe?.url ?? '（没有）'}；APIMart 已接入`, [keyShot])
+    const saved = readCatalogFromDisk(p.settingsDir)
+    const saveTraffic = hostsHit(p, saveMark)
+    record(`${name}/保存后国内连接可用`, apimartRow(p.settingsDir).enabled === true
+      && saved.apiKeysByVendor.apimart?.enabled === true
+      && apimartRow(p.settingsDir).baseUrlHint === DOMESTIC
+      && saveTraffic.every((entry) => entry.url.startsWith(DOMESTIC)),
+      `密钥已保存并启用；保存阶段 ${saveTraffic.length} 次请求均未走主域，真实生成的线路在下一步核对`, [keyShot])
     if (locale === 'en') {
       const connectText = await win.locator('[data-key-only-vendor="apimart"]').innerText()
       record(`${name}/英文句子「A APIMart key」`, !connectText.includes('A APIMart key'),
@@ -232,16 +239,11 @@ async function newInstall(locale, name) {
     ;({ app, win } = await launch(p, { locale }))
     await openModels(win, t)
     await win.locator('[data-model-home-connection="apimart"]').click()
-    await healthSettled(win)
+    await win.locator('[data-model-status]').first().waitFor()
     const reopened = await shot(win, p, '05-reopened-address-kept.png')
     record(`${name}/重开App地址还在`, await addressShown(win) && apimartRow(p.settingsDir).baseUrlHint === DOMESTIC,
       `重开后地址仍是 ${DOMESTIC}`, [reopened])
-    if (locale === 'zh-CN') {
-      // 体检结论：模拟服务照真实 APIMart 应答（/v1/models 带合法 key 回 200——2026-09-29 真实调用实测国内线路同样如此）。
-      const card = await modelsSectionText(win)
-      record(`${name}/国内线路上连接卡的体检结论`, card.includes('已连通') && !card.includes(NO_PROBE_NOTICE),
-        card.includes('已连通') ? '卡片右上角「已连通」，没有「没有可预检的接口」那句' : `卡片体检结论不对：${card.split('\n').slice(0, 8).join(' | ')}`, [reopened])
-    }
+
 
     await closeSettings(win)
     const mark = netLog(p.netLog).length
@@ -254,7 +256,7 @@ async function newInstall(locale, name) {
       `提交 → ${submit?.url ?? '（没有）'}；轮询/取图 ${traffic.filter((e) => e.url.startsWith(DOMESTIC)).length} 次都在国内域；主域 0 次`, [generated])
     fs.writeFileSync(path.join(p.out, '06-network.json'), JSON.stringify(traffic, null, 2))
     if (locale === 'zh-CN') {
-      // 对照组：没点过「自检」的正常连接，Agent 用 APIMart 生成一次应当走得通（与 trap-zh 那一条对比）。
+      // 对照组：没有额外配置步骤的正常连接，Agent 用 APIMart 生成一次应当走得通（与 trap-zh 那一条对比）。
       const agent = await agentGenerateOnce(win, p, '08')
       record(`${name}/Agent用APIMart生成一次（对照）`, agent.confirmed && agent.submit === `${DOMESTIC}/v1/images/generations` && !agent.primaryTouched && agent.imageLanded,
         `报价卡${agent.confirmed ? '出现并点了生成' : '没出现'}；提交 → ${agent.submit ?? '（没有）'}；图${agent.imageLanded ? '落到了节点上' : '没落到节点上'}；主域 ${agent.primaryTouched ? '被碰了' : '0 次'}`, agent.shots)
@@ -273,17 +275,13 @@ async function typoHost(p, locale) {
     await openModels(win, t)
     await win.locator('[data-model-home-connection="apimart"]').click()
     await saveAddress(win, t, 'https://api.apib.ai.cn')
-    const notice = win.locator('[data-settings-section="models"]').getByText(t.unreachable)
-    await notice.first().waitFor({ timeout: 20_000 })
-    const text = (await notice.first().innerText()).trim()
-    const typoShot = await shot(win, p, '07-typo-host-notice.png')
-    const englishLeak = locale === 'zh-CN' && /Network error|Next: check/.test(text)
-    record(`${p.name}/写错地址②域名拼错`, text.includes(t.nextStep) && !englishLeak, `连接状态：${text}`, [typoShot])
-    if (locale !== 'zh-CN') {
-      // 原因那半句来自 systemProxy.describeNetworkError，它只有中文（渲染层还按这些中文子串给错误分类），
-      // 不是这次改动引入的；英文界面上照实记一条没通过。
-      record(`${p.name}/英文界面的原因句`, !/[一-鿿]/.test(text), '原因句（DNS 解析失败…）仍是中文——旧问题，本次未改', [typoShot], { knownGap: true })
-    }
+    const mark = netLog(p.netLog).length
+    await win.locator('[data-model-status="ready"]').first().waitFor()
+    const typoShot = await shot(win, p, '07-typo-host-saved.png')
+    const status = await win.locator('[data-model-status]').first().innerText()
+    record(`${p.name}/写错地址②域名拼错仍保存`, apimartRow(p.settingsDir).baseUrlHint === 'https://api.apib.ai.cn'
+      && apimartRow(p.settingsDir).enabled === true && hostsHit(p, mark).length === 0,
+    `地址已存、没有预检请求，状态仍是 ${status}；首次真实生成才报告网络错误`, [typoShot])
     await saveAddress(win, t, DOMESTIC)
   } finally {
     await app.close().catch(() => undefined)
@@ -299,24 +297,25 @@ async function keyFirst() {
     await openModels(win, t)
     await win.locator('[data-model-home-available="apimart"]').click()
     await saveKeyOnConnectPage(win, t)
-    const pendingShot = await shot(win, p, '01-key-pending.png')
-    const pending = readCatalogFromDisk(p.settingsDir).apiKeysByVendor.apimart
-    record('keyfirst-zh/主域被墙时key存成未验证', pending?.verificationPending === true && apimartRow(p.settingsDir).enabled === false,
-      '显示「已保存 · 未验证」，APIMart 还没接上（验证请求只发去了被墙的主域）', [pendingShot])
+    const savedShot = await shot(win, p, '01-key-saved.png')
+    const saved = readCatalogFromDisk(p.settingsDir).apiKeysByVendor.apimart
+    record('keyfirst-zh/主域被墙时key仍保存并启用', saved?.enabled === true && apimartRow(p.settingsDir).enabled === true,
+      '显示已保存，有格式的预置模型可使用；网络失败不阻止保存', [savedShot])
     await win.getByRole('button', { name: t.back }).first().click()
-    await win.locator('[data-model-home-available="apimart"]').click()
+    await win.locator('[data-model-home-connection="apimart"]').click()
+    const mark = netLog(p.netLog).length
     await saveAddress(win, t, DOMESTIC)
-    await saveKeyOnConnectPage(win, t)
-    const doneShot = await shot(win, p, '02-address-then-key-published.png')
-    const lastProbe = hostsHit(p).filter((entry) => entry.url.endsWith('/v1/balance')).at(-1)
-    record('keyfirst-zh/改地址后重新保存验证', lastProbe?.url === `${DOMESTIC}/v1/balance` && apimartRow(p.settingsDir).enabled === true,
-      `第二次验证 → ${lastProbe?.url ?? '（没有）'}；APIMart 接上了`, [doneShot])
+    await win.locator('[data-model-status="ready"]').first().waitFor()
+    const doneShot = await shot(win, p, '02-address-saved.png')
+    record('keyfirst-zh/改地址后仍可使用', apimartRow(p.settingsDir).baseUrlHint === DOMESTIC
+      && apimartRow(p.settingsDir).enabled === true && hostsHit(p, mark).length === 0,
+      '国内地址已保存，不重新探测 key，连接仍可使用', [doneShot])
   } finally {
     await app.close().catch(() => undefined)
   }
 }
 
-// ── 新装机 · 点过「继续验证 → 自检」的连接（报错用户电脑上的真实状态）─────────────
+// ── 新装机 · 走过「添加模型 → 编请求格式」的连接（报错用户电脑上的真实状态）─────────────
 async function selfCheckTrap() {
   const t = UI['zh-CN']
   const p = profile('trap-zh')
@@ -326,21 +325,32 @@ async function selfCheckTrap() {
     await openModels(win, t)
     await win.locator('[data-model-home-available="apimart"]').click()
     await saveKeyOnConnectPage(win, t)
-    await win.getByRole('button', { name: /继续验证/ }).first().click()
+    await win.getByRole('button', { name: t.back }).first().click()
+    await win.locator('[data-model-home-connection="apimart"]').click()
+    await win.getByRole('button', { name: UI['zh-CN'].addOtherModels, exact: true }).click()
     const manual = win.getByPlaceholder('没列出来的，输入模型 id 回车添加')
     await manual.fill('gpt-image-1')
     await manual.press('Enter')
-    await win.getByRole('button', { name: /自检 1 个/ }).click()
-    await win.getByText('自检没有通过').first().waitFor({ timeout: 30_000 })
-    const marked = readCatalogFromDisk(p.settingsDir).models.some((model) => model.vendorKey === 'apimart' && model.meta && 'adapter' in model.meta)
-    for (let i = 0; i < 4 && await win.locator('[data-model-home-connection="apimart"]').count() === 0; i += 1) {
-      await win.getByRole('button', { name: t.back }).first().click()
-    }
+    await win.getByRole('button', { name: /添加 1 个/ }).click()
+    const done = win.getByRole('button', { name: '完成', exact: true })
+    await done.waitFor({ timeout: 30_000 })
+    const formatShot = await shot(win, p, '00-request-format-result.png')
+    const readyTargets = await win.evaluate(async () => (await window.nomiDesktop.modelCatalog.listModels({}))
+      .filter(model => model.modelKey === 'gpt-image-1' && model.availability?.usable === true))
+    record('trap-zh/格式就绪后可使用且没有试生成', readyTargets.length === 1
+      && !hostsHit(p).some(entry => entry.method === 'POST' && /generations/.test(entry.url)),
+    `当前可用身份 ${readyTargets.map(model => `${model.vendorKey}:${model.modelKey}`).join(', ')}`, [formatShot])
+    if (readyTargets.length !== 1) throw new Error('new request format has no unique usable identity')
+    const configuredTarget = readyTargets[0]
+    const marked = readCatalogFromDisk(p.settingsDir).models.some((model) => model.modelKey === 'gpt-image-1' && model.meta && 'adapter' in model.meta)
+    await done.click()
+    await closeSettings(win)
+    await openModels(win, t)
     await win.locator('[data-model-home-connection="apimart"]').click()
     const error = await saveAddress(win, t, DOMESTIC)
     const trapShot = await shot(win, p, '01-self-checked-connection-address-saved.png')
-    record('trap-zh/自检过的连接也能改地址', marked && !error && apimartRow(p.settingsDir).baseUrlHint === DOMESTIC,
-      `连接带着自检标记（修之前这里报 Certification-owned…）；现在保存成功：${apimartRow(p.settingsDir).baseUrlHint}`, [trapShot])
+    record('trap-zh/编过请求格式的连接也能改地址', marked && !error && apimartRow(p.settingsDir).baseUrlHint === DOMESTIC,
+      `连接带着格式任务记录（修之前这里报 Certification-owned…）；现在保存成功：${apimartRow(p.settingsDir).baseUrlHint}`, [trapShot])
 
     // 改完地址之后，这位用户真正要做的两件事：画布上生成一张、让 Agent 生成一张。
     await closeSettings(win)
@@ -371,13 +381,14 @@ async function selfCheckTrap() {
     const pendingCard = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
     if (await pendingCard.isVisible().catch(() => false)) await closeSpendCard(pendingCard)
     await openModels(win, t)
-    await win.locator('[data-model-home-connection="apimart"]').click()
-    await win.getByRole('button', { name: 'gpt-image-1', exact: true }).click()
+    await win.locator(`[data-model-home-connection="${configuredTarget.vendorKey}"]`).click()
+    await win.getByRole('button', { name: configuredTarget.modelKey, exact: true }).click()
     await win.getByText('更多操作', { exact: true }).click()
     await win.getByRole('button', { name: '删除模型', exact: true }).click()
-    const confirmDelete = win.getByRole('dialog').getByRole('button', { name: '删除', exact: true })
-    if (await confirmDelete.count()) await confirmDelete.last().click()
-    const unmarked = await until(win, async () => !readCatalogFromDisk(p.settingsDir).models.some((model) => model.vendorKey === 'apimart' && model.meta && 'adapter' in model.meta), 15_000)
+    const confirmDelete = win.locator('[data-confirm-dialog-confirm]')
+    await confirmDelete.waitFor({ state: 'visible' })
+    await confirmDelete.click()
+    const unmarked = await until(win, async () => !readCatalogFromDisk(p.settingsDir).models.some((model) => model.vendorKey === configuredTarget.vendorKey && model.modelKey === configuredTarget.modelKey), 15_000)
     const deletedShot = await shot(win, p, '04-self-check-model-deleted.png')
     await closeSettings(win)
     const again = await agentGenerateOnce(win, p, '05')

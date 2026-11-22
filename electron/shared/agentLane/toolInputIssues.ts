@@ -58,7 +58,9 @@ function editDistance(left: string, right: string): number {
 
 // 点号也折掉：模型 id 的版本号两种写法都有（`doubao-seedream-4.5` ↔ `doubao-seedream-4-5-251128`，2026-11-08 真实轨迹）。
 // 字段键里本来没有点号，这一条对它们不改任何结果。
-const folded = (key: string): string => key.toLowerCase().replace(/[_\-.\s]/g, "");
+/** 近似比较用的折叠：小写，去掉 `_` `-` `.` 空白。全仓近似键的唯一折法（模型名字查表的「近似写法」也用它）。 */
+export const foldKey = (key: string): string => key.toLowerCase().replace(/[_\-.\s]/g, "");
+const folded = foldKey;
 
 /**
  * 「你是不是想写这个」——**只在真的接近时才给**。给一个不相干的键会把模型带去第二个错误答案。

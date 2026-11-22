@@ -1,18 +1,23 @@
 import crypto from "node:crypto";
 import { modeDeliveryDefect } from "../catalog/transportDelivery";
 import { z } from "zod";
-import { BILLING_MODEL_KINDS, PROFILE_KINDS, type BillingModelKind, type HttpOperation, type ProfileKind } from "../catalog/types";
+import { BILLING_MODEL_KINDS, PROFILE_KINDS, billingKindForTaskKind, type BillingModelKind, type HttpOperation, type ProfileKind } from "../catalog/types";
+// 「这个 taskKind 属于哪种模型」只有一个家：媒体侧是准入用的那张表，文本侧是计费口径。
+// 这里不再手抄第三份（手抄那版把 image_to_audio 放进了音频，而 Nomi 投不成它）。
+import { modelKindForTaskKind } from "../shared/capabilityModeManifest";
 // 「哪些 taskKind 的参考媒体是**说明卡声明**进去的」由 PROFILE_KINDS 旁边那份完全划分拥有
 // （新增 kind 不分类 = tsc 红）。这里只消费，不再手抄 Set——手抄那版没有穷尽检查，也说不清
 // image_to_prompt / transcribe 这类「吃媒体但通道写死在运行期」的 kind 该不该要声明。
 import { PROFILE_KIND_REFERENCE_CHANNEL } from "../shared/contracts/modelAccessCapabilities";
 import {
+  DECLARABLE_INGESTION_STRATEGIES,
   declaredAssetIngestionSchema,
   declaredOmissionsSchema,
   declaredOpenApiSchema,
   declaredSelfCheckSchema,
 } from "./declarationCard";
-import type { AdapterModelDraft, ProviderAdapterDraft } from "./types";
+import { assertNeutralDeclarationParameters } from "./promotionMeta";
+import type { AdapterModeDraft, AdapterModelDraft, ProviderAdapterDraft } from "./types";
 
 const allowedMethods = new Set(["GET", "POST", "PUT", "PATCH"]);
 const allowedTemplateRoots = new Set(["user_api_key", "model", "request", "providerMeta"]);
@@ -194,44 +199,43 @@ export const adapterSuppliedContractSchema = z
 
 export type AdapterSuppliedContract = z.infer<typeof adapterSuppliedContractSchema>;
 
-const adapterDraftSchema: z.ZodType<ProviderAdapterDraft> = z
+const providerSchema = z
   .object({
-    provider: z
-      .object({
-        baseUrl: z.string().url(),
-        authType: z.enum(["none", "bearer", "x-api-key", "query"]),
-        authHeader: z.string().min(1).max(128).optional(),
-        authQueryParam: z.string().min(1).max(128).optional(),
-        /**
-         * `Authorization` 里 key 前面的方案词（Higgsfield 的 `Key id:secret`）。
-         * **由 Nomi 从已绑定的 vendor 填**，卡上只能复述、不能改——它属于「key 怎么放」，
-         * 与地址同一档，只能在贴 key 页上改（§6.1）。
-         */
-        authScheme: z.string().min(1).max(64).optional(),
-        providerKind: z.enum(["openai-compatible", "anthropic", "openai-responses"]).optional(),
-      })
-      .strict(),
-    // 卡顶层那几格从交件 schema 派生，不再抄第二遍（Ponytail 2026-09-18）。差别只有一处，
-    // 而且是领域约束：**交件时 `assetIngestion` 必填**（`none` 也要显式写），内部编译器
-    // 那条路产出的卡可以没有它（它走 curated 注册表）。
-    ...adapterSuppliedContractSchema.partial({ assetIngestion: true }).shape,
+    baseUrl: z.string().url(),
+    authType: z.enum(["none", "bearer", "x-api-key", "query"]),
+    authHeader: z.string().min(1).max(128).optional(),
+    authQueryParam: z.string().min(1).max(128).optional(),
+    /**
+     * `Authorization` 里 key 前面的方案词（Higgsfield 的 `Key id:secret`）。
+     * **由 Nomi 从已绑定的 vendor 填**，卡上只能复述、不能改——它属于「key 怎么放」，
+     * 与地址同一档，只能在贴 key 页上改（§6.1）。
+     */
+    authScheme: z.string().min(1).max(64).optional(),
+    providerKind: z.enum(["openai-compatible", "anthropic", "openai-responses"]).optional(),
   })
   .strict();
 
-const taskKindToModelKind: Record<ProfileKind, BillingModelKind> = {
-  chat: "text",
-  prompt_refine: "text",
-  image_to_prompt: "text",
-  text_to_image: "image",
-  image_edit: "image",
-  text_to_video: "video",
-  image_to_video: "video",
-  text_to_audio: "audio",
-  image_to_audio: "audio",
-  transcribe: "audio",
-  text_to_3d: "model3d",
-  image_to_3d: "model3d",
-};
+/**
+ * 外部交来的整张卡（设置向导收到的卡、接入会话交来的卡、整卡提交、旧会话恢复）。
+ * 卡顶层那几格从交件 schema 派生，不抄第二遍（Ponytail 2026-09-18）；`assetIngestion` 必填，
+ * `none` 也要显式写——三条入口同一条（2026-11-17 统一，此前只有会话那条要求它）。
+ */
+const adapterDraftSchema: z.ZodType<ProviderAdapterDraft> = z
+  .object({ provider: providerSchema, ...adapterSuppliedContractSchema.shape })
+  .strict();
+
+/**
+ * 内置编译器产出的卡：唯一的差别是可以没有 `assetIngestion`（它走 curated 注册表）。
+ * 只有 compiler.ts 能拿到这个口（eslint 白名单守）。
+ */
+const compiledAdapterDraftSchema: z.ZodType<ProviderAdapterDraft> = z
+  .object({ provider: providerSchema, ...adapterSuppliedContractSchema.partial({ assetIngestion: true }).shape })
+  .strict();
+
+/** 这条 taskKind 能不能挂在这种模型上：媒体侧问准入表，文本侧问计费口径。 */
+function taskKindFitsModelKind(taskKind: ProfileKind, kind: BillingModelKind): boolean {
+  return kind === "text" ? billingKindForTaskKind(taskKind) === "text" : modelKindForTaskKind(taskKind) === kind;
+}
 
 function assertSafePath(path: string, providerBaseUrl: string): void {
   let decoded: string;
@@ -333,6 +337,74 @@ function assertOperation(operation: HttpOperation, providerBaseUrl: string, loca
   if (serialized.length > 64_000) throw new Error(`${location} exceeds the maximum serialized size`);
 }
 
+export type AdapterModeDefectCode = "no_channel" | "async_without_query" | "reference_slot_missing" | "invalid_mode";
+
+/**
+ * 一条 mode 的语义缺陷（没有就是 null）。**判断只住这里**：校验器拿它抛错，免费自检拿它的码
+ * 转成「我们这边缺什么」——自检不再自己判一遍（它那版把 image_to_prompt 也当成要参考槽）。
+ */
+export function adapterModeDefect(
+  model: Pick<AdapterModelDraft, "modelKey" | "kind">,
+  mode: AdapterModeDraft,
+): { code: AdapterModeDefectCode; message: string } | null {
+  const label = `${model.modelKey}/${mode.taskKind}`;
+  if (!mode.create?.method || !mode.create?.path) {
+    return { code: "no_channel", message: `Mode ${label} has no executable request channel` };
+  }
+  if (!taskKindFitsModelKind(mode.taskKind, model.kind)) {
+    return { code: "invalid_mode", message: `Task ${mode.taskKind} does not match model kind ${model.kind}` };
+  }
+  const declaresReference = PROFILE_KIND_REFERENCE_CHANNEL[mode.taskKind] === "declared";
+  if (declaresReference && !mode.referenceParam) {
+    return { code: "reference_slot_missing", message: `Mode ${label} requires referenceParam` };
+  }
+  if (declaresReference && !mode.referenceShape) {
+    return { code: "reference_slot_missing", message: `Mode ${label} requires referenceShape` };
+  }
+  const deliveryDefect = modeDeliveryDefect(mode);
+  if (deliveryDefect) {
+    return { code: "async_without_query", message: `Mode ${label} ${deliveryDefect}` };
+  }
+  if (mode.result && !mode.query) {
+    return { code: "async_without_query", message: `Mode ${label} declares result without query` };
+  }
+  if (mode.create.mediaResponse || mode.query?.mediaResponse) return { code: "invalid_mode", message: "mediaResponse is only supported on GET result operations" };
+  if (mode.result?.mediaResponse && (model.kind !== "video" || mode.result.method.toUpperCase() !== "GET" || mode.result.multipart || mode.result.audioResponse)) {
+    return { code: "invalid_mode", message: "mediaResponse requires a video GET result" };
+  }
+  if (model.kind !== "text") {
+    const resultKeys = new Set([
+      ...Object.keys(mode.create.response_mapping || {}),
+      ...Object.keys(mode.query?.response_mapping || {}),
+      ...Object.keys(mode.result?.response_mapping || {}),
+    ]);
+    // 先判「这个键运行时根本消费不了」，再判「有没有媒体产物映射」。顺序不能反：
+    // 写了个不支持的键时，用户要听的是「这个键不支持」，不是笼统的「缺媒体映射」。
+    // 全量校验里这条由 assertOperation 更早抛出，抽取时必须保住同一顺序（改反了会被
+    // validator.test.ts「rejects response mapping keys the runtime cannot consume」抓到）。
+    for (const key of resultKeys) {
+      if (!allowedResponseMappingKeys.has(key)) {
+        return { code: "invalid_mode", message: `${model.modelKey}.${mode.taskKind} uses unsupported response mapping key ${key}` };
+      }
+    }
+    const accepted = model.kind === "image"
+      ? ["assets", "image_url"]
+      : model.kind === "video"
+        ? ["assets", "video_url"]
+        : model.kind === "model3d"
+          ? ["assets", "model_url"]
+          : model.kind === "audio"
+            ? (mode.taskKind === "transcribe" ? ["text"] : ["assets", "audio_url"])
+            : ["assets"];
+    const declaredMediaBody = model.kind === "video" && Boolean(mode.result?.mediaResponse);
+    const declaredAudioBody = model.kind === "audio" && mode.taskKind !== "transcribe" && Boolean(mode.create.audioResponse);
+    if (!declaredMediaBody && !declaredAudioBody && !accepted.some((key) => resultKeys.has(key))) {
+      return { code: "no_channel", message: `Mode ${label} requires a media result mapping` };
+    }
+  }
+  return null;
+}
+
 /**
  * 每条 mode 的**语义**不变量（与「这张卡从哪读来的」无关的那部分）。
  *
@@ -357,65 +429,31 @@ export function assertAdapterModeInvariants(
   for (const mode of model.modes) {
     if (seenModes.has(mode.taskKind)) throw new Error(`Duplicate mode ${model.modelKey}/${mode.taskKind}`);
     seenModes.add(mode.taskKind);
-    if (taskKindToModelKind[mode.taskKind] !== model.kind) {
-      throw new Error(`Task ${mode.taskKind} does not match model kind ${model.kind}`);
-    }
-    const declaresReference = PROFILE_KIND_REFERENCE_CHANNEL[mode.taskKind] === "declared";
-    if (declaresReference && !mode.referenceParam) {
-      throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires referenceParam`);
-    }
-    if (declaresReference && !mode.referenceShape) {
-      throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires referenceShape`);
-    }
-    const deliveryDefect = modeDeliveryDefect(mode);
-    if (deliveryDefect) {
-      throw new Error(`Mode ${model.modelKey}/${mode.taskKind} ${deliveryDefect}`);
-    }
-    if (mode.result && !mode.query) {
-      throw new Error(`Mode ${model.modelKey}/${mode.taskKind} declares result without query`);
-    }
-    if (mode.create.mediaResponse || mode.query?.mediaResponse) throw new Error("mediaResponse is only supported on GET result operations");
-    if (mode.result?.mediaResponse && (model.kind !== "video" || mode.result.method.toUpperCase() !== "GET" || mode.result.multipart || mode.result.audioResponse)) {
-      throw new Error("mediaResponse requires a video GET result");
-    }
-    if (model.kind !== "text") {
-      const resultKeys = new Set([
-        ...Object.keys(mode.create.response_mapping || {}),
-        ...Object.keys(mode.query?.response_mapping || {}),
-        ...Object.keys(mode.result?.response_mapping || {}),
-      ]);
-      // 先判「这个键运行时根本消费不了」，再判「有没有媒体产物映射」。顺序不能反：
-      // 写了个不支持的键时，用户要听的是「这个键不支持」，不是笼统的「缺媒体映射」。
-      // 全量校验里这条由 assertOperation 更早抛出，抽取时必须保住同一顺序（改反了会被
-      // validator.test.ts「rejects response mapping keys the runtime cannot consume」抓到）。
-      for (const key of resultKeys) {
-        if (!allowedResponseMappingKeys.has(key)) {
-          throw new Error(`${model.modelKey}.${mode.taskKind} uses unsupported response mapping key ${key}`);
-        }
-      }
-      const accepted = model.kind === "image"
-        ? ["assets", "image_url"]
-        : model.kind === "video"
-          ? ["assets", "video_url"]
-          : model.kind === "model3d"
-            ? ["assets", "model_url"]
-            : model.kind === "audio"
-              ? (mode.taskKind === "transcribe" ? ["text"] : ["assets", "audio_url"])
-              : ["assets"];
-      const declaredMediaBody = model.kind === "video" && Boolean(mode.result?.mediaResponse);
-      const declaredAudioBody = model.kind === "audio" && mode.taskKind !== "transcribe" && Boolean(mode.create.audioResponse);
-      if (!declaredMediaBody && !declaredAudioBody && !accepted.some((key) => resultKeys.has(key))) {
-        throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires a media result mapping`);
-      }
-    }
+    const defect = adapterModeDefect(model, mode);
+    if (defect) throw new Error(defect.message);
   }
 }
 
-export function validateProviderAdapterDraft(
+/**
+ * 外部卡缺 `assetIngestion` 时的那一句：字段路径、现有码、合法取值都在里面，助手一轮就能改对。
+ * 在 zod 之前判，因为 zod 的「Required」既不给码也不给取值。
+ */
+export function assertDeclaresAssetIngestion(input: unknown): void {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return;
+  if ((input as Record<string, unknown>).assetIngestion !== undefined) return;
+  throw new Error(
+    `upload_strategy_unsupported: assetIngestion is required on every declaration card, including "none". ` +
+    `Declare assetIngestion.strategy as one of: ${DECLARABLE_INGESTION_STRATEGIES.join(", ")} ` +
+    `(with sourceUrl pointing at the documentation page that says how this provider receives reference media), then send the whole card again.`,
+  );
+}
+
+function validateDraft(
+  schema: z.ZodType<ProviderAdapterDraft>,
   input: unknown,
   options: { providerBaseUrl: string; selectedModelKeys: readonly string[] },
 ): ProviderAdapterDraft {
-  const parsed = adapterDraftSchema.parse(input);
+  const parsed = schema.parse(input);
   const expectedOrigin = new URL(options.providerBaseUrl).origin;
   if (new URL(parsed.provider.baseUrl).origin !== expectedOrigin) {
     throw new Error("Adapter provider base URL must use the configured provider's same origin");
@@ -429,6 +467,8 @@ export function validateProviderAdapterDraft(
     seenModels.add(model.modelKey);
     // 语义不变量与内置模板共用同一份（见 assertAdapterModeInvariants 的注释）。
     assertAdapterModeInvariants(model);
+    // 参数键必须是 Nomi 的中性键：在收件处拒，带字段路径（此前在登记里才判，会话那条路永远到不了）。
+    assertNeutralDeclarationParameters(model);
     for (const mode of model.modes) {
       for (const sourceUrl of mode.sourceUrls) {
         if (!sourceUrls.has(sourceUrl)) {
@@ -447,6 +487,29 @@ export function validateProviderAdapterDraft(
   }
   assertCardLevelOperations(parsed);
   return parsed;
+}
+
+/**
+ * 外部交来的卡的唯一收件口：设置向导、接入会话、整卡提交、旧会话恢复都走这里。
+ * 同一份卡从哪条路进来，收不收、拒在哪一格都一样（declarationEntryParity.test.ts 守）。
+ */
+export function validateProviderAdapterDraft(
+  input: unknown,
+  options: { providerBaseUrl: string; selectedModelKeys: readonly string[] },
+): ProviderAdapterDraft {
+  assertDeclaresAssetIngestion(input);
+  return validateDraft(adapterDraftSchema, input, options);
+}
+
+/**
+ * 内置编译器专用口：只比外部口少一条「必须声明 assetIngestion」。其余判据（mode 语义、中性参数键、
+ * 同源、出处）一条不少。只有 compiler.ts 能 import 它（eslint 白名单）。
+ */
+export function validateCompiledAdapterDraft(
+  input: unknown,
+  options: { providerBaseUrl: string; selectedModelKeys: readonly string[] },
+): ProviderAdapterDraft {
+  return validateDraft(compiledAdapterDraftSchema, input, options);
 }
 
 /**

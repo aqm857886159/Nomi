@@ -276,8 +276,8 @@ test('答上了的 ask_user 以成功形状回给模型，正文就是他的原�
     assert.equal(result.text, ANSWERS[index], '正文一字不改就是他的原话');
   }
   // 熔断计数不动的机器形式：阈值是 3（`LANE_REPEATED_FAILURE_BLOCK`）。旧行为下第三次提问会被
-  // 宿主自己拦下来，模型读到的是「ask_user has failed the same way 3 times in a row」。
-  assert.ok(!results.some((result) => /failed the same way/.test(result.text)),
+  // 宿主自己拦下来，模型读到的是「ask_user has failed 3 times in a row since it last succeeded」。
+  assert.ok(!results.some((result) => /failed 3 times in a row|tool_retry_stopped/.test(result.text)),
     '连答三次，没有一次被熔断拦下');
   assert.deepEqual(approvalNotes(lane.projection()).map((note) => note.decision), ['answered', 'answered', 'answered'],
     '转录上仍然记的是「他回答了」，不是「他拒绝了」');

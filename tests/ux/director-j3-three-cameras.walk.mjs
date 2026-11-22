@@ -3,7 +3,7 @@
 //           → 给主角轨「创建特写片段」= 第四台机位 + 特写片段 → Space 播放时画中画切到节目机位（LIVE）。
 // 证据：机位数、录制关键帧、分组主体的特写→路径同帧三维取景与世界位姿、单步撤销、画中画 LIVE。
 // 用法：node tests/ux/director-j3-three-cameras.walk.mjs
-import { expectAbsent, expectHidden, proveProbe, screenshotSettled } from './_assert.mjs'
+import { expect, expectAbsent, expectHidden, proveProbe, screenshotSettled } from './_assert.mjs'
 import { addCameraPreset, addTrack, clickOrFail, expectVisible, launchDirectorLab, placeCharacter, trackMenu } from './_directorLab.mjs'
 
 const lab = await launchDirectorLab({ name: 'j3-three-cameras' })
@@ -31,7 +31,7 @@ try {
   const hudText = await page.getByTestId('director-pov-hud').innerText()
   const povCamera = cameras.find((c) => hudText.includes(c.name))
   check('HUD 显示所在机位与焦距', Boolean(povCamera) && /\d+mm/.test(hudText), hudText.split('\n')[0])
-  check('画幅引导框出现', (await page.getByTestId('director-aspect-guide').count()) === 1)
+  check('画幅引导框出现', await expect(page.getByTestId('director-aspect-guide')).toHaveCount(1).then(() => true, () => false))
   await lab.snap('pov-entered')
 
   // R 录制：拖视口转视角 → R 完成
@@ -122,7 +122,7 @@ try {
   await expectVisible(pip.getByText('LIVE'), '播放时画中画没标 LIVE')
   await lab.snap('playing-live')
   await page.keyboard.press(' ')
-  check('主角检查器仍可用（没被机位状态卡死）', (await page.getByTestId('director-inspector').count()) === 1)
+  check('主角检查器仍可用（没被机位状态卡死）', await expect(page.getByTestId('director-inspector')).toHaveCount(1).then(() => true, () => false))
 } catch (error) {
   console.error(error)
   await page.screenshot({ path: `${lab.shotsDir}/failure.png` }).catch(() => {})

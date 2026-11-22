@@ -172,9 +172,9 @@ try {
   const timelinePanel = win.locator('.workbench-preview .workbench-timeline').first()
   await expect(timelinePanel, '预览时间轴未出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const agent = win.locator(PREVIEW_PANEL)
-  // 收起态叫回 Nomi 的唯一入口是内容区右下的小球（10-08 外壳重设计）。
+  // 收起态叫回 Nomi 的唯一入口是顶栏最右那颗 Nomi 入口（NomiEntryTopbar 板，2026-11-22 取代内容区右下的小球）。
   const ball = win.locator(COLLAPSED_DOCK)
-  if (await ball.count()) await clickOrFail(ball.first(), '点小球展开 Nomi')
+  if (await ball.count()) await clickOrFail(ball.first(), '点顶栏 Nomi 入口展开 Nomi')
   await expect(agent, '剪辑面常驻 Agent 未挂载').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL, PREVIEW_PANEL)
 
@@ -222,7 +222,7 @@ try {
   const previewBands = win.locator('[data-timeline-plan-preview="true"] [data-plan-preview-band]')
   await expect(previewBands.first(), '待批准的计划必须先在时间轴上高亮').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const bandsProof = await proveProbe(previewBands.first(), '待批准的计划会在时间轴上画出高亮带')
-  expect(await win.locator('[data-plan-preview-band="removed"]').count(), '被裁掉的那一段要画成 removed 带').toBeGreaterThan(0)
+  await expect(win.locator('[data-plan-preview-band="removed"]').first(), '被裁掉的那一段要画成 removed 带').toBeVisible()
   expect((await persistedTimeline()).tracks[1].clips.find((clip) => clip.id === 'clip-b').endFrame, '计划预览绝不许落盘').toBe(240)
   await screenshotSettled(win, { path: path.join(shotsDir, '02-plan-highlight-and-approval.png') })
 
@@ -284,17 +284,17 @@ try {
   await expect(timelinePanel.locator('.workbench-timeline-text-clip').first()).toContainText('他终于推开了门')
   await screenshotSettled(win, { path: path.join(shotsDir, '06-three-ops-applied.png') })
 
-  // ⑥ Nomi 收起 = 结果全屏：面板让出位置，叫回入口只剩右下那颗小球（10-08 外壳重设计；原「输入框落到预览下沿」那条坞已删）。
-  await clickOrFail(agent.locator(COLLAPSE_BUTTON), '收起 Nomi（头部形态切到小球）')
+  // ⑥ Nomi 收起 = 结果全屏：面板让出位置，叫回入口只剩顶栏最右那颗 Nomi 入口（NomiEntryTopbar 板；原「输入框落到预览下沿」那条坞已删）。
+  await clickOrFail(agent.locator(COLLAPSE_BUTTON), '收起 Nomi（头部形态切到收起）')
   await expect(win.locator(COLLAPSED_SHELL), '收起后常驻 Agent 仍挂着（不卸载）').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
   const dock = win.locator(COLLAPSED_DOCK)
-  await expect(dock, '收起后右下必须有小球').toBeVisible()
-  await expect(dock, '小球要带运行状态').toHaveAttribute('data-agent-dock-status', /.+/)
+  await expect(dock, '收起后顶栏最右必须有收着的 Nomi 入口').toBeVisible()
+  await expect(dock, '顶栏入口要带运行状态').toHaveAttribute('data-status', /.+/)
   // 计数断言：多一个入口就红（写成「旧入口不存在」只会恒真）。
-  const recallEntries = await win.evaluate(() => [...document.querySelectorAll('[data-agent-ball]')]
+  const recallEntries = await win.evaluate(() => [...document.querySelectorAll('[data-shell-nomi-entry]')]
     .filter((node) => node.getBoundingClientRect().width > 0).length)
-  expect(recallEntries, '收起态「叫回 Nomi」的入口必须只有一个（小球）').toBe(1)
-  // 结果全屏：小球不许压住播放控件。
+  expect(recallEntries, '收起态「叫回 Nomi」的入口必须只有一个（顶栏 Nomi 入口）').toBe(1)
+  // 结果全屏：入口不许压住播放控件。
   const geometry = await dock.evaluate((node) => {
     const transport = document.querySelector('.workbench-preview-player__control-bar')
     const ballRect = node.getBoundingClientRect()
@@ -302,8 +302,8 @@ try {
     const overlaps = Boolean(t) && ballRect.left < t.right && ballRect.right > t.left && ballRect.top < t.bottom && ballRect.bottom > t.top
     return { overlaps }
   })
-  expect(geometry.overlaps, '小球不许压住播放控件——结果全屏正是为了把它们还给用户').toBe(false)
-  await screenshotSettled(win, { path: path.join(shotsDir, '07-collapsed-ball.png') })
+  expect(geometry.overlaps, '入口不许压住播放控件——结果全屏正是为了把它们还给用户').toBe(false)
+  await screenshotSettled(win, { path: path.join(shotsDir, '07-collapsed-entry.png') })
 
   console.log(`agent timeline ops walkthrough passed; screenshots: ${shotsDir}`)
 } catch (error) {

@@ -6,7 +6,7 @@ import { JourneyBlocked, JourneyFailure } from './evidence.mjs'
 import { addCanvasNodeFromRail } from '../_canvasRail.mjs'
 import { addTextNode } from '../_textTasksSteps.mjs'
 import { stationTimeout } from '../_station-budget.mjs'
-import { uiText } from '../full-walk/invariants.mjs'
+import { uiText, uiTextPattern } from '../full-walk/invariants.mjs'
 
 async function requireVisible(locator, code, message, timeout = 5000) {
   try {
@@ -354,9 +354,13 @@ async function adapterModeRepair(journey, ui, fixture, recorder) {
   await recorder.step('rendered', '失败模式与已通过模式不互相覆盖', async () => {
     // The verification page is a settings page, not a role=dialog; assert against it.
     const body = await ui.win.locator('[data-model-settings-page="verification"]').last().textContent()
-    // 视频模式因 500 被注错而失败（"没通过自检"），图片模式仍部分可用（"部分可用"）——两者并存。
-    if (!/没通过自检|未通过/.test(body || '')) throw new JourneyFailure('mode-failure-not-visible', '验证页没有展示失败模式')
-    if (!/部分可用|已验证/.test(body || '')) throw new JourneyFailure('passing-mode-overwritten', '通过的模式被失败模式覆盖，验证页看不到已可用能力')
+    // 视频模式因 500 被注错而失败（「还缺请求格式」），图片模式的请求格式已就绪 / 部分调用方式可用——两者并存。
+    // 词取词典（2026-11-18 Q8 改过一次说法），不在走查里另抄一份。
+    const anyOf = (keys) => new RegExp(keys.map((key) => uiTextPattern(uiText(ui.locale, key))).join('|'))
+    const failedWords = anyOf(['onboardingProviders.adapterVerification.failedBadge', 'onboardingProviders.adapterVerification.modelState.failed'])
+    const passingWords = anyOf(['onboardingProviders.adapterVerification.modelState.partial', 'onboardingProviders.adapterVerification.modelState.verified'])
+    if (!failedWords.test(body || '')) throw new JourneyFailure('mode-failure-not-visible', '适配页没有展示还缺请求格式的模式')
+    if (!passingWords.test(body || '')) throw new JourneyFailure('passing-mode-overwritten', '请求格式已就绪的模式被失败模式覆盖，适配页看不到已可用能力')
     return { visibleFailure: true, passingRetained: true }
   })
   await recorder.step('recovered', '从失败模式进入自定义调用继续修复', async () => {
@@ -381,7 +385,7 @@ async function manualKindRepair(journey, ui, fixture, recorder) {
     await select.click()
     await ui.win.getByText('3D', { exact: false }).last().click()
     await ui.win.getByText('fixture-meshy-3d', { exact: true }).click()
-    await ui.win.getByRole('button', { name: /验证\s*1\s*个模型/ }).click()
+    await ui.win.getByRole('button', { name: ui.copy.addModels }).first().click()
     const catalog = await ui.waitForCatalogModels(['fixture-meshy-3d'])
     const saved = catalog.models.find((model) => model.modelKey === 'fixture-meshy-3d')
     if (saved?.kind !== 'model3d') throw new JourneyFailure('kind-not-persisted', 'UI 显示已改成 3D，但磁盘仍是其它类型', { savedKind: saved?.kind })
@@ -520,40 +524,25 @@ async function threeTextProtocols(journey, ui, fixture, recorder) {
     for (const label of ['Chat Completions', 'Responses', 'Anthropic']) await requireVisible(ui.win.getByText(label, { exact: true }).first(), 'protocol-option-missing', `高级设置缺少 ${label}`)
     return { protocols: ['openai-compatible', 'openai-responses', 'anthropic'] }
   })
-  await recorder.step('observed', '每种协议下测试连接都只发零额度 /models 探测并诚实提示', async () => {
-    // 中转「测试连接」在还没选文本模型时**只探模型列表**，这是明示设计，不是缺陷：
-    //   - src/ui/onboarding/useOnboardingConnectionTest.ts —— 没有文本模型 → probe:'reachability'；
-    //   - electron/ai/onboarding/modelListProbe.ts:6 —— 「接入向导『测试连接』的可达性探测」；
-    //   - i18n modelSetup.connectedReachabilityOnly —— 成功文案自己就承认边界：
-    //     「地址和 Key 没问题 · …能不能出片要真跑一次才知道」。
-    // 旧断言以为三个协议各自发 POST /chat/completions|/responses|/v1/messages——那从来不是
-    // 这个按钮的职责（2026-09-02 探针实测：三种协议下按钮均只发 GET /models 或 /v1/models）。
-    // 真正的协议 wire 由本旅程 rendered 步骤的真实生成发出并在那里断言。
+  await recorder.step('observed', '三种协议都能直接选中，选协议本身一个请求都不发', async () => {
+    // 接入向导的「测试连接」随 D-1117-delete-verification（2026-11-18）整个删了：保存前什么都不探，
+    // 协议就是用户选的那个。这里守的是剩下的那条不变量——在三种协议之间切换不发任何请求（零额度），
+    // 真正的协议 wire 由本旅程 rendered 步骤的真实生成发出并在那里断言（同一份 fixture.requests
+    // 在那里**要求**出现 POST，所以这里的「零请求」不是永真断言）。
     const results = []
     for (const label of ['Chat Completions', 'Responses', 'Anthropic']) {
-      await ui.win.getByText(label, { exact: true }).first().click()
       const before = fixture.requests.length
-      await ui.clickTestConnection()
-      // 诚实提示语义：免费自检只说明地址 / Key 可达，真实生成仍需一次画布试跑。
-      const checked = ui.win.locator('[data-model-connection-diagnostics]').getByText(ui.copy.probeSuccess).first()
-      await requireVisible(checked, 'probe-honesty-missing', `${label} 下测试连接没有给出「自检通过、还没试跑」的诚实边界提示`, 15_000)
-      // 结果行在诊断区最下面，窗口矮时落在折叠线以下：滚进视野再拍，截图里才看得到成功结果态。
-      await checked.scrollIntoViewIfNeeded()
+      await ui.win.getByText(label, { exact: true }).first().click()
+      await ui.win.waitForTimeout(400)
       const seen = fixture.requests.slice(before)
-      const probes = seen.filter((request) => request.method === 'GET' && request.path.endsWith('/models'))
-      if (probes.length === 0) throw new JourneyFailure('probe-wire-missing', `${label} 下测试连接没有发出 GET /models 可达性探测`, { seen: seen.map((r) => `${r.method} ${r.path}`) })
-      // 「零额度」负向断言：探测窗口内夹具一次 POST 都不许收到（不只三条协议路径，任何 POST 都算）。这个探针的“会红”
-      // 由本旅程自身证明——rendered 步骤用同一份 fixture.requests 去**要求**点预设之后出现存下的协议对应的 POST；
-      // 仪器和谓词是活的，不是永真断言。
-      const posts = seen.filter((request) => request.method === 'POST')
-      if (posts.length > 0) throw new JourneyFailure('probe-not-zero-cost', `${label} 下测试连接发出了 POST，不再是零额度探测`, { posts: posts.map((r) => `${r.method} ${r.path}`) })
-      await ui.screenshot(`test-connection-checked-${label.toLowerCase().replaceAll(/\W+/g, '-')}`)
-      results.push({ protocol: label, probeRequests: probes.map((r) => `${r.method} ${r.path}`), postCount: posts.length })
+      if (seen.length > 0) throw new JourneyFailure('protocol-pick-sent-request', `选 ${label} 时向导自己发了请求`, { seen: seen.map((r) => `${r.method} ${r.path}`) })
+      await ui.screenshot(`protocol-picked-${label.toLowerCase().replaceAll(/\W+/g, '-')}`)
+      results.push({ protocol: label, requests: 0 })
     }
     return { results }
   })
-  const saved = await recorder.step('persisted', '选择文本模型并保存探测出的协议', async () => {
-    // 上面探测按钮把协议留在 Anthropic；显式选回 Chat Completions 再保存，让 rendered 的
+  const saved = await recorder.step('persisted', '选择文本模型并保存选中的协议', async () => {
+    // 上面最后选的是 Anthropic；显式选回 Chat Completions 再保存，让 rendered 的
     // 真实生成走 openai-compatible（fixture 的 /chat/completions 返回 'fixture text'）。
     await ui.win.getByText('Chat Completions', { exact: true }).first().click()
     await ui.fetchModels(); await ui.chooseModels([TEXT_MODEL]); const catalog = await ui.waitForCatalogModels([TEXT_MODEL])
@@ -561,34 +550,35 @@ async function threeTextProtocols(journey, ui, fixture, recorder) {
     const model = catalog.models.find((candidate) => candidate.modelKey === TEXT_MODEL)
     const savedProtocol = catalog.vendors.find((vendor) => vendor.key === model?.vendorKey)?.providerKind
     if (savedProtocol !== 'openai-compatible') throw new JourneyFailure('protocol-not-saved', '接入页选了 Chat Completions，落盘的连接协议却不是 openai-compatible', { savedProtocol, vendorKey: model?.vendorKey })
-    // 保存模型时接入页做的是「自检」（evidence: self-check），落盘记 verified——等它写进盘里，详情页才有得读。
+    // 保存模型时接入页跑一遍请求格式检查（零网络，只看说明卡形状），落盘记 verified——等它写进盘里，详情页才有得读。
     await waitForCatalogState(
       ui,
       (snapshot) => snapshot.models.find((candidate) => candidate.modelKey === TEXT_MODEL)?.meta?.adapter?.state === 'verified',
-      undefined, 'self-check-not-recorded', '接入页保存文本模型后，落盘的自检状态没有变成 verified',
+      undefined, 'format-check-not-recorded', '接入页保存文本模型后，落盘的请求格式检查结果没有变成 verified',
     )
     return { model: TEXT_MODEL, kind: model.kind, vendorKey: model.vendorKey, savedProtocol }
   })
-  await recorder.step('persisted', '设置页模型详情写着“自检通过，还没试跑”，而此刻夹具一次 POST 都没收到', async () => {
+  await recorder.step('persisted', '设置页模型详情写着「可使用」，而此刻夹具一次 POST 都没收到', async () => {
     let detail
     try {
       detail = await ui.openModelDetail({ vendorKey: saved.vendorKey, modelKey: TEXT_MODEL })
     } catch (error) {
       await ui.screenshot('model-detail-unreachable')
       const pages = await ui.win.evaluate(() => [...document.querySelectorAll('[data-model-settings-page]')].map((element) => element.getAttribute('data-model-settings-page')))
-      throw new JourneyFailure('model-detail-unreachable', '从模型首页点不进刚存下的模型的详情页', { pages, detail: String(error?.message || error).split('\n')[0] })
+      throw new JourneyFailure('model-detail-unreachable', '点完成后没有落到刚存下模型的详情页', { pages, detail: String(error?.message || error).split('\n')[0] })
     }
     const section = detail.locator('[data-model-adapter-state]').first()
     await requireVisible(section, 'model-detail-status-missing', '模型详情页没有状态块', stationTimeout())
     const state = await section.getAttribute('data-model-adapter-state')
+    const status = await section.locator('[data-model-status]').first().getAttribute('data-model-status')
     const title = ((await section.locator('h3').first().textContent()) || '').trim()
-    await ui.screenshot('model-detail-checked-not-tried')
-    // 词不手抄，取词典里那条键的值：产品改词，这里跟着改，不会两份真相。
-    const wantTitle = uiText(ui.locale, 'onboardingProviders.workspace.adapter.title.readyVerified')
-    if (state !== 'readyVerified' || title !== wantTitle) throw new JourneyFailure('model-detail-status-mismatch', '模型详情页没有显示“自检通过，还没试跑”', { state, title, wantTitle })
-    // “还没试跑”要名副其实：到这一步为止（保存、自检、详情页）夹具没有收到任何生成请求。
+    await ui.screenshot('model-detail-ready')
+    // 词不手抄，取词典里那条键的值：产品改词，这里跟着改，不会两份真相。标题就是五个状态词之一，和列表那一行同一个投影。
+    const wantTitle = uiText(ui.locale, 'onboardingProviders.modelStatus.ready')
+    if (state !== 'status' || status !== 'ready' || title !== wantTitle) throw new JourneyFailure('model-detail-status-mismatch', '有密钥、有请求格式的模型，详情页没有显示「可使用」', { state, status, title, wantTitle })
+    // 「可使用」不是「已经试过」：到这一步为止（保存、格式检查、详情页）夹具没有收到任何生成请求。
     const tried = fixture.requests.filter((request) => request.method === 'POST')
-    if (tried.length > 0) throw new JourneyFailure('claimed-untried-but-generated', '详情页写着还没试跑，夹具却已经收到了 POST', { posts: tried.map((request) => request.path) })
+    if (tried.length > 0) throw new JourneyFailure('format-check-generated', '格式检查不该发生成请求，夹具却已经收到了 POST', { posts: tried.map((request) => request.path) })
     await ui.closeModelDetail()
     return { state, title, postsSoFar: tried.length }
   })
@@ -801,23 +791,36 @@ async function errorRecovery(journey, ui, fixture, recorder) {
     })
     return
   }
-  await recorder.step('entry', '用错误地址从真实测试连接按钮触发失败', async () => {
-    await ui.openModels(); await ui.openRelayWizard(); await ui.fillRelay({ name: 'Recovery Fixture', baseUrl: 'http://127.0.0.1:1' })
-    // 测试连接 lives inside the 高级设置 disclosure and is not exposed to getByRole;
-    // clickTestConnection opens the disclosure and clicks the real <button>.
-    await ui.clickTestConnection()
-    await requireVisible(ui.win.getByText(/连接失败|无法|检查地址|未完成|请检查/).first(), 'connection-error-not-visible', '错误地址没有在接入界面展示可理解失败', 15_000)
-    return { badUrl: true }
+  // 接入向导没有「测试连接」了（D-1117-delete-verification，2026-11-18）：错误地址照样存下，
+  // 失败在用户第一次拉模型列表时摆在原地；修好它的地方是这条连接自己的「接入地址」行（和内置家同一个字段）。
+  const recoveryName = 'Recovery Fixture'
+  const recoveryVendorKey = await recorder.step('entry', '用错误地址保存连接，拉模型列表时失败原因摆在原地', async () => {
+    await ui.openModels(); await ui.openRelayWizard(); await ui.fillRelay({ name: recoveryName, baseUrl: 'http://127.0.0.1:1' })
+    await ui.win.getByRole('button', { name: ui.copy.saveConnection, exact: true }).first().click()
+    const fetchButton = ui.win.getByRole('button', { name: ui.copy.fetchModels }).first()
+    await requireVisible(fetchButton, 'fetch-entry-missing', '保存连接后没有出现获取模型入口', 15_000)
+    await fetchButton.click()
+    const failureWords = new RegExp(['network', 'invalid_response', 'upstream', 'auth', 'rate_limit']
+      .map((kind) => uiTextPattern(uiText(ui.locale, `modelSetup.discoveryError.${kind}`).replace(/\{\{\s*error\s*\}\}/, '').trim())).join('|'))
+    await requireVisible(ui.win.locator('[data-model-connection-saved]').getByText(failureWords).first(), 'connection-error-not-visible', '错误地址拉模型列表失败，接入界面没有展示可理解的原因', 15_000)
+    await ui.screenshot('bad-address-list-failure')
+    const vendor = ui.catalogSnapshot()?.vendors?.find((candidate) => candidate.name === recoveryName)
+    if (!vendor?.key) throw new JourneyFailure('bad-address-not-saved', '错误地址的连接没有存下（存下了才能在原连接上修）')
+    return vendor.key
   })
-  await recorder.step('recovered', '在原表单改回正确地址并测试成功', async () => {
-    await ui.win.getByPlaceholder('https://api.openai.com/v1').fill(fixture.origin)
-    await ui.clickTestConnection()
-    // Success copy for a reachable relay is "地址和 Key 没问题 · …" (probed
-    // 2026-09-01); image/video relays honestly add "要真跑一次才知道".
-    await requireVisible(ui.win.getByText(/没问题|连接成功|已连通|已连接/).first(), 'connection-retry-failed', '修正地址后原表单仍不能恢复', 15_000)
-    return { recoveredInPlace: true }
+  await recorder.step('recovered', '回到这条连接，在「接入地址」行改回正确地址', async () => {
+    await ui.closeAccessModal()
+    await ui.win.locator(`[data-model-home-connection="${recoveryVendorKey}"]`).first().click()
+    const editAddress = ui.win.getByRole('button', { name: new RegExp(uiTextPattern(uiText(ui.locale, 'onboardingProviders.vendorCard.editAddressAria'))) }).first()
+    await requireVisible(editAddress, 'vendor-baseurl-edit-missing', '这条连接的页面没有可编辑的接入地址', stationTimeout())
+    await editAddress.click()
+    await ui.win.locator('[data-model-connection-field="baseUrl"]').fill(fixture.origin)
+    await ui.win.locator('[data-model-connection-save="baseUrl"]').click()
+    await waitForCatalogState(ui, (snapshot) => snapshot.vendors?.find((vendor) => vendor.key === recoveryVendorKey)?.baseUrlHint?.startsWith(fixture.origin), 10_000, 'address-not-saved', '改对的地址没有落盘')
+    return { recoveredInPlace: true, vendorKey: recoveryVendorKey }
   })
   await recorder.step('observed', '恢复后从可见按钮拉取上游模型列表', async () => {
+    await ui.win.getByRole('button', { name: uiText(ui.locale, 'onboardingProviders.workspace.addOtherModels'), exact: true }).click()
     await ui.fetchModels()
     const listRequests = fixture.requests.filter((request) => request.method === 'GET' && request.path.endsWith('/models'))
     if (listRequests.length === 0) throw new JourneyFailure('model-list-not-observed', '恢复后拉取模型，但 fixture 没收到 GET /models')

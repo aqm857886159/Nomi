@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
 import { groupFrameLabel } from './groupFrameLabel'
+import { useGroupGenerateDisabledReason } from './groupGenerate'
 
 export type FrameMembershipPreview = 'join' | 'leave' | null
 
@@ -26,6 +27,8 @@ type GroupFrameHeaderProps = {
   /** 分镜组（多镜物化章）才加「分镜 · 」前缀、计数写「镜」。 */
   storyboard: boolean
   memberCount: number
+  /** 框里的成员（「生成全部」问共用主人能不能生成、为什么不能）。 */
+  memberNodeIds: readonly string[]
   /** 拖动中松手后的成员数；null = 没有在飞的预览。 */
   previewCount: number | null
   readOnly: boolean
@@ -47,6 +50,7 @@ export function GroupFrameHeader({
   description,
   storyboard,
   memberCount,
+  memberNodeIds,
   previewCount,
   readOnly,
   connectable,
@@ -116,6 +120,9 @@ export function GroupFrameHeader({
 
   // 标题与计数走分组统一的显示函数（框头与分组工具条共用，见 groupFrameLabel.ts）。
   const { title: titleText, count: countLabel } = groupFrameLabel(t, { name, storyboard, memberCount, previewCount })
+  const showGenerate = Boolean(onGenerate) && editable && !editing
+  // 「生成全部」可用态与原因：共用主人说一个都勾不上 → 置灰并说为什么（空框照旧那句）；和另外三扇门同一句。
+  const generateDisabledReason = useGroupGenerateDisabledReason(showGenerate ? memberNodeIds : undefined)
 
   return (
     <div
@@ -172,10 +179,12 @@ export function GroupFrameHeader({
         {countLabel}
       </span>
       <span className="flex-1" aria-hidden="true" />
-      {onGenerate && editable && !editing ? (
+      {showGenerate ? (
+        // 禁用的 <button> 自己不触发 title（浏览器行为）→ 外层包一层承载原因（§1.6 C1）；原因与组工具条、框右键、列表分区头同一句。
+        <span title={generateDisabledReason} className="contents" data-frame-generate-reason={generateDisabledReason ? 'true' : undefined}>
         <WorkbenchButton
           size="sm"
-          disabled={memberCount === 0}
+          disabled={memberCount === 0 || generateDisabledReason !== undefined}
           data-frame-generate-all="true"
           onPointerDown={(event) => {
             event.preventDefault()
@@ -183,11 +192,12 @@ export function GroupFrameHeader({
           }}
           onClick={(event) => {
             event.stopPropagation()
-            onGenerate(groupId)
+            onGenerate?.(groupId)
           }}
         >
           {t('generationCommon.canvas.group.generateAll')}
         </WorkbenchButton>
+        </span>
       ) : null}
     </div>
   )

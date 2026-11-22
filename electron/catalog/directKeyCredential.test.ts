@@ -83,10 +83,10 @@ function probeResponse(status: number, body?: unknown): Response {
 }
 
 describe("direct-key credential validation (apimart liveness probe)", () => {
-  it("probe 200 + remain_balance → verified (not pending), no /v1/models call", async () => {
+  it("probe 200 + remain_balance → saved, no /v1/models call", async () => {
     const state = seedApimartCatalog();
     mockAppFetch.mockResolvedValue(probeResponse(200));
-    await expect(validateCandidateCredential(apimartVendor(state), "sk-test")).resolves.toBe(false);
+    await expect(validateCandidateCredential(apimartVendor(state), "sk-test")).resolves.toBeUndefined();
   });
 
   it.each([401, 403])("probe %i → key is invalid (throws, candidate never published)", async (status) => {
@@ -95,31 +95,32 @@ describe("direct-key credential validation (apimart liveness probe)", () => {
     await expect(validateCandidateCredential(apimartVendor(state), "sk-bad")).rejects.toThrow();
   });
 
-  it("network failure → pending (honest: not faked as available, not misreported as bad key)", async () => {
+  it("network failure → saved (not misreported as a bad key; nothing to re-check later)", async () => {
     const state = seedApimartCatalog();
     mockAppFetch.mockRejectedValue(new TypeError("offline"));
-    await expect(validateCandidateCredential(apimartVendor(state), "sk-test")).resolves.toBe(true);
+    await expect(validateCandidateCredential(apimartVendor(state), "sk-test")).resolves.toBeUndefined();
   });
 });
 
 describe("direct-key credential publish path", () => {
-  it("verified key publishes credential AND vendor in the same write", async () => {
+  it("an accepted key publishes credential AND vendor in the same write", async () => {
     seedApimartCatalog();
     mockAppFetch.mockResolvedValue(probeResponse(200));
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-live", enabled: false });
     const state = readCatalog();
     expect(state.apiKeysByVendor.apimart).toMatchObject({ enabled: true });
-    expect(state.apiKeysByVendor.apimart.verificationPending).toBeUndefined();
+    expect(state.apiKeysByVendor.apimart).not.toHaveProperty("verificationPending");
     expect(state.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(true);
   });
 
-  it("pending key stays disabled and the vendor stays de-published (honesty invariant intact)", async () => {
+  it("a key saved while offline publishes configured models with no pending mark", async () => {
     seedApimartCatalog();
     mockAppFetch.mockRejectedValue(new TypeError("offline"));
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-live", enabled: false });
     const state = readCatalog();
-    expect(state.apiKeysByVendor.apimart).toMatchObject({ enabled: false, verificationPending: true });
-    expect(state.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(false);
+    expect(state.apiKeysByVendor.apimart).toMatchObject({ enabled: true });
+    expect(state.apiKeysByVendor.apimart).not.toHaveProperty("verificationPending");
+    expect(state.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(true);
   });
 
   // 2026-09-29（A10b）：用户在内置 APIMart 上手加一个模型去自检——走的是渲染层真实的新建写门，
@@ -135,7 +136,7 @@ describe("direct-key credential publish path", () => {
     expect(readCatalog().vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(true);
   });
 
-  it("scope drift fails closed: verified key enables the credential but never the vendor", async () => {
+  it("explicitly saving a key for a changed address publishes configured routes with destination binding", async () => {
     const state = seedApimartCatalog();
     // 用户（或旧数据）把 baseUrl 指去别处 → 不再是代码拥有的契约，promote 必须拒绝。
     apimartVendor(state).baseUrlHint = "https://evil.example";
@@ -143,6 +144,6 @@ describe("direct-key credential publish path", () => {
     mockAppFetch.mockResolvedValue(probeResponse(200));
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-live", enabled: false });
     const after = readCatalog();
-    expect(after.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(false);
+    expect(after.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(true);
   });
 });

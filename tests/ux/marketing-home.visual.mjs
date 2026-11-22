@@ -1,4 +1,5 @@
 import { chromium } from 'playwright'
+import { expect } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -164,7 +165,7 @@ async function auditStandardCase(browser, testCase) {
   )
   assert(facts.h1Count === 1 && facts.sections, `${testCase.name}: one H1 and complete information architecture`)
   assert(
-    facts.groupQrVisible && facts.groupQrSource === '/assets/group-wechat-2026-11-13.jpg',
+    facts.groupQrVisible && facts.groupQrSource === '/assets/group-wechat-2026-11-22.jpg',
     `${testCase.name}: current group QR is directly visible`,
   )
   assert(
@@ -209,7 +210,7 @@ async function auditStandardCase(browser, testCase) {
   assert(browserErrors.length === 0, `${testCase.name}: no page errors`)
   await page.screenshot({ path: path.join(shotsDir, `home-${testCase.name}.png`), fullPage: true })
 
-  assert(await page.locator('[data-github-hero]').count() === 1, `${testCase.name}: one hero GitHub CTA exists`)
+  assert(await expect(page.locator('[data-github-hero]')).toHaveCount(1).then(() => true, () => false), `${testCase.name}: one hero GitHub CTA exists`)
 
   if (testCase.name === 'zh-desktop') {
     // 首屏整片：点了才出声播放；功能段：滚到眼前自己在对应秒数里循环。
@@ -314,7 +315,7 @@ async function auditNoJavaScript(browser, pathName, locale, claim) {
     `${locale}: no-JS direct downloads remain without a Releases detour`,
   )
   assert(heroGithub === 1 && heroFilm === 0 && noScriptFilm === 1 && !noScriptPill, `${locale}: no-JS hero keeps the GitHub path and a playable native film`)
-  assert(qr === '/assets/group-wechat-2026-11-13.jpg' && business > 0, `${locale}: no-JS QR and project paths remain`)
+  assert(qr === '/assets/group-wechat-2026-11-22.jpg' && business > 0, `${locale}: no-JS QR and project paths remain`)
   assert(
     installGuide.includes('xattr -dr com.apple.quarantine') && /official|官方/.test(installGuide),
     `${locale}: no-JS macOS recovery stays available and source-qualified`,
@@ -368,7 +369,7 @@ async function auditBlockedMedia(browser) {
     'blocked media: claim and primary action remain',
   )
   assert(
-    facts.qr === '/assets/group-wechat-2026-11-13.jpg' && facts.business,
+    facts.qr === '/assets/group-wechat-2026-11-22.jpg' && facts.business,
     'blocked media: community and project paths remain',
   )
   assert(facts.overflow <= 1, 'blocked media: layout remains stable')
@@ -455,7 +456,7 @@ async function auditLocalePreference(browser) {
   await englishPage.goto(`${baseUrl}/`, { waitUntil: 'networkidle' })
   assert(new URL(englishPage.url()).pathname === '/', 'explicit Chinese choice overrides browser preference')
   assert(
-    (await englishPage.locator('html[lang="zh-CN"]').count()) === 1,
+    await englishPage.locator('html[lang="zh-CN"]').waitFor({ state: 'attached' }).then(() => true, () => false),
     'explicit Chinese choice keeps the Chinese document',
   )
   await englishContext.close()

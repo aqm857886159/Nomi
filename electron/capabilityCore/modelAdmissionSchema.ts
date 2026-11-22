@@ -73,6 +73,10 @@ export function archetypeVariantIds(archetype: ModelArchetype): string[] {
  * 这个候选该按哪个模式校验。**认不出就返回 null**（宁可不判，也不拿错模式的参数表去拒人）：
  * 显式 `modeId` 最权威；否则按模式 id 或它的 transportTaskKind 对 `candidate.mode`；
  * 都对不上且该档案只有一个模式时用那一个（image 档案绝大多数如此）。
+ *
+ * 已知未收进方式主人（`modeForInputs`）的那一处，登记在 `modelHandle.structure.test.ts` 的已知未收名单里（只此一处）：
+ * 这里挑的是「拿哪张参数表来校验」，不是发送用的方式；非视频候选在准入这一层拿不到这次的真实输入，
+ * 没法交给按输入挑方式的主人。并进去要先让准入拿到输入，是另一刀。
  */
 export function archetypeModeForCandidate(archetype: ModelArchetype, candidate: PlanCandidate): ArchetypeMode | null {
   const modes = archetype.modes;

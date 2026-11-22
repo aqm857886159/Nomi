@@ -134,7 +134,7 @@ try {
         match: (body) => lastUserText(body).includes(sample.text),
         reply: sample.expectsDraft
           ? { type: 'tool', id: callId, name: 'draft_shots', args: {
-              shots: [{ prompt: sample.text, taskKind: 'text_to_image', candidate: { providerId: FIXTURE_VENDOR, modelId: FIXTURE_IMAGE_MODEL }, parameters: { size: '1024x1024' } }],
+              shots: [{ prompt: sample.text, taskKind: 'text_to_image', model: `${FIXTURE_IMAGE_MODEL}@${FIXTURE_VENDOR}`, parameters: { size: '1024x1024' } }],
             } }
           : { type: 'text', text: '这一笔要花多少钱，等你点头之前我不会动手。' },
       })

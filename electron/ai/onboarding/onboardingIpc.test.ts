@@ -13,7 +13,6 @@ vi.mock("../../catalog/catalogStore", () => ({
   // 本文件既有断言逐字不变。
   readCatalog: () => ({ version: 8, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }),
 }));
-vi.mock("./vendorHealth", () => ({ checkVendorHealth: vi.fn() }));
 
 vi.mock("../../catalog/rendererCatalogMutation", () => ({
   upsertRendererCatalogVendorApiKey: vi.fn(async () => { throw new Error("candidate rejected; old key preserved"); }),
@@ -35,9 +34,16 @@ describe("onboarding discovery IPC preserves the shared result contract", () => 
   it("does not register the removed raw manual Catalog commit bypass", () => {
     expect(handlers.has("nomi:onboarding:manual-commit")).toBe(false);
   });
-  it.each(["list-models", "test-connection"])("forwards HTTP200 auth errors through %s", async (channel) => {
+  // D-1117-delete-verification（协调 2026-11-18 Q7）：「测试连接」整个删了，拉模型列表是唯一一条免费探测。
+  // vendor-price-preview 不是探测：只读公开价目（不带凭据），不判任何连接能不能用，给发送键印约价。
+  it("does not register the removed test-connection probe", () => {
+    expect(handlers.has("nomi:onboarding:test-connection")).toBe(false);
+    expect([...handlers.keys()].filter((channel) => channel.startsWith("nomi:onboarding:")).sort())
+      .toEqual(["nomi:onboarding:guess-kinds", "nomi:onboarding:list-models", "nomi:onboarding:vendor-price-preview"]);
+  });
+  it("forwards HTTP200 auth errors through list-models", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ code: 401, data: [], message: "expired" }), { status: 200 })));
-    const result = await handlers.get(`nomi:onboarding:${channel}`)?.({}, {
+    const result = await handlers.get("nomi:onboarding:list-models")?.({}, {
       baseUrl: "https://gateway.test/v1", apiKey: "secret", probe: "reachability",
     });
     expect(result).toMatchObject({
@@ -49,26 +55,26 @@ describe("onboarding discovery IPC preserves the shared result contract", () => 
     expect((result as { error?: string })?.error).toContain("Next:");
   });
 
-  it.each(["list-models", "test-connection"])("classifies invalid addresses before the network: %s", async (channel) => {
+  it("classifies invalid addresses before the network", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
-    expect(await handlers.get(`nomi:onboarding:${channel}`)?.({}, { baseUrl: "invalid", probe: "reachability" }))
+    expect(await handlers.get("nomi:onboarding:list-models")?.({}, { baseUrl: "invalid", probe: "reachability" }))
       .toMatchObject({ ok: false, failureKind: "invalid_response" });
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it.each(["list-models", "test-connection"])("classifies an invalid credential header as auth: %s", async (channel) => {
+  it("classifies an invalid credential header as auth", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
-    expect(await handlers.get(`nomi:onboarding:${channel}`)?.({}, { baseUrl: "https://gateway.test/v1", apiKey: "密钥", probe: "reachability" }))
+    expect(await handlers.get("nomi:onboarding:list-models")?.({}, { baseUrl: "https://gateway.test/v1", apiKey: "密钥", probe: "reachability" }))
       .toMatchObject({ ok: false, failureKind: "auth" });
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it.each(["list-models", "test-connection"])("replays an uppercase custom auth override exactly once through %s", async (channel) => {
+  it("replays an uppercase custom auth override exactly once", async () => {
     const fetchSpy = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ data: [{ id: "model" }] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchSpy);
-    expect(await handlers.get(`nomi:onboarding:${channel}`)?.({}, {
+    expect(await handlers.get("nomi:onboarding:list-models")?.({}, {
       baseUrl: "https://gateway.test/v1", apiKey: "stored", headers: { AUTHORIZATION: "Bearer override" }, probe: "reachability",
     })).toMatchObject({ ok: true });
     expect(new Headers(fetchSpy.mock.calls[0][1].headers).get("authorization")).toBe("Bearer override");
@@ -80,8 +86,8 @@ describe("onboarding discovery IPC preserves the shared result contract", () => 
       vi.stubGlobal("fetch", fetchSpy);
       const name = providerKind === "anthropic" ? "X-API-KEY" : "AUTHORIZATION";
       const override = providerKind === "anthropic" ? "override" : "Bearer override";
-      expect(await handlers.get("nomi:onboarding:test-connection")?.({}, {
-        baseUrl: "https://gateway.test/v1", providerKind, apiKey: "stored", modelId: "model", headers: { [name]: override },
+      expect(await handlers.get("nomi:onboarding:list-models")?.({}, {
+        baseUrl: "https://gateway.test/v1", providerKind, apiKey: "stored", headers: { [name]: override },
       })).toMatchObject({ ok: true });
       const path = "/models";
       expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -93,29 +99,24 @@ describe("onboarding discovery IPC preserves the shared result contract", () => 
   );
 
   it.each([
-    { name: "forced chat", payload: { providerKind: "openai-compatible" } },
-    { name: "forced responses", payload: { providerKind: "openai-responses" } },
-    { name: "automatic ordinary host", payload: { autoProbe: true } },
-    { name: "automatic anthropic host", payload: { autoProbe: true, baseUrl: "https://api.anthropic.test/v1" } },
-    { name: "reachability only", payload: { probe: "reachability" } },
+    { name: "chat protocol", payload: { providerKind: "openai-compatible" } },
+    { name: "responses protocol", payload: { providerKind: "openai-responses" } },
+    { name: "anthropic protocol", payload: { providerKind: "anthropic", baseUrl: "https://api.anthropic.test/v1" } },
+    { name: "no protocol given", payload: {} as { baseUrl?: string } },
   ])("never sends POST for $name", async ({ payload }) => {
     const requests: Array<{ url: string; method: string }> = [];
     vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit) => {
       requests.push({ url, method: init.method || "GET" });
       return new Response(JSON.stringify({ data: [{ id: "model" }] }), { status: 200 });
     }));
-    const result = await handlers.get("nomi:onboarding:test-connection")?.({}, {
-      baseUrl: payload.baseUrl || "https://gateway.test/v1",
+    const result = await handlers.get("nomi:onboarding:list-models")?.({}, {
       apiKey: "stored",
-      modelId: "model",
       ...payload,
+      baseUrl: payload.baseUrl || "https://gateway.test/v1",
     });
     expect(result).toMatchObject({ ok: true });
     expect(requests).not.toEqual([]);
     expect(requests.every((request) => request.method === "GET")).toBe(true);
-    expect(requests.some((request) => request.method === "POST")).toBe(false);
-    if (payload.baseUrl?.includes("anthropic")) expect(result).toMatchObject({ detectedKind: "anthropic" });
-    else expect(result).not.toHaveProperty("detectedKind");
   });
 
   it("uses the provider-specific proxy for discovery and reachability without replacing the app route", async () => {

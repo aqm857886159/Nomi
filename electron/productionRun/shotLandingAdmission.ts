@@ -13,7 +13,7 @@
 import { logWarn } from "../logging/logger";
 import { isStoppedRunStatus, runStopReason } from "../shared/productionRunStop";
 import type { ProductionRun } from "./productionRunTypes";
-import { currentShotAttempt, isUnsubmittedJobStatus, jobMayHaveReachedProvider, latestJobForShot, shotIncluded } from "../shared/productionShotJobs";
+import { currentShotAttempt, isUnsubmittedJobStatus, hasUnresolvedShotSubmission, jobMayHaveReachedProvider, latestJobForShot, shotIncluded } from "../shared/productionShotJobs";
 import type { ProductionRunRepository } from "./productionRunRepository";
 
 declare const landedShotAdmissionBrand: unique symbol;
@@ -197,8 +197,8 @@ function shotSendFacts(run: ProductionRun): ReadonlyArray<Readonly<{ shot: Landi
     ? plan.shots.filter(shotIncluded).map((shot, index) => ({ shotId: shot.shotId, index: index + 1, ...(shot.title?.trim() ? { title: shot.title.trim() } : {}) }))
     : [{ shotId: plan.candidate.candidateId, index: 1 }];
   return shots.map((shot) => {
-    const job = latestJobForShot(run, shot.shotId) ?? (plan.shots?.length ? undefined : run.jobs[run.jobs.length - 1]);
-    const fact: ShotSendFact = job && jobMayHaveReachedProvider(job) ? "sent"
+    const job = latestJobForShot(run, shot.shotId);
+    const fact: ShotSendFact = (job ? jobMayHaveReachedProvider(job) : hasUnresolvedShotSubmission(run, shot.shotId)) ? "sent"
       : shotRemovedFromCanvas(run, shot.shotId) ? "removed"
         : !landedNodeOf(run, shot.shotId) ? "not_placed"
           : shotTakenOverByCanvas(run, shot.shotId) ? "taken_by_canvas"

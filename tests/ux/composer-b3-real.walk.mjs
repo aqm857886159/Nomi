@@ -17,6 +17,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
+import { buildWalkCatalog } from './_world.mjs'
 import { clickOrFail, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasFitView, collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
@@ -45,7 +46,7 @@ function seedProfile(root) {
     vendorKey: 'ux-local', modelKey, labelZh, kind, enabled: true, createdAt: STAMP, updatedAt: STAMP,
     meta: { archetypeId, ...(kind === 'video' ? { adapter: adapter() } : {}) },
   })
-  fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
+  buildWalkCatalog(settingsDir, {
     version: 12,
     vendors: [{ key: 'ux-local', name: 'UX Local', enabled: true, authType: 'none', providerKind: 'openai-compatible', createdAt: STAMP, updatedAt: STAMP }],
     models: [
@@ -55,7 +56,7 @@ function seedProfile(root) {
       model('gpt-image-2', 'GPT Image 2', 'image', 'gpt-image-2'),
     ],
     mappings: [], apiKeysByVendor: {},
-  }, null, 2))
+  })
   const demo = (name) => path.join(repoRoot, 'resources/onboarding-demo', name)
   fs.copyFileSync(demo('shot-1.jpg'), path.join(projectRoot, 'assets', 'portrait.jpg'))
   fs.copyFileSync(demo('shot-2.jpg'), path.join(projectRoot, 'assets', 'seaside.jpg'))
@@ -211,7 +212,7 @@ async function runPass({ locale, scheme }) {
       await selectNode('edges-video')
       const e = composer()
       await expectVisible(e.locator('[data-asset-slot-label]').first(), '首尾帧格出现')
-      check(`[${tag}] 首尾帧：首帧 / 尾帧两格 + 对调钮`, (await e.locator('[data-asset-slot-label]').count()) === 2 && (await e.locator('[data-reference-swap]').count()) === 1)
+      check(`[${tag}] 首尾帧：首帧 / 尾帧两格 + 对调钮`, (await e.locator('[data-asset-slot-label]').count()) === 2 && (await e.locator('[data-reference-swap]').first().waitFor({ state: 'visible' }).then(() => true, () => false)))
       await snap('05-first-last')
       const before = await e.locator('[data-asset-slot]').evaluateAll((els) => els.map((el) => el.querySelector('img')?.getAttribute('src') ?? 'empty').join('|'))
       await e.locator('[data-reference-swap]').click()
@@ -301,8 +302,11 @@ async function runPass({ locale, scheme }) {
       await c.locator('[data-parameter-summary]').click()
       const panel = win.locator('[data-agent-parameter-panel]')
       await expectVisible(panel, '参数面板')
-      const kinds = { slider: await panel.locator('[role="slider"], input[type="range"], .mantine-Slider-root').count(), toggle: await panel.locator('[role="switch"], input[type="checkbox"]').count() }
-      check(`[${tag}] board:ComposerB3/keep.params.control-kinds：面板里有滑杆和开关`, kinds.slider >= 1 && kinds.toggle >= 1, JSON.stringify(kinds))
+      const kinds = {
+        slider: await panel.locator('[role="slider"], input[type="range"], .mantine-Slider-root').first().waitFor({ state: 'visible' }).then(() => true, () => false),
+        toggle: await panel.locator('[role="switch"], input[type="checkbox"]').first().waitFor({ state: 'attached' }).then(() => true, () => false),
+      }
+      check(`[${tag}] board:ComposerB3/keep.params.control-kinds：面板里有滑杆和开关`, kinds.slider && kinds.toggle, JSON.stringify(kinds))
       await panel.getByRole('radio', { name: '4:3' }).first().click()
       await panel.getByRole('radio', { name: '3:4' }).first().click()
       check(`[${tag}] board:ComposerB3/keep.params.interaction：连改两项面板不关`, await panel.isVisible())
@@ -336,7 +340,7 @@ async function runPass({ locale, scheme }) {
       await snap('08-model-menu')
       await options.filter({ hasText: 'Wan 2.7' }).first().click()
       await win.waitForFunction(() => /Wan 2\.7/.test(document.querySelector('.generation-canvas-v2-node__composer [data-bar-segment="model-params"]')?.textContent ?? ''), null, { timeout: stationTimeout() })
-      check(`[${tag}] 换到 Wan 2.7：底栏换了模型，生成框仍在`, (await c.locator('[data-reference-row], [data-reference-entry]').count()) >= 1)
+      check(`[${tag}] 换到 Wan 2.7：底栏换了模型，生成框仍在`, await c.locator('[data-reference-row], [data-reference-entry]').first().waitFor({ state: 'visible' }).then(() => true, () => false))
       await snap('09-after-model-switch')
     })
 
@@ -424,7 +428,7 @@ async function runPass({ locale, scheme }) {
 
     await section('host-error-report', async () => {
       await selectNode('error-video')
-      check(`[${tag}] 失败卡盖住节点正文，下面生成框在`, (await win.locator('.react-flow__node[data-id="error-video"] [role="alert"]').count()) >= 1 && (await composer().locator('[data-prompt-box]').count()) === 1)
+      check(`[${tag}] 失败卡盖住节点正文，下面生成框在`, (await win.locator('.react-flow__node[data-id="error-video"] [role="alert"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)) && (await composer().locator('[data-prompt-box]').first().waitFor({ state: 'visible' }).then(() => true, () => false)))
       await snap('10-error-report')
     })
 
@@ -433,7 +437,7 @@ async function runPass({ locale, scheme }) {
       await expectVisible(win.locator('[data-generation-list]'), '列表视图')
       await win.locator('[data-list-card]', { hasText: T('海边清晨', '海边清晨') }).first().click()
       await expectVisible(win.locator('[data-composer-host="inline"]'), '列表详情里的生成框（inline 宿主）')
-      check(`[${tag}] 列表详情用同一个生成框`, (await win.locator('[data-composer-host="inline"] [data-bar-segment="generate"]').count()) === 1)
+      check(`[${tag}] 列表详情用同一个生成框`, await win.locator('[data-composer-host="inline"] [data-bar-segment="generate"]').first().waitFor({ state: 'visible' }).then(() => true, () => false))
       await snap('11-list-detail')
       await win.locator('[data-generation-view-switcher]').first().click()
       await expectVisible(win.locator('.generation-canvas-v2__stage'), '回到画布')

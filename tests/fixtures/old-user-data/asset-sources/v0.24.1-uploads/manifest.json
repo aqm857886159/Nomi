@@ -1,0 +1,18 @@
+{
+  "release": "v0.24.1",
+  "sourceCommit": "8faadf762bff087cebec0036f5a169ad0fe6fb54",
+  "assets": [
+    {
+      "how": "bytes",
+      "relativePath": "assets/imported/sha256/4a1bf4aa3deea29ef1e434bf858cff4d206978a9a76039689a873afb2c819505/drop.png",
+      "contentType": "image/png",
+      "contentHash": "4a1bf4aa3deea29ef1e434bf858cff4d206978a9a76039689a873afb2c819505"
+    },
+    {
+      "how": "native",
+      "relativePath": "assets/imported/sha256/155a203ddb2311146587149cda83fd49a7ef288c70d291f18c56c0732c4e6efb/finder.jpg",
+      "contentType": "image/jpeg",
+      "contentHash": "155a203ddb2311146587149cda83fd49a7ef288c70d291f18c56c0732c4e6efb"
+    }
+  ]
+}

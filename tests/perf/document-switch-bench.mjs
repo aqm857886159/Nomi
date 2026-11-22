@@ -29,6 +29,7 @@ const runs = Math.max(1, Number(argValue('--runs', 5)))
 const label = argValue('--label', 'run')
 const docCount = Number(argValue('--docs', 160))
 const shotCount = Number(argValue('--shots', 320))
+const configuredModel = args.includes('--configured-model')
 const WARMUP = 1
 // 诊断腿：第一个计数样本打开方案的那一下抓 trace / 两个进程的 profile / IPC（数字不进基线）。
 const diagOut = argValue('--diag-out', '')
@@ -51,7 +52,7 @@ const plan = {
 
 async function launch(suffix) {
   const smoke = await launchCoreSmoke({
-    name: `docswitch-${suffix}`, needs: [], locale: 'zh-CN',
+    name: `docswitch-${suffix}`, needs: configuredModel ? ['loopbackProvider', 'paidGenerationRoute'] : [], ...(configuredModel ? { syntheticCredentialStorage: true } : {}), locale: 'zh-CN',
     seed: () => ({
       nodes: [], groups: [], edges: [],
       payload: {
@@ -83,6 +84,15 @@ async function openPlan(win, diag = null) {
   await armResponse(win, { trigger: 'click', predicate: 'storyboardPlanOpenReady', arg: shotCount, timeoutMs: 120_000 })
   await win.getByRole('menuitem', { name: plan.title }).first().click()
   const result = await collect(win)
+  if (configuredModel) {
+    const bars = await win.locator('[data-storyboard-row] [data-node-composer-footer]').evaluateAll(footers => footers.map(f => ({
+      model: f.querySelector('[aria-label="模型"]')?.textContent,
+      summary: f.querySelector('[data-parameter-summary]')?.textContent,
+      full: f.querySelector('[data-parameter-summary]')?.title,
+    })))
+    if (!bars.length || bars.some(f => !f.model?.includes('Seedance 2.5') || !f.summary || !f.full?.includes('5s'))) throw new Error(`Configured model missing at timing end: ${JSON.stringify(bars)}`)
+    console.log('[configured-model]', JSON.stringify(bars))
+  }
   if (stopDiagnostics) await stopDiagnostics()
   await assertLastShotReachable(win)
   return result
@@ -118,7 +128,7 @@ async function switchTo(win, n) {
 }
 const hiddenRows = (win) => win.evaluate(() => [...document.querySelectorAll('[data-storyboard-row]')].filter((el) => el.getClientRects().length === 0).length)
 
-const result = { scenario, label, docs: docCount, shots: shotCount, machine: `${os.platform()} ${os.cpus()[0]?.model?.trim()} x${os.cpus().length}`, samples: [] }
+const result = { scenario, configuredModel, label, docs: docCount, shots: shotCount, machine: `${os.platform()} ${os.cpus()[0]?.model?.trim()} x${os.cpus().length}`, samples: [] }
 if (scenario === 'plan-open') {
   for (let i = 0; i < runs + WARMUP; i += 1) {
     const smoke = await launch(`open-${i}`)

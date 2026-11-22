@@ -22,7 +22,7 @@ import { NodePointer } from '../../../workbench/ai/pointer/NodePointer'
 import { NodePointerGroup, NodePointerReturnToChat } from '../../../workbench/ai/pointer/NodePointerGroup'
 import type { NodePointerSubject } from '../../../workbench/ai/pointer/nodePointerModel'
 import { useNodePointerStore } from '../../../workbench/ai/pointer/nodePointerStore'
-import { AgentBallFace } from '../../../ui/app-shell/shell/AgentBallFace'
+import { NomiEntryPreview } from '../../../ui/app-shell/shell/ShellNomiEntry'
 import { LabCanvasNodeHost, LabCanvasViewport } from '../labCanvasViewport'
 import { LabLocaleGate } from '../labLocaleGate'
 import { holdDesignLabReady } from '../labReadyHold'
@@ -286,5 +286,5 @@ export function LabCardRow({ items, width = 180 }: { items: ReadonlyArray<{ capt
   )
 }
 
-export { NodePointer, NodePointerGroup, NodePointerReturnToChat, AgentBallFace, L }
+export { NodePointer, NodePointerGroup, NodePointerReturnToChat, NomiEntryPreview, L }
 export type { Locale }

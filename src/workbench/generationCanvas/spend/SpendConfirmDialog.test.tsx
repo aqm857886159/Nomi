@@ -15,7 +15,7 @@ it('G1: the real spend shell preserves the two risk lines and explicit decision 
   expect(html).toContain('data-spend-confirm-action="cancel"');expect(html).toContain('data-spend-confirm-action="confirm"')
  } finally { server.pending=saved;useSpendConfirmStore.getState().resolvePending(false);await decision }
 })
-it('G2: Agent 发起的卡，对话框的名字只是标题（副标不并进名字里），副标仍读得到', async () => {
+it('G2: Agent 发起的卡，对话框的名字只是标题（副标不并进名字里），副标看得见、紧跟名字', async () => {
  const title='在画布落一套方案（测试标题）'
  const decision=useSpendConfirmStore.getState().requestConfirm({title,message:'测试正文',source:'agent',kind:'plan'})
  const server=useSpendConfirmStore.getInitialState(),saved=server.pending
@@ -23,12 +23,14 @@ it('G2: Agent 发起的卡，对话框的名字只是标题（副标不并进名
  try {
   const html=renderToStaticMarkup(<MantineProvider env="test"><SpendConfirmDialog /></MantineProvider>)
   const notice=i18n.t('generationCommon.spend.agentNoticePlan')
-  // 对话框的名字来自标题元素（Mantine 的 aria-labelledby 指向 h2）：副标在里面必须 aria-hidden，名字才只剩标题。
-  const heading=/<h2[\s\S]*?<\/h2>/.exec(html)?.[0]??''
-  expect(heading).toContain(title)
-  const visible=heading.replace(/<span[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/span>/g,'').replace(/<[^>]+>/g,'').trim()
-  expect(visible).toBe(title)
-  // 副标没丢：正文最前面有一份给读屏的
-  expect(html).toMatch(new RegExp(`<span class="[^"]*sr-only[^"]*">${notice}</span>`))
+  // 对话框的名字来自外壳给的标题元素（Mantine 的 aria-labelledby 指向 h2）：h2 里只有标题一句，不靠 aria-label 顶替。
+  const heading=/<h2[^>]*>([\s\S]*?)<\/h2>/.exec(html)
+  expect(heading?.[1]).toBe(title)
+  expect(heading?.[0]).not.toContain('aria-label')
+  // 副标在标题栏里、名字后面，看得见（不藏给读屏、也不另抄一份 sr-only）
+  const after=html.slice(html.indexOf('</h2>'))
+  expect(after).toMatch(new RegExp(`<span class="[^"]*text-micro[^"]*">${notice}</span>`))
+  expect(html).not.toContain('aria-hidden="true" class="block text-micro')
+  expect(html).not.toContain('sr-only')
  } finally { server.pending=saved;useSpendConfirmStore.getState().resolvePending(false);await decision }
 })

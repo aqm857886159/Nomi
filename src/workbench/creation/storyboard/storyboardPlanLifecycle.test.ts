@@ -89,6 +89,31 @@ describe('分镜方案生命周期（单一 owner）', () => {
   it('异步结果按显式 storyboardId 回写', () => { const s = useWorkbenchStore.getState(); s.setStoryboardPlan(plan, DOC); const firstId = useWorkbenchStore.getState().activeStoryboardId!; s.setActiveStoryboardId(null); s.setStoryboardPlan({ ...plan, title: '第二版' }, DOC); const secondId = useWorkbenchStore.getState().activeStoryboardId!; s.setActiveStoryboardId(firstId, DOC); s.setStoryboardPlan({ ...plan, title: '第二版异步结果' }, DOC, secondId, true); const after = useWorkbenchStore.getState(); expect(after.activeStoryboardId).toBe(firstId); expect(after.storyboardDesignsByDocumentId[DOC]?.find((d) => d.id === firstId)?.plan.title).toBe('测试方案'); expect(after.storyboardDesignsByDocumentId[DOC]?.find((d) => d.id === secondId)?.plan.title).toBe('第二版异步结果') })
   it('显式目标被删除时不会复活', () => { const s = useWorkbenchStore.getState(); s.setStoryboardPlan(plan, DOC); const id = useWorkbenchStore.getState().activeStoryboardId!; s.deleteStoryboardDesign(id, DOC); s.setStoryboardPlan({ ...plan, title: '迟到' }, DOC, id, true); expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId[DOC]).toEqual([]) })
   it('hydrate 恢复多设计', () => { const s = useWorkbenchStore.getState(); s.hydrateStoryboardDesigns({ [DOC]: [design(DOC, plan), design(DOC, { ...plan, title: '第二版' })] }); const after = useWorkbenchStore.getState(); expect(after.storyboardDesignsByDocumentId[DOC]).toHaveLength(2); expect(active()?.plan).toEqual(plan) })
+  // 视频镜头的时长只有一个家 durationSec（docs/plan/2026-11-17-param-value-type.md ★1c）：方案进 store 的每一扇门都收一次。
+  // 0 + "12" 收成 12；5 + "12" 留 5；读不出的 "12s" 原样留着。载入只改内存、不标脏。
+  describe('方案进 store 的每一扇门都把视频镜头时长收回 durationSec', () => {
+    const conflicting: StoryboardPlan = { title: '打架', anchors: [], shots: [
+      { index: 1, shotKind: 'video', durationSec: 0, anchorIds: [], prompt: '镜一', params: { duration: '12', aspect_ratio: '16:9' } },
+      { index: 2, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: '镜二', params: { duration: '12' } },
+      { index: 3, shotKind: 'video', durationSec: 0, anchorIds: [], prompt: '镜三', params: { duration: '12s' } },
+    ] }
+    const expectReconciled = (value: StoryboardPlan | undefined) => {
+      expect(value?.shots.map((shot) => [shot.durationSec, shot.params])).toEqual([
+        [12, { aspect_ratio: '16:9' }],
+        [5, {}],
+        [0, { duration: '12s' }],
+      ])
+    }
+    it('setStoryboardPlan', () => { useWorkbenchStore.getState().setStoryboardPlan(conflicting, DOC); expectReconciled(active()?.plan) })
+    it('addStoryboardDesign 带来源', () => { expectReconciled(useWorkbenchStore.getState().addStoryboardDesign({ initiator: 'agent', documentId: DOC, source: conflicting })?.plan) })
+    it('restoreStoryboardDesign（撤销放回）', () => { useWorkbenchStore.getState().restoreStoryboardDesign(design(DOC, conflicting), DOC, 0); expectReconciled(active()?.plan) })
+    it('hydrateStoryboardDesigns（打开项目）：收进内存、不标脏', () => {
+      const revision = useWorkbenchStore.getState().persistRevision
+      useWorkbenchStore.getState().hydrateStoryboardDesigns({ [DOC]: [design(DOC, conflicting)] })
+      expectReconciled(active()?.plan)
+      expect(useWorkbenchStore.getState().persistRevision).toBe(revision)
+    })
+  })
 })
 
 // A displayed draft must remain actionable even before a selection has been persisted.

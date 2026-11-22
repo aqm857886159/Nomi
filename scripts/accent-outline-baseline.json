@@ -1,7 +1,7 @@
 {
   "src/design/identity.tsx": {
     "count": 1,
-    "reason": "保留：Agent 形象（NomiAgentFace）在跑时那段 accent 弧是「正在发生」的进度反馈（用户拍板：蓝色只留进度；2026-10-27 形象拍板 state.running，原在 AgentBallFace.tsx 的两处随旧脸删掉、合成这一处）"
+    "reason": "保留：Agent 形象（NomiAgentFace）在跑时那段 accent 弧是「正在发生」的进度反馈（用户拍板：蓝色只留进度；2026-10-27 形象拍板 state.running，原在 AgentBallFace.tsx 的两处随旧脸删掉、合成这一处；小球 2026-11-22 整个删掉，弧现在画在顶栏 Nomi 入口的脸上）"
   },
   "src/ui/browser/popover/BrowserAssetPopoverParts.tsx": {
     "count": 2,

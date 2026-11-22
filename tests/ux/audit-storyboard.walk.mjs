@@ -385,16 +385,16 @@ try {
   await phase('P10-agent-drafts', async (r) => {
     await backToCreation()
     const plansInSidebar = () => win().evaluate(() => [...document.querySelectorAll('[data-storyboard-id]')].map((e) => e.getAttribute('data-storyboard-id').slice(0, 11) + ' | ' + e.textContent.trim().slice(0, 24)))
-    const img = { providerId: 'apimart', modelId: 'gpt-image-2' }
-    const vid = { providerId: 'apimart', modelId: 'kling-v3' }
+    const img = 'gpt-image-2@apimart'
+    const vid = 'kling-v3@apimart'
     r.plansBefore = await plansInSidebar()
     // ① 一份带锚的草稿：锚占掉前几个镜号
     const turn1 = scriptTurn(fixture, { label: 'aud-1', marker: 'AUD1', steps: [
       { name: 'draft_shots', args: { shots: [
-        { role: 'anchor', title: t('小满', 'Xiaoman'), prompt: t('扎马尾的小女孩，红雨衣', 'A girl in a ponytail and red raincoat'), taskKind: 'text_to_image', candidate: img, storyboard: { kind: 'character', carrier: 'visual', scope: 'selective' } },
-        { role: 'anchor', title: t('雨巷', 'Rain alley'), prompt: t('窄巷，霓虹，积水', 'Narrow alley, neon, puddles'), taskKind: 'text_to_image', candidate: img, storyboard: { kind: 'scene', carrier: 'visual', scope: 'selective' } },
-        { title: t('追逐', 'Chase'), prompt: t('小满冲进雨巷，镜头跟拍', 'Xiaoman runs into the alley, tracking'), taskKind: 'text_to_video', durationSec: 5, candidate: vid },
-        { title: t('回头', 'Look back'), prompt: t('她回头，车灯扫过', 'She looks back as headlights sweep'), taskKind: 'text_to_video', durationSec: 5, candidate: vid },
+        { role: 'anchor', title: t('小满', 'Xiaoman'), prompt: t('扎马尾的小女孩，红雨衣', 'A girl in a ponytail and red raincoat'), taskKind: 'text_to_image', model: img, storyboard: { kind: 'character', carrier: 'visual', scope: 'selective' } },
+        { role: 'anchor', title: t('雨巷', 'Rain alley'), prompt: t('窄巷，霓虹，积水', 'Narrow alley, neon, puddles'), taskKind: 'text_to_image', model: img, storyboard: { kind: 'scene', carrier: 'visual', scope: 'selective' } },
+        { title: t('追逐', 'Chase'), prompt: t('小满冲进雨巷，镜头跟拍', 'Xiaoman runs into the alley, tracking'), taskKind: 'text_to_video', durationSec: 5, model: vid },
+        { title: t('回头', 'Look back'), prompt: t('她回头，车灯扫过', 'She looks back as headlights sweep'), taskKind: 'text_to_video', durationSec: 5, model: vid },
       ] } },
       { text: t('分镜写好了，在左侧栏。', 'The storyboard is written; open it in the left column.') },
     ] })
@@ -423,8 +423,8 @@ try {
     r.afterPatchShot1 = { anchors: design2.plan.anchors.map((a) => ({ id: a.id, name: a.name, description: a.description })), shots: design2.plan.shots.map((s) => ({ index: s.index, shotId: s.shotId, prompt: s.prompt })) }
     // ③ 宿主自己的提示「镜头下一轮再补」→ 模型第二次新建 → 左栏多一份
     const turn3 = scriptTurn(fixture, { label: 'aud-3', marker: 'AUD3', steps: [
-      { name: 'draft_shots', args: { shots: [{ role: 'anchor', title: t('阿哲', 'Azhe'), prompt: t('戴眼镜的青年', 'A young man with glasses'), taskKind: 'text_to_image', candidate: img, storyboard: { kind: 'character', carrier: 'visual' } }] } },
-      { name: 'draft_shots', args: { shots: [{ title: t('开场', 'Opening'), prompt: t('阿哲推门走进咖啡店', 'Azhe pushes the door into the cafe'), taskKind: 'text_to_video', durationSec: 5, candidate: vid }, { title: t('对话', 'Talk'), prompt: t('阿哲与店员交谈', 'Azhe talks with the clerk'), taskKind: 'text_to_video', durationSec: 5, candidate: vid }] } },
+      { name: 'draft_shots', args: { shots: [{ role: 'anchor', title: t('阿哲', 'Azhe'), prompt: t('戴眼镜的青年', 'A young man with glasses'), taskKind: 'text_to_image', model: img, storyboard: { kind: 'character', carrier: 'visual' } }] } },
+      { name: 'draft_shots', args: { shots: [{ title: t('开场', 'Opening'), prompt: t('阿哲推门走进咖啡店', 'Azhe pushes the door into the cafe'), taskKind: 'text_to_video', durationSec: 5, model: vid }, { title: t('对话', 'Talk'), prompt: t('阿哲与店员交谈', 'Azhe talks with the clerk'), taskKind: 'text_to_video', durationSec: 5, model: vid }] } },
       { text: t('做好了。', 'Done.') },
     ] })
     await sendCreation(win(), t('AUD3: 做一个咖啡店的分镜，先立角色再排镜头。', 'AUD3: make a cafe storyboard — set up the character first, then the shots.'))

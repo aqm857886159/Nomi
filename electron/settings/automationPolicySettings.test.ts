@@ -88,7 +88,7 @@ describe("automation policy settings", () => {
 
   it("keeps anonymous asset hosting available but normalizes its first-use consent state", () => {
     expect(normalizeAutomationPolicySettings({ anonymousAssetHosting: "allow" }).anonymousAssetHosting).toBe("allow");
-    expect(normalizeAutomationPolicySettings({ anonymousAssetHosting: "deny" }).anonymousAssetHosting).toBe("deny");
+    expect(normalizeAutomationPolicySettings({ anonymousAssetHosting: "deny" }).anonymousAssetHosting).toBe("ask");
     expect(normalizeAutomationPolicySettings({ anonymousAssetHosting: "anything" }).anonymousAssetHosting).toBe("ask");
   });
 

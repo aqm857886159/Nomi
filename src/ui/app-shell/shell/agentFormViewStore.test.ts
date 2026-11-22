@@ -30,10 +30,10 @@ describe('agentFormViewStore', () => {
   it('每页各一份：改一页不动别的页', () => {
     writeWindowNarrow(true, false)
     writeNarrowShown('creation', 'float')
-    writeMachineHold('generation', 'ball')
+    writeMachineHold('generation', 'collapsed')
     const state = useAgentFormViewStore.getState()
     expect(state.narrowBySurface).toEqual({ creation: 'float', storyboard: null, generation: null, preview: null })
-    expect(state.machineBySurface).toEqual({ creation: null, storyboard: null, generation: 'ball', preview: null })
+    expect(state.machineBySurface).toEqual({ creation: null, storyboard: null, generation: 'collapsed', preview: null })
   })
 
   it('跨阈值：各页此刻的覆盖全部作废（宽回来各页是自己存的样子）；同一侧重复报不动', () => {
@@ -53,7 +53,7 @@ describe('agentFormViewStore', () => {
   it('离开项目：机器让位清掉（它指着这个项目的节点），窗宽和窄窗点开跟着窗口不动', () => {
     writeWindowNarrow(true, false)
     writeNarrowShown('creation', 'float')
-    writeMachineHold('generation', 'ball')
+    writeMachineHold('generation', 'collapsed')
     agentFormViewStoreLifetime.releaseProject?.()
     const state = useAgentFormViewStore.getState()
     expect(state.machineBySurface.generation).toBeNull()
@@ -63,7 +63,7 @@ describe('agentFormViewStore', () => {
 
   it('什么都不落盘', () => {
     writeWindowNarrow(true, true)
-    writeNarrowShown('preview', 'ball')
+    writeNarrowShown('preview', 'collapsed')
     writeMachineHold('preview', 'open')
     expect(disk.size).toBe(0)
   })

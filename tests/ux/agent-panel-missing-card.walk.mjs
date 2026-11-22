@@ -53,7 +53,7 @@ try {
     match: (body) => flattenRequestText(body).includes('S_CARD_ASK'),
     reply: { type: 'tool', id: PLAN_CALL, name: 'draft_shots', args: {
       // 20 动词：draft_shots 建草稿（落画布、不出卡），generate 才把报价卡摆到用户面前。
-      shots: [{ prompt: '一个悬浮的六棱柱，柔和的演播室灯光', taskKind: 'text_to_image', candidate: { providerId: FIXTURE_VENDOR, modelId: FIXTURE_IMAGE_MODEL }, parameters: { size: '1024x1024' } }],
+      shots: [{ prompt: '一个悬浮的六棱柱，柔和的演播室灯光', taskKind: 'text_to_image', model: `${FIXTURE_IMAGE_MODEL}@${FIXTURE_VENDOR}`, parameters: { size: '1024x1024' } }],
     } },
   })
   let operationId

@@ -1,3 +1,4 @@
+import { stationTimeout } from './_station-budget.mjs'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查 —— 「我接入的中转站地址填错了，想改」的真实用户旅程（2026-08-18）。
 //
@@ -10,23 +11,26 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 产出: tests/ux/shots/baseurl-discoverability/*.png —— 人眼判断每一屏「看得见改地址吗」。
 //
 // 现场按真实中转站造：一家自定义供应商 + 24 个模型（群里那位是阶跃星辰，地址填错连不上）。
-// 零额度：地址指向本地 mock，401 让它稳定处于「连不上」态——正是用户要去改地址的那一刻。
+// 零额度：地址指向本地 mock 的 401 路由——正是用户要去改地址的那一刻。
 //
-// 回归底线（改版前实测到的三条，别退回去）：
-//   ① 首页那一行必须显示「连不上」——此前只算模型统计，401 的家写着灰色「24 个可使用」
+// 回归底线（别退回去）：
+//   ① 首页那一行和连接详情卡头说同一个状态词（同一个展示投影），且只说本机事实：有 key、有请求格式、
+//      没手动关 → 「N 个可使用」。2026-11-18 D-1117-delete-verification 删了连接健康检查：
+//      此前这里要求首页行显示「连不上」，现在错地址不在设置页预判，等第一次真生成在节点上报错；
+//      所以这一屏也不许出现「验证」「连不上」这类退役说法，打开设置页也不许朝供应商发任何请求。
 //   ② 连接详情页**落地首屏**「修改」地址按钮就得可见可点——此前 y=817 被弹窗（底边 706）裁在窗外
 //   ③ 删除整家的入口恰好 1 个——此前卡头垃圾桶 + 底部按钮两处
 import fs from 'node:fs'
 import http from 'node:http'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+import { uiTextWith } from './full-walk/invariants.mjs'
 import { clickOrFail, expectVisible, expect, screenshotSettled } from './_assert.mjs'
 import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/baseurl-discoverability')
+const shotsDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, 'tests/ux/shots/baseurl-discoverability')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
@@ -38,7 +42,9 @@ fs.mkdirSync(projectsDir, { recursive: true })
 
 // 本地 mock 上游：/v1/wrong-path 回 401（用户填错地址的那一刻），/v1/ok 回 200 + 模型列表
 //（他改对之后）。不碰外网、零额度、结果确定。
+const seen = []
 const server = http.createServer((req, res) => {
+  seen.push(`${req.method} ${req.url}`)
   const ok = req.url?.startsWith('/v1/ok')
   res.writeHead(ok ? 200 : 401, { 'content-type': 'application/json' })
   res.end(JSON.stringify(ok
@@ -103,6 +109,8 @@ const seeded = await win.evaluate(async ({ vendorName, okUrl, wrongUrl }) => {
 }, { vendorName: VENDOR_NAME, okUrl: OK_URL, wrongUrl: WRONG_URL })
 vendorKey = seeded.vendorKey
 console.log(`现场：${VENDOR_NAME} · ${seeded.count} 个模型 · 地址=${WRONG_URL}`)
+// 造现场时保存连接那一下（存 key 的 401/403 闸）可能问过一次上游；从这里起算「用户旅程发了几个请求」。
+seen.length = 0
 
 await win.reload()
 await win.waitForLoadState('domcontentloaded')
@@ -151,7 +159,7 @@ const tabs = await win.evaluate(() => {
   const el = document.querySelector('[data-settings-dialog]')
   if (!el) return null
   return {
-    active: el.querySelector('[data-settings-tab]')?.getAttribute('data-settings-tab') ?? null,
+    active: el.querySelector('[data-settings-tab-id][aria-current="page"]')?.getAttribute('data-settings-tab-id') ?? null,
     ids: [...el.querySelectorAll('[data-settings-tab-id]')].map((b) => ({
       id: b.getAttribute('data-settings-tab-id'),
       label: b.textContent.trim(),
@@ -166,14 +174,19 @@ await step('切到「模型」页签', async () => {
   await snap(win, 'models-home')
 })
 
-// ① 首页那一行必须把「连不上」说出来（用户扫视的就是这一屏）。
+// ① 首页那一行只说本机事实：24 个模型都有 key、有请求格式、没手动关 → 「24 个可使用」，绿点。
+// 地址是错的这件事设置页不预判（连接健康检查已删），打开设置页一个请求都不发。
+const RETIRED = /未验证|待验证|验证中|复验|验证|连不上|未试跑/
+const readyWord = uiTextWith('zh-CN', 'onboardingProviders.modelStatus.count.ready', { count: seeded.count })
 const homeRow = win.locator(`[data-model-home-connection="${vendorKey}"]`)
 await expectVisible(homeRow, '首页已连入行')
-await expect(homeRow, '① 401 的家在首页行要显示「连不上」，不能只报模型统计').toContainText('连不上')
-await expect(
-  win.locator(`[data-model-home-unreachable][data-model-home-connection="${vendorKey}"]`),
-  '① 连不上的行要带 data-model-home-unreachable 标记',
-).toHaveCount(1)
+// board:ModelConnectionStatus/list.row-status
+const homeMark = homeRow.locator('[data-model-status]')
+await expect(homeMark, '① 首页行的状态词只来自展示投影（ModelStatusMark）').toHaveAttribute('data-model-status', 'ready')
+await expect(homeMark, '① 有 key、有格式、没关 → 绿点').toHaveAttribute('data-model-status-tone', 'success')
+await expect(homeMark, '① 行尾说「N 个可使用」').toHaveText(readyWord)
+await expect(homeRow, '① 首页行不许出现退役说法').not.toContainText(RETIRED)
+expect(seen, '① 打开模型设置页不该朝供应商发任何请求（健康检查已删）').toEqual([])
 console.log('  ✓ 首页行：', (await homeRow.innerText()).replace(/\s+/g, ' '))
 
 await step('点进那家中转站', async () => {
@@ -181,6 +194,12 @@ await step('点进那家中转站', async () => {
   await expectVisible(win.locator('[data-vendor-connection-group]'), '连接详情页的「连接」组')
   await snap(win, 'connection-page-top')
 })
+
+// board:ModelConnectionStatus/detail.badge — 详情卡头（详情模式下那颗不可点的头部按钮）的徽标和首页行同一个词。
+const detailMark = win.locator('[data-model-access-entry] > div > button[disabled] [data-model-status]')
+await expect(detailMark, '① 详情卡头徽标和首页行同一个状态').toHaveAttribute('data-model-status', 'ready')
+await expect(detailMark, '① 详情卡头徽标和首页行说同一个词').toHaveText(readyWord)
+await expect(win.locator('[data-settings-model-workspace]'), '① 详情页不许出现退役说法').not.toContainText(RETIRED)
 
 // ── ② 核心：落地首屏「修改」地址就得可见可点（不许靠滚）─────────────────────
 const editAddress = win.locator('[aria-label*="接入地址"]').first()
@@ -223,7 +242,7 @@ const deleteEntries = await win.evaluate(() => {
 console.log('▶ 删除整家的入口：', JSON.stringify(deleteEntries))
 expect(deleteEntries, '③ 删除整家只许有一个家（改版前卡头图标 + 底部按钮 = 2 个）').toHaveLength(1)
 
-// ── R16 真实任务闭环：把地址改对，状态要真的转绿 ──────────────────────────────
+// ── R16 真实任务闭环：把地址改对，地址真的存下、状态照旧 ─────────────────────────
 await step('就地把地址改对', async () => {
   await clickOrFail(editAddress, '「修改」接入地址')
   const input = win.locator('[data-model-connection-field="baseUrl"]')
@@ -237,13 +256,15 @@ await step('就地把地址改对', async () => {
   await snap(win, 'after-fix')
 })
 
-// 地址一改 → useVendorHealth 的 fingerprint 变 → 自动重探；用自动重试的断言等它落地。
-await expect(
-  win.locator('[data-settings-model-workspace]'),
-  'R16：地址改对后不该再挂着「连不上」',
-).not.toContainText('连不上', { timeout: 20_000 })
-await snap(win, 'healed')
-console.log('  ✓ 改对地址后「连不上」已消失')
+// 地址存下的是用户改的那一串（读目录事实，不读界面）；存地址不探连接（健康检查已删），状态词照旧。
+await expect.poll(
+  () => win.evaluate(async (key) => (await window.nomiDesktop.modelCatalog.listVendors()).find((v) => v.key === key)?.baseUrlHint ?? null, vendorKey),
+  { message: 'R16：改对的地址要真的写进目录', timeout: stationTimeout({ operations: 2 }) },
+).toBe(OK_URL)
+await expect(detailMark, 'R16：存地址后状态词照旧').toHaveText(readyWord)
+expect(seen, 'R16：存地址不探连接').toEqual([])
+await snap(win, 'address-saved')
+console.log('  ✓ 改对的地址已写进目录，状态照旧是「可使用」')
 
 // ── 内置家（Higgsfield）走同一份地址字段：共用组件不能只在自定义家那面成立 ────────
 await step('回到模型首页，进内置家 Higgsfield', async () => {

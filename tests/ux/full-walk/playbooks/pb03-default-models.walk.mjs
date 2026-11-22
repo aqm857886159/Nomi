@@ -64,7 +64,7 @@ try {
     steps: [
       { name: 'draft_shots', args: ({ body }) => ({ shots: [omitCandidate
         ? { prompt, taskKind: 'text_to_image', parameters: { aspect_ratio: '1:1' } }
-        : { prompt, taskKind: 'text_to_image', candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: pickImageModel(body) }, parameters: { aspect_ratio: '1:1' } }] }) },
+        : { prompt, taskKind: 'text_to_image', model: `${pickImageModel(body)}@${FIXTURE_APIMART_VENDOR}`, parameters: { aspect_ratio: '1:1' } }] }) },
       { name: 'generate', args: ({ previous }) => ({ operationId: operationIdOf(previous) }) },
       { text: EN ? 'Started.' : '开始生成了。' },
     ],

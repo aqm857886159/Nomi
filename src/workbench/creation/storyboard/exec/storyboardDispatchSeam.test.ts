@@ -23,9 +23,8 @@ vi.mock('../../../library/localProjectStore', () => ({
   readLocalProjectAsync: async (id: string) => structuredClone(calls.disk.get(id) ?? null),
   saveLocalProject: async (id: string, payload: unknown, name: string) => ({ id, name, version: 1, payload }),
 }))
-vi.mock('../../../api/taskApi', () => ({ canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: calls.withdraw, releaseCanvasShotRun: calls.release }))
+vi.mock('../../../api/taskApi', () => ({ canvasResendDecide: (input: Parameters<typeof import('../../../api/canvasResendDecideTestUtils').canvasResendDecideLikeMain>[0]) => import('../../../api/canvasResendDecideTestUtils').then(fake => fake.canvasResendDecideLikeMain(input)), canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: calls.withdraw, releaseCanvasShotRun: calls.release }))
 vi.mock('../../../generationCanvas/runner/generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
-vi.mock('../../../generationCanvas/runner/assetUploadConsent', async original => ({ ...await original<typeof import('../../../generationCanvas/runner/assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
 vi.mock('../../../generationCanvas/runner/nodeModelHealth', () => ({ recordNodeModelFailure: vi.fn(), recordNodeModelSuccess: vi.fn() }))
 vi.mock('../../../../config/useModelOptions', () => ({ preloadModelOptions: async () => [] }))
 vi.mock('../../../../ui/notificationPolicy', async original => ({ ...await original<typeof import('../../../../ui/notificationPolicy')>(), notify: calls.notify }))

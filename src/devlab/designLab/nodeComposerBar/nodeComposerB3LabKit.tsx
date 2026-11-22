@@ -14,6 +14,7 @@ import { useGenerationCanvasStore } from '../../../workbench/generationCanvas/st
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
 import { seedModelCatalogForTests } from '../../../config/modelCatalogCache'
 import type { ModelOption } from '../../../config/models'
+import type { VendorPricePreview } from '../../../../electron/shared/contracts/vendorPricePreview'
 import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../../../workbench/generationCanvas/model/generationCanvasTypes'
 
@@ -174,6 +175,13 @@ export type B3Scenario = {
   modeSwitchNotice?: { modeId: string; count: number }
   /** 失败态：整张错误卡盖住节点正文（E1d）。 */
   error?: string
+  /** 生成中（节点 status = running）：发送键走主干的忙态。 */
+  running?: boolean
+  /**
+   * 发送键上的约价（板 ModelSurfaces cost.send-pill）：桌面桥的 vendorPricePreview 回这一份（和生产同一个取数口）。
+   * null = 算不出；'pending' = 一直没回来（算价中）；缺省 = 实验室没有约价口（今天的样子）。
+   */
+  quote?: VendorPricePreview | null | 'pending'
   locale?: 'zh-CN' | 'en'
   /** 节点宽高（视觉大小）。 */
   size?: { width: number; height: number }
@@ -210,7 +218,7 @@ function buildNodes(scenario: B3Scenario): { nodes: GenerationCanvasNode[]; edge
     prompt: scenario.prompt ?? '',
     position: { x: 0, y: 0 },
     size: scenario.size ?? { width: NODE_WIDTH, height: NODE_HEIGHT },
-    status: scenario.error ? 'error' : 'idle',
+    status: scenario.error ? 'error' : scenario.running ? 'running' : 'idle',
     ...(scenario.error ? { error: scenario.error } : {}),
     meta,
   } as GenerationCanvasNode
@@ -267,11 +275,14 @@ function useLabLocale(locale: B3Scenario['locale']): boolean {
   const override = new URL(window.location.href).searchParams.get('lang')
   const want = override === 'en' ? 'en' : locale ?? 'zh-CN'
   const [applied, setApplied] = React.useState(i18n.language === want)
+  // 只在格子立起来时定一次语言：之后走查在页面里切语言（底栏「切语言要重量」那条特征测试）不被拉回去。
+  const settled = React.useRef(false)
   React.useLayoutEffect(() => {
-    if (i18n.language === want) { setApplied(true); return undefined }
+    if (settled.current) return undefined
+    if (i18n.language === want) { settled.current = true; setApplied(true); return undefined }
     setApplied(false)
     const release = holdDesignLabReady(`b3:locale:${want}`)
-    void i18n.changeLanguage(want).then(() => { setApplied(true); release() })
+    void i18n.changeLanguage(want).then(() => { settled.current = true; setApplied(true); release() })
     return release
   }, [i18n, want])
   return applied
@@ -299,6 +310,14 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
       return
     }
     const videoOptions = scenario.catalog ? realVideoCatalog(scenario.catalog) : [withArchetype(MODELS.seedance), withArchetype(scenario.model === 'seedance25Apimart' ? MODELS.seedance25Apimart : MODELS.seedance25), withArchetype(MODELS.kling4), withArchetype(MODELS.wan), ...EXTRA_VIDEO_OPTIONS, ...(scenario.secondChannel || scenario.channelGap === 'switch' ? [SECOND_CHANNEL] : [])]
+    if (new URLSearchParams(window.location.search).get('models') === '200') {
+      const unique = new Map(videoOptions.map(option => [`${option.vendor}:${option.modelKey}`, option] as const))
+      videoOptions.splice(0, videoOptions.length, ...unique.values())
+      while (videoOptions.length < 200) {
+        const index = videoOptions.length
+        videoOptions.push({ ...withArchetype(MODELS.seedance25), value: `bench-video-${index}`, modelKey: `bench-video-${index}`, label: `Bench video ${index}` })
+      }
+    }
     const imageOptions = [withArchetype(MODELS.imagen), withArchetype(MODELS['gpt-image']), withArchetype(MODELS.soul)]
     seedModelCatalogForTests(HEALTH, [
       { kind: 'video', requiredMode: 'text_to_video', options: videoOptions },
@@ -310,13 +329,21 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
       // 渠道 mapping 全表走桌面桥的 listMappings（和生产同一条取数口）；实验室只给这一个方法。
       ;(window as unknown as { nomiDesktop: unknown }).nomiDesktop = { modelCatalog: { listMappings: () => channelMappings(scenario.channelGap!) } }
     }
+    if (scenario.quote !== undefined) {
+      // 约价也走桌面桥（和生产同一个取数口 useNodePricePreview）；实验室只给这一个方法。
+      const quote = scenario.quote
+      const vendorPricePreview = (): Promise<VendorPricePreview | null> => quote === 'pending' ? new Promise(() => undefined) : Promise.resolve(quote)
+      ;(window as unknown as { nomiDesktop: unknown }).nomiDesktop = { onboarding: { vendorPricePreview } }
+    }
     useWorkbenchStore.setState({ activeCategoryId: 'shots' })
     useGenerationCanvasStore.setState({ nodes: built.nodes, edges: built.edges, selectedNodeIds: [built.targetId] })
     setReady(true)
-  }, [built, scenario.secondChannel, scenario.archetypeId, scenario.kind])
+  }, [built, scenario.secondChannel, scenario.archetypeId, scenario.kind, scenario.quote])
   const node = useGenerationCanvasStore((state) => state.nodes.find((candidate) => candidate.id === built.targetId))
   const stageRef = React.useRef<HTMLDivElement>(null)
 
+  const costWait = scenario.quote === undefined || scenario.quote === 'pending' || scenario.running ? null
+    : scenario.quote ? '[data-send-cost]' : '[data-send-cost-trigger]'
   // 就绪旗等生成框真的长出来（懒加载的 chunk、模型目录、语言都到位）：不等的话截到的是只有节点卡的半成品。
   React.useEffect(() => {
     const release = holdDesignLabReady('b3:mounted')
@@ -324,13 +351,15 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
     const tick = (): void => {
       const root = stageRef.current
       const done = Boolean(root?.querySelector('[data-node-composer-footer] [data-bar-segment="generate"], [data-node-composer-footer] [data-bar-segment="model-params"] button'))
+        // 约价的格还要等约价回来（防抖之后）：有价等硬币和数字长出来，算不出等悬停触发器长出来；算价中、忙态不等。
+        && (costWait === null || Boolean(root?.querySelector(costWait)))
       if (done || frame > 600) { release(); return }
       frame += 1
       requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
     return release
-  }, [])
+  }, [costWait])
 
   // 展开态由取景台**真的点一下**得到（不是另画一份）：等那颗钮真的在了再点。悬停态由走查脚本用真鼠标停上去。
   const wanted = Boolean(scenario.open)

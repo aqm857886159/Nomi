@@ -192,11 +192,15 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
       {draft ? (
         <DesignModal opened onClose={closeDraft} centered size={560} zIndex={101}
           trapFocus={false} returnFocus={false} closeOnEscape={false}
-          contentAttributes={{ 'data-selection-prompt-ui': 'true' }}
+          // 存量锚点（冻结名单 dialogAnchorFreeze.test.ts，生产在读：上面 closest('[data-selection-prompt-ui="true"]') 认点击是不是落在保存卡里）。
+          frozenAnchors={{ 'data-selection-prompt-ui': 'true' }}
           onPointerDown={(event) => event.stopPropagation()}
           closeButtonProps={{ disabled: saving, 'aria-label': t('common.close') }}
-          title={<span className="flex items-center gap-2.5 text-body font-semibold text-nomi-ink">
-            <NomiLogoMark size={22} />{t('generationCommon.savePrompt.title')}
+          // 名字 = 「保存提示词」一句（外壳放进 Modal.Title）；标志走标题栏插槽摆在名字前面。插槽这一格占原来标题元素的位置（行距 1）。
+          title={t('generationCommon.savePrompt.title')}
+          classNames={{ title: 'text-body font-semibold text-nomi-ink' }}
+          header={(name) => <span className="flex items-center gap-2.5 leading-none">
+            <NomiLogoMark size={22} />{name}
           </span>}
           actions={
               <DecisionBar

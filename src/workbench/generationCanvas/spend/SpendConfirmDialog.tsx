@@ -1,7 +1,7 @@
-import React, { type JSX } from 'react'
+import React, { type JSX, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
-import { IconCloud, IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser } from '@tabler/icons-react'
+import { IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser } from '@tabler/icons-react'
 import { DecisionBar, DesignModal, NOMI_OVERLAY_Z_INDEX, WorkbenchButton } from '../../../design'
 import { useSpendConfirmStore, type SpendConfirmState } from './spendConfirm'
 import { ProductionContractSummary } from './ProductionContractSummary'
@@ -18,21 +18,17 @@ import { PlanRows } from '../../shared/PlanRows'
 // - 外部 AI 助手（MCP，source='agent'）：换机器人图标 + 明细行。
 // 审批卡**永不因空闲超时**（2026-09-11 用户拍板）：没有倒计时、没有到点自动决定。钱的闸只有真人能决，
 // 等多久都行——外部调用方那头的超时是它自己的事，不该由我们替用户按下「未确认」。
-// 关闭键的锚点：走查按它点「关掉这张卡」这种关法（四种关法都不花钱那条夜跑走查认它）。
-const CLOSE_ACTION_ANCHOR = { 'data-spend-confirm-action': 'close' }
-
 export function SpendConfirmDialog() {
   const { t } = useTranslation()
   const pending = useSpendConfirmStore((state) => state.pending)
   const resolvePending = useSpendConfirmStore((state) => state.resolvePending)
   const togglePlanRow = useSpendConfirmStore((state) => state.togglePlanRow)
-  const [rememberHosting, setRememberHosting] = React.useState(false)
   // B1：方向门单选（默认选第一个候选）。换 pending 时重置到第一个。
   const directionCandidates = pending?.directionCandidates ?? []
   const [choiceKey, setChoiceKey] = React.useState<string | null>(null)
   // B3 无障碍保障（花钱确认比破坏性删除更重）：外壳是共用的 DesignModal（2026-11-09 起，设计系统 §3.5）——
   // 三种宽度给 size、内容区滚动 + 固定决定栏给 actions 插槽，于是原来那套手写壳（遮罩、焦点陷阱、Esc、
-  // 输入层登记、高度上限）整套删掉，由外壳给：Esc 可关、焦点陷阱、role/aria-modal/aria-labelledby、层级 dialog(9100)。
+  // 输入层登记、高度上限）整套删掉，由外壳给：Esc 可关、焦点陷阱、role/aria-modal/aria-labelledby（名字 = 标题一句）、层级 dialog(9100)。
   // 这里只留外壳给不了的两件：返回焦点（卡是挂上 / 卸下，不是开 / 关，Mantine 的还焦点不触发）、回车 = 主动作。
   const open = Boolean(pending)
 
@@ -50,27 +46,12 @@ export function SpendConfirmDialog() {
     }
   }, [open])
 
-  // E2E 专用桥（照 ConfirmDialogHost 既有写法）：仅当 localStorage['__nomiE2E']==='1' 时把**真实**
-  // requestConfirm 挂到 window，供 R13 走查在真 app 里驱动同一条渲染管线取证键盘/无障碍保障
-  // （见 tests/ux/spend-confirm-a11y.walk.mjs）。生产从不置该标志 → 永不暴露，非并行实现。
-  React.useEffect(() => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage?.getItem('__nomiE2E') === '1') {
-        ;(window as unknown as { __nomiSpendConfirmE2E?: SpendConfirmState['requestConfirm'] }).__nomiSpendConfirmE2E =
-          useSpendConfirmStore.getState().requestConfirm
-      }
-    } catch {
-      // localStorage 不可用 → 跳过
-    }
-  }, [])
-
   const isMultiShot = pending?.kind === 'contract' && Boolean(pending.contract?.shotList)
   // P4 §3.2 形象确认卡：与多镜卡同款「滚动内容区 + 固定决定栏」（~560px），决定栏是它自己的（先不拍/开拍/重拍）。
   const isAnchorCheckpoint = pending?.kind === 'anchorCheckpoint' && Boolean(pending.anchorCheckpoint)
 
   React.useEffect(() => {
     setChoiceKey(pending?.directionCandidates?.[0]?.key ?? null)
-    setRememberHosting(false)
   }, [pending])
 
   if (!pending) return null
@@ -95,32 +76,34 @@ export function SpendConfirmDialog() {
       return
     }
     if (directionCandidates.length) pending.onDirectionDecision?.(choiceKey)
-    resolvePending(true, rememberHosting)
+    resolvePending(true)
   }
 
   const width = pending.kind === 'contract' ? 680 : isAnchorCheckpoint ? 560 : 380
   const close = (): void => resolvePending(false)
   const agentNotice = isAgent ? t(pending.kind === 'plan' ? 'generationCommon.spend.agentNoticePlan' : 'generationCommon.spend.agentNotice') : null
-  const header = (
-    <span className={cn('flex min-w-0 items-center gap-2.5')}>
-      <span
-        className={cn(
-          'shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-nomi',
-          isAgent ? 'bg-nomi-ink text-nomi-paper' : 'bg-nomi-accent-soft text-nomi-accent',
-        )}
-      >
-        <Icon size={18} aria-hidden />
-      </span>
-      <span className={cn('min-w-0 flex-1')}>
-        <span className={cn('block text-title font-medium text-nomi-ink truncate')}>{pending.title}</span>
-        {isAgent ? (
-          // 副标留在标题栏里（样子不变），但不进对话框的名字：Mantine 的 aria-labelledby 指向整个标题元素，
-          // 迁移前名字只有标题一句；这里 aria-hidden，副标另在正文最前面给读屏念一遍（sr-only）。
-          <span aria-hidden="true" className={cn('block text-micro text-nomi-ink-60')}>
-            {/* 方案门免费 → 副标不提「花费」（否则与「不花额度」正文自相矛盾，2026-08-02 走查抓出）。 */}
-            {agentNotice}
-          </span>
-        ) : null}
+  // 标题栏：图标 + 名字 + （Agent 发起时）副标。名字元素由外壳给（Modal.Title，对话框的名字就是标题这一句）；
+  // 副标在标题栏里紧跟名字（阅读顺序上就在名字后面），不进名字。最外层这一格占的是原来标题元素的位置（铺满关闭键左边）。
+  const header = (title: ReactNode): JSX.Element => (
+    <span className={cn('block min-w-0 flex-1')}>
+      <span className={cn('flex min-w-0 items-center gap-2.5')}>
+        <span
+          className={cn(
+            'shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-nomi',
+            isAgent ? 'bg-nomi-ink text-nomi-paper' : 'bg-nomi-accent-soft text-nomi-accent',
+          )}
+        >
+          <Icon size={18} aria-hidden />
+        </span>
+        <span className={cn('min-w-0 flex-1')}>
+          {title}
+          {isAgent ? (
+            <span className={cn('block text-micro text-nomi-ink-60')}>
+              {/* 方案门免费 → 副标不提「花费」（否则与「不花额度」正文自相矛盾，2026-08-02 走查抓出）。 */}
+              {agentNotice}
+            </span>
+          ) : null}
+        </span>
       </span>
     </span>
   )
@@ -135,8 +118,9 @@ export function SpendConfirmDialog() {
       padding="md"
       zIndex={NOMI_OVERLAY_Z_INDEX.dialog}
       transitionProps={{ duration: 0 }}
-      title={header}
-      closeButtonProps={{ 'aria-label': t('common.close'), ...CLOSE_ACTION_ANCHOR }}
+      title={pending.title}
+      header={header}
+      closeButtonProps={{ 'aria-label': t('common.close') }}
       // 打开时焦点落在对话框本体（读屏会念标题），**刻意不落在「确认花钱」上**——那是不可逆动作，不该被一个回车顺手按掉。
       initialFocus="dialog"
       // 回车 = 主动作，但只在焦点停在对话框本体（或卡里非控件处）时：焦点在按钮 / 输入框上时回车归那个控件。
@@ -148,17 +132,16 @@ export function SpendConfirmDialog() {
         event.preventDefault()
         primaryAction()
       }}
-      // 走查/工具的稳定锚点落在对话框本体（带 role="dialog" 的那一层）上。
-      contentAttributes={{ 'data-spend-confirm-dialog': pending.kind ?? 'generation' }}
+      // 存量锚点（冻结名单 dialogAnchorFreeze.test.ts）：几十个走查按它的取值认门类，落在对话框本体上。
+      frozenAnchors={{ 'data-spend-confirm-dialog': pending.kind ?? 'generation' }}
       classNames={{
         content: 'rounded-nomi-lg border border-nomi-line bg-nomi-paper shadow-nomi-md outline-none',
         header: 'min-h-0 pb-2 bg-nomi-paper',
-        // Mantine 的标题行距是 1；这里标题下还有一行 Agent 副标，行距跟回正文（迁移前手写标题栏的样子）。
-        title: 'min-w-0 flex-1 leading-[inherit]',
+        // 名字那一句。Mantine 的标题行距是 1；这里跟回正文（迁移前手写标题栏的样子），标题下还有一行 Agent 副标。
+        title: 'block min-w-0 truncate text-title font-medium leading-[inherit] text-nomi-ink',
       }}
       actions={actions}
     >
-      {agentNotice ? <span className={cn('sr-only')}>{agentNotice}</span> : null}
       {content}
     </DesignModal>
   )
@@ -167,7 +150,7 @@ export function SpendConfirmDialog() {
     return (
       <AnchorCheckpointCard
         model={pending.anchorCheckpoint}
-        onApprove={() => resolvePending(true, false)}
+        onApprove={() => resolvePending(true)}
         onDefer={() => resolvePending(false)}
         onRework={(shotIds) => {
           const cb = pending.onRework
@@ -195,7 +178,7 @@ export function SpendConfirmDialog() {
         cb?.()
       },
       onIgnore: () => resolvePending(false),
-      onConfirm: () => resolvePending(true, false),
+      onConfirm: () => resolvePending(true),
       t,
     })
     return frame(parts.content, parts.footer)
@@ -207,35 +190,6 @@ export function SpendConfirmDialog() {
 
       {pending.planRows?.length ? (
         <PlanRows rows={pending.planRows} onToggle={togglePlanRow} className="mb-3" />
-      ) : null}
-
-      {pending.hostingDisclosure ? (
-        // 「记住我的选择」住在披露块**内部**，不和下面「本次会话不再提示」并排。
-        // 起因（2026-08-26 用户拍板）：两个勾选框曾贴在一起、长得一模一样，但管的是两件事、
-        // 两种作用域——一个管这张花钱卡（本会话），一个把 anonymousAssetHosting 永久设成 allow。
-        // 并排时得逐字读标签才分得清，误勾的代价是「以后本机素材静默上传公共托管」。
-        // 按 §1.5.3「先分组」：把勾选框搬进它作用的那个对象里，作用域一眼可见（也是「一功能一个家」的视觉版）。
-        <div
-          data-hosting-disclosure="true"
-          className={cn('mb-3 flex gap-2 rounded-nomi-sm bg-nomi-ink-05 px-3 py-2.5 text-caption leading-relaxed text-nomi-ink-80')}
-        >
-          <IconCloud size={17} stroke={1.7} className={cn('mt-0.5 shrink-0 text-nomi-ink-60')} aria-hidden="true" />
-          <div className={cn('min-w-0 grid gap-2')}>
-            <div className={cn('min-w-0')}>{pending.hostingDisclosure.message}</div>
-            {/* 细分隔线：让「说明」与「这条说明对应的选择」分段，但仍同属一张托管卡（§1.5.3 分段要有边界）。 */}
-            <label
-              data-hosting-remember="true"
-              className={cn('flex items-center gap-2 border-t border-nomi-line-soft pt-2 cursor-pointer select-none text-nomi-ink-60')}
-            >
-              <input
-                type="checkbox"
-                checked={rememberHosting}
-                onChange={(event) => setRememberHosting(event.currentTarget.checked)}
-              />
-              {pending.hostingDisclosure.rememberLabel}
-            </label>
-          </div>
-        </div>
       ) : null}
 
       {directionCandidates.length ? (
@@ -440,5 +394,18 @@ function multiShotCardParts(props: {
  */
 export function SpendConfirmHost(): JSX.Element | null {
   const pending = useSpendConfirmStore((state) => Boolean(state.pending))
+  // E2E 专用桥（照 ConfirmDialogHost 既有写法），全 app 只在这一处挂：仅当 localStorage['__nomiE2E']==='1' 时把**真实**
+  // requestConfirm 挂到 window，供走查在真 app 里驱动同一条确认管线（见 tests/ux/spend-confirm-a11y.walk.mjs）。
+  // 挂在常驻的宿主上（卡本身只在有待确认时才挂）。生产从不置该标志 → 永不暴露，非并行实现。
+  React.useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage?.getItem('__nomiE2E') === '1') {
+        ;(window as unknown as { __nomiSpendConfirmE2E?: SpendConfirmState['requestConfirm'] }).__nomiSpendConfirmE2E =
+          useSpendConfirmStore.getState().requestConfirm
+      }
+    } catch {
+      // localStorage 不可用 → 跳过
+    }
+  }, [])
   return pending ? <SpendConfirmDialog /> : null
 }

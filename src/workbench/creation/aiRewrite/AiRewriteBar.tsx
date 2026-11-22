@@ -17,7 +17,7 @@ import {
   isWritingSkill,
   toRewriteSkillRef,
 } from './rewritePrompt'
-import { REWRITE_SLOT_ATTRIBUTE, type RewriteRequirement } from './rewriteSession'
+import { REWRITE_SLOT_ATTRIBUTE, getRewriteSession, shouldAutoFocusRewriteInput, type RewriteRequirement } from './rewriteSession'
 
 /** 条的落脚处：文档里跟在这一段后面的那个块级空位（插件的装饰画出来的，每次事务后可能换一份 DOM，所以跟着事务重找）。 */
 function useRewriteSlot(editor: Editor | null, sessionId: number | null): HTMLElement | null {
@@ -72,6 +72,7 @@ type OpenGroup = 'tone' | 'translate' | null
 export function AiRewriteBar({ editor, rewrite }: { editor: Editor | null; rewrite: AiRewrite }): JSX.Element | null {
   const { t, i18n } = useTranslation()
   const { controller, session } = rewrite
+  const barRef = React.useRef<HTMLDivElement | null>(null)
   const inputRef = React.useRef<HTMLInputElement | null>(null)
   const [draft, setDraft] = React.useState('')
   const [openGroup, setOpenGroup] = React.useState<OpenGroup>(null)
@@ -92,11 +93,25 @@ export function AiRewriteBar({ editor, rewrite }: { editor: Editor | null; rewri
     if (committedText) setDraft(committedText)
   }, [committedText])
 
-  // 打开和每次状态变化（出结果 / 失败）都把焦点放回输入框：Enter 接受、Esc 放弃都从这里发。
+  // 打开菜单，或焦点仍在条内 / 待改区间内时状态变化（出结果 / 失败）把焦点放回输入框；若用户已去别处打字则绝不抢焦点。
   const placed = slot !== null
   React.useEffect(() => {
-    if (sessionId !== null && placed) inputRef.current?.focus({ preventScroll: true })
-  }, [sessionId, status, placed])
+    if (!editor || editor.isDestroyed || sessionId === null || status === null || !placed) return
+    const live = getRewriteSession(editor.state)
+    if (!live) return
+    const active = document.activeElement
+    if (
+      shouldAutoFocusRewriteInput({
+        state: editor.state,
+        session: live,
+        editorFocused: Boolean(active && editor.view.dom.contains(active)),
+        barContainsFocus: Boolean(active && barRef.current?.contains(active)),
+        bodyOrNullFocused: active === null || active === document.body,
+      })
+    ) {
+      inputRef.current?.focus({ preventScroll: true })
+    }
+  }, [editor, sessionId, status, placed])
 
   if (!editor || !controller || !session || !slot) return null
 
@@ -139,6 +154,7 @@ export function AiRewriteBar({ editor, rewrite }: { editor: Editor | null; rewri
 
   return createPortal(
     <div
+      ref={barRef}
       className={cn(
         'workbench-ai-rewrite-bar',
         'relative flex w-full flex-col gap-1.5 p-1.5 text-left font-sans',

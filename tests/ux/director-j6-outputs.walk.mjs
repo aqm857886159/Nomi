@@ -3,6 +3,7 @@
 //           进机位录一段运镜 → 再录 MP4 → devlab 没有 ffmpeg 桥：采满帧后明说「无法编码」而不是假成功。
 // 证据：产物落进工程（只存句柄）、弹层文案、两句诚实的降级提示、录制进度按钮出现过、截图。
 // 用法：node tests/ux/director-j6-outputs.walk.mjs
+import { expect } from '@playwright/test'
 import { addCameraPreset, clickOrFail, directorText, expectVisible, launchDirectorLab, placeCharacter } from './_directorLab.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
@@ -33,7 +34,7 @@ try {
   await clickOrFail(outputsButton, '顶栏·产出 1')
   const popover = page.locator('[data-nomi-escape-layer="director-popover"]').first()
   await expectVisible(popover, '产出弹层没打开')
-  check('弹层列出截图', (await popover.getByText(shot.name).count()) === 1)
+  check('弹层列出截图', await expect(popover.getByText(shot.name)).toHaveCount(1).then(() => true, () => false))
   const send = popover.getByRole('button', { name: await directorText(page, 'timeline.outputSendToCanvas'), exact: true }).first()
   // 原因挂在包着按钮的 span 的 title 上（禁用按钮自身收不到 hover）
   const sendReason = await send.locator('xpath=..').getAttribute('title')

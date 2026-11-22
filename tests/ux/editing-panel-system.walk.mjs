@@ -251,7 +251,7 @@ try {
 
   // 文字片段没有 data-testid，认它自己的类名 + data-text-clip-id（见 TimelineTextTrack.tsx）。
   const textClip = win.locator('.workbench-preview .workbench-timeline-text-clip[data-text-clip-id]:visible').first()
-  if (await textClip.count()) {
+  if (await textClip.waitFor({ state: 'visible' }).then(() => true, () => false)) {
     await clickOrFail(textClip, '选中字幕')
     await win.waitForTimeout(500)
     const textState = await readInspector()

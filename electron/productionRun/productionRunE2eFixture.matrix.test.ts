@@ -60,8 +60,8 @@ describe('production E2E fixture owner matrix', () => {
       'electron/capabilityCore/apimartGenerationProvider.ts',
       'electron/capabilityCore/generationProviderBootstrap.ts',
       'electron/catalog/userVendorBase.ts',
-      'electron/capabilityCore/appIntegration.ts',
-      'electron/capabilityCore/mcpStdioServer.ts',
+      // 两个宿主以前各读一遍；生成的接线收成一处之后只有工厂读。
+      'electron/capabilityCore/generationDomain.ts',
     ]
     for (const relative of callPoints) {
       const source = fs.readFileSync(path.join(root, relative), 'utf8')

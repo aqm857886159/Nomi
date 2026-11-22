@@ -1,6 +1,6 @@
 /**
  * 「一个已经做完的项目」夹具：创作区有文稿、生成画布有成片节点、预览时间轴有排好的 clip。
- * 零模型、零额度、零网络——图片是当场写盘的 SVG，走 nomi-local 协议。
+ * 零模型、零额度、零网络——图片复用仓库已有的细节测试 PNG，预览和导出都能解码；不作为真实素材或性能验收。
  *
  * 为什么需要它（2026-08-18）：`dark-journey.walk.mjs` 号称走 J1-J5，实际跑在一个**空**的
  * 隔离 profile 上——库里一个项目都没有。于是「打开示例项目」那一步的两个候选定位器都是 0，
@@ -21,6 +21,9 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
+import ffprobe from '@ffprobe-installer/ffprobe'
 
 /** 时间轴帧率与「一张图占多久」。与 buildClipFromGenerationNode 的默认一致（图 3 秒）。 */
 const FPS = 30
@@ -28,16 +31,15 @@ const IMAGE_FRAMES = 90
 
 /**
  * 6 个镜头，内容取自引导示例片「修好一个小机器人」（`src/workbench/onboarding/demoProject.ts`）。
- * 配色逐镜推进（暮色小巷 → 台灯暖光 → 屋顶夕阳），这样暗色走查的每张截图都有真实明暗层次可看，
- * 而不是一片灰底占位。
+ * 六个独立镜头保留文稿、节点和时间轴对应关系；图片内容是已存在的解码测试图案，不冒充故事成片。
  */
 const SHOTS = [
-  { id: 'shot-1', title: '① 黄昏小巷', prompt: '黄昏小巷远景，坏掉的小机器人歪在墙角，零件散落，暖光斜照。', sky: '#2c3550', glow: '#e8a13c' },
-  { id: 'shot-2', title: '② 蹲下相遇', prompt: '小孩蹲下，好奇地看着墙角的小机器人，中景。', sky: '#33384f', glow: '#f0b45a' },
-  { id: 'shot-3', title: '③ 抱回家', prompt: '小孩抱起小机器人走回家，背影跟镜。', sky: '#2a2f44', glow: '#d9873a' },
-  { id: 'shot-4', title: '④ 台灯下修理', prompt: '台灯下，小孩用螺丝刀专注地修理，手部特写。', sky: '#241f2e', glow: '#ffd08a' },
-  { id: 'shot-5', title: '⑤ 灯亮了', prompt: '小机器人胸口的暖黄小灯「叮」地亮起，眼睛点亮，特写。', sky: '#1d2233', glow: '#ffe27a' },
-  { id: 'shot-6', title: '⑥ 屋顶夕阳', prompt: '屋顶上两个并排坐着，背对镜头看远方，中景。', sky: '#3d3350', glow: '#ff9b54' },
+  { id: 'shot-1', title: '① 黄昏小巷', prompt: '黄昏小巷远景，坏掉的小机器人歪在墙角，零件散落，暖光斜照。' },
+  { id: 'shot-2', title: '② 蹲下相遇', prompt: '小孩蹲下，好奇地看着墙角的小机器人，中景。' },
+  { id: 'shot-3', title: '③ 抱回家', prompt: '小孩抱起小机器人走回家，背影跟镜。' },
+  { id: 'shot-4', title: '④ 台灯下修理', prompt: '台灯下，小孩用螺丝刀专注地修理，手部特写。' },
+  { id: 'shot-5', title: '⑤ 灯亮了', prompt: '小机器人胸口的暖黄小灯「叮」地亮起，眼睛点亮，特写。' },
+  { id: 'shot-6', title: '⑥ 屋顶夕阳', prompt: '屋顶上两个并排坐着，背对镜头看远方，中景。' },
 ]
 
 /** 创作区文稿正文（同一个故事的散文版，让 J2 那屏有真字可读、可截图对账）。 */
@@ -48,18 +50,6 @@ const STORY_PARAGRAPHS = [
   '当最后一颗螺丝拧紧，小机器人的眼睛「叮」地亮了起来。',
   '两个人爬上屋顶，并排坐着，看夕阳一点点沉下去。',
 ]
-
-function shotSvg(shot, index) {
-  // 纯几何，不依赖任何字体/外链——换机器、换平台渲染结果一致。
-  return [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">',
-    `<rect width="960" height="540" fill="${shot.sky}"/>`,
-    `<circle cx="${180 + index * 120}" cy="210" r="96" fill="${shot.glow}" opacity="0.85"/>`,
-    `<rect x="0" y="392" width="960" height="148" fill="#000" opacity="0.35"/>`,
-    `<rect x="48" y="440" width="${72 + index * 28}" height="14" rx="7" fill="${shot.glow}"/>`,
-    '</svg>',
-  ].join('')
-}
 
 function buildDocument(title, updatedAt) {
   return {
@@ -129,10 +119,12 @@ export function seedFinishedJourneyProject({ projectsDir, projectId = 'dark-jour
   fs.mkdirSync(generatedDir, { recursive: true })
   fs.mkdirSync(path.join(projectRoot, 'exports'), { recursive: true })
 
+  const imagePath = fileURLToPath(new URL('./hires-detail-1024x1792.png', import.meta.url))
+  const imageGeometry = JSON.parse(execFileSync(ffprobe.path, ['-v', 'error', '-show_streams', '-of', 'json', imagePath], { encoding: 'utf8' })).streams.find((stream) => stream.codec_type === 'video')
   const now = Date.now()
   const nodes = SHOTS.map((shot, index) => {
-    const fileName = `${shot.id}.svg`
-    fs.writeFileSync(path.join(generatedDir, fileName), shotSvg(shot, index))
+    const fileName = `${shot.id}.png`
+    fs.copyFileSync(imagePath, path.join(generatedDir, fileName))
     return {
       id: shot.id,
       kind: 'image',
@@ -149,7 +141,7 @@ export function seedFinishedJourneyProject({ projectsDir, projectId = 'dark-jour
         url: `nomi-local://asset/${encodeURIComponent(projectId)}/assets/generated/${fileName}`,
         createdAt: now,
       },
-      meta: { imageWidth: 960, imageHeight: 540 },
+      meta: { imageWidth: imageGeometry.width, imageHeight: imageGeometry.height },
     }
   })
 

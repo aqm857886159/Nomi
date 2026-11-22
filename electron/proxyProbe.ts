@@ -1,7 +1,7 @@
 // 出站连通探测（纯逻辑，**不引 electron**，故可零网络单测）。
 // 从 proxyIpc 抽出来的原因同 systemProxy：那个模块 import 了 ipcMain/session，
 // 一旦把纯函数留在里面就再也没法在纯 Node 下直测。
-import { LITTERBOX_INGESTION, TMPFILES_INGESTION } from "./catalog/assetLocalization";
+import { anonymousAssetHostingOrigins } from "./catalog/assetLocalization";
 import { describeNetworkError } from "./systemProxy";
 import { appFetch } from "./appFetch";
 
@@ -15,19 +15,7 @@ const PROBE_TIMEOUT_MS = 8000;
  * 厂商能不能连是「那家厂商」的事，图床能不能连是「代理配没配对」的事。
  */
 export function probeTargets(): string[] {
-  const endpoints = [LITTERBOX_INGESTION, TMPFILES_INGESTION]
-    .map((ing) => (ing.strategy === "upload-multipart" ? ing.endpoint : ""))
-    .filter(Boolean);
-  const origins: string[] = [];
-  for (const endpoint of endpoints) {
-    try {
-      const origin = new URL(endpoint).origin;
-      if (!origins.includes(origin)) origins.push(origin);
-    } catch {
-      /* 声明里的地址坏了就跳过，探测不该因此抛 */
-    }
-  }
-  return origins;
+  return anonymousAssetHostingOrigins();
 }
 
 export type ProxyProbeAttempt = { target: string; ok: boolean; ms: number; error: string };

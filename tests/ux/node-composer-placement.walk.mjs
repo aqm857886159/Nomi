@@ -136,9 +136,8 @@ async function measure() {
       clusterText: (footer?.querySelector('[data-prompt-tool-cluster="true"]')?.textContent || '').trim(),
       // 提示词区右端一件控件都不留（v1.1 的第一条主张）。
       promptControlCount: card.querySelectorAll('[data-node-composer-prompt] button, [data-node-composer-prompt] [data-prompt-tool]').length,
-      // 锁：浮框里一把都不该有，节点浮条上必须有且只有一把。
-      lockInComposer: card.querySelectorAll('[data-node-lock]').length,
-      lockOnToolbar: document.querySelectorAll('[data-node-floating-toolbar="true"] [data-node-lock]').length,
+      // 节点锁已撤掉：整页一把锁都不该有。
+      lockAnywhere: document.querySelectorAll('[data-node-lock]').length,
       // 参数区是摘要 pill：那串摘要本身挂在 pill 上，读它比读截图可靠，
       // 也不依赖中文 aria-label（换个语言就断了）。pill 不在时是 null（区别于「在但是空串」）。
       parameterSummary: card.querySelector('[data-parameter-summary]')?.getAttribute('data-parameter-summary') ?? null,
@@ -203,9 +202,9 @@ function checkComposerBarV1(label, m) {
     `簇 ${m.clusterTools.length} 颗 / 提示词区 ${m.promptControlCount} 个控件`,
   )
   check(
-    `${label} 锁在节点浮条上、浮框里一把都没有（基线：浮条上确实有一把）`,
-    m.lockOnToolbar === 1 && m.lockInComposer === 0,
-    `浮条 ${m.lockOnToolbar} 把 / 浮框 ${m.lockInComposer} 把`,
+    `${label} 节点锁已撤掉：整页一把锁都没有`,
+    m.lockAnywhere === 0,
+    `页面上 ${m.lockAnywhere} 把`,
   )
   // 参数区是**一颗读得出当前配置、点得到的摘要 pill**（v1.1；「点开真能改」由 ⑤.6 在视频节点上
   // 真点一次，不在这里靠肉眼）。

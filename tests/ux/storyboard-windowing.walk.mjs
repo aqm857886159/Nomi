@@ -17,6 +17,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { expect } from '@playwright/test'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { MIN_WINDOW } from './_minWindow.mjs'
@@ -183,8 +184,8 @@ async function passZhLight() {
 
     // ③ 焦点在编辑器里滚走：这一行钉住不卸；回来 Ctrl+Z 撤销刚打的字
     await scrollTo(win, 'middle')
-    const pinned = await win.locator(rowSel(1)).count()
-    check(pinned === 1, '③ 正在编辑的行滚出视口仍挂着（输入不丢）')
+    const pinned = await expect(win.locator(rowSel(1))).toHaveCount(1).then(() => true, () => false)
+    check(pinned, '③ 正在编辑的行滚出视口仍挂着（输入不丢）')
     await shot(win, 'zh-light-middle')
     await scrollTo(win, 'top')
     const typed = await win.locator(promptBox(1)).innerText()
@@ -400,7 +401,7 @@ async function passZhLight() {
     // ⑧ 滚到底：末镜挂上
     await scrollTo(win, 'bottom')
     const bottom = await mounted(win)
-    check(await win.locator(rowSel(SHOTS + 1)).count() === 1, '⑧ 滚到底末镜挂着')
+    check(await expect(win.locator(rowSel(SHOTS + 1))).toHaveCount(1).then(() => true, () => false), '⑧ 滚到底末镜挂着')
     check(bottom.rows <= 16, '⑧ 滚到底仍只挂视口附近的行', `${bottom.rows}`)
     await shot(win, 'zh-light-bottom')
   } finally {

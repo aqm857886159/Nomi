@@ -5,8 +5,8 @@
 //
 // 每一步量真实像素，再查这一类的不变量：
 //   ① 窄窗只改「显示」：拖着窗口 1100 ↔ 700 来回三次，存下的形态、Nomi 宽、左栏抽屉宽、项目里的版面一个字节不变；
-//   ② 只有一个判断「窗口宽 < 1060」：停靠的页此刻显示成小球，点开是浮窗，「停靠」变灰并说为什么；宽回来自动停回；
-//   ③ 跨阈值的过渡每次跨只播一次（拖动途中不连播），减弱动效时直接换；
+//   ② 只有一个判断「窗口宽 < 1060」：停靠的页此刻显示成收起（叫回入口在顶栏最右，NomiEntryTopbar 板），点开是浮窗，「停靠」变灰并说为什么；宽回来自动停回；
+//   ③ 拉宽跨回阈值时停回的过渡每次跨只播一次（拖动途中不连播），拉窄直接收进顶栏入口、不播；减弱动效时直接换；
 //   ④ 怎么都不让（L1）：分段、项目菜单、任务中心、设置、左栏、各页主体与它们的按钮，700 / 756 / 960 / 1100 都整个在窗内。
 // 零额度：空画布 + 只有元数据的时间轴，不发消息、不碰任何生成。两轮：中文·浅色、英文·暗色。
 // Run: pnpm run build && node tests/ux/window-narrow-shell.walk.mjs
@@ -18,8 +18,8 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import {
-  AGENT_BALL, AGENT_PANEL, CANVAS_ADD_BAR, CANVAS_ZOOM_BAR, COLLAPSE_BUTTON, closeRailDrawer, closeSettings, ensureAgentPanelOpen, openRailDrawer, openSettings,
-  railDrawerPanel, settingsDialog, switchWorkspace,
+  AGENT_PANEL, CANVAS_ADD_BAR, CANVAS_ZOOM_BAR, COLLAPSE_BUTTON, closeRailDrawer, closeSettings, ensureAgentPanelOpen, openRailDrawer, openSettings,
+  NOMI_ENTRY, NOMI_ENTRY_COLLAPSED, railDrawerPanel, settingsDialog, switchWorkspace,
 } from './_shell.mjs'
 import { COMPOSER, COMPOSER_INPUT } from './agent-runtime-walk-support.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
@@ -50,12 +50,8 @@ const STEP = 25
 const BOARD = {
   minSize: 'board:WindowNarrow/window.min-size',
   tier: 'board:WindowNarrow/shell.narrow-tier',
-  ballNarrow: 'board:WindowNarrow/agent.ball-narrow',
-  pill: 'board:WindowNarrow/agent.pill-confirm',
   float: 'board:WindowNarrow/agent.float-narrow',
   dockDisabled: 'board:WindowNarrow/agent.form-switch-dock-disabled',
-  ballTip: 'board:WindowNarrow/agent.ball-hover-tip',
-  motion: 'board:WindowNarrow/agent.collapse-motion',
   tight: 'board:WindowNarrow/composer.tight',
   noWriteback: 'board:WindowNarrow/shell.panel-width-no-writeback',
   exportIcon: 'board:WindowNarrow/topbar.export-icon',
@@ -244,14 +240,15 @@ async function runRound({ locale, scheme, tag, projectName }) {
     await win.evaluate(() => {
       window.__narrowMotion = []
       document.addEventListener('animationstart', (event) => {
-        if (/nomi-agent-(gather|dock-in)/.test(event.animationName)) window.__narrowMotion.push(event.animationName)
+        if (/nomi-agent-/.test(event.animationName) && !/blink|scan|hop|spin/.test(event.animationName)) window.__narrowMotion.push(event.animationName)
       }, true)
     })
     const motionCount = () => win.evaluate(() => window.__narrowMotion.slice())
 
     const dockLayer = win.locator('[data-shell-agent-layer][data-agent-form="dock"]')
-    const narrowBall = win.locator('[data-agent-ball-narrow="true"]')
-    // 落盘那份整份逐字节比，含 Nomi 栏开合（visibility.assistant）：外壳按形态同步的只是显示态，窄窗收成小球不许让项目落盘
+    // 窄窗里停靠的页显示成收起：叫回入口是顶栏最右那颗（没按下）；内容区不再有小球（NomiEntryTopbar 板）。
+    const narrowCollapsed = win.locator(NOMI_ENTRY_COLLAPSED)
+    // 落盘那份整份逐字节比，含 Nomi 栏开合（visibility.assistant）：外壳按形态同步的只是显示态，窄窗收起不许让项目落盘
     // （主线「打开不写」把显示态和落盘那份拆开后，这里不再给开合留例外）。
     const readDisk = () => JSON.stringify(JSON.parse(fs.readFileSync(projectFile, 'utf8')).payload?.editingPanelLayout ?? null)
     const snapshot = async () => ({
@@ -292,11 +289,11 @@ async function runRound({ locale, scheme, tag, projectName }) {
     check(`${BOARD.noWriteback} 起点：存的 Nomi 宽 390`, JSON.parse(before.layout).assistantWidth === 390, before.layout)
     for (let trip = 1; trip <= 3; trip += 1) {
       await drag(WIDE, NARROW)
-      await expect(narrowBall.first(), `第 ${trip} 次拖到 700：停靠的 Nomi 没有收成小球`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+      await expect(narrowCollapsed.first(), `第 ${trip} 次拖到 700：停靠的 Nomi 没有收起（顶栏入口没回到收着）`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
       await checkAbsent(`${BOARD.tier} 第 ${trip} 次 700：没有停靠栏`, dockLayer, dockProof)
       const narrow = await snapshot()
       check(`${BOARD.noWriteback} 第 ${trip} 次 700：存的形态 / 抽屉宽 / Nomi 宽不变`, narrow.form === before.form && narrow.shellLayout === before.shellLayout && JSON.parse(narrow.layout).assistantWidth === 390, diffKeys(before, narrow).join(','))
-      if (trip === 1) await shot(win, 'creation-700-ball')
+      if (trip === 1) await shot(win, 'creation-700-collapsed')
       // 人在 700 停一下（够自动保存防抖 700ms + 写盘）：这时直接关窗，项目文件就是这一份——必须还是拖窄之前那份。
       await win.waitForTimeout(1500)
       const heldNarrow = readDisk()
@@ -313,23 +310,24 @@ async function runRound({ locale, scheme, tag, projectName }) {
     console.log(`  · 三趟拉回 1100 后四份存档落定用时（ms，含自动保存防抖 700）：${settleLog.join(' / ')}`)
     {
       const motions = await motionCount()
-      const gather = motions.filter((name) => name.includes('gather')).length
       const dockIn = motions.filter((name) => name.includes('dock-in')).length
-      check(`${BOARD.motion} 拖动途中不连播：来回三次 = 收拢 3 次 + 停回 3 次`, gather === 3 && dockIn === 3, `收拢 ${gather} / 停回 ${dockIn}`)
+      const others = motions.filter((name) => !name.includes('dock-in'))
+      // 收拢那段（小球聚拢）随小球一起删（WindowNarrow 板 agent.collapse-motion 改 dropped）：拉窄直接收进顶栏入口，不播。
+      check('拖动途中不连播：来回三次 = 停回 3 次、拉窄 0 次过渡', dockIn === 3 && others.length === 0, `停回 ${dockIn} / 其它 ${others.join(',') || '无'}`)
     }
     // 减弱动效：直接换，不播。
     await win.emulateMedia({ reducedMotion: 'reduce' })
     {
       const startCount = (await motionCount()).length
       await drag(WIDE, NARROW)
-      await expect(narrowBall.first()).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+      await expect(narrowCollapsed.first()).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
       await drag(NARROW, WIDE)
       await expect(dockLayer.first()).toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
-      check(`${BOARD.motion} 减弱动效：跨两次 0 次过渡，形态照换`, (await motionCount()).length === startCount, `多出 ${(await motionCount()).length - startCount}`)
+      check('减弱动效：跨两次 0 次过渡，形态照换', (await motionCount()).length === startCount, `多出 ${(await motionCount()).length - startCount}`)
     }
     await win.emulateMedia({ reducedMotion: 'no-preference' })
 
-    // ── 阈值两侧：1060 停靠（面板最窄 300，输入框底栏收紧），1059 小球 ──
+    // ── 阈值两侧：1060 停靠（面板最窄 300，输入框底栏收紧），1059 收起 ──
     await resize(THRESHOLD)
     await expect(dockLayer.first(), '1060 应仍停靠').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
     await panelInnerCaughtUp(`${BOARD.tight} 1060`)
@@ -372,8 +370,8 @@ async function runRound({ locale, scheme, tag, projectName }) {
       await win.mouse.move(0, HEIGHT / 2)
     }
     await resize(THRESHOLD - 1)
-    await expect(narrowBall.first(), '1059 应收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    await checkAbsent(`${BOARD.tier} 1059 小球（只有「< 1060」这一个判断）`, dockLayer, dockProof)
+    await expect(narrowCollapsed.first(), '1059 应收起').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await checkAbsent(`${BOARD.tier} 1059 收起（只有「< 1060」这一个判断）`, dockLayer, dockProof)
     await resize(WIDE)
     await expect(dockLayer.first()).toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
     {
@@ -401,23 +399,21 @@ async function runRound({ locale, scheme, tag, projectName }) {
       check(`${BOARD.dockDisabled} 1100：「停靠」不灰`, dockButton !== null && blockedAttr === null, `${JSON.stringify(dockButton)} blocked=${blockedAttr}`)
     }
 
-    // ── 700：小球悬停提示 → 点开浮窗 → 「停靠」变灰并说为什么 → 收回小球 → 等你确认胶囊 ──
+    // ── 700：点顶栏 Nomi 入口开浮窗 → 「停靠」变灰并说为什么 → 收起 → 等你确认出角标 ──
+    // （「窗口窄，Nomi 先收在这里」那句悬停提示随小球一起删：WindowNarrow 板 agent.ball-hover-tip 改 dropped。）
     await drag(WIDE, NARROW)
-    await expect(narrowBall.first()).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expect(narrowCollapsed.first()).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     {
-      const ball = await rectOf(win, '[data-agent-ball-narrow="true"]')
-      const tip = uiTextWith(locale, 'appShell.agent.ballNarrow', { shortcut: '⌘J' })
-      check(`${BOARD.ballTip} 小球悬停说「窗口窄，先收在这里（⌘J 打开）」`, Boolean(ball?.title?.startsWith(tip)), `title「${ball?.title}」 期望开头「${tip}」`)
-      let ballProblems = await outOfWindow(win, '[data-agent-ball-narrow="true"]')
-      for (let wait = 0; ballProblems.length > 0 && wait < 4; wait += 1) {
+      let entryProblems = await outOfWindow(win, NOMI_ENTRY)
+      for (let wait = 0; entryProblems.length > 0 && wait < 4; wait += 1) {
         await win.waitForTimeout(250)
-        ballProblems = await outOfWindow(win, '[data-agent-ball-narrow="true"]')
+        entryProblems = await outOfWindow(win, NOMI_ENTRY)
       }
-      check(`${BOARD.ballNarrow} 小球整个在窗内`, ballProblems.length === 0, ballProblems.join('; '))
+      check(`${BOARD.neverYield} 700：顶栏 Nomi 入口整个在窗内`, entryProblems.length === 0, entryProblems.join('; '))
     }
-    await clickOrFail(narrowBall.first(), '700 点小球')
+    await clickOrFail(narrowCollapsed.first(), '700 点顶栏 Nomi 入口')
     const float = win.locator('[data-agent-float]').first()
-    await expect(float, '700 点小球应出浮窗').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expect(float, '700 点顶栏 Nomi 入口应出浮窗').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     {
       const box = await rectOf(win, '[data-agent-float]')
       const area = await rectOf(win, '[data-shell-agent-layer]')
@@ -440,26 +436,28 @@ async function runRound({ locale, scheme, tag, projectName }) {
       await checkAbsent(`${BOARD.dockDisabled} 点灰的「停靠」不动：没有停靠栏`, dockLayer, dockProof)
       check(`${BOARD.dockDisabled} 点灰的「停靠」不动：还是浮窗、存档不变`, (await float.isVisible()) && (await snapshot()).form === formBefore)
     }
-    await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), '浮窗收回小球')
-    await expect(narrowBall.first()).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), '浮窗收起（入口回到顶栏）')
+    await expect(narrowCollapsed.first()).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     {
-      const setBadge = (status, pending, unread = 0) => win.evaluate(([s, n, u]) => window.__nomiResidentActivityStore?.getState().setResidentDockBadge(s, n, u), [status, pending, unread])
+      // 窄于 900 放不下胶囊：等你确认出成脸 + 右上角标（NomiEntryTopbar 板 B2；原窄窗胶囊 agent.pill-confirm 改 dropped）。
+      const setBadge = (status, pending, unread = 0) => win.evaluate(([s, n, u]) => window.__nomiResidentActivityStore?.getState().setResidentDockBadge(s, s === 'needs-confirm' ? 'idle' : s, n, u), [status, pending, unread])
       await setBadge('needs-confirm', 2)
-      const pill = win.locator('[data-agent-ball="pending"]').first()
-      await expect(pill, '等你确认胶囊没出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-      check(`${BOARD.pill} 700：「等你确认 2」胶囊整个在窗内`, (await outOfWindow(win, '[data-agent-ball="pending"]')).length === 0, (await outOfWindow(win, '[data-agent-ball="pending"]')).join('; '))
-      await shot(win, 'creation-700-pill')
+      const badge = win.locator(`${NOMI_ENTRY}[data-shape="face"][data-pending="2"] [data-nomi-entry-badge]`).first()
+      await expect(badge, '700 等你确认 2 没出角标').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+      check(`${BOARD.neverYield} 700：带「2」角标的顶栏 Nomi 入口整个在窗内`, (await outOfWindow(win, NOMI_ENTRY)).length === 0, (await outOfWindow(win, NOMI_ENTRY)).join('; '))
+      await shot(win, 'creation-700-pending-badge')
       await setBadge(null, 0)
     }
 
-    // ── 左栏抽屉：存宽 720，700 宽里显示让到 468、盖不住小球；1100 回到 720；存的一直是 720 ──
+    // ── 左栏抽屉：存宽 720，700 宽里显示让到 468、盖不住顶栏 Nomi 入口；1100 回到 720；存的一直是 720 ──
     await openRailDrawer(win, 'docs')
     {
       const drawer = await railDrawerPanel(win, 'docs').boundingBox()
-      const ball = await win.locator(AGENT_BALL).first().boundingBox()
+      const entry = await win.locator(NOMI_ENTRY).first().boundingBox()
       const stored = await win.evaluate(() => JSON.parse(window.localStorage.getItem('nomi:shell-layout:v1') ?? '{}').state?.drawerWidth?.docs)
       check(`${BOARD.drawer} 700：抽屉显示宽 = 窗口 − 232`, Boolean(drawer) && Math.abs(drawer.width - (NARROW - DRAWER_RESERVE)) <= 2, `抽屉 ${drawer?.width}`)
-      check(`${BOARD.drawer} 700：抽屉右缘不盖小球`, Boolean(drawer && ball) && drawer.x + drawer.width <= ball.x, `抽屉右 ${drawer && drawer.x + drawer.width} 小球左 ${ball?.x}`)
+      const apart = Boolean(drawer && entry) && (drawer.x + drawer.width <= entry.x || drawer.y >= entry.y + entry.height)
+      check(`${BOARD.drawer} 700：抽屉不盖顶栏 Nomi 入口`, apart, `抽屉 ${JSON.stringify(drawer)} 入口 ${JSON.stringify(entry)}`)
       check(`${BOARD.drawer} 700：存的抽屉宽仍是 720`, stored === DRAWER_STORED, String(stored))
       await shot(win, 'creation-700-drawer')
     }
@@ -502,6 +500,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
       const exportButton = document.querySelector('[data-shell-export]')
       return {
         vw: window.innerWidth,
+        yieldStep: Number(document.querySelector('[data-shell-topbar]')?.getAttribute('data-shell-yield-step') ?? 0),
         segmentCenter: segment ? (segment.left + segment.right) / 2 : null,
         gapLeft: segment && left ? Math.round(segment.left - left.getBoundingClientRect().right) : null,
         gapRight: toolbar ? Math.round(toolbar.left - segRight) : null,
@@ -518,18 +517,20 @@ async function runRound({ locale, scheme, tag, projectName }) {
         await switchWorkspace(win, page)
         await win.waitForTimeout(600)
         const narrowTier = width < THRESHOLD
-        const shown = await win.evaluate(([panelSelector, ballSelector]) => ({
+        const shown = await win.evaluate(([panelSelector, collapsedSelector]) => ({
           panel: Boolean(document.querySelector(panelSelector)?.getClientRects().length),
-          ball: Boolean(document.querySelector(ballSelector)?.getClientRects().length),
+          collapsed: Boolean(document.querySelector(collapsedSelector)?.getClientRects().length),
           dock: Boolean(document.querySelector('[data-shell-agent-layer][data-agent-form="dock"]')),
-        }), [AGENT_PANEL, AGENT_BALL])
-        if (page !== 'generation') check(`${BOARD.tier} ${page} ${width}：${narrowTier ? '小球' : '停靠'}`, narrowTier ? shown.ball && !shown.dock : shown.dock, JSON.stringify(shown))
+        }), [AGENT_PANEL, NOMI_ENTRY_COLLAPSED])
+        if (page !== 'generation') check(`${BOARD.tier} ${page} ${width}：${narrowTier ? '收起' : '停靠'}`, narrowTier ? shown.collapsed && !shown.dock : shown.dock, JSON.stringify(shown))
         const problems = []
-        for (const selector of [...L1_COMMON, ...L1_PAGE[page], shown.panel ? AGENT_PANEL : AGENT_BALL]) problems.push(...(await outOfWindow(win, selector)))
+        for (const selector of [...L1_COMMON, ...L1_PAGE[page], NOMI_ENTRY, ...(shown.panel ? [AGENT_PANEL] : [])]) problems.push(...(await outOfWindow(win, selector)))
         for (const selector of L1_PAGES_LINE[page]) problems.push(...(await outOfWindow(win, selector)))
         check(`${BOARD.neverYield} ${page} ${width}：L1 都在窗内`, problems.length === 0, problems.slice(0, 4).join('; '))
         const bar = await topbar()
-        check(`${BOARD.segment} ${page} ${width}：分段整窗居中、左右都不撞`, Math.abs(bar.segmentCenter - bar.vw / 2) <= 1 && bar.gapLeft >= 0 && bar.gapRight >= 0, JSON.stringify(bar))
+        // 挤的时候分段往左让（NomiEntryTopbar 板 topbar.yield-order 第 ② 步起），「整窗居中」只在没让到那一步时成立；让了就判两边各留 ≥ 12。
+        const centred = bar.yieldStep < 2 ? Math.abs(bar.segmentCenter - bar.vw / 2) <= 1 : bar.gapLeft >= 11.5 && bar.gapRight >= 11.5
+        check(`${BOARD.segment} ${page} ${width}：分段${bar.yieldStep < 2 ? '整窗居中' : '让位后两边各 ≥ 12'}、左右都不撞`, centred && bar.gapLeft >= 0 && bar.gapRight >= 0, JSON.stringify(bar))
         check(`${BOARD.nameHide} ${page} ${width}：项目名要么露 ≥ 两个字宽、要么只留箭头（左簇内容 ≤ 89 才藏）`, bar.nameShown ? bar.nameWidth >= 24 && bar.leftContent > 89 : bar.leftContent <= 89, JSON.stringify(bar))
         if (page === 'preview') {
           check(`${BOARD.exportIcon} preview ${width}：${bar.exportCompact ? '只留图标、离分段 ≥ 0' : '带字、离分段 ≥ 12'}`, bar.exportCompact ? bar.gapRight >= 0 : bar.gapRight >= 12, JSON.stringify(bar))
@@ -543,7 +544,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
     // ── 用户流程：756 / 960 半屏里来回干活 ──
     for (const width of [756, 960]) {
       await resize(width)
-      // 生成页：点小球出浮窗，打一句话（不发），收回。
+      // 生成页：点顶栏 Nomi 入口出浮窗，打一句话（不发），收回。
       await switchWorkspace(win, 'generation')
       await ensureAgentPanelOpen(win, `${width} 生成页叫 Nomi`)
       check(`${BOARD.float} ${width} 生成页：浮窗在窗内`, (await outOfWindow(win, AGENT_PANEL)).length === 0, (await outOfWindow(win, AGENT_PANEL)).join('; '))
@@ -552,9 +553,9 @@ async function runRound({ locale, scheme, tag, projectName }) {
       await input.pressSequentially(locale === 'en' ? 'still fits' : '窄窗里也能聊')
       await shot(win, `flow-${width}-generation-float`)
       await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), `${width} 生成页收回`)
-      // 预览页：停靠的页显示小球，⌘J 叫出浮窗并聚焦输入框；播放区和时间轴都在。
+      // 预览页：停靠的页显示收起，⌘J 叫出浮窗并聚焦输入框；播放区和时间轴都在。
       await switchWorkspace(win, 'preview')
-      await expect(narrowBall.first(), `${width} 预览页应是小球`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+      await expect(narrowCollapsed.first(), `${width} 预览页应是收起`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
       await win.keyboard.press('Meta+J')
       await expect(win.locator('[data-agent-float]').first(), `${width} ⌘J 应叫出浮窗`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
       // 按 composer 锚点 + 富文本编辑器判焦点（同 expectComposerFocused），不按标签名。
@@ -571,7 +572,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
       check(`${BOARD.float} ${width} 预览页 ⌘J：浮窗出来、焦点在输入框`, focus.inPanel, `焦点在 ${focus.at}`)
       await shot(win, `flow-${width}-preview-float`)
       await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), `${width} 预览页收回`)
-      // 创作页：在正文里打字，小球不挡字。
+      // 创作页：在正文里打字，内容区里没有东西挡字（叫回入口在顶栏）。
       await switchWorkspace(win, 'creation')
       const editor = win.locator('[data-creation-editor] [contenteditable="true"]').first()
       await editor.click()
@@ -589,39 +590,39 @@ async function runRound({ locale, scheme, tag, projectName }) {
     const end = await snapshot()
     check(`${BOARD.noWriteback} 走完回到 1100：存的 Nomi 宽仍是 390、停靠没被改掉`, JSON.parse(end.layout).assistantWidth === 390 && JSON.parse(end.form ?? '{}').state?.bySurface?.creation?.collapsed !== true, `${end.layout.slice(0, 120)}`)
 
-    // ── 存着小球的页：窄窗里点开、收起都不改存档（独立验收 2026-11-14 查出：收起后拉宽 / 重开变成停靠） ──
-    // 人先在宽窗里亲手把创作页收成小球（这一下是形态切换，写存档）；再缩到 700 点小球、问一句、收起；拉到 1280；窄着关掉重开。
-    // 存档里每页是「摆法 + 收没收起」：收着读成小球，开着读成摆法（和改存法前的三值同一个口径）。
+    // ── 存着「收起」的页：窄窗里点开、收起都不改存档（独立验收 2026-11-14 查出：收起后拉宽 / 重开变成停靠） ──
+    // 人先在宽窗里亲手把创作页收起（这一下是形态切换，写存档）；再缩到 700 点顶栏入口、问一句、收起；拉到 1280；窄着关掉重开。
+    // 存档里每页是「摆法 + 收没收起」：收着读成收起，开着读成摆法（和改存法前的三值同一个口径）。
     const storedCreationForm = () => win.evaluate(() => {
       const creation = JSON.parse(window.localStorage.getItem('nomi:shell-agent-form:v1') ?? '{}').state?.bySurface?.creation
-      return creation ? (creation.collapsed ? 'ball' : creation.placement) : null
+      return creation ? (creation.collapsed ? 'collapsed' : creation.placement) : null
     })
-    const anyBall = win.locator(AGENT_BALL)
-    await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), '1100 创作页亲手收成小球')
-    await expect(anyBall.first(), '1100 收起后应是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    check(`${BOARD.noWriteback} 存小球起点：宽窗里亲手收起 = 存档写成小球`, (await storedCreationForm()) === 'ball', String(await storedCreationForm()))
+    const collapsedEntry = win.locator(NOMI_ENTRY_COLLAPSED)
+    await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), '1100 创作页亲手收起')
+    await expect(collapsedEntry.first(), '1100 收起后顶栏入口应是收着').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    check(`${BOARD.noWriteback} 存收起起点：宽窗里亲手收起 = 存档写成收起`, (await storedCreationForm()) === 'collapsed', String(await storedCreationForm()))
     await drag(WIDE, NARROW)
-    await expect(anyBall.first(), '700 存着小球的页应是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    await clickOrFail(anyBall.first(), '700 点小球（存着小球）')
-    await expect(win.locator('[data-agent-float]').first(), '700 存着小球、点小球应出浮窗').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    check(`${BOARD.noWriteback} 存小球 · 700 点开：存档还是小球`, (await storedCreationForm()) === 'ball', String(await storedCreationForm()))
-    await shot(win, 'stored-ball-700-open')
-    await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), '700 浮窗收起（存着小球）')
-    await expect(anyBall.first(), '700 收起后应是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    check(`${BOARD.noWriteback} 存小球 · 700 收起：存档还是小球`, (await storedCreationForm()) === 'ball', String(await storedCreationForm()))
-    await shot(win, 'stored-ball-700-collapsed')
+    await expect(collapsedEntry.first(), '700 存着收起的页应是收起').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await clickOrFail(collapsedEntry.first(), '700 点顶栏 Nomi 入口（存着收起）')
+    await expect(win.locator('[data-agent-float]').first(), '700 存着收起、点入口应出浮窗').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    check(`${BOARD.noWriteback} 存收起 · 700 点开：存档还是收起`, (await storedCreationForm()) === 'collapsed', String(await storedCreationForm()))
+    await shot(win, 'stored-collapsed-700-open')
+    await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), '700 浮窗收起（存着收起）')
+    await expect(collapsedEntry.first(), '700 收起后顶栏入口应是收着').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    check(`${BOARD.noWriteback} 存收起 · 700 收起：存档还是收起`, (await storedCreationForm()) === 'collapsed', String(await storedCreationForm()))
+    await shot(win, 'stored-collapsed-700-collapsed')
     const ROOMY = 1280
     await drag(NARROW, ROOMY)
     await win.waitForTimeout(600)
     {
       const dockAfter = await win.locator('[data-shell-agent-layer][data-agent-form="dock"]').count()
-      check(`${BOARD.noWriteback} 存小球 · 拉到 1280：画面上是小球、没有停靠栏`, (await anyBall.first().isVisible()) && dockAfter === 0, `停靠栏 ${dockAfter}`)
-      check(`${BOARD.noWriteback} 存小球 · 拉到 1280：存档还是小球`, (await storedCreationForm()) === 'ball', String(await storedCreationForm()))
+      check(`${BOARD.noWriteback} 存收起 · 拉到 1280：画面上是收起、没有停靠栏`, (await collapsedEntry.first().isVisible()) && dockAfter === 0, `停靠栏 ${dockAfter}`)
+      check(`${BOARD.noWriteback} 存收起 · 拉到 1280：存档还是收起`, (await storedCreationForm()) === 'collapsed', String(await storedCreationForm()))
     }
-    await shot(win, 'stored-ball-1280')
+    await shot(win, 'stored-collapsed-1280')
     // 窄着关掉重开：同一份本机资料（userData），只剩落盘那份。
     await resize(NARROW)
-    await clickOrFail(anyBall.first(), '700 再点开一次（关窗时浮窗开着）')
+    await clickOrFail(collapsedEntry.first(), '700 再点开一次（关窗时浮窗开着）')
     await expect(win.locator('[data-agent-float]').first()).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     await app.close()
     app = undefined
@@ -646,13 +647,13 @@ async function runRound({ locale, scheme, tag, projectName }) {
     await resize(NARROW)
     await win.locator('.nomi-stepper').first().waitFor({ timeout: stationTimeout({ operations: 2 }) })
     await switchWorkspace(win, 'creation')
-    await expect(win.locator(AGENT_BALL).first(), '窄着重开：存着小球的创作页应是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    check(`${BOARD.noWriteback} 存小球 · 窄着关掉重开：存档还是小球`, (await storedCreationForm()) === 'ball', String(await storedCreationForm()))
+    await expect(win.locator(NOMI_ENTRY_COLLAPSED).first(), '窄着重开：存着收起的创作页应是收起').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    check(`${BOARD.noWriteback} 存收起 · 窄着关掉重开：存档还是收起`, (await storedCreationForm()) === 'collapsed', String(await storedCreationForm()))
     await resize(ROOMY)
     await win.waitForTimeout(600)
     {
       const dockAfter = await win.locator('[data-shell-agent-layer][data-agent-form="dock"]').count()
-      check(`${BOARD.noWriteback} 存小球 · 重开后拉到 1280：还是小球、没有停靠栏`, (await win.locator(AGENT_BALL).first().isVisible()) && dockAfter === 0, `停靠栏 ${dockAfter}`)
+      check(`${BOARD.noWriteback} 存收起 · 重开后拉到 1280：还是收起、没有停靠栏`, (await win.locator(NOMI_ENTRY_COLLAPSED).first().isVisible()) && dockAfter === 0, `停靠栏 ${dockAfter}`)
     }
   } catch (error) {
     failures.push(`${tag}: ${error.message.split('\n')[0]}`)

@@ -46,7 +46,7 @@ async function runRefusedLeg({ win, projectId, reference, locale, planId, genera
     label: `${locale} Agent 带参考图起草`,
     match: (body) => (body.messages ?? []).some((message) => message.role === 'user' && JSON.stringify(message.content).includes(ask)),
     reply: { type: 'tool', id: planId, name: 'draft_shots', args: {
-    shots: [{ prompt: '海边纸船，柔和晨光', taskKind: 'text_to_image', candidate: { providerId: 'apimart', modelId: 'gpt-image-2' }, references: [reference.assetId] }],
+    shots: [{ prompt: '海边纸船，柔和晨光', taskKind: 'text_to_image', model: 'gpt-image-2@apimart', references: [reference.assetId] }],
     } },
   })
   const draftResult = fixture.expectText({

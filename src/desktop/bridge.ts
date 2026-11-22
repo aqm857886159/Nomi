@@ -16,6 +16,7 @@ import type { CanvasReadSurfaceBridge } from '../../electron/shared/surfacePortB
 import type { LaneBridge } from '../workbench/ai/lane/laneClient'
 import type { GenerationResolvePlanEnvelope, GenerationResolvePlanRequest } from '../../electron/shared/videoCapabilities/planResolutionContracts'
 import type { UserPromptRestoreSnapshot } from '../../electron/shared/contracts/promptLibrary'
+import type { CanvasResendDecidePayload, CanvasResendDecision } from '../../electron/shared/canvas/canvasResendDecide'
 export type { AssetLocalizationEvent } from '../../electron/shared/assets/assetLocalizationEvent'
 export type { ProviderKind }
 export type { DesktopAdapterModeResult, DesktopProviderAdapterRun, DesktopProviderRegistration } from './onboardingBridgeTypes'
@@ -264,9 +265,11 @@ export type DesktopBridge = DesktopMediaBridge &
     run: (payload: unknown) => Promise<unknown>
     result: (payload: unknown) => Promise<unknown>
     /** 画布单节点 ↑ 的唯一付费口（单镜 Run）：交 / 查 / 不再等。旧 preload 没有 → 可选。 */
-    canvasSubmit?: (payload: { projectId: string; nodeId: string; runRecordId: string; vendor: string; request: unknown; acknowledgedOpenRuns?: string[] }) => Promise<unknown>
+    canvasSubmit?: (payload: { projectId: string; nodeId: string; runRecordId: string; vendor: string; request: unknown; resendDecisionId?: string }) => Promise<unknown>
     canvasPoll?: (payload: { projectId: string; runRecordId: string }) => Promise<unknown>
     canvasOpenRuns?: (payload: { projectId: string; nodeId?: string }) => Promise<Array<{ runId: string; jobId?: string; reason: 'in_flight' | 'needs_reconcile'; hasTaskId: boolean; nodeId: string }>>
+    /** 「我想再发一次」：要不要问、放行哪几笔由主进程定；渲染层只报意图和身份。 */
+    canvasResendDecide?: (payload: CanvasResendDecidePayload) => Promise<CanvasResendDecision>
     canvasRelease?: (payload: { projectId: string; runRecordId: string }) => Promise<void>
     canvasConsent?: (payload: { projectId: string; shots: Array<{ nodeId: string; runRecordId: string; vendor: string; modelKey: string; kind: string; production?: { runId: string; shotId: string } }> }) => Promise<{ runIds: string[] }>
     canvasWithdraw?: (payload: { projectId: string; runRecordIds: string[]; by: 'removed' | 'user_closed' | 'stopped' }) => Promise<void>
@@ -288,17 +291,6 @@ export type DesktopBridge = DesktopMediaBridge &
     append: (projectId: string, events: unknown[]) => Promise<{ ok: boolean; count: number; lastSeq: number }>
     read: (projectId: string, fromSeq: number) => Promise<{ ok: boolean; events: unknown[] }>
     generationEtaStats?: (projectId: string) => Promise<{ ok: boolean; stats: unknown[] }>
-  }
-  /** S9 项目记忆卡:get=增量提炼+读;update=pin/纠正(text→origin:user);remove=删+墓碑。 */
-  memory?: {
-    get: (projectId: string) => Promise<{ ok: boolean; facts: unknown[] }>
-    update: (
-      projectId: string,
-      factId: string,
-      patch: { text?: string; pinned?: boolean },
-    ) => Promise<{ ok: boolean; facts: unknown[] }>
-    remove: (projectId: string, factId: string) => Promise<{ ok: boolean; facts: unknown[] }>
-    add: (projectId: string, text: string, kind?: string) => Promise<{ ok: boolean; facts: unknown[] }>
   }
   /** 提示词库:主进程聚合公开仓库提示词(图/视频)+1h 缓存,renderer 取全量后本地过滤。
    *  textBrain=节点提示词优化用的文本大脑键(不含 apiKey,渲染层据此走现成文本流式)。 */

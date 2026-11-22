@@ -78,18 +78,18 @@ try {
 
   // A 是中文用户：设置里语言=简体中文、tab=创作/生成
   const aLangZh = await readAppLanguage(winA, 'A 读语言')
-  const aCreateZh = await winA.getByRole('button', { name: '创作', exact: true }).count()
-  check('A 工作台是中文（语言分段=zh-CN、tab=创作）', aLangZh === 'zh-CN' && aCreateZh > 0, `lang=${aLangZh} 创作=${aCreateZh}`)
+  const aCreateZh = await winA.getByRole('button', { name: '创作', exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  check('A 工作台是中文（语言分段=zh-CN、tab=创作）', aLangZh === 'zh-CN' && aCreateZh, `lang=${aLangZh} 创作=${aCreateZh ? 1 : 0}`)
 
   // ② User B 切英文
   console.log('\n▶ User B 切换到 English…')
   await switchToEnglish(winB)
   const bLangEn = await readAppLanguage(winB, 'B 读语言')
-  const bCreateEn = await winB.getByRole('button', { name: 'Create', exact: true }).count()
-  const bGenerateEn = await winB.getByRole('button', { name: 'Generate', exact: true }).count()
+  const bCreateEn = await winB.getByRole('button', { name: 'Create', exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  const bGenerateEn = await winB.getByRole('button', { name: 'Generate', exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
   const bZhTabGone = await winB.getByRole('button', { name: '创作', exact: true }).count()
   check('B 切到英文（语言分段=en）', bLangEn === 'en', `lang=${bLangEn}`)
-  check('B 工作台 tab 翻成英文（Create/Generate 出现、创作消失）', bCreateEn > 0 && bGenerateEn > 0 && bZhTabGone === 0, `Create=${bCreateEn} Generate=${bGenerateEn} 创作=${bZhTabGone}`)
+  check('B 工作台 tab 翻成英文（Create/Generate 出现、创作消失）', bCreateEn && bGenerateEn && bZhTabGone === 0, `Create=${bCreateEn ? 1 : 0} Generate=${bGenerateEn ? 1 : 0} 创作=${bZhTabGone}`)
   await screenshotSettled(winB, { path: path.join(shotsDir, 'B-01-en-workbench.png') })
 
   // ③ 隔离交叉验证（多用户核心）

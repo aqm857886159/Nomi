@@ -19,7 +19,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { assertPaidRunAllowed, lockSpendToModels } from './_paidRun.mjs'
 import { removeRealCredentials, seedRealCredentials, seedRealModels } from './_realProfile.mjs'
 import {
-  DOMESTIC, NETSIM, PRIMARY, UI, closeSettings, generateOnce, healthSettled, modelsSectionText, netLog, openModels, repoRoot, saveAddress, takePackagedFlag,
+  DOMESTIC, NETSIM, PRIMARY, UI, closeSettings, generateOnce, modelsSectionText, netLog, openModels, repoRoot, saveAddress, takePackagedFlag,
 } from '../../scripts/apimart-line-walk-steps.mjs'
 
 const SCRIPT = 'tests/ux/apimart-domestic-line.paid.mjs'
@@ -72,10 +72,10 @@ try {
   // ① 设置 → 模型 → 已接入的 APIMart → 地址改成国内线路 → 保存
   await openModels(win, t)
   await win.locator('[data-model-home-connection="apimart"]').click()
-  await healthSettled(win)
+  await win.locator('[data-model-status]').first().waitFor()
   await shot(win, '01-real-card-before.png')
   const error = await saveAddress(win, t, DOMESTIC)
-  await healthSettled(win)
+  await win.locator('[data-model-status]').first().waitFor()
   await shot(win, '02-real-card-address-domestic.png')
   report.cardAfterAddress = (await modelsSectionText(win)).split('\n').slice(0, 12).join(' | ')
   check('地址改成国内线路', !error && (await modelsSectionText(win)).includes(DOMESTIC), error ? `保存报错：${error}` : `地址行显示 ${DOMESTIC}，没有报错`)

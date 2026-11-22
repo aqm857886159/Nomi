@@ -10,7 +10,6 @@
 // 零花费、零外网（主进程网络闸 walkthrough-network-guard 只放行本机）。
 // D2 付费卡的两条（卡上指向元素 ↔ 画布节点）用同一台本机假 Agent：起草器和走查是同一个（_spendCardWalk.createPresenter），
 // 卡摆出来就一直开着——没人按「生成」，零花费。
-import { agentBallEyeFollow } from './agentBallEyeFollowScenario.mjs'
 import { generationIdle, prepareGenerationIdle } from './generationIdleScenario.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -37,7 +36,6 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'pan-while-generating',
   'generation-idle',
   'pan-while-agent-streaming',
-  'agent-ball-eye-follow',
   'library-skill-open',
   'library-prompt-open',
   'library-prompt-scroll',
@@ -50,6 +48,7 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'chat-scroll-500',
   'chat-scroll-500-cpu4x',
   'window-narrow-drag',
+  'topbar-yield-resize',
 ])
 
 const sleep = (page, ms) => page.waitForTimeout(ms)
@@ -71,7 +70,7 @@ const STREAM_TEXT = '镜头缓缓推进，雨夜的街道上霓虹倒映在积�
 // D2 付费卡：最坏规模一张卡 12 个指向元素（组指向 5 个起折叠，展开后全露）。
 const SPEND_CARD_SCENARIOS = new Set(['pointer-hover-focus', 'spend-card-node-edit-refresh'])
 const SPEND_CARD_SHOTS = 12
-const SPEND_CARD_CANDIDATE = { providerId: 'apimart', modelId: 'doubao-seedance-2.0' }
+const SPEND_CARD_CANDIDATE = 'doubao-seedance-2.0@apimart'
 // Agent 对话（设计卡 docs/plan/2026-11-09-agent-conversation-stick-to-bottom.md ★7）：历史条数 = 起 App 前塞进项目的旧版对话条数
 // （用户 / 回答交替；走旧版迁移那条真路径进当前对话，不另造会话格式）。mixed = 回答里混 Markdown 标题、列表、代码块。
 const CHAT_SCENARIOS = Object.freeze({
@@ -118,7 +117,7 @@ export async function prepareWorkbenchLaunch(scenario, { fixture, root, repoRoot
     }
   }
   if (SPEND_CARD_SCENARIOS.has(scenario)) return prepareSpendCardLaunch({ root, repoRoot })
-  if (scenario === 'pan-while-generating' || scenario === 'pan-while-agent-streaming' || scenario === 'agent-ball-eye-follow') {
+  if (scenario === 'pan-while-generating' || scenario === 'pan-while-agent-streaming') {
     const settingsDir = path.join(root, 'settings')
     fs.mkdirSync(settingsDir, { recursive: true })
     const guard = {
@@ -131,10 +130,7 @@ export async function prepareWorkbenchLaunch(scenario, { fixture, root, repoRoot
       return { launch: { settingsDir, ...guard }, provider, close: () => provider.close() }
     }
     // 常驻应答：每一句都回一段慢慢吐的长正文。1240 字，一帧 12 字，平移那条 40ms 一帧，约 4 秒吐完。
-    // 眼睛跟随那条要在「在跑」里先量 1.2 秒静止对照、再扫一圈，4 秒不够：扫完时 Agent 已经停了，样本会被跳过（11-07 冒烟两次都跳过）。
-    // 所以这条放慢到 120ms 一帧，约 12 秒吐完。
-    const intervalMs = scenario === 'agent-ball-eye-follow' ? 120 : 40
-    return prepareAgentLaunch({ settingsDir, guard, repoRoot, label: 'perf stream', reply: { type: 'stream', text: STREAM_TEXT, chunkChars: 12, intervalMs } })
+    return prepareAgentLaunch({ settingsDir, guard, repoRoot, label: 'perf stream', reply: { type: 'stream', text: STREAM_TEXT, chunkChars: 12, intervalMs: 40 } })
   }
   if (CHAT_SCENARIOS[scenario]) {
     seedLegacyConversation(fixture, CHAT_SCENARIOS[scenario])
@@ -292,7 +288,6 @@ export async function runWorkbenchScenario(page, scenario, ctx) {
   if (scenario === 'generation-idle') return generationIdle(page, ctx)
   if (scenario === 'pan-while-generating') return panWhileGenerating(page, ctx)
   if (scenario === 'pan-while-agent-streaming') return panWhileAgentStreaming(page, ctx)
-  if (scenario === 'agent-ball-eye-follow') return agentBallEyeFollow(page, ctx)
   if (scenario === 'library-skill-open') return libraryOpen(page, ctx, 'skills')
   if (scenario === 'library-prompt-open') return libraryOpen(page, ctx, 'prompts')
   if (scenario === 'library-prompt-scroll') return libraryScroll(page, ctx)
@@ -302,6 +297,7 @@ export async function runWorkbenchScenario(page, scenario, ctx) {
   if (scenario.startsWith('chat-send-visible')) return chatSendVisible(page, ctx)
   if (scenario.startsWith('chat-scroll-500')) return chatScroll(page, ctx, CHAT_SCENARIOS[scenario])
   if (scenario === 'window-narrow-drag') return windowNarrowDrag(page, ctx)
+  if (scenario === 'topbar-yield-resize') return topbarYieldResize(page, ctx)
   throw new Error(`未知工作台场景 ${scenario}`)
 }
 
@@ -793,7 +789,7 @@ async function windowNarrowDrag(page, ctx) {
     if (window.__perfNarrowMotionArmed) return
     window.__perfNarrowMotionArmed = true
     document.addEventListener('animationstart', (event) => {
-      if (/nomi-agent-(gather|dock-in)/.test(event.animationName)) window.__perfNarrowMotions += 1
+      if (/nomi-agent-dock-in/.test(event.animationName)) window.__perfNarrowMotions += 1
     }, true)
   })
   await ctx.startWindow(page)
@@ -810,11 +806,64 @@ async function windowNarrowDrag(page, ctx) {
   const raw = await ctx.stopWindow(page)
   await sleep(page, 400)
   const motions = await page.evaluate(() => window.__perfNarrowMotions)
-  // 预算的第二半：跨阈值 6 次，过渡只该播 6 次（收拢 3 + 停回 3），拖动途中不连播。
-  console.log(`    · 跨阈值过渡 ${motions} 次（跨了 6 次）`)
+  // 预算的第二半：跨阈值 6 次，停回的滑入只该播 3 次（收起那一下没有动画：面板收进顶栏入口），拖动途中不连播。
+  console.log(`    · 跨阈值停回滑入 ${motions} 次（跨了 6 次，变宽 3 次）`)
   await setWidth(original[0])
   await sleep(page, 400)
   return { raw, crossings: 6, narrowMotions: motions, path: 'window edge drag 1100 ↔ 700 ×3' }
+}
+
+/**
+ * ⑪ 顶栏让位（NomiEntryTopbar 板 topbar.yield-order，设计卡 ★7）：预览页（导出 MP4 + 布局 + 进度数字都在，最挤的一页），
+ * 像人拖窗口边那样 1440 ↔ 700 来回两次（一帧 20px），量拖动期间的帧间隔和长任务；同时数让位步数翻了几次——
+ * 同一个宽度两个方向结果一样（回差），所以每趟单程翻的次数相同，来回不在阈值处抖。
+ */
+async function topbarYieldResize(page, ctx) {
+  await ensurePreview(page, ctx)
+  const browserWindow = await ctx.app.browserWindow(page)
+  const original = await browserWindow.evaluate((windowRef) => windowRef.getContentSize())
+  const height = original[1]
+  const setWidth = async (width) => {
+    await browserWindow.evaluate((windowRef, size) => windowRef.setContentSize(size.width, size.height), { width, height })
+    await page.setViewportSize({ width, height })
+  }
+  const readStep = () => page.evaluate(() => document.querySelector('[data-shell-topbar]')?.getAttribute('data-shell-yield-step') ?? null)
+  const wide = 1440
+  const narrow = 700
+  const step = 20
+  await setWidth(wide)
+  await sleep(page, 600)
+  if ((await readStep()) === null) {
+    await setWidth(original[0])
+    return { skipped: '预览页顶栏没有 data-shell-yield-step：分段没渲染，量不到让位' }
+  }
+  const seen = new Set()
+  let flips = 0
+  let last = await readStep()
+  await ctx.startWindow(page)
+  for (let trip = 0; trip < 2; trip += 1) {
+    for (let width = wide - step; width >= narrow; width -= step) {
+      await setWidth(width)
+      await sleep(page, 16)
+      const now = await readStep()
+      seen.add(now)
+      if (now !== last) flips += 1
+      last = now
+    }
+    for (let width = narrow + step; width <= wide; width += step) {
+      await setWidth(width)
+      await sleep(page, 16)
+      const now = await readStep()
+      seen.add(now)
+      if (now !== last) flips += 1
+      last = now
+    }
+  }
+  const raw = await ctx.stopWindow(page)
+  console.log(`    · 让位步数翻了 ${flips} 次（见过的步数 ${[...seen].sort().join(' / ')}；两趟来回，每个阈值每单程只翻一次 = ${(seen.size - 1) * 4}）`)
+  await setWidth(original[0])
+  await sleep(page, 400)
+  return { raw, yieldFlips: flips, path: 'window edge drag 1440 ↔ 700 ×2 on preview' }
 }
 
 /** ⑩ 预览播放 4 秒的帧间隔。 */
@@ -1237,7 +1286,7 @@ async function ensureSpendCard(page, ctx) {
   const { card } = await present({ fixture: ctx.extras.provider, report: {} }, page, {
     kind: 'video',
     shots: (tag) => Array.from({ length: SPEND_CARD_SHOTS }, (_, index) => ({
-      title: `${tag} 镜 ${index + 1}`, prompt: `${tag} 第 ${index + 1} 镜：雨夜的站台，列车进站的灯扫过积水`, taskKind: 'text_to_video', candidate: SPEND_CARD_CANDIDATE,
+      title: `${tag} 镜 ${index + 1}`, prompt: `${tag} 第 ${index + 1} 镜：雨夜的站台，列车进站的灯扫过积水`, taskKind: 'text_to_video', model: SPEND_CARD_CANDIDATE,
     })),
   })
   await kit.unfoldPointers(card, '性能场景')

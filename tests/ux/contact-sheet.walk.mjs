@@ -106,7 +106,7 @@ const toolbar = win.locator('.generation-canvas-v2__selection-toolbar').first()
   if (box) await snap(win, 'toolbar-with-action', { x: Math.max(0, box.x - 20), y: Math.max(0, box.y - 20), width: box.width + 40, height: box.height + 40 })
 }
 const sheetBtn = toolbar.getByRole('button', { name: /^(生成总览图|Create overview)/ }).first()
-check('多选浮条上出现「生成总览图」', await sheetBtn.count() > 0)
+check('多选浮条上出现「生成总览图」', await sheetBtn.waitFor({ state: 'visible' }).then(() => true, () => false))
 const btnLabel = await sheetBtn.getAttribute('aria-label').catch(() => null)
 check('钮上标明会生成几张总览图', /生成总览图（4 张）/.test(btnLabel || ''), String(btnLabel))
 
@@ -122,7 +122,7 @@ if (await fitBtn.count()) { await fitBtn.click({ timeout: 4000 }).catch(() => {}
 await snap(win, 'after-build')
 const built = await win.evaluate(() => document.querySelectorAll('[data-node-id]').length)
 const overviewNode = win.locator('.generation-canvas-v2-node').filter({ hasText: /总览图/ }).first()
-check('多出一个总览图节点', built >= 5 && await overviewNode.count() > 0, `实得 ${built}`)
+check('多出一个总览图节点', built >= 5 && await overviewNode.waitFor({ state: 'visible' }).then(() => true, () => false), `实得 ${built}`)
 
 // 取成品图，验尺寸 + 采样比色（真正证明「哪张进了哪格」）。
 // nomi-local:// 的 <img> 直接画进 canvas 会被当成跨源图拦住读像素；这里改用 fetch 取回字节 →

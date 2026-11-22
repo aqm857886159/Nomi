@@ -11,12 +11,12 @@
 // 缓存这份结果 = 把上面那个 bug 原样请回来。
 import { createCatalogAvailability } from "../catalog/catalogModelAvailability";
 import { readCatalog } from "../catalog/catalogStore";
+import type { CatalogState } from "../catalog/types";
 import { buildVideoModelCandidates, videoArchetypeIdFromMeta } from "../shared/videoCapabilities";
 
 // 可用性只有一条判据（createCatalogAvailability）：旧版这里只看 `enabled`，于是外部助手
 // 能从上下文里读到一个供应商已停用 / 没发布 / 没钥匙的视频模型，选了它 findExecutableModel 必拒。
-export function deriveUsableVideoModelCandidates() {
-  const videoCatalog = readCatalog();
+export function deriveUsableVideoModelCandidates(videoCatalog: CatalogState = readCatalog()) {
   const videoAvailability = createCatalogAvailability(videoCatalog);
   return buildVideoModelCandidates(videoCatalog.models
     .filter((model) => model.kind === "video" && videoAvailability.of(model).usable)

@@ -18,6 +18,7 @@ import { synchronousSha256 } from '../../../../../../electron/shared/synchronous
 import type { GenerationCanvasNode } from '../../../model/generationCanvasTypes'
 import { productionMetaOf } from '../../../model/productionMeta'
 import { previewAttachIsCurrent } from '../agent/attachCameraMoveToTarget'
+import { paramSeconds } from '../../../../../../electron/shared/videoCapabilities/paramValue'
 import { isDirectorPreviewDismissed } from '../agent/directorPreviewReferenceLifecycle'
 import { DIRECTOR_NODE_KIND, DIRECTOR_PLAN_META_KEY, DIRECTOR_PREVIEW_META_KEY, DIRECTOR_PROJECT_META_KEY } from './directorNodeMeta'
 import { normalizeDirectorProject } from './directorProject'
@@ -57,16 +58,12 @@ export function directorProjectTooLong(project: unknown): boolean {
 export const DIRECTOR_PREVIEW_DURATION_TOLERANCE_SECONDS = 0.05
 
 /**
- * 这个视频镜头声明要多长（秒）：读节点上的时长参数——与主进程 `shotDurationSeconds` 认同两个键（`duration` / `durationSeconds`），
+ * 这个视频镜头声明要多长（秒）：读节点上的时长参数——与主进程 `shotDurationSeconds` 同一个取值函数（`paramSeconds`，`duration` / `durationSeconds`），
  * 草稿候选落地时参数原样铺到节点 meta（buildPlannedNodeMeta）。没声明 = undefined（不拦）。不读 `videoDuration`：那是文件实测时长。
  */
 export function declaredShotDurationSeconds(node: Pick<GenerationCanvasNode, 'meta'> | undefined): number | undefined {
-  for (const key of ['duration', 'durationSeconds']) {
-    const raw = node?.meta?.[key]
-    const value = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() ? Number(raw) : Number.NaN
-    if (Number.isFinite(value) && value > 0) return value
-  }
-  return undefined
+  const seconds = paramSeconds(node?.meta)
+  return seconds !== undefined && seconds > 0 ? seconds : undefined
 }
 
 export type DirectorPreviewFailure = 'too_long' | 'capture_failed'

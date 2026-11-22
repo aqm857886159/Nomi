@@ -69,15 +69,18 @@ export type RpcServerOptions = {
   approvalPolicy?: import('./dispatcher').DispatchContext['approvalPolicy']
   requestGenerationGate?: import('./dispatcher').DispatchContext['requestGenerationGate']
   authorizeGeneration?: import('./dispatcher').DispatchContext['authorizeGeneration']
-  /** Internal client→GUI fallback. The callback must verify the challenge before prompting. */
-  confirmGenerationInNomi?: (input: { challengeToken: string }) => Promise<unknown>
   /**
-   * Verify that a registered MCP client confirmed the gate identified by
-   * challengeToken via the elicitation protocol, then mint and return a real
-   * main-process receipt. Called by the launcher/stdio-server loopback RPC
+   * Internal client→GUI fallback. The callback must verify the challenge before prompting.
+   * `signal` aborts when the caller of this loopback hop goes away; a late click must then sign nothing.
+   */
+  confirmGenerationInNomi?: (input: { challengeToken: string }, options?: { signal?: AbortSignal }) => Promise<unknown>
+  /**
+   * A registered MCP client asked its user via elicitation and hands over the raw answer; main judges it
+   * (accept + confirm=true) and only then mints a receipt. `authenticatedClient` is the client verified from
+   * this request's headers, never a self-reported parameter. Called by the launcher/stdio-server loopback RPC
    * `nomi_verify_client_generation_gate`.
    */
-  verifyClientGenerationGateInMain?: (input: { challengeToken: string; authenticatedClient: string }) => Promise<unknown>
+  verifyClientGenerationGateInMain?: (input: { challengeToken: string; authenticatedClient: string; answer?: { action?: unknown; confirm?: unknown } }) => Promise<unknown>
   generationContext?: (params: Record<string, unknown>) => unknown | Promise<unknown>
   generationPlanning?: import('./dispatcher').DispatchContext['generationPlanning']
   projectRevisionResolver?: (projectId: string) => number | undefined
@@ -220,7 +223,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           const challengeToken = typeof params.challengeToken === 'string' ? params.challengeToken.trim() : ''
           if (!challengeToken) throw new RpcError('Generation challenge is required', 400)
           if (typeof options.confirmGenerationInNomi !== 'function') throw new RpcError('Nomi confirmation is unavailable', 501)
-          const result = await options.confirmGenerationInNomi({ challengeToken })
+          const result = await options.confirmGenerationInNomi({ challengeToken }, { signal: requestController.signal })
           send(200, { ok: true, result })
           return
         }
@@ -229,10 +232,12 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403, { code: 'mcp_connection_unauthenticated' })
           const challengeToken = typeof params.challengeToken === 'string' ? params.challengeToken.trim() : ''
           if (!challengeToken) throw new RpcError('Generation challenge is required', 400)
-          const authenticatedClient = typeof params.authenticatedClient === 'string' ? params.authenticatedClient.trim() : ''
-          if (!authenticatedClient) throw new RpcError('Authenticated client identity is required', 400)
+          // 身份只认这一跳请求头里验过的那个客户端（上面的守卫已排除 external / nomi）。旧版启动器还会在参数里带
+          // authenticatedClient，收下但不作数。人的原话（answer）交给主进程判，不再由客户端一侧说「确认过了」。
+          const raw = params.answer && typeof params.answer === 'object' ? params.answer as Record<string, unknown> : undefined
+          const answer = raw ? { action: raw.action, confirm: raw.confirm } : undefined
           if (typeof options.verifyClientGenerationGateInMain !== 'function') throw new RpcError('Client generation verification is unavailable', 501)
-          const result = await options.verifyClientGenerationGateInMain({ challengeToken, authenticatedClient })
+          const result = await options.verifyClientGenerationGateInMain({ challengeToken, authenticatedClient: origin, ...(answer ? { answer } : {}) })
           send(200, { ok: true, result })
           return
         }

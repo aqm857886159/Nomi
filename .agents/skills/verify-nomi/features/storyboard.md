@@ -34,4 +34,4 @@ node tests/ux/ui.mjs shot storyboard
   `node tests/ux/ui.mjs read "[...document.querySelectorAll('*')].map(e=>e.childElementCount===0?e.textContent:'').find(t=>/缺参考|missing.*refs/.test(t||''))||'none'"`
 - 从模型菜单挑模型会顺带勾上这一镜（底栏出「已选 1 镜」），截图前留意。
 - 读回落盘：`goto library` 后点那张卡的「继续创作」（悬停才出，按 `snap` 坐标 `xy:` 点），再 `goto storyboard`。直接在项目库 `goto storyboard` 会**新建**一个空白项目，读到的是新项目。
-- 不要点「生成」/「生成剩余」：隔离实例没钥匙，验证不花钱。
+- 默认隔离实例没钥匙；要验证「生成」/「生成剩余」，按 README 用 `--vendor fake-apimart` 起窗口后再点。

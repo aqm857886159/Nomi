@@ -1,0 +1,261 @@
+{
+  "version": 13,
+  "vendors": [
+    {
+      "key": "local-39017",
+      "name": "Claude Relay",
+      "enabled": true,
+      "hasApiKey": true,
+      "baseUrlHint": "http://127.0.0.1:39017/claude/v1",
+      "authType": "bearer",
+      "authHeader": null,
+      "authQueryParam": null,
+      "providerKind": "anthropic",
+      "credentialBinding": {
+        "origin": "http://127.0.0.1:39017",
+        "authType": "bearer",
+        "confirmedAt": "2026-11-22T02:26:35.636Z"
+      },
+      "meta": {
+        "adapterCandidatePromotionPredecessors": {}
+      },
+      "createdAt": "2026-11-22T02:26:35.636Z",
+      "updatedAt": "2026-11-22T02:26:35.669Z"
+    }
+  ],
+  "models": [
+    {
+      "modelKey": "claude-3-5-sonnet-20241022",
+      "vendorKey": "local-39017",
+      "modelAlias": "claude-3-5-sonnet-20241022",
+      "labelZh": "Claude 3.5 Sonnet",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-5d2d60fd3bb8d3faab40",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:35.636Z",
+      "updatedAt": "2026-11-22T02:26:35.669Z"
+    },
+    {
+      "modelKey": "claude-3-7-sonnet-20250219",
+      "vendorKey": "local-39017",
+      "modelAlias": "claude-3-7-sonnet-20250219",
+      "labelZh": "Claude 3.7 Sonnet",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-5d2d60fd3bb8d3faab40",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:35.636Z",
+      "updatedAt": "2026-11-22T02:26:35.669Z"
+    },
+    {
+      "modelKey": "claude-opus-4-1",
+      "vendorKey": "local-39017",
+      "modelAlias": "claude-opus-4-1",
+      "labelZh": "Claude Opus 4.1",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-5d2d60fd3bb8d3faab40",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:35.636Z",
+      "updatedAt": "2026-11-22T02:26:35.669Z"
+    },
+    {
+      "modelKey": "claude-sonnet-4-5",
+      "vendorKey": "local-39017",
+      "modelAlias": "claude-sonnet-4-5",
+      "labelZh": "Claude Sonnet 4.5",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-5d2d60fd3bb8d3faab40",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:35.636Z",
+      "updatedAt": "2026-11-22T02:26:35.669Z"
+    },
+    {
+      "modelKey": "claude-haiku-4-5",
+      "vendorKey": "local-39017",
+      "modelAlias": "claude-haiku-4-5",
+      "labelZh": "Claude Haiku 4.5",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-5d2d60fd3bb8d3faab40",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:35.636Z",
+      "updatedAt": "2026-11-22T02:26:35.669Z"
+    },
+    {
+      "modelKey": "claude-3-haiku-20240307",
+      "vendorKey": "local-39017",
+      "modelAlias": "claude-3-haiku-20240307",
+      "labelZh": "Claude 3 Haiku",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-5d2d60fd3bb8d3faab40",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:35.636Z",
+      "updatedAt": "2026-11-22T02:26:35.669Z"
+    }
+  ],
+  "mappings": [],
+  "apiKeysByVendor": {
+    "local-39017": {
+      "vendorKey": "local-39017",
+      "apiKey": "c2stdi1yZWxheS1mYWtl",
+      "enc": "safeStorage",
+      "enabled": true,
+      "createdAt": "2026-11-22T02:26:35.636Z",
+      "updatedAt": "2026-11-22T02:26:35.636Z"
+    }
+  }
+}

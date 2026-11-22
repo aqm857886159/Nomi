@@ -1,12 +1,9 @@
-import { productionJobPhase } from '../shared/productionShotPhase'
+export { latestJobForShot as latestJob } from '../shared/productionShotJobs'
+import { productionJobOpenAs } from '../shared/productionJobOpenAs'
 /** 画布单镜从 Run 账本读出来的那一份结果：最新一笔作业、它的产物、交回渲染层的形状。只读，不写账本。 */
 import { localAssetUrl } from "../assets/assetPaths";
 import type { ProductionArtifact, ProductionJob, ProductionRun } from "../productionRun/productionRunTypes";
 import type { CanvasTaskResult } from "./canvasTransportProvider";
-
-export function latestJob(run: ProductionRun): ProductionJob | undefined {
-  return [...run.jobs].sort((left, right) => right.attempt - left.attempt)[0];
-}
 
 /** 这笔作业账上的全部产物（一次出几张就几张，按落账顺序 = 上游交回的顺序）。 */
 export function readyArtifacts(run: ProductionRun, job: ProductionJob): ProductionArtifact[] {
@@ -53,8 +50,8 @@ export function failedResult(job: ProductionJob, kind: string): CanvasTaskResult
 export function blockingReason(run: ProductionRun | null): "in_flight" | "needs_reconcile" | null {
   if (!run) return null;
   for (const job of run.jobs) {
-    if (job.status === "submission_unknown" || job.status === "reconciling") return "needs_reconcile";
-    if (job.status === "submit_intent_persisted" || productionJobPhase(job.status) === "generating") return "in_flight";
+    const openAs = productionJobOpenAs(job.status);
+    if (openAs) return openAs;
   }
   return null;
 }

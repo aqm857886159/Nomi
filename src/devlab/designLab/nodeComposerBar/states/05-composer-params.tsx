@@ -3,6 +3,7 @@
 // 展开态由取景台真的点一下得到。英文 / 暗色由证据脚本加 `?lang=en` `?scheme=dark` 再截一遍。
 // 最后一格是全目录矩阵：走查脚本通过 window.__cpMatrix 逐个换「档案 × 方式」，量底栏放不放得下。
 import React from 'react'
+import { YieldHistoryStage } from '../yieldHistoryLab'
 import { ComposerB3Stage, type B3Scenario } from '../nodeComposerB3LabKit'
 import type { LabState } from '../../labScreen'
 import { MODEL_ARCHETYPES } from '../../../../../electron/shared/modelArchetypes/builtInCatalog'
@@ -94,7 +95,7 @@ export const COMPOSER_PARAMS_STATES: readonly LabState[] = [
     id: 'cp-matrix',
     name: '全目录矩阵（走查用）：window.__cpMatrix.set(档案, 方式) 换组合，每个组合按方式要的输入摆好、参数取最长值',
     source: 'docs/design/boards/2026-11-14-composer-params/ComposerParams.board.json（便签「边界表」：实现时把全部模型 × 方式 × 中英文跑一遍）', mirrors: MIRRORS, coverage: 'shell', scheme: 'light',
-    render: () => <MatrixStage />,
+    render: () => new URLSearchParams(window.location.search).has('yield-history') ? <YieldHistoryStage /> : <MatrixStage />,
   },
 ]
 

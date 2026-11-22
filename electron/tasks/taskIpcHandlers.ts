@@ -10,7 +10,7 @@ import { cancelComfyCandidateTest, failComfyCandidateEnvelope, runComfyCandidate
 import { registerQuitDrain } from "../quitTeardown";
 
 type RuntimeLoader = () => Promise<typeof import("../runtime")>;
-type CanvasShotCore = Pick<typeof import("../capabilityCore/appIntegration"), "canvasOpenRuns" | "consentCanvasShots" | "submitCanvasShot" | "pollCanvasShot" | "releaseCanvasShot" | "withdrawCanvasShots" | "releaseCanvasShotSender">;
+type CanvasShotCore = Pick<typeof import("../capabilityCore/appIntegration"), "canvasOpenRuns" | "decideCanvasResend" | "consentCanvasShots" | "submitCanvasShot" | "pollCanvasShot" | "releaseCanvasShot" | "withdrawCanvasShots" | "releaseCanvasShotSender">;
 type CoreLoader = () => Promise<CanvasShotCore>;
 
 const str = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
@@ -82,7 +82,7 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader, loadCo
   ipcMain.handle("nomi:tasks:canvas-submit", (event, payload) => {
     assertTrustedSender(event);
     trackOwner(event.sender);
-    const raw = (payload || {}) as { projectId?: unknown; nodeId?: unknown; runRecordId?: unknown; vendor?: unknown; request?: unknown; acknowledgedOpenRuns?: unknown };
+    const raw = (payload || {}) as { projectId?: unknown; nodeId?: unknown; runRecordId?: unknown; vendor?: unknown; request?: unknown; resendDecisionId?: unknown };
     const request = raw.request as { kind?: unknown; prompt?: unknown; extras?: Record<string, unknown> } | undefined;
     const projectId = str(raw.projectId);
     const nodeId = str(raw.nodeId);
@@ -95,7 +95,7 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader, loadCo
     const gesture = { webContentsId: event.sender.id, frameId: event.senderFrame?.routingId ?? 0, origin: event.senderFrame?.origin ?? "" };
     return runTaskIpcGuard({ request }, async () => withTaskOwner(event.sender.id, async () => (await loadCore()).submitCanvasShot({
       projectId, nodeId, runRecordId, vendor, request: request as never, gesture, senderId: event.sender.id,
-      ...(Array.isArray(raw.acknowledgedOpenRuns) ? { acknowledgedOpenRuns: raw.acknowledgedOpenRuns.filter((id): id is string => typeof id === "string") } : {}),
+      ...(str(raw.resendDecisionId) ? { resendDecisionId: str(raw.resendDecisionId) } : {}),
     })));
   });
   ipcMain.handle("nomi:tasks:canvas-poll", (event, payload) => {
@@ -113,6 +113,22 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader, loadCo
     const nodeId = str(raw.nodeId);
     if (!projectId) throw new Error("canvas open run query is invalid");
     return (await loadCore()).canvasOpenRuns({ projectId, ...(nodeId ? { nodeId } : {}) });
+  });
+  // 「我想再发一次」：渲染层只报意图和身份（节点 / 绑着的制作 Run / 任务中心点名的那一笔），要不要问、放行哪几笔由主进程定。
+  ipcMain.handle("nomi:tasks:canvas-resend-decide", async (event, payload) => {
+    assertTrustedSender(event);
+    trackOwner(event.sender);
+    const raw = (payload || {}) as { projectId?: unknown; nodeId?: unknown; resend?: unknown; initiator?: unknown; resultUnknown?: unknown; production?: { runId?: unknown; jobId?: unknown } };
+    const projectId = str(raw.projectId);
+    const nodeId = str(raw.nodeId);
+    const productionRunId = str(raw.production?.runId);
+    const productionJobId = str(raw.production?.jobId);
+    if (!projectId || (!nodeId && !productionJobId)) throw new Error("canvas resend decision is invalid");
+    return (await loadCore()).decideCanvasResend({
+      projectId, ...(nodeId ? { nodeId } : {}), resend: raw.resend === true, initiator: str(raw.initiator),
+      resultUnknown: raw.resultUnknown === true, senderId: event.sender.id,
+      ...(productionRunId ? { production: { runId: productionRunId, ...(productionJobId ? { jobId: productionJobId } : {}) } } : {}),
+    });
   });
   ipcMain.handle("nomi:tasks:canvas-release", async (event, payload) => {
     assertTrustedSender(event);

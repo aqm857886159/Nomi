@@ -4,13 +4,11 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { setEventLogProjectDirResolverForTests, readEvents } from "../events/eventLogRepository";
 import { createExperienceRepository, setExperienceProjectDirResolverForTests } from "./experienceRepository";
-import { getProjectMemory, setProjectMemoryDirResolverForTests } from "../memory/projectMemory";
 
 const roots: string[] = [];
 afterEach(() => {
   setEventLogProjectDirResolverForTests(() => null);
   setExperienceProjectDirResolverForTests(() => null);
-  setProjectMemoryDirResolverForTests(() => null);
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -19,7 +17,6 @@ function setup() {
   roots.push(root);
   setEventLogProjectDirResolverForTests(() => root);
   setExperienceProjectDirResolverForTests(() => root);
-  setProjectMemoryDirResolverForTests(() => root);
   return root;
 }
 
@@ -65,17 +62,5 @@ describe("experience repository", () => {
     expect(promoted?.status).toBe("active");
     expect(readEvents("p1").some((event) => event.type === "experience.reuse.recorded")).toBe(true);
     expect(readEvents("p1").some((event) => event.type === "experience.candidate.created")).toBe(true);
-  });
-
-  it("projects an active green fact through the existing project memory boundary", async () => {
-    setup();
-    const repo = createExperienceRepository();
-    const factTrajectory = {
-      ...trajectory,
-      trajectoryId: "fact-traj-1",
-      response: "<!-- nomi-learning {\"kind\":\"fact\",\"title\":\"凭据边界\",\"content\":\"API key 只留在本机\",\"evidence\":{\"problem\":\"担心泄露\",\"action\":\"使用主进程密钥边界\",\"outcome\":\"凭据未离开本机\",\"verification\":\"日志未出现密钥\",\"eventSeqs\":[1]},\"confidence\":0.95} -->",
-    };
-    await repo.complete(factTrajectory);
-    expect(getProjectMemory("p1").facts.map((fact) => fact.text)).toContain("API key 只留在本机");
   });
 });

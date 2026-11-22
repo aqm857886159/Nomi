@@ -1,0 +1,31 @@
+{
+  "name": "根因合同复发声明与复发率统计（recurrence_of 引用解析与声明/历史估分离口径）",
+  "subject": "delivery.recurrence-metrics",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/root-cause-contracts.mjs",
+    "symbol": "resolveRecurrenceRef"
+  },
+  "write_api": [
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "symbol": "resolveRecurrenceRef"
+    },
+    {
+      "path": "scripts/eng-metrics.mjs",
+      "symbol": "computeRecurrence"
+    }
+  ],
+  "parity_test": "scripts/eng-metrics.node-test.mjs",
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "scripts/root-cause-contracts.mjs",
+    "scripts/eng-metrics.mjs"
+  ],
+  "since": "2026-11-22",
+  "notes": "schema v3 根因合同的 recurrence_of 引用规范化与存在性校验统一归 scripts/root-cause-contracts.mjs#resolveRecurrenceRef；复发率统计由 scripts/eng-metrics.mjs#computeRecurrence 复用同一解析入口，并严格分离显式声明复发与历史合同 Simple S-sym 估计两项口径。"
+}

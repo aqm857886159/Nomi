@@ -11,6 +11,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { buildWalkCatalog } from './_world.mjs'
 import {
   ASSISTANT_MESSAGE, COMPOSER, COMPOSER_INPUT, COMPOSER_MODEL,
   COMPOSER_SEND, COMPOSER_SKILL, ERROR_BAR, MODEL_POPOVER, SKILL_POPOVER, SKILL_SEARCH,
@@ -94,7 +95,7 @@ async function startLoopbackProvider() {
 }
 
 function writeLoopbackCatalog(settingsDir, baseUrl) {
-  fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), `${JSON.stringify({
+  buildWalkCatalog(settingsDir, {
     version: 12,
     vendors: [{
       key: FIXTURE_VENDOR, name: 'Local long-video loopback', enabled: true,
@@ -114,7 +115,7 @@ function writeLoopbackCatalog(settingsDir, baseUrl) {
       createdAt: NOW, updatedAt: NOW,
     }],
     mappings: [], apiKeysByVendor: {},
-  }, null, 2)}\n`, 'utf8')
+  })
 }
 
 function sampleDurationSeconds(samplePath) {
@@ -254,13 +255,15 @@ function buildUiDriver({ appRef, winRef, profile, samplePath, loopback }) {
       const panel = win.locator('[data-deconstruct-panel]').last()
       await panel.locator('[data-deconstruct-start="true"]').click()
       await panel.locator('[data-deconstruct-shots="true"]').waitFor({ state: 'visible', timeout: 180_000 })
-      const shots = await panel.locator('[data-deconstruct-shot]').count()
-      return { status: shots > 0 ? 'pass' : 'blocked', evidenceState: loopback ? 'loopback' : 'blocked-live', detail: 'visible deconstruction panel produced storyboard rows', evidence: { shotCount: shots, loopbackRequests: loopback?.requests.length || 0 } }
+      const hasShots = await panel.locator('[data-deconstruct-shot]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
+      const shots = hasShots ? await panel.locator('[data-deconstruct-shot]').count() : 0
+      return { status: hasShots ? 'pass' : 'blocked', evidenceState: loopback ? 'loopback' : 'blocked-live', detail: 'visible deconstruction panel produced storyboard rows', evidence: { shotCount: shots, loopbackRequests: loopback?.requests.length || 0 } }
     }
 
     if (step.action === 'produceStoryboard') {
-      const shots = await win.locator('[data-deconstruct-shots="true"] [data-deconstruct-shot]').count()
-      return shots > 0
+      const hasShots = await win.locator('[data-deconstruct-shots="true"] [data-deconstruct-shot]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
+      const shots = hasShots ? await win.locator('[data-deconstruct-shots="true"] [data-deconstruct-shot]').count() : 0
+      return hasShots
         ? { status: 'pass', evidenceState: loopback ? 'loopback' : 'blocked-live', detail: 'storyboard rows are visible in the deconstruction result', evidence: { shotCount: shots } }
         : { status: 'blocked', evidenceState: 'blocked-live', detail: 'storyboard_rows_missing' }
     }
