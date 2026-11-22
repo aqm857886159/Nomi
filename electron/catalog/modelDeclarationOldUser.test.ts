@@ -10,10 +10,9 @@
  * 协议、推理三格一律不写（老用户的请求必须和升级前一样）。
  */
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { seedOldUserData, type World } from "../../tests/world";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -29,7 +28,6 @@ vi.mock("electron", async (importOriginal) => {
   };
 });
 
-const FIXTURES = fileURLToPath(new URL("../../tests/fixtures/old-user-data/text-quirks", import.meta.url));
 const DIRECTORIES = ["v0.24.0/chat", "v0.24.0/anthropic", "v0.24.0/responses", "v0.24.1/chat", "v0.24.1/anthropic", "v0.24.1/responses"];
 const DECLARATION_KEYS = ["textProtocol", "reasoning", "thinkingLevelMap", "compat", "inputModalities", "requestBodyOverrides"];
 const PDF = { inputModalities: ["pdf"] };
@@ -72,21 +70,20 @@ const EXPECTED: Record<string, Record<string, Declaration>> = {
 
 type DiskModel = { vendorKey: string; modelKey: string; kind: string; meta?: Record<string, unknown> };
 type Disk = { version: number; models: DiskModel[]; [key: string]: unknown };
-const roots: string[] = [];
+const worlds: World[] = [];
 
 afterEach(() => {
   vi.unstubAllEnvs();
-  for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+  for (const world of worlds.splice(0)) world.cleanup();
 });
 
 async function open(directory: string) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-model-declaration-"));
-  roots.push(root);
-  const settings = path.join(root, "settings");
-  fs.mkdirSync(settings);
+  // 老用户的真实落盘数据经测试世界的正门拷进来（占位符换成这个世界的位置），不手搓目录文件。
+  const world = seedOldUserData(`text-quirks/${directory}`);
+  worlds.push(world);
+  const settings = world.settingsDir;
   const file = path.join(settings, "model-catalog.json");
-  const original = fs.readFileSync(path.join(FIXTURES, directory, "model-catalog.json"), "utf8");
-  fs.writeFileSync(file, original);
+  const original = fs.readFileSync(file, "utf8");
   vi.stubEnv("NOMI_SETTINGS_DIR", settings);
   vi.stubEnv("NOMI_TEST_NETWORK_GUARD", "1");
   vi.resetModules();
@@ -140,8 +137,11 @@ describe.each(DIRECTORIES)("saved by %s, read by this release", (directory) => {
     const target = written.models.find((model) => model.meta && "inputModalities" in model.meta);
     expect(target, "the fixture has a row the repair declared").toBeDefined();
     if (!target) return;
-    delete target.meta!.inputModalities;
-    fs.writeFileSync(dir.file, JSON.stringify(written));
+    // 把声明拿掉这一步走主人的写口（事务里直接改它落盘的那份状态），不手写目录文件。
+    dir.catalog.mutateCatalog((_tx, state) => {
+      const row = state.models.find((model) => model.vendorKey === target.vendorKey && model.modelKey === target.modelKey)!;
+      delete (row.meta as Record<string, unknown>).inputModalities;
+    });
     dir.catalog.readCatalog();
     const again = dir.disk().models.find((model) => model.vendorKey === target.vendorKey && model.modelKey === target.modelKey)!;
     expect(again.meta).not.toHaveProperty("inputModalities");
