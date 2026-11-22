@@ -59,7 +59,7 @@ export async function runCreationAiRewriteJourney({ win, snap, resultTimeout = s
   await expect(win.locator(RESULT), '模型回来后就地出结果（不是「没改成」）').toBeVisible({ timeout: resultTimeout })
   facts.originalUnchangedBeforeAccept = (await documentText(win)).includes(REWRITE_TARGET)
   expect(facts.originalUnchangedBeforeAccept, '接受之前原文一个字没动').toBe(true)
-  expect(await win.locator('.nomi-ai-rewrite-del').count(), '结果里有划线的删除部分').toBeGreaterThan(0)
+  await expect(win.locator('.nomi-ai-rewrite-del').first(), '结果里有划线的删除部分').toBeVisible()
   expect(await win.locator('[data-rewrite-action]').count(), '段尾只有 ✓ ✕').toBe(2)
   await snap('rewrite-03-result')
 

@@ -117,7 +117,7 @@ try {
   const toolbar = editor.getByRole('toolbar')
   const centered = await toolbar.evaluate(el => { const node = el.closest('[data-nomi-inline-whiteboard]'); const a = el.getBoundingClientRect(), b = node.getBoundingClientRect(); return Math.abs(a.x + a.width / 2 - b.x - b.width / 2) < 2 })
   check('toolbar is centered against the whole frame', centered)
-  check('complete direct editing toolbar remains available', await Promise.all(['select','brush','eraser','text','undo','redo','importImage','materials','layers','ratio','done'].map(name => action(name).count())).then(counts => counts.every(count => count === 1)))
+  check('complete direct editing toolbar remains available', await Promise.all(['select','brush','eraser','text','undo','redo','importImage','materials','layers','ratio','done'].map(name => expect(action(name)).toHaveCount(1).then(() => true, () => false))).then(results => results.every(Boolean)))
   await action('materials').click()
   const panelProbe = await proveProbe(page.locator('[data-whiteboard-panel]'), 'materials panel actually opens')
   await expect(page.locator('[data-whiteboard-panel="materials"]')).toBeVisible()

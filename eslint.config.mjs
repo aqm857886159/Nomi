@@ -300,6 +300,45 @@ export const playwrightAliasSelectors = [
 // 只在三片目录开的选择器若混进 no-restricted-syntax，就得在每个能匹配到这三片的块里重拼一遍；独立 id 只有下面一个块配置它，不会被覆盖。
 const playwrightAliasPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 export const PLAYWRIGHT_ALIAS_FILES = ['scripts', 'tests', 'evals'].map((dir) => `${dir}/**/*.{js,mjs,cjs,ts,tsx,mts,cts}`)
+const PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE = "locator.count() is a one-shot snapshot and does not wait; asserting presence with count() flakes on late mount. Use expectVisible / locator.waitFor({ state: 'visible' }) / expect(loc).toBeVisible() (or state: 'attached' for hidden inputs)."
+const AWAIT_COUNT_EXPR = 'AwaitExpression:matches([argument.type="CallExpression"][argument.callee.property.name="count"], [argument.type="CallExpression"][argument.callee.property.name="catch"][argument.callee.object.type="CallExpression"][argument.callee.object.callee.property.name="count"])'
+const NOT_IN_EXPECT_POLL = ':not(CallExpression[callee.object.name="expect"][callee.property.name="poll"] *)'
+const COUNT_IF_FAIL = ':matches([consequent.type="ThrowStatement"], [consequent.type="ExpressionStatement"][consequent.expression.type="CallExpression"][consequent.expression.callee.name=/^(record|fail)$/], [consequent.type="ExpressionStatement"][consequent.expression.type="CallExpression"][consequent.expression.callee.type="MemberExpression"][consequent.expression.callee.object.name=/^(failures|errors|issues)$/][consequent.expression.callee.property.name="push"], :has(BlockStatement.consequent > ThrowStatement), :has(BlockStatement.consequent > ExpressionStatement[expression.type="CallExpression"][expression.callee.name=/^(record|fail)$/]), :has(BlockStatement.consequent > ExpressionStatement[expression.type="CallExpression"][expression.callee.type="MemberExpression"][expression.callee.object.name=/^(failures|errors|issues)$/][expression.callee.property.name="push"]))'
+export const playwrightCountNoWaitSelectors = [
+  {
+    selector: `IfStatement${NOT_IN_EXPECT_POLL}${COUNT_IF_FAIL} > UnaryExpression.test[operator="!"] > ${AWAIT_COUNT_EXPR}.argument`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `IfStatement${NOT_IN_EXPECT_POLL}${COUNT_IF_FAIL} > BinaryExpression.test:matches([operator=/^(===?|<=)$/][right.value=0], [operator="<"][right.value=1], [operator=/^!==?$/][right.value=1]) > ${AWAIT_COUNT_EXPR}.left`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `VariableDeclaration${NOT_IN_EXPECT_POLL}:has(VariableDeclarator[id.type="Identifier"] > ${AWAIT_COUNT_EXPR}.init) + IfStatement${COUNT_IF_FAIL}[test.type="BinaryExpression"][test.left.type="Identifier"][test.operator=/^(===?|<=)$/][test.right.value=0]`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `CallExpression${NOT_IN_EXPECT_POLL}[callee.name=/^(check|record)$/] > BinaryExpression:matches([operator=">"][right.value=0], [operator=">="][right.value=1], [operator=/^!==?$/][right.value=0]) > ${AWAIT_COUNT_EXPR}.left`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `CallExpression${NOT_IN_EXPECT_POLL}[callee.object.name="assert"][callee.property.name="ok"] > ${AWAIT_COUNT_EXPR}:first-child`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `CallExpression${NOT_IN_EXPECT_POLL}[callee.object.name="assert"][callee.property.name="ok"] > BinaryExpression:first-child:matches([operator=">"][right.value=0], [operator=">="][right.value=1], [operator=/^!==?$/][right.value=0]) > ${AWAIT_COUNT_EXPR}.left`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `CallExpression${NOT_IN_EXPECT_POLL}[callee.object.name="assert"][callee.property.name=/^(strict)?[Ee]qual$/][arguments.1.type="Literal"][arguments.1.value=1] > ${AWAIT_COUNT_EXPR}:first-child`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+  {
+    selector: `CallExpression${NOT_IN_EXPECT_POLL}[callee.type="MemberExpression"][callee.object.type="CallExpression"][callee.object.callee.name="expect"]:matches([callee.property.name="toBeGreaterThan"][arguments.0.value=0], [callee.property.name="toBeGreaterThanOrEqual"][arguments.0.value=1]) > MemberExpression.callee > CallExpression.object > ${AWAIT_COUNT_EXPR}:first-child`,
+    message: PLAYWRIGHT_COUNT_NO_WAIT_MESSAGE,
+  },
+]
+export const PLAYWRIGHT_COUNT_NO_WAIT_FILES = ['tests/ux', 'tests/perf'].map((dir) => `${dir}/**/*.{js,mjs,cjs,ts,tsx,mts,cts}`)
 
 // ③ vitest 车道的浏览器夹具测试起 vite 开发服务只经 tests/ux/_browserFixture.mjs 的 useBrowserFixture（2026-10-24）。
 // 直接 createServer 会让依赖扫描爬仓库里全部 *.html（596 个），并把夹具页一千多个模块的冷编译算进用例里一次 goto 的操作预算，
@@ -893,10 +932,17 @@ export default tseslint.config(
     rules: { 'focus-owner/no-restricted-syntax': ['error', ...WALK_FOCUS_BY_TAG_SELECTORS] },
   },
   {
-    // Playwright isVisible / isHidden 不许当值取出来（见上面 playwrightAliasSelectors 的说明）；只有这一个块配置这个规则 id。
+    // Playwright isVisible / isHidden 不许当值取出来（见上面 playwrightAliasSelectors 的说明）。
     files: PLAYWRIGHT_ALIAS_FILES,
     plugins: { 'playwright-wait': playwrightAliasPlugin },
     rules: { 'playwright-wait/no-restricted-syntax': ['error', ...playwrightAliasSelectors] },
+  },
+  {
+    // Playwright locator.count() 是瞬时快照不等待：在 tests/ux 与 tests/perf 里不能拿它断言「元素该在」。
+    // flat config 同名规则会整条覆盖前面的块，因此必须一并带上 playwrightAliasSelectors。
+    files: PLAYWRIGHT_COUNT_NO_WAIT_FILES,
+    plugins: { 'playwright-wait': playwrightAliasPlugin },
+    rules: { 'playwright-wait/no-restricted-syntax': ['error', ...playwrightAliasSelectors, ...playwrightCountNoWaitSelectors] },
   },
   {
     // 原始出网只给装配与传输主人（见上面 ⑦）；只有下面两个块配置 raw-vendor-send/*，文件范围不重叠。

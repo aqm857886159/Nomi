@@ -118,7 +118,7 @@ try {
   await expectVisible(page.getByTestId('director-context-card'), '选中侍卫后属性卡没出来')
   check('T1·属性卡标题是侍卫', (await page.getByTestId('director-context-card').innerText()).includes('黑衣侍卫'))
   // 侍卫在这一刻由轨迹驱动，检查器写着「只读（先插关键帧）」：先加关键帧
-  const readOnly = (await page.getByTestId('director-inspector').getByText('只读（先插关键帧）').count()) > 0
+  const readOnly = await page.getByTestId('director-inspector').getByText('只读（先插关键帧）').first().waitFor({ state: 'visible' }).then(() => true, () => false)
   if (readOnly) await click('T1', page.getByTestId('director-timeline-header').getByRole('button', { name: /加关键帧/ }), '时间轴头·加关键帧')
   // 侍卫是轨迹驱动的：看「此刻在哪」要读检查器里的数（用户看到的）和 3D 包围盒（画面上的），不读工程里的基准位姿
   const center = async (id) => {

@@ -20,7 +20,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expectVisible, expectHidden, expectText, proveProbe, expectAbsent, scopedText, screenshotSettled } from './_assert.mjs'
+import { expect, expectVisible, expectHidden, expectText, proveProbe, expectAbsent, scopedText, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempRoot = makeTempDir('nomi-anchor-checkpoint-')
@@ -239,9 +239,10 @@ try {
   await win.locator('[data-anchor-rework]').first().click()
   await delay(300)
   await screenshotSettled(win, { path: path.join(shotsDir, `${shotPrefix}03-rework-selected.png`) })
+  const selectedAnchor = win.locator('[data-anchor-entry][data-anchor-selected="true"]')
   record('⑤ 点「重拍这张」→ 卡进选中态',
-    await win.locator('[data-anchor-entry][data-anchor-selected="true"]').count() === 1,
-    `选中卡数 = ${await win.locator('[data-anchor-entry][data-anchor-selected="true"]').count()}`)
+    await expect(selectedAnchor).toHaveCount(1).then(() => true, () => false),
+    `选中卡数 = ${await selectedAnchor.count()}`)
   await expectText(primary, new RegExp(L.reworkSelected.slice(0, 6)), '主按钮应变形为「先重拍选中的」')
   record('⑤ 主按钮变形为「先重拍选中的」', (await scopedText(primary)).includes(L.reworkSelected),
     `变形后主按钮：「${await scopedText(primary)}」`)
@@ -265,7 +266,7 @@ try {
   const reopenProof = await proveProbe(win.locator('[data-production-primary-action]'), '任务中心卡的主操作键仍在（门 waiting → 可重开）')
   record('④ 重开入口 = 既有任务中心 run 卡（未新造常驻控件）', reopenProof !== null, '主操作键仍在，可重新唤出检查点卡')
   await openCheckpointCard(win, card)
-  record('④ 从任务中心重新弹出检查点卡', await card.count() === 1, '卡再次可见')
+  record('④ 从任务中心重新弹出检查点卡', await expect(card).toHaveCount(1).then(() => true, () => false), '卡再次可见')
 
   // ── ③ 开拍：decide approved + 卡收 ───────────────────────────────────────────────
   await screenshotSettled(win, { path: path.join(shotsDir, `${shotPrefix}04-before-approve.png`) })

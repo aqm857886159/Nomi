@@ -200,8 +200,9 @@ try {
   const browserEntry = win.locator('button[aria-label="打开浏览器"]').first()
   const noLegacyCaptureEntry = (await win.locator('button[aria-label="网页捕捞"]').count()) === 0
   const noTopbarAssetBox = true // 临时放宽：顶栏素材盒入口属 asset-surface-convergence 已拍板另单（PR#41 捎带恢复的存量矛盾，非本轮范围）
-  const entryPresent = (await browserEntry.count()) > 0 && noLegacyCaptureEntry && noTopbarAssetBox
-  console.log(`  唯一门: browser=${(await browserEntry.count()) > 0} 无网页捕捞=${noLegacyCaptureEntry} 顶栏无素材盒=${noTopbarAssetBox}`)
+  const browserEntryVisible = await browserEntry.waitFor({ state: 'visible' }).then(() => true, () => false)
+  const entryPresent = browserEntryVisible && noLegacyCaptureEntry && noTopbarAssetBox
+  console.log(`  唯一门: browser=${browserEntryVisible} 无网页捕捞=${noLegacyCaptureEntry} 顶栏无素材盒=${noTopbarAssetBox}`)
   await snapPage(win, 'asset-panel-entry')
 
   // —— ② 顶栏打开应用内浏览器 ——
@@ -209,7 +210,7 @@ try {
   if (entryPresent) {
     await browserEntry.click({ timeout: 3000 })
     await win.waitForTimeout(1800)
-    browserOpen = (await win.locator('input[aria-label="地址栏"]').count()) > 0
+    browserOpen = await win.locator('input[aria-label="地址栏"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
   }
   await snapPage(win, 'browser-open')
 
@@ -331,33 +332,33 @@ try {
       // 原生菜单是失焦即关；先向菜单本身发键盘事件，再查询 owner，避免测试查询抢焦造成假失败。
       const escapeSent = await pressEscapeInNativeChromeMenu()
       await nativeTabMenu.waitForEvent('close', { timeout: 2500 }).catch(() => {})
-      chromeChecks.tabMenuEscape = escapeSent && nativeTabMenu.isClosed() && (await win.locator('input[aria-label="地址栏"]').count()) > 0
-    } else if ((await win.locator('[data-nomi-browser-tab-menu="true"]').count()) > 0) {
+      chromeChecks.tabMenuEscape = escapeSent && nativeTabMenu.isClosed() && await win.locator('input[aria-label="地址栏"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
+    } else if (await win.locator('[data-nomi-browser-tab-menu="true"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)) {
       await win.keyboard.press('Escape')
       await win.waitForTimeout(250)
-      chromeChecks.tabMenuEscape = (await win.locator('[data-nomi-browser-tab-menu="true"]').count()) === 0 && (await win.locator('input[aria-label="地址栏"]').count()) > 0
+      chromeChecks.tabMenuEscape = (await win.locator('[data-nomi-browser-tab-menu="true"]').count()) === 0 && await win.locator('input[aria-label="地址栏"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
     } else {
       chromeChecks.tabMenuEscape = false
     }
 
     await win.locator('button[aria-label="素材网站"]').click({ timeout: 2500 }).catch(() => {})
-    const materialOpened = (await win.locator('[role="dialog"][aria-label="素材网站列表"]').count()) > 0
+    const materialOpened = await win.locator('[role="dialog"][aria-label="素材网站列表"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
     await win.waitForTimeout(150)
     await win.keyboard.press('Escape')
     await win.waitForTimeout(250)
-    chromeChecks.materialSitesEscape = materialOpened && (await win.locator('[role="dialog"][aria-label="素材网站列表"]').count()) === 0 && (await win.locator('input[aria-label="地址栏"]').count()) > 0
+    chromeChecks.materialSitesEscape = materialOpened && (await win.locator('[role="dialog"][aria-label="素材网站列表"]').count()) === 0 && await win.locator('input[aria-label="地址栏"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
 
     await win.locator('button[aria-label="截图提取提示词"]').click({ timeout: 2500 }).catch(() => {})
     const nativeScreenshotMenu = await waitForNativeChromeMenu()
     if (nativeScreenshotMenu) {
       const escapeSent = await pressEscapeInNativeChromeMenu()
       await nativeScreenshotMenu.waitForEvent('close', { timeout: 2500 }).catch(() => {})
-      chromeChecks.screenshotPickerEscape = escapeSent && nativeScreenshotMenu.isClosed() && (await win.locator('input[aria-label="地址栏"]').count()) > 0
-    } else if ((await win.locator('[role="menu"][aria-label="选择提示词提取方式"]').count()) > 0) {
+      chromeChecks.screenshotPickerEscape = escapeSent && nativeScreenshotMenu.isClosed() && await win.locator('input[aria-label="地址栏"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
+    } else if (await win.locator('[role="menu"][aria-label="选择提示词提取方式"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)) {
       await win.waitForTimeout(150)
       await win.keyboard.press('Escape')
       await win.waitForTimeout(250)
-      chromeChecks.screenshotPickerEscape = (await win.locator('[role="menu"][aria-label="选择提示词提取方式"]').count()) === 0 && (await win.locator('input[aria-label="地址栏"]').count()) > 0
+      chromeChecks.screenshotPickerEscape = (await win.locator('[role="menu"][aria-label="选择提示词提取方式"]').count()) === 0 && await win.locator('input[aria-label="地址栏"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
     } else {
       chromeChecks.screenshotPickerEscape = false
     }
@@ -409,7 +410,7 @@ try {
     if (captureOn && await captureOn.count() && !(await captureOn.isDisabled())) {
       await captureOn.click({ timeout: 2500 })
       await overlayPage.waitForTimeout(450)
-      captureButtonPath = (await overlayPage.locator('button[aria-label="关闭资源捕捞"][aria-pressed="true"]').count()) > 0
+      captureButtonPath = await overlayPage.locator('button[aria-label="关闭资源捕捞"][aria-pressed="true"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
     }
     console.log('  resource capture enabled by visible button:', captureButtonPath)
     if (overlayPage) await snapPage(overlayPage, 'capture-mode-on')
@@ -627,7 +628,7 @@ try {
       }, viewId)
       nativeWebClick = clickSent && clicksAfter === clicksBefore + 1
       nativeOverlayStayedOpen = !overlayPage.isClosed() &&
-        (await overlayPage.locator('[role="dialog"][aria-label="素材盒"]').count()) > 0
+        await overlayPage.locator('[role="dialog"][aria-label="素材盒"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
       const currentDockMode = await overlayPage.locator('[role="dialog"][aria-label="素材盒"]').getAttribute('data-dock-mode')
       console.log('  macOS native journey:', { nativeDockDrag, nativeFloatingDrag, nativeWebClick, nativeOverlayStayedOpen, currentDockMode })
       await snapPage(overlayPage, 'native-dock-restore-drag-click')
@@ -659,8 +660,8 @@ try {
         errorReasonVisible = (await overlayPage.getByText('不是图片/视频', { exact: false }).count()) > 0
       }
       const transientStrip = overlayPage.locator('[aria-label="捕捞进行中或失败"]')
-      const stripHasActions = (await transientStrip.locator('button', { hasText: '重试' }).count()) > 0 &&
-        (await transientStrip.locator('button', { hasText: '移除' }).count()) > 0
+      const stripHasActions = (await transientStrip.locator('button', { hasText: '重试' }).first().waitFor({ state: 'visible' }).then(() => true, () => false)) &&
+        (await transientStrip.locator('button', { hasText: '移除' }).first().waitFor({ state: 'visible' }).then(() => true, () => false))
       const failedTileCount = await overlayPage.locator('[data-browser-asset-tile]', { hasText: 'bad reference' }).count()
       failedCardNotDraggable = stripHasActions && failedTileCount === 0
       await snapPage(overlayPage, 'actionable-download-error')
