@@ -19,6 +19,7 @@ import {
   parseGitHubRepository,
   preflightDelivery,
   runBoundedCommand,
+  runDeliveryCommand,
   verifyMergedDelivery,
 } from './git-delivery.mjs'
 import { CORE_SMOKE_ADVISORY_CHECK_NAMES, CORE_SMOKE_BLOCKING_CHECK_NAMES, CORE_SMOKE_CHECK_NAMES } from './validation-policy.mjs'
@@ -606,4 +607,130 @@ test('canonical delivery source has no REST object reconstruction escape path', 
   assert.equal(pkg.scripts['delivery:verify-merged'], 'node scripts/git-delivery.mjs verify-merged')
   assert.match(pkg.scripts['check:git-delivery'], /git-delivery\.node-test\.mjs/)
   assert.match(pkg.scripts['gates:contracts'], /check:git-delivery/)
+})
+
+test('preflight reports approved board debt, flags >3d unclaimed missing boards as overdue, and ignores fully implemented/dropped boards', async (t) => {
+  const f = fixture()
+  t.after(f.cleanup)
+  git(f.work, ['switch', '-c', 'feat/board-debt-fixture'])
+  write(
+    path.join(f.work, 'docs/design/boards/2026-11-10-unclaimed/UnclaimedBoard.board.json'),
+    JSON.stringify({
+      board: 'UnclaimedBoard',
+      approvedOn: '2026-11-10',
+      stage: 'explored',
+      elements: [
+        { id: 'u.1', status: 'missing', owner: 'unassigned', component: 'src/a.tsx', states: ['zh-en'] },
+        { id: 'u.2', status: 'missing', owner: 'unassigned', component: 'src/a.tsx', states: ['zh-en'] },
+      ],
+    }),
+  )
+  write(
+    path.join(f.work, 'docs/design/boards/2026-11-10-claimed/ClaimedBoard.board.json'),
+    JSON.stringify({
+      board: 'ClaimedBoard',
+      approvedOn: '2026-11-10',
+      stage: 'explored',
+      elements: [
+        { id: 'c.1', status: 'missing', owner: '#1548', component: 'src/b.tsx', states: ['zh-en'] },
+      ],
+    }),
+  )
+  write(
+    path.join(f.work, 'docs/design/boards/2026-11-21-fresh/FreshBoard.board.json'),
+    JSON.stringify({
+      board: 'FreshBoard',
+      approvedOn: '2026-11-21',
+      stage: 'explored',
+      elements: [
+        { id: 'f.1', status: 'missing', owner: 'S1', component: 'src/c.tsx', states: ['zh-en'] },
+      ],
+    }),
+  )
+  write(
+    path.join(f.work, 'docs/design/boards/2026-11-05-done/DoneBoard.board.json'),
+    JSON.stringify({
+      board: 'DoneBoard',
+      approvedOn: '2026-11-05',
+      stage: 'built',
+      elements: [
+        { id: 'd.1', status: 'implemented', assertion: 'board:Done/d.1', component: 'src/d.tsx', states: ['zh-en'] },
+        { id: 'd.2', status: 'dropped', userDecision: { quote: '不要了', date: '2026-11-05' }, states: ['zh-en'] },
+      ],
+    }),
+  )
+  git(f.work, ['add', 'docs/design/boards'])
+  git(f.work, ['commit', '-m', 'add fixture boards'])
+
+  const result = await runDeliveryCommand(['preflight'], {
+    cwd: f.work,
+    now: new Date('2026-11-22T12:00:00Z'),
+    collectActiveWork: async () => ({
+      prs: [{ number: 1548, title: 'feat: claimed', headRefName: 'feat/claimed', body: '## 拍板图\n- ClaimedBoard: c.1' }],
+      branches: [],
+      prLookupError: null,
+    }),
+  })
+  assert.ok(result.boardDebt, 'preflight must include boardDebt summary')
+  assert.equal(result.boardDebt.totalBoards, 4)
+  assert.equal(result.boardDebt.owedBoards, 3)
+  assert.equal(result.boardDebt.overdueBoards, 1)
+  const names = result.boardDebt.boards.map((b) => b.board)
+  assert.ok(names.includes('UnclaimedBoard'))
+  assert.ok(names.includes('ClaimedBoard'))
+  assert.ok(names.includes('FreshBoard'))
+  assert.ok(!names.includes('DoneBoard'), 'all implemented/dropped board must not be reported as debt')
+  const unclaimed = result.boardDebt.boards.find((b) => b.board === 'UnclaimedBoard')
+  assert.equal(unclaimed.missing, 2)
+  assert.equal(unclaimed.ageDays, 12)
+  assert.equal(unclaimed.overdue, true)
+  const claimed = result.boardDebt.boards.find((b) => b.board === 'ClaimedBoard')
+  assert.equal(claimed.overdue, false)
+  assert.ok(claimed.activeWork.some((w) => w.ref === '#1548'))
+  const fresh = result.boardDebt.boards.find((b) => b.board === 'FreshBoard')
+  assert.equal(fresh.ageDays, 1)
+  assert.equal(fresh.overdue, false)
+
+  await assert.rejects(
+    runDeliveryCommand(['preflight', '--fail-on-overdue'], {
+      cwd: f.work,
+      now: new Date('2026-11-22T12:00:00Z'),
+      collectActiveWork: async () => ({ prs: [], branches: [], prLookupError: null }),
+    }),
+    (error) => error instanceof DeliveryError && error.code === 'overdue_board_debt',
+  )
+})
+
+test('preflight parses --fail-on-overdue / --overdue-days, preserves prLookupError honestly, and reuses check-board-parity without a second board reader', async (t) => {
+  assert.deepEqual(parseCli(['preflight', '--', '--fail-on-overdue', '--overdue-days', '5']), {
+    command: 'preflight',
+    options: { failOnOverdue: true, overdueDays: 5 },
+  })
+
+  const source = fs.readFileSync(path.join(repoRoot, 'scripts/git-delivery.mjs'), 'utf8')
+  assert.match(source, /from '\.\/check-board-parity\.mjs'/)
+  assert.doesNotMatch(source, /\.board\.json/, 'git-delivery.mjs must not implement a second .board.json reader')
+
+  const f = fixture()
+  t.after(f.cleanup)
+  git(f.work, ['switch', '-c', 'feat/offline-board-debt'])
+  write(
+    path.join(f.work, 'docs/design/boards/2026-11-10-offline/OfflineBoard.board.json'),
+    JSON.stringify({
+      board: 'OfflineBoard',
+      approvedOn: '2026-11-10',
+      stage: 'explored',
+      elements: [{ id: 'o.1', status: 'missing', owner: 'T-7', component: 'src/o.tsx', states: ['zh-en'] }],
+    }),
+  )
+  git(f.work, ['add', 'docs/design/boards'])
+  git(f.work, ['commit', '-m', 'add offline fixture board'])
+
+  const degraded = await runDeliveryCommand(['preflight'], {
+    cwd: f.work,
+    now: new Date('2026-11-22T12:00:00Z'),
+    collectActiveWork: async () => ({ prs: [], branches: [], prLookupError: 'network timeout' }),
+  })
+  assert.equal(degraded.boardDebt.prLookupError, 'network timeout')
+  assert.equal(degraded.boardDebt.overdueBoards, 1)
 })
