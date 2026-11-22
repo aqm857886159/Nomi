@@ -1,9 +1,19 @@
 import React, { type JSX, type ReactNode } from 'react'
 import { Modal, useProps, type ModalProps } from '@mantine/core'
 import { cn } from '../utils/cn'
-import type { FrozenDialogAnchor } from './dialogAnchorFreeze'
 import { useModalInputLayer } from './modalInputLayer'
 import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
+
+/**
+ * 还能经 `frozenAnchors` 挂在对话框本体上的存量锚点（封闭的字面量联合，只减不增）。
+ * 冻结名单与读它的人在 `dialogAnchorFreeze.test.ts`；这里和名单多一个少一个，那份测试的类型核对 typecheck 红。
+ */
+export type FrozenDialogAnchor =
+  | 'data-nomi-prompt-extraction-settings-dialog'
+  | 'data-selection-prompt-ui'
+  | 'data-settings-dialog'
+  | 'data-settings-overlay'
+  | 'data-spend-confirm-dialog'
 
 export type DesignModalProps = Omit<ModalProps, 'title' | 'stackId' | '__staticSelector'> & {
   /**
@@ -20,7 +30,7 @@ export type DesignModalProps = Omit<ModalProps, 'title' | 'stackId' | '__staticS
   /** 给测试找这张卡用（落在对话框本体上的 `data-testid`）。先用角色 + 名字找；名字会变、同名卡并存时才用它。 */
   testId?: string
   /**
-   * 存量锚点（冻结名单 `dialogAnchorFreeze.ts`，只减不增）：照旧挂在对话框本体（带 `role="dialog"` 的那一层）上。
+   * 存量锚点（冻结名单 `dialogAnchorFreeze.test.ts`，只减不增）：照旧挂在对话框本体（带 `role="dialog"` 的那一层）上。
    * 新代码不许加——找弹窗用角色 + 名字或 `testId`。
    */
   frozenAnchors?: Partial<Record<FrozenDialogAnchor, string>>

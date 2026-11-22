@@ -1,14 +1,35 @@
-// 弹窗外壳上的 data-* 锚点冻结名单（dialogAnchorFreeze.ts）的守门测试。
+// 弹窗外壳上还挂着的存量 data-* 锚点：冻结名单（只许变短）和它的守门测试。
 //
-// 扫 src 下全部 .tsx（不含测试与设计实验室）的 AST，认 DesignModal 的导入别名，收三处挂锚点的口子：
-// · 直接写在 <DesignModal> 上的 data-* 属性（Mantine 把它落在弹窗根上）；
-// · `frozenAnchors={{ … }}` 的键（落在对话框本体上）；
-// · `closeButtonProps={{ … }}` 里 data-* 的键（含展开的对象字面量；落在关闭键上）。
-// 名单外的一出现就红；名单里的在源码里找不到了也红（迁走了就从名单删一行）——名单只许变短。
+// 2026-11-22 起找弹窗用角色 + 名字（`getByRole('dialog', { name })`）；名字会变、同名卡并存时才用外壳的 `testId`（→ data-testid）。
+// 名单里是还没迁走的旧锚点：要么消费方很多（几十个走查文件），要么生产代码在读（「生产在读」）。
+// 走查那批等测试体系第 1 批合入后一起迁；生产在读的两处要先把读它的代码改成别的认法才能删。
+//
+// 新锚点挂不上：
+// · `frozenAnchors` 的类型是外壳里封闭的字面量联合 `FrozenDialogAnchor`（overlays.tsx），名单外的名字 typecheck 就红；
+//   它必须和名单里 on: 'dialog' 的那几个一模一样，哪边多一个少一个，下面的类型核对 typecheck 红；
+// · 直接写在 <DesignModal> 上的 data-*（落在弹窗根上）和 `closeButtonProps` 里的 data-*（落在关闭键上）TS 不查，
+//   由这里扫 src 下全部 .tsx（不含测试与设计实验室）的语法树：认 DesignModal 的导入别名，收三处口子
+//   （根上的 data-* 属性、`frozenAnchors={{ … }}` 的键、`closeButtonProps={{ … }}` 里 data-* 的键，含展开的对象字面量）。
+// 名单外的一出现就红；名单里的在源码里找不到了也红（迁走了就从名单删一行）。
 import fs from 'node:fs'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
-import { FROZEN_DIALOG_ANCHORS } from './dialogAnchorFreeze'
+import type { FrozenDialogAnchor } from './overlays'
+
+const FROZEN_DIALOG_ANCHORS = [
+  { anchor: 'data-confirm-dialog', file: 'src/design/confirmDialog.tsx', on: 'root', readers: '走查页内查询 [data-confirm-dialog="…"] [role="dialog"]（3 个文件）' },
+  { anchor: 'data-nomi-prompt-extraction-settings-dialog', file: 'src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx', on: 'dialog', readers: '生产在读：browserAssetPopoverConstants.ts 的 PROMPT_EXTRACTION_SETTINGS_DIALOG_SELECTOR' },
+  { anchor: 'data-selection-prompt-ui', file: 'src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx', on: 'dialog', readers: '生产在读：同文件 closest(\'[data-selection-prompt-ui="true"]\') 判断点击是不是落在保存卡里' },
+  { anchor: 'data-settings-close', file: 'src/workbench/settings/SettingsDialog.tsx', on: 'close', readers: '走查 35 个文件' },
+  { anchor: 'data-settings-dialog', file: 'src/workbench/settings/SettingsDialog.tsx', on: 'dialog', readers: '走查 21 个文件' },
+  { anchor: 'data-settings-overlay', file: 'src/workbench/settings/SettingsDialog.tsx', on: 'dialog', readers: '走查 14 个文件' },
+  { anchor: 'data-spend-confirm-dialog', file: 'src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx', on: 'dialog', readers: '走查 67 个文件（按取值分门类）' },
+] as const
+
+type ListedOnDialog = Extract<(typeof FROZEN_DIALOG_ANCHORS)[number], { on: 'dialog' }>['anchor']
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
+/** 外壳的 `FrozenDialogAnchor` 和名单里挂在对话框本体上的那几个一模一样（不一样 → 这一行 typecheck 红）。 */
+const shellTypeMatchesList: Same<FrozenDialogAnchor, ListedOnDialog> = true
 
 const SRC = new URL('../', import.meta.url)
 type Entry = { rel: string; source: ts.SourceFile }
@@ -81,6 +102,10 @@ describe('弹窗外壳上的 data-* 锚点只许变少', () => {
   const found = [...new Set(scan(productionSources(SRC, 'src')).map(keyOf))].sort()
   const listed = FROZEN_DIALOG_ANCHORS.map((entry) => keyOf(entry)).sort()
 
+  it('外壳 frozenAnchors 的类型和名单一致（真正的核对在类型上，typecheck 拦）', () => {
+    expect(shellTypeMatchesList).toBe(true)
+  })
+
   it('名单按锚点名排好、没有重复', () => {
     const names = FROZEN_DIALOG_ANCHORS.map((entry) => `${entry.anchor} · ${entry.file}`)
     expect(names).toEqual([...new Set(names)].sort())
@@ -90,7 +115,7 @@ describe('弹窗外壳上的 data-* 锚点只许变少', () => {
     expect(found.filter((hit) => !listed.includes(hit)), '外壳上出现了名单外的 data-* 锚点（找弹窗用 getByRole(\'dialog\', { name }) 或 testId）').toEqual([])
   })
 
-  it('名单里的一个不少：迁走了就从 dialogAnchorFreeze.ts 删掉那一行', () => {
+  it('名单里的一个不少：迁走了就从名单删掉那一行（挂在对话框本体上的，外壳的 FrozenDialogAnchor 同时删）', () => {
     expect(listed.filter((entry) => !found.includes(entry)), '名单里这些锚点在源码里已经找不到了').toEqual([])
   })
 

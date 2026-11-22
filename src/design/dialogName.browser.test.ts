@@ -45,11 +45,12 @@ function Scene({ scene }) {
 }
 window.__mount = async (scene) => {
   await i18n.changeLanguage('en');
-  if (scene === 'spend-agent') void useSpendConfirmStore.getState().requestConfirm({ title: 'Allow Nomi to generate this shot?', message: 'This will generate 1 image.', source: 'agent', kind: 'generation' });
+  const agentTitle = i18n.t('runtime.capability.generationGateTitle');
+  if (scene === 'spend-agent') void useSpendConfirmStore.getState().requestConfirm({ title: agentTitle, message: 'This will generate 1 image.', source: 'agent', kind: 'generation' });
   if (scene === 'spend-user') void useSpendConfirmStore.getState().requestConfirm({ title: 'Generate reference images?', message: 'This will generate 2 reference images.', source: 'user', kind: 'reference' });
   window.__expected = { plain: 'Plain title', slot: 'Slot title', skill: ${JSON.stringify(SKILL_TITLE)},
     update: i18n.t('updateReminder.dialog.availableTitle', { version: '0.25.0' }),
-    'spend-agent': 'Allow Nomi to generate this shot?', 'spend-user': 'Generate reference images?',
+    'spend-agent': agentTitle, 'spend-user': 'Generate reference images?',
     agentNotice: i18n.t('generationCommon.spend.agentNotice') }[scene] ?? null;
   window.__agentNotice = i18n.t('generationCommon.spend.agentNotice');
   createRoot(document.getElementById('root')).render(<MantineProvider><Scene scene={scene} /></MantineProvider>);
@@ -117,10 +118,11 @@ describe('弹窗的读屏名字由外壳给，只是名字那一句', () => {
     await expect(visible.count()).resolves.toBe(1)
     await expect(visible.isVisible()).resolves.toBe(true)
     // 阅读顺序：副标在名字之后，正文之前（Mantine 8.3.18 的 aria-describedby 固定指向 Modal.Body，副标不在描述里）。
-    const order = await page.getByRole('dialog').evaluate((dialog, text) => {
+    const title = await page.evaluate(() => (window as unknown as { __expected: string }).__expected)
+    const order = await page.getByRole('dialog').evaluate((dialog, { title, text }) => {
       const all = (dialog.textContent || '').replace(/\s+/g, ' ')
-      return { title: all.indexOf('Allow Nomi to generate this shot?'), notice: all.indexOf(text), body: all.indexOf('This will generate 1 image.') }
-    }, notice)
+      return { title: all.indexOf(title), notice: all.indexOf(text), body: all.indexOf('This will generate 1 image.') }
+    }, { title, text: notice })
     expect(order.title).toBeGreaterThanOrEqual(0)
     expect(order.notice).toBeGreaterThan(order.title)
     expect(order.body).toBeGreaterThan(order.notice)

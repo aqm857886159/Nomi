@@ -132,7 +132,7 @@ export function SpendConfirmDialog() {
         event.preventDefault()
         primaryAction()
       }}
-      // 存量锚点（冻结名单 dialogAnchorFreeze.ts）：几十个走查按它的取值认门类，落在对话框本体上。
+      // 存量锚点（冻结名单 dialogAnchorFreeze.test.ts）：几十个走查按它的取值认门类，落在对话框本体上。
       frozenAnchors={{ 'data-spend-confirm-dialog': pending.kind ?? 'generation' }}
       classNames={{
         content: 'rounded-nomi-lg border border-nomi-line bg-nomi-paper shadow-nomi-md outline-none',

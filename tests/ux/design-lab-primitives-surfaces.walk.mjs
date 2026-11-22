@@ -140,9 +140,9 @@ await walkDesignLabScreen({
     }
 
     // 弹窗的读屏名字（2026-11-22 外壳改用 Mantine 组合组件，名字归 Modal.Title）：走共用外壳的对话框
-    // （Mantine 的 data-modal-content）都要有名字（axe 的 aria-dialog-name），而且名字元素（aria-labelledby 指向的那个）
+    // （Mantine 的 Modal.Content：带 role="dialog" 的 .mantine-Modal-content）都要有名字（axe 的 aria-dialog-name），而且名字元素（aria-labelledby 指向的那个）
     // 里只有名字那一句——不靠 aria-label 顶替、里面不含别的元素（图标、副标、封面、链接走标题栏插槽，摆在名字旁边）。
-    const shells = await page.locator('[role="dialog"][data-modal-content]').filter({ visible: true }).evaluateAll((dialogs) => dialogs.map((dialog) => {
+    const shells = await page.locator('.mantine-Modal-content[role="dialog"]').filter({ visible: true }).evaluateAll((dialogs) => dialogs.map((dialog) => {
       const ids = (dialog.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean)
       return ids.map((id) => {
         const target = document.getElementById(id)

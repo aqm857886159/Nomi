@@ -192,7 +192,7 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
       {draft ? (
         <DesignModal opened onClose={closeDraft} centered size={560} zIndex={101}
           trapFocus={false} returnFocus={false} closeOnEscape={false}
-          // 存量锚点（冻结名单 dialogAnchorFreeze.ts，生产在读：上面 closest('[data-selection-prompt-ui="true"]') 认点击是不是落在保存卡里）。
+          // 存量锚点（冻结名单 dialogAnchorFreeze.test.ts，生产在读：上面 closest('[data-selection-prompt-ui="true"]') 认点击是不是落在保存卡里）。
           frozenAnchors={{ 'data-selection-prompt-ui': 'true' }}
           onPointerDown={(event) => event.stopPropagation()}
           closeButtonProps={{ disabled: saving, 'aria-label': t('common.close') }}

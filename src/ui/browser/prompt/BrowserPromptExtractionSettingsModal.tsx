@@ -130,7 +130,7 @@ export function BrowserPromptExtractionSettingsModal({
       trapFocus={false}
       returnFocus={false}
       closeButtonProps={{ 'aria-label': t('browserAssets.extraction.closeSettings') }}
-      // 存量锚点（冻结名单 dialogAnchorFreeze.ts，生产在读：browserAssetPopoverConstants 的 PROMPT_EXTRACTION_SETTINGS_DIALOG_SELECTOR）。
+      // 存量锚点（冻结名单 dialogAnchorFreeze.test.ts，生产在读：browserAssetPopoverConstants 的 PROMPT_EXTRACTION_SETTINGS_DIALOG_SELECTOR）。
       frozenAnchors={{ 'data-nomi-prompt-extraction-settings-dialog': 'true' }}
       actions={
             <div className="flex flex-wrap items-center justify-between gap-2">

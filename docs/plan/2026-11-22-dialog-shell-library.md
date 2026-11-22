@@ -50,7 +50,7 @@
 ## ★2 谁说了算
 
 - 弹窗的读屏名字：唯一主人 = Mantine `Modal.Title`（由外壳 `src/design/overlays.tsx#DesignModal` 渲染，内容只能是 `title: string`）。别处拿不到做名字要用的原料：`DesignModal` 的 `title` 类型只收字符串、`accessibleName` 口子删掉，外壳之外的头部内容只能进 `header` 插槽，而插槽拿到的是外壳已经造好的标题元素（渲染函数 `header={(title) => …}`），插槽里再写什么都在 `Modal.Title` 之外。概念登记：并进已有概念 `ui.dialog-layout`（主人同是 `DesignModal`），不另起概念。
-- 测试定位：走查按 `getByRole('dialog', { name })`；外壳给的唯一自起锚点口子是带类型的 `testId`（`data-testid`）。还没迁的旧锚点只有冻结名单里那几个（`src/design/dialogAnchorFreeze.ts`，类型上是封闭的字面量联合，名单外的名字写不进外壳；名单只许减）。
+- 测试定位：走查按 `getByRole('dialog', { name })`；外壳给的唯一自起锚点口子是带类型的 `testId`（`data-testid`）。还没迁的旧锚点只有冻结名单里那几个（名单在守门测试 `src/design/dialogAnchorFreeze.test.ts` 里；外壳 `overlays.tsx` 的 `FrozenDialogAnchor` 是封闭的字面量联合，名单外的名字写不进外壳，它和名单不一致由同一份测试的类型核对拦；名单只许减。不另开源码文件：src/design 不是领域目录，一份只给测试读的名单不该落成产品代码）。
 - E2E 桥 `window.__nomiSpendConfirmE2E`：唯一的家 = `SpendConfirmHost`（app 根上常驻挂载的那一个），删掉 `NomiStudioApp.tsx` 与 `SpendConfirmDialog.tsx` 两处赋值；结构检查并进已经遍历 src 的 `src/workbench/generationCanvas/spend/SpendConfirmHost.test.tsx`（已在推送前扫描名单里），数全仓赋值 = 1 且在 `SpendConfirmHost` 里。
 - 外壳的主题默认值：`Modal.Root` 读的是 `ModalRoot` 的主题默认值，不读 `Modal` 的；`nomiTheme.ts` 给 `Modal` 配的 radius / shadow / zIndex 由外壳自己 `useProps('Modal', …)` 取，样子才和改前一样（少了它 shadow 'lg' 会丢）。
 - 漏写名字检查：axe-core `aria-dialog-name`（第三方规则），删自写普查 `src/design/modalTitleAccessibleNameCensus.test.ts`；它在 `self-written.json` / 概念登记里本来没有条目（实查），唯一的登记是 `scripts/pre-push-scan-guards.mjs` 的推送前扫描名单，那一行换成 `dialogAnchorFreeze.test.ts`。
@@ -118,6 +118,7 @@
 | ⑥a | 经 `frozenAnchors` 挂名单外的锚点 | `pnpm run typecheck`（封闭联合，TS2353） |
 | ⑥b | 直接在 `<DesignModal>` 上写名单外的 `data-*`（带连字符的 JSX 属性 TS 不查） | `dialogAnchorFreeze.test.ts`（名单外） |
 | ⑥c | 名单里的锚点调用方已不挂、名单还列着 | `dialogAnchorFreeze.test.ts`（名单过期） |
+| ⑥d | 外壳 `FrozenDialogAnchor` 比名单多一个名字（或少一个） | `pnpm run typecheck`（`dialogAnchorFreeze.test.ts` 的类型核对，TS2322） |
 
 这一类还会从哪回来：另一个调用方（19 个以外新写的弹窗）——`title: string` 类型拦；手写 `role="dialog"` 的 26 处——本刀不保护，列清单留后面一刀；Agent 聊天花钱卡——不是弹窗，不在范围；Mantine 升级——`dialogName.browser.test.ts` 用真库跑，升级改了 aria 接线会红。
 

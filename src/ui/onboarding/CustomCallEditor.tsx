@@ -786,10 +786,8 @@ export function CustomCallEditor({
       onClose={() => { void requestClose() }}
       centered
       size={640}
-      // 名字 = 「自定义调用」一句（外壳放进 Modal.Title）；模型名走标题栏插槽，摆在名字旁边、不进名字。
-      // 插槽这一格占原来标题元素的位置（行距 1 = Mantine 标题的行距）。
       title={t('onboardingProviders.customCall.title')}
-      header={(name) => <span className="block leading-none"><CustomCallTitle label={target?.label} name={name} /></span>}
+      header={(name) => <CustomCallTitle label={target?.label} name={name} />}
       classNames={{ content: 'workbench-shell', title: CUSTOM_CALL_NAME_CLASS }}
       closeButtonProps={{ 'aria-label': t('onboardingProviders.customCall.closeAria') }}
     >

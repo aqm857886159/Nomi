@@ -252,7 +252,7 @@ export function SettingsDialog({
       trapFocus={false}
       returnFocus={false}
       zIndex={NOMI_OVERLAY_Z_INDEX.applicationModal}
-      // 存量锚点（冻结名单 dialogAnchorFreeze.ts）：几十个走查按它认设置框。当前页签看页签按钮上的 aria-current。
+      // 存量锚点（冻结名单 dialogAnchorFreeze.test.ts）：几十个走查按它认设置框。当前页签看页签按钮上的 aria-current。
       frozenAnchors={{ 'data-settings-overlay': 'true', 'data-settings-dialog': 'true' }}
       closeButtonProps={{ 'aria-label': t('settings.close'), ...{ 'data-settings-close': 'true' } }}
       classNames={{ content: 'rounded-nomi-lg bg-nomi-paper shadow-nomi-lg', header: 'px-4 py-3', body: 'p-0' }}
