@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { canRunGenerationNode } from './generationRunController'
-import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { SLOT_ACCEPTS } from '../agent/referenceEdgeCapability'
 import { GENERATION_NODE_KINDS, getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'

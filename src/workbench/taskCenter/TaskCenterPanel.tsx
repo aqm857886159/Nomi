@@ -19,7 +19,7 @@ import { confirmAndRunNode } from '../generationCanvas/runner/generationRunContr
 import { recoverNodeResult } from '../generationCanvas/runner/recoverTaskActions'
 import { withProjectAction } from '../project/projectCanvasReadSurface'
 import { confirmAndRunPlan } from '../generationCanvas/components/batchPlanPreview'
-import { buildDependencyWaves } from '../generationCanvas/runner/dependencyWaves'
+import { planCanvasGenerationScope } from '../generationCanvas/runner/generationScopeFacts'
 import { buildTaskCenterView, formatElapsed, summarizeTaskCenterRows, type TaskCenterRow } from './taskCenterEntries'
 import { notify } from '../../ui/notificationPolicy'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, listenOutsidePress } from '../../design'
@@ -120,12 +120,8 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
   // 失败重试：只对失败的重建依赖波次 → 走既有轻确认、新开一份出价（不绕付费闸），成功的不重付。
   const failedRows = done.filter((row): row is TaskCenterRow => row.kind === 'generation' && row.action?.kind === 'retry_generation')
   const retryAllFailed = () => {
-    const state = useGenerationCanvasStore.getState()
     void confirmAndRunPlan(
-      buildDependencyWaves(
-        failedRows.map((row) => row.nodeId),
-        { nodes: state.nodes, edges: state.edges },
-      ),
+      planCanvasGenerationScope('retry-failed', failedRows.map((row) => row.nodeId), useGenerationCanvasStore.getState()),
       { initiator: 'user' },
     )
   }
@@ -371,7 +367,7 @@ function RowActionHint({ hint, children }: { hint?: string; children: React.Reac
     <TooltipProvider delayDuration={250} disableHoverableContent>
       <Tooltip>
         <TooltipTrigger asChild>{children}</TooltipTrigger>
-        <TooltipContent side="left" className="z-popover" data-task-action-hint>{hint}</TooltipContent>
+        <TooltipContent side="left" data-task-action-hint>{hint}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )

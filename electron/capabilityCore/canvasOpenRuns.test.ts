@@ -22,19 +22,21 @@ it('F2: a live POST survives renderer reload without becoming unknown', async ()
   h.runs.releaseSender(h.senderId);h.runs.recoverOrphans(PROJECT)
   expect(h.repository.read(PROJECT, canvasRunIdFor('original'))?.jobs[0].status).toBe('submitting')
 })
-it('F4/F5: a user can acknowledge the exact open Run and send again while the provider stays running', async () => {
+it('F4/F5: a user confirms the exact open Run and sends again while the provider stays running', async () => {
   const h = setupCanvasShots();h.vendor.answer = async () => queued()
   await h.submit('node-a', 'original')
-  await expect(h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'again', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: h.gesture, senderId: h.senderId, acknowledgedOpenRuns: [canvasRunIdFor('original')] } as never)).resolves.toMatchObject({ status: 'queued' })
+  await expect(h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'again', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: h.gesture, senderId: h.senderId, resendDecisionId: h.resendDecisionFor('node-a') })).resolves.toMatchObject({ status: 'queued' })
   expect(h.vendor.executes).toHaveLength(2)
   expect(h.observed).toContainEqual([PROJECT, canvasRunIdFor('original')])
 })
-it.each(['missing', 'wrong', 'machine', 'consented'] as const)('F9/F12: %s acknowledgement never authorizes another submit', async kind => {
+it.each(['missing', 'wrong', 'machine', 'consented', 'other-window', 'other-node'] as const)('F9/F12: %s decision never authorizes another submit', async kind => {
   const h = setupCanvasShots();h.vendor.answer = async () => queued()
   await h.submit('node-a', 'original')
+  await h.submit('node-b', 'original-b')
   if (kind === 'consented') h.consent([{ nodeId: 'node-a', runRecordId: 'again' }])
-  await expect(h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'again', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: kind === 'machine' ? undefined : h.gesture, senderId: h.senderId, ...(kind === 'missing' ? {} : { acknowledgedOpenRuns: [kind === 'wrong' ? 'wrong' : canvasRunIdFor('original')] }) } as never)).rejects.toMatchObject({ code: 'node_generation_in_flight' })
-  expect(h.vendor.executes).toHaveLength(1)
+  const decisionId = kind === 'wrong' ? 'wrong' : h.resendDecisionFor(kind === 'other-node' ? 'node-b' : 'node-a', kind === 'other-window' ? 8 : h.senderId)
+  await expect(h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'again', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: kind === 'machine' ? undefined : h.gesture, senderId: h.senderId, ...(kind === 'missing' ? {} : { resendDecisionId: decisionId }) } as never)).rejects.toMatchObject({ code: 'node_generation_in_flight' })
+  expect(h.vendor.executes).toHaveLength(2)
 })
 
 it('F2: polling a live POST without a provider task ID is free and reports running', async () => {
@@ -48,8 +50,9 @@ it('F9: the project query covers different nodes and every uncovered later Run s
  const h = setupCanvasShots();h.vendor.answer = async () => queued()
  await h.submit('node-a', 'original-a');await h.submit('node-b', 'original-b')
  expect(h.runs.canvasOpenRuns({ projectId: PROJECT }).map(entry => entry.nodeId).sort()).toEqual(['node-a', 'node-b'])
- await h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'again-a', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: h.gesture, senderId: h.senderId, acknowledgedOpenRuns: [canvasRunIdFor('original-a')] })
- await expect(h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'stale-a', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: h.gesture, senderId: h.senderId, acknowledgedOpenRuns: [canvasRunIdFor('original-a')] })).rejects.toMatchObject({ code: 'node_generation_in_flight' })
+ const decisionId = h.resendDecisionFor('node-a')
+ await h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'again-a', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: h.gesture, senderId: h.senderId, resendDecisionId: decisionId })
+ await expect(h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'stale-a', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: h.gesture, senderId: h.senderId, resendDecisionId: decisionId })).rejects.toMatchObject({ code: 'node_generation_in_flight' })
  expect(h.vendor.executes).toHaveLength(3)
 })
 
@@ -87,14 +90,14 @@ it('F6/F12: replaying the same charged unknown Run is not another attempt being 
  expect(h.vendor.executes).toHaveLength(1)
 })
 
-it('F4: acknowledgement during preview does not let the released Run reclaim the node when its POST starts', async () => {
+it('F4: a confirmed resend during preview does not let the released Run reclaim the node when its POST starts', async () => {
  let finish!: () => void
  const preview = new Promise<null>(resolve => { finish = () => resolve(null) })
  const h = setupCanvasShots({ previewBlock: preview as never })
  h.vendor.answer = async call => ({ ...queued(), id: 'accepted-' + call })
  const original = h.submit('node-a', 'before-preview')
  await vi.waitFor(() => expect(h.previewCalls).toHaveLength(1))
- const resend = h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'after-ack', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: h.gesture, senderId: h.senderId, acknowledgedOpenRuns: [canvasRunIdFor('before-preview')] })
+ const resend = h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'after-ack', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: h.gesture, senderId: h.senderId, resendDecisionId: h.resendDecisionFor('node-a') })
  await vi.waitFor(() => expect(h.previewCalls).toHaveLength(2))
  finish();await Promise.all([original, resend])
  expect(h.vendor.executes).toHaveLength(2)

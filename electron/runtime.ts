@@ -1,5 +1,4 @@
 import { profileMediaResponseHandler, profileMediaTaskResult, profileResponseReceipt } from "./capabilityCore/generationOutputMaterializer";
-import { revalidatePendingCredential } from './catalog/validateCandidateCredential';
 import crypto from "node:crypto";
 import { assertLocalAssetTransportReady } from "./catalog/assetLocalization";
 import { assertNoReferencesOutsideSubmit, stageSubmitsReferences } from "./catalog/referenceStage";
@@ -54,7 +53,9 @@ import { readCatalog } from "./catalog/catalogStore";
 import { unlocalizedTaskAsset } from "./tasks/unlocalizedTaskAsset";
 import type { BillingModelKind, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./catalog/types";
 import { billingKindForTaskKind, selectTaskMapping } from "./catalog/types";
-import { applyHeadlessParamDefaults, dispatchedCreateBody, imageEditGuardError, projectOutboundPrompt, sendRouteFor } from "./catalog/taskParams"; import { assertNoReferenceResidueBeforeSend } from "./tasks/referenceResidueGuard";
+import { applyHeadlessParamDefaults, dispatchedCreateBody, sendRouteFor } from "./catalog/taskParams";
+import { projectOutboundPrompt } from "./catalog/taskParamsReferences";
+import { imageEditGuardError } from "./catalog/taskParamsGuard"; import { assertNoReferenceResidueBeforeSend } from "./tasks/referenceResidueGuard";
 import { modelModeBodies, modelReferenceSelection } from "./catalog/modelCatalogListing";
 import { runCustomCallTask } from "./catalog/customCallDispatch";
 import { resolveCustomCallExecution } from "./catalog/customCallMode";
@@ -237,9 +238,12 @@ export async function buildProfileTaskResult(input: {
   /** S4-1:provenance 统一在本出口写(修主路径漏写根因),需要 vendor/model。 */
   vendor?: Vendor;
   model?: Model;
+  apiKey?: string;
 }): Promise<{ result: TaskResult; providerMeta: JsonRecord; unrecognizedStatus: string; actualCost?: ProviderCostActual }> {
   const materialized = profileMediaTaskResult(input);
-  if (materialized) return materialized;
+  if (materialized) {
+    return materialized;
+  }
   const { response, taskId, providerMeta, responseMapping } = profileResponseReceipt(input);
   const type: "image" | "video" | "audio" | "model3d" =
     input.wantedKind === "video" ? "video" : input.wantedKind === "audio" ? "audio" : input.wantedKind === "model3d" ? "model3d" : "image";
@@ -279,7 +283,6 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   const modelKey = firstString(request.extras?.modelKey, request.extras?.modelAlias);
   const archetypeMeta = request.extras?.archetype;
   const modeId = archetypeMeta && typeof archetypeMeta === "object" ? firstString((archetypeMeta as JsonRecord).modeId) : firstString(request.extras?.modeId);
-  await revalidatePendingCredential(vendorKey);
   const stagedCandidate = resolveComfyCandidateExecution(request);
   const { vendor, model, apiKey, customConfig } = stagedCandidate || findExecutableModel(vendorKey, modelKey, wantedKind);
   const projectId = trim(request.extras?.projectId), nodeId = trim(request.extras?.nodeId), grantId = trim(request.extras?.grantId);
@@ -347,6 +350,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
       nodeId,
       vendor,
       model,
+      apiKey,
     });
     // Completed metadata still requires the separate result GET; return the receipt before downloading.
     if (normalized.result.status === "succeeded" && !normalized.result.assets.length && mapping.result && mapping.query) normalized.result.status = "queued";

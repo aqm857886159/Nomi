@@ -21,8 +21,8 @@
  */
 import { bodyReferencedParamKeys } from "../../catalog/paramTranslate";
 import { parseCustomCapabilityContract } from "../customCapabilityContract";
-import type { ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind, ModelArchetype } from "./types";
-import { sourceBackedVideoProfiles } from "./registry";
+import type { ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind } from "./types";
+import { resolveModelArchetype } from "../modelArchetypes/entry";
 
 /**
  * 参考槽种 → 供应商角色词的**唯一表**。画布路（`archetypeMeta.ts buildArchetypeInputParams`）和
@@ -96,17 +96,18 @@ function explicitArchetypeId(meta: unknown): string {
   return trim(metadata.archetypeId) || trim(record(metadata.archetype)?.id);
 }
 
-function builtInArchetypeById(archetypeId: string): ModelArchetype | null {
-  if (!archetypeId) return null;
-  return sourceBackedVideoProfiles().find((profile) => profile.id === archetypeId
-    || profile.legacyIds?.includes(archetypeId)) ?? null;
-}
-
-/** 这个模型的这一档模式（用户自写契约优先，其次内置档案）；找不到 → null。 */
+/**
+ * 这个模型的这一档模式（用户自写契约优先，其次内置档案）；找不到 → null。
+ * 内置档案只问唯一入口（供应商、型号名作用域、档都在入口里）——以前这里有一份私有的「按 id 在视频档案表里找 + 自己再写一遍 legacyIds」，
+ * 跳过了供应商特化。两条以前就有的边界原样留着：只认目录行**显式登记**了档案的（不按模型名认）、只认视频档案。
+ */
 export function archetypeModeForModel(input: {
   meta: unknown;
   kind?: string;
   modeId?: string;
+  modelKey: string | null | undefined;
+  vendorKey: string | null | undefined;
+  variantId?: string;
 }): ArchetypeMode | null {
   const modeId = trim(input.modeId);
   if (!modeId) return null;
@@ -114,8 +115,13 @@ export function archetypeModeForModel(input: {
   if (contract && (!input.kind || contract.kind === trim(input.kind))) {
     return contract.modes.find((mode) => mode.id === modeId) ?? null;
   }
-  const archetype = builtInArchetypeById(explicitArchetypeId(input.meta));
-  return archetype?.modes.find((mode) => mode.id === modeId) ?? null;
+  if (!explicitArchetypeId(input.meta)) return null;
+  const archetype = resolveModelArchetype(
+    { modelKey: input.modelKey, vendorKey: input.vendorKey, meta: input.meta },
+    { variant: { variantId: input.variantId, modelId: input.modelKey } },
+  );
+  if (archetype?.kind !== "video") return null;
+  return archetype.modes.find((mode) => mode.id === modeId) ?? null;
 }
 
 /**
@@ -132,10 +138,7 @@ export function combineChannelForBody(mode: CombineModeShape | null | undefined,
  * 这次提交的参考素材走哪条通道。`createBody` 是这条 mapping 真正会渲染的 body：
  * 模式声明了合并槽、但这条渠道的 body 根本不引用那个键时，合并槽发不出去 → 退回扁平族键。
  */
-export function referenceCombineChannelFor(input: {
-  meta: unknown;
-  kind?: string;
-  modeId?: string;
+export function referenceCombineChannelFor(input: Parameters<typeof archetypeModeForModel>[0] & {
   createBody: unknown;
 }): ReferenceCombineChannel {
   return combineChannelForBody(archetypeModeForModel(input), input.createBody);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 import { applyRequestTransform } from "../tasks/requestTransforms";
 import { buildArchetypeInputParams } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
-import { getArchetypeById } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { applyBuiltinSeeds } from "./seedBuiltins";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 import { applyParamMap } from "./paramTranslate";
@@ -119,7 +119,7 @@ describe("APIMart Seedance 2.5 / MiniMax-H3 curated 接入", () => {
     const frame = renderH3I2vBody({
       first_frame_image: "https://x/first.png",
       aspect_ratio: "16:9",
-      webhook: "",
+      webhook: "https://hooks.example/done",
     });
     const transformed = await applyRequestTransform(frame.mapping.create.request_transform, frame.body, { baseUrl: "https://api.apimart.ai" });
     expect(transformed).not.toHaveProperty("aspect_ratio");

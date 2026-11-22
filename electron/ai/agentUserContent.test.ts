@@ -6,7 +6,6 @@ import {
   buildAgentUserContent,
   projectAgentPromptForSend,
   modelImageInputSupport,
-  modelSupportsPdfInput,
   type ImageInputSupport,
 } from "./agentUserContent";
 
@@ -63,16 +62,6 @@ describe("modelImageInputSupport：能 / 不能 / 不知道，只认声明", () 
       "apimart/gemini-3.5-flash", "agnes/agnes-2.0-flash", "agnes/agnes-2.5-flash", "agnes/agnes-2.5-pro-alpha",
       "agnes/agnes-2.5-pro-beta", "agnes/agnes-2.5-pro", "minimax/MiniMax-M3",
     ]));
-  });
-});
-
-describe("modelSupportsPdfInput", () => {
-  it("honors meta + detects pdf-capable families", () => {
-    expect(modelSupportsPdfInput("x", null, { supportsPdfInput: true })).toBe(true);
-    expect(modelSupportsPdfInput("claude-3-5-sonnet", null, undefined)).toBe(true);
-    expect(modelSupportsPdfInput("gpt-4o", null, undefined)).toBe(true);
-    expect(modelSupportsPdfInput("claude-3-haiku", null, undefined)).toBe(false);
-    expect(modelSupportsPdfInput("deepseek-chat", null, undefined)).toBe(false);
   });
 });
 

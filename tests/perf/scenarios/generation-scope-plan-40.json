@@ -1,0 +1,28 @@
+{
+  "id": "generation-scope-plan-40",
+  "feature": "「生成这一组」的范围只在共用主人里算：300 个节点的画布上框 40 个点「生成整组」，主人分行、定默认勾、分波的耗时；卡上取消一半再问主人；浮条判断还有没有能勾的",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/generation-scope-plan-bench.mjs",
+    "--"
+  ],
+  "scale": "300 个节点（60 张参考卡 + 240 个镜头，每个镜头连 2 张参考卡、每 4 个镜头一条首帧链，八种事实混排），框选 40 个",
+  "metrics": [
+    "scopePlanMs",
+    "scopeNarrowMs",
+    "scopeToolbarMs"
+  ],
+  "budget": 5,
+  "budgetStatus": "proposed",
+  "budgetBasis": "主指标 scopePlanMs = 一次 group 规划的平均耗时。点「生成整组」到确认卡出现要在 100ms 感知阈值内（docs/engineering/perf-scenarios.md），规划只是其中一步，设计卡给它 ≤5ms（p95 ≤10ms）；scopeNarrowMs 同一预算只打印；scopeToolbarMs 是浮条每次选区变化都要算的，设计卡给 ≤1ms，只打印。",
+  "group": "生成范围",
+  "baseline": {
+    "median": 0,
+    "p95": 0,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-17",
+    "commit": "5f8628c00"
+  }
+}

@@ -228,7 +228,7 @@ function resetFixture(): void {
   mocks.saveLocalProject.mockReset()
   mocks.persistNow.mockResolvedValue({ id: PROJECT })
   mocks.deleteFiles.mockImplementation(async ({ relativePaths }: { relativePaths: string[] }) => ({ deletedCount: relativePaths.length, failedCount: 0 }))
-  useGenerationCanvasStore.getState().restoreSnapshot({ nodes: fixtureNodes(), edges: [], groups: [], selectedNodeIds: [] })
+  useGenerationCanvasStore.getState().restoreSnapshot({ nodes: fixtureNodes(), edges: [], groups: [], selectedNodeIds: [] }, PROJECT)
   useWorkbenchStore.getState().setTimeline(fixtureTimeline())
   diskProject = { id: PROJECT, name: 'matrix', payload: { generationCanvas: { nodes: fixtureNodes(), edges: [], groups: [] }, timeline: fixtureTimeline() } }
   mocks.readLocalProjectAsync.mockImplementation(async () => diskProject)

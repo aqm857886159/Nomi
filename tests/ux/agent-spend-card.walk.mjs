@@ -36,8 +36,8 @@ import {
 } from './agent-runtime-walk-support.mjs'
 
 const LOCALE = 'zh-CN'
-const VIDEO = { providerId: 'apimart', modelId: 'doubao-seedance-2.0' }
-const IMAGE = { providerId: 'apimart', modelId: 'gpt-image-2' }
+const VIDEO = 'doubao-seedance-2.0@apimart'
+const IMAGE = 'gpt-image-2@apimart'
 const A = {
   highlight: 'board:SpendCardQ1/canvas.node.highlight',
   composer: 'board:SpendCardQ1/node.composer',
@@ -96,7 +96,7 @@ try {
   const taskA = await present(walk, win, {
     locale: LOCALE, kind: 'video',
     shots: (tag) => [1, 2, 3].map((index) => ({
-      title: `${tag} 纸船 ${index}`, prompt: `${tag} 纸船第 ${index} 镜：雨后清晨，纸船顺着水流漂`, taskKind: 'text_to_video', candidate: VIDEO,
+      title: `${tag} 纸船 ${index}`, prompt: `${tag} 纸船第 ${index} 镜：雨后清晨，纸船顺着水流漂`, taskKind: 'text_to_video', model: VIDEO,
     })),
   })
   const cardA = taskA.card
@@ -188,9 +188,9 @@ try {
   const taskB = await present(walk, win, {
     locale: LOCALE, kind: 'video',
     shots: (tag) => [
-      { title: `${tag} 竖版 1`, prompt: `${tag} 竖版第 1 镜：巷口的猫`, taskKind: 'text_to_video', candidate: VIDEO, aspectRatio: '9:16' },
-      { title: `${tag} 竖版 2`, prompt: `${tag} 竖版第 2 镜：猫跳上墙头`, taskKind: 'text_to_video', candidate: VIDEO, aspectRatio: '9:16' },
-      { title: `${tag} 横版 3`, prompt: `${tag} 横版第 3 镜：屋顶远景`, taskKind: 'text_to_video', candidate: VIDEO, aspectRatio: '16:9' },
+      { title: `${tag} 竖版 1`, prompt: `${tag} 竖版第 1 镜：巷口的猫`, taskKind: 'text_to_video', model: VIDEO, aspectRatio: '9:16' },
+      { title: `${tag} 竖版 2`, prompt: `${tag} 竖版第 2 镜：猫跳上墙头`, taskKind: 'text_to_video', model: VIDEO, aspectRatio: '9:16' },
+      { title: `${tag} 横版 3`, prompt: `${tag} 横版第 3 镜：屋顶远景`, taskKind: 'text_to_video', model: VIDEO, aspectRatio: '16:9' },
     ],
   })
   const cardB = taskB.card
@@ -229,7 +229,7 @@ try {
   // ── 「取消」只收回这一次出价：节点留着；冷启动不复活；同一份草稿再 generate，卡回来、读的是节点此刻的样子 ───────────
   const taskX = await present(walk, win, {
     locale: LOCALE, kind: 'image',
-    shots: (tag) => [{ title: `${tag} 六棱柱`, prompt: `${tag} 一个悬浮的六棱柱，柔和的演播室灯光`, taskKind: 'text_to_image', candidate: IMAGE }],
+    shots: (tag) => [{ title: `${tag} 六棱柱`, prompt: `${tag} 一个悬浮的六棱柱，柔和的演播室灯光`, taskKind: 'text_to_image', model: IMAGE }],
   })
   const cardX = taskX.card
   const xProof = await proveProbe(cardX, '单段卡摆出来了')

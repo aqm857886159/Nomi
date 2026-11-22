@@ -3,7 +3,8 @@
 // 标「不露出」的 absent 记号，档案里必须真没有。记号写法见 docs/models/capabilities/README.md。
 import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { getArchetypeById, MODEL_ARCHETYPES, specializeArchetypeForVendor } from './index'
+import { specializeArchetypeForVendor } from './index'
+import { getArchetypeById, MODEL_ARCHETYPES } from './builtInCatalog'
 import type { ModelArchetype } from './types'
 
 const TABLE_DIR = new URL('../../../docs/models/capabilities/', import.meta.url)
@@ -206,7 +207,7 @@ export function checkRequestFields(table: CapabilityTable, requestFields: Readon
 
 // 表 → 官方夹具（tests/fixtures/vendor-official/apimart/<modelKey>.json）。
 const FIXTURE_BY_ARCHETYPE: Record<string, string> = {
-  'kling-v4-flash': 'kling-v4-flash', 'minimax-h3-max': 'MiniMax-H3-Max', 'seedance-2.5-apimart': 'doubao-seedance-2.5',
+  'kling-v4-flash': 'kling-v4-flash', 'minimax-h3-apimart': 'MiniMax-H3', 'minimax-h3-max': 'MiniMax-H3-Max', 'seedance-2.5-apimart': 'doubao-seedance-2.5',
   'seedream-5-5': 'seedream-5-5', 'seedream-5-pro': 'doubao-seedream-5-0-pro',
 }
 type RequestField = { name: string; quote: string; source: string; fetchedAt: string }
@@ -233,8 +234,8 @@ function archetypeFor(table: CapabilityTable): ModelArchetype {
 const tables = load()
 
 describe('capability tables (docs/models/capabilities) vs archetypes', () => {
-  it('ships a table for each of the five docs-aligned models', () => {
-    expect(tables.map((t) => t.archetypeId).sort()).toEqual(['kling-v4-flash', 'minimax-h3-max', 'seedance-2.5-apimart', 'seedream-5-5', 'seedream-5-pro'])
+  it('ships a table for each docs-aligned model', () => {
+    expect(tables.map((t) => t.archetypeId).sort()).toEqual(['kling-v4-flash', 'minimax-h3-apimart', 'minimax-h3-max', 'seedance-2.5-apimart', 'seedream-5-5', 'seedream-5-pro'])
   })
 
   it.each(tables.map((t) => [t.file, t] as const))('%s matches its archetype both ways', (_file, table) => {

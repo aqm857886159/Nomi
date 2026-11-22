@@ -41,6 +41,24 @@ describe('runGroupGenerate (the one batch generate entrance)', () => {
   })
 })
 
+describe('greyed-out「生成整组 / 生成全部」says why (C1 / C4), from the shared owner rows', () => {
+  it('a group where everything is recoverable / generating gets the reasons with counts; a tickable group gets none', async () => {
+    const i18n = (await import('../../../i18n')).default
+    await i18n.changeLanguage('zh')
+    const { groupGenerateDisabledReason, hasGroupGenerateCandidates } = await import('./groupGenerate')
+    useGenerationCanvasStore.setState((state) => ({
+      nodes: [...state.nodes, { ...node('back1', 'idle'), status: 'recoverable' as const }, { ...node('back2', 'idle'), status: 'recoverable' as const }],
+    }))
+    expect(groupGenerateDisabledReason(['idle', 'back1'])).toBeUndefined()
+    expect(groupGenerateDisabledReason(['back1', 'running', 'back2'])).toBe('这组现在都生成不了：1 个生成中、2 个可找回')
+    expect(hasGroupGenerateCandidates(['back1', 'running', 'back2'])).toBe(false)
+    expect(groupGenerateDisabledReason([])).toBe(i18n.t('generationCommon.canvas.group.generateEmpty'))
+    await i18n.changeLanguage('en')
+    expect(groupGenerateDisabledReason(['back1', 'back2'])).toBe('Nothing here can be generated right now: Recoverable (2)')
+    await i18n.changeLanguage('zh')
+  })
+})
+
 describe('structure: no second batch path', () => {
   it('the list section header and the canvas frame actions both go through groupGenerate; nobody else builds a batch plan from a section', () => {
     const here = path.dirname(fileURLToPath(import.meta.url))
@@ -48,7 +66,7 @@ describe('structure: no second batch path', () => {
     expect(read('./useCanvasFrameActions.ts')).toContain("from './groupGenerate'")
     expect(read('../../generation/list/GenerationListSectionHeader.tsx')).toContain("from '../../generationCanvas/components/groupGenerate'")
     for (const file of ['../../generation/list/GenerationListSectionHeader.tsx', '../../generation/list/GenerationListView.tsx', '../../generation/list/GenerationListDetail.tsx']) {
-      expect(read(file), `${file} must not call confirmAndRunPlan itself`).not.toMatch(/confirmAndRunPlan|buildDependencyWaves/)
+      expect(read(file), `${file} must not call confirmAndRunPlan itself`).not.toMatch(/confirmAndRunPlan|planGenerationScope|planCanvasGenerationScope/)
     }
   })
 })
@@ -56,6 +74,7 @@ describe('structure: no second batch path', () => {
 describe('group generate row names (one source with the list cards)', () => {
   it('two untitled nodes get different names: prompt head, then kind + ordinal', async () => {
     const { groupGenerateRows } = await import('./groupGenerate')
+    const { planCanvasGenerationScope } = await import('../runner/generationScopeFacts')
     useGenerationCanvasStore.getState().restoreSnapshot({
       nodes: [
         { id: 'p1', kind: 'image', title: '图片', prompt: '清晨海边的灯塔', position: { x: 0, y: 0 }, categoryId: 'shots', status: 'idle' },
@@ -65,6 +84,6 @@ describe('group generate row names (one source with the list cards)', () => {
       edges: [],
       groups: [],
     }, 'project-names')
-    expect(groupGenerateRows(['p1', 'p2', 'p3']).map((row) => row.label)).toEqual(['清晨海边的灯塔', '图片 2', '图片 3'])
+    expect(groupGenerateRows(planCanvasGenerationScope('group', ['p1', 'p2', 'p3'], useGenerationCanvasStore.getState())).map((row) => row.label)).toEqual(['清晨海边的灯塔', '图片 2', '图片 3'])
   })
 })

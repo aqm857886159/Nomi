@@ -58,7 +58,7 @@ try {
     label: 'pb01-draft',
     marker: 'PB01',
     steps: [
-      { name: 'draft_shots', args: { shots: SHOTS.map((prompt) => ({ prompt, taskKind: 'text_to_image', candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }, parameters: { aspect_ratio: '16:9' } })) } },
+      { name: 'draft_shots', args: { shots: SHOTS.map((prompt) => ({ prompt, taskKind: 'text_to_image', model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`, parameters: { aspect_ratio: '16:9' } })) } },
       { name: 'generate', args: ({ previous }) => ({ operationId: operationIdOf(previous) }) },
       // 大脑照宿主给它的那句回执说话（真实模型也会这么复述）。被测的是那句回执本身，监视器从夹具请求里读。
       { text: EN ? 'Done — generation has started.' : '好的，已经开始生成了。' },

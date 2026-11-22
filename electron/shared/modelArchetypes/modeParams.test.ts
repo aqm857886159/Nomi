@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildWireDefaultsFor } from '../../../scripts/gen-archetype-wire-defaults'
-import { getArchetypeById, MODEL_ARCHETYPES, specializeArchetypeForVariant, specializeArchetypeForVendor } from './index'
+import { rescopeArchetypeVariant, specializeArchetypeForVendor } from './index'
+import { getArchetypeById, MODEL_ARCHETYPES } from './builtInCatalog'
 import { declaredModeParams, effectiveModeParams, modeWhenUnrecorded } from './modeParams'
+import { headlessDefaultsOf } from './catalogFacts'
 import { modeTransportFor } from '../videoCapabilities/modeTransport'
 import type { ArchetypeMode, ModelArchetype } from './types'
 
@@ -145,7 +146,7 @@ describe('effectiveModeParams：这个方式这次发哪些参数', () => {
     expect(withVariants.length).toBeGreaterThan(0)
     for (const archetype of withVariants) {
       for (const variant of archetype.variants ?? []) {
-        const specialized = specializeArchetypeForVariant(archetype, variant.id)
+        const specialized = rescopeArchetypeVariant(archetype, { variantId: variant.id, modelId: undefined })
         for (const mode of specialized.modes) {
           expect(declaredModeParams({ archetype, variantId: variant.id, modeId: mode.id })?.controls).toEqual(mode.params)
         }
@@ -154,12 +155,12 @@ describe('effectiveModeParams：这个方式这次发哪些参数', () => {
   })
 })
 
-describe('modeWhenUnrecorded：没有方式记录时的主方式（规则原样来自生成脚本）', () => {
-  it('全目录逐 (档案, 供应商, 任务类型)：按主方式取出的默认值与生成脚本的桥接表逐字相同', () => {
+describe('modeWhenUnrecorded：没有方式记录时的主方式（与无界面缺参兜底 headlessDefaultsOf 同一条主方式判据）', () => {
+  it('全目录逐 (档案, 供应商, 任务类型)：按主方式取出的默认值与 headlessDefaultsOf 逐字相同', () => {
     const diffs: string[] = []
     let compared = 0
     for (const base of MODEL_ARCHETYPES) {
-      const table = buildWireDefaultsFor([base])[base.id] ?? {}
+      const table = headlessDefaultsOf(base)
       for (const { vendor, archetype } of vendorSpecializations().filter((entry) => entry.archetype.id === base.id)) {
         const vendorKey = vendor === '*' ? null : vendor
         const kinds = new Set(archetype.modes.flatMap((mode) => [modeTransportFor(mode, archetype, vendorKey), modeTransportFor(mode, archetype, null)]))
@@ -170,12 +171,34 @@ describe('modeWhenUnrecorded：没有方式记录时的主方式（规则原样�
           const owned = mode ? effectiveModeParams({ archetype, modeId: mode.id, stored: {} }).params : {}
           compared++
           if (JSON.stringify(Object.entries(owned).sort()) !== JSON.stringify(Object.entries(legacy).sort())) {
-            diffs.push(`${base.id}@${vendor}/${taskKind}: 主方式 ${mode?.id} ${JSON.stringify(owned)} ≠ 桥接表 ${JSON.stringify(legacy)}`)
+            diffs.push(`${base.id}@${vendor}/${taskKind}: 主方式 ${mode?.id} ${JSON.stringify(owned)} ≠ headlessDefaultsOf ${JSON.stringify(legacy)}`)
           }
         }
       }
     }
     expect(compared).toBeGreaterThan(100)
     expect(diffs).toEqual([])
+  })
+})
+
+// 设计卡 docs/plan/2026-11-15-archetype-single-entry.md ★9 反例 4：「剥掉别的档留下的旧键」要按**全部档**的并集判。
+// 改成按收窄后的档案判，这一档收掉的键就不归管了，存着的旧值会原样发出去。今天内置档案里没有「一档把某个键从全部方式里收掉」的，
+// 所以用一份手搓档案锁住。
+describe('governedKeys 读全部档的并集', () => {
+  const select = (key: string, values: string[]) => ({ key, label: key, type: 'select', options: values.map((value) => ({ value, label: value })), defaultValue: values[0] })
+  const archetype = {
+    id: 'hand-made-variant-drops-key', kind: 'video', family: 'test', label: 'test', identifierPatterns: ['hand-made'],
+    defaultModeId: 't2v',
+    modes: [{ id: 't2v', vendorTerm: 't2v', intent: '', hint: '', slots: [], params: [select('resolution', ['720p', '1080p']), select('audio', ['on', 'off'])] }],
+    defaultVariantId: 'standard',
+    variants: [
+      { id: 'standard', label: 'Standard', modelKey: 'hand-made' },
+      { id: 'lite', label: 'Lite', modelKey: 'hand-made-lite', paramOverrides: { t2v: (params: ArchetypeMode['params']) => params.filter((control) => control.key !== 'audio') } },
+    ],
+  } as unknown as ModelArchetype
+  it('这一档收掉的键（别的档留下的旧值）被剥掉，不原样发出去', () => {
+    const { params, dropped } = effectiveModeParams({ archetype, variantId: 'lite', modeId: 't2v', stored: { audio: 'on', resolution: '1080p', prompt: 'x' } })
+    expect(params).toEqual({ resolution: '1080p', prompt: 'x' })
+    expect(dropped).toEqual(['audio'])
   })
 })

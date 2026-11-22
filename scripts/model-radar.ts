@@ -32,7 +32,7 @@ import { resolveCacheDir } from "./lib/intake-radar/store.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { realNomiProfile } from "../tests/ux/_realProfile.mjs";
-import { MODEL_ARCHETYPES } from "../electron/shared/modelArchetypes/index.ts";
+import { MODEL_ARCHETYPES } from "../electron/shared/modelArchetypes/builtInCatalog.ts";
 import { applyBuiltinSeeds } from "../electron/catalog/seedBuiltins.ts";
 import { buildApimartHealthInventory, type ApimartHealthEntry } from "../electron/catalog/apimartModelHealth.ts";
 import { billingKindForTaskKind, type CatalogState, type Mapping } from "../electron/catalog/types.ts";

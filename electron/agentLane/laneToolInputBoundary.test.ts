@@ -6,10 +6,8 @@
 // 模型读到的是 pi 的默认正文 `- shots.0: must not have additional properties` + 整份入参回显，熔断一次都看不见）。
 // 这里钉住的是修完之后模型读到的那一段：凡被拒，正文点名出错字段，并给出合法值 / 近似键 / 期望类型 / 范围之一；
 // 面板拿到的信封带码和字段清单；同一个错连发时第 3 次起停。
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 
 import { createHttpFixture, type FixtureReply } from '../../tests/agent-runtime/httpFixture.mjs'
 import { createModuleRegistry } from '../capabilityCore/moduleRegistry'
@@ -49,10 +47,11 @@ const videoModelCandidates = buildVideoModelCandidates([
 ])
 
 type Shot = Record<string, unknown>
-const CANDIDATE = { providerId: 'apimart', modelId: 'doubao-seedance-2.0' }
+/** 这条消息带上来的可用模型清单：`draft_shots` 的完整名字在这里查（生产里由桌面端口在准备时捕获）。 */
+const LANE_MODELS = [{ vendor: 'apimart', modelId: 'doubao-seedance-2.0', modelAlias: null }]
 const shot = (extra: Shot = {}, drop: readonly string[] = []): Shot => {
   const base: Shot = { title: '纸船', prompt: '一只纸船在雨后的水洼里慢慢漂，清晨的光', taskKind: 'text_to_video',
-    candidate: CANDIDATE, parameters: { duration: 4, resolution: '480p', generate_audio: false }, ...extra }
+    model: 'doubao-seedance-2.0@apimart', parameters: { duration: 4, resolution: '480p', generate_audio: false }, ...extra }
   for (const key of drop) delete base[key]
   return base
 }
@@ -87,7 +86,7 @@ async function runLane(turns: ReadonlyArray<readonly unknown[]>, options: {
   const adapter = world.transport('request')
   let executed = 0
   const tools = createExtendedLaneTools({
-    execute: async (call, signal) => { executed += 1; return adapter.tryExecute(verbToTransportCall(call)!.call, signal) as never },
+    execute: async (call, signal) => { executed += 1; return adapter.tryExecute(verbToTransportCall(call, LANE_MODELS)!.call, signal) as never },
   }).filter((tool) => tool.name === 'draft_shots')
   let id = 0
   const replies: FixtureReply[] = turns.flatMap((items) => [
@@ -103,8 +102,8 @@ async function runLane(turns: ReadonlyArray<readonly unknown[]>, options: {
   }
   const http = await createHttpFixture(replies)
   cleanups.push(http.close)
-  const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-tool-input-boundary-'))
-  cleanups.push(() => fs.rmSync(projectDir, { recursive: true, force: true }))
+  const projectDir = makeTempDir('nomi-tool-input-boundary-')
+  cleanups.push(() => cleanupTestTemp(projectDir))
   const events: LaneToolFailureEvent[] = []
   const lane: LaneHandle = await openLane({ fetch: globalThis.fetch, projectDir,
     model: { kind: 'openai-compatible', providerId: 'fixture', modelId: 'fixture', baseURL: http.baseURL, authType: 'api-key', apiKey: 'fixture' },
@@ -163,11 +162,14 @@ const SAMPLES: ReadonlyArray<readonly [string, unknown, Expect]> = [
   ['missing-taskKind', { shots: [shot({}, ['taskKind'])] }, { accepted: true, why: '缺 taskKind 由候选模型的模式推出' }],
   ['bad-taskKind', { shots: [shot({ taskKind: 'video' })] },
     { says: /- shots\.0\.taskKind: value \(received "video"\) is not allowed\. Did you mean "text_to_video"\? Use one of: text_to_image, image_edit, text_to_video, image_to_video\./, code: 'tool_arguments_invalid', path: 'shots.0.taskKind' }],
-  ['model-not-in-catalog', { shots: [shot({ candidate: { providerId: 'apimart', modelId: 'sora-2' } })] },
+  ['model-not-in-catalog', { shots: [shot({ model: 'sora-2@apimart' })] },
     // 以前正文说「没有配置可用的视频模型」——对点名了 sora-2 的调用是误导（2026-11-08 真实轨迹里 39 题 9 次）。
-    { problem: 'unknown_model', field: 'candidate.modelId', says: /apimart\/sora-2 is not in the model catalog/, code: 'generation_input_invalid' }],
-  ['candidate-as-string', { shots: [shot({ candidate: 'doubao-seedance-2.0' })] },
-    { says: /- shots\.0\.candidate: expected object, received string/, code: 'tool_arguments_invalid', path: 'shots.0.candidate' }],
+    // 2026-11-15 起名字在 lane 这一侧按这条消息的可用清单查（宿主不再猜）：码与闭合原因和以前宿主那一层同一个
+    // （面板照旧说「没有这个模型」，遥测照旧记 unknown_model）。字段行点名这一镜；有拼写相近的给最像的完整名字，
+    // 一个都不像（这里清单里只有 Seedance）就指 list_models——拒收永远带下一步。
+    { problem: 'unknown_model', field: 'shots.0.model', says: /model sora-2@apimart is not in the model list[\s\S]*- shots\.0\.model: value \(received sora-2@apimart\) is not allowed\. no model with this name; call list_models for full names\.[\s\S]*Next: Copy a full name exactly as list_models/, code: 'generation_input_invalid' }],
+  ['model-as-object', { shots: [shot({ model: { providerId: 'apimart', modelId: 'doubao-seedance-2.0' } })] },
+    { says: /- shots\.0\.model: expected string, received object/, code: 'tool_arguments_invalid', path: 'shots.0.model' }],
   ['variant-in-params', { shots: [params({ variant: 'fast' })] },
     { says: /- parameters\.variant: no such field here; did you mean "variantId"\?/, code: 'generation_input_invalid', reason: 'parameter_not_allowed', path: 'parameters.variant' }],
   ['variantId-wrong', { shots: [shot({ variantId: 'turbo' })] },
@@ -175,7 +177,7 @@ const SAMPLES: ReadonlyArray<readonly [string, unknown, Expect]> = [
   ['unknown-top-field-ratio', { shots: [shot({ ratio: '16:9' })] },
     { says: /- shots\.0\.ratio: no such field here; did you mean "aspectRatio"\?/, code: 'tool_arguments_invalid', path: 'shots.0.ratio' }],
   ['unknown-top-level', { shots: [shot()], aspect: '16:9' },
-    { says: /- aspect: no such field here; remove it\. Fields allowed here: operationId, newPlan, taskKind, candidate, shots\./, code: 'tool_arguments_invalid', path: 'aspect' }],
+    { says: /- aspect: no such field here; remove it\. Fields allowed here: operationId, newPlan, taskKind, shots\./, code: 'tool_arguments_invalid', path: 'aspect' }],
   ['shots-empty', { shots: [] }, { says: /- shots: needs at least 1 item/, code: 'tool_arguments_invalid', path: 'shots' }],
   ['shots-as-object', { shots: shot() }, { accepted: true, why: '工具的容忍步骤把单个对象包成数组（arrayFields）' }],
   ['parameters-json-string', { shots: [shot({ parameters: '{"duration":4}' })] },
@@ -212,7 +214,8 @@ describe('25 种 draft_shots 错写过真 lane：被拒的都点名字段、说�
       expect(failure?.problem?.code).toBe(reason)
       expect(result.text).toMatch(expected.says)
       if ('problem' in expected) {
-        expect(failure?.issues).toBeUndefined()
+        // 宿主准入那一层的闭合原因不带字段清单；lane 这一侧查名字的那条（unknown_model）带——它知道是哪一镜。
+        if (expected.problem !== 'unknown_model') expect(failure?.issues).toBeUndefined()
         expect(failure?.problem?.field).toBe(expected.field)
         return
       }
@@ -222,7 +225,7 @@ describe('25 种 draft_shots 错写过真 lane：被拒的都点名字段、说�
     }, 30_000)
   }
 
-  it('计数：22 条被拒，19 条带字段清单，3 条没有字段清单、但带闭合原因（不再有只有散文的）', () => {
+  it('计数：22 条被拒，19 条带字段清单，3 条带闭合原因（不再有只有散文的）', () => {
     const rejected = SAMPLES.filter(([, , expected]) => !('accepted' in expected))
     expect(SAMPLES).toHaveLength(25)
     expect(rejected).toHaveLength(22)

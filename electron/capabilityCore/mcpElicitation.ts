@@ -17,12 +17,19 @@
 
 export type ElicitationAction = 'accept' | 'decline' | 'cancel' | 'timeout'
 
+/**
+ * 花钱那一问在等人：人什么时候回来答都算数，不替他答「否」（Nomi 里的卡 2026-09-11 拍板没有墙钟期限，外部同理）。
+ * 取 setTimeout 能接受的最大值（约 24.8 天）：SDK 不传就按 60s、传 0 会立刻超时，没有「不限」这个值。
+ * 客户端取消这次调用照样立刻结束（signal）。
+ */
+export const HUMAN_DECISION_TIMEOUT_MS = 2_147_483_647
+
 export type ElicitationClient = {
   /** Boolean confirmation in form mode. `supported:false` = the client cannot ask anyone. */
   booleanConfirm(
-    input: { message: string; title: string; description: string },
+    input: { message: string; title: string; description: string; timeoutMs?: number },
     signal?: AbortSignal,
-  ): Promise<{ supported: boolean; confirmed?: boolean; action?: ElicitationAction; attestation?: unknown }>
+  ): Promise<{ supported: boolean; confirmed?: boolean; action?: ElicitationAction; answer?: { action: ElicitationAction; confirm?: unknown } }>
   /**
    * URL mode. Resolves to the user's consent decision only — completion of the out-of-band work is
    * observed elsewhere (Nomi polls the owning session), exactly as the spec describes: "The response
@@ -64,13 +71,15 @@ export function createElicitationClient(deps: {
             },
             required: ['confirm'],
           },
-        }, timeoutMs, signal)) as { action?: string; content?: { confirm?: boolean; attestation?: unknown; confirmationAttestation?: unknown } } | null
+        }, input.timeoutMs ?? timeoutMs, signal)) as { action?: string; content?: { confirm?: unknown } } | null
         // 三态：accept / decline / cancel。只有明确 accept + confirm=true 才能跨过服务端边界。
+        // 人的原话（answer）原样带出去：花钱那一问由主进程再判一次，签不签收据只看主进程。
+        const action = normalizeAction(res?.action)
         return {
           supported: true,
           confirmed: res?.action === 'accept' && res?.content?.confirm === true,
-          action: normalizeAction(res?.action),
-          attestation: res?.content?.attestation ?? res?.content?.confirmationAttestation,
+          action,
+          answer: { action, confirm: res?.content?.confirm },
         }
       } catch (error) {
         if (signal?.aborted) throw error

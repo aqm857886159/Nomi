@@ -55,7 +55,8 @@ const MUTATIONS = [
   ]],
   ['D 类 · 目录身份被静默丢掉（形状仍合法，值消失，只有逐字段探针看得见）', [
     ['electron/shared/agentCapabilities/verbs/draftShotsProjection.ts',
-      "    ...(candidate?.providerId !== undefined ? { providerId: candidate.providerId } : {}),\n", ''],
+      "    ...(models.shot ? { providerId: models.shot.providerId, modelId: models.shot.modelId } : {}),",
+      "    ...(models.shot ? { modelId: models.shot.modelId } : {}),"],
   ]],
   ['R4 · 翻出一个没有传输适配器认的 lane', [
     ['electron/agentLane/laneVerbTransport.ts',
@@ -78,7 +79,11 @@ const MUTATIONS = [
   ]],
   ['来源 · 指向一个返回形状根本没声明的动词，且没具名登记', [
     ['electron/shared/agentCapabilities/verbs/readVerbs.ts',
-      '    outputSchema: z.object({ models: z.array(agentModelEntrySchema) }).strict(),\n',
+      '    outputSchema: z.union([\n'
+        + '      z.object({ models: z.array(laneModelRow) }).strict(),\n'
+        + '      z.object({ model: laneModelDetail.nullable(), resolvedFrom: z.string().optional(), errorCode: z.string().optional(),\n'
+        + '        error: z.string().optional(), candidates: z.array(z.string()).optional(), recoveryActions: z.array(z.string()).optional() }).strict(),\n'
+        + '    ]),\n',
       ''],
   ]],
   // 投影新长出来的那条闸——宿主自补的字段被藏起来却没人补它 / 补错了值——是 **tsc** 红，不是门岗红。

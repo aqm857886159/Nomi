@@ -163,7 +163,7 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
 
   return (
     <>
-      <FloatingToolbarShell ariaLabel={t('generationCommon.imageToolbar.aria')} lockNodeId={node.id}>
+      <FloatingToolbarShell ariaLabel={t('generationCommon.imageToolbar.aria')} nodeId={node.id}>
         {isAnchor && onToggleFreeze ? (
           <>
             <ToolbarButton

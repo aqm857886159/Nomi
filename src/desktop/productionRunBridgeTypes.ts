@@ -31,7 +31,7 @@ export type DesktopProductionRunBridge = {
    * 渲染层没有去拉它的第二条路；卡上没有参数（一镜要发什么只住在画布节点上），所以也没有「改参数」。
    */
   /** 「生成」/「全部生成（N）」/「生成剩下 N 段」/「再试一次」：这几镜交给画布，逐镜走画布单节点提交。 */
-  handOverSpend: (input: { projectId: string; operationId: string; quoteId: string; shotIds: readonly string[]; hostingAllowed: boolean } & PendingSpendActionIdentity) => Promise<ProductionActionResult>;
+  handOverSpend: (input: { projectId: string; operationId: string; quoteId: string; shotIds: readonly string[] } & PendingSpendActionIdentity) => Promise<ProductionActionResult>;
   discardSpend: (projectId: string, operationId: string, quoteId: string, identity?: PendingSpendActionIdentity) => Promise<ProductionActionResult>;
   /** 「不生成 ×」：这一镜不生成。 */
   removeSpendShot: (projectId: string, operationId: string, quoteId: string, shotId: string, identity?: PendingSpendActionIdentity) => Promise<ProductionActionResult>;

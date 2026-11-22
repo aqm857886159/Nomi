@@ -19,10 +19,18 @@ const T2I_PARAMS: ModelParameterControl[] = [
 const EDIT_PARAMS: ModelParameterControl[] = T2I_PARAMS;
 
 // apimart 专属 params（B 档案分层）：apimart Seedream 用扁平 size/resolution（与 kie 的 aspect_ratio/quality、
-// image_size/image_resolution 字段名+取值都不同）。文生图/改图同一组（apimart 改图只多 image_urls 槽，槽不变）。
-const APIMART_PARAMS: ModelParameterControl[] = [
-  { key: "size", label: "比例", type: "select", options: opt(["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9", "9:21", "auto"]), defaultValue: "1:1" },
-  { key: "resolution", label: "清晰度", type: "select", options: opt(["2K", "4K"]), defaultValue: "2K" },
+// image_size/image_resolution 字段名+取值都不同）。文生图/改图只差比例里的 auto（见下）。
+const APIMART_RATIOS = ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9", "9:21"];
+const APIMART_RESOLUTION: ModelParameterControl = { key: "resolution", label: "清晰度", type: "select", options: opt(["2K", "4K"]), defaultValue: "2K" };
+// size「auto」只在改图有意义：官方原话「auto - Auto-match reference image aspect ratio (requires image_urls)」——
+// 文生图没有参考图，选了 auto 上游无从匹配，故文生图的比例不列 auto（2026-11-15）。
+const APIMART_T2I_PARAMS: ModelParameterControl[] = [
+  { key: "size", label: "比例", type: "select", options: opt(APIMART_RATIOS), defaultValue: "1:1" },
+  APIMART_RESOLUTION,
+];
+const APIMART_EDIT_PARAMS: ModelParameterControl[] = [
+  { key: "size", label: "比例", type: "select", options: opt([...APIMART_RATIOS, "auto"]), defaultValue: "1:1" },
+  APIMART_RESOLUTION,
 ];
 
 export const SEEDREAM_ARCHETYPE: ModelArchetype = {
@@ -48,7 +56,7 @@ export const SEEDREAM_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "text_to_image",
       slots: [],
       params: T2I_PARAMS,
-      vendorParams: { apimart: APIMART_PARAMS },
+      vendorParams: { apimart: APIMART_T2I_PARAMS },
     },
     {
       id: "edit",
@@ -60,7 +68,7 @@ export const SEEDREAM_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "image_edit",
       slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 14, inputKey: "image_urls" }],
       params: EDIT_PARAMS,
-      vendorParams: { apimart: APIMART_PARAMS },
+      vendorParams: { apimart: APIMART_EDIT_PARAMS },
     },
   ],
 };

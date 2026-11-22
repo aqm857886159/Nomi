@@ -21,13 +21,11 @@ import { handOverPrecheck } from '../../production/handOverPrecheck'
 import { toast, useToastStore } from '../../../ui/toast'
 import { logRendererWarn } from '../../../desktop/rendererLog'
 import type { GenerationHandOverFailure, PendingSpendActionIdentity, PendingSpendConfirm, PendingSpendRead } from '../../../desktop/productionRunBridgeTypes'
-import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 import type { GenerationCanvasState } from '../../generationCanvas/store/canvasStoreTypes'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { selectCanvasNodeById } from '../../generationCanvas/store/canvasNodeGenerationIndex'
 import { useNodeExternalHighlightStore } from '../../generationCanvas/store/nodeExternalHighlightStore'
 import { estimateNodePrice } from '../../generationCanvas/spend/planCostEstimate'
-import { resolveBatchHostingNodes } from '../../generationCanvas/components/batchPlanPreview'
 import { nodeSelectedModelAddress } from '../../generationCanvas/nodes/controls/parameterControlModel'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { formatStoryboardShotLabel, storyboardLabelSource } from '../../generation/list/storyboardLabels'
@@ -87,40 +85,6 @@ function precheckSignature(state: Pick<GenerationCanvasState, 'nodes' | 'edges'>
   return value
 }
 
-/** 要交的那几镜的入边（素材托管看参考，参考有一半来自连线）。只在这几镜的入边变了时变。 */
-function incomingEdgesKey(state: Pick<GenerationCanvasState, 'edges'>, ids: ReadonlySet<string>): string {
-  if (ids.size === 0) return ''
-  return state.edges.filter((edge) => ids.has(edge.target)).map((edge) => `${edge.id}:${edge.source}>${edge.target}`).sort().join('\n')
-}
-
-/**
- * 要交的那几镜得不得先把本机参考图传到公共临时托管（画布批量确认框同一个解析口，整批问一次）。结论交给 `onResolved`。
- * 节点的 meta（参考槽在里面）与入边都没变就不重问——拖一下节点不会让它再跑一遍。
- */
-function useHostingResolution(nodes: readonly GenerationCanvasNode[], edgesKey: string, onResolved: (needs: boolean) => void): void {
-  const last = React.useRef<{ ids: string; edgesKey: string; metas: readonly unknown[]; token: number } | null>(null)
-  React.useEffect(() => {
-    const ids = nodes.map((node) => node.id).join('\n')
-    const metas = nodes.map((node) => node.meta)
-    const previous = last.current
-    if (previous && previous.ids === ids && previous.edgesKey === edgesKey && previous.metas.length === metas.length && previous.metas.every((meta, index) => meta === metas[index])) return
-    const token = (previous?.token ?? 0) + 1
-    last.current = { ids, edgesKey, metas, token }
-    if (nodes.length === 0) {
-      onResolved(false)
-      return
-    }
-    void resolveBatchHostingNodes(nodes)
-      .then((hosting) => { if (last.current?.token === token) onResolved(hosting?.needsConfirmation === true) })
-      // 问不出来就不摆披露：按「生成」时交接那一步会再问一次，要问人就带着原文回到卡上（不会不问就传）。
-      .catch((error: unknown) => {
-        logRendererWarn('spend-card-hosting-unresolved', { count: nodes.length }, error)
-        if (last.current?.token === token) onResolved(false)
-      })
-  }, [nodes, edgesKey, onResolved])
-  React.useEffect(() => () => { last.current = null }, [])
-}
-
 /**
  * @param read 这个项目此刻的待决出价——**对话投影推过来的那一份**（`LaneWorkspaceProjection.spend`）。
  *   这个钩子不拉、不轮询：Run 账本一变，主进程就推一份新的过来（`electron/agentLane/laneDesktopSpend.ts`）。
@@ -173,28 +137,14 @@ export function useAgentPanelSpendCard(read: PendingSpendRead | undefined): Agen
   const sendingNow = Boolean(shots?.some((shot) => shot.offer === 'handing_over'))
   React.useEffect(() => { if (!sendingNow && stoppingFor) setStoppingFor(null) }, [sendingNow, stoppingFor])
 
-  // 托管披露：结论在下面按主按钮要交的那几镜问出来（`useHostingResolution`），这里只读上一次的结论——主按钮交哪几镜不看它，不会绕圈。
-  const [hostingDisclosure, setHostingDisclosure] = React.useState(false)
-
   // 读不到的卡（缺卡那一张：读口装配抛了 / 投影抛了）没有卡体、没有主按钮可交：投影只给读得到的那一张算。
   const readable = pending && !readFailure && !pending.error ? pending : undefined
   const model = React.useMemo<SpendCardModel | undefined>(() => (readable
     ? projectSpendCard(readable, facts, {
       busy,
       stopping: stoppingFor === readable.operationId && sendingNow,
-      hostingDisclosure,
     }, t, { locale: i18n.language })
-    : undefined), [readable, facts, busy, stoppingFor, sendingNow, hostingDisclosure, t, i18n.language])
-
-  // 主按钮要交的那几镜 → 托管披露要问的节点。
-  const primaryIds = model && (model.primary.kind === 'generate' || model.primary.kind === 'retry') ? model.primary.shotIds.join('\n') : ''
-  const hostingNodes = React.useMemo(() => {
-    const wanted = new Set(primaryIds ? primaryIds.split('\n') : [])
-    return (shots ?? []).flatMap((shot, index) => (wanted.has(shot.shotId) && nodes[index] ? [nodes[index]!] : []))
-  }, [shots, nodes, primaryIds])
-  const hostingNodeIds = React.useMemo(() => new Set(hostingNodes.map((node) => node.id)), [hostingNodes])
-  const edgesKey = useGenerationCanvasStore((state) => incomingEdgesKey(state, hostingNodeIds))
-  useHostingResolution(hostingNodes, edgesKey, setHostingDisclosure)
+    : undefined), [readable, facts, busy, stoppingFor, sendingNow, t, i18n.language])
 
   // 「完成时各亮一下」（SpendCardQ1 板 card.done）：卡自己关掉（每一镜都定了）那一刻，交出去的那几镜在画布上一起闪一下。
   // 用户点「取消」关掉的不闪（那是停下，不是完成）；卡换成了另一笔也不闪。只认这个会话里亲眼看着关掉的那一次，重开不补闪。
@@ -299,7 +249,7 @@ export function useAgentPanelSpendCard(read: PendingSpendRead | undefined): Agen
     }
     act(target, () => productionRunApi.handOverSpend({
       projectId: target.projectId, operationId: target.operationId, quoteId: target.quoteId,
-      shotIds: action.shotIds, hostingAllowed: action.hostingAllowed, ...cardIdentity(target),
+      shotIds: action.shotIds, ...cardIdentity(target),
     }).then((result) => {
       if (!result.ok) unpress()
       return result

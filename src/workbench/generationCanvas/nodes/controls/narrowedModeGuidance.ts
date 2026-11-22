@@ -112,7 +112,8 @@ export function useNarrowedModeGuidance(params: {
     const candidates = candidatesForArchetype({
       options: modelOptions,
       archetypeId: archetype.id,
-      archetypeIdOf: (option) => resolveArchetypeForOption(option)?.id,
+      // 只比身份，各档相同：给具体一档。
+      archetypeIdOf: (option) => resolveArchetypeForOption(option, { variantId: undefined, modelId: undefined })?.id,
       currentVendor: selectedModelOption.vendor,
       currentValue: selectedModelOption.value,
     })

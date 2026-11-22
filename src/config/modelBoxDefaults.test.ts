@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { APIMART_IMAGE_MODELS } from '../../electron/catalog/apimartImages'
 import { APIMART_VIDEO_MODELS } from '../../electron/catalog/apimartVideos'
-import { getArchetypeById } from '../../electron/shared/modelArchetypes'
+import { getArchetypeById } from '../../electron/shared/modelArchetypes/builtInCatalog'
 import type { ModelBoxPreferenceSettings } from '../../electron/shared/contracts/modelBoxPreference'
 import { applyModelBoxDefaults, isModelBoxTouched, registeredModelBoxDefaultKeys } from './modelBoxDefaults'
 import type { DedupedModel } from './modelIdentity'

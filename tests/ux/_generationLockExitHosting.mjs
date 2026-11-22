@@ -11,8 +11,8 @@ export async function applyLockExitJourneyConditions(page) {
   }, LOCK_EXIT_JOURNEY_CONDITIONS)
 }
 
-/** A card may arrive after async hosting checks; wait for the actual action, never for card absence. */
-export async function confirmLockExitSpend(page, report, { until, shot, context = 'generation' } = {}) {
+/** Wait for the actual action; a single user run may have no card. */
+export async function confirmLockExitSpend(page, report, { until, context = 'generation' } = {}) {
   const dialog = page.locator('[data-spend-confirm-dialog]')
   await expect.poll(async () => {
     let confirmed = false
@@ -21,15 +21,8 @@ export async function confirmLockExitSpend(page, report, { until, shot, context 
       const hostingDisclosure = await page.locator('[data-spend-confirm-dialog] [data-hosting-disclosure]').isVisible()
       report.observations ??= { batchConfirmations: [], hostingConsents: [] }
       if (context.startsWith('batch')) report.observations.batchConfirmations.push({ context, hostingDisclosure })
-      // board:UnknownResultCard/confirm.hosting-disclosure — one existing modal also carries hosting; rehearsals require it at least once.
-      if (hostingDisclosure) {
-        if (!report.hostingDisclosure) await page.locator('[data-spend-confirm-dialog] [data-hosting-remember] input').check()
-        report.hostingDisclosure = (report.hostingDisclosure ?? 0) + 1
-        if (shot) await shot(`hosting-disclosure-${report.hostingDisclosure}`)
-      }
-      const at = Date.now()
+      assert.equal(hostingDisclosure, false, 'Per-run hosting disclosure is retired')
       await page.locator('[data-spend-confirm-dialog] [data-spend-confirm-action="confirm"]').click()
-      if (hostingDisclosure) report.observations.hostingConsents.push({ at, context })
       await dialog.waitFor({ state: 'hidden' })
       confirmed = true
     }
@@ -39,5 +32,6 @@ export async function confirmLockExitSpend(page, report, { until, shot, context 
 
 export function assertLockExitHostingReceipt(receipt) {
   assert.deepEqual(receipt.report?.journeyConditions, LOCK_EXIT_JOURNEY_CONDITIONS, 'Paid and free journey conditions must match')
-  assert.ok(receipt.report?.hostingDisclosure >= 1, 'Rehearsal must exercise the hosting disclosure')
+  assert.ok(receipt.report?.observations?.batchConfirmations?.length > 0, 'Rehearsal must exercise batch confirmation')
+  assert.ok(receipt.report.observations.batchConfirmations.every(value => value.hostingDisclosure === false), 'Hosting disclosure is retired')
 }

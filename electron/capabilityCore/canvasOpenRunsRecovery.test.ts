@@ -98,7 +98,7 @@ describe('I10 供应商一直说「还在跑」', () => {
     // 红 = 没有期限也没有出路
     expect(report.windows).toEqual(['observe', 'observe', 'observe'])
     expect(report.canvasOpenRuns).toEqual([expect.objectContaining({ reason: 'in_flight', hasTaskId: true, nodeId: 'node-a' })])
-    await restarted.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'human-confirmed', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: restarted.gesture, senderId: restarted.senderId, acknowledgedOpenRuns: [canvasRunIdFor('r1')] })
+    await restarted.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'human-confirmed', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: restarted.gesture, senderId: restarted.senderId, resendDecisionId: restarted.resendDecisionFor('node-a') })
     expect(restarted.vendor.executes).toHaveLength(1)
   })
 
@@ -110,7 +110,7 @@ describe('I10 供应商一直说「还在跑」', () => {
     const error = await h.runs.poll({ projectId: PROJECT, runRecordId: 'r1', senderId: 7 }).then(() => null, (e: unknown) => e)
     expect(error).toBeInstanceOf(Error)
     expect(h.runs.canvasOpenRuns({ projectId: PROJECT, nodeId: 'node-a' })).toEqual([expect.objectContaining({ reason: 'in_flight', hasTaskId: true })])
-    await h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'human-after-retrieval-failed', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: h.gesture, senderId: h.senderId, acknowledgedOpenRuns: [canvasRunIdFor('r1')] })
+    await h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'human-after-retrieval-failed', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: h.gesture, senderId: h.senderId, resendDecisionId: h.resendDecisionFor('node-a') })
     expect(h.vendor.executes).toHaveLength(2)
   })
 })

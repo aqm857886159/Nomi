@@ -9,6 +9,8 @@
 >
 > 两个雷达并行跑。**分诊只由协调会话做；其他会话看到不动手、不写待办。**
 >
+> **【夜跑走查】段**：hook 另用 `gh`（只读）按标题「夜跑走查失败」找夜跑问题单（不写死号），带出最近一晚的结论、应跑 / 绿 / 红 / 缺、最近 3 晚新转红的走查（最多 12 条）；同样一天一次、成功才缓存；取不到明说「今天没查成」。新转红由协调会话当天定责，其他会话不动手。
+>
 > **技能不在就明说，不叫人去跑**：hook 对仍有技能的两个雷达（用户反馈 `nomi-intake-radar`、三日竞品 `nomi-competitive-radar`）先查 `agent-skills/<名>/SKILL.md`、`.claude/skills/<名>/SKILL.md`、`~/.claude/skills/<名>/SKILL.md`；不在就输出「技能 X 在这台机器上没有，今天没查成」。**论文雷达改为按需（2026-10-01 用户拍板），不再每日提醒**——用户想看时由协调会话跑；**模型雷达不恢复技能，分诊一律按 `docs/plan/2026-08-27-vendor-model-radar.md` 的规则由协调会话手做**。三日竞品雷达、分诊这几句要动手的提醒前面都有「只由协调会话做」。
 
 **③ 用户反馈雷达**：（SessionStart hook 已跑） `pnpm run intake:radar`（从 Cloudflare 增量拉用户反馈 / 匿名用量事件 / Agent 轨迹，算成功率、错误码排行、和上一窗口比的突增）。凭据由官方 `npx wrangler auth token --json` 提供（OAuth 过期由 Wrangler 自动刷新；账号 id 用 `NOMI_CF_ACCOUNT_ID` 或 `npx wrangler whoami`），脚本不读 Wrangler 配置文件。确定性脚本，不烧额度；待分诊不为 0 或有突增时才起 `nomi-intake-radar` 技能做分诊（归真 bug / 配置问题 / 体验问题 / 数据上报问题，挂私有待办）。脚本报错 = 明说「今天没查成」，**不许**说成「没有新反馈」。原始数据与报告只落仓库外缓存目录（`%LOCALAPPDATA%\nomi-intake\`，可用 `NOMI_INTAKE_CACHE` 改），不进仓库、不进提交。

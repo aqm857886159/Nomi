@@ -2,30 +2,18 @@ import { MODEL_UNUSABLE_REASONS, type ModelUnusableReason } from '../../../elect
 import type { ChipModel } from './ModelChipGroups'
 import { readCustomCallScriptDrafts } from './customCallScriptModes'
 
-const ADAPTER_STATES = new Set<NonNullable<ChipModel['adapterState']>>([
-  'unverified',
-  'testing',
-  'verified',
-  'partial',
-  'failed',
-])
-
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : undefined
 }
 
-function adapterFields(meta: unknown): Pick<ChipModel, 'adapterState' | 'adapterRunId'> {
+function adapterRunIdOf(meta: unknown): Pick<ChipModel, 'adapterRunId'> {
   const adapter = asRecord(asRecord(meta)?.adapter)
-  const rawState = typeof adapter?.state === 'string' ? adapter.state.trim() : ''
-  const adapterState = ADAPTER_STATES.has(rawState as NonNullable<ChipModel['adapterState']>)
-    ? rawState as NonNullable<ChipModel['adapterState']>
-    : undefined
   const adapterRunId = typeof adapter?.runId === 'string' && adapter.runId.trim()
     ? adapter.runId.trim()
     : undefined
-  return { adapterState, adapterRunId }
+  return { adapterRunId }
 }
 
 function readUnusableReason(value: unknown): ModelUnusableReason {
@@ -60,7 +48,7 @@ export function projectModelSettingsCatalog(source: Array<Record<string, unknown
     if (customCall.fallback.trim()) fallbackScripts.set(`${vendorKey}/${modelKey}`, customCall.fallback)
     const label = typeof row.labelZh === 'string' && row.labelZh.trim() ? row.labelZh.trim() : modelKey
     const kind = typeof row.kind === 'string' && row.kind.trim() ? row.kind.trim() : 'text'
-    const adapter = adapterFields(meta)
+    const adapter = adapterRunIdOf(meta)
     return [{
       modelKey,
       vendorKey,
@@ -75,6 +63,7 @@ export function projectModelSettingsCatalog(source: Array<Record<string, unknown
       availability: asRecord(row.availability)?.usable === true
         ? { usable: true }
         : { usable: false, reason: readUnusableReason(asRecord(row.availability)?.reason) },
+      formatInProgress: row.formatInProgress === true,
       meta,
       ...adapter,
       hasCustomCall: Boolean(customCall.fallback.trim() || Object.keys(customCall.modes).length > 0),

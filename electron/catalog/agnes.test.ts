@@ -9,7 +9,8 @@ import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 import { taskTemplateParams, applyHeadlessParamDefaults } from "./taskParams";
 import { modelReferenceSelection } from "./modelCatalogListing";
 import { applyRequestTransform, validateRequestTransform } from "../tasks/requestTransforms";
-import { getArchetypeById, resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { buildArchetypeInputParams, ensureArchetypeNodeMeta } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
 import { bodyReferenceSupport } from "./referenceReachability";
 import type { HttpOperation } from "./types";
@@ -176,7 +177,7 @@ describe("Agnes 2026-08-26 documented wire contracts", () => {
     const model = AGNES_IMAGE_MODELS[0];
     const { body } = await renderAgnes(model.mappings[1].create, model.modelKey, { size: "4K", ratio: "21:9", archetypeInput: { image: ["https://example.com/a.png", "https://example.com/b.png"] } });
     expect(body).toEqual({ model: model.modelKey, prompt: "A paper crane", size: "4K", ratio: "21:9", extra_body: { response_format: "url", image: ["https://example.com/a.png", "https://example.com/b.png"] } });
-    const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: "agnes" });
+    const archetype = resolveModelArchetype({ modelKey: model.modelKey, vendorKey: "agnes" }, { variant: EVERY_VARIANT });
     expect(archetype?.id).toBe("agnes-image-2.1");
     expect(archetype?.modes[0].params.find((p) => p.key === "size")?.options.map((o) => o.value)).toEqual(["1K", "2K", "3K", "4K"]);
     expect(archetype?.modes[1].slots[0].max).toBeUndefined();
@@ -251,7 +252,7 @@ describe("Agnes 2026-08-26 documented wire contracts", () => {
   });
 
   it.each(["agnes-video-2.5", "agnes-video-2.5-flash"])("%s archetype GUI projection uses wire mode and appropriate channels", async (modelKey) => {
-    const archetype = resolveArchetypeForModel({ modelKey, vendorKey: "agnes" })!;
+    const archetype = resolveModelArchetype({ modelKey, vendorKey: "agnes" }, { variant: EVERY_VARIANT })!;
     expect(archetype.id).toBe(modelKey);
     expect(archetype.modes.map((m) => m.id)).toEqual(["text", "keyframe", "reference"]);
     const mode = archetype.modes.find((m) => m.id === "reference")!;
@@ -311,12 +312,12 @@ it("Flash mappings do not advertise unsupported reference video channels to head
 
 it("Image 2.1 upgrades a persisted shared archetype without losing edit mode or reference images", () => {
   const meta = { modelKey: "agnes-image-2.1-flash", archetype: { id: "agnes-image", modeId: "edit" }, referenceImageUrls: ["https://example.com/a.png"], size: "1024x768" };
-  const archetype = resolveArchetypeForModel({ modelKey: meta.modelKey, vendorKey: "agnes", meta })!;
+  const archetype = resolveModelArchetype({ modelKey: meta.modelKey, vendorKey: "agnes", meta }, { variant: EVERY_VARIANT })!;
   expect(archetype.id).toBe("agnes-image-2.1");
   expect(modeWrittenInMeta(meta, archetype).id).toBe("edit");
   expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, archetype))).toEqual({ image: ["https://example.com/a.png"] });
   expect(ensureArchetypeNodeMeta(meta, archetype)).toMatchObject({ archetype: { id: "agnes-image-2.1", modeId: "edit" }, referenceImageUrls: meta.referenceImageUrls, size: "1K", ratio: "4:3" });
-  expect(resolveArchetypeForModel({ modelKey: "agnes-image-2.0-flash", vendorKey: "agnes", meta: { archetype: meta.archetype } })?.id).toBe("agnes-image");
+  expect(resolveModelArchetype({ modelKey: "agnes-image-2.0-flash", vendorKey: "agnes", meta: { archetype: meta.archetype } }, { variant: EVERY_VARIANT })?.id).toBe("agnes-image");
 });
 
 it.each([
@@ -324,7 +325,7 @@ it.each([
   ["720x1280", "9:16"], ["1536x1024", "3:2"], ["1024x1536", "2:3"],
 ])("Image 2.1 migrates legacy pixels %s to tier while retaining ratio %s", (size, ratio) => {
   const meta = { modelKey: "agnes-image-2.1-flash", archetype: { id: "agnes-image", modeId: "t2i" }, size };
-  const archetype = resolveArchetypeForModel({ modelKey: meta.modelKey, vendorKey: "agnes", meta })!;
+  const archetype = resolveModelArchetype({ modelKey: meta.modelKey, vendorKey: "agnes", meta }, { variant: EVERY_VARIANT })!;
   const migrated = ensureArchetypeNodeMeta(meta, archetype)!;
   expect(migrated).toMatchObject({ size: "1K", ratio });
   expect(ensureArchetypeNodeMeta(migrated, archetype)).toBeNull();

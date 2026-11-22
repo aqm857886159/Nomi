@@ -186,7 +186,6 @@ test('领域目录是概念级的：顶层树里混着的通用代码（hooks、
     'src/workbench/ai/v4/AgentPanelV4ReceiptV2.tsx',
     'src/workbench/ai/lane/laneNewThing.ts',
     'src/workbench/ai/systemPrompt/NewPromptThing.tsx',
-    'electron/memory/projectMemoryV2.ts',
     'electron/experience/experienceThing.ts',
     'electron/connectors/tikhubNewEndpoint.ts',
     'src/workbench/creation/newStoryboardThing.ts',

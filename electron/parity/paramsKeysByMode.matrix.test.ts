@@ -42,10 +42,9 @@ vi.mock("../capabilityCore/rendererBridge", () => ({
   },
 }));
 
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { builtInHeadlessDefaults, EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
-import { ARCHETYPE_WIRE_DEFAULTS } from "../catalog/archetypeWireDefaults.generated";
 import { createGenerationNode } from "../../src/workbench/generationCanvas/model/graphOps";
 import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/runner/catalogTaskActions";
 import { resolveGenerationReferences } from "../../src/workbench/generationCanvas/runner/generationReferenceResolver";
@@ -64,7 +63,7 @@ const seeded = await seedParityCatalog([]);
 }
 afterAll(() => capture.restore());
 
-type Archetype = NonNullable<ReturnType<typeof resolveArchetypeForModel>>;
+type Archetype = NonNullable<ReturnType<typeof resolveModelArchetype>>;
 type Mode = Archetype["modes"][number];
 type Control = Mode["params"][number];
 type Row = (typeof seeded.models)[number];
@@ -229,9 +228,8 @@ async function baselineOf(path: PathName, ctx: SampleContext): Promise<BaselineF
   const defaultCarried: Carried[] = [];
   if (baseline.request) {
     const taskKind = modeTransportFor(ctx.mode, ctx.archetype, ctx.row.vendorKey) ?? "";
-    const perKind = ARCHETYPE_WIRE_DEFAULTS[ctx.archetype.id]?.[taskKind];
     const candidates = new Set<string>([
-      ...Object.keys(perKind?.[ctx.row.vendorKey] ?? perKind?.["*"] ?? {}),
+      ...Object.keys(builtInHeadlessDefaults(ctx.archetype.id, taskKind, ctx.row.vendorKey) ?? {}),
       ...ctx.archetype.modes.flatMap((mode) => mode.params.map((c) => c.key)),
     ]);
     for (const key of [...candidates].sort()) {
@@ -291,7 +289,7 @@ type Plan = { id: string; row: Row; archetype: Archetype; from: Mode; to: Mode }
 function enumeratePlans(): Plan[] {
   const plans: Plan[] = [];
   for (const row of seeded.models) {
-    const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+    const archetype = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
     if (!archetype) continue;
     for (const from of archetype.modes) {
       for (const to of archetype.modes) {

@@ -1,10 +1,11 @@
 import { writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { addableReferenceKinds, type AssetDropKind } from '../model/nodeAssetDrop'
 import { addAssetUrlToNode } from './nodeAssetWrite'
-import { applyHumanModeChoice, archetypeModeArraySlots, collectModeInputs, effectiveArchetypeMode, effectiveArchetypeModeWithUpload, resolveArchetypeForModel, type ModeGraph } from './controls/archetypeMeta'
+import { applyHumanModeChoice, archetypeModeArraySlots, collectModeInputs, effectiveArchetypeMode, effectiveArchetypeModeWithUpload, type ModeGraph } from './controls/archetypeMeta'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import { FIRST_FRAME_EMPTY_KEY } from './controls/referenceList'
 import type { GenerationCanvasEdge } from '../model/generationCanvasTypes'
 import type { ModelArchetype } from '../../../../electron/shared/modelArchetypes'
@@ -77,7 +78,7 @@ function walkArchetype(archetypeId: string, nodeKind: 'video' | 'image', vendor:
   let reachedLimit = false
   const seen = new Set<string>()
   const blank = nodeFor(archetypeId, nodeKind, vendor)
-  const startArchetype = resolveArchetypeForModel({ modelKey: archetypeId, vendorKey: vendor ?? null, meta: blank.meta })!
+  const startArchetype = resolveModelArchetype({ modelKey: archetypeId, vendorKey: vendor ?? null, meta: blank.meta }, { variant: EVERY_VARIANT })!
   const queue: Array<{ node: Node; counts: Record<AssetDropKind, number> }> = [{ node: start.prepare(blank, startArchetype), counts: { image: 0, video: 0, audio: 0 } }]
   let serial = 0
   while (queue.length) {
@@ -86,7 +87,7 @@ function walkArchetype(archetypeId: string, nodeKind: 'video' | 'image', vendor:
     if (seen.has(key)) continue
     seen.add(key)
     states += 1
-    const archetype = resolveArchetypeForModel({ modelKey: archetypeId, vendorKey: vendor ?? null, meta: node.meta })!
+    const archetype = resolveModelArchetype({ modelKey: archetypeId, vendorKey: vendor ?? null, meta: node.meta }, { variant: EVERY_VARIANT })!
     const offered = addableReferenceKinds(node, graphOf(node))
     if (offered.length === 0) reachedLimit = true
     for (const kind of KINDS) {

@@ -15,7 +15,6 @@ const RAW_EVIDENCE: CanvasWriteRawEvidence = {
     kind: "image",
     title: "Shot",
     prompt: "old prompt",
-    locked: false,
     categoryId: "shots",
     groupId: null,
     model: { modelKey: "model-a", vendorKey: "vendor-a", archetypeId: null, modeId: null, variantId: null },
@@ -26,7 +25,7 @@ const RAW_EVIDENCE: CanvasWriteRawEvidence = {
 
 const DELETE_RAW_EVIDENCE: CanvasWriteBatchRawEvidence = {
   nodes: [{
-    id: "node-real", kind: "image", title: "Shot", prompt: "old", locked: false,
+    id: "node-real", kind: "image", title: "Shot", prompt: "old",
     categoryId: "shots", groupId: null, position: { x: 0, y: 0 },
     model: RAW_EVIDENCE.node.model, currentResult: null,
   }],
@@ -146,7 +145,6 @@ describe("canvas.write Pi transport", () => {
           kind: "image",
           title: "Shot",
           prompt: "old",
-          locked: false,
           categoryId: "shots",
           groupId: null,
           position: { x: 0, y: 0 },
@@ -242,7 +240,6 @@ describe("canvas.write Pi transport", () => {
           kind: "video",
           title: "Shot",
           prompt: "old",
-          locked: false,
           categoryId: "shots",
           groupId: null,
           position: { x: 0, y: 0 },
@@ -289,7 +286,6 @@ describe("canvas.write Pi transport", () => {
           kind: "video",
           title: "Shot",
           prompt: "old",
-          locked: false,
           categoryId: "shots",
           groupId: null,
           position: { x: 0, y: 0 },

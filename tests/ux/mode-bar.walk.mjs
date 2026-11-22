@@ -11,6 +11,7 @@
 //
 // 用法：node tests/ux/mode-bar.walk.mjs        （EVIDENCE=0 只跑断言不截图；BOUNDARY_ONLY=1 只跑边界）
 import { stationTimeout } from './_station-budget.mjs'
+import { NODE_COMPOSER_WIDTH } from './_composerWidth.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { chromium } from 'playwright'
 import { spawn, spawnSync } from 'node:child_process'
@@ -78,8 +79,8 @@ const { enModelDisplayText } = tsxRequire('../../src/i18n/locales/modelDisplayTe
 // 档案真名就是中文统一叫法那个词，所以按词典键取它当查表的键，不在测试里抄字面量。
 const shownReference = (locale) => (locale === 'en' ? enModelDisplayText[name('zh-CN', 'reference')] : name(locale, 'reference'))
 // 「只列这个模型真有的方式」（清单 mode.menu）：行数按档案里 Seedance 2.5（APIMart）真有的方式数算，不写死。
-const { ARCHETYPE_MODE_MANIFEST_VIDEO } = tsxRequire('../../electron/catalog/archetypeModes.video.generated.ts', import.meta.url)
-const SEEDANCE25_MODE_COUNT = Object.keys(ARCHETYPE_MODE_MANIFEST_VIDEO['seedance-2.5-apimart'].modes).length
+const { builtInModeManifest } = tsxRequire('../../electron/shared/modelArchetypes/index.ts', import.meta.url)
+const SEEDANCE25_MODE_COUNT = Object.keys(builtInModeManifest('seedance-2.5-apimart').modes).length
 
 /** 打开着的方式菜单：小标题、每行（名字 / 说明 / 置灰 / 打勾）。 */
 const readMenu = (page) => page.evaluate(() => {
@@ -131,7 +132,7 @@ try {
 
         if (state === 'mb-a-no-input-menu') {
           const card = await page.evaluate((sel) => { const el = document.querySelector(sel); if (!el) return null; const s = getComputedStyle(el); return { radius: parseFloat(s.borderTopLeftRadius), width: Math.round(el.getBoundingClientRect().width) } }, CARD)
-          check(`board:ModeBar/composer.shell · ${tag}`, Boolean(card) && card.width === 560 && card.radius >= 9, JSON.stringify(card))
+          check(`board:ModeBar/composer.shell · ${tag}`, Boolean(card) && card.width === NODE_COMPOSER_WIDTH && card.radius >= 9, JSON.stringify(card))
           check(`board:ModeBar/composer.prompt · ${tag}`, (await count(page, `${CARD} [data-prompt-box]`)) === 1)
           const add = await page.evaluate(() => [...document.querySelectorAll('[data-reference-entry], [data-reference-add-entry], [data-asset-add-tile]')].map((el) => { const r = el.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)] }))
           check(`board:ModeBar/ref.add · ${tag}`, add.length >= 2 && add.every(([w, h]) => w === 40 && h === 40), JSON.stringify(add))

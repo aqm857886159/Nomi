@@ -1,5 +1,6 @@
 import { aspectRatioControlsOf, placeAspectRatio } from '../aspectRatioValue'
 import { clampToRange, isParamValueAllowed, numericRangeOf, type ParamRange } from './paramConstraints'
+import { admitParamValue, isFiniteNumber } from './paramValue'
 import type { ModelParameterControl } from './types'
 
 type ParamValue = string | number | boolean
@@ -54,13 +55,17 @@ export function resolveModelParams({ controls, intent, previousParams, policy }:
     params = previousParams
     for (const control of controls) {
       if (!('type' in control) || control.type !== 'select' || !control.options?.length || !(control.key in params)) continue
-      const value = params[control.key]
-      // Mode switching historically compares enum types strictly; Agent admission does not.
-      if (isScalar(value) && isParamValueAllowed(control, value) && control.options.map(option => option.value).includes(value)) continue
+      const stored = params[control.key]
+      // 值先过门：存的是 "8"、档位是 8 → 同一档，按内部类型 8 发（不是「不在选项里」被换成默认）。
+      const value = admitParamValue(control, stored)
+      if (isScalar(value) && isParamValueAllowed(control, value)) {
+        if (!Object.is(value, stored)) params = { ...params, [control.key]: value }
+        continue
+      }
       params = { ...params }
       if (control.defaultValue !== undefined) params[control.key] = control.defaultValue
       else delete params[control.key]
-      change(control.key, value, params[control.key], 'param.value')
+      change(control.key, stored, params[control.key], 'param.value')
     }
   } else if (policy.invalid === '拟镜范围') {
     if (intent.duration !== undefined) {
@@ -79,18 +84,19 @@ export function resolveModelParams({ controls, intent, previousParams, policy }:
         aspectRatioControlsOf(parameterControls),
       ).parameters
       for (const control of parameterControls) {
-        const value = raw[control.key]
+        const value = admitParamValue(control, raw[control.key])
         if (value === undefined) continue
         if (isScalar(value) && isParamValueAllowed(control, value)) params[control.key] = value
-        else change(control.key, value, params[control.key], 'param.value')
+        else change(control.key, raw[control.key], params[control.key], 'param.value')
       }
     } else {
-      for (const [key, value] of Object.entries(previousParams)) {
+      for (const [key, stored] of Object.entries(previousParams)) {
         const control = parameterControls.find(item => item.key === key)
-        if (!control) { change(key, value, undefined, 'param.unknown', { key }); continue }
+        if (!control) { change(key, stored, undefined, 'param.unknown', { key }); continue }
+        const value = admitParamValue(control, stored)
         if (!isScalar(value) || key === 'duration') continue
         if (isParamValueAllowed(control, value)) { params[key] = value; continue }
-        if (!control.options.length && control.type === 'number' && typeof value === 'number') {
+        if (!control.options.length && control.type === 'number' && isFiniteNumber(value)) {
           const range = numericRangeOf(control)
           const min = typeof control.min === 'number' ? control.min : Number.NEGATIVE_INFINITY
           const max = typeof control.max === 'number' ? control.max : Number.POSITIVE_INFINITY

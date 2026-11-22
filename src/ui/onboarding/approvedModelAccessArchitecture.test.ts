@@ -46,10 +46,12 @@ describe('approved model access architecture', () => {
     // The vendor type must declare the capability field.
     expect(vendors).toContain('usesPlatformConnect')
 
-    // The page must accept hasApiKey and show pending state without requiring key re-entry.
+    // The page must accept hasApiKey and show the saved state without requiring key re-entry.
+    // D-1117-delete-verification：存下即可用，没有「待验证」那一档、也没有「继续验证」那一步。
     expect(page).toContain('hasApiKey')
-    expect(page).toContain('pendingTitle')
-    expect(page).toContain('continueVerification')
+    expect(page).toContain('savedTitle')
+    expect(page).not.toContain('pendingTitle')
+    expect(page).not.toContain('continueVerification')
   })
 
   it('keeps the Dreamina membership entry available while its local status is loading', () => {

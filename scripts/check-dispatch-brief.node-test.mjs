@@ -6,9 +6,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { makeTempDir } from './_test-temp.mjs'
 import * as checker from './check-dispatch-brief.mjs'
-import { checkDispatchBrief, roundNumber } from './check-dispatch-brief.mjs'
+import { checkDispatchBrief, roundNumber, seamProblems } from './check-dispatch-brief.mjs'
+import { loadSeams, seamUnits } from './fix-churn-units.mjs'
 
-const SELF_CHECK = '\n## 自验\n设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告。'
+const GOAL = '\n目标：创作者点生成后在节点上看到这一次的新图；目标测试在什么都不做、全部拦下两个版本上都必须红。'
+const STAR9 = '\n## 自验\n设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告。'
+const SELF_CHECK = GOAL + STAR9
 
 const GOOD = '范围：只改 src/a。不碰：%APPDATA%。停点：完成就停。'
 
@@ -105,10 +108,10 @@ function runHook(prompt) {
     timeout: 1000,
   })
 }
-function writeBrief(text) {
+function writeBrief(text, name = 'I-a.md') {
   const dir = path.join(makeTempDir('dispatch-brief'), 'briefs', 'x')
   fs.mkdirSync(dir, { recursive: true })
-  const file = path.join(dir, 'I-a.md')
+  const file = path.join(dir, name)
   fs.writeFileSync(file, text)
   return file
 }
@@ -126,6 +129,14 @@ describe('Claude 派线执行点', () => {
     const result = runHook(`读任务书 ${writeBrief(`${GOOD}\n删掉：不选，保留必要能力。\n调用方：不改已有函数的行为${SELF_CHECK}`)}`)
     assert.equal(result.error, undefined)
     assert.equal(result.status, 0)
+  })
+  test('V- 开头的验收任务书经钩子也查目标合同', () => {
+    const file = writeBrief(GOOD, 'V-a.md')
+    const result = runHook(`读任务书 ${file}`)
+    assert.equal(result.status, 2)
+    assert.match(result.stderr, /缺目标合同/)
+    fs.writeFileSync(file, `${GOOD}${GOAL}`)
+    assert.equal(runHook(`读任务书 ${file}`).status, 0)
   })
   test('未引用任务书路径时放行', () => {
     assert.equal(runHook('请分析这个问题').status, 0)
@@ -190,31 +201,77 @@ const IMPLEMENTATION = { implementation: true }
 const CALLER_NONE = '调用方：不改已有函数的行为'
 const IMPLEMENTATION_GOOD = `${GOOD}\n删掉：不选，保留必要能力。\n${CALLER_NONE}`
 
-describe('反例红绿前移', () => {
-  test('实现任务缺自验要求时拦截并解释补法', () => {
-    assert.match(checkDispatchBrief(IMPLEMENTATION_GOOD, IMPLEMENTATION).join(), /自验.*设计卡.*★9.*每条反例.*改坏.*红.*还原.*绿.*日志.*报告/)
+describe('目标合同：做完只按目标判，判据要能失败', () => {
+  const ACCEPTANCE = { acceptance: true }
+  const contract = (text, opts = IMPLEMENTATION) => checkDispatchBrief(text, opts).join()
+  test('实现任务缺目标一行、两种没做成的版本、★9 反例时逐项点名补法', () => {
+    const out = contract(IMPLEMENTATION_GOOD)
+    assert.match(out, /缺目标合同/)
+    for (const part of [/「目标：」开头的一行/, /「什么都不做」时目标测试必须红/, /「全部拦下」时目标测试必须红.*全部拦下不适用/, /自验.*设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告/]) assert.match(out, part)
   })
-  test('要求齐全时通过；非实现任务不强制红绿合同', () => {
+  test('齐全时通过；调研 / 只读复盘类不要求', () => {
     assert.deepEqual(checkDispatchBrief(IMPLEMENTATION_GOOD + SELF_CHECK, IMPLEMENTATION), [])
     assert.deepEqual(checkDispatchBrief(GOOD), [])
   })
+  test('只有「修前红」、没写两种没做成的版本 → 红（今天 L-bar-yield-r2 的形状）', () => {
+    const before = '\n目标：底栏上每个按钮都点得到。\n先在第一轮头上跑：构造①那类必须红；修后全绿。'
+    assert.match(contract(IMPLEMENTATION_GOOD + before + STAR9), /「什么都不做」.*「全部拦下」/)
+  })
+  test('有两种版本、没有目标一行 → 红；有目标一行、两种版本缺一 → 红', () => {
+    assert.match(contract(IMPLEMENTATION_GOOD + SELF_CHECK.replace('目标：', '说明：')), /「目标：」开头的一行/)
+    assert.match(contract(IMPLEMENTATION_GOOD + SELF_CHECK.replace('目标：', '目标：\n')), /「目标：」开头的一行/)
+    assert.match(contract(IMPLEMENTATION_GOOD + SELF_CHECK.replace('、全部拦下', '')), /「全部拦下」时目标测试必须红/)
+    assert.match(contract(IMPLEMENTATION_GOOD + SELF_CHECK.replace('什么都不做、', '')), /「什么都不做」时目标测试必须红/)
+  })
+  test('版本和「红」要在同一句；代码块里的示例不算', () => {
+    assert.match(contract(`${IMPLEMENTATION_GOOD}\n目标：看到新图。\n要试什么都不做和全部拦下。\n测试要红。${STAR9}`), /「什么都不做」.*「全部拦下」/)
+    assert.match(contract(`${IMPLEMENTATION_GOOD}\n\`\`\`\n目标：看到新图；什么都不做、全部拦下时都红\n\`\`\`${STAR9}`), /「目标：」开头的一行/)
+  })
+  test('近义写法也认：什么也不做 / 一律拒', () => {
+    assert.deepEqual(contract(`${IMPLEMENTATION_GOOD}\n目标：看到新图；什么也不做、一律拒的两个版本上目标走查都应当红。${STAR9}`), '')
+  })
+  test('「全部拦下不适用：<理由>」一行可代替那半句，理由为空或是占位符不算', () => {
+    const goalNoBlock = '\n目标：仓库里不再有这批死代码；什么都不做时目标测试红。'
+    assert.deepEqual(contract(`${IMPLEMENTATION_GOOD}${goalNoBlock}\n全部拦下不适用：纯删死代码，没有可拦的入口。${STAR9}`), '')
+    for (const line of ['全部拦下不适用：', '全部拦下不适用：<理由>']) {
+      assert.match(contract(`${IMPLEMENTATION_GOOD}${goalNoBlock}\n${line}${STAR9}`), /「全部拦下」时目标测试必须红/, line)
+    }
+  })
+  test('「什么都不做」那半句不能豁免', () => {
+    const goalNoNothing = '\n目标：看到新图；全部拦下时目标测试红。\n什么都不做不适用：本来就有图。\n全部拦下不适用：没有入口。'
+    assert.match(contract(`${IMPLEMENTATION_GOOD}${goalNoNothing}${STAR9}`), /「什么都不做」时目标测试必须红/)
+  })
+  test('验收线要目标和两种版本，不要 ★9、删掉、调用方', () => {
+    assert.deepEqual(contract(`${GOOD}${GOAL}`, ACCEPTANCE), '')
+    assert.match(contract(GOOD, ACCEPTANCE), /缺目标合同/)
+    assert.doesNotMatch(contract(GOOD, ACCEPTANCE), /★ ?9|删掉|调用方/)
+  })
+  for (const [file, text, expected] of [
+    ['V-a.md', '# 普通任务', true],
+    ['x.md', '# a（Mac，Codex 独立验收线，未参与实现）：只验不修', true],
+    ['R-a.md', '# a（Mac，Codex 只读事实线）：查事实', false],
+    ['I-a.md', '# a（Mac，实现线）', false],
+  ]) {
+    test(`验收类分类：${file} ${text}`, () => assert.equal(checker.isAcceptanceBrief(text, file), expected))
+  }
   for (const missing of ['★9', '每条', '反例', '改坏', '红', '还原', '绿', '日志', '报告']) {
     test(`自验缺 ${missing} 时不通过`, () => {
-      assert.match(checkDispatchBrief(IMPLEMENTATION_GOOD + SELF_CHECK.replace(missing, ''), IMPLEMENTATION).join(), /缺反例红绿/)
+      assert.match(contract(IMPLEMENTATION_GOOD + GOAL + STAR9.replace(missing, '')), /自验里「设计卡 ★9/)
     })
   }
   test('自验外写同样要求不算自验合同', () => {
-    assert.match(checkDispatchBrief(IMPLEMENTATION_GOOD + SELF_CHECK.replace('## 自验', '## 说明'), IMPLEMENTATION).join(), /缺反例红绿/)
-    assert.match(checkDispatchBrief(IMPLEMENTATION_GOOD + '\n## 自验\n跑测试\n## 报告' + SELF_CHECK.split('\n').slice(2).join('\n'), IMPLEMENTATION).join(), /缺反例红绿/)
+    assert.match(contract(IMPLEMENTATION_GOOD + GOAL + STAR9.replace('## 自验', '## 说明')), /自验里「设计卡 ★9/)
+    assert.match(contract(IMPLEMENTATION_GOOD + GOAL + '\n## 自验\n跑测试\n## 报告' + STAR9.split('\n').slice(2).join('\n')), /自验里「设计卡 ★9/)
   })
   for (const declaration of ['纯测试', '纯文档', '纯配置', '任务类型：纯测试 / 文档 / 配置', '范围：只改测试、文档']) {
-    test(`明确声明可以豁免：${declaration}`, () => {
-      assert.deepEqual(checkDispatchBrief(`${IMPLEMENTATION_GOOD}\n${declaration}`, IMPLEMENTATION), [])
+    test(`明确声明只豁免 ★9 那一项：${declaration}`, () => {
+      assert.deepEqual(checkDispatchBrief(`${IMPLEMENTATION_GOOD}${GOAL}\n${declaration}`, IMPLEMENTATION), [])
+      assert.match(contract(`${IMPLEMENTATION_GOOD}\n${declaration}`), /「目标：」开头的一行/)
     })
   }
   test('提到纯文档或混合代码任务不能冒充豁免', () => {
     for (const declaration of ['参考纯文档任务的写法', '纯文档 + 代码', '范围：只改 src/a.ts，另补纯测试']) {
-      assert.match(checkDispatchBrief(`${IMPLEMENTATION_GOOD}\n${declaration}`, IMPLEMENTATION).join(), /缺反例红绿/)
+      assert.match(contract(`${IMPLEMENTATION_GOOD}${GOAL}\n${declaration}`), /自验里「设计卡 ★9/)
     }
   })
 })
@@ -308,17 +365,89 @@ describe('界面先对设计系统', () => {
     assert.deepEqual(checkDispatchBrief(`${GOOD}\n用户拍板：删掉无用目录。\n不在范围：界面文案。`), [])
     assert.match(checkDispatchBrief(`${GOOD} 用户拍板界面样张。`).join(), /缺设计系统引用/)
   })
-  test('CLI 和 Claude 钩子都拦实现任务缺反例红绿与设计引用', () => {
+  test('CLI 和 Claude 钩子都拦实现任务缺目标合同与设计引用', () => {
     const file = writeBrief(`${IMPLEMENTATION_GOOD}\n调整界面。`)
     const result = spawnSync(process.execPath, [fileURLToPath(new URL('./check-dispatch-brief.mjs', import.meta.url)), file], { encoding: 'utf8' })
     assert.equal(result.status, 1)
-    assert.match(result.stderr, /缺反例红绿/)
+    assert.match(result.stderr, /缺目标合同/)
     assert.match(result.stderr, /缺设计系统引用/)
     const hooked = runHook(`读任务书 ${file}`)
     assert.equal(hooked.status, 2)
-    assert.match(hooked.stderr, /缺反例红绿/)
+    assert.match(hooked.stderr, /缺目标合同/)
     assert.match(hooked.stderr, /缺设计系统引用/)
     fs.writeFileSync(file, `${IMPLEMENTATION_GOOD}\n调整界面。${SELF_CHECK}${DESIGN_REF}`)
     assert.equal(runHook(`读任务书 ${file}`).status, 0)
+  })
+})
+
+// ── ⑨ 交接处：同一个交接处两周内第 2 次修，先停下看它的全图（夹具历史，不联网、不读真实仓库历史）────────────
+const SEAM_NOW = Date.parse('2026-11-15T12:00:00Z')
+const DAY = 86400000
+const seamTable = seamUnits({ seams: [
+  { id: 'seam-a', name: '甲 → 乙', owner: '甲', map: 'docs/engineering/seams.json', checked: true, prefixes: ['src/seamA/'] },
+  { id: 'seam-b', name: '丙 → 丁', owner: '未核', map: '无', checked: false, prefixes: ['src/seamB/'] },
+] })
+const fixAt = (daysAgo, files, subject = 'fix(a): 修一刀') => ({ sha: `${daysAgo}${files.length}`.padEnd(40, 'f'), ms: SEAM_NOW - daysAgo * DAY, subject, files })
+const seamOpts = (history) => ({ seamOptions: { seams: seamTable, history, now: SEAM_NOW } })
+const seamBrief = (files, extra = '') => `${scopeBrief(files)}${extra}`
+const A_FILE = 'src/seamA/panel.ts'
+
+describe('交接处：任务书点到的路径命中交接处且这一处两周内已修过', () => {
+  test('第 1 次修不拦（窗口内没有 fix、或只有窗口外 / 非 fix / 非生产文件）', () => {
+    for (const history of [
+      [],
+      [fixAt(15, [A_FILE])],
+      [fixAt(2, [A_FILE], 'feat(a): 加一个')],
+      [fixAt(2, ['src/seamA/panel.test.ts', 'docs/seamA/x.md'])],
+      [fixAt(2, ['src/other/x.ts'])],
+    ]) assert.deepEqual(checkDispatchBrief(seamBrief([A_FILE]), { ...IMPLEMENTATION, ...seamOpts(history) }), [])
+  })
+  test('第 2 次修、任务书没有「交接处：」一行 → 拦，并打出这一处两周内的修和全图路径', () => {
+    const out = checkDispatchBrief(seamBrief([A_FILE]), { ...IMPLEMENTATION, ...seamOpts([fixAt(3, [A_FILE], 'fix(a): 前一刀')]) }).join('\n')
+    assert.match(out, /交接处「甲 → 乙」近 14 天已修过 1 次，这一刀是第 2 次/)
+    assert.match(out, /fix\(a\): 前一刀/)
+    assert.match(out, /全图：docs\/engineering\/seams\.json/)
+  })
+  test('「交接处：」一行：读了全图（路径真实存在）→ 过；读了不存在的路径 → 仍拦', () => {
+    const history = [fixAt(3, [A_FILE])]
+    const run = (line) => checkDispatchBrief(seamBrief([A_FILE], `\n${line}`), { ...IMPLEMENTATION, ...seamOpts(history) })
+    assert.deepEqual(run('交接处：甲 → 乙，读了 docs/engineering/seams.json'), [])
+    assert.deepEqual(run('- **交接处**：seam-a，读了 `docs/engineering/seams.json`。'), [])
+    assert.match(run('交接处：甲 → 乙，读了 docs/not-there.md').join(), /交接处「甲 → 乙」/)
+    assert.match(run('交接处：别的名字，读了 docs/engineering/seams.json').join(), /交接处「甲 → 乙」/)
+  })
+  test('「交接处：」一行：不算同一处 + 理由 → 过；没理由 → 拦', () => {
+    const history = [fixAt(3, [A_FILE])]
+    const run = (line) => checkDispatchBrief(seamBrief([A_FILE], `\n${line}`), { ...IMPLEMENTATION, ...seamOpts(history) })
+    assert.deepEqual(run('交接处：甲 → 乙，不算同一处：这次只改文案，不碰传递的事实'), [])
+    assert.match(run('交接处：甲 → 乙，不算同一处：').join(), /交接处「甲 → 乙」/)
+  })
+  test('命中路径没核过的行：照样拦，提示注明可能误伤，没有全图就写「还没有，先画」', () => {
+    const out = checkDispatchBrief(seamBrief(['src/seamB/x.ts']), { ...IMPLEMENTATION, ...seamOpts([fixAt(1, ['src/seamB/y.ts'])]) }).join('\n')
+    assert.match(out, /路径范围没核过，可能误伤/)
+    assert.match(out, /全图：还没有，先画/)
+  })
+  test('表外路径：和没有这条检查时的输出完全相同', () => {
+    const text = seamBrief(['src/elsewhere/x.ts', 'electron/y.ts'])
+    const history = [fixAt(1, ['src/elsewhere/x.ts']), fixAt(2, ['src/elsewhere/x.ts'])]
+    assert.deepEqual(checkDispatchBrief(text, { ...IMPLEMENTATION, ...seamOpts(history) }), checkDispatchBrief(text, IMPLEMENTATION))
+    assert.deepEqual(seamProblems(text, { seams: seamTable, history, now: SEAM_NOW }), [])
+  })
+  test('范围外提到的路径不算「点到」；两处都命中就各要一行', () => {
+    const notTouched = `${scopeBrief(['src/ok/x.ts'])}\n不在范围：\`${A_FILE}\``
+    assert.deepEqual(checkDispatchBrief(notTouched, { ...IMPLEMENTATION, ...seamOpts([fixAt(1, [A_FILE])]) }), [])
+    const both = checkDispatchBrief(seamBrief([A_FILE, 'src/seamB/x.ts'], '\n交接处：甲 → 乙，不算同一处：文案'), { ...IMPLEMENTATION, ...seamOpts([fixAt(1, [A_FILE, 'src/seamB/x.ts'])]) }).join('\n')
+    assert.match(both, /丙 → 丁/)
+    assert.doesNotMatch(both, /交接处「甲 → 乙」/)
+  })
+  test('真实表里「档案 → Agent 写参数」这一处按表命中（夹具历史）', () => {
+    const seams = loadSeams(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'))
+    const out = seamProblems(scopeBrief(['electron/agentLane/y.ts']), { seams, history: [fixAt(2, ['electron/agentLane/x.ts'])], now: SEAM_NOW })
+    assert.equal(out.length, 1)
+    assert.match(out[0], /档案 → Agent 写参数/)
+    // 「全图」那一句的期望从表里现读：登记了全图就该印出那个路径，没登记才是「还没有，先画」。
+    const seam = seams.find((unit) => unit.name === '档案 → Agent 写参数')
+    if (seam?.map) assert.ok(out[0].includes(`全图：${seam.map}`), `应印出表里登记的全图 ${seam.map}`)
+    else assert.match(out[0], /还没有，先画/)
   })
 })

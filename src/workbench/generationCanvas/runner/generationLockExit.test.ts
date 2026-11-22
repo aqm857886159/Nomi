@@ -20,9 +20,8 @@ vi.mock('../../library/localProjectStore', () => ({
     return record
   },
 }))
-vi.mock('../../api/taskApi', () => ({ canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
+vi.mock('../../api/taskApi', () => ({ canvasResendDecide: (input: Parameters<typeof import('../../api/canvasResendDecideTestUtils').canvasResendDecideLikeMain>[0]) => import('../../api/canvasResendDecideTestUtils').then(fake => fake.canvasResendDecideLikeMain(input)), canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
-vi.mock('./assetUploadConsent', async original => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
 
 let session: ProjectSessionTestHarness
 beforeEach(() => {
@@ -77,7 +76,7 @@ it.each(['quota', 'local-refusal', 'server'])('A1/A2/A3: %s uses the correct bra
     if (paused) { observedPause = true; state.cancelBatchRemaining(paused.id) }
   })
   try {
-    await runGenerationNodesByPlan({ waves: [nodes.map(n => n.id)], edgesUsed: [], blocked: [] }, { target, concurrency: kind === 'server' ? 1 : 6, retry: { maxAttempts: 1 }, assetUploadConsent: 'not-needed' })
+    await runGenerationNodesByPlan(planOfWaves([nodes.map(n => n.id)]), { target, concurrency: kind === 'server' ? 1 : 6, retry: { maxAttempts: 1 } })
     expect(observedPause).toBe(kind === 'server')
     if (kind !== 'server') expect(calls.execute).toHaveBeenCalledTimes(8)
     if (kind === 'local-refusal') expect(recordNodeModelFailure).not.toHaveBeenCalled()
@@ -91,14 +90,15 @@ it.each([false, true])('B3: a single generation takes the node out of another qu
   queue.attachCanvasConsent(batch, new Map([[node.id, 'original-offer']]))
   if (paused) useGenerationQueueStore.setState(state => ({ batches: { ...state.batches, [batch]: { ...state.batches[batch], paused: true } } }))
   calls.execute.mockImplementation(async node => imageRun(node.id))
-  await runGenerationNode(node.id, { target, assetUploadConsent: 'not-needed', retry: { maxAttempts: 1 } })
+  await runGenerationNode(node.id, { target, retry: { maxAttempts: 1 } })
   expect(useGenerationQueueStore.getState().entries.find(e => e.batchId === batch)?.state).toBe('cancelled')
   expect(withdrawCanvasShots).toHaveBeenCalledWith({ projectId: target.projectId, runRecordIds: ['original-offer'], by: 'removed' })
   expect(calls.execute).toHaveBeenCalledOnce()
 })
 
 
-import { releaseUnknownCanvasSubmissionsForNode } from '../../production/releaseUnknownSubmission'
+import { releaseUnknownSubmission } from '../../production/releaseUnknownSubmission'
+import { canvasResendDecide } from '../../api/taskApi'
 
 it('C2: a refused second click is withdrawn without hiding the original Run while the host-selected original Run is released and regenerated', async () => {
   await session.open('project-a')
@@ -113,11 +113,16 @@ it('C2: a refused second click is withdrawn without hiding the original Run whil
   expect(history[0].id).toBe(original)
   calls.unknown.mockResolvedValue([{ runId: 'canvas-' + original, jobId: 'original-job', nodeId: node.id, reason: 'needs_reconcile', hasTaskId: false }])
   const command = vi.fn(async () => ({ run: { runId: 'canvas-' + original, projectId: 'project-a', revision: 2, jobs: [] }, events: [] }))
-  await releaseUnknownCanvasSubmissionsForNode('project-a', node.id, {
+  // 放哪一笔由主进程的判定列出（号里只有这一笔），渲染层照号放。
+  const decision = await canvasResendDecide({ projectId: 'project-a', nodeId: node.id, resend: true, initiator: 'user' })
+  if (decision.action !== 'ask') throw new Error('expected an ask decision')
+  expect(decision.release).toEqual([{ runId: 'canvas-' + original, jobId: 'original-job' }])
+  const api = {
     read: async (_project: string, runId: string) => runId === 'canvas-' + original ? { runId, projectId: 'project-a', revision: 1, jobs: [] } : null,
     command,
-  } as never)
-  expect(command.mock.calls[0]).toMatchObject(['project-a', 'canvas-' + original, { payload: { jobId: 'original-job', outcome: 'user_checked_abandon' } }])
+  } as never
+  for (const entry of decision.release) await releaseUnknownSubmission('project-a', entry.runId, entry.jobId, api, decision.decisionId)
+  expect(command.mock.calls[0]).toMatchObject(['project-a', 'canvas-' + original, { payload: { jobId: 'original-job', outcome: 'user_checked_abandon', resendDecisionId: decision.decisionId } }])
   expect(useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!.runs).toEqual(history)
   calls.unknown.mockResolvedValue([])
   calls.execute.mockImplementation(async n => imageRun(n.id))
@@ -138,8 +143,8 @@ it('B2: retrying a failed card while its batch is paused does not resubmit it wh
     const batch = Object.values(state.batches).find(value => value.paused)
     if (batch) paused(batch.id)
   })
-  const running = runGenerationNodesByPlan({ waves: [nodes.map(node => node.id)], edgesUsed: [], blocked: [] },
-    { target, concurrency: 1, retry: { maxAttempts: 1 }, assetUploadConsent: 'not-needed' })
+  const running = runGenerationNodesByPlan(planOfWaves([nodes.map(node => node.id)]),
+    { target, concurrency: 1, retry: { maxAttempts: 1 } })
   const batchId = await pause
   try {
     calls.execute.mockImplementation(async node => imageRun(node.id))
@@ -158,6 +163,7 @@ it('B2: retrying a failed card while its batch is paused does not resubmit it wh
 })
 
 import { generationFailureActions } from '../../observability/generationFailureActions'
+import { planOfWaves } from './generationScopeTestPlans'
 it.each(['success', 'error', 'unknown'] as const)('in-flight refusal: the original late %s outcome clears or replaces the refusal card', async ending => {
   await session.open('project-a')
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'Original task' })

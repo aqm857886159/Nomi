@@ -1,0 +1,347 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-17-hosting-setting-only",
+  "problem_type": "调用方可替设置允许匿名托管",
+  "symptom": "默认 ask 时无托管告知仍把本地参考图传到第三方图床",
+  "direct_cause": "发送端自填 allow，上传循环缺省允许并采纳 extras",
+  "class_root": "素材发送边界没有独占托管决定权",
+  "affected_population": [
+    "默认或旧 ask 设置、有本地或内联参考素材的所有生成入口"
+  ],
+  "scope_paths": [
+    "docs/design/boards/2026-11-02-unknown-result-card/UnknownResultCard.board.json",
+    "docs/engineering/concept-owners/asset.reference-ingestion-route.json",
+    "docs/engineering/concept-owners/canvas.spend-card-hand-over-op.json",
+    "docs/engineering/concept-owners/spend.confirmation-requirement.json",
+    "electron/ai/textEntries.ipc.integration.test.ts",
+    "electron/capabilityCore/agentPanelSpendCardPolicy.e2e.test.ts",
+    "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/capabilityCore/canvasHandOver.test.ts",
+    "electron/capabilityCore/canvasHandOver.ts",
+    "electron/capabilityCore/generationTransportAdapters.test.ts",
+    "electron/capabilityCore/generationTransportAdapters.ts",
+    "electron/capabilityCore/modelOnboarding/tryModel.ts",
+    "electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts",
+    "electron/capabilityCore/productionReferenceUrls.ts",
+    "electron/catalog/assetIngestionRegistry.ts",
+    "electron/catalog/assetLocalization.test.ts",
+    "electron/catalog/assetLocalization.ts",
+    "electron/catalog/assetTransportPolicy.test.ts",
+    "electron/catalog/assetTransportPolicy.ts",
+    "electron/catalog/assetTransportRuntime.ts",
+    "electron/catalog/assetValueScheme.ts",
+    "electron/catalog/referenceLinkDelivery.matrix.test.ts",
+    "electron/catalog/types.ts",
+    "electron/desktopStrings.ts",
+    "electron/productionRun/productionActionIpc.ts",
+    "electron/productionRun/productionActionIpcPendingSpend.test.ts",
+    "electron/proxyProbe.ts",
+    "electron/settings/automationPolicyContract.ts",
+    "electron/settings/automationPolicySettings.test.ts",
+    "electron/shared/contracts/canvasHandOver.ts",
+    "eslint-suppressions.json",
+    "eslint.config.mjs",
+    "scripts/boundaries-baseline.json",
+    "src/desktop/productionRunBridgeTypes.ts",
+    "src/workbench/NomiStudioApp.tsx",
+    "src/workbench/ai/v4/agentPanelSpendCard.test.ts",
+    "src/workbench/ai/v4/agentPanelSpendCard.ts",
+    "src/workbench/ai/v4/spendCardFailure.test.ts",
+    "src/workbench/ai/v4/spendCardFailure.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendCard.test.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
+    "src/workbench/capability/productionHandOverShotsOp.test.ts",
+    "src/workbench/capability/productionHandOverShotsOp.ts",
+    "src/workbench/creation/storyboard/exec/storyboardBatchOwnership.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardDispatchAdversarial.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardDispatchSeam.test.ts",
+    "src/workbench/generationCanvas/components/batchPlanPreview.test.ts",
+    "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+    "src/workbench/generationCanvas/quickActions/deriveFromNode.run.test.ts",
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+    "src/workbench/generationCanvas/spend/spendConfirm.test.ts",
+    "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "src/workbench/generationCanvas/spend/spendConfirmPolicy.test.ts",
+    "src/workbench/generationCanvas/spend/spendConfirmQueue.test.ts",
+    "src/workbench/observability/classifyError.ts",
+    "src/workbench/production/productionRunApi.ts",
+    "src/workbench/project/projectActionIssuance.contract.test.ts",
+    "src/workbench/settings/AiModelsSection.tsx",
+    "src/workbench/settings/settingsDialogStructure.test.ts",
+    "tests/ux/_generationLockExitHosting.mjs",
+    "tests/ux/_generationLockExitHosting.test.mjs",
+    "tests/ux/_generationLockExitReceipt.test.mjs",
+    "tests/ux/_generationLockExitRehearsal.mjs",
+    "tests/ux/f3-f16b.walk.mjs",
+    "src/workbench/generationCanvas/runner/**"
+  ],
+  "entry_points": [
+    "画布单张与批量",
+    "助手单张与多张",
+    "分镜、脚本、试跑、外部助手与返工"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "内部设置与批准权归属问题；通道协议与依赖版本不变。",
+  "invariants": [
+    "只有主进程设置 allow 才能选匿名通道",
+    "调用方不能携带按次同意",
+    "只有设置页可修改设置",
+    "上传失败首行写明通道或不可用原因并给下一步；IPC 包装与技术详情不进入正文"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts",
+      "symbol": "GenerationHandOverFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "CanvasHandOver"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasHandOver.ts",
+      "symbol": "HandOverShotsReply"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "GenerationLeaseFactory"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "TryModelDeps"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "assetLocalizationOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetIngestionRegistry.ts",
+      "symbol": "AssetIngestion"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "LocalAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetTransportPolicy.ts",
+      "symbol": "AssetIngestion"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetTransportRuntime.ts",
+      "symbol": "localizeAssetsForVendor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetValueScheme.ts",
+      "symbol": "AssetValueScheme"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/types.ts",
+      "symbol": "AssetMediaKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/desktopStrings.ts",
+      "symbol": "desktopTranslations"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionActionIpc.ts",
+      "symbol": "handOverPendingSpendShots"
+    },
+    {
+      "kind": "write",
+      "path": "electron/proxyProbe.ts",
+      "symbol": "anonymousAssetHostingOrigins"
+    },
+    {
+      "kind": "read",
+      "path": "electron/settings/automationPolicyContract.ts",
+      "symbol": "AutomationPolicySettings"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/canvasHandOver.ts",
+      "symbol": "GenerationHandOverFailure"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/productionRunBridgeTypes.ts",
+      "symbol": "PendingSpendActionIdentity"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelSpendCard.ts",
+      "symbol": "GenerationHandOverFailure"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/spendCardFailure.ts",
+      "symbol": "SpendActionOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
+      "symbol": "PendingSpendConfirm"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/productionHandOverShotsOp.ts",
+      "symbol": "HandOverShotsReply"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "collectLocalAssetUrls"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+      "symbol": "BillingModelKind"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationNodeExecutor.ts",
+      "symbol": "GenerationNodeExecutorContext"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/referenceUrl.ts",
+      "symbol": "isLocalizableAssetValue"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "GenerationCostContext"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "symbol": "SpendConfirmState"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "useSpendConfirmStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "GenerationErrorReport"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/productionRunApi.ts",
+      "symbol": "PendingSpendActionIdentity"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/settings/AiModelsSection.tsx",
+      "symbol": "AutomationPolicySettings"
+    }
+  ],
+  "door_reduction": {
+    "before": 35,
+    "after": 34,
+    "why_not": "按改动文件在修前主分支与修后工作树各重数后，保留每个状态读写文件与本次不变量有关的首要符号；完整 AST 门表作为验收证据。普通生成入口与投影保留，匿名去向判据单独数为一处，调用方按次自放行已删除。"
+  },
+  "generality_proof": "所有既有本地化入口汇入同一上传循环；循环和发前预检共用读取设置的判据，删除按次同意的生产者与消费者。",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "localizeAssetsForVendor",
+      "responsibility": "上传时逐候选读取主进程设置，非 allow 跳过匿名通道。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "runGenerationNode",
+      "disposition": "enforced",
+      "evidence": "删除发送端自动 allow；进入共享本地化循环。"
+    },
+    {
+      "path": "electron/catalog/customCallDispatch.ts",
+      "entry_point": "runCustomCallTask",
+      "disposition": "enforced",
+      "evidence": "脚本生成沿现有共享本地化读取设置。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "画布、助手和无人确认入口共享可覆盖的同意字段。",
+    "same_class_scan": [
+      "door-map resolveAssetUploadConsent：3文件7处",
+      "door-map anonymousAssetHostingConsent：3文件3处",
+      "rg resolveLocalAsset：生产调用仅在上传循环及内部递归"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/assetLocalization.ts",
+    "invariant": "匿名候选仅由主进程当前设置 allow 放行",
+    "failure_mode": "其它值跳过匿名候选并给出通道失败和下一步",
+    "exception_policy": "none",
+    "strategy": "删除调用方允许字段、缺省允许和界面决策；已有边界检查守归属。",
+    "artifacts": [
+      "electron/catalog/assetLocalization.ts",
+      "electron/catalog/assetTransportRuntime.ts",
+      "electron/settings/automationPolicyContract.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/hostingSettingOnly.test.ts",
+    "electron/catalog/referenceLinkDelivery.matrix.test.ts",
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/hostingSettingOnly.test.ts",
+    "electron/catalog/referenceLinkDelivery.matrix.test.ts",
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/runner/assetUploadConsent.ts"
+    ],
+    "rationale": "整套按次同意及披露删除，不留下调用方放行口。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不更换上传协议、依赖或通道顺序；设置归属是内部边界。",
+    "exit_criteria": []
+  },
+  "migration": "allow 保留；ask 关闭；deny 和未知规整 ask。存储格式与 schemaVersion 不变。",
+  "residual_risks": [
+    "真实上游和 Windows 未验证；回环服务与隔离样图不同于用户真实现场。"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-24",
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/assetLocalization.ts",
+    "tests": [
+      "electron/catalog/hostingSettingOnly.test.ts"
+    ]
+  }
+}

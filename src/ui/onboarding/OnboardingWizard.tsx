@@ -1,8 +1,8 @@
 import React, { type JSX } from 'react'
 import { MODEL_ACCESS_ENTRY_ONBOARDING } from '../../../electron/shared/contracts/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
-import { Stack, Group, Text, PasswordInput, Anchor } from '@mantine/core'
-import { IconCheck, IconX, IconChevronDown } from '@tabler/icons-react'
+import { Stack, Text, PasswordInput, Anchor } from '@mantine/core'
+import { IconCheck } from '@tabler/icons-react'
 import { DesignButton, DesignModal, DesignTextInput, DesignSwitch } from '../../design'
 import { ModelPickerScreen } from './ModelPickerScreen'
 import { getDesktopBridge } from '../../desktop/bridge'
@@ -24,7 +24,6 @@ import { DirectScriptDraftForm } from './DirectScriptDraftForm'
 import { OnboardingWizardAdvancedFields, ProviderPresetGroups } from './OnboardingWizardAdvancedFields'
 import { credentialSaveNotice, modelDiscoveryMessage } from './modelDiscovery'
 import { useModelDiscovery } from './useModelDiscovery'
-import { useOnboardingConnectionTest } from './useOnboardingConnectionTest'
 import { CertificationIntentKey } from './certificationIntentKey'
 import { certificationFailureMessage } from './certificationFailureMessage'
 
@@ -120,26 +119,6 @@ export function OnboardingWizard({
     return out
   }, [headerRows])
 
-  // 连接测试探测逻辑抽成 hook（P1：旧内联块同 commit 删除，无并行版）。proxyUrl 一并贯穿。
-  const { testState, testMessage, handleTestConnection, resetTest } = useOnboardingConnectionTest({
-    bridge,
-    baseUrl: effectiveBaseUrl,
-    apiKey: requestAuth.apiKey,
-    vendorKey: existingVendorKey,
-    models,
-    providerKind,
-    kindForced,
-    noApiKey,
-    proxyUrl,
-    buildHeadersObject,
-    onDetectedKind: setProviderKind,
-    onProtocolFallback: () => {
-      // 失败指路（设计/真实用户评审）：展开高级区+协议覆盖区当逃生口。
-      setShowAdvanced(true)
-      setShowKindOverride(true)
-    },
-  })
-
   React.useEffect(() => {
     if (!opened || !integrationSessionId || !bridge?.onboarding?.integrationSessionGet) return
     let alive = true
@@ -176,20 +155,17 @@ export function OnboardingWizard({
     // Existing-connection retry keeps the candidate pool and selections.
     if (existingVendorKey) setScreen('select')
     else setScreen('form')
-    resetTest()
-  }, [existingVendorKey, resetTest])
+  }, [existingVendorKey])
 
   const updateHeader = React.useCallback((index: number, patch: Partial<{ key: string; value: string }>) => {
     setHeaderRows((prev) => prev.map((h, i) => (i === index ? { ...h, ...patch } : h)))
-    resetTest()
-  }, [resetTest])
+  }, [])
   const addHeaderRow = React.useCallback(() => {
     setHeaderRows((prev) => [...prev, { key: '', value: '' }])
   }, [])
   const removeHeaderRow = React.useCallback((index: number) => {
     setHeaderRows((prev) => prev.filter((_, i) => i !== index))
-    resetTest()
-  }, [resetTest])
+  }, [])
 
   const loadModels = React.useCallback(async () => {
     const savedVendorKey = existingVendorKey ?? savedConnection?.vendorKey
@@ -237,15 +213,14 @@ export function OnboardingWizard({
     setVendorName(preset.custom ? '' : preset.label)
     setEditBaseUrl(false)
     // 切预设 = 重置协议判断：具名预设内置协议；自定义中转使用本地默认值，
-    // 只有之后显式测试连接才可能更新它。
+    // 之后只有创作者在高级设置里手选才会改它（「测试连接」随 D-1117-delete-verification 删了）。
     setKindForced(!preset.custom)
     setShowKindOverride(false)
     setShowAdvanced(false)
     setNoApiKey(false)
-    // Endpoint changed → previously fetched candidates / test result no longer apply.
+    // Endpoint changed → previously fetched candidates no longer apply.
     setScreen('form')
-    resetTest()
-  }, [resetTest])
+  }, [])
 
   // Apply the preset when the panel opens.
   React.useEffect(() => {
@@ -502,10 +477,9 @@ export function OnboardingWizard({
                         onChange={(e) => {
                           const v = e.currentTarget.value
                           setBaseUrl(v)
-                          resetTest()
                           // hostname 仅作「初始猜测」：anthropic-native 网关 host 带 anthropic。
                           // 一旦专家手选过协议（kindForced），就不再覆盖——否则手选会被下次输入吞掉。
-                          // chat vs responses 无法靠 hostname 区分；用户可显式测试或在高级设置手选。
+                          // chat vs responses 无法靠 hostname 区分；用户可在高级设置手选。
                           if (selectedPreset?.custom && !kindForced) {
                             try {
                               setProviderKind(
@@ -543,7 +517,6 @@ export function OnboardingWizard({
                       checked={noApiKey}
                       onChange={(event) => {
                         setNoApiKey(event.currentTarget.checked)
-                        resetTest()
                       }}
                       label={t('modelSetup.noApiKey')}
                       description={t('modelSetup.noApiKeyHint')}
@@ -555,7 +528,6 @@ export function OnboardingWizard({
                         value={userApiKey}
                         onChange={(e) => {
                           setUserApiKey(e.currentTarget.value)
-                          resetTest()
                         }}
                         placeholder={t('modelSetup.apiKeyPlaceholder')}
                         autoFocus
@@ -586,12 +558,10 @@ export function OnboardingWizard({
                       onProviderKindChange={(value) => {
                         setProviderKind(value)
                         setKindForced(true)
-                        resetTest()
                       }}
                       onRestoreAutoDetect={() => {
                         setKindForced(false)
                         setShowKindOverride(false)
-                        resetTest()
                       }}
                       onUpdateHeader={updateHeader}
                       onRemoveHeaderRow={removeHeaderRow}
@@ -600,58 +570,10 @@ export function OnboardingWizard({
                       proxyUrlValid={proxyUrlValid}
                       onProxyUrlChange={(e) => {
                         setProxyUrl(e.currentTarget.value)
-                        resetTest()
                       }}
                     />
                   )}
 
-                  <details className="group border-t border-nomi-line pt-1" data-model-connection-diagnostics>
-                    <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 text-caption font-semibold text-nomi-ink-60 hover:text-nomi-ink [&::-webkit-details-marker]:hidden">
-                      {t('modelSetup.diagnostics')}
-                      <IconChevronDown
-                        size={15}
-                        stroke={1.8}
-                        className="transition-transform group-open:rotate-180"
-                        aria-hidden="true"
-                      />
-                    </summary>
-                    <div className="flex flex-col gap-2 border-t border-nomi-line-soft pt-3">
-                      <Text size="xs" c="var(--nomi-ink-40)" className="leading-relaxed">
-                        {t('modelSetup.testAndSaveHint')}
-                      </Text>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <DesignButton
-                          variant="light"
-                    onClick={handleTestConnection}
-                          disabled={!connectionFieldsReady || testState === 'testing'}
-                          loading={testState === 'testing'}
-                        >
-                          {t('modelSetup.testConnection')}
-                        </DesignButton>
-                        {testState === 'ok' && (
-                          <Group gap={4} align="center" wrap="nowrap" c="var(--workbench-success)">
-                            <Text size="xs" c="var(--workbench-success)">
-                              {testMessage}
-                            </Text>
-                            <IconCheck size={14} stroke={1.5} />
-                          </Group>
-                        )}
-                        {(testState === 'fail' || testState === 'unsupported') && (
-                          <Group
-                            gap={4}
-                            align="center"
-                            wrap="nowrap"
-                            c={testState === 'fail' ? 'var(--workbench-danger)' : 'var(--nomi-ink-60)'}
-                          >
-                            <Text size="xs" c="inherit" className="break-words leading-relaxed">
-                              {testMessage}
-                            </Text>
-                            {testState === 'fail' ? <IconX size={14} stroke={1.5} /> : null}
-                          </Group>
-                        )}
-                      </div>
-                    </div>
-                  </details>
                   {connectionSaveError ? (
                     <div className="text-caption leading-relaxed text-workbench-danger" role="alert">
                       {connectionSaveError}

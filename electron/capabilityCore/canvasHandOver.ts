@@ -34,7 +34,6 @@ export type CanvasHandOverInput = Readonly<{
   shotIds: readonly string[];
   by: "gesture" | "policy";
   /** 卡上摆过素材托管的披露、用户点的就是「生成」（手势那一档）。策略那一档恒 false：托管要问人，策略不代答。 */
-  hostingAllowed: boolean;
 }>;
 
 /** 交出去的每一镜此刻的样子（只看这一次出价）。 */
@@ -156,7 +155,7 @@ export function createCanvasHandOver(deps: CanvasHandOverDeps) {
       }) : [];
       // ③ 渲染层按画布批量那一条路开同意（绑交接）并开跑；只等同意开好。
       if (targets.length > 0) {
-        const request: HandOverShotsRequest = { projectId, runId, shots: targets, hostingAllowed: input.hostingAllowed };
+        const request: HandOverShotsRequest = { projectId, runId, shots: targets };
         const reply = replyOf(await deps.requestRenderer(HAND_OVER_SHOTS_OP, request, HAND_OVER_RENDERER_TIMEOUT_MS));
         for (const skipped of reply.skipped ?? []) failures.set(skipped.shotId, skipped.failure);
       }

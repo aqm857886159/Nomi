@@ -25,7 +25,7 @@ import {
 } from './_spendCardWalk.mjs'
 import { CANVAS_PANEL, createRuntimeWalk, openCanvas, recorded } from './agent-runtime-walk-support.mjs'
 
-const VIDEO = { providerId: 'apimart', modelId: 'doubao-seedance-2.0' }
+const VIDEO = 'doubao-seedance-2.0@apimart'
 const A = { generate: 'board:SpendCardQ1/card.generate', exclude: 'board:SpendCardQ1/card.pointer.exclude' }
 
 const present = createPresenter('S_REMAIN')
@@ -60,7 +60,7 @@ async function remainingRound(walk, win, { projectId, projectRoot }, locale) {
   const round = await present(walk, win, {
     locale, kind: 'video',
     shots: (prefix) => [1, 2, 3].map((index) => ({
-      title: `${prefix} 纸船 ${index}`, prompt: `${prefix} 纸船第 ${index} 镜：雨后清晨，纸船顺着水流漂`, taskKind: 'text_to_video', candidate: VIDEO,
+      title: `${prefix} 纸船 ${index}`, prompt: `${prefix} 纸船第 ${index} 镜：雨后清晨，纸船顺着水流漂`, taskKind: 'text_to_video', model: VIDEO,
     })),
   })
   const { card } = round

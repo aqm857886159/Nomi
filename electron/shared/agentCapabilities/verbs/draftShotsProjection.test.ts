@@ -9,8 +9,13 @@ import { describe, expect, it } from "vitest";
 import { verbToTransportCall } from "../../../agentLane/laneVerbTransport";
 import { NOT_YET_DECLARED, PROVENANCE_UNVERIFIABLE, VERB_FIELD_PROVENANCE } from "./verbFieldProvenance";
 import { VERB_DECLARATIONS } from "../verbDeclarations";
+import { toPublishedJsonSchema } from "../modelVisibleJsonSchema";
 
-const translate = (args: unknown) => verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args })!.call.args;
+const MODELS = [
+  { vendor: "apimart", modelId: "image-1", modelAlias: null },
+  { vendor: "apimart", modelId: "video-1", modelAlias: null },
+];
+const translate = (args: unknown) => verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args }, MODELS)!.call.args;
 
 describe("draft_shots 的投影与对照表时代逐字节相同", () => {
   it("① 时长落 parameters.duration 并与已有 parameters 合并，不是一个宿主没有的顶层字段", () => {
@@ -18,11 +23,12 @@ describe("draft_shots 的投影与对照表时代逐字节相同", () => {
       .toMatchObject({ operation: "create", prompt: "p", parameters: { seed: 7, duration: 3 }, cardHidden: true });
   });
 
-  it("② 目录点名赢过平铺的 modelId，两件各自落位（谁赢是声明出来的，不靠写的顺序）", () => {
-    expect(translate({ shots: [{ prompt: "p", modelId: "fallback", candidate: { providerId: "apimart", modelId: "image-1" } }] }))
+  it("② 一个完整名字拆回宿主的两件身份；不点名就两件都不带（宿主按用户默认补）", () => {
+    expect(translate({ shots: [{ prompt: "p", model: "image-1@apimart" }] }))
       .toMatchObject({ providerId: "apimart", modelId: "image-1" });
-    // 只给平铺 modelId 时它就是赢家——否则上一条可能只是「candidate 恒赢」而平铺那条根本没接。
-    expect(translate({ shots: [{ prompt: "p", modelId: "fallback" }] })).toMatchObject({ modelId: "fallback" });
+    const unnamed = translate({ shots: [{ prompt: "p" }] }) as Record<string, unknown>;
+    expect(unnamed).not.toHaveProperty("modelId");
+    expect(unnamed).not.toHaveProperty("providerId");
   });
 
   it("③ 参考素材出去的是宿主认的引用外壳，身份留给宿主补", () => {
@@ -67,12 +73,12 @@ describe("draft_shots 的投影与对照表时代逐字节相同", () => {
     expect(translate({ newPlan: true, shots: [{ prompt: "a" }, { prompt: "b" }] })).toMatchObject({ operation: "create", newPlan: true });
   });
 
-  it("顶层缺省折进每一镜，逐镜自己写的优先", () => {
+  it("顶层缺省（只剩 taskKind）折进每一镜，逐镜自己写的优先", () => {
     const multi = translate({
-      taskKind: "text_to_video", candidate: { providerId: "apimart", modelId: "video-1" },
-      shots: [{ role: "anchor", prompt: "a", taskKind: "text_to_image" }, { role: "shot", prompt: "b" }],
+      taskKind: "text_to_video",
+      shots: [{ role: "anchor", prompt: "a", taskKind: "text_to_image", model: "image-1@apimart" }, { role: "shot", prompt: "b", model: "video-1@apimart" }],
     }) as { shots: Array<Record<string, unknown>> };
-    expect(multi.shots[0]).toMatchObject({ taskKind: "text_to_image", providerId: "apimart", modelId: "video-1" });
+    expect(multi.shots[0]).toMatchObject({ taskKind: "text_to_image", providerId: "apimart", modelId: "image-1" });
     expect(multi.shots[1]).toMatchObject({ taskKind: "text_to_video", providerId: "apimart", modelId: "video-1" });
   });
 });
@@ -115,5 +121,36 @@ describe("比例只有一个家（2026-10-05：用户说 16:9，卡上是档案�
 
   it("schema 收它（严格对象，少这一行模型写了也会被 ajv 拒）", () => {
     expect(draftShots.schema.safeParse({ shots: [{ prompt: "p", aspectRatio: "16:9" }] }).success).toBe(true);
+  });
+});
+
+describe("模型身份只有一个家（2026-11-15：完整名字 model）", () => {
+  it("长完整名字被拒时仍完整回显，不截成无法抄回的 32 字", () => {
+    const written = "doubao-seedream-5-0-pro-unknown-release-with-a-long-model-suffix@volcengine";
+    try {
+      translate({ shots: [{ prompt: "p", model: written }] });
+      expect.fail("unknown model must be refused");
+    } catch (error) {
+      expect((error as { failure: { issues?: Array<{ received?: string }> } }).failure.issues?.[0]?.received).toBe(written);
+      expect((error as Error).message).toContain(written);
+    }
+  });
+  const draftShots = VERB_DECLARATIONS.find((verb) => verb.name === "draft_shots")!;
+  const IDENTITY_PIECES = ["modelId", "modelKey", "vendor", "providerId", "modelVendor", "candidate", "provider"];
+  const keysOf = (schema: unknown): string[] => Object.keys((schema as { properties?: Record<string, unknown> }).properties ?? {});
+
+  it("模型看到的顶层、每镜、关键帧里，点名模型的只有 model 一个字段——两半的身份字段一个都没有", () => {
+    const published = toPublishedJsonSchema(draftShots.schema) as { properties: Record<string, { items?: { properties?: Record<string, unknown> } }> };
+    const shot = published.properties.shots!.items!;
+    const keyframe = (shot.properties!.storyboard as { properties: Record<string, unknown> }).properties.keyframe;
+    for (const [where, schema] of [["顶层", published], ["每镜", shot], ["关键帧", keyframe]] as const) {
+      const keys = keysOf(schema);
+      expect(keys.length, `${where}一个字段都没读到，断言是空的`).toBeGreaterThan(0);
+      expect(keys.filter((key) => IDENTITY_PIECES.includes(key)), `${where}又长出了半个身份`).toEqual([]);
+      if (where !== "顶层") expect(keys, where).toContain("model");
+    }
+    // 严格对象：模型写了两半的身份字段，当场拒，不会被静默吃掉。
+    expect(draftShots.schema.safeParse({ shots: [{ prompt: "p", modelId: "image-1" }] }).success).toBe(false);
+    expect(draftShots.schema.safeParse({ shots: [{ prompt: "p", vendor: "apimart" }] }).success).toBe(false);
   });
 });

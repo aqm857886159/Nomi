@@ -13,7 +13,7 @@ import { buildOpenAiCompatibleDraft } from '../../electron/providerAdapter/built
 import { validateProviderAdapterDraft } from '../../electron/providerAdapter/validator.ts'
 import { readCatalog, upsertModelCatalogVendorApiKey } from '../../electron/catalog/catalogStore.ts'
 import { submitDeclaration } from '../../electron/capabilityCore/modelOnboarding/submitDeclaration.ts'
-import { resolveArchetypeForModel } from '../../electron/shared/modelArchetypes/index.ts'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../electron/shared/modelArchetypes/index.ts'
 import { agentModelEntriesFromCatalog } from '../../electron/catalog/agentModelEntriesFromCatalog.ts'
 import { createProject, executeProfileOperation, buildProfileTaskResult, runTask, fetchTaskResult } from '../../electron/runtime.ts'
 import { tryModel } from '../../electron/capabilityCore/modelOnboarding/tryModel.ts'
@@ -72,7 +72,7 @@ describe('relay onboarding reproducible gaps', () => {
 
   it('a valid declaration retains parameters in the catalog capability contract', async () => {
     const { row } = await register()
-    const archetype = resolveArchetypeForModel(row)
+    const archetype = resolveModelArchetype(row, { variant: EVERY_VARIANT })
     expect(archetype?.modes[0].params.map((p) => p.key)).toEqual(expect.arrayContaining(['duration', 'resolution']))
   })
 
@@ -80,7 +80,7 @@ describe('relay onboarding reproducible gaps', () => {
     const { row } = await register({ id: 'opaque-beta', frameOnly: true })
     const mapping = readCatalog().mappings.find((m) => m.modelKey === row.modelKey)
     expect(mapping.taskKind).toBe('image_to_video')
-    expect(resolveArchetypeForModel(row)?.modes[0].slots).toEqual(expect.arrayContaining([expect.objectContaining({ min: 1 })]))
+    expect(resolveModelArchetype(row, { variant: EVERY_VARIANT })?.modes[0].slots).toEqual(expect.arrayContaining([expect.objectContaining({ min: 1 })]))
   })
 
   it('replacing a declaration removes an obsolete mode previously owned by that declaration', async () => {
@@ -109,14 +109,13 @@ describe('relay onboarding reproducible gaps', () => {
     expect(relay.hits.filter((h) => h.method === 'POST')).toHaveLength(0)
   })
 
-  it('control: a disabled credential produces an honest declaration next action', async () => {
+  it('control: renderer-saved credentials remain usable before certification', async () => {
     const { row, card } = await register()
-    // The visible custom-connection page deliberately stages the credential disabled until promotion.
-    // Calling the real renderer boundary, rather than the privileged key writer, is essential.
+    // Exercise the real renderer save boundary, including its explicit-rejection save gate.
     await upsertRendererCatalogVendorApiKey(row.vendorKey, { apiKey: FAKE_RELAY_KEY, enabled: true })
     const reply = await submitDeclaration({ vendorKey: row.vendorKey, declaration: JSON.stringify(card) })
     expect(reply.ok, JSON.stringify(reply)).toBe(true)
-    expect(reply.state.selfCheck.credential).toMatchObject({ checked: false })
+    expect(reply.state.selfCheck).toEqual({ contract: 'passed' })
     const state = readCatalog()
     const saved = state.models.find((m) => m.vendorKey === row.vendorKey && m.modelKey === row.modelKey)
     const usable = catalogModelAvailability(state, saved).usable
@@ -130,7 +129,7 @@ describe('relay onboarding reproducible gaps', () => {
       authType: 'bearer', providerKind: 'openai-compatible', apiKey: FAKE_RELAY_KEY, models: [], savedAt: new Date().toISOString() })
     const reply = await submitDeclaration({ vendorKey: configured.vendor.key, declaration: JSON.stringify(relayDeclaration(relay.baseUrl)) })
     expect(reply.ok, JSON.stringify(reply)).toBe(true)
-    expect(reply.state.selfCheck.credential).toMatchObject({ checked: true, ok: true })
+    expect(reply.state.selfCheck).toEqual({ contract: 'passed' })
     const state = readCatalog()
     const row = state.models.find((m) => m.vendorKey === configured.vendor.key && m.modelKey === 'opaque-gamma')
     expect(catalogModelAvailability(state, row)).toEqual({ usable: true })

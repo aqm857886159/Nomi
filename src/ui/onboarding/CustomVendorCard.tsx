@@ -1,11 +1,9 @@
 /**
  * 自定义 / 中转站供应商卡（「其他模型」按家拆开后的每一张）。
  *
- * 从 OnboardingDrawer 的 map 回调里抽出来成组件，因为它要调 useVendorHealth——
- * hook 不能在回调里调。顺带把这段 40 行从已经 550+ 行的 Drawer 里挪走（R9）。
- *
- * 胶囊语义：**连不上压倒一切**。参数适配验证（adapterProviderState）得再漂亮，
- * 地址/key 通不了也生成不出东西，所以 unreachable 时红字覆盖 adapter 状态。
+ * 胶囊只说本机事实，和设置列表那一行同取一个投影（connectionHomeStatus → ModelStatusMark）。
+ * 这里曾经探网络、把「连不上」红字压在任务状态上，又按任务状态写「N 个待设置」——
+ * 同一条连接在列表和详情说两句话。健康检查按 D-1117-delete-verification 删了，错地址等第一次真生成报错。
  */
 import React, { type JSX } from 'react'
 import { MODEL_ACCESS_ENTRY } from '../../../electron/shared/contracts/modelAccessCapabilities'
@@ -14,12 +12,9 @@ import { IconStack2 } from '@tabler/icons-react'
 import { FoldableModelCard } from './FoldableModelCard'
 import { ModelEnableEditor } from './ModelEnableEditor'
 import { CustomVendorManage } from './CustomVendorManage'
-import { adapterProviderState } from './adapterVerificationViewModel'
-import { useVendorHealth } from './useVendorHealth'
-import { vendorConnectionPill } from './vendorConnectionView'
+import { connectionHomeStatus } from './modelSettingsHomeState'
 import { type ChipModel } from './ModelChipGroups'
 import type { OnboardingVendorMeta } from './useOnboardingDrawerCatalog'
-import { shouldSkipImplicitVendorHealth } from './vendorHealthProbePolicy'
 import type { ModelSettingsConnectionFocus } from './modelSettingsNavigation'
 
 type ModelEditorProps = React.ComponentProps<typeof ModelEnableEditor>
@@ -35,8 +30,6 @@ type CustomVendorCardProps = {
   /** 用户接入时填的「来源名称」（vendorMeta.name）。 */
   name: string
   models: ChipModel[]
-  /** Direct-script providers use their explicit test run; generic GET /models is not meaningful. */
-  skipHealthProbe?: boolean
   onToggle: ModelEditorProps['onToggle']
   onDelete: ModelEditorProps['onDelete']
   onCustomCall: ModelEditorProps['onCustomCall']
@@ -54,7 +47,6 @@ export function CustomVendorCard({
   name,
   models,
   vendorMeta,
-  skipHealthProbe = false,
   onToggle,
   onDelete,
   onCustomCall,
@@ -66,24 +58,15 @@ export function CustomVendorCard({
   focus,
 }: CustomVendorCardProps): JSX.Element {
   const { t } = useTranslation()
-  // 目录投影里拆出这张卡要用的四格（缺投影 = 还没读到目录，按「地址空、有 key」的既有保守缺省走）。
+  // 目录投影里拆出这张卡要用的几格（缺投影 = 还没读到目录，按「地址空、有 key」的既有保守缺省走）。
   const baseUrl = vendorMeta?.baseUrl ?? ''
   const hasApiKey = vendorMeta?.hasApiKey ?? true
-  const skipImplicitHealth = shouldSkipImplicitVendorHealth({ models })
-  const { connection, recheck } = useVendorHealth(vendorKey, {
-    hasApiKey,
-    baseUrl,
-    disableProbe: skipHealthProbe,
-    skipImplicitProbe: skipImplicitHealth,
-  })
   const enabledN = models.filter((m) => m.enabled).length
-  const adapterCard = adapterProviderState(models)
-  const adapterLabel =
-    adapterCard.state === 'configured'
-      ? t('onboardingProviders.drawer.configured')
-      : t(`onboardingProviders.adapterVerification.cardStatus.${adapterCard.state}`)
-  const health = connection ? vendorConnectionPill(connection) : null
-  const unreachable = health?.status === 'error'
+  // 与可用性主人同一条：要 key（authType 不是 none）而没有，才算「待接入」。
+  const status = connectionHomeStatus({
+    keyMissing: vendorMeta ? !vendorMeta.hasApiKey && vendorMeta.authType !== 'none' : false,
+    models,
+  })
 
   return (
     <FoldableModelCard
@@ -92,10 +75,7 @@ export function CustomVendorCard({
       glyphTone="soft"
       name={name}
       subtitle={t('onboardingProviders.drawer.modelsEnabled', { enabled: enabledN, total: models.length })}
-      status={
-        unreachable ? 'error' : adapterCard.state === 'configured' || adapterCard.state === 'verified' ? 'ok' : 'todo'
-      }
-      statusLabel={unreachable && health ? t(health.labelKey) : adapterLabel}
+      modelStatus={status}
       defaultExpanded={false}
       onOpenDetails={onOpenDetails}
       detailMode={detailMode}
@@ -110,10 +90,8 @@ export function CustomVendorCard({
         baseUrl={baseUrl}
         hasApiKey={hasApiKey}
         modelCount={models.length}
-        connection={connection}
         fieldLossNoticeAt={vendorMeta?.fieldLossNoticeAt ?? null}
         vendorMetaRaw={vendorMeta?.raw}
-        onRecheck={recheck}
         onChanged={onChanged}
         focus={focus}
       />

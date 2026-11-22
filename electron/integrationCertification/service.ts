@@ -11,6 +11,7 @@ import type { CertificationChildRunRef, CertificationContractBinding, RemoteIdem
 
 export type CertificationEntryPoint = "manual-ui" | "programmatic-session";
 export type CanonicalHttpCertificationRun = Omit<ProviderAdapterRun, "connectionFingerprint"> & {
+  sourceVendorKey?: string;
   schemaVersion: 1;
   kind: "http-api-provider";
   childRunRef: CertificationChildRunRef;
@@ -80,11 +81,13 @@ function canonicalHttpContract(vendorKey: string, models: Array<{ modelKey: stri
 function publicRun(
   run: Omit<ProviderAdapterRun, "connectionFingerprint"> | ProviderAdapterRun,
   childRunRef: CertificationChildRunRef,
+  sourceVendorKey?: string,
 ): CanonicalHttpCertificationRun {
   const projected = structuredClone(run) as Partial<ProviderAdapterRun>;
   delete projected.connectionFingerprint;
   return {
     ...(projected as Omit<ProviderAdapterRun, "connectionFingerprint">),
+    ...(sourceVendorKey ? { sourceVendorKey } : {}),
     schemaVersion: 1,
     kind: "http-api-provider",
     childRunRef,
@@ -166,7 +169,7 @@ export class ConnectionCertificationService {
     const run = await this.http.start({ ...input.connection, certification });
     const childRunRef = this.http.childRunRef(run.id);
     if (!childRunRef) throw new Error("Canonical certification child run reference is missing");
-    return publicRun(run, childRunRef);
+    return publicRun(run, childRunRef, this.http.sourceVendorKey(run.id));
   }
 
   async startExistingHttp(input: ExistingHttpStartInput) {
@@ -176,7 +179,7 @@ export class ConnectionCertificationService {
     if (!result.ok) return result;
     const childRunRef = this.http.childRunRef(result.run.id);
     if (!childRunRef) throw new Error("Canonical certification child run reference is missing");
-    return { ok: true as const, run: publicRun(result.run, childRunRef) };
+    return { ok: true as const, run: publicRun(result.run, childRunRef, this.http.sourceVendorKey(result.run.id)) };
   }
 
   async retryHttp(input: { runId: string; modelKey?: string; idempotencyKey: string }) {
@@ -192,7 +195,7 @@ export class ConnectionCertificationService {
     if (!result.ok) return result;
     const childRunRef = this.http.childRunRef(result.run.id);
     if (!childRunRef) throw new Error("Canonical certification child run reference is missing");
-    return { ok: true as const, run: publicRun(result.run, childRunRef) };
+    return { ok: true as const, run: publicRun(result.run, childRunRef, this.http.sourceVendorKey(result.run.id)) };
   }
 
   listExistingHttpModels(vendorKey: string) {
@@ -204,14 +207,14 @@ export class ConnectionCertificationService {
     if (!ref) return undefined;
     const run = this.http.get(runId);
     if (!run) return undefined;
-    return publicRun(run, ref);
+    return publicRun(run, ref, this.http.sourceVendorKey(run.id));
   }
 
   latest(vendorKey: string): CanonicalHttpCertificationRun | undefined {
     const run = this.http.latest(vendorKey);
     if (!run) return undefined;
     const ref = this.http.childRunRef(run.id);
-    return ref ? publicRun(run, ref) : undefined;
+    return ref ? publicRun(run, ref, this.http.sourceVendorKey(run.id)) : undefined;
   }
 
   cancel(runId: string): CanonicalHttpCertificationRun | undefined {
@@ -219,13 +222,13 @@ export class ConnectionCertificationService {
     if (!ref) return undefined;
     const run = this.http.cancel(runId);
     if (!run) return undefined;
-    return publicRun(run, ref);
+    return publicRun(run, ref, this.http.sourceVendorKey(run.id));
   }
 
   list(options: { vendorKey?: string; activeOnly?: boolean; limit?: number } = {}): CanonicalHttpCertificationRun[] {
     return this.http.list(options).flatMap((run) => {
       const ref = this.http.childRunRef(run.id);
-      return ref ? [publicRun(run, ref)] : [];
+      return ref ? [publicRun(run, ref, this.http.sourceVendorKey(run.id))] : [];
     });
   }
 

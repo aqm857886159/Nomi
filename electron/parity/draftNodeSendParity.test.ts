@@ -58,8 +58,12 @@ import { generationCandidateSchema } from "../shared/agentCapabilities/generatio
 import type { ProductionGenerationShot, ProductionRun } from "../productionRun/productionRunTypes";
 import { buildMaterializeShotsPayload } from "../productionRun/multiShotCanvasLanding";
 import {
-  resolveArchetypeForModel, resolveArchetypeVariant, specializeArchetypeForVariant,
-  type ArchetypeMode, type ModelArchetype,
+  EVERY_VARIANT,
+  resolveModelArchetype,
+  resolveArchetypeVariant,
+  rescopeArchetypeVariant,
+  type ArchetypeMode,
+  type ModelArchetype,
 } from "../shared/modelArchetypes";
 import type { ArchetypeReferenceSlotKind, ModelParameterControl } from "../shared/videoCapabilities/types";
 import { constrainParameterControls, normalizeConditionalParameters, type ReferenceCounts } from "../shared/videoCapabilities/crossFieldConstraints";
@@ -75,7 +79,8 @@ import { useGenerationCanvasStore } from "../../src/workbench/generationCanvas/s
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from "../../src/workbench/project/projectSessionTestHarness";
 import { resolveRenderedControls } from "../../src/workbench/generationCanvas/nodes/nodeModelArchetype";
 import { parameterChipOptions, parameterChipValue } from "../../src/workbench/generationCanvas/nodes/primaryParameterChips";
-import { isParameterControl, parseControlInput, type DynamicModelControl } from "../../src/workbench/generationCanvas/nodes/controls/parameterControlModel";
+import { isParameterControl, type DynamicModelControl } from "../../src/workbench/generationCanvas/nodes/controls/parameterControlModel";
+import { parseControlInput } from "../shared/videoCapabilities/paramValue";
 import { applyArchetypeVariantSwitch, currentArchetypeVariant } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
 import { modeWrittenInMeta } from "../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers";
 import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/runner/catalogTaskActions";
@@ -99,11 +104,8 @@ const NAMED_IN_AUDIT = [
  * 显示了、但这个方式**故意不发**的参数（映射里明示 drop）。棘轮：只许减；某天开始发了，这里会红，提醒删掉这条。
  * 键 = `模型/方式/参数`。付费卡的摘要行读的是节点显示，所以这几格同样是「卡上写着、线上没有」——见设计卡 §四。
  */
-const NOT_SENT_BY_DESIGN: Readonly<Record<string, string>> = {
-  "kling-v3/i2v/aspect_ratio": "APIMart 图生视频：比例由首 / 尾帧决定，映射 i2vDrops 明示不发（electron/catalog/apimartVideos.ts）",
-  "veo3.1-fast/frame/aspect_ratio": "APIMart 首尾帧：比例跟首帧图走，映射 i2vDrops 明示不发（electron/catalog/apimartVideos.ts）",
-  "veo3.1-fast/reference/aspect_ratio": "APIMart 参考图：比例跟参考图走，映射 i2vDrops 明示不发（electron/catalog/apimartVideos.ts）",
-};
+// 2026-11-15 清空：可灵 3.0 图生的比例改成档案不声明（不再显示）；Veo 3.1 参考图 / 首尾帧的比例改成真的发出去。两处都不再是「显示了却不发」。
+const NOT_SENT_BY_DESIGN: Readonly<Record<string, string>> = {};
 
 /**
  * 档案声明了、APIMart 目录没给这个模型发布的方式（Agent 起草当场被宿主拒：「cannot do …」），不进格子。
@@ -153,7 +155,7 @@ type Row = { modelKey: string; kind: "video" | "image"; archetype: ModelArchetyp
 const rows: Row[] = catalog.models
   .filter((model) => model.vendorKey === VENDOR && (model.kind === "video" || model.kind === "image"))
   .flatMap((model): Row[] => {
-    const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta });
+    const archetype = resolveModelArchetype({ modelKey: model.modelKey, vendorKey: model.vendorKey, meta: model.meta }, { variant: EVERY_VARIANT });
     const option = options.find((candidate) => candidate.vendor === VENDOR && (candidate.modelKey || candidate.value) === model.modelKey);
     const listed = entryByKey.has(`${VENDOR}::${model.modelKey}`);
     return archetype && option && listed ? [{ modelKey: model.modelKey, kind: model.kind as Row["kind"], archetype, option }] : [];
@@ -251,7 +253,7 @@ function nonDefaultVariantId(archetype: ModelArchetype): string | undefined {
 /** Agent 起草这一镜：draft_shots 的短路径 + 宿主归一 + 落库前的同一道准入。 */
 function draftCandidate(row: Row, mode: ArchetypeMode, draft: Draft): { candidate: PlanCandidate; references: DraftedReference[] } {
   const variantId = draft === "changed" ? nonDefaultVariantId(row.archetype) : undefined;
-  const surface = specializeArchetypeForVariant(row.archetype, resolveArchetypeVariant(row.archetype, { ...(variantId ? { variantId } : {}), modelId: row.modelKey })?.id);
+  const surface = rescopeArchetypeVariant(row.archetype, { variantId: resolveArchetypeVariant(row.archetype, { ...(variantId ? { variantId } : {}), modelId: row.modelKey })?.id, modelId: undefined });
   const surfaceMode = surface.modes.find((candidate) => candidate.id === mode.id) ?? mode;
   const references = draftedReferences(mode);
   const params = {

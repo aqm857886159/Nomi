@@ -28,6 +28,22 @@ export const NODE_EDITOR_MODULES = Object.freeze([
 ])
 const NODE_EDITOR_PATH = `^src/workbench/generationCanvas/nodes/(?:(?:${NODE_EDITOR_MODULES.join('|')})\\.tsx?|controls/[^/]+\\.tsx)$`
 
+/**
+ * 模型档案目录里**对外公开**的文件（目录外的生产代码今天实际 import 的就这些，其余一个都没人从外面读）：
+ * 入口 entry / 转出口 index、纯函数与类型（锚点策略、档解析、型号名来源、线缆身份、方式参数、参考键、方式推断、类型）。
+ * 目录里**其余一切**——内置档案表 builtInCatalog、每个档案声明文件、自写能力合同——都是私有的，新增的文件默认私有：
+ * 加一个公开文件要改这张名单，评审看得见。
+ */
+export const ARCHETYPE_PUBLIC_FILES = Object.freeze([
+  'index', 'entry', 'anchorPolicy', 'variantResolution', 'modelNameSource', 'wireModelIdentity',
+  'modeParams', 'referenceKeys', 'modeForInputs', 'types',
+])
+const ARCHETYPE_DIR = '^electron/shared/modelArchetypes/'
+const ARCHETYPE_PRIVATE_PATH = `${ARCHETYPE_DIR}(?!(?:${ARCHETYPE_PUBLIC_FILES.join('|')})\\.(?:tsx?|mts)$)`
+const ARCHETYPE_TABLE_PATH = `${ARCHETYPE_DIR}builtInCatalog\\.ts$`
+const ARCHETYPE_HOW_TO =
+  '拿某个模型的档案：resolveModelArchetype(model, { variant })（electron/shared/modelArchetypes/entry.ts，index 原样转出），档必传；问「全目录」用 everyBuiltInArchetype()。'
+
 /** @type {import('dependency-cruiser').IConfiguration} */
 export default {
   forbidden: [
@@ -130,6 +146,42 @@ export default {
       severity: 'error',
       from: { path: '^src/' },
       to: { path: '^(?:src|electron)/.*\\.cjs$', reachable: true },
+    },
+
+    // R-A1/A2/A3 模型档案的私有表只能经单入口读（当前 0，硬零，无 baseline）。
+    //
+    // 起因：档案「拿了不收窄」这一类（发送口、Run 付费口、Agent 详情都漏过）。单入口（entry.ts）把拿档案和按档收窄
+    // 并成一步，但只靠结构测试用正则扫源码守——独立验收（2026-11-15）两处没拦住：生产文件直接 import 档案常量读私有表、
+    // 入口目录里新文件直接读私有表。正则追不完 import 的写法；依赖规则按**文件边**判，静态 import、动态 import()、require、
+    // 再导出、import type 都算一条边。私有 = 目录里 ARCHETYPE_PUBLIC_FILES 之外的一切（新增文件默认私有）。
+    // 管不到的：同一个公开文件里「只准谁用某个符号」（如 sourceBackedVideoProfiles，依赖规则只看文件边），留给
+    // electron/shared/modelArchetypes/archetypeSingleEntry.structure.test.ts 按符号名守。
+    // 扫描范围里没有测试文件和 scripts/（options.exclude / CRUISE_TARGETS），它们本来就可以读表。
+    {
+      name: 'archetype-private-files-via-entry',
+      comment:
+        `模型档案目录的私有文件（内置档案表 builtInCatalog、各档案声明、自写能力合同）目录外的生产代码不许 import——读私有表会拿到没按供应商 / 档收窄的档案。${ARCHETYPE_HOW_TO}当前零违规，硬零。`,
+      severity: 'error',
+      from: { path: '^(?:src|electron|workers)/', pathNot: [ARCHETYPE_DIR, '^src/devlab/'] },
+      to: { path: ARCHETYPE_PRIVATE_PATH },
+    },
+    // 设计实验室（src/devlab/）拿真实档案当样张数据、不进产品包：只许直接读 builtInCatalog，其余私有文件照样禁。
+    {
+      name: 'archetype-devlab-table-only',
+      comment:
+        `设计实验室只许直接读内置档案表 builtInCatalog（样张数据），不许 import 档案目录里的其它私有文件。${ARCHETYPE_HOW_TO}当前零违规，硬零。`,
+      severity: 'error',
+      from: { path: '^src/devlab/' },
+      to: { path: ARCHETYPE_PRIVATE_PATH, pathNot: ARCHETYPE_TABLE_PATH },
+    },
+    // 目录内部：builtInCatalog 只有入口 entry.ts 能读（别的文件要全目录就问 everyBuiltInArchetype()）。
+    {
+      name: 'archetype-table-only-entry-reads',
+      comment:
+        `档案目录里只有 entry.ts 能 import 内置档案表 builtInCatalog（再导出、改名转出也算）。${ARCHETYPE_HOW_TO}当前零违规，硬零。`,
+      severity: 'error',
+      from: { path: ARCHETYPE_DIR, pathNot: `${ARCHETYPE_DIR}entry\\.ts$` },
+      to: { path: ARCHETYPE_TABLE_PATH },
     },
 
     // R-B4 禁新增「完全静态」循环。

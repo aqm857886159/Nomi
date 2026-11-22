@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import type { ResolvedModule } from "./moduleRegistry";
 import type { ParameterField } from "./moduleManifest";
 import { generationPlanningHintType } from "./generationPlanningParameters";
+import { admitParamValue, isFiniteNumber } from "../shared/videoCapabilities/paramValue";
 import { draftFieldForMisplacedParameter } from "../shared/agentCapabilities/draftFieldAliases";
 import { hasMentions, numberPromptReferences, projectPromptForSend } from "../shared/storyboard/promptMentions";
 import { closestKey as nearestKeyOf } from "../shared/agentLane/toolInputIssues";
@@ -212,8 +213,9 @@ function compileParameters(candidate: PlanCandidate, module: ResolvedModule, all
   const model = `${module.providerId}/${module.modelId}`;
   // 写成 null / undefined 的键：大模型惯用 null 表示「不设」（2026-10-18 真走查：deepseek-v4-pro 写了 `seed: null`，
   // 起草放行、点「生成」才在这里被 `typeof null === "object"` 拒掉）。**只放宽空值这一件事**：
-  // 空值 = 没填，不进合同、留一条 warning 供追查；必填参数写空 = 缺必填（下面那一趟点名）；
-  // 字符串冒充数字、"false" 冒充布尔照旧按类型拒。
+  // 空值 = 没填，不进合同、留一条 warning 供追查；必填参数写空 = 缺必填（下面那一趟点名）。
+  // 声明过的参数先过值门（paramValue.ts）：`"10"` 与 10 对要数字的字段是同一个值、按声明的类型进合同；
+  // `"05"`、`"5s"`、`"false"` 冒充布尔照旧按类型拒（门不认它们，不当 0、不当默认）。
   const unsetKeys = new Set<string>();
   for (const [key, value] of Object.entries(candidate.parameters)) {
     const field = module.parameterSchema[key];
@@ -260,23 +262,25 @@ function compileParameters(candidate: PlanCandidate, module: ResolvedModule, all
         { code: "unknown_parameter", path: `parameters.${key}`, allowedKeys, ...(closestKey && !useField ? { closestKey } : {}), ...(useField ? { useField } : {}), ...(variants ? { allowedVariantIds: variants } : {}) },
       );
     }
-    if (!parameterMatches(field.type, value)) {
+    // 值门：字段的类型（数字 / 数字串枚举）就是声明；枚举字段按它的取值当下拉的档位看。
+    const admitted = admitParamValue({ type: field.type === "enum" ? "select" : field.type, options: field.enum?.map((option) => ({ value: option })) }, value);
+    if (!parameterMatches(field.type, admitted)) {
       throw new ContractCompilationError(
         `参数 parameters.${key} 的类型不对：${model} 要 ${field.type}，收到的是 ${typeof value}。`,
         { code: "parameter_type_mismatch", path: `parameters.${key}`, expectedType: field.type, allowedKeys },
       );
     }
-    if (field.enum && !field.enum.some((option) => Object.is(option, value))) {
+    if (field.enum && !field.enum.some((option) => Object.is(option, admitted))) {
       throw new ContractCompilationError(
         `参数 parameters.${key} 的取值 ${displayValue(value)} 不在 ${model} 的合法取值里。`
         + `合法取值：${field.enum.map(displayValue).join("、")}。`,
         { code: "parameter_not_in_enum", path: `parameters.${key}`, allowedValues: [...field.enum], allowedKeys },
       );
     }
-    if (typeof value === "number"
-      && ((field.min !== undefined && value < field.min) || (field.max !== undefined && value > field.max))) {
+    if (isFiniteNumber(admitted)
+      && ((field.min !== undefined && admitted < field.min) || (field.max !== undefined && admitted > field.max))) {
       throw new ContractCompilationError(
-        `参数 parameters.${key} 的取值 ${value} 超出 ${model} 声明的范围`
+        `参数 parameters.${key} 的取值 ${admitted} 超出 ${model} 声明的范围`
         + `（${field.min ?? "不限"} ～ ${field.max ?? "不限"}）。`,
         {
           code: "parameter_out_of_range",
@@ -287,7 +291,7 @@ function compileParameters(candidate: PlanCandidate, module: ResolvedModule, all
         },
       );
     }
-    parameters[key] = value;
+    parameters[key] = admitted;
   }
   for (const [key, field] of Object.entries(module.parameterSchema)) {
     if (field.required && !(key in parameters)) {

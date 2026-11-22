@@ -73,7 +73,6 @@ function signatureOf(node: GenerationCanvasNode): string {
     node.error ?? '',
     node.categoryId ?? '',
     node.groupId ?? '',
-    node.locked ? '1' : '0',
     node.derivedFrom ?? '',
     node.regeneratedFrom ?? '',
     node.shotIndex ?? '',

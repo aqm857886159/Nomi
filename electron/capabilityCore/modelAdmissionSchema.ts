@@ -13,7 +13,7 @@
 // 与 video 的关系：video 走 `mcpGenerationVideoResolve` 那条更富的路（它还管 vendor 特化、
 // 变体 modelKey 反查、多模式同 taskKind 的消歧），本文件**不重写它**，只在它认不出这个候选时
 // 接手——即 image/audio/3D 以及「档案在、但不是视频候选」的那些。
-import { resolveArchetypeForModel, resolveArchetypeVariant, specializeArchetypeForVariant } from "../shared/modelArchetypes";
+import { resolveModelArchetype } from "../shared/modelArchetypes";
 import type { ArchetypeMode, ModelArchetype } from "../shared/modelArchetypes";
 import type { ModelParameterControl } from "../shared/videoCapabilities/types";
 import type { ExecutionContractCompileOptions, PlanCandidate } from "./executionContract";
@@ -73,6 +73,10 @@ export function archetypeVariantIds(archetype: ModelArchetype): string[] {
  * 这个候选该按哪个模式校验。**认不出就返回 null**（宁可不判，也不拿错模式的参数表去拒人）：
  * 显式 `modeId` 最权威；否则按模式 id 或它的 transportTaskKind 对 `candidate.mode`；
  * 都对不上且该档案只有一个模式时用那一个（image 档案绝大多数如此）。
+ *
+ * 已知未收进方式主人（`modeForInputs`）的那一处，登记在 `modelHandle.structure.test.ts` 的已知未收名单里（只此一处）：
+ * 这里挑的是「拿哪张参数表来校验」，不是发送用的方式；非视频候选在准入这一层拿不到这次的真实输入，
+ * 没法交给按输入挑方式的主人。并进去要先让准入拿到输入，是另一刀。
  */
 export function archetypeModeForCandidate(archetype: ModelArchetype, candidate: PlanCandidate): ArchetypeMode | null {
   const modes = archetype.modes;
@@ -102,20 +106,18 @@ export function archetypeCompileOptions(
   // 带斜杠的供应商键）钉档案的。2026-09-22 第二轮验收前这里写死 `meta: undefined`，
   // 于是 5 个 fal 模型在准入层「认不出档案」——而界面上它们的参数面板一直是满的。
   // 那不是固有缺口，是这两行丢了信息。
-  const base = resolveArchetypeForModel({
+  // 变体会覆盖参数（paramOverrides）：准入核的参数面必须就是派发那个变体的参数面——入口按候选选中的那一档（带上模型名）收窄好。
+  const archetype = resolveModelArchetype({
     modelKey: candidate.modelId,
     modelAlias: catalogRow?.modelAlias ?? null,
     vendorKey: candidate.providerId,
     meta: catalogRow?.meta,
-  });
-  if (!base) return {};
-  // 变体会覆盖参数（paramOverrides），所以先按候选选中的变体特化，再取模式参数。
-  // 哪个变体问唯一 owner（带上模型名）：准入核的参数面必须就是派发那个变体的参数面。
-  const archetype = specializeArchetypeForVariant(base, resolveArchetypeVariant(base, { variantId: candidate.variantId, modelId: candidate.modelId })?.id);
+  }, { variant: { variantId: candidate.variantId, modelId: candidate.modelId } });
+  if (!archetype) return {};
   const mode = archetypeModeForCandidate(archetype, candidate);
-  if (!mode) return { allowedVariantIds: archetypeVariantIds(base) };
+  if (!mode) return { allowedVariantIds: archetypeVariantIds(archetype) };
   return {
     parameterSchema: Object.fromEntries(mode.params.map((control) => [control.key, parameterFieldForControl(control)])),
-    allowedVariantIds: archetypeVariantIds(base),
+    allowedVariantIds: archetypeVariantIds(archetype),
   };
 }

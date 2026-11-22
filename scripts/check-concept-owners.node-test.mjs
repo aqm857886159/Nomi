@@ -2,13 +2,15 @@ import { makeTempDir } from './_test-temp.mjs'
 // check:concept-owners 的阳性对照（R17.0：加规则前先验它会红；有豁免的规则再补一发反向控制）。
 // 每条判据都在一个临时 git 仓库里先造一处违规看它红、再改回来看它绿；豁免条件（别名、另一个概念认领的同名定义、
 // 旧形状住在主人文件里）各有一条「把豁免条件拿掉就红」的反向控制。
+// 这里还放：原文改判守门及真实显示正例；重发判定只一处（「结果未知」清单 / 替别的 Run 放占用）。
 import assert from 'node:assert/strict'
+import { ESLint } from 'eslint'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { findIdentityComparators } from './concept-owners-scan.mjs'
+import { OPEN_AS_OWNER_FILE, findFailureDecisionBypass, findIdentityComparators, findResendOwnerBypass, findShotJobSelections, workingTreeSource } from './concept-owners-scan.mjs'
 import { trustDomainOfPath } from './concept-owners-lib.mjs'
 import { CONCEPT_OWNERS_DIR, conceptFileName } from './concept-registry-lib.mjs'
 import { META_FILE, formatEntryJson, parseCatFileBatch } from './lib/entryDirectory.mjs'
@@ -904,4 +906,187 @@ test('未登记的合同边界冻结成存量债棘轮：冻结的放行；新�
   } finally {
     cleanup(repo)
   }
+})
+
+
+test('当前任务：真实旧阶段与单镜旁路、改名、内联、别名均红，专用查询不误伤', () => {
+  const snippets = [
+    // 原阶段 latestJob：只比创建时间、相等取后。
+    'function latestJob(jobs: readonly ProductionJob[]) { return jobs.reduce((latest, job) => Date.parse(job.createdAt) >= Date.parse(latest.createdAt) ? job : latest) }',
+    // 原单镜交接：整本账按 attempt 排后取第一条。
+    'function settleFromRun(run: ProductionRun) { return [...run.jobs].sort((left, right) => right.attempt - left.attempt)[0] }',
+    'function renamed(r: ProductionRun, shotId: string) { const ledger = r.jobs; const scoped = ledger.filter(j => j.metadata?.shotId === shotId); const ordered = scoped.sort((a,b) => b.attempt-a.attempt); return ordered.at(0) }',
+    'export const inline = (r: ProductionRun) => r.jobs.at(-1)',
+    'function alias(r: ProductionRun) { const { jobs: ledger } = r; const copied = [...ledger]; return copied[copied.length - 1] }',
+    'function viaOwner(r: ProductionRun) { return jobsForShot(r,"s").sort((a,b) => b.attempt-a.attempt)[0] }',
+    'import {jobsForShot as ofShot} from "./shared/productionShotJobs"; function imported(r: ProductionRun) { const tasks=ofShot(r,"s"); return tasks.at(-1) }',
+    'import * as owner from "./shared/productionShotJobs"; const named = (r: ProductionRun) => owner.jobsForShot(r,"s").sort((a,b) => b.attempt-a.attempt)[0]',
+    'function functionAlias(r: ProductionRun) { const first = jobsForShot; const second = first; return second(r,"s").at(0) }',
+    'function maxJob(r: ProductionRun) { return r.jobs.reduce((a,b) => a.attempt === Math.max(a.attempt,b.attempt) ? a : b) }',
+    'function destructure(r: ProductionRun) { const ordered = Array.from(r.jobs).sort((a,b) => b.attempt-a.attempt); const [current] = ordered; return current }',
+    'function bracket(r: ProductionRun) { const ledger = r["jobs"]; return ledger.at(-1) }',
+    'function node(r: ProductionRun, nodeId: string) { return r.jobs.find(j => j.nodeId === nodeId) }',
+    'function inline(r: ProductionRun) { return r.jobs.filter(j => j.metadata?.shotId === "s").sort((a,b) => b.createdAt.localeCompare(a.createdAt))[0] }',
+  ]
+  for (const snippet of snippets) {
+    const files = ['electron/new-home.ts']
+    assert.ok(findShotJobSelections({ files, read: () => snippet }).length, snippet)
+    assert.deepEqual(findShotJobSelections({ files, read: () => 'export const current = latestJobForShot(run, shotId)' }), [])
+  }
+  const negative = {
+    'electron/productionRun/prepareProductionGenerationAuthorization.ts': 'function nextGenerationAttempt(run) { return 1 + run.jobs.filter(job => job.metadata?.shotId === shotId).reduce((latest,job) => Math.max(latest,job.attempt),0) }',
+    'electron/productionRun/batchScheduleDerivation.ts': 'function jobForShot(run, shot, jobId) { return jobsForShot(run, shot.shotId).find(candidate => candidate.jobId === jobId) }',
+    'electron/productionRun/productionGenerationHistory.ts': 'function findGenerationExecutionJob(run, input) { const matches = run.jobs.filter(job => job.metadata?.shotId === input.shotId && job.attempt === input.attempt); return matches.length === 1 ? matches[0] : undefined }',
+    'electron/capabilityCore/safe.ts': 'function blockingReason(run) { return run.jobs.some(job => job.status === "submission_unknown") }',
+    'src/workbench/production/productionRunView.ts': 'function latestJob(run: ProductionRun) { return [...run.jobs].sort((a,b) => b.updatedAt.localeCompare(a.updatedAt))[0] }',
+  }
+  // 精确身份查询不是「最新」；仅在其原有专用范围内允许。
+  assert.deepEqual(findShotJobSelections({ files: Object.keys(negative), read: (file) => negative[file] }), [])
+})
+
+// 按数据流认原文判断和判定写入，不按某个码、词条或对象字面量写法枚举。
+test('failure-decision-bypass 拦原文改判与决定写入', () => {
+  const file = 'src/workbench/exit.ts'
+  const prefix = "import { decideGenerationFailure, type GenerationFailureDecision } from '../shared/generationFailure';\n"
+  const scan = (snippet) => findFailureDecisionBypass({ files: [file], read: () => prefix + snippet })
+  const bad = [
+    // 验收发现的三种动态码表；原表、别名和内联共用同一个原文判断判据。
+    ...['TOOL_ERROR_HINT', 'renamedHints', '{ node_not_found: true }'].map((table) =>
+      `function f(error: Error) { const rawMessage = error.message; const code = Object.keys(${table}).find(key => rawMessage.includes(key)); return { errorCode: code } }`),
+    "function f(decision: GenerationFailureDecision) { const reason = decision.raw === 'independent_probe_trigger' ? i18n.t('generationCommon.observability.error.auth.reason') : narrateFailureText(decision.reason); return { reason } }",
+    "function f(decision: GenerationFailureDecision) { if (decision.raw === 'independent_probe_trigger') decision.primary = 'open-model-access' }",
+    "function f(decision: GenerationFailureDecision) { return { vendorSide: decision.raw === 'independent_probe_trigger' ? true : decision.vendorSide } }",
+    // 原文 / 判断别名、所有列明的方法、switch；词条和码可以完全不在已知词表里。
+    ...['includes', 'indexOf', 'startsWith', 'endsWith', 'match', 'search'].map((method) =>
+      `function f(error: Error) { const renamed = error.message; const match = renamed.${method}('new-failure'); return { primary: match ? 'retry' : 'open-model-access' } }`),
+    ...['test', 'exec'].map((method) =>
+      `function f(error: Error) { const renamed = String(error); return { kind: /new-failure/.${method}(renamed) ? 'auth' : 'unknown' } }`),
+    ...['===', '!=='].map((op) =>
+      `function f(decision: GenerationFailureDecision) { const renamed = decision.raw; const match = renamed ${op} 'unlisted'; return { errorCode: match ? 'new-code' : null } }`),
+    "function f(error: Error) { const renamed = error.message; switch (renamed) { case 'unlisted': return { kind: 'auth' }; default: return {} } }",
+    "function f(decision: GenerationFailureDecision) { let reason = narrateFailureText(decision.reason); if (decision.raw === 'unlisted') reason = 'wrong'; return { reason } }",
+    // 真实旧案 cb2cced31：端口 59401 中找 401，不能在出口产生 auth。
+    "function f(error: Error) { return { kind: error.message.includes('401') ? 'auth' : 'unknown' } }",
+    ...['kind', 'errorCode', 'publicCode', 'primary', 'secondary', 'vendorSide'].flatMap((field) => [
+      `function f(decision: GenerationFailureDecision) { const alias = decision; alias['${field}'] = replacement }`,
+      `function f(message: string) { const d = decideGenerationFailure({ message }); return { ...d, ${field}: replacement } }`,
+    ]),
+    "function f(raw: string) { const d = decideGenerationFailure({ message: raw }); return d.kind === 'unknown' ? { ...d, kind: 'network' } : d }",
+    "function f(raw: string) { return decideGenerationFailure({ message: 'network error' }) }",
+    "function f(decision: GenerationFailureDecision) { const { raw: renamed } = decision; return { kind: renamed.includes('x') ? 'auth' : 'unknown' } }",
+  ]
+  for (const snippet of bad) assert.ok(scan(snippet).length, snippet)
+  assert.ok(scan("import type { GenerationFailureDecision as D } from './failure'; function f(d: D) { d.primary = 'retry' }").length)
+  assert.ok(scan("import { decideGenerationFailure as decide } from './failure'; function f(message: string) { const d = decide({ message }); d.vendorSide = true }").length)
+  const located = scan("function f(error: Error) {\n const code = error.message.includes('unlisted') ? 'new-code' : null;\n return { errorCode: code };\n}")
+  assert.ok(located.some((hit) => hit.line === 3), '指向原文判断所在行，而不是下游投影行')
+  // 数据流绑定按词法作用域隔离，不把同名参数/局部变量串起来。
+  assert.deepEqual(scan("function f(error: Error) { const probe = error.message; return probe.includes('x') } function g() { const probe = 'safe'; return { kind: probe === 'safe' ? 'auth' : 'unknown' } }"), [])
+})
+
+test('failure-decision-bypass 正例：显示、标记、原样传给主人与字段投影保持绿', () => {
+  const good = {
+    // storyboardFailureCopy：原文只进入技术详情，reason/hint 继续用共享决定。
+    'src/workbench/storyboardFailureCopy.ts': "import { generationFailureActions } from './failure'; function f(message: string) { const report = generationFailureActions(message); const detail = report.raw.includes('HTTP 500') ? report.raw : ''; return { reason: report.reason, hint: `${report.hint} ${detail}` } }",
+    // laneProviderGuard：追加 pi 标记，不产出类别/公开码/词条/动作。
+    'electron/agentLane/laneProviderGuard.mts': "function normalizeProviderErrorText(text: string) { const hit = rules.find(rule => rule.match.test(text)); return hit ? `${text} [nomi-classified: ${hit.marker}]` : text }",
+    // laneCommandFailure：判断原文能不能印，只决定显示。
+    'src/workbench/ai/lane/laneCommandFailure.ts': "import { classifyGenerationError } from './failure'; function showableRaw(raw: string) { const text = raw.trim(); if (/^machine/.test(text)) return false; return text.includes('汉字') } function f(raw: string) { const report = classifyGenerationError(raw); return { text: showableRaw(raw) ? report.reason : 'fallback', unclassified: !showableRaw(raw) } }",
+    'electron/capabilityCore/mcpToolErrorResults.ts': "import { confirmPublicError } from '../shared/generationFailure'; function f(rawMessage: string) { const confirmed = confirmPublicError(undefined, rawMessage); return { errorCode: confirmed.code, message: rawMessage } }",
+    'src/workbench/observability/classifyError.ts': "import { decideGenerationFailure } from './failure'; function f(message: string) { const d = decideGenerationFailure({ message }); return { kind: d.kind, reason: narrateFailureText(d.reason), primary: d.primary, vendorSide: d.vendorSide, raw: d.raw } }",
+    'src/workbench/actions.ts': "import { decideGenerationFailure, failureActionsFor } from './failure'; function f(message: string) { const d = decideGenerationFailure({ message }); const actions = failureActionsFor(d, {}); return { ...d, primary: actions.primary, secondary: actions.secondary } }",
+    'src/workbench/unrelated.ts': "function f(code: string) { return { kind: code === 'node_not_found' ? 'auth' : 'unknown' } }",
+  }
+  for (const [file, snippet] of Object.entries(good)) {
+    assert.deepEqual(findFailureDecisionBypass({ files: [file], read: () => snippet }), [], file)
+  }
+  // 验收的 positive-controls-hits.json 原本就是 []；另读真实文件防止用简化片段冒充实际正例。
+  const files = ['src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts', 'electron/agentLane/laneProviderGuard.mts', 'src/workbench/ai/lane/laneCommandFailure.ts', 'src/workbench/observability/generationFailureActions.ts']
+  assert.deepEqual(findFailureDecisionBypass({ files, read: (file) => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8') }), [])
+})
+
+test('failure-decision-bypass ESLint 禁止两个进程的出口读整表或码清单，允许按码查询', async () => {
+  const eslint = new ESLint()
+  for (const filePath of ['src/workbench/observability/classifyError.ts', 'electron/capabilityCore/mcpToolErrorResults.ts']) {
+    for (const code of [
+      "import { TOOL_ERROR_HINT as hints } from '../shared/generationFailureCopy'; console.log(hints)",
+      "import { PUBLIC_ERROR_CODES as codes } from '../shared/generationFailure'; console.log(codes)",
+      "import * as hints from '../shared/generationFailureCopy'; console.log(hints.TOOL_ERROR_HINT)",
+      "const { TOOL_ERROR_HINT: hints } = await import('../shared/generationFailureCopy'); console.log(hints)",
+    ]) {
+      const [result] = await eslint.lintText(code, { filePath })
+      assert.ok(result.messages.some((m) => m.ruleId?.startsWith('failure-copy-owner/')), `${filePath}: ${code}`)
+    }
+    const [result] = await eslint.lintText("import { toolErrorHint } from '../shared/generationFailureCopy'; console.log(toolErrorHint('node_not_found'))", { filePath })
+    assert.deepEqual(result.messages.filter((m) => m.ruleId?.startsWith('failure-copy-owner/')), [])
+  }
+})
+
+// check:concept-owners 的 CLI 在 CI；本测试登记进推送前 SCAN_GUARDS，同一规则必须检查真实改动。
+test('failure-decision-bypass 全仓无第二判定，推送前扫描真实源码', () => {
+  const source = workingTreeSource(fileURLToPath(new URL('..', import.meta.url)))
+  assert.deepEqual(findFailureDecisionBypass({ files: source.listFiles(), read: source.read }), [])
+})
+
+// 「失败后再发一次」只由画布单镜主人一处定：结果未知那张表一处住、替别的 Run 放占用只在重发准入里。
+// 两个落点都锚在落点（字面量清单 / 那个写口），不锚名字：改名、内联、别名、属性赋值、展开 / Object.assign 都要拦。
+test('resend-owner-bypass 拦第二份「结果未知」清单：改名、内联、别名、属性赋值、展开 / 拼接', () => {
+  const file = 'electron/shared/elsewhere.ts'
+  const scan = (snippet) => findResendOwnerBypass({ files: [file], read: () => snippet })
+  const bad = {
+    rename: "const PENDING_CHECK = new Set(['submission_unknown', 'reconciling']); export const f = (s: string) => PENDING_CHECK.has(s)",
+    inline: "export function f(job: { status: string }) { return job.status === 'submission_unknown' || job.status === 'reconciling' }",
+    alias: "const A = 'submission_unknown'; const B = 'reconciling'; const list = [A, B]; export const f = (s: string) => list.includes(s)",
+    property: "const table: Record<string, string[]> = {}; table.unknown = ['reconciling', 'submission_unknown']; export const f = (s: string) => table.unknown.includes(s)",
+    spread: "const a = ['submission_unknown']; const b = ['reconciling']; export const f = (s: string) => [...a, ...b].includes(s)",
+    assign: "const a = ['submission_unknown']; export const list = Object.assign([], a, ['reconciling'])",
+    concat: "const a = ['submission_unknown']; export const list = a.concat(['reconciling'])",
+  }
+  for (const [kind, snippet] of Object.entries(bad)) {
+    const hits = scan(snippet)
+    assert.ok(hits.length >= 1 && hits.every((hit) => hit.shape === 'result-unknown-list'), `${kind}: ${snippet}`)
+  }
+  // 只报最外层那一份，不在同一行把子清单再报一次。
+  assert.equal(scan(bad.spread).length, 1)
+  // 不是这一组的清单不算：多一个状态、只有一个、主人表自己、单测。
+  assert.deepEqual(scan("export const TERMINAL = ['submission_unknown', 'reconciling', 'needs_attention']"), [])
+  assert.deepEqual(scan("export const f = (s: string) => s === 'submission_unknown'"), [])
+  assert.deepEqual(findResendOwnerBypass({ files: [OPEN_AS_OWNER_FILE], read: () => bad.rename }), [])
+  assert.deepEqual(findResendOwnerBypass({ files: ['electron/shared/elsewhere.test.ts'], read: () => bad.rename }), [])
+})
+
+test('resend-owner-bypass 拦主人之外替别的 Run 放节点占用：改名、动态 import、别名、整模块 / 属性、展开 / Object.assign', () => {
+  const file = 'electron/capabilityCore/elsewhere.ts'
+  const scan = (snippet, at = file) => findResendOwnerBypass({ files: [at], read: () => snippet })
+  const from = "'../productionRun/canvasShotRunIndex'"
+  const bad = {
+    rename: `import { markCanvasRunSettled as settleRun } from ${from}; export function f(root: string, id: string) { settleRun(root, id) }`,
+    inline: `export async function f(root: string, id: string) { (await import(${from})).markCanvasRunSettled(root, id) }`,
+    alias: `import { markCanvasRunSettled } from ${from}; const alias = markCanvasRunSettled; export function f(root: string, id: string) { alias(root, id) }`,
+    property: `import * as index from ${from}; export function f(root: string, id: string) { index['markCanvasRunSettled'](root, id) }`,
+    spread: `import * as index from ${from}; const api = { ...index }; export function f(root: string, id: string) { api.markCanvasRunSettled(root, id) }`,
+    assign: `const api = Object.assign({}, globalThis.runIndex); export function f(root: string, id: string) { api.markCanvasRunSettled(root, id) }`,
+  }
+  for (const [kind, snippet] of Object.entries(bad)) {
+    const hits = scan(snippet)
+    assert.ok(hits.length >= 1 && hits.every((hit) => hit.shape === 'occupancy-release'), `${kind}: ${snippet}`)
+  }
+  // 渲染层也一样拿不到这个写口。
+  assert.ok(scan(bad.rename, 'src/workbench/production/elsewhere.ts').length)
+  // 主人文件里：登记的函数之外（例如重发判定本身）碰它也拦；模块级起别名也拦。
+  const owner = 'electron/capabilityCore/appIntegrationCanvasShot.ts'
+  const ownerImport = `import { markCanvasRunSettled } from ${from};\n`
+  assert.ok(scan(`${ownerImport}function decideResend(root: string, id: string) { markCanvasRunSettled(root, id) }`, owner).length)
+  assert.ok(scan(`${ownerImport}const settleLater = markCanvasRunSettled; function settle() {}`, owner).length)
+  // 正例：登记的那几个函数里、摇铃 / 索引本身、只读这个模块的其它东西。
+  assert.deepEqual(scan(`${ownerImport}function settle(root: string, id: string) { markCanvasRunSettled(root, id) } function assertNodeIdle(root: string, id: string) { markCanvasRunSettled(root, id) }`, owner), [])
+  assert.deepEqual(scan(bad.rename, 'electron/capabilityCore/canvasShotSettledBell.ts'), [])
+  assert.deepEqual(scan("export function markCanvasRunSettled(dir: string, id: string) {} export function g() { markCanvasRunSettled('d', 'i') }", 'electron/productionRun/canvasShotRunIndex.ts'), [])
+  assert.deepEqual(scan(`import { canvasRunIdFor } from ${from}; export const f = (id: string) => canvasRunIdFor(id)`), [])
+})
+
+// 本测试登记进推送前 SCAN_GUARDS：真实源码里两个落点都是零。
+test('resend-owner-bypass 全仓无第二份清单、无第二个放占用的口，推送前扫描真实源码', () => {
+  const source = workingTreeSource(fileURLToPath(new URL('..', import.meta.url)))
+  assert.deepEqual(findResendOwnerBypass({ files: source.listFiles(), read: source.read }), [])
 })

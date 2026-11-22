@@ -1,4 +1,4 @@
-import { expect, it, vi } from 'vitest'
+import { expect, it } from 'vitest'
 import fs from 'node:fs'
 import { confirmLockExitSpend, LOCK_EXIT_JOURNEY_CONDITIONS, assertLockExitHostingReceipt } from './_generationLockExitHosting.mjs'
 
@@ -19,19 +19,19 @@ it('allows no card when the business action completes', async () => {
   await confirmLockExitSpend(s.page, report, { until: s.done })
   expect(s.events).toEqual([])
 })
-it('confirms ordinary cards and sequential hosting cards through one step', async () => {
-  const s = surface([{}, { hosting: true }, { hosting: true }]), report = {}, shot = vi.fn()
-  await confirmLockExitSpend(s.page, report, { until: s.done, shot, context: 'batch-storyboard' })
-  expect(s.events).toEqual(['confirm', 'remember', 'confirm', 'confirm'])
-  expect(report.hostingDisclosure).toBe(2)
-  expect(shot).toHaveBeenCalledTimes(2)
-  expect(report.observations.batchConfirmations.map(o => o.hostingDisclosure)).toEqual([false, true, true])
-  expect(report.observations.hostingConsents).toHaveLength(2)
+it('confirms sequential batch cards without hosting consent', async () => {
+  const s = surface([{}, {}, {}]), report = {}
+  await confirmLockExitSpend(s.page, report, { until: s.done, context: 'batch-storyboard' })
+  expect(s.events).toEqual(['confirm', 'confirm', 'confirm'])
+  expect(report.observations.batchConfirmations.map(o => o.hostingDisclosure)).toEqual([false, false, false])
+  expect(report.observations.hostingConsents).toEqual([])
 })
-it('requires a rehearsed hosting branch and identical shared journey conditions', () => {
-  const receipt = { report: { hostingDisclosure: 1, journeyConditions: { ...LOCK_EXIT_JOURNEY_CONDITIONS } } }
+it('requires batch confirmation and rejects a resurrected hosting disclosure', () => {
+  const receipt = { report: { observations: { batchConfirmations: [{ hostingDisclosure: false }] }, journeyConditions: { ...LOCK_EXIT_JOURNEY_CONDITIONS } } }
   expect(() => assertLockExitHostingReceipt(receipt)).not.toThrow()
-  for (const hostingDisclosure of [undefined, 0]) expect(() => assertLockExitHostingReceipt({ report: { ...receipt.report, hostingDisclosure } })).toThrow()
+  for (const batchConfirmations of [undefined, [], [{ hostingDisclosure: true }]]) {
+    expect(() => assertLockExitHostingReceipt({ report: { ...receipt.report, observations: { batchConfirmations } } })).toThrow()
+  }
   expect(() => assertLockExitHostingReceipt({ report: { ...receipt.report, journeyConditions: { ...LOCK_EXIT_JOURNEY_CONDITIONS, anonymousAssetHosting: 'allow' } } })).toThrow()
 })
 it('paid and free entries consume the same hosting conditions', () => {

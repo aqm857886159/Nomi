@@ -14,7 +14,6 @@ import {
   discoverLegacyProjectsOnce,
   resetLegacyDiscoveryGuard,
 } from "./legacyProjectMigration";
-import * as workspaceManifest from "./workspaceManifest";
 import { bindWorkspaceLocation, recentWorkspacesPath } from "./workspaceRegistry";
 import { workspaceProjectFile } from "./workspacePaths";
 import { normalizeWorkspaceProjectRecord } from "./workspaceTypes";
@@ -33,6 +32,26 @@ function makeTempDir(name = "nomi-legacy-reconcile-test-"): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), name));
   tempRoots.push(dir);
   return dir;
+}
+
+/**
+ * 在文件系统这一层数「加锁读」和「快照读」，不换掉主人的读函数：
+ * 加锁读 = 清单事务锁在 .nomi 下建 manifest-transaction.* 目录（workspaceManifestLock）；快照读 = 无锁地读 .nomi/project.json。
+ */
+function observeManifestIo(): { lockedReads: () => number; snapshotReads: () => number } {
+  const mkdir = fs.mkdirSync.bind(fs);
+  const readFile = fs.readFileSync.bind(fs);
+  let locks = 0;
+  let reads = 0;
+  vi.spyOn(fs, "mkdirSync").mockImplementation(((...args: Parameters<typeof fs.mkdirSync>) => {
+    if (path.basename(String(args[0])).startsWith("manifest-transaction.")) locks += 1;
+    return mkdir(...args);
+  }) as typeof fs.mkdirSync);
+  vi.spyOn(fs, "readFileSync").mockImplementation(((...args: Parameters<typeof fs.readFileSync>) => {
+    if (String(args[0]).endsWith(`${path.sep}.nomi${path.sep}project.json`)) reads += 1;
+    return readFile(...args);
+  }) as typeof fs.readFileSync);
+  return { lockedReads: () => locks, snapshotReads: () => reads };
 }
 
 /** 写一个已迁移的 workspace 项目（有 .nomi/project.json 清单）。 */
@@ -89,8 +108,7 @@ describe("legacy 发现 = 对 registry 缺失项的增量对账（类级不变�
     }
 
     // 从这一刻起计数：发现阶段不该再碰加锁读，也不该再写 registry。
-    const lockedRead = vi.spyOn(workspaceManifest, "readWorkspaceManifestSummary");
-    const lockedFull = vi.spyOn(workspaceManifest, "readWorkspaceManifest");
+    const io = observeManifestIo();
     const registryPath = recentWorkspacesPath(settingsRoot);
     const registryBefore = fs.readFileSync(registryPath, "utf8");
     const registryMtimeBefore = fs.statSync(registryPath).mtimeMs;
@@ -100,8 +118,7 @@ describe("legacy 发现 = 对 registry 缺失项的增量对账（类级不变�
     // 全部已注册 → 无需再发现任何东西。
     expect(discovered).toEqual([]);
     // 加锁读是 29.5ms/项目 的那条路径：已注册项目一次都不该走。
-    expect(lockedRead).not.toHaveBeenCalled();
-    expect(lockedFull).not.toHaveBeenCalled();
+    expect(io.lockedReads()).toBe(0);
     // registry 内容/落盘都不该被动过（原实现会 O(n²) 全量重写 N 次）。
     expect(fs.readFileSync(registryPath, "utf8")).toBe(registryBefore);
     expect(fs.statSync(registryPath).mtimeMs).toBe(registryMtimeBefore);
@@ -137,15 +154,14 @@ describe("legacy 发现 = 对 registry 缺失项的增量对账（类级不变�
     // 未注册 → 会被读，但必须优先走无锁快照。
     writeWorkspaceProject(path.join(defaultRoot, "unregistered"), "unregistered");
 
-    const snapshot = vi.spyOn(workspaceManifest, "readWorkspaceManifestSnapshot");
-    const lockedRead = vi.spyOn(workspaceManifest, "readWorkspaceManifestSummary");
+    const io = observeManifestIo();
 
     const discovered = discoverLegacyProjects(defaultRoot, { settingsRoot });
 
     expect(discovered.map((project) => project.id)).toEqual(["unregistered"]);
-    expect(snapshot).toHaveBeenCalled();
+    expect(io.snapshotReads()).toBeGreaterThan(0);
     // 快照成功时不该回落到加锁读。
-    expect(lockedRead).not.toHaveBeenCalled();
+    expect(io.lockedReads()).toBe(0);
   });
 
   it("discoverLegacyProjectsOnce 同样按 registry 增量对账（列举入口不绕过边界）", () => {
@@ -155,10 +171,10 @@ describe("legacy 发现 = 对 registry 缺失项的增量对账（类级不变�
     writeWorkspaceProject(projectRoot, "known");
     seedRegistry(settingsRoot, projectRoot, "known");
 
-    const lockedRead = vi.spyOn(workspaceManifest, "readWorkspaceManifestSummary");
+    const io = observeManifestIo();
     const discovered = discoverLegacyProjectsOnce(defaultRoot, { settingsRoot });
 
     expect(discovered).toEqual([]);
-    expect(lockedRead).not.toHaveBeenCalled();
+    expect(io.lockedReads()).toBe(0);
   });
 });

@@ -13,6 +13,8 @@
 import type { CatalogState, HttpOperation, Mapping, Model, Vendor } from "./types";
 // 身份与分档表住在隔壁（表随模型雷达增删，对账逻辑几乎不动 —— 两者变更理由不同）。
 import { CANONICAL_MODEL_IDS, curatedCatalogLifecycle } from "./seedModelIdentity";
+import { MODEL_DECLARATION_KEYS } from "./modelDeclaration";
+import { withModelDeclarationDefaults } from "./modelDeclarationDefaults";
 import {
   KIE_VENDOR_SEED,
   SEEDANCE_2_CREATE_OP,
@@ -62,6 +64,7 @@ import { MODELSCOPE_IMAGE_MODELS, MODELSCOPE_IMAGE_QUERY, MODELSCOPE_IMAGE_STATU
 import { MODELSCOPE_TEXT_MODELS } from "./modelscopeTexts";
 import { VOLCENGINE_VENDOR_SEED, VOLCENGINE_SPEECH_VENDOR_SEED } from "./volcengineVendor";
 import { BUILTIN_VENDOR_SEEDS, builtinVendorSeed, type VendorSeed } from "./builtinVendorSeeds";
+import { pruneRetiredMappings, pruneRetiredModels, restoreBuiltinOwnedFields, wholeVendorDeletions } from "./builtinOwnedFields";
 import { DREAMINA_VENDOR_SEED } from "./dreaminaVendor";
 import { DREAMINA_CURATED_MODELS, DREAMINA_CURATED_MAPPINGS } from "./dreaminaVideos";
 import { DREAMINA_IMAGE_CURATED_MODELS, DREAMINA_IMAGE_CURATED_MAPPINGS } from "./dreaminaImages";
@@ -438,30 +441,6 @@ const RETIRED_APIMART_VIDEO_MAPPING_IDS: readonly string[] = [
   "seed-apimart-seedance-2-apimart-fast-face-image_to_video",
 ];
 
-/** 删退役 curated 模型（按 vendorKey+modelKey 精确命中我们种的行）。返回是否变更。 */
-function pruneRetiredModels(models: Model[], vendorKey: string, retiredKeys: readonly string[]): boolean {
-  let changed = false;
-  for (let i = models.length - 1; i >= 0; i -= 1) {
-    if (models[i].vendorKey === vendorKey && retiredKeys.includes(models[i].modelKey)) {
-      models.splice(i, 1);
-      changed = true;
-    }
-  }
-  return changed;
-}
-
-/** 删退役 curated mapping（按稳定 seed id 精确命中；用户自建 mapping id 不在表里，不受影响）。返回是否变更。 */
-function pruneRetiredMappings(mappings: Mapping[], retiredIds: readonly string[]): boolean {
-  let changed = false;
-  for (let i = mappings.length - 1; i >= 0; i -= 1) {
-    if (retiredIds.includes(mappings[i].id)) {
-      mappings.splice(i, 1);
-      changed = true;
-    }
-  }
-  return changed;
-}
-
 /** 供应商种子（裸 baseUrl + bearer）。存在即跳过（用户配置不覆盖）；仅对账代码声明的旧官方 host。
  *  多数种子默认 enabled:true；无鉴权本地后端（ComfyUI）带 `enabled:false` → 默认关、用户显式启用（污染防护）。 */
 function seedVendor(vendors: Vendor[], seed: VendorSeed, now: string): boolean {
@@ -513,7 +492,7 @@ function reconcileModels(models: Model[], vendorKey: string, curated: CuratedMod
     if (i < 0) {
       models.push({
         modelKey: c.modelKey, vendorKey, labelZh: c.labelZh, kind: c.kind, enabled: true,
-        ...(Object.keys(curatedMeta).length > 0 ? { meta: curatedMeta } : {}),
+        meta: withModelDeclarationDefaults({ kind: c.kind, modelKey: c.modelKey, meta: curatedMeta }),
         ...curatedPricing,
         createdAt: now, updatedAt: now,
       });
@@ -524,17 +503,20 @@ function reconcileModels(models: Model[], vendorKey: string, curated: CuratedMod
     const exMeta = (ex.meta || {}) as Record<string, unknown>;
     // Compare every code-owned capability, including supportsImageInput added to existing text rows.
     // Unrelated user metadata is not compared or removed.
-    const metaDrift = Object.entries(curatedMeta).some(([key, value]) => JSON.stringify(exMeta[key]) !== JSON.stringify(value));
+    // 文本行的能力声明初值（和写入口同一个函数算）也是代码所有的一格：差了就对账。
+    const declared = withModelDeclarationDefaults({ kind: c.kind, modelKey: c.modelKey, modelAlias: ex.modelAlias,
+      meta: { ...exMeta, ...curatedMeta } }) as Record<string, unknown>;
+    const metaDrift = Object.entries(curatedMeta).some(([key, value]) => JSON.stringify(exMeta[key]) !== JSON.stringify(value))
+      || MODEL_DECLARATION_KEYS.some((key) => JSON.stringify(exMeta[key]) !== JSON.stringify(declared[key]));
     // 撤价（curated 不再声明）也算漂移：留着一份没人维护的旧价目就是留一个会说谎的数字。
     const pricingDrift = JSON.stringify(ex.tokenPricing) !== JSON.stringify(c.tokenPricing)
       || JSON.stringify(ex.free) !== JSON.stringify(c.free);
     const drift = ex.kind !== c.kind || metaDrift || pricingDrift;
     if (drift) {
-      const nextMeta = { ...exMeta, ...curatedMeta };
       const { tokenPricing: _stalePricing, free: _staleFree, ...rest } = ex;
       models[i] = {
         ...rest, kind: c.kind,
-        ...(Object.keys(nextMeta).length > 0 ? { meta: nextMeta } : {}),
+        ...(Object.keys(declared).length > 0 ? { meta: declared } : {}),
         ...curatedPricing,
         updatedAt: now,
       };
@@ -620,9 +602,17 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (pruneRetiredModels(models, RUNNINGHUB_VENDOR_SEED.key, RETIRED_RUNNINGHUB_VIDEO_MODEL_KEYS)) changed = true;
   if (pruneRetiredMappings(mappings, RETIRED_RUNNINGHUB_VIDEO_MAPPING_IDS)) changed = true;
 
+  if (restoreBuiltinOwnedFields(vendors, models, mappings, now, CURATED_VENDOR_CONTRACTS)) changed = true;
+
+  // 整家删除（用户按的那一下，Q12）：这家的内置模型和路由都不种回来，连接行照种（设置页那张卡还在，存密钥就回来）。
+  const deletions = wholeVendorDeletions(state, CURATED_VENDOR_CONTRACTS);
+  if (deletions.changed) changed = true;
+  const deletedVendors = new Set(deletions.vendors);
+
   // 模型 insert + 对账（两家各跑同一套逻辑）。
   for (const contract of CURATED_VENDOR_CONTRACTS) {
-    if (reconcileModels(models, contract.vendorKey, contract.models, now, state.suppressedBuiltinModels)) changed = true;
+    if (deletedVendors.has(contract.vendorKey)) continue;
+    if (reconcileModels(models, contract.vendorKey, contract.models, now, deletions.models)) changed = true;
   }
 
   // kie 历史包袱 repair：把视频形状的坏 (kie, text_to_image) 替换成正确的 GPT Image 2 文生图契约
@@ -643,12 +633,13 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
 
   // mapping insert + 对账（两家各跑同一套逻辑）。
   for (const contract of CURATED_VENDOR_CONTRACTS) {
+    if (deletedVendors.has(contract.vendorKey)) continue;
     if (reconcileMappings(mappings, contract.vendorKey, contract.mappings, now)) changed = true;
   }
   if (certifySiblingCuratedMappings(mappings, now)) changed = true;
 
   if (!changed) return { state, changed: false };
-  return { state: { ...state, vendors, models, mappings }, changed: true };
+  return { state: { ...state, ...deletions.suppression, vendors, models, mappings }, changed: true };
 }
 
 /**

@@ -55,7 +55,7 @@ export function buildNodeModelChangePatch({
     controls: modelParamControls(controls), intent: {}, previousParams: currentMeta,
     policy: { author: '人手', invalid: '全重置默认', removeKeys: previousControls.flatMap(controlStoredKeys) },
   })
-  const nextArchetype = resolveArchetypeForOption(nextOption)
+  const nextArchetype = resolveArchetypeForOption(nextOption, { variantId: undefined, modelId: nextOption?.modelKey })
   // 换模型 = 重铺全部默认值（比例也在内，不让「明确选过」），默认值只问唯一出处。
   const aspectPatch = isVideoLike
     ? videoAspectSeedPatch({ nodeId: node.id, nodes, edges, controls, meta: currentMeta, respectExplicit: false })

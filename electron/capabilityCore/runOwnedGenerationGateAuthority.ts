@@ -7,8 +7,10 @@ import type {
 import type { ProductionRun, RunCommand } from "../productionRun/productionRunTypes";
 import { reservationMaximumForDisplay } from "./approvalReceipt";
 import { spendAuthorizationGates, waitingAuthorizationGates } from "../shared/productionSpendAuthority";
+import type { ApprovalDecisionRecord, ApprovalDecisionRef } from "./approvalReceiptDecision";
 import type {
   ApprovalReceiptAuthority,
+  createApprovalReceiptAuthority,
   HumanApprovalDisplay,
   HumanApprovalReceiptV1,
   MainProcessDecision,
@@ -16,10 +18,166 @@ import type {
 import type { DispatchContext } from "./dispatcher";
 import type { GenerationOperationStore } from "./mcpGenerationTools";
 import type { ProjectLeaseV2 } from "./projectLease";
+import { assertIssuedGenerationPlanning } from "./generationPlanningIssue";
+
+type ApprovalReceiptIssuer = Omit<ReturnType<typeof createApprovalReceiptAuthority>, keyof ApprovalReceiptAuthority | "reader">;
+
+const receiptIssuers = new WeakMap<ApprovalReceiptAuthority, ApprovalReceiptIssuer>();
+
+/** 生产装配只向主人交签发引用；读面无法取回它，也不能重新绑定。 */
+export function bindApprovalReceiptIssuer(receipts: ApprovalReceiptAuthority, issuer: ApprovalReceiptIssuer): void {
+  if (receiptIssuers.has(receipts)) throw new Error("Approval receipt issuer is already bound");
+  receiptIssuers.set(receipts, issuer);
+}
+
+function issuerFor(receipts: ApprovalReceiptAuthority | ReturnType<typeof createApprovalReceiptAuthority>): ApprovalReceiptIssuer {
+  // 既有测试装配传完整工厂对象；生产 reader 只从装配时绑定的私有表取签发能力。
+  const issuer = "reader" in receipts
+    ? receipts
+    : receiptIssuers.get(receipts);
+  if (!issuer) throw new Error("Approval receipt issuer is unavailable");
+  return issuer;
+}
 
 type RunOwner = Pick<ProductionRunService, "readFull" | "command">;
 
 type GateConfirmation = (input: { challengeToken: string }) => Promise<unknown>;
+
+// ── 付费批准只在这里判（概念 spend.approval-decision）────────────────────────────
+//
+// 助手要花钱时有四件事：要不要问人、问没问到人、批的是哪几镜、批过的用一次就作废。应用内的卡、外部客户端、
+// 回环那一跳只把人的原话交到这里、把这里的结论原样显示；「算批准」的那句话（`confirmed: true` 带收据）
+// 只有这里说得出来，`scripts/concept-owners-approval.mjs` 拦别处自己说。
+
+/**
+ * 只读：这一笔有没有够格的答复、是谁答的（Nomi 里点的 / 客户端里答的 / 全自动策略）、还能不能用。不盖章、不写库。
+ * 重发等只想「看一眼」的调用方只走这里。
+ */
+export function readApprovalDecision(receipts: ApprovalReceiptAuthority, ref: ApprovalDecisionRef): ApprovalDecisionRecord {
+  return receipts.readDecisionRecord(ref);
+}
+
+type RendererTarget = { webContentsId: number; frameId: number; origin: string };
+
+/** 客户端那边人的原话（MCP elicitation 的 action + 表单里那一格），由主进程判算不算「是」。 */
+export type ClientGateAnswer = { action?: unknown; confirm?: unknown };
+
+export type GenerationGateAnswer = {
+  confirmed: boolean;
+  challengeId?: string;
+  receiptId?: string;
+  receiptToken?: string;
+  trialFirst?: true;
+  declined?: true;
+};
+
+/**
+ * 两种问人的地方，一个判法：Nomi 里的卡（应用内助手，以及外部客户端问不了时的兜底卡）和外部客户端自己的确认框。
+ * 都是先看这一笔是不是已经花掉了（花掉的不再问、不再签），再拿人的原话判，判成「是」才由主进程签收据。
+ * 等人没有期限（2026-09-11 拍板）；调用方走了（取消信号）就不再等，晚到的「是」也不签。
+ */
+export function createGenerationGateAnswers(deps: Readonly<{
+  receipts: ApprovalReceiptAuthority;
+  requestRendererDecision: (channel: "generation.gate.confirm", payload: Record<string, unknown>) => Promise<unknown>;
+  rendererTargetIdentity: () => RendererTarget | null;
+  onTrialFirst?: (input: { projectId: string; operationId: string }) => void | Promise<void>;
+  onTrialFirstError?: (error: unknown) => void;
+}>) {
+  const { receipts } = deps;
+  const spent = (challengeToken: string) => readApprovalDecision(receipts, { challengeToken }).state === "used";
+
+  async function confirmInNomi(
+    { challengeToken }: { challengeToken: string },
+    options: { signal?: AbortSignal } = {},
+  ): Promise<GenerationGateAnswer> {
+    const challenge = receipts.verifyChallenge(challengeToken);
+    const notConfirmed: GenerationGateAnswer = { confirmed: false, challengeId: challenge.challengeId };
+    if (spent(challengeToken)) return notConfirmed;
+    const target = deps.rendererTargetIdentity();
+    const { signal } = options;
+    if (!target || !challenge.display?.model || signal?.aborted) return notConfirmed;
+    // 卡在等真人按，没有墙钟期限（2026-09-11 拍板）。挑战自己的 expiresAt 仍在——
+    // 那是凭据新鲜度（过期只是这张凭据不能再用，门照样等着人），不是替他答「否」。
+    const asked = deps.requestRendererDecision("generation.gate.confirm", {
+      challengeId: challenge.challengeId,
+      projectName: challenge.display.projectName,
+      shotSummary: challenge.display.shotSummary,
+      model: challenge.display.model,
+      referenceCount: challenge.display.referenceCount,
+      maximumCost: reservationMaximumForDisplay(challenge.reservationPreview),
+      ...(challenge.reservationPreview.unknownJobCount ? { unknownShotCount: challenge.reservationPreview.unknownJobCount } : {}),
+      currency: challenge.reservationPreview.currency,
+      expiresAt: challenge.expiresAt,
+      ...(challenge.display.shots ? { shots: challenge.display.shots } : {}),
+    }) as Promise<{ confirmed?: unknown; trialFirst?: unknown } | null>;
+    const ABANDONED = Symbol("abandoned");
+    let stopWatching = () => {};
+    const result = signal
+      ? await Promise.race([
+          asked,
+          new Promise<typeof ABANDONED>((resolve) => {
+            const onAbort = () => resolve(ABANDONED);
+            signal.addEventListener("abort", onAbort, { once: true });
+            stopWatching = () => signal.removeEventListener("abort", onAbort);
+          }),
+        ]).finally(() => stopWatching())
+      : await asked;
+    if (result === ABANDONED) {
+      // 问的人已经走了：卡上晚到的那一下不再签任何东西。
+      asked.catch(() => {});
+      return notConfirmed;
+    }
+    if (result?.confirmed !== true) {
+      if (result?.trialFirst === true && deps.onTrialFirst && challenge.runId && challenge.projectId) {
+        try {
+          await deps.onTrialFirst({ projectId: challenge.projectId, operationId: challenge.runId });
+        } catch (error) {
+          deps.onTrialFirstError?.(error);
+        }
+      }
+      return {
+        ...notConfirmed,
+        ...(result?.trialFirst === true ? { trialFirst: true as const } : {}),
+        // 卡真的弹出来、用户点了「忽略」才是拒绝；渲染端没应答（null）不是——Agent 要靠它分清「拒绝」与「没人答」（C-4）。
+        ...(result !== null && typeof result === "object" && result.trialFirst !== true ? { declined: true as const } : {}),
+      };
+    }
+    if (spent(challengeToken)) return notConfirmed;
+    const receipt = issuerFor(receipts).mintReceipt(challengeToken, issuerFor(receipts).createMainProcessGestureAttestation(challengeToken, {
+      ...target,
+      decision: "accept",
+    }));
+    return { confirmed: true, challengeId: challenge.challengeId, receiptId: receipt.receipt.receiptId, receiptToken: receipt.token };
+  }
+
+  /**
+   * 外部客户端问过人之后来要收据：主进程看人的原话（accept 且表单里勾了「是」）才签；身份是回环那一跳
+   * 请求头里验过的那个客户端，不是参数里自报的。没有原话、原话不是「是」、这一笔已经花掉 → 一律不签。
+   */
+  function answerFromClient(input: { challengeToken: string; client: string; answer?: ClientGateAnswer }): GenerationGateAnswer {
+    receipts.verifyChallenge(input.challengeToken);
+    const notConfirmed: GenerationGateAnswer = { confirmed: false };
+    const client = typeof input.client === "string" ? input.client.trim() : "";
+    if (!client || input.answer?.action !== "accept" || input.answer.confirm !== true) return notConfirmed;
+    if (spent(input.challengeToken)) return notConfirmed;
+    const receipt = issuerFor(receipts).mintReceipt(input.challengeToken, issuerFor(receipts).createClientElicitationAttestation(input.challengeToken, client));
+    return { confirmed: true, receiptId: receipt.receipt.receiptId, receiptToken: receipt.token };
+  }
+
+  return { confirmInNomi, answerFromClient };
+}
+
+/**
+ * 没有 Run 的旧挑战路上，「全自动」档由用户此前选的档位代答：同一张挑战、同一个收据铸造口，attestation 来自策略。
+ * 判不判「全自动」由调用方问 `spendDecisionByPolicy`；这里只签。
+ */
+export function approveGateByPolicy(
+  receipts: ApprovalReceiptAuthority,
+  challengeToken: string,
+  policy: { policyMode: "project"; policySurface: string },
+): { token: string; receipt: HumanApprovalReceiptV1 } {
+  return issuerFor(receipts).mintReceipt(challengeToken, issuerFor(receipts).createPolicyDecisionAttestation(challengeToken, policy));
+}
 
 function record(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Invalid ${label}`);
@@ -39,6 +197,8 @@ export function createRunOwnedGenerationGateAuthority(input: Readonly<{
   receipts: ApprovalReceiptAuthority;
   now?: () => string;
 }>) {
+  // 门只认生成装配工厂发的规划（强转骗得过类型，骗不过名单）。
+  assertIssuedGenerationPlanning(input.planning, "generation gate authority");
   const now = input.now ?? (() => new Date().toISOString());
 
   const requestGenerationGate: NonNullable<DispatchContext["requestGenerationGate"]> = async ({ params, lease }) => {
@@ -251,7 +411,7 @@ export function mainProcessGateApproval(input: Readonly<{
 }>): Omit<RunCommand, "expectedRevision"> {
   const { envelope } = input.authorization;
   const digest = input.authorization.authorizationDigest;
-  const receipt = input.receipts.issueDecisionReceipt(gateChallengeInput(input.authorization, input.lease, input.display), input.decision);
+  const receipt = issuerFor(input.receipts).issueDecisionReceipt(gateChallengeInput(input.authorization, input.lease, input.display), input.decision);
   assertReceiptMatchesAuthorization(receipt, input.lease, input.operationId, envelope, digest, envelope.gateId);
   return {
     commandId: `${input.commandPrefix}-decide:${envelope.gateId}:${receipt.receiptId}`,

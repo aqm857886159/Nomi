@@ -56,7 +56,7 @@ export function NextVideoToolbar({ node, locale, onBoundaryCapture = noop, captu
   const { t } = useTranslation()
   const c = COPY[locale]
   return (
-    <FloatingToolbarShell ariaLabel={t('generationCommon.videoToolbar.aria')} lockNodeId={node.id}>
+    <FloatingToolbarShell ariaLabel={t('generationCommon.videoToolbar.aria')} nodeId={node.id}>
       <ToolbarActionMenu
         id="capture-frame"
         icon={<IconPhoto size={I.size} stroke={I.stroke} />}

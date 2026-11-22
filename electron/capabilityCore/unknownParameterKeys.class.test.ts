@@ -77,8 +77,15 @@ const realCatalogRegistry = createModuleRegistry([{
 const AGENT_ORIGIN = { host: "nomi", actorId: "agent-panel" } as const;
 const PROMPT = "一只纸船在雨后的水洼里慢慢漂";
 const videoShot = (extra: Record<string, unknown> = {}, modelId = "vid-model") => ({
-  prompt: PROMPT, taskKind: "text_to_video", candidate: { providerId: VENDOR, modelId }, ...extra,
+  prompt: PROMPT, taskKind: "text_to_video", model: `${modelId}@${VENDOR}`, ...extra,
 });
+
+/** 这条消息带上来的可用模型清单（`draft_shots` 的完整名字在 lane 这一侧按它查）：两份注册表里出现的全部模型。 */
+const LANE_MODELS = [
+  ...["vid-model", "vid-lite", "bare-model", "img-model"].map((modelId) => ({ vendor: VENDOR, modelId, modelAlias: null })),
+  { vendor: "apimart", modelId: "z-image-turbo", modelAlias: null },
+  { vendor: "kie", modelId: "nano-banana-2", modelAlias: null },
+];
 
 /** 近似键：和真实键 `aspect_ratio` 只差一个字符——准入应当把它指出来。 */
 const NEAR_MISS = { aspect_ratios: "16:9" };
@@ -99,7 +106,7 @@ function agentDoor(world: SpendWorld) {
   let sequence = 0;
   return async (args: Record<string, unknown>): Promise<Seen> => {
     const admitted = draftShotsVerb.schema.parse(draftShotsVerb.prepareArguments ? draftShotsVerb.prepareArguments(args) : args);
-    const call = verbToTransportCall({ toolCallId: `call-${++sequence}`, toolName: "draft_shots", args: admitted })!.call;
+    const call = verbToTransportCall({ toolCallId: `call-${++sequence}`, toolName: "draft_shots", args: admitted }, LANE_MODELS)!.call;
     const decision = await adapter.tryExecute(call, new AbortController().signal);
     if (!decision) throw new Error("the transport adapter did not route draft_shots");
     return seenFromDecision(decision);
@@ -169,7 +176,7 @@ const CREATE_DOORS: readonly CreateDoor[] = [
       const translated = verbToTransportCall({
         toolCallId: "call-mcp-shots", toolName: "draft_shots",
         args: { shots: [{ ...videoShot({}, modelId), title: "镜1" }, { ...videoShot({ parameters }, modelId), title: "镜2" }] },
-      })!.call.args as Record<string, unknown>;
+      }, LANE_MODELS)!.call.args as Record<string, unknown>;
       const { operation: _operation, ...params } = translated;
       return mcpDoor(world)("create", params);
     },
@@ -262,7 +269,7 @@ describe("未知键：每一扇主进程写入门当场拒，同一份输入得�
 
   it("远键：真实键叫 size 的模型被写了 aspect_ratio——拒，列出合法键，不编一个「最接近」", async () => {
     const world = spendWorld({ registry });
-    const seen = await agentDoor(world)({ shots: [{ prompt: PROMPT, taskKind: "text_to_image", candidate: { providerId: VENDOR, modelId: "img-model" }, parameters: FAR_MISS }] });
+    const seen = await agentDoor(world)({ shots: [{ prompt: PROMPT, taskKind: "text_to_image", model: `img-model@${VENDOR}`, parameters: FAR_MISS }] });
     expect(seen).toMatchObject({ accepted: false, code: "unknown_parameter" });
     const mcp = await mcpDoor(world)("create", { prompt: PROMPT, taskKind: "text_to_image", providerId: VENDOR, modelId: "img-model", parameters: FAR_MISS });
     expect(mcp).toMatchObject({ accepted: false, code: "unknown_parameter", details: { at: "parameters.aspect_ratio", allowedKeys: "size" } });
@@ -275,7 +282,7 @@ describe("未知键：每一扇主进程写入门当场拒，同一份输入得�
     const expected = await reference();
     const world = spendWorld({ registry });
     const adapter = world.transport("request");
-    const tools = createExtendedLaneTools({ execute: async (call, signal) => adapter.tryExecute(verbToTransportCall(call)!.call, signal) as never });
+    const tools = createExtendedLaneTools({ execute: async (call, signal) => adapter.tryExecute(verbToTransportCall(call, LANE_MODELS)!.call, signal) as never });
     const tool = tools.find((candidate) => candidate.name === "draft_shots")!;
     const result = await tool.execute(tool.schema.parse({ shots: [videoShot({ parameters: NEAR_MISS })] }), { toolCallId: "turn-1", signal: new AbortController().signal }) as
       { ok: boolean; failure?: Parameters<typeof renderLaneToolFailure>[0] };
@@ -298,7 +305,7 @@ describe("未知键：每一扇主进程写入门当场拒，同一份输入得�
   it("真实档案：键由档案派生、不靠注册表那份——Z-Image 写 aspect_ratio 被拒（它的比例键叫 size），Nano Banana 2 写 aspect_ratio 放行", async () => {
     const world = spendWorld({ registry: realCatalogRegistry });
     const zImage = { providerId: "apimart", modelId: "z-image-turbo" };
-    const refused = await agentDoor(world)({ shots: [{ prompt: "海边日出", taskKind: "text_to_image", candidate: zImage, parameters: { aspect_ratio: "16:9" } }] });
+    const refused = await agentDoor(world)({ shots: [{ prompt: "海边日出", taskKind: "text_to_image", model: "z-image-turbo@apimart", parameters: { aspect_ratio: "16:9" } }] });
     expect(refused).toMatchObject({ accepted: false, code: "unknown_parameter" });
     const viaMcp = await mcpDoor(world)("create", { prompt: "海边日出", taskKind: "text_to_image", ...zImage, parameters: { aspect_ratio: "16:9" } });
     expect(viaMcp).toMatchObject({ accepted: false, code: "unknown_parameter", details: { at: "parameters.aspect_ratio" } });
@@ -307,7 +314,7 @@ describe("未知键：每一扇主进程写入门当场拒，同一份输入得�
     expect(allowed).not.toContain("aspect_ratio");
     expect(world.repository.list(PROJECT_ID)).toEqual([]);
 
-    const nano = await agentDoor(world)({ shots: [{ prompt: "海边日出", taskKind: "text_to_image", candidate: { providerId: "kie", modelId: "nano-banana-2" }, parameters: { aspect_ratio: "16:9" } }] });
+    const nano = await agentDoor(world)({ shots: [{ prompt: "海边日出", taskKind: "text_to_image", model: "nano-banana-2@kie", parameters: { aspect_ratio: "16:9" } }] });
     expect(nano.accepted).toBe(true);
     expect(await storedParameters(world, operationIdOf(nano))).toEqual({ aspect_ratio: "16:9" });
     expect(world.vendor.executes).toHaveLength(0);
@@ -377,14 +384,14 @@ describe("放行的一侧：声明过的键照常过，值原样到达供应商�
     const world = spendWorld({ registry });
     const { operationId } = await existingDraft(world, false);
     // 换成没有 resolution 的 vid-lite：上个模型的 resolution 是残留，清掉并如实上报，不拒。
-    const switched = await agentDoor(world)({ operationId, shots: [{ modelId: "vid-lite" }] });
+    const switched = await agentDoor(world)({ operationId, shots: [{ model: `vid-lite@${VENDOR}` }] });
     expect(switched.accepted).toBe(true);
     expect(switched.accepted ? (switched.result as { changeset?: { clearedParameters?: string[] } }).changeset?.clearedParameters : undefined).toEqual(["resolution"]);
     expect(await storedParameters(world, operationId)).toEqual({ aspect_ratio: "9:16" });
 
     // 换回去的同一次 patch 里再写一个新模型也不认识的键：那是「这一次点名的」，不是残留——拒，草稿不动。
     const before = await world.operations.read(PROJECT_ID, operationId);
-    const rejected = await agentDoor(world)({ operationId, shots: [{ modelId: "vid-lite", parameters: { resolution: "720p" } }] });
+    const rejected = await agentDoor(world)({ operationId, shots: [{ model: `vid-lite@${VENDOR}`, parameters: { resolution: "720p" } }] });
     expect(rejected).toMatchObject({ accepted: false, code: "unknown_parameter" });
     expect(await world.operations.read(PROJECT_ID, operationId)).toEqual(before);
   });
@@ -392,7 +399,7 @@ describe("放行的一侧：声明过的键照常过，值原样到达供应商�
   it("多镜草稿里只换第 2 镜的模型：只有那一镜的残留被清、被报；第 1 镜原样", async () => {
     const world = spendWorld({ registry });
     const { operationId, shotIds } = await existingDraft(world, true);
-    const switched = await agentDoor(world)({ operationId, shots: [{ shotId: shotIds[1], modelId: "vid-lite" }] });
+    const switched = await agentDoor(world)({ operationId, shots: [{ shotId: shotIds[1], model: `vid-lite@${VENDOR}` }] });
     expect(switched.accepted).toBe(true);
     expect(switched.accepted ? (switched.result as { changeset?: { clearedParameters?: string[] } }).changeset?.clearedParameters : undefined).toEqual(["resolution"]);
     expect(await parametersOfEveryShot(world, operationId)).toEqual([{ aspect_ratio: "9:16", resolution: "480p" }, { aspect_ratio: "9:16" }]);

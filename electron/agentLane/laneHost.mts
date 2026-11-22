@@ -1,6 +1,6 @@
 import { createLaneInputAdmission } from './laneInputAdmission.mjs';
 import { originalLaneEntry, precedingLaneInput, resolveLaneReplay, laneOriginalText } from './laneOriginalInput.mjs';
-import { laneInputIntent } from './laneInputIntent.mjs';
+import { laneInputIntent, withRestoredTemplate } from './laneInputIntent.mjs';
 import { openLaneHistoryPage } from './laneHistoryPage.mjs';
 import { attachLaneTrace } from './laneTraceRecorder.mjs';
 import { logWarn } from '../logging/logger.js';
@@ -258,7 +258,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
    * **一条 lane 的系统提示词，每个回合整体重新求值一次；回合内不变。**
    *
    * 这是这一层唯一的「什么时候求值」规则，替掉了此前「哪个字段自己记得刷新」的逐字段约定：
-   *   · 回合内不变——正在跑的那一个回合不会中途改口（技能、界面语言、项目记忆一视同仁）。
+   *   · 回合内不变——正在跑的那一个回合不会中途改口（技能、界面语言一视同仁）。
    *     用户在模型说到一半时切了语言，这一轮说完再改，而不是一句中文一句英文。
    *   · 每个回合都变——会变的事实由**来源**提供（函数 / `LaneSkillIndexSource`），
    *     不是开 lane 那一刻的闭包常量；以后再加一个会变的段落，不必再发明一条刷新路径。
@@ -548,7 +548,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       // Whatever the envelope carried is destructured away first — a submitted value, and the
       // restored draft's historical one, are both discarded — and the key only reappears when
       // this admission actually holds a target. No target = no surface authority (fail-closed).
-      const { admissionSurface: _submitted, ...intent } = { ...currentAdmission, ...restoredIntent };
+      const { admissionSurface: _submitted, ...intent } = withRestoredTemplate(currentAdmission, restoredIntent);
       message = { role: 'nomi.input', content: text, timestamp: Date.now(),
         context: { ...intent, ...(captured.target ? { admissionSurface: captured.target.kind } : {}) } };
     }

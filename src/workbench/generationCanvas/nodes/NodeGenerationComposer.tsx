@@ -2,7 +2,8 @@ import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Editor } from '@tiptap/react'
-import { ICON_TIERS, NomiLoadingMark, WorkbenchIconButton } from '../../../design'
+import type { NomiEditorOwner } from '../../common/useNomiRichTextEditor'
+import { NomiLoadingMark, WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
 import type { LibraryPrompt } from '../../api/promptLibraryApi'
 import { useNodeEffectChips } from './NodeEffectChips'
@@ -18,10 +19,8 @@ import { startGenerationFromComposer } from './composerRun'
 import { directorPreviewSpendBlock, directorPreviewSpendBlockMessageKey } from './director/model/directorPreviewState'
 import { requestDirectorPreviewRender } from './director/agent/directorPreviewCapture'
 import type { UnmetReferenceDependency } from './controls/referenceDependency'
-import { collectUngeneratedReferenceAncestors } from '../runner/referenceAncestors'
+import { collectUngeneratedReferenceAncestors } from '../runner/generationScopeFacts'
 import NodeParameterControls from './NodeParameterControls'
-import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
-import { NodePromptToolCluster } from './NodePromptToolCluster'
 import { NodePromptOptimizer } from './NodePromptOptimizer'
 import { NodePromptTranslator } from './NodePromptTranslator'
 import { useNodeAssetDrop } from './useNodeAssetDrop'
@@ -34,7 +33,7 @@ import {
   isModel3dLikeGenerationNodeKind,
   isVideoLikeGenerationNodeKind,
 } from '../model/generationNodeKinds'
-import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
+import { resolveModelArchetype, variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
 import { effectiveArchetypeMode } from './controls/archetypeMeta'
 import { applyPromptReferenceImages } from './promptReferenceImages'
 import { useComposerPromptExpand } from './useComposerPromptExpand'
@@ -42,7 +41,8 @@ import { COMPOSER_MIN_USABLE_HEIGHT, NODE_COMPOSER_WIDTH } from './nodeSizing'
 import { ComposerAnchor } from './composerAnchor'
 import { ConnectedTextChips } from './ConnectedTextChips'
 import TextNodeComposer from './TextNodeComposer'
-import { IconArrowUp, IconArrowsDiagonal, IconArrowsDiagonalMinimize2, IconRefresh } from '@tabler/icons-react'
+import { IconArrowsDiagonal, IconArrowsDiagonalMinimize2, IconRefresh } from '@tabler/icons-react'
+import { useSendCost } from '../spend/useSendCost'
 import { ReferenceNamesContext, resolveReferenceInfos } from '../../assets/referenceNames'
 import { mentionUrlsInOrder } from '../../assets/promptMentions'
 import { peekAllProjectAssets } from '../../assets/useAllProjectAssets'
@@ -59,7 +59,7 @@ import { useProductionCanvasLandingStore } from '../../production/productionCanv
 import { useComposerGraph } from './composerGraphSnapshot'
 import { productionMetaOf } from '../model/productionMeta'
 import { decideShotClaim } from '../../../../electron/shared/decideShotClaim'
-import { shotClaimCopy } from '../../observability/shotClaimCopy'
+import { shotClaimCopy } from '../../../../electron/shared/generationFailure'
 import { useNodePromptFocusRequest } from './nodePromptFocus'
 import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -135,6 +135,13 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   const updateNode = React.useCallback((...args: Parameters<typeof writeNode>) => {
     if (!readOnlyRef.current) writeNode(...args)
   }, [writeNode])
+  // 提示词框的 owner：画布 store 里这个节点此刻的 prompt（不是渲染快照 prop），编辑写回这个节点。
+  const nodeId = node.id
+  const promptOwner = React.useMemo<NomiEditorOwner<string>>(() => ({
+    subscribe: useGenerationCanvasStore.subscribe,
+    getSnapshot: () => latestNode(nodeId)?.prompt || '',
+    write: (next) => updateNode(nodeId, { prompt: next }),
+  }), [latestNode, nodeId, updateNode])
   const writeAccess = React.useMemo(() => ({ updateNode, latestNode, canWrite: () => !readOnlyRef.current, ...(connectNodes ? { connectNodes: ((...args: Parameters<typeof connectNodes>) => { if (!readOnlyRef.current) return connectNodes(...args) }) as typeof connectNodes } : {}) }), [updateNode, latestNode, connectNodes])
   const status = node.status || 'idle'
   const isGenerating = status === 'queued' || status === 'running'
@@ -177,6 +184,8 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   // 有则「生成」不裸跑，转而排依赖波次（参考先生成→本节点后生成）走批量确认条。
   const pendingRefKey = React.useMemo(() => collectUngeneratedReferenceAncestors(node.id, graph).join(','), [node.id, graph])
   const hasPendingRefs = pendingRefKey.length > 0
+  // 发送键上的约价：忙着 / 要先备齐参考时不印数（那时钮的意思不是「花这么多发出去」）。
+  const sendCost = useSendCost(node, graph, { idle: !isGenerating && !hasPendingRefs })
   // 视频缺参考本会禁用「生成」；但若缺的是「连了线、只是还没生成」的上游 → 仍可点（去备齐），不禁用。
   const canGenerateNow = canGenerate || hasPendingRefs
   const productionBinding = productionMetaOf(node)
@@ -191,12 +200,12 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   const audioMode = React.useMemo(() => {
     if (!isAudioKind) return null
     const meta = node.meta || {}
-    const archetype = resolveArchetypeForModel({
+    const archetype = resolveModelArchetype({
       modelKey: typeof meta.modelKey === 'string' ? meta.modelKey : undefined,
       modelAlias: typeof meta.modelAlias === 'string' ? meta.modelAlias : undefined,
       vendorKey: typeof meta.modelVendor === 'string' ? meta.modelVendor : typeof meta.vendor === 'string' ? meta.vendor : null,
       meta,
-    })
+    }, { variant: variantRecordedInMeta(meta, meta.modelKey) })
     // 声音档案的方式是人选的任务、不按输入改：只问节点自己就够。
     return archetype ? effectiveArchetypeMode(archetype, node, { nodes: [node], edges: [] }).mode : null
   }, [isAudioKind, node])
@@ -268,7 +277,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
 
   const applyPromptPickerItem = React.useCallback(
     (item: LibraryPrompt): void => {
-      if (node.locked || readOnlyRef.current) return
+      if (readOnlyRef.current) return
       const before = node.prompt || ''
       const next = [before, item.prompt].filter(Boolean).join('\n')
       if (promptEditor && !promptEditor.isDestroyed) {
@@ -288,7 +297,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
       }
       void persistActiveWorkbenchProjectNow().catch(() => {})
     },
-    [mentionCandidates, node.id, node.locked, node.prompt, promptEditor, reportFeedback, t, updateNode, writeAccess],
+    [mentionCandidates, node.id, node.prompt, promptEditor, reportFeedback, t, updateNode, writeAccess],
   )
 
   const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -305,20 +314,56 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   // 是因为它挂在 portal 里、隐藏即卸载，会丢掉拖动期间靠 visibility 保住的 TipTap 实例（见下面 invisible 那条注释）。
   // 画布缩放由画布宿主的定位锚（CanvasComposerAnchor）自己读 React Flow 的 transform——见文件尾。
   const anchorRef = React.useRef<HTMLDivElement>(null)
-  const maxHeight = composerMaxHeight(node.kind)
+  // 底栏「高级设置」在底栏下面原地展开：卡的高度上限让出它那么高，提示词区不被挤掉。
+  const [advancedHeight, setAdvancedHeight] = React.useState(0)
+  const maxHeight = composerMaxHeight(node.kind) + advancedHeight
   const promptExpand = useComposerPromptExpand()
 
-  const effects = useNodeEffectChips({ enabled: hasPromptPickerButton, empty: !node.prompt?.trim(), kind: nodeExecutionKind ?? node.kind, disabled: node.locked, onSelect: applyPromptPickerItem })
+  const effects = useNodeEffectChips({ enabled: hasPromptPickerButton, empty: !node.prompt?.trim(), kind: nodeExecutionKind ?? node.kind, onSelect: applyPromptPickerItem })
 
   // B 簇（帮我写提示词）：效果 → 翻译 → 优化（翻译与优化同一出现条件，2026-09-21 拍板）。运镜控件已从视频/图片节点移除：用户直接在 prompt
   // 里写运镜，避免节点控件和提示词重复表达。
-  // 一件都没有（锁住的节点、不吃提示词的工作流）就整段不渲染——空的分组连同两根分隔线
+  // 一件都没有（不吃提示词的工作流）就整段不渲染——空的分组连同两根分隔线
   // 留在那里只会在底栏里留一段没人看得懂的空白。
   const showPromptPicker = hasPromptPickerButton
-  const showOptimizer = acceptsPrompt && (nodeExecutionKind === 'image' || nodeExecutionKind === 'video') && !node.locked
+  const showOptimizer = acceptsPrompt && (nodeExecutionKind === 'image' || nodeExecutionKind === 'video')
   const hasPromptTools = showPromptPicker || showOptimizer
 
   // 卡宽恒定（NODE_COMPOSER_WIDTH）；推荐项让位，输入内滚、底栏固定。
+  // 「走」钮点不了时说清为什么（§1.6 C1/C4）；点得了时说点了会怎样。
+  const disabledReason = directorPreviewBlock
+    ? t(directorPreviewBlock)
+    : unmetDependency
+    ? t('generationCommon.composer.referenceCompanionRequired', {
+        slot: unmetDependency.slotLabel,
+        companions: unmetDependency.companionLabels.join(t('generationCommon.composer.companionOr')),
+      })
+    : productionClaimBlocked
+    ? t(productionClaimCopy
+      ? `generationCommon.observability.error.shotClaimed.${productionClaimCopy.key}.reason`
+      : 'generationCommon.observability.error.shotClaimed.generic.reason')
+    : !canGenerateNow && !isGenerating
+    ? nodeExecutionKind === 'video'
+      ? acceptsDrop
+        ? t('generationCommon.composer.videoReferenceRequired')
+        : t('generationCommon.composer.videoFirstFrameRequired')
+      : nodeExecutionKind === 'image'
+        ? acceptsDrop
+          ? t('generationCommon.composer.imageReferenceRequired')
+          : t('generationCommon.composer.imageConnectionRequired')
+        : nodeExecutionKind === 'model3d'
+          // 图生3D缺参考时的诚实原因——此前落到 unsupportedKind「暂不支持」，明明支持只是缺图（同族 kind 边界漏 3D）。
+          ? t('generationCommon.composer.model3dReferenceRequired')
+          : t('generationCommon.composer.unsupportedKind', { kind: node.kind })
+    : undefined
+  const generateTitle = disabledReason
+    ?? (isGenerating
+      ? t('generationCommon.composer.generating')
+      : hasPendingRefs
+        ? t('generationCommon.composer.generateReferencesFirst')
+        : hasResult
+          ? t('generationCommon.composer.regenerate')
+          : t('generationCommon.composerB3.generateTip'))
 
   return (
     // 外层只做屏幕空间定位锚，反向缩放保持参数卡可读。
@@ -393,15 +438,14 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
             promptExpand.expanded ? 'max-h-[360px]' : 'flex-1',
             promptExpand.canToggle && 'pr-7',
           )}
-          style={{ cursor: node.locked ? 'default' : 'text', userSelect: node.locked ? 'auto' : 'text' }}
+          style={{ cursor: 'text', userSelect: 'text' }}
         >
           <ReferenceNamesContext.Provider value={referenceNames}>
           <PromptEditor
             className={cn('min-h-[72px]')}
-            value={node.prompt || ''}
+            owner={promptOwner}
             placeholder={appendMentionHint(getGenerationNodePromptPlaceholder(node.kind))}
-            editable={!node.locked && !readOnly}
-            onChange={(next) => { if (!readOnly) updateNode(node.id, { prompt: next }) }}
+            editable={!readOnly}
             onBlur={() => { if (!readOnlyRef.current) void persistActiveWorkbenchProjectNow().catch(() => {}) }}
             onReady={setPromptEditor}
             mentionCandidates={mentionCandidates}
@@ -436,92 +480,51 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
           参数区是**摘要 pill**（同日 02:10 的逐参数 chip 于 04:30 被用户收回）。
           `flex-nowrap`：排不下不靠换行解决，靠别往这一排里塞第四件。
           `data-node-composer-footer` / `data-bar-segment` 是走查锚点，好断言「单行 + 段序没漂」。 */}
-      {!readOnly && <div data-node-composer-footer className={cn('flex items-center gap-2 mt-auto pt-1 shrink-0 w-full flex-nowrap')}>
-        {/* 第一段：模型芯片 + 变体 + 参数区（摘要 pill，见 composerHeadlineSummary）。 */}
-        <div data-bar-segment="model-params" className={cn('flex min-w-0 flex-1 items-center')}>
-          <NodeParameterControls
-            node={node}
-            section="parameters"
-            graph={graph}
-            modelOptionsState={modelOptionsState}
-            readMappings={readMappings}
-          />
-        </div>
-        {/* 右半边（三个提示词钮、数量、↑）靠卡片右侧：第一段 flex-1 吃掉剩余宽度，不再另放一个占 8px 间距的空垫片
-            ——英文「Standard」那一档正是被这 8px 挤得模型名和摘要各被截掉几像素（验收 V-b1a 建议 1）。 */}
-        {/* B 簇（三个提示词钮）。它和数量之间的分隔线由数量自己带（只有数量存在才有）。 */}
-        {hasPromptTools ? (
-          <NodePromptToolCluster ariaLabel={t('generationCommon.composerBarV1.promptTools')}>
-            {showPromptPicker ? effects.more : null}
-            {showOptimizer ? <NodePromptTranslator editor={promptEditor} prompt={node.prompt || ''} mentionReferences={orderedMediaReferences} onFeedback={reportFeedback} /> : null}
-            {showOptimizer ? <NodePromptOptimizer node={node} isVideo={nodeExecutionKind === 'video'} /> : null}
-          </NodePromptToolCluster>
-        ) : null}
-        {/* 数量：模型声明了数量才有（section="quantity" 自己判断，没有就不渲染），紧挨 ↑ 左边。 */}
-        <NodeParameterControls node={node} section="quantity" graph={graph} modelOptionsState={modelOptionsState} readMappings={readMappings} />
-        {(() => {
-          const disabledReason = directorPreviewBlock
-            ? t(directorPreviewBlock)
-            : unmetDependency
-            ? t('generationCommon.composer.referenceCompanionRequired', {
-                slot: unmetDependency.slotLabel,
-                companions: unmetDependency.companionLabels.join(t('generationCommon.composer.companionOr')),
-              })
-            : productionClaimBlocked
-            ? t(productionClaimCopy
-              ? `generationCommon.observability.error.shotClaimed.${productionClaimCopy.key}.reason`
-              : 'generationCommon.observability.error.shotClaimed.generic.reason')
-            : !canGenerateNow && !isGenerating
-            ? nodeExecutionKind === 'video'
-              ? acceptsDrop
-                ? t('generationCommon.composer.videoReferenceRequired')
-                : t('generationCommon.composer.videoFirstFrameRequired')
-              : nodeExecutionKind === 'image'
-                ? acceptsDrop
-                  ? t('generationCommon.composer.imageReferenceRequired')
-                  : t('generationCommon.composer.imageConnectionRequired')
-                : nodeExecutionKind === 'model3d'
-                  // 图生3D缺参考时的诚实原因——此前落到 unsupportedKind「暂不支持」，明明支持只是缺图（同族 kind 边界漏 3D）。
-                  ? t('generationCommon.composer.model3dReferenceRequired')
-                  : t('generationCommon.composer.unsupportedKind', { kind: node.kind })
-            : undefined
-          const title = disabledReason
-            ?? (isGenerating
-              ? t('generationCommon.composer.generating')
-              : hasPendingRefs
-                ? t('generationCommon.composer.generateReferencesFirst')
-                : hasResult
-                  ? t('generationCommon.composer.regenerate')
-                  : t('generationCommon.composerB3.generateTip'))
-          return (
-            <>
-            {rerenderDirectorNodeId ? (
-              <WorkbenchIconButton
-                size="sm"
-                icon={<IconRefresh />}
-                label={t('director.agent.previewRerender')}
-                data-testid="node-composer-preview-rerender"
-                onClick={() => requestDirectorPreviewRender(rerenderDirectorNodeId)}
-              />
-            ) : null}
-            <span title={title} style={{ display: 'contents' }}>
-              {/* 原生 button：避开 WorkbenchButton(Mantine)对 radius/bg 的覆盖,确保样张 v4 的深色圆形主行动钮。
-                  右半边由上面那根 flex-1 撑开：生成钮永远在底栏最右 = 卡片右下角（卡宽恒定 → 屏幕位置锁死）。 */}
-              <button
-                type="button"
-                data-bar-segment="generate"
-                className={GENERATE_BUTTON_CLASS}
-                aria-label={hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
-                disabled={!canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null}
-                onClick={handleGenerate}
-              >
-                {isGenerating ? '···' : <IconArrowUp size={ICON_TIERS.tool.size} stroke={ICON_TIERS.tool.stroke} aria-hidden />}
-              </button>
-            </span>
-            </>
-          )
-        })()}
-      </div>}
+      {!readOnly && (
+        <NodeParameterControls
+          node={node}
+          section="parameters"
+          graph={graph}
+          modelOptionsState={modelOptionsState}
+          readMappings={readMappings}
+          footer={{
+            className: 'mt-auto pt-1',
+            onAdvancedHeightChange: setAdvancedHeight,
+            toolsLabel: t('generationCommon.composerBarV1.promptTools'),
+            tools: hasPromptTools ? (
+              <>
+                {showPromptPicker ? effects.more : null}
+                {showOptimizer ? <NodePromptTranslator editor={promptEditor} prompt={node.prompt || ''} mentionReferences={orderedMediaReferences} onFeedback={reportFeedback} /> : null}
+                {showOptimizer ? <NodePromptOptimizer node={node} isVideo={nodeExecutionKind === 'video'} /> : null}
+              </>
+            ) : undefined,
+            // 数量：模型声明了数量才有（section="quantity" 自己判断，没有就不渲染），紧挨 ↑ 左边。
+            trailing: (
+              <>
+                <NodeParameterControls node={node} section="quantity" graph={graph} modelOptionsState={modelOptionsState} readMappings={readMappings} />
+                {rerenderDirectorNodeId ? (
+                  <WorkbenchIconButton
+                    size="sm"
+                    icon={<IconRefresh />}
+                    label={t('director.agent.previewRerender')}
+                    data-testid="node-composer-preview-rerender"
+                    onClick={() => requestDirectorPreviewRender(rerenderDirectorNodeId)}
+                  />
+                ) : null}
+              </>
+            ),
+            send: {
+              title: generateTitle,
+              busy: isGenerating,
+              ariaLabel: hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset'),
+              cost: sendCost.description ? { credits: sendCost.credits, description: sendCost.description } : undefined,
+              attrs: sendCost.source ? { 'data-price-source': sendCost.source } : undefined,
+              disabled: !canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null,
+              onClick: handleGenerate,
+            },
+          }}
+        />
+      )}
       </div>
       {isDragOver ? (
         <div

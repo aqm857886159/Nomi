@@ -130,7 +130,6 @@ export const LITTERBOX_INGESTION: AssetIngestion = {
   accepts: ["image", "video", "audio"],
   visibility: "public-anonymous",
   ttlSeconds: 24 * 60 * 60,
-  requiresConsent: true,
 };
 
 export const TMPFILES_INGESTION: AssetIngestion = {
@@ -142,7 +141,6 @@ export const TMPFILES_INGESTION: AssetIngestion = {
   accepts: ["image", "video", "audio"],
   visibility: "public-anonymous",
   ttlSeconds: 60 * 60,
-  requiresConsent: true,
 };
 
 export const ANON_UPLOAD_CHAIN: AssetIngestion = {
@@ -151,7 +149,6 @@ export const ANON_UPLOAD_CHAIN: AssetIngestion = {
   accepts: ["image", "video", "audio"],
   visibility: "public-anonymous",
   ttlSeconds: 60 * 60,
-  requiresConsent: true,
 };
 
 /** 取某 vendor 的主吞入策略：优先持久化声明，回退 curated 注册表。 */

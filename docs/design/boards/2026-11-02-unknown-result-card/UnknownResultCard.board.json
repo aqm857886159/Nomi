@@ -177,8 +177,12 @@
         "dark"
       ],
       "candidates": [],
-      "status": "implemented",
-      "assertion": "board:UnknownResultCard/confirm.hosting-disclosure"
+      "status": "dropped",
+      "userDecision": {
+        "quote": "删掉，用设置开关",
+        "date": "2026-11-17"
+      },
+      "note": "已由 2026-11-17 的决定撤掉：同意只由设置开关决定。"
     },
     {
       "id": "arrow.opens-card",
@@ -455,7 +459,8 @@
         "088-svg"
       ],
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/notice.skipped"
+      "assertion": "board:UnknownResultCard/notice.skipped",
+      "note": "2026-11-17 起触发条件变窄：一组全是没结束（可找回 / 生成中）的卡时，「生成这一组」四扇门（组工具条、框右键、框头、列表分区头）置灰、悬停说原因，点不出这条提示；组里混着能发的（确认后跳过开着的那几张）和分镜批量时照旧出这条提示，文字和样子不变。"
     },
     {
       "id": "other-failures.red",

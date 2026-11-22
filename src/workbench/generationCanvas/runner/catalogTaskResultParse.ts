@@ -11,7 +11,8 @@ import type {
   GenerationResultType,
 } from '../model/generationCanvasTypes'
 import { asFiniteNumber, asTrimmedString, selectedModelKey } from './catalogTaskResolve'
-import { formatTaskFailureMessage } from './taskFailureMessage'
+import { formatTaskFailureMessage } from '../../../../electron/shared/generationFailure'
+import { uiFailureLocale } from '../../observability/classifyError'
 import { readMediaDimensions, type MediaDimensions } from '../nodes/nodeSizing'
 import { canvasPreviewFieldsFromReceipt } from '../../../../electron/shared/canvas/canvasMediaPreview'
 
@@ -86,8 +87,8 @@ function generationTypeForTask(taskKind: TaskKind): GenerationResultType {
  * （2026-07-30 用户真机报的就是它）。猜测逻辑已合并进主进程那个唯一读点。
  */
 function describeTaskFailure(result: TaskResultDto): string {
-  // 格式的产出与解析成对住在 taskFailureMessage：分类器靠解析分清「供应商说的」与「我们自己的兜底句」。
-  return formatTaskFailureMessage(asTrimmedString(result.error), { taskId: result.id, kind: result.kind })
+  // 格式的产出与解析成对住在 electron/shared/generationFailure：分类器靠解析分清「供应商说的」与「我们自己的兜底句」。
+  return formatTaskFailureMessage(asTrimmedString(result.error), { taskId: result.id, kind: result.kind }, uiFailureLocale())
 }
 
 function readDurationSeconds(asset: { durationSeconds?: unknown } | null | undefined): number | undefined {

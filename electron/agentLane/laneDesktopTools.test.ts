@@ -26,7 +26,7 @@ const binding = { projectId: 'desktop-fixture', immutableProjectUuid: '11111111-
 const documentTarget = { kind: 'document' as const, documentId: 'document-fixture', anchor: { kind: 'whole-document' as const } }
 const documentPreconditions = { document: { revision: 1, contentHash: 'fnv1a-before' } }
 const rawEvidence: CanvasWriteRawEvidence = {
-  node: { id: 'node-fixture', kind: 'image', title: 'Fixture shot', prompt: 'Original fixture prompt', locked: false,
+  node: { id: 'node-fixture', kind: 'image', title: 'Fixture shot', prompt: 'Original fixture prompt',
     categoryId: 'shots', groupId: null,
     model: { modelKey: 'fixture-model', vendorKey: 'fixture-vendor', archetypeId: null, modeId: null, variantId: null }, currentResult: null },
   groups: [],
@@ -126,7 +126,7 @@ async function fixture(
       target: documentTarget, preconditions: documentPreconditions }),
     // 同一份快照的另一半：付费那一侧问的是「这笔钱要不要停下来问」。
     approvalPolicy: () => policy,
-    generationFactory: () => undefined, onTaskCreated: async () => undefined,
+    generationFactory: () => undefined, onTaskCreated: async () => undefined, modelDefaults: undefined,
     spendCard: { whenCardCloses: () => ({ closed: Promise.resolve(), dispose: () => undefined }) } })
   cleanups.push(async () => assembly.dispose())
   const toolName = kind === 'document' ? 'write_script' : kind === 'delete' ? 'delete_from_canvas' : 'make_artifact'

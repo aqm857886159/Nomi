@@ -1,26 +1,16 @@
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { useWorkbenchStore } from '../workbenchStore'
-import { emitCanvasGesture, getCanvasEventLastSeq, seedCanvasEventLastSeq } from '../generationCanvas/events/canvasEventEmitter'
+import { emitCanvasGesture, seedCanvasEventLastSeq } from '../generationCanvas/events/canvasEventEmitter'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
 import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
 import { listPersistedAssetDeletions } from '../assets/pendingAssetDeletions'
+import { readCurrentWorkbenchProjectContent } from './workbenchProjectContent'
 
 export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
-  const workbench = useWorkbenchStore.getState()
-  const generation = useGenerationCanvasStore.getState()
   return {
-    workbenchDocuments: workbench.workbenchDocuments,
-    activeDocumentId: workbench.activeDocumentId,
-    timeline: workbench.timeline,
-    // S5-b-0:持久化走 document 视图(选区是会话态不进项目文件)
-    generationCanvas: generation.readDocumentSnapshot(),
-    categories: workbench.categories,
-    // S5-b-1:尾部重放游标(append 回执维护;回执延迟导致略旧也安全——reducer 幂等)
-    generationCanvasLastSeq: getCanvasEventLastSeq(),
-    storyboardDesignsByDocumentId: workbench.storyboardDesignsByDocumentId,
-    editingPanelLayout: workbench.editingPanelLayout,
+    ...readCurrentWorkbenchProjectContent(),
     // 删掉的版本、文件还在等撤销窗口过去：跟项目一起存，App 直接退出时下次打开再删。
     pendingAssetDeletions: listPersistedAssetDeletions(),
   }

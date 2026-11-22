@@ -34,7 +34,7 @@ const BRAIN = DEFAULT_PAID_BRAIN
 const IMAGE = { vendorKey: 'apimart', modelKey: 'z-image-turbo' }
 
 // 真人会点名模型（「用 XX 生成」），而这正好是本条 lane 要证的那条路：
-// 模型把 `candidate{providerId,modelId}` 填进 `draft_shots` → 宿主按它花钱。
+// 模型把完整名字 `model`（modelId@vendor）填进 `draft_shots` → 宿主按它花钱。
 const ASK_PAID = '用 Z-Image Turbo 生成一张日出海面的图，16:9 横构图。'
 const ASK_AUTO = 'Make one more image with Z-Image Turbo: the same sea at dusk, 16:9 wide shot.'
 

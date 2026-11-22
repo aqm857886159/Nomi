@@ -20,7 +20,7 @@ import { providerIdentityIcon } from '../../config/modelProviderIdentity'
 import { modelArchetypeOf, modelBrandIcon } from '../../config/modelFamilyIcons'
 import { modelCapabilityLine } from '../../config/modelCapabilityLine'
 import { applyModelBoxDefaults } from '../../config/modelBoxDefaults'
-import { specializeArchetypeForVariant } from '../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT } from '../../../electron/shared/modelArchetypes'
 
 import type { ModelProviderRef } from '../../config/modelIdentity'
 
@@ -79,6 +79,14 @@ export function modelOptionDisplayLabel(modelOptions: readonly ModelOption[], op
   return modelDisplayLabel(group ?? { label: option.label || option.value || '' })
 }
 
+/** 一个目录项在模型菜单里那一行的名字和品牌图（别处要「画一行同样的模型」时问它，不另算）。 */
+export function modelOptionIdentity(modelOptions: readonly ModelOption[], option: ModelOption): { label: string; icon: NomiSelectOption['icon'] } {
+  const group = dedupeModelOptions([...modelOptions]).find((model) => model.providers.some((provider) => provider.option === option
+    || (provider.option.value === option.value && provider.vendor === option.vendor)))
+  const label = modelDisplayLabel(group ?? { label: option.label || option.value || '' })
+  return { label, icon: modelBrandIcon(group ?? { label, providers: [] }) }
+}
+
 /** 该模型是否「病」了：**每一家**供应商都在避让期才算。注入判据便于纯函数单测。 */
 type AilingProbe = (identity: { modelKey: unknown; vendor: unknown }) => boolean
 
@@ -115,7 +123,11 @@ export const CONNECT_VENDOR_OPTION_VALUE = '\u0000nomi-connect-vendor'
  * 那个家就是设置里的模型列表，图标（眼睛）与措辞（显示 / 隐藏）与这里逐字相同。
  * 这条也是全仓所有模型框共用的同一份实现（节点 / 镜卡 / 批量），不各写一份（B7 的「三处心智不一」）。
  */
-export function modelVisibilityFooterAction(hiddenCount = 0): { label: string; icon: React.ReactNode; onSelect: () => void } {
+export function modelVisibilityFooterAction(
+  { hiddenCount, rows }: Pick<ModelMenu, 'hiddenCount' | 'rows'>,
+): { label: string; icon: React.ReactNode; onSelect: () => void } | undefined {
+  // 一家都没接入（菜单只有「去接入」那一行）、也没藏过：没有可藏的模型，这一行只是噪音（2026-11-14）。
+  if (rows.size === 0 && hiddenCount === 0) return undefined
   return {
     // 「隐藏模型 N」：N = 创作者自己藏起来的行数；一个都没藏就只写「隐藏模型」（不无缘无故多一个 0）。
     // 以前「已隐藏 N 个 · 在设置里找回」是另一行脚注——同一件事两行字，并成这一行。
@@ -155,15 +167,6 @@ function connectVendorOption(): NomiSelectOption {
  */
 function unlistedByModel(model: DedupedModel): boolean {
   return model.providers.length > 0 && model.providers.every((provider) => provider.option.unlisted === true)
-}
-
-function untriedByModel(model: DedupedModel): boolean {
-  return model.providers.some((provider) => {
-    const meta = provider.option.meta
-    if (!meta || typeof meta !== 'object') return false
-    const adapter = (meta as { adapter?: unknown }).adapter
-    return Boolean(adapter && typeof adapter === 'object' && (adapter as { evidence?: unknown }).evidence === 'self-check')
-  })
 }
 
 /**
@@ -214,7 +217,7 @@ function expandModelRows(model: DedupedModel, variantMenu: ModelVariantMenu | un
       return { key: menuRowKey(model.canonicalId, label), model, variant: { id: label, label, source: 'catalog' as const, provider } }
     })
   }
-  const archetype = variantMenu ? modelArchetypeOf(model) : null
+  const archetype = variantMenu ? modelArchetypeOf(model, { variantId: undefined, modelId: undefined }) : null
   const variants = archetype?.variants
   if (variantMenu && archetype && variants && variants.length > 1 && (variantMenu.axisLiveOf?.(model) ?? true)) {
     return variants.map((variant) => ({
@@ -240,9 +243,9 @@ function menuRowLabel(row: ModelMenuRow): string {
 
 /** 行上的一句能力描述：按这一行的档案（变体行按变体收窄后的档案）现算。 */
 function menuRowDescription(row: ModelMenuRow): string {
-  const archetype = modelArchetypeOf(row.model)
-  if (!archetype) return ''
-  return modelCapabilityLine(row.variant?.source === 'archetype' ? specializeArchetypeForVariant(archetype, row.variant.id) : archetype)
+  // 没分档的行说的是这个模型任一档能做的（并集）；变体行按那一档收窄。
+  const archetype = modelArchetypeOf(row.model, row.variant?.source === 'archetype' ? { variantId: row.variant.id, modelId: undefined } : EVERY_VARIANT)
+  return archetype ? modelCapabilityLine(archetype) : ''
 }
 
 /** 菜单上默认走的那家：被最多行选作生效供应商的那家（并列取全局顺序里靠前的）。 */
@@ -307,14 +310,12 @@ export function buildModelMenu(
       return { ...common, trailing: i18n.t('generationCommon.parameters.recentlyFailing'), trailingTone: 'danger', dimmed: true }
     }
     if (multiVendor) return { ...common, chips }
-    // 单家：厂商名只在「看得出区别」时才出现；「未试跑」「暂未列出」两句实话照旧附在后面，
-    // 不另起新元素（2026-09-06 拍板：别把模型名挤没）。
+    // 单家：厂商名只在「看得出区别」时才出现；「暂未列出」这句实话照旧附在后面，
+    // 不另起新元素（2026-09-06 拍板：别把模型名挤没）。这里曾经还附「未试跑」——没有验证这回事，
+    // 就没有「没试跑」这一档（D-1117-delete-verification，用户 2026-11-18 追认）。
     const provider = providers[0]
     const vendorName = showVendorName && provider && (provider.vendor || '').toLowerCase() !== defaultVendor.toLowerCase() ? [modelProviderLabel(provider)] : []
-    const notes = [
-      ...(untriedByModel(m) ? [i18n.t('generationCommon.parameters.untried')] : []),
-      ...(unlistedByModel(m) ? [i18n.t('generationCommon.parameters.unlisted')] : []),
-    ]
+    const notes = unlistedByModel(m) ? [i18n.t('generationCommon.parameters.unlisted')] : []
     const trailing = [...vendorName, ...notes].join(' · ')
     return { ...common, ...(trailing ? { trailing } : {}) }
   }
@@ -412,8 +413,8 @@ export interface DedupedModelSelectView {
   onProviderPick: (addressValue: string) => void
   /** 当前选中的去重模型（供上层取档案/变体等）。 */
   selectedModel: DedupedModel | null
-  /** 创作者自己藏起来的行数（模型框底部「隐藏模型 N」的 N）。 */
-  hiddenCount: number
+  /** 模型框底部那一行「隐藏模型 N」（没有可藏的模型时没有）。 */
+  visibilityFooter: ReturnType<typeof modelVisibilityFooterAction>
 }
 
 /**
@@ -543,6 +544,6 @@ export function useDedupedModelSelect(
     providerValue,
     onProviderPick,
     selectedModel,
-    hiddenCount: menu.hiddenCount,
+    visibilityFooter: modelVisibilityFooterAction(menu),
   }
 }

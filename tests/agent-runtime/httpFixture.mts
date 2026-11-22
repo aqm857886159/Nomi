@@ -2,9 +2,12 @@ import { createServer, type IncomingHttpHeaders } from 'node:http';
 import { once } from 'node:events';
 
 export interface CapturedRequest {
+  method: string;
   path: string;
   headers: IncomingHttpHeaders;
   body: Record<string, unknown>;
+  /** 收到的请求体原字节（UTF-8）。逐字节对拍用：`body` 是解析过的，键序和空白都看不出来。 */
+  raw: string;
 }
 
 interface FixtureOutput {
@@ -28,11 +31,22 @@ export type FixturePart =
    * 「不一致」看起来像投影错了。
    */
   | { type: 'thinking'; text: string }
+  /**
+   * Responses 协议的推理条目（`type: 'reasoning'`，带 `encrypted_content`）：**只有 openai-responses 那条路支持**
+   * （pi 把整条条目存进 `thinkingSignature`，下一次请求原样回放，`api/openai-responses-shared.js:138-140`、`:581-586`）。
+   */
+  | { type: 'responsesReasoning'; id: string; encryptedContent: string; summary?: string }
   | { type: 'toolCall'; id: string; name: string; arguments: unknown };
 
 function refuseThinking(parts: readonly FixturePart[], protocol: string): void {
   if (parts.some((part) => part.type === 'thinking')) {
     throw new Error(`Fixture thinking parts are only wired for openai-completions, not ${protocol}`);
+  }
+}
+
+function refuseResponsesReasoning(parts: readonly FixturePart[], protocol: string): void {
+  if (parts.some((part) => part.type === 'responsesReasoning')) {
+    throw new Error(`Fixture responsesReasoning parts are only wired for openai-responses, not ${protocol}`);
   }
 }
 
@@ -67,8 +81,9 @@ export async function createHttpFixture(initialReplies: FixtureReply[] = []) {
   const server = createServer(async (request, response) => {
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
-    const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>;
-    requests.push({ path: request.url ?? '', headers: request.headers, body });
+    const raw = Buffer.concat(chunks).toString('utf8');
+    const body = JSON.parse(raw) as Record<string, unknown>;
+    requests.push({ method: request.method ?? '', path: request.url ?? '', headers: request.headers, body, raw });
     let reply = replies.shift();
     while (reply?.type === 'deferred') reply = await reply.beforeReply();
     if (!reply || reply.type === 'error') {
@@ -93,6 +108,7 @@ export async function createHttpFixture(initialReplies: FixtureReply[] = []) {
         stop_sequence: null, usage: { input_tokens: usage.input, output_tokens: 0,
           cache_read_input_tokens: usage.cacheRead, cache_creation_input_tokens: usage.cacheWrite } } });
       refuseThinking(parts, 'anthropic-messages');
+      refuseResponsesReasoning(parts, 'anthropic-messages');
       const blocks = parts.map((part) => part.type === 'text'
         ? { type: 'text', text: part.text }
         : { type: 'tool_use', id: (part as Extract<FixturePart, { type: 'toolCall' }>).id,
@@ -122,7 +138,10 @@ export async function createHttpFixture(initialReplies: FixtureReply[] = []) {
       event('response.created', { response: { id, status: 'in_progress', output: [] } });
       refuseThinking(parts, 'openai-responses');
       let textItems = 0;
-      const items = parts.map((part) => part.type === 'text'
+      const items = parts.map((part) => part.type === 'responsesReasoning'
+        ? { id: part.id, type: 'reasoning', summary: part.summary ? [{ type: 'summary_text', text: part.summary }] : [],
+            encrypted_content: part.encryptedContent }
+        : part.type === 'text'
         ? { id: `msg-${requests.length}${textItems++ === 0 ? '' : `-${textItems - 1}`}`, type: 'message',
             role: 'assistant', status: 'completed',
             content: [{ type: 'output_text', text: part.text, annotations: [] }] }
@@ -133,7 +152,7 @@ export async function createHttpFixture(initialReplies: FixtureReply[] = []) {
       items.forEach((item, output_index) => {
         const part = parts[output_index];
         event('response.output_item.added', { output_index, item: { ...item, status: 'in_progress',
-          ...(item.type === 'message' ? { content: [] } : { arguments: '' }) } });
+          ...(item.type === 'message' ? { content: [] } : item.type === 'reasoning' ? { summary: [] } : { arguments: '' }) } });
         if (part?.type === 'text') {
           event('response.output_text.delta', { output_index, content_index: 0, item_id: item.id, delta: part.text });
         } else if (part?.type === 'toolCall') {
@@ -154,6 +173,7 @@ export async function createHttpFixture(initialReplies: FixtureReply[] = []) {
     }
     // 连着的工具调用并成一条 delta（供应商就是这么发的，也让 `type:'tool'` 的字节
     // 与归一之前一模一样）；文字段照 `chunks` 铺开。段与段之间保持给定顺序。
+    refuseResponsesReasoning(parts, 'openai-completions');
     const deltas: Array<Record<string, unknown>> = [];
     let toolCallIndex = 0;
     for (const part of parts) {
@@ -165,6 +185,7 @@ export async function createHttpFixture(initialReplies: FixtureReply[] = []) {
         deltas.push({ role: 'assistant', reasoning_content: part.text });
         continue;
       }
+      if (part.type === 'responsesReasoning') continue; // 上面已经拒收，这里只为收窄类型
       const call = { index: toolCallIndex++, id: part.id, type: 'function',
         function: { name: part.name, arguments: JSON.stringify(part.arguments) } };
       const previous = deltas.at(-1);

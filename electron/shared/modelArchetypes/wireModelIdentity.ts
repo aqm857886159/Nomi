@@ -21,7 +21,7 @@
  *
  * 放在 `electron/shared/modelArchetypes/`（档案领域目录）：渲染层判「变体栏活不活」与主进程决定发什么，问的是同一个谓词。
  */
-import { resolveArchetypeForModel, type ArchetypeMode, type ModelArchetype } from "./index";
+import { resolveModelArchetype, type ArchetypeMode, type ModelArchetype } from "./index";
 import { resolveArchetypeVariant } from "./variantResolution";
 import { modeTransportFor } from "../videoCapabilities/modeTransport";
 
@@ -77,7 +77,7 @@ export function connectionWireModel(connection: Pick<WireModelConnection, "model
 
 /**
  * 没有显式 modeId 时按 (vendor, taskKind) 选主模式：档案默认模式在这个桶里就用它，否则取桶里首个声明的模式。
- * 与 headless 缺参兜底（gen-archetype-wire-defaults 的「主模式判据」）同一条规则。
+ * 与 headless 缺参兜底（catalogFacts.headlessDefaultsOf 的「主模式判据」）同一条规则。
  */
 function modeForTask(archetype: ModelArchetype, vendorKey: string, taskKind: string): ArchetypeMode | undefined {
   const inBucket = archetype.modes.filter((mode) => modeTransportFor(mode, archetype, vendorKey) === taskKind);
@@ -123,16 +123,19 @@ export function resolveWireModel(input: WireModelInput): string {
   const selection = record(extras.archetype);
   const rowMeta = record(input.connection.modelMeta);
   // 目录行的 archetypeId 优先、其次节点存的 archetype.id、最后按模型身份——与渲染层同一个解析入口。
-  const archetype = resolveArchetypeForModel({
+  const pick = (every: ModelArchetype) => ({
+    variantId: selectionBelongsTo(every, selection) ? selection.variantId : undefined,
+    modelId: text(extras.modelKey) || input.connection.modelKey,
+  });
+  const archetype = resolveModelArchetype({
     modelKey: input.connection.modelKey,
     modelAlias: input.connection.modelAlias ?? null,
     vendorKey: input.connection.vendorKey,
     meta: { ...rowMeta, ...(Object.keys(selection).length ? { archetype: selection } : {}) },
-  });
+  }, { variant: pick });
   if (!archetype) return fallback;
   const variant = resolveArchetypeVariant(archetype, {
-    ...(selectionBelongsTo(archetype, selection) ? { variantId: selection.variantId } : {}),
-    modelId: text(extras.modelKey) || input.connection.modelKey,
+    ...pick(archetype),
   });
   const mode = selectedMode(archetype, selection, input.connection.vendorKey, text(input.taskKind));
   return text(variant?.modelKey) || text(mode?.modelEnum) || fallback;

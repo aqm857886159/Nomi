@@ -58,6 +58,8 @@ export const FIXTURE_VENDOR = 'agent-runtime-loopback'
 export const FIXTURE_VENDOR_NAME = 'Agent Runtime Loopback'
 export const FIXTURE_TEXT_MODEL = 'agent-runtime-text'
 export const FIXTURE_IMAGE_MODEL = 'agent-runtime-image'
+/** 模型面上的完整名字（`draft_shots` 的 `model` 原样抄它；格式与 `modelHandleOf` 同一份：modelId@vendor）。 */
+export const FIXTURE_IMAGE_HANDLE = `${FIXTURE_IMAGE_MODEL}@${FIXTURE_VENDOR}`
 // v4 的模型弹层每行只印**显示名**（`labelZh || modelKey`），没有 per-row 挂点，
 // 所以走查按名字选模型。名字与下面的 catalog 共用同一个常量，两边不会各写一份。
 export const FIXTURE_TEXT_MODEL_LABEL = 'Fixture 文本'

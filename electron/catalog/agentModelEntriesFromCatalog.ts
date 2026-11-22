@@ -8,7 +8,7 @@
 // 与渲染层 `buildAgentModelEntries` 的关系：两边都是「目录行 + 档案 → AgentModelEntry」这**同一个**
 // 投影，只是取目录行的方式不同（渲染层走 catalog IPC 的 ModelOption，这里直接读 CatalogState）。
 // 投影的形状与字段由 `AgentModelEntry` 一处定义，两边都不许各加各的字段。
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
 import type { AgentModelEntry } from "../shared/agentCapabilities/availableModels";
 import type { ModelAvailabilityFacts } from "../shared/agentCapabilities/modelSpecProjection";
 import { missingDeclaredCapabilityFields } from "../shared/customCapabilityContract";
@@ -46,12 +46,13 @@ export function agentModelEntriesFromCatalog(
     if (seen.has(identity)) continue;
     seen.add(identity);
     const model = state.models.find((item) => item.vendorKey === row.vendor && item.modelKey === row.modelKey);
-    const archetype = missingDeclaredCapabilityFields(model?.meta).length ? null : resolveArchetypeForModel({
+    // 名单层一行一模型：这一行能做什么 = 全部档的并集（按档的差异在模型说明里给）。
+    const archetype = missingDeclaredCapabilityFields(model?.meta).length ? null : resolveModelArchetype({
       modelKey: row.modelKey,
       modelAlias: model?.modelAlias ?? null,
       vendorKey: row.vendor,
       meta: model?.meta,
-    });
+    }, { variant: EVERY_VARIANT });
     const entry: AgentModelEntry = {
       modelId: row.modelKey,
       modelAlias: model?.modelAlias ?? null,
@@ -65,7 +66,7 @@ export function agentModelEntriesFromCatalog(
             modeId: mode.id,
             vendorTerm: mode.vendorTerm,
             intent: mode.intent,
-            hint: (model?.meta as { adapter?: { evidence?: string } } | undefined)?.adapter?.evidence === "self-check" ? `${mode.hint} 未试跑 / Not generation-tested.`.trim() : mode.hint,
+            hint: mode.hint,
             ...(mode.consumesAnchors ? { consumesAnchors: mode.consumesAnchors } : {}),
             params: mode.params,
             slots: mode.slots.map((slot) => ({

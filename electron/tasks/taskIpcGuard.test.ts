@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { runTaskIpcGuard } from './taskIpcGuard'
-import { parseVendorErrorFromMessage } from '../../src/workbench/generationCanvas/runner/vendorErrorIpc'
+import { parseVendorErrorFromMessage } from '../shared/generationFailure'
 
 describe('runTaskIpcGuard structured task errors', () => {
   it('preserves production shot claim code and reason through the existing IPC marker', async () => {

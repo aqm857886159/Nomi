@@ -8,8 +8,6 @@ import {
 } from "../settings/generationModelDefaultsSettings";
 import { readCatalog } from "../catalog/catalogStore";
 import { type KeyStatusProbe } from "../catalog/secrets";
-import { buildVideoModelCandidates, videoArchetypeIdFromMeta } from "../shared/videoCapabilities/registry";
-import { effectiveVideoModes } from "../shared/videoCapabilities/recommendation";
 import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
 
 /** The candidate identity consumed by the semantic storyboard planner. */
@@ -18,7 +16,6 @@ export type GenerationStoryboardDefault = Readonly<{
   providerId: string;
   modelId: string;
   mode: GenerationDefaultTaskKind;
-  modeId?: string;
 }>;
 
 const MODEL_KIND_BY_TASK: Record<GenerationDefaultTaskKind, Model["kind"]> = {
@@ -65,25 +62,13 @@ export function createGenerationDefaultModelResolver(
       : undefined;
     const model = selected;
     if (!model) return undefined;
-    const modeId = model.kind === "video"
-      ? (() => {
-        const video = buildVideoModelCandidates([{
-          provider: model.vendorKey,
-          modelKey: model.modelKey,
-          label: model.labelZh,
-          archetypeId: videoArchetypeIdFromMeta(model.meta),
-        }])[0];
-        return video
-          ? effectiveVideoModes(video).find((mode) => mode.transportTaskKind === taskKind)?.id
-          : undefined;
-      })()
-      : undefined;
+    // 默认只答「哪个模型」。方式不在这里挑（2026-11-17 删）：方式由归一按这个模型的档案 + 这次真放进来的参考现算，
+    // 和点名别的模型、画布同一个主人（`modeForInputs`）。以前这里取「第一个同桶方式」带出去，点名别家时也被继承过去。
     return {
       moduleId: SINGLE_SHOT_GENERATION_MODULE_ID,
       providerId: model.vendorKey,
       modelId: model.modelKey,
       mode: taskKind,
-      ...(modeId ? { modeId } : {}),
     };
   };
 }

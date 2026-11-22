@@ -58,9 +58,8 @@ it.each([
 ])('G10: %s %s resend copy belongs to the spend owner', async (locale,kind,titleKind) => {
  await i18n.changeLanguage(locale)
  const request=vi.spyOn(useSpendConfirmStore.getState(),'requestConfirm').mockResolvedValue(false)
- const disclosure={message:'hosting',rememberLabel:'remember'}
- expect(await confirmGenerationResend({kind,resultUnknown:true,hostingDisclosure:disclosure})).toBe(false)
- expect(request).toHaveBeenCalledWith(expect.objectContaining({title:i18n.t(`generationCommon.spend.resend.title.${titleKind}`),kind:'generation',hostingDisclosure:disclosure,message:i18n.t('generationCommon.spend.resend.unknown')}))
+ expect(await confirmGenerationResend({kind,resultUnknown:true})).toBe(false)
+ expect(request).toHaveBeenCalledWith(expect.objectContaining({title:i18n.t(`generationCommon.spend.resend.title.${titleKind}`),kind:'generation',message:i18n.t('generationCommon.spend.resend.unknown')}))
  expect(request.mock.calls.at(-1)?.[0].message.split('\n')).toHaveLength(2)
  request.mockRestore();await i18n.changeLanguage('zh-CN')
 })

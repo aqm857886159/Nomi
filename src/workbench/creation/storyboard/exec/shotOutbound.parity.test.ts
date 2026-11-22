@@ -1,6 +1,6 @@
 vi.mock('../../../../config/useModelOptions', () => ({ preloadModelOptions: async () => [{ value: 'MiniMax-H3', modelKey: 'MiniMax-H3', vendor: 'apimart', label: 'MiniMax-H3' }] }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import type { ArchetypeMode } from '../../../../../electron/shared/modelArchetypes/types'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvasToolCall'
@@ -40,7 +40,7 @@ vi.mock('../../../generationCanvas/components/batchPlanPreview', () => ({
   },
 }))
 
-const archetype = resolveArchetypeForModel({ modelKey: 'MiniMax-H3', vendorKey: 'apimart' })!
+const archetype = resolveModelArchetype({ modelKey: 'MiniMax-H3', vendorKey: 'apimart' }, { variant: EVERY_VARIANT })!
 const mode: ArchetypeMode = archetype.modes.find((candidate) => candidate.slots.some((slot) => slot.kind === 'image_ref'))
   ?? archetype.modes.find((candidate) => candidate.slots.length > 0)!
 const slot = mode.slots.find((candidate) => candidate.kind === 'image_ref') ?? mode.slots[0]

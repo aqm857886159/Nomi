@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { describeAgentError, describeEmptyAgentReply } from "./agentError";
 import { modelCallFailure } from "./runtimeVendorError";
-import { parseVendorErrorFromMessage, stripVendorErrorMarker } from "../../src/workbench/generationCanvas/runner/vendorErrorIpc";
+import { parseVendorErrorFromMessage, stripVendorErrorMarker } from "../shared/generationFailure";
 
 /** 服务商回了非 2xx：传输层记下的事实 → 文本任务抛出的那个错误（与生产同一个映射）。 */
 function httpFailure(status: number, body = "", vendorKey = "relay"): Error {
@@ -34,7 +34,7 @@ describe("describeAgentError", () => {
   });
 
   // 这个漏斗把厂商失败的 category 结构化带过 IPC，让渲染层不必用关键词猜。两端契约在这里对账：
-  // 电子侧编码 ↔ 渲染层 vendorErrorIpc 解码，改一端不改另一端立刻红。
+  // 电子侧编码 ↔ 共享层 generationFailure 解码，改一端不改另一端立刻红。
   it("厂商失败带上结构化 category，且剥掉标记后展示串一字未变", () => {
     const out = describeAgentError(httpFailure(401, JSON.stringify({ error: { message: "Unauthorized" } }), "apimart"));
     expect(parseVendorErrorFromMessage(out)).toMatchObject({ category: "auth", httpStatus: 401, vendorKey: "apimart" });

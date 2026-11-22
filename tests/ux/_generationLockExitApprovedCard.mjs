@@ -103,17 +103,20 @@ export async function approvedUnknownResultCardJourney(input) {
     await expect(surface.getByRole('button', { name: t('generationCommon.production.runAction.retry-retrieval'), exact: true })).toBeVisible(); await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').click(); await checkDialog('waiting'); if (locale === 'zh-CN') await shot('WaitingCanvasConfirm'); await dialog.locator('[data-spend-confirm-action="cancel"]').click()
     // board:UnknownResultCard/waiting.retrieve — genuine free query, no extra POST.
     const posts = proxy.records.length; fixture.holdTasks(false); await surface.getByRole('button', { name: t('generationCommon.production.runAction.retry-retrieval'), exact: true }).click(); await expect.poll(async () => (await nodes()).find(n => n.id === waiting.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success'); assert.equal(proxy.records.length, posts)
-    await storyboard(unknown.id)
-    // board:UnknownResultCard/notice.skipped
-    const noticeStartedAt = Date.now()
-    await page.evaluate(ids => { void window.__nomiConfirmAndRunPlan({waves:[ids],edgesUsed:[],blocked:[]},{initiator:'user'}) }, [unknown.id, waiting.id])
-    // The batch settles before its notice; wait on the station budget like the interrupted walk and record how long it took.
-    await expect(page.getByText(t('generationCommon.batchPlan.openRunsSkipped').replace('{{count}}', '1'), { exact: true }).first()).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
-    report.noticeVisibleMs = Date.now() - noticeStartedAt
-    if (locale === 'zh-CN') await shot('NoticeStoryboard')
     // board:UnknownResultCard/other-failures.red — real provider refusal remains a failure.
     await expect.poll(async () => (await nodes()).find(n => n.id === waiting.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     const ordinary = (await nodes()).find(n => n.id === waiting.id); proxy.setLimit(0); await canvas(ordinary.id); await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').click(); await confirmLockExitSpend(page, report, { shot, until: async () => (await nodes()).find(n => n.id === ordinary.id)?.status === 'error' }); await expect.poll(async () => (await nodes()).find(n => n.id === ordinary.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error'); await expect(page.locator(`[data-node-id="${ordinary.id}"] [role="alert"]`)).toBeVisible()
+    await storyboard(unknown.id)
+    // board:UnknownResultCard/notice.skipped
+    // 「生成整组」的真入口：组里一张上一次还没结束（主进程还开着，不上卡、确认后算「跳过」），一张刚失败的（默认勾上）；确认后报「跳过了 1 张」。
+    // 一组全是上一次还没结束的，「生成整组」置灰、悬停说原因，到不了这句（修前 / 修后对照图另交）。
+    const noticeText = t('generationCommon.batchPlan.openRunsSkipped').replace('{{count}}', '1')
+    const noticeStartedAt = Date.now()
+    assert.equal(await page.evaluate(ids => window.__nomiRunGroupGenerate(ids), [unknown.id, waiting.id]), 'started')
+    // 同一家、同一个模型、同一个价已经批过一次的，这一批不再弹卡（11-13 拍板）；弹了就照常确认。
+    await confirmLockExitSpend(page, report, { context: 'batch-notice', until: async () => page.getByText(noticeText, { exact: true }).first().isVisible() })
+    report.noticeVisibleMs = Date.now() - noticeStartedAt
+    if (locale === 'zh-CN') await shot('NoticeStoryboard')
     report.checks.completed = true; return report
   } catch (error) { error.report = report; throw error }
 }

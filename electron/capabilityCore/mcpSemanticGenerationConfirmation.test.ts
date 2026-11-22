@@ -1,3 +1,4 @@
+import { issueGenerationPlanningForTest } from "./generationPlanningIssue";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -17,6 +18,7 @@ import type { GenerationProvider } from "./generationRuntimeAdapter";
 import { createProductionGenerationOperationStore } from "../productionRun/productionGenerationOperationStore";
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
 import { prepareProductionGenerationAuthorization } from "../productionRun/prepareProductionGenerationAuthorization";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const roots: string[] = [];
 const connection: McpConnectionContext = Object.freeze({
@@ -140,7 +142,7 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
     buildRequest: (input) => structuredClone(input),
     submit: vi.fn(async () => ({ providerTaskId: "fixture-task-1" })),
   };
-  const planning = createGenerationPlanningHandler({
+  const planning = createGenerationPlanningHandler(withFixedCatalog({
     registry,
     operations,
     start,
@@ -158,11 +160,11 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
       resolveShotPrice: () => ({ known: true, amount: 0 }),
       now: "2026-08-23T00:00:00.000Z",
     }),
-  });
+  }));
   const generationAuthority = createRunOwnedGenerationGateAuthority({
     owner: owner as never,
     operations,
-    planning,
+    planning: issueGenerationPlanningForTest(planning),
     receipts,
     now: () => "2026-08-23T00:00:00.000Z",
   });
@@ -172,7 +174,7 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
     makeGateway: vi.fn(() => { throw new Error("semantic confirmation must not create a gateway"); }),
     productionRuns: { createDraft: vi.fn(), readProjection: vi.fn(), readEvents: vi.fn(), readArtifactProjection: vi.fn(), readFull: vi.fn(), command: vi.fn() },
     origin: { host: "codex" as const },
-    generationPlanning: planning,
+    generationPlanning: issueGenerationPlanningForTest(planning),
     requestGenerationGate: generationAuthority.requestGenerationGate,
     authorizeGeneration: generationAuthority.authorizeGeneration,
     projectSession: {
@@ -213,8 +215,9 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
     invoke: vi.fn((method, params) => dispatch(method, params, context as never)),
     isAppOpen: () => surface === "nomi",
     getAuthenticatedClient: () => "codex",
-    verifyClientGenerationConfirmation: vi.fn(async (challenge: { handoff?: Record<string, unknown> }, attestation: unknown) => {
-      expect(attestation).toBe("signed-client-attestation");
+    verifyClientGenerationConfirmation: vi.fn(async (challenge: { handoff?: Record<string, unknown> }, answer: unknown) => {
+      // 交给主进程的是人的原话；客户端自带的 attestation 字段不往下传。
+      expect(answer).toEqual({ action: "accept", confirm: true });
       return humanConfirms(challenge, "mcp://codex");
     }),
     confirmGenerationInNomi: vi.fn(async (challenge: { handoff?: Record<string, unknown> }) => humanConfirms(challenge, "app://nomi")),
@@ -247,7 +250,7 @@ describe("semantic MCP one-confirmation journey", () => {
     expect(gate.result).toBeTruthy();
     expect((gate.result as { isError?: boolean }).isError).not.toBe(true);
     // 批准住在「批这一份的那道门」上：start 读到的是那道门已批（operationFromRun 的 authorization 投影）。
-    expect(start).toHaveBeenCalledWith(expect.objectContaining({ operationId, authorization: expect.objectContaining({ status: "approved" }) }), expect.anything());
+    expect(start).toHaveBeenCalledWith(expect.objectContaining({ operationId, authorization: expect.objectContaining({ status: "approved" }) }), expect.anything(), expect.anything());
     const persisted = repository.read(projectIdentity.projectId, operationId);
     expect(persisted?.generationPlan).toMatchObject({ state: "sealed" });
     expect(persisted?.gates.at(-1)).toMatchObject({ status: "approved", receiptId: expect.stringMatching(/^receipt-/) });
@@ -277,7 +280,7 @@ describe("semantic MCP one-confirmation journey", () => {
       // 批准记的是信封封好时的版本（1），不是确认那一刻的版本（2）：发出去的东西由信封钉死。
       expect(spendGate).toMatchObject({ status: "approved", receiptId: expect.stringMatching(/^receipt-/) });
       expect(spendGate?.authorizationEnvelope?.projectRevision).toBe(1);
-      expect(start).toHaveBeenCalledWith(expect.objectContaining({ operationId, authorization: expect.objectContaining({ status: "approved" }) }), expect.anything());
+      expect(start).toHaveBeenCalledWith(expect.objectContaining({ operationId, authorization: expect.objectContaining({ status: "approved" }) }), expect.anything(), expect.anything());
       expect(provider.submit).not.toHaveBeenCalled();
     });
   }

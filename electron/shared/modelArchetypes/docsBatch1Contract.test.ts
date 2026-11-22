@@ -1,7 +1,8 @@
 // APIMart 文档对齐第一批：档案的档位 / 方式 / 输入槽逐条对着供应商文档原文（2026-11-12 取）。
 // 每条测试名里引的是文档原句；把对应档位从档案里拿掉就红。
 import { describe, expect, it } from "vitest";
-import { getArchetypeById, specializeArchetypeForVendor } from "./index";
+import { specializeArchetypeForVendor } from "./index";
+import { getArchetypeById } from "./builtInCatalog";
 
 function apimart(id: string) {
   const base = getArchetypeById(id);

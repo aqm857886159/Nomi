@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MODEL_ARCHETYPES, getArchetypeById, specializeArchetypeForVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { rescopeArchetypeVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { MODEL_ARCHETYPES, getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import type { ModelParameterControl } from "../shared/videoCapabilities/types";
 import { APIMART_IMAGE_MODELS } from "./apimartImages";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
@@ -118,6 +119,16 @@ export const OFFICIAL_VALUES: Record<string, Official> = {
     resolution: ["480p", "720p", "1080p"],
     duration: { min: 2, max: 30 },
   },
+  // 2026-11-15 再核：videos/veo3/generation「16:9 / 9:16」（不分方式，图模式同样声明并发出）「720p (Default) / 1080p / 4k」，时长固定 8 不声明。
+  "veo-3.1": { aspect_ratio: ["16:9", "9:16"], resolution: ["720p", "1080p", "4k"] },
+  // videos/kling-v3/generation：mode std / pro / 4k，duration「Range: 3-15」，aspect_ratio 16:9 / 9:16 / 1:1。
+  "kling-3.0": { mode: ["std", "pro", "4k"], duration: { min: 3, max: 15 }, aspect_ratio: ["16:9", "9:16", "1:1"] },
+  // videos/seedance-2-0/generation：比例 7 档含 adaptive；1080p / 4k「only supported by seedance-2.0」（Fast / Mini 档案收窄）；「Supported range: 4 to 15 seconds」。
+  "seedance-2-apimart": {
+    size: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"],
+    resolution: ["480p", "720p", "1080p", "4k"],
+    duration: { min: 4, max: 15 },
+  },
   "veo3.1-fast-official": VEO_OFFICIAL,
   "veo3.1-quality-official": VEO_OFFICIAL,
   "viduq3-pro": VIDU_Q3_PRO,
@@ -140,7 +151,7 @@ function apimartControls(archetypeId: string): Array<{ where: string; control: M
   const variants: Array<string | undefined> = base.variants?.length ? base.variants.map((variant) => variant.id) : [undefined];
   const rows: Array<{ where: string; control: ModelParameterControl }> = [];
   for (const variantId of variants) {
-    const archetype = variantId ? specializeArchetypeForVariant(base, variantId) : base;
+    const archetype = variantId ? rescopeArchetypeVariant(base, { variantId: variantId, modelId: undefined }) : base;
     for (const mode of specializeArchetypeForVendor(archetype, "apimart").modes) {
       for (const control of mode.params ?? []) rows.push({ where: `${archetypeId}${variantId ? `@${variantId}` : ""}/${mode.id}/${control.key}`, control });
     }

@@ -28,7 +28,6 @@ import { storyboardFailureCopy } from '../exec/storyboardFailureCopy'
 import StoryboardRowShell from '../shotRow/StoryboardRowShell'
 import ShotReferenceStrip from '../shotRow/ShotReferenceStrip'
 import StoryboardComposerParams from '../shotRow/StoryboardComposerParams'
-import { ComposerBarRow, ComposerGenerateButton } from '../shotRow/ShotComposerBar'
 import { removeBinding } from '../shotRow/shotReferenceSlots'
 import { containedBox, densityBox, frameMediaBox, isPortraitBox, sameAspectAsBox, visualColumnWidth } from '../shotRow/shotFrameGeometry'
 import { useStoryboardRowNarrow } from '../shotRow/storyboardRowDensity'
@@ -69,7 +68,7 @@ type Props = {
   onRegenerate: () => void
   /** 可找回态的**免费**续查（`recoverNodeResult`）；缺省时那枚按钮不出现，绝不退回付费的「重试」。 */
   onRecover?: (() => void) | undefined
-  onToggleLock: () => void
+  onToggleFrozen: () => void
   onOpenPreview?: (() => void) | undefined
   onFilterByAnchor?: (() => void) | undefined
 }
@@ -101,7 +100,7 @@ export default function StoryboardAnchorRow({
   actionBusy = false,
   onRegenerate,
   onRecover,
-  onToggleLock,
+  onToggleFrozen,
   onOpenPreview,
   onFilterByAnchor,
 }: Props): JSX.Element {
@@ -202,11 +201,11 @@ export default function StoryboardAnchorRow({
           {runtime.visual && runtime.resultUrl ? (
             <div className="mt-1 flex items-center gap-0.5" data-storyboard-actbar="anchor">
               {runtime.locked ? (
-                <ActButton label={t('storyboardEditor.frame.unlock')} onClick={onToggleLock}><IconLockOpen size={14} stroke={1.8} /></ActButton>
+                <ActButton label={t('storyboardEditor.frame.unfreeze')} onClick={onToggleFrozen}><IconLockOpen size={14} stroke={1.8} /></ActButton>
               ) : (
                 <>
                   <ActButton label={t('storyboardEditor.frame.regenerate')} onClick={onRegenerate} disabled={actionBusy}><IconRefresh size={14} stroke={1.8} /></ActButton>
-                  <ActButton label={t('storyboardEditor.anchor.lockTitle')} onClick={onToggleLock}><IconLock size={14} stroke={1.8} /></ActButton>
+                  <ActButton label={t('storyboardEditor.anchor.freezeTitle')} onClick={onToggleFrozen}><IconLock size={14} stroke={1.8} /></ActButton>
                 </>
               )}
             </div>
@@ -262,26 +261,31 @@ export default function StoryboardAnchorRow({
               className="w-full border-0 bg-transparent px-2.5 py-2 text-body-sm leading-normal text-nomi-ink-80 outline-none"
             />
             {runtime.visual ? (
-              <ComposerBarRow
-                barId="anchor"
-                params={(
-                  <StoryboardComposerParams
-                    target={anchor}
-                    kind="image"
-                    modelOptions={modelOptions}
-                    onModelChange={(value, vendor) => onUpdate(planModelSelection(value, vendor))}
-                    onModeChange={(modeId) => onUpdate({ modeId })}
-                    onChange={(change) => {
-                      // 锚没有整片默认那一段：比例就写进它自己的参数（语义槽 aspect_ratio，落地时按模式翻成真实键）。
-                      const key = change.kind === 'param' ? change.key : 'aspect_ratio'
-                      onUpdate({ params: { ...(anchor.params ?? {}), [key]: change.value } })
-                    }}
-                  />
-                )}
-                action={canGenerate ? (
-                  <ComposerGenerateButton onGenerate={onGenerate} generating={actionBusy} ariaLabel={t('storyboardEditor.anchor.generateAria', { name: displayName })} />
-                ) : null}
-              />
+              // 分隔线和内边距是这只框自己的；底栏本身和画布、镜头行同一份。
+              <div className="mt-auto border-t border-nomi-line-soft px-2 py-1.5">
+                <StoryboardComposerParams
+                  target={anchor}
+                  kind="image"
+                  modelOptions={modelOptions}
+                  onModelChange={(value, vendor) => onUpdate(planModelSelection(value, vendor))}
+                  onModeChange={(modeId) => onUpdate({ modeId })}
+                  onChange={(change) => {
+                    // 锚没有整片默认那一段：比例就写进它自己的参数（语义槽 aspect_ratio，落地时按模式翻成真实键）。
+                    const key = change.kind === 'param' ? change.key : 'aspect_ratio'
+                    onUpdate({ params: { ...(anchor.params ?? {}), [key]: change.value } })
+                  }}
+                  footer={{
+                    attrs: { 'data-storyboard-composer-bar': 'anchor' },
+                    send: canGenerate ? {
+                      label: t('storyboardEditor.frame.generate'),
+                      busy: actionBusy,
+                      onClick: onGenerate,
+                      ariaLabel: t('storyboardEditor.anchor.generateAria', { name: displayName }),
+                      attrs: { 'data-storyboard-generate-state': actionBusy ? 'busy' : 'idle' },
+                    } : undefined,
+                  }}
+                />
+              </div>
             ) : null}
           </div>
         </div>
@@ -340,7 +344,7 @@ function AnchorFace({
           {aspectTag}
           {runtime.locked ? (
             <span className="absolute right-1 top-1 z-[2] inline-flex items-center gap-0.5 rounded-pill bg-nomi-overlay-chip-strong px-1 py-0.5 text-micro text-nomi-media-ink">
-              <IconLock size={10} stroke={2} aria-label={t('storyboardEditor.frame.lockedBadge')} />
+              <IconLock size={10} stroke={2} aria-label={t('storyboardEditor.frame.frozenBadge')} />
             </span>
           ) : null}
         </div>

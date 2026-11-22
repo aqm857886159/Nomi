@@ -4,7 +4,7 @@ import type { GenerationProviderCapabilities } from "./generationRuntimeAdapter"
 import { readCatalog } from "../catalog/catalogStore";
 import { wireReferencedParamKeys, consumedCanonicalKeys } from "../catalog/paramTranslate";
 import { WIRE_MODEL_PARAM } from "../shared/modelArchetypes/wireModelIdentity";
-import { ARCHETYPE_WIRE_DEFAULTS } from "../catalog/archetypeWireDefaults.generated";
+import { builtInHeadlessDefaults } from "../shared/modelArchetypes";
 import type { CatalogState, Mapping, Model, ProfileKind } from "../catalog/types";
 import { createCatalogAvailability } from "../catalog/catalogModelAvailability";
 import { isCredentialReason } from "../shared/modelAvailability";
@@ -51,7 +51,7 @@ function parameterType(field: NonNullable<Model["onboarding"]>["fields"][number]
  *  ② `consumedCanonicalKeys(paramMap)` + `paramMap.drops` —— 经参数映射改名/丢弃的那些键同样合法
  *     （与 `apimartGenerationProjection.normalizeParameters` 的判据逐条同源，否则会出现
  *     「合同放行、运输拒收」这种两道门各答一次的裂缝）。
- *  ③ 档案 wire 默认 `ARCHETYPE_WIRE_DEFAULTS[archetypeId][taskKind][vendorKey|"*"]` —— 档案声明过默认值的
+ *  ③ 档案 wire 默认 `builtInHeadlessDefaults(archetypeId, taskKind, vendorKey)`（发送时从档案现算）—— 档案声明过默认值的
  *     那些键（手动路的 `applyHeadlessParamDefaults` 兜底填的就是它们）。
  *  ④ 既有的 `onboarding.fields`（带类型与选项，**类型信息最强，优先**）与 `defaultParams`。
  *
@@ -64,9 +64,7 @@ function wireDefaultKeysFor(model: Model, mapping: Mapping): readonly string[] {
     ? (model.meta as Record<string, unknown>).archetypeId
     : undefined;
   if (typeof archetypeId !== "string" || !archetypeId) return [];
-  const perKind = ARCHETYPE_WIRE_DEFAULTS[archetypeId]?.[mapping.taskKind];
-  if (!perKind) return [];
-  return Object.keys(perKind[mapping.vendorKey] ?? perKind["*"] ?? {});
+  return Object.keys(builtInHeadlessDefaults(archetypeId, mapping.taskKind, mapping.vendorKey) ?? {});
 }
 
 function modelParameterSchema(model: Model, mappings: readonly Mapping[]) {

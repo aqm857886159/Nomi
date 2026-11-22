@@ -123,7 +123,7 @@ export function applyFeelExemptions(result, exemptions) {
 /** Every page records; only mechanism-owned journeys can reject baseline drift. */
 export function installFeelObserver(page, {
   name,
-  outputDir = path.resolve('artifacts/feel', `${name.replace(/[^a-z0-9_-]/gi, '_')}-${randomUUID()}`),
+  outputDir = path.resolve(process.env.EVIDENCE_DIR || 'artifacts/feel', `${name.replace(/[^a-z0-9_-]/gi, '_')}-${randomUUID()}`),
   baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8')),
   exemptions = JSON.parse(fs.readFileSync(exemptionsPath, 'utf8')),
 } = {}) {

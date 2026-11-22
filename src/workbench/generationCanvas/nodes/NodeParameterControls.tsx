@@ -40,11 +40,11 @@ import {
   isParameterControl,
   nodeSelectedModelAddress,
   parameterControlRole,
-  parseControlInput,
   readMeta,
   resultPreviewUrl,
   shouldUseVideoFrameSlotFallback,
 } from './controls/parameterControlModel'
+import { parseControlInput } from '../../../../electron/shared/videoCapabilities/paramValue'
 import { createSlotFileUploads } from './controls/slotFileUploads'
 import { addAssetUrlToNode } from './nodeAssetWrite'
 import { addableReferenceKinds, type AssetDropKind } from '../model/nodeAssetDrop'
@@ -77,7 +77,7 @@ import NarrowedModeGuidanceNote from './controls/NarrowedModeGuidanceNote'
 import { resolveReferencePlacement, firstFrameTaggedSlot } from '../runner/referenceSlots'
 import { useChannelCreateBodies, type VendorMappingsReader } from './controls/useChannelCreateBody'
 import { useVariantAxisLiveOf } from './controls/useVariantAxisLiveOf'
-import { modeTransportFor, specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
+import { modeTransportFor, variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
 import ModeBar from './controls/ModeBar'
 import { buildModeMenu, modeRowName } from './controls/modeMenuModel'
 import { modeMenuOptions } from './controls/modeMenuOptions'
@@ -91,7 +91,7 @@ import referenceRowTail, { modelLimitNotice } from './controls/referenceRowTail'
 import { computeReferenceRowModel } from './controls/referenceRowModel'
 import type { AssetRef, AssetKind } from '../../assets/assetTypes'
 import { pickNodeSlotReference } from './nodeSlotReferencePick'
-import InlineParameterBar from './InlineParameterBar'
+import InlineParameterBar, { type ComposerFooterSlots } from './InlineParameterBar'
 import { composerHeadlineParts } from './composerHeadlineSummary'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
@@ -109,6 +109,8 @@ type NodeParameterControlsProps = {
   onInsertMention?: (url: string) => void
   /** 以下三件由生成框各算一份往下传（2026-10-16 可疑点 f / g）：控件不自己订整表、不各算一遍模型清单。 */
   graph: ComposerGraph; modelOptionsState: ModelOptionsState; readMappings: VendorMappingsReader
+  /** section="parameters"：整条生成底栏（见 InlineParameterBar 的 `footer`）。 */
+  footer?: ComposerFooterSlots
 }
 
 export default function NodeParameterControls({
@@ -116,6 +118,7 @@ export default function NodeParameterControls({
   section = 'all',
   onInsertMention,
   graph, modelOptionsState, readMappings,
+  footer,
 }: NodeParameterControlsProps): JSX.Element | null {
   const openProjectId = useOpenProjectId()
   const reportFeedback = React.useCallback((message: string) => {
@@ -147,11 +150,11 @@ export default function NodeParameterControls({
 
   const { modelKey: selectedModelValue, vendorKey: selectedModelVendor } = nodeSelectedModelAddress(meta)
   const selectedModelOption = findModelOptionByIdentifier(modelOptions, selectedModelValue, selectedModelVendor) || null
-  const archetype = resolveArchetypeForOption(selectedModelOption)
+  // 按节点记着的那一档收窄好的档案（方式、参考槽各档相同；参数按档）。
+  const archetype = resolveArchetypeForOption(selectedModelOption, variantRecordedInMeta(meta, meta.modelKey))
   const activeVariantId = archetype ? currentArchetypeVariant(archetype, meta)?.id || '' : ''
-  const effectiveArchetype = archetype ? specializeArchetypeForVariant(archetype, activeVariantId) : null
   // 方式按这次的输入现算（modeForInputs，唯一 owner）：方式格显示它、参考格子按它摆、参数按它收窄——显示的 = 这次真发的。
-  const modeResolution = effectiveArchetype ? effectiveArchetypeMode(effectiveArchetype, node, graph) : null
+  const modeResolution = archetype ? effectiveArchetypeMode(archetype, node, graph) : null
   const archMode = modeResolution?.mode ?? null
   const sendMode = archMode
   // A point-pick belongs to the slot configuration that opened it.
@@ -161,12 +164,12 @@ export default function NodeParameterControls({
 
   const modeBodySpecs = React.useMemo(
     () =>
-      (effectiveArchetype?.modes ?? []).map((mode) => ({
+      (archetype?.modes ?? []).map((mode) => ({
         key: mode.id,
-        taskKind: (modeTransportFor(mode, effectiveArchetype, selectedModelOption?.vendor) ?? '') as string,
+        taskKind: (modeTransportFor(mode, archetype, selectedModelOption?.vendor) ?? '') as string,
         modeId: mode.id,
       })),
-    [effectiveArchetype, selectedModelOption?.vendor],
+    [archetype, selectedModelOption?.vendor],
   )
   const modeBodies = useChannelCreateBodies(
     selectedModelOption?.vendor ?? '',
@@ -184,7 +187,7 @@ export default function NodeParameterControls({
   // 这里只消费结论——见该模块头注释（含「样张 C 为何故意不做」的实测依据）。
   // 位置必须在下面那些 early return **之前**：hooks 不能条件调用（react-hooks/rules-of-hooks）。
   const modeGuidance = useNarrowedModeGuidance({
-    archetype: effectiveArchetype,
+    archetype: archetype,
     selectedModelOption,
     modelOptions,
     modeBodies,
@@ -207,7 +210,7 @@ export default function NodeParameterControls({
 
   // 条件参数纠偏只在「这次发的就是节点存着的那个方式」时写：方式因为放了 / 删了图现算成别的时不写回
   // （参数在发送时按现算方式收窄，删了图回到原来存的值）。
-  const sendModeIsStored = Boolean(sendMode && effectiveArchetype && readModePreference(effectiveArchetype, meta)?.modeId === sendMode.id)
+  const sendModeIsStored = Boolean(sendMode && archetype && readModePreference(archetype, meta)?.modeId === sendMode.id)
   React.useEffect(() => {
     if (!ownsDerivedWrites || !sendMode || !sendModeIsStored) return
     const latest = getLatestMeta()
@@ -301,7 +304,8 @@ export default function NodeParameterControls({
     onPick: ({ value, vendor }, variantId) => {
       const sameModel = value === selectedModelValue && (!vendor || vendor === selectedModelVendor)
       if (!sameModel) handleModelChange(value, vendor)
-      const nextArchetype = resolveArchetypeForOption(findModelOptionByIdentifier(modelOptions, value, vendor) || null)
+      const nextOption = findModelOptionByIdentifier(modelOptions, value, vendor) || null
+      const nextArchetype = resolveArchetypeForOption(nextOption, { variantId, modelId: undefined })
       if (!nextArchetype) return
       updateNode(node.id, { meta: applyArchetypeVariantSwitch(getLatestMeta(), nextArchetype, variantId) })
       setOpenSlotKey('')
@@ -359,15 +363,15 @@ export default function NodeParameterControls({
         ]
       : modelImageUrlSlots
   // 模式栏按可达性收窄（U4）：档案声明了模式 ≠ 这家发得出。判据与第三闸同源（archetypeModeIsVisible），
-  // 拿不到 body 一律不收窄。变体特化不改模式 id，故按 id 取 body 与 archetype/effectiveArchetype 无关。
+  // 拿不到 body 一律不收窄。变体特化不改模式 id，故按 id 取 body 与收窄到哪一档无关。
   const modeChoices = archetype
     ? archetypeModeChoices(archetype, (mode) => modeBodies[mode.id])
     : []
   // 生成方式怎么呈现（11-12 拍板）：视频 = 底栏「方式」一格（下拉，只列模型真有的，只有一种不显示）；图片 = 没有方式格，
   // 放了图就是按图改；声音 / 3D = 沿用旧的模式栏。
-  const modeInputs = effectiveArchetype && (isVideoLike || isImageLike) ? collectModeInputs(node, graph) : null
-  const modeMenu = modeInputs && effectiveArchetype && archMode
-    ? buildModeMenu({ nodeKind: isVideoLike ? 'video' : 'other', archetype: effectiveArchetype, visible: modeChoices, inputs: modeInputs.inputs, firstFrameEmpty: modeInputs.firstFrameEmpty, resolvedModeId: archMode.id })
+  const modeInputs = archetype && (isVideoLike || isImageLike) ? collectModeInputs(node, graph) : null
+  const modeMenu = modeInputs && archetype && archMode
+    ? buildModeMenu({ nodeKind: isVideoLike ? 'video' : 'other', archetype: archetype, visible: modeChoices, inputs: modeInputs.inputs, firstFrameEmpty: modeInputs.firstFrameEmpty, resolvedModeId: archMode.id })
     : null
   const showModeBar = !isVideoLike && !isImageLike && modeChoices.length > 1
   // 当前模式的数组参考槽（全能参考，meta-only）+ 源视频单槽（HappyHorse 视频编辑）。
@@ -537,6 +541,7 @@ export default function NodeParameterControls({
         onCatalogControlChange={handleCatalogControlChange}
         onParameterControlChange={handleParameterControlChange}
         variantMenu={variantMenu}
+        {...(footer ? { footer } : {})}
         summaryOverride={summaryOverride}
         {...(headlineParts.length ? { summaryParts: headlineParts } : {})}
         // 视频节点的方式在底栏自己一格（参数面板里不再有「生成方式」）；图片没有，声音 / 3D 仍在参考区上方的模式栏。
@@ -565,18 +570,18 @@ export default function NodeParameterControls({
   // 否则用户在下面的提示词框里打了字却毫无作用，只会以为是我们坏了（D4 缺口明着标）。
   const comfyTakesPrompt = comfyWorkflowTakesPrompt(selectedModelOption?.meta)
   const showNoPromptNote = section === 'references' && comfyTakesPrompt === false
-  const guidance = withoutTextModes(modeGuidance, (effectiveArchetype ?? archetype)?.modes)
+  const guidance = withoutTextModes(modeGuidance, archetype?.modes)
   // 指路提示**独立于模式栏存在**：最坏的一种（样张 D）恰恰是「只剩 1 个模式 → 整条模式栏不显示」，
   // 那时用户什么都看不到。它若跟着模式栏一起消失，最需要说话的场合反而哑了，所以它单独进空返回判据。
   const showModeGuidance = showReferences && Boolean(guidance)
 
-  const potentialReferenceKinds = Array.from(new Set(effectiveArchetype?.modes.flatMap(mode => [
+  const potentialReferenceKinds = Array.from(new Set(archetype?.modes.flatMap(mode => [
     ...archetypeModeSlots(mode).map(() => 'image' as AssetKind),
     ...archetypeModeArraySlots(mode).map(slot => slot.accept),
     ...(archetypeModeSourceVideoSlot(mode) ? ['video' as AssetKind] : []),
   ]) ?? (isImageLike || isVideoLike ? ['image' as AssetKind] : [])))
   // 模型任何方式都不收参考图（如只会文生图的模型）：参考行照样在，入口灰掉、悬停说原因（B3i）。
-  const refsUnsupported = Boolean(effectiveArchetype) && (isImageLike || isVideoLike) && potentialReferenceKinds.length === 0
+  const refsUnsupported = Boolean(archetype) && (isImageLike || isVideoLike) && potentialReferenceKinds.length === 0
   // 「+」给哪几类：问落格的同一个判据（放进去之后收得下、有对口的格），一类都没有 =「+」置灰、点不开。只有有方式可换的节点（档案 + 视频 / 图片）才这么算。
   const addKinds: AssetDropKind[] | null = modeInputs ? addableReferenceKinds(node, graph) : null
   // 视频节点的参考行一直在（文生视频也在）：「+」放进来什么，方式跟着现算——以前文生视频这里是建画布卡的旧入口，放不了音频。

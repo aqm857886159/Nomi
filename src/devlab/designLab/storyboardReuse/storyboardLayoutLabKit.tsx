@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import StoryboardShotRow from '../../../workbench/creation/storyboard/shotRow/StoryboardShotRow'
+import { fixedEditorOwner } from '../fixedEditorOwner'
 import { StoryboardRowsBox } from '../../../workbench/creation/storyboard/shotRow/storyboardRowDensity'
 import StoryboardAnchorZone from '../../../workbench/creation/storyboard/anchorZone/StoryboardAnchorZone'
 import type { AnchorCardRuntime, ShotRowExec } from '../../../workbench/creation/storyboard/exec/storyboardRowStatus'
@@ -8,6 +9,8 @@ import { frameMediaBox } from '../../../workbench/creation/storyboard/shotRow/sh
 import type { PlanShot, StoryboardPlan } from '../../../workbench/generationCanvas/agent/storyboardPlan'
 import { effectiveShotAspect, planDefaultAspect } from '../../../workbench/generationCanvas/agent/storyboardShotScope'
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
+import type { ModelOption } from '../../../config/models'
+import type { PlanShotPatch } from '../../../workbench/generationCanvas/agent/storyboardPlanEdits'
 import { labExec, NOOP } from '../storyboard/storyboardFixtures'
 import { REUSE_IMAGE_MODELS, REUSE_VIDEO_MODELS } from './storyboardReuseFixtures'
 import { LabLocaleGate } from '../labLocaleGate'
@@ -35,19 +38,25 @@ export function LayoutStage({ width, children }: { width: number; children: Reac
   return english ? <LabLocaleGate locale="en">{rows}</LabLocaleGate> : rows
 }
 
-export function LayoutRows({ plan, width, execs = {} }: { plan: StoryboardPlan; width: number; execs?: Partial<Record<number, Partial<ShotRowExec>>> }): JSX.Element {
+type LabModels = { video: readonly ModelOption[]; image: readonly ModelOption[] }
+
+export function LayoutRows({ plan, width, execs = {}, models: catalog }: { plan: StoryboardPlan; width: number; execs?: Partial<Record<number, Partial<ShotRowExec>>>; models?: LabModels }): JSX.Element {
   const box = frameMediaBox(planDefaultAspect(plan))
+  // 行里改的值（面板里点时长、换比例）留在格子里：走查要看「改了值之后底栏怎么让」，静止态不受影响。
+  const [edits, setEdits] = React.useState<Partial<Record<number, PlanShotPatch>>>({})
   return (
     <LayoutStage width={width}>
       <div className="flex flex-col divide-y divide-nomi-line-soft">
-        {plan.shots.map((shot) => {
-          const models = shot.shotKind === 'image' ? REUSE_IMAGE_MODELS : REUSE_VIDEO_MODELS
+        {plan.shots.map((planned) => {
+          const shot = { ...planned, ...edits[planned.index] } as PlanShot
+          const models = [...(shot.shotKind === 'image' ? catalog?.image ?? REUSE_IMAGE_MODELS : catalog?.video ?? REUSE_VIDEO_MODELS)]
           const mode = resolveShotArchetypeMode(findModelOptionByIdentifier(models, shot.modelKey, shot.modelVendor), shot.modeId)?.mode ?? null
           const exec = labExec({ missingSlots: missingRequiredSlots(mode, shot, plan.anchors), ...execs[shot.index] })
           return (
             <StoryboardShotRow
               key={shot.index}
               shot={shot}
+              promptSource={fixedEditorOwner(shot.prompt)}
               anchors={plan.anchors}
               modelOptions={models}
               exec={exec}
@@ -57,7 +66,7 @@ export function LayoutRows({ plan, width, execs = {} }: { plan: StoryboardPlan; 
               variants={[]}
               onGenerate={NOOP}
               onRegenerate={NOOP}
-              onToggleLock={NOOP}
+              onToggleFrozen={NOOP}
               onOpenPreview={NOOP}
               onInsertBelow={NOOP}
               onCopy={NOOP}
@@ -70,7 +79,7 @@ export function LayoutRows({ plan, width, execs = {} }: { plan: StoryboardPlan; 
               currentRefUrls={currentRefUrls(shot)}
               mentionSearch={() => []}
               onMentionSelect={() => null}
-              onUpdate={NOOP}
+              onUpdate={(patch) => setEdits((prev) => ({ ...prev, [shot.index]: { ...prev[shot.index], ...patch } }))}
               onRemove={NOOP}
             />
           )
@@ -80,14 +89,14 @@ export function LayoutRows({ plan, width, execs = {} }: { plan: StoryboardPlan; 
   )
 }
 
-export function LayoutAnchors({ cards, aspect, width }: { cards: AnchorCardRuntime[]; aspect: string; width: number }): JSX.Element {
+export function LayoutAnchors({ cards, aspect, width, imageModels }: { cards: AnchorCardRuntime[]; aspect: string; width: number; imageModels?: readonly ModelOption[] }): JSX.Element {
   return (
     <LayoutStage width={width}>
       <div className="p-3">
         <StoryboardAnchorZone
           cards={cards}
           aspect={aspect}
-          imageModelOptions={REUSE_IMAGE_MODELS}
+          imageModelOptions={[...(imageModels ?? REUSE_IMAGE_MODELS)]}
           expanded
           onToggleExpanded={NOOP}
           onUpdateAnchor={NOOP}
@@ -95,7 +104,7 @@ export function LayoutAnchors({ cards, aspect, width }: { cards: AnchorCardRunti
           onRemoveAnchor={NOOP}
           onGenerateAnchor={NOOP}
           onRegenerateAnchor={NOOP}
-          onToggleLockAnchor={NOOP}
+          onToggleFrozenAnchor={NOOP}
           onFilterByAnchor={NOOP}
           onAddAnchor={NOOP}
         />

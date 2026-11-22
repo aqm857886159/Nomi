@@ -97,20 +97,27 @@ export async function observeIntent(world, intent) {
     const shots = Array.from({ length: intent.count }, (_, index) => ({
       title: `镜 ${index + 1}`,
       prompt: `${intent.prompt} · ${index + 1}`,
-      modelId: intent.modelId,
-      candidate: { providerId: intent.providerId, modelId: intent.modelId },
+      // 模型面只有一个名字（2026-11-15）：完整名字 `modelId@vendor`，按 Agent 这条消息看到的同一份清单查。
+      model: `${intent.modelId}@${intent.providerId}`,
       ...(intent.durationSec !== undefined ? { durationSec: intent.durationSec } : {}),
       ...(intent.references ? { references: intent.references } : {}),
       ...(intent.aspectRatio !== undefined ? { aspectRatio: intent.aspectRatio } : {}),
     }))
-    const draftCall = verbToTransportCall({ toolCallId: 'law10-draft', toolName: 'draft_shots', args: { shots } })
-    const created = await callTool(transport, draftCall.call.toolName, draftCall.call.args)
     const saidRatio = aspectOf({ aspectRatio: intent.aspectRatio })?.ratio
     const said = { model: `${intent.providerId}/${intent.modelId}`, count: intent.count, durationSec: intent.durationSec, references: intent.references?.length ?? 0, aspectRatio: saidRatio }
+    let draftCall
+    try {
+      draftCall = verbToTransportCall({ toolCallId: 'law10-draft', toolName: 'draft_shots', args: { shots } }, world.entries)
+    } catch (error) {
+      // 名字在 lane 这一侧就查不到（目录里没有）：什么都没跑，拒收原样交回。
+      if (error?.failure) return { refused: true, refusal: JSON.stringify(error.failure), said }
+      throw error
+    }
+    const created = await callTool(transport, draftCall.call.toolName, draftCall.call.args)
     if (!created?.ok) return { refused: true, refusal: JSON.stringify(created), said }
     await spend.canvasLanding.settleCanvasLanding(PROJECT_ID)
     const operation = created.result.operation
-    const generateCall = verbToTransportCall({ toolCallId: 'law10-present', toolName: 'generate', args: { operationId: operation.operationId } })
+    const generateCall = verbToTransportCall({ toolCallId: 'law10-present', toolName: 'generate', args: { operationId: operation.operationId } }, world.entries)
     await callTool(transport, generateCall.call.toolName, generateCall.call.args)
     await spend.canvasLanding.settleCanvasLanding(PROJECT_ID)
 

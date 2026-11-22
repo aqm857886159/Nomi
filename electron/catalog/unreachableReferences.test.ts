@@ -1,7 +1,7 @@
 // L3 第三闸：这条 wire 的 body 到底读不读得到本次携带的参考素材。
 // 判据 derive 自 body 引用的 {{request.params.X}}，不 hardcode 任何 vendor 键名。
 import { describe, expect, it } from "vitest";
-import { unreachableReferenceLabels } from "./taskParams";
+import { unreachableReferenceLabels } from "./taskParamsGuard";
 import { NEWAPI_VIDEO_CREATE_OP } from "./newapiTransport";
 import { VOLCENGINE_VIDEO_MODELS } from "./volcengineVideos";
 

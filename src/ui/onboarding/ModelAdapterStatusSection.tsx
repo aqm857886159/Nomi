@@ -10,24 +10,39 @@ import {
 import { useTranslation } from 'react-i18next'
 import { DesignButton, NomiLoadingMark } from '../../design'
 import { cn } from '../../utils/cn'
+import type { ModelStatusState, ModelStatusTone } from '../../../electron/shared/modelStatusPresentation'
 import type { ChipModel } from './ModelChipGroups'
-import { resolveModelAdapterDetailState } from './modelAdapterDetailState'
+import { ModelStatusMark } from './ModelStatusMark'
+import { resolveModelAdapterDetailState, type ModelAdapterDetailState } from './modelAdapterDetailState'
 
-const TONE_CLASS = {
+const TONE_CLASS: Record<ModelStatusTone, string> = {
   neutral: 'border-nomi-line bg-nomi-ink-05',
   active: 'border-transparent bg-nomi-accent-soft',
   success: 'border-workbench-success bg-workbench-success-soft',
   warning: 'border-nomi-warning bg-[color-mix(in_oklch,var(--nomi-warning)_9%,var(--nomi-paper))]',
-  danger: 'border-workbench-danger bg-[var(--workbench-danger-soft)]',
-} as const
+}
 
-function StatusIcon({ state }: { state: ReturnType<typeof resolveModelAdapterDetailState> }): JSX.Element {
+/** 正文按「接下来做什么」说；没事可做时按五个状态词之一说现状。键写全，不拼字符串。 */
+const STEP_BODY_KEY = {
+  adapting: 'onboardingProviders.workspace.adapter.body.adapting',
+  needsCapability: 'onboardingProviders.workspace.adapter.body.needsCapability',
+  needsTransport: 'onboardingProviders.workspace.adapter.body.needsTransport',
+} as const
+const STATUS_BODY_KEY = {
+  ready: 'onboardingProviders.workspace.adapter.body.ready',
+  // 格式任务在跑时状态区走 adapting 那一档；这一格只为穷尽。
+  configuring: 'onboardingProviders.workspace.adapter.body.adapting',
+  needsSetup: 'onboardingProviders.workspace.adapter.body.needsSetup',
+  disabled: 'onboardingProviders.workspace.adapter.body.disabled',
+  notConnected: 'onboardingProviders.workspace.adapter.body.notConnected',
+} as const satisfies Record<ModelStatusState, string>
+
+function StatusIcon({ state }: { state: ModelAdapterDetailState }): JSX.Element {
   if (state.state === 'adapting') return <NomiLoadingMark size={16} />
-  if (state.state === 'readyVerified') return <IconCheck size={16} stroke={2} aria-hidden="true" />
-  if (state.state === 'failed') return <IconAlertTriangle size={16} stroke={1.8} aria-hidden="true" />
   if (state.state === 'needsCapability' || state.state === 'needsTransport') {
     return <IconSettings size={16} stroke={1.8} aria-hidden="true" />
   }
+  if (state.status.state === 'ready') return <IconCheck size={16} stroke={2} aria-hidden="true" />
   return <IconInfoCircle size={16} stroke={1.8} aria-hidden="true" />
 }
 
@@ -38,7 +53,6 @@ export function ModelAdapterStatusSection({
   hasActiveRun,
   hasTask,
   capabilityKnown,
-  transportAvailable,
   starting,
   onStartAdapt,
   onOpenTask,
@@ -51,7 +65,6 @@ export function ModelAdapterStatusSection({
   hasActiveRun: boolean
   hasTask: boolean
   capabilityKnown: boolean
-  transportAvailable: boolean
   starting: boolean
   onStartAdapt: () => void
   onOpenTask: () => void
@@ -60,17 +73,14 @@ export function ModelAdapterStatusSection({
 }): JSX.Element {
   const { t } = useTranslation()
   const state = resolveModelAdapterDetailState({
-    kind: model.kind,
-    enabled: model.enabled,
-    adapterState: model.adapterState,
-    hasCustomCall: Boolean(model.hasCustomCall),
-    hasActiveRun,
+    availability: model.availability,
+    formatInProgress: hasActiveRun || model.formatInProgress === true,
+    capabilityKnown,
     hasTask,
     canAutoAdapt,
     canUseScript,
-    capabilityKnown,
-    transportAvailable,
   })
+  const bodyKey = state.state === 'status' ? STATUS_BODY_KEY[state.status.state] : STEP_BODY_KEY[state.state]
 
   const action = (() => {
     if (state.primaryAction === 'openTask') {
@@ -112,10 +122,10 @@ export function ModelAdapterStatusSection({
           </span>
           <div className="min-w-0 flex-1">
             <h3 className="text-body-sm font-semibold text-nomi-ink">
-              {t(`onboardingProviders.workspace.adapter.title.${state.state}` as 'onboardingProviders.workspace.adapter.title.readyVerified')}
+              <ModelStatusMark status={state.status} variant="text" />
             </h3>
             <p className="mt-0.5 text-caption leading-relaxed text-nomi-ink-60">
-              {t(`onboardingProviders.workspace.adapter.body.${state.state}` as 'onboardingProviders.workspace.adapter.body.readyVerified')}
+              {t(bodyKey)}
             </p>
           </div>
         </div>

@@ -32,6 +32,7 @@ import { REAL_CREDENTIAL_MARKER } from './_realProfile.mjs'
 import { assertElectronBuildArtifacts } from '../../scripts/electron-build-artifacts.mjs'
 import { assertFreshBuild } from '../../scripts/package-build-stamp.mjs'
 import { registerWalkProcess } from './_walkInstances.mjs'
+import { isIssuedWorld } from '../world/issued.mjs'
 
 const require = createRequire(import.meta.url)
 const catalogVersionManifest = require('../../electron/catalog/catalogVersion.json')
@@ -639,7 +640,7 @@ export function withPackagedPlaywrightOrigin(args, isPackaged) {
  * @param {string} [options.userDataDir]    单独指定（默认 <tempRoot>/user-data）
  * @param {string} [options.settingsDir]    单独指定（默认 <tempRoot>/settings）
  * @param {string} [options.projectsDir]    单独指定（默认 <tempRoot>/projects）
- * @param {string} [options.capabilityDir]  优先于 env.NOMI_CAPABILITY_DIR；均未设时隔离实例派生 <tempRoot>/capability
+ * @param {string} [options.capabilityDir]  优先于 env.NOMI_CAPABILITY_DIR（options.env，不含外层 shell）；均未设时隔离实例派生 <tempRoot>/capability
  * @param {string} [options.hostConfigDir]  宿主配置（CLAUDE_CONFIG_DIR / CODEX_HOME …）的隔离目录；默认 <tempRoot>/host-config
  * @param {number} [options.testedCatalogVersion]  被测构建的 catalog 版本；默认读取仓库 canonical manifest
  * @param {{width: number, height: number}} [options.viewportSize] Content viewport; defaults to ACCEPTANCE_VIEWPORT.
@@ -665,7 +666,55 @@ export function instrumentWalkWindow(page, name) {
   return installFeelObserver(page, { name })
 }
 
-export async function launchNomiApp(options = {}) {
+const LAUNCHER_DIRS_LIST = path.join(repoRoot, 'tests/ux/not-yet-migrated/launcherDirs.json')
+
+/**
+ * 隔离目录从哪来（D-test-world-owner-only）：
+ *  · `world`：tests/world 的 buildWorld / seedOldUserData 发的世界句柄，目录全由它给——新走查只走这一条；
+ *  · `settingsDir` / `projectsDir`：走查自己手建目录再往里塞存盘文件的老写法，已删。名单里「还没迁」的文件照旧能用
+ *    （tests/ux/not-yet-migrated/launcherDirs.json，只许减）；名单外的在起飞那一刻报 `launch_option_removed`。
+ */
+function resolveWorldOption(options) {
+  if (options.world !== undefined) {
+    if (!isIssuedWorld(options.world)) {
+      throw new Error('launch_world_not_issued: world 不是 buildWorld / seedOldUserData 发的句柄。用 tests/world 的 buildWorld(spec) 造。')
+    }
+    for (const key of ['tempRoot', 'userDataDir', 'settingsDir', 'projectsDir']) {
+      if (options[key] !== undefined) throw new Error(`launch_option_conflict: world 已经给出 ${key}，不要再传。`)
+    }
+    const { world, ...rest } = options
+    return { ...rest, tempRoot: world.rootDir, userDataDir: world.userDataDir, settingsDir: world.settingsDir, projectsDir: world.projectsDir }
+  }
+  if (options.settingsDir !== undefined || options.projectsDir !== undefined) {
+    const caller = firstCallerOutside(fileURLToPath(import.meta.url))
+    const listed = new Set(JSON.parse(fs.readFileSync(LAUNCHER_DIRS_LIST, 'utf8')).files)
+    // 认不出调用方（栈格式不同的平台）就放行：这是给新写走查的提醒，不是安全边界；静态扫描另有一道（tests/ux/launcherDirs.test.mjs）。
+    if (caller && !listed.has(caller)) {
+      throw new Error(`launch_option_removed: settingsDir / projectsDir 已删。传 world: await buildWorld(spec)。（调用方：${caller}）\n见 docs/plan/2026-11-22-test-world-owner-only.md「新测试入口」。`)
+    }
+  }
+  return options
+}
+
+/** 调用栈里第一个不在 selfFile 里的帧，取相对仓库根的路径；认不出返回 null。 */
+function firstCallerOutside(selfFile) {
+  const limit = Error.stackTraceLimit
+  Error.stackTraceLimit = 40
+  const stack = new Error().stack ?? ''
+  Error.stackTraceLimit = limit
+  for (const line of stack.split('\n').slice(1)) {
+    const match = /\(?((?:file:\/\/)?\/[^():]+?)(?::\d+:\d+)\)?$/.exec(line.trim().replace(/^at (?:async )?/, ''))
+    if (!match) continue
+    const file = match[1].startsWith('file://') ? fileURLToPath(match[1]) : match[1]
+    if (file === selfFile || file.includes('/node_modules/')) continue
+    const rel = path.relative(repoRoot, file)
+    if (!rel.startsWith('..')) return rel.split(path.sep).join('/')
+  }
+  return null
+}
+
+export async function launchNomiApp(rawOptions = {}) {
+  const options = resolveWorldOption(rawOptions)
   const {
     name = 'nomi-walk',
     env: extraEnv = {},
@@ -719,9 +768,10 @@ export async function launchNomiApp(options = {}) {
   const settingsDir = isolate ? (options.settingsDir ?? path.join(tempRoot, 'settings')) : null
   const projectsDir = isolate ? (options.projectsDir ?? path.join(tempRoot, 'projects')) : null
   // GUI advert/token 与 helper 发现目录必须同源；显式配置优先，最后才派生隔离默认值。
+  // 隔离实例**不继承**外面 shell 的 NOMI_CAPABILITY_DIR（它可能指着别的实例甚至创作者的真目录）：只认显式配置，其余一律派生。
+  // 非隔离（isolate:false，真实 profile）本来就不派生，继承靠 baseEnv 原样带进去。
   const capabilityDir = options.capabilityDir
     ?? extraEnv.NOMI_CAPABILITY_DIR
-    ?? process.env.NOMI_CAPABILITY_DIR
     ?? (isolate ? path.join(tempRoot, 'capability') : null)
   // isolate:false 用的就是真实 profile 与真实宿主配置（ui-driver / --real-connect 的既定设计），不动宿主变量。
   const hostConfigDir = isolate ? (options.hostConfigDir ?? path.join(tempRoot, 'host-config')) : null
@@ -1015,13 +1065,8 @@ export async function closeNomiApp(app) {
 
 /**
  * 给隔离 profile 备好「这几家各有一把可用的测试 key」：先起一次 App，经产品自己的保存口把占位 key 存成密文，
- * 关掉后在盘上把这几家的凭据和供应商翻成已启用，调用方再用同一组 options 正式起 App。
- *
- * 为什么不在正式那次里直接调 upsertVendorApiKey：保存即验证（credentialProbePolicy，APIMart / Runway 有免费探测）。
- * 开着网，占位 key 真发给供应商、401（夜跑 run 40035294026）；假凭据默认关网（见 buildNomiLaunchEnv），验证打不出去，
- * 产品照语义存成「未验证、停用」，这家的模型进不了下拉。也不能在盘上直接种明文 key：自 019d80f1d 起明文不算可用凭据。
- * 这里只翻「验证通过」会翻的标志（凭据 enabled、去掉 verificationPending；供应商 enabled），密文由产品自己写——
- * 和 credential-connect-honesty 态②同一个做法。只给隔离目录里的非秘密测试 key 用。
+ * 调用方再用同一组 options 正式起 App；断网保存也启用，不再手工修改保存口的结果。
+ * 只给隔离目录里的非秘密测试 key 用，密文由产品自己写。
  */
 export async function seedSavedFixtureCredentials(options, vendorKeys, apiKey = 'nomi-e2e-placeholder') {
   // 两次起 App 必须同一组目录：密文由 userDataDir 里的加密身份解（Windows 的 DPAPI 密钥只在它的 Local State 里）。
@@ -1041,10 +1086,7 @@ export async function seedSavedFixtureCredentials(options, vendorKeys, apiKey = 
   for (const vendorKey of vendorKeys) {
     const record = catalog.apiKeysByVendor?.[vendorKey]
     if (!record?.apiKey || record.enc !== 'safeStorage') throw new Error(`${vendorKey} 的测试 key 没以密文落盘（保存口没写下它）`)
-    record.enabled = true
-    delete record.verificationPending
     const vendor = catalog.vendors?.find((item) => item.key === vendorKey)
-    if (vendor) vendor.enabled = true
+    if (!record.enabled || !vendor?.enabled) throw new Error(`${vendorKey} 保存后没有启用`)
   }
-  fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 2))
 }

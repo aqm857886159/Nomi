@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { resources } from '../../i18n/resources'
-import { ERROR_KEY_BY_KIND, narrateGenerationError } from './narrate'
+import { narrateGenerationError } from './narrate'
+import { ERROR_KEY_BY_KIND } from '../../../electron/shared/generationFailure'
 
 /**
  * 失败文案不谈钱：现在生成都走中转站，扣没扣钱 Nomi 不知道，界面只说事实（比如「请求还没发出去」）和下一步。

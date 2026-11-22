@@ -18,15 +18,35 @@ describe('resolveModelParams / existing policies', () => {
     const previousParams = { duration: 20, steps: '5', optional: 'bad', keep: 1 }
     const result = resolveModelParams({ controls, intent: {}, previousParams, policy: human })
     expect(result.params).toEqual({ duration: 20, steps: 5, keep: 1 })
-    expect(result.changes.map(change => change.key)).toEqual(['steps', 'optional'])
+    // 存的 '5' 经值门就是档位 5：同一个值换成内部类型，不算「被改成默认」。
+    expect(result.changes.map(change => change.key)).toEqual(['optional'])
     expect(previousParams).toEqual({ duration: 20, steps: '5', optional: 'bad', keep: 1 })
     const valid = { steps: 5 }
     expect(resolveModelParams({ controls, intent: {}, previousParams: valid, policy: human }).params).toBe(valid)
   })
 
-  it('drops invalid agent values, preserves string enums, fills defaults and ignores unknown keys', () => {
+  it('a stored "8" on a numeric 5/8 select is the 8 the creator picked, not a reset to the default 5', () => {
+    // 修前：严格 includes 判 "8" 不在 [5, 8] 里 → 换成默认 5（行上显示 8、发出 5 的那一类）。"8s" 门不认，照旧按政策换默认。
+    const duration: ModelParameterControl = { key: 'duration', label: 'Duration', type: 'select', defaultValue: 5, options: [{ value: 5, label: '5' }, { value: 8, label: '8' }] }
+    expect(resolveModelParams({ controls: [duration], intent: {}, previousParams: { duration: '8' }, policy: human }))
+      .toEqual({ params: { duration: 8 }, changes: [] })
+    expect(resolveModelParams({ controls: [duration], intent: {}, previousParams: { duration: '8s' }, policy: human }).params).toEqual({ duration: 5 })
+  })
+
+  it('mixed selects from user catalogs keep a value whose number matches an option (Agent and send-review policies)', () => {
+    // 主分支按字符串形比，这两条政策下 "5" 和档位 5 算同一档、留着；门里改严格比较后由值门把它落到那一档，不掉成默认。
+    const mixed: ModelParameterControl = { key: 'steps', label: 'Steps', type: 'select', defaultValue: 'auto', options: [{ value: 5, label: '5' }, { value: 'auto', label: 'auto' }, { value: 10, label: '10' }] }
+    const textFirst: ModelParameterControl = { key: 'frames', label: 'Frames', type: 'select', defaultValue: 'auto', options: [{ value: 'auto', label: 'auto' }, { value: '5', label: '5' }] }
+    for (const policy of [agent, review]) {
+      const result = resolveModelParams({ controls: [mixed, textFirst], intent: {}, previousParams: { steps: '5', frames: 5 }, policy })
+      expect(result.params).toMatchObject({ steps: 5, frames: '5' })
+      expect(result.changes.filter(change => change.reason === 'param.value')).toEqual([])
+    }
+  })
+
+  it('drops invalid agent values, admits numeric strings as the declared number, fills defaults and ignores unknown keys', () => {
     const result = resolveModelParams({ controls, intent: {}, previousParams: { duration: 3, steps: '5', quality: null, sound: 'yes', unknown: 1 }, policy: agent })
-    expect(result.params).toEqual({ duration: 6, quality: '720p', steps: '5', sound: false })
+    expect(result.params).toEqual({ duration: 6, quality: '720p', steps: 5, sound: false })
     expect(result.changes.filter(change => change.reason === 'param.value').map(change => change.key)).toEqual(['duration', 'quality', 'sound'])
   })
 

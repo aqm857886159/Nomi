@@ -8,14 +8,12 @@ import { projectModelSettingsCatalog } from '../../../../ui/onboarding/modelSett
 import { VendorOnboardCard } from '../../../../ui/onboarding/VendorOnboardCard'
 import { ModelSettingsDetailDialog } from '../../../../ui/onboarding/ModelSettingsDetailDialog'
 import { ConnectionWorkspacePage, ModelWorkspacePage } from '../../../../ui/onboarding/ModelSettingsWorkspacePages'
-import { seedVendorHealthSnapshotForTests } from '../../../../ui/onboarding/useVendorHealth'
 import type { LabState } from '../../labScreen'
 
 function CatalogStage(): JSX.Element {
   const [selectedKey, setSelectedKey] = React.useState<string | null>(null)
   const [closed, setClosed] = React.useState(false)
   const [models, setModels] = React.useState(() => {
-    seedVendorHealthSnapshotForTests('apimart|https://api.apimart.ai', { vendorKey: 'apimart', state: 'reachable', checkedAt: 0 })
     // v0.24.1 目录中的四个文本型号。只取这组角色，仍用生产声明，以免新型号改变旁注与删除的样张。
     const sampleKeys = ['deepseek-v4-pro', 'deepseek-v4-flash', 'gemini-3.5-flash', 'MiniMax-H3-Context-IR']
     const rows: Model[] = sampleKeys.map(modelKey => {
@@ -31,7 +29,11 @@ function CatalogStage(): JSX.Element {
   // 字面量在这里是准确的：KNOWN_VENDORS 是**展示目录**，它的 vendorKey 恒为内置 key，
   // 不是运行时 vendor 行（长不出兄弟连接）。已登记进门岗豁免名单并由断言验（#831）。
   const directory = getLocalizedKnownVendors().find((vendor) => vendor.vendorKey === 'apimart')!
-  const chips = projectModelSettingsCatalog(models as unknown as Array<Record<string, unknown>>).models
+  // 样张里没有主进程：可用性结论按「有 key、有请求格式」的真实答案补上——开着就能用，关了就是已关闭。
+  const chips = projectModelSettingsCatalog(models.map((model) => ({
+    ...model,
+    availability: model.enabled ? { usable: true } : { usable: false, reason: 'model_disabled' },
+  })) as unknown as Array<Record<string, unknown>>).models
   return <div data-design-lab-stage className="bg-nomi-bg" style={{ width: 960, height: 720 }}>
     {!closed ? <ModelSettingsDetailDialog label="APIMart" onClose={() => setClosed(true)} escapeAction="close">
       {selectedKey ? <ModelWorkspacePage model={chips.find((row) => row.modelKey === selectedKey)} modelKey={selectedKey} vendorName="APIMart"

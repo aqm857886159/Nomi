@@ -5,9 +5,9 @@
 // 卡本身仍是全仓唯一那张（useSpendConfirmStore），不改它的结构。
 import i18n from '../../i18n'
 import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
-import { spendModelLine, type CredentialProbeSpendPayload } from './credentialProbeSpendCard'
+import { spendModelLine, type SpendCardModelPayload } from './spendCardModelLine'
 
-export async function confirmUncertainPriorTrialSpend(info: CredentialProbeSpendPayload): Promise<{ confirmed: boolean }> {
+export async function confirmUncertainPriorTrialSpend(info: SpendCardModelPayload): Promise<{ confirmed: boolean }> {
   const ok = await useSpendConfirmStore.getState().requestConfirm({
     kind: 'generation',
     source: 'agent',

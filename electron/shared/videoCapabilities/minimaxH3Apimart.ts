@@ -8,7 +8,8 @@ const options = (values: string[]): ModelParameterControl["options"] => values.m
 const RESOLUTION: ModelParameterControl = { key: "resolution", label: "清晰度", type: "select", options: options(["2K", "768P"]), defaultValue: "2K" };
 const DURATION: ModelParameterControl = { key: "duration", label: "时长(秒)", type: "number", options: [], min: 4, max: 15, defaultValue: 5 };
 const WATERMARK: ModelParameterControl = { key: "watermark", label: "添加水印", type: "boolean", options: [], defaultValue: false };
-const WEBHOOK: ModelParameterControl = { key: "webhook", label: "Webhook", type: "text", options: [], placeholder: "可选" };
+// 官方的 webhook（任务完成回调地址）不露出：它是管道——Nomi 自己轮询拿结果，创作者没有地址可填，
+// 也不该被问（能力表 docs/models/capabilities/minimax-h3-apimart.md 记「不露出 · 管道」）。
 const RATIO_REQUIRED: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: options(["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]), defaultValue: "16:9" };
 const RATIO_ADAPTIVE: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: options(["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]), defaultValue: "adaptive" };
 
@@ -21,7 +22,7 @@ const MODES: ModelArchetype["modes"] = [
     promptRequired: true,
     transportTaskKind: "text_to_video",
     slots: [],
-    params: [RESOLUTION, RATIO_REQUIRED, DURATION, WATERMARK, WEBHOOK],
+    params: [RESOLUTION, RATIO_REQUIRED, DURATION, WATERMARK],
   },
   {
     id: "first",
@@ -34,7 +35,7 @@ const MODES: ModelArchetype["modes"] = [
       { kind: "first_frame", label: "首帧", min: 1, max: 1, inputKey: "first_frame_image" },
       { kind: "last_frame", label: "尾帧", min: 0, max: 1, inputKey: "last_frame_image" },
     ],
-    params: [RESOLUTION, DURATION, WATERMARK, WEBHOOK],
+    params: [RESOLUTION, DURATION, WATERMARK],
   },
   {
     id: "firstlast",
@@ -47,7 +48,7 @@ const MODES: ModelArchetype["modes"] = [
       { kind: "first_frame", label: "首帧", min: 1, max: 1, inputKey: "first_frame_image" },
       { kind: "last_frame", label: "尾帧", min: 1, max: 1, inputKey: "last_frame_image" },
     ],
-    params: [RESOLUTION, DURATION, WATERMARK, WEBHOOK],
+    params: [RESOLUTION, DURATION, WATERMARK],
   },
   {
     id: "ref",
@@ -63,7 +64,7 @@ const MODES: ModelArchetype["modes"] = [
       // 音频不能单独输入（原由按名字挂的 apimart-minimax-h3 补丁判，现由发送前的通用一步按这条声明判）。
       { kind: "audio_ref", label: "参考音频", min: 0, max: 3, inputKey: "audio_urls", requiresAnyOf: ["image_ref", "video_ref"] },
     ],
-    params: [RESOLUTION, RATIO_ADAPTIVE, DURATION, WATERMARK, WEBHOOK],
+    params: [RESOLUTION, RATIO_ADAPTIVE, DURATION, WATERMARK],
   },
 ];
 

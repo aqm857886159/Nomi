@@ -33,7 +33,7 @@ export const STILL_PROP = still('#3d4a3a', '#141a12', 'prop')
 export const STILL_WIDE = still('#4a3a2a', '#1a1410', 'wide')
 
 /**
- * 模型清单：`modelKey` 是真实档案的 identifierPattern，所以 `resolveArchetypeForModel` 真的解析得出档案。
+ * 模型清单：`modelKey` 是真实档案的 identifierPattern，所以 `resolveModelArchetype` 真的解析得出档案。
  * 六种真实档案（合同 §4.3 的矩阵）全在这里能被寻址到。
  */
 // 目录行带档案 id（生产的目录行就带；模型菜单的品牌图标和能力描述靠它）。

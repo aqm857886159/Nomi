@@ -93,7 +93,7 @@ const CASES: readonly ProjectionCase[] = [
     // 生成 lane 没有 `*InputForAlias`：它的「补值 + 重过同一份 schema」就是传输层那一步加上宿主桥的
     // `generationPlanInputSchema.parse`。这里走的是**生产那条真路**，不是在测试里重拼一遍。
     admit: (args) => generationPlanInputSchema.parse(
-      verbToTransportCall({ toolCallId: "probe", toolName: "generate", args })!.call.args,
+      verbToTransportCall({ toolCallId: "probe", toolName: "generate", args }, [])!.call.args,
     ),
   },
   {

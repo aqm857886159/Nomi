@@ -1,4 +1,3 @@
-import { revalidatePendingCredential } from '../catalog/validateCandidateCredential';
 import {
   extractVendorExtraHeaders,
   mutateCatalog,
@@ -173,7 +172,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
       }
     }
     const isolatedCandidate = identity.isolated;
-    const vendorEnabled = isolatedCandidate ? false : vendorHasPublishedExecution(before, sourceVendorKey);
+    const vendorEnabled = !isolatedCandidate && (vendorHasPublishedExecution(before, sourceVendorKey) || input.models.some((model) => model.kind === "text"));
     return mutateCatalog((tx) => {
       for (const superseded of identity.supersededVendorKeys) tx.deleteVendor(superseded);
       const vendor = tx.upsertVendor({
@@ -195,9 +194,9 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
         },
       });
       if (input.authType === "none") tx.deleteApiKey(targetVendorKey);
-      else if (!input.preserveExistingCredential) tx.upsertApiKey(targetVendorKey, { apiKey: input.apiKey, enabled: true, ...(before.apiKeysByVendor[sourceVendorKey]?.verificationPending ? { verificationPending: true } : {}) });
+      else if (!input.preserveExistingCredential) tx.upsertApiKey(targetVendorKey, { apiKey: input.apiKey, enabled: true });
       else if (isolatedCandidate) {
-        tx.upsertApiKey(targetVendorKey, { apiKey: decryptStoredApiKeyRecord(savedCredential), enabled: true, ...(savedCredential?.verificationPending ? { verificationPending: true } : {}) });
+        tx.upsertApiKey(targetVendorKey, { apiKey: decryptStoredApiKeyRecord(savedCredential), enabled: true });
       }
       const models = input.models.map((selected) => {
         const existing = before.models.find(
@@ -217,7 +216,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
           modelAlias: existing?.modelAlias || selected.modelKey,
           labelZh: selected.labelZh || existing?.labelZh || humanizeModelKey(selected.modelKey),
           kind: selected.kind,
-          enabled: Boolean(existing?.enabled && canExecute),
+          enabled: !existing && selected.kind === "text",
           onboarding: existing?.onboarding || { addedVia: "manual", addedAt: input.savedAt, fields: [] },
           meta: {
             ...asRecord(existing?.meta),
@@ -252,7 +251,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
       throw new Error("The saved connection credential needs to be saved again before authentication can continue");
     }
     const isolatedCandidate = identity.isolated;
-    const vendorEnabled = isolatedCandidate ? false : vendorHasPublishedExecution(before, sourceVendorKey);
+    const vendorEnabled = !isolatedCandidate && (vendorHasPublishedExecution(before, sourceVendorKey) || input.models.some((model) => model.kind === "text"));
     return mutateCatalog((tx) => {
       for (const superseded of identity.supersededVendorKeys) tx.deleteVendor(superseded);
       const vendor = tx.upsertVendor({
@@ -273,7 +272,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
         },
       });
       if (input.authType === "none") tx.deleteApiKey(targetVendorKey);
-      else tx.upsertApiKey(targetVendorKey, { apiKey: input.apiKey, enabled: true, ...(before.apiKeysByVendor[sourceVendorKey]?.verificationPending ? { verificationPending: true } : {}) });
+      else tx.upsertApiKey(targetVendorKey, { apiKey: input.apiKey, enabled: true });
       const models = input.models.map((selected) => {
         const existing = before.models.find(
           (model) => model.vendorKey === targetVendorKey && model.modelKey === selected.modelKey,
@@ -286,7 +285,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
           modelAlias: activeContract?.modelAlias || existing?.modelAlias || selected.modelKey,
           labelZh: activeContract?.labelZh || selected.labelZh || existing?.labelZh || humanizeModelKey(selected.modelKey),
           kind: activeContract?.kind || selected.kind,
-          enabled: published,
+          enabled: published || (!existing && selected.kind === "text"),
           onboarding: activeContract?.onboarding,
           customCall: activeContract?.customCall,
           meta: {
@@ -324,7 +323,6 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
   },
 
   async load(vendorKey, selectedModelKeys) {
-    await revalidatePendingCredential(vendorKey);
     const state = readCatalog();
     const vendor = state.vendors.find((item) => item.key === vendorKey);
     if (!vendor) return null;

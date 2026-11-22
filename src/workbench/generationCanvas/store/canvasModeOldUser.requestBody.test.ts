@@ -10,7 +10,8 @@
  */
 import { describe, expect, it } from 'vitest'
 import fs from 'node:fs'
-import { getArchetypeById, specializeArchetypeForVendor } from '../../../../electron/shared/modelArchetypes'
+import { specializeArchetypeForVendor } from '../../../../electron/shared/modelArchetypes'
+import { getArchetypeById } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import { declaredModeParams } from '../../../../electron/shared/modelArchetypes/modeParams'
 import { loadFixture, readAfterNormalize } from '../../../../tests/fixtures/old-user-data/canvas/canvasModeOldUser.testkit'
 import { buildCatalogTaskRequest } from '../runner/catalogTaskActions'

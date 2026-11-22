@@ -7,6 +7,7 @@ import React, { type JSX } from 'react'
 import { V4Intervention } from '../../../../workbench/ai/v4/AgentPanelV4Cards'
 import { V4AutoModeBanner } from '../../../../workbench/ai/v4/AgentPanelV4AutoMode'
 import { AgentPanelV4Composer } from '../../../../workbench/ai/v4/AgentPanelV4Composer'
+import { fixedEditorOwner } from '../../fixedEditorOwner'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
 import { Piece, useV4Fixtures, V4_LAB_SLOT_HANDLERS } from '../agentPanelV4LabKit'
 import type { LabState } from '../../labScreen'
@@ -52,7 +53,7 @@ function AutoModeReminderCell(): JSX.Element {
           onDismiss={() => setDismissed(true)}
         />
       ) : null}
-      <AgentPanelV4Composer panelHeight={620} mode="idle" permission={tier} value="" />
+      <AgentPanelV4Composer panelHeight={620} mode="idle" permission={tier} draft={fixedEditorOwner('')} draftReadOnly />
     </Piece>
   )
 }

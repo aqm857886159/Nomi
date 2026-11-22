@@ -3,24 +3,28 @@
   "subject": "catalog.archetype-identifier",
   "lifecycle": "catalog",
   "authority_kind": "schema",
-  "trust_domain": "main",
+  "trust_domain": "shared",
   "fact_kind": "value-object",
   "migration_status": "converged",
   "owner": {
-    "path": "electron/catalog/archetypeIdentifiers.generated.ts",
-    "symbol": "ARCHETYPE_IDENTIFIER_PATTERNS"
+    "path": "electron/shared/modelArchetypes/entry.ts",
+    "symbol": "archetypeIdForModel"
   },
   "write_api": [
     {
-      "path": "electron/catalog/archetypeIdentifiers.generated.ts",
-      "symbol": "ARCHETYPE_IDENTIFIER_PATTERNS"
+      "path": "electron/shared/modelArchetypes/entry.ts",
+      "symbol": "archetypeIdForModel"
+    },
+    {
+      "path": "electron/shared/modelArchetypes/catalogFacts.ts",
+      "symbol": "identityPatternsOf"
     }
   ],
   "forbidden_derivations": [],
   "parity_test": "electron/catalog/archetypeIdentity.test.ts",
   "allowed_consumers": [
-    "electron/catalog/archetypeIdentity.ts"
+    "electron/shared/modelArchetypes/entry.ts"
   ],
   "since": "2026-09-28",
-  "notes": "PR #926（合同 docs/fixes/2026-09-28-nano-banana-pro-identifier.root-cause.json）：档案身份表由档案生成、check:archetype-defaults 守同步；每个识别串只属于一个档案，主进程的身份识别都读它。写错档案时两侧解析器会一致地认错（它们共用这一份声明），这类错只能按出处人工归位。"
+  "notes": "PR #926（合同 docs/fixes/2026-09-28-nano-banana-pro-identifier.root-cause.json）：档案身份由档案声明（identifierPatterns + 各档 modelKey），2026-11-15 起入口 entry.ts 用时现算（catalogFacts.identityPatternsOf），不再生成表；每个识别串只属于一个档案，主进程的身份识别都读它。写错档案时两侧解析器会一致地认错（它们共用这一份声明），这类错只能按出处人工归位。"
 }

@@ -46,6 +46,7 @@ export type DesktopProviderAdapterRun = {
   id: string
   vendorKey: string
   lineageRootVendorKey?: string
+  sourceVendorKey?: string
   vendorName: string
   selectedModelKeys: string[]
   stage: AdapterRunStage
@@ -200,23 +201,6 @@ export type DesktopOnboardingBridge = {
   httpCertificationRetry: (payload: { runId: string; modelKey?: string; idempotencyKey: string }) => Promise<
     { ok: true; run: DesktopHttpCertificationRun } | ExistingConnectionFailure
   >
-  testConnection: (payload: {
-    baseUrl: string
-    apiKey: string
-    vendorKey?: string
-    modelId?: string
-    providerKind?: ProviderKind
-    probe?: 'reachability'
-    headers?: Record<string, string>
-    proxyUrl?: string
-  }) => Promise<{
-    ok: boolean
-    status?: number
-    error?: string
-    detectedKind?: ProviderKind
-    reachabilityOnly?: boolean
-    failureKind?: ModelListFailureKind
-  }>
   listModels: (payload: {
     baseUrl: string
     apiKey: string
@@ -227,20 +211,6 @@ export type DesktopOnboardingBridge = {
   guessKinds: (payload: { ids: string[] }) => Promise<{
     kinds: Record<string, 'text' | 'image' | 'video' | 'audio' | 'model3d'>
   }>
-  /**
-   * 这家现在能不能用。凭证由主进程自取（renderer 只有 hasApiKey 布尔），所以自动检查
-   * 必须走这条而不是 testConnection——后者要调用方手上有明文 key。
-   * force = 用户点了「重新检查」，跳过新鲜期缓存。
-   */
-  vendorHealth: (payload: { vendorKey: string; force?: boolean }) => Promise<VendorHealth>
-}
-
-export type VendorHealthState = 'reachable' | 'unreachable' | 'unsupported'
-
-export type VendorHealth = {
-  vendorKey: string
-  state: VendorHealthState
-  /** 非 reachable 时的人话原因（上游那句话 / 网络错描述）。 */
-  reason?: string
-  checkedAt: number
+  /** 发送键上的约价：交最终请求，回公开价估出的数（只读、不带凭据）；算不出 = null。 */
+  vendorPricePreview: (payload: import("../../electron/shared/contracts/vendorPricePreview").VendorPriceRequest) => Promise<import("../../electron/shared/contracts/vendorPricePreview").VendorPricePreview | null>
 }

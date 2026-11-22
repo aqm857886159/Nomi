@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { applyHeadlessParamDefaults, hasImageEditReferences, taskTemplateParams, firstReferenceImage, headlessReferenceOverlay, unreachableReferenceLabels, imageEditGuardError, NO_MAPPING_FALLBACK_BODY } from "./taskParams";
+import { applyHeadlessParamDefaults, taskTemplateParams, headlessReferenceOverlay } from "./taskParams";
+import { hasImageEditReferences, firstReferenceImage } from "./taskParamsReferences";
+import { unreachableReferenceLabels, imageEditGuardError, NO_MAPPING_FALLBACK_BODY } from "./taskParamsGuard";
 import { referenceKeyDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
 import { modelReferenceSelection } from "./modelCatalogListing";
 import { desktopT } from "../desktopStrings";
@@ -453,6 +455,20 @@ describe("declared numeric and negative controls", () => {
     const params = taskTemplateParams({ seed: 0, negativePrompt: "noise", extras: { seed: "123", negative_prompt: "blur" } });
     expect(params.seed).toBe(0);
     expect(params.negative_prompt).toBe("noise");
+  });
+});
+
+// 出口编码只编创作者自己的参数，而且排在补供应商操作默认之前（docs/plan/2026-11-17-param-value-type.md ★2 第 3 门、★9.16）：
+// 操作默认本来就是供应商的报文写法，补进来的一个字节都不许动。Agnes 2.5 的时长声明是数字串（报文写法字符串）；
+// 不带方式的无界面请求不按档案补默认，没设的时长由操作默认补——这里故意给一个数字默认，编码挪到补默认之后就会把它改成字符串。
+describe("出口编码在补供应商操作默认值之前", () => {
+  const headless = { modelKey: "agnes-video-2.5", vendorKey: "agnes", taskKind: "text_to_video" };
+  it("创作者的值按档案声明的写法编：10 → \"10\"（带方式、不带方式都一样）", () => {
+    expect(applyHeadlessParamDefaults({ duration: 10 }, { ...headless, modeId: "text" }, { duration: 5 })?.duration).toBe("10");
+    expect(applyHeadlessParamDefaults({ duration: 10 }, headless, { duration: 5 })?.duration).toBe("10");
+  });
+  it("没设的键由操作默认补，补进来的值原样（数字 5 还是数字 5）", () => {
+    expect(applyHeadlessParamDefaults({}, headless, { duration: 5 })?.duration).toBe(5);
   });
 });
 

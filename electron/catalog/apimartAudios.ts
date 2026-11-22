@@ -87,7 +87,7 @@ const TTS_CREATE: HttpOperation = {
     speed: "{{request.params.speed}}",
   },
   audioResponse: { type: "binary", contentType: "audio/wav", extension: "wav" },
-  // model/voice/speed 等档案默认由 archetypeWireDefaults 桥接兜底（runtime.ts，单一真相源=档案 audioArchetype.ts）。
+  // voice/speed 等档案默认由发送前的 effectiveModeParams 按档案现补（单一真相源=档案 audioArchetype.ts；model 串归 wireModelIdentity）。
 };
 
 // 转写 Whisper：multipart（file + model + language + response_format）由 audioTaskRunner 组装；

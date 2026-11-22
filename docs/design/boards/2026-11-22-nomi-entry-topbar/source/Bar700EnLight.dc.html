@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>顶栏 700 英文浅色</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 748px; height: 660px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px; background: oklch(1 0 0); color: oklch(0.22 0.01 80); font-family: Inter, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600">700 宽 · 英文 · 浅色</h1>
+<p style="margin: 0; font-size: 13px; line-height: 20px; color: oklch(0.50 0.01 80)">英文的分段更宽（227 对中文 158），所以今天 700 宽预览页的「Export MP4」已经是图标。</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">今天 · 预览</b>　小球在内容区右下角，顶栏里没有 Nomi</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="en" theme="light" page="preview" width="700" entry="none" export-compact="true" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 项目库</b>　没有 Nomi，不变</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="en" theme="light" page="library" width="700" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 创作</b>　刚做完：脸压扁、眯眼笑（2.4 秒后回空闲）</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="en" theme="light" page="create" width="700" face="done" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 生成</b>　在做，同时等你确认 1 条</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="en" theme="light" page="generate" width="700" face="running" pending="1" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 预览</b>　等你确认 2 条；分段离右边还有 22px，不用让</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="en" theme="light" page="preview" width="700" face="idle" pending="2" export-compact="true" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">最挤 · 预览</b>　有新版本 + 3 个任务在跑 + 等你确认 12 + 分段带进度：先藏进度数字，再往左让 50px</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="en" theme="light" page="preview" width="700" face="running" pending="12" tasks="3" update="true" export-compact="true" meta-gen="38/120" meta-preview="12:34" hide-meta="true" seg-shift="-50" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+</div>
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)">英文分段本来就宽，带着进度数字挪到头还差约 37px（两边各留 12px），所以走到第 ③ 步：进度数字先藏（悬停分段看得到），再往左让 50px。这是 Mac 700 宽最挤的一格。</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":748,"height":660}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

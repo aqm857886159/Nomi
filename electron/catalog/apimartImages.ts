@@ -37,10 +37,14 @@ function imageCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.
 }
 
 // GPT Image 2 的 apimart 翻译（铁律）：中性 比例(aspect_ratio) → apimart 的 size 字段；
-// 清晰度档位小写（apimart 历史用 1k/2k/4k，中性 canonical 用 1K/2K/4K）。线缆输出与迁移前完全一致。
+// 清晰度档位小写（apimart 历史用 1k/2k/4k，中性 canonical 用 1K/2K/4K）。
+// 改图比例「自动」= 不发 size（omitAuto，同 2.5 / 2.6）：官方原话「Without `size`, output resolution = input image resolution;
+// with `size`, output is forced to the specified ratio」「When `size` is set to `auto`, the default ratio is `1:1`」——显式发 auto
+// 出的是 1:1，不是跟输入图。只有改图 body 读 size_wire；文生图仍读 size（auto 照发）。
 const GPT_IMAGE_2_APIMART_PARAM_MAP: ParamMap = {
   rules: [
     { wire: "size", from: "aspect_ratio" },
+    { wire: "size_wire", fromMany: ["aspect_ratio"], transform: "omitAuto" },
     { wire: "resolution", fromMany: ["resolution"], transform: "toLowerCase" },
   ],
 };
@@ -52,9 +56,16 @@ const VARIANT_MODEL_REF = "{{request.params.model}}";
 // 只剩清晰度大小写这一件事——档案暴露 1K/2K/4K（全站一致的中性档位串），apimart 线缆要 1k/2k/4k。
 // 与 GPT Image 2 的 paramMap 相比少了 size←aspect_ratio 那条改名规则（2.5 的 apimart 枚举比 kie 多 7 档，
 // 无法共用一份 canonical 比例控件，故档案层就分了 vendor，不需要再改名）。
+// 改图比例「auto」= 不发（omitAuto）：官方原话「For image-to-image requests, omit size to let the service calculate
+// dimensions from the input aspect ratio」（2.5）/「omitting this field for still-image editing selects dimensions from the
+// first input image's aspect ratio」（2.6），显式发 auto 是让上游自己挑，不是跟随原图。只有改图 body 读 size_wire；文生图仍读 size。
 const GPT_IMAGE_25_APIMART_PARAM_MAP: ParamMap = {
-  rules: [{ wire: "resolution", fromMany: ["resolution"], transform: "toLowerCase" }],
+  rules: [
+    { wire: "resolution", fromMany: ["resolution"], transform: "toLowerCase" },
+    { wire: "size_wire", fromMany: ["size"], transform: "omitAuto" },
+  ],
 };
+const EDIT_SIZE_FOLLOWS_INPUT = "{{request.params.size_wire}}";
 
 const SIZE = "{{request.params.size}}";
 const RESOLUTION = "{{request.params.resolution}}";
@@ -158,7 +169,7 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
     modelKey: "gpt-image-2", labelZh: "GPT Image 2", archetypeId: "gpt-image-2",
     t2iBody: { size: SIZE, resolution: RESOLUTION },
     // GPT 档案改图槽 inputKey=input_urls（kie 契约），apimart 字段名是 image_urls → 值读 input_urls。
-    editBody: { size: SIZE, resolution: RESOLUTION, image_urls: "{{request.params.input_urls}}" },
+    editBody: { size: EDIT_SIZE_FOLLOWS_INPUT, resolution: RESOLUTION, image_urls: "{{request.params.input_urls}}" },
     // 铁律迁移：gpt-image-2 已中性化（档案 params=比例+清晰度），apimart 字段是 size/resolution → 翻译。
     paramMap: GPT_IMAGE_2_APIMART_PARAM_MAP,
   }),
@@ -171,27 +182,27 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
   imageModel({
     modelKey: "gpt-image-2.5-flare", labelZh: "GPT Image 2.5 Flare", archetypeId: "gpt-image-2.5-flare",
     t2iBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND },
-    editBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
+    editBody: { size: EDIT_SIZE_FOLLOWS_INPUT, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
     paramMap: GPT_IMAGE_25_APIMART_PARAM_MAP,
   }),
   imageModel({
     modelKey: "gpt-image-2.5-sunburst", labelZh: "GPT Image 2.5 Sunburst", archetypeId: "gpt-image-2.5-sunburst",
     t2iBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND },
-    editBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
+    editBody: { size: EDIT_SIZE_FOLLOWS_INPUT, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
     paramMap: GPT_IMAGE_25_APIMART_PARAM_MAP,
   }),
   // GPT Image 2.6 Flare（2026-11-07 照 docs.apimart.ai gpt-image-2.6/generation.md）：形状同 2.5，2.5 保留为上一代。
   imageModel({
     modelKey: "gpt-image-2.6-flare", labelZh: "GPT Image 2.6 Flare", archetypeId: "gpt-image-2.6-flare",
     t2iBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND },
-    editBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
+    editBody: { size: EDIT_SIZE_FOLLOWS_INPUT, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
     paramMap: GPT_IMAGE_25_APIMART_PARAM_MAP,
   }),
   // GPT Image 2.6 Sunburst（2026-11-07 照 docs.apimart.ai gpt-image-2.6/generation.md）：形状同 2.5，2.5 保留为上一代。
   imageModel({
     modelKey: "gpt-image-2.6-sunburst", labelZh: "GPT Image 2.6 Sunburst", archetypeId: "gpt-image-2.6-sunburst",
     t2iBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND },
-    editBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
+    editBody: { size: EDIT_SIZE_FOLLOWS_INPUT, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
     paramMap: GPT_IMAGE_25_APIMART_PARAM_MAP,
   }),
   // ── 2026-11-07 最新代补齐（各自照 docs.apimart.ai 当日官方页对账；单 model id 双模式，给 image_urls 即改图）──

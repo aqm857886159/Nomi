@@ -21,7 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        batch: [0, 1, 2, 3]
+        # 批次数只在 scripts/nightly-walk-selection.mjs 定（NIGHTLY_WALK_BATCH_COUNT）；这里的列表由结构测试核对与它一致。
+        batch: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -55,11 +56,11 @@ jobs:
           set -o pipefail
           mkdir -p nightly-walks
           : > "nightly-walks/results-${BATCH}.tsv"
-          mapfile -t walks < <(node scripts/nightly-walk-selection.mjs tests/ux)
+          # 先落文件再读：选择脚本出错时这一步当场失败，不会拿到空清单当成「这一批没有走查」。
+          node scripts/nightly-walk-selection.mjs tests/ux --batch "$BATCH" > "$RUNNER_TEMP/nightly-walks-${BATCH}.txt"
+          mapfile -t walks < "$RUNNER_TEMP/nightly-walks-${BATCH}.txt"
           failed=0
-          for index in "${!walks[@]}"; do
-            [ "$((index % 4))" = "$BATCH" ] || continue
-            walk="${walks[$index]}"
+          for walk in "${walks[@]}"; do
             name=$(basename "$walk")
             log="nightly-walks/${name}.log"
             started=$(date +%s)
@@ -78,6 +79,14 @@ jobs:
             if [ "$status" -ne 0 ]; then failed=1; fi
           done
           exit "$failed"
+      # 付费走查的免费演练（不要 Key：放行名单为空、供应商与中转改道到本机替身，结构上花不了钱）。只在第 0 批跑一次；
+      # 按「今天不过」红名单判（tests/ux/_paidRehearsalList.mjs）：名单外的不过红、名单里的今天过了也红。表格不用 .tsv（汇总会当免费走查结果读）。
+      - name: Run paid-walk rehearsals (no key, zero spend)
+        if: ${{ !cancelled() && matrix.batch == 0 }}
+        timeout-minutes: 45
+        env:
+          NO_PROXY: 127.0.0.1,localhost
+        run: xvfb-run -a node tests/ux/_paidRehearsalBatch.mjs --nightly --timeout-ms 120000 --out nightly-walks/paid-rehearsal
       - name: Record batch conclusion
         if: always()
         env:

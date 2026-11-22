@@ -20,9 +20,8 @@ vi.mock('../../../library/localProjectStore', () => ({
   readLocalProjectAsync: async (id: string) => structuredClone(calls.disk.get(id) ?? null),
   saveLocalProject: async (id: string, payload: unknown, name: string) => ({ id, name, version: 1, payload }),
 }))
-vi.mock('../../../api/taskApi', () => ({ canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
+vi.mock('../../../api/taskApi', () => ({ canvasResendDecide: (input: Parameters<typeof import('../../../api/canvasResendDecideTestUtils').canvasResendDecideLikeMain>[0]) => import('../../../api/canvasResendDecideTestUtils').then(fake => fake.canvasResendDecideLikeMain(input)), canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('../../../generationCanvas/runner/generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
-vi.mock('../../../generationCanvas/runner/assetUploadConsent', async original => ({ ...await original<typeof import('../../../generationCanvas/runner/assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
 vi.mock('../../../generationCanvas/runner/nodeModelHealth', () => ({ recordNodeModelFailure: vi.fn(), recordNodeModelSuccess: vi.fn() }))
 vi.mock('../../../../config/useModelOptions', () => ({ preloadModelOptions: async () => [] }))
 vi.mock('../../../generationCanvas/agent/availableModels', async importOriginal => ({
@@ -131,7 +130,7 @@ it('同一窗口·单点后还锁定了：批次第二阶段不得覆盖已锁�
   await vi.waitFor(() => expect(calls.execute).toHaveBeenCalledTimes(1))
   await ui.clickRow('shot-2')
   const firstResult = nodeOfShot('shot-2').result?.id
-  toggleNodeLock(nodeOfShot('shot-2').id)
+  toggleNodeFrozen(nodeOfShot('shot-2').id)
   release()
   await batch
   console.log('REPRO locked: sends(shot-2)=', sends('shot-2'), 'result replaced =', nodeOfShot('shot-2').result?.id !== firstResult)
@@ -172,7 +171,7 @@ it('对照·第二张卡路径：改了花钱口径走 itemized，单点过的�
 
 import { startGenerationFromComposer } from '../../../generationCanvas/nodes/composerRun'
 import { runGroupGenerate } from '../../../generationCanvas/components/groupGenerate'
-import { regenerateShotRow, toggleNodeLock } from './storyboardRowActions'
+import { regenerateShotRow, toggleNodeFrozen } from './storyboardRowActions'
 import { RecoverableTimeoutError } from '../../../generationCanvas/runner/recoverableTimeout'
 import { isAnchorFrozen } from '../../../generationCanvas/model/anchorBibleKeys'
 
@@ -208,7 +207,7 @@ it.each(entries.flatMap(entry => endings.map(ending => ({ entry, ending }))))('B
     if (single) await single
     await vi.waitFor(() => expect(nodeOfShot('shot-2').status).toBe(ending === 'locked' ? 'success' : ending))
   }
-  if (ending === 'locked') toggleNodeLock(nodeOfShot('shot-2').id)
+  if (ending === 'locked') toggleNodeFrozen(nodeOfShot('shot-2').id)
   const owned = structuredClone(nodeOfShot('shot-2'))
   releaseAnchor()
   try {
@@ -290,7 +289,7 @@ it.each(['running', 'queued', 'recoverable', 'locked'] as const)('B6: %s without
   useGenerationCanvasStore.getState().addNodeResult(n.id, imageResult('prior'))
   const release = holdAnchors(), batch = editor(current).runBatch()
   await vi.waitFor(() => expect(calls.execute).toHaveBeenCalledTimes(1))
-  if (state === 'locked') toggleNodeLock(n.id)
+  if (state === 'locked') toggleNodeFrozen(n.id)
   else if (state === 'queued') useGenerationQueueStore.getState().enqueueBatch([[n.id]], 'project-a')
   else useGenerationCanvasStore.getState().setNodeStatus(n.id, state)
   const owned = structuredClone(nodeOfShot('shot-2'))

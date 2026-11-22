@@ -1,0 +1,348 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-17-param-value-type",
+  "problem_type": "参数值类型在各读点各自转换",
+  "symptom": "分镜行给 RunningHub Seedance 2.0 把时长从 5 点成 12：面板高亮仍在 5、行上仍是 5s，存成 durationSec 5 加 params.duration \"12\"，发出去 \"5\"（主分支真窗口中英各复现一遍，回环假服务记下报文）。同类：存的类型和档案声明相反的旧值发送前被悄悄修成默认（RunningHub 存数字 8 发 \"5\"、APIMart 海螺 2.3 存 \"10\" 发 6、Veo 3.1 Fast 存 \"4\" 发 8、Higgsfield Soul 出图张数存 \"4\" 发 1），外部助手给 Agnes 2.5 送数字时长被准入以类型不符拒掉，生成列表读不出字符串时长。",
+  "direct_cause": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts 的 storyboardComposerChange 改时长只认 control.key === 'duration' && typeof value === 'number'：RunningHub 时长档声明是字符串，parseControlInput 按声明返回 \"12\"，分流落空，值写进 params.duration，发送读的是 durationSec 的 5。electron/shared/videoCapabilities/resolveModelParams.ts 对原值做严格 includes，类型和声明相反就重置成默认。",
+  "class_root": "同一个参数值有两种写法（档案原文的 \"8\"、门里的 8），没有唯一的主人规定门里用哪种；行上显示、约价、准入、范围计算、推荐、发出各读点自己 Number / typeof / String 比较，转法不一样，于是各读出一个数。",
+  "migration": "不改存储格式。打开项目时分镜镜头两个时长字段只在内存里收成一个（durationSec 0 加 \"12\" 收成 12；5 加 \"12\" 保留 5、丢掉 params.duration），不改写盘；画布节点存的值不改写，发送时按档案声明编码。门里 30 处自己转类型的代码同提交删掉，没有生产调用的第二个解析器 ShotParamControls.tsx 整个删掉。退回 0.24.1：在字符串时长档案上升级后重新点过时长的画布节点会按默认时长发（0.24.1 自己「类型反了就用默认」的毛病），写进 PR 已知限制。",
+  "affected_population": [
+    "分镜行用字符串时长档案的模型改时长的创作者（RunningHub 5 个模型、Agnes 2.5 / 2.5 Flash、KIE 和 fal 的 Kling 3.0、中转草稿）",
+    "画布节点存的值类型和档案声明相反的旧项目（RunningHub、APIMart 海螺 2.3、Veo 3.1 Fast、Higgsfield Soul 出图张数）",
+    "外部助手给字符串档案送数字参数、或助手在字符串档案上起草出 durationSec 0 加 \"12\" 的镜头"
+  ],
+  "scope_paths": [
+    "electron/shared/videoCapabilities/paramValue.ts",
+    "electron/shared/videoCapabilities/resolveModelParams.ts",
+    "electron/shared/videoCapabilities/paramConstraints.ts",
+    "electron/shared/modelArchetypes/entry.ts",
+    "electron/catalog/taskParams.ts",
+    "electron/capabilityCore/executionContract.ts",
+    "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+    "electron/shared/storyboard/storyboardPlanSchema.ts",
+    "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+    "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+    "src/workbench/creation/storyboard/shotPresentation.ts",
+    "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+    "src/workbench/generationCanvas/nodes/GenerationTimingHint.tsx",
+    "src/workbench/generationCanvas/nodes/director/model/directorPreviewState.ts",
+    "src/workbench/generation/list/generationListMediaFacts.ts",
+    "src/workbench/workbenchDocumentSlice.ts"
+  ],
+  "entry_points": [
+    "分镜行参数面板改时长：storyboardComposerModel.ts storyboardComposerChange",
+    "画布节点 / 节点底栏参数面板：NodeParameterControls.tsx、parameterControlModel.ts 调 parseControlInput",
+    "发送前修值：resolveModelParams.ts resolveModelParams",
+    "外部助手准入：executionContract.ts compileParameters",
+    "外部助手估时与推荐：mcpGenerationVideoResolve.ts shotDurationSeconds、videoRecommendationInput",
+    "助手起草 / 改镜头：storyboardSubjectAdapter.ts storyboardSubjectFromCandidate、patchStoryboardSubject",
+    "分镜方案进 store：workbenchDocumentSlice.ts 经 reconcilePlanShotDurations",
+    "档案入口：modelArchetypes/entry.ts 经 normalizeDeclaredControls",
+    "供应商出口：taskParams.ts applyHeadlessParamDefaults 经 encodeParamsForWire",
+    "读时长显示：directorPreviewState.ts declaredShotDurationSeconds、generationListMediaFacts.ts readDurationSeconds、GenerationTimingHint.tsx、shotPresentation.ts"
+  ],
+  "invariants": [
+    "门里一个参数值只有一种写法：数字档是数字，文字档是文字；外来值只在值门 admitParamValue / admitNumber 按声明规整一次，规范数字串之外（\"05\"、\"4s\"、\"false\"）不转、照旧交给现有政策。",
+    "从参数袋读秒数只经 paramSeconds；门里不再对参数袋原值做 Number / typeof / String 比较。",
+    "发给供应商的值只在 encodeParamsForWire 按档案原文声明的写法编码，且在补供应商操作默认值之前，补进来的默认值一个字节不动。",
+    "存的值 = 行上显示 = 约价 = 报文里档案原文的声明值。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/executionContract.ts",
+      "symbol": "admitParamValue"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "symbol": "paramSeconds"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "encodeParamsForWire"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/modelArchetypes/entry.ts",
+      "symbol": "normalizeDeclaredControls"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+      "symbol": "reconcilePlanShotDurations"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+      "symbol": "admitNumber"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+      "symbol": "reconcileShotDuration"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+      "symbol": "paramSeconds"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/paramConstraints.ts",
+      "symbol": "declaredNumericOptions"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/paramValue.ts",
+      "symbol": "admitNumber"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/paramValue.ts",
+      "symbol": "admitParamValue"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/recommendation.ts",
+      "symbol": "declaredNumericOptions"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/resolveModelParams.ts",
+      "symbol": "admitParamValue"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotPresentation.ts",
+      "symbol": "admitNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+      "symbol": "parseControlInput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+      "symbol": "admitNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/list/generationListMediaFacts.ts",
+      "symbol": "admitNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "admitNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "parseControlInput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorPreviewState.ts",
+      "symbol": "paramSeconds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/GenerationTimingHint.tsx",
+      "symbol": "admitNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "symbol": "parseControlInput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/workbenchDocumentSlice.ts",
+      "symbol": "reconcilePlanShotDurations"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 23,
+    "why_not": "修前 9 个文件里 30 处各自转类型，各有一套规则；修后门里自己转的 0 处。剩下的门全是调用唯一主人（paramValue.ts 的值门 / 读秒 / 声明门 / 数字档位 / 出口编码 / 面板输入门，storyboardPlanSchema.ts 的时长收拢）的地方，每扇是一个真实的独立入口（面板输入、发送前修值、档位范围、准入、估时与推荐、起草与改镜头、方案进 store、档案入口、出口、导演预演、生成列表、计时提示、分镜行显示），只传值不定规则；paramValue.ts 自己的几处是门内部互调。门数比修前多，是因为以前不转类型、直接读错的读点（生成列表、计时提示、分镜行显示）现在也经门读。"
+  },
+  "regression_tests": [
+    "electron/shared/videoCapabilities/paramValue.test.ts",
+    "electron/parity/paramValueType.parity.test.ts",
+    "electron/shared/videoCapabilities/resolveModelParams.test.ts",
+    "electron/shared/videoCapabilities/paramConstraints.test.ts",
+    "electron/catalog/taskParams.test.ts",
+    "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.test.ts",
+    "scripts/param-value-door-rule.test.mjs"
+  ],
+  "residual_risks": [
+    "ESLint 规则只做一层局部数据流：解构改名后再转、原值跨函数传且参数名不叫 value / raw、时长以外的键，规则认不出，靠声明门和对拍兜一部分。",
+    "新的写入口绕过 parseControlInput 或值门时，对拍只覆盖已知入口，新入口要自己加进对拍。",
+    "换模型后时长不重落（主分支同样）：先选 5 秒再换成只有 4 / 6 / 8 的模型，行上 5s、发 \"8\"；发送口「不在档位里就用默认」和 11-15 已定的「取最近合法值并写明」冲突，另一刀修。",
+    "退回 0.24.1：字符串时长档案上升级后重新点过时长的画布节点会按默认发，Veo 升级后点 4、退回发 8。",
+    "外部助手矩阵夹具仍走目录兜底参数表，和真宿主差一层。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://json-schema.org/understanding-json-schema/reference/type",
+      "checked_at": "2026-11-17",
+      "purpose": "type: number 只认 42、不认 \"42\"，标准只声明和校验、不自动转换：内部值和报文值要各自有明确类型，规整得自己在一个门口做一次。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://zod.dev/api?id=coercion",
+      "checked_at": "2026-11-17",
+      "purpose": "coerce 在 parse 那一处把 unknown 变成目标类型：值门用已装的 Zod，先排除空串、null、布尔和非规范文本再转数字。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://ajv.js.org/coercion.html",
+      "checked_at": "2026-11-17",
+      "purpose": "类型转换默认关、只放在一个边界、转不成就校验失败：出口编码只放一处，门认不出的值原样交给现有政策，不当 0、不当默认。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://typescript-eslint.io/rules/no-unnecessary-type-conversion/",
+      "checked_at": "2026-11-17",
+      "purpose": "现成规则要类型化 lint、且对 unknown 的参数袋不认为转换多余，拦不住门里再转：所以写一条用 ESLint 标准规则接口的小规则。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "分镜行目录 14 天 6 个修复、1 次回滚，画布控件目录 10 个修复，都是同一个值在不同读点转法不同；每加一个读点就多一份转法。",
+    "same_class_scan": [
+      "修前门里自己转类型 30 处、9 个文件（设计卡 docs/plan/2026-11-17-param-value-type.md ★2 删单逐条）；修后 0，ESLint 规则 param-value-door/no-reparse 在管辖目录跑出 0。",
+      "door-map 修后：admitParamValue / admitNumber / paramSeconds / encodeParamsForWire / normalizeDeclaredControls / parseControlInput / declaredNumericOptions / reconcileShotDuration / reconcilePlanShotDurations 共 23 扇，全部是调用主人的地方。",
+      "核过不算这一类、留着的：recommendation.ts 对可选入参 durationSeconds 的判空；writeVerbs.ts 写入边界的「两个时长」比对；electron/video/* 读媒体文件实测时长；供应商出口编码（paramTranslate.ts、runwayOfficial.ts、dreaminaCodec.ts、taskParams.ts 的 numericWireParam）。"
+    ]
+  },
+  "generality_proof": "规整修在最早共享的两处边界：档案进门（声明门把数字档声明规整成数字，每个档案经唯一入口过一次）和值进门（值门把外来值按声明规整），门里只剩一种写法；出口一处按档案原文声明编回。新档案自动过声明门；对拍按目录结构认全部数字档下拉（不按键名点名），新档案自动进对拍；门里新写一处再转由 ESLint 规则拦，规则的结构测试把主分支上删掉的每一处原代码放回真实路径去 lint，每一处都要红。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/videoCapabilities/paramValue.ts",
+      "symbol": "normalizeDeclaredControls",
+      "responsibility": "档案进门时把选项全是规范数字串的下拉规整成数字档，记住每个选项声明的报文值。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/paramValue.ts",
+      "symbol": "admitParamValue",
+      "responsibility": "外来值按控件声明规整一次：有限数字通过、规范数字串转数字，其余原样交给现有政策。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/paramValue.ts",
+      "symbol": "paramSeconds",
+      "responsibility": "从参数袋读秒数的唯一取值函数。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/paramValue.ts",
+      "symbol": "parseControlInput",
+      "responsibility": "面板上的字符串按控件声明变成值（界面原始输入的门）。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/paramValue.ts",
+      "symbol": "encodeParamsForWire",
+      "responsibility": "发给供应商前按档案原文声明的写法编码，在补供应商操作默认值之前。"
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+      "symbol": "reconcileShotDuration",
+      "responsibility": "分镜镜头两个时长字段打架时收成一个：durationSec 0 加 \"12\" 收成 12，5 加 \"12\" 保留 5。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+      "entry_point": "storyboardComposerChange",
+      "disposition": "enforced",
+      "evidence": "改时长经 admitNumber 认秒数写 durationSec，不按 typeof 分流；storyboardComposerModel.test.ts 和对拍的分镜行格钉住 20 个字符串时长控件点 12 存 12；反例 1 改回 typeof 分流对拍红。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/resolveModelParams.ts",
+      "entry_point": "resolveModelParams",
+      "disposition": "enforced",
+      "evidence": "全部政策先过 admitParamValue 再比较；resolveModelParams.test.ts 钉存的 \"8\" 在数字 5 / 8 档上就是创作者点的 8、不被重置成默认 5；反例 4 改回对原值严格 includes 红。"
+    },
+    {
+      "path": "electron/capabilityCore/executionContract.ts",
+      "entry_point": "compileParameters",
+      "disposition": "enforced",
+      "evidence": "准入严格比对之前先过值门；外部助手给 RunningHub Seedance 送 \"12\" 和 12 都通过，\"05\" / \"4s\" / \"false\" 照旧拒；反例 8 去掉准入前规整后 \"12\" 被拒红。"
+    },
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "entry_point": "applyHeadlessParamDefaults",
+      "disposition": "enforced",
+      "evidence": "补默认之前调 encodeParamsForWire；taskParams.test.ts 钉创作者的值按声明编码（10 → \"10\"，带方式、不带方式一样）、补进来的操作默认值原样；反例 5、6、16 去掉编码 / 一律 toString / 挪到补默认之后都红。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "entry_point": "shotDurationSeconds",
+      "disposition": "enforced",
+      "evidence": "估时和推荐目标改用 paramSeconds；ESLint 规则管辖目录含 electron/capabilityCore，结构测试把主分支这两处原代码放回去 lint 都红。"
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+      "entry_point": "patchStoryboardSubject",
+      "disposition": "enforced",
+      "evidence": "起草和改镜头两个分支改用 paramSeconds，字符串秒数不再在创建时变成 0；结构测试放回主分支原代码红。"
+    },
+    {
+      "path": "src/workbench/generation/list/generationListMediaFacts.ts",
+      "entry_point": "readDurationSeconds",
+      "disposition": "enforced",
+      "evidence": "视频时长经 admitNumber 读，旧节点存的 \"12\" 开始显示时长；规则管辖目录含 src/workbench/generation/list，结构测试放回主分支原代码红。"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "entry_point": "rejectDuplicateShotFacts",
+      "disposition": "not-affected",
+      "evidence": "助手写入时「两个时长」的比对是外部输入的写入边界，在规则豁免名单里；这次不动、不扩大会挡人的检查，\"12\" 加 5 这种打架的镜头读入时由 reconcileShotDuration 按定下的规则收。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/videoCapabilities/paramValue.ts",
+    "invariant": "门里一个参数值只有一种写法，读秒数只有一个取值函数，出口编码只有一处。",
+    "failure_mode": "门里对参数袋原值再 Number / typeof / String 比较：ESLint param-value-door/no-reparse 报错，lint:ci 红；新档案或新值让存的 / 显示 / 约价 / 报文对不上：对拍测试 paramValueType.parity 红。",
+    "exception_policy": "none",
+    "strategy": "进门统一、出口编码：声明门 + 值门 + 唯一读秒 + 唯一出口，门里删光自己转的代码，ESLint 规则加结构测试守住不再长出来。",
+    "artifacts": [
+      "electron/shared/videoCapabilities/paramValue.ts",
+      "scripts/param-value-door-rule.mjs",
+      "eslint.config.mjs",
+      "electron/parity/paramValueType.parity.test.ts",
+      "scripts/param-value-door-rule.test.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/parity/paramValueType.parity.test.ts",
+    "scripts/param-value-door-rule.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/ShotParamControls.tsx",
+      "src/workbench/creation/storyboard/ShotParamControls.test.ts"
+    ],
+    "rationale": "没有生产调用的第二个解析器整个删掉；门里 30 处自己转类型的代码在原文件里同提交删掉（逐条见设计卡 ★2 删单）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "值门用已装的 Zod，不引新依赖、不升级。",
+    "exit_criteria": []
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-24",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/videoCapabilities/paramValue.ts",
+    "tests": [
+      "electron/shared/videoCapabilities/paramValue.test.ts",
+      "electron/parity/paramValueType.parity.test.ts"
+    ]
+  }
+}

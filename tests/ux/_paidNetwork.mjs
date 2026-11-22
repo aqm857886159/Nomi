@@ -16,6 +16,8 @@ import { require as tsxRequire } from 'tsx/cjs/api'
 
 // 判定函数与走查闸四层共用同一份（electron/shared/walkAllowlist.cjs），诊断不再自己写一套匹配。
 const { listsHost, parseAllowlist } = createRequire(import.meta.url)('../../electron/shared/walkAllowlist.cjs')
+// 请求体脱敏与闸同一份（不记请求头；Key 形状的串、签名查询串打码）。
+const { scrubText: scrubUrlText } = createRequire(import.meta.url)('../../scripts/walkthrough-url-shape.cjs')
 
 /** 供应商 key → 它的成品下载域名。写法同闸：精确 origin，或 `*.域名`（含子域）。只放域名。 */
 export const VENDOR_RESULT_DOMAINS = Object.freeze({
@@ -107,6 +109,253 @@ export function blockedError(entries, allow) {
   return new Error(`付费走查出网被挡（立即失败，没有干等）：\n  ${hosts.join('\n  ')}\n放行名单：${allow.join('、')}`)
 }
 
+/** 被挡的那一行 → 报告里记的那条请求：层、方法（闸的 fetch 层不记方法，就是 null）、主机、路径。不带查询串（签名、key 参数都在那里）。 */
+export function blockedRequestOf(entry) {
+  let pathname = null
+  try { pathname = new URL(String(entry?.url ?? '')).pathname || null } catch { /* 读不出 URL：没有路径 */ } // 连接层是 tcp://host:port，路径是空的
+  return { via: entry?.via ?? null, method: entry?.method ?? null, host: String(entry?.host ?? ''), path: pathname }
+}
+
+/**
+ * 演练档的站（由浅到深）：点生成之前就停了 / 走到 App 的上传（中转或供应商自己的上传口）/ 供应商只收到读请求 /
+ * 只到大脑请求（Agent 开了口：对话类请求，替身答不了，走不到它后面的媒体创建）/ 供应商收到会花媒体钱的那条创建请求。
+ * 「只到大脑」排在「创建」之下：本意花媒体钱的脚本只走到大脑，不算走到创建请求（2026-11-15 独立验收真问题 3）。
+ */
+export const REHEARSAL_STATIONS = Object.freeze(['before-click', 'upload-relay', 'vendor-read', 'brain', 'vendor-create'])
+const STATION_RANK = Object.fromEntries(REHEARSAL_STATIONS.map((station, index) => [station, index]))
+const READ_METHODS = new Set(['GET', 'HEAD'])
+/** 大脑请求：通用文本协议的对话口（OpenAI chat/completions、responses，Anthropic messages），按路径认，不分供应商。 */
+const BRAIN_PATH = /\/(?:chat\/completions|responses|messages)$/
+/**
+ * 没记方法的行（产品闸、走查闸 fetch 层不记方法）按路径推：查列表 / 查余额 / 查任务是读；路径是个文件（下载成片）、
+ * 或主机是供应商的成片下载域，也是读；连接层没有路径（推不出来），宁低不高按读；其余按创建算。
+ */
+const READ_PATH = /\/(?:models|balance)(?:\/[^/]+)?$|\/tasks?\/[^/]+$|\.[a-z0-9]{2,5}$/i
+const RESULT_HOSTS = parseAllowlist(Object.values(VENDOR_RESULT_DOMAINS).flat().join(','))
+const isStandInRow = (entry) => entry?.via === 'rehearsal-vendor' || entry?.via === 'rehearsal-relay'
+const isVendorRequestRow = (entry, vendorAllow) => entry?.kind === 'blocked' && entry?.role !== 'relay' && listsHost(vendorAllow, String(entry?.host ?? ''))
+function rowPath(entry) {
+  try { return new URL(String(entry?.url ?? '')).pathname } catch { return '' }
+}
+
+/**
+ * 一条供应商请求行是哪一类（纯函数）：'vendor-read' | 'brain' | 'vendor-create'，外加方法是不是推出来的。
+ * 方法有记就按方法（GET / HEAD = 读）；没记（有钥匙那档主进程的请求被产品闸或 fetch 层挡下）按路径推（2026-11-15 独立验收真问题 4：
+ * 以前一律当读，主进程发出的创建请求永远判不到创建）。大脑按路径认，和方法无关。
+ */
+export function vendorRowClass(entry) {
+  const pathname = rowPath(entry)
+  const method = entry?.method ? String(entry.method).toUpperCase() : null
+  if (method && READ_METHODS.has(method)) return { station: 'vendor-read', methodInferred: false }
+  if (BRAIN_PATH.test(pathname)) return { station: 'brain', methodInferred: !method }
+  if (!method) {
+    const read = !pathname || pathname === '/' || READ_PATH.test(pathname) || listsHost(RESULT_HOSTS, String(entry?.host ?? ''))
+    return { station: read ? 'vendor-read' : 'vendor-create', methodInferred: true }
+  }
+  return { station: 'vendor-create', methodInferred: false }
+}
+
+/**
+ * 这一场演练走到了哪一站（纯函数）：只看收窄花钱面之后（`lockedAtEntry` 起）的账本行，取供应商请求里最深的那一类；
+ * 一条供应商请求都没有时：替身答过上传或中转被挡 = upload-relay，否则 before-click。
+ */
+export function rehearsalStation(entries, { lockedAtEntry = null, vendorAllow = [], relayAllow = [] } = {}) {
+  if (lockedAtEntry === null) return 'before-click'
+  const vendor = parseAllowlist(vendorAllow.join(','))
+  const relay = parseAllowlist(relayAllow.join(','))
+  const after = entries.slice(lockedAtEntry)
+  const vendorRows = after.filter((entry) => isVendorRequestRow(entry, vendor))
+  if (vendorRows.length) return vendorRows.map((entry) => vendorRowClass(entry).station).sort((a, b) => STATION_RANK[b] - STATION_RANK[a])[0]
+  const uploaded = after.some((entry) => (entry?.kind === 'rehearsal-answered' && entry.answer === 'upload')
+    || (entry?.kind === 'blocked' && listsHost(relay, String(entry?.host ?? ''))))
+  return uploaded ? 'upload-relay' : 'before-click'
+}
+
+/** 收窄之后走到这份脚本终点那一类的供应商请求有几条（= 走到了几发）。 */
+export function rehearsalShotsReached(entries, { lockedAtEntry = null, vendorAllow = [], endsAt = 'vendor-create' } = {}) {
+  if (lockedAtEntry === null) return 0
+  const vendor = parseAllowlist(vendorAllow.join(','))
+  return entries.slice(lockedAtEntry).filter((entry) => isVendorRequestRow(entry, vendor) && vendorRowClass(entry).station === endsAt).length
+}
+
+/** 走到的站够不够这份脚本的终点。 */
+export function stationReaches(station, endsAt) {
+  return (STATION_RANK[station] ?? -1) >= (STATION_RANK[endsAt] ?? Number.POSITIVE_INFINITY)
+}
+
+/** 错误 → 结果里的原文：去掉栈帧，多行接成一行（「花钱前核对没过：」后面那几条在第二行起，以前只取第一行就成了空的）。 */
+export function scriptErrorText(error, limit = 600) {
+  if (error === null || error === undefined) return null
+  const lines = String(error?.message ?? error).split('\n').map((line) => line.trim()).filter((line) => line && !/^at\s/.test(line))
+  return lines.join(' ⏎ ').slice(0, limit)
+}
+
+/** App 是被谁、为什么停下的（rehearsalShouldStop 的回答，也是 rehearsalVerdict 的输入）。 */
+export const REHEARSAL_STOPS = Object.freeze({
+  foreign: '挡下了授权源之外的请求',
+  'guard-block': '收窄之后闸（不是替身）挡下了请求，App 那一步已经失败',
+  endpoint: '替身记下了这份脚本终点那一类的请求（脚本声明了「走到这里就结束」）',
+  brain: '只到大脑请求：替身答不了对话，Agent 走不到后面的媒体创建',
+  idle: '兜底超时：替身最后一条记录之后脚本迟迟没有收尾',
+})
+/** 这几种停法之后脚本报的错是「App 被关」的后果，不判；兜底超时不在里面（它意味着脚本没走完）。 */
+const EXPECTED_STOPS = new Set(['guard-block', 'endpoint', 'brain'])
+
+/**
+ * 演练判据（纯函数，2026-11-15；r2 加了「走到哪一站」与上传中转；第三版加了「几发走到几发」「只到大脑」「脚本的错不许吞」）：
+ * 付费走查带演练开关跑时，传给闸的放行名单是空的，供应商与中转的源改道到本机替身（不转发），一个请求都出不去；
+ * 这里如实回答「这一场走到了哪一站、几发里走到几发、脚本自己报没报错」。`status`：
+ *   · 'passed'     = ① 没挡下授权源之外的请求 ② 走到了收窄花钱面 ③ 脚本自己没报错（见下）④ 走到的站 ≥ 终点 `endsAt`
+ *                    ⑤ 终点那一类的请求有 ≥ `shots` 条（脚本声明的发数，缺省 1）；
+ *   · 'brain-only' = 本意要走到媒体创建，只走到了大脑请求（Agent 开了口）——不算过，也不算走到创建请求，单列；
+ *   · 'failed'     = 其余。
+ * ③ 的口径：脚本抛的错一律算数，原文进结果（`scriptError`）；只有不自己判请求体的脚本（`hold` 为假）在 App 被
+ * 「终点 / 闸挡 / 只到大脑」停下之后报的错不判（那是关窗的后果）。兜底超时（`stoppedBy: 'idle'`）本身就是不过：脚本没走完。
+ * 收窄之前挡下的授权供应商请求照记不判。宁可错判不过，不错判通过。
+ */
+export function rehearsalVerdict({ entries, lockedAtEntry = null, judgedAllow = [], relayAllow = [], scriptError = null, stoppedBy = null, hold = false, endsAt = 'vendor-create', shots = 1 }) {
+  const shown = (request) => `${request.via} ${request.method ?? '-'} ${request.host}${request.path ?? ''}`
+  const allow = parseAllowlist([...judgedAllow, ...relayAllow].join(','))
+  const relay = parseAllowlist(relayAllow.join(','))
+  const vendor = parseAllowlist(judgedAllow.join(','))
+  const station = rehearsalStation(entries, { lockedAtEntry, vendorAllow: judgedAllow, relayAllow })
+  const reached = rehearsalShotsReached(entries, { lockedAtEntry, vendorAllow: judgedAllow, endsAt })
+  const said = scriptErrorText(scriptError)
+  const blocked = entries.map((entry, index) => ({ entry, index })).filter(({ entry }) => entry?.kind === 'blocked')
+  const preLock = blocked.filter(({ index }) => lockedAtEntry === null || index < lockedAtEntry).map(({ entry }) => blockedRequestOf(entry))
+  const foreign = blocked.find(({ entry }) => !listsHost(allow, String(entry.host ?? '')))
+  const counted = said !== null && !(!hold && EXPECTED_STOPS.has(stoppedBy))
+  const base = { station, endsAt, shots: { declared: shots, reached }, stoppedBy, preLock, scriptError: said, scriptErrorCounted: counted }
+  const failed = (request, reason) => ({ ...base, status: 'failed', passed: false, request, reason })
+  if (foreign) {
+    const request = blockedRequestOf(foreign.entry)
+    return failed(request, `挡下的是授权供应商之外的源 ${request.host}（${shown(request)}）`)
+  }
+  if (lockedAtEntry === null) return failed(null, `没走到收窄花钱面${said ? `——${said}` : ''}${preLock.length ? `（之前挡下过 ${preLock.map(shown).join('、')}）` : ''}`)
+  const after = blocked.filter(({ index }) => index >= lockedAtEntry)
+  const rank = ({ entry }) => (isVendorRequestRow(entry, vendor) ? STATION_RANK[vendorRowClass(entry).station] : -1)
+  const deepest = after.filter((row) => rank(row) >= 0).sort((a, b) => rank(b) - rank(a))[0]
+  const shownRow = deepest ?? after.find(({ entry }) => listsHost(relay, String(entry.host ?? '')))
+  const request = shownRow ? { ...blockedRequestOf(shownRow.entry), ...(deepest && vendorRowClass(deepest.entry).methodInferred ? { methodInferred: true } : {}) } : null
+  const where = request ? `（替身记下的是 ${shown(request)}${request.methodInferred ? '，方法没记、按路径推' : ''}）` : ''
+  const progress = `走到「${station}」，${shots} 发里走到 ${reached} 发`
+  if (stoppedBy === 'idle') return failed(request, `${REHEARSAL_STOPS.idle}——脚本没走完；${progress}${where}${said ? `；脚本报：${said}` : ''}`)
+  if (counted) {
+    return failed(request, station === 'before-click'
+      ? `脚本在向供应商发第一条请求之前就失败——${said}`
+      : `${progress}，但脚本自己报了错——${said}${where}`)
+  }
+  if (station === 'brain' && !stationReaches('brain', endsAt)) {
+    return { ...base, status: 'brain-only', passed: false, request, reason: `只到大脑请求（Agent 开了口）：替身答不了对话，没走到这份脚本本意的「${endsAt}」${where}` }
+  }
+  if (!stationReaches(station, endsAt)) {
+    return failed(request, station === 'before-click'
+      ? '脚本跑完也没有向供应商发出请求——证明不了走到了发请求这一步'
+      : `只走到了「${station}」，这份脚本的终点是「${endsAt}」${where}`)
+  }
+  if (reached < shots) return failed(request, `${shots} 发里只走到 ${reached} 发「${endsAt}」——后面几发没走到${where}`)
+  return { ...base, status: 'passed', passed: true, request, reason: `走到了「${station}」，${shots} 发里走到 ${reached} 发：${shown(request)}${request?.methodInferred ? '（方法没记、按路径推）' : ''}` }
+}
+
+/**
+ * 演练时什么时候让 App 停下（纯函数）：返回停的理由（REHEARSAL_STOPS 的键），不停返回 null。
+ *   · 任何时候挡下授权源之外的请求 → 'foreign'；
+ *   · 收窄之后闸（不是替身）挡下了请求 → 'guard-block'（App 那一步已经失败，等也没用）；
+ *   · 收窄之后替身记下了大脑请求、而终点在它之后 → 'brain'（替身答不了对话，Agent 停在那里，等也没用）；
+ *   · 收窄之后替身记下了终点那一类的请求 → 不自己判请求体的脚本 'endpoint'；自己判的（`holdForScript`）不停，让它走完全部几发；
+ *   · 收窄之后最后一条记录过了 `graceMs` 还没收尾 → 'idle'（兜底，判不过）。
+ */
+export function rehearsalShouldStop(entries, { lockedAtEntry = null, judgedAllow = [], relayAllow = [], holdForScript = false, graceMs = 20_000, endsAt = 'vendor-create', now = Date.now() } = {}) {
+  const allow = parseAllowlist([...judgedAllow, ...relayAllow].join(','))
+  if (entries.some((entry) => entry?.kind === 'blocked' && !listsHost(allow, String(entry.host ?? '')))) return 'foreign'
+  if (lockedAtEntry === null) return null
+  const vendor = parseAllowlist(judgedAllow.join(','))
+  const after = entries.slice(lockedAtEntry).filter((entry) => entry?.kind === 'blocked' || entry?.kind === 'rehearsal-answered')
+  if (after.some((entry) => entry.kind === 'blocked' && !isStandInRow(entry))) return 'guard-block'
+  const classes = after.filter((entry) => isVendorRequestRow(entry, vendor)).map((entry) => vendorRowClass(entry).station)
+  if (!stationReaches('brain', endsAt) && classes.includes('brain') && !classes.includes('vendor-create')) return 'brain'
+  if (!holdForScript && classes.some((station) => stationReaches(station, endsAt))) return 'endpoint'
+  const last = after.at(-1)
+  return last && now - Date.parse(last.at ?? '') >= graceMs ? 'idle' : null
+}
+
+/**
+ * 演练时 `readAllowedRequests()` 读回的东西：替身记下的供应商请求，换成真付费时闸记的 `allowed-request` 同一个形状
+ * （主机是供应商本来的主机、URL 是本来的 URL、请求体已脱敏），脚本里读账本判请求体的那段不用为演练改一个字。
+ */
+export function rehearsalLedgerRequests(entries) {
+  return entries.filter((entry) => entry?.kind === 'blocked' && entry.via === 'rehearsal-vendor')
+    .map(({ method, url, host, body, at }) => ({ kind: 'allowed-request', via: 'rehearsal-vendor', method, url, host, body: body ?? null, at }))
+}
+
+function nestedAnswer(fieldPath, value) {
+  const body = {}
+  let node = body
+  const keys = String(fieldPath).split('.')
+  keys.forEach((key, index) => { node[key] = index === keys.length - 1 ? value : {}; node = node[key] })
+  return body
+}
+
+const STAND_IN_BODY_LIMIT = 64 * 1024
+/** 替身记请求体：JSON / 文本按闸的同一套脱敏（scrubText：Key 形状的串、签名查询串打码）；multipart 与二进制只记字节数（里面是素材本身）。 */
+export function describeStandInBody(bytes, contentType = '') {
+  if (!bytes?.length) return null
+  if (/multipart|octet-stream|image\/|video\/|audio\//i.test(String(contentType))) return { bytes: bytes.length }
+  const scrubbed = scrubUrlText(bytes.toString('utf8'))
+  return { text: scrubbed.slice(0, STAND_IN_BODY_LIMIT), truncated: scrubbed.length > STAND_IN_BODY_LIMIT }
+}
+
+/**
+ * 演练档的本机替身（2026-11-15；r2 加了上传中转与请求体）：被测 App 经产品闸已有的测试改道（NOMI_TEST_NETWORK_REDIRECTS）把**一个**源指到这里。
+ * `role`：'vendor' = 供应商，'relay' = App 的托管上传中转。**从不转发**，结构上到不了真供应商 / 真中转。
+ *   · `freeAnswers`（'GET /path' → JSON）：登记过的免费探测，照答（存 key 后的余额查询）。
+ *   · `uploadAnswers`（'POST /path' → 回链字段路径，如 'url'）：上传，回一个本机的假地址（指回替身自己），流程接着走到下一站。
+ *   · 其余请求：记一行 `blocked`（方法、路径、脱敏后的请求体），GET / HEAD 回 503，别的回 400（不可重试：App 当场把这一发判失败，不重试、不干等）。
+ * 不记请求头（钥匙在头里）。
+ */
+export async function startRehearsalStandIn({ origin, netLog, role = 'vendor', freeAnswers = {}, uploadAnswers = {} }) {
+  const { default: http } = await import('node:http')
+  const host = new URL(origin).hostname
+  const via = role === 'relay' ? 'rehearsal-relay' : 'rehearsal-vendor'
+  const append = (row) => fs.appendFileSync(netLog, `${JSON.stringify({ ...row, via, role, host, pid: process.pid, at: new Date().toISOString() })}\n`)
+  let assets = 0
+  let standIn = ''
+  const server = http.createServer(async (req, res) => {
+    const chunks = []
+    for await (const chunk of req) chunks.push(chunk)
+    const method = String(req.method ?? 'GET').toUpperCase()
+    const pathname = new URL(req.url ?? '/', 'http://stand-in').pathname
+    const url = `${origin}${pathname}`
+    const reply = (status, body) => res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(body))
+    const free = freeAnswers[`${method} ${pathname}`]
+    if (free !== undefined) { append({ kind: 'rehearsal-answered', answer: 'free-probe', method, url }); reply(200, free); return }
+    const upload = uploadAnswers[`${method} ${pathname}`]
+    if (upload !== undefined) {
+      assets += 1
+      const fakeUrl = `${standIn}/rehearsal-asset/${assets}`
+      append({ kind: 'rehearsal-answered', answer: 'upload', method, url, bytes: Buffer.concat(chunks).length, fakeUrl })
+      reply(200, nestedAnswer(upload, fakeUrl))
+      return
+    }
+    append({ kind: 'blocked', method, url, body: describeStandInBody(Buffer.concat(chunks), req.headers['content-type']) })
+    reply(READ_METHODS.has(method) ? 503 : 400, { error: { message: 'Nomi paid-walk rehearsal: request stopped before reaching the vendor' } })
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  standIn = `http://127.0.0.1:${server.address().port}`
+  return {
+    origin: standIn,
+    redirect: { from: origin, to: standIn },
+    close: () => new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()) }),
+  }
+}
+
+/** 几个替身 → 交给被测 App 的环境：一张改道表（每个源一条）+ 本机源进可信名单。 */
+export function standInLaunchEnv(standIns) {
+  const live = standIns.filter(Boolean)
+  if (!live.length) return {}
+  return { NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify(live.map((item) => item.redirect)), NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: live.map((item) => item.origin).join(',') }
+}
+
 /** 建一份本场的账本文件路径（放系统临时目录，不进仓库）。 */
 export function newNetLogFile() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-paid-net-'))
@@ -114,14 +363,14 @@ export function newNetLogFile() {
 }
 
 /**
- * 盯账本：一出现被挡行就回调一次（只回调第一次）。返回 `stop()`（同时给出最终读到的账本）。
+ * 盯账本：一出现被挡行就回调一次（只回调第一次；演练传 `shouldFire` 换判据，见 rehearsalShouldStop）。返回 `stop()`（同时给出最终读到的账本）。
  * 轮询而不是 fs.watch：Windows 上追加写的通知不可靠。
  */
-export function watchNetLog(file, onBlocked, { intervalMs = 300 } = {}) {
+export function watchNetLog(file, onBlocked, { intervalMs = 300, shouldFire = (entries) => blockedEntries(entries).length > 0 } = {}) {
   let fired = false
   const check = () => {
     const entries = readNetLog(file)
-    if (!fired && blockedEntries(entries).length > 0) { fired = true; onBlocked(entries) }
+    if (!fired && shouldFire(entries)) { fired = true; onBlocked(entries) }
     return entries
   }
   const timer = setInterval(check, intervalMs)

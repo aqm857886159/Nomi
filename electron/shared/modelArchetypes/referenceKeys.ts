@@ -17,7 +17,7 @@
 //   ⑥ DERIVED_REFERENCE_CARRIER_KEYS：主进程 taskTemplateParams 把标准参考输入造型成协议形状的请求体键（chat 图片项、JSON 改图）。
 // 完整性门：referenceSentWithinInUse.property.test.ts「键表完整性」——内置目录每条请求体读的键都要能归类，
 // 新请求体多读一个参考键而没进这张表，那里先红。
-import { MODEL_ARCHETYPES, resolveArchetypeForModel } from "./index";
+import { everyBuiltInArchetype, resolveModelArchetype } from "./index";
 import type { ModelArchetype, ArchetypeMode, ArchetypeReferenceSlot } from "./types";
 import { loweringInputKey } from "../generationLowering/slotInputKeys";
 
@@ -209,7 +209,7 @@ function mergeDeclaration(
 
 function declaredArchetypeReferenceKeyDeclarations(): Map<string, ReferenceKeyDeclaration> {
   const declarations = new Map<string, ReferenceKeyDeclaration>();
-  for (const archetype of MODEL_ARCHETYPES) {
+  for (const archetype of everyBuiltInArchetype()) {
     for (const key of archetype.headlessReferenceKeys ?? []) {
       const declaration = headlessReferenceKeyDeclarations[key];
       if (!declaration) throw new Error(`headless reference key has no explicit media declaration: ${key}`);
@@ -259,12 +259,13 @@ export function referenceKeyDeclarationFor(key: string): ReferenceKeyDeclaration
 
 function archetypeForContext(context: ReferenceModelContext | undefined): ModelArchetype | null {
   if (!context) return null;
-  return resolveArchetypeForModel({
+  // 只读参考槽（这一刀各档的槽相同）：档按模型名落。
+  return resolveModelArchetype({
     modelKey: context.modelKey,
     modelAlias: context.modelAlias,
     vendorKey: context.vendorKey,
     meta: context.modelMeta ?? (context.archetypeId ? { archetypeId: context.archetypeId } : undefined),
-  });
+  }, { variant: { variantId: undefined, modelId: context.modelKey } });
 }
 
 function slotInputKey(slot: ArchetypeReferenceSlot): string {

@@ -158,6 +158,7 @@ export function UpdateDialogCard({
       withinPortal={false} closeOnClickOutside={false} closeOnEscape={false} trapFocus={false} returnFocus={false}
       closeButtonProps={{ 'aria-label': t('common.close') }}
       contentAttributes={{ 'data-update-dialog': view, 'data-updater-dialog': 'true' }}
+      accessibleName={title}
       title={
       <span className="flex items-start gap-3">
         <span

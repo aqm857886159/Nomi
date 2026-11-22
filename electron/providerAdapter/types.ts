@@ -174,8 +174,9 @@ export type AdapterModeResult = {
   state: AdapterModeState;
   attempts: number;
   /**
-   * 失败发生在哪一段。付费验证删掉之后，中转自检只剩 `credential`（鉴权/可达）与 `contract`
-   * （说明卡形状）两段；`verify_asset` 留给本地 ComfyUI 候选那条免费的真实产物校验。
+   * 失败发生在哪一段。付费验证删掉之后，中转这条路只剩 `contract`（说明卡形状）一段；
+   * `credential` 只是旧任务记录里的值（凭据自检随 D-1117-delete-verification 删了，没有代码再写它）；
+   * `verify_asset` 留给本地 ComfyUI 候选那条免费的真实产物校验。
    */
   stage?: "docs" | "compile" | "credential" | "contract" | "verify_asset" | "promote";
   error?: string;

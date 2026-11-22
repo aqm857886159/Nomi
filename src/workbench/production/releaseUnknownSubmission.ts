@@ -3,7 +3,6 @@ import { isNodeSubmitInFlight } from '../generationCanvas/runner/nodeSubmitInFli
 import { tagNomiError } from '../../../electron/shared/nomiErrorCodes'
 import { canvasOpenRuns } from '../api/taskApi'
 import type { DesktopProductionRunBridge } from '../../desktop/productionRunBridgeTypes'
-import { deriveProductionShotState, productionShotIdForNode } from '../../../electron/shared/productionShotPhase'
 import { executeProductionRunCommand } from './productionRunCommands'
 import { useProductionCanvasLandingStore } from './productionCanvasLandingStore'
 import { useProductionRunStore } from './productionRunStore'
@@ -21,6 +20,8 @@ export async function releaseUnknownSubmission(
   runId: string,
   jobId: string,
   api: ReleaseUnknownApi,
+  /** 主进程这一次重发判定发的号：只有号里列出的那一笔，主进程才肯放。 */
+  resendDecisionId: string,
 ): Promise<void> {
   const run = await api.read(projectId, runId)
   if (!run) throw new Error('Production run not found')
@@ -28,7 +29,7 @@ export async function releaseUnknownSubmission(
     commandId: globalThis.crypto.randomUUID(),
     expectedRevision: run.revision,
     type: 'job.reconcile',
-    payload: { jobId, outcome: 'user_checked_abandon' },
+    payload: { jobId, outcome: 'user_checked_abandon', resendDecisionId },
     issuedAt: new Date().toISOString(),
   }, { read: api.read, execute: api.command })
   // 渲染层有两份这个 Run 的缓存（画布生成入口 / 组合框的「被制作流程占着」判据读它们）：不立刻换成放行后的新版，
@@ -36,21 +37,6 @@ export async function releaseUnknownSubmission(
   const landing = useProductionCanvasLandingStore.getState()
   if (landing.projectId === projectId) landing.setRuns(projectId, { ...landing.runs, [runId]: result.run })
   await useProductionRunStore.getState().loadRun(projectId, runId).catch(() => undefined)
-}
-
-/** 按画布节点找到它那一镜结果未知的任务并放行；这个节点那一镜当前不是「结果未知」就什么都不做、回 false。 */
-export async function releaseUnknownSubmissionForNode(
-  projectId: string,
-  runId: string,
-  nodeId: string,
-  api: ReleaseUnknownApi,
-): Promise<boolean> {
-  const run = await api.read(projectId, runId)
-  if (!run) return false
-  const job = deriveProductionShotState(run, productionShotIdForNode(run, nodeId))?.job
-  if (!job || (job.status !== 'submission_unknown' && job.status !== 'reconciling')) return false
-  await releaseUnknownSubmission(projectId, runId, job.jobId, api)
-  return true
 }
 
 /** 这个任务对应的画布节点：批次镜看 `shots[].nodeId`，单镜看计划的 `nodeId`，老数据才有 `job.nodeId`。 */
@@ -65,15 +51,8 @@ export function nodeIdOfJob(
   return plan?.nodeId ?? run.origin?.nodeId
 }
 
-/** Query at the moment of release; a failed newer click must not hide the original occupancy. */
-export async function releaseUnknownCanvasSubmissionsForNode(projectId: string, nodeId: string, api: ReleaseUnknownApi): Promise<string[]> {
-  const open = await canvasOpenRuns({ projectId, nodeId })
-  for (const entry of open) if (entry.reason === 'needs_reconcile' && entry.jobId) await releaseUnknownSubmission(projectId, entry.runId, entry.jobId, api)
-  return open.filter(entry => entry.reason === 'in_flight').map(entry => entry.runId)
-}
-
 /** The host owns occupancy; this projection never rewrites a live renderer submit. */
-export function synchronizeCanvasOpenRuns(entries: Awaited<ReturnType<typeof canvasOpenRuns>>) {
+export function synchronizeCanvasOpenRuns(entries: ReadonlyArray<Readonly<Awaited<ReturnType<typeof canvasOpenRuns>>[number]>>) {
   const store = useGenerationCanvasStore.getState()
   for (const entry of entries) {
     const node = store.nodes.find(value => value.id === entry.nodeId)

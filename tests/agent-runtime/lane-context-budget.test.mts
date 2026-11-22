@@ -39,7 +39,7 @@ test('C59 stable catalog is in system context; user turns contain only catalog c
   const messages = (n: number) => (fixture.http.requests[n]!.body as { messages: Array<{ role: string; content: unknown }> }).messages;
   assert.match(JSON.stringify(messages(0).filter(m => m.role === 'system')), /MiniMax-H3/);
   assert.match(JSON.stringify(messages(0).filter(m => m.role === 'system')), /768P/);
-  assert.match(JSON.stringify(messages(0).filter(m => m.role === 'system')), /modelId\/modeId 不能留空/);
+  assert.match(JSON.stringify(messages(0).filter(m => m.role === 'system')), /模型和模式都不能留空/);
   assert.match(JSON.stringify(messages(0).filter(m => m.role === 'system')), /用户点名 t2v 就听用户/);
   assert.deepEqual(messages(0).filter(m => m.role === 'system'), messages(1).filter(m => m.role === 'system'));
   assert.doesNotMatch(JSON.stringify(messages(1).filter(m => m.role === 'user')), /MiniMax-H3/);
@@ -174,7 +174,7 @@ test('C59 on-demand models returns every mode contract and follows the latest ca
   const tool = createLaneModelRead(() => entries, () => undefined);
   const full = await tool.execute('full', {});
   assert.equal(JSON.parse(full.content[0]!.text).models.length, 2);
-  const narrowed = await tool.execute('narrow', { modelId: 'Second-Video' });
+  const narrowed = await tool.execute('narrow', { model: 'Second-Video' });
   assert.match(narrowed.content[0]!.text, /1080P/);
   assert.doesNotMatch(narrowed.content[0]!.text, /MiniMax-H3/);
   entries = [];

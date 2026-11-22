@@ -85,6 +85,17 @@ const authorShape=planAnchorSchema.omit({id:true,name:true,description:true,mode
   });
 export const storyboardAuthorFieldsSchema=z.lazy(()=>z.object(describeAuthorFields(authorShape.shape)).strict());
 export type StoryboardAuthorFields=z.infer<typeof storyboardAuthorFieldsSchema>;
+/**
+ * `draft_shots` 模型面那一份：唯一的差别是独立关键帧点名模型用**一个**完整名字（`model`，list_models 给什么抄什么），
+ * 不再是 `modelKey` + `modelVendor` 两半——同一件事在模型面只许有一种写法（设计卡 2026-11-15「第 1 刀」）。
+ * 宿主 / 对外 MCP 收的仍是上面那份；lane 查表后换回 `modelKey` / `modelVendor`（`draftShotsProjection.ts`）。
+ */
+const keyframeModelFace=planShotSchema.shape.keyframe.unwrap().omit({modelKey:true,modelVendor:true});
+export const storyboardModelFaceSchema=z.lazy(()=>z.object(describeAuthorFields({...authorShape.shape,
+  keyframe:z.object(describeAuthorFields({...keyframeModelFace.shape,params:parameters.optional(),
+    model:z.string().trim().min(1).optional().describe('Model full name from list_models')})).strict().optional(),
+})).strict());
+export type StoryboardModelFace=z.infer<typeof storyboardModelFaceSchema>;
 
 /** The explicit candidate accepted by the generation domain owner. */
 export const generationCandidateSchema = z.object({

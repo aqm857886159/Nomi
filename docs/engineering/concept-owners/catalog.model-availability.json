@@ -1,0 +1,38 @@
+{
+  "name": "模型此刻是否有可执行格式和凭据",
+  "subject": "catalog.model-availability",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/modelAvailability.ts",
+    "symbol": "deriveModelAvailability"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/modelAvailability.ts",
+      "symbol": "deriveModelAvailability"
+    },
+    {
+      "path": "electron/shared/modelPublication.ts",
+      "symbol": "derivePublishedExecution"
+    },
+    {
+      "path": "electron/catalog/catalogModelAvailability.ts",
+      "symbol": "projectRendererCatalogModel"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/modelAvailabilityAgreement.test.ts",
+  "allowed_consumers": [
+    "electron/catalog/catalogModelAvailability.ts",
+    "electron/catalog/catalogStore.ts",
+    "electron/catalog/executableModel.ts",
+    "src/config/modelCatalogCache.ts",
+    "src/ui/onboarding/modelSettingsHomeState.ts"
+  ],
+  "since": "2026-11-17",
+  "notes": "现有共享判据：已存请求格式、启用和可解密凭据决定可用性。目录交给渲染层前剥掉历史验证原料；展示词色归 catalog.model-status，角色过滤仍消费可用结论。"
+}

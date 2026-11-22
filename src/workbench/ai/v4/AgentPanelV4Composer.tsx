@@ -20,6 +20,7 @@ import { V4Row } from './AgentPanelV4Row'
 // 按下去只是把框清空。受控之后「有东西可发」和「真的发出去了」是同一条路。
 import PromptEditor, { type PromptEditorProps } from '../../assets/PromptEditor'
 import type { Editor } from '@tiptap/react'
+import type { NomiEditorOwner } from '../../common/useNomiRichTextEditor'
 import { SuggestionPluginKey } from '@tiptap/suggestion'
 import AssetReferenceButton from '../../assets/AssetReferenceButton'
 import { ReferenceNamesContext } from '../../assets/referenceNames'
@@ -29,7 +30,7 @@ import { mentionUrlsInOrder } from '../../assets/promptMentions'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, NomiSelect, type NomiSelectOption } from '../../../design'
+import { HoverCard, HoverCardContent, HoverCardTrigger, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, NomiSelect, type NomiSelectOption } from '../../../design'
 import {
   IconArrowUp,
   IconChevronDown,
@@ -39,7 +40,7 @@ import {
   IconX,
 } from './AgentPanelV4Icons'
 import { approvalPolicyForTier, maxComposerHeight, rowsFromContentHeight, useComposerHeight, shouldSubmitComposer } from './agentPanelV4Logic'
-import type { ComposerMode, ComposerPopover, PermissionTier, V4Chip } from './agentPanelV4Types'
+import type { ComposerMode, ComposerPopover, PermissionTier, V4ComposerReference } from './agentPanelV4Types'
 import { DEFAULT_PERMISSION_TIER, PERMISSION_TIERS } from './agentPanelV4Types'
 
 import { SkillMedia } from '../../skillLibrary/SkillMedia'
@@ -51,7 +52,7 @@ function compactModelLabel(label: string): string {
   return label.replace(/\s+[·|]\s+[^·|]+$/, '')
 }
 
-function ComposerChip({ chip, removeLabel, onRemove }: { chip: V4Chip; removeLabel: string; onRemove?: () => void }): JSX.Element {
+function ComposerChip({ chip, removeLabel }: { chip: V4ComposerReference; removeLabel: string }): JSX.Element {
   const content = (
     <span
       className={cn(
@@ -61,6 +62,7 @@ function ComposerChip({ chip, removeLabel, onRemove }: { chip: V4Chip; removeLab
           : 'border-nomi-line text-nomi-ink-80',
       )}
       data-v4-chip={chip.kind}
+      data-v4-chip-id={chip.id}
     >
       {chip.kind === 'skill' ? (
         <SkillMedia cover={chip.cover} preview={chip.preview} iconSize={12} className="size-4 rounded-nomi-sm object-cover" />
@@ -71,18 +73,18 @@ function ComposerChip({ chip, removeLabel, onRemove }: { chip: V4Chip; removeLab
         />
       )}
       <span className="max-w-[150px] truncate">{chip.label}</span>
-      <button type="button" aria-label={`${removeLabel} ${chip.label}`} className="text-nomi-ink-40" onClick={onRemove}>
+      <button type="button" aria-label={`${removeLabel} ${chip.label}`} className="text-nomi-ink-40" onClick={chip.onRemove}>
         <IconX size={11} />
       </button>
     </span>
   )
   if (chip.kind !== 'skill') return content
-  return <TooltipProvider delayDuration={180}><Tooltip><TooltipTrigger asChild>{content}</TooltipTrigger>
-    <TooltipContent side="top" className="z-popover w-80 whitespace-normal bg-nomi-paper p-3 text-nomi-ink">
+  return <HoverCard><HoverCardTrigger asChild>{content}</HoverCardTrigger>
+    <HoverCardContent side="top">
       <SkillMedia cover={chip.cover} preview={chip.preview} play className="mb-2 max-h-60 w-full object-contain" />
       <strong>{chip.label}</strong><p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-caption leading-relaxed">{chip.description}</p>
-    </TooltipContent>
-  </Tooltip></TooltipProvider>
+    </HoverCardContent>
+  </HoverCard>
 }
 
 export type AgentPanelV4ComposerProps = {
@@ -90,15 +92,17 @@ export type AgentPanelV4ComposerProps = {
   mode?: ComposerMode
   admitting?: boolean
   permission?: PermissionTier
-  chips?: readonly V4Chip[]
+  chips?: readonly V4ComposerReference[]
   /** 3D-BOX「正在改：镜头 N」标签（AgentPanelV4FocusTag）：排在 chip 行最前，不随发送清掉。 */
   focusTag?: React.ReactNode
-  /** 受控文本。没有 `onValueChange` 时框是只读的展示件（设计实验室取景用）。 */
-  value?: string
-  onValueChange?: (value: string, previous?: string) => void
+  /**
+   * 草稿的 owner（项目助手草稿 store 的 subscribe / getSnapshot + 写口）。框每次建出来都按它此刻的值，不收渲染时的值。
+   * 没给 = 空框。`draftReadOnly` 时框是只读的展示件（设计实验室取景用，交 `fixedEditorOwner(文字)`）。
+   */
+  draft?: NomiEditorOwner<string>
+  draftReadOnly?: boolean
   onSubmit?: (choice?: 'primary' | 'secondary') => void
   onStop?: () => void
-  onRemoveChip?: (chip: V4Chip, index: number) => void
   onAddFile?: () => void
   onAddReference?: () => void
   /** 模型钮上显示的文字。没选模型时由调用方给「去选模型」一类的实话，不写死型号。 */
@@ -127,6 +131,9 @@ export type AgentPanelV4ComposerProps = {
   onMentionSelect?: PromptEditorProps['onMentionSelect']
 }
 
+/** 没交草稿 owner：空框、只读（只从类型上引用入口模块，几份测试只替换了入口那一个导出）。 */
+const EMPTY_DRAFT: NomiEditorOwner<string> = { subscribe: () => () => undefined, getSnapshot: () => '', write: () => undefined }
+
 export function AgentPanelV4Composer({
   panelHeight = 620,
   mode = 'idle',
@@ -134,11 +141,10 @@ export function AgentPanelV4Composer({
   permission = DEFAULT_PERMISSION_TIER,
   chips,
   focusTag,
-  value = '',
-  onValueChange,
+  draft = EMPTY_DRAFT,
+  draftReadOnly = false,
   onSubmit,
   onStop,
-  onRemoveChip,
   onAddFile,
   onAddReference,
   modelLabel,
@@ -152,6 +158,7 @@ export function AgentPanelV4Composer({
   onEditorReady, mentionReferences, mentionSearch, onMentionSelect,
 }: AgentPanelV4ComposerProps): JSX.Element {
   const { t } = useTranslation()
+  const value = React.useSyncExternalStore(draft.subscribe, draft.getSnapshot, draft.getSnapshot)
   const mentionUrls = React.useMemo(() => mentionUrlsInOrder(value), [value])
   const referenceNameSignature = useGenerationCanvasStore((state) => referenceNameKey(mentionUrls, state.nodes))
   const referenceNames = React.useMemo(() => referenceNamesFromKey(referenceNameSignature), [referenceNameSignature])
@@ -218,19 +225,18 @@ export function AgentPanelV4Composer({
       {chips?.length || focusTag ? (
         <div className="flex shrink-0 flex-wrap gap-1.5 px-2.5 pt-2">
           {focusTag}
-          {(chips ?? []).map((chip, index) => (
+          {(chips ?? []).map((chip) => (
             <ComposerChip
-              key={`${chip.kind}-${chip.label}`}
+              key={`${chip.kind}:${chip.id}`}
               chip={chip}
               removeLabel={t('agentPanelV4.removeChip')}
-              onRemove={() => onRemoveChip?.(chip, index)}
             />
           ))}
         </div>
       ) : null}
       <ReferenceNamesContext.Provider value={referenceNames}>
       <PromptEditor
-        value={value} onChange={onValueChange ?? (() => undefined)} editable={Boolean(onValueChange)}
+        owner={draft} editable={!draftReadOnly && draft !== EMPTY_DRAFT}
         onReady={handleEditorReady}
         inputAttributes={COMPOSER_INPUT_ATTRIBUTES}
         mentionReferences={mentionReferences} mentionSearch={mentionSearch} onMentionSelect={onMentionSelect}
@@ -311,7 +317,7 @@ export function AgentPanelV4Composer({
                 </V4Row>
               </span>
             </TooltipTrigger>
-            <TooltipContent side="top" className="z-popover" data-v4-skill-hint>{t('agentPanelV4.skill')}</TooltipContent>
+            <TooltipContent side="top" data-v4-skill-hint>{t('agentPanelV4.skill')}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
 

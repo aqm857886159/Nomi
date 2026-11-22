@@ -14,7 +14,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { openModelSettings, openCustomApiWizard } from './_shell.mjs'
 import { screenshotSettled } from './_assert.mjs'
 
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/local-gateway')
+const shotsDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, 'tests/ux/shots/local-gateway')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 const userData = path.join(repoRoot, '.tmp', 'nomi-local-gateway-userdata')
@@ -22,7 +22,7 @@ fs.rmSync(userData, { recursive: true, force: true })
 fs.mkdirSync(userData, { recursive: true })
 
 // ── 假网关：模仿 sub2api / new-api 这类自建网关的 OpenAI 兼容口 ──
-// 覆盖到「接入验证真的能通过」所需的全部线缆：模型列表、SSE 流式文本、同步出图、
+// 覆盖到「请求格式真的能编好」所需的全部线缆：模型列表、SSE 流式文本、同步出图、
 // chat 多模态图生图、视频异步 create + 轮询、以及产物字节本身（验证会去下载产物）。
 const MODELS = ['gpt-5.2', 'gpt-5.4-mini', 'gpt-image-2', 'kling-v2-master']
 // 1x1 PNG / 极小 mp4 头：产物验证要能真的下载到字节。
@@ -136,20 +136,6 @@ for (let i = 0; i < 5; i += 1) {
 }
 await snap(win, 'app-ready')
 
-async function clickFirst(patterns, label) {
-  for (const pattern of patterns) {
-    const target = win.locator('button, [role="button"], a, div[role="menuitem"]', { hasText: pattern }).first()
-    if (await target.count()) {
-      await target.click({ timeout: 3000 }).catch(() => {})
-      await win.waitForTimeout(900)
-      console.log(`  → 点了「${label}」(${pattern})`)
-      return true
-    }
-  }
-  console.log(`  ! 没找到「${label}」`)
-  return false
-}
-
 async function dumpClickables(label) {
   const texts = await win.evaluate(() => {
     const nodes = document.querySelectorAll('button, [role="button"], a, summary, [role="menuitem"]')
@@ -172,39 +158,16 @@ await openCustomApiWizard(win, { label: 'custom API wizard' })
 await snap(win, 'add-model-dialog')
 await dumpClickables('对话框')
 
-// 3. 填地址 + key —— 复刻用户填本地网关的操作
-const baseInput = win.locator('input').filter({ hasNot: win.locator('[type="password"]') })
-const inputs = win.locator('input')
-const count = await inputs.count()
-console.log(`  · 对话框里有 ${count} 个输入框`)
-for (let i = 0; i < count; i += 1) {
-  const box = inputs.nth(i)
-  const placeholder = (await box.getAttribute('placeholder')) || ''
-  const type = (await box.getAttribute('type')) || ''
-  if (/搜索/.test(placeholder)) continue // 项目库搜索框，不是接入表单
-  if (/http|地址|url|base/i.test(placeholder)) {
-    await box.fill(gatewayBase).catch(() => {})
-    console.log(`  → 输入框#${i} 填地址 ${gatewayBase} (placeholder="${placeholder}")`)
-  } else if (type === 'password' || /key|密钥/i.test(placeholder)) {
-    await box.fill('sk-local-probe').catch(() => {})
-    console.log(`  → 输入框#${i} 填 key (placeholder="${placeholder}")`)
-  }
-}
-void baseInput
-await win.waitForTimeout(500)
+// 3. 先填完整连接并保存，再从真实按钮拉模型。
+await win.getByPlaceholder(/如：TOAPI|Example: TOAPI/).fill('Loopback local gateway')
+await win.getByPlaceholder('https://api.openai.com/v1').fill(gatewayBase)
+await win.getByPlaceholder('sk-...').fill('sk-local-probe')
 await snap(win, 'filled-base-url')
-
-// 4. 拉取模型
-await dumpClickables('填完表单')
-await clickFirst([/拉取可用模型/, /拉取模型/, /重新拉取/, /拉取/], '拉取模型')
-await win.waitForTimeout(2500)
-await snap(win, 'fetched-models')
-
-// 5. 进选择模型屏 → 全选 → 接入并验证
-await clickFirst([/选择模型/, /还没选/], '选择模型')
-await win.waitForTimeout(1200)
+await win.getByRole('button', { name: /保存连接|Save connection/i, exact: true }).click()
+await win.locator('[data-model-connection-saved]').waitFor()
+await win.getByRole('button', { name: /获取模型|Get Models/i, exact: true }).click()
+await win.getByRole('button', { name: 'gpt-image-2', exact: true }).waitFor()
 await snap(win, 'pick-models')
-await dumpClickables('选择模型屏')
 const groupAll = win.locator('button', { hasText: /全选本组/ })
 const initialGroups = await groupAll.count()
 console.log(`  · 有 ${initialGroups} 个「全选本组」`)
@@ -217,7 +180,7 @@ const remainingGroups = await groupAll.count()
 if (remainingGroups !== 0) throw new Error(`仍有 ${remainingGroups} 个模型分组没有选中`)
 await win.waitForTimeout(600)
 await snap(win, 'picked-all')
-await clickFirst([/接入并验证 [1-9]/, /接入并验证/], '接入并验证')
+await win.getByRole('button', { name: /添加 [1-9] 个/ }).click()
 await win.waitForTimeout(8000)
 await snap(win, 'verify-result')
 await win.waitForTimeout(12000)
@@ -233,7 +196,7 @@ const docsHostLeak = /docs\.\d/.test(bodyText)
 console.log(`  屏幕含 "docs.<数字>" 畸形域名: ${docsHostLeak}`)
 
 // 失败不能再是准入闸：故意失败的图片模型仍需启用、出现在 kind=image 列表；
-// 同时，排在它后面的视频模型必须完成验证并落下可执行 mapping。
+// 同时，排在它后面的视频模型必须有请求格式并落下可执行 mapping。
 const catalog = await win.evaluate(async (baseUrl) => {
   const bridge = window.nomiDesktop.modelCatalog
   const vendor = ((await bridge.listVendors()) || []).find((item) => item.baseUrlHint === baseUrl)
@@ -252,12 +215,12 @@ fs.writeFileSync(path.join(shotsDir, 'catalog.json'), JSON.stringify(catalog, nu
 const failedImage = catalog.models.find((model) => model.modelKey === 'gpt-image-2')
 const laterVideo = catalog.models.find((model) => model.modelKey === 'kling-v2-master')
 const checks = {
-  resultCopyMatchesUnlockedBehavior: bodyText.includes('所选模型都已开启，也会出现在画布的模型列表里'),
+  resultCopyMatchesUnlockedBehavior: bodyText.includes('请求格式都已就绪，可以在画布里使用。'),
   allFourModelsCommitted: MODELS.every((id) => catalog.models.some((model) => model.modelKey === id)),
   failedImageEnabled: failedImage?.enabled === true,
-  failedImageMarkedFailed: failedImage?.meta?.adapter?.state === 'failed',
+  imageVerificationMetadataWithheld: failedImage?.meta?.adapter?.state === undefined,
   failedImageVisibleByKind: catalog.imageModels.some((model) => model.modelKey === 'gpt-image-2'),
-  laterVideoVerified: laterVideo?.meta?.adapter?.state === 'verified',
+  laterVideoReady: laterVideo?.availability?.usable === true,
   laterVideoVisibleByKind: catalog.videoModels.some((model) => model.modelKey === 'kling-v2-master'),
   laterVideoHasMapping: catalog.mappings.some((mapping) =>
     mapping.modelKey === 'kling-v2-master' && mapping.taskKind === 'text_to_video'),
@@ -268,7 +231,7 @@ await app.close()
 await new Promise((resolve) => gateway.close(resolve))
 
 if (hasInvalidUrl || docsHostLeak || Object.values(checks).some((passed) => !passed)) {
-  console.error('\nWALK FAIL: 本地网关接入或失败后继续验证回归')
+  console.error('\nWALK FAIL: 本地网关接入或失败后继续编请求格式回归')
   process.exit(1)
 }
-console.log('\nWALK DONE：HTTP 本地网关、失败后继续验证、失败模型仍可选均通过。')
+console.log('\nWALK DONE：HTTP 本地网关、失败后继续编请求格式、失败模型仍可选均通过。')

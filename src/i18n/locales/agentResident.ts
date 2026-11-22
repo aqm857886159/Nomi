@@ -154,12 +154,6 @@ export const zhAgentResident = {
   referenceCanvas: '画布对象',
   timelineAppliedReceipt: '已按计划应用到时间轴',
   timelinePlanPreview: '时间轴上高亮的是这次计划的改动，尚未应用',
-  referenceRoleDocument: '文稿',
-  referenceRoleCanvas: '镜头',
-  referenceRolePreview: '预览',
-  referenceRoleTimeline: '时间线',
-  referenceRoleBrowser: '来源',
-  referenceRoleAsset: '素材',
 } as const
 
 export const enAgentResident = {
@@ -316,12 +310,6 @@ export const enAgentResident = {
   referenceCanvas: 'Canvas object',
   timelineAppliedReceipt: 'Applied to the timeline as planned',
   timelinePlanPreview: 'Highlighted on the timeline is what this plan would change; nothing is applied yet',
-  referenceRoleDocument: 'Draft',
-  referenceRoleCanvas: 'Shot',
-  referenceRolePreview: 'Preview',
-  referenceRoleTimeline: 'Timeline',
-  referenceRoleBrowser: 'Source',
-  referenceRoleAsset: 'Asset',
 } satisfies TranslationShape<typeof zhAgentResident>
 
 type TranslationShape<T> = {

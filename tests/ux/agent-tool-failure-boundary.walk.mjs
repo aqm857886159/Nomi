@@ -51,12 +51,12 @@ const ASK_USER = 'TOOLFAIL_ASKED：时长那一栏我连着填错了三次，你
 const DONE = 'TOOLFAIL_DONE：去掉时长那一栏后起草好了。'
 const shot = () => ({
   title: '窗台橘猫', prompt: '一只在窗台上晒太阳的橘猫', taskKind: 'text_to_image',
-  candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL },
+  model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`,
 })
 // 模型真会犯的错：时长写成 `duration`（契约里是 `durationSec`）。每次都一样——它没读懂拒收正文时就是这样。
 const badShot = () => ({
   title: '窗台橘猫', prompt: '一只在窗台上晒太阳的橘猫', taskKind: 'text_to_image',
-  candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL },
+  model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`,
   /* walkthrough-tool-args: intentional-bad-key duration — 复现模型把 durationSec 写成 duration、一错再错 */ duration: 5,
 })
 const FIELD_LINE = /shots\.0\.duration: no such field here; did you mean "durationSec"\?/

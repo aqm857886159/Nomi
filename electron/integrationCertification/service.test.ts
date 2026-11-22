@@ -34,6 +34,7 @@ function connector() {
     cancel: vi.fn(() => ({ ...providerRun, stage: "cancelled" as const })),
     list: vi.fn(() => [providerRun]),
     childRunRef: vi.fn(() => ({ runId: providerRun.id, revisionDigest: "a".repeat(64) })),
+    sourceVendorKey: vi.fn(() => "example-source"),
     resumeInterrupted: vi.fn(),
   };
 }
@@ -112,10 +113,11 @@ describe("ConnectionCertificationService", () => {
       .toEqual((http.start.mock.calls[0]![0] as { certification: CertificationContractBinding }).certification);
   });
 
-  it("preserves lineage, recovery and per-mode certification operations in the public run", () => {
+  it("projects exact operation source, lineage and recovery without credential fingerprints", () => {
     const completeRun = {
       ...providerRun,
       lineageRootVendorKey: "example-root",
+      connectionFingerprint: "private-key-derived-fingerprint",
       recovery: { reasonCode: "submission_unknown" as const, userAction: "reconcile_or_contact_provider" as const },
       certificationOperations: {
         mode: { operationKey: "a".repeat(64), submissionState: "unknown" as const },
@@ -125,8 +127,10 @@ describe("ConnectionCertificationService", () => {
     http.get.mockReturnValue(completeRun);
     const service = new ConnectionCertificationService({ http: http as never });
 
+    expect(service.get(providerRun.id)).not.toHaveProperty("connectionFingerprint");
     expect(service.get(providerRun.id)).toMatchObject({
       lineageRootVendorKey: "example-root",
+      sourceVendorKey: "example-source",
       recovery: { reasonCode: "submission_unknown" },
       certificationOperations: { mode: { submissionState: "unknown" } },
     });

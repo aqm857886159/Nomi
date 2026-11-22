@@ -1,0 +1,47 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "d9e7abb51",
+  "head": "d9e7abb510e5d8b48dfe385e4845ed0131c2f412",
+  "dirty": false,
+  "sourceTree": "2de4216d31d0e17452f28c76148382e029ed1315",
+  "date": "2026-11-20",
+  "runs": 5,
+  "results": [
+    {
+      "id": "composer-open-model-menu-models-200",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 41.7,
+          "p95": 49
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "response": [
+          48.8,
+          40.8,
+          49,
+          41,
+          41.7
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "budget": 100,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

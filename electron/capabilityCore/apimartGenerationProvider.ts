@@ -22,7 +22,8 @@ import { billingKindForTaskKind, selectTaskMapping } from "../catalog/types";
 import type { BillingModelKind, CatalogState, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "../catalog/types";
 import { derivePublishedExecution } from "../shared/modelPublication";
 import { buildProfileHttpRequest, profileBodySnapshot, sendProfileJson, transformProfileBodySync, type ProfileRequestBody } from "../catalog/profileHttpRequest";
-import { applyHeadlessParamDefaults, imageEditGuardError } from "../catalog/taskParams";
+import { applyHeadlessParamDefaults } from "../catalog/taskParams";
+import { imageEditGuardError } from "../catalog/taskParamsGuard";
 import { modelReferenceSelection } from "../catalog/modelCatalogListing";
 import { resolveCustomCallExecution } from "../catalog/customCallMode";
 import { extractVendorExtraHeaders } from "../catalog/catalogStore";
@@ -258,8 +259,8 @@ function projectionRequest(
   // 参考图落哪条通道由**用户选的档案模式**回答（与画布同一份声明、同一个降级函数），不由 body 猜；
   // 没有模式可读的，说成标准输入键，交给 applyHeadlessParamDefaults 里同一个降级函数按 body 推出的声明放。
   const createBody = selection.mapping.create.body;
-  const { meta, kind } = selection.model;
-  const modeIdentity = { meta, kind, ...(input.modeId ? { modeId: input.modeId } : {}) };
+  const { meta, kind, modelKey } = selection.model;
+  const modeIdentity = { meta, kind, modelKey, vendorKey, modeId: input.modeId, variantId: input.variantId };
   const combineKey = referenceCombineChannelFor({ ...modeIdentity, createBody })?.key ?? null;
   const projected = placeRunReferences(input, createBody, archetypeModeForModel(modeIdentity), combineKey);
   const placed = normalizeParameters(projected.parameters, selection.mapping, projected.placedReferenceKeys);
@@ -295,9 +296,8 @@ function projectionRequest(
   // 七项引擎差异之四：图生图/图生视频**一张参考都没带**时，引擎 A 在付费前就拒发
   // （`runtime.ts` 的 imageEditGuardError）；引擎 B 此前照发不误 —— 用户意图「拿图改」，
   // 结果静默退化成纯文生，钱照扣、拿回来的东西跟参考图毫无关系。同一把尺子收在这里。
-  // 引擎 B 的参考素材住在合同里（`input.references` + 授权时封存的 URL 表），而这把共享的尺子
-  // 读的是「headless extras 里带了哪些参考」——所以把封存的那几条 URL 按它认得的标准键喂进去，
-  // 而不是在这里另写一份判据（那就成了同一个问题的第二个答案）。
+  // 引擎 B 的参考住在合同里（`input.references` + 授权时封存的 URL 表），这把共享尺子读「headless extras 带了哪些参考」——
+  // 所以把封存的 URL 按它认得的标准键喂进去，不在这里另写一份判据（那就成了同一个问题的第二个答案）。
   const approvedReferenceUrls = [...new Set([
     ...input.references
       .map((reference) => input.referenceUrls?.[spendReferenceKey(reference)])

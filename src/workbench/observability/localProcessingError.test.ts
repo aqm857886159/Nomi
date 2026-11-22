@@ -3,7 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { classifyGenerationError } from './classifyError'
 import { localProcessingError } from './localProcessingError'
-import { narrateGenerationErrorActions, narrateIsVendorSideFailure } from './narrate'
+import { actionsOfKind, isVendorSideKind } from '../../../electron/shared/generationFailure'
 
 describe('本机处理失败 = 一类（失败卡只留「重试」）', () => {
   it('带码的失败：分到 local-processing，动作只有重试，不点名服务商，不印「服务商原话」', () => {
@@ -23,8 +23,8 @@ describe('本机处理失败 = 一类（失败卡只留「重试」）', () => {
   })
 
   it('动作表与「是不是服务商那一侧」表都有这一类的答案', () => {
-    expect(narrateGenerationErrorActions('local-processing')).toEqual({ primary: 'retry', secondary: null })
-    expect(narrateIsVendorSideFailure('local-processing')).toBe(false)
+    expect(actionsOfKind('local-processing')).toEqual({ primary: 'retry', secondary: null })
+    expect(isVendorSideKind('local-processing')).toBe(false)
   })
 
   // 现有的本机处理入口：失败文案必须过 localProcessingError，否则会掉回「认不出」那一类、长出「换个模型」。

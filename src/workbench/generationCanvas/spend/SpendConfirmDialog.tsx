@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
-import { IconCloud, IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser } from '@tabler/icons-react'
+import { IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser } from '@tabler/icons-react'
 import { DecisionBar, DesignModal, NOMI_OVERLAY_Z_INDEX, WorkbenchButton } from '../../../design'
 import { useSpendConfirmStore, type SpendConfirmState } from './spendConfirm'
 import { ProductionContractSummary } from './ProductionContractSummary'
@@ -26,7 +26,6 @@ export function SpendConfirmDialog() {
   const pending = useSpendConfirmStore((state) => state.pending)
   const resolvePending = useSpendConfirmStore((state) => state.resolvePending)
   const togglePlanRow = useSpendConfirmStore((state) => state.togglePlanRow)
-  const [rememberHosting, setRememberHosting] = React.useState(false)
   // B1：方向门单选（默认选第一个候选）。换 pending 时重置到第一个。
   const directionCandidates = pending?.directionCandidates ?? []
   const [choiceKey, setChoiceKey] = React.useState<string | null>(null)
@@ -70,7 +69,6 @@ export function SpendConfirmDialog() {
 
   React.useEffect(() => {
     setChoiceKey(pending?.directionCandidates?.[0]?.key ?? null)
-    setRememberHosting(false)
   }, [pending])
 
   if (!pending) return null
@@ -95,7 +93,7 @@ export function SpendConfirmDialog() {
       return
     }
     if (directionCandidates.length) pending.onDirectionDecision?.(choiceKey)
-    resolvePending(true, rememberHosting)
+    resolvePending(true)
   }
 
   const width = pending.kind === 'contract' ? 680 : isAnchorCheckpoint ? 560 : 380
@@ -135,6 +133,7 @@ export function SpendConfirmDialog() {
       padding="md"
       zIndex={NOMI_OVERLAY_Z_INDEX.dialog}
       transitionProps={{ duration: 0 }}
+      accessibleName={pending.title}
       title={header}
       closeButtonProps={{ 'aria-label': t('common.close'), ...CLOSE_ACTION_ANCHOR }}
       // 打开时焦点落在对话框本体（读屏会念标题），**刻意不落在「确认花钱」上**——那是不可逆动作，不该被一个回车顺手按掉。
@@ -167,7 +166,7 @@ export function SpendConfirmDialog() {
     return (
       <AnchorCheckpointCard
         model={pending.anchorCheckpoint}
-        onApprove={() => resolvePending(true, false)}
+        onApprove={() => resolvePending(true)}
         onDefer={() => resolvePending(false)}
         onRework={(shotIds) => {
           const cb = pending.onRework
@@ -195,7 +194,7 @@ export function SpendConfirmDialog() {
         cb?.()
       },
       onIgnore: () => resolvePending(false),
-      onConfirm: () => resolvePending(true, false),
+      onConfirm: () => resolvePending(true),
       t,
     })
     return frame(parts.content, parts.footer)
@@ -207,35 +206,6 @@ export function SpendConfirmDialog() {
 
       {pending.planRows?.length ? (
         <PlanRows rows={pending.planRows} onToggle={togglePlanRow} className="mb-3" />
-      ) : null}
-
-      {pending.hostingDisclosure ? (
-        // 「记住我的选择」住在披露块**内部**，不和下面「本次会话不再提示」并排。
-        // 起因（2026-08-26 用户拍板）：两个勾选框曾贴在一起、长得一模一样，但管的是两件事、
-        // 两种作用域——一个管这张花钱卡（本会话），一个把 anonymousAssetHosting 永久设成 allow。
-        // 并排时得逐字读标签才分得清，误勾的代价是「以后本机素材静默上传公共托管」。
-        // 按 §1.5.3「先分组」：把勾选框搬进它作用的那个对象里，作用域一眼可见（也是「一功能一个家」的视觉版）。
-        <div
-          data-hosting-disclosure="true"
-          className={cn('mb-3 flex gap-2 rounded-nomi-sm bg-nomi-ink-05 px-3 py-2.5 text-caption leading-relaxed text-nomi-ink-80')}
-        >
-          <IconCloud size={17} stroke={1.7} className={cn('mt-0.5 shrink-0 text-nomi-ink-60')} aria-hidden="true" />
-          <div className={cn('min-w-0 grid gap-2')}>
-            <div className={cn('min-w-0')}>{pending.hostingDisclosure.message}</div>
-            {/* 细分隔线：让「说明」与「这条说明对应的选择」分段，但仍同属一张托管卡（§1.5.3 分段要有边界）。 */}
-            <label
-              data-hosting-remember="true"
-              className={cn('flex items-center gap-2 border-t border-nomi-line-soft pt-2 cursor-pointer select-none text-nomi-ink-60')}
-            >
-              <input
-                type="checkbox"
-                checked={rememberHosting}
-                onChange={(event) => setRememberHosting(event.currentTarget.checked)}
-              />
-              {pending.hostingDisclosure.rememberLabel}
-            </label>
-          </div>
-        </div>
       ) : null}
 
       {directionCandidates.length ? (

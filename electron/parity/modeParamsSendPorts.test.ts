@@ -26,7 +26,7 @@ vi.mock("../capabilityCore/rendererBridge", () => ({
   },
 }));
 
-import { resolveArchetypeForModel, specializeArchetypeForVariant } from "../shared/modelArchetypes";
+import { EVERY_VARIANT, resolveModelArchetype, rescopeArchetypeVariant } from "../shared/modelArchetypes";
 import { declaredModeParams, effectiveModeParams } from "../shared/modelArchetypes/modeParams";
 import variantsSnapshot from "./modeParamsVariants.snapshot.json";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
@@ -46,7 +46,7 @@ const seeded = await seedParityCatalog([]);
 }
 afterAll(() => capture.restore());
 
-type Archetype = NonNullable<ReturnType<typeof resolveArchetypeForModel>>;
+type Archetype = NonNullable<ReturnType<typeof resolveModelArchetype>>;
 type Mode = Archetype["modes"][number];
 type Control = Mode["params"][number];
 type Row = (typeof seeded.models)[number];
@@ -106,12 +106,18 @@ function undeclaredGovernedKeys(extras: Record<string, unknown>, archetype: Arch
   return Object.keys(extras).filter((key) => governed.has(key) && !own.has(key)).sort();
 }
 
-const governedProjection = (extras: Record<string, unknown> | undefined, governed: Set<string>) =>
-  JSON.stringify(Object.entries(extras ?? {}).filter(([key]) => governed.has(key)).sort(([a], [b]) => (a < b ? -1 : 1)));
+/**
+ * 管辖键的值投影。`wireStringKeys`（声明门把 `"4"` 档规整成数字的键）按值比：渲染层冻结的是内部数字 4，
+ * 主进程这一步按声明编回报文写法 `"4"`（出口编码，paramValue.ts `encodeParamsForWire`）——同一个值，不算漂移。
+ */
+const governedProjection = (extras: Record<string, unknown> | undefined, governed: Set<string>, wireStringKeys: ReadonlySet<string> = new Set()) =>
+  JSON.stringify(Object.entries(extras ?? {}).filter(([key]) => governed.has(key))
+    .map(([key, value]): [string, unknown] => [key, wireStringKeys.has(key) && typeof value === "number" ? String(value) : value])
+    .sort(([a], [b]) => (a < b ? -1 : 1)));
 
 function multiModeRows(): Array<{ row: Row; archetype: Archetype }> {
   return seeded.models
-    .map((row) => ({ row, archetype: resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }) }))
+    .map((row) => ({ row, archetype: resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT }) }))
     .filter((entry): entry is { row: Row; archetype: Archetype } => Boolean(entry.archetype && entry.archetype.modes.length > 1));
 }
 
@@ -123,6 +129,7 @@ describe("方式参数 owner：渲染层与主进程是同一份答案", () => {
     let checked = 0;
     for (const { row, archetype } of multiModeRows()) {
       const governed = governedKeysOf(archetype);
+      const wireStringKeys = new Set(archetype.modes.flatMap((mode) => mode.params.filter((control) => control.wireEncoding === "numeric-string").map((control) => control.key)));
       const stored = storedOf(archetype.modes);
       for (const mode of archetype.modes) {
         const request = canvasRequest(row, archetype, mode.id, stored, imageRefCountFor(mode, archetype, row.vendorKey));
@@ -138,8 +145,12 @@ describe("方式参数 owner：渲染层与主进程是同一份答案", () => {
           if (/capabilit|声明/i.test((error as Error).message)) continue;
           throw error;
         }
-        if (governedProjection(extras, governed) !== governedProjection(main, governed)) {
+        if (governedProjection(extras, governed, wireStringKeys) !== governedProjection(main, governed, wireStringKeys)) {
           diffs.push(`${where}: 渲染层 ${governedProjection(extras, governed)} ≠ 主进程 ${governedProjection(main, governed)}`);
+        }
+        // 出口编码就在这一步：数字串声明的键，主进程出来的一定是报文写法（字符串）。
+        for (const key of wireStringKeys) {
+          if (main && key in main && typeof main[key] !== "string") diffs.push(`${where}: ${key} 出主进程仍是 ${typeof main[key]}，没按声明编回字符串`);
         }
         archetypes.add(archetype.id);
         checked++;
@@ -153,7 +164,7 @@ describe("方式参数 owner：渲染层与主进程是同一份答案", () => {
 
   it("反例自检：冻结请求里塞一个编辑方式才有的键 → 判漏键", () => {
     const row = seeded.models.find((candidate) => candidate.vendorKey === "kie" && candidate.modelKey === "happyhorse")!;
-    const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, vendorKey: row.vendorKey, meta: row.meta })!;
+    const archetype = resolveModelArchetype({ modelKey: row.modelKey, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT })!;
     const extras = canvasRequest(row, archetype, "t2v", {}).extras;
     expect(undeclaredGovernedKeys(extras as Record<string, unknown>, archetype)).toEqual([]);
     expect(undeclaredGovernedKeys({ ...(extras as Record<string, unknown>), audio_setting: "auto" }, archetype)).toEqual(["audio_setting"]);
@@ -175,7 +186,7 @@ describe("参数键对比尺画布路剩下的 6 个 happyhorse「X → 编辑�
   for (const [vendorKey, modelKey, fromModeId] of SAMPLES) {
     it(`happyhorse|${vendorKey}|${modelKey}|${fromModeId}->edit`, async () => {
       const row = seeded.models.find((candidate) => candidate.vendorKey === vendorKey && candidate.modelKey === modelKey)!;
-      const archetype = resolveArchetypeForModel({ modelKey, modelAlias: row.modelAlias, vendorKey, meta: row.meta })!;
+      const archetype = resolveModelArchetype({ modelKey, modelAlias: row.modelAlias, vendorKey, meta: row.meta }, { variant: EVERY_VARIANT })!;
       const from = archetype.modes.find((mode) => mode.id === fromModeId)!;
       const edit = archetype.modes.find((mode) => mode.id === "edit")!;
       const refCount = imageRefCountFor(edit, archetype, vendorKey);
@@ -204,9 +215,10 @@ describe("变体：渲染层和主进程按同一个变体特化", () => {
     const diffs: string[] = [];
     let checked = 0;
     for (const row of seeded.models) {
-      const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+      const archetype = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
       if (!archetype?.variants?.some((variant) => variant.paramOverrides)) continue;
       const governed = governedKeysOf(archetype);
+      const wireStringKeys = new Set(archetype.modes.flatMap((mode) => mode.params.filter((control) => control.wireEncoding === "numeric-string").map((control) => control.key)));
       const stored = storedOf(archetype.modes);
       for (const variant of archetype.variants) {
         for (const mode of archetype.modes) {
@@ -222,8 +234,8 @@ describe("变体：渲染层和主进程按同一个变体特化", () => {
             if (/capabilit|声明/i.test((error as Error).message)) continue;
             throw error;
           }
-          if (governedProjection(extras, governed) !== governedProjection(main, governed)) {
-            diffs.push(`${where}: 渲染层 ${governedProjection(extras, governed)} ≠ 主进程 ${governedProjection(main, governed)}`);
+          if (governedProjection(extras, governed, wireStringKeys) !== governedProjection(main, governed, wireStringKeys)) {
+            diffs.push(`${where}: 渲染层 ${governedProjection(extras, governed, wireStringKeys)} ≠ 主进程 ${governedProjection(main, governed, wireStringKeys)}`);
           }
           checked++;
         }
@@ -248,7 +260,7 @@ describe("变体夹具（会改方式的键和缺省值的变体）：画布路�
     if (!found) throw new Error("前提：种子目录里有 apimart 的 doubao-seedance-2.0");
     return found;
   };
-  const archetypeOf = (model: Row) => resolveArchetypeForModel({ modelKey: model.modelKey, modelAlias: model.modelAlias, vendorKey: model.vendorKey, meta: model.meta })!;
+  const archetypeOf = (model: Row) => resolveModelArchetype({ modelKey: model.modelKey, modelAlias: model.modelAlias, vendorKey: model.vendorKey, meta: model.meta }, { variant: EVERY_VARIANT })!;
   const stored = { generate_audio: false };
   const selectedOf = (model: Row) => ({ modelKey: model.modelKey, modelAlias: model.modelAlias, vendorKey: model.vendorKey, modelMeta: model.meta, taskKind: "text_to_video", modeId: VARIANT_FIXTURE.modeId });
 
@@ -284,7 +296,7 @@ describe("变体夹具（会改方式的键和缺省值的变体）：画布路�
     const archetype = archetypeOf(model);
     const canvas = canvasRequest(model, archetype, VARIANT_FIXTURE.modeId, stored, 0, VARIANT_FIXTURE.variantId).extras as Record<string, unknown>;
     const main = applyHeadlessParamDefaults(canvas, selectedOf(model), undefined);
-    const governed = governedKeysOf(specializeArchetypeForVariant(archetype, VARIANT_FIXTURE.variantId));
+    const governed = governedKeysOf(rescopeArchetypeVariant(archetype, { variantId: VARIANT_FIXTURE.variantId, modelId: undefined }));
     expect(governedProjection(main, governed)).toBe(governedProjection(canvas, governed));
   });
 });
@@ -299,7 +311,7 @@ const fingerprint = (value: unknown) => createHash("sha256").update(canonical(JS
 function variantDefaults(): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const row of seeded.models) {
-    const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+    const archetype = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
     if (!archetype?.variants?.length) continue;
     const call = (extras: Record<string, unknown>, taskKind: string, modeId?: string) => {
       try {
@@ -345,7 +357,7 @@ describe("变体：主进程默认值只许多登记的那几个键", () => {
     const diffs: string[] = [];
     let checked = 0;
     for (const row of seeded.models) {
-      const archetype = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+      const archetype = resolveModelArchetype({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta }, { variant: EVERY_VARIANT });
       if (!archetype?.variants?.length) continue;
       const unspecialized = { ...archetype, variants: undefined };
       for (const variant of archetype.variants) for (const mode of archetype.modes) {
@@ -368,7 +380,7 @@ describe("无界面路：键按方式收、缺的补默认；已给的值一个�
     { label: "火山 Seedream 文生图 size 1024x1024（不在选项里）", archetypeId: "volcengine-seedream", vendorKey: "volcengine", taskKind: "text_to_image", modeId: undefined, key: "size", value: "1024x1024" },
   ])("$label", ({ archetypeId, vendorKey, taskKind, modeId, key, value }) => {
     const selected = { modelKey: archetypeId, vendorKey, modelMeta: { archetypeId }, taskKind, ...(modeId ? { modeId } : {}) };
-    const archetype = resolveArchetypeForModel({ modelKey: archetypeId, vendorKey, meta: { archetypeId } });
+    const archetype = resolveModelArchetype({ modelKey: archetypeId, vendorKey, meta: { archetypeId } }, { variant: EVERY_VARIANT });
     expect(archetype, "前提：认得出档案").toBeTruthy();
     const options = archetype!.modes.flatMap((mode) => mode.params).filter((control) => control.key === key).flatMap((control) => control.options.map((option) => option.value));
     expect(options.length, "前提：这个键是下拉").toBeGreaterThan(0);

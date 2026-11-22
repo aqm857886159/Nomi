@@ -35,10 +35,13 @@ const videoModelCandidates = buildVideoModelCandidates([
   { provider: "apimart", modelKey: "doubao-seedance-2.0-mini", label: "Seedance 2.0 Mini" },
 ]);
 
+/** 这条消息带上来的可用模型清单：`draft_shots` 的完整名字在这里查。 */
+const LANE_MODELS = [{ vendor: "apimart", modelId: "doubao-seedance-2.0", modelAlias: null }];
+
 type Shot = Record<string, unknown> & { parameters?: Record<string, unknown> };
 const goodShot = (): Shot => ({
   title: "纸船", prompt: "一只纸船在雨后的水洼里慢慢漂，清晨的光", taskKind: "text_to_video",
-  candidate: { providerId: "apimart", modelId: "doubao-seedance-2.0" },
+  model: "doubao-seedance-2.0@apimart",
   parameters: { duration: 4, resolution: "480p", generate_audio: false },
 });
 
@@ -89,7 +92,7 @@ async function runAgentTurns(first: Shot, expectOutcome: "card" | "stopped") {
   const world = spendWorld({ registry, videoModelCandidates });
   const adapter = world.transport("request");
   const tools = createExtendedLaneTools({
-    execute: async (call, signal) => adapter.tryExecute(verbToTransportCall(call)!.call, signal) as never,
+    execute: async (call, signal) => adapter.tryExecute(verbToTransportCall(call, LANE_MODELS)!.call, signal) as never,
   });
   const draftTool = tools.find((tool) => tool.name === "draft_shots")!;
   const signal = new AbortController().signal;
@@ -117,7 +120,8 @@ async function runAgentTurns(first: Shot, expectOutcome: "card" | "stopped") {
 describe("起草被拒 → Agent 只凭工具结果当场改对再交 → 出付费卡", () => {
   const faults: Array<[string, (shot: Shot) => Shot, RegExp]> = [
     ["参数里塞 variant（真走查那一份）", (shot) => ({ ...shot, parameters: { ...shot.parameters, variant: "fast" } }), /variantId/],
-    ["数字写成字符串", (shot) => ({ ...shot, parameters: { ...shot.parameters, seed: "42", resolution: "480p" } }), /类型不对/],
+    // 规范数字串 "42" 自 2026-11-17 起先过值门、就是 42（见下面单独那一格）；还会被拒的是非规范写法。
+    ["数字写成非规范的字符串", (shot) => ({ ...shot, parameters: { ...shot.parameters, seed: "42.0", resolution: "480p" } }), /类型不对/],
     ["多一个未知键", (shot) => ({ ...shot, parameters: { ...shot.parameters, motion_strength: 0.5 } }), /不接受参数 motion_strength/],
     ["variantId 写错", (shot) => ({ ...shot, variantId: "turbo" }), /变体 turbo 不属于/],
   ];
@@ -139,6 +143,12 @@ describe("起草被拒 → Agent 只凭工具结果当场改对再交 → 出付
 
   it("毛病：写 null（模型的坏习惯）——起草直接放行，不需要自纠，付费卡照出", async () => {
     const { rejections, card } = await runAgentTurns({ ...goodShot(), parameters: { ...goodShot().parameters, seed: null } }, "card");
+    expect(rejections).toEqual([]);
+    expect(card).toBe(true);
+  });
+
+  it("规范数字串 \"42\"（要数字的参数）：先过值门就是 42，起草直接放行，付费卡照出（2026-11-17 取代「不放宽类型」）", async () => {
+    const { rejections, card } = await runAgentTurns({ ...goodShot(), parameters: { ...goodShot().parameters, seed: "42" } }, "card");
     expect(rejections).toEqual([]);
     expect(card).toBe(true);
   });

@@ -21,8 +21,8 @@ function fixture() {
   write('src/guard.ts', 'old source'); write('electron/host.ts', 'host')
   const first = commit()
   const source = fs.readFileSync('tests/ux/generation-lock-exit-real.paid.mjs', 'utf8')
-  const prefix = source.slice(source.indexOf('const receiptPath'), source.indexOf('const model'))
-  const green = { commit: first, status: 'passed', report: { journeyConditions: LOCK_EXIT_JOURNEY_CONDITIONS, hostingDisclosure: 1, stages: ['storyboard', 'canvas', 'list', 'restart'], openRunStages: ['window-close', 'sigkill', 'reload', 'retrieve', 'resend'].map(name => ({ name, status: 'passed', commit: first })) } }
+  const prefix = source.slice(source.indexOf('const receiptPath'), source.indexOf('\n}\nconst model'))
+  const green = { commit: first, status: 'passed', report: { journeyConditions: LOCK_EXIT_JOURNEY_CONDITIONS, observations: { batchConfirmations: [{ hostingDisclosure: false }] }, stages: ['storyboard', 'canvas', 'list', 'restart'], openRunStages: ['window-close', 'sigkill', 'reload', 'retrieve', 'resend'].map(name => ({ name, status: 'passed', commit: first })) } }
   const validate = (receipt = green) => {
     const file = path.join(root, 'receipt.json'); fs.writeFileSync(file, JSON.stringify(receipt))
     // Execute only the actual preflight block; no paid entry, credentials or provider is invoked.
@@ -55,11 +55,28 @@ it('the old IPC-only product cannot pass the updated repair markers', () => {
   expect(() => assertPaidBuildReady(f.root, { markers: LOCK_EXIT_BUILD_MARKERS, verify: () => {} })).not.toThrow()
 })
 
-it.each([undefined, 0])('paid entry rejects a complete rehearsal without hosting disclosure %j', hostingDisclosure => {
+it.each([undefined, [], [{ hostingDisclosure: true }]])('paid entry rejects missing confirmation or restored hosting disclosure %j', batchConfirmations => {
   const f = fixture()
-  expect(() => f.validate({ ...f.green, report: { ...f.green.report, hostingDisclosure } })).toThrow(/hosting disclosure/)
+  expect(() => f.validate({ ...f.green, report: { ...f.green.report, observations: { batchConfirmations } } })).toThrow()
 })
 it('paid entry rejects a complete rehearsal with different journey conditions', () => {
   const f = fixture()
   expect(() => f.validate({ ...f.green, report: { ...f.green.report, journeyConditions: { ...LOCK_EXIT_JOURNEY_CONDITIONS, anonymousAssetHosting: 'allow' } } })).toThrow(/conditions must match/)
+})
+
+// 两份付费入口的旅程收据核对恢复原样（2026-11-15 独立验收真问题 5）：只在真付费那一场核，演练那一场跳过；
+// 跳过的条件只有「这一场是演练」一个（paidRehearsalTier），核对本身一个字不改。
+it.each([
+  ['generation-lock-exit-real.paid.mjs', 'NOMI_LOCK_EXIT_REHEARSAL_RECEIPT', "assertLockExitHostingReceipt(rehearsal)"],
+  ['shot-result-ownership-real.paid.mjs', 'NOMI_OWNERSHIP_REHEARSAL_RECEIPT', "Object.values(rehearsal.report.checks).every(Boolean)"],
+])('%s: the journey receipt is checked before the paid session, skipped only when rehearsing', (name, envName, check) => {
+  const source = fs.readFileSync(path.join('tests/ux', name), 'utf8')
+  const guard = source.indexOf('if (!paidRehearsalTier()) {')
+  expect(guard).toBeGreaterThan(0)
+  expect(source.indexOf(`process.env.${envName}`)).toBeGreaterThan(guard)
+  expect(source.indexOf(check)).toBeGreaterThan(guard)
+  expect(source.indexOf("execFileSync('git', ['diff', '--quiet', 'HEAD', '--', 'src', 'electron'])")).toBeGreaterThan(guard)
+  expect(source.indexOf("execFileSync('git', ['diff', '--quiet', 'HEAD', '--', 'src', 'electron'])")).toBeLessThan(source.indexOf('await openPaidWalk('))
+  expect(source.match(/paidRehearsalTier\(/g)).toHaveLength(1)
+  expect(source).toContain('paid.vendorUpstream()')
 })

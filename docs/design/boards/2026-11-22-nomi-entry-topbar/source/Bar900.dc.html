@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>顶栏 900 浅色</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 948px; height: 900px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px; background: oklch(1 0 0); color: oklch(0.22 0.01 80); font-family: Inter, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600">900 宽 · 中英 · 浅色（「新版本」和「等你确认」开始带字的那一档）</h1>
+<p style="margin: 0; font-size: 13px; line-height: 20px; color: oklch(0.50 0.01 80)">从 900 起，「新版本」带字（今天就这样），「等你确认 2」（英文 Confirm 2）也带字，就是今天小球上那颗浅橙胶囊，字也一样；窄于 900，或者走到第 ④ 步，就换回只有图标和角标的样子。</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">今天 · 预览 · 中文</b>　项目名露出来，「导出 MP4」带字</p>
+<div style="width: 900px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" theme="light" page="preview" width="900" lang="zh" entry="none" name-max="50" hint-size="900px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 预览 · 中文</b>　等你确认 2（带字胶囊）；「导出 MP4」离分段还有 16px，照旧带字；项目名藏起（已有规则：右边变宽，左边先让）</p>
+<div style="width: 900px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" theme="light" page="preview" width="900" lang="zh" face="idle" pending="2" name-max="0" hint-size="900px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">最挤 · 预览 · 中文</b>　新版本 + 3 个任务 + 等你确认 120 + 分段带进度：分段往左让 134px</p>
+<div style="width: 900px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" theme="light" page="preview" width="900" lang="zh" face="running" pending="120" tasks="3" update="true" export-compact="true" meta-gen="38/120" meta-preview="12:34" name-max="0" seg-shift="-134" hint-size="900px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">今天 · 预览 · 英文</b>　项目名只露几个字母</p>
+<div style="width: 900px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" theme="light" page="preview" width="900" lang="en" entry="none" name-max="43" hint-size="900px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 预览 · 英文</b>　Confirm 2（带字胶囊）；导出收成图标，项目名只露几个字母，分段不用让</p>
+<div style="width: 900px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" theme="light" page="preview" width="900" lang="en" face="idle" pending="2" export-compact="true" name-max="35" hint-size="900px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">最挤 · 预览 · 英文</b>　新版本 + 3 个任务 + 等你确认 120 + 分段带进度：带着进度数字放不下（差 19px），第 ③ 步藏进度数字，再往左让 132px</p>
+<div style="width: 900px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" theme="light" page="preview" width="900" lang="en" face="running" pending="120" tasks="3" update="true" export-compact="true" meta-gen="38/120" meta-preview="12:34" hide-meta="true" name-max="0" seg-shift="-132" hint-size="900px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.55 0.13 25)">今天 · 预览 · 英文 · 上次更新没装上</b>　今天就压上（红框）：导出已收成图标，分段还是死居中，压住 88px；中文同样情况正好贴边</p>
+<div style="width: 900px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" theme="light" page="preview" width="900" lang="en" entry="none" update="true" update-state="installFailed" export-compact="true" name-max="0" overlap="true" hint-size="900px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">最挤 · 预览 · 中文 · 上次更新没装上</b>　「上次没装上 · 点一下重试」+ 3 个任务 + 等你确认 120 + 分段带进度：差 3px，第 ③ 步藏进度数字，再往左让 150px</p>
+<div style="width: 900px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" theme="light" page="preview" width="900" lang="zh" face="running" pending="120" tasks="3" update="true" update-state="installFailed" export-compact="true" meta-gen="38/120" meta-preview="12:34" hide-meta="true" name-max="0" seg-shift="-150" hint-size="900px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">最挤 · 预览 · 英文 · 上次更新没装上</b>　藏了进度数字还差 41px，第 ④ 步「新版本」收成红点（悬停看全句），分段往左让 37px；「Confirm 120」照旧带字</p>
+<div style="width: 900px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" theme="light" page="preview" width="900" lang="en" face="running" pending="120" tasks="3" update="true" update-state="installFailed" update-compact="true" export-compact="true" meta-gen="38/120" meta-preview="12:34" hide-meta="true" name-max="0" seg-shift="-37" hint-size="900px,40px"></dc-import>
+</div>
+</div>
+</div>
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)">900 是带字的最挤一档。「新版本」那颗最长会写「上次没装上 · 点一下重试」，今天的顶栏遇到它就会压上（倒数第三行）；改后走到第 ④ 步，它收成和窄窗一样的红点，悬停照样看得到全句。</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":948,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ModelOption } from '../../../config/models'
 import { createGenerationNode } from '../model/graphOps'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import { buildNodeModelChangePatch } from './buildNodeModelChangePatch'
 import { archetypeForNode } from '../agent/referenceEdgeCapability'
 import { effectiveArchetypeMode } from './controls/archetypeMeta'
@@ -149,7 +149,7 @@ describe('buildNodeModelChangePatch', () => {
     const seedance = option({ value: 'seedance-2', modelKey: 'seedance-2', vendor: 'apimart', label: 'Seedance 2.0' })
     const archetypeKeys = ['wan-2.7', 'veo-3.1', 'kling-3.0', 'grok-imagine-1.5-video', 'seedance-2-apimart']
     const targets = archetypeKeys
-      .map((key) => ({ key, found: resolveArchetypeForModel({ modelKey: key, vendorKey: 'apimart', meta: {} } as never) }))
+      .map((key) => ({ key, found: resolveModelArchetype({ modelKey: key, vendorKey: 'apimart', meta: {} } as never, { variant: EVERY_VARIANT }) }))
       .filter((row) => row.found)
     const swapTo = (key: string, meta: Record<string, unknown>) => {
       const node: GenerationCanvasNode = { ...createGenerationNode({ id: 'v', kind: 'video' }), meta: { modelKey: 'seedance-2', modelVendor: 'apimart', vendor: 'apimart', archetype: { id: 'seedance-2', modeId: meta.__mode ?? 'firstlast' }, ...meta } }
@@ -170,7 +170,7 @@ describe('buildNodeModelChangePatch', () => {
     })
 
     it('新模型一个能收图的方式都没有：图留在参考列表里（不丢），不删', () => {
-      const textOnly = resolveArchetypeForModel({ modelKey: 'minimax-h3-regeneration', vendorKey: 'apimart', meta: {} } as never)
+      const textOnly = resolveModelArchetype({ modelKey: 'minimax-h3-regeneration', vendorKey: 'apimart', meta: {} } as never, { variant: EVERY_VARIANT })
       if (!textOnly) return
       const result = swapTo('minimax-h3-regeneration', { firstFrameUrl: 'a', lastFrameUrl: 'b' })
       expect(result.meta.referenceImageUrls).toEqual(['a', 'b'])

@@ -1,0 +1,41 @@
+{
+  "name": "模型与连接当前状态的词键和点色",
+  "subject": "catalog.model-status",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/modelStatusPresentation.ts",
+    "symbol": "presentModelStatus"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/modelStatusPresentation.ts",
+      "symbol": "presentModelStatus"
+    },
+    {
+      "path": "electron/shared/modelStatusPresentation.ts",
+      "symbol": "presentConnectionStatus"
+    },
+    {
+      "path": "electron/shared/modelStatusPresentation.ts",
+      "symbol": "presentStatusCount"
+    },
+    {
+      "path": "src/ui/onboarding/ModelStatusMark.tsx",
+      "symbol": "ModelStatusMark"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/shared/modelStatusPresentation.test.ts",
+  "allowed_consumers": [
+    "src/ui/onboarding/modelSettingsHomeState.ts",
+    "src/ui/onboarding/modelAdapterDetailState.ts",
+    "src/ui/onboarding/ModelStatusMark.tsx",
+    "electron/catalog/modelCatalogListing.ts"
+  ],
+  "since": "2026-11-20",
+  "notes": "只接可用性结论与格式进度；界面经 ModelStatusMark 渲染。check-model-availability 与 ESLint 共用 AST 拦退役原料和出口直接选词；任务阶段不覆盖当前状态。"
+}

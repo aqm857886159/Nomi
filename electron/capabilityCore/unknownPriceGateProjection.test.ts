@@ -23,6 +23,8 @@ vi.mock('./approvalReceiptRuntime', () => ({
       display: { projectName: '短片', shotSummary: '一镜', model: 'm-x', referenceCount: 0 },
       reservationPreview: previewForChallenge,
     }),
+    // 这一笔还在等人（主人先看「用没用掉」，用掉的不再弹卡）。
+    readDecisionRecord: () => ({ state: 'pending' }),
   }),
 }))
 vi.mock('./projectSessionRuntime', () => ({ createProductionProjectSessionRuntime: () => ({}) }))

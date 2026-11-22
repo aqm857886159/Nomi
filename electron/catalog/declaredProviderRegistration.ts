@@ -58,7 +58,69 @@ export class DeclaredOriginRewriteError extends Error {
   }
 }
 
-import { projectDeclaredModel, assertDeclaredReplacementOwnership, assertNeutralDeclarationParameters, capabilityFactDigest } from "../providerAdapter/promotionMeta";
+import { projectDeclaredModel, assertDeclaredReplacementOwnership, capabilityFactDigest } from "../providerAdapter/promotionMeta";
+import { builtinVendorSeed, type VendorSeed } from "./builtinVendorSeeds";
+import { builtinCatalogModelKeys } from "./seedBuiltins";
+
+/**
+ * 卡挂在**内置连接**上（APIMart 这类有代码种子的家），而卡上「key 发往哪里、怎么放」的某一格
+ * 和这条连接现在的不一样。内置连接的地址和鉴权由种子和设置页说了算，卡只能复述，不能改。
+ * 2026-11-16：以前这里照卡改写整条连接行（多写一格 assetIngestion 都算），内置连接的范围判据
+ * 随即不认它，整家 APIMart 的生成门一起关掉——用户交一张卡，连原来的内置模型也用不了了。
+ */
+export class DeclaredBuiltinConnectionMismatchError extends Error {
+  readonly vendorKey: string;
+  readonly fields: Array<{ field: string; declared: string; connection: string }>;
+  constructor(vendorKey: string, fields: Array<{ field: string; declared: string; connection: string }>) {
+    super(
+      `${vendorKey} is a built-in connection; its address and auth come from Nomi, not from a declaration. This card differs on ${fields.map((row) => `${row.field} (card: ${row.declared}, connection: ${row.connection})`).join("; ")}.`,
+    );
+    this.name = "DeclaredBuiltinConnectionMismatchError";
+    this.vendorKey = vendorKey;
+    this.fields = fields;
+  }
+}
+
+/** 卡上声明了这家内置目录里已经有的模型：内置档案说了算，卡让路，连接不动。 */
+export class DeclaredBuiltinModelError extends Error {
+  readonly vendorKey: string;
+  readonly modelKeys: string[];
+  constructor(vendorKey: string, modelKeys: string[]) {
+    super(
+      `${modelKeys.join(", ")} ${modelKeys.length === 1 ? "is" : "are"} already in Nomi's built-in ${vendorKey} catalog with its own profile; a declaration cannot replace a built-in model.`,
+    );
+    this.name = "DeclaredBuiltinModelError";
+    this.vendorKey = vendorKey;
+    this.modelKeys = modelKeys;
+  }
+}
+
+/**
+ * 内置连接上，卡的 provider 块只能复述连接现在「key 发往哪里、怎么放」：
+ * 地址比 origin（连接现在的地址，用户在设置页改过就以改过的为准），鉴权几格只比卡上写了的。
+ */
+function builtinConnectionMismatches(card: ProviderAdapterDraft, seed: VendorSeed, existing: Vendor | undefined) {
+  const live = {
+    baseUrl: String(existing?.baseUrlHint ?? seed.baseUrl),
+    authType: existing?.authType ?? seed.authType,
+    authHeader: existing?.authHeader ?? seed.authHeader,
+    authScheme: existing?.authScheme ?? seed.authScheme,
+    authQueryParam: existing?.authQueryParam ?? seed.authQueryParam,
+    providerKind: existing?.providerKind ?? seed.providerKind ?? "openai-compatible",
+  };
+  const fields: Array<{ field: string; declared: string; connection: string }> = [];
+  let liveOrigin = "";
+  try { liveOrigin = originOf(live.baseUrl); } catch { /* 连接地址解析不出来：任何卡上地址都对不上 */ }
+  if (originOf(card.provider.baseUrl) !== liveOrigin) fields.push({ field: "provider.baseUrl", declared: originOf(card.provider.baseUrl), connection: liveOrigin || live.baseUrl });
+  const same = (left: unknown, right: unknown) => String(left ?? "").trim().toLowerCase() === String(right ?? "").trim().toLowerCase();
+  if (!same(card.provider.authType, live.authType)) fields.push({ field: "provider.authType", declared: String(card.provider.authType), connection: String(live.authType ?? "") });
+  for (const key of ["authHeader", "authScheme", "authQueryParam", "providerKind"] as const) {
+    const declared = card.provider[key];
+    if (declared !== undefined && !same(declared, live[key])) fields.push({ field: `provider.${key}`, declared: String(declared), connection: String(live[key] ?? "") });
+  }
+  return fields;
+}
+
 export { mappingRowFromDeclaredMode, DeclaredRouteConflictError, type DeclaredRouteConflict } from "../providerAdapter/promotionMeta";
 
 const originOf = (url: string): string => new URL(url).origin;
@@ -81,9 +143,16 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
   });
   if (!vendorKey) throw new Error("Unable to derive a connection id from the declared base URL");
   const now = input.now || (() => new Date().toISOString());
+  const builtinSeed = builtinVendorSeed(vendorKey);
+  if (builtinSeed) {
+    const curated = builtinCatalogModelKeys(vendorKey);
+    const taken = card.models.map((model) => model.modelKey).filter((modelKey) => curated.has(modelKey));
+    if (taken.length > 0) throw new DeclaredBuiltinModelError(vendorKey, taken);
+  }
 
   // Compile every model before entering the write transaction (all-or-nothing).
-  const projections = card.models.map((model) => { assertNeutralDeclarationParameters(model); return projectDeclaredModel(model, vendorKey); });
+  // 参数键是不是中性键由收件口（validateProviderAdapterDraft）判，这里只投影。
+  const projections = card.models.map((model) => projectDeclaredModel(model, vendorKey));
   return mutateCatalog((tx, state) => {
     const existing = state.vendors.find((vendor) => vendor.key === vendorKey);
     const binding = readCredentialBinding(existing as Vendor | undefined);
@@ -97,7 +166,13 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
       mappings: state.mappings.filter((row) => row.vendorKey === vendorKey && row.modelKey === model.modelKey),
       projection: projections[index],
     })));
-    tx.upsertVendor({
+    if (builtinSeed) {
+      const mismatches = builtinConnectionMismatches(card, builtinSeed, existing as Vendor | undefined);
+      if (mismatches.length > 0) throw new DeclaredBuiltinConnectionMismatchError(vendorKey, mismatches);
+      if (!existing) throw new Error(`${vendorKey} is a built-in connection that is not in this catalog right now; save its key on Nomi's Settings page first, then send the card again.`);
+    }
+    // 内置连接：连接行一格都不写（地址、鉴权、素材上传方式都跟种子和设置页），卡只加模型。
+    if (!builtinSeed) tx.upsertVendor({
       ...(existing || {}),
       key: vendorKey,
       name: input.vendorName?.trim() || existing?.name || vendorKey,
@@ -130,9 +205,9 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
         meta: {
           ...meta,
           declarationSource: { version: 1, vendorKey, digest: capabilityFactDigest(sourceCard), card: sourceCard },
-          // 「登记了」与「跑通了」是两件事，盘上分得开：`declared` = 卡收下了、静态校验过了；
-          // 只有一次真实试跑（try_model）能把它推到 verified。不写 verified = 不替模型说话。
-          adapter: { state: "declared", evidence: "self-check", source: "declaration-card", publicationModes: projection.taskKinds, updatedAt: now() },
+          // `declared` = 卡收下了、静态校验过了。能不能用只看可用性主人（有 key、有请求格式、没手动关），
+          // 不再记「试没试跑」（D-1117-delete-verification）。
+          adapter: { state: "declared", source: "declaration-card", publicationModes: projection.taskKinds, updatedAt: now() },
         },
       });
       // Remove owned old routes and removed operations before upsert can inherit them.
@@ -149,7 +224,7 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
     const keyRecord = state.apiKeysByVendor[vendorKey];
     return {
       vendorKey,
-      vendorName: input.vendorName?.trim() || existing?.name || vendorKey,
+      vendorName: (builtinSeed ? existing?.name : input.vendorName?.trim() || existing?.name) || vendorKey,
       models,
       mappings,
       hasApiKey: Boolean(keyRecord?.apiKey) && keyRecord?.enabled !== false,

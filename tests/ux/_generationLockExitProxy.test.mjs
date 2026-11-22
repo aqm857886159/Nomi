@@ -60,6 +60,9 @@ it('the paid entry requires a green four-stage rehearsal before opening any paid
   expect(source).toContain("['storyboard', 'canvas', 'list', 'restart']")
   expect(source).toContain('maxImages: 13')
   expect(source).toContain('reservedPriceProbe: 1')
+  // 同一份脚本也能演练（NOMI_PAID_REHEARSAL）：只有演练那一场跳过四段旅程收据；上游从 openPaidWalk 拿（演练 = 本机替身）。
+  expect(source).toMatch(/if \(!paidRehearsalTier\(\)\) \{\nconst receiptPath/)
+  expect(source).toContain('paid.vendorUpstream()')
 })
 
 it('changes the cap per stage and targets a shot reply without discarding its preceding asset reply', async () => {

@@ -28,11 +28,11 @@ import { materializeShots, type MaterializeShotInput } from './multiShotCanvasLa
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { resetClientIdRegistry } from '../generationCanvas/agent/applyCanvasToolCall'
 import { currentArchetypeVariant } from '../generationCanvas/nodes/controls/archetypeMeta'
-import { resolveArchetypeForModel } from '../../../electron/shared/modelArchetypes'
+import { EVERY_VARIANT, resolveModelArchetype } from '../../../electron/shared/modelArchetypes'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../project/projectSessionTestHarness'
 
 const OPERATION_ID = 'canvas-landing:run-variant'
-const archetype = resolveArchetypeForModel({ modelKey: 'bytedance/seedance-2', vendorKey: 'kie', meta: { archetypeId: 'seedance-2' } })!
+const archetype = resolveModelArchetype({ modelKey: 'bytedance/seedance-2', vendorKey: 'kie', meta: { archetypeId: 'seedance-2' } }, { variant: EVERY_VARIANT })!
 const DEFAULT_VARIANT = archetype.defaultVariantId!
 /** 非默认变体：默认变体两边恰好都落到它，测它证明不了什么。 */
 const NON_DEFAULT = (archetype.variants ?? []).map((variant) => variant.id).filter((id) => id !== DEFAULT_VARIANT)

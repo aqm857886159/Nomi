@@ -68,7 +68,7 @@ export type AgentModelEntry = {
 
 /** Shared instruction text for the full catalog and the stable discovery index. */
 export const MODEL_ANCHOR_GUIDANCE = [
-  "引用视觉锚就必须显式选择能吃图片的模式，modelId/modeId 不能留空；未指定时优先该模型吃得下锚的模式。",
+  "引用视觉锚就必须显式选择能吃图片的模式，模型和模式都不能留空；未指定时优先该模型吃得下锚的模式。",
   "用户点名 t2v 就听用户，不自动改模式或删锚；方案摘要必须说明哪些镜的参考图不会被使用，并给出换同模型 i2v / 去掉视觉锚的纠正。",
 ] as const;
 
@@ -95,7 +95,7 @@ export function formatAvailableModelsForPrompt(entries: readonly AgentModelEntry
     return `- modelId=${entry.modelId}（${entry.label}，${entry.kind}）模式: ${modes}；参数: ${params}`;
   });
   return [
-    "可用模型（为每个分镜/节点选一个，给出 modelId、可选 modeId、params）：",
+    "可用模型（为每个分镜/节点选一个）：",
     ...lines,
     ...MODEL_ANCHOR_GUIDANCE,
     "规则：modelId 必须用上面列出的；modeId 用该模型的模式 id；params 用对应模型/模式支持的取值（如 aspect_ratio=9:16）。用户会在确认卡上调整，配错会被自动纠正。",

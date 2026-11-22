@@ -9,8 +9,8 @@ import {
   type GenerationStageDuration, type GenerationUpstreamStatus, type TelemetryResult,
 } from '../../../electron/shared/contracts/telemetry'
 import { matchNomiErrorCode, NOMI_ERROR_ONLY_BEFORE_SUBMIT, type NomiErrorCode } from '../../../electron/shared/nomiErrorCodes'
-import { resolveArchetypeForModel } from '../../../electron/shared/modelArchetypes'
-import { parseVendorErrorFromMessage, type VendorErrorStructuredLite } from '../generationCanvas/runner/vendorErrorIpc'
+import { resolveModelArchetype, variantRecordedInMeta } from '../../../electron/shared/modelArchetypes'
+import { parseVendorErrorFromMessage, type VendorErrorStructuredLite } from '../../../electron/shared/generationFailure'
 import { modeDisplayKind } from '../generationCanvas/nodes/controls/modeMenuModel'
 import { isComfyuiVendorKey } from '../generationCanvas/model/comfyuiVendor'
 
@@ -127,7 +127,7 @@ export function generationModeOf(vendor: string, extras: Record<string, unknown>
     if (!extras || isComfyuiVendorKey(vendor)) return 'none'
     const modelKey = readString(extras.modelKey) || readString(extras.modelAlias)
     if (!modelKey) return 'none'
-    const archetype = resolveArchetypeForModel({ modelKey, modelAlias: readString(extras.modelAlias), vendorKey: vendor || null, meta: extras })
+    const archetype = resolveModelArchetype({ modelKey, modelAlias: readString(extras.modelAlias), vendorKey: vendor || null, meta: extras }, { variant: variantRecordedInMeta(extras, modelKey) })
     const declared = extras.archetype && typeof extras.archetype === 'object' ? readString((extras.archetype as Record<string, unknown>).modeId) : ''
     const mode = archetype?.modes.find((candidate) => candidate.id === declared) ?? (archetype?.modes.length === 1 ? archetype.modes[0] : undefined)
     return archetype && mode ? modeDisplayKind(archetype, mode) : 'none'

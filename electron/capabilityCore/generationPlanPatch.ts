@@ -5,11 +5,13 @@
 // 完整的单元（两种参数两种待遇那条分界线就住在这里），拆出来比塞在 handler 里更好读、可单测。
 import { admitPlanCandidate, type PlanCandidate } from "./executionContract";
 import { normalizeAuthoredCandidate, stripParametersNotAccepted, videoCompileOptions } from "./mcpGenerationVideoResolve";
-import { admitShotIdentity, declaredModeForModel } from "./semanticGenerationCandidate";
+import { admitShotIdentity, declaredModeForModel, resolvePatchedModel, type SemanticGenerationCandidateDeps } from "./semanticGenerationCandidate";
 import type { ModuleRegistry } from "./moduleRegistry";
 import type { VideoModelCandidate } from "../shared/videoCapabilities/recommendation";
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { resolveModelArchetype } from "../shared/modelArchetypes";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
+import { statedMode } from "../shared/modelArchetypes/modeForInputs";
+import type { ResolvedModelName } from "../shared/agentCapabilities/modelHandle";
 import { mergeNamedParameters, parameterChanges } from "../shared/generationParameterPatch";
 
 /** 读盘归一只需要草稿的这几样（避免把 handler 的大类型拖进来）。 */
@@ -19,7 +21,8 @@ type GenerationOperationLike = {
   shots?: ReadonlyArray<{ shotId: string; candidate: PlanCandidate }>;
 };
 
-const normalizedModelIdentity = (value: string): string => value.trim().toLowerCase();
+/** 方式 id / 任务种类的写法宽容（大小写、首尾空白）。模型名不在这里比：它先经名字主人认成目录原样，再一字不差地比。 */
+const normalizedWord = (value: string): string => value.trim().toLowerCase();
 /** 目录里任务种类的两种拼法（`text-to-image` / `text_to_image`）是同一个种类。 */
 const sameTaskKind = (left: string, right: string): boolean =>
   left.trim().toLowerCase().replace(/[-\s]/g, "_") === right.trim().toLowerCase().replace(/[-\s]/g, "_");
@@ -27,7 +30,8 @@ const sameTaskKind = (left: string, right: string): boolean =>
 /**
  * 档案里的一个生成方式（`t2i` / `i2i` / `i2v` …）在这个模型上是哪一种任务，按目录里这个模型的拼法写出来。
  * 种类只由 `modeTransportFor` 定（供应商特化 > 模式 > 档案）——画布挑 mapping 桶、视频候选归一用的都是它；
- * 这里不另写一张表。认不出这个模型或这个模式 = undefined（不改种类）。
+ * 这里不另写一张表；写的方式 id 是哪一个只查表（`statedMode`，与归一同一个，大小写 / 连字符宽容）。
+ * 认不出这个模型或这个模式 = undefined（不改种类）。
  */
 function modeForArchetypeMode(
   registry: Parameters<typeof declaredModeForModel>[0],
@@ -35,8 +39,8 @@ function modeForArchetypeMode(
   modelId: string,
   modeId: string,
 ): string | undefined {
-  const archetype = resolveArchetypeForModel({ modelKey: modelId, vendorKey: providerId });
-  const mode = archetype?.modes.find((candidate) => normalizedModelIdentity(candidate.id) === normalizedModelIdentity(modeId));
+  const archetype = resolveModelArchetype({ modelKey: modelId, vendorKey: providerId }, { variant: { variantId: undefined, modelId } });
+  const mode = archetype ? statedMode(archetype, modeId) : undefined;
   const transport = mode && archetype ? modeTransportFor(mode, archetype, providerId) : undefined;
   if (!transport) return undefined;
   return declaredModeForModel(registry, providerId, modelId, transport) ?? transport;
@@ -45,6 +49,8 @@ function modeForArchetypeMode(
 export type PlanPatchResolution = {
   normalizedPatch: Partial<Omit<PlanCandidate, "candidateId" | "revision">>;
   changeset?: Record<string, unknown>;
+  /** 换的模型名不是一字不差落下的（大小写 / 别名 / 同名多家按默认落）：回执里告诉调用方落成了谁。 */
+  modelNameResolved?: ResolvedModelName;
 };
 
 /**
@@ -57,21 +63,29 @@ export function resolvePlanPatch(input: {
   userPatch: Partial<Omit<PlanCandidate, "candidateId" | "revision">>;
   registry: Pick<ModuleRegistry, "resolve"> & Partial<Pick<ModuleRegistry, "snapshot">>;
   videoModelCandidates?: readonly VideoModelCandidate[];
+  /** 用户给每一种任务设的默认（多家同名时只看这一个事实，U1）。 */
+  defaultModelForTaskKind?: SemanticGenerationCandidateDeps["defaultModelForTaskKind"];
 }): PlanPatchResolution {
-  const { baseCandidate, userPatch, registry, videoModelCandidates } = input;
+  const { baseCandidate, registry, videoModelCandidates } = input;
+  // 换模型时写下的名字先经名字主人认出目录里那一行（与起草同一个阶梯）：落盘的是目录原样的两段。
+  const renamed = typeof input.userPatch.modelId === "string" && input.userPatch.modelId.trim()
+    ? resolvePatchedModel({ registry, ...(input.defaultModelForTaskKind ? { defaultModelForTaskKind: input.defaultModelForTaskKind } : {}) },
+      { ...(typeof input.userPatch.providerId === "string" ? { providerId: input.userPatch.providerId } : {}), modelId: input.userPatch.modelId },
+      baseCandidate.mode, baseCandidate.providerId)
+    : undefined;
+  const userPatch = renamed ? { ...input.userPatch, providerId: renamed.providerId, modelId: renamed.modelId } : input.userPatch;
   const nextProviderId = typeof userPatch.providerId === "string" ? userPatch.providerId : baseCandidate.providerId;
   const nextModelId = typeof userPatch.modelId === "string" ? userPatch.modelId : baseCandidate.modelId;
-  const modelChanged = normalizedModelIdentity(nextProviderId) !== normalizedModelIdentity(baseCandidate.providerId)
-    || normalizedModelIdentity(nextModelId) !== normalizedModelIdentity(baseCandidate.modelId);
+  const modelChanged = nextProviderId !== baseCandidate.providerId || nextModelId !== baseCandidate.modelId;
   // 只换了生成方式（档案模式 id）、没写种类：种类跟着这个生成方式走（付费卡上切「文生图 / 图生图」、画布连来参考图时卡自己
   // 切过去，都是这一下）。不跟的话候选就成了「模式 id 说改图、种类说文生图」——派发按种类挑供应商的 mapping，
   // 文生图那一份不收参考图，点下去在出站前被拒（2026-10-02 pb02：`catalog generation parameter is unsupported: image_urls`）。
   const modeIdChanged = typeof userPatch.modeId === "string" && userPatch.modeId.trim() !== ""
-    && normalizedModelIdentity(userPatch.modeId) !== normalizedModelIdentity(baseCandidate.modeId ?? "");
+    && normalizedWord(userPatch.modeId) !== normalizedWord(baseCandidate.modeId ?? "");
   const modeFromModeId = userPatch.mode === undefined && modeIdChanged
     ? modeForArchetypeMode(registry, nextProviderId, nextModelId, userPatch.modeId as string)
     : undefined;
-  const modeChanged = (typeof userPatch.mode === "string" && normalizedModelIdentity(userPatch.mode) !== normalizedModelIdentity(baseCandidate.mode))
+  const modeChanged = (typeof userPatch.mode === "string" && normalizedWord(userPatch.mode) !== normalizedWord(baseCandidate.mode))
     || (modeFromModeId !== undefined && !sameTaskKind(modeFromModeId, baseCandidate.mode));
   // 换了模型、没另写模式：这一镜还是同一种任务（图还是图），只是模式字符串按新模型目录里的拼法来。
   // 新模型做不了这一种就不换——下面 `admitShotIdentity` 当场拒绝，不悄悄把图片镜头变成视频镜头（第 9 条）。
@@ -139,6 +153,7 @@ export function resolvePlanPatch(input: {
         nextModel: `${nextProviderId}/${nextModelId}`,
       },
     } : {}),
+    ...(renamed?.resolved ? { modelNameResolved: renamed.resolved } : {}),
   };
 }
 

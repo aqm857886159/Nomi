@@ -84,7 +84,7 @@ export async function quickShot(walk, win, label) {
 }
 
 /** 单段卡那一镜（走查自己的提示词，按它认回供应商那一笔）。 */
-const oneShot = (tag) => [{ title: `${tag} 六棱柱`, prompt: `${tag} 一个悬浮的六棱柱，柔和的演播室灯光`, taskKind: 'text_to_image', candidate: { providerId: 'apimart', modelId: 'gpt-image-2' } }]
+const oneShot = (tag) => [{ title: `${tag} 六棱柱`, prompt: `${tag} 一个悬浮的六棱柱，柔和的演播室灯光`, taskKind: 'text_to_image', model: 'gpt-image-2@apimart' }]
 
 /**
  * 单段卡上「生成」与「取消」（10-02 搞破坏线 X2；D2 之后「生成」= 交给画布）。`mode`：

@@ -7,7 +7,7 @@ import { buildHttpRequest, buildTemplateContext } from '../ai/requestPipeline';
 import { nomiModelConfigFor } from '../ai/vendorModelConnection';
 import { callModelOnce } from '../agentLane/laneModelCall.mjs';
 import { firstMappedString } from '../tasks/responseParsing';
-import { resolveArchetypeForModel } from '../shared/modelArchetypes';
+import { EVERY_VARIANT, resolveModelArchetype } from '../shared/modelArchetypes';
 import { APIMART_AUDIO_MODELS } from './apimartAudios';
 import { APIMART_TEXT_MODELS, apimartTextPricingApi } from './apimartTexts';
 import { applyHeadlessParamDefaults, taskTemplateParams } from './taskParams';
@@ -138,7 +138,7 @@ describe('APIMart audio official field contracts and request previews', () => {
     for (const sample of [music, sounds]) {
       expect(sample.built.headers.Authorization).toBe('Bearer fixture-only');
       expect(sample.model.archetypeId).toContain('v6');
-      const archetype = resolveArchetypeForModel({ modelKey: sample.model.modelKey, vendorKey: 'apimart', meta: { archetypeId: sample.model.archetypeId } })!;
+      const archetype = resolveModelArchetype({ modelKey: sample.model.modelKey, vendorKey: 'apimart', meta: { archetypeId: sample.model.archetypeId } }, { variant: EVERY_VARIANT })!;
       expect(archetype.modes).toHaveLength(1);
       expect(archetype.modes[0]!.slots).toEqual([]);
       expect(curatedCatalogLifecycle(sample.model.modelKey)).not.toBe('legacy');
@@ -229,6 +229,16 @@ describe('every text declaration names where it comes from', () => {
     if (evidence.liveCall !== '未') expect(evidence.liveCall).toEqual({ checkedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), record: expect.any(String) });
   });
 
+  it('a row that declares the Responses protocol cites the Responses page, and has not claimed a real call on it yet', () => {
+    const declared = APIMART_TEXT_MODELS.filter(row => row.meta?.textProtocol !== undefined);
+    expect(declared.map(row => row.modelKey)).toEqual(['gpt-6-astra', 'gpt-6.1-sol']);
+    for (const row of declared) {
+      expect(row.meta?.textProtocol, row.modelKey).toBe('openai-responses');
+      expect(row.evidence.protocolDoc, row.modelKey).toBe('https://docs.apimart.ai/en/api-reference/texts/openai/responses');
+      expect(row.evidence.liveCall, `${row.modelKey}: the 11-08 call went over Chat, so Responses has not been called for real`).toBe('未');
+    }
+  });
+
   it('an image-input claim needs its own first-hand record; nothing claims image input on the protocol page alone', () => {
     const claimed = APIMART_TEXT_MODELS.filter(row => row.meta?.supportsImageInput === true);
     for (const row of claimed) expect(row.evidence.imageInput, `${row.modelKey} claims image input without a Vision tag or a live image call`).toEqual({ checkedAt: expect.any(String), record: expect.any(String) });
@@ -274,7 +284,9 @@ describe('every text declaration names where it comes from', () => {
 });
 
 describe('current brains and old catalog compatibility', () => {
-  it.each(snapshot.priced)('previews %s using the real shared model call and parses the official Chat SSE shape', async modelKey => {
+  // 行上声明了别的协议（GPT-6 Astra / 6.1 Sol 走 Responses）的行不在这里：它们的请求层断言在 electron/agentLane/gpt6Responses.test.ts。
+  const onChat = snapshot.priced.filter(modelKey => APIMART_TEXT_MODELS.find(row => row.modelKey === modelKey)?.meta?.textProtocol === undefined);
+  it.each(onChat)('previews %s using the real shared model call and parses the official Chat SSE shape', async modelKey => {
     const definition = APIMART_TEXT_MODELS.find(row => row.modelKey === modelKey)!;
     const config = nomiModelConfigFor({ key: 'apimart', name: 'APIMart', enabled: true, authType: 'bearer', baseUrlHint: 'https://api.apimart.ai', createdAt: '', updatedAt: '' },
       { ...definition, vendorKey: 'apimart', kind: 'text', enabled: true, createdAt: '', updatedAt: '' }, 'fixture-only');

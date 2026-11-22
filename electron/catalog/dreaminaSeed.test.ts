@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import type { CatalogState } from "./types";
 import { selectTaskMapping } from "./types";
 import { applyBuiltinSeeds } from "./seedBuiltins";
-import { getArchetypeById } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 
 function emptyCatalog(): CatalogState {
   return { version: 3, vendors: [], models: [], mappings: [], apiKeysByVendor: {} };

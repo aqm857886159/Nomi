@@ -30,6 +30,7 @@ import { LabCanvasViewport } from '../labCanvasViewport'
 import BaseGenerationNode from '../../../workbench/generationCanvas/nodes/BaseGenerationNode'
 import InlineParameterBar from '../../../workbench/generationCanvas/nodes/InlineParameterBar'
 import { resolveArchetypeForOption, resolveRenderedControls } from '../../../workbench/generationCanvas/nodes/nodeModelArchetype'
+import { variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
 import { toCatalogModelOptions } from '../../../config/modelOptionMappers'
 import { seedModelCatalogForTests } from '../../../config/modelCatalogCache'
 import type { ModelCatalogModelDto } from '../../../workbench/api/modelCatalogApi'
@@ -60,7 +61,7 @@ export type BarKind = 'video' | 'image'
 export const COMPOSER_CHUNK = import('../../../workbench/generationCanvas/nodes/NodeGenerationComposer')
 
 // ── 只读目录桥 ────────────────────────────────────────────────────────────────
-// 两个真实存在的档案模型。modelKey 必须是档案认得的串，否则 resolveArchetypeForModel 落空、
+// 两个真实存在的档案模型。modelKey 必须是档案认得的串，否则 resolveModelArchetype 落空、
 // 参数控件退回「flat catalog 解析」——那时屏幕上就没有比例/时长了，而它正是这一屏的主角。
 const CATALOG_MODELS = [
   {
@@ -139,14 +140,13 @@ export function installCatalogBridge(): void {
 // ── 节点夹具 ─────────────────────────────────────────────────────────────────
 // meta 里的参数值就是**现役参数控件读的那些键**（controlInitialValue 直接读 meta[control.key]），
 // 所以三颗 chip 上的「16:9」「5s」「1080p」是从这份夹具 derive 的，不是写死的一句文案。
-export function makeBarNode(kind: BarKind, options: { cameraPicked?: boolean; locked?: boolean } = {}): GenerationCanvasNode {
+export function makeBarNode(kind: BarKind, options: { cameraPicked?: boolean } = {}): GenerationCanvasNode {
   const shared = {
     id: `composer-bar-${kind}`,
     categoryId: 'shots',
     position: { x: 0, y: 0 },
     size: { width: NODE_WIDTH, height: NODE_HEIGHT },
     status: 'idle' as const,
-    locked: options.locked ?? false,
   }
   if (kind === 'video') {
     return {
@@ -312,7 +312,7 @@ export function ParamPanelStage({ kind }: { kind: ParamPanelKind }): JSX.Element
           modelCatalogStatus={{ message: '' }}
           renderedControls={controls}
           selectedModelOption={option}
-          archetype={resolveArchetypeForOption(option)}
+          archetype={resolveArchetypeForOption(option, variantRecordedInMeta(meta, meta.modelKey))}
           meta={meta}
           onModelChange={() => {}}
           onCatalogControlChange={(control, value) => setMeta((prev) => ({ ...prev, [control.key]: value }))}

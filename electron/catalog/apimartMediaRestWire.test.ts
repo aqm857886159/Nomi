@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
-import { getArchetypeById } from "../shared/modelArchetypes";
+import { getArchetypeById } from "../shared/modelArchetypes/builtInCatalog";
 import { APIMART_IMAGE_MODELS } from "./apimartImages";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 import { applyParamMap } from "./paramTranslate";
@@ -37,11 +37,13 @@ const IMAGE_CASES: Record<string, { t2i: Expected; i2i: Expected }> = {
   // 质量默认 medium 而不是官方默认的 auto（auto 按最高档预扣款）；清晰度发小写 1k。
   "gpt-image-2.6-flare": {
     t2i: { model: "gpt-image-2.6-flare", fields: ["model", "prompt", "size", "resolution", "quality", "background"], values: { resolution: "1k", quality: "medium" } },
-    i2i: { model: "gpt-image-2.6-flare", fields: ["model", "prompt", "size", "resolution", "quality", "background", "image_urls"] },
+    // 改图比例默认「自动」= 不带 size（官方：「omitting this field for still-image editing selects dimensions from the first input image's aspect ratio」）。
+    i2i: { model: "gpt-image-2.6-flare", fields: ["model", "prompt", "resolution", "quality", "background", "image_urls"] },
   },
   "gpt-image-2.6-sunburst": {
     t2i: { model: "gpt-image-2.6-sunburst", fields: ["model", "prompt", "size", "resolution", "quality", "background"], values: { resolution: "1k", quality: "medium" } },
-    i2i: { model: "gpt-image-2.6-sunburst", fields: ["model", "prompt", "size", "resolution", "quality", "background", "image_urls"] },
+    // 改图比例默认「自动」= 不带 size（官方：「omitting this field for still-image editing selects dimensions from the first input image's aspect ratio」）。
+    i2i: { model: "gpt-image-2.6-sunburst", fields: ["model", "prompt", "resolution", "quality", "background", "image_urls"] },
   },
   "gemini-nano-banana-2.1": {
     t2i: { model: "gemini-nano-banana-2.1", fields: ["model", "prompt", "size", "resolution"], values: { resolution: "1K" } },
@@ -238,6 +240,22 @@ describe("APIMart 视频型号（上一代改档 + 剩余新型号）：每个�
       const built = buildBody(model!, "image_to_video", refs);
       check(`${modelKey}/i2v`, built, modes.i2v);
       if (!firstFrame) expect(Array.isArray(built.body.image_urls), `${modelKey} image_urls is an array`).toBe(true);
+    });
+  }
+});
+
+// 2026-11-15：GPT Image 2.5 / 2.6 改图，比例「自动」= 请求里不带 size（官方：改图不传 size 就按第一张输入图的比例出）；
+// 选了具体比例照发。四个型号逐个走真实的发送前主人 + 目录模板。
+describe("GPT Image 2.5 / 2.6（APIMart）改图：比例「自动」不发 size，具体比例照发", () => {
+  for (const modelKey of ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2.6-flare", "gpt-image-2.6-sunburst"]) {
+    it(modelKey, () => {
+      const model = APIMART_IMAGE_MODELS.find((item) => item.modelKey === modelKey)!;
+      const slot = getArchetypeById(model.archetypeId ?? "")!.modes.find((mode) => mode.transportTaskKind === "image_edit")!.slots?.find((item) => item.kind === "image_ref");
+      const refs = { [slot?.inputKey ?? "image_urls"]: [REF] };
+      expect(buildBody(model, "image_edit", { ...refs, size: "auto" }).body).not.toHaveProperty("size");
+      expect(buildBody(model, "image_edit", { ...refs, size: "16:9" }).body.size).toBe("16:9");
+      // 文生图不受影响：auto 照旧发（文生没有输入图可跟）。
+      expect(buildBody(model, "text_to_image", { size: "auto" }).body.size).toBe("auto");
     });
   }
 });

@@ -21,6 +21,7 @@ import { judgeBaselineGrowth, judgeBaseUnavailable } from './lib/walkthroughBase
 import { findRawShellAnchors, RAW_SHELL_EXEMPT } from './lib/rawShellAnchors.mjs'
 import { findComposerInputReads } from './lib/composerInputReads.mjs'
 import { findAbsenceWithoutBaseline } from './lib/absenceWithoutBaseline.mjs'
+import { findBareComposerWidths } from './lib/bareComposerWidth.mjs'
 
 const SRC = `
   const a = <button aria-label="打开设置" />
@@ -678,5 +679,22 @@ describe('absence-without-baseline C：形状清单之外的写法不在这条�
       "await expectCount(win.locator('[data-x]'), 0, 'x')",
     )
     assert.deepEqual(hitLines(code), [])
+  })
+})
+
+describe('bare-composer-width：走查里裸写生成框宽度（#1525 验收条件 4：560 → 600 时 composer-b3 写死的 560 一直红到验收）', () => {
+  const CARD = "const CARD = '.generation-canvas-v2-node__composer-card'\n"
+  it('红例：碰生成框的走查里，宽度 === / toBe( 现宽或旧宽都抓', () => {
+    assert.equal(findBareComposerWidths(`${CARD}check('w', card.width === 560)`, 600).length, 1)
+    assert.equal(findBareComposerWidths(`${CARD}check('w', card.width === 600)`, 600).length, 1)
+    assert.equal(findBareComposerWidths(`${CARD}check('w', box.w === 600)`, 600).length, 1)
+    assert.equal(findBareComposerWidths(`${CARD}await expect.poll(() => el.getBoundingClientRect().width).toBe(600)`, 600).length, 1)
+    assert.equal(findBareComposerWidths(`${CARD}check('w', 560 === card.width)`, 600).length, 1)
+  })
+  it('不误伤：读常量、别的 600（等待 / 截字 / 别的面板）、不碰生成框的文件', () => {
+    assert.deepEqual(findBareComposerWidths(`${CARD}check('w', card.width === NODE_COMPOSER_WIDTH)`, 600), [])
+    assert.deepEqual(findBareComposerWidths(`${CARD}await win.waitForTimeout(600)\nconst s = text.slice(0, 600)\nawait page.mouse.move(600, 260)`, 600), [])
+    assert.deepEqual(findBareComposerWidths(`${CARD}check('w', card.width === 320)`, 600), [])
+    assert.deepEqual(findBareComposerWidths("await expect.poll(() => panel.evaluate(el => el.getBoundingClientRect().width)).toBe(600)", 600), [])
   })
 })

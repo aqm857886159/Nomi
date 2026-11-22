@@ -6,12 +6,15 @@
 //   NOMI_SPEND_OK=1 node tests/ux/archetype-batch1-samples.paid.mjs [--packaged <Nomi 可执行文件的绝对路径>]
 //     # 凭据缺省从真实资料目录拷进隔离副本（key 不经脚本）；隔离副本里要有 apimart 的这三行：kling-v4-flash / doubao-seedance-2.5 / MiniMax-H3-Max。
 //   NOMI_SAMPLES_ONLY=A1,A2,B,C 只跑其中几发（重跑失败那一发用；不给就四发全跑）。
+//   NOMI_SAMPLES_ONLY=D NOMI_SAMPLES_EVIDENCE=docs/evidence/2026-11-15-archetype-wrong-today/paid 只跑后加的那一发（D 不在缺省的四发里，必须点名）。
 //
 // 共四发视频（价目：内置 APIMart 行没有价，跑前协调看 APIMart 价目页）：
 //   A1 可灵 4.0 Flash · 视频编辑 · ffmpeg 造的 4 秒 1:1 源视频 · 不带时长 · 比例不动（档案默认）
 //   A2 同上 · 比例 16:9                       → 编辑不带时长上游收；记成片画幅（不动比例时是否跟随源视频 1:1、16:9 时改不改——PR3 的依据，只记不判）
 //   B  Seedance 2.5 · 全能参考 · 1 张图 · 1080p · 5 秒 · output_format=mov · watermark=false → 1080p 档与新键上游收、回来是 mov
 //   C  MiniMax H3-Max（APIMart）· 多模态参考 · 1 张图 · aspect_ratio=adaptive · 768P · 5 秒 → 新通道行跑通、adaptive 被接受
+// 后加的一发（设计卡 docs/plan/2026-11-15-archetype-wrong-today.md；只在点名时跑）：
+//   D  Veo 3.1 Fast（APIMart）· 参考图 · 1 张竖图 · aspect_ratio=9:16 · 720p → 图模式带比例上游收不收、成片是不是竖的
 // 每发：花钱前核对节点（模型 / 方式 / 参数 / 连线）→ 点 ↑ → 确认 → 等成片落回 → 闸账本里这一发的视频创建请求恰好 1 次、请求体按判据 → ffprobe 量成片。
 // 请求体从走查网络闸的账本读（openPaidWalk 的 recordAllowedBodies：不记请求头，签名查询串与 key 形状的串先打码）。
 // 证据摘要写 docs/evidence/2026-11-14-mode-input-check/paid/report.json。
@@ -31,13 +34,14 @@ import { canvasFitView, collapseAgentPanel } from './_shell.mjs'
 
 const SCRIPT = 'archetype-batch1-samples.paid.mjs'
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const EVIDENCE_DIR = path.join(REPO_ROOT, 'docs/evidence/2026-11-14-mode-input-check/paid')
+const EVIDENCE_DIR = path.join(REPO_ROOT, process.env.NOMI_SAMPLES_EVIDENCE || 'docs/evidence/2026-11-14-mode-input-check/paid')
 const APIMART_HOST = 'api.apimart.ai'
 const LANDS_MS = stationTimeout({ turns: 6 })
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const KLING = { vendorKey: 'apimart', modelKey: 'kling-v4-flash' }
 const SEEDANCE = { vendorKey: 'apimart', modelKey: 'doubao-seedance-2.5' }
 const H3MAX = { vendorKey: 'apimart', modelKey: 'MiniMax-H3-Max' }
+const VEO = { vendorKey: 'apimart', modelKey: 'veo3.1-fast' }
 const metaOf = (model, archetypeId, modeId, params) => ({ modelKey: model.modelKey, modelVendor: model.vendorKey, vendor: model.vendorKey, archetype: { id: archetypeId, modeId }, ...params })
 
 /** 四发：输入（edge 用哪个素材）、节点参数、花钱前核对、请求体判据。 */
@@ -75,20 +79,36 @@ const SAMPLES = [
   },
   {
     id: 'C', label: 'MiniMax H3-Max · 多模态参考 · adaptive · 768P', model: H3MAX, modeKind: 'reference', modeId: 'ref', input: 'image',
-    meta: metaOf(H3MAX, 'minimax-h3-max', 'ref', { aspect_ratio: 'adaptive', resolution: '768P', duration: 5 }),
+    // 同 D：不带 aspect_ratio_user_set，连线那一刻比例按产品默认重铺成 16:9，花钱前核对拦下（11-15 演练走全 4 发时第一次跑到这发才暴露）。
+    meta: metaOf(H3MAX, 'minimax-h3-max', 'ref', { aspect_ratio: 'adaptive', aspect_ratio_user_set: true, resolution: '768P', duration: 5 }),
     judge: (body) => [
       ...(body.aspect_ratio === 'adaptive' ? [] : [`aspect_ratio 是 ${JSON.stringify(body.aspect_ratio)}，应是 adaptive`]),
       ...(body.resolution === '768P' ? [] : [`resolution 是 ${JSON.stringify(body.resolution)}，应是 768P`]),
       ...(Array.isArray(body.image_urls) && body.image_urls.length === 1 ? [] : [`image_urls 不是一张：${JSON.stringify(body.image_urls)}`]),
     ],
   },
+  {
+    id: 'D', label: 'Veo 3.1 Fast · 参考图 · 9:16 · 720p', model: VEO, modeKind: 'reference', modeId: 'reference', input: 'imageTall', optIn: true,
+    // aspect_ratio_user_set：创作者在比例控件上明确选过 9:16。不带这个标记，连线那一刻会按「视频比例的产品默认」
+    // 重铺（nodes/videoAspectSeed），这一发要核的 9:16 就被换掉了——花钱前核对会拦下（2026-11-15 第一次跑就拦在这）。
+    meta: metaOf(VEO, 'veo-3.1', 'reference', { aspect_ratio: '9:16', aspect_ratio_user_set: true, resolution: '720p' }),
+    judge: (body) => [
+      ...(body.aspect_ratio === '9:16' ? [] : [`aspect_ratio 是 ${JSON.stringify(body.aspect_ratio)}，这一发要 9:16`]),
+      ...(body.resolution === '720p' ? [] : [`resolution 是 ${JSON.stringify(body.resolution)}，应是 720p`]),
+      ...(Array.isArray(body.image_urls) && body.image_urls.length === 1 ? [] : [`image_urls 不是一张：${JSON.stringify(body.image_urls)}`]),
+    ],
+    // 上游收了比例还不够：成片得真是竖的，不然就是「收了但没认」。
+    landed: (media) => ((media.probe.height ?? 0) > (media.probe.width ?? 0) ? [] : [`成片不是竖的（${media.probe.width}×${media.probe.height}）：上游在图模式下没认 9:16`]),
+  },
 ]
 const only = (process.env.NOMI_SAMPLES_ONLY ?? '').split(',').map((item) => item.trim()).filter(Boolean)
-const chosen = SAMPLES.filter((sample) => !only.length || only.includes(sample.id))
+// optIn 的样片只在点名时跑：缺省还是原来那四发，后加的不会被「全跑」顺手带上、多花一笔。
+const chosen = SAMPLES.filter((sample) => (only.length ? only.includes(sample.id) : !sample.optIn))
 const models = [...new Map(chosen.map((sample) => [sample.model.modelKey, sample.model])).values()]
 
 // 主进程产物（dist-electron）不压缩：本修复的拒收机读码原样进产物，修前的构建里没有。
-const paid = await openPaidWalk(SCRIPT, 'archetype-batch1-samples', models, { hostedUploads: true, recordAllowedBodies: true, buildMarkers: ['mode_input_missing'] })
+// 演练：这一场要走几发就声明几发（rehearsalShots），每一发都要走到视频创建请求、请求体判据都过才算过。
+const paid = await openPaidWalk(SCRIPT, 'archetype-batch1-samples', models, { hostedUploads: true, recordAllowedBodies: true, judgesBodyInRehearsal: true, rehearsalShots: chosen.length, buildMarkers: ['mode_input_missing'] })
 const { walk } = paid
 const evidence = { script: SCRIPT, startedAt: new Date().toISOString(), samples: [] }
 let failure
@@ -107,7 +127,8 @@ try {
   const run = (args) => execFileSync(ffmpeg.path, ['-hide_banner', '-loglevel', 'error', ...args], { stdio: 'pipe' })
   run(['-f', 'lavfi', '-i', 'testsrc=s=1024x1024:r=1', '-frames:v', '1', '-y', path.join(assetDir, 'ref.png')])
   run(['-f', 'lavfi', '-i', 'testsrc=s=720x720:r=24:d=4', '-pix_fmt', 'yuv420p', '-y', path.join(assetDir, 'source-1x1.mp4')])
-  const sources = await win.evaluate(({ imageUrl, videoUrl }) => {
+  run(['-f', 'lavfi', '-i', 'testsrc=s=720x1280:r=1', '-frames:v', '1', '-y', path.join(assetDir, 'ref-9x16.png')])
+  const sources = await win.evaluate(({ imageUrl, tallUrl, videoUrl }) => {
     const state = window.__nomiCanvasStore.getState()
     const add = (kind, title, url, y, meta) => {
       const id = state.addNode({ kind, title, prompt: '', position: { x: -560, y }, meta }).id
@@ -115,8 +136,12 @@ try {
       state.updateNode(id, { status: 'success', result, history: [result] })
       return id
     }
-    return { image: add('image', 'ref.png', imageUrl, -200, { imageWidth: 1024, imageHeight: 1024 }), video: add('video', 'source-1x1.mp4', videoUrl, 200, {}) }
-  }, { imageUrl: `nomi-local://asset/${projectId}/assets/imported/ref.png`, videoUrl: `nomi-local://asset/${projectId}/assets/imported/source-1x1.mp4` })
+    return {
+      image: add('image', 'ref.png', imageUrl, -200, { imageWidth: 1024, imageHeight: 1024 }),
+      imageTall: add('image', 'ref-9x16.png', tallUrl, -700, { imageWidth: 720, imageHeight: 1280 }),
+      video: add('video', 'source-1x1.mp4', videoUrl, 200, {}),
+    }
+  }, { imageUrl: `nomi-local://asset/${projectId}/assets/imported/ref.png`, tallUrl: `nomi-local://asset/${projectId}/assets/imported/ref-9x16.png`, videoUrl: `nomi-local://asset/${projectId}/assets/imported/source-1x1.mp4` })
 
   for (const [index, sample] of chosen.entries()) {
     const record = { id: sample.id, label: sample.label, model: `${sample.model.vendorKey}/${sample.model.modelKey}` }
@@ -149,7 +174,9 @@ async function runSample(win, projectRoot, projectId, sources, sample, index, re
     state.connectNodes(source, id, 'reference')
     state.selectNode(id)
     return id
-  }, { meta: sample.meta, title: `${sample.id} ${sample.label}`, source: sources[sample.input], y: index * 360 - 400 })
+  }, { meta: sample.meta, title: `${sample.id} ${sample.label}`, source: sources[sample.input], y: -760 - index * 360 })
+  // 每一发的新镜头摞在最上面：适应视图后它在画面上沿、生成框在它下面的空处。原来往下排，第 3 发起生成框压到画布底栏下面，
+  // 缩小之后生成框又收起，↑ 点不到（演练走全 4 发时才暴露：以前演练第 1 发就收尾）。
   // 画布只渲染视口里的节点：新镜头可能落在视口外，先像创作者那样点「适应视图」把它带到眼前。
   await canvasFitView(win, `${sample.id}：适应视图，把新镜头带进视口`)
   const composer = win.locator(`[data-node-id="${shot}"] .generation-canvas-v2-node__composer`).first()
@@ -196,6 +223,8 @@ async function runSample(win, projectRoot, projectId, sources, sample, index, re
     done = (await nodeNow()).node
   }
   record.request = judgeLedger(paid.readAllowedRequests().slice(ledgerBefore), sample)
+  // 演练（替身记下了创建请求、没有真回包）：请求体判据在这里真的判，判完这一发就结束；真付费路径不变。
+  if (paid.rehearsal) { if (record.request.problems.length) throw new Error(`请求体判据没过：${record.request.problems.join('；')}`); return }
   record.providerTaskIds = (done?.runs ?? []).map((item) => item?.taskId).filter(Boolean)
   if (!landed(done)) throw new Error(`成片没落到这个镜头上（最多等 ${Math.round(LANDS_MS / 1000)} 秒）：状态 ${done?.status ?? '（读不到节点）'}，${String(done?.error ?? '').slice(0, 300)}`)
   const media = await probeLandedMedia(projectRoot, projectId, done.result.url)

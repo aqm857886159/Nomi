@@ -14,6 +14,7 @@ import {
 } from '../../../../config/modelCatalogMeta'
 import { normalizeOrientation, type Orientation } from '../../../../utils/orientation'
 import { resolveModelParams } from '../../../../../electron/shared/videoCapabilities/resolveModelParams'
+import { admitNumber, parseControlInput } from '../../../../../electron/shared/videoCapabilities/paramValue'
 import { isComfyuiVendorKey } from '../../model/comfyuiVendor'
 import {
   ASPECT_RATIO_META_KEYS,
@@ -179,6 +180,50 @@ export function parameterControlRole(control: DynamicModelControl): ParameterRol
   return PARAMETER_ROLE_BY_KEY[control.key] ?? null
 }
 
+/**
+ * 参数的**去处**：参数面板，还是底栏「高级设置」（用户 2026-11-14 定稿，画板 T / 便签「规则」）。
+ *
+ * 进高级设置的只有五类——种子、水印、输出格式、提交前内容审核、返回尾帧；其余都在面板里，拿不准的也在面板里；
+ * 影响价钱的永远在面板里。归属按参数的**语义**（键名，和上面比例 / 时长 / 清晰度那几组别名同一层），
+ * 不按模型、不按供应商：同一个键在哪个模型里都去同一个地方（`parameterPlacement.test.ts` 全目录钉住）。
+ * 面板和高级设置都只从 `parameterPlacement` 读，没有第二份。
+ */
+export type AdvancedParameterClass = 'seed' | 'watermark' | 'outputFormat' | 'moderation' | 'returnLastFrame'
+
+export const ADVANCED_CLASS_BY_KEY: Readonly<Record<string, AdvancedParameterClass>> = {
+  seed: 'seed',
+  watermark: 'watermark',
+  ...Object.fromEntries(FORMAT_ALIASES.map((key) => [key, 'outputFormat' as const])),
+  nsfw_check: 'moderation',
+  return_last_frame: 'returnLastFrame',
+}
+
+/** 影响价钱：比例 / 时长 / 清晰度 / 数量这几个角色，或者任何一个选项带价签。 */
+export function parameterAffectsPrice(control: DynamicModelControl): boolean {
+  if (parameterControlRole(control) !== null) return true
+  return isParameterControl(control) && control.options.some((option) => Boolean(option.priceLabel))
+}
+
+export function advancedParameterClass(control: DynamicModelControl): AdvancedParameterClass | null {
+  if (!isParameterControl(control) || parameterAffectsPrice(control)) return null
+  return ADVANCED_CLASS_BY_KEY[control.key] ?? null
+}
+
+export function parameterPlacement(control: DynamicModelControl): 'panel' | 'advanced' {
+  return advancedParameterClass(control) ? 'advanced' : 'panel'
+}
+
+/** 这一项此刻不是默认值（高级设置收着时图标上那个小点，画板 T3）。默认 = 不看节点存的值时它会是什么。 */
+export function controlDiffersFromDefault(control: DynamicModelControl, meta: Record<string, unknown>): boolean {
+  if (!isParameterControl(control)) return catalogControlInitialValue(control, meta) !== catalogControlInitialValue(control, {})
+  // 开关没声明默认时读出来是空串，和「关」是同一个意思。
+  const read = (source: Record<string, unknown>): string => {
+    const value = controlInitialValue(control, source)
+    return control.type === 'boolean' && value === '' ? 'false' : value
+  }
+  return read(meta) !== read({})
+}
+
 export function readMeta(meta: Record<string, unknown> | undefined, key: string): string {
   const value = meta?.[key]
   return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
@@ -266,27 +311,6 @@ export function controlValueToString(value: unknown): string {
   return ''
 }
 
-/**
- * 下拉选中的字符串 → 该选项**声明的** wire 值（数值 option → 发整数，如 duration 离散枚举 4/8/12；
- * 字符串 option 如 "720p"/"16:9" 仍是字符串；ComfyUI 的 [False, True] 开关发布尔）。没匹配上原样返回。
- * 根治「duration 用 select 发字符串被 vendor 400」——既要离散合法值（select 不能输非法），又要按原类型
- * 传输。单源：option 自身的类型即真相；画布控件与 ComfyUI 导入预览都走这里，别另写一份。
- */
-export function declaredOptionValue(values: readonly (string | number | boolean)[], selected: string): string | number | boolean {
-  return values.find((value) => controlValueToString(value) === selected) ?? selected
-}
-
-export function parseControlInput(control: ModelParameterControl, value: string): string | number | boolean | null {
-  if (control.type === 'boolean') return value === 'true'
-  if (control.type === 'number') {
-    if (!value.trim()) return null
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : null
-  }
-  if (control.type === 'select') return declaredOptionValue(control.options.map((option) => option.value), value)
-  return value
-}
-
 export function controlInitialValue(control: ModelParameterControl, meta: Record<string, unknown>): string {
   const current = meta[control.key]
   if (typeof current !== 'undefined') return controlValueToString(current)
@@ -305,17 +329,6 @@ export function catalogControlInitialValue(control: DynamicCatalogControl, meta:
 
 export function isParameterControl(control: DynamicModelControl): control is DynamicParameterControl {
   return control.binding === 'parameter'
-}
-
-/**
- * 这个控件在参数面板里是不是渲成「一组摊开的候选项」。
- *
- * 判据就是**它有没有候选项**：有 → 面板里画的是可点的项（chip 一排/一列，或带搜索的列表）；
- * 没有 → 滑杆 / 数字框 / 开关。单参数直出那条路（底栏 pill 只管一个参数时，点开直接给这组项、
- * 不套面板壳）只对前者成立——把一根没有标题的滑杆直接弹在半空中，谁也不知道它在调什么。
- */
-export function hasFlatOptions(control: DynamicModelControl): boolean {
-  return control.options.length > 0
 }
 
 function controlEquivalentKeys(key: string): string[] {
@@ -588,10 +601,10 @@ export function defaultPatchForCatalogControl(control: DynamicCatalogControl): R
     }
   }
   if (control.binding === 'durationSeconds') {
-    const durationSeconds = Number(value)
-    return Number.isFinite(durationSeconds)
-      ? { [control.key]: durationSeconds, durationSeconds, videoDuration: durationSeconds }
-      : {}
+    const durationSeconds = admitNumber(value)
+    return durationSeconds === undefined
+      ? {}
+      : { [control.key]: durationSeconds, durationSeconds, videoDuration: durationSeconds }
   }
   if (control.binding === 'size') {
     const nextSize = String(value).trim().replace(/\s+/g, '')
@@ -689,19 +702,19 @@ export function buildEffectiveVideoCatalogConfig(meta: unknown): VideoModelCatal
   const parsed = parseVideoModelCatalogConfig(meta)
   if (parsed) return parsed
   const legacyRatios = readStringArray(meta, 'ratios')
+  // 旧目录的时长档是外部声明：同一条规范数字规则（值门）读，读不出的档丢掉（不当 0）。
   const legacyDurations = readDurationOptions(meta).flatMap((option) => {
-    const rawValue = typeof option === 'string' ? option : String(option.value)
-    const value = Number(rawValue)
-    if (!Number.isFinite(value) || value <= 0) return []
+    const value = admitNumber(typeof option === 'string' ? option : option.value)
+    if (value === undefined || value <= 0) return []
     return [{ value: Math.trunc(value), label: typeof option === 'string' ? `${Math.trunc(value)}s` : option.label }]
   })
   const legacyResolutions = readStringArray(meta, 'resolutions')
   if (!legacyRatios.length && !legacyDurations.length && !legacyResolutions.length) return null
-  const defaultDuration = Number(readDefaultParam(meta, 'duration'))
+  const defaultDuration = admitNumber(readDefaultParam(meta, 'duration'))
   const defaultSize = readDefaultParam(meta, 'ratio')
   const defaultResolution = readDefaultParam(meta, 'resolution')
   return {
-    ...(Number.isFinite(defaultDuration) && defaultDuration > 0 ? { defaultDurationSeconds: Math.trunc(defaultDuration) } : {}),
+    ...(defaultDuration !== undefined && defaultDuration > 0 ? { defaultDurationSeconds: Math.trunc(defaultDuration) } : {}),
     ...(defaultSize ? { defaultSize } : {}),
     ...(defaultResolution ? { defaultResolution } : {}),
     durationOptions: legacyDurations,

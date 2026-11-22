@@ -56,7 +56,7 @@ async function fixture(toolName: string, args: Record<string, unknown>, stale = 
     context: () => ({ documentId: 'fixture-document', approvalPolicy: { mode: 'request' } }),
     // 档位和工具审批读**同一份**快照（生产里两者都来自 `composer.approvalPolicy`）。
     approvalPolicy: () => ({ mode: 'request' }),
-    generationFactory: () => undefined, onTaskCreated: async () => undefined,
+    generationFactory: () => undefined, onTaskCreated: async () => undefined, modelDefaults: undefined,
     spendCard: { whenCardCloses: () => ({ closed: Promise.resolve(), dispose: () => undefined }) } })
   cleanups.push(async () => assembly.dispose())
   if (stale) registry.suspend(owner, { surfaceInstanceId: 'another-surface' })

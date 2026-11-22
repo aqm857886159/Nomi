@@ -36,8 +36,8 @@ export interface NomiModelConfig {
   free?: true
   /**
    * 这个模型会不会思考。pi 的 `getSupportedThinkingLevels(model)` 直接读它：`false` → 只有 `off`
-   * 一档（推理那一行「不适用」）。今天目录还没有一处声明它，所以生产路径恒为 `false`——
-   * 这是**已知遗留**，不是设计：填它需要逐个模型抓官方文档（R5），不在阶段 3b 的范围里。
+   * 一档（推理那一行「不适用」）。来源是目录行 `meta.reasoning` 的声明（`readModelDeclaration`），
+   * 没声明 = 不推理；没选档时发请求那一步会把它关掉，请求里不出现推理参数（`createNomiProvider`）。
    */
   reasoning?: boolean
   /**
@@ -45,6 +45,10 @@ export interface NomiModelConfig {
    * `getSupportedThinkingLevels` 里剔掉；`off: null` 就是「关不掉思考」。
    */
   thinkingLevelMap?: Record<string, string | null>
+  /** pi Model 上的 `compat`（按协议分型），声明原样递过去；键的含义归 pi。 */
+  compat?: Record<string, unknown>
+  /** 请求体里要固定的几格（白名单：只有这两个键），由写入口的初值函数写进目录、这里只读。Anthropic 协议不吃。 */
+  requestBodyOverrides?: { temperature?: number; enable_thinking?: boolean }
 }
 
 /**

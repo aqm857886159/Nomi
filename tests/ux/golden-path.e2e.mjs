@@ -48,7 +48,7 @@ import { clickOrFail, expect, expectVisible, proveProbe, screenshotSettled } fro
 import { stationTimeout } from './_station-budget.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint, panCanvasUntilInside, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
-import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
+import { FIXTURE_IMAGE_HANDLE, FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   CANVAS_PANEL, COMPOSER_INPUT, COMPOSER_SEND, CREATION_PANEL, DOCUMENT,
   createRuntimeWalk, hasToolResult, openCanvas, readProject, recorded,
@@ -199,7 +199,7 @@ async function stepSplitIntoThreeShots(win, projectId) {
       type: 'tool', id: PLAN_CALL_ID, name: 'draft_shots',
       args: {
         shots: SHOT_PROMPTS.map((prompt, position) => ({
-          title: SHOT_TITLES[position], taskKind: 'text_to_image', modelId: FIXTURE_IMAGE_MODEL, modeId: 't2i', parameters: { size: '1024x1024' }, prompt,
+          title: SHOT_TITLES[position], taskKind: 'text_to_image', model: FIXTURE_IMAGE_HANDLE, modeId: 't2i', parameters: { size: '1024x1024' }, prompt,
         })),
       },
     },

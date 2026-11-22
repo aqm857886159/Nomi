@@ -41,7 +41,8 @@ for (const locale of ['zh-CN', 'en']) test(`per-shot controls ${locale}`, async 
     const model = page.locator('[data-storyboard-composer-bar="true"]').getByRole('button', { name: text('generationCommon.parameters.model'), exact: true })
     const imageSummary = await page.locator('[data-parameter-summary]').innerText()
     await model.click()
-    await expect(page.getByRole('option').first(), 'board:StoryboardOnlyWhatWorks/row.model').toHaveText(text('storyboardEditor.defaultModel'))
+    // 第一行是「默认模型」：它现在是一行带品牌图和一句「跟随设置里的默认 · 现在是 X」的选项，所以量名字在不在，不量整行文字相等。
+    await expect(page.getByRole('option').first(), 'board:StoryboardOnlyWhatWorks/row.model').toContainText(text('storyboardEditor.defaultModel'))
     await expect(page.getByText(text('storyboardEditor.imageModels'), { exact: true })).toBeVisible()
     await expect(page.getByText(text('storyboardEditor.videoModels'), { exact: true })).toBeVisible()
     fs.mkdirSync(path.resolve('tests/ux/shots/storyboard-only-what-works'), { recursive: true })
@@ -53,7 +54,8 @@ for (const locale of ['zh-CN', 'en']) test(`per-shot controls ${locale}`, async 
     await expect(page.locator('[data-storyboard-composer-params="video"] [data-parameter-summary]')).toBeVisible()
     expect(await page.locator('[data-parameter-summary]').innerText()).not.toBe(imageSummary)
     await model.click()
-    await page.getByRole('option', { name: text('storyboardEditor.defaultModel'), exact: true }).click()
+    await expect(page.getByRole('option').first()).toContainText(text('storyboardEditor.defaultModel'))
+    await page.getByRole('option').first().click()
     expect((await shot()).shotKind).toBe('video')
     await page.locator('[data-storyboard-row-menu-trigger="1"]').click()
     const menuProof = await proveProbe(page.locator('[data-storyboard-row-menu="1"]'), 'The real row menu is open')
@@ -90,7 +92,9 @@ for (const locale of ['zh-CN', 'en']) test(`keyframe toggle preserves authored v
     await expect(page.locator('[data-storyboard-row="1"]')).toBeVisible()
     const before = await shot()
     expect(before.modelKey).toBe('pf-video')
-    expect(before.params).toEqual({ duration: 5, resolution: '720p' })
+    // 夹具写的是 durationSec 5 加 params.duration 5：视频镜头的时长只住 durationSec，方案进 store 时收掉 params 里那份（2026-11-17）。
+    expect(before.durationSec).toBe(5)
+    expect(before.params).toEqual({ resolution: '720p' })
     await page.locator('[data-storyboard-row-menu-trigger="1"]').click()
     await page.getByRole('switch', { name: uiText(locale, 'storyboardEditor.keyframeFirst') }).check()
     await page.keyboard.press('Escape')
@@ -100,6 +104,7 @@ for (const locale of ['zh-CN', 'en']) test(`keyframe toggle preserves authored v
     const after = await shot()
     expect(after.modelKey).toBe(before.modelKey)
     expect(after.modelVendor).toBe(before.modelVendor)
+    expect(after.durationSec).toBe(before.durationSec)
     expect(after.params).toEqual(before.params)
     expect(after.keyframe).toMatchObject({ enabled: false, prompt: 'authored keyframe' })
   } finally { await page.close() }

@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import StoryboardShotRow from '../../../workbench/creation/storyboard/shotRow/StoryboardShotRow'
+import { fixedEditorOwner } from '../fixedEditorOwner'
 import { StoryboardRowsBox } from '../../../workbench/creation/storyboard/shotRow/storyboardRowDensity'
 import StoryboardAnchorZone from '../../../workbench/creation/storyboard/anchorZone/StoryboardAnchorZone'
 import type { AnchorCardRuntime } from '../../../workbench/creation/storyboard/exec/storyboardRowStatus'
@@ -69,7 +70,7 @@ export function ShotRow({ plan, shot, extra, models: modelsOverride }: { plan: S
       variants={[]}
       onGenerate={NOOP}
       onRegenerate={NOOP}
-      onToggleLock={NOOP}
+      onToggleFrozen={NOOP}
       onOpenPreview={NOOP}
       onInsertBelow={NOOP}
       onCopy={NOOP}
@@ -85,6 +86,7 @@ export function ShotRow({ plan, shot, extra, models: modelsOverride }: { plan: S
       onUpdate={NOOP}
       onRemove={NOOP}
       {...extra}
+      promptSource={fixedEditorOwner(shot.prompt)}
     />
   )
 }
@@ -124,7 +126,7 @@ export function AnchorZone({ width, cards = reuseAnchorCards() }: { width: numbe
           onRemoveAnchor={NOOP}
           onGenerateAnchor={NOOP}
           onRegenerateAnchor={NOOP}
-          onToggleLockAnchor={NOOP}
+          onToggleFrozenAnchor={NOOP}
           onFilterByAnchor={NOOP}
           onAddAnchor={NOOP}
         />
@@ -149,7 +151,7 @@ export function AnchorThenShot({ plan, width }: { plan: StoryboardPlan; width: n
           onRemoveAnchor={NOOP}
           onGenerateAnchor={NOOP}
           onRegenerateAnchor={NOOP}
-          onToggleLockAnchor={NOOP}
+          onToggleFrozenAnchor={NOOP}
           onAddAnchor={NOOP}
         />
       </div>

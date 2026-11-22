@@ -105,7 +105,8 @@ describe('declared capability projection publication matrix', () => {
     const projection = projectDeclaredModel(card().models[0], 'relay');
     const manualMeta = { customCapabilityContract: projection.contract, adapter: { publicationModes: [] } };
     expect(() => assertDeclaredCapabilityForTask(manualMeta, 'text_to_video')).not.toThrow();
-    expect(() => assertDeclaredCapabilityForTask({ ...projection.meta, adapter: { publicationModes: [] } }, 'text_to_video')).toThrow(/does not publish/);
+    expect(() => assertDeclaredCapabilityForTask({ ...projection.meta, adapter: { publicationModes: [] } }, 'text_to_video')).not.toThrow();
+    expect(() => assertDeclaredCapabilityForTask(projection.meta, 'chat')).toThrow(/does not publish/);
   });
   it('keeps a same-name model in a different connection unchanged', () => {
     registerDeclaredProvider({ card: dual(), vendorKey: 'relay-a' });

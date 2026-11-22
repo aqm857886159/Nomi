@@ -137,7 +137,7 @@ P3「全绿不等于完成」的量化门。三档触发：
 
 **旅程是创作目标不是功能探索**，格式「我有 [输入]，我想得到 [输出]，成功标准是 [可验证结果]」。标准旅程 J1 产品宣传视频、J2 故事到漫画短片、J3 新用户 30 秒上手、J4 参考图驱动生成、J5 修改旧节点并导出；发布前全过一遍。
 
-**工具栈**：`tests/ux/ui-driver.mjs` + `tests/ux/ui.mjs`（常驻交互式驱动，探索与调 UI 首选，用完 `quit`；默认开真实资料，装不了安静仪表、窗口会到前台，要带 `NOMI_WALK_FOREGROUND_OK=1` 才起，不带按 125 跳过；设 `NOMI_UI_USER_DATA=<目录>` 则隔离起、默认安静）；`tests/ux/walkthrough.mjs`（一次性走查）；`tests/ux/smoke.e2e.mjs`（`pnpm run test:e2e`）。一次性走查的 finally 必须 `app.close()` 竞速 8s 后 SIGKILL，迭代结束 `pnpm run kill:zombies`。
+**工具栈**：`tests/ux/ui.mjs`（常驻交互式驱动，验证首选，用法见 `.agents/skills/verify-nomi/SKILL.md`：默认隔离、安静，`--locale` / `--theme` / `--size` / `--data <夹具名>`；`doctor` 自检，`goto <功能名>` 走到功能（清单见技能的 `features/`），截图落仓库外，用完 `down`；要真实资料 `NOMI_WALK_FOREGROUND_OK=1 … up --real-profile`）；`tests/ux/walkthrough.mjs`（一次性走查）；`tests/ux/smoke.e2e.mjs`（`pnpm run test:e2e`）。一次性走查的 finally 必须 `app.close()` 竞速 8s 后 SIGKILL，迭代结束 `pnpm run kill:zombies`。
 
 **Agent 数字**：任何 Agent / 工具定义 / 工具契约 / 系统提示词 / 模型档案改动，PR 正文写两个数：**工具写对率**（模型产出的参数通过运行时校验并成功执行的比例，零额度回放夹具逐工具计数，落点 `tests/agent-tools/<toolName>.case.json`）与**回合成功率**（真实用户任务从提问到可用产物无需人接手的比例，小额真实模型定期跑）。**红线：外观绿不等于接好了**——设计实验室基线只证长相，走查截图只证界面在，都不证明按下去会发生事。采集方法见 doctrine §二.2、§二.6。
 
@@ -178,7 +178,7 @@ P3「全绿不等于完成」的量化门。三档触发：
 
 **动作**：先写特征测试钉住现状，再做「类根因复盘」一页（模板 [`direction-check-template.md`](engineering/direction-check-template.md)：归类表、为什么一直冒、不改结构的 2–3 个可验证预测、靶子独立性检查、P0 现成方案、补 / 重写 / 删对比 + 推荐、用户要权衡的核心），结构性结论交用户拍板。选重写时范围限一个模块，同一次提交删掉旧的（P1）。根因合同可带 `rewrite_decision: { decision, characterization_test }`，写了就必须成立。
 
-**执行点（谁执行都绕不过）**：git commit-msg `scripts/check-direction-trailer.mjs`（fix 提交碰热点必须带 `Direction-Check: <复盘文档路径>`，文档须在 `docs/` 下、存在、不是空壳；按内容判，没有环境变量开关；revert 与 merge 不拦）；派工前 `fix-churn.mjs`；CI contracts 里只警告的 `Direction check` 步骤（兜 `--no-verify`）；Claude 编辑提醒 `edit-time-reminder`（调同一个计数器，只提醒）；`self-check` 在用户消息出现「第 N 轮 / 再修 / 又坏了 / 还是不对」时注入提示块。起因与限制见编排手册 §20。
+**执行点（谁执行都绕不过）**：git commit-msg `scripts/check-direction-trailer.mjs`（fix 提交碰热点必须带 `Direction-Check: <复盘文档路径>`，文档须在 `docs/` 下、存在、不是空壳；按内容判，没有环境变量开关；revert 与 merge 不拦）；派工前 `fix-churn.mjs`；（CI 里原来只警告的 `Direction check` 步骤已删，拦截只在提交时由 commit-msg 做）；Claude 编辑提醒 `edit-time-reminder`（调同一个计数器，只提醒）；`self-check` 在用户消息出现「第 N 轮 / 再修 / 又坏了 / 还是不对」时注入提示块。起因与限制见编排手册 §20。
 
 ## P2 修复走根因流程（旧 R21 / R21.1 / R21.3）
 

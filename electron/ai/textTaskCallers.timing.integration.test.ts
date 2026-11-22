@@ -12,7 +12,7 @@ import { reply } from "../../tests/fixtures/textTasks/textUpstream";
 vi.mock("electron", async () => (await import("../../tests/fixtures/textTasks/textTaskCallerState")).electronMock());
 vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: () => undefined }));
 vi.mock("../events/vendorCallTrace", () => ({ traceVendorCompleted: () => undefined, traceVendorRequested: () => undefined }));
-vi.mock("../catalog/validateCandidateCredential", () => ({ revalidatePendingCredential: async () => undefined }));
+// Transport matrix isolates catalog persistence; unverifiedUsable.test covers real result recording.
 vi.mock("../assets/localAssetFile", async () => (await import("../../tests/fixtures/textTasks/textTaskCallerState")).localAssetMock());
 vi.mock("../runtime", async () => (await import("../../tests/fixtures/textTasks/textTaskCallerState")).runtimeMock());
 vi.mock("../agentLane/laneProviderGuard.mjs", async (importOriginal) => ({
@@ -22,7 +22,7 @@ vi.mock("../agentLane/laneProviderGuard.mjs", async (importOriginal) => ({
 }));
 
 import { CALLERS, rendererVerdict, runCaller } from "../../tests/fixtures/textTasks/textTaskCallerHarness";
-import { parseVendorErrorFromMessage } from "../../src/workbench/generationCanvas/runner/vendorErrorIpc";
+import { parseVendorErrorFromMessage } from "../shared/generationFailure";
 
 const STALLS = [
   { name: "连响应头都没有（first-response）", script: () => reply.silent(), says: /没有回应|no response/ },

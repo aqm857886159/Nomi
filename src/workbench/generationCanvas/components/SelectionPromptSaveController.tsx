@@ -195,6 +195,7 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
           contentAttributes={{ 'data-selection-prompt-ui': 'true' }}
           onPointerDown={(event) => event.stopPropagation()}
           closeButtonProps={{ disabled: saving, 'aria-label': t('common.close') }}
+          accessibleName={t('generationCommon.savePrompt.title')}
           title={<span className="flex items-center gap-2.5 text-body font-semibold text-nomi-ink">
             <NomiLogoMark size={22} />{t('generationCommon.savePrompt.title')}
           </span>}

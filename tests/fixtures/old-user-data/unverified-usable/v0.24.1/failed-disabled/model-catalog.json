@@ -1,0 +1,109 @@
+{
+  "version": 13,
+  "vendors": [
+    {
+      "key": "local-60634",
+      "name": "L 失败中转",
+      "enabled": false,
+      "hasApiKey": true,
+      "baseUrlHint": "http://127.0.0.1:60634/v1",
+      "authType": "bearer",
+      "authHeader": null,
+      "authQueryParam": null,
+      "providerKind": "openai-compatible",
+      "credentialBinding": {
+        "origin": "http://127.0.0.1:60634",
+        "authType": "bearer",
+        "confirmedAt": "2026-11-16T17:12:23.053Z"
+      },
+      "meta": {},
+      "createdAt": "2026-11-16T17:12:23.053Z",
+      "updatedAt": "2026-11-16T17:12:28.248Z",
+      "credentialMaterialSaved": true,
+      "credentialVerificationPending": false
+    }
+  ],
+  "models": [
+    {
+      "modelKey": "gpt-image-2",
+      "vendorKey": "local-60634",
+      "modelAlias": "gpt-image-2",
+      "labelZh": "gpt-image-2",
+      "kind": "image",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "failed",
+          "runId": "adapter-run-a27fe5fc-5373-40e0-82d4-6d217e8a8301",
+          "modes": [
+            {
+              "taskKind": "text_to_image",
+              "state": "failed",
+              "attempts": 1,
+              "stage": "credential",
+              "error": "HTTP 401: provider returned fixture intentional rejected credential. Next: check the API key, auth header, and relay permissions, then retry.",
+              "errorCategory": "auth",
+              "httpStatus": 401,
+              "selfCheckReason": "credential_rejected"
+            },
+            {
+              "taskKind": "image_edit",
+              "state": "failed",
+              "attempts": 1,
+              "stage": "credential",
+              "error": "HTTP 401: provider returned fixture intentional rejected credential. Next: check the API key, auth header, and relay permissions, then retry.",
+              "errorCategory": "auth",
+              "httpStatus": 401,
+              "selfCheckReason": "credential_rejected"
+            }
+          ],
+          "updatedAt": "2026-11-16T17:12:28.675Z"
+        }
+      },
+      "customCall": {
+        "script": "// OpenAI 兼容生图（同步返回）。改图时 references.images 有值。\nconst body = {\n  model, prompt,\n  n: params.n ?? 1,\n  size: typeof params.size === 'string' ? params.size : undefined,\n}\nconst data = await http.post('/images/generations', body)\nreturn (data.data || []).map((item) =>\n  item.url || (item.b64_json ? 'data:image/png;base64,' + item.b64_json : null))",
+        "updatedAt": "2026-11-16T17:13:28.872Z"
+      },
+      "createdAt": "2026-11-16T17:12:28.248Z",
+      "updatedAt": "2026-11-16T17:13:28.872Z"
+    },
+    {
+      "modelKey": "MiniMax-H3",
+      "vendorKey": "local-60634",
+      "modelAlias": "MiniMax-H3",
+      "labelZh": "MiniMax-H3",
+      "kind": "video",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "failed",
+          "runId": "adapter-run-a27fe5fc-5373-40e0-82d4-6d217e8a8301",
+          "modes": [
+            {
+              "taskKind": "text_to_video",
+              "state": "failed",
+              "attempts": 1,
+              "stage": "compile",
+              "error": "No safe generic contract exists for this model kind; configure a manual call script",
+              "compileFailureReason": "no_generic_contract"
+            }
+          ],
+          "updatedAt": "2026-11-16T17:12:28.675Z"
+        }
+      },
+      "createdAt": "2026-11-16T17:12:28.248Z",
+      "updatedAt": "2026-11-16T17:12:28.680Z"
+    }
+  ],
+  "mappings": [],
+  "apiKeysByVendor": {
+    "local-60634": {
+      "vendorKey": "local-60634",
+      "apiKey": "c2stZml4dHVyZS1ub3QtcmVhbA==",
+      "enc": "safeStorage",
+      "enabled": true,
+      "createdAt": "2026-11-16T17:12:23.053Z",
+      "updatedAt": "2026-11-16T17:13:28.850Z"
+    }
+  }
+}

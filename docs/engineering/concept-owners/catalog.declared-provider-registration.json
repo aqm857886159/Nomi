@@ -1,0 +1,26 @@
+{
+  "name": "接入卡写进目录（内置连接的地址、认证、素材上传方式只核对不改写）",
+  "subject": "catalog.declared-provider-registration",
+  "lifecycle": "catalog",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/declaredProviderRegistration.ts",
+    "symbol": "registerDeclaredProvider"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "registerDeclaredProvider"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/declaredProviderRegistration.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/modelOnboarding/submitDeclaration.ts"
+  ],
+  "since": "2026-11-21",
+  "notes": "PR #1584（合同 docs/fixes/2026-11-16-external-agent-gate-reach-confirm.root-cause.json）：接入卡以前照卡 upsertVendor 改写整条连接行，挂在内置连接上的卡把素材上传方式、认证方式一起改掉，整家生成门随之关上。现在这是卡写进目录的唯一入口：内置连接上卡只能加非内置的模型，地址 / 认证 / 素材上传方式不一致就拒并点名字段，卡里有内置模型也拒。0.24.x 已被改写的连接在启动对账时对回去。"
+}

@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next'
 import {
   parseCustomCapabilityContract,
   replaceCustomCapabilityContractMeta,
-  resolveArchetypeForModel,
+  EVERY_VARIANT,
+  resolveModelArchetype,
 } from '../../../electron/shared/modelArchetypes'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { confirmDialog, DesignButton } from '../../design'
@@ -49,11 +50,11 @@ export function ModelCapabilityEditor({
 }): JSX.Element {
   const { t } = useTranslation()
   const customContract = React.useMemo(() => parseCustomCapabilityContract(model?.meta), [model?.meta])
-  const archetype = React.useMemo(() => model ? resolveArchetypeForModel({
+  const archetype = React.useMemo(() => model ? resolveModelArchetype({
     modelKey: model.modelKey,
     vendorKey: model.vendorKey,
     meta: model.meta,
-  }) : null, [model])
+  }, { variant: EVERY_VARIANT }) : null, [model])
   const makeDraft = React.useCallback(() => model ? createCapabilityContractDraft({
     modelKind: model.kind,
     customContract,

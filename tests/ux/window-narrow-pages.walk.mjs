@@ -44,7 +44,7 @@ const ROW = `${TOOLBAR} [data-nomi-overflow-row]`
 const TRIGGER = `${TOOLBAR} [data-overflow-trigger]`
 const MENU = '[data-testid="nomi-overflow-menu"]'
 const SPEND = `${APPROVAL_CARD}[data-kind="spend"]`
-const IMAGE = { providerId: 'apimart', modelId: 'gpt-image-2' }
+const IMAGE = 'gpt-image-2@apimart'
 const STORY = ['第一场　雨后的巷口', '清晨，雨刚停。小女孩阿禾蹲在积水边，把一只折好的纸船放进水里。纸船顺着石板缝慢慢漂向巷口，她跟在后面一路小跑。', '第二场　河边', '纸船漂进小河，阿禾在桥上追着看，直到纸船消失在拐角。她回头，看见爷爷撑着伞站在桥头。']
 
 const facts = {}
@@ -292,7 +292,7 @@ try {
   await expandResidentPanel(win)
   const drafted = await present(walk, win, {
     locale: 'zh-CN', kind: 'image',
-    shots: (tag) => [1, 2, 3].map((index) => ({ title: `${tag} 纸船 ${index}`, prompt: `${tag} 纸船第 ${index} 镜：雨后清晨，纸船顺着水流漂`, taskKind: 'text_to_image', candidate: IMAGE })),
+    shots: (tag) => [1, 2, 3].map((index) => ({ title: `${tag} 纸船 ${index}`, prompt: `${tag} 纸船第 ${index} 镜：雨后清晨，纸船顺着水流漂`, taskKind: 'text_to_image', model: IMAGE })),
   })
   await previewStation(walk, win, 'zh-light')
 
