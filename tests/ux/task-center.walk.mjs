@@ -82,7 +82,8 @@ await snap(win, 'generation-area-empty-canvas')
 // 用真 UI 加 8 个图片节点（画布左侧工具栏「添加图片节点」）。不走 store 后门——画布 store 的 E2E 桥
 // 只在运镜捕获时才挂，且真点按钮本来就更忠实。
 const addImage = win.locator('[aria-label="添加图片节点"]').first()
-if (!(await addImage.count())) {
+const addImageVisible = await addImage.waitFor({ state: 'visible' }).then(() => true, () => false)
+if (!addImageVisible) {
   console.error('❌ 找不到画布「添加图片节点」按钮——停。')
   await app.close()
   process.exit(1)

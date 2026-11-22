@@ -94,7 +94,7 @@ try {
   await node.locator('[data-asset-slot] [data-asset-tile-remove]').click()
   await expectAbsent(node.locator('[data-asset-slot] img'), { provenBy: referenceProof, message: 'removing the required reference leaves an empty input' })
   await expect(runButton).toBeDisabled()
-  expect(await node.locator('[data-asset-slot]').count()).toBe(1)
+  await expect(node.locator('[data-asset-slot]')).toHaveCount(1)
   await capture('frame-required')
   expect(relay.tasks.size).toBe(1)
   await node.locator('[data-asset-slot] [data-asset-add-tile]').click()

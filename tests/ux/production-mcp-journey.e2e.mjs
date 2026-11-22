@@ -13,6 +13,7 @@ import { require as tsxRequire } from 'tsx/cjs/api'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { expect } from '@playwright/test'
 import { launchNomiApp } from './_launchApp.mjs'
 import { repoRoot, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { newProjectEntry } from './_shell.mjs'
@@ -237,7 +238,7 @@ try {
 
   await openRunFromTaskCenter(window, '00-task-center.png')
   check((await window.locator('[data-production-status-title]').textContent())?.length > 0, 'Task Center hosts the run card itself (no hop to the assistant panel)')
-  check(await window.locator('[data-nomi-right-panel="tasks"] [data-production-task-card]').count() === 1, 'the production card lives inside the Task Center panel')
+  check(await expect(window.locator('[data-nomi-right-panel="tasks"] [data-production-task-card]')).toHaveCount(1).then(() => true, () => false), 'the production card lives inside the Task Center panel')
   check(await window.locator('.generation-canvas-v2-assistant [data-production-task-card]').count() === 0, 'the canvas assistant panel no longer hosts production controls')
   await window.screenshot({ path: path.join(shotsDir, '01-direction-gate.png') })
 

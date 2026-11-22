@@ -174,9 +174,9 @@ if (en) {
   try {
     const { win, iso } = en
     // 英文起始页：New blank project 在、中文入口不在
-    const enCta = await win.getByText('New blank project', { exact: false }).count()
+    const enCtaVisible = await win.getByText('New blank project', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
     const zhCta = await win.getByText('新建空白项目', { exact: false }).count()
-    check('[en] 起始页英文（New blank project 在、中文入口不在）', enCta > 0 && zhCta === 0, `en=${enCta} zh=${zhCta}`)
+    check('[en] 起始页英文（New blank project 在、中文入口不在）', enCtaVisible && zhCta === 0, `en=${enCtaVisible ? 1 : 0} zh=${zhCta}`)
     // 建项目 → 回库 → 卡片相对时间应英文
     await win.getByText('New blank project', { exact: false }).first().click({ timeout: 10000 })
     // 等项目落盘

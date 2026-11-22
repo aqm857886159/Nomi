@@ -145,7 +145,7 @@ try {
   await expect(editor).toBeVisible()
   await getWin().waitForTimeout(1000)
   const leaferHost = getWin().locator('[aria-label="Leafer 画板"]').first()
-  const wbMounted = (await editor.count()) > 0 && (await leaferHost.count()) > 0
+  const wbMounted = (await editor.waitFor({ state: 'visible' }).then(() => true, () => false)) && (await leaferHost.waitFor({ state: 'visible' }).then(() => true, () => false))
   check('画板 inline editor + leafer 挂载（白板 churn 零回归）', wbMounted)
   await snap('whiteboard-open')
 

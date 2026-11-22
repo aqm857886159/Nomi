@@ -233,7 +233,7 @@ export async function a4LockExitJourney(input) {
   await page.evaluate(() => window.__nomiSetBatchConcurrency(1))
   proxy.setLimit(5)
   await page.locator('[data-storyboard-batch]').click(); await expect(page.locator(dialog)).toBeVisible()
-  assert.equal(await page.locator(dialog).count(), 1)
+  await expect(page.locator(dialog)).toHaveCount(1)
   await shot('confirm')
   await confirmLockExitSpend(page, {}, { context: 'batch-a4', shot })
   let batchNodes, assetsSeen = false

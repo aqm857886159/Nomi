@@ -154,9 +154,9 @@ try {
   await getWin().evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-model-catalog')))
   await getWin().waitForTimeout(1200)
   await snap('02-drawer-diagnosis.png')
-  const bannerCount = await getWin().locator('[data-drawer-kind-gap]').count()
-  expect(bannerCount > 0, '抽屉出现「类型可能猜错了」诊断横幅')
-  if (bannerCount > 0) {
+  const bannerVisible = await getWin().locator('[data-drawer-kind-gap]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  expect(bannerVisible, '抽屉出现「类型可能猜错了」诊断横幅')
+  if (bannerVisible) {
     await snapNear('[data-drawer-kind-gap]', '03-drawer-banner.png')
     const banner = await getWin().locator('[data-drawer-kind-gap]').first().innerText()
     note('横幅文案', banner.replace(/\s+/g, ' '))
@@ -170,8 +170,8 @@ try {
   await snap('04-drawer-expanded.png')
 
   const retypeTrigger = getWin().locator('[aria-label*="更改"][aria-label*="Seedream"]').first()
-  const hasTrigger = await retypeTrigger.count()
-  expect(hasTrigger > 0, '模型行上有「更改类型」控件（此前落库后完全不可改）')
+  const hasTrigger = await retypeTrigger.waitFor({ state: 'visible' }).then(() => true, () => false)
+  expect(hasTrigger, '模型行上有「更改类型」控件（此前落库后完全不可改）')
   if (hasTrigger) {
     await retypeTrigger.click()
     await getWin().waitForTimeout(500)
@@ -239,7 +239,7 @@ try {
   }
   const imageTool = getWin().locator('[data-node-kind="image"]').first()
   // 到不了画布就**判失败**，不静默跳过——「跳过的步骤」看起来和「通过的步骤」一样，等于假绿。
-  expect(await imageTool.count() > 0, '进到画布、拿得到图像节点工具（⑥ 的前提）')
+  expect(await imageTool.waitFor({ state: 'visible' }).then(() => true, () => false), '进到画布、拿得到图像节点工具（⑥ 的前提）')
   if (await imageTool.count()) {
     await imageTool.click()
     await getWin().waitForTimeout(1200)
@@ -264,14 +264,14 @@ try {
     // 节点的提示词框是 tiptap 的 contenteditable，不是 textarea（全页唯一那个 textarea 是画布助手的
     // 输入条——填错地方就会撞「请先写点提示词再生成」那条**别的**错，看起来像本次修改没生效）。
     const promptTarget = getWin().locator('[data-node-id] [contenteditable="true"]').last()
-    expect(await promptTarget.count() > 0, '找得到图像节点的提示词框（tiptap contenteditable）')
+    expect(await promptTarget.waitFor({ state: 'visible' }).then(() => true, () => false), '找得到图像节点的提示词框（tiptap contenteditable）')
     if (await promptTarget.count()) {
       await promptTarget.click()
       await getWin().keyboard.type('一只在屋顶上的猫')
       await getWin().waitForTimeout(600)
     }
     const genBtn = getWin().locator('[aria-label="生成素材"]').first()
-    expect(await genBtn.count() > 0, '节点上找得到生成钮')
+    expect(await genBtn.waitFor({ state: 'visible' }).then(() => true, () => false), '节点上找得到生成钮')
     if (await genBtn.count()) {
       await genBtn.click()
       await getWin().waitForTimeout(1200)

@@ -125,7 +125,7 @@ try {
   const faceHint = await hero().locator('[data-anchor-failure-reason]').getAttribute('title').catch(() => null)
   O.firstFailure = { faceText, faceHint, nodeError: String(heroNode()?.error ?? '').slice(0, 400) }
   check('face-says-why-not-generic', faceText && faceText !== t('生成失败', 'Generation failed'), faceText)
-  check('face-offers-retry', await hero().locator('[data-anchor-face="failed"] button').count() > 0)
+  check('face-offers-retry', await hero().locator('[data-anchor-face="failed"] button').first().waitFor({ state: 'visible' }).then(() => true, () => false))
   check('no-reconcile-in-error', !/needs_reconcile|submission-unknown/.test(O.firstFailure.nodeError), O.firstFailure.nodeError)
 
   // ② 换成回环图片模型，点「重试」：认领放行，真的出图。

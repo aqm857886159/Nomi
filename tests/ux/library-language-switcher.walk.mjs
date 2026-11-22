@@ -33,8 +33,8 @@ try {
   await dismissSplashIfPresent(win)
 
   // 起始页（未建任何项目）应默认中文，且第一屏就能到语言分段（顶栏设置钮 → 通用）
-  const onLibrary = await win.getByText('新建空白项目', { exact: false }).count()
-  check('停在项目库起始页（未建项目）', onLibrary > 0, `新建空白项目=${onLibrary}`)
+  const onLibrary = await win.getByText('新建空白项目', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  check('停在项目库起始页（未建项目）', onLibrary, `新建空白项目=${onLibrary ? 1 : 0}`)
   const settings = await openSettings(win, { tab: 'general', label: '起始页打开设置' })
   const localeOptions = await settings.locator('[data-settings-locale]').count()
   check('起始页设置「通用」里有语言分段（#1b：不进工作台就能切）', localeOptions === 2, `语言选项=${localeOptions}`)
@@ -48,10 +48,10 @@ try {
 
   // 起始页整页翻英文（无需先建项目进工作台）
   const langEn = await readAppLanguage(win)
-  const enCta = await win.getByText('New blank project', { exact: false }).count()
+  const enCtaVisible = await win.getByText('New blank project', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
   const zhCta = await win.getByText('新建空白项目', { exact: false }).count()
   check('切换后语言分段落在 English', langEn === 'en', `当前=${langEn}`)
-  check('起始页翻英文（New blank project 在、中文入口不在）', enCta > 0 && zhCta === 0, `en=${enCta} zh=${zhCta}`)
+  check('起始页翻英文（New blank project 在、中文入口不在）', enCtaVisible && zhCta === 0, `en=${enCtaVisible ? 1 : 0} zh=${zhCta}`)
   await screenshotSettled(win, { path: path.join(shotsDir, '02-library-en.png') })
 } finally {
   await app.close().catch(() => {})

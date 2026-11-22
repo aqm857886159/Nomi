@@ -11,6 +11,7 @@
 //
 // 用法：node tests/ux/design-lab-spend-card.walk.mjs  （ONLY=spend-batch 只跑一格）
 import path from 'node:path'
+import { expect } from '@playwright/test'
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
 import { REPO_ROOT } from './design-lab/labStates.mjs'
 import { uiText, uiTextPattern, uiTextWith } from './full-walk/invariants.mjs'
@@ -437,7 +438,7 @@ async function expectReceipt(page, state, record, phase, faces) {
   const locale = localeOf(state.id)
   if (await page.locator('[data-v4-block="intervention"]').count()) record(`${state.id} ${A.done}: 完成后卡应离开输入框上方那一格`)
   const receipt = page.locator('[data-v4-block="generation-receipt-pointers"]')
-  if (await receipt.count() !== 1) { record(`${state.id} ${A.done}: 对话流里没有那一条带组指向的收据`); return }
+  if (!(await expect(receipt).toHaveCount(1).then(() => true, () => false))) { record(`${state.id} ${A.done}: 对话流里没有那一条带组指向的收据`); return }
   const facts = await receipt.evaluate((root) => ({
     operation: root.getAttribute('data-operation-id'),
     phase: root.querySelector('[data-v4-block="generation-receipt-line"]')?.getAttribute('data-receipt-phase') ?? null,
@@ -725,7 +726,7 @@ async function expectSpendCardState(page, state, record) {
       const key = state.id === 'spend-brake-retry' ? 'agentPanelV4.brakeRetry.title' : 'agentPanelV4.brakeOutOfPlan.title'
       const reason = uiText(locale, key)
       if (!facts.cardText.includes(reason)) record(`${state.id} ${A.brake} / ${A.brakeReason}: 标题下没有刹车原因那一行「${reason}」`)
-      if (!(await page.locator('[data-v4-block="auto-mode"]').count())) record(`${state.id} ${A.brake}: 直接档的常驻提醒不在（刹车只在直接档出现）`)
+      if (!(await page.locator('[data-v4-block="auto-mode"]').first().waitFor({ state: 'visible' }).then(() => true, () => false))) record(`${state.id} ${A.brake}: 直接档的常驻提醒不在（刹车只在直接档出现）`)
       break
     }
     case 'spend-unreadable': {

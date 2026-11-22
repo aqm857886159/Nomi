@@ -154,17 +154,17 @@ try {
   const t3 = await testStateText();
   console.log("    结果文字:", t3);
   // 失败后协议覆盖区应自动展开（逃生口）
-  const overrideShown = await win.getByText("接口协议", { exact: false }).count();
+  const overrideShown = await win.getByText("接口协议", { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false);
   await win.screenshot({ path: path.join(shotDir, "j3-fail-override.png") });
   ok(/连不上|失败|协议/.test(t3), "J3 失败时给出指路文案（非空白红字）");
-  ok(overrideShown > 0, "J3 失败后协议覆盖区自动展开（逃生口）");
+  ok(overrideShown, "J3 失败后协议覆盖区自动展开（逃生口）");
 
   // ---------- J4：专家手动展开覆盖区 + 选 Responses ----------
   console.log("\n[J4] 专家手动指定协议（覆盖区）");
   const manualLink = win.getByText("手动指定", { exact: false });
   if (await manualLink.count() > 0) { await manualLink.first().click(); await win.waitForTimeout(300); }
   const respSeg = win.getByText("Responses", { exact: true });
-  ok(await respSeg.count() > 0, "J4 覆盖区出现 Chat Completions / Responses / Anthropic 选择器");
+  ok(await respSeg.first().waitFor({ state: 'visible' }).then(() => true, () => false), "J4 覆盖区出现 Chat Completions / Responses / Anthropic 选择器");
   await win.screenshot({ path: path.join(shotDir, "j4-override-segmented.png") });
 
 } catch (e) {

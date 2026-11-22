@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
+import { expect } from '@playwright/test'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const mockupPath = path.join(repoRoot, 'docs/design/mockups/2026-08-15-clip-node-export-workflow.html')
@@ -95,9 +96,9 @@ try {
   assert.equal(await page.locator('[data-testid="output-edge"]').count(), currentClipCount, '每个分段输出都有来源连线')
 
   await runExport('完整成片', '到画布')
-  assert.equal(await page.locator('[data-testid="output-node"]').count(), 1, '完整视频到画布只生成一个节点')
+  await expect(page.locator('[data-testid="output-node"]'), '完整视频到画布只生成一个节点').toHaveCount(1)
   await page.waitForFunction(() => document.querySelectorAll('[data-testid="output-edge"]').length === 1)
-  assert.equal(await page.locator('[data-testid="output-edge"]').count(), 1, '完整视频输出保留来源连线')
+  await expect(page.locator('[data-testid="output-edge"]'), '完整视频输出保留来源连线').toHaveCount(1)
 
   const fullDownloadPromise = page.waitForEvent('download')
   await runExport('完整成片', '下载')

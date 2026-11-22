@@ -131,13 +131,13 @@ try {
   if (await projectTab.count()) await projectTab.click({ timeout: 2000 }).catch(() => {})
   await win.waitForTimeout(900)
   const folderTile = win.locator('section[aria-label="素材库"] [aria-label="打开文件夹 主角参考"]').first()
-  check('素材库出现迁移文件夹「主角参考」', (await folderTile.count()) > 0)
+  check('素材库出现迁移文件夹「主角参考」', await folderTile.waitFor({ state: 'visible' }).then(() => true, () => false))
   await snap(win, '03-asset-library-folder-tile')
   if (await folderTile.count()) {
     await folderTile.click({ timeout: 2000 }).catch(() => {})
     await win.waitForTimeout(600)
     const backChip = win.locator('button[aria-label="返回全部项目素材"]').first()
-    check('点入文件夹出现面包屑返回', (await backChip.count()) > 0)
+    check('点入文件夹出现面包屑返回', await backChip.waitFor({ state: 'visible' }).then(() => true, () => false))
     await snap(win, '04-inside-folder-breadcrumb')
     await backChip.click({ timeout: 2000 }).catch(() => {})
     await win.waitForTimeout(400)
@@ -162,16 +162,16 @@ try {
 
   // —— ② 迁移·提示词：侧栏提示词库出现旧卡 ——
   const promptRail = win.locator('[data-shell-rail-item="prompts"]').first()
-  if (await promptRail.count()) {
+  if (await promptRail.waitFor({ state: 'visible' }).then(() => true, () => false)) {
     await promptRail.click({ timeout: 2000 }).catch(() => {})
     await win.waitForTimeout(900)
-    let cardVisible = (await win.getByText('赛博城市雨夜提示词', { exact: false }).count()) > 0
+    let cardVisible = await win.getByText('赛博城市雨夜提示词', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
     if (!cardVisible) {
       const mineTab = win.locator('button,[role="tab"]', { hasText: '我的' }).first()
       if (await mineTab.count()) {
         await mineTab.click({ timeout: 2000 }).catch(() => {})
         await win.waitForTimeout(700)
-        cardVisible = (await win.getByText('赛博城市雨夜提示词', { exact: false }).count()) > 0
+        cardVisible = await win.getByText('赛博城市雨夜提示词', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
       }
     }
     check('旧提示词卡迁入主提示词库可见', cardVisible)
@@ -185,7 +185,7 @@ try {
   await browserButton.click({ timeout: 3000 }).catch(() => {})
   await win.waitForTimeout(2200)
   const trayButton = win.locator('button[aria-label*="素材盒"]').last()
-  check('浏览器工具条素材盒按钮在（唯一入口）', (await trayButton.count()) > 0)
+  check('浏览器工具条素材盒按钮在（唯一入口）', await trayButton.waitFor({ state: 'visible' }).then(() => true, () => false))
   if (await trayButton.count()) await trayButton.click({ timeout: 3000 }).catch(() => {})
   await win.waitForTimeout(1800)
   const overlayWin = app.windows().find((p) => p.url().includes('nomiOverlay=browserAsset'))
@@ -196,8 +196,8 @@ try {
     check('托盘无「提示词库」tab', (await overlayWin.getByText('提示词库', { exact: true }).count()) === 0)
     check('托盘无「上传」按钮', (await overlayWin.locator('button[aria-label*="上传"]').count()) === 0)
     check('托盘无文件夹瓦片', (await overlayWin.getByText('主角参考', { exact: false }).count()) === 0)
-    check('托盘标注「捕捞收件箱」', (await overlayWin.getByText('捕捞收件箱', { exact: false }).count()) > 0)
-    check('托盘可见捕捞素材', (await overlayWin.getByText('捕捞样例一', { exact: false }).count()) > 0)
+    check('托盘标注「捕捞收件箱」', await overlayWin.getByText('捕捞收件箱', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false))
+    check('托盘可见捕捞素材', await overlayWin.getByText('捕捞样例一', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false))
     await snap(overlayWin, '07-tray-capture-inbox')
   }
   await snap(win, '08-studio-with-browser')

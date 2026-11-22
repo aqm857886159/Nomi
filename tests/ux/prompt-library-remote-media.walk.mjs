@@ -107,8 +107,8 @@ try {
     await snap(win, '03-expired-card')
     await expiredCard.click()
     await win.waitForTimeout(800)
-    const previewExpired = await win.locator('[role="dialog"] [data-example-media-expired], [aria-modal="true"] [data-example-media-expired]').count()
-    check('点开失效示例：预览里是失效说明，不是黑框', previewExpired > 0)
+    const previewExpired = await win.locator('[role="dialog"] [data-example-media-expired], [aria-modal="true"] [data-example-media-expired]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
+    check('点开失效示例：预览里是失效说明，不是黑框', previewExpired)
     await snap(win, '04-expired-preview')
     await win.keyboard.press('Escape').catch(() => {})
   } else {
