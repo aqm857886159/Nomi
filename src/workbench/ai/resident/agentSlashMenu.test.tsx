@@ -26,7 +26,7 @@ vi.mock('../../../design', async (importOriginal) => {
 })
 
 import { AgentPanelV4Composer, V4SkillPopover } from '../v4/AgentPanelV4Composer'
-import { buildAgentSlashRows, parseAgentSlashQuery, useAgentSlashMenu } from './useAgentSlashMenu'
+import { buildAgentSlashRows, parseAgentSlashQuery, useAgentSlashMenu } from './agentSlashMenu'
 
 const SAMPLE_SKILLS: readonly SkillListItemDto[] = [
   {

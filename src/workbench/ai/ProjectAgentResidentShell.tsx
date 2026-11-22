@@ -1,5 +1,5 @@
 import { useResidentComposerContext } from './resident/ResidentComposerContext'
-import { useAgentSlashMenu } from './resident/useAgentSlashMenu'
+import { useAgentSlashMenu } from './resident/agentSlashMenu'
 // 常驻 Agent 面板的容器。
 //
 // 它现在只做三件事：把宿主接线（读侧 `useAgentPanelV4Data` / 写侧 `useAgentPanelV4Actions`）
