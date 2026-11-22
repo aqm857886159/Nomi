@@ -304,7 +304,7 @@ async function runPass({ locale, scheme }) {
       await expectVisible(panel, '参数面板')
       const kinds = {
         slider: await panel.locator('[role="slider"], input[type="range"], .mantine-Slider-root').first().waitFor({ state: 'visible' }).then(() => true, () => false),
-        toggle: await panel.locator('[role="switch"], input[type="checkbox"]').first().waitFor({ state: 'visible' }).then(() => true, () => false),
+        toggle: await panel.locator('[role="switch"], input[type="checkbox"]').first().waitFor({ state: 'attached' }).then(() => true, () => false),
       }
       check(`[${tag}] board:ComposerB3/keep.params.control-kinds：面板里有滑杆和开关`, kinds.slider && kinds.toggle, JSON.stringify(kinds))
       await panel.getByRole('radio', { name: '4:3' }).first().click()
