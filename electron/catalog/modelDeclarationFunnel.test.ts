@@ -1,30 +1,25 @@
 /**
  * 写入口：经 upsert 漏斗（设置页、导入包、接入向导、声明卡登记、AI 接入、改类型、Antigravity 同步都走它）写下的文本行带声明初值。
- * 设计卡 docs/plan/2026-11-22-model-meta-declaration.md ★2「谁写」。目录读写用内存替身（照 catalogLivenessPersistence.test.ts）。
+ * 设计卡 docs/plan/2026-11-22-model-meta-declaration.md ★2「谁写」。目录由测试世界 buildWorld 造，真落盘真读。
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CatalogState } from "./types";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { buildWorld, type World } from "../../tests/world";
 
-const memory = vi.hoisted(() => ({ catalog: null as CatalogState | null }));
 vi.mock("electron", () => ({ app: { getPath: () => process.cwd(), getAppPath: () => process.cwd() }, safeStorage: { isEncryptionAvailable: () => false } }));
-vi.mock("../runtimePaths", async (importOriginal) => ({ ...(await importOriginal<Record<string, unknown>>()), getSettingsRoot: () => "/synthetic-catalog" }));
-vi.mock("../configFileStore", async (importOriginal) => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  readConfigFile: () => (memory.catalog ? { status: "ok", value: structuredClone(memory.catalog) } : { status: "missing" }),
-  configReadFailure: () => null,
-  configQuarantineNotice: () => null,
-  quarantineUnreadableConfigFile: () => null,
-  snapshotConfigVersion: () => null,
-  writeConfigFileAtomic: (_path: string, value: CatalogState) => { memory.catalog = structuredClone(value); },
-}));
 import { readCatalog, upsertModelCatalogModel } from "./catalogStore";
-import { CURRENT_CATALOG_VERSION } from "./types";
 
-const VENDOR = { key: "relay", name: "Relay", authType: "bearer", enabled: true, createdAt: "a", updatedAt: "a" } as const;
+const VENDOR = { key: "relay", name: "Relay", authType: "bearer", enabled: true } as const;
 
+let world: World;
+let restoreEnv: () => void;
 beforeEach(() => {
-  memory.catalog = { version: CURRENT_CATALOG_VERSION, unverifiedUsableRecovered: true, modelDeclarationDefaultsApplied: true,
-    vendors: [{ ...VENDOR }], models: [], mappings: [], apiKeysByVendor: {} };
+  // 目录由测试世界的正门造（真落盘、真读），不再用内存替身顶掉 configFileStore。
+  world = buildWorld({ builtinSeeds: false, projects: [], catalog: { vendors: [{ ...VENDOR }] } });
+  restoreEnv = world.activate();
+});
+afterEach(() => {
+  restoreEnv();
+  world.cleanup();
 });
 
 function metaOf(modelKey: string): unknown {

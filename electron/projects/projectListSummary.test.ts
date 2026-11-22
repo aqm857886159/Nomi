@@ -26,7 +26,6 @@ import { createProject, deleteProject, listProjects, saveProject } from "./repos
 import { findRecentWorkspace } from "../workspace/workspaceRegistry";
 import { workspaceProjectBackupFile, workspaceProjectFile } from "../workspace/workspacePaths";
 import { resetLegacyDiscoveryGuard } from "../workspace/legacyProjectMigration";
-import * as manifest from "../workspace/workspaceManifest";
 import { WORKSPACE_LIST_IO_CONCURRENCY } from "../workspace/workspaceRepository";
 import { WorkspaceManifestLockBusyError, acquireWorkspaceManifestLock, releaseWorkspaceManifestLock } from "../workspace/workspaceManifestLock";
 
@@ -294,23 +293,28 @@ describe("项目列表摘要读面", () => {
 
   it("读清单的盘读并发不超过上限：41 个项目也只同时在飞 WORKSPACE_LIST_IO_CONCURRENCY 个", async () => {
     for (let index = 0; index < 41; index += 1) createProject({ name: `项目 ${index}` });
-    const original = manifest.readWorkspaceManifestSnapshotAsync;
+    // 盘读并发在文件系统这一层量（真外部边界），不换掉主人的读函数：每个项目一次清单读。
+    const originalReadFile = fs.promises.readFile.bind(fs.promises);
     let inFlight = 0;
     let peak = 0;
-    const spy = vi.spyOn(manifest, "readWorkspaceManifestSnapshotAsync").mockImplementation(async (rootPath: string) => {
+    let manifestReads = 0;
+    const spy = vi.spyOn(fs.promises, "readFile").mockImplementation((async (...args: Parameters<typeof fs.promises.readFile>) => {
+      const file = String(args[0]);
+      if (!file.endsWith(`${path.sep}.nomi${path.sep}project.json`)) return originalReadFile(...args);
       inFlight += 1;
+      manifestReads += 1;
       peak = Math.max(peak, inFlight);
       try {
         await new Promise((resolve) => setTimeout(resolve, 2));
-        return await original(rootPath);
+        return await originalReadFile(...args);
       } finally {
         inFlight -= 1;
       }
-    });
+    }) as typeof fs.promises.readFile);
     try {
       const listed = await listProjects();
       expect(listed).toHaveLength(41);
-      expect(spy).toHaveBeenCalledTimes(41);
+      expect(manifestReads).toBe(41);
       expect(peak).toBeGreaterThan(1);
       expect(peak).toBeLessThanOrEqual(WORKSPACE_LIST_IO_CONCURRENCY);
     } finally {
