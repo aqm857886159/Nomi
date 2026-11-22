@@ -183,7 +183,9 @@ const ITEM_CLASS = cn(
   '[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:stroke-[1.8] [&_svg]:text-nomi-ink-60',
   'data-[disabled]:[&_svg]:text-nomi-ink-30',
 )
-const DANGER_ITEM_CLASS = 'text-workbench-danger [&_svg]:text-workbench-danger'
+// 用 data-[danger] 提升选择器权重到 (0,2,0)，确保调用方 itemClassName 传文字色（如 text-nomi-ink-80）不会按 CSS 声明顺序盖掉危险红；
+// disabled 态不挂 data-danger，由 data-[disabled] 正常走灰字。
+const DANGER_ITEM_CLASS = 'data-[danger]:text-workbench-danger data-[danger]:[&_svg]:text-workbench-danger'
 const SHORTCUT_CLASS = 'text-nomi-ink-40 tabular-nums'
 const SEPARATOR_CLASS = 'h-px my-1 mx-2 bg-nomi-line'
 const GROUP_LABEL_CLASS = 'px-2 py-1 text-micro text-workbench-muted select-none'
@@ -310,8 +312,9 @@ function renderNodes(nodes: readonly WorkbenchMenuNode[], ctx: RenderContext): R
         disabled={node.disabled}
         title={node.disabled ? node.disabledReason : undefined}
         data-menu-item={node.id}
+        data-danger={node.danger && !node.disabled ? 'true' : undefined}
         {...node.dataAttributes}
-        className={cn(ITEM_CLASS, node.danger && DANGER_ITEM_CLASS, ctx.itemClassName)}
+        className={cn(ITEM_CLASS, ctx.itemClassName, node.danger && DANGER_ITEM_CLASS)}
         onSelect={selectHandler(node, node.onSelect)}
       >
         <MenuItemBody item={node} shortcutClassName={ctx.shortcutClassName} />

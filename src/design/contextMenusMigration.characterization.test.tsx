@@ -973,5 +973,35 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       expect(docTree.first((el) => el.getAttribute('role') === 'menu')).toBeNull()
       expect(outerWindowEsc).not.toHaveBeenCalled()
     })
+
+    it('危险项（未禁用）挂 data-danger 与高权重红色类，禁用态不挂 data-danger（不被 itemClassName 文字色覆盖）', () => {
+      // 1) 单文稿：删除原稿被禁用 → 不挂 data-danger
+      useWorkbenchStore.setState({
+        workbenchDocuments: [useWorkbenchStore.getState().workbenchDocuments[0]],
+      })
+      const singleDocTree = mountTree(<DocumentListSidebar />)
+      cleanups.push(singleDocTree.unmount)
+      const docBtn = singleDocTree.first((el) => el.getAttribute('data-document-id') === 'doc-1')!
+      singleDocTree.triggerContextMenu(docBtn)
+      const disabledDelete = singleDocTree.first((el) => el.getAttribute('role') === 'menuitem' && el.getAttribute('data-resource-action') === 'delete')!
+      expect(disabledDelete.hasAttribute('data-danger')).toBe(false)
+      singleDocTree.pressEscape()
+
+      // 2) 分镜方案（design-1）：删除方案未禁用 → 必挂 data-danger 且类名含 data-[danger]:text-workbench-danger
+      const planBtn = singleDocTree.first((el) => el.getAttribute('data-storyboard-id') === 'design-1')!
+      singleDocTree.triggerContextMenu(planBtn)
+      const enabledDelete = singleDocTree.first((el) => el.getAttribute('role') === 'menuitem' && el.getAttribute('data-resource-action') === 'delete')!
+      expect(enabledDelete.hasAttribute('data-danger')).toBe(true)
+      expect(String(enabledDelete.props.className)).toContain('data-[danger]:text-workbench-danger')
+
+      // 3) CategoryTree：节点删除未禁用 → 必挂 data-danger
+      const catTree = mountTree(<CategoryTree categories={[...BUILTIN_CATEGORIES]} />)
+      cleanups.push(catTree.unmount)
+      const nodeRow = catTree.first((el) => el.props.onContextMenu !== undefined && el.textContent.includes('开场远景'))!
+      catTree.triggerContextMenu(nodeRow)
+      const catItems = catTree.first((el) => el.getAttribute('role') === 'menu')!.querySelectorAll((el) => el.getAttribute('role') === 'menuitem')
+      expect(catItems[0].hasAttribute('data-danger')).toBe(false)
+      expect(catItems[3].hasAttribute('data-danger')).toBe(true)
+    })
   })
 })
