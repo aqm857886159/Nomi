@@ -28,10 +28,10 @@ describe("what the model reads when a storyboard write is refused", () => {
     const error = refusal();
     const identity = { code: error.code, problem: error.problem };
     for (let attempt = 1; attempt < LANE_REPEATED_FAILURE_BLOCK; attempt += 1) {
-      tracker.note("nomi_storyboard_patch", true, error.message, identity);
+      tracker.note("nomi_storyboard_patch", true, identity);
       expect(tracker.block("nomi_storyboard_patch")).toBeNull();
     }
-    tracker.note("nomi_storyboard_patch", true, error.message, identity);
+    tracker.note("nomi_storyboard_patch", true, identity);
     expect(tracker.block("nomi_storyboard_patch")).not.toBeNull();
   });
 });

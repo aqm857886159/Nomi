@@ -10,8 +10,10 @@
 //
 // pi 留给工具的唯一一个**校验之前**的口子是 `prepareArguments`（官方钩子，同步，`tools.js:25`）。
 // 这里把每个工具的 `prepareArguments` 包一层：
-//   ① 这个工具已经撞满一堵墙 → 直接拦下，说「这一轮别再发」——墙**先于**一切判，否则错着的调用
-//      会一直拿到拒收正文、永远到不了「停」；
+//   ① 这一轮已经结束（同一批里排在停点之后的调用），或者这个工具已经连败满 3 次、模型却又发了它
+//      （无视了第 3 次正文里的「这一轮别再发」）→ 不执行，并**结束这一轮**（`turn.end()`，宿主在下一次
+//      模型请求之前用 pi 的取消原语收掉这一轮）。墙**先于**一切判，否则错着的调用会一直拿到拒收正文、
+//      永远到不了「停」；2026-11-09 之前这里只回一条不执行的立即结果，模型不听就一直空转（一回合 11 次请求）；
 //   ② 跑工具自己的 `prepareArguments`（容忍畸形输入的那一步，原样保留）。它自己写好的拒收
 //      （`LaneDomainFailure`，如 draft_shots 的「比例只有一个家」）同样是一次立即结果，走同一个出口、同一个计数器；
 //   ③ 用 pi **自己的** `validateToolArguments` 判通不通过（尺子只有 pi 那一把，这里不复制它的强转规则）；
@@ -45,6 +47,16 @@ export const LANE_TOOL_RETRY_STOPPED_CODE = 'tool_retry_stopped' satisfies LaneT
 /** 两种立即结果的首行头。`Validation failed for tool "X"` 也是走查脚本数「参数被拒」的那个头。 */
 const rejectedHead = (toolName: string): string => `Validation failed for tool "${toolName}"`;
 const stoppedHead = (toolName: string): string => `${toolName} was not run (${LANE_TOOL_RETRY_STOPPED_CODE}). `;
+/**
+ * 停点那一次（以及同一批里排在它后面的调用）模型读到的话。模型要到用户下一句话时才读到它——这一轮已经没有下一次请求，
+ * 所以**不许**写「现在总结一下」这类承诺（2026-11-09 删掉的旧上限措辞就是这样骗人的）。
+ */
+const TURN_OVER_REASON = 'This turn\'s retries are used up: a tool that had failed 3 times in a row was called again after being told to stop, '
+  + 'so this turn ended here and this call did not run. Tools become available again with the user\'s next message; '
+  + 'then tell the user plainly what kept failing and what you need from them.';
+
+/** 这一轮的停止权（宿主持有，按 run 计）。边界只做两件事：问「结束了没有」，以及宣布「到此结束」。 */
+export type LaneTurnStop = Readonly<{ isOver(): boolean; end(): void }>;
 
 
 type BoundaryTool = Pick<AgentHarnessTool<undefined>, 'name' | 'parameters' | 'prepareArguments'>;
@@ -61,11 +73,11 @@ export type LaneToolInputBoundary = Readonly<{
    */
   prepare(toolName: string, args: unknown, run: () => unknown): Promise<string | undefined>;
   /**
-   * 执行层（`after_tool`）的一次结果记进同一个熔断：成功清墙；失败计数、发遥测。正好撞满的那一次给回
+   * 执行层（`after_tool`）的一次结果记进同一个熔断：成功清零；失败计数、发遥测。正好撞满的那一次给回
    * 「停」那句（宿主接在正文后面），模型第 3 次就读到「别再发、去问用户」，而不是等第 4 次被拦下才知道。
-   * `consecutive` 是连续失败次数（宿主日志用）。
+   * `consecutive` 是这个工具自上次成功以来的连败数（宿主日志用）。
    */
-  settle(toolName: string, isError: boolean, body: string, failure: LaneFailureIdentity | undefined): { consecutive: number; stop?: string };
+  settle(toolName: string, isError: boolean, failure: LaneFailureIdentity | undefined): { consecutive: number; stop?: string };
   /**
    * 一条立即失败的工具结果 → 公开信封（面板用）。只认本边界写下的三种：拦截头、形状 / 契约拒收头、
    * 工具准备步骤自己写好的拒收（按入参重跑那一步，正文以它的 message 开头才认）；别的返回 `undefined`。
@@ -77,6 +89,8 @@ export type LaneToolInputBoundary = Readonly<{
 
 export function createLaneToolInputBoundary(options: Readonly<{
   failures: LaneRepeatedFailureTracker;
+  /** 这一轮的停止权。墙立着还发 = 无视「别再发」→ `end()`；之后同一批里的调用一律不执行。 */
+  turn: LaneTurnStop;
   /** 契约（Zod）那一层：重推面板信封、拿示例用。原生工具没有契约，不在这里。 */
   specs: readonly ContractSpec[];
   onFailure?: (event: LaneToolFailureEvent) => void;
@@ -127,9 +141,9 @@ export function createLaneToolInputBoundary(options: Readonly<{
     return [{ path: piPaths[0] ?? '(root)', kind: 'invalid' }];
   }
 
-  /** 一次结果记进熔断（入参边界和执行层共用这一处）：成功清墙；失败计数、发遥测，正好撞满时给回「停」那句。 */
-  function settle(toolName: string, isError: boolean, body: string, failure: LaneFailureIdentity | undefined): { consecutive: number; stop?: string } {
-    const consecutive = options.failures.note(toolName, isError, body, failure);
+  /** 一次结果记进熔断（入参边界和执行层共用这一处）：成功清零；失败计数、发遥测，正好撞满时给回「停」那句。 */
+  function settle(toolName: string, isError: boolean, failure: LaneFailureIdentity | undefined): { consecutive: number; stop?: string } {
+    const consecutive = options.failures.note(toolName, isError, failure);
     if (!isError) return { consecutive };
     const wall = options.failures.block(toolName);
     options.onFailure?.({
@@ -141,15 +155,16 @@ export function createLaneToolInputBoundary(options: Readonly<{
 
   /** 记一次入参失败；返回模型读的正文（撞满时带上「停」那句）。 */
   function reject(toolName: string, failure: LaneToolFailureShape): string {
-    const { stop } = settle(toolName, true, failure.message, failure);
+    const { stop } = settle(toolName, true, failure);
     const text = renderLaneToolFailure(failure);
     return stop ? `${text}\n${stop}` : text;
   }
 
-  function stopped(toolName: string, reason: string): never {
-    // 被拦下的这一次**不**再记数：墙已经立着，用户下一句话之前它不会倒。
+  /** 这一轮到此为止：这一次不执行、不再记数（墙在用户下一句话之前不会倒），宿主不再发下一次模型请求。 */
+  function turnOver(toolName: string): never {
+    options.turn.end();
     options.onFailure?.({ toolName, code: LANE_TOOL_RETRY_STOPPED_CODE, attempt: LANE_REPEATED_FAILURE_BLOCK, breakerTripped: true });
-    throw new Error(`${stoppedHead(toolName)}${reason}`);
+    throw new Error(`${stoppedHead(toolName)}${TURN_OVER_REASON}`);
   }
 
   /** 工具自己的准备步骤（`prepareArguments`）跑一遍：它写好的拒收给回来，别的异常照旧抛。 */
@@ -205,8 +220,7 @@ export function createLaneToolInputBoundary(options: Readonly<{
       return tools.map((tool) => {
         originals.set(tool.name, tool);
         const prepareArguments = (args: unknown): never => {
-          const wall = options.failures.block(tool.name);
-          if (wall) stopped(tool.name, wall.reason);
+          if (options.turn.isOver() || options.failures.block(tool.name)) turnOver(tool.name);
           const own = prepared(tool, args);
           if (!own.ok) throw new Error(reject(tool.name, own.failure));
           const verdict = piVerdict(tool, own.args);
