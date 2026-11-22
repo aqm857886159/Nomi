@@ -7,6 +7,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect } from '@playwright/test'
 import { proveProbe, expectAbsent } from './_assert.mjs'
 import { newProjectEntry } from './_shell.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const phase = process.env.NOTIFICATION_POLICY_PHASE || 'after'
 const output = path.resolve('.tmp/toast-policy-evidence')
@@ -21,7 +22,8 @@ try {
   await win.waitForLoadState('domcontentloaded')
   await win.locator('button[aria-label*="设置"], button[aria-label*="Settings"]').first().click()
   for (let index = 0; index < 5; index++) {
-    await win.getByRole('button', { name: '检查文件夹', exact: true }).click()
+    // 按钮名从语言表按键取（不在走查里抄一份，文案改了这里跟着走）。
+    await win.getByRole('button', { name: uiText('zh-CN', 'settings.file.projectLocationCheck'), exact: true }).click()
     await expect(win.locator('[data-project-location-check-feedback]')).toHaveAttribute('data-feedback-state', 'success')
   }
   const count = await win.locator('.mantine-Notification-root').count()
