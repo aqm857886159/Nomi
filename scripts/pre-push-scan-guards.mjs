@@ -12,9 +12,10 @@
 //
 // 单跑耗时来自 2026-10-10 在 Windows 本机逐个 `vitest run <文件>` 的实测（含 vitest 起进程的 2–3 秒）；> 20 秒的不进推送前。
 
+import fs from 'node:fs'
 import path from 'node:path'
 
-import { scanEvidence } from './lib/scanGuardDetect.mjs'
+import { scanEvidence, walkSites } from './lib/scanGuardDetect.mjs'
 import { implementationFiles } from './pre-push-gate-inputs.mjs'
 
 /** 默认只看代码类扩展名；扫非代码文件（技能 md、站点 html、json 夹具）的守卫在条目里写 exts: '*'。 */
@@ -40,6 +41,8 @@ export const SCAN_GUARDS = Object.freeze([
   // 2026-11-20：付费放行只在一个家判（spend.approval-decision）；遍历 src、electron 找误导性的恒真「算批准」回执（<1 秒）。
   { file: 'scripts/concept-owners-approval.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-approval.mjs', 'scripts/concept-owners-scan.mjs'] },
   { file: 'scripts/asset-file-owner.node-test.mjs', roots: ['src/workbench/generationCanvas/nodes/versionCards'], files: ['eslint.config.mjs', 'src/workbench/assets/assetFileDeletion.ts', 'src/workbench/assets/removeAssetVersion.ts', 'src/workbench/assets/assetResultMutation.ts'] }, // 两种桥删除及版本面间接绕法片段必须报错，真实owner必须通过
+  // 2026-11-22：走查启动器手传目录的冻结名单对账；遍历 tests / scripts / evals 找名单外手传目录的走查启动调用（<2 秒）。
+  { file: 'tests/ux/launcherDirs.test.mjs', roots: ['tests', 'scripts', 'evals'], files: ['tests/ux/not-yet-migrated/launcherDirs.json'] },
   { file: 'scripts/typecheck.node-test.mjs', roots: ['scripts'], exts: '*' }, // tsc 启动只归统一入口；新增文件也必须检查（<1 秒）。
   { file: 'scripts/ci-external-download-cache.node-test.mjs', roots: ['.github/workflows', '.github/actions/cache-external-downloads'], exts: '*', files: ['package.json', 'pnpm-lock.yaml'] }, // node 批次：新增工作流也必须先恢复外部二进制缓存（<1 秒）。
   // 2026-11-12：模型能力表（docs/models/capabilities/*.md）与档案双向对账；新增一张表或改任一档案都要推送前就跑（<1 秒）。
@@ -176,6 +179,10 @@ export const SCAN_GUARDS = Object.freeze([
  */
 export const SCAN_GUARD_CI_ONLY = Object.freeze([
   {
+    reason: '测试世界元测试：起一个子 vitest 跑 10 份固定夹具再对账，并核对 electron/settings 的写口名单；单跑远超 20 秒，推送前入口不跑，CI 的 vitest 车道里照跑',
+    files: ['tests/world/world.locks.test.mjs'],
+  },
+  {
     reason: '编译车道（test:agent-runtime：tsc -p tests/agent-runtime → .tmp → node --test）：推送前入口不做 tsc 编译，改用 tsx 直跑实测 lane-open-graph 8 条里 5 条红、skill-catalog-migration 24 条里 2 条红（路径按编译产物目录写死），跑了也只会假红',
     files: ['tests/agent-runtime/lane-open-graph.test.mts', 'tests/agent-runtime/skill-catalog-migration.test.mts'],
   },
@@ -206,6 +213,45 @@ export const NOT_SOURCE_SCANS = Object.freeze({
   'tests/ux/uiDriverOptions.test.mjs': '测常驻驱动启动参数：readdirSync 只拷一份点名的旧项目库夹具进 makeTempDir 建的临时根；electron-build-artifacts 是经 _launchApp 间接 import 进来的，测试里不调用',
 })
 
+/**
+ * 按模块登记（2026-11-22）：某个非测试模块里的 walk 点，它遍历的根是已知的，就在模块这一级登记一次：{ 模块路径: { roots, exts, reason } }。
+ * 为什么不按文件：走测试世界正门（import tests/world/index.ts）的测试会越来越多，它们的 import 闭包都带进名册里的 readdirSync；
+ * 一个个写进 SCAN_GUARDS / NOT_SOURCE_SCANS，名单跟着测试世界一起长。按模块登记后：
+ *   · 识别器证据**全部**落在已登记模块里的测试，当作已登记的扫描型守卫，roots / exts 取模块这一条（改到这些目录，推送前才跑它们——新加一份旧数据，用到名册的测试就该先跑）；
+ *   · 证据里还有别的（测试自己遍历 src / electron、或闭包里别的扫描器）——不放过，仍要自己登记；
+ *   · 每条必须真被识别器认到（模块存在、里面真有 walk 点），否则 scanGuardProblems 红，和 NOT_SOURCE_SCANS 的陈旧项同一个要求；
+ *   · 按文件的名单里的测试若已被模块覆盖，也红（多余，删掉那一条）。
+ */
+export const SCAN_MODULES = Object.freeze({
+  'tests/world/oldUserData.mjs': { roots: ['tests/fixtures/old-user-data'], exts: '*', reason: '旧用户数据名册：只列旧数据夹具目录（tests/fixtures/old-user-data），不遍历仓库源码' },
+})
+
+const FIXTURE_DIR = /(?:^|\/)fixtures\//
+
+/** 一份证据（scanEvidence 的结果）里不属于已登记模块的部分。 */
+function unregisteredEvidence(found, modules) {
+  return found.filter((item) => !(item.file in modules))
+}
+
+/**
+ * 被模块登记带出来的「派生守卫」：证据全部落在已登记模块里的测试 → { file, roots, exts, via }，形状同 SCAN_GUARDS 一条，touchesScanGuard 直接可用。
+ * 要扫全部被跟踪的测试的 import 闭包（和登记核对同一份识别），所以只在需要时才算（scanGuardsToRun 里按改动路径先过一道）。
+ */
+export function moduleScanGuards(root, testFiles, modules = SCAN_MODULES, detect = scanEvidence) {
+  const derived = []
+  for (const file of testFiles) {
+    if (FIXTURE_DIR.test(file)) continue // 夹具测试（如 tests/world/fixtures/*.node-test.ts）由元测试用自己的配置起子进程跑，不是能单独批量跑的守卫
+    const found = detect(file, root)
+    if (found.length === 0) continue
+    const hit = [...new Set(found.map((item) => item.file))].filter((item) => item in modules)
+    if (hit.length === 0 || unregisteredEvidence(found, modules).length > 0) continue
+    const roots = [...new Set(hit.flatMap((item) => modules[item].roots ?? []))]
+    const exts = hit.some((item) => modules[item].exts === '*') ? '*' : undefined
+    derived.push({ file, roots, ...(exts ? { exts } : {}), via: hit })
+  }
+  return derived
+}
+
 /** 推送前里这一项的名字（pre-push-contracts.mjs 的 SCAN_TESTS 里有它）：所有登记的守卫在一个 vitest 进程里批量跑。 */
 export const SCAN_GUARDS_GATE = 'test:scan-guards'
 
@@ -233,12 +279,20 @@ export function touchesScanGuard(guard, changedFiles) {
  *   prePushGates   推送前门岗名集合（核对 COVERED_BY_GATE 指向的门真在推送前）
  *   guards / ciOnly / covered / notScans  本文件四张表（测试里可换成夹具）
  */
-export function scanGuardProblems({ root, testFiles, scanTests, gateScripts, gateImplFiles, prePushGates, guards = SCAN_GUARDS, ciOnly = SCAN_GUARD_CI_ONLY, covered = SCAN_GUARD_COVERED_BY_GATE, notScans = NOT_SOURCE_SCANS, detect = scanEvidence }) {
+export function scanGuardProblems({ root, testFiles, scanTests, gateScripts, gateImplFiles, prePushGates, guards = SCAN_GUARDS, ciOnly = SCAN_GUARD_CI_ONLY, covered = SCAN_GUARD_COVERED_BY_GATE, notScans = NOT_SOURCE_SCANS, modules = SCAN_MODULES, detect = scanEvidence }) {
   const problems = []
   const evidence = new Map()
   for (const file of testFiles) {
     const found = detect(file, root)
     if (found.length > 0) evidence.set(file, found)
+  }
+  // 模块级登记：条目自己要成立（模块在、里面真有 walk 点、写了理由）
+  for (const [file, entry] of Object.entries(modules)) {
+    if (!entry.reason || String(entry.reason).length < 8) problems.push(`SCAN_MODULES：${file} 缺理由`)
+    if (!(entry.roots?.length)) problems.push(`SCAN_MODULES：${file} 没写它遍历哪些目录（roots）`)
+    const full = path.join(root, file)
+    if (!fs.existsSync(full)) problems.push(`SCAN_MODULES：${file} 不存在（改名或删除了？）`)
+    else if (!walkSites(file, fs.readFileSync(full, 'utf8')).some((site) => site.anchored)) problems.push(`SCAN_MODULES：${file} 里没有遍历点（陈旧项，删掉这一条）`)
   }
   const ciOnlyFiles = ciOnly.flatMap((group) => group.files)
   const declared = [
@@ -257,6 +311,7 @@ export function scanGuardProblems({ root, testFiles, scanTests, gateScripts, gat
     for (const file of files) {
       if (!tracked.has(file)) problems.push(`${table}：${file} 不是被跟踪的测试文件（改名或删除了？）`)
       else if (!evidence.has(file)) problems.push(`${table}：${file} 不再被识别为扫描型守卫（陈旧项，删掉这一条）`)
+      else if (unregisteredEvidence(evidence.get(file), modules).length === 0) problems.push(`${table}：${file} 已被 SCAN_MODULES 覆盖（证据全在已登记的模块里），这一条多余，删掉`)
     }
   }
   for (const [file, gate] of Object.entries(covered)) if (!prePushGates.has(gate)) problems.push(`SCAN_GUARD_COVERED_BY_GATE：${file} 指向的 ${gate} 不是推送前门岗`)
@@ -268,8 +323,10 @@ export function scanGuardProblems({ root, testFiles, scanTests, gateScripts, gat
   }
   // 未登记：识别为扫描型、又没有任何去处
   const declaredFiles = new Set(counts.keys())
-  for (const [file, found] of evidence) {
+  for (const [file, all] of evidence) {
     if (declaredFiles.has(file) || scanTests.has(file)) continue
+    const found = unregisteredEvidence(all, modules)
+    if (found.length === 0) continue // 证据全落在已登记的模块里：模块级登记就是它的去处
     const direct = found.some((item) => item.file === file)
     if (direct && gateScripts.includes(file)) continue // 测试本身就写在某道 gates:contracts 门岗的命令里，那道门岗的去向已在门表声明
     if (!direct && found.every((item) => gateImplFiles.has(item.file))) continue // 间接扫描，扫描器就是某道已声明门岗的实现，同一份扫描由那道门岗在真仓库上跑

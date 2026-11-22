@@ -9,6 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+import { buildWalkCatalog } from './_world.mjs'
 import { clickOrFail, expectCount, expectText, expectVisible, screenshotSettled } from './_assert.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
@@ -26,7 +27,7 @@ fs.mkdirSync(outDir, { recursive: true })
 fs.mkdirSync(settingsDir, { recursive: true })
 
 const stamp = '2026-09-05T00:00:00.000Z'
-fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
+buildWalkCatalog(settingsDir, {
   version: 12,
   vendors: [{ key: 'ux-local', name: 'UX Local', enabled: true, authType: 'none', providerKind: 'openai-compatible', createdAt: stamp, updatedAt: stamp }],
   models: [{
@@ -42,7 +43,7 @@ fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
     createdAt: stamp, updatedAt: stamp,
   }],
   mappings: [], apiKeysByVendor: {},
-}, null, 2))
+})
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
 for (const name of ['hero.png', 'firstframe.png', 'decoy.png']) fs.writeFileSync(path.join(projectRoot, 'assets', name), png)

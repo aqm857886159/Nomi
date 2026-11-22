@@ -13,13 +13,14 @@
 //
 // 录：NOMI_RECORD_MODEL_REQUEST_PARITY=<金样文件绝对路径> NOMI_RECORD_COMMIT=<主线完整提交号>，只在干净主线检出上录。
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { EventEmitter } from "node:events";
 import { createHash } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Model, Vendor } from "../catalog/types";
+import { makeTempDir } from "../../scripts/_test-temp.mjs";
+import { buildWorld, seedOldUserData, worldRows, type World } from "../../tests/world";
 
 const FRAME_PNG = vi.hoisted(() => Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64"));
 const PDF = vi.hoisted(() => Buffer.from("%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n", "latin1"));
@@ -35,7 +36,6 @@ vi.mock("electron", async () => ({
 }));
 vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: () => undefined }));
 vi.mock("../events/vendorCallTrace", () => ({ traceVendorCompleted: () => undefined, traceVendorRequested: () => undefined }));
-vi.mock("../runtime", async () => (await import("../../tests/fixtures/textTasks/textTaskCallerState")).runtimeMock());
 vi.mock("../assets/localAssetFile", async (importOriginal) => ({
   ...await importOriginal<typeof import("../assets/localAssetFile")>(),
   readNomiLocalAsset: (url: string) => url.startsWith("nomi-local://frame") ? { bytes: FRAME_PNG, contentType: "image/png" }
@@ -56,13 +56,13 @@ import { createDocumentLaneTools } from "./laneDocumentTools";
 import { openLane } from "./laneHost.mjs";
 import { runLaneSingleShot } from "./laneSingleShot.mjs";
 import { createDesktopLaneInput } from "./laneDesktopInput";
+import { makeApiKeyRecordFromPlain } from "../catalog/secrets";
 import { nomiModelConfigFor } from "../ai/vendorModelConnection";
 import { registerTextStreamIpc } from "../ai/textStreamIpc";
 import { executeTextTask } from "../textTaskRunner";
 import { ANTIGRAVITY_VENDOR_KEY } from "../shared/antigravity";
 
 const GOLDEN = fileURLToPath(new URL("../../tests/fixtures/model-request-parity/requests.json", import.meta.url));
-const OLD_DATA = fileURLToPath(new URL("../../tests/fixtures/old-user-data/text-quirks", import.meta.url));
 const OLD_DIRS = ["v0.24.0/chat", "v0.24.0/anthropic", "v0.24.0/responses", "v0.24.1/chat", "v0.24.1/anthropic", "v0.24.1/responses"];
 const API_KEY = "sk-parity-fake";
 const FRAMES = ["nomi-local://frame-1.png", "nomi-local://frame-2.png", "nomi-local://frame-3.png"];
@@ -86,6 +86,7 @@ type Row = { id: string; vendor: Vendor; model: Model };
 type Wire = { method: string; path: string; headers: Record<string, string>; body: string };
 type CallerName = "lane" | "one-shot" | "stream" | "pdf";
 const observed: Record<string, Partial<Record<CallerName, Wire[]>>> = {};
+const worlds: World[] = [];
 const roots: string[] = [];
 
 /** 一次运行（一个调用方跑一行）抓到的全部请求，按 EXCLUDED_HEADERS / PLACEHOLDERS 规整。 */
@@ -109,19 +110,11 @@ function wires(requests: CapturedRequest[], projectDir?: string): Wire[] {
   });
 }
 
-function settingsDir(): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-request-parity-"));
-  roots.push(root);
-  return root;
-}
-
-async function catalogRows(prefix: string, fixture: string | null): Promise<Row[]> {
-  const dir = settingsDir();
-  if (fixture) fs.copyFileSync(path.join(OLD_DATA, fixture, "model-catalog.json"), path.join(dir, "model-catalog.json"));
-  vi.stubEnv("NOMI_SETTINGS_DIR", dir);
-  const catalog = await import("../catalog/catalogStore");
-  if (!fixture) catalog.ensureBuiltinModelSeeds();
-  const state = catalog.readCatalog();
+function catalogRows(prefix: string, fixture: string | null): Row[] {
+  // 目录由测试世界的正门造：内置行 = 空世界跑启动种子；旧版行 = 老用户真实落盘的那份（读的时候跑升级修正）。
+  const world = fixture ? seedOldUserData(`text-quirks/${fixture}`) : buildWorld({ builtinSeeds: true, projects: [] });
+  worlds.push(world);
+  const state = worldRows(world) as { vendors: Vendor[]; models: Model[] };
   return state.models.filter((model) => model.kind === "text" && model.vendorKey !== ANTIGRAVITY_VENDOR_KEY).map((model) => {
     const vendor = state.vendors.find((item) => item.key === model.vendorKey);
     if (!vendor) throw new Error(`fixture row without its vendor: ${model.vendorKey}/${model.modelKey}`);
@@ -135,6 +128,12 @@ function pointAt(vendor: Vendor, origin: string): Vendor {
   return { ...vendor, baseUrlHint: `${origin}${original.pathname.replace(/\/+$/, "")}` };
 }
 
+/** 凭据绑定只在存 key 时由主人写，不属于 vendor 的 upsert 载荷。 */
+function withoutCredentialBinding(vendor: Vendor): Vendor {
+  const { credentialBinding: _binding, ...rest } = vendor as Vendor & { credentialBinding?: unknown };
+  return rest as Vendor;
+}
+
 async function withServer<T>(replies: FixtureReply[], run: (server: Awaited<ReturnType<typeof createHttpFixture>> & { origin: string }) => Promise<T>) {
   const server = await createHttpFixture(replies);
   try { return await run(Object.assign(server, { origin: new URL(server.baseURL).origin })); } finally { await server.close(); }
@@ -145,7 +144,7 @@ async function runLane(row: Row): Promise<Wire[]> {
     { type: "tool", calls: [{ id: "call_parity_1", name: "read_script", arguments: { scope: "full" } }] },
     { type: "text", text: "Read it." },
   ], async (server) => {
-    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-request-parity-lane-"));
+    const projectDir = makeTempDir("nomi-request-parity-lane-");
     roots.push(projectDir);
     const config = nomiModelConfigFor(pointAt(row.vendor, server.origin), row.model, API_KEY);
     const lane = await openLane({ fetch: globalThis.fetch, projectDir, systemPrompt: "NOMI_PARITY_SYSTEM", model: config,
@@ -172,9 +171,7 @@ const sender = Object.assign(new EventEmitter(), { id: 1, isDestroyed: () => fal
 let streamSeq = 0;
 async function runStream(row: Row): Promise<Wire[]> {
   return withServer([{ type: "text", text: "A frame." }], async (server) => {
-    const key = `parity-stream-${++streamSeq}`;
-    harnessState.selections.set(key, { vendor: pointAt(row.vendor, server.origin), model: row.model, apiKey: API_KEY });
-    const streamId = `text-${key}`;
+    const streamId = `text-parity-stream-${++streamSeq}`;
     harnessState.events.set(streamId, []);
     const request = { kind: "image_to_prompt", prompt: "Describe these frames.",
       extras: { modelKey: row.model.modelKey, temperature: 0.35, maxTokens: 1600, referenceImages: FRAMES } };
@@ -186,8 +183,19 @@ async function runStream(row: Row): Promise<Wire[]> {
       };
       harnessState.listeners.add(tick);
     });
-    await harnessState.handlers.get("nomi:tasks:text:stream")!({ sender }, { vendor: key, request, streamId });
-    await settled;
+    // 流式入口自己去目录里解析这一行：给这一行造一个小世界（假上游地址 + 加密好的 key 都经 buildWorld 的声明进去），走真解析。
+    const now = new Date().toISOString();
+    const world = buildWorld({ builtinSeeds: false, projects: [],
+      catalog: { vendors: [withoutCredentialBinding(pointAt(row.vendor, server.origin))], models: [{ ...row.model, selectable: true }] },
+      encryptedApiKeys: { [row.vendor.key]: makeApiKeyRecordFromPlain(API_KEY, row.vendor.key, true, now, now) } });
+    const restore = world.activate();
+    try {
+      await harnessState.handlers.get("nomi:tasks:text:stream")!({ sender }, { vendor: row.vendor.key, request, streamId });
+      await settled;
+    } finally {
+      restore();
+      world.cleanup();
+    }
     expect(harnessState.events.get(streamId)!.find((event) => event.type === "error"), row.id).toBeUndefined();
     expect(server.requests, row.id).toHaveLength(1);
     return wires(server.requests);
@@ -214,13 +222,14 @@ let rows: Row[] = [];
 beforeEach(() => { vi.stubEnv("NOMI_TEST_NETWORK_GUARD", "1"); });
 beforeAll(async () => {
   registerTextStreamIpc();
-  rows = [...await catalogRows("builtin", null)];
-  for (const dir of OLD_DIRS) rows.push(...await catalogRows(dir, dir));
+  rows = [...catalogRows("builtin", null)];
+  for (const dir of OLD_DIRS) rows.push(...catalogRows(dir, dir));
 });
 
 afterAll(() => {
   vi.unstubAllEnvs();
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+  for (const world of worlds.splice(0)) world.cleanup();
   const target = process.env.NOMI_RECORD_MODEL_REQUEST_PARITY;
   if (!target) return;
   const commit = process.env.NOMI_RECORD_COMMIT ?? "";
