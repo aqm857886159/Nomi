@@ -252,7 +252,8 @@ export function SettingsDialog({
       trapFocus={false}
       returnFocus={false}
       zIndex={NOMI_OVERLAY_Z_INDEX.applicationModal}
-      contentAttributes={{ 'data-settings-overlay': 'true', 'data-settings-dialog': 'true', 'data-settings-tab': tab, 'data-settings-frame': 'shell' }}
+      // 存量锚点（冻结名单 dialogAnchorFreeze.ts）：几十个走查按它认设置框。当前页签看页签按钮上的 aria-current。
+      frozenAnchors={{ 'data-settings-overlay': 'true', 'data-settings-dialog': 'true' }}
       closeButtonProps={{ 'aria-label': t('settings.close'), ...{ 'data-settings-close': 'true' } }}
       classNames={{ content: 'rounded-nomi-lg bg-nomi-paper shadow-nomi-lg', header: 'px-4 py-3', body: 'p-0' }}
     >
@@ -270,6 +271,7 @@ export function SettingsDialog({
                 key={id}
                 type="button"
                 data-settings-tab-id={id}
+                aria-current={tab === id ? 'page' : undefined}
                 className={cn(
                   'flex w-auto shrink-0 items-center gap-2.5 rounded-nomi-sm border-0 px-3 py-2 text-left text-body-sm cursor-pointer sm:w-full',
                   tab === id ? 'bg-nomi-ink text-nomi-paper' : 'bg-transparent text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink',

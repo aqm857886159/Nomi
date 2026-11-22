@@ -51,6 +51,18 @@ describe('付费确认卡：点下去的同一帧就出来', () => {
     expect(offenders.map(file => path.relative(SRC, file))).toEqual([])
   })
 
+  it('E2E 桥 __nomiSpendConfirmE2E 全 src 只赋值一处，就在常驻的挂载点 SpendConfirmHost 里', () => {
+    // 2026-11-22：原来工作台根组件和卡里各挂一份（两处赋值同一个函数），合成一处；再长第二处就红。
+    const sites = productionSources(SRC).flatMap((file) => {
+      const text = fs.readFileSync(file, 'utf8')
+      return (text.match(/\.__nomiSpendConfirmE2E\s*=(?!=)/g) ?? []).map(() => path.relative(SRC, file))
+    })
+    expect(sites).toEqual(['workbench/generationCanvas/spend/SpendConfirmDialog.tsx'])
+    const dialog = fs.readFileSync(path.join(SRC, 'workbench/generationCanvas/spend/SpendConfirmDialog.tsx'), 'utf8')
+    const host = dialog.slice(dialog.indexOf('export function SpendConfirmHost('))
+    expect(host).toMatch(/\.__nomiSpendConfirmE2E\s*=/)
+  })
+
   it('工作台根组件静态引入挂载点并只挂一次（所有确认来源都汇到这里），不直接挂卡', () => {
     const app = fs.readFileSync(path.join(SRC, 'workbench/NomiStudioApp.tsx'), 'utf8')
     expect(app).toMatch(/^import \{ SpendConfirmHost \} from '\.\/generationCanvas\/spend\/SpendConfirmDialog'$/m)

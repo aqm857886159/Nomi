@@ -119,8 +119,10 @@ export function BrowserPromptExtractionSettingsModal({
     <DesignModal
       opened
       onClose={onClose}
-      accessibleName={t('browserAssets.extraction.settings')}
-      title={<div>{t('browserAssets.extraction.settings')}<div className="mt-0.5 text-micro font-normal text-nomi-ink-40">{t('browserAssets.extraction.settingsPath')}</div></div>}
+      // 名字 = 「提取设置」一句（外壳放进 Modal.Title）；下面那行路径走标题栏插槽，紧跟名字、不进名字。
+      // 插槽最外层这一格占原来标题元素的位置（行距 1 = Mantine 标题的行距）。
+      title={t('browserAssets.extraction.settings')}
+      header={(name) => <div className="leading-none">{name}<div className="mt-0.5 text-micro font-normal text-nomi-ink-40">{t('browserAssets.extraction.settingsPath')}</div></div>}
       size={920}
       centered
       closeOnClickOutside={false}
@@ -128,7 +130,8 @@ export function BrowserPromptExtractionSettingsModal({
       trapFocus={false}
       returnFocus={false}
       closeButtonProps={{ 'aria-label': t('browserAssets.extraction.closeSettings') }}
-      contentAttributes={{ 'data-nomi-prompt-extraction-settings-dialog': 'true' }}
+      // 存量锚点（冻结名单 dialogAnchorFreeze.ts，生产在读：browserAssetPopoverConstants 的 PROMPT_EXTRACTION_SETTINGS_DIALOG_SELECTOR）。
+      frozenAnchors={{ 'data-nomi-prompt-extraction-settings-dialog': 'true' }}
       actions={
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-caption text-nomi-ink-40">{projectAvailable ? t('browserAssets.extraction.projectPortable') : t('browserAssets.extraction.projectUnavailable')}</div>

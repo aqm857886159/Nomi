@@ -10,6 +10,8 @@ import { newProjectEntry } from './_shell.mjs'
 
 const phase = process.env.NOTIFICATION_POLICY_PHASE || 'after'
 const output = path.resolve('.tmp/toast-policy-evidence')
+// 更新弹窗按角色 + 名字找（名字是标题一句，带这次假更新的版本号）。
+const updateDialog = (page) => page.getByRole('dialog', { name: /0\.99\.0/ })
 fs.mkdirSync(output, { recursive: true })
 const { app, win } = await launchNomiApp({
   name: `notification-policy-${phase}`, settleMs: 0,
@@ -40,20 +42,20 @@ try {
   if (phase === 'after') {
     await expect(win.locator('[data-update-badge]')).toBeVisible()
     const badgeProof = await proveProbe(win.locator('[data-update-badge]'), '更新事件已投影到真实宿主角标')
-    await expectAbsent(win.locator('[data-updater-dialog]'), { provenBy: badgeProof, message: '未请求更新详情时不主动弹窗' })
+    await expectAbsent(updateDialog(win), { provenBy: badgeProof, message: '未请求更新详情时不主动弹窗' })
     await win.screenshot({ path: path.join(output, `${phase}-update-available.png`) })
     await win.locator('[data-update-badge]').click()
-    await expect(win.locator('[data-updater-dialog]')).toBeVisible()
-    const dialogProof = await proveProbe(win.locator('[data-updater-dialog]'), '用户点击角标后更新弹窗确实出现')
+    await expect(updateDialog(win)).toBeVisible()
+    const dialogProof = await proveProbe(updateDialog(win), '用户点击角标后更新弹窗确实出现')
     await win.screenshot({ path: path.join(output, `${phase}-update-requested.png`) })
-    await win.locator('[data-updater-dialog]').getByRole('button', { name: /关闭|Close/ }).click()
+    await updateDialog(win).getByRole('button', { name: /关闭|Close/ }).click()
     await app.evaluate(({ BrowserWindow }) => {
       for (const window of BrowserWindow.getAllWindows()) window.webContents.send('nomi:update:event', { type: 'downloaded', version: '0.99.0' })
     })
     await expect(win.locator('[data-update-badge]')).toBeVisible()
-    await expectAbsent(win.locator('[data-updater-dialog]'), { provenBy: dialogProof, message: '用户关闭后下载完成不重新弹窗' })
+    await expectAbsent(updateDialog(win), { provenBy: dialogProof, message: '用户关闭后下载完成不重新弹窗' })
   } else {
-    await expect(win.locator('[data-updater-dialog]')).toBeVisible()
+    await expect(updateDialog(win)).toBeVisible()
     await win.screenshot({ path: path.join(output, `${phase}-update-available.png`) })
   }
   console.log(JSON.stringify({ phase, folderChecks: 5, globalToasts: count, update: phase === 'after' ? 'explicit-only' : 'automatic-modal' }))

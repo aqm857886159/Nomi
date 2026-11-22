@@ -134,8 +134,9 @@ export async function openSettings(win, { tab, label = 'open settings', timeout 
   }
   if (tab) {
     const tabButton = dialog.locator(`[data-settings-tab-id="${tab}"]`)
-    if ((await dialog.getAttribute('data-settings-tab')) !== tab) await clickOrFail(tabButton, `${label}（设置里的「${tab}」页签）`, budget)
-    await expect(dialog, `${label}：点完设置仍不在「${tab}」页签`).toHaveAttribute('data-settings-tab', tab, budget)
+    // 当前页签 = 带 aria-current="page" 的那颗页签按钮（弹窗本体上不再挂页签锚点）。
+    if ((await tabButton.getAttribute('aria-current')) !== 'page') await clickOrFail(tabButton, `${label}（设置里的「${tab}」页签）`, budget)
+    await expect(tabButton, `${label}：点完设置仍不在「${tab}」页签`).toHaveAttribute('aria-current', 'page', budget)
   }
   return dialog
 }
@@ -543,7 +544,7 @@ export async function describeShellLocation(win) {
       if (selected) parts.push(`selected-nodes:${selected}`)
     }
     const dialog = document.querySelector(settings)
-    if (visible(dialog)) parts.push(`settings:${dialog.getAttribute('data-settings-tab')}`)
+    if (visible(dialog)) parts.push(`settings:${dialog.querySelector('[data-settings-tab-id][aria-current="page"]')?.getAttribute('data-settings-tab-id') ?? '?'}`)
     if (visible(document.querySelector(panel))) parts.push('agent:panel')
     else if (visible(document.querySelector(ball))) parts.push('agent:ball')
     return parts.join(' · ')
