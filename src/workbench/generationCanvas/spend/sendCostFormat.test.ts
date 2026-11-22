@@ -4,38 +4,83 @@ import { describe, expect, it } from 'vitest'
 import i18next from 'i18next'
 import type { VendorPricePreview } from '../../../../electron/shared/contracts/vendorPricePreview'
 import { enGenerationCommon, zhGenerationCommon } from '../../../i18n/locales/generationCommon'
-import { formatCreditValue, publicEstimateUsd, sendCostDescription, sendCostPillText } from './sendCostFormat'
+import {
+  BUILTIN_USD_TO_CNY_DATE,
+  BUILTIN_USD_TO_CNY_RATE,
+  builtinExchangeRatePair,
+  formatCreditValue,
+  publicEstimateCny,
+  publicEstimateUsd,
+  sendCostDescription,
+  sendCostPillText,
+  sendCostRateNote,
+  sendCostUnitOptions,
+} from './sendCostFormat'
 
 const amount: VendorPricePreview = { credits: 2, usd: 0.2, source: 'https://api.apimart.ai/api/pricing/model' }
 
 /** 词典里的原文。逐字钉住在 scripts/check-i18n-no-cost-claims.mjs 的 COST_LABEL_EXACT（唯一一份登记），这里只从词典取。 */
 const DICT = { 'zh-CN': zhGenerationCommon.composer.sendCost, en: enGenerationCommon.composer.sendCost } as const
 
-describe('约价怎么印（唯一一处格式化）', () => {
-  it.each(['zh-CN', 'en'] as const)('%s：整句里带积分数和美元约数；估不出时只有那一句，没有数字', async (locale) => {
+describe('约价怎么印（唯一一处格式化：积分 / 人民币 / 美元均标约，内置汇率写日期）', () => {
+  it.each(['zh-CN', 'en'] as const)('%s：三种单位悬停句与估不出态均按词典输出，人民币带内置汇率与日期', async (locale) => {
     const t = i18next.createInstance()
     await t.init({ lng: locale, resources: { [locale]: { translation: { generationCommon: locale === 'en' ? enGenerationCommon : zhGenerationCommon } } } })
     const tf = t.t.bind(t) as Parameters<typeof sendCostDescription>[1]
-    expect(sendCostDescription({ ...amount, usd: 1.95, credits: 19.5 }, tf, locale))
+    const pair = builtinExchangeRatePair(locale)
+
+    expect(sendCostDescription({ ...amount, usd: 1.95, credits: 19.5 }, tf, locale, 'credits'))
       .toBe(DICT[locale].estimate.replace('{{value}}', '19.5').replace('{{usd}}', '$1.95'))
-    expect(sendCostDescription({ ...amount, usd: 0.034776, credits: 0.34776, basis: 'output-estimate' }, tf, locale))
+    expect(sendCostDescription({ ...amount, usd: 0.034776, credits: 0.34776, basis: 'output-estimate' }, tf, locale, 'credits'))
       .toBe(DICT[locale].outputEstimate.replace('{{value}}', '0.35').replace('{{usd}}', '$0.035'))
+
+    const cnyDesc = sendCostDescription({ ...amount, usd: 1.95, credits: 19.5 }, tf, locale, 'cny')
+    expect(cnyDesc).toContain(publicEstimateCny({ ...amount, usd: 1.95, credits: 19.5 }, locale))
+    expect(cnyDesc).toContain(BUILTIN_USD_TO_CNY_DATE)
+    expect(cnyDesc).toContain(pair)
+
+    const usdDesc = sendCostDescription({ ...amount, usd: 1.95, credits: 19.5 }, tf, locale, 'usd')
+    expect(usdDesc).toContain('$1.95')
+    expect(usdDesc).toContain('19.5')
+
     const unknown = sendCostDescription(null, tf, locale)
     expect(unknown).toBe(DICT[locale].priceUnknown)
     expect(unknown).not.toMatch(/\d/)
+
+    const rateNote = sendCostRateNote(tf, locale)
+    expect(rateNote).toContain(BUILTIN_USD_TO_CNY_DATE)
+    expect(rateNote).toContain(String(BUILTIN_USD_TO_CNY_RATE))
   })
 
-  it.each(['zh-CN', 'en'])('%s：美元约数的精度，小额不印成 0', (locale) => {
+  it.each(['zh-CN', 'en'] as const)('%s：三种单位胶囊文字都标「约」且菜单列出三项实时约数', async (locale) => {
+    const t = i18next.createInstance()
+    await t.init({ lng: locale, resources: { [locale]: { translation: { generationCommon: locale === 'en' ? enGenerationCommon : zhGenerationCommon } } } })
+    const tf = t.t.bind(t) as Parameters<typeof sendCostDescription>[1]
+    const q = { ...amount, usd: 1.95, credits: 19.5 }
+    const options = sendCostUnitOptions(q, tf, locale)
+    expect(options.map((o) => o.unit)).toEqual(['credits', 'cny', 'usd'])
+    const approxMark = locale === 'zh-CN' ? '约 ' : '~'
+    for (const option of options) {
+      expect(option.formatted.startsWith(approxMark)).toBe(true)
+    }
+    expect(sendCostPillText(q, locale, 'credits', tf)).toBe(`${approxMark}19.5`)
+    expect(sendCostPillText(q, locale, 'cny', tf)).toBe(`${approxMark}${publicEstimateCny(q, locale)}`)
+    expect(sendCostPillText(q, locale, 'usd', tf)).toBe(`${approxMark}$1.95`)
+  })
+
+  it.each(['zh-CN', 'en'])('%s：美元与人民币约数的精度，小额不印成 0', (locale) => {
     expect(publicEstimateUsd({ ...amount, usd: 0.034776, basis: 'output-estimate' }, locale)).toBe('$0.035')
     expect(publicEstimateUsd({ ...amount, usd: 0.195 }, locale)).toBe('$0.195')
     expect(publicEstimateUsd({ ...amount, usd: 0.00000651 }, locale)).toBe('$0.0000065')
+    expect(publicEstimateCny({ ...amount, usd: 0.2 }, locale)).toBe('¥1.45')
+    expect(publicEstimateCny({ ...amount, usd: 0.0001 }, locale)).toBe('¥0.00073')
   })
 
-  it('积分数：两位小数，一分以下按两位有效数字，不印成 0；只估了输出的加「≈」', () => {
+  it('积分数：两位小数，一分以下按两位有效数字，不印成 0；无 t 时仍带 ≈ 约号', () => {
     expect(formatCreditValue(0.34776, 'en')).toBe('0.35')
     expect(formatCreditValue(0.000006, 'en')).toBe('0.000006')
     expect(formatCreditValue(1234.56, 'en')).toBe('1,234.56')
-    expect(sendCostPillText({ ...amount, credits: 19.5 }, 'zh-CN')).toBe('19.5')
+    expect(sendCostPillText({ ...amount, credits: 19.5 }, 'zh-CN')).toBe('≈19.5')
     expect(sendCostPillText({ ...amount, credits: 0.34776, basis: 'output-estimate' }, 'en')).toBe('≈0.35')
   })
 })
@@ -44,7 +89,7 @@ describe('约价怎么印（唯一一处格式化）', () => {
  * 「价格只有一个读取处、格式化只有一处」（设计卡 ★9 末段：这一类还会从哪里回来）。
  * 以后给别的发送键加约价、第二步加单位、第三步接账户时，同一件事不许在第二个地方再写一遍。
  */
-describe('约价链：一个读取处、一处格式化、链上不发生成也不授权', () => {
+describe('约价链：一个读取处、一处格式化、链上不发生成也不授权、与账户余额解耦', () => {
   const root = path.resolve(__dirname, '../../../..')
   const walk = (dir: string): string[] => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap(entry => {
     const rel = path.join(dir, entry.name)
@@ -55,7 +100,7 @@ describe('约价链：一个读取处、一处格式化、链上不发生成也�
   const production = [...walk('src'), ...walk('electron')]
   const users = (pattern: RegExp) => production.filter(file => pattern.test(fs.readFileSync(path.join(root, file), 'utf8'))).sort()
 
-  it('渲染层只有一个钩子问价，主进程只有一条 IPC 读公开价', () => {
+  it('渲染层只有一个钩子问价，主进程只有一条 IPC 读公开价；余额走独立钩子与 IPC', () => {
     expect(users(/\.vendorPricePreview\b|vendorPricePreview\s*\(/)).toEqual([
       'src/workbench/generationCanvas/spend/useNodePricePreview.ts',
     ])
@@ -67,6 +112,13 @@ describe('约价链：一个读取处、一处格式化、链上不发生成也�
       'electron/ai/onboarding/onboardingIpc.ts',
       'electron/ai/onboarding/vendorPricePreview.ts',
     ])
+    expect(users(/\.vendorAccountBalance\b|vendorAccountBalance\s*\(/)).toEqual([
+      'src/workbench/generationCanvas/spend/useVendorBalance.ts',
+    ])
+    expect(users(/vendor-account-balance/)).toEqual([
+      'electron/ai/onboarding/onboardingIpc.ts',
+      'electron/preload.ts',
+    ])
     expect(users(/\bpublicPricing\b/)).toEqual([
       'electron/ai/onboarding/vendorPricePreview.ts',
       'electron/catalog/apimartVendor.ts',
@@ -74,8 +126,9 @@ describe('约价链：一个读取处、一处格式化、链上不发生成也�
     ])
   })
 
-  it('积分数和那一句只在 sendCostFormat 印；发送键只管画', () => {
+  it('约价与缺额数字只在 sendCostFormat 格式化；发送键只管画', () => {
     expect(users(/from '\.\/sendCostFormat'|from '\.\.\/spend\/sendCostFormat'/)).toEqual([
+      'src/workbench/generationCanvas/spend/sendCostLowBalance.ts',
       'src/workbench/generationCanvas/spend/useSendCost.ts',
     ])
     expect(users(/generationCommon\.composer\.sendCost\./)).toEqual([

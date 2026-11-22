@@ -21,6 +21,8 @@ const MOUNT_READS: BridgeAnswers = {
   'promptLibrary.userList': async () => ({ ok: true, prompts: [] }),
   // 发送键约价：生成框挂上后防抖读一次公开价；默认答「算不出」。
   'onboarding.vendorPricePreview': async () => null,
+  // 官方账户余额：与公开约价解耦；默认答「未知」（不拦截发送）。
+  'onboarding.vendorAccountBalance': async () => null,
 }
 
 function recordingBridge(answers: BridgeAnswers, probe: BridgeProbe): unknown {

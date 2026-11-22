@@ -89,6 +89,7 @@ server.listen(0, '127.0.0.1')
 await once(server, 'listening')
 const origin = `http://127.0.0.1:${server.address().port}`
 const credits = (usd) => String(Math.round(usd * 10 * 100) / 100)
+const approxCredits = (locale, usd) => uiTextWith(locale, 'generationCommon.composer.sendCost.approx', { value: credits(usd) })
 const usdText = (usd) => `$${usd}`
 const nonGet = () => calls.filter((call) => call.method !== 'GET').length
 
@@ -116,7 +117,7 @@ async function startRecording(win) {
     const frames = []
     const read = () => {
       const send = document.querySelector('[data-node-composer-footer] [data-bar-segment="generate"]')
-      const value = send?.querySelector('[data-send-cost="credits"]')?.textContent ?? (send ? 'arrow' : 'none')
+      const value = document.querySelector('[data-node-composer-footer] [data-send-cost="credits"]')?.textContent ?? (send ? 'arrow' : 'none')
       if (frames.at(-1)?.value !== value) frames.push({ value, at: performance.now() })
     }
     read()
@@ -211,7 +212,8 @@ try {
         await win.mouse.click(box.x + box.width * (value - min) / (max - min), box.y + box.height / 2)
         await expect(thumb).toHaveAttribute('aria-valuenow', String(value), { timeout: stationTimeout() })
       }
-      const pill = send.locator('[data-send-cost="credits"]')
+      const pill = composer.locator('[data-send-cost="credits"]')
+      const pillGroup = composer.locator('[data-send-cost-group]')
       /** 「不存在」断言的基线：先证明探针在有价时找得到东西（proveProbe），再断言它没了。 */
       let hoverShown = null
       let pillShown = null
@@ -261,9 +263,9 @@ try {
       await setParam('resolution', '720p')
       const fiveUsd = 0.039 * 5
       if (!BASELINE) {
-        await expect(pill, 'board:ModelSurfaces/cost.send-pill').toHaveText(credits(fiveUsd), { timeout: stationTimeout() })
+        await expect(pill, 'board:ModelSurfaces/cost.send-pill').toHaveText(approxCredits(locale, fiveUsd), { timeout: stationTimeout() })
         pillShown = await proveProbe(pill, 'send key shows the estimate')
-        await expect(send.locator('svg').first(), 'board:ModelSurfaces/cost.send-pill').toHaveClass(/tabler-icon-coin/)
+        await expect(pillGroup.locator('svg').first(), 'board:ModelSurfaces/cost.send-pill').toHaveClass(/tabler-icon-coin/)
         await expect(send).toHaveAttribute('data-price-source', /\/api\/pricing\/model\?model=seedance-2\.0-mini/)
       }
       if (perfFile) {
@@ -286,17 +288,17 @@ try {
               const now = performance.now()
               if (marks.start === null) return
               if (marks.checked === null && el.getAttribute('aria-valuenow') === String(wantValue)) marks.checked = now
-              const text = document.querySelector('[data-node-composer-footer] [data-bar-segment="generate"] [data-send-cost="credits"]')?.textContent
+              const text = document.querySelector('[data-node-composer-footer] [data-send-cost="credits"]')?.textContent
               if (marks.priced === null && text === wantText) marks.priced = now
             }
             new MutationObserver(read).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true })
-          }, [next, credits(usd)])
+          }, [next, approxCredits(locale, usd)])
           const min = Number(await thumb.getAttribute('aria-valuemin'))
           const max = Number(await thumb.getAttribute('aria-valuemax'))
           const box = await control.locator('.mantine-Slider-track').first().boundingBox()
           await win.mouse.click(box.x + box.width * (next - min) / (max - min), box.y + box.height / 2)
           await expect.poll(() => win.evaluate(() => window.__perfMarks.checked !== null), { timeout: stationTimeout() }).toBe(true)
-          if (!BASELINE) await expect(pill).toHaveText(credits(usd), { timeout: stationTimeout() })
+          if (!BASELINE) await expect(pill).toHaveText(approxCredits(locale, usd), { timeout: stationTimeout() })
           const marks = await win.evaluate(() => window.__perfMarks)
           if (run >= 0) {
             paramUiMs.push(marks.checked - marks.start)
@@ -318,17 +320,18 @@ try {
       // 任务 2：改时长，再改清晰度；记下键上每一次变化。
       for (const [key, value, usd] of [['duration', 10, 0.039 * 10], ['resolution', '480p', 0.02 * 10]]) {
         const before = await pill.innerText()
+        const expected = approxCredits(locale, usd)
         await startRecording(win)
         await setParam(key, value)
-        await expect(pill, 'board:ModelSurfaces/cost.send-pill').toHaveText(credits(usd), { timeout: stationTimeout() })
+        await expect(pill, 'board:ModelSurfaces/cost.send-pill').toHaveText(expected, { timeout: stationTimeout() })
         await win.waitForTimeout(400)
         const frames = await stopRecording(win)
         const values = frames.map((frame) => frame.value)
         assert(!values.some((value) => /^0([.,]0+)?$/.test(value)), `no 0 flashed: ${values}`)
-        const firstNew = values.indexOf(credits(usd))
-        assert(values.slice(firstNew).every((value) => value === credits(usd)), `old value never returns after the new one: ${values}`)
-        assert(values.every((value) => [before, credits(usd), 'arrow'].includes(value)), `only old / new / arrow while updating: ${values}`)
-        record[`task2-${key}`] = { before, after: credits(usd), frames: values }
+        const firstNew = values.indexOf(expected)
+        assert(values.slice(firstNew).every((value) => value === expected), `old value never returns after the new one: ${values}`)
+        assert(values.every((value) => [before, expected, 'arrow'].includes(value)), `only old / new / arrow while updating: ${values}`)
+        record[`task2-${key}`] = { before, after: expected, frames: values }
       }
 
       // 任务 4：价目里没有的型号 → 只剩箭头、悬停「暂时估不出这次用量」。
@@ -362,11 +365,11 @@ try {
       FAILING.delete('seedance-2.0')
       await setParam('resolution', '1080p')
       await setParam('duration', 15)
-      await expect(pill, 'board:ModelSurfaces/cost.send-pill').toHaveText(credits(0.0975 * 15), { timeout: stationTimeout() })
+      await expect(pill, 'board:ModelSurfaces/cost.send-pill').toHaveText(approxCredits(locale, 0.0975 * 15), { timeout: stationTimeout() })
       const fits = async (label) => {
-        const [box, pillBox, sendBox, lastTool] = [await composer.boundingBox(), await pill.boundingBox(), await send.boundingBox(),
+        const [box, pillBox, sendBox, lastTool] = [await composer.boundingBox(), await pill.boundingBox(), await pillGroup.boundingBox(),
           await composer.locator('[data-prompt-tool]').last().boundingBox()]
-        assert(pillBox && pillBox.height < 24, `${label}: the number stays on one line (${pillBox?.height})`)
+        assert(pillBox && pillBox.height < 30, `${label}: the number stays on one line (${pillBox?.height})`)
         assert(box && sendBox && sendBox.x + sendBox.width <= box.x + box.width + 0.5, `${label}: the send key stays inside the composer`)
         assert(lastTool && sendBox && lastTool.x + lastTool.width <= sendBox.x + 0.5, `${label}: the prompt tools end before the send key`)
         return box

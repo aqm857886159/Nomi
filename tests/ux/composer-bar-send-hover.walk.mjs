@@ -183,8 +183,8 @@ try {
       }
       await setParam('duration', 5)
       await setParam('resolution', '720p')
-      const pill = send.locator('[data-send-cost="credits"]')
-      await expect(pill, 'price shown on the send key').toHaveText(credits(FIVE_SECONDS_USD), { timeout: stationTimeout() })
+      const pill = composer.locator('[data-send-cost="credits"]')
+      await expect(pill, 'price shown on the send key').toHaveText(uiTextWith(locale, 'generationCommon.composer.sendCost.approx', { value: credits(FIVE_SECONDS_USD) }), { timeout: stationTimeout() })
       await win.mouse.move(20, 20, { steps: 4 })
       await win.waitForTimeout(500)
 
