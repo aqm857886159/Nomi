@@ -171,6 +171,7 @@ await walkDesignLabScreen({
       return
     }
     // 画布五格都是真身：现役 composer 卡必须真的挂出来了，否则下面每一条「没看到 X」都是废话。
+    await page.locator('.generation-canvas-v2-node__composer-card').first().waitFor({ state: 'visible' }).catch(() => {})
     const card = await page.locator('.generation-canvas-v2-node__composer-card').count()
     if (card !== 1) { record(`${state.id} 现役 composer 卡应有 1 张，实际 ${card} —— 这一格没渲染出真身`); return }
     await assertSingleRow(page, record, state.id)
@@ -180,6 +181,7 @@ await walkDesignLabScreen({
     if (lockAnywhere !== 0) record(`${state.id} 节点锁已撤掉，页面上却找到 ${lockAnywhere} 个 data-node-lock`)
     // B 簇在**底栏里**，提示词区右端一件控件都没有。
     // 先证「底栏里确实有簇」，再断言「提示词区一颗都没有」——没有前一句，簇整个没渲染时后一句照样绿。
+    await page.locator('[data-node-composer-footer] [data-prompt-tool-cluster="true"]').first().waitFor({ state: 'visible' }).catch(() => {})
     const clusterInBar = await page.locator('[data-node-composer-footer] [data-prompt-tool-cluster="true"]').count()
     if (clusterInBar !== 1) record(`${state.id} B 簇应在底栏里，实际在底栏找到 ${clusterInBar} 个`)
     const clusterInBarProof = await proveProbe(
@@ -206,6 +208,7 @@ await walkDesignLabScreen({
     const CAMERA_PICKED = new Set()
     const dots = page.locator('[data-prompt-tool-active="true"]')
     if (CAMERA_PICKED.has(state.id)) {
+      await dots.first().waitFor({ state: 'visible' }).catch(() => {})
       const dot = await dots.count()
       if (dot !== 1) record(`${state.id} 运镜已选应带 1 个激活点，实际 ${dot}`)
     } else {

@@ -258,7 +258,7 @@ try {
   const videoSelectedProof = await proveProbe(selectedTile(VIDEO), '点过对勾的视频卡处于已选中')
   await clickTick(VIDEO)
   await checkAbsent('③ 再点对勾：这一张取消选中', selectedTile(VIDEO), videoSelectedProof, '再点对勾后这张视频卡不该还在已选中里')
-  check('③ 另一张仍然选中（只取消点的那一张）', (await selectedTile('a-night.png').count()) === 1)
+  check('③ 另一张仍然选中（只取消点的那一张）', await expect(selectedTile('a-night.png')).toHaveCount(1).then(() => true, () => false))
   await snap(win, '06-project-tab-toggle-off')
 
   // ④ 项目素材：拖到画布 = 复制一张卡；拖到文件夹 = 归类

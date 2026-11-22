@@ -2,6 +2,7 @@
 // 真实任务：放主角 → F 聚焦到人 → 骨骼页（默认选骨盆）→ 点右手把手选中、拖 gizmo 中心抬手 → 同法拖右肘向转肘 → 拖骨盆下蹲两脚钉住 →
 //           切 FK 点 3D 骨骼球选左大臂（滑条 ±180、五档快选）→ W / E 切 IK / FK。
 // 把手点一下只是选中，拖动只经 TransformControls（中心八面体 = 沿相机正对平面自由移动），工具条没选工具时不挂 gizmo。
+import { expect } from '@playwright/test'
 import { launchDirectorLab, placeCharacter, clickOrFail } from './_directorLab.mjs'
 const lab = await launchDirectorLab({ name: 'j7-skeleton', viewport: { width: 1600, height: 900 } })
 const { page, check } = lab
@@ -16,7 +17,7 @@ try {
   await page.waitForTimeout(800)
   await clickOrFail(page.getByRole('radio', { name: '骨骼' }).first(), '骨骼页')
   await page.waitForTimeout(600)
-  check('进骨骼页默认选骨盆', (await page.getByText('骨盆/重心 (Pelvis)', { exact: false }).count()) >= 1)
+  check('进骨骼页默认选骨盆', await page.getByText('骨盆/重心 (Pelvis)', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false))
   const pelvis = await lab.bridge('projectByName', 'ik-handle-pelvis', hero.id)
   const rightHand0 = await lab.bridge('projectByName', 'ik-handle-rightHand', hero.id)
   const elbowPole = await lab.bridge('projectByName', 'ik-handle-rightElbowPole', hero.id)
@@ -40,7 +41,7 @@ try {
   // 点右手把手 = 选中（gizmo 挪过去）→ 按住 gizmo 中心往上拖
   await page.mouse.click(rightHand.x, rightHand.y)
   await page.waitForTimeout(300)
-  check('点把手选中右手', (await page.getByText('右手 (R-Hand)', { exact: false }).count()) >= 1)
+  check('点把手选中右手', await page.getByText('右手 (R-Hand)', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false))
   await page.mouse.move(rightHand.x, rightHand.y); await page.mouse.down()
   for (let i = 1; i <= 10; i += 1) await page.mouse.move(rightHand.x, rightHand.y - i * 8)
   await page.mouse.up()
@@ -63,7 +64,7 @@ try {
   const pelvis2 = await lab.bridge('projectByName', 'ik-handle-pelvis', hero.id)
   await page.mouse.click(pelvis2.x, pelvis2.y)
   await page.waitForTimeout(300)
-  check('点骨盆环选中骨盆', (await page.getByText('骨盆/重心 (Pelvis)', { exact: false }).count()) >= 1)
+  check('点骨盆环选中骨盆', await page.getByText('骨盆/重心 (Pelvis)', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false))
   // F 聚焦后相机从上前方看人，gizmo 中心的自由拾取块正对镜头：按住中心往下拖 = 骨盆下沉（three TransformControls 本性）
   await page.mouse.move(pelvis2.x, pelvis2.y); await page.mouse.down()
   for (let i = 1; i <= 10; i += 1) await page.mouse.move(pelvis2.x, pelvis2.y + i * 5)
@@ -80,17 +81,17 @@ try {
   await lab.snap('fk-bones')
   await page.mouse.click(ball.x, ball.y)
   await page.waitForTimeout(400)
-  const selectedText = await page.getByTestId('director-timeline-header').count()
-  check('点 3D 骨骼球选中大臂（检查器显示已选中关节）', (await page.getByText('左大臂 (L-Arm)', { exact: false }).count()) >= 1 && selectedText === 1)
+  const selectedText = await expect(page.getByTestId('director-timeline-header')).toHaveCount(1).then(() => true, () => false)
+  check('点 3D 骨骼球选中大臂（检查器显示已选中关节）', await page.getByText('左大臂 (L-Arm)', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false) && selectedText)
   await lab.snap('fk-selected')
   check('FK 滑条量程 ±180', (await page.locator('input[type=range][min="-180"][max="180"]').count()) === 3)
-  check('快选五档', (await page.getByRole('button', { name: /^[+-]?(45|90)°$/ }).count()) === 4 && (await page.getByRole('button', { name: '0°(复位)' }).count()) === 1)
+  check('快选五档', (await page.getByRole('button', { name: /^[+-]?(45|90)°$/ }).count()) === 4 && await expect(page.getByRole('button', { name: '0°(复位)' })).toHaveCount(1).then(() => true, () => false))
   await page.keyboard.press('w')
   await page.waitForTimeout(300)
-  check('按 W 切回 IK（IK 动力学靶点行出现）', (await page.getByText('IK 动力学靶点', { exact: false }).count()) === 1)
+  check('按 W 切回 IK（IK 动力学靶点行出现）', await expect(page.getByText('IK 动力学靶点', { exact: false })).toHaveCount(1).then(() => true, () => false))
   await page.keyboard.press('e')
   await page.waitForTimeout(300)
-  check('按 E 切到 FK', (await page.getByText('FK 骨骼关节', { exact: false }).count()) === 1)
+  check('按 E 切到 FK', await expect(page.getByText('FK 骨骼关节', { exact: false })).toHaveCount(1).then(() => true, () => false))
 } catch (error) {
   check(`旅程中断：${String(error.message || error).split('\n')[0]}`, false)
 } finally {

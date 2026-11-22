@@ -40,11 +40,11 @@ await walkDesignLabScreen({
       return
     }
     // 告知范围升级后的那一格：必须真的出现「确认新范围」那一块，否则这一格没证明任何事。
-    if (state.id === 'privacy-05-scope-reask-en-dark' && !(await page.locator('[data-telemetry-scope-notice]').count())) {
+    if (state.id === 'privacy-05-scope-reask-en-dark' && !(await page.locator('[data-telemetry-scope-notice]').first().waitFor({ state: 'visible' }).then(() => true, () => false))) {
       record(`${state.id} 里没有告知范围再确认那一块（桥没把 scopeVersion=1 送进组件）`)
     }
     const section = page.locator('[data-settings-section="diagnostics"]')
-    if (!(await section.count())) {
+    if (!(await section.first().waitFor({ state: 'visible' }).then(() => true, () => false))) {
       record(`${state.id} 里根本没有诊断区块——桥没装上或组件早退了，这一格截的是半张面板`)
       return
     }
@@ -54,7 +54,7 @@ await walkDesignLabScreen({
       return
     }
     // 三个结果态还要真的有那一行字：状态属性对了但结果行没渲出来，图上仍然什么都看不出。
-    if (expected !== 'idle' && expected !== 'exporting' && !(await page.locator('[data-diagnostics-result]').count())) {
+    if (expected !== 'idle' && expected !== 'exporting' && !(await page.locator('[data-diagnostics-result]').first().waitFor({ state: 'visible' }).then(() => true, () => false))) {
       record(`${state.id} 是结果态却没有结果行，拍板时看不到「导出了什么」`)
     }
   },

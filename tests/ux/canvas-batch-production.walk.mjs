@@ -265,7 +265,7 @@ try {
   await win.waitForTimeout(900)
   const batchMockRow = modelPanel.locator('button').filter({ hasText: 'Batch Mock' }).first()
   await batchMockRow.waitFor({ state: 'visible', timeout: 5000 })
-  check(await batchMockRow.count() === 1, '种子供应商 Batch Mock 已在模型设置里可见')
+  check(await expect(batchMockRow).toHaveCount(1).then(() => true, () => false), '种子供应商 Batch Mock 已在模型设置里可见')
   await snap(win, 'light-model-settings')
   await modelPanel.getByRole('button', { name: '关闭', exact: true }).click()
   await win.waitForTimeout(400)
@@ -295,7 +295,7 @@ try {
   await win.waitForTimeout(300)
   await win.mouse.up()
   await win.waitForTimeout(900)
-  check(await win.locator('.generation-canvas-v2__edge-path').count() === 1, '真实点击建立依赖边')
+  check(await expect(win.locator('.generation-canvas-v2__edge-path')).toHaveCount(1).then(() => true, () => false), '真实点击建立依赖边')
   await clearSelection(win)
 
   // ── 批量只走组：依赖波次的两张图 + 一张会先失败的图，编成一组，用节点自己的模型生成 ──
@@ -379,7 +379,7 @@ try {
   await expectAbsent(notificationRoot.getByRole('alert').filter({ hasText: /开始生成/ }), {
     provenBy: notificationProof, message: '节点已承担进度，不再弹开始生成通知',
   })
-  check(await notificationRoot.getByRole('alert').filter({ hasText: /已完成 2 个，1 个失败/ }).count() === 1, '失败后只有一条批量重试通知')
+  check(await expect(notificationRoot.getByRole('alert').filter({ hasText: /已完成 2 个，1 个失败/ })).toHaveCount(1).then(() => true, () => false), '失败后只有一条批量重试通知')
   const runningBox = await batchFailureAlert.boundingBox()
   check(Boolean(runningBox && Math.abs(runningBox.width - 344) <= 1), '通知宽度为 344px', JSON.stringify(runningBox))
   const notificationRootTop = await notificationRoot.evaluate((element) => Number.parseFloat(getComputedStyle(element).top))
@@ -389,7 +389,7 @@ try {
   check(notificationRootTop >= topbarBottom - 1, `通知容器避开顶栏（top ≥ 顶栏下沿 ${topbarBottom}px）`, JSON.stringify({ notificationRootTop, topbarBottom, runningBox }))
   check(Boolean(runningBox && runningBox.y >= notificationRootTop), '堆叠通知不会越过通知容器顶部', JSON.stringify({ notificationRootTop, runningBox }))
   const retryAction = batchFailureAlert.getByRole('button', { name: /重试失败的/ })
-  check(await retryAction.count() === 1, '失败通知提供独立的重试按钮')
+  check(await expect(retryAction).toHaveCount(1).then(() => true, () => false), '失败通知提供独立的重试按钮')
   await retryAction.waitFor({ timeout: 15000 })
   await snap(win, 'failed-with-retry-action')
   // 「重试失败的」这里只有 1 张：同上，不弹卡、直接开始。
@@ -412,10 +412,10 @@ try {
   await clearSelection(win)
   const timelineHandle = win.getByRole('button', { name: '展开生成时间轴' })
   await expect(win.locator('[data-batch-dock]')).toHaveCount(0)
-  check(await timelineHandle.count() === 1, '底部没有批量栏盖住时间轴展开入口')
+  check(await expect(timelineHandle).toHaveCount(1).then(() => true, () => false), '底部没有批量栏盖住时间轴展开入口')
   await timelineHandle.click()
   await win.waitForTimeout(700)
-  check(await win.locator('section[aria-label="生成时间轴"]').count() === 1, '时间轴可从底部入口正常展开')
+  check(await expect(win.locator('section[aria-label="生成时间轴"]')).toHaveCount(1).then(() => true, () => false), '时间轴可从底部入口正常展开')
   await snap(win, 'timeline-unblocked')
 
   const unexpectedConsoleErrors = consoleErrors.filter((message) => !/mock fail once|HTTP 422|生成失败/i.test(message))

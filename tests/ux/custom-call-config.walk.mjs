@@ -85,7 +85,7 @@ async function openEditor() {
   if (await card.count()) { await card.click({ timeout: 3000 }).catch(() => {}); await win.waitForTimeout(1000) }
   // 行末的 <> 图标就是自定义调用入口。
   const codeBtn = win.locator('[aria-label*="自定义调用"], [aria-label*="Custom call"]').first()
-  if (!(await codeBtn.count())) { console.log('  ❌ 没找到自定义调用入口'); return false }
+  if (!(await codeBtn.waitFor({ state: 'visible' }).then(() => true, () => false))) { console.log('  ❌ 没找到自定义调用入口'); return false }
   await codeBtn.click({ timeout: 4000 }).catch(() => {})
   await win.waitForTimeout(1200)
   return true
