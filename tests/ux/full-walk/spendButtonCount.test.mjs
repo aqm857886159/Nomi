@@ -15,6 +15,20 @@ describe('spendButtonCount：照词典认主按钮答应的是几镜', () => {
     })
   }
 
+  it('英文主按钮不带名词（SpendAskSplit 板 source/Split.dc.html:183「Generate 12」）；中文照旧带量词「段 / 张」', () => {
+    const KEYS = ['agentPanelV4.spendCard.generateAll', 'agentPanelV4.spendCard.generateAllImage', 'agentPanelV4.spendConfirmRemainingVideo', 'agentPanelV4.spendConfirmRemainingImage']
+    for (const key of KEYS) {
+      for (const count of [1, 12]) {
+        const en = uiTextWith('en', key, { count })
+        expect(en, key).toBe(`Generate ${count}`)
+        expect(en, key).not.toMatch(/video|image|clip|shot/i)
+        expect(spendButtonCount(en, 'en'), key).toBe(count)
+      }
+    }
+    expect(uiTextWith('zh-CN', 'agentPanelV4.spendCard.generateAll', { count: 12 })).toBe('生成 12 段')
+    expect(uiTextWith('zh-CN', 'agentPanelV4.spendCard.generateAllImage', { count: 12 })).toBe('生成 12 张')
+  })
+
   it('不是那几句 → null（不猜，交给监视器照实报）', () => {
     expect(spendButtonCount(uiTextWith('en', 'agentPanelV4.spendCard.retry', {}), 'en')).toBeNull()
     expect(spendButtonCount('', 'zh-CN')).toBeNull()

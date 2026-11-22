@@ -115,7 +115,7 @@ function PointerLabel({
         <NodeShotLabel node={model.node}>{titleNode}</NodeShotLabel>
       ) : (
         <>
-          {model.shotText ? <ShotNumberPill className="text-nomi-ink-40">{model.shotText}</ShotNumberPill> : null}
+          {model.shotText ? <ShotNumberPill className="text-nomi-ink-40" attributes={{ 'data-shot-snapshot': 'true' }}>{model.shotText}</ShotNumberPill> : null}
           {titleNode}
         </>
       )}
@@ -438,7 +438,10 @@ export function NodePointer({
       <button
         {...common}
         className={cn(
-          'flex min-h-10 w-full min-w-0 items-center gap-2 rounded-nomi border border-nomi-line bg-nomi-paper py-1 pl-1 pr-2 text-left text-caption transition-colors',
+          // 镜号小胶囊按 SpendAskSplit 板 `.chip`（source/Rows.dc.html：上下不留白、左右 6px，约 20×42）收紧；
+          // 圆角留 `rounded-nomi-sm`（6px，板上 5px 没有对应 token）。胶囊本体（`ShotNumberPill`）各处共用，这里只改对话行这一种；
+          // 节点删了只剩镜号快照的那一枚（`data-shot-snapshot`）跟着一起收，同一列里不出两种胶囊。
+          'flex min-h-10 w-full min-w-0 items-center gap-2 rounded-nomi border border-nomi-line bg-nomi-paper py-1 pl-1 pr-2 text-left text-caption transition-colors [&_[data-shot-number]]:px-1.5 [&_[data-shot-number]]:py-0 [&_[data-shot-snapshot]]:px-1.5 [&_[data-shot-snapshot]]:py-0',
           reserveTrailing && 'pr-9',
           lit && 'border-transparent bg-nomi-ink-05',
           model.face.kind === 'failed' && 'border-nomi-danger-edge',

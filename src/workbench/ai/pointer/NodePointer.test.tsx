@@ -131,6 +131,17 @@ describe('NodePointer · deleted only on an explicit fact (board D4)', () => {
     expect(markup).toContain(`aria-label="${i18n.t('nodePointer.ariaDeleted', { name: 'S05 sunrise' })}"`)
   })
 
+  it('row density: the shot pill is the board’s tight one (SpendAskSplit `.chip`: no vertical padding, 6px sides), the deleted snapshot pill too; tiles keep the shared pill', () => {
+    const tight = ['[&amp;_[data-shot-number]]:px-1.5', '[&amp;_[data-shot-number]]:py-0', '[&amp;_[data-shot-snapshot]]:px-1.5', '[&amp;_[data-shot-snapshot]]:py-0']
+    const row = renderToStaticMarkup(<NodePointer subject={{ ...gone, removed: true }} density="row" />)
+    for (const token of tight) expect(row).toContain(token)
+    expect(row, 'the deleted row still draws its snapshot pill, marked so the row can tighten it').toContain('data-shot-snapshot="true"')
+    const live = renderToStaticMarkup(<NodePointer subject={{ nodeId: 'n1' }} density="row" />)
+    for (const token of tight) expect(live).toContain(token)
+    const card = renderToStaticMarkup(<NodePointer subject={{ nodeId: 'n1' }} />)
+    for (const token of tight) expect(card, 'only the chat row tightens the pill').not.toContain(token)
+  })
+
   it('node merely missing, or the canvas not loaded yet: a neutral placeholder that never says deleted', () => {
     const missing = renderToStaticMarkup(<NodePointer subject={gone} />)
     expect(missing).toContain('data-node-pointer-face="unavailable"')

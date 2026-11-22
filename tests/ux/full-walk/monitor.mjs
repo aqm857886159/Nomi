@@ -371,12 +371,13 @@ export function createInvariantMonitor(options) {
   }
 
   /**
-   * 付费确认上「这是图还是视频」只有一个答案：主按钮（「生成 N 段」是视频、「生成 N 张」是图）、候选的模式、模型自己的种类、画布占位节点的种类，四样必须一致。
+   * 付费确认上「这是图还是视频」只有一个答案：主按钮（中文「生成 N 段」是视频、「生成 N 张」是图；英文不带名词，不算这一样）、候选的模式、模型自己的种类、画布占位节点的种类，四样必须一致。
    * 任何两样不一致，用户在付钱前那一刻看到的就是自相矛盾的一条确认（按钮说段、模型是图片模型、节点又是视频）。
    */
   async function checkCardCoherence(consent) {
     const kindOfText = (value) => (/video|视频/i.test(String(value ?? '')) ? 'video' : /image|图|封面/i.test(String(value ?? '')) ? 'image' : null)
-    const buttonKind = /段|video/i.test(consent.dom.confirmLabel) ? 'video' : /张|image/i.test(consent.dom.confirmLabel) ? 'image' : null
+    // 主按钮只有中文带量词（「生成 N 段 / 张」）；英文按板上「Generate 12」不带名词，读不出种类就不算这一样（null），不猜。
+    const buttonKind = /段/.test(consent.dom.confirmLabel) ? 'video' : /张/.test(consent.dom.confirmLabel) ? 'image' : null
     for (const shot of consent.allShots) {
       const facts = { 主按钮: buttonKind, 宿主种类: kindOfText(shot.hostKind), 模型种类: shot.modelKind, 画布节点: shot.nodeKind }
       const distinct = new Set(Object.values(facts).filter(Boolean))

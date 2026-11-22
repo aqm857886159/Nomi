@@ -8,9 +8,9 @@
 | 出处（2026-11-15 协调自己打开看的） | 它怎么做 | 对哪个决定的影响 |
 |---|---|---|
 | LibTV 助手（真发了一句做图，停在确认上；截图在仓库外，指纹 26271d47dce1…、22f5ff90ad55…、1e0ab3a597d8…） | 对话里只有一行「图片节点已创建」，点开是带节点名的小标签；确认占输入框的位置：一句问话 + 预计消耗 + 「查看提示词」+「本对话自动确认」+ 取消 / 确认生成；点「查看提示词」选中画布节点并在画布顶上给「1/1 取消 确认生成」 | 确认只放问话和按钮、镜头在别处指，方向一致。不一样的地方和原因：它印积分；我们的预估花费按 11-07 模型面板那块板印积分，下一刀做，这一刀留位置；它的指向是纯文字标签，我们带小缩略图（生成后同一行变成结果）；它的自动确认开关在确认条上，我们的在输入框模式菜单里（紧挨着，不重复放） |
-| TapNow 官方文档「Choose a generation mode」及配图（指纹 b4574a896a30…） | Ask 模式下对话里一张确认卡：类型 + 约多少点数、提示词、一行可改的参数、Act 开关、Cancel / Confirm；没有缩略图 | 同样没有缩略图。不一样：它在卡上改参数，我们 10-22 定了「请示不顺带改参数」，要改点那一行去节点里改 |
-| assistant-ui 示例页：Approval card / Shopping cart / Image gallery / Tool group | 确认 = 标题 + 一句话 + 一块内容 + 按钮；多件东西每件一行字；很多图露 3 格 +N；很多步收成一行 | 「多了就折」「每件一行字」直接采用 |
-| Vercel AI Elements「Confirmation」 | 一句话 + Reject / Approve | 同上 |
+| TapNow 官方文档「Choose a generation mode」及配图（https://docs.tapnow.ai/en/docs，指纹 b4574a896a30…） | Ask 模式下对话里一张确认卡：类型 + 约多少点数、提示词、一行可改的参数、Act 开关、Cancel / Confirm；没有缩略图 | 同样没有缩略图。不一样：它在卡上改参数，我们 10-22 定了「请示不顺带改参数」，要改点那一行去节点里改 |
+| assistant-ui 示例页：Approval card / Shopping cart / Image gallery / Tool group（https://www.assistant-ui.com/elements/approval-card） | 确认 = 标题 + 一句话 + 一块内容 + 按钮；多件东西每件一行字；很多图露 3 格 +N；很多步收成一行 | 「多了就折」「每件一行字」直接采用 |
+| Vercel AI Elements「Confirmation」（https://elements.ai-sdk.dev/components/confirmation） | 一句话 + Reject / Approve | 同上 |
 
 - 出口：不涉及：这一刀不改任何出口——确认条「取消」、行尾「不生成 ×」/「恢复」、节点上的 ↑ 都照旧，镜头留在画布上；只换了镜头住在哪儿（LibTV 同样是取消后节点留着、可在节点上单独再生成，2026-11-15 截图）。
 

@@ -4,9 +4,11 @@
 // 断言证明的是「这个状态一定带这个东西」——比如失败收据一定带 danger 色和原因，
 // 采用的候选一定带 accent 描边而不是把整格填成 accent 底（返工前就是后者）。
 // 两者互补：像素归视觉基线，语义归这里。
+import { readFileSync } from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { zhAgentPanelV4 } from '../../../i18n/locales/agentPanelV4'
 import { V4Intervention, V4Queue, V4TaskCard } from './AgentPanelV4Cards'
 import { V4ContextRing } from './AgentPanelV4Context'
 import { V4AssistantMessage, V4Thinking, V4UserBubble } from './AgentPanelV4Message'
@@ -22,6 +24,10 @@ const NO_HANDLERS = { onPlanToggle: () => undefined, onCollapsePlan: () => undef
 
 const el = React.createElement
 const html = (node: React.ReactElement): string => renderToStaticMarkup(node)
+/** 标记里某个 `data-v4-control` 那颗按钮的 class（属性先后两种写法都认）。 */
+const primaryClass = (markup: string, control: string): string | undefined =>
+  markup.match(new RegExp(`data-v4-control="${control}"[^>]*class="([^"]*)"`))?.[1]
+    ?? markup.match(new RegExp(`class="([^"]*)"[^>]*data-v4-control="${control}"`))?.[1]
 
 const TOOL_STATUSES: readonly V4ToolStatus[] = [
   'input-streaming', 'input-available', 'approval-requested', 'approval-responded',
@@ -436,23 +442,44 @@ describe('⑤ 介入槽 · 八种内容体', () => {
       data: { kind: 'question', title: '用什么画幅？', options: QUESTION_OPTIONS },
       labels: slotLabels,
     }))
-    const spend = html(el(V4Intervention, { ...NO_HANDLERS, data: of('spend'), labels: slotLabels }))
-    const primary = (markup: string, control: string) =>
-      markup.match(new RegExp(`data-v4-control="${control}"[^>]*class="([^"]*)"`))?.[1]
-        ?? markup.match(new RegExp(`class="([^"]*)"[^>]*data-v4-control="${control}"`))?.[1]
-    const askPrimary = primary(ask, 'ask-continue')
-    const spendPrimary = primary(spend, 'confirm')
+    const approval = html(el(V4Intervention, { ...NO_HANDLERS, data: of('approval-irreversible'), labels: slotLabels }))
+    const askPrimary = primaryClass(ask, 'ask-continue')
+    const approvalPrimary = primaryClass(approval, 'confirm')
     expect(askPrimary).toBeTruthy()
-    expect(spendPrimary).toBeTruthy()
+    expect(approvalPrimary).toBeTruthy()
     // 两张卡的主按钮是**同一个现役组件**（`WorkbenchButton variant="primary" size="sm"`），
     // 所以类名逐字相同——不是「长得像」，是同一件。第一版是自带的 `rounded-pill` 药丸，
-    // 在这个面板里是独一份。
+    // 在这个面板里是独一份。付费那一档 2026-11-22 起有自己一个家（`V4SpendBar`，按钮一行 md），见下一条。
     for (const token of ['h-7', 'rounded-workbench-control', 'bg-nomi-ink', 'text-nomi-paper']) {
       expect(askPrimary).toContain(token)
-      expect(spendPrimary).toContain(token)
+      expect(approvalPrimary).toContain(token)
     }
-    expect(askPrimary).toBe(spendPrimary)
+    expect(askPrimary).toBe(approvalPrimary)
     expect(askPrimary).not.toContain('rounded-pill')
+  })
+
+  it('付费那一档的按钮一行是同一个现役组件的 md 档（SpendAskSplit 板 `.b1` 13px / 600 / 约 30px → md 32px），主按钮加粗、回车记号不加粗', () => {
+    // 板上主按钮 13px / 600、取消 13px / 500，两颗同高；尺寸阶梯上没有 30，取 md（h-8 · text-body-sm）。
+    // 走的仍是 `WorkbenchButton`：圆角、底色、反白字和审批卡逐字相同，只换尺寸档——不是另造一颗按钮。
+    for (const data of [of('spend'), { kind: 'spend' as const, title: '', confirmLabel: '生成 12 段' }, { kind: 'spend' as const, title: '没成', failed: true as const, confirmLabel: '去改镜 2', confirmIcon: 'locate' as const, dismissLabel: zhAgentPanelV4.spendCard.decline }]) {
+      const markup = html(el(V4Intervention, { ...NO_HANDLERS, data, labels: slotLabels }))
+      const confirm = primaryClass(markup, 'confirm')
+      const dismiss = primaryClass(markup, 'slot-dismiss')
+      for (const token of ['h-8', 'text-body-sm', 'font-semibold', 'rounded-workbench-control', 'bg-nomi-ink', 'text-nomi-paper']) expect(confirm).toContain(token)
+      expect(confirm).not.toMatch(/(^| )(h-7|text-caption|font-medium)( |$)/)
+      expect(dismiss).toContain('h-8')
+      expect(dismiss).toContain('text-body-sm')
+      expect(markup).toMatch(/<span aria-hidden="true" class="[^"]*font-normal[^"]*">⏎<\/span>/)
+    }
+    // 付费字段只由付费条读：`V4Intervention` 里只剩那一处派过去的 `kind === 'spend'`，再长出第三个付费特例当场红。
+    const cards = readFileSync(new URL('./AgentPanelV4Cards.tsx', import.meta.url), 'utf8').replace(/^\s*\/\/.*$/gm, '')
+    expect(cards.match(/kind === 'spend'/g) ?? []).toHaveLength(1)
+    expect(cards).not.toMatch(/data\.(progress|failed|price|confirmIcon|dismissLabel)\b/)
+    expect(cards).not.toMatch(/footerDivider/)
+    // 审批卡不跟着变：一张卡一个家，付费条的尺寸档不漏回审批 / 提问卡。
+    const approval = html(el(V4Intervention, { ...NO_HANDLERS, data: of('approval-irreversible'), labels: slotLabels }))
+    expect(primaryClass(approval, 'confirm')).toContain('h-7')
+    expect(primaryClass(approval, 'slot-dismiss')).toContain('h-7')
   })
 
   it('选项是整行可点的 radio 行——没有方框，也没有一排宽度参差的药丸', () => {

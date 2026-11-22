@@ -87,6 +87,7 @@
   "components": [
     "src/workbench/ai/pointer/NodePointerGroup.tsx",
     "src/workbench/ai/pointer/GenerationReceiptPointers.tsx",
+    "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx",
     "src/workbench/ai/v4/AgentPanelV4SpendCardBody.tsx"
   ],
   "appearsIn": [
@@ -127,6 +128,10 @@
     {
       "file": "src/workbench/ai/pointer/NodePointerReturnDock.tsx",
       "reason": "只取「回到对话」那一颗按钮（NodePointerReturnToChat），不用列表行"
+    },
+    {
+      "file": "src/workbench/ai/v4/AgentPanelV4Cards.tsx",
+      "reason": "介入槽分发壳 V4Intervention（把所有 kind === 'spend' 转发给 V4SpendBar，本身不是独立界面处；实际出现处在 ProjectAgentResidentShell / AgentPanelV4Panel / spendCardLabKit，已在 appearsIn 列出）"
     }
   ],
   "priorDecisions": [
@@ -238,6 +243,7 @@
     {
       "id": "ask.params",
       "label": "确认条第一行：这一批都一样的参数（模型（Nomi 选的）· 比例 · 清晰度 · 每段时长）；逐镜不同的那一项不写在这里，回到各行",
+      "component": "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx#V4SpendBar + src/workbench/ai/v4/AgentPanelV4SpendCardBody.tsx#AgentPanelV4SpendCardBody",
       "change": "changed",
       "status": "implemented",
       "assertion": "board:SpendAskSplit/ask.params",
@@ -270,6 +276,7 @@
     {
       "id": "ask.params.asked",
       "label": "共同项后面标「（原 8s）」、悬停出原因（落的和原本要的不一样）",
+      "component": "预留给 src/workbench/ai/v4/AgentPanelV4SpendCardBody.tsx（共同参数行，不新建组件）",
       "change": "new",
       "status": "missing",
       "owner": "Agent 意图落参 2b",
@@ -293,6 +300,7 @@
     {
       "id": "ask.cost",
       "label": "确认条·预估花费（按钮行左侧）",
+      "component": "预留给 src/workbench/ai/v4/AgentPanelV4SpendBar.tsx#V4SpendBar 按钮行左侧（接 ModelSurfaces cost.batch-card）",
       "change": "new",
       "status": "missing",
       "owner": "模型面板 cost.batch-card（那条分支合入后的下一刀）",
@@ -306,6 +314,7 @@
     {
       "id": "ask.actions",
       "label": "确认条第二行：右对齐「取消」+ 主按钮「生成 N 段 / 张」（数量只在按钮上）；3 段和 12 段条一样高",
+      "component": "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx#V4SpendBar（脚部使用 src/design/actions.tsx#WorkbenchButton size=\"md\"）",
       "change": "changed",
       "status": "implemented",
       "assertion": "board:SpendAskSplit/ask.actions",
@@ -358,6 +367,7 @@
     {
       "id": "ask.sending",
       "label": "点了生成之后：确认条只剩「正在发出 k/N 段」+ 取消",
+      "component": "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx#V4SpendBar（data.progress 分支，V4SlotShell quiet + StatusSpinner + WorkbenchButton size=\"md\"）",
       "change": "changed",
       "status": "implemented",
       "assertion": "board:SpendAskSplit/ask.sending",
@@ -376,6 +386,7 @@
     {
       "id": "ask.failure",
       "label": "某镜没发出去 / 被拒：原因和「再试」都在那一行里（红框、红字、行尾「再试」），输入框上方不出红条、没有「先不发了 / 再试一次」那一条；原因只说一遍",
+      "component": "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx#V4SpendBar（data.failed 分支，使用 WorkbenchButton size=\"md\"；行尾再试留待另一刀）",
       "change": "changed",
       "status": "missing",
       "states": [
@@ -396,6 +407,7 @@
     {
       "id": "chat.rows",
       "label": "对话里生成记录下面那一组：一行一个（小缩略图 + 镜号 + 标题），整行点了定位节点、悬停节点同亮；一次生成只有一组",
+      "component": "src/workbench/ai/pointer/GenerationReceiptPointers.tsx + src/workbench/ai/pointer/NodePointerGroup.tsx + src/workbench/ai/pointer/NodePointer.tsx（density=\"row\"，行内收紧 ShotNumberPill px-1.5 py-0、保持 rounded-nomi-sm）",
       "change": "new",
       "status": "implemented",
       "assertion": "board:SpendAskSplit/chat.rows",
@@ -512,6 +524,7 @@
     {
       "id": "chat.rows.more",
       "label": "超过 4 行折起：露前 4 行，下面一行文字按钮「还有 N 个镜头」，点了全露（不再收回）",
+      "component": "src/workbench/ai/pointer/NodePointerGroup.tsx（[data-node-pointer-more] 行折起按钮）",
       "change": "new",
       "status": "implemented",
       "assertion": "board:SpendAskSplit/chat.rows.more",
@@ -527,6 +540,7 @@
     {
       "id": "chat.rows.exclude",
       "label": "行尾小动作：悬停 / 聚焦露 ×（ThumbCornerX，行的兄弟不套在行里）；去掉后那一行变灰、第二行「已去掉，不生成」、行尾常驻「恢复」",
+      "component": "src/workbench/ai/pointer/GenerationReceiptPointers.tsx + src/workbench/ai/pointer/NodePointerGroup.tsx 行尾槽（ThumbCornerX 与恢复文字按钮）",
       "change": "new",
       "status": "implemented",
       "assertion": "board:SpendAskSplit/chat.rows.exclude",
@@ -544,6 +558,7 @@
     {
       "id": "chat.rows.note",
       "label": "行第二行只在这一镜有话要说时出现：和共同值不同的参数、状态（生成中 / 排队中）、失败原因",
+      "component": "src/workbench/ai/pointer/NodePointer.tsx（density=\"row\" 第二行 note，由 src/workbench/ai/v4/agentPanelSpendCard.ts#spendCardShotNote / outcomeOf 投影）",
       "change": "new",
       "status": "implemented",
       "assertion": "board:SpendAskSplit/chat.rows.note",
@@ -562,6 +577,7 @@
     {
       "id": "chat.rows.note.asked",
       "label": "行第二行标「（原 8s）10s」（这一镜落的和原本要的不一样）",
+      "component": "预留给 src/workbench/ai/pointer/NodePointer.tsx（density=\"row\" 第二行 note，不新建组件）",
       "change": "new",
       "status": "missing",
       "owner": "Agent 意图落参 2b",
@@ -576,6 +592,7 @@
     {
       "id": "chat.receipt",
       "label": "发完：确认条收走，同一组下面一行「✓ 已发出 N 段」（都出结果后「✓ 已生成 N 段」）",
+      "component": "src/workbench/ai/pointer/GenerationReceiptPointers.tsx（[data-v4-block=\"generation-receipt-line\"]）",
       "change": "changed",
       "status": "implemented",
       "assertion": "board:SpendAskSplit/chat.receipt",

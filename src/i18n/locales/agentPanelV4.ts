@@ -968,10 +968,11 @@ export const enAgentPanelV4 = {
   slotDeviationSkip: 'Skip',
   spendParamsModelPicked: "Nomi's pick",
   spendParamsPerItem: 'Per shot',
-  spendConfirmRemainingImage_one: 'Generate {{count}} images',
-  spendConfirmRemainingImage_other: 'Generate {{count}} images',
-  spendConfirmRemainingVideo_one: 'Generate {{count}} videos',
-  spendConfirmRemainingVideo_other: 'Generate {{count}} videos',
+  // 确认条主按钮英文不带名词（SpendAskSplit 板 source/Split.dc.html：「Generate 12」）：图还是视频由那几行镜头说，按钮只说几段。中文照旧「生成 N 段 / 张」。
+  spendConfirmRemainingImage_one: 'Generate {{count}}',
+  spendConfirmRemainingImage_other: 'Generate {{count}}',
+  spendConfirmRemainingVideo_one: 'Generate {{count}}',
+  spendConfirmRemainingVideo_other: 'Generate {{count}}',
   spendBatchProgressImage: 'Sending {{current}} of {{total}} images',
   spendBatchProgressVideo: 'Sending {{current}} of {{total}} videos',
   spendBatchStopping: 'Stopping…',
@@ -994,8 +995,9 @@ export const enAgentPanelV4 = {
   spendCard: {
     titleNothing: 'Nothing left to generate',
     generate: 'Generate',
-    generateAll: 'Generate {{count}} videos',
-    generateAllImage: 'Generate {{count}} images',
+    // 同上：英文主按钮不带名词（板上「Generate 12」）。
+    generateAll: 'Generate {{count}}',
+    generateAllImage: 'Generate {{count}}',
     retry: 'Try again',
     goEdit: 'Edit {{shot}}',
     goCheck: 'Check {{shot}}',

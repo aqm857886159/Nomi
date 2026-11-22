@@ -446,6 +446,10 @@
       "reason": "付费卡的卡体（D2 SpendCardQ1 板）：指向元素 + 一行只读摘要 + 说明行——按镜头花钱的领域呈现，卡上每个字都从那几镜节点现读"
     },
     {
+      "path": "src/workbench/ai/v4/AgentPanelV4SpendBar*",
+      "reason": "付费确认条（SpendAskSplit 板）：独立的付费确认槽组件，承接所有 kind === 'spend' 的花钱确认（共同参数、进度、失败、md 档取消/生成按钮）——按镜头花钱的领域呈现"
+    },
+    {
       "path": "src/workbench/ai/v4/spendCard*",
       "reason": "付费卡上说「没成」的那几句：卡上那一下动作本身没做成、交给画布的某一镜没发出去——只认 Nomi 自己的语义码，只说发没发出去和下一步"
     },
