@@ -16,11 +16,15 @@
 // 另查范围内存在文件的热点（复用原计数器；文件热点缺方向文档拦，目录 / 概念只提示）。
 // 界面任务还须引用设计系统。声明用关键词判，热点只读 Git，不调模型；退出码 1 = 缺项（派工前补齐）。
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildCapabilityIndex, loadRegistries } from './build-capability-index.mjs'
 import { directionMessage, findHotspots, loadHistory, seamFixCommits } from './fix-churn.mjs'
 import { loadSeams, SEAM_WINDOW_DAYS } from './fix-churn-units.mjs'
+
+const loadModule = createRequire(import.meta.url)
+let capabilityIndexCache
+const capabilityIndexMod = () => (capabilityIndexCache ??= loadModule('./build-capability-index.mjs'))
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -355,6 +359,7 @@ export function checkDispatchBrief(text, { name = '', implementation = false, de
 export function briefCapabilityHints(text, { root = REPO_ROOT, registries = null } = {}) {
   const paths = briefPaths(text).filter((p) => /^(?:src|electron)\//.test(p) && !/\.(?:test|spec|e2e)\.[^.]+$/.test(p))
   if (paths.length === 0) return ''
+  const { buildCapabilityIndex, loadRegistries } = capabilityIndexMod()
   let loaded = registries
   if (!loaded) {
     try { loaded = loadRegistries(root) } catch { return '' }
@@ -372,11 +377,14 @@ function main() {
   const warnings = []
   const problems = checkDispatchBrief(text, { name: path.basename(file), implementation: isImplementationBrief(text, file), design: isDesignBrief(text, file), acceptance: isAcceptanceBrief(text, file), warnings })
   for (const warning of warnings) console.warn(warning)
+  if (problems.length) {
+    console.error(`派工书检查：${problems.length} 项缺失\n${problems.map((p) => `  · ${p}`).join('\n')}`)
+    return 1
+  }
   const hints = briefCapabilityHints(text)
   if (hints) console.log(hints)
-  if (!problems.length) { console.log('派工书检查：范围、不碰清单、停点、删不删、调用方、删除范围齐全，第 3 轮复盘、模型可见工具清单、目标合同、热点方向检查与设计系统引用检查通过。'); return 0 }
-  console.error(`派工书检查：${problems.length} 项缺失\n${problems.map((p) => `  · ${p}`).join('\n')}`)
-  return 1
+  console.log('派工书检查：范围、不碰清单、停点、删不删、调用方、删除范围齐全，第 3 轮复盘、模型可见工具清单、目标合同、热点方向检查与设计系统引用检查通过。')
+  return 0
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exit(main())
