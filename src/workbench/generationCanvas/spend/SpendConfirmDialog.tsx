@@ -133,6 +133,7 @@ export function SpendConfirmDialog() {
       padding="md"
       zIndex={NOMI_OVERLAY_Z_INDEX.dialog}
       transitionProps={{ duration: 0 }}
+      accessibleName={pending.title}
       title={header}
       closeButtonProps={{ 'aria-label': t('common.close'), ...CLOSE_ACTION_ANCHOR }}
       // 打开时焦点落在对话框本体（读屏会念标题），**刻意不落在「确认花钱」上**——那是不可逆动作，不该被一个回车顺手按掉。
