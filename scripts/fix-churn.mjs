@@ -16,7 +16,7 @@
 //   盲区：同一类错（例如「界面谈钱」）若散在不同功能键里，这里数不到一起——由 check:i18n 的文案扫描补。
 // 再加两种「按概念数」的单位（scripts/fix-churn-units.mjs 定义哪些单位、各含哪些文件）：
 //   · 自写登记条目（self-written.json 的一条 entry，paths 下的文件合起来）：status 为 under-review / to-replace，
-//     或 justified 但落在 genericZones 的通用能力——窗口 30 天，第 2 个 fix 就命中，提示「先评估接入现成方案」；
+//     或 justified 但落在 genericZones 的通用能力——窗口 30 天，第 2 个 fix 就命中，提示「复盘先按模板 §5 写这一整块归谁」；
 //   · 概念（docs/engineering/concept-owners/ 的一个 concept，owner + write_api 的文件合起来，≥2 个文件才单列）——14 天 / 第 3 个，
 //     同样有「概念大小」上限（fix 碰过的不同源码文件 ≤ CONCEPT_MAX_FILES）。
 //   原因：MCP 的修补一个月 14 次、散在 6 个文件，按文件 / 目录都凑不够 3 个。
@@ -289,7 +289,7 @@ export function evaluateUnits(history, afterIndex, nowMs, files, units) {
     const reasons = []
     if (t.fixes >= unit.prior) {
       reasons.push(unit.kind === 'self-written'
-        ? `状态 ${unit.status}，近 ${unit.windowDays} 天已有 ${t.fixes} 个 fix，这一刀是第 ${t.fixes + 1} 个——先评估接入现成方案（P0）；要继续补，必须在复盘里写清为什么现在换不了、哪天换`
+        ? `状态 ${unit.status}，近 ${unit.windowDays} 天已有 ${t.fixes} 个 fix，这一刀是第 ${t.fixes + 1} 个——复盘先按模板 §5 写这一整块归谁（P0）；要继续补，必须在复盘里写清为什么现在换不了、哪天换`
         : `含 ${unit.patterns.length} 个文件，近 ${unit.windowDays} 天已有 ${t.fixes} 个 fix，这一刀是第 ${t.fixes + 1} 个`)
     }
     if (t.reverts >= 1) reasons.push(`近 ${unit.windowDays} 天出现过 ${t.reverts} 次 revert fix`)

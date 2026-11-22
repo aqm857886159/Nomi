@@ -525,9 +525,9 @@ const spendBody = (paidLine) => [
 ].join('\n')
 const spendRepo = (t) => prRepo(t, { base: { [SPEND_FILE]: 'export const a = 1\n' }, head: { [SPEND_FILE]: 'export const a = 2\n' } })
 
-test('花钱类 PR：正文缺 spend-paid-sample 行 → 扫描红并点名；写「未验证」→ 红；写裸 PR 号 → 红', (t) => {
+test('花钱类 PR：正文缺 spend-paid-sample 行 → 扫描红并点名；写「未验证」→ 红；写裸 PR 号 → 红；别名行 → 红', (t) => {
   const repo = spendRepo(t)
-  for (const line of [null, '- spend-paid-sample：未验证：待协调真付费', '- spend-paid-sample：#1203']) {
+  for (const line of [null, '- spend-paid-sample：未验证：待协调真付费', '- spend-paid-sample：#1203', '- 真付费：run 987654']) {
     const result = runPreflight(repo, { body: spendBody(line) })
     assert.equal(result.code, 1, String(line))
     assert.match(result.out, /spend-paid-sample/, String(line))

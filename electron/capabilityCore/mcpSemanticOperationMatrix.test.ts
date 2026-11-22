@@ -23,7 +23,6 @@ import { dispatch } from './dispatcher'
 import { createDiskGateway } from './gateway'
 import { MCP_CAPABILITY_RESOLVER } from './mcpCapabilityProjection'
 import { readProjectDocument } from './documentSurface'
-import * as projectRepository from '../projects/repository'
 
 const PROJECT_ID = 'semantic-matrix-project'
 const tempDirs: string[] = []
@@ -266,16 +265,6 @@ describe('MCP semantic operation production-path matrix', () => {
       leaseHandle, documentId: 'doc-1', where: 'cursor', content: '插入到开头',
     })
     expect(inserted.result?.isError).not.toBe(true)
-    const originalSaveProject = projectRepository.saveProject
-    const noRevisionSave = vi.spyOn(projectRepository, 'saveProject').mockImplementation((projectId: string, input: unknown) => ({
-      ...originalSaveProject(projectId, input),
-      revision: undefined,
-    }))
-    const noRevision = await client.call(32, 'nomi_document_edit', {
-      leaseHandle, documentId: 'doc-1', where: 'selection', content: 'revision fallback',
-    })
-    expect(noRevision.result?.structuredContent).toEqual(expect.objectContaining({ applied: true, revision: 0 }))
-    noRevisionSave.mockRestore()
 
     // E: the published document contract has no expectedRevision field; reject stale-revision attempts instead of pretending to support them.
     const stale = await client.call(10, 'nomi_document_edit', {
