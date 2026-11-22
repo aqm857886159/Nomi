@@ -1,5 +1,5 @@
 import { useResidentComposerContext } from './resident/ResidentComposerContext'
-import { libraryGroup } from '../library/libraryGroups'
+import { useAgentSlashMenu } from './resident/useAgentSlashMenu'
 // 常驻 Agent 面板的容器。
 //
 // 它现在只做三件事：把宿主接线（读侧 `useAgentPanelV4Data` / 写侧 `useAgentPanelV4Actions`）
@@ -38,7 +38,7 @@ import { laneClient } from './lane/laneClient'
 import { discardRecoveredAgentDraft, takeRecoveredAgentDraft, settleProjectAgentAttachment } from './projectAgentDraftRecovery'
 import { laneConversationOf } from '../../../electron/shared/agentLane/laneConversation'
 import { useV4DockStatus } from './v4/agentPanelV4DockStatus'
-import { V4ModelPopover, V4PermissionPopover, V4SkillPopover, type V4CommandRow } from './v4/AgentPanelV4Composer'
+import { V4ModelPopover, V4PermissionPopover, V4SkillPopover } from './v4/AgentPanelV4Composer'
 import { AgentPanelV4FocusTag } from './v4/AgentPanelV4FocusTag'
 import { useDirectorPatchNotices } from './v4/useDirectorPatchNotices'
 import { useShotFocusTag } from '../generationCanvas/nodes/director/panels/shotStrip/useShotFocusTag'
@@ -56,10 +56,7 @@ import { useShotVerifyFeedback } from './resident/useShotVerifyFeedback'
 import { adoptLaneTaskCandidate } from './lane/laneTaskCandidateActions'
 import { useV4Labels } from './v4/agentPanelV4Labels'
 import { usePromptLibrary } from '../promptLibrary/usePromptLibrary'
-import { skillDisplayTitle } from '../skillLibrary/skillDisplay'
 import { useUserPrompts } from '../promptLibrary/useUserPrompts'
-import { promptDisplayTitle } from '../promptLibrary/promptDisplay'
-import { filterPrompts } from '../api/promptLibraryApi'
 import type { ComposerPopover, QueueRowData } from './v4/agentPanelV4Types'
 import { buildV4ModelRows } from './v4/agentPanelV4ModelRows'
 import { useAgentTraceDirectory } from '../../desktop/useAgentTraceDirectory'
@@ -100,7 +97,7 @@ function usePanelSize(): Readonly<{ width: number; height: number; measure: (nod
 }
 
 export default function ProjectAgentResidentShell({ surface }: { surface: ResidentSurface }): JSX.Element {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const openProjectId = useOpenProjectId()
   const labels = useV4Labels()
   const trace = useAgentTraceDirectory()
@@ -248,6 +245,27 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const focusTag = surface === 'generation' && shotFocusTag ? <AgentPanelV4FocusTag {...shotFocusTag} /> : undefined
   // 系统提示词编辑器（2026-09-14 从设置 → AI 策略搬来）：权限弹层底部那一行打开，Mantine 弹窗承载。
   const [systemPromptOpen, setSystemPromptOpen] = React.useState(false)
+  const [threadsOpen, setThreadsOpen] = React.useState(false)
+  const promptLibrary = usePromptLibrary(popover === 'skill')
+  const userPromptLibrary = useUserPrompts(popover === 'skill')
+  const slashMenu = useAgentSlashMenu({
+    popover,
+    setPopover,
+    skills: data.skills,
+    promptItems: promptLibrary.items,
+    userPromptItems: userPromptLibrary.items,
+    activeSkillKey: activeSkill?.key ?? null,
+    selectedPromptId: actions.selectedLibraryPrompt?.id ?? null,
+    getDraft: () => useWorkbenchStore.getState().projectAgentDraft,
+    clearSlashDraft: () => setDraft(''),
+    focusComposer: requestResidentComposerFocus,
+    onSelectSkill: (key) => {
+      // 技能与提示词互斥：一次对话只装一套说法。
+      actions.setSelectedLibraryPrompt(null)
+      setActiveSkill(activeSkill?.key === key ? null : { key })
+    },
+    onSelectPrompt: (prompt) => actions.setSelectedLibraryPrompt(prompt),
+  })
   // 2026-09-10 走查反馈：弹层只有 Escape 和原按钮 toggle 两条关闭路径，点面板其他地方
   // 不关。补 outside-close：pointerdown 落在弹层本体 / 触发钮 / NomiSelect 传送门之外
   // 即收起。触发钮要豁免——否则「pointerdown 先关 + click 再 toggle」会把它重新打开。
@@ -258,24 +276,27 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       if (!target) return
       if (target.closest('[data-v4-popover-anchor]')) return
       if (target.closest('[data-v4-control="model"], [data-v4-control="skill"], [data-v4-control="permission"]')) return
+      if (slashMenu.openedBySlash && target.closest('[data-v4-control="input"]')) return
       if (target.closest('[role="listbox"], [data-radix-popper-content-wrapper]')) return
-      setPopover(null)
+      slashMenu.dismissPopover()
     }
     document.addEventListener('pointerdown', onPointerDown, true)
     return () => document.removeEventListener('pointerdown', onPointerDown, true)
-  }, [popover])
-  const [threadsOpen, setThreadsOpen] = React.useState(false)
-  const [commandQuery, setCommandQuery] = React.useState('')
+  }, [popover, slashMenu])
   const attachmentApi = useComposerAttachments({ attachments, setAttachments, settleAttachment: settleProjectAgentAttachment, onError: setReferenceError })
   const mentions = useAgentReferenceMentions({ projectId: openProjectId,
     conversationKey: `${openProjectId}:${data.activeThreadId}`, attachments, api:attachmentApi, draft, setDraft, onError:setReferenceError })
-  // 输入框的 owner：store 里此刻的草稿（不是渲染时的 draft），编辑经 mentions.onChange 写回（它顺带删掉被删 @ 的附件）。
+  // 输入框的 owner：store 里此刻的草稿（不是渲染时的 draft），编辑经 mentions.onChange 写回（它顺带删掉被删 @ 的附件），并同步「/」弹层状态。
   const mentionsOnChange = mentions.onChange
+  const handleSlashDraftWrite = slashMenu.handleDraftWrite
   const draftOwner = React.useMemo<NomiEditorOwner<string>>(() => ({
     subscribe: useWorkbenchStore.subscribe,
     getSnapshot: () => useWorkbenchStore.getState().projectAgentDraft,
-    write: (next, previous) => mentionsOnChange(next, previous()),
-  }), [mentionsOnChange])
+    write: (next, previous) => {
+      mentionsOnChange(next, previous())
+      handleSlashDraftWrite(next)
+    },
+  }), [handleSlashDraftWrite, mentionsOnChange])
   const addInlineReference = mentions.addReference
   const pickReferenceOnCanvas = () => {
     setPopover(null)
@@ -305,8 +326,6 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       if (asset) addInlineReference(asset)
     } })
   }, [pendingReferencePick, surface, openProjectId, data.activeThreadId, addInlineReference])
-  const promptLibrary = usePromptLibrary(popover === 'skill')
-  const userPromptLibrary = useUserPrompts(popover === 'skill')
   const timelinePlanPreviewPortal = useTimelinePlanPreview(
     surface,
     data.pendingRecords,
@@ -444,69 +463,21 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
    */
   const modelRows = React.useMemo(() => buildV4ModelRows(data, t), [data, t])
 
-  const commandRows: readonly V4CommandRow[] = React.useMemo(() => {
-    const query = commandQuery.trim()
-    const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en'
-    const skillRows: V4CommandRow[] = data.skills
-      .filter((skill) => skill.curation?.kind !== 'effect' && (!query || `${skillDisplayTitle(skill, i18n.language)} ${skill.name}`.toLowerCase().includes(query.toLowerCase())))
-      // 自己导进来的排在内置前面。用户刚把一个技能弄进 Nomi，下一秒来这里找它——
-      // 让他先滚过四个他没装过的内置技能才看见自己那个，是把「我刚做的事」排在最后。
-      .sort((a, b) => (a.origin === b.origin ? 0 : a.origin === 'user' ? -1 : 1))
-      .map((skill) => ({
-        id: `skill:${skill.name}`,
-        group: libraryGroup(skill, i18n.language),
-        name: skillDisplayTitle(skill, i18n.language),
-        command: `/${skill.name}`,
-        desc: skill.curation?.summary[locale] ?? skill.description ?? skill.stageLabels.join(' · '),
-        cover: skill.cover,
-        preview: skill.preview,
-        section: t('agentPanelV4.sectionSkills'),
-        selected: activeSkill?.key === skill.name,
-      }))
-    // ⑤ 提示词库并进同一个 `/` 菜单。两段各有名字，搜索一次搜两段——
-    // 用户那一刻想的是「给这次对话装一套说法」，不是「这算技能还是提示词」。
-    const promptRows: V4CommandRow[] = [...promptLibrary.items, ...userPromptLibrary.items]
-      .filter((prompt) => filterPrompts([prompt], 'all', query).length > 0)
-      .map((prompt) => ({
-        id: `prompt:${prompt.id}`,
-        group: libraryGroup(prompt, i18n.language),
-        name: promptDisplayTitle(prompt),
-        command: `/${prompt.id}`,
-        desc: prompt.prompt,
-        section: prompt.curation?.kind === 'effect' ? t('libraries.gallery.effect') : t('agentPanelV4.sectionPrompts'),
-        preview: prompt.mediaUrl ? { url: prompt.mediaUrl, type: prompt.mediaType } : undefined,
-        // 提示词库本来就有封面（`mediaUrl` = 首图），此前在这里被整包丢掉，
-        // 于是每一行都退化成同一个白块。有图就把图给它。
-        ...(prompt.mediaType === 'image' && prompt.mediaUrl ? { cover: prompt.mediaUrl } : {}),
-        selected: actions.selectedLibraryPrompt?.id === prompt.id,
-      }))
-    return Object.freeze([...skillRows, ...promptRows])
-  }, [actions.selectedLibraryPrompt, activeSkill, commandQuery, data.skills, i18n.language, promptLibrary.items, t, userPromptLibrary.items])
-
   const composerPopover = popover === 'model'
     ? <V4ModelPopover rows={modelRows} onOpenLibrary={() => { window.dispatchEvent(new Event('nomi-open-model-catalog')); setPopover(null) }} />
     : popover === 'skill'
       ? (
         <V4SkillPopover
-          rows={commandRows}
-          categories={[t('agentPanelV4.skillAll'), t('agentPanelV4.sectionSkills'), t('agentPanelV4.sectionPrompts'), t('libraries.gallery.effect')]}
-          query={commandQuery}
-          onQueryChange={setCommandQuery}
-          onSelect={(row) => {
-            if (row.id.startsWith('skill:')) {
-              const key = row.id.slice('skill:'.length)
-              // 技能与提示词互斥：一次对话只装一套说法。两个都挂上时模型收到两段
-              // 互相打架的系统提示，产出会比不装还差。
-              actions.setSelectedLibraryPrompt(null)
-              setActiveSkill(activeSkill?.key === key ? null : { key })
-            } else {
-              const id = row.id.slice('prompt:'.length)
-              const prompt = [...promptLibrary.items, ...userPromptLibrary.items].find((item) => item.id === id)
-              actions.setSelectedLibraryPrompt(prompt ?? null)
-            }
-            setPopover(null)
-          }}
-          onManage={() => { window.dispatchEvent(new Event('nomi-focus-skill-library')); setPopover(null) }}
+          rows={slashMenu.commandRows}
+          categories={slashMenu.categories}
+          query={slashMenu.commandQuery}
+          loading={promptLibrary.loading || userPromptLibrary.loading}
+          autoFocus={!slashMenu.openedBySlash}
+          pickerRef={slashMenu.pickerRef}
+          onQueryChange={slashMenu.setCommandQuery}
+          onSelect={slashMenu.selectRow}
+          onClose={slashMenu.dismissPopover}
+          onManage={() => { window.dispatchEvent(new Event('nomi-focus-skill-library')); slashMenu.dismissPopover() }}
         />
       )
       : popover === 'permission'
@@ -532,7 +503,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       data-agent-approval-mode={actions.permission}
       onKeyDownCapture={(event) => {
         if (event.key === 'Escape') {
-          setPopover(null)
+          slashMenu.dismissPopover()
           setThreadsOpen(false)
         }
       }}
@@ -633,7 +604,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           // 先说别的。判据只有一个（槽的 kind），和卡自己画不画那一行自由输入同源。
           awaitingAnswer: activeSlot?.kind === 'question',
           openPopover: popover,
-          onTogglePopover: (next) => setPopover((current) => (current === next ? null : next)),
+          onTogglePopover: slashMenu.togglePopover,
+          onPopoverKeyDown: slashMenu.handleComposerKeyDown,
           ...(composerPopover ? { popover: composerPopover } : {}),
         }}
       />

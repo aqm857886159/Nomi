@@ -13,7 +13,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { AgentPanelV4Markdown } from './AgentPanelV4Markdown'
-import { ActionIcon, IconCheck, IconChevronRight, IconCopy, IconRefresh } from './AgentPanelV4Icons'
+import { ActionIcon, IconBooks, IconBulb, IconCheck, IconChevronRight, IconCopy, IconRefresh } from './AgentPanelV4Icons'
 import { Message, MessageActions, MessageResponse } from './vendor/aiElementsPrimitives'
 import { SkillMedia } from '../../skillLibrary/SkillMedia'
 import type { V4AssistantStatus, V4Chip } from './agentPanelV4Types'
@@ -36,7 +36,11 @@ function BubbleChip({ chip, onDark }: { chip: V4Chip; onDark: boolean }): JSX.El
       data-v4-chip={chip.kind}
     >
       {chip.kind === 'skill' ? (
-        <SkillMedia cover={chip.cover} preview={chip.preview} iconSize={12} className="size-4 shrink-0 rounded-sm object-cover" />
+        chip.cover || chip.preview
+          ? <SkillMedia cover={chip.cover} preview={chip.preview} illustration={chip.illustration} iconSize={12} className="size-4 shrink-0 rounded-sm object-cover" />
+          : <IconBooks size={13} stroke={1.6} className="shrink-0" aria-hidden="true" />
+      ) : chip.kind === 'prompt' ? (
+        <IconBulb size={13} stroke={1.6} className="shrink-0" aria-hidden="true" />
       ) : (
         <span
           className={cn(
