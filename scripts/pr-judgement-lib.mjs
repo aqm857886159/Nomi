@@ -302,7 +302,7 @@ export function evidenceLineVerdict(line) {
  */
 export const PAID_SAMPLE_EVIDENCE_ID = 'spend-paid-sample'
 const PAID_SAMPLE_LINE = /^\s*(?:[-*]\s*)?(?:\*\*)?spend-paid-sample(?:\*\*)?\s*[:：]\s*(.*)$/i
-const PAID_SAMPLE_WAIVER = /协调豁免\s*[:：]\s*(\S.{2,})/
+const PAID_SAMPLE_WAIVER = /^\s*(?:\*\*)?协调豁免(?:\*\*)?\s*[:：]\s*(.+)$/
 const PAID_SAMPLE_PROOF = [
   /https?:\/\/\S+/,
   /(?:docs|reports?|artifacts|evals)[\\/][\w@./\\+-]+\.(?:md|json|txt)\b/i,
@@ -314,7 +314,7 @@ export function parsePaidSampleLine(line) {
   if (!head) return { kind: 'not-paid-sample-line', reason: `要以「${PAID_SAMPLE_EVIDENCE_ID}：」开头一行（别名不算）` }
   const rest = head[1]
   const waiver = PAID_SAMPLE_WAIVER.exec(rest)
-  if (waiver) return { kind: 'waiver', reason: waiver[1].trim() }
+  if (waiver && waiver[1].trim().length >= 3) return { kind: 'waiver', reason: waiver[1].trim() }
   const unverified = UNVERIFIED.exec(rest)
   if (unverified && unverified[1].trim().length >= 2) return { kind: 'unverified', reason: unverified[1].trim() }
   if (/未验证/.test(rest)) return { kind: 'unverified-incomplete', reason: '「未验证」后要写明原因（至少 2 个字）' }

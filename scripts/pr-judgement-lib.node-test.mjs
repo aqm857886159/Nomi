@@ -304,25 +304,40 @@ test('真付费抽检唯一解析器（CI 档与合并档同口径）：全部 5
   const ciJudge = (paidLine) => evaluatePrJudgement({ body: prBody(paidLine), files, createdAt: '2026-10-16T00:00:00Z', table })
   const mergeJudge = (paidLine) => evaluatePrJudgement({ body: prBody(paidLine), files, createdAt: '2026-10-16T00:00:00Z', table, paidStrict: true })
 
-  // 1) 只有纯文字协调豁免（无链接 / 路径）：CI 绿、合并绿、合并打 ⚠ 提示
-  const waiverLine = '- spend-paid-sample：协调豁免：只改文案不碰供应商'
-  assert.deepEqual(parsePaidSampleLine(waiverLine), { kind: 'waiver', reason: '只改文案不碰供应商' })
-  assert.equal(paidSampleVerdict(waiverLine, { allowUnverified: true }).ok, true)
-  assert.equal(paidSampleVerdict(waiverLine, { allowUnverified: false }).ok, true)
-  assert.equal(paidSampleVerdict(waiverLine).waived, true)
-  assert.equal(ciEvidence(waiverLine).ok, true, 'checkRoutingEvidence CI 档应接受纯文字协调豁免')
-  const mergeWaived = mergeEvidence(waiverLine)
-  assert.equal(mergeWaived.ok, true, 'checkRoutingEvidence 合并档应接受纯文字协调豁免')
-  assert.match(mergeWaived.lines.join('\n'), /⚠ spend-paid-sample：协调豁免——只改文案不碰供应商/)
-  assert.equal(ciJudge(waiverLine).blocked, false, 'evaluatePrJudgement CI 档应接受纯文字协调豁免')
-  const mergeJudgeWaived = mergeJudge(waiverLine)
-  assert.equal(mergeJudgeWaived.blocked, false)
-  assert.match(mergeJudgeWaived.routing.lines.join('\n'), /⚠ spend-paid-sample：协调豁免——只改文案不碰供应商/)
+  // 1) 只有纯文字协调豁免（无链接 / 路径）：CI 绿、合并绿、合并打 ⚠ 提示；加粗与正文含「未验证」字样仍判 waiver；1-2 字加尾随空格不得绕过 ≥3 字校验
+  for (const [waiverLine, expectedReason] of [
+    ['- spend-paid-sample：协调豁免：只改文案不碰供应商', '只改文案不碰供应商'],
+    ['- spend-paid-sample：**协调豁免**：只改文案不碰供应商', '只改文案不碰供应商'],
+    ['- spend-paid-sample：协调豁免：未验证，本次仅改文案', '未验证，本次仅改文案'],
+  ]) {
+    assert.deepEqual(parsePaidSampleLine(waiverLine), { kind: 'waiver', reason: expectedReason }, waiverLine)
+    assert.equal(paidSampleVerdict(waiverLine, { allowUnverified: true }).ok, true, waiverLine)
+    assert.equal(paidSampleVerdict(waiverLine, { allowUnverified: false }).ok, true, waiverLine)
+    assert.equal(paidSampleVerdict(waiverLine).waived, true, waiverLine)
+    assert.equal(ciEvidence(waiverLine).ok, true, `checkRoutingEvidence CI 档应接受纯文字协调豁免：${waiverLine}`)
+    const mergeWaived = mergeEvidence(waiverLine)
+    assert.equal(mergeWaived.ok, true, `checkRoutingEvidence 合并档应接受纯文字协调豁免：${waiverLine}`)
+    assert.match(mergeWaived.lines.join('\n'), new RegExp(`⚠ spend-paid-sample：协调豁免——${expectedReason}`))
+    assert.equal(ciJudge(waiverLine).blocked, false, `evaluatePrJudgement CI 档应接受纯文字协调豁免：${waiverLine}`)
+    const mergeJudgeWaived = mergeJudge(waiverLine)
+    assert.equal(mergeJudgeWaived.blocked, false, waiverLine)
+    assert.match(mergeJudgeWaived.routing.lines.join('\n'), new RegExp(`⚠ spend-paid-sample：协调豁免——${expectedReason}`))
+  }
+  for (const shortWaiver of ['- spend-paid-sample：协调豁免：无  ', '- spend-paid-sample：协调豁免：两个 ']) {
+    assert.equal(parsePaidSampleLine(shortWaiver).kind, 'invalid', shortWaiver)
+    assert.equal(paidSampleVerdict(shortWaiver, { allowUnverified: true }).ok, false, shortWaiver)
+    assert.equal(paidSampleVerdict(shortWaiver, { allowUnverified: false }).ok, false, shortWaiver)
+    assert.equal(ciEvidence(shortWaiver).ok, false, shortWaiver)
+    assert.equal(mergeEvidence(shortWaiver).ok, false, shortWaiver)
+    assert.equal(ciJudge(shortWaiver).blocked, true, shortWaiver)
+    assert.equal(mergeJudge(shortWaiver).blocked, true, shortWaiver)
+  }
 
-  // 2) 「未验证：<原因>」：CI 绿（且计数未验证正确）、合并红；未验证后附链接仍判 unverified 而不是 proof；缺原因或 1 字原因两档都红
+  // 2) 「未验证：<原因>」：CI 绿（且计数未验证正确）、合并红；未验证后附链接或「协调豁免：」字样仍判 unverified 而不是 proof/waiver；缺原因或 1 字原因两档都红
   for (const unverifiedLine of [
     '- spend-paid-sample：未验证：待协调真付费',
     '- spend-paid-sample：未验证：真付费还没跑 https://example.com/x',
+    '- spend-paid-sample：未验证：待申请协调豁免：还没跑',
   ]) {
     assert.equal(parsePaidSampleLine(unverifiedLine).kind, 'unverified', unverifiedLine)
     assert.equal(paidSampleVerdict(unverifiedLine, { allowUnverified: true }).ok, true, unverifiedLine)
