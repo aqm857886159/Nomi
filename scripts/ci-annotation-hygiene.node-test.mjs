@@ -242,6 +242,18 @@ test('取消的 Mac Package 超时注解归 workflow 编排 owner', () => {
   assert.equal(result.unexpected.length, 0)
 })
 
+test('runner 下载 action 失败后重试成功：两条重试 warning 归 runner 基础设施；job 没成功或换了内容照样是意外', () => {
+  const retry = (jobConclusion, message) => ({ jobName: 'Unit (2)', jobConclusion, path: '.github', level: 'warning', title: '', message })
+  const download = "Failed to download action 'https://codeload.github.com/pnpm/action-setup/tar.gz/73e46992e05b19abd31f2f3c20e0e7370d762115'. Error: The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing."
+  const backOff = 'Back off 16.03 seconds before retry.'
+  const ok = evaluateAnnotations([retry('success', download), retry('success', backOff)], { schemaVersion: 1, entries: [] }, new Date('2026-11-22T00:00:00Z'))
+  assert.equal(ok.unexpected.length, 0)
+  assert.deepEqual(ok.delegated.map((entry) => entry.owner), ['runner action-download retry (job succeeded)', 'runner action-download retry (job succeeded)'])
+  // 反例：job 没成功（重试也没下下来）→ 仍是意外；别的 .github warning 不跟着放过
+  const bad = evaluateAnnotations([retry('failure', download), retry('success', 'Node.js 16 actions are deprecated.')], { schemaVersion: 1, entries: [] }, new Date('2026-11-22T00:00:00Z'))
+  assert.equal(bad.unexpected.length, 2)
+})
+
 // ── 非阻断核心冒烟格（2026-09-22 用户拍板）────────────────────────────────────
 // job 级 continue-on-error 只放过 needs.core-smoke.result，注解还在：advisory 格红了会留下
 // 一条 `##[error]Process completed with exit code 1.`（annotation_level=failure）。此前本环把它
