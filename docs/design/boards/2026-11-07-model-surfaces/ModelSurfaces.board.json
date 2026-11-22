@@ -1490,10 +1490,14 @@
         "1621-svg",
         "1622-svg"
       ],
-      "status": "in-progress",
-      "owner": "协调：合并前给用户看其余状态真截图",
+      "status": "implemented",
+      "owner": "花费显示第一步：发送键上的约价（docs/plan/2026-11-17-cost-step1-estimate.md）",
       "assertion": "board:ModelSurfaces/cost.send-pill",
-      "note": "有价默认态和悬停，用户 11-22 已看过；估不出 / 算价中 / 禁用+有价 / 生成中 / 最长数字 / 最窄这几态的真截图，由独立验收在 PR 头上拍，协调给用户看过再翻。"
+      "note": "有价默认态和悬停，用户 11-22 已看过；估不出 / 算价中 / 生成中 / 最长数字 / 最窄 700 这几态的真截图由独立验收在 PR 头上拍（中英 × 浅暗），2026-11-22 协调给用户看过各态拼图与分镜行「生成」放回的改前 / 改后，用户照推荐合并。禁用 + 有价在真窗口造不出，只由 ComposerSendButton 单测与设计实验室格 sc-i-disabled-priced 守。",
+      "userDecision": {
+        "quote": "可以都按你的推荐走",
+        "date": "2026-11-22"
+      }
     },
     {
       "id": "cost.hover",
