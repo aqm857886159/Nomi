@@ -1,4 +1,4 @@
-待协调定：目录 / 概念口径命中之外，`catalogStore.ts`、`types.ts` 文件本身命中（各已 2 个 fix），不在代批例外里。
+本文由实现线写；独立三条路对比见派工前调研报告 R-agent-text-foundation（协调 11-22 代批：文件 catalogStore.ts / types.ts 本身命中，但这一刀只加一行漏斗初值和一张收据，不是这两个文件上那几类 fix 的续补）。
 
 # 方向检查：模型能力一处声明（2026-11-22）
 
@@ -24,8 +24,12 @@
 | c83694a96 第三方公共临时托管只由设置决定 | `types.ts` | 设置字段，无关 |
 | d17abc78f、2b428cee1、67be4fc91（`agentLane/`） | 无（`laneHost.mts`、`laneInputIntent.mts`、`laneModelContext.ts`） | 芯片 / 草稿 / 默认模型，无关 |
 | 5e7ac998f、47471b1fe（`ai/`） | 无（`modelImageInput.ts`、`textBrainResolver.ts`） | 出站测试、读图后备，无关 |
+| f48f1ee1b 失败判定收成一处 | 只碰测试（含 `laneModelCall.test.ts`、`agentError.test.ts`） | 失败分类的家，无关 |
+| 4ee3ca180 参数值进门统一类型 | 只碰测试（`draftSelfCorrection.test.ts`） | 参数编码，无关 |
+| 3c0e2022c 删掉按目的地拦截的整层 | 只碰测试（`modelImageInput.test.ts`） | 出站拦截，无关 |
+| c259eb988 一次出多张进同一镜版本历史 | 只碰测试（`textEntries.ipc.integration.test.ts`） | 生成版本历史，无关 |
 
-命中是目录 / 文件里别的类凑的数；「按名字猜请求怎么发」这一类 14 天内没有 fix。
+12 个 fix 全列在上面：命中是目录 / 文件里别的类凑的数；「按名字猜请求怎么发」这一类 14 天内没有 fix。
 
 ### 2. 为什么这一类会一直出现
 
