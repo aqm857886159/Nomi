@@ -8,6 +8,7 @@ import i18n from '../../../i18n'
 import { VendorRequestError, encodeVendorErrorMessage } from '../../../../electron/vendor/vendorHttp'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import { createRewriteController, type RewriteController, type RewriteHost } from './rewriteController'
+import * as rewriteSessionModule from './rewriteSession'
 import { buildRewriteDecorations, createRewritePlugin, getRewriteSession, openRewriteTransaction, rangeText, rewriteSessionKey, rewriteDocumentIdentity, setRewriteDocumentIdentityTransaction, type RewriteRequirement } from './rewriteSession'
 import { REWRITE_PRESET_INSTRUCTIONS, buildRewritePrompt, cleanRewriteOutput, isWritingSkill, skillBodyText } from './rewritePrompt'
 import { diffRewrite } from './rewriteDiff'
@@ -25,6 +26,8 @@ const doc = (...paragraphs: string[]): ProseMirrorNode =>
 type TestHost = RewriteHost & {
   select(from: number, to: number): void
   edit(from: number, to: number, text: string): void
+  /** 在当前光标/选区处敲字（同编辑器真实打字：同时置 docChanged 与 selectionSet）。 */
+  type(text: string): void
   undo(): void
   /** 切文稿：和 WorkbenchEditor 的布局副作用一样，发一笔只改「当前是哪篇文稿」的事务（正文可以一模一样、编辑器照旧复用）。 */
   switchDocument(id: string): void
@@ -48,6 +51,7 @@ function createHost(initial: ProseMirrorNode): TestHost {
     },
     select(from, to) { host.dispatch(state.tr.setSelection(TextSelection.create(state.doc, from, to))) },
     edit(from, to, text) { host.dispatch(state.tr.insertText(text, from, to)) },
+    type(text) { host.dispatch(state.tr.insertText(text)) },
     undo() { undo(state, (transaction) => host.dispatch(transaction)) },
     switchDocument(id) { host.dispatch(setRewriteDocumentIdentityTransaction(state, id)) },
     text() { return state.doc.textBetween(0, state.doc.content.size, '\n') },
@@ -221,18 +225,42 @@ describe('选中文字 → AI 编辑：就地出结果', () => {
     expect(getRewriteSession(host.state)?.original).toBe(P2)
   })
 
-  it('改写进行中用户选了别处：这次调用被取消，结果回来也不会写到任何地方', async () => {
+  it('改写进行中点去第一段并打字：会话继续跑、不取消请求，区间跟着平移，结果落回第二段且保留第一段新写的字', async () => {
     openOnSecondParagraph()
     controller.submit(REQUIREMENT)
     const request = await fake.request(1)
-    const before = host.state.doc.toJSON()
-    host.select(1, 5) // 选了第一段
+
+    // 创作者趁等待时间点去第一段开头打字，再去第三段末尾补字（每次都真实改光标 + 敲字）
+    host.select(1, 1)
+    expect(getRewriteSession(host.state)?.status).toBe('running')
+    expect(request.signalAborted()).toBe(false)
+
+    const prefix = '【前插】'
+    host.type(prefix)
+    const shifted = getRewriteSession(host.state)
+    expect(shifted?.status).toBe('running')
+    expect(request.signalAborted()).toBe(false)
+    expect(shifted?.from).toBe(P2_FROM + prefix.length)
+    expect(shifted?.to).toBe(P2_TO + prefix.length)
+    expect(rangeText(host.state.doc, shifted!.from, shifted!.to)).toBe(P2)
+
+    const endOfDoc = host.state.doc.content.size - 1
+    host.select(endOfDoc, endOfDoc)
+    host.type('【后补】')
+    expect(getRewriteSession(host.state)?.status).toBe('running')
+    expect(request.signalAborted()).toBe(false)
+
+    // 模型结果回来：就地落在平移后的第二段上，接受（✓）只换第二段，第一段和第三段刚写的字都在
+    request.reply('慢慢展开纸条。')
+    await host.until(() => getRewriteSession(host.state)?.status === 'result')
+    expect(host.text()).toBe([`${prefix}${P1}`, P2, `${P3}【后补】`].join('\n'))
+    controller.accept()
+    expect(host.text()).toBe([`${prefix}${P1}`, '慢慢展开纸条。', `${P3}【后补】`].join('\n'))
     expect(getRewriteSession(host.state)).toBeNull()
-    expect(request.signalAborted()).toBe(true)
-    request.reply('不该出现的结果')
-    await settle()
-    expect(getRewriteSession(host.state)).toBeNull()
-    expect(host.state.doc.toJSON()).toEqual(before)
+
+    // Ctrl+Z 只撤回接受改写这一步，等待期间在第一段、第三段打的字完好保留
+    host.undo()
+    expect(host.text()).toBe([`${prefix}${P1}`, P2, `${P3}【后补】`].join('\n'))
   })
 
   it('改写进行中关掉（Esc / ✕）：同样取消，结果回来无处可写', async () => {
@@ -247,16 +275,30 @@ describe('选中文字 → AI 编辑：就地出结果', () => {
     expect(host.text()).toBe([P1, P2, P3].join('\n'))
   })
 
-  it('改写进行中原文被改了：结果作废，不去覆盖用户刚写的字', async () => {
+  it('改写进行中原文被改了：会话作废并取消请求，不去覆盖用户刚写的字（结果态改原文同样作废）', async () => {
     openOnSecondParagraph()
     controller.submit(REQUIREMENT)
     const request = await fake.request(1)
-    host.edit(P2_FROM + 2, P2_FROM + 4, '凝视')
+    host.select(P2_FROM + 1, P2_FROM + 3)
+    host.type('凝视')
     expect(getRewriteSession(host.state)).toBeNull()
+    expect(request.signalAborted()).toBe(true)
     request.reply('慢慢展开纸条。')
     await settle()
     expect(host.text()).toContain('凝视')
     expect(host.text()).not.toContain('慢慢展开纸条。')
+
+    // 结果已出后若用户直接手改第二段原文，旧结果装饰同样当场作废
+    host.select(P2_FROM, P2_TO)
+    expect(controller.open()).toBe(true)
+    controller.submit(REQUIREMENT)
+    const second = await fake.request(2)
+    second.reply('慢慢展开纸条。')
+    await host.until(() => getRewriteSession(host.state)?.status === 'result')
+    host.select(P2_FROM, P2_FROM + 1)
+    host.type('林薇')
+    expect(getRewriteSession(host.state)).toBeNull()
+    expect(host.text()).toContain('林薇凝视')
   })
 
   it('改写进行中前面的段落被编辑：区间跟着平移，结果仍落在原来那段字上', async () => {
@@ -270,13 +312,26 @@ describe('选中文字 → AI 编辑：就地出结果', () => {
     expect(host.text()).toBe([`【前插】${P1}`, '慢慢展开纸条。', P3].join('\n'))
   })
 
-  it('结果已出时点了别处：结果留着（不因一次误点丢掉）；菜单态点别处则关闭', async () => {
+  it('结果已出时点了别处：结果留着（不因一次误点丢掉）；菜单态与失败态点别处则关闭', async () => {
     await runToResult()
     host.select(1, 3)
     expect(getRewriteSession(host.state)?.status).toBe('result')
     controller.discard()
+
+    // 菜单态（尚未提交）：点去别处关闭菜单
     host.select(P2_FROM, P2_TO)
     controller.open()
+    expect(getRewriteSession(host.state)?.status).toBe('menu')
+    host.select(1, 3)
+    expect(getRewriteSession(host.state)).toBeNull()
+
+    // 失败态：点去别处收起报错条
+    host.select(P2_FROM, P2_TO)
+    controller.open()
+    controller.submit(REQUIREMENT)
+    const failedReq = await fake.request(2)
+    failedReq.fail('temporary error')
+    await host.until(() => getRewriteSession(host.state)?.status === 'failed')
     host.select(1, 3)
     expect(getRewriteSession(host.state)).toBeNull()
   })
@@ -452,6 +507,64 @@ describe('键盘：Enter 接受、Esc 放弃（焦点在文档里时由插件处
     await fake.request(1)
     expect(press('Enter')).toBe(false)
     expect(host.text()).toBe([P1, P2, P3].join('\n'))
+  })
+
+  it('进行中光标已移去第一段：按 Esc 仍显式取消请求；结果出来后在第一段按 Enter 不误接受第二段', async () => {
+    openOnSecondParagraph()
+    controller.submit(REQUIREMENT)
+    const request = await fake.request(1)
+    host.select(1, 1)
+    expect(getRewriteSession(host.state)?.status).toBe('running')
+    expect(press('Escape')).toBe(true)
+    expect(getRewriteSession(host.state)).toBeNull()
+    expect(request.signalAborted()).toBe(true)
+
+    openOnSecondParagraph()
+    controller.submit(REQUIREMENT)
+    const second = await fake.request(2)
+    host.select(1, 1)
+    second.reply('慢慢展开纸条。')
+    await host.until(() => getRewriteSession(host.state)?.status === 'result')
+    // 光标还在第一段：按 Enter 是第一段自己的回车，不替第二段点接受
+    expect(press('Enter')).toBe(false)
+    expect(getRewriteSession(host.state)?.status).toBe('result')
+    // 光标回到第二段：按 Enter 接受第二段结果
+    host.select(P2_FROM, P2_FROM)
+    expect(press('Enter')).toBe(true)
+    expect(host.text()).toBe([P1, '慢慢展开纸条。', P3].join('\n'))
+  })
+
+  it('结果回包时的焦点保护：用户已去别的段落打字或点去外部控件时不抢焦点；刚开菜单或仍留在本段时正常收焦点', async () => {
+    const checkFocus = (rewriteSessionModule as Record<string, unknown>).shouldAutoFocusRewriteInput as
+      | ((input: {
+          state: EditorState
+          session: NonNullable<ReturnType<typeof getRewriteSession>>
+          editorFocused: boolean
+          barContainsFocus: boolean
+          bodyOrNullFocused: boolean
+        }) => boolean)
+      | undefined
+    expect(typeof checkFocus).toBe('function')
+
+    openOnSecondParagraph()
+    const menuSession = getRewriteSession(host.state)!
+    expect(checkFocus!({ state: host.state, session: menuSession, editorFocused: true, barContainsFocus: false, bodyOrNullFocused: false })).toBe(true)
+
+    controller.submit(REQUIREMENT)
+    const request = await fake.request(1)
+    host.select(1, 1)
+    request.reply('慢慢展开纸条。')
+    await host.until(() => getRewriteSession(host.state)?.status === 'result')
+    const resultSession = getRewriteSession(host.state)!
+
+    // 用户正在第一段打字，或点去了 Agent 输入框等外部控件：结果到达时绝不抢走焦点
+    expect(checkFocus!({ state: host.state, session: resultSession, editorFocused: true, barContainsFocus: false, bodyOrNullFocused: false })).toBe(false)
+    expect(checkFocus!({ state: host.state, session: resultSession, editorFocused: false, barContainsFocus: false, bodyOrNullFocused: false })).toBe(false)
+
+    // 焦点本来就在改写条里，或编辑器选区仍在待改段内：正常聚焦输入框以便直接按 Enter / Esc
+    expect(checkFocus!({ state: host.state, session: resultSession, editorFocused: false, barContainsFocus: true, bodyOrNullFocused: false })).toBe(true)
+    host.select(P2_FROM, P2_TO)
+    expect(checkFocus!({ state: host.state, session: getRewriteSession(host.state)!, editorFocused: true, barContainsFocus: false, bodyOrNullFocused: false })).toBe(true)
   })
 })
 
