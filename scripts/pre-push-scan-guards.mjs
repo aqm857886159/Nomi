@@ -226,6 +226,8 @@ export const SCAN_MODULES = Object.freeze({
   'tests/world/oldUserData.mjs': { roots: ['tests/fixtures/old-user-data'], exts: '*', reason: '旧用户数据名册：只列旧数据夹具目录（tests/fixtures/old-user-data），不遍历仓库源码' },
 })
 
+const FIXTURE_DIR = /(?:^|\/)fixtures\//
+
 /** 一份证据（scanEvidence 的结果）里不属于已登记模块的部分。 */
 function unregisteredEvidence(found, modules) {
   return found.filter((item) => !(item.file in modules))
@@ -238,6 +240,7 @@ function unregisteredEvidence(found, modules) {
 export function moduleScanGuards(root, testFiles, modules = SCAN_MODULES, detect = scanEvidence) {
   const derived = []
   for (const file of testFiles) {
+    if (FIXTURE_DIR.test(file)) continue // 夹具测试（如 tests/world/fixtures/*.node-test.ts）由元测试用自己的配置起子进程跑，不是能单独批量跑的守卫
     const found = detect(file, root)
     if (found.length === 0) continue
     const hit = [...new Set(found.map((item) => item.file))].filter((item) => item in modules)

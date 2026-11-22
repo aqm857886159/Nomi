@@ -719,6 +719,7 @@ function rosterRepo(extraTest = WORLD_USER) {
     'tests/world/oldUserData.mjs': OLD_DATA_ROSTER,
     'electron/a.ts': 'export {}',
     'electron/world.test.ts': extraTest,
+    'tests/world/fixtures/x.ok.node-test.ts': "import { buildWorld } from '../index'\ntest('x', () => { buildWorld() })",
   })
 }
 const rosterInputs = (root, extra = {}) => ({ root, testFiles: ['electron/world.test.ts'], scanTests: new Set(), gateScripts: '', gateImplFiles: new Set(), prePushGates: new Set(), guards: [], ciOnly: [], covered: {}, notScans: {}, ...extra })
@@ -738,6 +739,8 @@ test('按模块登记：落在模块 roots 下的改动选中 import 了它的�
   assert.ok(touchesScanGuard(derived[0], ['tests/fixtures/old-user-data/text-quirks/v0.24.0/chat/model-catalog.json']))
   assert.ok(!touchesScanGuard(derived[0], ['src/ui/A.tsx']))
   assert.ok(!touchesScanGuard(derived[0], ['electron/a.ts']))
+  // 夹具目录里的测试（元测试自己起子进程跑）不派生成批量守卫：批量跑它会假红
+  assert.deepEqual(moduleScanGuards(root, ['electron/world.test.ts', 'tests/world/fixtures/x.ok.node-test.ts'], ROSTER_MODULES).map((guard) => guard.file), ['electron/world.test.ts'])
   // 真仓库：三个 #1595 的测试由模块登记带出，改旧数据夹具选中、改 src 不选
   const real = scanGuardsToRun(['tests/fixtures/old-user-data/text-quirks/v0.24.0/chat/model-catalog.json']).map((guard) => guard.file)
   for (const file of ['electron/agentLane/modelRequestParity.test.ts', 'electron/catalog/modelDeclarationFunnel.test.ts', 'electron/catalog/modelDeclarationOldUser.test.ts']) {
