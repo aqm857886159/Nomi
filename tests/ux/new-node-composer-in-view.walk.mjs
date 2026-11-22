@@ -148,8 +148,8 @@ async function runCombo(size, track) {
           if (real > INITIAL_HEIGHT[kind] + 0.5) fail(`${label}：真实底栏高 ${real.toFixed(1)} 比落点留的刚建出来高度 ${INITIAL_HEIGHT[kind]} 还高（数漂了）`)
           if (INITIAL_HEIGHT[kind] - real > INITIAL_SLACK) fail(`${label}：落点留的刚建出来高度 ${INITIAL_HEIGHT[kind]} 比真实底栏高 ${real.toFixed(1)} 多留了 ${(INITIAL_HEIGHT[kind] - real).toFixed(1)}，超过 ${INITIAL_SLACK}（数漂了）`)
         }
-        if (size.name === '1280x800' && kind !== 'video') {
-          // 标题小标签没被舞台上沿切；小工具条不压在节点上（选中时才出现，新建即选中）。
+        if (size.name === '1280x800') {
+          // 标题小标签没被舞台上沿切；小工具条不压在节点上（选中时才出现，新建即选中）。视频与图片同标准，不放豁免。
           if (!m.label) fail(`${label}：没找到标题小标签`)
           else if (m.label.y < m.stage.y - 0.5) fail(`${label}：标题小标签上沿 ${m.label.y.toFixed(1)} 高过舞台上沿 ${m.stage.y.toFixed(1)}，被切`)
           if (!m.toolbar) fail(`${label}：没找到节点小工具条`)
@@ -178,9 +178,8 @@ async function runCombo(size, track) {
             if (m.node.y > want.y + 0.5) fail(`${label}：1440×960 落点 y ${m.node.y} 比主干基线 ${want.y} 还低（只许往上提）`)
             if (kind === 'text' && Math.abs(m.node.y - want.y) > 0.5) fail(`${label}：1440×960 文字节点整块放得下，落点 y ${m.node.y} 应等于主干基线 ${want.y}`)
           }
-          // 默认窗口落点和主干差不超过 20 像素（只给底栏留刚建出来的高度，不再把节点顶到舞台上沿）。
-          // 视频节点除外：名义高 340、真实渲染 236，落点按名义足迹算会多提约 79（名义尺寸在节点注册表里，不在这一刀范围），见报告。
-          if (kind !== 'video' && want && m.node && want.y - m.node.y > 20) fail(`${label}：1440×960 落点 y ${m.node.y} 比主干基线 ${want.y} 提高了 ${(want.y - m.node.y).toFixed(1)}，超过 20`)
+          // 默认窗口所有节点落点和主干差都不超过 20 像素（视频出生即 420×236、图片 340×340，不再按避让足迹虚抬）。
+          if (want && m.node && want.y - m.node.y > 20) fail(`${label}：1440×960 落点 y ${m.node.y} 比主干基线 ${want.y} 提高了 ${(want.y - m.node.y).toFixed(1)}，超过 20`)
           if (m.card && m.topDock !== null && m.card.bottom > m.topDock + 0.5) fail(`${label}：1440×960 底栏下沿 ${m.card.bottom.toFixed(1)} 压到停靠条上沿 ${m.topDock.toFixed(1)} 下面`)
         }
       }

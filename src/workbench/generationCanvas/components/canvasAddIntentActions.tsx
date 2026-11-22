@@ -87,14 +87,14 @@ export function useLocalFilePicker(onFiles: (files: File[]) => void): { input: J
  * **画布现有那条本地文件路径**（拖进画布走的同一条：复制进项目 + 上传 + 建素材卡），不另建一套（P1）。
  */
 export function useCanvasAddIntentAction({ getInsertionPosition, categoryId }: {
-  getInsertionPosition: (kind?: string) => { x: number; y: number }
+  getInsertionPosition: () => { x: number; y: number }
   categoryId?: string
 }): { run: (intent: CanvasAddIntent) => void; pickerInput: JSX.Element } {
   const picker = useLocalFilePicker((files) => {
     void importLocalFilesToGenerationCanvas(files, { basePosition: getInsertionPosition(), categoryId })
   })
   const run = (intent: CanvasAddIntent) => {
-    if (intent.kind) useGenerationCanvasStore.getState().addNode({ kind: intent.kind, position: getInsertionPosition(intent.kind), categoryId })
+    if (intent.kind) useGenerationCanvasStore.getState().addNode({ kind: intent.kind, categoryId })
     else picker.open()
   }
   return { run, pickerInput: picker.input }

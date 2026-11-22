@@ -1,60 +1,66 @@
-# 方向检查：新建节点落点（节点连底栏落在看得见的地方）
+# 方向检查：新建节点出生即定形（视频 / 图片节点落点与默认尺寸）
 
-> 协调代批（P1 例外：只因目录 / 概念口径命中，要改的文件本身没命中，改法是换不是加），事后报用户。
+> 2026-11-15 独立复盘（未参与前 3 轮的独立线）+ 用户拍板落地：**B1 出生即定形**（1A：`image 340×340`、`video 420×236`，两份注册表同改；2A：`addNode` 先构造节点，`visibleInsertionPoint` 读节点真实视觉尺寸 `resolveNodeVisualSize(node)`，去掉落点对 `getGenerationNodeFootprintSize` 的借用）。
+
+**这一处的全图在哪**：表外（新建节点落点涉及 `nodes/registry.ts`、`electron/capabilityCore/nodeKindDomain.ts`、`nodes/nodeSizing.ts`、`store/canvasVisibleArea.ts`、`store/canvasNodeActions.ts`、`reactFlow/GenerationCanvasReactFlow.tsx`、`components/canvasAddIntentActions.tsx`）。
 
 ### 0. 一句话根因
 
-「用户此刻看得见的那一块」有两个说法：对焦用的是「舞台扣掉停靠条和浮层后的空地」，新建用的是「整个舞台」，所以新节点的底栏会落到加节点条 / 缩放簇后面。
+节点刚出生时的尺寸不是它真正要画的尺寸，落点算式又拿「碰撞避让用的虚高足迹（名义尺寸 + 64px 安全余量）」来算落点，导致 1280×800 下视频被多顶上去约 168px、标题小标签被裁、1440×960 下被白白多提 79px。
 
 ### 1. 归类表：bug → 直接原因 → 类
 
 | 提交 / bug | 直接原因 | 类 |
 |---|---|---|
-| 矮窗口（1280×800）空画布点「添加图片节点」，底栏的模型 / 参数 / 发送一行被挡，加节点条也被底栏盖住 | 落点按整个舞台高度的 28% 算，且不给底栏留地方 | 同一个事实两个说法：对焦修过（用空地 + 底栏占位），新建没跟上 |
-| 近 14 天该目录的三个 fix（11-02、11-07） | 改的是「生成结果归谁、被拒后重发」，碰到同目录里的图写入口与写边界 | 与落点算法无关，只是目录命中 |
-
-量到的四个矩形（1280×800，缩放 100%，空画布点一次「添加图片节点」）：节点 y 240–580；底栏卡 y 594–808；加节点条按钮 y 704–736（被底栏的提示词框盖住）；底部时间轴条在舞台外面，舞台下沿 756。舞台里挡在下沿的是加节点条和左下缩放簇。默认窗口 1440×960 下这一屏没问题（图片节点刚好放得下）。
+| 1280×800 空画布点「添加图片」，底栏最下一行被挡、加节点条被盖 | 落点曾按整个舞台高度的 28% 算，不扣底部停靠条、不给底栏留地方 | 同一事实两份说法：对焦读空地 + 底栏，新建读整舞台 |
+| 第 3 轮修完图片后，1280×800 下视频仍顶到舞台上沿、标题标签被裁；1440×960 视频多提 79px | 视频注册默认尺寸 `420×340` 与默认 16:9 渲染高 `236` 差 104px，落点又叠加 `NODE_RENDER_SAFETY = 64` 当高，按 `404px` 算块高 | 出生尺寸失真 + 借用避让足迹算落点（一处猜、两处错） |
+| 第 3 轮图片在 1280×800 靠 `280+64=344` 碰巧贴近真实 340 | 图片注册默认尺寸 `340×280` 比 1:1 真实高 `340` 矮 60px，靠避让足迹的 `+64` 歪打正着凑近 `344` | 两个错误相抵（脆弱巧合，一到视频就炸） |
 
 ### 2. 为什么这一类会一直出现
 
-「看得见的那块」的算法没有唯一来源：每个入口自己拿舞台尺寸乘比例。落到铁律上不适用（不是意图抽取、模型参数或点击预期的问题）。
+两个结构错位叠在一起：
+1. **出生尺寸与默认比例脱节**：视频产品默认 16:9（`preferredVideoAspect([])` → `420×236`）、图片默认模型 Seedream 5.0 Pro 默认 1:1（`340×340`），但注册表仍写历史占位 `420×340` 和 `340×280`；节点落地瞬间是错尺寸，下一帧模型自动选好比例才突然跳形。
+2. **落点借用避让足迹**：`visibleInsertionPoint` 在构造节点前只拿 `kind`，借碰撞避让用的 `getGenerationNodeFootprintSize(kind)`（自带 `NODE_RENDER_SAFETY = 64`）估高；64px 是防节点间相撞的间距，算进落点只会把单张新节点无故往上推 64px。
+
+#### 三条体验铁律
+
+不适用（不是意图抽取、模型参数清单或点击预期矩阵问题，而是画布新建节点几何与落点单一真相源问题）。
 
 ### 3. 不改结构的话，接下来会冒出什么
 
 | 预测 | 怎么验证 |
 |---|---|
-| 以后再加一块常驻在画布下沿的东西，新建还是会落到它后面 | 新走查 `tests/ux/new-node-composer-in-view.walk.mjs` 在 1280×800 / 1100×720 看底栏和加节点条点不点得到 |
-| 有人在 store 里补一个写死的停靠条高度来「修」 | 结构测试 `canvasVisibleArea.structure.test.ts` 红 |
+| 以后改任一生成节点的默认比例或默认宽，注册尺寸悄悄失真，1280×800 下新节点再次顶出舞台或底栏落到停靠条后 | `npx vitest run src/workbench/generationCanvas/store/newNodeBornShape.test.ts`（钉死注册高 === 默认比例计算高 + 1280×800 / 1440×960 字面量落点） |
+| `src` 注册表与 `electron` 镜像表只改一份，Agent / MCP 建出的节点尺寸与 UI 分叉 | `npx vitest run electron/capabilityCore/nodeKindDomain.equivalence.test.ts` |
+| 有人在 `visibleInsertionPoint` 里按 `kind` 写特例分支或硬编码停靠条高度 | `npx vitest run src/workbench/generationCanvas/store/canvasVisibleArea.structure.test.ts` |
 
 ### 4. 靶子独立性检查
 
-- 走查和单测由本线写，量具是真实窗口里的 `elementFromPoint`，不是算式本身，不会「自己证明自己」。
-- 没有「修对了反而掉分」的先例。
+- 复盘由未参与前 3 轮的独立线给出「出生即定形（B1）」结论并经用户 2026-11-15 拍板。
+- 特征测试 ① 用字面量期望（不调用被测函数反算）；真窗口走查 `tests/ux/new-node-composer-in-view.walk.mjs` 去掉了第 3 轮对视频的两处豁免（`kind !== 'video'`），用真实 DOM 矩形和 `elementFromPoint` 判四件全露。
 
-### 5. P0：这些是我们独有的吗
+### 5. 这一整块归谁（P0）
 
-「新东西落在画布哪里」是画布领域（节点与底栏是一整块），属于自己写；通用部分（找空地、取障碍）复用对焦已有的 `resolveFreeViewRect` 和外壳登记的底部停靠标记，不另写。
+这一整块：画布新建节点出生尺寸与初始可见落点。
+归谁：我们唯一的主人 —— 节点真实渲染尺寸归 `src/workbench/generationCanvas/nodes/nodeSizing.ts:352`（`resolveNodeVisualSize`），默认尺寸注册归 `src/workbench/generationCanvas/nodes/registry.ts:154,185`（镜像在 `electron/capabilityCore/nodeKindDomain.ts:19,21`），空地裁切归 `src/workbench/generationCanvas/reactFlow/focusViewportRecovery.ts:48`（`resolveFreeViewRect`），新建落点归 `src/workbench/generationCanvas/store/canvasVisibleArea.ts:94`（`visibleInsertionPoint`）。
+我们哪里绕开了它：此前 `canvasVisibleArea.ts:105` 绕开了 `resolveNodeVisualSize`，改用避让足迹 `getGenerationNodeFootprintSize(kind)`；且 `registry.ts` 给 `image` / `video` 登记了与默认比例不符的占位高（280 / 340）。React Flow 的 `node.measured` + `useNodesInitialized`（`@xyflow/react` 12）要等节点挂载完成才测得到，属于「落地后再平移」——违背用户 2026-09-25「程序不主动平移 / 缩放画布」的领域约束，因此落点必须在入库前由同步纯函数 `resolveNodeVisualSize(builtNode)` 算清。
 
 ### 6. 三条路对比表 + 推荐
 
-| 选项 | 做什么 | 代价 | 风险 | 推荐 |
-|---|---|---|---|---|
-| 沿原方向修 | 新建和对焦读同一份空地，节点连底栏（只留底栏刚建出来那一刻的高度）当一整块放进空地 | 默认窗口下图片节点比今天落得高约 19 像素，1280×800 里落在空地内、标题和小工具条都露得全 | 与 09-25「新建落在可见区」、10-22「节点加底栏是一整块」同向 | 推荐 |
-| 换一种做法 | 新建后自动对焦，把画布挪过去 | 画布被程序挪动 | 2026-09-25 用户明确不要程序主动平移 / 缩放 | 否 |
-| 删掉 | 把底栏做成不随节点走的固定面板 | 改底栏形态 | 2026-09-25 用户定了底栏钉在节点正下方 | 否 |
-
-同类产品同一处：LibTV 在同样窗口下新加图片节点，下半截和输入框都在屏幕外、被底部工具条盖住，要自己拖，没有解决；我们取的是「新节点连同底栏落在看得见的地方」。
+| 选项 | 做什么 | 代价 | 选了以后同一类还会不会出现、从哪出现 | 风险 | 推荐 |
+|---|---|---|---|---|---|
+| 沿原方向修 | 在 `visibleInsertionPoint` 里继续借避让足迹，或给 `video` 加特例扣掉 104+64px | 违反结构测试，视频卡未选中时仍显示 420×340 假比例，选中再跳 | 会：每个比例变动的节点都要再补特例 | 补丁越叠越多 | 否 |
+| 换一种做法（B1 出生即定形：1A + 2A） | 1A：`image` 注册 `340×340`、`video` 注册 `420×236`（双表同改）；2A：`addNode` 先构造节点，`visibleInsertionPoint` 读 `resolveNodeVisualSize(node)`，移除 `getInsertionPosition(kind)` 参数与调用方重复 `position:` | Agent 批量视频卡行距由 404→300（需真机实测确认 16:9 零重叠、核对 9:16） | 不会：单测钉死受管种类注册高 === 默认比例高、双表等价，且落点读唯一视觉尺寸真相源 | 老项目均带持久化 `size`，实查 94 份样本 25/25 节点均有 `size`，外观零变化 | 推荐（2026-11-15 用户拍板） |
+| 删掉 | 删掉「新建时把底栏装进可见区」机制，或等 React Flow 挂载后 `fitView` 平移 | 1280×800 下底栏再次被停靠条遮挡，或程序主动平移画布 | 会：回到原 bug 或违背 09-25 不主动平移拍板 | 破坏已拍板体验 | 否 |
 
 ### 7. 用户要权衡的核心
 
-默认窗口下新节点比今天落得高一点点（图片约 19 像素），换来矮窗口里底栏和加节点条都不用先拖画布。
+让图片（340×340）与视频（420×236）出生即按默认画幅定形、落点改读真实视觉高，在 1440×960 下视频零上移、图片仅上移 15.28px（≤20px），换来 1280×800 下视频与图片四件全露且零跳变、不挪视口。
 
-### 8. 第 3 轮：为什么不留「最坏高度」
+## 特征测试清单（动结构前先锁住）
 
-第 2 轮给底栏留的是对焦用的最坏高度（图片 400、视频 460）。留这么多只换来「以后提示词写很长、底栏被撑高时不出界」，代价是几乎所有窗口里新节点都被提到舞台上沿：节点上方的标题小标签被切、节点自己的小工具条压在节点上，默认窗口里图片节点还被白白提高约 200 像素（没有任何东西要它让）。所以新建改成只留底栏刚建出来那一刻的高度（真量：图片 / 视频 214，文本加工框 172，各多留不到 24），数写在 `composerCanvasPlacement.ts` 里 `composerFocusFootprint` 旁边，走查真量底栏高度、两头断言；底栏后来被撑高时被挡就挡（09-25 用户拍板的位置规矩），对焦那条路仍用最坏高度，不动。
-
-## 特征测试清单
-
-- `src/workbench/generationCanvas/store/canvasVisibleArea.test.ts`：空地、落点算式、1440×960 不带底栏种类逐像素不变、200% 缩放。
-- `src/workbench/generationCanvas/store/canvasVisibleArea.structure.test.ts`：store 里没有第二份停靠条 / 底栏高度，落点算式无按种类分支。
-- `tests/ux/new-node-composer-in-view.walk.mjs`：真窗口三种尺寸、中英两轨。
+- `src/workbench/generationCanvas/store/newNodeBornShape.test.ts`：特征测试 ①②（字面量 1280×800 / 1440×960 落点 + 注册尺寸与默认比例 0px 跳变 + 双表等价），在改代码前先写并实跑 6/6 红后提交。
+- `src/workbench/generationCanvas/store/canvasVisibleArea.test.ts`：空地、落点算式、默认窗口不带底栏种类不变、1280×800 / 1100×720 / 200% 缩放。
+- `src/workbench/generationCanvas/store/canvasVisibleArea.structure.test.ts`：store 无第二份停靠条 / 底栏高度、落点算式无按种类分支。
+- `electron/capabilityCore/nodeKindDomain.equivalence.test.ts`：`src` registry 与 `electron` 镜像逐项等价。
+- `tests/ux/new-node-composer-in-view.walk.mjs`：真窗口三种尺寸、中英两轨（视频零豁免）。

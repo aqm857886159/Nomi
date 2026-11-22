@@ -89,16 +89,15 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     // status/meta/categoryId/shotIndex 全由工厂按 UI 同款规则补齐。store 只留 store 关注点
     // （落点避让、撤销点、set、事件）。镜号 = 出生即分配的存储身份（max+1，审计 A2）——工厂据传入的
     // currentState.nodes 算 max+1；categoryId 已在上面定好，显式传入让工厂与 store 一致。
-    // 先按期望落点造出节点、再解落点：避让要拿**新节点自己的真实占位**（含 meta / 显式 size 带来的渲染尺寸）去比，
-    // 不是 registry 名义尺寸；同一个盒子用来比，已有节点那边同理（见 resolveInsertionPosition 的 occupiedSize）。
-    const requested = input.position ?? visibleInsertionPoint(categoryId, input.kind) ?? { x: 120, y: 360 }
+    // 先造出节点、再算落点与避让：落点（visibleInsertionPoint）和避让（occupiedSize）都读**新节点自己的真实视觉尺寸**
+    // （含 meta / 显式 size 带来的渲染尺寸），不再用 registry 名义尺寸或避让足迹猜高。
     const nextNode = buildCanvasNode(
       {
         kind: input.kind,
         title: input.title,
         prompt: input.prompt,
-        x: requested.x,
-        y: requested.y,
+        x: input.position?.x,
+        y: input.position?.y,
         categoryId,
         ...(input.meta ? { meta: input.meta } : {}),
         ...(input.size ? { size: input.size } : {}),
@@ -106,6 +105,8 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       currentState.nodes,
       RENDERER_NODE_FACTORY_DEPS,
     ) as GenerationCanvasNode
+    const requested = input.position ?? visibleInsertionPoint(categoryId, nextNode) ?? { x: 120, y: 360 }
+    if (!input.position) nextNode.position = requested
     // 没给落点 = 调用方不关心具体位置：落在用户此刻看得见的地方（2026-09-25 拍板：新建尽量直接落在可见区，
     // 程序不再为了「露出」去挪画布）。画布从没挂载过（没有可见区）才退回固定原点。
     // exactPosition：调用方已算好成组紧凑布局（切图瓦片），信任原值、不避让——否则会被逐张推散。
