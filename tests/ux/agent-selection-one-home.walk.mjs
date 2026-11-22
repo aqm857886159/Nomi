@@ -181,14 +181,14 @@ try {
       await timelinePanel.locator('[data-track-type="image"] .workbench-timeline-track__clips').click({ position: { x: 350, y: 15 } })
     } else {
       const button = chips.nth(removeIndex).getByRole('button')
-      buttonPresent = await button.count() > 0
+      buttonPresent = await button.first().waitFor({ state: 'visible' }).then(() => true, () => false)
       if (buttonPresent) await clickOrFail(button, `${name}: remove one selected object`)
     }
     const after = await readChips()
     const selection = await readSelection()
     const members = requestMembers(await sendAndRecord(`${name}-after`, `Target ${name} after`))
     const sourceClipIds = await timelinePanel.locator('[data-clip-id]').evaluateAll(elements => elements.map(el => el.getAttribute('data-clip-id')))
-    const captionExists = await caption.count() === 1
+    const captionExists = await expect(caption).toHaveCount(1).then(() => true, () => false)
     const row = { name, before, beforeRequest, buttonPresent, after, selection, members, remaining, sourceClipIds, captionExists }
     targetResults.push(row)
     fs.writeFileSync(path.join(out, 'target-results.json'), JSON.stringify(targetResults, null, 2))

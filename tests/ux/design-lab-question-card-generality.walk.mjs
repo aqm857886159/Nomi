@@ -10,6 +10,7 @@
 // 用法: node tests/ux/design-lab-question-card-generality.walk.mjs
 import { stationTimeout } from './_station-budget.mjs'
 import { chromium } from 'playwright'
+import { expect } from '@playwright/test'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -174,7 +175,7 @@ try {
         if (!beforeSkip.includes('1/3') || !afterSkip.includes('2/3')) {
           failures.push(`${tag}/${state}：点「跳过」应从 1/3 走到 2/3（跳过当前这一题），实际 ${beforeSkip} → ${afterSkip}`)
         }
-        if (await shot.locator('[data-ask-card="true"]').count() !== 1) failures.push(`${tag}/${state}：点「跳过」把整张卡关了——那是 × 的事`)
+        if (!(await expect(shot.locator('[data-ask-card="true"]')).toHaveCount(1).then(() => true, () => false))) failures.push(`${tag}/${state}：点「跳过」把整张卡关了——那是 × 的事`)
       }
       if (shape.height < 40) failures.push(`${tag}/${state}：卡几乎没有高度（${shape.height}px），这一格什么都没证`)
       if (shape.overflowing.length) failures.push(`${tag}/${state}：${shape.overflowing.length} 处越出卡外 → ${shape.overflowing.join(' / ')}`)

@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest'
+import { expect as pwExpect } from '@playwright/test'
 import { chromium } from 'playwright'
 import { useBrowserFixture } from './_browserFixture.mjs'
 
@@ -37,7 +38,7 @@ for (const kind of ['videos', 'same-name', 'caption']) test(`display equals the 
       : ['b', 'a'].map(id => ({ id, title: kind === 'same-name' ? 'Same name' : `Original ${id}` }))
     expect(await page.evaluate(() => window.__selectionFixture.canary)).toBe(true)
     const sentBefore = await send(page)
-    expect(await page.locator('[data-v4-chip="clip"]').first().getByRole('button').count()).toBe(1)
+    await pwExpect(page.locator('[data-v4-chip="clip"]').first().getByRole('button')).toHaveCount(1)
     await page.locator('[data-v4-chip="clip"]').first().getByRole('button').click()
     const expected = original.slice(1)
     await expect.poll(() => readChips(page)).toEqual(expected)

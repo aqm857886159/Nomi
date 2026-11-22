@@ -10,7 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
-import { expectAbsent, proveProbe } from './_assert.mjs'
+import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import {
   AGENT_PANEL, COLLAPSED_DOCK, COLLAPSED_SHELL, COMPOSER, COMPOSER_ADD_FILE, COMPOSER_INPUT,
   COMPOSER_MODEL, COMPOSER_PERMISSION, COMPOSER_SEND, COMPOSER_SKILL, PERMISSION_POPOVER,
@@ -88,7 +88,7 @@ try {
   await composer.locator(COMPOSER_SKILL).click()
   const skillMenu = page.locator(SKILL_POPOVER).last()
   await skillMenu.waitFor({ state: 'visible', timeout: 3000 })
-  check(await skillMenu.getByRole('button', { name: '提示词', exact: true }).count() === 1, '`/` 命令菜单承载提示词那一段')
+  check(await expect(skillMenu.getByRole('button', { name: '提示词', exact: true })).toHaveCount(1).then(() => true, () => false), '`/` 命令菜单承载提示词那一段')
   // 「底栏没有第二颗提示词钮」不另写缺席断言：上面的顺序断言已经钉死底栏**恰是**这五颗，
   // 多一颗就红。对着一个源码里根本不存在的挂点写 expectAbsent 只会得到一条恒真的死断言。
   await page.screenshot({ path: path.join(outputDir, '03-skill-menu.png') })
@@ -102,7 +102,7 @@ try {
   // v4 的「正在跑」写在 composer 自己身上（data-mode），发送钮就地变成停止（aria-label「停止」）。
   const running = panel.locator(`${COMPOSER}[data-mode="running"]`)
   await running.waitFor({ state: 'visible', timeout: 5000 })
-  check(await running.locator(`${COMPOSER_SEND}[aria-label="停止"]`).count() === 1, '运行中停止按钮同时可见')
+  check(await expect(running.locator(`${COMPOSER_SEND}[aria-label="停止"]`)).toHaveCount(1).then(() => true, () => false), '运行中停止按钮同时可见')
   await page.screenshot({ path: path.join(outputDir, '04-running-feedback.png') })
   hold.release({ type: 'text', text: '已完成' })
   await running.waitFor({ state: 'detached', timeout: 10000 })

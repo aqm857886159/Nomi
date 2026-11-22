@@ -222,7 +222,7 @@ try {
   const previewBands = win.locator('[data-timeline-plan-preview="true"] [data-plan-preview-band]')
   await expect(previewBands.first(), '待批准的计划必须先在时间轴上高亮').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const bandsProof = await proveProbe(previewBands.first(), '待批准的计划会在时间轴上画出高亮带')
-  expect(await win.locator('[data-plan-preview-band="removed"]').count(), '被裁掉的那一段要画成 removed 带').toBeGreaterThan(0)
+  await expect(win.locator('[data-plan-preview-band="removed"]').first(), '被裁掉的那一段要画成 removed 带').toBeVisible()
   expect((await persistedTimeline()).tracks[1].clips.find((clip) => clip.id === 'clip-b').endFrame, '计划预览绝不许落盘').toBe(240)
   await screenshotSettled(win, { path: path.join(shotsDir, '02-plan-highlight-and-approval.png') })
 

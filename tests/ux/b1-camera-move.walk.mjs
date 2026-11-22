@@ -112,7 +112,7 @@ await snap(win, 'canvas')
 // 选中节点：点节点 DOM 外壳（带 data-node-id={node.id}）近顶部标题区（避开卡内启动按钮/连接手柄）。
 const selectNode = async (id) => {
   const el = win.locator(`[data-node-id="${id}"]`).first()
-  if (!(await el.count())) { console.log(`  ✗ 找不到节点 DOM [data-node-id=${id}]`); return false }
+  if (!(await el.waitFor({ state: 'visible' }).then(() => true, () => false))) { console.log(`  ✗ 找不到节点 DOM [data-node-id=${id}]`); return false }
   await el.click({ timeout: 3000, position: { x: 40, y: 14 } }).catch((e) => console.log('  节点点击 err', e.message))
   await win.waitForTimeout(900)
   return true

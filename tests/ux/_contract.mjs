@@ -57,9 +57,11 @@ async function describeParentChain(scope, selector) {
 
 /** 结构关系：descendant 必须落在 ancestor 内部。这是「骨架段必须长在提示词框里」那一类。 */
 async function checkContainment(scope, contract, rule, failures) {
-  const total = await scope.locator(rule.descendant).count()
-  const inside = await scope.locator(`${rule.ancestor} ${rule.descendant}`).count()
   const min = rule.minCount ?? 1
+  if (min > 0) {
+    await scope.locator(rule.descendant).first().waitFor({ state: 'visible' }).catch(() => {})
+  }
+  const total = await scope.locator(rule.descendant).count()
   if (total < min) {
     failures.push(fail(contract, rule,
       `页面上至少有 ${min} 个 ${rule.descendant}`,
@@ -67,6 +69,10 @@ async function checkContainment(scope, contract, rule, failures) {
       '选择器写错，或该形态根本没实现'))
     return
   }
+  if (min > 0) {
+    await scope.locator(`${rule.ancestor} ${rule.descendant}`).first().waitFor({ state: 'visible' }).catch(() => {})
+  }
+  const inside = await scope.locator(`${rule.ancestor} ${rule.descendant}`).count()
   if (inside < min) {
     const chain = await describeParentChain(scope, rule.descendant)
     failures.push(fail(contract, rule,

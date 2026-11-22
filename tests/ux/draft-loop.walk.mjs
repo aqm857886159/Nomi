@@ -115,7 +115,7 @@ try {
   // ── Stage 2: 拆镜头（图片分镜默认）→ 规划师出方案 ─────────────
   const runStoryboard = win.locator('[data-action-run="storyboard"]').first()
   console.log('  拆镜头按钮 count:', await runStoryboard.count())
-  if (!(await runStoryboard.count())) { await snap(win, 'no-storyboard-button'); throw new Error('无拆镜头入口') }
+  if (!(await runStoryboard.waitFor({ state: 'visible' }).then(() => true, () => false))) { await snap(win, 'no-storyboard-button'); throw new Error('无拆镜头入口') }
   await runStoryboard.click({ timeout: 3000 }).catch(() => {})
   console.log('  · 已点「拆成镜头·落画布」，等规划师(真文本大脑)出方案…')
   // 真「方案就绪」信号 = 中列方案摘要卡渲出「打开分镜」按钮（v5：完整编辑器住分镜页，执行面在表内）。
@@ -146,7 +146,7 @@ try {
   // ── Stage 4: footer「生成未生成的 N 镜」→ 付费确认 → 真出图 ──────────────
   const runAll = win.locator('[data-storyboard-batch="true"]').first()
   console.log('  批量生成按钮 count:', await runAll.count())
-  if (!(await runAll.count())) { await snap(win, 'no-batch-button'); throw new Error('无「生成未生成的 N 镜」按钮') }
+  if (!(await runAll.waitFor({ state: 'visible' }).then(() => true, () => false))) { await snap(win, 'no-batch-button'); throw new Error('无「生成未生成的 N 镜」按钮') }
   await runAll.click({ timeout: 3000 }).catch(() => {})
   await sleep(1500)
   await snap(win, 'spend-confirm')

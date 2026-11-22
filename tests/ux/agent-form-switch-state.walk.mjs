@@ -90,7 +90,7 @@ async function expectPanelStateKept(where) {
   await expectComposerText(panel.locator(COMPOSER_INPUT), DRAFT, `${where}：草稿丢了`)
   await expect(panel.locator(USER_BUBBLE).filter({ hasText: GREETING }), `${where}：已有对话丢了`).toHaveCount(1)
   await expect(panel.locator(ASSISTANT_MESSAGE).filter({ hasText: 'WALK_HELLO' }), `${where}：助手回复丢了`).toHaveCount(1)
-  expect(await panel.locator(TOOL_RECEIPT).count(), `${where}：工具回执丢了`).toBeGreaterThan(0)
+  await expect(panel.locator(TOOL_RECEIPT).first(), `${where}：工具回执丢了`).toBeVisible()
   const card = panel.locator(APPROVAL_CARD).first()
   await expect(card, `${where}：待确认卡不在`).toBeVisible()
   // 折叠态保留：计划行仍然收着、钮仍写「展开」。

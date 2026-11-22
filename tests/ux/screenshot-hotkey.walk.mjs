@@ -70,7 +70,7 @@ await win.locator('[aria-label="设置"], [title="设置"]').first().click({ tim
 })
 await win.waitForTimeout(1200)
 const dialog = win.locator('[role="dialog"][aria-label="设置"]').first()
-check('设置面板打开了', await dialog.count() > 0)
+check('设置面板打开了', await dialog.waitFor({ state: 'visible' }).then(() => true, () => false))
 await dialog.locator('button', { hasText: '通用' }).first().click({ timeout: 5000 })
 await win.waitForTimeout(900)
 await snap(win, 'settings-general-off')

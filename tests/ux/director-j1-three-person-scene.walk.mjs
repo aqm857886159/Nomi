@@ -2,7 +2,7 @@
 // 真实任务：全新工程 → 放三个角色 → 给主角一台正面中景机位 → 加主光 → 画一个方块 → 大纲里改名 → 撤销。
 // 证据：工程落盘的实体数与名字、画中画有机位画面、空态文案在空工程里真的出现、截图人眼核对。
 // 用法：node tests/ux/director-j1-three-person-scene.walk.mjs
-import { expectHidden } from './_assert.mjs'
+import { expect, expectHidden } from './_assert.mjs'
 import { addCameraPreset, clickOrFail, directorText, dragGround, expectVisible, launchDirectorLab, openAddMenu, placeCharacter } from './_directorLab.mjs'
 
 const locale = process.env.NOMI_WALK_LANG === 'en' ? 'en' : 'zh-CN'
@@ -11,10 +11,10 @@ const { page, check } = lab
 
 try {
   // 空工程的三处空态：视口正中提示（精修「选中才出」右边没卡、大纲收在浮层里）/ 时间轴提示 / 画中画「还没有机位」
-  check('空工程·视口空态提示', (await page.getByTestId('director-refine-empty').count()) === 1)
-  check('空工程·时间轴空态', (await page.getByTestId('director-timeline-empty').count()) === 1)
+  check('空工程·视口空态提示', await expect(page.getByTestId('director-refine-empty')).toHaveCount(1).then(() => true, () => false))
+  check('空工程·时间轴空态', await expect(page.getByTestId('director-timeline-empty')).toHaveCount(1).then(() => true, () => false))
   const noCamera = await directorText(page, 'camera.pipNoCamera')
-  check('空工程·画中画无机位', (await page.getByTestId('director-pip').getByText(noCamera, { exact: true }).count()) === 1)
+  check('空工程·画中画无机位', await expect(page.getByTestId('director-pip').getByText(noCamera, { exact: true })).toHaveCount(1).then(() => true, () => false))
   await lab.snap('empty-project')
 
   await placeCharacter(lab, 'female', -1.4, 0.4)
@@ -65,7 +65,7 @@ try {
   await input.fill('小明')
   await input.press('Enter')
   await lab.waitScene("s.objects.some(o => o.name === '小明')", '重命名落盘')
-  check('大纲重命名生效', (await lab.outlinerRow('小明').count()) === 1)
+  check('大纲重命名生效', await expect(lab.outlinerRow('小明')).toHaveCount(1).then(() => true, () => false))
   await page.keyboard.press('Escape') // 先收大纲浮层（Esc 一次只收一层）
   await page.keyboard.press('ControlOrMeta+z')
   await lab.waitScene(`s.objects.some(o => o.name === '${characters[1].name}')`, '撤销重命名')

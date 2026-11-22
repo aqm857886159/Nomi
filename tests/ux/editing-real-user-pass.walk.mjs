@@ -425,7 +425,7 @@ try {
   check('⌘\\ 收起 Nomi 时不再顺手把吸附也翻掉（两个功能不再抢同一个键）',
     ((await snapButton.getAttribute('class') ?? '').includes('accent-soft')) === snapBeforeMeta)
   check('收起后叫回 Nomi 的入口只有小球一个，且带运行状态',
-    (await topbarEntry.count()) === 1 && Boolean(await topbarEntry.getAttribute('data-agent-dock-status')))
+    await expect(topbarEntry).toHaveCount(1).then(() => true, () => false) && Boolean(await topbarEntry.getAttribute('data-agent-dock-status')))
   const recallEntries = await win.evaluate(() => [...document.querySelectorAll('[data-agent-ball]')]
     .filter((node) => node.getBoundingClientRect().width > 0).length)
   check('全屏上只有一个「叫回 Nomi」入口（小球；顶栏角标、浮动胶囊与右侧竖条都已删）', recallEntries === 1, `count=${recallEntries}`)

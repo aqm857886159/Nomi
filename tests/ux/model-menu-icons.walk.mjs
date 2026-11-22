@@ -13,6 +13,7 @@
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { chromium } from 'playwright'
+import { expect } from '@playwright/test'
 import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -162,12 +163,12 @@ try {
           await shot(page, `mm-a-variants-menu-${tag}`)
           // 点开「更多」：默认收起的行才露出来；选中行即使在收起名单里也一直显示。
           const moreButton = page.locator('[data-nomi-select-dropdown] button', { hasText: uiText(locale, 'onboardingProviders.modelControls.more') })
-          const collapsed = await moreButton.count()
+          const collapsed = await expect(moreButton).toHaveCount(1).then(() => true, () => false)
           const before = menu.rows.length
           if (collapsed) await moreButton.first().click()
           await page.waitForTimeout(150)
           const expanded = collapsed ? await readMenu(page) : menu
-          check(`模型菜单 · 默认显示 ${before} 行，点「更多」后展开到 ${expanded.rows.length} 行（没有任何一行被删）· ${tag}`, collapsed === 1 && expanded.rows.length > before, JSON.stringify({ before, after: expanded.rows.length }))
+          check(`模型菜单 · 默认显示 ${before} 行，点「更多」后展开到 ${expanded.rows.length} 行（没有任何一行被删）· ${tag}`, collapsed && expanded.rows.length > before, JSON.stringify({ before, after: expanded.rows.length }))
           check(`边界 · 展开后最多行：菜单仍在视口内、尾行「隐藏模型」仍在 · ${tag}`, expanded.inViewport && expanded.buttons.some((b) => /^(隐藏模型|Hide models|Hidden models)/.test(b)), JSON.stringify({ inViewport: expanded.inViewport, h: expanded.h }))
           facts.push({ surface: 'canvas-node', tag, visibleRows: before, expandedRows: expanded.rows.length, longestName: longestName?.label, longestDesc: longestDesc?.description, menuW: menu.w, menuH: menu.h, scroll: { scrollH: menu.scrollH, clientH: menu.clientH } })
           if (WITH_EVIDENCE) {
@@ -193,8 +194,7 @@ try {
       for (const surface of SURFACES) {
         const { page, context } = await open(surface.screen, surface.state, { lang, scheme })
         const triggerLoc = page.locator(modelTrigger(locale)).first()
-        await triggerLoc.waitFor({ timeout: stationTimeout() }).catch(() => {})
-        const present = (await page.locator(modelTrigger(locale)).count()) > 0
+        const present = await triggerLoc.waitFor({ state: 'visible', timeout: stationTimeout() }).then(() => true, () => false)
         check(`同一套 · ${surface.id} 有模型格 · ${tag}`, present)
         if (present) {
           const trigger = await readTrigger(page, locale)

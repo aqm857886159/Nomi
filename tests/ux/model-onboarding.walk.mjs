@@ -52,7 +52,7 @@ async function openPanel(win) {
   // 顶栏齿轮 → 设置「模型」页签（经 _shell.mjs）；开没开认结构标记，不认标题文案。
   await openModelSettings(win, { label: 'open model settings', timeout: 4000 }).catch((error) => console.log(`  ! ${String(error?.message || error).split(String.fromCharCode(10))[0]}`))
   await win.waitForTimeout(800)
-  return (await win.locator('[data-model-settings-page]').count()) > 0
+  return await win.locator('[data-model-settings-page]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
 }
 
 const { app, win } = await launchNomiApp({
