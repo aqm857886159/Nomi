@@ -7,7 +7,7 @@ import path from 'node:path'
 import { once } from 'node:events'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, DEFAULT_TIMEOUT_MS, expect, screenshotSettled } from './_assert.mjs'
-import { AGENT_PANEL, COLLAPSED_SHELL, COLLAPSE_BUTTON, ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
+import { AGENT_PANEL, COLLAPSED_SHELL, COLLAPSE_BUTTON, NOMI_ENTRY_COLLAPSED, ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_NON_APIMART_VENDOR, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 
@@ -28,12 +28,11 @@ export const CANVAS_PANEL = `${AGENT_PANEL}[data-agent-surface="generation"]`
 export const PREVIEW_PANEL = `${AGENT_PANEL}[data-agent-surface="preview"]`
 export const STORYBOARD_PANEL = `${AGENT_PANEL}[data-agent-surface="storyboard"]`
 /**
- * 收起后叫回 Nomi 的唯一入口 = 内容区右下角那颗 Agent 小球（Chrome 板「四种状态，都不会自己弹开」）。
- * 顶栏不再放 Agent 角标（协调裁决第 59 项）。小球上的走查锚：
- *   `data-agent-ball` = idle / running / done / failed / pending（pending = 「等你确认 N」胶囊）；
- *   `data-agent-dock-status` = 注意力状态词（V4DockStatus）；`data-agent-dock-count` = 待确认条数。
+ * 收起后叫回 Nomi 的唯一入口 = 收着时的顶栏 Nomi 入口（NomiEntryTopbar 板 nomi-entry，2026-11-22 取代内容区右下的小球；定义在 `_shell.mjs`）。
+ * 都不会自己弹开。入口上的走查锚：`data-status` = idle / unread / running / done / failed；`data-shape` = face / capsule（「等你确认 N」）；
+ * `data-pending` = 待确认条数。
  */
-export const COLLAPSED_DOCK = '[data-agent-ball]'
+export const COLLAPSED_DOCK = NOMI_ENTRY_COLLAPSED
 /** 面板级错误带（外壳渲染，不在 v4 积木里）。 */
 export const PANEL_ERROR = '[data-agent-error="true"]'
 export const THREAD_MENU = '[data-agent-thread-menu="true"]'
@@ -323,7 +322,7 @@ export async function waitForV4TurnIdle(win, { panel = AGENT_PANEL, startTimeout
   await expect(running, '这一轮没落地：composer 迟迟不退出运行态').toBeHidden({ timeout: doneTimeout })
 }
 
-/** 展开常驻面板（点小球；怎么点、点哪里归 `_shell.mjs`）。 */
+/** 展开常驻面板（点顶栏 Nomi 入口；怎么点、点哪里归 `_shell.mjs`）。 */
 export async function expandResidentPanel(win) {
   await ensureAgentPanelOpen(win)
   await expect(win.locator(`${AGENT_PANEL} ${COMPOSER}`).first()).toBeVisible()

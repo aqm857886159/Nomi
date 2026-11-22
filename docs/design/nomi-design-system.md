@@ -880,7 +880,7 @@ mark 是 **28×28 viewBox 的圆角方块**：深色底（`oklch(0.22 0.01 80)` 
 | `NomiAILabel` | mark +「Nomi {suffix}」，suffix 灰字 | `markSize=22 wordSize=14`，`suffix='AI'` | 标注「这是 Nomi 的某个 AI 助手」，suffix 传 `生成`/`创作` |
 | `NomiLoadingMark` | **全仓唯一的加载动画**：旋转的 logo mark | `size=18` | 一切 loading/spinner——别自己用 `IconLoader2`+`animate-spin`（§14 有 1 处违规）|
 | `NomiStepper` | 创作/生成/预览 三段 pill 切换器 | — | 顶栏工作区切换，唯一处 |
-| `NomiAgentFace` | **Agent 形象（Nomi 这个角色）**：logo 同一块底色（`--nomi-logo-ground`）、同一个圆角比例（25%）的形 + 两只眼。`variant="live"` 是右下小球的活形象（六种姿态之间按形变 token 连续变形、约 20 秒眨一次、在跑转弧，眼睛跟鼠标由宿主写 CSS 变量）；`variant="mark"` 是静态脸，不动、不带状态 | live `size=44`（舞台边长）；mark `size=16` | 只有两处：右下 Agent 小球（`AgentBallFace`）、聊天身份行（`NomiIdentityRow`）。App 图标、营销字标、加载标照旧用 logo（拍板 `docs/design/boards/2026-10-27-agent-persona/`）|
+| `NomiAgentFace` | **Agent 形象（Nomi 这个角色）**：logo 同一块底色（`--nomi-logo-ground`）、同一个圆角比例（25%）的形 + 两只眼。`variant="live"` 是顶栏入口的活形象（五种姿态之间按形变 token 连续变形、空闲 / 有新消息时约 20 秒眨一次、在跑转弧；眼睛不跟鼠标；「等你确认」不是一副脸，胶囊 / 角标由入口自己画）；`variant="mark"` 是静态脸，不动、不带状态 | live `size=26`（舞台边长，顶栏 28px 按钮里）；mark `size=16` | 只有两处：顶栏最右的 Nomi 入口（`ShellNomiEntry`，2026-11-22 NomiEntryTopbar 板取代右下小球）、聊天身份行（`NomiIdentityRow`）。App 图标、营销字标、加载标照旧用 logo（拍板 `docs/design/boards/2026-10-27-agent-persona/`）|
 
 #### 3.9.2 调用点地图（「logo 在哪里调用」——做新东西照这些抄）
 
@@ -1064,7 +1064,7 @@ showUndoToast({ message, onUndo, isUndoable, watchUndoable })
 | 点击 | `revealNodeFromChat`：切到生成页 / 画布视图 → 窄窗口先收对话 → 派现役对焦事件（`viewNodeInCanvas`，缩放封顶 100%、扣掉浮层、目标闪 1.4 秒：外壳 1.5px 细线 + 9px ink 12% 淡光晕）。指向元素自己不动视口（`pointerDoors.test.ts` 守）|
 | 已定位 | 点过的那一项左上小标「已定位」（`IconFocus2` 11px / stroke 1.8，压过制作小标）；回到对话后仍标着；全局只有一项 |
 
-**窄窗口「回到对话」**（`NodePointerReturnToChat`）：浮着的对话把画布盖住大半（或停靠但窗口太窄）时，点指向元素 → 对话**先**收成小球露出目标、**再**对焦；画布底部出现一颗深色胶囊 `h-9 rounded-full bg-nomi-ink text-nomi-paper shadow-nomi-lg`（`text-body-sm`、`IconMessage` 16px / stroke 1.8）；P2 形态在最前面带那一镜的圆缩略图和标签（「镜 02 · 回到对话」）。点它或按 Esc：对话回到收起前的形态，焦点落回被点的那一项（它仍标着「已定位」）。可见文字 §1.8 规则 3：中文「回到对话」（4 字）、英文「Back」（≤2 词）；读屏名 / 悬停名写全（英文「Back to chat」）。
+**窄窗口「回到对话」**（`NodePointerReturnToChat`）：浮着的对话把画布盖住大半（或停靠但窗口太窄）时，点指向元素 → 对话**先**收起（入口在顶栏）露出目标、**再**对焦；画布底部出现一颗深色胶囊 `h-9 rounded-full bg-nomi-ink text-nomi-paper shadow-nomi-lg`（`text-body-sm`、`IconMessage` 16px / stroke 1.8）；P2 形态在最前面带那一镜的圆缩略图和标签（「镜 02 · 回到对话」）。点它或按 Esc：对话回到收起前的形态，焦点落回被点的那一项（它仍标着「已定位」）。可见文字 §1.8 规则 3：中文「回到对话」（4 字）、英文「Back」（≤2 词）；读屏名 / 悬停名写全（英文「Back to chat」）。
 
 其余 token：字号 `text-caption`（12px，标题行 / 摘要）、`text-micro`（11px，状态条 / 行尾「已定位」）、`text-body-sm`（13px，「还有 N 个」/ 回到对话）；圆角 `rounded-nomi-sm` / `rounded-nomi` / `rounded-full`；底 `bg-nomi-paper` / `bg-nomi-ink-05`；边线 `border-nomi-line`；全部走 token，光 / 暗自动翻。22 / 18 / 96px 这几个尺寸（标题行与圆缩略图、镜号小胶囊、单个竖版的槽高）照拍板稿写成任意值，不是 §2.2 的 4 倍数刻度（门岗不拦）。与拍板稿的已知差异：画面框圆角用 token 6px（板 8px）、聊天里等待面静态（板示意渐变竖条）、失败原因在窄格里截断（均 2026-10-23 协调接受）。
 
@@ -1247,8 +1247,9 @@ showUndoToast({ message, onUndo, isUndoable, watchUndoable })
 | 画布外那一侧有新东西（点了过去）| `IconArrowDown`（与 `IconArrowUp` / `IconArrowLeft` / `IconArrowRight` 同族按方向取）| 画布边缘提示胶囊 `CanvasArrivalHint` 尾部那一颗（2026-09-25 用户拍板，样张 v1）。箭头只指方向、不是按钮本身的动作；不用 `IconChevron*`：那族在本仓是「展开/折叠」示能 |
 | 首帧 / 尾帧左右对调 | `IconArrowsLeftRight` | 生成框参考行里首尾帧两格中间那颗小圆钮（B3，2026-10-19）。词典里没有现成的：`IconArrowsExchange` 在本仓没人用、`IconArrowsDiagonal` 已是「展开提示词」——左右双箭头才说得出「两格互换位置」 |
 | 左栏「目录」（镜头与分组的树：分组 / 节点的层级清单）| `IconListTree` | 外壳左栏 `ShellRail` 的「目录」项（2026-10-08 外壳拍板稿 Main 板点名 Tabler list-tree）。词典里没有现成的：`IconList` 读成平铺列表、`IconFolder` 已是「素材」——缩进的树形线才说得出「有层级的目录」 |
-| Agent 形态：浮窗（可拖动、可改大小的小窗）| `IconPictureInPicture` | Agent 面板头部三选一、小球右键菜单（`ShellAgentHost`，2026-10-08 CanvasAgent 板）。画中画图形 = 「浮在内容上的一块小窗」，`IconAppWindow` 读成整窗 |
-| Agent 形态：停靠在右侧 | `IconLayoutSidebarRight` | 同上三选一与右键菜单。与左栏收起用的 `IconLayoutSidebarLeftCollapse` 同族，方向说明停在哪一边 |
+| Agent 形态：收起（面板收进顶栏最右的 Nomi 入口）| `IconLayoutSidebarRightCollapse` | Agent 面板头部三选一的第一颗（`ShellAgentHost` 的形态切换、`AgentPanelV4Panel` 头部，2026-11-22 NomiEntryTopbar 板）。与停靠的 `IconLayoutSidebarRight` 同族，带收拢箭头 = 「右边这一栏收起来」；取代旧的「小球」那一颗 |
+| Agent 形态：浮窗（可拖动、可改大小的小窗）| `IconPictureInPicture` | Agent 面板头部三选一（`ShellAgentHost`，2026-10-08 CanvasAgent 板）。画中画图形 = 「浮在内容上的一块小窗」，`IconAppWindow` 读成整窗 |
+| Agent 形态：停靠在右侧 | `IconLayoutSidebarRight` | 同上三选一。与左栏收起用的 `IconLayoutSidebarLeftCollapse` 同族，方向说明停在哪一边 |
 | 中英互译提示词（选中段或整段，原地替换）| `IconLanguage` | 生成节点浮框 B 簇 `NodePromptTranslator`，在「优化」左边。词典里没有现成的：`IconWorld` 读成「联网/公开」、`IconAbc`/`IconLetterCase` 读成「大小写/字体」——「文/A」双字形是各家翻译按钮的通用图形，遮住文字也说得出是翻译 |
 | 模型是谁家的（模型菜单每行 + 底栏模型格）| **品牌图标，不是 Tabler**：`@lobehub/icons-static-svg`（MIT）单色 svg，一张「模型家族 → 图标」表（`src/config/modelFamilyIcons.ts`），表里没有的显示名字首字母方块；组件里不按供应商 / 模型名分支 | 模型菜单行（28px 方块，`NomiIdentityIcon` `size="lg"`）与底栏模型格（同一枚 sm / md，底栏挤时参数格先让、模型名最后让、图标永不让）。**只认档案里写明的家族**——自定义模型不借别家的脸；单色图标暗色下反相。品牌图是「身份」不是「动作」，不进 `check:icon-semantics` 词典，也不能拿来当按钮图标（2026-11-14，样张 K6）|
 | 你的项目和素材留在本机、这次操作不动它（一句保证，放在动作前的说明行里）| `IconShieldCheck` | 应用内更新弹窗 `UpdateDialog` 的「项目和素材都在你电脑上，更新只换 Nomi 本身」那一行（2026-10-09）。词典里没有现成的：`IconLock` 已是「自动化与权限 / 受限」的语义，在这里会读成「被锁住」；`IconFolder` 读成「文件夹入口」而不是「保证」；`IconCircleCheck` 只表状态完成，不表保护。|

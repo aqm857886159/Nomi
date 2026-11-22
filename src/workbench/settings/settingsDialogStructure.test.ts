@@ -223,7 +223,7 @@ describe('settings dialog structure', () => {
 
   it('keeps the sidebar inside the shared height owner for every settings tab', () => {
     expect(settingsSource).toContain('data-settings-dialog')
-    expect(settingsSource).toContain("'data-settings-tab': tab")
+    expect(settingsSource).toContain("aria-current={tab === id ? 'page' : undefined}")
     expect(settingsSource).toContain('<DesignModal')
     expect(settingsSource).not.toContain('<Portal>')
     expect(settingsSource).toContain('size={760}')
@@ -393,7 +393,7 @@ describe('settings dialog structure', () => {
   })
 
   it('keeps the dialog anchors rendering the same "true" values the walks select on after the shell migration', () => {
-    // 迁到共用外壳后锚点改经 contentAttributes 给；曾误写成 ''，渲染出 data-settings-overlay=""，
+    // 迁到共用外壳后锚点改经 frozenAnchors 给；曾误写成 ''，渲染出 data-settings-overlay=""，
     // 而 mcp-l2-journeys 等 13 份走查按 [data-settings-overlay="true"] 认设置框（CI E2E(4) 因此红）。
     expect(settingsSource).toContain("'data-settings-overlay': 'true'")
     expect(settingsSource).toContain("'data-settings-dialog': 'true'")

@@ -6,7 +6,7 @@
 //   ① 记下「已定位」；
 //   ② 窄窗口里对话浮在画布上、把目标盖住时，**先**让对话临时让开（机器让位，只改此刻显示、不改人存的）、记下回到哪一项，**再**派对焦——
 //      对焦按派事件之后那一帧的可见区算，浮窗已经收掉，目标不会被摆到旧浮窗让出的那一小角。
-// 「回到对话」是人点的 = 打开这一页的 Nomi（和点小球同一个动作 openAgent），不靠让位此刻还在不在；那一枚在不在只从让位算（NodePointerReturnDock）。
+// 「回到对话」是人点的 = 打开这一页的 Nomi（和点顶栏 Nomi 入口同一个动作 openAgent），不靠让位此刻还在不在；那一枚在不在只从让位算（NodePointerReturnDock）。
 import { useWorkbenchStore } from '../../workbenchStore'
 import { viewNodeInCanvas } from '../../generation/list/generationListSource'
 import { useGenerationViewStore } from '../../generation/list/generationViewStore'
@@ -48,9 +48,9 @@ const nextFrame = (): Promise<void> => new Promise((resolve) => window.requestAn
 /** 对话是不是挡住了画布（量此刻的舞台与浮窗）；挡住了就让开并记下「回到对话」。 */
 function collapseChatIfCovering(nodeId: string, label: string): void {
   const surface = 'generation' as const
-  // 看**此刻显示的**形态（窄窗档里存着「停靠」的页此刻是小球 / 浮窗）。让开是机器的临时动作：只写此刻那份。
+  // 看**此刻显示的**形态（窄窗档里存着「停靠」的页此刻是收起 / 浮窗）。让开是机器的临时动作：只写此刻那份。
   const form = shownForm(surface)
-  if (form === 'ball') return
+  if (form === 'collapsed') return
   const stage = document.querySelector(CANVAS_STAGE_SELECTOR)?.getBoundingClientRect()
   if (!stage) return
   // 浮窗：看它把画布盖掉多少；停靠：它不压画布，但窗口太窄时画布本身就摆不下目标，同样先让开。
@@ -62,12 +62,12 @@ function collapseChatIfCovering(nodeId: string, label: string): void {
 }
 
 /**
- * 对话为指向让开：记下回到哪一项，机器让位成小球（只写此刻那份）。全仓唯一一处让成小球的机器让位（结构测试钉住），
- * 所以「让开成小球」和「回到哪」总是一起出现；结束只看让位。
+ * 对话为指向让开：记下回到哪一项，机器让位收起（只写此刻那份，入口在顶栏）。全仓唯一一处让成收起的机器让位（结构测试钉住），
+ * 所以「让开收起」和「回到哪」总是一起出现；结束只看让位。
  */
 export function yieldChatToCanvas(target: NodePointerReturn): void {
   useNodePointerStore.getState().setReturnTo(target)
-  machineHold(target.surface, 'ball')
+  machineHold(target.surface, 'collapsed')
 }
 
 /** 去画布上的这个节点。`label` 是这个指向元素的镜号 / 名字，窄窗口「回到对话」上带着它。 */

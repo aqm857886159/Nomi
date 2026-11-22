@@ -93,6 +93,7 @@ function relayUploadIngestion(relayOrigin, env) {
  */
 export const REHEARSAL_ENDPOINTS = Object.freeze({
   'apimart-text-list-real.paid.mjs': { endsAt: 'vendor-read', why: '文字模型列表对账：只发两条只读 GET（模型列表、余额），本来就不发创建请求' },
+  'agent-gpt6-responses-real.paid.mjs': { endsAt: 'brain', why: 'GPT-6.1 Sol 走 Responses 的一轮 Agent 任务（3 次大脑请求、2 次工具调用）：只花文字模型的钱，不生成媒体' },
   'agent-long-chat-real.paid.mjs': { endsAt: 'brain', why: '长对话的 token / 时长数字：只花文字模型的钱，不生成媒体' },
   'agent-shot-kind-real.paid.mjs': { endsAt: 'brain', why: '只看 Agent 起草出来的镜头种类：不点生成，只花文字模型的钱' },
   'agent-shot-table-remake-real.paid.mjs': { endsAt: 'brain', why: '只看 Agent 读不读得到分镜表的行、起草的是哪几行：只花文字模型的钱' },

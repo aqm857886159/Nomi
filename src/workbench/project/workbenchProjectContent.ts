@@ -75,7 +75,7 @@ export const PROJECT_SESSION_FIELD_ROLES: Readonly<Record<string, Readonly<Recor
   'useCanvasPickModeStore': { request: UI_STATE },
   'useBatchPlanPreviewStore': { plan: { none: '批量生成预览：引用来自节点本身（已在 content 里）' }, running: UI_STATE },
   'useNodeLivePreviewStore': { byNode: { none: '生成中的实时预览帧，不是项目文件' } },
-  'useResidentActivityStore': { dotClassName: UI_STATE, label: UI_STATE, dockStatus: UI_STATE, dockPendingCount: UI_STATE, dockUnreadCount: UI_STATE },
+  'useResidentActivityStore': { dotClassName: UI_STATE, label: UI_STATE, dockStatus: UI_STATE, dockFaceStatus: UI_STATE, dockPendingCount: UI_STATE, dockUnreadCount: UI_STATE },
   'useResidentComposerFocusStore': { request: UI_STATE },
   'useProductionRunStore': {
     projectId: UI_STATE, run: { none: '制作运行台账的只读镜像：记的是过去发生过什么（主进程台账同理）' }, cursor: UI_STATE,

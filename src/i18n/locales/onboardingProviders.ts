@@ -70,7 +70,6 @@ export const zhOnboardingProviders = {
     },
   },
   handbook: {
-    aria: '上手手册',
     closeAria: '关闭上手手册',
     pipeline: '一条流水线，全程在你眼皮底下',
     firstWinTitle: '90 秒先尝到甜头',
@@ -1331,7 +1330,6 @@ export const enOnboardingProviders = {
     },
   },
   handbook: {
-    aria: 'Quick-start guide',
     closeAria: 'Close quick-start guide',
     pipeline: 'One visible workflow from start to finish',
     firstWinTitle: 'Get your first result in 90 seconds',

@@ -47,7 +47,8 @@ const SHARED_ITEMS: readonly { id: ShellDrawerItem; icon: typeof IconFolder }[] 
 const DRAWER_INSET = { left: SHELL_RAIL_WIDTH + 4, top: SHELL_TOPBAR_HEIGHT + 4, bottom: 12 } as const
 /**
  * 抽屉**显示**宽最多到「窗口 − 232」（WindowNarrow 板 drawer.clamp）：232 = 左栏 60 + 抽屉左缝 4 + 右下角 Nomi 胶囊 132
- * + 胶囊离边 16 + 外壳缝 8 + 余量 12——窄窗里抽屉拉到多宽都盖不住小球 / 胶囊。只在显示时用 CSS 钳，存的宽一个字节不改，宽回来照旧。
+ * + 胶囊离边 16 + 外壳缝 8 + 余量 12——窄窗里抽屉拉到多宽都盖不住右下角的胶囊。只在显示时用 CSS 钳，存的宽一个字节不改，宽回来照旧。
+ * 2026-11-22 右下小球 / 胶囊已删（NomiEntryTopbar 板，入口在顶栏），这份余量照旧留着：改它会让窄窗抽屉变宽，是清单外看得见的变化，另记待定。
  */
 const DRAWER_VIEWPORT_RESERVE = 232
 

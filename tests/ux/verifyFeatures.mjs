@@ -112,13 +112,13 @@ export const FEATURES = {
       await shell.ensureAgentPanelOpen(ctx.win(), 'goto agent-panel')
     },
   },
-  'agent-ball': {
-    summary: 'Agent 面板收起成右下小球（窄窗时也是小球）',
+  'agent-collapsed': {
+    summary: 'Agent 面板收起（收进顶栏最右的 Nomi 入口，窄窗时也一样）',
     exits: ['_shell.mjs#isInProject', '_shell.mjs#createBlankProject', '_shell.mjs#collapseAgentPanel'],
     async goto(ctx) {
       await ensureProject(ctx)
-      await shell.ensureAgentPanelOpen(ctx.win(), 'goto agent-ball（先展开）')
-      await shell.collapseAgentPanel(ctx.win(), 'goto agent-ball')
+      await shell.ensureAgentPanelOpen(ctx.win(), 'goto agent-collapsed（先展开）')
+      await shell.collapseAgentPanel(ctx.win(), 'goto agent-collapsed')
     },
   },
   'design-lab': {

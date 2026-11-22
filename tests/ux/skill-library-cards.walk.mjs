@@ -35,7 +35,7 @@ try {
   await expect.poll(() => multi.locator('img').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true)
   await page.screenshot({ path: path.join(output, '01-library.png') })
   await multi.click()
-  const detail = page.locator('[data-skill-detail]')
+  const detail = page.getByRole('dialog', { name: '多视图设定', exact: true })
   await expect(detail.getByRole('heading', { name: '多视图设定', exact: true })).toBeVisible()
   await expect(detail.getByRole('heading', { name: '配方', exact: true })).toBeVisible()
   await expect(detail).not.toContainText('metadata:')

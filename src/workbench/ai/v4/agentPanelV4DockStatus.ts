@@ -11,8 +11,8 @@ import React from 'react'
 
 /**
  * 五档**注意力状态**。注意它们各自的注释说的是「宿主那边发生了什么」，**不是「角标长什么样」**：
- * 长相由小球（AgentBallFace → 品牌组件 NomiAgentFace）画，2026-10-27 形象拍板后五个词和五副长相一一对应
- * （agentFormStore 的 `agentBallLook` 是唯一映射，和胶囊判定 agentBallIsPill 放在一起）：idle = 空闲脸、running = 变圆转弧、needs-confirm（且有条数）= 胶囊、
+ * 长相由顶栏 Nomi 入口（ShellNomiEntry → 品牌组件 NomiAgentFace）画
+ * （src/ui/app-shell/shell/nomiEntryLook.ts 的 `nomiEntryLook` 是唯一映射，和胶囊 / 角标判定放在一起）：idle = 空闲脸、running = 变圆转弧、needs-confirm（且有条数）= 胶囊、
  * done = 轻跳眯眼笑、failed = 歪倒加 danger 点；未读是叠在上面的那颗点，不是第六个词。这五个词另进 tooltip 那句人话与
  * `data-agent-dock-status`。
  *
@@ -60,6 +60,17 @@ export function resolveDockStatus(facts: V4DockFacts): V4DockStatus {
   return 'idle'
 }
 
+/** 顶栏入口要的两份：合并状态（悬停那句中段、`data-agent-dock-status`）和脸的状态（不算待确认）。 */
+export type V4DockStatuses = Readonly<{ status: V4DockStatus; faceStatus: V4DockStatus }>
+
+/**
+ * 一次求两份（NomiEntryTopbar 板 B5）：脸不看待确认——在做 + 等你确认时脸照样转，待确认由角标 / 胶囊另说；
+ * 合并状态照 `resolveDockStatus` 的优先级。两份出自同一组事实、同一个「刚做完」，只在这里求，宿主不另调第二次。
+ */
+export function resolveDockStatuses(facts: V4DockFacts): V4DockStatuses {
+  return { status: resolveDockStatus(facts), faceStatus: resolveDockStatus({ ...facts, pendingCount: 0 }) }
+}
+
 /** hover 那一行字 + 无障碍名共用同一句话（同一件事两个说法就是 R14.1 要横扫的东西）。 */
 export type V4DockLabels = Readonly<{
   /** 动作名（「展开 Nomi」）——它是钮的无障碍名前半截。 */
@@ -81,7 +92,7 @@ export function dockStatusLabel(status: V4DockStatus, pendingCount: number, labe
 
 /**
  * 「刚完成」是一段**时间**，宿主快照里没有这条记录——它只能由「在跑 → 不跑了」这次跳变掐表算出来。
- * 掐表在这个 hook 里、判断在 `resolveDockStatus` 里：前者只有真实运行时才有意义，后者是纯函数、有单测。
+ * 掐表在这个 hook 里、判断在 `resolveDockStatuses` 里：前者只有真实运行时才有意义，后者是纯函数、有单测。
  */
 export function useV4DockStatus({
   running,
@@ -91,7 +102,7 @@ export function useV4DockStatus({
   running: boolean
   pendingCount: number
   failed: boolean
-}): V4DockStatus {
+}): V4DockStatuses {
   const [justFinished, setJustFinished] = React.useState(false)
   const wasRunning = React.useRef(running)
   React.useEffect(() => {
@@ -102,5 +113,5 @@ export function useV4DockStatus({
     const timer = setTimeout(() => setJustFinished(false), V4_DOCK_DONE_HOLD_MS)
     return () => clearTimeout(timer)
   }, [running])
-  return resolveDockStatus({ running, pendingCount, failed, justFinished })
+  return resolveDockStatuses({ running, pendingCount, failed, justFinished })
 }

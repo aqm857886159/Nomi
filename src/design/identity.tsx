@@ -1,4 +1,4 @@
-import React, { type JSX, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react'
+import React, { type JSX, type CSSProperties, type HTMLAttributes } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../utils/cn'
 
@@ -34,6 +34,11 @@ type NomiStepperProps = {
    * 没有就不画（不填 0、不填占位）。
    */
   meta?: Partial<Record<'creation' | 'generation' | 'preview', string>>
+  /**
+   * 顶栏挤到第 ③ 步时藏起进度数字（NomiEntryTopbar 板 topbar.segment-meta）：只藏显示，悬停 title 照旧带数字。
+   * 不传 = 照常画。
+   */
+  hideMeta?: boolean
 }
 
 type NomiWordmarkProps = {
@@ -116,27 +121,24 @@ export function NomiLogoMark({ size = 24, className }: NomiLogoMarkProps): JSX.E
 }
 
 /**
- * Agent 形象（Nomi 这个角色）的姿态。五个基本状态 + 「有新消息」变体；状态 → 姿态的映射由宿主做
- * （右下小球见 src/ui/app-shell/shell/AgentBallFace.tsx 的 agentBallLook），这里只画。
+ * Agent 形象（Nomi 这个角色）的姿态。四个基本状态 + 「有新消息」变体；状态 → 姿态的映射由宿主做
+ * （顶栏 Nomi 入口见 src/ui/app-shell/shell/nomiEntryLook.ts），这里只画。「等你确认」不是一副脸：
+ * 入口那颗浅橙胶囊 / 角标由宿主自己画（NomiEntryTopbar 板，2026-11-22）。
  * 拍板：docs/design/boards/2026-10-27-agent-persona/（G · 去框：logo 同一块底色、同一个圆角比例的形 + 两只眼）。
  */
-export type NomiAgentPose = 'idle' | 'unread' | 'running' | 'confirm' | 'done' | 'failed'
+export type NomiAgentPose = 'idle' | 'unread' | 'running' | 'done' | 'failed'
 
 type NomiAgentFaceProps = {
   pose?: NomiAgentPose
   /**
-   * live = 右下小球的活形象：28 个形象单位的方舞台贴在宿主右缘，状态之间连续形变、眨眼、在跑转弧；
+   * live = 顶栏 Nomi 入口的活形象：28 个形象单位的方舞台贴在宿主右缘，状态之间连续形变、眨眼、在跑转弧；
    * mark = 静态脸（聊天身份行）：填满 size×size 的方框，空闲那一副长相，没有任何动效、没有状态。
    */
   variant?: 'live' | 'mark'
-  /** live：舞台边长（默认 44 = BALL_SIZE）；mark：方框边长（默认 16）。 */
+  /** live：舞台边长（默认 26 = 顶栏入口的脸）；mark：方框边长（默认 16）。 */
   size?: number
-  /** 胶囊里的那句（只在 confirm 时显示）。 */
-  text?: string
-  /** 在跑那段弧上的额外属性（宿主的走查探针，如 data-agent-ball-progress）。 */
+  /** 在跑那段弧上的额外属性（宿主的走查探针，如 data-nomi-entry-progress）。 */
   ringProps?: Record<`data-${string}`, string | boolean | undefined>
-  /** 挂在舞台里、画在最上面的宿主装饰（右上角的未读点 / 出错点），坐标按舞台算。 */
-  children?: ReactNode
   className?: string
 }
 
@@ -149,11 +151,11 @@ type AgentPoseGeometry = { body: AgentBodyGeometry; eyes: AgentEyeGeometry; smil
 /**
  * 每种姿态的几何（形象单位；身体按舞台右缘 / 上缘定位，眼睛和笑眼按身体定位）。照拍板小样
  * source/AgentPersona.dc.html 的 .st-* 规则逐项抄；小样用 left 定位身体，这里换成 right（同一个框），
- * 好让胶囊「右缘不动往左长」时宽度可以直接取字的宽度。胶囊（confirm）按 --nomi-agent-ph 另算，不在表里。
+ * 和宿主「贴右缘」的摆法一致。
  */
 const AGENT_IDLE_EYES: AgentEyeGeometry = { top: 6.6, width: 3.4, height: 6.6, radius: 1.7, left: [6.2, 12.4], opacity: 1 }
 const AGENT_IDLE_BODY: AgentBodyGeometry = { right: 3, top: 4, width: 22, height: 22, radius: 5.5, rotate: 0 }
-const NOMI_AGENT_POSES: Readonly<Record<Exclude<NomiAgentPose, 'confirm'>, AgentPoseGeometry>> = {
+const NOMI_AGENT_POSES: Readonly<Record<NomiAgentPose, AgentPoseGeometry>> = {
   idle: { body: AGENT_IDLE_BODY, eyes: AGENT_IDLE_EYES, smile: { top: 9, opacity: 0 } },
   // 有新消息：眼睛往屏幕里（左上）看。
   unread: { body: AGENT_IDLE_BODY, eyes: { ...AGENT_IDLE_EYES, top: 5.8, left: [5.4, 11.6] }, smile: { top: 9, opacity: 0 } },
@@ -172,36 +174,19 @@ const NOMI_AGENT_BLINK_EVERY_MS = 20_000
 const AGENT_BLINK_MS = 600
 
 const au = (value: number): string => `calc(var(--nomi-agent-u) * ${value})`
-const aph = (value: number): string => `calc(var(--nomi-agent-ph) * ${value})`
 
 function bodyStyle(pose: NomiAgentPose): CSSProperties {
-  if (pose === 'confirm') {
-    // 胶囊：高 ph = 11u + 18px，右缘停在舞台 27u 处，宽 = 字的宽度 + 两侧留白（左 0.9ph 放眼睛，右 0.32ph），
-    // 最宽不超过 PILL_WIDTH 132px 里放得下的（舞台左边还有 88px）。宽度从 22u 形变到 max-content 靠 interpolate-size。
-    return {
-      right: au(1),
-      top: 'calc(var(--nomi-agent-u) * 15 - var(--nomi-agent-ph) / 2)',
-      width: 'max-content',
-      maxWidth: 'calc(var(--nomi-agent-u) * 27 + 88px)',
-      height: aph(1),
-      borderRadius: aph(0.5),
-      transform: 'rotate(0deg)',
-    }
-  }
   const body = NOMI_AGENT_POSES[pose].body
   return { right: au(body.right), top: au(body.top), width: au(body.width), height: au(body.height), borderRadius: au(body.radius), transform: `rotate(${body.rotate}deg)` }
 }
 
 function eyeStyle(pose: NomiAgentPose, side: 0 | 1): CSSProperties {
-  if (pose === 'confirm') {
-    return { top: aph(0.3), left: aph(side ? 0.54 : 0.3), width: aph(0.16), height: aph(0.4), borderRadius: aph(0.08), opacity: 1 }
-  }
   const eyes = NOMI_AGENT_POSES[pose].eyes
   return { top: au(eyes.top), left: au(eyes.left[side]), width: au(eyes.width), height: au(eyes.height), borderRadius: au(eyes.radius), opacity: eyes.opacity }
 }
 
 function smileStyle(pose: NomiAgentPose, side: 0 | 1): CSSProperties {
-  const smile = pose === 'confirm' ? NOMI_AGENT_POSES.idle.smile : NOMI_AGENT_POSES[pose].smile
+  const smile = NOMI_AGENT_POSES[pose].smile
   const radius = au(AGENT_SMILE.height)
   return {
     top: au(smile.top),
@@ -242,16 +227,15 @@ function useAgentBlink(root: React.RefObject<HTMLSpanElement | null>, enabled: b
 }
 
 /**
- * Agent 形象（§3.9 第七个品牌组件）。只画、不判断：姿态由宿主传。眼睛跟着鼠标看由宿主往
- * --nomi-agent-look-x / -y 两个 CSS 变量里写（右下小球见 useAgentBallEyeFollow），这里只把它们接到眼睛那一层上。
+ * Agent 形象（§3.9 第七个品牌组件）。只画、不判断：姿态由宿主传；眼睛不跟鼠标（NomiEntryTopbar 板「不做」）。
  * 所有元素都是装饰：aria-hidden、不吃指针事件，宿主的原生按钮照旧是唯一能点、能 Tab 到的东西。
- * 减弱动效：形变、跳、扫眼、眨眼、跟随过渡全部硬切 / 停下，「在跑」那段弧停转但留着。
+ * 减弱动效：形变、跳、扫眼、眨眼全部硬切 / 停下，「在跑」那段弧停转但留着。
  */
-export function NomiAgentFace({ pose = 'idle', variant = 'live', size, text, ringProps, children, className }: NomiAgentFaceProps): JSX.Element {
+export function NomiAgentFace({ pose = 'idle', variant = 'live', size, ringProps, className }: NomiAgentFaceProps): JSX.Element {
   const root = React.useRef<HTMLSpanElement>(null)
   useAgentBlink(root, variant === 'live' && (pose === 'idle' || pose === 'unread'))
   if (variant === 'mark') {
-    // 静态脸：与小球空闲时同一套几何（身体 22、圆角 5.5、眼睛 3.4×6.6 在 6.2 / 12.4），按方框等比缩放。
+    // 静态脸：与活形象空闲时同一套几何（身体 22、圆角 5.5、眼睛 3.4×6.6 在 6.2 / 12.4），按方框等比缩放。
     const side = size ?? 16
     return (
       <svg width={side} height={side} viewBox="0 0 22 22" fill="none" aria-hidden="true" className={cn('nomi-agent-face', 'block shrink-0', className)} data-nomi-agent-face="mark">
@@ -262,16 +246,15 @@ export function NomiAgentFace({ pose = 'idle', variant = 'live', size, text, rin
       </svg>
     )
   }
-  const stage = size ?? 44
-  const confirm = pose === 'confirm'
+  const stage = size ?? 26
   const morph = 'duration-nomi-morph ease-nomi-morph motion-reduce:transition-none'
   return (
     <span
       ref={root}
       aria-hidden="true"
       data-nomi-agent-face={pose}
-      className={cn('nomi-agent-face', 'group/agent-face pointer-events-none absolute inset-0 block [interpolate-size:allow-keywords]', className)}
-      style={{ '--nomi-agent-u': `${stage / AGENT_STAGE_UNITS}px`, '--nomi-agent-ph': 'calc(var(--nomi-agent-u) * 11 + 18px)' } as CSSProperties}
+      className={cn('nomi-agent-face', 'group/agent-face pointer-events-none absolute inset-0 block', className)}
+      style={{ '--nomi-agent-u': `${stage / AGENT_STAGE_UNITS}px` } as CSSProperties}
     >
       <span
         className={cn('absolute right-0 top-0 block', pose === 'done' && 'animate-nomi-agent-hop motion-reduce:animate-none')}
@@ -279,44 +262,31 @@ export function NomiAgentFace({ pose = 'idle', variant = 'live', size, text, rin
       >
         <span
           className={cn(
-            'absolute flex items-center overflow-hidden shadow-nomi-md ring-1',
-            'transition-[right,top,width,height,border-radius,background-color,box-shadow,transform]',
+            'absolute block overflow-hidden shadow-nomi-md ring-1',
+            'transition-[right,top,width,height,border-radius,box-shadow,transform]',
             morph,
             // 压在深色画面上 / 暗色模式：一圈浅描边，免得身体被背景吃掉（浅色画布上白描边本来就看不见）。
-            confirm ? 'bg-nomi-warning-soft ring-nomi-warning-edge' : 'bg-[var(--nomi-logo-ground)] ring-nomi-media-ink/30 dark:ring-nomi-media-ink/[0.14]',
+            'bg-[var(--nomi-logo-ground)] ring-nomi-media-ink/30 dark:ring-nomi-media-ink/[0.14]',
           )}
           style={bodyStyle(pose)}
           data-nomi-agent-body=""
         >
-          <span
-            className="absolute inset-0 block transition-[translate] duration-nomi-fast ease-nomi-fast motion-reduce:transition-none"
-            style={{ translate: 'var(--nomi-agent-look-x, 0px) var(--nomi-agent-look-y, 0px)' }}
-          >
-            {([0, 1] as const).map((side) => (
-              <span
-                key={side}
-                className={cn(
-                  'absolute block transition-[left,top,width,height,border-radius,background-color,opacity]',
-                  morph,
-                  confirm ? 'bg-nomi-warning-ink' : 'bg-nomi-media-ink',
-                  pose === 'running' && 'animate-nomi-agent-scan motion-reduce:animate-none',
-                  (pose === 'idle' || pose === 'unread') && 'group-data-[blink]/agent-face:animate-nomi-agent-blink motion-reduce:animate-none',
-                )}
-                style={eyeStyle(pose, side)}
-                data-nomi-agent-eye=""
-              />
-            ))}
-          </span>
+          {([0, 1] as const).map((side) => (
+            <span
+              key={side}
+              className={cn(
+                'absolute block bg-nomi-media-ink transition-[left,top,width,height,border-radius,opacity]',
+                morph,
+                pose === 'running' && 'animate-nomi-agent-scan motion-reduce:animate-none',
+                (pose === 'idle' || pose === 'unread') && 'group-data-[blink]/agent-face:animate-nomi-agent-blink motion-reduce:animate-none',
+              )}
+              style={eyeStyle(pose, side)}
+              data-nomi-agent-eye=""
+            />
+          ))}
           {([0, 1] as const).map((side) => (
             <span key={side} className={cn('absolute box-border block border-solid border-nomi-media-ink transition-[top,opacity]', morph)} style={smileStyle(pose, side)} data-nomi-agent-smile="" />
           ))}
-          <span
-            className={cn('relative block min-w-0 truncate text-body-sm font-semibold leading-none tabular-nums text-nomi-warning-ink transition-opacity', morph)}
-            style={{ paddingLeft: aph(0.9), paddingRight: aph(0.32), opacity: confirm && text ? 1 : 0 }}
-            data-nomi-agent-label=""
-          >
-            {confirm ? text : null}
-          </span>
         </span>
         {pose === 'running' ? (
           // 在跑：外圈一段 accent 弧绕着转；减弱动效时停转，弧留着，看得出在跑。
@@ -326,7 +296,6 @@ export function NomiAgentFace({ pose = 'idle', variant = 'live', size, text, rin
             style={{ left: au(2.4), top: au(3.4), width: au(23.2), height: au(23.2), borderWidth: au(1.4) }}
           />
         ) : null}
-        {children}
       </span>
     </span>
   )
@@ -369,7 +338,7 @@ export function NomiAILabel({ markSize = 22, wordSize = 14, className, suffix = 
   )
 }
 
-export function NomiStepper({ value, onChange, meta }: NomiStepperProps): JSX.Element {
+export function NomiStepper({ value, onChange, meta, hideMeta = false }: NomiStepperProps): JSX.Element {
   const { t } = useTranslation()
   const visibleValue = value === 'storyboard' ? 'creation' : value
   const tabs: { mode: NomiStepperProps['value']; label: string }[] = [
@@ -407,7 +376,7 @@ export function NomiStepper({ value, onChange, meta }: NomiStepperProps): JSX.El
         >
           {tab.label}
           {tab.mode !== 'storyboard' && meta?.[tab.mode] ? (
-            <span className="text-micro font-normal tabular-nums text-nomi-ink-40" data-stepper-meta={tab.mode} aria-hidden="true">{meta[tab.mode]}</span>
+            <span className={cn('text-micro font-normal tabular-nums text-nomi-ink-40', hideMeta && 'hidden')} data-stepper-meta={tab.mode} aria-hidden="true">{meta[tab.mode]}</span>
           ) : null}
         </button>
       ))}

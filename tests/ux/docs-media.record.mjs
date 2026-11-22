@@ -248,13 +248,13 @@ async function recordLocale(locale) {
     await smoke.openProject()
     await win().mouse.move(VIEWPORT.width - 40, VIEWPORT.height / 2) // 鼠标挪到空处：别让某个节点带着悬停工具条入镜
     await settle(1200)
-    const agentBall = win().locator('[data-agent-ball]').first()
+    const nomiEntry = win().locator('[data-shell-topbar] [data-shell-nomi-entry]').first()
     await shot('canvas-overview', {
       marks: [
         win().locator('.nomi-stepper').first(),
         win().locator('[data-shell-rail-group="project"]').first(),
         win().locator('[data-canvas-add-more]').first().locator('xpath=..'),
-        agentBall,
+        nomiEntry,
         win().locator('[data-timeline-strip]').first(),
       ],
     })
@@ -273,10 +273,10 @@ async function recordLocale(locale) {
     const exportButton = win().getByRole('button', { name: new RegExp(uiText(locale, 'timelinePreview.exportMp4')) }).first()
     await shot('preview-export', { marks: [exportButton] })
 
-    // ── Agent 面板（回到生成页，叫出小球）────────────────────────────────────────
+    // ── Agent 面板（回到生成页，点顶栏 Nomi 入口叫出来）──────────────────────────────────────
     await win().locator('.nomi-stepper__step[data-mode="generation"]').first().click()
     await settle(800)
-    if (!(await win().locator('[data-agent-panel="true"]').first().isVisible().catch(() => false))) await agentBall.click()
+    if (!(await win().locator('[data-agent-panel="true"]').first().isVisible().catch(() => false))) await nomiEntry.click()
     await settle(1200)
     await shot('agent-panel', { marks: [win().locator('[data-agent-panel="true"] textarea, [data-agent-panel="true"] [contenteditable="true"]').first()] })
 
