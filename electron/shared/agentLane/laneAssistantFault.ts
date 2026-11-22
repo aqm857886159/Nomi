@@ -50,6 +50,12 @@ export type LaneAssistantFault =
  */
 export const LANE_VENDOR_FAILURE_DIAGNOSTIC = 'nomi.vendor-failure'
 
+/**
+ * 一条带工具调用的回复写到输出上限被截断、本机把它改成失败收场时，挂在 `diagnostics` 上的类型名（S4，2026-11-22）。
+ * `details.reason` 是内部原因码（`output_cap_tool_call`），只给排错与以后的界面文字那一刀读；不进 `errorMessage`、不新增失败种类。
+ */
+export const LANE_OUTPUT_TRUNCATED_DIAGNOSTIC = 'nomi.output-truncated'
+
 type DiagnosticLike = { readonly type?: unknown; readonly details?: unknown }
 
 /** 出错的助手消息上那份上游失败载荷；没有（非 HTTP 失败、旧转录）就 `undefined`，调用方照旧用 `errorMessage`。 */

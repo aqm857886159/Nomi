@@ -112,7 +112,7 @@
     {
       "id": "upstream-error-reason",
       "name": "上游错误 → 创作者看见的原因",
-      "owner": "electron/shared/vendorFailure.ts 的归一（状态码 + error.type / code / param → 类别、可不可重试）；词条与动作只由 electron/shared/generationFailure.ts 的 decideGenerationFailure 定",
+      "owner": "electron/shared/vendorFailure.ts 的归一（状态码 + 上游自己给的 error.code / error.type → 类别、可不可重试）；词条与动作只由 electron/shared/generationFailure.ts 的 decideGenerationFailure 定",
       "map": "docs/plan/2026-11-22-gen-chain-s4.md",
       "checked": true,
       "prefixes": [
