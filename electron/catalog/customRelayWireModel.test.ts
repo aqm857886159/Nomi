@@ -252,7 +252,7 @@ describe("类检查：出站模型名不许绕过 owner 自己算（全仓普查
   const ALLOWED: Record<string, string> = {
     "electron/shared/modelArchetypes/wireModelIdentity.ts": "owner 本身（connectionWireModel）",
     "electron/ai/vendorModelConnection.ts": "文本对话模型（AI SDK）连接，不经生成报文、不涉及档案线上名",
-    "electron/agentLane/laneDesktopInput.ts": "按模型名查请求体 profile，不写出站 model 字段",
+    "electron/catalog/modelDeclarationDefaults.ts": "写入口按名字算文本行能力声明的初值（覆盖、PDF），写目录 meta，不写出站 model 字段",
     "electron/capabilityCore/appIntegrationCanvasShot.ts": "日志 / 回执里的模型标识，不出站",
     "electron/catalog/catalogCommit.ts": "冒烟请求的 extras 身份；出站 model 仍经 templateContext → owner",
     "electron/catalog/modelListReconcile.ts": "与供应商模型列表对账，不出站",

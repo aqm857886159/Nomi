@@ -5,8 +5,9 @@
 // 会让「删旧目录」变成「顺手删掉新通路的模型装配」。搬过来之后旧位置只留一条 re-export
 // （`pi/model.mts` 仍导出 `createNomiModelRuntime`，那是旧路 `session.mts` 的专属接缝，
 // 随本目录一起死），**不是第二份实现**（P1）。
-import { createAssistantMessageEventStream, createProvider, InMemoryCredentialStore, type Api, type AssistantMessage,
-  type AssistantMessageEventStream, type Model, type ProviderHeaders, type ProviderStreams, type StreamOptions } from '@earendil-works/pi-ai';
+import { clampThinkingLevel, createAssistantMessageEventStream, createProvider, InMemoryCredentialStore, type Api, type AssistantMessage,
+  type AssistantMessageEventStream, type Model, type ProviderHeaders, type ProviderStreams, type SimpleStreamOptions,
+  type StreamOptions } from '@earendil-works/pi-ai';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy';
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy';
@@ -14,7 +15,6 @@ import { z } from 'zod';
 import type { NomiModelConfig, NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 import { LANE_VENDOR_FAILURE_DIAGNOSTIC } from '../shared/agentLane/laneAssistantFault.js';
 import { guardProviderStreams, type NomiStreamGuard } from './laneProviderGuard.mjs';
-import { applyProfileToRequestBody, getModelProfile } from '../ai/modelProfiles.js';
 import { observeModelFetch, type ModelCallRecorder } from '../ai/modelCallFetch.js';
 import { modelCallFailure } from '../ai/runtimeVendorError.js';
 import { describeAgentError } from '../ai/agentError.js';
@@ -44,6 +44,8 @@ export const modelConfigSchema = z.object({
   free: z.literal(true).optional(),
   reasoning: z.boolean().optional(),
   thinkingLevelMap: z.record(z.string().nullable()).optional(),
+  compat: z.record(z.unknown()).optional(),
+  requestBodyOverrides: z.object({ temperature: z.number().finite().optional(), enable_thinking: z.boolean().optional() }).strict().optional(),
 }).superRefine((model, ctx) => {
   // 一个模型不能既有价目又声明免费：那样「花费」这一行有两个互相矛盾的答案，
   // 而下游必须在两者之间挑一个——挑哪个都是我们在替用户猜。
@@ -187,12 +189,35 @@ export function createNomiModelDescriptor(config: NomiModelConfig): Model<Api> {
     // 值为 null 的档被剔掉。这里只负责原样递过去，不在两侧各维护一份档位清单。
     ...(config.thinkingLevelMap
       ? { thinkingLevelMap: config.thinkingLevelMap as Model<Api>['thinkingLevelMap'] } : {}),
+    // 同理：compat 按协议分型、键的含义归 pi，声明了就原样递，没声明就不出现（pi 按网址自己探测，和今天一样）。
+    ...(config.compat ? { compat: config.compat as Model<Api>['compat'] } : {}),
     cost: modelCost(config),
     // Internal SDK accounting only; onPayload below preserves Nomi's actual
     // configured output cap, or absence of one, instead of sending this bound.
     contextWindow: config.contextWindow ?? 128_000, maxTokens: config.maxOutputTokens ?? 16_384,
   };
   return model;
+}
+
+/**
+ * 没选档 = 普通请求（取自 53f50094e 的 laneModelCall 那一段，原作者 Yang-86）：pi 在模型 `reasoning: true` 时没选档也会改请求
+ * （Responses 发 `reasoning.effort` 和 `include`、Chat 发 `thinkingLevelMap.off`、系统提示的角色变 developer、Anthropic 发
+ * `thinking: disabled`），所以没选档就在交给协议实现之前把推理能力摘掉。只摘这一次请求用的那份模型；描述层仍按声明给 pi，
+ * laneHost 算出的可选档 = 声明。
+ */
+function withoutUnpickedReasoning(model: Model<Api>, picked: boolean): Model<Api> {
+  return picked || !model.reasoning ? model : { ...model, reasoning: false, thinkingLevelMap: undefined };
+}
+
+/** `streamSimple` 这次选了档：`reasoning` 按这个模型的可选档夹紧之后不是 off。 */
+function simplePicksReasoning(model: Model<Api>, options: SimpleStreamOptions | undefined): boolean {
+  return options?.reasoning !== undefined && clampThinkingLevel(model, options.reasoning) !== 'off';
+}
+
+/** `stream`（协议原生选项）这次点名了推理：OpenAI 两条的 `reasoningEffort` / `reasoningSummary`，Anthropic 的 `thinkingEnabled: true`。 */
+function streamPicksReasoning(options: StreamOptions | undefined): boolean {
+  const picked = options as { reasoningEffort?: unknown; reasoningSummary?: unknown; thinkingEnabled?: unknown } | undefined;
+  return Boolean(picked?.reasoningEffort || picked?.reasoningSummary || picked?.thinkingEnabled === true);
 }
 
 export async function createNomiProvider(input: NomiModelConfig, fetchRequest: typeof globalThis.fetch, guard?: NomiStreamGuard) {
@@ -233,10 +258,10 @@ export async function createNomiProvider(input: NomiModelConfig, fetchRequest: t
         body[config.kind === 'openai-responses' ? 'max_output_tokens' : 'max_tokens'] = cap;
       }
       if (config.temperature !== undefined) body.temperature = config.temperature;
-      // 模型怪癖（o1/o3 只收 temperature 1、kimi 的 enable_thinking…）只在这一处套：lane、文本任务、编译器同一份请求体规矩。
-      // 过去 lane 在自己的 rewritePayload 里套、文本任务在 ai@4 的 fetch 包装里套，两份。Anthropic 那条协议不吃这些字段。
-      const profiled = config.kind === 'anthropic' ? body : applyProfileToRequestBody(body, getModelProfile(config.modelId));
-      return (await options?.onPayload?.(profiled, selected)) ?? profiled;
+      // 目录行声明的请求体覆盖（o1/o3 只收 temperature 1、kimi 的 enable_thinking…）只在这一处套：lane、文本任务、编译器
+      // 同一份请求体规矩。值由写入口的初值函数写进目录，这里只读声明、不认模型名。Anthropic 那条协议不吃这些字段。
+      const declared = config.kind === 'anthropic' || !config.requestBodyOverrides ? body : { ...body, ...config.requestBodyOverrides };
+      return (await options?.onPayload?.(declared, selected)) ?? declared;
     },
   });
   // 每一次调用一份留证（最后那次尝试的事实 + 这次真正发出去的秘密）：失败收场时按它铸结构化载荷（withVendorFailure）。
@@ -246,8 +271,10 @@ export async function createNomiProvider(input: NomiModelConfig, fetchRequest: t
     return annotateFailure(send(recorder.fetch), (message) => withVendorFailure(message, config.providerId, recorder));
   };
   const base: ProviderStreams = {
-    stream: (chosen, context, options) => observed((fetch) => native.stream(chosen, context, requestOptions(options, fetch))),
-    streamSimple: (chosen, context, options) => observed((fetch) => native.streamSimple(chosen, context, requestOptions(options, fetch))),
+    stream: (chosen, context, options) => observed((fetch) =>
+      native.stream(withoutUnpickedReasoning(chosen, streamPicksReasoning(options)), context, requestOptions(options, fetch))),
+    streamSimple: (chosen, context, options) => observed((fetch) =>
+      native.streamSimple(withoutUnpickedReasoning(chosen, simplePicksReasoning(chosen, options)), context, requestOptions(options, fetch))),
   };
   const streams = guard ? guardProviderStreams(base, guard) : base;
   const provider = createProvider({

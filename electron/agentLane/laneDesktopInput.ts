@@ -11,7 +11,8 @@ import { AGENT_CONTEXT_SNAPSHOT_VERSION, formatAgentContextSnapshot } from '../s
 import { resolveProjectAgentAttachmentClaims } from '../assets/projectAssetStore'
 import { readNomiLocalAsset } from '../assets/localAssetFile'
 import { extractTextFromLocalAsset } from '../files/extractText'
-import { buildAgentUserContent, projectAgentPromptForSend, modelImageInputSupport, modelSupportsPdfInput } from '../ai/agentUserContent'
+import { buildAgentUserContent, projectAgentPromptForSend, modelImageInputSupport } from '../ai/agentUserContent'
+import { readModelDeclaration } from '../catalog/modelDeclaration'
 import { rewritePdfPayload, type NativePdf } from '../ai/nativePdfPayload'
 
 const text = z.string().max(128 * 1024)
@@ -90,7 +91,8 @@ export function createDesktopLaneInput(input: {
         prompt: [projectAgentPromptForSend(message.content, attachments), formatAgentContextSnapshot(message.context.contextSnapshot), formatStoryboardRequestTarget(message.context.storyboardTarget), formatLaneModelDelta(message.context, previous)].filter(Boolean).join('\n\n'),
         attachments,
         imageInput: modelImageInputSupport(model),
-        supportsPdfInput: selected.kind !== 'openai-compatible' && modelSupportsPdfInput(model.modelKey, model.modelAlias, model.meta),
+        // 能不能原样收 PDF 只认这一行的声明（`inputModalities`）；Chat Completions 那条协议没有 PDF 文件块，照旧不发。
+        supportsPdfInput: selected.kind !== 'openai-compatible' && readModelDeclaration(model.meta).inputModalities?.includes('pdf') === true,
         resolveBytes: (url) => readNomiLocalAsset(url)?.bytes ?? null,
         extractText: (attachment) => extractTextFromLocalAsset(attachment.url, attachment.contentType, attachment.fileName),
       })
@@ -107,7 +109,7 @@ export function createDesktopLaneInput(input: {
     },
     rewritePayload: (payload, api) => {
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('Invalid provider payload')
-      // 模型怪癖（modelProfiles）已在 createNomiProvider 的 onPayload 里套过（唯一一处），这里只管 PDF。
+      // 目录行声明的请求体覆盖已在 createNomiProvider 的 onPayload 里套过（唯一一处），这里只管 PDF。
       const rewritten = rewritePdfPayload(payload, api, [...pdfs.values()])
       if ([...pdfs.keys()].some((marker) => !rewritten.applied.has(marker))) {
         throw new Error('Native PDF was not preserved by the provider payload adapter')

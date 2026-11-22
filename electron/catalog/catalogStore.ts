@@ -18,6 +18,7 @@ import { liftWholeVendorDeletion, vendorDeletedUntilKeySaved } from "./builtinOw
 import { extractVendorExtraHeaders } from "./vendorExtraHeaders";
 export { extractVendorExtraHeaders };
 import { migrateCatalogForward } from "./catalogMigrations";
+import { withModelDeclarationDefaults } from "./modelDeclarationDefaults";
 import type { AiSdkProviderKind, BillingModelKind, CatalogState, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./types";
 import { CURRENT_CATALOG_VERSION } from "./types";
 import { normalizeCustomCall } from "./customCallMode";
@@ -68,6 +69,7 @@ function defaultCatalog(): CatalogState {
   return {
     version: CURRENT_CATALOG_VERSION,
     unverifiedUsableRecovered: true,
+    modelDeclarationDefaultsApplied: true,
     vendors: [],
     models: [],
     mappings: [],
@@ -509,16 +511,19 @@ function applyModelUpsert(state: CatalogState, payload: unknown): Model {
     (request) => antigravityConnection.canEnable(request));
   const t = nowIso();
   const customCall = normalizeCustomCall(raw.customCall, existing?.customCall);
+  const modelAlias = typeof raw.modelAlias === "string" ? raw.modelAlias.trim() || null : (existing?.modelAlias ?? null);
+  const kind = (raw.kind as BillingModelKind) || existing?.kind || "text";
   const model = sealUpsertDraft<Model>({
     modelKey,
     vendorKey,
-    modelAlias: typeof raw.modelAlias === "string" ? raw.modelAlias.trim() || null : (existing?.modelAlias ?? null),
+    modelAlias,
     labelZh: String(raw.labelZh || existing?.labelZh || "").trim() || humanizeModelKey(modelKey),
-    kind: (raw.kind as BillingModelKind) || existing?.kind || "text",
+    kind,
     enabled: normalizeEnabled(raw.enabled, existing?.enabled ?? true),
     unlisted: typeof raw.unlisted === "boolean" ? raw.unlisted : existing?.unlisted,
     tokenPricing: existing?.tokenPricing, free: existing?.free,
-    meta: raw.meta ?? existing?.meta,
+    // 文本行的能力声明初值在这一处算：所有 upsert 共用这一个漏斗（规则见 modelDeclarationDefaults.ts）。
+    meta: withModelDeclarationDefaults({ kind, modelKey, modelAlias, meta: raw.meta ?? existing?.meta }),
     pricing: (raw.pricing as Model["pricing"]) || existing?.pricing,
     onboarding: (raw.onboarding as Model["onboarding"]) ?? existing?.onboarding,
     customCall: customCall || undefined,

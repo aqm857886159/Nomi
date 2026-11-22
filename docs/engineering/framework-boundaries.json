@@ -465,8 +465,8 @@
                     "why": "请求头在 createNomiProvider 里按 authType 组装并做了 null 抑制（laneModelProvider.mts:130-136）——那是安全边界（keyless 服务器不许带 Authorization）。模型档案上再开一个 headers 口子会绕过那段抑制。"
                   },
                   "compat": {
-                    "verdict": "unused",
-                    "why": "各协议的兼容开关我们不用：Nomi 的协议差异全部收在 protocols[config.kind] 与 onPayload 的 max_tokens 改名那几行，一处可读；再启用 compat 就变成「两处都可能改同一件事」。"
+                    "verdict": "derived",
+                    "at": "electron/agentLane/laneModelProvider.mts:193"
                   }
                 }
               }

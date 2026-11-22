@@ -13,6 +13,8 @@
 import type { CatalogState, HttpOperation, Mapping, Model, Vendor } from "./types";
 // 身份与分档表住在隔壁（表随模型雷达增删，对账逻辑几乎不动 —— 两者变更理由不同）。
 import { CANONICAL_MODEL_IDS, curatedCatalogLifecycle } from "./seedModelIdentity";
+import { MODEL_DECLARATION_KEYS } from "./modelDeclaration";
+import { withModelDeclarationDefaults } from "./modelDeclarationDefaults";
 import {
   KIE_VENDOR_SEED,
   SEEDANCE_2_CREATE_OP,
@@ -490,7 +492,7 @@ function reconcileModels(models: Model[], vendorKey: string, curated: CuratedMod
     if (i < 0) {
       models.push({
         modelKey: c.modelKey, vendorKey, labelZh: c.labelZh, kind: c.kind, enabled: true,
-        ...(Object.keys(curatedMeta).length > 0 ? { meta: curatedMeta } : {}),
+        meta: withModelDeclarationDefaults({ kind: c.kind, modelKey: c.modelKey, meta: curatedMeta }),
         ...curatedPricing,
         createdAt: now, updatedAt: now,
       });
@@ -501,17 +503,20 @@ function reconcileModels(models: Model[], vendorKey: string, curated: CuratedMod
     const exMeta = (ex.meta || {}) as Record<string, unknown>;
     // Compare every code-owned capability, including supportsImageInput added to existing text rows.
     // Unrelated user metadata is not compared or removed.
-    const metaDrift = Object.entries(curatedMeta).some(([key, value]) => JSON.stringify(exMeta[key]) !== JSON.stringify(value));
+    // 文本行的能力声明初值（和写入口同一个函数算）也是代码所有的一格：差了就对账。
+    const declared = withModelDeclarationDefaults({ kind: c.kind, modelKey: c.modelKey, modelAlias: ex.modelAlias,
+      meta: { ...exMeta, ...curatedMeta } }) as Record<string, unknown>;
+    const metaDrift = Object.entries(curatedMeta).some(([key, value]) => JSON.stringify(exMeta[key]) !== JSON.stringify(value))
+      || MODEL_DECLARATION_KEYS.some((key) => JSON.stringify(exMeta[key]) !== JSON.stringify(declared[key]));
     // 撤价（curated 不再声明）也算漂移：留着一份没人维护的旧价目就是留一个会说谎的数字。
     const pricingDrift = JSON.stringify(ex.tokenPricing) !== JSON.stringify(c.tokenPricing)
       || JSON.stringify(ex.free) !== JSON.stringify(c.free);
     const drift = ex.kind !== c.kind || metaDrift || pricingDrift;
     if (drift) {
-      const nextMeta = { ...exMeta, ...curatedMeta };
       const { tokenPricing: _stalePricing, free: _staleFree, ...rest } = ex;
       models[i] = {
         ...rest, kind: c.kind,
-        ...(Object.keys(nextMeta).length > 0 ? { meta: nextMeta } : {}),
+        ...(Object.keys(declared).length > 0 ? { meta: declared } : {}),
         ...curatedPricing,
         updatedAt: now,
       };
