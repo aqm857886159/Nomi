@@ -2351,6 +2351,35 @@
       "revisitWhen": "设计系统出了通用的「带提示的开关图标钮」原语时，改用它并删掉本文件"
     },
     {
+      "id": "hover-overlays-skin",
+      "capability": "悬停出现的两种东西在设计系统里的那一份：墨色提示按句分行（每句一行、句子里不折；切句交给 Intl.Segmenter，自写的只有一条「句末标点后跟空白、或中文句末标点才算说完」的过滤）；纸色悬停卡（Radix HoverCard 换肤，样子写死、调用方传不进类名）",
+      "status": "justified",
+      "paths": [
+        "src/design/tooltipLines.ts",
+        "src/design/hoverCard.tsx"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Intl.Segmenter（granularity: sentence）：已直接用来切句；ICU 会把「take3.Final.mp4」这类紧贴字母的点也当句末，所以只在后面跟着空白的边界换行",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter"
+        },
+        {
+          "name": "Radix Tooltip：开合、定位、碰边、读屏都用它（src/design/tooltip.tsx），最宽到窗口可用宽用它给的 --radix-tooltip-content-available-width",
+          "source": "https://www.radix-ui.com/primitives/docs/components/tooltip"
+        },
+        {
+          "name": "Radix HoverCard：带画面、能滚的预览直接用它（openDelay / closeDelay / side / 碰边翻面 / 鼠标移进卡里不收），不在读屏里放隐藏副本",
+          "source": "https://www.radix-ui.com/primitives/docs/components/hover-card"
+        },
+        {
+          "name": "CSS text-wrap: balance / pretty：只调每行长短，不认句子边界，做不出「一句一行」",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/CSS/text-wrap"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：通用部分（开合、定位、碰边、读屏、切句）都接现成能力；自写的只剩 Nomi 设计系统的样子（token-only，「一句一行」是 D-1121-tooltip-multiline-shared 的拍板）和一条去掉 ICU 误判句末的过滤，约价提示里的「$0.195」「take3.Final.mp4」要靠它不断开。",
+      "revisitWhen": "CSS 出了按句子换行的能力、或 Intl.Segmenter 不再把紧贴字母的点当句末时，删掉 tooltipLines.ts 的过滤；悬停浮层整体换库时 hoverCard.tsx 跟着换"
+    },
+    {
       "id": "test-temp-owner-reclaim",
       "capability": "测试 / 走查 / 门岗的系统临时目录按「创建者进程号」归属并回收：目录名 nomi-<前缀>-p<进程号>-<随机>，创建者被 SIGKILL 后由下一个进程第一次分配、或杀它的 runner（等整棵进程树没了）按进程是否存活回收。脚本侧（scripts/_test-temp.mjs 管系统临时目录里的测试 / 走查目录，scripts/pre-push-contracts.mjs 的 terminateAndReclaim 是杀后回收的唯一口子）与产品侧（electron/assets/scratchCleanup.ts 管用户项目根下的上传暂存）各一份——登记为什么是两份、各管哪边",
       "status": "justified",
@@ -2464,6 +2493,35 @@
       "revisitWhen": "菜单变体行的判断并进档案本身（档案直接声明每家渠道的变体轴）时，删掉这个 hook"
     },
     {
+      "id": "send-cost-public-estimate",
+      "capability": "画布节点发送键上的约价：把节点这次发送的最终请求投影成公开价询价、读 APIMart 公开价目、按格式化一处印成积分数和悬停那一句；算不出就不印数",
+      "status": "justified",
+      "plan": "docs/plan/2026-11-17-cost-step1-estimate.md",
+      "paths": [
+        "electron/ai/onboarding/vendorPricePreview.ts",
+        "electron/ai/onboarding/vendorPriceRequest.ts",
+        "src/workbench/generationCanvas/spend/useNodePricePreview.ts",
+        "src/workbench/generationCanvas/spend/useSendCost.ts",
+        "src/workbench/generationCanvas/spend/sendCostFormat.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "既有目录请求构造：priceQueryFromRequest 复用 selectTaskMapping、applyHeadlessParamDefaults、buildProfileHttpRequest，只从真实请求投影价格规格，不另建一份型号 / 参数目录",
+          "source": "electron/ai/onboarding/vendorPriceRequest.ts:1"
+        },
+        {
+          "name": "既有网络出口 appFetch：公开价 GET 走同一个出口（代理、重定向策略一致），不另写 HTTP 传输",
+          "source": "electron/appFetch.ts"
+        },
+        {
+          "name": "React 生命周期与现有货币格式化：防抖 / 失序用 React.useEffect；美元显示复用 formatMoney 的 Intl.NumberFormat，积分数用 Number.toLocaleString，不自建状态库或格式器",
+          "source": "src/workbench/ai/v4/formatMoney.ts:16"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：只有 Nomi 的节点、参考关系、变体映射和最终出站请求能决定这次镜头的公开价是否可估（带参考、自定义模板、价目没写附加费时必须判未知）。网络、HTTP 模板、React 生命周期和货币格式化都复用现有实现；这几个模块只把这些领域事实接起来，不拥有第二份目录、凭据或付费授权。",
+      "revisitWhen": "既有请求构造器直接提供同形的只读报价投影，或公开价读取迁入统一的模型连接领域 owner 时，合并这些适配并删掉重复入口；任何时候都不得用估价结果替代生成授权。"
+    },
+    {
       "id": "param-value-door-eslint-rule",
       "capability": "ESLint 小规则 param-value-door/no-reparse：画布、分镜、助手与发送这几块目录里，不许再对参数袋里的时长或控件档位值自己写一份 typeof / Number / parseFloat / 一元 + / 字符串化比较，规整只走 electron/shared/videoCapabilities/paramValue.ts 的门",
       "status": "justified",
@@ -2489,7 +2547,7 @@
     },
     {
       "id": "composer-bar-yield-measurement",
-      "capability": "生成底栏文字尺子与逐级宽度求解",
+      "capability": "生成底栏文字尺子与按重要性清单挑样子",
       "status": "justified",
       "paths": [
         "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
@@ -2500,9 +2558,13 @@
         {
           "name": "rc-overflow / React Spectrum ActionGroup / Primer UnderlineNav / pretext",
           "source": "docs/plan/2026-11-17-bar-yield-measure-drawn.md#先查别人"
+        },
+        {
+          "name": "Fluent UI @fluentui/priority-overflow",
+          "source": "docs/engineering/direction-checks/2026-11-21-bar-yield-r3.md#5-p0哪些是我们独有的现成方案有哪些"
         }
       ],
-      "whyNotIntegrated": "按领域裁决的固定让位顺序，多控件多样子；列表溢出组件不表达生成字、摘要整值、方式字、模型名的依次让位。只自写候选宽求解，字体排版与尺寸观察用浏览器。",
+      "whyNotIntegrated": "按领域裁决的重要性顺序，多控件多样子；列表溢出组件（Fluent priority-overflow、rc-overflow 等）展开到第一个放不下就停，不跳过放不下的去补放得下的，也不表达摘要整值、方式字、生成字。只自写约 10 行的清单挑法，字体排版与尺寸观察用浏览器。",
       "revisitWhen": "外框校准一个月改两次以上，或增加另一种让位形状时回到方向复盘。2026-11-24复查。"
     }
   ]

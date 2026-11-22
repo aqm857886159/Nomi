@@ -1,0 +1,24 @@
+{
+  "id": "send-cost-param-update-en",
+  "feature": "英文界面：画布视频节点改一个参数（时长 5 秒 ↔ 10 秒），发送键上的约价换成新数",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/ux/send-cost-estimate.rehearsal.walk.mjs",
+    "--",
+    "--locale",
+    "en"
+  ],
+  "scale": "同 send-cost-param-update，只换成英文界面（英文底栏最挤：方式格已收成图标、摘要只剩一个值，胶囊仍在）。真 Electron（先 pnpm run build），隔离资料、内置 APIMart 目录、Seedance 2.0 Mini；价目由本机回环假服务回；预热 1 次后交替改时长，每次关面板后核摘要不压提示词工具。",
+  "metrics": [
+    "response"
+  ],
+  "budget": 200,
+  "group": "② 生成框里的操作",
+  "budgetStatus": "proposed",
+  "budgetBasis": "和中文场景 send-cost-param-update 同一条预算（设计卡 ★7：改参数到新数字出现 ≤200ms，含 100ms 防抖、一次 IPC、主进程读价目）；英文只多了底栏让级的量宽。",
+  "measurement": {
+    "state": "pending",
+    "reason": "英文那轨 2026-11-21 才过「摘要不压提示词工具」；落地线只量不写（--measure-only 5 次，数字在线报告里），基线由协调量了写。"
+  }
+}

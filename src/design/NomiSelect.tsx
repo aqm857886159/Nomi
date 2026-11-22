@@ -429,7 +429,7 @@ export function NomiSelect({
     <TooltipProvider delayDuration={120}>
       <Tooltip delayDuration={120}>
         {combo}
-        <TooltipContent side="top">{selected?.label}</TooltipContent>
+        <TooltipContent side="top">{selected?.label ?? ''}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   ) : combo

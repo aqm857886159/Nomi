@@ -35,10 +35,11 @@ describe("onboarding discovery IPC preserves the shared result contract", () => 
     expect(handlers.has("nomi:onboarding:manual-commit")).toBe(false);
   });
   // D-1117-delete-verification（协调 2026-11-18 Q7）：「测试连接」整个删了，拉模型列表是唯一一条免费探测。
+  // vendor-price-preview 不是探测：只读公开价目（不带凭据），不判任何连接能不能用，给发送键印约价。
   it("does not register the removed test-connection probe", () => {
     expect(handlers.has("nomi:onboarding:test-connection")).toBe(false);
     expect([...handlers.keys()].filter((channel) => channel.startsWith("nomi:onboarding:")).sort())
-      .toEqual(["nomi:onboarding:guess-kinds", "nomi:onboarding:list-models"]);
+      .toEqual(["nomi:onboarding:guess-kinds", "nomi:onboarding:list-models", "nomi:onboarding:vendor-price-preview"]);
   });
   it("forwards HTTP200 auth errors through list-models", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ code: 401, data: [], message: "expired" }), { status: 200 })));

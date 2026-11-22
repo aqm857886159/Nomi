@@ -8,9 +8,11 @@ import {
   fetchModelList,
   readExtraHeaders,
 } from "./modelListProbe";
-import { normalizeProviderKind } from "../../catalog/catalogStore";
+import { normalizeProviderKind, readCatalog } from "../../catalog/catalogStore";
 import { connectionAuthSpec } from "../../catalog/vendorAuthSpec";
 import type { VendorAuthSpec } from "../requestPipeline";
+import { priceQueryFromRequest } from "./vendorPriceRequest";
+import { readVendorPricePreview } from "./vendorPricePreview";
 
 import { assertTrustedSender } from "../../ipcSenderGuard";
 import { registerAntigravityIpc } from "../antigravityIpc";
@@ -33,6 +35,14 @@ export function registerOnboardingIpc(): void {
     assertTrustedSender(event);
     try { return { ok: true, value: await upsertRendererCatalogVendorApiKey(vendorKey, payload) }; }
     catch (error) { return { ok: false, error: error instanceof Error ? error.message : String(error) }; }
+  });
+
+  // 发送键上的约价：渲染层交来最终请求，这里只投影成询价、读公开价目（不带凭据的 GET）。
+  // 约价只是显示——这条口不创建任务、不发生成请求、不产生花钱授权。
+  ipcMain.handle("nomi:onboarding:vendor-price-preview", (event, payload) => {
+    assertTrustedSender(event);
+    const query = priceQueryFromRequest(payload, readCatalog());
+    return query ? readVendorPricePreview(query) : null;
   });
 
   // 类型启发式（Issue #8）：从 /v1/models 拉到/手填的模型 id 没带类型，主进程按关键词猜

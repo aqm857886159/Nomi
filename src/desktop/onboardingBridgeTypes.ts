@@ -211,4 +211,6 @@ export type DesktopOnboardingBridge = {
   guessKinds: (payload: { ids: string[] }) => Promise<{
     kinds: Record<string, 'text' | 'image' | 'video' | 'audio' | 'model3d'>
   }>
+  /** 发送键上的约价：交最终请求，回公开价估出的数（只读、不带凭据）；算不出 = null。 */
+  vendorPricePreview: (payload: import("../../electron/shared/contracts/vendorPricePreview").VendorPriceRequest) => Promise<import("../../electron/shared/contracts/vendorPricePreview").VendorPricePreview | null>
 }
