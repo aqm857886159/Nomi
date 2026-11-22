@@ -160,22 +160,3 @@ export async function verifyGeneratedShots(
   }
   return { deviations, shotOutcomes, unverified }
 }
-
-/** 唯一共享的未校验原因展示翻译：静态键字面量供 check-i18n-key-refs 校验，TS 穷举检查全部原因码。 */
-export function formatQaUnverifiedReason(
-  reason: QaShotUnverifiedReason,
-  t: (key: string) => string,
-): string {
-  switch (reason) {
-    case 'vision_unavailable':
-      return t('generationCommon.reconcile.unverifiedReasons.vision_unavailable')
-    case 'missing_frame_source':
-      return t('generationCommon.reconcile.unverifiedReasons.missing_frame_source')
-    case 'frame_extract_failed':
-      return t('generationCommon.reconcile.unverifiedReasons.frame_extract_failed')
-    case 'judge_failed':
-      return t('generationCommon.reconcile.unverifiedReasons.judge_failed')
-    case 'invalid_verdict_json':
-      return t('generationCommon.reconcile.unverifiedReasons.invalid_verdict_json')
-  }
-}

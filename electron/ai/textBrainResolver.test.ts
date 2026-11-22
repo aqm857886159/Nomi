@@ -295,8 +295,8 @@ describe("Nomi text brain resolver", () => {
 
   it("reports imageInput capability from the resolved text model", () => {
     safeStorageMocks.decryptString.mockImplementation((value: Buffer) => value.toString("utf8"));
-    const visionModel: ModelEntry = { ...model("a", "vision-chat"), meta: { supportsImageInput: true } };
-    const textOnlyModel: ModelEntry = { ...model("b", "text-only"), meta: { supportsImageInput: false } };
+    const visionModel = { ...model("a", "vision-chat"), meta: { supportsImageInput: true } };
+    const textOnlyModel = { ...model("b", "text-only"), meta: { supportsImageInput: false } };
     vi.mocked(readCatalog).mockReturnValue(catalog({
       vendors: [vendor("a"), vendor("b")],
       models: [visionModel, textOnlyModel],

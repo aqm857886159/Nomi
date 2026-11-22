@@ -19,6 +19,7 @@
     "electron/productionRun/productionRunProjections.ts",
     "src/desktop/bridge.ts",
     "src/i18n/locales/generationCommon.ts",
+    "src/workbench/generationCanvas/agent/shotVerify.ts",
     "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
     "src/workbench/generationCanvas/agent/shotVerifyJudge.ts",
     "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
@@ -86,6 +87,11 @@
       "symbol": "makeShotVerifyDeps"
     },
     {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/shotVerify.ts",
+      "symbol": "formatQaUnverifiedReason"
+    },
+    {
       "kind": "write",
       "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
       "symbol": "verifyGeneratedShots"
@@ -147,8 +153,8 @@
     }
   ],
   "door_reduction": {
-    "before": 17,
-    "after": 17,
+    "before": 18,
+    "after": 18,
     "why_not": "These doors trace the single end-to-end QA pipeline across Electron main (textBrainResolver -> IPC -> productionQaVerdict -> driverOps -> projections) and renderer (shotVerifyJudge -> shotVerifyRunner -> shotVerifyStore -> capabilityApplyHandler -> ReconcileDeviationCard / ProductionDetails); all share QaShotVerdictStatus and formatQaUnverifiedReason as single owners instead of recomputing pass/fail from empty deviation lists."
   },
   "generality_proof": "By replacing the two-state ReconcileDeviation[] return contract and boolean passed = flagged.length === 0 derivation with the single registered three-state QaShotVerdictStatus vocabulary (passed | flagged | unverified) from runner through IPC/capability bridge to ProductionRun ledger and both UI surfaces (ReconcileDeviationCard and ProductionDetails), any failure mode (vision unsupported, missing frame, extraction error, judge error, invalid JSON) is structurally unable to masquerade as passed or trigger paid retries.",
@@ -230,7 +236,8 @@
     "artifacts": [
       "electron/productionRun/productionRunTypes.ts",
       "scripts/vocabularies-baseline.json",
-      "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "src/workbench/generationCanvas/agent/shotVerify.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
       "src/workbench/capability/capabilityApplyHandler.ts",
       "electron/productionRun/productionQaVerdict.ts"
     ]

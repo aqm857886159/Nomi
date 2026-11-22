@@ -8,6 +8,7 @@
 // 比吐模糊小数稳。低于阈值的轴 → 一条「画面偏差」,喂进现有对账卡(ReconcileDeviationCard)。
 // 客观项(连线结构/数量/参数)仍归 reconcile.ts 结构对账,不在这里重复判。
 
+import type { QaShotUnverifiedReason } from '../../../../electron/productionRun/productionRunTypes'
 import type { ReconcileDeviation } from './reconcile'
 
 export type ShotVerifyDimensionKey = 'identity' | 'composition' | 'continuity'
@@ -239,4 +240,23 @@ export function contentDeviationsToReconcile(content: readonly ShotContentDeviat
     kind: 'content',
     shotNodeId: d.shotNodeId,
   }))
+}
+
+/** 唯一共享的未校验原因展示翻译：纯函数、静态键字面量供 check-i18n-key-refs 校验，TS 穷举检查全部原因码。 */
+export function formatQaUnverifiedReason(
+  reason: QaShotUnverifiedReason,
+  t: (key: string) => string,
+): string {
+  switch (reason) {
+    case 'vision_unavailable':
+      return t('generationCommon.reconcile.unverifiedReasons.vision_unavailable')
+    case 'missing_frame_source':
+      return t('generationCommon.reconcile.unverifiedReasons.missing_frame_source')
+    case 'frame_extract_failed':
+      return t('generationCommon.reconcile.unverifiedReasons.frame_extract_failed')
+    case 'judge_failed':
+      return t('generationCommon.reconcile.unverifiedReasons.judge_failed')
+    case 'invalid_verdict_json':
+      return t('generationCommon.reconcile.unverifiedReasons.invalid_verdict_json')
+  }
 }

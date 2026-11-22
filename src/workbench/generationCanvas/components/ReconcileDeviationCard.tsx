@@ -5,7 +5,8 @@ import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
 import type { ReconcileDeviation } from '../agent/reconcile'
 import { SHOT_VERIFY_DIMENSIONS, type ShotVerifyDimensionKey } from '../agent/shotVerify'
-import { formatQaUnverifiedReason, type ShotVerifyUnverifiedEntry } from '../agent/shotVerifyRunner'
+import { formatQaUnverifiedReason } from '../agent/shotVerify'
+import type { ShotVerifyUnverifiedEntry } from '../agent/shotVerifyRunner'
 
 type ReconcileDeviationCardProps = {
   deviations: ReconcileDeviation[]
