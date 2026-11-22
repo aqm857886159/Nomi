@@ -1,4 +1,4 @@
-import type { JSX } from 'react'
+import type { JSX, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconDownload, IconExternalLink, IconTrash, IconX } from '@tabler/icons-react'
 import { DesignModal } from '../../design'
@@ -28,15 +28,17 @@ export function SkillDetail({ entry, addToChatBlockedReason, onClose, onAddToCha
   return (
     <DesignModal
       opened
-      contentAttributes={{ 'data-skill-detail': entry.id }}
-      accessibleName={entry.title}
       onClose={onClose}
-      title={
+      // 对话框的名字 = 技能名（外壳放进 Modal.Title）；封面、简介、来源一行、关闭键走标题栏插槽，摆在名字旁边、不进名字。
+      title={entry.title}
+      // 插槽最外层这一格占原来标题元素的位置：铺满标题栏、行距 1（Mantine 标题的行距，下面一行来源信息照旧继承它）。
+      header={(title: ReactNode) => (
+        <div className="w-full leading-none">
         <header className="relative flex shrink-0 gap-5 border-b border-nomi-line px-6 pb-5 pt-6">
           <SkillMedia cover={entry.cover} preview={entry.preview} play illustration={entry.illustration} expiredLabel={t('libraries.prompt.card.expired')}
             className="h-[120px] w-48 shrink-0 overflow-hidden rounded-nomi-sm object-cover" />
           <div className="flex min-w-0 flex-col gap-2 pr-8">
-            <span className="m-0 font-nomi-display text-h1 font-medium leading-8 text-nomi-ink" data-skill-detail-title>{entry.title}</span>
+            {title}
             {entry.description ? <p className="m-0 text-body-sm leading-5 text-nomi-ink-60">{entry.description}</p> : null}
             <LibraryDetailMeta data-skill-detail-meta>
               {entry.group ? <span>{entry.group.label}</span> : null}
@@ -60,7 +62,8 @@ export function SkillDetail({ entry, addToChatBlockedReason, onClose, onAddToCha
             <IconX size={16} stroke={2} />
           </button>
         </header>
-      }
+        </div>
+      )}
       actions={
         <LibraryDetailFooter
           leading={onDelete ? (
@@ -79,7 +82,7 @@ export function SkillDetail({ entry, addToChatBlockedReason, onClose, onAddToCha
       xOffset={24}
       yOffset={48}
       styles={{ inner: { justifyContent: 'flex-end' } }}
-      classNames={{ content: 'rounded-modal bg-nomi-paper shadow-nomi-lg', header: 'p-0', title: 'w-full', body: 'p-0' }}
+      classNames={{ content: 'rounded-modal bg-nomi-paper shadow-nomi-lg', header: 'p-0', title: 'm-0 font-nomi-display text-h1 font-medium leading-8 text-nomi-ink', body: 'p-0' }}
     >
       <div>
 

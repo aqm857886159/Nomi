@@ -312,6 +312,7 @@
     "zod-to-json-schema": "3.25.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@electron/asar": "3.4.1",
     "@eslint/js": "^10.0.1",
     "@floating-ui/dom": "1.8.0",

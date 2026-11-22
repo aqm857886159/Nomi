@@ -53,7 +53,7 @@ function Host() {
     ]} />
     <WorkbenchMenu open={cOpen} onOpenChange={setCOpen} point={cPoint} ariaLabel="C" items={[{ id: 'c1', label: 'C1', onSelect: nop }]} />
     <WorkbenchMenu open={dOpen} onOpenChange={setDOpen} point={{ x: 0, y: 0 }} anchorRect={dRect ?? undefined} ariaLabel="D" items={[{ id: 'd-remove', label: 'remove', onSelect: () => setDShow(false) }]} />
-    <DesignModal opened={bDlg} onClose={() => setBDlg(false)} title="真弹窗" accessibleName="真弹窗"><button id="dlg-btn">in dialog</button></DesignModal>
+    <DesignModal opened={bDlg} onClose={() => setBDlg(false)} title="真弹窗"><button id="dlg-btn">in dialog</button></DesignModal>
   </main></MantineProvider>
 }
 createRoot(document.getElementById('root')).render(<Host />);
