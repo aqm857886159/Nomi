@@ -7,6 +7,7 @@
 // 这里钉住的是修完之后模型读到的那一段：凡被拒，正文点名出错字段，并给出合法值 / 近似键 / 期望类型 / 范围之一；
 // 面板拿到的信封带码和字段清单；同一个错连发时第 3 次起停。
 import { afterEach, describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 
 import { createHttpFixture, type FixtureReply } from '../../tests/agent-runtime/httpFixture.mjs'
@@ -19,7 +20,7 @@ import type { GenerationProblemCode } from '../shared/generationProblem'
 import { buildVideoModelCandidates } from '../shared/videoCapabilities'
 import { createExtendedLaneTools } from './laneExtendedTools'
 import { openLane } from './laneHost.mjs'
-import type { LaneToolFailureEvent, OpenLaneOptions } from './laneRuntimePort'
+import { bindLaneTool, type LaneToolDescriptor, type LaneToolFailureEvent, type OpenLaneOptions } from './laneRuntimePort'
 import { verbToTransportCall } from './laneVerbTransport'
 
 const cleanups: Array<() => unknown> = []
@@ -81,13 +82,18 @@ async function runLane(turns: ReadonlyArray<readonly unknown[]>, options: {
   duringRequest?: { at: number; run: (lane: LaneHandle) => Promise<unknown> }
   /** 按桌面端的形状发话：用户的话是 `nomi.input`（只在发给模型时才转成 user），不是 pi 的 user 消息。 */
   desktopInput?: boolean
+  /** 除 draft_shots 外一起挂上来的其他工具（测换条路 / 跨工具）。 */
+  extraTools?: readonly LaneToolDescriptor[]
 } = {}) {
   const world = spendWorld({ registry, videoModelCandidates })
   const adapter = world.transport('request')
   let executed = 0
-  const tools = createExtendedLaneTools({
-    execute: async (call, signal) => { executed += 1; return adapter.tryExecute(verbToTransportCall(call, LANE_MODELS)!.call, signal) as never },
-  }).filter((tool) => tool.name === 'draft_shots')
+  const tools: LaneToolDescriptor[] = [
+    ...createExtendedLaneTools({
+      execute: async (call, signal) => { executed += 1; return adapter.tryExecute(verbToTransportCall(call, LANE_MODELS)!.call, signal) as never },
+    }).filter((tool) => tool.name === 'draft_shots'),
+    ...(options.extraTools ?? []),
+  ]
   let id = 0
   const replies: FixtureReply[] = turns.flatMap((items) => [
     ...items.filter((item) => item !== CLOSED).map((item) => ({ type: 'tool' as const,
@@ -461,5 +467,37 @@ describe('正对照：做成的工作不被停', () => {
     expect(codes(results)).toEqual(['tool_arguments_invalid', 'generation_input_invalid', 'ok', 'tool_arguments_invalid', 'tool_arguments_invalid', 'ok'])
     expect(results.some((result) => STOP.test(result.text))).toBe(false)
     expect(requests).toBe(7)
+  }, 60_000)
+
+  it('3 错 + 7 对：同一轮里前面连错 3 次、后面换工具连对 7 次，止损不把后面的好请求掐掉', async () => {
+    let readCount = 0
+    const readScript = bindLaneTool({
+      name: 'read_script',
+      contractId: 'document.read',
+      description: 'Read a script section.',
+      promptSnippet: 'read a script section.',
+      nextAction: 'none',
+      describe: () => ({ verb: 'read', target: 'script' }),
+      effect: 'read',
+      execution: { timeoutMs: 10_000 },
+      schema: z.object({ section: z.number() }).strict(),
+      examples: [{ when: 'Read a section:', arguments: { section: 1 } }],
+    }, async (args) => {
+      readCount += 1
+      return { ok: true, text: `section ${(args as { section: number }).section}` }
+    })
+    const goodCalls = Array.from({ length: 7 }, (_unused, index) => named('read_script', { section: index + 1 }))
+    const { results, requests, projection } = await runLane([[WRONG_SHAPE, WRONG_SHAPE, WRONG_SHAPE, ...goodCalls]], {
+      extraTools: [readScript],
+    })
+    expect(codes(results)).toEqual([
+      'tool_arguments_invalid', 'tool_arguments_invalid', 'tool_arguments_invalid',
+      'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok',
+    ])
+    expect(results[2]!.text).toMatch(STOP)
+    expect(results.some((result) => failureOf(result)?.code === 'tool_retry_stopped')).toBe(false)
+    expect(readCount, '前面连错 3 次后换工具，后面 7 次好调用必须全部执行').toBe(7)
+    expect(requests, '3 次错 + 7 次对 + 最后一句 done = 11 次请求，一次都没被提前掐掉').toBe(11)
+    expect(projection.running).toBe(false)
   }, 60_000)
 })
