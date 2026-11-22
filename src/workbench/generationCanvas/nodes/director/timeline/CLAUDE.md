@@ -10,7 +10,7 @@
 > TrackLanes.tsx: 泳道：主行画路径 + 特写片段条 + 末尾「+」追加路径（最后一段 +0.1s 处，余量 <0.5s 不给），空间轨迹 / 骨骼帧副行画 10px 菱形（未选轨灰缩、选轨 key-path / key-bone、点选墨色放大、骨骼激活 key-active）+ 按片段分组的 2px 连线；片段争位置按 model/timeGrid laneClips 的单泳道规则（机位路径 ∪ 特写）；片段拖移 / 拖边 / 菱形拖时（吸附候选）都在这里，右键交上下文菜单；pointercancel 丢弃预览，空行点选 seek，框选支持 Shift 累加
 > ClipBar.tsx: 片段条：20px 高、顶 3px、圆角、等宽居中标签继承片段前景色；完整状态交 clipToneClass；两端 10px 命中区中画 4px 白色拖柄，只在该把手悬停时变 5px；左右把手命中区判定
 > clipTone.ts: 片段完整状态配色单一真相 clipToneClass（tailwind.config 主题无关 token `--nomi-clip-*`）：五类普通/hover 的底色与浅色文字成对；选中=本家族实色+白字白边，优先于 active；active 只作用于路径（95% 底色+cyan-50 字+青边），不继承普通 hover；同时导出拖拽区类型
-> TimelineContextMenu.tsx: body 传送门 + fixed 定位的右键菜单原语（贴窗口边缘回折；外点 / Esc 关闭，data-nomi-escape-layer）
+> TimelineContextMenu.tsx: 委托全站唯一 WorkbenchMenu（Radix Portal + 边缘避让 + 外点/Esc/方向键，透传 data-nomi-escape-layer）的右键菜单适配层
 > timelineRows.ts: 行模型：主行泳道放路径片段 + 机位的特写片段；副行只在有内容时长出，顺序 动作 → 骨骼帧 → 视线 → 空间轨迹（路标菱形住这一行，不画在片段上）；折叠只出主行；行高固定
 > timelineCommands.ts: 零 React 命令层：播放 / 步进 / 跳端点 / 选片段路标 / 插帧 / 复制粘贴紧贴复制 / 左右剪切 / 分割 / 删除，拒绝原因用 i18n key 回传；复合命令一次历史，剪切按选中片段家族，插帧遵从共享机位泳道与关键帧采样
 > useTimelineViewport.ts: 视口几何：默认 36px/s、时间 0 在 12px、泳道总宽恒 12 + 60s×scale、最小 scale = 60s 铺满视口、最大 600；按钮 ×1.2 / Ctrl+滚轮 ×1.12 围绕光标；「适应」= 最小 scale 滚到 0

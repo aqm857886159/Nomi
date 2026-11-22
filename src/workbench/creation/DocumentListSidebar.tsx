@@ -1,5 +1,4 @@
 import React, { type JSX } from 'react'
-import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
   IconAlertTriangle,
@@ -13,7 +12,7 @@ import {
   IconPlus,
   IconTrash,
 } from '@tabler/icons-react'
-import { confirmDialog, WorkbenchIconButton } from '../../design'
+import { confirmDialog, WorkbenchIconButton, WorkbenchMenu, type WorkbenchMenuNode } from '../../design'
 import { showUndoToast } from '../../utils/showUndoToast'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -116,22 +115,6 @@ export default function DocumentListSidebar(): JSX.Element {
   const [menu, setMenu] = React.useState<ResourceMenu>(null)
   const settledRef = React.useRef(false)
 
-  React.useEffect(() => {
-    if (!menu) return
-    const close = () => setMenu(null)
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
-    }
-    window.addEventListener('pointerdown', close)
-    window.addEventListener('resize', close)
-    window.addEventListener('keydown', onKeyDown)
-    return () => {
-      window.removeEventListener('pointerdown', close)
-      window.removeEventListener('resize', close)
-      window.removeEventListener('keydown', onKeyDown)
-    }
-  }, [menu])
-
   const beginRename = React.useCallback((target: NonNullable<EditingTarget>, title: string) => {
     settledRef.current = false
     setEditing(target)
@@ -214,83 +197,70 @@ export default function DocumentListSidebar(): JSX.Element {
     documentId: string,
     point: { x: number; y: number },
   ) => {
-    const menuWidth = 176
-    const menuHeight = target.kind === 'storyboard' ? 120 : 88
-    setMenu({
-      target,
-      documentId,
-      x: Math.max(8, Math.min(point.x, window.innerWidth - menuWidth - 8)),
-      y: Math.max(8, Math.min(point.y, window.innerHeight - menuHeight - 8)),
-    })
+    setMenu({ target, documentId, x: point.x, y: point.y })
   }, [])
 
   const renderMenu = () => {
     if (!menu) return null
     const menuTarget = menu.target
-    const buttonClass = 'w-full px-2.5 py-1.5 text-left text-caption text-nomi-ink-80 hover:bg-nomi-ink-05 disabled:cursor-not-allowed disabled:text-nomi-ink-40'
-    const dangerClass = 'w-full px-2.5 py-1.5 text-left text-caption text-workbench-danger hover:bg-workbench-danger-soft disabled:cursor-not-allowed disabled:text-nomi-ink-40'
     const close = () => setMenu(null)
-    return createPortal(
-      <div
-        role="menu"
-        className="fixed z-popover min-w-[176px] overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper py-1 shadow-workbench-pop"
-        style={{ left: menu.x, top: menu.y }}
-        onPointerDown={(event) => event.stopPropagation()}
-        onContextMenu={(event) => event.preventDefault()}
-        data-creation-resource-menu={menuTarget.kind}
-      >
-        <button
-          type="button"
-          role="menuitem"
-          className={buttonClass}
-          data-resource-action="rename"
-          onClick={() => {
-            const title = menuTarget.kind === 'document'
-              ? documents.find((document) => document.id === menuTarget.id)?.title
-              : designsByDocumentId[menu.documentId]?.find((design) => design.id === menuTarget.id)?.title
-            close()
-            if (title !== undefined) beginRename(menuTarget, title)
-          }}
-        >
-          {t('creationAi.documentList.rename')}
-        </button>
-        {menuTarget.kind === 'storyboard' ? (
-          <button
-            type="button"
-            role="menuitem"
-            className={buttonClass}
-            data-resource-action="duplicate"
-            onClick={() => {
+    const deleteDisabled = menuTarget.kind === 'document' && documents.length <= 1
+    const items: WorkbenchMenuNode[] = [
+      {
+        id: 'rename',
+        label: t('creationAi.documentList.rename'),
+        dataAttributes: { 'data-resource-action': 'rename' },
+        onSelect: () => {
+          const title = menuTarget.kind === 'document'
+            ? documents.find((document) => document.id === menuTarget.id)?.title
+            : designsByDocumentId[menu.documentId]?.find((design) => design.id === menuTarget.id)?.title
+          close()
+          if (title !== undefined) beginRename(menuTarget, title)
+        },
+      },
+      ...(menuTarget.kind === 'storyboard'
+        ? [{
+            id: 'duplicate',
+            label: t('creationAi.documentList.duplicateStoryboard'),
+            dataAttributes: { 'data-resource-action': 'duplicate' },
+            onSelect: () => {
               const copy = duplicateStoryboardDesign(menuTarget.id, menu.documentId)
               close()
               if (copy) selectStoryboard(copy.id, menu.documentId)
-            }}
-          >
-            {t('creationAi.documentList.duplicateStoryboard')}
-          </button>
-        ) : null}
-        <div className="my-0.5 h-px bg-nomi-line" />
-        <button
-          type="button"
-          role="menuitem"
-          className={dangerClass}
-          data-resource-action="delete"
-          disabled={menuTarget.kind === 'document' && documents.length <= 1}
-          title={menuTarget.kind === 'document' && documents.length <= 1 ? t('creationAi.documentList.keepOneDocument') : undefined}
-          onClick={() => {
-            close()
-            if (menuTarget.kind === 'document') {
-              const title = documents.find((document) => document.id === menuTarget.id)?.title || t('runtime.project.untitled')
-              void onDeleteDocument(menuTarget.id, title)
-            } else {
-              onDeleteStoryboard(menuTarget.id, menu.documentId)
-            }
-          }}
-        >
-          {menuTarget.kind === 'document' ? t('creationAi.documentList.delete') : t('creationAi.documentList.deleteStoryboard')}
-        </button>
-      </div>,
-      document.body,
+            },
+          } satisfies WorkbenchMenuNode]
+        : []),
+      { kind: 'separator', id: 'sep-delete' },
+      {
+        id: 'delete',
+        label: menuTarget.kind === 'document' ? t('creationAi.documentList.delete') : t('creationAi.documentList.deleteStoryboard'),
+        danger: true,
+        disabled: deleteDisabled,
+        disabledReason: deleteDisabled ? t('creationAi.documentList.keepOneDocument') : undefined,
+        dataAttributes: { 'data-resource-action': 'delete' },
+        onSelect: () => {
+          close()
+          if (menuTarget.kind === 'document') {
+            const title = documents.find((document) => document.id === menuTarget.id)?.title || t('runtime.project.untitled')
+            void onDeleteDocument(menuTarget.id, title)
+          } else {
+            onDeleteStoryboard(menuTarget.id, menu.documentId)
+          }
+        },
+      },
+    ]
+    return (
+      <WorkbenchMenu
+        open
+        onOpenChange={(open) => { if (!open) close() }}
+        point={{ x: menu.x, y: menu.y }}
+        ariaLabel={t('creationAi.documentList.aria')}
+        contentData={{ 'data-creation-resource-menu': menuTarget.kind }}
+        className="min-w-[176px] rounded-nomi-sm py-1 px-0 gap-0"
+        itemClassName="min-h-0 rounded-none px-2.5 py-1.5 text-nomi-ink-80"
+        separatorClassName="my-0.5 mx-0"
+        items={items}
+      />
     )
   }
 

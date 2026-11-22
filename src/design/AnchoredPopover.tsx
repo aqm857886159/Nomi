@@ -43,15 +43,17 @@ import { listenOutsidePress } from './outsidePress'
  *      行在表格的 overflow-hidden 里，最后一行的菜单被裁成一条边；
  *   ② Radix —— `src/design/tooltip.tsx`（tooltip 一族）**与 `src/design/menu.tsx`（菜单一族，
  *      2026-09-08 刀 1 起：`timeline/TimelineContextMenu.tsx`、
- *      `generationCanvas/components/NodeContextMenu.tsx`）**。刀 1 没有引进第五套定位库，
+ *      `generationCanvas/components/NodeContextMenu.tsx`；2026-11-23 T-8-R1 起收编
+ *      `creation/DocumentListSidebar.tsx`、`sidebar/CategoryTree.tsx`、
+ *      `director/timeline/TimelineContextMenu.tsx`）**。刀 1 没有引进第五套定位库，
  *      是让已经在用的这一套多担一个用途；
  *   ③ Mantine —— `src/design/overlays.tsx` 的 `DesignModal`（Modal 自带定位与遮罩）；
- *   ④ 手写 `getBoundingClientRect()` + `createPortal` —— **8 个文件**：
+ *   ④ 手写 `getBoundingClientRect()` + `createPortal` —— **7 个文件**：
  *      `generationCanvas/nodes/{NodeGenerationComposer,InlineParameterBar,ClipNode,PanoramaViewer}.tsx`、
  *      `generationCanvas/components/{SelectionPromptSaveController,ScreenshotCropOverlay}.tsx`、
- *      `creation/DocumentListSidebar.tsx`、`assets/AssetTile.tsx`。
+ *      `assets/AssetTile.tsx`。
  *
- * **这个 8 是要被改的数，不是装饰**：④ 每收一处，就把这里的数字和名单当场改掉；
+ * **这个 7 是要被改的数，不是装饰**：④ 每收一处，就把这里的数字和名单当场改掉；
  * 数对不上就是这段注释又过期了（下一步是把名单交给 `check:` 脚本数，注释只留规则）。
  * ② 不收（Radix 的 a11y / 键盘 / 避让是它自带的，重写一遍不划算）；③ 不收（居中模态不是锚点浮层）。
  *

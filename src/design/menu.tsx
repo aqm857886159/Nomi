@@ -61,6 +61,8 @@ type WorkbenchMenuItemBase = {
   disabledReason?: string
   /** 默认 true。false = 选完不关（现役有意如此的是布局菜单的面板开关）。 */
   closeOnSelect?: boolean
+  /** 透传到菜单项节点上的 data-* 走查/语义钩子（如 `data-resource-action`）。 */
+  dataAttributes?: Readonly<Record<`data-${string}`, string | undefined>>
 }
 
 export type WorkbenchMenuAction = WorkbenchMenuItemBase & {
@@ -163,6 +165,10 @@ export type WorkbenchMenuProps = WorkbenchMenuAnchor & {
   onPointerDown?: (event: React.PointerEvent<HTMLDivElement>) => void
   /** 走查/样式钩子，落在菜单面板上。 */
   'data-testid'?: string
+  /** 挂到菜单面板上的 `data-nomi-escape-layer`，供宿主键盘/Esc 归属链先让路给菜单。 */
+  escapeLayer?: string
+  /** 透传到菜单面板上的额外 `data-*` 属性（如 `data-creation-resource-menu`）。 */
+  contentData?: Readonly<Record<`data-${string}`, string | undefined>>
 }
 
 /** 面板与项的默认皮肤 = 2026-08-20 用户拍板的节点右键菜单那一套。 */
@@ -271,6 +277,7 @@ function renderNodes(nodes: readonly WorkbenchMenuNode[], ctx: RenderContext): R
               disabled={option.disabled}
               title={option.disabled ? option.disabledReason : undefined}
               data-menu-item={option.id}
+              {...option.dataAttributes}
               className={cn(ITEM_CLASS, ctx.itemClassName)}
               onSelect={selectHandler(option)}
             >
@@ -289,6 +296,7 @@ function renderNodes(nodes: readonly WorkbenchMenuNode[], ctx: RenderContext): R
           disabled={node.disabled}
           title={node.disabled ? node.disabledReason : undefined}
           data-menu-item={node.id}
+          {...node.dataAttributes}
           className={cn(ITEM_CLASS, ctx.itemClassName)}
           onSelect={selectHandler(node)}
         >
@@ -302,6 +310,7 @@ function renderNodes(nodes: readonly WorkbenchMenuNode[], ctx: RenderContext): R
         disabled={node.disabled}
         title={node.disabled ? node.disabledReason : undefined}
         data-menu-item={node.id}
+        {...node.dataAttributes}
         className={cn(ITEM_CLASS, node.danger && DANGER_ITEM_CLASS, ctx.itemClassName)}
         onSelect={selectHandler(node, node.onSelect)}
       >
@@ -334,6 +343,8 @@ export function WorkbenchMenu({
   separatorClassName,
   onPointerDown,
   'data-testid': testId,
+  escapeLayer,
+  contentData,
 }: WorkbenchMenuProps): JSX.Element {
   const ctx: RenderContext = { itemClassName, shortcutClassName, separatorClassName }
   const contentRef = React.useRef<HTMLDivElement | null>(null)
@@ -377,6 +388,8 @@ export function WorkbenchMenu({
           collisionPadding={8}
           aria-label={ariaLabel}
           data-testid={testId}
+          data-nomi-escape-layer={escapeLayer}
+          {...contentData}
           // 右键菜单上再右键，现役是 preventDefault（不弹浏览器原生菜单）。照抄。
           onPointerDown={onPointerDown}
           onContextMenu={(event) => event.preventDefault()}
@@ -385,7 +398,11 @@ export function WorkbenchMenu({
           // 仍然 preventDefault：Radix 默认会把焦点塞给虚拟锚点，那是一个看不见的元素。
           ref={contentRef}
           onKeyDownCapture={() => { keyboardCloseRef.current = true }}
-          onEscapeKeyDown={() => { keyboardCloseRef.current = true }}
+          onEscapeKeyDown={(event) => {
+            keyboardCloseRef.current = true
+            // 这一下 Esc 已由本菜单消费，阻断继续冒到 window（避免同一下 Esc 把底层抽屉如 ShellRail 一并关掉）。
+            event.stopPropagation()
+          }}
           onPointerDownCapture={() => { keyboardCloseRef.current = false }}
           onPointerDownOutside={() => { keyboardCloseRef.current = false }}
           onCloseAutoFocus={(event) => {

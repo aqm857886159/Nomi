@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { BUILTIN_CATEGORIES, getBuiltinCategoryById, type ProjectCategory } from '../project/projectCategories'
 import { showUndoToast } from '../../utils/showUndoToast'
 import { useWorkbenchStore } from '../workbenchStore'
-import { confirmDialog, promptDialog } from '../../design'
+import { confirmDialog, promptDialog, WorkbenchMenu, type WorkbenchMenuNode } from '../../design'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { selectStableCanvasNodes } from '../generationCanvas/store/canvasNodeProjection'
 import { useCommittedProposal } from '../generationCanvas/agent/proposalUndo'
@@ -96,20 +96,6 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
       return next
     })
   }, [committedProposal])
-
-  React.useEffect(() => {
-    if (!menu) return undefined
-    const close = () => setMenu(null)
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
-    }
-    window.addEventListener('click', close)
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('click', close)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [menu])
 
   const openMenu = React.useCallback((event: React.MouseEvent<HTMLElement>, nextMenu: SidebarMenuPayload) => {
     event.preventDefault()
@@ -349,50 +335,47 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
 
   const renderContextMenu = () => {
     if (!menu) return null
-    const buttonClass = 'w-full px-2.5 py-1 text-left text-caption text-nomi-ink-80 hover:bg-nomi-ink-05'
-    const dangerClass = 'w-full px-2.5 py-1 text-left text-caption text-workbench-danger hover:bg-workbench-danger-soft'
+    let items: WorkbenchMenuNode[] = []
+    if (menu.type === 'category') {
+      const category = (categories || BUILTIN_CATEGORIES).find((c) => c.id === menu.categoryId)
+      const isCustom = category ? !category.isBuiltin : false
+      items = [
+        { id: 'create-group', label: t('libraries.sidebar.createGroup'), onSelect: () => handleCreateGroup(menu.categoryId) },
+        ...(isCustom
+          ? [
+              { id: 'rename-category', label: t('libraries.sidebar.rename'), onSelect: () => handleRenameCategory(menu.categoryId) },
+              { kind: 'separator' as const, id: 'sep-category' },
+              { id: 'delete-category', label: t('libraries.sidebar.deleteCategory'), danger: true, onSelect: () => void handleDeleteCategory(menu.categoryId) },
+            ]
+          : []),
+      ]
+    } else if (menu.type === 'node') {
+      items = [
+        { id: 'copy-node', label: t('libraries.sidebar.copy'), onSelect: () => handleCopyNode(menu.nodeId) },
+        { id: 'rename-node', label: t('libraries.sidebar.rename'), onSelect: () => void handleRenameNode(menu.nodeId) },
+        { id: 'regenerate-derived', label: t('libraries.sidebar.regenerateDerived'), onSelect: () => handleRegenerateDerivedNode(menu.nodeId) },
+        { kind: 'separator', id: 'sep-node' },
+        { id: 'delete-node', label: t('common.delete'), danger: true, onSelect: () => void handleDeleteNode(menu.nodeId) },
+      ]
+    } else if (menu.type === 'group') {
+      items = [
+        { id: 'rename-group', label: t('libraries.sidebar.rename'), onSelect: () => handleRenameGroup(menu.groupId) },
+        { id: 'ungroup', label: t('libraries.sidebar.ungroup'), onSelect: () => handleUngroup(menu.groupId) },
+        { kind: 'separator', id: 'sep-group' },
+        { id: 'delete-group', label: t('libraries.sidebar.deleteWithNodes'), danger: true, onSelect: () => void handleDeleteGroup(menu.groupId) },
+      ]
+    }
     return (
-      <div
-        role="menu"
-        className="fixed z-50 min-w-[120px] overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper py-1 shadow-workbench-pop"
-        style={{ left: menu.x, top: menu.y }}
-        onClick={(event) => event.stopPropagation()}
-        onContextMenu={(event) => event.preventDefault()}
-      >
-        {menu.type === 'category' ? (() => {
-          const category = (categories || BUILTIN_CATEGORIES).find((c) => c.id === menu.categoryId)
-          const isCustom = category ? !category.isBuiltin : false
-          return (
-            <>
-              <button type="button" role="menuitem" className={buttonClass} onClick={() => handleCreateGroup(menu.categoryId)}>{t('libraries.sidebar.createGroup')}</button>
-              {isCustom ? (
-                <>
-                  <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRenameCategory(menu.categoryId)}>{t('libraries.sidebar.rename')}</button>
-                  <div className="my-0.5 h-px bg-nomi-line" />
-                  <button type="button" role="menuitem" className={dangerClass} onClick={() => handleDeleteCategory(menu.categoryId)}>{t('libraries.sidebar.deleteCategory')}</button>
-                </>
-              ) : null}
-            </>
-          )
-        })() : null}
-        {menu.type === 'node' ? (
-          <>
-            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleCopyNode(menu.nodeId)}>{t('libraries.sidebar.copy')}</button>
-            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRenameNode(menu.nodeId)}>{t('libraries.sidebar.rename')}</button>
-            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRegenerateDerivedNode(menu.nodeId)}>{t('libraries.sidebar.regenerateDerived')}</button>
-            <div className="my-0.5 h-px bg-nomi-line" />
-            <button type="button" role="menuitem" className={dangerClass} onClick={() => handleDeleteNode(menu.nodeId)}>{t('common.delete')}</button>
-          </>
-        ) : null}
-        {menu.type === 'group' ? (
-          <>
-            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRenameGroup(menu.groupId)}>{t('libraries.sidebar.rename')}</button>
-            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleUngroup(menu.groupId)}>{t('libraries.sidebar.ungroup')}</button>
-            <div className="my-0.5 h-px bg-nomi-line" />
-            <button type="button" role="menuitem" className={dangerClass} onClick={() => handleDeleteGroup(menu.groupId)}>{t('libraries.sidebar.deleteWithNodes')}</button>
-          </>
-        ) : null}
-      </div>
+      <WorkbenchMenu
+        open
+        onOpenChange={(open) => { if (!open) closeMenu() }}
+        point={{ x: menu.x, y: menu.y }}
+        ariaLabel={t('sidebar.categoryPanel')}
+        className="min-w-[120px] rounded-nomi-sm py-1 px-0 gap-0"
+        itemClassName="min-h-0 rounded-none px-2.5 py-1 text-nomi-ink-80"
+        separatorClassName="my-0.5 mx-0"
+        items={items}
+      />
     )
   }
 
