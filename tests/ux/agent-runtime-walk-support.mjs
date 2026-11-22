@@ -239,13 +239,13 @@ export async function stopRuntimeApp(app) {
   }
 }
 
-export async function finalizeRuntimeWalk(report, { error, cleanup = [], collect } = {}) {
+export async function finalizeRuntimeWalk(report, { error, result, cleanup = [], collect } = {}) {
   const failures = error ? [error] : []
   for (const action of cleanup) {
     try { await action() } catch (cleanupError) { failures.push(cleanupError) }
   }
   try { Object.assign(report, await collect?.()) } catch (evidenceError) { failures.push(evidenceError) }
-  report.result = failures.length ? 'failed' : 'passed'
+  report.result = failures.length ? 'failed' : (result ?? 'passed')
   report.error = failures.length ? failures.map((failure) => failure instanceof Error ? failure.stack : String(failure)).join('\n\n') : undefined
   if (failures.length) process.exitCode = 1
   fs.writeFileSync(path.join(report.outputDir, 'report.json'), JSON.stringify(report, null, 2))
@@ -613,13 +613,13 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
    * 只可能是 App 自己发起的后台调用——例如出图后的镜级自评落到目录里第一个文本模型上——
    * 如实记进报告（路径 + 请求里第一句话），不判红：它们不是这条走查在测的东西，也不花钱。
    */
-  async function finish(error, { collect, unscriptedFixture = false } = {}) {
+  async function finish(error, { collect, result, unscriptedFixture = false } = {}) {
     if (error && current) {
       try { await current.win.screenshot({ path: path.join(outputDir, 'FAIL.png') }) }
       catch (captureError) { console.error('Failure screenshot unavailable:', captureError.message) }
     }
     await finalizeRuntimeWalk(report, {
-      error, cleanup: [stopApp, () => fixture.close()],
+      error, ...(result ? { result } : {}), cleanup: [stopApp, () => fixture.close()],
       collect: async () => {
         if (unscriptedFixture) {
           report.backgroundFixtureCalls = fixture.unexpected.map((record) => ({
