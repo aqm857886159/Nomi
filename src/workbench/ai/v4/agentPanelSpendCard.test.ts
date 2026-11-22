@@ -35,7 +35,7 @@ function pending(shots: readonly PendingSpendShot[], overrides: Partial<PendingS
   return { projectId: 'p1', runId: 'r1', operationId: 'op-1', planVersion: 1, quoteId: 'q1', currency: 'CNY', shots, ...overrides }
 }
 
-const IDLE: SpendCardView = { busy: false, stopping: false, hostingDisclosure: false }
+const IDLE: SpendCardView = { busy: false, stopping: false,  }
 
 function project(shots: readonly PendingSpendShot[], shotFacts: readonly SpendCardShotFacts[], view: Partial<SpendCardView> = {}, overrides: Partial<PendingSpendConfirm> = {}) {
   return projectSpendCard(pending(shots, overrides), shotFacts, { ...IDLE, ...view }, t, { locale: 'zh-CN' })!
@@ -49,7 +49,7 @@ describe('付费卡投影 · 等人决定', () => {
     expect(card.slot.price).toBeUndefined()
     expect(card.summary).toBe('agentPanelV4.spendCard.summaryPickedModel(model=Seedance 2.0 Fast,picked=agentPanelV4.spendParamsModelPicked) · 16:9 · 480p · 4s')
     expect(card.pointers).toEqual([{ shotId: 's1', nodeId: 'n1', shotRef: '镜 01', removed: false, exclusion: null }])
-    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s1'], hostingAllowed: false })
+    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s1'] })
   })
 
   it('「Nomi 选的」并入只读摘要；节点里换过模型就不再这么说', () => {
@@ -71,7 +71,7 @@ describe('付费卡投影 · 等人决定', () => {
     expect(uniform.summary).toBe('agentPanelV4.spendCard.summaryPickedModel(model=Seedance 2.0 Fast,picked=agentPanelV4.spendParamsModelPicked) · 16:9 · 480p · agentPanelV4.spendCard.perShotSeconds(value=4s)')
     expect(uniform.pointers.every((pointer) => pointer.note === undefined), '每行都一样的事只在确认条上说一次').toBe(true)
     expect(card.pointers.map((pointer) => pointer.exclusion)).toEqual(['exclude', 'exclude', 'exclude'])
-    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s1', 's2', 's3'], hostingAllowed: false })
+    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s1', 's2', 's3'] })
   })
 
   it('各镜价格不同：折叠明细逐镜印价（名字与指向元素同一个），不渲染页脚（D5）', () => {
@@ -112,7 +112,7 @@ describe('付费卡投影 · 不生成 / 恢复 / 删除 / 节点上点过 ↑',
     expect(card.slot.title).toBe('')
     expect(card.slot.confirmLabel).toBe('agentPanelV4.spendCard.generateAll(count=2)')
     expect(card.pointers.map((pointer) => pointer.exclusion)).toEqual(['exclude', 'restore', 'exclude'])
-    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s1', 's3'], hostingAllowed: false })
+    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s1', 's3'] })
   })
 
   it('全部去掉：主按钮置灰只说「生成」，卡留着（每一格都能恢复），标题说没有要生成的了', () => {
@@ -121,7 +121,7 @@ describe('付费卡投影 · 不生成 / 恢复 / 删除 / 节点上点过 ↑',
     expect(card.slot.confirmLabel).toBe('agentPanelV4.spendCard.generate')
     expect(card.slot.actionsDisabled).toBe(true)
     expect(card.pointers.map((pointer) => pointer.exclusion)).toEqual(['restore', 'restore'])
-    expect(card.primary).toEqual({ kind: 'generate', shotIds: [], hostingAllowed: false })
+    expect(card.primary).toEqual({ kind: 'generate', shotIds: [] })
   })
 
   it('节点被删：指向元素「已删除」、不能恢复，N 跟着变（3.12）；宿主还没记上删除时也不交它', () => {
@@ -130,14 +130,14 @@ describe('付费卡投影 · 不生成 / 恢复 / 删除 / 节点上点过 ↑',
       [facts(1), facts(2, { present: false }), facts(3, { present: false })],
     )
     expect(card.pointers.map((pointer) => [pointer.removed, pointer.exclusion])).toEqual([[false, 'exclude'], [true, null], [false, null]])
-    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s1'], hostingAllowed: false })
+    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s1'] })
     expect(card.slot.confirmLabel).toBe('agentPanelV4.spendCard.generateAll(count=1)')
   })
 
   it('还没落到画布上的那一镜：指向元素是不可点的占位（nodeId 空），卡不算它、不交它', () => {
     const card = project([shot(1, { nodeId: undefined }), shot(2)], [facts(1, { present: false }), facts(2)])
     expect(card.pointers[0]).toMatchObject({ nodeId: '', removed: false, exclusion: null })
-    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s2'], hostingAllowed: false })
+    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s2'] })
     const allLanding = project([shot(1, { nodeId: undefined }), shot(2, { nodeId: undefined })], [facts(1, { present: false }), facts(2, { present: false })])
     expect(allLanding.slot.confirmLabel).toBe('agentPanelV4.spendCard.generate')
     expect(allLanding.slot.actionsDisabled).toBe(true)
@@ -148,7 +148,7 @@ describe('付费卡投影 · 不生成 / 恢复 / 删除 / 节点上点过 ↑',
     expect(card.slot.title).toBe('')
     expect(card.slot.confirmLabel).toBe('agentPanelV4.spendConfirmRemainingVideo(count=2)')
     expect(card.pointers[0]!.exclusion).toBeNull()
-    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s2', 's3'], hostingAllowed: false })
+    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s2', 's3'] })
   })
 
   it('动作在路上：主按钮置灰（第二下不进）', () => {
@@ -196,7 +196,7 @@ describe('付费卡投影 · 失败留在卡里', () => {
     expect(card.pointers[2]!.hostStatus).toBe('agentPanelV4.spendCard.pointerNotSentYet')
     expect(card.pointers[1]!.hostFailure).toBe('agentPanelV4.spendCard.pointerFailed')
     expect(card.pointers[1]!.outcome, '原因写在那一行').toBe('agentPanelV4.spendCard.failure.provider_not_reached')
-    expect(card.primary).toEqual({ kind: 'retry', shotIds: ['s2'], hostingAllowed: false })
+    expect(card.primary).toEqual({ kind: 'retry', shotIds: ['s2'] })
   })
 
   it('参数被拒：「先不发了 · 去改镜 N」，点了定位到那个节点（不给「再试一次」：同样的参数再发一次还是被拒）', () => {
@@ -230,30 +230,10 @@ describe('付费卡投影 · 失败留在卡里', () => {
     expect(rejected.pointers[0]!.outcome).toBe('agentPanelV4.spendCard.failure.rejectedFallback')
   })
 
-  it('要问托管同意的那一种：条上摆一行中性披露原文（按钮旁边），「再试一次」带着这次同意再交', () => {
-    const card = project([shot(1, { offer: 'not_sent', failure: { kind: 'not_sent', code: 'asset_hosting_consent_required' } })], [facts(1)])
-    expect(card.notices).toEqual([{ tone: 'neutral', text: 'generationCommon.spendHostingDisclosure.message' }])
-    expect(card.primary).toEqual({ kind: 'retry', shotIds: ['s1'], hostingAllowed: true })
-  })
-
-  it('再试的那几镜要先传托管、原因却是别的：另摆一行披露原文，「再试一次」才带同意（同意只来自卡上摆着的那一句）', () => {
-    const failure = { kind: 'not_sent' as const, code: 'provider_not_reached' }
-    const withoutDisclosure = project([shot(1, { offer: 'not_sent', failure })], [facts(1)])
-    expect(withoutDisclosure.notices).toHaveLength(0)
-    expect(withoutDisclosure.primary).toEqual({ kind: 'retry', shotIds: ['s1'], hostingAllowed: false })
-    const disclosed = project([shot(1, { offer: 'not_sent', failure })], [facts(1)], { hostingDisclosure: true })
-    expect(disclosed.notices).toEqual([{ tone: 'neutral', text: 'generationCommon.spendHostingDisclosure.message' }])
-    expect(disclosed.notices[0]).toEqual({ tone: 'neutral', text: 'generationCommon.spendHostingDisclosure.message' })
-    expect(disclosed.primary).toEqual({ kind: 'retry', shotIds: ['s1'], hostingAllowed: true })
-    // 原因本身就是要问托管时也只摆这一行。
-    const consent = project([shot(1, { offer: 'not_sent', failure: { kind: 'not_sent', code: 'asset_hosting_consent_required' } })], [facts(1)], { hostingDisclosure: true })
-    expect(consent.notices).toHaveLength(1)
-  })
-
   it('没发出去的节点已经不在画布上：不再当成要处理的那一镜', () => {
     const card = project([shot(1, { offer: 'not_sent', failure: { kind: 'not_sent', code: 'canvas_node_missing' } }), shot(2)], [facts(1, { present: false }), facts(2)])
     expect(card.slot.failed).toBeUndefined()
-    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s2'], hostingAllowed: false })
+    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s2'] })
   })
 })
 
@@ -266,7 +246,7 @@ describe('付费卡投影 · 本机预检（按下之前就判得出发不出去
     expect(card.slot.confirmLabel).toBe('agentPanelV4.spendCard.generateAll(count=2)')
     expect(card.notices).toEqual([{ tone: 'danger', text: 'agentPanelV4.spendCard.blockedNotice(shot=镜 02,reason=agentPanelV4.spendCard.failure.prompt_required)' }])
     expect(card.pointers[1]).toMatchObject({ hostFailure: 'agentPanelV4.spendCard.pointerCannotSend', exclusion: 'exclude' })
-    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s1', 's3'], hostingAllowed: false })
+    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s1', 's3'] })
   })
 
   it('一段能发的都没有：失败样子留在卡里，参数那一类「去改」，节点在忙那一类「去看」', () => {
@@ -280,11 +260,6 @@ describe('付费卡投影 · 本机预检（按下之前就判得出发不出去
 })
 
 describe('付费卡投影 · 托管披露、刹车、空卡', () => {
-  it('要先把本机参考图传到公共临时托管：卡上一行中性披露，按「生成」就是同意这一次', () => {
-    const card = project([shot(1)], [facts(1)], { hostingDisclosure: true })
-    expect(card.notices).toEqual([{ tone: 'neutral', text: 'generationCommon.spendHostingDisclosure.message' }])
-    expect(card.primary).toEqual({ kind: 'generate', shotIds: ['s1'], hostingAllowed: true })
-  })
 
   it('直接生成档的刹车退回这张卡：三种样子都多一行说明，别的不变', () => {
     for (const [reason, key] of [['retry-limit', 'brakeRetry'], ['out-of-plan', 'brakeOutOfPlan'], ['stopped', 'brakeStopped']] as const) {

@@ -311,6 +311,13 @@ function renderNodes(nodes: readonly WorkbenchMenuNode[], ctx: RenderContext): R
   })
 }
 
+/** 打开前聚焦的那个元素还在页面上、看得见、没禁用，才值得还；否则什么都不做（保持菜单关后焦点留在原处的老行为）。 */
+function isRestorableOpener(el: Element | null): el is HTMLElement {
+  if (!(el instanceof HTMLElement) || el === document.body || !el.isConnected) return false
+  if ((el as HTMLButtonElement).disabled) return false
+  return el.getClientRects().length > 0
+}
+
 export function WorkbenchMenu({
   open,
   onOpenChange,
@@ -329,6 +336,17 @@ export function WorkbenchMenu({
   'data-testid': testId,
 }: WorkbenchMenuProps): JSX.Element {
   const ctx: RenderContext = { itemClassName, shortcutClassName, separatorClassName }
+  const contentRef = React.useRef<HTMLDivElement | null>(null)
+  const openerRef = React.useRef<Element | null>(null)
+  const keyboardCloseRef = React.useRef(false)
+  // 打开的那一刻记下谁有焦点：layout effect 早于菜单内容挂载后的 passive effect（Radix 在那里才把焦点移进菜单），读到的还是触发按钮。
+  React.useLayoutEffect(() => {
+    if (!open) return
+    // 只认「键盘到达」的焦点（:focus-visible）：鼠标点开的按钮不进来，鼠标开的菜单保持今天的行为（关后焦点不动）。
+    const active = document.activeElement
+    openerRef.current = active instanceof HTMLElement && active.matches(':focus-visible') ? active : null
+    keyboardCloseRef.current = false
+  }, [open])
   // 虚拟锚点：点位菜单是 0×0 的点；按钮点开的菜单是那块不许盖住的矩形（不接指针事件——它就叠在真按钮上）。
   const anchorStyle: React.CSSProperties = anchorRect
     ? { left: anchorRect.left, top: anchorRect.top, width: anchorRect.width, height: anchorRect.height, pointerEvents: 'none' }
@@ -362,9 +380,26 @@ export function WorkbenchMenu({
           // 右键菜单上再右键，现役是 preventDefault（不弹浏览器原生菜单）。照抄。
           onPointerDown={onPointerDown}
           onContextMenu={(event) => event.preventDefault()}
-          // 关闭时不把焦点还给那个 0×0 的虚拟锚点：现役菜单关掉后焦点本就留在原处，
-          // 归还给一个看不见的元素是新增行为，不是「只换实现」。
-          onCloseAutoFocus={(event) => event.preventDefault()}
+          // 焦点：菜单是宿主受控开的，真正的触发按钮（或右键前聚焦的元素）Radix 不认识，它只认那个 0×0 的虚拟锚点。
+          // 所以打开的那一刻（上面的 layout effect）自己记下谁有焦点，用键盘关掉（Esc / 键盘选一项）时还给它。
+          // 仍然 preventDefault：Radix 默认会把焦点塞给虚拟锚点，那是一个看不见的元素。
+          ref={contentRef}
+          onKeyDownCapture={() => { keyboardCloseRef.current = true }}
+          onEscapeKeyDown={() => { keyboardCloseRef.current = true }}
+          onPointerDownCapture={() => { keyboardCloseRef.current = false }}
+          onPointerDownOutside={() => { keyboardCloseRef.current = false }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            const opener = openerRef.current
+            const byKeyboard = keyboardCloseRef.current
+            openerRef.current = null
+            keyboardCloseRef.current = false
+            if (!byKeyboard || !isRestorableOpener(opener)) return
+            // 选中的那一项已经把焦点安排去别处（输入框、弹窗……）就不抢回来：只在焦点掉到 body 或还留在菜单里时才还。
+            const active = document.activeElement
+            if (active && active !== document.body && !contentRef.current?.contains(active)) return
+            opener.focus({ preventScroll: true })
+          }}
           style={{ zIndex: NOMI_OVERLAY_Z_INDEX.popover }}
           className={cn(CONTENT_CLASS, className)}
         >

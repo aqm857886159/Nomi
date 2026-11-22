@@ -69,7 +69,10 @@ describe('real character reference at the shared storyboard write boundary', () 
       if (variant === 'text') input.anchors[0].carrier = 'text'
       if (variant === 'unreferenced') input.shots.forEach(shot => { shot.anchorIds = [] })
       if (variant === 'keyframe') input.shots.forEach(shot => { shot.keyframe = { enabled: true, prompt: '河边首帧' } })
-      expect(await write(input)).toEqual(input)
+      // 方案进门时视频镜头的时长只留 durationSec 一个家（params.duration 收掉，reconcileShotDuration）；其余原样。
+      const expected = structuredClone(input)
+      expected.shots.forEach(shot => { delete shot.params?.duration })
+      expect(await write(input)).toEqual(expected)
     }
   })
   it('rejects a mode switch that would strand an authored opening frame', async () => {

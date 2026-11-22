@@ -1,5 +1,5 @@
 import type { RpcServerOptions } from './rpcServer'
-import { reservationMaximumForDisplay } from './approvalReceipt'
+import { createGenerationGateAnswers, type ClientGateAnswer } from './runOwnedGenerationGateAuthority'
 import { currentProjectRevision, getApprovalReceiptAuthority } from './approvalReceiptRuntime'
 import type { DispatchContext } from './dispatcher'
 import { requestRendererDecision, rendererTargetIdentity } from './rendererBridge'
@@ -30,61 +30,18 @@ export function createDefaultAuthorities(hooks: {
   })
   // 进程内唯一的人证权威（制作 Run 服务拿的是同一个实例，见 approvalReceiptRuntime.ts）。
   const receiptAuthority = getApprovalReceiptAuthority()
-  const confirmGenerationInNomi = async ({ challengeToken }: { challengeToken: string }) => {
-    const challenge = receiptAuthority.verifyChallenge(challengeToken)
-    const target = rendererTargetIdentity()
-    if (!target || !challenge.display?.model) return { confirmed: false, challengeId: challenge.challengeId }
-    // 生成闸的卡在等真人按，没有墙钟期限（2026-09-11 拍板）。挑战自己的 expiresAt 仍在——
-    // 那是凭据新鲜度（过期只是这张凭据不能再用，门照样等着人），不是替他答「否」。
-    const result = await requestRendererDecision('generation.gate.confirm', {
-      challengeId: challenge.challengeId,
-      projectName: challenge.display.projectName,
-      shotSummary: challenge.display.shotSummary,
-      model: challenge.display.model,
-      referenceCount: challenge.display.referenceCount,
-      maximumCost: reservationMaximumForDisplay(challenge.reservationPreview),
-      ...(challenge.reservationPreview.unknownJobCount ? { unknownShotCount: challenge.reservationPreview.unknownJobCount } : {}),
-      currency: challenge.reservationPreview.currency,
-      expiresAt: challenge.expiresAt,
-      ...(challenge.display.shots ? { shots: challenge.display.shots } : {}),
-    }) as { confirmed?: unknown; trialFirst?: unknown } | null
-    if (result?.confirmed !== true) {
-      if (result?.trialFirst === true && hooks.onTrialFirst && challenge.runId && challenge.projectId) {
-        try {
-          await hooks.onTrialFirst({ projectId: challenge.projectId, operationId: challenge.runId })
-        } catch (error) {
-          logError('capability', 'trial-first-narrow-failed', error)
-        }
-      }
-      return {
-        confirmed: false,
-        challengeId: challenge.challengeId,
-        ...(result?.trialFirst === true ? { trialFirst: true } : {}),
-        // 卡真的弹出来、用户点了「忽略」才是拒绝；渲染端没应答（null）不是——Agent 要靠它分清「拒绝」与「没人答」（C-4）。
-        ...(result !== null && typeof result === 'object' && result.trialFirst !== true ? { declined: true } : {}),
-      }
-    }
-    const attestation = receiptAuthority.createMainProcessGestureAttestation(challengeToken, {
-      ...target,
-      decision: 'accept',
-    })
-    const receipt = receiptAuthority.mintReceipt(challengeToken, attestation)
-    return {
-      confirmed: true,
-      challengeId: challenge.challengeId,
-      receiptId: receipt.receipt.receiptId,
-      receiptToken: receipt.token,
-    }
-  }
-  const verifyClientGenerationGateInMain = async ({ challengeToken, authenticatedClient }: { challengeToken: string; authenticatedClient: string }) => {
-    const attestation = receiptAuthority.createClientElicitationAttestation(challengeToken, authenticatedClient)
-    const receipt = receiptAuthority.mintReceipt(challengeToken, attestation)
-    return {
-      confirmed: true,
-      receiptId: receipt.receipt.receiptId,
-      receiptToken: receipt.token,
-    }
-  }
+  // 两种问人的地方（Nomi 里的卡、外部客户端的确认框）都交给生成门主人判、由它签；这里只接线。
+  const answers = createGenerationGateAnswers({
+    receipts: receiptAuthority,
+    requestRendererDecision,
+    rendererTargetIdentity,
+    onTrialFirst: hooks.onTrialFirst,
+    onTrialFirstError: (error) => logError('capability', 'trial-first-narrow-failed', error),
+  })
+  const confirmGenerationInNomi = (input: { challengeToken: string }, options?: { signal?: AbortSignal }) =>
+    answers.confirmInNomi(input, options)
+  const verifyClientGenerationGateInMain = async (input: { challengeToken: string; authenticatedClient: string; answer?: ClientGateAnswer }) =>
+    answers.answerFromClient({ challengeToken: input.challengeToken, client: input.authenticatedClient, answer: input.answer })
   return {
     projectSessionAuthority: projectSession.authority,
     approvalReceiptAuthority: receiptAuthority,

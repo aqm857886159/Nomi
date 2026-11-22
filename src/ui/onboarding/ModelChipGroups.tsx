@@ -30,10 +30,13 @@ export type ChipModel = {
    * 模型设置页的「N 个可使用」读它，和首页横幅 / 助手下拉 / 画布选择器同源。
    */
   availability?: ModelAvailability
+  /**
+   * 这个模型的格式任务正在跑——主进程从任务生命周期算好下发（electron/providerAdapter/formatProgress.ts）。
+   * 渲染层拿不到任务状态原料（IPC 已剥掉 meta.adapter.state），只能读这个结论。
+   */
+  formatInProgress?: boolean
   /** 后端模型扩展信息；通用 chip 不消费，专用卡可透传读取。 */
   meta?: unknown
-  /** 经过目录投影层校验的自动适配状态；详情页不直接信任任意 meta。 */
-  adapterState?: 'unverified' | 'testing' | 'verified' | 'partial' | 'failed'
   /** 当前适配任务的稳定身份；无效或缺失时不暴露给导航。 */
   adapterRunId?: string
   /** 该模型是否已设自定义调用脚本（模型行图标点亮 + 角标；chip 不消费）。 */

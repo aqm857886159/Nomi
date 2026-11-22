@@ -9,23 +9,21 @@
  * 三条删掉之后，仍然守着的东西一条没动：同源、模板根白名单、可执行字段黑名单、origin 绑定、
  * 出站守卫、免费自检——它们与「谁来交这张卡」正交。
  *
- * ── 自检分两句话说清 ─────────────────────────────────────────────────────────────
- * 「卡自己站不站得住」是纯函数，任何时候都能判；「这把 key 上游认不认」要有 key 才能问。
- * 没有 key 时不把前者的结论说成后者，也不把「还没问」说成「问过了没问题」——两件事各占
- * `unverified` 里自己那一格。
+ * ── 自检只说一句话 ─────────────────────────────────────────────────────────────
+ * 「卡自己站不站得住」是纯函数，任何时候都能判。「这把 key 上游认不认」这里**不问**：凭据自检
+ * 随 D-1117-delete-verification 删了（唯一产出是判断）。没问过就照实列进 `unverified`
+ * （credential_accepted / endpoint_reachable），不把「没问」说成「问过了没问题」。
  */
-import { probeAdapterCredential, checkAdapterModeContract } from "../../providerAdapter/selfCheck";
+import { checkAdapterModeContract } from "../../providerAdapter/selfCheck";
 import { validateProviderAdapterDraft } from "../../providerAdapter/validator";
 import { readCatalog } from "../../catalog/catalogStore";
 import { readCredentialBinding } from "../../catalog/credentialBinding";
-import { decryptApiKeyRecord } from "../../catalog/secrets";
 import { resolveConnectionVendorKey } from "../../catalog/connectionVendorKey";
-import { DeclaredOriginRewriteError, DeclaredRouteConflictError, registerDeclaredProvider } from "../../catalog/declaredProviderRegistration";
+import { DeclaredBuiltinConnectionMismatchError, DeclaredBuiltinModelError, DeclaredOriginRewriteError, DeclaredRouteConflictError, registerDeclaredProvider } from "../../catalog/declaredProviderRegistration";
 import type { Model } from "../../catalog/types";
 import { isJsonRecord } from "../../jsonUtils";
 import { changeIdFor } from "./fingerprint";
 import {
-  freeRequests,
   noBlast,
   noGenericContractFailure,
   unverified,
@@ -54,7 +52,12 @@ function cardSourceUrl(card: unknown): string | undefined {
  */
 export function rejectionsFromError(error: unknown, card: unknown): OnboardingRejection[] {
   const message = error instanceof Error ? error.message : String(error);
-  const path = /\b([A-Za-z0-9_.-]+)\.(text_to_image|image_edit|text_to_video|image_to_video|text_to_audio|image_to_audio|transcribe|text_to_3d|image_to_3d|chat|prompt_refine|image_to_prompt)\.(create|query|result)\b/.exec(message);
+  const operation = /\b([A-Za-z0-9_.-]+)\.(text_to_image|image_edit|text_to_video|image_to_video|text_to_audio|image_to_audio|transcribe|text_to_3d|image_to_3d|chat|prompt_refine|image_to_prompt)\.(create|query|result)\b/.exec(message);
+  // 校验器自己写出来的字段路径：`models.<模型>.<字段>: …`（参数键、参考槽）与顶层 `assetIngestion`。
+  const field = /^(models\.[A-Za-z0-9_.-]+?\.(?:parameters|modes)\.[A-Za-z0-9_.-]+?):/.exec(message);
+  const path = operation
+    ? `${operation[1]}.${operation[2]}.${operation[3]}`
+    : field ? field[1] : /^upload_strategy_unsupported: assetIngestion\b/.test(message) ? "assetIngestion" : undefined;
   const code: OnboardingRejection["code"] =
     /same origin/i.test(message) ? "same_origin"
       : /requires referenceParam|referenceShape/i.test(message) ? "reference_slot_missing"
@@ -63,7 +66,7 @@ export function rejectionsFromError(error: unknown, card: unknown): OnboardingRe
             : /assetIngestion|upload/i.test(message) ? "upload_strategy_unsupported"
               : "schema";
   return [{
-    path: path ? `${path[1]}.${path[2]}.${path[3]}` : "declaration",
+    path: path || "declaration",
     code,
     message: message.slice(0, 600),
     ...(cardSourceUrl(card) ? { sourceUrl: cardSourceUrl(card) as string } : {}),
@@ -202,6 +205,21 @@ export async function submitDeclaration(
         nextAction: `Declare provider.baseUrl on ${error.boundOrigin}, or call connect_provider with vendorKey=${vendorKey} and reissueKey=true so the user can rebind the key on Nomi's own page.`,
       };
     }
+    if (error instanceof DeclaredBuiltinConnectionMismatchError) {
+      return {
+        ok: false, code: "credential_origin_mismatch",
+        message: error.message,
+        rejections: error.fields.map((row) => ({ path: row.field, code: "schema" as const, message: `card: ${row.declared}; connection: ${row.connection}` })),
+        nextAction: `Nothing was written. Copy these fields from the ${error.vendorKey} connection as it is now and send the whole card again; on a built-in connection the card only adds models, and its assetIngestion is not used (the connection keeps Nomi's own upload method). To send to another address, submit the card under a new connection name instead.`,
+      };
+    }
+    if (error instanceof DeclaredBuiltinModelError) {
+      return {
+        ok: false, code: "route_conflict",
+        message: error.message,
+        nextAction: `Nothing was written and ${error.vendorKey} keeps working. Drop ${error.modelKeys.join(", ")} from the card (Nomi already runs ${error.modelKeys.length === 1 ? "it" : "them"} from the built-in profile; read nomi_read target=models to see its modes) and send the rest of the card again.`,
+      };
+    }
     if (error instanceof DeclaredRouteConflictError) return routeConflictFailure(error);
     return {
       ok: false, code: "provider_failed",
@@ -211,7 +229,7 @@ export async function submitDeclaration(
     };
   }
 
-  // 免费自检 ①：卡自己站得住吗（纯函数，零网络、零成本）。
+  // 格式完整性检查：卡自己站得住吗（纯函数，零网络、零成本）。
   const contractDefects: OnboardingRejection[] = [];
   for (const model of validated.models) {
     for (const mode of model.modes) {
@@ -222,22 +240,12 @@ export async function submitDeclaration(
     }
   }
 
-  // 免费自检 ②：这把 key 上游认吗。**没有 key 就不问**——「还没问」不等于「问过了没问题」。
-  const after = readCatalog();
-  const vendorRow = after.vendors.find((vendor) => vendor.key === registration.vendorKey);
-  const apiKey = decryptApiKeyRecord(after.apiKeysByVendor[registration.vendorKey]);
-  let credential: { checked: boolean; ok?: boolean; reason?: string; error?: string } = { checked: false };
-  if (vendorRow && apiKey) {
-    const probe = await probeAdapterCredential({ vendor: vendorRow, apiKey });
-    credential = probe.ok
-      ? { checked: true, ok: true }
-      : { checked: true, ok: false, reason: probe.reason, error: probe.error };
-  }
-
+  // 这里不碰上游：key 认不认、地址通不通，第一次真实请求（nomi_try_model 或第一次生成）才知道。
   const stillUnverified = unverified(
     "model_produces_output",
     "asset_upload_works",
-    ...(credential.ok ? [] : (["credential_accepted", "endpoint_reachable"] as const)),
+    "credential_accepted",
+    "endpoint_reachable",
   );
   return {
     ok: true,
@@ -250,23 +258,23 @@ export async function submitDeclaration(
       mappings: registration.mappings,
       hasApiKey: registration.hasApiKey,
       boundOrigin: registration.boundOrigin,
-      selfCheck: { contract: contractDefects.length === 0 ? "passed" : "defects", credential },
+      selfCheck: { contract: contractDefects.length === 0 ? "passed" : "defects" },
       ...(contractDefects.length > 0 ? { defects: contractDefects } : {}),
     },
     unverified: stillUnverified,
     changes: registration.models.map((model) => ({
       state: "S11.4" as const,
-      summary: `Registered ${model.modelKey} (${model.taskKinds.join(", ")}), marked not tried yet.`,
+      summary: `Registered ${model.modelKey} (${model.taskKinds.join(", ")}).`,
     })),
     blastRadius: {
       ...noBlast(),
       modelsAppearing: registration.models.length,
-      outboundRequests: credential.checked ? freeRequests(new URL(validated.provider.baseUrl).origin) : [],
+      outboundRequests: [],
     },
     nextAction: registration.hasApiKey
       ? {
         kind: "none",
-        userSees: `${registration.models.length} model(s) are in Nomi's model pickers, marked "not tried yet". Prove one works with nomi_try_model before telling the user it is connected.`,
+        userSees: `${registration.models.length} model(s) are registered; the ones with a complete request format are in Nomi's model pickers. Prove one works with nomi_try_model before telling the user it is connected.`,
       }
       : {
         kind: "user_sees_key_page",

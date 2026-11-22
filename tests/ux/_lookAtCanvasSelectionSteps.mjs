@@ -64,14 +64,14 @@ function loadProjector() {
 
 function loadSnapshotProjector() {
   const { projectAgentContextSnapshot } = tsxRequire('../../electron/shared/agentContextSnapshot.ts', import.meta.url)
-  const { buildResidentContextSnapshot } = tsxRequire('../../src/workbench/ai/resident/residentContextSnapshot.ts', import.meta.url)
-  return (canvasSnapshot) => projectAgentContextSnapshot(buildResidentContextSnapshot({
+  const { resolveResidentSelection } = tsxRequire('../../src/workbench/ai/resident/residentContextSnapshot.ts', import.meta.url)
+  return (canvasSnapshot) => projectAgentContextSnapshot(resolveResidentSelection({
     canvas: {
       revision: 1,
       nodes: (canvasSnapshot.nodes ?? []).map((node) => ({ id: node.id, title: node.title, kind: node.kind, subtitle: node.subtitle })),
       selectedNodeIds: canvasSnapshot.selectedNodeIds ?? [],
     },
-  }))
+  }).snapshot)
 }
 
 function loadContextSnapshotProjector() {

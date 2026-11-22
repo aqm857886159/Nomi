@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { classifyGenerationError } from './generationRunController'
-import { parseVendorErrorFromMessage, stripVendorErrorMarker } from './vendorErrorIpc'
+import { parseVendorErrorFromMessage, stripVendorErrorMarker } from '../../../../electron/shared/generationFailure'
 import { desktopT } from '../../../../electron/i18n'
 import { ratioResToOpenAiSize } from '../../../../electron/catalog/paramTranslate'
 import { describeAgentError } from '../../../../electron/ai/agentError'
@@ -9,9 +9,16 @@ import { laneModelTimeoutMessage } from '../../../../electron/shared/agentLane/l
 import { tagNomiError, stripNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
 import { encodeStructuredErrorMessage } from '../../../../electron/vendor/vendorHttp'
 import i18n from '../../../i18n'
-import { narrateGenerationErrorActions, type GenerationErrorKind } from '../../observability/narrate'
+import type { GenerationErrorKind } from '../../observability/narrate'
+import { actionsOfKind } from '../../../../electron/shared/generationFailure'
 
 describe('classifyGenerationError — 已知分类', () => {
+  it.each(['Nomi 中转暂时不可用。请重试、换小一点的文件，或去设置里允许第三方公共临时托管。', 'Nomi relay is temporarily unavailable. Retry, use a smaller file, or allow third-party public temporary hosting in Settings.'])('keeps the upload summary separate from IPC and technical details: %s', (summary) => {
+    const raw = `Error invoking remote method 'nomi:tasks:canvas-submit': Error: ${tagNomiError('asset-upload-failed', `${summary}\nHTTP 503: fixture details`)}`
+    const report = classifyGenerationError(raw)
+    expect(report.hint).toBe(summary)
+    expect(report.raw).toContain('HTTP 503')
+  })
   it('uses dedicated bilingual copy and a task-center action for production claim reasons', () => {
     const cases = [
       ['queued', 'generationCommon.observability.error.shotClaimed.queued.reason', 'view-task'],
@@ -245,11 +252,8 @@ describe('classifyGenerationError — 已知分类', () => {
     expect(r.kind).toBe('asset-upload-failed')
     expect(r.reason).toBe('参考图没能送到服务商')
     expect(r.hint).not.toMatch(/额度问题/)
-    // 2026-08-01 实测：tmpfiles.org 在国内直连是 000（连不上），走代理才 405。所以
-    // 「fetch failed」压倒性地是网络/代理没覆盖到这两个境外 host，而不是它们真挂了。
-    // 文案必须先指向代理，否则用户对着一个网络问题去「稍后重试」，永远重试不好。
-    expect(r.hint).toMatch(/代理/)
-    expect(r.hint).toMatch(/境外/)
+    expect(r.hint).toMatch(/重试/)
+    expect(r.hint).toMatch(/设置里允许第三方公共临时托管/)
     // 哪个图床怎么挂的仍要看得见（排查线索不能丢）——在技术详情里。那句是我们拼的汇总，不是服务商原话（2026-10-27）。
     expect(r.providerMessage).toBeUndefined()
     expect(r.raw).toMatch(/litterbox/)
@@ -622,7 +626,7 @@ describe('动作表：每类主 / 次动作都写在表里，改一类不许带�
 
   it('已下线、读不出来以外的每一类，次动作都和改表前的规则一样（主动作是重试 / 一键改对 → 换个模型；其余 → 重试）', () => {
     for (const kind of Object.keys(EVERY_KIND) as GenerationErrorKind[]) {
-      const { primary, secondary } = narrateGenerationErrorActions(kind)
+      const { primary, secondary } = actionsOfKind(kind)
       const before = primary === 'retry' || primary === 'fix-model-kind' || primary === 'switch-same-capability' ? 'switch-model' : 'retry'
       // 已下线、读不出来：这两类不给第二个动作（重试必再撞同一张卡 / 换供应商不是解法）；
       // 结果未知：不给重试（可能重复提交），只指路去核对。

@@ -11,10 +11,9 @@
 // 图生图协议、i2v 通道、参数键名那些血泪细节都在里面（P1 不造并行版）。
 // 后半段不打折：仍然拿真实请求验过才启用，不假设它能用。
 import { newapiImageEditProfileForModel, newapiTransportFor, openAiVideoMode } from "../catalog/newapiTransport";
-import { canHostPublicDocs } from "./docsDiscovery";
 import { referenceKeyDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
 import { assertAdapterModeInvariants } from "./validator";
-import type { BillingModelKind, HttpOperation, Model, Vendor } from "../catalog/types";
+import type { BillingModelKind, HttpOperation, Vendor } from "../catalog/types";
 import type { AdapterAuthType, AdapterMediaProtocol, AdapterModeDraft, AdapterModelDraft, ProviderAdapterDraft } from "./types";
 import type { AiSdkProviderKind } from "../catalog/types";
 
@@ -159,7 +158,7 @@ function modesForKind(
     // （newapiTransport.ts）。中转常把模型登记成不透明 id（`custom-1`）而 alias 才是 `gpt-image-2`——
     // 只传 modelKey 时它被判成 chat 协议，中转如实回 400「not supported on the Chat Completions
     // endpoint」→ 改图通道验证失败 → 连了参考图的节点被直接拒发，而这家中转其实完全支持改图。
-    // 2026-09-08 根因：alias 在这条内置卡路径上被丢了两次（此处 + builtinDraftForUndocumentedEndpoint）。
+    // 2026-09-08 根因：alias 在这条内置卡路径上被丢了两次（此处 + 当时私有地址的另一个草稿口；2026-11-17 那个口已并进 genericCompilation）。
     const edit = kind === "image" ? newapiImageEditProfileForModel(modelKey || "", modelAlias ?? null).operation : transport.edit.create;
     modes.push({ taskKind: "image_edit", create: auth(edit), ...shape(transport.edit), referenceParam: "reference_images", referenceShape: "array", ...noSources });
   }
@@ -169,26 +168,12 @@ function modesForKind(
   return modes;
 }
 
-/** 主机可能有公开文档 → null（照走抓文档 + AI 编译）；不可能（IP/localhost/内网域）→ 内置说明卡。 */
-export function builtinDraftForUndocumentedEndpoint(
-  connection: { vendor: Vendor; models: readonly Model[] },
-): ProviderAdapterDraft | null {
-  const baseUrl = String(connection.vendor.baseUrlHint || "");
-  let hostname: string;
-  try {
-    hostname = new URL(baseUrl).hostname;
-  } catch {
-    return null; // 连 URL 都不合法 → 交给原路径如实报错，别在这里吞掉
-  }
-  if (canHostPublicDocs(hostname)) return null;
-  const protocols = (connection.vendor.meta as Record<string, unknown> | undefined)?.mediaProtocols;
-  return buildOpenAiCompatibleDraft({
-    baseUrl,
-    authType: (connection.vendor.authType || "bearer") as AdapterAuthType,
-    mediaProtocols: Array.isArray(protocols) ? protocols.filter((value): value is AdapterMediaProtocol => value === "openai-videos-v1" || value === "video-generations-json-v1") : [],
-    ...(connection.vendor.providerKind ? { providerKind: connection.vendor.providerKind } : {}),
-    models: connection.models.map((model) => ({ modelKey: model.modelKey, labelZh: model.labelZh, kind: model.kind, modelAlias: model.modelAlias ?? null })),
-  });
+/** 连接上写明的媒体协议（设置向导勾的那几项）。不认识的值丢掉，不猜。 */
+export function declaredMediaProtocols(vendor: Pick<Vendor, "meta">): AdapterMediaProtocol[] {
+  const protocols = (vendor.meta as Record<string, unknown> | undefined)?.mediaProtocols;
+  return Array.isArray(protocols)
+    ? protocols.filter((value): value is AdapterMediaProtocol => value === "openai-videos-v1" || value === "video-generations-json-v1")
+    : [];
 }
 
 export function buildOpenAiCompatibleDraft(input: {

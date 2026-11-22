@@ -24,11 +24,16 @@ import type { JsonRecord } from "../jsonUtils";
 import { logWarn } from "../logging/logger";
 import { projectDirById } from "../projects/repository";
 import { contentTypeFromStoredFile } from "./storedAssetFile";
+import { readAssetSidecarMeta } from "./assetSidecar";
+import type { AssetSourceFact } from "./assetSourceEvidence";
 import { attachStoredAssetPreview, createStoredAssetPreview, discardPreparedPreview, type AssetPreviewOptions, type StoredAssetPreview } from "./assetPreview";
 import { createAssetImportProgressReporter, type AssetCopyProgress } from "./assetImportProgress";
 import type { ProjectBinding } from "../shared/projectBinding";
 import { captureAssetWriteContext, type AssetWriteContext } from "./assetWriteContext";
 import { checkedUserAssetKind, type CheckedUserAssetKind, type NotGeneratedKind } from "./generatedAssetStaging";
+
+/** 本机导入（画布 / 素材库 / 分镜上传 / 助手附件 / 访达复制粘贴 / 外部助手导入）交的来源事实。 */
+const USER_SOURCE: AssetSourceFact = { source: "user" };
 
 function bytesFromPayload(value: unknown): Buffer {
   if (value instanceof ArrayBuffer) return Buffer.from(value);
@@ -181,7 +186,8 @@ async function importNativeSourcePath(
   // 只能判 `container:unknown` 一律转码，本机能不能原生播就白探了（实测：同一段 10s HEVC，
   // 粘贴进来 <2s 原样落盘，走文件选择器却要转十几秒）。
   const storedName = canonicalAssetFileName(fileName, effectiveContentType);
-  const baseMeta = { kind, originalName: raw.fileName || null };
+  // 本机导入只交来源事实「用户自己的文件」；落盘形状（usageStatus、时间）由素材库定。
+  const baseMeta = { kind, originalName: raw.fileName || null, sourceEvidence: USER_SOURCE };
   // 第二个 null：这扇门只收用户文件（kind 已在入口核过不是生成产物），没有「该是哪一类」要核。
   if (!effectiveContentType.startsWith("video/")) {
     return copyAssetFile(projectId, sourcePath, storedName, effectiveContentType, baseMeta, null, context, feedback);
@@ -271,6 +277,7 @@ async function importLocalFileToStore(raw: JsonRecord, kind: CheckedUserAssetKin
     {
       kind,
       originalName: raw.fileName || null,
+      sourceEvidence: USER_SOURCE,
       ...(normalized?.playbackNormalizedFrom ? { playbackNormalizedFrom: normalized.playbackNormalizedFrom } : {}),
     },
     context,
@@ -345,10 +352,13 @@ export async function ensurePlayableAsset(payload: unknown, options: { signal?: 
   if (!transcoded) return null;
   try {
     const outputBytes = fs.readFileSync(transcoded.outputPath);
+    // 可播副本是同一份东西的另一种封装：来源跟原件走（原件没有就没有）。
+    const originalSource = readAssetSidecarMeta(filePath).sourceEvidence;
     const asset = await writeAsset(projectId, outputBytes, playableMp4FileName(sourceName), "video/mp4", {
       kind: "upload",
       originalName: sourceName,
       playbackNormalizedFrom: transcoded.reason,
+      ...(originalSource ? { sourceEvidence: originalSource } : {}),
     });
     // 标记写失败不影响本次自愈（大不了下次重转一遍），所以吞掉异常。
     try {

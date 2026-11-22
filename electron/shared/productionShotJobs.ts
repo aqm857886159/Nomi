@@ -53,17 +53,45 @@ export function productionShotId(run: Pick<ProductionRun, "generationPlan">, sho
   return run.generationPlan?.candidate.candidateId === shotId ? shotId : undefined;
 }
 
-/** The one owner of the shot → generation job correspondence. */
-export function jobsForShot(run: Pick<ProductionRun, "generationPlan" | "jobs">, shotId: string): ProductionJob[] {
-  if (!productionShotId(run, shotId)) return [];
-  const multiShot = Boolean(run.generationPlan?.shots?.length);
-  return run.jobs.filter((job) => job.stageId === "generate" && (multiShot ? job.metadata?.shotId === shotId : true));
+/**
+ * 画布节点 ↔ 镜的对应：单镜计划看 `generationPlan.nodeId`，多镜看 `shots[].nodeId`（「shot ↔ 画布节点」的单一真相）。
+ * 返工要拿到 shotId 也走这里。
+ */
+export function productionShotIdForNode(run: Pick<ProductionRun, "generationPlan">, nodeId: string): string | undefined {
+  const plan = run.generationPlan;
+  if (!plan || !nodeId) return undefined;
+  if (!plan.shots?.length) return plan.nodeId === nodeId ? plan.candidate.candidateId : undefined;
+  return plan.shots?.find((shot) => shot.nodeId === nodeId)?.shotId;
 }
 
-export function latestJobForShot(run: ProductionRun, shotId: string): ProductionJob | undefined {
-  return jobsForShot(run, shotId)
+/** Undefined addresses only the legacy single-shot Run; QA may address an old node-only record. */
+export type ProductionShotAddress = string | Readonly<{ nodeId: string }>;
+
+/** The one owner of the shot/node/legacy single-shot → generation job correspondence. */
+export function jobsForShot(run: Pick<ProductionRun, "generationPlan" | "jobs">, address?: ProductionShotAddress): ProductionJob[] {
+  if (typeof address === "object") {
+    const shotId = productionShotIdForNode(run, address.nodeId);
+    const addressed = shotId ? jobsForShot(run, shotId) : [];
+    if (addressed.length) return addressed;
+    return run.jobs.filter((job) => job.stageId === "generate" && job.nodeId === address.nodeId);
+  }
+  if (address === undefined) {
+    if (run.generationPlan?.shots?.length) return [];
+  } else if (!productionShotId(run, address)) return [];
+  const multiShot = Boolean(run.generationPlan?.shots?.length);
+  return run.jobs.filter((job) => job.stageId === "generate" && (!multiShot || job.metadata?.shotId === address));
+}
+
+export function latestJobForShot(run: ProductionRun, address?: ProductionShotAddress): ProductionJob | undefined {
+  return jobsForShot(run, address)
     .slice()
     .sort((a, b) => (b.attempt - a.attempt) || (Date.parse(b.createdAt) - Date.parse(a.createdAt)))[0];
+}
+
+/** Unaddressable legacy records cannot grant permission to send the same shot again. */
+export function hasUnresolvedShotSubmission(run: ProductionRun, address?: string): boolean {
+  if (run.generationPlan?.shots?.length || run.jobs.length === 0) return false;
+  return jobsForShot(run, address).length === 0;
 }
 
 /**

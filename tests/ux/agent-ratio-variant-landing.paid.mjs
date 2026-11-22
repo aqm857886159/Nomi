@@ -58,7 +58,7 @@ const DRAFT_ARGS = {
   shots: [{
     title: '雨后窄巷',
     prompt: '雨后的窄巷，石板路反着光，镜头缓慢上摇，竖构图',
-    candidate: { providerId: SHOT.vendorKey, modelId: SHOT.modelKey },
+    model: `${SHOT.modelKey}@${SHOT.vendorKey}`,
     variantId: SHOT.variantId,
     modeId: SHOT.modeId,
     aspectRatio: SHOT.aspect,

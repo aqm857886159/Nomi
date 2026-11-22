@@ -300,7 +300,8 @@
         "769-span-先连一个模型"
       ],
       "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "owner": "S7a 入口指路（入口）",
+      "note": "落点改成顶栏 Nomi 入口（2026-11-22 NomiEntryTopbar 板起没有右下小球）；仍未做。"
     },
     {
       "id": "entry.library-banner",
@@ -2325,7 +2326,7 @@
       "function": "填 Key 接入一家",
       "before": "接入 {{name}} 页：API Key 输入、「保存验证 / 更换密钥 / 继续验证」、「只需填写 API Key」（KnownVendorKeyConnectPage.tsx）",
       "after": "depart.key-input",
-      "afterNote": "Key 输入搬到大页右栏（r7，原出发页），粘贴即保存 + 检查（保留「保存即一次真实预检」）"
+      "afterNote": "D-1117-delete-verification 取代验证：保存 key 后有格式即可用；只保留保存时明确 401/403 拒收，删除保存验证 / 继续验证与验证状态。大页结构仍按原板。"
     },
     {
       "censusId": "MS-17",

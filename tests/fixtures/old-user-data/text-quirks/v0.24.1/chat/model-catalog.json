@@ -1,0 +1,646 @@
+{
+  "version": 13,
+  "vendors": [
+    {
+      "key": "local-39017",
+      "name": "Quirk Relay",
+      "enabled": true,
+      "hasApiKey": true,
+      "baseUrlHint": "http://127.0.0.1:39017/v1",
+      "authType": "bearer",
+      "authHeader": null,
+      "authQueryParam": null,
+      "providerKind": "openai-compatible",
+      "credentialBinding": {
+        "origin": "http://127.0.0.1:39017",
+        "authType": "bearer",
+        "confirmedAt": "2026-11-22T02:26:34.540Z"
+      },
+      "meta": {
+        "adapterCandidatePromotionPredecessors": {}
+      },
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.597Z",
+      "credentialMaterialSaved": true,
+      "credentialVerificationPending": false
+    }
+  ],
+  "models": [
+    {
+      "modelKey": "generate_image",
+      "vendorKey": "antigravity-cli",
+      "modelAlias": null,
+      "labelZh": "Antigravity · generate_image",
+      "kind": "image",
+      "enabled": false,
+      "meta": {
+        "antigravityKind": "tool",
+        "antigravityChecks": [],
+        "antigravityVersion": "fixture-1",
+        "supportsToolCalls": false,
+        "supportsPdfInput": false,
+        "supportsImageInput": false,
+        "archetypeId": "antigravity-image",
+        "supportsReferenceImages": false
+      },
+      "createdAt": "2026-11-22T02:26:34.601Z",
+      "updatedAt": "2026-11-22T02:26:34.601Z"
+    },
+    {
+      "modelKey": "claude-sonnet-4-5",
+      "vendorKey": "antigravity-cli",
+      "modelAlias": null,
+      "labelZh": "Claude Sonnet 4.5",
+      "kind": "text",
+      "enabled": false,
+      "meta": {
+        "antigravityKind": "model",
+        "antigravityChecks": [],
+        "antigravityVersion": "fixture-1",
+        "supportsToolCalls": false,
+        "supportsPdfInput": false,
+        "supportsImageInput": false
+      },
+      "createdAt": "2026-11-22T02:26:34.601Z",
+      "updatedAt": "2026-11-22T02:26:34.601Z"
+    },
+    {
+      "modelKey": "gemini-3-pro",
+      "vendorKey": "antigravity-cli",
+      "modelAlias": null,
+      "labelZh": "Gemini 3 Pro",
+      "kind": "text",
+      "enabled": false,
+      "meta": {
+        "antigravityKind": "model",
+        "antigravityChecks": [],
+        "antigravityVersion": "fixture-1",
+        "supportsToolCalls": false,
+        "supportsPdfInput": false,
+        "supportsImageInput": false
+      },
+      "createdAt": "2026-11-22T02:26:34.601Z",
+      "updatedAt": "2026-11-22T02:26:34.601Z"
+    },
+    {
+      "modelKey": "auto",
+      "vendorKey": "antigravity-cli",
+      "modelAlias": null,
+      "labelZh": "Antigravity · Auto",
+      "kind": "text",
+      "enabled": false,
+      "meta": {
+        "antigravityKind": "automatic",
+        "antigravityChecks": [],
+        "antigravityVersion": "fixture-1",
+        "supportsToolCalls": false,
+        "supportsPdfInput": false,
+        "supportsImageInput": false
+      },
+      "createdAt": "2026-11-22T02:26:34.601Z",
+      "updatedAt": "2026-11-22T02:26:34.601Z"
+    },
+    {
+      "modelKey": "o1-mini",
+      "vendorKey": "local-39017",
+      "modelAlias": "o1-mini",
+      "labelZh": "o1 mini",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e1ad2c6c76c12c82c9ae",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.597Z"
+    },
+    {
+      "modelKey": "o3-mini",
+      "vendorKey": "local-39017",
+      "modelAlias": "o3-mini",
+      "labelZh": "o3 mini",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e1ad2c6c76c12c82c9ae",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.597Z"
+    },
+    {
+      "modelKey": "kimi-k2-0905-preview",
+      "vendorKey": "local-39017",
+      "modelAlias": "kimi-k2-0905-preview",
+      "labelZh": "Kimi K2",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e1ad2c6c76c12c82c9ae",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.597Z"
+    },
+    {
+      "modelKey": "moonshot-v1-8k",
+      "vendorKey": "local-39017",
+      "modelAlias": "moonshot-v1-8k",
+      "labelZh": "Moonshot v1",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e1ad2c6c76c12c82c9ae",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.597Z"
+    },
+    {
+      "modelKey": "kimi-latest",
+      "vendorKey": "local-39017",
+      "modelAlias": "kimi-latest",
+      "labelZh": "Kimi latest",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e1ad2c6c76c12c82c9ae",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.597Z"
+    },
+    {
+      "modelKey": "kimi-thinking-preview",
+      "vendorKey": "local-39017",
+      "modelAlias": "kimi-thinking-preview",
+      "labelZh": "Kimi thinking",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e1ad2c6c76c12c82c9ae",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.597Z"
+    },
+    {
+      "modelKey": "gpt-4o-mini",
+      "vendorKey": "local-39017",
+      "modelAlias": "gpt-4o-mini",
+      "labelZh": "GPT-4o mini",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e1ad2c6c76c12c82c9ae",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.597Z"
+    },
+    {
+      "modelKey": "gpt-5-mini",
+      "vendorKey": "local-39017",
+      "modelAlias": "gpt-5-mini",
+      "labelZh": "GPT-5 mini",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e1ad2c6c76c12c82c9ae",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.597Z"
+    },
+    {
+      "modelKey": "claude-3-5-haiku-20241022",
+      "vendorKey": "local-39017",
+      "modelAlias": "claude-3-5-haiku-20241022",
+      "labelZh": "Claude 3.5 Haiku",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e1ad2c6c76c12c82c9ae",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.597Z"
+    },
+    {
+      "modelKey": "gemini-2.5-flash",
+      "vendorKey": "local-39017",
+      "modelAlias": "gemini-2.5-flash",
+      "labelZh": "Gemini 2.5 Flash",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e1ad2c6c76c12c82c9ae",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.597Z"
+    },
+    {
+      "modelKey": "deepseek-chat",
+      "vendorKey": "local-39017",
+      "modelAlias": "deepseek-chat",
+      "labelZh": "DeepSeek Chat",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e1ad2c6c76c12c82c9ae",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.597Z"
+    }
+  ],
+  "mappings": [
+    {
+      "id": "antigravity-image_edit",
+      "vendorKey": "antigravity-cli",
+      "taskKind": "image_edit",
+      "modelKey": "generate_image",
+      "name": "Antigravity · image_edit",
+      "enabled": false,
+      "create": {
+        "method": "PROCESS",
+        "path": "antigravity:image",
+        "process": {
+          "bin": "agy",
+          "parser": "antigravity-cli-image",
+          "args": [
+            "image_edit"
+          ]
+        },
+        "body": {
+          "prompt": "{{request.prompt}}",
+          "reference_images": "{{request.params.reference_images}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id",
+          "status": "status",
+          "image_url": "image_urls"
+        }
+      },
+      "query": {
+        "method": "PROCESS",
+        "path": "antigravity:query",
+        "process": {
+          "bin": "agy",
+          "parser": "antigravity-cli-image",
+          "args": [
+            "query_result"
+          ]
+        },
+        "response_mapping": {
+          "task_id": "task_id",
+          "status": "status",
+          "image_url": "image_urls",
+          "error": "error"
+        }
+      },
+      "statusMapping": {
+        "succeeded": [
+          "succeeded"
+        ],
+        "failed": [
+          "failed",
+          "cancelled"
+        ],
+        "running": [
+          "running"
+        ],
+        "queued": [
+          "queued"
+        ]
+      },
+      "createdAt": "2026-11-22T02:26:34.601Z",
+      "updatedAt": "2026-11-22T02:26:34.601Z"
+    },
+    {
+      "id": "antigravity-text_to_image",
+      "vendorKey": "antigravity-cli",
+      "taskKind": "text_to_image",
+      "modelKey": "generate_image",
+      "name": "Antigravity · text_to_image",
+      "enabled": false,
+      "create": {
+        "method": "PROCESS",
+        "path": "antigravity:image",
+        "process": {
+          "bin": "agy",
+          "parser": "antigravity-cli-image",
+          "args": [
+            "text_to_image"
+          ]
+        },
+        "body": {
+          "prompt": "{{request.prompt}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id",
+          "status": "status",
+          "image_url": "image_urls"
+        }
+      },
+      "query": {
+        "method": "PROCESS",
+        "path": "antigravity:query",
+        "process": {
+          "bin": "agy",
+          "parser": "antigravity-cli-image",
+          "args": [
+            "query_result"
+          ]
+        },
+        "response_mapping": {
+          "task_id": "task_id",
+          "status": "status",
+          "image_url": "image_urls",
+          "error": "error"
+        }
+      },
+      "statusMapping": {
+        "succeeded": [
+          "succeeded"
+        ],
+        "failed": [
+          "failed",
+          "cancelled"
+        ],
+        "running": [
+          "running"
+        ],
+        "queued": [
+          "queued"
+        ]
+      },
+      "createdAt": "2026-11-22T02:26:34.601Z",
+      "updatedAt": "2026-11-22T02:26:34.601Z"
+    }
+  ],
+  "apiKeysByVendor": {
+    "local-39017": {
+      "vendorKey": "local-39017",
+      "apiKey": "c2stdi1yZWxheS1mYWtl",
+      "enc": "safeStorage",
+      "enabled": true,
+      "createdAt": "2026-11-22T02:26:34.540Z",
+      "updatedAt": "2026-11-22T02:26:34.540Z"
+    }
+  }
+}

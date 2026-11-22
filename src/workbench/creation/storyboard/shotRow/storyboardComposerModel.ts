@@ -4,7 +4,8 @@ import { buildAgentModelEntries } from '../../../generationCanvas/agent/availabl
 import { buildModelEntryIndex, buildPlannedNodeMeta } from '../../../generationCanvas/agent/plannedNodeMeta'
 import type { AgentModelEntry } from '../../../../../electron/shared/agentCapabilities/availableModels'
 import { resolveRenderedControls } from '../../../generationCanvas/nodes/nodeModelArchetype'
-import { isParameterControl, parseControlInput, type DynamicModelControl } from '../../../generationCanvas/nodes/controls/parameterControlModel'
+import { isParameterControl, type DynamicModelControl } from '../../../generationCanvas/nodes/controls/parameterControlModel'
+import { admitNumber, parseControlInput } from '../../../../../electron/shared/videoCapabilities/paramValue'
 import { aspectRatioControlKey, aspectRatioControlsOf } from '../../../../../electron/shared/aspectRatioValue'
 
 /**
@@ -86,6 +87,9 @@ export function storyboardComposerChange(
   const ratioKey = aspectRatioControlKey(aspectRatioControlsOf(controls.filter(isParameterControl)))
   if (control.key === ratioKey) return { kind: 'aspect', value: raw }
   const value = control.type ? parseControlInput(control as ModelParameterControl, raw) : raw
-  if (control.key === 'duration' && typeof value === 'number') return { kind: 'duration', value }
+  // 视频时长只有一个家 durationSec：值过门（admitNumber），读得出秒数就写那里，不按 typeof 分流——
+  // 以前选项是 "12" 的模型落进 params、发送时被 durationSec 的 5 盖掉（选 12 秒发出 5 秒）。
+  const seconds = control.key === 'duration' ? admitNumber(value) : undefined
+  if (seconds !== undefined) return { kind: 'duration', value: seconds }
   return { kind: 'param', key: control.key, value }
 }

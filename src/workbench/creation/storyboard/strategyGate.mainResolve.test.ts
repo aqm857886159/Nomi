@@ -8,6 +8,7 @@ import { SEEDANCE_2_APIMART_ARCHETYPE } from "../../../../electron/shared/videoC
 import type { ModelArchetype } from "../../../../electron/shared/modelArchetypes/types";
 import type { GenerationResolvePlanEnvelope } from "../../../../electron/shared/videoCapabilities/planResolutionContracts";
 import { fetchStoryboardResolve, resolveGeneratableGate, type StoryboardResolveClient } from "./strategyGate";
+import { withFixedCatalog } from "../../../../electron/capabilityCore/generationFixedCatalog.testkit";
 
 /**
  * 分镜编辑器 ↔ 主进程执行计划检查的**真实对接**（不是假 client）。
@@ -56,12 +57,12 @@ const registry = createModuleRegistry([{
 
 /** 与 `registerGenerationResolveIpc` 的 handler 同形：真实核心 + ok/err 信封。 */
 function mainProcessClient(): StoryboardResolveClient {
-  const planning = createGenerationPlanningHandler({
+  const planning = createGenerationPlanningHandler(withFixedCatalog({
     registry,
     operations: createInMemoryGenerationOperationStore(),
     videoModelCandidates: [relay, apimart],
     now: () => "2026-09-26T00:00:00.000Z",
-  });
+  }));
   const deps = { getGenerationPlanning: () => planning, getCommittedProjectId: () => "project-1" };
   return {
     resolvePlan: async (request): Promise<GenerationResolvePlanEnvelope> => {

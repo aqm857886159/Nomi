@@ -38,7 +38,7 @@ const smoke = await launchCoreSmoke({
 })
 const LOCALE = smoke.locale
 const EN = LOCALE === 'en'
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-drag-pan-gestures', `${smoke.fixture}-${LOCALE}`)
+const shotsDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, 'tests/ux/shots/canvas-drag-pan-gestures', `${smoke.fixture}-${LOCALE}`)
 // 回填①的交付证据：只写不跟踪的目录（冒烟必跑，不许把已跟踪文件改脏——跑完 git status 必须干净）。
 const evidenceDir = path.join(shotsDir, 'evidence')
 rmSync(shotsDir, { recursive: true, force: true })
@@ -438,13 +438,9 @@ try {
   // #726（vendor-key-publish-class）改了 kie 这类内置 curated 家的 key 判据：没有便宜且可信的
   // 预检（最小真实请求 = 一次付费生成，不能替用户花钱），于是缺省判据是 `first-use`——
   // **存 key 即发布、不再挂「待验证」**（理由逐字写在 builtinVendorSeeds.ts 的 keyValidation 上）。
-  // 此前这里断言 `verificationPending === true`，断的其实是「/v1/models 探测打不通那台假 host」
-  // 这个副产物；判据一改它就必红。改成断言新语义本身，两边都说得出口。
   expect(savedCredential.saved.hasApiKey, '占位 key 要真的落进 catalog').toBe(true)
-  expect(savedCredential.saved.verificationPending ?? false,
-    'first-use 判据不挂「待验证」：没有可验的便宜端点，挂上就是一句做不到的承诺（#726）').toBe(false)
-  expect(savedCredential.vendor.credentialVerificationPending ?? false,
-    'vendor 行上的那面旗子同理不该亮').toBe(false)
+  expect(savedCredential.vendor.enabled, '保存后连接启用').toBe(true)
+  expect('credentialVerificationPending' in savedCredential.vendor, '界面不接收旧待验证标记').toBe(false)
   await getWin().reload()
   await getWin().waitForLoadState('domcontentloaded')
   await getWin().waitForTimeout(1500)
@@ -1051,18 +1047,7 @@ try {
   await expect(getWin().locator(OWN.node)).toHaveCount(nodeIds.length)
   await snap('04d-edge-disconnect-undone.png')
 
-  // 前面为点线放掉了选择；锁定徽标在选中的视频卡上，重新点选它。
-  await getWin().mouse.click(videoHit.x, videoHit.y)
-  await getWin().waitForTimeout(300)
-  const lockBadge = videoNode.locator('[data-node-lock]')
-  await expect(lockBadge).toHaveAttribute('data-node-lock', 'unlocked')
-  await lockBadge.click()
-  await expect(lockBadge).toHaveAttribute('data-node-lock', 'locked')
-  await getWin().keyboard.press(`${mod}+z`)
-  await expect(lockBadge).toHaveAttribute('data-node-lock', 'unlocked')
-  await expect.poll(async () => (await ownEdgeIds()).length).toBe(edgeCount)
-  await snap('04e-node-lock-undone.png')
-  console.log('  ✓ 断线、锁定各按一次 Cmd+Z 还原，前一笔节点/连线保留')
+  console.log('  ✓ 断线按一次 Cmd+Z 还原，前一笔节点/连线保留')
 
   // ── ④ 拖动节点：浮条 / 提示词面板隐身，松手回来 ─────────────────────────
   // 这一段的前提：被按下去的那张卡是整卡——它的提示词面板 / 浮条挂着、只是拖动期间被藏起来（visibility: hidden）。

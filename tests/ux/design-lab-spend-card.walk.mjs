@@ -11,6 +11,7 @@
 //
 // 用法：node tests/ux/design-lab-spend-card.walk.mjs  （ONLY=spend-batch 只跑一格）
 import path from 'node:path'
+import { expect } from '@playwright/test'
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
 import { REPO_ROOT } from './design-lab/labStates.mjs'
 import { uiText, uiTextPattern, uiTextWith } from './full-walk/invariants.mjs'
@@ -541,7 +542,7 @@ async function expectSpendCardState(page, state, record) {
       const key = state.id === 'spend-brake-retry' ? 'agentPanelV4.brakeRetry.title' : 'agentPanelV4.brakeOutOfPlan.title'
       const reason = uiText(locale, key)
       if (!bar.text.includes(reason)) record(`${state.id} ${A.brake} / ${A.brakeReason}: 条上没有刹车原因那一行「${reason}」`)
-      if (!(await page.locator('[data-v4-block="auto-mode"]').count())) record(`${state.id} ${A.brake}: 直接档的常驻提醒不在（刹车只在直接档出现）`)
+      if (!(await page.locator('[data-v4-block="auto-mode"]').first().waitFor({ state: 'visible' }).then(() => true, () => false))) record(`${state.id} ${A.brake}: 直接档的常驻提醒不在（刹车只在直接档出现）`)
       break
     }
     case 'spend-unreadable': {

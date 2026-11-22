@@ -7,6 +7,7 @@
 // 纯函数、同步、不认供应商名：主进程和渲染层都问它（渲染层只经 archetypeMeta.effectiveArchetypeMode 一个包装）。
 import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from './types'
 import { SLOT_ACCEPTS, type ReferenceAssetKind } from './anchorPolicy'
+import { modeTransportFor } from '../videoCapabilities/modeTransport'
 
 /** 一件输入：它愿意落的槽种类（按偏好排序，画布边的角色 / 上传图都折成这个）× 素材种类。 */
 export type ModeInput = { slots: readonly ArchetypeReferenceSlotKind[]; asset: ReferenceAssetKind }
@@ -17,6 +18,31 @@ export type ModePreference = { modeId: string; chosenBy: 'human' | 'unknown' }
 export type ModeForInputsOptions = {
   /** 首尾帧版式里首帧格被特意空着（节点上传列表的开关）：上传图不落首帧格。 */
   firstFrameEmpty?: boolean
+  /**
+   * 主进程候选说明白的那一种任务（桶，比如 `image_to_video`）+ 供应商：只在这一桶的方式里按输入挑
+   * （桶由 `modeTransportFor` 三级判：供应商特化 > 方式 > 档案）。画布不传——画布的方式不分桶。
+   * 只收事实，不收方式对象或谓词：调用方递不进一个替自己放行的判据（2026-11-17 名字与方式各一个家）。
+   * 桶里一个方式都没有时调用方先拒（`modesInTask` 为空），这里不兜底。
+   */
+  task?: Readonly<{ kind: string; vendor: string | null }>
+}
+
+const canonicalModeWord = (value: unknown): string => typeof value === 'string' ? value.trim().toLowerCase().replace(/-/g, '_') : ''
+
+/** 这个档案在这一桶（任务 + 供应商）里的方式。桶的判据只问 `modeTransportFor`。 */
+export function modesInTask(archetype: ModelArchetype, task: Readonly<{ kind: string; vendor: string | null }>): ArchetypeMode[] {
+  const wanted = canonicalModeWord(task.kind)
+  return archetype.modes.filter((mode) => canonicalModeWord(modeTransportFor(mode, archetype, task.vendor)) === wanted)
+}
+
+/**
+ * 说明白的方式（落盘候选的 `modeId`、改计划写的方式 id）在这个档案里是哪一个：**只查表，不重选**（铁律「说了 = 放上去的」）。
+ * 大小写与 `-` / `_` 宽容（老草稿与模型都这样写过）。查不到 = undefined，由调用方按 `mode_not_in_model` 拒。
+ * 和 `preference` 不是一回事：偏好放不下输入就不算数，说明白的方式不看输入。
+ */
+export function statedMode(archetype: Pick<ModelArchetype, 'modes'>, modeId: string): ArchetypeMode | undefined {
+  const wanted = canonicalModeWord(modeId)
+  return wanted ? archetype.modes.find((mode) => canonicalModeWord(mode.id) === wanted) : undefined
 }
 
 export type ModeForInputsResult = {
@@ -142,11 +168,14 @@ export function modeTakenCount(mode: ArchetypeMode, inputs: readonly ModeInput[]
  * 「减少不跳回」不在这里：偏好放不下时由画布边界忘掉它（canvasModeChoiceForget），之后按 ③ 的默认现算。
  */
 export function modeForInputs(
-  archetype: ModelArchetype,
+  whole: ModelArchetype,
   inputs: readonly ModeInput[],
   preference: ModePreference | null,
   options: ModeForInputsOptions = {},
 ): ModeForInputsResult {
+  // 说明白了任务桶（主进程候选）：只在这一桶的方式里挑；其余判据一字不变。画布不传，`archetype` 就是整个档案。
+  const archetype = options.task ? { ...whole, modes: modesInTask(whole, options.task) } : whole
+  if (options.task && !archetype.modes.length) throw new Error(`modeForInputs: ${whole.id} has no mode for task ${options.task?.kind}; refuse before asking`)
   const preferred = preference ? archetype.modes.find((mode) => mode.id === preference.modeId) : undefined
   const fallback = defaultModeOf(archetype)
 

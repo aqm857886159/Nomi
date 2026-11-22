@@ -1,0 +1,298 @@
+{
+  "version": 13,
+  "vendors": [
+    {
+      "key": "local-39017",
+      "name": "Responses Relay",
+      "enabled": true,
+      "hasApiKey": true,
+      "baseUrlHint": "http://127.0.0.1:39017/resp/v1",
+      "authType": "bearer",
+      "authHeader": null,
+      "authQueryParam": null,
+      "providerKind": "openai-responses",
+      "credentialBinding": {
+        "origin": "http://127.0.0.1:39017",
+        "authType": "bearer",
+        "confirmedAt": "2026-11-22T02:26:36.683Z"
+      },
+      "meta": {
+        "adapterCandidatePromotionPredecessors": {}
+      },
+      "createdAt": "2026-11-22T02:26:36.683Z",
+      "updatedAt": "2026-11-22T02:26:36.720Z"
+    }
+  ],
+  "models": [
+    {
+      "modelKey": "gpt-4o",
+      "vendorKey": "local-39017",
+      "modelAlias": "gpt-4o",
+      "labelZh": "GPT-4o",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e86012f38ebbd9bea7d3",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:36.683Z",
+      "updatedAt": "2026-11-22T02:26:36.720Z"
+    },
+    {
+      "modelKey": "gpt-4.1",
+      "vendorKey": "local-39017",
+      "modelAlias": "gpt-4.1",
+      "labelZh": "GPT-4.1",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e86012f38ebbd9bea7d3",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:36.683Z",
+      "updatedAt": "2026-11-22T02:26:36.720Z"
+    },
+    {
+      "modelKey": "o1",
+      "vendorKey": "local-39017",
+      "modelAlias": "o1",
+      "labelZh": "o1",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e86012f38ebbd9bea7d3",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:36.683Z",
+      "updatedAt": "2026-11-22T02:26:36.720Z"
+    },
+    {
+      "modelKey": "o3",
+      "vendorKey": "local-39017",
+      "modelAlias": "o3",
+      "labelZh": "o3",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e86012f38ebbd9bea7d3",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:36.683Z",
+      "updatedAt": "2026-11-22T02:26:36.720Z"
+    },
+    {
+      "modelKey": "o4-mini",
+      "vendorKey": "local-39017",
+      "modelAlias": "o4-mini",
+      "labelZh": "o4 mini",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e86012f38ebbd9bea7d3",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:36.684Z",
+      "updatedAt": "2026-11-22T02:26:36.720Z"
+    },
+    {
+      "modelKey": "gemini-2.5-pro",
+      "vendorKey": "local-39017",
+      "modelAlias": "gemini-2.5-pro",
+      "labelZh": "Gemini 2.5 Pro",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e86012f38ebbd9bea7d3",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:36.684Z",
+      "updatedAt": "2026-11-22T02:26:36.720Z"
+    },
+    {
+      "modelKey": "gpt-5",
+      "vendorKey": "local-39017",
+      "modelAlias": "gpt-5",
+      "labelZh": "GPT-5",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-e86012f38ebbd9bea7d3",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "publicationModes": [
+            "chat"
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z"
+        },
+        "parameters": [],
+        "declarationProjection": {
+          "version": 1,
+          "hasMediaContract": false,
+          "capabilityDigest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "wireDigests": {}
+        }
+      },
+      "createdAt": "2026-11-22T02:26:36.684Z",
+      "updatedAt": "2026-11-22T02:26:36.720Z"
+    }
+  ],
+  "mappings": [],
+  "apiKeysByVendor": {
+    "local-39017": {
+      "vendorKey": "local-39017",
+      "apiKey": "c2stdi1yZWxheS1mYWtl",
+      "enc": "safeStorage",
+      "enabled": true,
+      "createdAt": "2026-11-22T02:26:36.683Z",
+      "updatedAt": "2026-11-22T02:26:36.683Z"
+    }
+  }
+}

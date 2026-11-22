@@ -1,0 +1,28 @@
+{
+  "name": "一次生成调用用的那一版目录（模型表、就绪、价格、可用视频候选、默认模型同一版；调用之外读现在的目录）",
+  "subject": "generation.live-catalog-view",
+  "lifecycle": "catalog",
+  "authority_kind": "projection",
+  "trust_domain": "main",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/liveGenerationRuntime.ts",
+    "symbol": "createLiveGenerationRuntime"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/liveGenerationRuntime.ts",
+      "symbol": "createLiveGenerationRuntime"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/liveGenerationRuntime.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/externalAgentGateTestUtils.ts",
+    "electron/capabilityCore/generationDomain.ts",
+    "tests/perf/gate-live-catalog-bench.mjs"
+  ],
+  "since": "2026-11-21",
+  "notes": "两个宿主以前在启动时各拍一份模型表交给预览和过门，起草读的是现拍的，新接的模型预览回 Unknown model；后来改成一个活的来源，但「一次调用钉一版」靠异步上下文隐式传，价格 / 候选 / 默认模型更是两个宿主各自直接读盘——2026-11-21 复现：过门中途改价，授权按后来那一版记。现在规划每次调用在入口 openCall() 取一版，往下全是传值，宿主在调用里做的事在最后一个参数上收到同一版；没有「不带这一版也能调」的写法。真目录的来源只有生成装配工厂（generationDomain.ts）建的这一个，两个宿主不再直接建。"
+}

@@ -52,7 +52,8 @@ for (const config of configs) {
     await win.screenshot({ path: path.join(shotDir, `${config.name}-about.png`) })
     if (!before) {
       await win.getByRole('button', { name: /^(查看|View)$/ }).click()
-      await expectVisible(win.locator('[data-updater-dialog]'), '点「查看」后更新弹窗打开')
+      // 按角色 + 名字找更新弹窗（名字是标题一句，带版本号）。
+      await expectVisible(win.getByRole('dialog', { name: /0\.99\.0/ }), '点「查看」后更新弹窗打开')
       await win.screenshot({ path: path.join(shotDir, `${config.name}-dialog.png`) })
     }
   } finally {

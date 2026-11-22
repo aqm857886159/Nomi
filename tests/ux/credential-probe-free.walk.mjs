@@ -1,5 +1,8 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
-// 真机走查：接入页填 key → 点「保存验证」→ 出站只查询既有状态，不发起生成请求。
+// 真机走查：接入页填 key → 点「保存」→ 出站只查询既有状态，不发起生成请求。
+//
+// 2026-11-18 D-1117-delete-verification（协调 Q4）：这一下余额查询只剩「明确 401 / 403 就不存」这一道保存门，
+// 不再决定「验证过没有」；存下后没有任何复验。所以它仍然恰好一次、仍然只能是零额度的查询。
 //
 // 背景：此前这一下发的是真实
 // `POST /api/v1/chat/completions`（`max_tokens:1`），扣用户积分，且经 `appFetch` 直接出门、
@@ -85,16 +88,16 @@ try {
   const before = seen.length
   const result = await win.evaluate(() => window.nomiDesktop.modelCatalog.upsertVendorApiKey('apimart', { apiKey: 'sk-walkthrough-not-a-real-key-000', enabled: false }))
   const during = seen.slice(before)
-  console.log(`  保存验证的真实出站：${during.map((r) => `${r.method} ${r.url}`).join(' | ') || '（零次）'}`)
-  console.log(`  verificationPending=${result?.verificationPending}`)
+  console.log(`  保存的真实出站：${during.map((r) => `${r.method} ${r.url}`).join(' | ') || '（零次）'}`)
+  console.log(`  保存结果=${JSON.stringify(result)}`)
 
   const generationShaped = during.filter((r) => /(chat\/completions|\/completions|\/generations|\/v1\/messages|\/responses)/i.test(r.url))
-  expect(generationShaped.length, `保存验证发出了生成请求（花用户的钱）：${generationShaped.map((r) => `${r.method} ${r.url}`).join(', ')}`).toBe(0)
-  expect(during.length, `保存验证的出站次数不是 1：${during.map((r) => `${r.method} ${r.url}`).join(', ')}`).toBe(1)
+  expect(generationShaped.length, `保存发出了生成请求（花用户的钱）：${generationShaped.map((r) => `${r.method} ${r.url}`).join(', ')}`).toBe(0)
+  expect(during.length, `保存的出站次数不是 1：${during.map((r) => `${r.method} ${r.url}`).join(', ')}`).toBe(1)
   expect(during[0].method, '状态查询不该是 POST').toBe('GET')
   expect(during[0].url.startsWith('/v1/balance'), `状态查询打的不是余额端点，而是 ${during[0].url}`).toBe(true)
 
-  console.log(`\n✅ 凭据探测走查通过：保存验证只打了 ${during[0].method} ${during[0].url}，没有发起生成请求。`)
+  console.log(`\n✅ 保存门走查通过：保存只打了 ${during[0].method} ${during[0].url}，没有发起生成请求。`)
   await app.close().catch(() => {})
   fixture.close()
   process.exit(0)

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>顶栏 700 中文浅色</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 748px; height: 660px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px; background: oklch(1 0 0); color: oklch(0.22 0.01 80); font-family: Inter, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600">700 宽（最窄档）· 中文 · 浅色</h1>
+<p style="margin: 0; font-size: 13px; line-height: 20px; color: oklch(0.50 0.01 80)">第一条是今天，下面是改后。尺寸照代码：顶栏高 40，按钮 28，按钮间距 2，右边留 8。</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">今天 · 预览</b>　Nomi 是内容区右下角的小球，顶栏里没有它</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="preview" width="700" entry="none" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 项目库</b>　没进项目就没有 Nomi，和今天一样</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="library" width="700" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 创作</b>　Nomi 住在顶栏最右，空闲时是一张脸</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="create" width="700" face="idle" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 生成</b>　Nomi 在做事：脸变圆，外圈一段蓝弧在转</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="generate" width="700" face="running" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">改后 · 预览</b>　等你确认 2 条：右上角数字；导出按已有规则收成图标</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="preview" width="700" face="idle" pending="2" export-compact="true" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)"><b style="font-weight: 600; color: oklch(0.22 0.01 80)">最挤 · 预览</b>　有新版本 + 3 个任务在跑 + 等你确认 12（角标写 9+）+ 分段带进度：分段往左让 57px</p>
+<div style="width: 700px; height: 40px; outline: 1px solid oklch(0.91 0.004 80)">
+<dc-import name="TopBar" lang="zh" theme="light" page="preview" width="700" face="running" pending="12" tasks="3" update="true" export-compact="true" meta-gen="38/120" meta-preview="12:34" seg-shift="-57" hint-size="700px,40px"></dc-import>
+</div>
+</div>
+</div>
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.50 0.01 80)">挤的时候按这个顺序让：① 「导出 MP4」收成图标（已有规则）；② 分段往左挪，保住和右边按钮至少 12px，项目名跟着变短、再藏起（藏名已有规则）；③ 还不够，分段上的进度数字藏起（悬停分段看得到）。设置上的蓝点是「上手没做完」，今天就有。</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":748,"height":660}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

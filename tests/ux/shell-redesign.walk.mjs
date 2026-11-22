@@ -1,13 +1,13 @@
 // 外壳重设计验收截图走查（设计卡 docs/plan/2026-10-08-shell-redesign.md「拍板稿对账」；零额度：只播种已有结果，不触发任何生成）。
 // 真 Electron、窗口挪到屏幕外、隔离 profile（userData / 设置 / 项目库都在临时目录），生产构建，没有样张开关。
-// 小球「处理中 / 出错 / 等你确认 N」三态用 E2E 桥（localStorage __nomiE2E）写进小球读的那份角标投影——
+// 顶栏 Nomi 入口「处理中 / 出错 / 等你确认 N」三态用 E2E 桥写进入口读的那份角标投影（NomiEntryTopbar 板 2026-11-22 取代右下小球）——
 // 那份投影平时由 ProjectAgentResidentShell 写；这里不跑真 Agent，见设计卡 unverified。
 //
 // 用法：pnpm run build && node tests/ux/shell-redesign.walk.mjs <输出目录>
 //   环境：WALK_LOCALE=zh-CN|en  WALK_SCHEME=light|dark  WALK_SIZE=1280x800|1000x700|1440x900
 //         WALK_SHOTS=逗号分隔的屏名（缺省全拍）：library-empty,library,main,canvas-agent,creation-doc,
-//         chrome-assets,chrome-rail-collapsed,chrome-ball-running,chrome-ball-failed,chrome-ball-pending,preview-catalog,
-//         persona（Agent 形象：五副长相 + 未读 + 跟随 / 悬停 / 焦点 / 减弱动效裁图，及行为与动效断言）
+//         chrome-assets,chrome-rail-collapsed,chrome-entry-running,chrome-entry-failed,chrome-entry-pending,preview-catalog,
+//         persona（Agent 形象：顶栏入口上五副长相 + 未读 + 胶囊 + 减弱动效裁图，及动效断言）
 import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
@@ -21,7 +21,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   CANVAS_ADD_BAR, CANVAS_NAV_STACK, CANVAS_ADD_MORE_MENU, CANVAS_ZOOM_BAR, canvasAddMoreMenu, canvasZoomSlider,
-  AGENT_PANEL, backToLibrary, canvasAddBar, canvasFitViewButton, canvasToggleFrameTool, canvasViewOption, canvasZoomPercent, canvasZoomStep,
+  AGENT_PANEL, NOMI_ENTRY, NOMI_ENTRY_COLLAPSED, backToLibrary, canvasAddBar, canvasFitViewButton, canvasToggleFrameTool, canvasViewOption, canvasZoomPercent, canvasZoomStep,
   closeCanvasViewOptions, openCanvasViewOptions, canvasResetView, canvasSetZoomPercent,
 } from './_shell.mjs'
 import { CANVAS_PANEL, COMPOSER_INPUT, clearComposerText, expectComposerFocused, expectComposerText } from './agent-runtime-walk-support.mjs'
@@ -202,27 +202,27 @@ try {
   await card.hover()
   await clickOrFail(card.getByRole('button', { name: /继续创作|Continue/ }).first(), '打开走查项目')
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
-  await expect(win.locator('[data-agent-ball]'), '画布页默认不是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await expect(win.locator(NOMI_ENTRY_COLLAPSED), '画布页默认不是收着（顶栏 Nomi 入口没在「收着」）').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await win.waitForTimeout(1200)
 
-  // 回项目库再开同一个项目：小球形态不许自己弹成浮窗。2026-10-09 评测 j5 栽过——重开项目时投影 projectAgentDockCollapsed
-  // 被「关项目重置 / 开项目还原」翻了一下，小球误读成「有人叫回 Nomi」，浮窗盖住了节点的生成钮。
-  await backToLibrary(win, { label: '回项目库再重开（小球不许自己弹开）' })
+  // 回项目库再开同一个项目：收着的 Nomi 不许自己弹成浮窗。2026-10-09 评测 j5 栽过——重开项目时投影 projectAgentDockCollapsed
+  // 被「关项目重置 / 开项目还原」翻了一下，误读成「有人叫回 Nomi」，浮窗盖住了节点的生成钮。
+  await backToLibrary(win, { label: '回项目库再重开（收着的 Nomi 不许自己弹开）' })
   await card.hover()
   await clickOrFail(card.getByRole('button', { name: /继续创作|Continue/ }).first(), '重开走查项目')
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
-  await expect(win.locator('[data-agent-ball]'), '重开项目后小球不见了（被弹成了浮窗 / 停靠）').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await expect(win.locator(NOMI_ENTRY_COLLAPSED), '重开项目后 Nomi 不再收着（被弹成了浮窗 / 停靠）').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await win.waitForTimeout(1200)
-  const reopenedBall = await proveProbe(win.locator('[data-agent-ball]'), '重开后小球在场（判面板没弹开之前先证探针活着）')
+  const reopenedBall = await proveProbe(win.locator(NOMI_ENTRY_COLLAPSED), '重开后收着的顶栏入口在场（判面板没弹开之前先证探针活着）')
   await expectAbsent(win.locator(AGENT_PANEL), { provenBy: reopenedBall, message: '重开项目后 Agent 自己弹开了' })
 
-  // Main 板：画布 + 小球 + 底边时间轴窄条
+  // Main 板：画布 + 顶栏 Nomi 入口 + 底边时间轴窄条
   measures.main = {
     topbar: await box(win, '[data-shell-topbar]'),
     rail: await box(win, '[data-shell-rail]'),
     canvas: await box(win, '.workbench-generation__canvas'),
     strip: await box(win, '[data-timeline-strip]'),
-    ball: await box(win, '[data-agent-ball]'),
+    nomiEntry: await box(win, NOMI_ENTRY),
   }
   await shoot(win, 'main')
 
@@ -249,7 +249,7 @@ try {
     expect(buttons.map((b) => b.intent), '常驻位：图片 视频 声音 文字 剪辑 导入').toEqual(['image', 'video', 'audio', 'text', 'clip', 'import-file'])
     expect(new Set(buttons.map((b) => b.top)).size, '加节点条不是一条横排').toBe(1)
     expect(Math.abs(addBar.cx - (stage.left + stage.width / 2)), `加节点条中心 ${addBar.cx} 没落在内容区中线 ${stage.left + stage.width / 2}`).toBeLessThanOrEqual(2)
-    // 舞台窄于 820 时加节点条整体上抬 44px，让出左下缩放簇和右下小球同一排（CanvasToolbar 的 ADD_BAR_SHARES_BOTTOM_ROW_MIN_STAGE_WIDTH）。
+    // 舞台窄于 820 时加节点条整体上抬 44px，让出左下缩放簇那一排（CanvasToolbar 的 ADD_BAR_SHARES_BOTTOM_ROW_MIN_STAGE_WIDTH）。
     const lifted = stage.width < 820
     expect(stage.bottom - addBar.bottom, '加节点条没贴着底').toBeLessThanOrEqual(lifted ? 24 + 44 : 24)
     // ② 缩放簇：左下，五个控件；⋯ 里原来的控件都在。
@@ -347,27 +347,28 @@ try {
     measures.canvasChrome = { ...measures.canvasChrome, stepperCenter: stepperBefore.cx, windowCenter: windowWidth / 2, addBar, zoomBar, stage }
   }
 
-  // Chrome 板：小球三态（显示态注入，见文件头）
-  const setBadge = (status, pending, unread = 0) => win.evaluate(([s, n, u]) => window.__nomiResidentActivityStore?.getState().setResidentDockBadge(s, n, u), [status, pending, unread])
-  for (const [name, status, pending] of [['chrome-ball-running', 'running', 0], ['chrome-ball-failed', 'failed', 0], ['chrome-ball-pending', 'needs-confirm', 2]]) {
+  // Chrome 板：顶栏 Nomi 入口三态（显示态注入，见文件头）。脸的状态不算待确认（等你确认时脸照常、另出胶囊 / 角标，NomiEntryTopbar 板 B5）。
+  const setBadge = (status, pending, unread = 0) => win.evaluate(([s, n, u]) => window.__nomiResidentActivityStore?.getState().setResidentDockBadge(s, s === 'needs-confirm' ? 'idle' : s, n, u), [status, pending, unread])
+  for (const [name, status, pending] of [['chrome-entry-running', 'running', 0], ['chrome-entry-failed', 'failed', 0], ['chrome-entry-pending', 'needs-confirm', 2]]) {
     if (!want(name)) continue
     await setBadge(status, pending)
-    await expect(win.locator(`[data-agent-ball="${status === 'needs-confirm' ? 'pending' : status}"]`), `小球没有进入 ${status}`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const wanted = status === 'needs-confirm' ? `${NOMI_ENTRY}[data-shape="capsule"][data-pending="2"]` : `${NOMI_ENTRY}[data-status="${status}"]`
+    await expect(win.locator(wanted), `顶栏 Nomi 入口没有进入 ${status}`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     await shoot(win, name)
   }
-  // 未读点（10-08 协调拍板：旧顶栏角标的未读数不能丢）：空闲 + 3 条未读 = 右上强调色小点，悬停名字带「3 条新消息」。
-  if (want('chrome-ball-unread')) {
+  // 未读点（10-08 协调拍板：旧顶栏角标的未读数不能丢）：空闲 + 3 条未读 = 右上强调色小点，悬停 / 读屏那句带「3 条新消息」。
+  if (want('chrome-entry-unread')) {
     await setBadge('idle', 0, 3)
-    const unreadBall = win.locator('[data-agent-ball="idle"][data-agent-dock-unread="3"]')
-    await expect(unreadBall, '小球没有接住未读').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    await expect(unreadBall.locator('[data-dot-mark]'), '有未读却没冒点').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    await expect(unreadBall, '悬停名字没说有几条新消息').toHaveAttribute('title', zh ? /3 条新消息/ : /New messages: 3/)
-    await shoot(win, 'chrome-ball-unread')
+    const unreadEntry = win.locator(`${NOMI_ENTRY}[data-status="unread"]`)
+    await expect(unreadEntry, '顶栏 Nomi 入口没有接住未读').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expect(unreadEntry.locator('[data-nomi-entry-dot="unread"]'), '有未读却没冒点').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expect(unreadEntry, '悬停 / 读屏那句没说有几条新消息').toHaveAttribute('aria-label', zh ? /3 条新消息/ : /New messages: 3/)
+    await shoot(win, 'chrome-entry-unread')
     // 等你确认优先：同时在时只出胶囊，不叠点。
     await setBadge('needs-confirm', 1, 4)
-    await expect(win.locator('[data-agent-ball="pending"]'), '等你确认没有压过未读').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    const dotProof = await proveProbe(win.locator('[data-agent-ball] [data-dot-mark], [data-agent-ball="pending"]'), '小球在场（判点之前先证探针活着）')
-    await expectAbsent(win.locator('[data-agent-ball] [data-dot-mark]'), { provenBy: dotProof, message: '胶囊时还叠了未读点' })
+    await expect(win.locator(`${NOMI_ENTRY}[data-shape="capsule"]`), '等你确认没有压过未读').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const dotProof = await proveProbe(win.locator(NOMI_ENTRY), '顶栏 Nomi 入口在场（判点之前先证探针活着）')
+    await expectAbsent(win.locator(`${NOMI_ENTRY} [data-nomi-entry-dot]`), { provenBy: dotProof, message: '胶囊时还叠了未读点' })
   }
   await setBadge('idle', 0)
 
@@ -414,15 +415,15 @@ try {
     await win.keyboard.press('Escape')
   }
 
-  // CanvasAgent 板：点小球 = 浮窗
+  // CanvasAgent 板：点顶栏 Nomi 入口 = 浮窗（生成页默认摆法）
   if (want('canvas-agent') || want('chrome-assets') || want('chrome-rail-collapsed')) {
-    await clickOrFail(win.locator('[data-agent-ball]'), '点小球打开浮窗')
+    await clickOrFail(win.locator(NOMI_ENTRY_COLLAPSED), '点顶栏 Nomi 入口打开浮窗')
     await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), '浮窗没有打开').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    await expectComposerFocused(win, CANVAS_PANEL, '点小球打开浮窗后焦点不在 Agent 输入框', stationTimeout())
+    await expectComposerFocused(win, CANVAS_PANEL, '点顶栏入口打开浮窗后焦点不在 Agent 输入框', stationTimeout())
     await win.waitForTimeout(700)
     measures.float = await box(win, '[data-agent-float="generation"]')
     await shoot(win, 'canvas-agent')
-    await clickOrFail(win.locator('[data-agent-form-to="ball"]').first(), '浮窗收成小球')
+    await clickOrFail(win.locator('[data-agent-form-to="collapse"]').first(), '浮窗收起（入口回到顶栏）')
 
     // Chrome 板：素材抽屉
     await clickOrFail(win.locator('[data-shell-rail-item="assets"]'), '点左栏素材')
@@ -462,9 +463,9 @@ try {
     await win.waitForTimeout(300)
   }
 
-  // 协调裁决第 37 项：Mod+J 打开 Agent 并聚焦输入框；Mod+\ 收起 / 展开 Nomi（收着时打开到上次选的摆法，和点小球同一个动作；2026-11-15 改，不再是选停靠）。
+  // 协调裁决第 37 项：Mod+J 打开 Agent 并聚焦输入框；Mod+\ 收起 / 展开 Nomi（收着时打开到上次选的摆法，和点顶栏 Nomi 入口同一个动作；2026-11-15 改，不再是选停靠）。
   if (want('check-shortcuts')) {
-    await expect(win.locator('[data-agent-ball]'), '快捷键前应是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expect(win.locator(NOMI_ENTRY_COLLAPSED), '快捷键前 Nomi 应是收着').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     await win.locator('.workbench-generation__canvas').click({ position: { x: 500, y: 60 } })
     await win.keyboard.press('ControlOrMeta+J')
     await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), 'Mod+J 没有打开 Agent').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
@@ -481,15 +482,15 @@ try {
     await expectComposerText(input, typed, '开着时再按 Mod+J，输入框里的字变了')
     await clearComposerText(input)
     await win.keyboard.press('Control+\\')
-    await expect(win.locator('[data-agent-ball]'), 'Ctrl+\\ 没把浮窗收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    const ballProof = await proveProbe(win.locator('[data-agent-ball]'), '再展开前小球确实在')
+    await expect(win.locator(NOMI_ENTRY_COLLAPSED), 'Ctrl+\\ 没把浮窗收起').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const entryProof = await proveProbe(win.locator(NOMI_ENTRY), '再展开前顶栏 Nomi 入口确实在')
     await win.keyboard.press('Control+\\')
     // 上次选的是浮窗（Mod+J 打开的生成页浮窗）：展开回到浮窗，不被改成停靠。
-    await expect(win.locator('[data-shell-agent-layer][data-agent-form="float"]'), 'Ctrl+\\ 没把小球展开回上次选的浮窗').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
-    await expectAbsent(win.locator('[data-agent-ball]'), { provenBy: ballProof, message: '展开后小球还在' })
+    await expect(win.locator('[data-shell-agent-layer][data-agent-form="float"]'), 'Ctrl+\\ 没把收着的 Nomi 展开回上次选的浮窗').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
+    await expectAbsent(win.locator(NOMI_ENTRY_COLLAPSED), { provenBy: entryProof, message: '展开后顶栏入口还是「收着」' })
     await shoot(win, 'check-mod-backslash-reopen')
     await win.keyboard.press('Control+\\')
-    await expect(win.locator('[data-agent-ball]'), '再按 Ctrl+\\ 没回到小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expect(win.locator(NOMI_ENTRY_COLLAPSED), '再按 Ctrl+\\ 没收回去').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   }
 
   // 协调裁决第 57 项：浮窗窄时头部按钮收进「⋯」（线程 / 历史与形态三选一都在里面）。
@@ -551,10 +552,10 @@ try {
     await clickOrFail(layoutTrigger, '#35 顶栏剪辑布局菜单')
     const layoutMenu = win.locator('[data-shell-topbar] [role="menu"][aria-label="布局"]').first()
     await expect(layoutMenu, '#35 布局菜单没打开').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expect(layoutMenu.locator('[role="menuitemcheckbox"]').first(), '#35 面板显隐项不在').toBeVisible()
+    await expect(layoutMenu.locator('[role="menuitemradio"]').first(), '#35 布局预设不在').toBeVisible()
     const panelToggles = await layoutMenu.locator('[role="menuitemcheckbox"]').count()
     const presets = await layoutMenu.locator('[role="menuitemradio"]').count()
-    expect(panelToggles, '#35 面板显隐项不在').toBeGreaterThan(0)
-    expect(presets, '#35 布局预设不在').toBeGreaterThan(0)
     await expect(layoutMenu.locator('[role="menuitem"]').last(), '#35 恢复默认不在').toBeVisible()
     const firstToggle = layoutMenu.locator('[role="menuitemcheckbox"]').first()
     const checkedBefore = await firstToggle.getAttribute('aria-checked')

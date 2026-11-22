@@ -104,7 +104,7 @@ try {
   await win.waitForTimeout(400)
   const cardText = await scopedText(tikhubCard)
   check('卡片标题含 TikHub', /TikHub/.test(cardText), cardText.slice(0, 80))
-  check('卡片给了 key 输入框', await tikhubCard.locator('input[type="password"]').count() === 1)
+  check('卡片给了 key 输入框', await expect(tikhubCard.locator('input[type="password"]')).toHaveCount(1).then(() => true, () => false))
   check('卡片带第三方抓取诚实提示', /第三方|抓取|风控/.test(cardText), cardText)
   // 「数据源」分组标题与它同在，且与模型家清单分开（P4：数据源≠模型）。
   check('数据源分组有标题', /数据源|Data source/i.test(await scopedText(dataSourceSection)))
@@ -172,7 +172,7 @@ try {
   const findInput = win.locator('[data-find-reference-panel]').getByRole('searchbox', { name: '找参考' })
   await expectVisible(findInput, '「找参考」展开后没有贴链接的输入框')
   await assetSection.screenshot({ path: path.join(shotsDir, '03-asset-library-paste-entry.png') })
-  check('贴链接入口就位', await findInput.count() === 1)
+  check('贴链接入口就位', await expect(findInput).toHaveCount(1).then(() => true, () => false))
 
   // 无 key 时贴链接回车：走「引导去设置」分支（深链跳到「模型」tab 的数据源区）。截当前态给人眼看。
   await findInput.fill('https://v.douyin.com/nomi-walk/')

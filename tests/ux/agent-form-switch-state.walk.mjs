@@ -90,7 +90,7 @@ async function expectPanelStateKept(where) {
   await expectComposerText(panel.locator(COMPOSER_INPUT), DRAFT, `${where}：草稿丢了`)
   await expect(panel.locator(USER_BUBBLE).filter({ hasText: GREETING }), `${where}：已有对话丢了`).toHaveCount(1)
   await expect(panel.locator(ASSISTANT_MESSAGE).filter({ hasText: 'WALK_HELLO' }), `${where}：助手回复丢了`).toHaveCount(1)
-  expect(await panel.locator(TOOL_RECEIPT).count(), `${where}：工具回执丢了`).toBeGreaterThan(0)
+  await expect(panel.locator(TOOL_RECEIPT).first(), `${where}：工具回执丢了`).toBeVisible()
   const card = panel.locator(APPROVAL_CARD).first()
   await expect(card, `${where}：待确认卡不在`).toBeVisible()
   // 折叠态保留：计划行仍然收着、钮仍写「展开」。
@@ -107,7 +107,7 @@ try {
   await clickOrFail(win.locator('nav.nomi-stepper [data-mode="preview"]').first(), '进入剪辑页')
   const panel = win.locator(PREVIEW_PANEL)
   const ball = win.locator(COLLAPSED_DOCK)
-  if (await ball.isVisible().catch(() => false)) await clickOrFail(ball, '点小球展开 Nomi')
+  if (await ball.isVisible().catch(() => false)) await clickOrFail(ball, '点顶栏 Nomi 入口展开 Nomi')
   await expect(panel, '剪辑页 Agent 没停靠展开').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL, PREVIEW_PANEL)
 
@@ -152,19 +152,20 @@ try {
   await expectPanelStateKept('切形态前')
   await snap('01-dock-before')
 
-  // ③ 停靠 → 小球 → 浮窗 → 停靠。
-  await clickOrFail(panel.locator('[data-agent-form-to="ball"]'), '停靠 → 小球')
-  await expect(ball, '没收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  await expect(ball, '小球没报等你确认').toHaveAttribute('data-agent-ball', 'pending')
-  // 2026-10-27 形象：真实待确认（不是注入的显示态）也长成 warning 胶囊、里面写「等你确认 N」（board:AgentPersona/state.needs-confirm）。
-  await expect(ball.locator('[data-nomi-agent-face="confirm"]'), '真实待确认时小球没长成胶囊 · board:AgentPersona/state.needs-confirm').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
-  await expect(ball.locator('[data-nomi-agent-label]'), '胶囊里没写「等你确认 N」').toHaveText(/\d/, { timeout: DEFAULT_TIMEOUT_MS })
-  await snap('02-ball')
-  await ball.click({ button: 'right' })
-  await clickOrFail(win.getByRole('menuitem', { name: /浮窗/ }).first(), '小球右键 → 浮窗')
+  // ③ 停靠 → 收起 → 点顶栏入口回到停靠 → 浮窗 → 停靠（旧小球的右键菜单随小球删掉，换摆法在面板头三选一里换，设计卡 ★1c）。
+  await clickOrFail(panel.locator('[data-agent-form-to="collapse"]'), '停靠 → 收起')
+  await expect(ball, '没收起（顶栏入口没回到收着）').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await expect(ball, '顶栏入口没报等你确认').not.toHaveAttribute('data-pending', '0')
+  // 真实待确认（不是注入的显示态）也长成 warning 胶囊、里面写「等你确认 N」（board:AgentPersona/state.needs-confirm，落点在顶栏入口）。
+  await expect(ball, '真实待确认时顶栏入口没长成胶囊 · board:AgentPersona/state.needs-confirm').toHaveAttribute('data-shape', 'capsule', { timeout: DEFAULT_TIMEOUT_MS })
+  await expect(ball.locator('[data-nomi-entry-capsule]'), '胶囊里没写「等你确认 N」').toHaveText(/\d/, { timeout: DEFAULT_TIMEOUT_MS })
+  await snap('02-collapsed')
+  await clickOrFail(ball, '点顶栏 Nomi 入口 → 回到停靠')
+  await expect(win.locator('[data-shell-agent-layer][data-agent-form="dock"]'), '点入口没回到上次的停靠').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
+  await clickOrFail(panel.locator('[data-agent-form-to="float"]'), '停靠 → 浮窗')
   await expect(win.locator('[data-agent-float="preview"]'), '没变成浮窗').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  // 小球右键「浮窗」也是打开 Agent 的一扇门：打开后光标就在输入框里（#1359）。
-  await expectComposerFocused(win, PREVIEW_PANEL, '小球右键 → 浮窗后焦点不在 Agent 输入框', stationTimeout())
+  // 选「浮窗」也是打开 Agent 的一扇门：打开后光标就在输入框里（#1359）。
+  await expectComposerFocused(win, PREVIEW_PANEL, '停靠 → 浮窗后焦点不在 Agent 输入框', stationTimeout())
   await expectPanelStateKept('浮窗')
   await snap('03-float')
   await clickOrFail(win.locator('[data-agent-float="preview"] [data-agent-form-to="dock"]'), '浮窗 → 停靠')
@@ -177,7 +178,7 @@ try {
   await expect(rows.nth(1), '走一圈后第 2 行被勾回来了').not.toBeChecked()
   await expect(rows.first(), '第 1 行应仍勾着').toBeChecked()
   await snap('04-dock-after-cycle')
-  console.log('✅ 停靠 → 小球 → 浮窗 → 停靠：勾选、折叠、草稿、对话、回执、面板挂载都在。')
+  console.log('✅ 停靠 → 收起 → 停靠 → 浮窗 → 停靠：勾选、折叠、草稿、对话、回执、面板挂载都在。')
 
   // ⑤ 功能全表 #58：搬家后的面板里，待确认卡的「确认」和「不要（带原因）」照样走得通。
   const applied = fixture.expectText({ label: 'plan applied', match: (body) => hasToolResult(body, 'walk-plan'), reply: { type: 'text', text: 'WALK_APPLIED：按勾选的两条改好了。' } })
@@ -211,14 +212,14 @@ try {
   await snap('05-confirm-and-reject')
   console.log('✅ #58 搬家后的面板里确认 / 带原因拒绝都走得通。')
 
-  // ⑥ 设计卡 ★9 反例「面板开着时刚做完却挂上了未读点」：上面那轮回复是面板开着时到的，收起后小球不许冒未读点
-  // （未读只记收起期间来的；board:AgentPersona/variant.unread）。
-  await clickOrFail(panel.locator('[data-agent-form-to="ball"]'), '回复到齐后 停靠 → 小球')
-  await expect(ball, '没收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  await expect(ball, '面板开着时到的回复被记成了未读').toHaveAttribute('data-agent-dock-unread', '0')
-  const quietBall = await proveProbe(ball.locator('[data-nomi-agent-face]'), '收起后小球的脸在（判未读点之前先证探针活着）')
-  await expectAbsent(ball.locator('[data-dot-mark]'), { provenBy: quietBall, message: '面板开着时刚做完，收起后却挂上了未读点 · board:AgentPersona/variant.unread' })
-  await snap('06-ball-after-reply-no-unread')
+  // ⑥ 设计卡 ★9 反例「面板开着时刚做完却挂上了未读点」：上面那轮回复是面板开着时到的，收起后顶栏入口不许冒未读点
+  // （未读只记收起期间来的；board:AgentPersona/variant.unread，落点在顶栏入口）。
+  await clickOrFail(panel.locator('[data-agent-form-to="collapse"]'), '回复到齐后 停靠 → 收起')
+  await expect(ball, '没收起（顶栏入口没回到收着）').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await expect(ball, '面板开着时到的回复被记成了未读').not.toHaveAttribute('data-status', 'unread')
+  const quietBall = await proveProbe(ball.locator('[data-nomi-agent-face]'), '收起后顶栏入口的脸在（判未读点之前先证探针活着）')
+  await expectAbsent(ball.locator('[data-nomi-entry-dot="unread"]'), { provenBy: quietBall, message: '面板开着时刚做完，收起后却挂上了未读点 · board:AgentPersona/variant.unread' })
+  await snap('06-collapsed-after-reply-no-unread')
 } catch (error) {
   failure = error
   try { await win.screenshot({ path: path.join(shotsDir, 'FAIL.png') }) } catch { /* window gone */ }

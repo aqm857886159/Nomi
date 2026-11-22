@@ -43,7 +43,7 @@ vi.mock('../../library/localProjectStore', () => ({
 }))
 vi.mock('../../api/taskApi', async (original) => ({
   ...await original<typeof import('../../api/taskApi')>(),
-  canvasOpenRuns: vi.fn(async () => []),
+  canvasResendDecide: (input: Parameters<typeof import('../../api/canvasResendDecideTestUtils').canvasResendDecideLikeMain>[0]) => import('../../api/canvasResendDecideTestUtils').then(fake => fake.canvasResendDecideLikeMain(input)), canvasOpenRuns: vi.fn(async () => []),
   mintSpendGrant: calls.mint,
   submitCanvasShotRun: (input: SubmitInput) =>
     calls.runTask(input.vendor, { ...input.request, extras: { ...input.request.extras, runRecordId: input.runRecordId } }, input.projectId),
@@ -59,10 +59,6 @@ vi.mock('../../api/taskApi', async (original) => ({
 vi.mock('../../api/modelCatalogApi', async (original) => ({
   ...await original<typeof import('../../api/modelCatalogApi')>(),
   listWorkbenchModelCatalogVendors: async () => { throw new Error('no catalog bridge in tests') },
-}))
-vi.mock('./assetUploadConsent', async (original) => ({
-  ...await original<typeof import('./assetUploadConsent')>(),
-  resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }),
 }))
 
 const IMAGE_META = { modelKey: 'img-model', modelVendor: 'acme', vendor: 'acme' }

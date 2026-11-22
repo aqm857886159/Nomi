@@ -157,8 +157,12 @@ export function UpdateDialogCard({
     <DesignModal opened onClose={onClose ?? noop} centered size={480} zIndex={130}
       withinPortal={false} closeOnClickOutside={false} closeOnEscape={false} trapFocus={false} returnFocus={false}
       closeButtonProps={{ 'aria-label': t('common.close') }}
-      contentAttributes={{ 'data-update-dialog': view, 'data-updater-dialog': 'true' }}
-      title={
+      // 对话框的名字 = 标题一句（外壳放进 Modal.Title）；图标和副标走标题栏插槽，摆在名字旁边、不进名字。
+      title={title}
+      classNames={{ title: 'block m-0 text-title font-semibold text-nomi-ink' }}
+      // 插槽最外层这一格占原来标题元素的位置（行距 1 = Mantine 标题的行距，副标照旧继承它）。
+      header={(name) => (
+      <span className="block leading-none">
       <span className="flex items-start gap-3">
         <span
           className={view === 'failed'
@@ -169,11 +173,12 @@ export function UpdateDialogCard({
           <HeaderIcon size={18} stroke={1.8} />
         </span>
         <span className="min-w-0 flex-1">
-          <span id="update-dialog-title" className="block m-0 text-title font-semibold text-nomi-ink">{title}</span>
+          {name}
           {subtitle ? <span className="block mt-1 text-body-sm text-nomi-ink-60">{subtitle}</span> : null}
         </span>
       </span>
-      }
+      </span>
+      )}
       actions={
       <footer>
         {view === 'available' ? (

@@ -153,12 +153,17 @@ describe("listProjects 只读：所有登记过的项目都在、不删", () => 
     createProject({ name: "上个进程的空白", draft: true });
     const keep = createProject({ name: "正常项目" });
 
-    const workspaceManifest = await import("../workspace/workspaceManifest");
-    const spy = vi.spyOn(workspaceManifest, "readWorkspaceManifestSnapshotAsync");
+    // 在文件系统这一层数清单读，不换掉主人的读函数：快照读走 fs.promises.readFile 读 <项目>/.nomi/project.json。
+    const keepDir = path.resolve((findRecentWorkspace(settingsRoot, keep.id) as { rootPath: string }).rootPath);
+    const keepManifest = path.join(keepDir, ".nomi", "project.json");
+    const originalReadFile = fs.promises.readFile.bind(fs.promises);
+    let keepReads = 0;
+    const spy = vi.spyOn(fs.promises, "readFile").mockImplementation((async (...args: Parameters<typeof fs.promises.readFile>) => {
+      if (path.resolve(String(args[0])) === keepManifest) keepReads += 1;
+      return originalReadFile(...args);
+    }) as typeof fs.promises.readFile);
     try {
       await listProjects();
-      const keepDir = path.resolve((findRecentWorkspace(settingsRoot, keep.id) as { rootPath: string }).rootPath);
-      const keepReads = spy.mock.calls.filter(([rootPath]) => path.resolve(String(rootPath)) === keepDir).length;
       expect(keepReads).toBe(1);
     } finally {
       spy.mockRestore();

@@ -55,7 +55,7 @@ try {
     label: 'the agent drafts one shot',
     match: (body) => flattenRequestText(body).includes('S_WO_ASK'),
     reply: { type: 'tool', id: 'wo-draft', name: 'draft_shots', args: {
-      shots: [{ prompt: '一个悬浮的六棱柱，柔和的演播室灯光', taskKind: 'text_to_image', candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }, parameters: { aspect_ratio: '16:9' } }],
+      shots: [{ prompt: '一个悬浮的六棱柱，柔和的演播室灯光', taskKind: 'text_to_image', model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`, parameters: { aspect_ratio: '16:9' } }],
     } },
   })
   let operationId

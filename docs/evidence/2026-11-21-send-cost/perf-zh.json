@@ -1,0 +1,43 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "d743229b1",
+  "head": "d743229b109fa294ede1f2a3157b65b481519f78",
+  "dirty": false,
+  "sourceTree": "b4277861669b8aca78f0dd8629c8c1c827b03307",
+  "date": "2026-11-21",
+  "runs": 5,
+  "results": [
+    {
+      "id": "send-cost-param-update",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 124.5,
+          "p95": 129.4
+        }
+      },
+      "samples": {
+        "response": [
+          124.5,
+          123.29999999701977,
+          130.59999999403954,
+          120.29999999701977,
+          124.79999999701977
+        ]
+      },
+      "budget": 200,
+      "baseline": {
+        "median": 128.7,
+        "p95": 132.4,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "date": "2026-11-21",
+        "commit": "2acbf7c07"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

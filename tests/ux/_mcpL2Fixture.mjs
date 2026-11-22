@@ -7,7 +7,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { encryptFixtureKey as encryptSyntheticKey, currentCatalogVersion } from './_launchApp.mjs'
+import { encryptFixtureKey as encryptSyntheticKey } from './_launchApp.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -28,7 +28,9 @@ function mediaFixture() {
   return { image, video: fs.readFileSync(videoPath), poster, referencePath, root }
 }
 
-export async function startFakeApimartServer({ pendingPolls = 0 } = {}) {
+export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0, failTasks = 0 } = {}) {
+  let dropsLeft = dropSubmits
+  let failsLeft = failTasks
   const media = mediaFixture()
   const tasks = new Map()
   const hits = []
@@ -58,9 +60,18 @@ export async function startFakeApimartServer({ pendingPolls = 0 } = {}) {
         return
       }
       const create = /^\/v1\/(images|videos)\/generations$/.exec(req.url || '')
+      if (create && dropsLeft > 0) {
+        // 收下了请求、不回话就断开：调用方分不清供应商收没收下（结果未知）。
+        dropsLeft -= 1
+        req.socket.destroy()
+        return
+      }
       if (create) {
         const taskId = `mcp-l2-${++sequence}`
-        tasks.set(taskId, { kind: create[1] === 'videos' ? 'video' : 'image', remaining: pendingPolls, body })
+        // 前 failTasks 个建好的任务：查询时报供应商一侧的普通失败（可重试），用来和「结果未知」并排。
+        const failed = failsLeft > 0
+        if (failed) failsLeft -= 1
+        tasks.set(taskId, { kind: create[1] === 'videos' ? 'video' : 'image', remaining: pendingPolls, body, failed })
         json({ code: 200, data: [{ status: 'submitted', task_id: taskId }] }); return
       }
       const query = /^\/v1\/tasks\/([^/]+)$/.exec(req.url || '')
@@ -68,6 +79,7 @@ export async function startFakeApimartServer({ pendingPolls = 0 } = {}) {
         const task = tasks.get(query[1])
         if (!task) { json({ code: 404, data: { status: 'failed', error: { message: 'unknown task' } } }, 404); return }
         if (task.remaining > 0) { task.remaining -= 1; json({ code: 200, data: { id: query[1], status: 'processing' } }); return }
+        if (task.failed) { json({ code: 200, data: { id: query[1], status: 'failed', error: { message: 'generation failed upstream' } } }); return }
         const entry = task.kind === 'video'
           ? { id: query[1], url: [`${origin}/fixture/video.mp4`], thumbnail_url: `${origin}/fixture/poster.png`, filename: 'fixture.mp4' }
           : { id: query[1], url: [`${origin}/fixture/image.png`], filename: 'fixture.png' }
@@ -108,28 +120,16 @@ export function encryptFixtureKey(userDataDir) {
 }
 
 export function writeFakeApimartCatalog(settingsDir, userDataDir, _origin = '', { withKey = true } = {}) {
-  const { applyBuiltinSeeds } = tsxRequire('../../electron/catalog/seedBuiltins.ts', import.meta.url)
-  const seeded = applyBuiltinSeeds({ version: currentCatalogVersion(), vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, new Date().toISOString()).state
-  const encrypted = encryptFixtureKey(userDataDir)
-  // 2026-09-21：这里曾经给 apimart 的视频模型塞一行 `pricing: { cost: 0, enabled: true }`——
-  // 那是为了绕过当时的「算不出价就不发付费门」（`assertKnownShotPrice`）而**编出来的一个 0 元价**。
-  // 编出来的 0 恰好是三种可能（免费 / 算不出 / 真的零元）里唯一会被读成「这次免费」的那一种，
-  // 而且它让这条旅程一直在测一个「所有模型都标着 ¥0」的世界——**真实装机上一个模型都没有价目**。
-  // 闸开了之后那个绕行没有存在的理由了：去掉它，这条旅程从此跑的是真实处境（价格未知）。
-  const models = seeded.models
-  const catalog = {
-    ...seeded,
-    // Keep the shipped APIMart scope intact. The explicit loopback fixture
-    // env selects the test origin; mutating baseUrlHint would correctly trip
-    // the production direct-key scope guard.
-    vendors: seeded.vendors,
-    models,
-    apiKeysByVendor: withKey ? {
-      apimart: { vendorKey: 'apimart', apiKey: encrypted, enc: 'safeStorage', enabled: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    } : {},
-  }
-  fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify(catalog), 'utf8')
-  return catalog
+  // 目录由主人造（tests/world 的 buildWorld → ensureBuiltinModelSeeds + mutateCatalog 落盘），这里只声明「多一把加密好的假 key」。
+  const { buildWorld } = tsxRequire('../world/index.ts', import.meta.url)
+  const now = new Date().toISOString()
+  const record = { vendorKey: 'apimart', apiKey: encryptFixtureKey(userDataDir), enc: 'safeStorage', enabled: true, createdAt: now, updatedAt: now }
+  // 2026-09-21：这里曾经给 apimart 的视频模型塞一行 `pricing: { cost: 0, enabled: true }`——那是为了绕过当时的「算不出价就不发付费门」
+  // 而**编出来的 0 元价**，让这条旅程一直在测一个「所有模型都标着 ¥0」的世界。闸开了之后绕行没有存在的理由：去掉它，
+  // 这条旅程从此跑的是真实处境（价格未知）。内置种子保持出厂原样：连接范围、baseUrlHint 都不改——
+  // 回环地址由显式的夹具环境变量选择，改 baseUrlHint 会正确地触发直连 key 的范围守卫。
+  buildWorld({ settingsDir, projects: [], encryptedApiKeys: withKey ? { apimart: record } : {} })
+  return { apiKeysByVendor: withKey ? { apimart: record } : {} }
 }
 
 function buildTinyPng() {

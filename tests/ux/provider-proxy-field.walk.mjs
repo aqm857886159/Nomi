@@ -58,10 +58,12 @@ try {
 
   // 打开模型设置首页。
   // 顶栏齿轮 → 设置「模型」页签（经 _shell.mjs）。
-  if (!(await modelSettingsEntry(win).count())) { failures.push('找不到模型设置入口'); throw new Error('no settings entry') }
+  const entryVisible = await modelSettingsEntry(win).first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  if (!entryVisible) { failures.push('找不到模型设置入口'); throw new Error('no settings entry') }
   await openModelSettings(win, { label: 'open model settings', timeout: 4000 }).catch(() => {})
   await win.waitForTimeout(800)
-  if (!(await win.locator('[data-model-settings-page]').count())) { failures.push('模型设置面板没打开'); throw new Error('panel closed') }
+  const panelVisible = await win.locator('[data-model-settings-page]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  if (!panelVisible) { failures.push('模型设置面板没打开'); throw new Error('panel closed') }
 
   // 下钻「自定义 API / 接入你的中转站」——只有 custom 预设才显示 Advanced（含代理字段）。
   console.log('— 进入自定义 API 表单 —')

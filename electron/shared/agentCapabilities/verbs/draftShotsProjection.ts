@@ -8,9 +8,10 @@
 //
 //   ① `durationSec` → `parameters.duration`：改的是**嵌套层级**。宿主读时长只有一处
 //      （`mcpGenerationVideoResolve.shotDurationSeconds` 认 `parameters.duration`），顶层没有时长字段。
-//   ② `candidate.{providerId,modelId}` → 顶层 `providerId` / `modelId`：**拍平嵌套**。宿主的逐镜
-//      `candidate` 是完整的内部候选（candidateId / revision / 传输接线），模型给不出；它给的两件按
-//      目录身份分别落位。平铺的 `modelId` 与 `candidate.modelId` 抢同一个落点，**逐镜点名的赢**。
+//   ② `model`（完整名字 `模型id@供应商`）→ 宿主的 `providerId` / `modelId`：**一个名字拆回两件身份**。
+//      宿主不解析这串字：lane 拿这条消息带上来的同一份可用模型清单按整串查表（`modelHandle.ts`），
+//      查到的那一行给出两件身份。分镜子对象里独立关键帧的 `keyframe.model` 同样查表、换回 `modelKey` / `modelVendor`。
+//      查不到 / 只写 id 而多家都有 → 当场拒收并给完整名字（`resolveDraftShotModels`），不替 Agent 挑一家。
 //   ①' `aspectRatio` → `parameters.aspectRatio`（2026-10-05）：同样是嵌套层级。这里落的是**语义载体键**，
 //      不是任何一家的参数名——哪家叫 `size`、哪家叫 `ratio`，这一层看不见（投影不知道最后选的是哪个模型，
 //      没点名时还是宿主按用户默认补的），所以翻成真实键由宿主在看得见所选模式参数表的那一处做
@@ -35,10 +36,18 @@
 // schema，宿主改名就红。这两条合起来，比那张 353 行的关系表**早一步**、也**严一层**。
 import type { z } from "zod";
 
-import { generationPlanInputSchema } from "../generationPlanSchemas";
+import { generationPlanInputSchema, type StoryboardAuthorFields } from "../generationPlanSchemas";
+import { resolveModelForTask, resolvedModelNameOf, type ModelHandleRow, type ModelIdentity, type ResolvedModelName } from "../modelHandle";
+import { resolveShotTaskKind, statedShotTaskKind } from "../../generationShotKind";
+import { modelKindForTaskKind } from "../../capabilityModeManifest";
+import { GENERATION_DEFAULT_TASK_KINDS, type GenerationDefaultTaskKind } from "../../../settings/generationModelDefaultsContract";
+import { LaneDomainFailure, toolArgumentsRejected } from "../../agentLane/laneToolContract";
+import type { ToolInputIssue } from "../../agentLane/toolInputIssues";
 import { generationShotEnvelopeOf, type GenerationShotEnvelope } from "../../generationShotEnvelope";
 import { draftShotSchema } from "./writeVerbs";
 import { ASPECT_RATIO_SEMANTIC_KEY } from "../../aspectRatioValue";
+import { generationProblemFrom } from "../../generationProblem";
+import { GENERATION_INPUT_INVALID_CODE } from "../admissionRejectionHints";
 
 /** 宿主那两支的类型锚点（只在类型位置用，所以写成类型而不是 const——那会是一条 lint 噪音）。 */
 type PlanCreate = z.infer<(typeof generationPlanInputSchema.options)[1]>;
@@ -47,7 +56,15 @@ type PlanPatch = z.infer<(typeof generationPlanInputSchema.options)[2]>;
 /** 模型面的一镜。 */
 export type DraftShot = z.infer<typeof draftShotSchema>;
 /** 模型面的顶层（`draft_shots` 自己的 schema 推出来的，不在这里重列）。 */
-export type DraftShotsArgs = { operationId?: string; newPlan?: boolean; taskKind?: DraftShot["taskKind"]; candidate?: DraftShot["candidate"]; shots: DraftShot[] };
+export type DraftShotsArgs = { operationId?: string; newPlan?: boolean; taskKind?: DraftShot["taskKind"]; shots: DraftShot[] };
+/** 查表之后的身份：宿主那两件。 */
+export type DraftShotModelIdentity = Readonly<{ providerId: string; modelId: string }>;
+/** 一镜查到的身份：镜头自己的（`model`）与独立关键帧的（`storyboard.keyframe.model`）。缺 = 没点名 = 用户默认。 */
+export type DraftShotModels = Readonly<{ shot?: DraftShotModelIdentity; keyframe?: DraftShotModelIdentity }>;
+/** Agent 写的不是完整名字、宿主替它认出来了：回执里告诉它落成了谁，下次照抄完整名字（形状与判据住名字主人）。 */
+export type { ResolvedModelName };
+/** 用户给每一种任务设的默认（lane 由 `readLaneDeclaredDefaults` 给，和宿主补默认问的是同一个解析器）。 */
+export type DraftShotModelDefaults = Readonly<Partial<Record<GenerationDefaultTaskKind, ModelIdentity>>>;
 /** 宿主的多镜 create 里的一镜。 */
 type PlanShot = NonNullable<PlanCreate["shots"]>[number];
 /** 宿主的候选 patch（改草稿那一支）。 */
@@ -69,9 +86,9 @@ const REFUSE_ON_FLAT = "单镜 create 把这一镜摊成顶层参数，顶层没
  * 三个宿主形状**共有**的那一半：模型填的语义。三处形状变化（①②③）全在这里，一处一行。
  * 返回类型取自宿主的候选 patch，所以宿主改名就是 tsc 红。
  */
-function semanticsOf(shot: DraftShot): CandidatePatch {
+function semanticsOf(shot: DraftShot, models: DraftShotModels): CandidatePatch {
   const {
-    storyboard, prompt, taskKind, modeId, modelId, variantId, candidate, parameters, durationSec, aspectRatio, references,
+    storyboard, prompt, taskKind, modeId, model: _resolvedIntoModels, variantId, parameters, durationSec, aspectRatio, references,
     // 信封那三件不属于「语义」，由各自的调用点按这条路有没有位置处置。
     shotId: _envelopeShotId, role: _envelopeRole, title: _envelopeTitle,
     ...unhandled
@@ -79,7 +96,7 @@ function semanticsOf(shot: DraftShot): CandidatePatch {
   // 一个字段都不许没人管：新长出来的模型面字段落进 `unhandled`，而这个类型不接受任何键 → tsc 红。
   void (unhandled satisfies Record<string, never>);
   return {
-    ...(storyboard !== undefined ? { storyboard } : {}),
+    ...(storyboard !== undefined ? { storyboard: hostStoryboardOf(storyboard, models.keyframe) } : {}),
     ...(prompt !== undefined ? { prompt } : {}),
     ...(taskKind !== undefined ? { taskKind } : {}),
     // ① 时长改的是嵌套层级：宿主只在 `parameters.duration` 读它，顶层没有时长字段。
@@ -93,13 +110,93 @@ function semanticsOf(shot: DraftShot): CandidatePatch {
       : {}),
     ...(modeId !== undefined ? { modeId } : {}),
     ...(variantId !== undefined ? { variantId } : {}),
-    // ② 拍平嵌套；逐镜点名的 `candidate` 赢过平铺的 `modelId`（谁赢是**声明**出来的，不靠写的顺序）。
-    ...(candidate?.modelId !== undefined ? { modelId: candidate.modelId }
-      : modelId !== undefined ? { modelId } : {}),
-    ...(candidate?.providerId !== undefined ? { providerId: candidate.providerId } : {}),
+    // ② 一个名字拆回两件身份（查表在 `resolveDraftShotModels`，这里只落位）。
+    ...(models.shot ? { providerId: models.shot.providerId, modelId: models.shot.modelId } : {}),
     // ③ 身份由宿主补：模型只给「哪份素材」。
     ...(references !== undefined ? { references: references.map((assetId) => ({ assetId })) } : {}),
   };
+}
+
+/** 分镜子对象：模型面的 `keyframe.model` 换回宿主的 `modelKey` / `modelVendor`（落盘字段不变）。 */
+function hostStoryboardOf(storyboard: NonNullable<DraftShot["storyboard"]>, keyframeModel: DraftShotModelIdentity | undefined): StoryboardAuthorFields {
+  if (!storyboard.keyframe) return storyboard as StoryboardAuthorFields;
+  const { model: _resolved, ...keyframe } = storyboard.keyframe;
+  return { ...storyboard, keyframe: { ...keyframe,
+    ...(keyframeModel ? { modelKey: keyframeModel.modelId, modelVendor: keyframeModel.providerId } : {}) } } as StoryboardAuthorFields;
+}
+
+const LIST_MODELS_NEXT = "Copy a full name exactly as list_models or the model index prints it.";
+
+/**
+ * 有一镜点的名字查不到：码与原因和宿主准入那一层的「目录里没有这个模型」同一个（`generation_input_invalid` +
+ * `unknown_model`），面板照旧说「没有这个模型」、遥测照旧记 `unknown_model`——查表从宿主挪到这里，用户看到的不变。
+ * 字段行仍按镜列（同一个格式器），模型读到的是这一镜写了什么、最像的完整名字是哪几个。
+ * 只有歧义（只写 id 而多家都有）时没有闭合原因可套，按入参被拒收说（`tool_arguments_invalid`）。
+ */
+function modelNameRejected(issues: readonly ToolInputIssue[], unknown: Readonly<{ path: string; written: string; nearest?: string }> | undefined): LaneDomainFailure {
+  const rejected = toolArgumentsRejected("draft_shots", issues);
+  if (!unknown) return new LaneDomainFailure({ ...rejected, nextAction: LIST_MODELS_NEXT });
+  return new LaneDomainFailure({
+    ...rejected,
+    code: GENERATION_INPUT_INVALID_CODE,
+    message: `draft_shots could not complete the requested action (${GENERATION_INPUT_INVALID_CODE}): model ${unknown.written} is not in the model list for this message; nothing ran and nothing was charged.`,
+    nextAction: LIST_MODELS_NEXT,
+    problem: generationProblemFrom({ code: "unknown_model", field: unknown.path, ...(unknown.nearest ? { nearest: unknown.nearest } : {}) }),
+  });
+}
+
+/**
+ * 每一镜点名的模型 → 宿主的两件身份。**名字只在名字主人认**（`resolveModelForTask`，与宿主语义合成同一个函数），
+ * 清单是这条消息带上来的同一份可用模型（模型在索引和 list_models 里看到的就是它）。拒收只有两种，都带下一步：
+ *   · 查不到：给最像的 ≤3 个完整名字（一个都不像就指向 list_models）；
+ *   · 只写了 id 而多家都有，又没有一家是用户给「这一种任务」设的默认（U1）：列出那几个完整名字。
+ *     恰好一家是默认 → 落它，回执写明「同名有 N 家，按你的默认用了哪家」。
+ * 「这一种任务」：这一镜明写的（`statedShotTaskKind`），没写就按对上的那几行是图还是视频 + 这一镜带没带参考
+ * （`resolveShotTaskKind`，和宿主定种类同一个判据）。独立关键帧恒为文生图。
+ * （第三种「这个模型做不了这类任务」在宿主准入那一层，照旧。）
+ * 全部问题一次说完，不让模型一镜一镜地撞。
+ */
+export function resolveDraftShotModels(
+  shots: readonly DraftShot[],
+  rows: readonly LaneModelRow[],
+  defaults: DraftShotModelDefaults = {},
+): { models: DraftShotModels[]; resolved: ResolvedModelName[] } {
+  const issues: ToolInputIssue[] = [];
+  const resolved: ResolvedModelName[] = [];
+  let unknown: { path: string; written: string; nearest?: string } | undefined;
+  const lookup = (written: string | undefined, path: string, taskKindOf: (matches: readonly LaneModelRow[]) => GenerationDefaultTaskKind | undefined): DraftShotModelIdentity | undefined => {
+    if (written === undefined) return undefined;
+    const hit = resolveModelForTask(rows, written, { taskKindOf, defaultFor: (taskKind) => defaults[taskKind] });
+    if (hit.ok) {
+      const name = resolvedModelNameOf(written, hit);
+      if (name) resolved.push(name);
+      return { providerId: hit.row.vendor ?? "", modelId: hit.row.modelId };
+    }
+    const allowed = hit.reason === "ambiguous" ? hit.handles : hit.nearest;
+    if (hit.reason !== "ambiguous" && !unknown) unknown = { path, written, ...(allowed[0] ? { nearest: allowed[0] } : {}) };
+    issues.push({ path, kind: "not_allowed", received: written, allowed,
+      note: hit.reason === "ambiguous" ? "several vendors carry this model id and none is the user's default for this kind of task; pick one full name"
+        : allowed.length ? "no model with this full name" : "no model with this name; call list_models for full names" });
+    return undefined;
+  };
+  const models = shots.map((shot, index) => ({
+    shot: lookup(shot.model, `shots.${index}.model`, (matches) => statedShotTaskKind(shot) ?? kindFromRows(matches, (shot.references?.length ?? 0) > 0)),
+    keyframe: lookup(shot.storyboard?.keyframe?.model, `shots.${index}.storyboard.keyframe.model`, () => "text_to_image"),
+  }));
+  if (issues.length) {
+    throw modelNameRejected(issues, unknown);
+  }
+  return { models, resolved };
+}
+
+/** lane 清单里的一行：名字主人要的身份，外加它出什么（`AgentModelEntry` 天然满足）。 */
+type LaneModelRow = ModelHandleRow & Readonly<{ kind?: string }>;
+
+/** 对上的那几行出什么（图 / 视频）+ 有没有参考 → 这一种任务。判据是宿主那一个（`resolveShotTaskKind`）。 */
+function kindFromRows(matches: readonly LaneModelRow[], hasReferences: boolean): GenerationDefaultTaskKind | undefined {
+  const modelModes = GENERATION_DEFAULT_TASK_KINDS.filter((taskKind) => matches.some((row) => row.kind === modelKindForTaskKind(taskKind)));
+  const verdict = resolveShotTaskKind({ modelModes, hasReferences });
+  return verdict.ok ? verdict.taskKind : undefined;
 }
 
 /**
@@ -116,8 +213,8 @@ function modelAuthoredEnvelopeOf(shot: DraftShot): Partial<GenerationShotEnvelop
 }
 
 /** 多镜 create 的一镜：语义 + 完整信封（这条路上信封有位置）。 */
-export function draftShotToPlanShot(shot: DraftShot): PlanShot {
-  return { ...semanticsOf(shot), ...modelAuthoredEnvelopeOf(shot) };
+export function draftShotToPlanShot(shot: DraftShot, models: DraftShotModels): PlanShot {
+  return { ...semanticsOf(shot, models), ...modelAuthoredEnvelopeOf(shot) };
 }
 
 /**
@@ -125,32 +222,32 @@ export function draftShotToPlanShot(shot: DraftShot): PlanShot {
  * `title` / `role` 当场拒绝（动词声明的 `superRefine` 在更早一层已经告诉过模型，这里是它的第二层）；
  * `shotId` 不在这里——它是寻址不是候选，由 `draftShotsPatchEnvelope` 提到 plan patch 的信封上。
  */
-export function draftShotToCandidatePatch(shot: DraftShot): CandidatePatch {
+export function draftShotToCandidatePatch(shot: DraftShot, models: DraftShotModels): CandidatePatch {
   if (shot.title !== undefined) refuse("shots[].title", REFUSE_ON_PATCH);
   if (shot.role !== undefined) refuse("shots[].role", REFUSE_ON_PATCH);
-  return semanticsOf(shot);
+  return semanticsOf(shot, models);
 }
 
 /** 单镜 create：一镜摊成顶层参数，顶层没有信封的位置，三件都当场拒绝。 */
-export function draftShotToFlatCreate(shot: DraftShot): PlanFlatCreate {
+export function draftShotToFlatCreate(shot: DraftShot, models: DraftShotModels): PlanFlatCreate {
   if (shot.title !== undefined) refuse("shots[].title", REFUSE_ON_FLAT);
   if (shot.role !== undefined) refuse("shots[].role", REFUSE_ON_FLAT);
   if (shot.shotId !== undefined) refuse("shots[].shotId", REFUSE_ON_FLAT);
-  return semanticsOf(shot);
+  return semanticsOf(shot, models);
 }
 
 /**
- * 顶层的两个缺省折进每一镜：**逐镜自己写的优先**。
+ * 顶层的缺省（只剩 `taskKind`）折进每一镜：**逐镜自己写的优先**。顶层 `candidate` 2026-11-15 删了：
+ * 「不填 = 用户默认」已经是每镜 `model` 的语义，第二个默认位置只是第二个家。
  * （宿主那侧也有一份 `inherited`，两者不是同一件事：这一份决定「发出去的那一镜长什么样」，
  * 宿主那份决定「没人说时按目录怎么合成」。）
  */
 export function withDraftShotsDefaults(args: DraftShotsArgs, shot: DraftShot): DraftShot {
-  const { taskKind, candidate, operationId: _selectsBranch, newPlan: _planChoice, shots: _theseShots, ...unhandled } = args;
+  const { taskKind, operationId: _selectsBranch, newPlan: _planChoice, shots: _theseShots, ...unhandled } = args;
   void (unhandled satisfies Record<string, never>);
   return {
     ...shot,
     ...(shot.taskKind === undefined && taskKind !== undefined ? { taskKind } : {}),
-    ...(shot.candidate === undefined && candidate !== undefined ? { candidate } : {}),
   };
 }
 

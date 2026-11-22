@@ -94,8 +94,8 @@ describe('model settings workspace structure', () => {
     expect(tasks).toContain('setInterval')
     expect(drawer).toContain('<AdapterTaskList')
     expect(drawer).toContain('<AdapterTaskWorkspace')
-    expect(drawer).toContain('const closeWizard = React.useCallback')
-    expect(drawer).toContain('onClose={closeWizard}')
+    // 关掉向导 = 回上一页（同一个 goBack，不另起别名）
+    expect(drawer).toContain('onClose={goBack}')
     expect(drawer).toContain('replaceModelSettingsPage(current, { type: \'verification\', runId: nextRun.id })')
     expect(drawer).not.toContain('wizardRunId')
     expect(drawer).not.toContain('handleWizardRunChange')
@@ -247,20 +247,19 @@ describe('model settings workspace structure', () => {
 
   // 首页那一行此前只算 summarizeModelHomeConnection（模型能力，不看网络），于是 401 的家
   // 在用户扫视的那一屏上写着灰色「24 个可使用」——他根本不知道该点哪一行去改地址。
-  it('surfaces connection health on the model home rows without a second probe', () => {
+  // D-1117-delete-verification：打开面板探一次的「连接健康」整套删了。行尾的词和页头计数只有一个出处
+  // （connectionHomeStatus / countModelHomeStates → modelStatusPresentation），画法只有 ModelStatusMark。
+  it('reads model home row status and header counts from the one presentation home, with no probe', () => {
     const home = read('src/ui/onboarding/ModelSettingsHome.tsx')
-    const drawer = read('src/ui/onboarding/OnboardingDrawer.tsx')
-    // 复用卡片侧那个现成 hook，不另写一套探测（P1 无并行实现）。
-    expect(home).toContain("import { useVendorHealth } from './useVendorHealth'")
-    expect(home).not.toContain('useVendorHealthMap')
-    expect(home).toContain('data-model-home-unreachable')
-    // 探测要的入参得真的从 drawer 传下来，否则 hook 拿到空 baseUrl 永远探不出结果。
-    expect(drawer).toContain('projectOnboardingConnections({')
+    expect(home).not.toContain('useVendorHealth')
+    expect(home).not.toContain('data-model-home-unreachable')
+    expect(home).toContain('connectionHomeStatus(connection)')
+    expect(home).toContain('<ModelStatusMark status={status} variant="row" />')
+    expect(home).toContain('countModelHomeStates(allModels)')
+    expect(home).toContain("presentStatusCount('ready', counts.ready)")
     const connections = read('src/ui/onboarding/onboardingDrawerConnections.ts')
-    expect(connections).toContain('hasApiKey: meta?.hasApiKey ?? true')
-    expect(connections).toContain('baseUrl: card.meta.baseUrl')
-    // 区块标题不许在有家连不上时还写「N 个可使用」（与行内红字打架）。
-    expect(home).toContain('unreachableAside ?? (hasAttention')
+    expect(connections).not.toContain('skipHealthProbe')
+    expect(connections).not.toContain('credentialVerificationPending')
   })
 
   // §1.5.2 一功能一个家：删除整家此前有两个入口（卡头垃圾桶 + 连接组按钮）。

@@ -62,7 +62,7 @@ describe("published execution contract", () => {
     }))).toEqual({ published: false, publishedModes: [] });
   });
 
-  it("treats an explicit current publication mask as authoritative over historical active-revision modes and mappings", () => {
+  it("uses executable mappings independently of historical verification masks", () => {
     expect(derivePublishedExecution(model("image", {
       meta: { adapter: {
         state: "verified",
@@ -78,7 +78,7 @@ describe("published execution contract", () => {
         { vendorKey: "relay", modelKey: "image-model", taskKind: "text_to_image", enabled: true },
         { vendorKey: "relay", modelKey: "image-model", taskKind: "image_edit", enabled: true },
       ],
-    })).toEqual({ published: true, publishedModes: ["image_edit"] });
+    })).toEqual({ published: true, publishedModes: ["text_to_image", "image_edit"] });
 
     expect(derivePublishedExecution(model("image", {
       meta: { adapter: {
@@ -286,7 +286,7 @@ describe("published execution contract", () => {
         .toEqual({ published: true, publishedModes: ["text_to_image", "image_edit"] });
     });
 
-    it("still honours a certified active revision as the stronger evidence", () => {
+    it("keeps every executable mapping when an old revision has failed modes", () => {
       expect(derivePublishedExecution(
         model("image", {
           meta: {
@@ -298,7 +298,7 @@ describe("published execution contract", () => {
           },
         }),
         { mappings },
-      )).toEqual({ published: true, publishedModes: ["text_to_image"] });
+      )).toEqual({ published: true, publishedModes: ["text_to_image", "image_edit"] });
     });
 
     it("keeps a disabled row out regardless of adapter state", () => {
@@ -308,11 +308,11 @@ describe("published execution contract", () => {
       )).toEqual({ published: false, publishedModes: [] });
     });
 
-    it("keeps the publication mask authoritative over the fallback", () => {
+    it("does not let a diagnostic publication mask hide executable mappings", () => {
       expect(derivePublishedExecution(
         model("image", { meta: { adapter: { state: "failed", publicationModes: ["text_to_image"] } } }),
         { mappings },
-      )).toEqual({ published: true, publishedModes: ["text_to_image"] });
+      )).toEqual({ published: true, publishedModes: ["text_to_image", "image_edit"] });
     });
   });
 

@@ -89,9 +89,35 @@ describe("generationProblem：起草被拒的闭合原因", () => {
     const next = generationProblemFrom(input).next!;
     for (const text of [generationProblemModelText(input), GENERATION_PROBLEM_NEXT_ACTION_EN[next as Exclude<typeof next, "fix_field">]]) {
       expect(text).toContain("list_models");
-      expect(text).toContain("modelId");
+      expect(text).not.toMatch(/modelId|providerId|candidate/);
+      expect(text).toMatch(/choose an available model.*retry the same tool/);
       expect(text).toContain("display name");
       expect(text).not.toMatch(/ask the user|settings|pick a default/i);
+    }
+  });
+
+  it("模型拒收保留原值、最近完整名字和动作，不再教字段写法", () => {
+    const model = "doubao-seedream-5-0-pro-unknown@volcengine";
+    const nearest = "doubao-seedream-5-0-pro@apimart";
+    const input = { code: "unknown_model", model, nearest } as const;
+    const text = generationProblemModelText(input);
+    expect(text).toContain(model);
+    expect(text).toContain(nearest);
+    expect(text).toMatch(/closest/);
+    expect(text).toMatch(/list_models|ask the user/i);
+    expect(text).not.toMatch(/modelId|providerId|candidate/);
+    expect(GENERATION_PROBLEM_NEXT_ACTION_EN.use_nearest_model).toMatch(/same tool.*closest model/i);
+    expect(generationProblemModelText({ code: "unknown_model", model })).toContain("list_models");
+  });
+
+  it("共用未知模型正文相对已发布的动态拒收只删文字，不新增外部动作", () => {
+    const input = { code: "unknown_model", model: "missing", nearest: "image-1@fixture" } as const;
+    const before = "Model missing is not in the model catalog; the closest one is image-1@fixture. Name a providerId/modelId exactly as list_models gives it (likely image-1@fixture), or ask the user which model they mean. A default model is not the problem here.";
+    let offset = 0;
+    for (const character of generationProblemModelText(input)) {
+      const found = before.indexOf(character, offset);
+      expect(found, `新增了已发布正文中没有的字符：${character}`).toBeGreaterThanOrEqual(offset);
+      offset = found + 1;
     }
   });
 

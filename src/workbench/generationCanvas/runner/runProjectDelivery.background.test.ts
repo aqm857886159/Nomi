@@ -18,6 +18,7 @@ import { buildTaskCenterView } from '../../taskCenter/taskCenterEntries'
 import { readLocalProjectAsync, saveLocalProject } from '../../library/localProjectStore'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness, testProjectBinding } from '../../project/projectSessionTestHarness'
 import { releaseCanvasShotRun, type TaskRequestDto } from '../../api/taskApi'
+import { planOfBlocked, planOfWaves } from './generationScopeTestPlans'
 
 const disk = vi.hoisted(() => new Map<string, unknown>())
 vi.mock('../../library/localProjectStore', () => ({
@@ -90,7 +91,6 @@ describe('background generation keeps the project identity fixed at submission',
     const submitted = deferred<void>()
     const run = runGenerationNodesBatch([node.id], {
       target: projectA,
-      assetUploadConsent: 'not-needed',
       retry: { maxAttempts: 1 },
       executor: async (_node, context) => {
         expect(context.projectTarget).toEqual(projectA)
@@ -156,7 +156,7 @@ it.each([false, true])('does not submit a node deleted during author validation 
   const resume = deferred<void>()
   const executor = vi.fn(async (): Promise<GenerationNodeResults> => [{ id: 'forbidden-result', type: 'image', url: 'nomi-local://asset/result.png', createdAt: 1 }])
   const run = runGenerationNode(node.id, {
-    target, assetUploadConsent: 'not-needed', executor,
+    target, executor,
     assertAuthorCurrent: async (graph, executingNodeId) => { expect(graph.nodes.some(value => value.id === executingNodeId)).toBe(true); checking.resolve(); await resume.promise },
   })
   const rejected = expect(run).rejects.toThrow('node not found')
@@ -180,7 +180,7 @@ it('does not resurrect the initial node on a retry after deletion', async () => 
     throw new TypeError('failed to fetch')
   })
   await expect(runGenerationNode(node.id, {
-    target, assetUploadConsent: 'not-needed', executor, retry: { maxAttempts: 2, baseDelayMs: 0 },
+    target, executor, retry: { maxAttempts: 2, baseDelayMs: 0 },
   })).rejects.toThrow('node not found')
   expect(executor).toHaveBeenCalledOnce()
 })
@@ -190,13 +190,14 @@ it.each([0, 1])('batch validates author target before every wave (allowed attemp
   const target = await session.open('project-a')
   const ids = [1, 2].map(index => useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: `shot ${index}` }).id)
   const executor = vi.fn(async (): Promise<GenerationNodeResults> => [{ id: 'result', type: 'image', url: 'nomi-local://asset/result.png', createdAt: 1 }])
-  const outcome = await runGenerationNodesByPlan({ waves: ids.map(id => [id]), blocked: [], edgesUsed: [] }, {
-    target, assetUploadConsent: 'not-needed', executor,
+  const outcome = await runGenerationNodesByPlan(planOfWaves(ids.map(id => [id])), {
+    target, executor,
     assertAuthorCurrent: async (graph, executingNodeId) => { expect(graph.nodes.some(value => value.id === executingNodeId)).toBe(true); if (executor.mock.calls.length >= allowed) throw new Error('storyboard_content_conflict') },
   })
   expect(executor).toHaveBeenCalledTimes(allowed)
   expect(outcome.failures.map(item => item.nodeId)).toEqual(ids.slice(allowed))
-  expect(outcome.failures.every(item => item.error.message === 'storyboard_content_conflict')).toBe(true)
+  // 分波只由依赖来（共用主人规划）：第二波依赖第一波。核到哪一波拦下，那一波报内容冲突；它下游的不执行、按「上游失败」收。
+  expect(outcome.failures[0].error.message).toBe('storyboard_content_conflict')
 })
 
 
@@ -223,7 +224,7 @@ it('settles the original run when a replaced workspace rejects late progress wit
   const listener = (error: unknown) => unhandled.push(error)
   process.on('unhandledRejection', listener)
   try {
-    await expect(runGenerationNode(node.id, { target, assetUploadConsent: 'not-needed', executor: async (_node, context) => {
+    await expect(runGenerationNode(node.id, { target, executor: async (_node, context) => {
       persistOpenCanvasAs('project-a')
       ;(disk.get('project-a') as WorkbenchProjectRecordV1).projectGeneration = target.projectGeneration + 1
       await session.open('project-b')
@@ -250,6 +251,8 @@ it('settles the original run when a replaced workspace rejects late progress wit
 it.each(['cycle', 'missing-upstream'] as const)('awaits blocked %s status delivery and settles the batch if the original workspace was replaced', async reason => {
   const target = await session.open('project-a')
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'blocked' })
+  // 规划在原项目还开着时做（被拦的这一份只能由共用主人规划出来）。
+  const plan = planOfBlocked(node.id, reason)
   persistOpenCanvasAs('project-a')
   ;(disk.get('project-a') as WorkbenchProjectRecordV1).projectGeneration = target.projectGeneration + 1
   await session.open('project-b')
@@ -258,8 +261,8 @@ it.each(['cycle', 'missing-upstream'] as const)('awaits blocked %s status delive
   const listener = (error: unknown) => unhandled.push(error)
   process.on('unhandledRejection', listener)
   try {
-    await expect(runGenerationNodesByPlan({ waves: [], edgesUsed: [], blocked: [{ nodeId: node.id, reason, detail: 'blocked' }] },
-      { target, assetUploadConsent: 'not-needed' })).rejects.toThrow('project_binding_stale')
+    await expect(runGenerationNodesByPlan(plan,
+      { target })).rejects.toThrow('project_binding_stale')
     await new Promise<void>(resolve => setImmediate(resolve))
     expect(unhandled).toEqual([])
     const queue = useGenerationQueueStore.getState()
@@ -287,7 +290,7 @@ it('settles the queue if workspace identity changes between the graph read and i
     return before
   })
   const executor = vi.fn()
-  await expect(runGenerationNode(node.id, { target, executor, assetUploadConsent: 'not-needed' })).rejects.toThrow('project_binding_stale')
+  await expect(runGenerationNode(node.id, { target, executor })).rejects.toThrow('project_binding_stale')
   expect(executor).not.toHaveBeenCalled()
   expect(saveLocalProject).not.toHaveBeenCalled()
   expect(useGenerationCanvasStore.getState().nodes).toEqual([])

@@ -60,18 +60,10 @@ const RULES = [
   {
     id: 'deprecated-rights-status',
     label: '旧字段 rightsStatus 不得出现在新写入路径（usageStatus 是取代字段）',
-    hint: '将 rightsStatus: "unknown" 改为 usageStatus: "rights_unknown"；connectorDefinition.ts 的类型声明中的 @deprecated 注释和 sanitizeSourceEvidence 的迁移读取不计入。',
-    // 允许豁免文件（这些文件是定义层/迁移读取层，不是新写入路径）
-    exemptFiles: [
-      'electron/connectors/connectorDefinition.ts',    // 类型声明含 @deprecated 注释
-      'electron/assets/projectAssetStore.ts',          // sanitizeSourceEvidence 的迁移读取
-    ],
-    // 豁免仍需要的证据：原文（含注释）里还提到 rightsStatus。
-    exemptionStillNeeded: (rawSource) => /rightsStatus/.test(rawSource),
+    // 没有任何发布版本写过 rightsStatus，迁移读取与弃用字段都已删掉，这条规则不再有豁免。
+    hint: '将 rightsStatus: "unknown" 改为 usageStatus: "rights_unknown"。',
     scan(code, file) {
       const hits = []
-      // 过滤豁免文件
-      if (this.exemptFiles.some(exempt => file.includes(exempt.replace(/\//g, path.sep)))) return hits
       code.split('\n').forEach((line, i) => {
         // 匹配 rightsStatus 字段赋值或字面量（排除纯字符串比较如 === 'unknown'）
         if (/rightsStatus\s*:\s*['"]/.test(line) || /['"]rightsStatus['"]\s*:/.test(line)) {
@@ -88,7 +80,7 @@ const RULES = [
     // 已知豁免：
     //   - 生成类（kind: "generated"）不需要 sourceEvidence（AI 生成内容有 certificationEvidence）
     //   - IPC 转发层（assetsIpc.ts 的 nomi:assets:import-remote-url）只是把渲染层 payload 转给
-    //     importRemoteAsset，该函数内部自己调用 sanitizeSourceEvidence 处理 sourceEvidence 字段——不是新写入路径
+    //     importRemoteAsset；渲染层载荷里的 sourceEvidence 一律不读（来源事实只收主进程调用方的 options），不是新写入路径
     exemptFiles: [
       'electron/assets/assetsIpc.ts',         // IPC 转发层，importRemoteAsset 内部处理 sourceEvidence
     ],

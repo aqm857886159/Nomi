@@ -12,12 +12,13 @@ import { describe, expect, it } from "vitest";
 
 import { createModuleRegistry } from "./moduleRegistry";
 import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore } from "./mcpGenerationTools";
-import { createPiGenerationTransportAdapter } from "./generationTransportAdapters";
+import { createPiGenerationTransportAdapterForTest as createPiGenerationTransportAdapter } from "./generationPlanning.testkit";
 import { buildVideoModelCandidates } from "../shared/videoCapabilities";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { verbToTransportCall } from "../agentLane/laneVerbTransport";
 import { laneFailureFromDecision } from "../shared/agentLane/laneFailureFromDecision";
 import type { ProjectBinding } from "../shared/projectBinding";
+import { withFixedCatalog } from "./generationFixedCatalog.testkit";
 
 const videoModelCandidates = buildVideoModelCandidates([
   { provider: "apimart", modelKey: "doubao-seedance-2.5", label: "Seedance 2.5" },
@@ -46,26 +47,29 @@ const lease = {
   revocationEpoch: 0, scopeSet: ["generation:create", "generation:plan", "generation:preview", "generation:read", "generation:cancel"],
 } as ProjectLeaseV2;
 
-/** A3 seq=25 那一镜，逐字（提示词截短，其余原样）。 */
+/** 这条消息带上来的可用模型清单（`draft_shots` 的完整名字在 lane 这一侧按它查）。 */
+const LANE_MODELS = [{ vendor: "apimart", modelId: "doubao-seedance-2.5", modelAlias: null }];
+
+/** A3 seq=25 那一镜，逐字（提示词截短，其余原样；模型身份按 2026-11-15 的单一名字写）。 */
 const A3_SHOT = {
   title: "镜4 · 参考图融入",
   prompt: "深夜街道，参考图中的场景作为背景，一位疲惫的夜归人从远处走近",
   taskKind: "text_to_video", durationSec: 43.7,
-  candidate: { providerId: "apimart", modelId: "doubao-seedance-2.5" },
+  model: "doubao-seedance-2.5@apimart",
   modeId: "omni",
   parameters: { size: "16:9", resolution: "720p", duration: 5, generate_audio: true },
   references: ["gen-v2-asset-mubc3wx1-i0us"],
 };
 
 async function modelSees(shot: Record<string, unknown>) {
-  const handler = createGenerationPlanningHandler({
+  const handler = createGenerationPlanningHandler(withFixedCatalog({
     registry, operations: createInMemoryGenerationOperationStore(),
     videoModelCandidates, now: () => "2026-09-21T00:00:00.000Z",
-  } as never);
+  } as never));
   const adapter = createPiGenerationTransportAdapter(binding, {
     planning: handler as never, leaseFor: () => lease,
   });
-  const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args: { shots: [shot] } })!;
+  const translated = verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args: { shots: [shot] } }, LANE_MODELS)!;
   const decision = await adapter.tryExecute(translated.call, new AbortController().signal);
   expect(decision && decision.ok === false).toBe(true);
   const failed = decision as Extract<typeof decision, { ok: false }>;

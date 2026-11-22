@@ -398,7 +398,7 @@
       ],
       "candidates": [],
       "status": "implemented",
-      "note": "协调 10-23 定（Q5），今天的缺口。",
+      "note": "协调 10-23 定（Q5），今天的缺口。 2026-11-22 起收着时的待确认数在顶栏 Nomi 入口的胶囊 / 角标上（NomiEntryTopbar 板）。",
       "assertion": "board:SpendCardQ1/dock.pending-count"
     },
     {

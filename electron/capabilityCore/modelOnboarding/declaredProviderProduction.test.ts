@@ -9,7 +9,7 @@
  *
  * 这一条走用户走过的那几跳，全部用真实生产函数：
  *   MCP `submit_declaration` → `set_key` → `nomi_try_model`（画布那台发动机）→
- *   正式生成就绪（宿主读的同一个 `createLiveGenerationRuntime().readBootstrap()`）→
+ *   正式生成就绪（宿主读的同一个 `createLiveGenerationRuntime().current().bootstrap`）→
  *   授权封存 → 派发 → 轮询 → 取产物描述。
  * 供应商是本机起的一个 HTTP 假适配器（127.0.0.1，随机端口），不碰任何真实付费服务。
  * 「重启后的旧连接」= 丢掉全部模块缓存、从盘上重新读同一份目录再问一次就绪。
@@ -117,7 +117,7 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
   }
 
   async function readiness() {
-    return createLiveGenerationRuntime().readBootstrap();
+    return createLiveGenerationRuntime().current().bootstrap;
   }
 
   it("登记 → 填 key → 试跑：画布那台发动机跑得通（用户现场的前三跳）", async () => {
@@ -184,7 +184,7 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
       candidateId: "candidate-975", revision: 1, moduleId: "generation.single-shot",
       providerId: vendorKey, modelId: MODEL_KEY, mode: "text_to_video",
       prompt: "a red apple rolls across a white table", parameters: {}, references: [],
-    }, createLiveGenerationRuntime().createDraftScope().registry);
+    }, createLiveGenerationRuntime().current().registry);
     const adapter = createGenerationRuntimeAdapter({ providers: boot.providers });
     const sealed = adapter.prepareAuthorization({ contract, providerIdempotencyKey: "idem-975" });
 
@@ -235,7 +235,7 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
     const { createLiveGenerationRuntime: createRuntimeAfterRestart } = await import("../liveGenerationRuntime");
     const onDisk = readCatalogAfterRestart();
     expect(onDisk.models.find((model) => model.vendorKey === vendorKey)?.meta).toMatchObject({ adapter: { source: "declaration-card" } });
-    const boot = await createRuntimeAfterRestart().readBootstrap();
+    const boot = await createRuntimeAfterRestart().current().bootstrap;
     expect(boot.readinessByProvider[vendorKey]).toMatchObject({ providerReady: true });
   });
 });

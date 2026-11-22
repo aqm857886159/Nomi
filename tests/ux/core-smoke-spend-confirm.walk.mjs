@@ -61,7 +61,7 @@ try {
     label: 'the agent drafts a generation instead of spending on its own',
     match: (body) => flattenRequestText(body).includes('CORE_SMOKE_SPEND'),
     reply: { type: 'tool', id: PLAN_CALL, name: 'draft_shots', args: {
-      shots: [{ prompt: PROMPT, taskKind: 'text_to_image', candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }, parameters: { aspect_ratio: '16:9' } }],
+      shots: [{ prompt: PROMPT, taskKind: 'text_to_image', model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`, parameters: { aspect_ratio: '16:9' } }],
     } },
   })
   let operationId

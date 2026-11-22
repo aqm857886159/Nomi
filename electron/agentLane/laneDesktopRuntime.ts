@@ -17,9 +17,8 @@ import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { ensureWorkspaceProjectIdentity } from '../workspace/workspaceProjectIdentity'
 import { chooseTextModel } from '../ai/textBrainResolver'
 import { nomiModelConfigFor } from '../ai/vendorModelConnection'
-import { NOMI_AGENT_IDENTITY, buildLanguageRule, resolveRequestedSkill } from '../harness/context/agentContext'
+import { buildAgentSystemPrompt, buildLanguageRule, resolveRequestedSkill } from '../harness/context/agentContext'
 import type { SkillRecord } from '../skills/skillStore'
-import { getProjectMemory, formatMemoryForPrompt } from '../memory/projectMemory'
 import { createDesktopLaneInput, parseLaneComposerContext } from './laneDesktopInput'
 import { createDesktopLaneTools } from './laneDesktopTools'
 import type { OpenDesktopLaneWorkspace, RunLaneSingleShot } from './laneRuntimePort'
@@ -51,14 +50,6 @@ const prepareInput = (context: LaneComposerContext) => prepareLaneSkillContext(c
   resolve: key => resolveRequestedSkill({ chatContext: { skill: { key } } }),
   render: renderSelectedSkillPrompt,
 })
-
-/**
- * 这一刻的项目记忆。读不出来就当没有——记忆是锦上添花的事实，缺了它 lane 仍然要能说话，
- * 而一个抛出去的异常会让整个回合失败（`getProjectMemory` 会回放事件日志，盘上坏一条就抛）。
- */
-function currentProjectMemory(projectId: string): string {
-  try { return formatMemoryForPrompt(getProjectMemory(projectId).facts) } catch { return '' }
-}
 
 function selectModel(preference: LaneComposerContext['model']) {
   const selected = chooseTextModel(preference?.modelKey ?? '', false, preference?.vendorKey ?? '')
@@ -109,7 +100,7 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
       const { runLaneSingleShot } = createRequire(__filename)('./laneNativeLoader.cjs') as { runLaneSingleShot: RunLaneSingleShot }
       // 失败留证（状态码 / 原话 / 去查询串的地址，不含密钥）在 provider 装配点（laneModelProvider）每次调用一份，这里只给出网口。
       const result = await runLaneSingleShot({ fetch: appFetch, model: model.config, prompt: command.text, input, signal: actionSignal,
-        systemPrompt: [buildLanguageRule(), NOMI_AGENT_IDENTITY].filter(Boolean).join('\n\n'),
+        systemPrompt: buildAgentSystemPrompt(),
         systemPromptClosing: buildLanguageRule() })
       actionSignal.throwIfAborted()
       surface.surfaceCapture.assertProjectSession(event, session)
@@ -144,6 +135,7 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
       const spend = createDesktopLaneSpend(binding.projectId, () => workspace?.refreshSpend())
       let ports: ReturnType<typeof createDesktopLaneTools>
       try { ports = createDesktopLaneTools({ session, binding, surface, context: () => activeInput, receipts, generationFactory, spendCard: spend,
+        modelDefaults: readLaneDeclaredDefaults,
         // 与下面 `approval.policy` 同一个来源（`composer`，不是 `activeInput`）：档位是「用户现在
         // 选的那一档」，切完下一次调用就该照它走，而不是等下一条消息把快照带进来。
         approvalPolicy: () => composer.approvalPolicy,
@@ -155,8 +147,8 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
           await workspace.appendTaskNote({ productionRunId: runId, operationId: call.toolCallId })
         },
       }) } catch (error) { tasks.dispose(); spend.dispose(); throw error }
-      // 项目记忆与技能库一样是「每一刻都可能变的事实」：用户在记忆折叠里删一条、锁一个节点，
-      // 或者 Agent 自己写下一条偏好，都发生在这条 lane 活着的时候。所以这里**不预先算好**——
+      // 回复语言与技能库一样是「每一刻都可能变的事实」：用户切界面语言、导入一个技能包，
+      // 都发生在这条 lane 活着的时候。所以这里**不预先算好**——
       // 读放在下面 `systemPrompt` 的函数体里，由宿主在每个回合边界求值一次。
       const input = createDesktopLaneInput({ projectId: binding.projectId,
         capture: () => composer, prepare: prepareInput, activate: (context) => { activeInput = context }, model: () => selected })
@@ -168,11 +160,10 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
           native: { settingsRoot: getSettingsRoot(), skills: async () => (await readSkillRecords()).filter(isSkillSelectableInWorkbench) },
           // 可用性三件由这一层给：它本来就持有目录，而 lane 模块不许 import 目录（分层）。
           modelAvailability: (entry) => catalogAvailabilityFor(entry.vendor, entry.modelId),
-          // 给函数不给快照：回复语言铁律跟界面语言走、项目记忆跟用户和 Agent 的改动走，
+          // 给函数不给快照：回复语言铁律跟界面语言走，
           // 这条已经开着的 lane 下一个回合就该跟上，而不是等冷启动（2026-09-11 走查）。
           // 宿主每个回合求值一次（`laneHost` 的 `systemPromptForRun`），不是每次模型请求。
-          systemPrompt: () => [buildLanguageRule(), NOMI_AGENT_IDENTITY, currentProjectMemory(binding.projectId)]
-            .filter(Boolean).join('\n\n'),
+          systemPrompt: () => buildAgentSystemPrompt(),
           systemPromptClosing: buildLanguageRule,
           tools: ports.tools, toolLifecycle: ports.toolLifecycle, input,
           // 工具失败的匿名计数（没开遥测时 `recordTelemetryEvent` 一条都不入队）：五格标识符 + 可选的闭合原因码，不带入参与正文。

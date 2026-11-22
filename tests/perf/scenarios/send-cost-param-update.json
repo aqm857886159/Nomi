@@ -1,0 +1,26 @@
+{
+  "id": "send-cost-param-update",
+  "feature": "画布视频节点改一个参数（时长 5 秒 ↔ 10 秒），发送键上的约价换成新数",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/ux/send-cost-estimate.rehearsal.walk.mjs",
+    "--"
+  ],
+  "scale": "真 Electron（先 pnpm run build），隔离资料、中文界面（英文另登记 send-cost-param-update-en）、内置 APIMart 目录、Seedance 2.0 Mini；价目由本机回环假服务回。画布上同一时刻只有选中节点开着生成浮框，所以每次改参数只有一个约价在算；预热 1 次后交替改时长（在滑杆轨道上点一下，只提交一次）。起点是页面里 pointerdown 的事件时间戳，终点由 MutationObserver 记，不含 Playwright 往返。",
+  "metrics": [
+    "response"
+  ],
+  "budget": 200,
+  "group": "② 生成框里的操作",
+  "budgetStatus": "proposed",
+  "budgetBasis": "设计卡 ★7：改参数到新数字出现 ≤200ms，含 100ms 防抖、一次 IPC、主进程读价目（5 分钟缓存命中后不出网）。走查另在输出里记 paramUi（在时长滑杆上按下 → 滑块到新值），不进本场景的指标，用来和主分支同机交替对照「改参数这一下的界面响应不比没有约价时慢」。",
+  "baseline": {
+    "median": 128.7,
+    "p95": 132.4,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-21",
+    "commit": "2acbf7c07"
+  }
+}

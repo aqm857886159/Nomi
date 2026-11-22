@@ -120,20 +120,19 @@ try {
   await walk.snap('01b-starter-filled')
   await clearComposerText(panel.locator(COMPOSER_INPUT))
 
-  // 收起 = 小球的**空闲**档（10-08 外壳重设计 Chrome 板）：什么都没发生时小球素着——一颗永远亮着的点等于没有状态。
-  await clickOrFail(panel.locator(COLLAPSE_BUTTON), '收起面板（头部形态切到小球）')
+  // 收起 = 顶栏 Nomi 入口的**空闲**档（NomiEntryTopbar 板）：什么都没发生时入口素着——一颗永远亮着的点等于没有状态。
+  await clickOrFail(panel.locator(COLLAPSE_BUTTON), '收起面板（头部形态切到收起）')
   const coldCollapsed = win.locator(COLLAPSED_SHELL)
   const coldDock = win.locator(COLLAPSED_DOCK)
-  await expect(coldDock, '收起后内容区右下必须有那颗小球').toBeVisible()
-  // 顶栏不再放 Agent 角标（协调裁决第 59 项）：叫回入口只有小球这一个。
-  const dockCount = await win.locator(COLLAPSED_DOCK).count()
-  if (dockCount !== 1) throw new Error(`叫回 Nomi 的小球全窗口只该有一颗，实测 ${dockCount} 颗`)
-  await expect(coldDock).toHaveAttribute('data-agent-dock-status', 'idle')
-  await expect(coldDock).toHaveAttribute('data-agent-ball', 'idle')
+  await expect(coldDock, '收起后顶栏最右必须有那颗收着的 Nomi 入口').toBeVisible()
+  // 叫回入口全窗口只有顶栏这一颗（内容区里不再有小球，2026-11-22「全部收进顶栏」）。
+  const dockCount = await win.locator('[data-shell-nomi-entry]').count()
+  if (dockCount !== 1) throw new Error(`叫回 Nomi 的入口全窗口只该有一颗，实测 ${dockCount} 颗`)
+  await expect(coldDock).toHaveAttribute('data-status', 'idle')
   // 面板没卸载：收起支路仍挂着（回执 / 计划预览跟着它活），只是不占位、看不见。
   await expect(coldCollapsed).toBeAttached()
   await walk.snap('01c-collapsed-idle')
-  await clickOrFail(coldDock, '点小球展开面板')
+  await clickOrFail(coldDock, '点顶栏 Nomi 入口展开面板')
   // 展开回来的面板必须是**有身量的**：收起时面板挂点从文档里摘掉、浏览器报 0×0，
   // 早先那版尺寸 hook 再也没重新量过它，于是展开后是一块 2×2 的空白面板（2026-09-06 实测）。
   // 断言宽度而不是「flow 可见」：flow 在 0 高的面板里照样"可见"。
@@ -238,8 +237,8 @@ try {
   await expect.poll(async () => await creationFlow.evaluate((node) => node.scrollTop),
     { message: '把对话流翻到顶这一步没生效' }).toBe(0)
   await clickOrFail(panel.locator(COLLAPSE_BUTTON), '翻在半路时收起面板')
-  await expect(win.locator(COLLAPSED_DOCK), '最小窗收起后顶栏同样是那一格角标').toBeVisible()
-  await clickOrFail(win.locator(COLLAPSED_DOCK), '点顶栏角标展开面板')
+  await expect(win.locator(COLLAPSED_DOCK), '最小窗收起后顶栏同样是那颗 Nomi 入口').toBeVisible()
+  await clickOrFail(win.locator(COLLAPSED_DOCK), '点顶栏 Nomi 入口展开面板')
   await expect(panel.locator(V4_FLOW)).toBeVisible()
   await expect.poll(
     async () => await win.locator(`${CREATION_PANEL} ${V4_FLOW}`).evaluate((node) => node.scrollTop),
@@ -297,32 +296,31 @@ try {
   // 收起前先量一下面板宽：定稿说「点角标 = **原宽**原状态还原」（collapse≠unmount），
   // 所以还原之后这个数必须一模一样，不是「又一个默认 340」。
   const beforeCollapseWidth = Math.round((await win.locator(`${CANVAS_PANEL} ${V4_PANEL}`).boundingBox())?.width ?? 0)
-  await clickOrFail(canvas.locator(COLLAPSE_BUTTON), '收起面板（头部形态切到小球）')
+  await clickOrFail(canvas.locator(COLLAPSE_BUTTON), '收起面板（头部形态切到收起）')
   await expect(win.locator(COLLAPSED_SHELL)).toBeAttached()
   const dock = win.locator(COLLAPSED_DOCK)
-  await expect(dock, '收起后画布右下必须有那颗小球').toBeVisible()
+  await expect(dock, '收起后顶栏最右必须有那颗收着的 Nomi 入口').toBeVisible()
   // 刚被停下的那一轮在面板上**没有**错误带：用户自己点的停止留下的是一句中性的灰字「已停止」（09-14 定的回执，
-  // `agentPanelV4Blocks.test.ts` 钉着），不是错误。小球的「出错」只认「最后一件事是不是坏的」——面板错误带，或流末尾那条
+  // `agentPanelV4Blocks.test.ts` 钉着），不是错误。入口的「出错」只认「最后一件事是不是坏的」——面板错误带，或流末尾那条
   // 未化解的 error（`ProjectAgentResidentShell.tsx` 的 `failed`，用户 09-06 改）。所以收起后它先是「刚做完」（`done`，
   // 2.4 秒），随后落回「空闲」（`idle`）；这时报「出错」就是假警报（协调 10-28 判：走查过期，产品是对的）。
   // 「收起不吞**坏**消息」不拿「停止」当失败的替身（替身一过期，真东西就没人量了），由第 10 步那一轮**真失败**去证。
-  await expect(dock).toHaveAttribute('data-agent-dock-status', /^(done|idle)$/)
-  await expect(dock).toHaveAttribute('data-agent-ball', /^(done|idle)$/)
+  await expect(dock).toHaveAttribute('data-status', /^(done|idle)$/)
   await walk.snap('11-collapsed-stopped')
 
   // 点顶栏角标展开：整条对话原样还在，收起从来没有中断过它。
   const widthBeforeCollapse = beforeCollapseWidth
-  await clickOrFail(dock, '点小球展开面板')
+  await clickOrFail(dock, '点顶栏 Nomi 入口展开面板')
   await expect(win.locator(`${CANVAS_PANEL} ${V4_FLOW}`)).toBeVisible()
   await expect.poll(async () => Math.round((await win.locator(`${CANVAS_PANEL} ${V4_PANEL}`).boundingBox())?.width ?? 0),
-    { message: '点小球必须**原宽**原状态还原（浮窗记住的那个宽），不是重置成默认宽', timeout: stationTimeout({ operations: 2 }) }).toBe(widthBeforeCollapse)
+    { message: '点入口必须**原宽**原状态还原（浮窗记住的那个宽），不是重置成默认宽', timeout: stationTimeout({ operations: 2 }) }).toBe(widthBeforeCollapse)
   await expect(canvas.locator(USER_BUBBLE).last(), '展开后最后一句话还是收起前发的那句').toContainText('整体节奏')
   // 展开**动画结束之后**再截：还原是不是「原宽原状态」这件事，只有停下来的那一帧看得出来
   // （动画中途的任何一帧宽度都不是最终宽，截到它等于给拍板人看一张过程图）。
   // 上面那条 `expect.poll` 已经把宽度轮询到了收起前那个数，所以到这里布局必然已经落定。
   await expect(
-    win.locator('[data-agent-ball]'),
-    '展开后小球必须让出来——小球和面板不能同时在',
+    win.locator(COLLAPSED_DOCK),
+    '展开后顶栏入口必须是按下的——「收着」和面板不能同时在',
   ).toHaveCount(0)
   await walk.snap('11b-expanded-restored')
 
@@ -379,12 +377,11 @@ try {
   // 阳性对照：失败真的落到了面板上（错误带在、composer 退出运行态）。下面小球不报失败，才是产品的错，而不是夹具没出错。
   await waitForV4TurnIdle(win, { panel: CREATION_PANEL, settledBy: restored.locator(ERROR_BAR).last(), doneTimeout: stationTimeout({ operations: 2 }) })
   await walk.snap('13-failed-turn-panel')
-  await clickOrFail(restored.locator(COLLAPSE_BUTTON), '收起面板（头部形态切到小球）')
+  await clickOrFail(restored.locator(COLLAPSE_BUTTON), '收起面板（头部形态切到收起）')
   const failedDock = win.locator(COLLAPSED_DOCK)
-  await expect(failedDock, '收起后创作面右下必须有那颗小球').toBeVisible()
-  // 收起藏掉的是**面板**，不是那件事：小球「出错」档 = 右上一粒 danger 点，坏消息由无障碍名 / tooltip 说清（文案取词典）。
-  await expect(failedDock).toHaveAttribute('data-agent-dock-status', 'failed')
-  await expect(failedDock).toHaveAttribute('data-agent-ball', 'failed')
+  await expect(failedDock, '收起后顶栏最右必须有那颗收着的 Nomi 入口').toBeVisible()
+  // 收起藏掉的是**面板**，不是那件事：入口「出错」档 = 右上一粒 danger 点，坏消息由无障碍名 / tooltip 说清（文案取词典）。
+  await expect(failedDock).toHaveAttribute('data-status', 'failed')
   await expect(failedDock).toHaveAttribute('aria-label', new RegExp(escapeForRegExp(uiText('zh-CN', 'agentPanelV4.dockFailed'))))
   walk.report.failedDockLabel = await failedDock.getAttribute('aria-label')
   await walk.snap('14-collapsed-failed')

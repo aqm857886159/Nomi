@@ -65,7 +65,7 @@ async function main() {
   };
   const document = createDocumentPort('文稿预算 ¥8。第 1 镜：黄昏天台，女孩放下相机。');
   const nodes = [{ id: 'gen-v2-image-opening', kind: 'image', title: '第 1 镜', prompt: '黄昏天台，女孩放下相机',
-    status: 'idle', position: { x: 0, y: 0 }, locked: false, hasResult: false }];
+    status: 'idle', position: { x: 0, y: 0 }, hasResult: false }];
   const writes: string[] = [];
   const tools = [...createDocumentLaneTools(document), ...createCanvasLaneTools({
     read: async () => ({ nodes, edges: [], groups: [], selectedNodeIds: [] }),

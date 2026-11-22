@@ -1,0 +1,123 @@
+{
+  "$comment": "同类产品登记表：出图前「先查别人」（design-pipeline.md 第 1 步、拍板板 priorArt）只认这里登记的同类。改这张表要用户拍板（approval 写原话和日期）。check:board-parity R16 读它。",
+  "positioning": "Nomi 是本地优先的 AI 视频创作工作台，用户是视频创作者：从文稿拆镜头、在画布上生成图和视频、排时间轴、导出成片。模型内置走 APIMart（一个 Key、平台积分），本地走 ComfyUI；创作者不该被要求自己读文档、手填接口表单。",
+  "approval": {
+    "quote": "同类名单：就这 11 家；不算同类：就这样定；模型供应方：中立参考（用户在批量拍板里三项都选了推荐项）",
+    "date": "2026-11-21"
+  },
+  "$access": "怎么看到它（2026-11-21 用户：「关于登陆 也不一定 你首先去搜集能搜到的官网页面 新手引导页面什么的 大部分其实也都可以看到」）：先收公开的——官网、帮助中心、带界面截图的文档、新手引导 / 教程页、更新日志；公开的看完还缺，再请用户在内置浏览器登录或开权限。看不到就记「查了，被挡住」，不换一个好打开的来顶替。",
+  "surfaces": {
+    "canvas": "生成画布、节点",
+    "storyboard": "分镜、镜头表",
+    "composer": "生成框、参数、模型选择器、发送键上的花费",
+    "models": "模型、连接、账户与积分、接入",
+    "settings": "设置",
+    "agent": "常驻 Agent、对话里的请示和回执",
+    "timeline": "时间轴、剪辑",
+    "export": "导出成片",
+    "library": "项目库、素材",
+    "onboarding": "首次打开、引导"
+  },
+  "peers": [
+    {
+      "product": "LibTV",
+      "aliases": ["liblib.tv", "liblibai", "哩布"],
+      "why": "画布 + 镜头 + AI 视频生成的创作工作台，平台积分，形态和 Nomi 最接近",
+      "surfaces": ["canvas", "storyboard", "composer", "models", "agent", "settings", "onboarding"],
+      "access": "公开：liblib.tv/feature-updates 更新日志；应用内要登录"
+    },
+    {
+      "product": "TapNow",
+      "aliases": ["tapnow.ai", "Tapies"],
+      "why": "画布 + Agent + AI 视频的创作工作台，生成前显示预估积分",
+      "surfaces": ["canvas", "composer", "models", "agent", "settings", "onboarding"],
+      "access": "公开：docs.tapnow.ai 文档带界面截图；应用内要登录"
+    },
+    {
+      "product": "即梦",
+      "aliases": ["Dreamina", "jimeng.jianying.com", "dreamina.capcut.com"],
+      "why": "字节面向创作者的 AI 图片 / 视频创作平台，会员积分；Nomi 已接入它的会员（DreaminaMemberCard）",
+      "surfaces": ["composer", "models", "settings", "library", "onboarding"],
+      "access": "公开：官网、帮助中心、新手教程；应用内要登录"
+    },
+    {
+      "product": "可灵",
+      "aliases": ["Kling", "klingai.com", "kling.ai"],
+      "why": "面向创作者的 AI 视频生成平台，Nomi 的主力视频模型之一",
+      "surfaces": ["composer", "models", "settings", "onboarding"],
+      "access": "公开：首页和 kling.ai/quickstart；生成和设置要登录"
+    },
+    {
+      "product": "Higgsfield",
+      "aliases": ["higgsfield.ai"],
+      "why": "面向创作者的 AI 视频平台（镜头运动、模型聚合），Nomi 有它的连接",
+      "surfaces": ["composer", "models", "onboarding"],
+      "access": "公开：首页；应用内要登录"
+    },
+    {
+      "product": "Runway",
+      "aliases": ["runwayml.com", "runway.com"],
+      "why": "成熟的 AI 视频创作工具，有工作流画布和时间轴",
+      "surfaces": ["canvas", "composer", "models", "timeline", "settings", "onboarding"],
+      "access": "公开：help.runwayml.com；应用内要登录"
+    },
+    {
+      "product": "Google Flow",
+      "aliases": ["support.google.com/flow", "labs.google/flow"],
+      "why": "AI 电影创作工具：镜头、场景、拼接成片",
+      "surfaces": ["storyboard", "composer", "timeline"],
+      "access": "公开：support.google.com/flow 帮助文档；应用要登录"
+    },
+    {
+      "product": "Luma Dream Machine",
+      "aliases": ["lumalabs.ai", "Dream Machine"],
+      "why": "面向创作者的 AI 视频创作工具",
+      "surfaces": ["composer", "models", "canvas"],
+      "access": "公开：docs.lumalabs.ai；应用要登录"
+    },
+    {
+      "product": "Krea",
+      "aliases": ["krea.ai"],
+      "why": "多模型的图片 / 视频创作工具，面向创作者",
+      "surfaces": ["composer", "models", "canvas", "onboarding"],
+      "access": "公开：首页、登录页；应用内要登录"
+    },
+    {
+      "product": "ComfyUI",
+      "aliases": ["comfy.org", "docs.comfy.org", "comfyanonymous"],
+      "why": "本地节点式生成，Nomi 直接接入它；本地模型、节点、余额（Partner Nodes）都在它的界面里",
+      "surfaces": ["canvas", "models", "settings", "onboarding"],
+      "access": "公开：docs.comfy.org；界面要本地安装（下载前先问用户）"
+    },
+    {
+      "product": "剪映",
+      "aliases": ["CapCut", "capcut.com", "jianying"],
+      "why": "创作者最常用的剪辑工具：时间轴、导出、设置",
+      "surfaces": ["timeline", "export", "settings", "library"],
+      "access": "公开：剪映 / CapCut 帮助中心带界面截图；桌面端真截图要给终端开「屏幕录制」权限（先问用户）"
+    }
+  ],
+  "notPeers": [
+    {
+      "product": "开发者自己填 Key 的通用 AI 聊天客户端",
+      "members": [
+        { "product": "Cherry Studio", "aliases": ["cherry-studio", "CherryHQ"] },
+        { "product": "Open WebUI", "aliases": ["openwebui"] },
+        { "product": "LibreChat", "aliases": ["librechat"] },
+        { "product": "LobeChat", "aliases": ["lobechat", "lobehub"] },
+        { "product": "Chatbox", "aliases": ["chatboxai"] },
+        { "product": "TypingMind", "aliases": ["typingmind"] },
+        { "product": "NextChat", "aliases": ["nextchat", "ChatGPT-Next-Web"] }
+      ],
+      "why": "用户是会自己读接口文档、填 Key 和地址的开发者或重度用户；Nomi 的方向恰恰是不让创作者手填表单。拿它们当先例，会把设计往 Nomi 要去掉的方向带。（2026-11-21 用户：「我觉得不应该看这几个 他和我们的产品定位不一致吧」）"
+    },
+    {
+      "product": "写代码的编辑器",
+      "members": [
+        { "product": "VS Code", "aliases": ["vscode", "visual studio code"] }
+      ],
+      "why": "用户是程序员，设置是给会读 JSON 配置的人用的。（同上，2026-11-21 用户点名「这几个」时包括它）"
+    }
+  ],
+  "$neutral": "既不是同类、也不在「不算同类」里的来源照常可用，不需要登记：可用性研究（NN/g）、平台规范（Apple HIG、W3C）、组件库文档、模型供应方（OpenRouter、Replicate、fal——它们是 APIMart 的同类，不是 Nomi 的同类）。它们不能当 priorArt 第一项。"
+}

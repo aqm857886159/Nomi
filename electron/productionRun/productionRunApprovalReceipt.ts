@@ -205,6 +205,13 @@ export function createGateApprovalOwner(
       costScope: binding.costScope,
       projectRevision: binding.projectRevision,
     }, projectRevisionResolver)
+    // 降档收据只由客户端确认框 / Nomi 兜底卡签出，不会「出生即用掉」：已经用掉的那张（降过一次又调回来）
+    // 不能再让降档生效，要再问一次人。「用没用掉」读收据库的只读结论（概念 spend.approval-decision 的 readDecisionRecord）；
+    // 不 import 生成门主人：这个文件在渲染层的类型依赖图里，引主人会把整个能力层拖进渲染层可达范围（check:boundaries）。
+    // 付费门收据不走这条：画布那张出生即用掉，崩溃重试要拿回它。
+    if (authority.readDecisionRecord({ receiptToken: verified.token }).state === 'used') {
+      throw new HumanApprovalRequiredError('Lowering this run to budget_only skips checkpoints and needs a verified Nomi confirmation')
+    }
     return verified
   }
 

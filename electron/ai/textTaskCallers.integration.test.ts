@@ -13,14 +13,14 @@
 import { existsSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { reply } from "../../tests/fixtures/textTasks/textUpstream";
-import { parseVendorErrorFromMessage } from "../../src/workbench/generationCanvas/runner/vendorErrorIpc";
+import { parseVendorErrorFromMessage } from "../shared/generationFailure";
 import { textTaskFailureText } from "../../src/workbench/api/taskApi";
 import { desktopT } from "../i18n";
 
 vi.mock("electron", async () => (await import("../../tests/fixtures/textTasks/textTaskCallerState")).electronMock());
 vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: () => undefined }));
 vi.mock("../events/vendorCallTrace", () => ({ traceVendorCompleted: () => undefined, traceVendorRequested: () => undefined }));
-vi.mock("../catalog/validateCandidateCredential", () => ({ revalidatePendingCredential: async () => undefined }));
+// Transport matrix isolates catalog persistence; unverifiedUsable.test covers real result recording.
 vi.mock("../assets/localAssetFile", async () => (await import("../../tests/fixtures/textTasks/textTaskCallerState")).localAssetMock());
 vi.mock("../runtime", async () => (await import("../../tests/fixtures/textTasks/textTaskCallerState")).runtimeMock());
 

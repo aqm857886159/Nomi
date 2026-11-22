@@ -1,0 +1,26 @@
+{
+  "id": "storyboard-plan-open-configured",
+  "feature": "G5：配好 Seedance 2.5 的320镜头分镜方案，点击打开到首屏可编辑；终点核实当前模型与5s摘要",
+  "script": "tests/perf/document-switch-bench.mjs",
+  "args": [
+    "--scenario",
+    "plan-open",
+    "--configured-model"
+  ],
+  "scale": "160份文稿、320镜头、回环供应商、隔离合成凭据",
+  "metrics": [
+    "response",
+    "longTasks"
+  ],
+  "budget": 469.9,
+  "budgetStatus": "proposed",
+  "budgetBasis": "同机origin/main 96182e162配好Seedance2.5的五次中位427.2ms×1.10=469.9ms；预算状态仅提议，待协调定数。原始数据在协调L-bar-yield-goal-tests/main-perf-raw。",
+  "baseline": {
+    "median": 427.2,
+    "p95": 445.4,
+    "runs": 5,
+    "machine": "darwin Apple M5 x10",
+    "date": "2026-11-18",
+    "commit": "96182e162a5ec7070151a2ba5efdc70bb07299a2"
+  }
+}

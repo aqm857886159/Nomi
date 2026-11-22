@@ -81,9 +81,9 @@ describe("hand-over-spend 通道：只转达点名的那几镜", () => {
     const handOver = registerHandOver(forward);
     await expect(handOver(trustedEvent(), { projectId: "project-1", operationId: "op-1", quoteId: " q-1 ", shotIds: [" s1 ", "s2", 3, ""], hostingAllowed: "yes" }))
       .resolves.toEqual({ ok: true, code: "handed_over" });
-    expect(forward).toHaveBeenCalledWith({ projectId: "project-1", operationId: "op-1", quoteId: "q-1", shotIds: ["s1", "s2"], hostingAllowed: false });
-    await handOver(trustedEvent(), { projectId: "project-1", operationId: "op-1", quoteId: "q-1", shotIds: ["s1"], hostingAllowed: true, presentationId: "p-1", presentationEpoch: 2, planVersion: 4 });
-    expect(forward).toHaveBeenLastCalledWith({ projectId: "project-1", operationId: "op-1", quoteId: "q-1", shotIds: ["s1"], hostingAllowed: true, presentationId: "p-1", presentationEpoch: 2, planVersion: 4 });
+    expect(forward).toHaveBeenCalledWith({ projectId: "project-1", operationId: "op-1", quoteId: "q-1", shotIds: ["s1", "s2"] });
+    await handOver(trustedEvent(), { projectId: "project-1", operationId: "op-1", quoteId: "q-1", shotIds: ["s1"], presentationId: "p-1", presentationEpoch: 2, planVersion: 4 });
+    expect(forward).toHaveBeenLastCalledWith({ projectId: "project-1", operationId: "op-1", quoteId: "q-1", shotIds: ["s1"], presentationId: "p-1", presentationEpoch: 2, planVersion: 4 });
   });
 
   it("一镜都没点名 → 当场拒绝，不惊动能力核", async () => {

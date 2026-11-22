@@ -245,7 +245,7 @@ function ReturnThumb({ nodeId }: { nodeId: string }): JSX.Element {
 }
 
 /**
- * 窄窗口里点了指向、对话收成小球之后，画布底部那一颗「回到对话」（板 pointer.narrow.back）。
+ * 窄窗口里点了指向、对话收起（入口在顶栏）之后，画布底部那一颗「回到对话」（板 pointer.narrow.back）。
  * P2 形态带着那一枚标签（「镜 02 · 回到对话」）；Esc 也回。没有可回的对话就不画。
  */
 export function NodePointerReturnToChat({

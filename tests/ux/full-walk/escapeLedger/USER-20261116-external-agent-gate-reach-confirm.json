@@ -1,0 +1,31 @@
+{
+  "id": "USER-20261116-external-agent-gate-reach-confirm",
+  "since": "2026-11-16",
+  "source": "用户 2026-11-16：外部 Agent 给模型交了接入卡、试跑能出片，正式生成却说不认识这个模型；修了表之后又说这家没接好。设计卡见 docs/plan/2026-11-16-external-agent-gate-reach-confirm.md。",
+  "category": "parameter-contract",
+  "problem": "起草读的是现在的模型表，预览和过门读的是宿主启动那一刻拍下的旧表（两个宿主各拍一份）；交卡又照卡改写了内置连接行，内置连接的范围判据随即不认它，整家生成门一起关掉。整家删掉内置连接后，没有任何一句话告诉用户怎么拿回来。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-16-external-agent-gate-reach-confirm.md",
+    "electron/capabilityCore/externalAgentGateReachConfirm.test.ts",
+    "electron/capabilityCore/builtinWholeDeletionReconnect.test.ts",
+    "electron/capabilityCore/liveGenerationRuntime.test.ts",
+    "docs/evidence/2026-11-21-external-agent-gate-rescue/README.md",
+    "2026-11-21 复核：主分支构建上真窗口走查在「预览」回 Unknown model（修前），本分支两个宿主 17 条全过（修后）；独立验收在 PR 上进行。"
+  ],
+  "completionCommits": [
+    "7edc48c6895c29a11369c285b62bdf897b7ce969",
+    "2f7dfc6ede633e0825ca4e0db8a9944231131a37"
+  ],
+  "fixedInPr": 1584,
+  "rootCauseContract": "docs/fixes/2026-11-16-external-agent-gate-reach-confirm.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/capabilityCore/externalAgentGateReachConfirm.test.ts"
+  }
+}

@@ -22,7 +22,7 @@ import { verifyBuild } from '../../scripts/package-build-stamp.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { decideSyntheticCredentialStorage } from './_launchApp.mjs'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
-import { blockedError, guardLoadedError, hostedUploadRelayOrigin, newNetLogFile, paidWalkAllowlist, readNetLog, REHEARSAL_STOPS, rehearsalLedgerRequests, rehearsalShouldStop, rehearsalVerdict, scriptErrorText, standInLaunchEnv, startRehearsalStandIn, watchNetLog } from './_paidNetwork.mjs'
+import { PAID_UNVERIFIED_EXIT_CODE, blockedError, guardLoadedError, hostedUploadRelayOrigin, newNetLogFile, paidRunVerdict, paidWalkAllowlist, readNetLog, REHEARSAL_STOPS, rehearsalLedgerRequests, rehearsalShouldStop, rehearsalVerdict, scriptErrorText, standInLaunchEnv, startRehearsalStandIn, watchNetLog } from './_paidNetwork.mjs'
 import {
   ENV_KEY_ALLOW_CATALOG, ENV_KEY_VAR, ENV_KEY_VENDOR, assertNoSecretOnDisk, assertUsableEnvKey, connectApimartThroughVisibleUi,
   APIMART_TEXT_MODEL_KEYS, collectAppLogs, envKeyOf, filesContainingSecret, paidCredentialSource, readAuthorizedRows, redact, redactNetLogEntry, redactedError,
@@ -93,6 +93,7 @@ function relayUploadIngestion(relayOrigin, env) {
  */
 export const REHEARSAL_ENDPOINTS = Object.freeze({
   'apimart-text-list-real.paid.mjs': { endsAt: 'vendor-read', why: '文字模型列表对账：只发两条只读 GET（模型列表、余额），本来就不发创建请求' },
+  'agent-gpt6-responses-real.paid.mjs': { endsAt: 'brain', why: 'GPT-6.1 Sol 走 Responses 的一轮 Agent 任务（3 次大脑请求、2 次工具调用）：只花文字模型的钱，不生成媒体' },
   'agent-long-chat-real.paid.mjs': { endsAt: 'brain', why: '长对话的 token / 时长数字：只花文字模型的钱，不生成媒体' },
   'agent-shot-kind-real.paid.mjs': { endsAt: 'brain', why: '只看 Agent 起草出来的镜头种类：不点生成，只花文字模型的钱' },
   'agent-shot-table-remake-real.paid.mjs': { endsAt: 'brain', why: '只看 Agent 读不读得到分镜表的行、起草的是哪几行：只花文字模型的钱' },
@@ -518,8 +519,32 @@ export async function openPaidWalk(script, name, models, deps = {}) {
       })
     }
     // 「只到大脑请求」不是坏了（替身答不了对话），报告不判红；收据和清单里如实单列。
-    const failure = verdict ? (verdict.passed || verdict.status === 'brain-only' ? null : new Error(`演练不过：${verdict.reason}`)) : blocked ?? error
+    // 真付费：按产品唯一的上游错误归类判（_paidNetwork.mjs#paidRunVerdict）——服务商回余额 / 额度不足判「未验证」，产品错误照旧判「不过」。
+    const paidVerdict = !rehearsal ? paidRunVerdict({
+      entries: finalEntries,
+      lockedAtEntry: locked ? lockedAtEntry : finalEntries.length,
+      allow,
+      vendorAllow: judgedAllow,
+      scriptError: error ?? null,
+    }) : null
+    if (paidVerdict) {
+      walk.report.paidVerdict = {
+        status: paidVerdict.status,
+        passed: paidVerdict.passed,
+        verdict: paidVerdict.verdict,
+        reason: redact(paidVerdict.reason, secrets),
+        upstreamErrorKind: paidVerdict.upstreamErrorKind,
+        request: paidVerdict.request,
+        scriptError: paidVerdict.scriptError === null ? null : redact(paidVerdict.scriptError, secrets),
+      }
+    }
+    const failure = verdict
+      ? (verdict.passed || verdict.status === 'brain-only' ? undefined : new Error(`演练不过：${verdict.reason}`))
+      : paidVerdict?.status === 'unverified'
+        ? undefined
+        : (blocked ?? error)
     await walk.finish(envKey && failure ? redactedError(failure, secrets) : failure, {
+      ...(paidVerdict?.status === 'unverified' ? { result: 'unverified' } : {}),
       unscriptedFixture: true,
       collect: async () => {
         // App 已经关了：项目与截图是证据，先把收据取出来；凭据副本（目录里的 key 密文 + 钥匙）当场删掉。
@@ -557,6 +582,25 @@ export async function openPaidWalk(script, name, models, deps = {}) {
       // 脚本自己的 catch 在被挡后会设 exitCode=1：演练通过 / 只到大脑时改回 0（只到大脑不是坏了，清单里单列）。
       process.exitCode = status === 'failed' ? 1 : 0
       return receipt
+    }
+    if (paidVerdict) {
+      if (walk.report.result === 'failed' && paidVerdict.status !== 'failed') {
+        Object.assign(walk.report.paidVerdict, {
+          status: 'failed',
+          passed: false,
+          verdict: '不过',
+          reason: redact(`收尾判红：${scriptErrorText(walk.report.error)}`, secrets),
+        })
+        if (walk.report.outputDir && fs.existsSync(path.join(walk.report.outputDir, 'report.json'))) {
+          fs.writeFileSync(path.join(walk.report.outputDir, 'report.json'), JSON.stringify(walk.report, null, 2))
+        }
+      }
+      const finalPaid = walk.report.paidVerdict
+      console.log(`[paid] ${finalPaid.verdict}${finalPaid.reason && finalPaid.reason !== finalPaid.verdict ? `：${finalPaid.reason}` : ''}`)
+      if (walk.report.result === 'failed') process.exitCode = 1
+      else if (finalPaid.status === 'unverified') process.exitCode = PAID_UNVERIFIED_EXIT_CODE
+      else if (walk.report.result === 'passed') process.exitCode = 0
+      return finalPaid
     }
   }
   /** 闸记下的放行请求 / 上传响应（recordAllowedBodies 时才有；env-key 路再按 key 原串打码一遍）。要在 finish 之前读：env-key 路收尾会删账本原件。 */

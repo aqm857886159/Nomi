@@ -57,7 +57,8 @@ await win.getByRole('button', { name: '生成', exact: true }).click()
 
 const addImage = win.locator('[aria-label="添加图片节点"]').first()
 await addImage.waitFor({ state: 'visible' })
-if (!(await addImage.count())) { console.error('❌ 找不到「添加图片节点」'); await app.close(); process.exit(1) }
+const addImageVisible = await addImage.waitFor({ state: 'visible' }).then(() => true, () => false)
+if (!addImageVisible) { console.error('❌ 找不到「添加图片节点」'); await app.close(); process.exit(1) }
 for (let i = 0; i < 4; i += 1) {
   await addImage.click({ timeout: 4000 })
   await expect.poll(() => win.locator('[data-node-id]').count()).toBeGreaterThanOrEqual(i + 1)
@@ -74,7 +75,8 @@ if (nodeIds.length < 4) { console.error('❌ 节点不够'); await app.close(); 
 await win.keyboard.press('Control+a')
 await expect.poll(() => win.locator('.generation-canvas-v2-node[data-selected="true"]').count()).toBe(4)
 const groupBtn = win.locator('[aria-label^="创建分组"]').first()
-if (!(await groupBtn.count())) { console.error('❌ 找不到「创建分组」'); await app.close(); process.exit(1) }
+const groupBtnVisible = await groupBtn.waitFor({ state: 'visible' }).then(() => true, () => false)
+if (!groupBtnVisible) { console.error('❌ 找不到「创建分组」'); await app.close(); process.exit(1) }
 await groupBtn.click({ timeout: 4000 })
 await expectVisible(win.locator('.generation-canvas-v2__group-box').first(), '组框已生成')
 await win.keyboard.press('Escape')
@@ -171,7 +173,7 @@ await expect.poll(() => win.locator(`.react-flow__node[data-id="${srcId}"] .gene
 // 用**真手势**：从磁吸连接点按下 → 拖到组框空白处 → 松手。这条路走的是 React Flow 的 onConnectEnd，
 // 和「点一下连接点再点目标」的 click 路是两条，必须两条都真的通（走查第一版就是漏了 pointerup 那条）。
 const handle = win.locator(`.react-flow__node[data-id="${srcId}"] .generation-canvas-react-flow__handle[data-side="right"]`).last()
-check('找得到连接点', await handle.count() > 0)
+check('找得到连接点', await handle.waitFor({ state: 'visible' }).then(() => true, () => false))
 // 按人按的地方起线：卡外那颗「+」圈，不是 1px 测量锚点（见 _canvasHit.mjs findConnectionStartPoint）。
 const hb = await findConnectionStartPoint(win, { handleSelector: `.react-flow__node[data-id="${srcId}"] .generation-canvas-react-flow__handle--source[data-side="right"]` })
 const gbox0 = await win.locator('.generation-canvas-v2__group-box').first().boundingBox()

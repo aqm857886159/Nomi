@@ -30,21 +30,21 @@ describe('model settings connection projection', () => {
     const [entry] = project(true, ['gemini-3.7-flash-high', 'gemini-3.7-flash-medium', 'gemini-3.7-flash-low', 'claude-sonnet-4-6', 'auto', 'generate_image']).homeConnections
     expect(entry.models).toHaveLength(2)
     expect(entry.auxiliaryCounts).toEqual({ tools: 1, routes: 1 })
-    expect(entry.skipHealthProbe).toBe(true)
   })
 })
 
 
-it('keeps a saved offline credential visible as pending in the available platform row', () => {
+it('keeps a saved key on a switched-off platform visible in the available row, with no pending mark', () => {
   const result = projectOnboardingConnections({
     models: [], dreaminaStatus: null, openPage: vi.fn(),
     localNames: { dreamina: 'Dreamina', codex: 'Codex', antigravity: 'Antigravity' },
     vendorMeta: new Map([['apimart', { name: 'APIMart', hasApiKey: true, enabled: false,
-      credentialVerificationPending: true, baseUrl: 'http://127.0.0.1:1', authType: 'bearer', customCallOnly: false }]]),
+      baseUrl: 'http://127.0.0.1:1', authType: 'bearer', customCallOnly: false }]]),
   })
   expect(result.homeConnections).toEqual([])
-  expect(result.availableHomeConnections.find(item => item.vendorKey === 'apimart'))
-    .toMatchObject({ hasApiKey: true, credentialVerificationPending: true })
+  const row = result.availableHomeConnections.find(item => item.vendorKey === 'apimart')
+  expect(row).toMatchObject({ vendorKey: 'apimart', name: 'APIMart' })
+  expect(row).not.toHaveProperty('credentialVerificationPending')
 })
 
 // 第 8 轮验收抓到：英文界面的 Replicate / Runway / RunningHub 卡片底部、CTA 显示中文。

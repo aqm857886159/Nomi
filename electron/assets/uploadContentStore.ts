@@ -9,6 +9,7 @@ import { captureAssetWriteContext, type AssetWriteContext } from './assetWriteCo
 import { copyFileWithProgress, type AssetCopyProgress } from './assetImportProgress'
 import { retryOnSharingViolation } from '../jsonFile'
 import { createUploadStagingDirSync, reapAbandonedUploadStaging, removeScratchAfterUse } from './scratchCleanup'
+import { reconcileReuse } from './assetSourceEvidence'
 
 export function isContentAddressedUpload(meta: unknown): boolean {
   return isJsonRecord(meta) && ['upload', 'imported', 'local'].includes(String(meta.kind || '').toLowerCase())
@@ -58,7 +59,7 @@ function publish(context: AssetWriteContext, fileName: string, contentType: stri
 
 }
 
-async function findStoredUpload(context: AssetWriteContext, size: number, hash: string) {
+async function findStoredUpload(context: AssetWriteContext, size: number, hash: string, incoming: JsonRecord) {
   const projectDir = context.root
   const walk = async (directory: string): Promise<string | null> => {
     let entries: fs.Dirent[]
@@ -90,20 +91,39 @@ async function findStoredUpload(context: AssetWriteContext, size: number, hash: 
           // reject valid media. Identity/cancellation checks stay outside.
         } finally { try { fs.rmSync(temporaryMeta, { force: true }) } catch { /* optional cache cleanup */ } }
       }
-      if (candidateHash === hash) return absolutePath
+      // 同字节但来源对不上的那条不复用（reconcileReuse）：接着找，找不到就另起一条。
+      if (candidateHash === hash && reconcileReuse(meta, incoming).reuse) return absolutePath
     }
     return null
   }
   return walk(path.join(projectDir, 'assets', 'imported'))
 }
 
-async function reuseStoredUpload(context: AssetWriteContext, size: number, hash: string, contentType: string) {
-  const found = await findStoredUpload(context, size, hash)
+async function reuseStoredUpload(context: AssetWriteContext, size: number, hash: string, contentType: string, incoming: JsonRecord) {
+  const found = await findStoredUpload(context, size, hash, incoming)
   if (!found) return null
   const meta: unknown = JSON.parse(await fs.promises.readFile(`${found}.meta`, 'utf8'))
   if (!isJsonRecord(meta) || !isContentAddressedUpload(meta)) return null
+  const decision = reconcileReuse(meta, incoming)
+  if (!decision.reuse) return null
   context.assertCurrent()
-  return storedAssetRecord(context.projectId, found, path.basename(found), contentType, meta, hash, context)
+  const stored = decision.fill ? await fillSource(found, meta, decision.fill) : meta
+  context.assertCurrent()
+  return storedAssetRecord(context.projectId, found, path.basename(found), contentType, stored, hash, context)
+}
+
+/** 老记录缺来源、这次带来源导入同一份字节：只补 sourceEvidence，其余字段原样（原子替换，写不进去就照旧复用）。 */
+async function fillSource(absolutePath: string, meta: JsonRecord, sourceEvidence: JsonRecord): Promise<JsonRecord> {
+  const next = { ...meta, sourceEvidence }
+  const temporaryMeta = `${absolutePath}.${crypto.randomUUID()}.meta`
+  try {
+    await fs.promises.writeFile(temporaryMeta, JSON.stringify(next))
+    await fs.promises.rename(temporaryMeta, `${absolutePath}.meta`)
+    return next
+  } catch {
+    // 补来源是附加事实：只读 / 空间不足时不能因此拒掉一次合法导入，旧记录照旧复用。
+    return meta
+  } finally { await fs.promises.rm(temporaryMeta, { force: true }).catch(() => undefined) }
 }
 
 type StoredAsset = ReturnType<typeof storedAssetRecord>
@@ -125,7 +145,7 @@ export async function persistUploadBytes(projectId: string, bytes: Buffer, fileN
   context.assertCurrent()
   const hash = crypto.createHash('sha256').update(bytes).digest('hex')
   return withUploadIdentity(context, hash, async () => {
-    const legacy = await reuseStoredUpload(context, bytes.byteLength, hash, contentType)
+    const legacy = await reuseStoredUpload(context, bytes.byteLength, hash, contentType, meta)
     return legacy ?? publish(context, fileName, contentType, meta, hash, target => fs.writeFileSync(target, bytes, { flag: 'wx' }))
   })
 }
@@ -149,7 +169,7 @@ export async function persistUploadFile(
     const hash = await contentHashForFile(snapshot)
     const stat = await fs.promises.stat(snapshot)
     return await withUploadIdentity(context, hash, async () => {
-      const legacy = await reuseStoredUpload(context, stat.size, hash, contentType)
+      const legacy = await reuseStoredUpload(context, stat.size, hash, contentType, meta)
       return legacy ?? publish(context, fileName, contentType, meta, hash, target => {
         retryOnSharingViolation(() => fs.linkSync(snapshot, target))
         // 立刻摘掉暂存里那个名字（链接数变化会改 ctime，拖到后面删会让并发的同内容导入认不出这份）。

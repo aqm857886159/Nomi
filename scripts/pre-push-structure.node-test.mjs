@@ -42,7 +42,7 @@ import {
   selectGates,
   softenTimeout,
 } from './pre-push-contracts.mjs'
-import { NOT_SOURCE_SCANS, SCAN_GUARDS, SCAN_GUARD_CI_ONLY, SCAN_GUARD_COVERED_BY_GATE, SCAN_GUARDS_GATE, gateImplementation, scanGuardProblems, touchesScanGuard } from './pre-push-scan-guards.mjs'
+import { NOT_SOURCE_SCANS, SCAN_GUARDS, SCAN_GUARD_CI_ONLY, SCAN_GUARD_COVERED_BY_GATE, SCAN_GUARDS_GATE, SCAN_MODULES, gateImplementation, moduleScanGuards, scanGuardProblems, touchesScanGuard } from './pre-push-scan-guards.mjs'
 import { MAX_RELATED_FILES, NODE_TEST_ARGV_PREFIX, RELATED_TESTS_GATE, SLOW_TEST_FILES, relatedTests, runRelatedTests, startsBrowser, stemOf, tokenReferences } from './pre-push-related-tests.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -82,7 +82,6 @@ const SCANNER_READS = {
   'check:canvas-edge-writers': ['src/workbench/generationCanvas/store/x.ts', 'src/workbench/project/y.tsx', 'electron/capabilityCore/z.ts', 'electron/shared/canvas/w.ts', 'scripts/check-canvas-edge-writers.mjs'],
   'check:storyboard-owner': ['src/workbench/a.ts', 'src/workbench/creation/b.tsx', 'scripts/check-storyboard-owner.mjs', 'scripts/lib/repoPaths.mjs'],
   'check:transport-assembly': ['electron/capabilityCore/mcpProtocol.ts', 'electron/capabilityCore/mcpNodeLauncher.ts', 'electron/capabilityCore/mcpStdioServer.ts', 'electron/capabilityCore/mcpHttpServer.ts', 'scripts/check-transport-assembly.mjs', 'scripts/lib/repoPaths.mjs'],
-  'check:spend-receipt': ['electron/capabilityCore/mcpGateConfirmation.ts', 'electron/capabilityCore/mcpSemanticGenerationFlow.ts', 'electron/capabilityCore/generationDispatcher.ts', 'scripts/spend-confirmation-receipt-baseline.json', 'scripts/check-spend-confirmation-receipt.mjs'],
   'check:dangling-tokens': ['src/theme/nomi-tokens.css', 'src/a.tsx', 'tailwind.config.ts', 'scripts/check-dangling-tokens.mjs'],
   'check:dangling-tailwind': ['src/a.css', 'src/b.tsx', 'tailwind.config.ts', 'scripts/dangling-tailwind-baseline.json'],
   'check:design-lab-mirrors': ['src/devlab/designLab/a.tsx', 'src/workbench/x/Y.tsx', 'tests/ux/design-lab/baselines/a.png', 'scripts/check-design-lab.mjs'],
@@ -681,7 +680,7 @@ test('登记核对由「新增测试文件」触发：任何位置新增 / 改�
 
 test('必红：新写一个扫 electron 的守卫测试，既没进 SCAN_GUARDS 也没进 CI_ONLY → 核对函数红并点名；登记后绿', () => {
   const root = fixtureRepo({ 'electron/a.ts': 'export {}', 'electron/newRule.structure.test.ts': WALKS_ELECTRON })
-  const inputs = { root, testFiles: ['electron/newRule.structure.test.ts'], scanTests: new Set(), gateScripts: '', gateImplFiles: new Set(), prePushGates: new Set(), guards: [], ciOnly: [], covered: {}, notScans: {} }
+  const inputs = { root, testFiles: ['electron/newRule.structure.test.ts'], scanTests: new Set(), gateScripts: '', gateImplFiles: new Set(), prePushGates: new Set(), guards: [], ciOnly: [], covered: {}, notScans: {}, modules: {} }
   const red = scanGuardProblems(inputs)
   assert.equal(red.length, 1, red.join('\n'))
   assert.match(red[0], /electron\/newRule\.structure\.test\.ts：扫描型守卫测试没有去处/)
@@ -698,10 +697,81 @@ test('必红：新写一个扫 electron 的守卫测试，既没进 SCAN_GUARDS 
 
 test('必红：登记了却不再是扫描型（文件改了不再遍历）/ 文件已不存在 → 陈旧项红；COVERED_BY_GATE 指向的门岗不在推送前也红', () => {
   const root = fixtureRepo({ 'electron/plain.test.ts': "test('x', () => {})" })
-  const inputs = { root, testFiles: ['electron/plain.test.ts'], scanTests: new Set(), gateScripts: '', gateImplFiles: new Set(), prePushGates: new Set(['check:real']), guards: [], ciOnly: [], covered: {}, notScans: {} }
+  const inputs = { root, testFiles: ['electron/plain.test.ts'], scanTests: new Set(), gateScripts: '', gateImplFiles: new Set(), prePushGates: new Set(['check:real']), guards: [], ciOnly: [], covered: {}, notScans: {}, modules: {} }
   assert.match(scanGuardProblems({ ...inputs, guards: [{ file: 'electron/plain.test.ts', roots: ['electron'] }] }).join('\n'), /不再被识别为扫描型守卫（陈旧项/)
   assert.match(scanGuardProblems({ ...inputs, guards: [{ file: 'electron/gone.test.ts', roots: ['electron'] }] }).join('\n'), /不是被跟踪的测试文件/)
   assert.match(scanGuardProblems({ ...inputs, covered: { 'electron/plain.test.ts': 'check:imaginary' } }).join('\n'), /不是推送前门岗/)
+})
+
+// ── 按模块登记（2026-11-22）：非测试模块里的 walk 点遍历的根是已知的，就在模块这一级登记一次，不逐个把「import 了它的测试」写进按文件的名单 ──
+const OLD_DATA_ROSTER = [
+  "import fs from 'node:fs'",
+  "import path from 'node:path'",
+  "import { fileURLToPath } from 'node:url'",
+  "const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'old-user-data')",
+  'export const listOldUserData = () => fs.readdirSync(root)',
+].join('\n')
+const ROSTER_MODULES = { 'tests/world/oldUserData.mjs': { roots: ['tests/fixtures/old-user-data'], exts: '*', reason: '旧用户数据名册：只列旧数据夹具目录' } }
+const WORLD_USER = "import { buildWorld } from '../tests/world'\ntest('x', () => { buildWorld() })"
+function rosterRepo(extraTest = WORLD_USER) {
+  return fixtureRepo({
+    'tests/world/index.ts': "export { listOldUserData as buildWorld } from './oldUserData.mjs'",
+    'tests/world/oldUserData.mjs': OLD_DATA_ROSTER,
+    'electron/a.ts': 'export {}',
+    'electron/world.test.ts': extraTest,
+    'tests/world/fixtures/x.ok.node-test.ts': "import { buildWorld } from '../index'\ntest('x', () => { buildWorld() })",
+  })
+}
+const rosterInputs = (root, extra = {}) => ({ root, testFiles: ['electron/world.test.ts'], scanTests: new Set(), gateScripts: '', gateImplFiles: new Set(), prePushGates: new Set(), guards: [], ciOnly: [], covered: {}, notScans: {}, ...extra })
+
+test('按模块登记：只 import 测试世界正门的测试不用逐个登记；没有模块登记时同一个测试报「没有去处」', () => {
+  const root = rosterRepo()
+  const without = scanGuardProblems(rosterInputs(root, { modules: {} }))
+  assert.equal(without.length, 1, without.join('\n'))
+  assert.match(without[0], /electron\/world\.test\.ts：扫描型守卫测试没有去处/)
+  assert.deepEqual(scanGuardProblems(rosterInputs(root, { modules: ROSTER_MODULES })), [])
+})
+
+test('按模块登记：落在模块 roots 下的改动选中 import 了它的测试，落在别处不选', () => {
+  const root = rosterInputs(rosterRepo(), { modules: ROSTER_MODULES }).root
+  const derived = moduleScanGuards(root, ['electron/world.test.ts'], ROSTER_MODULES)
+  assert.deepEqual(derived.map((guard) => guard.file), ['electron/world.test.ts'])
+  assert.ok(touchesScanGuard(derived[0], ['tests/fixtures/old-user-data/text-quirks/v0.24.0/chat/model-catalog.json']))
+  assert.ok(!touchesScanGuard(derived[0], ['src/ui/A.tsx']))
+  assert.ok(!touchesScanGuard(derived[0], ['electron/a.ts']))
+  // 夹具目录里的测试（元测试自己起子进程跑）不派生成批量守卫：批量跑它会假红
+  assert.deepEqual(moduleScanGuards(root, ['electron/world.test.ts', 'tests/world/fixtures/x.ok.node-test.ts'], ROSTER_MODULES).map((guard) => guard.file), ['electron/world.test.ts'])
+  // 真仓库：三个 #1595 的测试由模块登记带出，改旧数据夹具选中、改 src 不选
+  const real = scanGuardsToRun(['tests/fixtures/old-user-data/text-quirks/v0.24.0/chat/model-catalog.json']).map((guard) => guard.file)
+  for (const file of ['electron/agentLane/modelRequestParity.test.ts', 'electron/catalog/modelDeclarationFunnel.test.ts', 'electron/catalog/modelDeclarationOldUser.test.ts']) {
+    assert.ok(real.includes(file), `改旧数据夹具应选中 ${file}`)
+    assert.ok(!scanGuardsToRun(['src/ui/A.tsx']).some((guard) => guard.file === file), `改 src 不该选中 ${file}`)
+  }
+})
+
+test('按模块登记：模块级登记不放过测试自己的遍历（又 import 了正门、又自己遍历 electron，仍要自己登记）', () => {
+  const root = rosterRepo(`${WALKS_ELECTRON}\n${WORLD_USER}`)
+  const problems = scanGuardProblems(rosterInputs(root, { modules: ROSTER_MODULES }))
+  assert.equal(problems.length, 1, problems.join('\n'))
+  assert.match(problems[0], /electron\/world\.test\.ts：扫描型守卫测试没有去处/)
+  assert.match(problems[0], /electron\/world\.test\.ts:\d+/)
+})
+
+test('按模块登记：条目必须真被识别器认到（模块不存在 / 模块里没有 walk 点 / 缺理由 → 红）；已被模块覆盖的按文件条目是多余的', () => {
+  const root = rosterRepo()
+  assert.match(scanGuardProblems(rosterInputs(root, { modules: { 'tests/world/gone.mjs': { roots: ['x'], reason: '不存在的模块名册' } } })).join('\n'), /SCAN_MODULES：tests\/world\/gone\.mjs 不存在/)
+  const quiet = fixtureRepo({ 'tests/world/quiet.mjs': 'export const x = 1', 'electron/world.test.ts': "test('x', () => {})" })
+  assert.match(scanGuardProblems(rosterInputs(quiet, { modules: { 'tests/world/quiet.mjs': { roots: ['x'], reason: '里面没有遍历点的模块' } } })).join('\n'), /SCAN_MODULES：tests\/world\/quiet\.mjs 里没有遍历点/)
+  assert.match(scanGuardProblems(rosterInputs(root, { modules: { ...ROSTER_MODULES, 'tests/world/oldUserData.mjs': { roots: ['tests/fixtures/old-user-data'], reason: '' } } })).join('\n'), /SCAN_MODULES：tests\/world\/oldUserData\.mjs 缺理由/)
+  assert.match(scanGuardProblems(rosterInputs(root, { modules: ROSTER_MODULES, notScans: { 'electron/world.test.ts': '按文件又登记了一次的假设理由' } })).join('\n'), /已被 SCAN_MODULES 覆盖/)
+})
+
+test('按模块登记：真仓库里 SCAN_MODULES 的每条都成立，且被它覆盖的测试不出现在任何按文件的名单里', () => {
+  assert.ok(Object.keys(SCAN_MODULES).includes('tests/world/oldUserData.mjs'))
+  const byFile = new Set([...SCAN_GUARDS.map((guard) => guard.file), ...SCAN_GUARD_CI_ONLY.flatMap((group) => group.files), ...Object.keys(SCAN_GUARD_COVERED_BY_GATE), ...Object.keys(NOT_SOURCE_SCANS)])
+  for (const file of ['electron/agentLane/modelRequestParity.test.ts', 'electron/catalog/modelDeclarationFunnel.test.ts', 'electron/catalog/modelDeclarationOldUser.test.ts', 'tests/world/fixtures/build-world.ok.node-test.ts']) {
+    assert.ok(!byFile.has(file), `${file} 不该出现在按文件的名单里（模块级登记已覆盖）`)
+  }
 })
 
 // 夹具文本里要写子进程调用名，但本文件自己不许出现直接起子进程的写法（上面的结构用例按文本查），所以拼出来

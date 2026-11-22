@@ -26,12 +26,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { reclaimAbandonedTestTemp } from './_test-temp.mjs'
 import { recordBlockEvent } from './lib/blockEvents.mjs'
+import { gitPaths } from './lib/gitPaths.mjs'
 import { resolvePullRequestBody } from './lib/prBody.mjs'
 import { killProcessTree, processTreeSpawnOptions } from './lib/processTree.mjs'
+import { TEST_FILE } from './lib/scanGuardDetect.mjs'
 import { implementationFiles, touchesGateInputs } from './pre-push-gate-inputs.mjs'
 import { CI_ONLY, PARTIAL_LOCAL } from './pre-push-gate-table.mjs'
 import { RELATED_TESTS_GATE, SOURCE_FILE, relatedTests, runRelatedTests } from './pre-push-related-tests.mjs'
-import { SCAN_GUARDS, SCAN_GUARDS_GATE, touchesScanGuard } from './pre-push-scan-guards.mjs'
+import { SCAN_GUARDS, SCAN_GUARDS_GATE, SCAN_MODULES, moduleScanGuards, touchesScanGuard } from './pre-push-scan-guards.mjs'
 import { classifyValidationPolicy } from './validation-policy.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -79,7 +81,6 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:media-import-owner', when: (files) => touchesGateInputs('check:media-import-owner', files) },
   { name: 'check:storyboard-owner', when: (files) => touchesGateInputs('check:storyboard-owner', files) },
   { name: 'check:transport-assembly', when: (files) => touchesGateInputs('check:transport-assembly', files) },
-  { name: 'check:spend-receipt', when: (files) => touchesGateInputs('check:spend-receipt', files) },
   { name: 'check:canvas-edge-writers', when: (files) => touchesGateInputs('check:canvas-edge-writers', files) },
   { name: 'check:dangling-tokens', when: (files) => touchesGateInputs('check:dangling-tokens', files) },
   { name: 'check:dangling-tailwind', when: (files) => touchesGateInputs('check:dangling-tailwind', files) },
@@ -155,14 +156,34 @@ export function failedGuardSummary(output, ran) {
  */
 const SCAN_GUARDS_TEST_TIMEOUT = '--testTimeout=180000'
 
+const isNodeTest = (file) => /\.node-test\.[cm]?[jt]s$/.test(file)
+
+/**
+ * 按模块登记带出来的守卫（SCAN_MODULES，见 pre-push-scan-guards.mjs）：import 了已登记模块、且证据全在这些模块里的测试。
+ * 要走全部被跟踪测试的 import 闭包，所以只在改动碰到模块的 roots / 模块自己时才算（算不出改动 = 全算），算过缓存。
+ */
+let derivedGuardsCache = null
+function derivedScanGuards(files, nodeTests) {
+  const touchesModule = files === null || Object.entries(SCAN_MODULES).some(([file, entry]) => files.includes(file) || touchesScanGuard({ roots: entry.roots, exts: entry.exts }, files))
+  if (!touchesModule) return []
+  derivedGuardsCache ??= moduleScanGuards(repoRoot, gitPaths(['ls-files'], { cwd: repoRoot }).filter((file) => TEST_FILE.test(file)))
+  return derivedGuardsCache.filter((guard) => isNodeTest(guard.file) === nodeTests && !SCAN_GUARDS.some((item) => item.file === guard.file))
+}
+
+/** 登记在 SCAN_GUARDS 里的守卫：算不出改动 = 全部（入口 argv 用它，不触发模块派生的整库识别）。 */
 export function scanGuardsToRun(files, nodeTests = false) {
-  const guards = SCAN_GUARDS.filter((guard) => /\.node-test\.[cm]?[jt]s$/.test(guard.file) === nodeTests)
+  const guards = SCAN_GUARDS.filter((guard) => isNodeTest(guard.file) === nodeTests)
   if (files === null) return guards
-  return guards.filter((guard) => {
+  return [...guards, ...derivedScanGuards(files, nodeTests)].filter((guard) => {
     if (touchesScanGuard(guard, files)) return true
     const impl = closureOf(`guard:${guard.file}`, [guard.file])
     return files.some((file) => impl.has(file))
   })
+}
+
+/** 批量门岗真正要跑的：登记的 + 模块派生的；算不出改动时派生的也全带。 */
+function scanGuardBatch(files, nodeTests = false) {
+  return files === null ? [...scanGuardsToRun(null, nodeTests), ...derivedScanGuards(null, nodeTests)] : scanGuardsToRun(files, nodeTests)
 }
 
 /**
@@ -188,14 +209,14 @@ export const SCAN_TESTS = Object.freeze([
     name: SCAN_GUARDS_GATE,
     // 扫描型测试的耗时跟着机器负载走（单跑最长约 13 秒，本机同时跑走查 / 构建时同一条超过 30 秒——2026-10-10 #1128 推送被它假红）。超时不是它们要报的信号，放宽到 3 分钟；真卡死由推送前钩子的总时限兜。
     argv: [VITEST_ENTRY, 'run', SCAN_GUARDS_TEST_TIMEOUT, ...scanGuardsToRun(null).map((guard) => guard.file)],
-    argvFor: (files) => [VITEST_ENTRY, 'run', SCAN_GUARDS_TEST_TIMEOUT, ...scanGuardsToRun(files).map((guard) => guard.file)],
+    argvFor: (files) => [VITEST_ENTRY, 'run', SCAN_GUARDS_TEST_TIMEOUT, ...scanGuardBatch(files).map((guard) => guard.file)],
     rerun: 'node node_modules/vitest/vitest.mjs run <上面输出里 FAIL 点名的守卫测试文件>',
     when: (files) => scanGuardsToRun(files).length > 0,
   },
   {
     name: 'test:node-scan-guards',
     argv: ['--import=tsx', '--test', ...scanGuardsToRun(null, true).map((guard) => guard.file)],
-    argvFor: (files) => ['--import=tsx', '--test', ...scanGuardsToRun(files, true).map((guard) => guard.file)],
+    argvFor: (files) => ['--import=tsx', '--test', ...scanGuardBatch(files, true).map((guard) => guard.file)],
     rerun: 'node --import tsx --test <上面输出里点名的 node 守卫测试文件>',
     when: (files) => scanGuardsToRun(files, true).length > 0,
   },

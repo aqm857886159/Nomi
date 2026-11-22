@@ -1,17 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import type { DocumentAnchorRef } from '../../../../electron/shared/capabilityTargeting'
 import {
-  buildResidentContextSnapshot,
+  resolveResidentSelection,
+  type ResidentContextCaptureInput,
   freezeResidentContextSnapshot,
   mergeResidentContextHandles,
 } from './residentContextSnapshot'
 import { formatAgentContextSnapshot } from '../../../../electron/shared/agentContextSnapshot'
 
+const snapshotOf = (input: ResidentContextCaptureInput) => resolveResidentSelection(input).snapshot
+
 const documentAnchor: DocumentAnchorRef = Object.freeze({ kind: 'range', from: 4, to: 12, selectedTextHash: 'hash-doc' })
 
 describe('resident ContextSnapshot', () => {
   it('captures an active document with an immutable revisioned locator', () => {
-    const snapshot = buildResidentContextSnapshot({
+    const snapshot = snapshotOf({
       document: {
         id: 'doc-7',
         revision: 11,
@@ -48,7 +51,7 @@ describe('resident ContextSnapshot', () => {
       { id: 'clip-1', type: 'video', label: '开场片段', startFrame: 30, endFrame: 90 },
       { id: 'clip-2', type: 'image', label: '尾帧', startFrame: 90, endFrame: 120 },
     ] as const
-    const snapshot = buildResidentContextSnapshot({
+    const snapshot = snapshotOf({
       canvas: { revision: 8, nodes, selectedNodeIds: ['node-b'] },
       timeline: { revision: 'timeline-abc', fps: 30, clips, selectedClipIds: ['clip-1'] },
     })
@@ -77,7 +80,7 @@ describe('resident ContextSnapshot', () => {
 
   it('freezes a detached copy so later UI mutations cannot rewrite the sent context', () => {
     const selectedNodeIds = ['node-a']
-    const snapshot = buildResidentContextSnapshot({
+    const snapshot = snapshotOf({
       canvas: {
         revision: 3,
         nodes: [{ id: 'node-a', title: '原始标题', kind: 'image' }],
@@ -92,7 +95,7 @@ describe('resident ContextSnapshot', () => {
   })
 
   it('projects traceability into a bounded transient model context without posters or extensions', () => {
-    const snapshot = buildResidentContextSnapshot({
+    const snapshot = snapshotOf({
       document: {
         id: 'doc-7',
         revision: 11,
@@ -111,7 +114,7 @@ describe('resident ContextSnapshot', () => {
   })
 
   it('merges a stale manual handle once while retaining the current selection snapshot', () => {
-    const current = buildResidentContextSnapshot({ canvas: {
+    const current = snapshotOf({ canvas: {
       revision: 8,
       nodes: [{ id: 'node-current', title: '当前镜头' }],
       selectedNodeIds: ['node-current'],
@@ -133,7 +136,7 @@ describe('resident ContextSnapshot', () => {
   })
 
   it('keeps the manual revision when the same target changed after it was referenced', () => {
-    const current = buildResidentContextSnapshot({ canvas: {
+    const current = snapshotOf({ canvas: {
       revision: 8,
       nodes: [{ id: 'node-a', title: '已更新' }],
       selectedNodeIds: ['node-a'],
@@ -173,7 +176,7 @@ describe('resident ContextSnapshot', () => {
   // 生产构造器 → 生产投影：选区多大都不许静默少（事故：12 个只收到 7 个、16 个以上只收到 6 个，没有任何标记）。
   it.each([1, 12, 16, 40, 256])('selecting %i canvas nodes: the model gets all of them or an explicit total and omitted count', (count) => {
     const nodes = Array.from({ length: count }, (_, index) => ({ id: `gen-v2-image-lw9x${index.toString(36)}-ab${index}z`, title: `镜头${index + 1}`, kind: 'image' }))
-    const snapshot = buildResidentContextSnapshot({
+    const snapshot = snapshotOf({
       canvas: { revision: 8, nodes, selectedNodeIds: nodes.map((node) => node.id) },
     })
     const context = formatAgentContextSnapshot(snapshot)

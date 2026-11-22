@@ -57,7 +57,7 @@ describe('canonicalCanvasPlanPatch changed-function coverage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(readGenerationCanvasSnapshot).mockReturnValue(snapshot)
-    vi.mocked(captureCanvasWriteRawEvidence).mockReturnValue({ node: { id: 'live', kind: 'shot', title: 'live', prompt: 'live', locked: false, categoryId: null, groupId: null, model: { modelKey: null, vendorKey: null, archetypeId: null, modeId: null, variantId: null }, currentResult: null }, groups: [] } as never)
+    vi.mocked(captureCanvasWriteRawEvidence).mockReturnValue({ node: { id: 'live', kind: 'shot', title: 'live', prompt: 'live', categoryId: null, groupId: null, model: { modelKey: null, vendorKey: null, archetypeId: null, modeId: null, variantId: null }, currentResult: null }, groups: [] } as never)
     vi.mocked(buildCanvasWriteAdmissionForOperation).mockReturnValue({ target: { kind: 'canvas', nodeIds: [] }, preconditions: { edges: [] } })
     vi.mocked(executeCanvasWriteTarget).mockImplementation(async (targetRequest) => {
       targetRequest.assertCurrent()

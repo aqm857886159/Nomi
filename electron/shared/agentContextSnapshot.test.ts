@@ -13,7 +13,7 @@ import {
 
 const HARD_LIMIT = 6000
 
-/** 与生产构造器 `buildResidentContextSnapshot` 同形：每条句柄的定位器都带整份选区。 */
+/** 与生产构造器 `resolveResidentSelection` 同形：每条句柄的定位器都带整份选区。 */
 function canvasSnapshot(count: number, title = (index: number) => `镜头${index + 1}`): AgentContextSnapshot {
   const ids = Array.from({ length: count }, (_, index) => `gen-v2-image-lw9x${index.toString(36).padStart(3, '0')}-ab${index.toString(36).padStart(2, '0')}z`)
   return {

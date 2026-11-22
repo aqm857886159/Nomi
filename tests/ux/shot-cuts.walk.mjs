@@ -108,7 +108,7 @@ await win.waitForTimeout(900)
 // 认数据属性不认文案，和 derived-node-placement 走同一个入口。
 await win.locator('button[data-toolbar-action-menu="break-down"]').first().click({ timeout: stationTimeout() })
 const splitBtn = win.locator('[data-menu-item="shot-cuts"]').first()
-check('浮条「拆解」菜单里有「按镜头拆」', await splitBtn.count() > 0)
+check('浮条「拆解」菜单里有「按镜头拆」', await splitBtn.waitFor({ state: 'visible' }).then(() => true, () => false))
 await splitBtn.click({ timeout: 5000 })
 await win.waitForTimeout(1200)
 await snap(win, 'panel-detecting')

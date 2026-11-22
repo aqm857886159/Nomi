@@ -1,0 +1,32 @@
+[
+  { "name": "Quirk Relay", "baseUrl": "http://127.0.0.1:39017/v1", "providerKind": "openai-compatible", "models": [
+    { "modelKey": "o1-mini", "labelZh": "o1 mini", "kind": "text" },
+    { "modelKey": "o3-mini", "labelZh": "o3 mini", "kind": "text" },
+    { "modelKey": "kimi-k2-0905-preview", "labelZh": "Kimi K2", "kind": "text" },
+    { "modelKey": "moonshot-v1-8k", "labelZh": "Moonshot v1", "kind": "text" },
+    { "modelKey": "kimi-latest", "labelZh": "Kimi latest", "kind": "text" },
+    { "modelKey": "kimi-thinking-preview", "labelZh": "Kimi thinking", "kind": "text" },
+    { "modelKey": "gpt-4o-mini", "labelZh": "GPT-4o mini", "kind": "text" },
+    { "modelKey": "gpt-5-mini", "labelZh": "GPT-5 mini", "kind": "text" },
+    { "modelKey": "claude-3-5-haiku-20241022", "labelZh": "Claude 3.5 Haiku", "kind": "text" },
+    { "modelKey": "gemini-2.5-flash", "labelZh": "Gemini 2.5 Flash", "kind": "text" },
+    { "modelKey": "deepseek-chat", "labelZh": "DeepSeek Chat", "kind": "text" }
+  ] },
+  { "name": "Claude Relay", "baseUrl": "http://127.0.0.1:39017/claude/v1", "providerKind": "anthropic", "models": [
+    { "modelKey": "claude-3-5-sonnet-20241022", "labelZh": "Claude 3.5 Sonnet", "kind": "text" },
+    { "modelKey": "claude-3-7-sonnet-20250219", "labelZh": "Claude 3.7 Sonnet", "kind": "text" },
+    { "modelKey": "claude-opus-4-1", "labelZh": "Claude Opus 4.1", "kind": "text" },
+    { "modelKey": "claude-sonnet-4-5", "labelZh": "Claude Sonnet 4.5", "kind": "text" },
+    { "modelKey": "claude-haiku-4-5", "labelZh": "Claude Haiku 4.5", "kind": "text" },
+    { "modelKey": "claude-3-haiku-20240307", "labelZh": "Claude 3 Haiku", "kind": "text" }
+  ] },
+  { "name": "Responses Relay", "baseUrl": "http://127.0.0.1:39017/resp/v1", "providerKind": "openai-responses", "models": [
+    { "modelKey": "gpt-4o", "labelZh": "GPT-4o", "kind": "text" },
+    { "modelKey": "gpt-4.1", "labelZh": "GPT-4.1", "kind": "text" },
+    { "modelKey": "o1", "labelZh": "o1", "kind": "text" },
+    { "modelKey": "o3", "labelZh": "o3", "kind": "text" },
+    { "modelKey": "o4-mini", "labelZh": "o4 mini", "kind": "text" },
+    { "modelKey": "gemini-2.5-pro", "labelZh": "Gemini 2.5 Pro", "kind": "text" },
+    { "modelKey": "gpt-5", "labelZh": "GPT-5", "kind": "text" }
+  ] }
+]

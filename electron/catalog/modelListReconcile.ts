@@ -6,7 +6,7 @@ import { isJsonRecord } from '../jsonUtils'
  * 供应商的模型清单是**旁注**，不是用户的决定。
  *
  * 这条边界只写 `unlisted` 一个字段。它曾经同时写 `enabled`（`enabled: unlisted ? false : model.enabled`），
- * 于是一个每天跑一次的后台任务（vendorHealth 的 24h setInterval）可以在没有任何通知的情况下，
+ * 于是一个每天跑一次的后台任务（当时 vendorHealth 的 24h setInterval，现为 catalogReconciliation）可以在没有任何通知的情况下，
  * 把用户昨天还能选的文本模型改成停用——对中转站/自建网关来说「/models 里暂时没有这个 id」是常态。
  * 用户镜头：模型过一夜从下拉里消失，他没做过任何事，也没人告诉他发生了什么。
  *

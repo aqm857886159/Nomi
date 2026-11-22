@@ -9,6 +9,7 @@
 | `pnpm build` | Vite 构建 + electron tsc |
 | `pnpm run test` | Vitest 单测 |
 | `pnpm run gates` | 本机完整自检（按风险分档）：contracts 全部 + **改动相关**的测试 + build；碰测试基础设施/删改名/空 diff 自动升全量并打印原因。推送前不必跑（2026-10-24 起推送只过 git 钩子的快检，完整门岗以 CI 为准），想在推之前自己兜底时用 |
+| `pnpm run check:design-lab` | 本机用同机渲染的 `git merge-base HEAD origin/main` 比现有视觉道覆盖的格，变化/新增/删除/本机不稳定格写入 `outputs/design-lab/relative.json`；变化不阻断，基础设施失败非零。缓存位于用户缓存目录 `~/.cache/nomi/design-lab/`（机器/浏览器/视口/基准提交分键，保留最近 4 份），不覆盖拍板基线。CI 仍硬比已拍板基线，合并以 CI 为准；`-- --screen <屏>` 限定当前比较，基准仍全量生成 |
 | `pnpm run gates:full` | 本机完整自检的全量档（今天的全量测试）：测试基础设施改动、手动发布边界、想自己兜底时用 |
 | `pnpm run test:core-smoke -- --fixture <empty\|used\|profile-copy>` | 核心流程冒烟（空节点 composer / 「2 版」托盘 / 编组框删除+⌘Z / 平移手势）：非纯文档 PR 与 main push 必跑，CI 两遍（空项目 / 用过的项目）；`profile-copy` 只在本机、深拷贝真实资料跑完即删。清单唯一 owner `tests/ux/core-smoke/scenarios.mjs` |
 | `pnpm run test:system:focused` | 普通 PR 的 changed/sibling/related tests；仍须配合 contracts |
@@ -29,6 +30,7 @@
 | `pnpm run check:i18n` | 可见文字国际化门岗（禁止新增硬编码 UI 文案；遗留基线只减不增）|
 | `pnpm run check:framework-boundary` | 框架边界门岗（框架已提供的能力不许再长一份自研版本；债只减不增、绑方案、到期即红）|
 | `node scripts/door-map.mjs <符号或文件>` | 数门（列出一份状态的全部写/读入口，输出直接粘进根因合同 `doors`）|
+| `node scripts/goal-red-on-base.mjs -- <目标测试文件…>` / `--changed` | 目标测试在修前代码上红不红：生产文件退回合并基点、测试留分支版本，在临时副本里跑，逐条归「断言红 / 崩溃红 / 加载红 / 绿」；有加载红或全绿判不合格。实现线交回前跑，输出贴进交回报告 |
 | `pnpm run measure:host-config-commit-window -- [--n 300] [--size-kb 80] [--host-interval-s 5] [--out <收据.json>]` | 手动测量（不进任何门岗）：宿主配置写盘门提交时「挂链接 → 换名」那段测不到的窗口，直接调生产 `hostConfigWrite.atomicWrite` 的测量缝；输出原始样本、p50/p95/p99/最大、平台 / Node / 文件系统、按宿主写入频率假设算的撞击概率与公式。收据在 `docs/evidence/2026-10-10-host-config-commit-window/`；防烂测试 `scripts/measure-host-config-commit-window.test.mjs` |
 | `pnpm run check:real-media-fixture` | 真实素材门岗（画布性能/导入/导出/走查四类各至少一条真素材测试；合成夹具棘轮只减不增；缺素材硬红不许 skip，CI 未就位期只能记带到期日的债）|
 | `pnpm run check:rule-aliases` | 规则编号解析门岗（家规文件里任何 `R<数字>` 都要解析得到——合并规则不许留悬空引用）|

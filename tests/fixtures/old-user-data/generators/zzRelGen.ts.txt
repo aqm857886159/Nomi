@@ -22,8 +22,12 @@ import { buildOpenAiCompatibleDraft } from "./builtinOpenAiCompatibleDraft";
 const now = "2026-10-20T00:00:00.000Z";
 type M = { modelKey: string; labelZh: string; kind: "image" | "video" | "audio" | "text" };
 
-async function connect(name: string, baseUrl: string, models: M[], runId: string) {
-  const draft = buildOpenAiCompatibleDraft({ baseUrl, authType: "bearer", providerKind: "openai-compatible", models } as never);
+// 连接的协议缺省是 openai-compatible（原样）；`V_CONNECTIONS` 里的一项可以换成 anthropic / openai-responses，
+// 用来落「非 openai-compatible 连接下的文本模型行」（PDF 原样发不发只在那两条协议上有区别）。
+type P = "openai-compatible" | "anthropic" | "openai-responses";
+
+async function connect(name: string, baseUrl: string, models: M[], runId: string, providerKind: P = "openai-compatible") {
+  const draft = buildOpenAiCompatibleDraft({ baseUrl, authType: "bearer", providerKind, models } as never);
   const adapter = new ProviderAdapterService(new ProviderAdapterStore(path.join(userDataRoot, "provider-adapters.json")), {
     catalog: defaultCatalog,
     schedule: () => {},
@@ -35,7 +39,7 @@ async function connect(name: string, baseUrl: string, models: M[], runId: string
     id: () => runId,
   } as never);
   const started = await adapter.start({
-    vendorName: name, baseUrl, apiKey: "sk-v-relay-fake", authType: "bearer", providerKind: "openai-compatible",
+    vendorName: name, baseUrl, apiKey: "sk-v-relay-fake", authType: "bearer", providerKind,
     models,
     certification: { contractDigest: "a".repeat(64), idempotencyKey: `idempotency-${runId}`, remoteIdempotency: "unknown" },
   } as never);
@@ -47,6 +51,27 @@ async function connect(name: string, baseUrl: string, models: M[], runId: string
 
 describe("rel gen", () => {
   it("writes", async () => {
+    // 可选 `V_CONNECTIONS`：JSON 数组，每项 `{name, baseUrl, providerKind?, models}`，按序各接一家（不给就是下面原来那一家）。
+    const connections = process.env.V_CONNECTIONS
+      ? JSON.parse(process.env.V_CONNECTIONS) as Array<{ name: string; baseUrl: string; providerKind?: P; models: M[] }>
+      : null;
+    if (connections) {
+      for (const [index, connection] of connections.entries()) {
+        const run = await connect(connection.name, connection.baseUrl, connection.models, `run-rel-${index + 1}`, connection.providerKind);
+        console.log(`RUN${index + 1}`, JSON.stringify({ stage: run?.stage, error: run?.error, models: run?.models?.map((m) => [m.modelKey, m.modes.map((x) => [x.taskKind, x.state])]) }));
+      }
+      // 可选 `V_ANTIGRAVITY_MODELS`：JSON 数组 `[{id, label}]`，经那一版真实的 Antigravity 同步写口落行
+      // （旧版里唯一显式写 `supportsPdfInput` 的写入方）。不起 CLI、不出网：只把「探到了这些模型」交给同步函数。
+      if (process.env.V_ANTIGRAVITY_MODELS) {
+        const { syncAntigravityCatalog } = await import("../catalog/antigravityCatalog");
+        await syncAntigravityCatalog({ state: "ready", version: "fixture-1", checkedAt: Date.parse(now), loginCommand: "agy",
+          models: JSON.parse(process.env.V_ANTIGRAVITY_MODELS), checks: [] } as never);
+      }
+      const state = readCatalog();
+      console.log("VERSION", state.version, "vendors", state.vendors.filter((v) => !v.builtin).map((v) => [v.key, v.enabled, v.providerKind]));
+      for (const m of state.models.filter((m) => m.kind === "text")) console.log("MODEL", m.vendorKey, m.modelKey, m.kind, m.enabled, JSON.stringify(Object.keys((m.meta as object) || {})));
+      return;
+    }
     const run1 = await connect("Relay One", "http://127.0.0.1:39017/v1", (process.env.V_MODELS ? JSON.parse(process.env.V_MODELS) : null) || [
       { modelKey: "gpt-image-2", labelZh: "GPT Image 2", kind: "image" },
       { modelKey: "opaque-image-x", labelZh: "Opaque Image", kind: "image" },

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { formatAgentContextSnapshot } from '../../../../../../electron/shared/agentContextSnapshot'
-import { buildResidentContextSnapshot, mergeResidentContextHandles } from '../../../../ai/resident/residentContextSnapshot'
+import { resolveResidentSelection, mergeResidentContextHandles, type ResidentContextCaptureInput } from '../../../../ai/resident/residentContextSnapshot'
 import { directorShotContextHandles, directorShotFocusFrom, shotIdOfCamera } from './directorShotFocus'
+
+const snapshotOf = (input: ResidentContextCaptureInput) => resolveResidentSelection(input).snapshot
 
 const cut = (cameraId: string, start: number) => ({ start, end: start + 3, cameraId, shotSize: '中景' as const, move: 'static', actions: [] })
 const base = { directorNodeId: 'node-box', revision: 'dplan-abc', planShotIds: ['wide', 'close'], cuts: [cut('shot:wide/camera', 0), cut('shot:close/camera', 3)] }
@@ -23,7 +25,7 @@ describe('镜头焦点（正在改：镜头 N 的数据）', () => {
 
   it('进模型的那段上下文里有导演节点、修订号和镜头名（补丁要用的三样），且和画布选中合在同一份快照', () => {
     const handles = directorShotContextHandles(directorShotFocusFrom({ ...base, selectedCameraIds: ['shot:close/camera'] }), (index) => `镜头 ${index}`, '3D-BOX 预演')
-    const snapshot = mergeResidentContextHandles(buildResidentContextSnapshot({ canvas: { revision: 7, nodes: [{ id: 'node-box', title: '预演' }], selectedNodeIds: ['node-box'] } }), handles)
+    const snapshot = mergeResidentContextHandles(snapshotOf({ canvas: { revision: 7, nodes: [{ id: 'node-box', title: '预演' }], selectedNodeIds: ['node-box'] } }), handles)
     expect(snapshot.handles.map((handle) => handle.id)).toEqual(['canvas-node:node-box', 'director-shot:node-box/close'])
     const text = formatAgentContextSnapshot(snapshot)
     expect(text).toContain('"targetId":"node-box"')

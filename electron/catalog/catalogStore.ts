@@ -14,7 +14,11 @@ export { modelCatalogReadOnlyStatus, type ModelCatalogReadOnlyStatus } from "./c
 import { apiKeyDecryptStatus, credentialMaterialSaved, decryptApiKeyRecord, makeApiKeyRecordFromPlain } from "./secrets";
 import { humanizeModelKey } from "./modelLabel";
 import { applyBuiltinSeeds } from "./seedBuiltins";
+import { liftWholeVendorDeletion, vendorDeletedUntilKeySaved } from "./builtinOwnedFields";
+import { extractVendorExtraHeaders } from "./vendorExtraHeaders";
+export { extractVendorExtraHeaders };
 import { migrateCatalogForward } from "./catalogMigrations";
+import { metaForUpsert, withModelDeclarationDefaults } from "./modelDeclarationDefaults";
 import type { AiSdkProviderKind, BillingModelKind, CatalogState, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./types";
 import { CURRENT_CATALOG_VERSION } from "./types";
 import { normalizeCustomCall } from "./customCallMode";
@@ -50,6 +54,7 @@ import {
 } from "./networkConfigStore";
 import { buildCatalogPackage, CATALOG_PACKAGE_VERSION, catalogPackageImportSchema, type CatalogPackage } from "./catalogPackageFormat";
 import { invalidateProviderAdapterRunsForVendors } from "../providerAdapter/store";
+import { modelFormatInProgress } from "../providerAdapter/formatProgress";
 import { invalidateVendorValidation, normalizedConnectionScope } from "./vendorValidationInvalidation";
 import { assertNoCredentialBindingRewrite, bindCredentialDestination } from "./credentialBinding"; // §6.1
 export type { CustomCallConfigPatchEntry, CustomCallConfigPublicEntry } from "./customConfigStore";
@@ -63,6 +68,8 @@ function defaultCatalog(): CatalogState {
   // No more phantom seed entries (chatfire/sora/gpt-4o-mini) that have no keys.
   return {
     version: CURRENT_CATALOG_VERSION,
+    unverifiedUsableRecovered: true,
+    modelDeclarationDefaultsApplied: true,
     vendors: [],
     models: [],
     mappings: [],
@@ -81,6 +88,15 @@ let catalogReadCache: { path: string; bytes: string; state: CatalogState } | nul
 
 export function readCatalog(): CatalogState {
   return structuredClone(readCatalogShared());
+}
+
+/**
+ * 目录「这一版」的身份：盘上字节没变就是同一个对象（读缓存命中），变了、或有密钥解不开（不缓存）就是新的。
+ * 给「按现在的目录现算、但算一次要几十毫秒」的派生物当缓存键（生成工具的模型表，`liveGenerationRuntime`）。
+ * 只许比身份，不许读里面的字段——要读目录走 readCatalog。
+ */
+export function catalogRevisionToken(): object {
+  return readCatalogShared();
 }
 
 function readCatalogShared(): Readonly<CatalogState> {
@@ -112,7 +128,10 @@ function readCatalogShared(): Readonly<CatalogState> {
   let everyKeyReadable = true;
   const state: CatalogState = {
     ...migrated,
-    vendors: migrated.vendors.map((vendor) => {
+    vendors: migrated.vendors.map((stored) => {
+      // 0.24.1 把派生的「待验证」也落了盘（D-1117-delete-verification 后没有这一档）：在唯一读口丢掉，
+      // 任何 DTO / 导出都拿不到它，下一次写盘就从文件里消失。
+      const { credentialVerificationPending: _legacyPending, ...vendor } = stored as Vendor & { credentialVerificationPending?: unknown };
       const keyStatus = apiKeyDecryptStatus(apiKeysByVendor[vendor.key]);
       if (keyStatus === "locked") everyKeyReadable = false;
       const base: Vendor = {
@@ -120,7 +139,6 @@ function readCatalogShared(): Readonly<CatalogState> {
         providerKind: normalizeProviderKind(vendor.providerKind),
         hasApiKey: keyStatus === "ok",
         credentialMaterialSaved: credentialMaterialSaved(apiKeysByVendor[vendor.key]),
-        credentialVerificationPending: apiKeysByVendor[vendor.key]?.verificationPending === true,
       };
       // Overlay the DECRYPTED proxy/header credentials onto the INTERNAL vendor at
       // this single read choke point so every outbound consumer keeps reading them
@@ -211,7 +229,7 @@ export function listModelCatalogVendors(): Vendor[] {
 /** 目录模型的对外投影。`availability` 见 shared/modelAvailability.ts：那是「能不能用」的唯一答案，
  * 在这里随行下发，渲染层一律读它、谁都不许再拼一份（P0-10 根因）。 */
 export function listModelCatalogModels(params?: unknown): Array<Model & {
-  published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability; modelNameSource: ModelNameSource;
+  published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability; formatInProgress: boolean; modelNameSource: ModelNameSource;
 }> {
   const state = readCatalog();
   const availability = createCatalogAvailability(state);
@@ -220,9 +238,11 @@ export function listModelCatalogModels(params?: unknown): Array<Model & {
     ...model,
     ...derivePublishedExecution(model, { mappings: state.mappings }),
     availability: availability.of(model),
+    // 「格式任务正在跑」只从任务生命周期的主人那里取一个布尔；界面拿不到任务状态本身（D-1117-delete-verification）。
+    formatInProgress: modelFormatInProgress(model.meta),
     // 型号名由档案提供还是就是这一行的 key（唯一计算处 ./modelNameSource）；渲染层的档案解析据它收窄档案。
     modelNameSource: nameSources.get(modelNameSourceKey(model.vendorKey, model.modelKey)) ?? "row",
-  })) as Array<Model & { published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability; modelNameSource: ModelNameSource }>;
+  })) as Array<Model & { published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability; formatInProgress: boolean; modelNameSource: ModelNameSource }>;
 }
 
 // 型号名来源表（./modelNameSource，同一份冻结状态只算一次）：用最近一次读出的那份，不每问一次就读盘。主进程的档案解析问它。
@@ -345,8 +365,6 @@ function applyVendorUpsert(state: CatalogState, payload: unknown): Vendor {
     enabled: normalizeEnabled(raw.enabled, existing?.enabled ?? true),
     hasApiKey: existing?.hasApiKey ?? false,
     credentialMaterialSaved: undefined,
-    // readCatalog 每次从 apiKeysByVendor[].verificationPending 现算并覆盖，落盘的值没有意义。
-    credentialVerificationPending: undefined,
     baseUrlHint: typeof raw.baseUrlHint === "string" ? raw.baseUrlHint.trim() || null : (existing?.baseUrlHint ?? null),
     authType: (raw.authType as Vendor["authType"]) || existing?.authType || "bearer",
     authHeader: typeof raw.authHeader === "string" ? raw.authHeader.trim() || null : (existing?.authHeader ?? null),
@@ -410,14 +428,22 @@ function applyApiKeyUpsert(state: CatalogState, vendorKey: string, payload: unkn
   const enabled = normalizeEnabled((payload as JsonRecord)?.enabled, true);
   state.apiKeysByVendor[key] = {
     ...makeApiKeyRecordFromPlain(apiKey, key, enabled, existing?.createdAt || t, t),
-    ...((payload as JsonRecord)?.verificationPending === true ? { verificationPending: true as const } : {}),
     ...(existing?.networkConfig ? { networkConfig: existing.networkConfig } : {}),
     ...(existing?.customConfig ? { customConfig: existing.customConfig } : {}),
   };
   // 凭据绑定（§6.1）：全仓唯一的 key 写门，绑定不可能有第二个写入口。判据住 credentialBinding.ts。
   bindCredentialDestination(state.vendors.find((vendor) => vendor.key === key), t);
-  if (!enabled) { invalidateVendorValidation(state, key); depublishVendorForDisabledCredential(state, key, t); }
+  if (!enabled || (existing && decryptApiKeyRecord(existing) !== apiKey)) invalidateVendorValidation(state, key);
+  if (!enabled) depublishVendorForDisabledCredential(state, key, t);
+  // 整家删过的内置连接：再存一次这家的密钥 = 要它回来。摘掉整家删除记录，内置模型当场种回（单删的那几个照旧不回）。
+  if (liftWholeVendorDeletion(state, key)) Object.assign(state, applyBuiltinSeeds(state, t).state);
 }
+/**
+ * 这条内置连接是不是用户整家删掉的、且存一次密钥就回来（还没存）。不要密钥的内置家（本地 ComfyUI 等）
+ * 没有「存密钥」这一步，不在此列——删了照旧不回，不能告诉人「存密钥就回来」。
+ * 目录读不了就当不是——这只用来把拒绝说清楚。
+ */
+export const builtinVendorDeletedUntilKeySaved = (vendorKey: string): boolean => vendorDeletedUntilKeySaved(vendorKey, readCatalogShared);
 export function upsertModelCatalogVendorApiKey(vendorKey: string, payload: unknown): unknown {
   const state = readCatalog();
   applyApiKeyUpsert(state, vendorKey, payload);
@@ -425,7 +451,7 @@ export function upsertModelCatalogVendorApiKey(vendorKey: string, payload: unkno
   const key = String(vendorKey || "").trim();
   const rec = state.apiKeysByVendor[key];
   if (rec?.enabled === false) invalidateProviderAdapterRunsForVendors(new Set([key]));
-  return { vendorKey: key, hasApiKey: true, verificationPending: rec.verificationPending === true, enabled: rec.enabled, createdAt: rec.createdAt, updatedAt: rec.updatedAt };
+  return { vendorKey: key, hasApiKey: true, enabled: rec.enabled, createdAt: rec.createdAt, updatedAt: rec.updatedAt };
 }
 export function clearModelCatalogVendorApiKey(vendorKey: string): unknown {
   const state = readCatalog();
@@ -485,16 +511,19 @@ function applyModelUpsert(state: CatalogState, payload: unknown): Model {
     (request) => antigravityConnection.canEnable(request));
   const t = nowIso();
   const customCall = normalizeCustomCall(raw.customCall, existing?.customCall);
+  const modelAlias = typeof raw.modelAlias === "string" ? raw.modelAlias.trim() || null : (existing?.modelAlias ?? null);
+  const kind = (raw.kind as BillingModelKind) || existing?.kind || "text";
   const model = sealUpsertDraft<Model>({
     modelKey,
     vendorKey,
-    modelAlias: typeof raw.modelAlias === "string" ? raw.modelAlias.trim() || null : (existing?.modelAlias ?? null),
+    modelAlias,
     labelZh: String(raw.labelZh || existing?.labelZh || "").trim() || humanizeModelKey(modelKey),
-    kind: (raw.kind as BillingModelKind) || existing?.kind || "text",
+    kind,
     enabled: normalizeEnabled(raw.enabled, existing?.enabled ?? true),
     unlisted: typeof raw.unlisted === "boolean" ? raw.unlisted : existing?.unlisted,
     tokenPricing: existing?.tokenPricing, free: existing?.free,
-    meta: raw.meta ?? existing?.meta,
+    // 文本行的能力声明初值在这一处算：所有 upsert 共用这一个漏斗（规则见 modelDeclarationDefaults.ts）。
+    meta: withModelDeclarationDefaults({ kind, modelKey, modelAlias, meta: metaForUpsert(raw.meta, existing?.meta) }),
     pricing: (raw.pricing as Model["pricing"]) || existing?.pricing,
     onboarding: (raw.onboarding as Model["onboarding"]) ?? existing?.onboarding,
     customCall: customCall || undefined,
@@ -773,23 +802,4 @@ export function mutateCatalog<T>(fn: (tx: CatalogMutation, state: Readonly<Catal
   writeCatalog(state);
   invalidateProviderAdapterRunsForVendors(invalidatedVendors);
   return result;
-}
-
-/**
- * Read user-supplied custom request headers off a vendor. Stored under
- * `vendor.meta.extraHeaders` (a string→string map) by the manual-entry form so
- * relay/proxy gateways that need an extra auth header work without us hardcoding
- * per-provider knowledge. Returns undefined when none are set.
- */
-export function extractVendorExtraHeaders(vendor: Vendor): Record<string, string> | undefined {
-  const meta = vendor.meta as JsonRecord | undefined;
-  const raw = meta?.extraHeaders;
-  if (!raw || typeof raw !== "object") return undefined;
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    const k = String(key || "").trim();
-    const v = String(value ?? "").trim();
-    if (k && v) out[k] = v;
-  }
-  return Object.keys(out).length > 0 ? out : undefined;
 }

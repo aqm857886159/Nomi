@@ -87,7 +87,7 @@ try {
     const ctaBtn = Array.from(el.querySelectorAll("button")).find((b) => /接入文本模型/.test(b.textContent || ""));
     return { shown: true, hasCta: Boolean(ctaBtn) };
   });
-  const normalEntryVisible = await win.locator('[aria-label="模型接入"]:visible').count() > 0;
+  const normalEntryVisible = await win.locator('[aria-label="模型接入"]:visible').first().waitFor({ state: 'visible' }).then(() => true, () => false);
   console.log("\n── CS2：模型目录状态与接入入口互斥 ──");
   check("模型入口与目录状态一致", initial.textModels > 0 ? normalEntryVisible && !bannerProbe.shown : bannerProbe.shown && !normalEntryVisible,
     `models=${initial.textModels}, normal=${normalEntryVisible}, banner=${bannerProbe.shown}`);

@@ -28,7 +28,7 @@
     },
     {
       "id": "D3",
-      "text": "锁语义不变：锁定节点的范围按现状保留，不静默扩大或缩小。",
+      "text": "锁语义不变：锁定节点的范围按现状保留，不静默扩大或缩小。（2026-11-17 被取代：用户决定把节点锁整个删掉。）",
       "appliesTo": [
         "keep.host.locked"
       ],
@@ -2336,19 +2336,22 @@
     },
     {
       "id": "keep.host.locked",
-      "label": "保留：锁定节点的真实范围（通用 prompt 只读、推荐禁用、翻译 / 优化隐藏；参数 / 参考 / 生成未统一检查 locked）",
-      "change": "keep-as-is",
+      "label": "已由 2026-11-17 的决定撤掉（节点锁整个删除）：锁定节点的真实范围（通用 prompt 只读、推荐禁用、翻译 / 优化隐藏；参数 / 参考 / 生成未统一检查 locked）",
+      "change": "dropped",
       "candidates": [],
-      "status": "in-progress",
+      "status": "dropped",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
-      "retained": true,
       "states": [
         "disabled",
         "zh-en",
         "dark"
       ],
       "decision": "D3",
-      "note": "用户 10-18：锁语义不变；按现状记录，不静默扩大或缩小"
+      "note": "用户 10-18 当时写的是「锁语义不变」；2026-11-17 用户决定把节点锁整个删掉（浮条上没有锁、节点没有 locked 字段、输入框没有锁住的状态），这一句被取代；只读宿主（readOnly）是另一个概念，不动",
+      "userDecision": {
+        "quote": "直接删掉就好 不要留这些基于错误防守的东西",
+        "date": "2026-11-17"
+      }
     },
     {
       "id": "keep.host.readonly",

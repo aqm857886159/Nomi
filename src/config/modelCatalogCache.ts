@@ -9,8 +9,6 @@ import {
 } from '../workbench/api/modelCatalogApi'
 import type { ModelOption, NodeKind } from './models'
 import {
-  normalizeModelId,
-  trimModelIdentifier,
   resolveExecutableImageModelFromOptions,
   type ResolvedExecutableImageModel,
 } from './modelOptionResolvers'
@@ -47,18 +45,6 @@ let catalogHealthCache: ModelCatalogHealthDto | null = null
 let catalogHealthPromise: Promise<ModelCatalogHealthDto> | null = null
 let vendorNamesCache: Map<string, string> | null = null
 let vendorNamesPromise: Promise<Map<string, string>> | null = null
-
-const HIDDEN_IMAGE_MODEL_ID_RE = /^(gemini-.*-image(?:-(?:landscape|portrait))?|imagen-.*-(?:landscape|portrait))$/i
-
-export function filterHiddenOptionsByKind(options: ModelOption[], kind?: NodeKind): ModelOption[] {
-  if (kind !== 'image' && kind !== 'imageEdit') return options
-  return options.filter((opt) => {
-    const normalizedValue = normalizeModelId(opt.value)
-    if (!HIDDEN_IMAGE_MODEL_ID_RE.test(normalizedValue)) return true
-    const normalizedAlias = normalizeModelId(trimModelIdentifier(opt.modelAlias))
-    return Boolean(normalizedAlias && normalizedAlias !== normalizedValue)
-  })
-}
 
 function notifyCatalogCacheChanged(): void {
   for (const listener of [...catalogCacheListeners]) listener()
@@ -328,18 +314,7 @@ export function peekCatalogModelOptions(kind?: NodeKind, requiredMode?: ModelQue
     catalogOptionsCache.set(cacheKey, cached)
     lastGoodOptions.set(cacheKey, cached) // 行是读成功得来的：这份同样算「上一份读成功」
   }
-  return visibleOptionsFor(cached, kind)
-}
-
-/** 同一份缓存 + 同一个 kind → 同一个数组引用（`useSyncExternalStore` / 选择器要的稳定快照）。 */
-const visibleOptionsCache = new WeakMap<ModelOption[], Map<string, ModelOption[]>>()
-function visibleOptionsFor(options: ModelOption[], kind?: NodeKind): ModelOption[] {
-  let byKind = visibleOptionsCache.get(options)
-  if (!byKind) { byKind = new Map(); visibleOptionsCache.set(options, byKind) }
-  const key = kind ?? ''
-  let visible = byKind.get(key)
-  if (!visible) { visible = filterHiddenOptionsByKind(options, kind); byKind.set(key, visible) }
-  return visible
+  return cached
 }
 
 /**
@@ -349,7 +324,7 @@ function visibleOptionsFor(options: ModelOption[], kind?: NodeKind): ModelOption
 export function peekLastGoodModelOptions(kind?: NodeKind, requiredMode?: ModelQueryMode): ModelOption[] | null {
   const cacheKey = `${resolveCatalogKind(kind)}:${requiredMode ?? defaultPublishedMode(kind)}`
   const kept = lastGoodOptions.get(cacheKey)
-  return kept ? filterHiddenOptionsByKind(kept, kind) : null
+  return kept ?? null
 }
 
 /** 读目录失败后界面该显示哪一份：上一次读成功的清单；从没成功过就保持现状（空态由 error 带着原因）。 */
@@ -365,8 +340,7 @@ export async function preloadModelOptions(
   kind?: NodeKind,
   requiredMode?: ModelQueryMode,
 ): Promise<ModelOption[]> {
-  const catalogOptions = await getCatalogModelOptions(kind, requiredMode)
-  return visibleOptionsFor(catalogOptions, kind)
+  return getCatalogModelOptions(kind, requiredMode)
 }
 
 export async function resolveExecutableImageModel(params: {

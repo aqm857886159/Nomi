@@ -13,18 +13,18 @@ vi.mock("./laneProviderGuard.mjs", async (importOriginal) => {
 import { callModelOnce, ModelCallCeilingError } from "./laneModelCall.mjs";
 import { nomiModelConfigFor } from "../ai/vendorModelConnection";
 import { LANE_VENDOR_FAILURE_DIAGNOSTIC, laneVendorFailureText } from "../shared/agentLane/laneAssistantFault";
-import { parseVendorErrorFromMessage } from "../../src/workbench/generationCanvas/runner/vendorErrorIpc";
+import { parseVendorErrorFromMessage } from "../shared/generationFailure";
 import { classifyGenerationError } from "../../src/workbench/observability/classifyError";
 import { reply, startTextUpstream, type UpstreamProtocol, type UpstreamReply } from "../../tests/fixtures/textTasks/textUpstream";
 
 async function withUpstream<T>(protocol: UpstreamProtocol, script: (index: number) => UpstreamReply,
   run: (config: ReturnType<typeof nomiModelConfigFor>, server: Awaited<ReturnType<typeof startTextUpstream>>) => Promise<T>,
-  vendorPatch: (origin: string) => Partial<Vendor> = () => ({}), modelKey = "fixture-model"): Promise<T> {
+  vendorPatch: (origin: string) => Partial<Vendor> = () => ({}), modelKey = "fixture-model", meta?: unknown): Promise<T> {
   const server = await startTextUpstream(protocol, (_request, index) => script(index));
   try {
     const vendor = { key: "fixture", baseUrlHint: protocol === "anthropic" ? `${server.origin}/v1` : server.baseURL,
       providerKind: protocol, authType: "bearer", ...vendorPatch(server.origin) } as unknown as Vendor;
-    return await run(nomiModelConfigFor(vendor, { modelKey, kind: "text" } as unknown as Model, "sk-fixture"), server);
+    return await run(nomiModelConfigFor(vendor, { modelKey, kind: "text", ...(meta === undefined ? {} : { meta }) } as unknown as Model, "sk-fixture"), server);
   } finally {
     await server.close();
   }
@@ -210,10 +210,11 @@ describe("请求体与地址：一处规矩", () => {
     }, (origin) => ({ baseUrlHint: origin }));
   });
 
-  it("模型怪癖只套一次：o1 系只收 temperature 1，调用方给的 0.7 被改成 1", async () => {
+  // 目录里的 o1 系行都带这条声明（写入口 / 升级修正按名字写的初值），运行时只读声明、不再看名字。
+  it("请求体覆盖只套一次：行上声明了 temperature 1（o1 系的初值），调用方给的 0.7 被改成 1", async () => {
     await withUpstream("openai-compatible", () => reply.text("好。"), async (model, server) => {
       await callModelOnce({ model, fetch: globalThis.fetch, content: "x", temperature: 0.7, signal: new AbortController().signal });
       expect(server.requests[0]?.body.temperature).toBe(1);
-    }, () => ({}), "o1-mini");
+    }, () => ({}), "o1-mini", { requestBodyOverrides: { temperature: 1 } });
   });
 });

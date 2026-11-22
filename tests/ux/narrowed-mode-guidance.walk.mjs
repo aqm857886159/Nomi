@@ -134,7 +134,7 @@ async function newVideoNodeWithModel(optionLabel) {
     .getByRole('option')
     .filter({ hasText: new RegExp(`^${optionLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) })
     .first()
-  assert((await option.count()) > 0, `模型下拉里找得到「${optionLabel}」`)
+  assert(await option.waitFor({ state: 'visible' }).then(() => true, () => false), `模型下拉里找得到「${optionLabel}」`)
   await option.click()
   await getWin().waitForTimeout(1200)
 }

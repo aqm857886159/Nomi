@@ -1,4 +1,5 @@
 import { chromium } from 'playwright'
+import { expect } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -209,7 +210,7 @@ async function auditStandardCase(browser, testCase) {
   assert(browserErrors.length === 0, `${testCase.name}: no page errors`)
   await page.screenshot({ path: path.join(shotsDir, `home-${testCase.name}.png`), fullPage: true })
 
-  assert(await page.locator('[data-github-hero]').count() === 1, `${testCase.name}: one hero GitHub CTA exists`)
+  assert(await expect(page.locator('[data-github-hero]')).toHaveCount(1).then(() => true, () => false), `${testCase.name}: one hero GitHub CTA exists`)
 
   if (testCase.name === 'zh-desktop') {
     // 首屏整片：点了才出声播放；功能段：滚到眼前自己在对应秒数里循环。
@@ -455,7 +456,7 @@ async function auditLocalePreference(browser) {
   await englishPage.goto(`${baseUrl}/`, { waitUntil: 'networkidle' })
   assert(new URL(englishPage.url()).pathname === '/', 'explicit Chinese choice overrides browser preference')
   assert(
-    (await englishPage.locator('html[lang="zh-CN"]').count()) === 1,
+    await englishPage.locator('html[lang="zh-CN"]').waitFor({ state: 'attached' }).then(() => true, () => false),
     'explicit Chinese choice keeps the Chinese document',
   )
   await englishContext.close()

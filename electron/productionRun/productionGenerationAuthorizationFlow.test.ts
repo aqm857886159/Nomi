@@ -1,3 +1,4 @@
+import { issueGenerationPlanningForTest } from "../capabilityCore/generationPlanningIssue";
 import { deriveGenerationReauthorizationState } from "./productionGenerationAuthorizationState";
 import fs from "node:fs";
 import os from "node:os";
@@ -191,6 +192,27 @@ describe("Run-owned paid generation authorization", () => {
     expect(repository.readBudgetLedger("project-1", "op-1").authorized).toBe(6);
   });
 
+  it("helper confirmed=yes() with an unsigned receipt cannot approve the Run or send a provider request", async () => {
+    const { root, repository, authorization, submission, submit } = setup(false);
+    const receipts = createApprovalReceiptAuthority({ filePath: path.join(root, "receipts.json"), macKey: "isolated-key", now: () => NOW });
+    const owner = {
+      readFull: (projectId: string, runId: string) => repository.read(projectId, runId)!,
+      command: async (projectId: string, runId: string, command: Parameters<typeof repository.execute>[2]) => repository.execute(projectId, runId, command),
+    };
+    const yes = () => true;
+    const probe = (receiptToken: string) => ({ confirmed: yes(), receiptToken });
+    await expect(decideRunOwnedGenerationGate({
+      owner: owner as never, receipts, lease, operationId: "op-1", authorization,
+      commandPrefix: "forged", display: { model: "fixture-model" }, now: () => NOW,
+      confirm: async () => probe("forged-token"),
+    })).rejects.toThrow();
+    expect(repository.read("project-1", "op-1")!.gates[0]!.status).toBe("waiting");
+    expect(repository.readApprovals("project-1", "op-1")).toEqual([]);
+    const admission = await landedAdmission(repository, "project-1", "op-1");
+    await expect(submission.start({ projectId: "project-1", operationId: "op-1", admission })).rejects.toThrow();
+    expect(submit).toHaveBeenCalledTimes(0);
+  });
+
   // 付费卡① 第 14 条（2026-10-01）：批的是信封里冻住的事实，不是项目此刻的版本。确认框开着的时候 Nomi 往画布上
   // 落别的镜、用户改下一镜，项目版本都会前进——以前这里把这一下点击拒成「项目有变动」，而卡上的东西一个字没变。
   // 发出去的东西由合同哈希、线上报文哈希、幂等键逐字钉死，和项目版本无关。
@@ -254,7 +276,7 @@ describe("Run-owned paid generation authorization", () => {
     const generationAuthority = createRunOwnedGenerationGateAuthority({
       owner: owner as never,
       operations: { read: vi.fn(async () => undefined) } as never,
-      planning: planning as never,
+      planning: issueGenerationPlanningForTest(planning) as never,
       receipts,
       now: () => NOW,
     });
@@ -285,7 +307,7 @@ describe("Run-owned paid generation authorization", () => {
     const generationAuthority = createRunOwnedGenerationGateAuthority({
       owner: owner as never,
       operations: { read: vi.fn(async () => undefined) } as never,
-      planning: planning as never,
+      planning: issueGenerationPlanningForTest(planning) as never,
       receipts,
       now: () => NOW,
     });
@@ -314,7 +336,7 @@ describe("Run-owned paid generation authorization", () => {
     const generationAuthority = createRunOwnedGenerationGateAuthority({
       owner: owner as never,
       operations: { read: vi.fn(async () => undefined) } as never,
-      planning: planning as never,
+      planning: issueGenerationPlanningForTest(planning) as never,
       receipts,
       now: () => "2026-08-24T00:00:00.000Z",
     });
@@ -368,7 +390,7 @@ describe("Run-owned paid generation authorization", () => {
     const generationAuthority = createRunOwnedGenerationGateAuthority({
       owner: owner as never,
       operations: { read: vi.fn(async () => undefined) } as never,
-      planning: vi.fn() as never,
+      planning: issueGenerationPlanningForTest(vi.fn()) as never,
       receipts,
       now: () => NOW,
     });
@@ -426,7 +448,7 @@ describe("Run-owned paid generation authorization", () => {
         command,
       } as never,
       operations: { read: operationsRead } as never,
-      planning: vi.fn() as never,
+      planning: issueGenerationPlanningForTest(vi.fn()) as never,
       receipts,
       now: () => NOW,
     });

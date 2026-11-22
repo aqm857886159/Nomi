@@ -280,7 +280,7 @@
       "candidates": [],
       "status": "implemented",
       "assertion": "board:NodePointer/pointer.narrow.collapse",
-      "note": "生产组件 src/workbench/ai/pointer/NodePointer.tsx（canvas.node.highlight 在 reactFlow/generationCanvasReactFlowAdapter.ts#externalHighlightShellClass）；设计实验室屏 node-pointer。第③步起真 App 里也有：付费卡上的指向元素点了走 revealNodeFromChat，浮窗盖住画布大半时先收成小球（真 App 走查 tests/ux/agent-spend-card-narrow.walk.mjs，最小窗 1100×720）。"
+      "note": "生产组件 src/workbench/ai/pointer/NodePointer.tsx（canvas.node.highlight 在 reactFlow/generationCanvasReactFlowAdapter.ts#externalHighlightShellClass）；设计实验室屏 node-pointer。第③步起真 App 里也有：付费卡上的指向元素点了走 revealNodeFromChat，浮窗盖住画布大半时先收成小球（真 App 走查 tests/ux/agent-spend-card-narrow.walk.mjs，最小窗 1100×720）。 2026-11-22 起机器让开时收起面板、入口在顶栏（NomiEntryTopbar 板），不再收成右下小球。"
     },
     {
       "id": "pointer.narrow.back",

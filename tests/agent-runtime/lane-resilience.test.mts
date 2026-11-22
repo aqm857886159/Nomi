@@ -15,7 +15,7 @@ import { normalizeProviderErrorText } from '../../electron/agentLane/laneProvide
 import type { LaneProjection, LaneRetry } from '../../electron/shared/agentLane/laneContracts.js';
 import { LANE_READ_TOOL_TIMEOUT_MS } from '../../electron/shared/agentLane/laneToolContract.js';
 import { createLaneFixture, FIXTURE_DESCRIBE, mustConfirm } from './laneFixture.mjs';
-import { parseVendorErrorFromMessage } from '../../src/workbench/generationCanvas/runner/vendorErrorIpc.js';
+import { parseVendorErrorFromMessage } from '../../electron/shared/generationFailure.js';
 
 /** 一个永不回复、但连上了的供应商。**首字节永不到达**——今天的 lane 会永远转圈。 */
 const NEVER_REPLIES = { type: 'deferred' as const, beforeReply: () => new Promise<never>(() => {}) };
@@ -410,7 +410,10 @@ test('缺省不设上限：同一回合连着调很多次工具，一次都不�
     `24 这个旧缺省必须真的不再生效（实发 ${fixture.http.requests.length} 次请求）`);
 });
 
-test('a turn that reaches its model-request limit stops with a sentence, not with a step-limit code', async (t) => {
+// 2026-11-09 改合同：上限以前判在 `before_tool`（拦下调用、回一句「State your conclusion now」），可这一轮
+// 已经没有下一次请求，那句话是一个兑现不了的承诺；而立即结果（形状错、被拦的调用）根本到不了 `before_tool`，
+// 上限对它们形同虚设（一回合 11 次请求）。现在只判在请求入口：已经回来的调用照常跑完，下一次请求不发、这一轮收掉。
+test('a turn that reaches its model-request limit is closed at the request entry: the last reply’s tools run, no further request', async (t) => {
   const fixture = await createLaneFixture(t, [
     { type: 'tool', calls: [{ id: 'call-read', name: 'read_script', arguments: {} }] },
     { type: 'text', text: 'Must not be reached.' },
@@ -419,12 +422,13 @@ test('a turn that reaches its model-request limit stops with a sentence, not wit
 
   await lane.execute({ kind: 'prompt', text: 'Read the document.' });
 
-  const [result] = toolResults(lane.projection());
-  assert.equal(result?.kind === 'tool-result' && result.isError, true);
-  assert.match(result?.kind === 'tool-result' ? result.text : '', /reached its 1-model-request limit/);
-  assert.match(result?.kind === 'tool-result' ? result.text : '', /State your conclusion/,
-    'the model and the user read the same sentence — not an error code only one of them understands');
-  assert.equal(fixture.http.requests.length, 1, 'and the blocked turn does not buy another model request');
+  const projection = lane.projection();
+  const [result] = toolResults(projection);
+  assert.equal(result?.kind === 'tool-result' && result.isError, false, 'the call the model already made still runs');
+  assert.doesNotMatch(result?.kind === 'tool-result' ? result.text : '', /model-request limit|State your conclusion/);
+  assert.equal(fixture.http.requests.length, 1, 'and the closed turn does not buy another model request');
+  assert.equal(projection.running, false);
+  assert.ok(!projection.parts.some((part) => part.kind === 'assistant-text' && part.text === 'Must not be reached.'));
 });
 
 test('the budget is per turn, not per lane — a second turn starts with a full one', async (t) => {
@@ -469,7 +473,7 @@ test('阳性对照 · a turn at the same limit that never calls a tool is not in
   );
 });
 
-test('the same tool failing the same way three times in a row is stopped and told to change route', async (t) => {
+test('the same tool failing three times in a row is told to change route; calling it again ends the turn', async (t) => {
   const failing = bindLaneTool({
     name: 'always_fails',
     contractId: 'document.read',
@@ -492,12 +496,18 @@ test('the same tool failing the same way three times in a row is stopped and tol
 
   await lane.execute({ kind: 'prompt', text: 'Use the tool.' });
 
-  const results = toolResults(lane.projection());
+  const projection = lane.projection();
+  const results = toolResults(projection);
   assert.equal(results.length, 4, 'the fourth call still gets a result — it is blocked, not silently dropped');
+  const third = results[2];
+  assert.match(third.kind === 'tool-result' ? third.text : '', /failed 3 times in a row since it last succeeded/);
+  assert.match(third.kind === 'tool-result' ? third.text : '', /one more call to it ends this turn/);
+  assert.match(third.kind === 'tool-result' ? third.text : '', /take a different route|ask_user/);
   const fourth = results[3];
-  assert.match(fourth.kind === 'tool-result' ? fourth.text : '', /failed the same way 3 times in a row/);
-  assert.match(fourth.kind === 'tool-result' ? fourth.text : '',
-    /take a different route|tell the user plainly/);
+  assert.match(fourth.kind === 'tool-result' ? fourth.text : '', /always_fails was not run \(tool_retry_stopped\)/);
+  assert.match(fourth.kind === 'tool-result' ? fourth.text : '', /this turn ended here/);
+  assert.equal(fixture.http.requests.length, 4, 'the turn ended at the stop point: no fifth request');
+  assert.equal(projection.running, false);
 });
 
 // 2026-09-17 真机复现：熔断此前只认工具结果，用户照 Agent 的建议去点开文稿页也救不回来。
@@ -518,9 +528,9 @@ test('the streak is cleared by the next user message, so the tool runs again in 
     return { ok: false, failure: { code: 'always', message: 'The shot id does not exist.', nextAction: 'Read the canvas first.' } };
   });
   const call = (id: string) => ({ type: 'tool' as const, calls: [{ id, name: 'always_fails', arguments: {} }] });
+  // 第一轮在第 4 个调用处被收掉，模型不会再被请求说话——所以脚本里第一轮没有收尾那句。
   const fixture = await createLaneFixture(t, [
     call('one'), call('two'), call('three'), call('four'),
-    { type: 'text', text: 'I stopped repeating myself.' },
     call('five'),
     { type: 'text', text: 'Tried once more after the user spoke.' },
   ]);
@@ -528,24 +538,29 @@ test('the streak is cleared by the next user message, so the tool runs again in 
 
   await lane.execute({ kind: 'prompt', text: 'Use the tool.' });
   assert.equal(attempt, 3, 'the fourth call of the first turn is blocked before it runs');
+  assert.equal(fixture.http.requests.length, 4, 'and the first turn ends there');
   await lane.execute({ kind: 'prompt', text: 'I opened the document page. Try again.' });
 
   const results = toolResults(lane.projection());
   assert.equal(results.length, 5);
+  const third = results[2];
+  assert.match(third.kind === 'tool-result' ? third.text : '', /after the user's next message/);
   const fourth = results[3];
-  assert.match(fourth.kind === 'tool-result' ? fourth.text : '', /failed the same way 3 times in a row/);
-  assert.match(fourth.kind === 'tool-result' ? fourth.text : '', /after the user's next message/);
+  assert.match(fourth.kind === 'tool-result' ? fourth.text : '', /tool_retry_stopped/);
+  assert.match(fourth.kind === 'tool-result' ? fourth.text : '', /with the user's next message/);
   const fifth = results[4];
   assert.equal(attempt, 4, 'the user message lifted the block: the tool actually ran again');
-  assert.doesNotMatch(fifth.kind === 'tool-result' ? fifth.text : '', /failed the same way/);
+  assert.doesNotMatch(fifth.kind === 'tool-result' ? fifth.text : '', /tool_retry_stopped|failed 3 times/);
 });
 
-test('阳性对照 · three failures that are not the same failure are not treated as a streak', async (t) => {
+// 2026-11-09 改合同：以前这一条是「换了码就不算同一堵墙」的阳性对照——而那正是模型逃掉熔断的路：每次换一个
+// 错字段 / 错码，10 次失败熔断一次不跳。现在计的是「这个工具自上次成功以来失败几次」，码和字段只留作诊断。
+test('换码不算进展 · four failures with four different codes still end the turn at the fourth call', async (t) => {
   let attempt = 0;
   const varying = bindLaneTool({
     name: 'fails_differently',
     contractId: 'document.read',
-    description: 'Fails with a different reason each time, used to prove the streak rule reads the reason.',
+    description: 'Fails with a different reason each time, used to prove the streak does not care about the reason.',
     promptSnippet: 'fail differently each time.', nextAction: 'none', describe: FIXTURE_DESCRIBE,
     effect: 'read',
     execution: { timeoutMs: LANE_READ_TOOL_TIMEOUT_MS },
@@ -553,9 +568,6 @@ test('阳性对照 · three failures that are not the same failure are not treat
     examples: [{ when: 'Call it with no arguments:', arguments: {} }],
   }, async () => {
     attempt += 1;
-    // 一堵墙的身份是**失败码 + 出错字段**，不是正文（`laneWallKey`，2026-09-21：真实轨迹里同一堵墙的正文
-    // 每次都带着不同的 id / 镜头数，按正文认墙 = 熔断在真机上一次都没触发过）。所以「不同的失败」在这里
-    // 必须是不同的码——只换措辞、码不变，那就是同一堵墙，该拦。
     return { ok: false, failure: { code: `varies_${attempt}`, message: `Wall number ${attempt} is in the way.`,
       nextAction: 'Try the next one.' } };
   });
@@ -570,8 +582,8 @@ test('阳性对照 · three failures that are not the same failure are not treat
 
   const results = toolResults(lane.projection());
   assert.equal(results.length, 4);
-  for (const result of results) {
-    assert.doesNotMatch(result.kind === 'tool-result' ? result.text : '', /failed the same way/,
-      'making progress through different failures is not walking into the same wall');
-  }
+  assert.match(results[2]?.kind === 'tool-result' ? results[2].text : '', /failed 3 times in a row since it last succeeded/);
+  assert.match(results[3]?.kind === 'tool-result' ? results[3].text : '', /tool_retry_stopped/);
+  assert.equal(attempt, 3, 'the fourth call did not run');
+  assert.equal(fixture.http.requests.length, 4, 'and nothing was asked of the model after it');
 });

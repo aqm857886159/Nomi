@@ -99,3 +99,28 @@ describe('check:batch-machines · third-frozen-judgment（禁第三份 frozen.at
     expect(scanAs('third-frozen-judgment', OUTSIDE, 'const frozen = node.meta?.frozen')).toBe(0)
   })
 })
+
+describe('check:batch-machines · second-scope-home（「生成这一组」的范围只在共用主人里算）', () => {
+  const OUTSIDE = 'src/workbench/generationCanvas/components/__new_entry.ts'
+  const HOME = 'electron/shared/agentCapabilities/generationShotScope.ts'
+
+  it('抓：主人之外重新定义已删的判据（把旧家搬回来）', () => {
+    expect(scanAs('second-scope-home', OUTSIDE, 'export function buildDependencyWaves(ids, graph) {')).toBeGreaterThan(0)
+    expect(scanAs('second-scope-home', OUTSIDE, 'const eligibleGenerationNodeIds = (nodes) => nodes.filter(isIdle)')).toBeGreaterThan(0)
+    expect(scanAs('second-scope-home', OUTSIDE, 'function groupEligibleNodeIds(ids, nodes) {')).toBeGreaterThan(0)
+  })
+  it('抓：主人之外自己按波次往里推（分波的本体）', () => {
+    expect(scanAs('second-scope-home', OUTSIDE, 'while (remaining.length) { const wave = ready(remaining); waves.push(wave) }')).toBeGreaterThan(0)
+  })
+  it('不误报：主人自己的分波', () => {
+    expect(scanAs('second-scope-home', HOME, 'function dependencyWaves(memberIds, facts) {\n  waves.push(wave);\n}')).toBe(0)
+  })
+  it('不误报：调用主人、读结论、属性上的 push', () => {
+    expect(scanAs('second-scope-home', OUTSIDE, "const plan = planCanvasGenerationScope('group', ids, graph)")).toBe(0)
+    expect(scanAs('second-scope-home', OUTSIDE, 'const count = plan.waves.length')).toBe(0)
+    expect(scanAs('second-scope-home', OUTSIDE, 'state.plan.waves.push(extra)')).toBe(0)
+  })
+  it('不误报：注释里提到旧名字', () => {
+    expect(scanAs('second-scope-home', OUTSIDE, '// 原 buildDependencyWaves 已并进共用主人\nconst x = 1')).toBe(0)
+  })
+})

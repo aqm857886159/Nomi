@@ -23,7 +23,7 @@ vi.mock("./capabilityCore/rendererBridge", () => ({
  *     此前只在文本/AI-SDK 路径注入。→ 现在也透传进 HTTP 请求头。
  *
  * 用临时 settings 目录 + 明文 safeStorage mock 起一份真实 catalog（vendor+model，
- * 故意不建 mapping 以走 fallback），stub 全局 fetch 抓请求头/构造错误响应。
+ * 用最小真实 mapping 提供请求格式，禁止把验证元数据当请求格式），stub 全局 fetch 抓请求头/构造错误响应。
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -45,6 +45,7 @@ vi.mock("electron", () => ({
     getPath: () => mockedUserDataRoot,
     getAppPath: () => process.cwd(),
   },
+  BrowserWindow: { getAllWindows: () => [] },
   safeStorage: {
     isEncryptionAvailable: () => true,
     encryptString: (s: string) => Buffer.from(s),
@@ -75,7 +76,7 @@ afterEach(() => {
   }
 });
 
-// 建一个走 fallback 路径的 image 供应商：有 vendor + key + image model，但**没有 mapping**。
+// 建一份最小 OpenAI image 请求格式；模型别名与错误分类仍走真实运行出口。
 // extraHeaders 经 manual 表单存在 vendor.meta.extraHeaders（与生产同形）。
 async function seedFallbackImageVendor(): Promise<void> {
   store.upsertModelCatalogVendor({
@@ -87,6 +88,7 @@ async function seedFallbackImageVendor(): Promise<void> {
     meta: { extraHeaders: { "HTTP-Referer": "https://nomi.app", "X-Title": "Nomi" } },
   });
   store.upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-relay" });
+  store.upsertModelCatalogMapping({ vendorKey: "relay", taskKind: "text_to_image", name: "OpenAI image request", create: { method: "POST", path: "/images/generations", body: { model: "{{model.modelKey}}", prompt: "{{request.prompt}}" } } });
   store.upsertModelCatalogModel({
     vendorKey: "relay", modelKey: "some-image-model", kind: "image", enabled: true,
     meta: { adapter: { state: "verified", activeRevision: "fallback-certified", modes: [{ taskKind: "text_to_image", state: "verified" }] } },
@@ -94,7 +96,7 @@ async function seedFallbackImageVendor(): Promise<void> {
 }
 
 describe("runTask fallback 路径 — 线上模型名（2026-10-16）", () => {
-  it("无 mapping 的兜底报文：model 是连接名（别名优先），extras 里带的 model / 档案选择都盖不掉", async () => {
+  it("有实际请求格式的报文：model 是连接名（别名优先），extras 里带的 model / 档案选择都盖不掉", async () => {
     await seedFallbackImageVendor();
     // 撞档案身份的模型名 + 别名：档案里有 kie 拆分线上名，兜底报文也不许发它。
     store.upsertModelCatalogModel({

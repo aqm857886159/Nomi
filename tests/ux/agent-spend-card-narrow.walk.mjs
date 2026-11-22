@@ -24,7 +24,7 @@ import {
 } from './_spendCardWalk.mjs'
 import { COLLAPSED_DOCK, closeSpendCard, createRuntimeWalk, expandResidentPanel, openCanvas, recorded } from './agent-runtime-walk-support.mjs'
 
-const IMAGE = { providerId: 'apimart', modelId: 'gpt-image-2' }
+const IMAGE = 'gpt-image-2@apimart'
 const A = {
   collapse: 'board:NodePointer/pointer.narrow.collapse',
   back: 'board:NodePointer/pointer.narrow.back',
@@ -267,7 +267,7 @@ async function runRound(walk, win, { locale, scheme, round }) {
     shots: (tag) => [1, 2, 3].map((index) => ({
       title: zh ? `${tag} 纸船 ${index}` : `${tag} paper boat ${index}`,
       prompt: zh ? `${tag} 纸船第 ${index} 镜：雨后清晨，纸船顺着水流漂` : `${tag} paper boat shot ${index}: a rainy morning, the boat drifts downstream`,
-      taskKind: 'text_to_image', candidate: IMAGE,
+      taskKind: 'text_to_image', model: IMAGE,
     })),
   })
   const card = drafted.card

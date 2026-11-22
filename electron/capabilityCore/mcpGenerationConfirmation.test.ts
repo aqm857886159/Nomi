@@ -42,8 +42,14 @@ describe('one generation challenge, two confirmation surfaces', () => {
       invoke: vi.fn(async () => ({})),
       isAppOpen: () => true,
       getAuthenticatedClient: () => 'codex',
-      verifyClientGenerationConfirmation: vi.fn(async (_challenge, attestation) => attestation === 'attestation-1'),
-      confirmGenerationInNomi: vi.fn(async () => true),
+      // 主进程那边的替身：拿人的原话判，判成「是」才签收据（真实实现见 runOwnedGenerationGateAuthority）。
+      verifyClientGenerationConfirmation: vi.fn(async (_challenge, answer) => {
+        const said = answer as { action?: string; confirm?: unknown } | undefined
+        return said?.action === 'accept' && said.confirm === true
+          ? { confirmed: true, receiptId: 'receipt-client-1', receiptToken: 'token-client-1' }
+          : { confirmed: false }
+      }),
+      confirmGenerationInNomi: vi.fn(async () => ({ confirmed: true, receiptId: 'receipt-gui', receiptToken: 'token-gui' })),
     }
     const protocol = await initialized(transport)
     const resultPromise = protocol.requestGenerationConfirmation(challenge)
@@ -54,14 +60,16 @@ describe('one generation challenge, two confirmation surfaces', () => {
 
     await expect(resultPromise).resolves.toEqual({
       challengeId: 'challenge-1', confirmed: true, surface: 'client', nextAction: 'in_client',
+      receiptId: 'receipt-client-1', receiptToken: 'token-client-1',
     })
+    expect(transport.verifyClientGenerationConfirmation).toHaveBeenCalledWith(challenge, { action: 'accept', confirm: true })
     expect(transport.confirmGenerationInNomi).not.toHaveBeenCalled()
   })
 
   it('uses the same challenge in Nomi when the client cannot prove its registered channel', async () => {
     const confirmGenerationInNomi = vi.fn(async (received: GenerationGateChallengeProjection) => {
       expect(received).toBe(challenge)
-      return true
+      return { confirmed: true, receiptId: 'receipt-gui-1', receiptToken: 'token-gui-1' }
     })
     const frames: unknown[] = []
     const protocol = await initialized({
@@ -71,14 +79,15 @@ describe('one generation challenge, two confirmation surfaces', () => {
       confirmGenerationInNomi,
     })
 
-    await expect(protocol.requestGenerationConfirmation(challenge)).resolves.toEqual({
+    const approved = {
       challengeId: 'challenge-1', confirmed: true, surface: 'nomi', nextAction: 'in_nomi',
-    })
-    await expect(protocol.requestGenerationConfirmation(challenge)).resolves.toEqual({
-      challengeId: 'challenge-1', confirmed: true, surface: 'nomi', nextAction: 'in_nomi',
-    })
+      receiptId: 'receipt-gui-1', receiptToken: 'token-gui-1',
+    }
+    await expect(protocol.requestGenerationConfirmation(challenge)).resolves.toEqual(approved)
+    // 这条连接不再记住「确认过了」：再来一次就再交给主进程判（批了没用 → 再弹一次卡、交回同一张；用掉了 → 不签）。
+    await expect(protocol.requestGenerationConfirmation(challenge)).resolves.toEqual(approved)
     expect(frames.some((frame) => (frame as { method?: string }).method === 'elicitation/create')).toBe(false)
-    expect(confirmGenerationInNomi).toHaveBeenCalledTimes(1)
+    expect(confirmGenerationInNomi).toHaveBeenCalledTimes(2)
   })
 
   it('uses one GUI fallback card for a semantic challenge and returns its receipt', async () => {
@@ -99,7 +108,9 @@ describe('one generation challenge, two confirmation surfaces', () => {
     expect(confirmGenerationInNomi).toHaveBeenCalledTimes(1)
   })
 
-  it('accepts one registered client confirm:true on the outstanding challenge without opening Nomi', async () => {
+  // 2026-11-20：从前没有验证器、挑战又不要求客户端证明时，客户端光秃秃的「是」就地算数（不带收据）。
+  // 生产三个装配点都接了验证器，这条路只剩「谁也没批却算批准」——删掉，落到 Nomi 卡由主进程签。
+  it('a bare client confirm:true without a main-process verifier is not approval: it falls back to the Nomi card', async () => {
     const confirmGenerationInNomi = vi.fn(async () => ({ confirmed: true, receiptId: 'receipt-1' }))
     const frames: unknown[] = []
     const protocol = await initialized({
@@ -114,12 +125,9 @@ describe('one generation challenge, two confirmation surfaces', () => {
     const request = frames.find((frame) => (frame as { method?: string }).method === 'elicitation/create') as { id: string }
     protocol.handleIncoming({ jsonrpc: '2.0', id: request.id, result: { action: 'accept', content: { confirm: true } } })
     await expect(resultPromise).resolves.toEqual({
-      challengeId: 'challenge-1', confirmed: true, surface: 'client', nextAction: 'in_client',
+      challengeId: 'challenge-1', confirmed: true, surface: 'nomi', nextAction: 'in_nomi', receiptId: 'receipt-1',
     })
-    await expect(protocol.requestGenerationConfirmation(challenge)).resolves.toMatchObject({
-      challengeId: 'challenge-1', confirmed: true, surface: 'client', nextAction: 'in_client',
-    })
-    expect(confirmGenerationInNomi).not.toHaveBeenCalled()
+    expect(confirmGenerationInNomi).toHaveBeenCalledTimes(1)
   })
 
   it('does not downgrade an invalid optional attestation to client approval', async () => {
@@ -130,7 +138,7 @@ describe('one generation challenge, two confirmation surfaces', () => {
       invoke: vi.fn(async () => ({})),
       isAppOpen: () => true,
       getAuthenticatedClient: () => 'claude',
-      verifyClientGenerationConfirmation: vi.fn(async () => false),
+      verifyClientGenerationConfirmation: vi.fn(async () => ({ confirmed: false })),
       confirmGenerationInNomi,
     })
     const resultPromise = protocol.requestGenerationConfirmation(challenge)
@@ -157,8 +165,9 @@ describe('one generation challenge, two confirmation surfaces', () => {
 
   it('uses a registered client receipt channel for semantic generation challenges without a second GUI click', async () => {
     const frames: unknown[] = []
-    const verifyClientGenerationConfirmation = vi.fn(async (_challenge: GenerationGateChallengeProjection, attestation: unknown) => {
-      expect(attestation).toEqual('signed-client-attestation')
+    const verifyClientGenerationConfirmation = vi.fn(async (_challenge: GenerationGateChallengeProjection, answer: unknown) => {
+      // 交给主进程的是人的原话（action + 勾选），客户端自带的 attestation 字段不再往下传、也不作数。
+      expect(answer).toEqual({ action: 'accept', confirm: true })
       return { confirmed: true, receiptId: 'receipt-semantic-1', receiptToken: 'token-semantic-1' }
     })
     const confirmGenerationInNomi = vi.fn(async () => ({ confirmed: true, receiptId: 'receipt-gui' }))
@@ -331,7 +340,7 @@ describe('生产装配面：没有验证器时，客户端的同意换不来收�
   // 而内置 204 个模型一条价都没填。永不把「算不出」当 ¥0 摆出去这一条一个字没松（见下面两条）。
   it('asks with an honest unpriced message instead of refusing to ask at all', async () => {
     const frames: unknown[] = []
-    const confirmGenerationInNomi = vi.fn(async () => true)
+    const confirmGenerationInNomi = vi.fn(async () => ({ confirmed: true, receiptId: 'receipt-unpriced', receiptToken: 'token-unpriced' }))
     const transport: McpTransport = {
       send: (frame) => frames.push(frame),
       invoke: vi.fn(async () => ({})),

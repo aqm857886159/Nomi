@@ -3,6 +3,16 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-09-10-vendor-key-publish-class.root-cause.json",
+      "path": "electron/catalog/directKeyCredential.ts",
+      "symbol": "publishBuiltinCuratedVendor",
+      "anchor": {
+        "path": "electron/catalog/directKeyCredential.ts",
+        "symbol": "publishConfiguredVendor"
+      },
+      "reason": "2026-11-17 按已批准的未验证可用规则，保存凭据后的连接发布扩展到所有供应商。旧名字与实现同提交删除；连接启用与模型请求格式分开，模型仍由 deriveModelAvailability 判定。directKeyCredential.test.ts 和 unverifiedUsable.test.ts 守本次、缺格式和手动停用反例。"
+    },
+    {
       "contract": "docs/fixes/2026-09-28-channel-model-identity-merge.root-cause.json",
       "path": "electron/catalog/seedModelIdentity.ts",
       "symbol": "CANONICAL_MODEL_IDS",
@@ -670,6 +680,86 @@
         "symbol": "identityPatternsOf"
       },
       "reason": "2026-11-15 档案身份识别串不再生成表、提交进仓库，改成入口用时现算（docs/plan/2026-11-15-archetype-wire-defaults-runtime.md）：identityPatternsOf 从档案声明取 identifierPatterns + 各档 modelKey（去空去重保序），与原生成脚本同一条规则；匹配由 entry.ts 的 archetypeIdForModel 做，和 resolveModelArchetype 同一组三趟匹配函数。主干旧实现 vs 现算全目录 5817 组 0 差。不变量「每个识别串只属于一个档案」不变，由 electron/catalog/archetypeIdentity.test.ts 与 catalogFacts.test.ts 守。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-25-canvas-generate-ignores-production-shot.root-cause.json",
+      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "symbol": "eligibleGenerationNodeIds",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/runner/generationScopeFacts.ts",
+        "symbol": "planCanvasGenerationScope"
+      },
+      "reason": "2026-11-17 「生成这一组」的范围只在共用主人 electron/shared/agentCapabilities/generationShotScope.ts 里算（docs/plan/2026-11-17-generation-scope-one-home.md）：eligibleGenerationNodeIds 删除，画布入口改问 planCanvasGenerationScope——它把节点和生产运行翻成事实（isGenerationNodeBusy 读同一份 runs），主人对 busy 的行一律灰着不进成员。不变量「生产运行还占着的镜头，画布批量入口不再发一次」不变，由 src/workbench/production/productionShotOwnership.test.ts（运行中排除、已停保留）守。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-08-credential-offline-visible.root-cause.json",
+      "path": "electron/ai/onboarding/vendorHealth.ts",
+      "symbol": "resolveTarget",
+      "anchor": {
+        "path": "electron/ai/onboarding/catalogReconciliation.ts",
+        "symbol": "resolveTarget"
+      },
+      "reason": "2026-11-18 健康探测整段删除（D-1117-delete-verification，协调 Q5），文件只剩后台拉模型清单那一半，改名 catalogReconciliation.ts，resolveTarget 原样在位。不变量「不拿已禁用的凭据发请求」不变、而且更硬：它改用启用门控的 decryptApiKeyRecord，已禁用的凭据读不出明文；由 catalogReconciliation.test.ts「不该发的不发」一组守。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-24-comfyui-combo-wire-type.root-cause.json",
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "declaredOptionValue",
+      "anchor": {
+        "path": "electron/shared/videoCapabilities/paramValue.ts",
+        "symbol": "declaredOptionValue"
+      },
+      "reason": "2026-11-17 参数值只在门口规整一次（docs/plan/2026-11-17-param-value-type.md）：「下拉选中的字符串换回选项声明的值」这条规则连同 parseControlInput 一起搬进参数值的唯一住处 paramValue.ts，判法不变（选项都是标量，逐个转成显示串和选中的串比）；画布控件和 ComfyUI 导入预览都改从这里引。不变量「选中 '8' 发回声明的 8，声明是字符串就发字符串」不变，由 electron/shared/videoCapabilities/paramValue.test.ts 与 src/ui/onboarding/comfyuiCanvasPreview.test.ts 守。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-29-failure-reason-from-upstream-evidence.root-cause.json",
+      "path": "src/workbench/observability/narrate.ts",
+      "symbol": "narrateIsVendorSideFailure",
+      "anchor": {
+        "path": "electron/shared/generationFailureKinds.ts",
+        "symbol": "isVendorSideKind"
+      },
+      "reason": "2026-11-18 失败判定收成一处（docs/engineering/direction-checks/2026-11-18-failure-classify-one-home.md）：「每一类声明它是不是服务商那一侧」的穷举表连同判据搬进共享叶子 electron/shared/generationFailure，界面层不再带这张表；不变量（点名供应商的界面只在 vendorSide 为 true 时才有资格）不变，仍由 classifyGenerationError.test.ts 与五出口对拍表守。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-11-mcp-onboarding-defects.root-cause.json",
+      "path": "electron/capabilityCore/mcpToolErrorResults.ts",
+      "symbol": "ERROR_HINT / POLICY_CODES / buildToolErrorOutcome",
+      "anchor": {
+        "path": "electron/shared/generationFailureWire.ts",
+        "symbol": "confirmPublicError"
+      },
+      "reason": "2026-11-18 失败判定收成一处（docs/engineering/direction-checks/2026-11-18-failure-classify-one-home.md）：外部助手的「哪些码算公开码（POLICY_CODES）」与人话表（原 ERROR_HINT，现 generationFailureCopy.TOOL_ERROR_HINT）搬进共享叶子，确证码只在 confirmPublicError 判一次；buildToolErrorOutcome 仍留在原处，只做外部助手受众的投影，签名与 outcome 形状不变。不变量（外部助手只认确证的码、未知码原样透传）仍由 mcpToolResults.test.ts 与五出口对拍表守。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-01-tikhub-connector-ingest-boundary.root-cause.json",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "sanitizeSourceEvidence",
+      "anchor": {
+        "path": "electron/assets/assetSourceEvidence.ts",
+        "symbol": "finalizeAssetMeta"
+      },
+      "reason": "2026-11-21 素材来源收成主进程素材库一处判定：来源清洗原样搬进 electron/assets/assetSourceEvidence.ts，成为 finalizeAssetMeta 的私有步骤；finalizeAssetMeta 是每次写 sidecar 前的唯一一道（writeAsset / storeAssetBytes / copyAssetFileByMeta / moveAssetFile / 生成两步发布都过它）。「来源只经一处清洗、白名单字段、按来源类别定 usageStatus、清洗不出就不落」的不变量不变，由 electron/assets/assetSourceEvidence.test.ts 与入口对拍表 electron/assets/assetSourceExits.parity.test.ts 守；渲染层载荷里的来源一律不读（R7）。rightsStatus 迁移分支删掉：没有任何发布版本写过这个字段。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-03-asset-source-evidence-v2.root-cause.json",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "sanitizeSourceEvidence",
+      "anchor": {
+        "path": "electron/assets/assetSourceEvidence.ts",
+        "symbol": "finalizeAssetMeta"
+      },
+      "reason": "2026-11-21 素材来源收成主进程素材库一处判定：来源清洗原样搬进 electron/assets/assetSourceEvidence.ts，成为 finalizeAssetMeta 的私有步骤；finalizeAssetMeta 是每次写 sidecar 前的唯一一道（writeAsset / storeAssetBytes / copyAssetFileByMeta / moveAssetFile / 生成两步发布都过它）。「来源只经一处清洗、白名单字段、按来源类别定 usageStatus、清洗不出就不落」的不变量不变，由 electron/assets/assetSourceEvidence.test.ts 与入口对拍表 electron/assets/assetSourceExits.parity.test.ts 守；渲染层载荷里的来源一律不读（R7）。rightsStatus 迁移分支删掉：没有任何发布版本写过这个字段。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-03-asset-store-vocab-single-source.root-cause.json",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "sanitizeSourceEvidence",
+      "anchor": {
+        "path": "electron/assets/assetSourceEvidence.ts",
+        "symbol": "finalizeAssetMeta"
+      },
+      "reason": "2026-11-21 素材来源收成主进程素材库一处判定：来源清洗原样搬进 electron/assets/assetSourceEvidence.ts，成为 finalizeAssetMeta 的私有步骤；finalizeAssetMeta 是每次写 sidecar 前的唯一一道（writeAsset / storeAssetBytes / copyAssetFileByMeta / moveAssetFile / 生成两步发布都过它）。「来源只经一处清洗、白名单字段、按来源类别定 usageStatus、清洗不出就不落」的不变量不变，由 electron/assets/assetSourceEvidence.test.ts 与入口对拍表 electron/assets/assetSourceExits.parity.test.ts 守；渲染层载荷里的来源一律不读（R7）。rightsStatus 迁移分支删掉：没有任何发布版本写过这个字段。"
     }
   ],
   "retirements": [
@@ -1158,6 +1248,30 @@
       "path": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
       "symbol": "variantChipClass",
       "reason": "2026-11-14 底栏的「变体」格整个删除，变体并进模型菜单里的行（样张 ModeBar model.menu）：底栏只剩模型这一枚身份 chip，「短枚举 chip 不收缩、只有模型 chip 让宽」这条不变量里「变体 chip」那半条不再有对象，同提交删掉 variantChipClass；模型 chip 让宽仍由 modelChipClass 一处说了算。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-03-mcp-remaining-holes.root-cause.json",
+      "path": "src/ui/onboarding/useVendorHealth.ts",
+      "symbol": "useVendorHealth and invalidateVendorHealthSnapshots",
+      "reason": "2026-11-18 用户拍板删掉验证整段（D-1117-delete-verification，方向复核 docs/engineering/direction-checks/2026-11-17-availability-r2.md）：打开面板探一次的「连接健康」随之整套删除，渲染层不再有健康快照，也就没有要失效的缓存。模型 / 连接显示成什么只从 electron/shared/modelStatusPresentation.ts 一处出，「同一连接两个答案」的形状结构上没了。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-09-credential-validate-before-save.root-cause.json",
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "revalidatePendingCredential",
+      "reason": "D-1117-delete-verification 删掉「待验证」这一档：保存时只剩「明确 401 / 403 不存、旧 key 留着」这一道门（validateCandidateCredential 本身在位，仍是这份合同保存前判 key 的主人），没有挂起的凭据要事后复验，复验入口同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-11-self-check-must-never-demote.root-cause.json",
+      "path": "electron/providerAdapter/selfCheck.ts",
+      "symbol": "probeAdapterCredential",
+      "reason": "D-1117-delete-verification（协调 2026-11-18 Q3）删掉格式任务里的凭据自检：格式检查只看说明卡形状、零网络，不再拿 key 去探鉴权。这份合同「自检永不降级已可用模型」的不变量由「根本没有自检请求」结构性满足，探测函数同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-02-experience-learning-loop.root-cause.json",
+      "path": "electron/memory/projectMemory.ts",
+      "symbol": "distillEvent",
+      "reason": "D-1122-project-memory-delete（用户 2026-11-22「删干净就好」）整份删掉项目记忆模块：看不见、删不掉的状态不再影响 Agent 回答。这份合同里「绿色事实进现有记忆投影」这一条不再适用——经验候选照旧由 experienceRepository 写进事件日志，只是不再有投影把它们拼进系统提示；其余不变量（显式信封、证据完整才可复用、幂等重放）的主人都在 electron/experience/ 下，不受影响。"
     }
   ],
   "unverified": [
@@ -1207,7 +1321,7 @@
       "contract": "docs/fixes/2026-09-10-apimart-direct-key-publish.root-cause.json",
       "path": "electron/catalog/directKeyCredential.ts",
       "symbol": "probeDirectKeyCredential + promoteDirectKeyVendor",
-      "note": "promoteDirectKeyVendor 已不在；同文件有 publishBuiltinCuratedVendor 疑为后继，未核实直连钥匙发布路径是否等价。probeDirectKeyCredential 仍在原位。"
+      "note": "promoteDirectKeyVendor 已不在；同文件的 publishConfiguredVendor 是后继（2026-11-17 起保存凭据后的连接发布对所有供应商生效），未核实直连钥匙发布路径是否逐项等价。probeDirectKeyCredential 仍在原位。"
     },
     {
       "contract": "docs/fixes/2026-09-11-ponytail-timeout-starvation.root-cause.json",

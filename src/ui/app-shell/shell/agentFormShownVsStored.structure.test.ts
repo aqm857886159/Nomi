@@ -56,18 +56,19 @@ describe('Nomi 形态：人选的 / 此刻显示的 / 算出来的分开放', ()
     expect(hits, '此刻显示什么只问 shownForm / useShownForm；要改就调动作').toEqual([])
   })
 
-  it('人的动作只在外壳和「回到对话」里调；机器让位只在挑参考图、指向节点这两处机器流程里调', () => {
+  it('人的动作只在外壳、顶栏 Nomi 入口和「回到对话」里调；机器让位只在挑参考图、指向节点这两处机器流程里调', () => {
     const callers = (pattern: RegExp): string[] => production.filter(({ file, text }) => !owners.has(file) && pattern.test(text)).map(({ file }) => file).sort()
-    expect(callers(/\b(collapseAgent|chooseAgentPlacement)\s*\(/)).toEqual(['src/ui/app-shell/shell/ShellAgentHost.tsx'])
+    // 顶栏 Nomi 入口（NomiEntryTopbar 板 nomi-entry）是人点的开 / 收：开着点 = collapseAgent，收着点 = openAgent。
+    expect(callers(/\b(collapseAgent|chooseAgentPlacement)\s*\(/)).toEqual(['src/ui/app-shell/shell/ShellAgentHost.tsx', 'src/ui/app-shell/shell/useNomiEntry.ts'])
     // 「回到对话」是人点的 = 打开这一页的 Nomi（协调 2026-11-15），不是撤掉机器让位。
-    expect(callers(/\bopenAgent\s*\(/)).toEqual(['src/ui/app-shell/shell/ShellAgentHost.tsx', 'src/workbench/ai/pointer/revealNodeFromChat.ts'])
+    expect(callers(/\bopenAgent\s*\(/)).toEqual(['src/ui/app-shell/shell/ShellAgentHost.tsx', 'src/ui/app-shell/shell/useNomiEntry.ts', 'src/workbench/ai/pointer/revealNodeFromChat.ts'])
     expect(callers(/\bmachineHold\s*\(/)).toEqual(['src/workbench/ai/ProjectAgentResidentShell.tsx', 'src/workbench/ai/pointer/revealNodeFromChat.ts'])
     // 挑参考图是机器把对话摆出来（只写此刻那份），不是替人点开。
     expect(textOf('src/workbench/ai/ProjectAgentResidentShell.tsx')).toMatch(/machineHold\(\s*'generation',\s*'open'\s*\)/)
     const reveal = textOf('src/workbench/ai/pointer/revealNodeFromChat.ts')
-    // 让成小球的机器让位全仓只此一处，紧跟在记下回到哪之后：「让开成小球」和「回到哪」总是一起出现。
+    // 让开（收起面板）的机器让位全仓只此一处，紧跟在记下回到哪之后：「让开」和「回到哪」总是一起出现。
     expect(reveal.match(/machineHold\(/g)).toHaveLength(1)
-    expect(reveal).toMatch(/setReturnTo\(target\)\s*\n\s*machineHold\(target\.surface,\s*'ball'\)/)
+    expect(reveal).toMatch(/setReturnTo\(target\)\s*\n\s*machineHold\(target\.surface,\s*'collapsed'\)/)
     const returnToChat = reveal.slice(reveal.indexOf('export function returnToChat'))
     expect(returnToChat).toMatch(/openAgent\(target\.surface\)/)
   })

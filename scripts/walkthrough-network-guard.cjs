@@ -1,8 +1,8 @@
 // 走查专用的主进程网络闸：只放行本机（loopback / file / data / nomi-local），其余一律拦下并记账。
 //
 // 为什么要它：走查要证明「零供应商调用」，而 App 启动时自己就会出门——catalogReconcile 会对每个
-// 有钥匙、有文本模型的供应商做一次健康探测（vendorHealth.startCatalogReconciliation）。夹具里的钥匙
-// 是占位串，探测本身免费，但「免费」不等于「没有调用」。所以不靠推理，而是在进程入口把门关上：
+// 有钥匙、有文本模型的供应商拉一次模型清单（catalogReconciliation.startCatalogReconciliation）。夹具里的钥匙
+// 是占位串，拉清单本身免费，但「免费」不等于「没有调用」。所以不靠推理，而是在进程入口把门关上：
 // 本文件由启动器的 mainRequire 作为 `-r` 放在 App 入口之前加载，在 App 代码加载之前把门换掉，
 // 并把每一次被拦下的尝试写进 NOMI_WALK_NET_LOG，走查结束时逐条列出。
 //
@@ -117,6 +117,7 @@ function callerStack() {
  */
 const RECORD_BODIES = process.env.NOMI_WALK_NET_BODIES === '1'
 const BODY_LIMIT = 64 * 1024
+const RESPONSE_SNIPPET_LIMIT = 4096
 let recordSeq = 0
 
 function describeBody(body) {
@@ -139,19 +140,107 @@ function describeBody(body) {
   return { type: Object.prototype.toString.call(body) }
 }
 
-function recordAllowed(target, init, responsePromise) {
-  if (!RECORD_BODIES || !/^https?:/i.test(String(target)) || isLocalHost(hostOf(target))) return responsePromise
+/** 从克隆响应里最多读 limit 字节前缀并立即取消剩余流（避免大响应双份缓冲），先过脱敏再截断。 */
+async function readScrubbedPrefix(clonedResponse, limit = RESPONSE_SNIPPET_LIMIT) {
+  if (!clonedResponse) return ''
+  const maxRawBytes = limit * 2
+  if (clonedResponse.body && typeof clonedResponse.body.getReader === 'function') {
+    const reader = clonedResponse.body.getReader()
+    const chunks = []
+    let total = 0
+    try {
+      while (total < maxRawBytes) {
+        const { done, value } = await reader.read()
+        if (done || !value) break
+        const slice = total + value.byteLength > maxRawBytes ? value.subarray(0, maxRawBytes - total) : value
+        chunks.push(Buffer.from(slice))
+        total += slice.byteLength
+        if (total >= maxRawBytes) break
+      }
+    } finally {
+      await reader.cancel().catch(() => undefined)
+    }
+    return scrubUrlText(Buffer.concat(chunks).toString('utf8')).slice(0, limit)
+  }
+  const text = await clonedResponse.text()
+  return scrubUrlText(text).slice(0, limit)
+}
+
+/** 200 JSON 是否携带错误信封（只做结构识别：语义归类唯一归产品 decideGenerationFailure）。 */
+function hasJsonErrorEnvelope(text) {
+  try {
+    const parsed = JSON.parse(String(text || '').trim())
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false
+    if (parsed.error || parsed.errors || parsed.errorMessage || parsed.error_description) return true
+    if (parsed.errorCode !== undefined && String(parsed.errorCode) !== '' && String(parsed.errorCode) !== '0') return true
+    if (parsed.code !== undefined && parsed.code !== null && parsed.code !== '') {
+      const num = Number(parsed.code)
+      if (Number.isFinite(num) ? num !== 0 && num !== 200 : !['ok', 'success'].includes(String(parsed.code).toLowerCase())) return true
+    }
+    const data = parsed.data
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      if (data.error || data.status === 'failed' || data.status === 'error') return true
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
+/** 200 SSE 流里若出现错误事件帧（event: error / type: error / response.failed），记一笔脱敏后的 allowed-response。 */
+function observeSseErrorFrame(clonedResponse, meta) {
+  if (!clonedResponse || !clonedResponse.body || typeof clonedResponse.body.getReader !== 'function') return
+  void (async () => {
+    const reader = clonedResponse.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let total = 0
+    try {
+      while (total < BODY_LIMIT) {
+        const { done, value } = await reader.read()
+        if (done || !value) break
+        total += value.byteLength
+        buffer += decoder.decode(value, { stream: true })
+        if (/"type"\s*:\s*"(?:error|response\.failed)"|^event:\s*error\b|"error"\s*:\s*\{/m.test(buffer)) {
+          note({ kind: 'allowed-response', via: 'fetch', ...meta, text: scrubUrlText(buffer).slice(0, RESPONSE_SNIPPET_LIMIT) })
+          break
+        }
+      }
+    } catch {
+      // 流读取异常不影响被测 App。
+    } finally {
+      await reader.cancel().catch(() => undefined)
+    }
+  })()
+}
+
+function recordAllowed(target, input, init, responsePromise) {
+  if (!/^https?:/i.test(String(target)) || isLocalHost(hostOf(target))) return responsePromise
   recordSeq += 1
   const seq = recordSeq
-  const body = describeBody(init && init.body)
-  note({ kind: 'allowed-request', via: 'fetch', seq, method: String((init && init.method) || 'GET').toUpperCase(), url: redact(target), host: hostOf(target), body })
-  if (!body || !body.form) return responsePromise
-  return responsePromise.then((response) => {
+  const method = String((init && init.method) || (input && typeof input === 'object' && input.method) || 'GET').toUpperCase()
+  const url = redact(target)
+  const host = hostOf(target)
+  const body = RECORD_BODIES ? describeBody(init && init.body) : null
+  if (RECORD_BODIES) {
+    note({ kind: 'allowed-request', via: 'fetch', seq, method, url, host, body })
+  }
+  const isMultipartUpload = Boolean(RECORD_BODIES && body && body.form)
+  return responsePromise.then(async (response) => {
     try {
-      response.clone().text().then((text) => {
-        const scrubbed = scrubUrlText(text)
-        note({ kind: 'allowed-response', via: 'fetch', seq, status: response.status, text: scrubbed.slice(0, 4096) })
-      }, () => {})
+      const contentType = String((response.headers && response.headers.get && response.headers.get('content-type')) || '')
+      const isBinaryMedia = /octet-stream|image\/|video\/|audio\//i.test(contentType)
+      if (!response.ok || isMultipartUpload) {
+        const text = await readScrubbedPrefix(response.clone(), RESPONSE_SNIPPET_LIMIT)
+        note({ kind: 'allowed-response', via: 'fetch', seq, method, url, host, status: response.status, text })
+      } else if (!isBinaryMedia && /json/i.test(contentType)) {
+        const text = await readScrubbedPrefix(response.clone(), RESPONSE_SNIPPET_LIMIT)
+        if (hasJsonErrorEnvelope(text)) {
+          note({ kind: 'allowed-response', via: 'fetch', seq, method, url, host, status: response.status, text })
+        }
+      } else if (/text\/event-stream/i.test(contentType)) {
+        observeSseErrorFrame(response.clone(), { seq, method, url, host, status: response.status })
+      }
     } catch {
       // 读不了响应不影响被测 App。
     }
@@ -210,7 +299,7 @@ if (typeof realFetch === 'function') {
       )
       return Promise.reject(Object.assign(new TypeError('fetch failed (blocked by walkthrough network guard)'), { cause }))
     }
-    return holdResponse(target, init, recordAllowed(target, init, realFetch.call(this, input, init)))
+    return holdResponse(target, init, recordAllowed(target, input, init, realFetch.call(this, input, init)))
   }
   layers.push('fetch')
 }

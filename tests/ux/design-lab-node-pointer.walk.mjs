@@ -1,6 +1,7 @@
 // 设计实验室 · 指向元素（NodePointer 板，2026-10-23 D2 第②步）走查。零额度：纯本地渲染。
 // 每一格截图（中英、光暗）+ 下面这些板断言。断言名就是 NodePointer.board.json 里各元素的 `assertion`（check:board-parity R4）。
 // 真画布那一头（投影 → 外壳上的 data-external-highlight、闪完清掉）由 canvas-focus-composer-visible.walk.mjs 在真 Electron 里钉。
+import { expect } from '@playwright/test'
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
 import { uiText, uiTextPattern } from './full-walk/invariants.mjs'
 
@@ -200,7 +201,7 @@ async function expectNodePointerState(page, state, record) {
         else await rowsMore.click()
         const rows = await faces(page, '[data-node-pointer-group="row"]')
         if (rows.length !== 6) record(`${state.id} ${A.row}: 展开后列表行应有 6 行，实际 ${rows.length}`)
-        if (!(await page.locator(`${pointer('np-done')}[data-node-pointer="row"] [data-node-pointer-located]`).count())) record(`${state.id} ${A.located}: 点过的那一行没标「已定位」`)
+        if (!(await expect(page.locator(`${pointer('np-done')}[data-node-pointer="row"] [data-node-pointer-located]`).first()).toBeVisible().then(() => true, () => false))) record(`${state.id} ${A.located}: 点过的那一行没标「已定位」`)
         const chips = page.locator('[data-node-pointer="chip"]')
         if (await chips.count() < 7) record(`${state.id} ${A.chip}: 句中小标签数量不对：${await chips.count()}`)
         await page.locator('[data-node-pointer-group="chip"] [data-node-pointer-more="2"]').click()
@@ -229,15 +230,15 @@ async function expectNodePointerState(page, state, record) {
         for (const id of ['np-draft-1', 'np-draft-2', 'np-draft-3', 'np-control']) {
           if (await page.locator(`[data-lab-canvas-node="${id}"]`).count() !== 2) record(`${state.id} ${A.canvasHighlight}: 上下两半都应有 ${id} 画布节点外壳`)
         }
-        if (!(await page.locator(`[data-lab-hover="p1"] ${pointer('np-draft-2')}[data-node-pointer-hot="true"]`).count())) record(`${state.id} ${A.hoverLink}: 悬停的 P1 没有亮`)
-        if (!(await page.locator(`[data-lab-hover="p2"] ${pointer('np-draft-2')}[data-node-pointer-hot="true"]`).count())) record(`${state.id} ${A.row}: 悬停的 P2 行没有亮`)
+        if (!(await expect(page.locator(`[data-lab-hover="p1"] ${pointer('np-draft-2')}[data-node-pointer-hot="true"]`).first()).toBeVisible().then(() => true, () => false))) record(`${state.id} ${A.hoverLink}: 悬停的 P1 没有亮`)
+        if (!(await expect(page.locator(`[data-lab-hover="p2"] ${pointer('np-draft-2')}[data-node-pointer-hot="true"]`).first()).toBeVisible().then(() => true, () => false))) record(`${state.id} ${A.row}: 悬停的 P2 行没有亮`)
         const lit = await page.locator('[data-external-highlight]').evaluateAll((list) => list.map((el) => [el.closest('[data-lab-canvas-node]')?.getAttribute('data-lab-canvas-node'), el.getAttribute('data-external-highlight')]))
         if (!lit.some(([id, kind]) => id === 'np-draft-2' && kind === 'hover') || lit.some(([id]) => id !== 'np-draft-2')) record(`${state.id} ${A.canvasHighlight}: 画布上亮的不是镜 02 一个：${JSON.stringify(lit)}`)
         if (await page.locator('[data-lab-canvas-node="np-control"] [data-external-highlight]').count()) record(`${state.id} ${A.canvasHighlight}: 对照节点 np-control 不应被悬停联动点亮`)
         await assertLinkBoardLayout(page, state, record)
         const shadow = await page.locator('[data-lab-canvas-node="np-draft-2"] [data-external-highlight="hover"]').first().evaluate((el) => getComputedStyle(el).boxShadow)
         if (!shadow || shadow === 'none') record(`${state.id} ${A.canvasHighlight}: 悬停没有深色细线 + 阴影`)
-        if (!(await page.locator('[data-node-pointer-hover-summary]').count())) record(`${state.id} ${A.hoverLink}: 组下方没显示被悬停那一镜的摘要`)
+        if (!(await expect(page.locator('[data-node-pointer-hover-summary]').first()).toBeVisible().then(() => true, () => false))) record(`${state.id} ${A.hoverLink}: 组下方没显示被悬停那一镜的摘要`)
         // 摘要行现算（V-d2-pointer 偏差 8）：实验室里自动悬停发生在模型目录载完之前，摘要仍要带上模型名。
         const hoverSummary = await page.locator('[data-node-pointer-hover-summary]').first().textContent()
         if (!/Seedance/.test(hoverSummary ?? '')) record(`${state.id} ${A.hoverLink}: 悬停摘要行缺模型名：「${hoverSummary}」`)
@@ -253,7 +254,7 @@ async function expectNodePointerState(page, state, record) {
           if (await page.locator(`[data-lab-canvas-node="${id}"] [data-external-highlight="flash"]`).count()) record(`${state.id} ${A.canvasHighlight}: ${id} 不应闪一下`)
         }
         await assertLinkBoardLayout(page, state, record)
-        if (await page.locator(`[data-lab-hover="p1"] ${pointer('np-draft-2')} [data-node-pointer-located]`).count() !== 1) record(`${state.id} ${A.located}: P1 那一项没标「已定位」`)
+        if (!(await expect(page.locator(`[data-lab-hover="p1"] ${pointer('np-draft-2')} [data-node-pointer-located]`)).toHaveCount(1).then(() => true, () => false))) record(`${state.id} ${A.located}: P1 那一项没标「已定位」`)
         await noAccentOutline(page, state, record)
         break
       }
@@ -275,8 +276,8 @@ async function expectNodePointerState(page, state, record) {
           if (locale === 'en' ? action.split(/\s+/).filter(Boolean).length > 2 : [...action].length > 4) record(`${state.id} ${A.narrowBack}: 「回到对话」可见文字超出 §1.8 规则 3（中文 ≤4 字 / 英文 ≤2 词）：「${item.text}」`)
           if (!item.name.endsWith(fullName) || item.name !== item.title) record(`${state.id} ${A.narrowBack}: 读屏名 / 悬停名应写全「${fullName}」：${item.name} / ${item.title}`)
         }
-        if (!(await page.locator('[data-external-highlight="flash"]').count())) record(`${state.id} ${A.narrowCollapse}: 收起后画布目标没有闪一下`)
-        if (!(await page.locator('[data-agent-ball]').count())) record(`${state.id} ${A.narrowCollapse}: 收起后的小球没画出来`)
+        if (!(await expect(page.locator('[data-external-highlight="flash"]').first()).toBeVisible().then(() => true, () => false))) record(`${state.id} ${A.narrowCollapse}: 收起后画布目标没有闪一下`)
+        if (!(await expect(page.locator('[data-shell-nomi-entry]').first()).toBeVisible().then(() => true, () => false))) record(`${state.id} ${A.narrowCollapse}: 收起后的顶栏 Nomi 入口没画出来`)
         // Esc 也回到对话：「回到对话」那一颗消失（机器让位结束，对话回到让开前的样子；人存的形态从没被改过）。
         await page.keyboard.press('Escape')
         await back.first().waitFor({ state: 'detached', timeout: 3000 }).catch(() => record(`${state.id} ${A.narrowBack}: Esc 没有回到对话`))

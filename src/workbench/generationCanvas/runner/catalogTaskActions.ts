@@ -58,8 +58,8 @@ import {
   type PhaseClock,
   type PhaseWaitGuard,
 } from './generationPhaseDeadline'
-import { parseVendorErrorFromMessage } from './vendorErrorIpc'
-import { collectLocalAssetUrls } from '../../../../electron/catalog/assetLocalization'
+import { parseVendorErrorFromMessage } from '../../../../electron/shared/generationFailure'
+import { collectLocalAssetUrls } from './referenceUrl'
 import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
 import { GENERIC_REFERENCE_KEYS } from '../../../../electron/shared/modelArchetypes/referenceKeys'
 import { effectiveModeParams } from '../../../../electron/shared/modelArchetypes/modeParams'
@@ -144,7 +144,7 @@ export function resolvePollBudget(kind: TaskKind, vendor: string): { softMs: num
  * 拉长立刻被察觉成「慢了」。对所有 vendor 生效——礼貌轮询不是给某一家开的小灶。
  *
  * 无头/MCP 那条循环在主进程（electron/capabilityCore/core.ts），跨进程边界 import 不到这里，
- * 那边是**配对常量、改一处必改另一处**（同 vendorErrorIpc 的 MARKER 约定）。
+ * 那边是**配对常量、改一处必改另一处**（同 vendorFailure 的 MARKER 约定）。
  */
 export function resolvePollIntervalMs(kind: TaskKind, vendor: string): number {
   return isSlowLaneBackend(kind, vendor) ? 3000 : 1500
@@ -383,7 +383,6 @@ export function buildCatalogTaskRequest(
     modelAlias: asTrimmedString(meta.modelAlias) || modelKey,
     nodeId: node.id,
     nodeKind: node.kind,
-    ...(options.anonymousAssetHostingConsent ? { anonymousAssetHostingConsent: options.anonymousAssetHostingConsent } : {}),
     // 提交幂等键：随 extras 下到主进程 runTask，同键提交内核 at-most-once（堵「丢回执→重试→二次下单」）。
     ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
     // S8 缓存语义:节点血统里已出过图(result 或 history,含「基于此重生成」副本)→
@@ -421,11 +420,11 @@ export function buildCatalogTaskRequest(
  * 单镜 Run 路的「交」：与 runWorkbenchTaskByVendor 同形，主进程按这一次运行记录号建 / 认这个 Run。
  * 批量卡上的这一镜在轮到它之前被去掉 / 整批 × 了（主进程回 `canvas_generation_withdrawn`）：没交、没花钱，按取消收尾。
  */
-function canvasRunSubmitter(nodeId: string, runRecordId: string, acknowledgedOpenRuns?: string[]): NonNullable<CatalogTaskRunOptions['runTask']> {
+function canvasRunSubmitter(nodeId: string, runRecordId: string, resendDecisionId?: string): NonNullable<CatalogTaskRunOptions['runTask']> {
   return async (vendor, request, projectId) => {
     if (!projectId) throw new Error('canvas generation requires a project')
     try {
-      return await submitCanvasShotRun({ projectId, nodeId, runRecordId, vendor, request, ...(acknowledgedOpenRuns ? { acknowledgedOpenRuns } : {}) })
+      return await submitCanvasShotRun({ projectId, nodeId, runRecordId, vendor, request, ...(resendDecisionId ? { resendDecisionId } : {}) })
     } catch (error) {
       if (String(error instanceof Error ? error.message : error).includes('canvas_generation_withdrawn')) throw new LocalTaskCancelledError()
       throw error
@@ -626,7 +625,7 @@ async function runCatalogGenerationTaskWithFeedback(
     return normalizeCatalogTaskResults(streamed, executableNode, options.onMediaDimensions)
   }
 
-  const runTask = options.runTask || (options.canvasRun ? canvasRunSubmitter(executableNode.id, options.canvasRun.runRecordId, options.canvasRun.acknowledgedOpenRuns) : runWorkbenchTaskByVendor)
+  const runTask = options.runTask || (options.canvasRun ? canvasRunSubmitter(executableNode.id, options.canvasRun.runRecordId, options.canvasRun.resendDecisionId) : runWorkbenchTaskByVendor)
   report('requesting')
   // ComfyUI 新协议允许客户端预生成 prompt UUID。先登记 WS、再 POST /prompt，极快任务的首事件也有归属；
   // 旧服若忽略该 UUID 并返回另一个 id，下方会切换 watcher，history 轮询始终照常兜底。

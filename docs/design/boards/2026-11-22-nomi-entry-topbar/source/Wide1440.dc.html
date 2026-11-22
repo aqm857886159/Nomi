@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>顶栏 1440 英文深色</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1488px; height: 460px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px; background: oklch(0.18 0.006 80); color: oklch(0.93 0.006 85); font-family: Inter, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600">1440 宽 · 英文 · 深色（宽窗不挤，分段一直居中）</h1>
+<p style="margin: 0; font-size: 13px; line-height: 20px; color: oklch(0.70 0.006 85)">宽窗下「新版本」是带字的胶囊、「Export MP4」带字，入口照样在最右。面板停靠时入口是按下的底色。</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.70 0.006 85)"><b style="font-weight: 600; color: oklch(0.93 0.006 85)">今天 · 创作</b>　面板停靠在右边；收起后变成内容区右下角的小球，顶栏里没有 Nomi</p>
+<div style="width: 1440px; height: 40px; outline: 1px solid oklch(0.36 0.007 80)">
+<dc-import name="TopBar" lang="en" theme="dark" page="create" width="1440" entry="none" hint-size="1440px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.70 0.006 85)"><b style="font-weight: 600; color: oklch(0.93 0.006 85)">改后 · 创作 · 面板开着</b>　按下底色 + 角标 2（面板开着不出胶囊，悬停「Collapse panel (⌘\) · 2 waiting for you」）；Nomi 在做；有新版本，3 个任务在跑</p>
+<div style="width: 1440px; height: 40px; outline: 1px solid oklch(0.36 0.007 80)">
+<dc-import name="TopBar" lang="en" theme="dark" page="create" width="1440" face="running" pending="2" tasks="3" update="true" entry-state="open" hint-size="1440px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.70 0.006 85)"><b style="font-weight: 600; color: oklch(0.93 0.006 85)">改后 · 生成 · 面板收起</b>　有新消息</p>
+<div style="width: 1440px; height: 40px; outline: 1px solid oklch(0.36 0.007 80)">
+<dc-import name="TopBar" lang="en" theme="dark" page="generate" width="1440" face="unread" hint-size="1440px,40px"></dc-import>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: oklch(0.70 0.006 85)"><b style="font-weight: 600; color: oklch(0.93 0.006 85)">改后 · 预览 · 面板收起</b>　刚做完；「Export MP4」带字</p>
+<div style="width: 1440px; height: 40px; outline: 1px solid oklch(0.36 0.007 80)">
+<dc-import name="TopBar" lang="en" theme="dark" page="preview" width="1440" face="done" hint-size="1440px,40px"></dc-import>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1488,"height":460}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

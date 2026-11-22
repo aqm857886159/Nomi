@@ -118,7 +118,7 @@ describe('反馈包里的模型目录', () => {
   it('密钥记录只留事实：材料、自定义配置的名字、自定义头的名字都不要', () => {
     const records = project(plantedCatalog)?.apiKeysByVendor as Record<string, Row>
     expect(Object.keys(records).sort()).toEqual(['apimart', 'apimart--2'])
-    expect(records.apimart).toEqual({ vendorKey: 'apimart', enc: 'safeStorage', enabled: true, verificationPending: true, createdAt: STAMP, updatedAt: STAMP, hasProxy: false, hasExtraHeaders: false })
+    expect(records.apimart).toEqual({ vendorKey: 'apimart', enc: 'safeStorage', enabled: true, createdAt: STAMP, updatedAt: STAMP, hasProxy: false, hasExtraHeaders: false })
     expect(records['apimart--2']).toMatchObject({ hasProxy: true, hasExtraHeaders: false })
   })
 

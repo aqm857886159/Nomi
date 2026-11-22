@@ -18,6 +18,7 @@
 // 上下文烧光、把工具写对率拖垮。薄名单只留**选型需要的最少字段**，选定之后再查那一个。
 import type { AgentModelEntry, AgentModelVariant } from "./availableModels";
 import { resolveArchetypeVariant, resolveModelArchetype } from "../modelArchetypes";
+import { modelHandleOf } from "./modelHandle";
 import type { ModelParameterControl } from "../videoCapabilities/types";
 
 /** 这个模型此刻能不能用——与 Nomi 自己界面里的下拉读的是同一个答案。 */
@@ -30,12 +31,21 @@ export type ModelAvailabilityFacts = {
 };
 
 /**
- * 薄名单的一行：**只够选型**。
+ * 两个模型面各自的**身份头**（2026-11-15，协调拍板方案 A：一份事实、两个身份头）：
+ *   · `lane`：应用内 Agent。只有一个完整名字 `model`（`模型id@供应商`），它原样抄回 `draft_shots`；
+ *   · `mcp`：对外 MCP。`modelId` + `vendor` 两件，对外已发布的形状逐字节不变（外部生成面收编那一刀再改）。
+ * 差别**只**在 `modelSpecIdentity` 这一个函数里；共享事实那一半只有 `modelSpecFacts` 一处生成。
+ */
+export type ModelSpecFace = "lane" | "mcp";
+type LaneIdentity = { model: string };
+type McpIdentity = { modelId: string; vendor: string | null };
+type IdentityOf<F extends ModelSpecFace> = F extends "lane" ? LaneIdentity : McpIdentity;
+
+/**
+ * 薄名单一行里两面共享的事实：**只够选型**。
  * 没有 params、没有 slots、没有每个 mode 的说明——那些在详情那一档。
  */
-export type ModelSpecRow = Partial<ModelAvailabilityFacts> & {
-  modelId: string;
-  vendor: string | null;
+type ModelSpecFacts = Partial<ModelAvailabilityFacts> & {
   label: string;
   kind: AgentModelEntry["kind"];
   /** 有哪些模式（只给 id，够模型判断「这个模型有没有图生视频」）。 */
@@ -45,9 +55,11 @@ export type ModelSpecRow = Partial<ModelAvailabilityFacts> & {
   /** 能力位：这个模型**任一模式**吃不吃图/视频/音频参考。连边与选型都靠它先筛一轮。 */
   accepts: { image: boolean; video: boolean; audio: boolean; multiImage: boolean };
 };
+/** 薄名单的一行 = 身份头 + 共享事实。缺省是对外那一面（对外调用方一个字不用改）。 */
+export type ModelSpecRow<F extends ModelSpecFace = "mcp"> = IdentityOf<F> & ModelSpecFacts;
 
 /** 单模型详情：薄名单那一行 + 全部模式、参数、参考槽、变体。 */
-export type ModelSpecDetail = ModelSpecRow & {
+export type ModelSpecDetail<F extends ModelSpecFace = "mcp"> = ModelSpecRow<F> & {
   archetypeId?: string;
   modelAlias: string | null;
   defaultModeId: string;
@@ -60,7 +72,7 @@ export type ModelSpecDetail = ModelSpecRow & {
 const IMAGE_SLOTS = new Set(["image_ref", "first_frame", "last_frame"]);
 
 /** 这个模型任一模式吃哪些参考——从档案声明的槽 derive，不另立一份判据。 */
-function acceptsOf(entry: AgentModelEntry): ModelSpecRow["accepts"] {
+function acceptsOf(entry: AgentModelEntry): ModelSpecFacts["accepts"] {
   const slots = entry.modes.flatMap((mode) => mode.slots);
   const kinds = new Set(slots.map((slot) => slot.kind));
   return {
@@ -77,10 +89,28 @@ function acceptsOf(entry: AgentModelEntry): ModelSpecRow["accepts"] {
  * 少数装配路径（测试夹具、还没接目录的宿主）拿不到那三样。**缺就不写**，不编一个 `usable: true`
  * ——「不知道」和「可用」是两件事。生产两面都由目录注入，故两面都有。
  */
-export function modelSpecRow(entry: AgentModelEntry, availability?: ModelAvailabilityFacts): ModelSpecRow {
+export function modelSpecRow<F extends ModelSpecFace>(entry: AgentModelEntry, face: F, availability?: ModelAvailabilityFacts): ModelSpecRow<F> {
+  return withIdentity(entry, face, modelSpecFacts(entry, availability));
+}
+
+/** 身份头在前、事实在后（对外那一面的字段顺序就是今天的顺序：modelId, vendor, label, …）。 */
+function withIdentity<F extends ModelSpecFace, T extends object>(entry: AgentModelEntry, face: F, facts: T): IdentityOf<F> & T {
+  return Object.assign(modelSpecIdentity(entry, face), facts);
+}
+
+/**
+ * **唯一**按「哪一面」分支的地方。别处不许再问「是不是对外」：要不同的身份写法，改这里。
+ * 应用内的名字由 `modelHandleOf` 生成（全仓一处），这里不拼字符串。
+ */
+function modelSpecIdentity<F extends ModelSpecFace>(entry: AgentModelEntry, face: F): IdentityOf<F> {
+  const identity: LaneIdentity | McpIdentity = face === "lane"
+    ? { model: modelHandleOf(entry) }
+    : { modelId: entry.modelId, vendor: entry.vendor };
+  return identity as IdentityOf<F>;
+}
+
+function modelSpecFacts(entry: AgentModelEntry, availability?: ModelAvailabilityFacts): ModelSpecFacts {
   return {
-    modelId: entry.modelId,
-    vendor: entry.vendor,
     label: entry.label,
     kind: entry.kind,
     modeIds: entry.modes.map((mode) => mode.modeId),
@@ -138,65 +168,16 @@ function variantDetails(entry: AgentModelEntry): Pick<ModelSpecDetail, "modes" |
   return { modes, variants, defaultVariantId };
 }
 
-export function modelSpecDetail(entry: AgentModelEntry, availability?: ModelAvailabilityFacts): ModelSpecDetail {
-  return {
-    ...modelSpecRow(entry, availability),
+export function modelSpecDetail<F extends ModelSpecFace>(entry: AgentModelEntry, face: F, availability?: ModelAvailabilityFacts): ModelSpecDetail<F> {
+  return withIdentity(entry, face, {
+    ...modelSpecFacts(entry, availability),
     ...(entry.archetypeId ? { archetypeId: entry.archetypeId } : {}),
     modelAlias: entry.modelAlias,
     defaultModeId: entry.defaultModeId,
     ...variantDetails(entry),
-  };
+  });
 }
 
-/**
- * 按标识解析一个模型（大小写不敏感）。**三种结果，没有第四种「悄悄挑一个」**：
- *
- *  · 正好一个 → `{ ok: true }`；
- *  · 给了 `vendor` 却没有哪一家匹配 → `not_found`；
- *  · **没给 `vendor`，而这个 modelId 名下有 ≥2 家** → `ambiguous`。
- *
- * 第三条是 2026-09-22 主管自查点出来的同类尾巴：旧实现 `if (!vendor) return matches[0]`
- * 在两个面上都**悄悄返回第一家的说明书**，调用方以为拿到的是它要的那家，
- * 然后照另一家的参数表去下单。与「vendor 不匹配时静默回退」是同一个毛病——
- * 同名模型跨供应商在本仓是**两个模型**（身份唯一键 (vendor, modelId)）。
- */
-export type ModelEntryLookup =
-  | { ok: true; entry: AgentModelEntry }
-  | { ok: false; reason: "not_found" | "ambiguous"; vendors: string[] };
-
-export function resolveModelEntry(
-  entries: readonly AgentModelEntry[],
-  modelId: string,
-  vendor?: string | null,
-): ModelEntryLookup {
-  const matches = entriesWithId(entries, modelId);
-  const vendors = [...new Set(matches.map((entry) => entry.vendor).filter((v): v is string => Boolean(v)))];
-  if (vendor) {
-    const exact = matches.find((entry) => entry.vendor === vendor);
-    return exact ? { ok: true, entry: exact } : { ok: false, reason: "not_found", vendors };
-  }
-  if (matches.length === 0) return { ok: false, reason: "not_found", vendors };
-  if (vendors.length > 1) return { ok: false, reason: "ambiguous", vendors };
-  return { ok: true, entry: matches[0]! };
-}
-
-/** 只要那一个（拿不到就 undefined）。歧义与找不到的区分请用 `resolveModelEntry`。 */
-export function findModelEntry(
-  entries: readonly AgentModelEntry[],
-  modelId: string,
-  vendor?: string | null,
-): AgentModelEntry | undefined {
-  const found = resolveModelEntry(entries, modelId, vendor);
-  return found.ok ? found.entry : undefined;
-}
-
-function entriesWithId(entries: readonly AgentModelEntry[], modelId: string): AgentModelEntry[] {
-  const wanted = modelId.trim().toLowerCase();
-  return entries.filter((entry) =>
-    entry.modelId.toLowerCase() === wanted || (entry.modelAlias ?? "").toLowerCase() === wanted);
-}
-
-/** 这个 modelId 名下有哪几家供应商——拒绝时点名它们，调用方才知道该补哪个 vendor。 */
-export function vendorsCarrying(entries: readonly AgentModelEntry[], modelId: string): string[] {
-  return [...new Set(entriesWithId(entries, modelId).map((entry) => entry.vendor).filter((v): v is string => Boolean(v)))];
-}
+// 写下的模型名 → 哪一个说明书：不在这里认。2026-11-17 起名字只在 `modelHandle.ts` 的名字主人认
+// （`resolveModelIdentity`），外部读详情（`modelSpecRead.requireModelSpecDetail`）直接问它、按原码包装。
+// 以前这里的 `resolveModelEntry` 是第三个认名字的地方：大小写 / 别名认，近似写法不认，和起草那条路各说各的。

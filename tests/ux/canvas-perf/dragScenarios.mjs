@@ -1,6 +1,6 @@
 import { findCanvasBlankPoint, findNodeHitPoint } from '../_canvasHit.mjs'
 import { AUTO_PAN_SAFE_MARGIN_PX } from './gestureGeometry.mjs'
-import { canvasFitViewButton, canvasResetView } from '../_shell.mjs'
+import { canvasFitViewButton, canvasResetView, canvasZoomSlider } from '../_shell.mjs'
 
 // New drag scenarios for eval v2 (U1). These are action runners layered on the
 // existing benchmark harness: they reuse its mouse-driven drag mechanic but add
@@ -594,8 +594,10 @@ export async function runDragGroupFrame(page, grouped = null) {
  * 每个 change 起一段过渡就会互相打断——这条量的就是「拖滑杆一顿一顿」。
  */
 export async function runZoomSliderDrag(page) {
-  const slider = page.locator('.generation-canvas-v2__stage input[type="range"]').first()
-  if (!(await slider.count())) throw new Error('zoom-slider-drag: 找不到缩放滑杆')
+  const slider = await canvasZoomSlider(page)
+  await slider.waitFor({ state: 'visible' }).catch(() => {
+    throw new Error('zoom-slider-drag: 找不到缩放滑杆')
+  })
   const box = await slider.boundingBox()
   if (!box) throw new Error('zoom-slider-drag: 缩放滑杆不可见')
   const y = box.y + box.height / 2

@@ -66,7 +66,7 @@ export function agentModelEntriesFromCatalog(
             modeId: mode.id,
             vendorTerm: mode.vendorTerm,
             intent: mode.intent,
-            hint: (model?.meta as { adapter?: { evidence?: string } } | undefined)?.adapter?.evidence === "self-check" ? `${mode.hint} 未试跑 / Not generation-tested.`.trim() : mode.hint,
+            hint: mode.hint,
             ...(mode.consumesAnchors ? { consumesAnchors: mode.consumesAnchors } : {}),
             params: mode.params,
             slots: mode.slots.map((slot) => ({

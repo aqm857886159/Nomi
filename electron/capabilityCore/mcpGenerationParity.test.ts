@@ -4,7 +4,7 @@ import { MCP_TOOL_RESOLVER } from './mcpToolCatalog'
 import { validateToolArguments } from './mcpProtocol'
 import { toPublishedJsonSchema } from '../shared/agentCapabilities/modelVisibleJsonSchema'
 
-import { createPiGenerationTransportAdapter } from './generationTransportAdapters'
+import { createPiGenerationTransportAdapterForTest as createPiGenerationTransportAdapter } from './generationPlanning.testkit'
 import { draftShotFromPlan } from './mcpGenerationMultiShot'
 import type { ProjectLeaseV2 } from './projectLease'
 

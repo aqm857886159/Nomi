@@ -46,7 +46,7 @@ try {
     match: (body) => flattenRequestText(body).includes('S_NONAPIMART'),
     reply: { type: 'tool', id: PLAN_CALL, name: 'draft_shots', args: {
       shots: [{ prompt: '雪山日出，金色的光打在山脊上', taskKind: 'text_to_image',
-        candidate: { providerId: FIXTURE_NON_APIMART_VENDOR, modelId: FIXTURE_NON_APIMART_MODEL }, parameters: {} }],
+        model: `${FIXTURE_NON_APIMART_MODEL}@${FIXTURE_NON_APIMART_VENDOR}`, parameters: {} }],
     } },
   })
   let operationId

@@ -63,13 +63,14 @@ describe('model settings catalog projection', () => {
         vendorKey: 'future-cloud',
         modelKey: 'future-model',
         kind: 'text',
-        adapterState: undefined,
         adapterRunId: undefined,
       }),
     ])
+    // 任务状态不再进设置页的行（D-1117-delete-verification）：显示只看可用性主人。
+    expect(result.models[0]).not.toHaveProperty('adapterState')
   })
 
-  it('exposes only known adapter states and stable run ids', () => {
+  it('exposes a stable run id and never a task state', () => {
     const result = projectModelSettingsCatalog([{
       vendorKey: 'future-cloud',
       modelKey: 'future-video-v1',
@@ -82,10 +83,8 @@ describe('model settings catalog projection', () => {
       },
     }])
 
-    expect(result.models[0]).toMatchObject({
-      adapterState: 'testing',
-      adapterRunId: 'adapter-run-1',
-    })
+    expect(result.models[0]).toMatchObject({ adapterRunId: 'adapter-run-1' })
+    expect(result.models[0]).not.toHaveProperty('adapterState')
   })
 
   it('deduplicates damaged catalog snapshots by stable model identity', () => {

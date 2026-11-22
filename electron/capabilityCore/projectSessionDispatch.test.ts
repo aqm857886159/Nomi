@@ -1,3 +1,4 @@
+import { issueGenerationPlanningForTest } from './generationPlanningIssue'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -138,7 +139,7 @@ describe('generic project-session route', () => {
       makeGateway: vi.fn(),
       productionRuns: {},
       generationContext,
-      generationPlanning,
+      generationPlanning: issueGenerationPlanningForTest(generationPlanning),
       projectSession: { authority: projectSession.authority, connection },
     }
 

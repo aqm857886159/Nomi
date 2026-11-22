@@ -1,5 +1,6 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
+import { buildWalkCatalog } from './_world.mjs'
 // Shared infra for real-process MCP journeys — the ONE spawn/framing/teardown/mock-vendor implementation
 // (P1: no copy-paste) driven by the L1/L2 MCP journeys and production-mcp-journey.e2e.mjs, plus
 // any future real-transport MCP test. Client-specific differences (initialize capabilities, clientInfo,
@@ -219,7 +220,7 @@ export function writeIsolatedCatalog(settingsDir, mockOrigin) {
     // execution by accident.
     apiKeysByVendor: {},
   }
-  fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify(catalog), 'utf8')
+  buildWalkCatalog(settingsDir, catalog)
 }
 
 /**

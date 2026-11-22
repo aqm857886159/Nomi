@@ -456,9 +456,7 @@ export const AssetGridCell = React.memo(function AssetGridCell({
           </div>
         )}
       </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-56 whitespace-normal leading-snug">
-        {asset.name} · {dragHint}
-      </TooltipContent>
+      <TooltipContent side="top">{`${asset.name} · ${dragHint}`}</TooltipContent>
     </Tooltip>
   )
 })

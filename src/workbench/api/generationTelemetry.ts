@@ -10,7 +10,7 @@ import {
 } from '../../../electron/shared/contracts/telemetry'
 import { matchNomiErrorCode, NOMI_ERROR_ONLY_BEFORE_SUBMIT, type NomiErrorCode } from '../../../electron/shared/nomiErrorCodes'
 import { resolveModelArchetype, variantRecordedInMeta } from '../../../electron/shared/modelArchetypes'
-import { parseVendorErrorFromMessage, type VendorErrorStructuredLite } from '../generationCanvas/runner/vendorErrorIpc'
+import { parseVendorErrorFromMessage, type VendorErrorStructuredLite } from '../../../electron/shared/generationFailure'
 import { modeDisplayKind } from '../generationCanvas/nodes/controls/modeMenuModel'
 import { isComfyuiVendorKey } from '../generationCanvas/model/comfyuiVendor'
 

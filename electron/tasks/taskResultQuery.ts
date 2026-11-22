@@ -222,6 +222,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
           nodeId: cached.nodeId,
           vendor,
           model,
+          apiKey,
         });
       } catch (error) {
         // 读到地址后落盘没成（下载 / 落盘）：带 download 阶段；出站被拦等更具体的码原样放行。

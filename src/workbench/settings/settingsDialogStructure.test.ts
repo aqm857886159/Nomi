@@ -76,7 +76,8 @@ const APPROVED_NON_MODEL_SECTION_SHA256 = {
   //             故更新相关文件哈希；协调会话在交付报告里知情。
   // 2026-10-16（卡顿波 P-compose）：供应商列表改读异步目录 IPC（同步通道已删：主进程忙时「点设置没反应」），
   //             读失败照旧保留上一份；布局与文案一个字没动，协调会话在交付报告里知情。
-  'AiModelsSection.tsx': 'f2a2ecefc176ac15bd3729707f5fc8412f180eddc30bfb5f82f46c281073c4bc',
+  // 2026-11-17 用户「删掉，用设置开关」：开启=allow、关闭=ask，其余布局不变。
+  'AiModelsSection.tsx': '5a32ce9be9327ecea0747c82d51626ea060767318de79781da307ad0e7952c51',
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
   // 新增 CustomMcpClientCard UI TODO 注释（底层能力已就绪，UI 面另排样张拍板）。
   // 2026-09-09：声音归通用设置的单一入口，移除这里的旧开关；下方断言保留系统通知策略。
@@ -222,7 +223,7 @@ describe('settings dialog structure', () => {
 
   it('keeps the sidebar inside the shared height owner for every settings tab', () => {
     expect(settingsSource).toContain('data-settings-dialog')
-    expect(settingsSource).toContain("'data-settings-tab': tab")
+    expect(settingsSource).toContain("aria-current={tab === id ? 'page' : undefined}")
     expect(settingsSource).toContain('<DesignModal')
     expect(settingsSource).not.toContain('<Portal>')
     expect(settingsSource).toContain('size={760}')
@@ -392,7 +393,7 @@ describe('settings dialog structure', () => {
   })
 
   it('keeps the dialog anchors rendering the same "true" values the walks select on after the shell migration', () => {
-    // 迁到共用外壳后锚点改经 contentAttributes 给；曾误写成 ''，渲染出 data-settings-overlay=""，
+    // 迁到共用外壳后锚点改经 frozenAnchors 给；曾误写成 ''，渲染出 data-settings-overlay=""，
     // 而 mcp-l2-journeys 等 13 份走查按 [data-settings-overlay="true"] 认设置框（CI E2E(4) 因此红）。
     expect(settingsSource).toContain("'data-settings-overlay': 'true'")
     expect(settingsSource).toContain("'data-settings-dialog': 'true'")

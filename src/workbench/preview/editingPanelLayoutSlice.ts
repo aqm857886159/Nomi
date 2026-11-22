@@ -41,8 +41,8 @@ export type EditingPanelLayoutSlice = {
   /**
    * 「有人要把 Nomi 叫回来」的计数：收起 → 展开的**用户 / Agent 动作**（setProjectAgentDockCollapsed、切预设、翻可见性、撤销、
    * layout.write）各 +1；**打开项目时的还原（setEditingPanelLayout(…, false)）和关项目时的整体重置不算**。
-   * 外壳的 Agent 小球靠它决定要不要自己展开——不能靠 `projectAgentDockCollapsed` 的翻转去猜，
-   * 因为重开项目时这个投影会被还原 / 重置翻一下，小球就会在用户什么也没点时自己弹成浮窗（评测 j5 重开项目后浮窗盖住生成钮）。
+   * 外壳（ShellAgentHost）靠它决定收着的 Agent 要不要自己展开——不能靠 `projectAgentDockCollapsed` 的翻转去猜，
+   * 因为重开项目时这个投影会被还原 / 重置翻一下，面板就会在用户什么也没点时自己弹成浮窗（评测 j5 重开项目后浮窗盖住生成钮）。
    */
   agentRecallNonce: number
   previewSourceTab: PreviewSourceTab

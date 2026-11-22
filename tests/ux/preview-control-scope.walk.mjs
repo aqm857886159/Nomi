@@ -207,8 +207,8 @@ try {
   await getWin().waitForTimeout(900)
   const inspectorSel = await readInspector()
   console.log('  · 选中后属性面板：', JSON.stringify(inspectorSel))
-  const selectedNodes = await getWin().locator('[data-testid="timeline-clip"][data-selected="true"]:visible').count()
-  check('点击后时间轴出现选中态', selectedNodes >= 1, `data-selected 元素 ${selectedNodes} 个（可见实例）`)
+  const selectedVisible = await getWin().locator('[data-testid="timeline-clip"][data-selected="true"]:visible').first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  check('点击后时间轴出现选中态', selectedVisible, `data-selected 元素可见=${selectedVisible}`)
   check('属性面板从整片切到该片段（作用对象可见）', inspectorSel?.objectType === 'video' || inspectorSel?.objectType === 'image',
     inspectorSel?.objectType || '无')
   check('片段态出「显示 / 时间」两组（组序固定）', (inspectorSel?.groups || []).slice(0, 2).join('/') === '显示/时间',

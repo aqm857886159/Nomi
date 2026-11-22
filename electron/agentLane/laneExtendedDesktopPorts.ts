@@ -23,6 +23,8 @@ import { taskReferenceSchema } from '../shared/agentCapabilities/taskReference'
 import { GENERATE_USER_DECISION_KEY, type GenerateUserDecision } from '../shared/agentLane/generateUserDecision'
 import type { GenerationInvocationContext } from '../shared/agentCapabilities/generationInvocationContext'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
+import type { AgentModelEntry } from '../shared/agentCapabilities/availableModels'
+import type { DraftShotModelDefaults } from '../shared/agentCapabilities/verbs/draftShotsProjection'
 
 type Prepared =
   | { kind: 'timeline'; value: PreparedTimelineWrite }
@@ -32,6 +34,10 @@ type Prepared =
   | { kind: 'direct'; value: { call: RuntimeToolCall } }
 
 type Pending = { call: RuntimeToolCall; prepared: Prepared; approved?: CanvasWriteApprovalAuthority | true; generationContext?: GenerationInvocationContext
+  /** 预检时这条消息带上来的可用模型清单：`draft_shots` 的完整名字在它里面查表，执行期用同一份，不重新取。 */
+  models: readonly AgentModelEntry[]
+  /** 预检时用户给每一种任务设的默认（同名多家时名字主人只多看它，U1）；执行期用同一份，不重新取。 */
+  defaults: DraftShotModelDefaults
   /** `generate` 在预检期就已经有了结局（见 `preflightGenerate`）：execute 只把它交出去，不再碰领域、不再等任何人。 */
   decided?: RuntimeToolDecision }
 
@@ -59,6 +65,11 @@ export interface LaneExtendedDesktopPortsInput {
   spendCard: Readonly<{ whenCardCloses(operationId: string): Readonly<{ closed: Promise<void>; dispose(): void }> }>
   onTaskCreated?(call: RuntimeToolCall, result: unknown): Promise<void>
   context?(): LaneComposerContext
+  /**
+   * 用户给每一种任务设的默认（`readLaneDeclaredDefaults`，与宿主补默认问的是同一个解析器）。`draft_shots` 只写模型 id
+   * 而多家都有时，名字主人只多看这一个事实（U1）。不接 = 空表，多家同名照旧拒。
+   */
+  modelDefaults?(): DraftShotModelDefaults
   /**
    * 3D-BOX 花钱闸：这次要生成的镜头里，哪些挂着还没好的参考预演。
    * 出卡**之前**问——问到了就不出卡、不花钱，原因交给模型；问不到（渲染层不在）也不出卡（fail-closed）。
@@ -160,11 +171,14 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
   const pending = new Map<string, Pending>()
   let disposed = false
 
-  const translate = (wire: RuntimeToolCall): VerbTransportCall => {
+  /** 模型在索引与 list_models 里看到的那份清单（随这条消息来）；没有渲染层上下文 = 空清单，点名的名字一律「查不到」并指向 list_models。 */
+  const currentModels = (): readonly AgentModelEntry[] => input.context?.()?.availableModels ?? []
+  const currentDefaults = (): DraftShotModelDefaults => input.modelDefaults?.() ?? {}
+  const translate = (wire: RuntimeToolCall, models: readonly AgentModelEntry[], defaults: DraftShotModelDefaults): VerbTransportCall => {
     if ((wire.toolName === 'check_job' || wire.toolName === 'cancel_job') && !taskReferenceSchema.safeParse(wire.args).success) {
       rejectPreparation('task_reference_required')
     }
-    const translated = verbToTransportCall(wire)
+    const translated = verbToTransportCall(wire, models, defaults)
     if (!translated) rejectPreparation('capability_unsupported')
     return translated
   }
@@ -181,7 +195,9 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
       const contract = capabilityContractById(modelToolCapabilityId(spec, call.args))
       if (!contract) rejectPreparation('capability_unsupported')
       if (contract.effect === 'read') return
-      const { lane, call: transport } = translate(call)
+      const models = currentModels()
+      const defaults = currentDefaults()
+      const { lane, call: transport } = translate(call, models, defaults)
       let prepared: Prepared
       if (lane === 'timeline') {
         const value = await input.timelineWrite.prepare(transport, signal)
@@ -205,7 +221,7 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
         prepared = { kind: 'direct', value: { call } }
       }
       if (disposed || signal.aborted) rejectPreparation('capability_cancelled')
-      pending.set(call.toolCallId, { call, prepared, generationContext: captureGenerationContext(input.context?.()) })
+      pending.set(call.toolCallId, { call, prepared, models, defaults, generationContext: captureGenerationContext(input.context?.()) })
     },
     async approved(call, record, host) {
       const entry = pending.get(call.toolCallId)
@@ -254,7 +270,7 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
       }
       if (blocks.length) return directorPreviewBlockedDecision(blocks)
     }
-    const { call: transport } = translate(entry.call)
+    const { call: transport } = translate(entry.call, entry.models, entry.defaults)
     const operationId = String((entry.call.args as { operationId?: unknown }).operationId ?? '')
     let card: ReturnType<typeof input.spendCard.whenCardCloses> | undefined
     try {
@@ -296,7 +312,7 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
   }
 
   async function executeRead(call: RuntimeToolCall, signal: AbortSignal): Promise<RuntimeToolDecision> {
-    const { lane, call: transport } = translate(call)
+    const { lane, call: transport } = translate(call, currentModels(), currentDefaults())
     if (lane === 'skillRead') return await input.skillRead.tryExecute(transport, signal) ?? failure('capability_unsupported')
     if (lane === 'media' || lane === 'export') return await input.phase4.tryExecuteRead(transport, signal) ?? failure('capability_unsupported')
     if (lane === 'generation') {
@@ -332,8 +348,14 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
       // 再 present 一次会把用户刚答完的那张卡重新摆出来。
       if (entry.decided) return entry.decided
       // 传输方法名同样由声明翻（`translate`），不按组名手写；生成面不在 → #785 那句「此刻是哪个相」。
-      const { call: transport } = translate(normalizedCall)
+      const translated = translate(normalizedCall, entry.models, entry.defaults)
+      const { call: transport } = translated
+      const resolvedModels = translated.lane === 'generation' ? translated.resolvedModels : undefined
       result = await input.generation()?.tryExecute(transport, signal, entry.generationContext) ?? generationSurfaceUnavailable()
+      // Agent 写的不是完整名字、被认出来的：回执里照实说落成了谁（下次照抄完整名字）。
+      if (result.ok && resolvedModels?.length && result.result && typeof result.result === 'object') {
+        result = { ...result, result: { ...(result.result as Record<string, unknown>), modelNamesResolved: resolvedModels } }
+      }
     } else {
       if (approved === true) return failure('capability_authority_invalid')
       switch (prepared.kind) {

@@ -19,7 +19,9 @@ try {
   await card.scrollIntoViewIfNeeded()
   await expect.poll(() => card.locator('img').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true)
   await run.win.screenshot({ path: path.join(output, 'specimen-library.png') })
+  // 技能详情按角色 + 名字找：名字就是卡片上的技能名。
+  const cardTitle = (await card.locator('[data-library-entry-title]').textContent())?.trim() ?? ''
   await clickOrFail(card, '打开真实技能详情')
-  await expectVisible(run.win.locator('[data-skill-detail]'), '技能详情弹窗打开')
+  await expectVisible(run.win.getByRole('dialog', { name: cardTitle, exact: true }), '技能详情弹窗打开')
   await run.win.screenshot({ path: path.join(output, 'specimen-detail.png') })
 } finally { await run.close() }

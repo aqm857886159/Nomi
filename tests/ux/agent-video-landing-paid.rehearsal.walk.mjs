@@ -42,7 +42,7 @@ function installBrain(fixture) {
   const shot = (extra, parameters) => ({
     title: '纸船', prompt: '一只纸船在雨后的水洼里慢慢漂，清晨的光', taskKind: 'text_to_video',
     // 模型名只点到目录里的 `doubao-seedance-2.0`（Fast 变体由宿主认）。
-    candidate: { providerId: VIDEO.vendorKey, modelId: VIDEO.modelKey }, ...extra, parameters,
+    model: `${VIDEO.modelKey}@${VIDEO.vendorKey}`, ...extra, parameters,
   })
   const base = { duration: 4, resolution: '480p', size: '16:9', generate_audio: false, seed: null }
   fixture.respond({

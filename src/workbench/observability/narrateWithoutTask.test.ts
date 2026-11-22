@@ -1,17 +1,17 @@
 // 没有可以再查的任务时（同步供应商：结果只在创建请求的那一次回答里，节点上没有任务号），错误卡上不许出现任何
 // 暗示能取回的说明或动作（2026-10-28，设计卡 docs/plan/2026-10-28-sync-landing-not-unknown.md A10）。
 //
-// 类守门：遍历全部失败类别——将来新加一类，只要它的默认说明 / 动作指向「重新取回」，又没在 narrate 的无任务表里给一版，这里就红。
+// 类守门：遍历全部失败类别——将来新加一类，只要它的默认说明 / 动作指向「重新取回」，又没在共享判定的无任务表里给一版，这里就红。
 import { afterAll, describe, expect, it } from 'vitest'
 import i18n from '../../i18n'
 import { classifyGenerationError } from './classifyError'
+import { narrateGenerationError, type GenerationErrorAction } from './narrate'
 import {
   GENERATION_ERROR_KINDS,
-  narrateGenerationError,
-  narrateGenerationErrorActions,
-  narrateGenerationErrorWithoutTask,
-  type GenerationErrorAction,
-} from './narrate'
+  actionsOfKind,
+  failureActionsFor,
+  withoutTaskOfKind,
+} from '../../../electron/shared/generationFailure'
 import { generatedMediaValidationError } from '../../../electron/assets/generatedMediaDecode'
 import { retrievalStageError } from '../../../electron/tasks/retrievalStageError'
 
@@ -27,9 +27,8 @@ function retrieveAgainLabels(): string[] {
 
 /** 节点上没有任务号时这一类最终给的说明与动作（与 NodeErrorReport 同一条选法）。 */
 function withoutTask(kind: (typeof GENERATION_ERROR_KINDS)[number]) {
-  const override = narrateGenerationErrorWithoutTask(kind)
-  if (override) return override
-  return { hint: narrateGenerationError(kind).hint, ...narrateGenerationErrorActions(kind) }
+  const shown = failureActionsFor({ kind, ...actionsOfKind(kind) }, { isProductionRecord: false })
+  return { hint: shown.hintKey ? i18n.t(shown.hintKey as 'common.ok') : narrateGenerationError(kind).hint, primary: shown.primary, secondary: shown.secondary }
 }
 
 describe('A10：渲染层读落地门抛出的真错误', () => {
@@ -40,7 +39,7 @@ describe('A10：渲染层读落地门抛出的真错误', () => {
       expect(report.kind).toBe('output-unreadable')
       expect(report.vendorSide).toBe(false)
       expect(report.primary).toBe('retry')
-      expect(narrateGenerationErrorWithoutTask('output-unreadable'), '默认就不暗示能取回').toBeNull()
+      expect(withoutTaskOfKind('output-unreadable'), '默认就不暗示能取回').toBeNull()
       for (const label of retrieveAgainLabels()) expect(report.hint).not.toContain(label)
     })
 
@@ -79,7 +78,7 @@ describe('类守门：没有任务号时，任何一类都不暗示能取回', (
     for (const kind of ['retrieval-incomplete', 'output-retrieval-failed'] as const) {
       const { hint } = narrateGenerationError(kind)
       expect(retrieveAgainLabels().some((label) => hint.includes(label)), kind).toBe(true)
-      expect(narrateGenerationErrorWithoutTask(kind), kind).not.toBeNull()
+      expect(withoutTaskOfKind(kind), kind).not.toBeNull()
     }
   })
 })

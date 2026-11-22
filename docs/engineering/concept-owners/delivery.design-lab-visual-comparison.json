@@ -1,0 +1,27 @@
+{
+  "name": "设计实验室视觉比较对象与本机相对报告",
+  "subject": "delivery.design-lab-visual-comparison",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/ux/design-lab/visualMode.mjs",
+    "symbol": "decideVisualMode"
+  },
+  "write_api": [
+    {
+      "path": "tests/ux/design-lab/visualMode.mjs",
+      "symbol": "decideVisualMode"
+    },
+    {
+      "path": "tests/ux/design-lab/localRelative.mjs",
+      "symbol": "runLocalRelative"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-17",
+  "notes": "模式选择统一决定 CI 拍板 PNG 或本机同环境 merge-base；本机比较只由 runLocalRelative 装配隔离源码、缓存与相对报告，缓存不作拍板基线。"
+}

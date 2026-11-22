@@ -91,6 +91,8 @@ export function createDesktopLaneTools(input: {
    */
   approvalPolicy(): ProjectAgentApprovalPolicy
   onTaskCreated(call: RuntimeToolCall, result: unknown): Promise<void>
+  /** 用户给每一种任务设的默认（与系统提示词里那一段同一个来源）；`draft_shots` 同名多家时只多看它（U1）。 */
+  modelDefaults: LaneExtendedDesktopPortsInput['modelDefaults']
 }) {
   if (!input.surface.surfacePortRuntime) throw new Error('surface_port_unavailable')
   const surfacePortRuntime = input.surface.surfacePortRuntime
@@ -240,7 +242,7 @@ export function createDesktopLaneTools(input: {
         generation = factory?.(input.binding, input.approvalPolicy)
       }
       return generation
-    }, onTaskCreated: input.onTaskCreated, context: input.context,
+    }, onTaskCreated: input.onTaskCreated, context: input.context, modelDefaults: input.modelDefaults,
     // 3D-BOX 花钱闸：generate 出卡前问渲染端唯一判据。
     directorPreviewBlocks: async (operationId: string, shotIds: readonly string[] | undefined, candidate: ShotCandidateFacts) => {
       const reply = await requestRenderer("director.preview-blocks", { projectId: input.binding.projectId, operationId, ...(shotIds ? { shotIds } : {}), candidateReferences: candidate.references, candidateDurations: candidate.durationSeconds }, 10_000) as { blocks?: unknown } | null

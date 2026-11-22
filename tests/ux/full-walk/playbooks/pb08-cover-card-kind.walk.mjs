@@ -47,7 +47,7 @@ try {
       marker: one.marker,
       steps: [
         // 不带 taskKind：Agent 只点名了图片模型和 3:4，「这是图还是视频」留给宿主去推。
-        { name: 'draft_shots', args: { shots: [{ title: '封面', prompt: one.prompt, candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }, parameters: { aspect_ratio: '3:4' } }] } },
+        { name: 'draft_shots', args: { shots: [{ title: '封面', prompt: one.prompt, model: `${FIXTURE_APIMART_MODEL}@${FIXTURE_APIMART_VENDOR}`, parameters: { aspect_ratio: '3:4' } }] } },
         { name: 'generate', args: ({ previous }) => ({ operationId: operationIdOf(previous) }) },
         { text: '好的，开始生成。' },
       ],

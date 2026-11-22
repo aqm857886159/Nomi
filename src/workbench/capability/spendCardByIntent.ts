@@ -7,15 +7,14 @@
 // 拆解的措辞还内嵌在通用分支里（三处三元），要改它的措辞时先搬进这张表。
 import { PROMPT_EXTRACTION_SPEND_INTENT } from '../../../electron/shared/contracts/browserPromptExtraction'
 import { UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT } from '../../../electron/shared/contracts/modelTrialSpend'
-import { confirmCredentialProbeSpend, type CredentialProbeSpendPayload } from './credentialProbeSpendCard'
 import { confirmPromptExtractionSpend, type PromptExtractionSpendPayload } from './promptExtractionSpendCard'
+import type { SpendCardModelPayload } from './spendCardModelLine'
 import { confirmUncertainPriorTrialSpend } from './uncertainPriorTrialSpendCard'
 
-type DedicatedSpendCard = (info: CredentialProbeSpendPayload & PromptExtractionSpendPayload) => Promise<{ confirmed: boolean }>
+type DedicatedSpendCard = (info: SpendCardModelPayload & PromptExtractionSpendPayload) => Promise<{ confirmed: boolean }>
 
 const SPEND_CARD_BY_INTENT: Readonly<Record<string, DedicatedSpendCard>> = {
-  // 凭据验证：用户此刻在接入页，不在画布。
-  'credential-probe': confirmCredentialProbeSpend,
+  // 凭据验证那一格随 D-1117-delete-verification 删了：保存 key 不再发验证请求，也就没有这张卡。
   // 浏览器「提取提示词」：卡上写清来源页、哪张图、哪个读图模型。
   [PROMPT_EXTRACTION_SPEND_INTENT]: confirmPromptExtractionSpend,
   // 试跑开新单而上一笔结果不确定：明说可能多扣一次。

@@ -134,13 +134,7 @@ describe("renderer Catalog mutation boundary", () => {
     });
   });
 
-  it("writes the credential disabled-pending-certification and delegates the vendor de-publish to the store", async () => {
-    // The reported honesty gap — a credential written disabled-pending-certification beside an
-    // enabled vendor, which the model home reads as 已接入 / N 个可使用 while resolveTextBrainKeys
-    // (needs an enabled credential) returns null — is prevented one layer down, inside
-    // applyApiKeyUpsert (see credentialPublication.ts + credentialPublication.test.ts). That is the
-    // innermost boundary every credential writer shares, and it de-publishes in the SAME
-    // writeCatalog. This boundary must therefore NOT issue a second vendor write of its own.
+  it("saves a configured credential enabled, independently of verification", async () => {
     const catalog = state();
     catalog.vendors[0] = { ...catalog.vendors[0], enabled: true } as never;
     vi.mocked(store.readCatalog).mockReturnValue(catalog);
@@ -149,7 +143,7 @@ describe("renderer Catalog mutation boundary", () => {
     vi.mocked(fetchModelList).mockResolvedValue({ ok: true, models: ["image-1"], statuses: [200] });
     await upsertRendererCatalogVendorApiKey("relay", { apiKey: "sk-test", enabled: true });
 
-    expect(store.upsertModelCatalogVendorApiKey).toHaveBeenCalledWith("relay", { apiKey: "sk-test", enabled: false });
+    expect(store.upsertModelCatalogVendorApiKey).toHaveBeenCalledWith("relay", { apiKey: "sk-test", enabled: true });
     expect(store.upsertModelCatalogVendor).not.toHaveBeenCalled();
   });
 
@@ -201,13 +195,13 @@ describe("B4 candidate credentials", () => {
     await upsertRendererCatalogVendorApiKey("relay", { apiKey: "candidate-test" });
     expect(fetchModelList).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), expect.anything(), expect.anything(), expect.objectContaining({ proxyUrl: "http://127.0.0.1:7897" }));
   });
-  it("network failure saves the candidate with an unverified marker", async () => {
+  it("network failure still saves the candidate, with no pending marker", async () => {
     const catalog = state();
     catalog.vendors[0].baseUrlHint = "https://relay.test/v1";
     vi.mocked(store.readCatalog).mockReturnValue(catalog);
     vi.mocked(fetchModelList).mockResolvedValue({ ok: false, statuses: [], failureKind: "network", error: "offline" });
     await upsertRendererCatalogVendorApiKey("relay", { apiKey: "candidate-test" });
-    expect(store.upsertModelCatalogVendorApiKey).toHaveBeenCalledWith("relay", { apiKey: "candidate-test", enabled: false, verificationPending: true });
+    expect(store.upsertModelCatalogVendorApiKey).toHaveBeenCalledWith("relay", { apiKey: "candidate-test", enabled: true });
   });
   /**
    * T-QA-13 的门岗（2026-09-18）。走查夹具「注入 key → hasApiKey」这条路整条死掉过，
@@ -235,6 +229,7 @@ describe("B4 candidate credentials", () => {
     vi.mocked(store.readCatalog).mockReturnValue(catalog);
     await expect(upsertRendererCatalogVendorApiKey("relay", { apiKey: "fixture-key" })).resolves.toBeDefined();
   });
+  // F1（D-1117-delete-verification 第一轮验收）：上一轮把这条改成「照存、标待验证」，丢了主分支的拒收闸。
   it.each([401, 403])("%i never overwrites the previous credential or disables its vendor", async (status) => {
     const catalog = state();
     catalog.vendors[0] = { ...catalog.vendors[0], enabled: true, baseUrlHint: "https://relay.test/v1" };

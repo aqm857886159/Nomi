@@ -7,7 +7,7 @@ import path from 'node:path'
 import { once } from 'node:events'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, DEFAULT_TIMEOUT_MS, expect, screenshotSettled } from './_assert.mjs'
-import { AGENT_PANEL, COLLAPSED_SHELL, COLLAPSE_BUTTON, ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
+import { AGENT_PANEL, COLLAPSED_SHELL, COLLAPSE_BUTTON, NOMI_ENTRY_COLLAPSED, ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_NON_APIMART_VENDOR, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 
@@ -28,12 +28,11 @@ export const CANVAS_PANEL = `${AGENT_PANEL}[data-agent-surface="generation"]`
 export const PREVIEW_PANEL = `${AGENT_PANEL}[data-agent-surface="preview"]`
 export const STORYBOARD_PANEL = `${AGENT_PANEL}[data-agent-surface="storyboard"]`
 /**
- * 收起后叫回 Nomi 的唯一入口 = 内容区右下角那颗 Agent 小球（Chrome 板「四种状态，都不会自己弹开」）。
- * 顶栏不再放 Agent 角标（协调裁决第 59 项）。小球上的走查锚：
- *   `data-agent-ball` = idle / running / done / failed / pending（pending = 「等你确认 N」胶囊）；
- *   `data-agent-dock-status` = 注意力状态词（V4DockStatus）；`data-agent-dock-count` = 待确认条数。
+ * 收起后叫回 Nomi 的唯一入口 = 收着时的顶栏 Nomi 入口（NomiEntryTopbar 板 nomi-entry，2026-11-22 取代内容区右下的小球；定义在 `_shell.mjs`）。
+ * 都不会自己弹开。入口上的走查锚：`data-status` = idle / unread / running / done / failed；`data-shape` = face / capsule（「等你确认 N」）；
+ * `data-pending` = 待确认条数。
  */
-export const COLLAPSED_DOCK = '[data-agent-ball]'
+export const COLLAPSED_DOCK = NOMI_ENTRY_COLLAPSED
 /** 面板级错误带（外壳渲染，不在 v4 积木里）。 */
 export const PANEL_ERROR = '[data-agent-error="true"]'
 export const THREAD_MENU = '[data-agent-thread-menu="true"]'
@@ -240,13 +239,13 @@ export async function stopRuntimeApp(app) {
   }
 }
 
-export async function finalizeRuntimeWalk(report, { error, cleanup = [], collect } = {}) {
+export async function finalizeRuntimeWalk(report, { error, result, cleanup = [], collect } = {}) {
   const failures = error ? [error] : []
   for (const action of cleanup) {
     try { await action() } catch (cleanupError) { failures.push(cleanupError) }
   }
   try { Object.assign(report, await collect?.()) } catch (evidenceError) { failures.push(evidenceError) }
-  report.result = failures.length ? 'failed' : 'passed'
+  report.result = failures.length ? 'failed' : (result ?? 'passed')
   report.error = failures.length ? failures.map((failure) => failure instanceof Error ? failure.stack : String(failure)).join('\n\n') : undefined
   if (failures.length) process.exitCode = 1
   fs.writeFileSync(path.join(report.outputDir, 'report.json'), JSON.stringify(report, null, 2))
@@ -323,7 +322,7 @@ export async function waitForV4TurnIdle(win, { panel = AGENT_PANEL, startTimeout
   await expect(running, '这一轮没落地：composer 迟迟不退出运行态').toBeHidden({ timeout: doneTimeout })
 }
 
-/** 展开常驻面板（点小球；怎么点、点哪里归 `_shell.mjs`）。 */
+/** 展开常驻面板（点顶栏 Nomi 入口；怎么点、点哪里归 `_shell.mjs`）。 */
 export async function expandResidentPanel(win) {
   await ensureAgentPanelOpen(win)
   await expect(win.locator(`${AGENT_PANEL} ${COMPOSER}`).first()).toBeVisible()
@@ -456,7 +455,7 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
   // 显式给出、并原样交给启动器：付费走查要在起 App 之前往这里放凭据钥匙（Windows 的 Local State，
   // 见 _realProfile.mjs），它必须和 App 真正用的 userData 是同一个目录，不能靠两边各自猜默认值。
   const userDataDir = path.join(tempRoot, 'user-data')
-  const outputDir = path.join(repoRoot, '.tmp', `pi-${name}-${mode}-${Date.now()}`)
+  const outputDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, '.tmp', `pi-${name}-${mode}-${Date.now()}`)
   fs.mkdirSync(outputDir, { recursive: true })
   // safeStorage 的加密身份 = app 名。开发态跑的是仓库目录（package.json 的 `nomi`），
   // `--packaged` 跑的是打包后的 `Nomi`。给错只会解出 `locked`，模型照样显示为不可用。
@@ -614,13 +613,13 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
    * 只可能是 App 自己发起的后台调用——例如出图后的镜级自评落到目录里第一个文本模型上——
    * 如实记进报告（路径 + 请求里第一句话），不判红：它们不是这条走查在测的东西，也不花钱。
    */
-  async function finish(error, { collect, unscriptedFixture = false } = {}) {
+  async function finish(error, { collect, result, unscriptedFixture = false } = {}) {
     if (error && current) {
       try { await current.win.screenshot({ path: path.join(outputDir, 'FAIL.png') }) }
       catch (captureError) { console.error('Failure screenshot unavailable:', captureError.message) }
     }
     await finalizeRuntimeWalk(report, {
-      error, cleanup: [stopApp, () => fixture.close()],
+      error, ...(result ? { result } : {}), cleanup: [stopApp, () => fixture.close()],
       collect: async () => {
         if (unscriptedFixture) {
           report.backgroundFixtureCalls = fixture.unexpected.map((record) => ({

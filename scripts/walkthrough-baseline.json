@@ -3,12 +3,13 @@
   "whole-page-text": 28,
   "sleep-as-done-signal": 65,
   "dead-selector": 0,
-  "dead-aria-label": 7,
+  "dead-aria-label": 6,
   "dead-data-attr": 38,
   "source-scan-without-strip": 9,
   "positional-project-open": 0,
   "raw-shell-anchor": 0,
   "composer-input-read": 0,
+  "bare-composer-width": 0,
   "assertion-density-thin": {
     "tests/ux/accent-soft-hue.walk.mjs": 0,
     "tests/ux/adapter-failed-unlock.walk.mjs": 0,
@@ -41,7 +42,6 @@
     "tests/ux/staging-agent-eval.e2e.mjs": 1,
     "tests/ux/storyboard-trigger.walk.mjs": 0,
     "tests/ux/timeout-recover.walk.mjs": 1,
-    "tests/ux/ui-driver.mjs": 0,
     "tests/ux/verify-composer-fixes.mjs": 1,
     "tests/ux/walkthrough.mjs": 0
   }

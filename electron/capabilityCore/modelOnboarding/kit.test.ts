@@ -19,6 +19,8 @@ import { NEUTRAL_PARAMETER_ALIASES } from "../../providerAdapter/promotionMeta";
 import { ONBOARDING_KIT_EXAMPLES } from "./kitExamples";
 import { buildOnboardingKit } from "./kit";
 import { submitDeclaration } from "./submitDeclaration";
+import { builtinVendorKeyForHostname } from "../../catalog/builtinVendorSeeds";
+import { ensureBuiltinModelSeeds, readCatalog } from "../../catalog/catalogStore";
 
 let settingsDir = "";
 beforeEach(() => {
@@ -34,10 +36,22 @@ describe("接入套件", () => {
   it.each(ONBOARDING_KIT_EXAMPLES.map((example) => [example.name, example] as const))(
     "样例 %s 原样交给真实的声明提交，登记成功",
     async (_name, example) => {
+      // 真机启动必有内置种子：样例挂在内置家的域名上时，带名字交的是一条新连接，和内置连接各管各的。
+      ensureBuiltinModelSeeds();
       const reply = await submitDeclaration({ name: example.name, declaration: JSON.stringify(example.card) });
       expect(reply, JSON.stringify(reply)).toMatchObject({ ok: true });
       const registered = (reply as unknown as { state: { models: Array<{ modelKey: string }> } }).state.models.map((model) => model.modelKey);
       expect(registered.sort()).toEqual(example.card.models.map((model) => model.modelKey).sort());
+      // 不带名字交到内置连接本身（Higgsfield）：卡上的模型内置目录里已经有了，被拒、说清是哪几个、连接不动
+      // （2026-11-16，卡改写内置连接那一类）。
+      const builtinVendor = builtinVendorKeyForHostname(new URL(example.card.provider.baseUrl).hostname);
+      if (builtinVendor) {
+        const before = readCatalog().vendors.find((vendor) => vendor.key === builtinVendor);
+        const refused = await submitDeclaration({ declaration: JSON.stringify(example.card) });
+        expect(refused, JSON.stringify(refused)).toMatchObject({ ok: false, code: "route_conflict" });
+        for (const model of example.card.models) expect((refused as { message: string }).message).toContain(model.modelKey);
+        expect(readCatalog().vendors.find((vendor) => vendor.key === builtinVendor)).toEqual(before);
+      }
     },
   );
 

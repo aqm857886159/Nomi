@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { AGENT_FORM_DEFAULTS, BALL_SIZE, EDGE_GAP, FLOAT_MIN, clampBall, clampRect, defaultBallPoint, defaultFloatRect } from './agentFormStore'
+import { AGENT_FORM_DEFAULTS, EDGE_GAP, FLOAT_MIN, clampRect, defaultFloatRect } from './agentFormStore'
 
-describe('Agent 三形态的几何（10-08 外壳重设计）', () => {
-  it('默认：画布 / 列表收成小球、点开是浮窗，创作、分镜、预览开着停靠', () => {
+describe('Agent 三形态的几何（10-08 外壳重设计；收起 = 顶栏 Nomi 入口，2026-11-22）', () => {
+  it('默认：画布 / 列表收起（顶栏入口）、点开是浮窗，创作、分镜、预览开着停靠', () => {
     expect(AGENT_FORM_DEFAULTS).toEqual({
       creation: { placement: 'dock', collapsed: false },
       storyboard: { placement: 'dock', collapsed: false },
@@ -33,9 +33,4 @@ describe('Agent 三形态的几何（10-08 外壳重设计）', () => {
     expect(FLOAT_MIN.width).toBeGreaterThan(280)
   })
 
-  it('小球默认右下，越界被夹回', () => {
-    const area = { width: 1210, height: 760 }
-    expect(defaultBallPoint(area)).toEqual({ x: area.width - BALL_SIZE - EDGE_GAP, y: area.height - BALL_SIZE - EDGE_GAP })
-    expect(clampBall({ x: -50, y: 2000 }, area)).toEqual({ x: 0, y: area.height - BALL_SIZE })
-  })
 })

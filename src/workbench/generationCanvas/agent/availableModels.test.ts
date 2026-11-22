@@ -1,4 +1,4 @@
-import { formatAvailableModelsForPrompt } from "../../../../electron/shared/agentCapabilities/availableModels";
+import { formatAvailableModelsForPrompt, MODEL_ANCHOR_GUIDANCE } from "../../../../electron/shared/agentCapabilities/availableModels";
 import { describe, it, expect } from "vitest";
 import { buildAgentModelEntries, pickSavedDefaultModel, pickStoryboardDefaultModel } from "./availableModels";
 import type { ModelOption } from "../../../config/models";
@@ -99,7 +99,10 @@ describe("formatAvailableModelsForPrompt", () => {
     expect(entries[0]?.modes.every(mode => mode.consumesAnchors?.includes('none'))).toBe(true);
     const prompt = formatAvailableModelsForPrompt(entries);
     expect(prompt).toContain('[consumesAnchors:none]');
-    expect(prompt).toContain('modelId/modeId 不能留空');
+    expect(MODEL_ANCHOR_GUIDANCE.join('\n')).toMatch(/模型和模式.*不能留空/);
+    expect(MODEL_ANCHOR_GUIDANCE.join('\n')).not.toMatch(/modelId|modeId|providerId|modelKey/);
+    expect(prompt).toContain('modelId=imagen-4');
+    expect(prompt).not.toMatch(/给出 modelId、可选 modeId、params/);
     expect(prompt).toContain('用户点名 t2v 就听用户');
   });
   it("排序稳定且标题不绑定旧工具名", () => {

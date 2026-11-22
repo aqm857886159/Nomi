@@ -139,3 +139,10 @@ test('已知局限（其它键）：正则扫描是启发式，这三种写法�
   const other = scanDictionaries(dict({ a: { b: 'Cost' } }, { a: { b: 'Cost \u216B', c: 'Co\u00ADst 12', d: 'Cost {{amount}}' } }), { notMoney: [] })
   assert.deepEqual(other.hits, [])
 })
+
+test('发送键约价那一句：只认登记原文；改成免费、或挪到别的键都红', () => {
+  const known = { composer: { sendCost: { estimate: '这次约 {{value}} 积分（{{usd}}）。按 APIMart 公开价估，出完按 APIMart 实际扣费记。' } } }
+  assert.equal(scanDictionaries(dict({ generationCommon: known })).hits.length, 0)
+  assert.equal(scanDictionaries(dict({ generationCommon: { composer: { sendCost: { estimate: '本次免费' } } } })).hits.length, 1)
+  assert.equal(scanDictionaries(dict({ arbitrary: known.composer.sendCost })).hits.length, 1)
+})

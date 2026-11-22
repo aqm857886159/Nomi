@@ -54,6 +54,15 @@ export const APIMART_VENDOR_SEED = {
     cost: "free" as const,
     source: { url: "https://docs.apimart.ai/en/api-reference/account/token-balance.md", checkedAt: "2026-09-22" },
   },
+  /**
+   * 公开价目（不带凭据的 GET）：发送键上的约价只读这两条（`electron/ai/onboarding/vendorPricePreview.ts`）。
+   * 只认官方服务的 origin（主域 + 自愈梯子 `electron/vendor/vendorBaseFallback.ts` 里声明的官方备用域）；
+   * 中转站或改过的地址一律不估。请求和生成走同一个出站函数，主域连不上换到备用域时价目跟着换。
+   */
+  publicPricing: {
+    listPath: "/api/pricing/models/all",
+    modelPath: "/api/pricing/model",
+  },
 } as const;
 
 /** apimart 的 status 动词 → 我们的归一态（与 kie 不同：apimart 用 pending/processing/completed/...）。 */

@@ -14,6 +14,7 @@ import { V4ToolReceipt } from './AgentPanelV4Receipt'
 import { AgentPanelV4Panel, V4FlowRow } from './AgentPanelV4Panel'
 import ReconcileDeviationCard from '../../generationCanvas/components/ReconcileDeviationCard'
 import { AgentPanelV4Composer } from './AgentPanelV4Composer'
+import type { NomiEditorOwner } from '../../common/useNomiRichTextEditor'
 import type { InterventionData, TaskCardData, ToolReceipt, V4InterventionKind, V4TaskStatus, V4ToolStatus } from './agentPanelV4Types'
 
 // 介入槽的写口在生产里是必填（R28）。测试里显式给一份空壳，表示「这一格不验行为」。
@@ -59,6 +60,12 @@ beforeAll(async () => {
   Reflect.set(globalThis, 'document', { documentElement: { lang: '' } })
   await import('../../../i18n/index')
 })
+
+/** 组件测试用的固定 owner：值写死、编辑不写回。设计实验室那份（src/devlab/designLab/fixedEditorOwner.ts）只给实验室用，
+ *  src/ 里实验室以外的文件（含测试）引它会被 check:design-lab 拦，所以测试就地写一份。 */
+function fixedEditorOwner<V>(value: V): NomiEditorOwner<V> {
+  return { subscribe: () => () => undefined, getSnapshot: () => value, write: () => undefined }
+}
 
 describe('① 用户气泡', () => {
   it('附件 chip 在气泡内，不是气泡外另起一行', () => {
@@ -567,7 +574,7 @@ describe('⑥ 队列行', () => {
 })
 
 // ⑦ 收起坞的「叫回面板」那颗钮已搬到顶栏（09-01 定稿 §11.2），断言随它走进
-// `src/ui/app-shell/shell/AgentBallFace.tsx`（10-08 起收起态是内容区右下的小球）——它现在的邻居是浏览器/设置那两颗钮，
+// `src/ui/app-shell/shell/ShellNomiEntry.tsx`（2026-11-22 起收起态是顶栏最右那颗 Nomi 入口）——它现在的邻居是浏览器/设置那两颗钮，
 // 断言该和它们放一起，不该留在面板积木这一叠里。本文件只剩画面下沿那一坞（无自有长相）。
 // （合并 origin/main 时这里冲突过：main 那侧还留着 `V4CollapsedRail` 的 32px 断言，
 //  而那个组件已在本分支随收起态返工删掉——保留删除，只取 main 对 Context 环的新说法。）
@@ -642,14 +649,15 @@ describe('⑧ composer 底栏逐件', () => {
 
   it('高度写进 data-height，随面板高度和内容 derive', () => {
     expect(html(el(AgentPanelV4Composer, { panelHeight: 620 }))).toContain('data-height="86"')
-    expect(html(el(AgentPanelV4Composer, { panelHeight: 620, value: 'a\nb\nc\nd\ne\nf\ng\nh' }))).toContain('data-height="178"')
+    expect(html(el(AgentPanelV4Composer, { panelHeight: 620, draft: fixedEditorOwner('a\nb\nc\nd\ne\nf\ng\nh') }))).toContain('data-height="178"')
     // 同一段 8 行文本：620 高的面板封在 6 行（178），900 高的面板还没到 40% 上限，长满 218。
-    expect(html(el(AgentPanelV4Composer, { panelHeight: 900, value: 'a\nb\nc\nd\ne\nf\ng\nh' }))).toContain('data-height="218"')
+    expect(html(el(AgentPanelV4Composer, { panelHeight: 900, draft: fixedEditorOwner('a\nb\nc\nd\ne\nf\ng\nh') }))).toContain('data-height="218"')
   })
 
-  it('没有 onValueChange 时共享提示词编辑器只读——受控件不假装自己能编辑', () => {
-    expect(html(el(AgentPanelV4Composer, { value: '只读' }))).toContain('aria-readonly="true"')
-    expect(html(el(AgentPanelV4Composer, { value: '可编辑', onValueChange: () => undefined }))).toContain('aria-readonly="false"')
+  it('没有草稿 owner 或标了只读时共享提示词编辑器只读——受控件不假装自己能编辑', () => {
+    expect(html(el(AgentPanelV4Composer, {}))).toContain('aria-readonly="true"')
+    expect(html(el(AgentPanelV4Composer, { draft: fixedEditorOwner('只读'), draftReadOnly: true }))).toContain('aria-readonly="true"')
+    expect(html(el(AgentPanelV4Composer, { draft: fixedEditorOwner('可编辑') }))).toContain('aria-readonly="false"')
   })
 })
 

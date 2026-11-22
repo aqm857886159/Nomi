@@ -178,7 +178,7 @@ P3「全绿不等于完成」的量化门。三档触发：
 
 **动作**：先写特征测试钉住现状，再做「类根因复盘」一页（模板 [`direction-check-template.md`](engineering/direction-check-template.md)：归类表、为什么一直冒、不改结构的 2–3 个可验证预测、靶子独立性检查、P0 现成方案、补 / 重写 / 删对比 + 推荐、用户要权衡的核心），结构性结论交用户拍板。选重写时范围限一个模块，同一次提交删掉旧的（P1）。根因合同可带 `rewrite_decision: { decision, characterization_test }`，写了就必须成立。
 
-**执行点（谁执行都绕不过）**：git commit-msg `scripts/check-direction-trailer.mjs`（fix 提交碰热点必须带 `Direction-Check: <复盘文档路径>`，文档须在 `docs/` 下、存在、不是空壳；按内容判，没有环境变量开关；revert 与 merge 不拦）；派工前 `fix-churn.mjs`；CI contracts 里只警告的 `Direction check` 步骤（兜 `--no-verify`）；Claude 编辑提醒 `edit-time-reminder`（调同一个计数器，只提醒）；`self-check` 在用户消息出现「第 N 轮 / 再修 / 又坏了 / 还是不对」时注入提示块。起因与限制见编排手册 §20。
+**执行点（谁执行都绕不过）**：git commit-msg `scripts/check-direction-trailer.mjs`（fix 提交碰热点必须带 `Direction-Check: <复盘文档路径>`，文档须在 `docs/` 下、存在、不是空壳；按内容判，没有环境变量开关；revert 与 merge 不拦）；派工前 `fix-churn.mjs`；（CI 里原来只警告的 `Direction check` 步骤已删，拦截只在提交时由 commit-msg 做）；Claude 编辑提醒 `edit-time-reminder`（调同一个计数器，只提醒）；`self-check` 在用户消息出现「第 N 轮 / 再修 / 又坏了 / 还是不对」时注入提示块。起因与限制见编排手册 §20。
 
 ## P2 修复走根因流程（旧 R21 / R21.1 / R21.3）
 
