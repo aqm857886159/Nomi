@@ -128,6 +128,7 @@ export function safeRunProjection(run: ProductionRun): Omit<ProductionRunProject
       ...(stage.completedAt ? { completedAt: stage.completedAt } : {}),
       // W1.5：审片摘要透出（仅 qa 阶段有，文本经 sanitizer）。
       ...(stage.qaSummary ? { qaSummary: safeExternalText(stage.qaSummary) } : {}),
+      ...(stage.qaReport ? { qaReport: stage.qaReport } : {}),
     })),
     gates: run.gates.map((gate) => ({
       gateId: gate.gateId, scope: gate.scope, status: gate.status, title: safeExternalText(gate.title), summary: safeExternalText(gate.summary),

@@ -219,6 +219,7 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
         status: retrySummary > 0 ? 'running' : 'completed',
         ...(retrySummary > 0 ? {} : { completedAt: new Date().toISOString() }),
         qaSummary: stageSummary,
+        qaReport: outcome.qaReport,
       }),
     }, `driver-${runId}-stage-qa-${current.revision}`).run
   }

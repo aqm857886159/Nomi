@@ -1,12 +1,70 @@
 import React, { type JSX } from 'react'
+import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 
+import type { QaStageReport } from '../../../electron/productionRun/productionRunTypes'
+import { SHOT_VERIFY_DIMENSIONS, type ShotVerifyDimensionKey } from '../generationCanvas/agent/shotVerify'
+import { formatQaUnverifiedReason } from '../generationCanvas/agent/shotVerifyRunner'
 import { cn } from '../../utils/cn'
 import { productionPlaybookLabelKey, productionStageLabelKey } from './productionRunLabels'
 import type { ProductionRunView } from './productionRunView'
 
 type Props = {
   details: ProductionRunView['details']
+}
+
+const DIMENSION_NAME_KEYS: Record<string, ShotVerifyDimensionKey> = Object.fromEntries(
+  SHOT_VERIFY_DIMENSIONS.map((d) => [d.name, d.key]),
+) as Record<string, ShotVerifyDimensionKey>
+
+function formatQaReportSummary(report: QaStageReport, t: TFunction): string {
+  const sep = t('generationCommon.production.qa.listSeparator')
+  if (report.skipped || report.total === 0) {
+    const reason = report.skipReason?.trim() || t('generationCommon.production.qa.fallbackReason')
+    return t('generationCommon.production.qa.skipped', { reason })
+  }
+  const reasons = report.unverifiedReasons?.length
+    ? report.unverifiedReasons.map((r) => formatQaUnverifiedReason(r, t)).join(sep)
+    : t('generationCommon.production.qa.fallbackReason')
+  const dims = report.flaggedDimensions?.length
+    ? report.flaggedDimensions
+        .map((dim) => {
+          const key = DIMENSION_NAME_KEYS[dim]
+          return key ? t(`generationCommon.reconcile.fields.${key}` as 'generationCommon.reconcile.fields.identity') : dim
+        })
+        .join(sep)
+    : t('generationCommon.production.qa.fallbackDimension')
+
+  if (report.flaggedCount === 0 && report.unverifiedCount === 0) {
+    return t('generationCommon.production.qa.allPassed', { total: report.total })
+  }
+  if (report.unverifiedCount === report.total) {
+    return t('generationCommon.production.qa.allUnverified', { total: report.total, reasons })
+  }
+  if (report.flaggedCount === 0) {
+    return t('generationCommon.production.qa.partialUnverified', {
+      passed: report.passedCount,
+      total: report.total,
+      unverified: report.unverifiedCount,
+      reasons,
+    })
+  }
+  if (report.unverifiedCount === 0) {
+    return t('generationCommon.production.qa.flaggedOnly', {
+      passed: report.passedCount,
+      total: report.total,
+      flagged: report.flaggedCount,
+      dims,
+    })
+  }
+  return t('generationCommon.production.qa.flaggedAndUnverified', {
+    passed: report.passedCount,
+    total: report.total,
+    flagged: report.flaggedCount,
+    dims,
+    unverified: report.unverifiedCount,
+    reasons,
+  })
 }
 
 // 界面不谈钱：这里原有四个金额格（已授权 / 已预留 / 已结算 / 待结算），值是把账本合计现算成货币。
@@ -32,14 +90,26 @@ export function ProductionDetails({ details }: Props): JSX.Element {
         </span>
       </div>
       <div className={cn('grid gap-1.5')}>
-        {details.stages.map((stage) => (
-          <div key={stage.stageId} className={cn('flex items-center justify-between gap-3 text-caption')}>
-            <span className={cn('truncate text-nomi-ink-80')}>{t(productionStageLabelKey(stage.stageId))}</span>
-            <span className={cn('shrink-0 text-micro text-nomi-ink-60')}>
-              {t(`generationCommon.production.runDetails.stageStatus.${stage.status}`)}
-            </span>
-          </div>
-        ))}
+        {details.stages.map((stage) => {
+          const qaLine = stage.qaReport
+            ? formatQaReportSummary(stage.qaReport, t)
+            : stage.qaSummary
+          return (
+            <div key={stage.stageId} className={cn('grid gap-0.5')}>
+              <div className={cn('flex items-center justify-between gap-3 text-caption')}>
+                <span className={cn('truncate text-nomi-ink-80')}>{t(productionStageLabelKey(stage.stageId))}</span>
+                <span className={cn('shrink-0 text-micro text-nomi-ink-60')}>
+                  {t(`generationCommon.production.runDetails.stageStatus.${stage.status}`)}
+                </span>
+              </div>
+              {qaLine ? (
+                <p data-production-qa-summary className={cn('m-0 text-micro leading-relaxed text-nomi-ink-60')}>
+                  {qaLine}
+                </p>
+              ) : null}
+            </div>
+          )
+        })}
       </div>
       <div className={cn('grid gap-1 text-caption')}>
         <span className={cn('text-nomi-ink-60')}>{t('generationCommon.production.runDetails.skills')}</span>

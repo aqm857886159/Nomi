@@ -151,6 +151,29 @@ export type ProductionBrief = {
   referenceArtifactIds?: string[];
 };
 
+/** 单镜审片三态：真审过无偏离（passed）/ 真审过有偏差（flagged）/ 未完成校验（unverified，绝不等于通过）。 */
+export type QaShotVerdictStatus = "passed" | "flagged" | "unverified";
+
+/** 单镜未能完成画面审片的精确原因（结构化枚举，供主进程摘要与渲染层 i18n 共用）。 */
+export type QaShotUnverifiedReason =
+  | "vision_unavailable"
+  | "missing_frame_source"
+  | "frame_extract_failed"
+  | "judge_failed"
+  | "invalid_verdict_json";
+
+/** qa 阶段结构化审片统计（供界面按当前语言渲染诚实三态结论，老 run 无此字段时回落 qaSummary）。 */
+export type QaStageReport = {
+  total: number;
+  passedCount: number;
+  flaggedCount: number;
+  unverifiedCount: number;
+  flaggedDimensions?: string[];
+  unverifiedReasons?: QaShotUnverifiedReason[];
+  skipped?: boolean;
+  skipReason?: string;
+};
+
 export type ProductionStage = {
   stageId: string;
   title: string;
@@ -159,11 +182,13 @@ export type ProductionStage = {
   startedAt?: string;
   completedAt?: string;
   /**
-   * W1.5 审片摘要（仅 qa 阶段）：driver 跑完审片后把「N 镜过检 · M 面红标」这类一句话人话摘要
-   * 盖在 qa 阶段上，让 nomi_get_run 投影读得到（per-shot 明细走 qa.verdict 事件，此处只留总览）。
+   * W1.5 审片摘要（仅 qa 阶段）：driver 跑完审片后把三态审片总览盖在 qa 阶段上，
+   * 让 nomi_get_run 投影读得到（per-shot 明细走 qa.verdict 事件，此处只留总览）。
    * 文本经投影 sanitizer；老 run 无字段 → 不显。
    */
   qaSummary?: string;
+  /** qa 阶段结构化三态结论（与 qaSummary 同源产出，供桌面界面按中英文 i18n 展示）。 */
+  qaReport?: QaStageReport;
 };
 
 export type ProductionJob = {

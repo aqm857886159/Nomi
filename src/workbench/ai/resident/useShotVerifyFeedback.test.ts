@@ -1,6 +1,7 @@
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import i18n from '../../../i18n/index'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import { useShotVerifyStore } from '../../generationCanvas/agent/shotVerifyStore'
 import { AgentPanelV4Panel } from '../v4/AgentPanelV4Panel'
@@ -94,5 +95,32 @@ describe('verified shots use the existing domain card and admission budget', () 
     expect(await pending).toBe(false)
     expect(useShotVerifyStore.getState()).toBe(next)
     expect(next.budget.roundsUsed).toBe(0)
+  })
+
+  it('renders an honest unverified notice without AI Fix when shots could not be verified', () => {
+    ;(useShotVerifyStore.getState().setDeviations as (d: unknown[], u?: unknown[]) => void)(
+      [],
+      [{ shotNodeId: 'shot-2', shotTitle: '镜头 2', reason: 'vision_unavailable' }],
+    )
+    const markup = renderToStaticMarkup(React.createElement(FeedbackPanel, { surface: 'generation' }))
+    expect(markup).toContain('data-reconcile-deviation-card="true"')
+    expect(markup).toContain('data-reconcile-unverified-item="shot-2"')
+    expect(markup).toContain('镜头 2')
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.unverifiedLabel'))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.unverifiedReasons.vision_unavailable'))
+    expect(markup).not.toContain('data-reconcile-ai-fix')
+  })
+
+  it('does not claim other shots look normal when flagged and unverified shots coexist', () => {
+    ;(useShotVerifyStore.getState().setDeviations as (d: unknown[], u?: unknown[]) => void)(
+      [deviation],
+      [{ shotNodeId: 'shot-2', shotTitle: '镜头 2', reason: 'judge_failed' }],
+    )
+    const markup = renderToStaticMarkup(React.createElement(FeedbackPanel, { surface: 'generation' }))
+    expect(markup).toContain('F_VERIFY_LOW')
+    expect(markup).toContain('data-reconcile-unverified-item="shot-2"')
+    expect(markup).toContain('镜头 2')
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.unverifiedReasons.judge_failed'))
+    expect(markup).not.toContain(i18n.t('generationCommon.reconcile.contentCaption'))
   })
 })

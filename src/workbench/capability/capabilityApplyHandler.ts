@@ -248,9 +248,9 @@ function scoreFromDeviationActual(actual: unknown): number | undefined {
 /**
  * W1.5 路径②审片：production run 的 qa 阶段让渲染层对本次生成镜头判分。
  * 复用**现成的** verifyShotsAndReport（判分+对账卡+回灌闭环），
- * 这里只做参数适配（run 的镜头节点 id → 它的入参）+ 将本次调用返回的判决塑形回传。
- * 判决 = content 偏差（每条 kind:'content' 回指 shotNodeId + 维度 field + 档位 actual + reason）；
- * 被审但无偏差的镜头 = 过检。verify 关闭 / 无镜头 → skipped（driver 据此落「审片跳过」）。
+ * 这里只做参数适配（run 的镜头节点 id → 它的入参）+ 将三态审片报告原样映射回传：
+ * passed（真审过且无偏差）/ flagged（真审过且有偏差）/ unverified（未能完成审片，绝不冒充通过）。
+ * verify 关闭 / 无镜头 → skipped（driver 据此落「审片跳过」）。
  */
 async function verifyShotsForProduction(shotNodeIds: readonly string[], loaded: ProjectExecutionContext | null): Promise<unknown> {
   if (!isShotVerifyEnabled()) return { skipped: true, skipReason: '画面审片已在设置中关闭' }
@@ -258,29 +258,53 @@ async function verifyShotsForProduction(shotNodeIds: readonly string[], loaded: 
   const knownNodeIds = new Set(useGenerationCanvasStore.getState().nodes.map((node) => node.id))
   const reviewedShotIds = shotNodeIds.filter((id) => knownNodeIds.has(id))
   if (reviewedShotIds.length === 0) return { skipped: true, skipReason: '当前项目里找不到本次生成的镜头节点' }
-  // 现成闭环：内部 gather → 判分 → 写 shotVerify store。直接使用「本次」返回值，不能在 await
+  // 现成闭环：内部 gather → 判分 → 写 shotVerify store。直接使用「本次」三态报告，不能在 await
   // 后读全局 store——同项目另一轮审片可能已经后发先至，读到的会是另一次结果。
-  const deviations = await verifyShotsAndReport(reviewedShotIds, loaded)
-  const flaggedByShot = new Map<string, Array<{ dimensionName?: string; score?: number; reason?: string }>>()
-  for (const deviation of deviations) {
-    if (deviation.kind !== 'content' || !deviation.shotNodeId) continue
-    const list = flaggedByShot.get(deviation.shotNodeId) ?? []
-    list.push({
-      dimensionName: typeof deviation.field === 'string' ? deviation.field : undefined,
-      score: scoreFromDeviationActual(deviation.actual),
-      reason: typeof deviation.reason === 'string' ? deviation.reason : undefined,
-    })
-    flaggedByShot.set(deviation.shotNodeId, list)
-  }
+  const report = await verifyShotsAndReport(reviewedShotIds, loaded)
+  const outcomeByShot = new Map(report.shotOutcomes.map((outcome) => [outcome.shotNodeId, outcome]))
   const nodesById = new Map(useGenerationCanvasStore.getState().nodes.map((node) => [node.id, node]))
   const verdicts = reviewedShotIds.map((shotNodeId) => {
-    const flagged = flaggedByShot.get(shotNodeId) ?? []
     const title = (nodesById.get(shotNodeId)?.title || '').trim()
+    const outcome = outcomeByShot.get(shotNodeId)
+    if (!outcome) {
+      return {
+        shotNodeId,
+        ...(title ? { shotTitle: title } : {}),
+        status: 'unverified' as const,
+        passed: false,
+        unverifiedReason: 'missing_frame_source' as const,
+      }
+    }
+    if (outcome.status === 'unverified') {
+      return {
+        shotNodeId,
+        ...(title ? { shotTitle: title } : {}),
+        status: 'unverified' as const,
+        passed: false,
+        unverifiedReason: outcome.reason,
+      }
+    }
+    if (outcome.status === 'flagged') {
+      const flagged = outcome.deviations
+        .filter((deviation) => deviation.kind === 'content')
+        .map((deviation) => ({
+          dimensionName: typeof deviation.field === 'string' ? deviation.field : undefined,
+          score: scoreFromDeviationActual(deviation.actual),
+          reason: typeof deviation.reason === 'string' ? deviation.reason : undefined,
+        }))
+      return {
+        shotNodeId,
+        ...(title ? { shotTitle: title } : {}),
+        status: 'flagged' as const,
+        passed: false,
+        ...(flagged.length ? { flagged } : {}),
+      }
+    }
     return {
       shotNodeId,
-      passed: flagged.length === 0,
       ...(title ? { shotTitle: title } : {}),
-      ...(flagged.length ? { flagged } : {}),
+      status: 'passed' as const,
+      passed: true,
     }
   })
   return { reviewedShotIds, verdicts }

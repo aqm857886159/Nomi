@@ -50,4 +50,50 @@ describe('production details', () => {
     expect(html).not.toMatch(/runDetails\.(?:authorized|reserved|actual|unsettled)/)
     expect(html, '没有货币符号或货币码').not.toMatch(/[¥￥$€£]|\b(?:USD|CNY|RMB|EUR|JPY|GBP)\b/)
   })
+
+  it('renders localized QA verdict summary under the QA stage for unverified and all-passed runs', () => {
+    const unverifiedView: ProductionRunView = {
+      ...view,
+      details: {
+        ...view.details,
+        stages: [
+          {
+            stageId: 'qa',
+            title: 'QA',
+            status: 'completed',
+            qaReport: { total: 2, passedCount: 0, flaggedCount: 0, unverifiedCount: 2, unverifiedReasons: ['vision_unavailable'] },
+          } as ProductionRunView['details']['stages'][number],
+        ],
+      },
+    }
+    const htmlUnverified = renderToStaticMarkup(React.createElement(MantineProvider, {
+      children: React.createElement(ProductionRunTaskCard, {
+        projectId: 'project-1', view: unverifiedView, actionError: null, onPrimaryAction: vi.fn(), onControl: vi.fn(),
+      }),
+    }))
+    expect(htmlUnverified).toContain('data-production-qa-summary')
+    expect(htmlUnverified).toContain('generationCommon.production.qa.allUnverified')
+
+    const passedView: ProductionRunView = {
+      ...view,
+      details: {
+        ...view.details,
+        stages: [
+          {
+            stageId: 'qa',
+            title: 'QA',
+            status: 'completed',
+            qaReport: { total: 2, passedCount: 2, flaggedCount: 0, unverifiedCount: 0 },
+          } as ProductionRunView['details']['stages'][number],
+        ],
+      },
+    }
+    const htmlPassed = renderToStaticMarkup(React.createElement(MantineProvider, {
+      children: React.createElement(ProductionRunTaskCard, {
+        projectId: 'project-1', view: passedView, actionError: null, onPrimaryAction: vi.fn(), onControl: vi.fn(),
+      }),
+    }))
+    expect(htmlPassed).toContain('data-production-qa-summary')
+    expect(htmlPassed).toContain('generationCommon.production.qa.allPassed')
+  })
 })

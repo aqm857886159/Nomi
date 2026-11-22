@@ -269,7 +269,7 @@ describe("Nomi text brain resolver", () => {
       apiKeysByVendor: { local: key("local", "c3RhbGU=", "safeStorage") },
     }));
     expect(resolver.chooseTextModel()).toMatchObject({ vendor: { key: "local" }, apiKey: "" });
-    expect(resolver.resolveTextBrainStatus()).toEqual({ status: "ok", brain: { vendor: "local", modelKey: "chat" } });
+    expect(resolver.resolveTextBrainStatus()).toEqual({ status: "ok", brain: { vendor: "local", modelKey: "chat" }, imageInput: "unknown" });
     expect(safeStorageMocks.decryptString).not.toHaveBeenCalled();
   });
 
@@ -290,7 +290,22 @@ describe("Nomi text brain resolver", () => {
     safeStorageMocks.decryptString.mockImplementation((value: Buffer) => value.toString("utf8"));
     vi.mocked(readCatalog).mockReturnValue(catalog({ vendors: [vendor("a")], models: [model("a", "chat")], apiKeysByVendor: { a: key("a", "dGVzdC1zZWNyZXQ=", "safeStorage") } }));
     expect(resolver.resolveTextBrainKeys()).toEqual({ vendor: "a", modelKey: "chat" });
-    expect(resolver.resolveTextBrainStatus()).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
+    expect(resolver.resolveTextBrainStatus()).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" }, imageInput: "unknown" });
+  });
+
+  it("reports imageInput capability from the resolved text model", () => {
+    safeStorageMocks.decryptString.mockImplementation((value: Buffer) => value.toString("utf8"));
+    const visionModel: ModelEntry = { ...model("a", "vision-chat"), meta: { supportsImageInput: true } };
+    const textOnlyModel: ModelEntry = { ...model("b", "text-only"), meta: { supportsImageInput: false } };
+    vi.mocked(readCatalog).mockReturnValue(catalog({
+      vendors: [vendor("a"), vendor("b")],
+      models: [visionModel, textOnlyModel],
+      apiKeysByVendor: { a: key("a", "dGVzdC1h", "safeStorage"), b: key("b", "dGVzdC1i", "safeStorage") },
+    }));
+    expect(resolver.resolveTextBrainStatus({ vendorKey: "a", modelKey: "vision-chat" }))
+      .toEqual({ status: "ok", brain: { vendor: "a", modelKey: "vision-chat" }, imageInput: "supported" });
+    expect(resolver.resolveTextBrainStatus({ vendorKey: "b", modelKey: "text-only" }))
+      .toEqual({ status: "ok", brain: { vendor: "b", modelKey: "text-only" }, imageInput: "unsupported" });
   });
 
   // 2026-10-09 真模型走查：Agent 面板选了 B，文本节点「跟随 Agent」却用了清单排第一的 A。
@@ -302,12 +317,12 @@ describe("Nomi text brain resolver", () => {
       models: [model("a", "chat"), model("b", "chat-b")],
       apiKeysByVendor: { a: key("a", "dGVzdC1h", "safeStorage"), b: key("b", "dGVzdC1i", "safeStorage") },
     }));
-    expect(resolver.resolveTextBrainStatus()).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
+    expect(resolver.resolveTextBrainStatus()).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" }, imageInput: "unknown" });
     expect(resolver.resolveTextBrainStatus({ vendorKey: "b", modelKey: "chat-b" }))
-      .toEqual({ status: "ok", brain: { vendor: "b", modelKey: "chat-b" } });
+      .toEqual({ status: "ok", brain: { vendor: "b", modelKey: "chat-b" }, imageInput: "unknown" });
     // 选的那个此刻不可用 → 才回落默认判据。
     expect(resolver.resolveTextBrainStatus({ vendorKey: "b", modelKey: "gone" }))
-      .toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
+      .toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" }, imageInput: "unknown" });
   });
 
   it("strict (spending paths) reports the chosen model unavailable instead of silently switching; read-only checks still fall back", () => {
@@ -319,11 +334,11 @@ describe("Nomi text brain resolver", () => {
     }));
     const gone = { vendorKey: "b", modelKey: "gone" };
     expect(resolver.resolveTextBrainStatus(gone, { strict: true })).toEqual({ status: "missing", preferredUnavailable: true });
-    expect(resolver.resolveTextBrainStatus(gone)).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
+    expect(resolver.resolveTextBrainStatus(gone)).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" }, imageInput: "unknown" });
     // 选的可用时 strict 照常返回它；没选时 strict 也走默认判据。
     expect(resolver.resolveTextBrainStatus({ vendorKey: "b", modelKey: "chat-b" }, { strict: true }))
-      .toEqual({ status: "ok", brain: { vendor: "b", modelKey: "chat-b" } });
-    expect(resolver.resolveTextBrainStatus(undefined, { strict: true })).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
+      .toEqual({ status: "ok", brain: { vendor: "b", modelKey: "chat-b" }, imageInput: "unknown" });
+    expect(resolver.resolveTextBrainStatus(undefined, { strict: true })).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" }, imageInput: "unknown" });
   });
 
   it("preserves the stable missing-model error signature", () => {
@@ -352,7 +367,7 @@ describe("Nomi text brain resolver", () => {
     // 解得开 → 就绪为 ok，且和 chooseTextModel 选到的是同一条。
     state.apiKeysByVendor.a = key("a", Buffer.from("usable").toString("base64"), "safeStorage");
     expect(resolver.resolveTextBrainKeys()).toEqual({ vendor: "a", modelKey: "chat" });
-    expect(resolver.resolveTextBrainStatus()).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
+    expect(resolver.resolveTextBrainStatus()).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" }, imageInput: "unknown" });
     expect(resolver.chooseTextModel()).toMatchObject({ vendor: { key: "a" }, model: { modelKey: "chat" } });
   });
 

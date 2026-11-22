@@ -69,7 +69,7 @@ export type ProductionRunView = {
     completedStages: number
     totalStages: number
     updatedAt: string
-    stages: Array<Pick<ProductionRun['stages'][number], 'stageId' | 'title' | 'status'>>
+    stages: Array<Pick<ProductionRun['stages'][number], 'stageId' | 'title' | 'status' | 'qaSummary' | 'qaReport'>>
     skills: Array<{ name: string; version: string }>
   }
 }
@@ -168,10 +168,12 @@ export function buildProductionRunView(
   // every stage transition in the reducer.
   const presentedStages = [...run.stages]
     .sort((left, right) => left.order - right.order)
-    .map(({ stageId, title, status }) => ({
+    .map(({ stageId, title, status, qaSummary, qaReport }) => ({
       stageId,
       title,
       status: run.status === 'completed' ? 'completed' as const : status,
+      ...(qaSummary ? { qaSummary } : {}),
+      ...(qaReport ? { qaReport } : {}),
     }))
   const base = {
     group: productionRunStatusGroup(run.status),

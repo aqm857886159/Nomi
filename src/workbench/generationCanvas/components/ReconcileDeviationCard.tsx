@@ -5,9 +5,12 @@ import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
 import type { ReconcileDeviation } from '../agent/reconcile'
 import { SHOT_VERIFY_DIMENSIONS, type ShotVerifyDimensionKey } from '../agent/shotVerify'
+import { formatQaUnverifiedReason, type ShotVerifyUnverifiedEntry } from '../agent/shotVerifyRunner'
 
 type ReconcileDeviationCardProps = {
   deviations: ReconcileDeviation[]
+  /** 审片未能完成校验的镜头列表（三态诚实展示，绝不冒充正常）。 */
+  unverified?: ShotVerifyUnverifiedEntry[]
   /** 一键整笔撤销(S6-2 后整笔提议=一个 undo barrier,一次 undo 即全退)。
    *  内容偏差卡(画面校验)不传:verify 没改任何东西,无可撤销。 */
   onUndoAll?: () => void
@@ -160,6 +163,7 @@ function localizedReason(reason: unknown, t: TFunction): string {
  */
 export default function ReconcileDeviationCard({
   deviations,
+  unverified = [],
   onUndoAll,
   onDismiss,
   onAiFix,
@@ -169,14 +173,17 @@ export default function ReconcileDeviationCard({
   const { t } = useTranslation()
   const hasEdgeMiss = deviations.some((d) => d.field === '引用边')
   const hasContentMiss = deviations.some((d) => d.kind === 'content')
+  const hasUnverified = unverified.length > 0
   const hasStructural = deviations.some((d) => d.kind !== 'content')
-  // 「让 AI 修」对结构边丢失=重连边;对画面偏差=改 prompt/重生(走确认闸)。预算耗尽则不再给。
+  // 「让 AI 修」对结构边丢失=重连边;对画面偏差=改 prompt/重生(走确认闸)。仅未校验时不给 AI 修复。预算耗尽则不再给。
   const showAiFix = Boolean(onAiFix) && (hasEdgeMiss || hasContentMiss) && !exhausted
   // 撤销只对结构偏差有意义(verify 没改东西);内容偏差卡无可撤销。
   const showUndo = Boolean(onUndoAll) && hasStructural
   const captionText = hasContentMiss
-    ? t('generationCommon.reconcile.contentCaption')
-    : t('generationCommon.reconcile.structuralCaption')
+    ? (hasUnverified ? t('generationCommon.reconcile.contentPartialCaption') : t('generationCommon.reconcile.contentCaption'))
+    : hasUnverified
+      ? t('generationCommon.reconcile.unverifiedOnlyCaption')
+      : t('generationCommon.reconcile.structuralCaption')
   return (
     <div
       className={cn('flex flex-col gap-2', flat ? '' : 'p-3 rounded-nomi border border-nomi-line bg-nomi-paper')}
@@ -186,12 +193,26 @@ export default function ReconcileDeviationCard({
       <div className={cn('text-caption text-nomi-ink-60')}>{captionText}</div>
       <ul className={cn('flex flex-col gap-1 list-none p-0 m-0')}>
         {deviations.map((deviation, index) => (
-          <li key={index} className={cn('flex flex-col gap-[2px] p-2 rounded-nomi-sm bg-nomi-ink-05 text-caption')}>
+          <li key={`dev-${index}`} className={cn('flex flex-col gap-[2px] p-2 rounded-nomi-sm bg-nomi-ink-05 text-caption')}>
             <span className={cn('text-nomi-ink font-medium')}>
               {deviation.where}
               {isEdgeField(deviation.field) ? '' : ` · ${fieldLabel(deviation.field, t)}`}
             </span>
             <span className={cn('text-nomi-ink-60')}>{detailLine(deviation, t)}</span>
+          </li>
+        ))}
+        {unverified.map((entry, index) => (
+          <li
+            key={`unv-${entry.shotNodeId}-${index}`}
+            data-reconcile-unverified-item={entry.shotNodeId}
+            className={cn('flex flex-col gap-[2px] p-2 rounded-nomi-sm bg-nomi-ink-05 text-caption')}
+          >
+            <span className={cn('text-nomi-ink font-medium')}>
+              {entry.shotTitle || entry.shotNodeId} · {t('generationCommon.reconcile.unverifiedLabel')}
+            </span>
+            <span className={cn('text-nomi-ink-60')}>
+              {formatQaUnverifiedReason(entry.reason, t)}
+            </span>
           </li>
         ))}
       </ul>

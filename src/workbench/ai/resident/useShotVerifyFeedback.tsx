@@ -32,14 +32,16 @@ export function useShotVerifyFeedback(surface: ResidentSurface, send: SendRepair
   const projectId = useOpenProjectId()
   const state = React.useSyncExternalStore(useShotVerifyStore.subscribe, useShotVerifyStore.getState, useShotVerifyStore.getState)
   return React.useMemo(() => {
-    if (surface !== 'generation' || !projectId || state.projectId !== projectId || !state.deviations.length) return null
+    if (surface !== 'generation' || !projectId || state.projectId !== projectId
+      || (!state.deviations.length && !state.unverified.length)) return null
     const current = () => {
       const latest = useShotVerifyStore.getState()
       return latest.isVerifyCurrent({ projectId, requestId: state.requestId }, projectId)
-        && latest.deviations === state.deviations ? latest : undefined
+        && latest.deviations === state.deviations
+        && latest.unverified === state.unverified ? latest : undefined
     }
-    return <ReconcileDeviationCard deviations={state.deviations} exhausted={state.exhausted}
-      onDismiss={() => current()?.setDeviations([])}
+    return <ReconcileDeviationCard deviations={state.deviations} unverified={state.unverified} exhausted={state.exhausted}
+      onDismiss={() => current()?.setDeviations([], [])}
       onAiFix={() => { if (current()) void requestShotVerifyFix(projectId, send) }} />
   }, [projectId, send, state, surface])
 }
