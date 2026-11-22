@@ -1,0 +1,30 @@
+{
+  "id": "chat-send-visible-50-tools",
+  "feature": "创作页 Agent 面板，当前对话已有 50 轮含工具入参与大段 JSON 工具结果的长对话（原生 JSONL 落盘）：输入框写好一句按回车，到自己那句气泡出现在对话流可见区再过两帧",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "E10",
+    "--scenarios",
+    "chat-send-visible-50-tools",
+    "--warmup",
+    "1"
+  ],
+  "scale": "50 轮含工具调用与 4.5KB JSON 工具结果的长对话（200 parts）；本机假模型立刻回一句",
+  "metrics": [
+    "response",
+    "longTasks"
+  ],
+  "budget": 100,
+  "group": "⑫ Agent 对话",
+  "budgetStatus": "proposed",
+  "budgetBasis": "与 chat-send-visible 同口径：按回车到自己那句气泡出现在对话流可见区，仓库默认「操作到可见反馈 ≤100ms，p95 ≤150ms」（RAIL / Nielsen 100ms 即时感）",
+  "baseline": {
+    "median": 97.2,
+    "p95": 98.3,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 16GB",
+    "date": "2026-11-22",
+    "commit": "9653c68b5"
+  }
+}

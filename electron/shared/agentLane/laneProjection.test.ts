@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LaneSnapshot } from '@earendil-works/pi-agent-core'
 import { isContextOverflow, isRetryableAssistantError, type AssistantMessage } from '@earendil-works/pi-ai'
-import { projectLaneSnapshot, type LaneModelFacts } from './laneProjection'
+import { projectLaneSnapshot, trimLaneProjectionForIpc, type LaneModelFacts } from './laneProjection'
 import { LANE_VENDOR_FAILURE_DIAGNOSTIC } from './laneAssistantFault'
 
 const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
@@ -232,5 +232,35 @@ describe('lane stop visibility', () => {
     )
     expect(projection.parts.filter((part) => part.kind === 'assistant-text')).toHaveLength(1)
     expect(projection.parts[0]).toMatchObject({ interrupted: true, continuationEntryId: 'stopped' })
+  })
+})
+
+describe('trimLaneProjectionForIpc', () => {
+  it('strips large text on successful tool-result while preserving error text, nextAction, and failure envelopes', () => {
+    const base = projectLaneSnapshot({
+      lane: 'main', tipId: 'tip', operation: null, queues: [], faulted: false,
+      configuration: { model: { provider: 'fixture', modelId: 'fixture' }, thinkingLevel: 'off', activeToolNames: [] },
+      stats: { messageCount: 2, usage },
+      transcript: [
+        { id: 'r1', parentId: null, seq: 1, timestamp: 1, type: 'message', message: {
+          role: 'toolResult', toolCallId: 'c1', toolName: 'look_at_canvas', isError: false, timestamp: 1,
+          content: [{ type: 'text', text: '{"huge": "' + 'a'.repeat(4096) + '"}' }],
+          details: { nextAction: { kind: 'none', userSees: 'read canvas', operationId: 'op-1' } },
+        } } as unknown as LaneSnapshot['transcript'][number],
+        { id: 'r2', parentId: 'r1', seq: 2, timestamp: 2, type: 'message', message: {
+          role: 'toolResult', toolCallId: 'c2', toolName: 'draft_shots', isError: true, timestamp: 2,
+          content: [{ type: 'text', text: 'durationSec: expected number' }],
+          details: { failure: { code: 'generation_input_invalid', scope: 'tool-input', retryable: true } },
+        } } as unknown as LaneSnapshot['transcript'][number],
+      ],
+    }, { pricing: 'unpriced', supportedThinkingLevels: ['off'] })
+
+    const trimmed = trimLaneProjectionForIpc(base)
+    expect(trimmed.parts[0]).toMatchObject({ kind: 'tool-result', toolCallId: 'c1', isError: false, text: '',
+      nextAction: { kind: 'none', userSees: 'read canvas', operationId: 'op-1' } })
+    expect(trimmed.parts[1]).toMatchObject({ kind: 'tool-result', toolCallId: 'c2', isError: true,
+      text: 'durationSec: expected number', failure: { code: 'generation_input_invalid' } })
+    // 幂等：已裁剪的投影返回同一引用
+    expect(trimLaneProjectionForIpc(trimmed)).toBe(trimmed)
   })
 })

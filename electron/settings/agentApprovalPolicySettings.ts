@@ -44,6 +44,11 @@ export function readAgentApprovalPolicy(): ProjectAgentApprovalPolicy {
  */
 export function writeAgentApprovalPolicy(value: unknown): ProjectAgentApprovalPolicy {
   const next = normalizeAgentApprovalPolicySettings(value);
+  // 档位未变时不触发 .bak.json 轮转与 fsyncSync 同步写盘；
+  // 先经唯一读口读当前生效值（缺文件 = 默认档，坏文件自动隔离并在写口拒写）。
+  if (readAgentApprovalPolicy().mode === next.policy.mode) {
+    return next.policy;
+  }
   writeConfigFileAtomic(agentApprovalPolicySettingsPath(), next);
   return next.policy;
 }

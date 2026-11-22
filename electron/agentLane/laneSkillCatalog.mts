@@ -25,6 +25,7 @@
 //   pi 是 ESM-only，主进程是 CommonJS；凡直接摸 pi 的文件都住这个 NodeNext 岛（`tsconfig.pi.json`）。
 //   CJS 侧的 `readSkillRecords()` 经 `laneNativeLoader.cts` 那座桥拿到这里的实现。`SkillRecord` 类型仍留在
 //   `electron/skills/skillStore.ts`（中立于岛的 CJS 类型，岛只 `import type` 它），所以 CJS 工程看不见岛地。
+import { watch, type FSWatcher } from 'node:fs';
 import { lstat, readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -130,15 +131,154 @@ async function migrateLegacyManifests(root: SkillDiscoveryRoot, diagnostics: Ski
   }
 }
 
+type TrackedSkillPath = {
+  readonly path: string;
+  readonly stat: string;
+};
+
+type TrackedSkillRoot = {
+  readonly root: SkillDiscoveryRoot;
+  readonly rootStat: string;
+  readonly shallowVerify: boolean;
+  readonly rootEntries: readonly string[];
+  readonly watchedFiles: readonly TrackedSkillPath[];
+  watcher: FSWatcher | null;
+};
+
+type CachedSkillDiscovery = {
+  dirty: boolean;
+  readonly roots: readonly TrackedSkillRoot[];
+  readonly result: SkillDiscoveryResult;
+};
+
+const MAX_SKILL_DISCOVERY_CACHE_ENTRIES = 16;
+const SHALLOW_VERIFY_SKILL_LIMIT = 16;
+const skillDiscoveryCache = new Map<string, CachedSkillDiscovery>();
+
+async function lstatSignature(target: string): Promise<string> {
+  try {
+    const st = await lstat(target, { bigint: true });
+    return `${st.ino}:${st.mode}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException)?.code;
+    return code ? `ERR:${code}` : 'ERR';
+  }
+}
+
+async function readSortedEntryNames(rootPath: string): Promise<readonly string[]> {
+  try {
+    const names = await readdir(rootPath);
+    names.sort();
+    return names;
+  } catch {
+    return [];
+  }
+}
+
+function attachRecursiveWatcher(rootPath: string, onDirty: () => void): FSWatcher | null {
+  try {
+    const watcher = watch(rootPath, { recursive: true }, () => { onDirty(); });
+    watcher.on('error', () => { onDirty(); });
+    watcher.unref();
+    return watcher;
+  } catch {
+    return null;
+  }
+}
+
+function disposeCachedDiscovery(entry: CachedSkillDiscovery | undefined): void {
+  if (!entry) return;
+  for (const root of entry.roots) {
+    if (!root.watcher) continue;
+    try { root.watcher.close(); } catch { /* ignore */ }
+    root.watcher = null;
+  }
+}
+
+let exitCleanupRegistered = false;
+function ensureExitCleanup(): void {
+  if (exitCleanupRegistered) return;
+  exitCleanupRegistered = true;
+  process.once('exit', () => {
+    for (const entry of skillDiscoveryCache.values()) disposeCachedDiscovery(entry);
+    skillDiscoveryCache.clear();
+  });
+}
+
+function arrayEqual(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+async function isSkillDiscoveryCacheFresh(cached: CachedSkillDiscovery): Promise<boolean> {
+  if (cached.dirty) return false;
+  for (const tracked of cached.roots) {
+    const currentRootStat = await lstatSignature(tracked.root.path);
+    if (currentRootStat !== tracked.rootStat) return false;
+    if (!tracked.shallowVerify) continue;
+    const currentEntries = currentRootStat.startsWith('ERR:')
+      ? []
+      : await readSortedEntryNames(tracked.root.path);
+    if (!arrayEqual(currentEntries, tracked.rootEntries)) return false;
+    for (const watched of tracked.watchedFiles) {
+      if ((await lstatSignature(watched.path)) !== watched.stat) return false;
+    }
+  }
+  return !cached.dirty;
+}
+
+async function buildTrackedSkillRoot(
+  root: SkillDiscoveryRoot,
+  records: readonly SkillRecord[],
+  onDirty: () => void,
+): Promise<TrackedSkillRoot> {
+  const rootStat = await lstatSignature(root.path);
+  const exists = !rootStat.startsWith('ERR:');
+  const watcher = exists ? attachRecursiveWatcher(root.path, onDirty) : null;
+  const prefix = `${root.path}${path.sep}`;
+  const matching = records.filter((record) => record.filePath.startsWith(prefix) || record.packageDir === root.path);
+  const shallowVerify = root.origin === 'user' || matching.length <= SHALLOW_VERIFY_SKILL_LIMIT || !watcher;
+  const rootEntries = shallowVerify && exists ? await readSortedEntryNames(root.path) : [];
+  const watchedFiles: TrackedSkillPath[] = [];
+  if (shallowVerify && matching.length > 0) {
+    const seenPaths = new Set<string>();
+    for (const record of matching) {
+      for (const candidate of [record.filePath, record.packageDir]) {
+        if (candidate === root.path || seenPaths.has(candidate)) continue;
+        seenPaths.add(candidate);
+        watchedFiles.push({ path: candidate, stat: await lstatSignature(candidate) });
+      }
+    }
+  }
+  return { root, rootStat, shallowVerify, rootEntries, watchedFiles, watcher };
+}
+
 /**
  * 全部根 → `SkillRecord[]`。**发现交给 pi**；这里只做 Nomi 的投影与策略，每一条都对应 §2 里的一行。
+ *
+ * 目录树未变更时复用上次索引（`fs.watch({ recursive: true })` 脏位 + 根目录/用户技能轻量 `lstat` 复核）：
+ * 避免每条消息在回合边界两次 `refresh()` 触发上千次盘扫描与双重 YAML 解析；新增技能、改 frontmatter、
+ * 删技能或替换软链在下一次调用立刻失效重扫。
  */
 export async function discoverSkillRecords(roots: readonly SkillDiscoveryRoot[]): Promise<SkillDiscoveryResult> {
-  const records: SkillRecord[] = [];
-  const diagnostics: SkillDiscoveryDiagnostic[] = [];
   const normalizedRoots = roots
     .filter((root) => typeof root?.path === 'string' && path.isAbsolute(root.path))
     .map((root) => ({ path: path.resolve(root.path), origin: root.origin === 'user' ? 'user' as const : 'builtin' as const }));
+  const cacheKey = normalizedRoots.map((root) => `${root.origin}:${root.path}`).join('\u0000');
+  const existing = skillDiscoveryCache.get(cacheKey);
+  if (existing && await isSkillDiscoveryCacheFresh(existing)) {
+    return { records: [...existing.result.records], diagnostics: [...existing.result.diagnostics] };
+  }
+  if (existing) {
+    disposeCachedDiscovery(existing);
+    skillDiscoveryCache.delete(cacheKey);
+  }
+
+  const records: SkillRecord[] = [];
+  const diagnostics: SkillDiscoveryDiagnostic[] = [];
   for (const root of normalizedRoots) await migrateLegacyManifests(root, diagnostics);
 
   // pi 的 env：cwd 无关紧要（根全是绝对路径），沿用 laneFileSystem 同一个 NodeExecutionEnv，不自己写 FileSystem。
@@ -169,7 +309,30 @@ export async function discoverSkillRecords(roots: readonly SkillDiscoveryRoot[])
     seen.set(key, record.filePath);
     records.push(record);
   }
-  return { records, diagnostics };
+  const result: SkillDiscoveryResult = { records, diagnostics };
+  if (normalizedRoots.length > 0) {
+    ensureExitCleanup();
+    if (skillDiscoveryCache.size >= MAX_SKILL_DISCOVERY_CACHE_ENTRIES) {
+      const oldestKey = skillDiscoveryCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        disposeCachedDiscovery(skillDiscoveryCache.get(oldestKey));
+        skillDiscoveryCache.delete(oldestKey);
+      }
+    }
+    const entry: CachedSkillDiscovery = { dirty: false, roots: [], result };
+    const markDirty = () => { entry.dirty = true; };
+    const trackedRoots: TrackedSkillRoot[] = [];
+    for (const root of normalizedRoots) {
+      trackedRoots.push(await buildTrackedSkillRoot(root, records, markDirty));
+    }
+    skillDiscoveryCache.set(cacheKey, {
+      get dirty() { return entry.dirty; },
+      set dirty(value: boolean) { entry.dirty = value; },
+      roots: trackedRoots,
+      result,
+    });
+  }
+  return { records: [...records], diagnostics: [...diagnostics] };
 }
 
 /** pi 的 `Skill` + 它来自哪个根 → Nomi 的 `SkillRecord`。返回 `null` = 这一条不进目录（原因已记进 diagnostics）。 */
