@@ -5,6 +5,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { mkdirSync, mkdtempSync, writeFileSync, cpSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { expect } from '@playwright/test'
 
 const root = makeTempDir('nomi-cross-device-e2e-')
 const shared = path.join(root, 'shared')
@@ -35,12 +36,12 @@ let b = await launchNomiApp({ name: 'cross-device-b', userDataDir: path.join(roo
 try {
   await a.win.getByText('Film One', { exact: true }).first().waitFor({ timeout: 10000 })
   await b.win.getByText('Film One', { exact: true }).first().waitFor({ timeout: 10000 })
-  assert(await a.win.getByText('可在另一台电脑继续', { exact: true }).count() > 0, '机器 A 显示项目可跨设备继续')
-  assert(await b.win.getByText('可在另一台电脑继续', { exact: true }).count() > 0, '机器 B 显示项目可跨设备继续')
+  assert(await a.win.getByText('可在另一台电脑继续', { exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false), '机器 A 显示项目可跨设备继续')
+  assert(await b.win.getByText('可在另一台电脑继续', { exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false), '机器 B 显示项目可跨设备继续')
 
   await a.win.getByRole('button', { name: '设置', exact: true }).click()
-  assert(await a.win.getByText('文件与保存', { exact: true }).count() > 0, '设置打开文件与保存页')
-  assert(await a.win.locator('[data-settings-project-sync]').count() === 1, '文件与保存页显示跨设备目录状态')
+  assert(await a.win.getByText('文件与保存', { exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false), '设置打开文件与保存页')
+  assert(await expect(a.win.locator('[data-settings-project-sync]')).toHaveCount(1).then(() => true, () => false), '文件与保存页显示跨设备目录状态')
   const syncSection = a.win.locator('[data-settings-project-sync]')
   const stepsToggle = syncSection.locator('button[aria-controls="settings-project-sync-steps"]')
   await stepsToggle.click()
@@ -49,8 +50,8 @@ try {
   assert(await steps.locator('li').count() === 3, '展开态只显示三步说明')
   const stepsText = await steps.innerText()
   assert(['微力同步', '坚果云', '把上面的文件夹添加进去。', '等待同步完成'].every((text) => stepsText.includes(text)), '三步说明包含同步工具、添加目录和完成条件')
-  assert(await steps.locator('a[href="https://www.verysync.com/"]').count() === 1, '三步说明提供微力同步官方入口')
-  assert(await steps.locator('a[href="https://www.jianguoyun.com/s/downloads"]').count() === 1, '三步说明提供坚果云官方入口')
+  assert(await expect(steps.locator('a[href="https://www.verysync.com/"]')).toHaveCount(1).then(() => true, () => false), '三步说明提供微力同步官方入口')
+  assert(await expect(steps.locator('a[href="https://www.jianguoyun.com/s/downloads"]')).toHaveCount(1).then(() => true, () => false), '三步说明提供坚果云官方入口')
   await a.win.screenshot({ path: screenshot('settings-sync-steps-expanded.png'), fullPage: true })
 
   const checkFolder = syncSection.getByRole('button', { name: '检查文件夹', exact: true })
@@ -77,12 +78,12 @@ try {
   writeFileSync(path.join(machineB, 'Film One', '.nomi', 'project.json'), JSON.stringify(changedManifest, null, 2))
   await b.win.evaluate(() => window.dispatchEvent(new Event('focus')))
   await b.win.getByText('另一台电脑有新版本', { exact: true }).waitFor({ timeout: 10000 })
-  assert(await b.win.getByText('另一台电脑有新版本', { exact: true }).count() > 0, '检测到另一台电脑的新版本')
+  assert(await b.win.getByText('另一台电脑有新版本', { exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false), '检测到另一台电脑的新版本')
   await b.win.getByRole('button', { name: '另一台电脑有新版本', exact: true }).click()
-  assert(await b.win.getByRole('dialog', { name: '发现另一台电脑的项目更新', exact: true }).count() === 1, '点击状态打开就近提示')
+  assert(await expect(b.win.getByRole('dialog', { name: '发现另一台电脑的项目更新', exact: true })).toHaveCount(1).then(() => true, () => false), '点击状态打开就近提示')
   await b.win.getByRole('button', { name: '重新检查', exact: true }).click()
   await b.win.getByText('可在另一台电脑继续', { exact: true }).waitFor({ timeout: 10000 })
-  assert(await b.win.getByText('可在另一台电脑继续', { exact: true }).count() > 0, '重新检查后恢复可继续状态')
+  assert(await b.win.getByText('可在另一台电脑继续', { exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false), '重新检查后恢复可继续状态')
 
   await b.win.getByText('Film One', { exact: true }).first().click()
   await b.win.waitForTimeout(1200)
@@ -100,7 +101,7 @@ try {
     projectsDir: machineB,
   })
   await b.win.getByText('Film One', { exact: true }).first().waitFor({ timeout: 10000 })
-  assert(await b.win.getByText('Film One', { exact: true }).count() > 0, '冷启动后恢复同一项目记录')
+  assert(await b.win.getByText('Film One', { exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false), '冷启动后恢复同一项目记录')
   await b.win.getByText('Film One', { exact: true }).first().click()
   await b.win.waitForTimeout(1200)
   assert(await b.win.getByRole('button', { name: '创作', exact: false }).first().isVisible(), '冷启动后可重新进入工作台')

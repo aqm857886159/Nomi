@@ -16,6 +16,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { expect } from '@playwright/test'
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 
 import { launchNomiApp } from './_launchApp.mjs'
@@ -110,7 +111,7 @@ async function reachConfirm(label, call, window, projectId, leaseHandle, { model
     gatePromise.then((gate) => ({ gate })),
   ])
   if (raced !== 'card') check(false, `${label}: 过门走到确认卡（修前这里说「没就绪 · configured_provider」）`, raced.gate.text.slice(0, 600))
-  check(await card.count() === 1, `${label}: 过门走到确认卡，卡上写着 ${modelKey}（修前这里说「没就绪 · configured_provider」）`)
+  check(await expect(card).toHaveCount(1).then(() => true, () => false), `${label}: 过门走到确认卡，卡上写着 ${modelKey}（修前这里说「没就绪 · configured_provider」）`)
   await window.screenshot({ path: path.join(shotsDir, `${shot}-confirm-card.png`) })
   await card.locator('[data-spend-confirm-action="cancel"]').click()
   const gate = await gatePromise

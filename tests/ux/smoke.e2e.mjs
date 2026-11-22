@@ -69,7 +69,7 @@ try {
   // 空库与有项目走同一套布局：主入口动作卡片「新建空白项目」恒在（hero 介绍首屏已删）。
   await win.getByText("项目库", { exact: false }).first().waitFor({ timeout: 8000 });
   const primaryCard = win.locator('[data-variant="primary"]', { hasText: "新建空白项目" });
-  assert((await primaryCard.count()) > 0, "项目库主入口动作卡片「新建空白项目」可见");
+  assert(await primaryCard.first().waitFor({ state: "visible" }).then(() => true, () => false), "项目库主入口动作卡片「新建空白项目」可见");
 
   // 3) 开项目 → 工作台画布（开项目 → readProject/资产 → 画布挂载）
   // 优先打开已有项目卡（不污染库）；空库时走「新建空白项目」。
@@ -163,7 +163,7 @@ try {
   // 导演台唯一真标志：生成页画布那一格里的 [data-testid="director-editor"]（DirectorEditor 经 GenerationPageLayer 挂页格）
   const directorShell = win.locator('[data-testid="director-editor"]').first();
   await directorShell.waitFor({ state: "visible", timeout: stationTimeout({ operations: 2 }) });
-  assert(await directorShell.count() > 0, "导演台节点「进入导演台」后编辑器挂出（data-testid=director-editor）");
+  assert(await directorShell.waitFor({ state: "visible" }).then(() => true, () => false), "导演台节点「进入导演台」后编辑器挂出（data-testid=director-editor）");
 
   console.log(`\nSMOKE PASS: ${passed} assertions`);
   await finishAndExit(0);

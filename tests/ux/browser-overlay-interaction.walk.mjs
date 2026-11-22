@@ -66,7 +66,7 @@ try {
   // 打开浏览器 → 打开素材盒浮层
   await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-browser')))
   await win.waitForTimeout(1800)
-  results.browserOpen = (await win.locator('input[aria-label="地址栏"]').count()) > 0
+  results.browserOpen = await win.locator('input[aria-label="地址栏"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
   await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-browser-asset-popover-open', { detail: { opened: true } })))
   let overlay = null
   for (let i = 0; i < 12 && !overlay; i++) {
@@ -198,7 +198,7 @@ try {
   // ③ 打开提示词提取设置 → 溢出整窗模态。热区必须扩到整窗，否则设置框被点穿。
   await overlay.locator('button[aria-label="提示词提取设置"]').first().click({ timeout: 3000 }).catch(() => {})
   await overlay.waitForTimeout(900)
-  results.settingsModalOpen = (await overlay.locator('[data-nomi-prompt-extraction-settings-dialog]').count()) > 0
+  results.settingsModalOpen = await overlay.locator('[data-nomi-prompt-extraction-settings-dialog]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
   await snap('settings-open')
   const win1 = await overlayScreen()
   const hit1 = await hitRect()
@@ -244,17 +244,17 @@ try {
     } else {
       await captureOn.click({ timeout: 2000 }).catch(() => {})
       await overlay.waitForTimeout(350)
-      results.captureToggleOn = (await overlay.locator('button[aria-label="关闭资源捕捞"][aria-pressed="true"]').count()) > 0
+      results.captureToggleOn = await overlay.locator('button[aria-label="关闭资源捕捞"][aria-pressed="true"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
       await overlay.locator('button[aria-label="关闭资源捕捞"]').first().click({ timeout: 2000 }).catch(() => {})
       await overlay.waitForTimeout(300)
-      results.captureToggleOff = (await overlay.locator('button[aria-label="开启资源捕捞"][aria-pressed="false"]').count()) > 0
+      results.captureToggleOff = await overlay.locator('button[aria-label="开启资源捕捞"][aria-pressed="false"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
     }
   }
 
   // ⑦ 用户口中的“两列”按钮：浮动 → 右侧并排 → 恢复浮动。
   await overlay.locator('button[aria-label="并排显示素材盒"]').first().click({ timeout: 2500 }).catch(() => {})
   await overlay.waitForTimeout(800)
-  results.dockRight = (await overlay.locator('[role="dialog"][data-dock-mode="right"]').count()) > 0
+  results.dockRight = await overlay.locator('[role="dialog"][data-dock-mode="right"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
   const dockHit = await hitRect()
   const dockWin = await overlayScreen()
   results.dockHitIsCard = Boolean(dockHit && dockWin && dockHit.width < dockWin.width - 40)
@@ -264,19 +264,19 @@ try {
   await snap('docked-right')
   await overlay.locator('button[aria-label="恢复浮动素材盒"]').first().click({ timeout: 2500 }).catch(() => {})
   await overlay.waitForTimeout(800)
-  results.restoreFloating = (await overlay.locator('[role="dialog"][data-dock-mode="floating"]').count()) > 0
+  results.restoreFloating = await overlay.locator('[role="dialog"][data-dock-mode="floating"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
   await snap('restored-floating')
 
   // ⑧ 搜索、上传、新建文件夹、进入/返回文件夹。
   const search = overlay.locator('input[aria-label="搜索素材"]').first()
   await search.fill('绝不命中的走查词')
   await overlay.waitForTimeout(250)
-  results.searchFilters = (await overlay.getByText('没有匹配的素材', { exact: false }).count()) > 0
+  results.searchFilters = await overlay.getByText('没有匹配的素材', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
   await search.fill('')
   await overlay.locator('input[aria-label="选择素材文件"]').setInputFiles(uploadPath)
   await overlay.waitForTimeout(1200)
-  results.uploadWorks = (await overlay.getByText('walk-upload.png', { exact: false }).count()) > 0 ||
-    (await overlay.locator('[data-browser-asset-tile]').count()) > 0
+  results.uploadWorks = await overlay.getByText('walk-upload.png', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false) ||
+    await overlay.locator('[data-browser-asset-tile]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
   await overlay.locator('button[aria-label="新建文件夹"]').first().click({ timeout: 2000 }).catch(() => {})
   const rename = overlay.locator('input[aria-label="重命名文件夹"]').first()
   if (await rename.count()) {
@@ -284,15 +284,15 @@ try {
     await rename.press('Enter')
     await overlay.waitForTimeout(350)
   }
-  results.createFolder = (await overlay.getByText('走查文件夹', { exact: true }).count()) > 0
+  results.createFolder = await overlay.getByText('走查文件夹', { exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
   const folderTile = overlay.locator('[data-browser-asset-tile]', { hasText: '走查文件夹' }).first()
   if (await folderTile.count()) {
     await folderTile.dblclick({ timeout: 2000 }).catch(() => {})
     await overlay.waitForTimeout(350)
-    results.enterFolder = (await overlay.locator('button[aria-label="返回上一级文件夹"]').count()) > 0
+    results.enterFolder = await overlay.locator('button[aria-label="返回上一级文件夹"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
     await overlay.locator('button[aria-label="返回上一级文件夹"]').first().click({ timeout: 2000 }).catch(() => {})
     await overlay.waitForTimeout(300)
-    results.exitFolder = (await overlay.getByText('走查文件夹', { exact: true }).count()) > 0
+    results.exitFolder = await overlay.getByText('走查文件夹', { exact: true }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
   }
 
   // ⑨ 布局、排序、筛选、素材右键、空白右键；每个 icon 真点一遍。
@@ -314,12 +314,12 @@ try {
   if (await filter.count()) {
     await filter.click({ timeout: 2000 }).catch(() => {})
     await overlay.waitForTimeout(250)
-    results.filterOpens = (await overlay.locator('[role="dialog"][aria-label="素材分类筛选"]').count()) > 0
+    results.filterOpens = await overlay.locator('[role="dialog"][aria-label="素材分类筛选"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
     const imageOption = overlay.getByRole('option', { name: /图片/ }).first()
     if (await imageOption.count()) await imageOption.click({ timeout: 2000 }).catch(() => {})
     await overlay.waitForTimeout(250)
     results.filterSelects = (await overlay.getByText('走查文件夹', { exact: true }).count()) === 0 &&
-      (await overlay.getByText('walk-upload.png', { exact: false }).count()) > 0
+      await overlay.getByText('walk-upload.png', { exact: false }).first().waitFor({ state: 'visible' }).then(() => true, () => false)
     if (await more.count()) await more.click({ timeout: 2000 }).catch(() => {})
     await overlay.locator('button[aria-label="筛选分类"]').first().click({ timeout: 2000 }).catch(() => {})
     const showAll = overlay.getByText('显示全部', { exact: true }).first()
@@ -328,7 +328,7 @@ try {
   const firstTile = overlay.locator('[data-browser-asset-tile]').first()
   if (await firstTile.count()) {
     await firstTile.click({ button: 'right', timeout: 2000 }).catch(() => {})
-    results.assetContextMenu = (await overlay.locator('[role="menu"][aria-label="素材操作"]').count()) > 0
+    results.assetContextMenu = await overlay.locator('[role="menu"][aria-label="素材操作"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
     await overlay.keyboard.press('Escape').catch(() => {})
   }
   const grid = overlay.locator('[aria-label="素材网格"],[aria-label="素材列表"]').first()
@@ -342,7 +342,7 @@ try {
         clientY: rect.bottom - 8,
       }))
     }).catch(() => {})
-    results.blankContextMenu = (await overlay.locator('[role="menu"][aria-label="空白区域操作"]').count()) > 0
+    results.blankContextMenu = await overlay.locator('[role="menu"][aria-label="空白区域操作"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
     await overlay.keyboard.press('Escape').catch(() => {})
   }
   await snap('controls-exercised')
@@ -350,10 +350,10 @@ try {
   // ⑩ 明确收起并从浏览器工具条重开，不允许幽灵 overlay。
   await overlay.locator('button[aria-label="收起素材盒"]').first().click({ timeout: 2000 }).catch(() => {})
   await win.waitForTimeout(600)
-  results.collapseWorks = (await win.locator('button[aria-label="打开素材盒"]').count()) > 0
+  results.collapseWorks = await win.locator('button[aria-label="打开素材盒"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
   await win.locator('button[aria-label="打开素材盒"]').first().click({ timeout: 2000 }).catch(() => {})
   await overlay.waitForTimeout(700)
-  results.reopenWorks = (await overlay.locator('[role="dialog"][aria-label="素材盒"]').count()) > 0
+  results.reopenWorks = await overlay.locator('[role="dialog"][aria-label="素材盒"]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
   const reopenedGeometry = await cardInsideOverlayViewport()
   results.reopenFullyVisible = reopenedGeometry.ok
   console.log(`  ⑩ 重开几何: ${JSON.stringify(reopenedGeometry)}`)

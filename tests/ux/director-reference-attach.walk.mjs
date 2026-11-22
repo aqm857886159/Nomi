@@ -23,6 +23,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { require as tsxRequire } from 'tsx/cjs/api'
+import { expect } from '@playwright/test'
 import { launchNomiApp, currentCatalogVersion } from './_launchApp.mjs'
 import { createBlankProject } from '../../evals/lib/isoApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -160,7 +161,7 @@ const clickOrDom = async (locator) => {
 // 本轮不允许 DOM/onClick fallback：真鼠标命中失败就是走查失败，避免把“真实入口不可达”记成通过。
 const removeReferenceLikeUser = async (nodeId) => {
   const remove = win.locator(`[data-node-id="${nodeId}"] [data-asset-tile="video"] [data-asset-tile-remove="true"]`).first()
-  if (await remove.count() !== 1) throw new Error(`镜头 ${nodeId} 没有唯一的参考视频删除按钮`)
+  await expect(remove).toHaveCount(1).catch(() => { throw new Error(`镜头 ${nodeId} 没有唯一的参考视频删除按钮`) })
   // × 只在 tile hover/focus 时显现；先把鼠标放到 tile，再走 Playwright 真鼠标点击。
   await remove.locator('xpath=..').hover()
   await remove.click({ timeout: 4000 })

@@ -152,7 +152,7 @@ try {
   check((await shotRows.count()) === 5, `结果表 5 行镜头（实得 ${await shotRows.count()}）`)
   await expectVisible(win.locator('[data-deconstruct-shot="4"][data-vision-failed="true"]').first(), '镜 4 诚实标 vision-failed')
   await expectVisible(win.locator('[data-deconstruct-retry-shot="4"]').first(), '失败镜有「单独重拆」按钮')
-  check((await win.locator('[data-deconstruct-shot="3"] .text-nomi-warning').count()) >= 1, '镜 3 标「承接上镜」')
+  check(await win.locator('[data-deconstruct-shot="3"] .text-nomi-warning').first().waitFor({ state: 'visible' }).then(() => true, () => false), '镜 3 标「承接上镜」')
   await snap('02-panel-result')
 
   // ── 共存态 06：面板占槽 → AI 栏收成顶栏角标（点它能还原）。──

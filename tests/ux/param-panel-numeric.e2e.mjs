@@ -93,7 +93,7 @@ try {
   // ── ③ 反向对照：步长可用的区间仍然是滑杆（没把滑杆全砍）─────────────
   const durationSlider = page.locator('[role="slider"]')
   assert.ok(
-    await durationSlider.count() > 0,
+    await durationSlider.first().waitFor({ state: 'visible' }).then(() => true, () => false),
     '声明了可用步长的区间参数仍应是滑杆——本次修的是「切不出两档时退回」，不是「全砍滑杆」',
   )
   ok('有可用步长的区间参数仍然是滑杆')

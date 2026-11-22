@@ -303,7 +303,7 @@ async function walkLocale(locale) {
   // 提示词片段菜单（第 1 行；它自己也在表里，行内原地定位的那一族）。
   await scrollRowIntoView(1)
   const segment = row(1).locator('[data-storyboard-prompt-segment]').first()
-  if (await segment.count() > 0) {
+  if (await segment.waitFor({ state: 'visible' }).then(() => true, () => false)) {
     await segment.click()
     await check(tag, '提示词片段菜单被裁', async () => {
       await expectOverlayReachable(win.locator('[data-storyboard-prompt-menu]'), '提示词片段菜单')

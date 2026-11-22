@@ -1,0 +1,16 @@
+{
+  "implementationHead": "6ee0469cdfb2f1b2df9eac3a7c0d3351817fa2f3",
+  "result": "passed",
+  "textRequests": 4,
+  "imageRequests": 0,
+  "paidCalls": 0,
+  "toolCalls": 4,
+  "nodes": 0,
+  "screenshots": [
+    "zh-tool-retry-stopped.png",
+    "en-tool-retry-stopped.png"
+  ],
+  "rerunOnMergedMain": "d4be0b7539a4641023fc73ebe705e022b68dc6e0",
+  "stopOutputExpandedInBothLocales": true,
+  "requestsAfterStop": 0
+}

@@ -115,6 +115,7 @@ await walkDesignLabScreen({
 
     const marker = expected.assertion || state.id
     const layer = page.locator(expected.selector).filter({ ...(expected.text ? { hasText: expected.text } : {}), visible: true })
+    await layer.first().waitFor({ state: 'visible' }).catch(() => {})
     const count = await layer.count()
     if (count !== 1) {
       record(`${marker} 应当有 1 个可见的浮层（${expected.selector} 含「${expected.text}」），实际 ${count} 个`

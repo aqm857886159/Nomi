@@ -114,8 +114,8 @@ try {
     await getWin().waitForTimeout(1400)
   }
   await addNode('图片')
-  const nodeCount = await getWin().locator('[data-node-id]').count()
-  check('画布上真的加出了节点', nodeCount > 0, `[data-node-id] 命中 ${nodeCount} 个`)
+  const nodeVisible = await getWin().locator('[data-node-id]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
+  check('画布上真的加出了节点', nodeVisible, `[data-node-id] 可见=${nodeVisible}`)
 
   const composer = getWin().locator('.generation-canvas-v2-node__composer').last()
   if (!(await composer.isVisible().catch(() => false))) {

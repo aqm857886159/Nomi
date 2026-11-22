@@ -9,7 +9,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
+import { expect, screenshotSettled } from './_assert.mjs'
 import { findEdgeHitPoint, findElementHitPoint, followArrivalHint, readArrivalLedger, readCanvasViewport, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { canvasResetView, canvasZoomSlider } from './_shell.mjs'
@@ -544,7 +544,7 @@ try {
   await runExport('完整成片', '到画布', '已向画布导出 1 个视频节点')
   // React Flow 只把可视节点挂进 DOM；导出节点会落在当前视口外，不能用
   // [data-kind="video"] 计数判定写入是否成功。输出边由画布状态直接渲染，才是稳定的共享信号。
-  const fullCanvasExport = (await outputEdges.count()) === 1
+  const fullCanvasExport = await expect(outputEdges).toHaveCount(1).then(() => true, () => false)
   await runExport('完整成片', '下载', '已导出 1 个视频文件')
   const fullExportPath = fs.readdirSync(path.join(projectRoot, 'exports'))
     .map((name) => path.join(projectRoot, 'exports', name))
@@ -576,7 +576,7 @@ try {
   if (!edgePoint) throw new Error('找不到可见的输出连线点击位置')
   await win.mouse.click(edgePoint.x, edgePoint.y)
   await win.waitForTimeout(250)
-  const clickingEdgeShowsNativeControl = (await win.locator('.generation-canvas-v2__edge-control[data-edge-id^="edge-canvas-clip-editor::"]').count()) === 1
+  const clickingEdgeShowsNativeControl = await expect(win.locator('.generation-canvas-v2__edge-control[data-edge-id^="edge-canvas-clip-editor::"]')).toHaveCount(1).then(() => true, () => false)
   await screenshotSettled(win, { path: screenshots.outputs, fullPage: true })
 
   // 刚才点边缘提示把视口带到了输出区域；先走真实的「重置视图」动作回到片段，
