@@ -3,6 +3,7 @@ import { prepareWaitingFx, sampleWaitingFx, cleanupWaitingFx } from './canvas-pe
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import { expect } from './_assert.mjs'
+import { closeCanvasViewOptions, openCanvasViewOptions } from './_shell.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -619,10 +620,11 @@ async function openProject(app, page, fixture) {
     // Identity is the fixture contract; name matching can select a stale card
     // when another isolated run left a similarly named project in the shell.
     const card = page.locator(`[data-project-card][data-project-id="${fixture.record.id}"]`).first()
-    if ((await card.count().catch(() => 0)) === 0) {
+    try {
+      await card.waitFor({ timeout: 12_000 * openScale })
+    } catch {
       throw new Error(`性能夹具项目卡片不存在：${fixture.record.id}（${fixture.record.name}）`)
     }
-    await card.waitFor({ timeout: 12_000 * openScale })
     await card.click()
   }
   // 卡片已经发出打开请求；等待真实目标窗口，不能再点击导航中的旧项目库。
@@ -689,6 +691,7 @@ async function prepareScenario(page, scenario) {
     // 且验缩放真的变了才继续——点击静默丢失会让视口停在 zoom≈1，于是只挂 9 个节点，
     // 看着像画布 bug，其实是前置条件没成立。
     await fitCanvasView(page)
+    if (scenario === 'zoom-slider-drag') await openCanvasViewOptions(page, 'zoom-slider-drag')
     if (scenario === 'drag-nodes-all') await selectAllCanvasNodes(page)
     if (scenario === 'drag-group-frame-60') {
       // 挂不满 60 张时按实际张数建组，并把 requested/realized 记进 actionDetails——
@@ -1365,6 +1368,7 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
       ? await page.evaluate(() => window.__canvasPerformanceProbe.stop())
       : combineProbeSummaries(actionDetails?.reloadProbes || [])
     if (scenario === 'waiting-effects') await cleanupWaitingFx(page)
+    if (scenario === 'zoom-slider-drag') await closeCanvasViewOptions(page)
     const cdpAfter = await getCdpMetrics(cdp)
     const afterPage = await pageSnapshot(page)
     if (captureScreenshots) {
