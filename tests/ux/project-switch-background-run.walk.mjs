@@ -15,6 +15,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+import { buildWalkCatalog } from './_world.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
@@ -69,7 +70,7 @@ const vendorServer = http.createServer((req, res) => {
 await new Promise((resolve) => vendorServer.listen(0, '127.0.0.1', resolve))
 const port = vendorServer.address().port
 
-fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
+buildWalkCatalog(settingsDir, {
   version: 8,
   vendors: [{
     key: VENDOR, name: 'Switch Loopback', enabled: true, baseUrlHint: `http://127.0.0.1:${port}`,
@@ -99,7 +100,7 @@ fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
       response_mapping: { video_url: 'data.0.url' } }, createdAt: NOW, updatedAt: NOW,
   }],
   apiKeysByVendor: {},
-}, null, 2))
+})
 
 const report = { mode, expectedRequests, buildStamp: JSON.parse(fs.readFileSync(path.join(repoRoot, 'dist/build-stamp.json'), 'utf8')), fixture: 'isolated repository seed for legacy original editor; real JPEG/MP4 bytes; remote service loopback', provider: 'loopback-http', paidCalls: 0, wireCalls, screenshots: [], screenshotHotkey: 'not-run', checks: [] }
 check(JSON.stringify(report.buildStamp) === JSON.stringify(JSON.parse(fs.readFileSync(path.join(repoRoot, 'dist-electron/build-stamp.json'), 'utf8'))), 'renderer和main构建身份一致')

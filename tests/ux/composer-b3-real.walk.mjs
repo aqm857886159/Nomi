@@ -17,6 +17,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
+import { buildWalkCatalog } from './_world.mjs'
 import { clickOrFail, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasFitView, collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
@@ -45,7 +46,7 @@ function seedProfile(root) {
     vendorKey: 'ux-local', modelKey, labelZh, kind, enabled: true, createdAt: STAMP, updatedAt: STAMP,
     meta: { archetypeId, ...(kind === 'video' ? { adapter: adapter() } : {}) },
   })
-  fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
+  buildWalkCatalog(settingsDir, {
     version: 12,
     vendors: [{ key: 'ux-local', name: 'UX Local', enabled: true, authType: 'none', providerKind: 'openai-compatible', createdAt: STAMP, updatedAt: STAMP }],
     models: [
@@ -55,7 +56,7 @@ function seedProfile(root) {
       model('gpt-image-2', 'GPT Image 2', 'image', 'gpt-image-2'),
     ],
     mappings: [], apiKeysByVendor: {},
-  }, null, 2))
+  })
   const demo = (name) => path.join(repoRoot, 'resources/onboarding-demo', name)
   fs.copyFileSync(demo('shot-1.jpg'), path.join(projectRoot, 'assets', 'portrait.jpg'))
   fs.copyFileSync(demo('shot-2.jpg'), path.join(projectRoot, 'assets', 'seaside.jpg'))
