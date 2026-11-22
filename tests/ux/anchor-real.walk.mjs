@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+import { buildWalkCatalog } from './_world.mjs'
 import { switchWorkspace, collapseAgentPanel } from './_shell.mjs'
 import { expectCount, expectVisible, screenshotSettled } from './_assert.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
@@ -21,14 +22,18 @@ fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
 fs.mkdirSync(path.join(projectRoot, 'assets'), { recursive: true })
 fs.mkdirSync(outDir, { recursive: true })
 fs.mkdirSync(settingsDir, { recursive: true })
-fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
+const catalogSpec = {
   version: 12,
   vendors: [{ key: 'apimart', name: 'APIMart', enabled: true, authType: 'none', providerKind: 'openai-compatible', createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z' }],
   models: [{ vendorKey: 'apimart', modelKey: 'MiniMax-H3', labelZh: 'MiniMax H3', kind: 'video', enabled: true,
     meta: { archetypeId: 'minimax-h3-apimart', adapter: { state: 'verified', activeRevision: 'anchor-real', publicationModes: ['text_to_video', 'image_to_video'], modes: [{ taskKind: 'text_to_video', state: 'verified' }, { taskKind: 'image_to_video', state: 'verified' }] } },
     createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z' }],
   mappings: [], apiKeysByVendor: {},
-}, null, 2))
+}
+// unsupported 档：目录里只留一个只会出图的模型（和原先改写目录的效果一致），由门直接造，不再读改手写文件。
+const unsupportedImage = { ...catalogSpec.models[0], modelKey: 'imagen-4', labelZh: 'Imagen 4', kind: 'image',
+  meta: { archetypeId: 'imagen-4', adapter: { state: 'verified', activeRevision: 'anchor-real', publicationModes: ['text_to_image'], modes: [{ taskKind: 'text_to_image', state: 'verified' }] } } }
+buildWalkCatalog(settingsDir, process.argv[2] === 'unsupported' ? { ...catalogSpec, models: [unsupportedImage] } : catalogSpec)
 
 const phase = process.argv[2] || 'red'
 if (!['red', 'green', 'unsupported'].includes(phase)) throw new Error('Use red, green, or unsupported evidence')
@@ -43,11 +48,6 @@ for (const shot of plan.shots) {
   for (const bindings of Object.values(shot.referenceBindings ?? {})) for (const binding of bindings) binding.url = referenceUrl
 }
 if (phase === 'unsupported') {
-  const file = path.join(settingsDir, 'model-catalog.json')
-  const catalog = JSON.parse(fs.readFileSync(file, 'utf8'))
-  catalog.models = [{ ...catalog.models[0], modelKey: 'imagen-4', labelZh: 'Imagen 4', kind: 'image',
-    meta: { archetypeId: 'imagen-4', adapter: { state: 'verified', activeRevision: 'anchor-real', publicationModes: ['text_to_image'], modes: [{ taskKind: 'text_to_image', state: 'verified' }] } } }]
-  fs.writeFileSync(file, JSON.stringify(catalog))
   plan.shots = [{ ...plan.shots[0], shotKind: 'image', durationSec: 0, modelKey: 'imagen-4', modeId: 't2i', params: {} }]
 }
 // Both screenshots render the exact red/green loopback receipts in the real shell.

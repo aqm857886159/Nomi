@@ -18,6 +18,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+import { buildWalkCatalog } from './_world.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { MIN_WINDOW } from './_minWindow.mjs'
 import { clickOrFail, expectOverlayReachable, expectVisible, screenshotSettled } from './_assert.mjs'
@@ -32,7 +33,7 @@ const designId = 'table-structure-design'
 const LAST = 5
 
 const stamp = '2026-10-05T00:00:00.000Z'
-const catalogJson = JSON.stringify({
+const catalogSpec = {
   version: 12,
   vendors: [{ key: 'ux-local', name: 'UX Local', enabled: true, authType: 'none', providerKind: 'openai-compatible', createdAt: stamp, updatedAt: stamp }],
   models: [{
@@ -48,7 +49,7 @@ const catalogJson = JSON.stringify({
     createdAt: stamp, updatedAt: stamp,
   }],
   mappings: [], apiKeysByVendor: {},
-}, null, 2)
+}
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
 const assetUrl = `nomi-local://asset/${encodeURIComponent(projectId)}/assets/hero.png`
@@ -95,7 +96,7 @@ function makeFixture() {
   fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
   fs.mkdirSync(path.join(projectRoot, 'assets'), { recursive: true })
   fs.mkdirSync(settingsDir, { recursive: true })
-  fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), catalogJson)
+  buildWalkCatalog(settingsDir, catalogSpec)
   fs.writeFileSync(path.join(projectRoot, 'assets', 'hero.png'), png)
   const project = projectRecord(projectRoot)
   for (const file of [path.join(projectRoot, 'project.json'), path.join(projectRoot, '.nomi', 'project.json')]) {

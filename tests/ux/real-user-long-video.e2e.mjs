@@ -11,6 +11,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { buildWalkCatalog } from './_world.mjs'
 import {
   ASSISTANT_MESSAGE, COMPOSER, COMPOSER_INPUT, COMPOSER_MODEL,
   COMPOSER_SEND, COMPOSER_SKILL, ERROR_BAR, MODEL_POPOVER, SKILL_POPOVER, SKILL_SEARCH,
@@ -94,7 +95,7 @@ async function startLoopbackProvider() {
 }
 
 function writeLoopbackCatalog(settingsDir, baseUrl) {
-  fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), `${JSON.stringify({
+  buildWalkCatalog(settingsDir, {
     version: 12,
     vendors: [{
       key: FIXTURE_VENDOR, name: 'Local long-video loopback', enabled: true,
@@ -114,7 +115,7 @@ function writeLoopbackCatalog(settingsDir, baseUrl) {
       createdAt: NOW, updatedAt: NOW,
     }],
     mappings: [], apiKeysByVendor: {},
-  }, null, 2)}\n`, 'utf8')
+  })
 }
 
 function sampleDurationSeconds(samplePath) {

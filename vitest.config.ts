@@ -1,6 +1,7 @@
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+import { ownerFreezePlugin } from "./tests/world/ownerFreezePlugin";
 
 /**
  * 真素材腿的文件名约定 —— 这份清单只有这一个 owner。
@@ -82,6 +83,8 @@ if (orphans.length > 0) {
 }
 
 export default defineConfig({
+  // 测试世界：冻结主人模块的命名空间（spyOn / defineProperty 做不出来），见 tests/world/ownerFreezePlugin.ts。
+  plugins: [ownerFreezePlugin()],
   test: {
     // scripts/ 两种后缀都收：历史门岗脚本是 .mjs，需要 import 仓库 TS 的脚本（如 model-radar 要
     // 从 seedBuiltins/档案 derive「我们接了哪些模型」）只能是 .ts。漏掉 .ts 的后果是**测试文件静静躺着不跑**
@@ -101,6 +104,8 @@ export default defineConfig({
     // 单测不做真 fsync：临时目录的数据没人需要它跨掉电存活，但 fsync 会让墙钟随磁盘队列漂移，
     // 把 productionRun 的编排测试顶过 5000ms testTimeout（flake 根因）。见该文件顶部注释。
     setupFiles: [fileURLToPath(new URL("./tests/setup/durability.ts", import.meta.url)),
+      // 测试世界的写盘锁与换导出锁（tests/setup/world/*.ts），见文件头。
+      fileURLToPath(new URL("./tests/setup/world.ts", import.meta.url)),
       fileURLToPath(new URL("./tests/setup/networkTransport.ts", import.meta.url)),
       // 测派发和门的测试要往里递规划的桩：「可以发测试桩」只在这里打开，生产构建不含这个文件。
       fileURLToPath(new URL("./tests/setup/generationPlanningTestIssue.ts", import.meta.url)),
@@ -110,7 +115,7 @@ export default defineConfig({
       fileURLToPath(new URL("./tests/setup/modelCallBridge.ts", import.meta.url)),
       // 每个用例后核模块级单例里有没有没落定的后台任务（跨用例泄漏），见文件头。
       fileURLToPath(new URL("./tests/setup/inflightWork.ts", import.meta.url))],
-    globalSetup: fileURLToPath(new URL("./tests/setup/tempWorkspace.ts", import.meta.url)),
+    globalSetup: [fileURLToPath(new URL("./tests/setup/tempWorkspace.ts", import.meta.url)), fileURLToPath(new URL("./tests/setup/worldGlobal.ts", import.meta.url))],
     // flake 的另一条腿：测试自己不 fsync 了，但**邻居进程**打满文件系统时（这台机器 20+ worktree
     // 并行跑 gates 是常态），最重的编排测试仍会被外部负载从 ~300ms 拖过 5s——2026-08-25 实测：
     // 8 个 fsync 锤子进程加载下，durability 修复后 productionGateIdempotency / productionQaVerify

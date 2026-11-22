@@ -9,7 +9,6 @@ vi.mock("electron", () => ({
 
 import { createProject, listProjects, saveProject } from "./repository";
 import { findRecentWorkspace } from "../workspace/workspaceRegistry";
-import * as manifest from "../workspace/workspaceManifest";
 import { acquireWorkspaceManifestLock, releaseWorkspaceManifestLock } from "../workspace/workspaceManifestLock";
 
 // 列举与同进程写入交错：列举是异步的，等它读完，同进程的保存 / 改名 / 创建可能已经插进来过，
@@ -39,13 +38,15 @@ describe("列举与同进程写入交错：列举不删项目", () => {
     const draftReadDone = new Promise<void>((resolve) => { draftRead = resolve; });
     let release!: () => void;
     const released = new Promise<void>((resolve) => { release = resolve; });
-    const original = manifest.readWorkspaceManifestSnapshotAsync;
-    vi.spyOn(manifest, "readWorkspaceManifestSnapshotAsync").mockImplementation(async (dir: string) => {
-      const value = await original(dir);
-      if (dir === draftRoot) draftRead();
-      if (dir === siblingRoot) await released;
+    // 窗口开在文件系统这一层（真外部边界）：草稿的清单读完就放行「窗口里的写入」，同伴的清单读卡到窗口收尾。
+    const originalReadFile = fs.promises.readFile.bind(fs.promises);
+    vi.spyOn(fs.promises, "readFile").mockImplementation((async (...args: Parameters<typeof fs.promises.readFile>) => {
+      const file = String(args[0]);
+      const value = await originalReadFile(...args);
+      if (file.startsWith(`${draftRoot}${path.sep}`) && file.endsWith("project.json")) draftRead();
+      if (file.startsWith(`${siblingRoot}${path.sep}`) && file.endsWith("project.json")) await released;
       return value;
-    });
+    }) as typeof fs.promises.readFile);
     const listing = listProjects(); // promise-held：先让列举卡在半路，窗口里做别的，最后再 await
     await draftReadDone;
     await whileOpen();

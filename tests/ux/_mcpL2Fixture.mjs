@@ -7,7 +7,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { encryptFixtureKey as encryptSyntheticKey, currentCatalogVersion } from './_launchApp.mjs'
+import { encryptFixtureKey as encryptSyntheticKey } from './_launchApp.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -120,28 +120,16 @@ export function encryptFixtureKey(userDataDir) {
 }
 
 export function writeFakeApimartCatalog(settingsDir, userDataDir, _origin = '', { withKey = true } = {}) {
-  const { applyBuiltinSeeds } = tsxRequire('../../electron/catalog/seedBuiltins.ts', import.meta.url)
-  const seeded = applyBuiltinSeeds({ version: currentCatalogVersion(), vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, new Date().toISOString()).state
-  const encrypted = encryptFixtureKey(userDataDir)
-  // 2026-09-21：这里曾经给 apimart 的视频模型塞一行 `pricing: { cost: 0, enabled: true }`——
-  // 那是为了绕过当时的「算不出价就不发付费门」（`assertKnownShotPrice`）而**编出来的一个 0 元价**。
-  // 编出来的 0 恰好是三种可能（免费 / 算不出 / 真的零元）里唯一会被读成「这次免费」的那一种，
-  // 而且它让这条旅程一直在测一个「所有模型都标着 ¥0」的世界——**真实装机上一个模型都没有价目**。
-  // 闸开了之后那个绕行没有存在的理由了：去掉它，这条旅程从此跑的是真实处境（价格未知）。
-  const models = seeded.models
-  const catalog = {
-    ...seeded,
-    // Keep the shipped APIMart scope intact. The explicit loopback fixture
-    // env selects the test origin; mutating baseUrlHint would correctly trip
-    // the production direct-key scope guard.
-    vendors: seeded.vendors,
-    models,
-    apiKeysByVendor: withKey ? {
-      apimart: { vendorKey: 'apimart', apiKey: encrypted, enc: 'safeStorage', enabled: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    } : {},
-  }
-  fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify(catalog), 'utf8')
-  return catalog
+  // 目录由主人造（tests/world 的 buildWorld → ensureBuiltinModelSeeds + mutateCatalog 落盘），这里只声明「多一把加密好的假 key」。
+  const { buildWorld } = tsxRequire('../world/index.ts', import.meta.url)
+  const now = new Date().toISOString()
+  const record = { vendorKey: 'apimart', apiKey: encryptFixtureKey(userDataDir), enc: 'safeStorage', enabled: true, createdAt: now, updatedAt: now }
+  // 2026-09-21：这里曾经给 apimart 的视频模型塞一行 `pricing: { cost: 0, enabled: true }`——那是为了绕过当时的「算不出价就不发付费门」
+  // 而**编出来的 0 元价**，让这条旅程一直在测一个「所有模型都标着 ¥0」的世界。闸开了之后绕行没有存在的理由：去掉它，
+  // 这条旅程从此跑的是真实处境（价格未知）。内置种子保持出厂原样：连接范围、baseUrlHint 都不改——
+  // 回环地址由显式的夹具环境变量选择，改 baseUrlHint 会正确地触发直连 key 的范围守卫。
+  buildWorld({ settingsDir, projects: [], encryptedApiKeys: withKey ? { apimart: record } : {} })
+  return { apiKeysByVendor: withKey ? { apimart: record } : {} }
 }
 
 function buildTinyPng() {
