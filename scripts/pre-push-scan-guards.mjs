@@ -120,6 +120,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/design/loadingMark.structure.test.ts', roots: SRC }, // 加载标不换形象脸：遍历 src 找画 <NomiAgentFace 的文件，只许顶栏 Nomi 入口与聊天身份行（<1 秒）
   { file: 'src/design/outsidePress.structure.test.ts', roots: SRC }, // 「点外面」只有一种听法：遍历 src 找 mousedown / touchstart / 冒泡 pointerdown 监听与 useClickOutside（<1 秒）
   { file: 'src/design/popoverTracking.structure.test.ts', roots: SRC }, // 浮层跟踪不许逐帧轮询：遍历 src 找 autoUpdate 与 animationFrame（<2 秒）
+  { file: 'src/ui/app-shell/shell/nomiEntryLook.test.ts', roots: SRC }, // 2026-11-22 没有球（NomiEntryTopbar I1）：遍历 src 生产代码，没人渲染 data-agent-ball（<1 秒）
   { file: 'src/ui/app-shell/shell/narrowOneThreshold.structure.test.ts', roots: SRC }, // 窄窗只有一个阈值：遍历 src 生产代码，按窗口宽的 matchMedia 只许外壳一条、1060 不许写死（<1 秒）
   { file: 'src/ui/app-shell/shell/agentFormShownVsStored.structure.test.ts', roots: SRC }, // Nomi 形态存法边界：遍历 src，两个 store 外不读持久化字段、动作只在名单里调、旧符号 0 处（<1 秒）
   { file: 'src/ui/browser/assetSurfaceInvariants.test.ts', roots: SRC }, // 7 秒

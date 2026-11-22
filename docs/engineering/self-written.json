@@ -2445,6 +2445,30 @@
       "revisitWhen": "出现可直接接入的、带产品场景归因且只落本机的主进程卡顿记录方案时重新评估"
     },
     {
+      "id": "nomi-entry-view-hook",
+      "capability": "顶栏 Nomi 入口的数据那一层：常驻 Agent 的角标投影（合并状态、脸状态、待确认数、未读数）+ 这一页面板开没开 + 顶栏够不够宽 → 入口长相（脸 / 胶囊 / 角标 / 点）、胶囊那句、悬停与读屏那句，以及点一下开 / 收面板",
+      "status": "justified",
+      "paths": [
+        "src/ui/app-shell/shell/useNomiEntry.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "zustand 选择器：订阅直接用仓库已有的 useResidentActivityStore 与形态仓的 useShownForm，不另写订阅 / 比较机制",
+          "source": "src/workbench/ai/residentActivity.ts"
+        },
+        {
+          "name": "react-i18next useTranslation：几句话按键从词典取、带插值，不自写文案拼接",
+          "source": "node_modules/react-i18next/index.d.ts"
+        },
+        {
+          "name": "Radix Tooltip：悬停那句由顶栏外层 BarTooltip 照常显示，这里只给字，不自写悬停浮层",
+          "source": "src/design/tooltip.tsx"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：这里没有通用机制，只有 Nomi 的 Agent 入口规则——脸不算待确认、胶囊只在待确认且放得下且面板没开时出、未读不含待确认那几条、角标封顶 9+，全部来自 2026-11-22 NomiEntryTopbar 板拍板（docs/plan/2026-11-22-nomi-entry-topbar.md）；纯规则在 nomiEntryLook.ts，本文件只把现成的 zustand 仓与 i18n 接到这套规则上。顶栏、设计实验室、形态探针共用这一份，不各算各的。",
+      "revisitWhen": "顶栏出现第二个要按 Agent 状态变长相的入口（那时把入口数据层并成共用的一份），或常驻 Agent 的角标投影换成别的状态来源时"
+    },
+    {
       "id": "variant-axis-live-of-row-hook",
       "capability": "模型菜单每一行（不是选中那一行）的「变体轴起不起作用」：逐家供应商、逐个模式按那条渠道自己的线缆问同一把判据，写死型号的渠道那几行不长出变体行",
       "status": "justified",

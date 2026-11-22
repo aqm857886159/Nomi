@@ -22,7 +22,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
-import { DEFAULT_TIMEOUT_MS, clickOrFail, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { DEFAULT_TIMEOUT_MS, clickOrFail, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { AGENT_PANEL, COLLAPSED_SHELL, backToLibrary, switchWorkspace } from './_shell.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
@@ -533,7 +533,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
         const bar = await measureBar(win)
         const text = t('appShell.agent.entryPending', { count })
         const want = CAPSULE_WIDTH[locale][count]
-        check(`${BOARD.capsule} ${width} 等你确认 ${count}：data-shape=capsule、写「${text}」、不截断、宽 ${want}±2`, bar.entry?.shape === 'capsule' && bar.entry?.capsuleText === text && bar.entry?.capsuleClipped === false && Math.abs((bar.entry?.rect.width ?? 0) - want) <= 2 && bar.entry?.badge === null, JSON.stringify(bar.entry && { shape: bar.entry.shape, text: bar.entry.capsuleText, width: bar.entry.rect.width, badge: bar.entry.badge }))
+        check(`${BOARD.capsule} ${width} 胶囊 ${count} 条：data-shape=capsule、写「${text}」、不截断、宽 ${want}±2`, bar.entry?.shape === 'capsule' && bar.entry?.capsuleText === text && bar.entry?.capsuleClipped === false && Math.abs((bar.entry?.rect.width ?? 0) - want) <= 2 && bar.entry?.badge === null, JSON.stringify(bar.entry && { shape: bar.entry.shape, text: bar.entry.capsuleText, width: bar.entry.rect.width, badge: bar.entry.badge }))
         const rightGap = bar.entry && bar.header ? bar.header.right - bar.entry.rect.right : null
         check(`${BOARD.bar} ${width} 胶囊右沿离顶栏右沿 8px`, rightGap !== null && Math.abs(rightGap - 8) <= 0.5, `右留 ${rightGap}`)
         if (width === 900) {
@@ -556,8 +556,18 @@ async function runRound({ locale, scheme, tag, projectName }) {
         const label = await win.locator(`[data-shell-topbar] ${ENTRY}`).first().getAttribute('aria-label').catch(() => null)
         check(`${BOARD.tooltip} G1 / D5 英文轨：入口提示和名字里没有中文字`, Boolean(tip?.text) && Boolean(label) && englishOnly(tip?.text) && englishOnly(label), `${tip?.text ?? '没出提示'} | ${label}`)
       }
-      // 悬停着整窗拍：提示浮在顶栏下面。
-      await shot(win, 'tooltip-longest')
+      // 悬停着整窗拍：提示浮在顶栏下面。先等整页安定、再重新悬停、等提示淡入走完才拍（11-22 终版走查：先悬停再等安定，
+      // 四轨拍出来的图里都没有提示）；截图前后各看一眼提示开着，图里有没有提示有据可查。
+      await waitForVisualQuiescence(win).catch(() => undefined)
+      const again = await hoverTooltip({ stay: true })
+      await win.waitForTimeout(250)
+      const tipNode = win.locator('[data-radix-popper-content-wrapper] > *').last()
+      const tipBefore = await tipNode.isVisible().catch(() => false)
+      const tipBox = await tipNode.boundingBox().catch(() => null)
+      await win.screenshot({ path: path.join(shotsDir, `${tag}-tooltip-longest.png`) }).catch(() => undefined)
+      const tipAfter = await tipNode.isVisible().catch(() => false)
+      const tipOnScreen = Boolean(tipBox) && tipBox.y >= 0 && tipBox.x >= 0 && tipBox.x + tipBox.width <= 1440 && tipBox.y + tipBox.height <= HEIGHT
+      check(`${BOARD.tooltip} D5 整窗截图那一刻最长提示开着、在窗口里（拍前、拍后都在）`, Boolean(again) && tipBefore && tipAfter && tipOnScreen, JSON.stringify({ again: again?.text ?? null, tipBefore, tipAfter, tipBox }))
       await leaveEntry()
       unverified.push('D5 / G1 Windows「Ctrl+J」：这台是 Mac，真窗口量不到；快捷键前缀按平台写由 nomiEntryLook.test.ts 覆盖')
     }

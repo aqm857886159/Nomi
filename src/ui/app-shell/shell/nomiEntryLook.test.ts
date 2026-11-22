@@ -54,11 +54,12 @@ describe('nomiEntryLook（NomiEntryTopbar 板 A / B / C 组）', () => {
   })
 
   it('悬停那句：开头随形状 / 开合换，未读只在没有待确认时说', () => {
-    const labels = { open: '打开 Nomi（⌘J）', collapse: '收起面板（⌘\\）', pending: (n: number) => `等你确认 ${n}`, status: '状态', unread: (n: number) => `${n} 条新消息` }
-    expect(nomiEntryTooltip(look({ unreadCount: 3 }), { pendingCount: 0, unreadCount: 3, open: false }, labels)).toBe('打开 Nomi（⌘J） · 状态 · 3 条新消息')
-    expect(nomiEntryTooltip(look({ pendingCount: 2 }), { pendingCount: 2, unreadCount: 5, open: false }, labels)).toBe('等你确认 2 · 状态')
-    expect(nomiEntryTooltip(look({ pendingCount: 2, open: true }), { pendingCount: 2, unreadCount: 0, open: true }, labels)).toBe('收起面板（⌘\\） · 状态')
-    expect(nomiEntryTooltip(look({ pendingCount: 2, roomy: false }), { pendingCount: 2, unreadCount: 0, open: false }, labels)).toBe('打开 Nomi（⌘J） · 状态')
+    // 只验拼法（哪几段、什么顺序），字用占位，真文案按键从词典取的那条由走查 D5 量。
+    const labels = { open: 'OPEN', collapse: 'COLLAPSE', pending: (n: number) => `PENDING-${n}`, status: 'STATUS', unread: (n: number) => `UNREAD-${n}` }
+    expect(nomiEntryTooltip(look({ unreadCount: 3 }), { pendingCount: 0, unreadCount: 3, open: false }, labels)).toBe('OPEN · STATUS · UNREAD-3')
+    expect(nomiEntryTooltip(look({ pendingCount: 2 }), { pendingCount: 2, unreadCount: 5, open: false }, labels)).toBe('PENDING-2 · STATUS')
+    expect(nomiEntryTooltip(look({ pendingCount: 2, open: true }), { pendingCount: 2, unreadCount: 0, open: true }, labels)).toBe('COLLAPSE · STATUS')
+    expect(nomiEntryTooltip(look({ pendingCount: 2, roomy: false }), { pendingCount: 2, unreadCount: 0, open: false }, labels)).toBe('OPEN · STATUS')
   })
 
   it('G1：快捷键前缀 Mac ⌘、Windows Ctrl+', () => {
