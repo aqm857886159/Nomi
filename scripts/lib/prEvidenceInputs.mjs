@@ -14,7 +14,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadManifests } from '../check-board-parity.mjs'
-import { ciApprovals, SUPPRESSIONS_FILE } from './coordApprovals.mjs'
+import { ciApprovals, pushApprovals, SUPPRESSIONS_FILE } from './coordApprovals.mjs'
 
 const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -31,7 +31,7 @@ export const isRepoRelativeRef = (ref) => {
  * CI / 推送前（check-pr-judgement 没有显式注入时）的默认取法。读文件统一取 PR head（git show <headSha>:路径），和 headSha 同源——
  * CI 的检出是合并提交，不是 PR head，直接读工作树会读到另一个版本。取不到 PR head 的对象（浅克隆）= 读不到。
  */
-export function localEvidenceInputs({ root = process.env.PR_JUDGEMENT_REPO_ROOT || defaultRoot, env = process.env } = {}) {
+export function localEvidenceInputs({ root = process.env.PR_JUDGEMENT_REPO_ROOT || defaultRoot, env = process.env, stage = 'merge' } = {}) {
   const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
   const headFromEvent = () => {
     if (!env.GITHUB_EVENT_PATH) return null
@@ -64,9 +64,10 @@ export function localEvidenceInputs({ root = process.env.PR_JUDGEMENT_REPO_ROOT 
     // 拍板清单：PR head 上的内容；base 上的内容用来判「哪些板 / 元素是 PR 新增的」（新增的要协调确认，CI 只提示）
     boards: () => manifestsAt(headSha),
     baseBoards: () => manifestsAt(baseSha()),
-    // ESLint 批量抑制：冻结数上涨要协调确认（CI 只提示）；文件不存在 = {}，取不到提交 = null
+    // ESLint 批量抑制：非 CI 本机推送档与 lint:changed 共用 pushApprovals + checkSuppressionContracts，CI / merge 档用 ciApprovals
     suppressions: () => suppressionsAt({ git, sha: headSha }),
     baseSuppressions: () => suppressionsAt({ git, sha: baseSha() }),
+    suppressionApprovals: stage === 'push' && !env.CI && !env.GITHUB_ACTIONS ? pushApprovals({ pr: null, env }) : ciApprovals,
     approvals: ciApprovals,
     headRelation: (accepted, head) => checkHeadAncestry({ git, accepted, head }),
     readRaw: (ref) => (isRepoRelativeRef(ref) ? showAtHead(ref) : null),
