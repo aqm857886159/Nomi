@@ -23,9 +23,9 @@
   "external_sources": [
     {
       "kind": "official-doc",
-      "url": "https://nodejs.org/api/fs.html#fswatchfilename-options-listener",
+      "url": "https://nodejs.org/api/fs.html#fspromiseslstatpath-options",
       "checked_at": "2026-11-22",
-      "purpose": "Confirm Node.js fs.watch recursive option and watcher.unref() semantics for non-blocking directory invalidation"
+      "purpose": "Confirm Node.js fs/promises.lstat({ bigint: true }) nanosecond mtimeNs/ctimeNs/ino metadata semantics for single-mechanism skill directory fingerprinting"
     }
   ],
   "invariants": [
@@ -85,17 +85,17 @@
     {
       "path": "electron/agentLane/laneSkillCatalog.mts",
       "symbol": "discoverSkillRecords",
-      "responsibility": "Own skill directory tree discovery and invalidation via recursive fs.watch + nanosecond lstat/readdir verification."
+      "responsibility": "Own skill directory tree discovery with a single-slot last-result memo validated solely by recursive nanosecond lstat/readdir tree fingerprinting."
     },
     {
       "path": "electron/settings/agentApprovalPolicySettings.ts",
       "symbol": "writeAgentApprovalPolicy",
-      "responsibility": "Own approval policy persistence and skip atomic backup/fsync when normalized mode is unchanged."
+      "responsibility": "Own approval policy persistence as the sole idempotency check, skipping atomic backup/fsync when normalized mode is unchanged."
     },
     {
       "path": "electron/agentLane/laneDesktopRuntime.ts",
       "symbol": "createDesktopLaneDependencies",
-      "responsibility": "Cache text model resolution against catalogRevisionToken() and avoid redundant policy writes on configure."
+      "responsibility": "Cache text model resolution against catalogRevisionToken() and delegate policy persistence directly to writeAgentApprovalPolicy."
     },
     {
       "path": "electron/agentLane/laneDesktopInput.ts",
@@ -155,7 +155,7 @@
     "kind": "centralized-boundary",
     "enforcement_path": "electron/agentLane/laneSkillCatalog.mts",
     "invariant": "Hot-path send boundaries must reuse validated/discovered state when underlying source truth has not changed and must not transmit renderer-unused tool-result bodies over IPC.",
-    "failure_mode": "Any detected filesystem change, watcher error, catalog revision change, or schema mismatch immediately invalidates cached state and falls back to full fresh evaluation.",
+    "failure_mode": "Any detected filesystem fingerprint change, catalog revision change, or schema mismatch immediately invalidates memoized state and falls back to full fresh evaluation.",
     "exception_policy": "none",
     "strategy": "Enforce source-truth caching and IPC projection trimming at the four shared boundaries, guarded by FS-count/invalidation unit tests and registered 50-turn tool-heavy + 100-item plain-text performance scenarios.",
     "artifacts": [
@@ -188,7 +188,7 @@
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
-    "rationale": "Relies solely on Node.js built-in fs.watch / fs/promises.lstat and existing catalogRevisionToken().",
+    "rationale": "Relies solely on Node.js built-in fs/promises.lstat / readdir and existing catalogRevisionToken(); no external cache or watcher dependency is added.",
     "exit_criteria": []
   },
   "migration": "No on-disk schema or user data migration is required; existing skill directories, approval policy JSON files, and pi JSONL sessions continue to work identically.",

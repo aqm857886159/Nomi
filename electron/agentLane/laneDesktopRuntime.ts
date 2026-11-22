@@ -221,10 +221,8 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
             selected = model
             try { await opened.configureModel(model.config) } catch (error) { selected = previous; throw error }
           }
-          const approvalPolicy = next.approvalPolicy.mode === composer.approvalPolicy.mode
-            ? composer.approvalPolicy
-            : writeAgentApprovalPolicy(next.approvalPolicy)
-          composer = { ...next, approvalPolicy }
+          // 幂等写盘只归唯一持久化写口 `writeAgentApprovalPolicy`，这里不做第二层内存短路。
+          composer = { ...next, approvalPolicy: writeAgentApprovalPolicy(next.approvalPolicy) }
         },
       }
       let exposed: LaneWorkspaceHandle

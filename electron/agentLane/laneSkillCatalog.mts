@@ -25,7 +25,6 @@
 //   pi 是 ESM-only，主进程是 CommonJS；凡直接摸 pi 的文件都住这个 NodeNext 岛（`tsconfig.pi.json`）。
 //   CJS 侧的 `readSkillRecords()` 经 `laneNativeLoader.cts` 那座桥拿到这里的实现。`SkillRecord` 类型仍留在
 //   `electron/skills/skillStore.ts`（中立于岛的 CJS 类型，岛只 `import type` 它），所以 CJS 工程看不见岛地。
-import { watch, type FSWatcher } from 'node:fs';
 import { lstat, readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -131,29 +130,17 @@ async function migrateLegacyManifests(root: SkillDiscoveryRoot, diagnostics: Ski
   }
 }
 
-type TrackedSkillPath = {
-  readonly path: string;
-  readonly stat: string;
-};
-
-type TrackedSkillRoot = {
-  readonly root: SkillDiscoveryRoot;
-  readonly rootStat: string;
-  readonly shallowVerify: boolean;
-  readonly rootEntries: readonly string[];
-  readonly watchedFiles: readonly TrackedSkillPath[];
-  watcher: FSWatcher | null;
-};
-
-type CachedSkillDiscovery = {
-  dirty: boolean;
-  readonly roots: readonly TrackedSkillRoot[];
+type LastSkillDiscovery = {
+  readonly key: string;
+  readonly fingerprint: string;
   readonly result: SkillDiscoveryResult;
 };
 
-const MAX_SKILL_DISCOVERY_CACHE_ENTRIES = 16;
-const SHALLOW_VERIFY_SKILL_LIMIT = 16;
-const skillDiscoveryCache = new Map<string, CachedSkillDiscovery>();
+// 单活跃工作区只有 1 组活跃技能根（内置 + 用户目录）：只留单槽记忆，由目录树 `lstat`/`readdir` 指纹唯一判新旧。
+// 不用多槽 LRU、不挂 `fs.watch` 句柄池，避免双套失效与监听句柄生命周期复杂度。
+let lastSkillDiscovery: LastSkillDiscovery | null = null;
+
+const MAX_FINGERPRINT_DEPTH = 8;
 
 async function lstatSignature(target: string): Promise<string> {
   try {
@@ -165,116 +152,54 @@ async function lstatSignature(target: string): Promise<string> {
   }
 }
 
-async function readSortedEntryNames(rootPath: string): Promise<readonly string[]> {
+async function walkRootFingerprint(dir: string, out: string[], depth: number): Promise<void> {
+  const sig = await lstatSignature(dir);
+  out.push(`${dir}=${sig}`);
+  if (sig.startsWith('ERR:') || depth > MAX_FINGERPRINT_DEPTH) return;
+  let entries;
   try {
-    const names = await readdir(rootPath);
-    names.sort();
-    return names;
-  } catch {
-    return [];
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException)?.code;
+    out.push(`${dir}:READERR:${code ?? 'ERR'}`);
+    return;
   }
-}
-
-function attachRecursiveWatcher(rootPath: string, onDirty: () => void): FSWatcher | null {
-  try {
-    const watcher = watch(rootPath, { recursive: true }, () => { onDirty(); });
-    watcher.on('error', () => { onDirty(); });
-    watcher.unref();
-    return watcher;
-  } catch {
-    return null;
-  }
-}
-
-function disposeCachedDiscovery(entry: CachedSkillDiscovery | undefined): void {
-  if (!entry) return;
-  for (const root of entry.roots) {
-    if (!root.watcher) continue;
-    try { root.watcher.close(); } catch { /* ignore */ }
-    root.watcher = null;
-  }
-}
-
-let exitCleanupRegistered = false;
-function ensureExitCleanup(): void {
-  if (exitCleanupRegistered) return;
-  exitCleanupRegistered = true;
-  process.once('exit', () => {
-    for (const entry of skillDiscoveryCache.values()) disposeCachedDiscovery(entry);
-    skillDiscoveryCache.clear();
-  });
-}
-
-function arrayEqual(a: readonly string[], b: readonly string[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i += 1) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
-
-async function isSkillDiscoveryCacheFresh(cached: CachedSkillDiscovery): Promise<boolean> {
-  if (cached.dirty) return false;
-  for (const tracked of cached.roots) {
-    const currentRootStat = await lstatSignature(tracked.root.path);
-    if (currentRootStat !== tracked.rootStat) return false;
-    if (!tracked.shallowVerify) continue;
-    const currentEntries = currentRootStat.startsWith('ERR:')
-      ? []
-      : await readSortedEntryNames(tracked.root.path);
-    if (!arrayEqual(currentEntries, tracked.rootEntries)) return false;
-    for (const watched of tracked.watchedFiles) {
-      if ((await lstatSignature(watched.path)) !== watched.stat) return false;
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+  await Promise.all(entries.map(async (entry) => {
+    if (entry.name === '.git' || entry.name === 'node_modules') return;
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory() && !entry.isSymbolicLink()) {
+      await walkRootFingerprint(entryPath, out, depth + 1);
+    } else {
+      out.push(`${entryPath}=${await lstatSignature(entryPath)}`);
     }
-  }
-  return !cached.dirty;
+  }));
 }
 
-async function buildTrackedSkillRoot(
-  root: SkillDiscoveryRoot,
-  records: readonly SkillRecord[],
-  onDirty: () => void,
-): Promise<TrackedSkillRoot> {
-  const rootStat = await lstatSignature(root.path);
-  const exists = !rootStat.startsWith('ERR:');
-  const watcher = exists ? attachRecursiveWatcher(root.path, onDirty) : null;
-  const prefix = `${root.path}${path.sep}`;
-  const matching = records.filter((record) => record.filePath.startsWith(prefix) || record.packageDir === root.path);
-  const shallowVerify = root.origin === 'user' || matching.length <= SHALLOW_VERIFY_SKILL_LIMIT || !watcher;
-  const rootEntries = shallowVerify && exists ? await readSortedEntryNames(root.path) : [];
-  const watchedFiles: TrackedSkillPath[] = [];
-  if (shallowVerify && matching.length > 0) {
-    const seenPaths = new Set<string>();
-    for (const record of matching) {
-      for (const candidate of [record.filePath, record.packageDir]) {
-        if (candidate === root.path || seenPaths.has(candidate)) continue;
-        seenPaths.add(candidate);
-        watchedFiles.push({ path: candidate, stat: await lstatSignature(candidate) });
-      }
-    }
+async function computeRootsFingerprint(roots: readonly SkillDiscoveryRoot[]): Promise<string> {
+  const lines: string[] = [];
+  for (const root of roots) {
+    await walkRootFingerprint(root.path, lines, 0);
   }
-  return { root, rootStat, shallowVerify, rootEntries, watchedFiles, watcher };
+  lines.sort();
+  return lines.join('\n');
 }
 
 /**
  * 全部根 → `SkillRecord[]`。**发现交给 pi**；这里只做 Nomi 的投影与策略，每一条都对应 §2 里的一行。
  *
- * 目录树未变更时复用上次索引（`fs.watch({ recursive: true })` 脏位 + 根目录/用户技能轻量 `lstat` 复核）：
- * 避免每条消息在回合边界两次 `refresh()` 触发上千次盘扫描与双重 YAML 解析；新增技能、改 frontmatter、
- * 删技能或替换软链在下一次调用立刻失效重扫。
+ * 目录树指纹（`lstat`/`readdir` 纳秒元数据）未变更时复用上次发现结果：
+ * 避免每条消息在回合边界两次 `refresh()` 触发数百次同步读文件与双重 YAML 解析；
+ * 新增技能、编辑 `SKILL.md` / 子文件、删技能或替换软链在下一次调用立刻因指纹变化重扫。
  */
 export async function discoverSkillRecords(roots: readonly SkillDiscoveryRoot[]): Promise<SkillDiscoveryResult> {
   const normalizedRoots = roots
     .filter((root) => typeof root?.path === 'string' && path.isAbsolute(root.path))
     .map((root) => ({ path: path.resolve(root.path), origin: root.origin === 'user' ? 'user' as const : 'builtin' as const }));
   const cacheKey = normalizedRoots.map((root) => `${root.origin}:${root.path}`).join('\u0000');
-  const existing = skillDiscoveryCache.get(cacheKey);
-  if (existing && await isSkillDiscoveryCacheFresh(existing)) {
-    return { records: [...existing.result.records], diagnostics: [...existing.result.diagnostics] };
-  }
-  if (existing) {
-    disposeCachedDiscovery(existing);
-    skillDiscoveryCache.delete(cacheKey);
+  const fingerprint = normalizedRoots.length > 0 ? await computeRootsFingerprint(normalizedRoots) : '';
+  if (lastSkillDiscovery && lastSkillDiscovery.key === cacheKey && lastSkillDiscovery.fingerprint === fingerprint) {
+    return { records: [...lastSkillDiscovery.result.records], diagnostics: [...lastSkillDiscovery.result.diagnostics] };
   }
 
   const records: SkillRecord[] = [];
@@ -311,26 +236,9 @@ export async function discoverSkillRecords(roots: readonly SkillDiscoveryRoot[])
   }
   const result: SkillDiscoveryResult = { records, diagnostics };
   if (normalizedRoots.length > 0) {
-    ensureExitCleanup();
-    if (skillDiscoveryCache.size >= MAX_SKILL_DISCOVERY_CACHE_ENTRIES) {
-      const oldestKey = skillDiscoveryCache.keys().next().value;
-      if (oldestKey !== undefined) {
-        disposeCachedDiscovery(skillDiscoveryCache.get(oldestKey));
-        skillDiscoveryCache.delete(oldestKey);
-      }
-    }
-    const entry: CachedSkillDiscovery = { dirty: false, roots: [], result };
-    const markDirty = () => { entry.dirty = true; };
-    const trackedRoots: TrackedSkillRoot[] = [];
-    for (const root of normalizedRoots) {
-      trackedRoots.push(await buildTrackedSkillRoot(root, records, markDirty));
-    }
-    skillDiscoveryCache.set(cacheKey, {
-      get dirty() { return entry.dirty; },
-      set dirty(value: boolean) { entry.dirty = value; },
-      roots: trackedRoots,
-      result,
-    });
+    // 发现过程中可能触发存量 `skill.json` 一次性迁移写盘，取发现后的目录树指纹入槽以保证下次未变动直接命中。
+    const settledFingerprint = await computeRootsFingerprint(normalizedRoots);
+    lastSkillDiscovery = { key: cacheKey, fingerprint: settledFingerprint, result };
   }
   return { records: [...records], diagnostics: [...diagnostics] };
 }

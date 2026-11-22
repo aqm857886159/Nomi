@@ -42,8 +42,8 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) cleanupTestTemp(dir)
 })
 
-describe('laneSkillCatalog 根目录树未变复用索引（反例覆盖新增/改 frontmatter/软链）', () => {
-  it('未改动目录时连续两次 refresh 不重读 SKILL.md，FS 调用降至个位数', async () => {
+describe('laneSkillCatalog 单槽目录树指纹记忆（反例覆盖新增/改 frontmatter/改子文件/软链）', () => {
+  it('未改动目录时连续两次 refresh 零读文件、零同步遍历、直接复用上次索引对象', async () => {
     const builtinRoot = tempRoot('nomi-skill-builtin-')
     const userRoot = tempRoot('nomi-skill-user-')
     for (let i = 1; i <= 20; i += 1) {
@@ -60,28 +60,26 @@ describe('laneSkillCatalog 根目录树未变复用索引（反例覆盖新增/�
       }),
     })
 
-    // 第 1 次冷扫建立缓存
+    // 第 1 次冷扫建立单槽指纹记忆
     const first = await index.refresh()
     expect(first.entries).toHaveLength(21)
 
-    // 统计第 2 次 & 第 3 次连续 refresh（模拟同一回合 laneHost:625 + laneHost:276）的 FS 调用数
+    // 统计第 2 次 & 第 3 次连续 refresh（模拟同一回合 laneHost:625 + laneHost:276）的 FS 调用
     const readFileSpy = vi.spyOn(fsp, 'readFile')
     const readFileSyncSpy = vi.spyOn(fs, 'readFileSync')
-    const readdirSpy = vi.spyOn(fsp, 'readdir')
     const readdirSyncSpy = vi.spyOn(fs, 'readdirSync')
-    const lstatSpy = vi.spyOn(fsp, 'lstat')
+    const watchSpy = vi.spyOn(fs, 'watch')
 
     const second = await index.refresh()
     const third = await index.refresh()
     expect(second).toBe(first)
     expect(third).toBe(first)
 
-    // 两次 refresh 合计：零正文读盘、零同步遍历，轻量 stat/readdir 保持个位数每轮
+    // 两次 refresh 合计：零正文读盘、零同步遍历、零 fs.watch 句柄
     expect(readFileSpy).not.toHaveBeenCalled()
     expect(readFileSyncSpy).not.toHaveBeenCalled()
     expect(readdirSyncSpy).not.toHaveBeenCalled()
-    const totalCallsPerRefresh = (lstatSpy.mock.calls.length + readdirSpy.mock.calls.length) / 2
-    expect(totalCallsPerRefresh).toBeLessThanOrEqual(8)
+    expect(watchSpy).not.toHaveBeenCalled()
   })
 
   it('反例 1：两次发送之间在用户目录新增技能包或散装 .md，第二次 refresh 必须立刻看到', async () => {
@@ -155,5 +153,21 @@ describe('laneSkillCatalog 根目录树未变复用索引（反例覆盖新增/�
     const second = await discoverSkillRecords(roots)
     expect(second.records).toEqual([])
     expect(second.diagnostics.some((d) => d.code === 'symlink')).toBe(true)
+  })
+
+  it('反例 4：修改技能包内子文件（assets/note.txt），指纹立刻变化并重算 contentHash', async () => {
+    const userRoot = tempRoot('nomi-skill-nested-user-')
+    await writeSkill(userRoot, 'nested-skill', { extraFile: 'version-1' })
+    const roots: SkillDiscoveryRoot[] = [{ path: userRoot, origin: 'user' }]
+
+    const first = await discoverSkillRecords(roots)
+    expect(first.records).toHaveLength(1)
+    const firstHash = first.records[0]?.contentHash
+
+    await fsp.writeFile(path.join(userRoot, 'nested-skill', 'assets', 'note.txt'), 'version-2-changed', 'utf8')
+
+    const second = await discoverSkillRecords(roots)
+    expect(second.records).toHaveLength(1)
+    expect(second.records[0]?.contentHash).not.toBe(firstHash)
   })
 })
