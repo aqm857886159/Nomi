@@ -9,9 +9,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Model, Vendor } from "../catalog/types";
+import { buildWorld, type World } from "../../tests/world";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -35,9 +35,6 @@ import { callModelOnce } from "./laneModelCall.mjs";
 import { nomiModelConfigFor } from "../ai/vendorModelConnection";
 import { readModelDeclaration } from "../catalog/modelDeclaration";
 
-const OLD_DATA = fileURLToPath(new URL("../../tests/fixtures/old-user-data", import.meta.url));
-/** 真实旧版落盘的、带内置 APIMart 连接的目录（v0.24.0 / v0.24.1）：里面还没有 GPT-6 的行。 */
-const OLD_APIMART_DIRS = ["builtin-connection/v0.24.0-builtin-plain", "curated/v0.24.1-apimart"];
 const API_KEY = "sk-gpt6-fake";
 /** 官方文档写明「工具调用必须走 Responses」的两行（迁移指南 migrate-to-responses：GPT-6 Astra 与 GPT-6.1 Sol）。 */
 const RESPONSES_ROWS = ["gpt-6-astra", "gpt-6.1-sol"] as const;
@@ -45,24 +42,25 @@ const RESPONSES_ROWS = ["gpt-6-astra", "gpt-6.1-sol"] as const;
 const UNCHANGED_SIBLINGS = ["gpt-6.1-terra", "gpt-6-luna"] as const;
 const REASONING_KEYS = ["reasoning", "reasoning_effort", "thinking", "enable_thinking", "include"];
 const roots: string[] = [];
+const worlds: Array<{ world: World; restore: () => void }> = [];
 
 afterEach(() => {
   vi.unstubAllEnvs();
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+  for (const { world, restore } of worlds.splice(0)) {
+    restore();
+    world.cleanup();
+  }
 });
 
 type SeededRow = { vendor: Vendor; model: Model };
 
-/** 空设置目录（或拷一份旧版目录进去）跑一次启动种子（和对拍测试同一个进门方式）；返回目录模块，后面的用例要写它。 */
-async function seededCatalog(oldDirectory?: string, seed = true) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-gpt6-responses-"));
-  roots.push(dir);
-  if (oldDirectory) fs.copyFileSync(path.join(OLD_DATA, oldDirectory, "model-catalog.json"), path.join(dir, "model-catalog.json"));
-  vi.stubEnv("NOMI_SETTINGS_DIR", dir);
+/** 内置种子目录由测试世界的正门造（空世界跑启动种子、真落盘），这里只读；写目录的用例在目录主人的家里。 */
+async function seededCatalog() {
+  const world = buildWorld({ builtinSeeds: true, projects: [] });
+  worlds.push({ world, restore: world.activate() });
   vi.resetModules();
-  const catalog = await import("../catalog/catalogStore");
-  if (seed) catalog.ensureBuiltinModelSeeds();
-  return catalog;
+  return import("../catalog/catalogStore");
 }
 
 function textRows(catalog: Awaited<ReturnType<typeof seededCatalog>>): SeededRow[] {
@@ -200,68 +198,4 @@ describe("没有第二个家：协议不按名字认", () => {
   });
 });
 
-describe("声明不会被写入方冲掉、老用户升级后补上", () => {
-  it.each(RESPONSES_ROWS)("%s：设置页改这一行（带一份不含声明的 meta）后仍走 Responses——漏斗按键合并", async (modelKey) => {
-    const catalog = await seededCatalog();
-    const before = rowOf(textRows(catalog), modelKey);
-    catalog.upsertModelCatalogModel({ vendorKey: before.model.vendorKey, modelKey, meta: { userNote: "edited in settings" } });
-    const after = rowOf(textRows(catalog), modelKey);
-    expect(after.model.meta, "writer's own key is written").toMatchObject({ userNote: "edited in settings" });
-    expect(readModelDeclaration(after.model.meta).textProtocol, "declaration survives the writer's meta").toBe("openai-responses");
-    expect(nomiModelConfigFor(after.vendor, after.model, API_KEY).kind).toBe("openai-responses");
-  });
-
-  it.each(RESPONSES_ROWS)("%s：升级前已落盘的行（没有 textProtocol）读目录 + 启动种子对账后补上", async (modelKey) => {
-    const catalog = await seededCatalog();
-    const { vendor, model } = rowOf(textRows(catalog), modelKey);
-    const { textProtocol: _declared, ...withoutProtocol } = model.meta as Record<string, unknown>;
-    // 用「写入方显式不带这一键」之外的路写不出缺键的行（漏斗会保留），所以直接改盘上的目录，等价于升级前主线落下的行。
-    catalog.mutateCatalog((_tx, state) => {
-      const row = state.models.find((item) => item.vendorKey === vendor.key && item.modelKey === modelKey)!;
-      row.meta = withoutProtocol;
-    });
-    expect(readModelDeclaration(rowOf(textRows(catalog), modelKey).model.meta).textProtocol, "row as the old main wrote it").toBeUndefined();
-    catalog.ensureBuiltinModelSeeds();
-    const healed = rowOf(textRows(catalog), modelKey);
-    expect(nomiModelConfigFor(healed.vendor, healed.model, API_KEY).kind).toBe("openai-responses");
-  });
-});
-
-describe("老用户升级（真实 v0.24.0 / v0.24.1 目录）", () => {
-  it.each(OLD_APIMART_DIRS)("%s：升级后 GPT-6 两行带 Responses 声明、请求去 /v1/responses；原有文本行的协议一个不变", async (directory) => {
-    const catalog = await seededCatalog(directory, false);
-    const before = textRows(catalog);
-    expect(before.map((row) => row.model.modelKey), "the old directory predates the GPT-6 rows").not.toContain("gpt-6-astra");
-    const kindBefore = new Map(before.map((row) => [`${row.model.vendorKey}/${row.model.modelKey}`, nomiModelConfigFor(row.vendor, row.model, API_KEY).kind]));
-    const connectionKind = () => catalog.readCatalog().vendors.find((vendor) => vendor.key === "apimart")?.providerKind;
-    const vendorBefore = connectionKind();
-    catalog.ensureBuiltinModelSeeds();
-    const after = textRows(catalog);
-    for (const row of after) {
-      const key = `${row.model.vendorKey}/${row.model.modelKey}`;
-      if (kindBefore.has(key)) expect.soft(nomiModelConfigFor(row.vendor, row.model, API_KEY).kind, `${key}: pre-existing row keeps its protocol`).toBe(kindBefore.get(key));
-    }
-    expect(connectionKind(), "connection protocol untouched").toBe(vendorBefore);
-    for (const modelKey of RESPONSES_ROWS) {
-      const { vendor, model } = rowOf(after, modelKey);
-      expect(readModelDeclaration(model.meta).textProtocol, `${modelKey} declaration after upgrade`).toBe("openai-responses");
-      await withServer([{ type: "text", text: "Upgraded." }], async (server) => {
-        const config = nomiModelConfigFor(pointAt(vendor, server.origin), model, API_KEY);
-        await callModelOnce({ model: config, fetch: globalThis.fetch, content: "Hi." as never, signal: new AbortController().signal });
-        expectPlainResponsesRequest(server.requests[0]!, `${directory} ${modelKey}`);
-      });
-    }
-  });
-
-  it("用户在设置里手选过连接协议（Anthropic）：没声明的行照手选走，只有声明了的两行走 Responses，连接本身不动", async () => {
-    const catalog = await seededCatalog(OLD_APIMART_DIRS[0], false);
-    catalog.mutateCatalog((_tx, state) => { state.vendors.find((vendor) => vendor.key === "apimart")!.providerKind = "anthropic"; });
-    catalog.ensureBuiltinModelSeeds();
-    const state = catalog.readCatalog();
-    expect(state.vendors.find((vendor) => vendor.key === "apimart")!.providerKind, "hand-picked connection protocol").toBe("anthropic");
-    for (const row of textRows(catalog).filter((item) => item.model.vendorKey === "apimart")) {
-      const expected = (RESPONSES_ROWS as readonly string[]).includes(row.model.modelKey) ? "openai-responses" : "anthropic";
-      expect.soft(nomiModelConfigFor(row.vendor, row.model, API_KEY).kind, row.model.modelKey).toBe(expected);
-    }
-  });
-});
+// 写目录的两组（设置页改行后声明还在、老用户升级后补上声明）在目录主人的家里：electron/catalog/gpt6ResponsesUpgrade.test.ts。

@@ -78,7 +78,7 @@
 ## ★9 验收与回滚
 
 **判据（两种没做成的版本都红，两种都红才往下做）**：
-- 请求层与回放测试（`electron/agentLane/gpt6Responses.test.ts`，16 条）：Astra / Sol 各一条 Agent lane 多步任务（本机假上游：第 1、2 次响应各带一条推理条目 + 工具调用，第 3 次是文字）——3 次请求都去 `/v1/responses`，第 2 次请求里有第 1 次的推理条目、第 3 次里有前两次的，工具调用 2 次都对；单发也去 `/v1/responses` 且 pi 的 `api` 是 `openai-responses`；Terra / Luna 等同族行仍去 Chat；名字撞车的中转行（同名不同供应商）不被带着变；漏斗 / 升级 / 手选协议各有断言。
+- 请求层与回放测试（`electron/agentLane/gpt6Responses.test.ts`；写目录的漏斗 / 升级 / 真实旧版目录几组按测试世界规矩放在目录主人的家 `electron/catalog/gpt6ResponsesUpgrade.test.ts`，合计 16 条）：Astra / Sol 各一条 Agent lane 多步任务（本机假上游：第 1、2 次响应各带一条推理条目 + 工具调用，第 3 次是文字）——3 次请求都去 `/v1/responses`，第 2 次请求里有第 1 次的推理条目、第 3 次里有前两次的，工具调用 2 次都对；单发也去 `/v1/responses` 且 pi 的 `api` 是 `openai-responses`；Terra / Luna 等同族行仍去 Chat；名字撞车的中转行（同名不同供应商）不被带着变；漏斗 / 升级 / 手选协议各有断言。
 - 「什么都不做」（本分支去掉 `RESPONSES_DECLARATION` 等价于主线）：5 条失败 / 2 条通过（7 条），日志 `tmp/I-gpt6-responses/logs/red-1-do-nothing.log`，**红**。
 - 「全部拦下」（Responses 请求一个都发不出去，反例 m5）：8 条失败，日志 `logs/m5-all-blocked.log`，**红**。
 - 保险（`electron/agentLane/modelRequestParity.test.ts`）：82 行 × 4 路逐字节对拍，只重录这两行（网址 `/v1/chat/completions` → `/v1/responses`、请求体换成 Responses 形状：`messages` → `input`、`image_url` → `input_image` 等）；其余 80 行与主线金样零差异（`logs/merge-golden.log`、`logs/parity-before-after.txt`）。

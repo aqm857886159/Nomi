@@ -53,9 +53,15 @@ describe("upsert 漏斗写文本行的声明初值", () => {
 describe("upsert 漏斗：声明键按键合并，写入方没带的键不被冲掉", () => {
   const DECLARED = { textProtocol: "openai-responses", reasoning: true, thinkingLevelMap: { off: "none" }, compat: { sessionAffinityFormat: "openai-nosession" }, inputModalities: ["audio"] };
 
+  // 行上原有的声明由测试世界的正门种下（换一个带这行的世界），不经被测的 upsert 漏斗。
   function seedDeclared(extra: Record<string, unknown> = {}) {
-    memory.catalog!.models = [{ vendorKey: "relay", modelKey: "declared", labelZh: "Declared", kind: "text", enabled: true, createdAt: "a", updatedAt: "a",
-      meta: { ...DECLARED, supportsImageInput: true, ...extra } }];
+    restoreEnv();
+    world.cleanup();
+    world = buildWorld({ builtinSeeds: false, projects: [], catalog: { vendors: [{ ...VENDOR }], models: [
+      { vendorKey: "relay", modelKey: "declared", labelZh: "Declared", kind: "text", enabled: true, meta: { ...DECLARED, supportsImageInput: true, ...extra } },
+    ] } });
+    restoreEnv = world.activate();
+    expect(metaOf("declared")).toEqual({ ...DECLARED, supportsImageInput: true, ...extra });
   }
 
   it("设置页 / 导入包这类写入方手搭一份不带声明的 meta：五个声明键全部留着，别的键归写入方", () => {
