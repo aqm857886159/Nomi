@@ -199,7 +199,7 @@ vi.mock('../../../workbench/onboarding/onboardingProgress', () => ({
   useOnboardingProgress: () => ({ active: false, total: 0, doneCount: 0 }),
 }))
 
-import '../../../i18n'
+import i18n from '../../../i18n'
 import { openModalInputLayer } from '../../../design/modalInputLayer'
 import { useResidentActivityStore } from '../../../workbench/ai/residentActivity'
 import {
@@ -732,7 +732,7 @@ describe('顶栏入口侧接线 ③：窄窗临时收起（跨阈值回顶栏、
     expect(mounted.hostForm()).toBe('dock')
     expect(mounted.mustEntry().getAttribute('aria-pressed')).toBe('true')
     const wideLabel = mounted.mustEntry().getAttribute('aria-label') ?? ''
-    expect(wideLabel).toContain('收起面板')
+    expect(wideLabel).toContain(i18n.t('agentPanelV4.collapsePanel'))
     const diskBefore = mounted.disk()
     expect(diskBefore).toContain('"dock"')
 
