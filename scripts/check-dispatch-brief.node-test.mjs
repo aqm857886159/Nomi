@@ -29,7 +29,7 @@ describe('派工书检查', () => {
   })
   test('第 3 轮及以上必须引用方向检查复盘；第 2 轮不要求', () => {
     assert.match(checkDispatchBrief(`${GOOD} 第三轮修补`).join(), /第 3 轮/)
-    assert.deepEqual(checkDispatchBrief(`${GOOD} 第三轮修补，见类根因复盘 docs/x.md`), [])
+    assert.deepEqual(checkDispatchBrief(`${GOOD} 第三轮修补，见类根因复盘 docs/x.md\n同类产品：复盘；本仓库唯一主人；docs/x.md:1`), [])
     assert.match(checkDispatchBrief(`${GOOD} 第五轮修补`).join(), /第 5 轮/)
     assert.deepEqual(checkDispatchBrief(`${GOOD} 第五轮修补，依据 Direction-Check 复盘 docs/x.md`), [])
     assert.deepEqual(checkDispatchBrief(`${GOOD} 第二轮`), [])
@@ -100,6 +100,8 @@ describe('删除决策与归属范围', () => {
   })
 })
 
+// 改产品代码的实现线任务书必须有的几句（量到它的走查、快检、eslint）。
+const PRODUCT_LINES = '\n量到它的走查：tests/ux 里按标记找过。交回前跑 pre-push-contracts 和 eslint。'
 const HOOK = fileURLToPath(new URL('./claude-hooks/dispatch-brief-gate.sh', import.meta.url))
 function runHook(prompt) {
   return spawnSync('bash', [HOOK], {
@@ -126,7 +128,7 @@ describe('Claude 派线执行点', () => {
     assert.equal(result.stderr.match(/派工书检查：/g)?.length, 1)
   })
   test('引用齐全任务书时放行', () => {
-    const result = runHook(`读任务书 ${writeBrief(`${GOOD}\n删掉：不选，保留必要能力。\n调用方：不改已有函数的行为${SELF_CHECK}`)}`)
+    const result = runHook(`读任务书 ${writeBrief(`${GOOD}\n删掉：不选，保留必要能力。\n调用方：不改已有函数的行为${SELF_CHECK}${PRODUCT_LINES}`)}`)
     assert.equal(result.error, undefined)
     assert.equal(result.status, 0)
   })
@@ -305,7 +307,7 @@ function churnRepo() {
 
 const CHURN = churnRepo()
 const scopeBrief = (files) => `${IMPLEMENTATION_GOOD}${SELF_CHECK}\n## 范围\n${files.map((f) => `- \`${f}\``).join('\n')}\n## 不碰清单\n其它文件。`
-const DIRECTION_REF = '\n先读 docs/engineering/direction-checks/approved.md。'
+const DIRECTION_REF = '\n先读 docs/engineering/direction-checks/approved.md。\n同类产品：热点那一块；本仓库唯一主人；docs/x.md:1'
 
 describe('碰热点先方向检查', () => {
   test('真实 Git 热点缺方向文档时拦截，补引用通过', () => {
@@ -375,7 +377,7 @@ describe('界面先对设计系统', () => {
     assert.equal(hooked.status, 2)
     assert.match(hooked.stderr, /缺目标合同/)
     assert.match(hooked.stderr, /缺设计系统引用/)
-    fs.writeFileSync(file, `${IMPLEMENTATION_GOOD}\n调整界面。${SELF_CHECK}${DESIGN_REF}`)
+    fs.writeFileSync(file, `${IMPLEMENTATION_GOOD}\n调整界面。${SELF_CHECK}${DESIGN_REF}${PRODUCT_LINES}`)
     assert.equal(runHook(`读任务书 ${file}`).status, 0)
   })
 })
@@ -449,5 +451,117 @@ describe('交接处：任务书点到的路径命中交接处且这一处两周�
     const seam = seams.find((unit) => unit.name === '档案 → Agent 写参数')
     if (seam?.map) assert.ok(out[0].includes(`全图：${seam.map}`), `应印出表里登记的全图 ${seam.map}`)
     else assert.match(out[0], /还没有，先画/)
+  })
+})
+
+// ⑪ 从协调本机搬进来的通用规则：每条一份坏任务书、一份好任务书（内联）。
+describe('派工通用规则（原协调本机检查）', () => {
+  const FIRST = '# I-x（Mac，Claude 实现线）：某事\n'
+  const DEC = '\n删掉：不选，保留必要能力。\n调用方：不改已有函数的行为\n范围：只改 `scripts/a.mjs`。\n不碰清单：别的文件。\n停点：快检过了就停。'
+  const IMPL_OK = `${FIRST}${GOAL}${STAR9}${DEC}\n临时文件放 <证据目录>/x/，不写草稿目录（scratchpad）。\n在你自己的独立工作树里做。\n交回前 npx eslint 改过的文件；正文先跑 check-pr-judgement，快检跑 pre-push-contracts，草稿 .tmp-pr-body.md。`
+  const run = (text, name = 'I-x.md', extra = {}) => checkDispatchBrief(text, { name, implementation: /^I-/.test(name), acceptance: /^V-/.test(name), ...extra }).join('\n')
+  const addLine = (line) => IMPL_OK.replace('停点：', `${line}\n停点：`)
+
+  test('实现线好任务书（今天真派出去的形状）整份通过；验收线也过', () => {
+    assert.deepEqual(checkDispatchBrief(IMPL_OK, { name: 'I-x.md', implementation: true }), [])
+    const acceptance = `# V-x（Mac，Claude 独立验收线）：某事\n${GOAL}\n范围：只验。\n不碰清单：不改仓库。\n停点：报告写完就停。\n声明：不起窗口\n临时文件放 <证据目录>/x/，不写草稿目录（scratchpad）。`
+    assert.deepEqual(checkDispatchBrief(acceptance, { name: 'V-x.md', acceptance: true }), [])
+  })
+  test('不许叫子线本机跑全量：坏 / 好 / 放行写法', () => {
+    assert.match(run(addLine('提交前跑 `pnpm test`。')), /本机跑全量[\s\S]*本机全量：<理由>/)
+    assert.match(run(addLine('再跑 gates:contracts。')), /本机跑全量/)
+    assert.equal(run(addLine('全量 pnpm test 看 CI，不在本机跑。')), '')
+    assert.equal(run(addLine('本机全量：走查 CI 不跑。\n提交前跑 `pnpm test`。')), '')
+  })
+  test('4b 改产品代码的实现线要写「量到它的走查」', () => {
+    const touching = IMPL_OK.replace('scripts/a.mjs', 'src/a.tsx')
+    assert.match(run(touching), /量到它的走查/)
+    assert.doesNotMatch(run(`${touching}\n量到它的走查：tests/ux 里按标记找过。`), /补一句含「量到它的走查」/)
+  })
+  test('4d / 4g 交正文草稿或增补：要写自己先跑正文判据', () => {
+    const noJudge = IMPL_OK.replace('正文先跑 check-pr-judgement，', '')
+    assert.match(run(noJudge), /正文判据/)
+    assert.match(run(`${noJudge}\n交 PR 正文增补。`), /正文增补/)
+    assert.doesNotMatch(run(IMPL_OK), /正文判据/)
+  })
+  test('4h 改产品代码的实现线要写推送前快检', () => {
+    const touching = `${IMPL_OK.replace('scripts/a.mjs', 'src/a.tsx').replace('快检跑 pre-push-contracts，', '')}\n量到它的走查：已找。`
+    assert.match(run(touching), /推送前快检/)
+    assert.doesNotMatch(run(`${touching}\n提交后跑 pre-push-contracts。`), /推送前快检/)
+  })
+  test('4f 改代码的实现线要写 eslint', () => {
+    const noLint = IMPL_OK.replace('npx eslint', '代码检查')
+    assert.match(run(noLint), /npx eslint/)
+    assert.doesNotMatch(run(IMPL_OK), /npx eslint/)
+  })
+  test('5 出图任务书要写「同类产品：」', () => {
+    assert.match(run(`${IMPL_OK}\n出一版探索图。`), /缺「同类产品：」/)
+    assert.doesNotMatch(run(`${IMPL_OK}\n出一版探索图。\n同类产品：LibTV 同一处，截图在 x。`), /缺「同类产品：」/)
+  })
+  test('5b 板源入库要写「同类产品截图不进仓库」', () => {
+    const board = `${IMPL_OK}\n对照表：不照板实现：只入库清单。\n拍板清单入库 docs/design/boards/。`
+    assert.match(run(board), /截图不进仓库/)
+    assert.doesNotMatch(run(`${board}\n同类产品截图不进仓库。`), /缺一句「同类产品截图不进仓库」/)
+  })
+  test('5c 方向复盘 / 引用方向检查文档：「同类产品：」不许写不适用，要有出处', () => {
+    const review = `${IMPL_OK}\n类根因复盘。`
+    assert.match(run(`${review}\n同类产品：不适用`), /不许写「不适用」/)
+    assert.match(run(review), /补「同类产品：/)
+    assert.doesNotMatch(run(`${review}\n同类产品：弹窗外壳；Mantine；https://mantine.dev/core/modal/`), /补「同类产品：/)
+    assert.doesNotMatch(run(`${review}\n同类产品：不适用`, 'V-x.md'), /补「同类产品：/)
+  })
+  test('6 界面验收要写每个控件真点一次', () => {
+    const ui = '# V-x（Claude 验收线）\n界面验收。\n声明：不起窗口\n不写草稿目录。'
+    assert.match(run(ui, 'V-x.md'), /每个控件真点一次，并写下/)
+    assert.doesNotMatch(run(`${ui}\n每个控件真点一次，写下看见什么。`, 'V-x.md'), /每个控件真点一次，并写下/)
+  })
+  test('7 起真窗验证要提 verify-nomi 和 verify-line-meter；声明不起窗口放行', () => {
+    const win = `${IMPL_OK}\n要真窗验证。`
+    assert.match(run(win), /没提 verify-nomi/)
+    assert.match(run(win), /没提 verify-line-meter/)
+    assert.doesNotMatch(run(`${win}\n用 verify-nomi 技能，报告交 verify-line-meter。`), /没提 verify/)
+    assert.doesNotMatch(run(`${win}\n声明：不起窗口`), /没提 verify/)
+  })
+  test('否定说法不算提到：不碰清单里的「不起窗口」「不截图」不触发 7，「不改界面」不触发设计系统要求', () => {
+    const quiet = `${IMPL_OK}\n不碰清单：不起窗口、不截图、不改界面、别碰拍板图。`
+    assert.doesNotMatch(run(quiet), /没提 verify/)
+    assert.doesNotMatch(run(quiet), /缺设计系统引用/)
+    // 反例：真要起窗、真改界面的照样要求
+    assert.match(run(`${quiet}\n修完起窗口截图对一遍。`), /没提 verify-nomi/)
+    assert.match(run(`${quiet}\n改界面的按钮顺序。`), /缺设计系统引用/)
+  })
+  test('8 新增通用能力要提「先查别人」和 check-prior-art；声明不登记自写放行', () => {
+    const add = `${IMPL_OK}\n新增通用能力。`
+    assert.match(run(add), /没提 先查别人/)
+    assert.match(run(add), /没提 check-prior-art/)
+    assert.doesNotMatch(run(`${add}\n声明：不登记自写`), /没提 先查别人/)
+    assert.doesNotMatch(run(`${add}\n设计卡写「## 先查别人」，跑 check-prior-art.mjs。`), /没提/)
+  })
+  test('10 照拍板图做界面要「对照表：」和并排图', () => {
+    const board = `${IMPL_OK}\n照板做这一块。`
+    assert.match(run(board), /缺「对照表：<路径>」/)
+    assert.match(run(`${board}\n对照表：docs/not-there.md`), /指的文件不存在/)
+    assert.match(run(`${board}\n对照表：docs/engineering/seams.json`), /并排图/)
+    assert.equal(run(`${board}\n对照表：docs/engineering/seams.json\n交并排图。`), '')
+    assert.equal(run(`${board}\n对照表：不照板实现：只改文案。`), '')
+  })
+  test('11 本机回环：不碰代理要写 NO_PROXY；读报文要点名改道和金丝雀', () => {
+    const loop = `${IMPL_OK}\n用本机回环假服务。不改代理设置。`
+    assert.match(run(loop), /NO_PROXY 的口径/)
+    assert.doesNotMatch(run(`${loop}\n给自己起的子进程加 NO_PROXY 是允许的。`), /NO_PROXY 的口径/)
+    const read = `${IMPL_OK}\n用替身，读它收到的请求体。`
+    assert.match(run(read), /NOMI_TEST_NETWORK_REDIRECTS/)
+    assert.match(run(read), /金丝雀两句/)
+    assert.doesNotMatch(run(`${read}\n用 NOMI_TEST_NETWORK_REDIRECTS。先跑金丝雀；金丝雀不过就停这一步。`), /没点名现成改道|金丝雀两句/)
+  })
+  test('12 Claude 子线要写临时文件不进草稿目录', () => {
+    const bad = IMPL_OK.replace('不写草稿目录（scratchpad）', '临时文件随便放')
+    assert.match(run(bad), /不写草稿目录/)
+    assert.doesNotMatch(run(IMPL_OK), /不写草稿目录/)
+  })
+  test('13 Claude 写代码子线要写独立工作树', () => {
+    const bad = IMPL_OK.replace('在你自己的独立工作树里做。', '用别人的工作树。')
+    assert.match(run(bad), /独立工作树里做（派时/)
+    assert.doesNotMatch(run(IMPL_OK), /独立工作树里做（派时/)
   })
 })
