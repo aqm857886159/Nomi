@@ -9,7 +9,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import ts from 'typescript'
 
 import { knownScenarios, loadScenarios, parsePerfEvidence } from './perf-scenarios-lib.mjs'
 import { compareBoardManifests } from './check-board-parity.mjs'
@@ -50,22 +49,76 @@ const UI_MANIFEST = /^docs\/design\/boards\//i
 const NON_PRODUCT = /^(?:docs\/.*|tests?\/.*|evals\/.*|\.github\/.*|scripts\/.*|fixtures\/.*|(?:[^/]+\.(?:md|json|ya?ml|toml|lock|txt))|.*\.(?:test|spec|e2e)\.[^.]+)$/i
 
 /**
- * 剥离注释与空白，抽取稳定的语法 token 序列（TypeScript 官方 createScanner）。
+ * 零依赖状态机词法扫描：剥离注释、归一代码区空白，完整保留字符串/模板字面量原样（兼容无 node_modules 的 CI `PR Body` 工作流）。
  * 目的：区分「仅改 JSDoc / 注释 / 排版（如 #1547 ComposerSendButton.tsx）」与「真实改动 JSX / 样式 / 文案 / 默认参数（如 #1611 / #1583 / #1568 / #1616）」。
  */
 export function semanticTokensOf(filePath, content) {
   const text = String(content ?? '')
   const p = norm(filePath)
-  if (/\.(?:css|scss)$/i.test(p)) {
-    return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ').trim()
+  const allowLineComments = !/\.css$/i.test(p)
+  let out = ''
+  let pendingSpace = false
+  // 模板表达式 `${ ... }` 嵌套栈：每层记当前花括号深度
+  const exprBraces = []
+  let mode = 'code' // 'code' | 'sq' | 'dq' | 'tpl'
+  const flushSpace = () => {
+    if (pendingSpace && out.length > 0) out += ' '
+    pendingSpace = false
   }
-  const variant = p.endsWith('.tsx') || p.endsWith('.jsx') ? ts.LanguageVariant.JSX : ts.LanguageVariant.Standard
-  const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, variant, text)
-  const tokens = []
-  for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
-    tokens.push(`${kind}:${scanner.getTokenText()}`)
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]
+    const next = text[i + 1]
+    if (mode === 'sq' || mode === 'dq') {
+      out += ch
+      if (ch === '\\' && i + 1 < text.length) { out += next; i += 1; continue }
+      if ((mode === 'sq' && ch === "'") || (mode === 'dq' && ch === '"')) mode = 'code'
+      continue
+    }
+    if (mode === 'tpl') {
+      out += ch
+      if (ch === '\\' && i + 1 < text.length) { out += next; i += 1; continue }
+      if (ch === '`') { mode = 'code'; continue }
+      if (ch === '$' && next === '{') { out += '{'; i += 1; exprBraces.push(1); mode = 'code'; continue }
+      continue
+    }
+    // code mode：先剥注释与空白
+    if (ch === '/' && next === '*') {
+      const end = text.indexOf('*/', i + 2)
+      i = end < 0 ? text.length : end + 1
+      pendingSpace = true
+      continue
+    }
+    if (allowLineComments && ch === '/' && next === '/' && text[i - 1] !== ':') {
+      const nl = text.indexOf('\n', i + 2)
+      i = nl < 0 ? text.length : nl
+      pendingSpace = true
+      continue
+    }
+    if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n' || ch === '\f' || ch === '\v') {
+      pendingSpace = true
+      continue
+    }
+    flushSpace()
+    if (ch === "'" || ch === '"' || ch === '`') {
+      out += ch
+      mode = ch === "'" ? 'sq' : ch === '"' ? 'dq' : 'tpl'
+      continue
+    }
+    if (exprBraces.length > 0) {
+      if (ch === '{') exprBraces[exprBraces.length - 1] += 1
+      else if (ch === '}') {
+        exprBraces[exprBraces.length - 1] -= 1
+        if (exprBraces[exprBraces.length - 1] === 0) {
+          exprBraces.pop()
+          out += '}'
+          mode = 'tpl'
+          continue
+        }
+      }
+    }
+    out += ch
   }
-  return tokens.join('\u0001')
+  return out.trim()
 }
 
 /**

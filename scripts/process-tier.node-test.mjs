@@ -211,6 +211,16 @@ test('T-8 第 1 类：自报短档但改了 .tsx / .css / i18n / 档案默认参
   })
   assert.equal(badArchetype.changed, true, '坏例模型档案默认参数变更必须判有界面差异')
 
+  // 坏例 5（词法安全护栏）：字符串/模板字面量内含 // 或 /*（如 URL）被改 → 绝不能当注释剥掉，必判有界面差异
+  const badUrlString = deriveUiVerification({
+    files: [M('src/i18n/locales/helpLinks.ts')],
+    baseBoards: SAME_BOARDS,
+    headBoards: SAME_BOARDS,
+    readBaseFile: () => 'export const DOC = "https://example.com/*v1*/" + `https://nomi.app/${/* ok */ id}`',
+    readHeadFile: () => 'export const DOC = "https://example.com/*v2*/" + `https://nomi.app/${/* ok */ id}`',
+  })
+  assert.equal(badUrlString.changed, true, '字符串内含 // 或 /* 的 URL 变更必须判有界面差异')
+
   // 好例 1（回放 #1547）：仅改 .tsx JSDoc 注释，AST token 逐项一致 → 放行短档
   const goodComment = deriveUiVerification({
     files: [M('src/workbench/generationCanvas/nodes/ComposerSendButton.tsx')],
