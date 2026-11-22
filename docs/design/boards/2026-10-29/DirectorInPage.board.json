@@ -71,6 +71,7 @@
       "status": "implemented",
       "states": ["narrow", "zh-en", "dark"],
       "assertion": "board:DirectorInPage/layer.fills-cell",
+      "note": "2026-11-22 起 9 种组合里「小球」那一列换成「收起」（入口在顶栏，NomiEntryTopbar 板）。",
       "stateEvidence": "走查 1-geometry 九格、2.dock-resize.rect、3.timeline-expand、6.second-node，中英两轨；1280×720 是窄窗"
     },
     {
@@ -104,9 +105,10 @@
       "id": "agent.ball-above",
       "label": "Agent 小球浮在导演台之上，可见、点得到；点开变浮窗，输入框拿到焦点（和没开导演台时点小球一致）",
       "candidates": [],
-      "status": "implemented",
+      "status": "dropped",
+      "userDecision": { "quote": "全部收进顶栏", "date": "2026-11-22" },
+      "note": "改 dropped：2026-11-22 NomiEntryTopbar 板（docs/design/boards/2026-11-22-nomi-entry-topbar/）用户拍板「全部收进顶栏」，内容区右下的小球整个删掉。收起时入口在顶栏，导演层盖不到；走查 director-layer-in-page 改量「收起时顶栏入口点得到」（挂 chrome.topbar）和「点入口 → 浮窗在导演层之上」（挂 agent.float-above）。",
       "states": ["narrow", "zh-en"],
-      "assertion": "board:DirectorInPage/agent.ball-above",
       "stateEvidence": "走查 1.*-ball.ball 三个窗口尺寸（改前小球点不到，被导演层盖住）、2.ball-click、2.composer-focus（与「没开导演台」的对照一致）"
     },
     {

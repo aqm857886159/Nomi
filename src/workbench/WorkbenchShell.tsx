@@ -228,7 +228,7 @@ export default function WorkbenchShell({
                 ? 'storyboard'
                 : 'creation';
     const agentDock = agentDockTargets[agentSurface];
-    // 小球 / 浮窗的坐标系：生成页给画布那一格（让开底边时间轴），其余页用整块内容区。
+    // 浮窗的坐标系：生成页给画布那一格（让开底边时间轴），其余页用整块内容区。
     const [generationAgentLayer, setGenerationAgentLayer] = React.useState<HTMLDivElement | null>(null);
     // Agent 占不占右栏由这一页的形态决定（停靠才占）。
     const agentForm = useShownForm(agentSurface);
@@ -321,7 +321,7 @@ export default function WorkbenchShell({
         </>
     );
 
-    // 10-08 外壳重设计：一条 40px 顶栏 + 60px 左栏（抽屉浮在内容上）+ Agent 三形态（小球 / 浮窗 / 停靠）。
+    // 10-08 外壳重设计：一条 40px 顶栏 + 60px 左栏（抽屉浮在内容上）+ Agent 三形态（收起到顶栏入口 / 浮窗 / 停靠）。
     return (
         <WorkspacePanelFrameContext.Provider value={workspaceModeCarriesCreationResourceTree(workspaceMode)}>
             <div
@@ -343,6 +343,7 @@ export default function WorkbenchShell({
                             viewSwitcher={<GenerationViewSwitcher />}
                             railCollapsed={railCollapsed}
                             onExpandRail={() => setRailCollapsed(false)}
+                            agentSurface={agentSurface}
                         />
                     )}
                     rail={railCollapsed ? undefined : <ShellRail projectId={projectId ?? null} />}

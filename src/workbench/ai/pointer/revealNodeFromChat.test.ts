@@ -123,11 +123,11 @@ describe('revealNodeFromChat · from a click to the live canvas focus (S4)', () 
 })
 
 describe('revealNodeFromChat · narrow window: show the target first, then go (S7)', () => {
-  it('a floating chat that covers the canvas collapses to the ball BEFORE the focus event, and remembers how to come back', async () => {
+  it('a floating chat that covers the canvas collapses (into the top-bar entry) BEFORE the focus event, and remembers how to come back', async () => {
     const host = stubHost({ stage, float: { left: 8, top: 280, width: 384, height: 412 } })
     watchChat(host.steps)
     await revealNodeFromChat({ nodeId: 'n1', label: '镜 01' })
-    expect(host.steps).toEqual(['chat:ball', 'focus:n1@generation/canvas'])
+    expect(host.steps).toEqual(['chat:collapsed', 'focus:n1@generation/canvas'])
     expect(useNodePointerStore.getState().returnTo).toEqual({ surface: 'generation', nodeId: 'n1', label: '镜 01' })
     // 让开是机器的临时动作：人存的摆法和开没开一个字也不动。
     expect(useAgentFormStore.getState().bySurface.generation).toMatchObject({ placement: 'float', collapsed: false })
@@ -138,7 +138,7 @@ describe('revealNodeFromChat · narrow window: show the target first, then go (S
     chooseAgentPlacement('generation', 'dock')
     watchChat(host.steps)
     await revealNodeFromChat({ nodeId: 'n1', label: '镜 01' })
-    expect(host.steps).toEqual(['chat:ball', 'focus:n1@generation/canvas'])
+    expect(host.steps).toEqual(['chat:collapsed', 'focus:n1@generation/canvas'])
     expect(useNodePointerStore.getState().returnTo).toEqual({ surface: 'generation', nodeId: 'n1', label: '镜 01' })
     expect(useAgentFormStore.getState().bySurface.generation).toMatchObject({ placement: 'dock', collapsed: false })
   })
@@ -151,7 +151,7 @@ describe('revealNodeFromChat · narrow window: show the target first, then go (S
     expect(useNodePointerStore.getState().returnTo).toBeNull()
   })
 
-  it('a chat that is already the ball is left alone', async () => {
+  it('a chat that is already collapsed is left alone', async () => {
     const host = stubHost({ stage, float: { left: 8, top: 280, width: 384, height: 412 } })
     collapseAgent('generation')
     watchChat(host.steps)

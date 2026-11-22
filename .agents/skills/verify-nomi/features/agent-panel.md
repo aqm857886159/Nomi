@@ -10,19 +10,19 @@
 
 ## How to get to it (user POV)
 
-项目里点右下小球展开；面板头部点「小球」那颗收起。
+项目里点顶栏最右那颗 Nomi 入口展开（再点一下收起）；面板头部三选一的第一颗「收起」也能收。
 
 ## Driving it with ui.mjs
 
 ```bash
 node tests/ux/ui.mjs goto agent-panel            # 展开（没项目就新建一个）
-node tests/ux/ui.mjs goto agent-ball             # 先展开再收成小球
+node tests/ux/ui.mjs goto agent-collapsed        # 先展开再收起（入口回到顶栏、没按下）
 node tests/ux/ui.mjs up --size 700x720           # 窄窗：再 goto agent-panel 看浮窗
 node tests/ux/ui.mjs shot agent
 ```
 
 ## Gotchas
 
-- 小球形态下面板仍挂在 DOM 里（hidden 容器），判「展开了」看可见；`doctor` 的 `where` 已经按可见报 `agent:panel` / `agent:ball`。
-- 700×720 下浮窗会盖住画布上的生成框大半；要点画布先 `goto agent-ball`。
+- 收起时面板仍挂在 DOM 里（hidden 容器），判「展开了」看可见；顶栏入口一直在，判收着看 `[data-shell-nomi-entry][aria-pressed="false"]`；`doctor` 的 `where` 按可见报 `agent:panel` / `agent:collapsed`。
+- 700×720 下浮窗会盖住画布上的生成框大半；要点画布先 `goto agent-collapsed`。
 - 不要在输入框里发消息：会走模型。

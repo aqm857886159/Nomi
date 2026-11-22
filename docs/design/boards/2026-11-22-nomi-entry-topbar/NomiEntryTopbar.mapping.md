@@ -117,7 +117,7 @@
 
 | 格 | 状态 | 板上在哪（候选） | 生产组件 | 断言 · 判据 |
 |---|---|---|---|---|
-| I1 | 收起后右下没有东西压着「生成 / 剩余」 | Wide1100 1246「生成剩余」；Wide1100 1263「面板关上，内容区占满整宽；入口回到静止底色，Nomi…」 | `src/ui/app-shell/shell/ShellAgentHost.tsx`（删 AgentBall） | `tests/ux/nomi-entry-topbar.walk.mjs` · `board:NomiEntryTopbar/shell.content-uncovered`：700 / 900 / 1100 / 1440 × 四页：[data-agent-ball] 个数 0；内容区每个可点控件中心 elementFromPoint 落回它自己，被压住的格子 0 |
+| I1 | 收起后右下没有东西压着「生成 / 剩余」 | Wide1100 1246「生成剩余」；Wide1100 1263「面板关上，内容区占满整宽；入口回到静止底色，Nomi…」 | `src/ui/app-shell/shell/ShellAgentHost.tsx`（删 AgentBall） | `tests/ux/nomi-entry-topbar.walk.mjs` · `board:NomiEntryTopbar/shell.content-uncovered`：700 / 900 / 1100 / 1440 × 四页：内容区每个可点控件露出那块的中心 + 四个 1/4 点 elementFromPoint 都落回它自己（任一点落到别的东西上就算压住；协调 11-22 定，只取中心点在主分支上量不红），被压住的格子 0；「没有球」改量源码（`nomiEntryLook.test.ts`「没有球（I1 结构判据）」：src 里没人渲染 `data-agent-ball`、`AgentBallFace.tsx` 不在；走查里量锚点个数 0 是空话，`check:walkthroughs` 不许，实现线 11-22 改） |
 
 ### K 面板头形态切换
 

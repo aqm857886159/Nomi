@@ -629,13 +629,17 @@
         "100-button-打开NomiAgent",
         "101-svg"
       ],
-      "status": "missing",
+      "status": "dropped",
       "owner": "BP-unassigned",
       "states": [
         "zh-en",
         "dark"
       ],
-      "note": "产品代码里找不到字样「打开NomiAg」，初判缺；待真 App 核"
+      "note": "产品代码里找不到字样「打开NomiAg」，初判缺；待真 App 核 改 dropped：2026-11-22 NomiEntryTopbar 板（docs/design/boards/2026-11-22-nomi-entry-topbar/）用户拍板「全部收进顶栏」，内容区右下的小球整个删掉。收起后叫回 Nomi 的入口改在顶栏最右（NomiEntryTopbar 的 nomi-entry）。",
+      "userDecision": {
+        "quote": "全部收进顶栏",
+        "date": "2026-11-22"
+      }
     }
   ],
   "decor": [

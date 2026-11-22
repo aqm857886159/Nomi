@@ -347,12 +347,14 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
    * 失败看「最后一件事是不是坏的」——面板级错误带，或者流末尾那条 error。翻历史找旧失败
    * 会让一个早就被绕过去的错误永远在 logo 上挂着，那是假报警。
    */
-  // 付费卡也算一条在等你的（Q5：收起后小球的待确认计数读同一份 spend，不另开一条真相）。
+  // 付费卡也算一条在等你的（Q5：顶栏入口的待确认计数读同一份 spend，不另开一条真相）。
   const dockPendingCount = (data.primaryPending?.pendingCount ?? 0) + (spend.pending ? 1 : 0)
-  const dockStatus = useV4DockStatus({
+  const dockFailed = Boolean(actions.error) || lastFlowFailed(data.flow)
+  // 合并状态和脸的状态（脸不算待确认，NomiEntryTopbar 板 B5）由同一个 hook 一次求出，宿主只读这一处。
+  const { status: dockStatus, faceStatus: dockFaceStatus } = useV4DockStatus({
     running: data.running,
     pendingCount: dockPendingCount,
-    failed: Boolean(actions.error) || lastFlowFailed(data.flow),
+    failed: dockFailed,
   })
 
   /**
@@ -373,15 +375,15 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     : 0
 
   /**
-   * 把这三个数投到收起后的 Agent 小球去（10-08 外壳重设计：小球住在外壳 ShellAgentHost，不在这棵子树里）。
-   * 小球读它画四态 +「N 条新消息」未读点；展开时报 `null`（不是 `idle`），卸载时也报 `null`，
-   * 否则关掉项目后小球还挂着上一个项目的未读。
+   * 把这几样投到顶栏最右的 Nomi 入口去（NomiEntryTopbar 板：入口住在外壳顶栏，不在这棵子树里）。
+   * 入口一直在，面板开着也报（按下底色的脸照样显示状态、待确认照样出角标）；卸载时报 `null`，
+   * 否则关掉项目后入口还挂着上一个项目的未读。
    */
   const publishDockBadge = useResidentActivityStore((state) => state.setResidentDockBadge)
   React.useEffect(() => {
-    publishDockBadge(collapsed ? dockStatus : null, dockPendingCount, dockUnreadCount)
-  }, [collapsed, dockPendingCount, dockStatus, dockUnreadCount, publishDockBadge])
-  React.useEffect(() => () => useResidentActivityStore.getState().setResidentDockBadge(null, 0, 0), [])
+    publishDockBadge(dockStatus, dockFaceStatus, dockPendingCount, dockUnreadCount)
+  }, [dockFaceStatus, dockPendingCount, dockStatus, dockUnreadCount, publishDockBadge])
+  React.useEffect(() => () => useResidentActivityStore.getState().setResidentDockBadge(null, null, 0, 0), [])
 
   /**
    * 错误条 / 失败任务卡上那个动作钮。
@@ -406,8 +408,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   }, [actions, draft])
 
   /**
-   * 输入框的焦点只在这里落（residentComposerFocus）：外壳的 Mod+J / 小球 / 形态切换、下面的起手句都只发请求。
-   * 已经在框里就不动光标；否则放到句末。返回的是焦点真的进了编辑器没有——小球形态下面板还在看不见的容器里，
+   * 输入框的焦点只在这里落（residentComposerFocus）：外壳的 Mod+J / 顶栏入口 / 形态切换、下面的起手句都只发请求。
+   * 已经在框里就不动光标；否则放到句末。返回的是焦点真的进了编辑器没有——收起时面板还在看不见的容器里，
    * 这一帧落空，请求留到下一帧。
    */
   const focusComposer = React.useCallback(() => focusEditorAtEnd(mentions.editorRef.current), [mentions.editorRef])
@@ -514,7 +516,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const liveChips = useResidentComposerContext(surface, data.skills, data.skillLabel, attachmentApi.removeAttachment)
   const attachmentInput = <input ref={attachmentApi.inputRef} type="file" multiple accept={COMPOSER_ATTACHMENT_ACCEPT}
     className="hidden" tabIndex={-1} aria-hidden="true" onChange={attachmentApi.onInputChange} />
-  // 收起 = 外壳把 Agent 收成内容区右下的小球（10-08 外壳重设计：小球 / 浮窗 / 停靠三形态，src/ui/app-shell/shell/ShellAgentHost.tsx）。
+  // 收起 = 外壳把面板收起、入口在顶栏最右（NomiEntryTopbar 板 2026-11-22：收起 / 浮窗 / 停靠三形态，src/ui/app-shell/shell/ShellAgentHost.tsx）。
   // 收起时**不换一棵树**：同一个面板原样挂着，只是外壳把它的 DOM 挪进看不见的容器——待确认卡的勾选与折叠、
   // 滚动、历史分页、线程菜单、草稿都不丢（#1136 评审阻断 1）。时间轴回执、计划预览、附件选择器照常跑。
   return (

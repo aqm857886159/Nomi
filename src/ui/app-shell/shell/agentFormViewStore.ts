@@ -18,13 +18,13 @@ import type { AgentFormSurface } from './agentFormStore'
 export const NARROW_TIER_WIDTH = ASSISTANT_CONTENT_FLOOR + ASSISTANT_WIDTH_MIN
 export const NARROW_TIER_QUERY = `(width < ${NARROW_TIER_WIDTH}px)`
 
-/** 跨阈值那一下要播的过渡（停靠收拢成小球 / 小球展回停靠）；拖窗过程中只在跨过阈值时置一次。 */
+/** 跨阈值那一下要播的过渡（停靠收起 / 收起展回停靠）；拖窗过程中只在跨过阈值时置一次。 */
 export type NarrowMotion = 'collapse' | 'restore' | null
 
-/** 窄窗档里人点开 / 收起之后这一页此刻怎么摆；null = 按存的样子（停靠放不下 = 小球）。 */
-export type NarrowShown = 'ball' | 'float' | null
-/** 机器的临时让位：'ball' = 让开（指向节点时对话挡住画布）；'open' = 摆出来（去画布挑参考图）；null = 没有。 */
-export type MachineHold = 'ball' | 'open' | null
+/** 窄窗档里人点开 / 收起之后这一页此刻怎么摆；null = 按存的样子（停靠放不下 = 收起）。 */
+export type NarrowShown = 'collapsed' | 'float' | null
+/** 机器的临时让位：'collapsed' = 让开（指向节点时对话挡住画布）；'open' = 摆出来（去画布挑参考图）；null = 没有。 */
+export type MachineHold = 'collapsed' | 'open' | null
 
 function initialWindowNarrow(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(NARROW_TIER_QUERY).matches

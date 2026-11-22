@@ -55,8 +55,8 @@
 
 | 指标 | 目标 | 量具 | 基线（今天） |
 |---|---|---|---|
-| 主：内容区里的球 | 每个宽度 × 每一页，`[data-agent-ball]` 个数 = 0 | `tests/ux/nomi-entry-topbar.walk.mjs`，断言 `board:NomiEntryTopbar/shell.content-uncovered`；700 / 900 / 1100 / 1440 × 创作 / 生成 / 预览 / 项目库 | 收起时每页 1 个 |
-| 主：被压住的格子 | 内容区每个可点控件，取中心点做 `elementFromPoint`，落回它自己；落不回的个数 = 0 | 同上走查 | 今天收起时，生成页「生成 / 剩余」被球压住（改后不被压的那颗是画布 Wide1100 候选 1246，对照表 I1） |
+| 主：内容区里的球 | 没有球：src 生产代码里没人渲染 `data-agent-ball`、`AgentBallFace.tsx` 不在；别的形状的浮动叫回按钮由下一行「被压住的格子」按每个可点控件查 | `src/ui/app-shell/shell/nomiEntryLook.test.ts`「没有球（I1 结构判据）」（主分支上红）。原写的走查量 `[data-agent-ball]` 个数 = 0 是空话（锚点删掉后永远是 0，`check:walkthroughs` 的「锚点已无人渲染」门岗也不许），实现线 11-22 改，★9 第一行、对照表 I1 同步 | 收起时每页 1 个 |
+| 主：被压住的格子 | 内容区每个可点控件，在它露出来的那块（被滚动区 / 窗口裁掉的不算）取中心加四个 1/4 点做 `elementFromPoint`，任一点落到别的东西上就算压住；压住的个数 = 0。只取中心点量不出今天的病（1100 分镜表「生成剩余」被球压住右半截字，中心点刚好露在球下沿外，实现线 11-22 在主分支上量得 0），协调 11-22 定改成五点 | 同上走查 | 今天收起时，生成页「生成 / 剩余」被球压住（改后不被压的那颗是画布 Wide1100 候选 1246，对照表 I1） |
 | 质量：分段离两簇 | 每一行分段离左、离右都 ≥12px，取最小值 | 同上走查（`board:NomiEntryTopbar/topbar.yield-order`）；板上量值在对照表「分段离两簇」一节 | 900 英文装失败那一格压上 88px（对照表里 Bar900「今天 · 英文 · 没装上」量得离右 −88）；Windows 700 中文预览压上 52px（推算） |
 | 护栏：让位顺序 | 每种「几件事全开」走到第几步，和对照表 E 组一致；①↔② 来回拖窗，每个阈值只翻一次 | `src/ui/app-shell/shell/topbarYield.test.ts`（700→1440→700 每 1px 一步）；走查里读 `data-shell-yield-step` | 今天只有 ①，没有回差测试覆盖 ② |
 | 护栏：整窗鼠标监听 | 入口和顶栏新增的 window 级 `pointermove` 监听 = 0 | perf 场景 `topbar-yield-resize` 的结构断言；外加 `src/ui/app-shell/shell/nomiEntryLook.test.ts` 旁边的结构测试，用 `git grep` 断言 `pointermove` 不出现在入口文件里 | 1 个（`useAgentBallEyeFollow.ts:80`） |
@@ -256,7 +256,7 @@
 
 | 检查项 | 判据 | 对照表格 |
 |---|---|---|
-| 没有球 | 每个宽度 × 四页 `[data-agent-ball]` = 0 | I1 |
+| 没有球 | src 生产代码里没有人渲染 `data-agent-ball`、`AgentBallFace.tsx` 不在（结构单测 `nomiEntryLook.test.ts`「没有球（I1 结构判据）」；走查里量 `[data-agent-ball]` = 0 是空话——锚点删掉后永远是 0，`check:walkthroughs` 的「锚点已无人渲染」门岗也不许，实现线 11-22 改） | I1 |
 | 不压内容 | 内容区可点控件被压住的个数 = 0 | I1 |
 | 入口在最右 | 入口右沿到顶栏右沿 = 8px（Windows 让出窗口钮后同样 8px）；项目库没有入口 | D1、H1 |
 | 五种脸 | `data-status` = idle / unread / running / done / failed，各有截图 | A1–A5 |
@@ -278,7 +278,7 @@
 | **什么都不做** | 留着今天的代码 | I1：`[data-agent-ball]` ≥1；1100 生成页小球压住「生成 / 剩余」，被压住的格子 ≥1；A–D 组全部红 | 顶栏没有 `[data-shell-nomi-entry]` |
 | **全部拦下** | 删掉小球，顶栏也不放入口，只剩 ⌘J | I1 会过（没有球、没压住），但 A1–A5、B1–B6、C1–C5、D1–D5、G1 全红；K1 点「收起」后找不到入口 | 入口个数 = 0；这一版正是用户否掉的「只剩快捷键」 |
 | 入口还浮在内容区（比如挪到右上角） | 入口 fixed 定位在内容区 | I1 被压住的格子 ≥1；D1「入口在顶栏里」红 | 入口不是 header 的子元素 |
-| 脸照旧用 `resolveDockStatus` | 不改求状态的方式 | B5 红 | 在做 + 待确认时脸变成 needs-confirm，不转 |
+| 脸照旧用 `resolveDockStatus` | 不改求状态的方式（`resolveDockStatuses` 的 faceStatus 照合并规则求） | B5 红：单测 `agentPanelV4DockStatus.test.ts`「在做 + 待确认 2 → 脸 running」（走查直接往 store 写脸的状态，量不到宿主怎么求） | 在做 + 待确认时脸变成 needs-confirm，不转 |
 | 面板开着仍出胶囊 | 不改形状规则 | C4 红 | `data-shape=capsule` 且 aria-pressed=true |
 | ④ 先于 ③ | 让位顺序写反 | E9 红 | 900 中文装失败那一格会提前收「新版本」 |
 | 让位只看当前宽度、不带回差 | 去掉回差 | E12 红 | 来回拖时同一宽度结果不一致，阈值翻不止一次 |
@@ -388,7 +388,7 @@
 | `agentBallLook` | `AgentBallFace.tsx:29` | 删，由 `nomiEntryLook` 取代 | 新函数：脸按「不算待确认」求，待确认单独出胶囊 / 角标 |
 | `agentBallIsPill` | `ShellAgentHost.tsx:153`、`agentFormStore.ts:353`（`agentBallLook` 里） | 删，由 `nomiEntryLook` 取代 | 新规则：胶囊 = 有待确认 && 放得下 && 面板没开（D5） |
 | `useExportCompact` | `ShellTopBar.tsx:255` | 搬进 `topbarYield`（成为 ①） | ① 的判据和回差不变 |
-| `useV4DockStatus` | `ProjectAgentResidentShell.tsx:352` | 不改函数，多调一次 | 原来这次照旧给出合并状态，悬停提示的中段要用它；新加一次传 `pendingCount: 0`，给出脸的状态。两次各自掐「刚做完」2.4 秒的表 |
+| `useV4DockStatus` | `ProjectAgentResidentShell.tsx:352` | **变**：返回 `{ status, faceStatus }` | 一次求两份（纯函数 `resolveDockStatuses`）：合并状态给悬停提示中段，脸的状态不算待确认；宿主只调这一次，同一个「刚做完」2.4 秒的表。原写法「同一个 hook 再调一次、传 `pendingCount: 0`」没人测、能悄悄改回去，协调 11-22 定合成一个（B5 反例因此能红） |
 | `resolveDockStatus` | `agentPanelV4DockStatus.ts:105`（只在 `useV4DockStatus` 里） | 不改 | 优先级和测试（`agentPanelV4DockStatus.test.ts:22`、`:26`）一字不动 |
 | `dockStatusLabel` | `ShellAgentHost.tsx:163`（小球提示，搬到入口）、设计实验室 `01-vocabulary.tsx:264`、`03-flow.tsx:93` | 不改 | 入口提示中段 = `dockStatusLabel(合并状态, 待确认数)`，和今天小球一样。所以「在做 + 等确认 2」的提示是「打开 Nomi（⌘J）· 等你确认 2 条」（画布候选 634） |
 | `setResidentDockBadge` | `ProjectAgentResidentShell.tsx:382`（经 `:380` 取出的 `publishDockBadge`）、`:384`（卸载清零） | 多带一个「脸状态」参数；`:382` 从「收起才报」改成「一直报」 | **变**：投影的形状多一个字段。读它的只有今天的 `ShellAgentHost.tsx:142–144`（随小球删）和新入口 |

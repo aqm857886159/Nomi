@@ -1,6 +1,6 @@
 // 顶栏上的「新版本」胶囊：发现更新的唯一常驻入口（画布里不出任何提示）。
 // 外壳顶栏右簇里摆一份：`<UpdatePill host="appbar" />`。
-// 窄屏（< 900px）自动收成带点的图标，点开是同一个弹窗。
+// 收不收成带点的图标由顶栏的让位规则定（topbarYield：窄于 900 一律收，900 起走到第 ④ 步才收），点开是同一个弹窗。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconDownload, IconRefresh } from '@tabler/icons-react'
@@ -32,7 +32,7 @@ export function UpdatePillView({ phase, version, percent = 0, failedStage = 'dow
   percent?: number
   failedStage?: Exclude<UpdaterErrorStage, 'check'>
   host: UpdatePillHost
-  /** 强制收成图标态（外壳按自己的断点传）；不传时 < 900px 视口自动收。 */
+  /** 收成图标态（只留点，悬停 / 读屏出全句）；由宿主传，这里不再自己按视口宽收。 */
   compact?: boolean
   onClick?: () => void
 }): JSX.Element {
@@ -56,15 +56,15 @@ export function UpdatePillView({ phase, version, percent = 0, failedStage = 'dow
       onClick={onClick}
     >
       <Icon size={iconSize} stroke={1.8} aria-hidden="true" />
-      <span className={cn('tabular-nums', compact ? 'hidden' : 'max-[899px]:hidden')}>{label}</span>
-      {/* 窄屏标签收起后，靠这个点告诉人「有新东西」。 */}
-      <span className={cn('absolute right-0.5 top-0.5 size-1.5 rounded-full', compact ? 'block' : 'hidden max-[899px]:block', phase === 'error' ? 'bg-nomi-danger' : 'bg-nomi-accent')} aria-hidden="true" />
+      <span className={cn('tabular-nums', compact && 'hidden')} data-update-label>{label}</span>
+      {/* 标签收起后，靠这个点告诉人「有新东西」。 */}
+      <span className={cn('absolute right-0.5 top-0.5 size-1.5 rounded-full', compact ? 'block' : 'hidden', phase === 'error' ? 'bg-nomi-danger' : 'bg-nomi-accent')} aria-hidden="true" />
     </button>
   )
 }
 
 /** 有可展示的更新状态时才渲染；预览版 / 开发版 / 没桥的网页预览不出。 */
-export function UpdatePill({ host }: { host: UpdatePillHost }): JSX.Element | null {
+export function UpdatePill({ host, compact = false }: { host: UpdatePillHost; compact?: boolean }): JSX.Element | null {
   const updater = useUpdater()
   const { phase } = updater
   if (!updater.supported || !updater.canCheckUpdates || !updater.latestVersion) return null
@@ -78,6 +78,7 @@ export function UpdatePill({ host }: { host: UpdatePillHost }): JSX.Element | nu
       percent={updater.percent}
       failedStage={updater.errorStage === 'install' ? 'install' : 'download'}
       host={host}
+      compact={compact}
       onClick={updater.openDialog}
     />
   )

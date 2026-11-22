@@ -18,7 +18,7 @@ it('眨眼计时器：系统开了减弱动效就不眨；正常时约 20 秒眨
   const script = await bundle(`
     import React from 'react'; import { createRoot } from 'react-dom/client';
     import { NomiAgentFace } from './src/design/identity';
-    createRoot(document.getElementById('root')).render(<NomiAgentFace pose="idle" size={44} />);
+    createRoot(document.getElementById('root')).render(<NomiAgentFace pose="idle" size={26} />);
   `)
   const browser = await chromium.launch()
   try {
@@ -28,7 +28,9 @@ it('眨眼计时器：系统开了减弱动效就不眨；正常时约 20 秒眨
     await page.clock.install()
     await page.setContent('<main id="root"></main>')
     await page.addScriptTag({ content: script })
-    await page.waitForSelector('[data-nomi-agent-face]', { timeout: 5000 }).catch((error: Error) => {
+    // 只等挂上（attached）：这页没有样式表（.css 打包成空），各层 span 都是行内、没有尺寸，「可见」量不出来；
+    // 这条只管计时器往脸根上加 / 摘 data-blink。
+    await page.waitForSelector('[data-nomi-agent-face]', { state: 'attached', timeout: 5000 }).catch((error: Error) => {
       throw new Error(`${error.message}\n页面错误：${pageErrors.join(' / ')}`)
     })
     const blinking = (): Promise<boolean> => page.evaluate(() => document.querySelector('[data-nomi-agent-face]')?.hasAttribute('data-blink') ?? false)
