@@ -104,14 +104,18 @@ test('声明短档、界面清单有差异或核实不了：落标准档，不�
   }
 })
 
-test('声明短档但声明本身不成立（不是纯修复、没写界面核实、不是单一意图）：落标准档', () => {
+test('声明短档但声明本身不成立（不是纯修复、不是单一意图、没写候选档位）：落标准档；界面核实由门岗算出，不以 PR 自报为准', () => {
   const files = [M('src/ui/onboarding/focus.ts')]
   const feature = tierOf(files, { body: INTENT('短', '新增功能'), uiVerification: NO_DIFF })
   assert.equal(feature.tier, PROCESS_TIERS.STANDARD)
   assert.match(text(feature), /声明不是纯修复/)
+  // 不写「界面核实」自报行，只要门岗 uiVerification 算出无界面差异，照样进短档
   const noUiLine = tierOf(files, { body: INTENT('短', '纯修复', '').replace(/- 界面核实：\n/, ''), uiVerification: NO_DIFF })
-  assert.equal(noUiLine.tier, PROCESS_TIERS.STANDARD)
-  assert.match(text(noUiLine), /缺少“界面核实：无界面差异”声明/)
+  assert.equal(noUiLine.tier, PROCESS_TIERS.SHORT)
+  // 就算 PR 自报「无界面差异」，门岗算出碰了用户可见界面仍落标准档
+  const selfClaimedButChanged = tierOf(files, { body: INTENT('短', '纯修复', '无界面差异'), uiVerification: { known: true, changed: true, reason: 'JSX 返回值变了' } })
+  assert.equal(selfClaimedButChanged.tier, PROCESS_TIERS.STANDARD)
+  assert.match(text(selfClaimedButChanged), /界面清单有差异/)
   const notSingle = tierOf(files, { body: INTENT().replace('单一意图：是', '单一意图：否'), uiVerification: NO_DIFF })
   assert.equal(notSingle.tier, PROCESS_TIERS.STANDARD)
   assert.match(text(notSingle), /不是单一意图/)

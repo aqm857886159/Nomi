@@ -18,6 +18,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { approvalCommand, localApprovals, suppressionApprovalSubject, SUPPRESSIONS_FILE } from './lib/coordApprovals.mjs'
+import { judgeT8BaselineGrowth, T8_BASELINE_PATH, verifyT8BaselineRatchet } from './t8-structural-guards.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const LINTABLE = /\.(?:tsx?|jsx?|[cm]js)$/
@@ -109,7 +110,16 @@ export async function main() {
   // 冻结数和确认哈希都按提交里的版本算（推送的是提交，不是工作树）
   const suppressionsAt = (rev) => { try { return JSON.parse(git(['show', `${rev}:${SUPPRESSIONS_FILE}`])) } catch { return {} } }
   const headSuppressions = suppressionsAt('HEAD')
-  const growth = judgeSuppressionGrowth(suppressionsAt(base), headSuppressions, localApprovals({ pr: null }))
+  const t8BaselineAt = (rev) => { try { return JSON.parse(git(['show', `${rev}:${T8_BASELINE_PATH}`])) } catch { return null } }
+  const baseT8 = t8BaselineAt(base)
+  const headT8 = t8BaselineAt('HEAD')
+  const allChanged = git(['diff', '-z', '--name-only', '--no-renames', base, 'HEAD']).split('\0').filter(Boolean)
+  const touchesT8Guard = allChanged.includes(T8_BASELINE_PATH) || allChanged.includes('scripts/t8-structural-guards.mjs')
+  const t8Problems = [
+    ...(baseT8 && headT8 ? judgeT8BaselineGrowth(baseT8, headT8) : []),
+    ...(await verifyT8BaselineRatchet({ root: repoRoot, files: touchesT8Guard ? null : allChanged })),
+  ]
+  const growth = [...judgeSuppressionGrowth(suppressionsAt(base), headSuppressions, localApprovals({ pr: null })), ...t8Problems]
   const files = changedLintableFiles(base)
   if (files.length === 0) {
     if (growth.length) { console.error(growth.join('\n')); return 1 }

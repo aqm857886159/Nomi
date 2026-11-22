@@ -1,0 +1,60 @@
+{
+  "_comment": "T-8 结构防错 ESLint 规则存量冻结基线（只减不增）：每个 file × rule 的命中数由 scripts/t8-structural-guards.node-test.mjs 严格核对等于 count（多了报存量内新增违规，少了报请收紧基线）。",
+  "rules": {
+    "generic-fs-watch/no-restricted-syntax": {
+      "electron/capabilityCore/mcpProfiles.ts": 1
+    },
+    "generic-map-eviction/no-restricted-syntax": {
+      "electron/agentLane/laneApprovalGate.ts": 1,
+      "electron/agentLane/laneToolInputBoundary.mts": 1,
+      "electron/ai/onboarding/vendorPricePreview.ts": 1,
+      "electron/assets/providerMediaFetch.ts": 1,
+      "electron/capabilityCore/apimartGenerationProvider.ts": 5,
+      "electron/capabilityCore/canvasTransportProvider.ts": 2,
+      "electron/capabilityCore/generationDocumentPlan.ts": 1,
+      "electron/capabilityCore/projectLease.ts": 1,
+      "electron/integrationCertification/credentialElicitation.ts": 1,
+      "electron/productionRun/productionGenerationHistory.ts": 1,
+      "electron/tasks/taskCache.ts": 1,
+      "src/ui/toast.tsx": 1,
+      "src/workbench/adoption/adoptionProposalRegistry.ts": 1,
+      "src/workbench/api/taskApi.ts": 1,
+      "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx": 1,
+      "src/workbench/observability/perfCollector.ts": 1
+    },
+    "generic-raw-rename/no-restricted-syntax": {
+      "electron/agentLane/laneTrace.mts": 1,
+      "electron/assets/assetPreview.ts": 2,
+      "electron/assets/uploadContentStore.ts": 2,
+      "electron/browser/media/browserViewMedia.ts": 2,
+      "electron/capabilityCore/hostConfigWrite.ts": 1,
+      "electron/capabilityCore/mcpDetectedClients.ts": 1,
+      "electron/capabilityCore/projectAgentProposalReceiptStore.ts": 1,
+      "electron/downloads/verifiedAssetCache.ts": 1,
+      "electron/export/ffmpegRunner.ts": 2,
+      "electron/localSpeech/localSpeechInstall.ts": 1,
+      "electron/logging/logFiles.ts": 1,
+      "electron/productionRun/artifactProjection.ts": 1,
+      "electron/productionRun/productionRunLock.ts": 1,
+      "electron/providerAdapter/certificationCleanup.ts": 1,
+      "electron/settings/attentionSoundIpc.ts": 1,
+      "electron/skills/skillManifestMigration.ts": 2,
+      "electron/workspace/workspaceManifestLock.ts": 3
+    },
+    "generic-retry-loop/no-restricted-syntax": {
+      "electron/catalog/dreaminaCli.ts": 1,
+      "electron/productionRun/singleShotGenerationObserver.ts": 1,
+      "electron/telemetry/intakeQueue.ts": 1
+    },
+    "vendor-failure-one-home/no-restricted-syntax": {
+      "electron/agentLane/laneProviderGuard.mts": 2,
+      "src/workbench/ai/resident/residentToolText.ts": 1
+    },
+    "renderer-sync-ipc/no-restricted-syntax": {
+      "electron/preload.ts": 3,
+      "electron/preload/mediaBridge.ts": 1,
+      "electron/preload/modelOnboardingBridge.ts": 21,
+      "electron/preload/runtimeBridge.ts": 5
+    }
+  }
+}

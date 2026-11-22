@@ -2,9 +2,14 @@
 // T-8 结构防错 ESLint 规则红绿对照测试：
 // 用真实仓库 eslint.config.mjs 跑 ESLint.lintText，证明每条规则对真实坏例子必红、对同批好例子零误报。
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, test } from 'node:test'
 import { ESLint } from 'eslint'
+import { judgeT8BaselineGrowth, loadT8Baseline, T8_BASELINE_PATH, verifyT8BaselineRatchet } from './t8-structural-guards.mjs'
 
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const eslint = new ESLint({ overrideConfigFile: 'eslint.config.mjs' })
 
 async function ruleIds(code, filePath) {
@@ -132,5 +137,27 @@ describe('T-8 推送前快检迁入 ESLint（检查总数只减不增）', () =>
 
     const goodOwner = await ruleIds('declare function deriveVendorKeyFromBaseUrl(u: string): string\nexport const f = (u: string) => deriveVendorKeyFromBaseUrl(u)\n', 'electron/catalog/connectionVendorKey.ts')
     assert.ok(!goodOwner.includes('builtin-host-step/no-restricted-syntax'))
+  })
+})
+
+describe('T-8 存量棘轮精确对账（t8-structural-guards-baseline.json 只减不增，同文件不许再加第 2 处）', () => {
+  test('逐个 file × rule 实跑无 ignores ESLint：实际命中数必须严格等于基线 count', async () => {
+    const baseline = loadT8Baseline(REPO_ROOT)
+    const rules = baseline.rules ?? {}
+    const allFiles = [...new Set(Object.values(rules).flatMap((entries) => Object.keys(entries)))].sort()
+    const missing = allFiles.filter((file) => !fs.existsSync(path.join(REPO_ROOT, file)))
+    assert.deepEqual(missing, [], `基线引用了已不存在的文件，请从 ${T8_BASELINE_PATH} 删掉：${missing.join('、')}`)
+    const problems = await verifyT8BaselineRatchet({ root: REPO_ROOT, baseline })
+    assert.deepEqual(problems, [], `T-8 存量棘轮漂移：\n${problems.join('\n')}`)
+  })
+
+  test('judgeT8BaselineGrowth：只减不增，同文件增数或新增冻结文件必红，减少或清零放行', () => {
+    const base = { rules: { 'generic-raw-rename/no-restricted-syntax': { 'electron/a.ts': 2 } } }
+    assert.deepEqual(judgeT8BaselineGrowth(base, { rules: { 'generic-raw-rename/no-restricted-syntax': { 'electron/a.ts': 1 } } }), [])
+    assert.deepEqual(judgeT8BaselineGrowth(base, { rules: {} }), [])
+    const grown = judgeT8BaselineGrowth(base, { rules: { 'generic-raw-rename/no-restricted-syntax': { 'electron/a.ts': 3, 'electron/b.ts': 1 } } })
+    assert.equal(grown.length, 1)
+    assert.match(grown[0], /electron\/a\.ts.*2 → 3/)
+    assert.match(grown[0], /electron\/b\.ts.*0 → 1/)
   })
 })

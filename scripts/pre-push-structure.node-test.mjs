@@ -22,6 +22,7 @@ import { TYPECHECK_PROJECTS, TYPECHECK_SHARED_CONFIGS } from './lib/typecheckPro
 
 import { scanGuardCensusInputs } from './check-scan-guard-census.mjs'
 import { judgeLint } from './lint-changed.mjs'
+import { verifyT8BaselineRatchet } from './t8-structural-guards.mjs'
 import { DERIVED_INPUT_GATES, GATE_INPUTS, touchesGateInputs } from './pre-push-gate-inputs.mjs'
 import { CI_ONLY, PARTIAL_LOCAL, PRE_PUSH_ALIASES, TYPECHECK_NOT_COVERED, declarationProblems, parseContractGates } from './pre-push-gate-table.mjs'
 import {
@@ -862,4 +863,9 @@ test('批量守卫红了：失败输出只回放最后 25 行，所以红的守�
   assert.doesNotMatch(summary, /offLedgerEgress/, '绿的不点名')
   assert.match(summary, /vitest\.mjs run electron\/fileIdentity\.test\.ts electron\/shared\/mcpClientRegistry\.test\.ts/)
   assert.match(failedGuardSummary('boom', ran), /没认出是哪几个/)
+})
+
+test('T-8 存量棘轮：t8-structural-guards-baseline.json 每个 file × rule 实得违规数严格等于冻结数（CI + pre-push 同守）', async () => {
+  const problems = await verifyT8BaselineRatchet({ root: repoRoot })
+  assert.deepEqual(problems, [], `\n${problems.join('\n')}\n`)
 })

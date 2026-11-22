@@ -167,13 +167,11 @@ export function deriveUiVerification({ files = [], baseBoards = null, headBoards
   return { ...compared, reason: `${compared.reason}${astNote}；界面候选文件：${productUiFiles.slice(0, 5).join('、')}${productUiFiles.length > 5 ? ' …' : ''}` }
 }
 
-const NO_UI_DIFF = /无(?:界面|UI)差异|no\s+ui\s+diff/i
-
 /**
  * 三档判定的唯一实现。
  *   · 严：现行四类（花钱 / 长跑 / 可打断 / 新界面）。直接读 inferRoutes 的 fourClass，不另写第二套判据，也没有别的升严来源；声明降不了档。
- *   · 短：四类之外，且 ① 没写 `## 变更意图`、文件清单自证全是纯文档 / 测试 / 配置；或 ② 声明了单一意图的纯修复（或纯文档 / 测试 / 配置）、
- *     写明「界面核实：无界面差异」，base/head 界面清单也核实无差异。让逃逸账本条目转 fixed 或碰了存量数据路径的 PR 永远不进短档。
+ *   · 短：四类之外，且 ① 没写 `## 变更意图`、文件清单自证全是纯文档 / 测试 / 配置；或 ② 声明了单一意图的纯修复（或纯文档 / 测试 / 配置），
+ *     且由门岗从改动本身算出没碰用户可见界面（不以 PR 自报为准）。让逃逸账本条目转 fixed 或碰了存量数据路径的 PR 永远不进短档。
  *   · 标准：其余，也就是今天四类之外的全部要求。声明了短档但核实有差异、核实不了，一律落在这里，不升严。
  * uiVerification 可以是值，也可以是函数：只有声明短档的 PR 才调用，别的 PR 不为它去读拍板图清单；取数抛错按核实不了算。
  * shortAllowed=false：规则生效前开的 PR 不适用短档。
@@ -198,7 +196,6 @@ export function evaluateProcessTier({ body, files = [], inferred, ledgerTransiti
   if (declaredShort) {
     if (!declaration.singleIntent) failures.push(declaration.reason || '不是单一意图')
     if (!declaration.pureFix && declaration.intentKind !== 'non-product') failures.push('声明不是纯修复 / 纯文档 / 测试 / 配置')
-    if (!declaration.uiAssertion || !NO_UI_DIFF.test(declaration.uiAssertion)) failures.push('缺少“界面核实：无界面差异”声明')
     if (!failures.length) {
       try { ui = typeof uiVerification === 'function' ? uiVerification() : uiVerification } catch (error) { ui = { known: false, changed: null, reason: `取数失败：${error?.message ?? error}` } }
       if (!ui || typeof ui !== 'object' || ui.known !== true) failures.push(`界面差异核实不了（${ui?.reason || '没有 base/head 界面清单核实'}）`)
