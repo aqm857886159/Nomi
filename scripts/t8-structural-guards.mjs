@@ -1,0 +1,239 @@
+// T-8 结构防错 ESLint 规则组（Categories 2 & 3 + 3 道原独立门岗收口迁入）。
+//
+// 统一收进 ESLint + 原生 eslint-suppressions.json（按文件 × 规则精确计数，只减不增）：
+//   · 独立规则 id（syntaxPlugin()）不被后面 flat-config 块覆盖；
+//   · 存量债统一冻结在 ESLint 原生 eslint-suppressions.json（同文件多加 1 处即整条规则报红，修完未收紧报 unused suppressions）；
+//   · 同时把原 check:main-console / check:renderer-sync-ipc / check:builtin-vendor-literals
+//     三道纯语法门岗收口进 ESLint 并同提交删旧，使本地与 CI 门岗总数真正净减。
+import { builtinRules } from 'eslint/use-at-your-own-risk'
+
+const syntaxPlugin = () => ({ rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } })
+
+const TEST_IGNORES = [
+  '**/*.test.{ts,tsx,mts,cts}',
+  '**/*.spec.{ts,tsx,mts,cts}',
+  '**/*.e2e.{ts,tsx,mts,cts}',
+  '**/__tests__/**',
+  '**/__fixtures__/**',
+  '**/testSupport/**',
+  '**/*TestUtils.ts',
+  '**/*.testkit.ts',
+]
+
+const FS_MODULE = '/^(node:)?fs(\\/promises)?$/'
+
+// ── 1. 第 2 类：禁止在已有/新增产品文件里直接调 fs.watch / fs.watchFile ─────────────────────────────
+export const GENERIC_FS_WATCH_MESSAGE =
+  '不要在业务文件直接调 fs.watch / fs.watchFile（句柄泄漏 + 跨平台抖动 + 与 stat 双失效）：单活跃目录用轻量 stat/lstat 指纹，确需全局监听须登记唯一主人。'
+export const genericFsWatchSelectors = [
+  {
+    selector: 'CallExpression > MemberExpression.callee[property.name=/^(watch|watchFile)$/][object.name=/^(fs|fsp|nodeFs|fsPromises)$/]',
+    message: GENERIC_FS_WATCH_MESSAGE,
+  },
+  {
+    selector: 'CallExpression > MemberExpression.callee[property.name=/^(watch|watchFile)$/][object.property.name="promises"]',
+    message: GENERIC_FS_WATCH_MESSAGE,
+  },
+  {
+    selector: `ImportDeclaration[source.value=${FS_MODULE}] > ImportSpecifier[imported.name=/^(watch|watchFile)$/]`,
+    message: GENERIC_FS_WATCH_MESSAGE,
+  },
+]
+
+// ── 2. 第 2 类：禁止在业务文件手写 Map FIFO/LRU 淘汰缓存（*.keys().next()）──────────────────────────
+export const GENERIC_MAP_EVICTION_MESSAGE =
+  '不要在业务文件里再手写一份 Map.keys().next() FIFO/LRU 淘汰缓存：渲染层优先用已装的 swr，主进程收口到唯一有界缓存主人（存量冻结在 eslint-suppressions.json，只减不增）。'
+export const genericMapEvictionSelectors = [
+  {
+    selector: 'CallExpression > MemberExpression.callee[property.name="next"] > CallExpression.object > MemberExpression.callee[property.name="keys"]',
+    message: GENERIC_MAP_EVICTION_MESSAGE,
+  },
+]
+
+// ── 3. 第 2 类：禁止在 electron/jsonFile.ts 之外裸调 fs.renameSync / fsp.rename ─────────────────────
+export const GENERIC_RAW_RENAME_MESSAGE =
+  '主进程文件原子改名只经 electron/jsonFile.ts（Windows EPERM/EBUSY 共享冲突重试唯一主人）：改调 renameSyncWithRetry / writeJsonAtomic，不要裸调 fs.renameSync / fsp.rename。'
+export const genericRawRenameSelectors = [
+  {
+    selector: 'CallExpression > MemberExpression.callee[property.name=/^(rename|renameSync)$/][object.name=/^(fs|fsp|nodeFs|fsPromises)$/]',
+    message: GENERIC_RAW_RENAME_MESSAGE,
+  },
+  {
+    selector: 'CallExpression > MemberExpression.callee[property.name="rename"][object.property.name="promises"]',
+    message: GENERIC_RAW_RENAME_MESSAGE,
+  },
+  {
+    selector: `ImportDeclaration[source.value=${FS_MODULE}] > ImportSpecifier[imported.name=/^(rename|renameSync)$/]`,
+    message: GENERIC_RAW_RENAME_MESSAGE,
+  },
+]
+
+// ── 4. 第 2 类：禁止在 for/while 中手写指数退避重试循环 ─────────────────────────────────────────────
+export const GENERIC_RETRY_LOOP_MESSAGE =
+  '禁止手写指数退避重试循环，请改用已批准接入的现成库 p-retry（见 T-8 替换表）。'
+const LOOP_SCOPE = ':matches(ForStatement, WhileStatement)'
+const EXPONENTIAL_EXPR = ':matches(CallExpression[callee.object.name="Math"][callee.property.name="pow"][arguments.0.value=2], BinaryExpression[operator="**"][left.value=2], BinaryExpression[operator="*"][right.value=2][left.name=/delay|backoff|wait|interval/i])'
+const ASYNC_SLEEP_EXPR = ':matches(AwaitExpression CallExpression[callee.name=/^(sleep|delay|wait|waitMs|waitForRetry)$/], NewExpression[callee.name="Promise"] CallExpression[callee.name="setTimeout"])'
+export const genericRetryLoopSelectors = [
+  {
+    selector: `${LOOP_SCOPE}:has(${EXPONENTIAL_EXPR}):has(${ASYNC_SLEEP_EXPR})`,
+    message: GENERIC_RETRY_LOOP_MESSAGE,
+  },
+  {
+    // #1409 形状：Map 维护 retryDelay 并手写 Math.min(delay * 2, MAX) 指数退避
+    selector: 'CallExpression[callee.object.name="Math"][callee.property.name="min"] BinaryExpression[operator="*"][right.value=2][left.name=/delay|backoff|retry/i]',
+    message: GENERIC_RETRY_LOOP_MESSAGE,
+  },
+]
+
+// ── 5. 第 3 类：上游余额/配额错误归类唯一主人（electron/shared/vendorFailure.ts）─────────────────────
+export const VENDOR_FAILURE_ONE_HOME_MESSAGE =
+  '上游余额 / 配额错误归类只住 electron/shared/vendorFailure.ts（categorizeVendorFailure）：不要在其它文件新增匹配 insufficient_quota / 余额不足 的第二层正则或分类表。'
+export const vendorFailureOneHomeSelectors = [
+  {
+    selector: 'Literal[regex.pattern=/insufficient_quota|insufficient_user_quota|pre_consume_token_quota_failed|余额不足|额度不足/]',
+    message: VENDOR_FAILURE_ONE_HOME_MESSAGE,
+  },
+  {
+    selector: 'Literal[value=/^(?:insufficient_quota|insufficient_user_quota|pre_consume_token_quota_failed|余额不足|额度不足)$/]',
+    message: VENDOR_FAILURE_ONE_HOME_MESSAGE,
+  },
+]
+
+// ── 6. 第 3 类：禁止同模块内同时用 fs.watch 与 stat/lstat 做双失效（回放 #1618）───────────────────────
+export const DUAL_INVALIDATION_MESSAGE =
+  '不要在同一模块里同时用 fs.watch / watchFile 和 stat / lstat 做两套失效判定（双层失效互相掩盖缺陷）：单活跃目录只保留 stat/lstat 指纹这一套。'
+const HAS_WATCH_IN_PROGRAM = ':matches(CallExpression[callee.property.name=/^(watch|watchFile)$/], ImportDeclaration[source.value=/^(node:)?fs(\\/promises)?$/] > ImportSpecifier[imported.name=/^(watch|watchFile)$/])'
+const HAS_STAT_IN_PROGRAM = ':matches(CallExpression[callee.property.name=/^(stat|lstat|statSync|lstatSync)$/], CallExpression[callee.name=/^(stat|lstat|statSync|lstatSync)$/])'
+export const dualInvalidationSelectors = [
+  {
+    selector: `Program:has(${HAS_WATCH_IN_PROGRAM}):has(${HAS_STAT_IN_PROGRAM})`,
+    message: DUAL_INVALIDATION_MESSAGE,
+  },
+]
+
+// ── 7. 迁自 check:main-console：主进程硬零禁止 console.* 调用（覆盖 electron/**/*.{ts,tsx,mts,cts}）──
+export const MAIN_CONSOLE_MESSAGE =
+  '主进程禁止直接调 console.*（打包后丢证据）：改用 electron/logging/logger.ts 的 logInfo / logWarn / logError / logVendorCall / logDevDetail。'
+export const mainConsoleSelectors = [
+  {
+    selector: 'CallExpression > MemberExpression.callee[object.name="console"]',
+    message: MAIN_CONSOLE_MESSAGE,
+  },
+]
+
+// ── 8. 迁自 check:renderer-sync-ipc：preload 禁止新增同步 IPC（sendSync / invokeSync）────────────────
+export const RENDERER_SYNC_IPC_MESSAGE =
+  'preload 禁止新增同步 IPC（sendSync / invokeSync 会卡住整个渲染进程）：改用 ipcRenderer.invoke + ipcMain.handle（存量冻结在 eslint-suppressions.json，只减不增）。'
+export const rendererSyncIpcSelectors = [
+  {
+    selector: 'CallExpression[callee.name="invokeSync"]',
+    message: RENDERER_SYNC_IPC_MESSAGE,
+  },
+  {
+    selector: 'CallExpression > MemberExpression.callee[property.name="sendSync"]',
+    message: RENDERER_SYNC_IPC_MESSAGE,
+  },
+]
+
+// ── 9. 迁自 check:builtin-vendor-literals：内置供应商身份只经 builtinVendorIdentity ──────────────────
+const BUILTIN_VENDOR_KEYS = '/^(?:apimart|kie|newapi|volcengine|volcengine-speech|agnes|modelscope|minimax|elevenlabs|meshy|higgsfield|fal|runway|replicate|runninghub)$/'
+const VENDOR_IDENT_NAME = '/^(?:vendor|vendorKey|providerId|targetVendor|modelVendor)$/'
+const VENDOR_PROP_NAME = '/^(?:key|vendorKey|providerId|targetVendor|modelVendor|vendor)$/'
+export const BUILTIN_VENDOR_LITERALS_MESSAGE =
+  '内置供应商身份不要写成字面量比较或 .has("apimart")（兄弟连接 apimart--mini 会全部认错）：改用 electron/shared/builtinVendorIdentity 的 isVendorOfBuiltin / builtinVendorKeyOfKey。'
+export const BUILTIN_HOST_STEP_MESSAGE =
+  'deriveVendorKeyFromBaseUrl 只是 connectionVendorKey.ts 的内部 host 步：改调 resolveConnectionVendorKey / resolveHostVendorKey。'
+export const builtinVendorLiteralsSelectors = [
+  {
+    selector: `BinaryExpression[operator=/^(===|!==)$/][left.type="Identifier"][left.name=${VENDOR_IDENT_NAME}][right.type="Literal"][right.value=${BUILTIN_VENDOR_KEYS}]`,
+    message: BUILTIN_VENDOR_LITERALS_MESSAGE,
+  },
+  {
+    selector: `BinaryExpression[operator=/^(===|!==)$/][left.type="MemberExpression"][left.property.name=${VENDOR_PROP_NAME}][right.type="Literal"][right.value=${BUILTIN_VENDOR_KEYS}]`,
+    message: BUILTIN_VENDOR_LITERALS_MESSAGE,
+  },
+  {
+    selector: `CallExpression[callee.property.name="has"][arguments.length=1] > Literal.arguments[value=${BUILTIN_VENDOR_KEYS}]`,
+    message: BUILTIN_VENDOR_LITERALS_MESSAGE,
+  },
+]
+export const builtinHostStepSelectors = [
+  {
+    selector: 'CallExpression[callee.name="deriveVendorKeyFromBaseUrl"]',
+    message: BUILTIN_HOST_STEP_MESSAGE,
+  },
+]
+
+export const t8StructuralGuardBlocks = [
+  {
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: TEST_IGNORES,
+    plugins: { 'generic-fs-watch': syntaxPlugin() },
+    rules: { 'generic-fs-watch/no-restricted-syntax': ['error', ...genericFsWatchSelectors] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: TEST_IGNORES,
+    plugins: { 'generic-map-eviction': syntaxPlugin() },
+    rules: { 'generic-map-eviction/no-restricted-syntax': ['error', ...genericMapEvictionSelectors] },
+  },
+  {
+    files: ['electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...TEST_IGNORES, 'electron/jsonFile.ts'],
+    plugins: { 'generic-raw-rename': syntaxPlugin() },
+    rules: { 'generic-raw-rename/no-restricted-syntax': ['error', ...genericRawRenameSelectors] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [
+      ...TEST_IGNORES,
+      'electron/sharingRetry.ts',
+      'electron/vendor/vendorHttp.ts',
+      'src/workbench/generationCanvas/runner/generationRetryPolicy.ts',
+    ],
+    plugins: { 'generic-retry-loop': syntaxPlugin() },
+    rules: { 'generic-retry-loop/no-restricted-syntax': ['error', ...genericRetryLoopSelectors] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [
+      ...TEST_IGNORES,
+      'src/i18n/**',
+      'src/devlab/**',
+      'electron/shared/vendorFailure.ts',
+    ],
+    plugins: { 'vendor-failure-one-home': syntaxPlugin() },
+    rules: { 'vendor-failure-one-home/no-restricted-syntax': ['error', ...vendorFailureOneHomeSelectors] },
+  },
+  {
+    files: ['electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: TEST_IGNORES,
+    plugins: { 'dual-invalidation': syntaxPlugin() },
+    rules: { 'dual-invalidation/no-restricted-syntax': ['error', ...dualInvalidationSelectors] },
+  },
+  {
+    files: ['electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: TEST_IGNORES,
+    plugins: { 'main-console': syntaxPlugin() },
+    rules: { 'main-console/no-restricted-syntax': ['error', ...mainConsoleSelectors] },
+  },
+  {
+    files: ['electron/preload.ts', 'electron/preload/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...TEST_IGNORES, 'electron/preload/ipcCall.ts'],
+    plugins: { 'renderer-sync-ipc': syntaxPlugin() },
+    rules: { 'renderer-sync-ipc/no-restricted-syntax': ['error', ...rendererSyncIpcSelectors] },
+  },
+  {
+    files: ['electron/**/*.{ts,tsx,mts,cts}', 'src/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...TEST_IGNORES, 'src/devlab/designLab/catalogLiveness/states/01-listing.tsx'],
+    plugins: { 'builtin-vendor-literals': syntaxPlugin() },
+    rules: { 'builtin-vendor-literals/no-restricted-syntax': ['error', ...builtinVendorLiteralsSelectors] },
+  },
+  {
+    files: ['electron/**/*.{ts,tsx,mts,cts}', 'src/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...TEST_IGNORES, 'electron/catalog/connectionVendorKey.ts', 'electron/catalog/catalogCommit.ts'],
+    plugins: { 'builtin-host-step': syntaxPlugin() },
+    rules: { 'builtin-host-step/no-restricted-syntax': ['error', ...builtinHostStepSelectors] },
+  },
+]

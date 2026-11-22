@@ -26,9 +26,9 @@ const REAL_PROBLEM_GATES = [
   'check:test-waits',
   'check:vocabularies',
   'check:icon-semantics',
-  // 纸面类里仍保留的两道：合同（只对 schema 阻断）/ 先查别人。概念写口 check:concept-owners 2026-10-02 降为警告档、2026-10-19 用户拍板「改回挡合并」，见下方 REAL_PROBLEM_GATES 的末项
+  // 纸面类里仍保留的两道：合同（只对 schema 阻断）/ PR 正文与先查别人（原 check:prior-art 于 2026-11-23 T-8 并入 check:pr-judgement）。概念写口 check:concept-owners 2026-10-02 降为警告档、2026-10-19 用户拍板「改回挡合并」，见下方 REAL_PROBLEM_GATES 的末项
   'check:root-cause-contracts',
-  'check:prior-art',
+  'check:pr-judgement',
   // 2026-10-19 用户拍板「改回挡合并（推荐）」：advisory 档下未登记边界从 37 攒到 121 而无人被拦，必须阻断
   'check:concept-owners',
 ]
@@ -41,14 +41,14 @@ test('账本里真问题的门岗：全都还在 PR 的 Contracts 里，且不�
 })
 
 test('被删的门岗不许悄悄回来：docs-index / doc-status / ledger 与 door-map 不在 PR 的 Contracts 里，脚本本身还在（docs-autosync 要用）', () => {
-  for (const removed of ['check:docs-index', 'check:doc-status', 'check:ledger', 'check:door-map', 'check:research-sources', 'check:symptom-cluster', 'check:archetype-defaults', 'check:archetype-sources', 'check:standard-formats', 'check:dependency-capabilities']) {
+  for (const removed of ['check:docs-index', 'check:doc-status', 'check:ledger', 'check:door-map', 'check:research-sources', 'check:symptom-cluster', 'check:archetype-defaults', 'check:archetype-sources', 'check:standard-formats', 'check:dependency-capabilities', 'check:main-console', 'check:renderer-sync-ipc', 'check:builtin-vendor-literals', 'check:prior-art']) {
     assert.ok(!gates.includes(removed), `${removed} 回到了 gates:contracts`)
   }
   for (const kept of ['check:docs-index', 'check:doc-status', 'check:ledger']) {
     assert.ok(pkg.scripts[kept], `${kept} 的脚本不该删：docs-autosync 还要用`)
   }
-  for (const gone of ['check:research-sources', 'check:symptom-cluster', 'check:archetype-defaults', 'check:archetype-sources', 'check:standard-formats', 'check:dependency-capabilities', 'check:i18n-dead-keys', 'check:audit', 'check:mcp-legacy-entry', 'check:handoff']) {
-    assert.equal(pkg.scripts[gone], undefined, `${gone} 已按 2026-10-02 的门岗清理删除或改名，不许悄悄回来`)
+  for (const gone of ['check:research-sources', 'check:symptom-cluster', 'check:archetype-defaults', 'check:archetype-sources', 'check:standard-formats', 'check:dependency-capabilities', 'check:i18n-dead-keys', 'check:audit', 'check:mcp-legacy-entry', 'check:handoff', 'check:main-console', 'check:renderer-sync-ipc', 'check:builtin-vendor-literals', 'check:prior-art']) {
+    assert.equal(pkg.scripts[gone], undefined, `${gone} 已按门岗清理 / T-8 收口删除，不许悄悄回来`)
   }
   for (const siteSub of ['data', 'editorial', 'pricing', 'links', 'locales', 'schema', 'descriptions', 'attribution']) {
     assert.equal(pkg.scripts[`check:site-${siteSub}`], undefined, `check:site-${siteSub} 已并进 check:site`)
