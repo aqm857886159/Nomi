@@ -6,7 +6,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import {
+import * as engMetrics from './eng-metrics.mjs'
+
+const {
   buildReport,
   computeDue,
   computeEscape,
@@ -18,7 +20,7 @@ import {
   formatLine,
   parseCsv,
   readContracts,
-} from './eng-metrics.mjs'
+} = engMetrics
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
