@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 
-import { assertExactOrigin, blockedError, blockedRequestOf, describeBlocked, hostedUploadRelayOrigin, guardLoadedError, paidWalkAllowlist, rehearsalLedgerRequests, rehearsalShotsReached, rehearsalShouldStop, rehearsalStation, rehearsalVerdict, scriptErrorText, standInLaunchEnv, startRehearsalStandIn, stationReaches, VENDOR_RESULT_DOMAINS, vendorRowClass } from './_paidNetwork.mjs'
+import { PAID_UNVERIFIED_EXIT_CODE, assertExactOrigin, blockedError, blockedRequestOf, classifyAllowedVendorResponse, describeBlocked, hostedUploadRelayOrigin, guardLoadedError, paidRunVerdict, paidWalkAllowlist, rehearsalLedgerRequests, rehearsalShotsReached, rehearsalShouldStop, rehearsalStation, rehearsalVerdict, scriptErrorText, standInLaunchEnv, startRehearsalStandIn, stationReaches, VENDOR_RESULT_DOMAINS, vendorRowClass } from './_paidNetwork.mjs'
 
 const catalog = {
   vendors: [
@@ -371,5 +371,38 @@ describe('rehearsalVerdict', () => {
     const cdn = [{ kind: 'blocked', via: 'fetch', host: 'cdn.getapib.org', url: 'https://cdn.getapib.org/a.mp4' }]
     expect(rehearsalVerdict({ entries: cdn, lockedAtEntry: 0, judgedAllow, endsAt: 'vendor-read' }).passed).toBe(true)
     expect(rehearsalVerdict({ entries: cdn, lockedAtEntry: 0, judgedAllow }).passed).toBe(false)
+  })
+})
+
+describe('paidRunVerdict · 真付费总闸判据（按产品 decideGenerationFailure 归类）', () => {
+  const vendorAllow = ['https://api.apimart.ai', '*.getapib.org']
+  const allow = [...vendorAllow, 'https://relay.example.test']
+  const loaded = { kind: 'guard-loaded', layers: ['fetch', 'socket', 'chromium'] }
+  const responseRow = (status, body, extra = {}) => ({
+    kind: 'allowed-response', via: 'fetch', method: 'POST', host: 'api.apimart.ai',
+    url: 'https://api.apimart.ai/v1/responses', status, text: typeof body === 'string' ? body : JSON.stringify(body), ...extra,
+  })
+
+  it('delegates vendor HTTP / envelope classification to decideGenerationFailure without custom wording rules', () => {
+    expect(PAID_UNVERIFIED_EXIT_CODE).toBe(3)
+    expect(classifyAllowedVendorResponse(responseRow(402, { error: { message: 'Insufficient account balance for this request' } }))).toMatchObject({ kind: 'balance', vendorSide: true })
+    expect(classifyAllowedVendorResponse(responseRow(429, { error: { code: 'insufficient_quota', message: 'You exceeded your current quota' } }))).toMatchObject({ kind: 'quota', vendorSide: true })
+    expect(classifyAllowedVendorResponse(responseRow(400, { error: { message: 'Invalid input: replay rejected' } }))).toMatchObject({ kind: 'input', vendorSide: true })
+    expect(classifyAllowedVendorResponse(responseRow(200, { id: 'resp_1', status: 'completed' }))).toBeNull()
+  })
+
+  it('marks授权供应商 balance / quota exhaustion as unverified, while relay 429 or product 400 stays 不过', () => {
+    const balanceVerdict = paidRunVerdict({
+      entries: [loaded, responseRow(402, { error: { message: '账户余额不足，请充值' } })],
+      lockedAtEntry: 1, allow, vendorAllow, scriptError: new Error('GPT-6.1 Sol 检查未完成'),
+    })
+    expect(balanceVerdict).toMatchObject({ status: 'unverified', passed: false, verdict: '未验证：服务商余额不足', upstreamErrorKind: 'balance' })
+
+    // 托管中转（不在 vendorAllow 里）的 429 不算模型服务商余额/额度：脚本失败照判不过
+    const relay429 = paidRunVerdict({
+      entries: [loaded, responseRow(429, { error: { message: 'Too Many Requests' } }, { host: 'relay.example.test', url: 'https://relay.example.test/v1/assets' })],
+      lockedAtEntry: 1, allow, vendorAllow, scriptError: new Error('托管上传失败'),
+    })
+    expect(relay429).toMatchObject({ status: 'failed', passed: false, verdict: '不过' })
   })
 })
