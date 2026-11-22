@@ -35,10 +35,10 @@ function formatQaReportSummary(report: QaStageReport, t: TFunction): string {
     : t('generationCommon.production.qa.fallbackDimension')
 
   if (report.flaggedCount === 0 && report.unverifiedCount === 0) {
-    return t('generationCommon.production.qa.allPassed', { total: report.total })
+    return t('generationCommon.production.qa.allPassed', { count: report.total })
   }
   if (report.unverifiedCount === report.total) {
-    return t('generationCommon.production.qa.allUnverified', { total: report.total, reasons })
+    return t('generationCommon.production.qa.allUnverified', { count: report.total, reasons })
   }
   if (report.flaggedCount === 0) {
     return t('generationCommon.production.qa.partialUnverified', {
