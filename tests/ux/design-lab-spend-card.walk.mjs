@@ -11,7 +11,6 @@
 //
 // 用法：node tests/ux/design-lab-spend-card.walk.mjs  （ONLY=spend-batch 只跑一格）
 import path from 'node:path'
-import { expect } from '@playwright/test'
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
 import { REPO_ROOT } from './design-lab/labStates.mjs'
 import { uiText, uiTextPattern, uiTextWith } from './full-walk/invariants.mjs'

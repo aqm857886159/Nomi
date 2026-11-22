@@ -197,7 +197,7 @@ async function expectNodePointerState(page, state, record) {
         const folded = await faces(page, '[data-node-pointer-group="row"]')
         if (folded.length !== 4) record(`${state.id} ${A.rowsMore}: 6 行的列表应先露 4 行，实际 ${folded.length}`)
         const rowsMore = page.locator('[data-node-pointer-group="row"] [data-node-pointer-more="2"]')
-        if (!(await rowsMore.count())) record(`${state.id} ${A.rowsMore}: 6 行的列表没有「还有 2 个镜头」`)
+        if (!(await expect(rowsMore).toBeVisible().then(() => true, () => false))) record(`${state.id} ${A.rowsMore}: 6 行的列表没有「还有 2 个镜头」`)
         else await rowsMore.click()
         const rows = await faces(page, '[data-node-pointer-group="row"]')
         if (rows.length !== 6) record(`${state.id} ${A.row}: 展开后列表行应有 6 行，实际 ${rows.length}`)
