@@ -3,6 +3,7 @@ import { prepareWaitingFx, sampleWaitingFx, cleanupWaitingFx } from './canvas-pe
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import { expect } from './_assert.mjs'
+import { closeCanvasViewOptions, openCanvasViewOptions } from './_shell.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -13,7 +14,17 @@ import {
   createCanvasPerformanceFixture,
   defaultPerfTempRoot,
 } from './fixtures/canvas-performance-fixture.mjs'
-import { applyPerformanceVerdict } from '../../scripts/canvas-performance-verdict.mjs'
+import {
+  ADVISORY_ONLY_SCENARIOS,
+  SCALE_STUDY_BUDGETS,
+  applyPerformanceVerdict,
+  evaluateBenchmarkPass,
+  evaluateScenarioVerdict,
+  evaluateWarmupFailure,
+  longTaskCountBudget as longTaskCountBudgetForNodeCount,
+  scaleNodeTier as scaleNodeTierForCount,
+  timingBudget,
+} from '../../scripts/canvas-performance-verdict.mjs'
 import {
   runMultiNodeDrag,
   runDragAtLowZoom,
@@ -39,7 +50,6 @@ import { buildScenarioAdvisory } from './canvas-perf/advisoryMetrics.mjs'
 import { CANVAS_PERF_GATE_SCENARIOS } from './canvas-perf/gateScenarios.mjs'
 import {
   AUTO_PAN_SAFE_MARGIN_PX,
-  MIN_NODE_BAND_COVERAGE,
   clampIntoAutoPanSafeArea,
   expectedPartiallySelected,
   nodeBandCoverage,
@@ -141,14 +151,8 @@ const scenarios = requestedScenarios.includes('all') ? allScenarios : requestedS
 // （tests/ux/canvas-real-suite.mjs:36），也就是这三条会在 Linux/xvfb 上跑。调研 §7.9 明说
 // 非 darwin 的 ×1.6 系数「本轮没有重新验证它对这几个新场景是否合适」。在拿到跨平台数据之前
 // 把未校准的天花板硬化，正是 #264 那条教训（本文件 maxFrameGapMs 那段注释里的同一条）。
-const ADVISORY_ONLY_SCENARIOS = new Set([
-  'multi-node-drag',
-  'drag-at-low-zoom',
-  'drag-over-dense-edges',
-  'drag-nodes-all',
-  'drag-group-frame-60',
-  'zoom-slider-drag',
-])
+// ADVISORY_ONLY_SCENARIOS 单一定义位于 scripts/canvas-performance-verdict.mjs：
+// 只豁免未校准的性能预算（budgetChecks 与 SCALE_STUDY_BUDGETS 长任务次数），绝不豁免运行报错或完整性硬失败。
 for (const scale of requestedScales) {
   if (!CANVAS_PERF_SCALES[scale]) throw new Error(`未知 scale「${scale}」`)
 }
@@ -619,10 +623,11 @@ async function openProject(app, page, fixture) {
     // Identity is the fixture contract; name matching can select a stale card
     // when another isolated run left a similarly named project in the shell.
     const card = page.locator(`[data-project-card][data-project-id="${fixture.record.id}"]`).first()
-    if ((await card.count().catch(() => 0)) === 0) {
+    try {
+      await card.waitFor({ timeout: 12_000 * openScale })
+    } catch {
       throw new Error(`性能夹具项目卡片不存在：${fixture.record.id}（${fixture.record.name}）`)
     }
-    await card.waitFor({ timeout: 12_000 * openScale })
     await card.click()
   }
   // 卡片已经发出打开请求；等待真实目标窗口，不能再点击导航中的旧项目库。
@@ -689,6 +694,7 @@ async function prepareScenario(page, scenario) {
     // 且验缩放真的变了才继续——点击静默丢失会让视口停在 zoom≈1，于是只挂 9 个节点，
     // 看着像画布 bug，其实是前置条件没成立。
     await fitCanvasView(page)
+    if (scenario === 'zoom-slider-drag') await openCanvasViewOptions(page, 'zoom-slider-drag')
     if (scenario === 'drag-nodes-all') await selectAllCanvasNodes(page)
     if (scenario === 'drag-group-frame-60') {
       // 挂不满 60 张时按实际张数建组，并把 requested/realized 记进 actionDetails——
@@ -1365,6 +1371,7 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
       ? await page.evaluate(() => window.__canvasPerformanceProbe.stop())
       : combineProbeSummaries(actionDetails?.reloadProbes || [])
     if (scenario === 'waiting-effects') await cleanupWaitingFx(page)
+    if (scenario === 'zoom-slider-drag') await closeCanvasViewOptions(page)
     const cdpAfter = await getCdpMetrics(cdp)
     const afterPage = await pageSnapshot(page)
     if (captureScreenshots) {
@@ -1421,23 +1428,7 @@ function parseNumericSamples(samples, read) {
   return samples.map(read).filter((value) => Number.isFinite(value))
 }
 
-// Platform calibration factor for timing budgets.
-// Constraint: the timing ceilings below are calibrated against darwin
-// (the committed reference run canvas-pr216-acceptance.json is darwin/arm64,
-// e.g. resize frameGapP95 ≈ 16.4ms). CI executes on Linux under xvfb software
-// rendering, which is measured 1.3–2x slower than the darwin calibration source
-// for the same code (same-machine A/B: main resize 30.8 vs the 33 ceiling,
-// #243 28.1, #239 19.2 — all ≤ main, no real regression, yet CI reported 38–44).
-// We scale timing ceilings by a conservative upper bound of the observed slowdown
-// so a darwin-calibrated hard floor stops manufacturing false reds on the slower
-// substrate. This is a measurement correction, not a loosening of the standard:
-// only latency budgets scale; semantic activation counts and the heap-leak budget
-// stay fixed across platforms (inflating those would mask real regressions).
-const NON_DARWIN_TIMING_CALIBRATION = 1.6
-
-function timingBudget(baseMax) {
-  return os.platform() === 'darwin' ? baseMax : Math.round(baseMax * NON_DARWIN_TIMING_CALIBRATION)
-}
+// Platform calibration factor & timingBudget() live in scripts/canvas-performance-verdict.mjs.
 
 // maxFrameGapMs is recorded and reported but does NOT gate PASS/FAIL.
 //
@@ -1460,63 +1451,23 @@ const PERFORMANCE_BUDGETS = [
   { metric: 'reloadHeapDeltaMB', max: 10 },
 ]
 
-// ——— 规模档预算（2026-09-12 调研 §6）——————————————————————————————————
-//
-// 既有预算对**所有规模用同一组数**（frameGapP95 ≤ 33 / maxFrameGap ≤ 100 advisory）。
-// 2026-09-12 的规模调查量出「东西多少不是问题，同时在动多少才是」：同一手势从 60 到
-// 300 个节点，fps 从 96.5 塌到 12.4。一组固定的数既描述不了这条曲线，也锁不住它。
-// 下面这张表的每一个数字都逐行抄自
-// docs/research/2026-09-12-canvas-perf-at-scale/README.md §6（darwin 基准值）。
-//
-// 两条口径，与报告一致、也与本文件既有做法一致：
-//   • 毫秒类一律经 timingBudget() 出口（非 darwin ×1.6 已在那里处理），**不另写一套平台分支**；
-//   • 长任务**次数**是工作量计数，与机器负载和平台无关，**不跟着放宽**（同 maxLoadingImages 等）。
-// 报告 §6 末段把次数定为硬门岗、毫秒当 advisory：本轮最刺眼的信号正是次数
-// （drag-nodes-all @ I150/I300 一次手势 249 / 251 次，同一分钟的 marquee-select-all @ I300 是 0 次）。
-//
-// 档位按**画布上的节点数**取而不是按 scale 名字：报告给的是 60 / 150 / 300 三档，
-// 其它 scale（S/M/L/XL）落进最近的上档，于是同一张表覆盖全部规模，不会长出第二张表。
-const SCALE_STUDY_BUDGETS = {
-  // §6「拖动类」表第三行。300 档今天实测 p95 251.2 / 最长 371.1 —— 超 8 倍，S3 的验收就是这一行。
-  'drag-nodes-all': {
-    60: { frameGapP95Ms: 20, maxFrameGapMs: 40, longTasks: 1 },
-    150: { frameGapP95Ms: 24, maxFrameGapMs: 50, longTasks: 3 },
-    300: { frameGapP95Ms: 30, maxFrameGapMs: 60, longTasks: 5 },
-  },
-  // §6「拖动类」表第四行。S1（组框拖动收回内核）做完后应当与 drag-nodes-60 同档。
-  'drag-group-frame-60': {
-    60: { frameGapP95Ms: 20, maxFrameGapMs: 40, longTasks: 1 },
-    150: { frameGapP95Ms: 22, maxFrameGapMs: 45, longTasks: 3 },
-    300: { frameGapP95Ms: 26, maxFrameGapMs: 55, longTasks: 5 },
-  },
-  // §6「手势类」表末行：缩放两条判**最长帧 / 长任务次数**，因为 p50 一直好看（8.4ms）、坏的全在尾巴上。
-  // frameGapP95Ms 不在报告里给新数，所以这条沿用本文件既有的 33ms 天花板，不自造。
-  'zoom-slider-drag': {
-    60: { maxFrameGapMs: 80, longTasks: 1 },
-    150: { maxFrameGapMs: 120, longTasks: 3 },
-    300: { maxFrameGapMs: 150, longTasks: 4 },
-  },
+function scaleNodeCount(scale) {
+  const spec = CANVAS_PERF_SCALES[scale]
+  return spec ? (spec.imageCount || 0) + (spec.videoCount || 0) : 0
 }
 
 /** 一个 scale 落在 60 / 150 / 300 的哪一档（按节点总数，向上取档）。 */
 function scaleNodeTier(scale) {
-  const spec = CANVAS_PERF_SCALES[scale]
-  const nodeCount = spec ? (spec.imageCount || 0) + (spec.videoCount || 0) : 0
-  if (nodeCount <= 60) return 60
-  if (nodeCount <= 150) return 150
-  return 300
+  return scaleNodeTierForCount(scaleNodeCount(scale))
 }
 
-/** 这一格（场景 × 规模）的长任务次数硬上限；不是规模档场景则返回 null。 */
+/** 这一格（场景 × 规模）的长任务次数上限；不是规模档场景则返回 null。 */
 function longTaskCountBudget(scenario, scale) {
-  const tier = SCALE_STUDY_BUDGETS[scenario]?.[scaleNodeTier(scale)]
-  return tier && Number.isFinite(tier.longTasks) ? tier.longTasks : null
+  return longTaskCountBudgetForNodeCount(scenario, scaleNodeCount(scale))
 }
 
 /**
  * 这一格适用的预算表。规模档场景把毫秒类天花板换成 §6 给的那一档，其余沿用既有预算。
- * maxFrameGapMs 继续 advisory（它对机器争用极敏感，见上面那段），gating 的是 frameGapP95Ms
- * 与长任务次数（次数在 sampleHardFailures 里判，因为它是逐次采样的硬失败而不是 p95 聚合）。
  */
 function budgetsFor(scenario, scale) {
   const tier = SCALE_STUDY_BUDGETS[scenario]?.[scaleNodeTier(scale)]
@@ -1525,125 +1476,6 @@ function budgetsFor(scenario, scale) {
     const override = tier[budget.metric]
     return Number.isFinite(override) ? { ...budget, max: timingBudget(override) } : budget
   })
-}
-
-function sampleHardFailures(sample) {
-  const failures = []
-  if (sample.scenario === 'waiting-effects' && sample.probe) {
-    if (sample.probe.longTasks !== 0) failures.push(`waiting effects: ${sample.probe.longTasks} long tasks`)
-    if (sample.probe.fps < 1000 / timingBudget(33))
-      failures.push(`waiting effects: ${sample.probe.fps} FPS below frame budget`)
-  }
-  if (sample.error) failures.push(`scenario error: ${sample.error}`)
-  // 规模档场景的长任务**次数**硬判据（§6）。次数是工作量计数，不随机器负载或平台漂，
-  // 所以它——而不是毫秒——是「这一格到底修好没有」最硬的那条线。
-  const longTaskCap = longTaskCountBudget(sample.scenario, sample.scale)
-  if (
-    longTaskCap !== null &&
-    sample.probe &&
-    Number.isFinite(sample.probe.longTasks) &&
-    sample.probe.longTasks > longTaskCap
-  ) {
-    failures.push(
-      `${sample.scenario} @ ${sample.scale}: ${sample.probe.longTasks} 次长任务 > ${longTaskCap}（§6 规模档硬门岗）`,
-    )
-  }
-  for (const error of sample.pageErrors || []) failures.push(`page error: ${error}`)
-  for (const error of sample.consoleErrors || []) failures.push(`console error: ${error}`)
-  if (sample.actionDetails?.anchorErrorPx > 1.5)
-    failures.push(`zoom anchor drift ${sample.actionDetails.anchorErrorPx}px > 1.5px`)
-  if (sample.actionDetails?.stepErrorPx > 1.5)
-    failures.push(`pan/zoom continuation error ${sample.actionDetails.stepErrorPx}px > 1.5px`)
-  if (sample.actionDetails?.selectedAfterClear !== undefined && sample.actionDetails.selectedAfterClear !== 0)
-    failures.push(`blank click left ${sample.actionDetails.selectedAfterClear} selected nodes`)
-  if (sample.scenario === 'marquee-select' && !sample.error && Number.isFinite(sample.actionDetails?.selected)) {
-    const { selected, expectedSelection, nodeBandCoverage: bandCoverage } = sample.actionDetails
-    // ① 框选正确性：生产用的是 selectionMode=Partial（见
-    //    GenerationCanvasReactFlowViewport.tsx），框和节点只要有重叠就算选中，
-    //    不要求整个节点都在框里。expectedPartiallySelected 按这个语义 derive 区间，
-    //    上下界差的只是压在框线上那几个节点（DOM 与 React Flow 的亚像素分歧），
-    //    真实的少选/多选回归依然会红。
-    if (Number.isFinite(expectedSelection?.definite) && Number.isFinite(expectedSelection?.possible)) {
-      if (selected < expectedSelection.definite || selected > expectedSelection.possible)
-        failures.push(
-          `marquee selected ${selected} nodes, expected ${expectedSelection.definite}–${expectedSelection.possible} ` +
-            'overlapping the swept rect (selectionMode=Partial)',
-        )
-    } else {
-      failures.push('marquee sample did not record a derived selection expectation')
-    }
-    // ② 场景非退化：这一笔得真的把「够得着的那片节点」整个圈进去。用覆盖率代替原先写死的
-    //    「至少 12 个节点」——覆盖率是无量纲的，不随 stage 尺寸漂移，也不含任何时间量，
-    //    所以它既不会因为机器快慢翻红，也不会因为换了个窗口大小翻红。
-    if (Number.isFinite(bandCoverage) && bandCoverage < MIN_NODE_BAND_COVERAGE)
-      failures.push(
-        `marquee covered only ${Math.round(bandCoverage * 100)}% of the reachable node band ` +
-          `(needs ≥ ${Math.round(MIN_NODE_BAND_COVERAGE * 100)}%)`,
-      )
-  }
-  // eval v2 scenario integrity guards (correctness, not perf budgets): if a new
-  // scenario silently degenerated (grabbed too few nodes / no dense band), the
-  // sample would look "clean" for the wrong reason. Fail it explicitly so the
-  // baseline is not built on a mis-measured window.
-  if (
-    sample.scenario === 'multi-node-drag' &&
-    !sample.error &&
-    Number.isFinite(sample.actionDetails?.selected) &&
-    sample.actionDetails.selected < 2
-  )
-    failures.push(`multi-node-drag selected only ${sample.actionDetails.selected} nodes (needs ≥2)`)
-  if (
-    sample.scenario === 'drag-over-dense-edges' &&
-    !sample.error &&
-    Number.isFinite(sample.actionDetails?.connectedEdges) &&
-    sample.actionDetails.connectedEdges < 1
-  )
-    failures.push('drag-over-dense-edges dragged a node with 0 connected edges')
-  if (sample.nodeIdentity?.commonIdentityPreserved === false) {
-    const remounted = sample.nodeIdentity.remountedInPlace || []
-    failures.push(
-      remounted.length
-        ? `node layer rebuilt in place: ${remounted.join(', ')}`
-        : `continuously mounted node DOM identity changed (${sample.nodeIdentity.preserved}/${sample.nodeIdentity.tracked} preserved)`,
-    )
-  }
-  if (sample.nodeIdentity?.targetIdentityPreserved === false)
-    failures.push(`target node DOM identity changed: ${sample.nodeIdentity.targetNodeId}`)
-  if (sample.probe?.maxLoadingImages > 4) failures.push(`image activation peak ${sample.probe.maxLoadingImages} > 4`)
-  if (sample.probe?.maxLoadingVideos > 1) failures.push(`video activation peak ${sample.probe.maxLoadingVideos} > 1`)
-  if (sample.probe?.maxActiveVideos > 1)
-    failures.push(`simultaneously playing videos ${sample.probe.maxActiveVideos} > 1`)
-  if (sample.scenario === 'media-error') {
-    if (sample.actionDetails?.initialFailure !== true) failures.push('media failure did not surface initially')
-    if (sample.actionDetails?.retryFailure !== true) failures.push('media failure did not surface after retry')
-    if (sample.actionDetails?.recoverySuccess !== true) failures.push('media failure did not recover successfully')
-  }
-  // 远看轻量卡与节点数无关（2026-10-31 删掉了「节点 > 80」门槛），每个夹具都要过这一段。
-  if (sample.scenario === 'low-zoom-preview' && !sample.error) {
-    const zoom = sample.actionDetails?.zoom
-    const lightweightNodeCount = sample.actionDetails?.settled?.lightweightCanvasNodes
-    const lightweightPreviewCount = sample.actionDetails?.settled?.lightweightPreviewNodes
-    // 0.35 is the zoom this scenario drives to (prepareScenario); 0.40 is the detail
-    // line (LIGHTWEIGHT_NODE_ZOOM_THRESHOLD). It asserts the scenario really reached
-    // the lightweight side of the line.
-    if (!Number.isFinite(zoom) || zoom >= 0.4) {
-      failures.push(`low-zoom scenario did not settle at the low-zoom target: ${zoom ?? 'unknown'}`)
-    } else if (!Number.isFinite(lightweightNodeCount) || lightweightNodeCount < 1) {
-      failures.push('low-zoom scenario did not mount any lightweight nodes')
-    } else if (!Number.isFinite(lightweightPreviewCount) || lightweightPreviewCount < 1) {
-      failures.push('low-zoom lightweight nodes rendered without any media preview')
-    }
-  }
-  const settledSnapshots = [sample.cold?.settled, sample.actionDetails?.settled]
-    .filter(Boolean)
-    .concat(sample.scenario === 'reload-heavy' ? sample.actionDetails?.snapshots || [] : [])
-  for (const snapshot of settledSnapshots) {
-    if (snapshot.visibleMediaPending > 0) {
-      failures.push(`${snapshot.visibleMediaPending} visible media nodes never reached a visible terminal state`)
-      break
-    }
-  }
-  return failures
 }
 
 function summarizeScenario(samples, panControl = null) {
@@ -1683,10 +1515,9 @@ function summarizeScenario(samples, panControl = null) {
       ]
     }),
   )
-  const hardFailures = samples.flatMap((sample) =>
-    sampleHardFailures(sample).map((reason) => ({ runIndex: sample.runIndex, reason })),
-  )
-  const budgetChecks = budgetsFor(samples[0]?.scenario, samples[0]?.scale)
+  const scenarioName = samples[0]?.scenario
+  const scaleName = samples[0]?.scale
+  const budgetChecks = budgetsFor(scenarioName, scaleName)
     .filter(({ metric }) => metrics[metric])
     .map(({ metric, max, advisory }) => ({
       metric,
@@ -1697,41 +1528,27 @@ function summarizeScenario(samples, panControl = null) {
       // See comment above PERFORMANCE_BUDGETS for rationale.
       advisory: advisory === true,
     }))
-  // eval v2 advisory block (U2): per-move amortization, drag/pan ratios, action
-  // latency, off-canvas render counts. Attached alongside — NOT inside — the
-  // verdict. The verdict below is byte-for-byte the original logic; advisory
-  // numbers never flip pass/fail this round (#264 lesson).
   const advisory = buildScenarioAdvisory({
     samples,
     panControl,
     offCanvasComponents: OFF_CANVAS_RENDER_TARGETS,
   })
-  const scenarioName = samples[0]?.scenario
   const advisoryOnly = ADVISORY_ONLY_SCENARIOS.has(scenarioName)
+  const verdict = evaluateScenarioVerdict({
+    scenario: scenarioName,
+    samples,
+    budgetChecks,
+    advisoryOnly,
+    budgetsAreCalibratedForLeg,
+    longTaskCap: longTaskCountBudget(scenarioName, scaleName),
+  })
   return {
     samples: samples.length,
     errors: samples.filter((sample) => sample.error || sample.pageErrors?.length || sample.consoleErrors?.length)
       .length,
     metrics,
     advisory,
-    verdict: {
-      // Original prod-leg gate, preserved byte-for-byte:
-      //   advisoryOnly ? true : hardFailures === 0 && budgets all pass.
-      // Change only affects the non-prod legs (dev / throttle): there the latency
-      // ceilings are not calibrated for the slower bundle/CPU, so budgetChecks
-      // become advisory (recorded, printed, but not gating) while correctness
-      // hard-failures keep gating. advisoryOnly scenarios still never gate,
-      // exactly as before.
-      pass: advisoryOnly
-        ? true
-        : budgetsAreCalibratedForLeg
-          ? hardFailures.length === 0 && budgetChecks.every((check) => check.advisory || check.pass)
-          : hardFailures.length === 0,
-      advisoryOnly,
-      budgetsAdvisory: !advisoryOnly && !budgetsAreCalibratedForLeg,
-      hardFailures,
-      budgetChecks,
-    },
+    verdict,
   }
 }
 
@@ -1823,17 +1640,13 @@ try {
           `  ${warmup ? 'warmup' : `sample ${index - warmupCount + 1}`} ${sample.error ? `ERROR ${sample.error}` : 'ok'}`,
         )
         if (warmup) {
-          const failures = sampleHardFailures(sample)
-          // Advisory-only scenarios record warmup issues for visibility but do
-          // not gate the run (their budgets/hard-failures are not calibrated).
-          if (failures.length)
-            results.warmupFailures.push({
-              scale,
-              scenario,
-              runIndex: index,
-              failures,
-              advisoryOnly: ADVISORY_ONLY_SCENARIOS.has(scenario),
-            })
+          const failure = evaluateWarmupFailure(sample, {
+            scale,
+            scenario,
+            runIndex: index,
+            longTaskCap: longTaskCountBudget(scenario, scale),
+          })
+          if (failure) results.warmupFailures.push(failure)
         } else {
           results.results.push(sample)
         }
@@ -1861,19 +1674,14 @@ try {
     ]),
   )
   results.runtimeVersions = results.results.find((sample) => sample.runtimeVersions)?.runtimeVersions || null
-  // Only gating (non-advisory) warmup failures block the run; advisory-only
-  // scenario warmup issues are recorded but excluded here. Per-scenario verdicts
-  // already return pass:true for advisory-only scenarios.
-  const gatingWarmupFailures = results.warmupFailures.filter((failure) => !failure.advisoryOnly)
-  results.pass =
-    gatingWarmupFailures.length === 0 && Object.values(results.summary).every((summary) => summary.verdict.pass)
+  results.pass = evaluateBenchmarkPass({
+    summary: results.summary,
+    warmupFailures: results.warmupFailures,
+  })
   const outputPath = writeResults(results, label)
   console.log(`\n✅ 画布性能 benchmark 完成：${outputPath}`)
-  if (gatingWarmupFailures.length)
-    console.log(`⚠ warmup 失败 ${gatingWarmupFailures.length} 次（gating 场景），结果标记为不可靠`)
-  const advisoryWarmupFailures = results.warmupFailures.length - gatingWarmupFailures.length
-  if (advisoryWarmupFailures)
-    console.log(`ℹ advisory-only 场景 warmup 提示 ${advisoryWarmupFailures} 条（不影响判定，仅记录）`)
+  if (results.warmupFailures.length)
+    console.log(`⚠ warmup 失败 ${results.warmupFailures.length} 次，结果标记为不可靠`)
   if (!applyPerformanceVerdict(results)) console.error('❌ 画布性能 benchmark 未通过预算或可靠性门槛')
 } finally {
   await devServer?.close().catch(() => {})
