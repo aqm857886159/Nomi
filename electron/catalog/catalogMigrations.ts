@@ -5,6 +5,7 @@ import { migrateComfyWorkflowOutputs } from "./comfyuiWorkflowOutputMigration";
 import { migrateCatalogMediaContracts } from "./catalogMediaContractMigration";
 import { migrateRelayImageEditCapability, migrateRelayParamMaps } from "./relayLegacyMigrations";
 import { repairUnverifiedUsable } from "./unverifiedUsableMigration";
+import { repairModelDeclarationDefaults } from "./modelDeclarationDefaults";
 import { migrateVendorFieldLossV13 } from "./vendorFieldLossRepair";
 import { normalizeLegacyMappings } from "./legacyMappingMigration";
 import { hasLegacyCustomConfigField } from "./customConfigStore";
@@ -141,7 +142,8 @@ export function migrateCatalogForward(
 
   // Deferred secret/media migrations must keep their original bytes until explicit repair.
   if (s.version !== CURRENT_CATALOG_VERSION) return s;
-  const repaired = repairUnverifiedUsable(s);
+  // 两次一次性修正（各自一枚收据、都不升版本）：验证删掉之后还给创作者的开关；文本模型行能力声明的初值。
+  const repaired = repairModelDeclarationDefaults(repairUnverifiedUsable(s));
   if (repaired !== s) writeCatalog(repaired);
   return repaired;
 }
