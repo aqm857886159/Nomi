@@ -4,6 +4,62 @@ import { readGroupPort } from '../model/groupPort'
 
 export type GenerationFlowConnectionAffordance = 'dot' | 'magnetic' | 'hidden'
 
+export type MagneticHandleNodeRect = Readonly<{
+  id: string
+  x: number
+  y: number
+  width: number
+  height: number
+}>
+
+/** 开阔空白处磁吸源把手命中带的最大外伸宽度（2026-09-11 用户拍板）。 */
+export const MAGNETIC_HANDLE_MAX_HIT_WIDTH = 112
+const MAGNETIC_HANDLE_MAX_HEIGHT = 168
+const MAGNETIC_HANDLE_HEIGHT_PADDING = 28
+/** 未选中邻卡的小圆点把手宽 28px、骑在卡边正中，向外伸出 14px；磁吸带停在它外侧不抢邻卡与圆点。 */
+export const MAGNETIC_NEIGHBOR_DOT_RESERVE = 14
+/** 邻卡顶部的悬停时间轴小钮（bottom-full）与标题区最高上探约 36px，纵向判邻时一并计入。 */
+const MAGNETIC_NEIGHBOR_TOP_CHROME_RESERVE = 36
+
+/**
+ * 选中节点磁吸源把手命中带的实得宽度（画布坐标系 px）：
+ * 开阔处维持 112px；同侧纵向重叠处有其它节点卡时，自动收窄至「两卡净间距 - 14px」以内，
+ * 避免 `z-index: 5` 选中节点的透明 `.handle-hit` 跨过卡间缝隙盖住相邻未选中卡片及其圆点/悬停钮。
+ */
+export function resolveMagneticHandleHitWidth(
+  self: MagneticHandleNodeRect,
+  side: 'left' | 'right',
+  others: Iterable<MagneticHandleNodeRect>,
+): number {
+  const bandHalfHeight = Math.min(MAGNETIC_HANDLE_MAX_HEIGHT, self.height + MAGNETIC_HANDLE_HEIGHT_PADDING) / 2
+  const bandCenterY = self.y + self.height / 2
+  const bandTop = bandCenterY - bandHalfHeight
+  const bandBottom = bandCenterY + bandHalfHeight
+  const selfRight = self.x + self.width
+
+  let maxWidth = MAGNETIC_HANDLE_MAX_HIT_WIDTH
+  for (const other of others) {
+    if (other.id === self.id) continue
+    const otherTop = other.y - MAGNETIC_NEIGHBOR_TOP_CHROME_RESERVE
+    const otherBottom = other.y + other.height
+    if (otherBottom <= bandTop || otherTop >= bandBottom) continue
+
+    if (side === 'left') {
+      if (other.x >= self.x) continue
+      const gap = self.x - (other.x + other.width)
+      const allowed = Math.max(0, Math.floor(gap - MAGNETIC_NEIGHBOR_DOT_RESERVE))
+      if (allowed < maxWidth) maxWidth = allowed
+    } else {
+      if (other.x + other.width <= selfRight) continue
+      const gap = other.x - selfRight
+      const allowed = Math.max(0, Math.floor(gap - MAGNETIC_NEIGHBOR_DOT_RESERVE))
+      if (allowed < maxWidth) maxWidth = allowed
+    }
+    if (maxWidth === 0) return 0
+  }
+  return maxWidth
+}
+
 /**
  * 连线触发面的**唯一 owner**：画布上每一个能起线的东西（节点卡、收起的编组卡）长什么把手，只在这里决定。
  *
