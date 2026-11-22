@@ -196,6 +196,11 @@ try {
   await expect(skillPopover().locator('[data-v4-skill-footer="true"]')).toHaveText(en('agentPanelV4.goToSkillLibrary'))
   const enSlashCats = await skillPopover().locator('button[aria-pressed]').allTextContents()
   expect(enSlashCats).toEqual([en('agentPanelV4.skillAll'), en('agentPanelV4.sectionSkills'), en('agentPanelV4.sectionPrompts')])
+  // 英文弹层分组头零中文字符防回退（涵盖 builtin-expressions → Expressions 等内置/公开来源）
+  const enGroupHeaders = await skillPopover().locator('[data-library-group] > summary, [data-library-group] > h3').allTextContents()
+  expect(enGroupHeaders.length).toBeGreaterThan(0)
+  expect(enGroupHeaders.filter((label) => /[\u4e00-\u9fff]/.test(label)), '英文弹层分组头不得含中文').toEqual([])
+  expect(enGroupHeaders.some((label) => label.includes('Prompts · Expressions'))).toBe(true)
   await shot('slash-en-light')
   await applyColorSchemeForShot(page, 'dark')
   await shot('slash-en-dark')
