@@ -10,7 +10,7 @@
 | 参数面板和高级设置 | [params.md](./params.md) | `params` |
 | 模型菜单和方式菜单 | [model-and-mode-menus.md](./model-and-mode-menus.md) | `model-menu` · `mode-menu` |
 | 模型设置页 | [model-settings.md](./model-settings.md) | `model-settings` |
-| Agent 面板（展开 / 收起 / 窄窗小球） | [agent-panel.md](./agent-panel.md) | `agent-panel` · `agent-ball` |
+| Agent 面板（展开 / 收起进顶栏入口 / 窄窗浮窗） | [agent-panel.md](./agent-panel.md) | `agent-panel` · `agent-collapsed` |
 | 设计实验室 | [design-lab.md](./design-lab.md) | `design-lab` |
 
 加一个功能：`verifyFeatures.mjs` 加一项（只调 `_shell.mjs` 等出口，缺出口补进 `_shell.mjs`）→ 这里加一份四节文件并登进上表 → 真跑一遍文件里写的每条命令再提交。

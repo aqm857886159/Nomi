@@ -16,6 +16,7 @@
 // 产出：`tests/ux/shots/design-lab-primitives-surfaces/<state>.png` + `_contact-sheet.png`（拍板用）。
 //
 // 用法：node tests/ux/design-lab-primitives-surfaces.walk.mjs （ONLY=ps-07-modal 只跑一个）
+import { AxeBuilder } from '@axe-core/playwright'
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
@@ -48,7 +49,7 @@ const EXPECTED = {
   // 标题走的是 Mantine Modal 的 header（在 surface 之外），所以这里认的是正文那句话。
   'ps-11-confirm-dialog': { selector: '[data-confirm-dialog-surface]', text: '删除后画布上的连线', min: { w: 260, h: 40 } },
   'ps-20-settings-dialog': { assertion: 'board:DialogDecisionBar/settings.shell', selector: '[data-settings-dialog]', text: uiText(dialogLocale, 'settings.title'), min: { w: 600, h: 300 } },
-  'ps-21-skill-dialog': { assertion: 'board:DialogDecisionBar/skill.actions', selector: '[data-skill-detail]', text: uiText(dialogLocale, 'libraries.skill.addToChat'), min: { w: 600, h: 300 } },
+  'ps-21-skill-dialog': { assertion: 'board:DialogDecisionBar/skill.actions', selector: '[role="dialog"]', text: uiText(dialogLocale, 'libraries.skill.addToChat'), min: { w: 600, h: 300 } },
   'ps-22-extraction-dialog': { assertion: 'board:DialogDecisionBar/extraction.actions', selector: '[data-nomi-prompt-extraction-settings-dialog]', text: uiText(dialogLocale, 'browserAssets.extraction.save'), min: { w: 600, h: 300 } },
   'ps-23-handbook-dialog': { assertion: 'board:DialogDecisionBar/handbook.shell', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
   'ps-24-shortcuts-dialog': { assertion: 'board:DialogDecisionBar/shortcuts.shell', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
@@ -136,6 +137,30 @@ await walkDesignLabScreen({
     }
     if (geometry.outside) {
       record(`${marker} 的浮层整个落在视口外——整屏截图里一片空白，和「没打开」在图上分不出来`)
+    }
+
+    // 弹窗的读屏名字（2026-11-22 外壳改用 Mantine 组合组件，名字归 Modal.Title）：走共用外壳的对话框
+    // （Mantine 的 Modal.Content：带 role="dialog" 的 .mantine-Modal-content）都要有名字（axe 的 aria-dialog-name），而且名字元素（aria-labelledby 指向的那个）
+    // 里只有名字那一句——不靠 aria-label 顶替、里面不含别的元素（图标、副标、封面、链接走标题栏插槽，摆在名字旁边）。
+    const shells = await page.locator('.mantine-Modal-content[role="dialog"]').filter({ visible: true }).evaluateAll((dialogs) => dialogs.map((dialog) => {
+      const ids = (dialog.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean)
+      return ids.map((id) => {
+        const target = document.getElementById(id)
+        return target ? { ariaLabel: target.getAttribute('aria-label'), elements: target.children.length, text: (target.textContent || '').trim() } : null
+      })
+    }))
+    for (const targets of shells) {
+      if (targets.length === 0) record(`${marker} 的弹窗没有 aria-labelledby——对话框没有名字`)
+      for (const target of targets) {
+        if (!target) record(`${marker} 的 aria-labelledby 指向一个不存在的元素`)
+        else if (target.ariaLabel !== null || target.elements > 0 || !target.text) {
+          record(`${marker} 的名字元素不只是一句名字（aria-label=${JSON.stringify(target.ariaLabel)}、子元素 ${target.elements} 个、文字「${target.text.slice(0, 40)}」）——图标、副标、封面走 header 插槽`)
+        }
+      }
+    }
+    if (shells.length > 0) {
+      const axe = await new AxeBuilder({ page }).withRules(['aria-dialog-name']).analyze()
+      for (const violation of axe.violations) record(`${marker} axe ${violation.id}：${violation.nodes.length} 个对话框没有名字`)
     }
   },
 })

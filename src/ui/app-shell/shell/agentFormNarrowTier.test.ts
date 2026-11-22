@@ -1,4 +1,4 @@
-// 窄窗档（WindowNarrow 板，用户 2026-11-07 拍板）：窗口宽 < 1060 时停靠的 Nomi 临时显示成小球、点开是浮窗，
+// 窄窗档（WindowNarrow 板，用户 2026-11-07 拍板）：窗口宽 < 1060 时停靠的 Nomi 临时收起（顶栏入口）、点开是浮窗，
 // 宽回来自动停回。约束 narrow.display-only：窄窗里点开 / 收起只改此刻那份（agentFormViewStore，不落盘）——
 // 拖窗跨阈值多少次，存下的东西一个字节不变。真组件入口 × 每种存法 × 每个手势的全表在 ShellAgentHost.formProbe.test.tsx。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -59,7 +59,7 @@ describe('窄窗档：只是派生，存档不动', () => {
     expect(before).toContain('"dock"')
     for (let round = 0; round < 3; round += 1) {
       setAgentWindowNarrow(true)
-      expect(shownForm('creation')).toBe('ball')
+      expect(shownForm('creation')).toBe('collapsed')
       expect(useAgentFormViewStore.getState().narrowMotion).toBe('collapse')
       setAgentWindowNarrow(false)
       expect(shownForm('creation')).toBe('dock')
@@ -78,7 +78,7 @@ describe('窄窗档：只是派生，存档不动', () => {
   it('启动时那次对齐不算跨阈值：不播过渡', () => {
     setAgentWindowNarrow(true, { animate: false })
     expect(useAgentFormViewStore.getState().narrowMotion).toBeNull()
-    expect(shownForm('creation')).toBe('ball')
+    expect(shownForm('creation')).toBe('collapsed')
   })
 
   it('窄窗里点开 / 收起停靠的页：只改这一刻怎么摆，不写存档；宽回来照样停回', () => {
@@ -87,7 +87,7 @@ describe('窄窗档：只是派生，存档不动', () => {
     openAgent('creation')
     expect(shownForm('creation')).toBe('float')
     collapseAgent('creation')
-    expect(shownForm('creation')).toBe('ball')
+    expect(shownForm('creation')).toBe('collapsed')
     openAgent('creation')
     expect(shownForm('creation')).toBe('float')
     expect(persisted()).toBe(before)
@@ -95,21 +95,21 @@ describe('窄窗档：只是派生，存档不动', () => {
     expect(shownForm('creation')).toBe('dock')
   })
 
-  it('跨阈值复位「点开」：再拉窄时停靠的页又是小球，不会自己弹成浮窗', () => {
+  it('跨阈值复位「点开」：再拉窄时停靠的页又是收起，不会自己弹成浮窗', () => {
     setAgentWindowNarrow(true)
     openAgent('creation')
     expect(shownForm('creation')).toBe('float')
     setAgentWindowNarrow(false)
     setAgentWindowNarrow(true)
-    expect(shownForm('creation')).toBe('ball')
+    expect(shownForm('creation')).toBe('collapsed')
   })
 
   it('窄窗里点开只管这一页：别的页还是自己存的样子（旧版整窗一份，点开一页别的页也弹出来）', () => {
     setAgentWindowNarrow(true)
     openAgent('creation')
     expect(shownForm('creation')).toBe('float')
-    expect(shownForm('generation')).toBe('ball')
-    expect(shownForm('storyboard')).toBe('ball')
+    expect(shownForm('generation')).toBe('collapsed')
+    expect(shownForm('storyboard')).toBe('collapsed')
   })
 
   it('不在窄窗档：收起 / 打开 / 选摆法都写人选的那份；收起再开回到上次选的摆法', () => {
@@ -126,6 +126,6 @@ describe('窄窗档：只是派生，存档不动', () => {
     openAgent('creation')
     const disk = JSON.parse(persisted() ?? '{}') as { state?: { bySurface?: Record<string, Record<string, unknown>> } }
     expect(Object.keys(disk.state ?? {})).toEqual(['bySurface'])
-    expect(Object.keys(disk.state?.bySurface?.creation ?? {}).sort()).toEqual(['ball', 'collapsed', 'float', 'placement'])
+    expect(Object.keys(disk.state?.bySurface?.creation ?? {}).sort()).toEqual(['collapsed', 'float', 'placement'])
   })
 })

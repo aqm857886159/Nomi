@@ -81,6 +81,8 @@ export async function approvedUnknownResultCardJourney(input) {
       for (const action of ['cancel', 'close', 'escape', 'backdrop']) {
         if (action === 'escape') await page.keyboard.press('Escape')
         else if (action === 'backdrop') await page.mouse.click(2, 2)
+        // 关闭键是外壳给的（Mantine 的 Modal.CloseButton），按角色 + 名字点；取消在卡里，仍认它自己的锚点。
+        else if (action === 'close') await dialog.getByRole('button', { name: t('common.close'), exact: true }).click()
         else await dialog.locator(`[data-spend-confirm-action="${action}"]`).click()
         await expect(dialog).not.toBeVisible(); assert.equal(proxy.records.length, posts); assert.equal(JSON.stringify((await nodes()).find(n => n.id === unknown.id)), before)
         if (action !== 'backdrop') { await resend.click(); await checkDialog('unknown') }

@@ -91,10 +91,13 @@ export function HandbookPanel({ opened, onClose }: Props): JSX.Element | null {
     <DesignModal opened={opened} onClose={onClose} centered size={680} zIndex={4000}
       closeOnEscape={false} trapFocus={false} returnFocus={false}
       closeButtonProps={{ 'aria-label': t('onboardingProviders.handbook.closeAria') }}
-      accessibleName={t('onboardingProviders.handbook.aria')}
-      title={<span className="flex items-center gap-2">
+      // 名字 = 看得见的手册标题（外壳放进 Modal.Title；读屏念的和眼睛看到的是同一句，WCAG 2.5.3）；
+      // 图标和字标走标题栏插槽摆在名字两边。插槽这一格占原来标题元素的位置（行距 1）。
+      title={content.title}
+      classNames={{ title: 'text-title font-bold text-nomi-ink' }}
+      header={(name) => <span className="flex items-center gap-2 leading-none">
         <IconMap size={18} stroke={1.6} className="text-nomi-accent" />
-        <b className="text-title font-bold text-nomi-ink">{content.title}</b>
+        {name}
         <NomiWordmark fontSize={13} className="text-nomi-ink-40" />
       </span>}
     >

@@ -1,7 +1,7 @@
 import type { LabState } from '../../labScreen'
 import {
-  AgentBallFace, L, LabCanvasBackdrop, LabCanvasNode, LabCanvasZoomed, LabCaption, LabCardRow, LabChatPanel, NodePointer, NodePointerGroup,
-  NodePointerReturnToChat, NodePointerStage, subjects, type Locale,
+  L, LabCanvasBackdrop, LabCanvasNode, LabCanvasZoomed, LabCaption, LabCardRow, LabChatPanel, NodePointer, NodePointerGroup,
+  NodePointerReturnToChat, NodePointerStage, NomiEntryPreview, subjects, type Locale,
 } from '../nodePointerLabKit'
 import { LabCanvasViewport } from '../../labCanvasViewport'
 
@@ -94,7 +94,7 @@ function LinkBoard({ locale, located = false }: { locale: Locale; located?: bool
   )
 }
 
-/** A4：窄窗口三步——对话盖住画布 / 点了以后对话收成小球、画布露出并闪一下、底部「回到对话」 / 回来后那一项「已定位」。 */
+/** A4：窄窗口三步——对话盖住画布 / 点了以后对话收进顶栏 Nomi 入口、画布露出并闪一下、底部「回到对话」 / 回来后那一项「已定位」。 */
 function NarrowBoard({ locale }: { locale: Locale }) {
   const s = subjects(locale)
   const frame = { width: 380, height: 520 }
@@ -108,12 +108,13 @@ function NarrowBoard({ locale }: { locale: Locale }) {
         </LabCanvasBackdrop>
       </div>
       <div>
-        <LabCaption>{L(locale, '② 点镜 02：对话收成小球，画布露出并闪一下目标', '② Click Shot 02: chat collapses, the target flashes')}</LabCaption>
+        <LabCaption>{L(locale, '② 点镜 02：对话收进顶栏入口，画布露出并闪一下目标', '② Click Shot 02: chat collapses, the target flashes')}</LabCaption>
         <LabCanvasBackdrop style={frame}>
           <div className="absolute left-[100px] top-[150px]"><LabCanvasNode nodeId="np-draft-2" width={180} flash /></div>
           <div className="absolute bottom-16 left-1/2 -translate-x-1/2"><NodePointerReturnToChat /></div>
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2"><NodePointerReturnToChat withLabel /></div>
-          <AgentBallFace status={null} pendingCount={0} label="Nomi" className="absolute bottom-4 right-4" />
+          {/* 收起的面板只从顶栏最右那颗入口叫回（NomiEntryTopbar 板）：取景框右上角代表顶栏那一格。 */}
+          <NomiEntryPreview status={null} face={null} pendingCount={0} unread={0} open={false} roomy className="absolute right-2 top-2" />
         </LabCanvasBackdrop>
       </div>
       <div>
@@ -260,7 +261,7 @@ export const NODE_POINTER_STATES: readonly LabState[] = [
   },
   {
     id: 'np-narrow',
-    name: 'A4 窄窗口：收成小球 → 画布闪一下 → 回到对话（P1 / P2 两种按钮）→ 已定位',
+    name: 'A4 窄窗口：收进顶栏入口 → 画布闪一下 → 回到对话（P1 / P2 两种按钮）→ 已定位',
     source: SOURCE,
     coverage: 'component-only',
     render: () => (

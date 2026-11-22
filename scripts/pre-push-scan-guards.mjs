@@ -84,7 +84,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/check-network-entry.test.mjs', roots: ELECTRON }, // #1142：Node 网络调用必须走共用传输；扫描器 scripts/check-network-entry.mjs 在闭包里（6 秒）
   { file: 'src/vendor/tablerIcons.test.ts', roots: ['src'] }, // 2026-10-18：源码用到的 tabler 图标必须在 src/vendor/tablerIcons.ts 登记（否则只有 build 会炸；遍历 src，<1 秒）
   { file: 'src/workbench/modalInputLayerCensus.test.ts', roots: ['src'] }, // 2026-10-31：模态宿主都登记输入层，全局键盘、粘贴、指针监听都有归属；新增的不进表就红（遍历 src 的语法树，2 秒）
-  { file: 'src/design/modalTitleAccessibleNameCensus.test.ts', roots: ['src'] }, // 2026-11-13：DesignModal 的 title 不是纯文字就必须传 accessibleName，存量冻结只减不增（遍历 src 的 .tsx 语法树，<1 秒）
+  { file: 'src/design/dialogAnchorFreeze.test.ts', roots: ['src'] }, // 2026-11-22：共用弹窗外壳上挂的 data-* 锚点冻结只减不增（新锚点红、名单里已没人挂的也红；遍历 src 的 .tsx 语法树，<1 秒）
   { file: 'src/ui/app-shell/windowChrome.test.ts', roots: ['src'] }, // 2026-10-28：src 里每个铺满整窗的 fixed inset-0 根都得分类（让开顶栏 / 盖住顶栏但控件在带外 / 独立文档），没分类就红；遍历 src 的 .tsx（<1 秒）
   { file: 'electron/shared/mcpClientRegistry.test.ts', roots: ['src', 'electron'] }, // #1142：不许手抄客户端清单（4 秒）
   { file: 'electron/shared/contracts/ipcInvokeFailure.test.ts', roots: ['electron', 'src'] }, // 2026-10-24：全仓代码里写下的错误类名都要过 isCodeClassName（遍历 electron + src，<1 秒）
@@ -120,9 +120,10 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/customEventWiring.test.ts', roots: SRC },
   { file: 'src/design/mediaOverlayInk.test.ts', roots: SRC },
   { file: 'src/design/menu.structure.test.ts', roots: SRC },
-  { file: 'src/design/loadingMark.structure.test.ts', roots: SRC }, // 加载标不换形象脸：遍历 src 找画 <NomiAgentFace 的文件，只许右下小球与聊天身份行（<1 秒）
+  { file: 'src/design/loadingMark.structure.test.ts', roots: SRC }, // 加载标不换形象脸：遍历 src 找画 <NomiAgentFace 的文件，只许顶栏 Nomi 入口与聊天身份行（<1 秒）
   { file: 'src/design/outsidePress.structure.test.ts', roots: SRC }, // 「点外面」只有一种听法：遍历 src 找 mousedown / touchstart / 冒泡 pointerdown 监听与 useClickOutside（<1 秒）
   { file: 'src/design/popoverTracking.structure.test.ts', roots: SRC }, // 浮层跟踪不许逐帧轮询：遍历 src 找 autoUpdate 与 animationFrame（<2 秒）
+  { file: 'src/ui/app-shell/shell/nomiEntryLook.test.ts', roots: SRC }, // 2026-11-22 没有球（NomiEntryTopbar I1）：遍历 src 生产代码，没人渲染 data-agent-ball（<1 秒）
   { file: 'src/ui/app-shell/shell/narrowOneThreshold.structure.test.ts', roots: SRC }, // 窄窗只有一个阈值：遍历 src 生产代码，按窗口宽的 matchMedia 只许外壳一条、1060 不许写死（<1 秒）
   { file: 'src/ui/app-shell/shell/agentFormShownVsStored.structure.test.ts', roots: SRC }, // Nomi 形态存法边界：遍历 src，两个 store 外不读持久化字段、动作只在名单里调、旧符号 0 处（<1 秒）
   { file: 'src/ui/browser/assetSurfaceInvariants.test.ts', roots: SRC }, // 7 秒

@@ -29,7 +29,7 @@ import { MobileConnectDialog } from '../../../../workbench/generationCanvas/node
 import { MobileCameraContext } from '../../../../workbench/generationCanvas/nodes/director/MobileCameraContext'
 import { SettingsDialog as DirectorSettingsDialog } from '../../../../workbench/generationCanvas/nodes/director/panels/dialogs/SettingsDialog'
 import { DEFAULT_DIRECTOR_PREFERENCES } from '../../../../workbench/generationCanvas/nodes/director/scene/viewSettings'
-import { SpendConfirmDialog } from '../../../../workbench/generationCanvas/spend/SpendConfirmDialog'
+import { SpendConfirmHost } from '../../../../workbench/generationCanvas/spend/SpendConfirmDialog'
 import { useSpendConfirmStore } from '../../../../workbench/generationCanvas/spend/spendConfirm'
 import { WorkflowLibraryContent } from '../../../../workbench/library/WorkflowLibraryContent'
 import { PromptPreviewOverlay } from '../../../../workbench/promptLibrary/PromptPreviewOverlay'
@@ -98,7 +98,8 @@ function HostStage({ kind }: { kind: string }): JSX.Element {
   }, [kind, t])
   if (kind === 'confirm') return <ConfirmDialogHost />
   if (kind === 'feedback') return <FeedbackShareHost />
-  return <SpendConfirmDialog />
+  // 挂常驻宿主（和工作台根一样）：有待确认时出卡；走查用的 E2E 桥也挂在它上面。
+  return <SpendConfirmHost />
 }
 function WorkflowEditStage(): JSX.Element {
   const { t } = useTranslation()
@@ -272,7 +273,7 @@ export const DIALOG_STATES: readonly LabState[] = [
     id: 'ps-29-custom-dialog',
     name: 'custom · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/ui/onboarding/CustomCallEditor.tsx:788'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/onboarding/CustomCallEditor.tsx:784'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="custom" />,
   },
   {
@@ -328,7 +329,7 @@ export const DIALOG_STATES: readonly LabState[] = [
     id: 'ps-37-spend-dialog',
     name: 'spend · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx:124'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx:113'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="spend" />,
   },
   {

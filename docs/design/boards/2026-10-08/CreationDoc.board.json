@@ -536,7 +536,7 @@
         "zh-en",
         "dark"
       ],
-      "note": "产品代码里找不到字样「Agent形态」，初判缺；待真 App 核"
+      "note": "产品代码里找不到字样「Agent形态」，初判缺；待真 App 核 2026-11-22 起形态切换第一项是「收起」（入口在顶栏，NomiEntryTopbar 板 panel.form-switch），不再是「缩成小球」。"
     },
     {
       "id": "agent.dock.intro",

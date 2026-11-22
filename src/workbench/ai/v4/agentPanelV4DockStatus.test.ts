@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dockStatusLabel, resolveDockStatus, type V4DockLabels } from './agentPanelV4DockStatus'
+import { dockStatusLabel, resolveDockStatus, resolveDockStatuses, type V4DockLabels } from './agentPanelV4DockStatus'
 
 const facts = (over: Partial<Parameters<typeof resolveDockStatus>[0]> = {}) => ({
   running: false,
@@ -37,6 +37,28 @@ describe('⑦ 收起坞 · logo 上叠的那一格', () => {
 
   it('还在跑的时候不提前报完成', () => {
     expect(resolveDockStatus(facts({ running: true, justFinished: true }))).toBe('running')
+  })
+})
+
+describe('顶栏入口 · 合并状态和脸的状态一次求出（NomiEntryTopbar 板 B5 / B6）', () => {
+  it('在做 + 待确认 2：合并状态是等你确认，脸照样在做（弧在转，待确认交给角标 / 胶囊）', () => {
+    expect(resolveDockStatuses(facts({ running: true, pendingCount: 2 }))).toEqual({ status: 'needs-confirm', faceStatus: 'running' })
+  })
+
+  it('只有待确认：合并状态照优先级是等你确认，脸不看待确认、是空闲', () => {
+    expect(resolveDockStatuses(facts({ pendingCount: 1 }))).toEqual({ status: 'needs-confirm', faceStatus: 'idle' })
+  })
+
+  it('没成 + 待确认 1：合并状态等你确认，脸是没成（红点由入口长相按待确认另判）', () => {
+    expect(resolveDockStatuses(facts({ failed: true, pendingCount: 1 }))).toEqual({ status: 'needs-confirm', faceStatus: 'failed' })
+  })
+
+  it('没有待确认时两份一样：脸和合并状态不分家', () => {
+    for (const over of [{}, { running: true }, { failed: true }, { justFinished: true }, { failed: true, running: true }]) {
+      const both = resolveDockStatuses(facts(over))
+      expect(both.faceStatus).toBe(both.status)
+      expect(both.status).toBe(resolveDockStatus(facts(over)))
+    }
   })
 })
 

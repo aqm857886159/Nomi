@@ -31,7 +31,7 @@ import {
 import { CustomCallScopeSelector } from './CustomCallScopeSelector'
 import { customCallPersistedStateSignature } from './customCallEditorDirty'
 import { CustomCallContractSidebar } from './CustomCallContractSidebar'
-import { CustomCallTitle } from './CustomCallTitle'
+import { CUSTOM_CALL_NAME_CLASS, CustomCallTitle } from './CustomCallTitle'
 import { ModelSettingsPageSurface } from './ModelSettingsPageSurface'
 import { useCustomCallTestRun } from './useCustomCallTestRun'
 
@@ -786,9 +786,9 @@ export function CustomCallEditor({
       onClose={() => { void requestClose() }}
       centered
       size={640}
-      title={title}
-      accessibleName={[t('onboardingProviders.customCall.title'), target?.label].filter(Boolean).join(' ')}
-      classNames={{ content: 'workbench-shell' }}
+      title={t('onboardingProviders.customCall.title')}
+      header={(name) => <CustomCallTitle label={target?.label} name={name} />}
+      classNames={{ content: 'workbench-shell', title: CUSTOM_CALL_NAME_CLASS }}
       closeButtonProps={{ 'aria-label': t('onboardingProviders.customCall.closeAria') }}
     >
       {content}
