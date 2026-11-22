@@ -947,3 +947,56 @@ test("detected_by / recurrence_check_on: 新合同属 recurring、高风险或�
   const old = run({ ...completeContract, __file: "docs/fixes/2026-09-20-fixture-media-boundary.root-cause.json" });
   assert.doesNotMatch(old, /detected_by|recurrence_check_on/);
 });
+
+test("recurrence_of: 可选且支持 null / slug / 文件名 / 字符串数组；非法格式、自指、重复或目标不存在均阻断（fail-closed）", () => {
+  const prevA = "docs/fixes/2026-10-02-paid-submit-no-blind-resend.root-cause.json";
+  const prevB = "docs/fixes/2026-10-05-try-model-submit-budget.root-cause.json";
+  const selfFile = "docs/fixes/2026-11-22-fixture-recurrence-of.root-cause.json";
+  const base = {
+    ...completeContract,
+    __file: selfFile,
+    id: "2026-11-22-fixture-recurrence-of",
+    detected_by: "ci",
+    recurrence_check_on: "2026-12-22",
+  };
+  const changedFiles = [selfFile, ...base.regression_tests, ...base.scope_paths];
+  const existingFiles = new Set([...changedFiles, prevA, prevB]);
+  const run = (recurrenceOf) => {
+    const contract = recurrenceOf === undefined ? { ...base } : { ...base, recurrence_of: recurrenceOf };
+    return validateRootCauseChange({ changedFiles, contracts: [contract], existingFiles }).errors;
+  };
+  const recErrors = (recurrenceOf) => run(recurrenceOf).filter((err) => /recurrence_of/.test(err));
+
+  // 合法：缺省、null、单 slug、带 .root-cause.json、数组混合形式
+  assert.deepEqual(recErrors(undefined), []);
+  assert.deepEqual(recErrors(null), []);
+  assert.deepEqual(recErrors("2026-10-02-paid-submit-no-blind-resend"), []);
+  assert.deepEqual(recErrors("2026-10-02-paid-submit-no-blind-resend.root-cause.json"), []);
+  assert.deepEqual(recErrors(["2026-10-02-paid-submit-no-blind-resend", "2026-10-05-try-model-submit-budget.root-cause.json"]), []);
+
+  // 非法类型 / 空值
+  assert.match(recErrors("").join(" | "), /recurrence_of/);
+  assert.match(recErrors([]).join(" | "), /recurrence_of/);
+  assert.match(recErrors(123).join(" | "), /recurrence_of/);
+  assert.match(recErrors([""]).join(" | "), /recurrence_of/);
+
+  // 非法路径格式（含斜杠或穿越）
+  assert.match(recErrors("docs/fixes/2026-10-02-paid-submit-no-blind-resend.root-cause.json").join(" | "), /invalid contract reference/);
+  assert.match(recErrors("../2026-10-02-paid-submit-no-blind-resend").join(" | "), /invalid contract reference/);
+
+  // 重复指认（slug 与带后缀规范化后同指一份）
+  assert.match(
+    recErrors(["2026-10-02-paid-submit-no-blind-resend", "2026-10-02-paid-submit-no-blind-resend.root-cause.json"]).join(" | "),
+    /duplicate recurrence_of/,
+  );
+
+  // 自指（slug 或带后缀）
+  assert.match(recErrors("2026-11-22-fixture-recurrence-of").join(" | "), /cannot reference itself/);
+  assert.match(recErrors("2026-11-22-fixture-recurrence-of.root-cause.json").join(" | "), /cannot reference itself/);
+
+  // 拼写错误 / 目标不存在 -> fail-closed
+  const missing = recErrors("2026-10-02-nonexistent-typo");
+  assert.match(missing.join(" | "), /does not exist in docs\/fixes\//);
+  assert.equal(classifyFindings(missing).blocking.length, missing.length);
+  assert.equal(classifyFindings(missing).warnings.length, 0);
+});
