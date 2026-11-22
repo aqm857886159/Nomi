@@ -29,8 +29,8 @@ try {
   for (const row of walk.report.calls ?? []) console.log(`  ${row.entry} · ${row.protocol} · 首个可见反馈 ${row.firstFeedbackMs ?? '—'}ms · ${row.result} · ${row.errorKind ?? '—'}`)
 } catch (error) {
   failure = error
+  process.exitCode = 1
   console.error('text-tasks-pi-ai-real 走查失败:', error instanceof Error ? error.message : String(error))
 } finally {
   await paid.finish(failure)
-  if (failure) process.exit(1)
 }
