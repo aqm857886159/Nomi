@@ -20,6 +20,14 @@
       "symbol": "referenceKeyCapacityDeclarationFor"
     },
     {
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "referenceFrameKindFor"
+    },
+    {
+      "path": "electron/catalog/taskParamsReferences.ts",
+      "symbol": "hasImageEditReferences"
+    },
+    {
       "path": "electron/catalog/referenceReachability.ts",
       "symbol": "bodyReferenceSupport"
     },
@@ -75,6 +83,7 @@
     "electron/catalog/referenceReachability.ts",
     "electron/catalog/modelCatalogListing.ts",
     "electron/catalog/taskParams.ts",
+    "electron/catalog/taskParamsReferences.ts",
     "scripts/reference-key-census.ts",
     "electron/catalog/referenceKeyProjectionCensus.test.ts",
     "electron/shared/generationLowering/headlessReferences.ts",

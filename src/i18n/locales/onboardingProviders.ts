@@ -1206,8 +1206,8 @@ export const zhOnboardingProviders = {
       baseUrl: '接入地址（原样）',
       apiKey: '密钥（用 request 裸请求时自己带鉴权头）',
       config: '你在「自定义配置」里填的键值（第二个密钥 / 区域 / 版本号…用 config.名字 取）',
-      http: '便捷请求：自动带 Bearer 鉴权与地址前缀，JSON 进出',
-      request: '裸请求：零默认头，端点 / 鉴权全自定',
+      http: '便捷请求：自动带 Bearer 鉴权与地址前缀，按响应类型返回 JSON、文本或二进制 Uint8Array',
+      request: '裸请求：零默认头，端点 / 鉴权全自定，按响应类型返回 JSON、文本或二进制 Uint8Array',
       poll: '轮询直到取到结果',
       saveFile: '把二进制存成项目资产并拿回 URL（上游只给字节流、不给链接时用它；别给视频拼超大 data URL）',
       sleep: '延时',
@@ -2489,8 +2489,8 @@ export const enOnboardingProviders = {
       apiKey: 'API key (add your own auth header when using `request`)',
       config:
         'key/value pairs you entered under "custom config" (second secret / region / api version — read as config.name)',
-      http: 'convenience client: Bearer auth + base URL prefix, JSON in/out',
-      request: 'raw request: no default headers, full control of endpoint / auth',
+      http: 'convenience client: Bearer auth + base URL prefix, returns JSON, text, or Uint8Array by response type',
+      request: 'raw request: no default headers, full control of endpoint / auth, returns JSON, text, or Uint8Array by response type',
       poll: 'poll until a result is extracted',
       saveFile:
         'write raw bytes into the project and get a URL back (use when the upstream returns a binary body; do not build a huge data URL for video)',

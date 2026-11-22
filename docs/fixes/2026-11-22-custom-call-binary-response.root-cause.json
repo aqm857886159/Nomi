@@ -1,0 +1,480 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-22-custom-call-binary-response",
+  "problem_type": "customCall HTTP transport decoded every upstream response as UTF-8/JSON and serialized sandbox host values solely through JSON strings, corrupting binary media responses and breaking saveFile(bytes)",
+  "symptom": "When an upstream endpoint returned raw binary bytes (e.g. video/mp4, audio/mpeg, or application/octet-stream containing non-UTF-8 sequences), http.get / http.post / request handed the QuickJS script a UTF-8 replacement-corrupted string, causing saveFile(bytes, 'mp4') to throw 'TypeError: saveFile bytes 必须是 ArrayBuffer、Uint8Array 或数字数组' or write corrupted bytes.",
+  "direct_cause": "customCallRunner.doRequest unconditionally called requestJson / requestMultipart (responseKind='json' -> bytes.toString('utf8')), and customCallSandbox passed all host-to-guest values via JSON.stringify / context.newString and guest-to-host saveFile payloads via JSON number arrays.",
+  "class_root": "Assuming every HTTP response in a general-purpose user script boundary is UTF-8 JSON instead of honoring RFC 9110 Content-Type framing at the transport decoder and transferring binary buffers natively across the QuickJS FFI boundary.",
+  "affected_population": [
+    "All custom-call scripts calling http.get, http.post, or request against synchronous binary endpoints (video download streams, TTS audio streams, multipart image/video endpoints) and saving output via saveFile(bytes, ext, contentType)"
+  ],
+  "scope_paths": [
+    "electron/catalog/customCallRunner.ts",
+    "electron/catalog/customCallSandbox.ts",
+    "electron/vendor/vendorHttp.ts",
+    "electron/catalog/customCallContract.ts",
+    "src/i18n/locales/onboardingProviders.ts"
+  ],
+  "entry_points": [
+    "electron/catalog/customCallRunner.ts::runCustomCallScript",
+    "electron/catalog/customCallRunner.ts::decodeCustomCallHttpResponse",
+    "electron/catalog/customCallSandbox.ts::runCustomCallSandbox",
+    "electron/vendor/vendorHttp.ts::requestBinary"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110#section-8.3",
+      "checked_at": "2026-11-22",
+      "purpose": "Defines media-type framing for distinguishing structured JSON/textual representations from binary representations."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/Response/arrayBuffer",
+      "checked_at": "2026-11-22",
+      "purpose": "Binary HTTP bodies must be consumed as raw byte buffers (ArrayBuffer / Uint8Array) rather than UTF-8 text."
+    }
+  ],
+  "invariants": [
+    "customCall HTTP requests route through requestBinary (supporting JSON, string, and FormData bodies) so non-JSON, non-text responses are never passed through bytes.toString('utf8') while HTTP errors and HTTP 200 JSON logical-error envelopes still throw VendorRequestError.",
+    "decodeCustomCallHttpResponse is the single decoder translating BinaryVendorResponse into parsed JSON (for application/json and +json), UTF-8 text / JSON (for textual media types), or raw Buffer (for binary media types and non-UTF-8 unlabeled payloads).",
+    "Binary buffers cross Host <-> QuickJS via native context.newArrayBuffer and context.getArrayBuffer so guest scripts receive genuine Uint8Array instances and saveFile transfers raw bytes without JSON array memory blowup."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/customCallRunner.ts",
+    "tests": [
+      "electron/catalog/customCallTextAndFile.test.ts",
+      "electron/tasks/syncBytesResultLandsInProject.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/ai/agentError.ts",
+      "symbol": "VendorRequestError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "VendorRequestError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "VendorRequestError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "VendorRequestError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallContract.ts",
+      "symbol": "CustomCallVariableDoc"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallContract.ts",
+      "symbol": "CUSTOM_CALL_VARIABLES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallContract.ts",
+      "symbol": "CustomCallTemplate"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallContract.ts",
+      "symbol": "CUSTOM_CALL_RETURN_CONTRACT"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "CustomCallScriptError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "CustomCallScriptError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "CUSTOM_CALL_VARIABLES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "CUSTOM_CALL_RETURN_CONTRACT"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "CUSTOM_CALL_TEMPLATES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "CustomCallTranscriptEntry"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "BinaryVendorResponse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "CustomCallScriptResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "collectCustomCallText"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "collectCustomCallAssets"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "CustomCallSandboxError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "VendorRequestError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "CustomCallScriptError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallSandbox.ts",
+      "symbol": "CustomCallSandboxError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallSandbox.ts",
+      "symbol": "CustomCallSandboxInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallTestRuns.ts",
+      "symbol": "CustomCallTranscriptEntry"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/imageRouteFallback.ts",
+      "symbol": "VendorRequestError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/profileHttpRequest.ts",
+      "symbol": "requestJson"
+    },
+    {
+      "kind": "read",
+      "path": "electron/events/vendorCallTrace.ts",
+      "symbol": "VendorErrorStructured"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/verifier.ts",
+      "symbol": "VendorErrorCategory"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/generationFailureWire.ts",
+      "symbol": "VENDOR_ERROR_IPC_MARKER"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/vendorFailure.ts",
+      "symbol": "VendorErrorCategory"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/vendorFailure.ts",
+      "symbol": "VendorErrorStructured"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/vendorFailure.ts",
+      "symbol": "VendorRequestError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/vendorFailure.ts",
+      "symbol": "VENDOR_ERROR_IPC_MARKER"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/retrievalStageError.ts",
+      "symbol": "VendorRequestError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskIpcGuard.ts",
+      "symbol": "VendorRequestError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "MEDIA_VENDOR_RESPONSE_MAX_BYTES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "DEFAULT_VENDOR_RESPONSE_MAX_BYTES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "BinaryVendorResponse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "VendorRequestError"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/modelCatalogBridgeTypes.ts",
+      "symbol": "CustomCallTranscriptEntry"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/onboardingProviders.ts",
+      "symbol": "zhOnboardingProviders"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "zhOnboardingProviders"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "enOnboardingProviders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/agentError.ts",
+      "symbol": "encodeVendorErrorMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "categorizeVendorFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localAssetFile.ts",
+      "symbol": "categorizeVendorFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audio/synchronousAudioResponse.ts",
+      "symbol": "requestBinary"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "requestBinary"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "requestMultipart"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "requestMediaFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "runCustomCallScript"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "runCustomCallScript"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "buildCustomCallAiInstruction"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "decodeCustomCallHttpResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "requestBinary"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "vendorResponseLimitForKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "referencesViewFromParams"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "runCustomCallSandbox"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/profileHttpRequest.ts",
+      "symbol": "requestJson"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "requestMultipart"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "vendorResponseLimitForKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/vendorFailure.ts",
+      "symbol": "encodeStructuredErrorMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcGuard.ts",
+      "symbol": "encodeVendorErrorMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcGuard.ts",
+      "symbol": "encodeStructuredErrorMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "vendorAuthQueryParams"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "vendorHttpTimeoutMs"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "categorizeVendorFailure"
+    }
+  ],
+  "door_reduction": {
+    "before": 67,
+    "after": 67,
+    "why_not": "customCallDispatch and customCallIpc already converge on runCustomCallScript, which now uses a single requestBinary transport call instead of branching between requestMultipart and requestJson."
+  },
+  "generality_proof": "Routing every customCall HTTP call (GET, JSON POST, raw body, and FormData multipart) through requestBinary -> decodeCustomCallHttpResponse -> QuickJS ArrayBuffer FFI preserves exact byte identity for any binary media type (video/*, audio/*, image/*, application/octet-stream) while keeping JSON and text scripts 100% compatible.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "decodeCustomCallHttpResponse",
+      "responsibility": "Single owner decoding customCall HTTP responses by Content-Type into parsed JSON, UTF-8 text, or raw binary bytes."
+    },
+    {
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "runCustomCallScript",
+      "responsibility": "Single script execution entry wiring vendorHttp.requestBinary, transcript redaction/preview, and saveFile."
+    },
+    {
+      "path": "electron/catalog/customCallSandbox.ts",
+      "symbol": "runCustomCallSandbox",
+      "responsibility": "Single QuickJS realm bridge marshaling binary payloads via native ArrayBuffer handles in both directions."
+    },
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "requestBinary",
+      "responsibility": "Shared byte-preserving vendor HTTP executor supporting JSON, string, and FormData bodies with unified auth, timeout, and logical-error envelope checks."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/customCallDispatch.ts",
+      "entry_point": "runCustomCallTask",
+      "disposition": "enforced",
+      "evidence": "Production runTask custom-call execution delegates to runCustomCallScript."
+    },
+    {
+      "path": "electron/catalog/customCallIpc.ts",
+      "entry_point": "registerCustomCallIpc (custom-call:test-run)",
+      "disposition": "enforced",
+      "evidence": "Onboarding trial run IPC delegates to runCustomCallScript."
+    }
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-22",
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Prior tests constructed Uint8Array inside the script or wrapped byte arrays in application/json ({ bytes: [...] }), masking the transport and FFI UTF-8/JSON bottlenecks across all binary customCall endpoints.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs electron/catalog/customCallRunner.ts electron/catalog/customCallSandbox.ts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/customCallSandbox.ts",
+    "invariant": "Binary HTTP responses arrive in QuickJS as Uint8Array backed by native ArrayBuffer and saveFile validates ArrayBuffer / ArrayBufferView / byte array inputs before passing raw bytes to writeGeneratedAsset.",
+    "failure_mode": "Invalid saveFile inputs throw TypeError inside the sandbox; corrupted or non-matching media bytes fail writeGeneratedAsset magic-byte validation (NOMI_ERR::output-unreadable).",
+    "exception_policy": "none",
+    "strategy": "Decode HTTP responses once in decodeCustomCallHttpResponse by Content-Type, marshal binary buffers natively via QuickJS newArrayBuffer/getArrayBuffer, and test real non-UTF-8 binary HTTP responses end-to-end.",
+    "artifacts": [
+      "electron/catalog/customCallRunner.ts",
+      "electron/catalog/customCallSandbox.ts",
+      "electron/vendor/vendorHttp.ts",
+      "electron/catalog/customCallTextAndFile.test.ts",
+      "electron/tasks/syncBytesResultLandsInProject.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/customCallTextAndFile.test.ts",
+    "electron/tasks/syncBytesResultLandsInProject.test.ts",
+    "electron/catalog/customCallFalQueueFixture.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/customCallTextAndFile.test.ts",
+    "electron/tasks/syncBytesResultLandsInProject.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/customCallRunner.ts",
+      "electron/catalog/customCallSandbox.ts"
+    ],
+    "rationale": "Removed the JSON-only requestMultipart/requestJson branch in customCallRunner.doRequest and the JSON number-array saveFile bridge in customCallSandbox in the same commit."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Uses quickjs-emscripten@0.32.0 native newArrayBuffer and getArrayBuffer APIs already installed in the repository; no dependency version or lifecycle change.",
+    "exit_criteria": []
+  },
+  "migration": "Existing JSON customCall scripts (including { bytes: [...] } JSON envelopes) and text scripts continue to receive parsed JSON or strings; binary Content-Type responses now return Uint8Array directly matching customCallContract.ts.",
+  "residual_risks": [
+    "QuickJS sandbox memory limit remains 64 MiB, bounding single in-sandbox binary buffers to under ~50 MiB."
+  ]
+}
