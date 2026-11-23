@@ -7,12 +7,16 @@
 //   ① 选模型（buildNodeModelChangePatch）——换模型本来就重铺全部默认值；
 //   ② 新卡自动选模型（useNodeModelAutoSelect）——用户手建的卡第一次拿到模型；
 //   ③ 连线（store/canvasConnectDerivations，单连 / 组连线 / Agent 计划连线 / 3D 站位连线共用）——
-//      只改**没被明确选过**比例的视频节点（用户 2026-10-22 Q2 拍板）；断线、删上游不回头改。
+//      只改**没被明确选过**比例的视频节点（用户 2026-10-22 Q2 拍板）；断线、删上游不回头改；
+//   ④ 切方式（NodeParameterControls.handleModeSwitch）——未明确选过比例时按目标方式重算（视频编辑默认跟随原视频 auto，
+//      参考 / 文生维持 07-17 的 16:9 / 9:16 规则）。
 // 「明确选过」只有一个标记 `aspect_ratio_user_set`：用户在比例控件上选、或落地时 Agent / 分镜写了合法比例。
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
+import type { ModelOption } from '../../../config/models'
 import { collectInputAspectRatios, preferredVideoAspect } from './aspectRatio'
-import { videoAspectDefaultPatch, type DynamicModelControl } from './controls/parameterControlModel'
-import { ASPECT_RATIO_META_KEYS, normalizeAspectRatioToWH, sameAspectRatio } from '../../../../electron/shared/aspectRatioValue'
+import { isAspectRatioControl, videoAspectDefaultPatch, type DynamicModelControl } from './controls/parameterControlModel'
+import { resolveRenderedControls, resolveRenderedMode } from './nodeModelArchetype'
+import { ASPECT_RATIO_META_KEYS, isAutoOptionValue, normalizeAspectRatioToWH, sameAspectRatio } from '../../../../electron/shared/aspectRatioValue'
 import { ASPECT_EXPLICIT_META_KEY } from './aspectExplicit'
 
 export type VideoAspectSeedInput = {
@@ -24,8 +28,10 @@ export type VideoAspectSeedInput = {
   controls: readonly DynamicModelControl[]
   /** 节点当前 meta（换模型时是换之前的；用来判「明确选过」与「已经是首选」）。 */
   meta: Record<string, unknown>
+  /** 当前或即将生效的档案方式（视频编辑 intent=edit 且控件默认 auto 时不套用 16:9/9:16 覆盖）。 */
+  mode?: { intent?: string } | null
   /**
-   * 明确选过的比例要不要让：连线让（Q2），选模型 / 新卡不让（换模型本来就重铺全部默认值，新卡没有可让的）。
+   * 明确选过的比例要不要让：连线 / 切方式让（Q2），选模型 / 新卡不让（换模型本来就重铺全部默认值，新卡没有可让的）。
    */
   respectExplicit: boolean
 }
@@ -42,10 +48,72 @@ function hasCurrentAspect(meta: Record<string, unknown>, preferred: '16:9' | '9:
   return false
 }
 
+/**
+ * 视频编辑方式（intent=edit）且比例控件声明默认自动（auto / adaptive = 跟随原视频）：
+ * 让位给档案自己的默认，清掉机器此前铺的 16:9 / 9:16（不写成字面 'auto'，删掉输入退回文生时也不会残留非法 'auto'）。
+ */
+function editModeAutoAspectClearPatch(input: VideoAspectSeedInput): Record<string, unknown> | null {
+  if (input.mode?.intent !== 'edit') return null
+  for (const control of input.controls) {
+    if (!isAspectRatioControl(control)) continue
+    if (control.defaultValue === undefined || !isAutoOptionValue(String(control.defaultValue))) return null
+    const keys = control.key === 'aspect_ratio' ? [control.key] : [control.key, 'aspect_ratio']
+    const alreadyUnsetOrAuto = keys.every((key) => {
+      const value = input.meta[key]
+      return value === undefined || isAutoOptionValue(String(value))
+    })
+    if (input.respectExplicit && alreadyUnsetOrAuto) return {}
+    const patch: Record<string, unknown> = {}
+    for (const key of keys) patch[key] = undefined
+    return patch
+  }
+  return null
+}
+
+/** 把 videoAspectSeedPatch 合并进 meta；值为 undefined 的键显式删除，避免留空属性。 */
+export function applyVideoAspectSeed(meta: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
+  const entries = Object.entries(patch)
+  if (entries.length === 0) return meta
+  const next: Record<string, unknown> = { ...meta }
+  for (const [key, value] of entries) {
+    if (value === undefined) delete next[key]
+    else next[key] = value
+  }
+  return next
+}
+
 /** 铺视频比例默认值的那一笔 meta patch；不该改（明确选过 / 已经是首选 / 模型没有对应档）→ 空对象。 */
 export function videoAspectSeedPatch(input: VideoAspectSeedInput): Record<string, unknown> {
   if (input.respectExplicit && input.meta[ASPECT_EXPLICIT_META_KEY] === true) return {}
+  const editClear = editModeAutoAspectClearPatch(input)
+  if (editClear !== null) return editClear
   const preferred = preferredVideoAspect(collectInputAspectRatios(input.nodeId, input.edges, input.nodes))
   if (input.respectExplicit && hasCurrentAspect(input.meta, preferred)) return {}
   return videoAspectDefaultPatch(input.controls, preferred)
+}
+
+/** 切视频生成方式后按新方式重铺未明确选过的比例默认（编辑方式让位给 auto，参考/文生维持 16:9/9:16）。 */
+export function seedVideoAspectForModeSwitch(input: {
+  node: GenerationCanvasNode
+  nextMeta: Record<string, unknown>
+  nodes: readonly GenerationCanvasNode[]
+  edges: readonly GenerationCanvasEdge[]
+  option: ModelOption | null
+  isImageLike: boolean
+}): Record<string, unknown> {
+  const nextNode = { ...input.node, meta: input.nextMeta }
+  const nextNodes = input.nodes.map((item) => (item.id === input.node.id ? nextNode : item))
+  const nextGraph = { nodes: nextNodes, edges: input.edges }
+  const mode = resolveRenderedMode(input.option, input.nextMeta, true, { node: nextNode, graph: nextGraph })
+  const controls = resolveRenderedControls(input.option, input.nextMeta, input.isImageLike, true, { node: nextNode, graph: nextGraph })
+  const patch = videoAspectSeedPatch({
+    nodeId: input.node.id,
+    nodes: nextNodes,
+    edges: input.edges,
+    controls,
+    meta: input.nextMeta,
+    mode,
+    respectExplicit: true,
+  })
+  return applyVideoAspectSeed(input.nextMeta, patch)
 }

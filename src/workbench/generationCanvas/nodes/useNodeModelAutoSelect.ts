@@ -12,7 +12,7 @@ import {
 } from '../../../../electron/shared/modelArchetypes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { projectParameterReferenceSlots } from '../model/parameterReferenceSlots'
-import { buildModelControls, defaultPatchForControls, readMeta } from './controls/parameterControlModel'
+import { buildModelControls, defaultPatchForControls, isAspectRatioControl, readMeta } from './controls/parameterControlModel'
 import {
   carryHumanModePreference,
   ensureArchetypeNodeMeta,
@@ -24,7 +24,7 @@ import { whenCanvasWriteBoundarySettled } from '../events/canvasWriteBoundary'
 import { selectedModelKey } from '../runner/catalogTaskResolve'
 import { useToastStore } from '../../../ui/toast'
 import { classifyGenerationError } from '../../observability/classifyError'
-import { chooseDefaultModelOption, resolveArchetypeForOption } from './nodeModelArchetype'
+import { chooseDefaultModelOption, resolveArchetypeForOption, resolveRenderedControls, resolveRenderedMode } from './nodeModelArchetype'
 import {
   generationModelDefaultsLoaded,
   getGenerationModelDefaults,
@@ -37,7 +37,7 @@ import {
   resolveDefaultModelOption,
 } from './defaultNodeModelSelection'
 import { readCandidateNodeIdentity } from '../agent/candidateNodeMeta'
-import { videoAspectSeedPatch } from './videoAspectSeed'
+import { applyVideoAspectSeed, videoAspectSeedPatch } from './videoAspectSeed'
 import {
   candidateNoticeStillHolds,
   disconnectionNoticeStillHolds,
@@ -179,11 +179,9 @@ export function useNodeModelAutoSelect({
     // 视频比例的产品默认（首选 16:9、已连输入全竖 9:16）与模型默认值同一笔写进去——只问唯一出处。
     // 以前它要等生成框挂载 effect 再「纠正」一次：多一笔写，而且那个 effect 连 Agent 写的比例也改。
     const canvas = useGenerationCanvasStore.getState()
-    const aspectPatch = isVideoLike
-      ? videoAspectSeedPatch({ nodeId: node.id, nodes: canvas.nodes, edges: canvas.edges, controls: firstControls, meta: latestMeta, respectExplicit: false })
-      : {}
+    const firstArchetype = resolveArchetypeForOption(firstOption, { variantId: undefined, modelId: firstOption.modelKey })
     const modelMeta = replaceCustomCapabilityContractMeta(latestMeta, firstOption.meta)
-    const defaultMeta = projectParameterReferenceSlots({
+    let defaultMeta = projectParameterReferenceSlots({
       ...modelMeta,
       modelKey: firstOption.modelKey || firstOption.value,
       modelAlias: firstOption.modelAlias || firstOption.value,
@@ -191,15 +189,33 @@ export function useNodeModelAutoSelect({
       vendor: firstOption.vendor || null,
       modelLabel: firstOption.label,
       ...defaultPatch,
-      ...aspectPatch,
       ...(isVideoLike
         ? { videoModel: firstOption.value, videoModelVendor: firstOption.vendor || null }
         : { imageModel: firstOption.value, imageModelVendor: firstOption.vendor || null }),
     }, firstOption.meta)
-    const firstArchetype = resolveArchetypeForOption(firstOption, { variantId: undefined, modelId: firstOption.modelKey })
-    writeDerivedMeta(node.id, {
-      meta: (firstArchetype && initializedArchetypeMeta(defaultMeta, firstArchetype)) || defaultMeta,
-    })
+    if (firstArchetype) {
+      defaultMeta = initializedArchetypeMeta(defaultMeta, firstArchetype) || defaultMeta
+    }
+    if (isVideoLike) {
+      const nextNode = { ...latestNode, meta: defaultMeta }
+      const nextGraph = { nodes: canvas.nodes.map((item) => (item.id === node.id ? nextNode : item)), edges: canvas.edges }
+      const firstMode = firstArchetype ? resolveRenderedMode(firstOption, defaultMeta, true, { node: nextNode, graph: nextGraph }) : null
+      const modeControls = firstArchetype
+        ? resolveRenderedControls(firstOption, defaultMeta, isImageLike, true, { node: nextNode, graph: nextGraph })
+        : []
+      const aspectControls = modeControls.some(isAspectRatioControl) ? modeControls : firstControls
+      const aspectPatch = videoAspectSeedPatch({
+        nodeId: node.id,
+        nodes: nextGraph.nodes,
+        edges: canvas.edges,
+        controls: aspectControls,
+        meta: latestMeta,
+        mode: firstMode,
+        respectExplicit: false,
+      })
+      defaultMeta = applyVideoAspectSeed(defaultMeta, aspectPatch)
+    }
+    writeDerivedMeta(node.id, { meta: defaultMeta })
   }, [defaultsReady, getLatestNode, isGenerationNode, isImageLike, isVideoLike, modelOptions, node.id, selectedModelValue, t, writeDerivedMeta])
 
   React.useEffect(() => {

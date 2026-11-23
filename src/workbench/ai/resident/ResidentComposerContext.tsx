@@ -13,6 +13,7 @@ import type { ResidentSurface } from './residentShellDisplay'
 import type { V4ComposerReference } from '../v4/agentPanelV4Types'
 import type { SkillListItemDto } from '../../api/skillApi'
 import { skillForKey } from '../../skillLibrary/skillDisplay'
+import { promptDisplayTitle } from '../../promptLibrary/promptDisplay'
 import { useResidentTimelineReferences } from './timelineAgentSurface'
 import { laneClient } from '../lane/laneClient'
 
@@ -82,10 +83,12 @@ export function useResidentComposerContext(surface: ResidentSurface, skills: rea
   }))
   if (activeSkill) {
     const skill = skillForKey(skills, activeSkill.key)
-    chips.push({ id: `skill:${activeSkill.key}`, kind: 'skill', label: skillLabel(activeSkill.key), cover: skill?.cover, preview: skill?.preview, description: skill?.description ?? undefined,
+    chips.push({ id: `skill:${activeSkill.key}`, kind: 'skill', label: skillLabel(activeSkill.key), cover: skill?.cover, preview: skill?.preview,
+      illustration: skill?.curation?.preview?.provenance === 'illustration', description: skill?.description ?? undefined,
       onRemove: () => { if (isCurrent()) useWorkbenchStore.getState().setCreationActiveSkill(null) } })
-  } else if (prompt) chips.push({ id: `prompt:${prompt.id}`, kind: 'skill', label: prompt.title, cover: prompt.mediaType === 'image' ? prompt.mediaUrl : undefined,
-    preview: prompt.mediaUrl ? { url: prompt.mediaUrl, type: prompt.mediaType } : undefined, description: prompt.prompt,
+  } else if (prompt) chips.push({ id: `prompt:${prompt.id}`, kind: 'prompt', label: promptDisplayTitle(prompt), cover: prompt.mediaType === 'image' ? prompt.mediaUrl : undefined,
+    preview: prompt.mediaUrl ? { url: prompt.mediaUrl, type: prompt.mediaType } : undefined,
+    illustration: prompt.curation?.preview?.provenance === 'illustration', description: prompt.prompt,
     onRemove: () => { if (isCurrent()) useWorkbenchStore.getState().setSelectedLibraryPrompt(null) } })
   return [...chips, ...timeline]
 }

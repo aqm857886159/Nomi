@@ -18,6 +18,9 @@ import { createReactTestRenderer } from '../../ai/v4/testReactRenderer'
 /** 真组件交给底栏的那一套：渲染出来的控件，以及用户在控件上选值的两个回调（档案控件 / 目录控件）。 */
 type BarProps = {
   renderedControls: Array<{ key: string; binding?: string }>
+  summaryOverride?: string
+  modeMenu?: { value: string; onChange: (modeId: string) => void }
+  onModelChange: (value: string, vendor?: string) => void
   onParameterControlChange: (control: unknown, value: string) => void
   onCatalogControlChange: (control: unknown, value: string) => void
 }
@@ -83,6 +86,7 @@ const usable = { usable: true }
 const MODELS = [
   { modelKey: 'gpt-image-2', vendorKey: 'apimart', labelZh: 'GPT Image 2', kind: 'image', enabled: true, published: true, publishedModes: ['text_to_image', 'image_edit'], availability: usable },
   { modelKey: 'kling-v3', vendorKey: 'apimart', labelZh: 'Kling 3.0', kind: 'video', enabled: true, published: true, publishedModes: ['text_to_video', 'image_to_video'], availability: usable },
+  { modelKey: 'kling-v4-flash', vendorKey: 'apimart', labelZh: '可灵 4.0 Flash', kind: 'video', enabled: true, published: true, publishedModes: ['text_to_video', 'image_to_video'], availability: usable },
   { modelKey: 'veo3.1-fast', vendorKey: 'apimart', labelZh: 'Veo 3.1', kind: 'video', enabled: true, published: true, publishedModes: ['text_to_video', 'image_to_video'], availability: usable },
   { modelKey: 'doubao-seedance-2.5', vendorKey: 'apimart', labelZh: 'Seedance 2.5', kind: 'video', enabled: true, published: true, publishedModes: ['text_to_video', 'image_to_video'], availability: usable },
   // 认不出档案的自接模型：画幅控件来自目录自己声明的 video.sizeOptions（目录控件，不是档案控件）。
@@ -253,5 +257,89 @@ describe('打开节点不改比例；新卡的比例默认值在自动选模型�
     useGenerationCanvasStore.getState().connectNodes('wide', 'shot')
     expect(useGenerationCanvasStore.getState().edges.map((edge) => edge.source)).toEqual(['wide'])
     expect(orientationOf('shot')).toBe('portrait')
+  })
+
+  it('可灵 4.0 Flash 视频编辑：未手动选过比例切到编辑 → 面板与发送默认自动（跟随原视频），不再是 16:9', async () => {
+    const srcVideo: GenerationCanvasNode = {
+      id: 'src-vid', kind: 'asset', title: 'src-vid', position: { x: -400, y: 120 },
+      meta: { aspect_ratio: '1:1' },
+      result: { id: 'src-vid-r', type: 'video', url: 'https://example.com/src.mp4', createdAt: 1 },
+    }
+    await openNode(videoNode('shot', {}), {
+      nodes: [srcVideo],
+      edges: [{ id: 'e-src-vid', source: 'src-vid', target: 'shot', mode: 'reference' }],
+    })
+    probe.bar!.onModelChange('kling-v4-flash', 'apimart')
+    await settle(renderer)
+    expect(probe.bar!.modeMenu?.value).toBe('ref')
+    expect(metaOf('shot').aspect_ratio).toBe('16:9')
+    expect(metaOf('shot')[ASPECT_EXPLICIT_META_KEY]).toBeUndefined()
+
+    // 切到「视频编辑」：未手动选比例 → 清掉机器写的 16:9，摘要显示自动（generationCommon.parameters.auto）
+    probe.bar!.modeMenu!.onChange('edit')
+    await settle(renderer)
+    expect(probe.bar!.modeMenu?.value).toBe('edit')
+    expect(metaOf('shot').aspect_ratio).toBeUndefined()
+    expect(probe.bar!.summaryOverride).toBe('generationCommon.parameters.auto')
+
+    // 切回「全能参考」：未手动选比例 → 按 07-17 规则恢复 16:9
+    probe.bar!.modeMenu!.onChange('ref')
+    await settle(renderer)
+    expect(metaOf('shot').aspect_ratio).toBe('16:9')
+  })
+
+  it('反例：用户手动选了 9:16 或 16:9 后再切可灵视频编辑 / 连线，保留用户选择不被重置回自动', async () => {
+    const srcVideo: GenerationCanvasNode = {
+      id: 'src-vid', kind: 'asset', title: 'src-vid', position: { x: -400, y: 120 },
+      meta: { aspect_ratio: '1:1' },
+      result: { id: 'src-vid-r', type: 'video', url: 'https://example.com/src.mp4', createdAt: 1 },
+    }
+    await openNode(videoNode('shot', {}), {
+      nodes: [srcVideo],
+      edges: [{ id: 'e-src-vid', source: 'src-vid', target: 'shot', mode: 'reference' }],
+    })
+    probe.bar!.onModelChange('kling-v4-flash', 'apimart')
+    await settle(renderer)
+    const control = probe.bar!.renderedControls.find((candidate) => candidate.key === 'aspect_ratio')
+    expect(control).toBeTruthy()
+    probe.bar!.onParameterControlChange(control, '9:16')
+    await settle(renderer)
+    expect(metaOf('shot')[ASPECT_EXPLICIT_META_KEY]).toBe(true)
+
+    probe.bar!.modeMenu!.onChange('edit')
+    await settle(renderer)
+    expect(metaOf('shot').aspect_ratio).toBe('9:16')
+    expect(probe.bar!.summaryOverride).toBe('9:16')
+
+    // 在编辑模式下手动改成 16:9，再连入其它输入仍保持 16:9
+    const editControl = probe.bar!.renderedControls.find((candidate) => candidate.key === 'aspect_ratio')
+    probe.bar!.onParameterControlChange(editControl, '16:9')
+    await settle(renderer)
+    useGenerationCanvasStore.getState().connectNodes('wide', 'shot')
+    expect(metaOf('shot').aspect_ratio).toBe('16:9')
+  })
+
+  it('老项目存档已有显式比例的可灵视频编辑节点：打开保持不变、零写入', async () => {
+    const srcVideo: GenerationCanvasNode = {
+      id: 'src-vid', kind: 'asset', title: 'src-vid', position: { x: -400, y: 120 },
+      meta: { aspect_ratio: '1:1' },
+      result: { id: 'src-vid-r', type: 'video', url: 'https://example.com/src.mp4', createdAt: 1 },
+    }
+    const saved = {
+      modelKey: 'kling-v4-flash',
+      modelVendor: 'apimart',
+      vendor: 'apimart',
+      modelLabel: '可灵 4.0 Flash',
+      archetype: { id: 'kling-v4-flash', modeId: 'edit', modeChosenBy: 'human' },
+      aspect_ratio: '16:9',
+      [ASPECT_EXPLICIT_META_KEY]: true,
+    }
+    const { before, writes } = await openNode(videoNode('shot', saved), {
+      nodes: [srcVideo],
+      edges: [{ id: 'e-src-vid', source: 'src-vid', target: 'shot', mode: 'reference' }],
+    })
+    expect(writes).toBe(0)
+    expect(metaOf('shot')).toEqual(before)
+    expect(probe.bar!.summaryOverride).toBe('16:9')
   })
 })

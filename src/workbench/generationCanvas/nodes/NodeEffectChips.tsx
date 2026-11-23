@@ -10,6 +10,7 @@ import { usePromptLibrary } from '../../promptLibrary/usePromptLibrary'
 import { useUserPrompts } from '../../promptLibrary/useUserPrompts'
 import { promptDisplayTitle } from '../../promptLibrary/promptDisplay'
 import { filterPrompts, type LibraryPrompt } from '../../api/promptLibraryApi'
+import { isBuiltinPromptSourceId } from '../../../../electron/shared/contracts/promptLibrary'
 import { compatibleNodePresets } from './nodePromptPresets'
 
 const STARTER_EFFECTS = ['effect-character-three-view', 'effect-scene-three-view', 'effect-natural-texture', 'effect-fill-outpaint']
@@ -25,12 +26,19 @@ export function useNodeEffectChips({ enabled, empty, kind, onSelect }: {
   const anchorRef = React.useRef<HTMLButtonElement>(null)
   const compatible = compatibleNodePresets(library.items, user.items, kind)
   const effects = compatible.filter(p => p.curation?.kind === 'effect')
-  const categories = [t('libraries.gallery.all'), t('libraries.gallery.effect'), t('libraries.prompt.publicLibrary'), t('libraries.prompt.source.mine')]
+  const categories = [
+    t('libraries.layout.all'),
+    t('libraries.layout.mine'),
+    t('libraries.layout.segment.builtin'),
+    t('libraries.layout.segment.public'),
+  ]
   const rows = filterPrompts(compatible, 'all', query).map(item => ({
-    id: item.id, name: promptDisplayTitle(item), command: '', desc: item.prompt,
-    section: item.origin === 'user' ? categories[3] : item.curation?.kind === 'effect' ? categories[1] : categories[2],
+    id: item.id, name: promptDisplayTitle(item), desc: item.prompt,
+    section: item.origin === 'user' ? categories[1] : isBuiltinPromptSourceId(item.sourceId) ? categories[2] : categories[3],
     group: libraryGroup(item, i18n.language),
+    ...(item.mediaType === 'image' && item.mediaUrl ? { cover: item.mediaUrl } : {}),
     preview: item.mediaUrl ? { url: item.mediaUrl, type: item.mediaType } : undefined,
+    illustration: item.curation?.preview?.provenance === 'illustration',
   }))
   const loading = library.loading || user.loading
   const failed = Boolean(library.error || user.error)
@@ -53,8 +61,9 @@ export function useNodeEffectChips({ enabled, empty, kind, onSelect }: {
     {open && enabled ? <AnchoredPopover anchorRef={anchorRef} onClose={close}>
       <div role="dialog" aria-label={t('generationCommon.composerBarV1.effects')} data-testid="node-effect-menu">
         <div data-testid="node-prompt-presets">
-        <LibraryPicker rows={rows} categories={categories} query={query} onQueryChange={setQuery} autoFocus
-          searchLabel={t('libraries.prompt.searchAria')} mediaFallback={<IconFileText size={24} stroke={1.5} />}
+        <LibraryPicker rows={rows} categories={categories} query={query} onQueryChange={setQuery} onClose={close} autoFocus
+          panelLabel={t('generationCommon.composerBarV1.effects')}
+          searchLabel={t('libraries.prompt.searchAria')} mediaFallback={<IconFileText size={20} stroke={1.5} />}
           onSelect={row => { const item = compatible.find(p => p.id === row.id); if (item) onSelect(item); close() }}
           previewAttributes={row => ({ 'data-prompt-preview': row.id })}
           status={loading ? <p role="status" className="px-2.5 py-2 text-caption text-nomi-ink-60">{t('common.loading')}</p>

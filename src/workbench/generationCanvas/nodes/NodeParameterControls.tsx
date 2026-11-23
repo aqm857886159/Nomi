@@ -53,7 +53,6 @@ import { assignSlotSource, removeFromArray, removeUnusedReference, reorderArray,
 import {
   type ArchetypeArraySlot,
   applyArchetypeVariantSwitch,
-  applyHumanModeChoice,
   archetypeModeArraySlots,
   archetypeModeSlots,
   archetypeModeSourceVideoSlot,
@@ -98,7 +97,7 @@ import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelA
 import { buildAspectRatioNodePatch } from './nodeSizing'
 import { ASPECT_EXPLICIT_META_KEY } from './aspectExplicit'
 import { parseAspectRatioValue } from '../../../../electron/shared/aspectRatioValue'
-import { buildNodeModelChangePatch } from './buildNodeModelChangePatch'
+import { buildModeSwitchMeta, buildNodeModelChangePatch } from './buildNodeModelChangePatch'
 import type { ModelVariantMenu } from '../../common/useDedupedModelSelect'
 import { isAspectRatioControl, parameterControlChangePatch } from './controls/parameterControlModel'
 
@@ -288,11 +287,11 @@ export default function NodeParameterControls({
     updateMeta(patch)
   }
 
-  // 人手选方式（视频底栏方式菜单 / 声音方式栏，只有这两扇门写偏好）：只记偏好和「人手选的」，参考列表、参数都不动
-  // （落槽由 resolveReferencePlacement 按现算的方式推导，往返一张不少；参数在发送时按现算方式收窄）。菜单只让点放得下全部输入的那几种。
+  // 人手选方式（视频底栏方式菜单 / 声音方式栏，只有这两扇门写偏好）：记偏好和「人手选的」，视频未手选比例时问 videoAspectSeed。
   const handleModeSwitch = (modeId: string) => {
     if (!archetype) return
-    updateNode(node.id, { meta: applyHumanModeChoice(getLatestMeta(), archetype, modeId) })
+    const next = buildModeSwitchMeta(latestNode(node.id) || node, archetype, modeId, graph, selectedModelOption)
+    updateNode(node.id, { meta: next })
     setOpenSlotKey('')
   }
 

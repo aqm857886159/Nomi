@@ -1,4 +1,4 @@
-import { describeDraftCanvasLanding, draftCanvasLandingOf } from '../shared/agentLane/draftCanvasLanding'
+import { describeDraftCanvasLanding, draftCanvasLandingOf, summarizeDraftedShotsForModel } from '../shared/agentLane/draftCanvasLanding'
 import { describeGenerateOutcome } from '../shared/agentLane/generateOutcomeReceipt'
 import type { RuntimeToolCall, RuntimeToolDecision } from '../shared/agentCapabilities/transportContracts'
 import type { LaneApprovalDecision } from '../shared/agentLane/laneContracts'
@@ -223,7 +223,9 @@ export function createExtendedLaneTools(port: LaneExtendedPort): LaneToolDescrip
         fallbackCode: 'capability_execution_failed',
         nextAction: 'Read the current project state and review the current identifiers, revision and approval before requesting a new action. Do not repeat an unknown paid submission.',
       }))
-      const text = JSON.stringify(decision.result ?? null)
+      const summary = spec.name === 'draft_shots' ? summarizeDraftedShotsForModel(decision.result) : undefined
+      const payload = JSON.stringify(decision.result ?? null)
+      const text = summary ? `${summary}\n${payload}` : payload
       const nextAction = nextActionFor(spec.name, decision.result, context.approvalDecision)
       return { ok: true, text, details: decision.result, ...(nextAction ? { nextAction } : {}) }
     }))

@@ -52,9 +52,9 @@ describe('确证码：整词、取最先出现、字段优先', () => {
   })
 
   it('公开码集合快照：增删公开码必须是显式决定', () => {
-    expect(PUBLIC_ERROR_CODES.length).toBe(57)
+    expect(PUBLIC_ERROR_CODES.length).toBe(58)
     expect(PUBLIC_ERROR_CODES).toEqual([...PUBLIC_ERROR_CODES].sort())
-    for (const code of ['node_not_found', 'asset_not_localized', 'unknown_model_identity', 'human_approval_required', 'lease_expired', 'renderer_or_provider_unknown', 'integration_revision_stale']) {
+    for (const code of ['node_not_found', 'asset_not_localized', 'unknown_model_identity', 'human_approval_required', 'lease_expired', 'renderer_or_provider_unknown', 'integration_revision_stale', 'mode_input_missing']) {
       expect(PUBLIC_ERROR_CODES).toContain(code)
     }
   })

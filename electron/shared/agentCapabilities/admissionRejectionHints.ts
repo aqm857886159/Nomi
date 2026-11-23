@@ -11,6 +11,7 @@
 export const ADMISSION_REJECTION_CODES = [
   "unknown_parameter", "parameter_type_mismatch", "parameter_not_in_enum",
   "parameter_out_of_range", "missing_required_parameter", "unknown_variant",
+  "mode_input_missing",
 ] as const;
 export type AdmissionRejectionCode = (typeof ADMISSION_REJECTION_CODES)[number];
 
@@ -59,6 +60,17 @@ export const ADMISSION_REJECTION_HINTS: Readonly<Record<AdmissionRejectionCode, 
     en: "That variant does not belong to this model",
     recover: [
       { zh: "从 allowedVariantIds 里挑一个；为空表示该模型没有变体，别传 variantId", en: "Pick one of allowedVariantIds; empty means this model has no variants, so omit variantId" },
+      ADMISSION_NOTHING_SENT,
+    ],
+  },
+  mode_input_missing: {
+    zh: "所选生成方式缺少必填参考素材",
+    en: "This mode requires reference media that is missing from references",
+    recover: [
+      {
+        zh: "先调用 look_at_media（或 look_at_canvas）获取素材 assetId 并传进 shots[].references，或去掉 modeId 改用文字生成",
+        en: "Call look_at_media (or look_at_canvas) to get the asset ids and pass them in shots[].references, or omit modeId for text generation",
+      },
       ADMISSION_NOTHING_SENT,
     ],
   },
