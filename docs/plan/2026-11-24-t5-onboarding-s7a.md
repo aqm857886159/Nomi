@@ -10,9 +10,9 @@
 ## ★0 先查别人
 
 - NN/g Contextual Help & Empty-State Design（https://www.nngroup.com/articles/onboarding-tutorials/ · https://www.nngroup.com/articles/empty-state-interface-design/）· 创作者已经走进画布节点、分镜行或聊天面板准备干活时，遇到「还没连模型」不能只给一颗灰掉点不动的发送圆钮或把人赶去四层菜单外找设置，而应在动作发生的原位给明确主按钮、悬停讲清耗时并承诺「写好的草稿会留着」 · **确认了**生成框与分镜底栏无可用模型时左端模型框显示「未连模型」（点开为「还没连模型 · 连接模型」），右端发送位换成深色胶囊主按钮「连接模型」配悬停提示，返回后草稿一字不丢。
-- Nomi 设计系统 §1.0 与 `AGENTS.md` §P5（「一个东西一个家、Agent 只指路」）· 聊天面板只放指向元素、必要请示与本来属于聊天的说明，绝不在对话流里内嵌配置表单或第二套密钥输入框 · **确认了** `O1c-agent`（`entry.agent-pointer`）：当 Agent 面板没有可用文本模型且无一键可恢复模型时，只显示 Nomi 身份行 + 两句说明 + 可点击指路卡「连接 APIMart」，点一下直达整窗「连接 APIMart」大页；若存在已存 Key 但被停用的文本模型（`entry.kept-recovery`），原样保留「启用 {{model}}」一键恢复。
-- `NomiEntryTopbar` 拍板合同（`docs/design/boards/2026-11-22-nomi-entry-topbar/NomiEntryTopbar.board.json` D1/D3/D5 与 `priorDecisions`）· 2026-11-22 已拍板删除右下浮动小球，「收起后只有顶栏最右 28px 入口；胶囊仅在有待确认且面板未开时出现，10-27 形象里的『先连一个模型』胶囊不做」；同时 `Onboarding.board.json` `entry.persona-setup` 备注「落点改成顶栏 Nomi 入口，点开先开面板再指向同一页」 · **对齐了**两条拍板：顶栏 Nomi 入口严格保持 `NomiEntryTopbar` D1/D3/D5 形态不变，未连模型时点顶栏入口展开 Agent 面板即落到 `entry.agent-pointer` 指路卡并直达「连接 APIMart」大页，不复活任何浮动胶囊或顶栏特例胶囊。
-- 仓库先例：`src/ui/onboarding/onboardingModelAvailability.ts`、`src/ui/onboarding/apimartConnectRoute.ts`、`src/ui/onboarding/adapterFailureAdvice.ts`、`electron/capabilityCore/modelOnboarding/envelope.ts` · 单一可用性投影、单一整窗大页路由与 `no_generic_contract` → `selfConnect`（调用脚本 / ComfyUI 工作流）出口均已在库 · **确认了**所有入口统一调 `openApimartConnect()` / `openModelSettingsHome()`，零新增路由事件、零新增自定义缓存。
+- Nomi 设计系统与工程纪律（`docs/design/nomi-design-system.md:28` · `CLAUDE.md:45`）· 「一个东西一个家、Agent 只指路」：聊天面板只放指向元素、必要请示与本来属于聊天的说明，绝不在对话流里内嵌配置表单或第二套密钥输入框 · **确认了** `O1c-agent`（`entry.agent-pointer`）：当 Agent 面板没有可用文本模型且无一键可恢复模型时，只显示 Nomi 身份行 + 两句说明 + 可点击指路卡「连接 APIMart」，点一下直达整窗「连接 APIMart」大页；若存在已存 Key 但被停用的文本模型（`entry.kept-recovery`），原样保留「启用 {{model}}」一键恢复。
+- `NomiEntryTopbar` 拍板合同（`docs/design/boards/2026-11-22-nomi-entry-topbar/NomiEntryTopbar.board.json:136` · `docs/design/boards/2026-11-07-onboarding/Onboarding.board.json:305`）· 2026-11-22 已拍板删除右下浮动小球，「收起后只有顶栏最右 28px 入口；胶囊仅在有待确认且面板未开时出现，10-27 形象里的『先连一个模型』胶囊不做」；同时 `Onboarding.board.json` `entry.persona-setup` 备注「落点改成顶栏 Nomi 入口，点开先开面板再指向同一页」 · **对齐了**两条拍板：顶栏 Nomi 入口严格保持 `NomiEntryTopbar` D1/D3/D5 形态不变，未连模型时点顶栏入口展开 Agent 面板即落到 `entry.agent-pointer` 指路卡并直达「连接 APIMart」大页，不复活任何浮动胶囊或顶栏特例胶囊。
+- 仓库先例（`src/ui/onboarding/onboardingModelAvailability.ts:108` · `src/ui/onboarding/apimartConnectRoute.ts:44` · `src/workbench/ai/assistantModelIdentity.ts:52` · `src/ui/onboarding/adapterFailureAdvice.ts:15` · `electron/capabilityCore/modelOnboarding/envelope.ts:88`）· 单一可用性投影、单一整窗大页路由、助手主控角色判据与 `no_generic_contract` → `selfConnect`（调用脚本 / ComfyUI 工作流）出口均已在库 · **确认了**所有入口统一调 `openApimartConnect()` / `openModelSettingsHome()`，可恢复大脑复用 `fitsAssistantTextRole`，零新增路由事件、零新增自定义缓存。
 - 出口：不涉及：本切片把分散在生成框、项目库已有项目横幅、Agent 面板、模型下拉、上手清单、创作改写、分镜策略与新手手册里的旧提示和死胡同统一收口到「连接模型」（`openApimartConnect()`）与「用 AI 帮我接入」（`openModelSettingsHome()`），未新增或收紧任何拒绝或阻塞门禁；任何已打开的大页均可随时按 `Esc` 或点左上「← 来处」无损返回原草稿。
 
 ## ★1 用户怎么用
@@ -178,7 +178,7 @@
 - [x] 新界面 / 改交互
 - [ ] 花钱
 - [ ] 长跑 / 可打断
-- [ ] Agent 行为
-- [ ] 大数据量 / 画布 / 长列表
-- [ ] 数据格式
+- [x] Agent 行为
+- [x] 大数据量 / 画布 / 长列表
+- [x] 数据格式
 - [x] 新增功能 / 性能
