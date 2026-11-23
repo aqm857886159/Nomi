@@ -1,5 +1,3 @@
-import { matchNomiErrorCode, tagNomiError } from '../shared/nomiErrorCodes';
-import { desktopT } from '../desktopStrings';
 import { readCatalog } from '../catalog/catalogStore';
 import type { ReferenceLinkPolicy } from '../catalog/assetLocalization';
 import { assetIngestionResolver, assetLocalizationOptions, localizeForSend, referenceLinkPolicy } from '../catalog/assetTransportRuntime';
@@ -8,18 +6,36 @@ import { projectSpendReferenceAssets, type SpendReferenceAssets } from './pendin
 import { spendReferenceKey } from '../shared/contracts/pendingSpendConfirm';
 import type { GenerationReference } from '../shared/agentCapabilities/generationPlanSchemas';
 
-/** Existing asset transport performs uploads before the deterministic request seal. */
-async function localize(providerId: string, urls: readonly string[]): Promise<readonly string[]> {
-  const catalog = readCatalog();
+type LocalizeProductionReferenceUrlsDeps = Readonly<{
+  readCatalog: typeof readCatalog;
+  localizeForSend: typeof localizeForSend;
+  assetIngestionResolver: typeof assetIngestionResolver;
+  assetLocalizationOptions: typeof assetLocalizationOptions;
+}>;
+
+const DEFAULT_LOCALIZE_DEPS: LocalizeProductionReferenceUrlsDeps = {
+  readCatalog,
+  localizeForSend,
+  assetIngestionResolver,
+  assetLocalizationOptions,
+};
+
+/**
+ * Existing asset transport performs uploads before the deterministic request seal.
+ * 不改写 localizeForSend 抛出的 asset-too-large（HTTP 413 逐通道摘要）或 asset-upload-failed（含
+ * AnonymousAssetConsentRequiredError 自身的 hostingDisabled 文案），保证渲染层按真实通道故障与体积提示用户（NF-1107-0002）。
+ */
+export async function localizeProductionReferenceUrls(
+  providerId: string,
+  urls: readonly string[],
+  deps: LocalizeProductionReferenceUrlsDeps = DEFAULT_LOCALIZE_DEPS,
+): Promise<readonly string[]> {
+  const catalog = deps.readCatalog();
   const vendor = catalog.vendors.find(vendor => vendor.key === providerId);
   if (!vendor) throw new Error('generation_reference_provider_unavailable');
-  const result = await localizeForSend({ urls }, assetIngestionResolver(vendor, catalog),
+  const result = await deps.localizeForSend({ urls }, deps.assetIngestionResolver(vendor, catalog),
     readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload,
-    assetLocalizationOptions(vendor, undefined), putBinaryForAssetUpload).catch((error: unknown) => {
-      const code = matchNomiErrorCode(String(error));
-      if (code === 'asset-upload-failed' || code === 'asset-too-large') throw new Error(tagNomiError(code, desktopT('assetUpload.hostingDisabled')));
-      throw error;
-    });
+    deps.assetLocalizationOptions(vendor, undefined), putBinaryForAssetUpload);
   const values = (result.value as { urls?: unknown }).urls;
   if (!Array.isArray(values) || values.length !== urls.length || values.some(value => typeof value !== 'string' || !/^https?:\/\//.test(value))) {
     throw new Error('generation_reference_url_unavailable');
@@ -34,8 +50,8 @@ export async function resolveProductionReferenceUrls(input: Readonly<{
   assertCurrent: () => void;
 }>, deps: Readonly<{
   assets: SpendReferenceAssets;
-  localize: typeof localize;
-}> = { assets: projectSpendReferenceAssets, localize }): Promise<Readonly<Record<string, string>>> {
+  localize: (providerId: string, urls: readonly string[]) => Promise<readonly string[]>;
+}> = { assets: projectSpendReferenceAssets, localize: localizeProductionReferenceUrls }): Promise<Readonly<Record<string, string>>> {
   input.assertCurrent();
   if (input.references.length === 0) return {};
   const indexed = deps.assets.list(input.projectId);
