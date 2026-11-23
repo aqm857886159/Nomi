@@ -2,11 +2,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readJsonFile, renameSyncWithRetry, writeJsonFileAtomic } from "./jsonFile";
+import { readJsonFile, renameSyncOnce, renameSyncWithRetry, renameWithRetry, writeJsonFileAtomic } from "./jsonFile";
 
 const tempRoots: string[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const root of tempRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -60,11 +61,22 @@ describe("writeJsonFileAtomic", () => {
     expect(leftovers).toEqual([]);
     expect(fs.readdirSync(dir)).toEqual(["project.json"]);
   });
+
+  it("preserves the previous file and removes staging if publication fails", () => {
+    const dir = makeTempDir();
+    const file = path.join(dir, "project.json");
+    const previous = '{"revision":1}';
+    fs.writeFileSync(file, previous);
+    const error = Object.assign(new Error("rename failed"), { code: "EIO" });
+    vi.spyOn(fs, "renameSync").mockImplementation(() => { throw error; });
+
+    expect(() => writeJsonFileAtomic(file, { revision: 2 })).toThrow(error);
+    expect(fs.readFileSync(file, "utf8")).toBe(previous);
+    expect(fs.readdirSync(dir)).toEqual(["project.json"]);
+  });
 });
 
 describe("renameSyncWithRetry（Windows EPERM 文件锁重试，2026-07-17 模型启停连点撞锁根因）", () => {
-  afterEach(() => vi.restoreAllMocks());
-
   function epermError(): NodeJS.ErrnoException {
     const err = new Error("EPERM: operation not permitted, rename") as NodeJS.ErrnoException;
     err.code = "EPERM";
@@ -97,18 +109,6 @@ describe("renameSyncWithRetry（Windows EPERM 文件锁重试，2026-07-17 模�
     expect(() => renameSyncWithRetry("a", "b")).toThrow(/EPERM/);
   });
 
-  it("非锁类错误（如 ENOENT）不重试、立刻抛", () => {
-    let calls = 0;
-    vi.spyOn(fs, "renameSync").mockImplementation(() => {
-      calls += 1;
-      const err = new Error("ENOENT: no such file") as NodeJS.ErrnoException;
-      err.code = "ENOENT";
-      throw err;
-    });
-    expect(() => renameSyncWithRetry("missing", "b")).toThrow(/ENOENT/);
-    expect(calls).toBe(1);
-  });
-
   it("writeJsonFileAtomic 经由重试路径：EPERM 一拍后仍完成写入", () => {
     const dir = makeTempDir();
     const file = path.join(dir, "model-catalog.json");
@@ -125,4 +125,46 @@ describe("renameSyncWithRetry（Windows EPERM 文件锁重试，2026-07-17 模�
     expect(readJsonFile(file)).toEqual({ enabled: false });
     expect(fs.readdirSync(dir).filter((n) => n.endsWith(".tmp"))).toEqual([]);
   });
+});
+
+it.each(["EEXIST", "ENOTEMPTY", "ENOENT", "EXDEV"])("preserves %s without retrying either rename API", async (code) => {
+  const error = Object.assign(new Error(code), { code });
+  const sync = vi.spyOn(fs, "renameSync").mockImplementation(() => { throw error; });
+  const asyncRename = vi.spyOn(fs.promises, "rename").mockRejectedValue(error);
+  const wait = vi.fn(async () => {});
+  const delayMs = vi.fn(() => 10);
+
+  expect(() => renameSyncWithRetry("from", "to")).toThrow(error);
+  expect(sync).toHaveBeenCalledTimes(1);
+  await expect(renameWithRetry("from", "to", { delayMs, wait })).rejects.toBe(error);
+  expect(asyncRename).toHaveBeenCalledTimes(1);
+  expect(delayMs).not.toHaveBeenCalled();
+  expect(wait).not.toHaveBeenCalled();
+});
+
+it("offers a single sync attempt when the caller owns the retry", () => {
+  const error = Object.assign(new Error("sharing violation"), { code: "EPERM" });
+  const rename = vi.spyOn(fs, "renameSync").mockImplementation(() => { throw error; });
+
+  expect(() => renameSyncOnce("from", "to")).toThrow(error);
+  expect(rename).toHaveBeenCalledTimes(1);
+});
+
+it("publishes an existing staged file after sharing violations using the shared async backoff", async () => {
+  const dir = makeTempDir();
+  const from = path.join(dir, "staged.mp4");
+  const to = path.join(dir, "output.mp4");
+  fs.writeFileSync(from, "new output");
+  fs.writeFileSync(to, "previous output");
+  const rename = vi.spyOn(fs.promises, "rename")
+    .mockRejectedValueOnce(Object.assign(new Error("busy"), { code: "EBUSY" }))
+    .mockRejectedValueOnce(Object.assign(new Error("access denied"), { code: "EACCES" }));
+  const wait = vi.fn(async () => {});
+
+  await renameWithRetry(from, to, { wait });
+
+  expect(rename).toHaveBeenCalledTimes(3);
+  expect(wait.mock.calls).toEqual([[10], [30]]);
+  expect(fs.readFileSync(to, "utf8")).toBe("new output");
+  expect(fs.existsSync(from)).toBe(false);
 });

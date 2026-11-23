@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { fsyncDirectoryIfDurable } from "../durability";
 import { WORKSPACE_MANIFEST_BUSY_ERROR_NAME } from "../shared/contracts/workspaceBusy";
-import { isSharingViolation, readJsonFile, renameSyncWithRetry, retryOnSharingViolation, writeJsonFileAtomic } from "../jsonFile";
+import { isSharingViolation, readJsonFile, renameSyncOnce, renameSyncWithRetry, retryOnSharingViolation, writeJsonFileAtomic } from "../jsonFile";
 import { workspaceNomiDir } from "./workspacePaths";
 
 export const WORKSPACE_MANIFEST_LOCK_SCHEMA_VERSION = 1;
@@ -302,7 +302,7 @@ function quarantineExistingOwner(input: {
 }): void {
   const quarantinePath = path.join(input.nomiDir, `${QUARANTINE_PREFIX}${pathToken(input.randomId())}`);
   try {
-    fs.renameSync(input.lockDir, quarantinePath);
+    renameSyncOnce(input.lockDir, quarantinePath);
   } catch (error) {
     if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return;
     throw new WorkspaceManifestLockBusyError("Workspace manifest owner changed during recovery");
@@ -433,7 +433,8 @@ function tryAcquireCanonicalWorkspaceManifestLock(
     }
     fsyncDirectoryIfDurable(candidateDir);
     try {
-      fs.renameSync(candidateDir, lockDir);
+      // EPERM can mean a competing owner. The caller handles it before any new attempt.
+      renameSyncOnce(candidateDir, lockDir);
     } catch (error) {
       const code = (error as NodeJS.ErrnoException)?.code;
       if (code === "EEXIST" || code === "ENOTEMPTY" || code === "EPERM") {
@@ -550,7 +551,7 @@ function reapOrphanedLock(lease: WorkspaceManifestLockLease): boolean {
   if (!sameOwner(current.owner, lease.owner) || liveLeaseNonces.has(current.owner.nonce)) return true;
   const releaseDir = releaseDirFor(lease);
   try {
-    fs.renameSync(lease.lockDir, releaseDir);
+    renameSyncOnce(lease.lockDir, releaseDir);
   } catch (error) {
     return !isSharingViolation(error);
   }
