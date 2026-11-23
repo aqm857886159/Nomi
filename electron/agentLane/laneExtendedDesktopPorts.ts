@@ -381,7 +381,7 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
     return result
   }
 
-  return { tools: createExtendedLaneTools({ execute }), toolLifecycle, groups: LANE_DEFERRED_TOOL_GROUPS,
+  return { tools: createExtendedLaneTools({ execute, isGenerationHeld: () => Boolean(input.context?.()?.generationHeld) }), toolLifecycle, groups: LANE_DEFERRED_TOOL_GROUPS,
     dispose() { disposed = true; pending.clear() },
   }
 }

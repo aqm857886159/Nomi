@@ -8,9 +8,11 @@ import { generateUserDecisionOf } from '../shared/agentLane/generateUserDecision
 import { LANE_DEFERRED_TOOL_CATALOG } from './laneToolCatalog'
 import { bindLaneTool, LaneDomainFailure, type LaneToolDescriptor } from './laneRuntimePort'
 import { parseChangeId } from '../shared/agentCapabilities/changeId'
+import { TURN_GENERATION_HOLD_MESSAGE, TURN_GENERATION_HOLD_NEXT } from './turnGenerationHold'
 
 export interface LaneExtendedPort {
   execute(call: RuntimeToolCall, signal: AbortSignal): Promise<RuntimeToolDecision>
+  isGenerationHeld?: () => boolean
 }
 
 /**
@@ -64,10 +66,11 @@ function startedGenerationAction(result: unknown): LaneToolNextAction {
  * 模型照着回执对用户说「画布上还没有节点」（说反话）。宿主没报落地结果（外部宿主 / 夹具）= 不知道，
  * 只说「存好了、没生成、没花钱」，**不对画布有没有节点下结论**。
  */
-function draftSavedAction(result: unknown): LaneToolNextAction {
+function draftSavedAction(result: unknown, generationHeld: boolean): LaneToolNextAction {
   const canvas = describeDraftCanvasLanding(draftCanvasLandingOf(result))
   const saved = canvas ?? 'Draft changes are saved in the project. Nothing was generated and nothing was spent. This host did not report whether the draft is on the canvas, so do not state what the canvas shows.'
-  return { kind: 'none', userSees: `${saved} ${draftNextStep(operationIdOf(result))}` }
+  const holdNotice = generationHeld ? ` ${TURN_GENERATION_HOLD_MESSAGE} ${TURN_GENERATION_HOLD_NEXT}` : ''
+  return { kind: 'none', userSees: `${saved} ${draftNextStep(operationIdOf(result))}${holdNotice}` }
 }
 
 /**
@@ -96,7 +99,7 @@ function draftNextStep(operationId: string | undefined): string {
  * 把「回执里写死『用户看到卡』」这一族钉在门岗上。
  */
 function nextActionFor(
-  verb: string, result: unknown, approvalDecision: LaneApprovalDecision | undefined,
+  verb: string, result: unknown, approvalDecision: LaneApprovalDecision | undefined, generationHeld: boolean,
 ): LaneToolNextAction | undefined {
   const record = result && typeof result === 'object' ? result as Record<string, unknown> : {}
   const draftOperationId = operationIdOf(result)
@@ -105,7 +108,7 @@ function nextActionFor(
     case 'draft_shots':
       // 草稿 id 按 `draft_shots` / `generate` 收它的那个名字回给模型（这里曾经印 `jobId=`：
       // 草稿的寻址字段仍为 operationId）。
-      return { ...draftSavedAction(result), ...(draftOperationId ? { operationId: draftOperationId } : {}) }
+      return { ...draftSavedAction(result, generationHeld), ...(draftOperationId ? { operationId: draftOperationId } : {}) }
     case 'generate':
       return generateReceipt(result)
     case 'edit_timeline': {
@@ -226,7 +229,7 @@ export function createExtendedLaneTools(port: LaneExtendedPort): LaneToolDescrip
       const summary = spec.name === 'draft_shots' ? summarizeDraftedShotsForModel(decision.result) : undefined
       const payload = JSON.stringify(decision.result ?? null)
       const text = summary ? `${summary}\n${payload}` : payload
-      const nextAction = nextActionFor(spec.name, decision.result, context.approvalDecision)
+      const nextAction = nextActionFor(spec.name, decision.result, context.approvalDecision, Boolean(port.isGenerationHeld?.()))
       return { ok: true, text, details: decision.result, ...(nextAction ? { nextAction } : {}) }
     }))
 }

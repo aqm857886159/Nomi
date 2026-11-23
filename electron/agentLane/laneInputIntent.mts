@@ -4,7 +4,7 @@ import type { Context } from '@earendil-works/pi-agent-core/harness/context';
 import { isLaneInputMessage } from '../shared/agentLane/laneInputMessage.js';
 import type { LaneInputMessage } from '../shared/agentLane/laneDesktopContracts.js';
 import { laneOriginalText } from './laneOriginalInput.mjs';
-import { holdsTurnGeneration, TURN_GENERATION_HOLD_MESSAGE, TURN_GENERATION_HOLD_NEXT } from './turnGenerationHold.js';
+import { holdsTurnGeneration } from './turnGenerationHold.js';
 import { ASK_USER_VERB_NAME } from '../shared/agentCapabilities/askUser.js';
 import { generateUserDecisionOf } from '../shared/agentLane/generateUserDecision.js';
 
@@ -78,9 +78,9 @@ export async function laneInputIntent(session: Session, lane: string, runId: str
     || (original && holdsTurnGeneration(laneOriginalText(original) ?? ''))
     || recent.some(entry => entry.seq > consumed.seq && holdsTurnGeneration(userReplyToCard(entry))));
   // Activation uses a fresh copy so any live card reply stays out of the journal and queued inputs.
+  // Keep `quote` strictly for post-compaction excerpts so the system prompt prefix stays byte-identical for KV cache.
   const input = current && { ...current, context: { ...current.context, ...(held ? { generationHeld: true as const } : {}) } };
-  return { quote: [quote, held && `${TURN_GENERATION_HOLD_MESSAGE} ${TURN_GENERATION_HOLD_NEXT}`].filter(Boolean).join('\n\n'),
-    input, catalogInput: prepared[0]?.message };
+  return { quote, input, catalogInput: prepared[0]?.message };
 }
 
 /**

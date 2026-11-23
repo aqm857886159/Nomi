@@ -116,7 +116,7 @@ describe('turn generation hold through the desktop tools', () => {
       try {
         await lane.execute({ kind: 'prompt', text: prompt })
         if (options.nextPrompt) await lane.execute({ kind: 'prompt', text: options.nextPrompt })
-        return { saved: [...saved.values()], submit, parts: lane.projection().parts }
+        return { saved: [...saved.values()], submit, parts: lane.projection().parts, requests: http.requests }
       } finally { await lane.close() }
     } finally {
       f.assembly.dispose()
@@ -133,6 +133,21 @@ describe('turn generation hold through the desktop tools', () => {
       expect(result.submit).not.toHaveBeenCalled()
     },
   )
+
+  it('keeps the system prompt byte-identical on held turns and carries the hold reminder in draft_shots tool receipts', async () => {
+    type RequestBody = { messages: Array<{ role: string; content: string }> }
+    const systemOf = (requests: Array<{ body: unknown }>) =>
+      requests.map(req => (req.body as RequestBody).messages.find(m => m.role === 'system')?.content)
+    const held = await run('先别生成，把每个镜头改成 8 秒', 'honor-receipt')
+    const unheld = await run('Make every shot 8 seconds.', 'honor-receipt')
+    const heldSystems = systemOf(held.requests)
+    const unheldSystems = systemOf(unheld.requests)
+    expect(heldSystems.length).toBeGreaterThanOrEqual(2)
+    expect(new Set([...heldSystems, ...unheldSystems]).size).toBe(1)
+    expect(heldSystems[0]).not.toContain('Generation is on hold for this turn')
+    expect(held.parts.some(part => part.kind === 'tool-result' && part.text.includes('Generation is on hold for this turn'))).toBe(true)
+    expect(unheld.parts.some(part => part.kind === 'tool-result' && part.text.includes('Generation is on hold for this turn'))).toBe(false)
+  })
 
   it.each(['request', 'direct'] as const)('blocks a forced batch in %s mode before presentation even when a model ignores the hold', async policy => {
     const result = await run('只改参数，把每个镜头改成 8 秒', 'force-batch', ['shot-1', 'shot-2'], { policy })
