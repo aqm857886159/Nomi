@@ -14,6 +14,9 @@ export type RunOwnedGenerationSubmissionDependencies = Omit<SubmissionOutboxDepe
 export function createRunOwnedGenerationSubmission(deps: RunOwnedGenerationSubmissionDependencies) {
   const outbox = createSubmissionOutbox({
     ...deps,
+    persistAcceptance: (receipt, input) => {
+      deps.envelopeFor({ runId: input.run.runId, jobId: input.job.jobId }).markProviderAccepted({ providerTaskId: receipt.taskId, acceptance: receipt });
+    },
     afterDispatch: async (result, input) => {
       deps.envelopeFor({ runId: input.run.runId, jobId: input.job.jobId }).markProviderAccepted({ providerTaskId: result.providerTaskId, rawReceipt: result });
       await deps.afterProviderAccepted?.(result, input);

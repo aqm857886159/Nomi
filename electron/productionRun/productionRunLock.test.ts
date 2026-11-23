@@ -9,6 +9,7 @@ import {
   ProductionRunLockLostError,
   createProductionRunLock,
   inspectProductionRunLockFile,
+  runLockHasLiveWriter,
 } from "./productionRunLock";
 
 const tempDirs: string[] = [];
@@ -43,6 +44,12 @@ afterEach(() => {
 });
 
 describe("inspectProductionRunLockFile", () => {
+  it("leaves an ongoing submit with the live writer even when another window opens", async () => {
+    const { dir, first } = makeLocks();
+    const file = path.join(dir, "run.lock");
+    await first.withLock(() => expect(runLockHasLiveWriter(file)).toBe(true));
+    expect(runLockHasLiveWriter(file)).toBe(false);
+  });
   const LEASE_MS = 10_000;
   function aged(content: string, ageMs: number) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-run-lock-"));

@@ -464,13 +464,10 @@ describe("反例：结果未知仍是结果未知（X1–X4、X10–X12）", () 
     await expectResultUnknown(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")));
   });
 
-  it("X11：前一次可能已到达（声明幂等、连接层失败、重发一次），后一次落地失败 → 仍是结果未知（最不确定的那次说了算）", async () => {
+  it("X11：供应商声明幂等也不能重发可能已写出的请求", async () => {
     const harness = setup({ submitIdempotency: true });
-    harness.vendor.answer = async (call) => {
-      if (call === 1) throw new Error("acme create failed: socket hang up");
-      return answeredThenLandingFails(decodeFailed())();
-    };
-    await expectResultUnknown(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")), 2);
+    harness.vendor.answer = async () => { throw new Error("acme create failed: socket hang up"); };
+    await expectResultUnknown(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")));
   });
 
   it("X12：落地失败被别的代码当 cause 包一层，外层是之后又交出去的一笔、写出去后断了（app-fetch 账本里它在途）→ submission_unknown、锁住、预留待核对、不重发", async () => {
@@ -539,13 +536,6 @@ describe("反例：确定的另外两档照旧（X5、X6）", () => {
 
 describe("反例：答过了就不重发、不判「没发出去」（X8、X9）", () => {
   afterEach(() => { importRemoteAsset.mockReset(); });
-
-  it("对照组：声明幂等时，真的连接层失败确实会用同一个键重发一次（X8 / X11 的装置是活的）", async () => {
-    const harness = setup({ submitIdempotency: true });
-    harness.vendor.answer = async (call) => { if (call === 1) throw new Error("acme create failed: socket hang up"); return landed(); };
-    await expect(harness.submit("node-a", "run-node-a-1")).resolves.toMatchObject({ status: "succeeded" });
-    expect(harness.vendor.executes).toHaveLength(2);
-  });
 
   it("X8：落地失败碰上「声明幂等 + 正文像连接层错误（socket hang up）」→ 不重发，供应商只收到 1 次", async () => {
     const harness = setup({ submitIdempotency: true });

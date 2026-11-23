@@ -1,0 +1,869 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-u2-paid-submission-recovery",
+  "problem_type": "Accepted generation becomes unrecoverable before delivery",
+  "symptom": "After a paid creation response, losing the window or failing to download loses the handle or output.",
+  "direct_cause": "The dispatch promise settles after response handling and localization. The outbox only observes this final promise.",
+  "class_root": "A paid intent owns authorization but does not own the first upstream acceptance before fallible downstream work.",
+  "affected_population": [
+    "Canvas generation, production shots and agent generation with interrupted delivery"
+  ],
+  "scope_paths": [
+    "electron/audio/synchronousAudioResponse.ts",
+    "electron/audioTaskRunner.ts",
+    "electron/capabilityCore/apimartGenerationIdentity.ts",
+    "electron/capabilityCore/apimartGenerationOutputs.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/capabilityCore/appIntegrationCanvasShot.ts",
+    "electron/capabilityCore/canvasTransportProvider.ts",
+    "electron/capabilityCore/generationOutputMaterializer.ts",
+    "electron/capabilityCore/generationRuntimeAdapter.ts",
+    "electron/capabilityCore/modelOnboarding/tryModel.ts",
+    "electron/catalog/customCallDispatch.ts",
+    "electron/catalog/customCallRunner.ts",
+    "electron/productionRun/generationSubmission.ts",
+    "electron/productionRun/paidSubmissionReceipt.ts",
+    "electron/productionRun/productionGenerationHistory.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/productionRunLock.ts",
+    "electron/productionRun/productionRunRuntimeEnvelope.ts",
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/productionRunState.ts",
+    "electron/productionRun/singleShotRunLifecycle.ts",
+    "electron/productionRun/submissionIntent.ts",
+    "electron/productionRun/submissionOutbox.ts",
+    "electron/runtime.ts",
+    "electron/spendQuote.ts",
+    "electron/tasks/acceptedTaskResult.ts",
+    "electron/tasks/responseParsing.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "src/workbench/production/handOverPrecheck.ts"
+  ],
+  "entry_points": [
+    "Canvas single, batch and storyboard media submit",
+    "Agent and MCP generation",
+    "Async catalog providers and synchronous direct media",
+    "ComfyUI prompt/history and custom script sandbox",
+    "Application-scoped model trial"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.stripe.com/api/idempotent_requests",
+      "checked_at": "2026-11-24",
+      "purpose": "Check scope of server-side deduplication"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.comfy.org/development/comfyui-server/comms_routes",
+      "checked_at": "2026-11-24",
+      "purpose": "Confirm distinct enqueue and history endpoints"
+    }
+  ],
+  "invariants": [
+    "Record acceptance before any poll, asset download or IPC delivery. Machine recovery cannot allocate a new paid order."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/browser/prompt/browserPromptExtractionRun.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationOutputs.ts",
+      "symbol": "readMaterializationOutputs"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "readMaterializationOutputs"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/externalAgentGateTestUtils.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationDomain.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "symbol": "resolveExecutionContract"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/host.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/host.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/readTask.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/rpcServer.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/rpcServer.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/generationSubmission.ts",
+      "symbol": "createRunOwnedGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "resolveExecutionContract"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunState.ts",
+      "symbol": "JOB_TRANSITIONS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "createSubmissionOutbox"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "executeProfileOperation"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audio/synchronousAudioResponse.ts",
+      "symbol": "checkpointAudioResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "checkpointAudioResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/prompt/browserPromptExtractionRun.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationIdentity.ts",
+      "symbol": "productionGenerationPayloadHash"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProjection.ts",
+      "symbol": "productionGenerationPayloadHash"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "catalogMediaReceipt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "productionGenerationPayloadHash"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "profileAcceptanceIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "checkpointPaidResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "markInterruptedSingleShotUnknown"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotTestUtils.ts",
+      "symbol": "createCanvasTransportProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotTestUtils.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "createCanvasTransportProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "recoverAcceptedTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationDomain.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "profileAcceptanceIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "createCatalogGenerationProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "symbol": "productionGenerationPayloadHash"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "recoverAcceptedTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/readTask.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "isComfyuiVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "buildProfileTaskResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "executeProfileOperation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiWorkflowImportStore.ts",
+      "symbol": "isComfyuiVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiWorkflowOutputMigration.ts",
+      "symbol": "isComfyuiVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "runCustomCallScript"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "profileAcceptanceIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "checkpointPaidResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "runCustomCallScript"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "decodeCustomCallHttpResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/parameterReferenceContract.ts",
+      "symbol": "isComfyuiVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/profileHttpRequest.ts",
+      "symbol": "isComfyuiVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/comfyuiProgressSocket.ts",
+      "symbol": "isComfyuiVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "isComfyuiVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "symbol": "isComfyuiVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "createCanvasTransportProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "createGenerationRuntimeAdapter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/generationSubmission.ts",
+      "symbol": "createSubmissionOutbox"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/paidSubmissionReceipt.ts",
+      "symbol": "profileAcceptanceIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/paidSubmissionReceipt.ts",
+      "symbol": "checkpointPaidResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/prepareProductionGenerationAuthorization.ts",
+      "symbol": "createGenerationRuntimeAdapter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/prepareProductionGenerationAuthorization.ts",
+      "symbol": "nextGenerationAttempt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationAuthorization.ts",
+      "symbol": "productionGenerationPayloadHash"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationAuthorizationState.ts",
+      "symbol": "nextGenerationAttempt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationHistory.ts",
+      "symbol": "nextGenerationAttempt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createGenerationRuntimeAdapter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createSubmissionOutbox"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunLock.ts",
+      "symbol": "inspectProductionRunLockFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "markInterruptedSingleShotUnknown"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/singleShotRunLifecycle.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/singleShotRunLifecycle.ts",
+      "symbol": "runLockHasLiveWriter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "inspectProductionRunLockFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "createRunOwnedGenerationSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "withPaidReceiptWriter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "runCustomCallTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "executeProfileOperation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "buildProfileTaskResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "checkpointPaidResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/spendQuote.ts",
+      "symbol": "isComfyuiVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/acceptedTaskResult.ts",
+      "symbol": "buildProfileTaskResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/acceptedTaskResult.ts",
+      "symbol": "profileAcceptanceIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/acceptedTaskResult.ts",
+      "symbol": "runCustomCallScript"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/comfyCandidateTest.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/comfyCandidateTest.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/responseParsing.ts",
+      "symbol": "providerMetaFromResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "submitCanvasShot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "pollCanvasShot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "fetchTaskResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "executeProfileOperation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "buildProfileTaskResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskSpend.ts",
+      "symbol": "isComfyuiVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/deconstructVideo.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/community/feedbackDiagnostics.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/modelRequestScriptAvailability.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/OnboardingDrawer.tsx",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/onboardingDrawerConnections.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/onboardingDrawerDerivations.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/workflowPage/useWorkflowCatalog.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/generationTelemetry.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "generationNodeLedger"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/model/parameterReferenceSlots.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationReferenceResolver.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "generationNodeLedger"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/promptRequirement.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "isComfyuiVendorKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/handOverPrecheck.ts",
+      "symbol": "generationNodeLedger"
+    }
+  ],
+  "door_reduction": {
+    "before": 119,
+    "after": 140,
+    "why_not": "The baseline census includes the old renderer Run selection. The replacement routes local queues through the same Run. The additional protocol callbacks transfer the first response to that owner; none authorize or initiate a generation."
+  },
+  "generality_proof": "The owner attaches to the authorized dispatch rather than a renderer button or a vendor name. Recovery consumes the same frozen receipt across synchronous and asynchronous responses.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "createSubmissionOutbox",
+      "responsibility": "Claim and settle each paid intent once"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "createProductionGenerationSubmission",
+      "disposition": "enforced",
+      "evidence": "Binds production provider submission and recovery to a sealed run."
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "runTask",
+      "disposition": "enforced",
+      "evidence": "The canvas provider executes mapping and script under the paid dispatch scope."
+    },
+    {
+      "path": "electron/catalog/customCallDispatch.ts",
+      "entry_point": "runCustomCallTask",
+      "disposition": "enforced",
+      "evidence": "Host HTTP records a recognized job handle before the guest issues its first poll."
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "entry_point": "generationNodeLedger",
+      "disposition": "enforced",
+      "evidence": "Every media node, including the local ComfyUI vendor, selects the Run ledger."
+    }
+  ],
+  "recurrence_of": "2026-10-02-paid-submit-no-blind-resend",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every process restart or localization error can interrupt after provider acceptance.",
+    "same_class_scan": [
+      "door-map: createSubmissionOutbox runTask fetchTaskResult",
+      "Reviewed catalog create response, ComfyUI prompt_id, custom script output, and canvas receipt caches."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/submissionOutbox.ts",
+    "invariant": "Read an existing receipt or mark a lost submission unknown before allocating new paid work.",
+    "failure_mode": "Unconfirmed post-write failures remain outcome unknown and require explicit human action.",
+    "exception_policy": "none",
+    "strategy": "Checkpoint the first response and route observation through the same durable execution identity.",
+    "artifacts": [
+      "electron/productionRun/submissionOutbox.ts",
+      "electron/productionRun/productionGenerationSubmission.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/paidSubmissionRecovery.integration.test.ts",
+    "electron/productionRun/productionGenerationSubmission.test.ts",
+    "electron/productionRun/submissionNotDispatched.test.ts",
+    "electron/audioTaskRunner.test.ts",
+    "electron/capabilityCore/apimartGenerationProvider.test.ts",
+    "electron/productionRun/productionRunRuntimeEnvelope.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/paidSubmissionRecovery.integration.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/submissionOutbox.ts"
+    ],
+    "rationale": "Remove automatic resend after an uncertain outcome."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Submission, receipt persistence and the Run state machine are owned by Nomi.",
+    "exit_criteria": []
+  },
+  "migration": "Legacy accepted jobs keep their saved identifiers. Unrecorded upstream results cannot be reconstructed from current model settings.",
+  "residual_risks": [
+    "Paid live providers, OS power loss and expired signed media URLs are unverified.",
+    "An opaque script without a recognizable job handle, output or declared continuation may need manual reconciliation. Expired credentials or original media URLs can prevent retrieval."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-08",
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun",
+    "tests": [
+      "electron/productionRun/productionGenerationSubmission.test.ts",
+      "electron/productionRun/productionRunRuntimeEnvelope.test.ts",
+      "electron/capabilityCore/paidSubmissionRecovery.integration.test.ts"
+    ]
+  }
+}

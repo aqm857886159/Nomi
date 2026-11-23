@@ -28,8 +28,7 @@ import { logWarn } from "../logging/logger";
 import type { ApprovalReceiptAuthority } from "./approvalReceipt";
 import {
   canvasProviderId,
-  canvasSubmitReceipt,
-  canvasLastResult,
+  canvasResult,
   type CanvasTaskResult,
 } from "./canvasTransportProvider";
 import { blockingReason, failedResult, latestJob, readyArtifacts, resultFromArtifacts } from "./canvasShotResult";
@@ -493,7 +492,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       }
       writeBackHandOver({ projectId, link, canvasRunId: runId, settlement: { outcome: "accepted" }, executeOn, now });
       wroteBack = true;
-      const receipt = canvasSubmitReceipt(started.providerTaskId) ?? {
+      const receipt = canvasResult(started.rawReceipt) ?? {
         id: started.providerTaskId,
         kind: request.kind,
         status: "queued",
@@ -595,7 +594,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       if (reopened) settle(projectId, projectRoot, runId, latestJob(repository().read(projectId, runId) ?? run), undefined, error);
       throw error;
     }
-    const last = job.providerTaskId ? canvasLastResult(job.providerTaskId) : undefined;
+    const last = canvasResult(polled.raw);
     if (polled.nextAction === "poll")
       return last ?? { id: polled.providerTaskId, kind, status: "running", assets: [], raw: {} };
     if (polled.nextAction === "attention") {
@@ -686,11 +685,10 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
         if (!consentedDraft(run)) bell.settledOutside(projectRoot, runId, run);
         return;
       }
-      const job = latestJob(run);
-      if (!job?.providerTaskId) {
-        if (!submitting.has(`${projectId}\u0000${runId}`)) markInterruptedSingleShotUnknown(repository(), projectId, runId, now);
-        return;
-      }
+      const recovered = latestJob(run)?.providerTaskId || submitting.has(`${projectId}\u0000${runId}`) ? run
+        : markInterruptedSingleShotUnknown(repository(), projectId, runId, now, projectRoot) ?? run;
+      const job = latestJob(recovered);
+      if (!job?.providerTaskId) return;
       if (productionJobPhase(job.status) !== "generating") return;
       observe(submissionFor(projectId), projectId, runId);
     } catch (error) {

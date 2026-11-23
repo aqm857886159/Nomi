@@ -1,3 +1,4 @@
+import { withPaidReceiptWriter, type PaidSubmissionReceipt } from "./paidSubmissionReceipt";
 import { dedupeSubmission } from "../submissionLedger";
 import { answeredSubmissionFailure, providerExplicitlyRejected, type NotDispatchedReason } from "../outboundDispatchEvidence";
 import { matchNomiErrorCode, tagNomiError } from "../shared/nomiErrorCodes";
@@ -87,13 +88,8 @@ export type SubmissionOutboxDependencies = {
    * 生产里由提交出口（`productionGenerationSubmission`）自己接上镜头认领闸（画布接手 / 删节点 / 急停），装配方换不掉。
    */
   beforeDispatch?: (input: ProviderDispatchInput) => void | Promise<void>;
+  persistAcceptance?: (receipt: PaidSubmissionReceipt, input: ProviderDispatchInput) => void;
   afterDispatch?: (result: ProviderDispatchResult, input: ProviderDispatchInput) => void | Promise<void>;
-  /**
-   * 「结果未知」的失败（请求可能已被收下）能不能用**同一个幂等键**重发一次。缺省 = 不能。
-   * 只有供应商档案声明了 `submitIdempotency: true`、并且这类错误确实是连接层错误时才返回 true；
-   * 供应商不认幂等键就重发，等于下第二张单。
-   */
-  canResendAfterUnknown?: (error: unknown, input: ProviderDispatchInput) => boolean;
   /** Callers with a durable cross-call retry budget can keep retries there instead. */
   safeRetryLimit?: 0 | 1;
 };
@@ -168,7 +164,7 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
   function markSubmissionUnknown(request: SubmissionOutboxRequest): ProductionRun {
     let run = requiredRun(deps.repository, request.projectId, request.runId);
     const job = requiredJob(run, request.jobId);
-    if (job.status === "submitting") run = jobCommand(request, "submission-unknown", "submission_unknown");
+    if (job.status === "submitting" || job.status === "submit_intent_persisted") run = jobCommand(request, "submission-unknown", "submission_unknown", { errorCode: "submission_outcome_unknown" });
     const reservationId = `${request.runId}:${request.jobId}:${job.attempt}`;
     const ledger = deps.repository.readBudgetLedger(request.projectId, request.runId);
     if (ledger.reservations[reservationId]?.status === "reserved") {
@@ -271,11 +267,11 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
     if (["submission_unknown", "reconciling", "needs_attention", "cancel_requested"].includes(job.status)) {
       throw new SubmissionReconciliationRequiredError();
     }
-    if (job.status === "submitting") {
+    if (job.status === "submitting" || job.status === "submit_intent_persisted") {
       markSubmissionUnknown(request);
       throw new SubmissionReconciliationRequiredError();
     }
-    if (job.status !== "authorized" && job.status !== "submit_intent_persisted") {
+    if (job.status !== "authorized") {
       throw new Error(`Production job cannot be submitted from status: ${job.status}`);
     }
 
@@ -336,6 +332,21 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
     }
     preDispatch.push({ commandId: `${commandPrefix}:submitting`, type: "job.status", issuedAt, payload: { jobId: request.jobId, status: "submitting", patch: {} } });
     run = deps.repository.executeBatch(request.projectId, request.runId, run.revision, preDispatch).at(-1)!.run;
+    let acceptedId: string | undefined;
+    function recordAcceptance(taskId: string): void {
+      if (acceptedId === taskId) return;
+      if (acceptedId || !taskId.trim()) throw new Error("Conflicting submission receipt");
+      // 已受理 + 收尾一次落盘（发动机收敛第一刀第 3 步的性能尾巴：受理之后原来是三次整份落盘）。
+      const accepting = requiredRun(deps.repository, request.projectId, request.runId);
+      const accepted = deps.repository.executeBatch(request.projectId, request.runId, accepting.revision, [{
+        commandId: `${request.runId}:${request.jobId}:${requiredJob(accepting, request.jobId).attempt}:provider-accepted`,
+        type: "job.status",
+        payload: { jobId: request.jobId, status: "provider_accepted", patch: { providerTaskId: taskId } },
+        issuedAt: now(),
+      }, ...(request.acceptedCommands?.(accepting) ?? [])]);
+      run = accepted.at(-1)!.run;
+      acceptedId = taskId;
+    }
     const dispatchInput: ProviderDispatchInput = {
       run,
       job: requiredJob(run, request.jobId),
@@ -360,52 +371,32 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
     });
     if (submitIntent) deps.intentLog!.commit(submitIntent.intentId, { fencingEpoch });
 
+    let durableId: string | undefined;
+    const dispatch = () => withPaidReceiptWriter((receipt) => {
+      if (durableId || !deps.persistAcceptance) return;
+      deps.persistAcceptance(receipt, dispatchInput);
+      durableId = receipt.taskId;
+      recordAcceptance(durableId);
+    }, () => deps.dispatch(dispatchInput));
+
     let response: ProviderDispatchResult;
-    // 所有尝试里**最不确定**的那一次说了算：只要有一次可能已被收下，最终就是「未知」，
-    // 哪怕最后一次是「连不上」——那只说明第二次没发出去，第一次的下落仍然不明。
-    let anyAttemptMayHaveReached = false;
     try {
       try {
-        response = await deps.dispatch(dispatchInput);
+        response = await dispatch();
       } catch (error) {
-        // ── 自动重发只有两种情形，且合计最多一次（2026-10-02 修：此前连接被重置也算「没写出去」，重复下单）──
-        //
-        // ① **确定没写出去**（`SubmissionNotDispatchedError`：只认连上之前的失败，判据在
-        //    `outboundDispatchEvidence.ts`）：供应商那边什么都没发生，重发一次不会变成第二张单。
-        // ② **结果未知但供应商真支持幂等**（`canResendAfterUnknown`）：同一个键重发，供应商负责去重。
-        // 其余一律不重发：连上之后的错误、超时、被掐断，供应商可能已经收下并扣费。
-        // 不碰意图日志：这一次尝试的 `provider.submit` 意图已经 committed，它覆盖的正是
-        // 「同一个 attempt、同一个幂等键」的这两次调用；崩溃恢复看到它仍然正确地说「未知」。
-        const neverWritten = error instanceof SubmissionNotDispatchedError;
-        if (neverWritten && deps.safeRetryLimit === 0) throw error;
-        // 在本机就被拦下的（出网策略、本机检查、密钥缺失……）是确定性的：原样再派一次只会再被拦一次。
-        if (neverWritten && error.reason === "never_reached_network") throw error;
-        // 供应商给了确定的答复（明确拒绝 / 答了但本机没落下）：不论幂等声明、不论正文像不像连接层错误，重发就是第二笔。
-        if (!neverWritten && submissionFailureOutcome(error, false) !== "unknown") throw error;
-        if (!neverWritten && !deps.canResendAfterUnknown?.(error, dispatchInput)) throw error;
-        if (!neverWritten) anyAttemptMayHaveReached = true;
-        try {
-          response = await deps.dispatch(dispatchInput);
-        } catch (second) {
-          if (anyAttemptMayHaveReached && second instanceof SubmissionNotDispatchedError) {
-            throw new SubmissionReceiptUnknownError(error instanceof Error ? error.message : undefined);
-          }
-          throw second;
-        }
+        if (durableId || !(error instanceof SubmissionNotDispatchedError) || error.reason !== "connect_failed" || deps.safeRetryLimit === 0) throw error;
+        response = await dispatch();
       }
+      if (durableId) response = { ...response, providerTaskId: durableId };
       if (!response.providerTaskId.trim()) throw new Error("Provider returned an empty task id");
       await deps.afterDispatch?.(response, dispatchInput);
-      // 已受理 + 收尾一次落盘（发动机收敛第一刀第 3 步的性能尾巴：受理之后原来是三次整份落盘）。
-      const accepting = requiredRun(deps.repository, request.projectId, request.runId);
-      const accepted = deps.repository.executeBatch(request.projectId, request.runId, accepting.revision, [{
-        commandId: `${request.runId}:${request.jobId}:${requiredJob(accepting, request.jobId).attempt}:provider-accepted`,
-        type: "job.status",
-        payload: { jobId: request.jobId, status: "provider_accepted", patch: { providerTaskId: response.providerTaskId } },
-        issuedAt: now(),
-      }, ...(request.acceptedCommands?.(accepting) ?? [])]);
-      run = accepted.at(-1)!.run;
+      recordAcceptance(response.providerTaskId);
       return { ...response, run };
     } catch (error) {
+      if (durableId) {
+        recordAcceptance(durableId);
+        return { providerTaskId: durableId, run };
+      }
       const recovered = requiredRun(deps.repository, request.projectId, request.runId);
       const recoveredJob = requiredJob(recovered, request.jobId);
       if (recoveredJob.status === "provider_accepted" && recoveredJob.providerTaskId) {
@@ -415,7 +406,7 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
       // 只有拿不出证据的那一档才交人核对。历史：能证明没写出去的失败以前也被 catch-all 记成「可能已受理」，一次根本没发生过的
       // 提交把这一镜冻在人工对账里（2026-09-18）；供应商答了、本机落地失败也曾掉进同一个兜底（2026-10-28 pb07）。
       const message = error instanceof Error ? error.message : String(error);
-      const outcome = submissionFailureOutcome(error, anyAttemptMayHaveReached);
+      const outcome = submissionFailureOutcome(error, false);
       switch (outcome) {
         case "not_dispatched":
           markNotDispatched(request, message);

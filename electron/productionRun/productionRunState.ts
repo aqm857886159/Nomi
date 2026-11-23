@@ -9,7 +9,7 @@ const JOB_TRANSITIONS: Record<ProductionJobStatus, readonly ProductionJobStatus[
   planned: ["authorization_required", "detached"],
   authorization_required: ["authorized", "detached"],
   authorized: ["submit_intent_persisted", "needs_attention", "detached"],
-  submit_intent_persisted: ["submitting", "needs_attention"],
+  submit_intent_persisted: ["submitting", "submission_unknown", "needs_attention"],
   // `needs_attention`：出站层能**证明**这次请求一个字节都没写出去时，这是一个确定的失败态。
   // 在这之前 `submitting` 只有「成了」和「不知道」两条出路，于是一次根本没发生过的提交
   // 也只能被记成 `submission_unknown`（见 `submissionOutbox.markNotDispatched`）。

@@ -70,14 +70,10 @@ export function spendCostKindForNodes(ids: string[]): GenerationCostKind {
   return kinds.size === 0 ? 'image' : 'mixed'
 }
 
-/**
- * 这个节点生成一次花不花钱、走哪条口（发动机收敛第一刀）：要花钱的走单镜 Run（批准、派发、记账都在制作流程那一个口子）；
- * 文本节点与本地 ComfyUI 不进 Run（登记的例外，到期：第二刀传输合一），也不要任何授权——本地 ComfyUI 不花钱，
- * 文本走它自己的流式口。
- */
-export function paidNodeLedger(node: GenerationCanvasNode | undefined): 'run' | undefined {
+/** Every media execution has a recoverable Run, including local ComfyUI queues. */
+export function generationNodeLedger(node: GenerationCanvasNode | undefined): 'run' | undefined {
   if (!node || getGenerationNodeExecutionKind(node.kind) === 'text') return undefined
-  return generationSpendsCredits([node]) ? 'run' : undefined
+  return 'run'
 }
 
 

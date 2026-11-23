@@ -125,11 +125,6 @@
       "count": 5
     }
   },
-  "electron/capabilityCore/canvasTransportProvider.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 2
-    }
-  },
   "electron/capabilityCore/generationDocumentPlan.ts": {
     "generic-map-eviction/no-restricted-syntax": {
       "count": 1
