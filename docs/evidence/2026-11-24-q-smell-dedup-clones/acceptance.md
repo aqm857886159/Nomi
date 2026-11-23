@@ -5,7 +5,7 @@ v-1609-accept：通过
 - 任务：Q-smell 第二段 PR-1（味道 ② 生产代码真克隆清零 `refactor/q-smell-dedup-clones`）
 - 验收线：v-1609-accept
 - 实现线：issues-1629-and-drafts
-- 验收 HEAD：4da29528694267e3c2c8594b20f76f020824f12e
+- 验收 HEAD：61f40669652d9b06a4da805723c4dbaa7e2f98db
 - 验收分支：`verify/q-smell-dedup-clones`（仅追加本验收报告，未修改任何实现或测试代码）
 
 ## 1. 四处生产代码真克隆等价性与删旧核查
@@ -36,6 +36,11 @@ v-1609-accept：通过
 | M2 · 破坏 `.partial.mp4` 清理 | 移除 `runFfmpegMp4Export` `finally` 中的 `fs.rmSync(partialOutputPath, { force: true })` | **红（退出码 1）**：`ffmpegRunner.test.ts` 4 条用例失败（`transcodeWebmToMp4` 失败/日志/取消与 `renderFiltergraphToMp4` 失败清理均红） | 23/23 绿 |
 | M3 · 破坏隔离候选启停保护 | 将 `upsertStagedVendor` 中 `vendorEnabled` 改为恒 `true` | **红（退出码 1）**：`registrationCatalog.test.ts` 2 条用例失败（无模型保存与隔离候选供应商未误启用保护均红） | 16/16 绿 |
 
+## 4. 并入最新 `origin/main`（含 `#1637` `renameWithRetry`）后复验（`61f40669652d9b06a4da805723c4dbaa7e2f98db`）
+
+- 核对合并结果：`runFfmpegMp4Export` 已改调 `#1637` 统一入口 `renameWithRetry`，`eslint-suppressions.json` 仅保留 `hot-path-sync-fs: 16 → 12`（零 `generic-raw-rename` 抑制），无本机路径泄露；
+- 独立复跑 `./node_modules/.bin/vitest run electron/export/ffmpegRunner.test.ts --maxWorkers=2`：**1 passed (1) · 23 passed (23)**（`EXIT=0`）。
+
 ## 结论
 
-`4da29528694267e3c2c8594b20f76f020824f12e` 四处生产代码真克隆等价收敛干净彻底，8 套单测（71/71）、6 项门岗与 3 项变异反例全绿，零本机路径泄露，签发 **通过**。
+`61f40669652d9b06a4da805723c4dbaa7e2f98db` 四处生产代码真克隆等价收敛干净彻底，并入 `#1637` 后 `ffmpegRunner.test.ts`（23/23）与全部门岗/变异反例全绿，零本机路径泄露，签发 **通过**。
