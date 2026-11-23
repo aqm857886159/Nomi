@@ -243,10 +243,10 @@
   },
   "electron/export/ffmpegRunner.ts": {
     "generic-raw-rename/no-restricted-syntax": {
-      "count": 2
+      "count": 1
     },
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 16
+      "count": 12
     }
   },
   "electron/export/mediaProbe.ts": {

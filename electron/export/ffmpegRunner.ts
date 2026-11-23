@@ -249,6 +249,70 @@ function defaultRunProcess(command: string, args: string[], options: RunFfmpegPr
   });
 }
 
+type RunFfmpegMp4ExportParams = {
+  ffmpegPath: string;
+  args: string[];
+  outputPaths: ReturnType<typeof createSafeOutputPaths>;
+  durationMs?: number;
+  signal?: AbortSignal;
+  onProgress?: (progress: FfmpegProgressEvent) => void;
+  stderrLogPath?: string;
+  runProcess?: RunFfmpegProcess;
+};
+
+async function runFfmpegMp4Export(params: RunFfmpegMp4ExportParams): Promise<TimelineMp4ExportResult> {
+  const { ffmpegPath, args, outputPaths, durationMs, signal, onProgress, stderrLogPath } = params;
+  const outputPath = outputPaths.finalPath;
+  const partialOutputPath = outputPaths.partialPath;
+
+  if (signal?.aborted) throw new ExportCancelledError();
+
+  let stderrSummary = "";
+  let sawStderrChunk = false;
+  const progressStream: ProgressStreamState = { buffer: "", recordLines: [] };
+  const handleStderr = (chunk: string) => {
+    if (chunk.length === 0) return;
+    sawStderrChunk = true;
+    stderrSummary = cappedTail(stderrSummary, chunk);
+    appendLog(stderrLogPath, chunk);
+    consumeProgressStreamChunk(progressStream, chunk, durationMs, onProgress);
+  };
+
+  try {
+    const runProcess = params.runProcess || defaultRunProcess;
+    const result = await runProcess(ffmpegPath, args, { signal, onStderr: handleStderr });
+    if (result.stderr && !sawStderrChunk) {
+      handleStderr(result.stderr);
+    } else if (result.stderr && result.stderr.trim().length > 0 && !stderrSummary.includes(result.stderr)) {
+      stderrSummary = cappedTail(stderrSummary, result.stderr);
+      appendLog(stderrLogPath, result.stderr);
+    }
+    if (result.code !== 0) {
+      const detail = stderrSummaryForError(stderrSummary) || `ffmpeg exited with code ${result.code}`;
+      throw new Error(desktopT("export.detail", { detail }));
+    }
+    if (signal?.aborted) throw new ExportCancelledError();
+    if (!fs.existsSync(partialOutputPath)) throw new Error(desktopT("export.mp4NotProduced"));
+    const stat = fs.statSync(partialOutputPath);
+    if (stat.size <= 0) throw new Error(desktopT("export.mp4Empty"));
+    // Windows：旧导出 MP4 被播放器/资源管理器预览持有会 EPERM，共享重试收口（P2）。
+    await retryOnSharingViolationAsync(() => fs.promises.rename(partialOutputPath, outputPath), { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
+    const finalStat = fs.statSync(outputPath);
+    return {
+      absolutePath: outputPath,
+      relativePath: outputPaths.relativeFinalPath,
+      size: finalStat.size,
+    };
+  } catch (error) {
+    if (isAbortLikeError(error) || signal?.aborted) {
+      throw new ExportCancelledError(error instanceof Error && error.message ? error.message : undefined);
+    }
+    throw error;
+  } finally {
+    fs.rmSync(partialOutputPath, { force: true });
+  }
+}
+
 export async function transcodeWebmFileToMp4(options: TranscodeWebmFileToMp4Options): Promise<TimelineMp4ExportResult> {
   const ffmpegPath = resolveFfmpegPath(options.ffmpegPath);
   if (!ffmpegPath) {
@@ -266,63 +330,24 @@ export async function transcodeWebmFileToMp4(options: TranscodeWebmFileToMp4Opti
 
   const projectDir = path.resolve(options.projectDir);
   const outputPaths = createSafeOutputPaths({ projectDir, outputName: options.outputName, extension: "mp4" });
-  const outputPath = outputPaths.finalPath;
-  const partialOutputPath = outputPaths.partialPath;
-
   const args = buildWebmToMp4Args({
     inputPath,
-    outputPath: partialOutputPath,
+    outputPath: outputPaths.partialPath,
     profile: exportProfileFromLegacyOptions(options),
     noAudio: true,
     reportProgress: Boolean(options.onProgress || options.durationMs),
   });
 
-  if (options.signal?.aborted) throw new ExportCancelledError();
-
-  let stderrSummary = "";
-  let sawStderrChunk = false;
-  const progressStream: ProgressStreamState = { buffer: "", recordLines: [] };
-  const handleStderr = (chunk: string) => {
-    if (chunk.length === 0) return;
-    sawStderrChunk = true;
-    stderrSummary = cappedTail(stderrSummary, chunk);
-    appendLog(options.stderrLogPath, chunk);
-    consumeProgressStreamChunk(progressStream, chunk, options.durationMs, options.onProgress);
-  };
-
-  try {
-    const runProcess = options.runProcess || defaultRunProcess;
-    const result = await runProcess(ffmpegPath, args, { signal: options.signal, onStderr: handleStderr });
-    if (result.stderr && !sawStderrChunk) {
-      handleStderr(result.stderr);
-    } else if (result.stderr && result.stderr.trim().length > 0 && !stderrSummary.includes(result.stderr)) {
-      stderrSummary = cappedTail(stderrSummary, result.stderr);
-      appendLog(options.stderrLogPath, result.stderr);
-    }
-    if (result.code !== 0) {
-      const detail = stderrSummaryForError(stderrSummary) || `ffmpeg exited with code ${result.code}`;
-      throw new Error(desktopT("export.detail", { detail }));
-    }
-    if (options.signal?.aborted) throw new ExportCancelledError();
-    if (!fs.existsSync(partialOutputPath)) throw new Error(desktopT("export.mp4NotProduced"));
-    const stat = fs.statSync(partialOutputPath);
-    if (stat.size <= 0) throw new Error(desktopT("export.mp4Empty"));
-    // Windows：旧导出 MP4 被播放器/资源管理器预览持有会 EPERM，共享重试收口（P2）。
-    await retryOnSharingViolationAsync(() => fs.promises.rename(partialOutputPath, outputPath), { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
-    const finalStat = fs.statSync(outputPath);
-    return {
-      absolutePath: outputPath,
-      relativePath: outputPaths.relativeFinalPath,
-      size: finalStat.size,
-    };
-  } catch (error) {
-    if (isAbortLikeError(error) || options.signal?.aborted) {
-      throw new ExportCancelledError(error instanceof Error && error.message ? error.message : undefined);
-    }
-    throw error;
-  } finally {
-    fs.rmSync(partialOutputPath, { force: true });
-  }
+  return runFfmpegMp4Export({
+    ffmpegPath,
+    args,
+    outputPaths,
+    durationMs: options.durationMs,
+    signal: options.signal,
+    onProgress: options.onProgress,
+    stderrLogPath: options.stderrLogPath,
+    runProcess: options.runProcess,
+  });
 }
 
 export type RenderFiltergraphToMp4Options = {
@@ -352,64 +377,25 @@ export async function renderFiltergraphToMp4(options: RenderFiltergraphToMp4Opti
 
   const projectDir = path.resolve(options.projectDir);
   const outputPaths = createSafeOutputPaths({ projectDir, outputName: options.outputName, extension: "mp4" });
-  const outputPath = outputPaths.finalPath;
-  const partialOutputPath = outputPaths.partialPath;
-
   const args = buildWebmToMp4Args({
     inputPath: "",
-    outputPath: partialOutputPath,
+    outputPath: outputPaths.partialPath,
     profile: options.profile,
     noAudio: false, // 由 profile.audioMode / filtergraph.audioOutputLabel 决定是否真有音频
     filtergraph: options.filtergraph,
     reportProgress: Boolean(options.onProgress || options.durationMs),
   });
 
-  if (options.signal?.aborted) throw new ExportCancelledError();
-
-  let stderrSummary = "";
-  let sawStderrChunk = false;
-  const progressStream: ProgressStreamState = { buffer: "", recordLines: [] };
-  const handleStderr = (chunk: string) => {
-    if (chunk.length === 0) return;
-    sawStderrChunk = true;
-    stderrSummary = cappedTail(stderrSummary, chunk);
-    appendLog(options.stderrLogPath, chunk);
-    consumeProgressStreamChunk(progressStream, chunk, options.durationMs, options.onProgress);
-  };
-
-  try {
-    const runProcess = options.runProcess || defaultRunProcess;
-    const result = await runProcess(ffmpegPath, args, { signal: options.signal, onStderr: handleStderr });
-    if (result.stderr && !sawStderrChunk) {
-      handleStderr(result.stderr);
-    } else if (result.stderr && result.stderr.trim().length > 0 && !stderrSummary.includes(result.stderr)) {
-      stderrSummary = cappedTail(stderrSummary, result.stderr);
-      appendLog(options.stderrLogPath, result.stderr);
-    }
-    if (result.code !== 0) {
-      const detail = stderrSummaryForError(stderrSummary) || `ffmpeg exited with code ${result.code}`;
-      throw new Error(desktopT("export.detail", { detail }));
-    }
-    if (options.signal?.aborted) throw new ExportCancelledError();
-    if (!fs.existsSync(partialOutputPath)) throw new Error(desktopT("export.mp4NotProduced"));
-    const stat = fs.statSync(partialOutputPath);
-    if (stat.size <= 0) throw new Error(desktopT("export.mp4Empty"));
-    // Windows：旧导出 MP4 被播放器/资源管理器预览持有会 EPERM，共享重试收口（P2）。
-    await retryOnSharingViolationAsync(() => fs.promises.rename(partialOutputPath, outputPath), { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
-    const finalStat = fs.statSync(outputPath);
-    return {
-      absolutePath: outputPath,
-      relativePath: outputPaths.relativeFinalPath,
-      size: finalStat.size,
-    };
-  } catch (error) {
-    if (isAbortLikeError(error) || options.signal?.aborted) {
-      throw new ExportCancelledError(error instanceof Error && error.message ? error.message : undefined);
-    }
-    throw error;
-  } finally {
-    fs.rmSync(partialOutputPath, { force: true });
-  }
+  return runFfmpegMp4Export({
+    ffmpegPath,
+    args,
+    outputPaths,
+    durationMs: options.durationMs,
+    signal: options.signal,
+    onProgress: options.onProgress,
+    stderrLogPath: options.stderrLogPath,
+    runProcess: options.runProcess,
+  });
 }
 
 export async function transcodeWebmToMp4(options: TranscodeWebmToMp4Options): Promise<TimelineMp4ExportResult> {
