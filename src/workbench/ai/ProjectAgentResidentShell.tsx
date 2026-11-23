@@ -60,6 +60,9 @@ import { useUserPrompts } from '../promptLibrary/useUserPrompts'
 import type { ComposerPopover, QueueRowData } from './v4/agentPanelV4Types'
 import { buildV4ModelRows } from './v4/agentPanelV4ModelRows'
 import { useAgentTraceDirectory } from '../../desktop/useAgentTraceDirectory'
+import { openApimartConnect, openModelSettingsHome } from '../../ui/onboarding/apimartConnectRoute'
+import { useHasTextModel } from '../library/useHasTextModel'
+import { NoTextModelRecoveryCard } from './NoTextModelRecoveryCard'
 
 /**
  * 面板尺寸只有真实 DOM 知道。v4 的积木按面板高度 derive composer 上限，所以必须量。
@@ -114,6 +117,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const timeline = useWorkbenchStore((state) => state.timeline)
 
   const data = useAgentPanelV4Data()
+  const { hasTextModel } = useHasTextModel()
   const actions = useAgentPanelV4Actions(surface, data)
   const connectionFailure = data.connectionFailure
   const connectionError = connectionFailure && !connectionFailure.ok
@@ -205,7 +209,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         onReject: actions.reject,
         onEscalate: actions.stopAsking,
         onAnswer: actions.answerQuestion,
-        onAlternate: () => window.dispatchEvent(new Event('nomi-open-model-catalog')),
+        onAlternate: () => openApimartConnect(),
         ...planSlotHandlers,
       }
   const autoModeBanner = autoMode.bannerVisible ? (
@@ -464,7 +468,13 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const modelRows = React.useMemo(() => buildV4ModelRows(data, t), [data, t])
 
   const composerPopover = popover === 'model'
-    ? <V4ModelPopover rows={modelRows} onOpenLibrary={() => { window.dispatchEvent(new Event('nomi-open-model-catalog')); setPopover(null) }} />
+    ? (
+      <V4ModelPopover
+        rows={modelRows}
+        onOpenLibrary={() => { openApimartConnect(); setPopover(null) }}
+        onOpenAssisted={() => { openModelSettingsHome(); setPopover(null) }}
+      />
+    )
     : popover === 'skill'
       ? (
         <V4SkillPopover
@@ -530,7 +540,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           await data.loadOlder!()
           return laneClient.projection().history?.before
         } : undefined}
-        flowTail={shotVerifyFeedback}
+        flowTail={hasTextModel === false && flow.length > 0 ? <>{shotVerifyFeedback}<NoTextModelRecoveryCard /></> : shotVerifyFeedback}
+        {...(hasTextModel === false ? { emptyOverride: <NoTextModelRecoveryCard /> } : {})}
         surface={surface}
         onStarter={startFromStarter}
         slot={activeSlot}
@@ -597,7 +608,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           onStop: actions.stop,
           onAddFile: () => attachmentApi.inputRef.current?.click(),
           onAddReference: pickReferenceOnCanvas,
-          modelLabel: data.modelLabel,
+          modelLabel: hasTextModel === false && !data.selectedModel
+            ? t('onboardingProviders.entries.modelChipEmpty')
+            : data.modelLabel,
           skillSelected: Boolean(activeSkill || actions.selectedLibraryPrompt),
           // 上面那张卡是在**问**用户（不是在求批准）时，composer 降一档（2026-09-21 拍板）。
           // 降的是注意力不是能力：淡下去、占位改口，仍然能用——用户本来就可以不理那个问题、

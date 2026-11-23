@@ -4,7 +4,17 @@ import { createPortal, flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { ICON_TIERS, NomiSelect, type NomiSelectOption } from '../../../design'
+import {
+  ICON_TIERS,
+  NomiSelect,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  WorkbenchButton,
+  type NomiSelectOption,
+} from '../../../design'
+import { openApimartConnect } from '../../../ui/onboarding/apimartConnectRoute'
 import type { ModelParameterControl } from '../../../config/modelCatalogMeta'
 import type { ModelOption } from '../../../config/models'
 import type { ModelCatalogStatus } from '../../../config/modelCatalogStatus'
@@ -109,6 +119,8 @@ export type ComposerFooterSlots = {
   trailing?: React.ReactNode
   /** 最右的生成钮只交数据，唯一实例由底栏画。状态标签放 trailing。 */
   send?: React.ComponentProps<typeof ComposerSendButton>
+  /** 未连模型时最右「连接模型」主按钮的悬停说明（O1a-canvas entry.composer-connect）。 */
+  connectTooltip?: string
   /** 只放流式布局放不下就整颗换行（分镜行最窄一档）；画布一行不换。 */
   wrap?: boolean
   /** 宿主的走查锚点（`data-storyboard-composer-bar` 等）。 */
@@ -264,7 +276,7 @@ export default function InlineParameterBar({
   const modeCollapsible = modeHasIcon(modeMenu?.options, modeMenu?.value)
   const sendCollapsible = Boolean(footer?.send?.label)
   const summaryCandidates = fitCandidates?.length ?? 1
-  const yielding = Boolean(footer && !wrap)
+  const yielding = Boolean(footer && !wrap && modelOptions.length > 0)
   const footerRowRef = React.useRef<HTMLDivElement | null>(null)
   const rulerRef = React.useRef<HTMLDivElement | null>(null)
   const rulerRoot = React.useRef<ShadowRoot | null>(null)
@@ -438,6 +450,8 @@ export default function InlineParameterBar({
   // 谁也别再自己接一遍（P1）。
   const controlWiring = { meta, onCatalogControlChange, onParameterControlChange }
 
+  const showFooterConnect = modelOptions.length === 0 && modelCatalogStatus.status !== 'loading' && Boolean(footer?.send)
+
   /** 有底栏就把参数格放进整条底栏（四处同一份排法）；没有就只交参数格。 */
   const wrapFooter = (params: JSX.Element): JSX.Element => {
     if (!footer) return params
@@ -456,7 +470,36 @@ export default function InlineParameterBar({
             </NodePromptToolCluster>
           ) : null}
           {footer.trailing}
-          <span data-yield-action className="contents"><ComposerBarYieldContext.Provider value={yieldContext}>{footer.send ? <ComposerSendButton {...footer.send} /> : null}</ComposerBarYieldContext.Provider></span>
+          <span data-yield-action className="contents">
+            {showFooterConnect ? (
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <WorkbenchButton
+                      variant="primary"
+                      className="shrink-0 rounded-pill px-3.5 font-semibold"
+                      data-bar-segment="generate"
+                      data-composer-connect="true"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        openApimartConnect()
+                      }}
+                    >
+                      {t('onboardingProviders.entries.connectModel')}
+                    </WorkbenchButton>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="end" data-composer-connect-tooltip="true">
+                    {footer.connectTooltip ?? t('onboardingProviders.entries.composerTooltipGeneric')}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <ComposerBarYieldContext.Provider value={yieldContext}>
+                {footer.send ? <ComposerSendButton {...footer.send} /> : null}
+              </ComposerBarYieldContext.Provider>
+            )}
+          </span>
         </div>
         {yielding ? <div ref={rulerRef} aria-hidden="true" className="invisible pointer-events-none absolute left-0 top-0 text-caption font-medium" /> : null}
         {showAdvanced ? <AdvancedSettingsSection ref={advancedRef} controls={advancedControls} {...controlWiring} /> : null}
@@ -465,7 +508,7 @@ export default function InlineParameterBar({
   }
 
   if (modelOptions.length === 0) {
-    // 「还没有清单」和「清单里有但加载中」是两回事：后者画骨架，别画「无模型·配置模型」，
+    // 「还没有清单」和「清单里有但加载中」是两回事：后者画骨架，别画「未连模型 · 连接模型」，
     // 否则点节点的瞬间会先闪一下空态再跳真实芯片（2026-10-11 走查第 4 条）。
     if (modelCatalogStatus.status === 'loading') {
       return wrapFooter(
@@ -477,24 +520,31 @@ export default function InlineParameterBar({
       )
     }
     return wrapFooter(
-      <button
-        type="button"
-        className={cn(
-          'inline-flex items-center gap-1.5 h-7 px-3 rounded-full border border-nomi-line',
-          'bg-nomi-accent-soft text-nomi-accent font-medium text-caption',
-          'hover:bg-nomi-accent hover:text-nomi-paper transition-colors cursor-pointer',
-        )}
-        aria-label={t('generationCommon.parameters.configureModel')}
-        title={t('generationCommon.parameters.openModelCatalog')}
-        onClick={(event) => {
-          event.preventDefault()
-          event.stopPropagation()
-          window.dispatchEvent(new CustomEvent('nomi-open-model-catalog'))
-        }}
-      >
-        <span className="truncate">{modelCatalogStatus.message}</span>
-        <span className="shrink-0">{t('generationCommon.parameters.configure')}</span>
-      </button>,
+      !hideModel ? (
+        <NomiSelect
+          ariaLabel={t('generationCommon.parameters.model')}
+          placeholder={t('onboardingProviders.entries.modelChipEmpty')}
+          triggerMaxWidth={wrap ? 260 : 200}
+          className="shrink-0 text-nomi-ink-60"
+          value=""
+          options={modelSelect.modelOptions}
+          onChange={modelSelect.onModelPick}
+        />
+      ) : (
+        <WorkbenchButton
+          size="sm"
+          variant="primary"
+          className="shrink-0 rounded-pill px-3 font-semibold"
+          data-composer-connect="true"
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            openApimartConnect()
+          }}
+        >
+          {t('onboardingProviders.entries.connectModel')}
+        </WorkbenchButton>
+      ),
     )
   }
 

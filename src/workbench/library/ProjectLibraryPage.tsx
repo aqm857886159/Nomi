@@ -226,7 +226,6 @@ export default function ProjectLibraryPage({
     { id: 'native', label: t('library.local'), count: sourceCounts.native },
     { id: 'folder', label: t('library.folders'), count: sourceCounts.folder },
   ]
-  const textModelMissing = hasTextModel === false
   const openProject = React.useCallback((projectId: string): void => {
     const status = syncInspectionByProject[projectId]?.status
     if (status && syncStatusBlocksOpen(status)) {
@@ -236,7 +235,7 @@ export default function ProjectLibraryPage({
     onOpenProject(projectId)
     markLibraryUsed('project', projectId)
   }, [onOpenProject, syncInspectionByProject])
-  // 10-08 外壳重设计：模型接入 / 浏览器 / 设置都在 40px 合一顶栏或设置里；这里只剩「缺文本模型」那条提示条。
+  // 10-08 外壳重设计：模型接入 / 浏览器 / 设置都在 40px 合一顶栏或设置里；已有项目且未连模型时顶部出一行提示条（O1b-library）。
   const [tab, setTab] = React.useState<LibraryTab>('projects')
   // Skill / 提示词页签的工具（搜索、类型、导入、新建）和页签同一行（拍板图 SkillLibrary / PromptLibrary）：这一格是它们的落点，库内容自己 portal 进来。
   const [libraryToolbar, setLibraryToolbar] = React.useState<HTMLDivElement | null>(null)
@@ -244,7 +243,12 @@ export default function ProjectLibraryPage({
   // 第一次打开（没有项目、没在读、没读错、没在搜）= LibraryEmpty 板：三张大动作卡；有项目后收成右上两颗按钮。
   const firstRun = !projectsError && !projectsLoading && projects.length === 0
   const hasUsableConnection = catalogHasUsableConnection || hasTextModel === true
+  const hasCatalogBridge = Boolean(getDesktopBridge()?.modelCatalog)
+  const modelUnconnected = hasCatalogBridge
+    ? !availabilityLoading && !hasUsableConnection
+    : hasTextModel === false
   const showHeroCard = firstRun && !availabilityLoading && !hasUsableConnection
+  const showModelBanner = !firstRun && !projectsLoading && !projectsError && modelUnconnected && Boolean(onOpenModelCatalog)
   const tabs: Array<{ id: LibraryTab; label: string }> = [
     { id: 'projects', label: t('appShell.library.tabProjects') },
     { id: 'skills', label: t('appShell.library.tabSkills') },
@@ -277,15 +281,15 @@ export default function ProjectLibraryPage({
       ) : null}
     </section>
   )
-  // ── 缺文本模型 → 提示条（模型接入在项目库的唯一入口形态；生成失败卡仍可直达设置 › 模型接入） ──
-  const modelBanner = textModelMissing && onOpenModelCatalog ? (
+  // ── 已有项目但未连模型 → 顶部一行提示条（O1b-library；老用户有任一可用连接时不出） ──
+  const modelBanner = showModelBanner && onOpenModelCatalog ? (
     <section
       className="flex min-h-11 items-center gap-2.5 rounded-panel bg-nomi-info-soft py-1.5 pl-3.5 pr-2 text-body-sm text-nomi-info-ink ring-1 ring-inset ring-nomi-line"
       aria-label={t('library.modelStatus')}
       data-model-banner="true"
     >
       <IconPlugConnected size={16} stroke={1.5} className="shrink-0" aria-hidden="true" />
-      <span className="min-w-0 flex-1">
+      <span className="min-w-0 flex-1 [text-wrap:pretty]">
         <span className="font-medium">{t('library.textModelMissing')}</span>
         <span className="ml-1.5 text-nomi-info-ink/80">{t('library.textModelMissingHint')}</span>
       </span>

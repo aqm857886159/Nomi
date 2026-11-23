@@ -20,6 +20,7 @@ import { providerIdentityIcon } from '../../config/modelProviderIdentity'
 import { modelArchetypeOf, modelBrandIcon } from '../../config/modelFamilyIcons'
 import { modelCapabilityLine } from '../../config/modelCapabilityLine'
 import { applyModelBoxDefaults } from '../../config/modelBoxDefaults'
+import { openApimartConnect } from '../../ui/onboarding/apimartConnectRoute'
 import { EVERY_VARIANT } from '../../../electron/shared/modelArchetypes'
 
 import type { ModelProviderRef } from '../../config/modelIdentity'
@@ -144,7 +145,7 @@ function openModelVisibilitySettings(): void {
 }
 
 export function openModelCatalog(): void {
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event('nomi-open-model-catalog'))
+  openApimartConnect()
 }
 
 function connectVendorOption(): NomiSelectOption {
