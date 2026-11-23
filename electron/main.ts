@@ -68,7 +68,7 @@ import { registerIntegrationSessionIpc } from "./integrationCertification/integr
 import { installIntegrationSessionRuntime } from "./integrationCertification/integrationSessionRuntimeInstall";
 import { registerProductionRunIpc } from "./productionRun/productionRunIpc";
 import { registerProductionActionIpc } from "./productionRun/productionActionIpc";
-import { installProductionRunDesktopLifecycle } from "./productionRun/productionRunDesktopLifecycle";
+import { bootMcpStdioMainProcess, installProductionRunDesktopLifecycle } from "./productionRun/productionRunDesktopLifecycle";
 import { classifyProcessLaunch, singleInstanceLockData } from "./productionRun/desktopLaunchIntent";
 import { canvasReadSurfaceRuntime } from "./capabilityCore/canvasReadSurfaceRuntime";
 import { registerDesktopCanvasReadRuntime, type CanvasReadExecutionRuntime } from "./capabilityCore/canvasReadMainRuntime";
@@ -85,7 +85,7 @@ import { registerRendererLogIpc } from "./logging/rendererLog";
 import { createProjectInteractionCapture } from "./assets/projectInteractionCapture";
 import { issueChildWindowProject } from "./assets/windowProjectCapture";
 import { installWindowNavigation } from "./windowNavigation";
-import { registerQuitDrain, requestQuit } from "./quitTeardown";
+import { registerQuitDrain } from "./quitTeardown";
 import { installMainQuitOwner } from "./quitOwnerMain";
 import { backgroundWindowOptions, disposeBackgroundLifecycle, installBackgroundLifecycle, installBackgroundWindowBehavior, isBackgroundLaunch, touchBackgroundActivity } from "./backgroundLaunch";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
@@ -133,28 +133,7 @@ const { ensureArtifactPreviewSecret, flushPendingProductionDeepLink } = installP
   hasSingleInstanceLock,
 });
 if (isMcpStdio) {
-  void app
-    .whenReady()
-    .then(async () => {
-      app.dock?.hide?.();
-      if (launchMode.scriptKind === "http-forwarder") {
-        const toErr = (...parts: unknown[]) =>
-          process.stderr.write(`${parts.map((p) => (typeof p === "string" ? p : JSON.stringify(p))).join(" ")}\n`);
-        console.log = toErr;
-        console.info = toErr;
-        console.warn = toErr;
-        console.debug = toErr;
-        await import("./capabilityCore/mcpHttpForwarder");
-        return;
-      }
-      ensureArtifactPreviewSecret();
-      const { startMcpStdioServer } = await import("./capabilityCore/mcpStdioServer");
-      await startMcpStdioServer();
-    })
-    .catch((error) => {
-      process.stderr.write(`[nomi:mcp-stdio] 启动失败: ${error instanceof Error ? error.message : String(error)}\n`);
-      requestQuit({ exitCode: 1 }); // owner 在模块加载时已同步装好：排空后以 1 退出
-    });
+  bootMcpStdioMainProcess({ scriptKind: launchMode.scriptKind, ensureArtifactPreviewSecret });
 }
 protocol.registerSchemesAsPrivileged([
   {

@@ -2,8 +2,9 @@ import { app } from "electron";
 import path from "node:path";
 
 import { revealMainWindow, sendToMainWindow } from "../mainWindowPresence";
+import { requestQuit } from "../quitTeardown";
 import { loadOrCreateArtifactPreviewSecret } from "./artifactProjection";
-import { classifySecondInstance } from "./desktopLaunchIntent";
+import { classifySecondInstance, type McpStdioScriptKind } from "./desktopLaunchIntent";
 import { resolveProductionDeepLink, type ProductionDeepLinkTarget } from "./productionDeepLink";
 import { createProductionRunRepository } from "./productionRunRepository";
 import { logError, logInfo, logWarn } from "../logging/logger";
@@ -99,4 +100,37 @@ export function installProductionRunDesktopLifecycle(args: InstallArgs): {
   }
 
   return { ensureArtifactPreviewSecret, flushPendingProductionDeepLink };
+}
+
+/**
+ * 后台 MCP stdio 主进程就绪后的无头启动入口（#1629）：
+ * 再次隐藏 Dock，按脚本类型分流 http-forwarder（重定向 console 到 stderr 避免污染 stdout 协议帧）
+ * 或直接启动进程内 MCP stdio server；启动失败则经 quit owner 排空并以 1 退出。
+ */
+export function bootMcpStdioMainProcess(args: {
+  scriptKind?: McpStdioScriptKind;
+  ensureArtifactPreviewSecret: () => void;
+}): void {
+  void app
+    .whenReady()
+    .then(async () => {
+      app.dock?.hide?.();
+      if (args.scriptKind === "http-forwarder") {
+        const toErr = (...parts: unknown[]) =>
+          process.stderr.write(`${parts.map((p) => (typeof p === "string" ? p : JSON.stringify(p))).join(" ")}\n`);
+        console.log = toErr;
+        console.info = toErr;
+        console.warn = toErr;
+        console.debug = toErr;
+        await import("../capabilityCore/mcpHttpForwarder");
+        return;
+      }
+      args.ensureArtifactPreviewSecret();
+      const { startMcpStdioServer } = await import("../capabilityCore/mcpStdioServer");
+      await startMcpStdioServer();
+    })
+    .catch((error) => {
+      process.stderr.write(`[nomi:mcp-stdio] 启动失败: ${error instanceof Error ? error.message : String(error)}\n`);
+      requestQuit({ exitCode: 1 });
+    });
 }
