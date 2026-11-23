@@ -17,7 +17,7 @@ import type { AdoptProposal, AdoptionOutcome } from './adoptionTypes'
  *  · 补偿失败 → 「没能加进去，时间轴保持原样」（而不是留半落的轴）
  */
 
-export type AdoptionReceiptOptions = {
+type AdoptionReceiptOptions = {
   /** 成功时是否展开时间轴让结果立刻可见。节点点击/拼片=是；轴内拖放=已经在看着轴了。 */
   revealTimeline?: boolean
   /** 成功文案 key 覆写（批量用「已排 N 个镜头」）。 */

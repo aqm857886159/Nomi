@@ -1,23 +1,7 @@
-import type { TimelineClip, TimelineState } from '../timeline/timelineTypes'
-import { resolveActiveClipsAtFrame } from '../timeline/timelineMath'
-
-export type TimelinePlaybackLayer = {
-  image: TimelineClip | null
-  video: TimelineClip | null
-  audio: TimelineClip | null
-}
+import type { TimelineClip } from '../timeline/timelineTypes'
 
 export function findClipByType(activeClips: TimelineClip[], type: TimelineClip['type']): TimelineClip | null {
   return activeClips.find((clip) => clip.type === type) || null
-}
-
-export function resolveTimelinePlaybackLayer(timeline: TimelineState): TimelinePlaybackLayer {
-  const activeClips = resolveActiveClipsAtFrame(timeline, timeline.playheadFrame)
-  return {
-    image: findClipByType(activeClips, 'image'),
-    video: findClipByType(activeClips, 'video'),
-    audio: findClipByType(activeClips, 'audio'),
-  }
 }
 
 export function resolveVideoClipMediaTimeSeconds(params: {

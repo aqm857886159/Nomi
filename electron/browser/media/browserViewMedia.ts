@@ -29,7 +29,7 @@ import type {
   BrowserViewRecord,
 } from "../core/browserViewTypes";
 
-export const BROWSER_PROMPT_IMAGE_MAX_BYTES = 16 * 1024 * 1024;
+const BROWSER_PROMPT_IMAGE_MAX_BYTES = 16 * 1024 * 1024;
 const browserBlobDownloadQueues = new Map<number, Promise<void>>();
 
 async function enqueueBrowserBlobDownload<T>(contents: WebContents, task: () => Promise<T>): Promise<T> {
@@ -108,7 +108,7 @@ export function browserMediaReferrer(pageUrl: string, mediaUrl: string): string 
 }
 
 // 会话内媒体请求 init 单源：cookies/cache/credentials 走页面 session + 策略一致 Referer。
-export function browserMediaFetchInit(
+function browserMediaFetchInit(
   pageUrl: string,
   mediaUrl: string,
   requestedMediaType: "image" | "video" | null,

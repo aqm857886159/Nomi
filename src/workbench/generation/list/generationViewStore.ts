@@ -4,7 +4,7 @@
 import { create } from 'zustand'
 import { declareStoreLifetime } from '../../project/storeLifetime'
 
-export type GenerationView = 'canvas' | 'list'
+type GenerationView = 'canvas' | 'list'
 
 type GenerationViewState = {
   view: GenerationView
@@ -23,7 +23,7 @@ export const useGenerationViewStore = create<GenerationViewState>()((set) => ({
   setInspectorKey: (inspectorKey) => set({ inspectorKey }),
 }))
 
-export const generationViewStoreLifetime = declareStoreLifetime({
+declareStoreLifetime({
   store: 'useGenerationViewStore',
   fields: { view: 'project', inspectorKey: 'project' },
   releaseProject: () => useGenerationViewStore.setState(INITIAL),

@@ -20,7 +20,7 @@ import { bindingsOf, storyboardAssetSlots, type ReferenceBindingMap } from './sh
  * `max` 缺省 = 供应商没公布上限 → 角标只显 N 不显分母（不能编造一个假上限）。
  */
 
-export type ShotReferenceCell = {
+type ShotReferenceCell = {
   /** 槽的语义身份（= `ArchetypeReferenceSlotKind`，跨供应商稳定）。 */
   key: string
   label: string
@@ -37,7 +37,7 @@ export type ShotReferenceCell = {
   declared: ArchetypeReferenceSlot
 }
 
-export type ShotReferenceColumn =
+type ShotReferenceColumn =
   /**
    * 该 **mode** 不吃参考（`slots: []`，如 t2v）：一行灰字，`@` 仍可把锚写进提示词。
    *

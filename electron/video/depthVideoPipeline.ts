@@ -14,7 +14,7 @@
 import { VIDEO_DEPTH_RECIPE } from "../shared/canvas/videoDepth";
 
 /** 抽帧文件名模板：4 位序号 + .jpg，与 `buildExtractFramesArgs` 的 pattern 对称。 */
-export const VIDEO_DEPTH_FRAME_PATTERN = "f_%04d.jpg";
+const VIDEO_DEPTH_FRAME_PATTERN = "f_%04d.jpg";
 
 export function videoDepthFrameFileName(oneBasedIndex: number): string {
   return `f_${String(oneBasedIndex).padStart(4, "0")}.jpg`;
@@ -97,7 +97,7 @@ export function buildProbeArgs(sourcePath: string): string[] {
   ];
 }
 
-export type VideoDepthProbeResult = { width: number; height: number; durationSeconds: number };
+type VideoDepthProbeResult = { width: number; height: number; durationSeconds: number };
 
 /** 解析 `buildProbeArgs` 的输出。缺任何一项 = 返回 null（fail-closed，不猜默认值）。 */
 export function parseProbeOutput(stdout: string): VideoDepthProbeResult | null {

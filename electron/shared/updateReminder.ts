@@ -122,12 +122,12 @@ export function isHotfixVersion(version: string): boolean {
   return patch !== undefined && patch !== "0";
 }
 
-export function notesAppliesTo(notes: VersionNotes | undefined, platform: string): boolean {
+function notesAppliesTo(notes: VersionNotes | undefined, platform: string): boolean {
   if (!notes?.platforms) return true;
   return notes.platforms.includes(platform as UpdatePlatform);
 }
 
-export type HotfixBannerData = Readonly<{ version: string; headline: string }>;
+type HotfixBannerData = Readonly<{ version: string; headline: string }>;
 
 /**
  * 项目库顶部的一次性热修横幅：只有「有新版 + 是热修版 + 适用本平台 + 没 ✕ 过」才出；

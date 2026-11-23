@@ -143,7 +143,7 @@ export function editingSidePanelDrawnOpen(panel: EditingSidePanel, pixels: numbe
 }
 
 /** 用户亲手拖完分隔条，要写回存档的东西。 */
-export type EditingPanelDragIntent = {
+type EditingPanelDragIntent = {
   visibility: Partial<Record<EditingSidePanel, boolean>>
   sizes: Partial<Record<'sourceWidth' | 'inspectorWidth', number>>
   keep: EditingSidePanel | null

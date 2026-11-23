@@ -18,8 +18,8 @@ export function probeTargets(): string[] {
   return anonymousAssetHostingOrigins();
 }
 
-export type ProxyProbeAttempt = { target: string; ok: boolean; ms: number; error: string };
-export type ProxyProbeResult = { ok: boolean; ms: number; target: string; error: string; tried: ProxyProbeAttempt[] };
+type ProxyProbeAttempt = { target: string; ok: boolean; ms: number; error: string };
+type ProxyProbeResult = { ok: boolean; ms: number; target: string; error: string; tried: ProxyProbeAttempt[] };
 
 /**
  * **逐个都探完**，聚合口径是「任意一个通就算通」——因为上传链本来就是有序 fallback，

@@ -35,7 +35,7 @@ export const BOTTOM_DOCK_SELECTOR = `[${BOTTOM_DOCK_ATTR}]`
  * 所以坞算空当时跳过让位者，只让开**位置由自己定**的那几块（画布工具簇、迷你画面窗）。
  * 反方向不跳：胶囊与画布选择浮条必须照旧把坞和彼此都算进障碍。
  */
-export const BOTTOM_DOCK_AVOIDER_ATTR = 'data-bottom-dock-avoids'
+const BOTTOM_DOCK_AVOIDER_ATTR = 'data-bottom-dock-avoids'
 /** 外壳层：整个生成面工作区。收起态的 Nomi 坞、时间轴胶囊、迷你画面窗都在这一层之内。 */
 export const BOTTOM_DOCK_SCOPE_SELECTOR = '.workbench-generation'
 
@@ -55,7 +55,7 @@ export function resolveBottomDockScope(host: Element): Element {
  * `exclude` 用来把「正在被摆放的那个东西自己」排掉——胶囊自己也带标记（它对别人也是停靠区），
  * 不排掉就会自己躲自己。祖先/后代关系一并排除：坞的外框与内框都可能带标记。
  */
-export function collectBottomDockElements(
+function collectBottomDockElements(
   host: Element,
   exclude?: Element | null,
   options?: Readonly<{ skipAvoiders?: boolean }>,

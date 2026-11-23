@@ -36,7 +36,7 @@ export type DraftFilmTimeline = {
   transitions: DraftFilmTransition[]
 }
 
-export type DraftFilmValidation = {
+type DraftFilmValidation = {
   durationSeconds: number
   clipCount: number
   subtitleCount: number
