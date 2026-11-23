@@ -2,7 +2,7 @@
 // shotNumbering）喂给共享工厂 `electron/capabilityCore/canvasNodeFactory`。
 // 与 electron 能力核注入 nodeKindDomain 纯表是同一份工厂逻辑 → 两路产出字段级等价（除 id/落点）。
 // 渲染层永远吃**这份**（src 真函数）→ UI 路径不经镜像表，单一真相源不旁路。
-import type { NodeFactoryDeps } from '../../../../electron/capabilityCore/canvasNodeFactory'
+import type { NodeFactoryDeps } from '../../../../electron/shared/canvas/canvasNodeFactory'
 import {
   getGenerationNodeDefaultSize,
   getGenerationNodeDefaultTitle,

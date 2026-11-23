@@ -5,7 +5,7 @@ import {
   DEFAULT_SYSTEM_PROMPT_OVERRIDES,
   normalizeSystemPromptOverrides,
   type SystemPromptOverrides,
-} from "./systemPromptsContract";
+} from "../shared/contracts/systemPromptsContract";
 import { getSettingsRoot } from "./settingsRoot";
 
 const SYSTEM_PROMPTS_FILE = "system-prompts.json";
@@ -17,7 +17,7 @@ export {
   SYSTEM_PROMPT_MODE_IDS,
   type SystemPromptModeId,
   type SystemPromptOverrides,
-} from "./systemPromptsContract";
+} from "../shared/contracts/systemPromptsContract";
 
 export function systemPromptsSettingsPath(): string {
   return path.join(getSettingsRoot(), SYSTEM_PROMPTS_FILE);
