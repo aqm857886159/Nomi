@@ -2,10 +2,12 @@ import { app } from "electron";
 import path from "node:path";
 
 import { revealMainWindow, sendToMainWindow } from "../mainWindowPresence";
+import { requestQuit } from "../quitTeardown";
 import { loadOrCreateArtifactPreviewSecret } from "./artifactProjection";
+import { classifySecondInstance, type McpStdioScriptKind } from "./desktopLaunchIntent";
 import { resolveProductionDeepLink, type ProductionDeepLinkTarget } from "./productionDeepLink";
 import { createProductionRunRepository } from "./productionRunRepository";
-import { logError, logWarn } from "../logging/logger";
+import { logError, logInfo, logWarn } from "../logging/logger";
 
 type InstallArgs = {
   isMcpStdio: boolean;
@@ -82,15 +84,53 @@ export function installProductionRunDesktopLifecycle(args: InstallArgs): {
       );
       app.quit();
     } else {
-      // 用户再次启动 app（双击图标 / 点任务栏），我们是唯一实例 → 必须让他看见主窗（不是第一扇辅助窗）。
+      // 用户再次启动 app（双击图标 / 点任务栏）或打开 nomi:// 深链时，叫回主窗；
+      // 后台 MCP / Helper / 后台冷启锁竞争的 second-instance 绝不打断已收起的窗口（#1629）。
       // 零窗口、藏着、最小化、正在建、正在退都由主窗主人处理（issue #62；正在退时退完自动重开一次）。
-      app.on("second-instance", (_event, commandLine) => {
-        const deepLink = commandLine.find((value) => value.startsWith("nomi://"));
-        if (deepLink) handleProductionDeepLink(deepLink);
+      app.on("second-instance", (_event, commandLine, _workingDirectory, additionalData) => {
+        const decision = classifySecondInstance(commandLine, additionalData);
+        if (decision.deepLink) handleProductionDeepLink(decision.deepLink);
+        if (!decision.shouldRevealWindow) {
+          logInfo("main", "second-instance-background-ignored", { reason: decision.reason });
+          return;
+        }
         revealMainWindow("second-instance");
       });
     }
   }
 
   return { ensureArtifactPreviewSecret, flushPendingProductionDeepLink };
+}
+
+/**
+ * 后台 MCP stdio 主进程就绪后的无头启动入口（#1629）：
+ * 再次隐藏 Dock，按脚本类型分流 http-forwarder（重定向 console 到 stderr 避免污染 stdout 协议帧）
+ * 或直接启动进程内 MCP stdio server；启动失败则经 quit owner 排空并以 1 退出。
+ */
+export function bootMcpStdioMainProcess(args: {
+  scriptKind?: McpStdioScriptKind;
+  ensureArtifactPreviewSecret: () => void;
+}): void {
+  void app
+    .whenReady()
+    .then(async () => {
+      app.dock?.hide?.();
+      if (args.scriptKind === "http-forwarder") {
+        const toErr = (...parts: unknown[]) =>
+          process.stderr.write(`${parts.map((p) => (typeof p === "string" ? p : JSON.stringify(p))).join(" ")}\n`);
+        console.log = toErr;
+        console.info = toErr;
+        console.warn = toErr;
+        console.debug = toErr;
+        await import("../capabilityCore/mcpHttpForwarder");
+        return;
+      }
+      args.ensureArtifactPreviewSecret();
+      const { startMcpStdioServer } = await import("../capabilityCore/mcpStdioServer");
+      await startMcpStdioServer();
+    })
+    .catch((error) => {
+      process.stderr.write(`[nomi:mcp-stdio] 启动失败: ${error instanceof Error ? error.message : String(error)}\n`);
+      requestQuit({ exitCode: 1 });
+    });
 }

@@ -68,7 +68,8 @@ import { registerIntegrationSessionIpc } from "./integrationCertification/integr
 import { installIntegrationSessionRuntime } from "./integrationCertification/integrationSessionRuntimeInstall";
 import { registerProductionRunIpc } from "./productionRun/productionRunIpc";
 import { registerProductionActionIpc } from "./productionRun/productionActionIpc";
-import { installProductionRunDesktopLifecycle } from "./productionRun/productionRunDesktopLifecycle";
+import { bootMcpStdioMainProcess, installProductionRunDesktopLifecycle } from "./productionRun/productionRunDesktopLifecycle";
+import { classifyProcessLaunch, singleInstanceLockData } from "./productionRun/desktopLaunchIntent";
 import { canvasReadSurfaceRuntime } from "./capabilityCore/canvasReadSurfaceRuntime";
 import { registerDesktopCanvasReadRuntime, type CanvasReadExecutionRuntime } from "./capabilityCore/canvasReadMainRuntime";
 import { registerAgentLaneIpc, type LaneIpcRegistration } from "./agentLane/laneIpc";
@@ -84,7 +85,7 @@ import { registerRendererLogIpc } from "./logging/rendererLog";
 import { createProjectInteractionCapture } from "./assets/projectInteractionCapture";
 import { issueChildWindowProject } from "./assets/windowProjectCapture";
 import { installWindowNavigation } from "./windowNavigation";
-import { registerQuitDrain, requestQuit } from "./quitTeardown";
+import { registerQuitDrain } from "./quitTeardown";
 import { installMainQuitOwner } from "./quitOwnerMain";
 import { backgroundWindowOptions, disposeBackgroundLifecycle, installBackgroundLifecycle, installBackgroundWindowBehavior, isBackgroundLaunch, touchBackgroundActivity } from "./backgroundLaunch";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
@@ -100,38 +101,39 @@ if (configuredUserDataDir) {
   // 正常安装的用户没有这个 env，路径与从前逐字一致（仍是 ~/Library/Logs/Nomi）。
   app.setPath("logs", path.join(configuredUserDataDir, "logs"));
 }
+const launchMode = classifyProcessLaunch();
+const isMcpStdio = launchMode.kind === "mcp-stdio";
+// 后台 MCP stdio（含宿主剥离 ELECTRON_RUN_AS_NODE / NOMI_MCP_STDIO 但 argv 指向 MCP 入口脚本时）
+// 必须在装日志、碰单实例锁、进 app.whenReady 之前先隐藏 Dock，防止 macOS 弹图标或抢焦点（#1629）。
+if (isMcpStdio) app.dock?.hide?.();
 installMainProcessLifecycle(app);
 // 单实例锁（能力核前提，docs/plan/2026-06-20）：保证同一 user-data 只有一个 app 实例 = 工程文件的
 // 唯一写者，外部 CLI/MCP 才能安全地「app 开着走 RPC、关着走 headless」。隔离实例（eval/promo 用独立
 // --user-data-dir）拿到的是各自的锁，不受影响。拿不到锁 = 已有实例在跑 → 让出（聚焦老窗后退出）。
-// MCP stdio 模式：Claude Code / Codex 用 Nomi 自身二进制 + env NOMI_MCP_STDIO=1 把它拉起当 MCP server
-//（见 docs/plan/2026-06-24-packaged-mcp-stdio-server.md）。此模式**绝不抢单实例锁**——否则 GUI 在跑时
-// 它会被判第二实例而自杀；也不开窗、不起 IPC，只跑进程内 stdio JSON-RPC（下方 GUI whenReady 由
-// hasSingleInstanceLock=false 自动跳过）。
-const isMcpStdio = process.env.NOMI_MCP_STDIO === "1";
+// MCP stdio 模式：Claude Code / Codex 用 Nomi / Helper 二进制 + env NOMI_MCP_STDIO=1 或 MCP 入口脚本
+// 参数拉起当 MCP server（见 docs/plan/2026-06-24-packaged-mcp-stdio-server.md）。此模式**绝不抢单实例锁**——
+// 否则 GUI 在跑时它会被判第二实例而自杀，还会触发已有实例的 second-instance 把收起窗口切到前台（#1629）；
+// 也不开窗、不起 IPC，只跑进程内 stdio JSON-RPC（下方 GUI whenReady 由 hasSingleInstanceLock=false 自动跳过）。
 // Dev/test MCP may load dist-electron/main.js directly, so Electron cannot read
 // package.json and otherwise identifies as "Electron". Match the GUI identity
 // before app ready or safeStorage ciphertext written by Nomi cannot be opened.
 if (isMcpStdio && process.env.NOMI_APP_NAME) app.setName(process.env.NOMI_APP_NAME);
 const allowE2eMultiInstance = process.env.NOMI_E2E_ALLOW_MULTI_INSTANCE === "1";
-const hasSingleInstanceLock = isMcpStdio ? false : allowE2eMultiInstance ? true : app.requestSingleInstanceLock();
+const singleInstanceData = singleInstanceLockData(launchMode);
+const hasSingleInstanceLock = isMcpStdio
+  ? false
+  : allowE2eMultiInstance
+    ? true
+    : singleInstanceData
+      ? app.requestSingleInstanceLock(singleInstanceData)
+      : app.requestSingleInstanceLock();
 const { ensureArtifactPreviewSecret, flushPendingProductionDeepLink } = installProductionRunDesktopLifecycle({
   isMcpStdio,
   allowE2eMultiInstance,
   hasSingleInstanceLock,
 });
 if (isMcpStdio) {
-  void app
-    .whenReady()
-    .then(async () => {
-      ensureArtifactPreviewSecret();
-      const { startMcpStdioServer } = await import("./capabilityCore/mcpStdioServer");
-      await startMcpStdioServer();
-    })
-    .catch((error) => {
-      process.stderr.write(`[nomi:mcp-stdio] 启动失败: ${error instanceof Error ? error.message : String(error)}\n`);
-      requestQuit({ exitCode: 1 }); // owner 在模块加载时已同步装好：排空后以 1 退出
-    });
+  bootMcpStdioMainProcess({ scriptKind: launchMode.scriptKind, ensureArtifactPreviewSecret });
 }
 protocol.registerSchemesAsPrivileged([
   {
