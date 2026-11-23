@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../i18n'
 import { nomiTheme } from '../../theme/nomiTheme'
 import { enRuntime, zhRuntime } from '../../i18n/locales/runtime'
-import { NoTextModelRecoveryCard, findRecoverableBrain } from '../../workbench/ai/NoTextModelRecoveryCard'
+import { NoTextModelRecoveryCard } from '../../workbench/ai/NoTextModelRecoveryCard'
+import { pickRecoverableAssistantBrain } from '../../workbench/ai/assistantModelIdentity'
 import { V4ModelPopover } from '../../workbench/ai/v4/AgentPanelV4Composer'
 import {
   CONNECT_VENDOR_OPTION_VALUE,
@@ -180,63 +181,39 @@ describe('T-5 S7a 全部剩余入口指路收口与 F-D 契约核对', () => {
     expect(popoverText).toContain(i18n.t('agentPanelV4.modelAssisted'))
   })
 
-  it('entry.kept-recovery：存在已配 Key 但被停用的文本模型时原样保留一键启用自愈按钮与探测契约', async () => {
+  it('entry.kept-recovery：存在已配 Key 但被停用的文本模型时原样保留一键启用自愈按钮与探测契约', () => {
     const testVendorKey = ['custom', 'relay'].join('-')
-    const mockWin = installMockWindow({
-      modelCatalog: {
-        listModels: async () => [
-          {
-            vendorKey: testVendorKey,
-            modelKey: 'prompt-refiner-only',
-            labelZh: 'Prompt Refiner',
-            kind: 'text',
-            enabled: false,
-            published: true,
-            publishedModes: ['text'],
-            meta: { promptRefineOnly: true },
-            availability: { usable: false, reason: 'model_disabled' },
-          },
-          {
-            vendorKey: testVendorKey,
-            modelKey: 'gpt-5-chat',
-            labelZh: 'GPT-5 Chat',
-            kind: 'text',
-            enabled: false,
-            published: true,
-            publishedModes: ['text'],
-            availability: { usable: false, reason: 'model_disabled' },
-          },
-        ],
-        listVendors: async () => [
-          {
-            key: testVendorKey,
-            name: 'Relay',
-            enabled: true,
-            hasApiKey: true,
-            createdAt: '2026-11-24T00:00:00Z',
-            updatedAt: '2026-11-24T00:00:00Z',
-          },
-        ],
-      },
+    const recoverable = pickRecoverableAssistantBrain(
+      [
+        {
+          vendorKey: testVendorKey,
+          modelKey: 'prompt-refiner-only',
+          labelZh: 'Prompt Refiner',
+          kind: 'text',
+          meta: { promptRefineOnly: true },
+        },
+        {
+          vendorKey: testVendorKey,
+          modelKey: 'gpt-5-chat',
+          labelZh: 'GPT-5 Chat',
+          kind: 'text',
+        },
+      ],
+      [{ key: testVendorKey, hasApiKey: true }],
+    )
+    expect(recoverable).toEqual({
+      vendorKey: testVendorKey,
+      modelKey: 'gpt-5-chat',
+      labelZh: 'GPT-5 Chat',
     })
-    try {
-      const recoverable = await findRecoverableBrain()
-      expect(recoverable).toEqual({
-        vendorKey: testVendorKey,
-        modelKey: 'gpt-5-chat',
-        labelZh: 'GPT-5 Chat',
-      })
-      const recoveryHtml = renderWithTheme(
-        <NoTextModelRecoveryCard initialRecoverable={recoverable} />,
-      )
-      expect(recoveryHtml).toContain('data-recovery="no-text-model"')
-      expect(recoveryHtml).toContain('data-recovery-enable="gpt-5-chat"')
-      expect(stripTags(recoveryHtml)).toContain(
-        i18n.t('creationAi.noTextModel.enable', { model: 'GPT-5 Chat' }),
-      )
-    } finally {
-      mockWin.restore()
-    }
+    const recoveryHtml = renderWithTheme(
+      <NoTextModelRecoveryCard initialRecoverable={recoverable} />,
+    )
+    expect(recoveryHtml).toContain('data-recovery="no-text-model"')
+    expect(recoveryHtml).toContain('data-recovery-enable="gpt-5-chat"')
+    expect(stripTags(recoveryHtml)).toContain(
+      i18n.t('creationAi.noTextModel.enable', { model: 'GPT-5 Chat' }),
+    )
   })
 
   it('entry.copy-unify：上手清单第 1 步、分镜策略无视频模型卡、新手手册中英四处与运行时术语全部统一且零旧词残留', () => {

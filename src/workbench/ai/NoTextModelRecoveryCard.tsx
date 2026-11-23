@@ -14,7 +14,7 @@ import { IconBulb, IconCheck, IconChevronRight, IconPlugConnected } from '@table
 import { cn } from '../../utils/cn'
 import { WorkbenchButton } from '../../design'
 import { openApimartConnect } from '../../ui/onboarding/apimartConnectRoute'
-import { fitsAssistantTextRole } from './assistantModelIdentity'
+import { pickRecoverableAssistantBrain, type RecoverableTextBrain } from './assistantModelIdentity'
 import { NomiIdentityRow } from './NomiIdentityRow'
 import {
   listWorkbenchModelCatalogModels,
@@ -22,19 +22,16 @@ import {
   upsertWorkbenchModelCatalogModel,
 } from '../api/modelCatalogApi'
 
-export type RecoverableTextBrain = { vendorKey: string; modelKey: string; labelZh: string }
 type CardState = 'prompt' | 'enabling' | 'done'
 
 /** 找一个「供应商已配 key、但被禁用」的文本模型（可一键启用的大脑，必须满足助手主控角色判据）。无则返回 null。 */
-export async function findRecoverableBrain(): Promise<RecoverableTextBrain | null> {
+async function findRecoverableBrain(): Promise<RecoverableTextBrain | null> {
   try {
     const [disabledTexts, vendors] = await Promise.all([
       listWorkbenchModelCatalogModels({ kind: 'text', enabled: false }),
       listWorkbenchModelCatalogVendors(),
     ])
-    const keyed = new Set(vendors.filter((v) => v.hasApiKey).map((v) => v.key))
-    const hit = disabledTexts.find((m) => keyed.has(m.vendorKey) && !m.unlisted && fitsAssistantTextRole(m))
-    return hit ? { vendorKey: hit.vendorKey, modelKey: hit.modelKey, labelZh: hit.labelZh } : null
+    return pickRecoverableAssistantBrain(disabledTexts, vendors)
   } catch {
     return null
   }
