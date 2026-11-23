@@ -107,6 +107,11 @@ export async function runVideoDepth(input: VideoDepthRunInput, deps: VideoDepthR
 
   advance({ kind: 'enter', phase: 'downloading' })
 
+  if (deps.shouldCancel()) {
+    advance({ kind: 'cancel' })
+    return state
+  }
+
   let prepared: Awaited<ReturnType<VideoDepthBridge['prepare']>>
   try {
     prepared = await deps.bridge.prepare({
@@ -115,7 +120,20 @@ export async function runVideoDepth(input: VideoDepthRunInput, deps: VideoDepthR
       sourceUrl: input.sourceUrl,
     })
   } catch (error) {
+    if (deps.shouldCancel()) {
+      advance({ kind: 'cancel' })
+      return state
+    }
     advance({ kind: 'fail', ...failureFrom(error) })
+    return state
+  }
+  if (deps.shouldCancel()) {
+    try {
+      await deps.bridge.cancel({ jobId: prepared.jobId })
+    } catch {
+      /* 主进程那侧已经收摊了 */
+    }
+    advance({ kind: 'cancel' })
     return state
   }
   state = { ...state, jobId: prepared.jobId }
