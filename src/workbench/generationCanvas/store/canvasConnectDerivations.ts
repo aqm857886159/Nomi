@@ -17,8 +17,8 @@
 // 照常落盘，撤到连线那个 barrier 时它跟着回退。
 import { findModelOptionByIdentifier, peekGenerationNodeModelOptions } from '../adapters/modelOptionsAdapter'
 import { isAspectInputEdgeMode } from '../nodes/aspectRatio'
-import { resolveRenderedControls } from '../nodes/nodeModelArchetype'
-import { videoAspectSeedPatch } from '../nodes/videoAspectSeed'
+import { resolveRenderedControls, resolveRenderedMode } from '../nodes/nodeModelArchetype'
+import { applyVideoAspectSeed, videoAspectSeedPatch } from '../nodes/videoAspectSeed'
 import { nodeSelectedModelAddress } from '../nodes/controls/parameterControlModel'
 import { isImageLikeGenerationNodeKind, isVideoLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -43,10 +43,11 @@ function seedTargetVideoAspect(store: ConnectDerivationStore, targetNodeId: stri
   if (!address.modelKey) return
   const option = findModelOptionByIdentifier(peekGenerationNodeModelOptions(target, store) ?? [], address.modelKey, address.vendorKey)
   if (!option) return
+  const mode = resolveRenderedMode(option, meta, true, { node: target, graph: store })
   const controls = resolveRenderedControls(option, meta, isImageLikeGenerationNodeKind(target.kind), true, { node: target, graph: store })
-  const patch = videoAspectSeedPatch({ nodeId: targetNodeId, nodes: store.nodes, edges: store.edges, controls, meta, respectExplicit: true })
+  const patch = videoAspectSeedPatch({ nodeId: targetNodeId, nodes: store.nodes, edges: store.edges, controls, meta, mode, respectExplicit: true })
   if (Object.keys(patch).length === 0) return
-  store.updateNode(targetNodeId, { meta: { ...meta, ...patch } }, { history: false })
+  store.updateNode(targetNodeId, { meta: applyVideoAspectSeed(meta, patch) }, { history: false })
 }
 
 /**

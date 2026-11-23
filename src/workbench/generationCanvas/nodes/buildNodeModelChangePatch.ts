@@ -5,16 +5,17 @@ import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/genera
 import { isImageLikeGenerationNodeKind, isVideoLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import { archetypeForNode } from '../agent/referenceEdgeCapability'
 import { normalizeReferenceListMeta } from './controls/referenceList'
-import { replaceCustomCapabilityContractMeta } from '../../../../electron/shared/modelArchetypes'
+import { replaceCustomCapabilityContractMeta, type ModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import {
   buildModelControls,
+  isAspectRatioControl,
   modelParamControls,
   nodeSelectedModelAddress,
   controlStoredKeys,
 } from './controls/parameterControlModel'
-import { carryHumanModePreference, effectiveArchetypeMode } from './controls/archetypeMeta'
-import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
-import { videoAspectSeedPatch } from './videoAspectSeed'
+import { applyHumanModeChoice, carryHumanModePreference, effectiveArchetypeMode } from './controls/archetypeMeta'
+import { resolveArchetypeForOption, resolveRenderedControls, resolveRenderedMode } from './nodeModelArchetype'
+import { applyVideoAspectSeed, seedVideoAspectForModeSwitch, videoAspectSeedPatch } from './videoAspectSeed'
 import { projectParameterReferenceSlots } from '../model/parameterReferenceSlots'
 
 export type BuildNodeModelChangePatchInput = {
@@ -56,10 +57,6 @@ export function buildNodeModelChangePatch({
     policy: { author: '人手', invalid: '全重置默认', removeKeys: previousControls.flatMap(controlStoredKeys) },
   })
   const nextArchetype = resolveArchetypeForOption(nextOption, { variantId: undefined, modelId: nextOption?.modelKey })
-  // 换模型 = 重铺全部默认值（比例也在内，不让「明确选过」），默认值只问唯一出处。
-  const aspectPatch = isVideoLike
-    ? videoAspectSeedPatch({ nodeId: node.id, nodes, edges, controls, meta: currentMeta, respectExplicit: false })
-    : {}
 
   const baseMeta = replaceCustomCapabilityContractMeta(
     resolved.params,
@@ -72,7 +69,6 @@ export function buildNodeModelChangePatch({
     modelVendor: nextOption?.vendor || null,
     vendor: nextOption?.vendor || null,
     modelLabel: nextOption?.label || value || null,
-    ...aspectPatch,
     ...(isVideoLike
       ? { videoModel: nextOption?.value || value || null, videoModelVendor: nextOption?.vendor || null }
       : { imageModel: nextOption?.value || value || null, imageModelVendor: nextOption?.vendor || null }),
@@ -85,5 +81,46 @@ export function buildNodeModelChangePatch({
     nextMeta = carryHumanModePreference(nextMeta, previousArchetype, nextArchetype)
   }
 
+  // 换模型 = 重铺全部默认值（比例也在内，不让「明确选过」），默认值只问唯一出处（带入沿用后的方式，让编辑方式保留 auto）。
+  if (isVideoLike) {
+    const nextNode = { ...node, meta: nextMeta }
+    const nextGraph = { nodes: nodes.map((item) => (item.id === node.id ? nextNode : item)), edges }
+    const nextMode = nextArchetype ? resolveRenderedMode(nextOption ?? null, nextMeta, true, { node: nextNode, graph: nextGraph }) : null
+    const modeControls = nextArchetype
+      ? resolveRenderedControls(nextOption ?? null, nextMeta, isImageLike, true, { node: nextNode, graph: nextGraph })
+      : []
+    const aspectControls = modeControls.some(isAspectRatioControl) ? modeControls : controls
+    const aspectPatch = videoAspectSeedPatch({
+      nodeId: node.id,
+      nodes: nextGraph.nodes,
+      edges,
+      controls: aspectControls,
+      meta: currentMeta,
+      mode: nextMode,
+      respectExplicit: false,
+    })
+    nextMeta = applyVideoAspectSeed(nextMeta, aspectPatch)
+  }
+
   return { meta: nextMeta }
+}
+
+/** 人手切方式（视频底栏方式菜单 / 声音方式栏）：写偏好，并让视频未手选比例问唯一出处 videoAspectSeed。 */
+export function buildModeSwitchMeta(
+  node: GenerationCanvasNode,
+  archetype: ModelArchetype,
+  modeId: string,
+  graph: { nodes: readonly GenerationCanvasNode[]; edges: readonly GenerationCanvasEdge[] },
+  option: ModelOption | null,
+): Record<string, unknown> {
+  const nextMeta = applyHumanModeChoice(node.meta || {}, archetype, modeId)
+  if (!isVideoLikeGenerationNodeKind(node.kind)) return nextMeta
+  return seedVideoAspectForModeSwitch({
+    node,
+    nextMeta,
+    nodes: graph.nodes,
+    edges: graph.edges,
+    option,
+    isImageLike: isImageLikeGenerationNodeKind(node.kind),
+  })
 }
