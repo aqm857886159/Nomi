@@ -1,4 +1,4 @@
-import { artifactFromMaterializationReceipt, type GenerationMaterializationReceipt, catchUpJobToArtifact, GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
+import { artifactFromMaterializationReceipt, type GenerationMaterializationReceipt, catchUpJobToArtifact, GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, polledFailureMessage, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
 import { readGenerationExecution } from "./productionGenerationHistory";
 import path from "node:path";
 
@@ -494,10 +494,10 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       const observedAt = next.lastPoll!.observedAt;
       const statusChanged = currentJob.providerStatus !== providerStatus;
       const nextStatus = statusClass === "pending" ? "polling" : statusClass === "failed" || statusClass === "unknown" ? "needs_attention" : currentJob.status;
-      const refusal = statusClass === "failed" ? noteReferenceRefusal(job.provider, { text: taskFailureMessageFromResponse(next.lastPoll!.raw, null) }) : undefined;
+      const failure = statusClass === "failed" ? taskFailureMessageFromResponse(next.lastPoll!.raw, null) : "";
       const patch = { providerStatus, lastPollAt: observedAt,
         ...(statusChanged ? { lastVendorStateChangeAt: observedAt } : {}),
-        ...(statusClass === "failed" ? { errorCode: "provider_task_failed", errorMessage: refusal ?? "供应商任务已返回失败状态" }
+        ...(statusClass === "failed" ? { errorCode: "provider_task_failed", errorMessage: noteReferenceRefusal(job.provider, { text: failure }) ?? polledFailureMessage(failure) }
           : statusClass === "unknown" ? { errorCode: "provider_status_unknown", errorMessage: "供应商返回了未识别的任务状态，需要人工核对" } : {}),
       };
       if (statusClass !== "pending" || statusChanged || nextStatus !== currentJob.status) command(current, nextStatus === currentJob.status ? "job.patch" : "job.status", {

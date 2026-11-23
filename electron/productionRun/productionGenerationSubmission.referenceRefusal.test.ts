@@ -9,7 +9,8 @@ import type { GenerationProvider } from "../capabilityCore/generationRuntimeAdap
 import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
 import type { ProjectLeaseV2 } from "../capabilityCore/projectLease";
 import { isConnectionRefused } from "../catalog/referenceLinkRefusals";
-import { VendorRequestError } from "../vendor/vendorHttp";
+import { decideGenerationFailure } from "../shared/generationFailure";
+import { encodeStructuredErrorMessage, VendorRequestError } from "../vendor/vendorHttp";
 import { landedAdmission } from "./landFirstTestUtils";
 import { prepareProductionGenerationAuthorization } from "./prepareProductionGenerationAuthorization";
 import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
@@ -133,15 +134,19 @@ describe.each([canvasEngine, catalogEngine])("$name", (engine) => {
     expect(h.submit).toHaveBeenCalledTimes(1);
   });
 
-  it("任务失败但不是这一类：只留原来那句固定的话，不记", async () => {
+  it.each([
+    { category: "quota", kind: "quota" },
+    { category: "input", upstreamCode: "model_not_found", kind: "model-unavailable-upstream" },
+  ])("terminal failure retains $kind when read from the Run", async ({ category, upstreamCode, kind }) => {
     const h = harness(engine);
     await h.start();
-    h.query.mockResolvedValue({ status: "failed", raw: engine.failedRaw("Insufficient balance on the upstream account") });
+    h.query.mockResolvedValue({ status: "failed", raw: engine.failedRaw(encodeStructuredErrorMessage({ category, upstreamCode }, "opaque diagnostic")) });
     await h.submission.poll({ projectId: "project-1", operationId: "op-1" });
     expect(isConnectionRefused(engine.connection)).toBe(false);
     const job = h.repository.read("project-1", "op-1")!.jobs[0];
     expect(job.errorCode).toBe("provider_task_failed");
-    expect(job.errorMessage).toBe("供应商任务已返回失败状态");
+    expect(job.errorMessage).not.toContain("opaque diagnostic");
+    expect(decideGenerationFailure({ message: job.errorMessage ?? "", locale: "en" }).kind).toBe(kind);
   });
 });
 

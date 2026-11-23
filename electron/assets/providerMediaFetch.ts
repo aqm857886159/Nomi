@@ -77,7 +77,7 @@ export async function fetchProviderMedia(url: string, options: ProviderMediaFetc
 // （hardenedFetch：时限 / 上限 / 跳转，不带 Key），所以住在取回线路策略的 owner 里，不另起一条出口。
 // 它只回答一个问题：这条临时链接现在还能不能取到**媒体**。三个答案，只有明确失效才改走上传：
 //   · alive    取到了媒体字节的头（或类型就是图片 / 视频 / 音频）→ 发原链接；
-//   · dead     服务商明确说不行（4xx），或 2xx 回来的是网页 / XML / JSON / 文字 → 改用本机文件上传；
+//   · dead     资源不存在或已移除（404 / 410），或 2xx 回来的是网页 / XML / JSON / 文字 → 改用本机文件上传；
 //   · unknown  超时、断网、5xx、跳转失败……→ 照发原链接，和没有这个功能时一模一样。
 // 判不了不能当失效：本机网络不通时，模型那边多半仍然拉得到。
 // 用 GET + Range，不用 HEAD：对象存储的预签名链接只对签名时的方法有效，HEAD 会得到 403（把活链接判死）。
@@ -91,8 +91,6 @@ export type ProviderLinkProbeOptions = {
   now?: () => number;
 };
 
-/** 4xx 里**不**算失效的：请求超时 / 太早 / 限流 / Range 不可满足——都说明不了链接本身死了。 */
-const NOT_A_DEAD_LINK_STATUSES: ReadonlySet<number> = new Set([408, 425, 429, 416]);
 /** 2xx 里这些类型不是媒体：JSON / XML / 网页 / 脚本（文本类由 mediaKindFromContentType 判）。 */
 const TEXTUAL_APPLICATION_TYPE = /^application\/(?:json|xml|xhtml\+xml|javascript)$|\+(?:json|xml)$/;
 
@@ -103,7 +101,9 @@ function startsLikeMarkupOrJson(head: Uint8Array): boolean {
 }
 
 function judgeProbeResponse(status: number, contentType: string, head: Uint8Array | null): ProviderLinkVerdict {
-  if (status >= 400 && status < 500) return NOT_A_DEAD_LINK_STATUSES.has(status) ? "unknown" : "dead";
+  // The probe is an anonymous ranged GET. An access or request error on this route
+  // gives no verdict on a generator fetching the original on its own route.
+  if (status === 404 || status === 410) return "dead";
   if (status < 200 || status >= 300) return "unknown";
   // 2xx 却一个字节都没有：说不清是链接坏了还是服务器怪，当判断不了。
   if (head !== null && head.length === 0) return "unknown";

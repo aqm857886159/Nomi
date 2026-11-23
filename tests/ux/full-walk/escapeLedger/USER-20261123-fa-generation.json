@@ -1,0 +1,23 @@
+{
+  "id": "USER-20261123-fa-generation",
+  "since": "2026-11-23",
+  "source": "November 23 release radar and coordinator report on issue 1586",
+  "category": "claims-and-outcomes",
+  "problem": "Local generation blocks, repeated failures on one installation and missing failure classification.",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "A current readable reference reaches generation with public hosting off.",
+    "One deterministic pre-send rejection settles once with its classified cause."
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "evidence": [
+    "docs/engineering/direction-checks/2026-11-23-fa-generation.md"
+  ],
+  "rootCauseContract": "docs/fixes/2026-11-23-fa-local-blocks-and-unknown-telemetry.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/catalog/referenceLinkDelivery.matrix.test.ts"
+  }
+}
