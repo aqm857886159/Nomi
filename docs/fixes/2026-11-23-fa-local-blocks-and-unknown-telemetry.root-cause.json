@@ -11,11 +11,12 @@
   "scope_paths": [
     "electron/productionRun/productionGenerationSubmission.ts",
     "electron/productionRun/productionGenerationMaterialization.ts",
-    "electron/tasks/taskIpcGuard.ts"
+    "electron/tasks/taskIpcGuard.ts",
+    "src/workbench/generationCanvas/runner/generationRetryPolicy.ts"
   ],
   "entry_points": [
     "Workbench and canvas use task IPC and the same generation outcome reporter. Canvas and catalog jobs share the Run journal.",
-    "Canvas single and batch execution now share the one-attempt boundary in the Step 2 contract."
+    "Single image and video intents, batch and wave runners share the renderer retry predicate."
   ],
   "external_sources": [],
   "internal_only_reason": "The Step 1 invariant concerns internal IPC serialization, Run persistence and renderer retry decisions. The tests exercise application error types, persisted Run reads and telemetry with controlled provider inputs.",
@@ -172,6 +173,21 @@
     },
     {
       "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRetryPolicy.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRetryPolicy.ts",
+      "symbol": "parseVendorErrorFromMessage"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "isRetryableGenerationError"
+    },
+    {
+      "kind": "write",
       "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
       "symbol": "matchNomiErrorCode"
     },
@@ -193,10 +209,10 @@
   ],
   "door_reduction": {
     "before": 32,
-    "after": 33,
+    "after": 36,
     "why_not": "IPC handlers and the browser prompt wrapper share one guard. Agent encoding, runtime, adapter and task polling keep distinct entry points that reuse wire helpers. The Run domain and observation code share the Run submission service, which adds one call to the disk-safe projection. Workbench and Canvas share one telemetry reporter. Canvas execution and failure display retain separate consumers of machine facts. Shared wire and Nomi tag readers retain their independent projection and recovery responsibilities."
   },
-  "generality_proof": "Workbench and Canvas share task IPC and telemetry classification. Both production generation engines use the same Run poll and disk projection. Single and batch Canvas execution share the single-attempt run controller (Step 2).",
+  "generality_proof": "Workbench and Canvas share task IPC and telemetry classification. Both production generation engines use the same Run poll and disk projection. Single and batch Canvas execution share the same renderer retry predicate.",
   "shared_boundaries": [
     {
       "path": "electron/productionRun/productionGenerationSubmission.ts",
@@ -207,6 +223,11 @@
       "path": "electron/tasks/taskIpcGuard.ts",
       "symbol": "runTaskIpcGuard",
       "responsibility": "Carry the classified provider facts across task IPC, including a transparent catalog adapter wrapper. Outer dispatch evidence retains priority."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRetryPolicy.ts",
+      "symbol": "isRetryableGenerationError",
+      "responsibility": "The renderer never infers permission to re-execute a machine-classified task from the text appended to the classification."
     },
     {
       "path": "electron/productionRun/productionGenerationMaterialization.ts",
@@ -237,7 +258,7 @@
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
       "entry_point": "runGenerationNode",
       "disposition": "enforced",
-      "evidence": "Single image, single video and batch paths use the same one-attempt run controller; Step 2 owns this boundary."
+      "evidence": "Single image, single video and batch paths use the same retry predicate and stop on classified outcomes."
     }
   ],
   "recurrence_of": null,
@@ -255,11 +276,12 @@
     "invariant": "Known failure facts survive IPC and Run persistence, and a classified terminal outcome ends the renderer retry loop.",
     "failure_mode": "Use the shared classifier for evidence provided by IPC or a persisted Run. Preserve genuine unknowns when facts are absent, and end automatic renderer retries when terminal classification is present.",
     "exception_policy": "none",
-    "strategy": "Reuse the wire encoding in the task IPC guard and project poll facts through the disk-safe Run boundary. Step 2 removed renderer retries entirely.",
+    "strategy": "Reuse the wire encoding in the task IPC guard, project poll facts through the disk-safe Run boundary, and make the shared renderer retry predicate consume classification before diagnostic text.",
     "artifacts": [
       "electron/productionRun/productionGenerationSubmission.ts",
       "electron/productionRun/productionGenerationMaterialization.ts",
-      "electron/tasks/taskIpcGuard.ts"
+      "electron/tasks/taskIpcGuard.ts",
+      "src/workbench/generationCanvas/runner/generationRetryPolicy.ts"
     ]
   },
   "regression_tests": [
@@ -291,7 +313,8 @@
   "migration": "Existing events and old Run rows with erased categories cannot recover them. New failures use the existing wire and Run formats.",
   "residual_risks": [
     "Aggregate counts have no run identity or click provenance. Historical event-cause attribution and paid provider results are unverified.",
-    "Step 2 supersedes the renderer retry predicate and implements the approved reference and dispatch-status rules; see 2026-11-24-fa-step2-rw1-rw2-rw3."
+    "Unclassified renderer transport failures can still repeat.",
+    "F-A Step 2 (RW-2, electron/catalog/assetLocalization.ts) awaits user hotspot signoff on #1586. electron/productionRun/referenceLinkDispatchLedger.test.ts reproduced an expired S3 presigned URL returning 403 AccessDenied (application/xml). Mapping 403 to unknown bypassed private uploadsTo and sent the expired URL to /v1/generate. Step 1 restores the baseline probe behavior. RW-2 must handle Range-only 403 when anonymousAssetHosting is deny and preserve expired-link private re-upload."
   ],
   "detected_by": "post-release",
   "recurrence_check_on": "2026-11-30",
