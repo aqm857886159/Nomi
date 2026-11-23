@@ -22,12 +22,12 @@
   "budgetStatus": "proposed",
   "budgetBasis": "设计卡 docs/plan/2026-11-24-t5-onboarding-s7b.md ★7：点击任一「连接模型」入口到整窗「连接 APIMart」大页可交互 ≤150ms、p95 ≤225ms（全部作品素材从本机 nomi-local://runtime/onboarding-demo/ 读取，零公网请求，主线程 >50ms 长任务 ≤1）",
   "baseline": {
-    "median": 46.3,
-    "p95": 47.2,
+    "median": 47.4,
+    "p95": 47.9,
     "runs": 5,
     "machine": "darwin arm64 Apple M5 x10 / 16GB",
     "date": "2026-11-23",
-    "commit": "6ed4c34b8",
+    "commit": "bde4f7c4b",
     "noisy": true
   }
 }
