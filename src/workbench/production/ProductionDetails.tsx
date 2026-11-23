@@ -2,7 +2,7 @@ import React, { type JSX } from 'react'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 
-import type { QaStageReport } from '../../../electron/productionRun/productionRunTypes'
+import type { QaStageReport } from '../../../electron/shared/productionQaVerdict'
 import { SHOT_VERIFY_DIMENSIONS, formatQaUnverifiedReason, type ShotVerifyDimensionKey } from '../generationCanvas/agent/shotVerify'
 import { cn } from '../../utils/cn'
 import { productionPlaybookLabelKey, productionStageLabelKey } from './productionRunLabels'

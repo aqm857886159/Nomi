@@ -6,7 +6,7 @@
 // 诚实铁律:verify 不阻断「生成已完成」,但绝不把失败/跳过伪装成「通过」——
 // 视觉不可用 / 缺帧 / 抽帧失败 / 判决抛错 / 非 JSON 一律记为 unverified 并带结构化原因。
 
-import type { QaShotUnverifiedReason } from '../../../../electron/productionRun/productionRunTypes'
+import type { QaShotUnverifiedReason } from '../../../../electron/shared/productionQaVerdict'
 import { getAppLocale } from '../../../i18n'
 import type { ReconcileDeviation } from './reconcile'
 import {

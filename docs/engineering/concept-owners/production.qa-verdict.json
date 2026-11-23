@@ -12,7 +12,7 @@
   },
   "write_api": [
     {
-      "path": "electron/productionRun/productionRunTypes.ts",
+      "path": "electron/shared/productionQaVerdict.ts",
       "symbol": "QaShotVerdictStatus"
     },
     {

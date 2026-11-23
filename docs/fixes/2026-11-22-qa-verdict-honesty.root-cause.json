@@ -14,6 +14,7 @@
     "electron/ai/textBrainResolver.ts",
     "electron/promptLibrary/promptLibraryIpc.ts",
     "electron/productionRun/productionRunTypes.ts",
+    "electron/shared/productionQaVerdict.ts",
     "electron/productionRun/productionQaVerdict.ts",
     "electron/productionRun/productionRunDriverOps.ts",
     "electron/productionRun/productionRunProjections.ts",
@@ -42,14 +43,15 @@
   "external_sources": [],
   "internal_only_reason": "QA verdict state modeling, vision capability gating via modelImageInputSupport, and ProductionRun/GenerationCanvas verdict presentation are internal Nomi domain contracts.",
   "invariants": [
-    "Every shot submitted to verifyGeneratedShots produces an explicit ShotVerifyShotOutcome with status in {passed, flagged, unverified} (canonical owner QaShotVerdictStatus in electron/productionRun/productionRunTypes.ts).",
+    "Every shot submitted to verifyGeneratedShots produces an explicit ShotVerifyShotOutcome with status in {passed, flagged, unverified} (canonical owner QaShotVerdictStatus in electron/shared/productionQaVerdict.ts).",
     "makeShotVerifyDeps().visionAvailable() queries the main-process text brain status (backed by modelImageInputSupport) and returns false whenever no usable brain exists or imageInput === 'unsupported'.",
     "verifyShotsForProduction never infers passed: true from an empty deviation array; only status === 'passed' sets passed: true, while status === 'unverified' sets passed: false and carries unverifiedReason.",
+    "Renderer verdict and stage report consumers import the neutral shared module directly; check-boundaries rejects direct main-process imports.",
     "buildQaRetryPlans retries strictly status === 'flagged' shots and never triggers paid retries for status === 'unverified' shots.",
     "buildQaStageOutcome emits '审片完成：N 镜全部过检' (and localized allPassed copy) if and only if all shots are verified with status === 'passed' (flaggedCount === 0 && unverifiedCount === 0); any unverified shot is surfaced honestly in qaReport, ProductionDetails, and ReconcileDeviationCard without offering AI Fix for unverified-only runs."
   ],
   "invariant_owner_layer": {
-    "layer": "electron/productionRun/productionRunTypes.ts",
+    "layer": "electron/shared/productionQaVerdict.ts",
     "tests": [
       "src/workbench/generationCanvas/agent/shotVerifyRunner.test.ts",
       "src/workbench/generationCanvas/agent/shotVerifyJudge.test.ts",
@@ -78,8 +80,13 @@
     },
     {
       "kind": "write",
-      "path": "electron/productionRun/productionRunTypes.ts",
+      "path": "electron/shared/productionQaVerdict.ts",
       "symbol": "QaShotVerdictStatus"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunTypes.ts",
+      "symbol": "QaStageReport"
     },
     {
       "kind": "write",
@@ -153,14 +160,14 @@
     }
   ],
   "door_reduction": {
-    "before": 18,
-    "after": 18,
-    "why_not": "These doors trace the single end-to-end QA pipeline across Electron main (textBrainResolver -> IPC -> productionQaVerdict -> driverOps -> projections) and renderer (shotVerifyJudge -> shotVerifyRunner -> shotVerifyStore -> capabilityApplyHandler -> ReconcileDeviationCard / ProductionDetails); all share QaShotVerdictStatus and formatQaUnverifiedReason as single owners instead of recomputing pass/fail from empty deviation lists."
+    "before": 19,
+    "after": 19,
+    "why_not": "These doors trace the single end-to-end QA pipeline across Electron main (textBrainResolver -> IPC -> productionQaVerdict -> driverOps -> projections) and renderer (shotVerifyJudge -> shotVerifyRunner -> shotVerifyStore -> capabilityApplyHandler -> ReconcileDeviationCard / ProductionDetails); all share QaShotVerdictStatus and formatQaUnverifiedReason as single owners instead of recomputing pass/fail from empty deviation lists. ProductionStage reads QaStageReport to keep the report in persisted run snapshots, and the report types now come from the neutral shared module."
   },
   "generality_proof": "By replacing the two-state ReconcileDeviation[] return contract and boolean passed = flagged.length === 0 derivation with the single registered three-state QaShotVerdictStatus vocabulary (passed | flagged | unverified) from runner through IPC/capability bridge to ProductionRun ledger and both UI surfaces (ReconcileDeviationCard and ProductionDetails), any failure mode (vision unsupported, missing frame, extraction error, judge error, invalid JSON) is structurally unable to masquerade as passed or trigger paid retries.",
   "shared_boundaries": [
     {
-      "path": "electron/productionRun/productionRunTypes.ts",
+      "path": "electron/shared/productionQaVerdict.ts",
       "symbol": "QaShotVerdictStatus",
       "responsibility": "Single canonical semantic vocabulary owner for 3-state QA shot verdicts (passed | flagged | unverified) and QaStageReport."
     },
@@ -228,16 +235,16 @@
   },
   "prevention": {
     "kind": "type-system",
-    "enforcement_path": "electron/productionRun/productionRunTypes.ts",
+    "enforcement_path": "electron/shared/productionQaVerdict.ts",
     "invariant": "QaShotVerdictStatus (passed | flagged | unverified) is registered in scripts/vocabularies-baseline.json and enforced across ShotVerifyReport, QaShotVerdict, QaStageReport, and exhaustive formatQaUnverifiedReason switch.",
     "failure_mode": "TypeScript compilation fails on unhandled status/reason cases, check:vocabularies rejects duplicate/unregistered status unions, and unit tests fail on any do-nothing or fake-pass regression.",
     "exception_policy": "none",
     "strategy": "Replace the 2-state deviation-list contract with an explicit 3-state discriminated report end-to-end and lock both positive (all-passed) and negative (unverified/mixed) invariants in unit tests.",
     "artifacts": [
-      "electron/productionRun/productionRunTypes.ts",
+      "electron/shared/productionQaVerdict.ts",
       "scripts/vocabularies-baseline.json",
       "src/workbench/generationCanvas/agent/shotVerify.ts",
-    "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
       "src/workbench/capability/capabilityApplyHandler.ts",
       "electron/productionRun/productionQaVerdict.ts"
     ]

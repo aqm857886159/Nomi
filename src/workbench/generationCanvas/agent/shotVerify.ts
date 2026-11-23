@@ -8,7 +8,7 @@
 // 比吐模糊小数稳。低于阈值的轴 → 一条「画面偏差」,喂进现有对账卡(ReconcileDeviationCard)。
 // 客观项(连线结构/数量/参数)仍归 reconcile.ts 结构对账,不在这里重复判。
 
-import type { QaShotUnverifiedReason, QaShotVerdictStatus } from '../../../../electron/productionRun/productionRunTypes'
+import type { QaShotUnverifiedReason, QaShotVerdictStatus } from '../../../../electron/shared/productionQaVerdict'
 import type { ReconcileDeviation } from './reconcile'
 
 export type ShotVerifyDimensionKey = 'identity' | 'composition' | 'continuity'

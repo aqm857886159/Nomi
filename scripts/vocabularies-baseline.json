@@ -591,7 +591,7 @@
         "unverified"
       ],
       "reason": "审片单镜三态结论（passed 已验证过检 / flagged 已验证有偏差需重跑或人工处理 / unverified 未能完成校验，严禁伪装成通过也不得自动烧钱重跑）的唯一语义 owner；用于审片运行器、能力应用桥接、制作运行账本与任务详情/画布卡片展示，现有任务/阶段状态词表不含此三态语义，复用会把「未校验」与「通过」或「失败重试」混为一谈。",
-      "site": "electron/productionRun/productionRunTypes.ts::type:QaShotVerdictStatus/type-union"
+      "site": "electron/shared/productionQaVerdict.ts::type:QaShotVerdictStatus/type-union"
     },
     {
       "members": [
