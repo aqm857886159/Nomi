@@ -1,0 +1,228 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-22-video-depth-no-steal-selection",
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-22",
+  "problem_type": "background-derivation-steals-selection-and-late-project-mutex",
+  "symptom": "点击视频浮条「提取深度」后，空派生视频卡强行夺走当前选中态（导致原视频浮条收起或右侧拆解表 ShotTableToolbar/ShotTableComposer 当场消失，并在空白深度卡下误挂云端 NodeGenerationComposer）；同时在首次 49.6MB 权重下载或 ffmpeg 抽帧期间再点一次「提取深度」会漏过项目互斥锁，静默新建第 2 张离屏空卡并并发拉起第 2 条权重下载流。",
+  "direct_cause": "startVideoDepthDerivation.ts 绕过原子出处动作 addDerivedOutput，直接裸调 store.addNode（默认 select: true）+ store.connectNodes + store.selectNode(derived.id) 并在未检查同项目在途任务前先建卡；electron/video/depthVideoJob.ts 直到权重下载与全片抽帧全部完成后（第 253 行）才调用 sessions.set(jobId, session)，导致长达数十秒的准备窗口内项目级并发互斥锁完全空置且无法取消下载。",
+  "class_root": "后台耗时本机派生动作缺少两项共享边界不变量：（1）派生建卡未收敛到原子 addDerivedOutput({ node: { select: false } }) + runAsSingleUndoStep，把后台占位卡误当作前台交互焦点；（2）主进程单项目独占作业锁在异步 I/O（下载/抽帧）完成后才登记会话，而非在入口同步占槽并由统一清理函数释放。",
+  "affected_population": [
+    "在生成画布中审看视频或对照拆解表（shot_table）时点击「提取深度」的创作者（尤其是 200% 常规工作缩放及首次使用需下载 49.6MB 权重的场景）"
+  ],
+  "scope_paths": [
+    "electron/video/depthVideoJob.ts",
+    "src/workbench/generationCanvas/model/derivedOutput.ts",
+    "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+    "src/workbench/generationCanvas/videoDepth/videoDepthClient.ts"
+  ],
+  "entry_points": [
+    "视频节点浮条 NodeDepthActionButton -> startVideoDepthDerivation -> addDerivedOutput('video-depth', select: false) -> runVideoDepth -> IPC nomi:video-depth:prepare/cancel -> prepareVideoDepthJob / cancelVideoDepthJob"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "本次缺陷完全源于应用内部画布派生节点选中策略（addDerivedOutput select 参数）与主进程会话表（depthVideoJob sessions Map）占锁时序，不涉及第三方库或外部协议行为。",
+  "invariants": [
+    "提取深度通过 runAsSingleUndoStep + store.addDerivedOutput({ kind: 'video-depth', node: { select: false } }) 原子建卡连边，绝不篡改当前 selectedNodeIds、不打断源视频浮条或拆解表工具栏，也不让未选中的本机派生卡挂载 NodeGenerationComposer。",
+    "prepareVideoDepthJob 在首个 await（解析本地视频、下载权重、ffmpeg 抽帧）之前同步占住单项目互斥锁，且任何异常或中途取消均经 disposeSession 无条件中止下载/子进程并释放项目锁。",
+    "同项目已有深度任务在途时再次点击「提取深度」，在建第 2 张卡前当场拦截并通过 reportFeedback 给出 videoDepth.error.already-running 提示，不残留第 2 张派生卡、不发起第 2 条权重下载。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/videoDepth",
+    "tests": [
+      "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.test.tsx",
+      "electron/video/depthVideoJob.test.ts",
+      "src/workbench/generationCanvas/model/derivedOutput.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "symbol": "addDerivedOutput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/useNodePanoramaHandlers.ts",
+      "symbol": "addDerivedOutput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/InlineWhiteboard.tsx",
+      "symbol": "addDerivedOutput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "symbol": "addDerivedOutput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
+      "symbol": "addDerivedOutput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/extractVideoFrameToNode.ts",
+      "symbol": "addDerivedOutput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+      "symbol": "addDerivedOutput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "addDerivedOutput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodePanoramaHandlers.ts",
+      "symbol": "addDerivedOutput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/InlineWhiteboard.tsx",
+      "symbol": "addDerivedOutput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "addDerivedOutput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/derivedOutput.ts",
+      "symbol": "DERIVED_OUTPUT_RULES"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/videoDepth/NodeDepthActionButton.tsx",
+      "symbol": "startVideoDepthDerivation"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/videoDepth/videoDepthClient.ts",
+      "symbol": "VideoDepthBridge"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "runVideoDepth"
+    },
+    {
+      "kind": "read",
+      "path": "electron/video/depthVideoJob.ts",
+      "symbol": "VideoDepthJobError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/depthVideoIpc.ts",
+      "symbol": "prepareVideoDepthJob"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/depthVideoIpc.ts",
+      "symbol": "cancelVideoDepthJob"
+    }
+  ],
+  "door_reduction": {
+    "before": 20,
+    "after": 18,
+    "why_not": "startVideoDepthDerivation.ts 原先裸调 addNode + connectNodes + selectNode 三扇写门已合并为单一原子门 addDerivedOutput（与 ClipNode、InlineWhiteboard 共用 select: false，其余 5 个派生入口保持默认 select: true）；剩余门分属 8 种独立领域派生动作及渲染-主进程 IPC 边界。"
+  },
+  "generality_proof": "所有画布派生输出均收敛到 DERIVED_OUTPUT_RULES + addDerivedOutput（由 derivedOutput.test.ts 结构断言钉死），后台不打断焦点的派生统一显式传 select: false；主进程深度会话由 prepareVideoDepthJob 入口同步占锁并经 disposeSession 单一收口清理，覆盖下载中重入、抽帧中重入、推理中重入、中途取消与网络报错重试全生命周期。",
+  "shared_boundaries": [
+    {
+      "path": "electron/video/depthVideoJob.ts",
+      "symbol": "prepareVideoDepthJob",
+      "responsibility": "在首个异步步骤前同步登记单项目 Session 互斥锁，向权重下载传递 AbortSignal，并在异常或 cancelVideoDepthJob 时通过 disposeSession 无条件释放锁与临时目录。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "startVideoDepthDerivation",
+      "responsibility": "建卡前拦截同项目在途深度任务并触发 already-running 提示；经 runAsSingleUndoStep + addDerivedOutput({ kind: 'video-depth', node: { select: false } }) 原子建卡且保留原选中态。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/derivedOutput.ts",
+      "symbol": "DERIVED_OUTPUT_RULES",
+      "responsibility": "登记 video-depth 合法源种类（video/asset）与目标种类（video），杜绝裸调 connectNodes 补出处边。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "entry_point": "startVideoDepthDerivation",
+      "disposition": "enforced",
+      "evidence": "改走 addDerivedOutput({ kind: 'video-depth', node: { select: false } }) + runAsSingleUndoStep，并前置拦截同项目重复点击与订阅下载期取消。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "entry_point": "ClipNode.exportClip",
+      "disposition": "not-affected",
+      "evidence": "ClipNode.tsx:443 已通过 addDerivedOutput({ kind: 'clip-export', node: { select: false } }) 保持原剪辑卡选中。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/InlineWhiteboard.tsx",
+      "entry_point": "InlineWhiteboard.handleCaptureSnapshot",
+      "disposition": "not-affected",
+      "evidence": "InlineWhiteboard.tsx:271 已通过 addDerivedOutput({ kind: 'whiteboard-snapshot', node: { select: false } }) 保持白板会话不被抢焦点。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/extractVideoFrameToNode.ts",
+      "entry_point": "extractVideoFrameToNode",
+      "disposition": "not-affected",
+      "evidence": "截帧先完成 <1s 抽帧拿到成品图再调 addDerivedOutput('video-frame') 默认选中成品卡，无空卡等待期。"
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新增后台耗时派生动作若直接调 addNode（默认选中）或在异步准备完成后才登记项目互斥锁，都会重现「空白占位抢走当前上下文 + 准备期连点并发重入」的同类故障。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs addDerivedOutput 核查全部 8 个派生写入口（ClipNode、DirectorNode、extractVideoFrameToNode、factBridge、trimVideoToNode、useNodePanoramaHandlers、InlineWhiteboard、startVideoDepthDerivation）的 select 参数语义。",
+      "核查 electron/video/depthVideoJob.ts、electron/video/deconstructVideo.ts、src/workbench/generationCanvas/nodes/trimVideoToNode.ts 的在途任务登记与取消释放时机。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/video/depthVideoJob.ts",
+    "invariant": "prepareVideoDepthJob 入口同步占住项目级 Session 锁且 disposeSession 唯一释放；startVideoDepthDerivation 经 addDerivedOutput(select: false) 建卡并在建卡前拦截同项目重入。",
+    "failure_mode": "同项目重复请求立即抛 VideoDepthJobError('already-running') 并在源节点提示用户，绝不拉起第 2 条权重下载或残留第 2 张空卡；下载失败或取消立即清理并释放项目锁。",
+    "exception_policy": "none",
+    "strategy": "在最早共享边界（depthVideoJob.prepareVideoDepthJob 与 startVideoDepthDerivation + DERIVED_OUTPUT_RULES）统一执行互斥占锁与非抢占式原子建卡，并用 derivedOutput.test.ts 结构测试钉死调用。",
+    "artifacts": [
+      "electron/video/depthVideoJob.ts",
+      "src/workbench/generationCanvas/model/derivedOutput.ts",
+      "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "src/workbench/generationCanvas/videoDepth/videoDepthClient.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/video/depthVideoJob.test.ts",
+    "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.test.tsx",
+    "src/workbench/generationCanvas/model/derivedOutput.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/video/depthVideoJob.test.ts",
+    "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.test.tsx",
+    "src/workbench/generationCanvas/model/derivedOutput.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "electron/video/depthVideoJob.ts"
+    ],
+    "rationale": "同提交删除 startVideoDepthDerivation.ts 中裸调 addNode + connectNodes + selectNode 的旧建卡路径，以及 depthVideoJob.ts 在下载/抽帧之后才延迟写入 sessions 的无锁旧路径。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次修复仅调整内部画布 store 动作参数与主进程会话锁时序，不新增或升级第三方依赖。",
+    "exit_criteria": []
+  },
+  "migration": "无需数据迁移：派生出来的深度视频节点仍是普通 kind='video' 节点与标准 'reference' 边，不新增任何持久化字段，存量项目快照逐字节兼容。",
+  "residual_risks": [
+    "源视频浮条「提取深度」按钮的运行中视觉反馈（A②）与 CanvasArrivalHint 下边缘胶囊和底部生成框的几何避让（A③）属可见 UI 设计变更，按 #1586 拍板边界留待协调会话 Claude Design 样张定稿后实施。"
+  ]
+}
