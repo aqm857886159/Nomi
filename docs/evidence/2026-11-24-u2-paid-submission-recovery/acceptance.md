@@ -2,7 +2,7 @@ u2-verify：通过
 
 - 验收线：u2-verify
 - 实现线：u2-receipt-impl
-- 验收 HEAD：20d384f894ad325012c1082042414cbba86a42ab
+- 验收 HEAD：31533609b0f2dcc0177165a0ef9e588aed27b2bb
 - 关联任务：协作看板 #1586 · U-2 ②–⑥（`D4-16 扣了钱能找回` + `NF-1104-0001`）
 - 基线分支：`origin/fix/fa-step2-rw1-rw2-rw3`（叠在 PR #1638 之上）
 
@@ -23,9 +23,9 @@ u2-verify：通过
    - `NF-1104-0001` 经核查在基线及可达 `docs/` / `tests/` 历史中无原始工单正文，对应两条脚本/目录回执路径已在 `customCallDispatch.ts`、`runtime.ts` 与 `acceptedTaskResult.ts` 完整收口。
 6. **路径隐私核查**：相对基线全量 diff 及本报告均含 **0 处**本机绝对路径或工作树路径泄露。
 
-## 2. 独立实跑命令与结果（均在 `20d384f894ad325012c1082042414cbba86a42ab` 实跑）
+## 2. 独立实跑命令与结果（基线 `20d384f894ad325012c1082042414cbba86a42ab` 全量实跑 + 同步合并提交 `31533609b0f2dcc0177165a0ef9e588aed27b2bb` 增量核验）
 
-### 2.1 十四套核心单测全绿（243/243）
+### 2.1 十五套核心单测全绿（264/264）
 - **批次 1（`npx vitest run --maxWorkers=2`）**：**6 passed / 68 passed**
   - `electron/capabilityCore/paidSubmissionRecovery.integration.test.ts`：9/9（全部 9 个磁盘重启故障注入场景：异步 `task_id`、同步图下载中断、ComfyUI `prompt_id`、有/无 query 自定义脚本、journal 缺口补齐、切换连接地址仍查原端、套接字无响应 `unknown` + 人工再点新单、本机模型不存在 `never_reached_network`）
   - `electron/productionRun/productionGenerationSubmission.test.ts`：17/17
@@ -42,6 +42,8 @@ u2-verify：通过
   - `src/workbench/generationCanvas/components/batchPlanPreview.test.ts`：21/21
   - `src/workbench/generationCanvas/components/batchPlanPreview.retryable.test.ts`：2/2
   - `src/workbench/generationCanvas/components/groupGenerate.itemized.test.ts`：8/8
+- **同步合并增量复跑（`31533609b0f2dcc0177165a0ef9e588aed27b2bb`，仅含 PR #1638 同步合并的 `tests/world/world.locks.test.mjs` 27→26 与 F-A Step 2 验收报告，零业务代码改动）**：
+  - `tests/world/world.locks.test.mjs`：**21/21 passed**（含 `主人存盘文件名：取自产品里的两张表（26 个），不手抄`）
 
 ### 2.2 三项独立变异反例测试（全部必红 → 恢复 100% 复绿）
 1. **M1（破坏最早受理信封持久化：`paidSubmissionReceipt.ts#checkpointPaidResponse` 提前返回）**：运行 `paidSubmissionRecovery.integration.test.ts` → **7 failed / 2 passed (9)**（全部 7 条恢复场景均无法在重启后登记观察者或读回原图，`exit=1`）。
