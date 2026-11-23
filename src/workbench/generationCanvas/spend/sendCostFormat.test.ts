@@ -94,8 +94,8 @@ describe('约价链：一个读取处、一处格式化、链上不发生成也�
   const walk = (dir: string): string[] => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap(entry => {
     const rel = path.join(dir, entry.name)
     if (entry.isDirectory()) return entry.name === 'node_modules' ? [] : walk(rel)
-    // 只看产品代码：*.test.* 和 *TestUtils.ts（仓库约定的测试专用件，eslint 同样按此排除）都不算。
-    return /\.(ts|tsx|mjs)$/.test(entry.name) && !/\.test\.|\.node-test\.|TestUtils\./.test(entry.name) ? [rel] : []
+    // 只看产品代码（含 .ts/.tsx/.mts/.cts/.js/.jsx/.mjs/.cjs）：*.d.ts、*.test.* 和 *TestUtils.* 都不算。
+    return /\.(?:c|m)?[jt]sx?$/.test(entry.name) && !/\.d\.[cm]?ts$|\.test\.|\.node-test\.|TestUtils\./.test(entry.name) ? [rel] : []
   })
   const production = [...walk('src'), ...walk('electron')]
   const users = (pattern: RegExp) => production.filter(file => pattern.test(fs.readFileSync(path.join(root, file), 'utf8'))).sort()
@@ -126,13 +126,14 @@ describe('约价链：一个读取处、一处格式化、链上不发生成也�
     ])
   })
 
-  it('美元兑人民币参考汇率全仓产品代码只有一份（sendCostFormat.ts），别处不许再写汇率名或那个数', () => {
+  it('美元兑人民币参考汇率全仓产品代码只有一份（sendCostFormat.ts），别处不许再写汇率名、汇率数或私调人民币格式化', () => {
     const owner = 'src/workbench/generationCanvas/spend/sendCostFormat.ts'
-    // 汇率类命名：再长第二份汇率（或第二个换算函数）就红。
-    expect(users(/\b(?:BUILTIN_USD_TO_CNY_\w+|usd_?to_?cny\w*|cny_?per_?usd\w*|usd_?cny_?rate\w*|exchange_?rate\w*|fx_?rate\w*)\b/i)).toEqual([owner])
-    // 汇率那个数本身（按字面）：换个名字抄一遍也红。
+    // 汇率类命名（覆盖 USD/DOLLAR × CNY/RMB/YUAN 及各类 rate 命名）：再长第二份汇率或换算函数就红。
+    expect(users(/\b(?:BUILTIN_USD_TO_CNY_\w+|(?:usd|dollar)_?(?:to|per|in)?_?(?:cny|rmb|yuan)\w*|(?:cny|rmb|yuan)_?(?:to|per|in)?_?(?:usd|dollar)\w*|(?:cny|rmb|yuan)_?rate\w*|exchange_?rate\w*|fx_?rate\w*)\b/i)).toEqual([owner])
+    // 汇率字面量与人民币展示格式化出口：别处换个普通名字硬乘或私自 formatMoney(..., 'CNY', ...) 也红。
     const literal = new RegExp(`(?<![\\d.])${String(BUILTIN_USD_TO_CNY_RATE).replace('.', '\\.')}(?!\\d)`)
     expect(users(literal)).toEqual([owner])
+    expect(users(/formatMoney\s*\([^)]*['"]CNY['"]/)).toEqual([owner])
     // 出处与日期都在：日期是 YYYY-MM-DD，菜单说明写出处名（不是「内置汇率」这种无出处的说法）。
     expect(BUILTIN_USD_TO_CNY_DATE).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     expect(zhGenerationCommon.composer.sendCost.rateNote).toContain('人民银行中间价')
