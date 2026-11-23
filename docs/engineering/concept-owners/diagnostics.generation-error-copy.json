@@ -36,6 +36,10 @@
       "symbol": "parseTaskFailureMessage"
     },
     {
+      "path": "electron/tasks/taskIpcGuard.ts",
+      "symbol": "runTaskIpcGuard"
+    },
+    {
       "path": "src/workbench/observability/classifyError.ts",
       "symbol": "classifyGenerationError"
     },
