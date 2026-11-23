@@ -23,7 +23,7 @@ import { importLocalMediaFilesToGenerationCanvas } from '../generationCanvas/ada
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
 import { visibleInsertionPoint } from '../generationCanvas/store/canvasVisibleArea'
-import { confirmDialog, DesignEmptyState, listenOutsidePress, NomiLoadingMark, promptDialog, TooltipProvider } from '../../design'
+import { confirmDialog, DesignEmptyState, NomiLoadingMark, promptDialog, TooltipProvider, useFloatingOutsideDismiss } from '../../design'
 import { FindReferenceSection } from './FindReferenceSection'
 import type { ReferencePlatform } from '../../../electron/shared/contracts/referenceSearch'
 import { acceptAttrForSurface } from '../../../electron/shared/contracts/mediaImportPolicy'
@@ -337,18 +337,20 @@ export function AssetLibraryContent({
   const [referencePlatform, setReferencePlatform] = React.useState<ReferencePlatform>('douyin')
   const sourceEmpty = sourceFilteredAssets.length === 0
 
+  useFloatingOutsideDismiss({
+    open: filterOpen,
+    floating: filterMenuRef,
+    reference: filterButtonRef,
+    onDismiss: () => setFilterOpen(false),
+  })
+
   React.useEffect(() => {
     if (!filterOpen) return
-    const stopListeningOutside = listenOutsidePress(
-      (target) => target instanceof Node && Boolean(filterMenuRef.current?.contains(target) || filterButtonRef.current?.contains(target)),
-      () => setFilterOpen(false),
-    )
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') setFilterOpen(false)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => {
-      stopListeningOutside()
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [filterOpen])

@@ -1,3 +1,6 @@
+import React from 'react'
+import { useDismiss, useFloating, useInteractions } from '@floating-ui/react'
+
 /**
  * Global Portal layer contract.
  *
@@ -181,4 +184,92 @@ export function hasOpenPopupAbove(surface: HTMLElement): boolean {
       && !surface.contains(candidate)
       && (ownsOpenPopup(surface, candidate) || isPopupAtOrAboveDialog(candidate, surface)),
   )
+}
+
+type BoundaryElementTarget = HTMLElement | null | React.RefObject<HTMLElement | null>
+
+function resolveBoundaryElement(target: BoundaryElementTarget | undefined): HTMLElement | null {
+  if (!target) return null
+  if ('current' in target) return target.current
+  return target
+}
+
+export type UseFloatingOutsideDismissOptions = {
+  open: boolean
+  onDismiss: () => void
+  floating?: BoundaryElementTarget
+  reference?: BoundaryElementTarget
+  /**
+   * 额外属于当前浮层逻辑边界的目标（如附加触发钮、更高层 Portal 弹层或挂载前空帧保护）；
+   * 返回 true 代表「点在自己身上」，本次按下不收起。
+   */
+  isInside?: (target: EventTarget | null, event: MouseEvent) => boolean
+}
+
+export type FloatingOutsideDismissBinding = {
+  setFloating: (node: HTMLElement | null) => void
+  setReference: (node: HTMLElement | null) => void
+  getFloatingProps: ReturnType<typeof useInteractions>['getFloatingProps']
+  getReferenceProps: ReturnType<typeof useInteractions>['getReferenceProps']
+}
+
+/**
+ * 浮层「点外面就收」共用交互契约（底层由 `@floating-ui/react` 的 `useFloating` + `useDismiss` 承担）。
+ *
+ * 固定 `outsidePressEvent: 'pointerdown'` + `capture.outsidePress: true`：
+ * 画布平移面 `d3-zoom` 在 `mousedown` 上 `stopImmediatePropagation`，节点卡片在冒泡 `pointerdown` 上 `stopPropagation`，
+ * 捕获阶段 `pointerdown` 在它们之前结算；Escape 仍归各浮层自己的层级规则（`escapeKey: false`）。
+ */
+export function useFloatingOutsideDismiss({
+  open,
+  onDismiss,
+  floating,
+  reference,
+  isInside,
+}: UseFloatingOutsideDismissOptions): FloatingOutsideDismissBinding {
+  const onDismissRef = React.useRef(onDismiss)
+  onDismissRef.current = onDismiss
+
+  const { refs, context } = useFloating({
+    open,
+    onOpenChange: (nextOpen, _event, reason) => {
+      if (!nextOpen && reason === 'outside-press') {
+        onDismissRef.current()
+      }
+    },
+  })
+
+  const { setFloating, setReference } = refs
+  React.useLayoutEffect(() => {
+    if (!open) {
+      setFloating(null)
+      setReference(null)
+      return
+    }
+    setFloating(resolveBoundaryElement(floating))
+    setReference(resolveBoundaryElement(reference))
+  }, [open, floating, reference, setFloating, setReference])
+
+  const dismiss = useDismiss(context, {
+    enabled: open,
+    escapeKey: false,
+    referencePress: false,
+    outsidePressEvent: 'pointerdown',
+    capture: { outsidePress: true },
+    outsidePress: (event) => {
+      const target = event.target
+      const floatingEl = resolveBoundaryElement(floating)
+      const referenceEl = resolveBoundaryElement(reference)
+      if (target instanceof Node && (floatingEl?.contains(target) || referenceEl?.contains(target))) {
+        return false
+      }
+      if (isInside?.(target, event)) {
+        return false
+      }
+      return true
+    },
+  })
+
+  const { getFloatingProps, getReferenceProps } = useInteractions([dismiss])
+  return { setFloating, setReference, getFloatingProps, getReferenceProps }
 }

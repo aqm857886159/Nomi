@@ -223,7 +223,6 @@ type ListenerRole =
 
 const GLOBAL_LISTENERS: Readonly<Record<string, { role: ListenerRole; why: string }>> = {
   'src/design/AnchoredPopover.tsx': { role: 'own-layer', why: '浮层自己的 Esc' },
-  'src/design/outsidePress.ts': { role: 'own-layer', why: '点外面收起的原语' },
   'src/design/useOverlayEscape.ts': { role: 'own-layer', why: '手写弹层的 Esc 原语，有 hasOpenDialogAbove 仲裁' },
   'src/ui/app-shell/shell/ShellAgentHost.tsx': { role: 'boundary', why: 'Mod+J / Mod+\\ 是整窗命令，整窗模态开着时不响应' },
   'src/ui/app-shell/shell/ShellRail.tsx': { role: 'own-layer', why: '抽屉自己的 Esc；抽屉是非模态，上面有弹层时按 DOM 让路（含菜单和非模态对话框，比输入层宽）' },

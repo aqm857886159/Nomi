@@ -3,6 +3,16 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-10-23-outside-press-capture.root-cause.json",
+      "path": "src/design/outsidePress.ts",
+      "symbol": "listenOutsidePress",
+      "anchor": {
+        "path": "src/design/overlayLayers.ts",
+        "symbol": "useFloatingOutsideDismiss"
+      },
+      "reason": "2026-11-24 第⑤刀换掉手写 outsidePress.ts：9 个消费者全部迁到 @floating-ui/react（useFloating + useDismiss，经 src/design/overlayLayers.ts 的 useFloatingOutsideDismiss 收口，固定 outsidePressEvent='pointerdown' 且 capture.outsidePress=true），同提交删除 src/design/outsidePress.ts。「点外面在捕获阶段 pointerdown 听、不被画布 mousedown 吞掉」的不变量原样保留，由 src/design/floatingDismiss.characterization.test.tsx 与 src/design/outsidePress.structure.test.ts 守。"
+    },
+    {
       "contract": "docs/fixes/2026-09-10-vendor-key-publish-class.root-cause.json",
       "path": "electron/catalog/directKeyCredential.ts",
       "symbol": "publishBuiltinCuratedVendor",
