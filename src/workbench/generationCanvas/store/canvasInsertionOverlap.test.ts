@@ -99,15 +99,16 @@ describe('画布插入避让：所有交互式入口都不让卡片相互遮挡'
     // 画布已有一张卡，落在粘贴簇 +36 偏移后的落点上
     store.addNode({ kind: 'image', position: { x: 36, y: 36 }, categoryId: 'shots' })
     const a: GenerationCanvasNode = { id: 'clip-a', kind: 'image', title: 'A', prompt: '', categoryId: 'shots', position: { x: 0, y: 0 } }
-    const b: GenerationCanvasNode = { id: 'clip-b', kind: 'image', title: 'B', prompt: '', categoryId: 'shots', position: { x: 0, y: 320 } }
+    const clusterGapY = DEFAULT_NODE_SIZE.image.height + 40
+    const b: GenerationCanvasNode = { id: 'clip-b', kind: 'image', title: 'B', prompt: '', categoryId: 'shots', position: { x: 0, y: clusterGapY } }
     setClipboard({ nodes: [a, b], edges: [] })
     store.pasteNodes()
     const nodes = useGenerationCanvasStore.getState().nodes
     expect(hasOverlapWithinCategory(nodes)).toBe(false)
-    // 簇内相对位移保持：两张粘贴卡的 y 差仍是 320（刚体平移，不变形）
+    // 簇内相对位移保持：两张粘贴卡的 y 差不变（刚体平移，不变形）
     const pa = nodes.find((n) => n.title === 'A 副本')
     const pb = nodes.find((n) => n.title === 'B 副本')
     expect(pa && pb).toBeTruthy()
-    if (pa && pb) expect(pb.position.y - pa.position.y).toBe(320)
+    if (pa && pb) expect(pb.position.y - pa.position.y).toBe(clusterGapY)
   })
 })

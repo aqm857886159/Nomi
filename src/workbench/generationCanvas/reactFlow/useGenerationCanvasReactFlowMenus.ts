@@ -134,9 +134,6 @@ export function useGenerationCanvasReactFlowMenus({
   handleStagePointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
   handleStagePointerMove: (event: React.PointerEvent<HTMLDivElement>) => void
   handleStagePointerEnd: (event: React.PointerEvent<HTMLDivElement>) => void
-  handlePendingGroupPointerUp: (
-    event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement> | PointerEvent | MouseEvent,
-  ) => void
   handleConnectStart: OnConnectStart
   handleConnectEnd: OnConnectEnd
   handleConnectToGroupFromFlow: (groupId: string) => void
@@ -375,30 +372,6 @@ export function useGenerationCanvasReactFlowMenus({
   }, [closeConnectionCreateMenu, connectionCreateMenu])
   const closeAssetInputPicker = React.useCallback(() => setAssetInputPicker(null), [])
 
-  const handlePendingGroupPointerUp = React.useCallback((event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement> | PointerEvent | MouseEvent) => {
-    if (readOnly || !pendingConnectionSourceId) return
-    if (useGenerationCanvasStore.getState().pendingConnectionSourceKind === 'group') return // 编组线不落到编组上
-    const groupId = document.elementsFromPoint(event.clientX, event.clientY)
-      .map((element) => element.closest<HTMLElement>('[data-group-id]')?.dataset.groupId || null)
-      .find((candidate): candidate is string => Boolean(candidate && visibleGroups.some((group) => group.id === candidate)))
-    if (!groupId) return
-    event.preventDefault()
-    event.stopPropagation()
-    connectionStartRef.current = null
-    handleConnectToGroup(groupId)
-  }, [handleConnectToGroup, pendingConnectionSourceId, readOnly, visibleGroups])
-
-  React.useEffect(() => {
-    const handleNativePointerUp = (event: PointerEvent) => handlePendingGroupPointerUp(event)
-    const handleNativeMouseUp = (event: MouseEvent) => handlePendingGroupPointerUp(event)
-    canvasWindowInput.addEventListener('pointerup', handleNativePointerUp)
-    canvasWindowInput.addEventListener('mouseup', handleNativeMouseUp)
-    return () => {
-      canvasWindowInput.removeEventListener('pointerup', handleNativePointerUp)
-      canvasWindowInput.removeEventListener('mouseup', handleNativeMouseUp)
-    }
-  }, [handlePendingGroupPointerUp])
-
   return {
     contextNodeMenu,
     /** 只关节点/添加菜单本身（不碰连线状态）——`WorkbenchMenu` 的 onOpenChange 走这条。 */
@@ -412,7 +385,6 @@ export function useGenerationCanvasReactFlowMenus({
     handleStagePointerDown,
     handleStagePointerMove,
     handleStagePointerEnd,
-    handlePendingGroupPointerUp,
     handleConnectStart,
     handleConnectEnd,
     handleConnectToGroupFromFlow,

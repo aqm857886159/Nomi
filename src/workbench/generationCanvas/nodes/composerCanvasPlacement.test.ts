@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { composerCanvasPlacement, composerFocusFootprint } from './composerCanvasPlacement'
+import { composerCanvasPlacement, composerFocusFootprint, composerInitialFootprint } from './composerCanvasPlacement'
 import { NODE_COMPOSER_GAP, NODE_COMPOSER_WIDTH, TEXT_COMPOSER_GAP, TEXT_COMPOSER_MAX_WIDTH, TEXT_COMPOSER_MIN_WIDTH } from './nodeSizing'
 
 /**
@@ -92,5 +92,21 @@ describe('composerFocusFootprint', () => {
   })
   it('kinds without a generation composer reserve nothing', () => {
     for (const kind of ['panorama', 'director', 'whiteboard', 'asset', 'agent-artifact']) expect(composerFocusFootprint(kind)).toBeNull()
+  })
+})
+
+describe('composerInitialFootprint', () => {
+  it('reserves less than the worst case the focus path uses, same gap', () => {
+    for (const kind of ['image', 'video', 'text']) {
+      const initial = composerInitialFootprint(kind)!
+      const worst = composerFocusFootprint(kind)!
+      expect(initial.gap).toBe(worst.gap)
+      expect(initial.height).toBeGreaterThan(0)
+    }
+    expect(composerInitialFootprint('image')!.height).toBeLessThan(composerFocusFootprint('image')!.height)
+    expect(composerInitialFootprint('video')!.height).toBeLessThan(composerFocusFootprint('video')!.height)
+  })
+  it('kinds without a generation composer reserve nothing', () => {
+    for (const kind of ['panorama', 'director', 'whiteboard', 'asset', 'agent-artifact']) expect(composerInitialFootprint(kind)).toBeNull()
   })
 })
