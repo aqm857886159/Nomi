@@ -1,4 +1,5 @@
 import { makeTempDir } from './_test-temp.mjs'
+import { createWalkthroughScreenshotter, prepareWalkthroughWindow } from './lib/walkthroughHost.mjs'
 // R13 真机走查：设置新增「模型」tab（2026-08-12 用户拍板）。
 // plan: docs/plan/2026-08-12-model-settings-home-and-comfyui-workflow-page.md
 //
@@ -15,7 +16,7 @@ import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.settings-models-walk')
 mkdirSync(outDir, { recursive: true })
-const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
+const shot = createWalkthroughScreenshotter(outDir)
 
 const { app, win } = await launchNomiApp({
   name: 'settings-models',
@@ -26,10 +27,7 @@ const { app, win } = await launchNomiApp({
 })
 const errors = []
 try {
-  const bw = await app.browserWindow(win)
-  await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1440, height: 1000 })).catch(() => {})
-  win.on('pageerror', (e) => errors.push(String(e)))
-  win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
+  await prepareWalkthroughWindow(app, win, { width: 1440, height: 1000 , errors })
 
   // ── ① 齿轮进设置 ──
   await win.getByRole('button', { name: '设置', exact: true }).first().click()
