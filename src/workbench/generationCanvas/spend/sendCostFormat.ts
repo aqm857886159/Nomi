@@ -4,10 +4,20 @@ import { formatMoney } from '../../ai/v4/formatMoney'
 import type { SendCostUnit } from './sendCostUnitStore'
 
 /**
- * 随版本内置的美元兑人民币参考汇率与生效日期（离线可算，不连第三方汇率接口；切换人民币时明示日期）。
+ * 美元兑人民币参考汇率——全仓产品代码里**唯一**的一份（`sendCostFormat.test.ts` 扫 src/ 与 electron/ 守，别处出现即红）。
+ *
+ * 为什么写死而不是从供应商拿：APIMart 公开价目 `GET /api/pricing/models/all` 每个价的 `unit` 全是 `usd_*`
+ * （2026-11-23 实测 502 条：usd_per_million_tokens / usd_per_1000_queries / usd_per_second / usd_per_image /
+ * usd_per_call / usd_per_million_token_hours / usd_per_minute），顶层只有 discount_ratio / membership / models，
+ * 没有币种或汇率字段；它别的只读接口也只回美元与积分（1 美元 = 10 积分）。
+ * 供应商不给人民币价也不给汇率，所以人民币只能是按参考汇率折的约数，界面一律标「约」并写出处与日期。
+ *
+ * 出处：中国人民银行授权中国外汇交易中心公布的银行间外汇市场人民币汇率中间价（USD/CNY）
+ * https://www.chinamoney.com.cn/chinese/bkccpr/ ，取 2026-11-23 当日 6.7120。
+ * 更新：改这里的两个值（数与日期同改），词典里的出处名不用动。
  */
-export const BUILTIN_USD_TO_CNY_RATE = 7.25
-export const BUILTIN_USD_TO_CNY_DATE = '2026-11-22'
+export const BUILTIN_USD_TO_CNY_RATE = 6.712
+export const BUILTIN_USD_TO_CNY_DATE = '2026-11-23'
 
 export type SendCostUnitOption = {
   unit: SendCostUnit
@@ -40,14 +50,14 @@ export function publicEstimateCny(quote: VendorPricePreview, locale: string): st
   return formatMoney(locale, 'CNY', amount, precision)
 }
 
-/** 内置参考汇率换算对（例如 `$1 ≈ ¥7.25`），经唯一货币格式化函数出。 */
+/** 参考汇率换算对（例如 `$1 ≈ ¥6.712`，按出处原样印到第 4 位小数），经唯一货币格式化函数出。 */
 export function builtinExchangeRatePair(locale: string): string {
   const oneUsd = formatMoney(locale, 'USD', 1, { maximumFractionDigits: 0 })
-  const cny = formatMoney(locale, 'CNY', BUILTIN_USD_TO_CNY_RATE, { maximumFractionDigits: 2 })
+  const cny = formatMoney(locale, 'CNY', BUILTIN_USD_TO_CNY_RATE, { maximumFractionDigits: 4 })
   return `${oneUsd} ≈ ${cny}`
 }
 
-/** 约价单位切换菜单里的内置汇率说明（含日期）。 */
+/** 约价单位切换菜单里的参考汇率说明（出处 + 日期 + 换算对）。 */
 export function sendCostRateNote(t: TFunction, locale: string): string {
   return t('generationCommon.composer.sendCost.rateNote', {
     date: BUILTIN_USD_TO_CNY_DATE,

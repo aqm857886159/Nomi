@@ -22,8 +22,8 @@ const amount: VendorPricePreview = { credits: 2, usd: 0.2, source: 'https://api.
 /** 词典里的原文。逐字钉住在 scripts/check-i18n-no-cost-claims.mjs 的 COST_LABEL_EXACT（唯一一份登记），这里只从词典取。 */
 const DICT = { 'zh-CN': zhGenerationCommon.composer.sendCost, en: enGenerationCommon.composer.sendCost } as const
 
-describe('约价怎么印（唯一一处格式化：积分 / 人民币 / 美元均标约，内置汇率写日期）', () => {
-  it.each(['zh-CN', 'en'] as const)('%s：三种单位悬停句与估不出态均按词典输出，人民币带内置汇率与日期', async (locale) => {
+describe('约价怎么印（唯一一处格式化：积分 / 人民币 / 美元均标约，参考汇率写出处与日期）', () => {
+  it.each(['zh-CN', 'en'] as const)('%s：三种单位悬停句与估不出态均按词典输出，人民币带参考汇率出处与日期', async (locale) => {
     const t = i18next.createInstance()
     await t.init({ lng: locale, resources: { [locale]: { translation: { generationCommon: locale === 'en' ? enGenerationCommon : zhGenerationCommon } } } })
     const tf = t.t.bind(t) as Parameters<typeof sendCostDescription>[1]
@@ -72,8 +72,8 @@ describe('约价怎么印（唯一一处格式化：积分 / 人民币 / 美元�
     expect(publicEstimateUsd({ ...amount, usd: 0.034776, basis: 'output-estimate' }, locale)).toBe('$0.035')
     expect(publicEstimateUsd({ ...amount, usd: 0.195 }, locale)).toBe('$0.195')
     expect(publicEstimateUsd({ ...amount, usd: 0.00000651 }, locale)).toBe('$0.0000065')
-    expect(publicEstimateCny({ ...amount, usd: 0.2 }, locale)).toBe('¥1.45')
-    expect(publicEstimateCny({ ...amount, usd: 0.0001 }, locale)).toBe('¥0.00073')
+    expect(publicEstimateCny({ ...amount, usd: 0.2 }, locale)).toBe('¥1.34')
+    expect(publicEstimateCny({ ...amount, usd: 0.0001 }, locale)).toBe('¥0.00067')
   })
 
   it('积分数：两位小数，一分以下按两位有效数字，不印成 0；无 t 时仍带 ≈ 约号', () => {
@@ -124,6 +124,20 @@ describe('约价链：一个读取处、一处格式化、链上不发生成也�
       'electron/catalog/apimartVendor.ts',
       'electron/catalog/builtinVendorSeeds.ts',
     ])
+  })
+
+  it('美元兑人民币参考汇率全仓产品代码只有一份（sendCostFormat.ts），别处不许再写汇率名或那个数', () => {
+    const owner = 'src/workbench/generationCanvas/spend/sendCostFormat.ts'
+    // 汇率类命名：再长第二份汇率（或第二个换算函数）就红。
+    expect(users(/\b(?:BUILTIN_USD_TO_CNY_\w+|usd_?to_?cny\w*|cny_?per_?usd\w*|usd_?cny_?rate\w*|exchange_?rate\w*|fx_?rate\w*)\b/i)).toEqual([owner])
+    // 汇率那个数本身（按字面）：换个名字抄一遍也红。
+    const literal = new RegExp(`(?<![\\d.])${String(BUILTIN_USD_TO_CNY_RATE).replace('.', '\\.')}(?!\\d)`)
+    expect(users(literal)).toEqual([owner])
+    // 出处与日期都在：日期是 YYYY-MM-DD，菜单说明写出处名（不是「内置汇率」这种无出处的说法）。
+    expect(BUILTIN_USD_TO_CNY_DATE).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(zhGenerationCommon.composer.sendCost.rateNote).toContain('人民银行中间价')
+    expect(enGenerationCommon.composer.sendCost.rateNote).toContain('PBOC midpoint')
+    expect(fs.readFileSync(path.join(root, owner), 'utf8')).toContain('https://www.chinamoney.com.cn/chinese/bkccpr/')
   })
 
   it('约价与缺额数字只在 sendCostFormat 格式化；发送键只管画', () => {

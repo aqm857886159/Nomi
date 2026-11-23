@@ -980,10 +980,10 @@ export const zhGenerationCommon = {
     sendCost: {
       approx: '约 {{value}}',
       estimate: '这次约 {{value}} 积分（{{usd}}）。按 APIMart 公开价估，出完按 APIMart 实际扣费记。',
-      estimateCny: '这次约 {{cny}}（约 {{value}} 积分）。按内置汇率（{{date}}，{{pair}}）与 APIMart 公开价估，出完按 APIMart 实际扣费记。',
+      estimateCny: '这次约 {{cny}}（约 {{value}} 积分）。按人民银行中间价（{{date}}，{{pair}}）与 APIMart 公开价估，出完按 APIMart 实际扣费记。',
       estimateUsd: '这次约 {{usd}}（约 {{value}} 积分）。按 APIMart 公开价估，出完按 APIMart 实际扣费记。',
       outputEstimate: '仅输出约 {{value}} 积分（{{usd}}）· 实际按 token 结算',
-      outputEstimateCny: '仅输出约 {{cny}}（约 {{value}} 积分）。按内置汇率（{{date}}，{{pair}}）估，实际按 token 结算。',
+      outputEstimateCny: '仅输出约 {{cny}}（约 {{value}} 积分）。按人民银行中间价（{{date}}，{{pair}}）估，实际按 token 结算。',
       outputEstimateUsd: '仅输出约 {{usd}}（约 {{value}} 积分）。按 APIMart 公开价估，实际按 token 结算。',
       priceUnknown: '暂时估不出这次用量',
       unitMenuAria: '切换约价显示单位',
@@ -991,7 +991,7 @@ export const zhGenerationCommon = {
       unitCredits: '积分',
       unitCny: '人民币',
       unitUsd: '美元',
-      rateNote: '内置汇率（{{date}}）：{{pair}}',
+      rateNote: '人民银行中间价（{{date}}）：{{pair}}',
     },
     sendCostLowBalance: {
       shortfall: '还差 {{value}} 积分',
@@ -2732,10 +2732,10 @@ export const enGenerationCommon = {
     sendCost: {
       approx: '~{{value}}',
       estimate: 'About {{value}} credits ({{usd}}) this time. Estimated at the APIMart public rate; recorded at the actual APIMart charge once done.',
-      estimateCny: 'About {{cny}} (~{{value}} credits) this time. Converted at built-in rate ({{date}}, {{pair}}) from the APIMart public rate; recorded at the actual APIMart charge once done.',
+      estimateCny: 'About {{cny}} (~{{value}} credits) this time. Converted at PBOC midpoint ({{date}}, {{pair}}) from the APIMart public rate; recorded at the actual APIMart charge once done.',
       estimateUsd: 'About {{usd}} (~{{value}} credits) this time. Estimated at the APIMart public rate; recorded at the actual APIMart charge once done.',
       outputEstimate: 'Output estimate {{value}} credits ({{usd}}) · billed by actual tokens',
-      outputEstimateCny: 'Output estimate about {{cny}} (~{{value}} credits). Converted at built-in rate ({{date}}, {{pair}}); billed by actual tokens.',
+      outputEstimateCny: 'Output estimate about {{cny}} (~{{value}} credits). Converted at PBOC midpoint ({{date}}, {{pair}}); billed by actual tokens.',
       outputEstimateUsd: 'Output estimate about {{usd}} (~{{value}} credits). Estimated at the APIMart public rate; billed by actual tokens.',
       priceUnknown: 'No usage estimate yet',
       unitMenuAria: 'Switch estimate unit',
@@ -2743,7 +2743,7 @@ export const enGenerationCommon = {
       unitCredits: 'Credits',
       unitCny: 'CNY',
       unitUsd: 'USD',
-      rateNote: 'Built-in rate ({{date}}): {{pair}}',
+      rateNote: 'PBOC midpoint ({{date}}): {{pair}}',
     },
     sendCostLowBalance: {
       shortfall: 'Short {{value}} credits',

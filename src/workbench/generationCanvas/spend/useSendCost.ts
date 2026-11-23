@@ -20,7 +20,7 @@ export type SendCost = {
   credits?: string
   /** 当前展示单位（积分 / 人民币 / 美元）。 */
   unit?: SendCostUnit
-  /** 单位切换菜单三项与内置汇率日期说明。 */
+  /** 单位切换菜单三项与参考汇率出处与日期说明。 */
   unitOptions?: readonly SendCostUnitOption[]
   rateNote?: string
   unitMenuAriaLabel?: string

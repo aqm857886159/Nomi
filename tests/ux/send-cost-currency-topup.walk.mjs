@@ -1,11 +1,11 @@
-// 发送键旁约价单位切换（积分 / 人民币 / 美元，都标「约」，内置汇率带日期）+ 余额不够同一行「还差 N 积分 · 去充值」真窗口走查。
+// 发送键旁约价单位切换（积分 / 人民币 / 美元，都标「约」，参考汇率带出处与日期）+ 余额不够同一行「还差 N 积分 · 去充值」真窗口走查。
 // 板 ModelSurfaces：cost.send-pill / cost.hover / cost.low-balance。
 //
 // 真实条件：隔离资料目录 + 打包同构 Electron + 本机回环假 APIMart（NOMI_TEST_NETWORK_GUARD=1，所有非 GET 一律 405，零花费）。
 // 覆盖：
 //   1. 默认积分态（约 1.95 / ~1.95，带硬币图标）
-//   2. 点开单位切换菜单（积分 / 人民币 / 美元三项实时约数 + 内置汇率与日期 2026-11-22）
-//   3. 切到人民币（约 ¥1.41 / ~¥1.41）+ 悬停提示（含内置汇率日期，且按句分行无句中断行）
+//   2. 点开单位切换菜单（积分 / 人民币 / 美元三项实时约数 + 参考汇率出处与日期，汇率数与日期只读 sendCostFormat.ts 那一份）
+//   3. 切到人民币（约 ¥x / ~¥x，x = 0.195 × 参考汇率）+ 悬停提示（含汇率出处日期，且按句分行无句中断行）
 //   4. 切到美元（约 $0.195 / ~$0.195）
 //   5. 余额不足态（板 ModelSurfaces cost.low-balance）：假余额 7.03 积分 vs Seedance 2.0 1080p 15s = 14.63 积分 →
 //      发送键位置换成「还差 7.6 积分 · 去充值 ↗」（英文 Short 7.6 credits · Top up ↗），点「去充值」触发官方带邀请码外链且 0 生成 POST；
@@ -25,6 +25,12 @@ import { stationTimeout } from './_station-budget.mjs'
 import { addCanvasNode, newProjectEntry, switchWorkspace } from './_shell.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { badBreaks } from './_sentenceBreaks.mjs'
+
+// 参考汇率与日期的唯一一份在 sendCostFormat.ts；走查只从那里读，不另抄一个数。
+const FX_OWNER = fs.readFileSync(path.resolve('src/workbench/generationCanvas/spend/sendCostFormat.ts'), 'utf8')
+const FX_RATE = Number(FX_OWNER.match(/BUILTIN_USD_TO_CNY_RATE = ([\d.]+)/)?.[1])
+const FX_DATE = FX_OWNER.match(/BUILTIN_USD_TO_CNY_DATE = '([\d-]+)'/)?.[1]
+assert(Number.isFinite(FX_RATE) && FX_DATE, 'read FX rate/date from sendCostFormat.ts')
 
 const output = path.resolve(process.env.NOMI_SEND_COST_T1_EVIDENCE || 'docs/evidence/2026-11-22-send-cost-currency-topup')
 fs.mkdirSync(output, { recursive: true })
@@ -207,7 +213,7 @@ try {
         await win.keyboard.press('Escape')
       }
 
-      // 1) Seedance 2.0 Mini · 5s 720p → 1.95 积分 / ¥1.41 / $0.195
+      // 1) Seedance 2.0 Mini · 5s 720p → 1.95 积分 / ¥(0.195 × 参考汇率) / $0.195
       await pickModel(/^Seedance 2\.0 Mini$/, 'Seedance 2.0 Mini')
       await setParam('duration', 5)
       await setParam('resolution', '720p')
@@ -220,20 +226,20 @@ try {
       if (scheme === 'light') {
         await screenshotSettled(win, { path: shotPath('credits') })
 
-        // 2) 点开单位切换菜单（展示三项实时约数 + 内置汇率与日期）
+        // 2) 点开单位切换菜单（展示三项实时约数 + 参考汇率出处与日期）
         await clickOrFail(unitBtn, 'open send cost unit menu')
         const cnyOption = win.locator('[data-menu-item="send-cost-unit-cny"]').first()
         const usdOption = win.locator('[data-menu-item="send-cost-unit-usd"]').first()
         await expectVisible(cnyOption, 'CNY option in unit menu')
         await expectVisible(usdOption, 'USD option in unit menu')
-        const rateLabel = win.locator('[data-menu-label]').filter({ hasText: '2026-11-22' }).first()
+        const rateLabel = win.locator('[data-menu-label]').filter({ hasText: FX_DATE }).first()
         await expectVisible(rateLabel, 'built-in exchange rate date in unit menu')
         rec.rateNote = (await rateLabel.innerText()).trim()
         await screenshotSettled(win, { path: shotPath('unit-menu') })
 
-        // 3) 切到人民币 + 悬停核对（含内置汇率日期 & G7 按句换行）
+        // 3) 切到人民币 + 悬停核对（含参考汇率出处日期 & G7 按句换行）
         await clickOrFail(cnyOption, 'switch to CNY')
-        const expectedCny = uiTextWith(locale, 'generationCommon.composer.sendCost.approx', { value: '¥1.41' })
+        const expectedCny = uiTextWith(locale, 'generationCommon.composer.sendCost.approx', { value: `¥${(0.195 * FX_RATE).toFixed(2)}` })
         await expect(unitBtn).toHaveText(expectedCny, { timeout: stationTimeout() })
         await expect(unitBtn).toHaveAttribute('data-send-cost-unit', 'cny')
         await win.mouse.move(20, 20, { steps: 2 })
@@ -242,7 +248,7 @@ try {
         await expect(tip, 'board:ModelSurfaces/cost.hover').toBeVisible({ timeout: stationTimeout() })
         await win.waitForTimeout(300)
         const cnyTip = await readTipLines(tip)
-        assert(cnyTip.visibleText.includes('2026-11-22'), `CNY tooltip includes rate date: ${cnyTip.visibleText}`)
+        assert(cnyTip.visibleText.includes(FX_DATE), `CNY tooltip includes rate date: ${cnyTip.visibleText}`)
         assert.deepEqual(badBreaks(cnyTip.lines), [], `CNY tooltip breaks cleanly at sentence boundaries: ${JSON.stringify(cnyTip.lines)}`)
         rec.cnyHover = cnyTip.visibleText
         await screenshotSettled(win, { path: shotPath('cny-hover') })

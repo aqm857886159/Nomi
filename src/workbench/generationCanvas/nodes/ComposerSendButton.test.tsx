@@ -112,7 +112,7 @@ describe('ComposerSendButton 约价（板 ModelSurfaces：cost.send-pill / cost.
           credits: '约 19.5',
           unit: 'credits',
           unitOptions,
-          rateNote: '内置汇率（2026-11-22）：$1 ≈ ¥7.25',
+          rateNote: '人民银行中间价（2026-11-23）：$1 ≈ ¥6.712',
           unitSwitchAriaLabel: '当前约价 约 19.5，点击切换显示单位',
           onUnitChange: () => undefined,
           description: priced.description,
@@ -134,7 +134,7 @@ describe('ComposerSendButton 约价（板 ModelSurfaces：cost.send-pill / cost.
           credits: '约 ¥14.14',
           unit: 'cny',
           unitOptions,
-          rateNote: '内置汇率（2026-11-22）：$1 ≈ ¥7.25',
+          rateNote: '人民银行中间价（2026-11-23）：$1 ≈ ¥6.712',
           onUnitChange: () => undefined,
           description: '这次约 ¥14.14（约 19.5 积分）。',
         }}

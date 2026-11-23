@@ -10,7 +10,7 @@ export type SendCostUnitMenuOption = {
 }
 
 /**
- * 发送键左侧的约价单位切换按钮 + 下拉菜单（积分 / 人民币 / 美元，都标「约」，底部附内置汇率与日期）。
+ * 发送键左侧的约价单位切换按钮 + 下拉菜单（积分 / 人民币 / 美元，都标「约」，底部附参考汇率出处与日期）。
  * 行为内核全走 `WorkbenchMenu`（Radix Portal / 方向键 / Esc / 边缘避让），点击只切单位、绝不误触发送。
  */
 export function SendCostUnitMenuButton({
