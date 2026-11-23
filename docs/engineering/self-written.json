@@ -850,12 +850,13 @@
   "entries": [
     {
       "id": "lane-approval-gate",
-      "capability": "工具调用审批闸：在 before_tool 里停下等用户，四个动作、七种结局，关窗 / 切项目 / 按停止统一收尾",
+      "capability": "工具调用审批闸：执行当轮生成暂停，在 before_tool 里停下等用户，四个动作、七种结局，关窗 / 切项目 / 按停止统一收尾",
       "status": "justified",
       "paths": [
         "electron/agentLane/laneApprovalGate.ts",
         "electron/agentLane/laneAskUserTool.ts",
         "electron/agentLane/laneNativeApproval.ts",
+        "electron/agentLane/turnGenerationHold.ts",
         "electron/shared/agentLane/laneApproval.ts"
       ],
       "alternativesChecked": [
@@ -872,8 +873,8 @@
           "source": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md"
         }
       ],
-      "whyNotIntegrated": "领域约束：花钱与写画布必须由用户批准，且批准有七种结局（确认 / 拒绝 / 改口 / 停止 / 关窗 / 重启…）要给用户不同的话；pi 的确认只有 yes / no / 取消，harness 层连对话框都没有。形状（按 id 匹配、阻塞到回复、取消是一等结局）已经照 pi 的协议抄了。",
-      "revisitWhen": "pi 的 harness 层提供带结局枚举的待决确认原语时；或 0.24 B（付费卡并进投影）落地后复查是否还有第二份「等」"
+      "whyNotIntegrated": "领域约束：花钱与写画布必须由用户批准，且批准有七种结局（确认 / 拒绝 / 改口 / 停止 / 关窗 / 重启…）要给用户不同的话；pi 的确认只有 yes / no / 取消，harness 层连对话框都没有。形状（按 id 匹配、阻塞到回复、取消是一等结局）已经照 pi 的协议抄了。当前回合要求暂停生成时，Nomi 在审批前禁止单镜和批量生成，草稿编辑照常进行。pi 的 before_tool 提供执行时机，暂停生成与编辑草稿的区分由 Nomi 判定。",
+      "revisitWhen": "pi 的 harness 层提供带结局枚举的待决确认原语时；或 0.24 B（付费卡并进投影）落地后复查是否还有第二份「等」。若框架能把用户的当轮指令与卡片答复绑定到指定工具的暂停状态，复查应用侧是否只需保留生成与草稿编辑的领域判据。"
     },
     {
       "id": "lane-provider-watchdog",

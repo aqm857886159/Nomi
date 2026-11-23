@@ -1,0 +1,239 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-23-agent-turn-generation-hold",
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-23",
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane/laneExtendedDesktopPorts.ts",
+    "tests": [
+      "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+      "electron/capabilityCore/generationTransportAdapters.test.ts"
+    ]
+  },
+  "problem_type": "A desktop Agent turn requests generation outside the user's current draft scope",
+  "symptom": "U-1 and evaluation P30 can enter generate after a user asks to hold generation or only change the duration of six existing drafts.",
+  "direct_cause": "The draft receipt had a stop rule only for planning, and the desktop tool prepare hook had no turn hold. A draft patch could independently reach direct-policy handover on a previously presented plan.",
+  "class_root": "The lane had no host-owned link from the consumed user instruction to generation admission, and a local candidate patch shared the automatic generation decision path with presentation.",
+  "affected_population": [
+    "Desktop canvas and document Agent turns editing or drafting image and video shots, including single-shot and scoped batch generation and previously presented plans."
+  ],
+  "scope_paths": [
+    "electron/agentLane/turnGenerationHold.ts",
+    "electron/agentLane/laneAskUserTool.ts",
+    "electron/agentLane/laneDesktopTools.ts",
+    "electron/agentLane/laneInputIntent.mts",
+    "electron/shared/agentLane/laneDesktopContracts.ts",
+    "electron/agentLane/laneExtendedDesktopPorts.ts",
+    "electron/agentLane/laneExtendedTools.ts",
+    "electron/capabilityCore/generationTransportAdapters.ts",
+    "electron/shared/agentCapabilities/verbs/writeVerbs.ts"
+  ],
+  "entry_points": [
+    "Consumed composer input",
+    "Deferred desktop tool preparation",
+    "Generation transport presentation and candidate patch",
+    "Draft tool receipt"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/docs/guides/function-calling",
+      "checked_at": "2026-11-23",
+      "purpose": "The application owns execution after the model requests a tool."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview",
+      "checked_at": "2026-11-23",
+      "purpose": "Client tool execution and its result are distinct from the model's proposal."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://csharp.sdk.modelcontextprotocol.io/v1/concepts/tools/tools.html",
+      "checked_at": "2026-11-23",
+      "purpose": "Use an actionable tool result for a refused action."
+    }
+  ],
+  "invariants": [
+    "An explicit current desktop turn hold blocks generation before presentation and dispatch, regardless of approval mode or shot scope.",
+    "Saving an existing draft candidate cannot trigger a new policy handover.",
+    "A successful save receipt treats draft and parameter edits as complete unless the current user explicitly asked for generation."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneAskUserTool.ts",
+      "symbol": "onAnswer"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "symbol": "draftNextStep"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/turnGenerationHold.ts",
+      "symbol": "holdsTurnGeneration"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/verbProjections.ts",
+      "symbol": "generateModelSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "symbol": "generateModelSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneDesktopContracts.ts",
+      "symbol": "LaneComposerContext"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "symbol": "recordTurnGenerationHold"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "recordTurnGenerationHold"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "symbol": "createAskUserLaneTools"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneInputIntent.mts",
+      "symbol": "holdsTurnGeneration"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "generationHeld"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "laneInputIntent"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "preflightGenerate"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "createExtendedLaneTools"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "symbol": "createLaneExtendedDesktopPorts"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "decideByPolicyAfterDraft"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 16,
+    "why_not": "The original input reader and type, model tool declarations and receipt guidance, deferred assembly, approval answer, preparation, and adapter are distinct lifecycle boundaries. New references connect consumed text and two separate card-reply sources to the same hold; they add no generation entry. The patch-to-handover edge is removed."
+  },
+  "generality_proof": "The model registry exposes one generation verb for both one and many shots. One preparation boundary requires approval before both preflight and direct execution. Candidate patches cannot take the separate adapter-approved handover path. The hold is derived from consumed input before tool arguments or projected media descriptions are involved.",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneInputIntent.mts",
+      "symbol": "laneInputIntent",
+      "responsibility": "Project the latest consumed user instruction and subsequent card answers into the active tool context and model guidance."
+    },
+    {
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "createLaneExtendedDesktopPorts",
+      "responsibility": "Refuse a held generate call before it can be approved or cross into the generation transport."
+    },
+    {
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "createPiGenerationTransportAdapter",
+      "responsibility": "Keep candidate patches out of automatic generation decisions."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "entry_point": "preflightGenerate",
+      "disposition": "enforced",
+      "evidence": "Both single shot and batch are generate, carried by optional shotIds and the same prepared authority."
+    },
+    {
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "entry_point": "decideByPolicyAfterDraft",
+      "disposition": "enforced",
+      "evidence": "A visible legacy draft patch is a local edit. The adapter regression verifies zero policy handover and a successful follow-up present."
+    },
+    {
+      "path": "electron/agentLane/laneSingleShot.mts",
+      "entry_point": "runLaneSingleShot",
+      "disposition": "not-affected",
+      "evidence": "The text-only single-shot path exposes no generation tools."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same receipt can be repeated for every shot, and a later provider or batch can emit a generate request in either policy mode.",
+    "same_class_scan": [
+      "door-map of laneInputIntent, createLaneExtendedDesktopPorts, preflightGenerate, createExtendedLaneTools and decideByPolicyAfterDraft",
+      "Internal-profile registry and laneVerbTransport show one generate verb with optional shotIds and separate draft create, extend and patch operations.",
+      "Reviewed the prior draft-receipt facts and second generation door contracts. Those govern canvas truth and approval admission; the current absent invariant is the user's turn-specific hold."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+    "invariant": "The lane refuses generate before approval when the active user turn holds it, and a draft patch never starts policy handover.",
+    "failure_mode": "Give the model an explicit stop receipt and leave draft operations available.",
+    "exception_policy": "none",
+    "strategy": "Carry the consumed hold into the existing prepared tool authority and remove candidate patches as a source of automatic generation.",
+    "artifacts": [
+      "electron/agentLane/turnGenerationHold.ts",
+      "electron/agentLane/laneInputIntent.mts",
+      "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "electron/capabilityCore/generationTransportAdapters.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+    "electron/capabilityCore/generationTransportAdapters.test.ts",
+    "tests/ux/agent-spend-waiting-owner.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+    "electron/capabilityCore/generationTransportAdapters.test.ts",
+    "tests/ux/agent-spend-waiting-owner.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/agentLane/laneExtendedTools.ts",
+      "electron/capabilityCore/generationTransportAdapters.ts",
+      "electron/shared/agentCapabilities/verbs/writeVerbs.ts"
+    ],
+    "rationale": "Remove the incomplete draft-only receipt rule and the candidate patch edge into policy handover. Existing presentation and local edit entry points remain available."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The existing pi turn activation and tool preflight APIs express the product invariant. The installed library is independent of the draft/spend meaning.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted fields are added. Existing draft IDs, values, and approvals remain readable; opening a new offer uses the existing explicit generation action.",
+  "residual_risks": [
+    "Real-provider wording frequencies and Windows desktop behavior are unverified. The classifier recognizes explicit clause forms in Chinese and English."
+  ]
+}
