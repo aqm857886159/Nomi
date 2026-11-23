@@ -34,19 +34,26 @@ import {
   useOnboardingModelAvailability,
 } from './onboardingModelAvailability'
 
-function useIsNarrowConnectViewport(): boolean {
-  const [narrow, setNarrow] = React.useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    return window.innerWidth < 1200
-  })
+const CONNECT_PAGE_TWO_COLUMN_MIN_WIDTH = 1180
+
+function useIsNarrowConnectContainer(containerRef: React.RefObject<HTMLElement | null>): boolean {
+  const [narrow, setNarrow] = React.useState(false)
 
   React.useEffect(() => {
-    if (typeof window === 'undefined') return undefined
-    const onResize = (): void => setNarrow(window.innerWidth < 1200)
-    onResize()
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
+    const element = containerRef.current
+    if (!element || typeof ResizeObserver === 'undefined') return undefined
+    const update = (width: number): void => {
+      if (width <= 0) return
+      setNarrow(width < CONNECT_PAGE_TWO_COLUMN_MIN_WIDTH)
+    }
+    update(element.getBoundingClientRect().width)
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (entry) update(entry.contentRect.width)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [containerRef])
 
   return narrow
 }
@@ -84,13 +91,13 @@ export function ApimartConnectPage({
 }): JSX.Element {
   const { t } = useTranslation()
   const { apimartCounts } = useOnboardingModelAvailability()
-  const isNarrow = useIsNarrowConnectViewport()
+  const pageRef = React.useRef<HTMLElement | null>(null)
+  const isNarrow = useIsNarrowConnectContainer(pageRef)
   const [fineprintOpen, setFineprintOpen] = React.useState(false)
   const [cantOpenExpanded, setCantOpenExpanded] = React.useState(false)
   const [hoveredStep, setHoveredStep] = React.useState<number | null>(null)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
-  const pageRef = React.useRef<HTMLElement | null>(null)
   const inputRef = React.useRef<HTMLInputElement | null>(null)
   const lastOpenedSiteAtRef = React.useRef(0)
   const errorId = React.useId()
@@ -483,7 +490,7 @@ export function ApimartConnectPage({
               {rightColumn}
             </div>
           ) : (
-            <div className="mx-auto my-auto flex w-full max-w-[1400px] items-center justify-center gap-8 px-6 py-8 min-[1400px]:gap-12">
+            <div className="mx-auto my-auto flex w-full max-w-[1400px] items-center justify-center gap-8 px-6 py-8 xl:gap-12">
               <div className="min-w-0 flex-1 max-w-[680px]">
                 <ApimartWorksCollage compact={false} />
               </div>
