@@ -2,12 +2,16 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { showUndoToast } from '../../utils/showUndoToast'
-import { workbenchAdoptionPorts } from '../adoption/adoptionStorePorts'
+import { createWorkbenchAdoptionPorts } from '../adoption/adoptionStorePorts'
 import { TimelineAgentReceiptEffect } from '../ai/resident/TimelineAgentReceiptEffect'
 import { executeTimelineWriteTarget } from '../timeline/agent/timelineCapabilityTarget'
 import { timelineRevision } from '../timeline/kernel/timelineKernel'
 import { revertCapturedTimelineEdit } from '../timeline/timelineGesture'
 import { useWorkbenchStore } from '../workbenchStore'
+import { registerPreviewLayoutHistoryShortcut } from './historyMiddleware'
+import { registerTimelineHistoryShortcut } from '../timeline/timelineShortcuts'
+import { registerHistoryShortcut, resetShortcutSurfaceForTest } from '../shortcutSurface'
+import { releaseWorkbenchProjectRuntimeState } from '../project/releaseWorkbenchProjectSession'
 import { workbenchStoreLifetime } from '../workbenchStoreLifetime'
 
 vi.mock('../../utils/showUndoToast', () => ({ showUndoToast: vi.fn() }))
@@ -43,14 +47,48 @@ describe('timeline and layout session history', () => {
     expect(state().timeline).toBe(before)
     state().redoTimeline()
     expect(state().timeline).toBe(trimmed)
-    state().captureTimelineUndo()
+    const captured = state().captureTimelineUndo()
     state().resizeTimelineTextClip(id, 'right', 20)
-    revertCapturedTimelineEdit(true)
+    revertCapturedTimelineEdit(captured)
     state().redoTimeline()
-    revertCapturedTimelineEdit(false)
+    revertCapturedTimelineEdit(undefined)
     expect(state().timeline).toBe(trimmed)
     state().undoTimeline()
     expect(state().timeline).toBe(before)
+  })
+
+  it('cancelling a trim preserves an existing redo and a late cancel cannot roll back another session', () => {
+    const id = state().addTimelineTextClip('caption', 0)
+    state().updateTimelineTextClip(id, 'later')
+    state().undoTimeline()
+    const original = state().timeline
+    const token = state().captureTimelineUndo()
+    state().resizeTimelineTextClip(id, 'right', 12)
+    state().cancelTimelineGesture(token)
+    expect(state().timeline).toBe(original)
+    state().redoTimeline()
+    expect(state().timeline.textClips[0].text).toBe('later')
+    workbenchStoreLifetime.releaseProject!()
+    const nextId = state().addTimelineTextClip('caption', 0)
+    const nextToken = state().captureTimelineUndo()
+    state().resizeTimelineTextClip(nextId, 'right', 18)
+    revertCapturedTimelineEdit(token)
+    expect(state().timeline.textClips[0].endFrame).toBe(18)
+    revertCapturedTimelineEdit(nextToken)
+    expect(state().timeline.textClips[0].endFrame).not.toBe(18)
+  })
+
+  it('clears retained timeline and layout history instances when the project closes', () => {
+    const { timelineHistory, editingPanelHistory } = state()
+    state().addTimelineTextClip('caption', 0)
+    state().showEditingPanel('source', false)
+    expect(timelineHistory.entries.pastStates).toHaveLength(1)
+    expect(editingPanelHistory.entries.pastStates).toHaveLength(1)
+    releaseWorkbenchProjectRuntimeState()
+    expect(timelineHistory.entries.pastStates).toHaveLength(0)
+    expect(editingPanelHistory.entries.pastStates).toHaveLength(0)
+    expect(state().timelineHistory).not.toBe(timelineHistory)
+    expect(state().editingPanelHistory).not.toBe(editingPanelHistory)
   })
 
   it('compensates a failed adoption without a ghost undo or a lost redo at capacity', () => {
@@ -58,6 +96,7 @@ describe('timeline and layout session history', () => {
     for (let n = 1; n <= 32; n++) state().updateTimelineTextClip(id, String(n))
     state().undoTimeline()
     const base = state().timeline
+    const workbenchAdoptionPorts = createWorkbenchAdoptionPorts()
     workbenchAdoptionPorts.commitTimeline({ ...base, textClips: [] }, base)
     expect(workbenchAdoptionPorts.restoreTimeline(base)).toBe(true)
     state().redoTimeline()
@@ -93,6 +132,54 @@ describe('timeline and layout session history', () => {
     expect(state().timeline.textClips).toHaveLength(0)
     expect(state().editingPanelLayout).toBe(layout)
     expect(state().agentRecallNonce).toBe(nonce + 1)
+  })
+
+  it.each([true, false])('routes each keyboard chord once with both preview targets populated (layout registered first = %s)', layoutFirst => {
+    const win = new EventTarget()
+    vi.stubGlobal('window', win)
+    vi.stubGlobal('HTMLElement', class {})
+    const surface = { closest: (selector: string) => selector.includes('="false"') ? null : surface } as unknown as Element
+    const layout = () => registerPreviewLayoutHistoryShortcut({ current: surface }, state)
+    const timeline = () => registerTimelineHistoryShortcut(() => surface, state().undoTimeline, state().redoTimeline)
+    const off = (layoutFirst ? [layout, timeline] : [timeline, layout]).map(register => register())
+    const press = (key: string, modifiers: Partial<KeyboardEvent>) => {
+      const event = new Event('keydown', { cancelable: true })
+      Object.defineProperty(event, 'key', { value: key })
+      Object.assign(event, modifiers)
+      win.dispatchEvent(event)
+      expect(event.defaultPrevented).toBe(true)
+    }
+    try {
+      const id = state().addTimelineTextClip('caption', 0)
+      state().showEditingPanel('source', false)
+      press('z', { metaKey: true })
+      expect(state().editingPanelLayout.visibility.source).toBe(true)
+      expect(state().timeline.textClips).toHaveLength(1)
+      state().showEditingPanel('source', false)
+      state().timelineHistory.activate()
+      state().writeEditingPanelLayoutFromAgent({ sourceWidth: 380 })
+      press('z', { ctrlKey: true })
+      expect(state().timeline.textClips).toHaveLength(0)
+      expect(state().editingPanelLayout.visibility.source).toBe(false)
+      state().editingPanelHistory.activate()
+      press('z', { metaKey: true, shiftKey: true })
+      expect(state().timeline.textClips).toHaveLength(0)
+      expect(state().editingPanelLayout.visibility.source).toBe(false)
+      state().timelineHistory.activate()
+      press('y', { ctrlKey: true })
+      expect(state().timeline.textClips[0].id).toBe(id)
+      press('z', { metaKey: true })
+      press('Z', { ctrlKey: true, shiftKey: true })
+      expect(state().timeline.textClips[0].id).toBe(id)
+      const director = vi.fn()
+      off.push(registerHistoryShortcut('director', () => true, director))
+      press('z', { metaKey: true })
+      expect(director).toHaveBeenCalledOnce()
+      expect(state().timeline.textClips[0].id).toBe(id)
+    } finally {
+      off.forEach(unregister => unregister())
+      resetShortcutSurfaceForTest()
+    }
   })
 
   it('binds the receipt and capability to the current head, project and revision', async () => {

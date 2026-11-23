@@ -6,7 +6,7 @@ import type { StoryboardTimelineUnit } from '../generationCanvas/agent/storyboar
 import { applyAdoption } from './adoptionApply'
 import { contractHashOfResult, proposalKeyForBatch, runIdOfNode, timelineRevisionOf } from './adoptionProposalKey'
 import { lookupAdoptionProposal, proposalIsLanded, registerAdoptionProposal } from './adoptionProposalRegistry'
-import { workbenchAdoptionPorts } from './adoptionStorePorts'
+import { createWorkbenchAdoptionPorts } from './adoptionStorePorts'
 import type { AdoptionApplyPorts, AdoptionOutcome, AdoptionPlacement } from './adoptionTypes'
 
 /**
@@ -117,7 +117,7 @@ export type BatchAdoptionResult = AdoptionOutcome & {
 
 export async function adoptStoryboardBatch(options: AdoptStoryboardBatchOptions): Promise<BatchAdoptionResult> {
   options.assertCanApply?.()
-  const ports = options.ports || workbenchAdoptionPorts
+  const ports = options.ports || createWorkbenchAdoptionPorts()
   const readNodes = options.readNodes
   const total = options.units.length
   const planSkipped = [...(options.skipped || [])]

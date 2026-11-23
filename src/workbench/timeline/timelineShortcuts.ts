@@ -1,8 +1,6 @@
-import { shortcutSurfaceMayHandle } from '../shortcutSurface'
+import { registerHistoryShortcut, shortcutSurfaceMayHandle } from '../shortcutSurface'
 
 export type TimelineShortcutAction =
-  | { type: 'undo' }
-  | { type: 'redo' }
   | { type: 'exit-split-mode' }
   | { type: 'nudge-playhead'; delta: -1 | 1 }
   | { type: 'remove-text-selection' }
@@ -36,7 +34,6 @@ export function resolveTimelineShortcut(
 ): TimelineShortcutAction | null {
   const key = input.key.toLowerCase()
   const mod = Boolean(input.metaKey || input.ctrlKey)
-  if (mod && key === 'z') return input.shiftKey ? { type: 'redo' } : { type: 'undo' }
   // 吸附归 N，不再占 ⌘\：⌘\ 是全站「收起 / 展开 Nomi」（合同 §2.1），两边都监听 window
   // 时用户按一次会同时翻吸附和翻面板——两个功能各自「偶尔自己变了」，谁都查不出为什么。
   if (key === 'n' && !mod && !input.shiftKey) return { type: 'toggle-snap' }
@@ -73,7 +70,7 @@ export function isTimelineShortcutsHelpKey(input: { key: string; shiftKey?: bool
 }
 
 export function isTimelineShortcutEditingTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
+  return target instanceof HTMLElement && Boolean(target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])'))
 }
 
 /**
@@ -93,4 +90,12 @@ export function dispatchTimelineShortcut(
   event.preventDefault()
   onAction(action)
   return true
+}
+
+export function registerTimelineHistoryShortcut(surface: () => Element | null, undo: () => void, redo: () => void) {
+  return registerHistoryShortcut('timeline', () => shortcutSurfaceMayHandle(surface()), (direction, event) => {
+    if (isTimelineShortcutEditingTarget(event.target)) return false
+    if (direction === 'undo') undo()
+    else redo()
+  })
 }

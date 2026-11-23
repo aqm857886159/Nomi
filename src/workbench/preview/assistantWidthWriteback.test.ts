@@ -1,3 +1,4 @@
+import { createLayoutHistory } from '../history/historyMiddleware'
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -24,7 +25,7 @@ const NARROW_WINDOW = 700
 function seed(): number {
   useWorkbenchStore.setState({
     editingPanelLayout: { ...cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS), assistantWidth: STORED },
-    editingPanelUndoStack: [],
+    editingPanelHistory: createLayoutHistory(),
     projectAgentDockCollapsed: false,
   })
   return useWorkbenchStore.getState().persistRevision

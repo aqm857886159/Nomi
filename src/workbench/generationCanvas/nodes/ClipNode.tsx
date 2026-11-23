@@ -498,8 +498,6 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
         splitMode: false,
       }, (action) => {
         switch (action.type) {
-          case 'undo': useGenerationCanvasStore.getState().undo(); break
-          case 'redo': useGenerationCanvasStore.getState().redo(); break
           case 'nudge-playhead': setPlayheadFrame((frame) => Math.max(0, Math.min(durationFrames, frame + action.delta))); break
           case 'remove-selection': handleRemoveClip(activeClip.id); break
           case 'split-primary': handleSplitClip(activeClip.id, playheadFrame); break

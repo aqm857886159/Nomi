@@ -1,3 +1,4 @@
+import { createTimelineHistory } from '../../history/historyMiddleware'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { create } from 'zustand'
 import { createAgentTurnState, type AgentTurnHandle, type AgentTurnState } from '../../ai/agentTurnLifecycle'
@@ -40,7 +41,7 @@ beforeEach(() => {
   deps.catalog.mockResolvedValue([])
   useCanvasTurnStore.getState().abandon()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node('A')], edges: [], groups: [] })
-  useWorkbenchStore.setState({ timeline: createDefaultTimeline(), timelineUndoStack: [], timelineRedoStack: [] })
+  useWorkbenchStore.setState({ timeline: createDefaultTimeline(), timelineHistory: createTimelineHistory() })
   __resetCanvasUndoJournalForTests()
   resetAdoptionRegistry()
   captured.length = 0
@@ -338,10 +339,10 @@ describe('final asynchronous Agent mutation boundary', () => {
       useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node('B')], edges: [], groups: [] })
     }
     const before = { ...createDefaultTimeline(), playheadFrame: 48 }
-    useWorkbenchStore.setState({ timeline: before, timelineUndoStack: [] })
+    useWorkbenchStore.setState({ timeline: before, timelineHistory: createTimelineHistory() })
     release()
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
     expect(useWorkbenchStore.getState().timeline).toEqual(before)
-    expect(useWorkbenchStore.getState().timelineUndoStack).toEqual([])
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates).toEqual([])
   })
 })

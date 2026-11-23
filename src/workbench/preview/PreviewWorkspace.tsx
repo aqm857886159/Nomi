@@ -1,4 +1,4 @@
-import { workspaceInputSurfaceIsActive } from '../shortcutSurface'
+import { registerPreviewLayoutHistoryShortcut } from '../history/historyMiddleware'
 import { AssistantPane } from '../AssistantPane'
 import { assistantDockColumns } from '../assistantWidthBounds'
 import React, { type JSX } from 'react'
@@ -53,6 +53,8 @@ function SplitHandle({ vertical = false, onGrab }: { vertical?: boolean; onGrab?
         'group relative z-10 flex flex-none items-center justify-center bg-[var(--workbench-border)]',
         vertical ? 'w-px cursor-col-resize' : 'h-px cursor-row-resize',
       )}
+      onPointerDownCapture={() => useWorkbenchStore.getState().editingPanelHistory.activate()}
+      onFocusCapture={() => useWorkbenchStore.getState().editingPanelHistory.activate()}
       onPointerDown={onGrab}
       onKeyDown={onGrab}
     >
@@ -127,7 +129,6 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
   const showEditingPanel = useWorkbenchStore((state) => state.showEditingPanel)
   const keepEditingPanel = useWorkbenchStore((state) => state.keepEditingPanel)
   const setEditingPanelLayout = useWorkbenchStore((state) => state.setEditingPanelLayout)
-  const undoEditingPanelLayout = useWorkbenchStore((state) => state.undoEditingPanelLayout)
   const inputHostRef = React.useRef<HTMLElement | null>(null)
   const sourcePanelRef = usePanelRef()
   const inspectorPanelRef = usePanelRef()
@@ -193,15 +194,7 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
     if (height !== undefined) syncSize({ timelineHeight: Math.round(height) })
   }, [markCustom, syncSize, timelinePanelRef])
 
-  React.useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!workspaceInputSurfaceIsActive(inputHostRef.current)) return
-      // ⌘\ 收 Agent 搬到外壳（ShellAgentHost）：四个面统一「收起 ↔ 打开到上次选的摆法」，这里只留面板布局撤销。
-      if (event.metaKey && event.key.toLowerCase() === 'z' && undoEditingPanelLayout()) event.preventDefault()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [undoEditingPanelLayout])
+  React.useEffect(() => registerPreviewLayoutHistoryShortcut(inputHostRef, useWorkbenchStore.getState), [])
 
   return (
     <section

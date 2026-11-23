@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createCanvasKeydownHandler } from './generationCanvas/components/useCanvasShortcuts'
-import { dispatchTimelineShortcut } from './timeline/timelineShortcuts'
-import { canvasWindowInput, cancelCanvasInputGestures, resetShortcutSurfaceForTest, shortcutSurfaceMayHandle } from './shortcutSurface'
+import { registerCanvasHistoryShortcut, createCanvasKeydownHandler } from './generationCanvas/components/useCanvasShortcuts'
+import { registerTimelineHistoryShortcut, dispatchTimelineShortcut } from './timeline/timelineShortcuts'
+import { dispatchHistoryShortcut, canvasWindowInput, cancelCanvasInputGestures, resetShortcutSurfaceForTest, shortcutSurfaceMayHandle } from './shortcutSurface'
 
 const KEYS = [
   { key: 'Delete' }, { key: 'Backspace' }, { key: 'z', metaKey: true },
@@ -13,7 +13,7 @@ const body = { matches: () => false, closest: () => null }
 beforeEach(() => {
   vi.stubGlobal('HTMLElement', class {})
   vi.stubGlobal('document', { body, activeElement: body, querySelector: () => null })
-  vi.stubGlobal('window', { getSelection: () => ({ isCollapsed: true }) })
+  vi.stubGlobal('window', Object.assign(new EventTarget(), { getSelection: () => ({ isCollapsed: true }) }))
 })
 afterEach(() => { resetShortcutSurfaceForTest(); vi.unstubAllGlobals() })
 
@@ -45,6 +45,11 @@ describe('actual shortcut handlers obey host authority across hiding shapes', ()
     const surface = host(false, hide)
     const effect = vi.fn()
     const event = keyEvent(key)
+    const unregister = name === 'canvas'
+      ? registerCanvasHistoryShortcut({ stageRef: { current: surface as HTMLDivElement }, undo: effect, redo: effect })
+      : registerTimelineHistoryShortcut(() => surface, effect, effect)
+    dispatchHistoryShortcut(event)
+    unregister()
     if (name === 'canvas') {
       createCanvasKeydownHandler({
         stageRef: { current: surface as HTMLDivElement }, selectedNodeCount: 1, selectedGroupCount: 1, activeCategoryId: 'shots',

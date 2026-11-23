@@ -1,3 +1,4 @@
+import { createTimelineHistory } from '../../history/historyMiddleware'
 // 队列外化后的三条不变量（方案 docs/plan/2026-08-02-task-center-queue.md）：
 //   ① 取消排队中的条目 = **零 vendor 调用**（这是「取消不产生费用」的唯一凭据，不能靠嘴说）
 //   ② 连续失败 3 个 → 队列暂停，剩下的不再提交；「上游连带失败」不该触发误停
@@ -158,7 +159,7 @@ describe('生成队列外化', () => {
     // 生成模块树内不许直写 addTimelineClipAtFrame（adoption-bridge 铁律）——测试种子用 setState 直置。
     useWorkbenchStore.setState({
       timeline: { ...base, tracks: base.tracks.map((track) => track.type === 'image' ? { ...track, clips: [staleClip] } : track) },
-      timelineUndoStack: [], timelineRedoStack: [],
+      timelineHistory: createTimelineHistory(),
     })
 
     const result = await runGenerationNodesBatch([id], { target: projectTarget,

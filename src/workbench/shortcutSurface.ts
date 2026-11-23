@@ -29,6 +29,57 @@ function recordPointer(event: Event): void {
   if (workspaceInputSurfaceIsActive(surface)) lastPointerSurface = surface
 }
 
+/**
+ * 快捷键里的字母：按 `event.key` 认（Dvorak / AZERTY 按的是键帽上的字），
+ * 只有 key 不是 ASCII 字母时才回退物理位置 `event.code`——macOS 上 ⌥ 组合会把 F 变成 `Ï`、
+ * 俄文 / 希腊文布局下 Z 是 `я`。与 tldraw `useKeyboardShortcuts` 同一裁决（见 docs/plan/2026-09-21-canvas-shortcut-parity.md）。
+ */
+export function shortcutLetter(event: Pick<KeyboardEvent, 'key' | 'code'>): string {
+  const key = event.key.toLowerCase()
+  if (/^[a-z]$/.test(key)) return key
+  if (/^Key[A-Z]$/.test(event.code)) return event.code.slice(3).toLowerCase()
+  return key
+}
+
+type HistorySurface = 'director' | 'layout' | 'canvas' | 'timeline'
+type HistoryCommand = 'undo' | 'redo'
+type HistoryBinding = {
+  surface: HistorySurface
+  eligible: () => boolean
+  handle: (command: HistoryCommand, event: KeyboardEvent) => boolean | void
+}
+const historyBindings = new Set<HistoryBinding>()
+// A visible editor overlay owns its canvas. The preview layout and timeline
+// have separate histories. Canvas is the generation workspace's initial target.
+const historyPriority: HistorySurface[] = ['director', 'layout', 'canvas', 'timeline']
+
+export function historyShortcut(event: Pick<KeyboardEvent, 'key'> & Partial<KeyboardEvent>): HistoryCommand | undefined {
+  if (!(event.metaKey || event.ctrlKey) || event.altKey) return
+  const key = shortcutLetter({ key: event.key, code: event.code ?? '' })
+  if (key === 'z') return event.shiftKey ? 'redo' : 'undo'
+  if (key === 'y' && !event.shiftKey) return 'redo'
+}
+
+export function registerHistoryShortcut(surface: HistorySurface, eligible: HistoryBinding['eligible'], handle: HistoryBinding['handle']) {
+  installShortcutSurfaceTracker()
+  const binding = { surface, eligible, handle }
+  historyBindings.add(binding)
+  return () => { historyBindings.delete(binding) }
+}
+
+export function dispatchHistoryShortcut(event: KeyboardEvent): boolean {
+  const command = historyShortcut(event)
+  if (!command || event.defaultPrevented || event.isComposing) return false
+  for (const surface of historyPriority) {
+    const owner = [...historyBindings].find(binding => binding.surface === surface && binding.eligible())
+    if (!owner) continue
+    if (owner.handle(command, event) === false) return false
+    event.preventDefault()
+    return true
+  }
+  return false
+}
+
 const EDITING_DEFAULT_KEYS = new Set(['a', 'z', 'y'])
 
 /**
@@ -36,8 +87,9 @@ const EDITING_DEFAULT_KEYS = new Set(['a', 'z', 'y'])
  * 这些字）；撤销、重做的栈整页一个，焦点在按钮上也会撤掉框后面输入框里刚打的字（Electron 43 实测）。
  * 所以目标被层盖着、焦点不在输入框里、这一下又没有哪个露着的面要接时，这几个默认动作不发生。
  */
-function cancelEditingDefaultUnderLayer(raw: Event): void {
+function handleWorkbenchKeydown(raw: Event): void {
   const event = raw as KeyboardEvent
+  if (dispatchHistoryShortcut(event)) return
   if (!(event.metaKey || event.ctrlKey) || event.altKey || !EDITING_DEFAULT_KEYS.has(event.key.toLowerCase())) return
   const target = event.target as Partial<Element> | null
   if (typeof target?.closest !== 'function') return
@@ -50,10 +102,12 @@ function cancelEditingDefaultUnderLayer(raw: Event): void {
 /** 幂等：同一个 window 只装一次，捕获期记录，任何浮层 stopPropagation 都挡不住。 */
 export function installShortcutSurfaceTracker(target: Window = window): void {
   if (installedOn === target) return
+  installedOn?.removeEventListener('focusin', recordPointer, true)
   installedOn?.removeEventListener('pointerdown', recordPointer, true)
-  installedOn?.removeEventListener('keydown', cancelEditingDefaultUnderLayer)
+  installedOn?.removeEventListener('keydown', handleWorkbenchKeydown)
+  target.addEventListener('focusin', recordPointer, true)
   target.addEventListener('pointerdown', recordPointer, true)
-  target.addEventListener('keydown', cancelEditingDefaultUnderLayer)
+  target.addEventListener('keydown', handleWorkbenchKeydown)
   installedOn = target
 }
 
@@ -146,4 +200,5 @@ onModalInputLayerOpened((covers) => {
 /** 仅供单测：回到「还没按过指针」。 */
 export function resetShortcutSurfaceForTest(): void {
   lastPointerSurface = null
+  historyBindings.clear()
 }

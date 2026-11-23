@@ -49,6 +49,7 @@ export function useDirectorHotkeys({ scopeRef, handlers }: { scopeRef: React.Mut
       if (isDirectorKeyboardBlocked(event)) return
       const scope = scopeRef.current
       for (const [id, binding] of Object.entries(DIRECTOR_HOTKEYS) as Array<[DirectorHotkeyId, (typeof DIRECTOR_HOTKEYS)[DirectorHotkeyId]]>) {
+        if (id === 'undo' || id === 'redo') continue
         if (binding.scope !== 'global' && binding.scope !== scope) continue
         if (!matchesHotkey(event, binding)) continue
         const handler = handlersRef.current[id] ?? defaultHandler(id, store)
@@ -78,10 +79,6 @@ function defaultHandler(id: DirectorHotkeyId, store: ReturnType<typeof useDirect
       return () => state().setTransformMode('rotate')
     case 'scale':
       return () => state().setTransformMode('scale')
-    case 'undo':
-      return () => state().undo()
-    case 'redo':
-      return () => state().redo()
     case 'group':
       return () => {
         const ids = state().selection.multiObjectIds
