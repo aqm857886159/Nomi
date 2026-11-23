@@ -1,12 +1,13 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
-    "src/main.tsx",
+    "src/main.tsx!",
     "src/dev/optimizeDepsEntry.ts",
     "src/devlab/*.tsx",
-    "electron/main.ts",
-    "electron/preload.ts",
-    "worker/index.ts",
+    "electron/main.ts!",
+    "electron/preload.ts!",
+    "electron/mcpServerEntry.ts!",
+    "worker/index.ts!",
     "scripts/**/*.{mjs,ts,cjs}",
     "tests/**/*.{mjs,ts,tsx}",
     "evals/**/*.{mjs,ts}",
@@ -14,13 +15,16 @@
     "**/*.node-test.mjs"
   ],
   "project": [
-    "src/**/*.{ts,tsx}",
-    "electron/**/*.ts",
-    "worker/**/*.ts"
+    "src/**/*.{ts,tsx}!",
+    "electron/**/*.{ts,mts}!",
+    "worker/**/*.ts!"
   ],
   "ignore": [
     "**/__fixtures__/**",
     "tests/fixtures/**"
+  ],
+  "ignoreDependencies": [
+    "hono"
   ],
   "vite": false
 }
