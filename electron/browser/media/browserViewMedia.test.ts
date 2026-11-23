@@ -1,7 +1,9 @@
+import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanupTestTemp, makeTempDir } from "../../../scripts/_test-temp.mjs";
 import type { BrowserViewRecord } from "../core/browserViewTypes";
 import {
   assertPromptReferenceDataUrlSize,
@@ -165,4 +167,40 @@ describe("browser media session download", () => {
       downloadBrowserMediaFromPageView(record, "blob:https://www.bilibili.com/some-uuid", "video", "video"),
     ).rejects.toThrow(/nomi-capture:mse-stream/);
   });
+});
+
+it("starts one blob download per view in FIFO order and continues after interruption", async () => {
+  const roots = [makeTempDir("blob-download-first"), makeTempDir("blob-download-second")];
+  const temp = vi.spyOn(fs, "mkdtempSync").mockReturnValueOnce(roots[0]).mockReturnValueOnce(roots[1]);
+  const session = new EventEmitter();
+  const downloadURL = vi.fn();
+  const contents = { id: 7, isDestroyed: () => false, executeJavaScript: async () => "file", session, downloadURL };
+  const record = { view: { webContents: contents } } as unknown as BrowserViewRecord;
+  const urls = ["blob:https://example.com/first", "blob:https://example.com/second"];
+
+  function interrupt(url: string, state: string) {
+    const item = Object.assign(new EventEmitter(), {
+      getURL: () => url, getURLChain: () => [], getTotalBytes: () => 10, getMimeType: () => "image/png",
+      getFilename: () => "image.png", setSavePath: vi.fn(),
+    });
+    session.emit("will-download", {}, item, contents);
+    item.emit("done", {}, state);
+  }
+
+  try {
+    const [first, second] = urls.map((url) => downloadBrowserMediaFromPageView(record, url, "image.png", "image"));
+    const firstResult = expect(first).rejects.toThrow("Media download interrupted");
+    const secondResult = expect(second).rejects.toThrow("Media download cancelled");
+    await vi.waitFor(() => expect(downloadURL.mock.calls).toEqual([[urls[0]]]));
+    expect(session.listenerCount("will-download")).toBe(1);
+    interrupt(urls[0], "interrupted");
+    await firstResult;
+    await vi.waitFor(() => expect(downloadURL.mock.calls).toEqual(urls.map((url) => [url])));
+    interrupt(urls[1], "cancelled");
+    await secondResult;
+    expect(session.listenerCount("will-download")).toBe(0);
+  } finally {
+    temp.mockRestore();
+    for (const root of roots) cleanupTestTemp(root);
+  }
 });
