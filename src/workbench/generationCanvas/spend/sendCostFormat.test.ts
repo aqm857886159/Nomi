@@ -130,10 +130,11 @@ describe('约价链：一个读取处、一处格式化、链上不发生成也�
     const owner = 'src/workbench/generationCanvas/spend/sendCostFormat.ts'
     // 汇率类命名（覆盖 USD/DOLLAR × CNY/RMB/YUAN 及各类 rate 命名）：再长第二份汇率或换算函数就红。
     expect(users(/\b(?:BUILTIN_USD_TO_CNY_\w+|(?:usd|dollar)_?(?:to|per|in)?_?(?:cny|rmb|yuan)\w*|(?:cny|rmb|yuan)_?(?:to|per|in)?_?(?:usd|dollar)\w*|(?:cny|rmb|yuan)_?rate\w*|exchange_?rate\w*|fx_?rate\w*)\b/i)).toEqual([owner])
-    // 汇率字面量与人民币展示格式化出口：别处换个普通名字硬乘或私自 formatMoney(..., 'CNY', ...) 也红。
-    const literal = new RegExp(`(?<![\\d.])${String(BUILTIN_USD_TO_CNY_RATE).replace('.', '\\.')}(?!\\d)`)
+    // 汇率字面量（含末尾补零如 6.7120）与人民币展示格式化出口：别处换个普通名字硬乘或私自 formatMoney/NumberFormat CNY 也红。
+    const literal = new RegExp(`(?<![\\d.])${String(BUILTIN_USD_TO_CNY_RATE).replace('.', '\\.')}0*(?!\\d)`)
     expect(users(literal)).toEqual([owner])
     expect(users(/formatMoney\s*\([^)]*['"]CNY['"]/)).toEqual([owner])
+    expect(users(/Intl\.NumberFormat[\s\S]{0,120}?currency\s*:\s*['"]CNY['"]/)).toEqual([])
     // 出处与日期都在：日期是 YYYY-MM-DD，菜单说明写出处名（不是「内置汇率」这种无出处的说法）。
     expect(BUILTIN_USD_TO_CNY_DATE).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     expect(zhGenerationCommon.composer.sendCost.rateNote).toContain('人民银行中间价')
