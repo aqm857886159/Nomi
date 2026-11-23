@@ -286,10 +286,19 @@ describe("链接状态 → 发原链接 / 转上传（真试探 × 真决定点�
   });
 
   it.each(["provider-private", "public-provider"] as const)("Range 403 plus %s uses the upload; an upload failure stops delivery", async visibility => {
-    const channel = own({ ...uploadUrl, visibility });
-    const post = vi.fn(async () => { throw new Error("HTTP 500"); });
-    await expect(sendOne("/gen/range-denied", { channels: [channel], post })).rejects.toThrow("asset-upload-failed");
-    expect(post).toHaveBeenCalledOnce();
+    const channel = own({ strategy: "upload-multipart", endpoint: "https://up.example/x", urlPath: "url", accepts: ["image", "video", "audio"], visibility });
+    const postMultipart = vi.fn(async () => { throw new Error("HTTP 500"); });
+    await expect(
+      localizeAssetsForVendor(
+        { input_urls: [localUrl("a.png")] },
+        () => [channel],
+        () => asset("a.png", cdn("/gen/range-denied")),
+        vi.fn(),
+        postMultipart,
+        { linkPolicy: policyWith() },
+      ),
+    ).rejects.toThrow("asset-upload-failed");
+    expect(postMultipart).toHaveBeenCalledOnce();
   });
 
   it("连接被拒 → 发原链接", async () => {
