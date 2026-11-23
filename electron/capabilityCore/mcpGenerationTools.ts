@@ -50,7 +50,7 @@ import {
   handleContextQuery,
   handleReadOperation,
   readinessReceiptFields,
-} from "./mcpGenerationProjections";
+} from "./generationGateProjections";
 
 export { coldstartEtaForGate, gateRowsFor };
 
