@@ -524,7 +524,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
                 description: sendCost.description,
                 unit: sendCost.unit,
                 unitOptions: sendCost.unitOptions,
-                rateNote: sendCost.rateNote,
+                unitMenuHeading: sendCost.unitMenuHeading,
                 unitMenuAriaLabel: sendCost.unitMenuAriaLabel,
                 unitSwitchAriaLabel: sendCost.unitSwitchAriaLabel,
                 onUnitChange: sendCost.onUnitChange,

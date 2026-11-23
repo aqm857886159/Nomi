@@ -57,14 +57,6 @@ export function builtinExchangeRatePair(locale: string): string {
   return `${oneUsd} ≈ ${cny}`
 }
 
-/** 约价单位切换菜单里的参考汇率说明（出处 + 日期 + 换算对）。 */
-export function sendCostRateNote(t: TFunction, locale: string): string {
-  return t('generationCommon.composer.sendCost.rateNote', {
-    date: BUILTIN_USD_TO_CNY_DATE,
-    pair: builtinExchangeRatePair(locale),
-  })
-}
-
 function rawAmountForUnit(quote: VendorPricePreview, locale: string, unit: SendCostUnit): string {
   if (unit === 'cny') return publicEstimateCny(quote, locale)
   if (unit === 'usd') return publicEstimateUsd(quote, locale)
@@ -72,27 +64,35 @@ function rawAmountForUnit(quote: VendorPricePreview, locale: string, unit: SendC
 }
 
 /**
- * 键上印的约数（积分 / 人民币 / 美元均标「约」，避免误读为实扣金额）。
- * 传 `t` 时走词典（中文 `约 0.35` / `约 ¥0.25` / `约 $0.035`，英文 `~0.35` / `~¥0.25` / `~$0.035`）；
- * 未传 `t` 时退回通用符号 `≈`。
+ * 键上印的约数：
+ * - 积分（`credits`）：对齐 M4-cost 拍板稿，印紧凑纯数字（配左侧硬币图标，悬停首句「这次约…」说明预估性质），
+ *   节省底栏宽度避免无故挤缩左侧方式芯片；仅 `output-estimate` 按第一步规则带 `≈`。
+ * - 人民币 / 美元（`cny` / `usd`）：统一用紧凑数学约号 `≈¥1.31` / `≈$0.195`。
  */
 export function sendCostPillText(
   quote: VendorPricePreview,
   locale: string,
   unit: SendCostUnit = 'credits',
-  t?: TFunction,
+  _t?: TFunction,
 ): string {
   const value = rawAmountForUnit(quote, locale, unit)
-  return t ? t('generationCommon.composer.sendCost.approx', { value }) : `≈${value}`
+  if (unit === 'credits') {
+    return quote.basis === 'output-estimate' ? `≈${value}` : value
+  }
+  return `≈${value}`
 }
 
-/** 单位切换菜单的三项（积分 / 人民币 / 美元，各自带当前实时约数）。 */
+/** 单位切换菜单的三项（组标题已写一次「预计 / Estimated」，每行 trailing 直接印纯净数值，零重复前缀）。 */
 export function sendCostUnitOptions(quote: VendorPricePreview, t: TFunction, locale: string): SendCostUnitOption[] {
   return [
-    { unit: 'credits', label: t('generationCommon.composer.sendCost.unitCredits'), formatted: sendCostPillText(quote, locale, 'credits', t) },
-    { unit: 'cny', label: t('generationCommon.composer.sendCost.unitCny'), formatted: sendCostPillText(quote, locale, 'cny', t) },
-    { unit: 'usd', label: t('generationCommon.composer.sendCost.unitUsd'), formatted: sendCostPillText(quote, locale, 'usd', t) },
+    { unit: 'credits', label: t('generationCommon.composer.sendCost.unitCredits'), formatted: rawAmountForUnit(quote, locale, 'credits') },
+    { unit: 'cny', label: t('generationCommon.composer.sendCost.unitCny'), formatted: rawAmountForUnit(quote, locale, 'cny') },
+    { unit: 'usd', label: t('generationCommon.composer.sendCost.unitUsd'), formatted: rawAmountForUnit(quote, locale, 'usd') },
   ]
+}
+
+export function sendCostUnitMenuHeading(t: TFunction): string {
+  return t('generationCommon.composer.sendCost.unitMenuHeading')
 }
 
 export function sendCostUnitMenuAria(t: TFunction): string {
@@ -100,8 +100,9 @@ export function sendCostUnitMenuAria(t: TFunction): string {
 }
 
 export function sendCostUnitSwitchAria(quote: VendorPricePreview, t: TFunction, locale: string, unit: SendCostUnit): string {
+  const pill = sendCostPillText(quote, locale, unit)
   return t('generationCommon.composer.sendCost.unitSwitchAria', {
-    amount: sendCostPillText(quote, locale, unit, t),
+    amount: unit === 'credits' ? `${pill} ${t('generationCommon.composer.sendCost.unitCredits')}` : pill,
   })
 }
 

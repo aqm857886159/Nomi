@@ -5,8 +5,8 @@ import type { ComposerGraph } from '../nodes/composerGraphSnapshot'
 import {
   sendCostDescription,
   sendCostPillText,
-  sendCostRateNote,
   sendCostUnitMenuAria,
+  sendCostUnitMenuHeading,
   sendCostUnitOptions,
   sendCostUnitSwitchAria,
   type SendCostUnitOption,
@@ -16,13 +16,13 @@ import { useNodePricePreview } from './useNodePricePreview'
 
 /** 发送键那一格要说的：键上的约数、当前单位与切换菜单数据、悬停那一句、估价从哪来。 */
 export type SendCost = {
-  /** 键上印的约数（按当前单位格式化且都标「约」）；算不出 / 忙着 / 新价没回来 = undefined（钮上只剩 ↑）。 */
+  /** 键上印的约数（积分恢复纯数字、货币用紧凑 ≈）；算不出 / 忙着 / 新价没回来 = undefined（钮上只剩 ↑）。 */
   credits?: string
   /** 当前展示单位（积分 / 人民币 / 美元）。 */
   unit?: SendCostUnit
-  /** 单位切换菜单三项与参考汇率出处与日期说明。 */
+  /** 单位切换菜单三项与分组标题（「预计 / Estimated」）。 */
   unitOptions?: readonly SendCostUnitOption[]
-  rateNote?: string
+  unitMenuHeading?: string
   unitMenuAriaLabel?: string
   unitSwitchAriaLabel?: string
   onUnitChange?: (unit: SendCostUnit) => void
@@ -56,7 +56,7 @@ export function useSendCost(node: GenerationCanvasNode, graph: ComposerGraph, { 
     credits: sendCostPillText(state.quote, i18n.language, unit, t),
     unit,
     unitOptions: sendCostUnitOptions(state.quote, t, i18n.language),
-    rateNote: sendCostRateNote(t, i18n.language),
+    unitMenuHeading: sendCostUnitMenuHeading(t),
     unitMenuAriaLabel: sendCostUnitMenuAria(t),
     unitSwitchAriaLabel: sendCostUnitSwitchAria(state.quote, t, i18n.language, unit),
     onUnitChange: setUnit,

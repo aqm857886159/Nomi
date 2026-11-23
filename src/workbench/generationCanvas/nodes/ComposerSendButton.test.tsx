@@ -99,21 +99,21 @@ describe('ComposerSendButton 约价（板 ModelSurfaces：cost.send-pill / cost.
     }
   })
 
-  it('带单位切换：左侧为独立单位按钮（积分含硬币、人民币/美元不含硬币），右侧为独立 ↑ 发送钮，互不误触', () => {
+  it('带单位切换：左侧为独立真触发器按钮（积分含硬币、人民币/美元不含硬币、带 data-[state=open]:bg-nomi-ink-20 且不覆盖全局焦点环），右侧为独立 ↑ 发送钮', () => {
     const unitOptions = [
-      { unit: 'credits' as const, label: '积分', formatted: '约 19.5' },
-      { unit: 'cny' as const, label: '人民币', formatted: '约 ¥14.14' },
-      { unit: 'usd' as const, label: '美元', formatted: '约 $1.95' },
+      { unit: 'credits' as const, label: '积分', formatted: '19.5' },
+      { unit: 'cny' as const, label: '人民币', formatted: '¥13.09' },
+      { unit: 'usd' as const, label: '美元', formatted: '$1.95' },
     ]
     const creditsHtml = render(
       <ComposerSendButton
         {...round}
         cost={{
-          credits: '约 19.5',
+          credits: '19.5',
           unit: 'credits',
           unitOptions,
-          rateNote: '人民银行中间价（2026-11-23）：$1 ≈ ¥6.712',
-          unitSwitchAriaLabel: '当前约价 约 19.5，点击切换显示单位',
+          unitMenuHeading: '预计',
+          unitSwitchAriaLabel: '当前约价 19.5 积分，点击切换显示单位',
           onUnitChange: () => undefined,
           description: priced.description,
         }}
@@ -123,7 +123,9 @@ describe('ComposerSendButton 约价（板 ModelSurfaces：cost.send-pill / cost.
     expect(creditsHtml).toContain('data-send-cost-group=""')
     expect(creditsHtml).toContain('data-send-cost-unit="credits"')
     expect(creditsHtml).toContain('aria-haspopup="menu"')
-    expect(visibleText(creditsHtml)).toBe('约 19.5')
+    expect(creditsHtml).toContain('data-[state=open]:bg-nomi-ink-20')
+    expect(creditsHtml).not.toContain('focus:outline-none')
+    expect(visibleText(creditsHtml)).toBe('19.5')
     expect(svgClasses(creditsHtml)[0]).toMatch(/\btabler-icon-coin\b/)
     expect(svgClasses(creditsHtml)[1]).toMatch(/\btabler-icon-arrow-up\b/)
 
@@ -131,22 +133,22 @@ describe('ComposerSendButton 约价（板 ModelSurfaces：cost.send-pill / cost.
       <ComposerSendButton
         {...round}
         cost={{
-          credits: '约 ¥14.14',
+          credits: '≈¥13.09',
           unit: 'cny',
           unitOptions,
-          rateNote: '人民银行中间价（2026-11-23）：$1 ≈ ¥6.712',
+          unitMenuHeading: '预计',
           onUnitChange: () => undefined,
-          description: '这次约 ¥14.14（约 19.5 积分）。',
+          description: '这次约 ¥13.09（19.5 积分）。',
         }}
       />,
     )
     expect(cnyHtml).toContain('data-send-cost-unit="cny"')
-    expect(visibleText(cnyHtml)).toBe('约 ¥14.14')
+    expect(visibleText(cnyHtml)).toBe('≈¥13.09')
     expect(svgClasses(cnyHtml)).toHaveLength(1)
     expect(svgClasses(cnyHtml)[0]).toMatch(/\btabler-icon-arrow-up\b/)
   })
 
-  it('余额不足（板 ModelSurfaces cost.low-balance）：同一行换成「还差 N 积分 · 去充值 ↗」，忙着时仍走忙态', () => {
+  it('余额不足（板 ModelSurfaces cost.low-balance）：同一行换成「还差 N 积分 · 去充值 ↗」，缺额用 text-nomi-warning-ink 保证对比度，忙着时仍走忙态', () => {
     const lowBalance = {
       shortfallText: '还差 7.6 积分',
       topUpLabel: '去充值',
@@ -157,6 +159,8 @@ describe('ComposerSendButton 约价（板 ModelSurfaces：cost.send-pill / cost.
     const html = render(<ComposerSendButton {...round} cost={priced} lowBalance={lowBalance} />)
     expect(html).toContain('data-send-cost-low-balance=""')
     expect(html).toContain('data-send-cost="shortfall"')
+    expect(html).toContain('text-nomi-warning-ink')
+    expect(html).not.toMatch(/text-nomi-warning(?!-ink)/)
     expect(html).toContain('data-send-cost-action="top-up"')
     expect(html).toContain('data-bar-segment="generate"')
     expect(visibleText(html)).toBe('还差 7.6 积分去充值')

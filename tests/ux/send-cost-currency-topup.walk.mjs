@@ -219,64 +219,134 @@ try {
       await setParam('resolution', '720p')
 
       const unitBtn = composer.locator('[data-send-cost="credits"]')
-      const expectedCredits = uiTextWith(locale, 'generationCommon.composer.sendCost.approx', { value: '1.95' })
+      const expectedCredits = '1.95'
+      const cnyPure = `¥${(0.195 * FX_RATE).toFixed(2)}`
+      const ratePair = `$1 ≈ ¥${FX_RATE}`
       await expect(unitBtn, 'board:ModelSurfaces/cost.send-pill').toHaveText(expectedCredits, { timeout: stationTimeout() })
       await expect(unitBtn).toHaveAttribute('data-send-cost-unit', 'credits')
 
-      if (scheme === 'light') {
-        await screenshotSettled(win, { path: shotPath('credits') })
+      await screenshotSettled(win, { path: shotPath('credits') })
 
-        // 2) 点开单位切换菜单（展示三项实时约数 + 参考汇率出处与日期）
-        await clickOrFail(unitBtn, 'open send cost unit menu')
-        const cnyOption = win.locator('[data-menu-item="send-cost-unit-cny"]').first()
-        const usdOption = win.locator('[data-menu-item="send-cost-unit-usd"]').first()
-        await expectVisible(cnyOption, 'CNY option in unit menu')
-        await expectVisible(usdOption, 'USD option in unit menu')
-        const rateLabel = win.locator('[data-menu-label]').filter({ hasText: FX_DATE }).first()
-        await expectVisible(rateLabel, 'built-in exchange rate date in unit menu')
-        rec.rateNote = (await rateLabel.innerText()).trim()
-        await screenshotSettled(win, { path: shotPath('unit-menu') })
+      // 2) 点开单位切换菜单（紧凑 3 行、顶部一次「预计/Estimated」、右侧蓝勾、无底部空分组长句、宽度 <= 180px）
+      await clickOrFail(unitBtn, 'open send cost unit menu')
+      await expect(unitBtn).toHaveAttribute('data-state', 'open')
+      const menuPanel = win.locator('[role="menu"]').first()
+      await expectVisible(menuPanel, 'unit menu panel')
+      const cnyOption = win.locator('[data-menu-item="send-cost-unit-cny"]').first()
+      const usdOption = win.locator('[data-menu-item="send-cost-unit-usd"]').first()
+      const creditsOption = win.locator('[data-menu-item="send-cost-unit-credits"]').first()
+      await expectVisible(cnyOption, 'CNY option in unit menu')
+      await expectVisible(usdOption, 'USD option in unit menu')
 
-        // 3) 切到人民币 + 悬停核对（含参考汇率出处日期 & G7 按句换行）
-        await clickOrFail(cnyOption, 'switch to CNY')
-        const expectedCny = uiTextWith(locale, 'generationCommon.composer.sendCost.approx', { value: `¥${(0.195 * FX_RATE).toFixed(2)}` })
-        await expect(unitBtn).toHaveText(expectedCny, { timeout: stationTimeout() })
-        await expect(unitBtn).toHaveAttribute('data-send-cost-unit', 'cny')
-        await win.mouse.move(20, 20, { steps: 2 })
-        await unitBtn.hover()
-        const tip = win.locator('[data-send-cost-hover]').first()
-        await expect(tip, 'board:ModelSurfaces/cost.hover').toBeVisible({ timeout: stationTimeout() })
-        await win.waitForTimeout(300)
-        const cnyTip = await readTipLines(tip)
-        assert(cnyTip.visibleText.includes(FX_DATE), `CNY tooltip includes rate date: ${cnyTip.visibleText}`)
-        assert.deepEqual(badBreaks(cnyTip.lines), [], `CNY tooltip breaks cleanly at sentence boundaries: ${JSON.stringify(cnyTip.lines)}`)
-        rec.cnyHover = cnyTip.visibleText
-        await screenshotSettled(win, { path: shotPath('cny-hover') })
-        await win.mouse.move(20, 20, { steps: 4 })
+      const heading = menuPanel.locator('[data-menu-label]')
+      await expect(heading).toHaveCount(1)
+      await expect(heading.first()).toHaveText(uiText(locale, 'generationCommon.composer.sendCost.unitMenuHeading'))
+      await expect(menuPanel.locator('[role="separator"]')).toHaveCount(0)
+      await expect(menuPanel.locator('[data-menu-shortcut]')).toHaveCount(0)
+      await expect(creditsOption.locator('[data-menu-trailing]')).toHaveText('1.95')
+      await expect(cnyOption.locator('[data-menu-trailing]')).toHaveText(cnyPure)
+      await expect(usdOption.locator('[data-menu-trailing]')).toHaveText('$0.195')
 
-        // 4) 切到美元
-        await clickOrFail(unitBtn, 'reopen unit menu for USD')
-        await clickOrFail(win.locator('[data-menu-item="send-cost-unit-usd"]').first(), 'switch to USD')
-        const expectedUsd = uiTextWith(locale, 'generationCommon.composer.sendCost.approx', { value: '$0.195' })
-        await expect(unitBtn).toHaveText(expectedUsd, { timeout: stationTimeout() })
-        await expect(unitBtn).toHaveAttribute('data-send-cost-unit', 'usd')
-        await screenshotSettled(win, { path: shotPath('usd') })
+      const menuMetrics = await menuPanel.evaluate((panel) => {
+        const toRgba = (cssColor) => {
+          const c = document.createElement('canvas')
+          c.width = 1
+          c.height = 1
+          const ctx = c.getContext('2d')
+          ctx.fillStyle = cssColor
+          ctx.fillRect(0, 0, 1, 1)
+          return [...ctx.getImageData(0, 0, 1, 1).data]
+        }
+        const box = panel.getBoundingClientRect()
+        const rows = ['send-cost-unit-credits', 'send-cost-unit-cny', 'send-cost-unit-usd'].map((id) => {
+          const el = panel.querySelector(`[data-menu-item="${id}"]`)
+          const label = el.querySelector('[data-menu-label-text]').getBoundingClientRect()
+          const trailing = el.querySelector('[data-menu-trailing]').getBoundingClientRect()
+          const svg = el.querySelector('svg')
+          const sr = svg ? svg.getBoundingClientRect() : null
+          return {
+            id,
+            labelLeft: label.left,
+            trailingRight: trailing.right,
+            svgLeft: sr ? sr.left : null,
+            svgWidth: sr ? sr.width : null,
+            svgRgba: svg ? toRgba(getComputedStyle(svg).color) : null,
+          }
+        })
+        const probe = document.createElement('span')
+        probe.style.color = 'var(--nomi-accent)'
+        document.body.appendChild(probe)
+        const accentRgba = toRgba(getComputedStyle(probe).color)
+        probe.remove()
+        return { width: box.width, height: box.height, rows, accentRgba }
+      })
+      assert(menuMetrics.width <= 180, `unit menu width ${menuMetrics.width}px exceeds compact ceiling 180px`)
+      assert(Math.abs(menuMetrics.rows[0].labelLeft - menuMetrics.rows[1].labelLeft) <= 0.5, 'selected and unselected labels align on left')
+      assert(Math.abs(menuMetrics.rows[0].trailingRight - menuMetrics.rows[1].trailingRight) <= 0.5, 'selected and unselected trailing values align on right')
+      assert(menuMetrics.rows[0].svgLeft >= menuMetrics.rows[0].trailingRight - 0.5, 'checkmark renders to the right of trailing value')
+      assert(Math.abs(menuMetrics.rows[0].svgWidth - 14) <= 0.5, `checkmark SVG width is 14px (got ${menuMetrics.rows[0].svgWidth})`)
+      assert(
+        menuMetrics.rows[0].svgRgba.every((v, i) => Math.abs(v - menuMetrics.accentRgba[i]) <= 1),
+        `checkmark RGBA ${JSON.stringify(menuMetrics.rows[0].svgRgba)} matches --nomi-accent ${JSON.stringify(menuMetrics.accentRgba)}`,
+      )
+      rec.unitMenuWidth = Math.round(menuMetrics.width * 10) / 10
+      await screenshotSettled(win, { path: shotPath('unit-menu') })
 
-        // 切回积分
-        await clickOrFail(unitBtn, 'reopen unit menu for credits')
-        await clickOrFail(win.locator('[data-menu-item="send-cost-unit-credits"]').first(), 'switch back to credits')
-        await expect(unitBtn).toHaveText(expectedCredits, { timeout: stationTimeout() })
-      }
+      // 3) 切到人民币（紧凑 ≈¥1.31）+ 悬停核对（含参考汇率出处日期、3 短行、宽度 <= 460px、G7 按句换行）
+      await clickOrFail(cnyOption, 'switch to CNY')
+      const expectedCny = `≈${cnyPure}`
+      await expect(unitBtn).toHaveText(expectedCny, { timeout: stationTimeout() })
+      await expect(unitBtn).toHaveAttribute('data-send-cost-unit', 'cny')
+      await win.mouse.move(20, 20, { steps: 2 })
+      await unitBtn.hover()
+      const tip = win.locator('[data-send-cost-hover]').first()
+      await expect(tip, 'board:ModelSurfaces/cost.hover').toBeVisible({ timeout: stationTimeout() })
+      await win.waitForTimeout(300)
+      const cnyTip = await readTipLines(tip)
+      const tipBox = await tip.boundingBox()
+      const maxTipWidth = locale === 'en' ? 540 : 460
+      assert(tipBox && tipBox.width <= maxTipWidth, `CNY tooltip width ${tipBox?.width}px exceeds ceiling ${maxTipWidth}px`)
+      assert.equal(
+        cnyTip.visibleText,
+        uiTextWith(locale, 'generationCommon.composer.sendCost.estimateCny', {
+          cny: cnyPure,
+          value: '1.95',
+          date: FX_DATE,
+          pair: ratePair,
+        }),
+      )
+      assert(cnyTip.visibleText.includes(FX_DATE), `CNY tooltip includes rate date: ${cnyTip.visibleText}`)
+      assert.deepEqual(badBreaks(cnyTip.lines), [], `CNY tooltip breaks cleanly at sentence boundaries: ${JSON.stringify(cnyTip.lines)}`)
+      rec.cnyHover = cnyTip.visibleText
+      rec.cnyHoverWidth = Math.round(tipBox.width * 10) / 10
+      await screenshotSettled(win, { path: shotPath('cny-hover') })
+      await win.mouse.move(20, 20, { steps: 4 })
+
+      // 4) 切到美元（紧凑 ≈$0.195）
+      await clickOrFail(unitBtn, 'reopen unit menu for USD')
+      await clickOrFail(win.locator('[data-menu-item="send-cost-unit-usd"]').first(), 'switch to USD')
+      const expectedUsd = '≈$0.195'
+      await expect(unitBtn).toHaveText(expectedUsd, { timeout: stationTimeout() })
+      await expect(unitBtn).toHaveAttribute('data-send-cost-unit', 'usd')
+      await screenshotSettled(win, { path: shotPath('usd') })
+
+      // 切回积分
+      await clickOrFail(unitBtn, 'reopen unit menu for credits')
+      await clickOrFail(win.locator('[data-menu-item="send-cost-unit-credits"]').first(), 'switch back to credits')
+      await expect(unitBtn).toHaveText(expectedCredits, { timeout: stationTimeout() })
 
       // 5) 余额不足（board:ModelSurfaces/cost.low-balance）：
       //    余额设为 7.03 积分，切换到 Seedance 2.0 1080p 15s（14.625 积分）→ 差额 7.6 积分 → 「还差 7.6 积分 · 去充值 ↗」
-      //    先切到低余额并切 Seedance 2.0（首次打开前余额是 50，用 focus 刷新前把服务端余额改为 7.03；
-      //    或者直接切到 Seedance 2.0 1080p 15s（14.63 积分）并把余额改为 7.03 后重新聚焦）。
       await pickModel(/^Seedance 2\.0$/, 'Seedance 2.0')
       await setParam('resolution', '1080p')
       await setParam('duration', 15)
-      const fullCost = uiTextWith(locale, 'generationCommon.composer.sendCost.approx', { value: '14.63' })
+      const fullCost = '14.63'
       await expect(unitBtn).toHaveText(fullCost, { timeout: stationTimeout() })
+      if (locale === 'zh-CN') {
+        const modeChipText = (await composer.locator('[data-bar-segment="model-params"] button[aria-haspopup="listbox"]').nth(1).innerText()).trim()
+        assert(modeChipText.length > 0, `zh-CN mode chip stays visible alongside compact 14.63 pill (got "${modeChipText}")`)
+        rec.zhModeChipWithLongestCredits = modeChipText
+      }
 
       // 模拟余额掉到 7.03 积分并通过用户切回窗口触发重读（先标记或重新打开新卡场景：用新窗口或等余额刷新；
       // 这里走真实用户路径：把余额切到 7.03 并在第二段干净窗口里打开，再点「去充值」→ 余额补到 50 → focus 自动恢复！）
@@ -344,6 +414,25 @@ try {
         await expect(topUpBtn, 'board:ModelSurfaces/cost.low-balance').toHaveText(
           uiText(locale, 'generationCommon.composer.sendCostLowBalance.topUp'),
         )
+        const shortfallColorOk = await shortfall.evaluate((el) => {
+          const toRgba = (cssColor) => {
+            const c = document.createElement('canvas')
+            c.width = 1
+            c.height = 1
+            const ctx = c.getContext('2d')
+            ctx.fillStyle = cssColor
+            ctx.fillRect(0, 0, 1, 1)
+            return [...ctx.getImageData(0, 0, 1, 1).data]
+          }
+          const probe = document.createElement('span')
+          probe.style.color = 'var(--nomi-warning-ink)'
+          document.body.appendChild(probe)
+          const want = toRgba(getComputedStyle(probe).color)
+          probe.remove()
+          const actual = toRgba(getComputedStyle(el).color)
+          return actual.every((v, i) => Math.abs(v - want[i]) <= 1)
+        })
+        assert(shortfallColorOk, 'shortfall uses --nomi-warning-ink for WCAG AA contrast')
         await screenshotSettled(w2, { path: shotPath('low-balance') })
         rec.lowBalance = {
           shortfall: (await shortfall.innerText()).trim(),

@@ -13,7 +13,6 @@ import {
   publicEstimateUsd,
   sendCostDescription,
   sendCostPillText,
-  sendCostRateNote,
   sendCostUnitOptions,
 } from './sendCostFormat'
 
@@ -22,12 +21,13 @@ const amount: VendorPricePreview = { credits: 2, usd: 0.2, source: 'https://api.
 /** 词典里的原文。逐字钉住在 scripts/check-i18n-no-cost-claims.mjs 的 COST_LABEL_EXACT（唯一一份登记），这里只从词典取。 */
 const DICT = { 'zh-CN': zhGenerationCommon.composer.sendCost, en: enGenerationCommon.composer.sendCost } as const
 
-describe('约价怎么印（唯一一处格式化：积分 / 人民币 / 美元均标约，参考汇率写出处与日期）', () => {
-  it.each(['zh-CN', 'en'] as const)('%s：三种单位悬停句与估不出态均按词典输出，人民币带参考汇率出处与日期', async (locale) => {
+describe('约价怎么印（唯一一处格式化：积分恢复 M4 原稿纯数字、货币用紧凑 ≈、菜单组标题统一标预计）', () => {
+  it.each(['zh-CN', 'en'] as const)('%s：三种单位悬停句与估不出态均按词典输出，无括号内重复「约/~」，人民币带人民银行中间价与日期', async (locale) => {
     const t = i18next.createInstance()
     await t.init({ lng: locale, resources: { [locale]: { translation: { generationCommon: locale === 'en' ? enGenerationCommon : zhGenerationCommon } } } })
     const tf = t.t.bind(t) as Parameters<typeof sendCostDescription>[1]
     const pair = builtinExchangeRatePair(locale)
+    const cnyText = publicEstimateCny({ ...amount, usd: 1.95, credits: 19.5 }, locale)
 
     expect(sendCostDescription({ ...amount, usd: 1.95, credits: 19.5 }, tf, locale, 'credits'))
       .toBe(DICT[locale].estimate.replace('{{value}}', '19.5').replace('{{usd}}', '$1.95'))
@@ -35,37 +35,36 @@ describe('约价怎么印（唯一一处格式化：积分 / 人民币 / 美元�
       .toBe(DICT[locale].outputEstimate.replace('{{value}}', '0.35').replace('{{usd}}', '$0.035'))
 
     const cnyDesc = sendCostDescription({ ...amount, usd: 1.95, credits: 19.5 }, tf, locale, 'cny')
-    expect(cnyDesc).toContain(publicEstimateCny({ ...amount, usd: 1.95, credits: 19.5 }, locale))
+    expect(cnyDesc).toContain(cnyText)
     expect(cnyDesc).toContain(BUILTIN_USD_TO_CNY_DATE)
     expect(cnyDesc).toContain(pair)
+    expect(cnyDesc).not.toMatch(/（约\s|\(~/)
 
     const usdDesc = sendCostDescription({ ...amount, usd: 1.95, credits: 19.5 }, tf, locale, 'usd')
     expect(usdDesc).toContain('$1.95')
     expect(usdDesc).toContain('19.5')
+    expect(usdDesc).not.toMatch(/（约\s|\(~/)
 
     const unknown = sendCostDescription(null, tf, locale)
     expect(unknown).toBe(DICT[locale].priceUnknown)
     expect(unknown).not.toMatch(/\d/)
-
-    const rateNote = sendCostRateNote(tf, locale)
-    expect(rateNote).toContain(BUILTIN_USD_TO_CNY_DATE)
-    expect(rateNote).toContain(String(BUILTIN_USD_TO_CNY_RATE))
   })
 
-  it.each(['zh-CN', 'en'] as const)('%s：三种单位胶囊文字都标「约」且菜单列出三项实时约数', async (locale) => {
+  it.each(['zh-CN', 'en'] as const)('%s：积分胶囊恢复纯数字（output-estimate 带 ≈），人民币/美元胶囊用紧凑 ≈，单位菜单列出纯净三项数值', async (locale) => {
     const t = i18next.createInstance()
     await t.init({ lng: locale, resources: { [locale]: { translation: { generationCommon: locale === 'en' ? enGenerationCommon : zhGenerationCommon } } } })
     const tf = t.t.bind(t) as Parameters<typeof sendCostDescription>[1]
     const q = { ...amount, usd: 1.95, credits: 19.5 }
     const options = sendCostUnitOptions(q, tf, locale)
-    expect(options.map((o) => o.unit)).toEqual(['credits', 'cny', 'usd'])
-    const approxMark = locale === 'zh-CN' ? '约 ' : '~'
-    for (const option of options) {
-      expect(option.formatted.startsWith(approxMark)).toBe(true)
-    }
-    expect(sendCostPillText(q, locale, 'credits', tf)).toBe(`${approxMark}19.5`)
-    expect(sendCostPillText(q, locale, 'cny', tf)).toBe(`${approxMark}${publicEstimateCny(q, locale)}`)
-    expect(sendCostPillText(q, locale, 'usd', tf)).toBe(`${approxMark}$1.95`)
+    expect(options).toEqual([
+      { unit: 'credits', label: DICT[locale].unitCredits, formatted: '19.5' },
+      { unit: 'cny', label: DICT[locale].unitCny, formatted: publicEstimateCny(q, locale) },
+      { unit: 'usd', label: DICT[locale].unitUsd, formatted: '$1.95' },
+    ])
+    expect(sendCostPillText(q, locale, 'credits', tf)).toBe('19.5')
+    expect(sendCostPillText({ ...q, basis: 'output-estimate' }, locale, 'credits', tf)).toBe('≈19.5')
+    expect(sendCostPillText(q, locale, 'cny', tf)).toBe(`≈${publicEstimateCny(q, locale)}`)
+    expect(sendCostPillText(q, locale, 'usd', tf)).toBe('≈$1.95')
   })
 
   it.each(['zh-CN', 'en'])('%s：美元与人民币约数的精度，小额不印成 0', (locale) => {
@@ -76,11 +75,11 @@ describe('约价怎么印（唯一一处格式化：积分 / 人民币 / 美元�
     expect(publicEstimateCny({ ...amount, usd: 0.0001 }, locale)).toBe('¥0.00067')
   })
 
-  it('积分数：两位小数，一分以下按两位有效数字，不印成 0；无 t 时仍带 ≈ 约号', () => {
+  it('积分数：两位小数，一分以下按两位有效数字，不印成 0；仅 output-estimate 带 ≈', () => {
     expect(formatCreditValue(0.34776, 'en')).toBe('0.35')
     expect(formatCreditValue(0.000006, 'en')).toBe('0.000006')
     expect(formatCreditValue(1234.56, 'en')).toBe('1,234.56')
-    expect(sendCostPillText({ ...amount, credits: 19.5 }, 'zh-CN')).toBe('≈19.5')
+    expect(sendCostPillText({ ...amount, credits: 19.5 }, 'zh-CN')).toBe('19.5')
     expect(sendCostPillText({ ...amount, credits: 0.34776, basis: 'output-estimate' }, 'en')).toBe('≈0.35')
   })
 })
@@ -135,10 +134,10 @@ describe('约价链：一个读取处、一处格式化、链上不发生成也�
     expect(users(literal)).toEqual([owner])
     expect(users(/formatMoney\s*\([^)]*['"]CNY['"]/)).toEqual([owner])
     expect(users(/Intl\.NumberFormat[\s\S]{0,120}?currency\s*:\s*['"]CNY['"]/)).toEqual([])
-    // 出处与日期都在：日期是 YYYY-MM-DD，菜单说明写出处名（不是「内置汇率」这种无出处的说法）。
+    // 出处与日期都在：日期是 YYYY-MM-DD，人民币悬停说明写明权威出处名（人民银行中间价 / PBOC midpoint）。
     expect(BUILTIN_USD_TO_CNY_DATE).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-    expect(zhGenerationCommon.composer.sendCost.rateNote).toContain('人民银行中间价')
-    expect(enGenerationCommon.composer.sendCost.rateNote).toContain('PBOC midpoint')
+    expect(zhGenerationCommon.composer.sendCost.estimateCny).toContain('人民银行中间价')
+    expect(enGenerationCommon.composer.sendCost.estimateCny).toContain('PBOC midpoint')
     expect(fs.readFileSync(path.join(root, owner), 'utf8')).toContain('https://www.chinamoney.com.cn/chinese/bkccpr/')
   })
 

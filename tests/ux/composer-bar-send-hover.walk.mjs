@@ -184,7 +184,7 @@ try {
       await setParam('duration', 5)
       await setParam('resolution', '720p')
       const pill = composer.locator('[data-send-cost="credits"]')
-      await expect(pill, 'price shown on the send key').toHaveText(uiTextWith(locale, 'generationCommon.composer.sendCost.approx', { value: credits(FIVE_SECONDS_USD) }), { timeout: stationTimeout() })
+      await expect(pill, 'price shown on the send key').toHaveText(credits(FIVE_SECONDS_USD), { timeout: stationTimeout() })
       await win.mouse.move(20, 20, { steps: 4 })
       await win.waitForTimeout(500)
 
@@ -219,6 +219,8 @@ try {
         const breaks = badBreaks(read.lines)
         if (breaks.length) problems.push(`${read.lines.length} lines; line breaks inside a sentence: ${JSON.stringify(breaks)}; lines=${JSON.stringify(read.lines)}`)
         const b = read.box
+        const maxTipWidth = locale === 'en' ? 540 : 460
+        if (b.w > maxTipWidth) problems.push(`tooltip width ${b.w.toFixed(1)}px exceeds compact ceiling ${maxTipWidth}px: ${JSON.stringify(b)}`)
         if (!(b.l >= -.5 && b.t >= -.5 && b.r <= read.window.w + .5 && b.b <= read.window.h + .5)) problems.push(`tooltip box leaves the window: ${JSON.stringify({ box: b, window: read.window })}`)
         if (!read.charsInsideBox || read.scroll.w > read.scroll.cw + .5 || read.scroll.h > read.scroll.ch + .5) problems.push(`some characters stick out of the tooltip box: ${JSON.stringify(read.scroll)}`)
       }

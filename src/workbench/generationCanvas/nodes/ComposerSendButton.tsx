@@ -21,10 +21,10 @@ export type ComposerSendCostProp = {
   description: string
   /** 当前展示单位（缺省为 credits）。 */
   unit?: ComposerSendCostUnit
-  /** 单位切换菜单的三项（积分 / 人民币 / 美元，带实时约数）。 */
+  /** 单位切换菜单的三项（积分 / 人民币 / 美元，带实时纯净数值）。 */
   unitOptions?: readonly SendCostUnitMenuOption[]
-  /** 内置汇率及日期说明，展示在单位菜单底部。 */
-  rateNote?: string
+  /** 单位菜单顶部单选组标题（「预计 / Estimated」）。 */
+  unitMenuHeading?: string
   unitMenuAriaLabel?: string
   unitSwitchAriaLabel?: string
   onUnitChange?: (unit: ComposerSendCostUnit) => void
@@ -171,7 +171,7 @@ export function ComposerSendButton({
           >
             <span
               data-send-cost="shortfall"
-              className="whitespace-nowrap text-caption font-medium tabular-nums text-nomi-warning"
+              className="whitespace-nowrap text-caption font-medium tabular-nums text-nomi-warning-ink"
             >
               {lowBalance.shortfallText}
             </span>
@@ -226,7 +226,7 @@ export function ComposerSendButton({
                   displayText={cost.credits}
                   unit={activeUnit}
                   options={cost.unitOptions}
-                  rateNote={cost.rateNote}
+                  menuHeading={cost.unitMenuHeading}
                   menuAriaLabel={cost.unitMenuAriaLabel}
                   switchAriaLabel={cost.unitSwitchAriaLabel}
                   onUnitChange={cost.onUnitChange}

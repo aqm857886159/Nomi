@@ -8,7 +8,10 @@
 // 导演台轨道「+」按钮经包装组件把点击坐标转传成 point，绕过了单文件检查。
 import fs from 'node:fs'
 import path from 'node:path'
+import i18next from 'i18next'
 import { describe, expect, it } from 'vitest'
+import { enGenerationCommon, zhGenerationCommon } from '../i18n/locales/generationCommon'
+import { sendCostUnitOptions } from '../workbench/generationCanvas/spend/sendCostFormat'
 
 function walk(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -98,5 +101,101 @@ describe('WorkbenchMenu 的锚点来源', () => {
       expect(pointCallers, `${file} 已不再给 point，请从登记表删掉`).toContain(file)
     }
     expect(LEGACY_FROZEN_POINT_CALLERS.length).toBeLessThanOrEqual(LEGACY_FROZEN_MAX)
+  })
+})
+
+/**
+ * 历史多段菜单 `min-w-[...]` 冻结登记（只减不增；新单组菜单一律内容派生宽度，0 豁免）：
+ * 仅多分组带标题或 #1628 C11 像素冻结存量可登记，且必须写清多段对齐理由。
+ */
+const LEGACY_MIN_WIDTH_MENU_CALLERS: Readonly<Record<string, string>> = {
+  'src/design/NomiOverflowRow.tsx': '窄窗多组工具溢出菜单（N4-creation-menu 拍板）：仅单个短按钮先溢出或跨多组分隔时保持溢出菜单最小可读宽度',
+  'src/ui/app-shell/shell/ShellTopBar.tsx': '顶栏项目菜单含「最近项目」动态分组 + 两段分隔动作共三段，无最近项目或单字项目名时保持多段标题对齐',
+}
+const LEGACY_MIN_WIDTH_MAX = 2
+
+export function findEmptyMenuGroups(source: string): string[] {
+  const clean = stripComments(source)
+  const re = /\bkind\s*:\s*['"]group['"][\s\S]{0,220}?\bitems\s*:\s*\[\s*\]/g
+  return [...clean.matchAll(re)].map((m) => m[0])
+}
+
+export function findRepeatedTrailingPrefix(values: readonly string[]): string | null {
+  const counts = new Map<string, number>()
+  for (const raw of values) {
+    const trimmed = raw.trim()
+    // 提取开头非货币汉字词组（如「约 」「预计 」）或约号/波浪号前缀（`~` / `≈`）；货币符号（¥ / $ / € / £）本身不算重复词前缀。
+    const match = /^(?:([~≈])\s*|([\u4e00-\u9fff]+)\s+)/.exec(trimmed)
+    const prefix = (match?.[1] ?? match?.[2])?.trim()
+    if (!prefix) continue
+    const next = (counts.get(prefix) ?? 0) + 1
+    counts.set(prefix, next)
+    if (next >= 2) return prefix
+  }
+  return null
+}
+
+export function findLiteralRadioTrailingPrefixOffenders(source: string): string[] {
+  const clean = stripComments(source)
+  const offenders: string[] = []
+  const radioBlocks = clean.matchAll(/\bkind\s*:\s*['"]radio['"][\s\S]{0,600}?\boptions\s*:\s*\[([\s\S]*?)\]/g)
+  for (const block of radioBlocks) {
+    const trailings = [...block[1].matchAll(/\btrailing\s*:\s*(['"`])((?:\\.|(?!\1).)*)\1/g)].map((m) => m[2])
+    const repeated = findRepeatedTrailingPrefix(trailings)
+    if (repeated) offenders.push(repeated)
+  }
+  return offenders
+}
+
+describe('WorkbenchMenu 排版与字段结构守卫（§1.5.2 第 4/5 条 & 会被数据撑开的地方 第 6 条）', () => {
+  it('禁止 kind: "group" 传空字面量 items: [] 冒充菜单段落注脚', () => {
+    expect(findEmptyMenuGroups("{ kind: 'group', id: 'note', label: '注脚', items: [] }")).toHaveLength(1)
+    expect(findEmptyMenuGroups("{ kind: 'group', id: 'panels', label: '面板', items: [a] }")).toEqual([])
+    const offenders = productionFiles
+      .filter(({ source }) => findEmptyMenuGroups(source).length > 0)
+      .map(({ file }) => file)
+    expect(offenders, '空 group 不许冒充菜单底部说明段落；与某一项绑定的说明放进悬停提示或 description').toEqual([])
+  })
+
+  it('禁止 <WorkbenchMenu 调用方硬写 min-w-[...]（单组菜单一律内容派生宽度，历史多段菜单严格冻结）', () => {
+    const minWidthCallers = menuFiles
+      .filter(({ source }) => workbenchMenuTags(source).some((tag) => /\bmin-w-\[/.test(tag)))
+      .map(({ file }) => file)
+      .sort()
+    const allowed = Object.keys(LEGACY_MIN_WIDTH_MENU_CALLERS)
+    const unregistered = minWidthCallers.filter((file) => !allowed.includes(file))
+    expect(unregistered, '菜单宽度由内容派生（必要时只设 max-w-[...] 截断超长名），禁止硬写 min-w-[...] 撑出大片空白').toEqual([])
+    for (const [file, reason] of Object.entries(LEGACY_MIN_WIDTH_MENU_CALLERS)) {
+      expect(reason.trim().length).toBeGreaterThan(10)
+      expect(minWidthCallers, `${file} 已不再写 min-w-[...]，请从冻结表删掉`).toContain(file)
+    }
+    expect(allowed.length).toBeLessThanOrEqual(LEGACY_MIN_WIDTH_MAX)
+  })
+
+  it('禁止 radio 选项借用 shortcut 塞非快捷键数值，或 ≥2 项 trailing 重复同一非货币汉字/波浪号前缀', async () => {
+    expect(findRepeatedTrailingPrefix(['约 1.95', '约 ¥1.31', '约 $0.195'])).toBe('约')
+    expect(findRepeatedTrailingPrefix(['~1.95', '~¥1.31', '~$0.195'])).toBe('~')
+    expect(findRepeatedTrailingPrefix(['1.95', '¥1.31', '$0.195'])).toBeNull()
+    expect(findLiteralRadioTrailingPrefixOffenders(`{ kind: 'radio', options: [{ id: 'a', trailing: '约 1' }, { id: 'b', trailing: '约 ¥2' }] }`)).toEqual(['约'])
+
+    // 1) radio options 里不许把数值塞进 shortcut（应用正牌 trailing 字段）。
+    const radioShortcutAbusers = productionFiles
+      .filter(({ source }) => /\bkind\s*:\s*['"]radio['"][\s\S]{0,500}?\boptions\s*:[\s\S]{0,400}?\bshortcut\s*:/.test(source))
+      .map(({ file }) => file)
+    expect(radioShortcutAbusers, 'radio 选项的数值/数量附注必须走 trailing，禁止借 shortcut 冒充').toEqual([])
+
+    // 2) 源码字面量 radio options 不许 ≥2 项重复「约 / ~」等前缀。
+    const literalPrefixOffenders = productionFiles
+      .filter(({ source }) => findLiteralRadioTrailingPrefixOffenders(source).length > 0)
+      .map(({ file }) => file)
+    expect(literalPrefixOffenders).toEqual([])
+
+    // 3) 数据驱动的约价单位菜单选项（中英双语）：组标题已统一写一次「预计 / Estimated」，每行 trailing 不许再重复前缀。
+    for (const locale of ['zh-CN', 'en'] as const) {
+      const inst = i18next.createInstance()
+      await inst.init({ lng: locale, resources: { [locale]: { translation: { generationCommon: locale === 'en' ? enGenerationCommon : zhGenerationCommon } } } })
+      const opts = sendCostUnitOptions({ credits: 1.95, usd: 0.195, source: 'https://api.apimart.ai/api/pricing/model' }, inst.t.bind(inst), locale)
+      expect(findRepeatedTrailingPrefix(opts.map((o) => o.formatted)), `${locale} sendCostUnitOptions trailing 重复前缀`).toBeNull()
+    }
   })
 })

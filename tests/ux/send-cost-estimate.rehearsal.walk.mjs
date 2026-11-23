@@ -89,7 +89,7 @@ server.listen(0, '127.0.0.1')
 await once(server, 'listening')
 const origin = `http://127.0.0.1:${server.address().port}`
 const credits = (usd) => String(Math.round(usd * 10 * 100) / 100)
-const approxCredits = (locale, usd) => uiTextWith(locale, 'generationCommon.composer.sendCost.approx', { value: credits(usd) })
+const approxCredits = (_locale, usd) => credits(usd)
 const usdText = (usd) => `$${usd}`
 const nonGet = () => calls.filter((call) => call.method !== 'GET').length
 
