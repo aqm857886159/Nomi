@@ -31,7 +31,7 @@ import {
 // 目录里没有价目 = 干净装机的真实处境，也是零额度保险下唯一能真的跑完确认链的一档。
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 
-const REDIRECT = 'S_WO_REDIRECT：先别生成，背景换成清晨的薄雾。'
+const REDIRECT = '先别生成，背景换成清晨的薄雾。'
 
 function readPlan(projectRoot, runId) {
   const snapshot = path.join(projectRoot, '.nomi', 'runs', runId, 'run.json')
@@ -72,7 +72,12 @@ try {
   const redirected = walk.fixture.expectText({
     label: 'generate returns with what the user typed while the card was waiting',
     match: (body) => hasToolResult(body, 'wo-generate-1'),
-    reply: { type: 'text', text: 'S_WO_HEARD：好，先不生成，我把背景改成清晨的薄雾。' },
+    reply: { type: 'hold' },
+  })
+  const held = walk.fixture.expectText({
+    label: 'a model retry cannot put the withdrawn quote back',
+    match: (body) => hasToolResult(body, 'wo-held-generate'),
+    reply: { type: 'text', text: 'S_WO_HEARD：好，先不生成。' },
   })
   await sendCanvas(win, 'S_WO_ASK：帮我生成一张六棱柱的图。')
   await recorded(drafting.received, 'draft request')
@@ -88,6 +93,9 @@ try {
   expect(heard, '那句话一字不改到了模型手里——不许石沉大海').toContain('背景换成清晨的薄雾')
   // 付费卡逐镜（2026-09-30）：模型读到的是宿主的逐镜结局——没决定的镜没生成、没花钱，原因是他打了字。
   expect(heard, '模型读到的是「没决定、什么都没花、草稿留着」，不是一个错误').toContain('the user wrote a message instead of deciding them')
+  redirected.release({ type: 'tool', id: 'wo-held-generate', name: 'generate', args: { operationId } })
+  const heldReply = flattenRequestText((await recorded(held.received, 'the retried generate is held')).body)
+  expect(heldReply).toContain('Generation is on hold for this turn')
   await expectAbsent(card, { provenBy: firstCardProof, message: '打字 = 对这张卡的回答：这一次出价收回，卡不留着' })
   await expect(win.locator(`${CANVAS_PANEL}`).getByText('S_WO_HEARD', { exact: false }), '回合在同一轮里接着说话').toBeVisible()
   expect(readPlan(projectRoot, operationId), '收回的是这一次出价，不是这份计划').toMatchObject({ state: 'draft' })
