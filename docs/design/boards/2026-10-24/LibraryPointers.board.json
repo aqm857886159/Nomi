@@ -1,7 +1,7 @@
 {
   "board": "LibraryPointers",
   "approvedOn": "2026-10-24",
-  "stage": "explored",
+  "stage": "built",
   "approval": {
     "quote": "技能库 / 提示词库设计稿 10 个问题全按默认定，Q1 效果放提示词库。",
     "date": "2026-10-24",
@@ -114,8 +114,9 @@
         "007-div-技能创作流程",
         "014-div-提示词运镜"
       ],
-      "status": "missing",
-      "owner": "I-libraries"
+      "status": "implemented",
+      "owner": "I-libraries",
+      "assertion": "board:LibraryPointers/pointers.agent-slash.panel"
     },
     {
       "id": "pointers.agent-slash.search",
@@ -128,8 +129,9 @@
       "candidates": [
         "003-div-搜索技能和提示词"
       ],
-      "status": "missing",
-      "owner": "I-libraries"
+      "status": "implemented",
+      "owner": "I-libraries",
+      "assertion": "board:LibraryPointers/pointers.agent-slash.search"
     },
     {
       "id": "pointers.agent-slash.categories",
@@ -144,8 +146,9 @@
         "005-span-技能",
         "006-span-提示词"
       ],
-      "status": "missing",
-      "owner": "I-libraries"
+      "status": "implemented",
+      "owner": "I-libraries",
+      "assertion": "board:LibraryPointers/pointers.agent-slash.categories"
     },
     {
       "id": "pointers.agent-slash.row",
@@ -170,8 +173,9 @@
         "017-span-过肩对话",
         "018-span-Longlensover"
       ],
-      "status": "missing",
-      "owner": "I-libraries"
+      "status": "implemented",
+      "owner": "I-libraries",
+      "assertion": "board:LibraryPointers/pointers.agent-slash.row"
     },
     {
       "id": "pointers.agent-slash.footer",
@@ -184,8 +188,9 @@
       "candidates": [
         "019-div-去Skill库"
       ],
-      "status": "missing",
-      "owner": "I-libraries"
+      "status": "implemented",
+      "owner": "I-libraries",
+      "assertion": "board:LibraryPointers/pointers.agent-slash.footer"
     },
     {
       "id": "pointers.agent-chip",
@@ -209,8 +214,9 @@
         "028-svg",
         "029-span-继续告诉Nomi要改什么"
       ],
-      "status": "missing",
-      "owner": "I-libraries"
+      "status": "implemented",
+      "owner": "I-libraries",
+      "assertion": "board:LibraryPointers/pointers.agent-chip"
     },
     {
       "id": "pointers.node-picker.panel",
@@ -224,8 +230,9 @@
         "030-aside-节点提示词预设",
         "036-div-构图8"
       ],
-      "status": "missing",
-      "owner": "I-libraries"
+      "status": "implemented",
+      "owner": "I-libraries",
+      "assertion": "board:LibraryPointers/pointers.node-picker.panel"
     },
     {
       "id": "pointers.node-picker.search",
@@ -238,8 +245,9 @@
       "candidates": [
         "031-div-搜索提示词"
       ],
-      "status": "missing",
-      "owner": "I-libraries"
+      "status": "implemented",
+      "owner": "I-libraries",
+      "assertion": "board:LibraryPointers/pointers.node-picker.search"
     },
     {
       "id": "pointers.node-picker.categories",
@@ -255,8 +263,9 @@
         "034-span-内置",
         "035-span-公开库"
       ],
-      "status": "missing",
-      "owner": "I-libraries"
+      "status": "implemented",
+      "owner": "I-libraries",
+      "assertion": "board:LibraryPointers/pointers.node-picker.categories"
     },
     {
       "id": "pointers.node-picker.row",
@@ -277,8 +286,9 @@
         "041-span-绝对对称",
         "042-span-Deadcentersy"
       ],
-      "status": "missing",
-      "owner": "I-libraries"
+      "status": "implemented",
+      "owner": "I-libraries",
+      "assertion": "board:LibraryPointers/pointers.node-picker.row"
     },
     {
       "id": "pointers.agent-skill-button",
@@ -289,9 +299,10 @@
         "zh-en"
       ],
       "candidates": [],
-      "status": "missing",
+      "status": "implemented",
       "owner": "I-libraries",
-      "note": "不在本板画面。"
+      "note": "不在本板画面。",
+      "assertion": "board:LibraryPointers/pointers.agent-skill-button"
     },
     {
       "id": "pointers.message-badge",
@@ -301,7 +312,7 @@
         "zh-en"
       ],
       "candidates": [],
-      "status": "missing",
+      "status": "in-progress",
       "owner": "I-libraries",
       "note": "不在本板画面；只认技能的问题另修。"
     },
@@ -314,9 +325,10 @@
         "zh-en"
       ],
       "candidates": [],
-      "status": "missing",
+      "status": "implemented",
       "owner": "I-libraries",
-      "note": "不在本板画面。"
+      "note": "不在本板画面。",
+      "assertion": "board:LibraryPointers/pointers.node-empty-chips"
     },
     {
       "id": "pointers.rewrite-skill-chip",
@@ -326,9 +338,10 @@
         "zh-en"
       ],
       "candidates": [],
-      "status": "missing",
+      "status": "implemented",
       "owner": "I-libraries",
-      "note": "不在本板画面。"
+      "note": "不在本板画面。",
+      "assertion": "board:LibraryPointers/pointers.rewrite-skill-chip"
     },
     {
       "id": "pointers.unchanged-elsewhere",
@@ -338,9 +351,10 @@
         "zh-en"
       ],
       "candidates": [],
-      "status": "missing",
+      "status": "implemented",
       "owner": "I-libraries",
-      "note": "实现时只核不改。"
+      "note": "实现时只核不改。",
+      "assertion": "board:LibraryPointers/pointers.unchanged-elsewhere"
     }
   ],
   "decor": [
