@@ -794,6 +794,12 @@
   ],
   "retirements": [
     {
+      "contract": "docs/fixes/2026-11-23-fa-local-blocks-and-unknown-telemetry.root-cause.json",
+      "path": "src/workbench/generationCanvas/runner/generationRetryPolicy.ts",
+      "symbol": "isRetryableGenerationError",
+      "reason": "2026-11-24 F-A Step 2（RW-1 + U-2 ①，docs/fixes/2026-11-24-fa-step2-rw1-rw2-rw3.root-cause.json）按 P1 加新必删旧整体删除画布渲染层自动重试模块 generationRetryPolicy.ts，单次点击只派发 1 次尝试，由 generationRunController.ts#runGenerationNode 单次执行边界取代。"
+    },
+    {
       "contract": "docs/fixes/2026-10-04-retrieval-trusts-connection-origin.root-cause.json",
       "path": "electron/vendor/vendorOutboundGuard.ts",
       "symbol": "trustedRetrievalOrigin",

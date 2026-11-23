@@ -1,0 +1,27 @@
+{
+  "id": "USER-20261123-mcp-background-focus",
+  "since": "2026-11-23",
+  "source": "GitHub #1629（创作者报，macOS 启动 ChatGPT Desktop 时连带拉起已收起的 Nomi 窗口并记两次 single-instance-exit）",
+  "category": "interaction-semantics",
+  "problem": "外部 MCP 宿主（如 macOS 上的 ChatGPT Desktop 拉起 Codex 本地 MCP 配置）在剥离 ELECTRON_RUN_AS_NODE / NOMI_MCP_STDIO 环境变量的情况下启动 Nomi Helper + mcpNodeLauncher.js，进程落进桌面主入口抢单实例锁自杀并触发已有实例 second-instance，无条件将已最小化或隐藏的 Nomi 主窗口拉到前台。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-23-issue-1629-mcp-background-focus.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/productionRun/desktopLaunchIntent.test.ts"
+  },
+  "evidence": [
+    "electron/productionRun/desktopLaunchIntent.test.ts",
+    "electron/productionRun/productionRunDesktopLifecycle.test.ts"
+  ],
+  "completionCommits": [
+    "bf4fc6047",
+    "a6e53ddd2"
+  ],
+  "fixedInPr": 1634
+}

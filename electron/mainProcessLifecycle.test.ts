@@ -120,6 +120,30 @@ describe("installMainProcessLifecycle", () => {
     );
   });
 
+  it("宿主剥离 NOMI_MCP_STDIO 但 argv 指向 mcpNodeLauncher.js 时，同样标成宿主诊断面且透传 argv 给监视器跳过", () => {
+    const { app } = createApp(true);
+    const markStderrAsDiagnosticSurface = vi.fn();
+    const installStallMonitor = vi.fn(() => null);
+    const argv = [
+      "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
+      "/Applications/Nomi.app/Contents/Resources/app.asar/dist-electron/capabilityCore/mcpNodeLauncher.js",
+    ];
+
+    installMainProcessLifecycle(app, {
+      env: {},
+      argv,
+      installCrashHandlers: vi.fn(),
+      installProcessStdioErrorGuards: vi.fn(),
+      installParentProcessWatchdog: vi.fn(() => vi.fn()),
+      markStderrAsDiagnosticSurface,
+      installMainLogger: vi.fn(),
+      installStallMonitor,
+    });
+
+    expect(markStderrAsDiagnosticSurface).toHaveBeenCalledOnce();
+    expect(installStallMonitor).toHaveBeenCalledWith({ env: {}, argv });
+  });
+
   it("GUI 进程不动 stderr：那里它就是开发者的终端，打包后本就该安静", () => {
     const { app } = createApp(true);
     const markStderrAsDiagnosticSurface = vi.fn();

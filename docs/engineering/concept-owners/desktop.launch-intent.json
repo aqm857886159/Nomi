@@ -1,0 +1,39 @@
+{
+  "name": "桌面进程启动意图与单实例交接判定（MCP stdio / 后台冷启 / 交互桌面）",
+  "subject": "desktop.launch-intent",
+  "lifecycle": "host",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/desktopLaunchIntent.ts",
+    "symbol": "classifyProcessLaunch"
+  },
+  "write_api": [
+    {
+      "path": "electron/productionRun/desktopLaunchIntent.ts",
+      "symbol": "classifyProcessLaunch"
+    },
+    {
+      "path": "electron/productionRun/desktopLaunchIntent.ts",
+      "symbol": "classifySecondInstance"
+    },
+    {
+      "path": "electron/productionRun/productionRunDesktopLifecycle.ts",
+      "symbol": "installProductionRunDesktopLifecycle"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/productionRun/desktopLaunchIntent.test.ts",
+  "allowed_consumers": [
+    "electron/main.ts",
+    "electron/backgroundLaunch.ts",
+    "electron/mainProcessLifecycle.ts",
+    "electron/diagnostics/stallMonitor.ts",
+    "electron/telemetry/sessionExit.ts",
+    "electron/productionRun/productionRunDesktopLifecycle.ts"
+  ],
+  "since": "2026-11-23",
+  "notes": "合同 docs/fixes/2026-11-23-issue-1629-mcp-background-focus.root-cause.json：桌面主进程启动意图（mcp-stdio / background-desktop / interactive-desktop）与 second-instance 是否唤起主窗的唯一判定边界。所有启动期消费者与单实例交接共用 desktopLaunchIntent.ts，防止外部 MCP 宿主剥离 ELECTRON_RUN_AS_NODE / NOMI_MCP_STDIO 或后台冷启锁竞争时误将已收起的 Nomi 主窗切到前台。"
+}
