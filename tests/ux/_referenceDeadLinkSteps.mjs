@@ -9,7 +9,7 @@
 //      生成成功，界面上**没有任何新元素**（没有错误卡、没有提示）；供应商恰收一笔创建请求、恰收一次上传。
 //   ② 模型拒绝 → 新卡 → 重试（只有夹具能证：真供应商不会按我们的意愿拒绝）：链接活着，所以第一次照发；夹具回
 //      「An input media URL could not be fetched (403/404/410).」→ 看到「模型取不到参考图」那张卡，主按钮「重试」→ 点重试 →
-//      这条连接已被记下，第二笔创建请求带的是上传后的新链接 → 出结果。两笔创建请求、一次上传；第一次带原链接，第二次不带。
+//      第二笔创建请求仍带可读原链并取得结果。共两笔创建请求，零次上传。
 // 参考素材怎么布：像真人一样经节点上的「添加参考」把一张本机图片放进来（产品自己落盘 + 引用），然后只做一件事——改这张图落盘旁边的
 // .meta（`originalUrl`），把它写成"服务商的临时链接"。这和 0.24.0 真函数落下的生成图是同一个形状（见 tests/fixtures/old-user-data/assets）。
 // 脚本不碰 store、不替产品推导谁发链接谁上传：花钱前读 .meta，花钱后只读夹具 / 网络闸账本里真收到的请求。
@@ -94,18 +94,17 @@ export function judgeDeadLinkSend(observed, { deadLink }) {
   return { problems, summary: { createRequests: observed.creates.length, uploads: observed.uploads.length, sentImageUrls: sent.length, sentTheDeadLink: sent.includes(dead), allFromUpload: sent.length > 0 && strangers.length === 0 } }
 }
 
-/** 拒绝 → 重试那一对：恰两笔创建请求（第一笔原链接、第二笔上传后的新链接）、恰一次上传。 */
+/** #1586 RW-2：同一活链被模型拒收过，用户再次提交仍可使用它。 */
 export function judgeRefusalRetry(observed, { aliveLink }) {
   const problems = []
   const alive = bare(aliveLink)
   if (observed.creates.length !== 2) problems.push(`供应商收到的创建请求有 ${observed.creates.length} 笔（应恰好 2 笔：第一次被拒、重试一次）`)
-  if (observed.uploads.length !== 1) problems.push(`上传了 ${observed.uploads.length} 次（重试应换成恰好 1 次上传）`)
+  if (observed.uploads.length) problems.push(`活链被额外上传了 ${observed.uploads.length} 次`)
   const [first, second] = observed.creates
-  if (first && !first.imageUrls.includes(alive)) problems.push('第一笔请求带的不是活着的那条原链接（试探没有照发）')
-  if (second?.imageUrls.includes(alive)) problems.push('重试那一笔发的还是被拒绝的那条原链接')
-  const uploaded = new Set(observed.uploads.map((upload) => upload.url).filter(Boolean))
-  if (second && (second.imageUrls.length === 0 || second.imageUrls.some((url) => !uploaded.has(url)))) problems.push('重试那一笔里的图片地址不都是上传换来的')
-  return { problems, summary: { createRequests: observed.creates.length, uploads: observed.uploads.length, firstSentOriginalLink: Boolean(first?.imageUrls.includes(alive)), retrySentUploadedLink: Boolean(second && second.imageUrls.length > 0 && second.imageUrls.every((url) => uploaded.has(url))) } }
+  const onlyOriginal = (request) => request?.imageUrls.length === 1 && request.imageUrls[0] === alive && !request.truncated
+  if (!onlyOriginal(first)) problems.push('第一次提交未使用可读原链')
+  if (!onlyOriginal(second)) problems.push('再次提交未使用可读原链')
+  return { problems, summary: { createRequests: observed.creates.length, uploads: observed.uploads.length, firstSentOriginalLink: onlyOriginal(first), retrySentOriginalLink: onlyOriginal(second) } }
 }
 
 // ── 在真界面上走的步骤 ─────────────────────────────────────────────────────────────────────────────────
@@ -189,7 +188,7 @@ export async function setLocale(win, locale) {
 /**
  * 整条旅程。同一个项目里，每个语言加新节点走一遍：
  *   A. 失效链接直接出结果（界面无新元素）；
- *   B. （refusal = true，只有夹具）活着的链接 → 被拒 → 新卡 → 重试 → 上传后的新链接出结果。
+ *   B. （refusal = true，只有夹具）活着的链接 → 被拒 → 新卡 → 重试 → 可读原链出结果。
  * @param {{
  *   paid: { walk: any, lockToAuthorizedModels: (win: any) => Promise<unknown> },
  *   evidence: Record<string, unknown>,
@@ -213,8 +212,6 @@ export async function runReferenceDeadLinkJourney({ paid, evidence, locales = ['
   for (const locale of locales) {
     if (!UI_LOCALES.includes(locale)) throw new Error(`不认识的界面语言 ${locale}`)
     const report = (evidence.locales[locale] = {})
-    // 每个语言从「这条连接没被拒绝过」开始：记录在设置目录里，上一轮 B 段记下的那一笔会让这一轮第一次就走上传。
-    fs.rmSync(path.join(walk.settingsDir, 'reference-link-refusals.json'), { force: true })
     if (locale !== 'zh-CN') await setLocale(win, locale)
     await openCanvas(win)
     await collapseAgentPanel(win)
@@ -243,7 +240,7 @@ export async function runReferenceDeadLinkJourney({ paid, evidence, locales = ['
 
     if (!refusal) continue
 
-    // ── B. 活着的链接被模型拒绝 → 新卡 → 重试 → 上传后的新链接出结果 ──
+    // ── B. 活着的链接被模型拒绝 → 新卡 → 重试 → 可读原链出结果 ──
     const alive = await addReferenceNode({ win, projectId, projectRoot, prompt: locale === 'en' ? 'A lighthouse at dusk, film grain' : '黄昏的灯塔，胶片颗粒' })
     expect(writeProviderLink(alive.assetFile, links.alive), '参考图的 .meta 里存着一条还活着的服务商临时链接').toBe(links.alive)
     const offsetB = { creates: observe().creates.length, uploads: observe().uploads.length }
@@ -276,6 +273,6 @@ export async function runReferenceDeadLinkJourney({ paid, evidence, locales = ['
     if (wireB.problems.length) throw new Error(`[${locale}] 拒绝后重试的请求核对没过：${wireB.problems.join('；')}`)
   }
   evidence.verified = refusal
-    ? ['dead-link-sends-uploaded-link', 'dead-link-lands-with-no-new-element', 'refusal-shows-new-card', 'retry-sends-uploaded-link', 'one-post-per-submission']
+    ? ['dead-link-sends-uploaded-link', 'dead-link-lands-with-no-new-element', 'refusal-shows-new-card', 'retry-sends-live-original-link', 'one-post-per-submission']
     : ['dead-link-sends-uploaded-link', 'dead-link-lands-with-no-new-element', 'one-post-per-submission']
 }

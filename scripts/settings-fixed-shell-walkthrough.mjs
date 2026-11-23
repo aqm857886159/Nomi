@@ -6,6 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { createWalkthroughScreenshotter, measureLocatorRect, readSettingsModelDialogState } from './lib/walkthroughHost.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.settings-fixed-shell-walk')
@@ -27,59 +28,10 @@ function assert(condition, message) {
   if (!condition) throw new Error(message)
 }
 
-async function screenshot(name) {
-  const target = path.join(outDir, name)
-  await win.screenshot({ path: target })
-  console.log(`  screenshot: ${target}`)
-}
-
-async function rect(locator) {
-  return locator.evaluate((element) => {
-    const box = element.getBoundingClientRect()
-    return { x: box.x, y: box.y, width: box.width, height: box.height, right: box.right, bottom: box.bottom }
-  })
-}
-
-async function modelDialogState(win, pageSelector) {
-  return win.evaluate((selector) => {
-    const visible = (element) => element instanceof HTMLElement && element.getClientRects().length > 0 && getComputedStyle(element).display !== 'none' && getComputedStyle(element).visibility !== 'hidden'
-    const highestLayer = (start) => {
-      let current = start
-      let highest = 0
-      while (current) {
-        const value = Number.parseInt(getComputedStyle(current).zIndex || '0', 10)
-        if (Number.isFinite(value)) highest = Math.max(highest, value)
-        current = current.parentElement
-      }
-      return highest
-    }
-    const box = (element) => {
-      if (!(element instanceof HTMLElement)) return null
-      const bounds = element.getBoundingClientRect()
-      return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height, right: bounds.right, bottom: bounds.bottom }
-    }
-    const settings = document.querySelector('[data-settings-dialog]')
-    const modelRoot = document.querySelector('[data-model-settings-dialog]')
-    const modelPanel = modelRoot?.closest('[role="dialog"]')
-    const page = document.querySelector(selector)
-    const active = document.activeElement
-    return {
-      viewport: { width: window.innerWidth, height: window.innerHeight },
-      visibleDialogs: [...document.querySelectorAll('[role="dialog"]')].filter(visible).length,
-      settingsVisible: visible(settings),
-      modelVisible: visible(modelRoot) && visible(modelPanel),
-      pageInsideModelDialog: page instanceof HTMLElement && Boolean(modelRoot?.contains(page)),
-      pageInsideSettings: page instanceof HTMLElement && Boolean(settings?.contains(page)),
-      focusedInside: active instanceof Element && Boolean(modelRoot?.contains(active)),
-      settingsLayer: settings ? highestLayer(settings) : 0,
-      modelLayer: modelPanel ? highestLayer(modelPanel) : 0,
-      settingsRect: box(settings),
-      modelRect: box(modelPanel),
-      horizontalOverflow: [modelPanel, page].some((element) => element instanceof HTMLElement && element.scrollWidth > element.clientWidth + 2),
-      documentOverflow: document.documentElement.scrollWidth > window.innerWidth + 2,
-    }
-  }, pageSelector)
-}
+const takeShot = createWalkthroughScreenshotter(outDir, { prefix: '  screenshot: ', logFullPath: true })
+const screenshot = (name) => takeShot(win, name)
+const rect = measureLocatorRect
+const modelDialogState = (w, pageSelector) => readSettingsModelDialogState(w, pageSelector, { checkModelRootOverflow: false })
 
 function assertDesktopModelDialog(state, label) {
   assert(state.visibleDialogs === 2, `${label}: expected Settings plus model dialog, got ${state.visibleDialogs}`)

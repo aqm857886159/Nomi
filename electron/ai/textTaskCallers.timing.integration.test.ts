@@ -21,7 +21,7 @@ vi.mock("../agentLane/laneProviderGuard.mjs", async (importOriginal) => ({
   MODEL_CALL_CEILING_MS: 900,
 }));
 
-import { CALLERS, rendererVerdict, runCaller } from "../../tests/fixtures/textTasks/textTaskCallerHarness";
+import { CALLERS, rendererFailureKind, runCaller } from "../../tests/fixtures/textTasks/textTaskCallerHarness";
 import { parseVendorErrorFromMessage } from "../shared/generationFailure";
 
 const STALLS = [
@@ -42,7 +42,7 @@ describe.each(CALLERS)("$id", (caller) => {
     expect(seen.ok).toBe(false);
     expect(seen.error).toMatch(says);
     expect(parseVendorErrorFromMessage(seen.error)).toMatchObject({ category: "network", retryable: true });
-    expect(rendererVerdict(seen.error)).toEqual({ retried: false, kind: "network" });
+    expect(rendererFailureKind(seen.error)).toBe("network");
     // 看门狗开火 = 我们这一侧真的取消了那次 HTTP 请求（交给传输层的 signal 已 abort），不是只是不再等它。
     // 不断言「假上游看见连接关了」：那一步在 undici 里异步发生，约 2% 的运行 3 秒内看不到（与本迁移无关，lane 同样如此），
     // 记在 PR 的残留风险里。
@@ -59,7 +59,7 @@ describe.each(CALLERS)("$id", (caller) => {
     if (caller.door === "one-shot") {
       expect(seen.ok).toBe(false);
       expect(seen.error).toMatch(/分钟还没结束|min without finishing/);
-      expect(rendererVerdict(seen.error)).toEqual({ retried: false, kind: "network" });
+      expect(rendererFailureKind(seen.error)).toBe("network");
     } else {
       expect(seen).toMatchObject({ ok: true, error: "" });
       expect(seen.text).toBe(Array.from({ length: 14 }, (_, index) => `段${index}`).join(""));

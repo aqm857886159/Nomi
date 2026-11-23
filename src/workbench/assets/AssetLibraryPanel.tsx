@@ -506,6 +506,22 @@ export function AssetLibraryContent({
     }
   }, [projectId, reportDeletion, present, report, t])
 
+  const renderAssetCell = (asset: AssetRef, isCompact = false): JSX.Element => (
+    <AssetGridCell
+      key={asset.id}
+      asset={asset}
+      compact={isCompact}
+      selectable={projectSelectionEnabled}
+      selected={selectedIds.has(asset.id)}
+      dragHint={assetBelongsToProject(asset, projectId) ? assetDragHint : t('assetLibrary.externalAssetHint')}
+      onSelect={activateAsset}
+      onToggleSelect={projectSelectionEnabled ? toggleAssetSelection : undefined}
+      onPreview={assetPreviewAction}
+      onDragStartAsset={handleAssetDragStart}
+      onDelete={usageContext === 'canvas' && sourceFilter === 'all' && assetBelongsToProject(asset, projectId) ? (assetToDelete) => void deleteOneAsset(assetToDelete) : undefined}
+    />
+  )
+
   return (
     <TooltipProvider delayDuration={180} skipDelayDuration={80}>
       <div tabIndex={0} onDragOver={localImport.onDragOver} onDragLeave={localImport.onDragLeave} onDrop={localImport.onDrop} onPaste={localImport.onPaste} className={cn('flex min-h-0 flex-1 flex-col overflow-hidden outline-none', className, localImport.isDragOver && 'ring-2 ring-inset ring-nomi-ink-30')}>
@@ -696,21 +712,7 @@ export function AssetLibraryContent({
             />
           ) : compact ? (
             <div style={{ columnCount: 3, columnGap: '10px' }}>
-              {scopedAssets.map((asset) => (
-                <AssetGridCell
-                  key={asset.id}
-                  asset={asset}
-                  compact
-                  selectable={projectSelectionEnabled}
-                  selected={selectedIds.has(asset.id)}
-                  dragHint={assetBelongsToProject(asset, projectId) ? assetDragHint : t('assetLibrary.externalAssetHint')}
-                  onSelect={activateAsset}
-                  onToggleSelect={projectSelectionEnabled ? toggleAssetSelection : undefined}
-                  onPreview={assetPreviewAction}
-                  onDragStartAsset={handleAssetDragStart}
-                  onDelete={usageContext === 'canvas' && sourceFilter === 'all' && assetBelongsToProject(asset, projectId) ? (assetToDelete) => void deleteOneAsset(assetToDelete) : undefined}
-                />
-              ))}
+              {scopedAssets.map((asset) => renderAssetCell(asset, true))}
             </div>
           ) : (
             <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
@@ -732,20 +734,7 @@ export function AssetLibraryContent({
                       gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
                     }}
                   >
-                    {rowAssets.map((asset) => (
-                      <AssetGridCell
-                        key={asset.id}
-                        asset={asset}
-                        selectable={projectSelectionEnabled}
-                        selected={selectedIds.has(asset.id)}
-                        dragHint={assetBelongsToProject(asset, projectId) ? assetDragHint : t('assetLibrary.externalAssetHint')}
-                        onSelect={activateAsset}
-                        onToggleSelect={projectSelectionEnabled ? toggleAssetSelection : undefined}
-                        onPreview={assetPreviewAction}
-                        onDragStartAsset={handleAssetDragStart}
-                        onDelete={usageContext === 'canvas' && sourceFilter === 'all' && assetBelongsToProject(asset, projectId) ? (assetToDelete) => void deleteOneAsset(assetToDelete) : undefined}
-                      />
-                    ))}
+                    {rowAssets.map((asset) => renderAssetCell(asset))}
                   </div>
                 )
               })}

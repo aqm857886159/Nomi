@@ -29,12 +29,11 @@ import { executeProfileOperation } from "../runtime";
 import { canvasRunIdFor } from "./canvasShotRunIndex";
 import { runTaskIpcGuard } from "../tasks/taskIpcGuard";
 import { classifyGenerationError } from "../../src/workbench/observability/classifyError";
-import type { LocalAsset } from "../catalog/assetLocalization";
 import type { AssetIngestion, Model, Vendor } from "../catalog/types";
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52]);
 const LOCAL_REF = `nomi-local://asset/${CANVAS_TEST_PROJECT}/gen.png`;
-const OVER_WINDOW_MS = 49 * 3600 * 1000;
+const OLD_SIDECAR_AGE_MS = 49 * 3600 * 1000;
 
 let server: http.Server;
 let origin = "";
@@ -102,7 +101,7 @@ const uploadsTo = (endpoint: string): AssetIngestion => ({ strategy: "upload-mul
 function transportFor(vendor: Vendor, link: string, operationIngestion?: AssetIngestion, assetAgeMs = 60_000): CanvasTransport {
   const model = modelOf();
   hoisted.catalog.current = { version: 13, vendors: [vendor], models: [model], mappings: [], apiKeysByVendor: {} };
-  const asset: LocalAsset = { bytes: Buffer.concat([PNG, Buffer.from("x")]), contentType: "image/png", fileName: "gen.png", originalUrl: link, ageMs: assetAgeMs };
+  const asset = { bytes: Buffer.concat([PNG, Buffer.from("x")]), contentType: "image/png", fileName: "gen.png", originalUrl: link, ageMs: assetAgeMs };
   return {
     networkTransport: "app-fetch",
     execute: async (payload): Promise<CanvasTaskResult> => {
@@ -145,7 +144,6 @@ describe("一笔没发给模型：不说「结果不明」，可以直接重试"
   it.each([
     ["带查询串的活链接（试探留下过一笔）+ 模型接口连不上", () => transportFor(vendorOf(closedOrigin), `${origin}/gen/alive.png${SIGNED}`)],
     ["失效链接，上传成功 + 模型接口连不上", () => transportFor(vendorOf(closedOrigin), `${origin}/gen/expired.png`, uploadsTo(`${origin}/v1/uploads-ok`))],
-    ["超过 48 小时，上传成功 + 模型接口连不上", () => transportFor(vendorOf(closedOrigin), `${origin}/gen/alive.png`, uploadsTo(`${origin}/v1/uploads-ok`), OVER_WINDOW_MS)],
   ])("%s", async (_label, make) => {
     const result = await clickGenerate(make());
     expect(generatePosts).toEqual([]);
@@ -156,7 +154,6 @@ describe("一笔没发给模型：不说「结果不明」，可以直接重试"
   it.each([
     ["失效链接，上传回 500", () => transportFor(vendorOf(origin), `${origin}/gen/expired.png`, uploadsTo(`${origin}/v1/uploads-fail`))],
     ["带查询串的失效链接，上传回 500", () => transportFor(vendorOf(origin), `${origin}/gen/expired.png${SIGNED}`, uploadsTo(`${origin}/v1/uploads-fail`))],
-    ["超过 48 小时，上传回 500", () => transportFor(vendorOf(origin), `${origin}/gen/alive.png`, uploadsTo(`${origin}/v1/uploads-fail`), OVER_WINDOW_MS)],
   ])("%s：卡片说上传没成功，不说可能已被收下", async (_label, make) => {
     const result = await clickGenerate(make());
     expect(generatePosts).toEqual([]);
@@ -166,6 +163,15 @@ describe("一笔没发给模型：不说「结果不明」，可以直接重试"
 });
 
 describe("真交给了模型的那一笔还在账上（防双扣）", () => {
+  // #1586 User 2026-11-23 RW-2: probe even a 49-hour-old sidecar. Count the actual model POST.
+  it("49 小时的活链接：探测后直接交给模型，私有上传端点零请求", async () => {
+    const result = await clickGenerate(transportFor(vendorOf(origin), `${origin}/gen/alive.png`, uploadsTo(`${origin}/v1/uploads-fail`), OLD_SIDECAR_AGE_MS));
+    expect(hits.get("/gen/alive.png")).toBe(1);
+    expect(hits.get("/v1/uploads-fail") ?? 0).toBe(0);
+    expect(generatePosts).toEqual(["/v1/generate"]);
+    expect(result.jobStatus).toBe("submission_unknown");
+  });
+
   it("带查询串的活链接 + 模型收下后连接断了：结果未知，重试被拒，等对账", async () => {
     const result = await clickGenerate(transportFor(vendorOf(origin), `${origin}/gen/alive.png${SIGNED}`));
     expect(generatePosts).toEqual(["/v1/generate"]);

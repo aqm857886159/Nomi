@@ -22,6 +22,11 @@ import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const hostingSetting = vi.hoisted(() => ({ value: 'allow' }))
+// Exercise the deployment with no configured non-anonymous relay.
+vi.mock('./assetRelayRuntimeConfig', async original => {
+  const actual = await original<typeof import('./assetRelayRuntimeConfig')>()
+  return { ...actual, readDefaultAssetRelayRuntimeConfig: () => ({ endpoint: '', token: '', source: 'default' }) }
+})
 vi.mock('../settings/automationPolicySettings', async original => ({
   ...await original<typeof import('../settings/automationPolicySettings')>(),
   readAutomationPolicySettings: () => ({ anonymousAssetHosting: hostingSetting.value, minimizeUploads: true }),
@@ -72,8 +77,6 @@ import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { matchNomiErrorCode } from "../shared/nomiErrorCodes";
 import {
   AnonymousAssetConsentRequiredError,
-  ORIGINAL_URL_TRUST_MS,
-  assertLocalAssetTransportReady,
   localizeAssetsForVendor,
   type HttpPostJson,
   type IngestionCandidate,
@@ -81,7 +84,6 @@ import {
   type ReferenceLinkPolicy,
 } from "./assetLocalization";
 import { assetLocalizationOptions } from "./assetTransportRuntime";
-import { noteConnectionRefused, referenceLinkRefusalsPath } from "./referenceLinkRefusals";
 import type { AssetIngestion, Model, Vendor } from "./types";
 
 // ── 假服务：链接状态 + 假 API（生成 / 上传）──────────────────────────────────────────────────────────────
@@ -98,6 +100,7 @@ const generated: Array<{ path: string; body: Record<string, unknown> }> = [];
 const uploads: string[] = [];
 let probeDelayMs = 0;
 let inFlight = 0;
+const readablePng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNYuOkwAAQOAhfr5VroAAAAAElFTkSuQmCC", "base64");
 let maxInFlight = 0;
 let hangingSockets: Array<() => void> = [];
 
@@ -112,6 +115,9 @@ function route(req: http.IncomingMessage, res: http.ServerResponse): void {
   }
   const respond = (): void => {
     switch (pathname) {
+      case "/gen/range-denied": return req.headers.range
+        ? send("text/plain", Buffer.from("range request forbidden"), 403)
+        : send("image/png", readablePng);
       case "/gen/ok": return void res.writeHead(206, { "Content-Type": "image/png", "Content-Range": "bytes 0-15/9000", "Content-Length": PNG.length }).end(PNG);
       case "/gen/ignores-range": {
         const big = Buffer.alloc(2 * 1024 * 1024, 0x41);
@@ -223,11 +229,11 @@ const asset = (
 });
 const uploadUrl: AssetIngestion = { strategy: "upload-url", endpoint: "https://up.example/x", base64Field: "b", urlPath: "url", accepts: ["image", "video", "audio"] };
 const own = (ingestion: AssetIngestion = uploadUrl): IngestionCandidate => ({ vendorKey: "relay", ingestion, uploadApiKey: "k" });
-const policyWith = (deps = pinnedDeps(), refused = false): ReferenceLinkPolicy => ({ refused, probe: (url) => probeProviderLink(url, {}, deps) });
+const policyWith = (deps = pinnedDeps()): ReferenceLinkPolicy => ({ probe: (url) => probeProviderLink(url, {}, deps) });
 const noMultipart = vi.fn();
 const extrasOf = (out: { value: unknown }) => (out.value as { input_urls: string[] }).input_urls;
 
-async function sendOne(linkRoute: string, options: { kind?: "image" | "video" | "audio"; ageMs?: number | undefined; channels?: IngestionCandidate[]; post?: HttpPostJson; refused?: boolean } = {}) {
+async function sendOne(linkRoute: string, options: { kind?: "image" | "video" | "audio"; ageMs?: number | undefined; channels?: IngestionCandidate[]; post?: HttpPostJson } = {}) {
   const post = options.post ?? vi.fn<HttpPostJson>(async () => ({ url: "https://uploaded.example/new.png" }));
   const link = cdn(linkRoute);
   const out = await localizeAssetsForVendor(
@@ -236,7 +242,7 @@ async function sendOne(linkRoute: string, options: { kind?: "image" | "video" | 
     () => asset("a.png", link, options.kind ?? "image", "ageMs" in options ? options.ageMs : 60_000),
     post,
     noMultipart,
-    { linkPolicy: policyWith(pinnedDeps(), options.refused ?? false) },
+    { linkPolicy: policyWith() },
   );
   return { wire: extrasOf(out)[0], link, post };
 }
@@ -277,6 +283,22 @@ describe("链接状态 → 发原链接 / 转上传（真试探 × 真决定点�
     expect(wire).toBe("https://uploaded.example/new.png");
     expect(wire).not.toBe(link);
     expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["provider-private", "public-provider"] as const)("Range 403 plus %s uses the upload; an upload failure stops delivery", async visibility => {
+    const channel = own({ strategy: "upload-multipart", endpoint: "https://up.example/x", urlPath: "url", accepts: ["image", "video", "audio"], visibility });
+    const postMultipart = vi.fn(async () => { throw new Error("HTTP 500"); });
+    await expect(
+      localizeAssetsForVendor(
+        { input_urls: [localUrl("a.png")] },
+        () => [channel],
+        () => asset("a.png", cdn("/gen/range-denied")),
+        vi.fn(),
+        postMultipart,
+        { linkPolicy: policyWith() },
+      ),
+    ).rejects.toThrow("asset-upload-failed");
+    expect(postMultipart).toHaveBeenCalledOnce();
   });
 
   it("连接被拒 → 发原链接", async () => {
@@ -374,12 +396,12 @@ describe("媒体：图片 / 视频 / 音频", () => {
 });
 
 // ── 不试探的情况 ──────────────────────────────────────────────────────────────────────────────────────────
-describe("不试探的情况（GET 0 次）", () => {
-  it("超过 48 小时：直接上传", async () => {
-    const { wire, post } = await sendOne("/gen/ok", { ageMs: ORIGINAL_URL_TRUST_MS + 1 });
-    expect(wire).toBe("https://uploaded.example/new.png");
-    expect(post).toHaveBeenCalledTimes(1);
-    expect(hits.get("/gen/ok") ?? 0).toBe(0);
+describe("原链资格与本地专用通道", () => {
+  it("49 小时的原链仍可探测，活链直接发送", async () => {
+    const { wire, link, post } = await sendOne("/gen/ok", { ageMs: 49 * 3600_000 });
+    expect(wire).toBe(link);
+    expect(post).not.toHaveBeenCalled();
+    expect(hits.get("/gen/ok")).toBe(1);
   });
 
   it("没有 originalUrl：直接上传", async () => {
@@ -389,7 +411,7 @@ describe("不试探的情况（GET 0 次）", () => {
     expect(hits.size).toBe(0);
   });
 
-  it("ageMs 未知：按在窗内处理，要试探", async () => {
+  it("老调用方没有时间戳也会试探", async () => {
     const { wire, link } = await sendOne("/gen/ok", { ageMs: undefined });
     expect(wire).toBe(link);
     expect(hits.get("/gen/ok")).toBe(1);
@@ -430,7 +452,7 @@ describe("并发与去重", () => {
   it("26 个请求共用一张图：GET 只有 1 次", async () => {
     const link = cdn("/gen/ok");
     const dependencies = pinnedDeps();
-    const policy: ReferenceLinkPolicy = { refused: false, probe: (url) => probeProviderLink(url, {}, dependencies) };
+    const policy: ReferenceLinkPolicy = { probe: (url) => probeProviderLink(url, {}, dependencies) };
     await Promise.all(Array.from({ length: 26 }, () => localizeAssetsForVendor(
       { input_urls: [localUrl("a.png")] }, () => [own()], () => asset("a.png", link), vi.fn(), noMultipart, { linkPolicy: policy },
     )));
@@ -441,7 +463,7 @@ describe("并发与去重", () => {
     let clock = 10_000_000;
     const link = cdn("/gen/ok");
     const dependencies = pinnedDeps();
-    const policy: ReferenceLinkPolicy = { refused: false, probe: (url) => probeProviderLink(url, { now: () => clock }, dependencies) };
+    const policy: ReferenceLinkPolicy = { probe: (url) => probeProviderLink(url, { now: () => clock }, dependencies) };
     const send = () => localizeAssetsForVendor({ input_urls: [localUrl("a.png")] }, () => [own()], () => asset("a.png", link), vi.fn(), noMultipart, { linkPolicy: policy });
     await send();
     clock += 4 * 60_000;
@@ -552,51 +574,77 @@ describe("入口：三个发送入口，窗内链接失效 → 发出去的是�
     expect(outbound).toEqual([]);
   });
 
-  it.each(['runtime', 'custom-script', 'semantic', 'rework'])('hosting off: %s entry sends zero anonymous bytes', async entry => {
-    hostingSetting.value = 'ask';
-    const { vendor, model } = prepare(deadLink());
-    vendor.assetIngestion = { strategy: 'upload-multipart', endpoint: `${origin}/v1/uploads/images`, urlPath: 'url', accepts: ['image'], visibility: 'public-anonymous' };
-    customCall.catalog.current = { version: 13, vendors: [vendor], models: [model], mappings: [], apiKeysByVendor: {} };
-    const reference_ = { assetId: 'asset-1', contentHash: 'hash', version: 1, kind: 'image' as const, role: 'reference' as const };
-    const input = { projectId: 'p', providerId: vendor.key, references: [reference_ as never], assertCurrent() {} };
-    const run = entry === 'runtime' ? runtimeSend(vendor, model)
-      : entry === 'custom-script' ? runCustomCallTask({
-        vendor, model, apiKey: 'sk-test', customConfig: {}, script: 'return {}', taskKind: 'image_edit',
-        request: { kind: 'image_edit', prompt: 'keep the boat', extras: { modelKey: model.modelKey, referenceImages: [reference()], anonymousAssetHostingConsent: 'allow' } },
-        kind: 'image_edit', wantedKind: 'image', projectId: 'p', nodeId: 'n', grantId: 'g', taskId: 't',
-        spendGate: vi.fn(async () => undefined) as never, localizeTaskAsset: vi.fn(),
-      } as unknown as Parameters<typeof runCustomCallTask>[0])
-      : entry === 'semantic' ? resolveProductionReferenceUrls(input)
-      : reworkReferenceUrls({ ...input, frozen: { ref: deadLink() } });
-    const failure = await run.catch((error: Error) => error);
-    expect(failure).toBeInstanceOf(Error);
-    expect(matchNomiErrorCode(String(failure))).toBe('asset-upload-failed');
-    expect(uploads).toHaveLength(0);
-    expect(generated).toHaveLength(0);
-    expect(customCall.runScript).not.toHaveBeenCalled();
-  });
-
-  it.each(['mapping-trial', 'assistant-try-model'])('hosting off: %s executes the real entry and sends zero anonymous bytes', async entry => {
-    hostingSetting.value = 'ask';
-    const { vendor, model } = prepare(deadLink());
-    vendor.authType = 'none';
-    const ingestion: AssetIngestion = { strategy: 'upload-multipart', endpoint: `${origin}/v1/uploads/images`, urlPath: 'url', accepts: ['image'], visibility: 'public-anonymous' };
-    const mapping = { id: 'hosting-trial', vendorKey: vendor.key, modelKey: model.modelKey, taskKind: 'image_edit', enabled: true, create: { ...generateOperation, assetIngestion: ingestion } };
-    customCall.catalog.current = { version: 13, vendors: [vendor], models: [model], mappings: [mapping], apiKeysByVendor: { [vendor.key]: { vendorKey: vendor.key, apiKey: Buffer.from("fixture-only-key").toString("base64"), enc: "safeStorage", enabled: true } } };
-    if (entry === 'mapping-trial') {
-      const failure = await testModelCatalogMapping(mapping.id, { execute: true, modelKey: model.modelKey, extras: { referenceImages: [reference()] } }).catch((error: Error) => error);
+  describe.each(['unavailable', 'range-denied'])('hosting off with %s reference', scenario => {
+    const source = () => scenario === 'unavailable' ? deadLink() : `${origin}/gen/range-denied`;
+    it.each(['runtime', 'custom-script', 'semantic', 'rework'])('%s uses a readable original without third-party upload', async entry => {
+      hostingSetting.value = 'deny';
+      if (scenario === 'range-denied') {
+        const response = await fetch(source());
+        expect(Buffer.from(await response.arrayBuffer())).toEqual(readablePng);
+      }
+      const { vendor, model } = prepare(source());
+      vendor.assetIngestion = { strategy: 'upload-multipart', endpoint: `${origin}/v1/uploads/images`, urlPath: 'url', accepts: ['image'], visibility: 'public-anonymous' };
+      customCall.catalog.current = { version: 13, vendors: [vendor], models: [model], mappings: [], apiKeysByVendor: {} };
+      const reference_ = { assetId: 'asset-1', contentHash: 'hash', version: 1, kind: 'image' as const, role: 'reference' as const };
+      const input = { projectId: 'p', providerId: vendor.key, references: [reference_ as never], assertCurrent() {} };
+      customCall.runScript.mockResolvedValue({ assets: [`${origin}/gen/ok`], transcript: [] });
+      const run = entry === 'runtime' ? runtimeSend(vendor, model)
+        : entry === 'custom-script' ? runCustomCallTask({
+          vendor, model, apiKey: 'sk-test', customConfig: {}, script: 'return {}', taskKind: 'image_edit',
+          request: { kind: 'image_edit', prompt: 'keep the boat', extras: { modelKey: model.modelKey, referenceImages: [reference()], anonymousAssetHostingConsent: 'allow' } },
+          kind: 'image_edit', wantedKind: 'image', projectId: 'p', nodeId: 'n', grantId: 'g', taskId: 't',
+          spendGate: vi.fn(async () => undefined) as never, localizeTaskAsset: vi.fn(),
+        } as unknown as Parameters<typeof runCustomCallTask>[0])
+        : entry === 'semantic' ? resolveProductionReferenceUrls(input)
+        : reworkReferenceUrls({ ...input, frozen: { [spendReferenceKey(reference_ as never)]: source() } });
+      if (scenario === 'range-denied') {
+        const value = await run;
+        if (entry === 'runtime') expect(generated[0]?.body.image).toBe(source());
+        if (entry === 'custom-script') expect(JSON.stringify(customCall.runScript.mock.calls[0]?.[0].params)).toContain(source());
+        if (entry === 'semantic') expect(Object.values(value ?? {})).toContain(source());
+        if (entry === 'rework') expect(value).toBeUndefined();
+        expect(uploads).toHaveLength(0);
+        return;
+      }
+      const failure = await run.catch((error: Error) => error);
       expect(failure).toBeInstanceOf(Error);
       expect(matchNomiErrorCode(String(failure))).toBe('asset-upload-failed');
-    } else {
-      const result = await tryModel({ runTask, approvalPolicy: () => ({ mode: 'direct' }) }, {
-        vendorKey: vendor.key, modelKey: model.modelKey, taskKind: 'image_edit', prompt: 'keep the boat', params: { referenceImages: [reference()] },
-      });
-      expect(result, JSON.stringify(result)).toMatchObject({ ok: false, code: 'provider_failed' });
-      if (result.ok) throw new Error('trial unexpectedly succeeded');
-      expect(result.message).toMatch(/设置|Settings/);
-    }
-    expect(uploads).toHaveLength(0);
-    expect(generated).toHaveLength(0);
+      expect(uploads).toHaveLength(0);
+      expect(generated).toHaveLength(0);
+      expect(customCall.runScript).not.toHaveBeenCalled();
+    });
+
+    it.each(['mapping-trial', 'assistant-try-model'])('hosting off: %s executes the real entry and sends zero anonymous bytes', async entry => {
+      hostingSetting.value = 'deny';
+      const { vendor, model } = prepare(source());
+      vendor.authType = 'none';
+      const ingestion: AssetIngestion = { strategy: 'upload-multipart', endpoint: `${origin}/v1/uploads/images`, urlPath: 'url', accepts: ['image'], visibility: 'public-anonymous' };
+      const mapping = { id: 'hosting-trial', vendorKey: vendor.key, modelKey: model.modelKey, taskKind: 'image_edit', enabled: true, create: { ...generateOperation, assetIngestion: ingestion } };
+      customCall.catalog.current = { version: 13, vendors: [vendor], models: [model], mappings: [mapping], apiKeysByVendor: { [vendor.key]: { vendorKey: vendor.key, apiKey: Buffer.from("fixture-only-key").toString("base64"), enc: "safeStorage", enabled: true } } };
+      if (scenario === 'range-denied') {
+        if (entry === 'mapping-trial') await testModelCatalogMapping(mapping.id, { execute: true, modelKey: model.modelKey, extras: { referenceImages: [reference()] } });
+        else await tryModel({ runTask, approvalPolicy: () => ({ mode: 'direct' }) }, {
+          vendorKey: vendor.key, modelKey: model.modelKey, taskKind: 'image_edit', prompt: 'keep the boat', params: { referenceImages: [reference()] },
+        });
+        expect(generated.map(request => request.body.image)).toEqual([source()]);
+        expect(uploads).toHaveLength(0);
+        return;
+      }
+      if (entry === 'mapping-trial') {
+        const failure = await testModelCatalogMapping(mapping.id, { execute: true, modelKey: model.modelKey, extras: { referenceImages: [reference()] } }).catch((error: Error) => error);
+        expect(failure).toBeInstanceOf(Error);
+        expect(matchNomiErrorCode(String(failure))).toBe('asset-upload-failed');
+      } else {
+        const result = await tryModel({ runTask, approvalPolicy: () => ({ mode: 'direct' }) }, {
+          vendorKey: vendor.key, modelKey: model.modelKey, taskKind: 'image_edit', prompt: 'keep the boat', params: { referenceImages: [reference()] },
+        });
+        expect(result, JSON.stringify(result)).toMatchObject({ ok: false, code: 'provider_failed' });
+        if (result.ok) throw new Error('trial unexpectedly succeeded');
+        expect(result.message).toMatch(/设置|Settings/);
+      }
+      expect(uploads).toHaveLength(0);
+      expect(generated).toHaveLength(0);
+    });
   });
 
   it("productionReferenceUrls.ts 做片流程：失效 → 封存的是上传后的新链接", async () => {
@@ -616,60 +664,30 @@ describe("模型拒绝之后", () => {
     const post = vi.fn(async () => ({ url: "https://uploaded.example/new.png" }));
     const options = assetLocalizationOptions({ key: vendorKey }, undefined);
     const out = await localizeAssetsForVendor({ input_urls: [localUrl("a.png")] }, () => [own()], () => asset("a.png", link()), post, noMultipart, options);
-    return { wire: extrasOf(out)[0], post, options };
+    return { wire: extrasOf(out)[0], post };
   };
 
   it("没拒绝过：试探，活着就发原链接", async () => {
-    const { wire, post, options } = await send("relay-x");
-    expect(options.linkPolicy?.refused).toBe(false);
+    const { wire, post } = await send("relay-x");
     expect(wire).toBe(link());
     expect(post).not.toHaveBeenCalled();
     expect(hits.get("/gen/ok")).toBe(1);
   });
 
-  it("记下之后：同一条连接下一次直接上传，且不再试探", async () => {
-    noteConnectionRefused("relay-x");
-    const { wire, post, options } = await send("relay-x");
-    expect(options.linkPolicy?.refused).toBe(true);
-    expect(wire).toBe("https://uploaded.example/new.png");
-    expect(post).toHaveBeenCalledTimes(1);
-    expect(hits.get("/gen/ok") ?? 0).toBe(0);
-  });
-
-  it("兄弟连接和别的连接不受影响", async () => {
-    noteConnectionRefused("relay-x");
-    for (const key of ["relay-x--b2c3", "relay-y", "apimart"]) {
-      resetProviderLinkProbes();
-      const { wire, options } = await send(key);
-      expect(options.linkPolicy?.refused).toBe(false);
-      expect(wire).toBe(link());
-    }
-  });
-
-  it("清内存（重置试探记忆）后读文件仍生效", async () => {
-    noteConnectionRefused("relay-x");
-    resetProviderLinkProbes();
-    expect(assetLocalizationOptions({ key: "relay-x" }, undefined).linkPolicy?.refused).toBe(true);
-  });
-
-  it("文件缺失或损坏：当作没有记录", async () => {
-    expect(assetLocalizationOptions({ key: "relay-x" }, undefined).linkPolicy?.refused).toBe(false);
-    fs.writeFileSync(referenceLinkRefusalsPath(), "{not json", "utf8");
-    expect(assetLocalizationOptions({ key: "relay-x" }, undefined).linkPolicy?.refused).toBe(false);
-  });
-
-  it("拒绝过的连接，发送前的通道检查也不再因为窗内链接被跳过", () => {
-    noteConnectionRefused("relay-x");
-    const noChannel = () => [];
-    const read = () => asset("a.png", link());
-    expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, read, assetLocalizationOptions({ key: "relay-y" }, undefined))).not.toThrow();
-    expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, read, assetLocalizationOptions({ key: "relay-x" }, undefined))).toThrow(desktopT("assetUpload.noChannel"));
+  it("旧版本记下的拒收不会阻止同一连接探测并发送可用原链", async () => {
+    fs.writeFileSync(path.join(settingsRoot, "reference-link-refusals.json"), JSON.stringify({
+      version: 1, connections: { "relay-x": { refusedAt: new Date().toISOString() } },
+    }));
+    const { wire, post } = await send("relay-x");
+    expect(wire).toBe(link());
+    expect(post).not.toHaveBeenCalled();
+    expect(hits.get("/gen/ok")).toBe(1);
   });
 });
 
 // ── 老用户：旧版本用它自己的真函数落盘的生成图（tests/fixtures/old-user-data/assets/<版本>-<名字>）──────────────────
 // 素材文件和 .meta 不是手写的形状：是那个版本自己的 importRemoteAsset 落下的（generators/zzRefLinkGen.ts.txt）。
-// 升级那一刻什么都不迁移，所以这里只验：升级后的决定点读这份老 .meta，活着的照发、失效的转上传，和升级前超过 48 小时的图走同一条路。
+// 升级那一刻什么都不迁移，所以这里只验：升级后的决定点读这份老 .meta，活着的照发、失效的转上传，同一规则覆盖升级前保存的图。
 // 目录是**遍历**出来的：以后每个版本补一份，新目录自动进这几行，不用回来改这个文件（推送前扫描型守卫登记的也是这个根）。
 const OLD_USER_ASSETS = fileURLToPath(new URL("../../tests/fixtures/old-user-data/assets", import.meta.url));
 const OLD_USER_DIRECTORIES = fs.readdirSync(OLD_USER_ASSETS, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
@@ -703,7 +721,6 @@ describe.each(OLD_USER_DIRECTORIES)("老用户升级后：%s", (directory) => {
     const read = readNomiLocalAsset(url);
     expect(read?.originalUrl).toBe(`${origin}/generated/gen-ref.png`);
     expect(read?.contentType).toBe("image/png");
-    expect(typeof read?.ageMs).toBe("number");
   });
 
   it("链接还活着 → 发原链接，零上传（请求和升级前一字不差）", async () => {
@@ -718,11 +735,11 @@ describe.each(OLD_USER_DIRECTORIES)("老用户升级后：%s", (directory) => {
     expect(post).toHaveBeenCalledTimes(1);
   });
 
-  it("升级前就超过 48 小时的图：不试探，直接上传（和以前一样）", async () => {
-    const longAgo = new Date(Date.now() - ORIGINAL_URL_TRUST_MS - 3_600_000);
+  it("升级前保存 49 小时的真 sidecar：原链可读，零上传", async () => {
+    const longAgo = new Date(Date.now() - 49 * 3600_000);
     const { wire, post } = await sendOldAsset(oldUserAsset("/generated/gen-ref.png", longAgo));
-    expect(wire).toBe("https://uploaded.example/new.png");
-    expect(post).toHaveBeenCalledTimes(1);
-    expect(hits.get("/generated/gen-ref.png") ?? 0).toBe(0);
+    expect(wire).toBe(`${origin}/generated/gen-ref.png`);
+    expect(post).not.toHaveBeenCalled();
+    expect(hits.get("/generated/gen-ref.png")).toBe(1);
   });
 });

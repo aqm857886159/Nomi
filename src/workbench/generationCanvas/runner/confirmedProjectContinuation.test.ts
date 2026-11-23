@@ -352,8 +352,7 @@ it('same-wave downstream accepts the actual streaming body atomically sealed by 
   expect(calls.execute).toHaveBeenCalledTimes(2)
 })
 
-it.each(['append', 'replace'] as const)('original confirmation retries streamed %s from the approved document', async mode => {
-  // 这组测的是「确认卡弹着的那段窗口里内容被改」：用户自己点的单个生成不弹卡（2026-09-25），窗口只在要确认的路径上存在，用 Agent 发起来开这扇窗。
+it.each(['append', 'replace'] as const)('failed streamed %s stops until the user submits the current document', async mode => {
   await session.open('project-a')
   const original: TiptapDocJson = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'approved initial document' }] }] }
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'approved instruction', meta: { modelVendor: 'v', modelKey: 'm', textGenMode: mode } })
@@ -374,21 +373,30 @@ it.each(['append', 'replace'] as const)('original confirmation retries streamed 
   calls.execute.mockImplementation(executor)
   await confirmAndRunNode(node.id, { initiator: 'agent' })
   expect(calls.confirm).toHaveBeenCalledOnce()
+  expect(stream).toHaveBeenCalledOnce()
+  expect(calls.execute).toHaveBeenCalledOnce()
+  const failed = useGenerationCanvasStore.getState().nodes.find(candidate => candidate.id === node.id)!
+  expect(failed.status).toBe('error')
+  const revised: TiptapDocJson = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'revised document' }] }] }
+  useGenerationCanvasStore.getState().updateNode(node.id, { contentJson: revised })
+  await confirmAndRunNode(node.id, { initiator: 'user' })
   expect(stream).toHaveBeenCalledTimes(2)
   expect(calls.execute).toHaveBeenCalledTimes(2)
   const keys = calls.execute.mock.calls.map(([, context]) => context.idempotencyKey)
   expect(keys[0]).toEqual(expect.any(String))
-  expect(keys[1]).toBe(keys[0])
+  expect(keys[1]).toEqual(expect.any(String))
+  expect(keys[1]).not.toBe(keys[0])
+  expect(stream.mock.calls[0][1].prompt).toContain('approved initial document')
+  expect(stream.mock.calls[1][1].prompt).toContain('revised document')
   for (const [, request] of stream.mock.calls) {
-    expect(request.prompt).toContain('approved initial document')
     expect(request.prompt).not.toContain('failed partial chunk')
   }
   const completed = useGenerationCanvasStore.getState().nodes.find(candidate => candidate.id === node.id)!
   expect(completed.status).toBe('success')
-  expect(docToPlainText(completed.contentJson)).toBe(mode === 'append' ? 'approved initial document\ncomplete generated output' : 'complete generated output')
+  expect(docToPlainText(completed.contentJson)).toBe(mode === 'append' ? 'revised document\ncomplete generated output' : 'complete generated output')
 })
 
-it.each(['append', 'replace'] as const)('original confirmation rejects streamed %s retry after a manual document edit', async mode => {
+it.each(['append', 'replace'] as const)('failed streamed %s preserves a manual edit and stops', async mode => {
   // 这组测的是「确认卡弹着的那段窗口里内容被改」：用户自己点的单个生成不弹卡（2026-09-25），窗口只在要确认的路径上存在，用 Agent 发起来开这扇窗。
   await session.open('project-a')
   const doc = (text: string): TiptapDocJson => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })

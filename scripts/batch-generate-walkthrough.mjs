@@ -4,6 +4,7 @@ import { makeTempDir } from './_test-temp.mjs'
 // 回答「我们现在能不能批量产出」。真花额度（3 张图，默认模型=用户同款路径）。
 // 用法：pnpm build 后 NOMI_SPEND_OK=1 node scripts/batch-generate-walkthrough.mjs
 import { launchNomiApp, repoRoot } from '../tests/ux/_launchApp.mjs'
+import { openBlankProjectCanvas, prepareWalkthroughWindow } from './lib/walkthroughHost.mjs'
 import { assertPaidRunAllowed } from '../tests/ux/_paidRun.mjs'
 import { realNomiProfile, removeRealCredentials, seedRealCredentials } from '../tests/ux/_realProfile.mjs'
 import path from 'node:path'
@@ -48,15 +49,8 @@ const { app, win } = await launchNomiApp({
 const errors = []
 let failed = false
 try {
-  const bw = await app.browserWindow(win)
-  await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1680, height: 1020 })).catch(() => {})
-  win.on('pageerror', (e) => errors.push(String(e)))
-  win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
-
-  await win.getByText('新建空白项目', { exact: false }).first().click()
-  await win.waitForTimeout(2500)
-  await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click()
-  await win.waitForTimeout(1500)
+  await prepareWalkthroughWindow(app, win, { width: 1680, height: 1020 , errors })
+  await openBlankProjectCanvas(win, { projectSettleMs: 2500, workspaceScoped: true, canvasSettleMs: 1500 })
 
   // 工具栏建 3 个图片节点，逐个在 composer 打提示词（用户同款操作）
   for (let i = 0; i < PROMPTS.length; i += 1) {
