@@ -261,6 +261,7 @@ export const desktopTranslations = {
     "network.credentialRedirectTo": "服务商地址发生了跳转（跳转到 {{target}}），为保护你的密钥已停止请求。下一步：把接口地址改成这个跳转后的地址，然后重试。",
     "customCall.previewFileTooLarge": "试跑 saveFile 收到的文件太大，不能在面板里拼 data URL；请直接保存后在真实任务里验证",
     "customCall.emptyScript": "脚本为空——先写点内容或让 AI 生成",
+    "dreamina.invokeFailed": "即梦 CLI 调用失败",
   },
   en: {
     "agent.legacySummary": "Legacy summary: ",
@@ -503,6 +504,7 @@ export const desktopTranslations = {
     "network.credentialRedirectTo": "The provider address redirected (to {{target}}), so the request was stopped to protect your key. Next: change the endpoint address to that address, then retry.",
     "customCall.previewFileTooLarge": "The test run received a file too large to preview as a data URL. Save it directly and verify it in a real task.",
     "customCall.emptyScript": "The script is empty. Write some code or ask AI to generate it first.",
+    "dreamina.invokeFailed": "Dreamina CLI invocation failed",
   },
 } as const;
 

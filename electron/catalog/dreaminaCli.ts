@@ -8,6 +8,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { desktopT } from "../desktopStrings";
 import { retryWithBackoff } from "../shared/retryPolicy";
 
 /** dreamina 可能的安装位（官方脚本默认 ~/.local/bin；homebrew/手动放 /usr/local/bin、/opt/homebrew/bin）。 */
@@ -138,7 +139,7 @@ export async function runDreaminaCli(args: string[], opts: DreaminaRunOptions = 
       });
     });
 
-  if (Number.isNaN(maxRetries)) throw new Error("即梦 CLI 调用失败");
+  if (Number.isNaN(maxRetries)) throw new Error(desktopT("dreamina.invokeFailed"));
   const retryTimeoutResult = new Error("Dreamina CLI returned a network timeout");
   return retryWithBackoff(async (attempt) => {
     const result = await runOnce(attempt - 1);
