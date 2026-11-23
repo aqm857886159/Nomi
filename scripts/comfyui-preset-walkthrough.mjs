@@ -1,4 +1,5 @@
 import { makeTempDir } from './_test-temp.mjs'
+import { openLocalComfyuiSettings, prepareWalkthroughWindow } from './lib/walkthroughHost.mjs'
 // R13 真机走查：ComfyUI 预置模板（WAN2.2）缺件**提示**（2026-08-11 起不再是死门）。
 // 场景：① 点开模板 → 缺 6 个模型（红 chip + 逐文件 ✗/目录/复制/下载链），按钮是「仍要启用」**不是置灰**；
 //       ② 点「仍要启用」→ 摊开风险 + 按钮变「确认启用」（二次确认，此时还没启用）；
@@ -89,21 +90,8 @@ const { app, win } = await launchNomiApp({
 })
 const errors = []
 try {
-  const bw = await app.browserWindow(win)
-  await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1440, height: 1000 })).catch(() => {})
-  win.on('pageerror', (e) => errors.push(String(e)))
-  win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
-
-  await win.getByRole('button', { name: '接入模型', exact: false }).first().click()
-  await win.waitForTimeout(1000)
-  await win.getByText('有本地 ComfyUI', { exact: false }).first().click()
-  await win.waitForTimeout(500)
-  await win.getByText('本地 ComfyUI', { exact: true }).first().click()
-  await win.waitForTimeout(400)
-  await win.getByRole('button', { name: '启用 ComfyUI', exact: false }).first().click()
-  await win.waitForTimeout(2200)
-  await win.getByText('本地 ComfyUI', { exact: true }).first().click()
-  await win.waitForTimeout(600)
+  await prepareWalkthroughWindow(app, win, { width: 1440, height: 1000 , errors })
+  await openLocalComfyuiSettings(win)
 
   // ── ① 缺件态：照说缺什么，但按钮点得动 ──
   await win.getByText('WAN2.2 图生视频 · 14B', { exact: false }).first().click()

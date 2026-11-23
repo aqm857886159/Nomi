@@ -4,6 +4,7 @@ import { makeTempDir } from './_test-temp.mjs'
 // 截图 + 打印错误卡的**真实 DOM 文案**，核对用户看到的是上游原话而不是「模型任务执行失败 (taskId=…)」。
 // 失败不计费（apimart credits_cost: 0）。用法：pnpm build 后 node scripts/failure-message-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { openBlankProjectCanvas, prepareWalkthroughWindow } from './lib/walkthroughHost.mjs'
 import { realNomiProfile, seedRealCredentials } from '../tests/ux/_realProfile.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -57,13 +58,8 @@ const { app, win } = await launchNomiApp({
 })
 let failed = false
 try {
-  const bw = await app.browserWindow(win)
-  await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1680, height: 1020 })).catch(() => {})
-
-  await win.getByText('新建空白项目', { exact: false }).first().click()
-  await win.waitForTimeout(2500)
-  await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click()
-  await win.waitForTimeout(1500)
+  await prepareWalkthroughWindow(app, win, { width: 1680, height: 1020, collectErrors: false })
+  await openBlankProjectCanvas(win, { projectSettleMs: 2500, workspaceScoped: true, canvasSettleMs: 1500 })
 
   await win.locator('[aria-label="添加图片节点"]').first().click()
   await win.waitForTimeout(1200)

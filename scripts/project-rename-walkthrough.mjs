@@ -3,6 +3,7 @@ import { makeTempDir } from './_test-temp.mjs'
 // 验证链：项目库 → 双击项目名 → 变输入框 → 改名 Enter → 卡片名更新 + 磁盘 project.json name 改了。
 // 用法：node scripts/project-rename-walkthrough.mjs（需先 pnpm build）
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { createWalkthroughScreenshotter, prepareWalkthroughWindow } from './lib/walkthroughHost.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -20,16 +21,12 @@ const { app, win } = await launchNomiApp({
   projectsDir,
   env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
 })
-const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
+const shot = createWalkthroughScreenshotter(outDir)
 const errors = []
 let failed = false
 
 try {
-  const bw = await app.browserWindow(win)
-  await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1600, height: 1000 })).catch(() => {})
-  win.on('pageerror', (e) => errors.push(String(e)))
-  win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
-  await win.waitForTimeout(1800)
+  await prepareWalkthroughWindow(app, win, { width: 1600, height: 1000, settleMs: 1800 , errors })
 
   // 建一个项目再回到项目库（让列表里有卡片可改名）
   await win.getByText('新建空白项目', { exact: false }).first().click()
