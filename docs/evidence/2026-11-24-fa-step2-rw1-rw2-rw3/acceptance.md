@@ -2,7 +2,7 @@ fa-step2-verify：通过
 
 - 验收线：fa-step2-verify
 - 实现线：fa-step2-impl
-- 验收 HEAD：0ccc7f47d102c8d274e4ea431158355d07e2e1e9
+- 验收 HEAD：5289daa0879640b91ce423a77aac5fc9e6d5268e
 - 关联任务：协作看板 #1586 · F-A 第二刀（`RW-1` + `RW-2` + `RW-3`）+ `U-2 ①`
 
 ## 1. 拍板要求逐项核对（`#1586`）
@@ -22,7 +22,7 @@ fa-step2-verify：通过
    - 已亲眼 `read_file` 核验中英 4 格回放拼图（归档于本目录 `zh-CN-replay.jpg`、`en-replay.jpg`）及全分辨率错误卡截图：中文卡展示「模型取不到参考图 / 模型读取参考图链接时失败了。点『重试』会再提交一次…」+「重试」，英文卡展示「The model could not fetch a reference image / Select Retry to submit again…」+「Retry」，中英双轨零串味、零重叠截断。
    - **路径隐私核查**：全量 diff 及本目录归档文档/图片含 **0 处**本机绝对路径或工作树路径泄露。
 
-## 2. 独立实跑命令与结果（均在 `0ccc7f47d102c8d274e4ea431158355d07e2e1e9` 实跑）
+## 2. 独立实跑命令与结果（均在 `5289daa0879640b91ce423a77aac5fc9e6d5268e` 实跑）
 
 ### 2.1 九套核心单测全绿（311/311）
 - 批次 A（`npx vitest run --maxWorkers=2`）：**4 passed / 127 passed**
