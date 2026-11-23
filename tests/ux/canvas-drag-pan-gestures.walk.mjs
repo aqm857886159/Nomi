@@ -968,8 +968,12 @@ try {
     .map((edge) => edge.getAttribute('data-edge-id')).filter((id) => id && !seeded.includes(id)), SEEDED_EDGE_IDS)
   const createdEdges = await ownEdgeIds()
   const edgeCount = createdEdges.length
-  assert(edgeCount >= 1, '图片节点连到了视频节点', `${edgeCount} 条边`)
-  OWN.edge = `.generation-canvas-v2__edge[data-edge-id="${createdEdges[0]}"]`
+  const expectedEdge = getWin().getByLabel(`Edge from ${ownId('image')} to ${ownId('video')}`, { exact: true })
+    .locator('.generation-canvas-v2__edge')
+  assert(edgeCount === 1 && await expectedEdge.count() === 1,
+    '图片节点只连到了指定的视频节点', JSON.stringify(createdEdges))
+  const edgeId = await expectedEdge.getAttribute('data-edge-id')
+  OWN.edge = `.generation-canvas-v2__edge[data-edge-id="${edgeId}"]`
   const connectedEdgeVisual = await getWin().evaluate((own) => {
     const image = document.querySelector(own.image)
     const video = document.querySelector(own.video)

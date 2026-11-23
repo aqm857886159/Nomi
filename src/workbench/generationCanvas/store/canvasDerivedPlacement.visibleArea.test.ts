@@ -16,7 +16,7 @@ function derive(sourceNodeId: string, kind: 'shot-table', nodeKind: 'shot_table'
 // 舞台尺寸是模块级发布值、没有撤销入口，所以这组单独一个文件（每个测试文件各有一份模块状态）。
 describe('派生节点落点 × 可见区', () => {
   beforeEach(() => {
-    publishCanvasStageSize({ width: 1680, height: 1000 })
+    publishCanvasStageSize({ width: 1680, height: 1000 }, { left: 0, top: 0, width: 1680, height: 1000 })
     seed([])
   })
 

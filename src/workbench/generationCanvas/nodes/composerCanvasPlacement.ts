@@ -63,3 +63,22 @@ export function composerFocusFootprint(kind: string): { gap: number; height: num
     ? { gap: TEXT_COMPOSER_GAP, height: TEXT_COMPOSER_FOCUS_HEIGHT }
     : { gap: NODE_COMPOSER_GAP, height: composerMaxHeight(kind) }
 }
+
+/**
+ * 文本加工框 / 其余底栏「刚新建那一刻」的真实高度上限，屏幕像素（走查 `new-node-composer-in-view` 真量：图片、视频底栏 214，
+ * 文本加工框 172；这里各多留不超过 24，两头由走查断言，数悄悄漂了就红）。
+ */
+const COMPOSER_INITIAL_HEIGHT = 220
+const TEXT_COMPOSER_INITIAL_HEIGHT = 176
+
+/**
+ * 新建落点要给底栏留多大地方：只留它刚建出来那一刻的高度，不留最坏高度——最坏高度（上面 `composerFocusFootprint`，对焦用）
+ * 让几乎所有窗口里新节点被提到舞台顶、标题小标签被切、小工具条压在节点上；底栏后来被撑高时被挡就挡（2026-09-25 用户拍板的位置规矩）。
+ * 没有生成框的 kind 返回 null。
+ */
+export function composerInitialFootprint(kind: string): { gap: number; height: number } | null {
+  if (!nodeHasGenerationComposer(kind)) return null
+  return kind === 'text'
+    ? { gap: TEXT_COMPOSER_GAP, height: TEXT_COMPOSER_INITIAL_HEIGHT }
+    : { gap: NODE_COMPOSER_GAP, height: COMPOSER_INITIAL_HEIGHT }
+}
