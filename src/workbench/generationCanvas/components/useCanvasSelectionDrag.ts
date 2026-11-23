@@ -258,10 +258,6 @@ export function useCanvasSelectionDrag({
           pointerId: event.pointerId,
           active: false,
           onCancel: settleDrag,
-          onEscape: () => {
-            if (draggingGroupRef.current) draggingGroupRef.current.moved = false
-            settleDrag()
-          },
         }),
         pointerId: event.pointerId,
         pointerCaptureTarget: event.currentTarget,

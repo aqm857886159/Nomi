@@ -1,9 +1,9 @@
 {
   "schema_version": 3,
   "id": "2026-11-24-canvas-undo-patches-and-gesture-invariants",
-  "problem_type": "Uncommitted gestures and discarded recovery material outlive their branch",
-  "symptom": "Returning a resize to its origin consumes Redo. Escape commits a drag. Discarding redo retains files due for recycling.",
-  "direct_cause": "Pointer-down creates a history entry before displacement. Only oldest-entry eviction notified the file owner.",
+  "problem_type": "Canvas edit history depends on the event prefix and keeps uncommitted edits or discarded recovery references",
+  "symptom": "Undo replays the event prefix. Returning a resize to its origin consumes Redo. Truncating Redo retains files due for recycling.",
+  "direct_cause": "The journal rebuilds state from a prefix, resize captured history before a final geometry change, and only oldest-entry eviction notified the file owner.",
   "class_root": "History ownership was tied to event positions and gesture initiation instead of committed edits and reachable recovery material.",
   "affected_population": [
     "Canvas creators resizing or dragging after Undo, including projects with landed generation media and deferred file cleanup."
@@ -12,7 +12,9 @@
     "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
     "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
-    "src/workbench/assets/pendingAssetDeletions.ts"
+    "src/workbench/assets/pendingAssetDeletions.ts",
+    "src/workbench/generationCanvas/events/canvasDocumentPatches.ts",
+    "src/workbench/generationCanvas/nodes/useNodeDragResize.ts"
   ],
   "entry_points": [
     "Node and group drag, resize, proposal compensation, explicit asset deletion and project hydration"
@@ -20,7 +22,9 @@
   "external_sources": [],
   "internal_only_reason": "Nomi owns paid-result retention, project liveness and the definition of a canvas edit. Immer supplies patch mechanics.",
   "invariants": [
-    "Only a committed displacement records a step. Every unreachable branch releases its recovery references. Undo preserves paid facts."
+    "One entity-addressed Immer forward/inverse patch step restores an edit without reading unrelated history. Restore preserves paid facts through landedNodeFields.",
+    "Capacity eviction and new edits that truncate Redo notify the same asset owner about discarded recovery references.",
+    "Resize preview is transient. Release commits one step when geometry changed. Returning to the origin records zero steps and preserves Redo."
   ],
   "doors": [
     {
@@ -137,14 +141,24 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
       "symbol": "popRedo"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/events/canvasDocumentPatches.ts",
+      "symbol": "produceWithPatches"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/events/canvasDocumentPatches.ts",
+      "symbol": "applyPatches"
     }
   ],
   "door_reduction": {
-    "before": 23,
-    "after": 23,
-    "why_not": "File liveness, pointer hosts, proposal receipts and document writeback are separate consumers of one history owner."
+    "before": 25,
+    "after": 25,
+    "why_not": "File liveness, pointer hosts, proposal receipts and document writeback consume one history owner. Producing a patch pair and applying one direction require separate Immer operations."
   },
-  "generality_proof": "User and agent edits share history steps. Both directions apply one step to the live graph. Eviction reports discarded material to the same file owner.",
+  "generality_proof": "User and agent edits share patch steps applied to the live graph. Both resize hosts compare final geometry with the origin before creating history. Both eviction paths report discarded material to the same file owner.",
   "shared_boundaries": [
     {
       "path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
@@ -155,6 +169,16 @@
       "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
       "symbol": "commitCanvasNodeDragStop",
       "responsibility": "Commit durable positions only for a live, displaced gesture."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "GenerationFlowNodeView",
+      "responsibility": "Keep React Flow resize preview transient and capture history only when final geometry differs from the origin."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeDragResize.ts",
+      "symbol": "useNodeDragResize",
+      "responsibility": "Preview standalone node resize and commit changed geometry on pointer release."
     }
   ],
   "same_class_entry_points": [
@@ -162,13 +186,25 @@
       "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
       "entry_point": "commitCanvasNodeDragStop",
       "disposition": "enforced",
-      "evidence": "A cancelled lease prevents the kernel stop event from committing."
+      "evidence": "The live lease owns pointer release. Escape during drag leaves the lease active. A displaced release creates one undo step."
     },
     {
       "path": "src/workbench/assets/pendingAssetDeletions.ts",
       "entry_point": "releaseEvictedAssetDeletions",
       "disposition": "enforced",
       "evidence": "Release uses remaining undo and project references before recycling a file."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "entry_point": "GenerationFlowNodeView",
+      "disposition": "enforced",
+      "evidence": "onResize updates preview and onResizeEnd compares against the starting geometry before capturing history."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeDragResize.ts",
+      "entry_point": "useNodeDragResize",
+      "disposition": "enforced",
+      "evidence": "Pointer moves update preview and pointer-up captures history only for changed geometry."
     }
   ],
   "recurrence_of": null,
@@ -176,19 +212,23 @@
     "classification": "recurring",
     "reason": "Every canvas gesture or redo branch can repeat the failure.",
     "same_class_scan": [
-      "door-map popUndo popRedo getUndoHeadToken registerUndoHistoryEvictionHandler readReachableUndoNodes commitCanvasNodeDragStop cancelCanvasNodeDrag"
+      "door-map popUndo popRedo getUndoHeadToken registerUndoHistoryEvictionHandler readReachableUndoNodes commitCanvasNodeDragStop cancelCanvasNodeDrag",
+      "door-map produceWithPatches applyPatches"
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
-    "invariant": "Discarding reachable history notifies the file owner on both capacity and branch replacement.",
-    "failure_mode": "A cancellation creates no step and live references veto recycling.",
+    "invariant": "Live graph edits use forward and inverse patches. Resize captures history only on changed release. Both eviction paths notify the asset owner.",
+    "failure_mode": "Unchanged geometry creates zero steps and live references veto recycling.",
     "exception_policy": "none",
     "strategy": "Detect displacement at release and expire unreachable steps at the history boundary.",
     "artifacts": [
       "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
-      "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts"
+      "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "src/workbench/generationCanvas/events/canvasDocumentPatches.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "src/workbench/generationCanvas/nodes/useNodeDragResize.ts"
     ]
   },
   "regression_tests": [
@@ -215,7 +255,8 @@
   },
   "migration": "History is scoped to the loaded project. Existing JSONL and snapshot formats are unchanged.",
   "residual_risks": [
-    "Native pointer dispatch and disk rollback require separate Electron verification."
+    "Native pointer dispatch and disk rollback require separate Electron verification.",
+    "The corrected Escape behavior is covered by browser group-drag and React Flow node-drag tests. Independent Electron verification at the repaired HEAD remains pending."
   ],
   "invariant_owner_layer": {
     "layer": "src/workbench/generationCanvas/events",

@@ -21,7 +21,7 @@
 | tldraw History | 手势可以 mark、squash 或 bail；远端写不录入，本地有 ignore 模式且可保留 redo。 | 确认运行进度/结果不占用户的一步，不冲掉 redo；取消拖拽不留可复活的半步。远端来源过滤本身处理不了 Nomi「撤创建时保住后来出图的容器」。[tldraw History](https://tldraw.dev/sdk-features/history) |
 | Yjs UndoManager | 可按 scope 和 trackedOrigins 选择事务，stopCapturing 显式切断合并。 | 确认用动作层、来源和事务身份判定边界。两次不同用户动作再近也分开，一笔跨异步提议按其事务结束；无协同文档迁移需求。[Yjs UndoManager](https://docs.yjs.dev/api/undo-manager) |
 
-出口： [tldraw bailToMark](https://tldraw.dev/sdk-features/history) · Esc 可丢弃进行中的交互并立刻继续编辑 · 确认取消只处理当前手势；Agent 整笔撤销遇同对象冲突沿用现有回执，保留后来编辑，用户可读当前状态后重新发起。没有新增锁或等待界面。
+出口： [tldraw bailToMark](https://tldraw.dev/sdk-features/history) · Esc 可丢弃进行中的交互并立刻继续编辑 · 支持取消的入口只处理当前手势；画布节点与组拖拽沿用松手提交的既有约定；Agent 整笔撤销遇同对象冲突沿用现有回执，保留后来编辑，用户可读当前状态后重新发起。没有新增锁或等待界面。
 
 **依赖准入。** 只下载查验了 zundo 2.3.0 发布物，未安装。npm 清单解包大小 61,105 B，发布的 ESM 为 3,831 B，原文件 `gzip -nc` 为 1,028 B；用本仓 esbuild 0.27.7 单文件 minify 后为 1,391 B，gzip 为 537 B（未含 peer），均不等于 Nomi 安装包增量。PR A 依本仓 immer/Zustand 的 `devDependencies` 分类锁定该版本，由 renderer 构建打包，复用一个 Zustand 实例，无主进程运行时目录或原生文件。对同基线构建比较 renderer chunk gzip、asar 和安装包；建议库本身 gzip 增量 ≤2 KiB，包装层另列。跑 `pnpm run check:packaged-deps`、`pnpm run check:package-budget` 并用实际产物跑 `scripts/audit-package.mjs`。遵守 `docs/engineering/package-budget.json` 两平台既有预算和 5% 余量；若包身份或体积异常，先查重复引入，不以加 runtimeAllowlist 或抬预算放行。
 
@@ -97,10 +97,21 @@
 
 | 正在做什么 | 停/Esc | 关窗 | 断网 | 重启 | 连点/重试 |
 |---|---|---|---|---|---|
-| 拖节点、trim、画笔、滚轮 | 当前可取消手势回到起点，独立编辑仍在；本地，查活动面 | 宿主结束/取消手势，保存已提交内容；本地，查工程 | 手势仍可结束；本地，查当前坐标/帧/笔画 | 装入工程，历史重新开始；本地，查工程 | 每个结束的手势最多一步，第二次 Undo 作用于上一笔；本地，查可见值 |
+| 画布节点与组拖拽 | 拖拽期间忽略 Escape；松手提交一次位移，可用 Undo 恢复起点；查坐标、revision 和历史 | 沿用宿主的结束规则；查工程 | 本地手势仍可结束；查坐标 | 装入工程，历史重新开始 | 一次 Undo 恢复起点；查坐标和历史 |
+| trim、画笔、滚轮 | 当前可取消手势回到起点，独立编辑仍在；本地，查活动面 | 宿主结束/取消手势，保存已提交内容；本地，查工程 | 手势仍可结束；本地，查当前坐标/帧/笔画 | 装入工程，历史重新开始；本地，查工程 | 每个结束的手势最多一步，第二次 Undo 作用于上一笔；本地，查可见值 |
 | 已提交编辑，同时运行在途或刚落地 | 撤编辑；停止生成仍用任务原入口，查原 Run | 按原保存/恢复协议，查工程及原 Run | 离线可撤；尚未返回的请求状态以原 Run 查证，不能写成失败 | 尾巴后再建空栈，查节点/原 Run | Undo/Redo 均保版本与运行身份，查原 Run 与版本列表 |
 | Agent preparing/committed/undoing | 原事务协调器仲裁、必要时补偿，查绑定回执；原 Run | 重开后由回执状态决定恢复，查 operationId；原 Run | IPC/连接不可确认时回读再裁决，查回执；原 Run | 同项目读持久 receipt，不复活本地栈，查绑定/版本；原 Run | 同 operationId 幂等；过期/不同目标不给别的调用代撤，查回执与工程；原 Run |
 | 项目切换、待删资产 | 切换未生效前仍由原代次负责；本地，查项目文件 | 已登记待删跟项目保存，回收仍由资产 owner 负责；本地，查待删清单 | 本地检查可达与活引用；查文件/清单 | 读原项目 persisted pending，按原来源/活引用判定；本地，查实际文件 | 旧 promise/淘汰回调仅对发起项目有效；本地，查 A/B 两边 |
+
+### PR 6C 的 CI 回归修正
+
+创作者要在拖拽过程中按下 Escape 后仍能松手完成位移，并用一次 Undo 回到起点。已有浏览器契约由 selection-drag-lifecycle.test.mjs 守住。CI 45281591359 同时发现行为回归和租约与快捷键路由之间的静态循环。租约与快捷键路由的职责以 canvas.gesture-lifetime 的登记为准。door-map 找到七个租约生产入口，其中独立节点、React Flow 节点和组框共用租约。
+
+保留 Escape 取消并拆依赖仍会改变手势约定；把取消移到各调用者会增加另一套事件所有权。删除新增的键盘接线，恢复租约边界。最早应拦在实现线验收，特征测试曾把 Escape 取消误写成验收成功，已有浏览器用例和静态边界门岗到 CI 才给出相反结果。
+
+6C 保留三项修复。Immer 正反补丁替换 canvasUndoJournal.ts 的日志前缀重放。截断 redo 与容量淘汰共用回收通知。缩放移动时更新预览，松手提交一次，回到原点时保留原 redo。已落地付费事实继续由 landedNodeFields 保留，磁盘格式沿用既有契约。
+
+验收用 check-boundaries.mjs 检查静态环，用浏览器组拖拽与 React Flow 节点特征测试检查 Escape 后松手的位移、单步提交和一次 Undo。空操作、取消拖拽、提前或重复写入都会失败。容量淘汰和 redo 截断分别验证回收通知；缩放提交和原点往返分别验证写入与零步；十次 Undo 验证已落地付费事实。合并保留主线的 525 行冻结上限，节点外壳直接读取预览坐标与尺寸以保持在预算内。原 Escape 取消桌面记录属于修正前版本，修正后的独立桌面验收待接手。合同复查日为 2026-12-24，量具为上述两条 CI 回归用例及静态边界门岗，任一再红即重开。
 
 ## ★6 外部数据与失败
 
@@ -148,7 +159,7 @@
 |---|---|---|
 | 画布参数/提示词、移动、连线、删他节点，之后图片/视频、找回、文本定稿/选区改写等异步落地；先撤再落地再重做 | 修改确实撤回，主图 URL/assetId、唯一版本、尺寸和文本完整；运行中、失败、完成的 runId/status/进度不倒走。比对 Run 事件无第二次提交/回扣。手动删版本/设主图或本地裁剪仍能撤，后来产物仍在。 | `undoKeepsLandedResults.test.ts`、`wholeWriteKeepsFacts.test.ts`、`externalCanvasWriteKeepsLanded.test.ts`；真窗口任务 A |
 | 手建/Agent 批建/复制组 × 有无付费落地，节点缺席时晚到；显式删后重做 | 有结果的容器留下且无悬空组/边，未落地兄弟能撤；撤显式删带回原版本与 held 一次，重做显式删仍生效。时间轴恢复对应 clip；Production detach/reattach 信号只随原意图与项目。 | `deletedNodeArrivingOutcome.test.ts`、`productionCanvasHistorySignals.test.ts`、`storyboardDeleteUndoClips.test.ts`、`tests/ux/p4-s5-canvas-landing.e2e.mjs` |
-| 连续首动/松手、零位移、Esc、blur、模态、Alt 复制、群组、键盘、嵌套与字段切换 | 满 200+ 节点仍一步；连续两笔各退一次，取消后 redo 不会复活半截或抹去无关编辑。导演台播放/预览仍合法；白板第 51 次及分支重做在内层停止。 | `timelineGesture.test.ts`、`timelineUndo.test.ts`、`directorStore.test.ts`、`tests/ux/whiteboard-refactor.walk.mjs` + ★7 |
+| 连续首动/松手、零位移、Esc、blur、模态、Alt 复制、群组、键盘、嵌套与字段切换 | 满 200+ 节点仍一步；连续两笔各退一次。画布节点与组按 Escape 后仍在松手提交一次，缩放回原点保留 redo；支持取消的入口取消后 redo 不会复活半截或抹去无关编辑。导演台播放/预览仍合法；白板第 51 次及分支重做在内层停止。 | `timelineGesture.test.ts`、`timelineUndo.test.ts`、`directorStore.test.ts`、`tests/ux/whiteboard-refactor.walk.mjs` + ★7 |
 | Agent 说“撤这笔”、工具/卡/回执/直接 changeId；提案中途被接管、丢 ack、旧 binding、同对象后改、其他对象后改、嵌入导演未 flush | 原判据允许时只撤指定对象，拒绝时当前画面不动，不泄漏半批；重启仅恢复合法持久回执；时间轴授权必须同时对上顶条与当前 revision。采纳验证失败不得留幽灵步或吞旧 redo。 | `proposalTxn.property.test.ts`、`proposalUndo.test.ts`、`proposalUndoReceiptLifecycle.test.ts`、`proposalUndo.embeddedEditor.test.ts`、`timelineCapabilityTarget.test.ts`、`laneReceiptUndo.test.ts` |
 | 资产只在可达历史、同时被别处引用、80→81 步淘汰、redo 分支被截、A→B→A、旧回调晚到 | 能撤时文件可打开；不可达后由资产 owner 复查；另有分镜/素材/轨道引用就不回收。B 的 undo/redo 均不碰 A 或 A 的 Run。 | `deleteAssetResult.realStore.test.ts`、`assetDeletionMatrix.test.ts`、`assetLivenessScan.test.ts`、`tests/ux/asset-liveness-storyboard-ref.walk.mjs` |
 | 正式旧工程缺 seq/seq=0、正 seq + 尾巴、重复/撕裂末行、含 sidecar、hydrate IPC 中途换项目、退版 | 校验节点/边/组、镜号、顺序、版本、工程 meta、文件、待删项和 receipt；第一步编辑撤回打开态。旧读者可读新保存与旧回执，磁盘无新增历史格式。 | ★4 的正式样本；`workbenchProjectSession.hydration.test.ts`、`shotNumberingLegacyReplay.test.ts`、`canvasEventReplay.property.test.ts`、`eventLogRepository.test.ts`；桌面旧→新→旧 |

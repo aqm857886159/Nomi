@@ -140,7 +140,6 @@ function BaseGenerationNodeImpl({
   // 可视尺寸（卡片固定宽 / 动态高）的单一真相源 resolveNodeVisualSize——连线锚点 / 最小地图 /
   // fitView 与本外壳共用同一函数，避免名义 size 与渲染尺寸两套真相源（连线起笔飘在节点外的根因）。
   const visualSize = resolveNodeVisualSize(node)
-  const previewHeight = visualSize.height
   const { preview, flowManagedDrag: flowManagedLayout, handlePointerDown, handlePointerMove, handlePointerUp, handleResizePointerDown } = useNodeDragResize({ reportFeedback,
     node,
     selected,
@@ -155,6 +154,7 @@ function BaseGenerationNodeImpl({
     updateNode,
     commitPersistedChange,
   })
+  const { x, y } = preview?.position ?? node.position
   const isGenerating = status === 'queued' || status === 'running'
   // 2026-09-05：这几条的 zh+en 词条一直都在，只是渲染处写死了中文（英文界面恒显中文），现接回词条。
   const sourceNodeLabel = sourceNodeTitle || (node.derivedFrom && !sourceNodeExists ? t('generationCommon.node.sourceMissing') : node.derivedFrom || '')
@@ -206,10 +206,9 @@ function BaseGenerationNodeImpl({
       data-appear={appear ? 'true' : undefined}
       data-status={status}
       style={{
-        transform: flowManagedLayout ? undefined : `translate(${preview?.position.x ?? node.position.x}px, ${preview?.position.y ?? node.position.y}px)`,
-        width: preview?.size?.width ?? visualSize.width,
-        height: preview?.size?.height ?? visualSize.height,
-        gridTemplateRows: `${previewHeight}px`,
+        transform: flowManagedLayout ? undefined : `translate(${x}px, ${y}px)`,
+        ...(preview?.size ?? visualSize),
+        gridTemplateRows: `${visualSize.height}px`,
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -324,7 +323,7 @@ function BaseGenerationNodeImpl({
                 nodeId={node.id}
                 imageUrl={(node.result?.url || node.meta?.imageUrl) as string}
                 width={visualSize.width}
-                height={previewHeight}
+                height={visualSize.height}
                 onEnterFullscreen={panoramaFullscreen.onEnterFullscreen}
                 onScreenshot={handlePanoramaScreenshot}
               />

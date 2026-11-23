@@ -297,13 +297,12 @@ describe('React Flow resize history', () => {
   })
 })
 
-it('Escape on the active drag host cancels writeback and preserves the previous redo', () => {
+it('ignores Escape during a node drag and commits once on release, undoable', () => {
   open()
-  editPrompt('future')
-  canvas().undo()
   const original = node('paid')!.position
   const draggedNode = { ...toGenerationFlowNode(node('paid')!, true, false), position: { x: 310, y: 96 } }
   const draggingRef = { current: true }
+  const commitPersistedChange = vi.fn(canvas().commitPersistedChange)
   const stage = { closest: (selector: string) => selector.includes('false') ? null : stage, contains: () => true, getAttribute: () => null, setAttribute() {}, removeAttribute() {} } as unknown as Element
   const host = new EventTarget()
   vi.stubGlobal('window', host)
@@ -313,16 +312,22 @@ it('Escape on the active drag host cancels writeback and preserves the previous 
   })
   try {
     host.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { key: 'Escape' }))
+    expect(draggingRef.current).toBe(true)
+    expect(node('paid')?.position).toEqual(original)
+    expect(canvas().canUndo).toBe(false)
+    expect(commitPersistedChange).not.toHaveBeenCalled()
     commitCanvasNodeDragStop({
       event: { clientX: 20, clientY: 20 } as MouseEvent, draggedNode, draggedNodes: [draggedNode],
       readOnly: false, t: vi.fn() as never, draggingRef, dragDraftNodesRef: { current: [draggedNode] },
       dragStartPositionsRef: { current: new Map([['paid', original]]) },
-      moveNode: canvas().moveNode, commitPersistedChange: canvas().commitPersistedChange,
+      moveNode: canvas().moveNode, commitPersistedChange,
     })
+    expect(commitPersistedChange).toHaveBeenCalledTimes(1)
+    expect(node('paid')?.position).toEqual(draggedNode.position)
+    expect(canvas().canUndo).toBe(true)
+    canvas().undo()
     expect(node('paid')?.position).toEqual(original)
     expect(canvas()).toMatchObject({ canUndo: false, canRedo: true })
-    canvas().redo()
-    expect(node('paid')?.prompt).toBe('future')
   } finally { lease.release(); vi.unstubAllGlobals() }
 })
 
