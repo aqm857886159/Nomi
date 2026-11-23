@@ -30,10 +30,10 @@ export const generationResolveInputSchema = z.object({
   goals: z.object({ allowAdvisoryMerge: z.boolean().optional() }).strict().optional(),
 }).strict();
 
-export type GenerationResolveInput = z.infer<typeof generationResolveInputSchema>;
+type GenerationResolveInput = z.infer<typeof generationResolveInputSchema>;
 
 /** schema 里的一镜——与 `PlanShotInput` 逐键相等（下面两条编译期守卫）。 */
-export type GenerationResolveShotInput = GenerationResolveInput["shots"][number];
+type GenerationResolveShotInput = GenerationResolveInput["shots"][number];
 
 // 逐键对账（编译期，两个方向）：`PlanShotInput` 是引擎的输入类型、渲染层投影（storyboardPlanToPlanShotInputs）
 // 按它产出；这份 schema 是主进程的接受集合，而且是 `.strict()`。两边各写一份字段表，只要有一边多一个键：
@@ -190,12 +190,3 @@ export const GENERATION_CONTROL_CAPABILITY = {
   requiredScope: "generation:control",
   targetKind: "generation",
 } as const satisfies CapabilityContract<unknown, unknown>;
-
-export const GENERATION_CAPABILITIES = Object.freeze([
-  GENERATION_CONTEXT_READ_CAPABILITY,
-  GENERATION_PLAN_CAPABILITY,
-  GENERATION_RESOLVE_CAPABILITY,
-  GENERATION_GATE_CAPABILITY,
-  GENERATION_RUN_READ_CAPABILITY,
-  GENERATION_CONTROL_CAPABILITY,
-] as const);

@@ -18,9 +18,9 @@ import { COMFYUI_VENDOR_KEY, isComfyuiVendor } from "./catalog/types";
 import { COMFYUI_CLIENT_FEATURE_FLAGS, getComfyuiClientId } from "./comfyui/clientSession";
 import { comfyuiEndpoint, comfyuiJobCancelEndpoint, comfyuiWebSocketUrl } from "./comfyui/endpointResolver";
 
-export const COMFYUI_PROGRESS_CHANNEL = "nomi:tasks:comfyui:progress";
+const COMFYUI_PROGRESS_CHANNEL = "nomi:tasks:comfyui:progress";
 
-export type ComfyuiProgressEvent = {
+type ComfyuiProgressEvent = {
   promptId: string;
   nodeId: string;
   projectId: string;
@@ -392,7 +392,7 @@ export function unwatchComfyuiTask(promptId: unknown): void {
  *    所以旧服兜底改成**两条都发**：/interrupt 管运行中、/queue delete 管排队中，
  *    各自不适用时都是 no-op，谁成了都算取消成功。
  */
-export type ComfyuiCancelResult = { ok: boolean; mode: "targeted" | "nothing-to-cancel" | "legacy" | "failed" };
+type ComfyuiCancelResult = { ok: boolean; mode: "targeted" | "nothing-to-cancel" | "legacy" | "failed" };
 
 export async function cancelComfyuiPrompt(
   baseUrl: string,
@@ -430,15 +430,4 @@ export async function interruptComfyuiTask(promptId: unknown): Promise<ComfyuiCa
   if (!id) return { ok: false, mode: "failed" };
   const baseUrl = registry.get(id)?.baseUrl || comfyuiBaseUrl();
   return cancelComfyuiPrompt(baseUrl, id);
-}
-
-/** 测试钩子。 */
-export function _resetComfyuiProgressForTest(): void {
-  registry.clear();
-  for (const [base] of socketsByBase) closeSocketIfIdle(base);
-  socketsByBase.clear();
-  currentPromptByBase.clear();
-}
-export function _registrySizeForTest(): number {
-  return registry.size;
 }

@@ -39,7 +39,7 @@ function scheduleIdleClose(base: string): void {
   holder.timer.unref?.();
 }
 
-export function closeConverterWindow(base: string): void {
+function closeConverterWindow(base: string): void {
   const holder = windowsByBase.get(normalizeBase(base));
   if (!holder) return;
   windowsByBase.delete(normalizeBase(base));
@@ -47,10 +47,6 @@ export function closeConverterWindow(base: string): void {
   try {
     if (!holder.win.isDestroyed()) holder.win.destroy();
   } catch { /* 已销毁 */ }
-}
-
-export function closeAllConverterWindows(): void {
-  for (const base of [...windowsByBase.keys()]) closeConverterWindow(base);
 }
 
 function ensureWindow(base: string): Holder {
@@ -121,7 +117,7 @@ function ensureWindow(base: string): Holder {
   return holder;
 }
 
-export type GraphConvertResult =
+type GraphConvertResult =
   | { ok: true; api: Record<string, unknown>; nodeCount: number }
   | { ok: false; error: string };
 
