@@ -17,6 +17,7 @@ const SAMPLE: Record<DerivedOutputKind, { source: GenerationCanvasNode; target: 
   'shot-table': { source: node('s', 'video', { result: videoResult }), target: 'shot_table', wrongSource: 'text', wrongTarget: 'asset' },
   'video-frame': { source: node('s', 'video', { result: videoResult }), target: 'image', wrongSource: 'text', wrongTarget: 'video' },
   'video-trim': { source: node('s', 'video', { result: videoResult }), target: 'video', wrongSource: 'text', wrongTarget: 'image' },
+  'video-depth': { source: node('s', 'video', { result: videoResult }), target: 'video', wrongSource: 'text', wrongTarget: 'image' },
 }
 
 describe('derived output rules', () => {
@@ -58,7 +59,7 @@ describe('no forgeable provenance identity exists', () => {
   })
 })
 
-describe('the five producers use the atomic action', () => {
+describe('the producers use the atomic action', () => {
   const read = (rel: string) => readFileSync(new URL(`../${rel}`, import.meta.url), 'utf8')
   it.each([
     ['nodes/useNodePanoramaHandlers.ts', "'panorama-screenshot'"],
@@ -66,6 +67,9 @@ describe('the five producers use the atomic action', () => {
     ['nodes/whiteboard/InlineWhiteboard.tsx', "'whiteboard-snapshot'"],
     ['nodes/ClipNode.tsx', "'clip-export'"],
     ['nodes/shotTable/factBridge.ts', "'shot-table'"],
+    ['nodes/extractVideoFrameToNode.ts', "'video-frame'"],
+    ['nodes/trimVideoToNode.ts', "'video-trim'"],
+    ['videoDepth/startVideoDepthDerivation.ts', "'video-depth'"],
   ])('%s calls addDerivedOutput with %s', (rel, kind) => {
     const source = read(rel)
     expect(source).toContain('addDerivedOutput(')

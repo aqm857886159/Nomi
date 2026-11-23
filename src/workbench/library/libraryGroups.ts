@@ -3,10 +3,20 @@ import type { SkillCuration } from '../../../electron/shared/skillCuration'
 export type LibraryCategory = { id: string; label: string }
 export type LibraryGroup<T> = { id: string; label?: string; items: T[]; collapsed: boolean }
 
+const LOCALIZED_SOURCE_LABELS: Readonly<Record<string, { readonly 'zh-CN': string; readonly en: string }>> = {
+  'builtin-expressions': { 'zh-CN': '表情预设', en: 'Expressions' },
+  'imgedify-gpt4o': { 'zh-CN': 'GPT-4o 图像', en: 'GPT-4o Image' },
+  'sora-official': { 'zh-CN': 'Sora 官方', en: 'Sora Official' },
+}
+
 /** C20: category identity comes from declared metadata, never title heuristics. */
 export function libraryGroup(item: { curation?: SkillCuration; sourceId?: string; source?: string; origin?: string }, language: string): LibraryCategory | undefined {
-  if (item.curation) return { id: `category:${item.curation.group.en}`, label: item.curation.group[language.startsWith('zh') ? 'zh-CN' : 'en'] }
-  if (item.origin === 'public' && item.sourceId && item.source) return { id: `source:${item.sourceId}`, label: item.source }
+  const locale = language.startsWith('zh') ? 'zh-CN' : 'en'
+  if (item.curation) return { id: `category:${item.curation.group.en}`, label: item.curation.group[locale] }
+  if (item.origin === 'public' && item.sourceId && item.source) {
+    const localized = LOCALIZED_SOURCE_LABELS[item.sourceId]
+    return { id: `source:${item.sourceId}`, label: localized ? localized[locale] : item.source }
+  }
   return undefined
 }
 

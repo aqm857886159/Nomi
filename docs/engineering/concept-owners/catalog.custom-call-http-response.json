@@ -1,0 +1,41 @@
+{
+  "name": "自定义调用脚本的 HTTP 响应按媒体类型解码与沙盒字节传递",
+  "subject": "catalog.custom-call-http-response",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/customCallRunner.ts",
+    "symbol": "decodeCustomCallHttpResponse"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "decodeCustomCallHttpResponse"
+    },
+    {
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "runCustomCallScript"
+    },
+    {
+      "path": "electron/catalog/customCallSandbox.ts",
+      "symbol": "runCustomCallSandbox"
+    },
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "requestBinary"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/customCallTextAndFile.test.ts",
+  "allowed_consumers": [
+    "electron/catalog/customCallRunner.ts",
+    "electron/catalog/customCallSandbox.ts",
+    "electron/catalog/customCallDispatch.ts",
+    "electron/catalog/customCallIpc.ts"
+  ],
+  "since": "2026-11-22",
+  "notes": "自定义调用脚本的 http / request 统一经 vendorHttp.requestBinary（含 FormData multipart）读取原始字节与 Content-Type，再由 decodeCustomCallHttpResponse 唯一按标准媒体类型解码：JSON 媒体类型解析成对象，文本媒体类型按 UTF-8 返回（兼容标成 text/plain 的 JSON 中转），二进制媒体类型原样保留字节并由 QuickJS newArrayBuffer / getArrayBuffer 还原为 Uint8Array 交给 saveFile，绝不走 UTF-8 解码损坏字节或走 JSON 数字数组撑爆沙盒内存。"
+}

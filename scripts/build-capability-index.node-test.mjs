@@ -45,14 +45,30 @@ describe('按目标路径筛选', () => {
     assert.equal(buildCapabilityIndex({ concepts, frameworks, targetRel: 'scripts/x.mjs' }).text, '')
   })
 
-  test('命中少于 3 条 → 追加一行运行时依赖名（确定、永远完整）；够 3 条就不追加', () => {
+  test('热点目录与稀疏目录都展示可复用生产依赖（含前端 devDependencies），不再因 total >= 3 藏掉现成库', () => {
     const dependencies = ['ai', '@ai-sdk/openai', 'zod']
-    const thin = buildCapabilityIndex({ concepts, frameworks, dependencies, targetRel: 'electron/ai/new.ts' })
-    assert.match(thin.text, /package\.json 运行时依赖（先看有没有现成的）：ai、@ai-sdk\/openai、zod/)
-    assert.equal(thin.dependencies, 3)
+    const frontendDependencies = ['@mantine/hooks', 'swr']
+    const thin = buildCapabilityIndex({ concepts, frameworks, dependencies, frontendDependencies, targetRel: 'electron/ai/new.ts' })
+    assert.match(thin.text, /package\.json 可复用生产依赖（含前端已装库）：ai、@ai-sdk\/openai、zod/)
+    assert.match(thin.text, /@mantine\/hooks/)
+    assert.ok(thin.dependencies >= 3)
     const many = Array.from({ length: 4 }, (_, i) => concept(`c.${i}`, `electron/agentLane/file${i}.ts`))
-    const full = buildCapabilityIndex({ concepts: many, frameworks, dependencies, targetRel: 'electron/agentLane/new.ts' })
-    assert.doesNotMatch(full.text, /运行时依赖/)
+    const full = buildCapabilityIndex({ concepts: many, frameworks, dependencies, frontendDependencies, targetRel: 'electron/agentLane/new.ts' })
+    assert.match(full.text, /通用能力现成库 \/ 唯一主人/)
+    assert.match(full.text, /package\.json 可复用生产依赖/)
+  })
+
+  test('支持 --topic 按主题查现成库 + 反查 consumers/doors 直接关联本文件的唯一主人', () => {
+    const byTopic = buildCapabilityIndex({ ...real, topic: 'cache' })
+    assert.match(byTopic.text, /swr/)
+    assert.ok(byTopic.bytes <= DEFAULT_MAX_BYTES)
+    const withConsumer = [
+      { subject: 'demo.owner', name: '演示唯一主人', owner: { path: 'electron/shared/owner.ts', symbol: 'decide' }, consumers: ['electron/agentLane/laneSkillCatalog.mts'] },
+    ]
+    const direct = buildCapabilityIndex({ concepts: withConsumer, frameworks: [], dependencies: ['p-limit'], frontendDependencies: ['swr'], targetRel: 'electron/agentLane/laneSkillCatalog.mts' })
+    assert.match(direct.text, /直接关联本文件的唯一主人/)
+    assert.match(direct.text, /electron\/shared\/owner\.ts#decide/)
+    assert.equal(direct.directOwners, 1)
   })
 
   test('依赖名这一行也守总长上限（先砍它，再砍别的）', () => {
@@ -83,12 +99,13 @@ describe('大目录不再给空清单（大目录最容易长轮子）', () => {
   // 两个分支都要有东西给：登记没覆盖的目录列出 package.json 运行时依赖；登记了主人的目录列出已有 owner。
   // electron/ai 在 2026-10-21 文本任务迁 pi-ai 时登记了 model-call.* 几个概念，从前一支挪到后一支；ai / @ai-sdk/* 依赖
   // 同时删掉，依赖名改用还在的 @earendil-works/pi-ai 核对。
-  test('真实登记表下，登记没覆盖的目录（electron/mcp、src/workbench/canvas）至少给出依赖名', () => {
+  test('真实登记表下，登记没覆盖的目录（electron/mcp、src/workbench/canvas）至少给出依赖名与前端已装库', () => {
     for (const target of ['electron/mcp/x.ts', 'src/workbench/canvas/x.ts']) {
       const result = buildCapabilityIndex({ ...real, targetRel: target })
       assert.ok(result.text.length > 0, `${target} 清单是空的`)
-      assert.match(result.text, /package\.json 运行时依赖/)
-      assert.match(result.text, /@earendil-works\/pi-ai/)
+      assert.match(result.text, /package\.json 可复用生产依赖/)
+      if (target.startsWith('electron/')) assert.match(result.text, /@earendil-works\/pi-ai/)
+      else assert.match(result.text, /@mantine\/hooks/)
     }
   })
 

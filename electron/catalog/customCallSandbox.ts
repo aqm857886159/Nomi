@@ -10,7 +10,8 @@ const SANDBOX_STACK_LIMIT_BYTES = 1024 * 1024;
 const HOST_ERROR_MARKER = "__NOMI_CAPABILITY_ERROR__";
 
 type HostRequest = (init: Record<string, unknown>) => Promise<unknown>;
-type HostSaveFile = (input: { bytes: number[]; ext: string; contentType: string }) => Promise<string>;
+type HostSaveFile = (input: { bytes: Uint8Array; ext: string; contentType: string }) => Promise<string>;
+type HostWirePayload = { kind: "json"; wire: string } | { kind: "bytes"; buffer: ArrayBuffer };
 
 export type CustomCallSandboxInput = {
   script: string;
@@ -61,6 +62,7 @@ const __nomiJoinUrl = (path) => {
   return base + (part.startsWith("/") ? "" : "/") + part;
 };
 const __nomiUnwrap = (wire) => {
+  if (wire instanceof ArrayBuffer) return new Uint8Array(wire);
   const envelope = JSON.parse(wire);
   if (!envelope.ok) throw new Error(${JSON.stringify(HOST_ERROR_MARKER)} + envelope.errorId + ":" + envelope.message);
   return envelope.value;
@@ -123,10 +125,18 @@ const saveFile = async (bytes, ext, contentType) => {
   let view;
   if (bytes instanceof ArrayBuffer) view = new Uint8Array(bytes);
   else if (ArrayBuffer.isView(bytes)) view = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  else if (Array.isArray(bytes)) view = Uint8Array.from(bytes);
+  else if (Array.isArray(bytes)) {
+    for (let i = 0; i < bytes.length; i++) {
+      const b = bytes[i];
+      if (!Number.isInteger(b) || b < 0 || b > 255) throw new Error("saveFile bytes 无效");
+    }
+    view = Uint8Array.from(bytes);
+  }
   else throw new TypeError("saveFile bytes 必须是 ArrayBuffer、Uint8Array 或数字数组");
-  return __nomiUnwrap(await __nomiHostSaveFile(JSON.stringify({
-    bytes: Array.from(view),
+  const rawBuffer = view.byteOffset === 0 && view.byteLength === view.buffer.byteLength
+    ? view.buffer
+    : view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength);
+  return __nomiUnwrap(await __nomiHostSaveFile(rawBuffer, JSON.stringify({
     ext: typeof ext === "string" ? ext : "bin",
     contentType: typeof contentType === "string" ? contentType : "application/octet-stream",
   })));
@@ -190,14 +200,21 @@ export async function runCustomCallSandbox(input: CustomCallSandboxInput): Promi
   const pendingHostPromises = new Set<QuickJSDeferredPromise>();
   const hostErrors = new Map<string, unknown>();
   let nextErrorId = 0;
-  const envelope = async (run: () => Promise<unknown>): Promise<string> => {
+  const envelope = async (run: () => Promise<unknown>): Promise<HostWirePayload> => {
     try {
-      return JSON.stringify({ ok: true, value: await run() });
+      const value = await run();
+      if (value instanceof ArrayBuffer) return { kind: "bytes", buffer: value.slice(0) };
+      if (ArrayBuffer.isView(value)) {
+        const ab = new ArrayBuffer(value.byteLength);
+        new Uint8Array(ab).set(new Uint8Array(value.buffer, value.byteOffset, value.byteLength));
+        return { kind: "bytes", buffer: ab };
+      }
+      return { kind: "json", wire: JSON.stringify({ ok: true, value }) };
     } catch (error) {
       const errorId = String(++nextErrorId);
       hostErrors.set(errorId, error);
       const message = input.redact(error instanceof Error ? error.message : String(error));
-      return JSON.stringify({ ok: false, errorId, message });
+      return { kind: "json", wire: JSON.stringify({ ok: false, errorId, message }) };
     }
   };
 
@@ -207,13 +224,16 @@ export async function runCustomCallSandbox(input: CustomCallSandboxInput): Promi
     context.runtime.setMaxStackSize(SANDBOX_STACK_LIMIT_BYTES);
     context.runtime.setInterruptHandler(() => input.signal.aborted || Date.now() >= input.deadlineAt);
 
-    const hostPromise = (run: () => Promise<string>): QuickJSHandle => {
+    const hostPromise = (run: () => Promise<HostWirePayload>): QuickJSHandle => {
       const deferred = context!.newPromise();
       pendingHostPromises.add(deferred);
       void run()
-        .then((wire) => {
+        .then((payload) => {
           if (!context?.alive || !deferred.alive) return;
-          context.newString(wire).consume((value) => deferred.resolve(value));
+          const handle = payload.kind === "bytes"
+            ? context.newArrayBuffer(payload.buffer)
+            : context.newString(payload.wire);
+          handle.consume((value) => deferred.resolve(value));
         })
         .catch((error) => {
           if (!context?.alive || !deferred.alive) return;
@@ -269,16 +289,14 @@ export async function runCustomCallSandbox(input: CustomCallSandboxInput): Promi
     setGlobalFunction(
       context,
       "__nomiHostSaveFile",
-      context.newFunction("__nomiHostSaveFile", (payload) => {
-        const wire = context!.getString(payload);
+      context.newFunction("__nomiHostSaveFile", (bufferHandle, metaHandle) => {
+        const copied = context!.getArrayBuffer(bufferHandle).consume((buf) => Uint8Array.from(buf.value));
+        const wire = context!.getString(metaHandle);
         return hostPromise(() =>
           envelope(async () => {
-            const parsed = JSON.parse(wire) as { bytes?: unknown; ext?: unknown; contentType?: unknown };
-            if (!Array.isArray(parsed.bytes) || !parsed.bytes.every((value) => Number.isInteger(value) && value >= 0 && value <= 255)) {
-              throw new Error("saveFile bytes 无效");
-            }
+            const parsed = JSON.parse(wire) as { ext?: unknown; contentType?: unknown };
             return input.saveFile({
-              bytes: parsed.bytes as number[],
+              bytes: copied,
               ext: typeof parsed.ext === "string" ? parsed.ext : "bin",
               contentType: typeof parsed.contentType === "string" ? parsed.contentType : "application/octet-stream",
             });

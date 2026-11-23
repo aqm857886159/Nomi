@@ -5,7 +5,9 @@
 // 路由 / 规则与门岗范围仍在 scripts/pr-judgement-lib.mjs（本模块在它之上叠设计卡等判据，并给一个总入口 evaluatePrBody）。
 import { classCheckErrors, contractErrors, escapeIdOfPath, fixedTransitions } from './escape-ledger-lib.mjs'
 import { checkPrBoardClaims, parsePrBoardClaims } from './check-board-parity.mjs'
-import { approvalCommand, boardApprovalSubject, describeBoardDiff, describeSuppressionGrowth, suppressionApprovalSubject, SUPPRESSIONS_FILE } from './lib/coordApprovals.mjs'
+import { approvalCommand, boardApprovalSubject, checkSuppressionContracts, describeBoardDiff } from './lib/coordApprovals.mjs'
+
+export { checkSuppressionContracts }
 import { pinScenarioPolicy } from './perf-scenarios-lib.mjs'
 import { localEvidenceInputs } from './lib/prEvidenceInputs.mjs'
 import { deriveUiVerification, evaluatePrJudgement, evaluateProcessTier, evidenceJudgementEnforced, extractSection, inferRoutes, loadRoutingTable, PROCESS_TIERS, processTieringEnforced, REAL_SCENE_SECTION, realSceneVerdict } from './pr-judgement-lib.mjs'
@@ -234,32 +236,6 @@ export function checkBoardContracts({ strict = false, boards = null, baseBoards 
     } else lines.push(`⚠ 拍板图 ${name} ${describeBoardDiff(subject)}：待协调确认（本机 merge-preflight 核；确认命令 ${command}）`)
   }
   return { ok, lines }
-}
-
-/**
- * ESLint 批量抑制的冻结数上涨（2026-10-22 协调定，同拍板图 / 性能政策）：冻结数只许减少，涨了要协调确认，哈希绑上涨那部分 diff。
- * 推送前（lint:changed）读本机确认记录直接判；这里给 CI 和合并前扫描：CI 读不到记录只提示「待协调确认」，合并前扫描没有记录就红。
- * suppressions / baseSuppressions = eslint-suppressions.json 的内容（对象，或返回它的函数；null = 取不到；文件不存在 = {}）；
- * 两个都没给（undefined）= 调用方不提供这项输入（只判别的证据的回放 / 夹具），不判。
- */
-export function checkSuppressionContracts({ strict = false, suppressions = undefined, baseSuppressions = undefined, approvals = null } = {}) {
-  if (!strict || (suppressions === undefined && baseSuppressions === undefined)) return { ok: true, lines: [] }
-  const resolve = (value) => (typeof value === 'function' ? value() : value)
-  const head = resolve(suppressions)
-  const base = resolve(baseSuppressions)
-  if (!head || !base) {
-    // 合并前扫描在本机必须算得出：取不到不能当通过
-    if (approvals?.mode === 'local') return { ok: false, lines: [`✖ ${SUPPRESSIONS_FILE}：取不到 PR head 或 base 上的内容，没法对比冻结数`] }
-    return { ok: true, lines: [`⚠ ${SUPPRESSIONS_FILE}：取不到 PR head 或 base 上的内容，没法对比冻结数（待协调确认，本机 merge-preflight 核）`] }
-  }
-  const subject = suppressionApprovalSubject(base, head)
-  if (!subject.needsApproval) return { ok: true, lines: [] }
-  if (approvals?.lookup?.('eslint-suppressions', SUPPRESSIONS_FILE, subject.fingerprint) === true) return { ok: true, lines: [`✅ ${SUPPRESSIONS_FILE}：${describeSuppressionGrowth(subject)}——协调已确认（哈希对上）`] }
-  const command = approvalCommand(approvals?.pr, 'eslint-suppressions')
-  if (approvals?.mode === 'local') {
-    return { ok: false, lines: [`✖ ${SUPPRESSIONS_FILE}：${describeSuppressionGrowth(subject)}，没有协调确认记录${approvals?.unavailable ? `（${approvals.unavailable}）` : ''}。冻结数只许减少；确需冻进存量，协调看过 diff 后跑 ${command}`] }
-  }
-  return { ok: true, lines: [`⚠ ${SUPPRESSIONS_FILE}：${describeSuppressionGrowth(subject)}——待协调确认（本机 merge-preflight 核；确认命令 ${command}）`] }
 }
 
 /**
@@ -526,7 +502,7 @@ export function evaluatePrBody({ body, files, addedLines = '', addedByFile = nul
   // evidence = { headSha, readReport, readRaw, boards }：合并前扫描用 gh 取数注入；CI / 推送前不注入时用本地 git 的默认取法（scripts/lib/prEvidenceInputs.mjs）。
   const policy = table ?? loadRoutingTable()
   const strictEvidence = evidenceJudgementEnforced(policy, enforce ? null : createdAt)
-  const inputs = evidence ?? (strictEvidence ? localEvidenceInputs() : {})
+  const inputs = evidence ?? (strictEvidence ? localEvidenceInputs({ stage }) : {})
   // 性能场景的政策字段（预算 / 统计层级 / 尾部预算 / 欠账 / 基线……）不能由 PR 自己批准：判定用 base 的值，PR 改了要协调确认（V-gates B1）
   const pinned = strictEvidence && scenarios ? pinScenarioPolicy(scenarios, inputs.approvals) : { known: scenarios, lines: [], blocked: false }
   const judgement = evaluatePrJudgement({
@@ -565,7 +541,7 @@ export function evaluatePrBody({ body, files, addedLines = '', addedByFile = nul
     // 清单合同的批准看真实 diff，不分档位；短档只免「改了界面要认领或写例外」
     board: checkBoardClaim(body, { inferred: judgement.inferred, files: normalized, strict: strictEvidence, claimsRequired: !short, table: policy, boards: inputs.boards ?? null, baseBoards: inputs.baseBoards ?? null, approvals: inputs.approvals ?? null }),
     perfPolicy: { ok: !pinned.blocked, lines: pinned.lines },
-    suppressions: checkSuppressionContracts({ strict: strictEvidence, suppressions: inputs.suppressions, baseSuppressions: inputs.baseSuppressions, approvals: inputs.approvals ?? null }),
+    suppressions: checkSuppressionContracts({ strict: strictEvidence, suppressions: inputs.suppressions, baseSuppressions: inputs.baseSuppressions, approvals: inputs.suppressionApprovals ?? inputs.approvals ?? null }),
     grandfathered: !enforce && isGrandfathered({ createdAt }),
   })
   return { ...result, classification, judgement, processTier }
