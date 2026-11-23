@@ -171,8 +171,9 @@ function anchorDemandsForDraftShot(shot: DraftShotLike, allShots: readonly Draft
 }
 
 /**
- * 给模型看的 `draft_shots` 回执置顶第 1 段：逐镜写出画布上实际生效的样子（方式、参考件数/槽位、
+ * 给模型看的 `draft_shots` 回执置顶第 1 段：按保存的草稿逐镜写出有效值（方式、参考件数/槽位、
  * 显式传的值、档案补上的默认值、以及纯图生空卡的 `NEEDS_INPUT` 缺口）。
+ * 标题依宿主确认的逐镜节点映射，只有每镜均有节点时才称已落地。
  * 严格复用 `modeForInputs` + `slotCountsForMode` + `effectiveModeParams` + `validateModeConstraints`，不另算一份。
  */
 export function summarizeDraftedShotsForModel(result: unknown): string | undefined {
@@ -233,5 +234,8 @@ export function summarizeDraftedShotsForModel(result: unknown): string | undefin
       : "";
     return `- ${label}${shortQuote(shot)} (${targetId}): model=${modelHandle}, effectiveMode=${effectiveMode.id} (${effectiveMode.vendorTerm}), ${refText}, explicitParams={${formatParamPairs(explicitEntries)}}, defaultedParams={${formatParamPairs(defaultedEntries)}}${needsInput}`;
   });
-  return ["Landed draft summary (effective values on canvas):", ...lines].join("\n");
+  const heading = shots.every((shot) => nodeByShot.has(shot.shotId))
+    ? "Landed draft summary (effective values from the saved draft):"
+    : "Saved draft summary (effective values from the saved draft):";
+  return [heading, ...lines].join("\n");
 }

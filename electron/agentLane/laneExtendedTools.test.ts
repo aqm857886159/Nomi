@@ -402,8 +402,10 @@ describe('draft_shots 回执首行写实际落成状态（复用 effectiveModePa
     }
     const outcome = await runDraft({
       operation: { operationId: 'op-s4', state: 'draft', candidate: shot.candidate, shots: [shot] },
+      canvasLanding: { state: 'not_placed', reason: 'project_closed' },
     })
-    const summaryLine = (outcome.text ?? '').split('\n')[1] ?? ''
+    const [heading, summaryLine = ''] = (outcome.text ?? '').split('\n')
+    expect(heading).toMatch(/^Saved draft summary/)
     expect(summaryLine).toContain('NEEDS_INPUT')
     expect(summaryLine).toContain('首帧')
     expect(summaryLine).toContain('image_ref')
@@ -424,7 +426,8 @@ describe('draft_shots 回执首行写实际落成状态（复用 effectiveModePa
     const outcome = await runDraft({
       operation: { operationId: 'op-s7', state: 'draft', candidate: shot.candidate, shots: [shot] },
     })
-    const summaryLine = (outcome.text ?? '').split('\n')[1] ?? ''
+    const [heading, summaryLine = ''] = (outcome.text ?? '').split('\n')
+    expect(heading).toMatch(/^Saved draft summary/)
     expect(summaryLine).toContain('effectiveMode=t2i')
     expect(summaryLine).not.toContain('generate_audio')
   })

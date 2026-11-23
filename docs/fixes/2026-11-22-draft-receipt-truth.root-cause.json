@@ -48,7 +48,8 @@
     "任何显式声明了 modeId 的起草或改草稿写入口，都必须经同一处 validateModeConstraints（基于 slotCountsForMode 与 effectiveModeParams）校验必填参考槽；未喂饱当场以 mode_input_missing 拒收，不落盘、不落画布。",
     "未显式声明 modeId 的普通文生草稿（反例 A）、同批引用视觉锚点的分镜（反例 B）、画布人手建空卡（反例 C）以及纯图生空占位卡（场景 4）保持放行，且场景 4 在回执首行显式标出 NEEDS_INPUT 缺口。",
     "draft_shots 成功回执第 1 行必须置顶由 modeForInputs + slotCountsForMode + effectiveModeParams 算出的实际生效状态（有效方式、参考数/槽位、显式参数、默认生效参数及缺口），不另写第二套参数或模式推断。",
-    "画布上传参考落槽 placeReferenceInputs 严格按共享偏好表 EDGE_MODE_SLOTS 与槽剩余容量落格，不再按残缺的 PAIRED_ROLES 过滤，保证素材库两张无 role 图片落进 firstlast 时首尾两格均有图。"
+    "画布上传参考落槽 placeReferenceInputs 严格按共享偏好表 EDGE_MODE_SLOTS 与槽剩余容量落格，不再按残缺的 PAIRED_ROLES 过滤，保证素材库两张无 role 图片落进 firstlast 时首尾两格均有图。",
+    "draft_shots 首行只有在宿主报告摘要里的每镜都有画布节点时才称已落地。缺报、部分落地或未落地时，仍展示已保存草稿的参数与缺口。"
   ],
   "doors": [
     {
@@ -130,12 +131,22 @@
       "kind": "write",
       "path": "src/workbench/capability/landedShotIntent.ts",
       "symbol": "planReferenceProjection"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "symbol": "draftCanvasLandingOf"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/draftCanvasLanding.ts",
+      "symbol": "draftCanvasLandingOf"
     }
   ],
   "door_reduction": {
-    "before": 16,
-    "after": 16,
-    "why_not": "这 16 扇门全部来自各边界的真实职责分工且不可合并：1) 起草写入口（generationDraftAdmission、generationPlanPatch、mcpGenerationTools）统一收敛到 mcpGenerationVideoResolve.admitExplicitModeInputs → validateModeConstraints；2) 准入拒绝码表与字段事实投影（executionContract、admissionRejectionHints、generationFailureWire、toolInputIssues）各管契约、指引、脱敏白名单与 issue 投影；3) 能力主人与回执投影（modeForInputs.slotCountsForMode、draftCanvasLanding.summarizeDraftedShotsForModel、laneExtendedTools）；4) 画布上传参考落槽（referenceInputSlots、landedShotIntent）。规则主人全收成唯一一份，未留并行副本。"
+    "before": 18,
+    "after": 18,
+    "why_not": "这 18 扇门全部来自各边界的真实职责分工且不可合并：1) 起草写入口（generationDraftAdmission、generationPlanPatch、mcpGenerationTools）统一收敛到 mcpGenerationVideoResolve.admitExplicitModeInputs → validateModeConstraints；2) 准入拒绝码表与字段事实投影（executionContract、admissionRejectionHints、generationFailureWire、toolInputIssues）各管契约、指引、脱敏白名单与 issue 投影；3) 能力主人与回执投影（modeForInputs.slotCountsForMode、draftCanvasLanding.summarizeDraftedShotsForModel、laneExtendedTools）；4) 画布上传参考落槽（referenceInputSlots、landedShotIntent）。规则主人全收成唯一一份，未留并行副本。 两个 draftCanvasLandingOf 调用分别读取宿主状态用于原有下一步指引与逐镜摘要，两处共用同一份状态。"
   },
   "generality_proof": "admitExplicitModeInputs 不写任何供应商名或模型名，直接从 ModelArchetype + slotCountsForMode + effectiveModeParams + validateModeConstraints 派生所有视频、图像、音频、3D 模式的必填槽约束；summarizeDraftedShotsForModel 同样按档案动态计算任意模型的生效方式与默认参数；placeReferenceInputs 按共享 EDGE_MODE_SLOTS 与槽容量落格，自动覆盖首尾帧、图参考、角色参考、视频/音频参考等所有槽位组合。",
   "shared_boundaries": [
@@ -205,13 +216,14 @@
     "same_class_scan": [
       "node scripts/door-map.mjs 扫描 3177 个生产文件（src,electron），核清 normalizeAuthoredCandidate、createDraftAdmission、resolvePlanPatch、describeDraftCanvasLanding、planReferenceProjection 的全部调用方。",
       "全仓核对 ADMISSION_REJECTION_CODES / ParameterRejectionCode / ADMISSION_CODES / issuesFromParameterRejection，统一补齐 mode_input_missing 码表与中英文指引。",
-      "核对非视频图像模型（gpt-image-2 i2i）、纯图生视频模型（gen4_turbo）、同批视觉与文本 storyboard.anchorIds、以及画布手建空卡，确认无漏网入口且无误伤。"
+      "核对非视频图像模型（gpt-image-2 i2i）、纯图生视频模型（gen4_turbo）、同批视觉与文本 storyboard.anchorIds、以及画布手建空卡，确认无漏网入口且无误伤。",
+      "审计复现已保存但项目关闭的首行误报。door-map 核对 draftCanvasLandingOf 与 summarizeDraftedShotsForModel 的调用点，确认下一步指引和摘要都应依据宿主落地映射。"
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
-    "invariant": "显式声明吃图 modeId 的起草与改草稿必须通过 validateModeConstraints；draft_shots 回执首行必须由 modeForInputs + effectiveModeParams 算出实际落成状态；placeReferenceInputs 按 EDGE_MODE_SLOTS 与槽容量落格。",
+    "invariant": "显式声明吃图 modeId 的起草与改草稿必须通过 validateModeConstraints；draft_shots 回执首行必须由 modeForInputs + effectiveModeParams 算出实际落成状态；placeReferenceInputs 按 EDGE_MODE_SLOTS 与槽容量落格。 首行的落地状态由宿主逐镜节点映射决定。",
     "failure_mode": "缺必填参考槽时起草写入口在落盘与落地前即抛 ContractCompilationError（code: mode_input_missing），返回 0 草稿、0 画布节点，并在消息与 Next 指引中点名缺槽与 look_at_media。",
     "exception_policy": "none",
     "strategy": "在最早共享的写准入边界（admitExplicitModeInputs）、唯一回执组装边界（summarizeDraftedShotsForModel）和唯一落槽边界（placeReferenceInputs）收口到唯一能力主人，并同提交删掉旧放行假设与残缺过滤。",
@@ -244,9 +256,10 @@
     "status": "removed",
     "removed_paths": [
       "electron/capabilityCore/mcpGenerationVideoResolve.ts",
-      "src/workbench/generationCanvas/model/referenceInputSlots.ts"
+      "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+      "electron/shared/agentLane/draftCanvasLanding.ts"
     ],
-    "rationale": "同提交删掉 mcpGenerationVideoResolve.ts 中显式 modeId 缺必填输入照收的旧放行行为，以及 referenceInputSlots.ts 中只认 ['character', 'reference'] 的残缺 PAIRED_ROLES 过滤，不留并行旧分支或开关。"
+    "rationale": "同提交删掉 mcpGenerationVideoResolve.ts 中显式 modeId 缺必填输入照收的旧放行行为，以及 referenceInputSlots.ts 中只认 ['character', 'reference'] 的残缺 PAIRED_ROLES 过滤，不留并行旧分支或开关。 首行删除无条件声称已落画布的标题。"
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
