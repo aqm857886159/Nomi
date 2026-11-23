@@ -2,16 +2,19 @@
  * [INPUT]: 依赖 react、react-i18next、../../../../../ui/toast、../DirectorEditorContext、../model/hotkeys 的 DirectorHotkeyScope、
  *          ../model/timelineTracks（buildTimelineTracks / ClipLabeler / TimelineTrack / TrackFamily）、../model/timelineClipboard 的 canPasteTo、
  *          ../model/timeGrid 的 quantizeToFrame、../model/directorTypes、../model/storeClipActions 的 ClipFamily、
- *          ./TimelineHeader、./TimelineRuler、./TimelinePlayhead、./TrackList、./TrackLanes、./TimelineContextMenu、./timelineRows、./timelineCommands、
+ *          ../../../../../design（WorkbenchContextMenu / WorkbenchMenu 真触发器入口）、
+ *          ./TimelineHeader、./TimelineRuler、./TimelinePlayhead、./TrackList、./TrackLanes、./timelineRows、./timelineCommands、
  *          ./useTimelineViewport、./useTimelineHotkeys
- * [OUTPUT]: 对外提供 DirectorTimeline：时间轴装配根（头部 + 轨道列 + 标尺 / 泳道 / 播放头 + 右键菜单），折叠时只留头部
+ * [OUTPUT]: 对外提供 DirectorTimeline：时间轴装配根（头部 + 轨道列 + 标尺 / 泳道 / 播放头 + 右键菜单 / 「+」下拉），折叠时只留头部
  * [POS]: director/timeline 的入口（清单 §5）：轨道列与泳道共用一份行序并同步纵向滚动（片段区是唯一滚动源，轨道列真正溢出的那层跟随；
- *        在轨道列上滚滚轮交给片段区；刻度尺 sticky 钉顶）；菜单项按「片段 → 副轨 → 轨道」三层上下文拼装，
+ *        在轨道列上滚滚轮交给片段区；刻度尺 sticky 钉顶）；菜单项按「片段 → 副轨 → 轨道」三层上下文拼装，菜单挂在真实的行 / 「+」按钮上
+ *        （行右键 = WorkbenchContextMenu，「+」= WorkbenchMenu trigger），菜单开着时那一行 / 那颗按钮带打开态，
  *        全部打到命令层；被拒绝的操作统一 toast 原因。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
+import { WorkbenchContextMenu, WorkbenchMenu, type WorkbenchMenuNode } from '../../../../../design'
 import { toast } from '../../../../../ui/toast'
 import { useDirectorStore, useDirectorStoreApi } from '../DirectorEditorContext'
 import { isDirectorCamera, type DirectorScene, type LookAtClip } from '../model/directorTypes'
@@ -21,11 +24,10 @@ import { canPasteTo } from '../model/timelineClipboard'
 import { buildTimelineTracks, findClipView, type ClipLabeler, type TimelineTrack, type TrackFamily } from '../model/timelineTracks'
 import { quantizeToFrame } from '../model/timeGrid'
 import { ActionSelectModal } from '../panels/dialogs/ActionSelectModal'
-import { TimelineContextMenu, type TimelineMenuItem } from './TimelineContextMenu'
 import { TimelineHeader } from './TimelineHeader'
 import { TimelinePlayhead } from './TimelinePlayhead'
 import { TimelineRuler } from './TimelineRuler'
-import { TrackLanes } from './TrackLanes'
+import { TrackLanes, type TimelineMenuHit } from './TrackLanes'
 import { TrackList, TrackListHeader } from './TrackList'
 import {
   copySelectedClip,
@@ -43,6 +45,14 @@ import { useTimelineViewport } from './useTimelineViewport'
 
 const TRACK_COLUMN_PX = 290
 const NO_SPACE = 'director.reason.clipNoSpace'
+
+/** 时间轴菜单（行右键与「+」下拉共用）的皮肤；escapeLayer 让编辑器的 Esc 归属链先关菜单。 */
+const TIMELINE_MENU_SKIN = {
+  escapeLayer: 'director-timeline-menu',
+  className: 'min-w-[200px] rounded-nomi-lg p-1 text-body-sm text-nomi-ink shadow-nomi-lg',
+  itemClassName: 'min-h-0 rounded-nomi-sm px-2 py-1',
+  separatorClassName: 'my-1 mx-0 bg-nomi-line-soft',
+} as const
 
 type Translate = ReturnType<typeof useTranslation>['t']
 
@@ -86,7 +96,6 @@ export function DirectorTimeline({
   const isEmpty = tracks.length === 0
   const viewport = useTimelineViewport()
   const trackListRef = React.useRef<HTMLDivElement>(null)
-  const [menu, setMenu] = React.useState<{ x: number; y: number; items: TimelineMenuItem[] } | null>(null)
   const [actionModal, setActionModal] = React.useState<{ objectId: string; at: number } | null>(null)
 
   const reject = React.useCallback((reasonKey: string) => toast(t(reasonKey as typeof NO_SPACE), 'warning'), [t])
@@ -107,21 +116,14 @@ export function DirectorTimeline({
   )
   useTimelineHotkeys({ scopeRef, onReject: reject })
 
-  const closeMenu = React.useCallback(() => setMenu(null), [])
-  const openMenu = (event: React.MouseEvent<HTMLElement>, items: TimelineMenuItem[]) => {
-    event.preventDefault()
-    if (items.length === 0) return
-    setMenu({ x: event.clientX, y: event.clientY, items })
-  }
-
   // 菜单三层：片段级（有 clipId 时）→ 副轨级（按家族）→ 轨道级
-  const buildMenu = (track: TimelineTrack, family: TrackFamily, clipId: string | undefined, time: number): TimelineMenuItem[] => {
+  const buildMenu = (track: TimelineTrack, family: TrackFamily, clipId: string | undefined, time: number): WorkbenchMenuNode[] => {
     const state = store.getState()
     const entity = track.entity
     const isCamera = isDirectorCamera(entity)
     const at = quantizeToFrame(time)
     const label = (key: string) => t(`director.timeline.menu.${key}`)
-    const items: TimelineMenuItem[] = []
+    const items: WorkbenchMenuNode[] = []
     if (clipId && family !== 'bone') {
       const clipFamily = family as ClipFamily
       const focus = () => selectClip(store, entity.id, clipFamily, clipId)
@@ -132,7 +134,7 @@ export function DirectorTimeline({
         { id: 'cutLeft', label: label('cutLeft'), onSelect: () => { focus(); run(cutSelectedClip(store, 'left')) } },
         { id: 'cutRight', label: label('cutRight'), onSelect: () => { focus(); run(cutSelectedClip(store, 'right')) } },
         { id: 'deleteClip', label: label('deleteClip'), danger: true, onSelect: () => deleteClipByFamily(store.getState(), entity, clipFamily, clipId) },
-        { id: 'sep-clip', separator: true },
+        { kind: 'separator', id: 'sep-clip' },
       )
     }
     if (family === 'trajectory') {
@@ -201,7 +203,7 @@ export function DirectorTimeline({
       items.push({ id: 'paste', label: label('pasteHere'), onSelect: () => { if (!store.getState().pasteClip(entity.id, payload, at)) reject('director.timeline.toast.noSpace') } })
     }
     items.push(
-      { id: 'sep-track', separator: true },
+      { kind: 'separator', id: 'sep-track' },
       { id: 'pin', label: track.pinned ? label('unpin') : label('pin'), onSelect: () => store.getState().toggleTimelineTrackPin(entity.id) },
       { id: 'fold', label: track.folded ? label('unfold') : label('fold'), onSelect: () => store.getState().toggleTimelineTrackFold(entity.id) },
       { id: 'remove', label: label('removeTrack'), onSelect: () => store.getState().removeEntityFromTimeline(entity.id) },
@@ -210,17 +212,26 @@ export function DirectorTimeline({
     return items
   }
 
-  const rowMenu = (event: React.MouseEvent<HTMLElement>, row: TimelineRow, clipId: string | undefined, time: number) => {
-    const family = clipId ? findClipView(tracks, clipId)?.sub.family : undefined
-    openMenu(event, buildMenu(row.track, family ?? (row.kind === 'sub' ? row.sub.family : 'trajectory'), clipId, time))
+  const rowMenuItems = (row: TimelineRow, hit: TimelineMenuHit): WorkbenchMenuNode[] => {
+    const family = hit.clipId ? findClipView(tracks, hit.clipId)?.sub.family : undefined
+    return buildMenu(row.track, family ?? (row.kind === 'sub' ? row.sub.family : 'trajectory'), hit.clipId, hit.time)
   }
+  /**
+   * 把一行（轨道列的行或泳道行）包成右键触发器。`hit` 由泳道在打开前记下落点；不给（轨道列）就取打开那一刻的播放头。
+   * 菜单项在打开时才拼（WorkbenchContextMenu 惰性调用工厂）。
+   */
+  const renderRowMenu = (row: TimelineRow, trigger: React.ReactElement, hit?: () => TimelineMenuHit): React.ReactElement => (
+    <WorkbenchContextMenu {...TIMELINE_MENU_SKIN} items={() => rowMenuItems(row, hit?.() ?? { time: store.getState().timeline.currentTime })}>
+      {trigger}
+    </WorkbenchContextMenu>
+  )
 
   // 主行「+」：只列「往这条轨道追加什么片段」（行内加号：内置动作 / 骨骼姿态 / 视线注视；机位轨 = 特写）
-  const addClipMenu = (event: React.MouseEvent<HTMLElement>, track: TimelineTrack) => {
+  const addClipItems = (track: TimelineTrack): WorkbenchMenuNode[] => {
     const at = quantizeToFrame(store.getState().timeline.currentTime)
     const entity = track.entity
     const label = (key: string) => t(`director.timeline.menu.${key}`)
-    const items: TimelineMenuItem[] = []
+    const items: WorkbenchMenuNode[] = []
     if (track.kind === 'character') {
       items.push(
         { id: 'addAction', label: label('addActionClip'), onSelect: () => setActionModal({ objectId: entity.id, at }) },
@@ -245,8 +256,12 @@ export function DirectorTimeline({
       items.push({ id: 'createCloseup', label: label('createCloseup'), onSelect: () => { if (!store.getState().appendCloseupForCamera(entity.id)) reject('director.camera.closeupNeedsTarget') } })
     }
     items.push({ id: 'append', label: label('appendTrajectory'), onSelect: () => appendTrajectory(track) })
-    openMenu(event, items)
+    return items
   }
+  /** 「+」是一颗真按钮：交给 WorkbenchMenu trigger，Radix 量按钮本身、写 data-state / aria-expanded，菜单不压按钮。 */
+  const renderAddClipMenu = (track: TimelineTrack, trigger: React.ReactElement): React.ReactElement => (
+    <WorkbenchMenu {...TIMELINE_MENU_SKIN} trigger={trigger} side="bottom" align="start" items={() => addClipItems(track)} />
+  )
 
   return (
     <div
@@ -287,7 +302,7 @@ export function DirectorTimeline({
               <TrackList
                 rows={rows}
                 tracks={tracks}
-                onOpenAddClipMenu={addClipMenu}
+                renderAddClipMenu={renderAddClipMenu}
                 onCreateCloseup={(track) => {
                   const state = store.getState()
                   if (track.kind === 'character') {
@@ -304,7 +319,7 @@ export function DirectorTimeline({
                   if (!state.splitClip(track.entityId, selected.clip.id, selected.sub.family, state.timeline.currentTime)) reject('director.timeline.toast.playheadOutsideClip')
                 }}
                 onDeleteEntity={(track) => (isDirectorCamera(track.entity) ? store.getState().deleteCamera(track.entityId) : store.getState().deleteObject(track.entityId))}
-                onContextMenu={(event, row) => rowMenu(event, row, undefined, store.getState().timeline.currentTime)}
+                renderRowMenu={renderRowMenu}
                 onEnterPov={(cameraId) => {
                   const check = store.getState().enterCameraPOV(cameraId)
                   if (!check.allowed && check.reasonKey) reject(check.reasonKey)
@@ -325,14 +340,13 @@ export function DirectorTimeline({
                 <TimelineRuler viewport={viewport} onScrub={(seconds) => seekTo(store, seconds)} />
               </div>
               <div className="relative z-0">
-                <TrackLanes rows={rows} viewport={viewport} totalDuration={totalDuration} onContextMenu={rowMenu} onReject={reject} onAppendTrajectory={(row) => appendTrajectory(row.track)} />
+                <TrackLanes rows={rows} viewport={viewport} totalDuration={totalDuration} renderRowMenu={renderRowMenu} onReject={reject} onAppendTrajectory={(row) => appendTrajectory(row.track)} />
               </div>
               <TimelinePlayhead viewport={viewport} />
             </div>
           </div>
         </div>
       )}
-      {menu ? <TimelineContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} /> : null}
       <ActionSelectModal
         open={actionModal !== null}
         onClose={() => setActionModal(null)}

@@ -1,12 +1,13 @@
 import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
+import * as ContextMenuPrimitive from '@radix-ui/react-context-menu'
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu'
 import { IconCheck } from '@tabler/icons-react'
 import { cn } from '../utils/cn'
 import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
 
 /**
- * `WorkbenchMenu` —— 全站菜单的**行为内核**（刀 1，2026-09-08）。
+ * `WorkbenchMenu` / `WorkbenchContextMenu` —— 全站菜单的**唯一的家**（刀 1，2026-09-08；两条入口 2026-11-23）。
  *
  * 为什么买不自研（论证在 `docs/plan/2026-09-07-design-system-component-authority.md` §3.1，
  * 现状清单在 `docs/plan/2026-09-08-menu-primitive-inventory.md`）：全仓 24 个手写菜单里
@@ -15,19 +16,25 @@ import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
  * 不在护城河上；而外观必须是 Nomi 的，否则等于引进第二套设计语言。
  * 所以：**行为全走 Radix，外观全走 Nomi token + Tabler 图标**。
  *
- * ## 为什么只有「受控 + 点位」这一种打开方式
+ * ## 两条入口，共用一份菜单项渲染与皮肤
  *
- * 迁移铁律是**只换实现、不动形态**。现役右键菜单的「什么时候开、开在哪」都是宿主算出来的，
- * 而且那套编排本身带着领域约束，Radix 的 `ContextMenu.Trigger` 复制不了：
- *   · 画布（`generationCanvas/components/useCanvasContextNodeMenu.ts`）在 **pointerup** 才提交，
- *     为的是让右键平移和弦、连线落空先有机会否决；`Trigger` 在 contextmenu 事件就开；
- *   · 时间轴（`workbench/timeline/TimelinePanel.tsx:296`）先从 `event.target` 解出 4 种 target，
- *     解不出就**根本不开**；`Trigger` 一律开。
- * 换成 `ContextMenu` 包 = 改形态。所以这里只提供「宿主给点位、原语负责其余」这一条路：
- * 宿主保留它原本的手势编排一行不动，原语接手定位/避让/键盘/点外关闭/Esc。
- * 这也顺带覆盖了「程序化在某点打开（无触发元素）」那一族（连线落空菜单等，批 2）。
- * 因此 `@radix-ui/react-context-menu` **没有装**：现役 0 个消费者，装了就是提前造
- * （清单 §3.2 的纪律）。真右键触发式菜单出现时再装，届时在这里加第二个 Root。
+ * 判据只有一个：**被右键 / 被点开的那个元素是谁**
+ * （`docs/engineering/direction-checks/2026-11-23-workbench-menu-trigger-contract.md`）。
+ *
+ *   · **真触发器入口**——有这个元素就把它交给 Radix：
+ *       - 行右键：`<WorkbenchContextMenu items={…}>{行}</WorkbenchContextMenu>`（`ContextMenu.Trigger asChild`）；
+ *       - 按钮下拉：`<WorkbenchMenu trigger={按钮} items={…} />`（`DropdownMenu.Trigger asChild`）。
+ *     Radix 原生把 `data-state="open"`（按钮还有 `aria-expanded`）写在真实元素上、量真实元素做锚点、
+ *     关菜单把焦点还给它。调用方只叠一处 `WORKBENCH_MENU_TRIGGER_OPEN_CLASS` 就有打开态高亮——
+ *     不再借 `:hover` / `:focus-within` 冒充（菜单一开焦点就进菜单、指针被菜单盖住，那两个都会失效：compare-01）。
+ *   · **受控点位入口（`point` / `anchorRect`）**——没有单一触发元素、或手势编排带领域约束的才用：
+ *       - 画布（`generationCanvas/components/useCanvasContextNodeMenu.ts`）在 **pointerup** 才提交，
+ *         为的是让右键平移和弦、连线落空先有机会否决；`Trigger` 在 contextmenu 事件就开；
+ *       - 时间轴（`workbench/timeline/TimelinePanel.tsx:296`）先从 `event.target` 解出 4 种 target，
+ *         解不出就**根本不开**；`Trigger` 一律开；
+ *       - 连线拖到空白松手（`NodeDeriveMenu`）：根本没有触发元素。
+ *     宿主保留它原本的手势编排一行不动，原语接手定位/避让/键盘/点外关闭/Esc。给 `point` 的文件由
+ *     `menu.structure.test.ts` 登记（只这 3 个 + 1 个冻结存量）；`anchorRect` 是还没迁到 `trigger` 的按钮下拉。
  *
  * ## 为什么 `modal={false}`
  *
@@ -109,44 +116,27 @@ export type WorkbenchMenuNode =
   | WorkbenchMenuSeparator
   | WorkbenchMenuGroup
 
+/**
+ * 菜单项：直接给一组，或给一个工厂。工厂只在菜单**真打开时**才调——分类树 200 行、每行挂一个右键菜单，
+ * 闭合态零构建、零 i18n 拼接；也让「打开那一刻的播放头时间」这类值在打开时才读。
+ */
+export type WorkbenchMenuItems = readonly WorkbenchMenuNode[] | (() => readonly WorkbenchMenuNode[])
+
+/**
+ * 右键目标行 / 下拉触发钮在菜单开着时的**唯一**视觉态。由 Radix 原生写在真实触发元素上的 `data-state="open"` 驱动，
+ * 只有真触发器入口（`WorkbenchContextMenu`、`WorkbenchMenu trigger`）会写它。
+ *
+ * 约定：只叠在**非选中态**上——`active ? '选中底' : cn('悬停底', WORKBENCH_MENU_TRIGGER_OPEN_CLASS)`，
+ * 选中行的底色（accent-soft / ink-10）永远不被打开态盖掉。
+ */
+export const WORKBENCH_MENU_TRIGGER_OPEN_CLASS = 'data-[state=open]:bg-nomi-ink-05'
+
 /** 视口坐标系里的一块矩形（`getBoundingClientRect()` 的子集）。 */
 export type WorkbenchMenuAnchorRect = Readonly<{ left: number; top: number; width: number; height: number }>
 
-/**
- * 菜单贴哪儿——两种来源，二选一（类型上互斥）：
- *
- *   · `point`：**没有触发元素**的菜单（右键菜单、连线落空菜单）。菜单角贴在这个点上。
- *   · `anchorRect`：**由一颗按钮点开**的菜单。给的是「菜单不许盖住的那块」——至少是触发钮本身，
- *     浮条上的下拉还要连同它所在的那一排（`ToolbarActionMenu` 算好再传进来）。
- *
- * 为什么不能拿 `point` 冒充按钮（2026-10-06 用户截图那一类）：按钮点开时把点算在「按钮上沿往上 6px」、
- * 再说 `side="top"`。头顶放得下时没事；节点靠画布上沿、头顶放不下时 Radix 翻到下面——可它翻的是
- * 一个 0×0 的点，于是菜单的**上沿**落在按钮上沿之上 6px，整块压回按钮和浮条那一排（「改图」盖住「宫格」）。
- * 给真实的矩形，翻边就以矩形的另一条边为起点，永远不会跨过它；两边都放不下时，菜单收高度、里面滚动，
- * 也不跨过它（见下面 CONTENT 的 max-height）。
- */
-type WorkbenchMenuAnchor =
-  | { point: { x: number; y: number }; anchorRect?: never }
-  | { anchorRect: WorkbenchMenuAnchorRect; point?: never }
-
-export type WorkbenchMenuProps = WorkbenchMenuAnchor & {
-  /** 受控开合。宿主自己决定什么时候开——原语不抢这个决定。 */
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  /**
-   * 往哪边展开。默认 `bottom`（右键菜单：左上角贴点位）。`top` = 菜单**底边**贴锚点往上长——
-   * 节点浮条的下拉要用它：浮条浮在节点上方，往下开就盖住了这张图本身（§1.5.3 动作不许压在内容上）。
-   * 放不下时仍由 Radix 按真实尺寸翻边，不是写死。
-   */
-  side?: 'top' | 'bottom'
-  /**
-   * 菜单与锚点哪条边对齐。默认 `start`（左边对齐）。`end` = 右边对齐——锚点贴着容器右端的按钮
-   * （工具条收起后的「⋯」）往左展开，不越过它所在的那块面板（2026-11-07 窄窗拍板 N4-creation-menu）。
-   */
-  align?: 'start' | 'end'
-  /** 菜单与 `anchorRect` 之间的缝（只对按钮点开的菜单有意义；点位菜单贴点）。默认 6。 */
-  gap?: number
-  items: readonly WorkbenchMenuNode[]
+/** 两条入口共用的菜单内容与皮肤。 */
+type WorkbenchMenuSkinProps = {
+  items: WorkbenchMenuItems
   /** 菜单本身的无障碍名。现役 6 个菜单没有（清单 C15），迁一个补一个。 */
   ariaLabel?: string
   /** 菜单面板附加类（宽度这类调用点差异，见头注）。 */
@@ -171,10 +161,78 @@ export type WorkbenchMenuProps = WorkbenchMenuAnchor & {
   contentData?: Readonly<Record<`data-${string}`, string | undefined>>
 }
 
+type WorkbenchMenuPlacement = {
+  /**
+   * 往哪边展开。默认 `bottom`（右键菜单：左上角贴点位）。`top` = 菜单**底边**贴锚点往上长——
+   * 节点浮条的下拉要用它：浮条浮在节点上方，往下开就盖住了这张图本身（§1.5.3 动作不许压在内容上）。
+   * 放不下时仍由 Radix 按真实尺寸翻边，不是写死。
+   */
+  side?: 'top' | 'bottom'
+  /**
+   * 菜单与锚点哪条边对齐。默认 `start`（左边对齐）。`end` = 右边对齐——锚点贴着容器右端的按钮
+   * （工具条收起后的「⋯」）往左展开，不越过它所在的那块面板（2026-11-07 窄窗拍板 N4-creation-menu）。
+   */
+  align?: 'start' | 'end'
+  /** 菜单与触发钮 / `anchorRect` 之间的缝（只对按钮点开的菜单有意义；点位菜单贴点）。默认 6。 */
+  gap?: number
+}
+
+/**
+ * 菜单贴哪儿——三种来源，三选一（类型上互斥）：
+ *
+ *   · `trigger`：**由一颗按钮点开**的菜单，把按钮元素本身交进来（`DropdownMenu.Trigger asChild`）。
+ *     Radix 量真按钮、开合自管（非受控）、按钮上原生 `data-state` / `aria-expanded`、关后焦点回按钮。新代码只用这个。
+ *   · `anchorRect`：按钮下拉的旧写法——宿主自己量「菜单不许盖住的那块」传进来（浮条下拉连同它所在的那一排，
+ *     `ToolbarActionMenu` 算好再传）。还没迁到 `trigger` 的 9 处在用，迁一处删一处。
+ *   · `point`：**没有单一触发元素**的菜单（画布 pointerup 和弦、连线落空、剪辑时间轴四目标命中）。菜单角贴在这个点上。
+ *     行右键不许用它——用 `WorkbenchContextMenu`。登记表在 `menu.structure.test.ts`。
+ *
+ * 为什么不能拿 `point` 冒充按钮（2026-10-06 用户截图那一类）：按钮点开时把点算在「按钮上沿往上 6px」、
+ * 再说 `side="top"`。头顶放得下时没事；节点靠画布上沿、头顶放不下时 Radix 翻到下面——可它翻的是
+ * 一个 0×0 的点，于是菜单的**上沿**落在按钮上沿之上 6px，整块压回按钮和浮条那一排（「改图」盖住「宫格」）。
+ * 给真实的元素 / 矩形，翻边就以它的另一条边为起点，永远不会跨过它；两边都放不下时，菜单收高度、里面滚动，
+ * 也不跨过它（见下面 CONTENT 的 max-height）。
+ */
+type WorkbenchMenuAnchor =
+  | {
+      trigger: React.ReactElement
+      point?: never
+      anchorRect?: never
+      open?: never
+      /** 开合由 Radix 自管；需要知道开没开（如联动高亮）时挂这个。 */
+      onOpenChange?: (open: boolean) => void
+    }
+  | {
+      point: { x: number; y: number }
+      anchorRect?: never
+      trigger?: never
+      /** 受控开合。宿主自己决定什么时候开——原语不抢这个决定。 */
+      open: boolean
+      onOpenChange: (open: boolean) => void
+    }
+  | {
+      anchorRect: WorkbenchMenuAnchorRect
+      point?: never
+      trigger?: never
+      open: boolean
+      onOpenChange: (open: boolean) => void
+    }
+
+export type WorkbenchMenuProps = WorkbenchMenuAnchor & WorkbenchMenuPlacement & WorkbenchMenuSkinProps
+
+export type WorkbenchContextMenuProps = WorkbenchMenuSkinProps & {
+  /** 被右键的那个真实元素（行）。Radix 把 `data-state` 与 contextmenu 处理并到它身上，所以它必须能收 ref 与 props。 */
+  children: React.ReactElement
+  /** 行内改名等态下关掉：右键回到浏览器原生菜单（复制 / 粘贴）。 */
+  disabled?: boolean
+  onOpenChange?: (open: boolean) => void
+}
+
 /** 面板与项的默认皮肤 = 2026-08-20 用户拍板的节点右键菜单那一套。 */
 // max-height 用 Radix 量出来的「这一边还剩多高」：两边都放不下时菜单收高度、里面滚动，而不是被推回去压住锚点。
+// 用 popper 层的变量名——DropdownMenu 与 ContextMenu 各自的别名都映射到它，一处兼容两个 Root。
 const CONTENT_CLASS =
-  'grid gap-0.5 p-[6px] border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop max-h-[var(--radix-dropdown-menu-content-available-height,100vh)] overflow-y-auto'
+  'grid gap-0.5 p-[6px] border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop max-h-[var(--radix-popper-available-height,100vh)] overflow-y-auto'
 const ITEM_CLASS = cn(
   'inline-flex items-center justify-between gap-2 w-full min-h-8 px-2 rounded-nomi',
   'font-[inherit] text-caption text-workbench-ink outline-none select-none cursor-pointer',
@@ -197,6 +255,32 @@ const GROUP_LABEL_CLASS = 'px-2 py-1 text-micro text-workbench-muted select-none
 const GROUP_CLASS = 'grid gap-0.5'
 
 /**
+ * 菜单项原语字典。两个 Root 的项原语签名一致，但各读各的 scope（DropdownMenu 的项塞进 ContextMenu 的面板会找不到上下文），
+ * 所以同一份 `renderNodes` 按入口换一套字典，不复制渲染逻辑。
+ */
+const DROPDOWN_PRIMITIVES = {
+  Item: DropdownMenuPrimitive.Item,
+  CheckboxItem: DropdownMenuPrimitive.CheckboxItem,
+  RadioGroup: DropdownMenuPrimitive.RadioGroup,
+  RadioItem: DropdownMenuPrimitive.RadioItem,
+  ItemIndicator: DropdownMenuPrimitive.ItemIndicator,
+  Group: DropdownMenuPrimitive.Group,
+  Label: DropdownMenuPrimitive.Label,
+  Separator: DropdownMenuPrimitive.Separator,
+}
+type MenuPrimitives = typeof DROPDOWN_PRIMITIVES
+const CONTEXT_PRIMITIVES: MenuPrimitives = {
+  Item: ContextMenuPrimitive.Item,
+  CheckboxItem: ContextMenuPrimitive.CheckboxItem,
+  RadioGroup: ContextMenuPrimitive.RadioGroup,
+  RadioItem: ContextMenuPrimitive.RadioItem,
+  ItemIndicator: ContextMenuPrimitive.ItemIndicator,
+  Group: ContextMenuPrimitive.Group,
+  Label: ContextMenuPrimitive.Label,
+  Separator: ContextMenuPrimitive.Separator,
+}
+
+/**
  * 一项的内容（[勾选槽 +] 图标 + 文案 [+ 第二行灰字]，右侧快捷键）。三种项形态共用，免得画三遍。
  * `withIndicator` 只在 checkbox / radio 项上为真：勾不勾都占住那 16px，否则同一组里
  * 勾上的那行会比没勾的往右挪一格。
@@ -204,10 +288,12 @@ const GROUP_CLASS = 'grid gap-0.5'
 function MenuItemBody({
   item,
   shortcutClassName,
+  primitives,
   withIndicator = false,
 }: {
   item: WorkbenchMenuItemBase
   shortcutClassName?: string
+  primitives: MenuPrimitives
   withIndicator?: boolean
 }): JSX.Element {
   const Icon = item.icon
@@ -216,9 +302,9 @@ function MenuItemBody({
       <span className="inline-flex min-w-0 items-center gap-1.5">
         {withIndicator ? (
           <span className="inline-flex size-4 shrink-0 items-center justify-center">
-            <DropdownMenuPrimitive.ItemIndicator>
+            <primitives.ItemIndicator>
               <IconCheck />
-            </DropdownMenuPrimitive.ItemIndicator>
+            </primitives.ItemIndicator>
           </span>
         ) : null}
         {Icon ? <Icon /> : null}
@@ -236,7 +322,9 @@ function MenuItemBody({
   )
 }
 
-type RenderContext = Pick<WorkbenchMenuProps, 'itemClassName' | 'shortcutClassName' | 'separatorClassName'>
+type RenderContext = Pick<WorkbenchMenuSkinProps, 'itemClassName' | 'shortcutClassName' | 'separatorClassName'> & {
+  primitives: MenuPrimitives
+}
 
 /** 选中项的收尾：`closeOnSelect === false` 就把关闭拦下来（Radix 默认选完即关）。 */
 function selectHandler(item: WorkbenchMenuItemBase, run?: (event: Event) => void) {
@@ -246,11 +334,16 @@ function selectHandler(item: WorkbenchMenuItemBase, run?: (event: Event) => void
   }
 }
 
+function resolveItems(items: WorkbenchMenuItems): readonly WorkbenchMenuNode[] {
+  return typeof items === 'function' ? items() : items
+}
+
 function renderNodes(nodes: readonly WorkbenchMenuNode[], ctx: RenderContext): React.ReactNode {
+  const p = ctx.primitives
   return nodes.map((node) => {
     if (node.kind === 'separator') {
       return (
-        <DropdownMenuPrimitive.Separator
+        <p.Separator
           key={node.id}
           className={cn(SEPARATOR_CLASS, ctx.separatorClassName)}
         />
@@ -258,22 +351,22 @@ function renderNodes(nodes: readonly WorkbenchMenuNode[], ctx: RenderContext): R
     }
     if (node.kind === 'group') {
       return (
-        <DropdownMenuPrimitive.Group key={node.id} className={GROUP_CLASS}>
+        <p.Group key={node.id} className={GROUP_CLASS}>
           {node.label ? (
-            <DropdownMenuPrimitive.Label data-menu-label className={GROUP_LABEL_CLASS}>{node.label}</DropdownMenuPrimitive.Label>
+            <p.Label data-menu-label className={GROUP_LABEL_CLASS}>{node.label}</p.Label>
           ) : null}
           {renderNodes(node.items, ctx)}
-        </DropdownMenuPrimitive.Group>
+        </p.Group>
       )
     }
     if (node.kind === 'radio') {
       return (
-        <DropdownMenuPrimitive.RadioGroup key={node.id} className={GROUP_CLASS} value={node.value} onValueChange={node.onValueChange}>
+        <p.RadioGroup key={node.id} className={GROUP_CLASS} value={node.value} onValueChange={node.onValueChange}>
           {node.label ? (
-            <DropdownMenuPrimitive.Label data-menu-label className={GROUP_LABEL_CLASS}>{node.label}</DropdownMenuPrimitive.Label>
+            <p.Label data-menu-label className={GROUP_LABEL_CLASS}>{node.label}</p.Label>
           ) : null}
           {node.options.map((option) => (
-            <DropdownMenuPrimitive.RadioItem
+            <p.RadioItem
               key={option.id}
               value={option.value}
               disabled={option.disabled}
@@ -283,15 +376,15 @@ function renderNodes(nodes: readonly WorkbenchMenuNode[], ctx: RenderContext): R
               className={cn(ITEM_CLASS, ctx.itemClassName)}
               onSelect={selectHandler(option)}
             >
-              <MenuItemBody item={option} shortcutClassName={ctx.shortcutClassName} withIndicator />
-            </DropdownMenuPrimitive.RadioItem>
+              <MenuItemBody item={option} shortcutClassName={ctx.shortcutClassName} primitives={p} withIndicator />
+            </p.RadioItem>
           ))}
-        </DropdownMenuPrimitive.RadioGroup>
+        </p.RadioGroup>
       )
     }
     if (node.kind === 'checkbox') {
       return (
-        <DropdownMenuPrimitive.CheckboxItem
+        <p.CheckboxItem
           key={node.id}
           checked={node.checked}
           onCheckedChange={node.onCheckedChange}
@@ -302,12 +395,12 @@ function renderNodes(nodes: readonly WorkbenchMenuNode[], ctx: RenderContext): R
           className={cn(ITEM_CLASS, ctx.itemClassName)}
           onSelect={selectHandler(node)}
         >
-          <MenuItemBody item={node} shortcutClassName={ctx.shortcutClassName} withIndicator />
-        </DropdownMenuPrimitive.CheckboxItem>
+          <MenuItemBody item={node} shortcutClassName={ctx.shortcutClassName} primitives={p} withIndicator />
+        </p.CheckboxItem>
       )
     }
     return (
-      <DropdownMenuPrimitive.Item
+      <p.Item
         key={node.id}
         disabled={node.disabled}
         title={node.disabled ? node.disabledReason : undefined}
@@ -317,10 +410,42 @@ function renderNodes(nodes: readonly WorkbenchMenuNode[], ctx: RenderContext): R
         className={cn(ITEM_CLASS, ctx.itemClassName, node.danger && DANGER_ITEM_CLASS)}
         onSelect={selectHandler(node, node.onSelect)}
       >
-        <MenuItemBody item={node} shortcutClassName={ctx.shortcutClassName} />
-      </DropdownMenuPrimitive.Item>
+        <MenuItemBody item={node} shortcutClassName={ctx.shortcutClassName} primitives={p} />
+      </p.Item>
     )
   })
+}
+
+/** 两个 Root 的面板共用的属性：皮肤、走查钩子、层级、边缘避让、面板上再右键不弹浏览器菜单。 */
+function surfaceProps(skin: WorkbenchMenuSkinProps) {
+  return {
+    // 8 = 现役画布菜单手写的 MENU_EDGE_GAP。差别在于避让用的是**真实测量的盒子**，
+    // 不再是各处各猜一个「菜单多高」的常数（清单 §3.3）。
+    collisionPadding: 8,
+    'aria-label': skin.ariaLabel,
+    'data-testid': skin['data-testid'],
+    'data-nomi-escape-layer': skin.escapeLayer,
+    ...skin.contentData,
+    onPointerDown: skin.onPointerDown,
+    // 右键菜单上再右键，现役是 preventDefault（不弹浏览器原生菜单）。照抄。
+    onContextMenu: (event: React.MouseEvent) => event.preventDefault(),
+    style: { zIndex: NOMI_OVERLAY_Z_INDEX.popover },
+    className: cn(CONTENT_CLASS, skin.className),
+  }
+}
+
+/** 这一下 Esc 已由本菜单消费，阻断继续冒到 window（避免同一下 Esc 把底层抽屉如 ShellRail 一并关掉）。 */
+const consumeEscape = (event: KeyboardEvent) => event.stopPropagation()
+
+/**
+ * 真触发器入口关菜单时的焦点：默认交给 Radix（下拉回触发钮、右键回打开前聚焦的元素）；
+ * 但选中的那一项已经把焦点安排去别处（行内改名的输入框、弹窗……）时不抢回来。
+ */
+function keepFocusMovedByItem(contentRef: React.RefObject<HTMLDivElement | null>) {
+  return (event: Event) => {
+    const active = document.activeElement
+    if (active && active !== document.body && !contentRef.current?.contains(active)) event.preventDefault()
+  }
 }
 
 /** 打开前聚焦的那个元素还在页面上、看得见、没禁用，才值得还；否则什么都不做（保持菜单关后焦点留在原处的老行为）。 */
@@ -330,7 +455,95 @@ function isRestorableOpener(el: Element | null): el is HTMLElement {
   return el.getClientRects().length > 0
 }
 
-export function WorkbenchMenu({
+/**
+ * 行右键（真触发器入口）。`children` 就是那一行：Radix 把 `data-state="open"|"closed"` 与 contextmenu 处理并到它身上，
+ * 行只需在非选中态叠 `WORKBENCH_MENU_TRIGGER_OPEN_CLASS`。左键、拖拽、双击全不碰（鼠标只认 contextmenu）。
+ *
+ * 菜单靠在指针右侧 2px（Radix ContextMenu 写死 side=right / sideOffset=2 / align=start），所以这里不暴露 side / align / gap。
+ * 开合非受控：面板与项只在开着时才构建（`items` 可传工厂）。
+ */
+export function WorkbenchContextMenu({
+  children,
+  disabled = false,
+  onOpenChange,
+  ...skin
+}: WorkbenchContextMenuProps): JSX.Element {
+  const [open, setOpen] = React.useState(false)
+  const contentRef = React.useRef<HTMLDivElement | null>(null)
+  return (
+    <ContextMenuPrimitive.Root
+      modal={false}
+      onOpenChange={(next) => {
+        setOpen(next)
+        onOpenChange?.(next)
+      }}
+    >
+      {/* 右键已由这一行认领：不再冒到外层行 / 容器（嵌套触发区不会一下开两个菜单）。 */}
+      <ContextMenuPrimitive.Trigger asChild disabled={disabled} onContextMenu={(event) => { if (!disabled) event.stopPropagation() }}>
+        {children}
+      </ContextMenuPrimitive.Trigger>
+      {open ? (
+        <ContextMenuPrimitive.Portal>
+          <ContextMenuPrimitive.Content
+            ref={contentRef}
+            {...surfaceProps(skin)}
+            onEscapeKeyDown={consumeEscape}
+            onCloseAutoFocus={keepFocusMovedByItem(contentRef)}
+          >
+            {renderNodes(resolveItems(skin.items), { ...skin, primitives: CONTEXT_PRIMITIVES })}
+          </ContextMenuPrimitive.Content>
+        </ContextMenuPrimitive.Portal>
+      ) : null}
+    </ContextMenuPrimitive.Root>
+  )
+}
+
+/** 按钮下拉（真触发器入口）：Radix 量真按钮、写 `data-state` / `aria-expanded`、关后焦点回按钮。 */
+function TriggerDropdownMenu({
+  trigger,
+  onOpenChange,
+  side = 'bottom',
+  align = 'start',
+  gap = 6,
+  ...skin
+}: WorkbenchMenuPlacement & WorkbenchMenuSkinProps & { trigger: React.ReactElement; onOpenChange?: (open: boolean) => void }): JSX.Element {
+  const [open, setOpen] = React.useState(false)
+  const contentRef = React.useRef<HTMLDivElement | null>(null)
+  return (
+    <DropdownMenuPrimitive.Root
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        onOpenChange?.(next)
+      }}
+      modal={false}
+    >
+      <DropdownMenuPrimitive.Trigger asChild>{trigger}</DropdownMenuPrimitive.Trigger>
+      <DropdownMenuPrimitive.Portal>
+        <DropdownMenuPrimitive.Content
+          ref={contentRef}
+          side={side}
+          align={align}
+          sideOffset={gap}
+          alignOffset={0}
+          {...surfaceProps(skin)}
+          onEscapeKeyDown={consumeEscape}
+          onCloseAutoFocus={keepFocusMovedByItem(contentRef)}
+        >
+          {open ? renderNodes(resolveItems(skin.items), { ...skin, primitives: DROPDOWN_PRIMITIVES }) : null}
+        </DropdownMenuPrimitive.Content>
+      </DropdownMenuPrimitive.Portal>
+    </DropdownMenuPrimitive.Root>
+  )
+}
+
+type PointDropdownMenuProps = WorkbenchMenuPlacement & WorkbenchMenuSkinProps & {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+} & ({ point: { x: number; y: number }; anchorRect?: never } | { anchorRect: WorkbenchMenuAnchorRect; point?: never })
+
+/** 受控点位入口：没有单一触发元素的菜单（`point`），以及还没迁到 `trigger` 的按钮下拉（`anchorRect`）。 */
+function PointDropdownMenu({
   open,
   onOpenChange,
   point,
@@ -338,18 +551,8 @@ export function WorkbenchMenu({
   side = 'bottom',
   align = 'start',
   gap = 6,
-  items,
-  ariaLabel,
-  className,
-  itemClassName,
-  shortcutClassName,
-  separatorClassName,
-  onPointerDown,
-  'data-testid': testId,
-  escapeLayer,
-  contentData,
-}: WorkbenchMenuProps): JSX.Element {
-  const ctx: RenderContext = { itemClassName, shortcutClassName, separatorClassName }
+  ...skin
+}: PointDropdownMenuProps): JSX.Element {
   const contentRef = React.useRef<HTMLDivElement | null>(null)
   const openerRef = React.useRef<Element | null>(null)
   const keyboardCloseRef = React.useRef(false)
@@ -374,7 +577,7 @@ export function WorkbenchMenu({
       {typeof document !== 'undefined' && createPortal(
         <DropdownMenuPrimitive.Trigger
         tabIndex={-1}
-        aria-label={ariaLabel}
+        aria-label={skin.ariaLabel}
         className="fixed size-0 border-0 bg-transparent p-0"
         style={anchorStyle}
       />,
@@ -386,16 +589,7 @@ export function WorkbenchMenu({
           align={align}
           sideOffset={anchorRect ? gap : 0}
           alignOffset={0}
-          // 8 = 现役画布菜单手写的 MENU_EDGE_GAP。差别在于避让用的是**真实测量的盒子**，
-          // 不再是各处各猜一个「菜单多高」的常数（清单 §3.3）。
-          collisionPadding={8}
-          aria-label={ariaLabel}
-          data-testid={testId}
-          data-nomi-escape-layer={escapeLayer}
-          {...contentData}
-          // 右键菜单上再右键，现役是 preventDefault（不弹浏览器原生菜单）。照抄。
-          onPointerDown={onPointerDown}
-          onContextMenu={(event) => event.preventDefault()}
+          {...surfaceProps(skin)}
           // 焦点：菜单是宿主受控开的，真正的触发按钮（或右键前聚焦的元素）Radix 不认识，它只认那个 0×0 的虚拟锚点。
           // 所以打开的那一刻（上面的 layout effect）自己记下谁有焦点，用键盘关掉（Esc / 键盘选一项）时还给它。
           // 仍然 preventDefault：Radix 默认会把焦点塞给虚拟锚点，那是一个看不见的元素。
@@ -403,8 +597,7 @@ export function WorkbenchMenu({
           onKeyDownCapture={() => { keyboardCloseRef.current = true }}
           onEscapeKeyDown={(event) => {
             keyboardCloseRef.current = true
-            // 这一下 Esc 已由本菜单消费，阻断继续冒到 window（避免同一下 Esc 把底层抽屉如 ShellRail 一并关掉）。
-            event.stopPropagation()
+            consumeEscape(event)
           }}
           onPointerDownCapture={() => { keyboardCloseRef.current = false }}
           onPointerDownOutside={() => { keyboardCloseRef.current = false }}
@@ -420,12 +613,15 @@ export function WorkbenchMenu({
             if (active && active !== document.body && !contentRef.current?.contains(active)) return
             opener.focus({ preventScroll: true })
           }}
-          style={{ zIndex: NOMI_OVERLAY_Z_INDEX.popover }}
-          className={cn(CONTENT_CLASS, className)}
         >
-          {renderNodes(items, ctx)}
+          {open ? renderNodes(resolveItems(skin.items), { ...skin, primitives: DROPDOWN_PRIMITIVES }) : null}
         </DropdownMenuPrimitive.Content>
       </DropdownMenuPrimitive.Portal>
     </DropdownMenuPrimitive.Root>
   )
+}
+
+export function WorkbenchMenu(props: WorkbenchMenuProps): JSX.Element {
+  if (props.trigger) return <TriggerDropdownMenu {...props} trigger={props.trigger} />
+  return <PointDropdownMenu {...props} />
 }

@@ -45,7 +45,8 @@ import { listenOutsidePress } from './outsidePress'
  *      2026-09-08 刀 1 起：`timeline/TimelineContextMenu.tsx`、
  *      `generationCanvas/components/NodeContextMenu.tsx`；2026-11-23 T-8-R1 起收编
  *      `creation/DocumentListSidebar.tsx`、`sidebar/CategoryTree.tsx`、
- *      `director/timeline/TimelineContextMenu.tsx`）**。刀 1 没有引进第五套定位库，
+ *      `director/timeline/{TrackList,TrackLanes}.tsx`——这三处走真触发器入口 `WorkbenchContextMenu` /
+ *      `WorkbenchMenu trigger`，原 `director/timeline/TimelineContextMenu.tsx` 点位适配层已删）**。刀 1 没有引进第五套定位库，
  *      是让已经在用的这一套多担一个用途；
  *   ③ Mantine —— `src/design/overlays.tsx` 的 `DesignModal`（Modal 自带定位与遮罩）；
  *   ④ 手写 `getBoundingClientRect()` + `createPortal` —— **7 个文件**：

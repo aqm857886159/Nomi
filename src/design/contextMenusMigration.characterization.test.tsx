@@ -40,7 +40,7 @@ vi.mock('react-i18next', () => ({
 
 import DocumentListSidebar from '../workbench/creation/DocumentListSidebar'
 import CategoryTree from '../workbench/sidebar/CategoryTree'
-import { TimelineContextMenu, type TimelineMenuItem } from '../workbench/generationCanvas/nodes/director/timeline/TimelineContextMenu'
+import { WorkbenchContextMenu, type WorkbenchMenuNode } from './menu'
 import { useWorkbenchStore } from '../workbench/workbenchStore'
 import { useGenerationCanvasStore } from '../workbench/generationCanvas/store/generationCanvasStore'
 import { BUILTIN_CATEGORIES, type ProjectCategory } from '../workbench/project/projectCategories'
@@ -328,6 +328,8 @@ class FakeWindow {
   KeyboardEvent = FakeEvent
   CustomEvent = FakeEvent
   ResizeObserver = class { observe() {} unobserve() {} disconnect() {} }
+  // Radix ContextMenu.Trigger 用 DOMRect.fromRect 造右键点位的虚拟锚点。
+  DOMRect = class { static fromRect(rect: { x?: number; y?: number; width?: number; height?: number } = {}) { const { x = 0, y = 0, width = 0, height = 0 } = rect; return { x, y, width, height, left: x, top: y, right: x + width, bottom: y + height, toJSON: () => ({}) } } }
   MutationObserver = class { observe() {} disconnect() {} takeRecords() { return [] } }
   getComputedStyle = () => ({ getPropertyValue: () => '', direction: 'ltr', overflowX: 'visible', overflowY: 'visible', position: 'fixed' })
   private activeTimers = new Set<ReturnType<typeof setTimeout>>()
@@ -405,6 +407,7 @@ function mountTree(element: React.ReactElement) {
   vi.stubGlobal('KeyboardEvent', FakeEvent)
   vi.stubGlobal('CustomEvent', FakeEvent)
   vi.stubGlobal('ResizeObserver', win.ResizeObserver)
+  vi.stubGlobal('DOMRect', win.DOMRect)
   vi.stubGlobal('MutationObserver', win.MutationObserver)
   vi.stubGlobal('getComputedStyle', win.getComputedStyle)
   vi.stubGlobal('requestAnimationFrame', win.requestAnimationFrame)
@@ -585,6 +588,34 @@ function mountTree(element: React.ReactElement) {
 // 仅做 type 引用，避免未使用告警
 type _UnusedCheck = TestHostNode
 
+/**
+ * 导演台时间轴的菜单形状：真触发器入口 `WorkbenchContextMenu` 包住一行，皮肤与 escapeLayer 照 DirectorTimeline 的 TIMELINE_MENU_SKIN。
+ * （原 director/timeline/TimelineContextMenu.tsx 点位适配层已删；真行 / 真「+」按钮的打开态在 menuTriggerAndCascade.browser.test.ts 里走。）
+ */
+type TimelineItemSpec =
+  | { id: string; label: string; disabled?: boolean; title?: string; danger?: boolean; onSelect: () => void }
+  | { id: string; separator: true }
+function TimelineRowMenu({ items, onOpenChange }: { items: TimelineItemSpec[]; onOpenChange?: (open: boolean) => void }) {
+  const nodes: WorkbenchMenuNode[] = items.map((item) =>
+    'separator' in item
+      ? { kind: 'separator', id: item.id }
+      : { id: item.id, label: item.label, disabled: item.disabled, disabledReason: item.title, danger: item.danger, onSelect: item.onSelect },
+  )
+  return (
+    <WorkbenchContextMenu
+      escapeLayer="director-timeline-menu"
+      className="min-w-[200px] rounded-nomi-lg p-1 text-body-sm text-nomi-ink shadow-nomi-lg"
+      itemClassName="min-h-0 rounded-nomi-sm px-2 py-1"
+      separatorClassName="my-1 mx-0 bg-nomi-line-soft"
+      items={nodes}
+      onOpenChange={onOpenChange}
+    >
+      <div data-testid="director-timeline-track">角色 1</div>
+    </WorkbenchContextMenu>
+  )
+}
+const timelineRow = (tree: ReturnType<typeof mountTree>) => tree.first((el) => el.getAttribute('data-testid') === 'director-timeline-track')!
+
 describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 Radix 版共用同一套字面量断言）', () => {
   const cleanups: Array<() => void> = []
 
@@ -643,7 +674,7 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       const tree = mountTree(<DocumentListSidebar />)
       cleanups.push(tree.unmount)
 
-      const docBtn = tree.first((el) => el.getAttribute('data-document-id') === 'doc-1')!
+      const docBtn = tree.first((el) => el.getAttribute('data-document-row') === 'doc-1')!
       expect(docBtn).not.toBeNull()
       tree.triggerContextMenu(docBtn)
 
@@ -679,7 +710,7 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       cleanups.push(tree.unmount)
 
       // 2 份文稿 → 删除项可点
-      const docBtn = tree.first((el) => el.getAttribute('data-document-id') === 'doc-2')!
+      const docBtn = tree.first((el) => el.getAttribute('data-document-row') === 'doc-2')!
       tree.triggerContextMenu(docBtn)
       const deleteDoc = tree.first((el) => el.getAttribute('role') === 'menuitem' && el.getAttribute('data-resource-action') === 'delete')!
       expect(tree.isDisabled(deleteDoc)).toBe(false)
@@ -689,7 +720,7 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       expect(useWorkbenchStore.getState().workbenchDocuments.map((d) => d.id)).toEqual(['doc-1'])
 
       // 右键分镜方案 → 3 项顺序与动作
-      const planBtn = tree.first((el) => el.getAttribute('data-storyboard-id') === 'design-1')!
+      const planBtn = tree.first((el) => el.getAttribute('data-storyboard-row') === 'design-1')!
       tree.triggerContextMenu(planBtn)
       const planMenu = tree.first((el) => el.getAttribute('role') === 'menu' && el.getAttribute('data-creation-resource-menu') === 'storyboard')
       expect(planMenu).not.toBeNull()
@@ -706,7 +737,7 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId['doc-1'].length).toBe(2)
 
       // 删除原方案（不弹 confirm，走撤销 toast）
-      const planBtnAgain = tree.first((el) => el.getAttribute('data-storyboard-id') === 'design-1')!
+      const planBtnAgain = tree.first((el) => el.getAttribute('data-storyboard-row') === 'design-1')!
       tree.triggerContextMenu(planBtnAgain)
       const delPlan = tree.first((el) => el.getAttribute('role') === 'menuitem' && el.getAttribute('data-resource-action') === 'delete')!
       tree.activateMenuItem(delPlan)
@@ -790,8 +821,8 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
     })
   })
 
-  describe('director/timeline/TimelineContextMenu 右键菜单', () => {
-    it('挂 data-nomi-escape-layer="director-timeline-menu"，渲染分隔线与 disabled+title，点可用项触发 onSelect+onClose，Esc 关闭', () => {
+  describe('导演台时间轴行右键菜单（WorkbenchContextMenu）', () => {
+    it('挂 data-nomi-escape-layer="director-timeline-menu"，渲染分隔线与 disabled+title，点可用项触发 onSelect 并关闭，Esc 关闭', () => {
       const onSplit = vi.fn()
       const onLocked = vi.fn()
       const onDelete = vi.fn()
@@ -800,14 +831,16 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       const pasteLabel = 'Paste Clip Item'
       const emptyReason = i18n.t('director.timeline.toast.clipboardEmpty')
       const deleteLabel = i18n.t('director.timeline.menu.deleteClip')
-      const items: TimelineMenuItem[] = [
+      const items: TimelineItemSpec[] = [
         { id: 'split', label: splitLabel, onSelect: onSplit },
         { id: 'locked', label: pasteLabel, disabled: true, title: emptyReason, onSelect: onLocked },
         { id: 'sep-1', separator: true },
         { id: 'delete', label: deleteLabel, danger: true, onSelect: onDelete },
       ]
-      const tree = mountTree(<TimelineContextMenu x={120} y={240} items={items} onClose={onClose} />)
+      const onOpenChange = vi.fn((open: boolean) => { if (!open) onClose() })
+      const tree = mountTree(<TimelineRowMenu items={items} onOpenChange={onOpenChange} />)
       cleanups.push(tree.unmount)
+      tree.triggerContextMenu(timelineRow(tree), 120, 240)
 
       const menu = tree.first((el) => el.getAttribute('role') === 'menu')
       expect(menu).not.toBeNull()
@@ -829,10 +862,13 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       expect(onSplit).toHaveBeenCalledTimes(1)
       expect(onClose).toHaveBeenCalledTimes(1)
 
-      // Esc 触发 onClose
+      // Esc 关闭
       onClose.mockClear()
+      tree.triggerContextMenu(timelineRow(tree), 120, 240)
+      expect(tree.first((el) => el.getAttribute('role') === 'menu')).not.toBeNull()
       tree.pressEscape()
       expect(onClose).toHaveBeenCalledTimes(1)
+      expect(tree.first((el) => el.getAttribute('role') === 'menu')).toBeNull()
     })
   })
 
@@ -866,13 +902,13 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       cleanups.push(docTree.unmount)
       const oldDocId = sbPayload.workbenchDocuments[1].id as string
       const oldDesignId = sbPayload.storyboardDesignsByDocumentId[oldDocId][0].id as string
-      const oldDocBtn = docTree.first((el) => el.getAttribute('data-document-id') === oldDocId)!
+      const oldDocBtn = docTree.first((el) => el.getAttribute('data-document-row') === oldDocId)!
       expect(oldDocBtn.textContent).toContain('Old bookshop script')
       docTree.triggerContextMenu(oldDocBtn)
       expect(docTree.first((el) => el.getAttribute('data-creation-resource-menu') === 'document')).not.toBeNull()
       docTree.pressEscape()
 
-      const oldPlanBtn = docTree.first((el) => el.getAttribute('data-storyboard-id') === oldDesignId)!
+      const oldPlanBtn = docTree.first((el) => el.getAttribute('data-storyboard-row') === oldDesignId)!
       docTree.triggerContextMenu(oldPlanBtn)
       const dupPlan = docTree.first((el) => el.getAttribute('role') === 'menuitem' && el.getAttribute('data-resource-action') === 'duplicate')!
       docTree.activateMenuItem(dupPlan)
@@ -901,13 +937,14 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       const onSplit = vi.fn()
       const onDelete = vi.fn()
       const onClose = vi.fn()
-      const items: TimelineMenuItem[] = [
+      const items: TimelineItemSpec[] = [
         { id: 'split', label: i18n.t('generationCommon.clipNode.split'), onSelect: onSplit },
         { id: 'locked', label: 'Paste Clip Item', disabled: true, title: i18n.t('director.timeline.toast.clipboardEmpty'), onSelect: () => undefined },
         { id: 'delete', label: i18n.t('director.timeline.menu.deleteClip'), danger: true, onSelect: onDelete },
       ]
-      const tree = mountTree(<TimelineContextMenu x={120} y={240} items={items} onClose={onClose} />)
+      const tree = mountTree(<TimelineRowMenu items={items} onOpenChange={(open) => { if (!open) onClose() }} />)
       cleanups.push(tree.unmount)
+      tree.triggerContextMenu(timelineRow(tree), 120, 240)
 
       const menuItems = tree.first((el) => el.getAttribute('role') === 'menu')!.querySelectorAll((el) => el.getAttribute('role') === 'menuitem')
       // 初始焦点移至首项，ArrowDown 跳过 disabled 的第 2 项直达第 3 项，ArrowUp 返回第 1 项
@@ -924,7 +961,7 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       // 1) DocumentListSidebar
       const docTree = mountTree(<DocumentListSidebar />)
       cleanups.push(docTree.unmount)
-      const docBtn = docTree.first((el) => el.getAttribute('data-document-id') === 'doc-1')!
+      const docBtn = docTree.first((el) => el.getAttribute('data-document-row') === 'doc-1')!
       docTree.triggerContextMenu(docBtn)
       expect(docTree.first((el) => el.getAttribute('role') === 'menu')).not.toBeNull()
       await new Promise((r) => setTimeout(r, 10))
@@ -941,17 +978,16 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       catTree.pointerDownOutsideOnly()
       expect(catTree.first((el) => el.getAttribute('role') === 'menu')).toBeNull()
 
-      // 3) director/timeline/TimelineContextMenu
+      // 3) 导演台时间轴行右键
       const onClose = vi.fn()
       const tlTree = mountTree(
-        <TimelineContextMenu
-          x={120}
-          y={240}
+        <TimelineRowMenu
           items={[{ id: 'split', label: i18n.t('generationCommon.clipNode.split'), onSelect: () => undefined }]}
-          onClose={onClose}
+          onOpenChange={(open) => { if (!open) onClose() }}
         />,
       )
       cleanups.push(tlTree.unmount)
+      tlTree.triggerContextMenu(timelineRow(tlTree), 120, 240)
       expect(tlTree.first((el) => el.getAttribute('role') === 'menu')).not.toBeNull()
       await new Promise((r) => setTimeout(r, 10))
       tlTree.pointerDownOutsideOnly()
@@ -965,7 +1001,7 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       docTree.win.addEventListener('keydown', (ev) => {
         if ((ev as { key?: string }).key === 'Escape') outerWindowEsc()
       })
-      const docBtn = docTree.first((el) => el.getAttribute('data-document-id') === 'doc-1')!
+      const docBtn = docTree.first((el) => el.getAttribute('data-document-row') === 'doc-1')!
       docTree.triggerContextMenu(docBtn)
       expect(docTree.first((el) => el.getAttribute('role') === 'menu')).not.toBeNull()
 
@@ -981,14 +1017,14 @@ describe('右键菜单迁入 WorkbenchMenu 特征测试（换前原版与换后 
       })
       const singleDocTree = mountTree(<DocumentListSidebar />)
       cleanups.push(singleDocTree.unmount)
-      const docBtn = singleDocTree.first((el) => el.getAttribute('data-document-id') === 'doc-1')!
+      const docBtn = singleDocTree.first((el) => el.getAttribute('data-document-row') === 'doc-1')!
       singleDocTree.triggerContextMenu(docBtn)
       const disabledDelete = singleDocTree.first((el) => el.getAttribute('role') === 'menuitem' && el.getAttribute('data-resource-action') === 'delete')!
       expect(disabledDelete.hasAttribute('data-danger')).toBe(false)
       singleDocTree.pressEscape()
 
       // 2) 分镜方案（design-1）：删除方案未禁用 → 必挂 data-danger 且类名含 data-[danger]:text-workbench-danger
-      const planBtn = singleDocTree.first((el) => el.getAttribute('data-storyboard-id') === 'design-1')!
+      const planBtn = singleDocTree.first((el) => el.getAttribute('data-storyboard-row') === 'design-1')!
       singleDocTree.triggerContextMenu(planBtn)
       const enabledDelete = singleDocTree.first((el) => el.getAttribute('role') === 'menuitem' && el.getAttribute('data-resource-action') === 'delete')!
       expect(enabledDelete.hasAttribute('data-danger')).toBe(true)
