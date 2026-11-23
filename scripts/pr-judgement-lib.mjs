@@ -44,8 +44,32 @@ const SHORT_WORD = /^(?:短|short|s)$/i
 const STANDARD_WORD = /^(?:标准|standard|normal|中)$/i
 const STRICT_WORD = /^(?:严|严格|strict|full)$/i
 const UI_SOURCE = /^(?:src\/.*\.(?:tsx|ts|css|scss)|electron\/.*\.(?:tsx|ts|css|scss))$/i
+export const UI_SURFACE_CANDIDATE = /^(?:src\/(?!devlab\/).*\.(?:tsx|css|scss)|src\/i18n\/.+\.(?:ts|tsx|json)|src\/design\/.+\.(?:ts|tsx|css|scss)|electron\/shared\/(?:modelArchetypes|videoCapabilities|imageCapabilities|audioCapabilities)\/.+\.(?:ts|tsx))$/i
 const UI_MANIFEST = /^docs\/design\/boards\//i
 const NON_PRODUCT = /^(?:docs\/.*|tests?\/.*|evals\/.*|\.github\/.*|scripts\/.*|fixtures\/.*|(?:[^/]+\.(?:md|json|ya?ml|toml|lock|txt))|.*\.(?:test|spec|e2e)\.[^.]+)$/i
+
+/**
+ * 从真实改动文件列表直接计算「是否碰了用户可见界面 / 文案 / 设计 token / 模型展示默认参数」。
+ * 不依赖 PR 正文手填的「无界面差异」自评，不做容易漏报的手写词法去注释：只要改动命中界面候选路径（无论增删改），一律判为碰了用户可见界面（落标准档，不升严档）；
+ * 缺少改动文件清单时 fail-closed 返回 { known: false }，绝不退回只比拍板图清单的老路。
+ */
+export function detectUiSurfaceDiff({ files } = {}) {
+  if (!Array.isArray(files) || files.length === 0) {
+    return { known: false, changed: null, files: [], reason: '缺少改动文件清单，无法核实是否碰了用户可见界面' }
+  }
+  const candidates = files
+    .map((file) => norm(typeof file === 'string' ? file : file?.path))
+    .filter((filePath) => filePath && !NON_PRODUCT.test(filePath) && UI_SURFACE_CANDIDATE.test(filePath))
+  if (candidates.length > 0) {
+    return {
+      known: true,
+      changed: true,
+      files: candidates,
+      reason: `改动命中用户可见界面候选路径：${candidates.slice(0, 5).join('、')}${candidates.length > 5 ? ' …' : ''}`,
+    }
+  }
+  return { known: true, changed: false, files: [], reason: '改动未命中用户可见界面候选路径' }
+}
 
 function normalizeTier(value) {
   const text = String(value ?? '').trim()
@@ -81,12 +105,18 @@ export function parseChangeIntent(body) {
 }
 
 /**
- * 界面候选文件的保守判定。只要产品源文件变了，必须拿到 base/head 清单；
+ * 界面候选文件的保守判定。缺少改动文件清单时一律 fail-closed 返回 { known: false }；
+ * 命中界面候选路径直接返回 { known: true, changed: true }；其余产品源文件继续核对 base/head 拍板图清单；
  * 文档、测试、配置和门岗自身不需要假装有 UI 证据。
  */
-export function deriveUiVerification({ files = [], baseBoards = null, headBoards = null, explicit = null } = {}) {
+export function deriveUiVerification({ files, baseBoards = null, headBoards = null, explicit = null } = {}) {
   if (explicit && typeof explicit === 'object') return explicit
-  const normalized = files.map((file) => norm(file.path))
+  if (!Array.isArray(files) || files.length === 0) {
+    return { known: false, changed: null, reason: '缺少改动文件清单，无法核实是否碰了用户可见界面' }
+  }
+  const surfaceDiff = detectUiSurfaceDiff({ files })
+  if (surfaceDiff.known !== true || surfaceDiff.changed === true) return surfaceDiff
+  const normalized = files.map((file) => norm(typeof file === 'string' ? file : file?.path))
   const uiFiles = normalized.filter((file) => UI_SOURCE.test(file) || UI_MANIFEST.test(file))
   const productUiFiles = uiFiles.filter((file) => !NON_PRODUCT.test(file))
   if (!productUiFiles.length) return { known: true, changed: false, reason: '改动没有界面候选文件' }
@@ -94,16 +124,15 @@ export function deriveUiVerification({ files = [], baseBoards = null, headBoards
   const head = typeof headBoards === 'function' ? headBoards() : headBoards
   const compared = compareBoardManifests(base, head)
   if (!compared.known) return { known: false, changed: null, reason: `${compared.reason}；界面候选文件有改动` }
-  return { ...compared, reason: `${compared.reason}；界面候选文件：${productUiFiles.slice(0, 5).join('、')}${productUiFiles.length > 5 ? ' …' : ''}` }
+  const surfaceNote = surfaceDiff?.reason ? `；${surfaceDiff.reason}` : ''
+  return { ...compared, reason: `${compared.reason}${surfaceNote}；界面候选文件：${productUiFiles.slice(0, 5).join('、')}${productUiFiles.length > 5 ? ' …' : ''}` }
 }
-
-const NO_UI_DIFF = /无(?:界面|UI)差异|no\s+ui\s+diff/i
 
 /**
  * 三档判定的唯一实现。
  *   · 严：现行四类（花钱 / 长跑 / 可打断 / 新界面）。直接读 inferRoutes 的 fourClass，不另写第二套判据，也没有别的升严来源；声明降不了档。
- *   · 短：四类之外，且 ① 没写 `## 变更意图`、文件清单自证全是纯文档 / 测试 / 配置；或 ② 声明了单一意图的纯修复（或纯文档 / 测试 / 配置）、
- *     写明「界面核实：无界面差异」，base/head 界面清单也核实无差异。让逃逸账本条目转 fixed 或碰了存量数据路径的 PR 永远不进短档。
+ *   · 短：四类之外，且 ① 没写 `## 变更意图`、文件清单自证全是纯文档 / 测试 / 配置；或 ② 声明了单一意图的纯修复（或纯文档 / 测试 / 配置），
+ *     且由门岗从改动本身算出没碰用户可见界面（不以 PR 自报为准）。让逃逸账本条目转 fixed 或碰了存量数据路径的 PR 永远不进短档。
  *   · 标准：其余，也就是今天四类之外的全部要求。声明了短档但核实有差异、核实不了，一律落在这里，不升严。
  * uiVerification 可以是值，也可以是函数：只有声明短档的 PR 才调用，别的 PR 不为它去读拍板图清单；取数抛错按核实不了算。
  * shortAllowed=false：规则生效前开的 PR 不适用短档。
@@ -128,7 +157,6 @@ export function evaluateProcessTier({ body, files = [], inferred, ledgerTransiti
   if (declaredShort) {
     if (!declaration.singleIntent) failures.push(declaration.reason || '不是单一意图')
     if (!declaration.pureFix && declaration.intentKind !== 'non-product') failures.push('声明不是纯修复 / 纯文档 / 测试 / 配置')
-    if (!declaration.uiAssertion || !NO_UI_DIFF.test(declaration.uiAssertion)) failures.push('缺少“界面核实：无界面差异”声明')
     if (!failures.length) {
       try { ui = typeof uiVerification === 'function' ? uiVerification() : uiVerification } catch (error) { ui = { known: false, changed: null, reason: `取数失败：${error?.message ?? error}` } }
       if (!ui || typeof ui !== 'object' || ui.known !== true) failures.push(`界面差异核实不了（${ui?.reason || '没有 base/head 界面清单核实'}）`)

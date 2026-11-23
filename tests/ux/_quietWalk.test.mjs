@@ -125,6 +125,122 @@ describe('quiet-walk main-process instrument', () => {
   })
 })
 
+function runResizeOffscreenProbe(extraEnv = {}) {
+  const script = `
+    const Module = require('node:module')
+    const { EventEmitter } = require('node:events')
+    Object.defineProperty(process, 'platform', { value: 'darwin' })
+    const nativeCalls = []
+    class FakeWindow extends EventEmitter {
+      static getAllWindows() { return [] }
+      constructor(options) {
+        super()
+        this.options = options
+        this.width = options.width ?? 1440
+        this.height = options.height ?? 800
+        this.position = [options.x ?? 0, options.y ?? 0]
+        this.destroyed = false
+        if (options.x !== undefined || options.y !== undefined) this._clamp(options.x ?? 0, options.y ?? 0)
+      }
+      _clamp(x, y) {
+        // 模拟 macOS 钳位：屏外 x 被夹在 -(width - 40)（主屏左缘留 40px 隐身边缘条），y 最小停在 33。
+        const minX = -(this.width - 40)
+        this.position = [Math.max(minX, x), Math.max(33, y)]
+      }
+      showInactive(...args) { nativeCalls.push(['showInactive', args]); this.emit('show') }
+      show(...args) { nativeCalls.push(['show', args]) }
+      focus(...args) { nativeCalls.push(['focus', args]) }
+      moveTop(...args) { nativeCalls.push(['moveTop', args]) }
+      setOpacity(...args) { nativeCalls.push(['setOpacity', args]) }
+      setIgnoreMouseEvents(...args) { nativeCalls.push(['setIgnoreMouseEvents', args]) }
+      setFocusable(value) { nativeCalls.push(['setFocusable', [value]]) }
+      getPosition() { return [...this.position] }
+      setPosition(x, y) {
+        nativeCalls.push(['setPosition', [x, y]])
+        const prev = [...this.position]
+        this._clamp(x, y)
+        if (this.position[0] !== prev[0] || this.position[1] !== prev[1]) this.emit('moved')
+      }
+      setContentSize(width, height) {
+        nativeCalls.push(['setContentSize', [width, height]])
+        this.width = width; this.height = height
+        // macOS 缩窄时把左缘夹到 -(700-40)=-660；扩回 1440 时左缘停在 -660（右侧 780px 裸露进屏幕），且不发 moved。
+        this._clamp(this.position[0], this.position[1])
+      }
+      setSize(width, height) {
+        nativeCalls.push(['setSize', [width, height]])
+        this.width = width; this.height = height
+        this._clamp(this.position[0], this.position[1])
+      }
+      setBounds(bounds) {
+        nativeCalls.push(['setBounds', [bounds]])
+        if (bounds && typeof bounds === 'object') {
+          if (bounds.width !== undefined) this.width = bounds.width
+          if (bounds.height !== undefined) this.height = bounds.height
+          this._clamp(bounds.x ?? this.position[0], bounds.y ?? this.position[1])
+        }
+      }
+      center() {
+        nativeCalls.push(['center', []])
+        this.position = [200, 100]
+      }
+      isDestroyed() { return this.destroyed }
+    }
+    const app = new EventEmitter()
+    app.setActivationPolicy = () => undefined
+    app.focus = () => undefined
+    app.dock = { bounce: () => undefined, show: () => undefined }
+    const shell = { openExternal: () => undefined, openPath: () => undefined, showItemInFolder: () => undefined }
+    const dialog = { showOpenDialog: () => undefined, showErrorBox: () => undefined }
+    class FakeNotification { show() {} }
+    const fakeElectron = { BrowserWindow: FakeWindow, app, shell, dialog, Notification: FakeNotification }
+    const electronName = ['elec', 'tron'].join('')
+    const originalLoad = Module._load
+    Module._load = function(request, parent, isMain) { return request === electronName ? fakeElectron : originalLoad.call(this, request, parent, isMain) }
+    require(${JSON.stringify(quietWalk)})
+    const injected = require(electronName)
+    const win = new injected.BrowserWindow({ show: true, width: 1440, height: 800 })
+    const snap = () => ({ pos: win.getPosition(), width: win.width, rightEdge: win.getPosition()[0] + win.width })
+    const atInit = snap()
+    win.setContentSize(700, 800)
+    win.setContentSize(1440, 800)
+    const afterSetContentSize = snap()
+    win.setSize(700, 800)
+    win.setSize(1440, 800)
+    const afterSetSize = snap()
+    win.setBounds({ x: 0, y: 0, width: 1440, height: 800 })
+    const afterSetBounds = snap()
+    win.center()
+    const afterCenter = snap()
+    // 模拟 OS / 原生侧直接改尺寸并只发 resized 事件
+    win.position = [-660, 33]
+    win.emit('resized')
+    const afterResizedEvent = snap()
+    console.log(JSON.stringify({ atInit, afterSetContentSize, afterSetSize, afterSetBounds, afterCenter, afterResizedEvent, nativeCalls, events: globalThis.__nomiQuietWalk.events }))
+  `
+  const result = spawnSync(process.execPath, ['-e', script], { cwd: repoRoot, env: { ...process.env, ...extraEnv }, encoding: 'utf8' })
+  expect(result.status, result.stderr).toBe(0)
+  return JSON.parse(result.stdout.trim())
+}
+
 test('quiet-walk module is a single main-process file', () => {
   expect(fs.readFileSync(quietWalk, 'utf8')).toContain('globalThis.__nomiQuietWalk')
+})
+
+describe('quiet-walk keeps offscreen windows parked after resize / setContentSize / setSize / setBounds / center', () => {
+  test('缩窄再扩宽（setContentSize / setSize）、setBounds、center 与 resized 事件后，隐身窗口必须重新停回屏外（右缘 ≤ 40px）', () => {
+    const probe = runResizeOffscreenProbe()
+    expect(probe.atInit).toEqual({ pos: [-1400, 33], width: 1440, rightEdge: 40 })
+    expect(probe.afterSetContentSize, 'setContentSize(700→1440) 后必须重停泊回屏外').toEqual({ pos: [-1400, 33], width: 1440, rightEdge: 40 })
+    expect(probe.afterSetSize, 'setSize(700→1440) 后必须重停泊回屏外').toEqual({ pos: [-1400, 33], width: 1440, rightEdge: 40 })
+    expect(probe.afterSetBounds, 'setBounds({ x: 0, y: 0 }) 不得把静默窗口挪进屏幕').toEqual({ pos: [-1400, 33], width: 1440, rightEdge: 40 })
+    expect(probe.afterCenter, 'center() 不得把静默窗口居中到屏幕上').toEqual({ pos: [-1400, 33], width: 1440, rightEdge: 40 })
+    expect(probe.afterResizedEvent, '原生 resized 事件后必须重停泊回屏外').toEqual({ pos: [-1400, 33], width: 1440, rightEdge: 40 })
+  })
+
+  test('foreground opt-in（NOMI_WALK_FOREGROUND_OK=1）保留 setBounds / center 真实行为', () => {
+    const probe = runResizeOffscreenProbe({ NOMI_WALK_FOREGROUND_OK: '1' })
+    expect(probe.afterSetBounds.pos).toEqual([0, 33])
+    expect(probe.afterCenter.pos).toEqual([200, 100])
+  })
 })

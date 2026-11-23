@@ -48,8 +48,13 @@ describe('(a) 新建文件', () => {
     assert.ok(result.indexBytes <= 2500)
   })
 
-  test('文件已存在 → 不当新建', () => {
+  test('文件已存在且走 Write → 不当新建；首次 Edit 已有受控文件 → 吐已有主人与现成库速查', () => {
     assert.equal(decideEditTimeReminder(write('electron/agentLane/laneHost.mts'), env({ exists: () => true })), null)
+    const onEdit = decideEditTimeReminder(write('electron/agentLane/laneSkillCatalog.mts', 'Edit'), env({ exists: () => true }))
+    assert.equal(onEdit.kind, 'existing-file')
+    assert.match(onEdit.message, /【已有主人与现成库 · 首次编辑已有文件】/)
+    assert.match(onEdit.message, /通用能力现成库/)
+    assert.ok(onEdit.indexBytes <= 1800)
   })
 
   test('不归它管的路径、别的工具、路径在仓库外 → 不提醒', () => {
@@ -62,14 +67,18 @@ describe('(a) 新建文件', () => {
 
 describe('(b) 同一文件反复修', () => {
   const hotEntry = (fixes) => ({ path: 'x', hot: true, file: { fixes, reverts: 0 }, reasons: [`文件近 14 天已有 ${fixes} 个 fix，这一刀是第 ${fixes + 1} 个`] })
-  test(`churn 命中 → 提醒方向检查（类根因复盘）；未命中不提醒；阈值 = 已有 ${FIX_THRESHOLD} 个 fix`, () => {
+  test(`churn 命中 → 提醒方向检查（类根因复盘）并同附精简能力速查（总字节 ≤ 2560）；未命中不误报；阈值 = 已有 ${FIX_THRESHOLD} 个 fix`, () => {
     const file = 'electron/agentLane/laneHost.mts'
     const hit = decideEditTimeReminder(write(file, 'Edit'), env({ exists: () => true, churn: () => hotEntry(FIX_THRESHOLD) }))
     assert.equal(hit.kind, 'repeat-fix')
     assert.match(hit.message, /方向检查/)
     assert.match(hit.message, /类根因复盘/)
     assert.match(hit.message, new RegExp(`第 ${FIX_THRESHOLD + 1} 个`))
-    assert.equal(decideEditTimeReminder(write(file, 'Edit'), env({ exists: () => true, churn: () => ({ hot: false }) })), null)
+    assert.match(hit.message, /【已有主人与现成库 · 热点文件同附】/)
+    assert.match(hit.message, /通用能力现成库|依赖框架已经提供|直接关联本文件的唯一主人/)
+    assert.ok(Buffer.byteLength(hit.message, 'utf8') <= 2560, `合并提醒字节超限：${Buffer.byteLength(hit.message, 'utf8')}`)
+    const nonHot = decideEditTimeReminder(write(file, 'Edit'), env({ exists: () => true, churn: () => ({ hot: false }) }))
+    assert.equal(nonHot?.kind, 'existing-file')
     assert.equal(FIX_THRESHOLD, 2)
   })
 

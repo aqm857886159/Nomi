@@ -1,0 +1,406 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-22-reference-key-capacity-owner",
+  "problem_type": "Reference-key capacity and frame-slot intent in referenceKeys.ts returned the first mode's cap when modeId was omitted, skipped modes inheriting archetype transportTaskKind, and left non-standard frame slot inputKeys out of FRAME_REFERENCE_KEYS, while hasImageEditReferences hardcoded only extras.image",
+  "symptom": "Sending first+last 2 reference images on external / headless paths without modeId to Seedance 2.5, Wan 3.0, and Wan 3.0 Prime (or with modeId=firstlast to Higgsfield DoP and RunningHub frame models) failed before dispatch with '这个模型最多收 1张图片参考。'.",
+  "direct_cause": "referenceKeyCapacityDeclarationFor returned on the first mode in archetype.modes (first mode max=1 before firstlast max=2 on shared image_with_roles), modeMatchesTaskKind checked mode.transportTaskKind instead of modeTransportFor, FRAME_REFERENCE_KEYS was a static 10-key table missing archetype-declared frame inputKeys (end_image_url, firstImageUrl, lastImageUrl, frames_first, frames_last), and hasImageEditReferences only inspected extras.image among explicit body keys.",
+  "class_root": "Deriving model reference capacity and frame-key classification from partial hand-maintained subsets or first-mode-wins iteration instead of projecting over all matching modes and slot declarations in the canonical archetype owner.",
+  "affected_population": [
+    "External Agent / MCP / headless runTask and CatalogGenerationProvider callers sending multi-frame or explicit carrier references without modeId on Seedance 2.5, Wan 3.0, and Wan 3.0 Prime",
+    "Models declaring custom frame slot inputKeys such as Higgsfield DoP (end_image_url), RunningHub Veo 3.1 / Kling 3.0 / Wan 2.7 (firstImageUrl / lastImageUrl), MiniMax H3, and Dreamina Seedance 2"
+  ],
+  "scope_paths": [
+    "electron/shared/modelArchetypes/referenceKeys.ts",
+    "electron/catalog/taskParamsReferences.ts"
+  ],
+  "entry_points": [
+    "electron/shared/modelArchetypes/referenceKeys.ts::referenceKeyCapacityDeclarationFor",
+    "electron/shared/modelArchetypes/referenceKeys.ts::referenceFrameKindFor",
+    "electron/catalog/taskParamsReferences.ts::hasImageEditReferences"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+      "checked_at": "2026-11-22",
+      "purpose": "Confirms Seedance 2.5 accepts 2 frame images (role first_frame max 1 + role last_frame max 1) in image_with_roles."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+      "checked_at": "2026-11-22",
+      "purpose": "Confirms Wan 3.0 and Wan 3.0 Prime accept first_frame + last_frame (2 images) in frame mode and up to 10 reference images in reference mode."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.volcengine.com/docs/82379/1520757",
+      "checked_at": "2026-11-22",
+      "purpose": "Confirms official ByteDance Seedance specification supports simultaneous first_frame and last_frame image inputs."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://help.aliyun.com/zh/model-studio/image-to-video-by-first-and-last-frame-api-reference",
+      "checked_at": "2026-11-22",
+      "purpose": "Confirms official Alibaba Wanxiang specification accepts first_frame_url + last_frame_url (2 images)."
+    }
+  ],
+  "invariants": [
+    "When modeId is omitted, referenceKeyCapacityDeclarationFor aggregates capacity across all modes matching modeTransportFor(mode, archetype, vendorKey) rather than stopping at the first mode.",
+    "Every built-in archetype slot inputKey used exclusively for first_frame or last_frame slots is automatically classified by referenceFrameKindFor without manual table duplication.",
+    "hasImageEditReferences recognizes any key classified by classifyReferenceKey instead of hardcoding a single extras.image field."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/modelArchetypes/referenceKeys.ts",
+    "tests": [
+      "electron/catalog/taskParams.modeInputRoutes.test.ts",
+      "electron/catalog/referenceKeyProjectionCensus.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/catalog/archetypeInput.ts",
+      "symbol": "GENERIC_REFERENCE_KEYS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/modelCatalogListing.ts",
+      "symbol": "ReferenceModelContext"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/outboundReferenceUrl.ts",
+      "symbol": "GENERIC_REFERENCE_KEYS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/referenceReachability.ts",
+      "symbol": "ReferenceModelContext"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/referenceReachability.ts",
+      "symbol": "ReferenceFamily"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "ReferenceFamily"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/taskParamsGuard.ts",
+      "symbol": "ReferenceFamily"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/taskParamsReferences.ts",
+      "symbol": "ReferenceFamily"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "DERIVED_REFERENCE_CARRIER_KEYS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/generationLowering/headlessReferences.ts",
+      "symbol": "ReferenceFamily"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/generationLowering/headlessReferences.ts",
+      "symbol": "ReferenceFrameKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/generationLowering/headlessReferences.ts",
+      "symbol": "ReferenceModelContext"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/generationLowering/runReferences.ts",
+      "symbol": "ReferenceFamily"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/generationLowering/runReferences.ts",
+      "symbol": "ReferenceFrameKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/generationLowering/runReferences.ts",
+      "symbol": "TRANSLATED_REFERENCE_INPUT_KEYS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/generationLowering/runReferences.ts",
+      "symbol": "RUN_PATH_REFERENCE_KEYS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "ReferenceFamily"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "ReferenceKeyDeclaration"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "ReferenceFrameKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "ReferenceKeyShape"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "DERIVED_REFERENCE_CARRIER_KEYS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "ReferenceModelContext"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "ReferenceKeyCapacityDeclaration"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "REFERENCE_PARKED_KEY"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/referenceList.ts",
+      "symbol": "REFERENCE_PARKED_KEY"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "GENERIC_REFERENCE_KEYS"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/referenceReachability.ts",
+      "symbol": "referenceKeyDeclarationFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/referenceReachability.ts",
+      "symbol": "referenceKeyCapacityDeclarationFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "referenceKeyCapacityDeclarationFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "referenceFrameKindFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "firstReferenceImage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "carriedReferenceUrlsByFamily"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "referenceUrlsByFamily"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParamsGuard.ts",
+      "symbol": "carriedReferences"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParamsGuard.ts",
+      "symbol": "carriedReferenceFamilies"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParamsGuard.ts",
+      "symbol": "hasImageEditReferences"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParamsReferences.ts",
+      "symbol": "firstReferenceImage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParamsReferences.ts",
+      "symbol": "carriedReferences"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParamsReferences.ts",
+      "symbol": "referenceUrlsByFamily"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParamsReferences.ts",
+      "symbol": "carriedPromptReferences"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "referenceKeyDeclarationFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "referenceKeyDeclarationFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "projectOutboundPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationLowering/headlessReferences.ts",
+      "symbol": "referenceKeyCapacityDeclarationFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationLowering/headlessReferences.ts",
+      "symbol": "referenceFrameKindFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationLowering/headlessReferences.ts",
+      "symbol": "referenceKeyShapeFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationLowering/runReferences.ts",
+      "symbol": "referenceKeyDeclarationFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationLowering/runReferences.ts",
+      "symbol": "referenceFrameKindFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationLowering/runReferences.ts",
+      "symbol": "referenceKeyShapeFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "referenceKeyDeclarationFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "allReferenceImages"
+    }
+  ],
+  "door_reduction": {
+    "before": 51,
+    "after": 51,
+    "why_not": "All callers already read capacity, frame kind, and key classification from referenceKeys.ts and taskParamsReferences.ts; the fix repairs the canonical owner in place without adding any new door."
+  },
+  "generality_proof": "Aggregating capacity over all taskKind-matching modes via modeTransportFor and deriving exclusive frame slot inputKeys directly from everyBuiltInArchetype() eliminates the entire class of false max=1 rejections across every existing and future multi-mode archetype, shrinking the full-catalog modeInputRoutes exception list to empty.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "referenceKeyCapacityDeclarationFor",
+      "responsibility": "Single owner resolving body-key media family, multiImage flag, and maximum count from selected mode or aggregated taskKind modes."
+    },
+    {
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "referenceFrameKindFor",
+      "responsibility": "Single owner classifying first_frame and last_frame keys from standard aliases plus exclusive built-in archetype frame slot declarations."
+    },
+    {
+      "path": "electron/catalog/taskParamsReferences.ts",
+      "symbol": "hasImageEditReferences",
+      "responsibility": "Single pre-spend guard reader checking whether a request carries at least one reference across standard inputs and declared reference carrier keys."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "entry_point": "applyHeadlessParamDefaults / headlessReferenceLowering",
+      "disposition": "enforced",
+      "evidence": "Reads referenceKeyCapacityDeclarationFor and lowerHeadlessReferences (which reads referenceFrameKindFor) for both Engine A and Engine B."
+    },
+    {
+      "path": "electron/catalog/referenceReachability.ts",
+      "entry_point": "bodyReferenceSupport",
+      "disposition": "enforced",
+      "evidence": "Reads referenceKeyCapacityDeclarationFor for list_models and guard suggestions."
+    },
+    {
+      "path": "electron/catalog/taskParamsGuard.ts",
+      "entry_point": "imageEditGuardError",
+      "disposition": "enforced",
+      "evidence": "Calls hasImageEditReferences in taskParamsReferences.ts before spend on Engine A and Engine B."
+    }
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-22",
+  "recurrence_of": "2026-11-08-reference-mode-projection",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Prior fix 94e59b73b threaded modeId for one path while leaving the unselected-mode early return and static FRAME_REFERENCE_KEYS snapshot in referenceKeys.ts.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs electron/shared/modelArchetypes/referenceKeys.ts electron/catalog/taskParamsReferences.ts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/modelArchetypes/referenceKeys.ts",
+    "invariant": "Frame slot inputKeys and mode capacities are derived directly from everyBuiltInArchetype() and modeTransportFor, and full-catalog scan in taskParams.modeInputRoutes.test.ts enforces others === [].",
+    "failure_mode": "Any model/mode cell failing capacity or missing input fails taskParams.modeInputRoutes.test.ts immediately with zero exceptions allowed.",
+    "exception_policy": "none",
+    "strategy": "Derive exclusive frame slot keys from everyBuiltInArchetype() at module load, aggregate capacity across taskKind-matching modes via modeTransportFor, and remove the Higgsfield DoP exception allowlist in taskParams.modeInputRoutes.test.ts.",
+    "artifacts": [
+      "electron/shared/modelArchetypes/referenceKeys.ts",
+      "electron/catalog/taskParamsReferences.ts",
+      "electron/catalog/taskParams.modeInputRoutes.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/taskParams.modeInputRoutes.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/taskParams.modeInputRoutes.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/modelArchetypes/referenceKeys.ts",
+      "electron/catalog/taskParamsReferences.ts",
+      "electron/catalog/taskParams.modeInputRoutes.test.ts"
+    ],
+    "rationale": "Removed first-mode-wins early return, static-only FRAME_REFERENCE_KEYS lookup, hardcoded extras.image check, and the 2-cell Higgsfield DoP known-failure allowlist in the same commit."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No new external dependencies introduced.",
+    "exit_criteria": []
+  },
+  "migration": "Purely permissive for valid 2-frame requests that were previously false-rejected; over-capacity requests above the model's declared maximum continue to be rejected before spend.",
+  "residual_risks": [
+    "Custom user-authored models without an archetypeId or customCapabilityContract continue to use generic key-shape inference as designed."
+  ]
+}
