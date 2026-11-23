@@ -64,11 +64,23 @@ describe('T-8 第 2 类：禁止在已有/新增产品文件偷写通用轮子',
     )
     assert.ok(badAsync.includes('generic-raw-rename/no-restricted-syntax'))
 
+    const badNamed = await ruleIds(
+      "import { rename as publish } from 'node:fs/promises'\nexport async function mv(a: string, b: string) { await publish(a, b) }\n",
+      'electron/agentLane/probeRename3.mts',
+    )
+    assert.ok(badNamed.includes('generic-raw-rename/no-restricted-syntax'))
+
     const goodOwner = await ruleIds(
-      "import fs from 'node:fs'\nexport function mv(a: string, b: string) { fs.renameSync(a, b) }\n",
+      "import fs from 'node:fs'\nexport function mv(a: string, b: string) { fs.renameSync(a, b) }\nexport const moveAsync = (a: string, b: string) => fs.promises.rename(a, b)\n",
       'electron/jsonFile.ts',
     )
     assert.ok(!goodOwner.includes('generic-raw-rename/no-restricted-syntax'))
+
+    const goodCaller = await ruleIds(
+      "import { renameWithRetry } from '../jsonFile.js'\nexport const move = (a: string, b: string) => renameWithRetry(a, b)\n",
+      'electron/agentLane/probeRename3.mts',
+    )
+    assert.ok(!goodCaller.includes('generic-raw-rename/no-restricted-syntax'))
   })
 
   test('generic-retry-loop：回放 #1409 指数退避重试必红且报错只指 p-retry；#1503 眨眼动效 / #1392 空闲看门狗零误报', async () => {

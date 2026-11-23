@@ -1,0 +1,31 @@
+{
+  "name": "当前 Agent 回合暂停生成",
+  "subject": "agent-lane.turn-generation-hold",
+  "lifecycle": "spend-authority",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+    "symbol": "createLaneExtendedDesktopPorts"
+  },
+  "write_api": [
+    {
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "createLaneExtendedDesktopPorts"
+    },
+    {
+      "path": "electron/agentLane/laneInputIntent.mts",
+      "symbol": "laneInputIntent"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+  "allowed_consumers": [
+    "electron/agentLane/laneDesktopTools.ts",
+    "electron/agentLane/laneHost.mts"
+  ],
+  "since": "2026-11-23",
+  "notes": "已消费的用户输入和卡片答复通过 turnGenerationHold 的同一判据写入当轮工具上下文。桌面工具准备阶段对单镜与批量生成在审批前执行暂停，草稿编辑仍可完成。合同见 docs/fixes/2026-11-23-agent-turn-generation-hold.root-cause.json。"
+}

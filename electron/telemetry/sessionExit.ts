@@ -3,6 +3,7 @@ import path from 'node:path'
 import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
 import { getSettingsRoot } from '../settings/settingsRoot'
 import { registerQuitDrain } from '../quitTeardown'
+import { isMcpStdioLaunch } from '../productionRun/desktopLaunchIntent'
 import { LAST_EXIT_VALUES, type LastExit } from '../shared/contracts/telemetry'
 
 // 「上一次是怎么结束的」——`app.started.lastExit` 的唯一来源（2026-11-13）。
@@ -103,7 +104,7 @@ let started: LastExit | null = null
 /** 生产入口：遥测开关以启动这一刻为准；MCP stdio 模式（别的工具拉起的无窗进程）不记。 */
 export function startAppSessionExitTracking(input: { enabled: boolean; app: Listenable; existingWindows?: readonly WindowLike[] }): LastExit {
   if (started !== null) return started
-  if (process.env.NOMI_MCP_STDIO === '1') return (started = 'unknown')
+  if (isMcpStdioLaunch()) return (started = 'unknown')
   started = startSessionExitTracking({
     enabled: input.enabled, markerPath: path.join(getSettingsRoot(), FILE), app: input.app, process, existingWindows: input.existingWindows,
     // 正常退出一条；系统关机 / 注销（Windows session-end、Linux shutdown）只跑 critical 那一条，也记成正常退出。

@@ -3,7 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { fsyncIfDurable } from "./durability";
-import { isSharingViolation, SHARING_RETRY_DELAYS_MS } from "./sharingRetry";
+import {
+  isSharingViolation,
+  retryOnSharingViolationAsync,
+  SHARING_RETRY_DELAYS_MS,
+  type AsyncSharingRetryOptions,
+} from "./sharingRetry";
 
 /**
  * Atomically (over)write a JSON file.
@@ -43,8 +48,17 @@ export function retryOnSharingViolation<T>(operation: () => T): T {
   }
 }
 
+/** One attempt for checked transactions and synchronous best-effort callers. */
+export function renameSyncOnce(from: string, to: string): void {
+  fs.renameSync(from, to);
+}
+
 export function renameSyncWithRetry(from: string, to: string): void {
-  retryOnSharingViolation(() => fs.renameSync(from, to));
+  retryOnSharingViolation(() => renameSyncOnce(from, to));
+}
+
+export function renameWithRetry(from: string, to: string, options?: AsyncSharingRetryOptions): Promise<void> {
+  return retryOnSharingViolationAsync(() => fs.promises.rename(from, to), options);
 }
 
 export type WriteJsonFileAtomicOptions = Readonly<{

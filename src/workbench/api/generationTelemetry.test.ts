@@ -5,7 +5,9 @@
 //   ④ 每次结局只多一次 track，不多读盘、不多发别的 IPC（设计卡 ★7）。
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { tagNomiError, NOMI_ERROR_ONLY_BEFORE_SUBMIT, type NomiErrorCode } from '../../../electron/shared/nomiErrorCodes'
-import { encodeStructuredErrorMessage } from '../../../electron/shared/vendorFailure'
+import { ApimartGenerationProviderError } from '../../../electron/capabilityCore/apimartGenerationErrors'
+import { runTaskIpcGuard } from '../../../electron/tasks/taskIpcGuard'
+import { VendorRequestError, encodeStructuredErrorMessage } from '../../../electron/shared/vendorFailure'
 import { GENERATION_LOCAL_REFUSALS } from '../../../electron/shared/contracts/telemetry'
 import { EVERY_VARIANT, resolveModelArchetype } from '../../../electron/shared/modelArchetypes'
 import { MODEL_ARCHETYPES } from '../../../electron/shared/modelArchetypes/builtInCatalog'
@@ -14,7 +16,7 @@ import { modeDisplayKind } from '../generationCanvas/nodes/controls/modeMenuMode
 import { generationFailureFacts, generationModeOf, generationTrackPayload } from './generationTelemetry'
 import { fetchWorkbenchTaskResultByVendor, pollCanvasShotRun, runWorkbenchTaskByVendor, submitCanvasShotRun } from './taskApi'
 
-const vendorError = (structured: Record<string, unknown>) => encodeStructuredErrorMessage(structured, 'upstream said something with /Users/me/a.png and sk-secret')
+const vendorError = (structured: Record<string, unknown>) => encodeStructuredErrorMessage(structured, 'upstream said something with /home/fixture/a.png and sk-secret')
 
 describe('失败三格：上游怎么答的 / 卡在哪一段 / 本机哪条规则', () => {
   it.each([
@@ -158,11 +160,40 @@ function expectDetailed(event: ReturnType<typeof sent>[number]): void {
   expect(event.props.mode).not.toBe('none')
   expect(typeof event.props.submitDuration).toBe('string')
   expect(typeof event.props.waitDuration).toBe('string')
-  expect(JSON.stringify(event.props)).not.toMatch(/private prompt|Users|sk-secret/)
+  expect(JSON.stringify(event.props)).not.toMatch(/private prompt|fixture\/a\.png|sk-secret/)
   expect(isTelemetryProps({ ...event.props, modelClass: 'custom' }, 'generation.completed'), JSON.stringify(event.props)).toBe(true)
 }
 
 describe('6 处发送口都带新格', () => {
+  it.each(['workbench', 'canvas'] as const)('%s records the classified IPC failure through all three outcomes', async surface => {
+    installDesktop()
+    const cause = new VendorRequestError('opaque diagnostic', {
+      vendorKey: 'fixture', method: 'POST', url: 'https://provider.invalid/private', upstreamMsg: '',
+      category: 'quota', httpStatus: 429, retryable: true,
+    })
+    const message = await runTaskIpcGuard({}, async () => { throw new ApimartGenerationProviderError('outer diagnostic', { cause }) })
+      .catch((error: Error) => error.message)
+    const submit = surface === 'canvas' ? canvasSubmit : run
+    const send = () => surface === 'canvas' ? submitCanvasShotRun(shot('t1')) : runWorkbenchTaskByVendor('v', request, null)
+    submit.mockRejectedValueOnce(new Error(message))
+    await expect(send()).rejects.toThrow()
+    submit.mockResolvedValueOnce(task('t1', 'failed', { error: message }))
+    await send()
+    submit.mockResolvedValueOnce(task('t1', 'queued'))
+    await send()
+    const failed = task('t1', 'failed', { error: message })
+    if (surface === 'canvas') {
+      canvasPoll.mockResolvedValueOnce(failed)
+      await pollCanvasShotRun({ projectId: 'p', runRecordId: 't1' })
+    } else {
+      result.mockResolvedValueOnce({ vendor: 'v', result: failed })
+      await fetchWorkbenchTaskResultByVendor({ taskId: 't1', vendor: 'v', projectId: null })
+    }
+    expect(sent().map(event => event.props.errorType)).toEqual(['quota', 'quota', 'quota'])
+    expect(sent().map(event => event.props.upstreamStatus)).toEqual(['rate-limit', 'rate-limit', 'rate-limit'])
+    expect(JSON.stringify(sent())).not.toMatch(/opaque diagnostic|outer diagnostic|provider.invalid/)
+  })
+
   it('runWorkbenchTaskByVendor · 提交终态', async () => {
     installDesktop()
     run.mockResolvedValue(task('a1', 'failed', { error: vendorError({ httpStatus: 401 }) }))

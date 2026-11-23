@@ -1,3 +1,6 @@
+import { vendorFailureFacts } from "../logging/diskSafeFailure";
+import { parseVendorErrorFromMessage } from "../shared/generationFailureWire";
+import { encodeStructuredErrorMessage } from "../shared/vendorFailure";
 import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
 import { OUTPUT_RETRIEVAL_FAILED, type ProductionArtifact, type ProductionRun } from "./productionRunTypes";
 
@@ -39,6 +42,16 @@ export class GenerationOutputRetrievalFailedError extends GenerationMaterializat
     super(message);
     this.name = "GenerationOutputRetrievalFailedError";
   }
+}
+
+// A restored Run needs the provider category and code. New poll diagnostics
+// persist only the fields admitted by the disk-safe failure projection.
+export function polledFailureMessage(message: string): string {
+  const facts = vendorFailureFacts(parseVendorErrorFromMessage(message));
+  const fallback = "供应商任务已返回失败状态";
+  if (!facts) return fallback;
+  const { category, httpStatus, upstreamCode, logicalCode } = facts;
+  return encodeStructuredErrorMessage({ category, httpStatus, upstreamCode, logicalCode }, fallback);
 }
 
 type RetrievalFailure = { code?: unknown; deterministic?: unknown; message?: unknown };

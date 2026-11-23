@@ -3,6 +3,7 @@ import type { DownloadItem, WebContents } from "electron";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { renameSyncOnce, renameWithRetry } from "../../jsonFile";
 import { desktopT } from "../../i18n";
 import { captureFileName } from "../captureNaming";
 import type { AssetSourceFact } from "../../assets/assetSourceEvidence";
@@ -217,7 +218,7 @@ async function downloadHttpBrowserMediaFromPageSession(
       captureFileName(mediaUrl, resolved.contentType, resolved.mediaType, fallbackName),
     );
     const savePath = path.join(tempDir, tempFileName);
-    await fs.promises.rename(stagingPath, savePath);
+    await renameWithRetry(stagingPath, savePath);
     return {
       absolutePath: savePath,
       fileName: tempFileName,
@@ -350,7 +351,7 @@ async function downloadBrowserBlobFromPageViewUnqueued(
           captureFileName(mediaUrl, resolved.contentType, resolved.mediaType, item.getFilename() || fallbackName),
         );
         const verifiedSavePath = path.join(tempDir, verifiedFileName);
-        if (verifiedSavePath !== savePath) fs.renameSync(savePath, verifiedSavePath);
+        if (verifiedSavePath !== savePath) renameSyncOnce(savePath, verifiedSavePath);
         finish(null, {
           absolutePath: verifiedSavePath,
           fileName: verifiedFileName,
