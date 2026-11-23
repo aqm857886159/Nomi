@@ -8,7 +8,7 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "rootCauseContract": "docs/fixes/2026-11-23-issue-1629-mcp-background-focus.root-cause.json",
   "classCheck": {
@@ -22,5 +22,6 @@
   "completionCommits": [
     "bf4fc6047",
     "a6e53ddd2"
-  ]
+  ],
+  "fixedInPr": 1634
 }
