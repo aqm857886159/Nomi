@@ -1,5 +1,7 @@
 # F-A 生成派发、素材传输与失败归因
 
+独立复盘线：codex-fa-audit（未参与此前 3 轮修补）
+
 ## 0. 根因
 
 观测发生在哪一步决定它能证明什么。Range 请求被拒不能证明生成服务读取同一 URL 会失败。适配器已知的失败类别应穿过 IPC，任务终态也应随 Run 保存。重复执行由掌握付费派发证据的主进程决定。交接图见 generation.dispatched-attempt、asset.anonymous-upload-chain 与主进程提交账本。

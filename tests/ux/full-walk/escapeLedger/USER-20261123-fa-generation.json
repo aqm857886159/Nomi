@@ -12,6 +12,7 @@
   ],
   "fullWalkJourneys": [],
   "status": "candidate",
+  "completionCommits": [],
   "evidence": [
     "docs/engineering/direction-checks/2026-11-23-fa-generation.md"
   ],
