@@ -1,0 +1,27 @@
+{
+  "name": "本机视频深度作业的单项目互斥锁与准备期取消释放",
+  "subject": "video-depth.project-session-lock",
+  "lifecycle": "execution",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/video/depthVideoJob.ts",
+    "symbol": "prepareVideoDepthJob"
+  },
+  "write_api": [
+    {
+      "path": "electron/video/depthVideoJob.ts",
+      "symbol": "prepareVideoDepthJob"
+    },
+    {
+      "path": "electron/video/depthVideoJob.ts",
+      "symbol": "cancelVideoDepthJob"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-22",
+  "notes": "prepareVideoDepthJob 在首个 await（解析本地视频、下载权重、ffmpeg 抽帧）之前同步占住单项目 Session 互斥锁，任何异常或 cancelVideoDepthJob 均经 disposeSession 唯一释放锁、中止下载与子进程并清理临时目录（合同 docs/fixes/2026-11-22-video-depth-no-steal-selection.root-cause.json，类检查 electron/video/depthVideoJob.test.ts）。"
+}

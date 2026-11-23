@@ -29,10 +29,13 @@
 //  R16 同类产品登记表（2026-11-22 起，2026-11-21 用户要求修底层）：同类是谁只在 docs/design/peers.json 定一次（用户拍板）；
 //      priorArt 第一项的 product 必须是登记表 peers 里的一家；任何一项命中 notPeers 就红；这一项带 userApproved { quote, date } 才放行。
 //      登记表本身也查：approval 有原话和日期，每家有 why / surfaces / access
+//  R17 元素 component 必填（2026-11-22 建闸）：批过的板里，元素既不是 dropped、也不是 change=remove/removed，必须写 component（非空字符串或 { file, action }）；
+//      存量 49 块历史板冻结在 scripts/board-component-legacy.json（棘轮只减不增），不在此表的任何新板（含付费确认板）或新增元素一律严格拦截
 //  R8 PR 正文 `## 拍板图` 认领的元素：在 PR 头上必须是 implemented，或带 userDecision 的 deferred / dropped
 //     （认领可以指向任何日期目录里的板；发现到的每张新日期板都跑完整规则：抽取候选核哈希、人工普查须声明）
 //
 // 用法：node scripts/check-board-parity.mjs            （重抽候选 + 全部规则）
+//       node scripts/check-board-parity.mjs --debt     （打印已批过板的欠账汇总）
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
@@ -71,13 +74,71 @@ export const DESIGN_INPUT_FIELDS = Object.freeze(['components', 'appearsIn', 'ap
 export const CENSUS_INPUT_FIELDS = Object.freeze(['placement', 'frequency', 'peerPlacement', 'ifRemoved'])
 /** 这两种状态的元素会被数据撑开，必须被边界表指到（R15）。 */
 const BOUNDARY_STATES = Object.freeze(['max-count', 'long-text'])
+/** R17：元素 component 必填。2026-11-15 起（及未写日期的新板）未在存量冻结表里的板，非 dropped 且非 change=remove 的元素一律必填 component。 */
+export const ELEMENT_COMPONENT_REQUIRED_FROM = '2026-11-15'
+export const LEGACY_COMPONENT_BASELINE_FILE = 'scripts/board-component-legacy.json'
+/** 已批板欠账超期天数阈值：超过 3 天仍有 missing 且无在途 PR/分支在做的板标红。 */
+export const BOARD_DEBT_OVERDUE_DAYS = 3
+const COMPONENT_EXEMPT_CHANGES = new Set(['remove', 'removed'])
 
 const isNonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0
 /** 板的日期：目录名开头的 YYYY-MM-DD（带后缀也认），取不到就取清单的 approvedOn。 */
-const boardDay = (date, manifest) => /^(\d{4}-\d{2}-\d{2})(?:$|-)/.exec(String(date ?? ''))?.[1] ?? (/^\d{4}-\d{2}-\d{2}$/.test(String(manifest?.approvedOn ?? '')) ? manifest.approvedOn : null)
+export const boardDay = (date, manifest) => /^(\d{4}-\d{2}-\d{2})(?:$|-)/.exec(String(date ?? ''))?.[1] ?? (/^\d{4}-\d{2}-\d{2}$/.test(String(manifest?.approvedOn ?? '')) ? manifest.approvedOn : null)
+/** 板的拍板日期：优先取清单的 approvedOn（精确拍板日），取不到再退回日期目录名前缀。 */
+const approvedDateOf = (date, manifest) => (/^\d{4}-\d{2}-\d{2}$/.test(String(manifest?.approvedOn ?? '')) ? manifest.approvedOn : /^(\d{4}-\d{2}-\d{2})(?:$|-)/.exec(String(date ?? ''))?.[1] ?? null)
 const designInputsRequired = (date, manifest) => {
   const day = boardDay(date, manifest)
   return Boolean(day) && day >= DESIGN_INPUTS_REQUIRED_FROM
+}
+
+export function loadLegacyComponentBaseline(root = REPO_ROOT) {
+  const file = path.join(root, LEGACY_COMPONENT_BASELINE_FILE)
+  if (!fs.existsSync(file)) return {}
+  const doc = JSON.parse(fs.readFileSync(file, 'utf8'))
+  return doc && typeof doc.boards === 'object' && doc.boards !== null ? doc.boards : {}
+}
+
+/** 合法的 element.component：非空字符串，或带非空 file 的对象（如 { file, action }）。 */
+export function hasElementComponent(component) {
+  if (isNonEmptyString(component)) return true
+  if (component && typeof component === 'object' && !Array.isArray(component)) {
+    return isNonEmptyString(component.file)
+  }
+  return false
+}
+
+/** 元素是否必须填 component：dropped 与 change=remove/removed 豁免，其余一律必填。 */
+export function elementNeedsComponent(el) {
+  if (!el || typeof el !== 'object') return false
+  if (el.status === 'dropped') return false
+  if (COMPONENT_EXEMPT_CHANGES.has(String(el.change ?? '').trim().toLowerCase())) return false
+  return true
+}
+
+/**
+ * R17：元素 component 必填。纯函数、可测。
+ * - 传了 legacyComponentCounts（runBoardParity 默认传 scripts/board-component-legacy.json 的冻结棘轮）：
+ *   表内历史板按 `${date}/${board}` 冻结上限只减不增；不在表里的任何板（含 2026-11-15 付费确认板等新板）上限 = 0，缺一格即红。
+ * - 未传 legacyComponentCounts（单测或外部脚本直接调 checkBoardManifest）：
+ *   有明确日期且 < ELEMENT_COMPONENT_REQUIRED_FROM 的旧板不追溯；其余（新板或未写日期的夹具板）上限 = 0。
+ */
+export function checkElementComponents({ board, manifest, date, legacyComponentCounts }) {
+  const tag = (msg) => `[${board}] ${msg}`
+  const elements = Array.isArray(manifest?.elements) ? manifest.elements : []
+  let allowedMissing = 0
+  if (legacyComponentCounts && typeof legacyComponentCounts === 'object') {
+    const key = date ? `${date}/${board}` : null
+    allowedMissing = key && Object.hasOwn(legacyComponentCounts, key) ? Number(legacyComponentCounts[key]) || 0 : 0
+  } else if (legacyComponentCounts === undefined) {
+    const day = boardDay(date, manifest)
+    if (day && day < ELEMENT_COMPONENT_REQUIRED_FROM) return []
+  }
+  const missing = elements.filter((el) => elementNeedsComponent(el) && !hasElementComponent(el.component))
+  if (missing.length <= allowedMissing) return []
+  if (allowedMissing === 0) {
+    return missing.map((el) => tag(`元素 ${el.id ?? '?'} 既不是 dropped 也不是 change=remove，必须写 component（生产组件/文件路径，或 { file, action }）`))
+  }
+  return [tag(`缺 component 的元素涨到了 ${missing.length} 个（存量冻结上限 ${allowedMissing}，只减不增）：${missing.map((el) => el.id ?? '?').join('、')}`)]
 }
 
 /**
@@ -483,7 +544,7 @@ export function makeReferrerScanner(root = REPO_ROOT, roots = ['src', 'electron'
  *   referrersOf = R12 用的引用方扫描（runBoardParity 传 makeReferrerScanner 的结果；不传时声明了 components 的新板会报「找不到」）
  * @returns {string[]} 错误列表（空 = 通过）
  */
-export function checkBoardManifest({ board, manifest, candidates, assertionCorpus, date, boardNames, referrersOf, peerRegistry }) {
+export function checkBoardManifest({ board, manifest, candidates, assertionCorpus, date, boardNames, referrersOf, peerRegistry, legacyComponentCounts }) {
   const errors = []
   const tag = (msg) => `[${board}] ${msg}`
   if (!manifest || typeof manifest !== 'object') return [tag('清单缺失或不是对象')]
@@ -497,6 +558,7 @@ export function checkBoardManifest({ board, manifest, candidates, assertionCorpu
   errors.push(...checkCensusPlacement({ board, manifest, date }))
   errors.push(...checkPriorDecisions({ board, manifest, date }))
   errors.push(...checkBoundaryCoverage({ board, manifest, date }))
+  errors.push(...checkElementComponents({ board, manifest, date, legacyComponentCounts }))
   const elements = Array.isArray(manifest.elements) ? manifest.elements : []
   const decor = Array.isArray(manifest.decor) ? manifest.decor : []
   const census = Array.isArray(manifest.functionCensus) ? manifest.functionCensus : []
@@ -682,13 +744,234 @@ export function checkSourceHash({ board, candidatesDoc, currentHash }) {
 }
 
 /**
+ * 仓库内所有已批板清单的唯一读取入口（同时覆盖 BOARDS_DIR 与所有其它日期目录）。
+ * check:board-parity 与 delivery:preflight 欠账汇总共用这一份，不另写第二份板读取器。
+ */
+export function listBoardManifests({ dir = BOARDS_DIR, root = path.dirname(dir) } = {}) {
+  const records = []
+  const seen = new Set()
+  const push = (board, boardDir, manifestOnly) => {
+    const file = path.join(boardDir, `${board}.board.json`)
+    const resolved = path.resolve(file)
+    if (seen.has(resolved) || !fs.existsSync(file)) return
+    seen.add(resolved)
+    const manifest = JSON.parse(fs.readFileSync(file, 'utf8'))
+    const dirName = path.basename(boardDir)
+    records.push({
+      board,
+      dir: boardDir,
+      dirName,
+      boardKey: `${dirName}/${board}`,
+      file,
+      manifestOnly,
+      manifest,
+      approvedOn: approvedDateOf(dirName, manifest),
+    })
+  }
+  if (fs.existsSync(dir)) {
+    for (const board of BOARD_NAMES) {
+      push(board, dir, !fs.existsSync(path.join(dir, `${board}.candidates.json`)))
+    }
+    for (const name of fs.readdirSync(dir)) {
+      if (!name.endsWith('.board.json')) continue
+      const board = name.slice(0, -'.board.json'.length)
+      push(board, dir, !fs.existsSync(path.join(dir, `${board}.candidates.json`)))
+    }
+  }
+  for (const { board, dir: boardDir, manifestOnly } of findDatedBoards(root, dir)) {
+    push(board, boardDir, manifestOnly)
+  }
+  return records
+}
+
+const parseIsoDayUtc = (day) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(day ?? ''))
+  if (!m) return null
+  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+}
+
+const toKebabSlug = (name) =>
+  String(name ?? '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
+    .toLowerCase()
+
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const hasSlugMatch = (haystack, slug) => {
+  if (!haystack || !slug) return false
+  return new RegExp(`(?:^|[^a-z0-9])${escapeRegex(slug)}(?:$|[^a-z0-9])`, 'i').test(haystack)
+}
+
+/**
+ * 判断一块已批板当前有没有开着的 PR 或未合入分支在做。纯函数、可测。
+ * 匹配顺序（确定性、防短名误配）：
+ *   1) PR 正文 `## 拍板图` 显式认领了该板名（复用 parsePrBoardClaims）；
+ *   2) 欠账元素的 owner 里写了 `#<PR号>` 或具体分支名（如 `feat/director-3dbox-switch`）；
+ *   3) PR / 分支名明确提到 `<Board>.board.json` 或板专属长 slug（目录日期后缀或连字符/≥8 字符的 kebab 板名）。
+ */
+export function matchBoardActiveWork(record, { prs = [], branches = [] } = {}) {
+  const elements = Array.isArray(record?.manifest?.elements) ? record.manifest.elements : []
+  const owedOwners = elements
+    .filter((el) => el?.status === 'missing' || el?.status === 'in-progress')
+    .map((el) => String(el?.owner ?? ''))
+    .filter(Boolean)
+  const ownerPrNumbers = new Set()
+  const ownerBranches = new Set()
+  for (const owner of owedOwners) {
+    for (const m of owner.matchAll(/#(\d+)/g)) ownerPrNumbers.add(Number(m[1]))
+    for (const m of owner.matchAll(/(?:^|[\s(（,，、])([a-z0-9._-]+\/[a-z0-9._/-]+)/gi)) {
+      ownerBranches.add(m[1].toLowerCase())
+    }
+  }
+  const dirSuffix = String(record?.dirName ?? '').replace(/^\d{4}-\d{2}-\d{2}-?/, '').toLowerCase()
+  const kebabBoard = toKebabSlug(record?.board)
+  const slugs = [...new Set([dirSuffix, kebabBoard].filter((slug) => slug.length >= 5 && (slug.includes('-') || slug.length >= 8)))]
+  const fileNeedle = `${String(record?.board ?? '').toLowerCase()}.board.json`
+  const approvedUtc = parseIsoDayUtc(record?.approvedOn ?? approvedDateOf(record?.dirName, record?.manifest))
+
+  const matched = []
+  const coveredBranches = new Set()
+  for (const pr of prs ?? []) {
+    if (!pr || pr.number == null) continue
+    const head = String(pr.headRefName ?? '').trim()
+    const headLower = head.toLowerCase()
+    const claims = parsePrBoardClaims(pr.body)
+    const prHeadAndTitle = `${head} ${pr.title ?? ''}`.toLowerCase()
+    const prBodyLower = String(pr.body ?? '').toLowerCase()
+    const hit =
+      claims.some((claim) => claim.board === record.board) ||
+      ownerPrNumbers.has(Number(pr.number)) ||
+      (headLower && ownerBranches.has(headLower)) ||
+      prHeadAndTitle.includes(fileNeedle) ||
+      prBodyLower.includes(fileNeedle) ||
+      slugs.some((slug) => hasSlugMatch(prHeadAndTitle, slug))
+    if (hit) {
+      matched.push({ kind: 'pr', ref: `#${pr.number}`, branch: head || null, title: String(pr.title ?? '') })
+      if (headLower) coveredBranches.add(headLower)
+    }
+  }
+
+  const seenBranches = new Set()
+  for (const rawBranch of branches ?? []) {
+    const rawName = typeof rawBranch === 'string' ? rawBranch : rawBranch?.name
+    const committedAtMs = typeof rawBranch === 'object' && rawBranch !== null && Number.isFinite(rawBranch.committedAtMs) ? rawBranch.committedAtMs : null
+    // 拍板日期之前的旧分支不可能是这块板的在途工作（如 9 月旧分支不能掩盖 11-07 拍板的 Onboarding 欠账）
+    if (approvedUtc !== null && committedAtMs !== null && committedAtMs < approvedUtc) continue
+    const normalized = String(rawName ?? '').trim().replace(/^origin\//, '')
+    const lowerBranch = normalized.toLowerCase()
+    if (!lowerBranch || seenBranches.has(lowerBranch) || coveredBranches.has(lowerBranch)) continue
+    seenBranches.add(lowerBranch)
+    const hit =
+      ownerBranches.has(lowerBranch) ||
+      slugs.some((slug) => hasSlugMatch(lowerBranch, slug))
+    if (hit) matched.push({ kind: 'branch', ref: normalized })
+  }
+  return matched
+}
+
+/**
+ * 汇总已批过板的欠账（纯函数、可测）。
+ * - 只列出还欠元素的板（missing > 0 或 in-progress > 0）；全部 implemented / dropped / deferred 的板绝不误报。
+ * - 超过 overdueDays（默认 3 天）仍有 missing 且无在途 PR/分支在做的板标 overdue: true（标红）。
+ */
+export function summarizeBoardDebt(records, { now = new Date(), prs = [], branches = [], prLookupError = null, overdueDays = BOARD_DEBT_OVERDUE_DAYS } = {}) {
+  const asOf = now instanceof Date ? now.toISOString().slice(0, 10) : String(now ?? '').slice(0, 10)
+  const todayUtc = parseIsoDayUtc(asOf)
+  const boards = []
+  for (const record of records ?? []) {
+    const elements = Array.isArray(record?.manifest?.elements) ? record.manifest.elements : []
+    let missing = 0
+    let inProgress = 0
+    let implemented = 0
+    let deferred = 0
+    let dropped = 0
+    for (const el of elements) {
+      if (el?.status === 'missing') missing += 1
+      else if (el?.status === 'in-progress') inProgress += 1
+      else if (el?.status === 'implemented') implemented += 1
+      else if (el?.status === 'deferred') deferred += 1
+      else if (el?.status === 'dropped') dropped += 1
+    }
+    if (missing === 0 && inProgress === 0) continue
+    const approvedOn = record.approvedOn ?? approvedDateOf(record.dirName, record.manifest)
+    const approvedUtc = parseIsoDayUtc(approvedOn)
+    const ageDays = approvedUtc !== null && todayUtc !== null ? Math.max(0, Math.floor((todayUtc - approvedUtc) / 86_400_000)) : null
+    const activeWork = matchBoardActiveWork(record, { prs, branches })
+    const overdue = missing > 0 && ageDays !== null && ageDays > overdueDays && activeWork.length === 0
+    boards.push({
+      board: record.board,
+      boardKey: record.boardKey ?? `${record.dirName ?? ''}/${record.board}`,
+      approvedOn,
+      ageDays,
+      missing,
+      inProgress,
+      implemented,
+      deferred,
+      dropped,
+      activeWork,
+      overdue,
+    })
+  }
+  boards.sort((a, b) => {
+    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1
+    if ((a.missing > 0) !== (b.missing > 0)) return a.missing > 0 ? -1 : 1
+    if ((b.ageDays ?? -1) !== (a.ageDays ?? -1)) return (b.ageDays ?? -1) - (a.ageDays ?? -1)
+    if (b.missing !== a.missing) return b.missing - a.missing
+    return a.boardKey.localeCompare(b.boardKey)
+  })
+  return {
+    asOf,
+    overdueDays,
+    totalBoards: (records ?? []).length,
+    owedBoards: boards.length,
+    overdueBoards: boards.filter((b) => b.overdue).length,
+    totalMissing: boards.reduce((sum, b) => sum + b.missing, 0),
+    totalInProgress: boards.reduce((sum, b) => sum + b.inProgress, 0),
+    prLookupError: prLookupError ?? null,
+    boards,
+  }
+}
+
+/** 把欠账汇总渲染成开会话提示文本；超过 3 天有 missing 且无在途 PR/分支的板标红醒目输出。 */
+export function formatBoardDebtReport(summary, { color = false } = {}) {
+  const red = (text) => (color ? `\x1b[31m${text}\x1b[0m` : text)
+  const yellow = (text) => (color ? `\x1b[33m${text}\x1b[0m` : text)
+  if (!summary || summary.owedBoards === 0) {
+    return `✅ 拍板图欠账：全部 ${summary?.totalBoards ?? 0} 块已批板无欠账（missing=0，in-progress=0）`
+  }
+  const header = `【拍板图欠账】${summary.owedBoards}/${summary.totalBoards} 块已批板有欠账（missing ${summary.totalMissing} / in-progress ${summary.totalInProgress}），超 ${summary.overdueDays} 天有 missing 且无在途 PR/分支：${summary.overdueBoards} 块`
+  const lines = [summary.overdueBoards > 0 ? red(header) : yellow(header)]
+  if (summary.prLookupError) {
+    lines.push(`  ⚠ 在途 PR 查询未成功（${summary.prLookupError}），以下仅比对了未合入分支`)
+  }
+  for (const b of summary.boards) {
+    const counts = b.inProgress > 0 ? `missing ${b.missing} / in-progress ${b.inProgress}` : `missing ${b.missing}`
+    const age = b.ageDays !== null ? `${b.ageDays} 天${b.approvedOn ? `（${b.approvedOn}）` : ''}` : '日期未知'
+    const active = b.activeWork.length > 0
+      ? b.activeWork.map((w) => (w.kind === 'pr' && w.branch ? `${w.ref} (${w.branch})` : w.ref)).join('、')
+      : '无'
+    if (b.overdue) {
+      lines.push(red(`  🔴 [超期] ${b.boardKey} — 欠 ${counts} ｜ 已批 ${age} ｜ 在途：${active}`))
+    } else {
+      const icon = b.missing > 0 ? '🟡' : '🔵'
+      lines.push(`  ${icon} ${b.boardKey} — 欠 ${counts} ｜ 已批 ${age} ｜ 在途：${active}`)
+    }
+  }
+  return lines.join('\n')
+}
+
+/**
  * 默认模式：只看哈希与清单，不起浏览器（CI 的 Contracts job 没有 Playwright 浏览器）。
  * reextract = true（显式 --reextract，只在本机或装了浏览器的环境）：再真抽一遍，比对候选文件全文。
  */
-export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir), reextract = false, peerRegistry } = {}) {
+export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir), reextract = false, peerRegistry, legacyComponentCounts } = {}) {
   const errors = []
   const manifests = loadManifests(dir, root)
   const corpus = loadAssertionCorpus()
+  if (legacyComponentCounts === undefined) {
+    legacyComponentCounts = loadLegacyComponentBaseline()
+  }
   // R16：同类产品登记表只有一份（仓库根下 docs/design/peers.json），先查它本身，再交给每张板用。
   if (peerRegistry === undefined) {
     try {
@@ -717,7 +1000,7 @@ export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir
     }
     // 读这张板自己目录里的清单，不按板名查表——同名板不能互相顶替（V-1203 复验 R1）。
     const manifest = JSON.parse(fs.readFileSync(path.join(boardDir, `${board}.board.json`), 'utf8'))
-    errors.push(...checkBoardManifest({ board, manifest, candidates, assertionCorpus: corpus, date: path.basename(boardDir), boardNames: boardNamesIn(boardDir), referrersOf, peerRegistry }))
+    errors.push(...checkBoardManifest({ board, manifest, candidates, assertionCorpus: corpus, date: path.basename(boardDir), boardNames: boardNamesIn(boardDir), referrersOf, peerRegistry, legacyComponentCounts }))
   }
   // 重名本身就红：PR 正文按板名认领，重名就分不清认的是哪一张。
   const dated = findDatedBoards(root, dir)
@@ -739,7 +1022,7 @@ export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir
       errors.push(`[${board}] 缺清单 ${board}.board.json`)
       continue
     }
-    errors.push(...checkBoardManifest({ board, manifest: manifests[board], candidates: doc.candidates, assertionCorpus: corpus, date: path.basename(dir), boardNames: boardNamesIn(dir), referrersOf, peerRegistry }))
+    errors.push(...checkBoardManifest({ board, manifest: manifests[board], candidates: doc.candidates, assertionCorpus: corpus, date: path.basename(dir), boardNames: boardNamesIn(dir), referrersOf, peerRegistry, legacyComponentCounts }))
   }
   if (reextract) {
     // 显式开关：动态加载抽取（会起 Playwright 浏览器），逐字节比对候选文件。
@@ -757,6 +1040,12 @@ export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir
 }
 
 async function main() {
+  if (process.argv.includes('--debt')) {
+    const summary = summarizeBoardDebt(listBoardManifests())
+    console.log(formatBoardDebtReport(summary, { color: Boolean(process.stdout.isTTY || process.env.FORCE_COLOR) }))
+    if (process.argv.includes('--fail-on-overdue') && summary.overdueBoards > 0) process.exit(1)
+    return
+  }
   const errors = await runBoardParity({ reextract: process.argv.includes('--reextract') })
   if (errors.length) {
     console.error(`拍板图对账未通过（${errors.length} 条）：`)
