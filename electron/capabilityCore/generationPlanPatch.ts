@@ -4,7 +4,7 @@
 // 为什么单独成文件：`mcpGenerationTools.ts` 贴着 800 行门岗（R9），而这段逻辑本身是一个
 // 完整的单元（两种参数两种待遇那条分界线就住在这里），拆出来比塞在 handler 里更好读、可单测。
 import { admitPlanCandidate, type PlanCandidate } from "./executionContract";
-import { normalizeAuthoredCandidate, stripParametersNotAccepted, videoCompileOptions } from "./mcpGenerationVideoResolve";
+import { admitExplicitModeInputs, normalizeAuthoredCandidate, stripParametersNotAccepted, videoCompileOptions } from "./mcpGenerationVideoResolve";
 import { admitShotIdentity, declaredModeForModel, resolvePatchedModel, type SemanticGenerationCandidateDeps } from "./semanticGenerationCandidate";
 import type { ModuleRegistry } from "./moduleRegistry";
 import type { VideoModelCandidate } from "../shared/videoCapabilities/recommendation";
@@ -13,6 +13,7 @@ import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import { statedMode } from "../shared/modelArchetypes/modeForInputs";
 import type { ResolvedModelName } from "../shared/agentCapabilities/modelHandle";
 import { mergeNamedParameters, parameterChanges } from "../shared/generationParameterPatch";
+import type { ReferenceDemand } from "../shared/canvas/edgeAdmission";
 
 /** 读盘归一只需要草稿的这几样（避免把 handler 的大类型拖进来）。 */
 type GenerationOperationLike = {
@@ -65,6 +66,8 @@ export function resolvePlanPatch(input: {
   videoModelCandidates?: readonly VideoModelCandidate[];
   /** 用户给每一种任务设的默认（多家同名时只看这一个事实，U1）。 */
   defaultModelForTaskKind?: SemanticGenerationCandidateDeps["defaultModelForTaskKind"];
+  /** 同计划通过 `storyboard.anchorIds` 传入的锚点产出需求。 */
+  extraReferenceDemands?: readonly ReferenceDemand[];
 }): PlanPatchResolution {
   const { baseCandidate, registry, videoModelCandidates } = input;
   // 换模型时写下的名字先经名字主人认出目录里那一行（与起草同一个阶梯）：落盘的是目录原样的两段。
@@ -112,14 +115,18 @@ export function resolvePlanPatch(input: {
   // 要清掉一个键必须显式写 `null`。付费卡每次带的是这一镜的完整参数集，合并与替换结果相同。
   // 点名的参数单独过语义翻译（比例 → 这个模式的真实键），与 create 两扇门同一个函数；原有参数只当「同一档」的参照。
   // 合并规则（点名的键覆盖、null 删键）与文稿方案改一镜是同一个函数（`mergeNamedParameters`）。
-  const normalizedIdentity = normalizeAuthoredCandidate({ ...stripped.candidate, parameters: {} }, registry, videoModelCandidates);
+  const normalizedIdentity = normalizeAuthoredCandidate({ ...stripped.candidate, parameters: {} }, registry, videoModelCandidates, undefined, { enforceExplicitModeInputs: false });
   const mergedParameters = mergeNamedParameters(kept, userPatch.parameters, (written) =>
-    normalizeAuthoredCandidate({ ...stripped.candidate, parameters: written }, registry, videoModelCandidates, kept).parameters);
+    normalizeAuthoredCandidate({ ...stripped.candidate, parameters: written }, registry, videoModelCandidates, kept, { enforceExplicitModeInputs: false }).parameters);
   const normalizedCandidate = { ...normalizedIdentity, parameters: mergedParameters } as PlanCandidate;
   const clearedParameters = stripped.cleared;
   const changedParameters = parameterChanges(baseCandidate.parameters, mergedParameters);
   // 模型或模式变了：和建镜头时同一道账——这一对在目录里必须真有（第 9 条，矛盾的镜头造不出来）。
   if (modelChanged || modeChanged) admitShotIdentity(normalizedCandidate, registry);
+  // 改了方式或改了参考（例如清空 references 但还留着 modeId="firstlast"，或切到吃图方式未给图）：与建草稿走同一套必填槽准入。
+  if ((userPatch.modeId !== undefined || userPatch.references !== undefined) && normalizedCandidate.modeId) {
+    admitExplicitModeInputs(normalizedCandidate, videoModelCandidates, input.extraReferenceDemands);
+  }
   // 判的是**归一之后**的候选：变体别名（`fast-face` → `fast`）要先被认成正名，
   // 否则合法的别名会被自己的变体清单拒掉。
   if (userPatch.parameters !== undefined) {

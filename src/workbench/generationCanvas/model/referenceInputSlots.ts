@@ -14,6 +14,7 @@ import { effectiveArchetypeModeWithInputs, referenceSlotAccept, referenceSlotSto
 import { readParameterReferenceSlots, parameterReferenceMetaPatch } from './parameterReferenceSlots'
 import { resultUrl } from '../runner/referenceUrl'
 import { archetypeForNode, edgeModeForReferenceRole, referenceDemandForRole } from '../agent/referenceEdgeCapability'
+import { EDGE_MODE_SLOTS } from '../../../../electron/shared/canvas/edgeAdmission'
 
 export type ReferenceRole = NonNullable<GenerationReference['role']>
 export type ReferenceInputKind = 'image' | 'video' | 'audio'
@@ -28,10 +29,10 @@ export function referenceRoleOfSlot(kind: string, numbered: boolean): ReferenceR
     : kind === 'audio_ref' ? 'audio' : numbered ? 'character' : 'reference'
 }
 
-const PAIRED_ROLES: readonly ReferenceRole[] = ['character', 'reference']
-
 /**
  * 一组参考 → 摆进节点的参考槽（按 layout 这个摆法；先清空这些槽，再按序摆）。摆不下的（这个摆法没有对口的槽）不摆。
+ * 配槽顺序与 `modeForInputs.fitInputs` 共用同一份 `EDGE_MODE_SLOTS` 偏好表，按槽剩余容量落格：
+ * 先落显式角色（如 `first_frame` / `last_frame`），再把无角色图片依次落入 `first_frame` / `last_frame` / `image_ref` 等空闲槽。
  * 和 `resolveReferenceSlots` 互为逆向：摆完再解析，读回来的就是这一组。
  */
 function placeReferenceInputs(node: GenerationCanvasNode, inputs: readonly CandidateReferenceInput[], layout?: ArchetypeMode): GenerationCanvasNode {
@@ -42,28 +43,55 @@ function placeReferenceInputs(node: GenerationCanvasNode, inputs: readonly Candi
   // 图片（首帧 / 尾帧 / 参考图）住节点那一份有序参考列表（referenceList）：按槽的声明顺序排好，
   // placeUploadedImages 会按同一顺序落回这些槽；当前方式本来就用不上的那些（未用到）接在后面，不丢。
   const imagesBySlot: string[][] = slots.map(() => [])
+  const filledCount: number[] = slots.map(() => 0)
+  const slotCapacity = (slot: (typeof slots)[number]): number =>
+    slot.max ?? (slot.slotKind === 'image_ref' || slot.slotKind === 'video_ref' || slot.slotKind === 'audio_ref'
+      ? Number.POSITIVE_INFINITY
+      : 1)
   for (const slot of slots) {
     if (isImageUploadSlot(slot.slotKind)) continue
     const storage = referenceSlotStorage({ kind: slot.slotKind })
     if (storage) meta[storage.metaKey] = storage.isArray ? [] : null
   }
   for (const parameter of parameters) Object.assign(meta, parameterReferenceMetaPatch(parameter, parameters, null))
-  for (const input of inputs) {
-    if (!input.url) continue
+  const ordered = inputs
+    .filter((input) => Boolean(input.url))
+    .map((input, index) => ({
+      input,
+      index,
+      role: input.role ?? 'reference',
+      preferredKinds: EDGE_MODE_SLOTS[edgeModeForReferenceRole(input.role)],
+    }))
+    .sort((a, b) => a.preferredKinds.length - b.preferredKinds.length || a.index - b.index)
+  for (const { input, role, preferredKinds } of ordered) {
     const kind = input.kind
-    const role = input.role ?? 'reference'
-    const slot = slots.find(slot => slot.accept.includes(kind) && referenceRoleOfSlot(slot.slotKind, slot.numbered) === role)
-      ?? slots.find(slot => slot.accept.includes(kind) && PAIRED_ROLES.includes(role) && PAIRED_ROLES.includes(referenceRoleOfSlot(slot.slotKind, slot.numbered)))
-    const slotIndex = slot ? slots.indexOf(slot) : -1
+    let slotIndex = -1
+    for (const targetKind of preferredKinds) {
+      const exactRole = slots.findIndex((slot, idx) =>
+        slot.slotKind === targetKind
+          && slot.accept.includes(kind)
+          && filledCount[idx]! < slotCapacity(slot)
+          && referenceRoleOfSlot(slot.slotKind, slot.numbered) === role,
+      )
+      if (exactRole >= 0) { slotIndex = exactRole; break }
+      const compatible = slots.findIndex((slot, idx) =>
+        slot.slotKind === targetKind
+          && slot.accept.includes(kind)
+          && filledCount[idx]! < slotCapacity(slot),
+      )
+      if (compatible >= 0) { slotIndex = compatible; break }
+    }
+    const slot = slotIndex >= 0 ? slots[slotIndex] : undefined
     if (slot && isImageUploadSlot(slot.slotKind)) {
-      if (slot.max === 1) imagesBySlot[slotIndex] = [input.url]
-      else imagesBySlot[slotIndex]!.push(input.url)
+      imagesBySlot[slotIndex]!.push(input.url)
+      filledCount[slotIndex]! += 1
       continue
     }
     const storage = slot && referenceSlotStorage({ kind: slot.slotKind })
     if (storage) {
       if (storage.isArray) meta[storage.metaKey] = [...(Array.isArray(meta[storage.metaKey]) ? meta[storage.metaKey] as string[] : []), input.url]
       else meta[storage.metaKey] = input.url
+      filledCount[slotIndex]! += 1
     } else {
       const parameter = parameters.find(slot => (slot.mediaKind ?? 'image') === kind && slot.group === (role === 'first_frame' || role === 'last_frame' ? role : 'reference') && !meta[slot.key])
       if (parameter) Object.assign(meta, parameterReferenceMetaPatch(parameter, parameters, input.url))

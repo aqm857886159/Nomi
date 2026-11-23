@@ -32,6 +32,10 @@
       "symbol": "normalizeAuthoredCandidate"
     },
     {
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "symbol": "admitExplicitModeInputs"
+    },
+    {
       "path": "electron/shared/aspectRatioValue.ts",
       "symbol": "resolveAspectRatioChoice"
     },
