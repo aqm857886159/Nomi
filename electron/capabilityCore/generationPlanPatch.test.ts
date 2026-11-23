@@ -51,7 +51,7 @@ describe("resolvePlanPatch · 种类跟着生成方式走", () => {
   });
 
   it("切回文生图（modeId t2i）：种类跟回文生图", () => {
-    const { normalizedPatch } = resolvePlanPatch({ baseCandidate: base({ mode: "image-edit", modeId: "i2i", references: IMG_REF }), userPatch: { modeId: "t2i" }, registry });
+    const { normalizedPatch } = resolvePlanPatch({ baseCandidate: base({ mode: "image-edit", modeId: "i2i" }), userPatch: { modeId: "t2i" }, registry });
     expect(normalizedPatch).toMatchObject({ modeId: "t2i", mode: "text-to-image" });
   });
 
@@ -62,7 +62,7 @@ describe("resolvePlanPatch · 种类跟着生成方式走", () => {
   });
 
   it("这个模型在目录里做不了那一种：当场拒，说清它能做什么（和建镜头同一道账）", () => {
-    expect(() => resolvePlanPatch({ baseCandidate: base({ modelId: "gpt-image-2-text-to-image", references: IMG_REF }), userPatch: { modeId: "i2i" }, registry }))
+    expect(() => resolvePlanPatch({ baseCandidate: base({ modelId: "gpt-image-2-text-to-image" }), userPatch: { modeId: "i2i" }, registry }))
       .toThrow(/text-to-image/);
   });
 
