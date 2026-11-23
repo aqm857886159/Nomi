@@ -2,7 +2,7 @@ t8-r3-verify：通过
 
 - 验收线：t8-r3-verify
 - 实现线：t8-r3-cache-impl
-- 验收 HEAD：bca1f0ecf3e36b6c6456aab535dfd35de097eb46
+- 验收 HEAD：58d245cc8199dc1f4cf0c4fece29d093331e64e2
 - 关联任务：协作看板 #1586 · T-8 第 ③ 刀（`lru-cache@10.4.3` + `swr` → 唯一入口 `electron/shared/boundedCache.ts`，叠在 PR #1645 `refactor/p-retry-policy` 之上，已并入最新 `origin/main` `6ed4c34b8`）
 
 ## 1. 对照 `docs/plan/2026-11-24-bounded-cache-lru.md` ★9 逐项核查
@@ -37,6 +37,8 @@ t8-r3-verify：通过
   - `src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardFrameSize.test.tsx`：18/18
   - `src/workbench/observability/perfCollector.test.ts`：13/13
 - **次轮 `bca1f0ecf3e3` 复跑白板全套 + `boundedCache`**：`src/workbench/generationCanvas/nodes/whiteboard/`（10 文件）+ `electron/shared/boundedCache.test.ts` → **11 passed / 120 passed**（白板 109/109 + `boundedCache` 11/11）。
+- **同步底栈 `#1645` i18n 修复复验（`58d245cc8199`，仅含 `dreaminaCli.ts` / `desktopStrings.ts` / `#1645` 验收单 3 文件增量）**：
+  - `electron/shared/boundedCache.test.ts` + `electron/catalog/dreaminaCli.test.ts` → **2 passed / 21 passed**。
 
 ### 2.2 三项独立变异反例测试（全部必红 → 还原 100% 复绿）
 1. **M1（破坏容量淘汰：`electron/shared/boundedCache.ts` 将 `max` 改为 `999999`）**：运行 `boundedCache.test.ts` + `taskApi.telemetry.test.ts` → **2 failed files · 9 failed / 15 passed (24)**（覆盖 `access`/`write`/`fifo` 淘汰顺序、`onEvict` 回调、`evictBeforeSet` 与 `taskApi` 上限淘汰，`exit=1`）。
@@ -54,7 +56,8 @@ t8-r3-verify：通过
 - `node scripts/check-self-written.mjs`：✅ 177 领域目录 · 66 登记 · 新增 5 文件 0 未认领（次轮复跑 `EXIT=0`）
 - `node scripts/check-file-sizes.mjs`：✅ 0 超限（`WhiteboardDrawingTool.tsx` 882 行 < 冻结上限 922）
 - `pnpm run check:package-budget`：✅ 10/10 通过 · `package-budget.json` 形状完整
-- `node scripts/lint-changed.mjs`：✅ 38 改动文件 · 0 错误 · 0 新增警告（次轮复跑 `EXIT=0`）
+- `pnpm run check:i18n`：✅ 0 错（22/22 单测 + `visible-text` + `key-parity` 6623 keys + `key-ref` 1815 文件 + `fragile-match` + `test-copy-literals`，`58d245cc8199` 复跑 `EXIT=0`）
+- `node scripts/lint-changed.mjs`：✅ 39 改动文件 · 0 错误 · 0 新增警告（`58d245cc8199` 复跑 `EXIT=0`）
 - `pnpm run lint:ci`：✅ 0 error（87 条基线存量警告，0 未使用抑制项）
 - `node scripts/fix-churn.mjs --range origin/main..HEAD`：✅ 0 个未带 `Direction-Check` 的热点 fix
 
