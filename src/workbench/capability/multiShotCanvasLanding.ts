@@ -26,7 +26,7 @@ import {
 import { CANDIDATE_META_KEYS, plannedInputFromCandidate, type LandedShotCandidate } from '../generationCanvas/agent/candidateNodeMeta'
 import { applyAgentRevision, intentStampMeta, placeLandedReferences } from './landedShotIntent'
 import { withCanvasGestureContext } from '../generationCanvas/events/canvasGestureContext'
-import { pushUndoSnapshot } from '../generationCanvas/events/canvasUndoJournal'
+import { pushUndoSnapshot } from '../generationCanvas/events/canvasPatchHistory'
 import { interruptPendingCanvasWrite } from '../generationCanvas/events/canvasWriteBoundary'
 import { CATEGORY_IDS, type BuiltinCanvasCategoryId, type GenerationNodeKind, type GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
 import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'

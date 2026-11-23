@@ -49,7 +49,7 @@ export type CanvasFrameMembershipDrag = {
   /** React Flow 的 onNodeDrag：逐帧算「松手会发生什么」，只写本地预览状态、不碰 store。 */
   handleNodeDrag: (draggedNodes: readonly { id: string }[]) => void
   /** 拖动结束：把预览里的那件事真的做掉。必须在位置写回之后调用。 */
-  commitMembership: () => void
+  commitMembership: (copies?: ReadonlyMap<string, string>) => void
   cancelPreview: () => void
 }
 
@@ -138,13 +138,15 @@ export function useCanvasFrameMembership({
     setMembershipPreview(null)
   }, [])
 
-  const commitMembership = React.useCallback(() => {
+  const commitMembership = React.useCallback((copies?: ReadonlyMap<string, string>) => {
     const plan = planRef.current
     planRef.current = null
     setMembershipPreview(null)
     if (readOnly || !plan) return
     const state = useGenerationCanvasStore.getState()
-    for (const nodeId of plan.nodeIds) {
+    for (const previewId of plan.nodeIds) {
+      const nodeId = copies ? copies.get(previewId) : previewId
+      if (!nodeId) continue
       if (plan.change === 'join') state.moveNodeToGroup(nodeId, plan.groupId)
       else state.removeNodeFromGroup(nodeId)
     }

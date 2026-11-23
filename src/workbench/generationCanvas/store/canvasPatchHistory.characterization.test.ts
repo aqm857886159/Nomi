@@ -16,7 +16,7 @@ import { setCommittedProposal, clearCommittedProposal, runProposalUndoByChangeId
 import { makeChangeId } from '../../../../electron/shared/agentCapabilities/changeId'
 import { describe, expect, it, vi } from 'vitest'
 import { useGenerationCanvasStore } from './generationCanvasStore'
-import { getUndoHeadToken, getUndoJournalGeneration, readReachableUndoNodes, registerUndoHistoryEvictionHandler } from '../events/canvasUndoJournal'
+import { inspectCanvasPatchHistory, getUndoHeadToken, getUndoJournalGeneration, readReachableUndoNodes, registerUndoHistoryEvictionHandler } from '../events/canvasPatchHistory'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 
 vi.mock('electron', () => ({ app: { getPath: () => os.tmpdir(), getAppPath: () => process.cwd() } }))
@@ -73,7 +73,7 @@ describe('Canvas history at the user write boundary', () => {
     expect(canvas().canUndo).toBe(false)
   })
 
-  it.fails('notifies the asset owner when a fresh edit discards a reachable redo branch below capacity', () => {
+  it('notifies the asset owner when a fresh edit discards a reachable redo branch below capacity', () => {
     open()
     const future = canvas().addNode({ kind: 'image', title: 'A removable reference' })
     canvas().updateNode(future.id, { result, history: [result] }, { history: false })
@@ -250,7 +250,7 @@ describe('reopening the disk event stream', () => {
 })
 
 describe('React Flow resize history', () => {
-  it.fails.each(['continuous', 'zero displacement'] as const)('commits %s resizing only on release', gesture => {
+  it.each(['continuous', 'zero displacement'] as const)('commits %s resizing only on release', gesture => {
     open()
     editPrompt('future')
     canvas().undo()
@@ -297,17 +297,17 @@ describe('React Flow resize history', () => {
   })
 })
 
-it.fails('Escape on the active drag host cancels writeback and preserves the previous redo', () => {
+it('Escape on the active drag host cancels writeback and preserves the previous redo', () => {
   open()
   editPrompt('future')
   canvas().undo()
   const original = node('paid')!.position
   const draggedNode = { ...toGenerationFlowNode(node('paid')!, true, false), position: { x: 310, y: 96 } }
   const draggingRef = { current: true }
-  const stage = { closest: () => stage, contains: () => true, getAttribute: () => null, setAttribute() {}, removeAttribute() {} } as unknown as Element
+  const stage = { closest: (selector: string) => selector.includes('false') ? null : stage, contains: () => true, getAttribute: () => null, setAttribute() {}, removeAttribute() {} } as unknown as Element
   const host = new EventTarget()
   vi.stubGlobal('window', host)
-  vi.stubGlobal('document', Object.assign(new EventTarget(), { elementsFromPoint: () => [] }))
+  vi.stubGlobal('document', Object.assign(new EventTarget(), { elementsFromPoint: () => [], querySelector: () => stage }))
   const lease = beginCanvasDragging(stage, CANVAS_DRAGGING_OWNER.reactFlowNode, {
     onCancel: () => { draggingRef.current = false },
   })
@@ -324,4 +324,65 @@ it.fails('Escape on the active drag host cancels writeback and preserves the pre
     canvas().redo()
     expect(node('paid')?.prompt).toBe('future')
   } finally { lease.release(); vi.unstubAllGlobals() }
+})
+
+it.each([20, 200, 1600])('single-step Undo reads zero unrelated entries after %i edits', count => {
+  open()
+  for (let i = 0; i < count; i++) editPrompt(String(i))
+  const { undo } = inspectCanvasPatchHistory()
+  let prefixReads = 0
+  const originals = undo.slice(0, -1)
+  originals.forEach((step, index) => Object.defineProperty(undo, index, {
+    configurable: true, get() { prefixReads++; return step },
+  }))
+  try {
+    canvas().undo()
+    expect(node('paid')?.prompt).toBe(String(count - 2))
+    expect(prefixReads).toBe(0)
+  } finally {
+    originals.forEach((step, index) => Object.defineProperty(undo, index, { configurable: true, writable: true, value: step }))
+  }
+})
+
+it('bounds actual move patch bytes and drops every project recovery index on release', () => {
+  const nodes = Array.from({ length: 200 }, (_, index) => shot('shot-' + index))
+  canvas().restoreSnapshot({ nodes, edges: [], groups: [] })
+  const bytes = (entry: unknown) => Buffer.byteLength(JSON.stringify(entry, (_key, value) => value instanceof Set ? [...value] : value))
+  for (let step = 1; step <= 81; step++) {
+    const size = step === 1 ? 1 : 20
+    canvas().updateNodes(nodes.slice(0, size).map(item => ({ nodeId: item.id, patch: { position: { x: step, y: 50 } } })))
+    expect(bytes(inspectCanvasPatchHistory().undo.at(-1))).toBeLessThanOrEqual(size === 1 ? 1024 : 8192)
+  }
+  expect(bytes(inspectCanvasPatchHistory().undo)).toBeLessThanOrEqual(640 * 1024)
+  open('next-project')
+  expect(inspectCanvasPatchHistory()).toEqual({ undo: [], redo: [], indexedNodes: 0, receipts: 0, hasCapture: false })
+})
+
+it('keeps one shared recovery reference per bulk-deleted node until its step is evicted', () => {
+  const nodes = Array.from({ length: 200 }, (_, i) => ({ ...shot('bulk-' + i), prompt: 'long text '.repeat(500) }))
+  canvas().restoreSnapshot({ nodes, edges: [], groups: [] })
+  const originals = canvas().nodes
+  canvas().selectAllNodes()
+  canvas().deleteSelectedNodes()
+  expect(canvas().nodes).toHaveLength(0)
+  const deleted = inspectCanvasPatchHistory().undo.at(-1)!.batches.flat().flatMap(batch => batch.removed)
+  expect(deleted).toHaveLength(200)
+  deleted.forEach((item, index) => expect(item.entity).toBe(originals[index]))
+  canvas().undo()
+  expect(canvas().nodes.map(n => n.prompt)).toEqual(originals.map(n => n.prompt))
+  canvas().redo()
+  for (let i = 0; i < 80; i++) canvas().captureHistory()
+  expect(inspectCanvasPatchHistory().indexedNodes).toBe(0)
+})
+
+it('starts a fresh typing burst after redoing an edit on the same node', () => {
+  open()
+  canvas().updateNodePrompt('paid', 'first')
+  canvas().undo()
+  canvas().redo()
+  canvas().updateNodePrompt('paid', 'second')
+  canvas().undo()
+  expect(node('paid')?.prompt).toBe('first')
+  canvas().undo()
+  expect(node('paid')?.prompt).toBe('original')
 })

@@ -1,3 +1,5 @@
+import { canvasWindowInput } from '../../shortcutSurface'
+
 // 「画布上正在进行拖动」这一件事的唯一真相 —— 写在 stage 上的一个 DOM 属性。
 //
 // 谁会升起它：拖单个节点、拖选区框、拖组框（都是在摆节点位置），以及**拖画布本身**（平移）。
@@ -130,6 +132,7 @@ export function beginCanvasDragging(
   origin: Element | null | undefined,
   owner: CanvasDraggingOwner,
   options: {
+    onEscape?: () => void
     onCancel?: (lastPoint: CanvasDragPoint | null) => void
     /**
      * 按着鼠标键的手势才传（拖节点）：松手事件丢了——鼠标键已经松开还在移动，或者浏览器接管成了原生拖放
@@ -174,6 +177,17 @@ export function beginCanvasDragging(
     options.onCancel?.(lastPoint)
   }
   if (origin && typeof window !== 'undefined') {
+    if (options.onEscape || owner === CANVAS_DRAGGING_OWNER.reactFlowNode || owner === CANVAS_DRAGGING_OWNER.node) {
+      const escape = (event: KeyboardEvent) => {
+        if (event.key !== 'Escape') return
+        event.preventDefault()
+        event.stopPropagation()
+        if (options.onEscape) { release(); options.onEscape() }
+        else cancel()
+      }
+      canvasWindowInput.addEventListener('keydown', escape, true)
+      cleanup.push(() => canvasWindowInput.removeEventListener('keydown', escape, true))
+    }
     const interrupted = (event: Event) => {
       // Capture also sees descendant focus changes; only window blur interrupts a gesture.
       if (event.type === 'blur' && event.target !== window) return

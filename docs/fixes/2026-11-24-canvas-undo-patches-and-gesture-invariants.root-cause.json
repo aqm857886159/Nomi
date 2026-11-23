@@ -1,0 +1,228 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-canvas-undo-patches-and-gesture-invariants",
+  "problem_type": "Uncommitted gestures and discarded recovery material outlive their branch",
+  "symptom": "Returning a resize to its origin consumes Redo. Escape commits a drag. Discarding redo retains files due for recycling.",
+  "direct_cause": "Pointer-down creates a history entry before displacement. Only oldest-entry eviction notified the file owner.",
+  "class_root": "History ownership was tied to event positions and gesture initiation instead of committed edits and reachable recovery material.",
+  "affected_population": [
+    "Canvas creators resizing or dragging after Undo, including projects with landed generation media and deferred file cleanup."
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+    "src/workbench/assets/pendingAssetDeletions.ts"
+  ],
+  "entry_points": [
+    "Node and group drag, resize, proposal compensation, explicit asset deletion and project hydration"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Nomi owns paid-result retention, project liveness and the definition of a canvas edit. Immer supplies patch mechanics.",
+  "invariants": [
+    "Only a committed displacement records a step. Every unreachable branch releases its recovery references. Undo preserves paid facts."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "readReachableUndoNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "readReachableUndoNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "symbol": "captureHistory"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "captureHistory"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "symbol": "captureHistory"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "symbol": "getUndoHeadToken"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "symbol": "commitCanvasNodeDragStop"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "captureHistory"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "captureHistory"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "registerUndoHistoryEvictionHandler"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "symbol": "captureHistory"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "symbol": "captureHistory"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/events/canvasEventEmitter.ts",
+      "symbol": "observeCanvasHistoryGesture"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+      "symbol": "diffCanvasDocument"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "symbol": "captureHistory"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/referenceWrites.ts",
+      "symbol": "captureHistory"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeDragResize.ts",
+      "symbol": "captureHistory"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "symbol": "captureHistory"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "symbol": "commitCanvasNodeDragStop"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "cancelCanvasNodeDrag"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "captureHistory"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "popUndo"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "popRedo"
+    }
+  ],
+  "door_reduction": {
+    "before": 23,
+    "after": 23,
+    "why_not": "File liveness, pointer hosts, proposal receipts and document writeback are separate consumers of one history owner."
+  },
+  "generality_proof": "User and agent edits share history steps. Both directions apply one step to the live graph. Eviction reports discarded material to the same file owner.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+      "symbol": "pushUndoSnapshot",
+      "responsibility": "Own bounded recovery and notify the asset owner when a branch expires."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "symbol": "commitCanvasNodeDragStop",
+      "responsibility": "Commit durable positions only for a live, displaced gesture."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "entry_point": "commitCanvasNodeDragStop",
+      "disposition": "enforced",
+      "evidence": "A cancelled lease prevents the kernel stop event from committing."
+    },
+    {
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "entry_point": "releaseEvictedAssetDeletions",
+      "disposition": "enforced",
+      "evidence": "Release uses remaining undo and project references before recycling a file."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every canvas gesture or redo branch can repeat the failure.",
+    "same_class_scan": [
+      "door-map popUndo popRedo getUndoHeadToken registerUndoHistoryEvictionHandler readReachableUndoNodes commitCanvasNodeDragStop cancelCanvasNodeDrag"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+    "invariant": "Discarding reachable history notifies the file owner on both capacity and branch replacement.",
+    "failure_mode": "A cancellation creates no step and live references veto recycling.",
+    "exception_policy": "none",
+    "strategy": "Detect displacement at release and expire unreachable steps at the history boundary.",
+    "artifacts": [
+      "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+      "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/canvasPatchHistory.characterization.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/store/canvasPatchHistory.characterization.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/events/canvasUndoJournal.ts"
+    ],
+    "rationale": "Immer patches replace prefix replay at the sole undo boundary."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "immer 11.1.8",
+    "target": "immer 11.1.8",
+    "rationale": "Use the installed Zustand Immer dependency for forward and inverse patches.",
+    "exit_criteria": [
+      "Reconsider when supported patch semantics or measured byte budgets cease to hold."
+    ]
+  },
+  "migration": "History is scoped to the loaded project. Existing JSONL and snapshot formats are unchanged.",
+  "residual_risks": [
+    "Native pointer dispatch and disk rollback require separate Electron verification."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/events",
+    "tests": [
+      "src/workbench/generationCanvas/store/canvasPatchHistory.characterization.test.ts"
+    ]
+  },
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-24"
+}

@@ -25,7 +25,7 @@ import { useGenerationQueueStore } from './generationQueueStore'
 import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { createProjectSessionTestHarness, testProjectBinding, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 
 type Attempt = { runId: string; ctx: GenerationNodeExecutorContext; resolve: (results: GenerationNodeResults) => void; reject: (error: unknown) => void }
@@ -69,7 +69,7 @@ beforeEach(async () => {
   await session.open('project-a')
   store().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
   useGenerationQueueStore.setState({ entries: [], batches: {} })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   setCanvasEventSinkForTests(() => {})
 })
 afterEach(() => { setCanvasEventSinkForTests(null); session.dispose(); vi.restoreAllMocks() })

@@ -26,7 +26,7 @@ const useCanvasTurnStore = create<AgentTurnState>((set, get) => createAgentTurnS
 import { useWorkbenchStore } from '../../workbenchStore'
 import { createDefaultTimeline } from '../../timeline/timelineMath'
 import { resetAdoptionRegistry } from '../../adoption/adoptionProposalRegistry'
-import { __resetCanvasUndoJournalForTests, getHistoryFlags } from '../events/canvasUndoJournal'
+import { clearHistory, getHistoryFlags } from '../events/canvasPatchHistory'
 import { setCanvasEventSinkForTests, type CanvasShadowEvent } from '../events/canvasEventEmitter'
 
 // Widening a callable with an optional owner lets the pre-change implementation
@@ -42,7 +42,7 @@ beforeEach(() => {
   useCanvasTurnStore.getState().abandon()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node('A')], edges: [], groups: [] })
   useWorkbenchStore.setState({ timeline: createDefaultTimeline(), timelineHistory: createTimelineHistory() })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   resetAdoptionRegistry()
   captured.length = 0
   setCanvasEventSinkForTests((events) => captured.push(...events))

@@ -141,7 +141,7 @@ function BaseGenerationNodeImpl({
   // fitView 与本外壳共用同一函数，避免名义 size 与渲染尺寸两套真相源（连线起笔飘在节点外的根因）。
   const visualSize = resolveNodeVisualSize(node)
   const previewHeight = visualSize.height
-  const { flowManagedDrag: flowManagedLayout, handlePointerDown, handlePointerMove, handlePointerUp, handleResizePointerDown } = useNodeDragResize({ reportFeedback,
+  const { preview, flowManagedDrag: flowManagedLayout, handlePointerDown, handlePointerMove, handlePointerUp, handleResizePointerDown } = useNodeDragResize({ reportFeedback,
     node,
     selected,
     readOnly,
@@ -206,9 +206,9 @@ function BaseGenerationNodeImpl({
       data-appear={appear ? 'true' : undefined}
       data-status={status}
       style={{
-        transform: flowManagedLayout ? undefined : `translate(${node.position.x}px, ${node.position.y}px)`,
-        width: visualSize.width,
-        height: visualSize.height,
+        transform: flowManagedLayout ? undefined : `translate(${preview?.position.x ?? node.position.x}px, ${preview?.position.y ?? node.position.y}px)`,
+        width: preview?.size?.width ?? visualSize.width,
+        height: preview?.size?.height ?? visualSize.height,
         gridTemplateRows: `${previewHeight}px`,
       }}
       onPointerDown={handlePointerDown}

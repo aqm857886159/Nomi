@@ -1,5 +1,5 @@
 import type { AssetRef } from '../../assets/assetTypes'
-import { pushUndoSnapshot } from '../events/canvasUndoJournal'
+import { pushUndoSnapshot } from '../events/canvasPatchHistory'
 import { withCanvasGestureContext } from '../events/canvasGestureContext'
 import type { GenerationCanvasEdgeMode, GenerationNodeKind } from '../model/generationCanvasTypes'
 import { resolveCanvasReferenceConnection } from '../model/canvasReferenceConnection'

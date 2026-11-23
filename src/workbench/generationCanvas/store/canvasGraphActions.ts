@@ -16,7 +16,7 @@ import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import i18n from '../../../i18n'
 import { normalizeGroupColorToken } from '../model/groupColor'
 import { bumpPersistRevision, isCategoryId } from './canvasGuards'
-import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
+import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasPatchHistory'
 import { reconcileTimelineForDeletedNodes } from './canvasTimelineBridge'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import type { CanvasGraphActions, CanvasSliceCreator } from './canvasStoreTypes'
@@ -196,13 +196,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     if (afterEdges !== beforeEdges) {
       const addedEdge = afterEdges.find((candidate) => !beforeEdges.some((edge) => edge.id === candidate.id))
       if (addedEdge) {
-        // 手拖出来的这一条边**必须能撤销**。barrier 存的是日志位置，所以要在这条边的
-        // `canvas.edge.added` 事件**之前**打——打在 emit 之后就等于 undo 停在它后面，
-        // Cmd+Z 会去撤上一笔（用户眼里是「撤销把别的东西弄没了」）。
-        // 2026-09-07 真机走查发现这里一直没打 barrier：连错一条线按 Cmd+Z 毫无反应，
-        // 而同族的 connectToGroup（同文件 275 行）一直是打的——这不是设计，是漏了一处。
-        // 只补这一处还不够：紧跟着的连线派生写（deriveTargetAfterConnect）会再打一个自己的 barrier，
-        // 于是要按两下才撤掉边。那一半修在它自己身上（history: false，见 canvasConnectDerivations 头注释）。
+        // Preserve the state preceding this edge. Derived target edits belong to the same step.
         pushUndoSnapshot(pre)
         emitCanvasGesture([{ type: 'canvas.edge.added', payload: { edge: addedEdge } }])
       }

@@ -1,7 +1,7 @@
 import { canvasWindowInput } from '../../shortcutSurface'
 import React from 'react'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
-import { getUndoJournalGeneration } from '../events/canvasUndoJournal'
+import { getUndoJournalGeneration } from '../events/canvasPatchHistory'
 import { withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { CANVAS_DRAGGING_OWNER, beginCanvasDragging, type CanvasDragLease } from './canvasDraggingFlag'
@@ -16,25 +16,18 @@ type DragRecord = {
   clientX: number
   clientY: number
   moved: boolean
-  historyCaptured: boolean
   totalDelta: Delta
   /**
    * 预览要平移的 DOM 元素：按下时解析一次并持有，帧内只写 `style.translate`，不再做任何全局查询
    * （每帧一次 241 个分支的 `querySelectorAll` 曾占拖组框可归因耗时的 96%，P-dragframe）。
-   * `null` = 还没解析（复制拖动换了新框，等新框渲染出来再解析一次）。
    */
   previewElements: HTMLElement[] | null
-  resolveAttempts: number
 }
 
-/**
- * `duplicateOnMove`：按下时按着 Alt/⌥（Option + 拖动 = 复制，同画布惯例）。第一次真的移动时才复制——
- * 只点一下不拖不会凭空多出一个框（tldraw Translating.startCloning / Excalidraw 同样在移动时才复制）。
- */
+/** Option-drag copies the group only when the pointer commits a displacement. */
 type GroupDragRecord = DragRecord & {
   groupId: string
-  duplicateOnMove: boolean
-  memberIds: string[]
+  duplicateOnRelease: boolean
 }
 type Delta = { x: number; y: number }
 
@@ -47,7 +40,6 @@ const NODE_PREVIEW_PARTS = [
   '.generation-canvas-react-flow__handle-hit',
   '.generation-canvas-react-flow__handle-icon',
 ]
-const MAX_RESOLVE_ATTEMPTS = 8
 
 /** 全文件唯一的 DOM 查询：只在手势开始（或复制拖动换框）时调用，不在帧内调用。 */
 function resolvePreviewElements(groupId: string, nodeIds: readonly string[]): HTMLElement[] {
@@ -60,16 +52,7 @@ function resolvePreviewElements(groupId: string, nodeIds: readonly string[]): HT
   return Array.from(document.querySelectorAll<HTMLElement>(selectors.join(',')))
 }
 
-function resolveDragPreview(drag: GroupDragRecord): void {
-  const found = resolvePreviewElements(drag.groupId, drag.memberIds)
-  drag.resolveAttempts += 1
-  // 复制拖动：新框的 DOM 要等 React 渲染；框本身还没出现就下一帧再解析（有上限，找不到就不预览）。
-  if (!found.some((element) => element.dataset.groupId === drag.groupId) && drag.resolveAttempts < MAX_RESOLVE_ATTEMPTS) return
-  drag.previewElements = found
-}
-
 function applyDragPreview(drag: GroupDragRecord): void {
-  if (!drag.previewElements) resolveDragPreview(drag)
   const elements = drag.previewElements
   if (!elements) return
   const value = `${drag.totalDelta.x}px ${drag.totalDelta.y}px`
@@ -179,10 +162,12 @@ export function useCanvasSelectionDrag({
     group?.lease?.release()
     // The preview stays in DOM geometry until this shared settle boundary.
     // Interruptions settle the original graph, never a newly hydrated target.
-    if (group?.moved && isDragTargetCurrent(group)) {
+    if (group?.moved && isDragTargetCurrent(group) && (Math.trunc(group.totalDelta.x) || Math.trunc(group.totalDelta.y))) {
+      const target = group.duplicateOnRelease ? useGenerationCanvasStore.getState().duplicateGroupForDrag(group.groupId) : group.groupId
+      if (!group.duplicateOnRelease) captureHistory()
       flushScheduledDragMove()
-      moveGroupNodes(
-        group.groupId,
+      if (target) moveGroupNodes(
+        target,
         {
           x: Math.trunc(group.totalDelta.x),
           y: Math.trunc(group.totalDelta.y),
@@ -190,7 +175,7 @@ export function useCanvasSelectionDrag({
         { persist: false, emit: false },
       )
       clearDragPreview(group)
-      emitGroupDragSettled(group.groupId)
+      if (target) emitGroupDragSettled(target)
       commitPersistedChange()
     } else if (group) {
       clearDragPreview(group)
@@ -199,7 +184,7 @@ export function useCanvasSelectionDrag({
     if (dragMoveFrameRef.current !== null) window.cancelAnimationFrame(dragMoveFrameRef.current)
     dragMoveFrameRef.current = null
     pendingGroupDeltaRef.current = null
-  }, [commitPersistedChange, emitGroupDragSettled, flushScheduledDragMove, moveGroupNodes])
+  }, [captureHistory, commitPersistedChange, emitGroupDragSettled, flushScheduledDragMove, moveGroupNodes])
 
   React.useEffect(() => {
     if (readOnly) return undefined
@@ -214,25 +199,6 @@ export function useCanvasSelectionDrag({
       const scale = zoomRef.current || 1
       const delta = { x: (event.clientX - drag.clientX) / scale, y: (event.clientY - drag.clientY) / scale }
       if (delta.x === 0 && delta.y === 0) return
-      if (drag.duplicateOnMove) {
-        drag.duplicateOnMove = false
-        // 复制本身就是这次手势的撤销点（duplicateGroupForDrag 打了 barrier），后面的搬动不再另打。
-        const copyId = useGenerationCanvasStore.getState().duplicateGroupForDrag(drag.groupId)
-        if (copyId) {
-          const copiedGroup = useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === copyId)
-          Object.assign(drag, {
-            groupId: copyId,
-            memberIds: copiedGroup?.nodeIds ?? [],
-            historyCaptured: true,
-            previewElements: null,
-            resolveAttempts: 0,
-          })
-        }
-      }
-      if (!drag.historyCaptured) {
-        captureHistory()
-        drag.historyCaptured = true
-      }
       Object.assign(drag, { clientX: event.clientX, clientY: event.clientY, moved: true })
       drag.totalDelta.x += delta.x
       drag.totalDelta.y += delta.y
@@ -292,21 +258,21 @@ export function useCanvasSelectionDrag({
           pointerId: event.pointerId,
           active: false,
           onCancel: settleDrag,
+          onEscape: () => {
+            if (draggingGroupRef.current) draggingGroupRef.current.moved = false
+            settleDrag()
+          },
         }),
         pointerId: event.pointerId,
         pointerCaptureTarget: event.currentTarget,
         groupId,
-        memberIds: group?.nodeIds ?? [],
         totalDelta: { x: 0, y: 0 },
         clientX: event.clientX,
         clientY: event.clientY,
         moved: false,
-        historyCaptured: false,
-        duplicateOnMove: event.altKey,
-        previewElements: null,
-        resolveAttempts: 0,
+        duplicateOnRelease: event.altKey,
+        previewElements: resolvePreviewElements(groupId, group?.nodeIds ?? []),
       }
-      resolveDragPreview(draggingGroupRef.current)
     },
     [settleDrag, onSelectEmptyFrame, readOnly, selectNodes],
   )

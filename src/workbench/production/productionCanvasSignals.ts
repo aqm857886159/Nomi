@@ -1,5 +1,5 @@
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
-import { recordProductionCanvasSignal } from '../generationCanvas/events/canvasUndoJournal'
+import { recordProductionCanvasSignal } from '../generationCanvas/events/canvasPatchHistory'
 import { logRendererError } from '../../desktop/rendererLog'
 
 export type ProductionCanvasSignal =

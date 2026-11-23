@@ -1,6 +1,6 @@
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { removeNodeResult } from '../generationCanvas/model/nodeResultLifecycle'
-import { dropUndoBarriersAfter, getUndoJournalPosition, pushUndoSnapshot } from '../generationCanvas/events/canvasUndoJournal'
+import { dropUndoBarriersAfter, getUndoJournalPosition, pushUndoSnapshot } from '../generationCanvas/events/canvasPatchHistory'
 import { isProjectExecutionContextCurrent, type ProjectExecutionContext } from '../project/projectCanvasReadSurface'
 import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
 import { rollbackAppliedPatches, serializeProjectDeletion } from './assetResultMutation'
