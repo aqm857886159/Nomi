@@ -359,7 +359,7 @@ export function isPointNearSingleAssetResizeHandle(
   return handlePoints.some((handlePoint) => getCanvasPointDistanceSquared(point, handlePoint) <= hitRadiusSquared)
 }
 
-export function getResizeHandlePoints(bounds: CanvasObjectBounds): CanvasPoint[] {
+function getResizeHandlePoints(bounds: CanvasObjectBounds): CanvasPoint[] {
   const left = bounds.x
   const centerX = bounds.x + bounds.width / 2
   const right = bounds.x + bounds.width
@@ -379,7 +379,7 @@ export function getResizeHandlePoints(bounds: CanvasObjectBounds): CanvasPoint[]
   ]
 }
 
-export function getCanvasPointDistanceSquared(first: CanvasPoint, second: CanvasPoint): number {
+function getCanvasPointDistanceSquared(first: CanvasPoint, second: CanvasPoint): number {
   const deltaX = first.x - second.x
   const deltaY = first.y - second.y
 
@@ -446,7 +446,7 @@ export function getSelectableCanvasObjectsInBounds(
   return selectedTargets
 }
 
-export function getSnapGuides(
+function getSnapGuides(
   target: CanvasObjectTarget,
   dimensions: CanvasDimensions,
   layers: LayerItem[],
@@ -598,11 +598,11 @@ export function getTopmostEditableCanvasObjectAtPoint(
   return null
 }
 
-export function getBoundsVerticalLines(bounds: CanvasObjectBounds): number[] {
+function getBoundsVerticalLines(bounds: CanvasObjectBounds): number[] {
   return [bounds.x, bounds.x + bounds.width / 2, bounds.x + bounds.width]
 }
 
-export function getUnionBounds(boundsList: CanvasObjectBounds[]): CanvasObjectBounds | null {
+function getUnionBounds(boundsList: CanvasObjectBounds[]): CanvasObjectBounds | null {
   if (boundsList.length === 0) {
     return null
   }
@@ -652,7 +652,7 @@ export function isCanvasGroupLayer(layer: LayerItem): boolean {
   return layer.kind === 'group'
 }
 
-export function doBoundsIntersect(first: CanvasObjectBounds, second: CanvasObjectBounds): boolean {
+function doBoundsIntersect(first: CanvasObjectBounds, second: CanvasObjectBounds): boolean {
   return (
     first.x <= second.x + second.width &&
     first.x + first.width >= second.x &&
@@ -703,11 +703,11 @@ export function shouldBlockEditorTargetInteraction(
   return shouldBlockSelection(target)
 }
 
-export function getBoundsHorizontalLines(bounds: CanvasObjectBounds): number[] {
+function getBoundsHorizontalLines(bounds: CanvasObjectBounds): number[] {
   return [bounds.y, bounds.y + bounds.height / 2, bounds.y + bounds.height]
 }
 
-export function getNearestSnapDelta(lines: number[], guides: number[]): { delta: number; guide: number; matched: boolean } {
+function getNearestSnapDelta(lines: number[], guides: number[]): { delta: number; guide: number; matched: boolean } {
   let closestDelta = 0
   let closestGuide = 0
   let closestDistance = SNAP_DISTANCE + 1

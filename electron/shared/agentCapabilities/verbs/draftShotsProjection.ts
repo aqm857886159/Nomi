@@ -40,7 +40,7 @@ import { generationPlanInputSchema, type StoryboardAuthorFields } from "../gener
 import { resolveModelForTask, resolvedModelNameOf, type ModelHandleRow, type ModelIdentity, type ResolvedModelName } from "../modelHandle";
 import { resolveShotTaskKind, statedShotTaskKind } from "../../generationShotKind";
 import { modelKindForTaskKind } from "../../capabilityModeManifest";
-import { GENERATION_DEFAULT_TASK_KINDS, type GenerationDefaultTaskKind } from "../../../settings/generationModelDefaultsContract";
+import { GENERATION_DEFAULT_TASK_KINDS, type GenerationDefaultTaskKind } from "../../contracts/generationModelDefaultsContract";
 import { LaneDomainFailure, toolArgumentsRejected } from "../../agentLane/laneToolContract";
 import type { ToolInputIssue } from "../../agentLane/toolInputIssues";
 import { generationShotEnvelopeOf, type GenerationShotEnvelope } from "../../generationShotEnvelope";

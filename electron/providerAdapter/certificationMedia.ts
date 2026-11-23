@@ -4,7 +4,7 @@ import path from "node:path";
 import { chmod, lstat, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 
 import { validateAntigravityImage } from "../ai/antigravityArtifacts";
-import { Model3DValidationError, validateGlbStructure } from "../assets/model3dValidation";
+import { Model3DValidationError, validateGlbStructure } from "../shared/contracts/model3dValidation";
 import { contentTypeFromMagicBytes, extensionFromContentType, isCertifiableMediaContentType, isMarkupMasquerade, MEDIA_TYPES } from "../assets/mediaTypes";
 import { decodeMediaBytes, decodeMediaFile, probeMediaBytes, probeMediaMetadata, type MediaProbeMetadata } from "../export/mediaProbe";
 import { hardenedFetch, type HardenedFetchResult } from "../hardenedFetch";

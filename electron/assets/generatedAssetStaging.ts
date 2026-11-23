@@ -24,7 +24,7 @@ import { captureAssetWriteContext, type AssetWriteContext } from "./assetWriteCo
 import { generatedMediaKindMismatchError, generatedMediaValidationError, verifyGeneratedMediaDecodes } from "./generatedMediaDecode";
 import type { LocalizedAssetType } from "./localizedAsset";
 import { contentTypeFromMagicBytes, isCertifiableMediaContentType, isMarkupMasquerade } from "./mediaTypes";
-import { validateGlbStructure } from "./model3dValidation";
+import { validateGlbStructure } from "../shared/contracts/model3dValidation";
 import { registerQuitDrain } from "../quitTeardown";
 import { createUploadStagingDir, reapAbandonedUploadStaging, removeScratchAfterUse, removeScratchAfterUseSync } from "./scratchCleanup";
 

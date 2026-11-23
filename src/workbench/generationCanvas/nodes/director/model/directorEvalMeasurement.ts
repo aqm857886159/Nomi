@@ -11,8 +11,7 @@ import { programCameraIdAt } from './programCamera'
 import { scaledBounds } from './directorSpace'
 import { sceneFrame, transformPoint, type SceneFrame } from './sceneObjectGraph'
 import { forwardFromAngles, normalize, rightFromYaw, signedDeg, sub } from './vec3'
-import { CAMERA_MOVES, EVAL_SHOT_SIZES, type CameraMove, type EvalShotSize } from '../../../../../../electron/shared/director/vocab'
-import type { StagingShot } from '../agent/stagingVocab'
+import { EVAL_SHOT_SIZES, type CameraMove, type EvalShotSize } from '../../../../../../electron/shared/director/vocab'
 
 export type { EvalShotSize }
 
@@ -27,7 +26,7 @@ export type { EvalShotSize }
  * Object ladder (props, products, vehicles, and any anchored part such as `woman.hand` or `bottle.cap`): there is no
  * body to cut, so size follows how much of the frame the thing fills.
  */
-export const FIGURE_SHOT_LADDER: readonly [number, EvalShotSize][] = [
+const FIGURE_SHOT_LADDER: readonly [number, EvalShotSize][] = [
   [0.33, '远景'],
   [1.15, '全景'],
   [2.3, '中景'],
@@ -36,7 +35,7 @@ export const FIGURE_SHOT_LADDER: readonly [number, EvalShotSize][] = [
   [12, '特写'],
   [Infinity, '大特写'],
 ]
-export const OBJECT_SHOT_LADDER: readonly [number, EvalShotSize][] = [
+const OBJECT_SHOT_LADDER: readonly [number, EvalShotSize][] = [
   [0.12, '远景'],
   [0.35, '全景'],
   [0.6, '中景'],
@@ -52,12 +51,11 @@ const LADDERS: Record<ShotLadder, readonly [number, EvalShotSize][]> = {
 }
 /** Distance below the top of a character's bounds that counts as "the head" for visibility. */
 const HEAD_BELOW_TOP = 0.12
-export const STAGING_SHOT_TO_EVAL: Record<StagingShot, EvalShotSize> = { wide: '全景', medium: '中景', close: '特写' }
 
 export type AnchorSpec = { offset: Vec3; size: Vec3 }
 /** `inFrame` = the subject's key point (head for a character, anchor or centre otherwise) is in front of the camera and inside the frame;
  * `contained` = the whole bounds fit inside the frame (only wide shots satisfy this, by definition). */
-export type ProjectionBox = {
+type ProjectionBox = {
   x: number
   y: number
   width: number
@@ -67,8 +65,8 @@ export type ProjectionBox = {
   contained: boolean
   depth: number
 }
-export type AnchorSample = { projection: ProjectionBox; shotSize: EvalShotSize }
-export type ObjectSample = {
+type AnchorSample = { projection: ProjectionBox; shotSize: EvalShotSize }
+type ObjectSample = {
   position: Vec3
   yaw: number
   projection?: ProjectionBox
@@ -150,7 +148,7 @@ export function projectPoint(
   }
 }
 
-export function projectBounds(
+function projectBounds(
   camera: CameraSample,
   center: Vec3,
   size: Vec3,
@@ -199,7 +197,7 @@ export function shotSizeForHeight(heightRatio: number, ladder: ShotLadder = 'obj
 }
 
 /** Inverse of the ladder: the band centre's height ratio for a size (geometric mean of its edges; open ends use the inner edge). */
-export function heightRatioForShotSize(size: EvalShotSize, ladder: ShotLadder): number {
+function heightRatioForShotSize(size: EvalShotSize, ladder: ShotLadder): number {
   const rows = LADDERS[ladder]
   const index = rows.findIndex(([, name]) => name === size)
   const upper = rows[index][0]
@@ -552,6 +550,3 @@ function cameraInsideObject(camera: Vec3, origin: Vec3, object: DirectorObject):
   )
 }
 
-export const isKnownCameraMove = (value: string): value is CameraMove =>
-  (CAMERA_MOVES as readonly string[]).includes(value)
-export const measurementMath = { add, sub, cross, dot, length }

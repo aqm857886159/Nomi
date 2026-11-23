@@ -43,6 +43,26 @@
       "reason": "Explicit deletion signals follow the patch step through Undo and Redo."
     },
     {
+      "contract": "docs/fixes/2026-09-21-model-spec-parity.root-cause.json",
+      "path": "electron/capabilityCore/canvasNodeFactory.ts",
+      "symbol": "bindModelIdentity",
+      "anchor": {
+        "path": "electron/shared/canvas/canvasNodeFactory.ts",
+        "symbol": "bindModelIdentity"
+      },
+      "reason": "2026-11-24 Q-smell 味道③（#1586）：零依赖纯节点工厂整文件迁入中立层 electron/shared/canvas/canvasNodeFactory.ts（内容与不变量逐字未改），消除渲染层直连主进程边界违规；仍由 electron/capabilityCore/canvasNodeFactory.test.ts 守。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-19-derived-node-placement-rendered-size.root-cause.json",
+      "path": "electron/capabilityCore/canvasNodeLayout.ts",
+      "symbol": "resolveInsertionPositionWith",
+      "anchor": {
+        "path": "electron/shared/canvas/canvasNodeLayout.ts",
+        "symbol": "resolveInsertionPositionWith"
+      },
+      "reason": "2026-11-24 Q-smell 味道③（#1586）：零依赖纯画布布局数学整文件迁入中立层 electron/shared/canvas/canvasNodeLayout.ts（内容与不变量逐字未改），消除渲染层直连主进程边界违规；仍由 electron/capabilityCore/canvasNodeFactory.test.ts 守。"
+    },
+    {
       "contract": "docs/fixes/2026-09-10-vendor-key-publish-class.root-cause.json",
       "path": "electron/catalog/directKeyCredential.ts",
       "symbol": "publishBuiltinCuratedVendor",

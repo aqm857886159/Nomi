@@ -15,19 +15,7 @@ import type { GenerationCanvasNode } from './generationCanvasTypes'
  * - { ai: timestamp }: AI 提取，可被新 AI 提取覆盖
  * - undefined: 字段未设置
  */
-export type FieldProvenance = 'user' | { ai: number }
-
-export function isUserEdited(source: FieldProvenance | undefined): boolean {
-  return source === 'user'
-}
-
-export function isAiSourced(source: FieldProvenance | undefined): boolean {
-  return typeof source === 'object' && source !== null && 'ai' in source
-}
-
-export function aiProvenance(timestamp = Date.now()): FieldProvenance {
-  return { ai: timestamp }
-}
+type FieldProvenance = 'user' | { ai: number }
 
 // ----- 角色 (Cast) -----
 
@@ -70,12 +58,7 @@ export function readPropMeta(node: GenerationCanvasNode): PropMeta {
 
 // ----- 声音 (Audio) -----
 
-export type AudioKindValue = 'bgm' | 'sfx' | 'vo'
-export const AUDIO_KIND_LABELS: Record<AudioKindValue, string> = {
-  bgm: 'BGM',
-  sfx: '音效',
-  vo: '旁白',
-}
+type AudioKindValue = 'bgm' | 'sfx' | 'vo'
 
 export type AudioMeta = {
   audioKind?: AudioKindValue

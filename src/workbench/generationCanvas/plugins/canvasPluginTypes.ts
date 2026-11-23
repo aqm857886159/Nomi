@@ -1,11 +1,11 @@
 import type { ComponentType } from 'react'
 import { z } from 'zod'
 
-export const CANVAS_PLUGIN_API_VERSION = 1 as const
-export const CANVAS_PLUGIN_ID_PATTERN = /^nomi\.[a-z0-9][a-z0-9-]*$/
-export const CANVAS_PLUGIN_NODE_TYPE_PATTERN = /^[a-z0-9][a-z0-9.-]*\/[a-z0-9][a-z0-9-]*$/
+const CANVAS_PLUGIN_API_VERSION = 1 as const
+const CANVAS_PLUGIN_ID_PATTERN = /^nomi\.[a-z0-9][a-z0-9-]*$/
+const CANVAS_PLUGIN_NODE_TYPE_PATTERN = /^[a-z0-9][a-z0-9.-]*\/[a-z0-9][a-z0-9-]*$/
 
-export const canvasPluginPermissionSchema = z.enum([
+const canvasPluginPermissionSchema = z.enum([
   'canvas.read',
   'canvas.write',
   'workflow.read',
@@ -25,8 +25,8 @@ export const canvasPluginManifestSchema = z.object({
   })).min(1),
 }).strict()
 
-export type CanvasPluginPermission = z.infer<typeof canvasPluginPermissionSchema>
-export type CanvasPluginManifest = z.infer<typeof canvasPluginManifestSchema>
+type CanvasPluginPermission = z.infer<typeof canvasPluginPermissionSchema>
+type CanvasPluginManifest = z.infer<typeof canvasPluginManifestSchema>
 
 export type CanvasPluginNodeState = {
   pluginId: string
