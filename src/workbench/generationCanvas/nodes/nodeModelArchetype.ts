@@ -78,6 +78,20 @@ function renderedReferenceCounts(context: RenderedControlsContext | undefined): 
   return node ? nodeReferenceCounts(node, [...context.graph.nodes], [...context.graph.edges]) : undefined
 }
 
+/** 当前画布上下文里节点实际生效的档案方式（与 resolveRenderedControls 同一判据）；认不出档案 → null。 */
+export function resolveRenderedMode(
+  option: ModelOption | null,
+  meta: Record<string, unknown>,
+  isVideoLike: boolean,
+  context?: RenderedControlsContext,
+) {
+  const specialized = resolveArchetypeForOption(option, variantRecordedInMeta(meta, meta.modelKey))
+  if (!specialized) return null
+  return context && 'plannedModeId' in context
+    ? archetypeModeById(specialized, context.plannedModeId)
+    : effectiveArchetypeMode(specialized, context?.node ?? { id: '', meta, kind: isVideoLike ? 'video' : 'image' }, context?.graph ?? { nodes: [], edges: [] }).mode
+}
+
 /**
  * 底部参数行要渲染的控件 —— 认得档案的模型用**这次按输入现算出的方式**的标量参数（随模式变，如 HappyHorse
  * i2v 无比例）；认不出的走现有 flat catalog 解析。hook 与组件共用此函数，保证「算宽度」与「实际渲染」
