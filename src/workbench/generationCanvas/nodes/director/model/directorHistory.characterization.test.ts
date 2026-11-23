@@ -48,6 +48,21 @@ describe('Director editing history', () => {
     expect(api.exportProject()).toEqual(before)
   })
 
+  it('reuses the previous checkpoint after an untracked write returns to it', () => {
+    const api = editor()
+    const camera = api.addCamera(buildCameraFromPreset({ preset: CAMERA_PRESETS[0], id: 'camera', name: 'POV' }))
+    const initial = api.findCamera(camera)!.fov
+    api.saveState()
+    api.updateCamera(camera, { fov: initial + 1 })
+    api.updateCamera(camera, { fov: initial })
+    api.saveState()
+    api.updateCamera(camera, { fov: initial + 2 })
+    api.undo()
+    expect(api.findCamera(camera)?.fov).toBe(initial)
+    api.undo()
+    expect(api.findCamera(camera)).toBeUndefined()
+  })
+
   it('starts another step when the field changes during a named gesture', () => {
     const api = editor()
     const before = api.exportProject()
@@ -99,14 +114,15 @@ describe('Director editing history', () => {
     expect(api.activeScene().sceneConfig.gridHeight).toBe(9)
   })
 
-  it('legacy bare gesture start eagerly discards redo even without a write', () => {
+  it('a bare gesture start preserves redo until the first effective write', () => {
     const api = editor()
-    const before = api.exportProject()
     api.patchSceneConfig({ gridHeight: 9 })
     api.undo()
     api.saveState()
+    api.patchSceneConfig({ gridHeight: api.activeScene().sceneConfig.gridHeight })
+    api.undo()
     api.redo()
-    expect(api.exportProject()).toEqual(before)
+    expect(api.activeScene().sceneConfig.gridHeight).toBe(9)
   })
 
   it('measures the wheel window from the last tick and splits after a pause', () => {
@@ -124,6 +140,33 @@ describe('Director editing history', () => {
     expect(api.activeScene().sceneConfig.gridHeight).toBe(before)
     api.redo()
     expect(api.activeScene().sceneConfig.gridHeight).toBe(3)
+  })
+
+  it('switching wheel fields splits even when both edit the same property', () => {
+    const api = editor(() => 0)
+    const before = api.activeScene().sceneConfig.position
+    for (const [axis, value] of [['x', 1], ['x', 2], ['y', 3]] as const) {
+      api.saveState(axis)
+      api.patchSceneConfig({ position: { ...api.activeScene().sceneConfig.position, [axis]: value } })
+    }
+    api.undo()
+    expect(api.activeScene().sceneConfig.position).toEqual({ ...before, x: 2 })
+    api.undo()
+    expect(api.activeScene().sceneConfig.position).toEqual(before)
+  })
+
+  it('restores the history cursor when a transaction travels and then throws', () => {
+    const api = editor()
+    api.createSceneLayer('Second')
+    expect(() => api.withHistory(() => {
+      api.undo()
+      throw new Error('aborted')
+    })).toThrow('aborted')
+    expect(api.activeScene().name).toBe('Second')
+    api.undo()
+    expect(api.activeScene().name).toBe('#1')
+    api.redo()
+    expect(api.activeScene().name).toBe('Second')
   })
 
   it('clears only the reloaded node history, keeping its valid camera and playhead', () => {

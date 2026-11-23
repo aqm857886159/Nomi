@@ -22,7 +22,7 @@ export function SceneLayerInspector(): JSX.Element {
   const panoramaDimensions = useDirectorStore((state) => state.panoramaDimensions)
   const config = scene.sceneConfig
   const patch = (next: Partial<typeof config>) => store.getState().patchSceneConfig(next)
-  const save = () => store.getState().saveState()
+  const save = store.getState().saveState
   const commit = (next: Partial<typeof config>) => store.getState().withHistory(() => patch(next))
   return (
     <>
