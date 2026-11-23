@@ -1,3 +1,4 @@
+import { pollWithBackoff } from "../shared/retryPolicy";
 import type {
   GenerationSubmissionMaterializeResult,
   GenerationSubmissionPollResult,
@@ -51,34 +52,6 @@ function isObserverCurrent(deps: SingleShotGenerationObserverInput): boolean {
 }
 
 /**
- * Wait for a backoff delay without making shutdown wait for the timer.  The
- * injected `sleep` remains the only clock in tests and production; the abort
- * promise merely races it and removes its listener on either outcome.
- */
-async function sleepUnlessAborted(
-  sleep: (ms: number) => Promise<void>,
-  ms: number,
-  signal: AbortSignal | undefined,
-): Promise<boolean> {
-  if (signal?.aborted) return false;
-  if (!signal) {
-    await sleep(ms);
-    return true;
-  }
-  let onAbort: (() => void) | undefined;
-  const aborted = new Promise<false>((resolve) => {
-    onAbort = () => resolve(false);
-    signal.addEventListener("abort", onAbort, { once: true });
-  });
-  try {
-    await Promise.race([sleep(ms).then(() => true as const), aborted]);
-    return !signal.aborted;
-  } finally {
-    if (onAbort) signal.removeEventListener("abort", onAbort);
-  }
-}
-
-/**
  * Observe one already-submitted single-shot task until it settles or the
  * bounded horizon expires.  A pending return is honest: the durable Run still
  * owns the provider task and a later resume/re-kick can call this function
@@ -90,39 +63,37 @@ export async function observeSingleShotGeneration(
   const pollHorizonMs = deps.pollHorizonMs ?? defaultPollHorizonMs();
   const initialDelayMs = Math.max(0, deps.initialDelayMs ?? 3_000);
   const maxDelayMs = Math.max(initialDelayMs, deps.maxDelayMs ?? 15_000);
-  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
-  // horizon 按**墙钟**计：只累计 sleep 时间会漏掉每次 poll 的 HTTP 往返（单次可挂到
-  // vendorHttp 超时上限），名义 300s 的实际观察窗可显著超出。
-  const now = deps.now ?? Date.now;
-  const startedAtMs = now();
-  const elapsedMs = (): number => now() - startedAtMs;
-  let delayMs = initialDelayMs;
   let polls = 0;
   let lastPoll: GenerationSubmissionPollResult | undefined;
+  const aborted = (): SingleShotGenerationObservation => ({ nextAction: "observe", polls, lastPoll, aborted: true });
 
-  while (true) {
-    if (!isObserverCurrent(deps)) return { nextAction: "observe", polls, lastPoll, aborted: true };
+  const read = async (): Promise<SingleShotGenerationObservation> => {
+    if (!isObserverCurrent(deps)) return aborted();
     lastPoll = await deps.submission.poll(deps.input);
     polls += 1;
     // A provider query cannot always be cancelled, so re-check the lifecycle
     // boundary before interpreting its response or touching the durable store.
-    if (!isObserverCurrent(deps)) return { nextAction: "observe", polls, lastPoll, aborted: true };
+    if (!isObserverCurrent(deps)) return aborted();
     if (lastPoll.nextAction === "materialize") {
-      if (!isObserverCurrent(deps)) return { nextAction: "observe", polls, lastPoll, aborted: true };
+      if (!isObserverCurrent(deps)) return aborted();
       const materialized = await deps.submission.materialize(deps.input);
-      if (!isObserverCurrent(deps)) return { nextAction: "observe", polls, lastPoll, aborted: true };
+      if (!isObserverCurrent(deps)) return aborted();
       await deps.onMaterialized?.(materialized);
-      if (!isObserverCurrent(deps)) return { nextAction: "observe", polls, lastPoll, aborted: true };
+      if (!isObserverCurrent(deps)) return aborted();
       return { nextAction: "completed", polls, lastPoll, materialized };
     }
     if (lastPoll.nextAction === "attention") return { nextAction: "attention", polls, lastPoll };
-    if (elapsedMs() >= pollHorizonMs) return { nextAction: "observe", polls, lastPoll };
+    return { nextAction: "observe", polls, lastPoll };
+  };
 
-    const waitMs = Math.min(delayMs, pollHorizonMs - elapsedMs());
-    if (waitMs <= 0) return { nextAction: "observe", polls, lastPoll };
-    if (!(await sleepUnlessAborted(sleep, waitMs, deps.signal))) {
-      return { nextAction: "observe", polls, lastPoll, aborted: true };
-    }
-    delayMs = Math.min(maxDelayMs, Math.max(initialDelayMs, delayMs * 2 || initialDelayMs));
+  try {
+    return await pollWithBackoff(
+      read,
+      (value) => value.nextAction === "observe" && !value.aborted,
+      { initialDelayMs, maxDelayMs, horizonMs: pollHorizonMs, signal: deps.signal, sleep: deps.sleep, now: deps.now },
+    );
+  } catch (error) {
+    if (deps.signal?.aborted && Object.is(error, deps.signal.reason)) return aborted();
+    throw error;
   }
 }

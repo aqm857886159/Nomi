@@ -153,6 +153,26 @@ test('Retry-After 头压过指数退避', async () => {
   assert.equal(backoffDelayMs(3, null), 4000)
 })
 
+test('每次重试报告原原因和实际等待，最后一次失败不再报告重试', async () => {
+  const { impl, calls } = stubFetch([
+    { status: 429, text: 'slow down', headers: { 'retry-after': '5' } },
+    () => { throw new Error('network unreachable') },
+    { status: 503, text: 'unavailable' },
+  ])
+  const { sleep, slept } = recordingSleep()
+  const events = []
+  await assert.rejects(
+    requestJson({ path: '/api/v1/x', apiKey: FAKE_KEY, fetchImpl: impl, sleep, onRetry: (event) => events.push(event) }),
+    (error) => error instanceof TikHubHttpError && error.status === 503,
+  )
+  assert.equal(calls.length, 3)
+  assert.deepEqual(slept, [5000, 2000])
+  assert.deepEqual(events, [
+    { attempt: 1, delayMs: 5000, status: 429 },
+    { attempt: 2, delayMs: 2000, status: null },
+  ])
+})
+
 test('网络层报错也重试，且错误信息不带 key', async () => {
   const { impl } = stubFetch([
     () => { throw new Error(`connect ECONNREFUSED (token=${FAKE_KEY})`) },
