@@ -11,7 +11,9 @@ import {
   IconAlertTriangle,
   IconArrowUp,
   IconBolt,
+  IconBooks,
   IconBrain,
+  IconBulb,
   IconCheck,
   IconChevronDown,
   IconChevronRight,
@@ -87,6 +89,8 @@ export function ToolStatusIcon({ status, size = 12 }: { status: V4ToolStatus; si
 export {
   IconAlertTriangle,
   IconArrowUp,
+  IconBooks,
+  IconBulb,
   IconCheck,
   IconChevronDown,
   IconChevronRight,
