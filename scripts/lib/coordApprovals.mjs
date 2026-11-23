@@ -174,6 +174,47 @@ function samePr(kind, recordPr, pr) {
   return Number(recordPr) === Number(pr)
 }
 
+/**
+ * 推送档用（lint:changed 与本机 check-pr-judgement --stage=push 共用）：
+ * 同样读本机确认记录，仅把 mode 标为 'push'——记录取不到时只打警告放行（交给合并前扫描核），记录取得到但没签照旧判红。
+ */
+export function pushApprovals({ pr = null, env = process.env, readFile } = {}) {
+  return { ...localApprovals({ pr, env, ...(readFile ? { readFile } : {}) }), mode: 'push' }
+}
+
+/**
+ * ESLint 批量抑制冻结数上涨的唯一判据（lint:changed、check-pr-judgement、PR Body、merge-preflight 四处共用）：
+ *   · mode === 'local'（merge-preflight 合并前扫描）：取不到内容 / 没签 / 记录不可用一律 ok=false 判红；
+ *   · mode === 'push'（本机推送档）：签了哈希对上 → ok=true；记录取不到（unavailable）→ ⚠ 待协调确认（合并前扫描会核）并放行；记录取得到但没签 → ok=false 判红；
+ *   · mode === 'ci' / null：⚠ 待协调确认（合并前扫描会核）并放行。
+ */
+export function checkSuppressionContracts({ strict = false, suppressions = undefined, baseSuppressions = undefined, approvals = null } = {}) {
+  if (!strict || (suppressions === undefined && baseSuppressions === undefined)) return { ok: true, lines: [] }
+  const resolve = (value) => (typeof value === 'function' ? value() : value)
+  const head = resolve(suppressions)
+  const base = resolve(baseSuppressions)
+  if (!head || !base) {
+    if (approvals?.mode === 'local') return { ok: false, lines: [`✖ ${SUPPRESSIONS_FILE}：取不到 PR head 或 base 上的内容，没法对比冻结数`] }
+    return { ok: true, lines: [`⚠ ${SUPPRESSIONS_FILE}：取不到 PR head 或 base 上的内容，没法对比冻结数（待协调确认，合并前扫描会核）`] }
+  }
+  const subject = suppressionApprovalSubject(base, head)
+  if (!subject.needsApproval) return { ok: true, lines: [] }
+  if (approvals?.lookup?.('eslint-suppressions', SUPPRESSIONS_FILE, subject.fingerprint) === true) {
+    return { ok: true, lines: [`✅ ${SUPPRESSIONS_FILE}：${describeSuppressionGrowth(subject)}——协调已确认（哈希对上）`] }
+  }
+  const command = approvalCommand(approvals?.pr, 'eslint-suppressions')
+  if (approvals?.mode === 'local') {
+    return { ok: false, lines: [`✖ ${SUPPRESSIONS_FILE}：${describeSuppressionGrowth(subject)}，没有协调确认记录${approvals?.unavailable ? `（${approvals.unavailable}）` : ''}。冻结数只许减少；确需冻进存量，协调看过 diff 后跑 ${command}`] }
+  }
+  if (approvals?.mode === 'push') {
+    if (approvals?.unavailable) {
+      return { ok: true, lines: [`⚠ ${SUPPRESSIONS_FILE}：${describeSuppressionGrowth(subject)}——待协调确认（合并前扫描会核；确认命令 ${command}）`] }
+    }
+    return { ok: false, lines: [`✖ ${SUPPRESSIONS_FILE}：${describeSuppressionGrowth(subject)}，没有协调确认记录。冻结数只许减少；确需冻进存量，协调看过 diff 后跑 ${command}`] }
+  }
+  return { ok: true, lines: [`⚠ ${SUPPRESSIONS_FILE}：${describeSuppressionGrowth(subject)}——待协调确认（合并前扫描会核；确认命令 ${command}）`] }
+}
+
 /** CI 用：读不到本机记录，只提示待确认。 */
 export const ciApprovals = Object.freeze({ mode: 'ci', lookup: () => false })
 

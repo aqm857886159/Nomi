@@ -102,7 +102,9 @@ function VersionCardBar({ versionNo, primary, readOnly, onSetPrimary, onDownload
       data-version-card-bar
       // 外观和按钮原子与节点浮条同一套（NodeFloatingToolbar 的 ToolbarButton / ToolbarIconButton / ToolbarDivider，全仓同类控件一个组件）。
       // 拖动画布 / 拖整组时动作条跟其它浮层一起隐身（同一面画布级拖动旗）；卡片本身是组的一部分，照样跟着走。
-      className="nodrag generation-canvas-react-flow__no-pan pointer-events-auto absolute bottom-[calc(100%+6px)] left-1/2 z-[2] inline-flex min-h-9 -translate-x-1/2 items-center gap-1 rounded-nomi border border-nomi-line bg-nomi-paper px-1.5 py-1 shadow-nomi-md group-data-[dragging=true]/canvas:invisible"
+      // 下沿补透明悬停桥接（after:h-2.5 盖住 bottom-[calc(100%+6px)] + 1px 底边框的 7px 间隙），不改可见位置与尺寸，
+      // 鼠标从版本卡滑进动作条时不穿过 react-flow__pane 触发 onPointerLeave 卸载。
+      className="nodrag generation-canvas-react-flow__no-pan pointer-events-auto absolute bottom-[calc(100%+6px)] left-1/2 z-[2] inline-flex min-h-9 -translate-x-1/2 items-center gap-1 rounded-nomi border border-nomi-line bg-nomi-paper px-1.5 py-1 shadow-nomi-md after:absolute after:inset-x-0 after:top-full after:h-2.5 after:content-[''] group-data-[dragging=true]/canvas:invisible"
       onPointerDown={(event) => event.stopPropagation()}
       // 点动作不选中节点：选中会浮出生成框、正好压住下面一排版本卡（和点卡片预览同一条）。
       onClick={(event) => event.stopPropagation()}

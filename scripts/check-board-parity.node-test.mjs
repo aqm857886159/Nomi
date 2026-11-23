@@ -7,7 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { BOARD_NAME, BOARD_STATES, PEER_REGISTRY_REQUIRED_FROM, checkBoardManifest, checkBoundarySheet, checkPeerRegistry, checkPeerRegistryFile, checkPriorArt, checkPrBoardClaims, checkSourceHash, compareBoardManifests, findDatedBoards, loadManifests, loadPeerRegistry, makeReferrerScanner, parsePrBoardClaims, runBoardParity } from './check-board-parity.mjs'
+import { BOARD_NAME, BOARD_STATES, PEER_REGISTRY_REQUIRED_FROM, checkBoardManifest, checkBoundarySheet, checkElementComponents, checkPeerRegistry, checkPeerRegistryFile, checkPriorArt, checkPrBoardClaims, checkSourceHash, compareBoardManifests, findDatedBoards, formatBoardDebtReport, listBoardManifests, loadLegacyComponentBaseline, loadManifests, loadPeerRegistry, makeReferrerScanner, matchBoardActiveWork, parsePrBoardClaims, runBoardParity, summarizeBoardDebt } from './check-board-parity.mjs'
 import { makeTempDir } from './_test-temp.mjs'
 import { BOARD_NAMES } from './board-extract.mjs'
 import { hashBoardSourceFiles } from './board-source-hash.mjs'
@@ -18,8 +18,8 @@ const base = () => ({
   board: 'Main',
   stage: 'explored',
   elements: [
-    { id: 'topbar.title', label: '标题', candidates: ['001-text-A', '002-icon'], status: 'implemented', assertion: 'board:Main/topbar.title', states: ['zh-en'] },
-    { id: 'group.header', label: '分组框头', candidates: ['003-text-B'], status: 'missing', owner: 'I-groupheader', states: ['empty'] },
+    { id: 'topbar.title', label: '标题', candidates: ['001-text-A', '002-icon'], status: 'implemented', assertion: 'board:Main/topbar.title', component: 'src/ui/app-shell/shell/ShellTopBar.tsx', states: ['zh-en'] },
+    { id: 'group.header', label: '分组框头', candidates: ['003-text-B'], status: 'missing', owner: 'I-groupheader', component: 'src/workbench/generationCanvas/nodes/GroupHeader.tsx', states: ['empty'] },
   ],
   decor: [],
   functionCensus: [{ function: '标题', before: '顶栏标题', after: 'topbar.title' }],
@@ -543,7 +543,7 @@ describe('其它日期目录的板（2026-10-16：新板对门岗和合并前扫
   }
   const textOnly = (overrides = {}) => ({
     board: 'TextOnly', stage: 'built',
-    elements: [{ id: 'tier.popover', label: '弹层', candidates: [], status: 'implemented', assertion: 'board:TextOnly/tier.popover', states: ['zh-en'], ...overrides }],
+    elements: [{ id: 'tier.popover', label: '弹层', candidates: [], status: 'implemented', assertion: 'board:TextOnly/tier.popover', component: 'src/workbench/ai/v4/AgentPanelV4Composer.tsx', states: ['zh-en'], ...overrides }],
     decor: [], functionCensus: [{ function: '旧弹层', before: '三档', after: 'tier.popover' }],
   })
   it('正例：只有清单的新板被找到，且 `## 拍板图` 能认领到它', async () => {
@@ -604,7 +604,7 @@ describe('V-1203 F2：发现到的每张新日期板都跑完整规则（带候�
 
 describe('V-1203 复验 R1：跨日期同名板——校验按「日期目录 + 板名」逐张读，同名不能互相顶替', () => {
   const tmpRoot = () => fs.mkdtempSync(path.join(process.env.TMPDIR || process.env.TEMP || '.', 'bp-dup-'))
-  const good = { board: 'ReviewProbe', stage: 'built', elements: [{ id: 'probe', candidates: [], status: 'implemented', assertion: 'board:ReviewProbe/probe-ok', states: ['zh-en'] }], decor: [], functionCensus: [{ function: 'old', after: 'probe' }] }
+  const good = { board: 'ReviewProbe', stage: 'built', elements: [{ id: 'probe', candidates: [], status: 'implemented', assertion: 'board:ReviewProbe/probe-ok', component: 'src/workbench/Probe.tsx', states: ['zh-en'] }], decor: [], functionCensus: [{ function: 'old', after: 'probe' }] }
   const bad = { board: 'ReviewProbe', stage: 'built', elements: [{ id: 'probe', status: 'implemented', assertion: 'NEVER_EXISTS_V1203_R1', states: [] }], functionCensus: [{ function: 'old', after: 'missing' }] }
   const setup = (withCandidates) => {
     const root = tmpRoot()
@@ -737,5 +737,176 @@ describe('R16 同类产品登记表：先例按 Nomi 的定位选，不按好不
     const manifest = { ...base(), ...thisCase() }
     const errors = checkBoardManifest({ board: 'Main', manifest, candidates, assertionCorpus: CORPUS, date: PEER_REGISTRY_REQUIRED_FROM, peerRegistry: registry })
     assert.ok(errors.some((line) => /用了 TypingMind/.test(line)))
+  })
+})
+
+describe('R17 元素 component 必填（非 dropped 且非 change=remove 必须写 component）', () => {
+  const validElement = (overrides = {}) => ({
+    id: 'ask.cost',
+    label: '费用确认条',
+    candidates: [],
+    status: 'missing',
+    owner: 'T-1',
+    change: 'new',
+    states: ['zh-en'],
+    ...overrides,
+  })
+  const fullManifest = (elements) => ({
+    board: 'SpendAskSplit',
+    approvedOn: '2026-11-15',
+    stage: 'built',
+    priorArt: [
+      { kind: 'same-surface', product: 'LibTV', absent: '查了公开页面' },
+      { url: 'https://www.nngroup.com/articles/confirmation-dialog/', takeaway: '确认条只留动作和费用', decisionImpact: '拆成单行确认条' },
+      { url: 'https://developer.apple.com/design/human-interface-guidelines/alerts', takeaway: '动作明确', decisionImpact: '按钮名写清楚' },
+    ],
+    boundarySheet: { none: '固定单行确认条' },
+    appearsIn: { none: '只在对话输入框上方出现一次' },
+    priorDecisions: { notFound: '首次拆开付费确认条' },
+    elements,
+    decor: [],
+    functionCensus: [],
+  })
+
+  it('反例（付费确认板漏填）：既不是 dropped 也不是 change=remove 却缺 component → 必须红', () => {
+    const manifest = fullManifest([
+      validElement({ id: 'ask.title', status: 'implemented', change: 'remove', assertion: 'board:Main/topbar.title', owner: undefined }),
+      validElement({ id: 'ask.old', status: 'dropped', owner: undefined, userDecision: { quote: '不要了', date: '2026-11-15' } }),
+      validElement({ id: 'ask.cost', status: 'missing', change: 'new' }),
+      validElement({ id: 'ask.params', status: 'implemented', change: 'changed', assertion: 'board:Main/topbar.title', owner: undefined }),
+    ])
+    const errors = checkBoardManifest({ board: 'SpendAskSplit', manifest, candidates: [], assertionCorpus: CORPUS, date: '2026-11-15-spend-ask-split' })
+    const joined = errors.join('\n')
+    assert.match(joined, /ask\.cost.*component/)
+    assert.match(joined, /ask\.params.*component/)
+    assert.doesNotMatch(joined, /ask\.title.*component/, 'change=remove 不需要 component')
+    assert.doesNotMatch(joined, /ask\.old.*component/, 'dropped 不需要 component')
+  })
+
+  it('正例：补齐 component（字符串或 { file, action }）或标 dropped / change=remove → 整张板 0 错绿', () => {
+    const manifest = fullManifest([
+      validElement({ id: 'ask.title', status: 'implemented', change: 'remove', assertion: 'board:Main/topbar.title', owner: undefined }),
+      validElement({ id: 'ask.old', status: 'dropped', owner: undefined, userDecision: { quote: '不要了', date: '2026-11-15' } }),
+      validElement({ id: 'ask.cost', status: 'missing', change: 'new', component: 'src/workbench/ai/v4/SpendConfirmBar.tsx' }),
+      validElement({ id: 'ask.params', status: 'implemented', change: 'changed', assertion: 'board:Main/topbar.title', owner: undefined, component: { file: 'src/workbench/ai/v4/SpendConfirmBar.tsx', action: '改' } }),
+    ])
+    const errors = checkBoardManifest({ board: 'SpendAskSplit', manifest, candidates: [], assertionCorpus: CORPUS, date: '2026-11-15-spend-ask-split' })
+    assert.deepEqual(errors, [])
+  })
+
+  it('反例：component 写成空串或空对象也红', () => {
+    const manifest = fullManifest([
+      validElement({ id: 'a.empty', component: '   ' }),
+      validElement({ id: 'b.emptyObj', component: { file: '  ', action: '新' } }),
+    ])
+    const errors = checkBoardManifest({ board: 'SpendAskSplit', manifest, candidates: [], assertionCorpus: CORPUS, date: '2026-11-15-spend-ask-split' })
+    assert.match(errors.join('\n'), /a\.empty.*component/)
+    assert.match(errors.join('\n'), /b\.emptyObj.*component/)
+  })
+
+  it('端到端 runBoardParity：新板（哪怕目录日期 2026-11-15）缺 component 必红，补齐后转绿', async () => {
+    const root = makeTempDir('bp-r17-')
+    try {
+      const main = path.join(root, 'main-day'); fs.mkdirSync(main)
+      const dir = path.join(root, '2026-11-15-spend-ask-split'); fs.mkdirSync(dir)
+      const manifest = fullManifest([
+        validElement({ id: 'ask.title', status: 'missing', change: 'remove', owner: 'T-1' }),
+        validElement({ id: 'ask.cost', status: 'missing', change: 'new', owner: 'T-1' }),
+      ])
+      fs.writeFileSync(path.join(dir, 'SpendAskSplit.board.json'), JSON.stringify(manifest))
+      const redErrors = (await runBoardParity({ dir: main, root })).filter((e) => e.includes('SpendAskSplit'))
+      assert.ok(redErrors.some((e) => /ask\.cost.*component/.test(e)), redErrors.join('\n'))
+      assert.ok(!redErrors.some((e) => /ask\.title.*component/.test(e)), 'change=remove 不红')
+
+      manifest.elements[1].component = 'src/workbench/ai/v4/SpendConfirmBar.tsx'
+      fs.writeFileSync(path.join(dir, 'SpendAskSplit.board.json'), JSON.stringify(manifest))
+      const greenErrors = (await runBoardParity({ dir: main, root })).filter((e) => e.includes('SpendAskSplit'))
+      assert.deepEqual(greenErrors, [])
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('存量棘轮只减不增：历史冻结板在上限内放行，多漏 1 格立刻红；不在表内的新板上限 0', () => {
+    const legacy = loadLegacyComponentBaseline()
+    assert.ok(Object.keys(legacy).length > 0, '存量冻结表应非空')
+    assert.equal(Object.hasOwn(legacy, '2026-11-07-onboarding/Onboarding'), false, '已 0 缺口的板不进冻结表')
+    const oneMissing = { board: 'LegacyDemo', elements: [validElement({ id: 'e1' })] }
+    const twoMissing = { board: 'LegacyDemo', elements: [validElement({ id: 'e1' }), validElement({ id: 'e2' })] }
+    assert.deepEqual(checkElementComponents({ board: 'LegacyDemo', manifest: oneMissing, date: '2026-10-08', legacyComponentCounts: { '2026-10-08/LegacyDemo': 1 } }), [])
+    assert.match(
+      checkElementComponents({ board: 'LegacyDemo', manifest: twoMissing, date: '2026-10-08', legacyComponentCounts: { '2026-10-08/LegacyDemo': 1 } }).join('\n'),
+      /涨到了 2 个（存量冻结上限 1/,
+    )
+  })
+})
+
+describe('拍板图欠账汇总与标红（summarizeBoardDebt / formatBoardDebtReport / matchBoardActiveWork）', () => {
+  const rec = (board, dirName, elements, approvedOn) => ({
+    board,
+    dirName,
+    boardKey: `${dirName}/${board}`,
+    approvedOn,
+    manifest: { board, approvedOn, elements },
+  })
+
+  it('超过 3 天有 missing 且无在途 PR/分支 → 标红列出；全部 implemented/dropped 绝不误报', () => {
+    const records = [
+      rec('UnclaimedOld', '2026-11-10-unclaimed-old', [{ id: 'a', status: 'missing', owner: 'unassigned' }, { id: 'b', status: 'in-progress', owner: 'x' }], '2026-11-10'),
+      rec('Boundary3d', '2026-11-19-boundary', [{ id: 'a', status: 'missing', owner: 'x' }], '2026-11-19'),
+      rec('InProgressOnly', '2026-11-01-inprog', [{ id: 'a', status: 'in-progress', owner: 'x' }], '2026-11-01'),
+      rec('DoneAll', '2026-11-01-done', [
+        { id: 'a', status: 'implemented', assertion: 'x' },
+        { id: 'b', status: 'dropped', userDecision: { quote: '不要', date: '2026-11-01' } },
+        { id: 'c', status: 'deferred', userDecision: { quote: '推迟', date: '2026-11-01' } },
+      ], '2026-11-01'),
+    ]
+    const summary = summarizeBoardDebt(records, { now: new Date('2026-11-22T00:00:00Z') })
+    assert.equal(summary.totalBoards, 4)
+    assert.equal(summary.owedBoards, 3)
+    assert.equal(summary.overdueBoards, 1)
+    assert.deepEqual(summary.boards.map((b) => b.board), ['UnclaimedOld', 'Boundary3d', 'InProgressOnly'])
+    assert.equal(summary.boards[0].overdue, true)
+    assert.equal(summary.boards[0].ageDays, 12)
+    assert.equal(summary.boards[1].overdue, false, '刚好 3 天不标超期（超过 3 天才标红）')
+    assert.equal(summary.boards[2].overdue, false, '没有 missing、只有 in-progress 不标超期红')
+
+    const textColor = formatBoardDebtReport(summary, { color: true })
+    assert.ok(textColor.includes('\u001b[31m'), 'color=true 时超期项必须用 ANSI 红色高亮')
+    assert.match(textColor, /🔴 \[超期\] 2026-11-10-unclaimed-old\/UnclaimedOld/)
+    assert.doesNotMatch(textColor, /DoneAll/)
+
+    const cleanSummary = summarizeBoardDebt([records[3]], { now: new Date('2026-11-22T00:00:00Z') })
+    assert.equal(cleanSummary.owedBoards, 0)
+    assert.match(formatBoardDebtReport(cleanSummary), /无欠账/)
+  })
+
+  it('有在途 PR（## 拍板图认领 / owner #PR）或未合入分支在做 → 不标红并展示在途项', () => {
+    const rClaim = rec('SpendAskSplit', '2026-11-15-spend-ask-split', [{ id: 'ask.cost', status: 'missing', owner: 'T-1' }], '2026-11-15')
+    const rBranch = rec('Director3dbox', '2026-10-16', [{ id: 'd.1', status: 'missing', owner: 'feat/director-3dbox-switch' }], '2026-10-04')
+    const prs = [{ number: 1548, title: 'feat: spend ask', headRefName: 'feat/spend-ask-split', body: '## 拍板图\n- SpendAskSplit: ask.cost' }]
+    const branches = ['origin/feat/spend-ask-split', 'feat/director-3dbox-switch']
+
+    assert.deepEqual(matchBoardActiveWork(rClaim, { prs, branches }).map((w) => w.ref), ['#1548'])
+    assert.deepEqual(matchBoardActiveWork(rBranch, { prs, branches }).map((w) => w.ref), ['feat/director-3dbox-switch'])
+
+    // 拍板日期之前的旧分支不能掩盖新板欠账；PR 正文里顺口提到别的板 slug 也不算认领
+    const rOnboarding = rec('Onboarding', '2026-11-07-onboarding', [{ id: 'o.1', status: 'missing', owner: 'S7a' }], '2026-11-07')
+    const rComposer = rec('ComposerB3', '2026-10-18', [{ id: 'c.1', status: 'missing', owner: 'I-b1a' }], '2026-10-18')
+    const staleBranch = { name: 'origin/feat/model-onboarding-discovery-20260912', committedAtMs: Date.UTC(2026, 8, 12) }
+    const unrelatedPr = { number: 1615, title: 'test(shell): 顶栏入口接线', headRefName: 'test/nomi-entry-topbar-wiring', body: '顺带提了一句 composer-b3 历史背景' }
+    assert.deepEqual(matchBoardActiveWork(rOnboarding, { prs: [], branches: [staleBranch] }), [])
+    assert.deepEqual(matchBoardActiveWork(rComposer, { prs: [unrelatedPr], branches: [] }), [])
+
+    const summary = summarizeBoardDebt([rClaim, rBranch], { now: new Date('2026-11-22T00:00:00Z'), prs, branches })
+    assert.equal(summary.overdueBoards, 0)
+    assert.match(formatBoardDebtReport(summary), /#1548 \(feat\/spend-ask-split\)/)
+    assert.match(formatBoardDebtReport(summary), /feat\/director-3dbox-switch/)
+  })
+
+  it('listBoardManifests 作为唯一板读取器，能读出仓库全部已批板', () => {
+    const records = listBoardManifests()
+    assert.ok(records.length >= BOARD_NAMES.length)
+    assert.ok(records.some((r) => r.board === 'Onboarding' && r.approvedOn === '2026-11-07'))
   })
 })

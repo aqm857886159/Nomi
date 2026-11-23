@@ -82,6 +82,18 @@ describe('NodeVersionGrid · 卡就是那张图', () => {
     expect([...readOnly.matchAll(/data-toolbar-action="([^"]+)"/g)].map((match) => match[1])).toEqual(['download'])
   })
 
+  it('悬停条下沿补透明悬停桥接盖住 6px 间隙，且不强行覆盖 drop-active 的 pointer-events-none', () => {
+    const html = grid({ hoveredIdentity: 'v3' })
+    const barTag = /<div role="toolbar"[^>]*data-version-card-bar[^>]*>/.exec(html)?.[0] ?? ''
+    expect(barTag).toContain('bottom-[calc(100%+6px)]')
+    expect(barTag).toContain('after:absolute')
+    expect(barTag).toContain('after:inset-x-0')
+    expect(barTag).toContain('after:top-full')
+    expect(barTag).toContain('after:h-2.5')
+    expect(barTag).toMatch(/after:content-\[(?:&#x27;&#x27;|&quot;&quot;|''|"")\]/)
+    expect(barTag).not.toContain('after:pointer-events-auto')
+  })
+
   it('只有按着 Alt 时版本卡才可被 HTML5 拖出去（不按 Alt 拖 = 拖整组）', () => {
     expect(grid()).not.toContain('draggable="true"')
     expect(grid({ altHeld: true })).toContain('draggable="true"')

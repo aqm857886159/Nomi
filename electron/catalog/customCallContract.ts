@@ -46,12 +46,12 @@ export const CUSTOM_CALL_VARIABLES: CustomCallVariableDoc[] = [
   {
     name: "http",
     type: "{ post(path, body?, opts?): Promise<any>; get(path, opts?): Promise<any>; url(path): string }",
-    desc: "convenience client: prefixes baseUrl for relative paths, sets Authorization: Bearer apiKey (override via opts.headers), JSON in/out; opts = { headers?, query? }",
+    desc: "convenience client: prefixes baseUrl for relative paths, sets Authorization: Bearer apiKey (override via opts.headers), JSON in, returns parsed JSON, text, or Uint8Array for binary Content-Type; opts = { headers?, query? }",
   },
   {
     name: "request",
     type: "(init: { method: string; url: string; headers?: Record<string,string>; query?: Record<string,unknown>; body?: unknown }) => Promise<any>",
-    desc: "raw request with NO default headers (write auth yourself); relative url is prefixed with baseUrl; body: object → JSON, string → as-is, FormData → multipart",
+    desc: "raw request with NO default headers (write auth yourself); relative url is prefixed with baseUrl; body: object → JSON, string → as-is, FormData → multipart; returns parsed JSON, text, or Uint8Array for binary Content-Type",
   },
   {
     name: "poll",

@@ -172,7 +172,6 @@
 
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-hit {
   top: 0;
-  width: 112px;
   height: min(168px, calc(var(--generation-flow-node-height) + 28px));
   transform: translateY(-50%);
   cursor: crosshair;

@@ -93,8 +93,8 @@ export type PermissionTier = ProjectAgentApprovalPolicy['mode']
 /** composer 底栏可弹的三个层，一次只开一个。 */
 export type ComposerPopover = 'model' | 'skill' | 'permission'
 
-export type V4ChipKind = 'file' | 'skill' | 'clip'
-export type V4Chip = Readonly<{ reference?: { url: string; kind:'image'|'video'|'audio'; index:number }; id?: string; kind: V4ChipKind; label: string; description?: string; cover?: string; preview?: { url: string; type: 'image' | 'video' } }>
+export type V4ChipKind = 'file' | 'skill' | 'prompt' | 'clip'
+export type V4Chip = Readonly<{ reference?: { url: string; kind:'image'|'video'|'audio'; index:number }; id?: string; kind: V4ChipKind; label: string; description?: string; cover?: string; preview?: { url: string; type: 'image' | 'video' }; illustration?: boolean }>
 
 /** 当前引用绑定主人动作；历史 V4Chip 只读，不携带取消选中。 */
 export type V4ComposerReference = V4Chip & Readonly<{ id: string; onRemove: () => void }>

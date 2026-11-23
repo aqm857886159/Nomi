@@ -22,10 +22,11 @@
  */
 import { getDesktopBridge } from '../../../desktop/bridge'
 import type { ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
-import { deliverRunOutcome, whenRunTargetLoaded, type RunProjectTarget } from '../runner/runProjectDelivery'
+import { deliverRunOutcome, isRunTargetLoaded, whenRunTargetLoaded, type RunProjectTarget } from '../runner/runProjectDelivery'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useNodeLivePreviewStore } from '../store/nodeLivePreviewStore'
-import { clearTaskCancel, isTaskCancelRequested } from '../runner/localTaskControl'
+import { clearTaskCancel, isTaskCancelRequested, onTaskCancelRequested } from '../runner/localTaskControl'
+import { runAsSingleUndoStep } from '../quickActions/nodeInputActions'
 import { readMediaDimensions, resolveNodeVisualSize, type MediaDimensions } from '../nodes/nodeSizing'
 import i18n from '../../../i18n'
 import { localProcessingError } from '../../observability/localProcessingError'
@@ -33,7 +34,7 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { createVideoDepthWorkerChannel, runVideoDepth } from './videoDepthClient'
 import { videoDepthDerivedPosition, videoDepthDerivedTitle, videoDepthSourceFromNode } from './videoDepthDerivation'
 import { formatVideoDepthEta, formatVideoDepthMegabytes, videoDepthProgressView } from './videoDepthNodeModel'
-import { videoDepthProgressPhase } from './videoDepthProgressPhase'
+import { isVideoDepthProgressPhase, videoDepthProgressPhase } from './videoDepthProgressPhase'
 import { encodeVideoDepthPreviewUrl } from './videoDepthPreviewFrame'
 import type { VideoDepthRunState } from '../../../../electron/shared/canvas/videoDepthRun'
 
@@ -49,6 +50,48 @@ export type VideoDepthDerivationHandle = {
   /** 派生出来的那个节点。这次运行的每一段进度都长在它身上，发起方不用再自己存一份。 */
   derivedNodeId: string
   done: Promise<void>
+}
+
+let txnSeq = 0
+
+/**
+ * 当前渲染进程内各项目正在跑的深度派生（projectId → derivedNodeId）。
+ * 与主进程 `depthVideoJob.ts` 的项目锁配对：建第 2 张卡之前先在渲染层当场拦住并弹既有提示，
+ * 避免在视口外多建一张废卡或发起第 2 条权重下载；用户取消或 Ctrl+Z 撤掉该卡时立即释放。
+ */
+const activeProjectDepthRuns = new Map<string, string>()
+
+function hasActiveProjectDepthRun(
+  target: RunProjectTarget,
+  bridge: NonNullable<ReturnType<typeof getDesktopBridge>>['videoDepth'],
+): boolean {
+  const { projectId } = target
+  const trackedNodeId = activeProjectDepthRuns.get(projectId)
+  if (trackedNodeId) {
+    if (isTaskCancelRequested(trackedNodeId)) {
+      activeProjectDepthRuns.delete(projectId)
+    } else if (isRunTargetLoaded(target)) {
+      const trackedNode = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === trackedNodeId)
+      if (!trackedNode) {
+        // 用户通过撤销（Cmd+Z）或删节点移走了上一张尚未出片的派生卡：顺手通知主进程释放旧锁，不让幽灵任务挡路。
+        activeProjectDepthRuns.delete(projectId)
+        void bridge.cancel({ jobId: trackedNodeId }).catch(() => undefined)
+      } else {
+        return true
+      }
+    } else {
+      return true
+    }
+  }
+  if (!isRunTargetLoaded(target)) return false
+  return useGenerationCanvasStore
+    .getState()
+    .nodes.some(
+      (candidate) =>
+        candidate.status === 'running' &&
+        isVideoDepthProgressPhase(candidate.progress?.phase) &&
+        !isTaskCancelRequested(candidate.id),
+    )
 }
 
 /**
@@ -71,32 +114,54 @@ export function startVideoDepthDerivation(
     reportFeedback(i18n.t('videoDepth.action.desktopOnly'))
     return null
   }
+  if (hasActiveProjectDepthRun(target, bridge)) {
+    reportFeedback(i18n.t('videoDepth.error.already-running'))
+    return null
+  }
 
-  const store = useGenerationCanvasStore.getState()
   const sourceSize = resolveNodeVisualSize(sourceNode)
-  const derived = store.addNode({
-    // 产物就是一段视频，所以它就是一个**普通视频节点**——不是第三种节点类型。
-    // 用户之后能像对待任何视频那样对它：播、下载、抽帧、再提一次深度、拖进参考槽。
-    kind: 'video',
-    title: videoDepthDerivedTitle(source.title, i18n.t('videoDepth.action.productSuffix')),
-    position: videoDepthDerivedPosition(sourceNode.position, sourceSize),
-    size: { width: sourceSize.width, height: sourceSize.height },
-    categoryId: sourceNode.categoryId,
+  const undoTxn = `video-depth-${Date.now()}-${(txnSeq += 1)}`
+  const derived = runAsSingleUndoStep(undoTxn, () => {
+    const store = useGenerationCanvasStore.getState()
+    const created = store.addDerivedOutput({
+      sourceNodeId: sourceNode.id,
+      kind: 'video-depth',
+      mode: 'reference',
+      node: {
+        // 产物就是一段视频，所以它就是一个**普通视频节点**——不是第三种节点类型。
+        // 用户之后能像对待任何视频那样对它：播、下载、抽帧、再提一次深度、拖进参考槽。
+        // select: false：后台耗时本机处理不抢创作者手头正在审看的源视频或拆解表选中态。
+        kind: 'video',
+        title: videoDepthDerivedTitle(source.title, i18n.t('videoDepth.action.productSuffix')),
+        position: videoDepthDerivedPosition(sourceNode.position, sourceSize),
+        size: { width: sourceSize.width, height: sourceSize.height },
+        categoryId: sourceNode.categoryId,
+        select: false,
+      },
+    })
+    if (!created) return null
+    clearTaskCancel(created.id)
+    store.setNodeStatus(created.id, 'running')
+    store.setNodeProgress(created.id, {
+      phase: videoDepthProgressPhase('downloading'),
+      message: i18n.t('videoDepth.phase.downloading'),
+      updatedAt: Date.now(),
+    })
+    return created
   })
-  store.connectNodes(sourceNode.id, derived.id, 'reference')
-  store.selectNode(derived.id)
+  if (!derived) return null
 
   const nodeId = derived.id
-  clearTaskCancel(nodeId)
-  store.setNodeStatus(nodeId, 'running')
-  store.setNodeProgress(nodeId, {
-    phase: videoDepthProgressPhase('downloading'),
-    message: i18n.t('videoDepth.phase.downloading'),
-    updatedAt: Date.now(),
-  })
-
+  activeProjectDepthRuns.set(target.projectId, nodeId)
   const sourceDimensions = readMediaDimensions(sourceNode.meta?.videoWidth, sourceNode.meta?.videoHeight)
-  const done = runDerivation({ bridge, target, nodeId, source, mediaDimensions: sourceDimensions || undefined })
+  const done = runDerivation({
+    bridge,
+    target,
+    nodeId,
+    source,
+    mediaDimensions: sourceDimensions || undefined,
+    reportFeedback,
+  })
   return { derivedNodeId: nodeId, done }
 }
 
@@ -106,11 +171,20 @@ async function runDerivation(input: {
   nodeId: string
   source: { sourceUrl: string }
   mediaDimensions?: MediaDimensions
+  reportFeedback: (message: string) => void
 }): Promise<void> {
-  const { bridge, target, nodeId, source, mediaDimensions } = input
+  const { bridge, target, nodeId, source, mediaDimensions, reportFeedback } = input
   const projectId = target.projectId
   // 进度、活预览都是给前台看的瞬态：原项目不在画布上时不写（那是别的项目的 store）。
   const whenVisible = (apply: () => void): void => { whenRunTargetLoaded(target, apply) }
+  const isNodeRemovedWhileVisible = (): boolean =>
+    isRunTargetLoaded(target) && !useGenerationCanvasStore.getState().nodes.some((candidate) => candidate.id === nodeId)
+
+  // 下载权重与抽帧阶段渲染层还没拿到主进程生成的 jobId，取消登记一到先传 nodeId 叫停主进程并释放项目锁。
+  const unsubscribeCancel = onTaskCancelRequested(nodeId, () => {
+    if (activeProjectDepthRuns.get(projectId) === nodeId) activeProjectDepthRuns.delete(projectId)
+    void bridge.cancel({ jobId: nodeId }).catch(() => undefined)
+  })
 
   // 抽帧与权重下载这两段渲染层看不见（只有主进程知道），所以它们从事件通道来。
   // 走同一份 reducer 汇进同一个进度，不是第二份进度模型。
@@ -148,7 +222,7 @@ async function runDerivation(input: {
       {
         bridge,
         createWorker: createVideoDepthWorkerChannel,
-        shouldCancel: () => isTaskCancelRequested(nodeId),
+        shouldCancel: () => isTaskCancelRequested(nodeId) || isNodeRemovedWhileVisible(),
         onState: (state) => {
           const view = videoDepthProgressView(state)
           whenVisible(() => useGenerationCanvasStore.getState().setNodeProgress(nodeId, {
@@ -187,6 +261,12 @@ async function runDerivation(input: {
       whenVisible(() => useGenerationCanvasStore.getState().deleteNode(nodeId))
       return
     }
+    if (finalState.error?.code === 'already-running') {
+      // 纵深防线：若主进程仍先撞上项目互斥锁（例如跨窗口或旧任务刚收尾），删掉刚建的空卡并在源视频处弹提示，不在视口外留死卡。
+      whenVisible(() => useGenerationCanvasStore.getState().deleteNode(nodeId))
+      reportFeedback(i18n.t('videoDepth.error.already-running'))
+      return
+    }
     await deliverRunOutcome(target, nodeId, {
       kind: 'status',
       status: 'error',
@@ -197,6 +277,8 @@ async function runDerivation(input: {
     })
   } finally {
     finished = true
+    if (activeProjectDepthRuns.get(projectId) === nodeId) activeProjectDepthRuns.delete(projectId)
+    unsubscribeCancel()
     unsubscribe()
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     useNodeLivePreviewStore.getState().clearPreview(nodeId)

@@ -12,8 +12,13 @@
 //     那是搬了家，不是台账条目自己好了——这时接着核新锚。
 // 「谁定义了这个符号」只有 concept-owners-scan 的 collectDefinitions（TypeScript 解析）一个答案，check:concept-owners 也用它。
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
-import { collectDefinitions, isScannableSource } from "./concept-owners-scan.mjs";
+
+// 懒加载 concept-owners-scan.mjs（含 10 MB typescript 编译器），让只调 readLedger 的轻量钩子零 AST 冷启动开销。
+const loadModule = createRequire(import.meta.url);
+let conceptScanCache;
+const conceptScan = () => (conceptScanCache ??= loadModule("./concept-owners-scan.mjs"));
 
 export const VERDICT = {
   OK: "ok",
@@ -240,7 +245,9 @@ export function auditBoundaries(repoRoot, entries = readContracts(repoRoot)) {
  */
 export function ownerDefinedAt(repoRoot, entry) {
   const parts = identifierParts(entry.symbol);
-  const files = parts ? boundaryFiles(repoRoot, entry.path)?.filter((file) => isScannableSource(file)) : null;
+  if (!parts) return checkBoundary(repoRoot, entry).verdict === VERDICT.OK;
+  const { collectDefinitions, isScannableSource } = conceptScan();
+  const files = boundaryFiles(repoRoot, entry.path)?.filter((file) => isScannableSource(file));
   if (!files?.length) return checkBoundary(repoRoot, entry).verdict === VERDICT.OK;
   const heads = [...new Set(parts.map(identifierHead))];
   const definitions = collectDefinitions({
