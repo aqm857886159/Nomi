@@ -7,7 +7,7 @@ import {
   isCustomPromptId,
   normalizeSystemPromptOverrides,
   SYSTEM_PROMPT_MAX_LENGTH,
-} from "./systemPromptsContract";
+} from "../shared/contracts/systemPromptsContract";
 
 const customId = (suffix: string): string => `${CUSTOM_PROMPT_ID_PREFIX}${suffix}`;
 

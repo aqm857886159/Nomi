@@ -34,12 +34,12 @@ export type DesktopSettingsBridge = {
       Promise<{ enabled: boolean; endpoint: string; hasToken: boolean }>
   }
   systemPrompts: {
-    get: () => Promise<import('../../electron/settings/systemPromptsContract').SystemPromptOverrides>
-    set: (payload: unknown) => Promise<import('../../electron/settings/systemPromptsContract').SystemPromptOverrides>
+    get: () => Promise<import('../../electron/shared/contracts/systemPromptsContract').SystemPromptOverrides>
+    set: (payload: unknown) => Promise<import('../../electron/shared/contracts/systemPromptsContract').SystemPromptOverrides>
   }
   generationModelDefaults: {
-    get: () => Promise<import('../../electron/settings/generationModelDefaultsContract').GenerationModelDefaults>
-    set: (payload: unknown) => Promise<import('../../electron/settings/generationModelDefaultsContract').GenerationModelDefaults>
+    get: () => Promise<import('../../electron/shared/contracts/generationModelDefaultsContract').GenerationModelDefaults>
+    set: (payload: unknown) => Promise<import('../../electron/shared/contracts/generationModelDefaultsContract').GenerationModelDefaults>
   },
   vendorPreference: {
     get: () => Promise<import('../../electron/shared/contracts/vendorPreference').VendorPreferenceSettings>

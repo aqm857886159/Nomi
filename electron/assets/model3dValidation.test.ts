@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Model3DValidationError, validateGlbStructure } from "./model3dValidation";
+import { Model3DValidationError, validateGlbStructure } from "../shared/contracts/model3dValidation";
 
 function glb(jsonValue: Record<string, unknown>, binary = Buffer.alloc(36)): Buffer {
   const json = Buffer.from(JSON.stringify(jsonValue), "utf8");

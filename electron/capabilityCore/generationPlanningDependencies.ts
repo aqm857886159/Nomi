@@ -5,7 +5,7 @@ import type { AssertReferencesResolvable, GenerationSealMultiShot, StoryboardPla
 import type { ProjectLeaseV2 } from "./projectLease";
 import type { AssetReferenceIdentity } from "./semanticGenerationCandidate";
 import type { ModelPricing } from "../productionRun/shotPricing";
-import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
+import type { GenerationDefaultTaskKind } from "../shared/contracts/generationModelDefaultsContract";
 import type {
   VideoGenerationRecommendationInput,
   VideoGenerationRecommendationResult,

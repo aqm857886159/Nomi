@@ -1,6 +1,4 @@
-export const LANDING_PATH = '/'
-export const STUDIO_PATH = '/studio'
-export const GITHUB_OAUTH_CALLBACK_PATH = '/oauth/github'
+const STUDIO_PATH = '/studio'
 
 export type StudioOwnerType = 'project' | 'chapter' | 'shot'
 export type StudioPanel = 'nanoComic'
@@ -87,23 +85,3 @@ export function buildStudioUrl(input?: string | null | {
   }
 }
 
-export function buildProjectUrl(projectId: string): string {
-  const normalizedProjectId = String(projectId || '').trim()
-  return `/projects/${encodeURIComponent(normalizedProjectId)}`
-}
-
-export function buildProjectDirectoryUrl(projectId: string): string {
-  const normalizedProjectId = String(projectId || '').trim()
-  if (!normalizedProjectId) return '/projects'
-  return `/projects?projectId=${encodeURIComponent(normalizedProjectId)}`
-}
-
-export function buildProjectChapterUrl(projectId: string, chapterId: string, shotId?: string | null): string {
-  const normalizedProjectId = String(projectId || '').trim()
-  const normalizedChapterId = String(chapterId || '').trim()
-  const normalizedShotId = typeof shotId === 'string' ? shotId.trim() : ''
-  if (normalizedShotId) {
-    return `/projects/${encodeURIComponent(normalizedProjectId)}/chapters/${encodeURIComponent(normalizedChapterId)}/shots/${encodeURIComponent(normalizedShotId)}`
-  }
-  return `/projects/${encodeURIComponent(normalizedProjectId)}/chapters/${encodeURIComponent(normalizedChapterId)}`
-}

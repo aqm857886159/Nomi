@@ -4,7 +4,7 @@ import {
   DEFAULT_GENERATION_MODEL_DEFAULTS,
   GENERATION_MODEL_KEY_MAX_LENGTH,
   normalizeGenerationModelDefaults,
-} from "./generationModelDefaultsContract";
+} from "../shared/contracts/generationModelDefaultsContract";
 
 describe("normalizeGenerationModelDefaults", () => {
   it("keeps a well-formed two-part identity per task kind", () => {

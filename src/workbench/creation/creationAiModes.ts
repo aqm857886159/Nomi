@@ -8,7 +8,7 @@ import {
   readOverride,
   resolveEffectivePrompt,
 } from './systemPromptOverrides'
-import type { CustomSystemPrompt } from '../../../electron/settings/systemPromptsContract'
+import type { CustomSystemPrompt } from '../../../electron/shared/contracts/systemPromptsContract'
 
 export type CreationAiModeId =
   | 'general'

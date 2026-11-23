@@ -3,7 +3,7 @@ import type { AgentModelEntry } from '../shared/agentCapabilities/availableModel
 import { modelCatalogReadSpec } from '../shared/agentCapabilities/modelFacingToolRegistry'
 import { modelHandleOf } from '../shared/agentCapabilities/modelHandle'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
-import type { GenerationDefaultTaskKind } from '../settings/generationModelDefaultsContract'
+import type { GenerationDefaultTaskKind } from '../shared/contracts/generationModelDefaultsContract'
 
 /** 完整模型目录住在哪个动词上：与 lane 装配的是同一个（`modelCatalogReadSpec`）。 */
 const MODEL_CATALOG_READ_VERB = modelCatalogReadSpec().name
