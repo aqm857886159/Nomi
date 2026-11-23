@@ -26,13 +26,14 @@ const actorModel = planShape.actors.element;
 const setPieceModel = planShape.scene.shape.setPieces.removeDefault().element;
 const blockingModel = planShape.blocking.removeDefault().element;
 
-/** 补丁值：标量、字符串 / 数字列表，或整件镜头 / 角色 / 场景件 / 一个角色的走位列表 / 机位角度。运镜按字段改（/shots/<name>/move/kind）。 */
+/** 补丁值：标量、字符串 / 数字列表，或运镜对象 / 整件镜头 / 角色 / 场景件 / 一个角色的走位列表 / 机位角度。 */
 const editValueModel = z.union([
   z.string(),
   z.number(),
   z.boolean(),
   z.array(z.string()),
   z.array(z.number()),
+  shotModel.shape.move,
   shotModel.partial({ id: true }),
   actorModel.partial({ id: true }),
   setPieceModel.partial({ id: true }),
@@ -55,8 +56,8 @@ export const directorStageShotModelSchema = z.object({
   edits: z.array(z.object({
     op: z.enum(DIRECTOR_PLAN_EDIT_OPS).describe("add a new named item or field, remove one, or replace one."),
     path: z.string().trim().min(2).max(240)
-      .describe("By name: /shots/<name>[/field], /actors/<name>[/field], /scene/setPieces/<name>[/field], /scene/<field>, /blocking/<actor>."),
-    value: editValueModel.optional().describe("New value for add and replace; omit for remove."),
+      .describe("By name: /shots/<name>[/field], /actors/<name>[/field], /scene/setPieces/<name>[/field], /scene/<field>, /blocking/<actor>. For one field use its exact path, e.g. /shots/intro/window or /shots/intro/move/kind."),
+    value: editValueModel.optional().describe("Direct value at path: [start,end] for /window, a kind string for /move/kind, or the complete entity for a whole item. Omit for remove."),
   }).strict()).min(1).max(64).optional()
     .describe("Only the changes the user asked for, in order."),
 }).strict().superRefine((value, context) => {

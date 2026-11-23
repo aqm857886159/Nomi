@@ -1269,7 +1269,7 @@
                   "type": "string"
                 },
                 "path": {
-                  "description": "By name: /shots/<name>[/field], /actors/<name>[/field], /scene/setPieces/<name>[/field], /scene/<field>, /blocking/<actor>.\nminLength=2.\nmaxLength=240.",
+                  "description": "By name: /shots/<name>[/field], /actors/<name>[/field], /scene/setPieces/<name>[/field], /scene/<field>, /blocking/<actor>. For one field use its exact path, e.g. /shots/intro/window or /shots/intro/move/kind.\nminLength=2.\nmaxLength=240.",
                   "type": "string"
                 },
                 "value": {
@@ -1294,6 +1294,77 @@
                         "type": "number"
                       },
                       "type": "array"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "description": "Camera movement intent.",
+                      "properties": {
+                        "amount": {
+                          "description": "Orbit/arc/pan degrees, translation meters, zoom degrees of FOV.",
+                          "exclusiveMinimum": 0,
+                          "type": "number"
+                        },
+                        "direction": {
+                          "description": "Move direction.",
+                          "enum": [
+                            "left",
+                            "right",
+                            "up",
+                            "down",
+                            "forward",
+                            "backward"
+                          ],
+                          "type": "string"
+                        },
+                        "easing": {
+                          "description": "Easing.\ndefault=\"linear\".",
+                          "enum": [
+                            "linear",
+                            "ease_in",
+                            "ease_out",
+                            "ease_in_out"
+                          ],
+                          "type": "string"
+                        },
+                        "kind": {
+                          "description": "Camera movement.",
+                          "enum": [
+                            "orbit_left",
+                            "orbit_right",
+                            "push_in",
+                            "pull_out",
+                            "crane_up",
+                            "crane_down",
+                            "track_left",
+                            "track_right",
+                            "arc_left",
+                            "arc_right",
+                            "zoom_in",
+                            "zoom_out",
+                            "dolly_zoom",
+                            "pan",
+                            "tilt",
+                            "whip",
+                            "rack_focus",
+                            "follow",
+                            "static"
+                          ],
+                          "type": "string"
+                        },
+                        "speed": {
+                          "description": "Speed.\ndefault=\"medium\".",
+                          "enum": [
+                            "slow",
+                            "medium",
+                            "fast"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ],
+                      "type": "object"
                     },
                     {
                       "additionalProperties": false,
@@ -1706,7 +1777,7 @@
                       "description": "Camera angle or actor-relative point of view."
                     }
                   ],
-                  "description": "New value for add and replace; omit for remove."
+                  "description": "Direct value at path: [start,end] for /window, a kind string for /move/kind, or the complete entity for a whole item. Omit for remove."
                 }
               },
               "required": [
