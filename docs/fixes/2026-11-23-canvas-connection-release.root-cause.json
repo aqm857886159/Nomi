@@ -1,0 +1,123 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-23-canvas-connection-release",
+  "problem_type": "画布手动拖线的正文落点被重复提交",
+  "symptom": "used 工程中从图片拖到叠在组框上的视频，产生三条指向旧组成员的边，视频没有收到参考。",
+  "direct_cause": "舞台捕获和窗口松手监听穿过前景卡找到组框，提交组连接并清空了 React Flow 尚未处理的起点。",
+  "class_root": "卡体和编组共用一个手势，两个松手入口却分别决定落点优先级。",
+  "affected_population": [
+    "鼠标或触控从卡片拉线，在另一张卡与组框重叠处释放的创作者。"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts"
+  ],
+  "entry_points": [
+    "鼠标拖线松手",
+    "触控拖线松手后从 changedTouches 取坐标"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "卡优先、露白处批连是 Nomi 的画布合同；React Flow 已交付完成事件和坐标。",
+  "invariants": [
+    "一次正文拖放只提交一次：卡上只连该卡，露白组框按现有领域规则连可接成员。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "handleConnectEnd"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+      "symbol": "handleConnectEnd"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 2
+  },
+  "generality_proof": "所有舞台和窗口释放监听都移除后，鼠标和触控在同一 onConnectEnd 中按坐标检查卡体，再检查编组；有效握把仍由 onConnect 完成。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+      "symbol": "handleConnectEnd",
+      "responsibility": "取本次释放坐标，依次处理卡体、编组、空白，已完成的握把连接直接返回。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "onConnectEnd",
+      "disposition": "enforced",
+      "evidence": "宿主交给同一个菜单 hook 处理鼠标和触控，舞台捕获不再提交边。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+      "entry_point": "handleConnectEnd",
+      "disposition": "enforced",
+      "evidence": "changedTouches[0] 与鼠标坐标共用正文落点解析，触控回归检验两组最终边。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "handleConnect",
+      "disposition": "not-affected",
+      "evidence": "握把到握把由 React Flow 完成，仍使用原有连接动作。"
+    }
+  ],
+  "recurrence_of": "2026-09-03-canvas-connect-regression",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "只要卡体与编组框重叠，捕获阶段就可能为另一个目标写边。",
+    "same_class_scan": [
+      "door-map 对 handlePendingGroupPointerUp 找到宿主与 hook 三扇门，handleConnectEnd 两扇门。",
+      "核对 onConnect 的握把直连、onConnectEnd 的卡体和组框坐标解析，以及窗口原生松手注册。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+    "invariant": "同一次手动正文落点只有 React Flow 松手回调可以提交。",
+    "failure_mode": "无有效坐标取消；空白按已有菜单判定；已完成的握把连接不再提交。",
+    "exception_policy": "none",
+    "strategy": "删除旧组框扫描和它的全部监听，让框架完成同一手势。",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.test.tsx",
+    "tests/ux/canvas-drag-pan-gestures.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.test.tsx",
+    "tests/ux/canvas-drag-pan-gestures.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts"
+    ],
+    "rationale": "删除旧组框松手回调、类型和返回项、窗口双监听和舞台双挂载。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "框架已有正确的松手事件，无须变更依赖。",
+    "exit_criteria": []
+  },
+  "migration": "只改变新拖线的松手行为，持久化的成员与边均无需迁移。",
+  "residual_risks": [
+    "触控由 hook 事件序列覆盖，未测实体触屏。"
+  ],
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-22",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/reactFlow",
+    "tests": [
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.test.tsx",
+      "tests/ux/canvas-drag-pan-gestures.walk.mjs"
+    ]
+  }
+}
