@@ -59,12 +59,12 @@ const link = (label) => `${origin}/probe/${label}.png`
 const load = () => os.loadavg()[1]
 
 // 一个请求的全部参考交给决定点：每张图是一个本机素材，带着服务商的临时链接（窗内）。活着，所以不应有任何上传。
-const linkPolicy = { refused: false, probe: (url) => probeProviderLink(url) }
+const linkPolicy = { probe: (url) => probeProviderLink(url) }
 const uploadChannel = [{ vendorKey: 'bench', uploadApiKey: '', ingestion: { strategy: 'upload-url', endpoint: 'https://upload.invalid/x', base64Field: 'b', urlPath: 'url', accepts: ['image'] } }]
 const neverUpload = async () => { throw new Error('A live link must never be uploaded') }
 async function sendRequest(links) {
   const sources = new Map(links.map((url, index) => [`nomi-local://asset/p/ref-${index}-${url.slice(-12)}`, url]))
-  const read = (local) => ({ bytes: RANGE_BODY, contentType: 'image/png', fileName: 'ref.png', originalUrl: sources.get(local), ageMs: 60_000 })
+  const read = (local) => ({ bytes: RANGE_BODY, contentType: 'image/png', fileName: 'ref.png', originalUrl: sources.get(local) })
   const out = await localizeAssetsForVendor({ input_urls: [...sources.keys()] }, () => uploadChannel, read, neverUpload, neverUpload, { linkPolicy })
   const sent = out.value.input_urls
   if (sent.length !== links.length || sent.some((url, index) => url !== links[index])) throw new Error('The decision point did not send the live links as they were')

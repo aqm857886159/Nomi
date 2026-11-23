@@ -36,6 +36,10 @@
       "symbol": "parseTaskFailureMessage"
     },
     {
+      "path": "electron/tasks/taskIpcGuard.ts",
+      "symbol": "runTaskIpcGuard"
+    },
+    {
       "path": "src/workbench/observability/classifyError.ts",
       "symbol": "classifyGenerationError"
     },
@@ -46,6 +50,10 @@
     {
       "path": "src/workbench/observability/generationFailureActions.ts",
       "symbol": "generationFailureActions"
+    },
+    {
+      "path": "src/workbench/api/generationTelemetry.ts",
+      "symbol": "generationFailureFacts"
     }
   ],
   "forbidden_derivations": [],

@@ -3,6 +3,7 @@ import path from "node:path";
 
 import yaml from "js-yaml";
 
+import { renameSyncWithRetry } from "../jsonFile";
 import { parseSkillFrontmatter } from "./skillFrontmatter";
 
 /**
@@ -113,8 +114,8 @@ export function migrateLegacySkillManifest(skillDir: string, now: () => number =
     // 先写临时文件再原子改名：中途崩溃只会留下一个 .tmp，用户的 SKILL.md 不会变成半截。
     const tempPath = path.join(skillDir, `SKILL.md.migrating-${now()}.tmp`);
     fs.writeFileSync(tempPath, rewritten, "utf8");
-    fs.renameSync(tempPath, markdownPath);
-    fs.renameSync(manifestPath, path.join(skillDir, `skill.json.migrated-${now()}.bak`));
+    renameSyncWithRetry(tempPath, markdownPath);
+    renameSyncWithRetry(manifestPath, path.join(skillDir, `skill.json.migrated-${now()}.bak`));
     return {
       migrated: true,
       // Discovery diagnostics are main-process developer output, not UI copy —

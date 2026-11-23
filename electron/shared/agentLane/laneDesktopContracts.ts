@@ -26,6 +26,8 @@ export interface LaneComposerContext {
   skillPrompt?: string
   /** Captured on each new admission; historical target selectors cannot grant surface authority. */
   admissionSurface?: TargetRef['kind']
+  /** Main-derived on activation of a consumed input. Never accepted from the composer or persisted. */
+  generationHeld?: true
   displayText?: string
   skillKey?: string
   /** Optional pinned version for restored drafts; main rejects a changed installed skill. */

@@ -80,7 +80,12 @@ function statusFromStructured(structured: VendorErrorStructuredLite): Generation
     case 'server': return 'server-5xx'
     case 'timeout': return 'timeout'
     case 'network': return 'network'
-    default: return 'unknown'
+    default:
+      if (structured.code === 'submission_not_sent') {
+        if (structured.reason === 'never_reached_network') return 'not-sent'
+        if (structured.reason === 'connect_failed') return 'network'
+      }
+      return 'unknown'
   }
 }
 

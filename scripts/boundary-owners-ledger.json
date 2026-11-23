@@ -3,6 +3,26 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-09-21-model-spec-parity.root-cause.json",
+      "path": "electron/capabilityCore/canvasNodeFactory.ts",
+      "symbol": "bindModelIdentity",
+      "anchor": {
+        "path": "electron/shared/canvas/canvasNodeFactory.ts",
+        "symbol": "bindModelIdentity"
+      },
+      "reason": "2026-11-24 Q-smell 味道③（#1586）：零依赖纯节点工厂整文件迁入中立层 electron/shared/canvas/canvasNodeFactory.ts（内容与不变量逐字未改），消除渲染层直连主进程边界违规；仍由 electron/capabilityCore/canvasNodeFactory.test.ts 守。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-19-derived-node-placement-rendered-size.root-cause.json",
+      "path": "electron/capabilityCore/canvasNodeLayout.ts",
+      "symbol": "resolveInsertionPositionWith",
+      "anchor": {
+        "path": "electron/shared/canvas/canvasNodeLayout.ts",
+        "symbol": "resolveInsertionPositionWith"
+      },
+      "reason": "2026-11-24 Q-smell 味道③（#1586）：零依赖纯画布布局数学整文件迁入中立层 electron/shared/canvas/canvasNodeLayout.ts（内容与不变量逐字未改），消除渲染层直连主进程边界违规；仍由 electron/capabilityCore/canvasNodeFactory.test.ts 守。"
+    },
+    {
       "contract": "docs/fixes/2026-09-10-vendor-key-publish-class.root-cause.json",
       "path": "electron/catalog/directKeyCredential.ts",
       "symbol": "publishBuiltinCuratedVendor",
@@ -794,6 +814,12 @@
   ],
   "retirements": [
     {
+      "contract": "docs/fixes/2026-11-23-fa-local-blocks-and-unknown-telemetry.root-cause.json",
+      "path": "src/workbench/generationCanvas/runner/generationRetryPolicy.ts",
+      "symbol": "isRetryableGenerationError",
+      "reason": "2026-11-24 F-A Step 2（RW-1 + U-2 ①，docs/fixes/2026-11-24-fa-step2-rw1-rw2-rw3.root-cause.json）按 P1 加新必删旧整体删除画布渲染层自动重试模块 generationRetryPolicy.ts，单次点击只派发 1 次尝试，由 generationRunController.ts#runGenerationNode 单次执行边界取代。"
+    },
+    {
       "contract": "docs/fixes/2026-10-04-retrieval-trusts-connection-origin.root-cause.json",
       "path": "electron/vendor/vendorOutboundGuard.ts",
       "symbol": "trustedRetrievalOrigin",
@@ -1302,6 +1328,12 @@
       "path": "electron/memory/projectMemory.ts",
       "symbol": "distillEvent",
       "reason": "D-1122-project-memory-delete（用户 2026-11-22「删干净就好」）整份删掉项目记忆模块：看不见、删不掉的状态不再影响 Agent 回答。这份合同里「绿色事实进现有记忆投影」这一条不再适用——经验候选照旧由 experienceRepository 写进事件日志，只是不再有投影把它们拼进系统提示；其余不变量（显式信封、证据完整才可复用、幂等重放）的主人都在 electron/experience/ 下，不受影响。"
+    },
+    {
+      "contract": "docs/fixes/2026-11-01-reference-link-delivery.root-cause.json",
+      "path": "electron/catalog/referenceLinkRefusals.ts",
+      "symbol": "noteConnectionRefused",
+      "reason": "#1586 RW-2 退役整条连接的拒收记忆。参考链逐条探测；旧设置文件不再参与派发。referenceLinkDelivery.matrix.test.ts 以旧文件与同连接活链核对。"
     }
   ],
   "unverified": [

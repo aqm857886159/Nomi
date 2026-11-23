@@ -1,0 +1,350 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-fa-step2-rw1-rw2-rw3",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-30",
+  "problem_type": "Generation dispatch decisions inferred outside their owner",
+  "symptom": "One click can execute three times. Readable references can be refused and known unsent outcomes can be counted as unknown.",
+  "direct_cause": "Renderer retry loop, preflight heuristics and a telemetry fallback discard existing execution evidence.",
+  "class_root": "Click authority, source availability and dispatch facts must retain their meaning through each consuming boundary.",
+  "affected_population": [
+    "Single and batch canvas runs, mapped/custom generation, production reference seal and rework, trials and assistant generation."
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/runner/",
+    "electron/catalog/",
+    "src/workbench/api/generationTelemetry.ts",
+    "electron/assets/providerMediaFetch.ts",
+    "electron/assets/localAssetFile.ts",
+    "electron/capabilityCore/productionReferenceUrls.ts",
+    "electron/productionRun/productionGenerationSubmission.ts"
+  ],
+  "entry_points": [
+    "Canvas executor and batch scheduler",
+    "Mapped and custom vendor requests; frozen production references; mapping trial and try-model",
+    "Workbench and canvas task telemetry"
+  ],
+  "internal_only_reason": "Authorization, the meaning of an anonymous probe and the closed telemetry projections are Nomi product contracts approved in #1586.",
+  "external_sources": [],
+  "invariants": [
+    "Every user intent dispatches one renderer attempt; a new click gets a fresh run.",
+    "Uncertain sources can proceed without anonymous hosting. Dead sources require an eligible upload, with consent for anonymous hosting.",
+    "Known dispatch reasons survive telemetry projection."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "readNomiLocalAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/modelImageInput.ts",
+      "symbol": "readNomiLocalAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/localAssetFile.ts",
+      "symbol": "resolveContentType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/localFileCopy.ts",
+      "symbol": "resolveContentType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "resolveContentType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "resolveContentType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/storedAssetFile.ts",
+      "symbol": "resolveContentType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "readNomiLocalAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "readNomiLocalAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "nonAnonymous"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetTransportDescribe.ts",
+      "symbol": "AssetTransportVisibility"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetTransportPolicy.ts",
+      "symbol": "AssetTransportVisibility"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetTransportRuntime.ts",
+      "symbol": "localizeAssetsForVendor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "readNomiLocalAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/multipartOperation.ts",
+      "symbol": "readNomiLocalAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/files/extractText.ts",
+      "symbol": "readNomiLocalAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/protocol/localProtocol.ts",
+      "symbol": "resolveContentType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/runtime.ts",
+      "symbol": "readNomiLocalAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/workspace/workspaceFileIndex.ts",
+      "symbol": "resolveContentType"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationPhaseDeadline.ts",
+      "symbol": "GENERATION_PHASE_DEADLINE"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/providerMediaFetch.ts",
+      "symbol": "judgeProbeResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "localizeForSend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "referenceLinkPolicy"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "referenceNeedsUpload"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "ingestionVisibility"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "judgeReferenceLinks"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "referenceNeedsUpload"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/assetTransportDescribe.ts",
+      "symbol": "ingestionVisibility"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/assetTransportRuntime.ts",
+      "symbol": "probeProviderLink"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/assetTransportRuntime.ts",
+      "symbol": "referenceLinkPolicy"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/assetTransportRuntime.ts",
+      "symbol": "localizeAssetsForVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "localizeForSend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationMaterialization.ts",
+      "symbol": "parseVendorErrorFromMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "isReferenceFetchRefusal"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "localizeForSend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationFailure.ts",
+      "symbol": "parseVendorErrorFromMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationFailure.ts",
+      "symbol": "isReferenceFetchRefusal"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/generationTelemetry.ts",
+      "symbol": "parseVendorErrorFromMessage"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/generationTelemetry.ts",
+      "symbol": "generationFailureFacts"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/taskApi.ts",
+      "symbol": "generationTrackPayload"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "parseVendorErrorFromMessage"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "runGenerationNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverableTimeout.ts",
+      "symbol": "lastErrorMessage"
+    }
+  ],
+  "door_reduction": {
+    "before": 46,
+    "after": 43
+  },
+  "generality_proof": "All renderer node runs converge on one executor call. Reference senders share one probe and upload policy, and both renderer telemetry emitters consume the same wire facts.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "runGenerationNode",
+      "responsibility": "Dispatch one executor per approved intent."
+    },
+    {
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "localizeAssetsForVendor",
+      "responsibility": "Choose the reference or an authorized upload from this source and actual channels."
+    },
+    {
+      "path": "src/workbench/api/generationTelemetry.ts",
+      "symbol": "generationFailureFacts",
+      "responsibility": "Project existing IPC dispatch evidence into closed telemetry values."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/assetTransportRuntime.ts",
+      "entry_point": "localizeForSend",
+      "disposition": "enforced",
+      "evidence": "Runtime and script senders call the shared localization owner outside paid dispatch."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "runGenerationNodesBatch",
+      "disposition": "enforced",
+      "evidence": "Individual and batched shots dispatch via runGenerationNode."
+    }
+  ],
+  "recurrence_of": [
+    "2026-11-23-fa-local-blocks-and-unknown-telemetry",
+    "2026-11-01-reference-link-delivery"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future run or independent generation surface can encounter these inputs.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs isRetryableGenerationError localizeAssetsForVendor judgeReferenceLinks localizeForSend referenceLinkPolicy runGenerationNode generationFailureFacts generationTrackPayload probeProviderLink judgeProbeResponse referenceNeedsUpload nonAnonymous trustedOriginalUrl ingestionHasSufficientLease minimumLeaseSecondsForMedia noteConnectionRefused ingestionVisibility AssetTransportVisibility resolveContentType isReferenceFetchRefusal parseVendorErrorFromMessage readNomiLocalAsset lastErrorMessage GENERATION_PHASE_DEADLINE",
+      "Checked frozen production rework, preflight, main outbox and both taskApi telemetry entrances."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "invariant": "One renderer dispatch per explicit generation; delivery and reporting consume source facts.",
+    "failure_mode": "Surface the original failure or request anonymous hosting consent when the source cannot be delivered.",
+    "exception_policy": "none",
+    "strategy": "Remove the renderer retry owner and speculative vetoes; reuse the main dispatch ledger and live reference evidence.",
+    "artifacts": [
+      "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "electron/catalog/assetLocalization.ts",
+      "src/workbench/api/generationTelemetry.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/runner/multiResultLanding.test.ts",
+    "electron/catalog/referenceLinkDelivery.matrix.test.ts",
+    "electron/catalog/assetLocalization.test.ts",
+    "electron/productionRun/referenceLinkDispatchLedger.test.ts",
+    "src/workbench/api/generationTelemetry.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/runner/multiResultLanding.test.ts",
+    "electron/catalog/referenceLinkDelivery.matrix.test.ts",
+    "electron/catalog/assetLocalization.test.ts",
+    "electron/productionRun/referenceLinkDispatchLedger.test.ts",
+    "src/workbench/api/generationTelemetry.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/runner/generationRetryPolicy.ts",
+      "electron/catalog/referenceLinkRefusals.ts"
+    ],
+    "rationale": "Removed renderer retry policy and the connection-wide refusal store."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Product authorization and delivery policy use the existing transport and IPC APIs.",
+    "exit_criteria": []
+  },
+  "migration": "Read old sidecars directly; leave retired refusal files inert. No stored project changes.",
+  "residual_risks": [
+    "Loopback delivery and renderer integration do not measure live provider availability or reconstruct historical analytics."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/catalog",
+    "tests": [
+      "electron/catalog/referenceLinkDelivery.matrix.test.ts",
+      "electron/catalog/assetLocalization.test.ts"
+    ]
+  }
+}

@@ -6,8 +6,9 @@ import { activeExportCount } from "./export/exportJobs";
 import { getWorkspaceRepositoryDeps } from "./runtimePaths";
 import { listRegisteredProjectIds } from "./workspace/workspaceRegistry";
 import { getProductionRunService } from "./productionRun/productionRunRuntime";
+import { isBackgroundDesktopLaunch } from "./productionRun/desktopLaunchIntent";
 
-export const isBackgroundLaunch = process.env.NOMI_LAUNCH_BACKGROUND === "1";
+export const isBackgroundLaunch = isBackgroundDesktopLaunch();
 
 let idleExit: BackgroundIdleExit | undefined;
 /** 后台冷启的主窗口有没有被用户叫出来过（一次 show 就算——从此它是用户在看的窗口）。 */

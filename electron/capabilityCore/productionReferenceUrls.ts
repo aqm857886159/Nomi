@@ -1,5 +1,6 @@
+import { matchNomiErrorCode } from '../shared/nomiErrorCodes';
 import { readCatalog } from '../catalog/catalogStore';
-import type { ReferenceLinkPolicy } from '../catalog/assetLocalization';
+import { assetUploadChannelKind, referenceNeedsUpload, type ReferenceLinkPolicy, type IngestionResolver } from '../catalog/assetLocalization';
 import { assetIngestionResolver, assetLocalizationOptions, localizeForSend, referenceLinkPolicy } from '../catalog/assetTransportRuntime';
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload, putBinaryForAssetUpload } from '../assets/localAssetFile';
 import { projectSpendReferenceAssets, type SpendReferenceAssets } from './pendingSpendReferences';
@@ -22,8 +23,9 @@ const DEFAULT_LOCALIZE_DEPS: LocalizeProductionReferenceUrlsDeps = {
 
 /**
  * Existing asset transport performs uploads before the deterministic request seal.
- * 不改写 localizeForSend 抛出的 asset-too-large（HTTP 413 逐通道摘要）或 asset-upload-failed（含
- * AnonymousAssetConsentRequiredError 自身的 hostingDisabled 文案），保证渲染层按真实通道故障与体积提示用户（NF-1107-0002）。
+ * 不改写 localizeForSend 抛出的 asset-too-large / asset-upload-failed 首行本地化通道摘要
+ * （也不覆盖 AnonymousAssetConsentRequiredError 自身的 hostingDisabled 文案，NF-1107-0002），
+ * 同时截断换行后的诊断明细，避免文件名或签名 URL 经由错误消息外泄（#1638）。
  */
 export async function localizeProductionReferenceUrls(
   providerId: string,
@@ -35,7 +37,14 @@ export async function localizeProductionReferenceUrls(
   if (!vendor) throw new Error('generation_reference_provider_unavailable');
   const result = await deps.localizeForSend({ urls }, deps.assetIngestionResolver(vendor, catalog),
     readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload,
-    deps.assetLocalizationOptions(vendor, undefined), putBinaryForAssetUpload);
+    deps.assetLocalizationOptions(vendor, undefined), putBinaryForAssetUpload).catch((error: unknown) => {
+      // Only the first line is the localized channel summary. The detail can contain file names or signed URLs.
+      if (error instanceof Error && error.message.includes('\n')) {
+        const code = matchNomiErrorCode(error.message);
+        if (code === 'asset-upload-failed' || code === 'asset-too-large') throw new Error(error.message.split('\n')[0]);
+      }
+      throw error;
+    });
   const values = (result.value as { urls?: unknown }).urls;
   if (!Array.isArray(values) || values.length !== urls.length || values.some(value => typeof value !== 'string' || !/^https?:\/\//.test(value))) {
     throw new Error('generation_reference_url_unavailable');
@@ -77,21 +86,13 @@ export async function resolveProductionReferenceUrls(input: Readonly<{
   return Object.fromEntries(input.references.map((reference, index) => [spendReferenceKey(reference), localized[index]]));
 }
 
-/** 这条连接此刻的链接处置（拒绝过没有 + 怎么试探）；连接不在目录里 = 没有，调用方沿用原来的。 */
-function linkPolicyOf(providerId: string): ReferenceLinkPolicy | null {
-  const vendor = readCatalog().vendors.find((candidate) => candidate.key === providerId);
-  return vendor ? referenceLinkPolicy(vendor) : null;
+function linkPolicyOf(providerId: string) {
+  const catalog = readCatalog();
+  const vendor = catalog.vendors.find(candidate => candidate.key === providerId);
+  return vendor ? { ...referenceLinkPolicy(vendor), channels: assetIngestionResolver(vendor, catalog) } : null;
 }
 
-/**
- * 做片返工：沿用上一次批准冻住的链接表，还是重新换链接？
- *
- * 以前一律沿用（同一份合同、同一批参考，不因为「又一份授权」去重新上传一遍）。可冻住的是**当时**发出去的链接：
- * 其中一条是服务商的临时链接时，它会过期、会被拦，返工发的还是同一条死链接，模型再拒一次、再扣一次。
- * 所以只在两种情况下重新走 `resolveProductionReferenceUrls`（经唯一决定点 `localizeAssetsForVendor`）：
- *   ① 这条连接的模型拒绝过临时链接；② 冻住的链接试探明确失效（判断不了不算）。
- * 其余照旧沿用、不重传——没记过拒绝、链接也没死的返工，行为一字不变。返回 `undefined` = 沿用。
- */
+/** Reuse the frozen receipt unless its current probe and delivery channels require replacement. */
 export async function reworkReferenceUrls(
   input: Readonly<{
     projectId: string;
@@ -101,14 +102,26 @@ export async function reworkReferenceUrls(
     assertCurrent: () => void;
   }>,
   deps: Readonly<{
-    policyOf: (providerId: string) => ReferenceLinkPolicy | null;
+    policyOf: (providerId: string) => (ReferenceLinkPolicy & { channels: IngestionResolver }) | null;
     resolve: typeof resolveProductionReferenceUrls;
   }> = { policyOf: linkPolicyOf, resolve: resolveProductionReferenceUrls },
 ): Promise<Readonly<Record<string, string>> | undefined> {
   if (!input.frozen || input.references.length === 0) return undefined;
   const policy = deps.policyOf(input.providerId);
   if (!policy) return undefined;
-  const stale = policy.refused || (await Promise.all(Object.values(input.frozen).map((url) => policy.probe(url)))).includes('dead');
-  if (!stale) return undefined;
+  const references = new Map(input.references.map(ref => [spendReferenceKey(ref), ref]));
+  let indexed: ReturnType<SpendReferenceAssets['list']> | undefined;
+  const stale = await Promise.all(Object.entries(input.frozen).map(async ([key, url]) => {
+    const verdict = await policy.probe(url);
+    return referenceNeedsUpload(verdict, () => {
+      const ref = references.get(key);
+      if (!ref) return [];
+      if (ref.kind) return policy.channels(ref.kind);
+      indexed ??= projectSpendReferenceAssets.list(input.projectId);
+      const mime = indexed.find(asset => asset.id === ref.assetId)?.data.contentType;
+      return typeof mime === 'string' ? policy.channels(assetUploadChannelKind(mime)) : [];
+    });
+  }));
+  if (!stale.some(Boolean)) return undefined;
   return deps.resolve({ projectId: input.projectId, providerId: input.providerId, references: input.references, assertCurrent: input.assertCurrent });
 }

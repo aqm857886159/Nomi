@@ -22,8 +22,8 @@
     },
     "electron/integrationCertification/integrationSession.ts": {
       "kind": "legacy",
-      "max": 1411,
-      "reason": "Conversational model integration boundary: the session service keeps the state machine, receipt contract, canonical certification and recovery transitions together. It is reviewed as one security boundary and must be split only along a stable ownership seam, not by moving methods into a second writer. (2026-08-29)；1695→1652（2026-09-10 把 workflow 绑定净化与「谁来编译说明卡」的裁决各抽成独立模块）→ 1338（2026-09-15 棘轮锁定：门岗自己报「已瘦身」要求下调，来自 main 的既有瘦身，不是本 PR 改的）→ 1394（2026-09-21 会话容量合同：读盘那一段整体搬进 integrationSessionRecord，服务层只剩一行委托）",
+      "max": 1406,
+      "reason": "Conversational model integration boundary: the session service keeps the state machine, receipt contract, canonical certification and recovery transitions together. It is reviewed as one security boundary and must be split only along a stable ownership seam, not by moving methods into a second writer. (2026-08-29)；1695→1652（2026-09-10 把 workflow 绑定净化与「谁来编译说明卡」的裁决各抽成独立模块）→ 1338（2026-09-15 棘轮锁定：门岗自己报「已瘦身」要求下调，来自 main 的既有瘦身，不是本 PR 改的）→ 1394（2026-09-21 会话容量合同：读盘那一段整体搬进 integrationSessionRecord，服务层只剩一行委托） → 1406（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
       "topDeclarations": [
         {
           "name": "IntegrationSessionService",
@@ -52,8 +52,8 @@
     },
     "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": {
       "kind": "legacy",
-      "max": 569,
-      "reason": "…→ 524（2026-10-11 全景浮条抽成 PanoramaNodeToolbar）→ 544（2026-10-11 切图确认条抽成 ImageCropGridActionBar）→ 549（2026-10-08 列表角标 / 「在列表里看」进来时把两段多行 import 收成一行）→ 555（2026-10-06 预览底纹收进 previewBackgroundClass）→ 557 → 558（2026-10-02 结果托盘不再要 selected 入参）…→ 560（2026-09-25 浮框放置层删除后的注释收短）…→ 713（2026-08-29 React Flow 单内核：移除旧布局与缩放分支）→ 710（2026-09-07 agent-artifact：正文/浮条插槽移出壳 + composer 排除表收进 resolveRenderKind）→ 677（2026-09-12 S3：四个整表选择器收进 canvasNodeGenerationIndex）→ 654（2026-09-21 合并 ① 按门岗提示拧紧） → 569（2026-10-31：按用户裁定删除等待preset四处接线）",
+      "max": 525,
+      "reason": "…→ 524（2026-10-11 全景浮条抽成 PanoramaNodeToolbar）→ 544（2026-10-11 切图确认条抽成 ImageCropGridActionBar）→ 549（2026-10-08 列表角标 / 「在列表里看」进来时把两段多行 import 收成一行）→ 555（2026-10-06 预览底纹收进 previewBackgroundClass）→ 557 → 558（2026-10-02 结果托盘不再要 selected 入参）…→ 560（2026-09-25 浮框放置层删除后的注释收短）…→ 713（2026-08-29 React Flow 单内核：移除旧布局与缩放分支）→ 710（2026-09-07 agent-artifact：正文/浮条插槽移出壳 + composer 排除表收进 resolveRenderKind）→ 677（2026-09-12 S3：四个整表选择器收进 canvasNodeGenerationIndex）→ 654（2026-09-21 合并 ① 按门岗提示拧紧） → 569（2026-10-31：按用户裁定删除等待preset四处接线） → 525（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
       "topDeclarations": [
         {
           "name": "BaseGenerationNodeImpl",
@@ -128,8 +128,8 @@
     },
     "electron/capabilityCore/mcpToolResults.ts": {
       "kind": "frozen",
-      "max": 1074,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 995,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 995（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
       "topDeclarations": [
         {
           "name": "buildToolOutcome",
@@ -166,8 +166,8 @@
     },
     "electron/capabilityCore/mcpGenerationTools.ts": {
       "kind": "frozen",
-      "max": 966,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 860,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 860（2026-11-24 Q-smell 味道④：拆解 planningForCall 上帝函数并将纯投影/门禁回执收进 mcpGenerationProjections.ts）",
       "topDeclarations": [
         {
           "name": "createGenerationPlanningHandler",
@@ -185,8 +185,8 @@
     },
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx": {
       "kind": "frozen",
-      "max": 1016,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 1013,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 1013（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
       "topDeclarations": [
         {
           "name": "GenerationCanvasReactFlowInner",
@@ -204,8 +204,8 @@
     },
     "electron/capabilityCore/dispatcher.ts": {
       "kind": "frozen",
-      "max": 981,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 978,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 978（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
       "topDeclarations": [
         {
           "name": "dispatch",
@@ -261,8 +261,8 @@
     },
     "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx": {
       "kind": "frozen",
-      "max": 922,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 883,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 883（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
       "topDeclarations": [
         {
           "name": "WhiteboardDrawingTool",
@@ -299,8 +299,8 @@
     },
     "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx": {
       "kind": "frozen",
-      "max": 916,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 856,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 856（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
       "topDeclarations": [
         {
           "name": "StoryboardPlanEditor",
@@ -352,8 +352,8 @@
     },
     "src/workbench/assets/AssetLibraryPanel.tsx": {
       "kind": "frozen",
-      "max": 862,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 838,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 838（2026-11-24 Q-smell 味道②：compact 与网格渲染两份 AssetGridCell 克隆收成 renderAssetCell，行为不变）",
       "topDeclarations": [
         {
           "name": "AssetLibraryContent",
@@ -466,8 +466,8 @@
     },
     "src/workbench/creation/storyboard/StoryboardShotTable.tsx": {
       "kind": "frozen",
-      "max": 840,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 742,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 742（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
       "topDeclarations": [
         {
           "name": "StoryboardShotTable",
@@ -485,8 +485,8 @@
     },
     "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx": {
       "kind": "frozen",
-      "max": 812,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆。839→812：方式格下拉行（controls/modeMenuOptions.tsx）、首尾帧对调钮判据（referenceWrites.frameSwapControl）、参考行 AssetSlot 列表（controls/composerAssetSlots.ts）搬出",
+      "max": 811,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆。839→812：方式格下拉行（controls/modeMenuOptions.tsx）、首尾帧对调钮判据（referenceWrites.frameSwapControl）、参考行 AssetSlot 列表（controls/composerAssetSlots.ts）搬出 → 811（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
       "topDeclarations": [
         {
           "name": "NodeParameterControls",
@@ -519,8 +519,8 @@
     },
     "src/workbench/ai/ProjectAgentResidentShell.tsx": {
       "kind": "frozen",
-      "max": 829,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 762,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 762（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
       "topDeclarations": [
         {
           "name": "ProjectAgentResidentShell",

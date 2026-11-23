@@ -79,15 +79,15 @@ it('uses the real multipart upload path against a delayed loopback endpoint', as
   }
 });
 
-// 做片返工：沿用冻住的链接，还是重新换？只在「这条连接拒绝过」或「冻住的链接明确失效」时换，其余一字不变。
+// 做片返工：沿用冻住的链接，还是重新换？只在「冻住的链接明确失效」时换，其余一字不变。
 // 以前一律沿用（同一份合同不重传），于是冻住的是一条临时链接时，返工发的还是那条死链接，模型再拒一次、再扣一次。
 describe('reworkReferenceUrls', () => {
   const frozen = { [spendReferenceKey(reference)]: 'https://tmp.example.com/old.png' };
   const resolved = { [spendReferenceKey(reference)]: 'https://cdn.example/fresh.png' };
-  const setup = (verdict: 'alive' | 'dead' | 'unknown', refused = false) => {
+  const setup = (verdict: 'alive' | 'dead' | 'unknown') => {
     const probe = vi.fn(async () => verdict);
     const resolve = vi.fn(async () => resolved);
-    const policyOf = vi.fn(() => ({ refused, probe }));
+    const policyOf = vi.fn(() => ({ channels: () => [], probe }));
     const run = (overrides: Partial<{ frozen: Record<string, string> | undefined; references: typeof reference[] }> = {}) => reworkReferenceUrls(
       { projectId: 'p', providerId: 'apimart', references: [reference], frozen, assertCurrent() {}, ...overrides },
       { policyOf, resolve },
@@ -108,20 +108,27 @@ describe('reworkReferenceUrls', () => {
     expect(t.resolve).not.toHaveBeenCalled();
   });
 
+  it.each(['provider-private', 'public-provider', 'public-anonymous'] as const)(
+    'rework after a denied probe uses the actual %s channel for the pinned media', async visibility => {
+      const channels = vi.fn(() => [{ ingestion: { strategy: 'upload-multipart' as const, endpoint: 'https://up.example/upload', urlPath: 'url', visibility }, vendorKey: 'v', uploadApiKey: '' }]);
+      const resolve = vi.fn(async () => resolved);
+      const out = await reworkReferenceUrls(
+        { projectId: 'p', providerId: 'v', references: [reference], frozen, assertCurrent() {} },
+        { policyOf: () => ({ channels, probe: async () => 'denied' }), resolve },
+      );
+      expect(channels).toHaveBeenCalledWith(reference.kind);
+      expect(out).toEqual(visibility === 'public-anonymous' ? undefined : resolved);
+    },
+  );
+
   it('冻住的链接明确失效 → 重新走唯一决定点换链接', async () => {
     const t = setup('dead');
     expect(await t.run()).toEqual(resolved);
     expect(t.resolve).toHaveBeenCalledWith({ projectId: 'p', providerId: 'apimart', references: [reference], assertCurrent: expect.any(Function) });
   });
 
-  it('这条连接拒绝过 → 不试探，直接重新换（哪怕冻住的链接看着还活着）', async () => {
-    const t = setup('alive', true);
-    expect(await t.run()).toEqual(resolved);
-    expect(t.probe).not.toHaveBeenCalled();
-  });
-
   it('没有冻住的链接 / 没有参考 / 连接不在目录里 → 沿用（不试探、不重传）', async () => {
-    const t = setup('dead', true);
+    const t = setup('dead');
     expect(await t.run({ frozen: undefined })).toBeUndefined();
     expect(await t.run({ references: [] })).toBeUndefined();
     const missing = await reworkReferenceUrls(
@@ -139,34 +146,36 @@ describe('reworkReferenceUrls', () => {
     const resolve = vi.fn(async () => resolved);
     const out = await reworkReferenceUrls(
       { projectId: 'p', providerId: 'apimart', references: [reference, second], frozen: both, assertCurrent() {} },
-      { policyOf: () => ({ refused: false, probe }), resolve },
+      { policyOf: () => ({ channels: () => [], probe }), resolve },
     );
     expect(out).toEqual(resolved);
     expect(probe).toHaveBeenCalledTimes(2);
   });
 });
 
-// ── NF-1107-0002 回归矩阵：productionReferenceUrls 不得用 hostingDisabled 覆写 413 / 通道故障摘要 ──
-describe('localizeProductionReferenceUrls · 上传失败摘要保真矩阵（NF-1107-0002）', () => {
+// ── NF-1107-0002 + #1638 回归矩阵：不以 hostingDisabled 覆写 413 / 通道故障首行摘要，同时剥离换行后的文件名/签名明细 ──
+describe('localizeProductionReferenceUrls · 上传失败摘要保真与脱敏矩阵（NF-1107-0002）', () => {
   const UPLOAD_FAILURE_PRESERVATION_MATRIX = [
     {
-      label: 'HTTP 413 素材超限（asset-too-large）：保留逐通道摘要、文件名、体积与换行结构',
+      label: 'HTTP 413 素材超限（asset-too-large）：保留首行本地化通道摘要、不误报未开启托管，并截断换行后的文件名与明细',
       thrown: new Error(tagNomiError(
         'asset-too-large',
         '文件太大，apimart的上传通道收不下。请重试、换小一点的文件，或去设置里允许第三方公共临时托管。\n还没请求这次选的服务商。 视频 clip.mp4（180.0MB）: apimart: HTTP 413 Payload Too Large',
       )),
       expectedCode: 'asset-too-large',
-      mustContain: ['文件太大，apimart的上传通道收不下', 'clip.mp4（180.0MB）', 'HTTP 413', '\n'],
+      mustContain: ['文件太大，apimart的上传通道收不下'],
+      mustNotContain: ['clip.mp4', 'HTTP 413', '\n'],
       mustNotBeBareHostingDisabled: true,
     },
     {
-      label: '通道 503 不可用（asset-upload-failed）：保留真实通道故障原因，不误报未开启托管',
+      label: '通道 503 不可用（asset-upload-failed）：保留首行真实通道故障摘要、不误报未开启托管，并截断换行后的文件名与明细',
       thrown: new Error(tagNomiError(
         'asset-upload-failed',
         'Nomi 中转暂时不可用。请重试、换小一点的文件，或去设置里允许第三方公共临时托管。\n还没请求这次选的服务商。 图片 ref.png（4.0MB）: nomi-relay: HTTP 503',
       )),
       expectedCode: 'asset-upload-failed',
-      mustContain: ['Nomi 中转暂时不可用', 'ref.png（4.0MB）', 'HTTP 503', '\n'],
+      mustContain: ['Nomi 中转暂时不可用'],
+      mustNotContain: ['ref.png', 'HTTP 503', '\n'],
       mustNotBeBareHostingDisabled: true,
     },
     {
@@ -174,11 +183,12 @@ describe('localizeProductionReferenceUrls · 上传失败摘要保真矩阵（NF
       thrown: new AnonymousAssetConsentRequiredError(),
       expectedCode: 'asset-upload-failed',
       mustContain: [desktopT('assetUpload.hostingDisabled')],
+      mustNotContain: [],
       mustNotBeBareHostingDisabled: false,
     },
   ] as const;
 
-  it.each(UPLOAD_FAILURE_PRESERVATION_MATRIX)('$label', async ({ thrown, expectedCode, mustContain, mustNotBeBareHostingDisabled }) => {
+  it.each(UPLOAD_FAILURE_PRESERVATION_MATRIX)('$label', async ({ thrown, expectedCode, mustContain, mustNotContain, mustNotBeBareHostingDisabled }) => {
     const vendor = { key: 'apimart' };
     let caught: Error | null = null;
     try {
@@ -194,6 +204,7 @@ describe('localizeProductionReferenceUrls · 上传失败摘要保真矩阵（NF
     expect(caught).toBeInstanceOf(Error);
     expect(matchNomiErrorCode(caught!.message)).toBe(expectedCode);
     for (const piece of mustContain) expect(caught!.message).toContain(piece);
+    for (const leaked of mustNotContain) expect(caught!.message).not.toContain(leaked);
     if (mustNotBeBareHostingDisabled) {
       expect(caught!.message).not.toBe(tagNomiError(expectedCode, desktopT('assetUpload.hostingDisabled')));
     }

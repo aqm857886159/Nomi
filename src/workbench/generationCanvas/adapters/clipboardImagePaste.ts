@@ -64,8 +64,6 @@ export type ClipboardMediaPasteOptions = {
   importOptions?: Partial<Omit<ImportImageFilesOptions, 'projectContext'>>
 }
 
-export type ClipboardImagePasteOptions = ClipboardMediaPasteOptions
-
 export type ClipboardMediaPasteResult = {
   handled: boolean
   importedCount: number
@@ -75,8 +73,6 @@ export type ClipboardMediaPasteResult = {
   skippedOverLimitCount: number
   usedExternalUrl: boolean
 }
-
-export type ClipboardImagePasteResult = ClipboardMediaPasteResult
 
 function emptyResult(handled = false): ClipboardMediaPasteResult {
   return {
@@ -122,8 +118,6 @@ export function extractClipboardMediaFiles(data: DataTransfer | null | undefined
   })
   return files
 }
-
-export const extractClipboardImageFiles = extractClipboardMediaFiles
 
 function decodeHtmlAttribute(value: string): string {
   return value
@@ -235,8 +229,6 @@ export function extractClipboardMediaUrl(data: DataTransfer | null | undefined):
   if (trustAsMedia || isRemoteUrl(plainUrl)) return { url: plainUrl, kind, trustAsMedia, source: 'plain' }
   return null
 }
-
-export const extractClipboardImageUrl = extractClipboardMediaUrl
 
 function extensionForMime(type: string): string {
   return MIME_EXTENSION[type.toLowerCase()] || 'bin'
@@ -589,12 +581,6 @@ async function pasteClipboardMediaInProject(options: ClipboardMediaPasteOptions)
   return emptyResult(false)
 }
 
-export async function pasteClipboardImageToGenerationCanvas(
-  options: ClipboardImagePasteOptions,
-): Promise<ClipboardImagePasteResult> {
-  return pasteClipboardMediaToGenerationCanvas(options)
-}
-
 export function showClipboardMediaPasteNotes(result: ClipboardMediaPasteResult, projectId: string): void {
   if (!result.handled) return
   const notes: string[] = []
@@ -604,4 +590,3 @@ export function showClipboardMediaPasteNotes(result: ClipboardMediaPasteResult, 
   if (notes.length) reportCanvasFeedback(notes.join('；'), result.failedCount > 0 ? 'error' : 'warning', { projectId, identity: 'canvas-paste', reason: 'paste-incomplete' })
 }
 
-export const showClipboardImagePasteNotes = showClipboardMediaPasteNotes
