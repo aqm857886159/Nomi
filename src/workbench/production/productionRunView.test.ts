@@ -440,7 +440,16 @@ describe('production run view', () => {
 
     const partialStages = baseStages.map((s) =>
       s.stageId === 'qa'
-        ? { ...s, qaReport: { total: 12, passedCount: 7, flaggedCount: 0, unverifiedCount: 5, unverifiedReasons: ['invalid_verdict_json'] } }
+        ? {
+            ...s,
+            qaReport: {
+              total: 12,
+              passedCount: 7,
+              flaggedCount: 0,
+              unverifiedCount: 5,
+              unverifiedReasons: ['invalid_verdict_json' as const],
+            },
+          }
         : s,
     )
     const partialView = buildProductionRunView(
