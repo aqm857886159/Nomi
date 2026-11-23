@@ -332,7 +332,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const renameGroup = useGenerationCanvasStore((state) => state.renameGroup)
   const setGroupDescription = useGenerationCanvasStore((state) => state.setGroupDescription)
 
-  // 工具条新建 / 截图 / 浏览器素材落点：与 addNode 默认落点同一个 owner（store/canvasVisibleArea）。
+  // 截图 / 浏览器素材 / 模板落点：与 addNode 默认落点同一个 owner（store/canvasVisibleArea）；新建节点由 addNode 造出节点后自行算落点。
   const getInsertionPosition = React.useCallback(() => visibleInsertionPoint(activeCategoryId) ?? { x: 240, y: 240 }, [activeCategoryId])
   // 「适应视图」框住的是**节点 ∪ 框**，不只是节点：框的标签带比成员外接盒高 52px，
   // 只按节点 fit 会把用户刚起的框名切在舞台外（裁决与理由见 model/canvasFitBounds.ts）。
@@ -376,7 +376,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     handleStagePointerDown,
     handleStagePointerMove,
     handleStagePointerEnd,
-    handlePendingGroupPointerUp,
     handleConnectStart,
     handleConnectEnd,
     handleConnectToGroupFromFlow,
@@ -674,8 +673,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       onPointerDownCapture={handleStagePointerDownCapture}
       onPointerMoveCapture={handleCanvasPointerMoveCapture}
       onWheelCapture={handleCanvasWheelCapture}
-      onPointerUpCapture={handlePendingGroupPointerUp}
-      onMouseUpCapture={handlePendingGroupPointerUp}
       onPointerDown={handleStagePointerDown}
       onPointerMove={handleStagePointerMove}
       onPointerUp={handleStagePointerEnd}

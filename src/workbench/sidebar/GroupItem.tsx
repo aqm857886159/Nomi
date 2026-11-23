@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
+import { WORKBENCH_MENU_TRIGGER_OPEN_CLASS } from '../../design'
 import { cn } from '../../utils/cn'
 import type { GenerationCanvasNode, NodeGroup } from '../generationCanvas/model/generationCanvasTypes'
 import {
@@ -21,8 +22,10 @@ type Props = {
   onSelectNode?: (nodeId: string) => void
   onDropNode?: (nodeId: string, groupId: string) => void
   onDropGroup?: (activeGroupId: string, overGroupId: string) => void
-  onContextMenu?: (event: React.MouseEvent<HTMLButtonElement>, groupId: string) => void
-  onNodeContextMenu?: (event: React.MouseEvent<HTMLButtonElement>, nodeId: string) => void
+  /** 子组头这一行的右键菜单（只包子组头 <button>，不包成员列表——成员各有各的菜单）。 */
+  contextMenu?: (trigger: React.ReactElement) => React.ReactElement
+  /** 成员节点行的右键菜单。 */
+  nodeContextMenu?: (nodeId: string) => (trigger: React.ReactElement) => React.ReactElement
 }
 
 export default function GroupItem({
@@ -35,8 +38,8 @@ export default function GroupItem({
   onSelectNode,
   onDropNode,
   onDropGroup,
-  onContextMenu,
-  onNodeContextMenu,
+  contextMenu,
+  nodeContextMenu,
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const [expanded, setExpanded] = React.useState(!group.collapsed)
@@ -109,6 +112,7 @@ export default function GroupItem({
     [clearExpandTimer],
   )
 
+  const wrapHeader = contextMenu ?? ((trigger: React.ReactElement) => trigger)
   return (
     <div
       className={cn(
@@ -152,17 +156,18 @@ export default function GroupItem({
             className="min-w-0 flex-1 border-b border-nomi-ink-30 bg-transparent text-micro text-nomi-ink outline-none focus:border-nomi-ink-60"
           />
         </div>
-      ) : (
+      ) : wrapHeader(
         <button
           type="button"
           draggable
           onDragStart={handleDragStart}
           onClick={() => setExpanded((value) => !value)}
-          onContextMenu={(event) => onContextMenu?.(event, group.id)}
           aria-expanded={expanded}
           className={cn(
             'w-full flex items-center gap-2 px-2 py-1.5 text-left rounded-nomi-sm',
             'text-micro text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-ink-05',
+            // 子组行没有选中态：菜单开着一律走统一打开态。
+            WORKBENCH_MENU_TRIGGER_OPEN_CLASS,
           )}
           title={group.name}
         >
@@ -175,7 +180,7 @@ export default function GroupItem({
           />
           <span className="min-w-0 flex-1 truncate">{group.name}</span>
           <span className="shrink-0 tabular-nums text-micro text-nomi-ink-40">{nodes.length}</span>
-        </button>
+        </button>,
       )}
       {expanded ? (
         <div className="pb-1">
@@ -188,7 +193,7 @@ export default function GroupItem({
                 depth={1}
                 onSelect={onSelectNode}
                 onDragStartNode={() => setExpanded(false)}
-                onContextMenu={onNodeContextMenu}
+                contextMenu={nodeContextMenu?.(node.id)}
               />
             ))
           ) : (

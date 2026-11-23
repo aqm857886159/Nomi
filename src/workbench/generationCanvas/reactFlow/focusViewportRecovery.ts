@@ -39,7 +39,7 @@ export type FocusComposerFootprint = { gap: number; height: number }
 
 /** 对焦是为了读 / 点，不是为了放大：缩放不超过 100%（小节点也不会被放大成一堵墙）。 */
 export const CANVAS_FOCUS_MAX_ZOOM = 1
-const FOCUS_PADDING = 16
+export const CANVAS_FOCUS_PADDING = 16
 
 /**
  * 舞台里扣掉浮在上面的东西（浮动 Agent 面板、迷你画面窗、缩放条、工具条……）后，最大的那块空地。
@@ -82,14 +82,14 @@ export function resolveCanvasFocusViewport(input: {
   const { node, composer, view } = input
   const composerHeight = composer?.height ?? 0
   const gap = composer?.gap ?? 0
-  const usableWidth = Math.max(1, view.width - FOCUS_PADDING * 2)
-  const usableHeight = Math.max(1, view.height - FOCUS_PADDING * 2)
+  const usableWidth = Math.max(1, view.width - CANVAS_FOCUS_PADDING * 2)
+  const usableHeight = Math.max(1, view.height - CANVAS_FOCUS_PADDING * 2)
   const fitHeight = (usableHeight - composerHeight) / (node.height + gap)
   const fitWidth = usableWidth / node.width
   const zoom = Math.max(CANVAS_MIN_ZOOM, Math.min(CANVAS_FOCUS_MAX_ZOOM, fitHeight, fitWidth))
   const blockHeight = (node.height + gap) * zoom + composerHeight
-  const blockTop = blockHeight > view.height - FOCUS_PADDING * 2
-    ? view.top + view.height - FOCUS_PADDING - blockHeight
+  const blockTop = blockHeight > view.height - CANVAS_FOCUS_PADDING * 2
+    ? view.top + view.height - CANVAS_FOCUS_PADDING - blockHeight
     : view.top + (view.height - blockHeight) / 2
   return {
     zoom,

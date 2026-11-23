@@ -94,7 +94,7 @@ export function useCanvasAddIntentAction({ getInsertionPosition, categoryId }: {
     void importLocalFilesToGenerationCanvas(files, { basePosition: getInsertionPosition(), categoryId })
   })
   const run = (intent: CanvasAddIntent) => {
-    if (intent.kind) useGenerationCanvasStore.getState().addNode({ kind: intent.kind, position: getInsertionPosition(), categoryId })
+    if (intent.kind) useGenerationCanvasStore.getState().addNode({ kind: intent.kind, categoryId })
     else picker.open()
   }
   return { run, pickerInput: picker.input }
