@@ -20,121 +20,190 @@ import {
   singleInstanceLockData,
 } from "./desktopLaunchIntent";
 
-describe("desktopLaunchIntent · 启动模式分流（#1629）", () => {
-  it("环境变量被宿主剥离时，凭打包版 Nomi Helper + mcpNodeLauncher.js 参数仍分流为 mcp-stdio", () => {
-    const mode = classifyProcessLaunch({
-      env: {},
-      argv: [
-        "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
-        "/Applications/Nomi.app/Contents/Resources/app.asar/dist-electron/capabilityCore/mcpNodeLauncher.js",
-      ],
-    });
-    expect(mode).toEqual({ kind: "mcp-stdio", reason: "script", scriptKind: "node-launcher" });
-    expect(isMcpStdioLaunch({ env: {}, argv: [
+type LaunchIntentMatrixRow = {
+  label: string;
+  env: NodeJS.ProcessEnv;
+  argv: string[];
+  expected: ReturnType<typeof classifyProcessLaunch>;
+  expectedMcpStdio: boolean;
+  expectedBackground: boolean;
+  expectedLockData: ReturnType<typeof singleInstanceLockData>;
+};
+
+const LAUNCH_INTENT_MATRIX: readonly LaunchIntentMatrixRow[] = [
+  {
+    label: "macOS 打包版 Nomi Helper + mcpNodeLauncher.js（宿主剥离 env）→ mcp-stdio",
+    env: {},
+    argv: [
       "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
       "/Applications/Nomi.app/Contents/Resources/app.asar/dist-electron/capabilityCore/mcpNodeLauncher.js",
-    ] })).toBe(true);
-    expect(singleInstanceLockData(mode)).toBeUndefined();
-  });
+    ],
+    expected: { kind: "mcp-stdio", reason: "script", scriptKind: "node-launcher" },
+    expectedMcpStdio: true,
+    expectedBackground: false,
+    expectedLockData: undefined,
+  },
+  {
+    label: "Windows 打包版 Nomi.exe + mcpNodeLauncher.js（宿主剥离 env）→ mcp-stdio",
+    env: {},
+    argv: [
+      "C:\\Program Files\\Nomi\\Nomi.exe",
+      "C:\\Program Files\\Nomi\\resources\\app.asar\\dist-electron\\capabilityCore\\mcpNodeLauncher.js",
+    ],
+    expected: { kind: "mcp-stdio", reason: "script", scriptKind: "node-launcher" },
+    expectedMcpStdio: true,
+    expectedBackground: false,
+    expectedLockData: undefined,
+  },
+  {
+    label: "Claude Desktop 转发口 mcpHttpForwarder.js（宿主剥离 env）→ mcp-stdio(http-forwarder)",
+    env: {},
+    argv: [
+      "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
+      "/Applications/Nomi.app/Contents/Resources/app.asar/dist-electron/capabilityCore/mcpHttpForwarder.js",
+    ],
+    expected: { kind: "mcp-stdio", reason: "script", scriptKind: "http-forwarder" },
+    expectedMcpStdio: true,
+    expectedBackground: false,
+    expectedLockData: undefined,
+  },
+  {
+    label: "显式 mcpServerEntry.js 脚本参数 → mcp-stdio(server-entry)",
+    env: {},
+    argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi", "/app/dist-electron/mcpServerEntry.js"],
+    expected: { kind: "mcp-stdio", reason: "script", scriptKind: "server-entry" },
+    expectedMcpStdio: true,
+    expectedBackground: false,
+    expectedLockData: undefined,
+  },
+  {
+    label: "显式 --mcp-stdio 标志 → mcp-stdio(flag)",
+    env: {},
+    argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi", MCP_STDIO_ARG],
+    expected: { kind: "mcp-stdio", reason: "flag" },
+    expectedMcpStdio: true,
+    expectedBackground: false,
+    expectedLockData: undefined,
+  },
+  {
+    label: "既有 NOMI_MCP_STDIO=1 环境变量 → mcp-stdio(env)",
+    env: { NOMI_MCP_STDIO: "1" },
+    argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi"],
+    expected: { kind: "mcp-stdio", reason: "env" },
+    expectedMcpStdio: true,
+    expectedBackground: false,
+    expectedLockData: undefined,
+  },
+  {
+    label: "后台桌面冷启（NOMI_LAUNCH_BACKGROUND=1）→ background-desktop + lockData",
+    env: { NOMI_LAUNCH_BACKGROUND: "1" },
+    argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi"],
+    expected: { kind: "background-desktop", reason: "env" },
+    expectedMcpStdio: false,
+    expectedBackground: true,
+    expectedLockData: { launchIntent: "background" },
+  },
+  {
+    label: "后台桌面冷启（--nomi-background-launch）→ background-desktop + lockData",
+    env: {},
+    argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi", BACKGROUND_LAUNCH_ARG],
+    expected: { kind: "background-desktop", reason: "flag" },
+    expectedMcpStdio: false,
+    expectedBackground: true,
+    expectedLockData: { launchIntent: "background" },
+  },
+  {
+    label: "正对照：用户普通启动桌面应用 → interactive-desktop（无后台载荷）",
+    env: {},
+    argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi"],
+    expected: { kind: "interactive-desktop" },
+    expectedMcpStdio: false,
+    expectedBackground: false,
+    expectedLockData: undefined,
+  },
+];
 
-  it("Windows 打包版路径、Claude Desktop 转发口 mcpHttpForwarder.js、mcpServerEntry.js 与显式 --mcp-stdio 均分流为 mcp-stdio", () => {
-    expect(classifyProcessLaunch({
-      env: {},
-      argv: [
-        "C:\\Program Files\\Nomi\\Nomi.exe",
-        "C:\\Program Files\\Nomi\\resources\\app.asar\\dist-electron\\capabilityCore\\mcpNodeLauncher.js",
-      ],
-    })).toEqual({ kind: "mcp-stdio", reason: "script", scriptKind: "node-launcher" });
+type SecondInstanceMatrixRow = {
+  label: string;
+  commandLine: string[];
+  additionalData?: unknown;
+  expected: ReturnType<typeof classifySecondInstance>;
+};
 
-    expect(classifyProcessLaunch({
-      env: {},
-      argv: [
-        "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
-        "/Applications/Nomi.app/Contents/Resources/app.asar/dist-electron/capabilityCore/mcpHttpForwarder.js",
-      ],
-    })).toEqual({ kind: "mcp-stdio", reason: "script", scriptKind: "http-forwarder" });
+const SECOND_INSTANCE_MATRIX: readonly SecondInstanceMatrixRow[] = [
+  {
+    label: "Nomi Helper + mcpNodeLauncher.js 禁止抢焦点",
+    commandLine: [
+      "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
+      "/Applications/Nomi.app/Contents/Resources/app.asar/dist-electron/capabilityCore/mcpNodeLauncher.js",
+    ],
+    expected: { shouldRevealWindow: false, deepLink: null, reason: "mcp-launcher-script" },
+  },
+  {
+    label: "Nomi Helper + mcpHttpForwarder.js 禁止抢焦点",
+    commandLine: [
+      "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
+      "/Applications/Nomi.app/Contents/Resources/app.asar/dist-electron/capabilityCore/mcpHttpForwarder.js",
+    ],
+    expected: { shouldRevealWindow: false, deepLink: null, reason: "mcp-launcher-script" },
+  },
+  {
+    label: "显式 --mcp-stdio 参数禁止抢焦点",
+    commandLine: ["/Applications/Nomi.app/Contents/MacOS/Nomi", MCP_STDIO_ARG],
+    expected: { shouldRevealWindow: false, deepLink: null, reason: "mcp-stdio-arg" },
+  },
+  {
+    label: "后台冷启参数 --nomi-background-launch 禁止抢焦点",
+    commandLine: ["/Applications/Nomi.app/Contents/MacOS/Nomi", BACKGROUND_LAUNCH_ARG],
+    expected: { shouldRevealWindow: false, deepLink: null, reason: "background-arg" },
+  },
+  {
+    label: "单实例锁 additionalData.launchIntent=background 禁止抢焦点",
+    commandLine: ["/Applications/Nomi.app/Contents/MacOS/Nomi"],
+    additionalData: { launchIntent: "background" },
+    expected: { shouldRevealWindow: false, deepLink: null, reason: "background-additional-data" },
+  },
+  {
+    label: "即使宿主剥离 env 与 args，直接拉起 Nomi Helper 也禁止抢焦点",
+    commandLine: [
+      "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
+    ],
+    expected: { shouldRevealWindow: false, deepLink: null, reason: "helper-executable" },
+  },
+  {
+    label: "正对照：空 commandLine 再次打开应叫回主窗",
+    commandLine: [],
+    expected: { shouldRevealWindow: true, deepLink: null, reason: "interactive" },
+  },
+  {
+    label: "正对照：macOS 用户再次打开 Nomi.app 应叫回主窗",
+    commandLine: ["/Applications/Nomi.app/Contents/MacOS/Nomi"],
+    expected: { shouldRevealWindow: true, deepLink: null, reason: "interactive" },
+  },
+  {
+    label: "正对照：Windows 用户再次打开 Nomi.exe 应叫回主窗",
+    commandLine: ["C:\\Program Files\\Nomi\\Nomi.exe", "--allow-file-access-from-files"],
+    expected: { shouldRevealWindow: true, deepLink: null, reason: "interactive" },
+  },
+  {
+    label: "正对照：点击 nomi:// 深链应叫回主窗并透传深链",
+    commandLine: ["/Applications/Nomi.app/Contents/MacOS/Nomi", "nomi://project/p1"],
+    expected: { shouldRevealWindow: true, deepLink: "nomi://project/p1", reason: "deep-link" },
+  },
+];
 
-    expect(classifyProcessLaunch({
-      env: {},
-      argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi", "/app/dist-electron/mcpServerEntry.js"],
-    })).toEqual({ kind: "mcp-stdio", reason: "script", scriptKind: "server-entry" });
-
-    expect(classifyProcessLaunch({
-      env: {},
-      argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi", MCP_STDIO_ARG],
-    })).toEqual({ kind: "mcp-stdio", reason: "flag" });
-  });
-
-  it("保留既有 NOMI_MCP_STDIO=1 环境变量契约", () => {
-    expect(classifyProcessLaunch({
-      env: { NOMI_MCP_STDIO: "1" },
-      argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi"],
-    })).toEqual({ kind: "mcp-stdio", reason: "env" });
-  });
-
-  it("后台桌面冷启（NOMI_LAUNCH_BACKGROUND=1 或 --nomi-background-launch）向单实例锁透传 background 身份", () => {
-    const envMode = classifyProcessLaunch({
-      env: { NOMI_LAUNCH_BACKGROUND: "1" },
-      argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi"],
-    });
-    expect(envMode).toEqual({ kind: "background-desktop", reason: "env" });
-    expect(isBackgroundDesktopLaunch({ env: { NOMI_LAUNCH_BACKGROUND: "1" }, argv: [] })).toBe(true);
-    expect(singleInstanceLockData(envMode)).toEqual({ launchIntent: "background" });
-
-    const argMode = classifyProcessLaunch({
-      env: {},
-      argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi", BACKGROUND_LAUNCH_ARG],
-    });
-    expect(argMode).toEqual({ kind: "background-desktop", reason: "flag" });
-    expect(singleInstanceLockData(argMode)).toEqual({ launchIntent: "background" });
-  });
-
-  it("正对照：用户普通启动桌面应用归为 interactive-desktop，不附加后台载荷", () => {
-    const mode = classifyProcessLaunch({
-      env: {},
-      argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi"],
-    });
-    expect(mode).toEqual({ kind: "interactive-desktop" });
-    expect(isMcpStdioLaunch({ env: {}, argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi"] })).toBe(false);
-    expect(isBackgroundDesktopLaunch({ env: {}, argv: ["/Applications/Nomi.app/Contents/MacOS/Nomi"] })).toBe(false);
-    expect(singleInstanceLockData(mode)).toBeUndefined();
+describe("desktopLaunchIntent · 启动模式分流矩阵（#1629）", () => {
+  it.each(LAUNCH_INTENT_MATRIX)("$label", ({ env, argv, expected, expectedMcpStdio, expectedBackground, expectedLockData }) => {
+    const mode = classifyProcessLaunch({ env, argv });
+    expect(mode).toEqual(expected);
+    expect(isMcpStdioLaunch({ env, argv })).toBe(expectedMcpStdio);
+    expect(isBackgroundDesktopLaunch({ env, argv })).toBe(expectedBackground);
+    expect(singleInstanceLockData(mode)).toEqual(expectedLockData);
   });
 });
 
-describe("desktopLaunchIntent · second-instance 叫回判据", () => {
-  it("MCP 入口脚本、--mcp-stdio、Nomi Helper 可执行文件、后台冷启参数与 additionalData 均禁止抢焦点", () => {
-    expect(classifySecondInstance([
-      "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
-      "/Applications/Nomi.app/Contents/Resources/app.asar/dist-electron/capabilityCore/mcpNodeLauncher.js",
-    ])).toEqual({ shouldRevealWindow: false, deepLink: null, reason: "mcp-launcher-script" });
-
-    expect(classifySecondInstance([
-      "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
-      "/Applications/Nomi.app/Contents/Resources/app.asar/dist-electron/capabilityCore/mcpHttpForwarder.js",
-    ])).toEqual({ shouldRevealWindow: false, deepLink: null, reason: "mcp-launcher-script" });
-
-    expect(classifySecondInstance(["/Applications/Nomi.app/Contents/MacOS/Nomi", MCP_STDIO_ARG]))
-      .toEqual({ shouldRevealWindow: false, deepLink: null, reason: "mcp-stdio-arg" });
-
-    expect(classifySecondInstance(["/Applications/Nomi.app/Contents/MacOS/Nomi", BACKGROUND_LAUNCH_ARG]))
-      .toEqual({ shouldRevealWindow: false, deepLink: null, reason: "background-arg" });
-
-    expect(classifySecondInstance(["/Applications/Nomi.app/Contents/MacOS/Nomi"], { launchIntent: "background" }))
-      .toEqual({ shouldRevealWindow: false, deepLink: null, reason: "background-additional-data" });
-
-    // 即使宿主把 env 和 args 全剥了，直接拉起 Nomi Helper 也绝不是用户点击 Nomi.app。
-    expect(classifySecondInstance([
-      "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
-    ])).toEqual({ shouldRevealWindow: false, deepLink: null, reason: "helper-executable" });
-  });
-
-  it("正对照：用户显式再次打开 Nomi 或点击 nomi:// 深链必须叫回主窗", () => {
-    expect(classifySecondInstance([])).toEqual({ shouldRevealWindow: true, deepLink: null, reason: "interactive" });
-    expect(classifySecondInstance(["/Applications/Nomi.app/Contents/MacOS/Nomi"]))
-      .toEqual({ shouldRevealWindow: true, deepLink: null, reason: "interactive" });
-    expect(classifySecondInstance(["C:\\Program Files\\Nomi\\Nomi.exe", "--allow-file-access-from-files"]))
-      .toEqual({ shouldRevealWindow: true, deepLink: null, reason: "interactive" });
-    expect(classifySecondInstance(["/Applications/Nomi.app/Contents/MacOS/Nomi", "nomi://project/p1"]))
-      .toEqual({ shouldRevealWindow: true, deepLink: "nomi://project/p1", reason: "deep-link" });
+describe("desktopLaunchIntent · second-instance 叫回判据矩阵（#1629）", () => {
+  it.each(SECOND_INSTANCE_MATRIX)("$label", ({ commandLine, additionalData, expected }) => {
+    expect(classifySecondInstance(commandLine, additionalData)).toEqual(expected);
   });
 });
