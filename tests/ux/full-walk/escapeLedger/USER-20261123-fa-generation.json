@@ -11,8 +11,11 @@
     "One deterministic pre-send rejection settles once with its classified cause."
   ],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "completionCommits": [],
+  "status": "reviewed",
+  "completionCommits": [
+    "0b54db7dd",
+    "e1fdcc352"
+  ],
   "evidence": [
     "docs/engineering/direction-checks/2026-11-23-fa-generation.md"
   ],
@@ -20,5 +23,6 @@
   "classCheck": {
     "kind": "matrix",
     "file": "electron/catalog/referenceLinkDelivery.matrix.test.ts"
-  }
+  },
+  "manualReview": "reviewed"
 }
