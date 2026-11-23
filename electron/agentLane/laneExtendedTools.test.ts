@@ -312,3 +312,123 @@ describe('工具结果末行里的引用名 = 模型下一步真能填的字段�
     for (const name of LANE_TOOL_NEXT_ACTION_REFS) expect([...everyVerbField]).toContain(name)
   })
 })
+
+describe('draft_shots 回执首行写实际落成状态（复用 effectiveModeParams + modeForInputs）', () => {
+  const signal = new AbortController().signal
+  const runDraft = async (result: unknown, args: Record<string, unknown> = { shots: [{ prompt: 'a' }] }) => {
+    const tool = createExtendedLaneTools({ execute: async () => ({ ok: true, result }) })
+      .find(candidate => candidate.name === 'draft_shots')!
+    return tool.execute(tool.schema.parse(args), { toolCallId: 'call-1', signal, approvalDecision: 'auto-granted' }) as Promise<{
+      ok: boolean; text?: string; nextAction?: LaneToolNextAction
+    }>
+  }
+
+  it('P06 正例 3：首行置顶暴露档案默认生效的 generate_audio: true 与 references=0；改成 false 后回执同步翻成 false', async () => {
+    const baseShot = {
+      shotId: 'shot-1',
+      title: 'Coastal highway',
+      candidate: {
+        candidateId: 'cand-shot-1', revision: 1, moduleId: 'generation.single-shot',
+        providerId: 'apimart', modelId: 'doubao-seedance-2.0', variantId: 'fast',
+        mode: 'text_to_video', modeId: 't2v',
+        prompt: 'A sleek sports car racing along a coastal highway at dusk',
+        parameters: { resolution: '720p' },
+        references: [],
+      },
+    }
+    const first = await runDraft({
+      operation: { operationId: 'op-p06', state: 'draft', candidate: baseShot.candidate, shots: [baseShot] },
+      canvasLanding: { state: 'placed', shotCount: 1, nodes: [{ shotId: 'shot-1', nodeId: 'node-1' }] },
+    })
+    const firstLines = (first.text ?? '').split('\n')
+    expect(firstLines[0]).toMatch(/^Landed draft summary/)
+    expect(firstLines[1]).toContain('node-1')
+    expect(firstLines[1]).toContain('doubao-seedance-2.0@apimart')
+    expect(firstLines[1]).toContain('effectiveMode=t2v')
+    expect(firstLines[1]).toContain('references=0')
+    expect(firstLines[1]).toMatch(/explicitParams=\{[^}]*resolution:\s*"720p"/)
+    expect(firstLines[1]).toMatch(/defaultedParams=\{[^}]*generate_audio:\s*true/)
+
+    // 修订为 generate_audio: false 后，回执首行同步变真
+    const revisedShot = { ...baseShot, candidate: { ...baseShot.candidate, revision: 2, parameters: { resolution: '720p', generate_audio: false } } }
+    const second = await runDraft({
+      operation: { operationId: 'op-p06', state: 'draft', candidate: revisedShot.candidate, shots: [revisedShot] },
+      canvasLanding: { state: 'placed', shotCount: 1, nodes: [{ shotId: 'shot-1', nodeId: 'node-1' }] },
+    })
+    const secondLine = (second.text ?? '').split('\n')[1] ?? ''
+    expect(secondLine).toMatch(/explicitParams=\{[^}]*generate_audio:\s*false/)
+    expect(secondLine).not.toMatch(/defaultedParams=\{[^}]*generate_audio:\s*true/)
+  })
+
+  it('P21 带 2 张图：首行写出 effectiveMode=firstlast、references=2 与槽位落点', async () => {
+    const shot = {
+      shotId: 'shot-1',
+      title: '便利店到小林',
+      candidate: {
+        candidateId: 'cand-shot-1', revision: 1, moduleId: 'generation.single-shot',
+        providerId: 'apimart', modelId: 'doubao-seedance-2.0', variantId: 'fast',
+        mode: 'image_to_video', modeId: 'firstlast',
+        prompt: '推进镜头',
+        parameters: { duration: 5 },
+        references: [
+          { assetId: 'asset-store', contentHash: 'a'.repeat(64), version: 1, kind: 'image' },
+          { assetId: 'asset-xiaolin', contentHash: 'b'.repeat(64), version: 1, kind: 'image' },
+        ],
+      },
+    }
+    const outcome = await runDraft({
+      operation: { operationId: 'op-p21', state: 'draft', candidate: shot.candidate, shots: [shot] },
+      canvasLanding: { state: 'placed', shotCount: 1, nodes: [{ shotId: 'shot-1', nodeId: 'node-1' }] },
+    })
+    const summaryLine = (outcome.text ?? '').split('\n')[1] ?? ''
+    expect(summaryLine).toContain('effectiveMode=firstlast')
+    expect(summaryLine).toContain('references=2')
+    expect(summaryLine).toContain('first_frame:1')
+    expect(summaryLine).toContain('last_frame:1')
+  })
+
+  it('场景 4（纯图生空卡）：首行醒目标出 NEEDS_INPUT 与缺失的必填槽', async () => {
+    const shot = {
+      shotId: 'shot-1',
+      title: '纯图生占位',
+      candidate: {
+        candidateId: 'cand-shot-1', revision: 1, moduleId: 'generation.single-shot',
+        providerId: 'runway', modelId: 'gen4_turbo',
+        mode: 'image_to_video',
+        prompt: '图待会儿拖',
+        parameters: {},
+        references: [],
+      },
+    }
+    const outcome = await runDraft({
+      operation: { operationId: 'op-s4', state: 'draft', candidate: shot.candidate, shots: [shot] },
+      canvasLanding: { state: 'not_placed', reason: 'project_closed' },
+    })
+    const [heading, summaryLine = ''] = (outcome.text ?? '').split('\n')
+    expect(heading).toMatch(/^Saved draft summary/)
+    expect(summaryLine).toContain('NEEDS_INPUT')
+    expect(summaryLine).toContain('首帧')
+    expect(summaryLine).toContain('image_ref')
+  })
+
+  it('场景 7（无音频开关的图像模型）：不凭空印出 generate_audio', async () => {
+    const shot = {
+      shotId: 'shot-1',
+      candidate: {
+        candidateId: 'cand-shot-1', revision: 1, moduleId: 'generation.single-shot',
+        providerId: 'apimart', modelId: 'gpt-image-2',
+        mode: 'text_to_image', modeId: 't2i',
+        prompt: 'A quiet cafe',
+        parameters: {},
+        references: [],
+      },
+    }
+    const outcome = await runDraft({
+      operation: { operationId: 'op-s7', state: 'draft', candidate: shot.candidate, shots: [shot] },
+    })
+    const [heading, summaryLine = ''] = (outcome.text ?? '').split('\n')
+    expect(heading).toMatch(/^Saved draft summary/)
+    expect(summaryLine).toContain('effectiveMode=t2i')
+    expect(summaryLine).not.toContain('generate_audio')
+  })
+})

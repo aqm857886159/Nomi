@@ -52,7 +52,8 @@ export type ParameterRejectionCode =
   | "parameter_not_in_enum"
   | "parameter_out_of_range"
   | "missing_required_parameter"
-  | "unknown_variant";
+  | "unknown_variant"
+  | "mode_input_missing";
 
 export type ParameterRejection = {
   code: ParameterRejectionCode;

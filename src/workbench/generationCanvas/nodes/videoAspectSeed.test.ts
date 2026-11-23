@@ -3,11 +3,13 @@
 import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { DynamicModelControl } from './controls/parameterControlModel'
-import { videoAspectSeedPatch } from './videoAspectSeed'
+import { ASPECT_EXPLICIT_META_KEY } from './aspectExplicit'
+import { applyVideoAspectSeed, videoAspectSeedPatch } from './videoAspectSeed'
 
-const ratioControl = (values: string[]): DynamicModelControl => ({
+const ratioControl = (values: string[], defaultValue?: string): DynamicModelControl => ({
   key: 'aspect_ratio', label: '比例', binding: 'parameter',
   type: 'select', options: values.map((value) => ({ value, label: value })),
+  ...(defaultValue !== undefined ? { defaultValue } : {}),
 }) as unknown as DynamicModelControl
 
 const portrait: GenerationCanvasNode = { id: 'img', title: 'img', kind: 'image', categoryId: 'shots', position: { x: 0, y: 0 }, meta: { aspect_ratio: '9:16' } }
@@ -23,5 +25,51 @@ describe('videoAspectSeedPatch：「已经是首选」只看优先级最高、�
 
   it('aspect_ratio 已是 720:1280（约分后就是 9:16）→ 不重铺', () => {
     expect(seed({ aspect_ratio: '720:1280' }, ['1280:720', '720:1280'])).toEqual({})
+  })
+})
+
+describe('videoAspectSeedPatch：视频编辑方式默认跟随原视频（auto），参考/文生维持 16:9/9:16', () => {
+  const editControl = ratioControl(['auto', '16:9', '9:16', '1:1', '21:9'], 'auto')
+  const videoSrc: GenerationCanvasNode = { id: 'vid', title: 'vid', kind: 'asset', categoryId: 'assets', position: { x: 0, y: 0 }, meta: { aspect_ratio: '1:1' } }
+  const videoEdges: GenerationCanvasEdge[] = [{ id: 'e-vid', source: 'vid', target: 'shot', mode: 'reference' }]
+
+  it('视频编辑方式 + 未手动选比例（机器写过 16:9）→ 清掉机器 16:9，让位给档案默认 auto', () => {
+    const meta = { aspect_ratio: '16:9' }
+    const patch = videoAspectSeedPatch({
+      nodeId: 'shot', nodes: [videoSrc, shot(meta)], edges: videoEdges,
+      controls: [editControl], meta, mode: { intent: 'edit' }, respectExplicit: true,
+    })
+    expect(patch).toEqual({ aspect_ratio: undefined })
+    expect(applyVideoAspectSeed(meta, patch)).toEqual({})
+  })
+
+  it('视频编辑方式 + 已经未设或已是 auto → 幂等空 patch，不写盘', () => {
+    for (const meta of [{}, { aspect_ratio: 'auto' }]) {
+      expect(videoAspectSeedPatch({
+        nodeId: 'shot', nodes: [videoSrc, shot(meta)], edges: videoEdges,
+        controls: [editControl], meta, mode: { intent: 'edit' }, respectExplicit: true,
+      })).toEqual({})
+    }
+  })
+
+  it('反例：用户明确选过 16:9 或 9:16 → 切编辑方式 / 连线都不覆盖', () => {
+    for (const chosen of ['16:9', '9:16']) {
+      const meta = { aspect_ratio: chosen, [ASPECT_EXPLICIT_META_KEY]: true }
+      expect(videoAspectSeedPatch({
+        nodeId: 'shot', nodes: [videoSrc, shot(meta)], edges: videoEdges,
+        controls: [editControl], meta, mode: { intent: 'edit' }, respectExplicit: true,
+      })).toEqual({})
+    }
+  })
+
+  it('反例：参考方式（intent=character，哪怕控件默认也是 auto）仍按 07-17 规则落 16:9 / 9:16', () => {
+    expect(videoAspectSeedPatch({
+      nodeId: 'shot', nodes: [videoSrc, shot({})], edges: videoEdges,
+      controls: [editControl], meta: {}, mode: { intent: 'character' }, respectExplicit: true,
+    })).toEqual({ aspect_ratio: '16:9' })
+    expect(videoAspectSeedPatch({
+      nodeId: 'shot', nodes: [portrait, shot({})], edges,
+      controls: [editControl], meta: {}, mode: { intent: 'character' }, respectExplicit: true,
+    })).toEqual({ aspect_ratio: '9:16' })
   })
 })

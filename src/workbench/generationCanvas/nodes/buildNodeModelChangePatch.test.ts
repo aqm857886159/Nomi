@@ -175,5 +175,39 @@ describe('buildNodeModelChangePatch', () => {
       const result = swapTo('minimax-h3-regeneration', { firstFrameUrl: 'a', lastFrameUrl: 'b' })
       expect(result.meta.referenceImageUrls).toEqual(['a', 'b'])
     })
+
+    it('从带视频编辑偏好的模型换到可灵 4.0 Flash：沿用编辑方式且不把比例硬铺成 16:9', () => {
+      const sourceVideo: GenerationCanvasNode = {
+        ...createGenerationNode({ id: 'src-vid', kind: 'asset' }),
+        meta: { aspect_ratio: '1:1' },
+        result: { id: 'src-vid-res', type: 'video', url: 'https://example.com/src.mp4', createdAt: 1 },
+      }
+      const node: GenerationCanvasNode = {
+        ...createGenerationNode({ id: 'v-edit', kind: 'video' }),
+        meta: {
+          modelKey: 'doubao-seedance-2.5',
+          modelVendor: 'apimart',
+          vendor: 'apimart',
+          archetype: { id: 'seedance-2.5-apimart', modeId: 'edit', modeChosenBy: 'human' },
+        },
+      }
+      const edge: GenerationCanvasEdge = { id: 'e-v', source: sourceVideo.id, target: node.id, mode: 'reference' }
+      const fromOption = option({ value: 'doubao-seedance-2.5', modelKey: 'doubao-seedance-2.5', vendor: 'apimart', label: 'Seedance 2.5' })
+      const kling = option({
+        value: 'kling-v4-flash', modelKey: 'kling-v4-flash', vendor: 'apimart', label: '可灵 4.0 Flash',
+        meta: {
+          parameterControls: [{
+            key: 'aspect_ratio', label: '比例', type: 'select',
+            options: ['16:9', '9:16', '1:1', '21:9'].map((v) => ({ value: v, label: v })),
+            defaultValue: '16:9',
+          }],
+        },
+      })
+      const patch = buildNodeModelChangePatch({
+        node, nodes: [sourceVideo, node], edges: [edge], modelOptions: [fromOption, kling], value: 'kling-v4-flash', vendor: 'apimart',
+      })
+      expect(sendModeAfter(node, patch.meta, [sourceVideo, node], [edge]).id).toBe('edit')
+      expect(patch.meta.aspect_ratio).toBeUndefined()
+    })
   })
 })
