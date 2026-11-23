@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { writeJsonFileAtomic } from "../jsonFile";
+import { renameSyncOnce, writeJsonFileAtomic } from "../jsonFile";
 import { fsyncDirectoryIfDurable } from "../durability";
 import { logInfo, logWarn } from "../logging/logger";
 import type { ProjectBinding } from "../shared/projectBinding";
@@ -315,7 +315,7 @@ export function createProjectAgentProposalReceiptStore(projectRoot: string, expe
     let suffix = 1;
     while (fs.existsSync(destination)) destination = `${target}.quarantined-${stamp}-${suffix++}`;
     try {
-      fs.renameSync(target, destination);
+      renameSyncOnce(target, destination);
       fsyncReceiptDirectory(projectRoot);
       logWarn("agent", "project-agent-receipt-quarantined", {
         reason,

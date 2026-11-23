@@ -180,6 +180,20 @@ describe("resident semantic generation transport", () => {
       expect(requestGenerationGate).not.toHaveBeenCalled();
       expect(markPolicyDecisionFailed).not.toHaveBeenCalled();
     });
+    it("editing a previously presented draft never queues another policy handover", async () => {
+      const readRun = vi.fn(() => run([], ["s1", "s2"]));
+      const { adapter, handOverToCanvas } = make(readRun, "direct", { accepted: ["s1", "s2"], pending: [], failed: [] });
+      const signal = new AbortController().signal;
+      const result = await adapter.tryExecute(call("nomi_generation_plan", {
+        operation: "patch", operationId: "op-1", shotId: "s1", patch: { prompt: "Revised preview" },
+      }), signal);
+      expect(result).toEqual({ ok: true, result: { operation: { operationId: "op-1" } }, silent: false });
+      expect(handOverToCanvas.handOver).not.toHaveBeenCalled();
+      expect(readRun).not.toHaveBeenCalled();
+      await expect(adapter.tryExecute(call("nomi_generation_plan", { operation: "present", operationId: "op-1" }), signal))
+        .resolves.toMatchObject({ ok: true, result: { spendDecision: { decidedBy: "policy:full_auto" } } });
+      expect(handOverToCanvas.handOver).toHaveBeenCalledTimes(1);
+    });
     it("交出去有一镜没交到：不报「已开始」，草稿结果照常返回（账本已把出价退回给人，回合等卡）", async () => {
       const { adapter, markPolicyDecisionFailed, handOverToCanvas } = make(() => run([], ["s1", "s2"]), "direct", { accepted: ["s1"], pending: [], failed: ["s2"] });
       const result = await create(adapter);

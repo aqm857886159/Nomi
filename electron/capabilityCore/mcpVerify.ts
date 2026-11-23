@@ -8,9 +8,8 @@
 // 三者在 UI 上都长成「已接入」，用户在助手里发消息却石沉大海。故验证只认**读回来的那条命令**
 // （configuredMcpEntry），不认「我们现在会写什么」。
 //
-// 纯 stdio + JSON-RPC，不引 MCP SDK（server 侧本就是手写协议，见 mcpProtocol.ts）。
+// 与 mcpVerifyHttp.ts 共用官方 @modelcontextprotocol/client（Client + StdioClientTransport），按需加载不进冷启动路径。
 import { MCP_VERIFY_PROBE_NAME } from './mcpHttpEndpoint'
-import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
@@ -44,17 +43,33 @@ export type McpVerifyResult = {
 }
 
 const HANDSHAKE_TIMEOUT_MS = 15_000
-const PROBE_PROTOCOL_VERSION = '2025-06-18'
+
+const SPAWN_ERRNO_CODES = new Set(['ENOENT', 'EACCES', 'EPERM', 'EISDIR', 'ENOTDIR', 'E2BIG'])
 
 function fail(reason: McpVerifyReason, stale: boolean, detail = ''): McpVerifyResult {
   return { ok: false, reason, latencyMs: null, toolCount: null, stale, detail: detail.slice(0, 400) }
+}
+
+function buildSpawnEnv(entryEnv?: Record<string, string>): Record<string, string> {
+  const merged: Record<string, string> = {}
+  for (const [key, value] of Object.entries({ ...process.env, ...(entryEnv || {}) })) {
+    if (value !== undefined) merged[key] = value
+  }
+  return merged
+}
+
+function isSpawnError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const err = error as NodeJS.ErrnoException
+  if (typeof err.syscall === 'string' && err.syscall.startsWith('spawn')) return true
+  return typeof err.code === 'string' && SPAWN_ERRNO_CODES.has(err.code)
 }
 
 /**
  * 真起一次配置里那条 MCP server 并握手。**只读、无副作用**：不写任何配置，子进程握完即杀。
  * 用户点开接入面板就跑（打包版实测 ~0.5s），失败时 UI 直接给「配置已失效 · 重新接入」。
  */
-export async function verifyMcp(client?: string): Promise<McpVerifyResult> {
+export async function verifyMcp(client?: string, options?: { timeoutMs?: number }): Promise<McpVerifyResult> {
   // 不传 = Claude Code（老 preload 默认）；传了但不认识 = 没这个客户端，如实报 not-installed，
   // 不回落成 claude（回落会验错对象：看起来「没接入」，其实验的是别人）。内置名单读注册表。
   const key: McpClientKey | null = client === undefined || client === ''
@@ -119,103 +134,51 @@ export async function verifyMcp(client?: string): Promise<McpVerifyResult> {
   // 但**只对看起来像路径的 command 这么判**：配置里也可能是裸命令名（node / npx / uvx…，靠 PATH 解析），
   // 对它 existsSync 恒 false → 会把每一份走 PATH 的配置都误报成「程序不在了」。
   // （真机走查实测抓到：用户的 Claude Code 配置正是 command:"node"，被误判成失效——单测全用绝对路径，
-  //  五门全绿也照样放过去了。）裸命令名交给 spawn 去试，真找不到会走 error→spawn-failed。
-  return await new Promise<McpVerifyResult>((resolve) => {
-    const started = Date.now()
-    let settled = false
-    let stdout = ''
-    let stderr = ''
-    let child: ReturnType<typeof spawn>
-
-    const done = (result: McpVerifyResult): void => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      try {
-        child?.kill()
-      } catch {
-        // 子进程可能已自行退出，杀不到无所谓。
-      }
-      resolve(result)
-    }
-    const timer = setTimeout(() => done(fail('timeout', stale, stderr)), HANDSHAKE_TIMEOUT_MS)
-
-    try {
-      child = spawn(entry.command, entry.args, {
-        env: { ...process.env, ...(entry.env || {}) },
-        stdio: ['pipe', 'pipe', 'pipe'],
-      })
-    } catch (error) {
-      done(fail('spawn-failed', stale, error instanceof Error ? error.message : String(error)))
-      return
-    }
-
-    const send = (message: unknown): void => {
-      try {
-        child.stdin?.write(`${JSON.stringify(message)}\n`)
-      } catch {
-        done(fail('spawn-failed', stale, stderr))
-      }
-    }
-
-    child.stderr?.on('data', (chunk) => {
-      stderr += String(chunk)
-    })
-    // send() 的 try/catch 只接得住同步抛错。小包写平时走同步快路（对端刚死也静默成功），但并行
-    // 负载下写入会落进 libuv 异步队列——完成时子进程若已被收尸，EPIPE 在 stdin 流上**异步**
-    // emit 'error'：没挂监听就升级成进程级 unhandled（真机=主进程 uncaughtException；CI=测试
-    // 全过仍 exit 1，2026-08-25 现场，复现钉在 mcpVerify.stdinError.test.ts）。真实故障由下面
-    // 'error'（spawn-failed）/'exit'（handshake-failed）如实上报，这里只消掉流级回声、不改判定。
-    child.stdin?.on('error', () => { /* 见上：判定权在 child 的 error/exit */ })
-    child.on('error', (error) => done(fail('spawn-failed', stale, error.message)))
-    // 没握完手就退出 = 起不来（老配置指向的脚本报错、二进制被系统拦掉等）。
-    child.on('exit', (code, signal) => done(fail('handshake-failed', stale, `exit=${code} signal=${signal} ${stderr}`)))
-
-    child.stdout?.on('data', (chunk) => {
-      stdout += String(chunk)
-      const lines = stdout.split('\n')
-      stdout = lines.pop() ?? ''
-      for (const line of lines) {
-        if (!line.trim()) continue
-        let message: { id?: unknown; result?: Record<string, unknown>; error?: { message?: string } }
-        try {
-          message = JSON.parse(line)
-        } catch {
-          continue // server 可能往 stdout 漏非 JSON 噪声，跳过而不是判失败。
-        }
-        if (message.error) {
-          done(fail('handshake-failed', stale, message.error.message || ''))
-          return
-        }
-        if (message.id === 1) {
-          if (!message.result?.serverInfo) {
-            done(fail('handshake-failed', stale, JSON.stringify(message.result).slice(0, 200)))
-            return
-          }
-          send({ jsonrpc: '2.0', method: 'notifications/initialized' })
-          send({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })
-        } else if (message.id === 2) {
-          const tools = message.result?.tools
-          done({
-            ok: true,
-            reason: 'ok',
-            latencyMs: Date.now() - started,
-            toolCount: Array.isArray(tools) ? tools.length : null,
-            stale,
-            detail: '',
-          })
-          return
-        }
-      }
-    })
-
-    send({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: { protocolVersion: PROBE_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: MCP_VERIFY_PROBE_NAME, version: '1.0' } },
-    })
+  //  五门全绿也照样放过去了。）裸命令名交给 StdioClientTransport 去试，真找不到会走 ENOENT → spawn-failed。
+  const timeoutMs = options?.timeoutMs ?? HANDSHAKE_TIMEOUT_MS
+  const started = Date.now()
+  let stderr = ''
+  const [{ Client, SdkError, SdkErrorCode }, { StdioClientTransport }] = await Promise.all([
+    import('@modelcontextprotocol/client'),
+    import('@modelcontextprotocol/client/stdio'),
+  ])
+  const transport = new StdioClientTransport({
+    command: entry.command,
+    args: entry.args,
+    env: buildSpawnEnv(entry.env),
+    stderr: 'pipe',
   })
+  transport.stderr?.on('data', (chunk: Buffer | string) => {
+    if (stderr.length < 1024) stderr += String(chunk)
+  })
+  const probe = new Client({ name: MCP_VERIFY_PROBE_NAME, version: '1.0' })
+  // StdioClientTransport 把 stdin 异步 EPIPE 与 stdout 非 JSON 噪声经 onerror 转交客户端；
+  // 这里静默接住防止升级为未捕获异常，真实握手故障由 connect / listTools 抛出并分类（见 mcpVerify.stdinError.test.ts）。
+  probe.onerror = () => {}
+  try {
+    await probe.connect(transport, { timeout: timeoutMs })
+    const remainingMs = Math.max(1, timeoutMs - (Date.now() - started))
+    const tools = await probe.listTools(undefined, { timeout: remainingMs })
+    return {
+      ok: true,
+      reason: 'ok',
+      latencyMs: Date.now() - started,
+      toolCount: Array.isArray(tools.tools) ? tools.tools.length : null,
+      stale,
+      detail: '',
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (error instanceof SdkError && error.code === SdkErrorCode.RequestTimeout) {
+      return fail('timeout', stale, stderr || message)
+    }
+    if (isSpawnError(error)) {
+      return fail('spawn-failed', stale, message)
+    }
+    return fail('handshake-failed', stale, stderr ? `${message} ${stderr}`.trim() : message)
+  } finally {
+    try { await probe.close() } catch { /* 子进程可能已自行退出，关不掉不影响结论 */ }
+  }
 }
 
 export type { McpClientKey }

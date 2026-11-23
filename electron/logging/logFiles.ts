@@ -16,6 +16,7 @@
 import { app } from "electron";
 import fs from "node:fs";
 import path from "node:path";
+import { renameSyncOnce } from "../jsonFile";
 
 /** 通用道单个日志文件的上限。超过就改名留一代，见 `archivePathFor`。 */
 export const DAILY_LOG_MAX_BYTES = 4 * 1024 * 1024;
@@ -113,7 +114,7 @@ export function createLogFileSink(options: LogFileSinkOptions): LogFileSink {
 
         try {
           if (fs.statSync(target).size > options.maxBytes) {
-            if (options.rotate === "archive") fs.renameSync(target, archivePathFor(target));
+            if (options.rotate === "archive") renameSyncOnce(target, archivePathFor(target));
             else fs.writeFileSync(target, "");
             needsHeader = true;
           }

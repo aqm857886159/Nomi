@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { createExportTempDir, createSafeOutputPaths } from "./exportPaths";
-import { delaysFromTable, retryOnSharingViolationAsync, SHARING_RETRY_LONG_DELAYS_MS } from "../sharingRetry";
+import { renameWithRetry } from "../jsonFile";
+import { delaysFromTable, SHARING_RETRY_LONG_DELAYS_MS } from "../sharingRetry";
 import { ensureExecutable } from "./ensureExecutable";
 import { asarUnpackedPath } from "../shared/asarUnpackedPath";
 import { buildWebmToMp4Args } from "./ffmpegCommandBuilder";
@@ -296,7 +297,7 @@ async function runFfmpegMp4Export(params: RunFfmpegMp4ExportParams): Promise<Tim
     const stat = fs.statSync(partialOutputPath);
     if (stat.size <= 0) throw new Error(desktopT("export.mp4Empty"));
     // Windows：旧导出 MP4 被播放器/资源管理器预览持有会 EPERM，共享重试收口（P2）。
-    await retryOnSharingViolationAsync(() => fs.promises.rename(partialOutputPath, outputPath), { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
+    await renameWithRetry(partialOutputPath, outputPath, { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
     const finalStat = fs.statSync(outputPath);
     return {
       absolutePath: outputPath,

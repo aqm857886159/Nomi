@@ -29,7 +29,6 @@ const REGISTRY: Record<string, Entry> = {
   "electron/catalog/codexCli.ts#child-process": CHILD_ASYNC,
   "electron/agentLane/laneCodingSandbox.mts#child-process": CHILD_ASYNC,
   "electron/capabilityCore/mcpNodeLauncher.ts#child-process": CHILD_ASYNC,
-  "electron/capabilityCore/mcpVerify.ts#child-process": CHILD_ASYNC,
   "electron/attentionSoundPlayer.ts#child-process": CHILD_ASYNC,
   "electron/export/ffmpegRunner.ts#child-process": CHILD_ASYNC,
   "electron/video/trimVideo.ts#child-process": { ...CHILD_ASYNC, reason: "视频节点直接剪辑：本机 ffmpeg 只读写本地文件、不联网，不在付费派发里" },

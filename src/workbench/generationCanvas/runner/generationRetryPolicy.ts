@@ -1,5 +1,7 @@
 // 生成提交的重试策略（哪些失败值得自动重试、重试几次、退避多久）。只管判定与等待，
 // 不碰节点状态——结局投递由 generationRunController / runProjectDelivery 负责。
+import { parseVendorErrorFromMessage } from '../../../../electron/shared/generationFailure'
+import { matchNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
 import { isGenerationPhaseStalledError } from './generationPhaseDeadline'
 import { isRecoverableTimeoutError } from './recoverableTimeout'
 
@@ -17,8 +19,11 @@ export function isRetryableGenerationError(error: unknown): boolean {
   //   （可能恰好含 timeout / Failed to fetch），按文案判会把一次已付费的任务再提交一遍；
   // - 阶段到期：我们自己决定不再等了（提交那一格到期时，钱可能已经花了）。
   if (isRecoverableTimeoutError(error) || isGenerationPhaseStalledError(error)) return false
-  if (error instanceof TypeError) return true
   if (!(error instanceof Error)) return false
+  // Main owns retry after a classified task outcome. Its diagnostic may describe
+  // a transient failure in a different operation, such as a reference upload.
+  if (matchNomiErrorCode(error.message) || parseVendorErrorFromMessage(error.message)) return false
+  if (error instanceof TypeError) return true
   const candidate = error as RetryableGenerationError
   if (typeof candidate.status === 'number') {
     return (
