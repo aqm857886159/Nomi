@@ -20,6 +20,7 @@
 import { everyBuiltInArchetype, resolveModelArchetype } from "./index";
 import type { ModelArchetype, ArchetypeMode, ArchetypeReferenceSlot } from "./types";
 import { loweringInputKey } from "../generationLowering/slotInputKeys";
+import { modeTransportFor } from "../videoCapabilities/modeTransport";
 
 export type ReferenceFamily = "image" | "video" | "audio";
 
@@ -156,13 +157,43 @@ const LIST_REFERENCE_KEYS: ReadonlySet<string> = new Set([
   "audio_urls", "audioUrls", "reference_audio_urls", "referenceAudioUrls", "audios", "mm_audios",
   "images", "input_images", "keyframe_images", "mf_images", "mm_images",
 ]);
-/** 明确表示「这一张是首帧 / 尾帧」的键。 */
-const FRAME_REFERENCE_KEYS: Readonly<Record<string, ReferenceFrameKind>> = {
+/** 明确表示「这一张是首帧 / 尾帧」的标准别名键；档案槽独占的首尾帧 inputKey 由下方从档案统一派生并入。 */
+const STATIC_FRAME_REFERENCE_KEYS: Readonly<Record<string, ReferenceFrameKind>> = {
   first_frame: "first_frame", first_frame_image: "first_frame", first_frame_url: "first_frame",
   firstFrameImage: "first_frame", firstFrameUrl: "first_frame",
   last_frame: "last_frame", last_frame_image: "last_frame", last_frame_url: "last_frame",
   lastFrameImage: "last_frame", lastFrameUrl: "last_frame",
 };
+
+const NON_FRAME_GENERIC_KEYS: ReadonlySet<string> = new Set(
+  [...translatedReferenceKeyDeclarations.map(({ key }) => key), ...Object.keys(apimartReferenceKeyDeclarations)]
+    .filter((key) => !(key in STATIC_FRAME_REFERENCE_KEYS)),
+);
+
+const FRAME_REFERENCE_KEYS: ReadonlyMap<string, ReferenceFrameKind> = (() => {
+  const frames = new Map<string, ReferenceFrameKind>(Object.entries(STATIC_FRAME_REFERENCE_KEYS));
+  const slotKindsByKey = new Map<string, Set<string>>();
+  for (const archetype of everyBuiltInArchetype()) {
+    for (const mode of archetype.modes) {
+      for (const slot of mode.slots) {
+        const key = slot.inputKey?.trim();
+        if (!key || NON_FRAME_GENERIC_KEYS.has(key) || ROLE_OBJECT_REFERENCE_KEYS.has(key) || CONTENT_ITEM_REFERENCE_KEYS.has(key)) continue;
+        let kinds = slotKindsByKey.get(key);
+        if (!kinds) {
+          kinds = new Set<string>();
+          slotKindsByKey.set(key, kinds);
+        }
+        kinds.add(slot.kind);
+      }
+    }
+  }
+  for (const [key, kinds] of slotKindsByKey) {
+    if (kinds.size !== 1 || frames.has(key)) continue;
+    const only = [...kinds][0];
+    if (only === "first_frame" || only === "last_frame") frames.set(key, only);
+  }
+  return frames;
+})();
 
 /** 一个参考键的值形状。`multiImage` 传这个键在当前模型上下文里的声明（容量声明可能按档案改写它）。 */
 export function referenceKeyShapeFor(key: string, multiImage = referenceKeyDeclarationFor(key)?.multiImage ?? false): ReferenceKeyShape {
@@ -175,7 +206,7 @@ export function referenceKeyShapeFor(key: string, multiImage = referenceKeyDecla
 
 /** 这个键是否声明为首帧 / 尾帧位；null = 不带帧意图。 */
 export function referenceFrameKindFor(key: string): ReferenceFrameKind | null {
-  return FRAME_REFERENCE_KEYS[key.trim()] ?? null;
+  return FRAME_REFERENCE_KEYS.get(key.trim()) ?? null;
 }
 
 const SLOT_REFERENCE_FAMILY: Readonly<Record<string, ReferenceFamily>> = {
@@ -272,8 +303,13 @@ function slotInputKey(slot: ArchetypeReferenceSlot): string {
   return loweringInputKey(slot).trim();
 }
 
-function modeMatchesTaskKind(mode: ArchetypeMode, taskKind: string | undefined): boolean {
-  return !taskKind || mode.transportTaskKind === taskKind;
+function modeMatchesTaskKind(
+  mode: ArchetypeMode,
+  archetype: ModelArchetype,
+  vendorKey: string | null | undefined,
+  taskKind: string | undefined,
+): boolean {
+  return !taskKind || modeTransportFor(mode, archetype, vendorKey ?? null) === taskKind;
 }
 
 function modelDeclarationForModeKey(mode: ArchetypeMode, key: string): ReferenceKeyCapacityDeclaration | null {
@@ -319,10 +355,31 @@ export function referenceKeyCapacityDeclarationFor(
   const archetype = archetypeForContext(context);
   if (archetype) {
     const selectedMode = archetype.modes.find((mode) => mode.id === context?.modeId);
-    for (const mode of selectedMode ? [selectedMode] : archetype.modes) {
-      if (!selectedMode && !modeMatchesTaskKind(mode, context?.taskKind)) continue;
-      const declaration = modelDeclarationForModeKey(mode, normalized);
+    if (selectedMode) {
+      const declaration = modelDeclarationForModeKey(selectedMode, normalized);
       if (declaration) return declaration;
+    } else {
+      const matched = archetype.modes
+        .filter((mode) => modeMatchesTaskKind(mode, archetype, context?.vendorKey, context?.taskKind))
+        .map((mode) => modelDeclarationForModeKey(mode, normalized))
+        .filter((declaration): declaration is ReferenceKeyCapacityDeclaration => Boolean(declaration));
+      const declarations = matched.length > 0
+        ? matched
+        : archetype.modes
+            .map((mode) => modelDeclarationForModeKey(mode, normalized))
+            .filter((declaration): declaration is ReferenceKeyCapacityDeclaration => Boolean(declaration));
+      if (declarations.length > 0) {
+        const family = declarations[0]!.family;
+        const max = declarations.every((declaration) => typeof declaration.max === "number")
+          ? Math.max(...declarations.map((declaration) => declaration.max!))
+          : undefined;
+        return {
+          family,
+          multiImage: declarations.some((declaration) => declaration.multiImage) || (max !== undefined && max > 1),
+          ...(max === undefined ? {} : { max }),
+          source: "model-declaration",
+        };
+      }
     }
     for (const candidate of archetype.headlessReferenceKeys ?? []) {
       if (candidate === normalized) {
