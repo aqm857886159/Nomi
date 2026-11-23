@@ -10,6 +10,7 @@ import {
   getBezierPath,
   useStore,
   type EdgeProps,
+  type InternalNode,
   type NodeProps,
 } from '@xyflow/react'
 import { useTranslation } from 'react-i18next'
@@ -32,7 +33,14 @@ import { handleMenuAnchor } from '../quickActions/connectionMenuModel'
 import { useCanvasPickNodeState } from '../store/canvasPickMode'
 import { readGroupPort } from '../model/groupPort'
 import { sameGenerationFlowNodeRender } from '../nodes/flowNodeRenderGate'
-import { resolveGenerationFlowConnectionAffordance, type GenerationFlowConnectionAffordance } from './generationCanvasReactFlowVisualContract'
+import {
+  MAGNETIC_HANDLE_MAX_HIT_WIDTH,
+  resolveGenerationFlowConnectionAffordance,
+  resolveMagneticHandleHitWidth,
+  type GenerationFlowConnectionAffordance,
+  type MagneticHandleNodeRect,
+} from './generationCanvasReactFlowVisualContract'
+import { measuredRectFromInternalNode } from './canvasMeasuredNodeRect'
 import { edgeLabelTransform, useCanvasLiveZoom } from './canvasViewportScale'
 import type { CanvasPluginNodeState } from '../plugins/canvasPluginTypes'
 
@@ -75,6 +83,39 @@ type GenerationFlowConnectionHandleProps = {
   label: string
 }
 
+function rectFromFlowInternalNode(internalNode: InternalNode<GenerationFlowNode> | undefined): MagneticHandleNodeRect | null {
+  if (!internalNode) return null
+  const measured = measuredRectFromInternalNode(internalNode)
+  if (measured) return { id: internalNode.id, ...measured }
+  const width = internalNode.width
+  const height = internalNode.height
+  const { x, y } = internalNode.internals.positionAbsolute
+  if (!width || !height || !Number.isFinite(width) || !Number.isFinite(height) || !Number.isFinite(x) || !Number.isFinite(y)) {
+    return null
+  }
+  return { id: internalNode.id, x, y, width, height }
+}
+
+function resolveMagneticHandleHitWidthFromLookup(
+  nodeLookup: Map<string, InternalNode>,
+  nodeId: string,
+  side: 'left' | 'right',
+): number {
+  const selfNode = nodeLookup.get(nodeId) as InternalNode<GenerationFlowNode> | undefined
+  const selfRect = rectFromFlowInternalNode(selfNode)
+  if (!selfRect) return MAGNETIC_HANDLE_MAX_HIT_WIDTH
+  const others: MagneticHandleNodeRect[] = []
+  for (const candidate of nodeLookup.values()) {
+    if (candidate.id === nodeId || candidate.hidden) continue
+    const flowNode = candidate as InternalNode<GenerationFlowNode>
+    const generationNode = flowNode.data?.generationNode
+    if (!generationNode || readGroupPort(generationNode)) continue
+    const rect = rectFromFlowInternalNode(flowNode)
+    if (rect) others.push(rect)
+  }
+  return resolveMagneticHandleHitWidth(selfRect, side, others)
+}
+
 function GenerationFlowConnectionHandle({
   nodeId,
   side,
@@ -87,6 +128,10 @@ function GenerationFlowConnectionHandle({
   const position = side === 'left' ? Position.Left : Position.Right
   const id = `${type}-${side}`
   const connecting = activeHandleId !== null
+  const magneticHitWidth = useStore((state) => {
+    if (type !== 'source' || affordance !== 'magnetic') return MAGNETIC_HANDLE_MAX_HIT_WIDTH
+    return resolveMagneticHandleHitWidthFromLookup(state.nodeLookup, nodeId, side)
+  })
   // 两件不同的事实，两个不同的属性。`data-active` =「有连线在进行、我是合法候选」——整段拖拽里
   // 每个候选都为真；`data-snapped` =「端点此刻就吸在我身上」——同一时刻只属于一个把手。
   // 它们曾共用 `data-active`，于是吸附不可观测：正向断言对任意候选都过（假绿），反向永远清不掉（真红）。
@@ -138,6 +183,8 @@ function GenerationFlowConnectionHandle({
           data-home-x={homeX}
           data-side={side}
           style={affordance === 'magnetic' ? {
+            width: `${magneticHitWidth}px`,
+            ...(magneticHitWidth === 0 ? { pointerEvents: 'none' } : {}),
             '--connection-handle-x': homeX,
             '--connection-handle-y': '50%',
           } as React.CSSProperties : undefined}
