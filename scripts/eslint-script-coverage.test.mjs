@@ -14,9 +14,9 @@ import { beforeAll, describe, expect, it } from 'vitest'
 
 import { CANVAS_SHELL_FILE } from './canvas-store-subscriptions.mjs'
 import { buildApproval } from './coord-approve.mjs'
-import { judgeLint, judgeSuppressionGrowth, judgeUnprunedSuppressions } from './lint-changed.mjs'
-import { ciApprovals, localApprovals, suppressionApprovalSubject } from './lib/coordApprovals.mjs'
-import { checkSuppressionContracts } from './pr-body-criteria.mjs'
+import { evaluateSuppressionGrowth, judgeLint, judgeSuppressionGrowth, judgeUnprunedSuppressions } from './lint-changed.mjs'
+import { checkSuppressionContracts, ciApprovals, localApprovals, pushApprovals, suppressionApprovalSubject } from './lib/coordApprovals.mjs'
+import { checkSuppressionContracts as reexportedCheckSuppressionContracts, evaluatePrBody } from './pr-body-criteria.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const NO_WAIT = 'isVisible / isHidden do not wait'
@@ -287,7 +287,7 @@ describe('批量抑制的判据（lint:changed / PR 正文判据 / coord-approve
   it('按文件 × 规则判：先减后增、规则总数不变也要确认；改名 / 搬家同样要确认', () => {
     const swapped = { 'scripts/a.mjs': { 'no-unused-vars': { count: 1 } }, 'scripts/new.mjs': { 'no-unused-vars': { count: 1 } }, 'tests/ux/b.mjs': { 'no-empty': { count: 1 } } }
     const [swap] = judgeSuppressionGrowth(frozen, swapped, approvalsWith([]))
-    expect(swap).toContain('scripts/new.mjs no-unused-vars：0 → 1')
+    expect(swap).toContain('scripts/new.mjs no-unused-vars 0→1')
     expect(suppressionApprovalSubject(frozen, swapped).grownEntries).toEqual([{ file: 'scripts/new.mjs', rule: 'no-unused-vars', base: 0, head: 1 }])
     const renamed = { 'scripts/renamed.mjs': { 'no-unused-vars': { count: 2 } }, 'tests/ux/b.mjs': { 'no-empty': { count: 1 } } }
     expect(judgeSuppressionGrowth(frozen, renamed, approvalsWith([]))).toHaveLength(1)
@@ -297,12 +297,74 @@ describe('批量抑制的判据（lint:changed / PR 正文判据 / coord-approve
     expect(judgeSuppressionGrowth(frozen, renamed, approvalsWith([swapRecord]))).toHaveLength(1)
   })
 
-  it('推送前：涨了又没有确认记录就红（记录文件没配置也红），并给出确认命令', () => {
-    const [grown] = judgeSuppressionGrowth(frozen, grownHead, approvalsWith([]))
-    expect(grown).toContain('scripts/c.mjs no-unused-vars：0 → 1')
-    expect(grown).toContain('node scripts/coord-approve.mjs --suppressions')
-    const [unconfigured] = judgeSuppressionGrowth({}, grownHead, localApprovals({ pr: null, env: {} }))
-    expect(unconfigured).toContain('NOMI_COORD_APPROVALS')
+  it('合并前扫描（local）与推送档（push）三态：取不到记录推送档警告放行而合并前判红；取得到但没签一律判红；签了对上哈希过', () => {
+    // 0) 唯一主人：pr-body-criteria 透出的与 coordApprovals 是同一个函数
+    expect(reexportedCheckSuppressionContracts).toBe(checkSuppressionContracts)
+
+    // 1) 推送档 · 取不到记录（未设环境变量 或 文件读不了 ENOENT）→ 警告并放行
+    const pushEnvMissing = pushApprovals({ pr: null, env: {} })
+    const vMissing = evaluateSuppressionGrowth(frozen, grownHead, pushEnvMissing)
+    expect(vMissing.ok).toBe(true)
+    expect(vMissing.lines.join('\n')).toContain('⚠')
+    expect(vMissing.lines.join('\n')).toContain('待协调确认（合并前扫描会核')
+    expect(judgeSuppressionGrowth(frozen, grownHead, pushEnvMissing)).toEqual([])
+
+    const pushUnreadable = pushApprovals({ pr: null, env: { NOMI_COORD_APPROVALS: '/no/such/file.jsonl' }, readFile: () => { throw new Error('ENOENT') } })
+    const vUnreadable = evaluateSuppressionGrowth(frozen, grownHead, pushUnreadable)
+    expect(vUnreadable.ok).toBe(true)
+    expect(vUnreadable.lines.join('\n')).toContain('⚠')
+    expect(vUnreadable.lines.join('\n')).toContain('待协调确认（合并前扫描会核')
+
+    // 2) 推送档 · 取得到记录但没签（空文件或只有别的哈希）→ 照旧判红
+    const pushUnsigned = pushApprovals({ pr: null, env: { NOMI_COORD_APPROVALS: 'x' }, readFile: () => '' })
+    const vUnsigned = evaluateSuppressionGrowth(frozen, grownHead, pushUnsigned)
+    expect(vUnsigned.ok).toBe(false)
+    expect(vUnsigned.lines.join('\n')).toContain('scripts/c.mjs no-unused-vars 0→1')
+    expect(vUnsigned.lines.join('\n')).toContain('node scripts/coord-approve.mjs --suppressions')
+
+    const pushWrongHash = pushApprovals({ pr: null, env: { NOMI_COORD_APPROVALS: 'x' }, readFile: () => JSON.stringify(record({ sha256: 'deadbeef' })) })
+    expect(evaluateSuppressionGrowth(frozen, grownHead, pushWrongHash).ok).toBe(false)
+
+    // 3) 推送档 · 取得到记录且签了对上哈希 → 通过；再多冻 1 处哈希对不上 → 重新判红
+    const pushSigned = pushApprovals({ pr: null, env: { NOMI_COORD_APPROVALS: 'x' }, readFile: () => JSON.stringify(record()) })
+    const vSigned = evaluateSuppressionGrowth(frozen, grownHead, pushSigned)
+    expect(vSigned.ok).toBe(true)
+    expect(vSigned.lines.join('\n')).toContain('协调已确认')
+    const more = { ...grownHead, 'scripts/d.mjs': { 'no-empty': { count: 1 } } }
+    expect(evaluateSuppressionGrowth(frozen, more, pushSigned).ok).toBe(false)
+
+    // 4) 合并前扫描（mode: 'local'）· 取不到记录 → 照旧判红（守住合并前最后防线）
+    const [unconfiguredLocal] = judgeSuppressionGrowth({}, grownHead, localApprovals({ pr: null, env: {} }))
+    expect(unconfiguredLocal).toContain('NOMI_COORD_APPROVALS')
+    const localMissing = checkSuppressionContracts({ strict: true, suppressions: grownHead, baseSuppressions: frozen, approvals: localApprovals({ pr: 42, env: {} }) })
+    expect(localMissing.ok).toBe(false)
+
+    // 5) lint-changed 与 evaluatePrBody(..., { stage: 'push' }) 共用同一份 checkSuppressionContracts，三态结论逐项一致
+    const shortCard = [
+      '## 短版设计卡',
+      '- ★1：修一个纯文档与门岗问题，真实任务与量具：本测试；老用户不适用。',
+      '- ★2：唯一主人归 coordApprovals.mjs；证据：door-map。',
+      '- ★3：复用现有 checkSuppressionContracts，不写第二份；证据：git grep。',
+      '- ★4：三态（缺记录警告 / 未签红 / 已签过）各一句；证据：vitest。',
+      '- ★9：反例先红后绿，回滚 revert 本提交；证据：vitest。',
+    ].join('\n')
+    for (const [label, appr, expectOk] of [
+      ['取不到记录', pushEnvMissing, true],
+      ['取得到没签', pushUnsigned, false],
+      ['签了哈希对上', pushSigned, true],
+    ]) {
+      const lc = evaluateSuppressionGrowth(frozen, grownHead, appr)
+      const bodyEval = evaluatePrBody({
+        body: shortCard,
+        files: [{ path: 'docs/a.md', status: 'M' }],
+        stage: 'push',
+        createdAt: '2026-10-28T00:00:00Z',
+        evidence: { suppressions: grownHead, baseSuppressions: frozen, suppressionApprovals: appr, approvals: ciApprovals },
+      })
+      expect(lc.ok, label).toBe(expectOk)
+      expect(!bodyEval.blocked, label).toBe(expectOk)
+      expect(bodyEval.lines.join('\n'), label).toContain(lc.lines[0])
+    }
   })
 
   it('推送前：哈希对上的确认放行；之后再多冻一处，哈希对不上，重新红', () => {

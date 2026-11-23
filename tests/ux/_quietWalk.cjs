@@ -26,17 +26,21 @@ function patchMethod(target, key, value) {
 }
 
 function keepOffscreen(win) {
-  if (ALLOW_FOREGROUND || !win || win.isDestroyed?.()) return
+  if (ALLOW_FOREGROUND || !win || win.isDestroyed?.()) return () => undefined
   try { win.setFocusable(false) } catch { /* destroyed during startup */ }
+  let parking = false
   const park = () => {
-    if (win.isDestroyed?.()) return
+    if (parking || win.isDestroyed?.()) return
+    parking = true
     try {
       const position = win.getPosition?.() ?? []
       if (position[0] !== OFFSCREEN[0] || position[1] !== OFFSCREEN[1]) win.setPosition(OFFSCREEN[0], OFFSCREEN[1])
     } catch { /* destroyed during teardown */ }
+    finally { parking = false }
   }
   park()
-  for (const event of ['show', 'moved', 'ready-to-show']) win.on?.(event, park)
+  for (const event of ['show', 'moved', 'resized', 'ready-to-show']) win.on?.(event, park)
+  return park
 }
 
 function patchWindow(win) {
@@ -46,6 +50,9 @@ function patchWindow(win) {
   const showInactive = native('showInactive')
   const setOpacity = native('setOpacity')
   const setIgnoreMouseEvents = native('setIgnoreMouseEvents')
+  const setContentSize = native('setContentSize')
+  const setSize = native('setSize')
+  const setBounds = native('setBounds')
   patchMethod(win, 'show', (...args) => { record('window.show', args); return showInactive(...args) })
   patchMethod(win, 'focus', (...args) => { record('window.focus', args); return undefined })
   patchMethod(win, 'moveTop', (...args) => { record('window.moveTop', args); return undefined })
@@ -54,7 +61,39 @@ function patchWindow(win) {
   patchMethod(win, 'setOpacity', (...args) => { record('window.setOpacity', args); return undefined })
   patchMethod(win, 'setIgnoreMouseEvents', (...args) => { record('window.setIgnoreMouseEvents', args); return undefined })
   try { setOpacity(0); setIgnoreMouseEvents(true) } catch { /* destroyed during startup */ }
-  keepOffscreen(win)
+  const park = keepOffscreen(win)
+  // macOS 上缩窄再扩宽（setContentSize / setSize）后窗口左缘会停在窄窗时的钳位位置（如 x=-660），
+  // 扩宽后右半边裸露进主屏，Playwright 截图时触发指针回扯打断悬停；setBounds / center 同理。
+  // 在静默走查共用层统一把改尺寸 / 重定位后的窗口重新停回屏外 OFFSCREEN，所有走查一次受益。
+  if (typeof win.setContentSize === 'function') {
+    patchMethod(win, 'setContentSize', (...args) => {
+      const result = setContentSize(...args)
+      park()
+      return result
+    })
+  }
+  if (typeof win.setSize === 'function') {
+    patchMethod(win, 'setSize', (...args) => {
+      const result = setSize(...args)
+      park()
+      return result
+    })
+  }
+  if (typeof win.setBounds === 'function') {
+    patchMethod(win, 'setBounds', (bounds, ...rest) => {
+      const next = bounds && typeof bounds === 'object' ? { ...bounds, x: OFFSCREEN[0], y: OFFSCREEN[1] } : bounds
+      const result = setBounds(next, ...rest)
+      park()
+      return result
+    })
+  }
+  if (typeof win.center === 'function') {
+    patchMethod(win, 'center', (...args) => {
+      record('window.center', args)
+      park()
+      return undefined
+    })
+  }
   return win
 }
 
