@@ -19,7 +19,6 @@ import {
   isGenerationPhaseStalledError,
 } from './generationPhaseDeadline'
 import { RecoverableTimeoutError, isRecoverableTimeoutError } from './recoverableTimeout'
-import { isRetryableGenerationError, normalizeBaseDelayMs, normalizeRetryAttempts } from './generationRetryPolicy'
 import { runCatalogGenerationTask } from './catalogTaskActions'
 import { runGenerationNodesBatch } from './generationRunController'
 import { useGenerationQueueStore } from './generationQueueStore'
@@ -95,10 +94,6 @@ describe('阶段时限表：每个非终态阶段都有出口，而且不比主�
     expect(GENERATION_PHASE_DEADLINE.requesting.onExpiry).toBe('fail-maybe-charged')
   })
 
-  it('重试间隔那一格的时限盖得住最长的一次退避', () => {
-    const longestRetryWait = normalizeBaseDelayMs(Number.MAX_SAFE_INTEGER) * 2 ** (normalizeRetryAttempts(Number.MAX_SAFE_INTEGER) - 2)
-    expect(GENERATION_PHASE_DEADLINE.retrying.maxMs).toBeGreaterThan(longestRetryWait)
-  })
 })
 
 describe('awaitWithinPhase：work 落定、时限到、被叫停，三者先到者为准', () => {
@@ -184,17 +179,6 @@ describe('awaitWithinPhase：work 落定、时限到、被叫停，三者先到�
   })
 })
 
-describe('到点收场的错误永远不进自动重试（重试 = 重新提交 = 再扣一次钱）', () => {
-  it('可找回的文案就是最后一次取回错误的原话——哪怕它恰好写着 Failed to fetch / timeout，也不重试', () => {
-    const detail = { taskId: 't', vendor: 'v', taskKind: 'text_to_video' as const, modelKey: 'm' }
-    expect(isRetryableGenerationError(new RecoverableTimeoutError(detail, { lastError: new TypeError('Failed to fetch') }))).toBe(false)
-    expect(isRetryableGenerationError(new RecoverableTimeoutError(detail, { lastError: new Error('Fetch timed out after 860000ms') }))).toBe(false)
-    expect(isRetryableGenerationError(new GenerationPhaseStalledError('requesting', 'fail-maybe-charged', TICK_MS))).toBe(false)
-    // 阳性对照：同样的原话在普通错误上照旧重试，说明是按类型排除、不是把重试整个关了。
-    expect(isRetryableGenerationError(new TypeError('Failed to fetch'))).toBe(true)
-  })
-})
-
 describe('查结果连续失败超过宽限：把最后那次取回错误原样交出去，不一律说「超时」', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
@@ -252,7 +236,6 @@ function runStuckNode(id: string, fetchTaskResult: () => Promise<{ vendor: strin
   ))
   const settled = runGenerationNodesBatch([id], {
     target: projectTarget,
-    retry: { maxAttempts: 3 },
     executor: (node, context) => runCatalogGenerationTask(node, {
       projectTarget: context.projectTarget,
       referenceContext: { nodes: context.nodes, edges: context.edges },

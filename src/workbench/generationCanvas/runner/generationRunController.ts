@@ -17,11 +17,8 @@ import { isProjectExecutionContextCurrent, withProjectAction } from '../../proje
 import { canvasOpenRuns, canvasResendDecide, releaseCanvasShotRun, withdrawCanvasShots } from '../../api/taskApi'
 import type { CanvasResendDecision } from '../../../../electron/shared/canvas/canvasResendDecide'
 import { confirmGenerationResend, confirmGenerationSpend, paidNodeLedger, spendCostKind, describeGenerationCost, generationCostContextForNode, withGenerationEtaStats, type SpendInitiator } from '../spend/spendConfirm'
-import { isRetryableGenerationError, normalizeRetryAttempts, normalizeBaseDelayMs, waitForRetry } from './generationRetryPolicy'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
-import type { GenerationNodeResults } from './catalogTaskResultParse'
 import { classifyGenerationError, isOpenGenerationRefusal } from '../../observability/classifyError'
-import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
 import { useNodeLivePreviewStore } from '../store/nodeLivePreviewStore'
 import { createRunId } from '../store/canvasIds'
@@ -85,10 +82,6 @@ export type RunGenerationNodeOptions = {
   /** runId = 正在跑的这一次（运行自己报号，D9）。 */
   assertApprovedInputs?: (graph: RunGraph, executingNodeId: string, runId?: string) => void
   executor?: GenerationNodeExecutor
-  retry?: {
-    maxAttempts?: number
-    baseDelayMs?: number
-  }
   /** 'run' = 单镜 Run 路：这一次运行的批准、派发、记账都在主进程的单镜 Run 里（paidNodeLedger 定）。缺省 = 不花钱的本地 / 文本路。 */
   ledger?: 'run'
   initiator?: SpendInitiator
@@ -162,7 +155,7 @@ export async function runGenerationNode(
   // 运行记录随原项目持久化（含 projectId）：找回/重启都只认它，不认「当时打开的是哪个」。
   // attempt = 这次发给哪家的哪个模型（提交那一刻从被执行的节点读出）：失败提示点名的是它，
   // 健康记账记到的也是它——不是「失败时节点碰巧选着谁」（运行期间用户可以换家）。
-  // 花钱前的确认已冻结 (模型, 供应商)（captureApprovedGenerationInputs），重试循环里它不会中途变。
+  // 花钱前的确认已冻结 (模型, 供应商)（captureApprovedGenerationInputs）。
   const attempt = dispatchedAttempt(initialNode)
   const run = { id: options.runRecordId ?? createRunId(id), status: 'queued' as const, startedAt: now, updatedAt: now, projectId: target.projectId, ...(attempt ? { attempt } : {}) }
   let runFailure: unknown
@@ -172,68 +165,47 @@ export async function runGenerationNode(
   try {
     await own.start()
     const executor = options.executor ?? generationNodeExecutor
-    const maxAttempts = normalizeRetryAttempts(options.retry?.maxAttempts)
-    const baseDelayMs = normalizeBaseDelayMs(options.retry?.baseDelayMs)
-  let results: GenerationNodeResults | null = null
-  let mediaDimensions: MediaDimensions | undefined
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      const savedGraph = await readRunGraph(target)
-      // Validation and disk reads may outlive deletion. Never resurrect the initial snapshot.
-      let state = isRunTargetLoaded(target) ? useGenerationCanvasStore.getState() : savedGraph
-      if (!state) throw new Error('node not found')
-      if (options.assertAuthorCurrent) {
-        await options.assertAuthorCurrent(state, id)
-        state = await readRunGraph(target)
-      }
-      const node = state?.nodes.find((candidate) => candidate.id === id)
-      if (!state || !node) throw new Error('node not found')
-      options.assertApprovedInputs?.(state, id, run.id)
-      const nodeMeta = (node.meta || {}) as Record<string, unknown>
-      const dialogueArchetype = resolveTaskArchetype(nodeMeta)
-      const dialogueMode = dialogueArchetype ? effectiveArchetypeMode(dialogueArchetype, node, state).mode : null
-      const dialoguePromptSuffix = buildDialoguePromptSuffix(dialogueMode, nodeMeta, nodeMeta.dialogue)
-      // Streaming output is not input to another attempt of the same text run.
-      const executionNode = node.kind === 'text' ? { ...node, contentJson: initialNode.contentJson } : node
-      try {
-        results = await executor(executionNode, {
-          nodes: state.nodes,
-          edges: state.edges,
-          projectTarget: target,
-          ...(options.ledger === 'run' ? { canvasRun: { runRecordId: run.id, ...(options.initiator === 'user' && options.resendDecisionId ? { resendDecisionId: options.resendDecisionId } : {}) } } : {}),
-          ...(options.promptSuffix || dialoguePromptSuffix
-            ? { promptSuffix: [options.promptSuffix, dialoguePromptSuffix].filter(Boolean).join('\n\n') }
-            : {}),
-          // 提交幂等键 = 本次 run.id：重试循环内每次 attempt 复用同一个 run.id，
-          // electron 侧台账据此认作「同一次意图提交」→ 重试绝不二次下单。新生成 = 新 run.id。
-          idempotencyKey: run.id,
-          // S2:catalog 任务各阶段回报 → 节点进度(人话已由 narrate 翻好)。
-          onProgress: (progress) => {
-            reportProgress({
-              runId: run.id,
-              phase: progress.phase,
-              message: progress.message,
-              ...(progress.taskId ? { taskId: progress.taskId } : {}),
-            })
-          },
-          onMediaDimensions: (dimensions) => { mediaDimensions = dimensions },
-        })
-        break
-      } catch (error: unknown) {
-        if (attempt >= maxAttempts || !isRetryableGenerationError(error)) {
-          throw error
-        }
+    const savedGraph = await readRunGraph(target)
+    // Validation and disk reads may outlive deletion. Never resurrect the initial snapshot.
+    let state = isRunTargetLoaded(target) ? useGenerationCanvasStore.getState() : savedGraph
+    if (!state) throw new Error('node not found')
+    if (options.assertAuthorCurrent) {
+      await options.assertAuthorCurrent(state, id)
+      state = await readRunGraph(target)
+    }
+    const node = state?.nodes.find((candidate) => candidate.id === id)
+    if (!state || !node) throw new Error('node not found')
+    options.assertApprovedInputs?.(state, id, run.id)
+    const nodeMeta = (node.meta || {}) as Record<string, unknown>
+    const dialogueArchetype = resolveTaskArchetype(nodeMeta)
+    const dialogueMode = dialogueArchetype ? effectiveArchetypeMode(dialogueArchetype, node, state).mode : null
+    const dialoguePromptSuffix = buildDialoguePromptSuffix(dialogueMode, nodeMeta, nodeMeta.dialogue)
+    let mediaDimensions: MediaDimensions | undefined
+    // Text generation consumes the content captured when this run started.
+    const executionNode = node.kind === 'text' ? { ...node, contentJson: initialNode.contentJson } : node
+    const results = await executor(executionNode, {
+      nodes: state.nodes,
+      edges: state.edges,
+      projectTarget: target,
+      ...(options.ledger === 'run' ? { canvasRun: { runRecordId: run.id, ...(options.initiator === 'user' && options.resendDecisionId ? { resendDecisionId: options.resendDecisionId } : {}) } } : {}),
+      ...(options.promptSuffix || dialoguePromptSuffix
+        ? { promptSuffix: [options.promptSuffix, dialoguePromptSuffix].filter(Boolean).join('\n\n') }
+        : {}),
+      // 主进程账本按本次运行号认领提交。
+      idempotencyKey: run.id,
+      // S2:catalog 任务各阶段回报 → 节点进度(人话已由 narrate 翻好)。
+      onProgress: (progress) => {
         reportProgress({
           runId: run.id,
-          phase: 'retrying',
-          // 文案走 narrate 注册表(S2 纪律:展示文案不许散落字面量)。
-          message: narrateProgress('retrying', { attempt: attempt + 1, maxAttempts }),
+          phase: progress.phase,
+          message: progress.message,
+          ...(progress.taskId ? { taskId: progress.taskId } : {}),
         })
-        await waitForRetry(attempt, baseDelayMs)
-      }
-    }
+      },
+      onMediaDimensions: (dimensions) => { mediaDimensions = dimensions },
+    })
     const deliveryFailure = await own.drained()
     if (deliveryFailure) throw deliveryFailure
-    if (!results) throw new Error(describeOpaqueFailure(null))
     // 一次运行交回几张就落几张：每张都按这次的运行记录号投（同一个合并规则），按上游顺序，最后一张是最新的版本。
     let landedInOpenProject = false
     for (const result of results) {
@@ -342,7 +314,7 @@ export type RunGenerationNodesBatchOptions = Omit<RunGenerationNodeOptions, 'led
 
 /**
  * Run a batch of generation nodes with bounded concurrency. Each node
- * goes through the same retry/failure semantics as `runGenerationNode`,
+ * goes through the same submission and failure handling as `runGenerationNode`,
  * so callers can still display a per-node retry button if a run fails.
  * This is the runtime used by the storyboard demo's "全部生成" action.
  *
@@ -389,7 +361,6 @@ export async function runGenerationNodesBatch(
           assertAuthorCurrent: options.assertAuthorCurrent,
           assertApprovedInputs: options.assertApprovedInputs,
           executor: options.executor,
-          retry: options.retry,
           target: options.target,
           ...(options.claimAdmittedByHost ? { claimAdmittedByHost: true as const } : {}),
           ...(options.canvasRunRecordIds?.has(nodeId) ? { ledger: 'run' as const, runRecordId: options.canvasRunRecordIds.get(nodeId)! } : {}),

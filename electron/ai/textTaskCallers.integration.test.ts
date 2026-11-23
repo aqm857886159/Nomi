@@ -6,7 +6,7 @@
 // 漏掉一个姿势，就是迁完还残留一种旧行为（设计卡 docs/plan/2026-10-21-text-tasks-to-pi-ai.md「一、调用方普查」）。
 //
 // 断言的是用户看得到的东西：拿到的正文 / 渲染层收到的那句错误 / 上游被请求了几次 / 停止后 HTTP 是不是真断了，
-// 以及那句错误在渲染层会不会被「自动重提」（generationRetryPolicy）、被分成哪一类（classifyError）。
+// 以及那句错误在渲染层被分成哪一类（classifyError）。
 // 后两条是协调 10-21 的硬要求：迁移前后必须一样，文案改动不许悄悄改掉重试行为。
 //
 // 计时类用例（想得久 / 真死连接）用真墙钟跑主进程的真实闸，单条要几十秒：默认不跑，`NOMI_TEXT_REALTIME=1` 时跑。
@@ -24,7 +24,7 @@ vi.mock("../events/vendorCallTrace", () => ({ traceVendorCompleted: () => undefi
 vi.mock("../assets/localAssetFile", async () => (await import("../../tests/fixtures/textTasks/textTaskCallerState")).localAssetMock());
 vi.mock("../runtime", async () => (await import("../../tests/fixtures/textTasks/textTaskCallerState")).runtimeMock());
 
-import { CALLERS, RENDERER_ENTRY_GAP_EXCEPTIONS, STREAM_CALLERS, rendererVerdict, runCaller } from "../../tests/fixtures/textTasks/textTaskCallerHarness";
+import { CALLERS, RENDERER_ENTRY_GAP_EXCEPTIONS, STREAM_CALLERS, rendererFailureKind, runCaller } from "../../tests/fixtures/textTasks/textTaskCallerHarness";
 
 // 本矩阵从执行器 / IPC handler 往下测，看不见入口之上的准入（2026-10-21 改写选区被令牌闸挡、矩阵全绿的教训）。
 // 每个调用方必须写明真入口测试或缺口；渲染层发起的只能有真入口测试（登记的例外除外）。新增调用方不填 → 这里红。
@@ -51,13 +51,13 @@ describe.each(CALLERS)("$id", (caller) => {
     expect(seen).toMatchObject({ ok: true, text: "", requests: 1 });
   });
 
-  it("429：缺省重试 2 次（拆解 0 次），最后的错误带结构化类别 quota，渲染层不自动重提", async () => {
+  it("429：缺省重试 2 次（拆解 0 次），最后的错误带结构化类别 quota", async () => {
     const seen = await runCaller(caller, "openai-compatible", () => reply.http(429, { error: { message: "Too many requests, slow down" } }));
     expect(seen.ok).toBe(false);
     expect(seen.requests).toBe(caller.extras?.maxRetries === 0 ? 1 : 3);
     expect(seen.error).toContain("HTTP 429");
     expect(seen.error).toContain("Too many requests, slow down");
-    expect(rendererVerdict(seen.error)).toEqual({ retried: false, kind: "quota" });
+    expect(rendererFailureKind(seen.error)).toBe("quota");
   });
 
   it("503：同样的重试次数，类别 server", async () => {
@@ -65,14 +65,14 @@ describe.each(CALLERS)("$id", (caller) => {
     expect(seen.ok).toBe(false);
     expect(seen.requests).toBe(caller.extras?.maxRetries === 0 ? 1 : 3);
     expect(seen.error).toContain("HTTP 503");
-    expect(rendererVerdict(seen.error)).toEqual({ retried: false, kind: "server" });
+    expect(rendererFailureKind(seen.error)).toBe("server");
   });
 
   it("401：不重试，类别 auth，带上游原话", async () => {
     const seen = await runCaller(caller, "openai-compatible", () => reply.http(401, { error: { message: "invalid api key" } }));
     expect(seen).toMatchObject({ ok: false, requests: 1 });
     expect(seen.error).toContain("invalid api key");
-    expect(rendererVerdict(seen.error)).toEqual({ retried: false, kind: "auth" });
+    expect(rendererFailureKind(seen.error)).toBe("auth");
   });
 
   it("包装过的回包（HTTP 200、SSE 里是 error）：失败，说出上游原话", async () => {
@@ -88,7 +88,7 @@ describe.each(CALLERS)("$id", (caller) => {
     // 一次性门的错误由 Electron 再包一层「Error invoking remote method …」，人话照样在里面。
     expect(textTaskFailureText(new Error(seen.error))).toContain(desktopT("textTask.streamCut"));
     expect(textTaskFailureText(new Error(seen.error)).toLowerCase()).not.toContain("terminated");
-    expect(rendererVerdict(seen.error).retried).toBe(false);
+    expect(rendererFailureKind(seen.error)).toBe("network");
   });
 
   it("流结束却没有 finish_reason（D3，协调 10-21 定：算失败）", async () => {

@@ -33,23 +33,21 @@ describe('judgeDeadLinkSend：失效链接换成上传后的新链接', () => {
   })
 })
 
-describe('judgeRefusalRetry：被拒之后重试换成上传后的新链接', () => {
-  const good = { creates: [{ imageUrls: [ALIVE] }, { imageUrls: [UPLOADED] }], uploads: [upload] }
-
-  it('两笔创建请求（第一笔原链接、第二笔上传后的新链接）、一次上传 → 过', () => {
-    const verdict = judgeRefusalRetry(good, { aliveLink: ALIVE })
-    expect(verdict.problems).toEqual([])
-    expect(verdict.summary).toMatchObject({ createRequests: 2, uploads: 1, firstSentOriginalLink: true, retrySentUploadedLink: true })
-  })
-
-  it('重试发的还是原链接 → 红（正是这条线要消灭的"点重试还是同一条"）', () => {
+describe('judgeRefusalRetry：用户再点一次，仍可发送可读原链', () => {
+  it('两次各发一次原链，且无上传', () => {
     const verdict = judgeRefusalRetry({ creates: [{ imageUrls: [ALIVE] }, { imageUrls: [ALIVE] }], uploads: [] }, { aliveLink: ALIVE })
-    expect(verdict.problems.join('；')).toMatch(/重试那一笔发的还是被拒绝的那条原链接/)
+    expect(verdict.problems).toEqual([])
+    expect(verdict.summary).toEqual({ createRequests: 2, uploads: 0, firstSentOriginalLink: true, retrySentOriginalLink: true })
   })
 
-  it('第一笔就没发原链接（试探没有照发）/ 只有一笔 → 红', () => {
-    expect(judgeRefusalRetry({ creates: [{ imageUrls: [UPLOADED] }, { imageUrls: [UPLOADED] }], uploads: [upload] }, { aliveLink: ALIVE }).problems.join('；')).toMatch(/试探没有照发/)
-    expect(judgeRefusalRetry({ creates: [{ imageUrls: [ALIVE] }], uploads: [] }, { aliveLink: ALIVE }).problems.join('；')).toMatch(/创建请求有 1 笔/)
+  it('旧规则因为被拒而上传 → 红', () => {
+    const verdict = judgeRefusalRetry({ creates: [{ imageUrls: [ALIVE] }, { imageUrls: [UPLOADED] }], uploads: [upload] }, { aliveLink: ALIVE })
+    expect(verdict.problems).toEqual(['活链被额外上传了 1 次', '再次提交未使用可读原链'])
+  })
+
+  it('第一笔没发原链接、只有一笔、请求截断 → 红', () => {
+    expect(judgeRefusalRetry({ creates: [{ imageUrls: [UPLOADED] }], uploads: [] }, { aliveLink: ALIVE }).problems).toEqual(expect.arrayContaining(['第一次提交未使用可读原链', expect.stringMatching(/创建请求有 1 笔/)]))
+    expect(judgeRefusalRetry({ creates: [{ imageUrls: [ALIVE] }, { imageUrls: [ALIVE], truncated: true }], uploads: [] }, { aliveLink: ALIVE }).problems).toEqual(['再次提交未使用可读原链'])
   })
 })
 

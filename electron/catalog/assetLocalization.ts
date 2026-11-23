@@ -6,12 +6,10 @@
 // 全部依赖注入(读本地字节 read / POST 上传 postJson),故可零网络零额度单测。
 
 import { readAutomationPolicySettings } from "../settings/automationPolicySettings";
+import type { ProviderLinkVerdict } from "../assets/providerMediaFetch";
 import { DOMParser } from "@xmldom/xmldom";
 import { isComfyuiVendor, type AssetIngestion, type AssetMediaKind } from "./types";
-import {
-  ingestionHasSufficientLease,
-  ingestionVisibility,
-} from "./assetTransportPolicy";
+import { ingestionVisibility } from "./assetTransportPolicy";
 import {
   collectLocalAssetUrls,
   classifyAssetValue,
@@ -68,8 +66,6 @@ export type LocalAsset = {
   contentType: string;
   fileName: string;
   originalUrl?: string;
-  /** 资产落盘至今的毫秒数（文件 mtime 推）。用于判 originalUrl（服务商临时直链）是否仍新鲜。 */
-  ageMs?: number;
 };
 
 export class AnonymousAssetConsentRequiredError extends Error {
@@ -77,17 +73,6 @@ export class AnonymousAssetConsentRequiredError extends Error {
     super(tagNomiError("asset-upload-failed", desktopT("assetUpload.hostingDisabled")));
     this.name = "AnonymousAssetConsentRequiredError";
   }
-}
-
-/** sidecar originalUrl 的**候选窗**：已接入的两家服务商的临时链接寿命（约 3 天 / 72 小时）的安全下界。窗内的临时直链才有资格被发出去，
- *  **但发不发由 `localizeAssetsForVendor` 发之前试一下再定**（这个数是对别家寿命的猜测，接入别的服务后不成立）；
- *  过窗直接走上传链用本地字节换新链，不试探。ageMs 未知（老调用方/stat 失败）按在窗内处理。 */
-export const ORIGINAL_URL_TRUST_MS = 48 * 60 * 60 * 1000;
-
-export function trustedOriginalUrl(asset: Pick<LocalAsset, "originalUrl" | "ageMs"> | null | undefined): string | null {
-  if (!asset?.originalUrl) return null;
-  if (typeof asset.ageMs === "number" && asset.ageMs > ORIGINAL_URL_TRUST_MS) return null;
-  return asset.originalUrl;
 }
 
 export type LocalAssetReader = (url: string) => LocalAsset | null;
@@ -216,24 +201,11 @@ export function assertLocalAssetTransportReady(
       throw new Error(tagNomiError("asset-invalid", `无法识别本地素材「${asset.fileName || describeAssetValue(url)}」的类型，不能安全判断它是图片、视频还是音频。请重新导入并保留正确的文件扩展名。`));
     }
     assertLocalAssetMediaBytes(asset);
-    // 这条连接被模型拒绝过：临时链接不再直接发，要走上传，所以通道检查不能跳过。
-    if (trustedOriginalUrl(asset) && !options.linkPolicy?.refused) continue;
+    if (asset.originalUrl) continue;
     const mediaKind = assetUploadChannelKind(asset.contentType);
     const candidates = resolveIngestion(mediaKind);
-    let consentRequired = false;
-    const safe = candidates.some((candidate) => {
-      if (!ingestionHasSufficientLease(candidate.ingestion, mediaKind)) return false;
-      if (ingestionVisibility(candidate.ingestion) === "public-anonymous") {
-        if (!anonymousHostingEnabled()) {
-          consentRequired = true;
-          return false;
-        }
-      }
-      return true;
-    });
-    if (safe) continue;
-    if (consentRequired) throw new AnonymousAssetConsentRequiredError();
-    throw allChannelsFailedError(asset, mediaKind, [], []);
+    if (candidates.length === 0) throw allChannelsFailedError(asset, mediaKind, [], []);
+    if (!candidates.some(nonAnonymous) && !anonymousHostingEnabled()) throw new AnonymousAssetConsentRequiredError();
   }
 }
 
@@ -503,14 +475,16 @@ export type IngestionCandidate = {
   borrowed?: true;
 };
 
-/** 一条临时链接此刻的结论：alive 取到了媒体；dead 明确失效；unknown 判断不了（超时、断网、5xx、策略拒绝……）。 */
-export type ReferenceLinkVerdict = "alive" | "dead" | "unknown";
+export type ReferenceLinkPolicy = { probe(url: string): Promise<ProviderLinkVerdict> };
 
-/**
- * 窗内临时链接怎么处置（由 assetTransportRuntime 按目标连接组装；本模块被渲染层间接 import，不引任何 node 模块，试探从这里注入）。
- * `refused`：这条连接的模型拒绝过临时链接 → 一律上传，不再试探。没有 linkPolicy = 和没有这个功能时一样直接发。
- */
-export type ReferenceLinkPolicy = { refused: boolean; probe(url: string): Promise<ReferenceLinkVerdict> };
+function nonAnonymous(candidate: IngestionCandidate): boolean {
+  return ingestionVisibility(candidate.ingestion) !== "public-anonymous";
+}
+
+/** A rejected anonymous probe can use a configured upload. Without one, keep the original link. */
+export function referenceNeedsUpload(verdict: ProviderLinkVerdict, candidates: () => readonly IngestionCandidate[]): boolean {
+  return verdict === "dead" || (verdict === "denied" && candidates().some(nonAnonymous));
+}
 
 export type LocalizeAssetsOptions = {
   minimizeUploads?: boolean;
@@ -533,13 +507,12 @@ function allChannelsFailedError(asset: LocalAsset | null, mediaKind: AssetMediaK
     `${summary}\n${desktopT("assetUpload.notSubmitted")} ${MEDIA_LABEL[mediaKind]} ${what}: ${failures.join("; ")}`));
 }
 
-/** 一批窗内临时链接的结论。该连接拒绝过 → 一律当失效（不试探）；没有策略 → 当判断不了；试探本身出错也当判断不了。 */
-async function judgeReferenceLinks(links: readonly string[], policy: ReferenceLinkPolicy | undefined): Promise<Map<string, ReferenceLinkVerdict>> {
+/** 一批临时链接的当次探测结论。没有策略 → 当判断不了；试探本身出错也当判断不了。 */
+async function judgeReferenceLinks(links: readonly string[], policy: ReferenceLinkPolicy | undefined): Promise<Map<string, ProviderLinkVerdict>> {
   const unique = [...new Set(links)];
-  const verdicts = await Promise.all(unique.map((link): Promise<ReferenceLinkVerdict> => {
-    if (policy?.refused) return Promise.resolve("dead");
+  const verdicts = await Promise.all(unique.map((link): Promise<ProviderLinkVerdict> => {
     if (!policy) return Promise.resolve("unknown");
-    return new Promise<ReferenceLinkVerdict>((resolve) => resolve(policy.probe(link))).catch(() => "unknown");
+    return new Promise<ProviderLinkVerdict>((resolve) => resolve(policy.probe(link))).catch(() => "unknown");
   }));
   return new Map(unique.map((link, index) => [link, verdicts[index]]));
 }
@@ -580,14 +553,13 @@ export async function localizeAssetsForVendor(
     if (asset) assertLocalAssetMediaBytes(asset, mediaKind);
     const candidates = resolveIngestion(mediaKind);
     // 本地 ComfyUI（comfyui-upload）：公网 URL 用不了，必须传到它自己的 input 目录换文件名 → 没有候选链接，恒上传。
-    const link = candidates[0]?.ingestion.strategy === "comfyui-upload" ? null : trustedOriginalUrl(asset);
+    const link = candidates[0]?.ingestion.strategy === "comfyui-upload" ? null : asset?.originalUrl;
     return { url, asset, mediaKind, candidates, link };
   });
-  // 「这次发链接还是传文件」**只在这里决定**：窗内的临时链接一并**并发**试探一次（耗时 ≈ 最慢的那一条，不随张数累加）；
-  // 活着或判断不了就发原链接（和没有这个功能时逐字相同），明确失效或这条连接被模型拒绝过就走下面的上传通道。
+  // 并发探测去重后的原链，每份素材再按自己的通道选择交付方式。
   const verdicts = await judgeReferenceLinks(prepared.flatMap((item) => (item.link ? [item.link] : [])), options.linkPolicy);
   for (const { url, asset, mediaKind, candidates, link } of prepared) {
-    if (link && verdicts.get(link) !== "dead") {
+    if (link && !referenceNeedsUpload(verdicts.get(link) ?? "unknown", () => candidates)) {
       urlMap.set(url, link);
       continue;
     }
@@ -600,15 +572,11 @@ export async function localizeAssetsForVendor(
     const summaries: string[] = [];
     let consentRequired = false;
     let resolvedValue: string | null = null;
-    for (const candidate of candidates) {
+    const uploadChannels = link && candidates.some(nonAnonymous) ? candidates.filter(nonAnonymous) : candidates;
+    for (const candidate of uploadChannels) {
       const visibility = ingestionVisibility(candidate.ingestion);
       if (visibility === "public-anonymous" && !anonymousHostingEnabled()) {
         consentRequired = true;
-        continue;
-      }
-      if (!ingestionHasSufficientLease(candidate.ingestion, mediaKind)) {
-        failures.push(`${hostLabel(candidate.ingestion)}: URL 有效期不足以覆盖${MEDIA_LABEL[mediaKind]}生成`);
-        summaries.push(desktopT("assetUpload.channelLeaseTooShort", { channel: hostLabel(candidate.ingestion) }));
         continue;
       }
       try {
