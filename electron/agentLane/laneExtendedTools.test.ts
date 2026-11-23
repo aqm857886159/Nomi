@@ -218,23 +218,15 @@ describe('工具回执从真实审批结论派生', () => {
     })
   })
 
-  it('a draft patch reports actual policy-started spend through the same receipt as generate', async () => {
-    const result = { drafted: { operation: { operationId: 'op-7', sourceDocumentId: 'doc-1' } },
-      spendDecision: { decidedBy: 'policy:full_auto', receiptId: 'receipt-1' }, started: { ok: true } }
-    const generated = await runVerb('generate', result, 'auto-granted', { operationId: 'op-7' })
-    const patched = await runVerb('draft_shots', result, 'auto-granted', { operationId: 'op-7', shots: [{ prompt: 'updated' }] })
-    expect(patched.nextAction).toMatchObject({ kind: 'job_running', jobId: 'op-7', operationId: 'op-7' })
-    expect(patched.nextAction?.userSees).toBe(generated.nextAction?.userSees)
-    expect(patched.nextAction?.userSees).not.toMatch(/nothing has been spent/)
-  })
-
-  it('a presented draft patch reports only saved facts when transport returns no new spend decision', async () => {
+  it('a previously presented draft patch reports the save and the user’s control over generation', async () => {
     const outcome = await runVerb('draft_shots', { operation: { operationId: 'op-7', state: 'draft' } },
       'auto-granted', { operationId: 'op-7', shots: [{ prompt: 'updated' }] })
     expect(outcome.nextAction).toMatchObject({ kind: 'none', operationId: 'op-7' })
     expect(outcome.nextAction?.userSees).toMatch(/saved in the project/)
+    expect(outcome.nextAction?.userSees).toContain('Finish after saving edits to existing drafts')
+    expect(outcome.nextAction?.userSees).toContain('only if the user explicitly asked to generate')
     expect(outcome.nextAction?.userSees).not.toMatch(/no card|generation has started/)
-    expect(outcome.nextAction?.userSees).toMatch(/next tool call is generate with operationId=op-7/)
+    expect(outcome.nextAction?.userSees).toContain('Call generate with operationId=op-7 only if')
   })
 
   it('historical submitted state without a current spendDecision does not claim this edit started generation', async () => {

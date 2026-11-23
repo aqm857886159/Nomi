@@ -3,11 +3,28 @@ import { operationMeta } from '@earendil-works/pi-agent-core/harness/session';
 import type { Context } from '@earendil-works/pi-agent-core/harness/context';
 import { isLaneInputMessage } from '../shared/agentLane/laneInputMessage.js';
 import type { LaneInputMessage } from '../shared/agentLane/laneDesktopContracts.js';
+import { laneOriginalText } from './laneOriginalInput.mjs';
+import { holdsTurnGeneration, TURN_GENERATION_HOLD_MESSAGE, TURN_GENERATION_HOLD_NEXT } from './turnGenerationHold.js';
+import { ASK_USER_VERB_NAME } from '../shared/agentCapabilities/askUser.js';
+import { generateUserDecisionOf } from '../shared/agentLane/generateUserDecision.js';
 
 const MAX_INTENT_CHARACTERS = 16_000;
 const MAX_RECENT_INPUTS = 8;
 const isInput = (entry: Entry): boolean => entry.type === 'message'
   && (entry.message.role === 'user' || isLaneInputMessage(entry.message));
+
+function userReplyToCard(entry: Entry): string {
+  if (entry.type !== 'message' || entry.message.role !== 'toolResult' || entry.message.isError) return '';
+  const result = entry.message;
+  if (result.toolName === 'generate') {
+    const decision = generateUserDecisionOf(result.details);
+    if (decision?.outcome === 'redirected') return decision.userSaid;
+  }
+  if (result.toolName === ASK_USER_VERB_NAME) {
+    return result.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('');
+  }
+  return '';
+}
 
 /** Re-read consumed inputs for this live operation; queued inputs are not on its branch yet. */
 export async function laneInputIntent(session: Session, lane: string, runId: string,
@@ -28,7 +45,7 @@ export async function laneInputIntent(session: Session, lane: string, runId: str
     return entry && !inputs.some(e => e.id === id) ? [entry] : [];
   }), ...inputs];
   const prepared = originals.flatMap(entry => entry.type === 'message' && isLaneInputMessage(entry.message)
-    ? [entry.message] : []);
+    ? [{ message: entry.message, seq: entry.seq }] : []);
   let remaining = MAX_INTENT_CHARACTERS;
   const quoted: string[] = [];
   // Allocate to the newest corrections first, then render the retained excerpts in original order.
@@ -53,7 +70,17 @@ export async function laneInputIntent(session: Session, lane: string, runId: str
     + 'These are not current selection, tool permission, payment approval or completion facts. '
     + 'Re-read domain state before actions. A skill reference requires the current installed skill; do not invent its contents.\n'
     + quoted.join('\n') : '';
-  return { quote, input: prepared.at(-1), catalogInput: prepared[0] };
+  const consumed = prepared.at(-1);
+  const current = consumed?.message;
+  const continuedFrom = current?.context.continueFromEntryId && current.context.retryFromEntryId;
+  const original = continuedFrom ? (await session.getEntries([continuedFrom], context)).get(continuedFrom) : undefined;
+  const held = consumed && (holdsTurnGeneration(consumed.message.content)
+    || (original && holdsTurnGeneration(laneOriginalText(original) ?? ''))
+    || recent.some(entry => entry.seq > consumed.seq && holdsTurnGeneration(userReplyToCard(entry))));
+  // Activation uses a fresh copy so any live card reply stays out of the journal and queued inputs.
+  const input = current && { ...current, context: { ...current.context, ...(held ? { generationHeld: true as const } : {}) } };
+  return { quote: [quote, held && `${TURN_GENERATION_HOLD_MESSAGE} ${TURN_GENERATION_HOLD_NEXT}`].filter(Boolean).join('\n\n'),
+    input, catalogInput: prepared[0]?.message };
 }
 
 /**

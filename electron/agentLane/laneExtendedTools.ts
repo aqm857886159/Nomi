@@ -77,7 +77,7 @@ function draftSavedAction(result: unknown): LaneToolNextAction {
  */
 function draftNextStep(operationId: string | undefined): string {
   const id = operationId ? ` with operationId=${operationId}` : ''
-  return `Next step depends on what the user asked this turn: if they asked to generate or produce the images or video, a draft alone gives them nothing, so your next tool call is generate${id}; do not end your turn on the draft. If they only asked for a draft or plan, stop here and do not call generate.`
+  return `Finish after saving edits to existing drafts, including prompt or parameter changes, or a requested draft or plan. Call generate${id} only if the user explicitly asked to generate the media this turn.`
 }
 
 /**
@@ -104,8 +104,8 @@ function nextActionFor(
   switch (verb) {
     case 'draft_shots':
       // 草稿 id 按 `draft_shots` / `generate` 收它的那个名字回给模型（这里曾经印 `jobId=`：
-      // 草稿的寻址字段仍为 operationId；只有本次结果明确已开跑时，才另带执行回执）。
-      return { ...(policyStartedGeneration(result) ? startedGenerationAction(result) : draftSavedAction(result)), ...(draftOperationId ? { operationId: draftOperationId } : {}) }
+      // 草稿的寻址字段仍为 operationId）。
+      return { ...draftSavedAction(result), ...(draftOperationId ? { operationId: draftOperationId } : {}) }
     case 'generate':
       return generateReceipt(result)
     case 'edit_timeline': {
