@@ -14,11 +14,6 @@
       "count": 1
     }
   },
-  "electron/agentLane/laneTrace.mts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/ai/onboarding/vendorPricePreview.ts": {
     "generic-map-eviction/no-restricted-syntax": {
       "count": 1
@@ -35,11 +30,8 @@
     }
   },
   "electron/assets/assetPreview.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 2
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 15
+      "count": 13
     }
   },
   "electron/assets/assetReferenceIdentity.ts": {
@@ -103,21 +95,13 @@
     }
   },
   "electron/assets/uploadContentStore.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 2
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 12
+      "count": 11
     }
   },
   "electron/assets/videoImportNormalize.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 3
-    }
-  },
-  "electron/browser/media/browserViewMedia.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 2
     }
   },
   "electron/capabilityCore/apimartGenerationProvider.ts": {
@@ -136,25 +120,12 @@
     }
   },
   "electron/capabilityCore/hostConfigWrite.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    },
     "main-sync-wait/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/capabilityCore/mcpDetectedClients.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
       "count": 1
     }
   },
   "electron/capabilityCore/mcpProfiles.ts": {
     "generic-fs-watch/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/capabilityCore/projectAgentProposalReceiptStore.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
       "count": 1
     }
   },
@@ -191,11 +162,6 @@
   "electron/configFileStore.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 8
-    }
-  },
-  "electron/downloads/verifiedAssetCache.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
     }
   },
   "electron/durability.ts": {
@@ -239,9 +205,6 @@
     }
   },
   "electron/export/ffmpegRunner.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 2
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 16
     }
@@ -274,16 +237,6 @@
       "count": 1
     }
   },
-  "electron/localSpeech/localSpeechInstall.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/logging/logFiles.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/preload.ts": {
     "renderer-sync-ipc/no-restricted-syntax": {
       "count": 3
@@ -310,11 +263,8 @@
     }
   },
   "electron/productionRun/artifactProjection.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 11
+      "count": 10
     }
   },
   "electron/productionRun/canvasShotRunIndex.ts": {
@@ -343,11 +293,8 @@
     }
   },
   "electron/productionRun/productionRunLock.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 15
+      "count": 14
     }
   },
   "electron/productionRun/productionRunRepository.ts": {
@@ -390,29 +337,14 @@
       "count": 5
     }
   },
-  "electron/providerAdapter/certificationCleanup.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/providerAdapter/store.ts": {
     "main-sync-wait/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/settings/attentionSoundIpc.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
       "count": 1
     }
   },
   "electron/shared/generationFailureDetect.ts": {
     "vendor-failure-one-home/no-restricted-syntax": {
       "count": 1
-    }
-  },
-  "electron/skills/skillManifestMigration.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 2
     }
   },
   "electron/tasks/taskCache.ts": {
@@ -451,11 +383,8 @@
     }
   },
   "electron/workspace/workspaceManifestLock.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 3
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 21
+      "count": 18
     }
   },
   "electron/workspace/workspaceManifestTransaction.ts": {

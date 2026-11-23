@@ -1,11 +1,12 @@
 // Rebuildable views of pi entries. No second session writer or raw JSONL parser.
 import { applyTraceRedactions } from './laneTraceRedaction.mjs';
-import { mkdir, writeFile, rename, lstat, chmod, rm, readFile } from 'node:fs/promises';
+import { mkdir, writeFile, lstat, chmod, rm, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Entry, Session } from '@earendil-works/pi-agent-core';
 import type { JsonlSessionMetadata } from '@earendil-works/pi-agent-core/harness/session';
 import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
+import { renameWithRetry } from '../jsonFile.js';
 import { redactDeep } from '../events/redact.js';
 import { draftInputFromMessage, isLaneInputMessage } from '../shared/agentLane/laneInputMessage.js';
 import { LANE_APPROVAL_NOTE_TYPE } from '../shared/agentLane/laneContracts.js';
@@ -175,7 +176,7 @@ export async function writeTraceFile(directory: string, name: string, content: s
   const temporary = `${destination}.${randomUUID()}.tmp`;
   try {
     await writeFile(temporary, content, { mode: LANE_FILE_MODE, flag: 'wx' });
-    await rename(temporary, destination);
+    await renameWithRetry(temporary, destination);
   } finally { await rm(temporary, { force: true }); }
 }
 export async function writeLaneTrace(session: Session<JsonlSessionMetadata>, secrets: readonly string[] = []): Promise<string> {

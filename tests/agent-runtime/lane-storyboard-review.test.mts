@@ -89,7 +89,7 @@ const draftThenModel = async (t: test.TestContext, prompt: string, wantsGenerati
     { hasUserInterface: true, policy: () => ({ mode: 'request' }) });
   fixture.http.push({ type: 'deferred', beforeReply: async () => {
     const receipt = lastToolResultText(fixture.http);
-    return wantsGeneration && /next tool call is generate with operationId=op-1/.test(receipt)
+    return wantsGeneration && /Call generate with operationId=op-1 only if the user explicitly asked to generate/.test(receipt)
       ? { type: 'tool', calls: [{ id: 'fixture-generate', name: 'generate', arguments: { operationId: 'op-1' } }] }
       : { type: 'text', text: 'Draft saved.' };
   } }, { type: 'text', text: 'Done.' });
@@ -111,5 +111,5 @@ test('user asked to generate: the draft receipt names generate + operationId so 
 test('user only wants a draft: a model reading the receipt is not pushed into generate', async (t) => {
   const { calls, receipt } = await draftThenModel(t, 'Just draft the shots, do not generate.', false);
   assert.deepEqual(calls, ['draft_shots']);
-  assert.match(receipt, /only asked for a draft or plan, stop here and do not call generate/);
+  assert.match(receipt, /Finish after saving edits to existing drafts/);
 });

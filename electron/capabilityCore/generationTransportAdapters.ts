@@ -592,10 +592,10 @@ export function createPiGenerationTransportAdapter(
             const drafted = draftedOperationIdOrNone(result, args);
             if (drafted) draftedFromDocument.set(drafted, storyboardTarget.sourceDocumentId);
           }
-          // 报价卡该出现的那一刻 = 草稿被摆到用户面前的那一刻：`present`（`generate` 动词），或者建/改草稿时
-          // 卡本来就没藏着（`cardHidden` 不为 true：外部 MCP 宿主与面板自己的路径）。「全自动」档在这里替用户决门（见上）。
+          // 代答只发生在出价时：`present`，或建草稿时直接出价（`cardHidden` 不为 true）。
+          // 修改已出价的草稿只更新候选。下一次代答仍要从 `present` 进。
           const cardShown = capability === "present"
-            || ((capability === "create" || capability === "plan") && !planCardHidden(result));
+            || (capability === "create" && !planCardHidden(result));
           const verdict = cardShown ? policyVerdict(result, args, currentLease) : undefined;
           if (verdict && !verdict.decided && verdict.brake && deps.markPolicyDecisionFailed) {
             // 刹车成立：这一次不代答。把这份出价标成「要人工决定」，报价卡立刻摆出来（否则它会一直藏到代答期限过完），
