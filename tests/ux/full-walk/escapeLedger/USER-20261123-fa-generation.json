@@ -11,7 +11,7 @@
     "One deterministic pre-send rejection settles once with its classified cause."
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "completionCommits": [
     "0b54db7dd",
     "e1fdcc352"
@@ -24,5 +24,6 @@
     "kind": "matrix",
     "file": "electron/catalog/referenceLinkDelivery.matrix.test.ts"
   },
-  "manualReview": "reviewed"
+  "manualReview": "reviewed",
+  "fixedInPr": 1635
 }
