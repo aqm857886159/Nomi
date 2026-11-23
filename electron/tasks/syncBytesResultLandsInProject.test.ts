@@ -133,6 +133,8 @@ const ANTIGRAVITY_READY = { state: "ready" as const, version: "1.1.21", checkedA
 /** Agent 按 customCallContract 写的脚本：上游只回字节就 saveFile，回地址就直接 return。 */
 const SAVE_AUDIO_SCRIPT = "const r = await http.post('/script-bytes', { prompt }); return await saveFile(r.bytes, 'mp3', 'audio/mpeg');";
 const SAVE_VIDEO_SCRIPT = "const r = await http.post('/script-bytes', { prompt }); return await saveFile(r.bytes, 'mp4', 'video/mp4');";
+const SAVE_RAW_AUDIO_SCRIPT = "const bytes = await http.post('/script-raw-bytes', { prompt }); return await saveFile(bytes, 'mp3', 'audio/mpeg');";
+const SAVE_RAW_VIDEO_SCRIPT = "const bytes = await http.post('/script-raw-bytes', { prompt }); return await saveFile(bytes, 'mp4', 'video/mp4');";
 const URL_VIDEO_SCRIPT = "const r = await http.post('/script-url', { prompt }); return r.url;";
 /** 脚本模型的映射只是声明卡写下的（脚本接管传输）：配音这条看起来像同步配音，视频这两条是普通的地址式提交。 */
 const SCRIPT_DECLARED_OP = { method: "POST", path: "/declared-by-card" } as HttpOperation;
@@ -152,6 +154,8 @@ function catalog(): CatalogState {
       { vendorKey: "relay-video", modelKey: "sora-2", labelZh: "中转视频", kind: "video", enabled: true, ...stamp },
       { vendorKey: "script-relay", modelKey: "script-tts", labelZh: "脚本配音", kind: "audio", enabled: true, customCall: { script: SAVE_AUDIO_SCRIPT, updatedAt: NOW }, ...stamp },
       { vendorKey: "script-relay", modelKey: "script-video", labelZh: "脚本视频", kind: "video", enabled: true, customCall: { script: SAVE_VIDEO_SCRIPT, updatedAt: NOW }, ...stamp },
+      { vendorKey: "script-relay", modelKey: "script-raw-tts", labelZh: "脚本裸字节配音", kind: "audio", enabled: true, customCall: { script: SAVE_RAW_AUDIO_SCRIPT, updatedAt: NOW }, ...stamp },
+      { vendorKey: "script-relay", modelKey: "script-raw-video", labelZh: "脚本裸字节视频", kind: "video", enabled: true, customCall: { script: SAVE_RAW_VIDEO_SCRIPT, updatedAt: NOW }, ...stamp },
       { vendorKey: "script-relay", modelKey: "script-video-url", labelZh: "脚本视频（回地址）", kind: "video", enabled: true, customCall: { script: URL_VIDEO_SCRIPT, updatedAt: NOW }, ...stamp },
       { vendorKey: "process-video", modelKey: "process-video", labelZh: "进程视频", kind: "video", enabled: true, ...stamp },
       { vendorKey: "antigravity-cli", modelKey: "generate_image", labelZh: "Antigravity image", kind: "image", enabled: true, ...stamp },
@@ -162,6 +166,8 @@ function catalog(): CatalogState {
       { id: "relay-video-text_to_video", vendorKey: "relay-video", modelKey: "sora-2", taskKind: "text_to_video", name: "中转视频", enabled: true, create: video.create, query: video.query, result: video.result, statusMapping: video.statusMapping, ...stamp },
       { id: "script-tts-text_to_audio", vendorKey: "script-relay", modelKey: "script-tts", taskKind: "text_to_audio", name: "脚本配音", enabled: true, create: SCRIPT_DECLARED_OP, ...stamp },
       { id: "script-video-text_to_video", vendorKey: "script-relay", modelKey: "script-video", taskKind: "text_to_video", name: "脚本视频", enabled: true, create: SCRIPT_DECLARED_OP, ...stamp },
+      { id: "script-raw-tts-text_to_audio", vendorKey: "script-relay", modelKey: "script-raw-tts", taskKind: "text_to_audio", name: "脚本裸字节配音", enabled: true, create: SCRIPT_DECLARED_OP, ...stamp },
+      { id: "script-raw-video-text_to_video", vendorKey: "script-relay", modelKey: "script-raw-video", taskKind: "text_to_video", name: "脚本裸字节视频", enabled: true, create: SCRIPT_DECLARED_OP, ...stamp },
       { id: "script-video-url-text_to_video", vendorKey: "script-relay", modelKey: "script-video-url", taskKind: "text_to_video", name: "脚本视频（回地址）", enabled: true, create: SCRIPT_DECLARED_OP, ...stamp },
       { id: "process-video-text_to_video", vendorKey: "process-video", modelKey: "process-video", taskKind: "text_to_video", name: "进程视频", enabled: true, ...stamp,
         create: { ...DREAMINA_CURATED_MAPPINGS[0].create, process: { bin: "dreamina", parser: "dreamina-cli", args: ["text2video", "--prompt={{request.prompt}}"] } },
@@ -317,6 +323,10 @@ function processCells(): Cell[] {
 }
 const jsonResponder = (body: unknown) => (res: http.ServerResponse) => { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(body)); };
 const bytesResponder = (bytes: Buffer) => jsonResponder({ bytes: [...bytes] });
+const rawBytesResponder = (bytes: Buffer, contentType: string) => (res: http.ServerResponse) => {
+  res.writeHead(200, { "Content-Type": contentType, "Content-Length": String(bytes.length) });
+  res.end(bytes);
+};
 const publishedMedia = () => {
   const dir = path.join(projectRoot, "assets");
   // 落盘边界顺手派生的画布预览（视频 poster、图片缩略，*.preview.*）不是这次的产物本身，不算。
@@ -335,6 +345,25 @@ describe("内置目录里的进程声明确实被枚举到（矩阵不是空的�
 describe.each(scriptSaveCells())("有项目：$name 的字节走生成产物关口落进项目", (cell) => {
   it("一次请求，结果是项目里能读回的生成产物，类型 = 任务种类", async () => {
     responder = bytesResponder(cell.bytes);
+    const before = new Set(publishedMedia());
+    const result = await runTask(payload(cell, { projectId: "project-1" }), RUN_APPROVED_ADMISSION);
+    expect(posts()).toBe(1);
+    expect(result.status).toBe("succeeded");
+    expect(result.assets).toHaveLength(1);
+    expect(result.assets[0]).toMatchObject({ type: cell.assetType, url: expect.stringMatching(/^nomi-local:\/\//) });
+    const landed = publishedMedia().filter((name) => !before.has(name));
+    expect(landed).toHaveLength(1);
+    expect(fs.readFileSync(path.join(projectRoot, "assets", landed[0]))).toEqual(cell.bytes);
+    expect(sidecarKind(landed[0])).toBe("generated");
+  });
+});
+
+describe.each([
+  { name: "script-relay/script-raw-tts（上游直回二进制配音 → saveFile）", vendorKey: "script-relay", modelKey: "script-raw-tts", taskKind: "text_to_audio" as const, create: SCRIPT_DECLARED_OP, bytes: MP3, contentType: "audio/mpeg", assetType: "audio" as const },
+  { name: "script-relay/script-raw-video（上游直回二进制视频 → saveFile）", vendorKey: "script-relay", modelKey: "script-raw-video", taskKind: "text_to_video" as const, create: SCRIPT_DECLARED_OP, bytes: MP4, contentType: "video/mp4", assetType: "video" as const },
+])("有项目：$name 保持原始非 UTF-8 字节一字不差落进项目", (cell) => {
+  it("上游 Content-Type 为二进制媒体流时，http.post 直返 Uint8Array，落盘字节与上游完全一致", async () => {
+    responder = rawBytesResponder(cell.bytes, cell.contentType);
     const before = new Set(publishedMedia());
     const result = await runTask(payload(cell, { projectId: "project-1" }), RUN_APPROVED_ADMISSION);
     expect(posts()).toBe(1);

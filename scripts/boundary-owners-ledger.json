@@ -760,6 +760,36 @@
         "symbol": "finalizeAssetMeta"
       },
       "reason": "2026-11-21 素材来源收成主进程素材库一处判定：来源清洗原样搬进 electron/assets/assetSourceEvidence.ts，成为 finalizeAssetMeta 的私有步骤；finalizeAssetMeta 是每次写 sidecar 前的唯一一道（writeAsset / storeAssetBytes / copyAssetFileByMeta / moveAssetFile / 生成两步发布都过它）。「来源只经一处清洗、白名单字段、按来源类别定 usageStatus、清洗不出就不落」的不变量不变，由 electron/assets/assetSourceEvidence.test.ts 与入口对拍表 electron/assets/assetSourceExits.parity.test.ts 守；渲染层载荷里的来源一律不读（R7）。rightsStatus 迁移分支删掉：没有任何发布版本写过这个字段。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-07-prior-art-not-enforced.root-cause.json",
+      "path": "scripts/check-prior-art.mjs",
+      "symbol": "the plan scan plus the pull-request evaluation",
+      "anchor": {
+        "path": "scripts/check-pr-judgement.mjs",
+        "symbol": "checkPriorArtAlongside"
+      },
+      "reason": "2026-11-23 T-8 门岗收口：check:prior-art 并入 scripts/check-pr-judgement.mjs（checkPriorArtAlongside），同一次扫描计划文档与自写登记表变更，原独立脚本同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-22-vendor-connection-identity.root-cause.json",
+      "path": "scripts/check-builtin-vendor-literals.mjs",
+      "symbol": "check-builtin-vendor-literals",
+      "anchor": {
+        "path": "scripts/t8-structural-guards.mjs",
+        "symbol": "builtinVendorLiteralsSelectors"
+      },
+      "reason": "2026-11-23 T-8 门岗收口：check:builtin-vendor-literals 迁入 eslint.config.mjs（scripts/t8-structural-guards.mjs builtinVendorLiteralsSelectors / builtinHostStepSelectors），原独立脚本同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-16-composer-mount-path.root-cause.json",
+      "path": "scripts/check-renderer-sync-ipc.mjs",
+      "symbol": "decide",
+      "anchor": {
+        "path": "scripts/t8-structural-guards.mjs",
+        "symbol": "rendererSyncIpcSelectors"
+      },
+      "reason": "2026-11-23 T-8 门岗收口：check:renderer-sync-ipc 迁入 eslint.config.mjs（scripts/t8-structural-guards.mjs rendererSyncIpcSelectors + eslint-suppressions.json），原独立脚本与基线文件同提交删除。"
     }
   ],
   "retirements": [
@@ -1626,11 +1656,6 @@
       "contract": "docs/fixes/2026-09-07-outbound-policy-split-across-submit-and-retrieval.root-cause.json",
       "path": "scripts/check-outbound-policy.mjs",
       "symbol": "outbound policy ratchet"
-    },
-    {
-      "contract": "docs/fixes/2026-09-07-prior-art-not-enforced.root-cause.json",
-      "path": "scripts/check-prior-art.mjs",
-      "symbol": "the plan scan plus the pull-request evaluation"
     },
     {
       "contract": "docs/fixes/2026-09-07-reference-conformance-not-required.root-cause.json",

@@ -467,13 +467,19 @@ export async function requestBinary(
 ): Promise<BinaryVendorResponse> {
   const upperMethod = method.toUpperCase();
   const hasBody = upperMethod !== "GET" && upperMethod !== "HEAD" && body != null;
-  const bodyInit = hasBody ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined;
+  const isMultipart = hasBody && typeof FormData !== "undefined" && body instanceof FormData;
+  const effectiveHeaders = isMultipart
+    ? Object.fromEntries(Object.entries(headers).filter(([key]) => key.toLowerCase() !== "content-type"))
+    : headers;
+  const bodyInit = hasBody
+    ? (isMultipart || typeof body === "string" ? body : JSON.stringify(body))
+    : undefined;
   return requestVendor(
     vendor,
     apiKey,
     upperMethod,
     url,
-    headers,
+    effectiveHeaders,
     query,
     bodyInit,
     signal,
