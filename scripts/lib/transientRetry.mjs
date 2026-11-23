@@ -26,6 +26,15 @@ const TRANSIENT_TEXT = new RegExp([
   'unable to access .*(timed out|reset|could not resolve)',
 ].join('|'), 'iu')
 
+// 冷启动的 Validation Scope 尚不能 import，本函数的内联副本由工作流测试逐字核对。
+export function isTransientGitFetchError(error) {
+  if (error.code === 'ETIMEDOUT') return true
+  if (error.signal) return false
+  const stderr = String(error.stderr ?? '')
+  if (/(?:HTTP(?:\/\d(?:\.\d)?)? |returned error: )4\d\d\b|authentication failed|permission denied|repository not found|couldn.t find remote ref|not our ref|bad object|certificate problem/iu.test(stderr)) return false
+  return /failed to connect|couldn.t connect to server|timed out|connection reset|connection refused|network is unreachable|recv failure|TLS handshake timeout|TLS connection was non-properly terminated|could not resolve host|temporary failure in name resolution|(?:HTTP(?:\/\d(?:\.\d)?)? |returned error: )5\d\d\b|RPC failed|remote end hung up unexpectedly|early EOF/iu.test(stderr)
+}
+
 function text(value) {
   if (value == null) return ''
   return Buffer.isBuffer(value) ? value.toString('utf8') : String(value)
@@ -54,6 +63,7 @@ export function isTransientError(error, { retryTimeouts = false } = {}) {
   if (codes.some((code) => PERMANENT_CODES.has(code))) return false
   if (codes.some((code) => TRANSIENT_CODES.has(code))) return true
   const details = error.details && typeof error.details === 'object' ? error.details : {}
+  if (details.command === 'git' && details.args?.[0] === 'fetch') return isTransientGitFetchError(details)
   const haystack = [error.message, error.cause?.message, text(error.stderr), text(details.stderr)].join('\n')
   return TRANSIENT_TEXT.test(haystack)
 }
