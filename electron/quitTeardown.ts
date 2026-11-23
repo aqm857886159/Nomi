@@ -1,7 +1,7 @@
 export type QuitLifecycleEvent = { preventDefault: () => void };
 /** Electron passes an Event to session-end listeners; the typings for powerMonitor `shutdown` omit it. */
-export type SystemSessionEndEvent = { preventDefault?: () => void };
-export interface SystemSessionEndSource {
+type SystemSessionEndEvent = { preventDefault?: () => void };
+interface SystemSessionEndSource {
   on(event: string, listener: (event?: SystemSessionEndEvent) => void): unknown;
 }
 
@@ -15,7 +15,7 @@ export interface QuitLifecycleApp {
   relaunch?(): void;
 }
 
-export type QuitReceiptEvent = "quit-step" | "quit-exit";
+type QuitReceiptEvent = "quit-step" | "quit-exit";
 export type QuitDrainOptions = {
   required?: boolean;
   timeoutMs?: number;
@@ -77,7 +77,7 @@ const BUILTIN_FAST_DRAIN_TIMEOUT_CAP_MS = 250;
 const BUILTIN_FAST_DRAIN_COUNT = 3;
 // Nobody can answer a confirmation when the OS session ends or the dev launcher died:
 // only abort exports (orphan ffmpeg) and close the Agent lane (transcript / trace), then exit.
-export const CRITICAL_EXIT_TIMEOUT_MS = 500;
+const CRITICAL_EXIT_TIMEOUT_MS = 500;
 
 export function registerQuitDrain(name: string, drain: () => void | Promise<void>, options: QuitDrainOptions = {}): () => void {
   if (!name.trim()) throw new Error("quit drain name is required");
@@ -145,7 +145,7 @@ export function resetQuitRequest(): void {
   }
 }
 
-export function quitTeardownTimeoutMs(): number {
+function quitTeardownTimeoutMs(): number {
   return quitDeadlineAt === undefined ? ownerTimeoutMs : Math.max(0, quitDeadlineAt - Date.now());
 }
 
