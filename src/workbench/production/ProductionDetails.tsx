@@ -16,11 +16,18 @@ const DIMENSION_NAME_KEYS: Record<string, ShotVerifyDimensionKey> = Object.fromE
   SHOT_VERIFY_DIMENSIONS.map((d) => [d.name, d.key]),
 ) as Record<string, ShotVerifyDimensionKey>
 
-function formatQaReportSummary(report: QaStageReport, t: TFunction): string {
+type QaReportParts = {
+  summary: string
+  reasonDetail?: string
+}
+
+function formatQaReportParts(report: QaStageReport, t: TFunction): QaReportParts {
   const sep = t('generationCommon.production.qa.listSeparator')
   if (report.skipped || report.total === 0) {
-    const reason = report.skipReason?.trim() || t('generationCommon.production.qa.fallbackReason')
-    return t('generationCommon.production.qa.skipped', { reason })
+    return {
+      summary: t('generationCommon.production.qa.skipped'),
+      reasonDetail: report.skipReason?.trim() || undefined,
+    }
   }
   const reasons = report.unverifiedReasons?.length
     ? report.unverifiedReasons.map((r) => formatQaUnverifiedReason(r, t)).join(sep)
@@ -35,35 +42,42 @@ function formatQaReportSummary(report: QaStageReport, t: TFunction): string {
     : t('generationCommon.production.qa.fallbackDimension')
 
   if (report.flaggedCount === 0 && report.unverifiedCount === 0) {
-    return t('generationCommon.production.qa.allPassed', { count: report.total })
+    return { summary: t('generationCommon.production.qa.allPassed', { count: report.total }) }
   }
   if (report.unverifiedCount === report.total) {
-    return t('generationCommon.production.qa.allUnverified', { count: report.total, reasons })
+    return {
+      summary: t('generationCommon.production.qa.allUnverified', { count: report.total }),
+      reasonDetail: reasons,
+    }
   }
   if (report.flaggedCount === 0) {
-    return t('generationCommon.production.qa.partialUnverified', {
-      passed: report.passedCount,
-      total: report.total,
-      unverified: report.unverifiedCount,
-      reasons,
-    })
+    return {
+      summary: t('generationCommon.production.qa.partialUnverified', {
+        count: report.unverifiedCount,
+        total: report.total,
+      }),
+      reasonDetail: reasons,
+    }
   }
   if (report.unverifiedCount === 0) {
-    return t('generationCommon.production.qa.flaggedOnly', {
-      passed: report.passedCount,
+    return {
+      summary: t('generationCommon.production.qa.flaggedOnly', {
+        passed: report.passedCount,
+        total: report.total,
+        flagged: report.flaggedCount,
+        dims,
+      }),
+    }
+  }
+  return {
+    summary: t('generationCommon.production.qa.flaggedAndUnverified', {
       total: report.total,
       flagged: report.flaggedCount,
       dims,
-    })
+      unverified: report.unverifiedCount,
+    }),
+    reasonDetail: reasons,
   }
-  return t('generationCommon.production.qa.flaggedAndUnverified', {
-    passed: report.passedCount,
-    total: report.total,
-    flagged: report.flaggedCount,
-    dims,
-    unverified: report.unverifiedCount,
-    reasons,
-  })
 }
 
 function formatStageStatusLabel(
@@ -91,6 +105,7 @@ function formatStageStatusLabel(
 // 界面上新写金额格式化由 ESLint 的 ui-money 规则拦（scripts/ui-money-format.mjs）。
 export function ProductionDetails({ details }: Props): JSX.Element {
   const { t, i18n } = useTranslation()
+  const [qaReasonsOpen, setQaReasonsOpen] = React.useState(false)
   const updatedAt = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -109,9 +124,11 @@ export function ProductionDetails({ details }: Props): JSX.Element {
       </div>
       <div className={cn('grid gap-1.5')}>
         {details.stages.map((stage) => {
-          const qaLine = stage.qaReport
-            ? formatQaReportSummary(stage.qaReport, t)
+          const qaParts = stage.qaReport
+            ? formatQaReportParts(stage.qaReport, t)
             : stage.qaSummary
+              ? { summary: stage.qaSummary }
+              : null
           return (
             <div key={stage.stageId} className={cn('grid gap-0.5')}>
               <div className={cn('flex items-center justify-between gap-3 text-caption')}>
@@ -120,10 +137,34 @@ export function ProductionDetails({ details }: Props): JSX.Element {
                   {formatStageStatusLabel(stage, t)}
                 </span>
               </div>
-              {qaLine ? (
-                <p data-production-qa-summary className={cn('m-0 text-micro leading-relaxed text-nomi-ink-60')}>
-                  {qaLine}
-                </p>
+              {qaParts ? (
+                <div className={cn('grid gap-0.5')}>
+                  <div className={cn('flex flex-wrap items-baseline gap-x-2 gap-y-0.5')}>
+                    <p data-production-qa-summary className={cn('m-0 text-micro leading-relaxed text-nomi-ink-60')}>
+                      {qaParts.summary}
+                    </p>
+                    {qaParts.reasonDetail ? (
+                      <button
+                        type="button"
+                        data-production-qa-why-toggle="true"
+                        aria-expanded={qaReasonsOpen}
+                        onClick={() => setQaReasonsOpen((open) => !open)}
+                        className={cn(
+                          'shrink-0 cursor-pointer border-0 bg-transparent p-0 text-micro text-nomi-ink-60 underline decoration-nomi-ink-30 underline-offset-2 hover:text-nomi-ink',
+                        )}
+                      >
+                        {qaReasonsOpen
+                          ? t('generationCommon.reconcile.hideReasons')
+                          : t('generationCommon.reconcile.showReasons')}
+                      </button>
+                    ) : null}
+                  </div>
+                  {qaParts.reasonDetail && qaReasonsOpen ? (
+                    <p data-production-qa-reasons className={cn('m-0 text-micro leading-relaxed text-nomi-ink-40')}>
+                      {qaParts.reasonDetail}
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           )

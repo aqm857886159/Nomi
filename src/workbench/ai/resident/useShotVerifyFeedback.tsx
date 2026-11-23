@@ -2,9 +2,15 @@ import React from 'react'
 import { useOpenProjectId } from '../../project/useOpenProjectId'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
 import ReconcileDeviationCard from '../../generationCanvas/components/ReconcileDeviationCard'
-import { buildContentFixMessage, useShotVerifyStore } from '../../generationCanvas/agent/shotVerifyStore'
+import {
+  buildContentFixMessage,
+  retryShotVerify,
+  useShotVerifyStore,
+} from '../../generationCanvas/agent/shotVerifyStore'
 import { canStartRound } from '../../generationCanvas/agent/storyboardLoopBudget'
 import type { ResidentSurface } from './residentShellDisplay'
+
+export { retryShotVerify }
 
 type SendRepair = (text: string) => Promise<boolean>
 const inFlight = new Set<string>()
@@ -40,8 +46,21 @@ export function useShotVerifyFeedback(surface: ResidentSurface, send: SendRepair
         && latest.deviations === state.deviations
         && latest.unverified === state.unverified ? latest : undefined
     }
-    return <ReconcileDeviationCard deviations={state.deviations} unverified={state.unverified} exhausted={state.exhausted}
-      onDismiss={() => current()?.setDeviations([], [])}
-      onAiFix={() => { if (current()) void requestShotVerifyFix(projectId, send) }} />
+    return (
+      <ReconcileDeviationCard
+        deviations={state.deviations}
+        unverified={state.unverified}
+        exhausted={state.exhausted}
+        retryingVerify={state.status === 'verifying'}
+        onDismiss={() => current()?.setDeviations([], [])}
+        onAcceptUnverified={(shotNodeIds) => current()?.acceptUnverifiedShots(shotNodeIds)}
+        onRetryUnverified={(shotNodeIds) => {
+          if (current()) void retryShotVerify(projectId, shotNodeIds)
+        }}
+        onAiFix={() => {
+          if (current()) void requestShotVerifyFix(projectId, send)
+        }}
+      />
+    )
   }, [projectId, send, state, surface])
 }

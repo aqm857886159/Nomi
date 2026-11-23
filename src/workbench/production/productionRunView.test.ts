@@ -438,6 +438,17 @@ describe('production run view', () => {
     )
     expect(skippedView.details).toMatchObject({ completedStages: 6, totalStages: 9 })
 
+    const partialStages = baseStages.map((s) =>
+      s.stageId === 'qa'
+        ? { ...s, qaReport: { total: 12, passedCount: 7, flaggedCount: 0, unverifiedCount: 5, unverifiedReasons: ['invalid_verdict_json'] } }
+        : s,
+    )
+    const partialView = buildProductionRunView(
+      run({ status: 'awaiting_rough_cut_review', jobs: [], stages: partialStages }),
+      now,
+    )
+    expect(partialView.details).toMatchObject({ completedStages: 6, totalStages: 9 })
+
     const allPassedStages = baseStages.map((s) =>
       s.stageId === 'qa'
         ? { ...s, qaReport: { total: 1, passedCount: 1, flaggedCount: 0, unverifiedCount: 0 } }

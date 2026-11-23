@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { ReconcileDeviation } from './reconcile'
-import { useShotVerifyStore, buildContentFixMessage, verifyShotsAndReport } from './shotVerifyStore'
+import { useShotVerifyStore, buildContentFixMessage, verifyShotsAndReport, retryShotVerify } from './shotVerifyStore'
 import { DEFAULT_LOOP_MAX_ROUNDS } from './storyboardLoopBudget'
 import { withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 
 const verifyMocks = vi.hoisted(() => ({
-  gather: vi.fn(() => [{ shotNodeId: 'shot-1' }]),
+  gather: vi.fn((ids: readonly string[]) => ids.map((shotNodeId) => ({ shotNodeId }))),
   verify: vi.fn(),
   makeDeps: vi.fn(() => ({ marker: 'deps' })),
 }))
@@ -231,6 +231,64 @@ describe('shotVerifyStore 状态机', () => {
     expect(report.unverified).toEqual([{ shotNodeId: 'shot-1', shotTitle: '镜头 1', reason: 'vision_unavailable' }])
     expect((useShotVerifyStore.getState() as unknown as { unverified?: unknown[] }).unverified).toEqual([
       { shotNodeId: 'shot-1', shotTitle: '镜头 1', reason: 'vision_unavailable' },
+    ])
+  })
+
+  it('acceptUnverifiedShots 支持单镜照用与全部照用，保留未选中的未校验镜与既有偏差', () => {
+    const store = useShotVerifyStore.getState()
+    store.activateProject('project-A')
+    store.setDeviations(
+      [content('shot-0')],
+      [
+        { shotNodeId: 'shot-1', shotTitle: '镜头 1', reason: 'invalid_verdict_json' },
+        { shotNodeId: 'shot-2', shotTitle: '镜头 2', reason: 'judge_failed' },
+      ],
+    )
+
+    useShotVerifyStore.getState().acceptUnverifiedShots(['shot-1'])
+    expect(useShotVerifyStore.getState().unverified).toEqual([
+      { shotNodeId: 'shot-2', shotTitle: '镜头 2', reason: 'judge_failed' },
+    ])
+    expect(useShotVerifyStore.getState().deviations).toEqual([content('shot-0')])
+
+    useShotVerifyStore.getState().acceptUnverifiedShots()
+    expect(useShotVerifyStore.getState().unverified).toEqual([])
+    expect(useShotVerifyStore.getState().deviations).toEqual([content('shot-0')])
+  })
+
+  it('retryShotVerify 在途保持卡片可见（status=verifying），完成后仅替换被重审镜的结果并保留其余镜状态', async () => {
+    const store = useShotVerifyStore.getState()
+    store.activateProject('project-A')
+    store.setDeviations(
+      [content('shot-0')],
+      [
+        { shotNodeId: 'shot-1', shotTitle: '镜头 1', reason: 'judge_failed' },
+        { shotNodeId: 'shot-2', shotTitle: '镜头 2', reason: 'invalid_verdict_json' },
+      ],
+    )
+
+    const retryPending = deferred<{ deviations: ReconcileDeviation[]; shotOutcomes: unknown[]; unverified: unknown[] }>()
+    verifyMocks.verify.mockImplementationOnce(() => retryPending.promise)
+
+    const promise = retryShotVerify('project-A', ['shot-1'])
+    await vi.waitFor(() => expect(verifyMocks.verify).toHaveBeenCalledTimes(1))
+    expect(verifyMocks.gather).toHaveBeenCalledWith(['shot-1'], [], [])
+    // 重审在途：卡片保持未校验项可见，status 处于 verifying 供按钮显示 loading
+    expect(useShotVerifyStore.getState().status).toBe('verifying')
+    expect(useShotVerifyStore.getState().unverified).toHaveLength(2)
+
+    retryPending.resolve({
+      deviations: [],
+      shotOutcomes: [{ shotNodeId: 'shot-1', shotTitle: '镜头 1', status: 'passed' }],
+      unverified: [],
+    })
+    expect(await promise).toBe(true)
+
+    const after = useShotVerifyStore.getState()
+    expect(after.status).toBe('ready')
+    expect(after.deviations).toEqual([content('shot-0')])
+    expect(after.unverified).toEqual([
+      { shotNodeId: 'shot-2', shotTitle: '镜头 2', reason: 'invalid_verdict_json' },
     ])
   })
 })

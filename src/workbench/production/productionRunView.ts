@@ -150,7 +150,7 @@ function isUnverifiedOrSkippedQaStage(stage: { stageId: string; qaReport?: QaSta
   return Boolean(
     stage.qaReport.skipped
     || stage.qaReport.total === 0
-    || stage.qaReport.unverifiedCount === stage.qaReport.total,
+    || stage.qaReport.unverifiedCount > 0,
   )
 }
 

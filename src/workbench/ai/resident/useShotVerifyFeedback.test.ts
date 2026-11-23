@@ -97,22 +97,43 @@ describe('verified shots use the existing domain card and admission budget', () 
     expect(next.budget.roundsUsed).toBe(0)
   })
 
-  it('renders a compact inline-header unverified notice without AI Fix or repeated unverified label when only unverified', () => {
+  it('renders single-shot unverified card with concise count header, collapsed Why toggle, and explicit Re-check + Use shot actions', () => {
     ;(useShotVerifyStore.getState().setDeviations as (d: unknown[], u?: unknown[]) => void)(
       [],
-      [{ shotNodeId: 'shot-2', shotTitle: '镜头 2', reason: 'vision_unavailable' }],
+      [{ shotNodeId: 'shot-2', shotTitle: '镜头 2', reason: 'invalid_verdict_json' }],
     )
     const markup = renderToStaticMarkup(React.createElement(FeedbackPanel, { surface: 'generation' }))
     expect(markup).toContain('data-reconcile-deviation-card="true"')
-    expect(markup).toContain('data-reconcile-unverified-header="true"')
     expect(markup).toContain('data-reconcile-unverified-item="shot-2"')
     expect(markup).toContain('镜头 2')
-    expect(markup).toContain(i18n.t('generationCommon.reconcile.unverifiedOnlyCaption'))
-    expect(markup).toContain(i18n.t('generationCommon.reconcile.acknowledge'))
-    expect(markup).not.toContain(`镜头 2 · ${i18n.t('generationCommon.reconcile.unverifiedLabel')}`)
-    expect(markup).not.toContain('data-reconcile-footer-actions')
-    expect(markup).toContain(i18n.t('generationCommon.reconcile.unverifiedReasons.vision_unavailable'))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.unverifiedOnlyCaption', { count: 1 }))
+    expect(markup).toContain('data-reconcile-why-toggle="true"')
+    expect(markup).toContain('aria-expanded="false"')
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.showReasons'))
+    // 默认收起：不直接铺开模型报错原因
+    expect(markup).not.toContain(i18n.t('generationCommon.reconcile.unverifiedReasons.invalid_verdict_json'))
+    // 明确给出创作者可执行的两个动作（重新审片 + 照用此镜），不摆含糊的「确认」或不可用的「AI 修复」
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.recheckOne'))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.acceptOne'))
+    expect(markup).not.toContain(`>${i18n.t('generationCommon.reconcile.acknowledge')}<`)
     expect(markup).not.toContain('data-reconcile-ai-fix')
+  })
+
+  it('renders multi-shot unverified card (e.g. 5 shots) with compact per-row actions and batch footer', () => {
+    ;(useShotVerifyStore.getState().setDeviations as (d: unknown[], u?: unknown[]) => void)(
+      [],
+      Array.from({ length: 5 }, (_, idx) => ({
+        shotNodeId: `shot-${idx + 1}`,
+        shotTitle: `镜 ${idx + 1} · 超长雨夜霓虹天桥特写镜头标题样本`,
+        reason: 'invalid_verdict_json',
+      })),
+    )
+    const markup = renderToStaticMarkup(React.createElement(FeedbackPanel, { surface: 'generation' }))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.unverifiedOnlyCaption', { count: 5 }))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.recheckShort'))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.acceptShort'))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.recheckAll'))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.acceptAll', { count: 5 }))
   })
 
   it('does not claim other shots look normal when flagged and unverified shots coexist', () => {
@@ -123,9 +144,10 @@ describe('verified shots use the existing domain card and admission budget', () 
     const markup = renderToStaticMarkup(React.createElement(FeedbackPanel, { surface: 'generation' }))
     expect(markup).toContain('F_VERIFY_LOW')
     expect(markup).toContain('data-reconcile-unverified-item="shot-2"')
-    expect(markup).toContain(`镜头 2 · ${i18n.t('generationCommon.reconcile.unverifiedLabel')}`)
+    expect(markup).toContain(`镜头 2 · ${i18n.t('generationCommon.reconcile.unverifiedShotStatus')}`)
+    expect(markup).toContain('data-reconcile-why-toggle="true"')
+    expect(markup).not.toContain(i18n.t('generationCommon.reconcile.unverifiedReasons.judge_failed'))
     expect(markup).toContain('data-reconcile-footer-actions="true"')
-    expect(markup).toContain(i18n.t('generationCommon.reconcile.unverifiedReasons.judge_failed'))
     expect(markup).not.toContain(i18n.t('generationCommon.reconcile.contentCaption'))
   })
 })
