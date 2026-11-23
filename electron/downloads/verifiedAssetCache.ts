@@ -25,6 +25,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { renameWithRetry } from "../jsonFile";
 import { getSettingsRoot } from "../settings/settingsRoot";
 import { ensureDir } from "../runtimePaths";
 import { fsyncIfDurable } from "../durability";
@@ -168,7 +169,7 @@ async function downloadOne(
     await openHandle.close();
     handle = null;
     // rename 是原子的：`finalPath` 出现的那一刻，它已经通过了大小与哈希两道校验。
-    await fs.promises.rename(partPath, finalPath);
+    await renameWithRetry(partPath, finalPath);
     logInfo("downloads", "verified-asset-downloaded", { family, assetId: asset.id, bytes: asset.sizeBytes });
   } catch (error) {
     if (handle) {

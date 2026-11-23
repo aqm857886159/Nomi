@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { renameSyncOnce } from '../jsonFile'
 import type { ProductionArtifact, ProductionRun } from './productionRunTypes'
 
 const DEFAULT_TTL_MS = 5 * 60_000
@@ -55,7 +56,7 @@ export function loadOrCreateArtifactPreviewSecret(filePath: string): string {
   const temporary = `${target}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`
   fs.writeFileSync(temporary, `${secret}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
   try {
-    fs.renameSync(temporary, target)
+    renameSyncOnce(temporary, target)
     try { fs.chmodSync(target, 0o600) } catch { /* POSIX mode is best effort on Windows. */ }
     return secret
   } catch (error) {
