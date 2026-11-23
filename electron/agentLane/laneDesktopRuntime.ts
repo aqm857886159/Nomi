@@ -16,6 +16,7 @@ import { getSettingsRoot, getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { ensureWorkspaceProjectIdentity } from '../workspace/workspaceProjectIdentity'
 import { chooseTextModel } from '../ai/textBrainResolver'
+import { catalogRevisionToken } from '../catalog/catalogStore'
 import { nomiModelConfigFor } from '../ai/vendorModelConnection'
 import { buildAgentSystemPrompt, buildLanguageRule, resolveRequestedSkill } from '../harness/context/agentContext'
 import type { SkillRecord } from '../skills/skillStore'
@@ -51,11 +52,39 @@ const prepareInput = (context: LaneComposerContext) => prepareLaneSkillContext(c
   render: renderSelectedSkillPrompt,
 })
 
-function selectModel(preference: LaneComposerContext['model']) {
-  const selected = chooseTextModel(preference?.modelKey ?? '', false, preference?.vendorKey ?? '')
+type ResolvedModelSelection = {
+  readonly model: ReturnType<typeof chooseTextModel>['model']
+  readonly kind: ReturnType<typeof nomiModelConfigFor>['kind']
+  readonly config: ReturnType<typeof nomiModelConfigFor>
+}
+
+// 复用目录只读版本令牌（`catalogRevisionToken` 走 `readCatalogShared`，无 `structuredClone`）：
+// 目录文件字节未变且偏好未变时直接命中上次选型，目录变动或密钥锁定（不缓存 → 新对象）自动失效。
+let cachedModelSelection: {
+  catalogToken: object
+  vendorKey: string
+  modelKey: string
+  result: ResolvedModelSelection
+} | undefined
+
+function selectModel(preference: LaneComposerContext['model']): ResolvedModelSelection {
+  const vendorKey = preference?.vendorKey?.trim() ?? ''
+  const modelKey = preference?.modelKey?.trim() ?? ''
+  const catalogToken = catalogRevisionToken()
+  if (
+    cachedModelSelection
+    && cachedModelSelection.catalogToken === catalogToken
+    && cachedModelSelection.vendorKey === vendorKey
+    && cachedModelSelection.modelKey === modelKey
+  ) {
+    return cachedModelSelection.result
+  }
+  const selected = chooseTextModel(modelKey, false, vendorKey)
   const { vendor, model, apiKey } = selected
   const config = nomiModelConfigFor(vendor, model, apiKey)
-  return { model, kind: config.kind, config }
+  const result: ResolvedModelSelection = { model, kind: config.kind, config }
+  cachedModelSelection = { catalogToken, vendorKey, modelKey, result }
+  return result
 }
 
 /** Owns desktop identity and domain ports; pi owns conversation execution and persistence. */
@@ -187,11 +216,12 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
         },
         configure: async (next: LaneComposerContext) => {
           const model = selectModel(next.model)
-          if (JSON.stringify(selected?.config) !== JSON.stringify(model.config)) {
+          if (selected?.config !== model.config && JSON.stringify(selected?.config) !== JSON.stringify(model.config)) {
             const previous = selected
             selected = model
             try { await opened.configureModel(model.config) } catch (error) { selected = previous; throw error }
           }
+          // 幂等写盘只归唯一持久化写口 `writeAgentApprovalPolicy`，这里不做第二层内存短路。
           composer = { ...next, approvalPolicy: writeAgentApprovalPolicy(next.approvalPolicy) }
         },
       }

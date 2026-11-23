@@ -4,6 +4,12 @@ import path from 'node:path'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
+import {
+  BOARD_DEBT_OVERDUE_DAYS,
+  formatBoardDebtReport,
+  listBoardManifests,
+  summarizeBoardDebt,
+} from './check-board-parity.mjs'
 import { gitNameStatus } from './lib/gitPaths.mjs'
 import { killProcessTree, processTreeSpawnOptions } from './lib/processTree.mjs'
 import { retryTransient } from './lib/transientRetry.mjs'
@@ -591,6 +597,89 @@ export async function verifyMergedDelivery({
   }
 }
 
+export const DEFAULT_PR_LOOKUP_TIMEOUT_MS = 8_000
+
+function isGitHubRemoteUrl(remoteUrl) {
+  return /^(?:https?:\/\/github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)/i.test(String(remoteUrl || '').trim())
+}
+
+/**
+ * 收集当前仓库里未合入分支与开着的 PR，供开会话拍板图欠账汇总判断「有没有人在做」。
+ * 只读；gh 失败或离线时不阻塞 preflight，如实记下 prLookupError。
+ */
+export async function collectActiveBoardWork({
+  cwd = process.cwd(),
+  remote = 'origin',
+  base = 'main',
+  timeoutMs = DEFAULT_PR_LOOKUP_TIMEOUT_MS,
+  runCommand = runBoundedCommand,
+  retryOptions,
+} = {}) {
+  const remoteRef = `${remote}/${base}`
+  const ignored = new Set(['HEAD', 'main', 'master', base, `${remote}/HEAD`, `${remote}/main`, `${remote}/master`, remoteRef])
+  const branchResult = gitStatus(cwd, ['branch', '-a', '--no-merged', remoteRef, '--format=%(refname:short)\t%(committerdate:unix)'])
+  const branches = branchResult.exitCode === 0
+    ? branchResult.stdout
+      .split(/\r?\n/)
+      .map((line) => {
+        const [rawName, rawUnix] = line.split('\t')
+        const name = String(rawName ?? '').trim()
+        const unix = Number(rawUnix)
+        return { name, committedAtMs: Number.isFinite(unix) && unix > 0 ? unix * 1000 : null }
+      })
+      .filter((entry) => entry.name && !ignored.has(entry.name))
+    : []
+
+  const remoteUrlResult = gitStatus(cwd, ['remote', 'get-url', remote])
+  if (remoteUrlResult.exitCode !== 0 || !isGitHubRemoteUrl(remoteUrlResult.stdout)) {
+    return { prs: [], branches, prLookupError: null }
+  }
+
+  try {
+    const response = await retryTransient(
+      () =>
+        runCommand(
+          'gh',
+          ['pr', 'list', '--state', 'open', '--limit', '100', '--json', 'number,title,headRefName,body'],
+          { cwd, timeoutMs, env: { ...process.env, GH_PROMPT_DISABLED: '1' } },
+        ),
+      { retryTimeouts: true, timeoutMs, attempts: 2, ...retryOptions },
+    )
+    const parsed = JSON.parse(response.stdout || '[]')
+    const prs = Array.isArray(parsed) ? parsed : []
+    return { prs, branches, prLookupError: null }
+  } catch (error) {
+    const firstLine = String(error instanceof Error ? error.message : error).split('\n')[0].trim()
+    return { prs: [], branches, prLookupError: firstLine || 'gh pr list failed' }
+  }
+}
+
+/** 复用 check-board-parity.mjs 的板读取与汇总，绝不另写第二份板读取器。 */
+export async function inspectBoardDebt({
+  cwd = process.cwd(),
+  remote = 'origin',
+  base = 'main',
+  now = new Date(),
+  overdueDays = BOARD_DEBT_OVERDUE_DAYS,
+  collectActiveWork = collectActiveBoardWork,
+} = {}) {
+  const boardsRoot = path.join(cwd, 'docs/design/boards')
+  const records = fs.existsSync(boardsRoot)
+    ? listBoardManifests({ dir: path.join(boardsRoot, '2026-10-08'), root: boardsRoot })
+    : []
+  if (records.length === 0) {
+    return summarizeBoardDebt([], { now, overdueDays })
+  }
+  const active = await collectActiveWork({ cwd, remote, base })
+  return summarizeBoardDebt(records, {
+    now,
+    overdueDays,
+    prs: active?.prs ?? [],
+    branches: active?.branches ?? [],
+    prLookupError: active?.prLookupError ?? null,
+  })
+}
+
 export function parseCli(argv) {
   const [command, ...args] = argv
   const options = {}
@@ -602,6 +691,8 @@ export function parseCli(argv) {
     else if (arg === '--base') options.base = args[++index]
     else if (arg === '--timeout-ms') options.timeoutMs = Number(args[++index])
     else if (arg === '--ci-timeout-ms') options.ciTimeoutMs = Number(args[++index])
+    else if (arg === '--fail-on-overdue') options.failOnOverdue = true
+    else if (arg === '--overdue-days') options.overdueDays = Number(args[++index])
     else throw new DeliveryError('unknown_argument', `Unknown delivery argument: ${arg}`)
   }
   return { command, options }
@@ -621,11 +712,29 @@ function printableState(state) {
   }
 }
 
-export async function runDeliveryCommand(argv = process.argv.slice(2), { cwd = process.cwd() } = {}) {
+export async function runDeliveryCommand(
+  argv = process.argv.slice(2),
+  { cwd = process.cwd(), now, collectActiveWork, fetchRemote } = {},
+) {
   const { command, options } = parseCli(argv)
   if (command === 'preflight') {
-    const state = await preflightDelivery({ cwd, ...options })
-    return { stage: 'preflight', state: printableState(state) }
+    const state = await preflightDelivery({ cwd, ...options, ...(fetchRemote ? { fetchRemote } : {}) })
+    const boardDebt = await inspectBoardDebt({
+      cwd: state.repoRoot,
+      remote: state.remote,
+      base: state.base,
+      ...(now !== undefined ? { now } : {}),
+      ...(options.overdueDays !== undefined ? { overdueDays: options.overdueDays } : {}),
+      ...(collectActiveWork ? { collectActiveWork } : {}),
+    })
+    if (options.failOnOverdue && boardDebt.overdueBoards > 0) {
+      throw new DeliveryError(
+        'overdue_board_debt',
+        `Found ${boardDebt.overdueBoards} approved board(s) overdue (>${boardDebt.overdueDays}d with missing elements and no active PR/branch)`,
+        { state: printableState(state), boardDebt },
+      )
+    }
+    return { stage: 'preflight', state: printableState(state), boardDebt }
   }
   if (command === 'verify-merged') {
     const result = await verifyMergedDelivery({ cwd, ...options })
@@ -639,13 +748,19 @@ export async function runDeliveryCommand(argv = process.argv.slice(2), { cwd = p
   }
   throw new DeliveryError(
     'unknown_command',
-    'Usage: pnpm run delivery:preflight OR pnpm run delivery:verify-merged -- --expected-sha <40-char-sha> [--ci-timeout-ms <milliseconds>]',
+    'Usage: pnpm run delivery:preflight [-- --fail-on-overdue] OR pnpm run delivery:verify-merged -- --expected-sha <40-char-sha> [--ci-timeout-ms <milliseconds>]',
   )
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runDeliveryCommand()
-    .then((result) => console.log(JSON.stringify(result, null, 2)))
+    .then((result) => {
+      console.log(JSON.stringify(result, null, 2))
+      if (result.stage === 'preflight' && result.boardDebt && result.boardDebt.totalBoards > 0) {
+        const useColor = Boolean(process.stderr.isTTY || process.env.FORCE_COLOR)
+        console.error(`\n${formatBoardDebtReport(result.boardDebt, { color: useColor })}`)
+      }
+    })
     .catch((error) => {
       const payload =
         error instanceof DeliveryError

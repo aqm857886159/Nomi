@@ -44,6 +44,7 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'spend-card-node-edit-refresh',
   'chat-send-visible-10',
   'chat-send-visible',
+  'chat-send-visible-50-tools',
   'chat-send-visible-1000',
   'chat-scroll-500',
   'chat-scroll-500-cpu4x',
@@ -76,6 +77,7 @@ const SPEND_CARD_CANDIDATE = 'doubao-seedance-2.0@apimart'
 const CHAT_SCENARIOS = Object.freeze({
   'chat-send-visible-10': { items: 10, mixed: false },
   'chat-send-visible': { items: 100, mixed: false },
+  'chat-send-visible-50-tools': { turns: 50, withTools: true },
   'chat-send-visible-1000': { items: 1000, mixed: false },
   'chat-scroll-500': { items: 500, mixed: true },
   'chat-scroll-500-cpu4x': { items: 500, mixed: true, cpuThrottle: 4 },
@@ -133,7 +135,8 @@ export async function prepareWorkbenchLaunch(scenario, { fixture, root, repoRoot
     return prepareAgentLaunch({ settingsDir, guard, repoRoot, label: 'perf stream', reply: { type: 'stream', text: STREAM_TEXT, chunkChars: 12, intervalMs: 40 } })
   }
   if (CHAT_SCENARIOS[scenario]) {
-    seedLegacyConversation(fixture, CHAT_SCENARIOS[scenario])
+    if (CHAT_SCENARIOS[scenario].withTools) await seedToolHeavyConversation(fixture, CHAT_SCENARIOS[scenario].turns)
+    else seedLegacyConversation(fixture, CHAT_SCENARIOS[scenario])
     const settingsDir = path.join(root, 'settings')
     fs.mkdirSync(settingsDir, { recursive: true })
     const guard = { mainRequire: [path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs')], env: { NOMI_TEST_NETWORK_GUARD: '1' } }
@@ -162,6 +165,54 @@ async function prepareAgentLaunch({ settingsDir, guard, repoRoot, label, reply }
  * 给夹具项目塞一段旧版本留下的长对话（`.nomi/agent-session.json`，旧版真格式，和旧版迁移走查同一种）：
  * 打开项目时产品自己的迁移把它导进当前对话。条目是用户 / 回答交替；mixed 时回答里轮换标题、列表、代码块。
  */
+/**
+ * 50 轮含工具入参与大段 JSON 工具结果的长对话：直接经 pi 自己的 JsonlSessionRepo 写进 `.nomi/agent-sessions/--nomi-lane-main--/`，
+ * 与生产落盘字节同构，不走旧版迁移，避免把冷迁移时间算进启动等待。
+ */
+async function seedToolHeavyConversation(fixture, turns) {
+  const nomi = path.join(fixture.projectRoot, '.nomi')
+  const sessionsRoot = path.join(nomi, 'agent-sessions')
+  fs.rmSync(sessionsRoot, { recursive: true, force: true })
+  fs.rmSync(path.join(nomi, 'agent-session.json'), { force: true })
+  fs.rmSync(path.join(nomi, 'agent-workspace.json'), { force: true })
+  fs.mkdirSync(sessionsRoot, { recursive: true })
+  const { ok } = await import('@earendil-works/pi-agent-core')
+  const { JsonlSessionRepo } = await import('@earendil-works/pi-agent-core/harness/session')
+  const { BACKGROUND_CONTEXT } = await import('@earendil-works/pi-agent-core/harness/context')
+  const { NodeExecutionEnv } = await import('@earendil-works/pi-agent-core/harness/env/nodejs')
+  const base = new NodeExecutionEnv({ cwd: fixture.projectRoot })
+  const fileSystem = Object.create(base)
+  fileSystem.absolutePath = async (inputPath, ctx) => (inputPath.startsWith('/nomi-lane/') ? ok(inputPath) : base.absolutePath(inputPath, ctx))
+  const repo = new JsonlSessionRepo({ fileSystem, sessionsRoot })
+  const session = await repo.create({ cwd: '/nomi-lane/main' }, BACKGROUND_CONTEXT)
+  try {
+    const branch = await session.createBranch('main', null, BACKGROUND_CONTEXT)
+    const usage = { input: 100, output: 50, cacheRead: 0, cacheWrite: 0, totalTokens: 150, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } }
+    let ts = Date.now() - turns * 4000
+    for (let turn = 1; turn <= turns; turn += 1) {
+      const toolCallId = `perf-tool-${turn}`
+      const bigResult = JSON.stringify({
+        operation: 'look_at_canvas',
+        turn,
+        nodes: Array.from({ length: 18 }, (_, i) => ({
+          id: `shot-${turn}-${i + 1}`,
+          title: `第 ${turn} 场 镜 ${i + 1}`,
+          kind: i % 2 === 0 ? 'image' : 'video',
+          status: 'success',
+          prompt: `雨夜旧街口霓虹倒映在积水里，人物缓步穿过人群，胶片颗粒质感（第 ${turn} 轮第 ${i + 1} 镜）。`,
+        })),
+      })
+      await branch.appendMessage({ role: 'user', content: `第 ${turn} 轮：检查当前画布分镜并补写第 ${turn} 镜提示词。`, timestamp: (ts += 1000) }, BACKGROUND_CONTEXT)
+      await branch.appendMessage({ role: 'assistant', content: [{ type: 'toolCall', id: toolCallId, name: 'look_at_canvas', arguments: {} }], api: 'openai-completions', provider: 'fixture', model: 'fixture', stopReason: 'toolUse', usage, timestamp: (ts += 1000) }, BACKGROUND_CONTEXT)
+      await branch.appendMessage({ role: 'toolResult', toolCallId, toolName: 'look_at_canvas', content: [{ type: 'text', text: bigResult }], isError: false, timestamp: (ts += 1000) }, BACKGROUND_CONTEXT)
+      await branch.appendMessage({ role: 'assistant', content: [{ type: 'text', text: `第 ${turn} 镜已完成核对：画幅 16:9，运镜缓推。` }], api: 'openai-completions', provider: 'fixture', model: 'fixture', stopReason: 'stop', usage, timestamp: (ts += 1000) }, BACKGROUND_CONTEXT)
+    }
+  } finally {
+    await session.close(BACKGROUND_CONTEXT)
+    await repo.close(BACKGROUND_CONTEXT)
+  }
+}
+
 function seedLegacyConversation(fixture, { items, mixed }) {
   const nomi = path.join(fixture.projectRoot, '.nomi')
   fs.rmSync(path.join(nomi, 'agent-sessions'), { recursive: true, force: true })

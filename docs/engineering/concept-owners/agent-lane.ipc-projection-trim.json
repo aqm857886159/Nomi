@@ -1,0 +1,26 @@
+{
+  "name": "Agent 投影跨 IPC 推送前的非报错工具结果正文裁剪",
+  "subject": "agent-lane.ipc-projection-trim",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "shared",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentLane/laneProjection.ts",
+    "symbol": "trimWorkspaceProjectionForIpc"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "trimWorkspaceProjectionForIpc"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/shared/agentLane/laneProjection.test.ts",
+  "allowed_consumers": [
+    "electron/agentLane/laneIpc.ts"
+  ],
+  "since": "2026-11-22",
+  "notes": "合同 docs/fixes/2026-11-22-agent-send-trim-waste.root-cause.json：仅在唯一 IPC 投影推送口 laneIpc.ts 裁剪渲染层不消费的成功态（isError: false）tool-result.text，完整保留 toolCallId / toolName / isError / nextAction 及报错态 text 与 failure 信封，不修改主进程内持有的原始 lane.projection()。"
+}
