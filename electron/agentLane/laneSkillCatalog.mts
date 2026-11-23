@@ -130,15 +130,80 @@ async function migrateLegacyManifests(root: SkillDiscoveryRoot, diagnostics: Ski
   }
 }
 
+type LastSkillDiscovery = {
+  readonly key: string;
+  readonly fingerprint: string;
+  readonly result: SkillDiscoveryResult;
+};
+
+// 单活跃工作区只有 1 组活跃技能根（内置 + 用户目录）：只留单槽记忆，由目录树 `lstat`/`readdir` 指纹唯一判新旧。
+// 不用多槽 LRU、不挂 `fs.watch` 句柄池，避免双套失效与监听句柄生命周期复杂度。
+let lastSkillDiscovery: LastSkillDiscovery | null = null;
+
+const MAX_FINGERPRINT_DEPTH = 8;
+
+async function lstatSignature(target: string): Promise<string> {
+  try {
+    const st = await lstat(target, { bigint: true });
+    return `${st.ino}:${st.mode}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException)?.code;
+    return code ? `ERR:${code}` : 'ERR';
+  }
+}
+
+async function walkRootFingerprint(dir: string, out: string[], depth: number): Promise<void> {
+  const sig = await lstatSignature(dir);
+  out.push(`${dir}=${sig}`);
+  if (sig.startsWith('ERR:') || depth > MAX_FINGERPRINT_DEPTH) return;
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException)?.code;
+    out.push(`${dir}:READERR:${code ?? 'ERR'}`);
+    return;
+  }
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+  await Promise.all(entries.map(async (entry) => {
+    if (entry.name === '.git' || entry.name === 'node_modules') return;
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory() && !entry.isSymbolicLink()) {
+      await walkRootFingerprint(entryPath, out, depth + 1);
+    } else {
+      out.push(`${entryPath}=${await lstatSignature(entryPath)}`);
+    }
+  }));
+}
+
+async function computeRootsFingerprint(roots: readonly SkillDiscoveryRoot[]): Promise<string> {
+  const lines: string[] = [];
+  for (const root of roots) {
+    await walkRootFingerprint(root.path, lines, 0);
+  }
+  lines.sort();
+  return lines.join('\n');
+}
+
 /**
  * 全部根 → `SkillRecord[]`。**发现交给 pi**；这里只做 Nomi 的投影与策略，每一条都对应 §2 里的一行。
+ *
+ * 目录树指纹（`lstat`/`readdir` 纳秒元数据）未变更时复用上次发现结果：
+ * 避免每条消息在回合边界两次 `refresh()` 触发数百次同步读文件与双重 YAML 解析；
+ * 新增技能、编辑 `SKILL.md` / 子文件、删技能或替换软链在下一次调用立刻因指纹变化重扫。
  */
 export async function discoverSkillRecords(roots: readonly SkillDiscoveryRoot[]): Promise<SkillDiscoveryResult> {
-  const records: SkillRecord[] = [];
-  const diagnostics: SkillDiscoveryDiagnostic[] = [];
   const normalizedRoots = roots
     .filter((root) => typeof root?.path === 'string' && path.isAbsolute(root.path))
     .map((root) => ({ path: path.resolve(root.path), origin: root.origin === 'user' ? 'user' as const : 'builtin' as const }));
+  const cacheKey = normalizedRoots.map((root) => `${root.origin}:${root.path}`).join('\u0000');
+  const fingerprint = normalizedRoots.length > 0 ? await computeRootsFingerprint(normalizedRoots) : '';
+  if (lastSkillDiscovery && lastSkillDiscovery.key === cacheKey && lastSkillDiscovery.fingerprint === fingerprint) {
+    return { records: [...lastSkillDiscovery.result.records], diagnostics: [...lastSkillDiscovery.result.diagnostics] };
+  }
+
+  const records: SkillRecord[] = [];
+  const diagnostics: SkillDiscoveryDiagnostic[] = [];
   for (const root of normalizedRoots) await migrateLegacyManifests(root, diagnostics);
 
   // pi 的 env：cwd 无关紧要（根全是绝对路径），沿用 laneFileSystem 同一个 NodeExecutionEnv，不自己写 FileSystem。
@@ -169,7 +234,13 @@ export async function discoverSkillRecords(roots: readonly SkillDiscoveryRoot[])
     seen.set(key, record.filePath);
     records.push(record);
   }
-  return { records, diagnostics };
+  const result: SkillDiscoveryResult = { records, diagnostics };
+  if (normalizedRoots.length > 0) {
+    // 发现过程中可能触发存量 `skill.json` 一次性迁移写盘，取发现后的目录树指纹入槽以保证下次未变动直接命中。
+    const settledFingerprint = await computeRootsFingerprint(normalizedRoots);
+    lastSkillDiscovery = { key: cacheKey, fingerprint: settledFingerprint, result };
+  }
+  return { records: [...records], diagnostics: [...diagnostics] };
 }
 
 /** pi 的 `Skill` + 它来自哪个根 → Nomi 的 `SkillRecord`。返回 `null` = 这一条不进目录（原因已记进 diagnostics）。 */
