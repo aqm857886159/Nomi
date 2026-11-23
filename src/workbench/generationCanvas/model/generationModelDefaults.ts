@@ -15,7 +15,7 @@ import {
   type GenerationDefaultTaskKind,
   type GenerationModelDefault,
   type GenerationModelDefaults,
-} from '../../../../electron/settings/generationModelDefaultsContract'
+} from '../../../../electron/shared/contracts/generationModelDefaultsContract'
 
 export type GenerationModelDefaultMap = Partial<Record<GenerationDefaultTaskKind, GenerationModelDefault>>
 

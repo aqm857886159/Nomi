@@ -9,7 +9,7 @@ import {
 import { isGenerationProblemCode, type GenerationProblemCode } from '../shared/generationProblem'
 
 export type { CapabilitySlot, DurationBucket, ModelClass }
-export const TELEMETRY_SCHEMA_VERSION = 1 as const
+const TELEMETRY_SCHEMA_VERSION = 1 as const
 export const TELEMETRY_EVENT_NAMES = ['app.started', 'generation.completed', 'export.completed', 'update.action', 'agent.tool.failed', 'perf.session.summary'] as const
 export type TelemetryEventName = typeof TELEMETRY_EVENT_NAMES[number]
 /**
@@ -34,8 +34,8 @@ export const TELEMETRY_EVENT_MIN_SCOPE: Record<TelemetryEventName, TelemetryScop
   'agent.tool.failed': 1,
   'perf.session.summary': 2,
 }
-export type ExportFormat = 'mp4' | 'webm' | 'gif' | 'unknown'
-export type UpdateAction = 'check' | 'download' | 'install'
+type ExportFormat = 'mp4' | 'webm' | 'gif' | 'unknown'
+type UpdateAction = 'check' | 'download' | 'install'
 /** 更新失败的原因类别（只有枚举，没有 message / URL）。开发版与非正式版不算失败，不上报。 */
 export type UpdateFailureReason = 'network' | 'parse' | 'other'
 /**
@@ -58,7 +58,7 @@ export const TELEMETRY_IDENTIFIER_PATTERN = /^[a-z][a-z0-9_]{0,47}$/
  *   失败才有：failureStage —— 卡在提交 / 等待 / 取回 / 落地哪一段；localRefusal —— 没发出去时是本机哪条规则（只认已闭合的码）；
  *   errorType —— 原有的失败类别码。
  */
-export type GenerationCompletedProps = {
+type GenerationCompletedProps = {
   capability: CapabilitySlot
   durationBucket: DurationBucket
   result: TelemetryResult
@@ -75,7 +75,7 @@ export type GenerationCompletedProps = {
   localRefusal?: GenerationLocalRefusal
 }
 /** 主进程补的两格：渲染层只交界面那一份（`PerfSummaryProps`），主进程停顿由主进程自己的监视器给。 */
-export type PerfSessionSummaryProps = PerfSummaryProps & { mainStallMax: MainStallMax; mainStallCount: MainStallCount }
+type PerfSessionSummaryProps = PerfSummaryProps & { mainStallMax: MainStallMax; mainStallCount: MainStallCount }
 
 export type TelemetryProps =
   | { eventName: 'app.started'; props: { appMajor: number; appMinor: number; osFamily: 'macos' | 'windows' | 'linux' | 'other'; locale: 'zh-CN' | 'en'; /** 上一次启动是怎么结束的（本机退出标记，下次启动才知道）。 */ lastExit: LastExit } }

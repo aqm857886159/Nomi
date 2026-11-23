@@ -11,23 +11,21 @@ import type { DeclaredRouteConflict } from "../../catalog/declaredProviderRegist
  * 自检**永远**消不掉 `model_produces_output`：自检证明的是「地址对、key 对、卡的形状自洽」，
  * 不是「点了一定能出片」。消掉它的唯一证据是用户在画布上真跑一次（§7）。
  */
-export const UNVERIFIED_CLAIMS = [
-  "endpoint_reachable",
-  "credential_accepted",
-  "model_id_exists",
+export type UnverifiedClaim =
+  | "endpoint_reachable"
+  | "credential_accepted"
+  | "model_id_exists"
   /** 卡本身过没过校验（旧名 `adapter_compiles`——那时它还是「我们编译出来的」）。 */
-  "declaration_valid",
+  | "declaration_valid"
   /** 这家的上传通道真的能把一张本地图送进去吗。自检不打它（那会花钱或留垃圾）。 */
-  "asset_upload_works",
+  | "asset_upload_works"
   /** 唯一一条只有用户真跑一次才能消掉的。 */
-  "model_produces_output",
-] as const;
-export type UnverifiedClaim = (typeof UNVERIFIED_CLAIMS)[number];
+  | "model_produces_output";
 
 export type UnverifiedEntry = { claim: UnverifiedClaim; reason: string; evidenceWouldBe: string };
 
 export type OnboardingStateId = "S11.0" | "S11.1" | "S11.3" | "S11.4" | "S11.5" | "S11.6";
-export type OnboardingChange = { state: OnboardingStateId; summary: string };
+type OnboardingChange = { state: OnboardingStateId; summary: string };
 
 export type BlastRadius = {
   modelsAppearing: number;
@@ -44,10 +42,10 @@ export type BlastRadius = {
   outboundRequests: Array<{ origin: string; count: number; billable: boolean }>;
 };
 
-export type OnboardingNextActionKind =
+type OnboardingNextActionKind =
   | "none" | "user_sees_key_page" | "user_sees_confirm_card" | "user_sees_spend_card" | "waiting_for_user" | "working";
 
-export type OnboardingNextAction = {
+type OnboardingNextAction = {
   kind: OnboardingNextActionKind;
   /** 一句人话，与界面同源、模型可直接转述。 */
   userSees: string;
@@ -154,11 +152,6 @@ export function unverified(...claims: UnverifiedClaim[]): UnverifiedEntry[] {
 /** 这一跳什么都没改。 */
 export function noBlast(): BlastRadius {
   return { modelsAppearing: 0, modelsDisappearing: 0, recordsDeleted: 0, outboundRequests: [] };
-}
-
-/** 自检发出的免费请求。 */
-export function freeRequests(origin: string): BlastRadius["outboundRequests"] {
-  return origin ? [{ origin, count: 1, billable: false }] : [];
 }
 
 /** 试跑发出的那一次**要花钱**的请求。它是本域唯一能写 `billable: true` 的地方。 */

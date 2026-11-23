@@ -4,7 +4,7 @@ import {
   CUSTOM_PROMPT_MAX_COUNT,
   CUSTOM_PROMPT_NAME_MAX_LENGTH,
   type CustomSystemPrompt,
-} from '../../../../electron/settings/systemPromptsContract'
+} from '../../../../electron/shared/contracts/systemPromptsContract'
 import {
   appendCustomPrompt,
   canAddCustomPrompt,
