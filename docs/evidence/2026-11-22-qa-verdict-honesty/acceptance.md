@@ -2,15 +2,16 @@ k-qa-verify：通过
 
 - 验收线：k-qa-verify
 - 实现分支：fix/qa-verdict-three-states
-- 验收 HEAD：1f674abc56af58d750a6788e486328ed732137f4
-- 验收日期：2026-11-23
+- 验收 HEAD：61f6a57ef990e59a84206cd5a2839193fd124e25
+- 验收日期：2026-11-24
 
 ## 验收过程与闭环记录
 
 1. **首轮复核拦截（HEAD `7d0726619c37bd8179e67c2cb4159ef8fa450ff8`）**：逐张核对真窗口截图与新增文案时，发现 `docs/evidence/2026-11-22-qa-verdict-honesty/after-details-en.png` 渲染出 `QA incomplete: 1 shots not verified (Could not parse verification result)`，对应 `src/i18n/locales/generationCommon.ts` 中 `production.qa.allPassed` 与 `allUnverified` 未使用仓库既有 `_one`/`_other` + `count` 复数规范；退回实现线修复。
 2. **第二轮复验（HEAD `8b85d9540a1e64e6731d35460a9b997db6d98410`）**：实现线已将 `allPassed` / `allUnverified` 拆为 `_one`/`_other`（参数 `count`），补齐 `count=1` 与 `count=3` 英文单复数单测并刷新真窗口截图 `after-details-en.png`（确认显示 `1 shot not verified`）。
 3. **第三轮复验（HEAD `990c53ae64804d06455efb09c766714d5a38daa6`）**：实现线抽出 `buildQaStagePatch`（`productionQaVerdict.ts`）与 `mapShotVerifyReportToProductionVerdicts`（`shotVerify.ts`）使 `productionRunDriverOps.ts`（1124 ≤ 1130）与 `capabilityApplyHandler.ts`（749 ≤ 800）满足 `check:filesize`。
-4. **最终复验关闭（HEAD `1f674abc56af58d750a6788e486328ed732137f4`）**：合并最新 `origin/main`（`a29b31fe0`）并补齐概念登记 `docs/engineering/concept-owners/production.qa-verdict.json`（登记 `QaShotVerdictStatus`、`verifyGeneratedShots`、`buildQaStageOutcome` 三条 `write_api`）；独立复跑 `node scripts/check-concept-owners.mjs` 通过（399 个概念、0 错）。
+4. **第四轮复验（HEAD `1f674abc56af58d750a6788e486328ed732137f4`）**：补齐概念登记 `docs/engineering/concept-owners/production.qa-verdict.json` 通过 `check-concept-owners.mjs`。
+5. **最终复验关闭（HEAD `61f6a57ef990e59a84206cd5a2839193fd124e25`）**：将跨进程共享三态类型迁入中立契约层 `electron/shared/productionQaVerdict.ts` 并同步更新概念登记、词表基线与 3 处渲染层 import，独立复跑 `check-boundaries.mjs`（68/68，0 新增越界）与 `check-concept-owners.mjs`（400 概念、0 错）均通过。
 
 ## 独立核验结果（全部 0 报错通过）
 
@@ -30,7 +31,8 @@ k-qa-verify：通过
 ### 3. 门岗核验
 - `pnpm run check:filesize`：通过（`productionRunDriverOps.ts` 1124 ≤ 1130、`capabilityApplyHandler.ts` 749 ≤ 800）。
 - `pnpm run check:i18n`：全部 7 项子门岗通过（6641 键 `zh-CN ↔ en` 同步、1815 文件键引用全解析、0 测试抄文案新增）。
-- `node scripts/check-concept-owners.mjs`：通过（399 个概念、写接口 1047 个、0 错误，含新增 `production.qa-verdict.json`）。
+- `node scripts/check-boundaries.mjs`：通过（3237 模块，68 处存量冻结，0 新增越界/硬环）。
+- `node scripts/check-concept-owners.mjs`：通过（400 个概念、写接口 1049 个、0 错误，含 `production.qa-verdict.json`）。
 - `node scripts/check-vocabularies.mjs`：通过（244 个 owner 全部登记，含 `QaShotVerdictStatus`）。
 - `node scripts/check-root-cause-contracts.mjs`：通过（5 个高风险生产文件均有合同和变化中的回归测试）。
 - `node scripts/lint-changed.mjs`：通过（26 个改动文件，0 error，0 新增 warning）。
