@@ -67,11 +67,17 @@ export function installFetchCapture(): FetchCapture {
   };
 }
 
-/** 真实内置目录 + 给点名的几家填上密钥（safeStorage 必须在测试里可用）。 */
+/** 真实内置目录 + 给点名的几家填上密钥并启用（新装默认关闭的云端内置家如 dreamina / volcengine_speech 随点名一并启用；safeStorage 必须在测试里可用）。 */
 export async function seedParityCatalog(vendorKeys: readonly string[] = ["apimart", "higgsfield"]): Promise<CatalogState> {
   const store = await import("../catalog/catalogStore");
   store.ensureBuiltinModelSeeds();
-  for (const key of vendorKeys) store.upsertModelCatalogVendorApiKey(key, { apiKey: `sk-parity-${key}` });
+  const disabledByKey = new Set(
+    store.readCatalog().vendors.filter((vendor) => !vendor.enabled && vendor.key !== "antigravity-cli").map((vendor) => vendor.key),
+  );
+  for (const key of vendorKeys) {
+    store.upsertModelCatalogVendorApiKey(key, { apiKey: `sk-parity-${key}` });
+    if (disabledByKey.has(key)) store.upsertModelCatalogVendor({ key, enabled: true });
+  }
   return store.readCatalog();
 }
 

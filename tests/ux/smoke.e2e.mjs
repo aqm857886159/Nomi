@@ -145,7 +145,7 @@ try {
     let scroller = editorEl;
     while (scroller && scroller !== card && !/(auto|scroll)/.test(window.getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
     const scrolls = Boolean(scroller && scroller !== card && scroller.scrollHeight > scroller.clientHeight);
-    const btn = card.querySelector('button[aria-label="生成素材"], button[aria-label="重新生成"]');
+    const btn = card.querySelector('button[aria-label="生成素材"], button[aria-label="重新生成"], button[data-composer-connect="true"]');
     const r = btn?.getBoundingClientRect();
     const hitEl = r ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null;
     return { outerScrolls: /auto|scroll/.test(getComputedStyle(card).overflowY), promptHeight: scroller?.clientHeight ?? 0, scrolls, btnClickable: Boolean(btn && hitEl && (btn === hitEl || btn.contains(hitEl))) };

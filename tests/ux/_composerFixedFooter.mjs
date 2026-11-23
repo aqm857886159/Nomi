@@ -54,7 +54,7 @@ export async function checkComposerFixedFooter(win, { composer, promptInput, flo
       }
       const read = () => composer.evaluate(card => {
         const prompt = card.querySelector('[data-prompt-box]')?.parentElement
-        const button = card.querySelector('button[aria-label="生成素材"],button[aria-label="重新生成"]')
+        const button = card.querySelector('button[aria-label="生成素材"],button[aria-label="重新生成"],button[data-composer-connect="true"]')
         const more = card.querySelector('[data-effect-more]')
         const hit = element => {
           const rect = element.getBoundingClientRect()
@@ -98,7 +98,7 @@ export async function checkComposerFixedFooter(win, { composer, promptInput, flo
 
 export async function expectComposerFooterHit(composer, label) {
   await expect.poll(() => composer.evaluate(card => {
-    const button = card.querySelector('button[aria-label="生成素材"],button[aria-label="重新生成"]')
+    const button = card.querySelector('button[aria-label="生成素材"],button[aria-label="重新生成"],button[data-composer-connect="true"]')
     const rect = button?.getBoundingClientRect()
     const cardRect = card.getBoundingClientRect()
     const target = rect && document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
